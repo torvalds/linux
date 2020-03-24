@@ -1557,10 +1557,13 @@ enum nft_object_attributes {
  * enum nft_flowtable_flags - nf_tables flowtable flags
  *
  * @NFT_FLOWTABLE_HW_OFFLOAD: flowtable hardware offload is enabled
+ * @NFT_FLOWTABLE_COUNTER: enable flow counters
  */
 enum nft_flowtable_flags {
 	NFT_FLOWTABLE_HW_OFFLOAD	= 0x1,
-	NFT_FLOWTABLE_MASK		= NFT_FLOWTABLE_HW_OFFLOAD
+	NFT_FLOWTABLE_COUNTER		= 0x2,
+	NFT_FLOWTABLE_MASK		= (NFT_FLOWTABLE_HW_OFFLOAD |
+					   NFT_FLOWTABLE_COUNTER)
 };
 
 /**
