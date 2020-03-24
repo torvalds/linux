@@ -629,6 +629,9 @@ int drm_dev_init(struct drm_device *dev,
 	dev->dev = get_device(parent);
 	dev->driver = driver;
 
+	INIT_LIST_HEAD(&dev->managed.resources);
+	spin_lock_init(&dev->managed.lock);
+
 	/* no per-device feature limits by default */
 	dev->driver_features = ~0u;
 
@@ -824,12 +827,18 @@ static void drm_dev_release(struct kref *ref)
 {
 	struct drm_device *dev = container_of(ref, struct drm_device, ref);
 
-	if (dev->driver->release) {
+	if (dev->driver->release)
 		dev->driver->release(dev);
-	} else {
+	else
 		drm_dev_fini(dev);
+
+	drm_managed_release(dev);
+
+	if (!dev->driver->release && !dev->managed.final_kfree) {
+		WARN_ON(!list_empty(&dev->managed.resources));
 		kfree(dev);
-	}
+	} else if (dev->managed.final_kfree)
+		kfree(dev->managed.final_kfree);
 }
 
 /**
