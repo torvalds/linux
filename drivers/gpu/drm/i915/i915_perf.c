@@ -223,26 +223,17 @@
  *
  * Although this can be observed explicitly while copying reports to userspace
  * by checking for a zeroed report-id field in tail reports, we want to account
- * for this earlier, as part of the oa_buffer_check to avoid lots of redundant
- * read() attempts.
+ * for this earlier, as part of the oa_buffer_check_unlocked to avoid lots of
+ * redundant read() attempts.
  *
- * In effect we define a tail pointer for reading that lags the real tail
- * pointer by at least %OA_TAIL_MARGIN_NSEC nanoseconds, which gives enough
- * time for the corresponding reports to become visible to the CPU.
- *
- * To manage this we actually track two tail pointers:
- *  1) An 'aging' tail with an associated timestamp that is tracked until we
- *     can trust the corresponding data is visible to the CPU; at which point
- *     it is considered 'aged'.
- *  2) An 'aged' tail that can be used for read()ing.
- *
- * The two separate pointers let us decouple read()s from tail pointer aging.
- *
- * The tail pointers are checked and updated at a limited rate within a hrtimer
- * callback (the same callback that is used for delivering EPOLLIN events)
- *
- * Initially the tails are marked invalid with %INVALID_TAIL_PTR which
- * indicates that an updated tail pointer is needed.
+ * We workaround this issue in oa_buffer_check_unlocked() by reading the reports
+ * in the OA buffer, starting from the tail reported by the HW until we find a
+ * report with its first 2 dwords not 0 meaning its previous report is
+ * completely in memory and ready to be read. Those dwords are also set to 0
+ * once read and the whole buffer is cleared upon OA buffer initialization. The
+ * first dword is the reason for this report while the second is the timestamp,
+ * making the chances of having those 2 fields at 0 fairly unlikely. A more
+ * detailed explanation is available in oa_buffer_check_unlocked().
  *
  * Most of the implementation details for this workaround are in
  * oa_buffer_check_unlocked() and _append_oa_reports()
@@ -454,8 +445,8 @@ static u32 gen7_oa_hw_tail_read(struct i915_perf_stream *stream)
  * (See description of OA_TAIL_MARGIN_NSEC above for further details.)
  *
  * Besides returning true when there is data available to read() this function
- * also has the side effect of updating the oa_buffer.tails[], .aging_timestamp
- * and .aged_tail_idx state used for reading.
+ * also updates the tail, aging_tail and aging_timestamp in the oa_buffer
+ * object.
  *
  * Note: It's safe to read OA config state here unlocked, assuming that this is
  * only called while the stream is enabled, while the global OA configuration
@@ -465,27 +456,17 @@ static u32 gen7_oa_hw_tail_read(struct i915_perf_stream *stream)
  */
 static bool oa_buffer_check_unlocked(struct i915_perf_stream *stream)
 {
+	u32 gtt_offset = i915_ggtt_offset(stream->oa_buffer.vma);
 	int report_size = stream->oa_buffer.format_size;
 	unsigned long flags;
-	unsigned int aged_idx;
-	u32 head, hw_tail, aged_tail, aging_tail;
+	u32 hw_tail;
 	u64 now;
 
 	/* We have to consider the (unlikely) possibility that read() errors
-	 * could result in an OA buffer reset which might reset the head,
-	 * tails[] and aged_tail state.
+	 * could result in an OA buffer reset which might reset the head and
+	 * tail state.
 	 */
 	spin_lock_irqsave(&stream->oa_buffer.ptr_lock, flags);
-
-	/* NB: The head we observe here might effectively be a little out of
-	 * date (between head and tails[aged_idx].offset if there is currently
-	 * a read() in progress.
-	 */
-	head = stream->oa_buffer.head;
-
-	aged_idx = stream->oa_buffer.aged_tail_idx;
-	aged_tail = stream->oa_buffer.tails[aged_idx].offset;
-	aging_tail = stream->oa_buffer.tails[!aged_idx].offset;
 
 	hw_tail = stream->perf->ops.oa_hw_tail_read(stream);
 
@@ -496,64 +477,61 @@ static bool oa_buffer_check_unlocked(struct i915_perf_stream *stream)
 
 	now = ktime_get_mono_fast_ns();
 
-	/* Update the aged tail
-	 *
-	 * Flip the tail pointer available for read()s once the aging tail is
-	 * old enough to trust that the corresponding data will be visible to
-	 * the CPU...
-	 *
-	 * Do this before updating the aging pointer in case we may be able to
-	 * immediately start aging a new pointer too (if new data has become
-	 * available) without needing to wait for a later hrtimer callback.
-	 */
-	if (aging_tail != INVALID_TAIL_PTR &&
-	    ((now - stream->oa_buffer.aging_timestamp) >
-	     OA_TAIL_MARGIN_NSEC)) {
-
-		aged_idx ^= 1;
-		stream->oa_buffer.aged_tail_idx = aged_idx;
-
-		aged_tail = aging_tail;
-
-		/* Mark that we need a new pointer to start aging... */
-		stream->oa_buffer.tails[!aged_idx].offset = INVALID_TAIL_PTR;
-		aging_tail = INVALID_TAIL_PTR;
-	}
-
-	/* Update the aging tail
-	 *
-	 * We throttle aging tail updates until we have a new tail that
-	 * represents >= one report more data than is already available for
-	 * reading. This ensures there will be enough data for a successful
-	 * read once this new pointer has aged and ensures we will give the new
-	 * pointer time to age.
-	 */
-	if (aging_tail == INVALID_TAIL_PTR &&
-	    (aged_tail == INVALID_TAIL_PTR ||
-	     OA_TAKEN(hw_tail, aged_tail) >= report_size)) {
-		struct i915_vma *vma = stream->oa_buffer.vma;
-		u32 gtt_offset = i915_ggtt_offset(vma);
-
-		/* Be paranoid and do a bounds check on the pointer read back
-		 * from hardware, just in case some spurious hardware condition
-		 * could put the tail out of bounds...
+	if (hw_tail == stream->oa_buffer.aging_tail &&
+	    (now - stream->oa_buffer.aging_timestamp) > OA_TAIL_MARGIN_NSEC) {
+		/* If the HW tail hasn't move since the last check and the HW
+		 * tail has been aging for long enough, declare it the new
+		 * tail.
 		 */
-		if (hw_tail >= gtt_offset &&
-		    hw_tail < (gtt_offset + OA_BUFFER_SIZE)) {
-			stream->oa_buffer.tails[!aged_idx].offset =
-				aging_tail = hw_tail;
-			stream->oa_buffer.aging_timestamp = now;
-		} else {
-			drm_err(&stream->perf->i915->drm,
-				"Ignoring spurious out of range OA buffer tail pointer = %x\n",
-				hw_tail);
+		stream->oa_buffer.tail = stream->oa_buffer.aging_tail;
+	} else {
+		u32 head, tail, aged_tail;
+
+		/* NB: The head we observe here might effectively be a little
+		 * out of date. If a read() is in progress, the head could be
+		 * anywhere between this head and stream->oa_buffer.tail.
+		 */
+		head = stream->oa_buffer.head - gtt_offset;
+		aged_tail = stream->oa_buffer.tail - gtt_offset;
+
+		hw_tail -= gtt_offset;
+		tail = hw_tail;
+
+		/* Walk the stream backward until we find a report with dword 0
+		 * & 1 not at 0. Since the circular buffer pointers progress by
+		 * increments of 64 bytes and that reports can be up to 256
+		 * bytes long, we can't tell whether a report has fully landed
+		 * in memory before the first 2 dwords of the following report
+		 * have effectively landed.
+		 *
+		 * This is assuming that the writes of the OA unit land in
+		 * memory in the order they were written to.
+		 * If not : (╯°□°）╯︵ ┻━┻
+		 */
+		while (OA_TAKEN(tail, aged_tail) >= report_size) {
+			u32 *report32 = (void *)(stream->oa_buffer.vaddr + tail);
+
+			if (report32[0] != 0 || report32[1] != 0)
+				break;
+
+			tail = (tail - report_size) & (OA_BUFFER_SIZE - 1);
 		}
+
+		if (OA_TAKEN(hw_tail, tail) > report_size &&
+		    __ratelimit(&stream->perf->tail_pointer_race))
+			DRM_NOTE("unlanded report(s) head=0x%x "
+				 "tail=0x%x hw_tail=0x%x\n",
+				 head, tail, hw_tail);
+
+		stream->oa_buffer.tail = gtt_offset + tail;
+		stream->oa_buffer.aging_tail = gtt_offset + hw_tail;
+		stream->oa_buffer.aging_timestamp = now;
 	}
 
 	spin_unlock_irqrestore(&stream->oa_buffer.ptr_lock, flags);
 
-	return aged_tail == INVALID_TAIL_PTR ?
-		false : OA_TAKEN(aged_tail, head) >= report_size;
+	return OA_TAKEN(stream->oa_buffer.tail - gtt_offset,
+			stream->oa_buffer.head - gtt_offset) >= report_size;
 }
 
 /**
@@ -671,7 +649,6 @@ static int gen8_append_oa_reports(struct i915_perf_stream *stream,
 	u32 mask = (OA_BUFFER_SIZE - 1);
 	size_t start_offset = *offset;
 	unsigned long flags;
-	unsigned int aged_tail_idx;
 	u32 head, tail;
 	u32 taken;
 	int ret = 0;
@@ -682,17 +659,9 @@ static int gen8_append_oa_reports(struct i915_perf_stream *stream,
 	spin_lock_irqsave(&stream->oa_buffer.ptr_lock, flags);
 
 	head = stream->oa_buffer.head;
-	aged_tail_idx = stream->oa_buffer.aged_tail_idx;
-	tail = stream->oa_buffer.tails[aged_tail_idx].offset;
+	tail = stream->oa_buffer.tail;
 
 	spin_unlock_irqrestore(&stream->oa_buffer.ptr_lock, flags);
-
-	/*
-	 * An invalid tail pointer here means we're still waiting for the poll
-	 * hrtimer callback to give us a pointer
-	 */
-	if (tail == INVALID_TAIL_PTR)
-		return -EAGAIN;
 
 	/*
 	 * NB: oa_buffer.head/tail include the gtt_offset which we don't want
@@ -827,13 +796,11 @@ static int gen8_append_oa_reports(struct i915_perf_stream *stream,
 		}
 
 		/*
-		 * The above reason field sanity check is based on
-		 * the assumption that the OA buffer is initially
-		 * zeroed and we reset the field after copying so the
-		 * check is still meaningful once old reports start
-		 * being overwritten.
+		 * Clear out the first 2 dword as a mean to detect unlanded
+		 * reports.
 		 */
 		report32[0] = 0;
+		report32[1] = 0;
 	}
 
 	if (start_offset != *offset) {
@@ -974,7 +941,6 @@ static int gen7_append_oa_reports(struct i915_perf_stream *stream,
 	u32 mask = (OA_BUFFER_SIZE - 1);
 	size_t start_offset = *offset;
 	unsigned long flags;
-	unsigned int aged_tail_idx;
 	u32 head, tail;
 	u32 taken;
 	int ret = 0;
@@ -985,16 +951,9 @@ static int gen7_append_oa_reports(struct i915_perf_stream *stream,
 	spin_lock_irqsave(&stream->oa_buffer.ptr_lock, flags);
 
 	head = stream->oa_buffer.head;
-	aged_tail_idx = stream->oa_buffer.aged_tail_idx;
-	tail = stream->oa_buffer.tails[aged_tail_idx].offset;
+	tail = stream->oa_buffer.tail;
 
 	spin_unlock_irqrestore(&stream->oa_buffer.ptr_lock, flags);
-
-	/* An invalid tail pointer here means we're still waiting for the poll
-	 * hrtimer callback to give us a pointer
-	 */
-	if (tail == INVALID_TAIL_PTR)
-		return -EAGAIN;
 
 	/* NB: oa_buffer.head/tail include the gtt_offset which we don't want
 	 * while indexing relative to oa_buf_base.
@@ -1053,13 +1012,11 @@ static int gen7_append_oa_reports(struct i915_perf_stream *stream,
 		if (ret)
 			break;
 
-		/* The above report-id field sanity check is based on
-		 * the assumption that the OA buffer is initially
-		 * zeroed and we reset the field after copying so the
-		 * check is still meaningful once old reports start
-		 * being overwritten.
+		/* Clear out the first 2 dwords as a mean to detect unlanded
+		 * reports.
 		 */
 		report32[0] = 0;
+		report32[1] = 0;
 	}
 
 	if (start_offset != *offset) {
@@ -1438,8 +1395,8 @@ static void gen7_init_oa_buffer(struct i915_perf_stream *stream)
 			   gtt_offset | OABUFFER_SIZE_16M);
 
 	/* Mark that we need updated tail pointers to read from... */
-	stream->oa_buffer.tails[0].offset = INVALID_TAIL_PTR;
-	stream->oa_buffer.tails[1].offset = INVALID_TAIL_PTR;
+	stream->oa_buffer.aging_tail = INVALID_TAIL_PTR;
+	stream->oa_buffer.tail = gtt_offset;
 
 	spin_unlock_irqrestore(&stream->oa_buffer.ptr_lock, flags);
 
@@ -1492,8 +1449,8 @@ static void gen8_init_oa_buffer(struct i915_perf_stream *stream)
 	intel_uncore_write(uncore, GEN8_OATAILPTR, gtt_offset & GEN8_OATAILPTR_MASK);
 
 	/* Mark that we need updated tail pointers to read from... */
-	stream->oa_buffer.tails[0].offset = INVALID_TAIL_PTR;
-	stream->oa_buffer.tails[1].offset = INVALID_TAIL_PTR;
+	stream->oa_buffer.aging_tail = INVALID_TAIL_PTR;
+	stream->oa_buffer.tail = gtt_offset;
 
 	/*
 	 * Reset state used to recognise context switches, affecting which
@@ -1548,8 +1505,8 @@ static void gen12_init_oa_buffer(struct i915_perf_stream *stream)
 			   gtt_offset & GEN12_OAG_OATAILPTR_MASK);
 
 	/* Mark that we need updated tail pointers to read from... */
-	stream->oa_buffer.tails[0].offset = INVALID_TAIL_PTR;
-	stream->oa_buffer.tails[1].offset = INVALID_TAIL_PTR;
+	stream->oa_buffer.aging_tail = INVALID_TAIL_PTR;
+	stream->oa_buffer.tail = gtt_offset;
 
 	/*
 	 * Reset state used to recognise context switches, affecting which
@@ -4396,6 +4353,11 @@ void i915_perf_init(struct drm_i915_private *i915)
 		 * warning for throttling.
 		 */
 		ratelimit_set_flags(&perf->spurious_report_rs,
+				    RATELIMIT_MSG_ON_RELEASE);
+
+		ratelimit_state_init(&perf->tail_pointer_race,
+				     5 * HZ, 10);
+		ratelimit_set_flags(&perf->tail_pointer_race,
 				    RATELIMIT_MSG_ON_RELEASE);
 
 		atomic64_set(&perf->noa_programming_delay,

@@ -273,21 +273,10 @@ struct i915_perf_stream {
 		spinlock_t ptr_lock;
 
 		/**
-		 * @tails: One 'aging' tail pointer and one 'aged' tail pointer ready to
-		 * used for reading.
-		 *
-		 * Initial values of 0xffffffff are invalid and imply that an
-		 * update is required (and should be ignored by an attempted
-		 * read)
+		 * @aging_tail: The last HW tail reported by HW. The data
+		 * might not have made it to memory yet though.
 		 */
-		struct {
-			u32 offset;
-		} tails[2];
-
-		/**
-		 * @aged_tail_idx: Index for the aged tail ready to read() data up to.
-		 */
-		unsigned int aged_tail_idx;
+		u32 aging_tail;
 
 		/**
 		 * @aging_timestamp: A monotonic timestamp for when the current aging tail pointer
@@ -303,6 +292,11 @@ struct i915_perf_stream {
 		 * OA buffer data to userspace.
 		 */
 		u32 head;
+
+		/**
+		 * @tail: The last verified tail that can be read by userspace.
+		 */
+		u32 tail;
 	} oa_buffer;
 
 	/**
@@ -419,6 +413,12 @@ struct i915_perf {
 	 * invalid OA reports
 	 */
 	struct ratelimit_state spurious_report_rs;
+
+	/**
+	 * For rate limiting any notifications of tail pointer
+	 * race.
+	 */
+	struct ratelimit_state tail_pointer_race;
 
 	u32 gen7_latched_oastatus1;
 	u32 ctx_oactxctrl_offset;
