@@ -87,6 +87,15 @@
 			       .identified_miss_table_mode),                   \
 		FS_CAP(flow_table_properties_nic_transmit.flow_table_modify))
 
+#define FS_CHAINING_CAPS_RDMA_TX                                                \
+	FS_REQUIRED_CAPS(                                                       \
+		FS_CAP(flow_table_properties_nic_transmit_rdma.flow_modify_en), \
+		FS_CAP(flow_table_properties_nic_transmit_rdma.modify_root),    \
+		FS_CAP(flow_table_properties_nic_transmit_rdma                  \
+			       .identified_miss_table_mode),                    \
+		FS_CAP(flow_table_properties_nic_transmit_rdma                  \
+			       .flow_table_modify))
+
 #define LEFTOVERS_NUM_LEVELS 1
 #define LEFTOVERS_NUM_PRIOS 1
 
@@ -199,6 +208,18 @@ static struct init_tree_node rdma_rx_root_fs = {
 			 FS_CHAINING_CAPS,
 			 ADD_NS(MLX5_FLOW_TABLE_MISS_ACTION_SWITCH_DOMAIN,
 				ADD_MULTIPLE_PRIO(1, 1))),
+	}
+};
+
+static struct init_tree_node rdma_tx_root_fs = {
+	.type = FS_TYPE_NAMESPACE,
+	.ar_size = 1,
+	.children = (struct init_tree_node[]) {
+		ADD_PRIO(0, MLX5_BY_PASS_NUM_PRIOS, 0,
+			 FS_CHAINING_CAPS_RDMA_TX,
+			 ADD_NS(MLX5_FLOW_TABLE_MISS_ACTION_DEF,
+				ADD_MULTIPLE_PRIO(MLX5_BY_PASS_NUM_PRIOS,
+						  BY_PASS_PRIO_NUM_LEVELS))),
 	}
 };
 
@@ -2132,6 +2153,8 @@ struct mlx5_flow_namespace *mlx5_get_flow_namespace(struct mlx5_core_dev *dev,
 	} else if (type == MLX5_FLOW_NAMESPACE_RDMA_RX_KERNEL) {
 		root_ns = steering->rdma_rx_root_ns;
 		prio = RDMA_RX_KERNEL_PRIO;
+	} else if (type == MLX5_FLOW_NAMESPACE_RDMA_TX) {
+		root_ns = steering->rdma_tx_root_ns;
 	} else { /* Must be NIC RX */
 		root_ns = steering->root_ns;
 		prio = type;
@@ -2535,6 +2558,7 @@ void mlx5_cleanup_fs(struct mlx5_core_dev *dev)
 	cleanup_root_ns(steering->sniffer_rx_root_ns);
 	cleanup_root_ns(steering->sniffer_tx_root_ns);
 	cleanup_root_ns(steering->rdma_rx_root_ns);
+	cleanup_root_ns(steering->rdma_tx_root_ns);
 	cleanup_root_ns(steering->egress_root_ns);
 	mlx5_cleanup_fc_stats(dev);
 	kmem_cache_destroy(steering->ftes_cache);
@@ -2588,6 +2612,29 @@ static int init_rdma_rx_root_ns(struct mlx5_flow_steering *steering)
 out_err:
 	cleanup_root_ns(steering->rdma_rx_root_ns);
 	steering->rdma_rx_root_ns = NULL;
+	return err;
+}
+
+static int init_rdma_tx_root_ns(struct mlx5_flow_steering *steering)
+{
+	int err;
+
+	steering->rdma_tx_root_ns = create_root_ns(steering, FS_FT_RDMA_TX);
+	if (!steering->rdma_tx_root_ns)
+		return -ENOMEM;
+
+	err = init_root_tree(steering, &rdma_tx_root_fs,
+			     &steering->rdma_tx_root_ns->ns.node);
+	if (err)
+		goto out_err;
+
+	set_prio_attrs(steering->rdma_tx_root_ns);
+
+	return 0;
+
+out_err:
+	cleanup_root_ns(steering->rdma_tx_root_ns);
+	steering->rdma_tx_root_ns = NULL;
 	return err;
 }
 
@@ -2886,6 +2933,12 @@ int mlx5_init_fs(struct mlx5_core_dev *dev)
 	if (MLX5_CAP_FLOWTABLE_RDMA_RX(dev, ft_support) &&
 	    MLX5_CAP_FLOWTABLE_RDMA_RX(dev, table_miss_action_domain)) {
 		err = init_rdma_rx_root_ns(steering);
+		if (err)
+			goto err;
+	}
+
+	if (MLX5_CAP_FLOWTABLE_RDMA_TX(dev, ft_support)) {
+		err = init_rdma_tx_root_ns(steering);
 		if (err)
 			goto err;
 	}

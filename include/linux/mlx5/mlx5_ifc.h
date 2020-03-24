@@ -705,7 +705,7 @@ struct mlx5_ifc_flow_table_nic_cap_bits {
 
 	struct mlx5_ifc_flow_table_prop_layout_bits flow_table_properties_nic_transmit;
 
-	u8         reserved_at_a00[0x200];
+	struct mlx5_ifc_flow_table_prop_layout_bits flow_table_properties_nic_transmit_rdma;
 
 	struct mlx5_ifc_flow_table_prop_layout_bits flow_table_properties_nic_transmit_sniffer;
 
