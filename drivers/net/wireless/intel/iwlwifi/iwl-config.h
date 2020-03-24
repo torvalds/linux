@@ -454,9 +454,40 @@ struct iwl_cfg {
 
 #define IWL_CFG_ANY (~0)
 
+#define IWL_CFG_MAC_TYPE_PU		0x31
+#define IWL_CFG_MAC_TYPE_PNJ		0x32
+#define IWL_CFG_MAC_TYPE_TH		0x32
+#define IWL_CFG_MAC_TYPE_QU		0x33
+
+#define IWL_CFG_RF_TYPE_TH		0x105
+#define IWL_CFG_RF_TYPE_TH1		0x108
+#define IWL_CFG_RF_TYPE_JF2		0x105
+#define IWL_CFG_RF_TYPE_JF1		0x108
+
+#define IWL_CFG_RF_ID_TH		0x1
+#define IWL_CFG_RF_ID_TH1		0x1
+#define IWL_CFG_RF_ID_JF		0x3
+#define IWL_CFG_RF_ID_JF1		0x6
+#define IWL_CFG_RF_ID_JF1_DIV		0xA
+
+#define IWL_CFG_NO_160			0x0
+#define IWL_CFG_160			0x1
+
+#define IWL_CFG_CORES_BT		0x0
+#define IWL_CFG_CORES_BT_GNSS		0x5
+
+#define IWL_SUBDEVICE_RF_ID(subdevice)	((u16)((subdevice) & 0x00F0) >> 4)
+#define IWL_SUBDEVICE_NO_160(subdevice)	((u16)((subdevice) & 0x0100) >> 9)
+#define IWL_SUBDEVICE_CORES(subdevice)	((u16)((subdevice) & 0x1C00) >> 10)
+
 struct iwl_dev_info {
 	u16 device;
 	u16 subdevice;
+	u16 mac_type;
+	u16 rf_type;
+	u8 rf_id;
+	u8 no_160;
+	u8 cores;
 	const struct iwl_cfg *cfg;
 	const char *name;
 };
@@ -465,8 +496,26 @@ struct iwl_dev_info {
  * This list declares the config structures for all devices.
  */
 extern const struct iwl_cfg_trans_params iwl9000_trans_cfg;
+extern const struct iwl_cfg_trans_params iwl_ax200_trans_cfg;
+extern const char iwl9162_name[];
+extern const char iwl9260_name[];
+extern const char iwl9260_1_name[];
+extern const char iwl9270_name[];
+extern const char iwl9461_name[];
+extern const char iwl9462_name[];
+extern const char iwl9560_name[];
+extern const char iwl9162_160_name[];
 extern const char iwl9260_160_name[];
+extern const char iwl9270_160_name[];
+extern const char iwl9461_160_name[];
+extern const char iwl9462_160_name[];
 extern const char iwl9560_160_name[];
+extern const char iwl9260_killer_1550_name[];
+extern const char iwl9560_killer_1550i_name[];
+extern const char iwl9560_killer_1550s_name[];
+extern const char iwl_ax200_name[];
+extern const char iwl_ax200_killer_1650w_name[];
+extern const char iwl_ax200_killer_1650x_name[];
 
 #if IS_ENABLED(CONFIG_IWLDVM)
 extern const struct iwl_cfg iwl5300_agn_cfg;
@@ -533,28 +582,18 @@ extern const struct iwl_cfg iwl8260_2ac_cfg;
 extern const struct iwl_cfg iwl8265_2ac_cfg;
 extern const struct iwl_cfg iwl8275_2ac_cfg;
 extern const struct iwl_cfg iwl4165_2ac_cfg;
-extern const struct iwl_cfg iwl9160_2ac_cfg;
 extern const struct iwl_cfg iwl9260_2ac_cfg;
 extern const struct iwl_cfg iwl9260_2ac_160_cfg;
 extern const struct iwl_cfg iwl9260_killer_2ac_cfg;
 extern const struct iwl_cfg iwl9270_2ac_cfg;
-extern const struct iwl_cfg iwl9460_2ac_cfg;
 extern const struct iwl_cfg iwl9560_2ac_cfg;
 extern const struct iwl_cfg iwl9560_2ac_cfg_quz_a0_jf_b0_soc;
-extern const struct iwl_cfg iwl9560_2ac_160_cfg;
 extern const struct iwl_cfg iwl9560_2ac_160_cfg_quz_a0_jf_b0_soc;
-extern const struct iwl_cfg iwl9460_2ac_cfg_soc;
-extern const struct iwl_cfg iwl9461_2ac_cfg_soc;
 extern const struct iwl_cfg iwl9461_2ac_cfg_quz_a0_jf_b0_soc;
-extern const struct iwl_cfg iwl9462_2ac_cfg_soc;
 extern const struct iwl_cfg iwl9462_2ac_cfg_quz_a0_jf_b0_soc;
 extern const struct iwl_cfg iwl9560_2ac_cfg_soc;
-extern const struct iwl_cfg iwl9560_2ac_160_cfg_soc;
-extern const struct iwl_cfg iwl9560_killer_2ac_cfg_soc;
-extern const struct iwl_cfg iwl9560_killer_s_2ac_cfg_soc;
 extern const struct iwl_cfg iwl9560_killer_i_2ac_cfg_quz_a0_jf_b0_soc;
 extern const struct iwl_cfg iwl9560_killer_s_2ac_cfg_quz_a0_jf_b0_soc;
-extern const struct iwl_cfg iwl9460_2ac_cfg_shared_clk;
 extern const struct iwl_cfg iwl9461_2ac_cfg_shared_clk;
 extern const struct iwl_cfg iwl9462_2ac_cfg_shared_clk;
 extern const struct iwl_cfg iwl9560_2ac_cfg_shared_clk;

@@ -38,6 +38,10 @@
 
 #define MT7615_FIRMWARE_V1		1
 #define MT7615_FIRMWARE_V2		2
+#define MT7615_FIRMWARE_V3		3
+
+#define MT7663_ROM_PATCH		"mediatek/mt7663pr2h_v3.bin"
+#define MT7663_FIRMWARE_N9              "mediatek/mt7663_n9_v3.bin"
 
 #define MT7615_EEPROM_SIZE		1024
 #define MT7615_TOKEN_SIZE		4096
@@ -144,6 +148,33 @@ struct mt7615_phy {
 	struct mib_stats mib;
 };
 
+#define mt7615_mcu_add_tx_ba(dev, ...)	(dev)->mcu_ops->add_tx_ba((dev), __VA_ARGS__)
+#define mt7615_mcu_add_rx_ba(dev, ...)	(dev)->mcu_ops->add_rx_ba((dev), __VA_ARGS__)
+#define mt7615_mcu_sta_add(dev, ...)	(dev)->mcu_ops->sta_add((dev),  __VA_ARGS__)
+#define mt7615_mcu_add_dev_info(dev, ...) (dev)->mcu_ops->add_dev_info((dev),  __VA_ARGS__)
+#define mt7615_mcu_add_bss_info(dev, ...) (dev)->mcu_ops->add_bss_info((dev),  __VA_ARGS__)
+#define mt7615_mcu_add_beacon(dev, ...)	(dev)->mcu_ops->add_beacon_offload((dev),  __VA_ARGS__)
+#define mt7615_mcu_set_pm(dev, ...)	(dev)->mcu_ops->set_pm_state((dev),  __VA_ARGS__)
+struct mt7615_mcu_ops {
+	int (*add_tx_ba)(struct mt7615_dev *dev,
+			 struct ieee80211_ampdu_params *params,
+			 bool enable);
+	int (*add_rx_ba)(struct mt7615_dev *dev,
+			 struct ieee80211_ampdu_params *params,
+			 bool enable);
+	int (*sta_add)(struct mt7615_dev *dev,
+		       struct ieee80211_vif *vif,
+		       struct ieee80211_sta *sta, bool enable);
+	int (*add_dev_info)(struct mt7615_dev *dev,
+			    struct ieee80211_vif *vif, bool enable);
+	int (*add_bss_info)(struct mt7615_dev *dev, struct ieee80211_vif *vif,
+			    bool enable);
+	int (*add_beacon_offload)(struct mt7615_dev *dev,
+				  struct ieee80211_hw *hw,
+				  struct ieee80211_vif *vif, bool enable);
+	int (*set_pm_state)(struct mt7615_dev *dev, int band, int state);
+};
+
 struct mt7615_dev {
 	union { /* must be first */
 		struct mt76_dev mt76;
@@ -156,7 +187,9 @@ struct mt7615_dev {
 
 	u16 chainmask;
 
+	const struct mt7615_mcu_ops *mcu_ops;
 	struct regmap *infracfg;
+	const u32 *reg_map;
 
 	struct work_struct mcu_work;
 
@@ -257,6 +290,8 @@ mt7615_ext_phy(struct mt7615_dev *dev)
 }
 
 extern const struct ieee80211_ops mt7615_ops;
+extern const u32 mt7615e_reg_map[__MT_BASE_MAX];
+extern const u32 mt7663e_reg_map[__MT_BASE_MAX];
 extern struct pci_driver mt7615_pci_driver;
 extern struct platform_driver mt7622_wmac_driver;
 
@@ -269,9 +304,11 @@ static inline int mt7622_wmac_init(struct mt7615_dev *dev)
 }
 #endif
 
-int mt7615_mmio_probe(struct device *pdev, void __iomem *mem_base, int irq);
+int mt7615_mmio_probe(struct device *pdev, void __iomem *mem_base,
+		      int irq, const u32 *map);
 u32 mt7615_reg_map(struct mt7615_dev *dev, u32 addr);
 
+void mt7615_init_device(struct mt7615_dev *dev);
 int mt7615_register_device(struct mt7615_dev *dev);
 void mt7615_unregister_device(struct mt7615_dev *dev);
 int mt7615_register_ext_phy(struct mt7615_dev *dev);
@@ -284,29 +321,13 @@ int mt7615_dma_init(struct mt7615_dev *dev);
 void mt7615_dma_cleanup(struct mt7615_dev *dev);
 int mt7615_mcu_init(struct mt7615_dev *dev);
 bool mt7615_wait_for_mcu_init(struct mt7615_dev *dev);
-int mt7615_mcu_set_dev_info(struct mt7615_dev *dev,
-			    struct ieee80211_vif *vif, bool enable);
-int mt7615_mcu_set_bss_info(struct mt7615_dev *dev, struct ieee80211_vif *vif,
-			    int en);
 void mt7615_mac_set_rates(struct mt7615_phy *phy, struct mt7615_sta *sta,
 			  struct ieee80211_tx_rate *probe_rate,
 			  struct ieee80211_tx_rate *rates);
 int mt7615_mcu_del_wtbl_all(struct mt7615_dev *dev);
-int mt7615_mcu_set_bmc(struct mt7615_dev *dev, struct ieee80211_vif *vif,
-		       bool en);
-int mt7615_mcu_set_sta(struct mt7615_dev *dev, struct ieee80211_vif *vif,
-		       struct ieee80211_sta *sta, bool en);
-int mt7615_mcu_set_bcn(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		       int en);
 int mt7615_mcu_set_chan_info(struct mt7615_phy *phy, int cmd);
 int mt7615_mcu_set_wmm(struct mt7615_dev *dev, u8 queue,
 		       const struct ieee80211_tx_queue_params *params);
-int mt7615_mcu_set_tx_ba(struct mt7615_dev *dev,
-			 struct ieee80211_ampdu_params *params,
-			 bool add);
-int mt7615_mcu_set_rx_ba(struct mt7615_dev *dev,
-			 struct ieee80211_ampdu_params *params,
-			 bool add);
 void mt7615_mcu_rx_event(struct mt7615_dev *dev, struct sk_buff *skb);
 int mt7615_mcu_rdd_cmd(struct mt7615_dev *dev,
 		       enum mt7615_rdd_cmd cmd, u8 index,
@@ -325,6 +346,11 @@ static inline bool is_mt7622(struct mt76_dev *dev)
 static inline bool is_mt7615(struct mt76_dev *dev)
 {
 	return mt76_chip(dev) == 0x7615;
+}
+
+static inline bool is_mt7663(struct mt76_dev *dev)
+{
+	return mt76_chip(dev) == 0x7663;
 }
 
 static inline void mt7615_irq_enable(struct mt7615_dev *dev, u32 mask)
@@ -347,7 +373,7 @@ void mt7615_mac_sta_poll(struct mt7615_dev *dev);
 int mt7615_mac_write_txwi(struct mt7615_dev *dev, __le32 *txwi,
 			  struct sk_buff *skb, struct mt76_wcid *wcid,
 			  struct ieee80211_sta *sta, int pid,
-			  struct ieee80211_key_conf *key);
+			  struct ieee80211_key_conf *key, bool beacon);
 void mt7615_mac_set_timing(struct mt7615_phy *phy);
 int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb);
 void mt7615_mac_add_txs(struct mt7615_dev *dev, void *data);
@@ -357,13 +383,15 @@ int mt7615_mac_wtbl_set_key(struct mt7615_dev *dev, struct mt76_wcid *wcid,
 			    enum set_key_cmd cmd);
 void mt7615_mac_reset_work(struct work_struct *work);
 
+int mt7615_mcu_wait_response(struct mt7615_dev *dev, int cmd, int seq);
 int mt7615_mcu_set_dbdc(struct mt7615_dev *dev);
 int mt7615_mcu_set_eeprom(struct mt7615_dev *dev);
 int mt7615_mcu_set_mac_enable(struct mt7615_dev *dev, int band, bool enable);
 int mt7615_mcu_set_rts_thresh(struct mt7615_phy *phy, u32 val);
-int mt7615_mcu_ctrl_pm_state(struct mt7615_dev *dev, int band, int enter);
 int mt7615_mcu_get_temperature(struct mt7615_dev *dev, int index);
 void mt7615_mcu_exit(struct mt7615_dev *dev);
+void mt7615_mcu_fill_msg(struct mt7615_dev *dev, struct sk_buff *skb,
+			 int cmd, int *wait_seq);
 
 int mt7615_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 			  enum mt76_txq_id qid, struct mt76_wcid *wcid,

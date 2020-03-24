@@ -142,7 +142,9 @@ struct mt7603_dev {
 	u8 ed_strict_mode;
 	u8 ed_strong_signal;
 
+	bool dynamic_sensitivity;
 	s8 sensitivity;
+	u8 sensitivity_limit;
 
 	u8 beacon_check;
 	u8 tx_hang_check;

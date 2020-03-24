@@ -15,7 +15,7 @@
 #define QLINK_VER(_maj, _min)	(((_maj) << QLINK_PROTO_VER_MAJOR_S) | (_min))
 
 #define QLINK_PROTO_VER_MAJOR		18
-#define QLINK_PROTO_VER_MINOR		0
+#define QLINK_PROTO_VER_MINOR		1
 #define QLINK_PROTO_VER		\
 	QLINK_VER(QLINK_PROTO_VER_MAJOR, QLINK_PROTO_VER_MINOR)
 
@@ -322,6 +322,7 @@ enum qlink_cmd_type {
 	QLINK_CMD_WOWLAN_SET		= 0x0063,
 	QLINK_CMD_EXTERNAL_AUTH		= 0x0066,
 	QLINK_CMD_TXPWR			= 0x0067,
+	QLINK_CMD_UPDATE_OWE		= 0x0068,
 };
 
 /**
@@ -589,7 +590,7 @@ struct qlink_cmd_connect {
  */
 struct qlink_cmd_external_auth {
 	struct qlink_cmd chdr;
-	u8 bssid[ETH_ALEN];
+	u8 peer[ETH_ALEN];
 	__le16 status;
 	u8 payload[0];
 } __packed;
@@ -960,6 +961,20 @@ struct qlink_cmd_scan {
 	u8 var_info[0];
 } __packed;
 
+/**
+ * struct qlink_cmd_update_owe - data for QLINK_CMD_UPDATE_OWE_INFO command
+ *
+ * @peer: MAC of the peer device for which OWE processing has been completed
+ * @status: OWE external processing status code
+ * @ies: IEs for the peer constructed by the user space
+ */
+struct qlink_cmd_update_owe {
+	struct qlink_cmd chdr;
+	u8 peer[ETH_ALEN];
+	__le16 status;
+	u8 ies[0];
+} __packed;
+
 /* QLINK Command Responses messages related definitions
  */
 
@@ -1222,6 +1237,7 @@ enum qlink_event_type {
 	QLINK_EVENT_RADAR		= 0x0029,
 	QLINK_EVENT_EXTERNAL_AUTH	= 0x0030,
 	QLINK_EVENT_MIC_FAILURE		= 0x0031,
+	QLINK_EVENT_UPDATE_OWE		= 0x0032,
 };
 
 /**
@@ -1428,6 +1444,19 @@ struct qlink_event_mic_failure {
 	u8 src[ETH_ALEN];
 	u8 key_index;
 	u8 pairwise;
+} __packed;
+
+/**
+ * struct qlink_event_update_owe - data for QLINK_EVENT_UPDATE_OWE event
+ *
+ * @peer: MAC addr of the peer device for which OWE processing needs to be done
+ * @ies: IEs from the peer
+ */
+struct qlink_event_update_owe {
+	struct qlink_event ehdr;
+	u8 peer[ETH_ALEN];
+	u8 rsvd[2];
+	u8 ies[0];
 } __packed;
 
 /* QLINK TLVs (Type-Length Values) definitions

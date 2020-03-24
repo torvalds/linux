@@ -223,30 +223,30 @@ static int snprint_line(char *buf, size_t count,
 	int out, i, j, l;
 	char c;
 
-	out = snprintf(buf, count, "%08X", ofs);
+	out = scnprintf(buf, count, "%08X", ofs);
 
 	for (l = 0, i = 0; i < 2; i++) {
-		out += snprintf(buf + out, count - out, " ");
+		out += scnprintf(buf + out, count - out, " ");
 		for (j = 0; j < 8 && l < len; j++, l++)
-			out += snprintf(buf + out, count - out, "%02X ",
+			out += scnprintf(buf + out, count - out, "%02X ",
 					data[(i * 8 + j)]);
 		for (; j < 8; j++)
-			out += snprintf(buf + out, count - out, "   ");
+			out += scnprintf(buf + out, count - out, "   ");
 	}
 
-	out += snprintf(buf + out, count - out, " ");
+	out += scnprintf(buf + out, count - out, " ");
 	for (l = 0, i = 0; i < 2; i++) {
-		out += snprintf(buf + out, count - out, " ");
+		out += scnprintf(buf + out, count - out, " ");
 		for (j = 0; j < 8 && l < len; j++, l++) {
 			c = data[(i * 8 + j)];
 			if (!isascii(c) || !isprint(c))
 				c = '.';
 
-			out += snprintf(buf + out, count - out, "%c", c);
+			out += scnprintf(buf + out, count - out, "%c", c);
 		}
 
 		for (; j < 8; j++)
-			out += snprintf(buf + out, count - out, " ");
+			out += scnprintf(buf + out, count - out, " ");
 	}
 
 	return out;
@@ -1279,12 +1279,12 @@ static ssize_t show_event_log(struct device *d,
 	log_len = log_size / sizeof(*log);
 	ipw_capture_event_log(priv, log_len, log);
 
-	len += snprintf(buf + len, PAGE_SIZE - len, "%08X", log_len);
+	len += scnprintf(buf + len, PAGE_SIZE - len, "%08X", log_len);
 	for (i = 0; i < log_len; i++)
-		len += snprintf(buf + len, PAGE_SIZE - len,
+		len += scnprintf(buf + len, PAGE_SIZE - len,
 				"\n%08X%08X%08X",
 				log[i].time, log[i].event, log[i].data);
-	len += snprintf(buf + len, PAGE_SIZE - len, "\n");
+	len += scnprintf(buf + len, PAGE_SIZE - len, "\n");
 	kfree(log);
 	return len;
 }
@@ -1298,13 +1298,13 @@ static ssize_t show_error(struct device *d,
 	u32 len = 0, i;
 	if (!priv->error)
 		return 0;
-	len += snprintf(buf + len, PAGE_SIZE - len,
+	len += scnprintf(buf + len, PAGE_SIZE - len,
 			"%08lX%08X%08X%08X",
 			priv->error->jiffies,
 			priv->error->status,
 			priv->error->config, priv->error->elem_len);
 	for (i = 0; i < priv->error->elem_len; i++)
-		len += snprintf(buf + len, PAGE_SIZE - len,
+		len += scnprintf(buf + len, PAGE_SIZE - len,
 				"\n%08X%08X%08X%08X%08X%08X%08X",
 				priv->error->elem[i].time,
 				priv->error->elem[i].desc,
@@ -1314,15 +1314,15 @@ static ssize_t show_error(struct device *d,
 				priv->error->elem[i].link2,
 				priv->error->elem[i].data);
 
-	len += snprintf(buf + len, PAGE_SIZE - len,
+	len += scnprintf(buf + len, PAGE_SIZE - len,
 			"\n%08X", priv->error->log_len);
 	for (i = 0; i < priv->error->log_len; i++)
-		len += snprintf(buf + len, PAGE_SIZE - len,
+		len += scnprintf(buf + len, PAGE_SIZE - len,
 				"\n%08X%08X%08X",
 				priv->error->log[i].time,
 				priv->error->log[i].event,
 				priv->error->log[i].data);
-	len += snprintf(buf + len, PAGE_SIZE - len, "\n");
+	len += scnprintf(buf + len, PAGE_SIZE - len, "\n");
 	return len;
 }
 
@@ -1350,7 +1350,7 @@ static ssize_t show_cmd_log(struct device *d,
 	     (i != priv->cmdlog_pos) && (len < PAGE_SIZE);
 	     i = (i + 1) % priv->cmdlog_len) {
 		len +=
-		    snprintf(buf + len, PAGE_SIZE - len,
+		    scnprintf(buf + len, PAGE_SIZE - len,
 			     "\n%08lX%08X%08X%08X\n", priv->cmdlog[i].jiffies,
 			     priv->cmdlog[i].retcode, priv->cmdlog[i].cmd.cmd,
 			     priv->cmdlog[i].cmd.len);
@@ -1358,9 +1358,9 @@ static ssize_t show_cmd_log(struct device *d,
 		    snprintk_buf(buf + len, PAGE_SIZE - len,
 				 (u8 *) priv->cmdlog[i].cmd.param,
 				 priv->cmdlog[i].cmd.len);
-		len += snprintf(buf + len, PAGE_SIZE - len, "\n");
+		len += scnprintf(buf + len, PAGE_SIZE - len, "\n");
 	}
-	len += snprintf(buf + len, PAGE_SIZE - len, "\n");
+	len += scnprintf(buf + len, PAGE_SIZE - len, "\n");
 	return len;
 }
 
@@ -9608,24 +9608,24 @@ static int ipw_wx_get_powermode(struct net_device *dev,
 	int level = IPW_POWER_LEVEL(priv->power_mode);
 	char *p = extra;
 
-	p += snprintf(p, MAX_WX_STRING, "Power save level: %d ", level);
+	p += scnprintf(p, MAX_WX_STRING, "Power save level: %d ", level);
 
 	switch (level) {
 	case IPW_POWER_AC:
-		p += snprintf(p, MAX_WX_STRING - (p - extra), "(AC)");
+		p += scnprintf(p, MAX_WX_STRING - (p - extra), "(AC)");
 		break;
 	case IPW_POWER_BATTERY:
-		p += snprintf(p, MAX_WX_STRING - (p - extra), "(BATTERY)");
+		p += scnprintf(p, MAX_WX_STRING - (p - extra), "(BATTERY)");
 		break;
 	default:
-		p += snprintf(p, MAX_WX_STRING - (p - extra),
+		p += scnprintf(p, MAX_WX_STRING - (p - extra),
 			      "(Timeout %dms, Period %dms)",
 			      timeout_duration[level - 1] / 1000,
 			      period_duration[level - 1] / 1000);
 	}
 
 	if (!(priv->power_mode & IPW_POWER_ENABLED))
-		p += snprintf(p, MAX_WX_STRING - (p - extra), " OFF");
+		p += scnprintf(p, MAX_WX_STRING - (p - extra), " OFF");
 
 	wrqu->data.length = p - extra + 1;
 

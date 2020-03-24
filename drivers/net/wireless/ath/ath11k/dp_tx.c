@@ -7,6 +7,7 @@
 #include "dp_tx.h"
 #include "debug.h"
 #include "hw.h"
+#include "peer.h"
 
 /* NOTE: Any of the mapped ring id value must not exceed DP_TCL_NUM_RING_MAX */
 static const u8

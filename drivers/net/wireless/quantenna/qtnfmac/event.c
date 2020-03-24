@@ -578,9 +578,9 @@ qtnf_event_handle_external_auth(struct qtnf_vif *vif,
 	ether_addr_copy(auth.bssid, ev->bssid);
 	auth.action = ev->action;
 
-	pr_info("%s: external auth bss=%pM action=%u akm=%u\n",
-		vif->netdev->name, auth.bssid, auth.action,
-		auth.key_mgmt_suite);
+	pr_debug("%s: external SAE processing: bss=%pM action=%u akm=%u\n",
+		 vif->netdev->name, auth.bssid, auth.action,
+		 auth.key_mgmt_suite);
 
 	ret = cfg80211_external_auth_request(vif->netdev, &auth, GFP_KERNEL);
 	if (ret)
@@ -621,6 +621,50 @@ qtnf_event_handle_mic_failure(struct qtnf_vif *vif,
 
 	cfg80211_michael_mic_failure(vif->netdev, mic_ev->src, pairwise,
 				     mic_ev->key_index, NULL, GFP_KERNEL);
+
+	return 0;
+}
+
+static int
+qtnf_event_handle_update_owe(struct qtnf_vif *vif,
+			     const struct qlink_event_update_owe *owe_ev,
+			     u16 len)
+{
+	struct wiphy *wiphy = priv_to_wiphy(vif->mac);
+	struct cfg80211_update_owe_info owe_info = {};
+	const u16 ie_len = len - sizeof(*owe_ev);
+	u8 *ie;
+
+	if (len < sizeof(*owe_ev)) {
+		pr_err("VIF%u.%u: payload is too short (%u < %zu)\n",
+		       vif->mac->macid, vif->vifid, len,
+		       sizeof(struct qlink_event_update_owe));
+		return -EINVAL;
+	}
+
+	if (!wiphy->registered || !vif->netdev)
+		return 0;
+
+	if (vif->wdev.iftype != NL80211_IFTYPE_AP) {
+		pr_err("VIF%u.%u: UPDATE_OWE event when not in AP mode\n",
+		       vif->mac->macid, vif->vifid);
+		return -EPROTO;
+	}
+
+	ie = kzalloc(ie_len, GFP_KERNEL);
+	if (!ie)
+		return -ENOMEM;
+
+	memcpy(owe_info.peer, owe_ev->peer, ETH_ALEN);
+	memcpy(ie, owe_ev->ies, ie_len);
+	owe_info.ie_len = ie_len;
+	owe_info.ie = ie;
+
+	pr_info("%s: external OWE processing: peer=%pM\n",
+		vif->netdev->name, owe_ev->peer);
+
+	cfg80211_update_owe_info_event(vif->netdev, &owe_info, GFP_KERNEL);
+	kfree(ie);
 
 	return 0;
 }
@@ -692,6 +736,10 @@ static int qtnf_event_parse(struct qtnf_wmac *mac,
 	case QLINK_EVENT_MIC_FAILURE:
 		ret = qtnf_event_handle_mic_failure(vif, (const void *)event,
 						    event_len);
+		break;
+	case QLINK_EVENT_UPDATE_OWE:
+		ret = qtnf_event_handle_update_owe(vif, (const void *)event,
+						   event_len);
 		break;
 	default:
 		pr_warn("unknown event type: %x\n", event_id);

@@ -540,6 +540,8 @@ int mt7603_register_device(struct mt7603_dev *dev)
 		dev->mphy.antenna_mask = 1;
 
 	dev->slottime = 9;
+	dev->sensitivity_limit = 28;
+	dev->dynamic_sensitivity = true;
 
 	ret = mt7603_init_hardware(dev);
 	if (ret)

@@ -1118,7 +1118,6 @@ static int rtw_chip_parameter_setup(struct rtw_dev *rtwdev)
 	}
 
 	hal->chip_version = rtw_read32(rtwdev, REG_SYS_CFG1);
-	hal->fab_version = BIT_GET_VENDOR_ID(hal->chip_version) >> 2;
 	hal->cut_version = BIT_GET_CHIP_VER(hal->chip_version);
 	hal->mp_chip = (hal->chip_version & BIT_RTL_ID) ? 0 : 1;
 	if (hal->chip_version & BIT_RF_TYPE_ID) {
@@ -1132,11 +1131,6 @@ static int rtw_chip_parameter_setup(struct rtw_dev *rtwdev)
 		hal->antenna_tx = BB_PATH_A;
 		hal->antenna_rx = BB_PATH_A;
 	}
-
-	if (hal->fab_version == 2)
-		hal->fab_version = 1;
-	else if (hal->fab_version == 1)
-		hal->fab_version = 2;
 
 	efuse->physical_size = chip->phy_efuse_size;
 	efuse->logical_size = chip->log_efuse_size;
@@ -1400,10 +1394,6 @@ int rtw_core_init(struct rtw_dev *rtwdev)
 	else
 		rtwdev->lps_conf.deep_mode = rtw_fw_lps_deep_mode;
 
-	mutex_lock(&rtwdev->mutex);
-	rtw_add_rsvd_page(rtwdev, RSVD_BEACON, false);
-	mutex_unlock(&rtwdev->mutex);
-
 	rtw_stats_init(rtwdev);
 
 	/* default rx filter setting */
@@ -1446,8 +1436,9 @@ void rtw_core_deinit(struct rtw_dev *rtwdev)
 	skb_queue_purge(&rtwdev->tx_report.queue);
 	spin_unlock_irqrestore(&rtwdev->tx_report.q_lock, flags);
 
-	list_for_each_entry_safe(rsvd_pkt, tmp, &rtwdev->rsvd_page_list, list) {
-		list_del(&rsvd_pkt->list);
+	list_for_each_entry_safe(rsvd_pkt, tmp, &rtwdev->rsvd_page_list,
+				 build_list) {
+		list_del(&rsvd_pkt->build_list);
 		kfree(rsvd_pkt);
 	}
 

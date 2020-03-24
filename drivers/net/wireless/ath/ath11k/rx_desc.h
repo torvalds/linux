@@ -1209,4 +1209,12 @@ struct hal_rx_desc {
 	u8 msdu_payload[0];
 } __packed;
 
+#define HAL_RX_RU_ALLOC_TYPE_MAX 6
+#define RU_26  1
+#define RU_52  2
+#define RU_106 4
+#define RU_242 9
+#define RU_484 18
+#define RU_996 37
+
 #endif /* ATH11K_RX_DESC_H */

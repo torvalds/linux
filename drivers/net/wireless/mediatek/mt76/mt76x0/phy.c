@@ -1155,7 +1155,6 @@ static void mt76x0_rf_patch_reg_array(struct mt76x02_dev *dev,
 static void mt76x0_phy_rf_init(struct mt76x02_dev *dev)
 {
 	int i;
-	u8 val;
 
 	mt76x0_rf_patch_reg_array(dev, mt76x0_rf_central_tab,
 				  ARRAY_SIZE(mt76x0_rf_central_tab));
@@ -1188,7 +1187,7 @@ static void mt76x0_phy_rf_init(struct mt76x02_dev *dev)
 	 */
 	mt76x0_rf_wr(dev, MT_RF(0, 22),
 		     min_t(u8, dev->cal.rx.freq_offset, 0xbf));
-	val = mt76x0_rf_rr(dev, MT_RF(0, 22));
+	mt76x0_rf_rr(dev, MT_RF(0, 22));
 
 	/* Reset procedure DAC during power-up:
 	 * - set B0.R73<7>

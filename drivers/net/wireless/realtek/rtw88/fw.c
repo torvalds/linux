@@ -583,7 +583,7 @@ static u8 rtw_get_rsvd_page_location(struct rtw_dev *rtwdev,
 	struct rtw_rsvd_page *rsvd_pkt;
 	u8 location = 0;
 
-	list_for_each_entry(rsvd_pkt, &rtwdev->rsvd_page_list, list) {
+	list_for_each_entry(rsvd_pkt, &rtwdev->rsvd_page_list, build_list) {
 		if (type == rsvd_pkt->type)
 			location = rsvd_pkt->page;
 	}
@@ -636,7 +636,7 @@ u8 rtw_get_rsvd_page_probe_req_location(struct rtw_dev *rtwdev,
 	struct rtw_rsvd_page *rsvd_pkt;
 	u8 location = 0;
 
-	list_for_each_entry(rsvd_pkt, &rtwdev->rsvd_page_list, list) {
+	list_for_each_entry(rsvd_pkt, &rtwdev->rsvd_page_list, build_list) {
 		if (rsvd_pkt->type != RSVD_PROBE_REQ)
 			continue;
 		if ((!ssid && !rsvd_pkt->ssid) ||
@@ -653,7 +653,7 @@ u16 rtw_get_rsvd_page_probe_req_size(struct rtw_dev *rtwdev,
 	struct rtw_rsvd_page *rsvd_pkt;
 	u16 size = 0;
 
-	list_for_each_entry(rsvd_pkt, &rtwdev->rsvd_page_list, list) {
+	list_for_each_entry(rsvd_pkt, &rtwdev->rsvd_page_list, build_list) {
 		if (rsvd_pkt->type != RSVD_PROBE_REQ)
 			continue;
 		if ((!ssid && !rsvd_pkt->ssid) ||
@@ -688,25 +688,6 @@ void rtw_send_rsvd_page_h2c(struct rtw_dev *rtwdev)
 	rtw_dbg(rtwdev, RTW_DBG_FW, "RSVD_QOS_NULL loc: %d\n", location);
 
 	rtw_fw_send_h2c_command(rtwdev, h2c_pkt);
-}
-
-static struct sk_buff *
-rtw_beacon_get(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
-{
-	struct sk_buff *skb_new;
-
-	if (vif->type != NL80211_IFTYPE_AP &&
-	    vif->type != NL80211_IFTYPE_ADHOC &&
-	    !ieee80211_vif_is_mesh(vif)) {
-		skb_new = alloc_skb(1, GFP_KERNEL);
-		if (!skb_new)
-			return NULL;
-		skb_put(skb_new, 1);
-	} else {
-		skb_new = ieee80211_beacon_get(hw, vif);
-	}
-
-	return skb_new;
 }
 
 static struct sk_buff *rtw_nlo_info_get(struct ieee80211_hw *hw)
@@ -853,15 +834,31 @@ static struct sk_buff *rtw_lps_pg_info_get(struct ieee80211_hw *hw)
 }
 
 static struct sk_buff *rtw_get_rsvd_page_skb(struct ieee80211_hw *hw,
-					     struct ieee80211_vif *vif,
 					     struct rtw_rsvd_page *rsvd_pkt)
 {
+	struct ieee80211_vif *vif;
+	struct rtw_vif *rtwvif;
 	struct sk_buff *skb_new;
 	struct cfg80211_ssid *ssid;
 
+	if (rsvd_pkt->type == RSVD_DUMMY) {
+		skb_new = alloc_skb(1, GFP_KERNEL);
+		if (!skb_new)
+			return NULL;
+
+		skb_put(skb_new, 1);
+		return skb_new;
+	}
+
+	rtwvif = rsvd_pkt->rtwvif;
+	if (!rtwvif)
+		return NULL;
+
+	vif = rtwvif_to_vif(rtwvif);
+
 	switch (rsvd_pkt->type) {
 	case RSVD_BEACON:
-		skb_new = rtw_beacon_get(hw, vif);
+		skb_new = ieee80211_beacon_get(hw, vif);
 		break;
 	case RSVD_PS_POLL:
 		skb_new = ieee80211_pspoll_get(hw, vif);
@@ -948,6 +945,8 @@ static struct rtw_rsvd_page *rtw_alloc_rsvd_page(struct rtw_dev *rtwdev,
 	if (!rsvd_pkt)
 		return NULL;
 
+	INIT_LIST_HEAD(&rsvd_pkt->vif_list);
+	INIT_LIST_HEAD(&rsvd_pkt->build_list);
 	rsvd_pkt->type = type;
 	rsvd_pkt->add_txdesc = txdesc;
 
@@ -955,49 +954,122 @@ static struct rtw_rsvd_page *rtw_alloc_rsvd_page(struct rtw_dev *rtwdev,
 }
 
 static void rtw_insert_rsvd_page(struct rtw_dev *rtwdev,
+				 struct rtw_vif *rtwvif,
 				 struct rtw_rsvd_page *rsvd_pkt)
 {
 	lockdep_assert_held(&rtwdev->mutex);
-	list_add_tail(&rsvd_pkt->list, &rtwdev->rsvd_page_list);
+
+	list_add_tail(&rsvd_pkt->vif_list, &rtwvif->rsvd_page_list);
 }
 
-void rtw_add_rsvd_page(struct rtw_dev *rtwdev, enum rtw_rsvd_packet_type type,
-		       bool txdesc)
+static void rtw_add_rsvd_page(struct rtw_dev *rtwdev,
+			      struct rtw_vif *rtwvif,
+			      enum rtw_rsvd_packet_type type,
+			      bool txdesc)
 {
 	struct rtw_rsvd_page *rsvd_pkt;
 
 	rsvd_pkt = rtw_alloc_rsvd_page(rtwdev, type, txdesc);
-	if (!rsvd_pkt)
+	if (!rsvd_pkt) {
+		rtw_err(rtwdev, "failed to alloc rsvd page %d\n", type);
 		return;
+	}
 
-	rtw_insert_rsvd_page(rtwdev, rsvd_pkt);
+	rsvd_pkt->rtwvif = rtwvif;
+	rtw_insert_rsvd_page(rtwdev, rtwvif, rsvd_pkt);
 }
 
-void rtw_add_rsvd_page_probe_req(struct rtw_dev *rtwdev,
-				 struct cfg80211_ssid *ssid)
+static void rtw_add_rsvd_page_probe_req(struct rtw_dev *rtwdev,
+					struct rtw_vif *rtwvif,
+					struct cfg80211_ssid *ssid)
 {
 	struct rtw_rsvd_page *rsvd_pkt;
 
 	rsvd_pkt = rtw_alloc_rsvd_page(rtwdev, RSVD_PROBE_REQ, true);
-	if (!rsvd_pkt)
+	if (!rsvd_pkt) {
+		rtw_err(rtwdev, "failed to alloc probe req rsvd page\n");
 		return;
+	}
 
+	rsvd_pkt->rtwvif = rtwvif;
 	rsvd_pkt->ssid = ssid;
-	rtw_insert_rsvd_page(rtwdev, rsvd_pkt);
+	rtw_insert_rsvd_page(rtwdev, rtwvif, rsvd_pkt);
 }
 
-void rtw_reset_rsvd_page(struct rtw_dev *rtwdev)
+void rtw_remove_rsvd_page(struct rtw_dev *rtwdev,
+			  struct rtw_vif *rtwvif)
 {
 	struct rtw_rsvd_page *rsvd_pkt, *tmp;
 
 	lockdep_assert_held(&rtwdev->mutex);
 
-	list_for_each_entry_safe(rsvd_pkt, tmp, &rtwdev->rsvd_page_list, list) {
-		if (rsvd_pkt->type == RSVD_BEACON)
-			continue;
-		list_del(&rsvd_pkt->list);
+	/* remove all of the rsvd pages for vif */
+	list_for_each_entry_safe(rsvd_pkt, tmp, &rtwvif->rsvd_page_list,
+				 vif_list) {
+		list_del(&rsvd_pkt->vif_list);
+		if (!list_empty(&rsvd_pkt->build_list))
+			list_del(&rsvd_pkt->build_list);
 		kfree(rsvd_pkt);
 	}
+}
+
+void rtw_add_rsvd_page_bcn(struct rtw_dev *rtwdev,
+			   struct rtw_vif *rtwvif)
+{
+	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif);
+
+	if (vif->type != NL80211_IFTYPE_AP &&
+	    vif->type != NL80211_IFTYPE_ADHOC &&
+	    vif->type != NL80211_IFTYPE_MESH_POINT) {
+		rtw_warn(rtwdev, "Cannot add beacon rsvd page for %d\n",
+			 vif->type);
+		return;
+	}
+
+	rtw_add_rsvd_page(rtwdev, rtwvif, RSVD_BEACON, false);
+}
+
+void rtw_add_rsvd_page_pno(struct rtw_dev *rtwdev,
+			   struct rtw_vif *rtwvif)
+{
+	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif);
+	struct rtw_wow_param *rtw_wow = &rtwdev->wow;
+	struct rtw_pno_request *rtw_pno_req = &rtw_wow->pno_req;
+	struct cfg80211_ssid *ssid;
+	int i;
+
+	if (vif->type != NL80211_IFTYPE_STATION) {
+		rtw_warn(rtwdev, "Cannot add PNO rsvd page for %d\n",
+			 vif->type);
+		return;
+	}
+
+	for (i = 0 ; i < rtw_pno_req->match_set_cnt; i++) {
+		ssid = &rtw_pno_req->match_sets[i].ssid;
+		rtw_add_rsvd_page_probe_req(rtwdev, rtwvif, ssid);
+	}
+
+	rtw_add_rsvd_page_probe_req(rtwdev, rtwvif, NULL);
+	rtw_add_rsvd_page(rtwdev, rtwvif, RSVD_NLO_INFO, false);
+	rtw_add_rsvd_page(rtwdev, rtwvif, RSVD_CH_INFO, true);
+}
+
+void rtw_add_rsvd_page_sta(struct rtw_dev *rtwdev,
+			   struct rtw_vif *rtwvif)
+{
+	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif);
+
+	if (vif->type != NL80211_IFTYPE_STATION) {
+		rtw_warn(rtwdev, "Cannot add sta rsvd page for %d\n",
+			 vif->type);
+		return;
+	}
+
+	rtw_add_rsvd_page(rtwdev, rtwvif, RSVD_PS_POLL, true);
+	rtw_add_rsvd_page(rtwdev, rtwvif, RSVD_QOS_NULL, true);
+	rtw_add_rsvd_page(rtwdev, rtwvif, RSVD_NULL, true);
+	rtw_add_rsvd_page(rtwdev, rtwvif, RSVD_LPS_PG_DPK, true);
+	rtw_add_rsvd_page(rtwdev, rtwvif, RSVD_LPS_PG_INFO, true);
 }
 
 int rtw_fw_write_data_rsvd_page(struct rtw_dev *rtwdev, u16 pg_addr,
@@ -1063,8 +1135,72 @@ static int rtw_download_drv_rsvd_page(struct rtw_dev *rtwdev, u8 *buf, u32 size)
 	return rtw_fw_write_data_rsvd_page(rtwdev, pg_addr, buf, size);
 }
 
-static u8 *rtw_build_rsvd_page(struct rtw_dev *rtwdev,
-			       struct ieee80211_vif *vif, u32 *size)
+static void __rtw_build_rsvd_page_reset(struct rtw_dev *rtwdev)
+{
+	struct rtw_rsvd_page *rsvd_pkt, *tmp;
+
+	list_for_each_entry_safe(rsvd_pkt, tmp, &rtwdev->rsvd_page_list,
+				 build_list) {
+		list_del_init(&rsvd_pkt->build_list);
+
+		/* Don't free except for the dummy rsvd page,
+		 * others will be freed when removing vif
+		 */
+		if (rsvd_pkt->type == RSVD_DUMMY)
+			kfree(rsvd_pkt);
+	}
+}
+
+static void rtw_build_rsvd_page_iter(void *data, u8 *mac,
+				     struct ieee80211_vif *vif)
+{
+	struct rtw_dev *rtwdev = data;
+	struct rtw_vif *rtwvif = (struct rtw_vif *)vif->drv_priv;
+	struct rtw_rsvd_page *rsvd_pkt;
+
+	list_for_each_entry(rsvd_pkt, &rtwvif->rsvd_page_list, vif_list) {
+		if (rsvd_pkt->type == RSVD_BEACON)
+			list_add(&rsvd_pkt->build_list,
+				 &rtwdev->rsvd_page_list);
+		else
+			list_add_tail(&rsvd_pkt->build_list,
+				      &rtwdev->rsvd_page_list);
+	}
+}
+
+static int  __rtw_build_rsvd_page_from_vifs(struct rtw_dev *rtwdev)
+{
+	struct rtw_rsvd_page *rsvd_pkt;
+
+	__rtw_build_rsvd_page_reset(rtwdev);
+
+	/* gather rsvd page from vifs */
+	rtw_iterate_vifs_atomic(rtwdev, rtw_build_rsvd_page_iter, rtwdev);
+
+	rsvd_pkt = list_first_entry_or_null(&rtwdev->rsvd_page_list,
+					    struct rtw_rsvd_page, build_list);
+	if (!rsvd_pkt) {
+		WARN(1, "Should not have an empty reserved page\n");
+		return -EINVAL;
+	}
+
+	/* the first rsvd should be beacon, otherwise add a dummy one */
+	if (rsvd_pkt->type != RSVD_BEACON) {
+		struct rtw_rsvd_page *dummy_pkt;
+
+		dummy_pkt = rtw_alloc_rsvd_page(rtwdev, RSVD_DUMMY, false);
+		if (!dummy_pkt) {
+			rtw_err(rtwdev, "failed to alloc dummy rsvd page\n");
+			return -ENOMEM;
+		}
+
+		list_add(&dummy_pkt->build_list, &rtwdev->rsvd_page_list);
+	}
+
+	return 0;
+}
+
+static u8 *rtw_build_rsvd_page(struct rtw_dev *rtwdev, u32 *size)
 {
 	struct ieee80211_hw *hw = rtwdev->hw;
 	struct rtw_chip_info *chip = rtwdev->chip;
@@ -1074,13 +1210,21 @@ static u8 *rtw_build_rsvd_page(struct rtw_dev *rtwdev,
 	u8 total_page = 0;
 	u8 page_size, page_margin, tx_desc_sz;
 	u8 *buf;
+	int ret;
 
 	page_size = chip->page_size;
 	tx_desc_sz = chip->tx_pkt_desc_sz;
 	page_margin = page_size - tx_desc_sz;
 
-	list_for_each_entry(rsvd_pkt, &rtwdev->rsvd_page_list, list) {
-		iter = rtw_get_rsvd_page_skb(hw, vif, rsvd_pkt);
+	ret = __rtw_build_rsvd_page_from_vifs(rtwdev);
+	if (ret) {
+		rtw_err(rtwdev,
+			"failed to build rsvd page from vifs, ret %d\n", ret);
+		return NULL;
+	}
+
+	list_for_each_entry(rsvd_pkt, &rtwdev->rsvd_page_list, build_list) {
+		iter = rtw_get_rsvd_page_skb(hw, rsvd_pkt);
 		if (!iter) {
 			rtw_err(rtwdev, "failed to build rsvd packet\n");
 			goto release_skb;
@@ -1104,7 +1248,8 @@ static u8 *rtw_build_rsvd_page(struct rtw_dev *rtwdev,
 		 * is smaller than the actual size of the whole rsvd_page
 		 */
 		if (total_page == 0) {
-			if (rsvd_pkt->type != RSVD_BEACON) {
+			if (rsvd_pkt->type != RSVD_BEACON &&
+			    rsvd_pkt->type != RSVD_DUMMY) {
 				rtw_err(rtwdev, "first page should be a beacon\n");
 				goto release_skb;
 			}
@@ -1132,7 +1277,7 @@ static u8 *rtw_build_rsvd_page(struct rtw_dev *rtwdev,
 	 * And that rsvd_pkt does not require tx_desc because when it goes
 	 * through TX path, the TX path will generate one for it.
 	 */
-	list_for_each_entry(rsvd_pkt, &rtwdev->rsvd_page_list, list) {
+	list_for_each_entry(rsvd_pkt, &rtwdev->rsvd_page_list, build_list) {
 		rtw_rsvd_page_list_to_buf(rtwdev, page_size, page_margin,
 					  page, buf, rsvd_pkt);
 		if (page == 0)
@@ -1148,7 +1293,7 @@ static u8 *rtw_build_rsvd_page(struct rtw_dev *rtwdev,
 	return buf;
 
 release_skb:
-	list_for_each_entry(rsvd_pkt, &rtwdev->rsvd_page_list, list) {
+	list_for_each_entry(rsvd_pkt, &rtwdev->rsvd_page_list, build_list) {
 		kfree_skb(rsvd_pkt->skb);
 		rsvd_pkt->skb = NULL;
 	}
@@ -1156,18 +1301,31 @@ release_skb:
 	return NULL;
 }
 
-static int
-rtw_download_beacon(struct rtw_dev *rtwdev, struct ieee80211_vif *vif)
+static int rtw_download_beacon(struct rtw_dev *rtwdev)
 {
 	struct ieee80211_hw *hw = rtwdev->hw;
+	struct rtw_rsvd_page *rsvd_pkt;
 	struct sk_buff *skb;
 	int ret = 0;
 
-	skb = rtw_beacon_get(hw, vif);
+	rsvd_pkt = list_first_entry_or_null(&rtwdev->rsvd_page_list,
+					    struct rtw_rsvd_page, build_list);
+	if (!rsvd_pkt) {
+		rtw_err(rtwdev, "failed to get rsvd page from build list\n");
+		return -ENOENT;
+	}
+
+	if (rsvd_pkt->type != RSVD_BEACON &&
+	    rsvd_pkt->type != RSVD_DUMMY) {
+		rtw_err(rtwdev, "invalid rsvd page type %d, should be beacon or dummy\n",
+			rsvd_pkt->type);
+		return -EINVAL;
+	}
+
+	skb = rtw_get_rsvd_page_skb(hw, rsvd_pkt);
 	if (!skb) {
 		rtw_err(rtwdev, "failed to get beacon skb\n");
-		ret = -ENOMEM;
-		goto out;
+		return -ENOMEM;
 	}
 
 	ret = rtw_download_drv_rsvd_page(rtwdev, skb->data, skb->len);
@@ -1176,17 +1334,16 @@ rtw_download_beacon(struct rtw_dev *rtwdev, struct ieee80211_vif *vif)
 
 	dev_kfree_skb(skb);
 
-out:
 	return ret;
 }
 
-int rtw_fw_download_rsvd_page(struct rtw_dev *rtwdev, struct ieee80211_vif *vif)
+int rtw_fw_download_rsvd_page(struct rtw_dev *rtwdev)
 {
 	u8 *buf;
 	u32 size;
 	int ret;
 
-	buf = rtw_build_rsvd_page(rtwdev, vif, &size);
+	buf = rtw_build_rsvd_page(rtwdev, &size);
 	if (!buf) {
 		rtw_err(rtwdev, "failed to build rsvd page pkt\n");
 		return -ENOMEM;
@@ -1203,7 +1360,7 @@ int rtw_fw_download_rsvd_page(struct rtw_dev *rtwdev, struct ieee80211_vif *vif)
 	 * the beacon again to replace the TX desc header, and we will get
 	 * a correct tx_desc for the beacon in the rsvd page.
 	 */
-	ret = rtw_download_beacon(rtwdev, vif);
+	ret = rtw_download_beacon(rtwdev);
 	if (ret) {
 		rtw_err(rtwdev, "failed to download beacon\n");
 		goto free;

@@ -4,6 +4,7 @@
  * Author: Roy Luo <royluo@google.com>
  *         Ryder Lee <ryder.lee@mediatek.com>
  *         Felix Fietkau <nbd@nbd.name>
+ *         Lorenzo Bianconi <lorenzo@kernel.org>
  */
 
 #include <linux/etherdevice.h>
@@ -18,27 +19,65 @@ static void mt7615_phy_init(struct mt7615_dev *dev)
 	mt76_set(dev, MT_WF_PHY_WF2_RFCTRL0(1), MT_WF_PHY_WF2_RFCTRL0_LPBCN_EN);
 }
 
-static void mt7615_mac_init(struct mt7615_dev *dev)
+static void
+mt7615_init_mac_chain(struct mt7615_dev *dev, int chain)
 {
 	u32 val, mask, set;
-	int i;
+
+	if (!chain)
+		val = MT_CFG_CCR_MAC_D0_1X_GC_EN | MT_CFG_CCR_MAC_D0_2X_GC_EN;
+	else
+		val = MT_CFG_CCR_MAC_D1_1X_GC_EN | MT_CFG_CCR_MAC_D1_2X_GC_EN;
 
 	/* enable band 0/1 clk */
-	mt76_set(dev, MT_CFG_CCR,
-		 MT_CFG_CCR_MAC_D0_1X_GC_EN | MT_CFG_CCR_MAC_D0_2X_GC_EN |
-		 MT_CFG_CCR_MAC_D1_1X_GC_EN | MT_CFG_CCR_MAC_D1_2X_GC_EN);
+	mt76_set(dev, MT_CFG_CCR, val);
 
-	val = mt76_rmw(dev, MT_TMAC_TRCR(0),
-		       MT_TMAC_TRCR_CCA_SEL | MT_TMAC_TRCR_SEC_CCA_SEL,
-		       FIELD_PREP(MT_TMAC_TRCR_CCA_SEL, 2) |
-		       FIELD_PREP(MT_TMAC_TRCR_SEC_CCA_SEL, 0));
-	mt76_wr(dev, MT_TMAC_TRCR(1), val);
+	mt76_rmw(dev, MT_TMAC_TRCR(chain),
+		 MT_TMAC_TRCR_CCA_SEL | MT_TMAC_TRCR_SEC_CCA_SEL,
+		 FIELD_PREP(MT_TMAC_TRCR_CCA_SEL, 2) |
+		 FIELD_PREP(MT_TMAC_TRCR_SEC_CCA_SEL, 0));
 
-	val = MT_AGG_ACR_PKT_TIME_EN | MT_AGG_ACR_NO_BA_AR_RULE |
-	      FIELD_PREP(MT_AGG_ACR_CFEND_RATE, MT7615_CFEND_RATE_DEFAULT) |
-	      FIELD_PREP(MT_AGG_ACR_BAR_RATE, MT7615_BAR_RATE_DEFAULT);
-	mt76_wr(dev, MT_AGG_ACR(0), val);
-	mt76_wr(dev, MT_AGG_ACR(1), val);
+	mt76_wr(dev, MT_AGG_ACR(chain),
+		MT_AGG_ACR_PKT_TIME_EN | MT_AGG_ACR_NO_BA_AR_RULE |
+		FIELD_PREP(MT_AGG_ACR_CFEND_RATE, MT7615_CFEND_RATE_DEFAULT) |
+		FIELD_PREP(MT_AGG_ACR_BAR_RATE, MT7615_BAR_RATE_DEFAULT));
+
+	mt76_wr(dev, MT_AGG_ARUCR(chain),
+		FIELD_PREP(MT_AGG_ARxCR_LIMIT(0), 7) |
+		FIELD_PREP(MT_AGG_ARxCR_LIMIT(1), 2) |
+		FIELD_PREP(MT_AGG_ARxCR_LIMIT(2), 2) |
+		FIELD_PREP(MT_AGG_ARxCR_LIMIT(3), 2) |
+		FIELD_PREP(MT_AGG_ARxCR_LIMIT(4), 1) |
+		FIELD_PREP(MT_AGG_ARxCR_LIMIT(5), 1) |
+		FIELD_PREP(MT_AGG_ARxCR_LIMIT(6), 1) |
+		FIELD_PREP(MT_AGG_ARxCR_LIMIT(7), 1));
+
+	mt76_wr(dev, MT_AGG_ARDCR(chain),
+		FIELD_PREP(MT_AGG_ARxCR_LIMIT(0), MT7615_RATE_RETRY - 1) |
+		FIELD_PREP(MT_AGG_ARxCR_LIMIT(1), MT7615_RATE_RETRY - 1) |
+		FIELD_PREP(MT_AGG_ARxCR_LIMIT(2), MT7615_RATE_RETRY - 1) |
+		FIELD_PREP(MT_AGG_ARxCR_LIMIT(3), MT7615_RATE_RETRY - 1) |
+		FIELD_PREP(MT_AGG_ARxCR_LIMIT(4), MT7615_RATE_RETRY - 1) |
+		FIELD_PREP(MT_AGG_ARxCR_LIMIT(5), MT7615_RATE_RETRY - 1) |
+		FIELD_PREP(MT_AGG_ARxCR_LIMIT(6), MT7615_RATE_RETRY - 1) |
+		FIELD_PREP(MT_AGG_ARxCR_LIMIT(7), MT7615_RATE_RETRY - 1));
+
+	mask = MT_DMA_RCFR0_MCU_RX_MGMT |
+	       MT_DMA_RCFR0_MCU_RX_CTL_NON_BAR |
+	       MT_DMA_RCFR0_MCU_RX_CTL_BAR |
+	       MT_DMA_RCFR0_MCU_RX_BYPASS |
+	       MT_DMA_RCFR0_RX_DROPPED_UCAST |
+	       MT_DMA_RCFR0_RX_DROPPED_MCAST;
+	set = FIELD_PREP(MT_DMA_RCFR0_RX_DROPPED_UCAST, 2) |
+	      FIELD_PREP(MT_DMA_RCFR0_RX_DROPPED_MCAST, 2);
+	mt76_rmw(dev, MT_DMA_RCFR0(chain), mask, set);
+}
+
+static void mt7615_mac_init(struct mt7615_dev *dev)
+{
+	int i;
+
+	mt7615_init_mac_chain(dev, 0);
 
 	mt76_rmw_field(dev, MT_TMAC_CTCR0,
 		       MT_TMAC_CTCR0_INS_DDLMT_REFTIME, 0x3f);
@@ -56,47 +95,11 @@ static void mt7615_mac_init(struct mt7615_dev *dev)
 	mt76_rmw(dev, MT_AGG_SCR, MT_AGG_SCR_NLNAV_MID_PTEC_DIS,
 		 MT_AGG_SCR_NLNAV_MID_PTEC_DIS);
 
-	mt76_wr(dev, MT_DMA_DCR0, MT_DMA_DCR0_RX_VEC_DROP |
-		FIELD_PREP(MT_DMA_DCR0_MAX_RX_LEN, 3072));
-
-	val = FIELD_PREP(MT_AGG_ARxCR_LIMIT(0), 7) |
-	      FIELD_PREP(MT_AGG_ARxCR_LIMIT(1), 2) |
-	      FIELD_PREP(MT_AGG_ARxCR_LIMIT(2), 2) |
-	      FIELD_PREP(MT_AGG_ARxCR_LIMIT(3), 2) |
-	      FIELD_PREP(MT_AGG_ARxCR_LIMIT(4), 1) |
-	      FIELD_PREP(MT_AGG_ARxCR_LIMIT(5), 1) |
-	      FIELD_PREP(MT_AGG_ARxCR_LIMIT(6), 1) |
-	      FIELD_PREP(MT_AGG_ARxCR_LIMIT(7), 1);
-	mt76_wr(dev, MT_AGG_ARUCR(0), val);
-	mt76_wr(dev, MT_AGG_ARUCR(1), val);
-
-	val = FIELD_PREP(MT_AGG_ARxCR_LIMIT(0), MT7615_RATE_RETRY - 1) |
-	      FIELD_PREP(MT_AGG_ARxCR_LIMIT(1), MT7615_RATE_RETRY - 1) |
-	      FIELD_PREP(MT_AGG_ARxCR_LIMIT(2), MT7615_RATE_RETRY - 1) |
-	      FIELD_PREP(MT_AGG_ARxCR_LIMIT(3), MT7615_RATE_RETRY - 1) |
-	      FIELD_PREP(MT_AGG_ARxCR_LIMIT(4), MT7615_RATE_RETRY - 1) |
-	      FIELD_PREP(MT_AGG_ARxCR_LIMIT(5), MT7615_RATE_RETRY - 1) |
-	      FIELD_PREP(MT_AGG_ARxCR_LIMIT(6), MT7615_RATE_RETRY - 1) |
-	      FIELD_PREP(MT_AGG_ARxCR_LIMIT(7), MT7615_RATE_RETRY - 1);
-	mt76_wr(dev, MT_AGG_ARDCR(0), val);
-	mt76_wr(dev, MT_AGG_ARDCR(1), val);
-
 	mt76_wr(dev, MT_AGG_ARCR,
-		(FIELD_PREP(MT_AGG_ARCR_RTS_RATE_THR, 2) |
-		 MT_AGG_ARCR_RATE_DOWN_RATIO_EN |
-		 FIELD_PREP(MT_AGG_ARCR_RATE_DOWN_RATIO, 1) |
-		 FIELD_PREP(MT_AGG_ARCR_RATE_UP_EXTRA_TH, 4)));
-
-	mask = MT_DMA_RCFR0_MCU_RX_MGMT |
-	       MT_DMA_RCFR0_MCU_RX_CTL_NON_BAR |
-	       MT_DMA_RCFR0_MCU_RX_CTL_BAR |
-	       MT_DMA_RCFR0_MCU_RX_BYPASS |
-	       MT_DMA_RCFR0_RX_DROPPED_UCAST |
-	       MT_DMA_RCFR0_RX_DROPPED_MCAST;
-	set = FIELD_PREP(MT_DMA_RCFR0_RX_DROPPED_UCAST, 2) |
-	      FIELD_PREP(MT_DMA_RCFR0_RX_DROPPED_MCAST, 2);
-	mt76_rmw(dev, MT_DMA_RCFR0(0), mask, set);
-	mt76_rmw(dev, MT_DMA_RCFR0(1), mask, set);
+		FIELD_PREP(MT_AGG_ARCR_RTS_RATE_THR, 2) |
+		MT_AGG_ARCR_RATE_DOWN_RATIO_EN |
+		FIELD_PREP(MT_AGG_ARCR_RATE_DOWN_RATIO, 1) |
+		FIELD_PREP(MT_AGG_ARCR_RATE_UP_EXTRA_TH, 4));
 
 	for (i = 0; i < MT7615_WTBL_SIZE; i++)
 		mt7615_mac_wtbl_update(dev, i,
@@ -104,6 +107,19 @@ static void mt7615_mac_init(struct mt7615_dev *dev)
 
 	mt76_set(dev, MT_WF_RMAC_MIB_TIME0, MT_WF_RMAC_MIB_RXTIME_EN);
 	mt76_set(dev, MT_WF_RMAC_MIB_AIRTIME0, MT_WF_RMAC_MIB_RXTIME_EN);
+
+	/* disable hdr translation and hw AMSDU */
+	mt76_wr(dev, MT_DMA_DCR0,
+		FIELD_PREP(MT_DMA_DCR0_MAX_RX_LEN, 3072) |
+		MT_DMA_DCR0_RX_VEC_DROP);
+	if (is_mt7663(&dev->mt76)) {
+		mt76_wr(dev, MT_CSR(0x010), 0x8208);
+		mt76_wr(dev, 0x44064, 0x2000000);
+		mt76_wr(dev, MT_WF_AGG(0x160), 0x5c341c02);
+		mt76_wr(dev, MT_WF_AGG(0x164), 0x70708040);
+	} else {
+		mt7615_init_mac_chain(dev, 1);
+	}
 }
 
 bool mt7615_wait_for_mcu_init(struct mt7615_dev *dev)
@@ -350,6 +366,8 @@ mt7615_cap_dbdc_enable(struct mt7615_dev *dev)
 	else
 		dev->mphy.antenna_mask = dev->chainmask >> 1;
 	dev->phy.chainmask = dev->mphy.antenna_mask;
+	dev->mphy.hw->wiphy->available_antennas_rx = dev->phy.chainmask;
+	dev->mphy.hw->wiphy->available_antennas_tx = dev->phy.chainmask;
 	mt76_set_stream_caps(&dev->mt76, true);
 }
 
@@ -361,6 +379,8 @@ mt7615_cap_dbdc_disable(struct mt7615_dev *dev)
 			IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ;
 	dev->mphy.antenna_mask = dev->chainmask;
 	dev->phy.chainmask = dev->chainmask;
+	dev->mphy.hw->wiphy->available_antennas_rx = dev->chainmask;
+	dev->mphy.hw->wiphy->available_antennas_tx = dev->chainmask;
 	mt76_set_stream_caps(&dev->mt76, true);
 }
 
@@ -425,11 +445,9 @@ void mt7615_unregister_ext_phy(struct mt7615_dev *dev)
 	ieee80211_free_hw(mphy->hw);
 }
 
-
-int mt7615_register_device(struct mt7615_dev *dev)
+void mt7615_init_device(struct mt7615_dev *dev)
 {
 	struct ieee80211_hw *hw = mt76_hw(dev);
-	int ret;
 
 	dev->phy.dev = dev;
 	dev->phy.mt76 = &dev->mt76.phy;
@@ -440,14 +458,6 @@ int mt7615_register_device(struct mt7615_dev *dev)
 	init_waitqueue_head(&dev->reset_wait);
 	INIT_WORK(&dev->reset_work, mt7615_mac_reset_work);
 
-	ret = mt7622_wmac_init(dev);
-	if (ret)
-		return ret;
-
-	ret = mt7615_init_hardware(dev);
-	if (ret)
-		return ret;
-
 	mt7615_init_wiphy(hw);
 	dev->mphy.sband_2g.sband.ht_cap.cap |= IEEE80211_HT_CAP_LDPC_CODING;
 	dev->mphy.sband_5g.sband.ht_cap.cap |= IEEE80211_HT_CAP_LDPC_CODING;
@@ -456,12 +466,27 @@ int mt7615_register_device(struct mt7615_dev *dev)
 			IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_MASK;
 	mt7615_cap_dbdc_disable(dev);
 	dev->phy.dfs_state = -1;
+}
+
+int mt7615_register_device(struct mt7615_dev *dev)
+{
+	int ret;
+
+	mt7615_init_device(dev);
 
 	/* init led callbacks */
 	if (IS_ENABLED(CONFIG_MT76_LEDS)) {
 		dev->mt76.led_cdev.brightness_set = mt7615_led_set_brightness;
 		dev->mt76.led_cdev.blink_set = mt7615_led_set_blink;
 	}
+
+	ret = mt7622_wmac_init(dev);
+	if (ret)
+		return ret;
+
+	ret = mt7615_init_hardware(dev);
+	if (ret)
+		return ret;
 
 	ret = mt76_register_device(&dev->mt76, true, mt7615_rates,
 				   ARRAY_SIZE(mt7615_rates));

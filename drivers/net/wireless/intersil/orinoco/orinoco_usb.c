@@ -202,7 +202,7 @@ struct ezusb_packet {
 	__le16 crc;		/* CRC up to here */
 	__le16 hermes_len;
 	__le16 hermes_rid;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 /* Table of devices that work or may work with this driver */

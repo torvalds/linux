@@ -60,7 +60,8 @@ qtnf_mgmt_stypes[NUM_NL80211_IFTYPES] = {
 		      BIT(IEEE80211_STYPE_AUTH >> 4),
 	},
 	[NL80211_IFTYPE_AP] = {
-		.tx = BIT(IEEE80211_STYPE_ACTION >> 4),
+		.tx = BIT(IEEE80211_STYPE_ACTION >> 4) |
+		      BIT(IEEE80211_STYPE_AUTH >> 4),
 		.rx = BIT(IEEE80211_STYPE_ACTION >> 4) |
 		      BIT(IEEE80211_STYPE_PROBE_REQ >> 4) |
 		      BIT(IEEE80211_STYPE_ASSOC_REQ >> 4) |
@@ -100,6 +101,21 @@ qtnf_validate_iface_combinations(struct wiphy *wiphy,
 	}
 
 	ret = cfg80211_check_combinations(wiphy, &params);
+
+	if (ret)
+		return ret;
+
+	/* Check repeater interface combination: primary VIF should be STA only.
+	 * STA (primary) + AP (secondary) is OK.
+	 * AP (primary) + STA (secondary) is not supported.
+	 */
+	vif = qtnf_mac_get_base_vif(mac);
+	if (vif && vif->wdev.iftype == NL80211_IFTYPE_AP &&
+	    vif != change_vif && new_type == NL80211_IFTYPE_STATION) {
+		ret = -EINVAL;
+		pr_err("MAC%u invalid combination: AP as primary repeater interface is not supported\n",
+		       mac->macid);
+	}
 
 	return ret;
 }
@@ -679,10 +695,8 @@ qtnf_external_auth(struct wiphy *wiphy, struct net_device *dev,
 	struct qtnf_vif *vif = qtnf_netdev_get_priv(dev);
 	int ret;
 
-	if (vif->wdev.iftype != NL80211_IFTYPE_STATION)
-		return -EOPNOTSUPP;
-
-	if (!ether_addr_equal(vif->bssid, auth->bssid))
+	if (vif->wdev.iftype == NL80211_IFTYPE_STATION &&
+	    !ether_addr_equal(vif->bssid, auth->bssid))
 		pr_warn("unexpected bssid: %pM", auth->bssid);
 
 	ret = qtnf_cmd_send_external_auth(vif, auth);
@@ -909,6 +923,26 @@ static int qtnf_set_tx_power(struct wiphy *wiphy, struct wireless_dev *wdev,
 	return ret;
 }
 
+static int qtnf_update_owe_info(struct wiphy *wiphy, struct net_device *dev,
+				struct cfg80211_update_owe_info *owe_info)
+{
+	struct qtnf_vif *vif = qtnf_netdev_get_priv(dev);
+	int ret;
+
+	if (vif->wdev.iftype != NL80211_IFTYPE_AP)
+		return -EOPNOTSUPP;
+
+	ret = qtnf_cmd_send_update_owe(vif, owe_info);
+	if (ret) {
+		pr_err("VIF%u.%u: failed to update owe info\n",
+		       vif->mac->macid, vif->vifid);
+		goto out;
+	}
+
+out:
+	return ret;
+}
+
 #ifdef CONFIG_PM
 static int qtnf_suspend(struct wiphy *wiphy, struct cfg80211_wowlan *wowlan)
 {
@@ -1005,6 +1039,7 @@ static struct cfg80211_ops qtn_cfg80211_ops = {
 	.set_power_mgmt		= qtnf_set_power_mgmt,
 	.get_tx_power		= qtnf_get_tx_power,
 	.set_tx_power		= qtnf_set_tx_power,
+	.update_owe_info	= qtnf_update_owe_info,
 #ifdef CONFIG_PM
 	.suspend		= qtnf_suspend,
 	.resume			= qtnf_resume,
@@ -1041,7 +1076,8 @@ static void qtnf_cfg80211_reg_notifier(struct wiphy *wiphy,
 	}
 }
 
-struct wiphy *qtnf_wiphy_allocate(struct qtnf_bus *bus)
+struct wiphy *qtnf_wiphy_allocate(struct qtnf_bus *bus,
+				  struct platform_device *pdev)
 {
 	struct wiphy *wiphy;
 
@@ -1056,7 +1092,10 @@ struct wiphy *qtnf_wiphy_allocate(struct qtnf_bus *bus)
 	if (!wiphy)
 		return NULL;
 
-	set_wiphy_dev(wiphy, bus->dev);
+	if (pdev)
+		set_wiphy_dev(wiphy, &pdev->dev);
+	else
+		set_wiphy_dev(wiphy, bus->dev);
 
 	return wiphy;
 }

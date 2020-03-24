@@ -633,8 +633,8 @@ free_desc:
 	kfree(rx_tid->vaddr);
 }
 
-static void ath11k_peer_rx_tid_delete(struct ath11k *ar,
-				      struct ath11k_peer *peer, u8 tid)
+void ath11k_peer_rx_tid_delete(struct ath11k *ar,
+			       struct ath11k_peer *peer, u8 tid)
 {
 	struct ath11k_hal_reo_cmd cmd = {0};
 	struct dp_rx_tid *rx_tid = &peer->rx_tid[tid];
@@ -1028,23 +1028,23 @@ int ath11k_dp_htt_tlv_iter(struct ath11k_base *ab, const void *ptr, size_t len,
 	return 0;
 }
 
-static u32 ath11k_bw_to_mac80211_bwflags(u8 bw)
+static inline u32 ath11k_he_gi_to_nl80211_he_gi(u8 sgi)
 {
-	u32 bwflags = 0;
+	u32 ret = 0;
 
-	switch (bw) {
-	case ATH11K_BW_40:
-		bwflags = IEEE80211_TX_RC_40_MHZ_WIDTH;
+	switch (sgi) {
+	case RX_MSDU_START_SGI_0_8_US:
+		ret = NL80211_RATE_INFO_HE_GI_0_8;
 		break;
-	case ATH11K_BW_80:
-		bwflags = IEEE80211_TX_RC_80_MHZ_WIDTH;
+	case RX_MSDU_START_SGI_1_6_US:
+		ret = NL80211_RATE_INFO_HE_GI_1_6;
 		break;
-	case ATH11K_BW_160:
-		bwflags = IEEE80211_TX_RC_160_MHZ_WIDTH;
+	case RX_MSDU_START_SGI_3_2_US:
+		ret = NL80211_RATE_INFO_HE_GI_3_2;
 		break;
 	}
 
-	return bwflags;
+	return ret;
 }
 
 static void
@@ -1056,12 +1056,11 @@ ath11k_update_per_peer_tx_stats(struct ath11k *ar,
 	struct ieee80211_sta *sta;
 	struct ath11k_sta *arsta;
 	struct htt_ppdu_stats_user_rate *user_rate;
-	struct ieee80211_chanctx_conf *conf = NULL;
 	struct ath11k_per_peer_tx_stats *peer_stats = &ar->peer_tx_stats;
 	struct htt_ppdu_user_stats *usr_stats = &ppdu_stats->user_stats[user];
 	struct htt_ppdu_stats_common *common = &ppdu_stats->common;
 	int ret;
-	u8 flags, mcs, nss, bw, sgi, rate_idx = 0;
+	u8 flags, mcs, nss, bw, sgi, dcm, rate_idx = 0;
 	u32 succ_bytes = 0;
 	u16 rate = 0, succ_pkts = 0;
 	u32 tx_duration = 0;
@@ -1096,18 +1095,29 @@ ath11k_update_per_peer_tx_stats(struct ath11k *ar,
 	nss = HTT_USR_RATE_NSS(user_rate->rate_flags) + 1;
 	mcs = HTT_USR_RATE_MCS(user_rate->rate_flags);
 	sgi = HTT_USR_RATE_GI(user_rate->rate_flags);
+	dcm = HTT_USR_RATE_DCM(user_rate->rate_flags);
 
 	/* Note: If host configured fixed rates and in some other special
 	 * cases, the broadcast/management frames are sent in different rates.
 	 * Firmware rate's control to be skipped for this?
 	 */
 
-	if (flags == WMI_RATE_PREAMBLE_VHT && mcs > 9) {
+	if (flags == WMI_RATE_PREAMBLE_HE && mcs > 11) {
+		ath11k_warn(ab, "Invalid HE mcs %hhd peer stats",  mcs);
+		return;
+	}
+
+	if (flags == WMI_RATE_PREAMBLE_HE && mcs > ATH11K_HE_MCS_MAX) {
+		ath11k_warn(ab, "Invalid HE mcs %hhd peer stats",  mcs);
+		return;
+	}
+
+	if (flags == WMI_RATE_PREAMBLE_VHT && mcs > ATH11K_VHT_MCS_MAX) {
 		ath11k_warn(ab, "Invalid VHT mcs %hhd peer stats",  mcs);
 		return;
 	}
 
-	if (flags == WMI_RATE_PREAMBLE_HT && (mcs > 7 || nss < 1)) {
+	if (flags == WMI_RATE_PREAMBLE_HT && (mcs > ATH11K_HT_MCS_MAX || nss < 1)) {
 		ath11k_warn(ab, "Invalid HT mcs %hhd nss %hhd peer stats",
 			    mcs, nss);
 		return;
@@ -1136,59 +1146,41 @@ ath11k_update_per_peer_tx_stats(struct ath11k *ar,
 	arsta = (struct ath11k_sta *)sta->drv_priv;
 
 	memset(&arsta->txrate, 0, sizeof(arsta->txrate));
-	memset(&arsta->tx_info.status, 0, sizeof(arsta->tx_info.status));
 
 	switch (flags) {
 	case WMI_RATE_PREAMBLE_OFDM:
 		arsta->txrate.legacy = rate;
-		if (arsta->arvif && arsta->arvif->vif)
-			conf = rcu_dereference(arsta->arvif->vif->chanctx_conf);
-		if (conf && conf->def.chan->band == NL80211_BAND_5GHZ)
-			arsta->tx_info.status.rates[0].idx = rate_idx - 4;
 		break;
 	case WMI_RATE_PREAMBLE_CCK:
 		arsta->txrate.legacy = rate;
-		arsta->tx_info.status.rates[0].idx = rate_idx;
-		if (mcs > ATH11K_HW_RATE_CCK_LP_1M &&
-		    mcs <= ATH11K_HW_RATE_CCK_SP_2M)
-			arsta->tx_info.status.rates[0].flags |=
-					IEEE80211_TX_RC_USE_SHORT_PREAMBLE;
 		break;
 	case WMI_RATE_PREAMBLE_HT:
 		arsta->txrate.mcs = mcs + 8 * (nss - 1);
-		arsta->tx_info.status.rates[0].idx = arsta->txrate.mcs;
 		arsta->txrate.flags = RATE_INFO_FLAGS_MCS;
-		arsta->tx_info.status.rates[0].flags |= IEEE80211_TX_RC_MCS;
-		if (sgi) {
+		if (sgi)
 			arsta->txrate.flags |= RATE_INFO_FLAGS_SHORT_GI;
-			arsta->tx_info.status.rates[0].flags |=
-					IEEE80211_TX_RC_SHORT_GI;
-		}
 		break;
 	case WMI_RATE_PREAMBLE_VHT:
 		arsta->txrate.mcs = mcs;
-		ieee80211_rate_set_vht(&arsta->tx_info.status.rates[0], mcs, nss);
 		arsta->txrate.flags = RATE_INFO_FLAGS_VHT_MCS;
-		arsta->tx_info.status.rates[0].flags |= IEEE80211_TX_RC_VHT_MCS;
-		if (sgi) {
+		if (sgi)
 			arsta->txrate.flags |= RATE_INFO_FLAGS_SHORT_GI;
-			arsta->tx_info.status.rates[0].flags |=
-						IEEE80211_TX_RC_SHORT_GI;
-		}
+		break;
+	case WMI_RATE_PREAMBLE_HE:
+		arsta->txrate.mcs = mcs;
+		arsta->txrate.flags = RATE_INFO_FLAGS_HE_MCS;
+		arsta->txrate.he_dcm = dcm;
+		arsta->txrate.he_gi = ath11k_he_gi_to_nl80211_he_gi(sgi);
+		arsta->txrate.he_ru_alloc = ath11k_he_ru_tones_to_nl80211_he_ru_alloc(
+						(user_rate->ru_end -
+						 user_rate->ru_start) + 1);
 		break;
 	}
 
 	arsta->txrate.nss = nss;
 	arsta->txrate.bw = ath11k_mac_bw_to_mac80211_bw(bw);
-	arsta->tx_info.status.rates[0].flags |= ath11k_bw_to_mac80211_bwflags(bw);
 	arsta->tx_duration += tx_duration;
 	memcpy(&arsta->last_txrate, &arsta->txrate, sizeof(struct rate_info));
-
-	if (succ_pkts) {
-		arsta->tx_info.flags = IEEE80211_TX_STAT_ACK;
-		arsta->tx_info.status.rates[0].count = 1;
-		ieee80211_tx_rate_update(ar->hw, sta, &arsta->tx_info);
-	}
 
 	/* PPDU stats reported for mgmt packet doesn't have valid tx bytes.
 	 * So skip peer stats update for mgmt packets.
@@ -1308,17 +1300,9 @@ exit:
 static void ath11k_htt_pktlog(struct ath11k_base *ab, struct sk_buff *skb)
 {
 	struct htt_pktlog_msg *data = (struct htt_pktlog_msg *)skb->data;
+	struct ath_pktlog_hdr *hdr = (struct ath_pktlog_hdr *)data;
 	struct ath11k *ar;
-	u32 len;
 	u8 pdev_id;
-
-	len = FIELD_GET(HTT_T2H_PPDU_STATS_INFO_PAYLOAD_SIZE, data->hdr);
-	if (len > ATH11K_HTT_PKTLOG_MAX_SIZE) {
-		ath11k_warn(ab, "htt pktlog buffer size %d, expected < %d\n",
-			    len,
-			    ATH11K_HTT_PKTLOG_MAX_SIZE);
-		return;
-	}
 
 	pdev_id = FIELD_GET(HTT_T2H_PPDU_STATS_INFO_PDEV_ID, data->hdr);
 	ar = ath11k_mac_get_ar_by_pdev_id(ab, pdev_id);
@@ -1327,7 +1311,7 @@ static void ath11k_htt_pktlog(struct ath11k_base *ab, struct sk_buff *skb)
 		return;
 	}
 
-	trace_ath11k_htt_pktlog(ar, data->payload, len);
+	trace_ath11k_htt_pktlog(ar, data->payload, hdr->size);
 }
 
 void ath11k_dp_htt_htc_t2h_msg_handler(struct ath11k_base *ab,
@@ -1988,6 +1972,7 @@ static void ath11k_dp_rx_h_rate(struct ath11k *ar, struct hal_rx_desc *rx_desc,
 		}
 		rx_status->encoding = RX_ENC_HE;
 		rx_status->nss = nss;
+		rx_status->he_gi = ath11k_he_gi_to_nl80211_he_gi(sgi);
 		rx_status->bw = ath11k_mac_bw_to_mac80211_bw(bw);
 		break;
 	}
@@ -2411,6 +2396,8 @@ static void ath11k_dp_rx_update_peer_stats(struct ath11k_sta *arsta,
 
 	rx_stats->num_mpdu_fcs_ok += ppdu_info->num_mpdu_fcs_ok;
 	rx_stats->num_mpdu_fcs_err += ppdu_info->num_mpdu_fcs_err;
+	rx_stats->dcm_count += ppdu_info->dcm;
+	rx_stats->ru_alloc_cnt[ppdu_info->ru_alloc] += num_msdu;
 
 	arsta->rssi_comb = ppdu_info->rssi_comb;
 	rx_stats->rx_duration += ppdu_info->rx_duration;

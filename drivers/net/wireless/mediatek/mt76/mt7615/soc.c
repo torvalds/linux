@@ -47,7 +47,7 @@ static int mt7622_wmac_probe(struct platform_device *pdev)
 		return PTR_ERR(mem_base);
 	}
 
-	return mt7615_mmio_probe(&pdev->dev, mem_base, irq);
+	return mt7615_mmio_probe(&pdev->dev, mem_base, irq, mt7615e_reg_map);
 }
 
 static int mt7622_wmac_remove(struct platform_device *pdev)

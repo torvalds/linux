@@ -22,7 +22,7 @@
 	do {										\
 		int index = 0; u8 i;							\
 		for (i = 0; i < len; i++) {						\
-			index += snprintf(out + index, HTT_MAX_STRING_LEN - index,	\
+			index += scnprintf(out + index, HTT_MAX_STRING_LEN - index,	\
 					  " %u:%u,", i, arr[i]);			\
 			if (index < 0 || index >= HTT_MAX_STRING_LEN)			\
 				break;							\
@@ -46,7 +46,7 @@ static inline void htt_print_stats_string_tlv(const void *tag_buf,
 	len += HTT_DBG_OUT(buf + len, buf_len - len, "HTT_STATS_STRING_TLV:");
 
 	for (i = 0; i < tag_len; i++) {
-		index += snprintf(&data[index],
+		index += scnprintf(&data[index],
 				HTT_MAX_STRING_LEN - index,
 				"%.*s", 4, (char *)&(htt_stats_buf->data[i]));
 		if (index >= HTT_MAX_STRING_LEN)
@@ -3097,7 +3097,7 @@ static inline void htt_print_rx_pdev_rate_stats_tlv(const void *tag_buf,
 		index = 0;
 
 		for (i = 0; i < HTT_RX_PDEV_STATS_RXEVM_MAX_PILOTS_PER_NSS; i++)
-			index += snprintf(&rx_pilot_evm_db[j][index],
+			index += scnprintf(&rx_pilot_evm_db[j][index],
 					  HTT_MAX_STRING_LEN - index,
 					  " %u:%d,",
 					  i,
@@ -3109,7 +3109,7 @@ static inline void htt_print_rx_pdev_rate_stats_tlv(const void *tag_buf,
 	index = 0;
 	memset(str_buf, 0x0, HTT_MAX_STRING_LEN);
 	for (i = 0; i < HTT_RX_PDEV_STATS_NUM_SPATIAL_STREAMS; i++)
-		index += snprintf(&str_buf[index],
+		index += scnprintf(&str_buf[index],
 				  HTT_MAX_STRING_LEN - index,
 				  " %u:%d,", i, htt_stats_buf->rx_pilot_evm_db_mean[i]);
 	len += HTT_DBG_OUT(buf + len, buf_len - len, "pilot_evm_dB_mean = %s ", str_buf);
@@ -3217,7 +3217,7 @@ static inline void htt_print_rx_pdev_rate_stats_tlv(const void *tag_buf,
 		index = 0;
 		memset(str_buf, 0x0, HTT_MAX_STRING_LEN);
 		for (i = 0; i < HTT_RX_PDEV_MAX_OFDMA_NUM_USER; i++)
-			index += snprintf(&str_buf[index],
+			index += scnprintf(&str_buf[index],
 					  HTT_MAX_STRING_LEN - index,
 					  " %u:%d,",
 					  i, htt_stats_buf->rx_ul_fd_rssi[j][i]);
@@ -3232,7 +3232,7 @@ static inline void htt_print_rx_pdev_rate_stats_tlv(const void *tag_buf,
 		index = 0;
 		memset(str_buf, 0x0, HTT_MAX_STRING_LEN);
 		for (i = 0; i < HTT_RX_PDEV_STATS_NUM_BW_COUNTERS; i++)
-			index += snprintf(&str_buf[index],
+			index += scnprintf(&str_buf[index],
 					  HTT_MAX_STRING_LEN - index,
 					  " %u:%d,",
 					  i,

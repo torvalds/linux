@@ -2211,7 +2211,7 @@ int qtnf_cmd_send_external_auth(struct qtnf_vif *vif,
 
 	cmd = (struct qlink_cmd_external_auth *)cmd_skb->data;
 
-	ether_addr_copy(cmd->bssid, auth->bssid);
+	ether_addr_copy(cmd->peer, auth->bssid);
 	cmd->status = cpu_to_le16(auth->status);
 
 	qtnf_bus_lock(vif->mac->bus);
@@ -2788,6 +2788,42 @@ int qtnf_cmd_netdev_changeupper(const struct qtnf_vif *vif, int br_domain)
 	if (ret)
 		pr_err("[VIF%u.%u] failed to set broadcast domain\n",
 		       vif->mac->macid, vif->vifid);
+
+	return ret;
+}
+
+int qtnf_cmd_send_update_owe(struct qtnf_vif *vif,
+			     struct cfg80211_update_owe_info *owe)
+{
+	struct qlink_cmd_update_owe *cmd;
+	struct sk_buff *cmd_skb;
+	int ret;
+
+	if (sizeof(*cmd) + owe->ie_len > QTNF_MAX_CMD_BUF_SIZE) {
+		pr_warn("VIF%u.%u: OWE update IEs too big: %zu\n",
+			vif->mac->macid, vif->vifid, owe->ie_len);
+		return -E2BIG;
+	}
+
+	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
+					    QLINK_CMD_UPDATE_OWE,
+					    sizeof(*cmd));
+	if (!cmd_skb)
+		return -ENOMEM;
+
+	cmd = (struct qlink_cmd_update_owe *)cmd_skb->data;
+	ether_addr_copy(cmd->peer, owe->peer);
+	cmd->status = cpu_to_le16(owe->status);
+	if (owe->ie_len && owe->ie)
+		qtnf_cmd_skb_put_buffer(cmd_skb, owe->ie, owe->ie_len);
+
+	qtnf_bus_lock(vif->mac->bus);
+	ret = qtnf_cmd_send(vif->mac->bus, cmd_skb);
+	if (ret)
+		goto out;
+
+out:
+	qtnf_bus_unlock(vif->mac->bus);
 
 	return ret;
 }
