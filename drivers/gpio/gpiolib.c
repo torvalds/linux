@@ -3432,6 +3432,26 @@ set_output_flag:
 EXPORT_SYMBOL_GPL(gpiod_direction_output);
 
 /**
+ * gpiod_set_config - sets @config for a GPIO
+ * @desc: descriptor of the GPIO for which to set the configuration
+ * @config: Same packed config format as generic pinconf
+ *
+ * Returns:
+ * 0 on success, %-ENOTSUPP if the controller doesn't support setting the
+ * configuration.
+ */
+int gpiod_set_config(struct gpio_desc *desc, unsigned long config)
+{
+	struct gpio_chip *chip;
+
+	VALIDATE_DESC(desc);
+	chip = desc->gdev->chip;
+
+	return gpio_do_set_config(chip, gpio_chip_hwgpio(desc), config);
+}
+EXPORT_SYMBOL_GPL(gpiod_set_config);
+
+/**
  * gpiod_set_debounce - sets @debounce time for a GPIO
  * @desc: descriptor of the GPIO for which to set debounce time
  * @debounce: debounce time in microseconds
@@ -3442,14 +3462,10 @@ EXPORT_SYMBOL_GPL(gpiod_direction_output);
  */
 int gpiod_set_debounce(struct gpio_desc *desc, unsigned debounce)
 {
-	struct gpio_chip	*chip;
-	unsigned long		config;
-
-	VALIDATE_DESC(desc);
-	chip = desc->gdev->chip;
+	unsigned long config;
 
 	config = pinconf_to_config_packed(PIN_CONFIG_INPUT_DEBOUNCE, debounce);
-	return gpio_do_set_config(chip, gpio_chip_hwgpio(desc), config);
+	return gpiod_set_config(desc, config);
 }
 EXPORT_SYMBOL_GPL(gpiod_set_debounce);
 
