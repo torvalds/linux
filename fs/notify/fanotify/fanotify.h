@@ -5,7 +5,8 @@
 #include <linux/exportfs.h>
 
 extern struct kmem_cache *fanotify_mark_cache;
-extern struct kmem_cache *fanotify_event_cachep;
+extern struct kmem_cache *fanotify_fid_event_cachep;
+extern struct kmem_cache *fanotify_path_event_cachep;
 extern struct kmem_cache *fanotify_perm_event_cachep;
 
 /* Possible states of the permission event */
@@ -52,43 +53,45 @@ static inline void *fanotify_fh_buf(struct fanotify_fh *fh)
 }
 
 /*
- * Structure for normal fanotify events. It gets allocated in
+ * Common structure for fanotify events. Concrete structs are allocated in
  * fanotify_handle_event() and freed when the information is retrieved by
- * userspace
+ * userspace. The type of event determines how it was allocated, how it will
+ * be freed and which concrete struct it may be cast to.
  */
+enum fanotify_event_type {
+	FANOTIFY_EVENT_TYPE_FID,
+	FANOTIFY_EVENT_TYPE_PATH,
+	FANOTIFY_EVENT_TYPE_PATH_PERM,
+};
+
 struct fanotify_event {
 	struct fsnotify_event fse;
 	u32 mask;
-	/*
-	 * With FAN_REPORT_FID, we do not hold any reference on the
-	 * victim object. Instead we store its NFS file handle and its
-	 * filesystem's fsid as a unique identifier.
-	 */
-	__kernel_fsid_t fsid;
-	struct fanotify_fh fh;
-	/*
-	 * We hold ref to this path so it may be dereferenced at any
-	 * point during this object's lifetime
-	 */
-	struct path path;
+	enum fanotify_event_type type;
 	struct pid *pid;
 };
 
-static inline bool fanotify_event_has_path(struct fanotify_event *event)
+struct fanotify_fid_event {
+	struct fanotify_event fae;
+	__kernel_fsid_t fsid;
+	struct fanotify_fh object_fh;
+};
+
+static inline struct fanotify_fid_event *
+FANOTIFY_FE(struct fanotify_event *event)
 {
-	return event->fh.type == FILEID_ROOT;
+	return container_of(event, struct fanotify_fid_event, fae);
 }
 
 static inline bool fanotify_event_has_fid(struct fanotify_event *event)
 {
-	return event->fh.type != FILEID_ROOT &&
-	       event->fh.type != FILEID_INVALID;
+	return event->type == FANOTIFY_EVENT_TYPE_FID;
 }
 
 static inline __kernel_fsid_t *fanotify_event_fsid(struct fanotify_event *event)
 {
-	if (fanotify_event_has_fid(event))
-		return &event->fsid;
+	if (event->type == FANOTIFY_EVENT_TYPE_FID)
+		return &FANOTIFY_FE(event)->fsid;
 	else
 		return NULL;
 }
@@ -96,8 +99,8 @@ static inline __kernel_fsid_t *fanotify_event_fsid(struct fanotify_event *event)
 static inline struct fanotify_fh *fanotify_event_object_fh(
 						struct fanotify_event *event)
 {
-	if (fanotify_event_has_fid(event))
-		return &event->fh;
+	if (event->type == FANOTIFY_EVENT_TYPE_FID)
+		return &FANOTIFY_FE(event)->object_fh;
 	else
 		return NULL;
 }
@@ -109,6 +112,17 @@ static inline int fanotify_event_object_fh_len(struct fanotify_event *event)
 	return fh ? fh->len : 0;
 }
 
+struct fanotify_path_event {
+	struct fanotify_event fae;
+	struct path path;
+};
+
+static inline struct fanotify_path_event *
+FANOTIFY_PE(struct fanotify_event *event)
+{
+	return container_of(event, struct fanotify_path_event, fae);
+}
+
 /*
  * Structure for permission fanotify events. It gets allocated and freed in
  * fanotify_handle_event() since we wait there for user response. When the
@@ -118,15 +132,16 @@ static inline int fanotify_event_object_fh_len(struct fanotify_event *event)
  */
 struct fanotify_perm_event {
 	struct fanotify_event fae;
+	struct path path;
 	unsigned short response;	/* userspace answer to the event */
 	unsigned short state;		/* state of the event */
 	int fd;		/* fd we passed to userspace for this event */
 };
 
 static inline struct fanotify_perm_event *
-FANOTIFY_PE(struct fsnotify_event *fse)
+FANOTIFY_PERM(struct fanotify_event *event)
 {
-	return container_of(fse, struct fanotify_perm_event, fae.fse);
+	return container_of(event, struct fanotify_perm_event, fae);
 }
 
 static inline bool fanotify_is_perm_event(u32 mask)
@@ -140,10 +155,18 @@ static inline struct fanotify_event *FANOTIFY_E(struct fsnotify_event *fse)
 	return container_of(fse, struct fanotify_event, fse);
 }
 
+static inline bool fanotify_event_has_path(struct fanotify_event *event)
+{
+	return event->type == FANOTIFY_EVENT_TYPE_PATH ||
+		event->type == FANOTIFY_EVENT_TYPE_PATH_PERM;
+}
+
 static inline struct path *fanotify_event_path(struct fanotify_event *event)
 {
-	if (fanotify_event_has_path(event))
-		return &event->path;
+	if (event->type == FANOTIFY_EVENT_TYPE_PATH)
+		return &FANOTIFY_PE(event)->path;
+	else if (event->type == FANOTIFY_EVENT_TYPE_PATH_PERM)
+		return &FANOTIFY_PERM(event)->path;
 	else
 		return NULL;
 }

@@ -29,7 +29,7 @@ static inline bool fanotify_fsid_equal(__kernel_fsid_t *fsid1,
 }
 
 static bool fanotify_fh_equal(struct fanotify_fh *fh1,
-			     struct fanotify_fh *fh2)
+			      struct fanotify_fh *fh2)
 {
 	if (fh1->type != fh2->type || fh1->len != fh2->len)
 		return false;
@@ -42,6 +42,17 @@ static bool fanotify_fh_equal(struct fanotify_fh *fh1,
 		!memcmp(fanotify_fh_buf(fh1), fanotify_fh_buf(fh2), fh1->len);
 }
 
+static bool fanotify_fid_event_equal(struct fanotify_fid_event *ffe1,
+				     struct fanotify_fid_event *ffe2)
+{
+	/* Do not merge fid events without object fh */
+	if (!ffe1->object_fh.len)
+		return false;
+
+	return fanotify_fsid_equal(&ffe1->fsid, &ffe2->fsid) &&
+		fanotify_fh_equal(&ffe1->object_fh, &ffe2->object_fh);
+}
+
 static bool should_merge(struct fsnotify_event *old_fsn,
 			 struct fsnotify_event *new_fsn)
 {
@@ -51,14 +62,15 @@ static bool should_merge(struct fsnotify_event *old_fsn,
 	old = FANOTIFY_E(old_fsn);
 	new = FANOTIFY_E(new_fsn);
 
-	if (old_fsn->objectid != new_fsn->objectid || old->pid != new->pid ||
-	    old->fh.type != new->fh.type)
+	if (old_fsn->objectid != new_fsn->objectid ||
+	    old->type != new->type || old->pid != new->pid)
 		return false;
 
-	if (fanotify_event_has_path(old)) {
+	switch (old->type) {
+	case FANOTIFY_EVENT_TYPE_PATH:
 		return fanotify_path_equal(fanotify_event_path(old),
 					   fanotify_event_path(new));
-	} else if (fanotify_event_has_fid(old)) {
+	case FANOTIFY_EVENT_TYPE_FID:
 		/*
 		 * We want to merge many dirent events in the same dir (i.e.
 		 * creates/unlinks/renames), but we do not want to merge dirent
@@ -70,11 +82,12 @@ static bool should_merge(struct fsnotify_event *old_fsn,
 		if ((old->mask & FS_ISDIR) != (new->mask & FS_ISDIR))
 			return false;
 
-		return fanotify_fsid_equal(&old->fsid, &new->fsid) &&
-			fanotify_fh_equal(&old->fh, &new->fh);
+		return fanotify_fid_event_equal(FANOTIFY_FE(old),
+						FANOTIFY_FE(new));
+	default:
+		WARN_ON_ONCE(1);
 	}
 
-	/* Do not merge events if we failed to encode fid */
 	return false;
 }
 
@@ -310,6 +323,7 @@ struct fanotify_event *fanotify_alloc_event(struct fsnotify_group *group,
 					    __kernel_fsid_t *fsid)
 {
 	struct fanotify_event *event = NULL;
+	struct fanotify_fid_event *ffe = NULL;
 	gfp_t gfp = GFP_KERNEL_ACCOUNT;
 	struct inode *id = fanotify_fid_inode(inode, mask, data, data_type);
 	const struct path *path = fsnotify_data_path(data, data_type);
@@ -334,14 +348,32 @@ struct fanotify_event *fanotify_alloc_event(struct fsnotify_group *group,
 		pevent = kmem_cache_alloc(fanotify_perm_event_cachep, gfp);
 		if (!pevent)
 			goto out;
+
 		event = &pevent->fae;
+		event->type = FANOTIFY_EVENT_TYPE_PATH_PERM;
 		pevent->response = 0;
 		pevent->state = FAN_EVENT_INIT;
 		goto init;
 	}
-	event = kmem_cache_alloc(fanotify_event_cachep, gfp);
-	if (!event)
-		goto out;
+
+	if (FAN_GROUP_FLAG(group, FAN_REPORT_FID)) {
+		ffe = kmem_cache_alloc(fanotify_fid_event_cachep, gfp);
+		if (!ffe)
+			goto out;
+
+		event = &ffe->fae;
+		event->type = FANOTIFY_EVENT_TYPE_FID;
+	} else {
+		struct fanotify_path_event *pevent;
+
+		pevent = kmem_cache_alloc(fanotify_path_event_cachep, gfp);
+		if (!pevent)
+			goto out;
+
+		event = &pevent->fae;
+		event->type = FANOTIFY_EVENT_TYPE_PATH;
+	}
+
 init: __maybe_unused
 	/*
 	 * Use the victim inode instead of the watching inode as the id for
@@ -354,19 +386,23 @@ init: __maybe_unused
 		event->pid = get_pid(task_pid(current));
 	else
 		event->pid = get_pid(task_tgid(current));
-	event->fh.len = 0;
-	if (id && FAN_GROUP_FLAG(group, FAN_REPORT_FID)) {
-		event->fsid = *fsid;
+
+	if (fanotify_event_has_fid(event)) {
+		ffe->object_fh.len = 0;
+		if (fsid)
+			ffe->fsid = *fsid;
 		if (id)
-			fanotify_encode_fh(&event->fh, id, gfp);
-	} else if (path) {
-		event->fh.type = FILEID_ROOT;
-		event->path = *path;
-		path_get(path);
-	} else {
-		event->fh.type = FILEID_INVALID;
-		event->path.mnt = NULL;
-		event->path.dentry = NULL;
+			fanotify_encode_fh(&ffe->object_fh, id, gfp);
+	} else if (fanotify_event_has_path(event)) {
+		struct path *p = fanotify_event_path(event);
+
+		if (path) {
+			*p = *path;
+			path_get(path);
+		} else {
+			p->mnt = NULL;
+			p->dentry = NULL;
+		}
 	}
 out:
 	memalloc_unuse_memcg();
@@ -486,7 +522,7 @@ static int fanotify_handle_event(struct fsnotify_group *group,
 
 		ret = 0;
 	} else if (fanotify_is_perm_event(mask)) {
-		ret = fanotify_get_response(group, FANOTIFY_PE(fsn_event),
+		ret = fanotify_get_response(group, FANOTIFY_PERM(event),
 					    iter_info);
 	}
 finish:
@@ -505,22 +541,46 @@ static void fanotify_free_group_priv(struct fsnotify_group *group)
 	free_uid(user);
 }
 
+static void fanotify_free_path_event(struct fanotify_event *event)
+{
+	path_put(fanotify_event_path(event));
+	kmem_cache_free(fanotify_path_event_cachep, FANOTIFY_PE(event));
+}
+
+static void fanotify_free_perm_event(struct fanotify_event *event)
+{
+	path_put(fanotify_event_path(event));
+	kmem_cache_free(fanotify_perm_event_cachep, FANOTIFY_PERM(event));
+}
+
+static void fanotify_free_fid_event(struct fanotify_event *event)
+{
+	struct fanotify_fid_event *ffe = FANOTIFY_FE(event);
+
+	if (fanotify_fh_has_ext_buf(&ffe->object_fh))
+		kfree(fanotify_fh_ext_buf(&ffe->object_fh));
+	kmem_cache_free(fanotify_fid_event_cachep, ffe);
+}
+
 static void fanotify_free_event(struct fsnotify_event *fsn_event)
 {
 	struct fanotify_event *event;
 
 	event = FANOTIFY_E(fsn_event);
-	if (fanotify_event_has_path(event))
-		path_put(&event->path);
-	else if (fanotify_fh_has_ext_buf(&event->fh))
-		kfree(fanotify_fh_ext_buf(&event->fh));
 	put_pid(event->pid);
-	if (fanotify_is_perm_event(event->mask)) {
-		kmem_cache_free(fanotify_perm_event_cachep,
-				FANOTIFY_PE(fsn_event));
-		return;
+	switch (event->type) {
+	case FANOTIFY_EVENT_TYPE_PATH:
+		fanotify_free_path_event(event);
+		break;
+	case FANOTIFY_EVENT_TYPE_PATH_PERM:
+		fanotify_free_perm_event(event);
+		break;
+	case FANOTIFY_EVENT_TYPE_FID:
+		fanotify_free_fid_event(event);
+		break;
+	default:
+		WARN_ON_ONCE(1);
 	}
-	kmem_cache_free(fanotify_event_cachep, event);
 }
 
 static void fanotify_free_mark(struct fsnotify_mark *fsn_mark)
