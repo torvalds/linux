@@ -104,9 +104,7 @@ config MEDIA_TEST_SUPPORT
 
 	  In case of doubts, say N.
 
-source "drivers/media/cec/Kconfig"
-
-source "drivers/media/mc/Kconfig"
+comment "Multimedia core features"
 
 #
 # Video4Linux support
@@ -129,8 +127,6 @@ config VIDEO_V4L2_SUBDEV_API
 	  video format, size and frame rate between hardware blocks.
 
 	  This API is mostly used by camera interfaces in embedded platforms.
-
-source "drivers/media/v4l2-core/Kconfig"
 
 #
 # DVB Core
@@ -174,13 +170,19 @@ config DVB_NET
 	  You may want to disable the network support on embedded devices. If
 	  unsure say Y.
 
+source "drivers/media/v4l2-core/Kconfig"
+source "drivers/media/mc/Kconfig"
 source "drivers/media/dvb-core/Kconfig"
+source "drivers/media/cec/Kconfig"
 
 comment "Media drivers"
 
 source "drivers/media/usb/Kconfig"
 source "drivers/media/pci/Kconfig"
 source "drivers/media/radio/Kconfig"
+
+# Common driver options
+source "drivers/media/common/Kconfig"
 
 if MEDIA_PLATFORM_SUPPORT
 source "drivers/media/platform/Kconfig"
@@ -189,9 +191,6 @@ source "drivers/media/mmc/Kconfig"
 endif
 
 source "drivers/media/firewire/Kconfig"
-
-# Common driver options
-source "drivers/media/common/Kconfig"
 
 comment "Media ancillary drivers (tuners, sensors, i2c, spi, frontends)"
 
