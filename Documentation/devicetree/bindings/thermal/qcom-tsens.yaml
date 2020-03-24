@@ -47,6 +47,18 @@ properties:
       - description: TM registers
       - description: SROT registers
 
+  interrupts:
+    minItems: 1
+    items:
+      - description: Combined interrupt if upper or lower threshold crossed
+      - description: Interrupt if critical threshold crossed
+
+  interrupt-names:
+    minItems: 1
+    items:
+      - const: uplow
+      - const: critical
+
   nvmem-cells:
     minItems: 1
     maxItems: 2
@@ -89,22 +101,16 @@ allOf:
     then:
       properties:
         interrupts:
-          items:
-            - description: Combined interrupt if upper or lower threshold crossed
+          maxItems: 1
         interrupt-names:
-          items:
-            - const: uplow
+          maxItems: 1
 
     else:
       properties:
         interrupts:
-          items:
-            - description: Combined interrupt if upper or lower threshold crossed
-            - description: Interrupt if critical threshold crossed
+          minItems: 2
         interrupt-names:
-          items:
-            - const: uplow
-            - const: critical
+          minItems: 2
 
 required:
   - compatible
@@ -113,6 +119,8 @@ required:
   - interrupts
   - interrupt-names
   - "#thermal-sensor-cells"
+
+additionalProperties: false
 
 examples:
   - |
