@@ -16,6 +16,7 @@ general.
    devlink-dpipe
    devlink-health
    devlink-info
+   devlink-flash
    devlink-params
    devlink-region
    devlink-resource
