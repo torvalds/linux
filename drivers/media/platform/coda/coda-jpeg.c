@@ -339,7 +339,10 @@ int coda_jpeg_decode_header(struct coda_ctx *ctx, struct vb2_buffer *vb)
 			v4l2_err(&dev->v4l2_dev, "missing Huffman table\n");
 			return -EINVAL;
 		}
-		if (huffman_tables[i].length != ((i & 2) ? 178 : 28)) {
+		/* AC tables should be between 17 -> 178, DC between 17 -> 28 */
+		if (huffman_tables[i].length < 17 ||
+		    huffman_tables[i].length > 178 ||
+		    ((i & 2) == 0 && huffman_tables[i].length > 28)) {
 			v4l2_err(&dev->v4l2_dev,
 				 "invalid Huffman table %d length: %zu\n",
 				 i, huffman_tables[i].length);
@@ -353,10 +356,12 @@ int coda_jpeg_decode_header(struct coda_ctx *ctx, struct vb2_buffer *vb)
 			return -ENOMEM;
 		ctx->params.jpeg_huff_tab = huff_tab;
 	}
-	memcpy(huff_tab->luma_dc, huffman_tables[0].start, 16 + 12);
-	memcpy(huff_tab->chroma_dc, huffman_tables[1].start, 16 + 12);
-	memcpy(huff_tab->luma_ac, huffman_tables[2].start, 16 + 162);
-	memcpy(huff_tab->chroma_ac, huffman_tables[3].start, 16 + 162);
+
+	memset(huff_tab, 0, sizeof(*huff_tab));
+	memcpy(huff_tab->luma_dc, huffman_tables[0].start, huffman_tables[0].length);
+	memcpy(huff_tab->chroma_dc, huffman_tables[1].start, huffman_tables[1].length);
+	memcpy(huff_tab->luma_ac, huffman_tables[2].start, huffman_tables[2].length);
+	memcpy(huff_tab->chroma_ac, huffman_tables[3].start, huffman_tables[3].length);
 
 	/* check scan header */
 	for (i = 0; i < scan_header.num_components; i++) {
