@@ -443,7 +443,10 @@ static bool device_init_rings(struct vnt_private *priv)
 
 	/*allocate all RD/TD rings a single pool*/
 	vir_pool = dma_alloc_coherent(&priv->pcid->dev,
-				      priv->opts.rx_descs0 * sizeof(struct vnt_rx_desc) + priv->opts.rx_descs1 * sizeof(struct vnt_rx_desc) + priv->opts.tx_descs[0] * sizeof(struct vnt_tx_desc) + priv->opts.tx_descs[1] * sizeof(struct vnt_tx_desc),
+				      priv->opts.rx_descs0 * sizeof(struct vnt_rx_desc) +
+				      priv->opts.rx_descs1 * sizeof(struct vnt_rx_desc) +
+				      priv->opts.tx_descs[0] * sizeof(struct vnt_tx_desc) +
+				      priv->opts.tx_descs[1] * sizeof(struct vnt_tx_desc),
 				      &priv->pool_dma, GFP_ATOMIC);
 	if (!vir_pool) {
 		dev_err(&priv->pcid->dev, "allocate desc dma memory failed\n");
