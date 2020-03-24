@@ -131,6 +131,23 @@ enum mlx5_ib_var_obj_methods {
 	MLX5_IB_METHOD_VAR_OBJ_DESTROY,
 };
 
+enum mlx5_ib_uar_alloc_attrs {
+	MLX5_IB_ATTR_UAR_OBJ_ALLOC_HANDLE = (1U << UVERBS_ID_NS_SHIFT),
+	MLX5_IB_ATTR_UAR_OBJ_ALLOC_TYPE,
+	MLX5_IB_ATTR_UAR_OBJ_ALLOC_MMAP_OFFSET,
+	MLX5_IB_ATTR_UAR_OBJ_ALLOC_MMAP_LENGTH,
+	MLX5_IB_ATTR_UAR_OBJ_ALLOC_PAGE_ID,
+};
+
+enum mlx5_ib_uar_obj_destroy_attrs {
+	MLX5_IB_ATTR_UAR_OBJ_DESTROY_HANDLE = (1U << UVERBS_ID_NS_SHIFT),
+};
+
+enum mlx5_ib_uar_obj_methods {
+	MLX5_IB_METHOD_UAR_OBJ_ALLOC = (1U << UVERBS_ID_NS_SHIFT),
+	MLX5_IB_METHOD_UAR_OBJ_DESTROY,
+};
+
 enum mlx5_ib_devx_umem_reg_attrs {
 	MLX5_IB_ATTR_DEVX_UMEM_REG_HANDLE = (1U << UVERBS_ID_NS_SHIFT),
 	MLX5_IB_ATTR_DEVX_UMEM_REG_ADDR,
@@ -190,6 +207,7 @@ enum mlx5_ib_objects {
 	MLX5_IB_OBJECT_DEVX_ASYNC_EVENT_FD,
 	MLX5_IB_OBJECT_VAR,
 	MLX5_IB_OBJECT_PP,
+	MLX5_IB_OBJECT_UAR,
 };
 
 enum mlx5_ib_flow_matcher_create_attrs {

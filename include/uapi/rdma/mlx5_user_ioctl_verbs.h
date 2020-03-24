@@ -77,5 +77,10 @@ enum mlx5_ib_uapi_pp_alloc_flags {
 	MLX5_IB_UAPI_PP_ALLOC_FLAGS_DEDICATED_INDEX = 1 << 0,
 };
 
+enum mlx5_ib_uapi_uar_alloc_type {
+	MLX5_IB_UAPI_UAR_ALLOC_TYPE_BF = 0x0,
+	MLX5_IB_UAPI_UAR_ALLOC_TYPE_NC = 0x1,
+};
+
 #endif
 

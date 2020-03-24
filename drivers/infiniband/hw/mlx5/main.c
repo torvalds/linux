@@ -2021,6 +2021,17 @@ static phys_addr_t uar_index2pfn(struct mlx5_ib_dev *dev,
 	return (dev->mdev->bar_addr >> PAGE_SHIFT) + uar_idx / fw_uars_per_page;
 }
 
+static u64 uar_index2paddress(struct mlx5_ib_dev *dev,
+				 int uar_idx)
+{
+	unsigned int fw_uars_per_page;
+
+	fw_uars_per_page = MLX5_CAP_GEN(dev->mdev, uar_4k) ?
+				MLX5_UARS_IN_PAGE : 1;
+
+	return (dev->mdev->bar_addr + (uar_idx / fw_uars_per_page) * PAGE_SIZE);
+}
+
 static int get_command(unsigned long offset)
 {
 	return (offset >> MLX5_IB_MMAP_CMD_SHIFT) & MLX5_IB_MMAP_CMD_MASK;
@@ -2103,6 +2114,11 @@ static void mlx5_ib_mmap_free(struct rdma_user_mmap_entry *entry)
 		mutex_lock(&var_table->bitmap_lock);
 		clear_bit(mentry->page_idx, var_table->bitmap);
 		mutex_unlock(&var_table->bitmap_lock);
+		kfree(mentry);
+		break;
+	case MLX5_IB_MMAP_TYPE_UAR_WC:
+	case MLX5_IB_MMAP_TYPE_UAR_NC:
+		mlx5_cmd_free_uar(dev->mdev, mentry->page_idx);
 		kfree(mentry);
 		break;
 	default:
@@ -2256,7 +2272,8 @@ static int mlx5_ib_mmap_offset(struct mlx5_ib_dev *dev,
 
 	mentry = to_mmmap(entry);
 	pfn = (mentry->address >> PAGE_SHIFT);
-	if (mentry->mmap_flag == MLX5_IB_MMAP_TYPE_VAR)
+	if (mentry->mmap_flag == MLX5_IB_MMAP_TYPE_VAR ||
+	    mentry->mmap_flag == MLX5_IB_MMAP_TYPE_UAR_NC)
 		prot = pgprot_noncached(vma->vm_page_prot);
 	else
 		prot = pgprot_writecombine(vma->vm_page_prot);
@@ -6078,14 +6095,24 @@ static void mlx5_ib_cleanup_multiport_master(struct mlx5_ib_dev *dev)
 	mlx5_nic_vport_disable_roce(dev->mdev);
 }
 
-static int var_obj_cleanup(struct ib_uobject *uobject,
-			   enum rdma_remove_reason why,
-			   struct uverbs_attr_bundle *attrs)
+static int mmap_obj_cleanup(struct ib_uobject *uobject,
+			    enum rdma_remove_reason why,
+			    struct uverbs_attr_bundle *attrs)
 {
 	struct mlx5_user_mmap_entry *obj = uobject->object;
 
 	rdma_user_mmap_entry_remove(&obj->rdma_entry);
 	return 0;
+}
+
+static int mlx5_rdma_user_mmap_entry_insert(struct mlx5_ib_ucontext *c,
+					    struct mlx5_user_mmap_entry *entry,
+					    size_t length)
+{
+	return rdma_user_mmap_entry_insert_range(
+		&c->ibucontext, &entry->rdma_entry, length,
+		(MLX5_IB_MMAP_OFFSET_START << 16),
+		((MLX5_IB_MMAP_OFFSET_END << 16) + (1UL << 16) - 1));
 }
 
 static struct mlx5_user_mmap_entry *
@@ -6118,10 +6145,8 @@ alloc_var_entry(struct mlx5_ib_ucontext *c)
 	entry->page_idx = page_idx;
 	entry->mmap_flag = MLX5_IB_MMAP_TYPE_VAR;
 
-	err = rdma_user_mmap_entry_insert_range(
-		&c->ibucontext, &entry->rdma_entry, var_table->stride_size,
-		MLX5_IB_MMAP_OFFSET_START << 16,
-		(MLX5_IB_MMAP_OFFSET_END << 16) + (1UL << 16) - 1);
+	err = mlx5_rdma_user_mmap_entry_insert(c, entry,
+					       var_table->stride_size);
 	if (err)
 		goto err_insert;
 
@@ -6205,7 +6230,7 @@ DECLARE_UVERBS_NAMED_METHOD_DESTROY(
 			UA_MANDATORY));
 
 DECLARE_UVERBS_NAMED_OBJECT(MLX5_IB_OBJECT_VAR,
-			    UVERBS_TYPE_ALLOC_IDR(var_obj_cleanup),
+			    UVERBS_TYPE_ALLOC_IDR(mmap_obj_cleanup),
 			    &UVERBS_METHOD(MLX5_IB_METHOD_VAR_OBJ_ALLOC),
 			    &UVERBS_METHOD(MLX5_IB_METHOD_VAR_OBJ_DESTROY));
 
@@ -6216,6 +6241,134 @@ static bool var_is_supported(struct ib_device *device)
 	return (MLX5_CAP_GEN_64(dev->mdev, general_obj_types) &
 			MLX5_GENERAL_OBJ_TYPES_CAP_VIRTIO_NET_Q);
 }
+
+static struct mlx5_user_mmap_entry *
+alloc_uar_entry(struct mlx5_ib_ucontext *c,
+		enum mlx5_ib_uapi_uar_alloc_type alloc_type)
+{
+	struct mlx5_user_mmap_entry *entry;
+	struct mlx5_ib_dev *dev;
+	u32 uar_index;
+	int err;
+
+	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	if (!entry)
+		return ERR_PTR(-ENOMEM);
+
+	dev = to_mdev(c->ibucontext.device);
+	err = mlx5_cmd_alloc_uar(dev->mdev, &uar_index);
+	if (err)
+		goto end;
+
+	entry->page_idx = uar_index;
+	entry->address = uar_index2paddress(dev, uar_index);
+	if (alloc_type == MLX5_IB_UAPI_UAR_ALLOC_TYPE_BF)
+		entry->mmap_flag = MLX5_IB_MMAP_TYPE_UAR_WC;
+	else
+		entry->mmap_flag = MLX5_IB_MMAP_TYPE_UAR_NC;
+
+	err = mlx5_rdma_user_mmap_entry_insert(c, entry, PAGE_SIZE);
+	if (err)
+		goto err_insert;
+
+	return entry;
+
+err_insert:
+	mlx5_cmd_free_uar(dev->mdev, uar_index);
+end:
+	kfree(entry);
+	return ERR_PTR(err);
+}
+
+static int UVERBS_HANDLER(MLX5_IB_METHOD_UAR_OBJ_ALLOC)(
+	struct uverbs_attr_bundle *attrs)
+{
+	struct ib_uobject *uobj = uverbs_attr_get_uobject(
+		attrs, MLX5_IB_ATTR_UAR_OBJ_ALLOC_HANDLE);
+	enum mlx5_ib_uapi_uar_alloc_type alloc_type;
+	struct mlx5_ib_ucontext *c;
+	struct mlx5_user_mmap_entry *entry;
+	u64 mmap_offset;
+	u32 length;
+	int err;
+
+	c = to_mucontext(ib_uverbs_get_ucontext(attrs));
+	if (IS_ERR(c))
+		return PTR_ERR(c);
+
+	err = uverbs_get_const(&alloc_type, attrs,
+			       MLX5_IB_ATTR_UAR_OBJ_ALLOC_TYPE);
+	if (err)
+		return err;
+
+	if (alloc_type != MLX5_IB_UAPI_UAR_ALLOC_TYPE_BF &&
+	    alloc_type != MLX5_IB_UAPI_UAR_ALLOC_TYPE_NC)
+		return -EOPNOTSUPP;
+
+	if (!to_mdev(c->ibucontext.device)->wc_support &&
+	    alloc_type == MLX5_IB_UAPI_UAR_ALLOC_TYPE_BF)
+		return -EOPNOTSUPP;
+
+	entry = alloc_uar_entry(c, alloc_type);
+	if (IS_ERR(entry))
+		return PTR_ERR(entry);
+
+	mmap_offset = mlx5_entry_to_mmap_offset(entry);
+	length = entry->rdma_entry.npages * PAGE_SIZE;
+	uobj->object = entry;
+
+	err = uverbs_copy_to(attrs, MLX5_IB_ATTR_UAR_OBJ_ALLOC_MMAP_OFFSET,
+			     &mmap_offset, sizeof(mmap_offset));
+	if (err)
+		goto err;
+
+	err = uverbs_copy_to(attrs, MLX5_IB_ATTR_UAR_OBJ_ALLOC_PAGE_ID,
+			     &entry->page_idx, sizeof(entry->page_idx));
+	if (err)
+		goto err;
+
+	err = uverbs_copy_to(attrs, MLX5_IB_ATTR_UAR_OBJ_ALLOC_MMAP_LENGTH,
+			     &length, sizeof(length));
+	if (err)
+		goto err;
+
+	return 0;
+
+err:
+	rdma_user_mmap_entry_remove(&entry->rdma_entry);
+	return err;
+}
+
+DECLARE_UVERBS_NAMED_METHOD(
+	MLX5_IB_METHOD_UAR_OBJ_ALLOC,
+	UVERBS_ATTR_IDR(MLX5_IB_ATTR_UAR_OBJ_ALLOC_HANDLE,
+			MLX5_IB_OBJECT_UAR,
+			UVERBS_ACCESS_NEW,
+			UA_MANDATORY),
+	UVERBS_ATTR_CONST_IN(MLX5_IB_ATTR_UAR_OBJ_ALLOC_TYPE,
+			     enum mlx5_ib_uapi_uar_alloc_type,
+			     UA_MANDATORY),
+	UVERBS_ATTR_PTR_OUT(MLX5_IB_ATTR_UAR_OBJ_ALLOC_PAGE_ID,
+			   UVERBS_ATTR_TYPE(u32),
+			   UA_MANDATORY),
+	UVERBS_ATTR_PTR_OUT(MLX5_IB_ATTR_UAR_OBJ_ALLOC_MMAP_LENGTH,
+			   UVERBS_ATTR_TYPE(u32),
+			   UA_MANDATORY),
+	UVERBS_ATTR_PTR_OUT(MLX5_IB_ATTR_UAR_OBJ_ALLOC_MMAP_OFFSET,
+			    UVERBS_ATTR_TYPE(u64),
+			    UA_MANDATORY));
+
+DECLARE_UVERBS_NAMED_METHOD_DESTROY(
+	MLX5_IB_METHOD_UAR_OBJ_DESTROY,
+	UVERBS_ATTR_IDR(MLX5_IB_ATTR_UAR_OBJ_DESTROY_HANDLE,
+			MLX5_IB_OBJECT_UAR,
+			UVERBS_ACCESS_DESTROY,
+			UA_MANDATORY));
+
+DECLARE_UVERBS_NAMED_OBJECT(MLX5_IB_OBJECT_UAR,
+			    UVERBS_TYPE_ALLOC_IDR(mmap_obj_cleanup),
+			    &UVERBS_METHOD(MLX5_IB_METHOD_UAR_OBJ_ALLOC),
+			    &UVERBS_METHOD(MLX5_IB_METHOD_UAR_OBJ_DESTROY));
 
 ADD_UVERBS_ATTRIBUTES_SIMPLE(
 	mlx5_ib_dm,
@@ -6248,6 +6401,7 @@ static const struct uapi_definition mlx5_ib_defs[] = {
 	UAPI_DEF_CHAIN_OBJ_TREE(UVERBS_OBJECT_DM, &mlx5_ib_dm),
 	UAPI_DEF_CHAIN_OBJ_TREE_NAMED(MLX5_IB_OBJECT_VAR,
 				UAPI_DEF_IS_OBJ_SUPPORTED(var_is_supported)),
+	UAPI_DEF_CHAIN_OBJ_TREE_NAMED(MLX5_IB_OBJECT_UAR),
 	{}
 };
 
