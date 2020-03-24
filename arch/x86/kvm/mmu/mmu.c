@@ -2153,10 +2153,6 @@ static int nonpaging_sync_page(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
-static void nonpaging_invlpg(struct kvm_vcpu *vcpu, gva_t gva, hpa_t root)
-{
-}
-
 static void nonpaging_update_pte(struct kvm_vcpu *vcpu,
 				 struct kvm_mmu_page *sp, u64 *spte,
 				 const void *pte)
@@ -4237,7 +4233,7 @@ static void nonpaging_init_context(struct kvm_vcpu *vcpu,
 	context->page_fault = nonpaging_page_fault;
 	context->gva_to_gpa = nonpaging_gva_to_gpa;
 	context->sync_page = nonpaging_sync_page;
-	context->invlpg = nonpaging_invlpg;
+	context->invlpg = NULL;
 	context->update_pte = nonpaging_update_pte;
 	context->root_level = 0;
 	context->shadow_root_level = PT32E_ROOT_LEVEL;
@@ -4928,7 +4924,7 @@ static void init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)
 	context->mmu_role.as_u64 = new_role.as_u64;
 	context->page_fault = kvm_tdp_page_fault;
 	context->sync_page = nonpaging_sync_page;
-	context->invlpg = nonpaging_invlpg;
+	context->invlpg = NULL;
 	context->update_pte = nonpaging_update_pte;
 	context->shadow_root_level = kvm_x86_ops.get_tdp_level(vcpu);
 	context->direct_map = true;
@@ -5095,6 +5091,12 @@ static void init_kvm_nested_mmu(struct kvm_vcpu *vcpu)
 	g_context->get_guest_pgd     = get_cr3;
 	g_context->get_pdptr         = kvm_pdptr_read;
 	g_context->inject_page_fault = kvm_inject_page_fault;
+
+	/*
+	 * L2 page tables are never shadowed, so there is no need to sync
+	 * SPTEs.
+	 */
+	g_context->invlpg            = NULL;
 
 	/*
 	 * Note that arch.mmu->gva_to_gpa translates l2_gpa to l1_gpa using
@@ -5497,36 +5499,53 @@ emulate:
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_page_fault);
 
-void kvm_mmu_invlpg(struct kvm_vcpu *vcpu, gva_t gva)
+void kvm_mmu_invalidate_gva(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
+			    gva_t gva, hpa_t root_hpa)
 {
-	struct kvm_mmu *mmu = vcpu->arch.mmu;
 	int i;
 
-	/* INVLPG on a * non-canonical address is a NOP according to the SDM.  */
-	if (is_noncanonical_address(gva, vcpu))
+	/* It's actually a GPA for vcpu->arch.guest_mmu.  */
+	if (mmu != &vcpu->arch.guest_mmu) {
+		/* INVLPG on a non-canonical address is a NOP according to the SDM.  */
+		if (is_noncanonical_address(gva, vcpu))
+			return;
+
+		kvm_x86_ops.tlb_flush_gva(vcpu, gva);
+	}
+
+	if (!mmu->invlpg)
 		return;
 
-	mmu->invlpg(vcpu, gva, mmu->root_hpa);
+	if (root_hpa == INVALID_PAGE) {
+		mmu->invlpg(vcpu, gva, mmu->root_hpa);
 
-	/*
-	 * INVLPG is required to invalidate any global mappings for the VA,
-	 * irrespective of PCID. Since it would take us roughly similar amount
-	 * of work to determine whether any of the prev_root mappings of the VA
-	 * is marked global, or to just sync it blindly, so we might as well
-	 * just always sync it.
-	 *
-	 * Mappings not reachable via the current cr3 or the prev_roots will be
-	 * synced when switching to that cr3, so nothing needs to be done here
-	 * for them.
-	 */
-	for (i = 0; i < KVM_MMU_NUM_PREV_ROOTS; i++)
-		if (VALID_PAGE(mmu->prev_roots[i].hpa))
-			mmu->invlpg(vcpu, gva, mmu->prev_roots[i].hpa);
+		/*
+		 * INVLPG is required to invalidate any global mappings for the VA,
+		 * irrespective of PCID. Since it would take us roughly similar amount
+		 * of work to determine whether any of the prev_root mappings of the VA
+		 * is marked global, or to just sync it blindly, so we might as well
+		 * just always sync it.
+		 *
+		 * Mappings not reachable via the current cr3 or the prev_roots will be
+		 * synced when switching to that cr3, so nothing needs to be done here
+		 * for them.
+		 */
+		for (i = 0; i < KVM_MMU_NUM_PREV_ROOTS; i++)
+			if (VALID_PAGE(mmu->prev_roots[i].hpa))
+				mmu->invlpg(vcpu, gva, mmu->prev_roots[i].hpa);
+	} else {
+		mmu->invlpg(vcpu, gva, root_hpa);
+	}
+}
+EXPORT_SYMBOL_GPL(kvm_mmu_invalidate_gva);
 
-	kvm_x86_ops.tlb_flush_gva(vcpu, gva);
+void kvm_mmu_invlpg(struct kvm_vcpu *vcpu, gva_t gva)
+{
+	kvm_mmu_invalidate_gva(vcpu, vcpu->arch.mmu, gva, INVALID_PAGE);
 	++vcpu->stat.invlpg;
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_invlpg);
+
 
 void kvm_mmu_invpcid_gva(struct kvm_vcpu *vcpu, gva_t gva, unsigned long pcid)
 {
