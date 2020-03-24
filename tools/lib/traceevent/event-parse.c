@@ -1444,6 +1444,7 @@ static int event_read_fields(struct tep_event *event, struct tep_format_field **
 	enum tep_event_type type;
 	char *token;
 	char *last_token;
+	char *delim = " ";
 	int count = 0;
 	int ret;
 
@@ -1504,13 +1505,49 @@ static int event_read_fields(struct tep_event *event, struct tep_format_field **
 					field->flags |= TEP_FIELD_IS_POINTER;
 
 				if (field->type) {
-					ret = append(&field->type, " ", last_token);
+					ret = append(&field->type, delim, last_token);
 					free(last_token);
 					if (ret < 0)
 						goto fail;
 				} else
 					field->type = last_token;
 				last_token = token;
+				delim = " ";
+				continue;
+			}
+
+			/* Handle __attribute__((user)) */
+			if ((type == TEP_EVENT_DELIM) &&
+			    strcmp("__attribute__", last_token) == 0 &&
+			    token[0] == '(') {
+				int depth = 1;
+				int ret;
+
+				ret = append(&field->type, " ", last_token);
+				ret |= append(&field->type, "", "(");
+				if (ret < 0)
+					goto fail;
+
+				delim = " ";
+				while ((type = read_token(&token)) != TEP_EVENT_NONE) {
+					if (type == TEP_EVENT_DELIM) {
+						if (token[0] == '(')
+							depth++;
+						else if (token[0] == ')')
+							depth--;
+						if (!depth)
+							break;
+						ret = append(&field->type, "", token);
+						delim = "";
+					} else {
+						ret = append(&field->type, delim, token);
+						delim = " ";
+					}
+					if (ret < 0)
+						goto fail;
+					free(last_token);
+					last_token = token;
+				}
 				continue;
 			}
 			break;
