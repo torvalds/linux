@@ -626,6 +626,21 @@ static int goodix_reset(struct goodix_ts_data *ts)
 }
 
 #if defined CONFIG_X86 && defined CONFIG_ACPI
+#include <asm/cpu_device_id.h>
+#include <asm/intel-family.h>
+
+static const struct x86_cpu_id baytrail_cpu_ids[] = {
+	{ X86_VENDOR_INTEL, 6, INTEL_FAM6_ATOM_SILVERMONT, X86_FEATURE_ANY, },
+	{}
+};
+
+static inline bool is_byt(void)
+{
+	const struct x86_cpu_id *id = x86_match_cpu(baytrail_cpu_ids);
+
+	return !!id;
+}
+
 static const struct acpi_gpio_params first_gpio = { 0, 0, false };
 static const struct acpi_gpio_params second_gpio = { 1, 0, false };
 
@@ -696,6 +711,10 @@ static int goodix_add_acpi_gpio_mappings(struct goodix_ts_data *ts)
 		ts->irq_pin_access_method = IRQ_PIN_ACCESS_ACPI_GPIO;
 		gpio_mapping = acpi_goodix_int_first_gpios;
 	} else if (ts->gpio_count == 2 && ts->gpio_int_idx == 1) {
+		ts->irq_pin_access_method = IRQ_PIN_ACCESS_ACPI_GPIO;
+		gpio_mapping = acpi_goodix_int_last_gpios;
+	} else if (is_byt() && ts->gpio_count == 2 && ts->gpio_int_idx == -1) {
+		dev_info(dev, "No ACPI GpioInt resource, assuming that the GPIO order is reset, int\n");
 		ts->irq_pin_access_method = IRQ_PIN_ACCESS_ACPI_GPIO;
 		gpio_mapping = acpi_goodix_int_last_gpios;
 	} else {
