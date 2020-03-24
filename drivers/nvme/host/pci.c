@@ -2873,10 +2873,9 @@ static void nvme_remove(struct pci_dev *pdev)
 	nvme_free_host_mem(dev);
 	nvme_dev_remove_admin(dev);
 	nvme_free_queues(dev, 0);
-	nvme_uninit_ctrl(&dev->ctrl);
 	nvme_release_prp_pools(dev);
 	nvme_dev_unmap(dev);
-	nvme_put_ctrl(&dev->ctrl);
+	nvme_uninit_ctrl(&dev->ctrl);
 }
 
 #ifdef CONFIG_PM_SLEEP
