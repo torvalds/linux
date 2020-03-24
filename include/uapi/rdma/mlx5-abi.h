@@ -79,6 +79,7 @@ struct mlx5_ib_alloc_ucontext_req {
 
 enum mlx5_lib_caps {
 	MLX5_LIB_CAP_4K_UAR	= (__u64)1 << 0,
+	MLX5_LIB_CAP_DYN_UAR	= (__u64)1 << 1,
 };
 
 enum mlx5_ib_alloc_uctx_v2_flags {

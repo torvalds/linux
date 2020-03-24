@@ -697,6 +697,9 @@ static int alloc_bfreg(struct mlx5_ib_dev *dev,
 {
 	int bfregn = -ENOMEM;
 
+	if (bfregi->lib_uar_dyn)
+		return -EINVAL;
+
 	mutex_lock(&bfregi->lock);
 	if (bfregi->ver >= 2) {
 		bfregn = alloc_high_class_bfreg(dev, bfregi);
@@ -767,6 +770,9 @@ int bfregn_to_uar_index(struct mlx5_ib_dev *dev,
 	unsigned int bfregs_per_sys_page;
 	u32 index_of_sys_page;
 	u32 offset;
+
+	if (bfregi->lib_uar_dyn)
+		return -EINVAL;
 
 	bfregs_per_sys_page = get_uars_per_sys_page(dev, bfregi->lib_uar_4k) *
 				MLX5_NON_FP_BFREGS_PER_UAR;

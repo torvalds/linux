@@ -139,6 +139,7 @@ struct mlx5_bfreg_info {
 	struct mutex lock;
 	u32 ver;
 	u8 lib_uar_4k : 1;
+	u8 lib_uar_dyn : 1;
 	u32 num_sys_pages;
 	u32 num_static_sys_pages;
 	u32 total_num_bfregs;
