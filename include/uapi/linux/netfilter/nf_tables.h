@@ -1554,6 +1554,16 @@ enum nft_object_attributes {
 #define NFTA_OBJ_MAX		(__NFTA_OBJ_MAX - 1)
 
 /**
+ * enum nft_flowtable_flags - nf_tables flowtable flags
+ *
+ * @NFT_FLOWTABLE_HW_OFFLOAD: flowtable hardware offload is enabled
+ */
+enum nft_flowtable_flags {
+	NFT_FLOWTABLE_HW_OFFLOAD	= 0x1,
+	NFT_FLOWTABLE_MASK		= NFT_FLOWTABLE_HW_OFFLOAD
+};
+
+/**
  * enum nft_flowtable_attributes - nf_tables flow table netlink attributes
  *
  * @NFTA_FLOWTABLE_TABLE: name of the table containing the expression (NLA_STRING)

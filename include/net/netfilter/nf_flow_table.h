@@ -62,7 +62,7 @@ struct nf_flowtable_type {
 };
 
 enum nf_flowtable_flags {
-	NF_FLOWTABLE_HW_OFFLOAD		= 0x1,
+	NF_FLOWTABLE_HW_OFFLOAD		= 0x1,	/* NFT_FLOWTABLE_HW_OFFLOAD */
 };
 
 struct nf_flowtable {
