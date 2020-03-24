@@ -1135,7 +1135,7 @@ out_no_address:
 	return nfs_invalf(fc, "NFS4: mount program didn't pass remote address");
 
 out_invalid_transport_udp:
-	return nfs_invalf(fc, "NFSv4: Unsupported transport protocol udp");
+	return nfs_invalf(fc, "NFS: Unsupported transport protocol udp");
 }
 #endif
 
@@ -1257,7 +1257,7 @@ out_v4_not_compiled:
 	nfs_errorf(fc, "NFS: NFSv4 is not compiled into kernel");
 	return -EPROTONOSUPPORT;
 out_invalid_transport_udp:
-	return nfs_invalf(fc, "NFSv4: Unsupported transport protocol udp");
+	return nfs_invalf(fc, "NFS: Unsupported transport protocol udp");
 out_no_address:
 	return nfs_invalf(fc, "NFS: mount program didn't pass remote address");
 out_mountproto_mismatch:
