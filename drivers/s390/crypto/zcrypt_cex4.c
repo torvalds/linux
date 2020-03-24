@@ -656,8 +656,6 @@ static void zcrypt_cex4_queue_remove(struct ap_device *ap_dev)
 static struct ap_driver zcrypt_cex4_queue_driver = {
 	.probe = zcrypt_cex4_queue_probe,
 	.remove = zcrypt_cex4_queue_remove,
-	.suspend = ap_queue_suspend,
-	.resume = ap_queue_resume,
 	.ids = zcrypt_cex4_queue_ids,
 	.flags = AP_DRIVER_FLAG_DEFAULT,
 };

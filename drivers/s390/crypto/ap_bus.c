@@ -18,13 +18,13 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/err.h>
+#include <linux/freezer.h>
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
 #include <linux/slab.h>
 #include <linux/notifier.h>
 #include <linux/kthread.h>
 #include <linux/mutex.h>
-#include <linux/suspend.h>
 #include <asm/airq.h>
 #include <linux/atomic.h>
 #include <asm/isc.h>
@@ -103,16 +103,9 @@ static struct hrtimer ap_poll_timer;
  */
 static unsigned long long poll_timeout = 250000;
 
-/* Suspend flag */
-static int ap_suspend_flag;
 /* Maximum domain id */
 static int ap_max_domain_id;
-/*
- * Flag to check if domain was set through module parameter domain=. This is
- * important when supsend and resume is done in a z/VM environment where the
- * domain might change.
- */
-static int user_set_domain;
+
 static struct bus_type ap_bus_type;
 
 /* Adapter interrupt definitions */
@@ -386,8 +379,6 @@ void ap_request_timeout(struct timer_list *t)
 {
 	struct ap_queue *aq = from_timer(aq, t, timeout);
 
-	if (ap_suspend_flag)
-		return;
 	spin_lock_bh(&aq->lock);
 	ap_wait(ap_sm_event(aq, AP_EVENT_TIMEOUT));
 	spin_unlock_bh(&aq->lock);
@@ -401,8 +392,7 @@ void ap_request_timeout(struct timer_list *t)
  */
 static enum hrtimer_restart ap_poll_timeout(struct hrtimer *unused)
 {
-	if (!ap_suspend_flag)
-		tasklet_schedule(&ap_tasklet);
+	tasklet_schedule(&ap_tasklet);
 	return HRTIMER_NORESTART;
 }
 
@@ -413,8 +403,7 @@ static enum hrtimer_restart ap_poll_timeout(struct hrtimer *unused)
 static void ap_interrupt_handler(struct airq_struct *airq, bool floating)
 {
 	inc_irq_stat(IRQIO_APB);
-	if (!ap_suspend_flag)
-		tasklet_schedule(&ap_tasklet);
+	tasklet_schedule(&ap_tasklet);
 }
 
 /**
@@ -486,7 +475,7 @@ static int ap_poll_thread(void *data)
 	while (!kthread_should_stop()) {
 		add_wait_queue(&ap_poll_wait, &wait);
 		set_current_state(TASK_INTERRUPTIBLE);
-		if (ap_suspend_flag || !ap_pending_requests()) {
+		if (!ap_pending_requests()) {
 			schedule();
 			try_to_freeze();
 		}
@@ -587,33 +576,6 @@ static int ap_uevent(struct device *dev, struct kobj_uevent_env *env)
 	return retval;
 }
 
-static void ap_bus_suspend(void)
-{
-	AP_DBF(DBF_DEBUG, "%s running\n", __func__);
-
-	ap_suspend_flag = 1;
-	/*
-	 * Disable scanning for devices, thus we do not want to scan
-	 * for them after removing.
-	 */
-	flush_work(&ap_scan_work);
-	tasklet_disable(&ap_tasklet);
-}
-
-static int __ap_card_devices_unregister(struct device *dev, void *dummy)
-{
-	if (is_card_dev(dev))
-		device_unregister(dev);
-	return 0;
-}
-
-static int __ap_queue_devices_unregister(struct device *dev, void *dummy)
-{
-	if (is_queue_dev(dev))
-		device_unregister(dev);
-	return 0;
-}
-
 static int __ap_queue_devices_with_id_unregister(struct device *dev, void *data)
 {
 	if (is_queue_dev(dev) &&
@@ -621,60 +583,6 @@ static int __ap_queue_devices_with_id_unregister(struct device *dev, void *data)
 		device_unregister(dev);
 	return 0;
 }
-
-static void ap_bus_resume(void)
-{
-	int rc;
-
-	AP_DBF(DBF_DEBUG, "%s running\n", __func__);
-
-	/* remove all queue devices */
-	bus_for_each_dev(&ap_bus_type, NULL, NULL,
-			 __ap_queue_devices_unregister);
-	/* remove all card devices */
-	bus_for_each_dev(&ap_bus_type, NULL, NULL,
-			 __ap_card_devices_unregister);
-
-	/* Reset thin interrupt setting */
-	if (ap_interrupts_available() && !ap_using_interrupts()) {
-		rc = register_adapter_interrupt(&ap_airq);
-		ap_airq_flag = (rc == 0);
-	}
-	if (!ap_interrupts_available() && ap_using_interrupts()) {
-		unregister_adapter_interrupt(&ap_airq);
-		ap_airq_flag = 0;
-	}
-	/* Reset domain */
-	if (!user_set_domain)
-		ap_domain_index = -1;
-	/* Get things going again */
-	ap_suspend_flag = 0;
-	if (ap_airq_flag)
-		xchg(ap_airq.lsi_ptr, 0);
-	tasklet_enable(&ap_tasklet);
-	queue_work(system_long_wq, &ap_scan_work);
-}
-
-static int ap_power_event(struct notifier_block *this, unsigned long event,
-			  void *ptr)
-{
-	switch (event) {
-	case PM_HIBERNATION_PREPARE:
-	case PM_SUSPEND_PREPARE:
-		ap_bus_suspend();
-		break;
-	case PM_POST_HIBERNATION:
-	case PM_POST_SUSPEND:
-		ap_bus_resume();
-		break;
-	default:
-		break;
-	}
-	return NOTIFY_DONE;
-}
-static struct notifier_block ap_power_notifier = {
-	.notifier_call = ap_power_event,
-};
 
 static struct bus_type ap_bus_type = {
 	.name = "ap",
@@ -852,8 +760,6 @@ EXPORT_SYMBOL(ap_driver_unregister);
 
 void ap_bus_force_rescan(void)
 {
-	if (ap_suspend_flag)
-		return;
 	/* processing a asynchronous bus rescan */
 	del_timer(&ap_config_timer);
 	queue_work(system_long_wq, &ap_scan_work);
@@ -1546,8 +1452,6 @@ static void ap_scan_bus(struct work_struct *unused)
 
 static void ap_config_timeout(struct timer_list *unused)
 {
-	if (ap_suspend_flag)
-		return;
 	queue_work(system_long_wq, &ap_scan_work);
 }
 
@@ -1620,11 +1524,6 @@ static int __init ap_module_init(void)
 			ap_domain_index);
 		ap_domain_index = -1;
 	}
-	/* In resume callback we need to know if the user had set the domain.
-	 * If so, we can not just reset it.
-	 */
-	if (ap_domain_index >= 0)
-		user_set_domain = 1;
 
 	if (ap_interrupts_available()) {
 		rc = register_adapter_interrupt(&ap_airq);
@@ -1667,17 +1566,11 @@ static int __init ap_module_init(void)
 			goto out_work;
 	}
 
-	rc = register_pm_notifier(&ap_power_notifier);
-	if (rc)
-		goto out_pm;
-
 	queue_work(system_long_wq, &ap_scan_work);
 	initialised = true;
 
 	return 0;
 
-out_pm:
-	ap_poll_thread_stop();
 out_work:
 	hrtimer_cancel(&ap_poll_timer);
 	root_device_unregister(ap_root_device);

@@ -201,31 +201,6 @@ static enum ap_wait ap_sm_read(struct ap_queue *aq)
 }
 
 /**
- * ap_sm_suspend_read(): Receive pending reply messages from an AP queue
- * without changing the device state in between. In suspend mode we don't
- * allow sending new requests, therefore just fetch pending replies.
- * @aq: pointer to the AP queue
- *
- * Returns AP_WAIT_NONE or AP_WAIT_AGAIN
- */
-static enum ap_wait ap_sm_suspend_read(struct ap_queue *aq)
-{
-	struct ap_queue_status status;
-
-	if (!aq->reply)
-		return AP_WAIT_NONE;
-	status = ap_sm_recv(aq);
-	switch (status.response_code) {
-	case AP_RESPONSE_NORMAL:
-		if (aq->queue_count > 0)
-			return AP_WAIT_AGAIN;
-		fallthrough;
-	default:
-		return AP_WAIT_NONE;
-	}
-}
-
-/**
  * ap_sm_write(): Send messages from the request queue to an AP queue.
  * @aq: pointer to the AP queue
  *
@@ -417,10 +392,6 @@ static ap_func_t *ap_jumptable[NR_AP_STATES][NR_AP_EVENTS] = {
 		[AP_EVENT_POLL] = ap_sm_read,
 		[AP_EVENT_TIMEOUT] = ap_sm_reset,
 	},
-	[AP_STATE_SUSPEND_WAIT] = {
-		[AP_EVENT_POLL] = ap_sm_suspend_read,
-		[AP_EVENT_TIMEOUT] = ap_sm_nop,
-	},
 	[AP_STATE_REMOVE] = {
 		[AP_EVENT_POLL] = ap_sm_nop,
 		[AP_EVENT_TIMEOUT] = ap_sm_nop,
@@ -448,28 +419,6 @@ enum ap_wait ap_sm_event_loop(struct ap_queue *aq, enum ap_event event)
 		;
 	return wait;
 }
-
-/*
- * Power management for queue devices
- */
-void ap_queue_suspend(struct ap_device *ap_dev)
-{
-	struct ap_queue *aq = to_ap_queue(&ap_dev->device);
-
-	/* Poll on the device until all requests are finished. */
-	spin_lock_bh(&aq->lock);
-	aq->state = AP_STATE_SUSPEND_WAIT;
-	while (ap_sm_event(aq, AP_EVENT_POLL) != AP_WAIT_NONE)
-		;
-	aq->state = AP_STATE_BORKED;
-	spin_unlock_bh(&aq->lock);
-}
-EXPORT_SYMBOL(ap_queue_suspend);
-
-void ap_queue_resume(struct ap_device *ap_dev)
-{
-}
-EXPORT_SYMBOL(ap_queue_resume);
 
 /*
  * AP queue related attributes.
