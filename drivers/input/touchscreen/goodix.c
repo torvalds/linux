@@ -1268,6 +1268,7 @@ static int __maybe_unused goodix_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct goodix_ts_data *ts = i2c_get_clientdata(client);
+	u8 config_ver;
 	int error;
 
 	if (ts->irq_pin_access_method == IRQ_PIN_ACCESS_NONE) {
@@ -1288,6 +1289,27 @@ static int __maybe_unused goodix_resume(struct device *dev)
 	error = goodix_int_sync(ts);
 	if (error)
 		return error;
+
+	error = goodix_i2c_read(ts->client, ts->chip->config_addr,
+				&config_ver, 1);
+	if (error)
+		dev_warn(dev, "Error reading config version: %d, resetting controller\n",
+			 error);
+	else if (config_ver != ts->config[0])
+		dev_info(dev, "Config version mismatch %d != %d, resetting controller\n",
+			 config_ver, ts->config[0]);
+
+	if (error != 0 || config_ver != ts->config[0]) {
+		error = goodix_reset(ts);
+		if (error) {
+			dev_err(dev, "Controller reset failed.\n");
+			return error;
+		}
+
+		error = goodix_send_cfg(ts, ts->config, ts->chip->config_len);
+		if (error)
+			return error;
+	}
 
 	error = goodix_request_irq(ts);
 	if (error)
