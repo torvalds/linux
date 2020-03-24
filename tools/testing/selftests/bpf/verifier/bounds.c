@@ -411,16 +411,14 @@
 	BPF_ALU32_IMM(BPF_RSH, BPF_REG_1, 31),
 	/* r1 = 0xffff'fffe (NOT 0!) */
 	BPF_ALU32_IMM(BPF_SUB, BPF_REG_1, 2),
-	/* computes OOB pointer */
+	/* error on computing OOB pointer */
 	BPF_ALU64_REG(BPF_ADD, BPF_REG_0, BPF_REG_1),
-	/* OOB access */
-	BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_0, 0),
 	/* exit */
 	BPF_MOV64_IMM(BPF_REG_0, 0),
 	BPF_EXIT_INSN(),
 	},
 	.fixup_map_hash_8b = { 3 },
-	.errstr = "R0 invalid mem access",
+	.errstr = "math between map_value pointer and 4294967294 is not allowed",
 	.result = REJECT,
 },
 {
