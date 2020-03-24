@@ -43,11 +43,12 @@ config DMABUF_MOVE_NOTIFY
 	bool "Move notify between drivers (EXPERIMENTAL)"
 	default n
 	help
-	  Don''t pin buffers if the dynamic DMA-buf interface is available on both the
-	  exporter as well as the importer. This fixes a security problem where
-	  userspace is able to pin unrestricted amounts of memory through DMA-buf.
-	  But marked experimental because we don''t jet have a consistent execution
-	  context and memory management between drivers.
+	  Don't pin buffers if the dynamic DMA-buf interface is available on
+	  both the exporter as well as the importer. This fixes a security
+	  problem where userspace is able to pin unrestricted amounts of memory
+	  through DMA-buf.
+	  This is marked experimental because we don't yet have a consistent
+	  execution context and memory management between drivers.
 
 config DMABUF_SELFTESTS
 	tristate "Selftests for the dma-buf interfaces"
