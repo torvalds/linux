@@ -8,6 +8,7 @@
  * V0.0X01.0X02 fix mclk issue when probe multiple camera.
  * V0.0X01.0X03 fix gain range.
  * V0.0X01.0X04 add enum_frame_interval function.
+ * V0.0X01.0X05 add hdr config
  */
 
 #include <linux/clk.h>
@@ -22,21 +23,25 @@
 #include <linux/slab.h>
 #include <linux/version.h>
 #include <linux/rk-camera-module.h>
+#include <linux/rk-preisp.h>
 #include <media/media-entity.h>
 #include <media/v4l2-async.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-subdev.h>
 #include <linux/pinctrl/consumer.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x04)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x05)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
 #endif
 
-#define OV4689_LINK_FREQ_500MHZ		500000000
+#define OV4689_LANES			4
+#define OV4689_BITS_PER_SAMPLE		10
+#define OV4689_LINK_FREQ_500MHZ		500000000LL
 /* pixel rate = link frequency * 2 * lanes / BITS_PER_SAMPLE */
-#define OV4689_PIXEL_RATE		(OV4689_LINK_FREQ_500MHZ * 2 * 2 / 10)
+#define OV4689_PIXEL_RATE		(OV4689_LINK_FREQ_500MHZ * 2 * \
+					 OV4689_LANES / OV4689_BITS_PER_SAMPLE)
 #define OV4689_XVCLK_FREQ		24000000
 
 #define CHIP_ID				0x004688
@@ -61,6 +66,18 @@
 #define OV4689_GAIN_STEP		1
 #define OV4689_GAIN_DEFAULT		0x80
 
+#define OV4689_REG_L_GAIN		0x3508
+#define OV4689_REG_M_GAIN		0x350e
+#define OV4689_REG_S_GAIN		0x3514
+#define OV4689_REG_L_EXP		0x3500
+#define OV4689_REG_M_EXP		0x350a
+#define OV4689_REG_S_EXP		0x3510
+
+#define OV4689_GROUP_UPDATE_ADDRESS	0x3208
+#define OV4689_GROUP_UPDATE_START_DATA	0x00
+#define OV4689_GROUP_UPDATE_END_DATA	0x10
+#define OV4689_GROUP_UPDATE_LAUNCH	0xA0
+
 #define OV4689_REG_TEST_PATTERN		0x5040
 #define OV4689_TEST_PATTERN_ENABLE	0x80
 #define OV4689_TEST_PATTERN_DISABLE	0x0
@@ -73,12 +90,9 @@
 #define OV4689_REG_VALUE_16BIT		2
 #define OV4689_REG_VALUE_24BIT		3
 
-#define OV4689_LANES			2
-#define OV4689_BITS_PER_SAMPLE		10
-
 #define OF_CAMERA_PINCTRL_STATE_DEFAULT	"rockchip,camera_default"
 #define OF_CAMERA_PINCTRL_STATE_SLEEP	"rockchip,camera_sleep"
-
+#define OF_CAMERA_HDR_MODE		"rockchip,camera-hdr-mode"
 #define OV4689_NAME			"ov4689"
 
 static const char * const ov4689_supply_names[] = {
@@ -88,6 +102,14 @@ static const char * const ov4689_supply_names[] = {
 };
 
 #define OV4689_NUM_SUPPLIES ARRAY_SIZE(ov4689_supply_names)
+
+enum ov4689_max_pad {
+	PAD0, /* link to isp */
+	PAD1, /* link to csi wr0 | hdr x2:L x3:M */
+	PAD2, /* link to csi wr1 | hdr      x3:L */
+	PAD3, /* link to csi wr2 | hdr x2:M x3:S */
+	PAD_MAX,
+};
 
 struct regval {
 	u16 addr;
@@ -102,6 +124,8 @@ struct ov4689_mode {
 	u32 vts_def;
 	u32 exp_def;
 	const struct regval *reg_list;
+	u32 hdr_mode;
+	u32 vc[PAD_MAX];
 };
 
 struct ov4689 {
@@ -145,8 +169,8 @@ static const struct regval ov4689_global_regs[] = {
 
 /*
  * Xclk 24Mhz
- * max_framerate 30fps
- * mipi_datarate per lane 1008Mbps
+ * max_framerate 90fps
+ * mipi_datarate per lane 1008Mbps, 4lane
  */
 static const struct regval ov4689_2688x1520_regs[] = {
 	{0x0103, 0x01},
@@ -163,7 +187,7 @@ static const struct regval ov4689_2688x1520_regs[] = {
 	{0x031e, 0x00},
 	{0x3000, 0x20},
 	{0x3002, 0x00},
-	{0x3018, 0x32},
+	{0x3018, 0x72},
 	{0x3020, 0x93},
 	{0x3021, 0x03},
 	{0x3022, 0x01},
@@ -301,8 +325,8 @@ static const struct regval ov4689_2688x1520_regs[] = {
 	{0x3809, 0x80},
 	{0x380a, 0x05},
 	{0x380b, 0xf0},
-	{0x380c, 0x0a},
-	{0x380d, 0x18},
+	{0x380c, 0x03},
+	{0x380d, 0x60},
 	{0x380e, 0x06},
 	{0x380f, 0x12},
 	{0x3810, 0x00},
@@ -404,6 +428,53 @@ static const struct regval ov4689_2688x1520_regs[] = {
 	{REG_NULL, 0x00},
 };
 
+static const struct regval ov4689_linear_regs[] = {
+	{0x380c, 0x0a},
+	{0x380d, 0x18},
+	{0x3841, 0x02},
+	{0x4800, 0x04},
+	{0x376e, 0x00},
+	{REG_NULL, 0x00},
+};
+
+static const struct regval ov4689_hdr_x2_regs[] = {
+	{0x380c, 0x05},
+	{0x380d, 0x10},
+
+	{0x3841, 0x03},
+	{0x3846, 0x08},
+	{0x3847, 0x07},
+	{0x4800, 0x0c},
+	{0x376e, 0x01},
+	{0x350b, 0x08},
+	{0x3511, 0x01},
+	{0x3517, 0x00},
+	{0x351d, 0x00},
+
+	{0x3841, 0x03},//HDR_2
+	{0x3847, 0x06},//HDR_2_ALL
+	{REG_NULL, 0x00},
+};
+
+static const struct regval ov4689_hdr_x3_regs[] = {
+	{0x380c, 0x05},
+	{0x380d, 0x10},
+
+	{0x3841, 0x03},
+	{0x3846, 0x08},
+	{0x3847, 0x07},
+	{0x4800, 0x0c},
+	{0x376e, 0x01},
+	{0x350b, 0x08},
+	{0x3511, 0x01},
+	{0x3517, 0x00},
+	{0x351d, 0x00},
+
+	{0x3841, 0x13},//HDR_3
+	{0x3847, 0x07},//HDR_3_ALL
+	{REG_NULL, 0x00},
+};
+
 static const struct ov4689_mode supported_modes[] = {
 	{
 		.width = 2688,
@@ -415,7 +486,41 @@ static const struct ov4689_mode supported_modes[] = {
 		.exp_def = 0x0600,
 		.hts_def = 0x0a18,
 		.vts_def = 0x0612,
-		.reg_list = ov4689_2688x1520_regs,
+		.reg_list = ov4689_linear_regs,
+		.hdr_mode = NO_HDR,
+		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
+	}, {
+		.width = 2688,
+		.height = 1520,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 300000,
+		},
+		.exp_def = 0x0600,
+		.hts_def = 0x0510,
+		.vts_def = 0x0612,
+		.reg_list = ov4689_hdr_x2_regs,
+		.hdr_mode = HDR_X2,
+		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_1,
+		.vc[PAD1] = V4L2_MBUS_CSI2_CHANNEL_0,//L->csi wr0
+		.vc[PAD2] = V4L2_MBUS_CSI2_CHANNEL_1,
+		.vc[PAD3] = V4L2_MBUS_CSI2_CHANNEL_1,//M->csi wr2
+	}, {
+		.width = 2688,
+		.height = 1520,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 200000,
+		},
+		.exp_def = 0x0600,
+		.hts_def = 0x0510,
+		.vts_def = 0x0612,
+		.reg_list = ov4689_hdr_x3_regs,
+		.hdr_mode = HDR_X3,
+		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_2,
+		.vc[PAD1] = V4L2_MBUS_CSI2_CHANNEL_1,//M->csi wr0
+		.vc[PAD2] = V4L2_MBUS_CSI2_CHANNEL_0,//L->csi wr1
+		.vc[PAD3] = V4L2_MBUS_CSI2_CHANNEL_2,//S->csi wr2
 	},
 };
 
@@ -593,6 +698,11 @@ static int ov4689_get_fmt(struct v4l2_subdev *sd,
 		fmt->format.height = mode->height;
 		fmt->format.code = MEDIA_BUS_FMT_SBGGR10_1X10;
 		fmt->format.field = V4L2_FIELD_NONE;
+		/* format info: width/height/data type/virctual channel */
+		if (fmt->pad < PAD_MAX && mode->hdr_mode != NO_HDR)
+			fmt->reserved[0] = mode->vc[fmt->pad];
+		else
+			fmt->reserved[0] = mode->vc[PAD0];
 	}
 	mutex_unlock(&ov4689->mutex);
 
@@ -654,6 +764,26 @@ static int ov4689_g_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int ov4689_g_mbus_config(struct v4l2_subdev *sd,
+				struct v4l2_mbus_config *config)
+{
+	struct ov4689 *ov4689 = to_ov4689(sd);
+	const struct ov4689_mode *mode = ov4689->cur_mode;
+	u32 val = 1 << (OV4689_LANES - 1) |
+		V4L2_MBUS_CSI2_CHANNEL_0 |
+		V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
+
+	if (mode->hdr_mode != NO_HDR)
+		val |= V4L2_MBUS_CSI2_CHANNEL_1;
+	if (mode->hdr_mode == HDR_X3)
+		val |= V4L2_MBUS_CSI2_CHANNEL_2;
+
+	config->type = V4L2_MBUS_CSI2;
+	config->flags = val;
+
+	return 0;
+}
+
 static void ov4689_get_module_inf(struct ov4689 *ov4689,
 				  struct rkmodule_inf *inf)
 {
@@ -664,15 +794,108 @@ static void ov4689_get_module_inf(struct ov4689 *ov4689,
 	strlcpy(inf->base.lens, ov4689->len_name, sizeof(inf->base.lens));
 }
 
+static int ov4689_set_hdrae(struct ov4689 *ov4689,
+			    struct preisp_hdrae_exp_s *ae)
+{
+	int ret = 0;
+	u32 l_exp = ae->long_exp_reg;
+	u32 m_exp = ae->middle_exp_reg;
+	u32 s_exp = ae->short_exp_reg;
+	u32 l_gain = ae->long_gain_reg;
+	u32 m_gain = ae->middle_gain_reg;
+	u32 s_gain = ae->short_gain_reg;
+
+	dev_dbg(&ov4689->client->dev,
+		"rev exp req: L_exp: 0x%x, 0x%x, M_exp: 0x%x, 0x%x S_exp: 0x%x, 0x%x\n",
+		l_exp, m_exp, s_exp, l_gain, m_gain, s_gain);
+	if (l_exp <= m_exp ||
+	    m_exp <= s_exp ||
+	    l_exp + m_exp + s_exp >= ov4689->cur_mode->vts_def - 4) {
+		dev_err(&ov4689->client->dev, "exp parameter is error\n");
+		return -EINVAL;
+	}
+
+	if (l_exp < 3)
+		l_exp = 3;
+	if (m_exp < 3)
+		m_exp = 3;
+	if (s_exp < 3)
+		s_exp = 3;
+
+	if (ov4689->cur_mode->hdr_mode == HDR_X2) {
+		l_gain = m_gain;
+		l_exp = m_exp;
+		m_gain = s_gain;
+		m_exp =	s_exp;
+	}
+
+	ret = ov4689_write_reg(ov4689->client, OV4689_GROUP_UPDATE_ADDRESS,
+		OV4689_REG_VALUE_08BIT, OV4689_GROUP_UPDATE_START_DATA);
+
+	ret |= ov4689_write_reg(ov4689->client, OV4689_REG_L_GAIN,
+		OV4689_REG_VALUE_16BIT, l_gain);
+	ret |= ov4689_write_reg(ov4689->client, OV4689_REG_L_EXP,
+		OV4689_REG_VALUE_24BIT, l_exp << 4);
+	ret |= ov4689_write_reg(ov4689->client, OV4689_REG_M_GAIN,
+		OV4689_REG_VALUE_16BIT, m_gain);
+	ret |= ov4689_write_reg(ov4689->client, OV4689_REG_M_EXP,
+		OV4689_REG_VALUE_24BIT, m_exp << 4);
+	if (ov4689->cur_mode->hdr_mode == HDR_X3) {
+		ret |= ov4689_write_reg(ov4689->client, OV4689_REG_S_GAIN,
+			OV4689_REG_VALUE_16BIT, s_gain);
+		ret |= ov4689_write_reg(ov4689->client, OV4689_REG_L_EXP,
+			OV4689_REG_VALUE_24BIT, s_exp << 4);
+	}
+	ret |= ov4689_write_reg(ov4689->client, OV4689_GROUP_UPDATE_ADDRESS,
+		OV4689_REG_VALUE_08BIT, OV4689_GROUP_UPDATE_END_DATA);
+	ret |= ov4689_write_reg(ov4689->client, OV4689_GROUP_UPDATE_ADDRESS,
+		OV4689_REG_VALUE_08BIT, OV4689_GROUP_UPDATE_LAUNCH);
+	return ret;
+}
+
 static long ov4689_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct ov4689 *ov4689 = to_ov4689(sd);
+	struct rkmodule_hdr_cfg *hdr;
+	u32 i, h, w;
 	long ret = 0;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
 		ov4689_get_module_inf(ov4689, (struct rkmodule_inf *)arg);
 		break;
+	case RKMODULE_GET_HDR_CFG:
+		hdr = (struct rkmodule_hdr_cfg *)arg;
+		hdr->esp.mode = HDR_NORMAL_VC;
+		hdr->hdr_mode = ov4689->cur_mode->hdr_mode;
+		break;
+	case RKMODULE_SET_HDR_CFG:
+		hdr = (struct rkmodule_hdr_cfg *)arg;
+		w = ov4689->cur_mode->width;
+		h = ov4689->cur_mode->height;
+		for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
+			if (w == supported_modes[i].width &&
+			    h == supported_modes[i].height &&
+			    supported_modes[i].hdr_mode == hdr->hdr_mode) {
+				ov4689->cur_mode = &supported_modes[i];
+				break;
+			}
+		}
+		if (i == ARRAY_SIZE(supported_modes)) {
+			dev_err(&ov4689->client->dev,
+				"not find hdr mode:%d %dx%d config\n",
+				hdr->hdr_mode, w, h);
+			ret = -EINVAL;
+		} else {
+			w = ov4689->cur_mode->hts_def - ov4689->cur_mode->width;
+			h = ov4689->cur_mode->vts_def - ov4689->cur_mode->height;
+			__v4l2_ctrl_modify_range(ov4689->hblank, w, w, 1, w);
+			__v4l2_ctrl_modify_range(ov4689->vblank, h,
+				OV4689_VTS_MAX - ov4689->cur_mode->height, 1, h);
+		}
+		break;
+	case PREISP_CMD_SET_HDRAE_EXP:
+		return ov4689_set_hdrae(ov4689, arg);
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -688,6 +911,8 @@ static long ov4689_compat_ioctl32(struct v4l2_subdev *sd,
 	void __user *up = compat_ptr(arg);
 	struct rkmodule_inf *inf;
 	struct rkmodule_awb_cfg *cfg;
+	struct rkmodule_hdr_cfg *hdr;
+	struct preisp_hdrae_exp_s *hdrae;
 	long ret;
 
 	switch (cmd) {
@@ -715,6 +940,42 @@ static long ov4689_compat_ioctl32(struct v4l2_subdev *sd,
 			ret = ov4689_ioctl(sd, cmd, cfg);
 		kfree(cfg);
 		break;
+	case RKMODULE_GET_HDR_CFG:
+		hdr = kzalloc(sizeof(*hdr), GFP_KERNEL);
+		if (!hdr) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = ov4689_ioctl(sd, cmd, hdr);
+		if (!ret)
+			ret = copy_to_user(up, hdr, sizeof(*hdr));
+		kfree(hdr);
+		break;
+	case RKMODULE_SET_HDR_CFG:
+		hdr = kzalloc(sizeof(*hdr), GFP_KERNEL);
+		if (!hdr) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = copy_from_user(hdr, up, sizeof(*hdr));
+		if (!ret)
+			ret = ov4689_ioctl(sd, cmd, hdr);
+		kfree(hdr);
+		break;
+	case PREISP_CMD_SET_HDRAE_EXP:
+		hdrae = kzalloc(sizeof(*hdrae), GFP_KERNEL);
+		if (!hdrae) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = copy_from_user(hdrae, up, sizeof(*hdrae));
+		if (!ret)
+			ret = ov4689_ioctl(sd, cmd, hdrae);
+		kfree(hdrae);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -728,7 +989,8 @@ static int __ov4689_start_stream(struct ov4689 *ov4689)
 {
 	int ret;
 
-	ret = ov4689_write_array(ov4689->client, ov4689->cur_mode->reg_list);
+	ret = ov4689_write_array(ov4689->client, ov4689_2688x1520_regs);
+	ret |= ov4689_write_array(ov4689->client, ov4689->cur_mode->reg_list);
 	if (ret)
 		return ret;
 
@@ -979,6 +1241,7 @@ static const struct v4l2_subdev_core_ops ov4689_core_ops = {
 static const struct v4l2_subdev_video_ops ov4689_video_ops = {
 	.s_stream = ov4689_s_stream,
 	.g_frame_interval = ov4689_g_frame_interval,
+	.g_mbus_config = ov4689_g_mbus_config,
 };
 
 static const struct v4l2_subdev_pad_ops ov4689_pad_ops = {
@@ -1164,6 +1427,7 @@ static int ov4689_probe(struct i2c_client *client,
 	struct v4l2_subdev *sd;
 	char facing[2];
 	int ret;
+	u32 i, hdr_mode = 0;
 
 	dev_info(dev, "driver version: %02x.%02x.%02x",
 		DRIVER_VERSION >> 16,
@@ -1174,6 +1438,7 @@ static int ov4689_probe(struct i2c_client *client,
 	if (!ov4689)
 		return -ENOMEM;
 
+	of_property_read_u32(node, OF_CAMERA_HDR_MODE, &hdr_mode);
 	ret = of_property_read_u32(node, RKMODULE_CAMERA_MODULE_INDEX,
 				   &ov4689->module_index);
 	ret |= of_property_read_string(node, RKMODULE_CAMERA_MODULE_FACING,
@@ -1188,7 +1453,14 @@ static int ov4689_probe(struct i2c_client *client,
 	}
 
 	ov4689->client = client;
-	ov4689->cur_mode = &supported_modes[0];
+	for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
+		if (hdr_mode == supported_modes[i].hdr_mode) {
+			ov4689->cur_mode = &supported_modes[i];
+			break;
+		}
+	}
+	if (i == ARRAY_SIZE(supported_modes))
+		ov4689->cur_mode = &supported_modes[0];
 
 	ov4689->xvclk = devm_clk_get(dev, "xvclk");
 	if (IS_ERR(ov4689->xvclk)) {
