@@ -149,6 +149,20 @@ int __drmm_add_action(struct drm_device *dev,
 }
 EXPORT_SYMBOL(__drmm_add_action);
 
+int __drmm_add_action_or_reset(struct drm_device *dev,
+			       drmres_release_t action,
+			       void *data, const char *name)
+{
+	int ret;
+
+	ret = __drmm_add_action(dev, action, data, name);
+	if (ret)
+		action(dev, data);
+
+	return ret;
+}
+EXPORT_SYMBOL(__drmm_add_action_or_reset);
+
 void *drmm_kmalloc(struct drm_device *dev, size_t size, gfp_t gfp)
 {
 	struct drmres *dr;
