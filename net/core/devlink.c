@@ -5456,16 +5456,14 @@ struct devlink_stats {
 /**
  * struct devlink_trap_group_item - Packet trap group attributes.
  * @group: Immutable packet trap group attributes.
- * @refcount: Number of trap items using the group.
  * @list: trap_group_list member.
  * @stats: Trap group statistics.
  *
  * Describes packet trap group attributes. Created by devlink during trap
- * registration.
+ * group registration.
  */
 struct devlink_trap_group_item {
 	const struct devlink_trap_group *group;
-	refcount_t refcount;
 	struct list_head list;
 	struct devlink_stats __percpu *stats;
 };
@@ -5818,6 +5816,19 @@ devlink_trap_group_item_lookup(struct devlink *devlink, const char *name)
 }
 
 static struct devlink_trap_group_item *
+devlink_trap_group_item_lookup_by_id(struct devlink *devlink, u16 id)
+{
+	struct devlink_trap_group_item *group_item;
+
+	list_for_each_entry(group_item, &devlink->trap_group_list, list) {
+		if (group_item->group->id == id)
+			return group_item;
+	}
+
+	return NULL;
+}
+
+static struct devlink_trap_group_item *
 devlink_trap_group_item_get_from_info(struct devlink *devlink,
 				      struct genl_info *info)
 {
@@ -5955,7 +5966,7 @@ __devlink_trap_group_action_set(struct devlink *devlink,
 	int err;
 
 	list_for_each_entry(trap_item, &devlink->trap_list, list) {
-		if (strcmp(trap_item->trap->group.name, group_name))
+		if (strcmp(trap_item->group_item->group->name, group_name))
 			continue;
 		err = __devlink_trap_action_set(devlink, trap_item,
 						trap_action, extack);
@@ -7866,7 +7877,7 @@ static int devlink_trap_driver_verify(const struct devlink_trap *trap)
 
 static int devlink_trap_verify(const struct devlink_trap *trap)
 {
-	if (!trap || !trap->name || !trap->group.name)
+	if (!trap || !trap->name)
 		return -EINVAL;
 
 	if (trap->generic)
@@ -7937,106 +7948,20 @@ devlink_trap_group_notify(struct devlink *devlink,
 				msg, 0, DEVLINK_MCGRP_CONFIG, GFP_KERNEL);
 }
 
-static struct devlink_trap_group_item *
-devlink_trap_group_item_create(struct devlink *devlink,
-			       const struct devlink_trap_group *group)
-{
-	struct devlink_trap_group_item *group_item;
-	int err;
-
-	err = devlink_trap_group_verify(group);
-	if (err)
-		return ERR_PTR(err);
-
-	group_item = kzalloc(sizeof(*group_item), GFP_KERNEL);
-	if (!group_item)
-		return ERR_PTR(-ENOMEM);
-
-	group_item->stats = netdev_alloc_pcpu_stats(struct devlink_stats);
-	if (!group_item->stats) {
-		err = -ENOMEM;
-		goto err_stats_alloc;
-	}
-
-	group_item->group = group;
-	refcount_set(&group_item->refcount, 1);
-
-	if (devlink->ops->trap_group_init) {
-		err = devlink->ops->trap_group_init(devlink, group);
-		if (err)
-			goto err_group_init;
-	}
-
-	list_add_tail(&group_item->list, &devlink->trap_group_list);
-	devlink_trap_group_notify(devlink, group_item,
-				  DEVLINK_CMD_TRAP_GROUP_NEW);
-
-	return group_item;
-
-err_group_init:
-	free_percpu(group_item->stats);
-err_stats_alloc:
-	kfree(group_item);
-	return ERR_PTR(err);
-}
-
-static void
-devlink_trap_group_item_destroy(struct devlink *devlink,
-				struct devlink_trap_group_item *group_item)
-{
-	devlink_trap_group_notify(devlink, group_item,
-				  DEVLINK_CMD_TRAP_GROUP_DEL);
-	list_del(&group_item->list);
-	free_percpu(group_item->stats);
-	kfree(group_item);
-}
-
-static struct devlink_trap_group_item *
-devlink_trap_group_item_get(struct devlink *devlink,
-			    const struct devlink_trap_group *group)
-{
-	struct devlink_trap_group_item *group_item;
-
-	group_item = devlink_trap_group_item_lookup(devlink, group->name);
-	if (group_item) {
-		refcount_inc(&group_item->refcount);
-		return group_item;
-	}
-
-	return devlink_trap_group_item_create(devlink, group);
-}
-
-static void
-devlink_trap_group_item_put(struct devlink *devlink,
-			    struct devlink_trap_group_item *group_item)
-{
-	if (!refcount_dec_and_test(&group_item->refcount))
-		return;
-
-	devlink_trap_group_item_destroy(devlink, group_item);
-}
-
 static int
 devlink_trap_item_group_link(struct devlink *devlink,
 			     struct devlink_trap_item *trap_item)
 {
+	u16 group_id = trap_item->trap->init_group_id;
 	struct devlink_trap_group_item *group_item;
 
-	group_item = devlink_trap_group_item_get(devlink,
-						 &trap_item->trap->group);
-	if (IS_ERR(group_item))
-		return PTR_ERR(group_item);
+	group_item = devlink_trap_group_item_lookup_by_id(devlink, group_id);
+	if (WARN_ON_ONCE(!group_item))
+		return -EINVAL;
 
 	trap_item->group_item = group_item;
 
 	return 0;
-}
-
-static void
-devlink_trap_item_group_unlink(struct devlink *devlink,
-			       struct devlink_trap_item *trap_item)
-{
-	devlink_trap_group_item_put(devlink, trap_item->group_item);
 }
 
 static void devlink_trap_notify(struct devlink *devlink,
@@ -8101,7 +8026,6 @@ devlink_trap_register(struct devlink *devlink,
 	return 0;
 
 err_trap_init:
-	devlink_trap_item_group_unlink(devlink, trap_item);
 err_group_link:
 	free_percpu(trap_item->stats);
 err_stats_alloc:
@@ -8122,7 +8046,6 @@ static void devlink_trap_unregister(struct devlink *devlink,
 	list_del(&trap_item->list);
 	if (devlink->ops->trap_fini)
 		devlink->ops->trap_fini(devlink, trap, trap_item);
-	devlink_trap_item_group_unlink(devlink, trap_item);
 	free_percpu(trap_item->stats);
 	kfree(trap_item);
 }
@@ -8277,6 +8200,122 @@ void *devlink_trap_ctx_priv(void *trap_ctx)
 	return trap_item->priv;
 }
 EXPORT_SYMBOL_GPL(devlink_trap_ctx_priv);
+
+static int
+devlink_trap_group_register(struct devlink *devlink,
+			    const struct devlink_trap_group *group)
+{
+	struct devlink_trap_group_item *group_item;
+	int err;
+
+	if (devlink_trap_group_item_lookup(devlink, group->name))
+		return -EEXIST;
+
+	group_item = kzalloc(sizeof(*group_item), GFP_KERNEL);
+	if (!group_item)
+		return -ENOMEM;
+
+	group_item->stats = netdev_alloc_pcpu_stats(struct devlink_stats);
+	if (!group_item->stats) {
+		err = -ENOMEM;
+		goto err_stats_alloc;
+	}
+
+	group_item->group = group;
+
+	if (devlink->ops->trap_group_init) {
+		err = devlink->ops->trap_group_init(devlink, group);
+		if (err)
+			goto err_group_init;
+	}
+
+	list_add_tail(&group_item->list, &devlink->trap_group_list);
+	devlink_trap_group_notify(devlink, group_item,
+				  DEVLINK_CMD_TRAP_GROUP_NEW);
+
+	return 0;
+
+err_group_init:
+	free_percpu(group_item->stats);
+err_stats_alloc:
+	kfree(group_item);
+	return err;
+}
+
+static void
+devlink_trap_group_unregister(struct devlink *devlink,
+			      const struct devlink_trap_group *group)
+{
+	struct devlink_trap_group_item *group_item;
+
+	group_item = devlink_trap_group_item_lookup(devlink, group->name);
+	if (WARN_ON_ONCE(!group_item))
+		return;
+
+	devlink_trap_group_notify(devlink, group_item,
+				  DEVLINK_CMD_TRAP_GROUP_DEL);
+	list_del(&group_item->list);
+	free_percpu(group_item->stats);
+	kfree(group_item);
+}
+
+/**
+ * devlink_trap_groups_register - Register packet trap groups with devlink.
+ * @devlink: devlink.
+ * @groups: Packet trap groups.
+ * @groups_count: Count of provided packet trap groups.
+ *
+ * Return: Non-zero value on failure.
+ */
+int devlink_trap_groups_register(struct devlink *devlink,
+				 const struct devlink_trap_group *groups,
+				 size_t groups_count)
+{
+	int i, err;
+
+	mutex_lock(&devlink->lock);
+	for (i = 0; i < groups_count; i++) {
+		const struct devlink_trap_group *group = &groups[i];
+
+		err = devlink_trap_group_verify(group);
+		if (err)
+			goto err_trap_group_verify;
+
+		err = devlink_trap_group_register(devlink, group);
+		if (err)
+			goto err_trap_group_register;
+	}
+	mutex_unlock(&devlink->lock);
+
+	return 0;
+
+err_trap_group_register:
+err_trap_group_verify:
+	for (i--; i >= 0; i--)
+		devlink_trap_group_unregister(devlink, &groups[i]);
+	mutex_unlock(&devlink->lock);
+	return err;
+}
+EXPORT_SYMBOL_GPL(devlink_trap_groups_register);
+
+/**
+ * devlink_trap_groups_unregister - Unregister packet trap groups from devlink.
+ * @devlink: devlink.
+ * @groups: Packet trap groups.
+ * @groups_count: Count of provided packet trap groups.
+ */
+void devlink_trap_groups_unregister(struct devlink *devlink,
+				    const struct devlink_trap_group *groups,
+				    size_t groups_count)
+{
+	int i;
+
+	mutex_lock(&devlink->lock);
+	for (i = groups_count - 1; i >= 0; i--)
+		devlink_trap_group_unregister(devlink, &groups[i]);
+	mutex_unlock(&devlink->lock);
+}
+EXPORT_SYMBOL_GPL(devlink_trap_groups_unregister);
 
 static void __devlink_compat_running_version(struct devlink *devlink,
 					     char *buf, size_t len)

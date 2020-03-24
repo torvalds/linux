@@ -132,23 +132,23 @@ static void mlxsw_sp_rx_exception_listener(struct sk_buff *skb, u8 local_port,
 
 #define MLXSW_SP_TRAP_DROP(_id, _group_id)				      \
 	DEVLINK_TRAP_GENERIC(DROP, DROP, _id,				      \
-			     DEVLINK_TRAP_GROUP_GENERIC(_group_id),	      \
+			     DEVLINK_TRAP_GROUP_GENERIC_ID_##_group_id,	      \
 			     MLXSW_SP_TRAP_METADATA)
 
 #define MLXSW_SP_TRAP_DROP_EXT(_id, _group_id, _metadata)		      \
 	DEVLINK_TRAP_GENERIC(DROP, DROP, _id,				      \
-			     DEVLINK_TRAP_GROUP_GENERIC(_group_id),	      \
+			     DEVLINK_TRAP_GROUP_GENERIC_ID_##_group_id,	      \
 			     MLXSW_SP_TRAP_METADATA | (_metadata))
 
 #define MLXSW_SP_TRAP_DRIVER_DROP(_id, _group_id)			      \
 	DEVLINK_TRAP_DRIVER(DROP, DROP, DEVLINK_MLXSW_TRAP_ID_##_id,	      \
 			    DEVLINK_MLXSW_TRAP_NAME_##_id,		      \
-			    DEVLINK_TRAP_GROUP_GENERIC(_group_id),	      \
+			    DEVLINK_TRAP_GROUP_GENERIC_ID_##_group_id,	      \
 			    MLXSW_SP_TRAP_METADATA)
 
 #define MLXSW_SP_TRAP_EXCEPTION(_id, _group_id)		      \
 	DEVLINK_TRAP_GENERIC(EXCEPTION, TRAP, _id,			      \
-			     DEVLINK_TRAP_GROUP_GENERIC(_group_id),	      \
+			     DEVLINK_TRAP_GROUP_GENERIC_ID_##_group_id,	      \
 			     MLXSW_SP_TRAP_METADATA)
 
 #define MLXSW_SP_RXL_DISCARD(_id, _group_id)				      \
@@ -164,6 +164,13 @@ static void mlxsw_sp_rx_exception_listener(struct sk_buff *skb, u8 local_port,
 #define MLXSW_SP_RXL_EXCEPTION(_id, _group_id, _action)			      \
 	MLXSW_RXL(mlxsw_sp_rx_exception_listener, _id,			      \
 		   _action, false, SP_##_group_id, SET_FW_DEFAULT)
+
+static const struct devlink_trap_group mlxsw_sp_trap_groups_arr[] = {
+	DEVLINK_TRAP_GROUP_GENERIC(L2_DROPS),
+	DEVLINK_TRAP_GROUP_GENERIC(L3_DROPS),
+	DEVLINK_TRAP_GROUP_GENERIC(TUNNEL_DROPS),
+	DEVLINK_TRAP_GROUP_GENERIC(ACL_DROPS),
+};
 
 static const struct devlink_trap mlxsw_sp_traps_arr[] = {
 	MLXSW_SP_TRAP_DROP(SMAC_MC, L2_DROPS),
@@ -318,6 +325,7 @@ static int mlxsw_sp_trap_dummy_group_init(struct mlxsw_sp *mlxsw_sp)
 
 int mlxsw_sp_devlink_traps_init(struct mlxsw_sp *mlxsw_sp)
 {
+	size_t groups_count = ARRAY_SIZE(mlxsw_sp_trap_groups_arr);
 	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
 	int err;
 
@@ -333,17 +341,33 @@ int mlxsw_sp_devlink_traps_init(struct mlxsw_sp *mlxsw_sp)
 		    ARRAY_SIZE(mlxsw_sp_listeners_arr)))
 		return -EINVAL;
 
-	return devlink_traps_register(devlink, mlxsw_sp_traps_arr,
-				      ARRAY_SIZE(mlxsw_sp_traps_arr),
-				      mlxsw_sp);
+	err = devlink_trap_groups_register(devlink, mlxsw_sp_trap_groups_arr,
+					   groups_count);
+	if (err)
+		return err;
+
+	err = devlink_traps_register(devlink, mlxsw_sp_traps_arr,
+				     ARRAY_SIZE(mlxsw_sp_traps_arr), mlxsw_sp);
+	if (err)
+		goto err_traps_register;
+
+	return 0;
+
+err_traps_register:
+	devlink_trap_groups_unregister(devlink, mlxsw_sp_trap_groups_arr,
+				       groups_count);
+	return err;
 }
 
 void mlxsw_sp_devlink_traps_fini(struct mlxsw_sp *mlxsw_sp)
 {
+	size_t groups_count = ARRAY_SIZE(mlxsw_sp_trap_groups_arr);
 	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
 
 	devlink_traps_unregister(devlink, mlxsw_sp_traps_arr,
 				 ARRAY_SIZE(mlxsw_sp_traps_arr));
+	devlink_trap_groups_unregister(devlink, mlxsw_sp_trap_groups_arr,
+				       groups_count);
 }
 
 int mlxsw_sp_trap_init(struct mlxsw_core *mlxsw_core,
