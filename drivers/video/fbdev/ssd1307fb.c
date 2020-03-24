@@ -79,7 +79,6 @@ struct ssd1307fb_par {
 	u32 prechargep1;
 	u32 prechargep2;
 	struct pwm_device *pwm;
-	u32 pwm_period;
 	struct gpio_desc *reset;
 	struct regulator *vbat_reg;
 	u32 vcomh;
@@ -297,9 +296,9 @@ static void ssd1307fb_deferred_io(struct fb_info *info,
 
 static int ssd1307fb_init(struct ssd1307fb_par *par)
 {
+	struct pwm_state pwmstate;
 	int ret;
 	u32 precharge, dclk, com_invdir, compins;
-	struct pwm_args pargs;
 
 	if (par->device_info->need_pwm) {
 		par->pwm = pwm_get(&par->client->dev, NULL);
@@ -308,21 +307,15 @@ static int ssd1307fb_init(struct ssd1307fb_par *par)
 			return PTR_ERR(par->pwm);
 		}
 
-		/*
-		 * FIXME: pwm_apply_args() should be removed when switching to
-		 * the atomic PWM API.
-		 */
-		pwm_apply_args(par->pwm);
+		pwm_init_state(par->pwm, &pwmstate);
+		pwm_set_relative_duty_cycle(&pwmstate, 50, 100);
+		pwm_apply_state(par->pwm, &pwmstate);
 
-		pwm_get_args(par->pwm, &pargs);
-
-		par->pwm_period = pargs.period;
 		/* Enable the PWM */
-		pwm_config(par->pwm, par->pwm_period / 2, par->pwm_period);
 		pwm_enable(par->pwm);
 
 		dev_dbg(&par->client->dev, "Using PWM%d with a %dns period.\n",
-			par->pwm->pwm, par->pwm_period);
+			par->pwm->pwm, pwm_get_period(par->pwm));
 	}
 
 	/* Set initial contrast */
