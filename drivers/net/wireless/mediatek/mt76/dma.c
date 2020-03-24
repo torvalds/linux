@@ -143,6 +143,7 @@ mt76_dma_sync_idx(struct mt76_dev *dev, struct mt76_queue *q)
 static void
 mt76_dma_kick_queue(struct mt76_dev *dev, struct mt76_queue *q)
 {
+	wmb();
 	writel(q->head, &q->regs->cpu_idx);
 }
 
