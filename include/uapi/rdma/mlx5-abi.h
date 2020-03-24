@@ -266,6 +266,7 @@ struct mlx5_ib_query_device_resp {
 
 enum mlx5_ib_create_cq_flags {
 	MLX5_IB_CREATE_CQ_FLAGS_CQE_128B_PAD	= 1 << 0,
+	MLX5_IB_CREATE_CQ_FLAGS_UAR_PAGE_INDEX  = 1 << 1,
 };
 
 struct mlx5_ib_create_cq {
@@ -275,6 +276,9 @@ struct mlx5_ib_create_cq {
 	__u8    cqe_comp_en;
 	__u8    cqe_comp_res_format;
 	__u16	flags;
+	__u16	uar_page_index;
+	__u16	reserved0;
+	__u32	reserved1;
 };
 
 struct mlx5_ib_create_cq_resp {
