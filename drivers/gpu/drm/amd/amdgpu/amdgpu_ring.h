@@ -195,6 +195,7 @@ struct amdgpu_ring_funcs {
 	/* Try to soft recover the ring to make the fence signal */
 	void (*soft_recovery)(struct amdgpu_ring *ring, unsigned vmid);
 	int (*preempt_ib)(struct amdgpu_ring *ring);
+	void (*emit_mem_sync)(struct amdgpu_ring *ring);
 };
 
 struct amdgpu_ring {
