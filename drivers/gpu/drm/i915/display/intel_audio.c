@@ -931,7 +931,7 @@ static void i915_audio_component_codec_wake_override(struct device *kdev,
 	unsigned long cookie;
 	u32 tmp;
 
-	if (!IS_GEN(dev_priv, 9))
+	if (INTEL_GEN(dev_priv) < 9)
 		return;
 
 	cookie = i915_audio_component_get_power(kdev);
