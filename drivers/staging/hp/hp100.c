@@ -687,13 +687,15 @@ static int hp100_probe1(struct net_device *dev, int ioaddr, u_char bus,
 
 	/* TODO: We do not need this with old cards, where PDLs are stored
 	 * in the cards shared memory area. But currently, busmaster has been
-	 * implemented/tested only with the lassen chip anyway... */
+	 * implemented/tested only with the lassen chip anyway...
+	 */
 	if (lp->mode == 1) {	/* busmaster */
 		dma_addr_t page_baddr;
 		/* Get physically continuous memory for TX & RX PDLs    */
 		/* Conversion to new PCI API :
 		 * Pages are always aligned and zeroed, no need to it ourself.
-		 * Doc says should be OK for EISA bus as well - Jean II */
+		 * Doc says should be OK for EISA bus as well - Jean II
+		 */
 		lp->page_vaddr_algn = pci_alloc_consistent(lp->pci_dev, MAX_RINGSIZE, &page_baddr);
 		if (!lp->page_vaddr_algn) {
 			err = -ENOMEM;
@@ -851,7 +853,8 @@ static void hp100_hwinit(struct net_device *dev)
 
 	/* Until here it was code from HWdiscover procedure. */
 	/* Next comes code from mmuinit procedure of SCO BM driver which is
-	 * called from HWconfigure in the SCO driver.  */
+	 * called from HWconfigure in the SCO driver.
+	 */
 
 	/* Initialise MMU, eventually switch on Busmaster Mode, initialise
 	 * multicast filter...
@@ -1241,7 +1244,8 @@ static int hp100_build_rx_pdl(hp100_ring_t * ringptr,
 
 	/* Allocate skb buffer of maximum size */
 	/* Note: This depends on the alloc_skb functions allocating more
-	 * space than requested, i.e. aligning to 16bytes */
+	 * space than requested, i.e. aligning to 16bytes
+	 */
 
 	ringptr->skb = netdev_alloc_skb(dev, roundup(MAX_ETHER_SIZE + 2, 4));
 
@@ -1270,7 +1274,8 @@ static int hp100_build_rx_pdl(hp100_ring_t * ringptr,
 #endif
 
 		/* Conversion to new PCI API : map skbuf data to PCI bus.
-		 * Doc says it's OK for EISA as well - Jean II */
+		 * Doc says it's OK for EISA as well - Jean II
+		 */
 		ringptr->pdl[0] = 0x00020000;	/* Write PDH */
 		ringptr->pdl[3] = pdl_map_data(netdev_priv(dev),
 					       ringptr->skb->data);
@@ -1322,7 +1327,7 @@ static void hp100_rxfill(struct net_device *dev)
 
 	while (lp->rxrcommit < MAX_RX_PDL) {
 		/*
-		   ** Attempt to get a buffer and build a Rx PDL.
+		 * Attempt to get a buffer and build a Rx PDL.
 		 */
 		ringptr = lp->rxrtail;
 		if (0 == hp100_build_rx_pdl(ringptr, dev)) {
@@ -1541,7 +1546,8 @@ static netdev_tx_t hp100_start_xmit_bm(struct sk_buff *skb,
 		ringptr->pdl[2] = skb->len;	/* 1st Frag: Length of frag */
 	}
 	/* Conversion to new PCI API : map skbuf data to PCI bus.
-	 * Doc says it's OK for EISA as well - Jean II */
+	 * Doc says it's OK for EISA as well - Jean II
+	 */
 	ringptr->pdl[1] = ((u32) pci_map_single(lp->pci_dev, skb->data, ringptr->pdl[2], PCI_DMA_TODEVICE));	/* 1st Frag: Adr. of data */
 
 	/* Hand this PDL to the card. */
@@ -1680,7 +1686,8 @@ static netdev_tx_t hp100_start_xmit(struct sk_buff *skb,
 	hp100_ints_off();
 	val = hp100_inw(IRQ_STATUS);
 	/* Ack / clear the interrupt TX_COMPLETE interrupt - this interrupt is set
-	 * when the current packet being transmitted on the wire is completed. */
+	 * when the current packet being transmitted on the wire is completed.
+	 */
 	hp100_outw(HP100_TX_COMPLETE, IRQ_STATUS);
 #ifdef HP100_DEBUG_TX
 	printk("hp100: %s: start_xmit: irq_status=0x%.4x, irqmask=0x%.4x, len=%d\n",
@@ -1855,7 +1862,8 @@ static void hp100_rx_bm(struct net_device *dev)
 		return;
 	} else
 		/* RX_PKT_CNT states how many PDLs are currently formatted and available to
-		 * the cards BM engine */
+		 * the cards BM engine
+		 */
 	if ((hp100_inw(RX_PKT_CNT) & 0x00ff) >= lp->rxrcommit) {
 		printk("hp100: %s: More packets received than committed? RX_PKT_CNT=0x%x, commit=0x%x\n",
 				     dev->name, hp100_inw(RX_PKT_CNT) & 0x00ff,
@@ -2340,7 +2348,8 @@ static void hp100_start_interface(struct net_device *dev)
 	}
 
 	/* Note : before hp100_set_multicast_list(), because it will play with
-	 * spinlock itself... Jean II */
+	 * spinlock itself... Jean II
+	 */
 	spin_unlock_irqrestore(&lp->lock, flags);
 
 	/* Enable MAC Tx and RX, set MAC modes, ... */
