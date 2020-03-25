@@ -653,20 +653,7 @@ static void i913_errata(struct cal_dev *dev, unsigned int port)
 
 static int cal_runtime_get(struct cal_dev *dev)
 {
-	int r;
-
-	r = pm_runtime_get_sync(&dev->pdev->dev);
-
-	if (dev->flags & DRA72_CAL_PRE_ES2_LDO_DISABLE) {
-		/*
-		 * Apply errata on both port eveytime we (re-)enable
-		 * the clock
-		 */
-		i913_errata(dev, 0);
-		i913_errata(dev, 1);
-	}
-
-	return r;
+	return pm_runtime_get_sync(&dev->pdev->dev);
 }
 
 static inline void cal_runtime_put(struct cal_dev *dev)
@@ -2409,11 +2396,32 @@ static const struct of_device_id cal_of_match[] = {
 MODULE_DEVICE_TABLE(of, cal_of_match);
 #endif
 
+static int cal_runtime_resume(struct device *dev)
+{
+	struct cal_dev *caldev = dev_get_drvdata(dev);
+
+	if (caldev->flags & DRA72_CAL_PRE_ES2_LDO_DISABLE) {
+		/*
+		 * Apply errata on both port everytime we (re-)enable
+		 * the clock
+		 */
+		i913_errata(caldev, 0);
+		i913_errata(caldev, 1);
+	}
+
+	return 0;
+}
+
+static const struct dev_pm_ops cal_pm_ops = {
+	.runtime_resume = cal_runtime_resume,
+};
+
 static struct platform_driver cal_pdrv = {
 	.probe		= cal_probe,
 	.remove		= cal_remove,
 	.driver		= {
 		.name	= CAL_MODULE_NAME,
+		.pm	= &cal_pm_ops,
 		.of_match_table = of_match_ptr(cal_of_match),
 	},
 };
