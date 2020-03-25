@@ -1679,6 +1679,14 @@ static netdev_tx_t otx2_xmit(struct sk_buff *skb, struct net_device *netdev)
 static void otx2_set_rx_mode(struct net_device *netdev)
 {
 	struct otx2_nic *pf = netdev_priv(netdev);
+
+	queue_work(pf->otx2_wq, &pf->rx_mode_work);
+}
+
+static void otx2_do_set_rx_mode(struct work_struct *work)
+{
+	struct otx2_nic *pf = container_of(work, struct otx2_nic, rx_mode_work);
+	struct net_device *netdev = pf->netdev;
 	struct nix_rx_mode *req;
 
 	if (!(netdev->flags & IFF_UP))
@@ -1739,6 +1747,17 @@ static const struct net_device_ops otx2_netdev_ops = {
 	.ndo_tx_timeout		= otx2_tx_timeout,
 	.ndo_get_stats64	= otx2_get_stats64,
 };
+
+static int otx2_wq_init(struct otx2_nic *pf)
+{
+	pf->otx2_wq = create_singlethread_workqueue("otx2_wq");
+	if (!pf->otx2_wq)
+		return -ENOMEM;
+
+	INIT_WORK(&pf->rx_mode_work, otx2_do_set_rx_mode);
+	INIT_WORK(&pf->reset_task, otx2_reset_task);
+	return 0;
+}
 
 static int otx2_check_pf_usable(struct otx2_nic *nic)
 {
@@ -1924,13 +1943,15 @@ static int otx2_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	netdev->min_mtu = OTX2_MIN_MTU;
 	netdev->max_mtu = OTX2_MAX_MTU;
 
-	INIT_WORK(&pf->reset_task, otx2_reset_task);
-
 	err = register_netdev(netdev);
 	if (err) {
 		dev_err(dev, "Failed to register netdevice\n");
 		goto err_detach_rsrc;
 	}
+
+	err = otx2_wq_init(pf);
+	if (err)
+		goto err_unreg_netdev;
 
 	otx2_set_ethtool_ops(netdev);
 
@@ -1943,6 +1964,8 @@ static int otx2_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	return 0;
 
+err_unreg_netdev:
+	unregister_netdev(netdev);
 err_detach_rsrc:
 	otx2_detach_resources(&pf->mbox);
 err_disable_mbox_intr:
@@ -2089,6 +2112,8 @@ static void otx2_remove(struct pci_dev *pdev)
 
 	unregister_netdev(netdev);
 	otx2_sriov_disable(pf->pdev);
+	if (pf->otx2_wq)
+		destroy_workqueue(pf->otx2_wq);
 
 	otx2_detach_resources(&pf->mbox);
 	otx2_disable_mbox_intr(pf);

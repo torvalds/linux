@@ -243,6 +243,8 @@ struct otx2_nic {
 	struct workqueue_struct	*flr_wq;
 	struct flr_work		*flr_wrk;
 	struct refill_work	*refill_wrk;
+	struct workqueue_struct	*otx2_wq;
+	struct work_struct	rx_mode_work;
 
 	/* Ethtool stuff */
 	u32			msg_enable;
