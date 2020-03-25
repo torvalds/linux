@@ -89,25 +89,19 @@ static void __zpci_event_availability(struct zpci_ccdf_avail *ccdf)
 	switch (ccdf->pec) {
 	case 0x0301: /* Reserved|Standby -> Configured */
 		if (!zdev) {
-			ret = clp_add_pci_device(ccdf->fid, ccdf->fh, 0);
-			if (ret)
-				break;
-			zdev = get_zdev_by_fid(ccdf->fid);
+			ret = clp_add_pci_device(ccdf->fid, ccdf->fh, 1);
+			break;
 		}
-		if (!zdev || zdev->state != ZPCI_FN_STATE_STANDBY)
-			break;
-		zdev->state = ZPCI_FN_STATE_CONFIGURED;
 		zdev->fh = ccdf->fh;
-		ret = zpci_enable_device(zdev);
-		if (ret)
-			break;
-		pci_lock_rescan_remove();
-		pci_rescan_bus(zdev->zbus->bus);
-		pci_unlock_rescan_remove();
+		zdev->state = ZPCI_FN_STATE_CONFIGURED;
+		zpci_create_device(zdev);
 		break;
 	case 0x0302: /* Reserved -> Standby */
-		if (!zdev)
+		if (!zdev) {
 			clp_add_pci_device(ccdf->fid, ccdf->fh, 0);
+			break;
+		}
+		zdev->fh = ccdf->fh;
 		break;
 	case 0x0303: /* Deconfiguration requested */
 		if (!zdev)
@@ -135,8 +129,6 @@ static void __zpci_event_availability(struct zpci_ccdf_avail *ccdf)
 			pci_stop_and_remove_bus_device_locked(pdev);
 		}
 
-		zdev->fh = ccdf->fh;
-		zpci_disable_device(zdev);
 		zdev->state = ZPCI_FN_STATE_STANDBY;
 		if (!clp_get_state(ccdf->fid, &state) &&
 		    state == ZPCI_FN_STATE_RESERVED) {
