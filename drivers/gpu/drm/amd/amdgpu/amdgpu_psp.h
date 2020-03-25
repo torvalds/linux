@@ -252,9 +252,6 @@ struct psp_context
 	uint32_t			asd_ucode_size;
 	uint8_t				*asd_start_addr;
 
-	/* cap firmware */
-	const struct firmware		*cap_fw;
-
 	/* fence buffer */
 	struct amdgpu_bo		*fence_buf_bo;
 	uint64_t			fence_buf_mc_addr;
