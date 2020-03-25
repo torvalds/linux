@@ -28,9 +28,8 @@ static void nft_fwd_netdev_eval(const struct nft_expr *expr,
 	struct nft_fwd_netdev *priv = nft_expr_priv(expr);
 	int oif = regs->data[priv->sreg_dev];
 
-	/* These are used by ifb only. */
-	pkt->skb->tc_redirected = 1;
-	pkt->skb->tc_from_ingress = 1;
+	/* This is used by ifb only. */
+	skb_set_redirected(pkt->skb, true);
 
 	nf_fwd_netdev_egress(pkt, oif);
 	regs->verdict.code = NF_STOLEN;
