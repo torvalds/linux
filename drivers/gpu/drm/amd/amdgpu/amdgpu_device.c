@@ -4168,6 +4168,8 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 	need_full_reset = job_signaled = false;
 	INIT_LIST_HEAD(&device_list);
 
+	amdgpu_ras_set_error_query_ready(adev, false);
+
 	dev_info(adev->dev, "GPU %s begin!\n",
 		(in_ras_intr && !use_baco) ? "jobs stop":"reset");
 
@@ -4224,6 +4226,7 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 	/* block all schedulers and reset given job's ring */
 	list_for_each_entry(tmp_adev, device_list_handle, gmc.xgmi.head) {
 		if (tmp_adev != adev) {
+			amdgpu_ras_set_error_query_ready(tmp_adev, false);
 			amdgpu_device_lock_adev(tmp_adev, false);
 			if (!amdgpu_sriov_vf(tmp_adev))
 			                amdgpu_amdkfd_pre_reset(tmp_adev);
