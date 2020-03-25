@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <sound/hdaudio_ext.h>
 #include <sound/hda_register.h>
+#include <sound/hda_component.h>
 #include "../ops.h"
 #include "hda.h"
 
@@ -176,6 +177,9 @@ int hda_dsp_ctrl_init_chip(struct snd_sof_dev *sdev, bool full_reset)
 	if (bus->chip_init)
 		return 0;
 
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
+	snd_hdac_set_codec_wakeup(bus, true);
+#endif
 	hda_dsp_ctrl_misc_clock_gating(sdev, false);
 
 	if (full_reset) {
@@ -271,6 +275,9 @@ int hda_dsp_ctrl_init_chip(struct snd_sof_dev *sdev, bool full_reset)
 
 err:
 	hda_dsp_ctrl_misc_clock_gating(sdev, true);
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
+	snd_hdac_set_codec_wakeup(bus, false);
+#endif
 
 	return ret;
 }
