@@ -2963,14 +2963,14 @@ static void read_enc_key_size_complete(struct hci_dev *hdev, u8 status,
 	if (!conn)
 		goto unlock;
 
-	/* If we fail to read the encryption key size, assume maximum
-	 * (which is the same we do also when this HCI command isn't
-	 * supported.
+	/* While unexpected, the read_enc_key_size command may fail. The most
+	 * secure approach is to then assume the key size is 0 to force a
+	 * disconnection.
 	 */
 	if (rp->status) {
 		bt_dev_err(hdev, "failed to read key size for handle %u",
 			   handle);
-		conn->enc_key_size = HCI_LINK_KEY_SIZE;
+		conn->enc_key_size = 0;
 	} else {
 		conn->enc_key_size = rp->key_size;
 	}
