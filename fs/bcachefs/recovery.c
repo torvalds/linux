@@ -449,7 +449,8 @@ static int bch2_journal_replay(struct bch_fs *c,
 
 	sort(keys.d, keys.nr, sizeof(keys.d[0]), journal_sort_seq_cmp, NULL);
 
-	replay_now_at(j, keys.journal_seq_base);
+	if (keys.nr)
+		replay_now_at(j, keys.journal_seq_base);
 
 	for_each_journal_key(keys, i) {
 		if (!i->level)
