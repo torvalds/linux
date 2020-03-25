@@ -20,6 +20,7 @@ struct nvmem_device {
 	struct kref		refcnt;
 	size_t			size;
 	bool			read_only;
+	bool			root_only;
 	int			flags;
 	enum nvmem_type		type;
 	struct bin_attribute	eeprom;
