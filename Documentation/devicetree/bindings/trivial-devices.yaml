@@ -369,4 +369,6 @@ required:
   - compatible
   - reg
 
+additionalProperties: false
+
 ...

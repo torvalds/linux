@@ -44,6 +44,8 @@ required:
   - clocks
   - '#clock-cells'
 
+additionalProperties: false
+
 examples:
   # Display PIXEL Clock node:
   - |

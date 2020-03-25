@@ -107,6 +107,8 @@ required:
   - "#address-cells"
   - "#size-cells"
 
+additionalProperties: false
+
 examples:
   - |
     vpu: vpu@d0100000 {

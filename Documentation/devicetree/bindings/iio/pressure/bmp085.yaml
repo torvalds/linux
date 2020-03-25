@@ -52,6 +52,8 @@ required:
   - vddd-supply
   - vdda-supply
 
+additionalProperties: false
+
 examples:
   - |
     #include <dt-bindings/gpio/gpio.h>

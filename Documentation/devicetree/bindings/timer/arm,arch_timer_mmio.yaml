@@ -95,6 +95,8 @@ required:
   - '#address-cells'
   - '#size-cells'
 
+additionalProperties: false
+
 examples:
   - |
     timer@f0000000 {

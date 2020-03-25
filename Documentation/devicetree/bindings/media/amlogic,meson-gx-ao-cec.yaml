@@ -82,6 +82,8 @@ required:
   - clocks
   - clock-names
 
+additionalProperties: false
+
 examples:
   - |
     cec_AO: cec@100 {

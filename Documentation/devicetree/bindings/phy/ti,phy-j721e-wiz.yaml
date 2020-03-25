@@ -159,6 +159,8 @@ required:
   - "#reset-cells"
   - ranges
 
+additionalProperties: false
+
 examples:
   - |
     #include <dt-bindings/soc/ti,sci_pm_domain.h>

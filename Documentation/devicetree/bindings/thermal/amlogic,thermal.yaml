@@ -42,6 +42,8 @@ required:
   - clocks
   - amlogic,ao-secure
 
+additionalProperties: false
+
 examples:
   - |
         cpu_temp: temperature-sensor@ff634800 {
