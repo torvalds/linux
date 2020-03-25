@@ -358,10 +358,10 @@ complete:
 	if (host->busy_status) {
 		writel_relaxed(mask & ~host->variant->busy_detect_mask,
 			       base + MMCIMASK0);
-		writel_relaxed(host->variant->busy_detect_mask,
-			       base + MMCICLEAR);
 		host->busy_status = 0;
 	}
+
+	writel_relaxed(host->variant->busy_detect_mask, base + MMCICLEAR);
 
 	return true;
 }
