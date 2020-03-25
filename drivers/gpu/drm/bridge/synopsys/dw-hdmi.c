@@ -3934,6 +3934,8 @@ static void __dw_hdmi_remove(struct dw_hdmi *hdmi)
 	hdmi_writeb(hdmi, ~0, HDMI_IH_MUTE_PHY_STAT0);
 
 	dw_hdmi_destroy_properties(hdmi);
+	hdmi->connector.funcs->destroy(&hdmi->connector);
+	hdmi->bridge.encoder->funcs->destroy(hdmi->bridge.encoder);
 
 	if (hdmi->cec_notifier)
 		cec_notifier_put(hdmi->cec_notifier);
