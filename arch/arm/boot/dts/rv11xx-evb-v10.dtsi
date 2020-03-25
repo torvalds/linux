@@ -338,8 +338,8 @@
 			};
 
 			vcc_dvdd: LDO_REG6 {
-				regulator-min-microvolt = <1500000>;
-				regulator-max-microvolt = <1500000>;
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <1200000>;
 				regulator-name = "vcc_dvdd";
 				regulator-state-mem {
 					regulator-off-in-suspend;
@@ -382,6 +382,7 @@
 			};
 
 			vcc_3v3: SWITCH_REG2 {
+				regulator-always-on;
 				regulator-boot-on;
 				regulator-name = "vcc_3v3";
 			};
