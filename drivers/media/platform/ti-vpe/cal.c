@@ -761,10 +761,9 @@ static void csi2_phy_init(struct cal_ctx *ctx)
 	camerarx_phy_enable(ctx);
 
 	/* 2. Reset complex IO - Do not wait for reset completion */
-	val = reg_read(ctx->dev, CAL_CSI2_COMPLEXIO_CFG(ctx->csi2_port));
-	set_field(&val, CAL_CSI2_COMPLEXIO_CFG_RESET_CTRL_OPERATIONAL,
-		  CAL_CSI2_COMPLEXIO_CFG_RESET_CTRL_MASK);
-	reg_write(ctx->dev, CAL_CSI2_COMPLEXIO_CFG(ctx->csi2_port), val);
+	reg_write_field(ctx->dev, CAL_CSI2_COMPLEXIO_CFG(ctx->csi2_port),
+			CAL_CSI2_COMPLEXIO_CFG_RESET_CTRL_OPERATIONAL,
+			CAL_CSI2_COMPLEXIO_CFG_RESET_CTRL_MASK);
 	ctx_dbg(3, ctx, "CAL_CSI2_COMPLEXIO_CFG(%d) = 0x%08x De-assert Complex IO Reset\n",
 		ctx->csi2_port,
 		reg_read(ctx->dev, CAL_CSI2_COMPLEXIO_CFG(ctx->csi2_port)));
@@ -786,18 +785,16 @@ static void csi2_phy_init(struct cal_ctx *ctx)
 		reg_read(ctx->dev, CAL_CSI2_TIMING(ctx->csi2_port)));
 
 	/* 4. Force FORCERXMODE */
-	val = reg_read(ctx->dev, CAL_CSI2_TIMING(ctx->csi2_port));
-	set_field(&val, 1, CAL_CSI2_TIMING_FORCE_RX_MODE_IO1_MASK);
-	reg_write(ctx->dev, CAL_CSI2_TIMING(ctx->csi2_port), val);
+	reg_write_field(ctx->dev, CAL_CSI2_TIMING(ctx->csi2_port),
+			1, CAL_CSI2_TIMING_FORCE_RX_MODE_IO1_MASK);
 	ctx_dbg(3, ctx, "CAL_CSI2_TIMING(%d) = 0x%08x Force RXMODE\n",
 		ctx->csi2_port,
 		reg_read(ctx->dev, CAL_CSI2_TIMING(ctx->csi2_port)));
 
 	/* E. Power up the PHY using the complex IO */
-	val = reg_read(ctx->dev, CAL_CSI2_COMPLEXIO_CFG(ctx->csi2_port));
-	set_field(&val, CAL_CSI2_COMPLEXIO_CFG_PWR_CMD_STATE_ON,
-		  CAL_CSI2_COMPLEXIO_CFG_PWR_CMD_MASK);
-	reg_write(ctx->dev, CAL_CSI2_COMPLEXIO_CFG(ctx->csi2_port), val);
+	reg_write_field(ctx->dev, CAL_CSI2_COMPLEXIO_CFG(ctx->csi2_port),
+			CAL_CSI2_COMPLEXIO_CFG_PWR_CMD_STATE_ON,
+			CAL_CSI2_COMPLEXIO_CFG_PWR_CMD_MASK);
 
 	/* F. Wait for power up completion */
 	for (i = 0; i < 10; i++) {
@@ -862,13 +859,11 @@ static void csi2_wait_for_phy(struct cal_ctx *ctx)
 static void csi2_phy_deinit(struct cal_ctx *ctx)
 {
 	int i;
-	u32 val;
 
 	/* Power down the PHY using the complex IO */
-	val = reg_read(ctx->dev, CAL_CSI2_COMPLEXIO_CFG(ctx->csi2_port));
-	set_field(&val, CAL_CSI2_COMPLEXIO_CFG_PWR_CMD_STATE_OFF,
-		  CAL_CSI2_COMPLEXIO_CFG_PWR_CMD_MASK);
-	reg_write(ctx->dev, CAL_CSI2_COMPLEXIO_CFG(ctx->csi2_port), val);
+	reg_write_field(ctx->dev, CAL_CSI2_COMPLEXIO_CFG(ctx->csi2_port),
+			CAL_CSI2_COMPLEXIO_CFG_PWR_CMD_STATE_OFF,
+			CAL_CSI2_COMPLEXIO_CFG_PWR_CMD_MASK);
 
 	/* Wait for power down completion */
 	for (i = 0; i < 10; i++) {
@@ -885,10 +880,9 @@ static void csi2_phy_deinit(struct cal_ctx *ctx)
 		(i >= 10) ? "(timeout)" : "");
 
 	/* Assert Comple IO Reset */
-	val = reg_read(ctx->dev, CAL_CSI2_COMPLEXIO_CFG(ctx->csi2_port));
-	set_field(&val, CAL_CSI2_COMPLEXIO_CFG_RESET_CTRL,
-		  CAL_CSI2_COMPLEXIO_CFG_RESET_CTRL_MASK);
-	reg_write(ctx->dev, CAL_CSI2_COMPLEXIO_CFG(ctx->csi2_port), val);
+	reg_write_field(ctx->dev, CAL_CSI2_COMPLEXIO_CFG(ctx->csi2_port),
+			CAL_CSI2_COMPLEXIO_CFG_RESET_CTRL,
+			CAL_CSI2_COMPLEXIO_CFG_RESET_CTRL_MASK);
 
 	/* Wait for power down completion */
 	for (i = 0; i < 10; i++) {
