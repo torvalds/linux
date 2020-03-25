@@ -347,6 +347,7 @@ struct haptics_hw_config {
 	u32			vmax_mv;
 	u32			t_lra_us;
 	u32			preload_effect;
+	u32			fifo_empty_thresh;
 	enum drv_sig_shape	drv_wf;
 	bool			is_erm;
 };
@@ -955,7 +956,7 @@ static int haptics_set_fifo(struct haptics_chip *chip, struct fifo_cfg *fifo)
 		atomic_set(&status->written_done, 1);
 	} else {
 		reinit_completion(&status->fifo_ready);
-		fifo_thresh = FIFO_EMPTY_THRESHOLD(chip);
+		fifo_thresh = chip->config.fifo_empty_thresh;
 	}
 
 	/*
@@ -1876,60 +1877,60 @@ static int haptics_add_effects_debugfs(struct haptics_effect *effect,
 
 	file = debugfs_create_file_unsafe("vmax_mv", 0644, dir,
 			effect, &vmax_debugfs_ops);
-	if (!file)
-		return -ENOMEM;
+	if (IS_ERR(file))
+		return PTR_ERR(file);
 
 	file = debugfs_create_file_unsafe("lra_auto_res_en", 0644, dir,
 			effect, &auto_res_en_debugfs_ops);
-	if (!file)
-		return -ENOMEM;
+	if (IS_ERR(file))
+		return PTR_ERR(file);
 
 	/* effect can have either pattern or FIFO */
 	if (effect->pattern) {
 		pattern_dir = debugfs_create_dir("pattern", dir);
-		if (!pattern_dir)
-			return -ENOMEM;
+		if (IS_ERR(pattern_dir))
+			return PTR_ERR(pattern_dir);
 
 		file = debugfs_create_file("samples", 0644, pattern_dir,
 				effect, &pattern_s_dbgfs_ops);
-		if (!file)
-			return -ENOMEM;
+		if (IS_ERR(file))
+			return PTR_ERR(file);
 
 		file = debugfs_create_file_unsafe("play_rate_us", 0644,
 				pattern_dir, effect,
 				&pattern_play_rate_dbgfs_ops);
-		if (!file)
-			return -ENOMEM;
+		if (IS_ERR(file))
+			return PTR_ERR(file);
 	} else if (effect->fifo) {
 		fifo_dir = debugfs_create_dir("fifo", dir);
-		if (!fifo_dir)
-			return -ENOMEM;
+		if (IS_ERR(fifo_dir))
+			return PTR_ERR(fifo_dir);
 
 		file = debugfs_create_file("samples", 0644, fifo_dir,
 				effect, &fifo_s_dbgfs_ops);
-		if (!file)
-			return -ENOMEM;
+		if (IS_ERR(file))
+			return PTR_ERR(file);
 
 		file = debugfs_create_file_unsafe("period", 0644, fifo_dir,
 				effect, &fifo_period_dbgfs_ops);
-		if (!file)
-			return -ENOMEM;
+		if (IS_ERR(file))
+			return PTR_ERR(file);
 	}
 
 	if (effect->brake) {
 		brake_dir = debugfs_create_dir("brake", dir);
-		if (!brake_dir)
-			return -ENOMEM;
+		if (IS_ERR(brake_dir))
+			return PTR_ERR(brake_dir);
 
 		file = debugfs_create_file("samples", 0644, brake_dir,
 				effect, &brake_s_dbgfs_ops);
-		if (!file)
-			return -ENOMEM;
+		if (IS_ERR(file))
+			return PTR_ERR(file);
 
 		file = debugfs_create_file("mode", 0644, brake_dir,
 				effect, &brake_mode_dbgfs_ops);
-		if (!file)
-			return -ENOMEM;
+		if (IS_ERR(file))
+			return PTR_ERR(file);
 	}
 
 	return 0;
@@ -1943,33 +1944,47 @@ static int haptics_create_debugfs(struct haptics_chip *chip)
 	int rc, i;
 
 	hap_dir = debugfs_create_dir("haptics", NULL);
-	if (!hap_dir) {
-		dev_err(chip->dev, "create haptics debugfs directory failed\n");
-		return -ENOMEM;
+	if (IS_ERR(hap_dir)) {
+		rc = PTR_ERR(hap_dir);
+		dev_err(chip->dev, "create haptics debugfs directory failed, rc=%d\n",
+				rc);
+		return rc;
 	}
 
 	for (i = 0; i < chip->effects_count; i++) {
 		scnprintf(str, ARRAY_SIZE(str), "effect%d",
 				chip->effects[i].id);
 		effect_dir = debugfs_create_dir(str, hap_dir);
-		if (!effect_dir) {
-			dev_err(chip->dev, "create %s debugfs directory failed\n",
-					str);
-			rc = -ENOMEM;
+		if (IS_ERR(effect_dir)) {
+			rc = PTR_ERR(effect_dir);
+			dev_err(chip->dev, "create %s debugfs directory failed, rc=%d\n",
+					str, rc);
 			goto exit;
 		}
 
 		rc = haptics_add_effects_debugfs(&chip->effects[i], effect_dir);
 		if (rc < 0) {
-			rc = -ENOMEM;
+			dev_err(chip->dev, "create debugfs nodes for %s failed, rc=%d\n",
+					str, rc);
 			goto exit;
 		}
 	}
 
 	file = debugfs_create_file_unsafe("preload_effect_idx", 0644, hap_dir,
 			chip, &preload_effect_idx_dbgfs_ops);
-	if (!file) {
-		rc = -ENOMEM;
+	if (IS_ERR(file)) {
+		rc = PTR_ERR(file);
+		dev_err(chip->dev, "create preload_effect_idx debugfs failed, rc=%d\n",
+				rc);
+		goto exit;
+	}
+
+	file = debugfs_create_u32("fifo_empty_thresh", 0600, hap_dir,
+			&chip->config.fifo_empty_thresh);
+	if (IS_ERR(file)) {
+		rc = PTR_ERR(file);
+		dev_err(chip->dev, "create fifo_empty_thresh debugfs failed, rc=%d\n",
+				rc);
 		goto exit;
 	}
 
@@ -2361,6 +2376,15 @@ static int haptics_parse_dt(struct haptics_chip *chip)
 	if (config->vmax_mv >= MAX_VMAX_MV) {
 		dev_err(chip->dev, "qcom,vmax-mv (%d) exceed the max value: %d\n",
 				config->vmax_mv, MAX_VMAX_MV);
+		return -EINVAL;
+	}
+
+	config->fifo_empty_thresh = FIFO_EMPTY_THRESHOLD(chip);
+	of_property_read_u32(node, "qcom,fifo-empty-threshold",
+			&config->fifo_empty_thresh);
+	if (config->fifo_empty_thresh >= MAX_FIFO_SAMPLES(chip)) {
+		dev_err(chip->dev, "FIFO empty threshold (%d) should be less than %d\n",
+			config->fifo_empty_thresh, MAX_FIFO_SAMPLES(chip));
 		return -EINVAL;
 	}
 
