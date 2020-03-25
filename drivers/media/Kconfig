@@ -125,7 +125,6 @@ source "drivers/media/mc/Kconfig"
 
 config VIDEO_DEV
 	tristate
-	depends on MEDIA_SUPPORT
 	default MEDIA_CAMERA_SUPPORT || MEDIA_ANALOG_TV_SUPPORT || MEDIA_RADIO_SUPPORT || MEDIA_SDR_SUPPORT || MEDIA_PLATFORM_SUPPORT
 
 config VIDEO_V4L2_SUBDEV_API
@@ -146,7 +145,6 @@ source "drivers/media/v4l2-core/Kconfig"
 
 config DVB_CORE
 	tristate
-	depends on MEDIA_SUPPORT
 	depends on MEDIA_DIGITAL_TV_SUPPORT
 	depends on (I2C || I2C=n)
 	default y
