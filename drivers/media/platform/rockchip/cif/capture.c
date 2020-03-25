@@ -33,6 +33,12 @@
 #define STREAM_PAD_SINK				0
 #define STREAM_PAD_SOURCE			1
 
+/*
+ * Round up height when allocate memory so that Rockchip encoder can
+ * use DMA buffer directly, though this may waste a bit of memory.
+ */
+#define MEMORY_ALIGN_ROUND_UP_HEIGHT		16
+
 /* Get xsubs and ysubs for fourcc formats
  *
  * @xsubs: horizontal color samples in a 4*4 matrix, for yuv
@@ -879,27 +885,37 @@ static void rkcif_stream_stop(struct rkcif_stream *stream)
 }
 
 static int rkcif_queue_setup(struct vb2_queue *queue,
+			     const void *parg,
 			     unsigned int *num_buffers,
 			     unsigned int *num_planes,
 			     unsigned int sizes[],
-			     struct device *alloc_ctxs[])
+			     void *alloc_ctxs[])
 {
 	struct rkcif_stream *stream = queue->drv_priv;
 	struct rkcif_device *dev = stream->cifdev;
+	const struct v4l2_format *pfmt = parg;
 	const struct v4l2_pix_format_mplane *pixm;
 	const struct cif_output_fmt *cif_fmt;
 	u32 i;
 
+	if (pfmt) {
+		pixm = &pfmt->fmt.pix_mp;
+		cif_fmt = find_output_fmt(stream, pixm->pixelformat);
+	} else {
+		pixm = &stream->pixm;
+		cif_fmt = stream->cif_fmt_out;
+	}
 
-	pixm = &stream->pixm;
-	cif_fmt = stream->cif_fmt_out;
 	*num_planes = cif_fmt->mplanes;
 
 	for (i = 0; i < cif_fmt->mplanes; i++) {
 		const struct v4l2_plane_pix_format *plane_fmt;
+		int h = round_up(pixm->height, MEMORY_ALIGN_ROUND_UP_HEIGHT);
 
 		plane_fmt = &pixm->plane_fmt[i];
-		sizes[i] = plane_fmt->sizeimage;
+		sizes[i] = plane_fmt->sizeimage / pixm->height * h;
+
+		alloc_ctxs[i] = dev->alloc_ctx;
 	}
 
 	v4l2_dbg(1, rkcif_debug, &dev->v4l2_dev, "%s count %d, size %d\n",
@@ -1588,19 +1604,18 @@ static int rkcif_fh_open(struct file *filp)
 	 * Because CRU would reset iommu too, so there's not chance
 	 * to reset cif once we hold buffers after buf queued
 	 */
-	if (cifdev->chip_id == CHIP_RK1808_CIF)
+	if (cifdev->chip_id == CHIP_RK1808_CIF) {
+		mutex_lock(&cifdev->stream_lock);
+		v4l2_info(&cifdev->v4l2_dev, "fh_cnt: %d\n",
+					atomic_read(&cifdev->fh_cnt));
+		if (!atomic_read(&cifdev->fh_cnt))
+			rkcif_soft_reset(cifdev, true);
 		atomic_inc(&cifdev->fh_cnt);
-	else
+		mutex_unlock(&cifdev->stream_lock);
+	} else {
 		rkcif_soft_reset(cifdev, true);
-
-	ret = vb2_fop_release(file);
-	if (!ret) {
-		ret = v4l2_pipeline_pm_use(&stream->vdev.entity, 0);
-		if (ret < 0)
-			v4l2_err(&cifdev->v4l2_dev,
-				"set pipeline power failed %d\n", ret);
 	}
-	return ret;
+	return v4l2_fh_open(filp);
 }
 
 static int rkcif_fh_release(struct file *filp)
@@ -1896,7 +1911,6 @@ static int rkcif_register_stream_vdev(struct rkcif_stream *stream,
 	}
 
 	ret = media_entity_init(&vdev->entity, 1, &node->pad, 0);
-
 	if (ret < 0)
 		goto unreg;
 
@@ -1954,7 +1968,7 @@ static void rkcif_vb_done_oneframe(struct rkcif_stream *stream,
 		vb2_set_plane_payload(&vb_done->vb2_buf, i,
 				      stream->pixm.plane_fmt[i].sizeimage);
 	}
-	vb_done->vb2_buf.timestamp = ktime_get_ns();
+	vb_done->timestamp = ns_to_timeval(ktime_get_ns());
 	vb2_buffer_done(&vb_done->vb2_buf, VB2_BUF_STATE_DONE);
 }
 
