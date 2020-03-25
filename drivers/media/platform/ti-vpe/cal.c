@@ -845,14 +845,15 @@ static void csi2_wait_complexio_reset(struct cal_ctx *ctx)
 
 static void csi2_wait_stop_state(struct cal_ctx *ctx)
 {
-	int i;
+	unsigned long timeout;
 
-	for (i = 0; i < 10; i++) {
+	timeout = jiffies + msecs_to_jiffies(750);
+	while (time_before(jiffies, timeout)) {
 		if (reg_read_field(ctx->dev,
 				   CAL_CSI2_TIMING(ctx->csi2_port),
 				   CAL_CSI2_TIMING_FORCE_RX_MODE_IO1_MASK) == 0)
 			break;
-		usleep_range(1000, 1100);
+		usleep_range(500, 5000);
 	}
 
 	if (reg_read_field(ctx->dev, CAL_CSI2_TIMING(ctx->csi2_port),
