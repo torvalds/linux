@@ -152,7 +152,6 @@ static int imgu_subdev_set_fmt(struct v4l2_subdev *sd,
 	struct imgu_v4l2_subdev *imgu_sd = container_of(sd,
 							struct imgu_v4l2_subdev,
 							subdev);
-
 	struct v4l2_mbus_framefmt *mf;
 	u32 pad = fmt->pad;
 	unsigned int pipe = imgu_sd->pipe;
@@ -489,7 +488,6 @@ static int imgu_vb2_start_streaming(struct vb2_queue *vq, unsigned int count)
 	r = media_pipeline_start(&node->vdev.entity, &imgu_pipe->pipeline);
 	if (r < 0)
 		goto fail_return_bufs;
-
 
 	if (!imgu_all_nodes_streaming(imgu, node))
 		return 0;
