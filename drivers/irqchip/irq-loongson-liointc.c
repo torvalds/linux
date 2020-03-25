@@ -32,6 +32,8 @@
 
 #define LIOINTC_SHIFT_INTx	4
 
+#define LIOINTC_ERRATA_IRQ	10
+
 struct liointc_handler_data {
 	struct liointc_priv	*priv;
 	u32			parent_int_map;
@@ -41,6 +43,7 @@ struct liointc_priv {
 	struct irq_chip_generic		*gc;
 	struct liointc_handler_data	handler[LIOINTC_NUM_PARENT];
 	u8				map_cache[LIOINTC_CHIP_IRQ];
+	bool				has_lpc_irq_errata;
 };
 
 static void liointc_chained_handle_irq(struct irq_desc *desc)
@@ -54,8 +57,15 @@ static void liointc_chained_handle_irq(struct irq_desc *desc)
 
 	pending = readl(gc->reg_base + LIOINTC_REG_INTC_STATUS);
 
-	if (!pending)
-		spurious_interrupt();
+	if (!pending) {
+		/* Always blame LPC IRQ if we have that bug */
+		if (handler->priv->has_lpc_irq_errata &&
+			(handler->parent_int_map & ~gc->mask_cache &
+			BIT(LIOINTC_ERRATA_IRQ)))
+			pending = BIT(LIOINTC_ERRATA_IRQ);
+		else
+			spurious_interrupt();
+	}
 
 	while (pending) {
 		int bit = __ffs(pending);
