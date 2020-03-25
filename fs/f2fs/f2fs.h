@@ -22,6 +22,7 @@
 #include <linux/bio.h>
 #include <linux/blkdev.h>
 #include <linux/quotaops.h>
+#include <linux/part_stat.h>
 #include <crypto/hash.h>
 
 #include <linux/fscrypt.h>
