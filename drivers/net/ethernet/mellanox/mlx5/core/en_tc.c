@@ -171,6 +171,11 @@ struct tunnel_match_key {
 	int filter_ifindex;
 };
 
+struct tunnel_match_enc_opts {
+	struct flow_dissector_key_enc_opts key;
+	struct flow_dissector_key_enc_opts mask;
+};
+
 /* Tunnel_id mapping is TUNNEL_INFO_BITS + ENC_OPTS_BITS.
  * Upper TUNNEL_INFO_BITS for general tunnel info.
  * Lower ENC_OPTS_BITS bits for enc_opts.
@@ -1824,9 +1829,7 @@ enc_opts_is_dont_care_or_full_match(struct mlx5e_priv *priv,
 			*dont_care = false;
 
 			if (opt->opt_class != U16_MAX ||
-			    opt->type != U8_MAX ||
-			    memchr_inv(opt->opt_data, 0xFF,
-				       opt->length * 4)) {
+			    opt->type != U8_MAX) {
 				NL_SET_ERR_MSG(extack,
 					       "Partial match of tunnel options in chain > 0 isn't supported");
 				netdev_warn(priv->netdev,
@@ -1863,6 +1866,7 @@ static int mlx5e_get_flow_tunnel_id(struct mlx5e_priv *priv,
 	struct mlx5_esw_flow_attr *attr = flow->esw_attr;
 	struct mlx5e_tc_mod_hdr_acts *mod_hdr_acts;
 	struct flow_match_enc_opts enc_opts_match;
+	struct tunnel_match_enc_opts tun_enc_opts;
 	struct mlx5_rep_uplink_priv *uplink_priv;
 	struct mlx5e_rep_priv *uplink_rpriv;
 	struct tunnel_match_key tunnel_key;
@@ -1905,8 +1909,14 @@ static int mlx5e_get_flow_tunnel_id(struct mlx5e_priv *priv,
 		goto err_enc_opts;
 
 	if (!enc_opts_is_dont_care) {
+		memset(&tun_enc_opts, 0, sizeof(tun_enc_opts));
+		memcpy(&tun_enc_opts.key, enc_opts_match.key,
+		       sizeof(*enc_opts_match.key));
+		memcpy(&tun_enc_opts.mask, enc_opts_match.mask,
+		       sizeof(*enc_opts_match.mask));
+
 		err = mapping_add(uplink_priv->tunnel_enc_opts_mapping,
-				  enc_opts_match.key, &enc_opts_id);
+				  &tun_enc_opts, &enc_opts_id);
 		if (err)
 			goto err_enc_opts;
 	}
@@ -4707,7 +4717,7 @@ void mlx5e_tc_nic_cleanup(struct mlx5e_priv *priv)
 
 int mlx5e_tc_esw_init(struct rhashtable *tc_ht)
 {
-	const size_t sz_enc_opts = sizeof(struct flow_dissector_key_enc_opts);
+	const size_t sz_enc_opts = sizeof(struct tunnel_match_enc_opts);
 	struct mlx5_rep_uplink_priv *uplink_priv;
 	struct mlx5e_rep_priv *priv;
 	struct mapping_ctx *mapping;
@@ -4802,7 +4812,7 @@ static bool mlx5e_restore_tunnel(struct mlx5e_priv *priv, struct sk_buff *skb,
 				 u32 tunnel_id)
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
-	struct flow_dissector_key_enc_opts enc_opts = {};
+	struct tunnel_match_enc_opts enc_opts = {};
 	struct mlx5_rep_uplink_priv *uplink_priv;
 	struct mlx5e_rep_priv *uplink_rpriv;
 	struct metadata_dst *tun_dst;
@@ -4840,7 +4850,7 @@ static bool mlx5e_restore_tunnel(struct mlx5e_priv *priv, struct sk_buff *skb,
 		}
 	}
 
-	tun_dst = tun_rx_dst(enc_opts.len);
+	tun_dst = tun_rx_dst(enc_opts.key.len);
 	if (!tun_dst) {
 		WARN_ON_ONCE(true);
 		return false;
@@ -4854,9 +4864,11 @@ static bool mlx5e_restore_tunnel(struct mlx5e_priv *priv, struct sk_buff *skb,
 			   key32_to_tunnel_id(key.enc_key_id.keyid),
 			   TUNNEL_KEY);
 
-	if (enc_opts.len)
-		ip_tunnel_info_opts_set(&tun_dst->u.tun_info, enc_opts.data,
-					enc_opts.len, enc_opts.dst_opt_type);
+	if (enc_opts.key.len)
+		ip_tunnel_info_opts_set(&tun_dst->u.tun_info,
+					enc_opts.key.data,
+					enc_opts.key.len,
+					enc_opts.key.dst_opt_type);
 
 	skb_dst_set(skb, (struct dst_entry *)tun_dst);
 	dev = dev_get_by_index(&init_net, key.filter_ifindex);
