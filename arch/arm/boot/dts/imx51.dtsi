@@ -104,6 +104,11 @@
 		#phy-cells = <0>;
 	};
 
+	capture-subsystem {
+		compatible = "fsl,imx-capture-subsystem";
+		ports = <&ipu_csi0>, <&ipu_csi1>;
+	};
+
 	display-subsystem {
 		compatible = "fsl,imx-display-subsystem";
 		ports = <&ipu_di0>, <&ipu_di1>;
@@ -143,6 +148,14 @@
 			clock-names = "bus", "di0", "di1";
 			resets = <&src 2>;
 
+			ipu_csi0: port@0 {
+				reg = <0>;
+			};
+
+			ipu_csi1: port@1 {
+				reg = <1>;
+			};
+
 			ipu_di0: port@2 {
 				reg = <2>;
 
@@ -158,7 +171,7 @@
 			};
 		};
 
-		aips@70000000 { /* AIPS1 */
+		bus@70000000 { /* AIPS1 */
 			compatible = "fsl,aips-bus", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -440,7 +453,7 @@
 			};
 		};
 
-		aips@80000000 {	/* AIPS2 */
+		bus@80000000 {	/* AIPS2 */
 			compatible = "fsl,aips-bus", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
