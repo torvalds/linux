@@ -619,9 +619,36 @@ static int ima_calc_field_array_hash_tfm(struct ima_field_data *field_data,
 int ima_calc_field_array_hash(struct ima_field_data *field_data,
 			      struct ima_template_entry *entry)
 {
-	int rc;
+	u16 alg_id;
+	int rc, i;
 
 	rc = ima_calc_field_array_hash_tfm(field_data, entry, ima_sha1_idx);
+	if (rc)
+		return rc;
+
+	entry->digests[ima_sha1_idx].alg_id = TPM_ALG_SHA1;
+
+	for (i = 0; i < NR_BANKS(ima_tpm_chip) + ima_extra_slots; i++) {
+		if (i == ima_sha1_idx)
+			continue;
+
+		if (i < NR_BANKS(ima_tpm_chip)) {
+			alg_id = ima_tpm_chip->allocated_banks[i].alg_id;
+			entry->digests[i].alg_id = alg_id;
+		}
+
+		/* for unmapped TPM algorithms digest is still a padded SHA1 */
+		if (!ima_algo_array[i].tfm) {
+			memcpy(entry->digests[i].digest,
+			       entry->digests[ima_sha1_idx].digest,
+			       TPM_DIGEST_SIZE);
+			continue;
+		}
+
+		rc = ima_calc_field_array_hash_tfm(field_data, entry, i);
+		if (rc)
+			return rc;
+	}
 	return rc;
 }
 
