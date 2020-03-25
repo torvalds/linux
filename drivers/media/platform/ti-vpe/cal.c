@@ -6,6 +6,7 @@
  * Benoit Parrot, <bparrot@ti.com>
  */
 
+#include <linux/clk.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/ioctl.h>
@@ -340,6 +341,7 @@ static const struct cal_data am654_cal_data = {
  * all instances.
  */
 struct cal_dev {
+	struct clk		*fclk;
 	int			irq;
 	void __iomem		*base;
 	struct resource		*res;
@@ -767,6 +769,7 @@ static void csi2_phy_config(struct cal_ctx *ctx);
 static void csi2_phy_init(struct cal_ctx *ctx)
 {
 	u32 val;
+	u32 sscounter;
 
 	/* Steps
 	 *  1. Configure D-PHY mode and enable required lanes
@@ -803,10 +806,20 @@ static void csi2_phy_init(struct cal_ctx *ctx)
 	csi2_phy_config(ctx);
 
 	/* 3.B. Program Stop States */
+	/*
+	 * The stop-state-counter is based on fclk cycles, and we always use
+	 * the x16 and x4 settings, so stop-state-timeout =
+	 * fclk-cycle * 16 * 4 * counter.
+	 *
+	 * Stop-state-timeout must be more than 100us as per CSI2 spec, so we
+	 * calculate a timeout that's 100us (rounding up).
+	 */
+	sscounter = DIV_ROUND_UP(clk_get_rate(ctx->dev->fclk), 10000 *  16 * 4);
+
 	val = reg_read(ctx->dev, CAL_CSI2_TIMING(ctx->csi2_port));
 	set_field(&val, 1, CAL_CSI2_TIMING_STOP_STATE_X16_IO1_MASK);
-	set_field(&val, 0, CAL_CSI2_TIMING_STOP_STATE_X4_IO1_MASK);
-	set_field(&val, 407, CAL_CSI2_TIMING_STOP_STATE_COUNTER_IO1_MASK);
+	set_field(&val, 1, CAL_CSI2_TIMING_STOP_STATE_X4_IO1_MASK);
+	set_field(&val, sscounter, CAL_CSI2_TIMING_STOP_STATE_COUNTER_IO1_MASK);
 	reg_write(ctx->dev, CAL_CSI2_TIMING(ctx->csi2_port), val);
 	ctx_dbg(3, ctx, "CAL_CSI2_TIMING(%d) = 0x%08x Stop States\n",
 		ctx->csi2_port,
@@ -2255,6 +2268,12 @@ static int cal_probe(struct platform_device *pdev)
 
 	/* save pdev pointer */
 	dev->pdev = pdev;
+
+	dev->fclk = devm_clk_get(&pdev->dev, "fck");
+	if (IS_ERR(dev->fclk)) {
+		dev_err(&pdev->dev, "cannot get CAL fclk\n");
+		return PTR_ERR(dev->fclk);
+	}
 
 	syscon_camerrx = syscon_regmap_lookup_by_phandle(parent,
 							 "ti,camerrx-control");
