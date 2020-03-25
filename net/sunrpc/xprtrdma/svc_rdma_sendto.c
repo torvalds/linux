@@ -810,10 +810,10 @@ static int svc_rdma_send_reply_msg(struct svcxprt_rdma *rdma,
  *
  * Remote Invalidation is skipped for simplicity.
  */
-static int svc_rdma_send_error_msg(struct svcxprt_rdma *rdma,
-				   struct svc_rdma_send_ctxt *sctxt,
-				   struct svc_rdma_recv_ctxt *rctxt,
-				   int status)
+static void svc_rdma_send_error_msg(struct svcxprt_rdma *rdma,
+				    struct svc_rdma_send_ctxt *sctxt,
+				    struct svc_rdma_recv_ctxt *rctxt,
+				    int status)
 {
 	__be32 *rdma_argp = rctxt->rc_recv_buf;
 	__be32 *p;
@@ -825,7 +825,7 @@ static int svc_rdma_send_error_msg(struct svcxprt_rdma *rdma,
 	p = xdr_reserve_space(&sctxt->sc_stream,
 			      rpcrdma_fixed_maxsz * sizeof(*p));
 	if (!p)
-		return -ENOMSG;
+		goto put_ctxt;
 
 	*p++ = *rdma_argp;
 	*p++ = *(rdma_argp + 1);
@@ -836,7 +836,7 @@ static int svc_rdma_send_error_msg(struct svcxprt_rdma *rdma,
 	case -EPROTONOSUPPORT:
 		p = xdr_reserve_space(&sctxt->sc_stream, 3 * sizeof(*p));
 		if (!p)
-			return -ENOMSG;
+			goto put_ctxt;
 
 		*p++ = err_vers;
 		*p++ = rpcrdma_version;
@@ -846,7 +846,7 @@ static int svc_rdma_send_error_msg(struct svcxprt_rdma *rdma,
 	default:
 		p = xdr_reserve_space(&sctxt->sc_stream, sizeof(*p));
 		if (!p)
-			return -ENOMSG;
+			goto put_ctxt;
 
 		*p = err_chunk;
 		trace_svcrdma_err_chunk(*rdma_argp);
@@ -855,7 +855,12 @@ static int svc_rdma_send_error_msg(struct svcxprt_rdma *rdma,
 	sctxt->sc_send_wr.num_sge = 1;
 	sctxt->sc_send_wr.opcode = IB_WR_SEND;
 	sctxt->sc_sges[0].length = sctxt->sc_hdrbuf.len;
-	return svc_rdma_send(rdma, &sctxt->sc_send_wr);
+	if (svc_rdma_send(rdma, &sctxt->sc_send_wr))
+		goto put_ctxt;
+	return;
+
+put_ctxt:
+	svc_rdma_send_ctxt_put(rdma, sctxt);
 }
 
 /**
@@ -950,9 +955,7 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 	 * of previously posted RDMA Writes.
 	 */
 	svc_rdma_save_io_pages(rqstp, sctxt);
-	ret = svc_rdma_send_error_msg(rdma, sctxt, rctxt, ret);
-	if (ret < 0)
-		goto err1;
+	svc_rdma_send_error_msg(rdma, sctxt, rctxt, ret);
 	return 0;
 
  err1:
