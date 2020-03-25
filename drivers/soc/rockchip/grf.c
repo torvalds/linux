@@ -134,6 +134,32 @@ static const struct rockchip_grf_info rk3399_grf __initconst = {
 	.num_values = ARRAY_SIZE(rk3399_defaults),
 };
 
+#define DELAY_ONE_SECOND		0x16E3600
+
+#define RV1126_GRF1_SDDETFLT_CON	0x10254
+#define RV1126_GRF1_UART2RX_LOW_CON	0x10258
+#define RV1126_GRF1_IOFUNC_CON1		0x10264
+#define RV1126_GRF1_IOFUNC_CON3		0x1026C
+#define RV1126_JTAG_GROUP0		0x0      /* mux to sdmmc*/
+#define RV1126_JTAG_GROUP1		0x1      /* mux to uart2 */
+#define FORCE_JTAG_ENABLE		0x1
+#define FORCE_JTAG_DISABLE		0x0
+
+static const struct rockchip_grf_value rv1126_defaults[] __initconst = {
+	{ "jtag group0 force", RV1126_GRF1_IOFUNC_CON3,
+		HIWORD_UPDATE(FORCE_JTAG_DISABLE, 1, 4) },
+	{ "jtag group1 force", RV1126_GRF1_IOFUNC_CON3,
+		HIWORD_UPDATE(FORCE_JTAG_DISABLE, 1, 5) },
+	{ "jtag group1 tms low delay", RV1126_GRF1_UART2RX_LOW_CON, DELAY_ONE_SECOND },
+	{ "switch to jtag groupx", RV1126_GRF1_IOFUNC_CON1, HIWORD_UPDATE(RV1126_JTAG_GROUP0, 1, 15) },
+	{ "jtag group0 switching delay", RV1126_GRF1_SDDETFLT_CON, DELAY_ONE_SECOND * 5 },
+};
+
+static const struct rockchip_grf_info rv1126_grf __initconst = {
+	.values = rv1126_defaults,
+	.num_values = ARRAY_SIZE(rv1126_defaults),
+};
+
 static const struct of_device_id rockchip_grf_dt_match[] __initconst = {
 	{
 		.compatible = "rockchip,px30-grf",
@@ -162,6 +188,9 @@ static const struct of_device_id rockchip_grf_dt_match[] __initconst = {
 	}, {
 		.compatible = "rockchip,rk3399-grf",
 		.data = (void *)&rk3399_grf,
+	}, {
+		.compatible = "rockchip,rv1126-grf",
+		.data = (void *)&rv1126_grf,
 	},
 	{ /* sentinel */ },
 };
