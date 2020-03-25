@@ -36,17 +36,13 @@ struct nvmem_device {
 #define FLAG_COMPAT		BIT(0)
 
 #ifdef CONFIG_NVMEM_SYSFS
-const struct attribute_group **nvmem_sysfs_get_groups(
-					struct nvmem_device *nvmem,
-					const struct nvmem_config *config);
+const struct attribute_group **nvmem_sysfs_get_groups(void);
 int nvmem_sysfs_setup_compat(struct nvmem_device *nvmem,
 			      const struct nvmem_config *config);
 void nvmem_sysfs_remove_compat(struct nvmem_device *nvmem,
 			      const struct nvmem_config *config);
 #else
-static inline const struct attribute_group **nvmem_sysfs_get_groups(
-					struct nvmem_device *nvmem,
-					const struct nvmem_config *config)
+static inline const struct attribute_group **nvmem_sysfs_get_groups(void)
 {
 	return NULL;
 }

@@ -396,7 +396,7 @@ struct nvmem_device *nvmem_register(const struct nvmem_config *config)
 	nvmem->read_only = device_property_present(config->dev, "read-only") ||
 			   config->read_only || !nvmem->reg_write;
 
-	nvmem->dev.groups = nvmem_sysfs_get_groups(nvmem, config);
+	nvmem->dev.groups = nvmem_sysfs_get_groups();
 
 	dev_dbg(&nvmem->dev, "Registering nvmem device %s\n", config->name);
 
