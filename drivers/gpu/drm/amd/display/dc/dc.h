@@ -1079,7 +1079,7 @@ struct dc_sink {
 	void *priv;
 	struct stereo_3d_features features_3d[TIMING_3D_FORMAT_MAX];
 	bool converter_disable_audio;
-
+	bool is_mst_legacy;
 	struct dc_sink_dsc_caps dsc_caps;
 	struct dc_sink_fec_caps fec_caps;
 
@@ -1106,6 +1106,7 @@ struct dc_sink_init_data {
 	struct dc_link *link;
 	uint32_t dongle_max_pix_clk;
 	bool converter_disable_audio;
+	bool sink_is_legacy;
 };
 
 struct dc_sink *dc_sink_create(const struct dc_sink_init_data *init_params);
