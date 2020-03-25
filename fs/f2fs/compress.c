@@ -1308,18 +1308,14 @@ struct decompress_io_ctx *f2fs_alloc_dic(struct compress_ctx *cc)
 		goto out_free;
 
 	for (i = 0; i < dic->cluster_size; i++) {
-		if (cc->rpages[i])
+		if (cc->rpages[i]) {
+			dic->tpages[i] = cc->rpages[i];
 			continue;
+		}
 
 		dic->tpages[i] = f2fs_grab_page();
 		if (!dic->tpages[i])
 			goto out_free;
-	}
-
-	for (i = 0; i < dic->cluster_size; i++) {
-		if (dic->tpages[i])
-			continue;
-		dic->tpages[i] = cc->rpages[i];
 	}
 
 	return dic;
