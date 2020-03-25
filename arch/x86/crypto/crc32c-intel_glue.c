@@ -221,7 +221,7 @@ static struct shash_alg alg = {
 };
 
 static const struct x86_cpu_id crc32c_cpu_id[] = {
-	X86_FEATURE_MATCH(X86_FEATURE_XMM4_2),
+	X86_MATCH_FEATURE(X86_FEATURE_XMM4_2, NULL),
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, crc32c_cpu_id);
