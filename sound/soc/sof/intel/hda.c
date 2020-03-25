@@ -20,6 +20,7 @@
 
 #include <linux/acpi.h>
 #include <linux/module.h>
+#include <linux/soundwire/sdw.h>
 #include <linux/soundwire/sdw_intel.h>
 #include <sound/intel-nhlt.h>
 #include <sound/sof.h>
@@ -136,10 +137,7 @@ static int hda_sdw_probe(struct snd_sof_dev *sdev)
 {
 	struct sof_intel_hda_dev *hdev;
 	struct sdw_intel_res res;
-	acpi_handle handle;
 	void *sdw;
-
-	handle = ACPI_HANDLE(sdev->dev);
 
 	hdev = sdev->pdata->hw_pdata;
 
@@ -179,6 +177,9 @@ int hda_sdw_startup(struct snd_sof_dev *sdev)
 	struct sof_intel_hda_dev *hdev;
 
 	hdev = sdev->pdata->hw_pdata;
+
+	if (!hdev->sdw)
+		return 0;
 
 	return sdw_intel_startup(hdev->sdw);
 }
@@ -536,23 +537,30 @@ static int hda_init_caps(struct snd_sof_dev *sdev)
 	/* scan SoundWire capabilities exposed by DSDT */
 	ret = hda_sdw_acpi_scan(sdev);
 	if (ret < 0) {
-		dev_err(sdev->dev, "error: SoundWire ACPI scan error\n");
-		return ret;
+		dev_dbg(sdev->dev, "skipping SoundWire, ACPI scan error\n");
+		goto skip_soundwire;
 	}
 
 	link_mask = hdev->info.link_mask;
 	if (!link_mask) {
-		/*
-		 * probe/allocated SoundWire resources.
-		 * The hardware configuration takes place in hda_sdw_startup
-		 * after power rails are enabled.
-		 */
-		ret = hda_sdw_probe(sdev);
-		if (ret < 0) {
-			dev_err(sdev->dev, "error: SoundWire probe error\n");
-			return ret;
-		}
+		dev_dbg(sdev->dev, "skipping SoundWire, no links enabled\n");
+		goto skip_soundwire;
 	}
+
+	/*
+	 * probe/allocate SoundWire resources.
+	 * The hardware configuration takes place in hda_sdw_startup
+	 * after power rails are enabled.
+	 * It's entirely possible to have a mix of I2S/DMIC/SoundWire
+	 * devices, so we allocate the resources in all cases.
+	 */
+	ret = hda_sdw_probe(sdev);
+	if (ret < 0) {
+		dev_err(sdev->dev, "error: SoundWire probe error\n");
+		return ret;
+	}
+
+skip_soundwire:
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
 	if (bus->mlcap)
@@ -949,6 +957,123 @@ static int hda_generic_machine_select(struct snd_sof_dev *sdev)
 }
 #endif
 
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_INTEL_SOUNDWIRE)
+/* Check if all Slaves defined on the link can be found */
+static bool link_slaves_found(struct snd_sof_dev *sdev,
+			      const struct snd_soc_acpi_link_adr *link,
+			      struct sdw_intel_ctx *sdw)
+{
+	struct hdac_bus *bus = sof_to_bus(sdev);
+	struct sdw_intel_slave_id *ids = sdw->ids;
+	int num_slaves = sdw->num_slaves;
+	unsigned int part_id, link_id, unique_id, mfg_id;
+	int i, j;
+
+	for (i = 0; i < link->num_adr; i++) {
+		u64 adr = link->adr_d[i].adr;
+
+		mfg_id = SDW_MFG_ID(adr);
+		part_id = SDW_PART_ID(adr);
+		link_id = SDW_DISCO_LINK_ID(adr);
+		for (j = 0; j < num_slaves; j++) {
+			if (ids[j].link_id != link_id ||
+			    ids[j].id.part_id != part_id ||
+			    ids[j].id.mfg_id != mfg_id)
+				continue;
+			/*
+			 * we have to check unique id
+			 * if there is more than one
+			 * Slave on the link
+			 */
+			unique_id = SDW_UNIQUE_ID(adr);
+			if (link->num_adr == 1 ||
+			    ids[j].id.unique_id == SDW_IGNORED_UNIQUE_ID ||
+			    ids[j].id.unique_id == unique_id) {
+				dev_dbg(bus->dev,
+					"found %x at link %d\n",
+					part_id, link_id);
+				break;
+			}
+		}
+		if (j == num_slaves) {
+			dev_dbg(bus->dev,
+				"Slave %x not found\n",
+				part_id);
+			return false;
+		}
+	}
+	return true;
+}
+
+static int hda_sdw_machine_select(struct snd_sof_dev *sdev)
+{
+	struct snd_sof_pdata *pdata = sdev->pdata;
+	const struct snd_soc_acpi_link_adr *link;
+	struct hdac_bus *bus = sof_to_bus(sdev);
+	struct snd_soc_acpi_mach *mach;
+	struct sof_intel_hda_dev *hdev;
+	u32 link_mask;
+	int i;
+
+	hdev = pdata->hw_pdata;
+	link_mask = hdev->info.link_mask;
+
+	/*
+	 * Select SoundWire machine driver if needed using the
+	 * alternate tables. This case deals with SoundWire-only
+	 * machines, for mixed cases with I2C/I2S the detection relies
+	 * on the HID list.
+	 */
+	if (link_mask && !pdata->machine) {
+		for (mach = pdata->desc->alt_machines;
+		     mach && mach->link_mask; mach++) {
+			if (mach->link_mask != link_mask)
+				continue;
+
+			/* No need to match adr if there is no links defined */
+			if (!mach->links)
+				break;
+
+			link = mach->links;
+			for (i = 0; i < hdev->info.count && link->num_adr;
+			     i++, link++) {
+				/*
+				 * Try next machine if any expected Slaves
+				 * are not found on this link.
+				 */
+				if (!link_slaves_found(sdev, link, hdev->sdw))
+					break;
+			}
+			/* Found if all Slaves are checked */
+			if (i == hdev->info.count || !link->num_adr)
+				break;
+		}
+		if (mach && mach->link_mask) {
+			dev_dbg(bus->dev,
+				"SoundWire machine driver %s topology %s\n",
+				mach->drv_name,
+				mach->sof_tplg_filename);
+			pdata->machine = mach;
+			mach->mach_params.links = mach->links;
+			mach->mach_params.link_mask = mach->link_mask;
+			mach->mach_params.platform = dev_name(sdev->dev);
+			pdata->fw_filename = mach->sof_fw_filename;
+			pdata->tplg_filename = mach->sof_tplg_filename;
+		} else {
+			dev_info(sdev->dev,
+				 "No SoundWire machine driver found\n");
+		}
+	}
+
+	return 0;
+}
+#else
+static int hda_sdw_machine_select(struct snd_sof_dev *sdev)
+{
+	return 0;
+}
+#endif
+
 void hda_set_mach_params(const struct snd_soc_acpi_mach *mach,
 			 struct device *dev)
 {
@@ -968,7 +1093,17 @@ void hda_machine_select(struct snd_sof_dev *sdev)
 	if (mach) {
 		sof_pdata->tplg_filename = mach->sof_tplg_filename;
 		sof_pdata->machine = mach;
+
+		if (mach->link_mask) {
+			mach->mach_params.links = mach->links;
+			mach->mach_params.link_mask = mach->link_mask;
+		}
 	}
+
+	/*
+	 * If I2S fails, try SoundWire
+	 */
+	hda_sdw_machine_select(sdev);
 
 	/*
 	 * Choose HDA generic machine driver if mach is NULL.
