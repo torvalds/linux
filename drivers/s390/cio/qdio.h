@@ -177,8 +177,8 @@ struct qdio_queue_perf_stat {
 	unsigned int nr_sbal_total;
 };
 
-enum qdio_queue_irq_states {
-	QDIO_QUEUE_IRQS_DISABLED,
+enum qdio_irq_poll_states {
+	QDIO_IRQ_DISABLED,
 };
 
 struct qdio_input_q {
@@ -188,10 +188,6 @@ struct qdio_input_q {
 	int ack_count;
 	/* last time of noticing incoming data */
 	u64 timestamp;
-	/* upper-layer polling flag */
-	unsigned long queue_irq_state;
-	/* callback to start upper-layer polling */
-	void (*queue_start_poll) (struct ccw_device *, int, unsigned long);
 };
 
 struct qdio_output_q {
@@ -298,6 +294,9 @@ struct qdio_irq {
 
 	struct qdio_q *input_qs[QDIO_MAX_QUEUES_PER_IRQ];
 	struct qdio_q *output_qs[QDIO_MAX_QUEUES_PER_IRQ];
+
+	void (*irq_poll)(struct ccw_device *cdev, unsigned long data);
+	unsigned long poll_state;
 
 	debug_info_t *debug_area;
 	struct mutex setup_mutex;

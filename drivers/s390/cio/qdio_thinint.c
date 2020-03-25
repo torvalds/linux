@@ -135,28 +135,24 @@ static inline void tiqdio_call_inq_handlers(struct qdio_irq *irq)
 	    has_multiple_inq_on_dsci(irq))
 		xchg(irq->dsci, 0);
 
+	if (irq->irq_poll) {
+		if (!test_and_set_bit(QDIO_IRQ_DISABLED, &irq->poll_state))
+			irq->irq_poll(irq->cdev, irq->int_parm);
+		else
+			QDIO_PERF_STAT_INC(irq, int_discarded);
+
+		return;
+	}
+
 	for_each_input_queue(irq, q, i) {
-		if (q->u.in.queue_start_poll) {
-			/* skip if polling is enabled or already in work */
-			if (test_and_set_bit(QDIO_QUEUE_IRQS_DISABLED,
-					     &q->u.in.queue_irq_state)) {
-				QDIO_PERF_STAT_INC(irq, int_discarded);
-				continue;
-			}
+		if (!shared_ind(irq))
+			xchg(irq->dsci, 0);
 
-			/* avoid dsci clear here, done after processing */
-			q->u.in.queue_start_poll(irq->cdev, q->nr,
-						 irq->int_parm);
-		} else {
-			if (!shared_ind(irq))
-				xchg(irq->dsci, 0);
-
-			/*
-			 * Call inbound processing but not directly
-			 * since that could starve other thinint queues.
-			 */
-			tasklet_schedule(&q->tasklet);
-		}
+		/*
+		 * Call inbound processing but not directly
+		 * since that could starve other thinint queues.
+		 */
+		tasklet_schedule(&q->tasklet);
 	}
 }
 
