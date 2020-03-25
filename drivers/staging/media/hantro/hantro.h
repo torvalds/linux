@@ -417,7 +417,8 @@ hantro_get_dst_buf(struct hantro_ctx *ctx)
 }
 
 static inline bool
-hantro_needs_postproc(struct hantro_ctx *ctx, const struct hantro_fmt *fmt)
+hantro_needs_postproc(const struct hantro_ctx *ctx,
+		      const struct hantro_fmt *fmt)
 {
 	return !hantro_is_encoder_ctx(ctx) && fmt->fourcc != V4L2_PIX_FMT_NV12;
 }
