@@ -55,7 +55,8 @@ static struct ima_queue_entry *ima_lookup_digest_entry(u8 *digest_value,
 	key = ima_hash_key(digest_value);
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(qe, &ima_htable.queue[key], hnext) {
-		rc = memcmp(qe->entry->digest, digest_value, TPM_DIGEST_SIZE);
+		rc = memcmp(qe->entry->digests[ima_sha1_idx].digest,
+			    digest_value, TPM_DIGEST_SIZE);
 		if ((rc == 0) && (qe->entry->pcr == pcr)) {
 			ret = qe;
 			break;
@@ -75,7 +76,7 @@ static int get_binary_runtime_size(struct ima_template_entry *entry)
 	int size = 0;
 
 	size += sizeof(u32);	/* pcr */
-	size += sizeof(entry->digest);
+	size += TPM_DIGEST_SIZE;
 	size += sizeof(int);	/* template name size field */
 	size += strlen(entry->template_desc->name);
 	size += sizeof(entry->template_data_len);
@@ -107,7 +108,7 @@ static int ima_add_digest_entry(struct ima_template_entry *entry,
 
 	atomic_long_inc(&ima_htable.len);
 	if (update_htable) {
-		key = ima_hash_key(entry->digest);
+		key = ima_hash_key(entry->digests[ima_sha1_idx].digest);
 		hlist_add_head_rcu(&qe->hnext, &ima_htable.queue[key]);
 	}
 
@@ -171,7 +172,8 @@ int ima_add_template_entry(struct ima_template_entry *entry, int violation,
 
 	mutex_lock(&ima_extend_list_mutex);
 	if (!violation) {
-		memcpy(digest, entry->digest, sizeof(digest));
+		memcpy(digest, entry->digests[ima_sha1_idx].digest,
+		       sizeof(digest));
 		if (ima_lookup_digest_entry(digest, entry->pcr)) {
 			audit_cause = "hash_exists";
 			result = -EEXIST;

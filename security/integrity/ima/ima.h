@@ -45,11 +45,15 @@ enum tpm_pcrs { TPM_PCR0 = 0, TPM_PCR8 = 8 };
 #define IMA_TEMPLATE_IMA_NAME "ima"
 #define IMA_TEMPLATE_IMA_FMT "d|n"
 
+#define NR_BANKS(chip) ((chip != NULL) ? chip->nr_allocated_banks : 0)
+
 /* current content of the policy */
 extern int ima_policy_flag;
 
 /* set during initialization */
 extern int ima_hash_algo;
+extern int ima_sha1_idx __ro_after_init;
+extern int ima_extra_slots __ro_after_init;
 extern int ima_appraise;
 extern struct tpm_chip *ima_tpm_chip;
 
@@ -92,7 +96,7 @@ struct ima_template_desc {
 
 struct ima_template_entry {
 	int pcr;
-	u8 digest[TPM_DIGEST_SIZE];	/* sha1 or md5 measurement hash */
+	struct tpm_digest *digests;
 	struct ima_template_desc *template_desc; /* template descriptor */
 	u32 template_data_len;
 	struct ima_field_data template_data[0];	/* template related data */

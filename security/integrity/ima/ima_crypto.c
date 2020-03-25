@@ -57,6 +57,13 @@ MODULE_PARM_DESC(ahash_bufsize, "Maximum ahash buffer size");
 static struct crypto_shash *ima_shash_tfm;
 static struct crypto_ahash *ima_ahash_tfm;
 
+int ima_sha1_idx __ro_after_init;
+/*
+ * Additional number of slots reserved, as needed, for SHA1
+ * and IMA default algo.
+ */
+int ima_extra_slots __ro_after_init = 1;
+
 int __init ima_init_crypto(void)
 {
 	long rc;
@@ -502,7 +509,8 @@ static int ima_calc_field_array_hash_tfm(struct ima_field_data *field_data,
 	}
 
 	if (!rc)
-		rc = crypto_shash_final(shash, entry->digest);
+		rc = crypto_shash_final(shash,
+					entry->digests[ima_sha1_idx].digest);
 
 	return rc;
 }
