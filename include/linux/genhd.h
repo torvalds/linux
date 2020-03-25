@@ -298,9 +298,6 @@ extern void disk_part_iter_init(struct disk_part_iter *piter,
 extern struct hd_struct *disk_part_iter_next(struct disk_part_iter *piter);
 extern void disk_part_iter_exit(struct disk_part_iter *piter);
 
-extern struct hd_struct *disk_map_sector_rcu(struct gendisk *disk,
-					     sector_t sector);
-
 /*
  * Macros to operate on percpu disk statistics:
  *
@@ -409,13 +406,6 @@ static inline void free_part_stats(struct hd_struct *part)
 #define part_stat_local_read_cpu(gendiskp, field, cpu)			\
 	local_read(&(part_stat_get_cpu(gendiskp, field, cpu)))
 
-void part_dec_in_flight(struct request_queue *q, struct hd_struct *part,
-			int rw);
-void part_inc_in_flight(struct request_queue *q, struct hd_struct *part,
-			int rw);
-
-void update_io_ticks(struct hd_struct *part, unsigned long now, bool end);
-
 /* block/genhd.c */
 extern void device_add_disk(struct device *parent, struct gendisk *disk,
 			    const struct attribute_group **groups);
@@ -465,27 +455,11 @@ static inline void set_capacity(struct gendisk *disk, sector_t size)
 	disk->part0.nr_sects = size;
 }
 
-#define ADDPART_FLAG_NONE	0
-#define ADDPART_FLAG_RAID	1
-#define ADDPART_FLAG_WHOLEDISK	2
-
-extern int blk_alloc_devt(struct hd_struct *part, dev_t *devt);
-extern void blk_free_devt(dev_t devt);
-extern void blk_invalidate_devt(dev_t devt);
 extern dev_t blk_lookup_devt(const char *name, int partno);
-extern char *disk_name (struct gendisk *hd, int partno, char *buf);
 
 int bdev_disk_changed(struct block_device *bdev, bool invalidate);
 int blk_add_partitions(struct gendisk *disk, struct block_device *bdev);
 int blk_drop_partitions(struct gendisk *disk, struct block_device *bdev);
-extern int disk_expand_part_tbl(struct gendisk *disk, int target);
-extern struct hd_struct * __must_check add_partition(struct gendisk *disk,
-						     int partno, sector_t start,
-						     sector_t len, int flags,
-						     struct partition_meta_info
-						       *info);
-extern void __delete_partition(struct percpu_ref *);
-extern void delete_partition(struct gendisk *, int);
 extern void printk_all_partitions(void);
 
 extern struct gendisk *__alloc_disk_node(int minors, int node_id);
@@ -516,100 +490,6 @@ extern void blk_unregister_region(dev_t devt, unsigned long range);
 })
 
 #define alloc_disk(minors) alloc_disk_node(minors, NUMA_NO_NODE)
-
-static inline int hd_ref_init(struct hd_struct *part)
-{
-	if (percpu_ref_init(&part->ref, __delete_partition, 0,
-				GFP_KERNEL))
-		return -ENOMEM;
-	return 0;
-}
-
-static inline void hd_struct_get(struct hd_struct *part)
-{
-	percpu_ref_get(&part->ref);
-}
-
-static inline int hd_struct_try_get(struct hd_struct *part)
-{
-	return percpu_ref_tryget_live(&part->ref);
-}
-
-static inline void hd_struct_put(struct hd_struct *part)
-{
-	percpu_ref_put(&part->ref);
-}
-
-static inline void hd_struct_kill(struct hd_struct *part)
-{
-	percpu_ref_kill(&part->ref);
-}
-
-static inline void hd_free_part(struct hd_struct *part)
-{
-	free_part_stats(part);
-	kfree(part->info);
-	percpu_ref_exit(&part->ref);
-}
-
-/*
- * Any access of part->nr_sects which is not protected by partition
- * bd_mutex or gendisk bdev bd_mutex, should be done using this
- * accessor function.
- *
- * Code written along the lines of i_size_read() and i_size_write().
- * CONFIG_PREEMPTION case optimizes the case of UP kernel with preemption
- * on.
- */
-static inline sector_t part_nr_sects_read(struct hd_struct *part)
-{
-#if BITS_PER_LONG==32 && defined(CONFIG_SMP)
-	sector_t nr_sects;
-	unsigned seq;
-	do {
-		seq = read_seqcount_begin(&part->nr_sects_seq);
-		nr_sects = part->nr_sects;
-	} while (read_seqcount_retry(&part->nr_sects_seq, seq));
-	return nr_sects;
-#elif BITS_PER_LONG==32 && defined(CONFIG_PREEMPTION)
-	sector_t nr_sects;
-
-	preempt_disable();
-	nr_sects = part->nr_sects;
-	preempt_enable();
-	return nr_sects;
-#else
-	return part->nr_sects;
-#endif
-}
-
-/*
- * Should be called with mutex lock held (typically bd_mutex) of partition
- * to provide mutual exlusion among writers otherwise seqcount might be
- * left in wrong state leaving the readers spinning infinitely.
- */
-static inline void part_nr_sects_write(struct hd_struct *part, sector_t size)
-{
-#if BITS_PER_LONG==32 && defined(CONFIG_SMP)
-	write_seqcount_begin(&part->nr_sects_seq);
-	part->nr_sects = size;
-	write_seqcount_end(&part->nr_sects_seq);
-#elif BITS_PER_LONG==32 && defined(CONFIG_PREEMPTION)
-	preempt_disable();
-	part->nr_sects = size;
-	preempt_enable();
-#else
-	part->nr_sects = size;
-#endif
-}
-
-#if defined(CONFIG_BLK_DEV_INTEGRITY)
-extern void blk_integrity_add(struct gendisk *);
-extern void blk_integrity_del(struct gendisk *);
-#else	/* CONFIG_BLK_DEV_INTEGRITY */
-static inline void blk_integrity_add(struct gendisk *disk) { }
-static inline void blk_integrity_del(struct gendisk *disk) { }
-#endif	/* CONFIG_BLK_DEV_INTEGRITY */
 
 #else /* CONFIG_BLOCK */
 

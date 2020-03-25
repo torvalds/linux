@@ -149,6 +149,9 @@ static inline bool integrity_req_gap_front_merge(struct request *req,
 	return bvec_gap_to_prev(req->q, &bip->bip_vec[bip->bip_vcnt - 1],
 				bip_next->bip_vec[0].bv_offset);
 }
+
+void blk_integrity_add(struct gendisk *);
+void blk_integrity_del(struct gendisk *);
 #else /* CONFIG_BLK_DEV_INTEGRITY */
 static inline bool integrity_req_gap_back_merge(struct request *req,
 		struct bio *next)
@@ -169,6 +172,12 @@ static inline bool bio_integrity_endio(struct bio *bio)
 	return true;
 }
 static inline void bio_integrity_free(struct bio *bio)
+{
+}
+static inline void blk_integrity_add(struct gendisk *disk)
+{
+}
+static inline void blk_integrity_del(struct gendisk *disk)
 {
 }
 #endif /* CONFIG_BLK_DEV_INTEGRITY */
@@ -364,5 +373,112 @@ void blk_queue_free_zone_bitmaps(struct request_queue *q);
 #else
 static inline void blk_queue_free_zone_bitmaps(struct request_queue *q) {}
 #endif
+
+void part_dec_in_flight(struct request_queue *q, struct hd_struct *part,
+			int rw);
+void part_inc_in_flight(struct request_queue *q, struct hd_struct *part,
+			int rw);
+void update_io_ticks(struct hd_struct *part, unsigned long now, bool end);
+struct hd_struct *disk_map_sector_rcu(struct gendisk *disk, sector_t sector);
+
+int blk_alloc_devt(struct hd_struct *part, dev_t *devt);
+void blk_free_devt(dev_t devt);
+void blk_invalidate_devt(dev_t devt);
+char *disk_name(struct gendisk *hd, int partno, char *buf);
+#define ADDPART_FLAG_NONE	0
+#define ADDPART_FLAG_RAID	1
+#define ADDPART_FLAG_WHOLEDISK	2
+struct hd_struct *__must_check add_partition(struct gendisk *disk, int partno,
+		sector_t start, sector_t len, int flags,
+		struct partition_meta_info *info);
+void __delete_partition(struct percpu_ref *ref);
+void delete_partition(struct gendisk *disk, int partno);
+int disk_expand_part_tbl(struct gendisk *disk, int target);
+
+static inline int hd_ref_init(struct hd_struct *part)
+{
+	if (percpu_ref_init(&part->ref, __delete_partition, 0,
+				GFP_KERNEL))
+		return -ENOMEM;
+	return 0;
+}
+
+static inline void hd_struct_get(struct hd_struct *part)
+{
+	percpu_ref_get(&part->ref);
+}
+
+static inline int hd_struct_try_get(struct hd_struct *part)
+{
+	return percpu_ref_tryget_live(&part->ref);
+}
+
+static inline void hd_struct_put(struct hd_struct *part)
+{
+	percpu_ref_put(&part->ref);
+}
+
+static inline void hd_struct_kill(struct hd_struct *part)
+{
+	percpu_ref_kill(&part->ref);
+}
+
+static inline void hd_free_part(struct hd_struct *part)
+{
+	free_part_stats(part);
+	kfree(part->info);
+	percpu_ref_exit(&part->ref);
+}
+
+/*
+ * Any access of part->nr_sects which is not protected by partition
+ * bd_mutex or gendisk bdev bd_mutex, should be done using this
+ * accessor function.
+ *
+ * Code written along the lines of i_size_read() and i_size_write().
+ * CONFIG_PREEMPTION case optimizes the case of UP kernel with preemption
+ * on.
+ */
+static inline sector_t part_nr_sects_read(struct hd_struct *part)
+{
+#if BITS_PER_LONG==32 && defined(CONFIG_SMP)
+	sector_t nr_sects;
+	unsigned seq;
+	do {
+		seq = read_seqcount_begin(&part->nr_sects_seq);
+		nr_sects = part->nr_sects;
+	} while (read_seqcount_retry(&part->nr_sects_seq, seq));
+	return nr_sects;
+#elif BITS_PER_LONG==32 && defined(CONFIG_PREEMPTION)
+	sector_t nr_sects;
+
+	preempt_disable();
+	nr_sects = part->nr_sects;
+	preempt_enable();
+	return nr_sects;
+#else
+	return part->nr_sects;
+#endif
+}
+
+/*
+ * Should be called with mutex lock held (typically bd_mutex) of partition
+ * to provide mutual exlusion among writers otherwise seqcount might be
+ * left in wrong state leaving the readers spinning infinitely.
+ */
+static inline void part_nr_sects_write(struct hd_struct *part, sector_t size)
+{
+#if BITS_PER_LONG==32 && defined(CONFIG_SMP)
+	write_seqcount_begin(&part->nr_sects_seq);
+	part->nr_sects = size;
+	write_seqcount_end(&part->nr_sects_seq);
+#elif BITS_PER_LONG==32 && defined(CONFIG_PREEMPTION)
+	preempt_disable();
+	part->nr_sects = size;
+	preempt_enable();
+#else
+	part->nr_sects = size;
+#endif
+}
 
 #endif /* BLK_INTERNAL_H */
