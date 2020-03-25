@@ -349,7 +349,7 @@
 	};
 
 	pmu: power-management@ff3e0000 {
-		compatible = "rockchip,rv1126-pmu", "syscon";
+		compatible = "rockchip,rv1126-pmu", "syscon", "simple-mfd";
 		reg = <0xff3e0000 0x1000>;
 
 		power: power-controller {
