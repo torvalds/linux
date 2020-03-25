@@ -24,3 +24,7 @@ tcp_fastopen_backup_key
 nettest
 fin_ack_lat
 reuseaddr_ports_exhausted
+hwtstamp_config
+rxtimestamp
+timestamping
+txtimestamp

@@ -36,7 +36,6 @@ TARGETS += net
 TARGETS += net/forwarding
 TARGETS += net/mptcp
 TARGETS += netfilter
-TARGETS += networking/timestamping
 TARGETS += nsfs
 TARGETS += pidfd
 TARGETS += powerpc

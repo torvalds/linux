@@ -76,7 +76,7 @@ main() {
 }
 
 if [[ "$(ip netns identify)" == "root" ]]; then
-	../../net/in_netns.sh $0 $@
+	./in_netns.sh $0 $@
 else
 	main $@
 fi
