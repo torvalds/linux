@@ -53,6 +53,7 @@ extern int ima_policy_flag;
 /* set during initialization */
 extern int ima_hash_algo;
 extern int ima_sha1_idx __ro_after_init;
+extern int ima_hash_algo_idx __ro_after_init;
 extern int ima_extra_slots __ro_after_init;
 extern int ima_appraise;
 extern struct tpm_chip *ima_tpm_chip;

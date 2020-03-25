@@ -63,6 +63,7 @@ struct ima_algo_desc {
 };
 
 int ima_sha1_idx __ro_after_init;
+int ima_hash_algo_idx __ro_after_init;
 /*
  * Additional number of slots reserved, as needed, for SHA1
  * and IMA default algo.
@@ -122,15 +123,25 @@ int __init ima_init_crypto(void)
 		return rc;
 
 	ima_sha1_idx = -1;
+	ima_hash_algo_idx = -1;
 
 	for (i = 0; i < NR_BANKS(ima_tpm_chip); i++) {
 		algo = ima_tpm_chip->allocated_banks[i].crypto_id;
 		if (algo == HASH_ALGO_SHA1)
 			ima_sha1_idx = i;
+
+		if (algo == ima_hash_algo)
+			ima_hash_algo_idx = i;
 	}
 
-	if (ima_sha1_idx < 0)
+	if (ima_sha1_idx < 0) {
 		ima_sha1_idx = NR_BANKS(ima_tpm_chip) + ima_extra_slots++;
+		if (ima_hash_algo == HASH_ALGO_SHA1)
+			ima_hash_algo_idx = ima_sha1_idx;
+	}
+
+	if (ima_hash_algo_idx < 0)
+		ima_hash_algo_idx = NR_BANKS(ima_tpm_chip) + ima_extra_slots++;
 
 	ima_algo_array = kcalloc(NR_BANKS(ima_tpm_chip) + ima_extra_slots,
 				 sizeof(*ima_algo_array), GFP_KERNEL);
@@ -177,6 +188,12 @@ int __init ima_init_crypto(void)
 		}
 
 		ima_algo_array[ima_sha1_idx].algo = HASH_ALGO_SHA1;
+	}
+
+	if (ima_hash_algo_idx >= NR_BANKS(ima_tpm_chip) &&
+	    ima_hash_algo_idx != ima_sha1_idx) {
+		ima_algo_array[ima_hash_algo_idx].tfm = ima_shash_tfm;
+		ima_algo_array[ima_hash_algo_idx].algo = ima_hash_algo;
 	}
 
 	return 0;
