@@ -443,7 +443,7 @@ properties:
 
       - description: Rockchip Kylin
         items:
-          - const: rockchip,kylin-rk3036
+          - const: rockchip,rk3036-kylin
           - const: rockchip,rk3036
 
       - description: Rockchip PX3 Evaluation board
@@ -467,6 +467,11 @@ properties:
         items:
           - const: rockchip,r88
           - const: rockchip,rk3368
+
+      - description: Rockchip RK3036 Evaluation board
+        items:
+          - const: rockchip,rk3036-evb
+          - const: rockchip,rk3036
 
       - description: Rockchip RK3228 Evaluation board
         items:
