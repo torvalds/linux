@@ -823,20 +823,10 @@ static void csi2_phy_init(struct cal_ctx *ctx)
 	csi2_cio_power(ctx, true);
 }
 
-static void csi2_wait_for_phy(struct cal_ctx *ctx)
+static void csi2_wait_complexio_reset(struct cal_ctx *ctx)
 {
 	int i;
 
-	/* Steps
-	 *  2. Wait for completion of reset
-	 *          Note if the external sensor is not sending byte clock,
-	 *          the reset will timeout
-	 *  4.Force FORCERXMODE
-	 *      G. Wait for all enabled lane to reach stop state
-	 *      H. Disable pull down using pad control
-	 */
-
-	/* 2. Wait for reset completion */
 	for (i = 0; i < 250; i++) {
 		if (reg_read_field(ctx->dev,
 				   CAL_CSI2_COMPLEXIO_CFG(ctx->csi2_port),
@@ -850,8 +840,12 @@ static void csi2_wait_for_phy(struct cal_ctx *ctx)
 			   CAL_CSI2_COMPLEXIO_CFG_RESET_DONE_MASK) !=
 			   CAL_CSI2_COMPLEXIO_CFG_RESET_DONE_RESETCOMPLETED)
 		ctx_err(ctx, "Timeout waiting for Complex IO reset done\n");
+}
 
-	/* 4. G. Wait for all enabled lane to reach stop state */
+static void csi2_wait_stop_state(struct cal_ctx *ctx)
+{
+	int i;
+
 	for (i = 0; i < 10; i++) {
 		if (reg_read_field(ctx->dev,
 				   CAL_CSI2_TIMING(ctx->csi2_port),
@@ -863,6 +857,24 @@ static void csi2_wait_for_phy(struct cal_ctx *ctx)
 	if (reg_read_field(ctx->dev, CAL_CSI2_TIMING(ctx->csi2_port),
 			   CAL_CSI2_TIMING_FORCE_RX_MODE_IO1_MASK) != 0)
 		ctx_err(ctx, "Timeout waiting for stop state\n");
+}
+
+static void csi2_wait_for_phy(struct cal_ctx *ctx)
+{
+	/* Steps
+	 *  2. Wait for completion of reset
+	 *          Note if the external sensor is not sending byte clock,
+	 *          the reset will timeout
+	 *  4.Force FORCERXMODE
+	 *      G. Wait for all enabled lane to reach stop state
+	 *      H. Disable pull down using pad control
+	 */
+
+	/* 2. Wait for reset completion */
+	csi2_wait_complexio_reset(ctx);
+
+	/* 4. G. Wait for all enabled lane to reach stop state */
+	csi2_wait_stop_state(ctx);
 
 	ctx_dbg(1, ctx, "CSI2_%d_REG1 = 0x%08x (Bit(31,28) should be set!)\n",
 		(ctx->csi2_port - 1), reg_read(ctx->cc, CAL_CSI2_PHY_REG1));
