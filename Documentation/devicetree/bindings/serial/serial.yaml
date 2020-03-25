@@ -15,6 +15,10 @@ description:
   device tree.  Whether these properties apply to a particular device depends
   on the DT bindings for the actual device.
 
+  Each enabled UART may have an optional "serialN" alias in the "aliases" node,
+  where N is the port number (non-negative decimal integer) as printed on the
+  label next to the physical port.
+
 properties:
   $nodename:
     pattern: "^serial(@.*)?$"
