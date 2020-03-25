@@ -16,10 +16,10 @@ int create_orc(struct objtool_file *file)
 
 	for_each_insn(file, insn) {
 		struct orc_entry *orc = &insn->orc;
-		struct cfi_reg *cfa = &insn->state.cfa;
-		struct cfi_reg *bp = &insn->state.regs[CFI_BP];
+		struct cfi_reg *cfa = &insn->cfi.cfa;
+		struct cfi_reg *bp = &insn->cfi.regs[CFI_BP];
 
-		orc->end = insn->state.end;
+		orc->end = insn->cfi.end;
 
 		if (cfa->base == CFI_UNDEFINED) {
 			orc->sp_reg = ORC_REG_UNDEFINED;
@@ -75,7 +75,7 @@ int create_orc(struct objtool_file *file)
 
 		orc->sp_offset = cfa->offset;
 		orc->bp_offset = bp->offset;
-		orc->type = insn->state.type;
+		orc->type = insn->cfi.type;
 	}
 
 	return 0;

@@ -19,8 +19,20 @@ struct cfi_reg {
 };
 
 struct cfi_init_state {
-	struct cfi_reg cfa;
 	struct cfi_reg regs[CFI_NUM_REGS];
+	struct cfi_reg cfa;
+};
+
+struct cfi_state {
+	struct cfi_reg regs[CFI_NUM_REGS];
+	struct cfi_reg vals[CFI_NUM_REGS];
+	struct cfi_reg cfa;
+	int stack_size;
+	int drap_reg, drap_offset;
+	unsigned char type;
+	bool bp_scratch;
+	bool drap;
+	bool end;
 };
 
 #endif /* _OBJTOOL_CFI_H */
