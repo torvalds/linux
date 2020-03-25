@@ -955,8 +955,7 @@ static void csi2_ctx_config(struct cal_ctx *ctx)
 	set_field(&val, 0x1, CAL_CSI2_CTX_DT_MASK);
 	/* Virtual Channel from the CSI2 sensor usually 0! */
 	set_field(&val, ctx->virtual_channel, CAL_CSI2_CTX_VC_MASK);
-	/* NUM_LINES_PER_FRAME => 0 means auto detect */
-	set_field(&val, 0, CAL_CSI2_CTX_LINES_MASK);
+	set_field(&val, ctx->v_fmt.fmt.pix.height, CAL_CSI2_CTX_LINES_MASK);
 	set_field(&val, CAL_CSI2_CTX_ATT_PIX, CAL_CSI2_CTX_ATT_MASK);
 	set_field(&val, CAL_CSI2_CTX_PACK_MODE_LINE,
 		  CAL_CSI2_CTX_PACK_MODE_MASK);
