@@ -357,7 +357,7 @@
 			#power-domain-cells = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			status = "disabled";
+			status = "okay";
 
 			/* These power domains are grouped by VD_NPU */
 			pd_npu@RV1126_PD_NPU {
@@ -1194,6 +1194,7 @@
 		clocks = <&cru ACLK_VOP>, <&cru DCLK_VOP>, <&cru HCLK_VOP>;
 		clock-names = "aclk_vop", "dclk_vop", "hclk_vop";
 		iommus = <&vop_mmu>;
+		power-domains = <&power RV1126_PD_VO>;
 		status = "disabled";
 
 		vop_out: port {
@@ -1221,6 +1222,7 @@
 		clock-names = "aclk", "iface";
 		#iommu-cells = <0>;
 		rockchip,disable-device-link-resume;
+		power-domains = <&power RV1126_PD_VO>;
 		status = "disabled";
 	};
 
@@ -1237,6 +1239,7 @@
 		rockchip,grf = <&grf>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		power-domains = <&power RV1126_PD_VO>;
 		status = "disabled";
 
 		ports {
@@ -1406,6 +1409,7 @@
 		clock-names = "biu", "ciu", "ciu-drive", "ciu-sample";
 		fifo-depth = <0x100>;
 		max-frequency = <150000000>;
+		power-domains = <&power RV1126_PD_NVM>;
 		status = "disabled";
 	};
 
@@ -1434,6 +1438,7 @@
 		max-frequency = <150000000>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&sdmmc0_clk &sdmmc0_cmd &sdmmc0_bus4>;
+		power-domains = <&power RV1126_PD_SDIO>;
 		status = "disabled";
 	};
 
@@ -1444,6 +1449,7 @@
 		nandc_id = <0>;
 		clocks = <&cru CLK_NANDC>, <&cru HCLK_NANDC>;
 		clock-names = "clk_nandc", "hclk_nandc";
+		power-domains = <&power RV1126_PD_NVM>;
 		status = "disabled";
 	};
 
@@ -1455,6 +1461,7 @@
 		clock-names = "clk_sfc", "hclk_sfc";
 		assigned-clocks = <&cru SCLK_SFC>;
 		assigned-clock-rates = <80000000>;
+		power-domains = <&power RV1126_PD_NVM>;
 		status = "disabled";
 	};
 
