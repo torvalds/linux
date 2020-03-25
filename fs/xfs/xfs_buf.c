@@ -327,6 +327,9 @@ xfs_buf_free(
 
 			__free_page(page);
 		}
+		if (current->reclaim_state)
+			current->reclaim_state->reclaimed_slab +=
+							bp->b_page_count;
 	} else if (bp->b_flags & _XBF_KMEM)
 		kmem_free(bp->b_addr);
 	_xfs_buf_free_pages(bp);
@@ -2114,9 +2117,11 @@ xfs_buf_delwri_pushbuf(
 int __init
 xfs_buf_init(void)
 {
-	xfs_buf_zone = kmem_cache_create("xfs_buf",
-					 sizeof(struct xfs_buf), 0,
-					 SLAB_HWCACHE_ALIGN, NULL);
+	xfs_buf_zone = kmem_cache_create("xfs_buf", sizeof(struct xfs_buf), 0,
+					 SLAB_HWCACHE_ALIGN |
+					 SLAB_RECLAIM_ACCOUNT |
+					 SLAB_MEM_SPREAD,
+					 NULL);
 	if (!xfs_buf_zone)
 		goto out;
 
