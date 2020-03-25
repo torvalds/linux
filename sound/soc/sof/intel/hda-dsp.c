@@ -452,6 +452,46 @@ revert:
 	return ret;
 }
 
+/* helper to log DSP state */
+static void hda_dsp_state_log(struct snd_sof_dev *sdev)
+{
+	switch (sdev->dsp_power_state.state) {
+	case SOF_DSP_PM_D0:
+		switch (sdev->dsp_power_state.substate) {
+		case SOF_HDA_DSP_PM_D0I0:
+			dev_dbg(sdev->dev, "Current DSP power state: D0I0\n");
+			break;
+		case SOF_HDA_DSP_PM_D0I3:
+			dev_dbg(sdev->dev, "Current DSP power state: D0I3\n");
+			break;
+		default:
+			dev_dbg(sdev->dev, "Unknown DSP D0 substate: %d\n",
+				sdev->dsp_power_state.substate);
+			break;
+		}
+		break;
+	case SOF_DSP_PM_D1:
+		dev_dbg(sdev->dev, "Current DSP power state: D1\n");
+		break;
+	case SOF_DSP_PM_D2:
+		dev_dbg(sdev->dev, "Current DSP power state: D2\n");
+		break;
+	case SOF_DSP_PM_D3_HOT:
+		dev_dbg(sdev->dev, "Current DSP power state: D3_HOT\n");
+		break;
+	case SOF_DSP_PM_D3:
+		dev_dbg(sdev->dev, "Current DSP power state: D3\n");
+		break;
+	case SOF_DSP_PM_D3_COLD:
+		dev_dbg(sdev->dev, "Current DSP power state: D3_COLD\n");
+		break;
+	default:
+		dev_dbg(sdev->dev, "Unknown DSP power state: %d\n",
+			sdev->dsp_power_state.state);
+		break;
+	}
+}
+
 /*
  * All DSP power state transitions are initiated by the driver.
  * If the requested state change fails, the error is simply returned.
@@ -511,8 +551,7 @@ set_state:
 	}
 
 	sdev->dsp_power_state = *target_state;
-	dev_dbg(sdev->dev, "New DSP state %d substate %d\n",
-		target_state->state, target_state->substate);
+	hda_dsp_state_log(sdev);
 	return ret;
 }
 
