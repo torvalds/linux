@@ -66,7 +66,8 @@ static int kpc_dma_transfer(struct dev_private_data *priv,
 	acd->page_count = count_pages(iov_base, iov_len);
 
 	// Allocate an array of page pointers
-	acd->user_pages = kzalloc(sizeof(struct page *) * acd->page_count, GFP_KERNEL);
+	acd->user_pages = kcalloc(acd->page_count, sizeof(struct page *),
+				  GFP_KERNEL);
 	if (!acd->user_pages) {
 		dev_err(&priv->ldev->pldev->dev, "Couldn't kmalloc space for for the page pointers\n");
 		rv = -ENOMEM;
