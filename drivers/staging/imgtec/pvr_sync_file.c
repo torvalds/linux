@@ -966,7 +966,7 @@ struct dma_fence_pt *pvr_sync_pt_create(struct dma_fence_timeline *obj,
 	struct dma_fence_pt *pt;
 	struct pvr_sync_pt *pvr_pt = NULL;
 
-	pt = kzalloc(sizeof(*pt), GFP_KERNEL);
+	pt = kzalloc(sizeof(struct pvr_sync_pt), GFP_KERNEL);
 	if (!pt)
 		return NULL;
 
@@ -1026,11 +1026,11 @@ unlock:
  * Creates a new sync_timeline. Returns the sync_timeline object or NULL in
  * case of error.
  */
-static struct dma_fence_timeline *pvr_sync_timeline_create(const char *name, const struct dma_fence_ops *ops)
+static struct dma_fence_timeline *pvr_sync_timeline_create(const char *name, int size, const struct dma_fence_ops *ops)
 {
 	struct dma_fence_timeline *obj;
 
-	obj = kzalloc(sizeof(*obj), GFP_KERNEL);
+	obj = kzalloc(size, GFP_KERNEL);
 	if (!obj)
 		return NULL;
 
@@ -1894,7 +1894,7 @@ static int pvr_sync_open(struct inode *inode, struct file *file)
 
 //Warning
 	timeline_wrapper = (struct pvr_sync_timeline_wrapper *)
-		pvr_sync_timeline_create(task_comm, &pvr_fence_ops);
+		pvr_sync_timeline_create(task_comm, sizeof(*timeline_wrapper), &pvr_fence_ops);
 	if (!timeline_wrapper) {
 		pr_err("pvr_sync: %s: pvr_sync_timeline_create failed\n", __func__);
 		goto err_out;
