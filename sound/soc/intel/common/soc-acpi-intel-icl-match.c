@@ -166,21 +166,21 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_icl_sdw_machines[] = {
 	{
 		.link_mask = 0xF, /* 4 active links required */
 		.links = icl_3_in_1_default,
-		.drv_name = "sdw_rt711_rt1308_rt715",
+		.drv_name = "sof_sdw",
 		.sof_fw_filename = "sof-icl.ri",
 		.sof_tplg_filename = "sof-icl-rt711-rt1308-rt715.tplg",
 	},
 	{
 		.link_mask = 0xB, /* 3 active links required */
 		.links = icl_3_in_1_mono_amp,
-		.drv_name = "sdw_rt711_rt1308_rt715",
+		.drv_name = "sof_sdw",
 		.sof_fw_filename = "sof-icl.ri",
 		.sof_tplg_filename = "sof-icl-rt711-rt1308-rt715-mono.tplg",
 	},
 	{
 		.link_mask = 0x1, /* rt700 connected on link0 */
 		.links = icl_rvp,
-		.drv_name = "sdw_rt700",
+		.drv_name = "sof_sdw",
 		.sof_fw_filename = "sof-icl.ri",
 		.sof_tplg_filename = "sof-icl-rt700.tplg",
 	},
