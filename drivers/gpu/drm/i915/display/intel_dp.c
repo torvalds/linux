@@ -4922,7 +4922,7 @@ static void intel_write_dp_sdp(struct intel_encoder *encoder,
 		break;
 	default:
 		MISSING_CASE(type);
-		break;
+		return;
 	}
 
 	if (drm_WARN_ON(&dev_priv->drm, len < 0))
