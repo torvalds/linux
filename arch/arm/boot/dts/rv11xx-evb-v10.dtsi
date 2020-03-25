@@ -408,6 +408,8 @@
 &i2s0_8ch {
 	status = "okay";
 	#sound-dai-cells = <0>;
+	rockchip,clk-trcm = <1>;
+	rockchip,i2s-rx-route = <3 1 2 0>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2s0m0_sclk_tx
 		     &i2s0m0_lrck_tx
