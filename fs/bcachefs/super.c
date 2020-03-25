@@ -468,6 +468,8 @@ static void bch2_fs_free(struct bch_fs *c)
 	bch2_io_clock_exit(&c->io_clock[WRITE]);
 	bch2_io_clock_exit(&c->io_clock[READ]);
 	bch2_fs_compress_exit(c);
+	bch2_journal_keys_free(&c->journal_keys);
+	bch2_journal_entries_free(&c->journal_entries);
 	percpu_free_rwsem(&c->mark_lock);
 	free_percpu(c->online_reserved);
 	kfree(c->usage_scratch);
@@ -656,6 +658,8 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 
 	INIT_WORK(&c->journal_seq_blacklist_gc_work,
 		  bch2_blacklist_entries_gc);
+
+	INIT_LIST_HEAD(&c->journal_entries);
 
 	INIT_LIST_HEAD(&c->fsck_errors);
 	mutex_init(&c->fsck_error_lock);

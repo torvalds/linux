@@ -523,6 +523,18 @@ struct journal_seq_blacklist_table {
 	}			entries[0];
 };
 
+struct journal_keys {
+	struct journal_key {
+		enum btree_id	btree_id:8;
+		unsigned	level:8;
+		struct bkey_i	*k;
+		u32		journal_seq;
+		u32		journal_offset;
+	}			*d;
+	size_t			nr;
+	u64			journal_seq_base;
+};
+
 struct bch_fs {
 	struct closure		cl;
 
@@ -791,6 +803,8 @@ struct bch_fs {
 	mempool_t		btree_bounce_pool;
 
 	struct journal		journal;
+	struct list_head	journal_entries;
+	struct journal_keys	journal_keys;
 
 	u64			last_bucket_seq_cleanup;
 

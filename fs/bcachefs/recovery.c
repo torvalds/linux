@@ -198,7 +198,7 @@ void bch2_btree_and_journal_iter_init_node_iter(struct btree_and_journal_iter *i
 
 /* sort and dedup all keys in the journal: */
 
-static void journal_entries_free(struct list_head *list)
+void bch2_journal_entries_free(struct list_head *list)
 {
 
 	while (!list_empty(list)) {
@@ -236,7 +236,7 @@ static int journal_sort_seq_cmp(const void *_l, const void *_r)
 		bkey_cmp(l->k->k.p,	r->k->k.p);
 }
 
-static void journal_keys_free(struct journal_keys *keys)
+void bch2_journal_keys_free(struct journal_keys *keys)
 {
 	kvfree(keys->d);
 	keys->d = NULL;
@@ -802,8 +802,6 @@ int bch2_fs_recovery(struct bch_fs *c)
 	const char *err = "cannot allocate memory";
 	struct bch_sb_field_clean *clean = NULL;
 	u64 journal_seq;
-	LIST_HEAD(journal_entries);
-	struct journal_keys journal_keys = { NULL };
 	bool wrote = false, write_sb = false;
 	int ret;
 
@@ -825,30 +823,30 @@ int bch2_fs_recovery(struct bch_fs *c)
 	if (!c->sb.clean || c->opts.fsck) {
 		struct jset *j;
 
-		ret = bch2_journal_read(c, &journal_entries);
+		ret = bch2_journal_read(c, &c->journal_entries);
 		if (ret)
 			goto err;
 
-		if (mustfix_fsck_err_on(c->sb.clean && !journal_empty(&journal_entries), c,
+		if (mustfix_fsck_err_on(c->sb.clean && !journal_empty(&c->journal_entries), c,
 				"filesystem marked clean but journal not empty")) {
 			c->sb.compat &= ~(1ULL << BCH_COMPAT_FEAT_ALLOC_INFO);
 			SET_BCH_SB_CLEAN(c->disk_sb.sb, false);
 			c->sb.clean = false;
 		}
 
-		if (!c->sb.clean && list_empty(&journal_entries)) {
+		if (!c->sb.clean && list_empty(&c->journal_entries)) {
 			bch_err(c, "no journal entries found");
 			ret = BCH_FSCK_REPAIR_IMPOSSIBLE;
 			goto err;
 		}
 
-		journal_keys = journal_keys_sort(&journal_entries);
-		if (!journal_keys.d) {
+		c->journal_keys = journal_keys_sort(&c->journal_entries);
+		if (!c->journal_keys.d) {
 			ret = -ENOMEM;
 			goto err;
 		}
 
-		j = &list_last_entry(&journal_entries,
+		j = &list_last_entry(&c->journal_entries,
 				     struct journal_replay, list)->j;
 
 		ret = verify_superblock_clean(c, &clean, j);
@@ -867,7 +865,7 @@ int bch2_fs_recovery(struct bch_fs *c)
 		goto err;
 	}
 
-	ret = journal_replay_early(c, clean, &journal_entries);
+	ret = journal_replay_early(c, clean, &c->journal_entries);
 	if (ret)
 		goto err;
 
@@ -885,15 +883,15 @@ int bch2_fs_recovery(struct bch_fs *c)
 
 	ret = bch2_blacklist_table_initialize(c);
 
-	if (!list_empty(&journal_entries)) {
+	if (!list_empty(&c->journal_entries)) {
 		ret = verify_journal_entries_not_blacklisted_or_missing(c,
-							&journal_entries);
+							&c->journal_entries);
 		if (ret)
 			goto err;
 	}
 
 	ret = bch2_fs_journal_start(&c->journal, journal_seq,
-				    &journal_entries);
+				    &c->journal_entries);
 	if (ret)
 		goto err;
 
@@ -903,14 +901,14 @@ int bch2_fs_recovery(struct bch_fs *c)
 
 	bch_verbose(c, "starting alloc read");
 	err = "error reading allocation information";
-	ret = bch2_alloc_read(c, &journal_keys);
+	ret = bch2_alloc_read(c, &c->journal_keys);
 	if (ret)
 		goto err;
 	bch_verbose(c, "alloc read done");
 
 	bch_verbose(c, "starting stripes_read");
 	err = "error reading stripes";
-	ret = bch2_stripes_read(c, &journal_keys);
+	ret = bch2_stripes_read(c, &c->journal_keys);
 	if (ret)
 		goto err;
 	bch_verbose(c, "stripes_read done");
@@ -926,7 +924,7 @@ int bch2_fs_recovery(struct bch_fs *c)
 		 */
 		bch_info(c, "starting metadata mark and sweep");
 		err = "error in mark and sweep";
-		ret = bch2_gc(c, &journal_keys, true, true);
+		ret = bch2_gc(c, &c->journal_keys, true, true);
 		if (ret)
 			goto err;
 		bch_verbose(c, "mark and sweep done");
@@ -937,7 +935,7 @@ int bch2_fs_recovery(struct bch_fs *c)
 	    test_bit(BCH_FS_REBUILD_REPLICAS, &c->flags)) {
 		bch_info(c, "starting mark and sweep");
 		err = "error in mark and sweep";
-		ret = bch2_gc(c, &journal_keys, true, false);
+		ret = bch2_gc(c, &c->journal_keys, true, false);
 		if (ret)
 			goto err;
 		bch_verbose(c, "mark and sweep done");
@@ -958,7 +956,7 @@ int bch2_fs_recovery(struct bch_fs *c)
 
 	bch_verbose(c, "starting journal replay");
 	err = "journal replay failed";
-	ret = bch2_journal_replay(c, journal_keys);
+	ret = bch2_journal_replay(c, c->journal_keys);
 	if (ret)
 		goto err;
 	bch_verbose(c, "journal replay done");
@@ -1054,8 +1052,10 @@ fsck_err:
 	set_bit(BCH_FS_FSCK_DONE, &c->flags);
 	bch2_flush_fsck_errs(c);
 
-	journal_keys_free(&journal_keys);
-	journal_entries_free(&journal_entries);
+	if (!c->opts.keep_journal) {
+		bch2_journal_keys_free(&c->journal_keys);
+		bch2_journal_entries_free(&c->journal_entries);
+	}
 	kfree(clean);
 	if (ret)
 		bch_err(c, "Error in recovery: %s (%i)", err, ret);

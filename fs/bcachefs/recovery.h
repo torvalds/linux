@@ -2,18 +2,6 @@
 #ifndef _BCACHEFS_RECOVERY_H
 #define _BCACHEFS_RECOVERY_H
 
-struct journal_keys {
-	struct journal_key {
-		enum btree_id	btree_id:8;
-		unsigned	level:8;
-		struct bkey_i	*k;
-		u32		journal_seq;
-		u32		journal_offset;
-	}			*d;
-	size_t			nr;
-	u64			journal_seq_base;
-};
-
 #define for_each_journal_key(keys, i)				\
 	for (i = (keys).d; i < (keys).d + (keys).nr; (i)++)
 
@@ -55,6 +43,9 @@ void bch2_btree_and_journal_iter_init(struct btree_and_journal_iter *,
 void bch2_btree_and_journal_iter_init_node_iter(struct btree_and_journal_iter *,
 						struct journal_keys *,
 						struct btree *);
+
+void bch2_journal_keys_free(struct journal_keys *);
+void bch2_journal_entries_free(struct list_head *);
 
 int bch2_fs_recovery(struct bch_fs *);
 int bch2_fs_initialize(struct bch_fs *);

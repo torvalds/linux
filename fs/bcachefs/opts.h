@@ -255,6 +255,11 @@ enum opt_type {
 	  OPT_BOOL(),							\
 	  NO_SB_OPT,			false,				\
 	  NULL,		"Don't replay the journal")			\
+	x(keep_journal,			u8,				\
+	  OPT_MOUNT,							\
+	  OPT_BOOL(),							\
+	  NO_SB_OPT,			false,				\
+	  NULL,		"Don't free journal entries/keys after startup")\
 	x(noexcl,			u8,				\
 	  OPT_MOUNT,							\
 	  OPT_BOOL(),							\
