@@ -13,8 +13,8 @@ if VIDEO_CADENCE
 config VIDEO_CADENCE_CSI2RX
 	tristate "Cadence MIPI-CSI2 RX Controller"
 	depends on VIDEO_V4L2
-	depends on MEDIA_CONTROLLER
-	depends on VIDEO_V4L2_SUBDEV_API
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	select V4L2_FWNODE
 	help
 	  Support for the Cadence MIPI CSI2 Receiver controller.
@@ -25,8 +25,8 @@ config VIDEO_CADENCE_CSI2RX
 config VIDEO_CADENCE_CSI2TX
 	tristate "Cadence MIPI-CSI2 TX Controller"
 	depends on VIDEO_V4L2
-	depends on MEDIA_CONTROLLER
-	depends on VIDEO_V4L2_SUBDEV_API
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	select V4L2_FWNODE
 	help
 	  Support for the Cadence MIPI CSI2 Transceiver controller.

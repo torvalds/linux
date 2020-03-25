@@ -9,7 +9,9 @@ menu "SPI helper chips"
 
 config VIDEO_GS1662
 	tristate "Gennum Serializers video"
-	depends on SPI && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on SPI && VIDEO_V4L2
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	help
 	  Enable the GS1662 driver which serializes video streams.
 
