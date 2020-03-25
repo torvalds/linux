@@ -101,15 +101,6 @@
 #define CM_CTRL_CORE_CAMERRX_CONTROL	0x000
 
 /*********************************************************************
-* Generic value used in various field below
-*********************************************************************/
-
-#define CAL_GEN_DISABLE			0
-#define CAL_GEN_ENABLE			1
-#define CAL_GEN_FALSE			0
-#define CAL_GEN_TRUE			1
-
-/*********************************************************************
 * Field Definition Macros
 *********************************************************************/
 
