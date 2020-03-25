@@ -733,11 +733,39 @@ static void disable_irqs(struct cal_ctx *ctx)
 	reg_write(ctx->dev, CAL_CSI2_VC_IRQENABLE(1), 0);
 }
 
+static void csi2_cio_power(struct cal_ctx *ctx, bool enable)
+{
+	u32 target_state;
+	unsigned int i;
+
+	target_state = enable ? CAL_CSI2_COMPLEXIO_CFG_PWR_CMD_STATE_ON :
+		       CAL_CSI2_COMPLEXIO_CFG_PWR_CMD_STATE_OFF;
+
+	reg_write_field(ctx->dev, CAL_CSI2_COMPLEXIO_CFG(ctx->csi2_port),
+			target_state, CAL_CSI2_COMPLEXIO_CFG_PWR_CMD_MASK);
+
+	for (i = 0; i < 10; i++) {
+		u32 current_state;
+
+		current_state = reg_read_field(ctx->dev,
+					       CAL_CSI2_COMPLEXIO_CFG(ctx->csi2_port),
+					       CAL_CSI2_COMPLEXIO_CFG_PWR_STATUS_MASK);
+
+		if (current_state == target_state)
+			break;
+
+		usleep_range(1000, 1100);
+	}
+
+	if (i == 10)
+		ctx_err(ctx, "Failed to power %s complexio\n",
+			enable ? "up" : "down");
+}
+
 static void csi2_phy_config(struct cal_ctx *ctx);
 
 static void csi2_phy_init(struct cal_ctx *ctx)
 {
-	int i;
 	u32 val;
 
 	/* Steps
@@ -792,23 +820,7 @@ static void csi2_phy_init(struct cal_ctx *ctx)
 		reg_read(ctx->dev, CAL_CSI2_TIMING(ctx->csi2_port)));
 
 	/* E. Power up the PHY using the complex IO */
-	reg_write_field(ctx->dev, CAL_CSI2_COMPLEXIO_CFG(ctx->csi2_port),
-			CAL_CSI2_COMPLEXIO_CFG_PWR_CMD_STATE_ON,
-			CAL_CSI2_COMPLEXIO_CFG_PWR_CMD_MASK);
-
-	/* F. Wait for power up completion */
-	for (i = 0; i < 10; i++) {
-		if (reg_read_field(ctx->dev,
-				   CAL_CSI2_COMPLEXIO_CFG(ctx->csi2_port),
-				   CAL_CSI2_COMPLEXIO_CFG_PWR_STATUS_MASK) ==
-		    CAL_CSI2_COMPLEXIO_CFG_PWR_STATUS_STATE_ON)
-			break;
-		usleep_range(1000, 1100);
-	}
-	ctx_dbg(3, ctx, "CAL_CSI2_COMPLEXIO_CFG(%d) = 0x%08x Powered UP %s\n",
-		ctx->csi2_port,
-		reg_read(ctx->dev, CAL_CSI2_COMPLEXIO_CFG(ctx->csi2_port)),
-		(i >= 10) ? "(timeout)" : "");
+	csi2_cio_power(ctx, true);
 }
 
 static void csi2_wait_for_phy(struct cal_ctx *ctx)
@@ -860,24 +872,7 @@ static void csi2_phy_deinit(struct cal_ctx *ctx)
 {
 	int i;
 
-	/* Power down the PHY using the complex IO */
-	reg_write_field(ctx->dev, CAL_CSI2_COMPLEXIO_CFG(ctx->csi2_port),
-			CAL_CSI2_COMPLEXIO_CFG_PWR_CMD_STATE_OFF,
-			CAL_CSI2_COMPLEXIO_CFG_PWR_CMD_MASK);
-
-	/* Wait for power down completion */
-	for (i = 0; i < 10; i++) {
-		if (reg_read_field(ctx->dev,
-				   CAL_CSI2_COMPLEXIO_CFG(ctx->csi2_port),
-				   CAL_CSI2_COMPLEXIO_CFG_PWR_STATUS_MASK) ==
-		    CAL_CSI2_COMPLEXIO_CFG_PWR_STATUS_STATE_OFF)
-			break;
-		usleep_range(1000, 1100);
-	}
-	ctx_dbg(3, ctx, "CAL_CSI2_COMPLEXIO_CFG(%d) = 0x%08x Powered Down %s\n",
-		ctx->csi2_port,
-		reg_read(ctx->dev, CAL_CSI2_COMPLEXIO_CFG(ctx->csi2_port)),
-		(i >= 10) ? "(timeout)" : "");
+	csi2_cio_power(ctx, false);
 
 	/* Assert Comple IO Reset */
 	reg_write_field(ctx->dev, CAL_CSI2_COMPLEXIO_CFG(ctx->csi2_port),
