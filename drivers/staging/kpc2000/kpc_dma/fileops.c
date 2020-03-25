@@ -18,8 +18,8 @@
 static inline
 unsigned int  count_pages(unsigned long iov_base, size_t iov_len)
 {
-	unsigned long first = (iov_base             & PAGE_MASK) >> PAGE_SHIFT;
-	unsigned long last  = ((iov_base+iov_len-1) & PAGE_MASK) >> PAGE_SHIFT;
+	unsigned long first = (iov_base                 & PAGE_MASK) >> PAGE_SHIFT;
+	unsigned long last  = ((iov_base + iov_len - 1) & PAGE_MASK) >> PAGE_SHIFT;
 
 	return last - first + 1;
 }
@@ -84,7 +84,7 @@ static int kpc_dma_transfer(struct dev_private_data *priv,
 	}
 
 	// Allocate and setup the sg_table (scatterlist entries)
-	rv = sg_alloc_table_from_pages(&acd->sgt, acd->user_pages, acd->page_count, iov_base & (PAGE_SIZE-1), iov_len, GFP_KERNEL);
+	rv = sg_alloc_table_from_pages(&acd->sgt, acd->user_pages, acd->page_count, iov_base & (PAGE_SIZE - 1), iov_len, GFP_KERNEL);
 	if (rv) {
 		dev_err(&priv->ldev->pldev->dev, "Couldn't alloc sg_table (%ld)\n", rv);
 		goto err_alloc_sg_table;
@@ -127,7 +127,7 @@ static int kpc_dma_transfer(struct dev_private_data *priv,
 			// Fill out the descriptor
 			BUG_ON(!desc);
 			clear_desc(desc);
-			if (p != pcnt-1)
+			if (p != pcnt - 1)
 				desc->DescByteCount = 0x80000;
 			else
 				desc->DescByteCount = sg_dma_len(sg) - (p * 0x80000);
@@ -137,7 +137,7 @@ static int kpc_dma_transfer(struct dev_private_data *priv,
 			desc->DescControlFlags |= DMA_DESC_CTL_IRQONERR;
 			if (i == 0 && p == 0)
 				desc->DescControlFlags |= DMA_DESC_CTL_SOP;
-			if (i == acd->mapped_entry_count-1 && p == pcnt-1)
+			if (i == acd->mapped_entry_count - 1 && p == pcnt - 1)
 				desc->DescControlFlags |= DMA_DESC_CTL_EOP | DMA_DESC_CTL_IRQONDONE;
 
 			desc->DescCardAddrLS = (card_addr & 0xFFFFFFFF);
@@ -149,13 +149,13 @@ static int kpc_dma_transfer(struct dev_private_data *priv,
 			desc->DescSystemAddrMS = (dma_addr & 0xFFFFFFFF00000000UL) >> 32;
 
 			user_ctl = acd->priv->user_ctl;
-			if (i == acd->mapped_entry_count-1 && p == pcnt-1)
+			if (i == acd->mapped_entry_count - 1 && p == pcnt - 1)
 				user_ctl = acd->priv->user_ctl_last;
 
 			desc->DescUserControlLS = (user_ctl & 0x00000000FFFFFFFFUL) >>  0;
 			desc->DescUserControlMS = (user_ctl & 0xFFFFFFFF00000000UL) >> 32;
 
-			if (i == acd->mapped_entry_count-1 && p == pcnt-1)
+			if (i == acd->mapped_entry_count - 1 && p == pcnt - 1)
 				desc->acd = acd;
 
 			dev_dbg(&priv->ldev->pldev->dev, "  Filled descriptor %p (acd = %p)\n", desc, desc->acd);
