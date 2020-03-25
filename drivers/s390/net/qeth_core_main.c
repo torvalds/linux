@@ -5512,12 +5512,10 @@ walk_packet:
 	return 0;
 }
 
-static int qeth_extract_skbs(struct qeth_card *card, int budget,
-			     struct qeth_qdio_buffer *buf, bool *done)
+static unsigned int qeth_extract_skbs(struct qeth_card *card, int budget,
+				      struct qeth_qdio_buffer *buf, bool *done)
 {
-	int work_done = 0;
-
-	*done = false;
+	unsigned int work_done = 0;
 
 	while (budget) {
 		if (qeth_extract_skb(card, buf, &card->rx.buf_element,
@@ -5533,15 +5531,12 @@ static int qeth_extract_skbs(struct qeth_card *card, int budget,
 	return work_done;
 }
 
-int qeth_poll(struct napi_struct *napi, int budget)
+static unsigned int qeth_rx_poll(struct qeth_card *card, int budget)
 {
-	struct qeth_card *card = container_of(napi, struct qeth_card, napi);
-	int work_done = 0;
-	struct qeth_qdio_buffer *buffer;
-	int new_budget = budget;
-	bool done;
+	unsigned int work_done = 0;
 
-	while (1) {
+	while (budget > 0) {
+		/* Fetch completed RX buffers: */
 		if (!card->rx.b_count) {
 			card->rx.qdio_err = 0;
 			card->rx.b_count = qdio_get_next_buffers(
@@ -5553,15 +5548,23 @@ int qeth_poll(struct napi_struct *napi, int budget)
 			}
 		}
 
-		while (card->rx.b_count) {
+		/* Process one completed RX buffer: */
+		if (card->rx.b_count) {
+			struct qeth_qdio_buffer *buffer;
+			unsigned int skbs_done = 0;
+			bool done = false;
+
 			buffer = &card->qdio.in_q->bufs[card->rx.b_index];
 			if (!(card->rx.qdio_err &&
 			    qeth_check_qdio_errors(card, buffer->buffer,
 			    card->rx.qdio_err, "qinerr")))
-				work_done += qeth_extract_skbs(card, new_budget,
-							       buffer, &done);
+				skbs_done = qeth_extract_skbs(card, budget,
+							      buffer, &done);
 			else
 				done = true;
+
+			work_done += skbs_done;
+			budget -= skbs_done;
 
 			if (done) {
 				QETH_CARD_STAT_INC(card, rx_bufs);
@@ -5576,18 +5579,27 @@ int qeth_poll(struct napi_struct *napi, int budget)
 				card->rx.buf_element = 0;
 				card->rx.e_offset = 0;
 			}
-
-			if (work_done >= budget)
-				goto out;
-			else
-				new_budget = budget - work_done;
 		}
 	}
+
+	return work_done;
+}
+
+int qeth_poll(struct napi_struct *napi, int budget)
+{
+	struct qeth_card *card = container_of(napi, struct qeth_card, napi);
+	unsigned int work_done;
+
+	work_done = qeth_rx_poll(card, budget);
+
+	/* Exhausted the RX budget. Keep IRQ disabled, we get called again. */
+	if (budget && work_done >= budget)
+		return work_done;
 
 	if (napi_complete_done(napi, work_done) &&
 	    qdio_start_irq(CARD_DDEV(card), 0))
 		napi_schedule(napi);
-out:
+
 	return work_done;
 }
 EXPORT_SYMBOL_GPL(qeth_poll);
