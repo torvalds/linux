@@ -1845,7 +1845,6 @@ resolve_func_ptr(const struct btf *btf, __u32 id, __u32 *res_id)
  * type definition, while using only sizeof(void *) space in ELF data section.
  */
 static bool get_map_field_int(const char *map_name, const struct btf *btf,
-			      const struct btf_type *def,
 			      const struct btf_member *m, __u32 *res)
 {
 	const struct btf_type *t = skip_mods_and_typedefs(btf, m->type, NULL);
@@ -1972,19 +1971,19 @@ static int bpf_object__init_user_btf_map(struct bpf_object *obj,
 			return -EINVAL;
 		}
 		if (strcmp(name, "type") == 0) {
-			if (!get_map_field_int(map_name, obj->btf, def, m,
+			if (!get_map_field_int(map_name, obj->btf, m,
 					       &map->def.type))
 				return -EINVAL;
 			pr_debug("map '%s': found type = %u.\n",
 				 map_name, map->def.type);
 		} else if (strcmp(name, "max_entries") == 0) {
-			if (!get_map_field_int(map_name, obj->btf, def, m,
+			if (!get_map_field_int(map_name, obj->btf, m,
 					       &map->def.max_entries))
 				return -EINVAL;
 			pr_debug("map '%s': found max_entries = %u.\n",
 				 map_name, map->def.max_entries);
 		} else if (strcmp(name, "map_flags") == 0) {
-			if (!get_map_field_int(map_name, obj->btf, def, m,
+			if (!get_map_field_int(map_name, obj->btf, m,
 					       &map->def.map_flags))
 				return -EINVAL;
 			pr_debug("map '%s': found map_flags = %u.\n",
@@ -1992,8 +1991,7 @@ static int bpf_object__init_user_btf_map(struct bpf_object *obj,
 		} else if (strcmp(name, "key_size") == 0) {
 			__u32 sz;
 
-			if (!get_map_field_int(map_name, obj->btf, def, m,
-					       &sz))
+			if (!get_map_field_int(map_name, obj->btf, m, &sz))
 				return -EINVAL;
 			pr_debug("map '%s': found key_size = %u.\n",
 				 map_name, sz);
@@ -2035,8 +2033,7 @@ static int bpf_object__init_user_btf_map(struct bpf_object *obj,
 		} else if (strcmp(name, "value_size") == 0) {
 			__u32 sz;
 
-			if (!get_map_field_int(map_name, obj->btf, def, m,
-					       &sz))
+			if (!get_map_field_int(map_name, obj->btf, m, &sz))
 				return -EINVAL;
 			pr_debug("map '%s': found value_size = %u.\n",
 				 map_name, sz);
@@ -2079,8 +2076,7 @@ static int bpf_object__init_user_btf_map(struct bpf_object *obj,
 			__u32 val;
 			int err;
 
-			if (!get_map_field_int(map_name, obj->btf, def, m,
-					       &val))
+			if (!get_map_field_int(map_name, obj->btf, m, &val))
 				return -EINVAL;
 			pr_debug("map '%s': found pinning = %u.\n",
 				 map_name, val);
