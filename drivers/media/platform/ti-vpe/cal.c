@@ -645,8 +645,7 @@ static void i913_errata(struct cal_dev *dev, unsigned int port)
 {
 	u32 reg10 = reg_read(dev->cc[port], CAL_CSI2_PHY_REG10);
 
-	set_field(&reg10, CAL_CSI2_PHY_REG0_HSCLOCKCONFIG_DISABLE,
-		  CAL_CSI2_PHY_REG10_I933_LDO_DISABLE_MASK);
+	set_field(&reg10, 1, CAL_CSI2_PHY_REG10_I933_LDO_DISABLE_MASK);
 
 	cal_dbg(1, dev, "CSI2_%d_REG10 = 0x%08x\n", port, reg10);
 	reg_write(dev->cc[port], CAL_CSI2_PHY_REG10, reg10);
