@@ -1538,7 +1538,7 @@ static void lpuart_tx_dma_startup(struct lpuart_port *sport)
 		goto err;
 
 	ret = lpuart_dma_tx_request(&sport->port);
-	if (!ret)
+	if (ret)
 		goto err;
 
 	init_waitqueue_head(&sport->dma_wait);
