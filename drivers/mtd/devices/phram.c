@@ -148,10 +148,10 @@ static int parse_num64(uint64_t *num64, char *token)
 			switch (token[len - 2]) {
 			case 'G':
 				shift += 10;
-				/* fall through */
+				fallthrough;
 			case 'M':
 				shift += 10;
-				/* fall through */
+				fallthrough;
 			case 'k':
 				shift += 10;
 				token[len - 2] = 0;

@@ -1482,7 +1482,7 @@ static int __init doc_probe(unsigned long physadr)
 			break;
 		case DOC_ChipID_DocMilPlus32:
 			pr_err("DiskOnChip Millennium Plus 32MB is not supported, ignoring.\n");
-			/* fall through */
+			fallthrough;
 		default:
 			ret = -ENODEV;
 			goto notfound;

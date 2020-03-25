@@ -623,7 +623,6 @@ static u8 spi_nor_smpt_addr_width(const struct spi_nor *nor, const u32 settings)
 	case SMPT_CMD_ADDRESS_LEN_4:
 		return 4;
 	case SMPT_CMD_ADDRESS_LEN_USE_CURRENT:
-		/* fall through */
 	default:
 		return nor->addr_width;
 	}
