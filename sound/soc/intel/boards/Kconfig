@@ -524,4 +524,27 @@ config SND_SOC_INTEL_SOF_DA7219_MAX98373_MACH
 
 endif ## SND_SOC_SOF_JASPERLAKE
 
+if SND_SOC_SOF_INTEL_SOUNDWIRE
+
+config SND_SOC_INTEL_SOUNDWIRE_SOF_MACH
+	tristate "SoundWire generic machine driver"
+	depends on I2C && ACPI
+	depends on MFD_INTEL_LPSS || COMPILE_TEST
+	depends on SND_SOC_INTEL_USER_FRIENDLY_LONG_NAMES || COMPILE_TEST
+	depends on SOUNDWIRE
+	depends on SND_HDA_CODEC_HDMI
+	select SND_SOC_RT700_SDW
+	select SND_SOC_RT711_SDW
+	select SND_SOC_RT1308_SDW
+	select SND_SOC_RT1308
+	select SND_SOC_RT715_SDW
+	select SND_SOC_DMIC
+        help
+	  Add support for Intel SoundWire-based platforms connected to
+	  RT700, RT711, RT1308 and RT715
+	  If unsure select "N".
+
+endif
+
+
 endif ## SND_SOC_INTEL_MACH
