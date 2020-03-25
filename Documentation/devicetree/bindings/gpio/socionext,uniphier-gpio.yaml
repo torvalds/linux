@@ -41,6 +41,8 @@ properties:
     minimum: 0
     maximum: 512
 
+  gpio-ranges: true
+
   gpio-ranges-group-names:
     $ref: /schemas/types.yaml#/definitions/string-array
 

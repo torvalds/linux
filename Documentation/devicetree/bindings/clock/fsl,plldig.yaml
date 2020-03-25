@@ -21,6 +21,9 @@ properties:
   reg:
     maxItems: 1
 
+  clocks:
+    maxItems: 1
+
   '#clock-cells':
     const: 0
 

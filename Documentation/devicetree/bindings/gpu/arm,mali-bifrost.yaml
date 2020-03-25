@@ -43,6 +43,9 @@ properties:
 
   operating-points-v2: true
 
+  resets:
+    maxItems: 2
+
 required:
   - compatible
   - reg
@@ -57,9 +60,6 @@ allOf:
           contains:
             const: amlogic,meson-g12a-mali
     then:
-      properties:
-        resets:
-          minItems: 2
       required:
         - resets
 
