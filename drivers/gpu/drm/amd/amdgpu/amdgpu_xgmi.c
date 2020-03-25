@@ -604,6 +604,8 @@ int amdgpu_xgmi_ras_late_init(struct amdgpu_device *adev)
 	    adev->gmc.xgmi.num_physical_nodes == 0)
 		return 0;
 
+	amdgpu_xgmi_reset_ras_error_count(adev);
+
 	if (!adev->gmc.xgmi.ras_if) {
 		adev->gmc.xgmi.ras_if = kmalloc(sizeof(struct ras_common_if), GFP_KERNEL);
 		if (!adev->gmc.xgmi.ras_if)
@@ -666,6 +668,32 @@ uint64_t amdgpu_xgmi_get_relative_phy_addr(struct amdgpu_device *adev,
 		dev_warn(adev->dev, "failed to enable DF-Cstate\n");
 
 	return addr + dram_base_addr;
+}
+
+static void pcs_clear_status(struct amdgpu_device *adev, uint32_t pcs_status_reg)
+{
+	WREG32_PCIE(pcs_status_reg, 0xFFFFFFFF);
+	WREG32_PCIE(pcs_status_reg, 0);
+}
+
+void amdgpu_xgmi_reset_ras_error_count(struct amdgpu_device *adev)
+{
+	uint32_t i;
+
+	switch (adev->asic_type) {
+	case CHIP_ARCTURUS:
+		for (i = 0; i < ARRAY_SIZE(xgmi_pcs_err_status_reg_arct); i++)
+			pcs_clear_status(adev,
+					 xgmi_pcs_err_status_reg_arct[i]);
+		break;
+	case CHIP_VEGA20:
+		for (i = 0; i < ARRAY_SIZE(xgmi_pcs_err_status_reg_vg20); i++)
+			pcs_clear_status(adev,
+					 xgmi_pcs_err_status_reg_vg20[i]);
+		break;
+	default:
+		break;
+	}
 }
 
 static int amdgpu_xgmi_query_pcs_error_status(struct amdgpu_device *adev,
@@ -757,6 +785,8 @@ int amdgpu_xgmi_query_ras_error_count(struct amdgpu_device *adev,
 		}
 		break;
 	}
+
+	amdgpu_xgmi_reset_ras_error_count(adev);
 
 	err_data->ue_count += ue_cnt;
 	err_data->ce_count += ce_cnt;

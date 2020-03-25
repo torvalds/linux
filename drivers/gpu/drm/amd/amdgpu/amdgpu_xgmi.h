@@ -56,6 +56,7 @@ uint64_t amdgpu_xgmi_get_relative_phy_addr(struct amdgpu_device *adev,
 					   uint64_t addr);
 int amdgpu_xgmi_query_ras_error_count(struct amdgpu_device *adev,
 				      void *ras_error_status);
+void amdgpu_xgmi_reset_ras_error_count(struct amdgpu_device *adev);
 
 static inline bool amdgpu_xgmi_same_hive(struct amdgpu_device *adev,
 		struct amdgpu_device *bo_adev)
