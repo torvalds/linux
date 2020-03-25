@@ -25,6 +25,10 @@ static int aq_clear_txsc(struct aq_nic_s *nic, const int txsc_idx,
 			 enum aq_clear_type clear_type);
 static int aq_clear_txsa(struct aq_nic_s *nic, struct aq_macsec_txsc *aq_txsc,
 			 const int sa_num, enum aq_clear_type clear_type);
+static int aq_clear_rxsc(struct aq_nic_s *nic, const int rxsc_idx,
+			 enum aq_clear_type clear_type);
+static int aq_clear_rxsa(struct aq_nic_s *nic, struct aq_macsec_rxsc *aq_rxsc,
+			 const int sa_num, enum aq_clear_type clear_type);
 static int aq_clear_secy(struct aq_nic_s *nic, const struct macsec_secy *secy,
 			 enum aq_clear_type clear_type);
 static int aq_apply_macsec_cfg(struct aq_nic_s *nic);
@@ -54,6 +58,22 @@ static int aq_get_txsc_idx_from_secy(struct aq_macsec_cfg *macsec_cfg,
 		if (macsec_cfg->aq_txsc[i].sw_secy == secy)
 			return i;
 	}
+	return -1;
+}
+
+static int aq_get_rxsc_idx_from_rxsc(struct aq_macsec_cfg *macsec_cfg,
+				     const struct macsec_rx_sc *rxsc)
+{
+	int i;
+
+	if (unlikely(!rxsc))
+		return -1;
+
+	for (i = 0; i < AQ_MACSEC_MAX_SC; i++) {
+		if (macsec_cfg->aq_rxsc[i].sw_rxsc == rxsc)
+			return i;
+	}
+
 	return -1;
 }
 
@@ -506,34 +526,351 @@ static int aq_mdo_del_txsa(struct macsec_context *ctx)
 	return ret;
 }
 
+static int aq_rxsc_validate_frames(const enum macsec_validation_type validate)
+{
+	switch (validate) {
+	case MACSEC_VALIDATE_DISABLED:
+		return 2;
+	case MACSEC_VALIDATE_CHECK:
+		return 1;
+	case MACSEC_VALIDATE_STRICT:
+		return 0;
+	default:
+		WARN_ONCE(true, "Invalid validation type");
+	}
+
+	return 0;
+}
+
+static int aq_set_rxsc(struct aq_nic_s *nic, const u32 rxsc_idx)
+{
+	const struct aq_macsec_rxsc *aq_rxsc =
+		&nic->macsec_cfg->aq_rxsc[rxsc_idx];
+	struct aq_mss_ingress_preclass_record pre_class_record;
+	const struct macsec_rx_sc *rx_sc = aq_rxsc->sw_rxsc;
+	const struct macsec_secy *secy = aq_rxsc->sw_secy;
+	const u32 hw_sc_idx = aq_rxsc->hw_sc_idx;
+	struct aq_mss_ingress_sc_record sc_record;
+	struct aq_hw_s *hw = nic->aq_hw;
+	int ret = 0;
+
+	memset(&pre_class_record, 0, sizeof(pre_class_record));
+	put_unaligned_be64((__force u64)rx_sc->sci, pre_class_record.sci);
+	pre_class_record.sci_mask = 0xff;
+	/* match all MACSEC ethertype packets */
+	pre_class_record.eth_type = ETH_P_MACSEC;
+	pre_class_record.eth_type_mask = 0x3;
+
+	aq_ether_addr_to_mac(pre_class_record.mac_sa, (char *)&rx_sc->sci);
+	pre_class_record.sa_mask = 0x3f;
+
+	pre_class_record.an_mask = nic->macsec_cfg->sc_sa;
+	pre_class_record.sc_idx = hw_sc_idx;
+	/* strip SecTAG & forward for decryption */
+	pre_class_record.action = 0x0;
+	pre_class_record.valid = 1;
+
+	ret = aq_mss_set_ingress_preclass_record(hw, &pre_class_record,
+						 2 * rxsc_idx + 1);
+	if (ret)
+		return ret;
+
+	/* If SCI is absent, then match by SA alone */
+	pre_class_record.sci_mask = 0;
+	pre_class_record.sci_from_table = 1;
+
+	ret = aq_mss_set_ingress_preclass_record(hw, &pre_class_record,
+						 2 * rxsc_idx);
+	if (ret)
+		return ret;
+
+	memset(&sc_record, 0, sizeof(sc_record));
+	sc_record.validate_frames =
+		aq_rxsc_validate_frames(secy->validate_frames);
+	if (secy->replay_protect) {
+		sc_record.replay_protect = 1;
+		sc_record.anti_replay_window = secy->replay_window;
+	}
+	sc_record.valid = 1;
+	sc_record.fresh = 1;
+
+	ret = aq_mss_set_ingress_sc_record(hw, &sc_record, hw_sc_idx);
+	if (ret)
+		return ret;
+
+	return ret;
+}
+
 static int aq_mdo_add_rxsc(struct macsec_context *ctx)
 {
-	return -EOPNOTSUPP;
+	struct aq_nic_s *nic = netdev_priv(ctx->netdev);
+	struct aq_macsec_cfg *cfg = nic->macsec_cfg;
+	const u32 rxsc_idx_max = aq_sc_idx_max(cfg->sc_sa);
+	u32 rxsc_idx;
+	int ret = 0;
+
+	if (hweight32(cfg->rxsc_idx_busy) >= rxsc_idx_max)
+		return -ENOSPC;
+
+	rxsc_idx = ffz(cfg->rxsc_idx_busy);
+	if (rxsc_idx >= rxsc_idx_max)
+		return -ENOSPC;
+
+	if (ctx->prepare)
+		return 0;
+
+	cfg->aq_rxsc[rxsc_idx].hw_sc_idx = aq_to_hw_sc_idx(rxsc_idx,
+							   cfg->sc_sa);
+	cfg->aq_rxsc[rxsc_idx].sw_secy = ctx->secy;
+	cfg->aq_rxsc[rxsc_idx].sw_rxsc = ctx->rx_sc;
+
+	if (netif_carrier_ok(nic->ndev) && netif_running(ctx->secy->netdev))
+		ret = aq_set_rxsc(nic, rxsc_idx);
+
+	if (ret < 0)
+		return ret;
+
+	set_bit(rxsc_idx, &cfg->rxsc_idx_busy);
+
+	return 0;
 }
 
 static int aq_mdo_upd_rxsc(struct macsec_context *ctx)
 {
-	return -EOPNOTSUPP;
+	struct aq_nic_s *nic = netdev_priv(ctx->netdev);
+	int rxsc_idx;
+	int ret = 0;
+
+	rxsc_idx = aq_get_rxsc_idx_from_rxsc(nic->macsec_cfg, ctx->rx_sc);
+	if (rxsc_idx < 0)
+		return -ENOENT;
+
+	if (ctx->prepare)
+		return 0;
+
+	if (netif_carrier_ok(nic->ndev) && netif_running(ctx->secy->netdev))
+		ret = aq_set_rxsc(nic, rxsc_idx);
+
+	return ret;
+}
+
+static int aq_clear_rxsc(struct aq_nic_s *nic, const int rxsc_idx,
+			 enum aq_clear_type clear_type)
+{
+	struct aq_macsec_rxsc *rx_sc = &nic->macsec_cfg->aq_rxsc[rxsc_idx];
+	struct aq_hw_s *hw = nic->aq_hw;
+	int ret = 0;
+	int sa_num;
+
+	for_each_set_bit (sa_num, &rx_sc->rx_sa_idx_busy, AQ_MACSEC_MAX_SA) {
+		ret = aq_clear_rxsa(nic, rx_sc, sa_num, clear_type);
+		if (ret)
+			return ret;
+	}
+
+	if (clear_type & AQ_CLEAR_HW) {
+		struct aq_mss_ingress_preclass_record pre_class_record;
+		struct aq_mss_ingress_sc_record sc_record;
+
+		memset(&pre_class_record, 0, sizeof(pre_class_record));
+		memset(&sc_record, 0, sizeof(sc_record));
+
+		ret = aq_mss_set_ingress_preclass_record(hw, &pre_class_record,
+							 2 * rxsc_idx);
+		if (ret)
+			return ret;
+
+		ret = aq_mss_set_ingress_preclass_record(hw, &pre_class_record,
+							 2 * rxsc_idx + 1);
+		if (ret)
+			return ret;
+
+		sc_record.fresh = 1;
+		ret = aq_mss_set_ingress_sc_record(hw, &sc_record,
+						   rx_sc->hw_sc_idx);
+		if (ret)
+			return ret;
+	}
+
+	if (clear_type & AQ_CLEAR_SW) {
+		clear_bit(rxsc_idx, &nic->macsec_cfg->rxsc_idx_busy);
+		rx_sc->sw_secy = NULL;
+		rx_sc->sw_rxsc = NULL;
+	}
+
+	return ret;
 }
 
 static int aq_mdo_del_rxsc(struct macsec_context *ctx)
 {
-	return -EOPNOTSUPP;
+	struct aq_nic_s *nic = netdev_priv(ctx->netdev);
+	enum aq_clear_type clear_type = AQ_CLEAR_SW;
+	int rxsc_idx;
+	int ret = 0;
+
+	rxsc_idx = aq_get_rxsc_idx_from_rxsc(nic->macsec_cfg, ctx->rx_sc);
+	if (rxsc_idx < 0)
+		return -ENOENT;
+
+	if (ctx->prepare)
+		return 0;
+
+	if (netif_carrier_ok(nic->ndev))
+		clear_type = AQ_CLEAR_ALL;
+
+	ret = aq_clear_rxsc(nic, rxsc_idx, clear_type);
+
+	return ret;
+}
+
+static int aq_update_rxsa(struct aq_nic_s *nic, const unsigned int sc_idx,
+			  const struct macsec_secy *secy,
+			  const struct macsec_rx_sa *rx_sa,
+			  const unsigned char *key, const unsigned char an)
+{
+	struct aq_mss_ingress_sakey_record sa_key_record;
+	struct aq_mss_ingress_sa_record sa_record;
+	struct aq_hw_s *hw = nic->aq_hw;
+	const int sa_idx = sc_idx | an;
+	int ret = 0;
+
+	memset(&sa_record, 0, sizeof(sa_record));
+	sa_record.valid = rx_sa->active;
+	sa_record.fresh = 1;
+	sa_record.next_pn = rx_sa->next_pn;
+
+	ret = aq_mss_set_ingress_sa_record(hw, &sa_record, sa_idx);
+	if (ret)
+		return ret;
+
+	if (!key)
+		return ret;
+
+	memset(&sa_key_record, 0, sizeof(sa_key_record));
+	memcpy(&sa_key_record.key, key, secy->key_len);
+
+	switch (secy->key_len) {
+	case AQ_MACSEC_KEY_LEN_128_BIT:
+		sa_key_record.key_len = 0;
+		break;
+	case AQ_MACSEC_KEY_LEN_192_BIT:
+		sa_key_record.key_len = 1;
+		break;
+	case AQ_MACSEC_KEY_LEN_256_BIT:
+		sa_key_record.key_len = 2;
+		break;
+	default:
+		return -1;
+	}
+
+	aq_rotate_keys(&sa_key_record.key, secy->key_len);
+
+	ret = aq_mss_set_ingress_sakey_record(hw, &sa_key_record, sa_idx);
+
+	return ret;
 }
 
 static int aq_mdo_add_rxsa(struct macsec_context *ctx)
 {
-	return -EOPNOTSUPP;
+	const struct macsec_rx_sc *rx_sc = ctx->sa.rx_sa->sc;
+	struct aq_nic_s *nic = netdev_priv(ctx->netdev);
+	const struct macsec_secy *secy = ctx->secy;
+	struct aq_macsec_rxsc *aq_rxsc;
+	int rxsc_idx;
+	int ret = 0;
+
+	rxsc_idx = aq_get_rxsc_idx_from_rxsc(nic->macsec_cfg, rx_sc);
+	if (rxsc_idx < 0)
+		return -EINVAL;
+
+	if (ctx->prepare)
+		return 0;
+
+	aq_rxsc = &nic->macsec_cfg->aq_rxsc[rxsc_idx];
+	set_bit(ctx->sa.assoc_num, &aq_rxsc->rx_sa_idx_busy);
+
+	memcpy(aq_rxsc->rx_sa_key[ctx->sa.assoc_num], ctx->sa.key,
+	       secy->key_len);
+
+	if (netif_carrier_ok(nic->ndev) && netif_running(secy->netdev))
+		ret = aq_update_rxsa(nic, aq_rxsc->hw_sc_idx, secy,
+				     ctx->sa.rx_sa, ctx->sa.key,
+				     ctx->sa.assoc_num);
+
+	return ret;
 }
 
 static int aq_mdo_upd_rxsa(struct macsec_context *ctx)
 {
-	return -EOPNOTSUPP;
+	const struct macsec_rx_sc *rx_sc = ctx->sa.rx_sa->sc;
+	struct aq_nic_s *nic = netdev_priv(ctx->netdev);
+	struct aq_macsec_cfg *cfg = nic->macsec_cfg;
+	const struct macsec_secy *secy = ctx->secy;
+	int rxsc_idx;
+	int ret = 0;
+
+	rxsc_idx = aq_get_rxsc_idx_from_rxsc(cfg, rx_sc);
+	if (rxsc_idx < 0)
+		return -EINVAL;
+
+	if (ctx->prepare)
+		return 0;
+
+	if (netif_carrier_ok(nic->ndev) && netif_running(secy->netdev))
+		ret = aq_update_rxsa(nic, cfg->aq_rxsc[rxsc_idx].hw_sc_idx,
+				     secy, ctx->sa.rx_sa, NULL,
+				     ctx->sa.assoc_num);
+
+	return ret;
+}
+
+static int aq_clear_rxsa(struct aq_nic_s *nic, struct aq_macsec_rxsc *aq_rxsc,
+			 const int sa_num, enum aq_clear_type clear_type)
+{
+	int sa_idx = aq_rxsc->hw_sc_idx | sa_num;
+	struct aq_hw_s *hw = nic->aq_hw;
+	int ret = 0;
+
+	if (clear_type & AQ_CLEAR_SW)
+		clear_bit(sa_num, &aq_rxsc->rx_sa_idx_busy);
+
+	if ((clear_type & AQ_CLEAR_HW) && netif_carrier_ok(nic->ndev)) {
+		struct aq_mss_ingress_sakey_record sa_key_record;
+		struct aq_mss_ingress_sa_record sa_record;
+
+		memset(&sa_key_record, 0, sizeof(sa_key_record));
+		memset(&sa_record, 0, sizeof(sa_record));
+		sa_record.fresh = 1;
+		ret = aq_mss_set_ingress_sa_record(hw, &sa_record, sa_idx);
+		if (ret)
+			return ret;
+
+		return aq_mss_set_ingress_sakey_record(hw, &sa_key_record,
+						       sa_idx);
+	}
+
+	return ret;
 }
 
 static int aq_mdo_del_rxsa(struct macsec_context *ctx)
 {
-	return -EOPNOTSUPP;
+	const struct macsec_rx_sc *rx_sc = ctx->sa.rx_sa->sc;
+	struct aq_nic_s *nic = netdev_priv(ctx->netdev);
+	struct aq_macsec_cfg *cfg = nic->macsec_cfg;
+	int rxsc_idx;
+	int ret = 0;
+
+	rxsc_idx = aq_get_rxsc_idx_from_rxsc(cfg, rx_sc);
+	if (rxsc_idx < 0)
+		return -EINVAL;
+
+	if (ctx->prepare)
+		return 0;
+
+	ret = aq_clear_rxsa(nic, &cfg->aq_rxsc[rxsc_idx], ctx->sa.assoc_num,
+			    AQ_CLEAR_ALL);
+
+	return ret;
 }
 
 static int apply_txsc_cfg(struct aq_nic_s *nic, const int txsc_idx)
@@ -564,15 +901,56 @@ static int apply_txsc_cfg(struct aq_nic_s *nic, const int txsc_idx)
 	return ret;
 }
 
+static int apply_rxsc_cfg(struct aq_nic_s *nic, const int rxsc_idx)
+{
+	struct aq_macsec_rxsc *aq_rxsc = &nic->macsec_cfg->aq_rxsc[rxsc_idx];
+	const struct macsec_secy *secy = aq_rxsc->sw_secy;
+	struct macsec_rx_sa *rx_sa;
+	int ret = 0;
+	int i;
+
+	if (!netif_running(secy->netdev))
+		return ret;
+
+	ret = aq_set_rxsc(nic, rxsc_idx);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < MACSEC_NUM_AN; i++) {
+		rx_sa = rcu_dereference_bh(aq_rxsc->sw_rxsc->sa[i]);
+		if (rx_sa) {
+			ret = aq_update_rxsa(nic, aq_rxsc->hw_sc_idx, secy,
+					     rx_sa, aq_rxsc->rx_sa_key[i], i);
+			if (ret)
+				return ret;
+		}
+	}
+
+	return ret;
+}
+
 static int aq_clear_secy(struct aq_nic_s *nic, const struct macsec_secy *secy,
 			 enum aq_clear_type clear_type)
 {
+	struct macsec_rx_sc *rx_sc;
 	int txsc_idx;
+	int rxsc_idx;
 	int ret = 0;
 
 	txsc_idx = aq_get_txsc_idx_from_secy(nic->macsec_cfg, secy);
 	if (txsc_idx >= 0) {
 		ret = aq_clear_txsc(nic, txsc_idx, clear_type);
+		if (ret)
+			return ret;
+	}
+
+	for (rx_sc = rcu_dereference_bh(secy->rx_sc); rx_sc;
+	     rx_sc = rcu_dereference_bh(rx_sc->next)) {
+		rxsc_idx = aq_get_rxsc_idx_from_rxsc(nic->macsec_cfg, rx_sc);
+		if (rxsc_idx < 0)
+			continue;
+
+		ret = aq_clear_rxsc(nic, rxsc_idx, clear_type);
 		if (ret)
 			return ret;
 	}
@@ -583,12 +961,25 @@ static int aq_clear_secy(struct aq_nic_s *nic, const struct macsec_secy *secy,
 static int aq_apply_secy_cfg(struct aq_nic_s *nic,
 			     const struct macsec_secy *secy)
 {
+	struct macsec_rx_sc *rx_sc;
 	int txsc_idx;
+	int rxsc_idx;
 	int ret = 0;
 
 	txsc_idx = aq_get_txsc_idx_from_secy(nic->macsec_cfg, secy);
 	if (txsc_idx >= 0)
 		apply_txsc_cfg(nic, txsc_idx);
+
+	for (rx_sc = rcu_dereference_bh(secy->rx_sc); rx_sc && rx_sc->active;
+	     rx_sc = rcu_dereference_bh(rx_sc->next)) {
+		rxsc_idx = aq_get_rxsc_idx_from_rxsc(nic->macsec_cfg, rx_sc);
+		if (unlikely(rxsc_idx < 0))
+			continue;
+
+		ret = apply_rxsc_cfg(nic, rxsc_idx);
+		if (ret)
+			return ret;
+	}
 
 	return ret;
 }
@@ -601,6 +992,14 @@ static int aq_apply_macsec_cfg(struct aq_nic_s *nic)
 	for (i = 0; i < AQ_MACSEC_MAX_SC; i++) {
 		if (nic->macsec_cfg->txsc_idx_busy & BIT(i)) {
 			ret = apply_txsc_cfg(nic, i);
+			if (ret)
+				return ret;
+		}
+	}
+
+	for (i = 0; i < AQ_MACSEC_MAX_SC; i++) {
+		if (nic->macsec_cfg->rxsc_idx_busy & BIT(i)) {
+			ret = apply_rxsc_cfg(nic, i);
 			if (ret)
 				return ret;
 		}
@@ -781,6 +1180,7 @@ int aq_macsec_enable(struct aq_nic_s *nic)
 
 	/* Init Ethertype bypass filters */
 	for (index = 0; index < ARRAY_SIZE(ctl_ether_types); index++) {
+		struct aq_mss_ingress_prectlf_record rx_prectlf_rec;
 		struct aq_mss_egress_ctlf_record tx_ctlf_rec;
 
 		if (ctl_ether_types[index] == 0)
@@ -793,6 +1193,15 @@ int aq_macsec_enable(struct aq_nic_s *nic)
 		tx_ctlf_rec.action = 0; /* Bypass MACSEC modules */
 		tbl_idx = NUMROWS_EGRESSCTLFRECORD - num_ctl_ether_types - 1;
 		aq_mss_set_egress_ctlf_record(hw, &tx_ctlf_rec, tbl_idx);
+
+		memset(&rx_prectlf_rec, 0, sizeof(rx_prectlf_rec));
+		rx_prectlf_rec.eth_type = ctl_ether_types[index];
+		rx_prectlf_rec.match_type = 4; /* Match eth_type only */
+		rx_prectlf_rec.match_mask = 0xf; /* match for eth_type */
+		rx_prectlf_rec.action = 0; /* Bypass MACSEC modules */
+		tbl_idx =
+			NUMROWS_INGRESSPRECTLFRECORD - num_ctl_ether_types - 1;
+		aq_mss_set_ingress_prectlf_record(hw, &rx_prectlf_rec, tbl_idx);
 
 		num_ctl_ether_types++;
 	}
