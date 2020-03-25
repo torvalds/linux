@@ -651,16 +651,6 @@ static void i913_errata(struct cal_dev *dev, unsigned int port)
 	reg_write(dev->cc[port], CAL_CSI2_PHY_REG10, reg10);
 }
 
-static int cal_runtime_get(struct cal_dev *dev)
-{
-	return pm_runtime_get_sync(&dev->pdev->dev);
-}
-
-static inline void cal_runtime_put(struct cal_dev *dev)
-{
-	pm_runtime_put_sync(&dev->pdev->dev);
-}
-
 static void cal_quickdump_regs(struct cal_dev *dev)
 {
 	cal_info(dev, "CAL Registers @ 0x%pa:\n", &dev->res->start);
@@ -1666,7 +1656,7 @@ static int cal_start_streaming(struct vb2_queue *vq, unsigned int count)
 		goto err;
 	}
 
-	cal_runtime_get(ctx->dev);
+	pm_runtime_get_sync(&ctx->dev->pdev->dev);
 
 	csi2_ctx_config(ctx);
 	pix_proc_config(ctx);
@@ -1681,7 +1671,7 @@ static int cal_start_streaming(struct vb2_queue *vq, unsigned int count)
 	if (ret) {
 		v4l2_subdev_call(ctx->sensor, core, s_power, 0);
 		ctx_err(ctx, "stream on failed in subdev\n");
-		cal_runtime_put(ctx->dev);
+		pm_runtime_put_sync(&ctx->dev->pdev->dev);
 		goto err;
 	}
 
@@ -1761,7 +1751,7 @@ static void cal_stop_streaming(struct vb2_queue *vq)
 	ctx->next_frm = NULL;
 	spin_unlock_irqrestore(&ctx->slock, flags);
 
-	cal_runtime_put(ctx->dev);
+	pm_runtime_put_sync(&ctx->dev->pdev->dev);
 }
 
 static const struct vb2_ops cal_video_qops = {
@@ -2316,14 +2306,14 @@ static int cal_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(&pdev->dev);
 
-	ret = cal_runtime_get(dev);
+	ret = pm_runtime_get_sync(&pdev->dev);
 	if (ret)
 		goto runtime_disable;
 
 	/* Just check we can actually access the module */
 	cal_get_hwinfo(dev);
 
-	cal_runtime_put(dev);
+	pm_runtime_put_sync(&pdev->dev);
 
 	return 0;
 
@@ -2351,7 +2341,7 @@ static int cal_remove(struct platform_device *pdev)
 
 	cal_dbg(1, dev, "Removing %s\n", CAL_MODULE_NAME);
 
-	cal_runtime_get(dev);
+	pm_runtime_get_sync(&pdev->dev);
 
 	for (i = 0; i < CAL_NUM_CONTEXT; i++) {
 		ctx = dev->ctx[i];
@@ -2367,7 +2357,7 @@ static int cal_remove(struct platform_device *pdev)
 		}
 	}
 
-	cal_runtime_put(dev);
+	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
 	return 0;
