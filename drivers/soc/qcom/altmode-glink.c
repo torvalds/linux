@@ -381,6 +381,28 @@ static int altmode_send_ack(struct altmode_dev *amdev, u8 port_index)
 	return rc;
 }
 
+static void altmode_state_cb(void *priv, enum pmic_glink_state state)
+{
+	struct altmode_dev *amdev = priv;
+
+	pr_debug("state: %d\n", state);
+
+	switch (state) {
+	case PMIC_GLINK_STATE_DOWN:
+		/* As of now, nothing to do */
+		break;
+	case PMIC_GLINK_STATE_UP:
+		mutex_lock(&amdev->client_lock);
+		if (!list_empty(&amdev->client_list))
+			schedule_delayed_work(&amdev->send_pan_en_work,
+						msecs_to_jiffies(20));
+		mutex_unlock(&amdev->client_lock);
+		break;
+	default:
+		return;
+	}
+}
+
 #define USBC_NOTIFY_IND_MASK	GENMASK(7, 0)
 #define GET_OP(opcode)		(opcode & USBC_NOTIFY_IND_MASK)
 #define GET_SVID(opcode)	(opcode >> 16)
@@ -495,10 +517,17 @@ static int altmode_probe(struct platform_device *pdev)
 
 	RAW_INIT_NOTIFIER_HEAD(&amdev->probe_notifier);
 
+	mutex_init(&amdev->client_lock);
+	idr_init(&amdev->client_idr);
+	INIT_DELAYED_WORK(&amdev->send_pan_en_work, altmode_send_pan_en);
+	INIT_LIST_HEAD(&amdev->d_node);
+	INIT_LIST_HEAD(&amdev->client_list);
+
 	pgclient_data.id = MSG_OWNER_USBC_PAN;
 	pgclient_data.name = "altmode";
 	pgclient_data.msg_cb = altmode_callback;
 	pgclient_data.priv = amdev;
+	pgclient_data.state_cb = altmode_state_cb;
 
 	amdev->pgclient = pmic_glink_register_client(amdev->dev,
 			&pgclient_data);
@@ -507,21 +536,19 @@ static int altmode_probe(struct platform_device *pdev)
 		if (rc != -EPROBE_DEFER)
 			dev_err(dev, "Error in pmic_glink registration: %d\n",
 				rc);
-		return rc;
+		goto error_register;
 	}
 
 	platform_set_drvdata(pdev, amdev);
-
-	mutex_init(&amdev->client_lock);
-	idr_init(&amdev->client_idr);
-	INIT_DELAYED_WORK(&amdev->send_pan_en_work, altmode_send_pan_en);
-	INIT_LIST_HEAD(&amdev->d_node);
-	INIT_LIST_HEAD(&amdev->client_list);
 
 	altmode_device_add(amdev);
 	altmode_notify_clients(amdev, pdev);
 
 	return 0;
+
+error_register:
+	idr_destroy(&amdev->client_idr);
+	return rc;
 }
 
 static void altmode_device_remove(struct altmode_dev *amdev)
