@@ -1510,19 +1510,32 @@ static void rx_dma_timer_init(struct lpuart_port *sport)
 	add_timer(&sport->lpuart_timer);
 }
 
-static void lpuart_tx_dma_startup(struct lpuart_port *sport)
+static void lpuart_request_dma(struct lpuart_port *sport)
 {
-	u32 uartbaud;
-	int ret;
-
 	sport->dma_tx_chan = dma_request_chan(sport->port.dev, "tx");
 	if (IS_ERR(sport->dma_tx_chan)) {
 		dev_info_once(sport->port.dev,
 			      "DMA tx channel request failed, operating without tx DMA (%ld)\n",
 			      PTR_ERR(sport->dma_tx_chan));
 		sport->dma_tx_chan = NULL;
-		goto err;
 	}
+
+	sport->dma_rx_chan = dma_request_chan(sport->port.dev, "rx");
+	if (IS_ERR(sport->dma_rx_chan)) {
+		dev_info_once(sport->port.dev,
+			      "DMA rx channel request failed, operating without rx DMA (%ld)\n",
+			      PTR_ERR(sport->dma_rx_chan));
+		sport->dma_rx_chan = NULL;
+	}
+}
+
+static void lpuart_tx_dma_startup(struct lpuart_port *sport)
+{
+	u32 uartbaud;
+	int ret;
+
+	if (!sport->dma_tx_chan)
+		goto err;
 
 	ret = lpuart_dma_tx_request(&sport->port);
 	if (!ret)
@@ -1549,14 +1562,8 @@ static void lpuart_rx_dma_startup(struct lpuart_port *sport)
 {
 	int ret;
 
-	sport->dma_rx_chan = dma_request_chan(sport->port.dev, "rx");
-	if (IS_ERR(sport->dma_rx_chan)) {
-		dev_info_once(sport->port.dev,
-			      "DMA rx channel request failed, operating without rx DMA (%ld)\n",
-			      PTR_ERR(sport->dma_rx_chan));
-		sport->dma_rx_chan = NULL;
+	if (!sport->dma_rx_chan)
 		goto err;
-	}
 
 	ret = lpuart_start_rx_dma(sport);
 	if (ret)
@@ -1591,6 +1598,8 @@ static int lpuart_startup(struct uart_port *port)
 
 	sport->rxfifo_size = UARTFIFO_DEPTH((temp >> UARTPFIFO_RXSIZE_OFF) &
 					    UARTPFIFO_FIFOSIZE_MASK);
+
+	lpuart_request_dma(sport);
 
 	spin_lock_irqsave(&sport->port.lock, flags);
 
@@ -1649,10 +1658,11 @@ static int lpuart32_startup(struct uart_port *port)
 		sport->port.fifosize = sport->txfifo_size;
 	}
 
+	lpuart_request_dma(sport);
+
 	spin_lock_irqsave(&sport->port.lock, flags);
 
 	lpuart32_setup_watermark_enable(sport);
-
 
 	lpuart_rx_dma_startup(sport);
 	lpuart_tx_dma_startup(sport);
