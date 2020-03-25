@@ -277,7 +277,7 @@ static int show_image_##type(struct seq_file *seq, void *p)		  \
 {								  \
 	struct smem_image_version *image_version = seq->private;  \
 	seq_puts(seq, image_version->type);			  \
-	seq_puts(seq, "\n");					  \
+	seq_putc(seq, '\n');					  \
 	return 0;						  \
 }								  \
 static int open_image_##type(struct inode *inode, struct file *file)	  \
