@@ -24,6 +24,10 @@ enum aq_macsec_sc_sa {
 };
 
 struct aq_macsec_txsc {
+	u32 hw_sc_idx;
+	unsigned long tx_sa_idx_busy;
+	const struct macsec_secy *sw_secy;
+	u8 tx_sa_key[MACSEC_NUM_AN][MACSEC_KEYID_LEN];
 };
 
 struct aq_macsec_rxsc {
