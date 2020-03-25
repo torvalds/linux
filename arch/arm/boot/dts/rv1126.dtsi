@@ -1321,6 +1321,7 @@
 		rockchip,srv = <&mpp_srv>;
 		rockchip,taskqueue-node = <2>;
 		rockchip,resetgroup-node = <2>;
+		power-domains = <&power RV1126_PD_VEPU>;
 		status = "disabled";
 	};
 
@@ -1334,6 +1335,7 @@
 		clock-names = "aclk", "iface";
 		rockchip,disable-mmu-reset;
 		#iommu-cells = <0>;
+		power-domains = <&power RV1126_PD_VEPU>;
 		status = "disabled";
 	};
 
