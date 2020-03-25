@@ -781,7 +781,7 @@ int aq_nic_get_regs_count(struct aq_nic_s *self)
 	return self->aq_nic_cfg.aq_hw_caps->mac_regs_count;
 }
 
-void aq_nic_get_stats(struct aq_nic_s *self, u64 *data)
+u64 *aq_nic_get_stats(struct aq_nic_s *self, u64 *data)
 {
 	struct aq_vec_s *aq_vec = NULL;
 	struct aq_stats_s *stats;
@@ -831,7 +831,10 @@ void aq_nic_get_stats(struct aq_nic_s *self, u64 *data)
 		aq_vec_get_sw_stats(aq_vec, data, &count);
 	}
 
+	data += count;
+
 err_exit:;
+	return data;
 }
 
 static void aq_nic_update_ndev_stats(struct aq_nic_s *self)
