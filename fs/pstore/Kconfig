@@ -171,6 +171,8 @@ config PSTORE_BLK
 	  This enables panic and oops message to be logged to a block dev
 	  where it can be read back at some later point.
 
+	  For more information, see Documentation/admin-guide/pstore-blk.rst
+
 	  If unsure, say N.
 
 config PSTORE_BLK_BLKDEV
