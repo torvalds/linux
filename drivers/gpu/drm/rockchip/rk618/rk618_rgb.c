@@ -227,11 +227,8 @@ static int rk618_rgb_probe(struct platform_device *pdev)
 
 	rgb->dev = dev;
 	rgb->parent = rk618;
+	rgb->regmap = rk618->regmap;
 	platform_set_drvdata(pdev, rgb);
-
-	rgb->regmap = dev_get_regmap(dev->parent, NULL);
-	if (!rgb->regmap)
-		return -ENODEV;
 
 	rgb->clock = devm_clk_get(dev, "rgb");
 	if (IS_ERR(rgb->clock)) {

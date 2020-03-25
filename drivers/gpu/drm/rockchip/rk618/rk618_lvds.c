@@ -241,6 +241,7 @@ static int rk618_lvds_probe(struct platform_device *pdev)
 
 	lvds->dev = dev;
 	lvds->parent = rk618;
+	lvds->regmap = rk618->regmap;
 	platform_set_drvdata(pdev, lvds);
 
 	ret = rk618_lvds_parse_dt(lvds);
@@ -248,10 +249,6 @@ static int rk618_lvds_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to parse DT\n");
 		return ret;
 	}
-
-	lvds->regmap = dev_get_regmap(dev->parent, NULL);
-	if (!lvds->regmap)
-		return -ENODEV;
 
 	endpoint = of_graph_get_endpoint_by_regs(dev->of_node, 1, -1);
 	if (endpoint) {

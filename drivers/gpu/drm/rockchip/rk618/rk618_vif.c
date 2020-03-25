@@ -193,6 +193,7 @@ static const struct drm_bridge_funcs rk618_vif_bridge_funcs = {
 
 static int rk618_vif_probe(struct platform_device *pdev)
 {
+	struct rk618 *rk618 = dev_get_drvdata(pdev->dev.parent);
 	struct device *dev = &pdev->dev;
 	struct rk618_vif *vif;
 	int ret;
@@ -205,11 +206,8 @@ static int rk618_vif_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	vif->dev = dev;
+	vif->regmap = rk618->regmap;
 	platform_set_drvdata(pdev, vif);
-
-	vif->regmap = dev_get_regmap(dev->parent, NULL);
-	if (!vif->regmap)
-		return -ENODEV;
 
 	vif->vif_clk = devm_clk_get(dev, "vif");
 	if (IS_ERR(vif->vif_clk)) {
