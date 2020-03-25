@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
-// Copyright (C) 2017 Icenowy Zheng <icenowy@aosc.xyz>
-// Copyright (C) 2018 Vasily Khoruzhick <anarsoul@gmail.com>
+/*
+ * Copyright (C) 2019 Icenowy Zheng <icenowy@aosc.xyz>
+ *
+ */
 
 /dts-v1/;
 
@@ -8,13 +10,12 @@
 #include "sun50i-a64-cpu-opp.dtsi"
 
 #include <dt-bindings/gpio/gpio.h>
-#include <dt-bindings/input/gpio-keys.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/pwm/pwm.h>
 
 / {
-	model = "Pinebook";
-	compatible = "pine64,pinebook", "allwinner,sun50i-a64";
+	model = "PineTab";
+	compatible = "pine64,pinetab", "allwinner,sun50i-a64";
 
 	aliases {
 		serial0 = &uart0;
@@ -23,73 +24,73 @@
 
 	backlight: backlight {
 		compatible = "pwm-backlight";
-		pwms = <&pwm 0 50000 0>;
-		brightness-levels = <0 5 10 15 20 30 40 55 70 85 100>;
-		default-brightness-level = <2>;
+		pwms = <&pwm 0 50000 PWM_POLARITY_INVERTED>;
+		brightness-levels = <0 16 18 20 22 24 26 29 32 35 38 42 46 51 56 62 68 75 83 91 100>;
+		default-brightness-level = <15>;
 		enable-gpios = <&pio 3 23 GPIO_ACTIVE_HIGH>; /* PD23 */
-		power-supply = <&reg_vbklt>;
+		power-supply = <&vdd_bl>;
 	};
 
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};
 
-	gpio_keys {
-		compatible = "gpio-keys";
+	i2c-csi {
+		compatible = "i2c-gpio";
+		sda-gpios = <&pio 4 13 GPIO_ACTIVE_HIGH>; /* PE13 */
+		scl-gpios = <&pio 4 12 GPIO_ACTIVE_HIGH>; /* PE12 */
+		i2c-gpio,delay-us = <5>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-		lid_switch {
-			label = "Lid Switch";
-			gpios = <&r_pio 0 12 GPIO_ACTIVE_LOW>; /* PL12 */
-			linux,input-type = <EV_SW>;
-			linux,code = <SW_LID>;
-			linux,can-disable;
-			wakeup-source;
-			wakeup-event-action = <EV_ACT_DEASSERTED>;
-		};
-	};
+		/* Rear camera */
+		ov5640: camera@3c {
+			compatible = "ovti,ov5640";
+			reg = <0x3c>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&csi_mclk_pin>;
+			clocks = <&ccu CLK_CSI_MCLK>;
+			clock-names = "xclk";
 
-	panel_edp: panel-edp {
-		compatible = "neweast,wjfh116008a";
-		backlight = <&backlight>;
-		power-supply = <&reg_dc1sw>;
+			AVDD-supply = <&reg_dldo3>;
+			DOVDD-supply = <&reg_aldo1>;
+			DVDD-supply = <&reg_eldo3>;
+			reset-gpios = <&pio 4 14 GPIO_ACTIVE_LOW>; /* PE14 */
+			powerdown-gpios = <&pio 4 15 GPIO_ACTIVE_HIGH>; /* PE15 */
 
-		port {
-			panel_edp_in: endpoint {
-				remote-endpoint = <&anx6345_out_edp>;
+			port {
+				ov5640_ep: endpoint {
+					remote-endpoint = <&csi_ep>;
+					bus-width = <8>;
+					hsync-active = <1>; /* Active high */
+					vsync-active = <0>; /* Active low */
+					data-active = <1>;  /* Active high */
+					pclk-sample = <1>;  /* Rising */
+				};
 			};
 		};
 	};
 
-	reg_vbklt: vbklt {
-		compatible = "regulator-fixed";
-		regulator-name = "vbklt";
-		regulator-min-microvolt = <18000000>;
-		regulator-max-microvolt = <18000000>;
-		gpio = <&pio 7 6 GPIO_ACTIVE_HIGH>; /* PH6 */
-		enable-active-high;
+	speaker_amp: audio-amplifier {
+		compatible = "simple-audio-amplifier";
+		enable-gpios = <&pio 7 7 GPIO_ACTIVE_HIGH>; /* PH7 */
+		sound-name-prefix = "Speaker Amp";
 	};
 
-	reg_vcc5v0: vcc5v0 {
+	vdd_bl: regulator@0 {
 		compatible = "regulator-fixed";
-		regulator-name = "vcc5v0";
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-		gpio = <&axp_gpio 0 GPIO_ACTIVE_HIGH>;
+		regulator-name = "bl-3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&pio 7 6 GPIO_ACTIVE_HIGH>; /* PH6 */
 		enable-active-high;
 	};
 
 	wifi_pwrseq: wifi_pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		reset-gpios = <&r_pio 0 2 GPIO_ACTIVE_LOW>; /* PL2 */
+		post-power-on-delay-ms = <200>;
 	};
-
-	speaker_amp: audio-amplifier {
-		compatible = "simple-audio-amplifier";
-		VCC-supply = <&reg_vcc5v0>;
-		enable-gpios = <&pio 7 7 GPIO_ACTIVE_HIGH>; /* PH7 */
-		sound-name-prefix = "Speaker Amp";
-	};
-
 };
 
 &codec {
@@ -97,7 +98,7 @@
 };
 
 &codec_analog {
-	cpvdd-supply = <&reg_eldo1>;
+	hpvcc-supply = <&reg_eldo1>;
 	status = "okay";
 };
 
@@ -117,6 +118,24 @@
 	cpu-supply = <&reg_dcdc2>;
 };
 
+&csi {
+	status = "okay";
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		csi_ep: endpoint {
+			remote-endpoint = <&ov5640_ep>;
+			bus-width = <8>;
+			hsync-active = <1>; /* Active high */
+			vsync-active = <0>; /* Active low */
+			data-active = <1>;  /* Active high */
+			pclk-sample = <1>;  /* Rising */
+		};
+	};
+};
+
 &dai {
 	status = "okay";
 };
@@ -125,9 +144,26 @@
 	status = "okay";
 };
 
+&dphy {
+	status = "okay";
+};
+
+&dsi {
+	vcc-dsi-supply = <&reg_dldo1>;
+	status = "okay";
+
+	panel@0 {
+		compatible = "feixin,k101-im2ba02";
+		reg = <0>;
+		avdd-supply = <&reg_dc1sw>;
+		dvdd-supply = <&reg_dc1sw>;
+		cvdd-supply = <&reg_ldo_io1>;
+		reset-gpios = <&pio 3 24 GPIO_ACTIVE_HIGH>; /* PD24 */
+		backlight = <&backlight>;
+	};
+};
+
 &ehci0 {
-	phys = <&usbphy 0>;
-	phy-names = "usb";
 	status = "okay";
 };
 
@@ -135,7 +171,50 @@
 	status = "okay";
 };
 
-&mixer0 {
+&i2c0 {
+	status = "okay";
+
+	touchscreen@5d {
+		compatible = "goodix,gt9271";
+		reg = <0x5d>;
+		interrupt-parent = <&pio>;
+		interrupts = <7 4 IRQ_TYPE_LEVEL_HIGH>; /* PH4 */
+		irq-gpios = <&pio 7 4 GPIO_ACTIVE_HIGH>; /* PH4 */
+		reset-gpios = <&pio 7 8 GPIO_ACTIVE_HIGH>; /* PH8 */
+		AVDD28-supply = <&reg_ldo_io1>;
+	};
+};
+
+&i2c0_pins {
+	bias-pull-up;
+};
+
+&i2c1 {
+	status = "okay";
+
+	/* TODO: add Bochs BMA223 accelerometer here */
+};
+
+&lradc {
+	vref-supply = <&reg_aldo3>;
+	status = "okay";
+
+	button-200 {
+		label = "Volume Up";
+		linux,code = <KEY_VOLUMEUP>;
+		channel = <0>;
+		voltage = <200000>;
+	};
+
+	button-400 {
+		label = "Volume Down";
+		linux,code = <KEY_VOLUMEDOWN>;
+		channel = <0>;
+		voltage = <400000>;
+	};
+};
+
+&mixer1 {
 	status = "okay";
 };
 
@@ -143,7 +222,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc0_pins>;
 	vmmc-supply = <&reg_dcdc1>;
-	cd-gpios = <&pio 5 6 GPIO_ACTIVE_LOW>; /* PF6 */
+	cd-gpios = <&pio 5 6 GPIO_ACTIVE_LOW>;
 	disable-wp;
 	bus-width = <4>;
 	status = "okay";
@@ -166,79 +245,21 @@
 
 &mmc2 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&mmc2_pins>, <&mmc2_ds_pin>;
+	pinctrl-0 = <&mmc2_pins>;
 	vmmc-supply = <&reg_dcdc1>;
-	vqmmc-supply = <&reg_eldo1>;
+	vqmmc-supply = <&reg_dcdc1>;
 	bus-width = <8>;
 	non-removable;
 	cap-mmc-hw-reset;
-	mmc-hs200-1_8v;
 	status = "okay";
 };
 
 &ohci0 {
-	phys = <&usbphy 0>;
-	phy-names = "usb";
 	status = "okay";
-};
-
-&ohci1 {
-	status = "okay";
-};
-
-&pio {
-	vcc-pc-supply = <&reg_eldo1>;
-	vcc-pd-supply = <&reg_dcdc1>;
-	vcc-pe-supply = <&reg_aldo1>;
-	vcc-pg-supply = <&reg_eldo1>;
 };
 
 &pwm {
 	status = "okay";
-};
-
-&r_i2c {
-	clock-frequency = <100000>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&r_i2c_pl89_pins>;
-	status = "okay";
-
-	anx6345: anx6345@38 {
-		compatible = "analogix,anx6345";
-		reg = <0x38>;
-		reset-gpios = <&pio 3 24 GPIO_ACTIVE_LOW>; /* PD24 */
-		dvdd25-supply = <&reg_dldo2>;
-		dvdd12-supply = <&reg_fldo1>;
-
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			anx6345_in: port@0 {
-				reg = <0>;
-				anx6345_in_tcon0: endpoint {
-					remote-endpoint = <&tcon0_out_anx6345>;
-				};
-			};
-
-			anx6345_out: port@1 {
-				reg = <1>;
-				anx6345_out_edp: endpoint {
-					remote-endpoint = <&panel_edp_in>;
-				};
-			};
-		};
-	};
-};
-
-&r_pio {
-	/*
-	 * FIXME: We can't add that supply for now since it would
-	 * create a circular dependency between pinctrl, the regulator
-	 * and the RSB Bus.
-	 *
-	 * vcc-pl-supply = <&reg_aldo2>;
-	 */
 };
 
 &r_rsb {
@@ -249,6 +270,7 @@
 		reg = <0x3a3>;
 		interrupt-parent = <&r_intc>;
 		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
+		x-powers,drive-vbus-en;
 	};
 };
 
@@ -263,7 +285,9 @@
 };
 
 &reg_aldo1 {
-	regulator-name = "vcc-pe";
+	regulator-min-microvolt = <2800000>;
+	regulator-max-microvolt = <2800000>;
+	regulator-name = "dovdd-csi";
 };
 
 &reg_aldo2 {
@@ -315,15 +339,16 @@
 };
 
 &reg_dldo1 {
+	regulator-always-on;
 	regulator-min-microvolt = <3300000>;
 	regulator-max-microvolt = <3300000>;
-	regulator-name = "vcc-hdmi";
+	regulator-name = "vcc-hdmi-dsi-sensor";
 };
 
-&reg_dldo2 {
-	regulator-min-microvolt = <2500000>;
-	regulator-max-microvolt = <2500000>;
-	regulator-name = "vcc-edp";
+&reg_dldo3 {
+	regulator-min-microvolt = <2800000>;
+	regulator-max-microvolt = <2800000>;
+	regulator-name = "avdd-csi";
 };
 
 &reg_dldo4 {
@@ -332,11 +357,28 @@
 	regulator-name = "vcc-wifi";
 };
 
+&reg_drivevbus {
+	regulator-name = "usb0-vbus";
+	status = "okay";
+};
+
 &reg_eldo1 {
 	regulator-always-on;
 	regulator-min-microvolt = <1800000>;
 	regulator-max-microvolt = <1800000>;
 	regulator-name = "cpvdd";
+};
+
+&reg_eldo2 {
+	regulator-min-microvolt = <1800000>;
+	regulator-max-microvolt = <1800000>;
+	regulator-name = "vcca-1v8";
+};
+
+&reg_eldo3 {
+	regulator-min-microvolt = <1800000>;
+	regulator-max-microvolt = <1800000>;
+	regulator-name = "dvdd-1v8-csi";
 };
 
 &reg_fldo1 {
@@ -352,18 +394,23 @@
 	regulator-name = "vdd-cpus";
 };
 
+&reg_ldo_io0 {
+	regulator-min-microvolt = <3300000>;
+	regulator-max-microvolt = <3300000>;
+	regulator-name = "vcc-usb";
+	status = "okay";
+};
+
+&reg_ldo_io1 {
+	regulator-min-microvolt = <3300000>;
+	regulator-max-microvolt = <3300000>;
+	regulator-enable-ramp-delay = <3500000>;
+	regulator-name = "vcc-touchscreen";
+	status = "okay";
+};
+
 &reg_rtc_ldo {
 	regulator-name = "vcc-rtc";
-};
-
-&simplefb_lcd {
-	panel-supply = <&reg_dc1sw>;
-	dvdd25-supply = <&reg_dldo2>;
-	dvdd12-supply = <&reg_fldo1>;
-};
-
-&simplefb_hdmi {
-	vcc-hdmi-supply = <&reg_dldo1>;
 };
 
 &sound {
@@ -389,19 +436,6 @@
 			"MIC2", "Internal Microphone Right";
 };
 
-&tcon0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&lcd_rgb666_pins>;
-
-	status = "okay";
-};
-
-&tcon0_out {
-	tcon0_out_anx6345: endpoint {
-		remote-endpoint = <&anx6345_in_tcon0>;
-	};
-};
-
 &uart0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart0_pb_pins>;
@@ -409,11 +443,18 @@
 };
 
 &usb_otg {
-	dr_mode = "host";
+	dr_mode = "otg";
+	status = "okay";
+};
+
+&usb_power_supply {
+	status = "okay";
 };
 
 &usbphy {
-	usb0_vbus-supply = <&reg_vcc5v0>;
-	usb1_vbus-supply = <&reg_vcc5v0>;
+	usb0_id_det-gpios = <&pio 7 9 GPIO_ACTIVE_HIGH>; /* PH9 */
+	usb0_vbus_power-supply = <&usb_power_supply>;
+	usb0_vbus-supply = <&reg_drivevbus>;
+	usb1_vbus-supply = <&reg_ldo_io0>;
 	status = "okay";
 };

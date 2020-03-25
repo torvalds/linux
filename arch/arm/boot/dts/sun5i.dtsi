@@ -771,9 +771,6 @@
 			interconnect-names = "dma-mem";
 			status = "disabled";
 
-			assigned-clocks = <&ccu CLK_DE_BE>;
-			assigned-clock-rates = <300000000>;
-
 			ports {
 				#address-cells = <1>;
 				#size-cells = <0>;
