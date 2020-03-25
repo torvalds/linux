@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include "bcachefs.h"
+#include "bkey_on_stack.h"
 #include "btree_update.h"
 #include "dirent.h"
 #include "error.h"
@@ -469,10 +470,12 @@ static int check_extents(struct bch_fs *c)
 	struct btree_trans trans;
 	struct btree_iter *iter;
 	struct bkey_s_c k;
-	struct bkey prev = KEY(0, 0, 0);
+	struct bkey_on_stack prev;
 	u64 i_sectors;
 	int ret = 0;
 
+	bkey_on_stack_init(&prev);
+	prev.k->k = KEY(0, 0, 0);
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
 
 	bch_verbose(c, "checking extents");
@@ -482,24 +485,24 @@ static int check_extents(struct bch_fs *c)
 				   BTREE_ITER_INTENT);
 retry:
 	for_each_btree_key_continue(iter, 0, k, ret) {
-		if (bkey_cmp(prev.p, bkey_start_pos(k.k)) > 0) {
-			char buf1[100];
-			char buf2[100];
+		if (bkey_cmp(prev.k->k.p, bkey_start_pos(k.k)) > 0) {
+			char buf1[200];
+			char buf2[200];
 
-			bch2_bkey_to_text(&PBUF(buf1), &prev);
-			bch2_bkey_to_text(&PBUF(buf2), k.k);
+			bch2_bkey_val_to_text(&PBUF(buf1), c, bkey_i_to_s_c(prev.k));
+			bch2_bkey_val_to_text(&PBUF(buf2), c, k);
 
-			if (fsck_err(c, "overlapping extents: %s, %s", buf1, buf2)) {
+			if (fsck_err(c, "overlapping extents:\n%s\n%s", buf1, buf2)) {
 				ret = __bch2_trans_do(&trans, NULL, NULL,
 						      BTREE_INSERT_NOFAIL|
 						      BTREE_INSERT_LAZY_RW,
 						bch2_fix_overlapping_extent(&trans,
-								iter, k, prev.p));
+								iter, k, prev.k->k.p));
 				if (ret)
 					goto err;
 			}
 		}
-		prev = *k.k;
+		bkey_on_stack_reassemble(&prev, c, k);
 
 		ret = walk_inode(&trans, &w, k.k->p.inode);
 		if (ret)
@@ -525,7 +528,8 @@ retry:
 			!(w.inode.bi_flags & BCH_INODE_I_SECTORS_DIRTY) &&
 			w.inode.bi_sectors !=
 			(i_sectors = bch2_count_inode_sectors(&trans, w.cur_inum)),
-			c, "i_sectors wrong: got %llu, should be %llu",
+			c, "inode %llu has incorrect i_sectors: got %llu, should be %llu",
+			w.inode.bi_inum,
 			w.inode.bi_sectors, i_sectors)) {
 			struct bkey_inode_buf p;
 
@@ -567,6 +571,7 @@ err:
 fsck_err:
 	if (ret == -EINTR)
 		goto retry;
+	bkey_on_stack_exit(&prev, c);
 	return bch2_trans_exit(&trans) ?: ret;
 }
 
