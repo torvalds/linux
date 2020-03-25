@@ -4353,12 +4353,6 @@ static unsigned long get_cr3(struct kvm_vcpu *vcpu)
 	return kvm_read_cr3(vcpu);
 }
 
-static void inject_page_fault(struct kvm_vcpu *vcpu,
-			      struct x86_exception *fault)
-{
-	vcpu->arch.mmu->inject_page_fault(vcpu, fault);
-}
-
 static bool sync_mmio_spte(struct kvm_vcpu *vcpu, u64 *sptep, gfn_t gfn,
 			   unsigned int access, int *nr_present)
 {
