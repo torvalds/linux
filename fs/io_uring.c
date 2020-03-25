@@ -2678,7 +2678,7 @@ static int io_write(struct io_kiocb *req, bool force_nonblock)
 			current->signal->rlim[RLIMIT_FSIZE].rlim_cur = RLIM_INFINITY;
 
 		/*
-		 * Raw bdev writes will -EOPNOTSUPP for IOCB_NOWAIT. Just
+		 * Raw bdev writes will return -EOPNOTSUPP for IOCB_NOWAIT. Just
 		 * retry them without IOCB_NOWAIT.
 		 */
 		if (ret2 == -EOPNOTSUPP && (kiocb->ki_flags & IOCB_NOWAIT))
