@@ -581,6 +581,113 @@ config VIDEO_THS8200
 	  To compile this driver as a module, choose M here: the
 	  module will be called ths8200.
 
+comment "Video improvement chips"
+
+config VIDEO_UPD64031A
+	tristate "NEC Electronics uPD64031A Ghost Reduction"
+	depends on VIDEO_V4L2 && I2C
+	help
+	  Support for the NEC Electronics uPD64031A Ghost Reduction
+	  video chip. It is most often found in NTSC TV cards made for
+	  Japan and is used to reduce the 'ghosting' effect that can
+	  be present in analog TV broadcasts.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called upd64031a.
+
+config VIDEO_UPD64083
+	tristate "NEC Electronics uPD64083 3-Dimensional Y/C separation"
+	depends on VIDEO_V4L2 && I2C
+	help
+	  Support for the NEC Electronics uPD64083 3-Dimensional Y/C
+	  separation video chip. It is used to improve the quality of
+	  the colors of a composite signal.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called upd64083.
+
+comment "Audio/Video compression chips"
+
+config VIDEO_SAA6752HS
+	tristate "Philips SAA6752HS MPEG-2 Audio/Video Encoder"
+	depends on VIDEO_V4L2 && I2C
+	select CRC32
+	help
+	  Support for the Philips SAA6752HS MPEG-2 video and MPEG-audio/AC-3
+	  audio encoder with multiplexer.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called saa6752hs.
+
+comment "SDR tuner chips"
+
+config SDR_MAX2175
+	tristate "Maxim 2175 RF to Bits tuner"
+	depends on VIDEO_V4L2 && MEDIA_SDR_SUPPORT && I2C
+	select REGMAP_I2C
+	help
+	  Support for Maxim 2175 tuner. It is an advanced analog/digital
+	  radio receiver with RF-to-Bits front-end designed for SDR solutions.
+
+	  To compile this driver as a module, choose M here; the
+	  module will be called max2175.
+
+comment "Miscellaneous helper chips"
+
+config VIDEO_THS7303
+	tristate "THS7303/53 Video Amplifier"
+	depends on VIDEO_V4L2 && I2C
+	help
+	  Support for TI THS7303/53 video amplifier
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ths7303.
+
+config VIDEO_M52790
+	tristate "Mitsubishi M52790 A/V switch"
+	depends on VIDEO_V4L2 && I2C
+	help
+	 Support for the Mitsubishi M52790 A/V switch.
+
+	 To compile this driver as a module, choose M here: the
+	 module will be called m52790.
+
+config VIDEO_I2C
+	tristate "I2C transport video support"
+	depends on VIDEO_V4L2 && I2C
+	select VIDEOBUF2_VMALLOC
+	imply HWMON
+	help
+	  Enable the I2C transport video support which supports the
+	  following:
+	   * Panasonic AMG88xx Grid-Eye Sensors
+	   * Melexis MLX90640 Thermal Cameras
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called video-i2c
+
+config VIDEO_ST_MIPID02
+	tristate "STMicroelectronics MIPID02 CSI-2 to PARALLEL bridge"
+	depends on I2C && VIDEO_V4L2
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  Support for STMicroelectronics MIPID02 CSI-2 to PARALLEL bridge.
+	  It is used to allow usage of CSI-2 sensor with PARALLEL port
+	  controller.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called st-mipid02.
+
+endmenu
+
+#
+# All drivers that are related to Media Camera Support should be here
+#
+
+if MEDIA_CAMERA_SUPPORT
+
 comment "Camera sensor devices"
 
 config VIDEO_APTINA_PLL
@@ -588,12 +695,6 @@ config VIDEO_APTINA_PLL
 
 config VIDEO_SMIAPP_PLL
 	tristate
-
-#
-# All drivers that are related to Media Camera Support should be here
-#
-
-if MEDIA_CAMERA_SUPPORT
 
 config VIDEO_HI556
 	tristate "Hynix Hi-556 sensor support"
@@ -1161,110 +1262,5 @@ config VIDEO_LM3646
 	  flash, torch LEDs.
 
 endif # MEDIA_CAMERA_SUPPORT
-
-#
-# Other V4L2 drivers that aren't related with Camera support
-#
-
-comment "Video improvement chips"
-
-config VIDEO_UPD64031A
-	tristate "NEC Electronics uPD64031A Ghost Reduction"
-	depends on VIDEO_V4L2 && I2C
-	help
-	  Support for the NEC Electronics uPD64031A Ghost Reduction
-	  video chip. It is most often found in NTSC TV cards made for
-	  Japan and is used to reduce the 'ghosting' effect that can
-	  be present in analog TV broadcasts.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called upd64031a.
-
-config VIDEO_UPD64083
-	tristate "NEC Electronics uPD64083 3-Dimensional Y/C separation"
-	depends on VIDEO_V4L2 && I2C
-	help
-	  Support for the NEC Electronics uPD64083 3-Dimensional Y/C
-	  separation video chip. It is used to improve the quality of
-	  the colors of a composite signal.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called upd64083.
-
-comment "Audio/Video compression chips"
-
-config VIDEO_SAA6752HS
-	tristate "Philips SAA6752HS MPEG-2 Audio/Video Encoder"
-	depends on VIDEO_V4L2 && I2C
-	select CRC32
-	help
-	  Support for the Philips SAA6752HS MPEG-2 video and MPEG-audio/AC-3
-	  audio encoder with multiplexer.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called saa6752hs.
-
-comment "SDR tuner chips"
-
-config SDR_MAX2175
-	tristate "Maxim 2175 RF to Bits tuner"
-	depends on VIDEO_V4L2 && MEDIA_SDR_SUPPORT && I2C
-	select REGMAP_I2C
-	help
-	  Support for Maxim 2175 tuner. It is an advanced analog/digital
-	  radio receiver with RF-to-Bits front-end designed for SDR solutions.
-
-	  To compile this driver as a module, choose M here; the
-	  module will be called max2175.
-
-comment "Miscellaneous helper chips"
-
-config VIDEO_THS7303
-	tristate "THS7303/53 Video Amplifier"
-	depends on VIDEO_V4L2 && I2C
-	help
-	  Support for TI THS7303/53 video amplifier
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called ths7303.
-
-config VIDEO_M52790
-	tristate "Mitsubishi M52790 A/V switch"
-	depends on VIDEO_V4L2 && I2C
-	help
-	 Support for the Mitsubishi M52790 A/V switch.
-
-	 To compile this driver as a module, choose M here: the
-	 module will be called m52790.
-
-config VIDEO_I2C
-	tristate "I2C transport video support"
-	depends on VIDEO_V4L2 && I2C
-	select VIDEOBUF2_VMALLOC
-	imply HWMON
-	help
-	  Enable the I2C transport video support which supports the
-	  following:
-	   * Panasonic AMG88xx Grid-Eye Sensors
-	   * Melexis MLX90640 Thermal Cameras
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called video-i2c
-
-config VIDEO_ST_MIPID02
-	tristate "STMicroelectronics MIPID02 CSI-2 to PARALLEL bridge"
-	depends on I2C && VIDEO_V4L2
-	select MEDIA_CONTROLLER
-	select VIDEO_V4L2_SUBDEV_API
-	select V4L2_FWNODE
-	help
-	  Support for STMicroelectronics MIPID02 CSI-2 to PARALLEL bridge.
-	  It is used to allow usage of CSI-2 sensor with PARALLEL port
-	  controller.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called st-mipid02.
-
-endmenu
 
 endif # VIDEO_V4L2
