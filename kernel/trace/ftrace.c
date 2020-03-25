@@ -6987,11 +6987,6 @@ void ftrace_pid_follow_fork(struct trace_array *tr, bool enable)
 	}
 }
 
-enum {
-	TRACE_PIDS		= BIT(0),
-	TRACE_NO_PIDS		= BIT(1),
-};
-
 static void clear_ftrace_pids(struct trace_array *tr, int type)
 {
 	struct trace_pid_list *pid_list;
@@ -7004,13 +6999,11 @@ static void clear_ftrace_pids(struct trace_array *tr, int type)
 						lockdep_is_held(&ftrace_lock));
 
 	/* Make sure there's something to do */
-	if (!(((type & TRACE_PIDS) && pid_list) ||
-	      ((type & TRACE_NO_PIDS) && no_pid_list)))
+	if (!pid_type_enabled(type, pid_list, no_pid_list))
 		return;
 
 	/* See if the pids still need to be checked after this */
-	if (!((!(type & TRACE_PIDS) && pid_list) ||
-	      (!(type & TRACE_NO_PIDS) && no_pid_list))) {
+	if (!still_need_pid_events(type, pid_list, no_pid_list)) {
 		unregister_trace_sched_switch(ftrace_filter_pid_sched_switch_probe, tr);
 		for_each_possible_cpu(cpu)
 			per_cpu_ptr(tr->array_buffer.data, cpu)->ftrace_ignore_pid = FTRACE_PID_TRACE;

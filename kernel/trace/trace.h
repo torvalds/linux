@@ -207,6 +207,30 @@ struct trace_pid_list {
 	unsigned long			*pids;
 };
 
+enum {
+	TRACE_PIDS		= BIT(0),
+	TRACE_NO_PIDS		= BIT(1),
+};
+
+static inline bool pid_type_enabled(int type, struct trace_pid_list *pid_list,
+				    struct trace_pid_list *no_pid_list)
+{
+	/* Return true if the pid list in type has pids */
+	return ((type & TRACE_PIDS) && pid_list) ||
+		((type & TRACE_NO_PIDS) && no_pid_list);
+}
+
+static inline bool still_need_pid_events(int type, struct trace_pid_list *pid_list,
+					 struct trace_pid_list *no_pid_list)
+{
+	/*
+	 * Turning off what is in @type, return true if the "other"
+	 * pid list, still has pids in it.
+	 */
+	return (!(type & TRACE_PIDS) && pid_list) ||
+		(!(type & TRACE_NO_PIDS) && no_pid_list);
+}
+
 typedef bool (*cond_update_fn_t)(struct trace_array *tr, void *cond_data);
 
 /**
@@ -285,6 +309,7 @@ struct trace_array {
 #endif
 #endif
 	struct trace_pid_list	__rcu *filtered_pids;
+	struct trace_pid_list	__rcu *filtered_no_pids;
 	/*
 	 * max_lock is used to protect the swapping of buffers
 	 * when taking a max snapshot. The buffers themselves are
