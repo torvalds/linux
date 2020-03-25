@@ -452,6 +452,9 @@ static int aq_mdo_add_secy(struct macsec_context *ctx)
 	u32 txsc_idx;
 	int ret = 0;
 
+	if (secy->xpn)
+		return -EOPNOTSUPP;
+
 	sc_sa = sc_sa_from_num_an(MACSEC_NUM_AN);
 	if (sc_sa == aq_macsec_sa_sc_not_used)
 		return -EINVAL;
@@ -556,6 +559,7 @@ static int aq_update_txsa(struct aq_nic_s *nic, const unsigned int sc_idx,
 			  const struct macsec_tx_sa *tx_sa,
 			  const unsigned char *key, const unsigned char an)
 {
+	const u32 next_pn = tx_sa->next_pn_halves.lower;
 	struct aq_mss_egress_sakey_record key_rec;
 	const unsigned int sa_idx = sc_idx | an;
 	struct aq_mss_egress_sa_record sa_rec;
@@ -565,7 +569,7 @@ static int aq_update_txsa(struct aq_nic_s *nic, const unsigned int sc_idx,
 	memset(&sa_rec, 0, sizeof(sa_rec));
 	sa_rec.valid = tx_sa->active;
 	sa_rec.fresh = 1;
-	sa_rec.next_pn = tx_sa->next_pn;
+	sa_rec.next_pn = next_pn;
 
 	ret = aq_mss_set_egress_sa_record(hw, &sa_rec, sa_idx);
 	if (ret)
@@ -889,6 +893,7 @@ static int aq_update_rxsa(struct aq_nic_s *nic, const unsigned int sc_idx,
 			  const unsigned char *key, const unsigned char an)
 {
 	struct aq_mss_ingress_sakey_record sa_key_record;
+	const u32 next_pn = rx_sa->next_pn_halves.lower;
 	struct aq_mss_ingress_sa_record sa_record;
 	struct aq_hw_s *hw = nic->aq_hw;
 	const int sa_idx = sc_idx | an;
@@ -897,7 +902,7 @@ static int aq_update_rxsa(struct aq_nic_s *nic, const unsigned int sc_idx,
 	memset(&sa_record, 0, sizeof(sa_record));
 	sa_record.valid = rx_sa->active;
 	sa_record.fresh = 1;
-	sa_record.next_pn = rx_sa->next_pn;
+	sa_record.next_pn = next_pn;
 
 	ret = aq_mss_set_ingress_sa_record(hw, &sa_record, sa_idx);
 	if (ret)
