@@ -1663,7 +1663,7 @@ static bool virtual_matches(const struct virtual_engine *ve,
 }
 
 static void virtual_xfer_breadcrumbs(struct virtual_engine *ve,
-				     struct intel_engine_cs *engine)
+				     struct i915_request *rq)
 {
 	struct intel_engine_cs *old = ve->siblings[0];
 
@@ -1671,9 +1671,19 @@ static void virtual_xfer_breadcrumbs(struct virtual_engine *ve,
 
 	spin_lock(&old->breadcrumbs.irq_lock);
 	if (!list_empty(&ve->context.signal_link)) {
-		list_move_tail(&ve->context.signal_link,
-			       &engine->breadcrumbs.signalers);
-		intel_engine_signal_breadcrumbs(engine);
+		list_del_init(&ve->context.signal_link);
+
+		/*
+		 * We cannot acquire the new engine->breadcrumbs.irq_lock
+		 * (as we are holding a breadcrumbs.irq_lock already),
+		 * so attach this request to the signaler on submission.
+		 * The queued irq_work will occur when we finally drop
+		 * the engine->active.lock after dequeue.
+		 */
+		set_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT, &rq->fence.flags);
+
+		/* Also transfer the pending irq_work for the old breadcrumb. */
+		intel_engine_signal_breadcrumbs(rq->engine);
 	}
 	spin_unlock(&old->breadcrumbs.irq_lock);
 }
@@ -2045,7 +2055,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 									engine);
 
 				if (!list_empty(&ve->context.signals))
-					virtual_xfer_breadcrumbs(ve, engine);
+					virtual_xfer_breadcrumbs(ve, rq);
 
 				/*
 				 * Move the bound engine to the top of the list
