@@ -52,11 +52,11 @@ static int qeth_l2_setdelmac_makerc(struct qeth_card *card, u16 retcode)
 		break;
 	case IPA_RC_L2_DUP_MAC:
 	case IPA_RC_L2_DUP_LAYER3_MAC:
-		rc = -EEXIST;
+		rc = -EADDRINUSE;
 		break;
 	case IPA_RC_L2_MAC_NOT_AUTH_BY_HYP:
 	case IPA_RC_L2_MAC_NOT_AUTH_BY_ADP:
-		rc = -EPERM;
+		rc = -EADDRNOTAVAIL;
 		break;
 	case IPA_RC_L2_MAC_NOT_FOUND:
 		rc = -ENOENT;
@@ -105,11 +105,11 @@ static int qeth_l2_send_setmac(struct qeth_card *card, __u8 *mac)
 			 "MAC address %pM successfully registered\n", mac);
 	} else {
 		switch (rc) {
-		case -EEXIST:
+		case -EADDRINUSE:
 			dev_warn(&card->gdev->dev,
 				"MAC address %pM already exists\n", mac);
 			break;
-		case -EPERM:
+		case -EADDRNOTAVAIL:
 			dev_warn(&card->gdev->dev,
 				"MAC address %pM is not authorized\n", mac);
 			break;
@@ -126,7 +126,7 @@ static int qeth_l2_write_mac(struct qeth_card *card, u8 *mac)
 
 	QETH_CARD_TEXT(card, 2, "L2Wmac");
 	rc = qeth_l2_send_setdelmac(card, mac, cmd);
-	if (rc == -EEXIST)
+	if (rc == -EADDRINUSE)
 		QETH_DBF_MESSAGE(2, "MAC already registered on device %x\n",
 				 CARD_DEVID(card));
 	else if (rc)
@@ -291,7 +291,6 @@ static void qeth_l2_stop_card(struct qeth_card *card)
 	qeth_qdio_clear_card(card, 0);
 	qeth_clear_working_pool_list(card);
 	flush_workqueue(card->event_wq);
-	card->info.mac_bits &= ~QETH_LAYER2_MAC_REGISTERED;
 	card->info.promisc_mode = 0;
 }
 
@@ -337,14 +336,16 @@ static void qeth_l2_register_dev_addr(struct qeth_card *card)
 		qeth_l2_request_initial_mac(card);
 
 	if (!IS_OSN(card) && !qeth_l2_send_setmac(card, card->dev->dev_addr))
-		card->info.mac_bits |= QETH_LAYER2_MAC_REGISTERED;
+		card->info.dev_addr_is_registered = 1;
+	else
+		card->info.dev_addr_is_registered = 0;
 }
 
 static int qeth_l2_validate_addr(struct net_device *dev)
 {
 	struct qeth_card *card = dev->ml_priv;
 
-	if (card->info.mac_bits & QETH_LAYER2_MAC_REGISTERED)
+	if (card->info.dev_addr_is_registered)
 		return eth_validate_addr(dev);
 
 	QETH_CARD_TEXT(card, 4, "nomacadr");
@@ -370,7 +371,7 @@ static int qeth_l2_set_mac_address(struct net_device *dev, void *p)
 
 	/* don't register the same address twice */
 	if (ether_addr_equal_64bits(dev->dev_addr, addr->sa_data) &&
-	    (card->info.mac_bits & QETH_LAYER2_MAC_REGISTERED))
+	    card->info.dev_addr_is_registered)
 		return 0;
 
 	/* add the new address, switch over, drop the old */
@@ -380,9 +381,9 @@ static int qeth_l2_set_mac_address(struct net_device *dev, void *p)
 	ether_addr_copy(old_addr, dev->dev_addr);
 	ether_addr_copy(dev->dev_addr, addr->sa_data);
 
-	if (card->info.mac_bits & QETH_LAYER2_MAC_REGISTERED)
+	if (card->info.dev_addr_is_registered)
 		qeth_l2_remove_mac(card, old_addr);
-	card->info.mac_bits |= QETH_LAYER2_MAC_REGISTERED;
+	card->info.dev_addr_is_registered = 1;
 	return 0;
 }
 

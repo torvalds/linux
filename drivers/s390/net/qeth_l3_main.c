@@ -949,39 +949,36 @@ static int qeth_l3_get_unique_id_cb(struct qeth_card *card,
 		struct qeth_reply *reply, unsigned long data)
 {
 	struct qeth_ipa_cmd *cmd = (struct qeth_ipa_cmd *) data;
+	u16 *uid = reply->param;
 
 	if (cmd->hdr.return_code == 0) {
-		card->info.unique_id = cmd->data.create_destroy_addr.uid;
+		*uid = cmd->data.create_destroy_addr.uid;
 		return 0;
 	}
 
-	card->info.unique_id = UNIQUE_ID_IF_CREATE_ADDR_FAILED |
-			       UNIQUE_ID_NOT_BY_CARD;
 	dev_warn(&card->gdev->dev, "The network adapter failed to generate a unique ID\n");
 	return -EIO;
 }
 
-static int qeth_l3_get_unique_id(struct qeth_card *card)
+static u16 qeth_l3_get_unique_id(struct qeth_card *card, u16 uid)
 {
-	int rc = 0;
 	struct qeth_cmd_buffer *iob;
 
 	QETH_CARD_TEXT(card, 2, "guniqeid");
 
-	if (!qeth_is_supported(card, IPA_IPV6)) {
-		card->info.unique_id =  UNIQUE_ID_IF_CREATE_ADDR_FAILED |
-					UNIQUE_ID_NOT_BY_CARD;
-		return 0;
-	}
+	if (!qeth_is_supported(card, IPA_IPV6))
+		goto out;
 
 	iob = qeth_ipa_alloc_cmd(card, IPA_CMD_CREATE_ADDR, QETH_PROT_IPV6,
 				 IPA_DATA_SIZEOF(create_destroy_addr));
 	if (!iob)
-		return -ENOMEM;
+		goto out;
 
-	__ipa_cmd(iob)->data.create_destroy_addr.uid = card->info.unique_id;
-	rc = qeth_send_ipa_cmd(card, iob, qeth_l3_get_unique_id_cb, NULL);
-	return rc;
+	__ipa_cmd(iob)->data.create_destroy_addr.uid = uid;
+	qeth_send_ipa_cmd(card, iob, qeth_l3_get_unique_id_cb, &uid);
+
+out:
+	return uid;
 }
 
 static int
@@ -1920,6 +1917,7 @@ static const struct net_device_ops qeth_l3_osa_netdev_ops = {
 
 static int qeth_l3_setup_netdev(struct qeth_card *card)
 {
+	struct net_device *dev = card->dev;
 	unsigned int headroom;
 	int rc;
 
@@ -1937,9 +1935,7 @@ static int qeth_l3_setup_netdev(struct qeth_card *card)
 		card->dev->netdev_ops = &qeth_l3_osa_netdev_ops;
 
 		/*IPv6 address autoconfiguration stuff*/
-		qeth_l3_get_unique_id(card);
-		if (!(card->info.unique_id & UNIQUE_ID_NOT_BY_CARD))
-			card->dev->dev_id = card->info.unique_id & 0xffff;
+		dev->dev_id = qeth_l3_get_unique_id(card, dev->dev_id);
 
 		if (!IS_VM_NIC(card)) {
 			card->dev->features |= NETIF_F_SG;

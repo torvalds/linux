@@ -128,8 +128,8 @@ static int qstat_show(struct seq_file *m, void *v)
 			   q->u.in.ack_start, q->u.in.ack_count);
 		seq_printf(m, "DSCI: %x   IRQs disabled: %u\n",
 			   *(u8 *)q->irq_ptr->dsci,
-			   test_bit(QDIO_QUEUE_IRQS_DISABLED,
-			   &q->u.in.queue_irq_state));
+			   test_bit(QDIO_IRQ_DISABLED,
+				    &q->irq_ptr->poll_state));
 	}
 	seq_printf(m, "SBAL states:\n");
 	seq_printf(m, "|0      |8      |16     |24     |32     |40     |48     |56  63|\n");
