@@ -412,6 +412,8 @@ struct cal_ctx {
 	struct cal_buffer	*cur_frm;
 	/* Pointer pointing to next v4l2_buffer */
 	struct cal_buffer	*next_frm;
+
+	bool dma_act;
 };
 
 static const struct cal_fmt *find_format_by_pix(struct cal_ctx *ctx,
@@ -942,6 +944,7 @@ static void csi2_lane_config(struct cal_ctx *ctx)
 
 static void csi2_ppi_enable(struct cal_ctx *ctx)
 {
+	reg_write(ctx->dev, CAL_CSI2_PPI_CTRL(ctx->csi2_port), BIT(3));
 	reg_write_field(ctx->dev, CAL_CSI2_PPI_CTRL(ctx->csi2_port),
 			CAL_GEN_ENABLE, CAL_CSI2_PPI_CTRL_IF_EN_MASK);
 }
@@ -1204,15 +1207,25 @@ static irqreturn_t cal_irq(int irq_cal, void *data)
 		if (isportirqset(irqst2, 1)) {
 			ctx = dev->ctx[0];
 
+			spin_lock(&ctx->slock);
+			ctx->dma_act = false;
+
 			if (ctx->cur_frm != ctx->next_frm)
 				cal_process_buffer_complete(ctx);
+
+			spin_unlock(&ctx->slock);
 		}
 
 		if (isportirqset(irqst2, 2)) {
 			ctx = dev->ctx[1];
 
+			spin_lock(&ctx->slock);
+			ctx->dma_act = false;
+
 			if (ctx->cur_frm != ctx->next_frm)
 				cal_process_buffer_complete(ctx);
+
+			spin_unlock(&ctx->slock);
 		}
 	}
 
@@ -1228,6 +1241,7 @@ static irqreturn_t cal_irq(int irq_cal, void *data)
 			dma_q = &ctx->vidq;
 
 			spin_lock(&ctx->slock);
+			ctx->dma_act = true;
 			if (!list_empty(&dma_q->active) &&
 			    ctx->cur_frm == ctx->next_frm)
 				cal_schedule_next_buffer(ctx);
@@ -1239,6 +1253,7 @@ static irqreturn_t cal_irq(int irq_cal, void *data)
 			dma_q = &ctx->vidq;
 
 			spin_lock(&ctx->slock);
+			ctx->dma_act = true;
 			if (!list_empty(&dma_q->active) &&
 			    ctx->cur_frm == ctx->next_frm)
 				cal_schedule_next_buffer(ctx);
@@ -1711,10 +1726,27 @@ static void cal_stop_streaming(struct vb2_queue *vq)
 	struct cal_ctx *ctx = vb2_get_drv_priv(vq);
 	struct cal_dmaqueue *dma_q = &ctx->vidq;
 	struct cal_buffer *buf, *tmp;
+	unsigned long timeout;
 	unsigned long flags;
 	int ret;
+	bool dma_act;
 
 	csi2_ppi_disable(ctx);
+
+	/* wait for stream and dma to finish */
+	dma_act = true;
+	timeout = jiffies + msecs_to_jiffies(500);
+	while (dma_act && time_before(jiffies, timeout)) {
+		msleep(50);
+
+		spin_lock_irqsave(&ctx->slock, flags);
+		dma_act = ctx->dma_act;
+		spin_unlock_irqrestore(&ctx->slock, flags);
+	}
+
+	if (dma_act)
+		ctx_err(ctx, "failed to disable dma cleanly\n");
+
 	disable_irqs(ctx);
 	csi2_phy_deinit(ctx);
 
