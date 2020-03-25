@@ -884,7 +884,6 @@ struct drm_i915_private {
 
 	struct pci_dev *bridge_dev;
 
-	struct intel_engine_cs *engine[I915_NUM_ENGINES];
 	struct rb_root uabi_engines;
 
 	struct resource mch_res;
