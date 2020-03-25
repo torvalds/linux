@@ -229,14 +229,14 @@
 				regulator-name = "vdd_logic";
 				regulator-state-mem {
 					regulator-on-in-suspend;
-					regulator-suspend-microvolt = <80000>;
+					regulator-suspend-microvolt = <800000>;
 				};
 			};
 
 			vdd_arm: DCDC_REG2 {
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-min-microvolt = <80000>;
+				regulator-min-microvolt = <800000>;
 				regulator-max-microvolt = <1350000>;
 				regulator-ramp-delay = <6001>;
 				regulator-initial-mode = <0x2>;
