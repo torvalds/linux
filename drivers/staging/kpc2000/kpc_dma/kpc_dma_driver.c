@@ -98,7 +98,7 @@ int  kpc_dma_probe(struct platform_device *pldev)
 	int rv = 0;
 	dev_t dev;
 
-	struct kpc_dma_device *ldev = kzalloc(sizeof(struct kpc_dma_device), GFP_KERNEL);
+	struct kpc_dma_device *ldev = kzalloc(sizeof(*ldev), GFP_KERNEL);
 
 	if (!ldev) {
 		dev_err(&pldev->dev, "%s: unable to kzalloc space for kpc_dma_device\n", __func__);

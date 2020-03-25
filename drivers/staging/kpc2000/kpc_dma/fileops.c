@@ -253,7 +253,7 @@ int  kpc_dma_open(struct inode *inode, struct file *filp)
 		return -EBUSY; /* already open */
 	}
 
-	priv = kzalloc(sizeof(struct dev_private_data), GFP_KERNEL);
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
