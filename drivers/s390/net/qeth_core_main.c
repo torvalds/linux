@@ -5536,6 +5536,10 @@ static unsigned int qeth_rx_poll(struct qeth_card *card, int budget)
 	unsigned int work_done = 0;
 
 	while (budget > 0) {
+		struct qeth_qdio_buffer *buffer;
+		unsigned int skbs_done = 0;
+		bool done = false;
+
 		/* Fetch completed RX buffers: */
 		if (!card->rx.b_count) {
 			card->rx.qdio_err = 0;
@@ -5549,36 +5553,28 @@ static unsigned int qeth_rx_poll(struct qeth_card *card, int budget)
 		}
 
 		/* Process one completed RX buffer: */
-		if (card->rx.b_count) {
-			struct qeth_qdio_buffer *buffer;
-			unsigned int skbs_done = 0;
-			bool done = false;
+		buffer = &card->qdio.in_q->bufs[card->rx.b_index];
+		if (!(card->rx.qdio_err &&
+		      qeth_check_qdio_errors(card, buffer->buffer,
+					     card->rx.qdio_err, "qinerr")))
+			skbs_done = qeth_extract_skbs(card, budget, buffer,
+						      &done);
+		else
+			done = true;
 
-			buffer = &card->qdio.in_q->bufs[card->rx.b_index];
-			if (!(card->rx.qdio_err &&
-			    qeth_check_qdio_errors(card, buffer->buffer,
-			    card->rx.qdio_err, "qinerr")))
-				skbs_done = qeth_extract_skbs(card, budget,
-							      buffer, &done);
-			else
-				done = true;
+		work_done += skbs_done;
+		budget -= skbs_done;
 
-			work_done += skbs_done;
-			budget -= skbs_done;
+		if (done) {
+			QETH_CARD_STAT_INC(card, rx_bufs);
+			qeth_put_buffer_pool_entry(card, buffer->pool_entry);
+			qeth_queue_input_buffer(card, card->rx.b_index);
+			card->rx.b_count--;
 
-			if (done) {
-				QETH_CARD_STAT_INC(card, rx_bufs);
-				qeth_put_buffer_pool_entry(card,
-					buffer->pool_entry);
-				qeth_queue_input_buffer(card, card->rx.b_index);
-				card->rx.b_count--;
-
-				/* Step forward to next buffer: */
-				card->rx.b_index =
-					QDIO_BUFNR(card->rx.b_index + 1);
-				card->rx.buf_element = 0;
-				card->rx.e_offset = 0;
-			}
+			/* Step forward to next buffer: */
+			card->rx.b_index = QDIO_BUFNR(card->rx.b_index + 1);
+			card->rx.buf_element = 0;
+			card->rx.e_offset = 0;
 		}
 	}
 
