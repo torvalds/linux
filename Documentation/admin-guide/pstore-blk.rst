@@ -43,9 +43,9 @@ blkdev
 ~~~~~~
 
 The block device to use. Most of the time, it is a partition of block device.
-It's required for pstore/blk.
+It's required for pstore/blk. It is also used for MTD device.
 
-It accepts the following variants:
+It accepts the following variants for block device:
 
 1. <hex_major><hex_minor> device number in hexadecimal represents itself; no
    leading 0x, for example b302.
@@ -63,6 +63,11 @@ It accepts the following variants:
 #. PARTUUID=<UUID>/PARTNROFF=<int> to select a partition in relation to a
    partition with a known unique id.
 #. <major>:<minor> major and minor number of the device separated by a colon.
+
+It accepts the following variants for MTD device:
+
+1. <device name> MTD device name. "pstore" is recommended.
+#. <device number> MTD device number.
 
 kmsg_size
 ~~~~~~~~~
