@@ -1221,64 +1221,46 @@ static irqreturn_t cal_irq(int irq_cal, void *data)
 	/* Check which DMA just finished */
 	irqst2 = reg_read(dev, CAL_HL_IRQSTATUS(2));
 	if (irqst2) {
+		int i;
+
 		/* Clear Interrupt status */
 		reg_write(dev, CAL_HL_IRQSTATUS(2), irqst2);
 
-		/* Need to check both port */
-		if (isportirqset(irqst2, 1)) {
-			ctx = dev->ctx[0];
+		for (i = 1; i <= 2; ++i) {
+			if (isportirqset(irqst2, i)) {
+				ctx = dev->ctx[i - 1];
 
-			spin_lock(&ctx->slock);
-			ctx->dma_act = false;
+				spin_lock(&ctx->slock);
+				ctx->dma_act = false;
 
-			if (ctx->cur_frm != ctx->next_frm)
-				cal_process_buffer_complete(ctx);
+				if (ctx->cur_frm != ctx->next_frm)
+					cal_process_buffer_complete(ctx);
 
-			spin_unlock(&ctx->slock);
-		}
-
-		if (isportirqset(irqst2, 2)) {
-			ctx = dev->ctx[1];
-
-			spin_lock(&ctx->slock);
-			ctx->dma_act = false;
-
-			if (ctx->cur_frm != ctx->next_frm)
-				cal_process_buffer_complete(ctx);
-
-			spin_unlock(&ctx->slock);
+				spin_unlock(&ctx->slock);
+			}
 		}
 	}
 
 	/* Check which DMA just started */
 	irqst3 = reg_read(dev, CAL_HL_IRQSTATUS(3));
 	if (irqst3) {
+		int i;
+
 		/* Clear Interrupt status */
 		reg_write(dev, CAL_HL_IRQSTATUS(3), irqst3);
 
-		/* Need to check both port */
-		if (isportirqset(irqst3, 1)) {
-			ctx = dev->ctx[0];
-			dma_q = &ctx->vidq;
+		for (i = 1; i <= 2; ++i) {
+			if (isportirqset(irqst3, i)) {
+				ctx = dev->ctx[i - 1];
+				dma_q = &ctx->vidq;
 
-			spin_lock(&ctx->slock);
-			ctx->dma_act = true;
-			if (!list_empty(&dma_q->active) &&
-			    ctx->cur_frm == ctx->next_frm)
-				cal_schedule_next_buffer(ctx);
-			spin_unlock(&ctx->slock);
-		}
-
-		if (isportirqset(irqst3, 2)) {
-			ctx = dev->ctx[1];
-			dma_q = &ctx->vidq;
-
-			spin_lock(&ctx->slock);
-			ctx->dma_act = true;
-			if (!list_empty(&dma_q->active) &&
-			    ctx->cur_frm == ctx->next_frm)
-				cal_schedule_next_buffer(ctx);
-			spin_unlock(&ctx->slock);
+				spin_lock(&ctx->slock);
+				ctx->dma_act = true;
+				if (!list_empty(&dma_q->active) &&
+				    ctx->cur_frm == ctx->next_frm)
+					cal_schedule_next_buffer(ctx);
+				spin_unlock(&ctx->slock);
+			}
 		}
 	}
 
