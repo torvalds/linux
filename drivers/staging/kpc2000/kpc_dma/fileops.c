@@ -126,11 +126,11 @@ static int kpc_dma_transfer(struct dev_private_data *priv,
 			// Fill out the descriptor
 			BUG_ON(!desc);
 			clear_desc(desc);
-			if (p != pcnt-1) {
+			if (p != pcnt-1)
 				desc->DescByteCount = 0x80000;
-			} else {
+			else
 				desc->DescByteCount = sg_dma_len(sg) - (p * 0x80000);
-			}
+
 			desc->DescBufferByteCount = desc->DescByteCount;
 
 			desc->DescControlFlags |= DMA_DESC_CTL_IRQONERR;
@@ -148,9 +148,9 @@ static int kpc_dma_transfer(struct dev_private_data *priv,
 			desc->DescSystemAddrMS = (dma_addr & 0xFFFFFFFF00000000UL) >> 32;
 
 			user_ctl = acd->priv->user_ctl;
-			if (i == acd->mapped_entry_count-1 && p == pcnt-1) {
+			if (i == acd->mapped_entry_count-1 && p == pcnt-1)
 				user_ctl = acd->priv->user_ctl_last;
-			}
+
 			desc->DescUserControlLS = (user_ctl & 0x00000000FFFFFFFFUL) >>  0;
 			desc->DescUserControlMS = (user_ctl & 0xFFFFFFFF00000000UL) >> 32;
 
@@ -188,9 +188,9 @@ static int kpc_dma_transfer(struct dev_private_data *priv,
 	sg_free_table(&acd->sgt);
  err_dma_map_sg:
  err_alloc_sg_table:
-	for (i = 0 ; i < acd->page_count ; i++) {
+	for (i = 0 ; i < acd->page_count ; i++)
 		put_page(acd->user_pages[i]);
-	}
+
  err_get_user_pages:
 	kfree(acd->user_pages);
  err_alloc_userpages:
@@ -210,16 +210,14 @@ void  transfer_complete_cb(struct aio_cb_data *acd, size_t xfr_count, u32 flags)
 	BUG_ON(!acd->ldev->pldev);
 
 	for (i = 0 ; i < acd->page_count ; i++) {
-		if (!PageReserved(acd->user_pages[i])) {
+		if (!PageReserved(acd->user_pages[i]))
 			set_page_dirty(acd->user_pages[i]);
-		}
 	}
 
 	dma_unmap_sg(&acd->ldev->pldev->dev, acd->sgt.sgl, acd->sgt.nents, acd->ldev->dir);
 
-	for (i = 0 ; i < acd->page_count ; i++) {
+	for (i = 0 ; i < acd->page_count ; i++)
 		put_page(acd->user_pages[i]);
-	}
 
 	sg_free_table(&acd->sgt);
 

@@ -26,9 +26,8 @@ struct kpc_dma_device *kpc_dma_lookup_device(int minor)
 
 	mutex_lock(&kpc_dma_mtx);
 	list_for_each_entry(c, &kpc_dma_list, list) {
-		if (c->pldev->id == minor) {
+		if (c->pldev->id == minor)
 			goto out;
-		}
 	}
 	c = NULL; // not-found case
 out:
