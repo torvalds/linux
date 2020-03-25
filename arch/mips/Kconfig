@@ -486,9 +486,11 @@ config MACH_LOONGSON64
 	select SYS_SUPPORTS_HIGHMEM
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_ZBOOT
-	select LOONGSON_MC146818
 	select ZONE_DMA32
 	select NUMA
+	select COMMON_CLK
+	select USE_OF
+	select BUILTIN_DTB
 	help
 	  This enables the support of Loongson-2/3 family of machines.
 
@@ -3081,7 +3083,7 @@ endchoice
 choice
 	prompt "Kernel command line type" if !CMDLINE_OVERRIDE
 	default MIPS_CMDLINE_FROM_DTB if USE_OF && !ATH79 && !MACH_INGENIC && \
-					 !MIPS_MALTA && \
+					 !MACH_LOONGSON64 && !MIPS_MALTA && \
 					 !CAVIUM_OCTEON_SOC
 	default MIPS_CMDLINE_FROM_BOOTLOADER
 
