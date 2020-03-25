@@ -1974,6 +1974,32 @@ static inline int valid_irq_stack(unsigned long sp, struct task_struct *p,
 	return 0;
 }
 
+static inline int valid_emergency_stack(unsigned long sp, struct task_struct *p,
+					unsigned long nbytes)
+{
+#ifdef CONFIG_PPC64
+	unsigned long stack_page;
+	unsigned long cpu = task_cpu(p);
+
+	stack_page = (unsigned long)paca_ptrs[cpu]->emergency_sp - THREAD_SIZE;
+	if (sp >= stack_page && sp <= stack_page + THREAD_SIZE - nbytes)
+		return 1;
+
+# ifdef CONFIG_PPC_BOOK3S_64
+	stack_page = (unsigned long)paca_ptrs[cpu]->nmi_emergency_sp - THREAD_SIZE;
+	if (sp >= stack_page && sp <= stack_page + THREAD_SIZE - nbytes)
+		return 1;
+
+	stack_page = (unsigned long)paca_ptrs[cpu]->mc_emergency_sp - THREAD_SIZE;
+	if (sp >= stack_page && sp <= stack_page + THREAD_SIZE - nbytes)
+		return 1;
+# endif
+#endif
+
+	return 0;
+}
+
+
 int validate_sp(unsigned long sp, struct task_struct *p,
 		       unsigned long nbytes)
 {
@@ -1985,7 +2011,10 @@ int validate_sp(unsigned long sp, struct task_struct *p,
 	if (sp >= stack_page && sp <= stack_page + THREAD_SIZE - nbytes)
 		return 1;
 
-	return valid_irq_stack(sp, p, nbytes);
+	if (valid_irq_stack(sp, p, nbytes))
+		return 1;
+
+	return valid_emergency_stack(sp, p, nbytes);
 }
 
 EXPORT_SYMBOL(validate_sp);
