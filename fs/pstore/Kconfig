@@ -153,3 +153,10 @@ config PSTORE_RAM
 	  "ramoops.ko".
 
 	  For more information, see Documentation/admin-guide/ramoops.rst.
+
+config PSTORE_ZONE
+	tristate
+	depends on PSTORE
+	help
+	  The common layer for pstore/blk (and pstore/ram in the future)
+	  to manage storage in zones.
