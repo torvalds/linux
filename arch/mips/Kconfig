@@ -975,6 +975,9 @@ config CAVIUM_OCTEON_SOC
 	select SYS_HAS_EARLY_PRINTK
 	select SYS_HAS_CPU_CAVIUM_OCTEON
 	select HAVE_PCI
+	select HAVE_PLAT_DELAY
+	select HAVE_PLAT_FW_INIT_CMDLINE
+	select HAVE_PLAT_MEMCPY
 	select ZONE_DMA32
 	select HOLES_IN_ZONE
 	select GPIOLIB
@@ -1230,6 +1233,15 @@ config GENERIC_ISA_DMA
 config GENERIC_ISA_DMA_SUPPORT_BROKEN
 	bool
 	select GENERIC_ISA_DMA
+
+config HAVE_PLAT_DELAY
+	bool
+
+config HAVE_PLAT_FW_INIT_CMDLINE
+	bool
+
+config HAVE_PLAT_MEMCPY
+	bool
 
 config ISA_DMA_API
 	bool
