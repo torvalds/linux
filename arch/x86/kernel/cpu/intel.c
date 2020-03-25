@@ -45,6 +45,7 @@ enum split_lock_detect_state {
  * split lock detect, unless there is a command line override.
  */
 static enum split_lock_detect_state sld_state __ro_after_init = sld_off;
+static u64 msr_test_ctrl_cache __ro_after_init;
 
 /*
  * Processors which have self-snooping capability can handle conflicting
@@ -1034,6 +1035,8 @@ static void __init split_lock_setup(void)
 		break;
 	}
 
+	rdmsrl(MSR_TEST_CTRL, msr_test_ctrl_cache);
+
 	if (!split_lock_verify_msr(true)) {
 		pr_info("MSR access failed: Disabled\n");
 		return;
@@ -1050,14 +1053,10 @@ static void __init split_lock_setup(void)
  */
 static void sld_update_msr(bool on)
 {
-	u64 test_ctrl_val;
-
-	rdmsrl(MSR_TEST_CTRL, test_ctrl_val);
+	u64 test_ctrl_val = msr_test_ctrl_cache;
 
 	if (on)
 		test_ctrl_val |= MSR_TEST_CTRL_SPLIT_LOCK_DETECT;
-	else
-		test_ctrl_val &= ~MSR_TEST_CTRL_SPLIT_LOCK_DETECT;
 
 	wrmsrl(MSR_TEST_CTRL, test_ctrl_val);
 }
