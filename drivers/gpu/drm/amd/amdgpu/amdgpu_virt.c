@@ -38,7 +38,8 @@ bool amdgpu_virt_mmio_blocked(struct amdgpu_device *adev)
 void amdgpu_virt_init_setting(struct amdgpu_device *adev)
 {
 	/* enable virtual display */
-	adev->mode_info.num_crtc = 1;
+	if (adev->mode_info.num_crtc == 0)
+		adev->mode_info.num_crtc = 1;
 	adev->enable_virtual_display = true;
 	adev->ddev->driver->driver_features &= ~DRIVER_ATOMIC;
 	adev->cg_flags = 0;
