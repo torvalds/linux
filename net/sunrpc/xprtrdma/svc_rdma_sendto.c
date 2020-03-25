@@ -804,16 +804,25 @@ static int svc_rdma_send_reply_msg(struct svcxprt_rdma *rdma,
 	return svc_rdma_send(rdma, &sctxt->sc_send_wr);
 }
 
-/* Given the client-provided Write and Reply chunks, the server was not
- * able to form a complete reply. Return an RDMA_ERROR message so the
- * client can retire this RPC transaction.
+/**
+ * svc_rdma_send_error_msg - Send an RPC/RDMA v1 error response
+ * @rdma: controlling transport context
+ * @sctxt: Send context for the response
+ * @rctxt: Receive context for incoming bad message
+ * @status: negative errno indicating error that occurred
  *
- * Remote Invalidation is skipped for simplicity.
+ * Given the client-provided Read, Write, and Reply chunks, the
+ * server was not able to parse the Call or form a complete Reply.
+ * Return an RDMA_ERROR message so the client can retire the RPC
+ * transaction.
+ *
+ * The caller does not have to release @sctxt. It is released by
+ * Send completion, or by this function on error.
  */
-static void svc_rdma_send_error_msg(struct svcxprt_rdma *rdma,
-				    struct svc_rdma_send_ctxt *sctxt,
-				    struct svc_rdma_recv_ctxt *rctxt,
-				    int status)
+void svc_rdma_send_error_msg(struct svcxprt_rdma *rdma,
+			     struct svc_rdma_send_ctxt *sctxt,
+			     struct svc_rdma_recv_ctxt *rctxt,
+			     int status)
 {
 	__be32 *rdma_argp = rctxt->rc_recv_buf;
 	__be32 *p;
@@ -852,6 +861,7 @@ static void svc_rdma_send_error_msg(struct svcxprt_rdma *rdma,
 		trace_svcrdma_err_chunk(*rdma_argp);
 	}
 
+	/* Remote Invalidation is skipped for simplicity. */
 	sctxt->sc_send_wr.num_sge = 1;
 	sctxt->sc_send_wr.opcode = IB_WR_SEND;
 	sctxt->sc_sges[0].length = sctxt->sc_hdrbuf.len;
