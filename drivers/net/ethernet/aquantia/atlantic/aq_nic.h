@@ -17,6 +17,7 @@ struct aq_ring_s;
 struct aq_hw_ops;
 struct aq_fw_s;
 struct aq_vec_s;
+struct aq_macsec_cfg;
 struct aq_ptp_s;
 enum aq_rx_filter_type;
 
@@ -129,6 +130,9 @@ struct aq_nic_s {
 	u32 irqvecs;
 	/* mutex to serialize FW interface access operations */
 	struct mutex fwreq_mutex;
+#if IS_ENABLED(CONFIG_MACSEC)
+	struct aq_macsec_cfg *macsec_cfg;
+#endif
 	/* PTP support */
 	struct aq_ptp_s *aq_ptp;
 	struct aq_hw_rx_fltrs_s aq_hw_rx_fltrs;

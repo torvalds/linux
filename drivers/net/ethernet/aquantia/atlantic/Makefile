@@ -8,6 +8,8 @@
 
 obj-$(CONFIG_AQTION) += atlantic.o
 
+ccflags-y += -I$(src)
+
 atlantic-objs := aq_main.o \
 	aq_nic.o \
 	aq_pci_func.o \
@@ -23,5 +25,7 @@ atlantic-objs := aq_main.o \
 	hw_atl/hw_atl_utils.o \
 	hw_atl/hw_atl_utils_fw2x.o \
 	hw_atl/hw_atl_llh.o
+
+atlantic-$(CONFIG_MACSEC) += aq_macsec.o
 
 atlantic-$(CONFIG_PTP_1588_CLOCK) += aq_ptp.o
