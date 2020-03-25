@@ -27,7 +27,6 @@
 #define part_to_dev(part)	(&((part)->__dev))
 
 extern struct device_type part_type;
-extern struct kobject *block_depr;
 extern struct class block_class;
 
 #define DISK_MAX_PARTS			256
