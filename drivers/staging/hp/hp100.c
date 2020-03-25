@@ -2430,7 +2430,7 @@ static int hp100_sense_lan(struct net_device *dev)
 
 	if (val_10 & HP100_AUI_ST) {	/* have we BNC or AUI onboard? */
 		/*
-		 * This can be overriden by dos utility, so if this has no effect,
+		 * This can be overridden by dos utility, so if this has no effect,
 		 * perhaps you need to download that utility from HP and set card
 		 * back to "auto detect".
 		 */
