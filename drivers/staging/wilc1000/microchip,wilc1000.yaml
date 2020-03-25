@@ -36,10 +36,9 @@ required:
 
 examples:
   - |
-    spi1: spi@fc018000 {
+    spi {
       #address-cells = <1>;
       #size-cells = <0>;
-      cs-gpios = <&pioB 21 0>;
       wifi@0 {
         compatible = "microchip,wilc1000";
         spi-max-frequency = <48000000>;
@@ -52,7 +51,7 @@ examples:
     };
 
   - |
-    mmc1: mmc@fc000000 {
+    mmc {
       #address-cells = <1>;
       #size-cells = <0>;
       pinctrl-names = "default";
