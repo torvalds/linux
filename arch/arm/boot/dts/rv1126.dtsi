@@ -208,7 +208,7 @@
 	};
 
 	pmugrf: syscon@fe020000 {
-		compatible = "rockchip,rv1126-pmugrf", "syscon";
+		compatible = "rockchip,rv1126-pmugrf", "syscon", "simple-mfd";
 		reg = <0xfe020000 0x1000>;
 
 		pmu_io_domains: io-domains {
