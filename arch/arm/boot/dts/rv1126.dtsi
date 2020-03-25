@@ -1408,7 +1408,7 @@
 			 <&cru SCLK_EMMC_DRV>, <&cru SCLK_EMMC_SAMPLE>;
 		clock-names = "biu", "ciu", "ciu-drive", "ciu-sample";
 		fifo-depth = <0x100>;
-		max-frequency = <150000000>;
+		max-frequency = <200000000>;
 		power-domains = <&power RV1126_PD_NVM>;
 		status = "disabled";
 	};
@@ -1421,7 +1421,7 @@
 			 <&cru SCLK_SDMMC_DRV>, <&cru SCLK_SDMMC_SAMPLE>;
 		clock-names = "biu", "ciu", "ciu-drive", "ciu-sample";
 		fifo-depth = <0x100>;
-		max-frequency = <100000000>;
+		max-frequency = <200000000>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&sdmmc1_clk &sdmmc1_cmd &sdmmc1_det &sdmmc1_bus4>;
 		status = "disabled";
@@ -1435,7 +1435,7 @@
 			 <&cru SCLK_SDIO_DRV>, <&cru SCLK_SDIO_SAMPLE>;
 		clock-names = "biu", "ciu", "ciu-drive", "ciu-sample";
 		fifo-depth = <0x100>;
-		max-frequency = <150000000>;
+		max-frequency = <200000000>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&sdmmc0_clk &sdmmc0_cmd &sdmmc0_bus4>;
 		power-domains = <&power RV1126_PD_SDIO>;
