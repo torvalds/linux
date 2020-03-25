@@ -43,9 +43,11 @@ static int page_pool_init(struct page_pool *pool,
 	 * DMA_BIDIRECTIONAL is for allowing page used for DMA sending,
 	 * which is the XDP_TX use-case.
 	 */
-	if ((pool->p.dma_dir != DMA_FROM_DEVICE) &&
-	    (pool->p.dma_dir != DMA_BIDIRECTIONAL))
-		return -EINVAL;
+	if (pool->p.flags & PP_FLAG_DMA_MAP) {
+		if ((pool->p.dma_dir != DMA_FROM_DEVICE) &&
+		    (pool->p.dma_dir != DMA_BIDIRECTIONAL))
+			return -EINVAL;
+	}
 
 	if (pool->p.flags & PP_FLAG_DMA_SYNC_DEV) {
 		/* In order to request DMA-sync-for-device the page
