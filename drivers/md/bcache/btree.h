@@ -282,13 +282,6 @@ void bch_initial_gc_finish(struct cache_set *c);
 void bch_moving_gc(struct cache_set *c);
 int bch_btree_check(struct cache_set *c);
 void bch_initial_mark_key(struct cache_set *c, int level, struct bkey *k);
-typedef int (btree_map_keys_fn)(struct btree_op *op, struct btree *b,
-				struct bkey *k);
-int bch_btree_map_keys_recurse(struct btree *b, struct btree_op *op,
-			       struct bkey *from, btree_map_keys_fn *fn,
-			       int flags);
-int bch_btree_map_keys(struct btree_op *op, struct cache_set *c,
-		       struct bkey *from, btree_map_keys_fn *fn, int flags);
 
 static inline void wake_up_gc(struct cache_set *c)
 {
@@ -402,6 +395,9 @@ typedef int (btree_map_keys_fn)(struct btree_op *op, struct btree *b,
 				struct bkey *k);
 int bch_btree_map_keys(struct btree_op *op, struct cache_set *c,
 		       struct bkey *from, btree_map_keys_fn *fn, int flags);
+int bch_btree_map_keys_recurse(struct btree *b, struct btree_op *op,
+			       struct bkey *from, btree_map_keys_fn *fn,
+			       int flags);
 
 typedef bool (keybuf_pred_fn)(struct keybuf *buf, struct bkey *k);
 
