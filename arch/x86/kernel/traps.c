@@ -564,14 +564,13 @@ NOKPROBE_SYMBOL(do_int3);
  * to switch to the normal thread stack if the interrupted code was in
  * user mode. The actual stack switch is done in entry_64.S
  */
-asmlinkage __visible notrace struct pt_regs *sync_regs(struct pt_regs *eregs)
+asmlinkage __visible noinstr struct pt_regs *sync_regs(struct pt_regs *eregs)
 {
 	struct pt_regs *regs = (struct pt_regs *)this_cpu_read(cpu_current_top_of_stack) - 1;
 	if (regs != eregs)
 		*regs = *eregs;
 	return regs;
 }
-NOKPROBE_SYMBOL(sync_regs);
 
 struct bad_iret_stack {
 	void *error_entry_ret;
