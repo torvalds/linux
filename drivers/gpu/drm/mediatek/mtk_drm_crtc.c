@@ -6,6 +6,7 @@
 #include <linux/clk.h>
 #include <linux/pm_runtime.h>
 #include <linux/soc/mediatek/mtk-cmdq.h>
+#include <linux/soc/mediatek/mtk-mmsys.h>
 
 #include <asm/barrier.h>
 #include <soc/mediatek/smi.h>
@@ -28,7 +29,7 @@
  * @enabled: records whether crtc_enable succeeded
  * @planes: array of 4 drm_plane structures, one for each overlay plane
  * @pending_planes: whether any plane has pending changes to be applied
- * @config_regs: memory mapped mmsys configuration register space
+ * @mmsys_dev: pointer to the mmsys device for configuration registers
  * @mutex: handle to one of the ten disp_mutex streams
  * @ddp_comp_nr: number of components in ddp_comp
  * @ddp_comp: array of pointers the mtk_ddp_comp structures used by this crtc
@@ -50,7 +51,7 @@ struct mtk_drm_crtc {
 	u32				cmdq_event;
 #endif
 
-	void __iomem			*config_regs;
+	struct device			*mmsys_dev;
 	struct mtk_disp_mutex		*mutex;
 	unsigned int			ddp_comp_nr;
 	struct mtk_ddp_comp		**ddp_comp;
@@ -300,9 +301,9 @@ static int mtk_crtc_ddp_hw_init(struct mtk_drm_crtc *mtk_crtc)
 
 	DRM_DEBUG_DRIVER("mediatek_ddp_ddp_path_setup\n");
 	for (i = 0; i < mtk_crtc->ddp_comp_nr - 1; i++) {
-		mtk_ddp_add_comp_to_path(mtk_crtc->config_regs,
-					 mtk_crtc->ddp_comp[i]->id,
-					 mtk_crtc->ddp_comp[i + 1]->id);
+		mtk_mmsys_ddp_connect(mtk_crtc->mmsys_dev,
+				      mtk_crtc->ddp_comp[i]->id,
+				      mtk_crtc->ddp_comp[i + 1]->id);
 		mtk_disp_mutex_add_comp(mtk_crtc->mutex,
 					mtk_crtc->ddp_comp[i]->id);
 	}
@@ -360,9 +361,9 @@ static void mtk_crtc_ddp_hw_fini(struct mtk_drm_crtc *mtk_crtc)
 					   mtk_crtc->ddp_comp[i]->id);
 	mtk_disp_mutex_disable(mtk_crtc->mutex);
 	for (i = 0; i < mtk_crtc->ddp_comp_nr - 1; i++) {
-		mtk_ddp_remove_comp_from_path(mtk_crtc->config_regs,
-					      mtk_crtc->ddp_comp[i]->id,
-					      mtk_crtc->ddp_comp[i + 1]->id);
+		mtk_mmsys_ddp_disconnect(mtk_crtc->mmsys_dev,
+					 mtk_crtc->ddp_comp[i]->id,
+					 mtk_crtc->ddp_comp[i + 1]->id);
 		mtk_disp_mutex_remove_comp(mtk_crtc->mutex,
 					   mtk_crtc->ddp_comp[i]->id);
 	}
@@ -766,7 +767,7 @@ int mtk_drm_crtc_create(struct drm_device *drm_dev,
 	if (!mtk_crtc)
 		return -ENOMEM;
 
-	mtk_crtc->config_regs = priv->config_regs;
+	mtk_crtc->mmsys_dev = priv->mmsys_dev;
 	mtk_crtc->ddp_comp_nr = path_len;
 	mtk_crtc->ddp_comp = devm_kmalloc_array(dev, mtk_crtc->ddp_comp_nr,
 						sizeof(*mtk_crtc->ddp_comp),

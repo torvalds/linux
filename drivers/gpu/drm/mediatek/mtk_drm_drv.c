@@ -10,6 +10,7 @@
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/pm_runtime.h>
+#include <linux/soc/mediatek/mtk-mmsys.h>
 #include <linux/dma-mapping.h>
 
 #include <drm/drm_atomic.h>
@@ -425,7 +426,6 @@ static int mtk_drm_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct mtk_drm_private *private;
-	struct resource *mem;
 	struct device_node *node;
 	struct component_match *match = NULL;
 	int ret;
@@ -436,14 +436,10 @@ static int mtk_drm_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	private->data = of_device_get_match_data(dev);
-
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	private->config_regs = devm_ioremap_resource(dev, mem);
-	if (IS_ERR(private->config_regs)) {
-		ret = PTR_ERR(private->config_regs);
-		dev_err(dev, "Failed to ioremap mmsys-config resource: %d\n",
-			ret);
-		return ret;
+	private->mmsys_dev = dev->parent;
+	if (!private->mmsys_dev) {
+		dev_err(dev, "Failed to get MMSYS device\n");
+		return -ENODEV;
 	}
 
 	/* Iterate over sibling DISP function blocks */
