@@ -99,9 +99,9 @@ static __always_inline struct cpuid_reg x86_feature_cpuid(unsigned int x86_featu
 }
 
 static __always_inline u32 *__cpuid_entry_get_reg(struct kvm_cpuid_entry2 *entry,
-						  const struct cpuid_reg *cpuid)
+						  u32 reg)
 {
-	switch (cpuid->reg) {
+	switch (reg) {
 	case CPUID_EAX:
 		return &entry->eax;
 	case CPUID_EBX:
@@ -121,7 +121,7 @@ static __always_inline u32 *cpuid_entry_get_reg(struct kvm_cpuid_entry2 *entry,
 {
 	const struct cpuid_reg cpuid = x86_feature_cpuid(x86_feature);
 
-	return __cpuid_entry_get_reg(entry, &cpuid);
+	return __cpuid_entry_get_reg(entry, cpuid.reg);
 }
 
 static __always_inline u32 cpuid_entry_get(struct kvm_cpuid_entry2 *entry,
@@ -189,7 +189,7 @@ static __always_inline u32 *guest_cpuid_get_register(struct kvm_vcpu *vcpu,
 	if (!entry)
 		return NULL;
 
-	return __cpuid_entry_get_reg(entry, &cpuid);
+	return __cpuid_entry_get_reg(entry, cpuid.reg);
 }
 
 static __always_inline bool guest_cpuid_has(struct kvm_vcpu *vcpu,
