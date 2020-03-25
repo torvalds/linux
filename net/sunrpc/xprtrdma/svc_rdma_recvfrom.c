@@ -715,10 +715,11 @@ static void rdma_read_complete(struct svc_rqst *rqstp,
 }
 
 static void svc_rdma_send_error(struct svcxprt_rdma *xprt,
-				__be32 *rdma_argp, int status)
+				struct svc_rdma_recv_ctxt *rctxt,
+				int status)
 {
+	__be32 *p, *rdma_argp = rctxt->rc_recv_buf;
 	struct svc_rdma_send_ctxt *ctxt;
-	__be32 *p;
 	int ret;
 
 	ctxt = svc_rdma_send_ctxt_get(xprt);
@@ -900,13 +901,13 @@ out_readchunk:
 	return 0;
 
 out_err:
-	svc_rdma_send_error(rdma_xprt, p, ret);
+	svc_rdma_send_error(rdma_xprt, ctxt, ret);
 	svc_rdma_recv_ctxt_put(rdma_xprt, ctxt);
 	return 0;
 
 out_postfail:
 	if (ret == -EINVAL)
-		svc_rdma_send_error(rdma_xprt, p, ret);
+		svc_rdma_send_error(rdma_xprt, ctxt, ret);
 	svc_rdma_recv_ctxt_put(rdma_xprt, ctxt);
 	return ret;
 
