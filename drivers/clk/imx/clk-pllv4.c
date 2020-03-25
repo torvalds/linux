@@ -54,7 +54,7 @@ static inline int clk_pllv4_wait_lock(struct clk_pllv4 *pll)
 				  csr, csr & PLL_VLD, 0, LOCK_TIMEOUT_US);
 }
 
-static int clk_pllv4_is_enabled(struct clk_hw *hw)
+static int clk_pllv4_is_prepared(struct clk_hw *hw)
 {
 	struct clk_pllv4 *pll = to_clk_pllv4(hw);
 
@@ -175,7 +175,7 @@ static int clk_pllv4_set_rate(struct clk_hw *hw, unsigned long rate,
 	return 0;
 }
 
-static int clk_pllv4_enable(struct clk_hw *hw)
+static int clk_pllv4_prepare(struct clk_hw *hw)
 {
 	u32 val;
 	struct clk_pllv4 *pll = to_clk_pllv4(hw);
@@ -187,7 +187,7 @@ static int clk_pllv4_enable(struct clk_hw *hw)
 	return clk_pllv4_wait_lock(pll);
 }
 
-static void clk_pllv4_disable(struct clk_hw *hw)
+static void clk_pllv4_unprepare(struct clk_hw *hw)
 {
 	u32 val;
 	struct clk_pllv4 *pll = to_clk_pllv4(hw);
@@ -201,9 +201,9 @@ static const struct clk_ops clk_pllv4_ops = {
 	.recalc_rate	= clk_pllv4_recalc_rate,
 	.round_rate	= clk_pllv4_round_rate,
 	.set_rate	= clk_pllv4_set_rate,
-	.enable		= clk_pllv4_enable,
-	.disable	= clk_pllv4_disable,
-	.is_enabled	= clk_pllv4_is_enabled,
+	.prepare	= clk_pllv4_prepare,
+	.unprepare	= clk_pllv4_unprepare,
+	.is_prepared	= clk_pllv4_is_prepared,
 };
 
 struct clk_hw *imx_clk_hw_pllv4(const char *name, const char *parent_name,

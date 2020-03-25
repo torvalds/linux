@@ -1,21 +1,21 @@
 # SPDX-License-Identifier: GPL-2.0
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/clock/imx8mn-clock.yaml#
+$id: http://devicetree.org/schemas/bindings/clock/imx8mm-clock.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: NXP i.MX8M Nano Clock Control Module Binding
+title: NXP i.MX8M Mini Clock Control Module Binding
 
 maintainers:
   - Anson Huang <Anson.Huang@nxp.com>
 
 description: |
-  NXP i.MX8M Nano clock control module is an integrated clock controller, which
+  NXP i.MX8M Mini clock control module is an integrated clock controller, which
   generates and supplies to all modules.
 
 properties:
   compatible:
-    const: fsl,imx8mn-ccm
+    const: fsl,imx8mm-ccm
 
   reg:
     maxItems: 1
@@ -42,8 +42,8 @@ properties:
     const: 1
     description:
       The clock consumer should specify the desired clock by having the clock
-      ID in its "clocks" phandle cell. See include/dt-bindings/clock/imx8mn-clock.h
-      for the full list of i.MX8M Nano clock IDs.
+      ID in its "clocks" phandle cell. See include/dt-bindings/clock/imx8mm-clock.h
+      for the full list of i.MX8M Mini clock IDs.
 
 required:
   - compatible
@@ -56,13 +56,13 @@ examples:
   # Clock Control Module node:
   - |
     clk: clock-controller@30380000 {
-        compatible = "fsl,imx8mn-ccm";
+        compatible = "fsl,imx8mm-ccm";
         reg = <0x30380000 0x10000>;
         #clock-cells = <1>;
-        clocks = <&osc_32k>, <&osc_24m>, <&clk_ext1>,
-                 <&clk_ext2>, <&clk_ext3>, <&clk_ext4>;
-        clock-names = "osc_32k", "osc_24m", "clk_ext1",
-                      "clk_ext2", "clk_ext3", "clk_ext4";
+        clocks = <&osc_32k>, <&osc_24m>, <&clk_ext1>, <&clk_ext2>,
+                 <&clk_ext3>, <&clk_ext4>;
+        clock-names = "osc_32k", "osc_24m", "clk_ext1", "clk_ext2",
+                      "clk_ext3", "clk_ext4";
     };
 
 ...
