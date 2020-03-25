@@ -935,6 +935,10 @@ static int mes_v10_1_sw_init(void *handle)
 	adev->mes.funcs = &mes_v10_1_funcs;
 	adev->mes.kiq_hw_init = &mes_v10_1_kiq_hw_init;
 
+	r = amdgpu_mes_init(adev);
+	if (r)
+		return r;
+
 	for (pipe = 0; pipe < AMDGPU_MAX_MES_PIPES; pipe++) {
 		if (!adev->enable_mes_kiq && pipe == AMDGPU_MES_KIQ_PIPE)
 			continue;
@@ -994,6 +998,7 @@ static int mes_v10_1_sw_fini(void *handle)
 	amdgpu_ring_fini(&adev->gfx.kiq.ring);
 	amdgpu_ring_fini(&adev->mes.ring);
 
+	amdgpu_mes_fini(adev);
 	return 0;
 }
 
