@@ -5,6 +5,7 @@
 
 #include "macsec_api.h"
 #include <linux/mdio.h>
+#include "MSS_Ingress_registers.h"
 #include "MSS_Egress_registers.h"
 #include "aq_phy.h"
 
@@ -54,6 +55,115 @@ static int aq_mss_mdio_write(struct aq_hw_s *hw, u16 mmd, u16 addr, u16 data)
 /*******************************************************************************
  *                          MACSEC config and status
  ******************************************************************************/
+
+static int set_raw_ingress_record(struct aq_hw_s *hw, u16 *packed_record,
+				  u8 num_words, u8 table_id,
+				  u16 table_index)
+{
+	struct mss_ingress_lut_addr_ctl_register lut_sel_reg;
+	struct mss_ingress_lut_ctl_register lut_op_reg;
+
+	unsigned int i;
+
+	/* NOTE: MSS registers must always be read/written as adjacent pairs.
+	 * For instance, to write either or both 1E.80A0 and 80A1, we have to:
+	 * 1. Write 1E.80A0 first
+	 * 2. Then write 1E.80A1
+	 *
+	 * For HHD devices: These writes need to be performed consecutively, and
+	 * to ensure this we use the PIF mailbox to delegate the reads/writes to
+	 * the FW.
+	 *
+	 * For EUR devices: Not need to use the PIF mailbox; it is safe to
+	 * write to the registers directly.
+	 */
+
+	/* Write the packed record words to the data buffer registers. */
+	for (i = 0; i < num_words; i += 2) {
+		aq_mss_mdio_write(hw, MDIO_MMD_VEND1,
+				  MSS_INGRESS_LUT_DATA_CTL_REGISTER_ADDR + i,
+				  packed_record[i]);
+		aq_mss_mdio_write(hw, MDIO_MMD_VEND1,
+				  MSS_INGRESS_LUT_DATA_CTL_REGISTER_ADDR + i +
+					  1,
+				  packed_record[i + 1]);
+	}
+
+	/* Clear out the unused data buffer registers. */
+	for (i = num_words; i < 24; i += 2) {
+		aq_mss_mdio_write(hw, MDIO_MMD_VEND1,
+				  MSS_INGRESS_LUT_DATA_CTL_REGISTER_ADDR + i,
+				  0);
+		aq_mss_mdio_write(hw, MDIO_MMD_VEND1,
+			MSS_INGRESS_LUT_DATA_CTL_REGISTER_ADDR + i + 1, 0);
+	}
+
+	/* Select the table and row index to write to */
+	lut_sel_reg.bits_0.lut_select = table_id;
+	lut_sel_reg.bits_0.lut_addr = table_index;
+
+	lut_op_reg.bits_0.lut_read = 0;
+	lut_op_reg.bits_0.lut_write = 1;
+
+	aq_mss_mdio_write(hw, MDIO_MMD_VEND1,
+			  MSS_INGRESS_LUT_ADDR_CTL_REGISTER_ADDR,
+			  lut_sel_reg.word_0);
+	aq_mss_mdio_write(hw, MDIO_MMD_VEND1, MSS_INGRESS_LUT_CTL_REGISTER_ADDR,
+			  lut_op_reg.word_0);
+
+	return 0;
+}
+
+/*! Read the specified Ingress LUT table row.
+ *  packed_record - [OUT] The table row data (raw).
+ */
+static int get_raw_ingress_record(struct aq_hw_s *hw, u16 *packed_record,
+				  u8 num_words, u8 table_id,
+				  u16 table_index)
+{
+	struct mss_ingress_lut_addr_ctl_register lut_sel_reg;
+	struct mss_ingress_lut_ctl_register lut_op_reg;
+	int ret;
+
+	unsigned int i;
+
+	/* Select the table and row index to read */
+	lut_sel_reg.bits_0.lut_select = table_id;
+	lut_sel_reg.bits_0.lut_addr = table_index;
+
+	lut_op_reg.bits_0.lut_read = 1;
+	lut_op_reg.bits_0.lut_write = 0;
+
+	ret = aq_mss_mdio_write(hw, MDIO_MMD_VEND1,
+				MSS_INGRESS_LUT_ADDR_CTL_REGISTER_ADDR,
+				lut_sel_reg.word_0);
+	if (unlikely(ret))
+		return ret;
+	ret = aq_mss_mdio_write(hw, MDIO_MMD_VEND1,
+				MSS_INGRESS_LUT_CTL_REGISTER_ADDR,
+				lut_op_reg.word_0);
+	if (unlikely(ret))
+		return ret;
+
+	memset(packed_record, 0, sizeof(u16) * num_words);
+
+	for (i = 0; i < num_words; i += 2) {
+		ret = aq_mss_mdio_read(hw, MDIO_MMD_VEND1,
+				       MSS_INGRESS_LUT_DATA_CTL_REGISTER_ADDR +
+					       i,
+				       &packed_record[i]);
+		if (unlikely(ret))
+			return ret;
+		ret = aq_mss_mdio_read(hw, MDIO_MMD_VEND1,
+				       MSS_INGRESS_LUT_DATA_CTL_REGISTER_ADDR +
+					       i + 1,
+				       &packed_record[i + 1]);
+		if (unlikely(ret))
+			return ret;
+	}
+
+	return 0;
+}
 
 /*! Write packed_record to the specified Egress LUT table row. */
 static int set_raw_egress_record(struct aq_hw_s *hw, u16 *packed_record,
@@ -146,6 +256,893 @@ static int get_raw_egress_record(struct aq_hw_s *hw, u16 *packed_record,
 	}
 
 	return 0;
+}
+
+static int
+set_ingress_prectlf_record(struct aq_hw_s *hw,
+			   const struct aq_mss_ingress_prectlf_record *rec,
+			   u16 table_index)
+{
+	u16 packed_record[6];
+
+	if (table_index >= NUMROWS_INGRESSPRECTLFRECORD)
+		return -EINVAL;
+
+	memset(packed_record, 0, sizeof(u16) * 6);
+
+	packed_record[0] = rec->sa_da[0] & 0xFFFF;
+	packed_record[1] = (rec->sa_da[0] >> 16) & 0xFFFF;
+	packed_record[2] = rec->sa_da[1] & 0xFFFF;
+	packed_record[3] = rec->eth_type & 0xFFFF;
+	packed_record[4] = rec->match_mask & 0xFFFF;
+	packed_record[5] = rec->match_type & 0xF;
+	packed_record[5] |= (rec->action & 0x1) << 4;
+
+	return set_raw_ingress_record(hw, packed_record, 6, 0,
+				      ROWOFFSET_INGRESSPRECTLFRECORD +
+					      table_index);
+}
+
+int aq_mss_set_ingress_prectlf_record(struct aq_hw_s *hw,
+	const struct aq_mss_ingress_prectlf_record *rec,
+	u16 table_index)
+{
+	return AQ_API_CALL_SAFE(set_ingress_prectlf_record, hw, rec,
+				table_index);
+}
+
+static int get_ingress_prectlf_record(struct aq_hw_s *hw,
+				      struct aq_mss_ingress_prectlf_record *rec,
+				      u16 table_index)
+{
+	u16 packed_record[6];
+	int ret;
+
+	if (table_index >= NUMROWS_INGRESSPRECTLFRECORD)
+		return -EINVAL;
+
+	/* If the row that we want to read is odd, first read the previous even
+	 * row, throw that value away, and finally read the desired row.
+	 * This is a workaround for EUR devices that allows us to read
+	 * odd-numbered rows.  For HHD devices: this workaround will not work,
+	 * so don't bother; odd-numbered rows are not readable.
+	 */
+	if ((table_index % 2) > 0) {
+		ret = get_raw_ingress_record(hw, packed_record, 6, 0,
+					     ROWOFFSET_INGRESSPRECTLFRECORD +
+						     table_index - 1);
+		if (unlikely(ret))
+			return ret;
+	}
+
+	ret = get_raw_ingress_record(hw, packed_record, 6, 0,
+				     ROWOFFSET_INGRESSPRECTLFRECORD +
+					     table_index);
+	if (unlikely(ret))
+		return ret;
+
+	rec->sa_da[0] = packed_record[0];
+	rec->sa_da[0] |= packed_record[1] << 16;
+
+	rec->sa_da[1] = packed_record[2];
+
+	rec->eth_type = packed_record[3];
+
+	rec->match_mask = packed_record[4];
+
+	rec->match_type = packed_record[5] & 0xF;
+
+	rec->action = (packed_record[5] >> 4) & 0x1;
+
+	return 0;
+}
+
+int aq_mss_get_ingress_prectlf_record(struct aq_hw_s *hw,
+				      struct aq_mss_ingress_prectlf_record *rec,
+				      u16 table_index)
+{
+	memset(rec, 0, sizeof(*rec));
+
+	return AQ_API_CALL_SAFE(get_ingress_prectlf_record, hw, rec,
+				table_index);
+}
+
+static int
+set_ingress_preclass_record(struct aq_hw_s *hw,
+			    const struct aq_mss_ingress_preclass_record *rec,
+			    u16 table_index)
+{
+	u16 packed_record[20];
+
+	if (table_index >= NUMROWS_INGRESSPRECLASSRECORD)
+		return -EINVAL;
+
+	memset(packed_record, 0, sizeof(u16) * 20);
+
+	packed_record[0] = rec->sci[0] & 0xFFFF;
+	packed_record[1] = (rec->sci[0] >> 16) & 0xFFFF;
+
+	packed_record[2] = rec->sci[1] & 0xFFFF;
+	packed_record[3] = (rec->sci[1] >> 16) & 0xFFFF;
+
+	packed_record[4] = rec->tci & 0xFF;
+
+	packed_record[4] |= (rec->encr_offset & 0xFF) << 8;
+
+	packed_record[5] = rec->eth_type & 0xFFFF;
+
+	packed_record[6] = rec->snap[0] & 0xFFFF;
+	packed_record[7] = (rec->snap[0] >> 16) & 0xFFFF;
+
+	packed_record[8] = rec->snap[1] & 0xFF;
+
+	packed_record[8] |= (rec->llc & 0xFF) << 8;
+	packed_record[9] = (rec->llc >> 8) & 0xFFFF;
+
+	packed_record[10] = rec->mac_sa[0] & 0xFFFF;
+	packed_record[11] = (rec->mac_sa[0] >> 16) & 0xFFFF;
+
+	packed_record[12] = rec->mac_sa[1] & 0xFFFF;
+
+	packed_record[13] = rec->mac_da[0] & 0xFFFF;
+	packed_record[14] = (rec->mac_da[0] >> 16) & 0xFFFF;
+
+	packed_record[15] = rec->mac_da[1] & 0xFFFF;
+
+	packed_record[16] = rec->lpbk_packet & 0x1;
+
+	packed_record[16] |= (rec->an_mask & 0x3) << 1;
+
+	packed_record[16] |= (rec->tci_mask & 0x3F) << 3;
+
+	packed_record[16] |= (rec->sci_mask & 0x7F) << 9;
+	packed_record[17] = (rec->sci_mask >> 7) & 0x1;
+
+	packed_record[17] |= (rec->eth_type_mask & 0x3) << 1;
+
+	packed_record[17] |= (rec->snap_mask & 0x1F) << 3;
+
+	packed_record[17] |= (rec->llc_mask & 0x7) << 8;
+
+	packed_record[17] |= (rec->_802_2_encapsulate & 0x1) << 11;
+
+	packed_record[17] |= (rec->sa_mask & 0xF) << 12;
+	packed_record[18] = (rec->sa_mask >> 4) & 0x3;
+
+	packed_record[18] |= (rec->da_mask & 0x3F) << 2;
+
+	packed_record[18] |= (rec->lpbk_mask & 0x1) << 8;
+
+	packed_record[18] |= (rec->sc_idx & 0x1F) << 9;
+
+	packed_record[18] |= (rec->proc_dest & 0x1) << 14;
+
+	packed_record[18] |= (rec->action & 0x1) << 15;
+	packed_record[19] = (rec->action >> 1) & 0x1;
+
+	packed_record[19] |= (rec->ctrl_unctrl & 0x1) << 1;
+
+	packed_record[19] |= (rec->sci_from_table & 0x1) << 2;
+
+	packed_record[19] |= (rec->reserved & 0xF) << 3;
+
+	packed_record[19] |= (rec->valid & 0x1) << 7;
+
+	return set_raw_ingress_record(hw, packed_record, 20, 1,
+				      ROWOFFSET_INGRESSPRECLASSRECORD +
+					      table_index);
+}
+
+int aq_mss_set_ingress_preclass_record(struct aq_hw_s *hw,
+	const struct aq_mss_ingress_preclass_record *rec,
+	u16 table_index)
+{
+	int err = AQ_API_CALL_SAFE(set_ingress_preclass_record, hw, rec,
+				   table_index);
+
+	WARN_ONCE(err, "%s failed with %d\n", __func__, err);
+
+	return err;
+}
+
+static int
+get_ingress_preclass_record(struct aq_hw_s *hw,
+			    struct aq_mss_ingress_preclass_record *rec,
+			    u16 table_index)
+{
+	u16 packed_record[20];
+	int ret;
+
+	if (table_index >= NUMROWS_INGRESSPRECLASSRECORD)
+		return -EINVAL;
+
+	/* If the row that we want to read is odd, first read the previous even
+	 * row, throw that value away, and finally read the desired row.
+	 */
+	if ((table_index % 2) > 0) {
+		ret = get_raw_ingress_record(hw, packed_record, 20, 1,
+					     ROWOFFSET_INGRESSPRECLASSRECORD +
+						     table_index - 1);
+		if (unlikely(ret))
+			return ret;
+	}
+
+	ret = get_raw_ingress_record(hw, packed_record, 20, 1,
+				     ROWOFFSET_INGRESSPRECLASSRECORD +
+					     table_index);
+	if (unlikely(ret))
+		return ret;
+
+	rec->sci[0] = packed_record[0];
+	rec->sci[0] |= packed_record[1] << 16;
+
+	rec->sci[1] = packed_record[2];
+	rec->sci[1] |= packed_record[3] << 16;
+
+	rec->tci = packed_record[4] & 0xFF;
+
+	rec->encr_offset = (packed_record[4] >> 8) & 0xFF;
+
+	rec->eth_type = packed_record[5];
+
+	rec->snap[0] = packed_record[6];
+	rec->snap[0] |= packed_record[7] << 16;
+
+	rec->snap[1] = packed_record[8] & 0xFF;
+
+	rec->llc = (packed_record[8] >> 8) & 0xFF;
+	rec->llc = packed_record[9] << 8;
+
+	rec->mac_sa[0] = packed_record[10];
+	rec->mac_sa[0] |= packed_record[11] << 16;
+
+	rec->mac_sa[1] = packed_record[12];
+
+	rec->mac_da[0] = packed_record[13];
+	rec->mac_da[0] |= packed_record[14] << 16;
+
+	rec->mac_da[1] = packed_record[15];
+
+	rec->lpbk_packet = packed_record[16] & 0x1;
+
+	rec->an_mask = (packed_record[16] >> 1) & 0x3;
+
+	rec->tci_mask = (packed_record[16] >> 3) & 0x3F;
+
+	rec->sci_mask = (packed_record[16] >> 9) & 0x7F;
+	rec->sci_mask |= (packed_record[17] & 0x1) << 7;
+
+	rec->eth_type_mask = (packed_record[17] >> 1) & 0x3;
+
+	rec->snap_mask = (packed_record[17] >> 3) & 0x1F;
+
+	rec->llc_mask = (packed_record[17] >> 8) & 0x7;
+
+	rec->_802_2_encapsulate = (packed_record[17] >> 11) & 0x1;
+
+	rec->sa_mask = (packed_record[17] >> 12) & 0xF;
+	rec->sa_mask |= (packed_record[18] & 0x3) << 4;
+
+	rec->da_mask = (packed_record[18] >> 2) & 0x3F;
+
+	rec->lpbk_mask = (packed_record[18] >> 8) & 0x1;
+
+	rec->sc_idx = (packed_record[18] >> 9) & 0x1F;
+
+	rec->proc_dest = (packed_record[18] >> 14) & 0x1;
+
+	rec->action = (packed_record[18] >> 15) & 0x1;
+	rec->action |= (packed_record[19] & 0x1) << 1;
+
+	rec->ctrl_unctrl = (packed_record[19] >> 1) & 0x1;
+
+	rec->sci_from_table = (packed_record[19] >> 2) & 0x1;
+
+	rec->reserved = (packed_record[19] >> 3) & 0xF;
+
+	rec->valid = (packed_record[19] >> 7) & 0x1;
+
+	return 0;
+}
+
+int aq_mss_get_ingress_preclass_record(struct aq_hw_s *hw,
+	struct aq_mss_ingress_preclass_record *rec,
+	u16 table_index)
+{
+	memset(rec, 0, sizeof(*rec));
+
+	return AQ_API_CALL_SAFE(get_ingress_preclass_record, hw, rec,
+				table_index);
+}
+
+static int set_ingress_sc_record(struct aq_hw_s *hw,
+				 const struct aq_mss_ingress_sc_record *rec,
+				 u16 table_index)
+{
+	u16 packed_record[8];
+
+	if (table_index >= NUMROWS_INGRESSSCRECORD)
+		return -EINVAL;
+
+	memset(packed_record, 0, sizeof(u16) * 8);
+
+	packed_record[0] = rec->stop_time & 0xFFFF;
+	packed_record[1] = (rec->stop_time >> 16) & 0xFFFF;
+
+	packed_record[2] = rec->start_time & 0xFFFF;
+	packed_record[3] = (rec->start_time >> 16) & 0xFFFF;
+
+	packed_record[4] = rec->validate_frames & 0x3;
+
+	packed_record[4] |= (rec->replay_protect & 0x1) << 2;
+
+	packed_record[4] |= (rec->anti_replay_window & 0x1FFF) << 3;
+	packed_record[5] = (rec->anti_replay_window >> 13) & 0xFFFF;
+	packed_record[6] = (rec->anti_replay_window >> 29) & 0x7;
+
+	packed_record[6] |= (rec->receiving & 0x1) << 3;
+
+	packed_record[6] |= (rec->fresh & 0x1) << 4;
+
+	packed_record[6] |= (rec->an_rol & 0x1) << 5;
+
+	packed_record[6] |= (rec->reserved & 0x3FF) << 6;
+	packed_record[7] = (rec->reserved >> 10) & 0x7FFF;
+
+	packed_record[7] |= (rec->valid & 0x1) << 15;
+
+	return set_raw_ingress_record(hw, packed_record, 8, 3,
+				      ROWOFFSET_INGRESSSCRECORD + table_index);
+}
+
+int aq_mss_set_ingress_sc_record(struct aq_hw_s *hw,
+				 const struct aq_mss_ingress_sc_record *rec,
+				 u16 table_index)
+{
+	int err = AQ_API_CALL_SAFE(set_ingress_sc_record, hw, rec, table_index);
+
+	WARN_ONCE(err, "%s failed with %d\n", __func__, err);
+
+	return err;
+}
+
+static int get_ingress_sc_record(struct aq_hw_s *hw,
+				 struct aq_mss_ingress_sc_record *rec,
+				 u16 table_index)
+{
+	u16 packed_record[8];
+	int ret;
+
+	if (table_index >= NUMROWS_INGRESSSCRECORD)
+		return -EINVAL;
+
+	ret = get_raw_ingress_record(hw, packed_record, 8, 3,
+				     ROWOFFSET_INGRESSSCRECORD + table_index);
+	if (unlikely(ret))
+		return ret;
+
+	rec->stop_time = packed_record[0];
+	rec->stop_time |= packed_record[1] << 16;
+
+	rec->start_time = packed_record[2];
+	rec->start_time |= packed_record[3] << 16;
+
+	rec->validate_frames = packed_record[4] & 0x3;
+
+	rec->replay_protect = (packed_record[4] >> 2) & 0x1;
+
+	rec->anti_replay_window = (packed_record[4] >> 3) & 0x1FFF;
+	rec->anti_replay_window |= packed_record[5] << 13;
+	rec->anti_replay_window |= (packed_record[6] & 0x7) << 29;
+
+	rec->receiving = (packed_record[6] >> 3) & 0x1;
+
+	rec->fresh = (packed_record[6] >> 4) & 0x1;
+
+	rec->an_rol = (packed_record[6] >> 5) & 0x1;
+
+	rec->reserved = (packed_record[6] >> 6) & 0x3FF;
+	rec->reserved |= (packed_record[7] & 0x7FFF) << 10;
+
+	rec->valid = (packed_record[7] >> 15) & 0x1;
+
+	return 0;
+}
+
+int aq_mss_get_ingress_sc_record(struct aq_hw_s *hw,
+				 struct aq_mss_ingress_sc_record *rec,
+				 u16 table_index)
+{
+	memset(rec, 0, sizeof(*rec));
+
+	return AQ_API_CALL_SAFE(get_ingress_sc_record, hw, rec, table_index);
+}
+
+static int set_ingress_sa_record(struct aq_hw_s *hw,
+				 const struct aq_mss_ingress_sa_record *rec,
+				 u16 table_index)
+{
+	u16 packed_record[8];
+
+	if (table_index >= NUMROWS_INGRESSSARECORD)
+		return -EINVAL;
+
+	memset(packed_record, 0, sizeof(u16) * 8);
+
+	packed_record[0] = rec->stop_time & 0xFFFF;
+	packed_record[1] = (rec->stop_time >> 16) & 0xFFFF;
+
+	packed_record[2] = rec->start_time & 0xFFFF;
+	packed_record[3] = (rec->start_time >> 16) & 0xFFFF;
+
+	packed_record[4] = rec->next_pn & 0xFFFF;
+	packed_record[5] = (rec->next_pn >> 16) & 0xFFFF;
+
+	packed_record[6] = rec->sat_nextpn & 0x1;
+
+	packed_record[6] |= (rec->in_use & 0x1) << 1;
+
+	packed_record[6] |= (rec->fresh & 0x1) << 2;
+
+	packed_record[6] |= (rec->reserved & 0x1FFF) << 3;
+	packed_record[7] = (rec->reserved >> 13) & 0x7FFF;
+
+	packed_record[7] |= (rec->valid & 0x1) << 15;
+
+	return set_raw_ingress_record(hw, packed_record, 8, 3,
+				      ROWOFFSET_INGRESSSARECORD + table_index);
+}
+
+int aq_mss_set_ingress_sa_record(struct aq_hw_s *hw,
+				 const struct aq_mss_ingress_sa_record *rec,
+				 u16 table_index)
+{
+	int err = AQ_API_CALL_SAFE(set_ingress_sa_record, hw, rec, table_index);
+
+	WARN_ONCE(err, "%s failed with %d\n", __func__, err);
+
+	return err;
+}
+
+static int get_ingress_sa_record(struct aq_hw_s *hw,
+				 struct aq_mss_ingress_sa_record *rec,
+				 u16 table_index)
+{
+	u16 packed_record[8];
+	int ret;
+
+	if (table_index >= NUMROWS_INGRESSSARECORD)
+		return -EINVAL;
+
+	ret = get_raw_ingress_record(hw, packed_record, 8, 3,
+				     ROWOFFSET_INGRESSSARECORD + table_index);
+	if (unlikely(ret))
+		return ret;
+
+	rec->stop_time = packed_record[0];
+	rec->stop_time |= packed_record[1] << 16;
+
+	rec->start_time = packed_record[2];
+	rec->start_time |= packed_record[3] << 16;
+
+	rec->next_pn = packed_record[4];
+	rec->next_pn |= packed_record[5] << 16;
+
+	rec->sat_nextpn = packed_record[6] & 0x1;
+
+	rec->in_use = (packed_record[6] >> 1) & 0x1;
+
+	rec->fresh = (packed_record[6] >> 2) & 0x1;
+
+	rec->reserved = (packed_record[6] >> 3) & 0x1FFF;
+	rec->reserved |= (packed_record[7] & 0x7FFF) << 13;
+
+	rec->valid = (packed_record[7] >> 15) & 0x1;
+
+	return 0;
+}
+
+int aq_mss_get_ingress_sa_record(struct aq_hw_s *hw,
+				 struct aq_mss_ingress_sa_record *rec,
+				 u16 table_index)
+{
+	memset(rec, 0, sizeof(*rec));
+
+	return AQ_API_CALL_SAFE(get_ingress_sa_record, hw, rec, table_index);
+}
+
+static int
+set_ingress_sakey_record(struct aq_hw_s *hw,
+			 const struct aq_mss_ingress_sakey_record *rec,
+			 u16 table_index)
+{
+	u16 packed_record[18];
+
+	if (table_index >= NUMROWS_INGRESSSAKEYRECORD)
+		return -EINVAL;
+
+	memset(packed_record, 0, sizeof(u16) * 18);
+
+	packed_record[0] = rec->key[0] & 0xFFFF;
+	packed_record[1] = (rec->key[0] >> 16) & 0xFFFF;
+
+	packed_record[2] = rec->key[1] & 0xFFFF;
+	packed_record[3] = (rec->key[1] >> 16) & 0xFFFF;
+
+	packed_record[4] = rec->key[2] & 0xFFFF;
+	packed_record[5] = (rec->key[2] >> 16) & 0xFFFF;
+
+	packed_record[6] = rec->key[3] & 0xFFFF;
+	packed_record[7] = (rec->key[3] >> 16) & 0xFFFF;
+
+	packed_record[8] = rec->key[4] & 0xFFFF;
+	packed_record[9] = (rec->key[4] >> 16) & 0xFFFF;
+
+	packed_record[10] = rec->key[5] & 0xFFFF;
+	packed_record[11] = (rec->key[5] >> 16) & 0xFFFF;
+
+	packed_record[12] = rec->key[6] & 0xFFFF;
+	packed_record[13] = (rec->key[6] >> 16) & 0xFFFF;
+
+	packed_record[14] = rec->key[7] & 0xFFFF;
+	packed_record[15] = (rec->key[7] >> 16) & 0xFFFF;
+
+	packed_record[16] = rec->key_len & 0x3;
+
+	return set_raw_ingress_record(hw, packed_record, 18, 2,
+				      ROWOFFSET_INGRESSSAKEYRECORD +
+					      table_index);
+}
+
+int aq_mss_set_ingress_sakey_record(struct aq_hw_s *hw,
+	const struct aq_mss_ingress_sakey_record *rec,
+	u16 table_index)
+{
+	int err = AQ_API_CALL_SAFE(set_ingress_sakey_record, hw, rec,
+				   table_index);
+
+	WARN_ONCE(err, "%s failed with %d\n", __func__, err);
+
+	return err;
+}
+
+static int get_ingress_sakey_record(struct aq_hw_s *hw,
+				    struct aq_mss_ingress_sakey_record *rec,
+				    u16 table_index)
+{
+	u16 packed_record[18];
+	int ret;
+
+	if (table_index >= NUMROWS_INGRESSSAKEYRECORD)
+		return -EINVAL;
+
+	ret = get_raw_ingress_record(hw, packed_record, 18, 2,
+				     ROWOFFSET_INGRESSSAKEYRECORD +
+					     table_index);
+	if (unlikely(ret))
+		return ret;
+
+	rec->key[0] = packed_record[0];
+	rec->key[0] |= packed_record[1] << 16;
+
+	rec->key[1] = packed_record[2];
+	rec->key[1] |= packed_record[3] << 16;
+
+	rec->key[2] = packed_record[4];
+	rec->key[2] |= packed_record[5] << 16;
+
+	rec->key[3] = packed_record[6];
+	rec->key[3] |= packed_record[7] << 16;
+
+	rec->key[4] = packed_record[8];
+	rec->key[4] |= packed_record[9] << 16;
+
+	rec->key[5] = packed_record[10];
+	rec->key[5] |= packed_record[11] << 16;
+
+	rec->key[6] = packed_record[12];
+	rec->key[6] |= packed_record[13] << 16;
+
+	rec->key[7] = packed_record[14];
+	rec->key[7] |= packed_record[15] << 16;
+
+	rec->key_len = (rec->key_len & 0xFFFFFFFC) |
+		       (packed_record[16] & 0x3);
+
+	return 0;
+}
+
+int aq_mss_get_ingress_sakey_record(struct aq_hw_s *hw,
+				    struct aq_mss_ingress_sakey_record *rec,
+				    u16 table_index)
+{
+	memset(rec, 0, sizeof(*rec));
+
+	return AQ_API_CALL_SAFE(get_ingress_sakey_record, hw, rec, table_index);
+}
+
+static int
+set_ingress_postclass_record(struct aq_hw_s *hw,
+			     const struct aq_mss_ingress_postclass_record *rec,
+			     u16 table_index)
+{
+	u16 packed_record[8];
+
+	if (table_index >= NUMROWS_INGRESSPOSTCLASSRECORD)
+		return -EINVAL;
+
+	memset(packed_record, 0, sizeof(u16) * 8);
+
+	packed_record[0] = rec->byte0 & 0xFF;
+
+	packed_record[0] |= (rec->byte1 & 0xFF) << 8;
+
+	packed_record[1] = rec->byte2 & 0xFF;
+
+	packed_record[1] |= (rec->byte3 & 0xFF) << 8;
+
+	packed_record[2] = rec->eth_type & 0xFFFF;
+
+	packed_record[3] = rec->eth_type_valid & 0x1;
+
+	packed_record[3] |= (rec->vlan_id & 0xFFF) << 1;
+
+	packed_record[3] |= (rec->vlan_up & 0x7) << 13;
+
+	packed_record[4] = rec->vlan_valid & 0x1;
+
+	packed_record[4] |= (rec->sai & 0x1F) << 1;
+
+	packed_record[4] |= (rec->sai_hit & 0x1) << 6;
+
+	packed_record[4] |= (rec->eth_type_mask & 0xF) << 7;
+
+	packed_record[4] |= (rec->byte3_location & 0x1F) << 11;
+	packed_record[5] = (rec->byte3_location >> 5) & 0x1;
+
+	packed_record[5] |= (rec->byte3_mask & 0x3) << 1;
+
+	packed_record[5] |= (rec->byte2_location & 0x3F) << 3;
+
+	packed_record[5] |= (rec->byte2_mask & 0x3) << 9;
+
+	packed_record[5] |= (rec->byte1_location & 0x1F) << 11;
+	packed_record[6] = (rec->byte1_location >> 5) & 0x1;
+
+	packed_record[6] |= (rec->byte1_mask & 0x3) << 1;
+
+	packed_record[6] |= (rec->byte0_location & 0x3F) << 3;
+
+	packed_record[6] |= (rec->byte0_mask & 0x3) << 9;
+
+	packed_record[6] |= (rec->eth_type_valid_mask & 0x3) << 11;
+
+	packed_record[6] |= (rec->vlan_id_mask & 0x7) << 13;
+	packed_record[7] = (rec->vlan_id_mask >> 3) & 0x1;
+
+	packed_record[7] |= (rec->vlan_up_mask & 0x3) << 1;
+
+	packed_record[7] |= (rec->vlan_valid_mask & 0x3) << 3;
+
+	packed_record[7] |= (rec->sai_mask & 0x3) << 5;
+
+	packed_record[7] |= (rec->sai_hit_mask & 0x3) << 7;
+
+	packed_record[7] |= (rec->firstlevel_actions & 0x1) << 9;
+
+	packed_record[7] |= (rec->secondlevel_actions & 0x1) << 10;
+
+	packed_record[7] |= (rec->reserved & 0xF) << 11;
+
+	packed_record[7] |= (rec->valid & 0x1) << 15;
+
+	return set_raw_ingress_record(hw, packed_record, 8, 4,
+				      ROWOFFSET_INGRESSPOSTCLASSRECORD +
+					      table_index);
+}
+
+int aq_mss_set_ingress_postclass_record(struct aq_hw_s *hw,
+	const struct aq_mss_ingress_postclass_record *rec,
+	u16 table_index)
+{
+	return AQ_API_CALL_SAFE(set_ingress_postclass_record, hw, rec,
+				table_index);
+}
+
+static int
+get_ingress_postclass_record(struct aq_hw_s *hw,
+			     struct aq_mss_ingress_postclass_record *rec,
+			     u16 table_index)
+{
+	u16 packed_record[8];
+	int ret;
+
+	if (table_index >= NUMROWS_INGRESSPOSTCLASSRECORD)
+		return -EINVAL;
+
+	/* If the row that we want to read is odd, first read the previous even
+	 * row, throw that value away, and finally read the desired row.
+	 */
+	if ((table_index % 2) > 0) {
+		ret = get_raw_ingress_record(hw, packed_record, 8, 4,
+					     ROWOFFSET_INGRESSPOSTCLASSRECORD +
+						     table_index - 1);
+		if (unlikely(ret))
+			return ret;
+	}
+
+	ret = get_raw_ingress_record(hw, packed_record, 8, 4,
+				     ROWOFFSET_INGRESSPOSTCLASSRECORD +
+					     table_index);
+	if (unlikely(ret))
+		return ret;
+
+	rec->byte0 = packed_record[0] & 0xFF;
+
+	rec->byte1 = (packed_record[0] >> 8) & 0xFF;
+
+	rec->byte2 = packed_record[1] & 0xFF;
+
+	rec->byte3 = (packed_record[1] >> 8) & 0xFF;
+
+	rec->eth_type = packed_record[2];
+
+	rec->eth_type_valid = packed_record[3] & 0x1;
+
+	rec->vlan_id = (packed_record[3] >> 1) & 0xFFF;
+
+	rec->vlan_up = (packed_record[3] >> 13) & 0x7;
+
+	rec->vlan_valid = packed_record[4] & 0x1;
+
+	rec->sai = (packed_record[4] >> 1) & 0x1F;
+
+	rec->sai_hit = (packed_record[4] >> 6) & 0x1;
+
+	rec->eth_type_mask = (packed_record[4] >> 7) & 0xF;
+
+	rec->byte3_location = (packed_record[4] >> 11) & 0x1F;
+	rec->byte3_location |= (packed_record[5] & 0x1) << 5;
+
+	rec->byte3_mask = (packed_record[5] >> 1) & 0x3;
+
+	rec->byte2_location = (packed_record[5] >> 3) & 0x3F;
+
+	rec->byte2_mask = (packed_record[5] >> 9) & 0x3;
+
+	rec->byte1_location = (packed_record[5] >> 11) & 0x1F;
+	rec->byte1_location |= (packed_record[6] & 0x1) << 5;
+
+	rec->byte1_mask = (packed_record[6] >> 1) & 0x3;
+
+	rec->byte0_location = (packed_record[6] >> 3) & 0x3F;
+
+	rec->byte0_mask = (packed_record[6] >> 9) & 0x3;
+
+	rec->eth_type_valid_mask = (packed_record[6] >> 11) & 0x3;
+
+	rec->vlan_id_mask = (packed_record[6] >> 13) & 0x7;
+	rec->vlan_id_mask |= (packed_record[7] & 0x1) << 3;
+
+	rec->vlan_up_mask = (packed_record[7] >> 1) & 0x3;
+
+	rec->vlan_valid_mask = (packed_record[7] >> 3) & 0x3;
+
+	rec->sai_mask = (packed_record[7] >> 5) & 0x3;
+
+	rec->sai_hit_mask = (packed_record[7] >> 7) & 0x3;
+
+	rec->firstlevel_actions = (packed_record[7] >> 9) & 0x1;
+
+	rec->secondlevel_actions = (packed_record[7] >> 10) & 0x1;
+
+	rec->reserved = (packed_record[7] >> 11) & 0xF;
+
+	rec->valid = (packed_record[7] >> 15) & 0x1;
+
+	return 0;
+}
+
+int aq_mss_get_ingress_postclass_record(struct aq_hw_s *hw,
+	struct aq_mss_ingress_postclass_record *rec,
+	u16 table_index)
+{
+	memset(rec, 0, sizeof(*rec));
+
+	return AQ_API_CALL_SAFE(get_ingress_postclass_record, hw, rec,
+				table_index);
+}
+
+static int
+set_ingress_postctlf_record(struct aq_hw_s *hw,
+			    const struct aq_mss_ingress_postctlf_record *rec,
+			    u16 table_index)
+{
+	u16 packed_record[6];
+
+	if (table_index >= NUMROWS_INGRESSPOSTCTLFRECORD)
+		return -EINVAL;
+
+	memset(packed_record, 0, sizeof(u16) * 6);
+
+	packed_record[0] = rec->sa_da[0] & 0xFFFF;
+	packed_record[1] = (rec->sa_da[0] >> 16) & 0xFFFF;
+
+	packed_record[2] = rec->sa_da[1] & 0xFFFF;
+
+	packed_record[3] = rec->eth_type & 0xFFFF;
+
+	packed_record[4] = rec->match_mask & 0xFFFF;
+
+	packed_record[5] = rec->match_type & 0xF;
+
+	packed_record[5] |= (rec->action & 0x1) << 4;
+
+	return set_raw_ingress_record(hw, packed_record, 6, 5,
+				      ROWOFFSET_INGRESSPOSTCTLFRECORD +
+					      table_index);
+}
+
+int aq_mss_set_ingress_postctlf_record(struct aq_hw_s *hw,
+	const struct aq_mss_ingress_postctlf_record *rec,
+	u16 table_index)
+{
+	return AQ_API_CALL_SAFE(set_ingress_postctlf_record, hw, rec,
+				table_index);
+}
+
+static int
+get_ingress_postctlf_record(struct aq_hw_s *hw,
+			    struct aq_mss_ingress_postctlf_record *rec,
+			    u16 table_index)
+{
+	u16 packed_record[6];
+	int ret;
+
+	if (table_index >= NUMROWS_INGRESSPOSTCTLFRECORD)
+		return -EINVAL;
+
+	/* If the row that we want to read is odd, first read the previous even
+	 * row, throw that value away, and finally read the desired row.
+	 */
+	if ((table_index % 2) > 0) {
+		ret = get_raw_ingress_record(hw, packed_record, 6, 5,
+					     ROWOFFSET_INGRESSPOSTCTLFRECORD +
+						     table_index - 1);
+		if (unlikely(ret))
+			return ret;
+	}
+
+	ret = get_raw_ingress_record(hw, packed_record, 6, 5,
+				     ROWOFFSET_INGRESSPOSTCTLFRECORD +
+					     table_index);
+	if (unlikely(ret))
+		return ret;
+
+	rec->sa_da[0] = packed_record[0];
+	rec->sa_da[0] |= packed_record[1] << 16;
+
+	rec->sa_da[1] = packed_record[2];
+
+	rec->eth_type = packed_record[3];
+
+	rec->match_mask = packed_record[4];
+
+	rec->match_type = packed_record[5] & 0xF;
+
+	rec->action = (packed_record[5] >> 4) & 0x1;
+
+	return 0;
+}
+
+int aq_mss_get_ingress_postctlf_record(struct aq_hw_s *hw,
+	struct aq_mss_ingress_postctlf_record *rec,
+	u16 table_index)
+{
+	memset(rec, 0, sizeof(*rec));
+
+	return AQ_API_CALL_SAFE(get_ingress_postctlf_record, hw, rec,
+				table_index);
 }
 
 static int set_egress_ctlf_record(struct aq_hw_s *hw,

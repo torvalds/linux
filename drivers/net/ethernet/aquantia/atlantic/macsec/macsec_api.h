@@ -9,6 +9,27 @@
 #include "aq_hw.h"
 #include "macsec_struct.h"
 
+#define NUMROWS_INGRESSPRECTLFRECORD 24
+#define ROWOFFSET_INGRESSPRECTLFRECORD 0
+
+#define NUMROWS_INGRESSPRECLASSRECORD 48
+#define ROWOFFSET_INGRESSPRECLASSRECORD 0
+
+#define NUMROWS_INGRESSPOSTCLASSRECORD 48
+#define ROWOFFSET_INGRESSPOSTCLASSRECORD 0
+
+#define NUMROWS_INGRESSSCRECORD 32
+#define ROWOFFSET_INGRESSSCRECORD 0
+
+#define NUMROWS_INGRESSSARECORD 32
+#define ROWOFFSET_INGRESSSARECORD 32
+
+#define NUMROWS_INGRESSSAKEYRECORD 32
+#define ROWOFFSET_INGRESSSAKEYRECORD 0
+
+#define NUMROWS_INGRESSPOSTCTLFRECORD 24
+#define ROWOFFSET_INGRESSPOSTCTLFRECORD 0
+
 #define NUMROWS_EGRESSCTLFRECORD 24
 #define ROWOFFSET_EGRESSCTLFRECORD 0
 
@@ -113,6 +134,133 @@ int aq_mss_get_egress_sakey_record(struct aq_hw_s *hw,
 int aq_mss_set_egress_sakey_record(struct aq_hw_s *hw,
 				   const struct aq_mss_egress_sakey_record *rec,
 				   u16 table_index);
+
+/*!  Read the raw table data from the specified row of the Ingress
+ *   Pre-MACSec CTL Filter table, and unpack it into the fields of rec.
+ *  rec - [OUT] The raw table row data will be unpacked into the fields of rec.
+ *  table_index - The table row to read (max 23).
+ */
+int aq_mss_get_ingress_prectlf_record(struct aq_hw_s *hw,
+				      struct aq_mss_ingress_prectlf_record *rec,
+				      u16 table_index);
+
+/*!  Pack the fields of rec, and write the packed data into the
+ *   specified row of the Ingress Pre-MACSec CTL Filter table.
+ *  rec - [IN] The bitfield values to write to the table row.
+ *  table_index - The table row to write(max 23).
+ */
+int aq_mss_set_ingress_prectlf_record(struct aq_hw_s *hw,
+	const struct aq_mss_ingress_prectlf_record *rec,
+	u16 table_index);
+
+/*!  Read the raw table data from the specified row of the Ingress
+ *   Pre-MACSec Packet Classifier table, and unpack it into the fields of rec.
+ *  rec - [OUT] The raw table row data will be unpacked into the fields of rec.
+ *  table_index - The table row to read (max 47).
+ */
+int aq_mss_get_ingress_preclass_record(struct aq_hw_s *hw,
+	struct aq_mss_ingress_preclass_record *rec,
+	u16 table_index);
+
+/*!  Pack the fields of rec, and write the packed data into the
+ *   specified row of the Ingress Pre-MACSec Packet Classifier table.
+ *  rec - [IN] The bitfield values to write to the table row.
+ *  table_index - The table row to write(max 47).
+ */
+int aq_mss_set_ingress_preclass_record(struct aq_hw_s *hw,
+	const struct aq_mss_ingress_preclass_record *rec,
+	u16 table_index);
+
+/*!  Read the raw table data from the specified row of the Ingress SC
+ *   Lookup table, and unpack it into the fields of rec.
+ *  rec - [OUT] The raw table row data will be unpacked into the fields of rec.
+ *  table_index - The table row to read (max 31).
+ */
+int aq_mss_get_ingress_sc_record(struct aq_hw_s *hw,
+				 struct aq_mss_ingress_sc_record *rec,
+				 u16 table_index);
+
+/*!  Pack the fields of rec, and write the packed data into the
+ *   specified row of the Ingress SC Lookup table.
+ *  rec - [IN] The bitfield values to write to the table row.
+ *  table_index - The table row to write(max 31).
+ */
+int aq_mss_set_ingress_sc_record(struct aq_hw_s *hw,
+				 const struct aq_mss_ingress_sc_record *rec,
+				 u16 table_index);
+
+/*!  Read the raw table data from the specified row of the Ingress SA
+ *   Lookup table, and unpack it into the fields of rec.
+ *  rec - [OUT] The raw table row data will be unpacked into the fields of rec.
+ *  table_index - The table row to read (max 31).
+ */
+int aq_mss_get_ingress_sa_record(struct aq_hw_s *hw,
+				 struct aq_mss_ingress_sa_record *rec,
+				 u16 table_index);
+
+/*!  Pack the fields of rec, and write the packed data into the
+ *   specified row of the Ingress SA Lookup table.
+ *  rec - [IN] The bitfield values to write to the table row.
+ *  table_index - The table row to write(max 31).
+ */
+int aq_mss_set_ingress_sa_record(struct aq_hw_s *hw,
+				 const struct aq_mss_ingress_sa_record *rec,
+				 u16 table_index);
+
+/*!  Read the raw table data from the specified row of the Ingress SA
+ *   Key Lookup table, and unpack it into the fields of rec.
+ *  rec - [OUT] The raw table row data will be unpacked into the fields of rec.
+ *  table_index - The table row to read (max 31).
+ */
+int aq_mss_get_ingress_sakey_record(struct aq_hw_s *hw,
+				    struct aq_mss_ingress_sakey_record *rec,
+				    u16 table_index);
+
+/*!  Pack the fields of rec, and write the packed data into the
+ *   specified row of the Ingress SA Key Lookup table.
+ *  rec - [IN] The bitfield values to write to the table row.
+ *  table_index - The table row to write(max 31).
+ */
+int aq_mss_set_ingress_sakey_record(struct aq_hw_s *hw,
+	const struct aq_mss_ingress_sakey_record *rec,
+	u16 table_index);
+
+/*!  Read the raw table data from the specified row of the Ingress
+ *   Post-MACSec Packet Classifier table, and unpack it into the
+ *   fields of rec.
+ *  rec - [OUT] The raw table row data will be unpacked into the fields of rec.
+ *  table_index - The table row to read (max 48).
+ */
+int aq_mss_get_ingress_postclass_record(struct aq_hw_s *hw,
+	struct aq_mss_ingress_postclass_record *rec,
+	u16 table_index);
+
+/*!  Pack the fields of rec, and write the packed data into the
+ *   specified row of the Ingress Post-MACSec Packet Classifier table.
+ *  rec - [IN] The bitfield values to write to the table row.
+ *  table_index - The table row to write(max 48).
+ */
+int aq_mss_set_ingress_postclass_record(struct aq_hw_s *hw,
+	const struct aq_mss_ingress_postclass_record *rec,
+	u16 table_index);
+
+/*!  Read the raw table data from the specified row of the Ingress
+ *   Post-MACSec CTL Filter table, and unpack it into the fields of rec.
+ *  rec - [OUT] The raw table row data will be unpacked into the fields of rec.
+ *  table_index - The table row to read (max 23).
+ */
+int aq_mss_get_ingress_postctlf_record(struct aq_hw_s *hw,
+	struct aq_mss_ingress_postctlf_record *rec,
+	u16 table_index);
+
+/*!  Pack the fields of rec, and write the packed data into the
+ *   specified row of the Ingress Post-MACSec CTL Filter table.
+ *  rec - [IN] The bitfield values to write to the table row.
+ *  table_index - The table row to write(max 23).
+ */
+int aq_mss_set_ingress_postctlf_record(struct aq_hw_s *hw,
+	const struct aq_mss_ingress_postctlf_record *rec,
+	u16 table_index);
 
 /*!  Get Egress SA expired. */
 int aq_mss_get_egress_sa_expired(struct aq_hw_s *hw, u32 *expired);
