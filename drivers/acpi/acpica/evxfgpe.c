@@ -799,17 +799,19 @@ ACPI_EXPORT_SYMBOL(acpi_enable_all_wakeup_gpes)
  *
  * FUNCTION:    acpi_any_gpe_status_set
  *
- * PARAMETERS:  None
+ * PARAMETERS:  gpe_skip_number      - Number of the GPE to skip
  *
  * RETURN:      Whether or not the status bit is set for any GPE
  *
- * DESCRIPTION: Check the status bits of all enabled GPEs and return TRUE if any
- *              of them is set or FALSE otherwise.
+ * DESCRIPTION: Check the status bits of all enabled GPEs, except for the one
+ *              represented by the "skip" argument, and return TRUE if any of
+ *              them is set or FALSE otherwise.
  *
  ******************************************************************************/
-u32 acpi_any_gpe_status_set(void)
+u32 acpi_any_gpe_status_set(u32 gpe_skip_number)
 {
 	acpi_status status;
+	acpi_handle gpe_device;
 	u8 ret;
 
 	ACPI_FUNCTION_TRACE(acpi_any_gpe_status_set);
@@ -819,7 +821,12 @@ u32 acpi_any_gpe_status_set(void)
 		return (FALSE);
 	}
 
-	ret = acpi_hw_check_all_gpes();
+	status = acpi_get_gpe_device(gpe_skip_number, &gpe_device);
+	if (ACPI_FAILURE(status)) {
+		gpe_device = NULL;
+	}
+
+	ret = acpi_hw_check_all_gpes(gpe_device, gpe_skip_number);
 	(void)acpi_ut_release_mutex(ACPI_MTX_EVENTS);
 
 	return (ret);

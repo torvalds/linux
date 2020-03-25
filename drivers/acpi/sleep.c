@@ -1019,7 +1019,7 @@ static bool acpi_s2idle_wake(void)
 		 * status bit from unset to set between the checks with the
 		 * status bits of all the other GPEs unset.
 		 */
-		if (acpi_any_gpe_status_set() && !acpi_ec_dispatch_gpe())
+		if (acpi_any_gpe_status_set(U32_MAX) && !acpi_ec_dispatch_gpe())
 			return true;
 
 		/*
