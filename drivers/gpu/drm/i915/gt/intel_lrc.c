@@ -4985,10 +4985,8 @@ static void virtual_submission_tasklet(unsigned long data)
 submit_engine:
 		GEM_BUG_ON(RB_EMPTY_NODE(&node->rb));
 		node->prio = prio;
-		if (first && prio > sibling->execlists.queue_priority_hint) {
-			sibling->execlists.queue_priority_hint = prio;
+		if (first && prio > sibling->execlists.queue_priority_hint)
 			tasklet_hi_schedule(&sibling->execlists.tasklet);
-		}
 
 		spin_unlock(&sibling->active.lock);
 	}
