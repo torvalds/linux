@@ -730,6 +730,7 @@
  * %eax: prev task
  * %edx: next task
  */
+.pushsection .text, "ax"
 SYM_CODE_START(__switch_to_asm)
 	/*
 	 * Save callee-saved registers
@@ -776,6 +777,7 @@ SYM_CODE_START(__switch_to_asm)
 
 	jmp	__switch_to
 SYM_CODE_END(__switch_to_asm)
+.popsection
 
 /*
  * The unwinder expects the last frame on the stack to always be at the same
@@ -784,6 +786,7 @@ SYM_CODE_END(__switch_to_asm)
  * asmlinkage function so its argument has to be pushed on the stack.  This
  * wrapper creates a proper "end of stack" frame header before the call.
  */
+.pushsection .text, "ax"
 SYM_FUNC_START(schedule_tail_wrapper)
 	FRAME_BEGIN
 
@@ -794,6 +797,8 @@ SYM_FUNC_START(schedule_tail_wrapper)
 	FRAME_END
 	ret
 SYM_FUNC_END(schedule_tail_wrapper)
+.popsection
+
 /*
  * A newly forked process directly context switches into this address.
  *
@@ -801,6 +806,7 @@ SYM_FUNC_END(schedule_tail_wrapper)
  * ebx: kernel thread func (NULL for user thread)
  * edi: kernel thread arg
  */
+.pushsection .text, "ax"
 SYM_CODE_START(ret_from_fork)
 	call	schedule_tail_wrapper
 
@@ -825,6 +831,7 @@ SYM_CODE_START(ret_from_fork)
 	movl	$0, PT_EAX(%esp)
 	jmp	2b
 SYM_CODE_END(ret_from_fork)
+.popsection
 
 /*
  * Return to user mode is not as complex as all this looks,
@@ -1691,6 +1698,7 @@ SYM_CODE_START(general_protection)
 	jmp	common_exception
 SYM_CODE_END(general_protection)
 
+.pushsection .text, "ax"
 SYM_CODE_START(rewind_stack_do_exit)
 	/* Prevent any naive code from trying to unwind to our caller. */
 	xorl	%ebp, %ebp
@@ -1701,3 +1709,4 @@ SYM_CODE_START(rewind_stack_do_exit)
 	call	do_exit
 1:	jmp 1b
 SYM_CODE_END(rewind_stack_do_exit)
+.popsection
