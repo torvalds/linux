@@ -42,10 +42,6 @@ properties:
           - adi,adt7476
             # +/-1C TDM Extended Temp Range I.C
           - adi,adt7490
-            # Three-Axis Digital Accelerometer
-          - adi,adxl345
-            # Three-Axis Digital Accelerometer (backward-compatibility value "adi,adxl345" must be listed too)
-          - adi,adxl346
             # AMS iAQ-Core VOC Sensor
           - ams,iaq-core
             # i2c serial eeprom  (24cxx)
