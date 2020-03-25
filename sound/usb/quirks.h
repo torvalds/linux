@@ -46,7 +46,6 @@ void snd_usb_audioformat_attributes_quirk(struct snd_usb_audio *chip,
 					  struct audioformat *fp,
 					  int stream);
 
-int snd_usb_registration_quirk(struct snd_usb_audio *chip,
-			       int iface);
+bool snd_usb_registration_quirk(struct snd_usb_audio *chip, int iface);
 
 #endif /* __USBAUDIO_QUIRKS_H */
