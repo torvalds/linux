@@ -56,6 +56,14 @@ static const struct snd_soc_acpi_adr_device rt1308_1_adr[] = {
 	}
 };
 
+static const struct snd_soc_acpi_adr_device rt5682_0_adr[] = {
+	{
+		.adr = 0x000021025D568200,
+		.num_endpoints = 1,
+		.endpoints = &single_endpoint,
+	}
+};
+
 static const struct snd_soc_acpi_link_adr tgl_i2s_rt1308[] = {
 	{
 		.mask = BIT(0),
@@ -75,6 +83,15 @@ static const struct snd_soc_acpi_link_adr tgl_rvp[] = {
 		.mask = BIT(1),
 		.num_adr = ARRAY_SIZE(rt1308_1_adr),
 		.adr_d = rt1308_1_adr,
+	},
+	{}
+};
+
+static const struct snd_soc_acpi_link_adr tgl_chromebook_base[] = {
+	{
+		.mask = BIT(0),
+		.num_adr = ARRAY_SIZE(rt5682_0_adr),
+		.adr_d = rt5682_0_adr,
 	},
 	{}
 };
@@ -121,6 +138,13 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_tgl_sdw_machines[] = {
 		.drv_name = "sof_sdw",
 		.sof_fw_filename = "sof-tgl.ri",
 		.sof_tplg_filename = "sof-tgl-rt711-rt1308.tplg",
+	},
+	{
+		.link_mask = 0x1, /* this will only enable rt5682 for now */
+		.links = tgl_chromebook_base,
+		.drv_name = "sof_sdw",
+		.sof_fw_filename = "sof-tgl.ri",
+		.sof_tplg_filename = "sof-tgl-rt5682.tplg",
 	},
 	{},
 };
