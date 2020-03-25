@@ -59,7 +59,9 @@
 #define ARM64_HAS_E0PD				49
 #define ARM64_HAS_RNG				50
 #define ARM64_HAS_AMU_EXTN			51
+#define ARM64_HAS_ADDRESS_AUTH			52
+#define ARM64_HAS_GENERIC_AUTH			53
 
-#define ARM64_NCAPS				52
+#define ARM64_NCAPS				54
 
 #endif /* __ASM_CPUCAPS_H */
