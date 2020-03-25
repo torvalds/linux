@@ -1230,6 +1230,9 @@ size_t perf_event__sample_event_size(const struct perf_sample *sample, u64 type,
 	if (type & PERF_SAMPLE_PHYS_ADDR)
 		result += sizeof(u64);
 
+	if (type & PERF_SAMPLE_CGROUP)
+		result += sizeof(u64);
+
 	if (type & PERF_SAMPLE_AUX) {
 		result += sizeof(u64);
 		result += sample->aux_sample.size;
@@ -1401,6 +1404,11 @@ int perf_event__synthesize_sample(union perf_event *event, u64 type, u64 read_fo
 
 	if (type & PERF_SAMPLE_PHYS_ADDR) {
 		*array = sample->phys_addr;
+		array++;
+	}
+
+	if (type & PERF_SAMPLE_CGROUP) {
+		*array = sample->cgroup;
 		array++;
 	}
 
