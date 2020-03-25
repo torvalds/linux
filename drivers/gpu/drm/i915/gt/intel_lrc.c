@@ -2891,6 +2891,13 @@ static void __submit_queue_imm(struct intel_engine_cs *engine)
 	if (reset_in_progress(execlists))
 		return; /* defer until we restart the engine following reset */
 
+	/* Hopefully we clear execlists->pending[] to let us through */
+	if (READ_ONCE(execlists->pending[0]) &&
+	    tasklet_trylock(&execlists->tasklet)) {
+		process_csb(engine);
+		tasklet_unlock(&execlists->tasklet);
+	}
+
 	__execlists_submission_tasklet(engine);
 }
 
