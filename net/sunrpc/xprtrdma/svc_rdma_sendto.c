@@ -812,7 +812,8 @@ static int svc_rdma_send_reply_msg(struct svcxprt_rdma *rdma,
  */
 static int svc_rdma_send_error_msg(struct svcxprt_rdma *rdma,
 				   struct svc_rdma_send_ctxt *sctxt,
-				   struct svc_rdma_recv_ctxt *rctxt)
+				   struct svc_rdma_recv_ctxt *rctxt,
+				   int status)
 {
 	__be32 *rdma_argp = rctxt->rc_recv_buf;
 	__be32 *p;
@@ -821,16 +822,35 @@ static int svc_rdma_send_error_msg(struct svcxprt_rdma *rdma,
 	xdr_init_encode(&sctxt->sc_stream, &sctxt->sc_hdrbuf,
 			sctxt->sc_xprt_buf, NULL);
 
-	p = xdr_reserve_space(&sctxt->sc_stream, RPCRDMA_HDRLEN_ERR);
+	p = xdr_reserve_space(&sctxt->sc_stream,
+			      rpcrdma_fixed_maxsz * sizeof(*p));
 	if (!p)
 		return -ENOMSG;
 
 	*p++ = *rdma_argp;
 	*p++ = *(rdma_argp + 1);
 	*p++ = rdma->sc_fc_credits;
-	*p++ = rdma_error;
-	*p   = err_chunk;
-	trace_svcrdma_err_chunk(*rdma_argp);
+	*p = rdma_error;
+
+	switch (status) {
+	case -EPROTONOSUPPORT:
+		p = xdr_reserve_space(&sctxt->sc_stream, 3 * sizeof(*p));
+		if (!p)
+			return -ENOMSG;
+
+		*p++ = err_vers;
+		*p++ = rpcrdma_version;
+		*p = rpcrdma_version;
+		trace_svcrdma_err_vers(*rdma_argp);
+		break;
+	default:
+		p = xdr_reserve_space(&sctxt->sc_stream, sizeof(*p));
+		if (!p)
+			return -ENOMSG;
+
+		*p = err_chunk;
+		trace_svcrdma_err_chunk(*rdma_argp);
+	}
 
 	sctxt->sc_send_wr.num_sge = 1;
 	sctxt->sc_send_wr.opcode = IB_WR_SEND;
@@ -930,7 +950,7 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 	 * of previously posted RDMA Writes.
 	 */
 	svc_rdma_save_io_pages(rqstp, sctxt);
-	ret = svc_rdma_send_error_msg(rdma, sctxt, rctxt);
+	ret = svc_rdma_send_error_msg(rdma, sctxt, rctxt, ret);
 	if (ret < 0)
 		goto err1;
 	return 0;
