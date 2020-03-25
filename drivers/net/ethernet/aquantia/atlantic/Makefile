@@ -24,7 +24,8 @@ atlantic-objs := aq_main.o \
 	hw_atl/hw_atl_b0.o \
 	hw_atl/hw_atl_utils.o \
 	hw_atl/hw_atl_utils_fw2x.o \
-	hw_atl/hw_atl_llh.o
+	hw_atl/hw_atl_llh.o \
+	macsec/macsec_api.o
 
 atlantic-$(CONFIG_MACSEC) += aq_macsec.o
 
