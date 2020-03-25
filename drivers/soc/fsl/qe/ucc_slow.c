@@ -168,16 +168,9 @@ int ucc_slow_init(struct ucc_slow_info * us_info, struct ucc_slow_private ** ucc
 		return -ENOMEM;
 	}
 
-	uccs->saved_uccm = 0;
-	uccs->p_rx_frame = 0;
 	us_regs = uccs->us_regs;
 	uccs->p_ucce = (u16 *) & (us_regs->ucce);
 	uccs->p_uccm = (u16 *) & (us_regs->uccm);
-#ifdef STATISTICS
-	uccs->rx_frames = 0;
-	uccs->tx_frames = 0;
-	uccs->rx_discarded = 0;
-#endif				/* STATISTICS */
 
 	/* Get PRAM base */
 	uccs->us_pram_offset =
