@@ -464,17 +464,15 @@ out:
  * Calculate the hash of template data
  */
 static int ima_calc_field_array_hash_tfm(struct ima_field_data *field_data,
-					 struct ima_template_desc *td,
-					 int num_fields,
-					 struct ima_digest_data *hash,
+					 struct ima_template_entry *entry,
 					 struct crypto_shash *tfm)
 {
 	SHASH_DESC_ON_STACK(shash, tfm);
+	struct ima_template_desc *td = entry->template_desc;
+	int num_fields = entry->template_desc->num_fields;
 	int rc, i;
 
 	shash->tfm = tfm;
-
-	hash->length = crypto_shash_digestsize(tfm);
 
 	rc = crypto_shash_init(shash);
 	if (rc != 0)
@@ -504,24 +502,22 @@ static int ima_calc_field_array_hash_tfm(struct ima_field_data *field_data,
 	}
 
 	if (!rc)
-		rc = crypto_shash_final(shash, hash->digest);
+		rc = crypto_shash_final(shash, entry->digest);
 
 	return rc;
 }
 
 int ima_calc_field_array_hash(struct ima_field_data *field_data,
-			      struct ima_template_desc *desc, int num_fields,
-			      struct ima_digest_data *hash)
+			      struct ima_template_entry *entry)
 {
 	struct crypto_shash *tfm;
 	int rc;
 
-	tfm = ima_alloc_tfm(hash->algo);
+	tfm = ima_alloc_tfm(HASH_ALGO_SHA1);
 	if (IS_ERR(tfm))
 		return PTR_ERR(tfm);
 
-	rc = ima_calc_field_array_hash_tfm(field_data, desc, num_fields,
-					   hash, tfm);
+	rc = ima_calc_field_array_hash_tfm(field_data, entry, tfm);
 
 	ima_free_tfm(tfm);
 
