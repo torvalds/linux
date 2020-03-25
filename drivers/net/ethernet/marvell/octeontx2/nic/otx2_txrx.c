@@ -304,6 +304,7 @@ static int otx2_rx_napi_handler(struct otx2_nic *pfvf,
 		otx2_aura_freeptr(pfvf, cq->cq_idx, bufptr + OTX2_HEAD_ROOM);
 		cq->pool_ptrs--;
 	}
+	otx2_get_page(cq->rbpool);
 
 	return processed_cqe;
 }
