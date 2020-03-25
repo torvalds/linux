@@ -262,6 +262,53 @@ int aq_mss_set_ingress_postctlf_record(struct aq_hw_s *hw,
 	const struct aq_mss_ingress_postctlf_record *rec,
 	u16 table_index);
 
+/*!  Read the counters for the specified SC, and unpack them into the
+ *   fields of counters.
+ *  counters - [OUT] The raw table row data will be unpacked here.
+ *  sc_index - The table row to read (max 31).
+ */
+int aq_mss_get_egress_sc_counters(struct aq_hw_s *hw,
+				  struct aq_mss_egress_sc_counters *counters,
+				  u16 sc_index);
+
+/*!  Read the counters for the specified SA, and unpack them into the
+ *   fields of counters.
+ *  counters - [OUT] The raw table row data will be unpacked here.
+ *  sa_index - The table row to read (max 31).
+ */
+int aq_mss_get_egress_sa_counters(struct aq_hw_s *hw,
+				  struct aq_mss_egress_sa_counters *counters,
+				  u16 sa_index);
+
+/*!  Read the counters for the common egress counters, and unpack them
+ *   into the fields of counters.
+ *  counters - [OUT] The raw table row data will be unpacked here.
+ */
+int aq_mss_get_egress_common_counters(struct aq_hw_s *hw,
+	struct aq_mss_egress_common_counters *counters);
+
+/*!  Clear all Egress counters to 0.*/
+int aq_mss_clear_egress_counters(struct aq_hw_s *hw);
+
+/*!  Read the counters for the specified SA, and unpack them into the
+ *   fields of counters.
+ *  counters - [OUT] The raw table row data will be unpacked here.
+ *  sa_index - The table row to read (max 31).
+ */
+int aq_mss_get_ingress_sa_counters(struct aq_hw_s *hw,
+				   struct aq_mss_ingress_sa_counters *counters,
+				   u16 sa_index);
+
+/*!  Read the counters for the common ingress counters, and unpack them
+ *   into the fields of counters.
+ *  counters - [OUT] The raw table row data will be unpacked here.
+ */
+int aq_mss_get_ingress_common_counters(struct aq_hw_s *hw,
+	struct aq_mss_ingress_common_counters *counters);
+
+/*!  Clear all Ingress counters to 0. */
+int aq_mss_clear_ingress_counters(struct aq_hw_s *hw);
+
 /*!  Get Egress SA expired. */
 int aq_mss_get_egress_sa_expired(struct aq_hw_s *hw, u32 *expired);
 /*!  Get Egress SA threshold expired. */

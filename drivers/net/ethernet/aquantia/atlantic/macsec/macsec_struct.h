@@ -697,4 +697,218 @@ struct aq_mss_ingress_postctlf_record {
 	u32 action;
 };
 
+/*! Represents the Egress MIB counters for a single SC. Counters are
+ *  64 bits, lower 32 bits in field[0].
+ */
+struct aq_mss_egress_sc_counters {
+	/*! The number of integrity protected but not encrypted packets
+	 *  for this transmitting SC.
+	 */
+	u32 sc_protected_pkts[2];
+	/*! The number of integrity protected and encrypted packets for
+	 *  this transmitting SC.
+	 */
+	u32 sc_encrypted_pkts[2];
+	/*! The number of plain text octets that are integrity protected
+	 *  but not encrypted on the transmitting SC.
+	 */
+	u32 sc_protected_octets[2];
+	/*! The number of plain text octets that are integrity protected
+	 *  and encrypted on the transmitting SC.
+	 */
+	u32 sc_encrypted_octets[2];
+};
+
+/*! Represents the Egress MIB counters for a single SA. Counters are
+ *  64 bits, lower 32 bits in field[0].
+ */
+struct aq_mss_egress_sa_counters {
+	/*! The number of dropped packets for this transmitting SA. */
+	u32 sa_hit_drop_redirect[2];
+	/*! TODO */
+	u32 sa_protected2_pkts[2];
+	/*! The number of integrity protected but not encrypted packets
+	 *  for this transmitting SA.
+	 */
+	u32 sa_protected_pkts[2];
+	/*! The number of integrity protected and encrypted packets for
+	 *  this transmitting SA.
+	 */
+	u32 sa_encrypted_pkts[2];
+};
+
+/*! Represents the common Egress MIB counters; the counter not
+ *  associated with a particular SC/SA. Counters are 64 bits, lower 32
+ *  bits in field[0].
+ */
+struct aq_mss_egress_common_counters {
+	/*! The number of transmitted packets classified as MAC_CTL packets. */
+	u32 ctl_pkt[2];
+	/*! The number of transmitted packets that did not match any rows
+	 *  in the Egress Packet Classifier table.
+	 */
+	u32 unknown_sa_pkts[2];
+	/*! The number of transmitted packets where the SC table entry has
+	 *  protect=0 (so packets are forwarded unchanged).
+	 */
+	u32 untagged_pkts[2];
+	/*! The number of transmitted packets discarded because the packet
+	 *  length is greater than the ifMtu of the Common Port interface.
+	 */
+	u32 too_long[2];
+	/*! The number of transmitted packets for which table memory was
+	 *  affected by an ECC error during processing.
+	 */
+	u32 ecc_error_pkts[2];
+	/*! The number of transmitted packets for where the matched row in
+	 *  the Egress Packet Classifier table has action=drop.
+	 */
+	u32 unctrl_hit_drop_redir[2];
+};
+
+/*! Represents the Ingress MIB counters for a single SA. Counters are
+ *  64 bits, lower 32 bits in field[0].
+ */
+struct aq_mss_ingress_sa_counters {
+	/*! For this SA, the number of received packets without a SecTAG. */
+	u32 untagged_hit_pkts[2];
+	/*! For this SA, the number of received packets that were dropped. */
+	u32 ctrl_hit_drop_redir_pkts[2];
+	/*! For this SA which is not currently in use, the number of
+	 *  received packets that have been discarded, and have either the
+	 *  packets encrypted or the matched row in the Ingress SC Lookup
+	 *  table has validate_frames=Strict.
+	 */
+	u32 not_using_sa[2];
+	/*! For this SA which is not currently in use, the number of
+	 *  received, unencrypted, packets with the matched row in the
+	 *  Ingress SC Lookup table has validate_frames!=Strict.
+	 */
+	u32 unused_sa[2];
+	/*! For this SA, the number discarded packets with the condition
+	 *  that the packets are not valid and one of the following
+	 *  conditions are true: either the matched row in the Ingress SC
+	 *  Lookup table has validate_frames=Strict or the packets
+	 *  encrypted.
+	 */
+	u32 not_valid_pkts[2];
+	/*! For this SA, the number of packets with the condition that the
+	 *  packets are not valid and the matched row in the Ingress SC
+	 *  Lookup table has validate_frames=Check.
+	 */
+	u32 invalid_pkts[2];
+	/*! For this SA, the number of validated packets. */
+	u32 ok_pkts[2];
+	/*! For this SC, the number of received packets that have been
+	 *  discarded with the condition: the matched row in the Ingress
+	 *  SC Lookup table has replay_protect=1 and the PN of the packet
+	 *  is lower than the lower bound replay check PN.
+	 */
+	u32 late_pkts[2];
+	/*! For this SA, the number of packets with the condition that the
+	 *  PN of the packets is lower than the lower bound replay
+	 *  protection PN.
+	 */
+	u32 delayed_pkts[2];
+	/*! For this SC, the number of packets with the following condition:
+	 *  - the matched row in the Ingress SC Lookup table has
+	 *    replay_protect=0 or
+	 *  - the matched row in the Ingress SC Lookup table has
+	 *    replay_protect=1 and the packet is not encrypted and the
+	 *    integrity check has failed or
+	 *  - the matched row in the Ingress SC Lookup table has
+	 *    replay_protect=1 and the packet is encrypted and integrity
+	 *    check has failed.
+	 */
+	u32 unchecked_pkts[2];
+	/*! The number of octets of plaintext recovered from received
+	 *  packets that were integrity protected but not encrypted.
+	 */
+	u32 validated_octets[2];
+	/*! The number of octets of plaintext recovered from received
+	 *  packets that were integrity protected and encrypted.
+	 */
+	u32 decrypted_octets[2];
+};
+
+/*! Represents the common Ingress MIB counters; the counter not
+ *  associated with a particular SA. Counters are 64 bits, lower 32
+ *  bits in field[0].
+ */
+struct aq_mss_ingress_common_counters {
+	/*! The number of received packets classified as MAC_CTL packets. */
+	u32 ctl_pkts[2];
+	/*! The number of received packets with the MAC security tag
+	 *  (SecTAG), not matching any rows in the Ingress Pre-MACSec
+	 *  Packet Classifier table.
+	 */
+	u32 tagged_miss_pkts[2];
+	/*! The number of received packets without the MAC security tag
+	 *  (SecTAG), not matching any rows in the Ingress Pre-MACSec
+	 *  Packet Classifier table.
+	 */
+	u32 untagged_miss_pkts[2];
+	/*! The number of received packets discarded without the MAC
+	 *  security tag (SecTAG) and with the matched row in the Ingress
+	 *  SC Lookup table having validate_frames=Strict.
+	 */
+	u32 notag_pkts[2];
+	/*! The number of received packets without the MAC security tag
+	 *  (SecTAG) and with the matched row in the Ingress SC Lookup
+	 *  table having validate_frames!=Strict.
+	 */
+	u32 untagged_pkts[2];
+	/*! The number of received packets discarded with an invalid
+	 *  SecTAG or a zero value PN or an invalid ICV.
+	 */
+	u32 bad_tag_pkts[2];
+	/*! The number of received packets discarded with unknown SCI
+	 *  information with the condition:
+	 *  the matched row in the Ingress SC Lookup table has
+	 *  validate_frames=Strict or the C bit in the SecTAG is set.
+	 */
+	u32 no_sci_pkts[2];
+	/*! The number of received packets with unknown SCI with the condition:
+	 *  The matched row in the Ingress SC Lookup table has
+	 *  validate_frames!=Strict and the C bit in the SecTAG is not set.
+	 */
+	u32 unknown_sci_pkts[2];
+	/*! The number of received packets by the controlled port service
+	 *  that passed the Ingress Post-MACSec Packet Classifier table
+	 *  check.
+	 */
+	u32 ctrl_prt_pass_pkts[2];
+	/*! The number of received packets by the uncontrolled port
+	 *  service that passed the Ingress Post-MACSec Packet Classifier
+	 *  table check.
+	 */
+	u32 unctrl_prt_pass_pkts[2];
+	/*! The number of received packets by the controlled port service
+	 *  that failed the Ingress Post-MACSec Packet Classifier table
+	 *  check.
+	 */
+	u32 ctrl_prt_fail_pkts[2];
+	/*! The number of received packets by the uncontrolled port
+	 *  service that failed the Ingress Post-MACSec Packet Classifier
+	 *  table check.
+	 */
+	u32 unctrl_prt_fail_pkts[2];
+	/*! The number of received packets discarded because the packet
+	 *  length is greater than the ifMtu of the Common Port interface.
+	 */
+	u32 too_long_pkts[2];
+	/*! The number of received packets classified as MAC_CTL by the
+	 *  Ingress Post-MACSec CTL Filter table.
+	 */
+	u32 igpoc_ctl_pkts[2];
+	/*! The number of received packets for which table memory was
+	 *  affected by an ECC error during processing.
+	 */
+	u32 ecc_error_pkts[2];
+	/*! The number of received packets by the uncontrolled port
+	 *  service that were dropped.
+	 */
+	u32 unctrl_hit_drop_redir[2];
+};
+
 #endif

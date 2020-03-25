@@ -1817,6 +1817,551 @@ int aq_mss_get_egress_sakey_record(struct aq_hw_s *hw,
 	return AQ_API_CALL_SAFE(get_egress_sakey_record, hw, rec, table_index);
 }
 
+static int get_egress_sc_counters(struct aq_hw_s *hw,
+				  struct aq_mss_egress_sc_counters *counters,
+				  u16 sc_index)
+{
+	u16 packed_record[4];
+	int ret;
+
+	if (sc_index >= NUMROWS_EGRESSSCRECORD)
+		return -EINVAL;
+
+	ret = get_raw_egress_record(hw, packed_record, 4, 3, sc_index * 8 + 4);
+	if (unlikely(ret))
+		return ret;
+	counters->sc_protected_pkts[0] =
+		packed_record[0] | (packed_record[1] << 16);
+	counters->sc_protected_pkts[1] =
+		packed_record[2] | (packed_record[3] << 16);
+
+	ret = get_raw_egress_record(hw, packed_record, 4, 3, sc_index * 8 + 5);
+	if (unlikely(ret))
+		return ret;
+	counters->sc_encrypted_pkts[0] =
+		packed_record[0] | (packed_record[1] << 16);
+	counters->sc_encrypted_pkts[1] =
+		packed_record[2] | (packed_record[3] << 16);
+
+	ret = get_raw_egress_record(hw, packed_record, 4, 3, sc_index * 8 + 6);
+	if (unlikely(ret))
+		return ret;
+	counters->sc_protected_octets[0] =
+		packed_record[0] | (packed_record[1] << 16);
+	counters->sc_protected_octets[1] =
+		packed_record[2] | (packed_record[3] << 16);
+
+	ret = get_raw_egress_record(hw, packed_record, 4, 3, sc_index * 8 + 7);
+	if (unlikely(ret))
+		return ret;
+	counters->sc_encrypted_octets[0] =
+		packed_record[0] | (packed_record[1] << 16);
+	counters->sc_encrypted_octets[1] =
+		packed_record[2] | (packed_record[3] << 16);
+
+	return 0;
+}
+
+int aq_mss_get_egress_sc_counters(struct aq_hw_s *hw,
+				  struct aq_mss_egress_sc_counters *counters,
+				  u16 sc_index)
+{
+	memset(counters, 0, sizeof(*counters));
+
+	return AQ_API_CALL_SAFE(get_egress_sc_counters, hw, counters, sc_index);
+}
+
+static int get_egress_sa_counters(struct aq_hw_s *hw,
+				  struct aq_mss_egress_sa_counters *counters,
+				  u16 sa_index)
+{
+	u16 packed_record[4];
+	int ret;
+
+	if (sa_index >= NUMROWS_EGRESSSARECORD)
+		return -EINVAL;
+
+	ret = get_raw_egress_record(hw, packed_record, 4, 3, sa_index * 8 + 0);
+	if (unlikely(ret))
+		return ret;
+	counters->sa_hit_drop_redirect[0] =
+		packed_record[0] | (packed_record[1] << 16);
+	counters->sa_hit_drop_redirect[1] =
+		packed_record[2] | (packed_record[3] << 16);
+
+	ret = get_raw_egress_record(hw, packed_record, 4, 3, sa_index * 8 + 1);
+	if (unlikely(ret))
+		return ret;
+	counters->sa_protected2_pkts[0] =
+		packed_record[0] | (packed_record[1] << 16);
+	counters->sa_protected2_pkts[1] =
+		packed_record[2] | (packed_record[3] << 16);
+
+	ret = get_raw_egress_record(hw, packed_record, 4, 3, sa_index * 8 + 2);
+	if (unlikely(ret))
+		return ret;
+	counters->sa_protected_pkts[0] =
+		packed_record[0] | (packed_record[1] << 16);
+	counters->sa_protected_pkts[1] =
+		packed_record[2] | (packed_record[3] << 16);
+
+	ret = get_raw_egress_record(hw, packed_record, 4, 3, sa_index * 8 + 3);
+	if (unlikely(ret))
+		return ret;
+	counters->sa_encrypted_pkts[0] =
+		packed_record[0] | (packed_record[1] << 16);
+	counters->sa_encrypted_pkts[1] =
+		packed_record[2] | (packed_record[3] << 16);
+
+	return 0;
+}
+
+int aq_mss_get_egress_sa_counters(struct aq_hw_s *hw,
+				  struct aq_mss_egress_sa_counters *counters,
+				  u16 sa_index)
+{
+	memset(counters, 0, sizeof(*counters));
+
+	return AQ_API_CALL_SAFE(get_egress_sa_counters, hw, counters, sa_index);
+}
+
+static int
+get_egress_common_counters(struct aq_hw_s *hw,
+			   struct aq_mss_egress_common_counters *counters)
+{
+	u16 packed_record[4];
+	int ret;
+
+	ret = get_raw_egress_record(hw, packed_record, 4, 3, 256 + 0);
+	if (unlikely(ret))
+		return ret;
+	counters->ctl_pkt[0] = packed_record[0] | (packed_record[1] << 16);
+	counters->ctl_pkt[1] = packed_record[2] | (packed_record[3] << 16);
+
+	ret = get_raw_egress_record(hw, packed_record, 4, 3, 256 + 1);
+	if (unlikely(ret))
+		return ret;
+	counters->unknown_sa_pkts[0] =
+		packed_record[0] | (packed_record[1] << 16);
+	counters->unknown_sa_pkts[1] =
+		packed_record[2] | (packed_record[3] << 16);
+
+	ret = get_raw_egress_record(hw, packed_record, 4, 3, 256 + 2);
+	if (unlikely(ret))
+		return ret;
+	counters->untagged_pkts[0] =
+		packed_record[0] | (packed_record[1] << 16);
+	counters->untagged_pkts[1] =
+		packed_record[2] | (packed_record[3] << 16);
+
+	ret = get_raw_egress_record(hw, packed_record, 4, 3, 256 + 3);
+	if (unlikely(ret))
+		return ret;
+	counters->too_long[0] = packed_record[0] | (packed_record[1] << 16);
+	counters->too_long[1] = packed_record[2] | (packed_record[3] << 16);
+
+	ret = get_raw_egress_record(hw, packed_record, 4, 3, 256 + 4);
+	if (unlikely(ret))
+		return ret;
+	counters->ecc_error_pkts[0] =
+		packed_record[0] | (packed_record[1] << 16);
+	counters->ecc_error_pkts[1] =
+		packed_record[2] | (packed_record[3] << 16);
+
+	ret = get_raw_egress_record(hw, packed_record, 4, 3, 256 + 5);
+	if (unlikely(ret))
+		return ret;
+	counters->unctrl_hit_drop_redir[0] =
+		packed_record[0] | (packed_record[1] << 16);
+	counters->unctrl_hit_drop_redir[1] =
+		packed_record[2] | (packed_record[3] << 16);
+
+	return 0;
+}
+
+int aq_mss_get_egress_common_counters(struct aq_hw_s *hw,
+	struct aq_mss_egress_common_counters *counters)
+{
+	memset(counters, 0, sizeof(*counters));
+
+	return AQ_API_CALL_SAFE(get_egress_common_counters, hw, counters);
+}
+
+static int clear_egress_counters(struct aq_hw_s *hw)
+{
+	struct mss_egress_ctl_register ctl_reg;
+	int ret;
+
+	memset(&ctl_reg, 0, sizeof(ctl_reg));
+
+	ret = aq_mss_mdio_read(hw, MDIO_MMD_VEND1, MSS_EGRESS_CTL_REGISTER_ADDR,
+			       &ctl_reg.word_0);
+	if (unlikely(ret))
+		return ret;
+	ret = aq_mss_mdio_read(hw, MDIO_MMD_VEND1,
+			       MSS_EGRESS_CTL_REGISTER_ADDR + 4,
+			       &ctl_reg.word_1);
+	if (unlikely(ret))
+		return ret;
+
+	/* Toggle the Egress MIB clear bit 0->1->0 */
+	ctl_reg.bits_0.clear_counter = 0;
+	ret = aq_mss_mdio_write(hw, MDIO_MMD_VEND1,
+				MSS_EGRESS_CTL_REGISTER_ADDR, ctl_reg.word_0);
+	if (unlikely(ret))
+		return ret;
+	ret = aq_mss_mdio_write(hw, MDIO_MMD_VEND1,
+				MSS_EGRESS_CTL_REGISTER_ADDR + 4,
+				ctl_reg.word_1);
+	if (unlikely(ret))
+		return ret;
+
+	ctl_reg.bits_0.clear_counter = 1;
+	ret = aq_mss_mdio_write(hw, MDIO_MMD_VEND1,
+				MSS_EGRESS_CTL_REGISTER_ADDR, ctl_reg.word_0);
+	if (unlikely(ret))
+		return ret;
+	ret = aq_mss_mdio_write(hw, MDIO_MMD_VEND1,
+				MSS_EGRESS_CTL_REGISTER_ADDR + 4,
+				ctl_reg.word_1);
+	if (unlikely(ret))
+		return ret;
+
+	ctl_reg.bits_0.clear_counter = 0;
+	ret = aq_mss_mdio_write(hw, MDIO_MMD_VEND1,
+				MSS_EGRESS_CTL_REGISTER_ADDR, ctl_reg.word_0);
+	if (unlikely(ret))
+		return ret;
+	ret = aq_mss_mdio_write(hw, MDIO_MMD_VEND1,
+				MSS_EGRESS_CTL_REGISTER_ADDR + 4,
+				ctl_reg.word_1);
+	if (unlikely(ret))
+		return ret;
+
+	return 0;
+}
+
+int aq_mss_clear_egress_counters(struct aq_hw_s *hw)
+{
+	return AQ_API_CALL_SAFE(clear_egress_counters, hw);
+}
+
+static int get_ingress_sa_counters(struct aq_hw_s *hw,
+				   struct aq_mss_ingress_sa_counters *counters,
+				   u16 sa_index)
+{
+	u16 packed_record[4];
+	int ret;
+
+	if (sa_index >= NUMROWS_INGRESSSARECORD)
+		return -EINVAL;
+
+	ret = get_raw_ingress_record(hw, packed_record, 4, 6,
+				     sa_index * 12 + 0);
+	if (unlikely(ret))
+		return ret;
+	counters->untagged_hit_pkts[0] =
+		packed_record[0] | (packed_record[1] << 16);
+	counters->untagged_hit_pkts[1] =
+		packed_record[2] | (packed_record[3] << 16);
+
+	ret = get_raw_ingress_record(hw, packed_record, 4, 6,
+				     sa_index * 12 + 1);
+	if (unlikely(ret))
+		return ret;
+	counters->ctrl_hit_drop_redir_pkts[0] =
+		packed_record[0] | (packed_record[1] << 16);
+	counters->ctrl_hit_drop_redir_pkts[1] =
+		packed_record[2] | (packed_record[3] << 16);
+
+	ret = get_raw_ingress_record(hw, packed_record, 4, 6,
+				     sa_index * 12 + 2);
+	if (unlikely(ret))
+		return ret;
+	counters->not_using_sa[0] = packed_record[0] | (packed_record[1] << 16);
+	counters->not_using_sa[1] = packed_record[2] | (packed_record[3] << 16);
+
+	ret = get_raw_ingress_record(hw, packed_record, 4, 6,
+				     sa_index * 12 + 3);
+	if (unlikely(ret))
+		return ret;
+	counters->unused_sa[0] = packed_record[0] | (packed_record[1] << 16);
+	counters->unused_sa[1] = packed_record[2] | (packed_record[3] << 16);
+
+	ret = get_raw_ingress_record(hw, packed_record, 4, 6,
+				     sa_index * 12 + 4);
+	if (unlikely(ret))
+		return ret;
+	counters->not_valid_pkts[0] =
+		packed_record[0] | (packed_record[1] << 16);
+	counters->not_valid_pkts[1] =
+		packed_record[2] | (packed_record[3] << 16);
+
+	ret = get_raw_ingress_record(hw, packed_record, 4, 6,
+				     sa_index * 12 + 5);
+	if (unlikely(ret))
+		return ret;
+	counters->invalid_pkts[0] = packed_record[0] | (packed_record[1] << 16);
+	counters->invalid_pkts[1] = packed_record[2] | (packed_record[3] << 16);
+
+	ret = get_raw_ingress_record(hw, packed_record, 4, 6,
+				     sa_index * 12 + 6);
+	if (unlikely(ret))
+		return ret;
+	counters->ok_pkts[0] = packed_record[0] | (packed_record[1] << 16);
+	counters->ok_pkts[1] = packed_record[2] | (packed_record[3] << 16);
+
+	ret = get_raw_ingress_record(hw, packed_record, 4, 6,
+				     sa_index * 12 + 7);
+	if (unlikely(ret))
+		return ret;
+	counters->late_pkts[0] = packed_record[0] | (packed_record[1] << 16);
+	counters->late_pkts[1] = packed_record[2] | (packed_record[3] << 16);
+
+	ret = get_raw_ingress_record(hw, packed_record, 4, 6,
+				     sa_index * 12 + 8);
+	if (unlikely(ret))
+		return ret;
+	counters->delayed_pkts[0] = packed_record[0] | (packed_record[1] << 16);
+	counters->delayed_pkts[1] = packed_record[2] | (packed_record[3] << 16);
+
+	ret = get_raw_ingress_record(hw, packed_record, 4, 6,
+				     sa_index * 12 + 9);
+	if (unlikely(ret))
+		return ret;
+	counters->unchecked_pkts[0] =
+		packed_record[0] | (packed_record[1] << 16);
+	counters->unchecked_pkts[1] =
+		packed_record[2] | (packed_record[3] << 16);
+
+	ret = get_raw_ingress_record(hw, packed_record, 4, 6,
+				     sa_index * 12 + 10);
+	if (unlikely(ret))
+		return ret;
+	counters->validated_octets[0] =
+		packed_record[0] | (packed_record[1] << 16);
+	counters->validated_octets[1] =
+		packed_record[2] | (packed_record[3] << 16);
+
+	ret = get_raw_ingress_record(hw, packed_record, 4, 6,
+				     sa_index * 12 + 11);
+	if (unlikely(ret))
+		return ret;
+	counters->decrypted_octets[0] =
+		packed_record[0] | (packed_record[1] << 16);
+	counters->decrypted_octets[1] =
+		packed_record[2] | (packed_record[3] << 16);
+
+	return 0;
+}
+
+int aq_mss_get_ingress_sa_counters(struct aq_hw_s *hw,
+				   struct aq_mss_ingress_sa_counters *counters,
+				   u16 sa_index)
+{
+	memset(counters, 0, sizeof(*counters));
+
+	return AQ_API_CALL_SAFE(get_ingress_sa_counters, hw, counters,
+				sa_index);
+}
+
+static int
+get_ingress_common_counters(struct aq_hw_s *hw,
+			    struct aq_mss_ingress_common_counters *counters)
+{
+	u16 packed_record[4];
+	int ret;
+
+	ret = get_raw_ingress_record(hw, packed_record, 4, 6, 385 + 0);
+	if (unlikely(ret))
+		return ret;
+	counters->ctl_pkts[0] = packed_record[0] | (packed_record[1] << 16);
+	counters->ctl_pkts[1] = packed_record[2] | (packed_record[3] << 16);
+
+	ret = get_raw_ingress_record(hw, packed_record, 4, 6, 385 + 1);
+	if (unlikely(ret))
+		return ret;
+	counters->tagged_miss_pkts[0] =
+		packed_record[0] | (packed_record[1] << 16);
+	counters->tagged_miss_pkts[1] =
+		packed_record[2] | (packed_record[3] << 16);
+
+	ret = get_raw_ingress_record(hw, packed_record, 4, 6, 385 + 2);
+	if (unlikely(ret))
+		return ret;
+	counters->untagged_miss_pkts[0] =
+		packed_record[0] | (packed_record[1] << 16);
+	counters->untagged_miss_pkts[1] =
+		packed_record[2] | (packed_record[3] << 16);
+
+	ret = get_raw_ingress_record(hw, packed_record, 4, 6, 385 + 3);
+	if (unlikely(ret))
+		return ret;
+	counters->notag_pkts[0] = packed_record[0] | (packed_record[1] << 16);
+	counters->notag_pkts[1] = packed_record[2] | (packed_record[3] << 16);
+
+	ret = get_raw_ingress_record(hw, packed_record, 4, 6, 385 + 4);
+	if (unlikely(ret))
+		return ret;
+	counters->untagged_pkts[0] =
+		packed_record[0] | (packed_record[1] << 16);
+	counters->untagged_pkts[1] =
+		packed_record[2] | (packed_record[3] << 16);
+
+	ret = get_raw_ingress_record(hw, packed_record, 4, 6, 385 + 5);
+	if (unlikely(ret))
+		return ret;
+	counters->bad_tag_pkts[0] = packed_record[0] | (packed_record[1] << 16);
+	counters->bad_tag_pkts[1] = packed_record[2] | (packed_record[3] << 16);
+
+	ret = get_raw_ingress_record(hw, packed_record, 4, 6, 385 + 6);
+	if (unlikely(ret))
+		return ret;
+	counters->no_sci_pkts[0] = packed_record[0] | (packed_record[1] << 16);
+	counters->no_sci_pkts[1] = packed_record[2] | (packed_record[3] << 16);
+
+	ret = get_raw_ingress_record(hw, packed_record, 4, 6, 385 + 7);
+	if (unlikely(ret))
+		return ret;
+	counters->unknown_sci_pkts[0] =
+		packed_record[0] | (packed_record[1] << 16);
+	counters->unknown_sci_pkts[1] =
+		packed_record[2] | (packed_record[3] << 16);
+
+	ret = get_raw_ingress_record(hw, packed_record, 4, 6, 385 + 8);
+	if (unlikely(ret))
+		return ret;
+	counters->ctrl_prt_pass_pkts[0] =
+		packed_record[0] | (packed_record[1] << 16);
+	counters->ctrl_prt_pass_pkts[1] =
+		packed_record[2] | (packed_record[3] << 16);
+
+	ret = get_raw_ingress_record(hw, packed_record, 4, 6, 385 + 9);
+	if (unlikely(ret))
+		return ret;
+	counters->unctrl_prt_pass_pkts[0] =
+		packed_record[0] | (packed_record[1] << 16);
+	counters->unctrl_prt_pass_pkts[1] =
+		packed_record[2] | (packed_record[3] << 16);
+
+	ret = get_raw_ingress_record(hw, packed_record, 4, 6, 385 + 10);
+	if (unlikely(ret))
+		return ret;
+	counters->ctrl_prt_fail_pkts[0] =
+		packed_record[0] | (packed_record[1] << 16);
+	counters->ctrl_prt_fail_pkts[1] =
+		packed_record[2] | (packed_record[3] << 16);
+
+	ret = get_raw_ingress_record(hw, packed_record, 4, 6, 385 + 11);
+	if (unlikely(ret))
+		return ret;
+	counters->unctrl_prt_fail_pkts[0] =
+		packed_record[0] | (packed_record[1] << 16);
+	counters->unctrl_prt_fail_pkts[1] =
+		packed_record[2] | (packed_record[3] << 16);
+
+	ret = get_raw_ingress_record(hw, packed_record, 4, 6, 385 + 12);
+	if (unlikely(ret))
+		return ret;
+	counters->too_long_pkts[0] =
+		packed_record[0] | (packed_record[1] << 16);
+	counters->too_long_pkts[1] =
+		packed_record[2] | (packed_record[3] << 16);
+
+	ret = get_raw_ingress_record(hw, packed_record, 4, 6, 385 + 13);
+	if (unlikely(ret))
+		return ret;
+	counters->igpoc_ctl_pkts[0] =
+		packed_record[0] | (packed_record[1] << 16);
+	counters->igpoc_ctl_pkts[1] =
+		packed_record[2] | (packed_record[3] << 16);
+
+	ret = get_raw_ingress_record(hw, packed_record, 4, 6, 385 + 14);
+	if (unlikely(ret))
+		return ret;
+	counters->ecc_error_pkts[0] =
+		packed_record[0] | (packed_record[1] << 16);
+	counters->ecc_error_pkts[1] =
+		packed_record[2] | (packed_record[3] << 16);
+
+	ret = get_raw_ingress_record(hw, packed_record, 4, 6, 385 + 15);
+	if (unlikely(ret))
+		return ret;
+	counters->unctrl_hit_drop_redir[0] =
+		packed_record[0] | (packed_record[1] << 16);
+	counters->unctrl_hit_drop_redir[1] =
+		packed_record[2] | (packed_record[3] << 16);
+
+	return 0;
+}
+
+int aq_mss_get_ingress_common_counters(struct aq_hw_s *hw,
+	struct aq_mss_ingress_common_counters *counters)
+{
+	memset(counters, 0, sizeof(*counters));
+
+	return AQ_API_CALL_SAFE(get_ingress_common_counters, hw, counters);
+}
+
+static int clear_ingress_counters(struct aq_hw_s *hw)
+{
+	struct mss_ingress_ctl_register ctl_reg;
+	int ret;
+
+	memset(&ctl_reg, 0, sizeof(ctl_reg));
+
+	ret = aq_mss_mdio_read(hw, MDIO_MMD_VEND1,
+			       MSS_INGRESS_CTL_REGISTER_ADDR, &ctl_reg.word_0);
+	if (unlikely(ret))
+		return ret;
+	ret = aq_mss_mdio_read(hw, MDIO_MMD_VEND1,
+			       MSS_INGRESS_CTL_REGISTER_ADDR + 4,
+			       &ctl_reg.word_1);
+	if (unlikely(ret))
+		return ret;
+
+	/* Toggle the Ingress MIB clear bit 0->1->0 */
+	ctl_reg.bits_0.clear_count = 0;
+	ret = aq_mss_mdio_write(hw, MDIO_MMD_VEND1,
+				MSS_INGRESS_CTL_REGISTER_ADDR, ctl_reg.word_0);
+	if (unlikely(ret))
+		return ret;
+	ret = aq_mss_mdio_write(hw, MDIO_MMD_VEND1,
+				MSS_INGRESS_CTL_REGISTER_ADDR + 4,
+				ctl_reg.word_1);
+	if (unlikely(ret))
+		return ret;
+
+	ctl_reg.bits_0.clear_count = 1;
+	ret = aq_mss_mdio_write(hw, MDIO_MMD_VEND1,
+				MSS_INGRESS_CTL_REGISTER_ADDR, ctl_reg.word_0);
+	if (unlikely(ret))
+		return ret;
+	ret = aq_mss_mdio_write(hw, MDIO_MMD_VEND1,
+				MSS_INGRESS_CTL_REGISTER_ADDR + 4,
+				ctl_reg.word_1);
+	if (unlikely(ret))
+		return ret;
+
+	ctl_reg.bits_0.clear_count = 0;
+	ret = aq_mss_mdio_write(hw, MDIO_MMD_VEND1,
+				MSS_INGRESS_CTL_REGISTER_ADDR, ctl_reg.word_0);
+	if (unlikely(ret))
+		return ret;
+	ret = aq_mss_mdio_write(hw, MDIO_MMD_VEND1,
+				MSS_INGRESS_CTL_REGISTER_ADDR + 4,
+				ctl_reg.word_1);
+	if (unlikely(ret))
+		return ret;
+
+	return 0;
+}
+
+int aq_mss_clear_ingress_counters(struct aq_hw_s *hw)
+{
+	return AQ_API_CALL_SAFE(clear_ingress_counters, hw);
+}
+
 static int get_egress_sa_expired(struct aq_hw_s *hw, u32 *expired)
 {
 	u16 val;
