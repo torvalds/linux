@@ -191,10 +191,27 @@ endmenu # Media core support
 #
 # Extra per-media API core functionality
 
-menu "Media core additional options"
+menu "Video4Linux options"
+	visible if VIDEO_DEV
+
 source "drivers/media/v4l2-core/Kconfig"
+endmenu
+
+menu "Media controller options"
+	visible if MEDIA_CONTROLLER
+
 source "drivers/media/mc/Kconfig"
+endmenu
+
+menu "Digital TV options"
+	visible if DVB_CORE
+
 source "drivers/media/dvb-core/Kconfig"
+endmenu
+
+menu "HDMI CEC options"
+	visible if CEC_CORE
+
 source "drivers/media/cec/Kconfig"
 endmenu
 
