@@ -269,7 +269,7 @@
 			dai-tdm-slot-tx-mask-3 = <1 1>;
 			mclk-fs = <256>;
 
-			codec@0 {
+			codec {
 				sound-dai = <&tohdmitx TOHDMITX_I2S_IN_B>;
 			};
 		};
