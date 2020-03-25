@@ -180,11 +180,11 @@ config PSTORE_BLK_BLKDEV
 	help
 	  Which block device should be used for pstore/blk.
 
-	  It accept the following variants:
+	  It accepts the following variants:
 	  1) <hex_major><hex_minor> device number in hexadecimal representation,
 	     with no leading 0x, for example b302.
-	  2) /dev/<disk_name> represents the device number of disk
-	  3) /dev/<disk_name><decimal> represents the device number
+	  2) /dev/<disk_name> represents the device name of disk
+	  3) /dev/<disk_name><decimal> represents the device name and number
 	     of partition - device number of disk plus the partition number
 	  4) /dev/<disk_name>p<decimal> - same as the above, this form is
 	     used when disk name of partitioned disk ends with a digit.
@@ -233,6 +233,18 @@ config PSTORE_BLK_PMSG_SIZE
 	help
 	  This just sets size of pmsg (pmsg_size) for pstore/blk. The size is
 	  in KB and must be a multiple of 4.
+
+	  NOTE that, both Kconfig and module parameters can configure
+	  pstore/blk, but module parameters have priority over Kconfig.
+
+config PSTORE_BLK_CONSOLE_SIZE
+	int "Size in Kbytes of console log to store"
+	depends on PSTORE_BLK
+	depends on PSTORE_CONSOLE
+	default 64
+	help
+	  This just sets size of console log (console_size) to store via
+	  pstore/blk. The size is in KB and must be a multiple of 4.
 
 	  NOTE that, both Kconfig and module parameters can configure
 	  pstore/blk, but module parameters have priority over Kconfig.
