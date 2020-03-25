@@ -806,8 +806,7 @@ static int svc_rdma_send_reply_msg(struct svcxprt_rdma *rdma,
 
 /* Given the client-provided Write and Reply chunks, the server was not
  * able to form a complete reply. Return an RDMA_ERROR message so the
- * client can retire this RPC transaction. As above, the Send completion
- * routine releases payload pages that were part of a previous RDMA Write.
+ * client can retire this RPC transaction.
  *
  * Remote Invalidation is skipped for simplicity.
  */
@@ -833,8 +832,6 @@ static int svc_rdma_send_error_msg(struct svcxprt_rdma *rdma,
 	*p++ = rdma_error;
 	*p   = err_chunk;
 	trace_svcrdma_err_chunk(*rdma_argp);
-
-	svc_rdma_save_io_pages(rqstp, ctxt);
 
 	ctxt->sc_send_wr.num_sge = 1;
 	ctxt->sc_send_wr.opcode = IB_WR_SEND;
@@ -930,6 +927,10 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 	if (ret != -E2BIG && ret != -EINVAL)
 		goto err1;
 
+	/* Send completion releases payload pages that were part
+	 * of previously posted RDMA Writes.
+	 */
+	svc_rdma_save_io_pages(rqstp, sctxt);
 	ret = svc_rdma_send_error_msg(rdma, sctxt, rqstp);
 	if (ret < 0)
 		goto err1;
