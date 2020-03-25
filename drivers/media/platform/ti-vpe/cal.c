@@ -2315,6 +2315,8 @@ static int cal_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	vb2_dma_contig_set_max_seg_size(&pdev->dev, DMA_BIT_MASK(32));
+
 	pm_runtime_enable(&pdev->dev);
 
 	ret = pm_runtime_get_sync(&pdev->dev);
@@ -2329,6 +2331,8 @@ static int cal_probe(struct platform_device *pdev)
 	return 0;
 
 runtime_disable:
+	vb2_dma_contig_clear_max_seg_size(&pdev->dev);
+
 	pm_runtime_disable(&pdev->dev);
 	for (i = 0; i < CAL_NUM_CONTEXT; i++) {
 		ctx = dev->ctx[i];
@@ -2370,6 +2374,8 @@ static int cal_remove(struct platform_device *pdev)
 
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
+
+	vb2_dma_contig_clear_max_seg_size(&pdev->dev);
 
 	return 0;
 }
