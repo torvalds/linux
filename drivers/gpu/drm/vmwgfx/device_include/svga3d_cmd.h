@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /**********************************************************
- * Copyright 1998-2015 VMware, Inc.
+ * Copyright 1998-2020 VMware, Inc.
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -104,12 +104,12 @@ typedef enum {
    SVGA_3D_CMD_DEAD1                                      = 1083,
    SVGA_3D_CMD_DEAD2                                      = 1084,
 
-   SVGA_3D_CMD_LOGICOPS_BITBLT                            = 1085,
-   SVGA_3D_CMD_LOGICOPS_TRANSBLT                          = 1086,
-   SVGA_3D_CMD_LOGICOPS_STRETCHBLT                        = 1087,
-   SVGA_3D_CMD_LOGICOPS_COLORFILL                         = 1088,
-   SVGA_3D_CMD_LOGICOPS_ALPHABLEND                        = 1089,
-   SVGA_3D_CMD_LOGICOPS_CLEARTYPEBLEND                    = 1090,
+   SVGA_3D_CMD_DEAD12                                     = 1085,
+   SVGA_3D_CMD_DEAD13                                     = 1086,
+   SVGA_3D_CMD_DEAD14                                     = 1087,
+   SVGA_3D_CMD_DEAD15                                     = 1088,
+   SVGA_3D_CMD_DEAD16                                     = 1089,
+   SVGA_3D_CMD_DEAD17                                     = 1090,
 
    SVGA_3D_CMD_SET_OTABLE_BASE                            = 1091,
    SVGA_3D_CMD_READBACK_OTABLE                            = 1092,
@@ -261,30 +261,23 @@ typedef enum {
    SVGA_3D_CMD_DX_SET_VS_CONSTANT_BUFFER_OFFSET           = 1220,
    SVGA_3D_CMD_DX_SET_PS_CONSTANT_BUFFER_OFFSET           = 1221,
    SVGA_3D_CMD_DX_SET_GS_CONSTANT_BUFFER_OFFSET           = 1222,
-
-   /*
-    * Reserve some IDs to be used for the SM5 shader types.
-    */
-   SVGA_3D_CMD_DX_RESERVED1                               = 1223,
-   SVGA_3D_CMD_DX_RESERVED2                               = 1224,
-   SVGA_3D_CMD_DX_RESERVED3                               = 1225,
+   SVGA_3D_CMD_DX_SET_HS_CONSTANT_BUFFER_OFFSET           = 1223,
+   SVGA_3D_CMD_DX_SET_DS_CONSTANT_BUFFER_OFFSET           = 1224,
+   SVGA_3D_CMD_DX_SET_CS_CONSTANT_BUFFER_OFFSET           = 1225,
 
    SVGA_3D_CMD_DX_COND_BIND_ALL_SHADER                    = 1226,
    SVGA_3D_CMD_DX_MAX                                     = 1227,
 
    SVGA_3D_CMD_SCREEN_COPY                                = 1227,
 
-   /*
-    * Reserve some IDs to be used for video.
-    */
-   SVGA_3D_CMD_VIDEO_RESERVED1                            = 1228,
-   SVGA_3D_CMD_VIDEO_RESERVED2                            = 1229,
-   SVGA_3D_CMD_VIDEO_RESERVED3                            = 1230,
-   SVGA_3D_CMD_VIDEO_RESERVED4                            = 1231,
-   SVGA_3D_CMD_VIDEO_RESERVED5                            = 1232,
-   SVGA_3D_CMD_VIDEO_RESERVED6                            = 1233,
-   SVGA_3D_CMD_VIDEO_RESERVED7                            = 1234,
-   SVGA_3D_CMD_VIDEO_RESERVED8                            = 1235,
+   SVGA_3D_CMD_RESERVED1                                  = 1228,
+   SVGA_3D_CMD_RESERVED2                                  = 1229,
+   SVGA_3D_CMD_RESERVED3                                  = 1230,
+   SVGA_3D_CMD_RESERVED4                                  = 1231,
+   SVGA_3D_CMD_RESERVED5                                  = 1232,
+   SVGA_3D_CMD_RESERVED6                                  = 1233,
+   SVGA_3D_CMD_RESERVED7                                  = 1234,
+   SVGA_3D_CMD_RESERVED8                                  = 1235,
 
    SVGA_3D_CMD_GROW_OTABLE                                = 1236,
    SVGA_3D_CMD_DX_GROW_COTABLE                            = 1237,
@@ -298,7 +291,46 @@ typedef enum {
    SVGA_3D_CMD_DX_PRED_CONVERT                            = 1243,
    SVGA_3D_CMD_WHOLE_SURFACE_COPY                         = 1244,
 
-   SVGA_3D_CMD_MAX                                        = 1245,
+   SVGA_3D_CMD_DX_DEFINE_UA_VIEW                          = 1245,
+   SVGA_3D_CMD_DX_DESTROY_UA_VIEW                         = 1246,
+   SVGA_3D_CMD_DX_CLEAR_UA_VIEW_UINT                      = 1247,
+   SVGA_3D_CMD_DX_CLEAR_UA_VIEW_FLOAT                     = 1248,
+   SVGA_3D_CMD_DX_COPY_STRUCTURE_COUNT                    = 1249,
+   SVGA_3D_CMD_DX_SET_UA_VIEWS                            = 1250,
+
+   SVGA_3D_CMD_DX_DRAW_INDEXED_INSTANCED_INDIRECT         = 1251,
+   SVGA_3D_CMD_DX_DRAW_INSTANCED_INDIRECT                 = 1252,
+   SVGA_3D_CMD_DX_DISPATCH                                = 1253,
+   SVGA_3D_CMD_DX_DISPATCH_INDIRECT                       = 1254,
+
+   SVGA_3D_CMD_WRITE_ZERO_SURFACE                         = 1255,
+   SVGA_3D_CMD_HINT_ZERO_SURFACE                          = 1256,
+   SVGA_3D_CMD_DX_TRANSFER_TO_BUFFER                      = 1257,
+   SVGA_3D_CMD_DX_SET_STRUCTURE_COUNT                     = 1258,
+
+   SVGA_3D_CMD_LOGICOPS_BITBLT                            = 1259,
+   SVGA_3D_CMD_LOGICOPS_TRANSBLT                          = 1260,
+   SVGA_3D_CMD_LOGICOPS_STRETCHBLT                        = 1261,
+   SVGA_3D_CMD_LOGICOPS_COLORFILL                         = 1262,
+   SVGA_3D_CMD_LOGICOPS_ALPHABLEND                        = 1263,
+   SVGA_3D_CMD_LOGICOPS_CLEARTYPEBLEND                    = 1264,
+
+   SVGA_3D_CMD_RESERVED2_1                                = 1265,
+
+   SVGA_3D_CMD_RESERVED2_2                                = 1266,
+   SVGA_3D_CMD_DEFINE_GB_SURFACE_V4                       = 1267,
+   SVGA_3D_CMD_DX_SET_CS_UA_VIEWS                         = 1268,
+   SVGA_3D_CMD_DX_SET_MIN_LOD                             = 1269,
+   SVGA_3D_CMD_RESERVED2_3                                = 1270,
+   SVGA_3D_CMD_RESERVED2_4                                = 1271,
+   SVGA_3D_CMD_DX_DEFINE_DEPTHSTENCIL_VIEW_V2             = 1272,
+   SVGA_3D_CMD_DX_DEFINE_STREAMOUTPUT_WITH_MOB            = 1273,
+   SVGA_3D_CMD_DX_SET_SHADER_IFACE                        = 1274,
+   SVGA_3D_CMD_DX_BIND_STREAMOUTPUT                       = 1275,
+   SVGA_3D_CMD_SURFACE_STRETCHBLT_NON_MS_TO_MS            = 1276,
+   SVGA_3D_CMD_DX_BIND_SHADER_IFACE                       = 1277,
+
+   SVGA_3D_CMD_MAX                                        = 1278,
    SVGA_3D_CMD_FUTURE_MAX                                 = 3000
 } SVGAFifo3dCmdId;
 
@@ -334,6 +366,7 @@ struct {
    uint32                      sid;
    SVGA3dSurface1Flags         surfaceFlags;
    SVGA3dSurfaceFormat         format;
+
    /*
     * If surfaceFlags has SVGA3D_SURFACE_CUBEMAP bit set, all SVGA3dSurfaceFace
     * structures must have the same value of numMipLevels field.
@@ -341,6 +374,7 @@ struct {
     * numMipLevels set to 0.
     */
    SVGA3dSurfaceFace           face[SVGA3D_MAX_SURFACE_FACES];
+
    /*
     * Followed by an SVGA3dSize structure for each mip level in each face.
     *
@@ -360,6 +394,7 @@ struct {
    uint32                      sid;
    SVGA3dSurface1Flags         surfaceFlags;
    SVGA3dSurfaceFormat         format;
+
    /*
     * If surfaceFlags has SVGA3D_SURFACE_CUBEMAP bit set, all SVGA3dSurfaceFace
     * structures must have the same value of numMipLevels field.
@@ -369,6 +404,7 @@ struct {
    SVGA3dSurfaceFace           face[SVGA3D_MAX_SURFACE_FACES];
    uint32                      multisampleCount;
    SVGA3dTextureFilter         autogenFilter;
+
    /*
     * Followed by an SVGA3dSize structure for each mip level in each face.
     *
@@ -517,6 +553,18 @@ typedef
 struct {
    SVGA3dSurfaceImageId  src;
    SVGA3dSurfaceImageId  dest;
+   SVGA3dBox boxSrc;
+   SVGA3dBox boxDest;
+}
+#include "vmware_pack_end.h"
+SVGA3dCmdSurfaceStretchBltNonMSToMS;
+/* SVGA_3D_CMD_SURFACE_STRETCHBLT_NON_MS_TO_MS */
+
+typedef
+#include "vmware_pack_begin.h"
+struct {
+   SVGA3dSurfaceImageId  src;
+   SVGA3dSurfaceImageId  dest;
    SVGA3dBox             boxSrc;
    SVGA3dBox             boxDest;
    SVGA3dStretchBltMode  mode;
@@ -555,6 +603,7 @@ struct {
    SVGAGuestImage guest;
    SVGA3dSurfaceImageId host;
    SVGA3dTransferType transfer;
+
    /*
     * Followed by variable number of SVGA3dCopyBox structures. For consistency
     * in all clipping logic and coordinate translation, we define the
@@ -789,7 +838,7 @@ struct {
 
    uint32 indexBufferSid;     /* Valid index buffer sid. */
    uint32 indexBufferOffset;  /* Byte offset into the vertex buffer, almost */
-			      /* always 0 for DX9 guests, non-zero for OpenGL */
+                              /* always 0 for pre SM guests, non-zero for OpenGL */
                               /* guests.  We can't represent non-multiple of */
                               /* stride offsets in D3D9Renderer... */
    uint8 indexBufferStride;   /* Allowable values = 1, 2, or 4 */
@@ -1228,6 +1277,7 @@ struct SVGA3dCmdLogicOpsBitBlt {
    SVGA3dSurfaceImageId src;
    SVGA3dSurfaceImageId dst;
    SVGA3dLogicOp logicOp;
+   SVGA3dLogicOpRop3 logicOpRop3;
    /* Followed by variable number of SVGA3dCopyBox structures */
 }
 #include "vmware_pack_end.h"
@@ -1247,7 +1297,8 @@ struct SVGA3dCmdLogicOpsTransBlt {
    uint32 color;
    uint32 flags;
    SVGA3dBox srcBox;
-   SVGA3dBox dstBox;
+   SVGA3dSignedBox dstBox;
+   SVGA3dBox clipBox;
 }
 #include "vmware_pack_end.h"
 SVGA3dCmdLogicOpsTransBlt;   /* SVGA_3D_CMD_LOGICOPS_TRANSBLT */
@@ -1266,7 +1317,8 @@ struct SVGA3dCmdLogicOpsStretchBlt {
    uint16 mode;
    uint16 flags;
    SVGA3dBox srcBox;
-   SVGA3dBox dstBox;
+   SVGA3dSignedBox dstBox;
+   SVGA3dBox clipBox;
 }
 #include "vmware_pack_end.h"
 SVGA3dCmdLogicOpsStretchBlt;   /* SVGA_3D_CMD_LOGICOPS_STRETCHBLT */
@@ -1283,6 +1335,7 @@ struct SVGA3dCmdLogicOpsColorFill {
    SVGA3dSurfaceImageId dst;
    uint32 color;
    SVGA3dLogicOp logicOp;
+   SVGA3dLogicOpRop3 logicOpRop3;
    /* Followed by variable number of SVGA3dRect structures. */
 }
 #include "vmware_pack_end.h"
@@ -1302,7 +1355,8 @@ struct SVGA3dCmdLogicOpsAlphaBlend {
    uint32 alphaVal;
    uint32 flags;
    SVGA3dBox srcBox;
-   SVGA3dBox dstBox;
+   SVGA3dSignedBox dstBox;
+   SVGA3dBox clipBox;
 }
 #include "vmware_pack_end.h"
 SVGA3dCmdLogicOpsAlphaBlend;   /* SVGA_3D_CMD_LOGICOPS_ALPHABLEND */
@@ -1365,8 +1419,9 @@ struct {
    SVGA3dSurface2Flags surface2Flags;
    uint8 multisamplePattern;
    uint8 qualityLevel;
-   uint8  pad0[2];
-   uint32 pad1[3];
+   uint16 bufferByteStride;
+   float minLOD;
+   uint32 pad0[2];
 }
 #include "vmware_pack_end.h"
 SVGAOTableSurfaceEntry;
@@ -1543,7 +1598,7 @@ typedef
 #include "vmware_pack_begin.h"
 struct {
    SVGAOTableType type;
-   PPN baseAddress;
+   PPN32 baseAddress;
    uint32 sizeInBytes;
    uint32 validSizeInBytes;
    SVGAMobFormat ptDepth;
@@ -1599,7 +1654,7 @@ typedef
 struct SVGA3dCmdDefineGBMob {
    SVGAMobId mobid;
    SVGAMobFormat ptDepth;
-   PPN base;
+   PPN32 base;
    uint32 sizeInBytes;
 }
 #include "vmware_pack_end.h"
@@ -1617,7 +1672,6 @@ struct SVGA3dCmdDestroyGBMob {
 }
 #include "vmware_pack_end.h"
 SVGA3dCmdDestroyGBMob;   /* SVGA_3D_CMD_DESTROY_GB_MOB */
-
 
 /*
  * Define a memory object (Mob) in the OTable with a PPN64 base.
@@ -1717,6 +1771,27 @@ struct SVGA3dCmdDefineGBSurface_v3 {
 }
 #include "vmware_pack_end.h"
 SVGA3dCmdDefineGBSurface_v3;   /* SVGA_3D_CMD_DEFINE_GB_SURFACE_V3 */
+
+/*
+ * Defines a guest-backed surface, adding buffer byte stride.
+ */
+typedef
+#include "vmware_pack_begin.h"
+struct SVGA3dCmdDefineGBSurface_v4 {
+   uint32 sid;
+   SVGA3dSurfaceAllFlags surfaceFlags;
+   SVGA3dSurfaceFormat format;
+   uint32 numMipLevels;
+   uint32 multisampleCount;
+   SVGA3dMSPattern multisamplePattern;
+   SVGA3dMSQualityLevel qualityLevel;
+   SVGA3dTextureFilter autogenFilter;
+   SVGA3dSize size;
+   uint32 arraySize;
+   uint32 bufferByteStride;
+}
+#include "vmware_pack_end.h"
+SVGA3dCmdDefineGBSurface_v4;   /* SVGA_3D_CMD_DEFINE_GB_SURFACE_V4 */
 
 /*
  * Destroy a guest-backed surface.
@@ -2180,5 +2255,21 @@ SVGA3dCmdScreenCopy;  /* SVGA_3D_CMD_SCREEN_COPY */
 #define SVGA_SCREEN_COPY_STATUS_FAILURE 0x00
 #define SVGA_SCREEN_COPY_STATUS_SUCCESS 0x01
 #define SVGA_SCREEN_COPY_STATUS_INVALID 0xFFFFFFFF
+
+typedef
+#include "vmware_pack_begin.h"
+struct {
+   uint32 sid;
+}
+#include "vmware_pack_end.h"
+SVGA3dCmdWriteZeroSurface;  /* SVGA_3D_CMD_WRITE_ZERO_SURFACE */
+
+typedef
+#include "vmware_pack_begin.h"
+struct {
+   uint32 sid;
+}
+#include "vmware_pack_end.h"
+SVGA3dCmdHintZeroSurface;  /* SVGA_3D_CMD_HINT_ZERO_SURFACE */
 
 #endif /* _SVGA3D_CMD_H_ */

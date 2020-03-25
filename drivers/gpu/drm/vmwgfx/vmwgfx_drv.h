@@ -58,7 +58,7 @@
 #define VMWGFX_DRIVER_NAME "vmwgfx"
 #define VMWGFX_DRIVER_DATE "20200114"
 #define VMWGFX_DRIVER_MAJOR 2
-#define VMWGFX_DRIVER_MINOR 17
+#define VMWGFX_DRIVER_MINOR 18
 #define VMWGFX_DRIVER_PATCHLEVEL 0
 #define VMWGFX_FIFO_STATIC_SIZE (1024*1024)
 #define VMWGFX_MAX_RELOCATIONS 2048
@@ -202,6 +202,7 @@ enum vmw_res_type {
 	vmw_res_dx_context,
 	vmw_res_cotable,
 	vmw_res_view,
+	vmw_res_streamoutput,
 	vmw_res_max
 };
 
@@ -210,7 +211,8 @@ enum vmw_res_type {
  */
 enum vmw_cmdbuf_res_type {
 	vmw_cmdbuf_res_shader,
-	vmw_cmdbuf_res_view
+	vmw_cmdbuf_res_view,
+	vmw_cmdbuf_res_streamoutput
 };
 
 struct vmw_cmdbuf_res_manager;
@@ -223,24 +225,58 @@ struct vmw_cursor_snooper {
 struct vmw_framebuffer;
 struct vmw_surface_offset;
 
-struct vmw_surface {
-	struct vmw_resource res;
-	SVGA3dSurfaceAllFlags flags;
-	uint32_t format;
-	uint32_t mip_levels[DRM_VMW_MAX_SURFACE_FACES];
+/**
+ * struct vmw_surface_metadata - Metadata describing a surface.
+ *
+ * @flags: Device flags.
+ * @format: Surface SVGA3D_x format.
+ * @mip_levels: Mip level for each face. For GB first index is used only.
+ * @multisample_count: Sample count.
+ * @multisample_pattern: Sample patterns.
+ * @quality_level: Quality level.
+ * @autogen_filter: Filter for automatically generated mipmaps.
+ * @array_size: Number of array elements for a 1D/2D texture. For cubemap
+                texture number of faces * array_size. This should be 0 for pre
+		SM4 device.
+ * @buffer_byte_stride: Buffer byte stride.
+ * @num_sizes: Size of @sizes. For GB surface this should always be 1.
+ * @base_size: Surface dimension.
+ * @sizes: Array representing mip sizes. Legacy only.
+ * @scanout: Whether this surface will be used for scanout.
+ *
+ * This tracks metadata for both legacy and guest backed surface.
+ */
+struct vmw_surface_metadata {
+	u64 flags;
+	u32 format;
+	u32 mip_levels[DRM_VMW_MAX_SURFACE_FACES];
+	u32 multisample_count;
+	u32 multisample_pattern;
+	u32 quality_level;
+	u32 autogen_filter;
+	u32 array_size;
+	u32 num_sizes;
+	u32 buffer_byte_stride;
 	struct drm_vmw_size base_size;
 	struct drm_vmw_size *sizes;
-	uint32_t num_sizes;
 	bool scanout;
-	uint32_t array_size;
-	/* TODO so far just a extra pointer */
+};
+
+/**
+ * struct vmw_surface: Resource structure for a surface.
+ *
+ * @res: The base resource for this surface.
+ * @metadata: Metadata for this surface resource.
+ * @snooper: Cursor data. Legacy surface only.
+ * @offsets: Legacy surface only.
+ * @view_list: List of views bound to this surface.
+ */
+struct vmw_surface {
+	struct vmw_resource res;
+	struct vmw_surface_metadata metadata;
 	struct vmw_cursor_snooper snooper;
 	struct vmw_surface_offset *offsets;
-	SVGA3dTextureFilter autogen_filter;
-	uint32_t multisample_count;
 	struct list_head view_list;
-	SVGA3dMSPattern multisample_pattern;
-	SVGA3dMSQualityLevel quality_level;
 };
 
 struct vmw_marker_queue {
@@ -441,6 +477,22 @@ enum {
 	VMW_IRQTHREAD_MAX
 };
 
+/**
+ * enum vmw_sm_type - Graphics context capability supported by device.
+ * @VMW_SM_LEGACY: Pre DX context.
+ * @VMW_SM_4: Context support upto SM4.
+ * @VMW_SM_4_1: Context support upto SM4_1.
+ * @VMW_SM_5: Context support up to SM5.
+ * @VMW_SM_MAX: Should be the last.
+ */
+enum vmw_sm_type {
+	VMW_SM_LEGACY = 0,
+	VMW_SM_4,
+	VMW_SM_4_1,
+	VMW_SM_5,
+	VMW_SM_MAX
+};
+
 struct vmw_private {
 	struct ttm_bo_device bdev;
 
@@ -475,9 +527,9 @@ struct vmw_private {
 	bool has_mob;
 	spinlock_t hw_lock;
 	spinlock_t cap_lock;
-	bool has_dx;
 	bool assume_16bpp;
-	bool has_sm4_1;
+
+	enum vmw_sm_type sm_type;
 
 	/*
 	 * Framebuffer info.
@@ -646,6 +698,39 @@ static inline uint32_t vmw_read(struct vmw_private *dev_priv,
 	spin_unlock(&dev_priv->hw_lock);
 
 	return val;
+}
+
+/**
+ * has_sm4_context - Does the device support SM4 context.
+ * @dev_priv: Device private.
+ *
+ * Return: Bool value if device support SM4 context or not.
+ */
+static inline bool has_sm4_context(const struct vmw_private *dev_priv)
+{
+	return (dev_priv->sm_type >= VMW_SM_4);
+}
+
+/**
+ * has_sm4_1_context - Does the device support SM4_1 context.
+ * @dev_priv: Device private.
+ *
+ * Return: Bool value if device support SM4_1 context or not.
+ */
+static inline bool has_sm4_1_context(const struct vmw_private *dev_priv)
+{
+	return (dev_priv->sm_type >= VMW_SM_4_1);
+}
+
+/**
+ * has_sm5_context - Does the device support SM5 context.
+ * @dev_priv: Device private.
+ *
+ * Return: Bool value if device support SM5 context or not.
+ */
+static inline bool has_sm5_context(const struct vmw_private *dev_priv)
+{
+	return (dev_priv->sm_type >= VMW_SM_5);
 }
 
 extern void vmw_svga_enable(struct vmw_private *dev_priv);
@@ -1226,6 +1311,11 @@ extern int vmw_gb_surface_reference_ext_ioctl(struct drm_device *dev,
 					      void *data,
 					      struct drm_file *file_priv);
 
+int vmw_gb_surface_define(struct vmw_private *dev_priv,
+			  uint32_t user_accounting_size,
+			  const struct vmw_surface_metadata *req,
+			  struct vmw_surface **srf_out);
+
 /*
  * Shader management - vmwgfx_shader.c
  */
@@ -1257,6 +1347,24 @@ extern void vmw_dx_shader_cotable_list_scrub(struct vmw_private *dev_priv,
 extern struct vmw_resource *
 vmw_shader_lookup(struct vmw_cmdbuf_res_manager *man,
 		  u32 user_key, SVGA3dShaderType shader_type);
+
+/*
+ * Streamoutput management
+ */
+struct vmw_resource *
+vmw_dx_streamoutput_lookup(struct vmw_cmdbuf_res_manager *man,
+			   u32 user_key);
+int vmw_dx_streamoutput_add(struct vmw_cmdbuf_res_manager *man,
+			    struct vmw_resource *ctx,
+			    SVGA3dStreamOutputId user_key,
+			    struct list_head *list);
+void vmw_dx_streamoutput_set_size(struct vmw_resource *res, u32 size);
+int vmw_dx_streamoutput_remove(struct vmw_cmdbuf_res_manager *man,
+			       SVGA3dStreamOutputId user_key,
+			       struct list_head *list);
+void vmw_dx_streamoutput_cotable_list_scrub(struct vmw_private *dev_priv,
+					    struct list_head *list,
+					    bool readback);
 
 /*
  * Command buffer managed resources - vmwgfx_cmdbuf_res.c

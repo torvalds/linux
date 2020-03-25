@@ -905,14 +905,14 @@ static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
 	 */
 
 	/* Surface must be marked as a scanout. */
-	if (unlikely(!surface->scanout))
+	if (unlikely(!surface->metadata.scanout))
 		return -EINVAL;
 
-	if (unlikely(surface->mip_levels[0] != 1 ||
-		     surface->num_sizes != 1 ||
-		     surface->base_size.width < mode_cmd->width ||
-		     surface->base_size.height < mode_cmd->height ||
-		     surface->base_size.depth != 1)) {
+	if (unlikely(surface->metadata.mip_levels[0] != 1 ||
+		     surface->metadata.num_sizes != 1 ||
+		     surface->metadata.base_size.width < mode_cmd->width ||
+		     surface->metadata.base_size.height < mode_cmd->height ||
+		     surface->metadata.base_size.depth != 1)) {
 		DRM_ERROR("Incompatible surface dimensions "
 			  "for requested mode.\n");
 		return -EINVAL;
@@ -941,7 +941,7 @@ static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
 	 * For DX, surface format validation is done when surface->scanout
 	 * is set.
 	 */
-	if (!dev_priv->has_dx && format != surface->format) {
+	if (!has_sm4_context(dev_priv) && format != surface->metadata.format) {
 		DRM_ERROR("Invalid surface format for requested mode.\n");
 		return -EINVAL;
 	}
@@ -1144,8 +1144,8 @@ static int vmw_create_bo_proxy(struct drm_device *dev,
 			       struct vmw_buffer_object *bo_mob,
 			       struct vmw_surface **srf_out)
 {
+	struct vmw_surface_metadata metadata = {0};
 	uint32_t format;
-	struct drm_vmw_size content_base_size = {0};
 	struct vmw_resource *res;
 	unsigned int bytes_pp;
 	struct drm_format_name_buf format_name;
@@ -1175,22 +1175,15 @@ static int vmw_create_bo_proxy(struct drm_device *dev,
 		return -EINVAL;
 	}
 
-	content_base_size.width  = mode_cmd->pitches[0] / bytes_pp;
-	content_base_size.height = mode_cmd->height;
-	content_base_size.depth  = 1;
+	metadata.format = format;
+	metadata.mip_levels[0] = 1;
+	metadata.num_sizes = 1;
+	metadata.base_size.width = mode_cmd->pitches[0] / bytes_pp;
+	metadata.base_size.height =  mode_cmd->height;
+	metadata.base_size.depth = 1;
+	metadata.scanout = true;
 
-	ret = vmw_surface_gb_priv_define(dev,
-					 0, /* kernel visible only */
-					 0, /* flags */
-					 format,
-					 true, /* can be a scanout buffer */
-					 1, /* num of mip levels */
-					 0,
-					 0,
-					 content_base_size,
-					 SVGA3D_MS_PATTERN_NONE,
-					 SVGA3D_MS_QUALITY_NONE,
-					 srf_out);
+	ret = vmw_gb_surface_define(vmw_priv(dev), 0, &metadata, srf_out);
 	if (ret) {
 		DRM_ERROR("Failed to allocate proxy content buffer\n");
 		return ret;
@@ -2516,7 +2509,7 @@ int vmw_kms_update_proxy(struct vmw_resource *res,
 			 int increment)
 {
 	struct vmw_private *dev_priv = res->dev_priv;
-	struct drm_vmw_size *size = &vmw_res_to_srf(res)->base_size;
+	struct drm_vmw_size *size = &vmw_res_to_srf(res)->metadata.base_size;
 	struct {
 		SVGA3dCmdHeader header;
 		SVGA3dCmdUpdateGBImage body;
