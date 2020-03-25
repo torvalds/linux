@@ -2442,7 +2442,7 @@ static int hp100_sense_lan(struct net_device *dev)
 	}
 
 	/* Those cards don't have a 100 Mbit connector */
-	if ( !strcmp(lp->id, "HWP1920")  ||
+	if (!strcmp(lp->id, "HWP1920")  ||
 	     (lp->pci_dev &&
 	      lp->pci_dev->vendor == PCI_VENDOR_ID &&
 	      (lp->pci_dev->device == PCI_DEVICE_ID_HP_J2970A ||
