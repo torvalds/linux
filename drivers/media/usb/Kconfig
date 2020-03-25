@@ -5,6 +5,12 @@ config TTPCI_EEPROM
 	tristate
 	depends on I2C
 
+# Should match the hybrid card list below
+config MEDIA_HYBRID_USB
+	bool
+	depends on VIDEO_AU0828 || VIDEO_CX231XX || VIDEO_TM6000 || VIDEO_PVRUSB2
+	default y
+
 if USB && MEDIA_SUPPORT
 
 menuconfig MEDIA_USB_SUPPORT
@@ -29,7 +35,6 @@ endif
 
 if MEDIA_ANALOG_TV_SUPPORT
 	comment "Analog TV USB devices"
-source "drivers/media/usb/pvrusb2/Kconfig"
 source "drivers/media/usb/hdpvr/Kconfig"
 source "drivers/media/usb/stk1160/Kconfig"
 source "drivers/media/usb/go7007/Kconfig"
@@ -39,6 +44,7 @@ if (MEDIA_ANALOG_TV_SUPPORT || MEDIA_DIGITAL_TV_SUPPORT)
 	comment "Analog/digital TV USB devices"
 source "drivers/media/usb/au0828/Kconfig"
 source "drivers/media/usb/cx231xx/Kconfig"
+source "drivers/media/usb/pvrusb2/Kconfig"
 source "drivers/media/usb/tm6000/Kconfig"
 endif
 

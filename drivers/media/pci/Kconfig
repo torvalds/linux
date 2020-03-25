@@ -1,4 +1,11 @@
 # SPDX-License-Identifier: GPL-2.0-only
+
+# Should match the hybrid card list below
+config MEDIA_HYBRID_PCI
+	bool
+	depends on VIDEO_CX18 || VIDEO_CX23885 || VIDEO_CX88 || VIDEO_BT848 || VIDEO_SAA7134 || VIDEO_SAA7164
+	default y
+
 if PCI && MEDIA_SUPPORT
 
 menuconfig MEDIA_PCI_SUPPORT
@@ -24,18 +31,18 @@ if MEDIA_ANALOG_TV_SUPPORT
 source "drivers/media/pci/ivtv/Kconfig"
 source "drivers/media/pci/saa7146/Kconfig"
 source "drivers/media/pci/dt3155/Kconfig"
+source "drivers/media/pci/cx25821/Kconfig"
+source "drivers/media/pci/cobalt/Kconfig"
 endif
 
 if MEDIA_ANALOG_TV_SUPPORT || MEDIA_DIGITAL_TV_SUPPORT
 	comment "Media capture/analog/hybrid TV support"
 source "drivers/media/pci/cx18/Kconfig"
 source "drivers/media/pci/cx23885/Kconfig"
-source "drivers/media/pci/cx25821/Kconfig"
 source "drivers/media/pci/cx88/Kconfig"
 source "drivers/media/pci/bt8xx/Kconfig"
 source "drivers/media/pci/saa7134/Kconfig"
 source "drivers/media/pci/saa7164/Kconfig"
-source "drivers/media/pci/cobalt/Kconfig"
 
 endif
 

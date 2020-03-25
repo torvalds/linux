@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config VIDEO_CX88
 	tristate "Conexant 2388x (bt878 successor) support"
-	depends on VIDEO_DEV && PCI && I2C && RC_CORE
+	depends on PCI && I2C && RC_CORE
 	select I2C_ALGOBIT
 	select VIDEOBUF2_DMA_SG
 	select VIDEO_TUNER
@@ -44,7 +44,7 @@ config VIDEO_CX88_BLACKBIRD
 
 config VIDEO_CX88_DVB
 	tristate "DVB/ATSC Support for cx2388x based TV cards"
-	depends on VIDEO_CX88 && DVB_CORE
+	depends on VIDEO_CX88
 	select VIDEOBUF2_DVB
 	select DVB_PLL if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_MT352 if MEDIA_SUBDRV_AUTOSELECT

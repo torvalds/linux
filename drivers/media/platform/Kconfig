@@ -531,7 +531,7 @@ config VIDEO_TI_CSC
 
 menuconfig DVB_PLATFORM_DRIVERS
 	bool "DVB platform devices"
-	depends on MEDIA_DIGITAL_TV_SUPPORT
+	select DVB_CORE
 	help
 	  Say Y here to enable support for platform-specific Digital TV drivers.
 
