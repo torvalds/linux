@@ -801,11 +801,6 @@
 //CP_DE_DE_COUNT
 #define CP_DE_DE_COUNT__DRAW_ENGINE_COUNT__SHIFT                                                              0x0
 #define CP_DE_DE_COUNT__DRAW_ENGINE_COUNT_MASK                                                                0xFFFFFFFFL
-//PWR_MISC_CNTL_STATUS
-#define PWR_MISC_CNTL_STATUS__PWR_GFX_RLC_CGPG_EN__SHIFT                                                      0x0
-#define PWR_MISC_CNTL_STATUS__PWR_GFXOFF_STATUS__SHIFT                                                        0x1
-#define PWR_MISC_CNTL_STATUS__PWR_GFX_RLC_CGPG_EN_MASK                                                        0x00000001L
-#define PWR_MISC_CNTL_STATUS__PWR_GFXOFF_STATUS_MASK                                                          0x00000006L
 //CP_STALLED_STAT3
 #define CP_STALLED_STAT3__CE_TO_CSF_NOT_RDY_TO_RCV__SHIFT                                                     0x0
 #define CP_STALLED_STAT3__CE_TO_RAM_INIT_FETCHER_NOT_RDY_TO_RCV__SHIFT                                        0x1

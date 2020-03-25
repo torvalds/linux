@@ -159,8 +159,6 @@
 #define mmCP_DE_LAST_INVAL_COUNT_BASE_IDX                                                              0
 #define mmCP_DE_DE_COUNT                                                                               0x00c4
 #define mmCP_DE_DE_COUNT_BASE_IDX                                                                      0
-#define mmPWR_MISC_CNTL_STATUS                                                                         0x0183
-#define mmPWR_MISC_CNTL_STATUS_BASE_IDX                                                                0
 #define mmCP_STALLED_STAT3                                                                             0x019c
 #define mmCP_STALLED_STAT3_BASE_IDX                                                                    0
 #define mmCP_STALLED_STAT1                                                                             0x019d
