@@ -128,8 +128,8 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		sda-gpios = <&gpy4 0 GPIO_ACTIVE_HIGH>;
-		scl-gpios = <&gpy4 1 GPIO_ACTIVE_HIGH>;
+		sda-gpios = <&gpy4 0 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&gpy4 1 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 		i2c-gpio,delay-us = <5>;
 
 		battery@36 {

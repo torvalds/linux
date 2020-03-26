@@ -641,9 +641,8 @@
 		pinctrl-0 = <&i2c2_gpio_bus>;
 		status = "okay";
 		compatible = "i2c-gpio";
-		gpios = <&gpa0 6 0 /* sda */
-			 &gpa0 7 0 /* scl */
-			>;
+		sda-gpios = <&gpa0 6 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&gpa0 7 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 		i2c-gpio,delay-us = <2>;
 		#address-cells = <1>;
 		#size-cells = <0>;
