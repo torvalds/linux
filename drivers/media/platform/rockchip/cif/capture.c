@@ -885,26 +885,20 @@ static void rkcif_stream_stop(struct rkcif_stream *stream)
 }
 
 static int rkcif_queue_setup(struct vb2_queue *queue,
-			     const void *parg,
 			     unsigned int *num_buffers,
 			     unsigned int *num_planes,
 			     unsigned int sizes[],
-			     void *alloc_ctxs[])
+			     struct device *alloc_ctxs[])
 {
 	struct rkcif_stream *stream = queue->drv_priv;
 	struct rkcif_device *dev = stream->cifdev;
-	const struct v4l2_format *pfmt = parg;
-	const struct v4l2_pix_format_mplane *pixm;
+	const struct v4l2_pix_format_mplane *pixm = NULL;
 	const struct cif_output_fmt *cif_fmt;
 	u32 i;
 
-	if (pfmt) {
-		pixm = &pfmt->fmt.pix_mp;
-		cif_fmt = find_output_fmt(stream, pixm->pixelformat);
-	} else {
-		pixm = &stream->pixm;
-		cif_fmt = stream->cif_fmt_out;
-	}
+
+	pixm = &stream->pixm;
+	cif_fmt = stream->cif_fmt_out;
 
 	*num_planes = cif_fmt->mplanes;
 
@@ -915,7 +909,6 @@ static int rkcif_queue_setup(struct vb2_queue *queue,
 		plane_fmt = &pixm->plane_fmt[i];
 		sizes[i] = plane_fmt->sizeimage / pixm->height * h;
 
-		alloc_ctxs[i] = dev->alloc_ctx;
 	}
 
 	v4l2_dbg(1, rkcif_debug, &dev->v4l2_dev, "%s count %d, size %d\n",
@@ -1032,7 +1025,7 @@ static void rkcif_stop_streaming(struct vb2_queue *queue)
 		stream->stopping = false;
 	}
 
-	media_entity_pipeline_stop(&node->vdev.entity);
+	media_pipeline_stop(&node->vdev.entity);
 	ret = dev->pipe.set_stream(&dev->pipe, false);
 	if (ret < 0)
 		v4l2_err(v4l2_dev, "pipeline stream-off failed error:%d\n",
@@ -1404,7 +1397,7 @@ static int rkcif_start_streaming(struct vb2_queue *queue, unsigned int count)
 	if (ret < 0)
 		goto stop_stream;
 
-	ret = media_entity_pipeline_start(&node->vdev.entity, &dev->pipe.pipe);
+	ret = media_pipeline_start(&node->vdev.entity, &dev->pipe.pipe);
 	if (ret < 0) {
 		v4l2_err(&dev->v4l2_dev, "start pipeline failed %d\n",
 			 ret);
@@ -1910,7 +1903,7 @@ static int rkcif_register_stream_vdev(struct rkcif_stream *stream,
 		return ret;
 	}
 
-	ret = media_entity_init(&vdev->entity, 1, &node->pad, 0);
+	ret = media_entity_pads_init(&vdev->entity, 1, &node->pad);
 	if (ret < 0)
 		goto unreg;
 
@@ -1968,7 +1961,7 @@ static void rkcif_vb_done_oneframe(struct rkcif_stream *stream,
 		vb2_set_plane_payload(&vb_done->vb2_buf, i,
 				      stream->pixm.plane_fmt[i].sizeimage);
 	}
-	vb_done->timestamp = ns_to_timeval(ktime_get_ns());
+	vb_done->vb2_buf.timestamp = ktime_get_ns();
 	vb2_buffer_done(&vb_done->vb2_buf, VB2_BUF_STATE_DONE);
 }
 
@@ -2097,7 +2090,7 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 	/* TODO: xuhf-debug: add stream type */
 	struct rkcif_stream *stream;
 	void __iomem *base = cif_dev->base_addr;
-	unsigned int intstat, i;
+	unsigned int intstat, i = 0xff;
 
 	if (cif_dev->active_sensor->mbus.type == V4L2_MBUS_CSI2 &&
 	    cif_dev->chip_id == CHIP_RK1808_CIF) {

@@ -328,7 +328,7 @@ static int csi2_media_init(struct v4l2_subdev *sd)
 	csi2->format_mbus.height = 1080;
 
 	v4l2_err(&csi2->sd, "media entry init\n");
-	return media_entity_init(&sd->entity, num_pads, csi2->pad, 0);
+	return media_entity_pads_init(&sd->entity, num_pads, csi2->pad);
 }
 
 /* csi2 accepts all fmt/size from sensor */
@@ -407,6 +407,7 @@ csi2_notifier_bound(struct v4l2_async_notifier *notifier,
 			struct csi2_dev,
 			notifier);
 	struct csi2_sensor *sensor;
+	struct media_link *link;
 	unsigned int pad, ret;
 
 	if (csi2->num_sensors == ARRAY_SIZE(csi2->sensors))
@@ -428,7 +429,7 @@ csi2_notifier_bound(struct v4l2_async_notifier *notifier,
 		return -ENXIO;
 	}
 
-	ret = media_entity_create_link(&sensor->sd->entity, pad,
+	ret = media_create_pad_link(&sensor->sd->entity, pad,
 				       &csi2->sd.entity, RK_CSI2_PAD_SINK,
 				       0/* csi2->num_sensors != 1 ? 0 : MEDIA_LNK_FL_ENABLED */);
 	if (ret) {
@@ -438,8 +439,8 @@ csi2_notifier_bound(struct v4l2_async_notifier *notifier,
 		return ret;
 	}
 
-	ret = media_entity_setup_link(csi2->sd.entity.links,
-				      MEDIA_LNK_FL_ENABLED);
+	link = list_first_entry(&csi2->sd.entity.links, struct media_link, list);
+	ret = media_entity_setup_link(link, MEDIA_LNK_FL_ENABLED);
 	if (ret) {
 		dev_err(csi2->dev,
 			"failed to create link for %s\n",
