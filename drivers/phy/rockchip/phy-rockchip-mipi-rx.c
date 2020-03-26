@@ -246,8 +246,8 @@ enum dphy_reg_id {
 	GRF_DPHY_CSIPHY_FORCERXMODE,
 	GRF_DPHY_CSIPHY_CLKLANE_EN,
 	GRF_DPHY_CSIPHY_DATALANE_EN,
-	GRF_DPHY_CLK_INV_SEL,
 	/* rv1126 only */
+	GRF_DPHY_CLK_INV_SEL,
 	GRF_DPHY_SEL,
 	/* rk3368 only */
 	GRF_ISP_MIPI_CSI_HOST_SEL,
@@ -809,12 +809,13 @@ static int mipidphy_g_mbus_config(struct v4l2_subdev *sd,
 {
 	struct mipidphy_priv *priv = to_dphy_priv(sd);
 	struct v4l2_subdev *sensor_sd = get_remote_sensor(sd);
-	struct mipidphy_sensor *sensor = sd_to_sensor(priv, sensor_sd);
+	struct mipidphy_sensor *sensor;
 
-	if (sensor_sd) {
-		mipidphy_update_sensor_mbus(sd);
-		*config = sensor->mbus;
-	}
+	if (!sensor_sd)
+		return -ENODEV;
+	sensor = sd_to_sensor(priv, sensor_sd);
+	mipidphy_update_sensor_mbus(sd);
+	*config = sensor->mbus;
 
 	return 0;
 }
@@ -1288,6 +1289,7 @@ static int csi_mipidphy_stream_on(struct mipidphy_priv *priv,
 	if (sensor->lanes > 0x03)
 		csi_mipidphy_wr_ths_settle(priv, hsfreq, MIPI_DPHY_LANE_DATA3);
 
+	write_grf_reg(priv, GRF_DPHY_CLK_INV_SEL, 0x1);
 	write_grf_reg(priv, GRF_DPHY_CSIPHY_CLKLANE_EN, 0x1);
 	write_grf_reg(priv, GRF_DPHY_CSIPHY_DATALANE_EN,
 		      GENMASK(sensor->lanes - 1, 0));
