@@ -959,6 +959,49 @@ static int sdma_v5_0_start(struct amdgpu_device *adev)
 	return r;
 }
 
+static int sdma_v5_0_mqd_init(struct amdgpu_device *adev, void *mqd,
+			      struct amdgpu_mqd_prop *prop)
+{
+	struct v10_sdma_mqd *m = mqd;
+	uint64_t wb_gpu_addr;
+
+	m->sdmax_rlcx_rb_cntl =
+		order_base_2(prop->queue_size / 4) << SDMA0_RLC0_RB_CNTL__RB_SIZE__SHIFT |
+		1 << SDMA0_RLC0_RB_CNTL__RPTR_WRITEBACK_ENABLE__SHIFT |
+		6 << SDMA0_RLC0_RB_CNTL__RPTR_WRITEBACK_TIMER__SHIFT |
+		1 << SDMA0_RLC0_RB_CNTL__RB_PRIV__SHIFT;
+
+	m->sdmax_rlcx_rb_base = lower_32_bits(prop->hqd_base_gpu_addr >> 8);
+	m->sdmax_rlcx_rb_base_hi = upper_32_bits(prop->hqd_base_gpu_addr >> 8);
+
+	m->sdmax_rlcx_rb_wptr_poll_cntl = RREG32(sdma_v5_0_get_reg_offset(adev, 0,
+						  mmSDMA0_GFX_RB_WPTR_POLL_CNTL));
+
+	wb_gpu_addr = prop->wptr_gpu_addr;
+	m->sdmax_rlcx_rb_wptr_poll_addr_lo = lower_32_bits(wb_gpu_addr);
+	m->sdmax_rlcx_rb_wptr_poll_addr_hi = upper_32_bits(wb_gpu_addr);
+
+	wb_gpu_addr = prop->rptr_gpu_addr;
+	m->sdmax_rlcx_rb_rptr_addr_lo = lower_32_bits(wb_gpu_addr);
+	m->sdmax_rlcx_rb_rptr_addr_hi = upper_32_bits(wb_gpu_addr);
+
+	m->sdmax_rlcx_ib_cntl = RREG32(sdma_v5_0_get_reg_offset(adev, 0,
+							mmSDMA0_GFX_IB_CNTL));
+
+	m->sdmax_rlcx_doorbell_offset =
+		prop->doorbell_index << SDMA0_RLC0_DOORBELL_OFFSET__OFFSET__SHIFT;
+
+	m->sdmax_rlcx_doorbell = REG_SET_FIELD(0, SDMA0_RLC0_DOORBELL, ENABLE, 1);
+
+	return 0;
+}
+
+static void sdma_v5_0_set_mqd_funcs(struct amdgpu_device *adev)
+{
+	adev->mqds[AMDGPU_HW_IP_DMA].mqd_size = sizeof(struct v10_sdma_mqd);
+	adev->mqds[AMDGPU_HW_IP_DMA].init_mqd = sdma_v5_0_mqd_init;
+}
+
 /**
  * sdma_v5_0_ring_test_ring - simple async dma engine test
  *
@@ -1289,6 +1332,7 @@ static int sdma_v5_0_early_init(void *handle)
 	sdma_v5_0_set_buffer_funcs(adev);
 	sdma_v5_0_set_vm_pte_funcs(adev);
 	sdma_v5_0_set_irq_funcs(adev);
+	sdma_v5_0_set_mqd_funcs(adev);
 
 	return 0;
 }
