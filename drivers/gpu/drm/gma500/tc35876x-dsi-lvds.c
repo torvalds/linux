@@ -747,11 +747,11 @@ static int cmi_lcd_hack_create_device(void)
 		return -EINVAL;
 	}
 
-	client = i2c_new_device(adapter, &info);
-	if (!client) {
-		pr_err("%s: i2c_new_device() failed\n", __func__);
+	client = i2c_new_client_device(adapter, &info);
+	if (IS_ERR(client)) {
+		pr_err("%s: creating I2C device failed\n", __func__);
 		i2c_put_adapter(adapter);
-		return -EINVAL;
+		return PTR_ERR(client);
 	}
 
 	return 0;
