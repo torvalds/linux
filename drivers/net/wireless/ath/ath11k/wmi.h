@@ -2345,7 +2345,7 @@ struct wmi_mac_addr {
 	} __packed;
 } __packed;
 
-struct wmi_ready_event {
+struct wmi_ready_event_min {
 	struct wmi_abi_version fw_abi_vers;
 	struct wmi_mac_addr mac_addr;
 	u32 status;
@@ -2353,6 +2353,12 @@ struct wmi_ready_event {
 	u32 num_extra_mac_addr;
 	u32 num_total_peers;
 	u32 num_extra_peers;
+} __packed;
+
+struct wmi_ready_event {
+	struct wmi_ready_event_min ready_event_min;
+	u32 max_ast_index;
+	u32 pktlog_defs_checksum;
 } __packed;
 
 struct wmi_service_available_event {
