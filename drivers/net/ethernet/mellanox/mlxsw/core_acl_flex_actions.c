@@ -1248,15 +1248,14 @@ EXPORT_SYMBOL(mlxsw_afa_block_append_mirror);
 #define MLXSW_AFA_QOS_CODE 0x06
 #define MLXSW_AFA_QOS_SIZE 1
 
-enum mlxsw_afa_qos_cmd {
+enum mlxsw_afa_qos_switch_prio_cmd {
 	/* Do nothing */
-	MLXSW_AFA_QOS_CMD_NOP,
-	/* Set a field */
-	MLXSW_AFA_QOS_CMD_SET,
+	MLXSW_AFA_QOS_SWITCH_PRIO_CMD_NOP,
+	/* Set Switch Priority to afa_qos_switch_prio */
+	MLXSW_AFA_QOS_SWITCH_PRIO_CMD_SET,
 };
 
 /* afa_qos_switch_prio_cmd
- * Switch Priority command as per mlxsw_afa_qos_cmd.
  */
 MLXSW_ITEM32(afa, qos, switch_prio_cmd, 0x08, 14, 2);
 
@@ -1267,7 +1266,8 @@ MLXSW_ITEM32(afa, qos, switch_prio, 0x08, 0, 4);
 
 static inline void
 mlxsw_afa_qos_switch_prio_pack(char *payload,
-			       enum mlxsw_afa_qos_cmd prio_cmd, u8 prio)
+			       enum mlxsw_afa_qos_switch_prio_cmd prio_cmd,
+			       u8 prio)
 {
 	mlxsw_afa_qos_switch_prio_cmd_set(payload, prio_cmd);
 	mlxsw_afa_qos_switch_prio_set(payload, prio);
@@ -1285,7 +1285,7 @@ int mlxsw_afa_block_append_qos_switch_prio(struct mlxsw_afa_block *block,
 		NL_SET_ERR_MSG_MOD(extack, "Cannot append QOS action");
 		return PTR_ERR(act);
 	}
-	mlxsw_afa_qos_switch_prio_pack(act, MLXSW_AFA_QOS_CMD_SET,
+	mlxsw_afa_qos_switch_prio_pack(act, MLXSW_AFA_QOS_SWITCH_PRIO_CMD_SET,
 				       prio);
 	return 0;
 }
