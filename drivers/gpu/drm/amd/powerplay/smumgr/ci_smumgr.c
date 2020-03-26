@@ -2881,7 +2881,7 @@ static int ci_update_uvd_smc_table(struct pp_hwmgr *hwmgr)
 		if (hwmgr->dpm_level & profile_mode_mask || !PP_CAP(PHM_PlatformCaps_UVDDPM))
 			break;
 	}
-	ci_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_UVDDPM_SetEnabledMask,
+	smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_UVDDPM_SetEnabledMask,
 				data->dpm_level_enable_mask.uvd_dpm_enable_mask);
 
 	return 0;
@@ -2912,7 +2912,7 @@ static int ci_update_vce_smc_table(struct pp_hwmgr *hwmgr)
 		if (hwmgr->dpm_level & profile_mode_mask || !PP_CAP(PHM_PlatformCaps_VCEDPM))
 			break;
 	}
-	ci_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_VCEDPM_SetEnabledMask,
+	smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_VCEDPM_SetEnabledMask,
 				data->dpm_level_enable_mask.vce_dpm_enable_mask);
 
 	return 0;
