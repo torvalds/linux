@@ -175,19 +175,6 @@ static void mapping_tree_init(struct mapping_tree *tree)
 	spin_lock_init(&tree->lock);
 }
 
-static void backref_tree_panic(struct rb_node *rb_node, int errno, u64 bytenr)
-{
-
-	struct btrfs_fs_info *fs_info = NULL;
-	struct btrfs_backref_node *bnode = rb_entry(rb_node,
-			struct btrfs_backref_node, rb_node);
-	if (bnode->root)
-		fs_info = bnode->root->fs_info;
-	btrfs_panic(fs_info, errno,
-		    "Inconsistency in backref cache found at offset %llu",
-		    bytenr);
-}
-
 /*
  * walk up backref nodes until reach node presents tree root
  */
@@ -244,7 +231,7 @@ static void update_backref_node(struct btrfs_backref_cache *cache,
 	node->bytenr = bytenr;
 	rb_node = rb_simple_insert(&cache->rb_root, node->bytenr, &node->rb_node);
 	if (rb_node)
-		backref_tree_panic(rb_node, -EEXIST, bytenr);
+		btrfs_backref_panic(cache->fs_info, bytenr, -EEXIST);
 }
 
 /*
@@ -765,7 +752,8 @@ static int finish_upper_links(struct btrfs_backref_cache *cache,
 		rb_node = rb_simple_insert(&cache->rb_root, start->bytenr,
 					   &start->rb_node);
 		if (rb_node)
-			backref_tree_panic(rb_node, -EEXIST, start->bytenr);
+			btrfs_backref_panic(cache->fs_info, start->bytenr,
+					    -EEXIST);
 		list_add_tail(&start->lower, &cache->leaves);
 	}
 
@@ -833,8 +821,8 @@ static int finish_upper_links(struct btrfs_backref_cache *cache,
 			rb_node = rb_simple_insert(&cache->rb_root, upper->bytenr,
 						   &upper->rb_node);
 			if (rb_node) {
-				backref_tree_panic(rb_node, -EEXIST,
-						   upper->bytenr);
+				btrfs_backref_panic(cache->fs_info,
+						upper->bytenr, -EEXIST);
 				return -EUCLEAN;
 			}
 		}
@@ -1127,7 +1115,7 @@ static int clone_backref_node(struct btrfs_trans_handle *trans,
 	rb_node = rb_simple_insert(&cache->rb_root, new_node->bytenr,
 				   &new_node->rb_node);
 	if (rb_node)
-		backref_tree_panic(rb_node, -EEXIST, new_node->bytenr);
+		btrfs_backref_panic(trans->fs_info, new_node->bytenr, -EEXIST);
 
 	if (!new_node->lowest) {
 		list_for_each_entry(new_edge, &new_node->lower, list[UPPER]) {
@@ -1254,7 +1242,7 @@ static int __update_reloc_root(struct btrfs_root *root)
 				   node->bytenr, &node->rb_node);
 	spin_unlock(&rc->reloc_root_tree.lock);
 	if (rb_node)
-		backref_tree_panic(rb_node, -EEXIST, node->bytenr);
+		btrfs_backref_panic(fs_info, node->bytenr, -EEXIST);
 	return 0;
 }
 
@@ -3411,7 +3399,8 @@ static int add_tree_block(struct reloc_control *rc,
 
 	rb_node = rb_simple_insert(blocks, block->bytenr, &block->rb_node);
 	if (rb_node)
-		backref_tree_panic(rb_node, -EEXIST, block->bytenr);
+		btrfs_backref_panic(rc->extent_root->fs_info, block->bytenr,
+				    -EEXIST);
 
 	return 0;
 }
