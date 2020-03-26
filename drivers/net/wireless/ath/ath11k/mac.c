@@ -1956,6 +1956,31 @@ static void ath11k_mac_op_bss_info_changed(struct ieee80211_hw *hw,
 		ath11k_wmi_send_obss_spr_cmd(ar, arvif->vdev_id,
 					     &info->he_obss_pd);
 
+	if (changed & BSS_CHANGED_HE_BSS_COLOR) {
+		if (vif->type == NL80211_IFTYPE_AP) {
+			ret = ath11k_wmi_send_obss_color_collision_cfg_cmd(
+				ar, arvif->vdev_id, info->he_bss_color.color,
+				ATH11K_BSS_COLOR_COLLISION_DETECTION_AP_PERIOD_MS,
+				!info->he_bss_color.disabled);
+			if (ret)
+				ath11k_warn(ar->ab, "failed to set bss color collision on vdev %i: %d\n",
+					    arvif->vdev_id,  ret);
+		} else if (vif->type == NL80211_IFTYPE_STATION) {
+			ret = ath11k_wmi_send_bss_color_change_enable_cmd(ar,
+									  arvif->vdev_id,
+									  1);
+			if (ret)
+				ath11k_warn(ar->ab, "failed to enable bss color change on vdev %i: %d\n",
+					    arvif->vdev_id,  ret);
+			ret = ath11k_wmi_send_obss_color_collision_cfg_cmd(
+				ar, arvif->vdev_id, 0,
+				ATH11K_BSS_COLOR_COLLISION_DETECTION_STA_PERIOD_MS, 1);
+			if (ret)
+				ath11k_warn(ar->ab, "failed to set bss color collision on vdev %i: %d\n",
+					    arvif->vdev_id,  ret);
+		}
+	}
+
 	mutex_unlock(&ar->conf_mutex);
 }
 
@@ -2325,6 +2350,7 @@ static int ath11k_mac_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	struct ath11k_base *ab = ar->ab;
 	struct ath11k_vif *arvif = ath11k_vif_to_arvif(vif);
 	struct ath11k_peer *peer;
+	struct ath11k_sta *arsta;
 	const u8 *peer_addr;
 	int ret = 0;
 	u32 flags = 0;
@@ -2382,15 +2408,53 @@ static int ath11k_mac_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		goto exit;
 	}
 
+	ret = ath11k_dp_peer_rx_pn_replay_config(arvif, peer_addr, cmd, key);
+	if (ret) {
+		ath11k_warn(ab, "failed to offload PN replay detection %d\n", ret);
+		goto exit;
+	}
+
 	spin_lock_bh(&ab->base_lock);
 	peer = ath11k_peer_find(ab, arvif->vdev_id, peer_addr);
-	if (peer && cmd == SET_KEY)
+	if (peer && cmd == SET_KEY) {
 		peer->keys[key->keyidx] = key;
-	else if (peer && cmd == DISABLE_KEY)
+		if (key->flags & IEEE80211_KEY_FLAG_PAIRWISE) {
+			peer->ucast_keyidx = key->keyidx;
+			peer->sec_type = ath11k_dp_tx_get_encrypt_type(key->cipher);
+		} else {
+			peer->mcast_keyidx = key->keyidx;
+			peer->sec_type_grp = ath11k_dp_tx_get_encrypt_type(key->cipher);
+		}
+	} else if (peer && cmd == DISABLE_KEY) {
 		peer->keys[key->keyidx] = NULL;
-	else if (!peer)
+		if (key->flags & IEEE80211_KEY_FLAG_PAIRWISE)
+			peer->ucast_keyidx = 0;
+		else
+			peer->mcast_keyidx = 0;
+	} else if (!peer)
 		/* impossible unless FW goes crazy */
 		ath11k_warn(ab, "peer %pM disappeared!\n", peer_addr);
+
+	if (sta) {
+		arsta = (struct ath11k_sta *)sta->drv_priv;
+
+		switch (key->cipher) {
+		case WLAN_CIPHER_SUITE_TKIP:
+		case WLAN_CIPHER_SUITE_CCMP:
+		case WLAN_CIPHER_SUITE_CCMP_256:
+		case WLAN_CIPHER_SUITE_GCMP:
+		case WLAN_CIPHER_SUITE_GCMP_256:
+			if (cmd == SET_KEY)
+				arsta->pn_type = HAL_PN_TYPE_WPA;
+			else
+				arsta->pn_type = HAL_PN_TYPE_NONE;
+			break;
+		default:
+			arsta->pn_type = HAL_PN_TYPE_NONE;
+			break;
+		}
+	}
+
 	spin_unlock_bh(&ab->base_lock);
 
 exit:
@@ -3913,6 +3977,9 @@ static int ath11k_mac_op_start(struct ieee80211_hw *hw)
 			   ret);
 		goto err;
 	}
+
+	/* Configure the hash seed for hash based reo dest ring selection */
+	ath11k_wmi_pdev_lro_cfg(ar, ar->pdev->pdev_id);
 
 	mutex_unlock(&ar->conf_mutex);
 
@@ -5731,6 +5798,7 @@ static int __ath11k_mac_register(struct ath11k *ar)
 		ieee80211_hw_set(ar->hw, TX_AMPDU_SETUP_IN_HW);
 		ieee80211_hw_set(ar->hw, SUPPORTS_REORDERING_BUFFER);
 		ieee80211_hw_set(ar->hw, SUPPORTS_AMSDU_IN_AMPDU);
+		ieee80211_hw_set(ar->hw, USES_RSS);
 	}
 
 	ar->hw->wiphy->features |= NL80211_FEATURE_STATIC_SMPS;
@@ -5762,6 +5830,7 @@ static int __ath11k_mac_register(struct ath11k *ar)
 	ar->hw->wiphy->max_ap_assoc_sta = ar->max_num_stations;
 
 	ar->hw->queues = ATH11K_HW_MAX_QUEUES;
+	ar->hw->wiphy->tx_queue_len = ATH11K_QUEUE_LEN;
 	ar->hw->offchannel_tx_hw_queue = ATH11K_HW_MAX_QUEUES - 1;
 	ar->hw->max_rx_aggregation_subframes = IEEE80211_MAX_AMPDU_BUF;
 
