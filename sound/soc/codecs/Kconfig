@@ -1406,7 +1406,7 @@ config SND_SOC_WM8737
 	depends on SND_SOC_I2C_AND_SPI
 
 config SND_SOC_WM8741
-	tristate "Wolfson Microelectronics WM8737 DAC"
+	tristate "Wolfson Microelectronics WM8741 DAC"
 	depends on SND_SOC_I2C_AND_SPI
 
 config SND_SOC_WM8750

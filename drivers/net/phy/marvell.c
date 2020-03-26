@@ -1306,6 +1306,9 @@ static int marvell_read_status_page_an(struct phy_device *phydev,
 		}
 	}
 
+	if (!(status & MII_M1011_PHY_STATUS_RESOLVED))
+		return 0;
+
 	if (status & MII_M1011_PHY_STATUS_FULLDUPLEX)
 		phydev->duplex = DUPLEX_FULL;
 	else
@@ -1365,6 +1368,8 @@ static int marvell_read_status_page(struct phy_device *phydev, int page)
 	linkmode_zero(phydev->lp_advertising);
 	phydev->pause = 0;
 	phydev->asym_pause = 0;
+	phydev->speed = SPEED_UNKNOWN;
+	phydev->duplex = DUPLEX_UNKNOWN;
 
 	if (phydev->autoneg == AUTONEG_ENABLE)
 		err = marvell_read_status_page_an(phydev, fiber, status);

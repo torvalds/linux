@@ -6891,6 +6891,8 @@ restart:
 			kvm_rip_write(vcpu, ctxt->eip);
 			if (r && ctxt->tf)
 				r = kvm_vcpu_do_singlestep(vcpu);
+			if (kvm_x86_ops->update_emulated_instruction)
+				kvm_x86_ops->update_emulated_instruction(vcpu);
 			__kvm_set_rflags(vcpu, ctxt->eflags);
 		}
 
@@ -7188,14 +7190,16 @@ static void kvm_timer_init(void)
 
 	if (!boot_cpu_has(X86_FEATURE_CONSTANT_TSC)) {
 #ifdef CONFIG_CPU_FREQ
-		struct cpufreq_policy policy;
+		struct cpufreq_policy *policy;
 		int cpu;
 
-		memset(&policy, 0, sizeof(policy));
 		cpu = get_cpu();
-		cpufreq_get_policy(&policy, cpu);
-		if (policy.cpuinfo.max_freq)
-			max_tsc_khz = policy.cpuinfo.max_freq;
+		policy = cpufreq_cpu_get(cpu);
+		if (policy) {
+			if (policy->cpuinfo.max_freq)
+				max_tsc_khz = policy->cpuinfo.max_freq;
+			cpufreq_cpu_put(policy);
+		}
 		put_cpu();
 #endif
 		cpufreq_register_notifier(&kvmclock_cpufreq_notifier_block,
@@ -7306,12 +7310,12 @@ int kvm_arch_init(void *opaque)
 	}
 
 	if (!ops->cpu_has_kvm_support()) {
-		printk(KERN_ERR "kvm: no hardware support\n");
+		pr_err_ratelimited("kvm: no hardware support\n");
 		r = -EOPNOTSUPP;
 		goto out;
 	}
 	if (ops->disabled_by_bios()) {
-		printk(KERN_ERR "kvm: disabled by bios\n");
+		pr_err_ratelimited("kvm: disabled by bios\n");
 		r = -EOPNOTSUPP;
 		goto out;
 	}
