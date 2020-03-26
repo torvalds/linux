@@ -1595,11 +1595,12 @@ static int handle_fastpath_set_x2apic_icr_irqoff(struct kvm_vcpu *vcpu, u64 data
 enum exit_fastpath_completion handle_fastpath_set_msr_irqoff(struct kvm_vcpu *vcpu)
 {
 	u32 msr = kvm_rcx_read(vcpu);
-	u64 data = kvm_read_edx_eax(vcpu);
+	u64 data;
 	int ret = 0;
 
 	switch (msr) {
 	case APIC_BASE_MSR + (APIC_ICR >> 4):
+		data = kvm_read_edx_eax(vcpu);
 		ret = handle_fastpath_set_x2apic_icr_irqoff(vcpu, data);
 		break;
 	default:
