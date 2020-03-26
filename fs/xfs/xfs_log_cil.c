@@ -839,7 +839,7 @@ restart:
 	}
 	spin_unlock(&cil->xc_push_lock);
 
-	error = xlog_write_done(log, tic, &commit_iclog, &commit_lsn);
+	error = xlog_commit_record(log, tic, &commit_iclog, &commit_lsn);
 	if (error)
 		goto out_abort_free_ticket;
 

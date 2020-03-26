@@ -24,13 +24,6 @@
 kmem_zone_t	*xfs_log_ticket_zone;
 
 /* Local miscellaneous function prototypes */
-STATIC int
-xlog_commit_record(
-	struct xlog		*log,
-	struct xlog_ticket	*ticket,
-	struct xlog_in_core	**iclog,
-	xfs_lsn_t		*commitlsnp);
-
 STATIC struct xlog *
 xlog_alloc_log(
 	struct xfs_mount	*mp,
@@ -477,22 +470,6 @@ out_error:
  *	1. currblock field gets updated at startup and after in-core logs
  *		marked as with WANT_SYNC.
  */
-
-/*
- * Write a commit record to the log to close off a running log write.
- */
-int
-xlog_write_done(
-	struct xlog		*log,
-	struct xlog_ticket	*ticket,
-	struct xlog_in_core	**iclog,
-	xfs_lsn_t		*lsn)
-{
-	if (XLOG_FORCED_SHUTDOWN(log))
-		return -EIO;
-
-	return xlog_commit_record(log, ticket, iclog, lsn);
-}
 
 static bool
 __xlog_state_release_iclog(
@@ -1463,20 +1440,17 @@ out:
 	return ERR_PTR(error);
 }	/* xlog_alloc_log */
 
-
 /*
  * Write out the commit record of a transaction associated with the given
- * ticket.  Return the lsn of the commit record.
+ * ticket to close off a running log write. Return the lsn of the commit record.
  */
-STATIC int
+int
 xlog_commit_record(
 	struct xlog		*log,
 	struct xlog_ticket	*ticket,
 	struct xlog_in_core	**iclog,
-	xfs_lsn_t		*commitlsnp)
+	xfs_lsn_t		*lsn)
 {
-	struct xfs_mount *mp = log->l_mp;
-	int	error;
 	struct xfs_log_iovec reg = {
 		.i_addr = NULL,
 		.i_len = 0,
@@ -1486,12 +1460,15 @@ xlog_commit_record(
 		.lv_niovecs = 1,
 		.lv_iovecp = &reg,
 	};
+	int	error;
 
-	ASSERT_ALWAYS(iclog);
-	error = xlog_write(log, &vec, ticket, commitlsnp, iclog,
-					XLOG_COMMIT_TRANS, false);
+	if (XLOG_FORCED_SHUTDOWN(log))
+		return -EIO;
+
+	error = xlog_write(log, &vec, ticket, lsn, iclog, XLOG_COMMIT_TRANS,
+			   false);
 	if (error)
-		xfs_force_shutdown(mp, SHUTDOWN_LOG_IO_ERROR);
+		xfs_force_shutdown(log->l_mp, SHUTDOWN_LOG_IO_ERROR);
 	return error;
 }
 
