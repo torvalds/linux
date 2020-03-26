@@ -913,10 +913,29 @@ int i915_vma_pin(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 	if (flags & PIN_GLOBAL)
 		wakeref = intel_runtime_pm_get(&vma->vm->i915->runtime_pm);
 
-	/* No more allocations allowed once we hold vm->mutex */
-	err = mutex_lock_interruptible(&vma->vm->mutex);
+	/*
+	 * Differentiate between user/kernel vma inside the aliasing-ppgtt.
+	 *
+	 * We conflate the Global GTT with the user's vma when using the
+	 * aliasing-ppgtt, but it is still vitally important to try and
+	 * keep the use cases distinct. For example, userptr objects are
+	 * not allowed inside the Global GTT as that will cause lock
+	 * inversions when we have to evict them the mmu_notifier callbacks -
+	 * but they are allowed to be part of the user ppGTT which can never
+	 * be mapped. As such we try to give the distinct users of the same
+	 * mutex, distinct lockclasses [equivalent to how we keep i915_ggtt
+	 * and i915_ppgtt separate].
+	 *
+	 * NB this may cause us to mask real lock inversions -- while the
+	 * code is safe today, lockdep may not be able to spot future
+	 * transgressions.
+	 */
+	err = mutex_lock_interruptible_nested(&vma->vm->mutex,
+					      !(flags & PIN_GLOBAL));
 	if (err)
 		goto err_fence;
+
+	/* No more allocations allowed now we hold vm->mutex */
 
 	if (unlikely(i915_vma_is_closed(vma))) {
 		err = -ENOENT;
@@ -1320,7 +1339,7 @@ int i915_vma_unbind(struct i915_vma *vma)
 	if (err)
 		goto out_rpm;
 
-	err = mutex_lock_interruptible(&vm->mutex);
+	err = mutex_lock_interruptible_nested(&vma->vm->mutex, !wakeref);
 	if (err)
 		goto out_rpm;
 
