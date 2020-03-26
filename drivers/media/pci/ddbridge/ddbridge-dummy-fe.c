@@ -11,15 +11,15 @@
 #include <linux/slab.h>
 
 #include <media/dvb_frontend.h>
-#include "dvb_dummy_fe.h"
+#include "ddbridge-dummy-fe.h"
 
 
-struct dvb_dummy_fe_state {
+struct ddbridge_dummy_fe_state {
 	struct dvb_frontend frontend;
 };
 
 
-static int dvb_dummy_fe_read_status(struct dvb_frontend *fe,
+static int ddbridge_dummy_fe_read_status(struct dvb_frontend *fe,
 				    enum fe_status *status)
 {
 	*status = FE_HAS_SIGNAL
@@ -31,26 +31,26 @@ static int dvb_dummy_fe_read_status(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int dvb_dummy_fe_read_ber(struct dvb_frontend *fe, u32 *ber)
+static int ddbridge_dummy_fe_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
 	*ber = 0;
 	return 0;
 }
 
-static int dvb_dummy_fe_read_signal_strength(struct dvb_frontend *fe,
+static int ddbridge_dummy_fe_read_signal_strength(struct dvb_frontend *fe,
 					     u16 *strength)
 {
 	*strength = 0;
 	return 0;
 }
 
-static int dvb_dummy_fe_read_snr(struct dvb_frontend *fe, u16 *snr)
+static int ddbridge_dummy_fe_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
 	*snr = 0;
 	return 0;
 }
 
-static int dvb_dummy_fe_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
+static int ddbridge_dummy_fe_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 {
 	*ucblocks = 0;
 	return 0;
@@ -61,13 +61,13 @@ static int dvb_dummy_fe_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
  * Also, it should check for the locks, in order to avoid report wrong data
  * to userspace.
  */
-static int dvb_dummy_fe_get_frontend(struct dvb_frontend *fe,
+static int ddbridge_dummy_fe_get_frontend(struct dvb_frontend *fe,
 				     struct dtv_frontend_properties *p)
 {
 	return 0;
 }
 
-static int dvb_dummy_fe_set_frontend(struct dvb_frontend *fe)
+static int ddbridge_dummy_fe_set_frontend(struct dvb_frontend *fe)
 {
 	if (fe->ops.tuner_ops.set_params) {
 		fe->ops.tuner_ops.set_params(fe);
@@ -78,102 +78,102 @@ static int dvb_dummy_fe_set_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int dvb_dummy_fe_sleep(struct dvb_frontend *fe)
+static int ddbridge_dummy_fe_sleep(struct dvb_frontend *fe)
 {
 	return 0;
 }
 
-static int dvb_dummy_fe_init(struct dvb_frontend *fe)
+static int ddbridge_dummy_fe_init(struct dvb_frontend *fe)
 {
 	return 0;
 }
 
-static int dvb_dummy_fe_set_tone(struct dvb_frontend *fe,
+static int ddbridge_dummy_fe_set_tone(struct dvb_frontend *fe,
 				 enum fe_sec_tone_mode tone)
 {
 	return 0;
 }
 
-static int dvb_dummy_fe_set_voltage(struct dvb_frontend *fe,
+static int ddbridge_dummy_fe_set_voltage(struct dvb_frontend *fe,
 				    enum fe_sec_voltage voltage)
 {
 	return 0;
 }
 
-static void dvb_dummy_fe_release(struct dvb_frontend *fe)
+static void ddbridge_dummy_fe_release(struct dvb_frontend *fe)
 {
-	struct dvb_dummy_fe_state *state = fe->demodulator_priv;
+	struct ddbridge_dummy_fe_state *state = fe->demodulator_priv;
 
 	kfree(state);
 }
 
-static const struct dvb_frontend_ops dvb_dummy_fe_ofdm_ops;
+static const struct dvb_frontend_ops ddbridge_dummy_fe_ofdm_ops;
 
-struct dvb_frontend *dvb_dummy_fe_ofdm_attach(void)
+struct dvb_frontend *ddbridge_dummy_fe_ofdm_attach(void)
 {
-	struct dvb_dummy_fe_state *state = NULL;
+	struct ddbridge_dummy_fe_state *state = NULL;
 
 	/* allocate memory for the internal state */
-	state = kzalloc(sizeof(struct dvb_dummy_fe_state), GFP_KERNEL);
+	state = kzalloc(sizeof(struct ddbridge_dummy_fe_state), GFP_KERNEL);
 	if (!state)
 		return NULL;
 
 	/* create dvb_frontend */
 	memcpy(&state->frontend.ops,
-	       &dvb_dummy_fe_ofdm_ops,
+	       &ddbridge_dummy_fe_ofdm_ops,
 	       sizeof(struct dvb_frontend_ops));
 
 	state->frontend.demodulator_priv = state;
 	return &state->frontend;
 }
-EXPORT_SYMBOL(dvb_dummy_fe_ofdm_attach);
+EXPORT_SYMBOL(ddbridge_dummy_fe_ofdm_attach);
 
-static const struct dvb_frontend_ops dvb_dummy_fe_qpsk_ops;
+static const struct dvb_frontend_ops ddbridge_dummy_fe_qpsk_ops;
 
-struct dvb_frontend *dvb_dummy_fe_qpsk_attach(void)
+struct dvb_frontend *ddbridge_dummy_fe_qpsk_attach(void)
 {
-	struct dvb_dummy_fe_state *state = NULL;
+	struct ddbridge_dummy_fe_state *state = NULL;
 
 	/* allocate memory for the internal state */
-	state = kzalloc(sizeof(struct dvb_dummy_fe_state), GFP_KERNEL);
+	state = kzalloc(sizeof(struct ddbridge_dummy_fe_state), GFP_KERNEL);
 	if (!state)
 		return NULL;
 
 	/* create dvb_frontend */
 	memcpy(&state->frontend.ops,
-	       &dvb_dummy_fe_qpsk_ops,
+	       &ddbridge_dummy_fe_qpsk_ops,
 	       sizeof(struct dvb_frontend_ops));
 
 	state->frontend.demodulator_priv = state;
 	return &state->frontend;
 }
-EXPORT_SYMBOL(dvb_dummy_fe_qpsk_attach);
+EXPORT_SYMBOL(ddbridge_dummy_fe_qpsk_attach);
 
-static const struct dvb_frontend_ops dvb_dummy_fe_qam_ops;
+static const struct dvb_frontend_ops ddbridge_dummy_fe_qam_ops;
 
-struct dvb_frontend *dvb_dummy_fe_qam_attach(void)
+struct dvb_frontend *ddbridge_dummy_fe_qam_attach(void)
 {
-	struct dvb_dummy_fe_state *state = NULL;
+	struct ddbridge_dummy_fe_state *state = NULL;
 
 	/* allocate memory for the internal state */
-	state = kzalloc(sizeof(struct dvb_dummy_fe_state), GFP_KERNEL);
+	state = kzalloc(sizeof(struct ddbridge_dummy_fe_state), GFP_KERNEL);
 	if (!state)
 		return NULL;
 
 	/* create dvb_frontend */
 	memcpy(&state->frontend.ops,
-	       &dvb_dummy_fe_qam_ops,
+	       &ddbridge_dummy_fe_qam_ops,
 	       sizeof(struct dvb_frontend_ops));
 
 	state->frontend.demodulator_priv = state;
 	return &state->frontend;
 }
-EXPORT_SYMBOL(dvb_dummy_fe_qam_attach);
+EXPORT_SYMBOL(ddbridge_dummy_fe_qam_attach);
 
-static const struct dvb_frontend_ops dvb_dummy_fe_ofdm_ops = {
+static const struct dvb_frontend_ops ddbridge_dummy_fe_ofdm_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
-		.name			= "Dummy DVB-T",
+		.name			= "ddbridge dummy DVB-T",
 		.frequency_min_hz	= 0,
 		.frequency_max_hz	= 863250 * kHz,
 		.frequency_stepsize_hz	= 62500,
@@ -194,25 +194,25 @@ static const struct dvb_frontend_ops dvb_dummy_fe_ofdm_ops = {
 			FE_CAN_HIERARCHY_AUTO,
 	},
 
-	.release = dvb_dummy_fe_release,
+	.release = ddbridge_dummy_fe_release,
 
-	.init = dvb_dummy_fe_init,
-	.sleep = dvb_dummy_fe_sleep,
+	.init = ddbridge_dummy_fe_init,
+	.sleep = ddbridge_dummy_fe_sleep,
 
-	.set_frontend = dvb_dummy_fe_set_frontend,
-	.get_frontend = dvb_dummy_fe_get_frontend,
+	.set_frontend = ddbridge_dummy_fe_set_frontend,
+	.get_frontend = ddbridge_dummy_fe_get_frontend,
 
-	.read_status = dvb_dummy_fe_read_status,
-	.read_ber = dvb_dummy_fe_read_ber,
-	.read_signal_strength = dvb_dummy_fe_read_signal_strength,
-	.read_snr = dvb_dummy_fe_read_snr,
-	.read_ucblocks = dvb_dummy_fe_read_ucblocks,
+	.read_status = ddbridge_dummy_fe_read_status,
+	.read_ber = ddbridge_dummy_fe_read_ber,
+	.read_signal_strength = ddbridge_dummy_fe_read_signal_strength,
+	.read_snr = ddbridge_dummy_fe_read_snr,
+	.read_ucblocks = ddbridge_dummy_fe_read_ucblocks,
 };
 
-static const struct dvb_frontend_ops dvb_dummy_fe_qam_ops = {
+static const struct dvb_frontend_ops ddbridge_dummy_fe_qam_ops = {
 	.delsys = { SYS_DVBC_ANNEX_A },
 	.info = {
-		.name			= "Dummy DVB-C",
+		.name			= "ddbridge dummy DVB-C",
 		.frequency_min_hz	=  51 * MHz,
 		.frequency_max_hz	= 858 * MHz,
 		.frequency_stepsize_hz	= 62500,
@@ -228,25 +228,25 @@ static const struct dvb_frontend_ops dvb_dummy_fe_qam_ops = {
 			FE_CAN_INVERSION_AUTO
 	},
 
-	.release = dvb_dummy_fe_release,
+	.release = ddbridge_dummy_fe_release,
 
-	.init = dvb_dummy_fe_init,
-	.sleep = dvb_dummy_fe_sleep,
+	.init = ddbridge_dummy_fe_init,
+	.sleep = ddbridge_dummy_fe_sleep,
 
-	.set_frontend = dvb_dummy_fe_set_frontend,
-	.get_frontend = dvb_dummy_fe_get_frontend,
+	.set_frontend = ddbridge_dummy_fe_set_frontend,
+	.get_frontend = ddbridge_dummy_fe_get_frontend,
 
-	.read_status = dvb_dummy_fe_read_status,
-	.read_ber = dvb_dummy_fe_read_ber,
-	.read_signal_strength = dvb_dummy_fe_read_signal_strength,
-	.read_snr = dvb_dummy_fe_read_snr,
-	.read_ucblocks = dvb_dummy_fe_read_ucblocks,
+	.read_status = ddbridge_dummy_fe_read_status,
+	.read_ber = ddbridge_dummy_fe_read_ber,
+	.read_signal_strength = ddbridge_dummy_fe_read_signal_strength,
+	.read_snr = ddbridge_dummy_fe_read_snr,
+	.read_ucblocks = ddbridge_dummy_fe_read_ucblocks,
 };
 
-static const struct dvb_frontend_ops dvb_dummy_fe_qpsk_ops = {
+static const struct dvb_frontend_ops ddbridge_dummy_fe_qpsk_ops = {
 	.delsys = { SYS_DVBS },
 	.info = {
-		.name			= "Dummy DVB-S",
+		.name			= "ddbridge dummy DVB-S",
 		.frequency_min_hz	=  950 * MHz,
 		.frequency_max_hz	= 2150 * MHz,
 		.frequency_stepsize_hz	= 250 * kHz,
@@ -263,24 +263,24 @@ static const struct dvb_frontend_ops dvb_dummy_fe_qpsk_ops = {
 			FE_CAN_QPSK
 	},
 
-	.release = dvb_dummy_fe_release,
+	.release = ddbridge_dummy_fe_release,
 
-	.init = dvb_dummy_fe_init,
-	.sleep = dvb_dummy_fe_sleep,
+	.init = ddbridge_dummy_fe_init,
+	.sleep = ddbridge_dummy_fe_sleep,
 
-	.set_frontend = dvb_dummy_fe_set_frontend,
-	.get_frontend = dvb_dummy_fe_get_frontend,
+	.set_frontend = ddbridge_dummy_fe_set_frontend,
+	.get_frontend = ddbridge_dummy_fe_get_frontend,
 
-	.read_status = dvb_dummy_fe_read_status,
-	.read_ber = dvb_dummy_fe_read_ber,
-	.read_signal_strength = dvb_dummy_fe_read_signal_strength,
-	.read_snr = dvb_dummy_fe_read_snr,
-	.read_ucblocks = dvb_dummy_fe_read_ucblocks,
+	.read_status = ddbridge_dummy_fe_read_status,
+	.read_ber = ddbridge_dummy_fe_read_ber,
+	.read_signal_strength = ddbridge_dummy_fe_read_signal_strength,
+	.read_snr = ddbridge_dummy_fe_read_snr,
+	.read_ucblocks = ddbridge_dummy_fe_read_ucblocks,
 
-	.set_voltage = dvb_dummy_fe_set_voltage,
-	.set_tone = dvb_dummy_fe_set_tone,
+	.set_voltage = ddbridge_dummy_fe_set_voltage,
+	.set_tone = ddbridge_dummy_fe_set_tone,
 };
 
-MODULE_DESCRIPTION("DVB DUMMY Frontend");
+MODULE_DESCRIPTION("ddbridge dummy Frontend");
 MODULE_AUTHOR("Emard");
 MODULE_LICENSE("GPL");
