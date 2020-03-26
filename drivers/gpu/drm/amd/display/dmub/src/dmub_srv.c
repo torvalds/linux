@@ -52,8 +52,11 @@
 /* Default tracebuffer size if meta is absent. */
 #define DMUB_TRACE_BUFFER_SIZE (1024)
 
+/* Default scratch mem size. */
+#define DMUB_SCRATCH_MEM_SIZE (256)
+
 /* Number of windows in use. */
-#define DMUB_NUM_WINDOWS (DMUB_WINDOW_6_FW_STATE + 1)
+#define DMUB_NUM_WINDOWS (DMUB_WINDOW_TOTAL)
 /* Base addresses. */
 
 #define DMUB_CW0_BASE (0x60000000)
@@ -211,9 +214,11 @@ dmub_srv_calc_region_info(struct dmub_srv *dmub,
 	struct dmub_region *mail = &out->regions[DMUB_WINDOW_4_MAILBOX];
 	struct dmub_region *trace_buff = &out->regions[DMUB_WINDOW_5_TRACEBUFF];
 	struct dmub_region *fw_state = &out->regions[DMUB_WINDOW_6_FW_STATE];
+	struct dmub_region *scratch_mem = &out->regions[DMUB_WINDOW_7_SCRATCH_MEM];
 	const struct dmub_fw_meta_info *fw_info;
 	uint32_t fw_state_size = DMUB_FW_STATE_SIZE;
 	uint32_t trace_buffer_size = DMUB_TRACE_BUFFER_SIZE;
+	uint32_t scratch_mem_size = DMUB_SCRATCH_MEM_SIZE;
 
 	if (!dmub->sw_init)
 		return DMUB_STATUS_INVALID;
@@ -256,7 +261,10 @@ dmub_srv_calc_region_info(struct dmub_srv *dmub,
 	fw_state->base = dmub_align(trace_buff->top, 256);
 	fw_state->top = fw_state->base + dmub_align(fw_state_size, 64);
 
-	out->fb_size = dmub_align(fw_state->top, 4096);
+	scratch_mem->base = dmub_align(fw_state->top, 256);
+	scratch_mem->top = scratch_mem->base + dmub_align(scratch_mem_size, 64);
+
+	out->fb_size = dmub_align(scratch_mem->top, 4096);
 
 	return DMUB_STATUS_OK;
 }
@@ -334,6 +342,7 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 	struct dmub_fb *mail_fb = params->fb[DMUB_WINDOW_4_MAILBOX];
 	struct dmub_fb *tracebuff_fb = params->fb[DMUB_WINDOW_5_TRACEBUFF];
 	struct dmub_fb *fw_state_fb = params->fb[DMUB_WINDOW_6_FW_STATE];
+	struct dmub_fb *scratch_mem_fb = params->fb[DMUB_WINDOW_7_SCRATCH_MEM];
 
 	struct dmub_rb_init_params rb_params;
 	struct dmub_window cw0, cw1, cw2, cw3, cw4, cw5, cw6;
@@ -370,7 +379,7 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 		dmub->hw_funcs.reset(dmub);
 
 	if (inst_fb && data_fb && bios_fb && mail_fb && tracebuff_fb &&
-	    fw_state_fb) {
+	    fw_state_fb && scratch_mem_fb) {
 		cw2.offset.quad_part = data_fb->gpu_addr;
 		cw2.region.base = DMUB_CW0_BASE + inst_fb->size;
 		cw2.region.top = cw2.region.base + data_fb->size;
@@ -395,6 +404,8 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 		cw6.region.top = cw6.region.base + fw_state_fb->size;
 
 		dmub->fw_state = fw_state_fb->cpu_addr;
+
+		dmub->scratch_mem_fb = *scratch_mem_fb;
 
 		if (dmub->hw_funcs.setup_windows)
 			dmub->hw_funcs.setup_windows(dmub, &cw2, &cw3, &cw4,

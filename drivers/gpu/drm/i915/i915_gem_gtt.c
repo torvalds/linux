@@ -15,8 +15,6 @@
 #include <asm/set_memory.h>
 #include <asm/smp.h>
 
-#include <drm/i915_drm.h>
-
 #include "display/intel_frontbuffer.h"
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_requests.h"

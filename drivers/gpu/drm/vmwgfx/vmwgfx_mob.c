@@ -320,7 +320,7 @@ int vmw_otables_setup(struct vmw_private *dev_priv)
 	struct vmw_otable **otables = &dev_priv->otable_batch.otables;
 	int ret;
 
-	if (dev_priv->has_dx) {
+	if (has_sm4_context(dev_priv)) {
 		*otables = kmemdup(dx_tables, sizeof(dx_tables), GFP_KERNEL);
 		if (!(*otables))
 			return -ENOMEM;

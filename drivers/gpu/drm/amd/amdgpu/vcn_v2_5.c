@@ -74,29 +74,30 @@ static int amdgpu_ih_clientid_vcns[] = {
 static int vcn_v2_5_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	if (adev->asic_type == CHIP_ARCTURUS) {
-		u32 harvest;
-		int i;
-
-		adev->vcn.num_vcn_inst = VCN25_MAX_HW_INSTANCES_ARCTURUS;
-		for (i = 0; i < adev->vcn.num_vcn_inst; i++) {
-			harvest = RREG32_SOC15(UVD, i, mmCC_UVD_HARVESTING);
-			if (harvest & CC_UVD_HARVESTING__UVD_DISABLE_MASK)
-				adev->vcn.harvest_config |= 1 << i;
-		}
-
-		if (adev->vcn.harvest_config == (AMDGPU_VCN_HARVEST_VCN0 |
-						 AMDGPU_VCN_HARVEST_VCN1))
-			/* both instances are harvested, disable the block */
-			return -ENOENT;
-	} else
-		adev->vcn.num_vcn_inst = 1;
 
 	if (amdgpu_sriov_vf(adev)) {
 		adev->vcn.num_vcn_inst = 2;
 		adev->vcn.harvest_config = 0;
 		adev->vcn.num_enc_rings = 1;
 	} else {
+		if (adev->asic_type == CHIP_ARCTURUS) {
+			u32 harvest;
+			int i;
+
+			adev->vcn.num_vcn_inst = VCN25_MAX_HW_INSTANCES_ARCTURUS;
+			for (i = 0; i < adev->vcn.num_vcn_inst; i++) {
+				harvest = RREG32_SOC15(UVD, i, mmCC_UVD_HARVESTING);
+				if (harvest & CC_UVD_HARVESTING__UVD_DISABLE_MASK)
+					adev->vcn.harvest_config |= 1 << i;
+			}
+
+			if (adev->vcn.harvest_config == (AMDGPU_VCN_HARVEST_VCN0 |
+						AMDGPU_VCN_HARVEST_VCN1))
+				/* both instances are harvested, disable the block */
+				return -ENOENT;
+		} else
+			adev->vcn.num_vcn_inst = 1;
+
 		adev->vcn.num_enc_rings = 2;
 	}
 
@@ -1672,7 +1673,7 @@ static int vcn_v2_5_set_clockgating_state(void *handle,
 		return 0;
 
 	if (enable) {
-		if (vcn_v2_5_is_idle(handle))
+		if (!vcn_v2_5_is_idle(handle))
 			return -EBUSY;
 		vcn_v2_5_enable_clock_gating(adev);
 	} else {

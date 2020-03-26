@@ -209,6 +209,8 @@ static void kick_submission(struct intel_engine_cs *engine,
 	if (!inflight)
 		goto unlock;
 
+	engine->execlists.queue_priority_hint = prio;
+
 	/*
 	 * If we are already the currently executing context, don't
 	 * bother evaluating if we should preempt ourselves.
@@ -216,7 +218,6 @@ static void kick_submission(struct intel_engine_cs *engine,
 	if (inflight->context == rq->context)
 		goto unlock;
 
-	engine->execlists.queue_priority_hint = prio;
 	if (need_preempt(prio, rq_prio(inflight)))
 		tasklet_hi_schedule(&engine->execlists.tasklet);
 
@@ -227,19 +228,16 @@ unlock:
 static void __i915_schedule(struct i915_sched_node *node,
 			    const struct i915_sched_attr *attr)
 {
+	const int prio = max(attr->priority, node->attr.priority);
 	struct intel_engine_cs *engine;
 	struct i915_dependency *dep, *p;
 	struct i915_dependency stack;
-	const int prio = attr->priority;
 	struct sched_cache cache;
 	LIST_HEAD(dfs);
 
 	/* Needed in order to use the temporary link inside i915_dependency */
 	lockdep_assert_held(&schedule_lock);
 	GEM_BUG_ON(prio == I915_PRIORITY_INVALID);
-
-	if (prio <= READ_ONCE(node->attr.priority))
-		return;
 
 	if (node_signaled(node))
 		return;
@@ -324,7 +322,7 @@ static void __i915_schedule(struct i915_sched_node *node,
 
 		GEM_BUG_ON(node_to_request(node)->engine != engine);
 
-		node->attr.priority = prio;
+		WRITE_ONCE(node->attr.priority, prio);
 
 		/*
 		 * Once the request is ready, it will be placed into the

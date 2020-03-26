@@ -1868,6 +1868,8 @@ static void intel_set_cdclk(struct drm_i915_private *dev_priv,
 			    const struct intel_cdclk_config *cdclk_config,
 			    enum pipe pipe)
 {
+	struct intel_encoder *encoder;
+
 	if (!intel_cdclk_changed(&dev_priv->cdclk.hw, cdclk_config))
 		return;
 
@@ -1876,7 +1878,27 @@ static void intel_set_cdclk(struct drm_i915_private *dev_priv,
 
 	intel_dump_cdclk_config(cdclk_config, "Changing CDCLK to");
 
+	/*
+	 * Lock aux/gmbus while we change cdclk in case those
+	 * functions use cdclk. Not all platforms/ports do,
+	 * but we'll lock them all for simplicity.
+	 */
+	mutex_lock(&dev_priv->gmbus_mutex);
+	for_each_intel_dp(&dev_priv->drm, encoder) {
+		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+
+		mutex_lock_nest_lock(&intel_dp->aux.hw_mutex,
+				     &dev_priv->gmbus_mutex);
+	}
+
 	dev_priv->display.set_cdclk(dev_priv, cdclk_config, pipe);
+
+	for_each_intel_dp(&dev_priv->drm, encoder) {
+		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+
+		mutex_unlock(&intel_dp->aux.hw_mutex);
+	}
+	mutex_unlock(&dev_priv->gmbus_mutex);
 
 	if (drm_WARN(&dev_priv->drm,
 		     intel_cdclk_changed(&dev_priv->cdclk.hw, cdclk_config),

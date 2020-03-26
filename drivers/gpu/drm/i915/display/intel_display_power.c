@@ -939,11 +939,17 @@ unlock:
 
 static void assert_can_enable_dc5(struct drm_i915_private *dev_priv)
 {
-	bool pg2_enabled = intel_display_power_well_is_enabled(dev_priv,
-					SKL_DISP_PW_2);
+	enum i915_power_well_id high_pg;
 
-	drm_WARN_ONCE(&dev_priv->drm, pg2_enabled,
-		      "PG2 not disabled to enable DC5.\n");
+	/* Power wells at this level and above must be disabled for DC5 entry */
+	if (INTEL_GEN(dev_priv) >= 12)
+		high_pg = TGL_DISP_PW_3;
+	else
+		high_pg = SKL_DISP_PW_2;
+
+	drm_WARN_ONCE(&dev_priv->drm,
+		      intel_display_power_well_is_enabled(dev_priv, high_pg),
+		      "Power wells above platform's DC5 limit still enabled.\n");
 
 	drm_WARN_ONCE(&dev_priv->drm,
 		      (intel_de_read(dev_priv, DC_STATE_EN) &
@@ -2740,7 +2746,7 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 	BIT_ULL(POWER_DOMAIN_INIT))
 
 #define TGL_DISPLAY_DC_OFF_POWER_DOMAINS (		\
-	TGL_PW_2_POWER_DOMAINS |			\
+	TGL_PW_3_POWER_DOMAINS |			\
 	BIT_ULL(POWER_DOMAIN_MODESET) |			\
 	BIT_ULL(POWER_DOMAIN_AUX_A) |			\
 	BIT_ULL(POWER_DOMAIN_AUX_B) |			\
@@ -3936,7 +3942,7 @@ static const struct i915_power_well_desc tgl_power_wells[] = {
 		.name = "power well 3",
 		.domains = TGL_PW_3_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
-		.id = DISP_PW_ID_NONE,
+		.id = TGL_DISP_PW_3,
 		{
 			.hsw.regs = &hsw_power_well_regs,
 			.hsw.idx = ICL_PW_CTL_IDX_PW_3,

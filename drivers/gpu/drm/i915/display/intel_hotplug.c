@@ -23,8 +23,6 @@
 
 #include <linux/kernel.h>
 
-#include <drm/i915_drm.h>
-
 #include "i915_drv.h"
 #include "intel_display_types.h"
 #include "intel_hotplug.h"
@@ -89,29 +87,16 @@
 enum hpd_pin intel_hpd_pin_default(struct drm_i915_private *dev_priv,
 				   enum port port)
 {
-	switch (port) {
-	case PORT_A:
-		return HPD_PORT_A;
-	case PORT_B:
-		return HPD_PORT_B;
-	case PORT_C:
-		return HPD_PORT_C;
-	case PORT_D:
-		return HPD_PORT_D;
-	case PORT_E:
-		return HPD_PORT_E;
-	case PORT_F:
-		if (IS_CNL_WITH_PORT_F(dev_priv))
-			return HPD_PORT_E;
-		return HPD_PORT_F;
-	case PORT_G:
-		return HPD_PORT_G;
-	case PORT_H:
-		return HPD_PORT_H;
-	case PORT_I:
-		return HPD_PORT_I;
+	enum phy phy = intel_port_to_phy(dev_priv, port);
+
+	switch (phy) {
+	case PHY_F:
+		return IS_CNL_WITH_PORT_F(dev_priv) ? HPD_PORT_E : HPD_PORT_F;
+	case PHY_A ... PHY_E:
+	case PHY_G ... PHY_I:
+		return HPD_PORT_A + phy - PHY_A;
 	default:
-		MISSING_CASE(port);
+		MISSING_CASE(phy);
 		return HPD_NONE;
 	}
 }
@@ -185,10 +170,13 @@ static bool intel_hpd_irq_storm_detect(struct drm_i915_private *dev_priv,
 	hpd->stats[pin].count += increment;
 	if (hpd->stats[pin].count > threshold) {
 		hpd->stats[pin].state = HPD_MARK_DISABLED;
-		DRM_DEBUG_KMS("HPD interrupt storm detected on PIN %d\n", pin);
+		drm_dbg_kms(&dev_priv->drm,
+			    "HPD interrupt storm detected on PIN %d\n", pin);
 		storm = true;
 	} else {
-		DRM_DEBUG_KMS("Received HPD interrupt on PIN %d - cnt: %d\n", pin,
+		drm_dbg_kms(&dev_priv->drm,
+			    "Received HPD interrupt on PIN %d - cnt: %d\n",
+			      pin,
 			      hpd->stats[pin].count);
 	}
 
@@ -217,7 +205,8 @@ intel_hpd_irq_storm_switch_to_polling(struct drm_i915_private *dev_priv)
 		    dev_priv->hotplug.stats[pin].state != HPD_MARK_DISABLED)
 			continue;
 
-		DRM_INFO("HPD interrupt storm detected on connector %s: "
+		drm_info(&dev_priv->drm,
+			 "HPD interrupt storm detected on connector %s: "
 			 "switching from hotplug detection to polling\n",
 			 connector->base.name);
 
@@ -259,8 +248,9 @@ static void intel_hpd_irq_storm_reenable_work(struct work_struct *work)
 			continue;
 
 		if (connector->base.polled != connector->polled)
-			DRM_DEBUG_DRIVER("Reenabling HPD on connector %s\n",
-					 connector->base.name);
+			drm_dbg(&dev_priv->drm,
+				"Reenabling HPD on connector %s\n",
+				connector->base.name);
 		connector->base.polled = connector->polled;
 	}
 	drm_connector_list_iter_end(&conn_iter);
@@ -295,11 +285,12 @@ intel_encoder_hotplug(struct intel_encoder *encoder,
 	if (old_status == connector->base.status)
 		return INTEL_HOTPLUG_UNCHANGED;
 
-	DRM_DEBUG_KMS("[CONNECTOR:%d:%s] status updated from %s to %s\n",
-		      connector->base.base.id,
-		      connector->base.name,
-		      drm_get_connector_status_name(old_status),
-		      drm_get_connector_status_name(connector->base.status));
+	drm_dbg_kms(&to_i915(dev)->drm,
+		    "[CONNECTOR:%d:%s] status updated from %s to %s\n",
+		    connector->base.base.id,
+		    connector->base.name,
+		    drm_get_connector_status_name(old_status),
+		    drm_get_connector_status_name(connector->base.status));
 
 	return INTEL_HOTPLUG_CHANGED;
 }
@@ -373,7 +364,7 @@ static void i915_hotplug_work_func(struct work_struct *work)
 	u32 hpd_retry_bits;
 
 	mutex_lock(&dev->mode_config.mutex);
-	DRM_DEBUG_KMS("running encoder hotplug functions\n");
+	drm_dbg_kms(&dev_priv->drm, "running encoder hotplug functions\n");
 
 	spin_lock_irq(&dev_priv->irq_lock);
 
@@ -401,8 +392,9 @@ static void i915_hotplug_work_func(struct work_struct *work)
 			struct intel_encoder *encoder =
 				intel_attached_encoder(connector);
 
-			DRM_DEBUG_KMS("Connector %s (pin %i) received hotplug event.\n",
-				      connector->base.name, pin);
+			drm_dbg_kms(&dev_priv->drm,
+				    "Connector %s (pin %i) received hotplug event.\n",
+				    connector->base.name, pin);
 
 			switch (encoder->hotplug(encoder, connector,
 						 hpd_event_bits & hpd_bit)) {
@@ -487,9 +479,10 @@ void intel_hpd_irq_handler(struct drm_i915_private *dev_priv,
 
 		long_hpd = long_mask & BIT(pin);
 
-		DRM_DEBUG_DRIVER("digital hpd on [ENCODER:%d:%s] - %s\n",
-				 encoder->base.base.id, encoder->base.name,
-				 long_hpd ? "long" : "short");
+		drm_dbg(&dev_priv->drm,
+			"digital hpd on [ENCODER:%d:%s] - %s\n",
+			encoder->base.base.id, encoder->base.name,
+			long_hpd ? "long" : "short");
 		queue_dig = true;
 
 		if (long_hpd) {

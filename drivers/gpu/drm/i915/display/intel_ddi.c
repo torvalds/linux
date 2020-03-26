@@ -1325,164 +1325,6 @@ intel_ddi_get_crtc_encoder(struct intel_crtc *crtc)
 	return ret;
 }
 
-static int hsw_ddi_calc_wrpll_link(struct drm_i915_private *dev_priv,
-				   i915_reg_t reg)
-{
-	int refclk;
-	int n, p, r;
-	u32 wrpll;
-
-	wrpll = intel_de_read(dev_priv, reg);
-	switch (wrpll & WRPLL_REF_MASK) {
-	case WRPLL_REF_SPECIAL_HSW:
-		/*
-		 * muxed-SSC for BDW.
-		 * non-SSC for non-ULT HSW. Check FUSE_STRAP3
-		 * for the non-SSC reference frequency.
-		 */
-		if (IS_HASWELL(dev_priv) && !IS_HSW_ULT(dev_priv)) {
-			if (intel_de_read(dev_priv, FUSE_STRAP3) & HSW_REF_CLK_SELECT)
-				refclk = 24;
-			else
-				refclk = 135;
-			break;
-		}
-		/* fall through */
-	case WRPLL_REF_PCH_SSC:
-		/*
-		 * We could calculate spread here, but our checking
-		 * code only cares about 5% accuracy, and spread is a max of
-		 * 0.5% downspread.
-		 */
-		refclk = 135;
-		break;
-	case WRPLL_REF_LCPLL:
-		refclk = 2700;
-		break;
-	default:
-		MISSING_CASE(wrpll);
-		return 0;
-	}
-
-	r = wrpll & WRPLL_DIVIDER_REF_MASK;
-	p = (wrpll & WRPLL_DIVIDER_POST_MASK) >> WRPLL_DIVIDER_POST_SHIFT;
-	n = (wrpll & WRPLL_DIVIDER_FB_MASK) >> WRPLL_DIVIDER_FB_SHIFT;
-
-	/* Convert to KHz, p & r have a fixed point portion */
-	return (refclk * n * 100) / (p * r);
-}
-
-static int skl_calc_wrpll_link(const struct intel_dpll_hw_state *pll_state)
-{
-	u32 p0, p1, p2, dco_freq;
-
-	p0 = pll_state->cfgcr2 & DPLL_CFGCR2_PDIV_MASK;
-	p2 = pll_state->cfgcr2 & DPLL_CFGCR2_KDIV_MASK;
-
-	if (pll_state->cfgcr2 &  DPLL_CFGCR2_QDIV_MODE(1))
-		p1 = (pll_state->cfgcr2 & DPLL_CFGCR2_QDIV_RATIO_MASK) >> 8;
-	else
-		p1 = 1;
-
-
-	switch (p0) {
-	case DPLL_CFGCR2_PDIV_1:
-		p0 = 1;
-		break;
-	case DPLL_CFGCR2_PDIV_2:
-		p0 = 2;
-		break;
-	case DPLL_CFGCR2_PDIV_3:
-		p0 = 3;
-		break;
-	case DPLL_CFGCR2_PDIV_7:
-		p0 = 7;
-		break;
-	}
-
-	switch (p2) {
-	case DPLL_CFGCR2_KDIV_5:
-		p2 = 5;
-		break;
-	case DPLL_CFGCR2_KDIV_2:
-		p2 = 2;
-		break;
-	case DPLL_CFGCR2_KDIV_3:
-		p2 = 3;
-		break;
-	case DPLL_CFGCR2_KDIV_1:
-		p2 = 1;
-		break;
-	}
-
-	dco_freq = (pll_state->cfgcr1 & DPLL_CFGCR1_DCO_INTEGER_MASK)
-		* 24 * 1000;
-
-	dco_freq += (((pll_state->cfgcr1 & DPLL_CFGCR1_DCO_FRACTION_MASK) >> 9)
-		     * 24 * 1000) / 0x8000;
-
-	if (WARN_ON(p0 == 0 || p1 == 0 || p2 == 0))
-		return 0;
-
-	return dco_freq / (p0 * p1 * p2 * 5);
-}
-
-int cnl_calc_wrpll_link(struct drm_i915_private *dev_priv,
-			struct intel_dpll_hw_state *pll_state)
-{
-	u32 p0, p1, p2, dco_freq, ref_clock;
-
-	p0 = pll_state->cfgcr1 & DPLL_CFGCR1_PDIV_MASK;
-	p2 = pll_state->cfgcr1 & DPLL_CFGCR1_KDIV_MASK;
-
-	if (pll_state->cfgcr1 & DPLL_CFGCR1_QDIV_MODE(1))
-		p1 = (pll_state->cfgcr1 & DPLL_CFGCR1_QDIV_RATIO_MASK) >>
-			DPLL_CFGCR1_QDIV_RATIO_SHIFT;
-	else
-		p1 = 1;
-
-
-	switch (p0) {
-	case DPLL_CFGCR1_PDIV_2:
-		p0 = 2;
-		break;
-	case DPLL_CFGCR1_PDIV_3:
-		p0 = 3;
-		break;
-	case DPLL_CFGCR1_PDIV_5:
-		p0 = 5;
-		break;
-	case DPLL_CFGCR1_PDIV_7:
-		p0 = 7;
-		break;
-	}
-
-	switch (p2) {
-	case DPLL_CFGCR1_KDIV_1:
-		p2 = 1;
-		break;
-	case DPLL_CFGCR1_KDIV_2:
-		p2 = 2;
-		break;
-	case DPLL_CFGCR1_KDIV_3:
-		p2 = 3;
-		break;
-	}
-
-	ref_clock = cnl_hdmi_pll_ref_clock(dev_priv);
-
-	dco_freq = (pll_state->cfgcr0 & DPLL_CFGCR0_DCO_INTEGER_MASK)
-		* ref_clock;
-
-	dco_freq += (((pll_state->cfgcr0 & DPLL_CFGCR0_DCO_FRACTION_MASK) >>
-		      DPLL_CFGCR0_DCO_FRACTION_SHIFT) * ref_clock) / 0x8000;
-
-	if (drm_WARN_ON(&dev_priv->drm, p0 == 0 || p1 == 0 || p2 == 0))
-		return 0;
-
-	return dco_freq / (p0 * p1 * p2 * 5);
-}
-
 static int icl_calc_tbt_pll_link(struct drm_i915_private *dev_priv,
 				 enum port port)
 {
@@ -1503,77 +1345,6 @@ static int icl_calc_tbt_pll_link(struct drm_i915_private *dev_priv,
 		MISSING_CASE(val);
 		return 0;
 	}
-}
-
-static int icl_calc_mg_pll_link(struct drm_i915_private *dev_priv,
-				const struct intel_dpll_hw_state *pll_state)
-{
-	u32 m1, m2_int, m2_frac, div1, div2, ref_clock;
-	u64 tmp;
-
-	ref_clock = dev_priv->cdclk.hw.ref;
-
-	if (INTEL_GEN(dev_priv) >= 12) {
-		m1 = pll_state->mg_pll_div0 & DKL_PLL_DIV0_FBPREDIV_MASK;
-		m1 = m1 >> DKL_PLL_DIV0_FBPREDIV_SHIFT;
-		m2_int = pll_state->mg_pll_div0 & DKL_PLL_DIV0_FBDIV_INT_MASK;
-
-		if (pll_state->mg_pll_bias & DKL_PLL_BIAS_FRAC_EN_H) {
-			m2_frac = pll_state->mg_pll_bias &
-				  DKL_PLL_BIAS_FBDIV_FRAC_MASK;
-			m2_frac = m2_frac >> DKL_PLL_BIAS_FBDIV_SHIFT;
-		} else {
-			m2_frac = 0;
-		}
-	} else {
-		m1 = pll_state->mg_pll_div1 & MG_PLL_DIV1_FBPREDIV_MASK;
-		m2_int = pll_state->mg_pll_div0 & MG_PLL_DIV0_FBDIV_INT_MASK;
-
-		if (pll_state->mg_pll_div0 & MG_PLL_DIV0_FRACNEN_H) {
-			m2_frac = pll_state->mg_pll_div0 &
-				  MG_PLL_DIV0_FBDIV_FRAC_MASK;
-			m2_frac = m2_frac >> MG_PLL_DIV0_FBDIV_FRAC_SHIFT;
-		} else {
-			m2_frac = 0;
-		}
-	}
-
-	switch (pll_state->mg_clktop2_hsclkctl &
-		MG_CLKTOP2_HSCLKCTL_HSDIV_RATIO_MASK) {
-	case MG_CLKTOP2_HSCLKCTL_HSDIV_RATIO_2:
-		div1 = 2;
-		break;
-	case MG_CLKTOP2_HSCLKCTL_HSDIV_RATIO_3:
-		div1 = 3;
-		break;
-	case MG_CLKTOP2_HSCLKCTL_HSDIV_RATIO_5:
-		div1 = 5;
-		break;
-	case MG_CLKTOP2_HSCLKCTL_HSDIV_RATIO_7:
-		div1 = 7;
-		break;
-	default:
-		MISSING_CASE(pll_state->mg_clktop2_hsclkctl);
-		return 0;
-	}
-
-	div2 = (pll_state->mg_clktop2_hsclkctl &
-		MG_CLKTOP2_HSCLKCTL_DSDIV_RATIO_MASK) >>
-		MG_CLKTOP2_HSCLKCTL_DSDIV_RATIO_SHIFT;
-
-	/* div2 value of 0 is same as 1 means no div */
-	if (div2 == 0)
-		div2 = 1;
-
-	/*
-	 * Adjust the original formula to delay the division by 2^22 in order to
-	 * minimize possible rounding errors.
-	 */
-	tmp = (u64)m1 * m2_int * ref_clock +
-	      (((u64)m1 * m2_frac * ref_clock) >> 22);
-	tmp = div_u64(tmp, 5 * div1 * div2);
-
-	return tmp;
 }
 
 static void ddi_dotclock_get(struct intel_crtc_state *pipe_config)
@@ -1601,215 +1372,22 @@ static void ddi_dotclock_get(struct intel_crtc_state *pipe_config)
 	pipe_config->hw.adjusted_mode.crtc_clock = dotclock;
 }
 
-static void icl_ddi_clock_get(struct intel_encoder *encoder,
-			      struct intel_crtc_state *pipe_config)
-{
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_dpll_hw_state *pll_state = &pipe_config->dpll_hw_state;
-	enum port port = encoder->port;
-	enum phy phy = intel_port_to_phy(dev_priv, port);
-	int link_clock;
-
-	if (intel_phy_is_combo(dev_priv, phy)) {
-		link_clock = cnl_calc_wrpll_link(dev_priv, pll_state);
-	} else {
-		enum intel_dpll_id pll_id = intel_get_shared_dpll_id(dev_priv,
-						pipe_config->shared_dpll);
-
-		if (pll_id == DPLL_ID_ICL_TBTPLL)
-			link_clock = icl_calc_tbt_pll_link(dev_priv, port);
-		else
-			link_clock = icl_calc_mg_pll_link(dev_priv, pll_state);
-	}
-
-	pipe_config->port_clock = link_clock;
-
-	ddi_dotclock_get(pipe_config);
-}
-
-static void cnl_ddi_clock_get(struct intel_encoder *encoder,
-			      struct intel_crtc_state *pipe_config)
-{
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_dpll_hw_state *pll_state = &pipe_config->dpll_hw_state;
-	int link_clock;
-
-	if (pll_state->cfgcr0 & DPLL_CFGCR0_HDMI_MODE) {
-		link_clock = cnl_calc_wrpll_link(dev_priv, pll_state);
-	} else {
-		link_clock = pll_state->cfgcr0 & DPLL_CFGCR0_LINK_RATE_MASK;
-
-		switch (link_clock) {
-		case DPLL_CFGCR0_LINK_RATE_810:
-			link_clock = 81000;
-			break;
-		case DPLL_CFGCR0_LINK_RATE_1080:
-			link_clock = 108000;
-			break;
-		case DPLL_CFGCR0_LINK_RATE_1350:
-			link_clock = 135000;
-			break;
-		case DPLL_CFGCR0_LINK_RATE_1620:
-			link_clock = 162000;
-			break;
-		case DPLL_CFGCR0_LINK_RATE_2160:
-			link_clock = 216000;
-			break;
-		case DPLL_CFGCR0_LINK_RATE_2700:
-			link_clock = 270000;
-			break;
-		case DPLL_CFGCR0_LINK_RATE_3240:
-			link_clock = 324000;
-			break;
-		case DPLL_CFGCR0_LINK_RATE_4050:
-			link_clock = 405000;
-			break;
-		default:
-			drm_WARN(&dev_priv->drm, 1, "Unsupported link rate\n");
-			break;
-		}
-		link_clock *= 2;
-	}
-
-	pipe_config->port_clock = link_clock;
-
-	ddi_dotclock_get(pipe_config);
-}
-
-static void skl_ddi_clock_get(struct intel_encoder *encoder,
-			      struct intel_crtc_state *pipe_config)
-{
-	struct intel_dpll_hw_state *pll_state = &pipe_config->dpll_hw_state;
-	int link_clock;
-
-	/*
-	 * ctrl1 register is already shifted for each pll, just use 0 to get
-	 * the internal shift for each field
-	 */
-	if (pll_state->ctrl1 & DPLL_CTRL1_HDMI_MODE(0)) {
-		link_clock = skl_calc_wrpll_link(pll_state);
-	} else {
-		link_clock = pll_state->ctrl1 & DPLL_CTRL1_LINK_RATE_MASK(0);
-		link_clock >>= DPLL_CTRL1_LINK_RATE_SHIFT(0);
-
-		switch (link_clock) {
-		case DPLL_CTRL1_LINK_RATE_810:
-			link_clock = 81000;
-			break;
-		case DPLL_CTRL1_LINK_RATE_1080:
-			link_clock = 108000;
-			break;
-		case DPLL_CTRL1_LINK_RATE_1350:
-			link_clock = 135000;
-			break;
-		case DPLL_CTRL1_LINK_RATE_1620:
-			link_clock = 162000;
-			break;
-		case DPLL_CTRL1_LINK_RATE_2160:
-			link_clock = 216000;
-			break;
-		case DPLL_CTRL1_LINK_RATE_2700:
-			link_clock = 270000;
-			break;
-		default:
-			drm_WARN(encoder->base.dev, 1,
-				 "Unsupported link rate\n");
-			break;
-		}
-		link_clock *= 2;
-	}
-
-	pipe_config->port_clock = link_clock;
-
-	ddi_dotclock_get(pipe_config);
-}
-
-static void hsw_ddi_clock_get(struct intel_encoder *encoder,
-			      struct intel_crtc_state *pipe_config)
-{
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	int link_clock = 0;
-	u32 val, pll;
-
-	val = hsw_pll_to_ddi_pll_sel(pipe_config->shared_dpll);
-	switch (val & PORT_CLK_SEL_MASK) {
-	case PORT_CLK_SEL_LCPLL_810:
-		link_clock = 81000;
-		break;
-	case PORT_CLK_SEL_LCPLL_1350:
-		link_clock = 135000;
-		break;
-	case PORT_CLK_SEL_LCPLL_2700:
-		link_clock = 270000;
-		break;
-	case PORT_CLK_SEL_WRPLL1:
-		link_clock = hsw_ddi_calc_wrpll_link(dev_priv, WRPLL_CTL(0));
-		break;
-	case PORT_CLK_SEL_WRPLL2:
-		link_clock = hsw_ddi_calc_wrpll_link(dev_priv, WRPLL_CTL(1));
-		break;
-	case PORT_CLK_SEL_SPLL:
-		pll = intel_de_read(dev_priv, SPLL_CTL) & SPLL_FREQ_MASK;
-		if (pll == SPLL_FREQ_810MHz)
-			link_clock = 81000;
-		else if (pll == SPLL_FREQ_1350MHz)
-			link_clock = 135000;
-		else if (pll == SPLL_FREQ_2700MHz)
-			link_clock = 270000;
-		else {
-			drm_WARN(&dev_priv->drm, 1, "bad spll freq\n");
-			return;
-		}
-		break;
-	default:
-		drm_WARN(&dev_priv->drm, 1, "bad port clock sel\n");
-		return;
-	}
-
-	pipe_config->port_clock = link_clock * 2;
-
-	ddi_dotclock_get(pipe_config);
-}
-
-static int bxt_calc_pll_link(const struct intel_dpll_hw_state *pll_state)
-{
-	struct dpll clock;
-
-	clock.m1 = 2;
-	clock.m2 = (pll_state->pll0 & PORT_PLL_M2_MASK) << 22;
-	if (pll_state->pll3 & PORT_PLL_M2_FRAC_ENABLE)
-		clock.m2 |= pll_state->pll2 & PORT_PLL_M2_FRAC_MASK;
-	clock.n = (pll_state->pll1 & PORT_PLL_N_MASK) >> PORT_PLL_N_SHIFT;
-	clock.p1 = (pll_state->ebb0 & PORT_PLL_P1_MASK) >> PORT_PLL_P1_SHIFT;
-	clock.p2 = (pll_state->ebb0 & PORT_PLL_P2_MASK) >> PORT_PLL_P2_SHIFT;
-
-	return chv_calc_dpll_params(100000, &clock);
-}
-
-static void bxt_ddi_clock_get(struct intel_encoder *encoder,
-			      struct intel_crtc_state *pipe_config)
-{
-	pipe_config->port_clock =
-		bxt_calc_pll_link(&pipe_config->dpll_hw_state);
-
-	ddi_dotclock_get(pipe_config);
-}
-
 static void intel_ddi_clock_get(struct intel_encoder *encoder,
 				struct intel_crtc_state *pipe_config)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
 
-	if (INTEL_GEN(dev_priv) >= 11)
-		icl_ddi_clock_get(encoder, pipe_config);
-	else if (IS_CANNONLAKE(dev_priv))
-		cnl_ddi_clock_get(encoder, pipe_config);
-	else if (IS_GEN9_LP(dev_priv))
-		bxt_ddi_clock_get(encoder, pipe_config);
-	else if (IS_GEN9_BC(dev_priv))
-		skl_ddi_clock_get(encoder, pipe_config);
-	else if (INTEL_GEN(dev_priv) <= 8)
-		hsw_ddi_clock_get(encoder, pipe_config);
+	if (intel_phy_is_tc(dev_priv, phy) &&
+	    intel_get_shared_dpll_id(dev_priv, pipe_config->shared_dpll) ==
+	    DPLL_ID_ICL_TBTPLL)
+		pipe_config->port_clock = icl_calc_tbt_pll_link(dev_priv,
+								encoder->port);
+	else
+		pipe_config->port_clock =
+			intel_dpll_get_freq(dev_priv, pipe_config->shared_dpll);
+
+	ddi_dotclock_get(pipe_config);
 }
 
 void intel_ddi_set_dp_msa(const struct intel_crtc_state *crtc_state,
@@ -3049,7 +2627,7 @@ static void icl_map_plls_to_ports(struct intel_encoder *encoder,
 	enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
 	u32 val;
 
-	mutex_lock(&dev_priv->dpll_lock);
+	mutex_lock(&dev_priv->dpll.lock);
 
 	val = intel_de_read(dev_priv, ICL_DPCLKA_CFGCR0);
 	drm_WARN_ON(&dev_priv->drm,
@@ -3075,7 +2653,7 @@ static void icl_map_plls_to_ports(struct intel_encoder *encoder,
 	val &= ~icl_dpclka_cfgcr0_clk_off(dev_priv, phy);
 	intel_de_write(dev_priv, ICL_DPCLKA_CFGCR0, val);
 
-	mutex_unlock(&dev_priv->dpll_lock);
+	mutex_unlock(&dev_priv->dpll.lock);
 }
 
 static void icl_unmap_plls_to_ports(struct intel_encoder *encoder)
@@ -3084,13 +2662,13 @@ static void icl_unmap_plls_to_ports(struct intel_encoder *encoder)
 	enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
 	u32 val;
 
-	mutex_lock(&dev_priv->dpll_lock);
+	mutex_lock(&dev_priv->dpll.lock);
 
 	val = intel_de_read(dev_priv, ICL_DPCLKA_CFGCR0);
 	val |= icl_dpclka_cfgcr0_clk_off(dev_priv, phy);
 	intel_de_write(dev_priv, ICL_DPCLKA_CFGCR0, val);
 
-	mutex_unlock(&dev_priv->dpll_lock);
+	mutex_unlock(&dev_priv->dpll.lock);
 }
 
 static void icl_sanitize_port_clk_off(struct drm_i915_private *dev_priv,
@@ -3189,7 +2767,7 @@ static void intel_ddi_clk_select(struct intel_encoder *encoder,
 	if (drm_WARN_ON(&dev_priv->drm, !pll))
 		return;
 
-	mutex_lock(&dev_priv->dpll_lock);
+	mutex_lock(&dev_priv->dpll.lock);
 
 	if (INTEL_GEN(dev_priv) >= 11) {
 		if (!intel_phy_is_combo(dev_priv, phy))
@@ -3233,7 +2811,7 @@ static void intel_ddi_clk_select(struct intel_encoder *encoder,
 			       hsw_pll_to_ddi_pll_sel(pll));
 	}
 
-	mutex_unlock(&dev_priv->dpll_lock);
+	mutex_unlock(&dev_priv->dpll.lock);
 }
 
 static void intel_ddi_clk_disable(struct intel_encoder *encoder)
@@ -3987,8 +3565,9 @@ static void intel_enable_ddi_hdmi(struct intel_encoder *encoder,
 	if (!intel_hdmi_handle_sink_scrambling(encoder, connector,
 					       crtc_state->hdmi_high_tmds_clock_ratio,
 					       crtc_state->hdmi_scrambling))
-		DRM_ERROR("[CONNECTOR:%d:%s] Failed to configure sink scrambling/TMDS bit clock ratio\n",
-			  connector->base.id, connector->name);
+		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] Failed to configure sink "
+			      "scrambling/TMDS bit clock ratio\n",
+			       connector->base.id, connector->name);
 
 	/* Display WA #1143: skl,kbl,cfl */
 	if (IS_GEN9_BC(dev_priv)) {

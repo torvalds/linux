@@ -42,6 +42,7 @@
 
 #include "i915_drv.h"
 #include "i915_trace.h"
+#include "i915_vgpu.h"
 #include "intel_display_types.h"
 #include "intel_fbc.h"
 #include "intel_frontbuffer.h"
@@ -320,7 +321,7 @@ static void gen7_fbc_activate(struct drm_i915_private *dev_priv)
 			       SNB_CPU_FENCE_ENABLE | params->fence_id);
 		intel_de_write(dev_priv, DPFC_CPU_FENCE_OFFSET,
 			       params->crtc.fence_y_offset);
-	} else {
+	} else if (dev_priv->ggtt.num_fences) {
 		intel_de_write(dev_priv, SNB_DPFC_CTL_SA, 0);
 		intel_de_write(dev_priv, DPFC_CPU_FENCE_OFFSET, 0);
 	}
@@ -508,12 +509,12 @@ static int intel_fbc_alloc_cfb(struct drm_i915_private *dev_priv,
 
 		fbc->compressed_llb = compressed_llb;
 
-		GEM_BUG_ON(range_overflows_t(u64, dev_priv->dsm.start,
-					     fbc->compressed_fb.start,
-					     U32_MAX));
-		GEM_BUG_ON(range_overflows_t(u64, dev_priv->dsm.start,
-					     fbc->compressed_llb->start,
-					     U32_MAX));
+		GEM_BUG_ON(range_overflows_end_t(u64, dev_priv->dsm.start,
+						 fbc->compressed_fb.start,
+						 U32_MAX));
+		GEM_BUG_ON(range_overflows_end_t(u64, dev_priv->dsm.start,
+						 fbc->compressed_llb->start,
+						 U32_MAX));
 		intel_de_write(dev_priv, FBC_CFB_BASE,
 			       dev_priv->dsm.start + fbc->compressed_fb.start);
 		intel_de_write(dev_priv, FBC_LL_BASE,
@@ -691,11 +692,36 @@ static bool intel_fbc_cfb_size_changed(struct drm_i915_private *dev_priv)
 		fbc->compressed_fb.size * fbc->threshold;
 }
 
+static bool intel_fbc_can_enable(struct drm_i915_private *dev_priv)
+{
+	struct intel_fbc *fbc = &dev_priv->fbc;
+
+	if (intel_vgpu_active(dev_priv)) {
+		fbc->no_fbc_reason = "VGPU is active";
+		return false;
+	}
+
+	if (!i915_modparams.enable_fbc) {
+		fbc->no_fbc_reason = "disabled per module param or by default";
+		return false;
+	}
+
+	if (fbc->underrun_detected) {
+		fbc->no_fbc_reason = "underrun detected";
+		return false;
+	}
+
+	return true;
+}
+
 static bool intel_fbc_can_activate(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_fbc *fbc = &dev_priv->fbc;
 	struct intel_fbc_state_cache *cache = &fbc->state_cache;
+
+	if (!intel_fbc_can_enable(dev_priv))
+		return false;
 
 	if (!cache->plane.visible) {
 		fbc->no_fbc_reason = "primary plane not visible";
@@ -789,28 +815,6 @@ static bool intel_fbc_can_activate(struct intel_crtc *crtc)
 	if (INTEL_GEN(dev_priv) >= 9 &&
 	    (fbc->state_cache.plane.adjusted_y & 3)) {
 		fbc->no_fbc_reason = "plane Y offset is misaligned";
-		return false;
-	}
-
-	return true;
-}
-
-static bool intel_fbc_can_enable(struct drm_i915_private *dev_priv)
-{
-	struct intel_fbc *fbc = &dev_priv->fbc;
-
-	if (intel_vgpu_active(dev_priv)) {
-		fbc->no_fbc_reason = "VGPU is active";
-		return false;
-	}
-
-	if (!i915_modparams.enable_fbc) {
-		fbc->no_fbc_reason = "disabled per module param or by default";
-		return false;
-	}
-
-	if (fbc->underrun_detected) {
-		fbc->no_fbc_reason = "underrun detected";
 		return false;
 	}
 

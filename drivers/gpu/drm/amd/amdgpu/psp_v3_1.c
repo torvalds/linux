@@ -44,6 +44,7 @@
 
 MODULE_FIRMWARE("amdgpu/vega10_sos.bin");
 MODULE_FIRMWARE("amdgpu/vega10_asd.bin");
+MODULE_FIRMWARE("amdgpu/vega10_cap.bin");
 MODULE_FIRMWARE("amdgpu/vega12_sos.bin");
 MODULE_FIRMWARE("amdgpu/vega12_asd.bin");
 
@@ -63,6 +64,7 @@ static int psp_v3_1_init_microcode(struct psp_context *psp)
 	char fw_name[30];
 	int err = 0;
 	const struct psp_firmware_header_v1_0 *hdr;
+	struct amdgpu_firmware_info *info = NULL;
 
 	DRM_DEBUG("\n");
 
@@ -112,6 +114,26 @@ static int psp_v3_1_init_microcode(struct psp_context *psp)
 	adev->psp.asd_start_addr = (uint8_t *)hdr +
 				le32_to_cpu(hdr->header.ucode_array_offset_bytes);
 
+	if (amdgpu_sriov_vf(adev) && adev->asic_type == CHIP_VEGA10) {
+		snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_cap.bin",
+			 chip_name);
+		err = request_firmware(&adev->psp.cap_fw, fw_name, adev->dev);
+		if (err)
+			goto out;
+
+		err = amdgpu_ucode_validate(adev->psp.cap_fw);
+		if (err)
+			goto out;
+
+		info = &adev->firmware.ucode[AMDGPU_UCODE_ID_CAP];
+		info->ucode_id = AMDGPU_UCODE_ID_CAP;
+		info->fw = adev->psp.cap_fw;
+		hdr = (const struct psp_firmware_header_v1_0 *)
+			      adev->psp.cap_fw->data;
+		adev->firmware.fw_size += ALIGN(
+			le32_to_cpu(hdr->header.ucode_size_bytes), PAGE_SIZE);
+	}
+
 	return 0;
 out:
 	if (err) {
@@ -122,6 +144,8 @@ out:
 		adev->psp.sos_fw = NULL;
 		release_firmware(adev->psp.asd_fw);
 		adev->psp.asd_fw = NULL;
+		release_firmware(adev->psp.cap_fw);
+		adev->psp.cap_fw = NULL;
 	}
 
 	return err;

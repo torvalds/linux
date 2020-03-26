@@ -521,7 +521,7 @@ struct dc {
 	struct dce_hwseq *hwseq;
 
 	/* Require to optimize clocks and bandwidth for added/removed planes */
-	bool clk_optimized_required;
+	bool optimized_required;
 	bool wm_optimized_required;
 
 	/* Require to maintain clocks and bandwidth for UEFI enabled HW */
@@ -872,6 +872,7 @@ struct dc_flip_addrs {
 	unsigned int flip_timestamp_in_us;
 	bool flip_immediate;
 	/* TODO: add flip duration for FreeSync */
+	bool triplebuffer_flips;
 };
 
 bool dc_post_update_surfaces_to_stream(
@@ -1045,6 +1046,8 @@ struct dc_sink {
 
 	struct dc_sink_dsc_caps dsc_caps;
 	struct dc_sink_fec_caps fec_caps;
+
+	bool is_vsc_sdp_colorimetry_supported;
 
 	/* private to DC core */
 	struct dc_link *link;

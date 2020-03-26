@@ -59,7 +59,6 @@
 #include <drm/drm_connector.h>
 #include <drm/i915_mei_hdcp_interface.h>
 
-#include "i915_fixed.h"
 #include "i915_params.h"
 #include "i915_reg.h"
 #include "i915_utils.h"
@@ -105,18 +104,23 @@
 
 #include "intel_region_lmem.h"
 
-#include "intel_gvt.h"
-
 /* General customization:
  */
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20200225"
-#define DRIVER_TIMESTAMP	1582656081
+#define DRIVER_DATE		"20200313"
+#define DRIVER_TIMESTAMP	1584144591
 
 struct drm_i915_gem_object;
 
+/*
+ * The code assumes that the hpd_pins below have consecutive values and
+ * starting with HPD_PORT_A, the HPD pin associated with any port can be
+ * retrieved by adding the corresponding port (or phy) enum value to
+ * HPD_PORT_A in most cases. For example:
+ * HPD_PORT_C = HPD_PORT_A + PHY_C - PHY_A
+ */
 enum hpd_pin {
 	HPD_NONE = 0,
 	HPD_TV = HPD_NONE,     /* TV is known to be unreliable */
@@ -732,14 +736,6 @@ enum intel_ddb_partitioning {
 	INTEL_DDB_PART_5_6, /* IVB+ */
 };
 
-struct intel_wm_level {
-	bool enable;
-	u32 pri_val;
-	u32 spr_val;
-	u32 cur_val;
-	u32 fbc_val;
-};
-
 struct ilk_wm_values {
 	u32 wm_pipe[3];
 	u32 wm_lp[3];
@@ -798,56 +794,6 @@ static inline bool skl_ddb_entry_equal(const struct skl_ddb_entry *e1,
 	return false;
 }
 
-struct skl_wm_level {
-	u16 min_ddb_alloc;
-	u16 plane_res_b;
-	u8 plane_res_l;
-	bool plane_en;
-	bool ignore_lines;
-};
-
-/* Stores plane specific WM parameters */
-struct skl_wm_params {
-	bool x_tiled, y_tiled;
-	bool rc_surface;
-	bool is_planar;
-	u32 width;
-	u8 cpp;
-	u32 plane_pixel_rate;
-	u32 y_min_scanlines;
-	u32 plane_bytes_per_line;
-	uint_fixed_16_16_t plane_blocks_per_line;
-	uint_fixed_16_16_t y_tile_minimum;
-	u32 linetime_us;
-	u32 dbuf_block_size;
-};
-
-enum intel_pipe_crc_source {
-	INTEL_PIPE_CRC_SOURCE_NONE,
-	INTEL_PIPE_CRC_SOURCE_PLANE1,
-	INTEL_PIPE_CRC_SOURCE_PLANE2,
-	INTEL_PIPE_CRC_SOURCE_PLANE3,
-	INTEL_PIPE_CRC_SOURCE_PLANE4,
-	INTEL_PIPE_CRC_SOURCE_PLANE5,
-	INTEL_PIPE_CRC_SOURCE_PLANE6,
-	INTEL_PIPE_CRC_SOURCE_PLANE7,
-	INTEL_PIPE_CRC_SOURCE_PIPE,
-	/* TV/DP on pre-gen5/vlv can't use the pipe source. */
-	INTEL_PIPE_CRC_SOURCE_TV,
-	INTEL_PIPE_CRC_SOURCE_DP_B,
-	INTEL_PIPE_CRC_SOURCE_DP_C,
-	INTEL_PIPE_CRC_SOURCE_DP_D,
-	INTEL_PIPE_CRC_SOURCE_AUTO,
-	INTEL_PIPE_CRC_SOURCE_MAX,
-};
-
-#define INTEL_PIPE_CRC_ENTRIES_NR	128
-struct intel_pipe_crc {
-	spinlock_t lock;
-	int skipped;
-	enum intel_pipe_crc_source source;
-};
-
 struct i915_frontbuffer_tracking {
 	spinlock_t lock;
 
@@ -863,13 +809,6 @@ struct i915_virtual_gpu {
 	struct mutex lock; /* serialises sending of g2v_notify command pkts */
 	bool active;
 	u32 caps;
-};
-
-/* used in computing the new watermarks state */
-struct intel_wm_config {
-	unsigned int num_pipes_active;
-	bool sprites_enabled;
-	bool sprites_scaled;
 };
 
 struct intel_cdclk_config {
@@ -1043,21 +982,24 @@ struct drm_i915_private {
 	struct intel_crtc *plane_to_crtc_mapping[I915_MAX_PIPES];
 	struct intel_crtc *pipe_to_crtc_mapping[I915_MAX_PIPES];
 
-#ifdef CONFIG_DEBUG_FS
-	struct intel_pipe_crc pipe_crc[I915_MAX_PIPES];
-#endif
-
-	/* dpll and cdclk state is protected by connection_mutex */
-	int num_shared_dpll;
-	struct intel_shared_dpll shared_dplls[I915_NUM_PLLS];
-	const struct intel_dpll_mgr *dpll_mgr;
-
-	/*
-	 * dpll_lock serializes intel_{prepare,enable,disable}_shared_dpll.
-	 * Must be global rather than per dpll, because on some platforms
-	 * plls share registers.
+	/**
+	 * dpll and cdclk state is protected by connection_mutex
+	 * dpll.lock serializes intel_{prepare,enable,disable}_shared_dpll.
+	 * Must be global rather than per dpll, because on some platforms plls
+	 * share registers.
 	 */
-	struct mutex dpll_lock;
+	struct {
+		struct mutex lock;
+
+		int num_shared_dpll;
+		struct intel_shared_dpll shared_dplls[I915_NUM_PLLS];
+		const struct intel_dpll_mgr *mgr;
+
+		struct {
+			int nssc;
+			int ssc;
+		} ref_clks;
+	} dpll;
 
 	struct list_head global_obj_list;
 
@@ -1077,8 +1019,6 @@ struct drm_i915_private {
 		struct llist_head free_list;
 		struct work_struct free_work;
 	} atomic_helper;
-
-	u16 orig_clock;
 
 	bool mchbar_need_disable;
 
@@ -1272,16 +1212,6 @@ struct drm_i915_private {
 	 * NOTE: This is the dri1/ums dungeon, don't add stuff here. Your patch
 	 * will be rejected. Instead look for a better place.
 	 */
-};
-
-struct dram_dimm_info {
-	u8 size, width, ranks;
-};
-
-struct dram_channel_info {
-	struct dram_dimm_info dimm_l, dimm_s;
-	u8 ranks;
-	bool is_16gb_dimm;
 };
 
 static inline struct drm_i915_private *to_i915(const struct drm_device *dev)
@@ -1554,6 +1484,8 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 
 #define GLK_REVID_A0		0x0
 #define GLK_REVID_A1		0x1
+#define GLK_REVID_A2		0x2
+#define GLK_REVID_B0		0x3
 
 #define IS_GLK_REVID(dev_priv, since, until) \
 	(IS_GEMINILAKE(dev_priv) && IS_REVID(dev_priv, since, until))
@@ -1737,11 +1669,6 @@ intel_ggtt_update_needs_vtd_wa(struct drm_i915_private *dev_priv)
 }
 
 /* i915_drv.c */
-#ifdef CONFIG_COMPAT
-long i915_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
-#else
-#define i915_compat_ioctl NULL
-#endif
 extern const struct dev_pm_ops i915_pm_ops;
 
 int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent);
@@ -1749,16 +1676,6 @@ void i915_driver_remove(struct drm_i915_private *i915);
 
 int i915_resume_switcheroo(struct drm_i915_private *i915);
 int i915_suspend_switcheroo(struct drm_i915_private *i915, pm_message_t state);
-
-static inline bool intel_gvt_active(struct drm_i915_private *dev_priv)
-{
-	return dev_priv->gvt;
-}
-
-static inline bool intel_vgpu_active(struct drm_i915_private *dev_priv)
-{
-	return dev_priv->vgpu.active;
-}
 
 int i915_getparam_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
@@ -1823,12 +1740,6 @@ int i915_gem_object_unbind(struct drm_i915_gem_object *obj,
 #define I915_GEM_OBJECT_UNBIND_BARRIER BIT(1)
 
 void i915_gem_runtime_suspend(struct drm_i915_private *dev_priv);
-
-static inline int __must_check
-i915_mutex_lock_interruptible(struct drm_device *dev)
-{
-	return mutex_lock_interruptible(&dev->struct_mutex);
-}
 
 int i915_gem_dumb_create(struct drm_file *file_priv,
 			 struct drm_device *dev,

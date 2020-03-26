@@ -133,14 +133,36 @@ intel_plane_destroy_state(struct drm_plane *plane,
 	kfree(plane_state);
 }
 
+unsigned int intel_plane_pixel_rate(const struct intel_crtc_state *crtc_state,
+				    const struct intel_plane_state *plane_state)
+{
+	unsigned int src_w, src_h, dst_w, dst_h;
+	unsigned int pixel_rate = crtc_state->pixel_rate;
+
+	src_w = drm_rect_width(&plane_state->uapi.src) >> 16;
+	src_h = drm_rect_height(&plane_state->uapi.src) >> 16;
+	dst_w = drm_rect_width(&plane_state->uapi.dst);
+	dst_h = drm_rect_height(&plane_state->uapi.dst);
+
+	/* Downscaling limits the maximum pixel rate */
+	dst_w = min(src_w, dst_w);
+	dst_h = min(src_h, dst_h);
+
+	return DIV_ROUND_UP_ULL(mul_u32_u32(pixel_rate, src_w * src_h),
+				dst_w * dst_h);
+}
+
 unsigned int intel_plane_data_rate(const struct intel_crtc_state *crtc_state,
 				   const struct intel_plane_state *plane_state)
 {
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
 	unsigned int cpp;
+	unsigned int pixel_rate;
 
 	if (!plane_state->uapi.visible)
 		return 0;
+
+	pixel_rate = intel_plane_pixel_rate(crtc_state, plane_state);
 
 	cpp = fb->format->cpp[0];
 
@@ -153,7 +175,7 @@ unsigned int intel_plane_data_rate(const struct intel_crtc_state *crtc_state,
 	if (fb->format->is_yuv && fb->format->num_planes > 1)
 		cpp *= 4;
 
-	return cpp * crtc_state->pixel_rate;
+	return pixel_rate * cpp;
 }
 
 int intel_plane_calc_min_cdclk(struct intel_atomic_state *state,

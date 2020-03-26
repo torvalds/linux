@@ -10,8 +10,6 @@
 #include <linux/swap.h>
 #include <linux/sched/mm.h>
 
-#include <drm/i915_drm.h>
-
 #include "i915_drv.h"
 #include "i915_gem_ioctls.h"
 #include "i915_gem_object.h"

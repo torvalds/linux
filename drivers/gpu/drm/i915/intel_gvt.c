@@ -22,6 +22,7 @@
  */
 
 #include "i915_drv.h"
+#include "i915_vgpu.h"
 #include "intel_gvt.h"
 
 /**
@@ -122,6 +123,11 @@ int intel_gvt_init(struct drm_i915_private *dev_priv)
 bail:
 	i915_modparams.enable_gvt = 0;
 	return 0;
+}
+
+static inline bool intel_gvt_active(struct drm_i915_private *dev_priv)
+{
+	return dev_priv->gvt;
 }
 
 /**
