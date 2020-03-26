@@ -1580,9 +1580,23 @@
 		clock-names = "aclk_npu", "hclk_npu", "pclk_pdnpu", "sclk_npu";
 		assigned-clocks = <&cru CLK_CORE_NPU>;
 		assigned-clock-rates = <400000000>;
+		operating-points-v2 = <&npu_opp_table>;
 		interrupts = <GIC_SPI 107 IRQ_TYPE_LEVEL_HIGH>;
 		power-domains = <&power RV1126_PD_NPU>;
 		status = "disabled";
+	};
+
+	npu_opp_table: npu-opp-table {
+		compatible = "operating-points-v2";
+
+		opp-400000000 {
+			opp-hz = /bits/ 64 <400000000>;
+			opp-microvolt = <800000 800000 1000000>;
+		};
+		opp-600000000 {
+			opp-hz = /bits/ 64 <600000000>;
+			opp-microvolt = <800000 800000 1000000>;
+		};
 	};
 
 	usbdrd: usb0 {
