@@ -653,7 +653,7 @@
 #define KEY_PRIVACY_SCREEN_TOGGLE	0x279
 
 /* Select an area of screen to be copied */
-#define KEY_SELECTIVE_SCREENSHOT	0x280
+#define KEY_SELECTIVE_SCREENSHOT	0x27a
 
 /*
  * Some keyboards have keys which do not have a defined meaning, these keys
