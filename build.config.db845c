@@ -5,7 +5,12 @@ DEFCONFIG=db845c_gki_defconfig
 PRE_DEFCONFIG_CMDS="cat ./common/arch/arm64/configs/gki_defconfig ./common/arch/arm64/configs/db845c_gki.fragment > ./common/arch/arm64/configs/${DEFCONFIG};"
 POST_DEFCONFIG_CMDS="rm ./common/arch/arm64/configs/${DEFCONFIG}"
 
-FILES="
+MAKE_GOALS="${MAKE_GOALS}
+qcom/sdm845-db845c.dtb
+Image.gz
+"
+
+FILES="${FILES}
 arch/arm64/boot/Image.gz
 arch/arm64/boot/dts/qcom/sdm845-db845c.dtb
 "

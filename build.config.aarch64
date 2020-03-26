@@ -4,8 +4,12 @@ CLANG_TRIPLE=aarch64-linux-gnu-
 CROSS_COMPILE=aarch64-linux-androidkernel-
 LINUX_GCC_CROSS_COMPILE_PREBUILTS_BIN=prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/bin
 
+MAKE_GOALS="
+Image
+modules
+"
+
 FILES="
-arch/arm64/boot/Image.gz
 arch/arm64/boot/Image
 vmlinux
 System.map
