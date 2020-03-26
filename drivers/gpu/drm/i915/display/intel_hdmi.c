@@ -691,7 +691,6 @@ void intel_read_infoframe(struct intel_encoder *encoder,
 			  union hdmi_infoframe *frame)
 {
 	struct intel_digital_port *intel_dig_port = enc_to_dig_port(encoder);
-	struct drm_i915_private *i915 = to_i915(intel_dig_port->base.base.dev);
 	u8 buffer[VIDEO_DIP_DATA_SIZE];
 	int ret;
 
@@ -708,13 +707,13 @@ void intel_read_infoframe(struct intel_encoder *encoder,
 	/* see comment above for the reason for this offset */
 	ret = hdmi_infoframe_unpack(frame, buffer + 1, sizeof(buffer) - 1);
 	if (ret) {
-		drm_dbg_kms(&i915->drm,
+		drm_dbg_kms(encoder->base.dev,
 			    "Failed to unpack infoframe type 0x%02x\n", type);
 		return;
 	}
 
 	if (frame->any.type != type)
-		drm_dbg_kms(&i915->drm,
+		drm_dbg_kms(encoder->base.dev,
 			    "Found the wrong infoframe type 0x%x (expected 0x%02x)\n",
 			    frame->any.type, type);
 }
