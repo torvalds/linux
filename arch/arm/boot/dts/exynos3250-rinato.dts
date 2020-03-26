@@ -606,8 +606,6 @@
 };
 
 &mshc_0 {
-	#address-cells = <1>;
-	#size-cells = <0>;
 	broken-cd;
 	non-removable;
 	cap-mmc-highspeed;
