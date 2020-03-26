@@ -77,7 +77,7 @@
 &ethernet0 {
 	status = "okay";
 	pinctrl-0 = <&ethernet0_rmii_pins_a>;
-	pinctrl-1 = <&ethernet0_rmii_pins_sleep_a>;
+	pinctrl-1 = <&ethernet0_rmii_sleep_pins_a>;
 	pinctrl-names = "default", "sleep";
 	phy-mode = "rmii";
 	max-speed = <100>;
@@ -147,7 +147,7 @@
 &ltdc {
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&ltdc_pins_b>;
-	pinctrl-1 = <&ltdc_pins_sleep_b>;
+	pinctrl-1 = <&ltdc_sleep_pins_b>;
 	status = "okay";
 
 	port {
