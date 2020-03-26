@@ -835,19 +835,6 @@ xlog_unmount_write(
 	if (error)
 		goto out_err;
 
-	/*
-	 * If we think the summary counters are bad, clear the unmount header
-	 * flag in the unmount record so that the summary counters will be
-	 * recalculated during log recovery at next mount.  Refer to
-	 * xlog_check_unmount_rec for more details.
-	 */
-	if (XFS_TEST_ERROR(xfs_fs_has_sickness(mp, XFS_SICK_FS_COUNTERS), mp,
-			XFS_ERRTAG_FORCE_SUMMARY_RECALC)) {
-		xfs_alert(mp, "%s: will fix summary counters at next mount",
-				__func__);
-		flags &= ~XLOG_UNMOUNT_TRANS;
-	}
-
 	error = xlog_write_unmount_record(log, tic, &lsn, flags);
 	/*
 	 * At this point, we're umounting anyway, so there's no point in
@@ -913,6 +900,20 @@ xfs_log_unmount_write(
 
 	if (XLOG_FORCED_SHUTDOWN(log))
 		return;
+
+	/*
+	 * If we think the summary counters are bad, avoid writing the unmount
+	 * record to force log recovery at next mount, after which the summary
+	 * counters will be recalculated.  Refer to xlog_check_unmount_rec for
+	 * more details.
+	 */
+	if (XFS_TEST_ERROR(xfs_fs_has_sickness(mp, XFS_SICK_FS_COUNTERS), mp,
+			XFS_ERRTAG_FORCE_SUMMARY_RECALC)) {
+		xfs_alert(mp, "%s: will fix summary counters at next mount",
+				__func__);
+		return;
+	}
+
 	xfs_log_unmount_verify_iclog(log);
 	xlog_unmount_write(log);
 }
