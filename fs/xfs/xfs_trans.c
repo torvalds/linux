@@ -231,7 +231,7 @@ xfs_trans_reserve(
 	 */
 undo_log:
 	if (resp->tr_logres > 0) {
-		xlog_ticket_done(mp->m_log, tp->t_ticket, false);
+		xfs_log_ticket_ungrant(mp->m_log, tp->t_ticket);
 		tp->t_ticket = NULL;
 		tp->t_log_res = 0;
 		tp->t_flags &= ~XFS_TRANS_PERM_LOG_RES;
@@ -1006,7 +1006,10 @@ out_unreserve:
 	 */
 	xfs_trans_unreserve_and_mod_dquots(tp);
 	if (tp->t_ticket) {
-		xlog_ticket_done(mp->m_log, tp->t_ticket, regrant);
+		if (regrant && !XLOG_FORCED_SHUTDOWN(mp->m_log))
+			xfs_log_ticket_regrant(mp->m_log, tp->t_ticket);
+		else
+			xfs_log_ticket_ungrant(mp->m_log, tp->t_ticket);
 		tp->t_ticket = NULL;
 	}
 	current_restore_flags_nested(&tp->t_pflags, PF_MEMALLOC_NOFS);
@@ -1065,7 +1068,7 @@ xfs_trans_cancel(
 	xfs_trans_unreserve_and_mod_dquots(tp);
 
 	if (tp->t_ticket) {
-		xlog_ticket_done(mp->m_log, tp->t_ticket, false);
+		xfs_log_ticket_ungrant(mp->m_log, tp->t_ticket);
 		tp->t_ticket = NULL;
 	}
 

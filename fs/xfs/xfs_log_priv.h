@@ -443,8 +443,8 @@ int	xlog_write(struct xlog *log, struct xfs_log_vec *log_vector,
 		bool need_start_rec);
 int	xlog_write_done(struct xlog *log, struct xlog_ticket *ticket,
 		struct xlog_in_core **iclog, xfs_lsn_t *lsn);
-void	xlog_ticket_done(struct xlog *log, struct xlog_ticket *ticket,
-		bool regrant);
+void	xfs_log_ticket_ungrant(struct xlog *log, struct xlog_ticket *ticket);
+void	xfs_log_ticket_regrant(struct xlog *log, struct xlog_ticket *ticket);
 
 /*
  * When we crack an atomic LSN, we sample it first so that the value will not

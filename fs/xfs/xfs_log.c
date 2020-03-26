@@ -66,14 +66,6 @@ xlog_grant_push_ail(
 	struct xlog		*log,
 	int			need_bytes);
 STATIC void
-xlog_regrant_reserve_log_space(
-	struct xlog		*log,
-	struct xlog_ticket	*ticket);
-STATIC void
-xlog_ungrant_log_space(
-	struct xlog		*log,
-	struct xlog_ticket	*ticket);
-STATIC void
 xlog_sync(
 	struct xlog		*log,
 	struct xlog_in_core	*iclog);
@@ -502,27 +494,6 @@ xlog_write_done(
 	return xlog_commit_record(log, ticket, iclog, lsn);
 }
 
-/*
- * Release or regrant the ticket reservation now the transaction is done with
- * it depending on caller context. Rolling transactions need the ticket
- * regranted, otherwise we release it completely.
- */
-void
-xlog_ticket_done(
-	struct xlog		*log,
-	struct xlog_ticket	*ticket,
-	bool			regrant)
-{
-	if (!regrant || XLOG_FORCED_SHUTDOWN(log)) {
-		trace_xfs_log_done_nonperm(log, ticket);
-		xlog_ungrant_log_space(log, ticket);
-	} else {
-		trace_xfs_log_done_perm(log, ticket);
-		xlog_regrant_reserve_log_space(log, ticket);
-	}
-	xfs_log_ticket_put(ticket);
-}
-
 static bool
 __xlog_state_release_iclog(
 	struct xlog		*log,
@@ -921,8 +892,7 @@ out_err:
 
 	if (tic) {
 		trace_xfs_log_umount_write(log, tic);
-		xlog_ungrant_log_space(log, tic);
-		xfs_log_ticket_put(tic);
+		xfs_log_ticket_ungrant(log, tic);
 	}
 }
 
@@ -2992,19 +2962,18 @@ restart:
 	return 0;
 }	/* xlog_state_get_iclog_space */
 
-/* The first cnt-1 times through here we don't need to
- * move the grant write head because the permanent
- * reservation has reserved cnt times the unit amount.
- * Release part of current permanent unit reservation and
- * reset current reservation to be one units worth.  Also
- * move grant reservation head forward.
+/*
+ * The first cnt-1 times through here we don't need to move the grant write head
+ * because the permanent reservation has reserved cnt times the unit amount.
+ * Release part of current permanent unit reservation and reset current
+ * reservation to be one units worth.  Also move grant reservation head forward.
  */
-STATIC void
-xlog_regrant_reserve_log_space(
+void
+xfs_log_ticket_regrant(
 	struct xlog		*log,
 	struct xlog_ticket	*ticket)
 {
-	trace_xfs_log_regrant_reserve_enter(log, ticket);
+	trace_xfs_log_ticket_regrant(log, ticket);
 
 	if (ticket->t_cnt > 0)
 		ticket->t_cnt--;
@@ -3016,21 +2985,20 @@ xlog_regrant_reserve_log_space(
 	ticket->t_curr_res = ticket->t_unit_res;
 	xlog_tic_reset_res(ticket);
 
-	trace_xfs_log_regrant_reserve_sub(log, ticket);
+	trace_xfs_log_ticket_regrant_sub(log, ticket);
 
 	/* just return if we still have some of the pre-reserved space */
-	if (ticket->t_cnt > 0)
-		return;
+	if (!ticket->t_cnt) {
+		xlog_grant_add_space(log, &log->l_reserve_head.grant,
+				     ticket->t_unit_res);
+		trace_xfs_log_ticket_regrant_exit(log, ticket);
 
-	xlog_grant_add_space(log, &log->l_reserve_head.grant,
-					ticket->t_unit_res);
+		ticket->t_curr_res = ticket->t_unit_res;
+		xlog_tic_reset_res(ticket);
+	}
 
-	trace_xfs_log_regrant_reserve_exit(log, ticket);
-
-	ticket->t_curr_res = ticket->t_unit_res;
-	xlog_tic_reset_res(ticket);
-}	/* xlog_regrant_reserve_log_space */
-
+	xfs_log_ticket_put(ticket);
+}
 
 /*
  * Give back the space left from a reservation.
@@ -3046,18 +3014,19 @@ xlog_regrant_reserve_log_space(
  * space, the count will stay at zero and the only space remaining will be
  * in the current reservation field.
  */
-STATIC void
-xlog_ungrant_log_space(
+void
+xfs_log_ticket_ungrant(
 	struct xlog		*log,
 	struct xlog_ticket	*ticket)
 {
-	int	bytes;
+	int			bytes;
+
+	trace_xfs_log_ticket_ungrant(log, ticket);
 
 	if (ticket->t_cnt > 0)
 		ticket->t_cnt--;
 
-	trace_xfs_log_ungrant_enter(log, ticket);
-	trace_xfs_log_ungrant_sub(log, ticket);
+	trace_xfs_log_ticket_ungrant_sub(log, ticket);
 
 	/*
 	 * If this is a permanent reservation ticket, we may be able to free
@@ -3072,9 +3041,10 @@ xlog_ungrant_log_space(
 	xlog_grant_sub_space(log, &log->l_reserve_head.grant, bytes);
 	xlog_grant_sub_space(log, &log->l_write_head.grant, bytes);
 
-	trace_xfs_log_ungrant_exit(log, ticket);
+	trace_xfs_log_ticket_ungrant_exit(log, ticket);
 
 	xfs_log_space_wake(log->l_mp);
+	xfs_log_ticket_put(ticket);
 }
 
 /*
