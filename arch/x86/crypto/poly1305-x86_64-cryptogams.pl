@@ -404,10 +404,6 @@ ___
 &end_function("poly1305_emit_x86_64");
 if ($avx) {
 
-if($kernel) {
-	$code .= "#ifdef CONFIG_AS_AVX\n";
-}
-
 ########################################################################
 # Layout of opaque area is following.
 #
@@ -1515,10 +1511,6 @@ $code.=<<___;
 	ret
 ___
 &end_function("poly1305_emit_avx");
-
-if ($kernel) {
-	$code .= "#endif\n";
-}
 
 if ($avx>1) {
 
