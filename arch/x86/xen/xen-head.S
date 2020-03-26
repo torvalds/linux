@@ -58,6 +58,16 @@ SYM_CODE_START(startup_xen)
 	call xen_start_kernel
 SYM_CODE_END(startup_xen)
 	__FINIT
+
+#ifdef CONFIG_XEN_PV_SMP
+.pushsection .text
+SYM_CODE_START(asm_cpu_bringup_and_idle)
+	UNWIND_HINT_EMPTY
+
+	call cpu_bringup_and_idle
+SYM_CODE_END(asm_cpu_bringup_and_idle)
+.popsection
+#endif
 #endif
 
 .pushsection .text
