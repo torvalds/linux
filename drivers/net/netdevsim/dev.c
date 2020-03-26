@@ -54,7 +54,11 @@ static ssize_t nsim_dev_take_snapshot_write(struct file *file,
 
 	get_random_bytes(dummy_data, NSIM_DEV_DUMMY_REGION_SIZE);
 
-	id = devlink_region_snapshot_id_get(priv_to_devlink(nsim_dev));
+	err = devlink_region_snapshot_id_get(priv_to_devlink(nsim_dev), &id);
+	if (err) {
+		pr_err("Failed to get snapshot id\n");
+		return err;
+	}
 	err = devlink_region_snapshot_create(nsim_dev->dummy_region,
 					     dummy_data, id);
 	if (err) {

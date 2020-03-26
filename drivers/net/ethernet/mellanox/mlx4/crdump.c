@@ -169,6 +169,7 @@ int mlx4_crdump_collect(struct mlx4_dev *dev)
 	struct pci_dev *pdev = dev->persist->pdev;
 	unsigned long cr_res_size;
 	u8 __iomem *cr_space;
+	int err;
 	u32 id;
 
 	if (!dev->caps.health_buffer_addrs) {
@@ -189,10 +190,14 @@ int mlx4_crdump_collect(struct mlx4_dev *dev)
 		return -ENODEV;
 	}
 
-	crdump_enable_crspace_access(dev, cr_space);
-
 	/* Get the available snapshot ID for the dumps */
-	id = devlink_region_snapshot_id_get(devlink);
+	err = devlink_region_snapshot_id_get(devlink, &id);
+	if (err) {
+		mlx4_err(dev, "crdump: devlink get snapshot id err %d\n", err);
+		return err;
+	}
+
+	crdump_enable_crspace_access(dev, cr_space);
 
 	/* Try to capture dumps */
 	mlx4_crdump_collect_crspace(dev, cr_space, id);

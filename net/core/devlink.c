@@ -3771,14 +3771,22 @@ out_free_msg:
 /**
  *	__devlink_region_snapshot_id_get - get snapshot ID
  *	@devlink: devlink instance
+ *	@id: storage to return snapshot id
  *
- *	Returns a new snapshot id. Must be called while holding the
- *	devlink instance lock.
+ *	Allocates a new snapshot id. Returns zero on success, or a negative
+ *	error on failure. Must be called while holding the devlink instance
+ *	lock.
  */
-static u32 __devlink_region_snapshot_id_get(struct devlink *devlink)
+static int __devlink_region_snapshot_id_get(struct devlink *devlink, u32 *id)
 {
 	lockdep_assert_held(&devlink->lock);
-	return ++devlink->snapshot_id;
+
+	if (devlink->snapshot_id >= U32_MAX)
+		return -ENOSPC;
+
+	*id = ++devlink->snapshot_id;
+
+	return 0;
 }
 
 /**
@@ -7782,17 +7790,20 @@ EXPORT_SYMBOL_GPL(devlink_region_destroy);
  *	Driver should use the same id for multiple snapshots taken
  *	on multiple regions at the same time/by the same trigger.
  *
+ *	Returns zero on success, or a negative error code on failure.
+ *
  *	@devlink: devlink
+ *	@id: storage to return id
  */
-u32 devlink_region_snapshot_id_get(struct devlink *devlink)
+int devlink_region_snapshot_id_get(struct devlink *devlink, u32 *id)
 {
-	u32 id;
+	int err;
 
 	mutex_lock(&devlink->lock);
-	id = __devlink_region_snapshot_id_get(devlink);
+	err = __devlink_region_snapshot_id_get(devlink, id);
 	mutex_unlock(&devlink->lock);
 
-	return id;
+	return err;
 }
 EXPORT_SYMBOL_GPL(devlink_region_snapshot_id_get);
 
