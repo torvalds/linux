@@ -2805,13 +2805,11 @@ static struct mutex *v4l2_ioctl_get_lock(struct video_device *vdev,
 {
 	if (_IOC_NR(cmd) >= V4L2_IOCTLS)
 		return vdev->lock;
-#if IS_ENABLED(CONFIG_V4L2_MEM2MEM_DEV)
 	if (vfh && vfh->m2m_ctx &&
 	    (v4l2_ioctls[_IOC_NR(cmd)].flags & INFO_FL_QUEUE)) {
 		if (vfh->m2m_ctx->q_lock)
 			return vfh->m2m_ctx->q_lock;
 	}
-#endif
 	if (vdev->queue && vdev->queue->lock &&
 			(v4l2_ioctls[_IOC_NR(cmd)].flags & INFO_FL_QUEUE))
 		return vdev->queue->lock;
