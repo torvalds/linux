@@ -1465,6 +1465,18 @@
 		status = "disabled";
 	};
 
+	npu: npu@ffbc0000 {
+		compatible = "rockchip,npu";
+		reg = <0xffbc0000 0x4000>;
+		clocks = <&cru ACLK_NPU>, <&cru HCLK_NPU>, <&cru PCLK_PDNPU>, <&cru CLK_CORE_NPU>;
+		clock-names = "aclk_npu", "hclk_npu", "pclk_pdnpu", "sclk_npu";
+		assigned-clocks = <&cru CLK_CORE_NPU>;
+		assigned-clock-rates = <400000000>;
+		interrupts = <GIC_SPI 107 IRQ_TYPE_LEVEL_HIGH>;
+		power-domains = <&power RV1126_PD_NPU>;
+		status = "disabled";
+	};
+
 	usbdrd: usb0 {
 		compatible = "rockchip,rv1126-dwc3", "rockchip,rk3399-dwc3";
 		#address-cells = <1>;
