@@ -190,4 +190,6 @@ static inline void intel_guc_disable_msg(struct intel_guc *guc, u32 mask)
 int intel_guc_reset_engine(struct intel_guc *guc,
 			   struct intel_engine_cs *engine);
 
+void intel_guc_load_status(struct intel_guc *guc, struct drm_printer *p);
+
 #endif
