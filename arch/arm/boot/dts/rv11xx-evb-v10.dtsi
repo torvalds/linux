@@ -910,6 +910,14 @@
 	status = "okay";
 };
 
+&rkvdec {
+	status = "okay";
+};
+
+&rkvdec_mmu {
+	status = "okay";
+};
+
 &rkvenc {
 	status = "okay";
 };
@@ -964,6 +972,18 @@
 	status = "okay";
 	/delete-property/ phys;
 	dr_mode = "peripheral";
+};
+
+&vdpu {
+	status = "okay";
+};
+
+&vepu {
+	status = "okay";
+};
+
+&vpu_mmu {
+	status = "okay";
 };
 
 &vop {
