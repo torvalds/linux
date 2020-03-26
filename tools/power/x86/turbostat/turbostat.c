@@ -3530,9 +3530,6 @@ dump_sysfs_cstate_config(void)
 	int state;
 	char *sp;
 
-	if (!DO_BIC(BIC_sysfs))
-		return;
-
 	if (access("/sys/devices/system/cpu/cpuidle", R_OK)) {
 		fprintf(outf, "cpuidle not loaded\n");
 		return;
