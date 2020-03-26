@@ -2352,9 +2352,6 @@ xlog_write(
 	 * to account for an extra xlog_op_header here.
 	 */
 	ticket->t_curr_res -= sizeof(struct xlog_op_header);
-	if (ticket->t_flags & XLOG_TIC_INITED)
-		ticket->t_flags &= ~XLOG_TIC_INITED;
-
 	if (ticket->t_curr_res < 0) {
 		xfs_alert_tag(log->l_mp, XFS_PTAG_LOGRES,
 		     "ctx ticket reservation ran out. Need to up reservation");
@@ -3493,7 +3490,6 @@ xlog_ticket_alloc(
 	tic->t_ocnt		= cnt;
 	tic->t_tid		= prandom_u32();
 	tic->t_clientid		= client;
-	tic->t_flags		= XLOG_TIC_INITED;
 	if (permanent)
 		tic->t_flags |= XLOG_TIC_PERM_RESERV;
 
