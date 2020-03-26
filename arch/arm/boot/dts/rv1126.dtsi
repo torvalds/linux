@@ -1201,6 +1201,17 @@
 		};
 	};
 
+	rk_rga: rk_rga@ffaf0000 {
+		compatible = "rockchip,rga2";
+		reg = <0xffaf0000 0x1000>;
+		interrupts = <GIC_SPI 62 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_RGA>, <&cru HCLK_RGA>, <&cru CLK_RGA_CORE>;
+		clock-names = "aclk_rga", "hclk_rga", "clk_rga";
+		power-domains = <&power RV1126_PD_VO>;
+		dma-coherent;
+		status = "disable";
+	};
+
 	vop: vop@ffb00000 {
 		compatible = "rockchip,rv1126-vop";
 		reg = <0xffb00000 0x200>, <0xffb00a00 0x400>;
