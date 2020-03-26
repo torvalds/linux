@@ -525,15 +525,13 @@ static __init int match_config_table(const efi_guid_t *guid,
 {
 	int i;
 
-	if (table_types) {
-		for (i = 0; efi_guidcmp(table_types[i].guid, NULL_GUID); i++) {
-			if (!efi_guidcmp(*guid, table_types[i].guid)) {
-				*(table_types[i].ptr) = table;
-				if (table_types[i].name[0])
-					pr_cont(" %s=0x%lx ",
-						table_types[i].name, table);
-				return 1;
-			}
+	for (i = 0; efi_guidcmp(table_types[i].guid, NULL_GUID); i++) {
+		if (!efi_guidcmp(*guid, table_types[i].guid)) {
+			*(table_types[i].ptr) = table;
+			if (table_types[i].name[0])
+				pr_cont("%s=0x%lx ",
+					table_types[i].name, table);
+			return 1;
 		}
 	}
 
@@ -570,7 +568,7 @@ int __init efi_config_parse_tables(const efi_config_table_t *config_tables,
 			table = tbl32[i].table;
 		}
 
-		if (!match_config_table(guid, table, common_tables))
+		if (!match_config_table(guid, table, common_tables) && arch_tables)
 			match_config_table(guid, table, arch_tables);
 	}
 	pr_cont("\n");
