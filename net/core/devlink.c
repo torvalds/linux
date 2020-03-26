@@ -3846,6 +3846,33 @@ static void __devlink_snapshot_id_decrement(struct devlink *devlink, u32 id)
 }
 
 /**
+ *	__devlink_snapshot_id_insert - Insert a specific snapshot ID
+ *	@devlink: devlink instance
+ *	@id: the snapshot id
+ *
+ *	Mark the given snapshot id as used by inserting a zero value into the
+ *	snapshot xarray.
+ *
+ *	This must be called while holding the devlink instance lock. Unlike
+ *	devlink_snapshot_id_get, the initial reference count is zero, not one.
+ *	It is expected that the id will immediately be used before
+ *	releasing the devlink instance lock.
+ *
+ *	Returns zero on success, or an error code if the snapshot id could not
+ *	be inserted.
+ */
+static int __devlink_snapshot_id_insert(struct devlink *devlink, u32 id)
+{
+	lockdep_assert_held(&devlink->lock);
+
+	if (WARN_ON(xa_load(&devlink->snapshot_ids, id)))
+		return -EEXIST;
+
+	return xa_err(xa_store(&devlink->snapshot_ids, id, xa_mk_value(0),
+			       GFP_KERNEL));
+}
+
+/**
  *	__devlink_region_snapshot_id_get - get snapshot ID
  *	@devlink: devlink instance
  *	@id: storage to return snapshot id
@@ -4036,6 +4063,71 @@ static int devlink_nl_cmd_region_del(struct sk_buff *skb,
 
 	devlink_region_snapshot_del(region, snapshot);
 	return 0;
+}
+
+static int
+devlink_nl_cmd_region_new(struct sk_buff *skb, struct genl_info *info)
+{
+	struct devlink *devlink = info->user_ptr[0];
+	struct devlink_region *region;
+	const char *region_name;
+	u32 snapshot_id;
+	u8 *data;
+	int err;
+
+	if (!info->attrs[DEVLINK_ATTR_REGION_NAME]) {
+		NL_SET_ERR_MSG_MOD(info->extack, "No region name provided");
+		return -EINVAL;
+	}
+
+	if (!info->attrs[DEVLINK_ATTR_REGION_SNAPSHOT_ID]) {
+		NL_SET_ERR_MSG_MOD(info->extack, "No snapshot id provided");
+		return -EINVAL;
+	}
+
+	region_name = nla_data(info->attrs[DEVLINK_ATTR_REGION_NAME]);
+	region = devlink_region_get_by_name(devlink, region_name);
+	if (!region) {
+		NL_SET_ERR_MSG_MOD(info->extack, "The requested region does not exist");
+		return -EINVAL;
+	}
+
+	if (!region->ops->snapshot) {
+		NL_SET_ERR_MSG_MOD(info->extack, "The requested region does not support taking an immediate snapshot");
+		return -EOPNOTSUPP;
+	}
+
+	if (region->cur_snapshots == region->max_snapshots) {
+		NL_SET_ERR_MSG_MOD(info->extack, "The region has reached the maximum number of stored snapshots");
+		return -ENOSPC;
+	}
+
+	snapshot_id = nla_get_u32(info->attrs[DEVLINK_ATTR_REGION_SNAPSHOT_ID]);
+
+	if (devlink_region_snapshot_get_by_id(region, snapshot_id)) {
+		NL_SET_ERR_MSG_MOD(info->extack, "The requested snapshot id is already in use");
+		return -EEXIST;
+	}
+
+	err = __devlink_snapshot_id_insert(devlink, snapshot_id);
+	if (err)
+		return err;
+
+	err = region->ops->snapshot(devlink, info->extack, &data);
+	if (err)
+		goto err_snapshot_capture;
+
+	err = __devlink_region_snapshot_create(region, data, snapshot_id);
+	if (err)
+		goto err_snapshot_create;
+
+	return 0;
+
+err_snapshot_create:
+	region->ops->destructor(data);
+err_snapshot_capture:
+	__devlink_snapshot_id_decrement(devlink, snapshot_id);
+	return err;
 }
 
 static int devlink_nl_cmd_region_read_chunk_fill(struct sk_buff *msg,
@@ -6443,6 +6535,13 @@ static const struct genl_ops devlink_nl_ops[] = {
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = devlink_nl_cmd_region_get_doit,
 		.dumpit = devlink_nl_cmd_region_get_dumpit,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = DEVLINK_NL_FLAG_NEED_DEVLINK,
+	},
+	{
+		.cmd = DEVLINK_CMD_REGION_NEW,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
+		.doit = devlink_nl_cmd_region_new,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = DEVLINK_NL_FLAG_NEED_DEVLINK,
 	},

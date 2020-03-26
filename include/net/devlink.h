@@ -501,10 +501,16 @@ struct devlink_info_req;
  * struct devlink_region_ops - Region operations
  * @name: region name
  * @destructor: callback used to free snapshot memory when deleting
+ * @snapshot: callback to request an immediate snapshot. On success,
+ *            the data variable must be updated to point to the snapshot data.
+ *            The function will be called while the devlink instance lock is
+ *            held.
  */
 struct devlink_region_ops {
 	const char *name;
 	void (*destructor)(const void *data);
+	int (*snapshot)(struct devlink *devlink, struct netlink_ext_ack *extack,
+			u8 **data);
 };
 
 struct devlink_fmsg;
