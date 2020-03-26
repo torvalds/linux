@@ -103,7 +103,7 @@ static void odm_RxPhyStatus92CSeries_Parsing(
 		pDM_Odm->PhyDbgInfo.NumQryPhyStatusCCK++;
 		/*  */
 		/*  (1)Hardware does not provide RSSI for CCK */
-		/*  (2)PWDB, Average PWDB cacluated by hardware (for rate adaptive) */
+		/*  (2)PWDB, Average PWDB calculated by hardware (for rate adaptive) */
 		/*  */
 
 		cck_agc_rpt = pPhyStaRpt->cck_agc_rpt_ofdm_cfosho_a;
@@ -178,7 +178,7 @@ static void odm_RxPhyStatus92CSeries_Parsing(
 
 
 		/*  */
-		/*  (2)PWDB, Average PWDB cacluated by hardware (for rate adaptive) */
+		/*  (2)PWDB, Average PWDB calculated by hardware (for rate adaptive) */
 		/*  */
 		rx_pwr_all = (((pPhyStaRpt->cck_sig_qual_ofdm_pwdb_all) >> 1)&0x7f)-110;
 

@@ -235,7 +235,7 @@ static void _InitQueueReservedPage(struct adapter *padapter)
 	if (pHalData->OutEpQueueSel & TX_SELE_LQ)
 		numLQ = bWiFiConfig ? WMM_NORMAL_PAGE_NUM_LPQ_8723B : NORMAL_PAGE_NUM_LPQ_8723B;
 
-	/*  NOTE: This step shall be proceed before writting REG_RQPN. */
+	/*  NOTE: This step shall be proceed before writing REG_RQPN. */
 	if (pHalData->OutEpQueueSel & TX_SELE_NQ)
 		numNQ = bWiFiConfig ? WMM_NORMAL_PAGE_NUM_NPQ_8723B : NORMAL_PAGE_NUM_NPQ_8723B;
 

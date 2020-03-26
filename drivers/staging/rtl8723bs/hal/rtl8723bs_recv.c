@@ -192,7 +192,7 @@ static inline union recv_frame *try_alloc_recvframe(struct recv_priv *precvpriv,
 		rtw_enqueue_recvbuf_to_head(precvbuf,
 					    &precvpriv->recv_buf_pending_queue);
 
-		/*  The case of can't allocte recvframe should be temporary, */
+		/*  The case of can't allocate recvframe should be temporary, */
 		/*  schedule again and hope recvframe is available next time. */
 		tasklet_schedule(&precvpriv->recv_tasklet);
 	}
