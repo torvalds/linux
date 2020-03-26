@@ -463,14 +463,6 @@ out_error:
 	return error;
 }
 
-
-/*
- * NOTES:
- *
- *	1. currblock field gets updated at startup and after in-core logs
- *		marked as with WANT_SYNC.
- */
-
 static bool
 __xlog_state_release_iclog(
 	struct xlog		*log,
@@ -1915,7 +1907,7 @@ xlog_dealloc_log(
 	log->l_mp->m_log = NULL;
 	destroy_workqueue(log->l_ioend_workqueue);
 	kmem_free(log);
-}	/* xlog_dealloc_log */
+}
 
 /*
  * Update counters atomically now that memcpy is done.
@@ -2458,14 +2450,6 @@ next_lv:
 	return error;
 }
 
-
-/*****************************************************************************
- *
- *		State Machine functions
- *
- *****************************************************************************
- */
-
 static void
 xlog_state_activate_iclog(
 	struct xlog_in_core	*iclog,
@@ -2826,7 +2810,7 @@ xlog_state_done_syncing(
 	 */
 	wake_up_all(&iclog->ic_write_wait);
 	spin_unlock(&log->l_icloglock);
-	xlog_state_do_callback(log);	/* also cleans log */
+	xlog_state_do_callback(log);
 }
 
 /*
@@ -2946,13 +2930,14 @@ restart:
 
 	*logoffsetp = log_offset;
 	return 0;
-}	/* xlog_state_get_iclog_space */
+}
 
 /*
- * The first cnt-1 times through here we don't need to move the grant write head
- * because the permanent reservation has reserved cnt times the unit amount.
- * Release part of current permanent unit reservation and reset current
- * reservation to be one units worth.  Also move grant reservation head forward.
+ * The first cnt-1 times a ticket goes through here we don't need to move the
+ * grant write head because the permanent reservation has reserved cnt times the
+ * unit amount.  Release part of current permanent unit reservation and reset
+ * current reservation to be one units worth.  Also move grant reservation head
+ * forward.
  */
 void
 xfs_log_ticket_regrant(
@@ -3034,12 +3019,8 @@ xfs_log_ticket_ungrant(
 }
 
 /*
- * Mark the current iclog in the ring as WANT_SYNC and move the current iclog
- * pointer to the next iclog in the ring.
- *
- * When called from xlog_state_get_iclog_space(), the exact size of the iclog
- * has not yet been determined, all we know is that we have run out of space in
- * the current iclog.
+ * This routine will mark the current iclog in the ring as WANT_SYNC and move
+ * the current iclog pointer to the next iclog in the ring.
  */
 STATIC void
 xlog_state_switch_iclogs(
@@ -3084,7 +3065,7 @@ xlog_state_switch_iclogs(
 	}
 	ASSERT(iclog == log->l_iclog);
 	log->l_iclog = iclog->ic_next;
-}	/* xlog_state_switch_iclogs */
+}
 
 /*
  * Write out all data in the in-core log as of this exact moment in time.
@@ -3291,13 +3272,6 @@ xfs_log_force_lsn(
 	return ret;
 }
 
-/*****************************************************************************
- *
- *		TICKET functions
- *
- *****************************************************************************
- */
-
 /*
  * Free a used ticket when its refcount falls to zero.
  */
@@ -3454,13 +3428,6 @@ xlog_ticket_alloc(
 	return tic;
 }
 
-
-/******************************************************************************
- *
- *		Log debug routines
- *
- ******************************************************************************
- */
 #if defined(DEBUG)
 /*
  * Make sure that the destination ptr is within the valid data region of
@@ -3546,7 +3513,7 @@ xlog_verify_tail_lsn(
 	if (blocks < BTOBB(iclog->ic_offset) + 1)
 		xfs_emerg(log->l_mp, "%s: ran out of log space", __func__);
     }
-}	/* xlog_verify_tail_lsn */
+}
 
 /*
  * Perform a number of checks on the iclog before writing to disk.
@@ -3649,7 +3616,7 @@ xlog_verify_iclog(
 		}
 		ptr += sizeof(xlog_op_header_t) + op_len;
 	}
-}	/* xlog_verify_iclog */
+}
 #endif
 
 /*
