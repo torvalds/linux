@@ -556,16 +556,15 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 	 */
 	if ((!ieee->hard_start_xmit && !(ieee->softmac_features & IEEE_SOFTMAC_TX_QUEUE)) ||
 	   ((!ieee->softmac_data_hard_start_xmit && (ieee->softmac_features & IEEE_SOFTMAC_TX_QUEUE)))) {
-		printk(KERN_WARNING "%s: No xmit handler.\n",
-		       ieee->dev->name);
+		netdev_warn(ieee->dev, "No xmit handler.\n");
 		goto success;
 	}
 
 
 	if (likely(ieee->raw_tx == 0)) {
 		if (unlikely(skb->len < SNAP_SIZE + sizeof(u16))) {
-			printk(KERN_WARNING "%s: skb too small (%d).\n",
-			ieee->dev->name, skb->len);
+			netdev_warn(ieee->dev, "skb too small (%d).\n",
+				    skb->len);
 			goto success;
 		}
 
@@ -684,8 +683,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 		 */
 		txb = ieee80211_alloc_txb(nr_frags, frag_size + ieee->tx_headroom, GFP_ATOMIC);
 		if (unlikely(!txb)) {
-			printk(KERN_WARNING "%s: Could not allocate TXB\n",
-			ieee->dev->name);
+			netdev_warn(ieee->dev, "Could not allocate TXB\n");
 			goto failed;
 		}
 		txb->encrypted = encrypt;
@@ -778,15 +776,14 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 	} else {
 		if (unlikely(skb->len < sizeof(struct rtl_80211_hdr_3addr))) {
-			printk(KERN_WARNING "%s: skb too small (%d).\n",
-			ieee->dev->name, skb->len);
+			netdev_warn(ieee->dev, "skb too small (%d).\n",
+				    skb->len);
 			goto success;
 		}
 
 		txb = ieee80211_alloc_txb(1, skb->len, GFP_ATOMIC);
 		if (!txb) {
-			printk(KERN_WARNING "%s: Could not allocate TXB\n",
-			ieee->dev->name);
+			netdev_warn(ieee->dev, "Could not allocate TXB\n");
 			goto failed;
 		}
 
