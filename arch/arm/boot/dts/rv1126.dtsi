@@ -754,6 +754,8 @@
 	mipi_dphy: mipi-dphy@ff4d0000 {
 		compatible = "rockchip,rv1126-mipi-dphy", "rockchip,rk1808-mipi-dphy";
 		reg = <0xff4d0000 0x500>;
+		assigned-clocks = <&pmucru CLK_MIPIDSIPHY_REF>;
+		assigned-clock-rates = <24000000>;
 		clocks = <&pmucru CLK_MIPIDSIPHY_REF>, <&cru PCLK_DSIPHY>;
 		clock-names = "ref", "pclk";
 		clock-output-names = "mipi_dphy_pll";
