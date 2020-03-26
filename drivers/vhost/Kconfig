@@ -1,4 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0-only
+config VHOST_IOTLB
+	tristate
+	help
+	  Generic IOTLB implementation for vhost and vringh.
+
 config VHOST_RING
 	tristate
 	help
@@ -67,4 +72,5 @@ config VHOST_CROSS_ENDIAN_LEGACY
 	  adds some overhead, it is disabled by default.
 
 	  If unsure, say "N".
+
 endif
