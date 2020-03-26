@@ -149,6 +149,7 @@ config NET_FC
 config IFB
 	tristate "Intermediate Functional Block support"
 	depends on NET_CLS_ACT
+	select NET_REDIRECT
 	---help---
 	  This is an intermediate driver that allows sharing of
 	  resources.

@@ -933,7 +933,6 @@ static int dr_actions_l2_rewrite(struct mlx5dr_domain *dmn,
 
 	action->rewrite.data = (void *)ops;
 	action->rewrite.num_of_actions = i;
-	action->rewrite.chunk->byte_size = i * sizeof(*ops);
 
 	ret = mlx5dr_send_postsend_action(dmn, action);
 	if (ret) {

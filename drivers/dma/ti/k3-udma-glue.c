@@ -564,12 +564,12 @@ static int k3_udma_glue_cfg_rx_flow(struct k3_udma_glue_rx_channel *rx_chn,
 	if (IS_ERR(flow->udma_rflow)) {
 		ret = PTR_ERR(flow->udma_rflow);
 		dev_err(dev, "UDMAX rflow get err %d\n", ret);
-		goto err;
+		return ret;
 	}
 
 	if (flow->udma_rflow_id != xudma_rflow_get_id(flow->udma_rflow)) {
-		xudma_rflow_put(rx_chn->common.udmax, flow->udma_rflow);
-		return -ENODEV;
+		ret = -ENODEV;
+		goto err_rflow_put;
 	}
 
 	/* request and cfg rings */
@@ -578,7 +578,7 @@ static int k3_udma_glue_cfg_rx_flow(struct k3_udma_glue_rx_channel *rx_chn,
 	if (!flow->ringrx) {
 		ret = -ENODEV;
 		dev_err(dev, "Failed to get RX ring\n");
-		goto err;
+		goto err_rflow_put;
 	}
 
 	flow->ringrxfdq = k3_ringacc_request_ring(rx_chn->common.ringacc,
@@ -586,19 +586,19 @@ static int k3_udma_glue_cfg_rx_flow(struct k3_udma_glue_rx_channel *rx_chn,
 	if (!flow->ringrxfdq) {
 		ret = -ENODEV;
 		dev_err(dev, "Failed to get RXFDQ ring\n");
-		goto err;
+		goto err_ringrx_free;
 	}
 
 	ret = k3_ringacc_ring_cfg(flow->ringrx, &flow_cfg->rx_cfg);
 	if (ret) {
 		dev_err(dev, "Failed to cfg ringrx %d\n", ret);
-		goto err;
+		goto err_ringrxfdq_free;
 	}
 
 	ret = k3_ringacc_ring_cfg(flow->ringrxfdq, &flow_cfg->rxfdq_cfg);
 	if (ret) {
 		dev_err(dev, "Failed to cfg ringrxfdq %d\n", ret);
-		goto err;
+		goto err_ringrxfdq_free;
 	}
 
 	if (rx_chn->remote) {
@@ -648,7 +648,7 @@ static int k3_udma_glue_cfg_rx_flow(struct k3_udma_glue_rx_channel *rx_chn,
 	if (ret) {
 		dev_err(dev, "flow%d config failed: %d\n", flow->udma_rflow_id,
 			ret);
-		goto err;
+		goto err_ringrxfdq_free;
 	}
 
 	rx_chn->flows_ready++;
@@ -656,8 +656,17 @@ static int k3_udma_glue_cfg_rx_flow(struct k3_udma_glue_rx_channel *rx_chn,
 		flow->udma_rflow_id, rx_chn->flows_ready);
 
 	return 0;
-err:
-	k3_udma_glue_release_rx_flow(rx_chn, flow_idx);
+
+err_ringrxfdq_free:
+	k3_ringacc_ring_free(flow->ringrxfdq);
+
+err_ringrx_free:
+	k3_ringacc_ring_free(flow->ringrx);
+
+err_rflow_put:
+	xudma_rflow_put(rx_chn->common.udmax, flow->udma_rflow);
+	flow->udma_rflow = NULL;
+
 	return ret;
 }
 

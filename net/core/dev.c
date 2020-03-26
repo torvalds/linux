@@ -4516,7 +4516,7 @@ static u32 netif_receive_generic_xdp(struct sk_buff *skb,
 	/* Reinjected packets coming from act_mirred or similar should
 	 * not get XDP generic processing.
 	 */
-	if (skb_is_tc_redirected(skb))
+	if (skb_is_redirected(skb))
 		return XDP_PASS;
 
 	/* XDP packets must be linear and must have sufficient headroom
@@ -5063,7 +5063,7 @@ skip_taps:
 			goto out;
 	}
 #endif
-	skb_reset_tc(skb);
+	skb_reset_redirect(skb);
 skip_classify:
 	if (pfmemalloc && !skb_pfmemalloc_protocol(skb))
 		goto drop;
@@ -5195,7 +5195,7 @@ static int __netif_receive_skb_one_core(struct sk_buff *skb, bool pfmemalloc)
  *
  *	More direct receive version of netif_receive_skb().  It should
  *	only be used by callers that have a need to skip RPS and Generic XDP.
- *	Caller must also take care of handling if (page_is_)pfmemalloc.
+ *	Caller must also take care of handling if ``(page_is_)pfmemalloc``.
  *
  *	This function may only be called from softirq context and interrupts
  *	should be enabled.

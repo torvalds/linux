@@ -616,7 +616,7 @@ static int enable_bars(struct nfp6000_pcie *nfp, u16 interface)
 	if (bar->iomem) {
 		int pf;
 
-		msg += snprintf(msg, end - msg,	"0.0: General/MSI-X SRAM, ");
+		msg += scnprintf(msg, end - msg, "0.0: General/MSI-X SRAM, ");
 		atomic_inc(&bar->refcnt);
 		bars_free--;
 
@@ -661,7 +661,7 @@ static int enable_bars(struct nfp6000_pcie *nfp, u16 interface)
 
 	/* Configure, and lock, BAR0.1 for PCIe XPB (MSI-X PBA) */
 	bar = &nfp->bar[1];
-	msg += snprintf(msg, end - msg, "0.1: PCIe XPB/MSI-X PBA, ");
+	msg += scnprintf(msg, end - msg, "0.1: PCIe XPB/MSI-X PBA, ");
 	atomic_inc(&bar->refcnt);
 	bars_free--;
 
@@ -680,8 +680,8 @@ static int enable_bars(struct nfp6000_pcie *nfp, u16 interface)
 		bar->iomem = ioremap(nfp_bar_resource_start(bar),
 					     nfp_bar_resource_len(bar));
 		if (bar->iomem) {
-			msg += snprintf(msg, end - msg,
-					"0.%d: Explicit%d, ", 4 + i, i);
+			msg += scnprintf(msg, end - msg,
+					 "0.%d: Explicit%d, ", 4 + i, i);
 			atomic_inc(&bar->refcnt);
 			bars_free--;
 

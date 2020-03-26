@@ -1514,6 +1514,11 @@ static int map_freeze(const union bpf_attr *attr)
 	if (IS_ERR(map))
 		return PTR_ERR(map);
 
+	if (map->map_type == BPF_MAP_TYPE_STRUCT_OPS) {
+		fdput(f);
+		return -ENOTSUPP;
+	}
+
 	mutex_lock(&map->freeze_mutex);
 
 	if (map->writecnt) {

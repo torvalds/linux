@@ -2714,10 +2714,11 @@ static int offload_pedit_fields(struct mlx5e_priv *priv,
 			continue;
 
 		if (f->field_bsize == 32) {
-			mask_be32 = *(__be32 *)&mask;
+			mask_be32 = (__be32)mask;
 			mask = (__force unsigned long)cpu_to_le32(be32_to_cpu(mask_be32));
 		} else if (f->field_bsize == 16) {
-			mask_be16 = *(__be16 *)&mask;
+			mask_be32 = (__be32)mask;
+			mask_be16 = *(__be16 *)&mask_be32;
 			mask = (__force unsigned long)cpu_to_le16(be16_to_cpu(mask_be16));
 		}
 

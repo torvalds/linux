@@ -68,7 +68,7 @@ config KVM_WERROR
 	depends on (X86_64 && !KASAN) || !COMPILE_TEST
 	depends on EXPERT
 	help
-	  Add -Werror to the build flags for (and only for) i915.ko.
+	  Add -Werror to the build flags for KVM.
 
 	  If in doubt, say "N".
 

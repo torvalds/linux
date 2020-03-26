@@ -7195,10 +7195,12 @@ static void kvm_timer_init(void)
 
 		cpu = get_cpu();
 		policy = cpufreq_cpu_get(cpu);
-		if (policy && policy->cpuinfo.max_freq)
-			max_tsc_khz = policy->cpuinfo.max_freq;
+		if (policy) {
+			if (policy->cpuinfo.max_freq)
+				max_tsc_khz = policy->cpuinfo.max_freq;
+			cpufreq_cpu_put(policy);
+		}
 		put_cpu();
-		cpufreq_cpu_put(policy);
 #endif
 		cpufreq_register_notifier(&kvmclock_cpufreq_notifier_block,
 					  CPUFREQ_TRANSITION_NOTIFIER);

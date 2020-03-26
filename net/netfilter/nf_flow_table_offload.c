@@ -120,6 +120,7 @@ static int nf_flow_rule_match(struct nf_flow_match *match,
 	default:
 		return -EOPNOTSUPP;
 	}
+	mask->control.addr_type = 0xffff;
 	match->dissector.used_keys |= BIT(key->control.addr_type);
 	mask->basic.n_proto = 0xffff;
 

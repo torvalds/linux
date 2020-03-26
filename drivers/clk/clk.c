@@ -4713,7 +4713,7 @@ EXPORT_SYMBOL(of_clk_get_by_name);
  *
  * Returns: The number of clocks that are possible parents of this node
  */
-unsigned int of_clk_get_parent_count(struct device_node *np)
+unsigned int of_clk_get_parent_count(const struct device_node *np)
 {
 	int count;
 
@@ -4725,7 +4725,7 @@ unsigned int of_clk_get_parent_count(struct device_node *np)
 }
 EXPORT_SYMBOL_GPL(of_clk_get_parent_count);
 
-const char *of_clk_get_parent_name(struct device_node *np, int index)
+const char *of_clk_get_parent_name(const struct device_node *np, int index)
 {
 	struct of_phandle_args clkspec;
 	struct property *prop;

@@ -298,47 +298,4 @@ struct sk_buff *dsa_8021q_xmit(struct sk_buff *skb, struct net_device *netdev,
 }
 EXPORT_SYMBOL_GPL(dsa_8021q_xmit);
 
-/* In the DSA packet_type handler, skb->data points in the middle of the VLAN
- * tag, after tpid and before tci. This is because so far, ETH_HLEN
- * (DMAC, SMAC, EtherType) bytes were pulled.
- * There are 2 bytes of VLAN tag left in skb->data, and upper
- * layers expect the 'real' EtherType to be consumed as well.
- * Coincidentally, a VLAN header is also of the same size as
- * the number of bytes that need to be pulled.
- *
- * skb_mac_header                                      skb->data
- * |                                                       |
- * v                                                       v
- * |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |
- * +-----------------------+-----------------------+-------+-------+-------+
- * |    Destination MAC    |      Source MAC       |  TPID |  TCI  | EType |
- * +-----------------------+-----------------------+-------+-------+-------+
- * ^                                               |               |
- * |<--VLAN_HLEN-->to                              <---VLAN_HLEN--->
- * from            |
- *       >>>>>>>   v
- *       >>>>>>>   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |
- *       >>>>>>>   +-----------------------+-----------------------+-------+
- *       >>>>>>>   |    Destination MAC    |      Source MAC       | EType |
- *                 +-----------------------+-----------------------+-------+
- *                 ^                                                       ^
- * (now part of    |                                                       |
- *  skb->head)     skb_mac_header                                  skb->data
- */
-struct sk_buff *dsa_8021q_remove_header(struct sk_buff *skb)
-{
-	u8 *from = skb_mac_header(skb);
-	u8 *dest = from + VLAN_HLEN;
-
-	memmove(dest, from, ETH_HLEN - VLAN_HLEN);
-	skb_pull(skb, VLAN_HLEN);
-	skb_push(skb, ETH_HLEN);
-	skb_reset_mac_header(skb);
-	skb_reset_mac_len(skb);
-	skb_pull_rcsum(skb, ETH_HLEN);
-
-	return skb;
-}
-EXPORT_SYMBOL_GPL(dsa_8021q_remove_header);
-
 MODULE_LICENSE("GPL v2");

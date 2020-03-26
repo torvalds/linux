@@ -154,7 +154,7 @@ config ARC_CPU_HS
 	help
 	  Support for ARC HS38x Cores based on ARCv2 ISA
 	  The notable features are:
-	    - SMP configurations of upto 4 core with coherency
+	    - SMP configurations of up to 4 cores with coherency
 	    - Optional L2 Cache and IO-Coherency
 	    - Revised Interrupt Architecture (multiple priorites, reg banks,
 	        auto stack switch, auto regfile save/restore)
@@ -192,7 +192,7 @@ config ARC_SMP_HALT_ON_RESET
 	help
 	  In SMP configuration cores can be configured as Halt-on-reset
 	  or they could all start at same time. For Halt-on-reset, non
-	  masters are parked until Master kicks them so they can start of
+	  masters are parked until Master kicks them so they can start off
 	  at designated entry point. For other case, all jump to common
 	  entry point and spin wait for Master's signal.
 
