@@ -523,7 +523,7 @@
 		reg-io-width = <4>;
 		dmas = <&dmac 7>, <&dmac 6>;
 		clock-frequency = <24000000>;
-		clocks = <&cru SCLK_UART1>, <&cru PCLK_UART1>;
+		clocks = <&pmucru SCLK_UART1>, <&pmucru PCLK_UART1>;
 		clock-names = "baudclk", "apb_pclk";
 		pinctrl-names = "default";
 		pinctrl-0 = <&uart1m0_xfer &uart1m0_ctsn &uart1m0_rtsn>;
@@ -536,7 +536,7 @@
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm0m0_pins>;
-		clocks = <&cru CLK_PWM0>, <&cru PCLK_PWM0>;
+		clocks = <&pmucru CLK_PWM0>, <&pmucru PCLK_PWM0>;
 		clock-names = "pwm", "pclk";
 		status = "disabled";
 	};
@@ -547,7 +547,7 @@
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm1m0_pins>;
-		clocks = <&cru CLK_PWM0>, <&cru PCLK_PWM0>;
+		clocks = <&pmucru CLK_PWM0>, <&pmucru PCLK_PWM0>;
 		clock-names = "pwm", "pclk";
 		status = "disabled";
 	};
@@ -558,7 +558,7 @@
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm2m0_pins>;
-		clocks = <&cru CLK_PWM0>, <&cru PCLK_PWM0>;
+		clocks = <&pmucru CLK_PWM0>, <&pmucru PCLK_PWM0>;
 		clock-names = "pwm", "pclk";
 		status = "disabled";
 	};
@@ -569,7 +569,7 @@
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm3m0_pins>;
-		clocks = <&cru CLK_PWM0>, <&cru PCLK_PWM0>;
+		clocks = <&pmucru CLK_PWM0>, <&pmucru PCLK_PWM0>;
 		clock-names = "pwm", "pclk";
 		status = "disabled";
 	};
@@ -580,7 +580,7 @@
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm4m0_pins>;
-		clocks = <&cru CLK_PWM1>, <&cru PCLK_PWM1>;
+		clocks = <&pmucru CLK_PWM1>, <&pmucru PCLK_PWM1>;
 		clock-names = "pwm", "pclk";
 		status = "disabled";
 	};
@@ -591,7 +591,7 @@
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm5m0_pins>;
-		clocks = <&cru CLK_PWM1>, <&cru PCLK_PWM1>;
+		clocks = <&pmucru CLK_PWM1>, <&pmucru PCLK_PWM1>;
 		clock-names = "pwm", "pclk";
 		status = "disabled";
 	};
@@ -602,7 +602,7 @@
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm6m0_pins>;
-		clocks = <&cru CLK_PWM1>, <&cru PCLK_PWM1>;
+		clocks = <&pmucru CLK_PWM1>, <&pmucru PCLK_PWM1>;
 		clock-names = "pwm", "pclk";
 		status = "disabled";
 	};
@@ -613,7 +613,7 @@
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm7m0_pins>;
-		clocks = <&cru CLK_PWM1>, <&cru PCLK_PWM1>;
+		clocks = <&pmucru CLK_PWM1>, <&pmucru PCLK_PWM1>;
 		clock-names = "pwm", "pclk";
 		status = "disabled";
 	};
@@ -623,7 +623,7 @@
 		reg = <0xff450000 0x1000>;
 		interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
-		clocks = <&cru CLK_SPI0>, <&cru PCLK_SPI0>;
+		clocks = <&pmucru CLK_SPI0>, <&pmucru PCLK_SPI0>;
 		clock-names = "spiclk", "apb_pclk";
 		dmas = <&dmac 1>, <&dmac 0>;
 		dma-names = "tx", "rx";
@@ -638,7 +638,7 @@
 		reg = <0xff470000 0x100>;
 		clocks = <&pmucru CLK_PMUPVTM>, <&pmucru PCLK_PMUPVTM>;
 		clock-names = "clk", "pclk";
-		resets = <&cru SRST_PMUPVTM>, <&cru SRST_PMUPVTM_P>;
+		resets = <&pmucru SRST_PMUPVTM>, <&pmucru SRST_PMUPVTM_P>;
 		reset-names = "clk", "pclk";
 	};
 
@@ -698,7 +698,7 @@
 	u2phy0: usb2-phy@ff4c0000 {
 		compatible = "rockchip,rv1126-usb2phy";
 		reg = <0xff4c0000 0x8000>;
-		clocks = <&cru CLK_USBPHY_OTG_REF>, <&cru PCLK_USBPHY_OTG>;
+		clocks = <&pmucru CLK_USBPHY_OTG_REF>, <&cru PCLK_USBPHY_OTG>;
 		clock-names = "phyclk", "pclk";
 		resets = <&cru SRST_USBPHYPOR_OTG>, <&cru SRST_USBPHY_OTG_P>;
 		reset-names = "u2phy", "u2phy-apb";
@@ -721,7 +721,7 @@
 	u2phy1: usb2-phy@ff4c8000 {
 		compatible = "rockchip,rv1126-usb2phy";
 		reg = <0xff4c8000 0x8000>;
-		clocks = <&cru CLK_USBPHY_HOST_REF>, <&cru PCLK_USBPHY_HOST>;
+		clocks = <&pmucru CLK_USBPHY_HOST_REF>, <&cru PCLK_USBPHY_HOST>;
 		clock-names = "phyclk", "pclk";
 		resets = <&cru SRST_USBPHYPOR_HOST>, <&cru SRST_USBPHY_HOST_P>;
 		reset-names = "u2phy", "u2phy-apb";
@@ -741,7 +741,7 @@
 	mipi_dphy: mipi-dphy@ff4d0000 {
 		compatible = "rockchip,rv1126-mipi-dphy", "rockchip,rk1808-mipi-dphy";
 		reg = <0xff4d0000 0x500>;
-		clocks = <&cru CLK_MIPIDSIPHY_REF>, <&cru PCLK_DSIPHY>;
+		clocks = <&pmucru CLK_MIPIDSIPHY_REF>, <&cru PCLK_DSIPHY>;
 		clock-names = "ref", "pclk";
 		clock-output-names = "mipi_dphy_pll";
 		#clock-cells = <0>;
