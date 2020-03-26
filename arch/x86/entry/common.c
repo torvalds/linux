@@ -510,3 +510,102 @@ SYSCALL_DEFINE0(ni_syscall)
 {
 	return -ENOSYS;
 }
+
+/**
+ * idtentry_enter - Handle state tracking on idtentry
+ * @regs:	Pointer to pt_regs of interrupted context
+ *
+ * Invokes:
+ *  - lockdep irqflag state tracking as low level ASM entry disabled
+ *    interrupts.
+ *
+ *  - Context tracking if the exception hit user mode.
+ *
+ *  - RCU notification if the exception hit kernel mode.
+ *
+ *  - The hardirq tracer to keep the state consistent as low level ASM
+ *    entry disabled interrupts.
+ */
+void noinstr idtentry_enter(struct pt_regs *regs)
+{
+	if (user_mode(regs)) {
+		enter_from_user_mode();
+	} else {
+		lockdep_hardirqs_off(CALLER_ADDR0);
+		rcu_irq_enter();
+		instrumentation_begin();
+		trace_hardirqs_off_prepare();
+		instrumentation_end();
+	}
+}
+
+/**
+ * idtentry_exit - Common code to handle return from exceptions
+ * @regs:	Pointer to pt_regs (exception entry regs)
+ *
+ * Depending on the return target (kernel/user) this runs the necessary
+ * preemption and work checks if possible and required and returns to
+ * the caller with interrupts disabled and no further work pending.
+ *
+ * This is the last action before returning to the low level ASM code which
+ * just needs to return to the appropriate context.
+ *
+ * Invoked by all exception/interrupt IDTENTRY handlers which are not
+ * returning through the paranoid exit path (all except NMI, #DF and the IST
+ * variants of #MC and #DB) and are therefore on the thread stack.
+ */
+void noinstr idtentry_exit(struct pt_regs *regs)
+{
+	lockdep_assert_irqs_disabled();
+
+	/* Check whether this returns to user mode */
+	if (user_mode(regs)) {
+		prepare_exit_to_usermode(regs);
+	} else if (regs->flags & X86_EFLAGS_IF) {
+		/* Check kernel preemption, if enabled */
+		if (IS_ENABLED(CONFIG_PREEMPTION)) {
+			/*
+			 * This needs to be done very carefully.
+			 * idtentry_enter() invoked rcu_irq_enter(). This
+			 * needs to be undone before scheduling.
+			 *
+			 * Preemption is disabled inside of RCU idle
+			 * sections. When the task returns from
+			 * preempt_schedule_irq(), RCU is still watching.
+			 *
+			 * rcu_irq_exit_preempt() has additional state
+			 * checking if CONFIG_PROVE_RCU=y
+			 */
+			if (!preempt_count()) {
+				if (IS_ENABLED(CONFIG_DEBUG_ENTRY))
+					WARN_ON_ONCE(!on_thread_stack());
+				instrumentation_begin();
+				rcu_irq_exit_preempt();
+				if (need_resched())
+					preempt_schedule_irq();
+				/* Covers both tracing and lockdep */
+				trace_hardirqs_on();
+				instrumentation_end();
+				return;
+			}
+		}
+		/*
+		 * If preemption is disabled then this needs to be done
+		 * carefully with respect to RCU. The exception might come
+		 * from a RCU idle section in the idle task due to the fact
+		 * that safe_halt() enables interrupts. So this needs the
+		 * same ordering of lockdep/tracing and RCU as the return
+		 * to user mode path.
+		 */
+		instrumentation_begin();
+		/* Tell the tracer that IRET will enable interrupts */
+		trace_hardirqs_on_prepare();
+		lockdep_hardirqs_on_prepare(CALLER_ADDR0);
+		instrumentation_end();
+		rcu_irq_exit();
+		lockdep_hardirqs_on(CALLER_ADDR0);
+	} else {
+		/* IRQ flags state is correct already. Just tell RCU */
+		rcu_irq_exit();
+	}
+}
