@@ -8,6 +8,8 @@ config X86_INTEL_PSTATE
 	depends on X86
 	select ACPI_PROCESSOR if ACPI
 	select ACPI_CPPC_LIB if X86_64 && ACPI && SCHED_MC_PRIO
+	select CPU_FREQ_GOV_PERFORMANCE
+	select CPU_FREQ_GOV_SCHEDUTIL if SMP
 	help
 	  This driver provides a P state for Intel core processors.
 	  The driver implements an internal governor and will become
