@@ -46,6 +46,89 @@ struct dmub_debugfs_trace_entry {
 	uint32_t param1;
 };
 
+
+/* parse_write_buffer_into_params - Helper function to parse debugfs write buffer into an array
+ *
+ * Function takes in attributes passed to debugfs write entry
+ * and writes into param array.
+ * The user passes max_param_num to identify maximum number of
+ * parameters that could be parsed.
+ *
+ */
+static int parse_write_buffer_into_params(char *wr_buf, uint32_t wr_buf_size,
+					  long *param, const char __user *buf,
+					  int max_param_num,
+					  uint8_t *param_nums)
+{
+	char *wr_buf_ptr = NULL;
+	uint32_t wr_buf_count = 0;
+	int r;
+	char *sub_str = NULL;
+	const char delimiter[3] = {' ', '\n', '\0'};
+	uint8_t param_index = 0;
+
+	*param_nums = 0;
+
+	wr_buf_ptr = wr_buf;
+
+	r = copy_from_user(wr_buf_ptr, buf, wr_buf_size);
+
+		/* r is bytes not be copied */
+	if (r >= wr_buf_size) {
+		DRM_DEBUG_DRIVER("user data not be read\n");
+		return -EINVAL;
+	}
+
+	/* check number of parameters. isspace could not differ space and \n */
+	while ((*wr_buf_ptr != 0xa) && (wr_buf_count < wr_buf_size)) {
+		/* skip space*/
+		while (isspace(*wr_buf_ptr) && (wr_buf_count < wr_buf_size)) {
+			wr_buf_ptr++;
+			wr_buf_count++;
+			}
+
+		if (wr_buf_count == wr_buf_size)
+			break;
+
+		/* skip non-space*/
+		while ((!isspace(*wr_buf_ptr)) && (wr_buf_count < wr_buf_size)) {
+			wr_buf_ptr++;
+			wr_buf_count++;
+		}
+
+		(*param_nums)++;
+
+		if (wr_buf_count == wr_buf_size)
+			break;
+	}
+
+	if (*param_nums > max_param_num)
+		*param_nums = max_param_num;
+;
+
+	wr_buf_ptr = wr_buf; /* reset buf pointer */
+	wr_buf_count = 0; /* number of char already checked */
+
+	while (isspace(*wr_buf_ptr) && (wr_buf_count < wr_buf_size)) {
+		wr_buf_ptr++;
+		wr_buf_count++;
+	}
+
+	while (param_index < *param_nums) {
+		/* after strsep, wr_buf_ptr will be moved to after space */
+		sub_str = strsep(&wr_buf_ptr, delimiter);
+
+		r = kstrtol(sub_str, 16, &(param[param_index]));
+
+		if (r)
+			DRM_DEBUG_DRIVER("string to int convert error code: %d\n", r);
+
+		param_index++;
+	}
+
+	return 0;
+}
+
 /* function description
  * get/ set DP configuration: lane_count, link_rate, spread_spectrum
  *
@@ -161,15 +244,11 @@ static ssize_t dp_link_settings_write(struct file *f, const char __user *buf,
 	struct dc *dc = (struct dc *)link->dc;
 	struct dc_link_settings prefer_link_settings;
 	char *wr_buf = NULL;
-	char *wr_buf_ptr = NULL;
 	const uint32_t wr_buf_size = 40;
-	int r;
-	int bytes_from_user;
-	char *sub_str;
 	/* 0: lane_count; 1: link_rate */
-	uint8_t param_index = 0;
+	int max_param_num = 2;
+	uint8_t param_nums = 0;
 	long param[2];
-	const char delimiter[3] = {' ', '\n', '\0'};
 	bool valid_input = false;
 
 	if (size == 0)
@@ -177,35 +256,20 @@ static ssize_t dp_link_settings_write(struct file *f, const char __user *buf,
 
 	wr_buf = kcalloc(wr_buf_size, sizeof(char), GFP_KERNEL);
 	if (!wr_buf)
-		return -EINVAL;
-	wr_buf_ptr = wr_buf;
+		return -ENOSPC;
 
-	r = copy_from_user(wr_buf_ptr, buf, wr_buf_size);
-
-	/* r is bytes not be copied */
-	if (r >= wr_buf_size) {
+	if (parse_write_buffer_into_params(wr_buf, wr_buf_size,
+					   (long *)param, buf,
+					   max_param_num,
+					   &param_nums)) {
 		kfree(wr_buf);
-		DRM_DEBUG_DRIVER("user data not read\n");
 		return -EINVAL;
 	}
 
-	bytes_from_user = wr_buf_size - r;
-
-	while (isspace(*wr_buf_ptr))
-		wr_buf_ptr++;
-
-	while ((*wr_buf_ptr != '\0') && (param_index < 2)) {
-
-		sub_str = strsep(&wr_buf_ptr, delimiter);
-
-		r = kstrtol(sub_str, 16, &param[param_index]);
-
-		if (r)
-			DRM_DEBUG_DRIVER("string to int convert error code: %d\n", r);
-
-		param_index++;
-		while (isspace(*wr_buf_ptr))
-			wr_buf_ptr++;
+	if (param_nums <= 0) {
+		kfree(wr_buf);
+		DRM_DEBUG_DRIVER("user data not be read\n");
+		return -EINVAL;
 	}
 
 	switch (param[0]) {
@@ -233,7 +297,7 @@ static ssize_t dp_link_settings_write(struct file *f, const char __user *buf,
 	if (!valid_input) {
 		kfree(wr_buf);
 		DRM_DEBUG_DRIVER("Invalid Input value No HW will be programmed\n");
-		return bytes_from_user;
+		return size;
 	}
 
 	/* save user force lane_count, link_rate to preferred settings
@@ -246,7 +310,7 @@ static ssize_t dp_link_settings_write(struct file *f, const char __user *buf,
 	dc_link_set_preferred_link_settings(dc, &prefer_link_settings, link);
 
 	kfree(wr_buf);
-	return bytes_from_user;
+	return size;
 }
 
 /* function: get current DP PHY settings: voltage swing, pre-emphasis,
@@ -337,51 +401,34 @@ static ssize_t dp_phy_settings_write(struct file *f, const char __user *buf,
 	struct dc_link *link = connector->dc_link;
 	struct dc *dc = (struct dc *)link->dc;
 	char *wr_buf = NULL;
-	char *wr_buf_ptr = NULL;
 	uint32_t wr_buf_size = 40;
-	int r;
-	int bytes_from_user;
-	char *sub_str;
-	uint8_t param_index = 0;
 	long param[3];
-	const char delimiter[3] = {' ', '\n', '\0'};
 	bool use_prefer_link_setting;
 	struct link_training_settings link_lane_settings;
+	int max_param_num = 3;
+	uint8_t param_nums = 0;
+	int r = 0;
+
 
 	if (size == 0)
-		return 0;
+		return -EINVAL;
 
 	wr_buf = kcalloc(wr_buf_size, sizeof(char), GFP_KERNEL);
 	if (!wr_buf)
-		return 0;
-	wr_buf_ptr = wr_buf;
+		return -ENOSPC;
 
-	r = copy_from_user(wr_buf_ptr, buf, wr_buf_size);
-
-	/* r is bytes not be copied */
-	if (r >= wr_buf_size) {
+	if (parse_write_buffer_into_params(wr_buf, wr_buf_size,
+					   (long *)param, buf,
+					   max_param_num,
+					   &param_nums)) {
 		kfree(wr_buf);
-		DRM_DEBUG_DRIVER("user data not be read\n");
-		return 0;
+		return -EINVAL;
 	}
 
-	bytes_from_user = wr_buf_size - r;
-
-	while (isspace(*wr_buf_ptr))
-		wr_buf_ptr++;
-
-	while ((*wr_buf_ptr != '\0') && (param_index < 3)) {
-
-		sub_str = strsep(&wr_buf_ptr, delimiter);
-
-		r = kstrtol(sub_str, 16, &param[param_index]);
-
-		if (r)
-			DRM_DEBUG_DRIVER("string to int convert error code: %d\n", r);
-
-		param_index++;
-		while (isspace(*wr_buf_ptr))
-			wr_buf_ptr++;
+	if (param_nums <= 0) {
+		kfree(wr_buf);
+		DRM_DEBUG_DRIVER("user data not be read\n");
+		return -EINVAL;
 	}
 
 	if ((param[0] > VOLTAGE_SWING_MAX_LEVEL) ||
@@ -389,7 +436,7 @@ static ssize_t dp_phy_settings_write(struct file *f, const char __user *buf,
 			(param[2] > POST_CURSOR2_MAX_LEVEL)) {
 		kfree(wr_buf);
 		DRM_DEBUG_DRIVER("Invalid Input No HW will be programmed\n");
-		return bytes_from_user;
+		return size;
 	}
 
 	/* get link settings: lane count, link rate */
@@ -429,7 +476,7 @@ static ssize_t dp_phy_settings_write(struct file *f, const char __user *buf,
 	dc_link_set_drive_settings(dc, &link_lane_settings, link);
 
 	kfree(wr_buf);
-	return bytes_from_user;
+	return size;
 }
 
 /* function description
@@ -496,19 +543,13 @@ static ssize_t dp_phy_test_pattern_debugfs_write(struct file *f, const char __us
 	struct amdgpu_dm_connector *connector = file_inode(f)->i_private;
 	struct dc_link *link = connector->dc_link;
 	char *wr_buf = NULL;
-	char *wr_buf_ptr = NULL;
 	uint32_t wr_buf_size = 100;
-	uint32_t wr_buf_count = 0;
-	int r;
-	int bytes_from_user;
-	char *sub_str = NULL;
-	uint8_t param_index = 0;
-	uint8_t param_nums = 0;
 	long param[11] = {0x0};
-	const char delimiter[3] = {' ', '\n', '\0'};
+	int max_param_num = 11;
 	enum dp_test_pattern test_pattern = DP_TEST_PATTERN_UNSUPPORTED;
 	bool disable_hpd = false;
 	bool valid_test_pattern = false;
+	uint8_t param_nums = 0;
 	/* init with defalut 80bit custom pattern */
 	uint8_t custom_pattern[10] = {
 			0x1f, 0x7c, 0xf0, 0xc1, 0x07,
@@ -522,70 +563,26 @@ static ssize_t dp_phy_test_pattern_debugfs_write(struct file *f, const char __us
 	int i;
 
 	if (size == 0)
-		return 0;
+		return -EINVAL;
 
 	wr_buf = kcalloc(wr_buf_size, sizeof(char), GFP_KERNEL);
 	if (!wr_buf)
-		return 0;
-	wr_buf_ptr = wr_buf;
+		return -ENOSPC;
 
-	r = copy_from_user(wr_buf_ptr, buf, wr_buf_size);
+	if (parse_write_buffer_into_params(wr_buf, wr_buf_size,
+					   (long *)param, buf,
+					   max_param_num,
+					   &param_nums)) {
+		kfree(wr_buf);
+		return -EINVAL;
+	}
 
-	/* r is bytes not be copied */
-	if (r >= wr_buf_size) {
+	if (param_nums <= 0) {
 		kfree(wr_buf);
 		DRM_DEBUG_DRIVER("user data not be read\n");
-		return 0;
+		return -EINVAL;
 	}
 
-	bytes_from_user = wr_buf_size - r;
-
-	/* check number of parameters. isspace could not differ space and \n */
-	while ((*wr_buf_ptr != 0xa) && (wr_buf_count < wr_buf_size)) {
-		/* skip space*/
-		while (isspace(*wr_buf_ptr) && (wr_buf_count < wr_buf_size)) {
-			wr_buf_ptr++;
-			wr_buf_count++;
-			}
-
-		if (wr_buf_count == wr_buf_size)
-			break;
-
-		/* skip non-space*/
-		while ((!isspace(*wr_buf_ptr)) && (wr_buf_count < wr_buf_size)) {
-			wr_buf_ptr++;
-			wr_buf_count++;
-			}
-
-		param_nums++;
-
-		if (wr_buf_count == wr_buf_size)
-			break;
-	}
-
-	/* max 11 parameters */
-	if (param_nums > 11)
-		param_nums = 11;
-
-	wr_buf_ptr = wr_buf; /* reset buf pinter */
-	wr_buf_count = 0; /* number of char already checked */
-
-	while (isspace(*wr_buf_ptr) && (wr_buf_count < wr_buf_size)) {
-		wr_buf_ptr++;
-		wr_buf_count++;
-	}
-
-	while (param_index < param_nums) {
-		/* after strsep, wr_buf_ptr will be moved to after space */
-		sub_str = strsep(&wr_buf_ptr, delimiter);
-
-		r = kstrtol(sub_str, 16, &param[param_index]);
-
-		if (r)
-			DRM_DEBUG_DRIVER("string to int convert error code: %d\n", r);
-
-		param_index++;
-	}
 
 	test_pattern = param[0];
 
@@ -618,7 +615,7 @@ static ssize_t dp_phy_test_pattern_debugfs_write(struct file *f, const char __us
 	if (!valid_test_pattern) {
 		kfree(wr_buf);
 		DRM_DEBUG_DRIVER("Invalid Test Pattern Parameters\n");
-		return bytes_from_user;
+		return size;
 	}
 
 	if (test_pattern == DP_TEST_PATTERN_80BIT_CUSTOM) {
@@ -685,7 +682,7 @@ static ssize_t dp_phy_test_pattern_debugfs_write(struct file *f, const char __us
 
 	kfree(wr_buf);
 
-	return bytes_from_user;
+	return size;
 }
 
 /**
