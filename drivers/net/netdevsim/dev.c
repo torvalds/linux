@@ -44,9 +44,12 @@ static ssize_t nsim_dev_take_snapshot_write(struct file *file,
 					    size_t count, loff_t *ppos)
 {
 	struct nsim_dev *nsim_dev = file->private_data;
+	struct devlink *devlink;
 	void *dummy_data;
 	int err;
 	u32 id;
+
+	devlink = priv_to_devlink(nsim_dev);
 
 	dummy_data = kmalloc(NSIM_DEV_DUMMY_REGION_SIZE, GFP_KERNEL);
 	if (!dummy_data)
@@ -54,13 +57,14 @@ static ssize_t nsim_dev_take_snapshot_write(struct file *file,
 
 	get_random_bytes(dummy_data, NSIM_DEV_DUMMY_REGION_SIZE);
 
-	err = devlink_region_snapshot_id_get(priv_to_devlink(nsim_dev), &id);
+	err = devlink_region_snapshot_id_get(devlink, &id);
 	if (err) {
 		pr_err("Failed to get snapshot id\n");
 		return err;
 	}
 	err = devlink_region_snapshot_create(nsim_dev->dummy_region,
 					     dummy_data, id);
+	devlink_region_snapshot_id_put(devlink, id);
 	if (err) {
 		pr_err("Failed to create region snapshot\n");
 		kfree(dummy_data);

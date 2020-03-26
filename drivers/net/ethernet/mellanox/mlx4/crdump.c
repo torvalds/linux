@@ -203,6 +203,9 @@ int mlx4_crdump_collect(struct mlx4_dev *dev)
 	mlx4_crdump_collect_crspace(dev, cr_space, id);
 	mlx4_crdump_collect_fw_health(dev, cr_space, id);
 
+	/* Release reference on the snapshot id */
+	devlink_region_snapshot_id_put(devlink, id);
+
 	crdump_disable_crspace_access(dev, cr_space);
 
 	iounmap(cr_space);
