@@ -815,7 +815,7 @@ struct typec_cable *typec_cable_get(struct typec_port *port)
 EXPORT_SYMBOL_GPL(typec_cable_get);
 
 /**
- * typec_cable_get - Decrement the reference count on USB Type-C cable
+ * typec_cable_put - Decrement the reference count on USB Type-C cable
  * @cable: The USB Type-C cable
  */
 void typec_cable_put(struct typec_cable *cable)
