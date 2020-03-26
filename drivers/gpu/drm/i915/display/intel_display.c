@@ -14748,8 +14748,8 @@ static int intel_atomic_check(struct drm_device *dev,
 	/* Catch I915_MODE_FLAG_INHERITED */
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
 					    new_crtc_state, i) {
-		if (new_crtc_state->hw.mode.private_flags !=
-		    old_crtc_state->hw.mode.private_flags)
+		if (new_crtc_state->uapi.mode.private_flags !=
+		    old_crtc_state->uapi.mode.private_flags)
 			new_crtc_state->uapi.mode_changed = true;
 	}
 
