@@ -805,6 +805,10 @@
 	status = "okay";
 };
 
+&rk_rga {
+	status = "okay";
+};
+
 &rkvenc {
 	status = "okay";
 };
