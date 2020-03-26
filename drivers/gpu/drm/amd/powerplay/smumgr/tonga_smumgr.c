@@ -3248,6 +3248,7 @@ const struct pp_smumgr_func tonga_smu_funcs = {
 	.request_smu_load_specific_fw = NULL,
 	.send_msg_to_smc = &smu7_send_msg_to_smc,
 	.send_msg_to_smc_with_parameter = &smu7_send_msg_to_smc_with_parameter,
+	.get_argument = smu7_get_argument,
 	.download_pptable_settings = NULL,
 	.upload_pptable_settings = NULL,
 	.update_smc_table = tonga_update_smc_table,

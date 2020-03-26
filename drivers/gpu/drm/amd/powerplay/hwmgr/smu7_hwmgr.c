@@ -3496,7 +3496,7 @@ static int smu7_get_gpu_power(struct pp_hwmgr *hwmgr, u32 *query)
 	    (adev->asic_type != CHIP_FIJI) &&
 	    (adev->asic_type != CHIP_TONGA)) {
 		smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_GetCurrPkgPwr, 0);
-		tmp = cgs_read_register(hwmgr->device, mmSMC_MSG_ARG_0);
+		tmp = smum_get_argument(hwmgr);
 		*query = tmp;
 
 		if (tmp != 0)
@@ -3535,13 +3535,13 @@ static int smu7_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 	switch (idx) {
 	case AMDGPU_PP_SENSOR_GFX_SCLK:
 		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_API_GetSclkFrequency);
-		sclk = cgs_read_register(hwmgr->device, mmSMC_MSG_ARG_0);
+		sclk = smum_get_argument(hwmgr);
 		*((uint32_t *)value) = sclk;
 		*size = 4;
 		return 0;
 	case AMDGPU_PP_SENSOR_GFX_MCLK:
 		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_API_GetMclkFrequency);
-		mclk = cgs_read_register(hwmgr->device, mmSMC_MSG_ARG_0);
+		mclk = smum_get_argument(hwmgr);
 		*((uint32_t *)value) = mclk;
 		*size = 4;
 		return 0;
@@ -4455,7 +4455,7 @@ static int smu7_print_clock_levels(struct pp_hwmgr *hwmgr,
 	switch (type) {
 	case PP_SCLK:
 		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_API_GetSclkFrequency);
-		clock = cgs_read_register(hwmgr->device, mmSMC_MSG_ARG_0);
+		clock = smum_get_argument(hwmgr);
 
 		for (i = 0; i < sclk_table->count; i++) {
 			if (clock > sclk_table->dpm_levels[i].value)
@@ -4471,7 +4471,7 @@ static int smu7_print_clock_levels(struct pp_hwmgr *hwmgr,
 		break;
 	case PP_MCLK:
 		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_API_GetMclkFrequency);
-		clock = cgs_read_register(hwmgr->device, mmSMC_MSG_ARG_0);
+		clock = smum_get_argument(hwmgr);
 
 		for (i = 0; i < mclk_table->count; i++) {
 			if (clock > mclk_table->dpm_levels[i].value)

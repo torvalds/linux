@@ -2279,6 +2279,7 @@ const struct pp_smumgr_func vegam_smu_funcs = {
 	.request_smu_load_specific_fw = NULL,
 	.send_msg_to_smc = smu7_send_msg_to_smc,
 	.send_msg_to_smc_with_parameter = smu7_send_msg_to_smc_with_parameter,
+	.get_argument = smu7_get_argument,
 	.process_firmware_header = vegam_process_firmware_header,
 	.is_dpm_running = vegam_is_dpm_running,
 	.get_mac_definition = vegam_get_mac_definition,

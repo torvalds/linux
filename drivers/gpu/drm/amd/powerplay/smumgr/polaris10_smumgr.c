@@ -99,7 +99,7 @@ static int polaris10_perform_btc(struct pp_hwmgr *hwmgr)
 	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(hwmgr->smu_backend);
 
 	if (0 != smu_data->avfs_btc_param) {
-		if (0 != smu7_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_PerformBtc, smu_data->avfs_btc_param)) {
+		if (0 != smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_PerformBtc, smu_data->avfs_btc_param)) {
 			pr_info("[AVFS][SmuPolaris10_PerformBtc] PerformBTC SMU msg failed");
 			result = -1;
 		}
@@ -2565,6 +2565,7 @@ const struct pp_smumgr_func polaris10_smu_funcs = {
 	.request_smu_load_specific_fw = NULL,
 	.send_msg_to_smc = smu7_send_msg_to_smc,
 	.send_msg_to_smc_with_parameter = smu7_send_msg_to_smc_with_parameter,
+	.get_argument = smu7_get_argument,
 	.download_pptable_settings = NULL,
 	.upload_pptable_settings = NULL,
 	.update_smc_table = polaris10_update_smc_table,

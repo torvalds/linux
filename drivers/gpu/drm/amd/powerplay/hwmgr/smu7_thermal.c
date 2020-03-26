@@ -151,8 +151,8 @@ int smu7_fan_ctrl_start_smc_fan_control(struct pp_hwmgr *hwmgr)
 	int result;
 
 	if (PP_CAP(PHM_PlatformCaps_ODFuzzyFanControlSupport)) {
-		cgs_write_register(hwmgr->device, mmSMC_MSG_ARG_0, FAN_CONTROL_FUZZY);
-		result = smum_send_msg_to_smc(hwmgr, PPSMC_StartFanControl);
+		result = smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_StartFanControl,
+					FAN_CONTROL_FUZZY);
 
 		if (PP_CAP(PHM_PlatformCaps_FanSpeedInTableIsRPM))
 			hwmgr->hwmgr_func->set_max_fan_rpm_output(hwmgr,
@@ -164,8 +164,8 @@ int smu7_fan_ctrl_start_smc_fan_control(struct pp_hwmgr *hwmgr)
 					advanceFanControlParameters.usMaxFanPWM);
 
 	} else {
-		cgs_write_register(hwmgr->device, mmSMC_MSG_ARG_0, FAN_CONTROL_TABLE);
-		result = smum_send_msg_to_smc(hwmgr, PPSMC_StartFanControl);
+		result = smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_StartFanControl,
+					FAN_CONTROL_TABLE);
 	}
 
 	if (!result && hwmgr->thermal_controller.

@@ -214,18 +214,14 @@ int smu7_send_msg_to_smc_with_parameter_without_waiting(struct pp_hwmgr *hwmgr, 
 	return smu7_send_msg_to_smc_without_waiting(hwmgr, msg);
 }
 
+uint32_t smu7_get_argument(struct pp_hwmgr *hwmgr)
+{
+	return cgs_read_register(hwmgr->device, mmSMC_MSG_ARG_0);
+}
+
 int smu7_send_msg_to_smc_offset(struct pp_hwmgr *hwmgr)
 {
-	cgs_write_register(hwmgr->device, mmSMC_MSG_ARG_0, 0x20000);
-
-	cgs_write_register(hwmgr->device, mmSMC_MESSAGE_0, PPSMC_MSG_Test);
-
-	PHM_WAIT_FIELD_UNEQUAL(hwmgr, SMC_RESP_0, SMC_RESP, 0);
-
-	if (1 != PHM_READ_FIELD(hwmgr->device, SMC_RESP_0, SMC_RESP))
-		pr_info("Failed to send Message.\n");
-
-	return 0;
+	return smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_Test, 0x20000);
 }
 
 enum cgs_ucode_id smu7_convert_fw_type_to_cgs(uint32_t fw_type)
@@ -353,10 +349,10 @@ int smu7_request_smu_load_fw(struct pp_hwmgr *hwmgr)
 
 	if (hwmgr->chip_id > CHIP_TOPAZ) { /* add support for Topaz */
 		if (hwmgr->not_vf) {
-			smu7_send_msg_to_smc_with_parameter(hwmgr,
+			smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SMU_DRAM_ADDR_HI,
 						upper_32_bits(smu_data->smu_buffer.mc_addr));
-			smu7_send_msg_to_smc_with_parameter(hwmgr,
+			smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SMU_DRAM_ADDR_LO,
 						lower_32_bits(smu_data->smu_buffer.mc_addr));
 		}
@@ -423,10 +419,10 @@ int smu7_request_smu_load_fw(struct pp_hwmgr *hwmgr)
 	}
 	memcpy_toio(smu_data->header_buffer.kaddr, smu_data->toc,
 		    sizeof(struct SMU_DRAMData_TOC));
-	smu7_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_DRV_DRAM_ADDR_HI, upper_32_bits(smu_data->header_buffer.mc_addr));
-	smu7_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_DRV_DRAM_ADDR_LO, lower_32_bits(smu_data->header_buffer.mc_addr));
+	smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_DRV_DRAM_ADDR_HI, upper_32_bits(smu_data->header_buffer.mc_addr));
+	smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_DRV_DRAM_ADDR_LO, lower_32_bits(smu_data->header_buffer.mc_addr));
 
-	smu7_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_LoadUcodes, fw_to_load);
+	smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_LoadUcodes, fw_to_load);
 
 	r = smu7_check_fw_load_finish(hwmgr, fw_to_load);
 	if (!r)

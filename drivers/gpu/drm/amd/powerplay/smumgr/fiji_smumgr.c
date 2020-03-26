@@ -137,9 +137,7 @@ static int fiji_start_smu_in_protection_mode(struct pp_hwmgr *hwmgr)
 	PHM_WAIT_VFPF_INDIRECT_FIELD(hwmgr, SMC_IND, RCU_UC_EVENTS,
 			INTERRUPTS_ENABLED, 1);
 
-	cgs_write_register(hwmgr->device, mmSMC_MSG_ARG_0, 0x20000);
-	cgs_write_register(hwmgr->device, mmSMC_MESSAGE_0, PPSMC_MSG_Test);
-	PHM_WAIT_FIELD_UNEQUAL(hwmgr, SMC_RESP_0, SMC_RESP, 0);
+	smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_Test, 0x20000);
 
 	/* Wait for done bit to be set */
 	PHM_WAIT_VFPF_INDIRECT_FIELD_UNEQUAL(hwmgr, SMC_IND,
@@ -203,7 +201,7 @@ static int fiji_start_avfs_btc(struct pp_hwmgr *hwmgr)
 	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(hwmgr->smu_backend);
 
 	if (0 != smu_data->avfs_btc_param) {
-		if (0 != smu7_send_msg_to_smc_with_parameter(hwmgr,
+		if (0 != smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_PerformBtc, smu_data->avfs_btc_param)) {
 			pr_info("[AVFS][Fiji_PerformBtc] PerformBTC SMU msg failed");
 			result = -EINVAL;
@@ -2649,6 +2647,7 @@ const struct pp_smumgr_func fiji_smu_funcs = {
 	.request_smu_load_specific_fw = NULL,
 	.send_msg_to_smc = &smu7_send_msg_to_smc,
 	.send_msg_to_smc_with_parameter = &smu7_send_msg_to_smc_with_parameter,
+	.get_argument = smu7_get_argument,
 	.download_pptable_settings = NULL,
 	.upload_pptable_settings = NULL,
 	.update_smc_table = fiji_update_smc_table,
