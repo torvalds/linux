@@ -384,6 +384,12 @@ static int rkvenc_run(struct mpp_dev *mpp,
 		struct mpp_request *req;
 		u32 reg_en = task->hw_info->reg_en;
 
+		/*
+		 * Tips: ensure osd plt clock is 0 before setting register,
+		 * otherwise, osd setting will not work
+		 */
+		mpp_write_relaxed(mpp, RKVENC_OSD_CFG_BASE, 0);
+		wmb();
 		for (i = 0; i < task->w_req_cnt; i++) {
 			int s, e;
 
