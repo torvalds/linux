@@ -1755,7 +1755,7 @@ static int smu8_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 	case AMDGPU_PP_SENSOR_GPU_LOAD:
 		result = smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetAverageGraphicsActivity);
 		if (0 == result) {
-			activity_percent = cgs_read_register(hwmgr->device, mmSMU_MP1_SRBM2P_ARG_0);
+			activity_percent = smum_get_argument(hwmgr);
 			activity_percent = activity_percent > 100 ? 100 : activity_percent;
 		} else {
 			activity_percent = 50;
