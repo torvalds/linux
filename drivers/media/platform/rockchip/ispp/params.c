@@ -5,6 +5,7 @@
 #include <media/v4l2-ioctl.h>
 #include <media/videobuf2-core.h>
 #include <media/videobuf2-vmalloc.h>
+#include <media/v4l2-mc.h>
 #include "dev.h"
 #include "regs.h"
 
@@ -660,6 +661,42 @@ rkispp_params_vb2_start_streaming(struct vb2_queue *queue, unsigned int count)
 	return 0;
 }
 
+static int
+rkispp_param_fh_open(struct file *filp)
+{
+	struct rkispp_params_vdev *params = video_drvdata(filp);
+	struct rkispp_device *isppdev = params->dev;
+	int ret;
+
+	ret = v4l2_fh_open(filp);
+	if (!ret) {
+		ret = v4l2_pipeline_pm_use(&params->vnode.vdev.entity, 1);
+		if (ret < 0) {
+			v4l2_err(&isppdev->v4l2_dev,
+				 "pipeline power on failed %d\n", ret);
+			vb2_fop_release(filp);
+		}
+	}
+	return ret;
+}
+
+static int
+rkispp_param_fh_release(struct file *filp)
+{
+	struct rkispp_params_vdev *params = video_drvdata(filp);
+	struct rkispp_device *isppdev = params->dev;
+	int ret;
+
+	ret = vb2_fop_release(filp);
+	if (!ret) {
+		ret = v4l2_pipeline_pm_use(&params->vnode.vdev.entity, 0);
+		if (ret < 0)
+			v4l2_err(&isppdev->v4l2_dev,
+				 "pipeline power off failed %d\n", ret);
+	}
+	return ret;
+}
+
 static struct vb2_ops rkispp_params_vb2_ops = {
 	.queue_setup = rkispp_params_vb2_queue_setup,
 	.wait_prepare = vb2_ops_wait_prepare,
@@ -674,8 +711,8 @@ struct v4l2_file_operations rkispp_params_fops = {
 	.mmap = vb2_fop_mmap,
 	.unlocked_ioctl = video_ioctl2,
 	.poll = vb2_fop_poll,
-	.open = v4l2_fh_open,
-	.release = vb2_fop_release
+	.open = rkispp_param_fh_open,
+	.release = rkispp_param_fh_release,
 };
 
 static int

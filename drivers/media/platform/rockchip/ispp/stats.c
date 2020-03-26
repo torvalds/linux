@@ -7,6 +7,7 @@
 #include <media/videobuf2-core.h>
 #include <media/videobuf2-vmalloc.h>	/* for ISP statistics */
 #include <media/videobuf2-dma-contig.h>
+#include <media/v4l2-mc.h>
 #include "dev.h"
 #include "regs.h"
 #include "stats.h"
@@ -125,6 +126,40 @@ static int rkispp_stats_querycap(struct file *file,
 	return 0;
 }
 
+static int rkispp_stats_fh_open(struct file *filp)
+{
+	struct rkispp_stats_vdev *stats = video_drvdata(filp);
+	struct rkispp_device *isppdev = stats->dev;
+	int ret;
+
+	ret = v4l2_fh_open(filp);
+	if (!ret) {
+		ret = v4l2_pipeline_pm_use(&stats->vnode.vdev.entity, 1);
+		if (ret < 0) {
+			v4l2_err(&isppdev->v4l2_dev,
+				 "pipeline power on failed %d\n", ret);
+			vb2_fop_release(filp);
+		}
+	}
+	return ret;
+}
+
+static int rkispp_stats_fh_release(struct file *filp)
+{
+	struct rkispp_stats_vdev *stats = video_drvdata(filp);
+	struct rkispp_device *isppdev = stats->dev;
+	int ret;
+
+	ret = vb2_fop_release(filp);
+	if (!ret) {
+		ret = v4l2_pipeline_pm_use(&stats->vnode.vdev.entity, 0);
+		if (ret < 0)
+			v4l2_err(&isppdev->v4l2_dev,
+				 "pipeline power off failed %d\n", ret);
+	}
+	return ret;
+}
+
 /* ISP video device IOCTLs */
 static const struct v4l2_ioctl_ops rkispp_stats_ioctl = {
 	.vidioc_reqbufs = vb2_ioctl_reqbufs,
@@ -147,8 +182,8 @@ struct v4l2_file_operations rkispp_stats_fops = {
 	.mmap = vb2_fop_mmap,
 	.unlocked_ioctl = video_ioctl2,
 	.poll = vb2_fop_poll,
-	.open = v4l2_fh_open,
-	.release = vb2_fop_release
+	.open = rkispp_stats_fh_open,
+	.release = rkispp_stats_fh_release,
 };
 
 static int rkispp_stats_vb2_queue_setup(struct vb2_queue *vq,
@@ -313,7 +348,6 @@ int rkispp_register_stats_vdev(struct rkispp_device *dev)
 
 	strlcpy(vdev->name, "rkispp-stats", sizeof(vdev->name));
 
-	video_set_drvdata(vdev, stats_vdev);
 	vdev->ioctl_ops = &rkispp_stats_ioctl;
 	vdev->fops = &rkispp_stats_fops;
 	vdev->release = video_device_release_empty;
