@@ -358,7 +358,7 @@
 			vccio_sd: LDO_REG8 {
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-min-microvolt = <3300000>;
+				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-name = "vccio_sd";
 				regulator-state-mem {
@@ -504,11 +504,13 @@
 	cap-mmc-highspeed;
 	cap-sd-highspeed;
 	card-detect-delay = <200>;
+	max-frequency = <100000000>;
 	rockchip,default-sample-phase = <90>;
 	supports-sd;
 	sd-uhs-sdr12;
 	sd-uhs-sdr25;
 	sd-uhs-sdr104;
+	vqmmc-supply = <&vccio_sd>;
 	status = "okay";
 };
 
