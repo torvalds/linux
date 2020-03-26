@@ -4,7 +4,7 @@ if MEDIA_TEST_SUPPORT
 
 menuconfig V4L_TEST_DRIVERS
 	bool "V4L test drivers"
-	depends on MEDIA_CAMERA_SUPPORT
+	depends on VIDEO_DEV
 
 if V4L_TEST_DRIVERS
 

@@ -1,3 +1,5 @@
+if MEDIA_DIGITAL_TV_SUPPORT
+
 comment "DVB Frontend drivers hidden by 'Autoselect ancillary drivers'"
 	depends on MEDIA_HIDE_ANCILLARY_SUBDRV
 
@@ -943,13 +945,16 @@ config DVB_SP2
 	help
 	  CIMaX SP2/SP2HF Common Interface module.
 
+endmenu # Customise DVB Frontends
+
+endif # MEDIA_DIGITAL_TV_SUPPORT
+
 comment "Tools to develop new frontends"
 	depends on MEDIA_TEST_SUPPORT
 
 config DVB_DUMMY_FE
 	tristate "Dummy frontend driver"
-	depends on DVB_CORE
 	depends on MEDIA_TEST_SUPPORT
+	select DVB_CORE
 	help
 	  Dummy skeleton frontend driver.
-endmenu
