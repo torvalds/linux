@@ -454,7 +454,7 @@
 			};
 
 			buck1_reg: BUCK1 {
-				regulator-name = "vdd_mif";
+				regulator-name = "VDD_MIF";
 				regulator-min-microvolt = <950000>;
 				regulator-max-microvolt = <1200000>;
 				regulator-always-on;
@@ -463,7 +463,7 @@
 			};
 
 			buck2_reg: BUCK2 {
-				regulator-name = "vdd_arm";
+				regulator-name = "VDD_ARM";
 				regulator-min-microvolt = <912500>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
@@ -472,7 +472,7 @@
 			};
 
 			buck3_reg: BUCK3 {
-				regulator-name = "vdd_int";
+				regulator-name = "VDD_INT";
 				regulator-min-microvolt = <900000>;
 				regulator-max-microvolt = <1200000>;
 				regulator-always-on;
@@ -481,7 +481,7 @@
 			};
 
 			buck4_reg: BUCK4 {
-				regulator-name = "vdd_g3d";
+				regulator-name = "VDD_G3D";
 				regulator-min-microvolt = <850000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;

@@ -318,7 +318,7 @@
 		max8952,sync-freq = <0>;
 		max8952,ramp-speed = <0>;
 
-		regulator-name = "vdd_arm";
+		regulator-name = "VARM_1.2V_C210";
 		regulator-min-microvolt = <770000>;
 		regulator-max-microvolt = <1400000>;
 		regulator-always-on;
