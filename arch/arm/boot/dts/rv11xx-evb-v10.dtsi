@@ -428,6 +428,11 @@
 	status = "okay";
 };
 
+&npu {
+	npu-supply = <&vdd_npu>;
+	status = "okay";
+};
+
 &pdm {
 	status = "okay";
 	#sound-dai-cells = <0>;
