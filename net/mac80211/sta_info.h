@@ -3,6 +3,7 @@
  * Copyright 2002-2005, Devicescape Software, Inc.
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright(c) 2015-2017 Intel Deutschland GmbH
+ * Copyright(c) 2020 Intel Corporation
  */
 
 #ifndef STA_INFO_H
@@ -116,6 +117,7 @@ enum ieee80211_sta_info_flags {
 #define HT_AGG_STATE_WANT_STOP		5
 #define HT_AGG_STATE_START_CB		6
 #define HT_AGG_STATE_STOP_CB		7
+#define HT_AGG_STATE_SENT_ADDBA		8
 
 DECLARE_EWMA(avg_signal, 10, 8)
 enum ieee80211_agg_stop_reason {

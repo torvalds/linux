@@ -483,6 +483,8 @@ static void ieee80211_send_addba_with_timeout(struct sta_info *sta,
 				     tid_tx->dialog_token,
 				     sta->tid_seq[tid] >> 4,
 				     buf_size, tid_tx->timeout);
+
+	WARN_ON(test_and_set_bit(HT_AGG_STATE_SENT_ADDBA, &tid_tx->state));
 }
 
 void ieee80211_tx_ba_session_handle_start(struct sta_info *sta, int tid)
@@ -521,7 +523,9 @@ void ieee80211_tx_ba_session_handle_start(struct sta_info *sta, int tid)
 
 	params.ssn = sta->tid_seq[tid] >> 4;
 	ret = drv_ampdu_action(local, sdata, &params);
-	if (ret == IEEE80211_AMPDU_TX_START_IMMEDIATE) {
+	if (ret == IEEE80211_AMPDU_TX_START_DELAY_ADDBA) {
+		return;
+	} else if (ret == IEEE80211_AMPDU_TX_START_IMMEDIATE) {
 		/*
 		 * We didn't send the request yet, so don't need to check
 		 * here if we already got a response, just mark as driver
@@ -764,6 +768,12 @@ void ieee80211_start_tx_ba_cb(struct sta_info *sta, int tid,
 
 	if (WARN_ON(test_and_set_bit(HT_AGG_STATE_DRV_READY, &tid_tx->state)))
 		return;
+
+	if (!test_bit(HT_AGG_STATE_SENT_ADDBA, &tid_tx->state)) {
+		ieee80211_send_addba_with_timeout(sta, tid_tx);
+		/* RESPONSE_RECEIVED state whould trigger the flow again */
+		return;
+	}
 
 	if (test_bit(HT_AGG_STATE_RESPONSE_RECEIVED, &tid_tx->state))
 		ieee80211_agg_tx_operational(local, sta, tid);
