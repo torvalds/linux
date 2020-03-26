@@ -853,8 +853,13 @@ int hfi1_verbs_register_sysfs(struct hfi1_devdata *dd)
 
 	return 0;
 bail:
-	for (i = 0; i < dd->num_sdma; i++)
-		kobject_del(&dd->per_sdma[i].kobj);
+	/*
+	 * The function kobject_put() will call kobject_del() if the kobject
+	 * has been added successfully. The sysfs files created under the
+	 * kobject directory will also be removed during the process.
+	 */
+	for (; i >= 0; i--)
+		kobject_put(&dd->per_sdma[i].kobj);
 
 	return ret;
 }
@@ -866,6 +871,10 @@ void hfi1_verbs_unregister_sysfs(struct hfi1_devdata *dd)
 {
 	struct hfi1_pportdata *ppd;
 	int i;
+
+	/* Unwind operations in hfi1_verbs_register_sysfs() */
+	for (i = 0; i < dd->num_sdma; i++)
+		kobject_put(&dd->per_sdma[i].kobj);
 
 	for (i = 0; i < dd->num_pports; i++) {
 		ppd = &dd->pport[i];
