@@ -1585,8 +1585,12 @@ static int handle_fastpath_set_x2apic_icr_irqoff(struct kvm_vcpu *vcpu, u64 data
 		((data & APIC_DEST_MASK) == APIC_DEST_PHYSICAL) &&
 		((data & APIC_MODE_MASK) == APIC_DM_FIXED)) {
 
+		data &= ~(1 << 12);
+		kvm_apic_send_ipi(vcpu->arch.apic, (u32)data, (u32)(data >> 32));
 		kvm_lapic_set_reg(vcpu->arch.apic, APIC_ICR2, (u32)(data >> 32));
-		return kvm_lapic_reg_write(vcpu->arch.apic, APIC_ICR, (u32)data);
+		kvm_lapic_set_reg(vcpu->arch.apic, APIC_ICR, (u32)data);
+		trace_kvm_apic_write(APIC_ICR, (u32)data);
+		return 0;
 	}
 
 	return 1;
