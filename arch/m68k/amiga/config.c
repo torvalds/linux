@@ -221,6 +221,7 @@ static void __init amiga_identify(void)
 	case AMI_1200:
 		AMIGAHW_SET(A1200_IDE);
 		AMIGAHW_SET(PCMCIA);
+		fallthrough;
 	case AMI_500:
 	case AMI_500PLUS:
 	case AMI_1000:
@@ -233,7 +234,7 @@ static void __init amiga_identify(void)
 	case AMI_3000T:
 		AMIGAHW_SET(AMBER_FF);
 		AMIGAHW_SET(MAGIC_REKICK);
-		/* fall through */
+		fallthrough;
 	case AMI_3000PLUS:
 		AMIGAHW_SET(A3000_SCSI);
 		AMIGAHW_SET(A3000_CLK);
@@ -242,7 +243,7 @@ static void __init amiga_identify(void)
 
 	case AMI_4000T:
 		AMIGAHW_SET(A4000_SCSI);
-		/* fall through */
+		fallthrough;
 	case AMI_4000:
 		AMIGAHW_SET(A4000_IDE);
 		AMIGAHW_SET(A3000_CLK);
