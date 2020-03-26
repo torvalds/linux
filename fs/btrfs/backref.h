@@ -161,8 +161,10 @@ static inline void btrfs_backref_iter_release(struct btrfs_backref_iter *iter)
  * Represent a tree block in the backref cache
  */
 struct btrfs_backref_node {
-	struct rb_node rb_node;
-	u64 bytenr;
+	struct {
+		struct rb_node rb_node;
+		u64 bytenr;
+	}; /* Use rb_simple_node for search/insert */
 
 	u64 new_bytenr;
 	/* Objectid of tree block owner, can be not uptodate */
