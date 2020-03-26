@@ -1806,10 +1806,8 @@ static void try_rgrp_unlink(struct gfs2_rgrpd *rgd, u64 *last_unlinked, u64 skip
 	struct gfs2_rbm rbm = { .rgd = rgd, .bii = 0, .offset = 0 };
 
 	while (1) {
-		down_write(&sdp->sd_log_flush_lock);
 		error = gfs2_rbm_find(&rbm, GFS2_BLKST_UNLINKED, NULL, NULL,
 				      true);
-		up_write(&sdp->sd_log_flush_lock);
 		if (error == -ENOSPC)
 			break;
 		if (WARN_ON_ONCE(error))
