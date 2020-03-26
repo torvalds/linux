@@ -364,6 +364,15 @@ static inline void amdgpu_ring_write_multiple(struct amdgpu_ring *ring,
 	ring->count_dw -= count_dw;
 }
 
+#define amdgpu_mes_ctx_get_offs_gpu_addr(ring, offset)			\
+	(ring->is_mes_queue && ring->mes_ctx ?				\
+	 (ring->mes_ctx->meta_data_gpu_addr + offset) : 0)
+
+#define amdgpu_mes_ctx_get_offs_cpu_addr(ring, offset)			\
+	(ring->is_mes_queue && ring->mes_ctx ?				\
+	 (void *)((uint8_t *)(ring->mes_ctx->meta_data_ptr) + offset) : \
+	 NULL)
+
 int amdgpu_ring_test_helper(struct amdgpu_ring *ring);
 
 void amdgpu_debugfs_ring_init(struct amdgpu_device *adev,
