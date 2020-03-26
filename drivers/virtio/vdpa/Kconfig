@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config VDPA
+	tristate
+	help
+	  Enable this module to support vDPA device that uses a
+	  datapath which complies with virtio specifications with
+	  vendor specific control path.

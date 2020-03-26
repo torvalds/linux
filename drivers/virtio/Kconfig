@@ -96,3 +96,5 @@ config VIRTIO_MMIO_CMDLINE_DEVICES
 	 If unsure, say 'N'.
 
 endif # VIRTIO_MENU
+
+source "drivers/virtio/vdpa/Kconfig"
