@@ -21,7 +21,6 @@
 #define CFI_UNDEFINED		.cfi_undefined
 #define CFI_ESCAPE		.cfi_escape
 
-#if defined(CONFIG_AS_CFI_SECTIONS)
 #ifndef BUILD_VDSO
 	/*
 	 * Emit CFI data in .debug_frame sections, not .eh_frame sections.
@@ -37,7 +36,6 @@
 	  * symbols for the .dbg file.
 	  */
 	.cfi_sections .eh_frame, .debug_frame
-#endif
 #endif
 
 #endif /* _ASM_X86_DWARF2_H */
