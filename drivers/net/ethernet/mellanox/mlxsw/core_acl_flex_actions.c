@@ -1248,15 +1248,51 @@ EXPORT_SYMBOL(mlxsw_afa_block_append_mirror);
 #define MLXSW_AFA_QOS_CODE 0x06
 #define MLXSW_AFA_QOS_SIZE 1
 
-enum mlxsw_afa_qos_cmd {
+enum mlxsw_afa_qos_ecn_cmd {
 	/* Do nothing */
-	MLXSW_AFA_QOS_CMD_NOP,
-	/* Set a field */
-	MLXSW_AFA_QOS_CMD_SET,
+	MLXSW_AFA_QOS_ECN_CMD_NOP,
+	/* Set ECN to afa_qos_ecn */
+	MLXSW_AFA_QOS_ECN_CMD_SET,
+};
+
+/* afa_qos_ecn_cmd
+ */
+MLXSW_ITEM32(afa, qos, ecn_cmd, 0x04, 29, 3);
+
+/* afa_qos_ecn
+ * ECN value.
+ */
+MLXSW_ITEM32(afa, qos, ecn, 0x04, 24, 2);
+
+enum mlxsw_afa_qos_dscp_cmd {
+	/* Do nothing */
+	MLXSW_AFA_QOS_DSCP_CMD_NOP,
+	/* Set DSCP 3 LSB bits according to dscp[2:0] */
+	MLXSW_AFA_QOS_DSCP_CMD_SET_3LSB,
+	/* Set DSCP 3 MSB bits according to dscp[5:3] */
+	MLXSW_AFA_QOS_DSCP_CMD_SET_3MSB,
+	/* Set DSCP 6 bits according to dscp[5:0] */
+	MLXSW_AFA_QOS_DSCP_CMD_SET_ALL,
+};
+
+/* afa_qos_dscp_cmd
+ * DSCP command.
+ */
+MLXSW_ITEM32(afa, qos, dscp_cmd, 0x04, 14, 2);
+
+/* afa_qos_dscp
+ * DSCP value.
+ */
+MLXSW_ITEM32(afa, qos, dscp, 0x04, 0, 6);
+
+enum mlxsw_afa_qos_switch_prio_cmd {
+	/* Do nothing */
+	MLXSW_AFA_QOS_SWITCH_PRIO_CMD_NOP,
+	/* Set Switch Priority to afa_qos_switch_prio */
+	MLXSW_AFA_QOS_SWITCH_PRIO_CMD_SET,
 };
 
 /* afa_qos_switch_prio_cmd
- * Switch Priority command as per mlxsw_afa_qos_cmd.
  */
 MLXSW_ITEM32(afa, qos, switch_prio_cmd, 0x08, 14, 2);
 
@@ -1265,13 +1301,97 @@ MLXSW_ITEM32(afa, qos, switch_prio_cmd, 0x08, 14, 2);
  */
 MLXSW_ITEM32(afa, qos, switch_prio, 0x08, 0, 4);
 
+enum mlxsw_afa_qos_dscp_rw {
+	MLXSW_AFA_QOS_DSCP_RW_PRESERVE,
+	MLXSW_AFA_QOS_DSCP_RW_SET,
+	MLXSW_AFA_QOS_DSCP_RW_CLEAR,
+};
+
+/* afa_qos_dscp_rw
+ * DSCP Re-write Enable. Controlling the rewrite_enable for DSCP.
+ */
+MLXSW_ITEM32(afa, qos, dscp_rw, 0x0C, 30, 2);
+
+static inline void
+mlxsw_afa_qos_ecn_pack(char *payload,
+		       enum mlxsw_afa_qos_ecn_cmd ecn_cmd, u8 ecn)
+{
+	mlxsw_afa_qos_ecn_cmd_set(payload, ecn_cmd);
+	mlxsw_afa_qos_ecn_set(payload, ecn);
+}
+
+static inline void
+mlxsw_afa_qos_dscp_pack(char *payload,
+			enum mlxsw_afa_qos_dscp_cmd dscp_cmd, u8 dscp)
+{
+	mlxsw_afa_qos_dscp_cmd_set(payload, dscp_cmd);
+	mlxsw_afa_qos_dscp_set(payload, dscp);
+}
+
 static inline void
 mlxsw_afa_qos_switch_prio_pack(char *payload,
-			       enum mlxsw_afa_qos_cmd prio_cmd, u8 prio)
+			       enum mlxsw_afa_qos_switch_prio_cmd prio_cmd,
+			       u8 prio)
 {
 	mlxsw_afa_qos_switch_prio_cmd_set(payload, prio_cmd);
 	mlxsw_afa_qos_switch_prio_set(payload, prio);
 }
+
+static int __mlxsw_afa_block_append_qos_dsfield(struct mlxsw_afa_block *block,
+						bool set_dscp, u8 dscp,
+						bool set_ecn, u8 ecn,
+						struct netlink_ext_ack *extack)
+{
+	char *act = mlxsw_afa_block_append_action(block,
+						  MLXSW_AFA_QOS_CODE,
+						  MLXSW_AFA_QOS_SIZE);
+
+	if (IS_ERR(act)) {
+		NL_SET_ERR_MSG_MOD(extack, "Cannot append QOS action");
+		return PTR_ERR(act);
+	}
+
+	if (set_ecn)
+		mlxsw_afa_qos_ecn_pack(act, MLXSW_AFA_QOS_ECN_CMD_SET, ecn);
+	if (set_dscp) {
+		mlxsw_afa_qos_dscp_pack(act, MLXSW_AFA_QOS_DSCP_CMD_SET_ALL,
+					dscp);
+		mlxsw_afa_qos_dscp_rw_set(act, MLXSW_AFA_QOS_DSCP_RW_CLEAR);
+	}
+
+	return 0;
+}
+
+int mlxsw_afa_block_append_qos_dsfield(struct mlxsw_afa_block *block,
+				       u8 dsfield,
+				       struct netlink_ext_ack *extack)
+{
+	return __mlxsw_afa_block_append_qos_dsfield(block,
+						    true, dsfield >> 2,
+						    true, dsfield & 0x03,
+						    extack);
+}
+EXPORT_SYMBOL(mlxsw_afa_block_append_qos_dsfield);
+
+int mlxsw_afa_block_append_qos_dscp(struct mlxsw_afa_block *block,
+				    u8 dscp, struct netlink_ext_ack *extack)
+{
+	return __mlxsw_afa_block_append_qos_dsfield(block,
+						    true, dscp,
+						    false, 0,
+						    extack);
+}
+EXPORT_SYMBOL(mlxsw_afa_block_append_qos_dscp);
+
+int mlxsw_afa_block_append_qos_ecn(struct mlxsw_afa_block *block,
+				   u8 ecn, struct netlink_ext_ack *extack)
+{
+	return __mlxsw_afa_block_append_qos_dsfield(block,
+						    false, 0,
+						    true, ecn,
+						    extack);
+}
+EXPORT_SYMBOL(mlxsw_afa_block_append_qos_ecn);
 
 int mlxsw_afa_block_append_qos_switch_prio(struct mlxsw_afa_block *block,
 					   u8 prio,
@@ -1285,7 +1405,7 @@ int mlxsw_afa_block_append_qos_switch_prio(struct mlxsw_afa_block *block,
 		NL_SET_ERR_MSG_MOD(extack, "Cannot append QOS action");
 		return PTR_ERR(act);
 	}
-	mlxsw_afa_qos_switch_prio_pack(act, MLXSW_AFA_QOS_CMD_SET,
+	mlxsw_afa_qos_switch_prio_pack(act, MLXSW_AFA_QOS_SWITCH_PRIO_CMD_SET,
 				       prio);
 	return 0;
 }

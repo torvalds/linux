@@ -65,6 +65,13 @@ int mlxsw_afa_block_append_vlan_modify(struct mlxsw_afa_block *block,
 int mlxsw_afa_block_append_qos_switch_prio(struct mlxsw_afa_block *block,
 					   u8 prio,
 					   struct netlink_ext_ack *extack);
+int mlxsw_afa_block_append_qos_dsfield(struct mlxsw_afa_block *block,
+				       u8 dsfield,
+				       struct netlink_ext_ack *extack);
+int mlxsw_afa_block_append_qos_dscp(struct mlxsw_afa_block *block,
+				    u8 dscp, struct netlink_ext_ack *extack);
+int mlxsw_afa_block_append_qos_ecn(struct mlxsw_afa_block *block,
+				   u8 ecn, struct netlink_ext_ack *extack);
 int mlxsw_afa_block_append_allocated_counter(struct mlxsw_afa_block *block,
 					     u32 counter_index);
 int mlxsw_afa_block_append_counter(struct mlxsw_afa_block *block,

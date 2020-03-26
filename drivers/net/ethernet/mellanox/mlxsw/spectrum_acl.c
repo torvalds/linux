@@ -655,6 +655,97 @@ int mlxsw_sp_acl_rulei_act_priority(struct mlxsw_sp *mlxsw_sp,
 						      extack);
 }
 
+enum mlxsw_sp_acl_mangle_field {
+	MLXSW_SP_ACL_MANGLE_FIELD_IP_DSFIELD,
+	MLXSW_SP_ACL_MANGLE_FIELD_IP_DSCP,
+	MLXSW_SP_ACL_MANGLE_FIELD_IP_ECN,
+};
+
+struct mlxsw_sp_acl_mangle_action {
+	enum flow_action_mangle_base htype;
+	/* Offset is u32-aligned. */
+	u32 offset;
+	/* Mask bits are unset for the modified field. */
+	u32 mask;
+	/* Shift required to extract the set value. */
+	u32 shift;
+	enum mlxsw_sp_acl_mangle_field field;
+};
+
+#define MLXSW_SP_ACL_MANGLE_ACTION(_htype, _offset, _mask, _shift, _field) \
+	{								\
+		.htype = _htype,					\
+		.offset = _offset,					\
+		.mask = _mask,						\
+		.shift = _shift,					\
+		.field = MLXSW_SP_ACL_MANGLE_FIELD_##_field,		\
+	}
+
+#define MLXSW_SP_ACL_MANGLE_ACTION_IP4(_offset, _mask, _shift, _field) \
+	MLXSW_SP_ACL_MANGLE_ACTION(FLOW_ACT_MANGLE_HDR_TYPE_IP4,       \
+				   _offset, _mask, _shift, _field)
+
+#define MLXSW_SP_ACL_MANGLE_ACTION_IP6(_offset, _mask, _shift, _field) \
+	MLXSW_SP_ACL_MANGLE_ACTION(FLOW_ACT_MANGLE_HDR_TYPE_IP6,       \
+				   _offset, _mask, _shift, _field)
+
+static struct mlxsw_sp_acl_mangle_action mlxsw_sp_acl_mangle_actions[] = {
+	MLXSW_SP_ACL_MANGLE_ACTION_IP4(0, 0xff00ffff, 16, IP_DSFIELD),
+	MLXSW_SP_ACL_MANGLE_ACTION_IP4(0, 0xff03ffff, 18, IP_DSCP),
+	MLXSW_SP_ACL_MANGLE_ACTION_IP4(0, 0xfffcffff, 16, IP_ECN),
+	MLXSW_SP_ACL_MANGLE_ACTION_IP6(0, 0xf00fffff, 20, IP_DSFIELD),
+	MLXSW_SP_ACL_MANGLE_ACTION_IP6(0, 0xf03fffff, 22, IP_DSCP),
+	MLXSW_SP_ACL_MANGLE_ACTION_IP6(0, 0xffcfffff, 20, IP_ECN),
+};
+
+static int
+mlxsw_sp_acl_rulei_act_mangle_field(struct mlxsw_sp *mlxsw_sp,
+				    struct mlxsw_sp_acl_rule_info *rulei,
+				    struct mlxsw_sp_acl_mangle_action *mact,
+				    u32 val, struct netlink_ext_ack *extack)
+{
+	switch (mact->field) {
+	case MLXSW_SP_ACL_MANGLE_FIELD_IP_DSFIELD:
+		return mlxsw_afa_block_append_qos_dsfield(rulei->act_block,
+							  val, extack);
+	case MLXSW_SP_ACL_MANGLE_FIELD_IP_DSCP:
+		return mlxsw_afa_block_append_qos_dscp(rulei->act_block,
+						       val, extack);
+	case MLXSW_SP_ACL_MANGLE_FIELD_IP_ECN:
+		return mlxsw_afa_block_append_qos_ecn(rulei->act_block,
+						      val, extack);
+	}
+
+	/* We shouldn't have gotten a match in the first place! */
+	WARN_ONCE(1, "Unhandled mangle field");
+	return -EINVAL;
+}
+
+int mlxsw_sp_acl_rulei_act_mangle(struct mlxsw_sp *mlxsw_sp,
+				  struct mlxsw_sp_acl_rule_info *rulei,
+				  enum flow_action_mangle_base htype,
+				  u32 offset, u32 mask, u32 val,
+				  struct netlink_ext_ack *extack)
+{
+	struct mlxsw_sp_acl_mangle_action *mact;
+	size_t i;
+
+	for (i = 0; i < ARRAY_SIZE(mlxsw_sp_acl_mangle_actions); ++i) {
+		mact = &mlxsw_sp_acl_mangle_actions[i];
+		if (mact->htype == htype &&
+		    mact->offset == offset &&
+		    mact->mask == mask) {
+			val >>= mact->shift;
+			return mlxsw_sp_acl_rulei_act_mangle_field(mlxsw_sp,
+								   rulei, mact,
+								   val, extack);
+		}
+	}
+
+	NL_SET_ERR_MSG_MOD(extack, "Unsupported mangle field");
+	return -EINVAL;
+}
+
 int mlxsw_sp_acl_rulei_act_count(struct mlxsw_sp *mlxsw_sp,
 				 struct mlxsw_sp_acl_rule_info *rulei,
 				 struct netlink_ext_ack *extack)

@@ -202,7 +202,8 @@ struct flow_action_entry {
 			__be16		proto;
 			u8		prio;
 		} vlan;
-		struct {				/* FLOW_ACTION_PACKET_EDIT */
+		struct {				/* FLOW_ACTION_MANGLE */
+							/* FLOW_ACTION_ADD */
 			enum flow_action_mangle_base htype;
 			u32		offset;
 			u32		mask;
