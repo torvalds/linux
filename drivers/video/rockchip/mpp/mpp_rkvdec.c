@@ -132,6 +132,7 @@ struct rkvdec_task {
 	unsigned long aclk_freq;
 	unsigned long clk_core_freq;
 	unsigned long clk_cabac_freq;
+	unsigned long clk_hevc_cabac_freq;
 
 	u32 reg[RKVDEC_V2_REG_NUM];
 	struct reg_offset_info off_inf;
@@ -154,12 +155,14 @@ struct rkvdec_dev {
 	struct clk *hclk;
 	struct clk *clk_core;
 	struct clk *clk_cabac;
+	struct clk *clk_hevc_cabac;
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs;
 #endif
 	u32 aclk_debug;
 	u32 clk_core_debug;
 	u32 clk_cabac_debug;
+	u32 clk_hevc_cabac_debug;
 	u32 session_max_buffers_debug;
 
 	struct reset_control *rst_a;
@@ -168,6 +171,7 @@ struct rkvdec_dev {
 	struct reset_control *rst_niu_h;
 	struct reset_control *rst_core;
 	struct reset_control *rst_cabac;
+	struct reset_control *rst_hevc_cabac;
 
 	enum RKVDEC_STATE state;
 	unsigned long aux_iova;
@@ -1078,6 +1082,7 @@ static int rkvdec_debugfs_init(struct mpp_dev *mpp)
 	dec->aclk_debug = 0;
 	dec->clk_core_debug = 0;
 	dec->clk_cabac_debug = 0;
+	dec->clk_hevc_cabac_debug = 0;
 	dec->session_max_buffers_debug = 0;
 #ifdef CONFIG_DEBUG_FS
 	dec->debugfs = debugfs_create_dir(mpp->dev->of_node->name,
@@ -1093,6 +1098,8 @@ static int rkvdec_debugfs_init(struct mpp_dev *mpp)
 			   dec->debugfs, &dec->clk_core_debug);
 	debugfs_create_u32("clk_cabac", 0644,
 			   dec->debugfs, &dec->clk_cabac_debug);
+	debugfs_create_u32("clk_hevc_cabac", 0644,
+			   dec->debugfs, &dec->clk_hevc_cabac_debug);
 	debugfs_create_u32("session_buffers", 0644,
 			   dec->debugfs, &dec->session_max_buffers_debug);
 #endif
@@ -1131,6 +1138,11 @@ static int rkvdec_init(struct mpp_dev *mpp)
 		mpp_err("failed on clk_get clk_core\n");
 		dec->clk_core = NULL;
 	}
+	dec->clk_hevc_cabac = devm_clk_get(mpp->dev, "clk_hevc_cabac");
+	if (IS_ERR_OR_NULL(dec->clk_hevc_cabac)) {
+		mpp_err("failed on clk_get clk_hevc_cabac\n");
+		dec->clk_hevc_cabac = NULL;
+	}
 
 	dec->rst_a = mpp_reset_control_get(mpp, "video_a");
 	if (IS_ERR_OR_NULL(dec->rst_a)) {
@@ -1161,6 +1173,11 @@ static int rkvdec_init(struct mpp_dev *mpp)
 	if (IS_ERR_OR_NULL(dec->rst_core)) {
 		mpp_err("No core reset resource define\n");
 		dec->rst_core = NULL;
+	}
+	dec->rst_hevc_cabac = mpp_reset_control_get(mpp, "video_hevc_cabac");
+	if (IS_ERR_OR_NULL(dec->rst_hevc_cabac)) {
+		mpp_err("No hevc cabac reset resource define\n");
+		dec->rst_hevc_cabac = NULL;
 	}
 
 	return 0;
@@ -1385,6 +1402,7 @@ static int rkvdec_get_freq(struct mpp_dev *mpp,
 	task->aclk_freq = 300;
 	task->clk_cabac_freq = 200;
 	task->clk_core_freq = 200;
+	task->clk_hevc_cabac_freq = 600;
 
 	return 0;
 }
@@ -1435,6 +1453,8 @@ static int rkvdec_set_freq(struct mpp_dev *mpp,
 			dec->clk_cabac_debug : task->clk_cabac_freq;
 	task->clk_core_freq = dec->clk_core_debug ?
 			dec->clk_core_debug : task->clk_core_freq;
+	task->clk_hevc_cabac_freq = dec->clk_hevc_cabac_debug ?
+			dec->clk_hevc_cabac_debug : task->clk_hevc_cabac_freq;
 
 	if (dec->devfreq) {
 		stat = &dec->devfreq->last_status;
@@ -1470,6 +1490,8 @@ static int rkvdec_reduce_freq(struct mpp_dev *mpp)
 			clk_set_rate(dec->clk_cabac, 50 * MHZ);
 		if (dec->clk_core)
 			clk_set_rate(dec->clk_core, 50 * MHZ);
+		if (dec->clk_hevc_cabac)
+			clk_set_rate(dec->clk_hevc_cabac, 50 * MHZ);
 	}
 
 	return 0;
@@ -1488,6 +1510,7 @@ static int rkvdec_reset(struct mpp_dev *mpp)
 		mpp_safe_reset(dec->rst_h);
 		mpp_safe_reset(dec->rst_core);
 		mpp_safe_reset(dec->rst_cabac);
+		mpp_safe_reset(dec->rst_hevc_cabac);
 		udelay(5);
 		mpp_safe_unreset(dec->rst_niu_h);
 		mpp_safe_unreset(dec->rst_niu_a);
@@ -1495,6 +1518,7 @@ static int rkvdec_reset(struct mpp_dev *mpp)
 		mpp_safe_unreset(dec->rst_h);
 		mpp_safe_unreset(dec->rst_core);
 		mpp_safe_unreset(dec->rst_cabac);
+		mpp_safe_unreset(dec->rst_hevc_cabac);
 		rockchip_pmu_idle_request(mpp->dev, false);
 	}
 	mpp_debug_leave();
