@@ -531,6 +531,7 @@
 			reg = <0xff400000 0x100000>;
 			resets = <&rst LWHPS2FPGA_RESET>;
 			clocks = <&l4_main_clk>;
+			status = "disabled";
 		};
 
 		fpga_bridge1: fpga_bridge@ff500000 {
@@ -538,6 +539,7 @@
 			reg = <0xff500000 0x10000>;
 			resets = <&rst HPS2FPGA_RESET>;
 			clocks = <&l4_main_clk>;
+			status = "disabled";
 		};
 
 		fpgamgr0: fpgamgr@ff706000 {
