@@ -1519,23 +1519,22 @@ EXPORT_SYMBOL(phy_detach);
 
 int phy_suspend(struct phy_device *phydev)
 {
-	struct phy_driver *phydrv = to_phy_driver(phydev->mdio.dev.driver);
-	struct net_device *netdev = phydev->attached_dev;
 	struct ethtool_wolinfo wol = { .cmd = ETHTOOL_GWOL };
-	int ret = 0;
+	struct net_device *netdev = phydev->attached_dev;
+	struct phy_driver *phydrv = phydev->drv;
+	int ret;
 
 	/* If the device has WOL enabled, we cannot suspend the PHY */
 	phy_ethtool_get_wol(phydev, &wol);
 	if (wol.wolopts || (netdev && netdev->wol_enabled))
 		return -EBUSY;
 
-	if (phydev->drv && phydrv->suspend)
-		ret = phydrv->suspend(phydev);
+	if (!phydrv || !phydrv->suspend)
+		return 0;
 
-	if (ret)
-		return ret;
-
-	phydev->suspended = true;
+	ret = phydrv->suspend(phydev);
+	if (!ret)
+		phydev->suspended = true;
 
 	return ret;
 }
@@ -1543,18 +1542,17 @@ EXPORT_SYMBOL(phy_suspend);
 
 int __phy_resume(struct phy_device *phydev)
 {
-	struct phy_driver *phydrv = to_phy_driver(phydev->mdio.dev.driver);
-	int ret = 0;
+	struct phy_driver *phydrv = phydev->drv;
+	int ret;
 
 	WARN_ON(!mutex_is_locked(&phydev->lock));
 
-	if (phydev->drv && phydrv->resume)
-		ret = phydrv->resume(phydev);
+	if (!phydrv || !phydrv->resume)
+		return 0;
 
-	if (ret)
-		return ret;
-
-	phydev->suspended = false;
+	ret = phydrv->resume(phydev);
+	if (!ret)
+		phydev->suspended = false;
 
 	return ret;
 }
