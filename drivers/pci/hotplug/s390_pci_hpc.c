@@ -91,6 +91,9 @@ static int disable_slot(struct hotplug_slot *hotplug_slot)
 
 	pdev = pci_get_slot(zbus->bus, zdev->devfn);
 	if (pdev) {
+		if (pci_num_vf(pdev))
+			return -EBUSY;
+
 		pci_stop_and_remove_bus_device_locked(pdev);
 		pci_dev_put(pdev);
 	}
