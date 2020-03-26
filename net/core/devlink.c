@@ -3793,7 +3793,7 @@ __devlink_region_snapshot_create(struct devlink_region *region,
 
 	/* check if region can hold one more snapshot */
 	if (region->cur_snapshots == region->max_snapshots)
-		return -ENOMEM;
+		return -ENOSPC;
 
 	if (devlink_region_snapshot_get_by_id(region, snapshot_id))
 		return -EEXIST;
