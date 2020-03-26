@@ -944,8 +944,12 @@ config DVB_SP2
 	  CIMaX SP2/SP2HF Common Interface module.
 
 comment "Tools to develop new frontends"
+	depends on MEDIA_TEST_SUPPORT
 
 config DVB_DUMMY_FE
 	tristate "Dummy frontend driver"
 	depends on DVB_CORE
+	depends on MEDIA_TEST_SUPPORT
+	help
+	  Dummy skeleton frontend driver.
 endmenu

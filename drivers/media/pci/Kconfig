@@ -58,6 +58,7 @@ source "drivers/media/pci/intel/ipu3/Kconfig"
 
 config VIDEO_PCI_SKELETON
 	tristate "Skeleton PCI V4L2 driver"
+	depends on MEDIA_TEST_SUPPORT
 	depends on PCI
 	depends on SAMPLES
 	depends on VIDEO_V4L2 && VIDEOBUF2_CORE
