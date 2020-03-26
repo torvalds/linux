@@ -1563,6 +1563,11 @@
 			rockchip,pins =
 				<1 RK_PC0 1 &pcfg_pull_none>;
 		};
+		/omit-if-no-ref/
+		uart0_rtsn_gpio: uart0-rts-gpio {
+			rockchip,pins =
+				<1 RK_PC0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
 	};
 	uart1 {
 		/omit-if-no-ref/

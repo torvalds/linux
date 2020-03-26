@@ -159,6 +159,28 @@
 		pwm-supply = <&vcc5v0_sys>;
 		status = "okay";
 	};
+
+	wireless-bluetooth {
+		compatible = "bluetooth-platdata";
+		uart_rts_gpios = <&gpio1 RK_PC0 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default", "rts_gpio";
+		pinctrl-0 = <&uart0_rtsn>;
+		pinctrl-1 = <&uart0_rtsn_gpio>;
+		BT,power_gpio    = <&gpio0 RK_PA7 GPIO_ACTIVE_HIGH>;
+		BT,wake_host_irq = <&gpio0 RK_PA5 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+
+	wireless-wlan {
+		compatible = "wlan-platdata";
+		rockchip,grf = <&grf>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&wifi_wake_host>;
+		wifi_chip_type = "ap6255";
+		WIFI,poweren_gpio = <&gpio0 RK_PA6 GPIO_ACTIVE_HIGH>;
+		WIFI,host_wake_irq = <&gpio0 RK_PB0 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
 };
 
 &cpu0 {
@@ -774,6 +796,12 @@
 				<0 RK_PB2 RK_FUNC_2 &pcfg_pull_none>;
 		};
 	};
+
+	wireless-wlan {
+		wifi_wake_host: wifi-wake-host {
+			rockchip,pins = <0 RK_PB0 0 &pcfg_pull_up>;
+		};
+	};
 };
 
 &pmu_io_domains {
@@ -838,6 +866,7 @@
 };
 
 &sdio {
+	max-frequency = <200000000>;
 	bus-width = <4>;
 	cap-sd-highspeed;
 	cap-sdio-irq;
@@ -846,6 +875,12 @@
 	rockchip,default-sample-phase = <90>;
 	sd-uhs-sdr104;
 	supports-sdio;
+	status = "okay";
+};
+
+&uart0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart0_xfer &uart0_ctsn>;
 	status = "okay";
 };
 
