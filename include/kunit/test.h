@@ -84,6 +84,14 @@ struct kunit;
 /* Size of log associated with test. */
 #define KUNIT_LOG_SIZE	512
 
+/*
+ * TAP specifies subtest stream indentation of 4 spaces, 8 spaces for a
+ * sub-subtest.  See the "Subtests" section in
+ * https://node-tap.org/tap-protocol/
+ */
+#define KUNIT_SUBTEST_INDENT		"    "
+#define KUNIT_SUBSUBTEST_INDENT		"        "
+
 /**
  * struct kunit_case - represents an individual test case.
  *
@@ -395,7 +403,8 @@ void kunit_log_append(char *log, const char *fmt, ...);
 	} while (0)
 
 #define kunit_printk(lvl, test, fmt, ...)				\
-	kunit_log(lvl, test, "\t# %s: " fmt, (test)->name, ##__VA_ARGS__)
+	kunit_log(lvl, test, KUNIT_SUBTEST_INDENT "# %s: " fmt,		\
+		  (test)->name,	##__VA_ARGS__)
 
 /**
  * kunit_info() - Prints an INFO level message associated with @test.

@@ -69,8 +69,9 @@ EXPORT_SYMBOL_GPL(kunit_suite_num_test_cases);
 static void kunit_print_subtest_start(struct kunit_suite *suite)
 {
 	kunit_print_tap_version();
-	kunit_log(KERN_INFO, suite, "\t# Subtest: %s", suite->name);
-	kunit_log(KERN_INFO, suite, "\t1..%zd",
+	kunit_log(KERN_INFO, suite, KUNIT_SUBTEST_INDENT "# Subtest: %s",
+		  suite->name);
+	kunit_log(KERN_INFO, suite, KUNIT_SUBTEST_INDENT "1..%zd",
 		  kunit_suite_num_test_cases(suite));
 }
 
@@ -96,7 +97,7 @@ static void kunit_print_ok_not_ok(void *test_or_suite,
 			kunit_status_to_string(is_ok),
 			test_number, description);
 	else
-		kunit_log(KERN_INFO, test, "\t%s %zd - %s",
+		kunit_log(KERN_INFO, test, KUNIT_SUBTEST_INDENT "%s %zd - %s",
 			  kunit_status_to_string(is_ok),
 			  test_number, description);
 }

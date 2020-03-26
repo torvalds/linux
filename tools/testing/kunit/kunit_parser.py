@@ -94,7 +94,7 @@ def print_log(log):
 	for m in log:
 		print_with_timestamp(m)
 
-TAP_ENTRIES = re.compile(r'^(TAP|\t?ok|\t?not ok|\t?[0-9]+\.\.[0-9]+|\t?#).*$')
+TAP_ENTRIES = re.compile(r'^(TAP|[\s]*ok|[\s]*not ok|[\s]*[0-9]+\.\.[0-9]+|[\s]*#).*$')
 
 def consume_non_diagnositic(lines: List[str]) -> None:
 	while lines and not TAP_ENTRIES.match(lines[0]):
@@ -107,7 +107,7 @@ def save_non_diagnositic(lines: List[str], test_case: TestCase) -> None:
 
 OkNotOkResult = namedtuple('OkNotOkResult', ['is_ok','description', 'text'])
 
-OK_NOT_OK_SUBTEST = re.compile(r'^\t(ok|not ok) [0-9]+ - (.*)$')
+OK_NOT_OK_SUBTEST = re.compile(r'^[\s]+(ok|not ok) [0-9]+ - (.*)$')
 
 OK_NOT_OK_MODULE = re.compile(r'^(ok|not ok) [0-9]+ - (.*)$')
 
@@ -134,7 +134,7 @@ def parse_ok_not_ok_test_case(lines: List[str], test_case: TestCase) -> bool:
 	else:
 		return False
 
-SUBTEST_DIAGNOSTIC = re.compile(r'^\t# .*?: (.*)$')
+SUBTEST_DIAGNOSTIC = re.compile(r'^[\s]+# .*?: (.*)$')
 DIAGNOSTIC_CRASH_MESSAGE = 'kunit test case crashed!'
 
 def parse_diagnostic(lines: List[str], test_case: TestCase) -> bool:
@@ -161,7 +161,7 @@ def parse_test_case(lines: List[str]) -> TestCase:
 	else:
 		return None
 
-SUBTEST_HEADER = re.compile(r'^\t# Subtest: (.*)$')
+SUBTEST_HEADER = re.compile(r'^[\s]+# Subtest: (.*)$')
 
 def parse_subtest_header(lines: List[str]) -> str:
 	consume_non_diagnositic(lines)
@@ -174,7 +174,7 @@ def parse_subtest_header(lines: List[str]) -> str:
 	else:
 		return None
 
-SUBTEST_PLAN = re.compile(r'\t[0-9]+\.\.([0-9]+)')
+SUBTEST_PLAN = re.compile(r'[\s]+[0-9]+\.\.([0-9]+)')
 
 def parse_subtest_plan(lines: List[str]) -> int:
 	consume_non_diagnositic(lines)
