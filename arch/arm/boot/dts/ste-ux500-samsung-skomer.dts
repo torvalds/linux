@@ -370,7 +370,7 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&dsi_default_mode>;
 
-			dsi@a0351000 {
+			dsi-controller@a0351000 {
 				panel {
 					/* NT35510-based Hydis HVA40WV1 */
 					compatible = "hydis,hva40wv1", "novatek,nt35510";
