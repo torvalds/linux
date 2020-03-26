@@ -131,7 +131,7 @@ static void ieee80211_TURBO_Info(struct ieee80211_device *ieee, u8 **tag_p)
 	*tag++ = 0x00;
 
 	*tag_p = tag;
-	printk(KERN_ALERT "This is enable turbo mode IE process\n");
+	netdev_alert(ieee->dev, "This is enable turbo mode IE process\n");
 }
 #endif
 
