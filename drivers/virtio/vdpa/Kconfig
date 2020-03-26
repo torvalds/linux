@@ -5,3 +5,22 @@ config VDPA
 	  Enable this module to support vDPA device that uses a
 	  datapath which complies with virtio specifications with
 	  vendor specific control path.
+
+menuconfig VDPA_MENU
+	bool "VDPA drivers"
+	default n
+
+if VDPA_MENU
+
+config VDPA_SIM
+	tristate "vDPA device simulator"
+	depends on RUNTIME_TESTING_MENU
+	select VDPA
+	select VHOST_RING
+	default n
+	help
+	  vDPA networking device simulator which loop TX traffic back
+	  to RX. This device is used for testing, prototyping and
+	  development of vDPA.
+
+endif # VDPA_MENU
