@@ -1248,6 +1248,43 @@ EXPORT_SYMBOL(mlxsw_afa_block_append_mirror);
 #define MLXSW_AFA_QOS_CODE 0x06
 #define MLXSW_AFA_QOS_SIZE 1
 
+enum mlxsw_afa_qos_ecn_cmd {
+	/* Do nothing */
+	MLXSW_AFA_QOS_ECN_CMD_NOP,
+	/* Set ECN to afa_qos_ecn */
+	MLXSW_AFA_QOS_ECN_CMD_SET,
+};
+
+/* afa_qos_ecn_cmd
+ */
+MLXSW_ITEM32(afa, qos, ecn_cmd, 0x04, 29, 3);
+
+/* afa_qos_ecn
+ * ECN value.
+ */
+MLXSW_ITEM32(afa, qos, ecn, 0x04, 24, 2);
+
+enum mlxsw_afa_qos_dscp_cmd {
+	/* Do nothing */
+	MLXSW_AFA_QOS_DSCP_CMD_NOP,
+	/* Set DSCP 3 LSB bits according to dscp[2:0] */
+	MLXSW_AFA_QOS_DSCP_CMD_SET_3LSB,
+	/* Set DSCP 3 MSB bits according to dscp[5:3] */
+	MLXSW_AFA_QOS_DSCP_CMD_SET_3MSB,
+	/* Set DSCP 6 bits according to dscp[5:0] */
+	MLXSW_AFA_QOS_DSCP_CMD_SET_ALL,
+};
+
+/* afa_qos_dscp_cmd
+ * DSCP command.
+ */
+MLXSW_ITEM32(afa, qos, dscp_cmd, 0x04, 14, 2);
+
+/* afa_qos_dscp
+ * DSCP value.
+ */
+MLXSW_ITEM32(afa, qos, dscp, 0x04, 0, 6);
+
 enum mlxsw_afa_qos_switch_prio_cmd {
 	/* Do nothing */
 	MLXSW_AFA_QOS_SWITCH_PRIO_CMD_NOP,
@@ -1263,6 +1300,33 @@ MLXSW_ITEM32(afa, qos, switch_prio_cmd, 0x08, 14, 2);
  * Switch Priority.
  */
 MLXSW_ITEM32(afa, qos, switch_prio, 0x08, 0, 4);
+
+enum mlxsw_afa_qos_dscp_rw {
+	MLXSW_AFA_QOS_DSCP_RW_PRESERVE,
+	MLXSW_AFA_QOS_DSCP_RW_SET,
+	MLXSW_AFA_QOS_DSCP_RW_CLEAR,
+};
+
+/* afa_qos_dscp_rw
+ * DSCP Re-write Enable. Controlling the rewrite_enable for DSCP.
+ */
+MLXSW_ITEM32(afa, qos, dscp_rw, 0x0C, 30, 2);
+
+static inline void
+mlxsw_afa_qos_ecn_pack(char *payload,
+		       enum mlxsw_afa_qos_ecn_cmd ecn_cmd, u8 ecn)
+{
+	mlxsw_afa_qos_ecn_cmd_set(payload, ecn_cmd);
+	mlxsw_afa_qos_ecn_set(payload, ecn);
+}
+
+static inline void
+mlxsw_afa_qos_dscp_pack(char *payload,
+			enum mlxsw_afa_qos_dscp_cmd dscp_cmd, u8 dscp)
+{
+	mlxsw_afa_qos_dscp_cmd_set(payload, dscp_cmd);
+	mlxsw_afa_qos_dscp_set(payload, dscp);
+}
 
 static inline void
 mlxsw_afa_qos_switch_prio_pack(char *payload,
