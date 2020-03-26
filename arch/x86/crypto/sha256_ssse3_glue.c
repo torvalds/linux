@@ -220,7 +220,6 @@ static void unregister_sha256_avx(void)
 				ARRAY_SIZE(sha256_avx_algs));
 }
 
-#if defined(CONFIG_AS_AVX2)
 asmlinkage void sha256_transform_rorx(struct sha256_state *state,
 				      const u8 *data, int blocks);
 
@@ -294,11 +293,6 @@ static void unregister_sha256_avx2(void)
 		crypto_unregister_shashes(sha256_avx2_algs,
 				ARRAY_SIZE(sha256_avx2_algs));
 }
-
-#else
-static inline int register_sha256_avx2(void) { return 0; }
-static inline void unregister_sha256_avx2(void) { }
-#endif
 
 #ifdef CONFIG_AS_SHA256_NI
 asmlinkage void sha256_ni_transform(struct sha256_state *digest,

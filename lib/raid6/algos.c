@@ -34,10 +34,8 @@ const struct raid6_calls * const raid6_algos[] = {
 	&raid6_avx512x2,
 	&raid6_avx512x1,
 #endif
-#ifdef CONFIG_AS_AVX2
 	&raid6_avx2x2,
 	&raid6_avx2x1,
-#endif
 	&raid6_sse2x2,
 	&raid6_sse2x1,
 	&raid6_sse1x2,
@@ -51,11 +49,9 @@ const struct raid6_calls * const raid6_algos[] = {
 	&raid6_avx512x2,
 	&raid6_avx512x1,
 #endif
-#ifdef CONFIG_AS_AVX2
 	&raid6_avx2x4,
 	&raid6_avx2x2,
 	&raid6_avx2x1,
-#endif
 	&raid6_sse2x4,
 	&raid6_sse2x2,
 	&raid6_sse2x1,
@@ -101,9 +97,7 @@ const struct raid6_recov_calls *const raid6_recov_algos[] = {
 #ifdef CONFIG_AS_AVX512
 	&raid6_recov_avx512,
 #endif
-#ifdef CONFIG_AS_AVX2
 	&raid6_recov_avx2,
-#endif
 	&raid6_recov_ssse3,
 #endif
 #ifdef CONFIG_S390
