@@ -574,7 +574,7 @@ static struct i2c_driver mshw0011_driver = {
 	.remove = mshw0011_remove,
 	.driver = {
 		.name = "mshw0011",
-		.acpi_match_table = ACPI_PTR(mshw0011_acpi_match),
+		.acpi_match_table = mshw0011_acpi_match,
 	},
 };
 module_i2c_driver(mshw0011_driver);
