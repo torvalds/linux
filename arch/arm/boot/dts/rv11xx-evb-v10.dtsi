@@ -928,7 +928,6 @@
 	cap-mmc-highspeed;
 	cap-sd-highspeed;
 	card-detect-delay = <200>;
-	max-frequency = <100000000>;
 	rockchip,default-sample-phase = <90>;
 	supports-sd;
 	sd-uhs-sdr12;
