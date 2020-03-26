@@ -90,7 +90,8 @@ static int mlx5_devlink_reload_down(struct devlink *devlink, bool netns_change,
 {
 	struct mlx5_core_dev *dev = devlink_priv(devlink);
 
-	return mlx5_unload_one(dev, false);
+	mlx5_unload_one(dev, false);
+	return 0;
 }
 
 static int mlx5_devlink_reload_up(struct devlink *devlink,

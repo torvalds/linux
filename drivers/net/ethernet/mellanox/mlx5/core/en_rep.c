@@ -1246,8 +1246,7 @@ static int mlx5e_rep_setup_ft_cb(enum tc_setup_type type, void *type_data,
 	case TC_SETUP_CLSFLOWER:
 		memcpy(&tmp, f, sizeof(*f));
 
-		if (!mlx5_esw_chains_prios_supported(esw) ||
-		    tmp.common.chain_index)
+		if (!mlx5_esw_chains_prios_supported(esw))
 			return -EOPNOTSUPP;
 
 		/* Re-use tc offload path by moving the ft flow to the

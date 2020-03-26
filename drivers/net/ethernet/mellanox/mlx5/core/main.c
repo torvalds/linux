@@ -1211,15 +1211,10 @@ int mlx5_load_one(struct mlx5_core_dev *dev, bool boot)
 			goto err_devlink_reg;
 	}
 
-	if (mlx5_device_registered(dev)) {
+	if (mlx5_device_registered(dev))
 		mlx5_attach_device(dev);
-	} else {
-		err = mlx5_register_device(dev);
-		if (err) {
-			mlx5_core_err(dev, "register device failed %d\n", err);
-			goto err_reg_dev;
-		}
-	}
+	else
+		mlx5_register_device(dev);
 
 	set_bit(MLX5_INTERFACE_STATE_UP, &dev->intf_state);
 out:
@@ -1227,9 +1222,6 @@ out:
 
 	return err;
 
-err_reg_dev:
-	if (boot)
-		mlx5_devlink_unregister(priv_to_devlink(dev));
 err_devlink_reg:
 	mlx5_unload(dev);
 err_load:
@@ -1243,7 +1235,7 @@ function_teardown:
 	return err;
 }
 
-int mlx5_unload_one(struct mlx5_core_dev *dev, bool cleanup)
+void mlx5_unload_one(struct mlx5_core_dev *dev, bool cleanup)
 {
 	if (cleanup) {
 		mlx5_unregister_device(dev);
@@ -1272,7 +1264,6 @@ int mlx5_unload_one(struct mlx5_core_dev *dev, bool cleanup)
 	mlx5_function_teardown(dev, cleanup);
 out:
 	mutex_unlock(&dev->intf_state_mutex);
-	return 0;
 }
 
 static int mlx5_mdev_init(struct mlx5_core_dev *dev, int profile_idx)
@@ -1393,12 +1384,7 @@ static void remove_one(struct pci_dev *pdev)
 	mlx5_crdump_disable(dev);
 	mlx5_devlink_unregister(devlink);
 
-	if (mlx5_unload_one(dev, true)) {
-		mlx5_core_err(dev, "mlx5_unload_one failed\n");
-		mlx5_health_flush(dev);
-		return;
-	}
-
+	mlx5_unload_one(dev, true);
 	mlx5_pci_close(dev);
 	mlx5_mdev_uninit(dev);
 	mlx5_devlink_free(devlink);

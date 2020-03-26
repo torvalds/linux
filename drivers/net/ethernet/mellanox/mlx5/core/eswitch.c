@@ -2067,12 +2067,54 @@ static void mlx5_eswitch_get_devlink_param(struct mlx5_eswitch *esw)
 	}
 }
 
-int mlx5_eswitch_enable(struct mlx5_eswitch *esw, int mode)
+static void
+mlx5_eswitch_update_num_of_vfs(struct mlx5_eswitch *esw, int num_vfs)
+{
+	const u32 *out;
+
+	WARN_ON_ONCE(esw->mode != MLX5_ESWITCH_NONE);
+
+	if (num_vfs < 0)
+		return;
+
+	if (!mlx5_core_is_ecpf_esw_manager(esw->dev)) {
+		esw->esw_funcs.num_vfs = num_vfs;
+		return;
+	}
+
+	out = mlx5_esw_query_functions(esw->dev);
+	if (IS_ERR(out))
+		return;
+
+	esw->esw_funcs.num_vfs = MLX5_GET(query_esw_functions_out, out,
+					  host_params_context.host_num_of_vfs);
+	kvfree(out);
+}
+
+/**
+ * mlx5_eswitch_enable_locked - Enable eswitch
+ * @esw:	Pointer to eswitch
+ * @mode:	Eswitch mode to enable
+ * @num_vfs:	Enable eswitch for given number of VFs. This is optional.
+ *		Valid value are 0, > 0 and MLX5_ESWITCH_IGNORE_NUM_VFS.
+ *		Caller should pass num_vfs > 0 when enabling eswitch for
+ *		vf vports. Caller should pass num_vfs = 0, when eswitch
+ *		is enabled without sriov VFs or when caller
+ *		is unaware of the sriov state of the host PF on ECPF based
+ *		eswitch. Caller should pass < 0 when num_vfs should be
+ *		completely ignored. This is typically the case when eswitch
+ *		is enabled without sriov regardless of PF/ECPF system.
+ * mlx5_eswitch_enable_locked() Enables eswitch in either legacy or offloads
+ * mode. If num_vfs >=0 is provided, it setup VF related eswitch vports.
+ * It returns 0 on success or error code on failure.
+ */
+int mlx5_eswitch_enable_locked(struct mlx5_eswitch *esw, int mode, int num_vfs)
 {
 	int err;
 
-	if (!ESW_ALLOWED(esw) ||
-	    !MLX5_CAP_ESW_FLOWTABLE_FDB(esw->dev, ft_support)) {
+	lockdep_assert_held(&esw->mode_lock);
+
+	if (!MLX5_CAP_ESW_FLOWTABLE_FDB(esw->dev, ft_support)) {
 		esw_warn(esw->dev, "FDB is not supported, aborting ...\n");
 		return -EOPNOTSUPP;
 	}
@@ -2084,6 +2126,8 @@ int mlx5_eswitch_enable(struct mlx5_eswitch *esw, int mode)
 		esw_warn(esw->dev, "engress ACL is not supported by FW\n");
 
 	mlx5_eswitch_get_devlink_param(esw);
+
+	mlx5_eswitch_update_num_of_vfs(esw, num_vfs);
 
 	esw_create_tsar(esw);
 
@@ -2121,11 +2165,34 @@ abort:
 	return err;
 }
 
-void mlx5_eswitch_disable(struct mlx5_eswitch *esw, bool clear_vf)
+/**
+ * mlx5_eswitch_enable - Enable eswitch
+ * @esw:	Pointer to eswitch
+ * @num_vfs:	Enable eswitch swich for given number of VFs.
+ *		Caller must pass num_vfs > 0 when enabling eswitch for
+ *		vf vports.
+ * mlx5_eswitch_enable() returns 0 on success or error code on failure.
+ */
+int mlx5_eswitch_enable(struct mlx5_eswitch *esw, int num_vfs)
+{
+	int ret;
+
+	if (!ESW_ALLOWED(esw))
+		return 0;
+
+	mutex_lock(&esw->mode_lock);
+	ret = mlx5_eswitch_enable_locked(esw, MLX5_ESWITCH_LEGACY, num_vfs);
+	mutex_unlock(&esw->mode_lock);
+	return ret;
+}
+
+void mlx5_eswitch_disable_locked(struct mlx5_eswitch *esw, bool clear_vf)
 {
 	int old_mode;
 
-	if (!ESW_ALLOWED(esw) || esw->mode == MLX5_ESWITCH_NONE)
+	lockdep_assert_held_write(&esw->mode_lock);
+
+	if (esw->mode == MLX5_ESWITCH_NONE)
 		return;
 
 	esw_info(esw->dev, "Disable: mode(%s), nvfs(%d), active vports(%d)\n",
@@ -2152,6 +2219,16 @@ void mlx5_eswitch_disable(struct mlx5_eswitch *esw, bool clear_vf)
 	}
 	if (clear_vf)
 		mlx5_eswitch_clear_vf_vports_info(esw);
+}
+
+void mlx5_eswitch_disable(struct mlx5_eswitch *esw, bool clear_vf)
+{
+	if (!ESW_ALLOWED(esw))
+		return;
+
+	mutex_lock(&esw->mode_lock);
+	mlx5_eswitch_disable_locked(esw, clear_vf);
+	mutex_unlock(&esw->mode_lock);
 }
 
 int mlx5_eswitch_init(struct mlx5_core_dev *dev)
@@ -2205,6 +2282,7 @@ int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 	hash_init(esw->offloads.mod_hdr.hlist);
 	atomic64_set(&esw->offloads.num_flows, 0);
 	mutex_init(&esw->state_lock);
+	mutex_init(&esw->mode_lock);
 
 	mlx5_esw_for_all_vports(esw, i, vport) {
 		vport->vport = mlx5_eswitch_index_to_vport_num(esw, i);
@@ -2239,6 +2317,7 @@ void mlx5_eswitch_cleanup(struct mlx5_eswitch *esw)
 	esw->dev->priv.eswitch = NULL;
 	destroy_workqueue(esw->work_queue);
 	esw_offloads_cleanup_reps(esw);
+	mutex_destroy(&esw->mode_lock);
 	mutex_destroy(&esw->state_lock);
 	mutex_destroy(&esw->offloads.mod_hdr.lock);
 	mutex_destroy(&esw->offloads.encap_tbl_lock);
@@ -2811,22 +2890,4 @@ bool mlx5_esw_multipath_prereq(struct mlx5_core_dev *dev0,
 		dev1->priv.eswitch->mode == MLX5_ESWITCH_OFFLOADS);
 }
 
-void mlx5_eswitch_update_num_of_vfs(struct mlx5_eswitch *esw, const int num_vfs)
-{
-	const u32 *out;
 
-	WARN_ON_ONCE(esw->mode != MLX5_ESWITCH_NONE);
-
-	if (!mlx5_core_is_ecpf_esw_manager(esw->dev)) {
-		esw->esw_funcs.num_vfs = num_vfs;
-		return;
-	}
-
-	out = mlx5_esw_query_functions(esw->dev);
-	if (IS_ERR(out))
-		return;
-
-	esw->esw_funcs.num_vfs = MLX5_GET(query_esw_functions_out, out,
-					  host_params_context.host_num_of_vfs);
-	kvfree(out);
-}

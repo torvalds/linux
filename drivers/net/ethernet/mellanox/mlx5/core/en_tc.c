@@ -3058,7 +3058,7 @@ static bool actions_match_supported(struct mlx5e_priv *priv,
 			 */
 			NL_SET_ERR_MSG_MOD(extack,
 					   "Can't offload mirroring with action ct");
-			return -EOPNOTSUPP;
+			return false;
 		}
 	} else {
 		actions = flow->nic_attr->action;
