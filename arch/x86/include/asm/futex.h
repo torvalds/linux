@@ -34,17 +34,17 @@ do {								\
 do {								\
 	int oldval = 0, ret, tem;				\
 	asm volatile("1:\tmovl	%2, %0\n"			\
-		     "\tmovl\t%0, %3\n"				\
+		     "2:\tmovl\t%0, %3\n"			\
 		     "\t" insn "\n"				\
-		     "2:\t" LOCK_PREFIX "cmpxchgl %3, %2\n"	\
-		     "\tjnz\t1b\n"				\
-		     "3:\n"					\
+		     "3:\t" LOCK_PREFIX "cmpxchgl %3, %2\n"	\
+		     "\tjnz\t2b\n"				\
+		     "4:\n"					\
 		     "\t.section .fixup,\"ax\"\n"		\
-		     "4:\tmov\t%5, %1\n"			\
-		     "\tjmp\t3b\n"				\
+		     "5:\tmov\t%5, %1\n"			\
+		     "\tjmp\t4b\n"				\
 		     "\t.previous\n"				\
-		     _ASM_EXTABLE_UA(1b, 4b)			\
-		     _ASM_EXTABLE_UA(2b, 4b)			\
+		     _ASM_EXTABLE_UA(1b, 5b)			\
+		     _ASM_EXTABLE_UA(3b, 5b)			\
 		     : "=&a" (oldval), "=&r" (ret),		\
 		       "+m" (*uaddr), "=&r" (tem)		\
 		     : "r" (oparg), "i" (-EFAULT), "1" (0));	\
