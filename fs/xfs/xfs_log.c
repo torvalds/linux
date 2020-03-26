@@ -487,62 +487,40 @@ out_error:
  */
 
 /*
- * This routine is called when a user of a log manager ticket is done with
- * the reservation.  If the ticket was ever used, then a commit record for
- * the associated transaction is written out as a log operation header with
- * no data.  The flag XLOG_TIC_INITED is set when the first write occurs with
- * a given ticket.  If the ticket was one with a permanent reservation, then
- * a few operations are done differently.  Permanent reservation tickets by
- * default don't release the reservation.  They just commit the current
- * transaction with the belief that the reservation is still needed.  A flag
- * must be passed in before permanent reservations are actually released.
- * When these type of tickets are not released, they need to be set into
- * the inited state again.  By doing this, a start record will be written
- * out when the next write occurs.
+ * Write a commit record to the log to close off a running log write.
  */
-xfs_lsn_t
-xfs_log_done(
-	struct xfs_mount	*mp,
+int
+xlog_write_done(
+	struct xlog		*log,
 	struct xlog_ticket	*ticket,
 	struct xlog_in_core	**iclog,
+	xfs_lsn_t		*lsn)
+{
+	if (XLOG_FORCED_SHUTDOWN(log))
+		return -EIO;
+
+	return xlog_commit_record(log, ticket, iclog, lsn);
+}
+
+/*
+ * Release or regrant the ticket reservation now the transaction is done with
+ * it depending on caller context. Rolling transactions need the ticket
+ * regranted, otherwise we release it completely.
+ */
+void
+xlog_ticket_done(
+	struct xlog		*log,
+	struct xlog_ticket	*ticket,
 	bool			regrant)
 {
-	struct xlog		*log = mp->m_log;
-	xfs_lsn_t		lsn = 0;
-
-	if (XLOG_FORCED_SHUTDOWN(log) ||
-	    /*
-	     * If nothing was ever written, don't write out commit record.
-	     * If we get an error, just continue and give back the log ticket.
-	     */
-	    (((ticket->t_flags & XLOG_TIC_INITED) == 0) &&
-	     (xlog_commit_record(log, ticket, iclog, &lsn)))) {
-		lsn = (xfs_lsn_t) -1;
-		regrant = false;
-	}
-
-
-	if (!regrant) {
+	if (!regrant || XLOG_FORCED_SHUTDOWN(log)) {
 		trace_xfs_log_done_nonperm(log, ticket);
-
-		/*
-		 * Release ticket if not permanent reservation or a specific
-		 * request has been made to release a permanent reservation.
-		 */
 		xlog_ungrant_log_space(log, ticket);
 	} else {
 		trace_xfs_log_done_perm(log, ticket);
-
 		xlog_regrant_reserve_log_space(log, ticket);
-		/* If this ticket was a permanent reservation and we aren't
-		 * trying to release it, reset the inited flags; so next time
-		 * we write, a start record will be written out.
-		 */
-		ticket->t_flags |= XLOG_TIC_INITED;
 	}
-
 	xfs_log_ticket_put(ticket);
-	return lsn;
 }
 
 static bool
