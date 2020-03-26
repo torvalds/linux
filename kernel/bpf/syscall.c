@@ -2252,7 +2252,6 @@ static int bpf_link_release(struct inode *inode, struct file *filp)
 #ifdef CONFIG_PROC_FS
 static const struct bpf_link_ops bpf_raw_tp_lops;
 static const struct bpf_link_ops bpf_tracing_link_lops;
-static const struct bpf_link_ops bpf_xdp_link_lops;
 
 static void bpf_link_show_fdinfo(struct seq_file *m, struct file *filp)
 {
