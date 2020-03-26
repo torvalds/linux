@@ -139,6 +139,40 @@ __acquires(&sdp->sd_ail_lock)
 	return ret;
 }
 
+static void dump_ail_list(struct gfs2_sbd *sdp)
+{
+	struct gfs2_trans *tr;
+	struct gfs2_bufdata *bd;
+	struct buffer_head *bh;
+
+	fs_err(sdp, "Error: In gfs2_ail1_flush for ten minutes! t=%d\n",
+	       current->journal_info ? 1 : 0);
+
+	list_for_each_entry_reverse(tr, &sdp->sd_ail1_list, tr_list) {
+		list_for_each_entry_reverse(bd, &tr->tr_ail1_list,
+					    bd_ail_st_list) {
+			bh = bd->bd_bh;
+			fs_err(sdp, "bd %p: blk:0x%llx bh=%p ", bd,
+			       (unsigned long long)bd->bd_blkno, bh);
+			if (!bh) {
+				fs_err(sdp, "\n");
+				continue;
+			}
+			fs_err(sdp, "0x%llx up2:%d dirt:%d lkd:%d req:%d "
+			       "map:%d new:%d ar:%d aw:%d delay:%d "
+			       "io err:%d unwritten:%d dfr:%d pin:%d esc:%d\n",
+			       (unsigned long long)bh->b_blocknr,
+			       buffer_uptodate(bh), buffer_dirty(bh),
+			       buffer_locked(bh), buffer_req(bh),
+			       buffer_mapped(bh), buffer_new(bh),
+			       buffer_async_read(bh), buffer_async_write(bh),
+			       buffer_delay(bh), buffer_write_io_error(bh),
+			       buffer_unwritten(bh),
+			       buffer_defer_completion(bh),
+			       buffer_pinned(bh), buffer_escaped(bh));
+		}
+	}
+}
 
 /**
  * gfs2_ail1_flush - start writeback of some ail1 entries 
@@ -155,11 +189,16 @@ void gfs2_ail1_flush(struct gfs2_sbd *sdp, struct writeback_control *wbc)
 	struct gfs2_trans *tr;
 	struct blk_plug plug;
 	int ret = 0;
+	unsigned long flush_start = jiffies;
 
 	trace_gfs2_ail_flush(sdp, wbc, 1);
 	blk_start_plug(&plug);
 	spin_lock(&sdp->sd_ail_lock);
 restart:
+	if (time_after(jiffies, flush_start + (HZ * 600))) {
+		dump_ail_list(sdp);
+		goto out;
+	}
 	list_for_each_entry_reverse(tr, head, tr_list) {
 		if (wbc->nr_to_write <= 0)
 			break;
@@ -170,6 +209,7 @@ restart:
 			break;
 		}
 	}
+out:
 	spin_unlock(&sdp->sd_ail_lock);
 	blk_finish_plug(&plug);
 	if (ret) {
