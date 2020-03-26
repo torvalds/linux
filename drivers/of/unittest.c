@@ -1601,6 +1601,11 @@ static void __init of_unittest_overlay_gpio(void)
 	 * Similar to installing a driver as a module, the
 	 * driver is registered after applying the overlays.
 	 *
+	 * The overlays are applied by overlay_data_apply()
+	 * instead of of_unittest_apply_overlay() so that they
+	 * will not be tracked.  Thus they will not be removed
+	 * by of_unittest_destroy_tracked_overlays().
+	 *
 	 * - apply overlay_gpio_01
 	 * - apply overlay_gpio_02a
 	 * - apply overlay_gpio_02b
@@ -1847,10 +1852,18 @@ static const char *overlay_name_from_nr(int nr)
 
 static const char *bus_path = "/testcase-data/overlay-node/test-bus";
 
-/* it is guaranteed that overlay ids are assigned in sequence */
+/* FIXME: it is NOT guaranteed that overlay ids are assigned in sequence */
+
 #define MAX_UNITTEST_OVERLAYS	256
 static unsigned long overlay_id_bits[BITS_TO_LONGS(MAX_UNITTEST_OVERLAYS)];
 static int overlay_first_id = -1;
+
+static long of_unittest_overlay_tracked(int id)
+{
+	if (WARN_ON(id >= MAX_UNITTEST_OVERLAYS))
+		return 0;
+	return overlay_id_bits[BIT_WORD(id)] & BIT_MASK(id);
+}
 
 static void of_unittest_track_overlay(int id)
 {
@@ -1858,8 +1871,8 @@ static void of_unittest_track_overlay(int id)
 		overlay_first_id = id;
 	id -= overlay_first_id;
 
-	/* we shouldn't need that many */
-	BUG_ON(id >= MAX_UNITTEST_OVERLAYS);
+	if (WARN_ON(id >= MAX_UNITTEST_OVERLAYS))
+		return;
 	overlay_id_bits[BIT_WORD(id)] |= BIT_MASK(id);
 }
 
@@ -1868,7 +1881,8 @@ static void of_unittest_untrack_overlay(int id)
 	if (overlay_first_id < 0)
 		return;
 	id -= overlay_first_id;
-	BUG_ON(id >= MAX_UNITTEST_OVERLAYS);
+	if (WARN_ON(id >= MAX_UNITTEST_OVERLAYS))
+		return;
 	overlay_id_bits[BIT_WORD(id)] &= ~BIT_MASK(id);
 }
 
@@ -1884,7 +1898,7 @@ static void of_unittest_destroy_tracked_overlays(void)
 		defers = 0;
 		/* remove in reverse order */
 		for (id = MAX_UNITTEST_OVERLAYS - 1; id >= 0; id--) {
-			if (!(overlay_id_bits[BIT_WORD(id)] & BIT_MASK(id)))
+			if (!of_unittest_overlay_tracked(id))
 				continue;
 
 			ovcs_id = id + overlay_first_id;
@@ -1901,7 +1915,7 @@ static void of_unittest_destroy_tracked_overlays(void)
 				continue;
 			}
 
-			overlay_id_bits[BIT_WORD(id)] &= ~BIT_MASK(id);
+			of_unittest_untrack_overlay(id);
 		}
 	} while (defers > 0);
 }
@@ -1962,7 +1976,7 @@ static int __init of_unittest_apply_revert_overlay_check(int overlay_nr,
 		int unittest_nr, int before, int after,
 		enum overlay_type ovtype)
 {
-	int ret, ovcs_id;
+	int ret, ovcs_id, save_id;
 
 	/* unittest device must be in before state */
 	if (of_unittest_device_exists(unittest_nr, ovtype) != before) {
@@ -1990,6 +2004,7 @@ static int __init of_unittest_apply_revert_overlay_check(int overlay_nr,
 		return -EINVAL;
 	}
 
+	save_id = ovcs_id;
 	ret = of_overlay_remove(&ovcs_id);
 	if (ret != 0) {
 		unittest(0, "%s failed to be destroyed @\"%s\"\n",
@@ -1997,6 +2012,7 @@ static int __init of_unittest_apply_revert_overlay_check(int overlay_nr,
 				unittest_path(unittest_nr, ovtype));
 		return ret;
 	}
+	of_unittest_untrack_overlay(save_id);
 
 	/* unittest device must be again in before state */
 	if (of_unittest_device_exists(unittest_nr, PDEV_OVERLAY) != before) {
