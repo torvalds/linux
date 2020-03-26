@@ -43,10 +43,12 @@ static const char * const region_fw_health_str = "fw-health";
 
 static const struct devlink_region_ops region_cr_space_ops = {
 	.name = region_cr_space_str,
+	.destructor = &kvfree,
 };
 
 static const struct devlink_region_ops region_fw_health_ops = {
 	.name = region_fw_health_str,
+	.destructor = &kvfree,
 };
 
 /* Set to true in case cr enable bit was set to true before crdump */
@@ -107,7 +109,7 @@ static void mlx4_crdump_collect_crspace(struct mlx4_dev *dev,
 					readl(cr_space + offset);
 
 		err = devlink_region_snapshot_create(crdump->region_crspace,
-						     crspace_data, id, &kvfree);
+						     crspace_data, id);
 		if (err) {
 			kvfree(crspace_data);
 			mlx4_warn(dev, "crdump: devlink create %s snapshot id %d err %d\n",
@@ -146,7 +148,7 @@ static void mlx4_crdump_collect_fw_health(struct mlx4_dev *dev,
 					readl(health_buf_start + offset);
 
 		err = devlink_region_snapshot_create(crdump->region_fw_health,
-						     health_data, id, &kvfree);
+						     health_data, id);
 		if (err) {
 			kvfree(health_data);
 			mlx4_warn(dev, "crdump: devlink create %s snapshot id %d err %d\n",

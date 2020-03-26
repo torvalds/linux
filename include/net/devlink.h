@@ -496,14 +496,14 @@ enum devlink_param_generic_id {
 struct devlink_region;
 struct devlink_info_req;
 
-typedef void devlink_snapshot_data_dest_t(const void *data);
-
 /**
  * struct devlink_region_ops - Region operations
  * @name: region name
+ * @destructor: callback used to free snapshot memory when deleting
  */
 struct devlink_region_ops {
 	const char *name;
+	void (*destructor)(const void *data);
 };
 
 struct devlink_fmsg;
@@ -978,8 +978,7 @@ devlink_region_create(struct devlink *devlink,
 void devlink_region_destroy(struct devlink_region *region);
 u32 devlink_region_snapshot_id_get(struct devlink *devlink);
 int devlink_region_snapshot_create(struct devlink_region *region,
-				   u8 *data, u32 snapshot_id,
-				   devlink_snapshot_data_dest_t *data_destructor);
+				   u8 *data, u32 snapshot_id);
 int devlink_info_serial_number_put(struct devlink_info_req *req,
 				   const char *sn);
 int devlink_info_driver_name_put(struct devlink_info_req *req,

@@ -56,7 +56,7 @@ static ssize_t nsim_dev_take_snapshot_write(struct file *file,
 
 	id = devlink_region_snapshot_id_get(priv_to_devlink(nsim_dev));
 	err = devlink_region_snapshot_create(nsim_dev->dummy_region,
-					     dummy_data, id, kfree);
+					     dummy_data, id);
 	if (err) {
 		pr_err("Failed to create region snapshot\n");
 		kfree(dummy_data);
@@ -342,6 +342,7 @@ static void nsim_devlink_param_load_driverinit_values(struct devlink *devlink)
 
 static const struct devlink_region_ops dummy_region_ops = {
 	.name = "dummy",
+	.destructor = &kfree,
 };
 
 static int nsim_dev_dummy_region_init(struct nsim_dev *nsim_dev,
