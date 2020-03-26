@@ -1337,6 +1337,62 @@ mlxsw_afa_qos_switch_prio_pack(char *payload,
 	mlxsw_afa_qos_switch_prio_set(payload, prio);
 }
 
+static int __mlxsw_afa_block_append_qos_dsfield(struct mlxsw_afa_block *block,
+						bool set_dscp, u8 dscp,
+						bool set_ecn, u8 ecn,
+						struct netlink_ext_ack *extack)
+{
+	char *act = mlxsw_afa_block_append_action(block,
+						  MLXSW_AFA_QOS_CODE,
+						  MLXSW_AFA_QOS_SIZE);
+
+	if (IS_ERR(act)) {
+		NL_SET_ERR_MSG_MOD(extack, "Cannot append QOS action");
+		return PTR_ERR(act);
+	}
+
+	if (set_ecn)
+		mlxsw_afa_qos_ecn_pack(act, MLXSW_AFA_QOS_ECN_CMD_SET, ecn);
+	if (set_dscp) {
+		mlxsw_afa_qos_dscp_pack(act, MLXSW_AFA_QOS_DSCP_CMD_SET_ALL,
+					dscp);
+		mlxsw_afa_qos_dscp_rw_set(act, MLXSW_AFA_QOS_DSCP_RW_CLEAR);
+	}
+
+	return 0;
+}
+
+int mlxsw_afa_block_append_qos_dsfield(struct mlxsw_afa_block *block,
+				       u8 dsfield,
+				       struct netlink_ext_ack *extack)
+{
+	return __mlxsw_afa_block_append_qos_dsfield(block,
+						    true, dsfield >> 2,
+						    true, dsfield & 0x03,
+						    extack);
+}
+EXPORT_SYMBOL(mlxsw_afa_block_append_qos_dsfield);
+
+int mlxsw_afa_block_append_qos_dscp(struct mlxsw_afa_block *block,
+				    u8 dscp, struct netlink_ext_ack *extack)
+{
+	return __mlxsw_afa_block_append_qos_dsfield(block,
+						    true, dscp,
+						    false, 0,
+						    extack);
+}
+EXPORT_SYMBOL(mlxsw_afa_block_append_qos_dscp);
+
+int mlxsw_afa_block_append_qos_ecn(struct mlxsw_afa_block *block,
+				   u8 ecn, struct netlink_ext_ack *extack)
+{
+	return __mlxsw_afa_block_append_qos_dsfield(block,
+						    false, 0,
+						    true, ecn,
+						    extack);
+}
+EXPORT_SYMBOL(mlxsw_afa_block_append_qos_ecn);
+
 int mlxsw_afa_block_append_qos_switch_prio(struct mlxsw_afa_block *block,
 					   u8 prio,
 					   struct netlink_ext_ack *extack)

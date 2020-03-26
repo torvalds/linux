@@ -749,6 +749,11 @@ int mlxsw_sp_acl_rulei_act_vlan(struct mlxsw_sp *mlxsw_sp,
 int mlxsw_sp_acl_rulei_act_priority(struct mlxsw_sp *mlxsw_sp,
 				    struct mlxsw_sp_acl_rule_info *rulei,
 				    u32 prio, struct netlink_ext_ack *extack);
+int mlxsw_sp_acl_rulei_act_mangle(struct mlxsw_sp *mlxsw_sp,
+				  struct mlxsw_sp_acl_rule_info *rulei,
+				  enum flow_action_mangle_base htype,
+				  u32 offset, u32 mask, u32 val,
+				  struct netlink_ext_ack *extack);
 int mlxsw_sp_acl_rulei_act_count(struct mlxsw_sp *mlxsw_sp,
 				 struct mlxsw_sp_acl_rule_info *rulei,
 				 struct netlink_ext_ack *extack);
