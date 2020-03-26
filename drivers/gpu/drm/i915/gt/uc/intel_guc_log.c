@@ -55,11 +55,6 @@ static int guc_action_control_log(struct intel_guc *guc, bool enable,
 	return intel_guc_send(guc, action, ARRAY_SIZE(action));
 }
 
-static inline struct intel_guc *log_to_guc(struct intel_guc_log *log)
-{
-	return container_of(log, struct intel_guc, log);
-}
-
 static void guc_log_enable_flush_events(struct intel_guc_log *log)
 {
 	intel_guc_enable_msg(log_to_guc(log),

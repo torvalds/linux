@@ -37,7 +37,6 @@
 #include "gt/intel_reset.h"
 #include "gt/intel_rc6.h"
 #include "gt/intel_rps.h"
-#include "gt/uc/intel_guc_submission.h"
 
 #include "i915_debugfs.h"
 #include "i915_debugfs_params.h"
@@ -1251,136 +1250,6 @@ static int i915_llc(struct seq_file *m, void *data)
 	return 0;
 }
 
-static int i915_huc_info(struct seq_file *m, void *data)
-{
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct intel_huc *huc = &dev_priv->gt.uc.huc;
-	struct drm_printer p = drm_seq_file_printer(m);
-
-	if (!intel_huc_is_supported(huc))
-		return -ENODEV;
-
-	intel_huc_load_status(huc, &p);
-
-	return 0;
-}
-
-static int i915_guc_info(struct seq_file *m, void *data)
-{
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct intel_guc *guc = &dev_priv->gt.uc.guc;
-	struct drm_printer p = drm_seq_file_printer(m);
-
-	if (!intel_guc_is_supported(guc))
-		return -ENODEV;
-
-	intel_guc_load_status(guc, &p);
-	drm_puts(&p, "\n");
-	intel_guc_log_info(&guc->log, &p);
-
-	/* Add more as required ... */
-
-	return 0;
-}
-
-static int i915_guc_log_dump(struct seq_file *m, void *data)
-{
-	struct drm_info_node *node = m->private;
-	struct drm_i915_private *dev_priv = node_to_i915(node);
-	struct intel_guc *guc = &dev_priv->gt.uc.guc;
-	bool dump_load_err = !!node->info_ent->data;
-	struct drm_printer p = drm_seq_file_printer(m);
-
-	if (!intel_guc_is_supported(guc))
-		return -ENODEV;
-
-	return intel_guc_log_dump(&guc->log, &p, dump_load_err);
-}
-
-static int i915_guc_log_level_get(void *data, u64 *val)
-{
-	struct drm_i915_private *dev_priv = data;
-	struct intel_uc *uc = &dev_priv->gt.uc;
-
-	if (!intel_uc_uses_guc(uc))
-		return -ENODEV;
-
-	*val = intel_guc_log_get_level(&uc->guc.log);
-
-	return 0;
-}
-
-static int i915_guc_log_level_set(void *data, u64 val)
-{
-	struct drm_i915_private *dev_priv = data;
-	struct intel_uc *uc = &dev_priv->gt.uc;
-
-	if (!intel_uc_uses_guc(uc))
-		return -ENODEV;
-
-	return intel_guc_log_set_level(&uc->guc.log, val);
-}
-
-DEFINE_SIMPLE_ATTRIBUTE(i915_guc_log_level_fops,
-			i915_guc_log_level_get, i915_guc_log_level_set,
-			"%lld\n");
-
-static int i915_guc_log_relay_open(struct inode *inode, struct file *file)
-{
-	struct drm_i915_private *i915 = inode->i_private;
-	struct intel_guc *guc = &i915->gt.uc.guc;
-	struct intel_guc_log *log = &guc->log;
-
-	if (!intel_guc_is_ready(guc))
-		return -ENODEV;
-
-	file->private_data = log;
-
-	return intel_guc_log_relay_open(log);
-}
-
-static ssize_t
-i915_guc_log_relay_write(struct file *filp,
-			 const char __user *ubuf,
-			 size_t cnt,
-			 loff_t *ppos)
-{
-	struct intel_guc_log *log = filp->private_data;
-	int val;
-	int ret;
-
-	ret = kstrtoint_from_user(ubuf, cnt, 0, &val);
-	if (ret < 0)
-		return ret;
-
-	/*
-	 * Enable and start the guc log relay on value of 1.
-	 * Flush log relay for any other value.
-	 */
-	if (val == 1)
-		ret = intel_guc_log_relay_start(log);
-	else
-		intel_guc_log_relay_flush(log);
-
-	return ret ?: cnt;
-}
-
-static int i915_guc_log_relay_release(struct inode *inode, struct file *file)
-{
-	struct drm_i915_private *i915 = inode->i_private;
-	struct intel_guc *guc = &i915->gt.uc.guc;
-
-	intel_guc_log_relay_close(&guc->log);
-	return 0;
-}
-
-static const struct file_operations i915_guc_log_relay_fops = {
-	.owner = THIS_MODULE,
-	.open = i915_guc_log_relay_open,
-	.write = i915_guc_log_relay_write,
-	.release = i915_guc_log_relay_release,
-};
-
 static int i915_runtime_pm_status(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
@@ -1989,10 +1858,6 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_gem_objects", i915_gem_object_info, 0},
 	{"i915_gem_fence_regs", i915_gem_fence_regs_info, 0},
 	{"i915_gem_interrupt", i915_interrupt_info, 0},
-	{"i915_guc_info", i915_guc_info, 0},
-	{"i915_guc_log_dump", i915_guc_log_dump, 0},
-	{"i915_guc_load_err_log_dump", i915_guc_log_dump, 0, (void *)1},
-	{"i915_huc_info", i915_huc_info, 0},
 	{"i915_frequency_info", i915_frequency_info, 0},
 	{"i915_ring_freq_table", i915_ring_freq_table, 0},
 	{"i915_context_status", i915_context_status, 0},
@@ -2020,8 +1885,6 @@ static const struct i915_debugfs_files {
 	{"i915_error_state", &i915_error_state_fops},
 	{"i915_gpu_info", &i915_gpu_info_fops},
 #endif
-	{"i915_guc_log_level", &i915_guc_log_level_fops},
-	{"i915_guc_log_relay", &i915_guc_log_relay_fops},
 };
 
 int i915_debugfs_register(struct drm_i915_private *dev_priv)

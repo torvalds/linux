@@ -167,14 +167,18 @@ i915-y += \
 
 # general-purpose microcontroller (GuC) support
 i915-y += gt/uc/intel_uc.o \
+	  gt/uc/intel_uc_debugfs.o \
 	  gt/uc/intel_uc_fw.o \
 	  gt/uc/intel_guc.o \
 	  gt/uc/intel_guc_ads.o \
 	  gt/uc/intel_guc_ct.o \
+	  gt/uc/intel_guc_debugfs.o \
 	  gt/uc/intel_guc_fw.o \
 	  gt/uc/intel_guc_log.o \
+	  gt/uc/intel_guc_log_debugfs.o \
 	  gt/uc/intel_guc_submission.o \
 	  gt/uc/intel_huc.o \
+	  gt/uc/intel_huc_debugfs.o \
 	  gt/uc/intel_huc_fw.o
 
 # modesetting core code
