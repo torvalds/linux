@@ -59,6 +59,18 @@ config VHOST_VSOCK
 	To compile this driver as a module, choose M here: the module will be called
 	vhost_vsock.
 
+config VHOST_VDPA
+	tristate "Vhost driver for vDPA-based backend"
+	depends on EVENTFD
+	select VHOST
+	select VDPA
+	help
+	  This kernel module can be loaded in host kernel to accelerate
+	  guest virtio devices with the vDPA-based backends.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called vhost_vdpa.
+
 config VHOST_CROSS_ENDIAN_LEGACY
 	bool "Cross-endian support for vhost"
 	default n
