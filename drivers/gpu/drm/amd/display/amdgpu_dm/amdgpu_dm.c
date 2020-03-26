@@ -6635,6 +6635,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 		if (new_pcrtc_state->color_mgmt_changed) {
 			bundle->surface_updates[planes_count].gamma = dc_plane->gamma_correction;
 			bundle->surface_updates[planes_count].in_transfer_func = dc_plane->in_transfer_func;
+			bundle->surface_updates[planes_count].gamut_remap_matrix = &dc_plane->gamut_remap_matrix;
 		}
 
 		fill_dc_scaling_info(new_plane_state,
@@ -8077,6 +8078,8 @@ dm_determine_update_type_for_commit(struct amdgpu_display_manager *dm,
 						new_dm_plane_state->dc_state->gamma_correction;
 				bundle->surface_updates[num_plane].in_transfer_func =
 						new_dm_plane_state->dc_state->in_transfer_func;
+				bundle->surface_updates[num_plane].gamut_remap_matrix =
+						&new_dm_plane_state->dc_state->gamut_remap_matrix;
 				bundle->stream_update.gamut_remap =
 						&new_dm_crtc_state->stream->gamut_remap_matrix;
 				bundle->stream_update.output_csc_transform =
