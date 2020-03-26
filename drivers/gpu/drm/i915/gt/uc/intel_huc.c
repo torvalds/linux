@@ -41,7 +41,7 @@ void intel_huc_init_early(struct intel_huc *huc)
 {
 	struct drm_i915_private *i915 = huc_to_gt(huc)->i915;
 
-	intel_huc_fw_init_early(huc);
+	intel_uc_fw_init_early(&huc->fw, INTEL_UC_FW_TYPE_HUC);
 
 	if (INTEL_GEN(i915) >= 11) {
 		huc->status.reg = GEN11_HUC_KERNEL_LOAD_INFO;

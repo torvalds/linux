@@ -11,14 +11,20 @@
 #include "intel_uc_fw_abi.h"
 #include "i915_drv.h"
 
+static inline struct intel_gt *
+____uc_fw_to_gt(struct intel_uc_fw *uc_fw, enum intel_uc_fw_type type)
+{
+	if (type == INTEL_UC_FW_TYPE_GUC)
+		return container_of(uc_fw, struct intel_gt, uc.guc.fw);
+
+	GEM_BUG_ON(type != INTEL_UC_FW_TYPE_HUC);
+	return container_of(uc_fw, struct intel_gt, uc.huc.fw);
+}
+
 static inline struct intel_gt *__uc_fw_to_gt(struct intel_uc_fw *uc_fw)
 {
 	GEM_BUG_ON(uc_fw->status == INTEL_UC_FIRMWARE_UNINITIALIZED);
-	if (uc_fw->type == INTEL_UC_FW_TYPE_GUC)
-		return container_of(uc_fw, struct intel_gt, uc.guc.fw);
-
-	GEM_BUG_ON(uc_fw->type != INTEL_UC_FW_TYPE_HUC);
-	return container_of(uc_fw, struct intel_gt, uc.huc.fw);
+	return ____uc_fw_to_gt(uc_fw, uc_fw->type);
 }
 
 #ifdef CONFIG_DRM_I915_DEBUG_GUC
@@ -195,9 +201,10 @@ static void __uc_fw_user_override(struct intel_uc_fw *uc_fw)
  * firmware to fetch and load.
  */
 void intel_uc_fw_init_early(struct intel_uc_fw *uc_fw,
-			    enum intel_uc_fw_type type, bool supported,
-			    enum intel_platform platform, u8 rev)
+			    enum intel_uc_fw_type type)
 {
+	struct drm_i915_private *i915 = ____uc_fw_to_gt(uc_fw, type)->i915;
+
 	/*
 	 * we use FIRMWARE_UNINITIALIZED to detect checks against uc_fw->status
 	 * before we're looked at the HW caps to see if we have uc support
@@ -208,8 +215,10 @@ void intel_uc_fw_init_early(struct intel_uc_fw *uc_fw,
 
 	uc_fw->type = type;
 
-	if (supported) {
-		__uc_fw_auto_select(uc_fw, platform, rev);
+	if (HAS_GT_UC(i915)) {
+		__uc_fw_auto_select(uc_fw,
+				    INTEL_INFO(i915)->platform,
+				    INTEL_REVID(i915));
 		__uc_fw_user_override(uc_fw);
 	}
 
