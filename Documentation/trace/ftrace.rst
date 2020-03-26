@@ -263,11 +263,38 @@ of ftrace. Here is a list of some of the key files:
 	traced by the function tracer as well. This option will also
 	cause PIDs of tasks that exit to be removed from the file.
 
+  set_ftrace_notrace_pid:
+
+        Have the function tracer ignore threads whose PID are listed in
+        this file.
+
+        If the "function-fork" option is set, then when a task whose
+	PID is listed in this file forks, the child's PID will
+	automatically be added to this file, and the child will not be
+	traced by the function tracer as well. This option will also
+	cause PIDs of tasks that exit to be removed from the file.
+
+        If a PID is in both this file and "set_ftrace_pid", then this
+        file takes precedence, and the thread will not be traced.
+
   set_event_pid:
 
 	Have the events only trace a task with a PID listed in this file.
 	Note, sched_switch and sched_wake_up will also trace events
 	listed in this file.
+
+	To have the PIDs of children of tasks with their PID in this file
+	added on fork, enable the "event-fork" option. That option will also
+	cause the PIDs of tasks to be removed from this file when the task
+	exits.
+
+  set_event_notrace_pid:
+
+	Have the events not trace a task with a PID listed in this file.
+	Note, sched_switch and sched_wakeup will trace threads not listed
+	in this file, even if a thread's PID is in the file if the
+        sched_switch or sched_wakeup events also trace a thread that should
+        be traced.
 
 	To have the PIDs of children of tasks with their PID in this file
 	added on fork, enable the "event-fork" option. That option will also
@@ -1183,6 +1210,8 @@ Here are the available options:
 	tasks fork. Also, when tasks with PIDs in set_event_pid exit,
 	their PIDs will be removed from the file.
 
+        This affects PIDs listed in set_event_notrace_pid as well.
+
   function-trace
 	The latency tracers will enable function tracing
 	if this option is enabled (default it is). When
@@ -1196,6 +1225,8 @@ Here are the available options:
 	when those tasks fork. Also, when tasks with PIDs in
 	set_ftrace_pid exit, their PIDs will be removed from the
 	file.
+
+        This affects PIDs in set_ftrace_notrace_pid as well.
 
   display-graph
 	When set, the latency tracers (irqsoff, wakeup, etc) will
