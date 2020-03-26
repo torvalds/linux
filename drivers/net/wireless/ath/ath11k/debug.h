@@ -112,6 +112,12 @@ enum ath11k_pktlog_enum {
 	ATH11K_PKTLOG_TYPE_LITE_RX      = 24,
 };
 
+enum ath11k_dbg_aggr_mode {
+	ATH11K_DBG_AGGR_MODE_AUTO,
+	ATH11K_DBG_AGGR_MODE_MANUAL,
+	ATH11K_DBG_AGGR_MODE_MAX,
+};
+
 __printf(2, 3) void ath11k_info(struct ath11k_base *ab, const char *fmt, ...);
 __printf(2, 3) void ath11k_err(struct ath11k_base *ab, const char *fmt, ...);
 __printf(2, 3) void ath11k_warn(struct ath11k_base *ab, const char *fmt, ...);
