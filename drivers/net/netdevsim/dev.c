@@ -39,23 +39,38 @@ static struct dentry *nsim_dev_ddir;
 
 #define NSIM_DEV_DUMMY_REGION_SIZE (1024 * 32)
 
-static ssize_t nsim_dev_take_snapshot_write(struct file *file,
-					    const char __user *data,
-					    size_t count, loff_t *ppos)
+static int
+nsim_dev_take_snapshot(struct devlink *devlink, struct netlink_ext_ack *extack,
+		       u8 **data)
 {
-	struct nsim_dev *nsim_dev = file->private_data;
-	struct devlink *devlink;
 	void *dummy_data;
-	int err;
-	u32 id;
-
-	devlink = priv_to_devlink(nsim_dev);
 
 	dummy_data = kmalloc(NSIM_DEV_DUMMY_REGION_SIZE, GFP_KERNEL);
 	if (!dummy_data)
 		return -ENOMEM;
 
 	get_random_bytes(dummy_data, NSIM_DEV_DUMMY_REGION_SIZE);
+
+	*data = dummy_data;
+
+	return 0;
+}
+
+static ssize_t nsim_dev_take_snapshot_write(struct file *file,
+					    const char __user *data,
+					    size_t count, loff_t *ppos)
+{
+	struct nsim_dev *nsim_dev = file->private_data;
+	struct devlink *devlink;
+	u8 *dummy_data;
+	int err;
+	u32 id;
+
+	devlink = priv_to_devlink(nsim_dev);
+
+	err = nsim_dev_take_snapshot(devlink, NULL, &dummy_data);
+	if (err)
+		return err;
 
 	err = devlink_region_snapshot_id_get(devlink, &id);
 	if (err) {
@@ -351,6 +366,7 @@ static void nsim_devlink_param_load_driverinit_values(struct devlink *devlink)
 static const struct devlink_region_ops dummy_region_ops = {
 	.name = "dummy",
 	.destructor = &kfree,
+	.snapshot = nsim_dev_take_snapshot,
 };
 
 static int nsim_dev_dummy_region_init(struct nsim_dev *nsim_dev,
