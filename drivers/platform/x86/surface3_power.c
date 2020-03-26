@@ -295,14 +295,7 @@ static int mshw0011_bst(struct mshw0011_data *cdata, struct bst *bst)
 
 static int mshw0011_adp_psr(struct mshw0011_data *cdata)
 {
-	struct i2c_client *client = cdata->adp1;
-	int ret;
-
-	ret = i2c_smbus_read_byte_data(client, MSHW0011_ADP1_REG_PSR);
-	if (ret < 0)
-		return ret;
-
-	return ret;
+	return i2c_smbus_read_byte_data(cdata->adp1, MSHW0011_ADP1_REG_PSR);
 }
 
 static int mshw0011_isr(struct mshw0011_data *cdata)
