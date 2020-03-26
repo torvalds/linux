@@ -223,6 +223,10 @@ static int vcn_v2_0_hw_init(void *handle)
 	if (r)
 		goto done;
 
+	//Disable vcn decode for sriov
+	if (amdgpu_sriov_vf(adev))
+		ring->sched.ready = false;
+
 	for (i = 0; i < adev->vcn.num_enc_rings; ++i) {
 		ring = &adev->vcn.inst->ring_enc[i];
 		r = amdgpu_ring_test_helper(ring);
