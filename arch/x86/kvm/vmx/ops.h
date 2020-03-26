@@ -12,7 +12,8 @@
 
 #define __ex(x) __kvm_handle_fault_on_reboot(x)
 
-asmlinkage void vmread_error(unsigned long field, bool fault);
+__attribute__((regparm(0))) void vmread_error_trampoline(unsigned long field,
+							 bool fault);
 void vmwrite_error(unsigned long field, unsigned long value);
 void vmclear_error(struct vmcs *vmcs, u64 phys_addr);
 void vmptrld_error(struct vmcs *vmcs, u64 phys_addr);
@@ -70,15 +71,28 @@ static __always_inline unsigned long __vmcs_readl(unsigned long field)
 	asm volatile("1: vmread %2, %1\n\t"
 		     ".byte 0x3e\n\t" /* branch taken hint */
 		     "ja 3f\n\t"
-		     "mov %2, %%" _ASM_ARG1 "\n\t"
-		     "xor %%" _ASM_ARG2 ", %%" _ASM_ARG2 "\n\t"
-		     "2: call vmread_error\n\t"
-		     "xor %k1, %k1\n\t"
+
+		     /*
+		      * VMREAD failed.  Push '0' for @fault, push the failing
+		      * @field, and bounce through the trampoline to preserve
+		      * volatile registers.
+		      */
+		     "push $0\n\t"
+		     "push %2\n\t"
+		     "2:call vmread_error_trampoline\n\t"
+
+		     /*
+		      * Unwind the stack.  Note, the trampoline zeros out the
+		      * memory for @fault so that the result is '0' on error.
+		      */
+		     "pop %2\n\t"
+		     "pop %1\n\t"
 		     "3:\n\t"
 
+		     /* VMREAD faulted.  As above, except push '1' for @fault. */
 		     ".pushsection .fixup, \"ax\"\n\t"
-		     "4: mov %2, %%" _ASM_ARG1 "\n\t"
-		     "mov $1, %%" _ASM_ARG2 "\n\t"
+		     "4: push $1\n\t"
+		     "push %2\n\t"
 		     "jmp 2b\n\t"
 		     ".popsection\n\t"
 		     _ASM_EXTABLE(1b, 4b)

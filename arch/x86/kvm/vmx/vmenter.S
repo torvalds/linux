@@ -234,3 +234,61 @@ SYM_FUNC_START(__vmx_vcpu_run)
 2:	mov $1, %eax
 	jmp 1b
 SYM_FUNC_END(__vmx_vcpu_run)
+
+/**
+ * vmread_error_trampoline - Trampoline from inline asm to vmread_error()
+ * @field:	VMCS field encoding that failed
+ * @fault:	%true if the VMREAD faulted, %false if it failed
+
+ * Save and restore volatile registers across a call to vmread_error().  Note,
+ * all parameters are passed on the stack.
+ */
+SYM_FUNC_START(vmread_error_trampoline)
+	push %_ASM_BP
+	mov  %_ASM_SP, %_ASM_BP
+
+	push %_ASM_AX
+	push %_ASM_CX
+	push %_ASM_DX
+#ifdef CONFIG_X86_64
+	push %rdi
+	push %rsi
+	push %r8
+	push %r9
+	push %r10
+	push %r11
+#endif
+#ifdef CONFIG_X86_64
+	/* Load @field and @fault to arg1 and arg2 respectively. */
+	mov 3*WORD_SIZE(%rbp), %_ASM_ARG2
+	mov 2*WORD_SIZE(%rbp), %_ASM_ARG1
+#else
+	/* Parameters are passed on the stack for 32-bit (see asmlinkage). */
+	push 3*WORD_SIZE(%ebp)
+	push 2*WORD_SIZE(%ebp)
+#endif
+
+	call vmread_error
+
+#ifndef CONFIG_X86_64
+	add $8, %esp
+#endif
+
+	/* Zero out @fault, which will be popped into the result register. */
+	_ASM_MOV $0, 3*WORD_SIZE(%_ASM_BP)
+
+#ifdef CONFIG_X86_64
+	pop %r11
+	pop %r10
+	pop %r9
+	pop %r8
+	pop %rsi
+	pop %rdi
+#endif
+	pop %_ASM_DX
+	pop %_ASM_CX
+	pop %_ASM_AX
+	pop %_ASM_BP
+
+	ret
+SYM_FUNC_END(vmread_error_trampoline)
