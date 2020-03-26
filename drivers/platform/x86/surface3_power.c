@@ -432,7 +432,7 @@ mshw0011_space_handler(u32 function, acpi_physical_address command,
 		ret = mshw0011_bst(cdata, &gsb->bst);
 		break;
 	default:
-		pr_info("command(0x%02x) is not supported.\n", gsb->cmd.arg1);
+		dev_info(&cdata->bat0->dev, "command(0x%02x) is not supported.\n", gsb->cmd.arg1);
 		ret = AE_BAD_PARAMETER;
 		goto err;
 	}
