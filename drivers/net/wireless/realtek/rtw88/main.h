@@ -574,6 +574,9 @@ struct rtw_tx_pkt_info {
 	bool short_gi;
 	bool report;
 	bool rts;
+	bool dis_qselseq;
+	bool en_hwseq;
+	u8 hw_ssn_sel;
 };
 
 struct rtw_rx_pkt_stat {
