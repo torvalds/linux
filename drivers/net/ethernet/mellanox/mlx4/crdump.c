@@ -38,8 +38,16 @@
 #define CR_ENABLE_BIT_OFFSET		0xF3F04
 #define MAX_NUM_OF_DUMPS_TO_STORE	(8)
 
-static const char *region_cr_space_str = "cr-space";
-static const char *region_fw_health_str = "fw-health";
+static const char * const region_cr_space_str = "cr-space";
+static const char * const region_fw_health_str = "fw-health";
+
+static const struct devlink_region_ops region_cr_space_ops = {
+	.name = region_cr_space_str,
+};
+
+static const struct devlink_region_ops region_fw_health_ops = {
+	.name = region_fw_health_str,
+};
 
 /* Set to true in case cr enable bit was set to true before crdump */
 static bool crdump_enbale_bit_set;
@@ -205,7 +213,7 @@ int mlx4_crdump_init(struct mlx4_dev *dev)
 	/* Create cr-space region */
 	crdump->region_crspace =
 		devlink_region_create(devlink,
-				      region_cr_space_str,
+				      &region_cr_space_ops,
 				      MAX_NUM_OF_DUMPS_TO_STORE,
 				      pci_resource_len(pdev, 0));
 	if (IS_ERR(crdump->region_crspace))
@@ -216,7 +224,7 @@ int mlx4_crdump_init(struct mlx4_dev *dev)
 	/* Create fw-health region */
 	crdump->region_fw_health =
 		devlink_region_create(devlink,
-				      region_fw_health_str,
+				      &region_fw_health_ops,
 				      MAX_NUM_OF_DUMPS_TO_STORE,
 				      HEALTH_BUFFER_SIZE);
 	if (IS_ERR(crdump->region_fw_health))

@@ -344,7 +344,7 @@ devlink_sb_tc_index_get_from_info(struct devlink_sb *devlink_sb,
 struct devlink_region {
 	struct devlink *devlink;
 	struct list_head list;
-	const char *name;
+	const struct devlink_region_ops *ops;
 	struct list_head snapshot_list;
 	u32 max_snapshots;
 	u32 cur_snapshots;
@@ -365,7 +365,7 @@ devlink_region_get_by_name(struct devlink *devlink, const char *region_name)
 	struct devlink_region *region;
 
 	list_for_each_entry(region, &devlink->region_list, list)
-		if (!strcmp(region->name, region_name))
+		if (!strcmp(region->ops->name, region_name))
 			return region;
 
 	return NULL;
@@ -3695,7 +3695,7 @@ static int devlink_nl_region_fill(struct sk_buff *msg, struct devlink *devlink,
 	if (err)
 		goto nla_put_failure;
 
-	err = nla_put_string(msg, DEVLINK_ATTR_REGION_NAME, region->name);
+	err = nla_put_string(msg, DEVLINK_ATTR_REGION_NAME, region->ops->name);
 	if (err)
 		goto nla_put_failure;
 
@@ -3741,7 +3741,7 @@ static void devlink_nl_region_notify(struct devlink_region *region,
 		goto out_cancel_msg;
 
 	err = nla_put_string(msg, DEVLINK_ATTR_REGION_NAME,
-			     region->name);
+			     region->ops->name);
 	if (err)
 		goto out_cancel_msg;
 
@@ -7648,21 +7648,21 @@ EXPORT_SYMBOL_GPL(devlink_param_value_str_fill);
  *	devlink_region_create - create a new address region
  *
  *	@devlink: devlink
- *	@region_name: region name
+ *	@ops: region operations and name
  *	@region_max_snapshots: Maximum supported number of snapshots for region
  *	@region_size: size of region
  */
-struct devlink_region *devlink_region_create(struct devlink *devlink,
-					     const char *region_name,
-					     u32 region_max_snapshots,
-					     u64 region_size)
+struct devlink_region *
+devlink_region_create(struct devlink *devlink,
+		      const struct devlink_region_ops *ops,
+		      u32 region_max_snapshots, u64 region_size)
 {
 	struct devlink_region *region;
 	int err = 0;
 
 	mutex_lock(&devlink->lock);
 
-	if (devlink_region_get_by_name(devlink, region_name)) {
+	if (devlink_region_get_by_name(devlink, ops->name)) {
 		err = -EEXIST;
 		goto unlock;
 	}
@@ -7675,7 +7675,7 @@ struct devlink_region *devlink_region_create(struct devlink *devlink,
 
 	region->devlink = devlink;
 	region->max_snapshots = region_max_snapshots;
-	region->name = region_name;
+	region->ops = ops;
 	region->size = region_size;
 	INIT_LIST_HEAD(&region->snapshot_list);
 	list_add_tail(&region->list, &devlink->region_list);

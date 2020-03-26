@@ -498,6 +498,14 @@ struct devlink_info_req;
 
 typedef void devlink_snapshot_data_dest_t(const void *data);
 
+/**
+ * struct devlink_region_ops - Region operations
+ * @name: region name
+ */
+struct devlink_region_ops {
+	const char *name;
+};
+
 struct devlink_fmsg;
 struct devlink_health_reporter;
 
@@ -963,10 +971,10 @@ void devlink_port_param_value_changed(struct devlink_port *devlink_port,
 				      u32 param_id);
 void devlink_param_value_str_fill(union devlink_param_value *dst_val,
 				  const char *src);
-struct devlink_region *devlink_region_create(struct devlink *devlink,
-					     const char *region_name,
-					     u32 region_max_snapshots,
-					     u64 region_size);
+struct devlink_region *
+devlink_region_create(struct devlink *devlink,
+		      const struct devlink_region_ops *ops,
+		      u32 region_max_snapshots, u64 region_size);
 void devlink_region_destroy(struct devlink_region *region);
 u32 devlink_region_snapshot_id_get(struct devlink *devlink);
 int devlink_region_snapshot_create(struct devlink_region *region,
