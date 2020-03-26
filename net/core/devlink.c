@@ -3769,6 +3769,19 @@ out_free_msg:
 }
 
 /**
+ *	__devlink_region_snapshot_id_get - get snapshot ID
+ *	@devlink: devlink instance
+ *
+ *	Returns a new snapshot id. Must be called while holding the
+ *	devlink instance lock.
+ */
+static u32 __devlink_region_snapshot_id_get(struct devlink *devlink)
+{
+	lockdep_assert_held(&devlink->lock);
+	return ++devlink->snapshot_id;
+}
+
+/**
  *	__devlink_region_snapshot_create - create a new snapshot
  *	This will add a new snapshot of a region. The snapshot
  *	will be stored on the region struct and can be accessed
@@ -7776,7 +7789,7 @@ u32 devlink_region_snapshot_id_get(struct devlink *devlink)
 	u32 id;
 
 	mutex_lock(&devlink->lock);
-	id = ++devlink->snapshot_id;
+	id = __devlink_region_snapshot_id_get(devlink);
 	mutex_unlock(&devlink->lock);
 
 	return id;
