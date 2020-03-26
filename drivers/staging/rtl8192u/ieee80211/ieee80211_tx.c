@@ -180,9 +180,8 @@ int ieee80211_encrypt_fragment(
 			struct rtl_80211_hdr_3addrqos *header;
 
 			header = (struct rtl_80211_hdr_3addrqos *)frag->data;
-			printk(KERN_DEBUG "%s: TKIP countermeasures: dropped "
-			       "TX packet to %pM\n",
-			       ieee->dev->name, header->addr1);
+			netdev_dbg(ieee->dev, "TKIP countermeasures: dropped "
+			       "TX packet to %pM\n", header->addr1);
 		}
 		return -1;
 	}
