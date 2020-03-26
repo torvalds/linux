@@ -47,13 +47,13 @@ static int vega10_copy_table_from_smc(struct pp_hwmgr *hwmgr,
 			"Invalid SMU Table version!", return -EINVAL);
 	PP_ASSERT_WITH_CODE(priv->smu_tables.entry[table_id].size != 0,
 			"Invalid SMU Table Length!", return -EINVAL);
-	smu9_send_msg_to_smc_with_parameter(hwmgr,
+	smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrHigh,
 			upper_32_bits(priv->smu_tables.entry[table_id].mc_addr));
-	smu9_send_msg_to_smc_with_parameter(hwmgr,
+	smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrLow,
 			lower_32_bits(priv->smu_tables.entry[table_id].mc_addr));
-	smu9_send_msg_to_smc_with_parameter(hwmgr,
+	smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_TransferTableSmu2Dram,
 			priv->smu_tables.entry[table_id].table_id);
 
@@ -90,13 +90,13 @@ static int vega10_copy_table_to_smc(struct pp_hwmgr *hwmgr,
 
 	amdgpu_asic_flush_hdp(adev, NULL);
 
-	smu9_send_msg_to_smc_with_parameter(hwmgr,
+	smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrHigh,
 			upper_32_bits(priv->smu_tables.entry[table_id].mc_addr));
-	smu9_send_msg_to_smc_with_parameter(hwmgr,
+	smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrLow,
 			lower_32_bits(priv->smu_tables.entry[table_id].mc_addr));
-	smu9_send_msg_to_smc_with_parameter(hwmgr,
+	smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_TransferTableDram2Smu,
 			priv->smu_tables.entry[table_id].table_id);
 
@@ -127,8 +127,8 @@ int vega10_get_enabled_smc_features(struct pp_hwmgr *hwmgr,
 	if (features_enabled == NULL)
 		return -EINVAL;
 
-	smu9_send_msg_to_smc(hwmgr, PPSMC_MSG_GetEnabledSmuFeatures);
-	*features_enabled = smu9_get_argument(hwmgr);
+	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetEnabledSmuFeatures);
+	*features_enabled = smum_get_argument(hwmgr);
 
 	return 0;
 }
@@ -150,10 +150,10 @@ static int vega10_set_tools_address(struct pp_hwmgr *hwmgr)
 	struct vega10_smumgr *priv = hwmgr->smu_backend;
 
 	if (priv->smu_tables.entry[TOOLSTABLE].mc_addr) {
-		smu9_send_msg_to_smc_with_parameter(hwmgr,
+		smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetToolsDramAddrHigh,
 				upper_32_bits(priv->smu_tables.entry[TOOLSTABLE].mc_addr));
-		smu9_send_msg_to_smc_with_parameter(hwmgr,
+		smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetToolsDramAddrLow,
 				lower_32_bits(priv->smu_tables.entry[TOOLSTABLE].mc_addr));
 	}
@@ -167,11 +167,11 @@ static int vega10_verify_smc_interface(struct pp_hwmgr *hwmgr)
 	uint32_t dev_id;
 	uint32_t rev_id;
 
-	PP_ASSERT_WITH_CODE(!smu9_send_msg_to_smc(hwmgr,
+	PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(hwmgr,
 			PPSMC_MSG_GetDriverIfVersion),
 			"Attempt to get SMC IF Version Number Failed!",
 			return -EINVAL);
-	smc_driver_if_version = smu9_get_argument(hwmgr);
+	smc_driver_if_version = smum_get_argument(hwmgr);
 
 	dev_id = adev->pdev->device;
 	rev_id = adev->pdev->revision;
