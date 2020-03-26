@@ -72,11 +72,17 @@ static const struct snd_kcontrol_new controls[] = {
 static const struct snd_kcontrol_new m98360a_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Headphone Jack"),
 	SOC_DAPM_PIN_SWITCH("Headset Mic"),
+	SOC_DAPM_PIN_SWITCH("Spk"),
 };
 
+/* For MAX98373 amp */
 static const struct snd_soc_dapm_widget widgets[] = {
 	SND_SOC_DAPM_HP("Headphone Jack", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
+
+	SND_SOC_DAPM_SPK("Left Spk", NULL),
+	SND_SOC_DAPM_SPK("Right Spk", NULL),
+
 	SND_SOC_DAPM_SUPPLY("Platform Clock", SND_SOC_NOPM, 0, 0,
 			    platform_clock_control, SND_SOC_DAPM_POST_PMD |
 			    SND_SOC_DAPM_PRE_PMU),
@@ -90,17 +96,33 @@ static const struct snd_soc_dapm_route audio_map[] = {
 
 	{ "Headphone Jack", NULL, "Platform Clock" },
 	{ "Headset Mic", NULL, "Platform Clock" },
-};
 
-/* For MAX98373 amp */
-static const struct snd_soc_dapm_widget max98373_widgets[] = {
-	SND_SOC_DAPM_SPK("Left Spk", NULL),
-	SND_SOC_DAPM_SPK("Right Spk", NULL),
-};
-
-static const struct snd_soc_dapm_route max98373_map[] = {
 	{ "Left Spk", NULL, "Left BE_OUT" },
 	{ "Right Spk", NULL, "Right BE_OUT" },
+};
+
+/* For MAX98360A amp */
+static const struct snd_soc_dapm_widget max98360a_widgets[] = {
+	SND_SOC_DAPM_HP("Headphone Jack", NULL),
+	SND_SOC_DAPM_MIC("Headset Mic", NULL),
+
+	SND_SOC_DAPM_SPK("Spk", NULL),
+
+	SND_SOC_DAPM_SUPPLY("Platform Clock", SND_SOC_NOPM, 0, 0,
+			    platform_clock_control, SND_SOC_DAPM_POST_PMD |
+			    SND_SOC_DAPM_PRE_PMU),
+};
+
+static const struct snd_soc_dapm_route max98360a_map[] = {
+	{ "Headphone Jack", NULL, "HPL" },
+	{ "Headphone Jack", NULL, "HPR" },
+
+	{ "MIC", NULL, "Headset Mic" },
+
+	{ "Headphone Jack", NULL, "Platform Clock" },
+	{ "Headset Mic", NULL, "Platform Clock" },
+
+	{"Spk", NULL, "Speaker"},
 };
 
 static struct snd_soc_jack headset;
@@ -142,21 +164,6 @@ static int da7219_codec_init(struct snd_soc_pcm_runtime *rtd)
 	da7219_aad_jack_det(component, jack);
 
 	return ret;
-}
-
-static int speaker_amp_init(struct snd_soc_pcm_runtime *rtd)
-{
-	int ret;
-
-	/* Add widgets */
-	ret = snd_soc_dapm_new_controls(&rtd->card->dapm, max98373_widgets,
-					ARRAY_SIZE(max98373_widgets));
-	if (ret)
-		return ret;
-
-	/* Add routes */
-	return snd_soc_dapm_add_routes(&rtd->card->dapm, max98373_map,
-				       ARRAY_SIZE(max98373_map));
 }
 
 static int ssp1_hw_params(struct snd_pcm_substream *substream,
@@ -249,8 +256,9 @@ SND_SOC_DAILINK_DEF(ssp1_amps,
 	DAILINK_COMP_ARRAY(
 	/* Left */	COMP_CODEC(MAXIM_DEV0_NAME, MAX98373_CODEC_DAI),
 	/* Right */	COMP_CODEC(MAXIM_DEV1_NAME, MAX98373_CODEC_DAI)));
-/* For the driver-less spk amp */
-SND_SOC_DAILINK_DEF(dummy, DAILINK_COMP_ARRAY(COMP_DUMMY()));
+
+SND_SOC_DAILINK_DEF(ssp1_m98360a,
+	DAILINK_COMP_ARRAY(COMP_CODEC("MX98360A:00", "HiFi")));
 
 SND_SOC_DAILINK_DEF(dmic_pin,
 	DAILINK_COMP_ARRAY(COMP_CPU("DMIC01 Pin")));
@@ -282,7 +290,6 @@ static struct snd_soc_dai_link dais[] = {
 		.id = 0,
 		.ignore_pmdown_time = 1,
 		.no_pcm = 1,
-		.init = speaker_amp_init,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1, /* IV feedback */
 		.ops = &ssp1_ops,
@@ -356,10 +363,10 @@ static struct snd_soc_card card_da7219_m98360a = {
 	.num_links = ARRAY_SIZE(dais),
 	.controls = m98360a_controls,
 	.num_controls = ARRAY_SIZE(m98360a_controls),
-	.dapm_widgets = widgets,
-	.num_dapm_widgets = ARRAY_SIZE(widgets),
-	.dapm_routes = audio_map,
-	.num_dapm_routes = ARRAY_SIZE(audio_map),
+	.dapm_widgets = max98360a_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(max98360a_widgets),
+	.dapm_routes = max98360a_map,
+	.num_dapm_routes = ARRAY_SIZE(max98360a_map),
 	.fully_routed = true,
 	.late_probe = card_late_probe,
 };
@@ -383,7 +390,7 @@ static int audio_probe(struct platform_device *pdev)
 			.no_pcm = 1,
 			.dpcm_playback = 1,
 			.ignore_pmdown_time = 1,
-			SND_SOC_DAILINK_REG(ssp1_pin, dummy, platform) };
+			SND_SOC_DAILINK_REG(ssp1_pin, ssp1_m98360a, platform) };
 	}
 
 	INIT_LIST_HEAD(&ctx->hdmi_pcm_list);
