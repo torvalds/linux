@@ -123,11 +123,12 @@ static irqreturn_t rockchip_mbox_irq(int irq, void *dev_id)
 			msg.data = readl_relaxed(mb->mbox_base +
 						 MAILBOX_B2A_DAT(idx));
 
-			mbox_chan_received_data(&mb->mbox.chans[idx], &msg);
-
 			dev_dbg(mb->mbox.dev, "Chan[%d]: B2A message, cmd 0x%08x, data 0x%08x\n",
 				idx, msg.cmd, msg.data);
 
+			if (mb->mbox.chans[idx].cl)
+				mbox_chan_received_data(&mb->mbox.chans[idx],
+							&msg);
 			/* Clear mbox interrupt */
 			writel_relaxed(1U << idx,
 				       mb->mbox_base + MAILBOX_B2A_STATUS);
