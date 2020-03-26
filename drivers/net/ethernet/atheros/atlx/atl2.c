@@ -37,7 +37,6 @@
 #include "atl2.h"
 
 static const char atl2_driver_name[] = "atl2";
-static const char atl2_driver_string[] = "Atheros(R) L2 Ethernet Driver";
 static const struct ethtool_ops atl2_ethtool_ops;
 
 MODULE_AUTHOR("Atheros Corporation <xiong.huang@atheros.com>, Chris Snook <csnook@redhat.com>");
