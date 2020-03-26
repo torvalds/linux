@@ -87,7 +87,8 @@ int amdgpu_job_alloc(struct amdgpu_device *adev, unsigned num_ibs,
 }
 
 int amdgpu_job_alloc_with_ib(struct amdgpu_device *adev, unsigned size,
-			     struct amdgpu_job **job)
+		enum amdgpu_ib_pool_type pool_type,
+		struct amdgpu_job **job)
 {
 	int r;
 
@@ -95,7 +96,7 @@ int amdgpu_job_alloc_with_ib(struct amdgpu_device *adev, unsigned size,
 	if (r)
 		return r;
 
-	r = amdgpu_ib_get(adev, NULL, size, &(*job)->ibs[0]);
+	r = amdgpu_ib_get(adev, NULL, size, pool_type, &(*job)->ibs[0]);
 	if (r)
 		kfree(*job);
 

@@ -388,6 +388,13 @@ struct amdgpu_sa_bo {
 int amdgpu_fence_slab_init(void);
 void amdgpu_fence_slab_fini(void);
 
+enum amdgpu_ib_pool_type {
+	AMDGPU_IB_POOL_NORMAL = 0,
+	AMDGPU_IB_POOL_VM,
+	AMDGPU_IB_POOL_DIRECT,
+
+	AMDGPU_IB_POOL_MAX
+};
 /*
  * IRQS.
  */
@@ -439,7 +446,9 @@ struct amdgpu_fpriv {
 int amdgpu_file_to_fpriv(struct file *filp, struct amdgpu_fpriv **fpriv);
 
 int amdgpu_ib_get(struct amdgpu_device *adev, struct amdgpu_vm *vm,
-		  unsigned size, struct amdgpu_ib *ib);
+		  unsigned size,
+		  enum amdgpu_ib_pool_type pool,
+		  struct amdgpu_ib *ib);
 void amdgpu_ib_free(struct amdgpu_device *adev, struct amdgpu_ib *ib,
 		    struct dma_fence *f);
 int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
@@ -843,7 +852,7 @@ struct amdgpu_device {
 	unsigned			num_rings;
 	struct amdgpu_ring		*rings[AMDGPU_MAX_RINGS];
 	bool				ib_pool_ready;
-	struct amdgpu_sa_manager	ring_tmp_bo;
+	struct amdgpu_sa_manager	ring_tmp_bo[AMDGPU_IB_POOL_MAX];
 
 	/* interrupts */
 	struct amdgpu_irq		irq;

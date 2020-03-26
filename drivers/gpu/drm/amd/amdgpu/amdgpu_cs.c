@@ -924,7 +924,7 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 
 		ring = to_amdgpu_ring(entity->rq->sched);
 		r =  amdgpu_ib_get(adev, vm, ring->funcs->parse_cs ?
-				   chunk_ib->ib_bytes : 0, ib);
+				   chunk_ib->ib_bytes : 0, AMDGPU_IB_POOL_NORMAL, ib);
 		if (r) {
 			DRM_ERROR("Failed to get ib !\n");
 			return r;

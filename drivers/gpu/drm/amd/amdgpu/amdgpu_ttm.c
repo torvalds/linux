@@ -2043,7 +2043,8 @@ static int amdgpu_map_buffer(struct ttm_buffer_object *bo,
 	num_dw = ALIGN(adev->mman.buffer_funcs->copy_num_dw, 8);
 	num_bytes = num_pages * 8;
 
-	r = amdgpu_job_alloc_with_ib(adev, num_dw * 4 + num_bytes, &job);
+	r = amdgpu_job_alloc_with_ib(adev, num_dw * 4 + num_bytes,
+									AMDGPU_IB_POOL_NORMAL, &job);
 	if (r)
 		return r;
 
@@ -2102,7 +2103,8 @@ int amdgpu_copy_buffer(struct amdgpu_ring *ring, uint64_t src_offset,
 	num_loops = DIV_ROUND_UP(byte_count, max_bytes);
 	num_dw = ALIGN(num_loops * adev->mman.buffer_funcs->copy_num_dw, 8);
 
-	r = amdgpu_job_alloc_with_ib(adev, num_dw * 4, &job);
+	r = amdgpu_job_alloc_with_ib(adev, num_dw * 4,
+			direct_submit ? AMDGPU_IB_POOL_DIRECT : AMDGPU_IB_POOL_NORMAL, &job);
 	if (r)
 		return r;
 
@@ -2191,7 +2193,7 @@ int amdgpu_fill_buffer(struct amdgpu_bo *bo,
 	/* for IB padding */
 	num_dw += 64;
 
-	r = amdgpu_job_alloc_with_ib(adev, num_dw * 4, &job);
+	r = amdgpu_job_alloc_with_ib(adev, num_dw * 4, AMDGPU_IB_POOL_NORMAL, &job);
 	if (r)
 		return r;
 
