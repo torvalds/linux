@@ -2179,6 +2179,19 @@ int kprobe_add_area_blacklist(unsigned long start, unsigned long end)
 	return 0;
 }
 
+/* Remove all symbols in given area from kprobe blacklist */
+static void kprobe_remove_area_blacklist(unsigned long start, unsigned long end)
+{
+	struct kprobe_blacklist_entry *ent, *n;
+
+	list_for_each_entry_safe(ent, n, &kprobe_blacklist, list) {
+		if (ent->start_addr < start || ent->start_addr >= end)
+			continue;
+		list_del(&ent->list);
+		kfree(ent);
+	}
+}
+
 int __init __weak arch_populate_kprobe_blacklist(void)
 {
 	return 0;
@@ -2215,6 +2228,28 @@ static int __init populate_kprobe_blacklist(unsigned long *start,
 	return ret ? : arch_populate_kprobe_blacklist();
 }
 
+static void add_module_kprobe_blacklist(struct module *mod)
+{
+	unsigned long start, end;
+
+	start = (unsigned long)mod->kprobes_text_start;
+	if (start) {
+		end = start + mod->kprobes_text_size;
+		kprobe_add_area_blacklist(start, end);
+	}
+}
+
+static void remove_module_kprobe_blacklist(struct module *mod)
+{
+	unsigned long start, end;
+
+	start = (unsigned long)mod->kprobes_text_start;
+	if (start) {
+		end = start + mod->kprobes_text_size;
+		kprobe_remove_area_blacklist(start, end);
+	}
+}
+
 /* Module notifier call back, checking kprobes on the module */
 static int kprobes_module_callback(struct notifier_block *nb,
 				   unsigned long val, void *data)
@@ -2225,6 +2260,11 @@ static int kprobes_module_callback(struct notifier_block *nb,
 	unsigned int i;
 	int checkcore = (val == MODULE_STATE_GOING);
 
+	if (val == MODULE_STATE_COMING) {
+		mutex_lock(&kprobe_mutex);
+		add_module_kprobe_blacklist(mod);
+		mutex_unlock(&kprobe_mutex);
+	}
 	if (val != MODULE_STATE_GOING && val != MODULE_STATE_LIVE)
 		return NOTIFY_DONE;
 
@@ -2255,6 +2295,8 @@ static int kprobes_module_callback(struct notifier_block *nb,
 				kill_kprobe(p);
 			}
 	}
+	if (val == MODULE_STATE_GOING)
+		remove_module_kprobe_blacklist(mod);
 	mutex_unlock(&kprobe_mutex);
 	return NOTIFY_DONE;
 }
