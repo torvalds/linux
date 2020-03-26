@@ -33,6 +33,12 @@
 #define MXC_CPU_IMX7D		0x72
 #define MXC_CPU_IMX7ULP		0xff
 
+#define MXC_CPU_VFx10		0x010
+#define MXC_CPU_VF500		0x500
+#define MXC_CPU_VF510		(MXC_CPU_VF500 | MXC_CPU_VFx10)
+#define MXC_CPU_VF600		0x600
+#define MXC_CPU_VF610		(MXC_CPU_VF600 | MXC_CPU_VFx10)
+
 #define IMX_DDR_TYPE_LPDDR2		1
 
 #ifndef __ASSEMBLY__

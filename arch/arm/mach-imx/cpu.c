@@ -172,6 +172,22 @@ struct device * __init imx_soc_device_init(void)
 		ocotp_compat = "fsl,imx7ulp-ocotp";
 		soc_id = "i.MX7ULP";
 		break;
+	case MXC_CPU_VF500:
+		ocotp_compat = "fsl,vf610-ocotp";
+		soc_id = "VF500";
+		break;
+	case MXC_CPU_VF510:
+		ocotp_compat = "fsl,vf610-ocotp";
+		soc_id = "VF510";
+		break;
+	case MXC_CPU_VF600:
+		ocotp_compat = "fsl,vf610-ocotp";
+		soc_id = "VF600";
+		break;
+	case MXC_CPU_VF610:
+		ocotp_compat = "fsl,vf610-ocotp";
+		soc_id = "VF610";
+		break;
 	default:
 		soc_id = "Unknown";
 	}
