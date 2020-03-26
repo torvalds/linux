@@ -4738,6 +4738,8 @@ static void nl80211_check_ap_rate_selectors(struct cfg80211_ap_settings *params,
 			params->ht_required = true;
 		if (rates[2 + i] == BSS_MEMBERSHIP_SELECTOR_VHT_PHY)
 			params->vht_required = true;
+		if (rates[2 + i] == BSS_MEMBERSHIP_SELECTOR_HE_PHY)
+			params->he_required = true;
 	}
 }
 
