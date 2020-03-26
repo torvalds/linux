@@ -159,14 +159,14 @@ PNAME(mux_uart3_p)			= { "sclk_uart3_div", "sclk_uart3_frac", "xin24m" };
 PNAME(mux_uart4_p)			= { "sclk_uart4_div", "sclk_uart4_frac", "xin24m" };
 PNAME(mux_uart5_p)			= { "sclk_uart5_div", "sclk_uart5_frac", "xin24m" };
 PNAME(mux_cpll_gpll_p)			= { "cpll", "gpll" };
-PNAME(mux_i2s8ch_tx_p)			= { "mclk_i2s8ch_tx_div", "mclk_i2s8ch_tx_fracdiv", "i2s8ch_mclkin", "xin12m" };
-PNAME(mux_i2s8ch_rx_p)			= { "mclk_i2s8ch_rx_div", "mclk_i2s8ch_rx_fracdiv", "i2s8ch_mclkin", "xin12m" };
-PNAME(mux_i2s8ch_tx_out2io_p)		= { "mclk_i2s8ch_tx", "xin12m" };
-PNAME(mux_i2s8ch_rx_out2io_p)		= { "mclk_i2s8ch_rx", "xin12m" };
-PNAME(mux_i2s2ch0_p)			= { "mclk_i2s2ch0_div", "mclk_i2s2ch0_fracdiv", "i2s2ch0_mclkin", "xin12m" };
-PNAME(mux_i2s2ch0_out2io_p)		= { "mclk_i2s2ch0", "xin12m" };
-PNAME(mux_i2s2ch1_p)			= { "mclk_i2s2ch1_div", "mclk_i2s2ch1_fracdiv", "i2s2ch1_mclkin", "xin12m" };
-PNAME(mux_i2s2ch1_out2io_p)		= { "mclk_i2s2ch1", "xin12m" };
+PNAME(mux_i2s0_tx_p)			= { "mclk_i2s0_tx_div", "mclk_i2s0_tx_fracdiv", "i2s0_mclkin", "xin12m" };
+PNAME(mux_i2s0_rx_p)			= { "mclk_i2s0_rx_div", "mclk_i2s0_rx_fracdiv", "i2s0_mclkin", "xin12m" };
+PNAME(mux_i2s0_tx_out2io_p)		= { "mclk_i2s0_tx", "xin12m" };
+PNAME(mux_i2s0_rx_out2io_p)		= { "mclk_i2s0_rx", "xin12m" };
+PNAME(mux_i2s1_p)			= { "mclk_i2s1_div", "mclk_i2s1_fracdiv", "i2s1_mclkin", "xin12m" };
+PNAME(mux_i2s1_out2io_p)		= { "mclk_i2s1", "xin12m" };
+PNAME(mux_i2s2_p)			= { "mclk_i2s2_div", "mclk_i2s2_fracdiv", "i2s2_mclkin", "xin12m" };
+PNAME(mux_i2s2_out2io_p)		= { "mclk_i2s2", "xin12m" };
 PNAME(mux_gpll_cpll_xin24m_p)		= { "gpll", "cpll", "xin24m" };
 PNAME(mux_audpwm_p)			= { "sclk_audpwm_div", "sclk_audpwm_fracdiv", "xin24m" };
 PNAME(mux_cpll_hpll_gpll_p)		= { "cpll", "hpll", "gpll" };
@@ -245,20 +245,20 @@ static struct rockchip_clk_branch rv1126_uart5_fracmux __initdata =
 	MUX(SCLK_UART5_MUX, "sclk_uart5_mux", mux_uart5_p, CLK_SET_RATE_PARENT,
 			RV1126_CLKSEL_CON(18), 10, 2, MFLAGS);
 
-static struct rockchip_clk_branch rv1126_i2s8ch_tx_fracmux __initdata =
-	MUX(MCLK_I2S8CH_TX_MUX, "mclk_i2s8ch_tx_mux", mux_i2s8ch_tx_p, CLK_SET_RATE_PARENT,
+static struct rockchip_clk_branch rv1126_i2s0_tx_fracmux __initdata =
+	MUX(MCLK_I2S0_TX_MUX, "mclk_i2s0_tx_mux", mux_i2s0_tx_p, CLK_SET_RATE_PARENT,
 			RV1126_CLKSEL_CON(30), 0, 2, MFLAGS);
 
-static struct rockchip_clk_branch rv1126_i2s8ch_rx_fracmux __initdata =
-	MUX(MCLK_I2S8CH_RX_MUX, "mclk_i2s8ch_rx_mux", mux_i2s8ch_rx_p, CLK_SET_RATE_PARENT,
+static struct rockchip_clk_branch rv1126_i2s0_rx_fracmux __initdata =
+	MUX(MCLK_I2S0_RX_MUX, "mclk_i2s0_rx_mux", mux_i2s0_rx_p, CLK_SET_RATE_PARENT,
 			RV1126_CLKSEL_CON(30), 2, 2, MFLAGS);
 
-static struct rockchip_clk_branch rv1126_i2s2ch0_fracmux __initdata =
-	MUX(MCLK_I2S2CH0_MUX, "mclk_i2s2ch0_mux", mux_i2s2ch0_p, CLK_SET_RATE_PARENT,
+static struct rockchip_clk_branch rv1126_i2s1_fracmux __initdata =
+	MUX(MCLK_I2S1_MUX, "mclk_i2s1_mux", mux_i2s1_p, CLK_SET_RATE_PARENT,
 			RV1126_CLKSEL_CON(31), 8, 2, MFLAGS);
 
-static struct rockchip_clk_branch rv1126_i2s2ch1_fracmux __initdata =
-	MUX(MCLK_I2S2CH1_MUX, "mclk_i2s2ch1_mux", mux_i2s2ch1_p, CLK_SET_RATE_PARENT,
+static struct rockchip_clk_branch rv1126_i2s2_fracmux __initdata =
+	MUX(MCLK_I2S2_MUX, "mclk_i2s2_mux", mux_i2s2_p, CLK_SET_RATE_PARENT,
 			RV1126_CLKSEL_CON(33), 8, 2, MFLAGS);
 
 static struct rockchip_clk_branch rv1126_audpwm_fracmux __initdata =
@@ -737,59 +737,59 @@ static struct rockchip_clk_branch rv1126_clk_branches[] __initdata = {
 	GATE(0, "pclk_pdaudio_niu", "hclk_pdaudio", CLK_IGNORE_UNUSED,
 			RV1126_CLKGATE_CON(9), 3, GFLAGS),
 
-	GATE(HCLK_I2S8CH, "hclk_i2s8ch", "hclk_pdaudio", 0,
+	GATE(HCLK_I2S0, "hclk_i2s0", "hclk_pdaudio", 0,
 			RV1126_CLKGATE_CON(9), 4, GFLAGS),
-	COMPOSITE(MCLK_I2S8CH_TX_DIV, "mclk_i2s8ch_tx_div", mux_cpll_gpll_p, 0,
+	COMPOSITE(MCLK_I2S0_TX_DIV, "mclk_i2s0_tx_div", mux_cpll_gpll_p, 0,
 			RV1126_CLKSEL_CON(27), 7, 1, MFLAGS, 0, 7, DFLAGS,
 			RV1126_CLKGATE_CON(9), 5, GFLAGS),
-	COMPOSITE_FRACMUX(MCLK_I2S8CH_TX_FRACDIV, "mclk_i2s8ch_tx_fracdiv", "mclk_i2s8ch_tx_div", 0,
+	COMPOSITE_FRACMUX(MCLK_I2S0_TX_FRACDIV, "mclk_i2s0_tx_fracdiv", "mclk_i2s0_tx_div", 0,
 			RV1126_CLKSEL_CON(28), 0,
 			RV1126_CLKGATE_CON(9), 6, GFLAGS,
-			&rv1126_i2s8ch_tx_fracmux, RV1126_FRAC_MAX_PRATE),
-	GATE(MCLK_I2S8CH_TX, "mclk_i2s8ch_tx", "mclk_i2s8ch_tx_mux", 0,
+			&rv1126_i2s0_tx_fracmux, RV1126_FRAC_MAX_PRATE),
+	GATE(MCLK_I2S0_TX, "mclk_i2s0_tx", "mclk_i2s0_tx_mux", 0,
 			RV1126_CLKGATE_CON(9), 9, GFLAGS),
-	COMPOSITE(MCLK_I2S8CH_RX_DIV, "mclk_i2s8ch_rx_div", mux_cpll_gpll_p, 0,
+	COMPOSITE(MCLK_I2S0_RX_DIV, "mclk_i2s0_rx_div", mux_cpll_gpll_p, 0,
 			RV1126_CLKSEL_CON(27), 15, 1, MFLAGS, 8, 7, DFLAGS,
 			RV1126_CLKGATE_CON(9), 7, GFLAGS),
-	COMPOSITE_FRACMUX(MCLK_I2S8CH_RX_FRACDIV, "mclk_i2s8ch_rx_fracdiv", "mclk_i2s8ch_rx_div", 0,
+	COMPOSITE_FRACMUX(MCLK_I2S0_RX_FRACDIV, "mclk_i2s0_rx_fracdiv", "mclk_i2s0_rx_div", 0,
 			RV1126_CLKSEL_CON(29), 0,
 			RV1126_CLKGATE_CON(9), 8, GFLAGS,
-			&rv1126_i2s8ch_rx_fracmux, RV1126_FRAC_MAX_PRATE),
-	GATE(MCLK_I2S8CH_RX, "mclk_i2s8ch_rx", "mclk_i2s8ch_rx_mux", 0,
+			&rv1126_i2s0_rx_fracmux, RV1126_FRAC_MAX_PRATE),
+	GATE(MCLK_I2S0_RX, "mclk_i2s0_rx", "mclk_i2s0_rx_mux", 0,
 			RV1126_CLKGATE_CON(9), 10, GFLAGS),
-	COMPOSITE_NODIV(MCLK_I2S8CH_TX_OUT2IO, "mclk_i2s8ch_tx_out2io", mux_i2s8ch_tx_out2io_p, 0,
+	COMPOSITE_NODIV(MCLK_I2S0_TX_OUT2IO, "mclk_i2s0_tx_out2io", mux_i2s0_tx_out2io_p, 0,
 			RV1126_CLKSEL_CON(30), 6, 1, MFLAGS,
 			RV1126_CLKGATE_CON(9), 13, GFLAGS),
-	COMPOSITE_NODIV(MCLK_I2S8CH_RX_OUT2IO, "mclk_i2s8ch_rx_out2io", mux_i2s8ch_rx_out2io_p, 0,
+	COMPOSITE_NODIV(MCLK_I2S0_RX_OUT2IO, "mclk_i2s0_rx_out2io", mux_i2s0_rx_out2io_p, 0,
 			RV1126_CLKSEL_CON(30), 8, 1, MFLAGS,
 			RV1126_CLKGATE_CON(9), 14, GFLAGS),
 
-	GATE(HCLK_I2S2CH0, "hclk_i2s2ch0", "hclk_pdaudio", 0,
+	GATE(HCLK_I2S1, "hclk_i2s1", "hclk_pdaudio", 0,
 			RV1126_CLKGATE_CON(10), 0, GFLAGS),
-	COMPOSITE(MCLK_I2S2CH0_DIV, "mclk_i2s2ch0_div", mux_cpll_gpll_p, 0,
+	COMPOSITE(MCLK_I2S1_DIV, "mclk_i2s1_div", mux_cpll_gpll_p, 0,
 			RV1126_CLKSEL_CON(31), 7, 1, MFLAGS, 0, 7, DFLAGS,
 			RV1126_CLKGATE_CON(10), 1, GFLAGS),
-	COMPOSITE_FRACMUX(MCLK_I2S2CH0_FRACDIV, "mclk_i2s2ch0_fracdiv", "mclk_i2s2ch0_div", 0,
+	COMPOSITE_FRACMUX(MCLK_I2S1_FRACDIV, "mclk_i2s1_fracdiv", "mclk_i2s1_div", 0,
 			RV1126_CLKSEL_CON(32), 0,
 			RV1126_CLKGATE_CON(10), 2, GFLAGS,
-			&rv1126_i2s2ch0_fracmux, RV1126_FRAC_MAX_PRATE),
-	GATE(MCLK_I2S2CH0, "mclk_i2s2ch0", "mclk_i2s2ch0_mux", 0,
+			&rv1126_i2s1_fracmux, RV1126_FRAC_MAX_PRATE),
+	GATE(MCLK_I2S1, "mclk_i2s1", "mclk_i2s1_mux", 0,
 			RV1126_CLKGATE_CON(10), 3, GFLAGS),
-	COMPOSITE_NODIV(MCLK_I2S2CH0_OUT2IO, "mclk_i2s2ch0_out2io", mux_i2s2ch0_out2io_p, 0,
+	COMPOSITE_NODIV(MCLK_I2S1_OUT2IO, "mclk_i2s1_out2io", mux_i2s1_out2io_p, 0,
 			RV1126_CLKSEL_CON(31), 12, 1, MFLAGS,
 			RV1126_CLKGATE_CON(10), 4, GFLAGS),
-	GATE(HCLK_I2S2CH1, "hclk_i2s2ch1", "hclk_pdaudio", 0,
+	GATE(HCLK_I2S2, "hclk_i2s2", "hclk_pdaudio", 0,
 			RV1126_CLKGATE_CON(10), 5, GFLAGS),
-	COMPOSITE(MCLK_I2S2CH1_DIV, "mclk_i2s2ch1_div", mux_cpll_gpll_p, 0,
+	COMPOSITE(MCLK_I2S2_DIV, "mclk_i2s2_div", mux_cpll_gpll_p, 0,
 			RV1126_CLKSEL_CON(33), 7, 1, MFLAGS, 0, 7, DFLAGS,
 			RV1126_CLKGATE_CON(10), 6, GFLAGS),
-	COMPOSITE_FRACMUX(MCLK_I2S2CH1_FRACDIV, "mclk_i2s2ch1_fracdiv", "mclk_i2s2ch1_div", 0,
+	COMPOSITE_FRACMUX(MCLK_I2S2_FRACDIV, "mclk_i2s2_fracdiv", "mclk_i2s2_div", 0,
 			RV1126_CLKSEL_CON(34), 0,
 			RV1126_CLKGATE_CON(10), 7, GFLAGS,
-			&rv1126_i2s2ch1_fracmux, RV1126_FRAC_MAX_PRATE),
-	GATE(MCLK_I2S2CH1, "mclk_i2s2ch1", "mclk_i2s2ch1_mux", 0,
+			&rv1126_i2s2_fracmux, RV1126_FRAC_MAX_PRATE),
+	GATE(MCLK_I2S2, "mclk_i2s2", "mclk_i2s2_mux", 0,
 			RV1126_CLKGATE_CON(10), 8, GFLAGS),
-	COMPOSITE_NODIV(MCLK_I2S2CH1_OUT2IO, "mclk_i2s2ch1_out2io", mux_i2s2ch1_out2io_p, 0,
+	COMPOSITE_NODIV(MCLK_I2S2_OUT2IO, "mclk_i2s2_out2io", mux_i2s2_out2io_p, 0,
 			RV1126_CLKSEL_CON(33), 10, 1, MFLAGS,
 			RV1126_CLKGATE_CON(10), 9, GFLAGS),
 

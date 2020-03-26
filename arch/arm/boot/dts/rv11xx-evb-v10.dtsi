@@ -735,11 +735,11 @@
 		rk809_codec: codec {
 			#sound-dai-cells = <0>;
 			compatible = "rockchip,rk809-codec", "rockchip,rk817-codec";
-			clocks = <&cru MCLK_I2S8CH_TX_OUT2IO>;
+			clocks = <&cru MCLK_I2S0_TX_OUT2IO>;
 			clock-names = "mclk";
 			pinctrl-names = "default";
-			assigned-clocks = <&cru MCLK_I2S8CH_TX_OUT2IO>;
-			assigned-clock-parents = <&cru MCLK_I2S8CH_TX>;
+			assigned-clocks = <&cru MCLK_I2S0_TX_OUT2IO>;
+			assigned-clock-parents = <&cru MCLK_I2S0_TX>;
 			pinctrl-0 = <&i2s0m0_mclk>;
 			hp-volume = <20>;
 			spk-volume = <3>;
