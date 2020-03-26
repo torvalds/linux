@@ -85,21 +85,21 @@ smp_store_release() respectively. Therefore, if you find yourself only using
 the Non-RMW operations of atomic_t, you do not in fact need atomic_t at all
 and are doing it wrong.
 
-A subtle detail of atomic_set{}() is that it should be observable to the RMW
-ops. That is:
+A note for the implementation of atomic_set{}() is that it must not break the
+atomicity of the RMW ops. That is:
 
-  C atomic-set
+  C Atomic-RMW-ops-are-atomic-WRT-atomic_set
 
   {
-    atomic_set(v, 1);
+    atomic_t v = ATOMIC_INIT(1);
+  }
+
+  P0(atomic_t *v)
+  {
+    (void)atomic_add_unless(v, 1, 0);
   }
 
   P1(atomic_t *v)
-  {
-    atomic_add_unless(v, 1, 0);
-  }
-
-  P2(atomic_t *v)
   {
     atomic_set(v, 0);
   }
