@@ -191,13 +191,6 @@ int smu7_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg)
 	return 0;
 }
 
-int smu7_send_msg_to_smc_without_waiting(struct pp_hwmgr *hwmgr, uint16_t msg)
-{
-	cgs_write_register(hwmgr->device, mmSMC_MESSAGE_0, msg);
-
-	return 0;
-}
-
 int smu7_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr, uint16_t msg, uint32_t parameter)
 {
 	PHM_WAIT_FIELD_UNEQUAL(hwmgr, SMC_RESP_0, SMC_RESP, 0);
@@ -205,13 +198,6 @@ int smu7_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr, uint16_t msg, ui
 	cgs_write_register(hwmgr->device, mmSMC_MSG_ARG_0, parameter);
 
 	return smu7_send_msg_to_smc(hwmgr, msg);
-}
-
-int smu7_send_msg_to_smc_with_parameter_without_waiting(struct pp_hwmgr *hwmgr, uint16_t msg, uint32_t parameter)
-{
-	cgs_write_register(hwmgr->device, mmSMC_MSG_ARG_0, parameter);
-
-	return smu7_send_msg_to_smc_without_waiting(hwmgr, msg);
 }
 
 uint32_t smu7_get_argument(struct pp_hwmgr *hwmgr)
