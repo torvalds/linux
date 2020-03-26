@@ -1093,7 +1093,7 @@ static int rtw_wx_get_range(struct net_device *dev,
 /*  Commented by Albert 2009/10/13 */
 /*  The following code will proivde the security capability to network manager. */
 /*  If the driver doesn't provide this capability to network manager, */
-/*  the WPA/WPA2 routers can't be choosen in the network manager. */
+/*  the WPA/WPA2 routers can't be chosen in the network manager. */
 
 /*
 #define IW_SCAN_CAPA_NONE		0x00
@@ -1391,7 +1391,7 @@ static int rtw_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 
 		}
 
-		/* jeff: it has still some scan paramater to parse, we only do this now... */
+		/* jeff: it has still some scan parameter to parse, we only do this now... */
 		_status = rtw_set_802_11_bssid_list_scan(padapter, ssid, RTW_SSID_SCAN_AMOUNT);
 
 	} else {
