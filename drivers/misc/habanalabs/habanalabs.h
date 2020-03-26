@@ -76,6 +76,16 @@ struct hl_device;
 struct hl_fpriv;
 
 /**
+ * enum hl_fw_component - F/W components to read version through registers.
+ * @FW_COMP_UBOOT: u-boot.
+ * @FW_COMP_PREBOOT: preboot.
+ */
+enum hl_fw_component {
+	FW_COMP_UBOOT,
+	FW_COMP_PREBOOT
+};
+
+/**
  * enum hl_queue_type - Supported QUEUE types.
  * @QUEUE_TYPE_NA: queue is not available.
  * @QUEUE_TYPE_EXT: external queue which is a DMA channel that may access the
@@ -539,6 +549,9 @@ enum hl_pll_frequency {
  * @halt_coresight: stop the ETF and ETR traces.
  * @get_clk_rate: Retrieve the ASIC current and maximum clock rate in MHz
  * @get_queue_id_for_cq: Get the H/W queue id related to the given CQ index.
+ * @read_device_fw_version: read the device's firmware versions that are
+ *                          contained in registers
+ * @load_firmware_to_device: load the firmware to the device's memory
  */
 struct hl_asic_funcs {
 	int (*early_init)(struct hl_device *hdev);
@@ -626,6 +639,9 @@ struct hl_asic_funcs {
 	void (*halt_coresight)(struct hl_device *hdev);
 	int (*get_clk_rate)(struct hl_device *hdev, u32 *cur_clk, u32 *max_clk);
 	u32 (*get_queue_id_for_cq)(struct hl_device *hdev, u32 cq_idx);
+	void (*read_device_fw_version)(struct hl_device *hdev,
+					enum hl_fw_component fwc);
+	int (*load_firmware_to_device)(struct hl_device *hdev);
 };
 
 
@@ -1591,7 +1607,7 @@ int hl_mmu_unmap(struct hl_ctx *ctx, u64 virt_addr, u32 page_size,
 void hl_mmu_swap_out(struct hl_ctx *ctx);
 void hl_mmu_swap_in(struct hl_ctx *ctx);
 
-int hl_fw_push_fw_to_device(struct hl_device *hdev, const char *fw_name,
+int hl_fw_load_fw_to_device(struct hl_device *hdev, const char *fw_name,
 				void __iomem *dst);
 int hl_fw_send_pci_access_msg(struct hl_device *hdev, u32 opcode);
 int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
@@ -1604,6 +1620,9 @@ void hl_fw_cpu_accessible_dma_pool_free(struct hl_device *hdev, size_t size,
 int hl_fw_send_heartbeat(struct hl_device *hdev);
 int hl_fw_armcp_info_get(struct hl_device *hdev);
 int hl_fw_get_eeprom_data(struct hl_device *hdev, void *data, size_t max_size);
+int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
+			u32 msg_to_cpu_reg, u32 boot_err0_reg, bool skip_bmc,
+			u32 cpu_timeout);
 
 int hl_pci_bars_map(struct hl_device *hdev, const char * const name[3],
 			bool is_wc[3]);

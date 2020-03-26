@@ -2223,24 +2223,24 @@ static int goya_push_uboot_to_device(struct hl_device *hdev)
 
 	dst = hdev->pcie_bar[SRAM_CFG_BAR_ID] + UBOOT_FW_OFFSET;
 
-	return hl_fw_push_fw_to_device(hdev, GOYA_UBOOT_FW_FILE, dst);
+	return hl_fw_load_fw_to_device(hdev, GOYA_UBOOT_FW_FILE, dst);
 }
 
 /*
- * goya_push_linux_to_device() - Push LINUX FW code to device.
+ * goya_load_firmware_to_device() - Load LINUX FW code to device.
  * @hdev: Pointer to hl_device structure.
  *
  * Copy LINUX fw code from firmware file to HBM BAR.
  *
  * Return: 0 on success, non-zero for failure.
  */
-static int goya_push_linux_to_device(struct hl_device *hdev)
+static int goya_load_firmware_to_device(struct hl_device *hdev)
 {
 	void __iomem *dst;
 
 	dst = hdev->pcie_bar[DDR_BAR_ID] + LINUX_FW_OFFSET;
 
-	return hl_fw_push_fw_to_device(hdev, GOYA_LINUX_FW_FILE, dst);
+	return hl_fw_load_fw_to_device(hdev, GOYA_LINUX_FW_FILE, dst);
 }
 
 static int goya_pldm_init_cpu(struct hl_device *hdev)
@@ -2266,7 +2266,7 @@ static int goya_pldm_init_cpu(struct hl_device *hdev)
 	if (rc)
 		return rc;
 
-	rc = goya_push_linux_to_device(hdev);
+	rc = goya_load_firmware_to_device(hdev);
 	if (rc)
 		return rc;
 
@@ -2291,7 +2291,7 @@ static int goya_pldm_init_cpu(struct hl_device *hdev)
  * The version string should be located by that offset.
  */
 static void goya_read_device_fw_version(struct hl_device *hdev,
-					enum goya_fw_component fwc)
+					enum hl_fw_component fwc)
 {
 	const char *name;
 	u32 ver_off;
@@ -2328,7 +2328,6 @@ static void goya_read_device_fw_version(struct hl_device *hdev,
 static int goya_init_cpu(struct hl_device *hdev, u32 cpu_timeout)
 {
 	struct goya_device *goya = hdev->asic_specific;
-	u32 status;
 	int rc;
 
 	if (!hdev->cpu_enable)
@@ -2355,105 +2354,12 @@ static int goya_init_cpu(struct hl_device *hdev, u32 cpu_timeout)
 		goto out;
 	}
 
-	/* Make sure CPU boot-loader is running */
-	rc = hl_poll_timeout(
-		hdev,
-		mmPSOC_GLOBAL_CONF_WARM_REBOOT,
-		status,
-		(status == CPU_BOOT_STATUS_DRAM_RDY) ||
-		(status == CPU_BOOT_STATUS_SRAM_AVAIL),
-		10000,
-		cpu_timeout);
+	rc = hl_fw_init_cpu(hdev, mmPSOC_GLOBAL_CONF_CPU_BOOT_STATUS,
+			mmPSOC_GLOBAL_CONF_UBOOT_MAGIC, mmCPU_BOOT_ERR0,
+			false, cpu_timeout);
 
-	/* Read U-Boot version now in case we will later fail */
-	goya_read_device_fw_version(hdev, FW_COMP_UBOOT);
-	goya_read_device_fw_version(hdev, FW_COMP_PREBOOT);
-
-	if (rc) {
-		dev_err(hdev->dev, "Error in ARM u-boot!");
-		switch (status) {
-		case CPU_BOOT_STATUS_NA:
-			dev_err(hdev->dev,
-				"ARM status %d - BTL did NOT run\n", status);
-			break;
-		case CPU_BOOT_STATUS_IN_WFE:
-			dev_err(hdev->dev,
-				"ARM status %d - Inside WFE loop\n", status);
-			break;
-		case CPU_BOOT_STATUS_IN_BTL:
-			dev_err(hdev->dev,
-				"ARM status %d - Stuck in BTL\n", status);
-			break;
-		case CPU_BOOT_STATUS_IN_PREBOOT:
-			dev_err(hdev->dev,
-				"ARM status %d - Stuck in Preboot\n", status);
-			break;
-		case CPU_BOOT_STATUS_IN_SPL:
-			dev_err(hdev->dev,
-				"ARM status %d - Stuck in SPL\n", status);
-			break;
-		case CPU_BOOT_STATUS_IN_UBOOT:
-			dev_err(hdev->dev,
-				"ARM status %d - Stuck in u-boot\n", status);
-			break;
-		case CPU_BOOT_STATUS_DRAM_INIT_FAIL:
-			dev_err(hdev->dev,
-				"ARM status %d - DDR initialization failed\n",
-				status);
-			break;
-		case CPU_BOOT_STATUS_UBOOT_NOT_READY:
-			dev_err(hdev->dev,
-				"ARM status %d - u-boot stopped by user\n",
-				status);
-			break;
-		case CPU_BOOT_STATUS_TS_INIT_FAIL:
-			dev_err(hdev->dev,
-				"ARM status %d - Thermal Sensor initialization failed\n",
-				status);
-			break;
-		default:
-			dev_err(hdev->dev,
-				"ARM status %d - Invalid status code\n",
-				status);
-			break;
-		}
-		return -EIO;
-	}
-
-	if (!hdev->fw_loading) {
-		dev_info(hdev->dev, "Skip loading FW\n");
-		goto out;
-	}
-
-	if (status == CPU_BOOT_STATUS_SRAM_AVAIL)
-		goto out;
-
-	rc = goya_push_linux_to_device(hdev);
 	if (rc)
 		return rc;
-
-	WREG32(mmPSOC_GLOBAL_CONF_UBOOT_MAGIC, KMD_MSG_FIT_RDY);
-
-	rc = hl_poll_timeout(
-		hdev,
-		mmPSOC_GLOBAL_CONF_WARM_REBOOT,
-		status,
-		(status == CPU_BOOT_STATUS_SRAM_AVAIL),
-		10000,
-		cpu_timeout);
-
-	if (rc) {
-		if (status == CPU_BOOT_STATUS_FIT_CORRUPTED)
-			dev_err(hdev->dev,
-				"ARM u-boot reports FIT image is corrupted\n");
-		else
-			dev_err(hdev->dev,
-				"ARM Linux failed to load, %d\n", status);
-		WREG32(mmPSOC_GLOBAL_CONF_UBOOT_MAGIC, KMD_MSG_NA);
-		return -EIO;
-	}
-
-	dev_info(hdev->dev, "Successfully loaded firmware to device\n");
 
 out:
 	goya->hw_cap_initialized |= HW_CAP_CPU;
@@ -5339,7 +5245,9 @@ static const struct hl_asic_funcs goya_funcs = {
 	.wreg = hl_wreg,
 	.halt_coresight = goya_halt_coresight,
 	.get_clk_rate = goya_get_clk_rate,
-	.get_queue_id_for_cq = goya_get_queue_id_for_cq
+	.get_queue_id_for_cq = goya_get_queue_id_for_cq,
+	.read_device_fw_version = goya_read_device_fw_version,
+	.load_firmware_to_device = goya_load_firmware_to_device
 };
 
 /*

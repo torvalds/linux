@@ -149,11 +149,6 @@
 #define HW_CAP_GOLDEN		0x00000400
 #define HW_CAP_TPC		0x00000800
 
-enum goya_fw_component {
-	FW_COMP_UBOOT,
-	FW_COMP_PREBOOT
-};
-
 struct goya_device {
 	/* TODO: remove hw_queues_lock after moving to scheduler code */
 	spinlock_t	hw_queues_lock;

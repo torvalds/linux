@@ -42,7 +42,8 @@ enum cpu_boot_status {
 enum kmd_msg {
 	KMD_MSG_NA = 0,
 	KMD_MSG_GOTO_WFE,
-	KMD_MSG_FIT_RDY
+	KMD_MSG_FIT_RDY,
+	KMD_MSG_SKIP_BMC,
 };
 
 #endif /* HL_BOOT_IF_H */

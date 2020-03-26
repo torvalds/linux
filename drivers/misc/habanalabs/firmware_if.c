@@ -6,20 +6,21 @@
  */
 
 #include "habanalabs.h"
+#include "include/hl_boot_if.h"
 
 #include <linux/firmware.h>
 #include <linux/genalloc.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
 
 /**
- * hl_fw_push_fw_to_device() - Push FW code to device.
+ * hl_fw_load_fw_to_device() - Load F/W code to device's memory.
  * @hdev: pointer to hl_device structure.
  *
  * Copy fw code from firmware file to device memory.
  *
  * Return: 0 on success, non-zero for failure.
  */
-int hl_fw_push_fw_to_device(struct hl_device *hdev, const char *fw_name,
+int hl_fw_load_fw_to_device(struct hl_device *hdev, const char *fw_name,
 				void __iomem *dst)
 {
 	const struct firmware *fw;
@@ -283,6 +284,189 @@ int hl_fw_get_eeprom_data(struct hl_device *hdev, void *data, size_t max_size)
 out:
 	hdev->asic_funcs->cpu_accessible_dma_pool_free(hdev, max_size,
 			eeprom_info_cpu_addr);
+
+	return rc;
+}
+
+static void fw_read_errors(struct hl_device *hdev, u32 boot_err0_reg)
+{
+	u32 err_val;
+
+	/* Some of the firmware status codes are deprecated in newer f/w
+	 * versions. In those versions, the errors are reported
+	 * in different registers. Therefore, we need to check those
+	 * registers and print the exact errors. Moreover, there
+	 * may be multiple errors, so we need to report on each error
+	 * separately. Some of the error codes might indicate a state
+	 * that is not an error per-se, but it is an error in production
+	 * environment
+	 */
+	err_val = RREG32(boot_err0_reg);
+	if (!(err_val & CPU_BOOT_ERR0_ENABLED))
+		return;
+
+	if (err_val & CPU_BOOT_ERR0_DRAM_INIT_FAIL)
+		dev_err(hdev->dev,
+			"Device boot error - DRAM initialization failed\n");
+	if (err_val & CPU_BOOT_ERR0_FIT_CORRUPTED)
+		dev_err(hdev->dev, "Device boot error - FIT image corrupted\n");
+	if (err_val & CPU_BOOT_ERR0_TS_INIT_FAIL)
+		dev_err(hdev->dev,
+			"Device boot error - Thermal Sensor initialization failed\n");
+	if (err_val & CPU_BOOT_ERR0_DRAM_SKIPPED)
+		dev_warn(hdev->dev,
+			"Device boot warning - Skipped DRAM initialization\n");
+	if (err_val & CPU_BOOT_ERR0_BMC_WAIT_SKIPPED)
+		dev_warn(hdev->dev,
+			"Device boot error - Skipped waiting for BMC\n");
+	if (err_val & CPU_BOOT_ERR0_NIC_DATA_NOT_RDY)
+		dev_err(hdev->dev,
+			"Device boot error - Serdes data from BMC not available\n");
+	if (err_val & CPU_BOOT_ERR0_NIC_FW_FAIL)
+		dev_err(hdev->dev,
+			"Device boot error - NIC F/W initialization failed\n");
+}
+
+int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
+			u32 msg_to_cpu_reg, u32 boot_err0_reg, bool skip_bmc,
+			u32 cpu_timeout)
+{
+	u32 status;
+	int rc;
+
+	dev_info(hdev->dev, "Going to wait for device boot (up to %lds)\n",
+		cpu_timeout / USEC_PER_SEC);
+
+	/* Make sure CPU boot-loader is running */
+	rc = hl_poll_timeout(
+		hdev,
+		cpu_boot_status_reg,
+		status,
+		(status == CPU_BOOT_STATUS_DRAM_RDY) ||
+		(status == CPU_BOOT_STATUS_NIC_FW_RDY) ||
+		(status == CPU_BOOT_STATUS_READY_TO_BOOT) ||
+		(status == CPU_BOOT_STATUS_SRAM_AVAIL),
+		10000,
+		cpu_timeout);
+
+	/* Read U-Boot, preboot versions now in case we will later fail */
+	hdev->asic_funcs->read_device_fw_version(hdev, FW_COMP_UBOOT);
+	hdev->asic_funcs->read_device_fw_version(hdev, FW_COMP_PREBOOT);
+
+	/* Some of the status codes below are deprecated in newer f/w
+	 * versions but we keep them here for backward compatibility
+	 */
+	if (rc) {
+		switch (status) {
+		case CPU_BOOT_STATUS_NA:
+			dev_err(hdev->dev,
+				"Device boot error - BTL did NOT run\n");
+			break;
+		case CPU_BOOT_STATUS_IN_WFE:
+			dev_err(hdev->dev,
+				"Device boot error - Stuck inside WFE loop\n");
+			break;
+		case CPU_BOOT_STATUS_IN_BTL:
+			dev_err(hdev->dev,
+				"Device boot error - Stuck in BTL\n");
+			break;
+		case CPU_BOOT_STATUS_IN_PREBOOT:
+			dev_err(hdev->dev,
+				"Device boot error - Stuck in Preboot\n");
+			break;
+		case CPU_BOOT_STATUS_IN_SPL:
+			dev_err(hdev->dev,
+				"Device boot error - Stuck in SPL\n");
+			break;
+		case CPU_BOOT_STATUS_IN_UBOOT:
+			dev_err(hdev->dev,
+				"Device boot error - Stuck in u-boot\n");
+			break;
+		case CPU_BOOT_STATUS_DRAM_INIT_FAIL:
+			dev_err(hdev->dev,
+				"Device boot error - DRAM initialization failed\n");
+			break;
+		case CPU_BOOT_STATUS_UBOOT_NOT_READY:
+			dev_err(hdev->dev,
+				"Device boot error - u-boot stopped by user\n");
+			break;
+		case CPU_BOOT_STATUS_TS_INIT_FAIL:
+			dev_err(hdev->dev,
+				"Device boot error - Thermal Sensor initialization failed\n");
+			break;
+		default:
+			dev_err(hdev->dev,
+				"Device boot error - Invalid status code\n");
+			break;
+		}
+
+		rc = -EIO;
+		goto out;
+	}
+
+	if (!hdev->fw_loading) {
+		dev_info(hdev->dev, "Skip loading FW\n");
+		goto out;
+	}
+
+	if (status == CPU_BOOT_STATUS_SRAM_AVAIL)
+		goto out;
+
+	dev_info(hdev->dev,
+		"Loading firmware to device, may take some time...\n");
+
+	rc = hdev->asic_funcs->load_firmware_to_device(hdev);
+	if (rc)
+		goto out;
+
+	if (skip_bmc) {
+		WREG32(msg_to_cpu_reg, KMD_MSG_SKIP_BMC);
+
+		rc = hl_poll_timeout(
+			hdev,
+			cpu_boot_status_reg,
+			status,
+			(status == CPU_BOOT_STATUS_BMC_WAITING_SKIPPED),
+			10000,
+			cpu_timeout);
+
+		if (rc) {
+			dev_err(hdev->dev,
+				"Failed to get ACK on skipping BMC, %d\n",
+				status);
+			WREG32(msg_to_cpu_reg, KMD_MSG_NA);
+			rc = -EIO;
+			goto out;
+		}
+	}
+
+	WREG32(msg_to_cpu_reg, KMD_MSG_FIT_RDY);
+
+	rc = hl_poll_timeout(
+		hdev,
+		cpu_boot_status_reg,
+		status,
+		(status == CPU_BOOT_STATUS_SRAM_AVAIL),
+		10000,
+		cpu_timeout);
+
+	if (rc) {
+		if (status == CPU_BOOT_STATUS_FIT_CORRUPTED)
+			dev_err(hdev->dev,
+				"Device reports FIT image is corrupted\n");
+		else
+			dev_err(hdev->dev,
+				"Device failed to load, %d\n", status);
+
+		WREG32(msg_to_cpu_reg, KMD_MSG_NA);
+		rc = -EIO;
+		goto out;
+	}
+
+	dev_info(hdev->dev, "Successfully loaded firmware to device\n");
+
+out:
+	fw_read_errors(hdev, boot_err0_reg);
 
 	return rc;
 }
