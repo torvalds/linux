@@ -285,11 +285,10 @@
 
 	max8997_pmic@66 {
 		compatible = "maxim,max8997-pmic";
-		interrupts-extended = <&gpx0 7 0>, <&gpx2 3 0>;
 
 		reg = <0x66>;
-		interrupt-parent = <&gpx0>;
-		interrupts = <7 IRQ_TYPE_NONE>;
+		interrupts-extended = <&gpx0 7 IRQ_TYPE_LEVEL_LOW>,
+				      <&gpx2 3 IRQ_TYPE_EDGE_FALLING>;
 
 		max8997,pmic-buck1-uses-gpio-dvs;
 		max8997,pmic-buck2-uses-gpio-dvs;
