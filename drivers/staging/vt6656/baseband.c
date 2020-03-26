@@ -23,6 +23,7 @@
  */
 
 #include <linux/bits.h>
+#include <linux/kernel.h>
 #include "mac.h"
 #include "baseband.h"
 #include "rf.h"
@@ -133,7 +134,6 @@ unsigned int vnt_get_frame_time(u8 preamble_type, u8 pkt_type,
 {
 	unsigned int frame_time;
 	unsigned int preamble;
-	unsigned int tmp;
 	unsigned int rate = 0;
 
 	if (tx_rate > RATE_54M)
@@ -147,20 +147,11 @@ unsigned int vnt_get_frame_time(u8 preamble_type, u8 pkt_type,
 		else
 			preamble = 192;
 
-		frame_time = (frame_length * 80) / rate;
-		tmp = (frame_time * rate) / 80;
-
-		if (frame_length != tmp)
-			frame_time++;
-
+		frame_time = DIV_ROUND_UP(frame_length * 80, rate);
 		return preamble + frame_time;
 	}
-	frame_time = (frame_length * 8 + 22) / rate;
-	tmp = ((frame_time * rate) - 22) / 8;
 
-	if (frame_length != tmp)
-		frame_time++;
-
+	frame_time = DIV_ROUND_UP(frame_length * 8 + 22, rate);
 	frame_time = frame_time * 4;
 
 	if (pkt_type != PK_TYPE_11A)
@@ -214,11 +205,7 @@ void vnt_get_phy_field(struct vnt_private *priv, u32 frame_length,
 
 		break;
 	case RATE_5M:
-		count = (bit_count * 10) / 55;
-		tmp = (count * 55) / 10;
-
-		if (tmp != bit_count)
-			count++;
+		count = DIV_ROUND_UP(bit_count * 10, 55);
 
 		if (preamble_type == 1)
 			phy->signal = 0x0a;
