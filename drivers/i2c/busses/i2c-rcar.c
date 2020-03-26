@@ -240,15 +240,15 @@ static int rcar_i2c_clock_calculate(struct rcar_i2c_priv *priv)
 	u32 scgd, cdf, round, ick, sum, scl, cdf_width;
 	unsigned long rate;
 	struct device *dev = rcar_i2c_priv_to_dev(priv);
-	struct i2c_timings i2c_t = {
+	struct i2c_timings t = {
 		.bus_freq_hz		= I2C_MAX_STANDARD_MODE_FREQ,
 		.scl_fall_ns		= 35,
 		.scl_rise_ns		= 200,
 		.scl_int_delay_ns	= 50,
-	}, *t = &i2c_t;
+	};
 
 	/* Fall back to previously used values if not supplied */
-	i2c_parse_fw_timings(dev, &i2c_t, false);
+	i2c_parse_fw_timings(dev, &t, false);
 
 	switch (priv->devtype) {
 	case I2C_RCAR_GEN1:
@@ -294,7 +294,7 @@ static int rcar_i2c_clock_calculate(struct rcar_i2c_priv *priv)
 	 *  = F[sum * ick / 1000000000]
 	 *  = F[(ick / 1000000) * sum / 1000]
 	 */
-	sum = t->scl_fall_ns + t->scl_rise_ns + t->scl_int_delay_ns;
+	sum = t.scl_fall_ns + t.scl_rise_ns + t.scl_int_delay_ns;
 	round = (ick + 500000) / 1000000 * sum;
 	round = (round + 500) / 1000;
 
@@ -312,7 +312,7 @@ static int rcar_i2c_clock_calculate(struct rcar_i2c_priv *priv)
 	 */
 	for (scgd = 0; scgd < 0x40; scgd++) {
 		scl = ick / (20 + (scgd * 8) + round);
-		if (scl <= t->bus_freq_hz)
+		if (scl <= t.bus_freq_hz)
 			goto scgd_find;
 	}
 	dev_err(dev, "it is impossible to calculate best SCL\n");
@@ -320,7 +320,7 @@ static int rcar_i2c_clock_calculate(struct rcar_i2c_priv *priv)
 
 scgd_find:
 	dev_dbg(dev, "clk %d/%d(%lu), round %u, CDF:0x%x, SCGD: 0x%x\n",
-		scl, t->bus_freq_hz, rate, round, cdf, scgd);
+		scl, t.bus_freq_hz, rate, round, cdf, scgd);
 
 	/* keep icccr value */
 	priv->icccr = scgd << cdf_width | cdf;
