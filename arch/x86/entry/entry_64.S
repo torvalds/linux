@@ -499,8 +499,9 @@ SYM_CODE_END(spurious_entries_start)
  * @vector:		Vector number
  * @cfunc:		C function to be called
  * @has_error_code:	Hardware pushed error code on stack
+ * @sane:		Sane variant which handles irq tracing, context tracking in C
  */
-.macro idtentry_body vector cfunc has_error_code:req
+.macro idtentry_body vector cfunc has_error_code:req sane=0
 
 	call	error_entry
 	UNWIND_HINT_REGS
@@ -514,6 +515,7 @@ SYM_CODE_END(spurious_entries_start)
 		GET_CR2_INTO(%r12);
 	.endif
 
+	.if \sane == 0
 	TRACE_IRQS_OFF
 
 #ifdef CONFIG_CONTEXT_TRACKING
@@ -522,6 +524,7 @@ SYM_CODE_END(spurious_entries_start)
 	CALL_enter_from_user_mode
 .Lfrom_kernel_no_ctxt_tracking_\@:
 #endif
+	.endif
 
 	movq	%rsp, %rdi			/* pt_regs pointer into 1st argument*/
 
@@ -538,7 +541,11 @@ SYM_CODE_END(spurious_entries_start)
 
 	call	\cfunc
 
+	.if \sane == 0
 	jmp	error_exit
+	.else
+	jmp	error_return
+	.endif
 .endm
 
 /**
@@ -547,11 +554,12 @@ SYM_CODE_END(spurious_entries_start)
  * @asmsym:		ASM symbol for the entry point
  * @cfunc:		C function to be called
  * @has_error_code:	Hardware pushed error code on stack
+ * @sane:		Sane variant which handles irq tracing, context tracking in C
  *
  * The macro emits code to set up the kernel context for straight forward
  * and simple IDT entries. No IST stack, no paranoid entry checks.
  */
-.macro idtentry vector asmsym cfunc has_error_code:req
+.macro idtentry vector asmsym cfunc has_error_code:req sane=0
 SYM_CODE_START(\asmsym)
 	UNWIND_HINT_IRET_REGS offset=\has_error_code*8
 	ASM_CLAC
@@ -574,7 +582,7 @@ SYM_CODE_START(\asmsym)
 .Lfrom_usermode_no_gap_\@:
 	.endif
 
-	idtentry_body \vector \cfunc \has_error_code
+	idtentry_body \vector \cfunc \has_error_code \sane
 
 _ASM_NOKPROBE(\asmsym)
 SYM_CODE_END(\asmsym)
@@ -1402,6 +1410,14 @@ SYM_CODE_START_LOCAL(error_exit)
 	jz	retint_kernel
 	jmp	.Lretint_user
 SYM_CODE_END(error_exit)
+
+SYM_CODE_START_LOCAL(error_return)
+	UNWIND_HINT_REGS
+	DEBUG_ENTRY_ASSERT_IRQS_OFF
+	testb	$3, CS(%rsp)
+	jz	restore_regs_and_return_to_kernel
+	jmp	swapgs_restore_regs_and_return_to_usermode
+SYM_CODE_END(error_return)
 
 /*
  * Runs on exception stack.  Xen PV does not go through this path at all,
