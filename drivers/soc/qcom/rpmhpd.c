@@ -4,6 +4,7 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/pm_domain.h>
 #include <linux/slab.h>
@@ -189,6 +190,7 @@ static const struct of_device_id rpmhpd_match_table[] = {
 	{ .compatible = "qcom,sm8150-rpmhpd", .data = &sm8150_desc },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, rpmhpd_match_table);
 
 static int rpmhpd_send_corner(struct rpmhpd *pd, int state,
 			      unsigned int corner, bool sync)
@@ -460,3 +462,6 @@ static int __init rpmhpd_init(void)
 	return platform_driver_register(&rpmhpd_driver);
 }
 core_initcall(rpmhpd_init);
+
+MODULE_DESCRIPTION("Qualcomm Technologies, Inc. RPMh Power Domain Driver");
+MODULE_LICENSE("GPL v2");
