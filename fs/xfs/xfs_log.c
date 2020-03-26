@@ -795,32 +795,44 @@ xlog_wait_on_iclog(
 }
 
 /*
- * Final log writes as part of unmount.
- *
- * Mark the filesystem clean as unmount happens.  Note that during relocation
- * this routine needs to be executed as part of source-bag while the
- * deallocation must not be done until source-end.
+ * Write out an unmount record using the ticket provided. We have to account for
+ * the data space used in the unmount ticket as this write is not done from a
+ * transaction context that has already done the accounting for us.
  */
-
-/* Actually write the unmount record to disk. */
-static void
-xfs_log_write_unmount_record(
-	struct xfs_mount	*mp)
+static int
+xlog_write_unmount_record(
+	struct xlog		*log,
+	struct xlog_ticket	*ticket,
+	xfs_lsn_t		*lsn,
+	uint			flags)
 {
-	/* the data section must be 32 bit size aligned */
-	struct xfs_unmount_log_format magic = {
+	struct xfs_unmount_log_format ulf = {
 		.magic = XLOG_UNMOUNT_TYPE,
 	};
 	struct xfs_log_iovec reg = {
-		.i_addr = &magic,
-		.i_len = sizeof(magic),
+		.i_addr = &ulf,
+		.i_len = sizeof(ulf),
 		.i_type = XLOG_REG_TYPE_UNMOUNT,
 	};
 	struct xfs_log_vec vec = {
 		.lv_niovecs = 1,
 		.lv_iovecp = &reg,
 	};
-	struct xlog		*log = mp->m_log;
+
+	/* account for space used by record data */
+	ticket->t_curr_res -= sizeof(ulf);
+	return xlog_write(log, &vec, ticket, lsn, NULL, flags, false);
+}
+
+/*
+ * Mark the filesystem clean by writing an unmount record to the head of the
+ * log.
+ */
+static void
+xlog_unmount_write(
+	struct xlog		*log)
+{
+	struct xfs_mount	*mp = log->l_mp;
 	struct xlog_in_core	*iclog;
 	struct xlog_ticket	*tic = NULL;
 	xfs_lsn_t		lsn;
@@ -844,10 +856,7 @@ xfs_log_write_unmount_record(
 		flags &= ~XLOG_UNMOUNT_TRANS;
 	}
 
-	/* remove inited flag, and account for space used */
-	tic->t_flags = 0;
-	tic->t_curr_res -= sizeof(magic);
-	error = xlog_write(log, &vec, tic, &lsn, NULL, flags, false);
+	error = xlog_write_unmount_record(log, tic, &lsn, flags);
 	/*
 	 * At this point, we're umounting anyway, so there's no point in
 	 * transitioning log state to IOERROR. Just continue...
@@ -913,7 +922,7 @@ xfs_log_unmount_write(
 	if (XLOG_FORCED_SHUTDOWN(log))
 		return;
 	xfs_log_unmount_verify_iclog(log);
-	xfs_log_write_unmount_record(mp);
+	xlog_unmount_write(log);
 }
 
 /*
