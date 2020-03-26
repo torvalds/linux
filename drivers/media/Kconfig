@@ -28,7 +28,7 @@ menuconfig MEDIA_SUPPORT
 if MEDIA_SUPPORT
 
 config MEDIA_SUPPORT_FILTER
-	bool "Filter devices by their types"
+	bool "Filter media drivers"
 	depends on MEDIA_SUPPORT
 	help
 	   Configuring the media subsystem can be complex, as there are
@@ -202,6 +202,9 @@ source "drivers/media/dvb-core/Kconfig"
 source "drivers/media/cec/Kconfig"
 
 comment "Media drivers"
+
+comment "Drivers filtered as selected at 'Filter media drivers'"
+	depends on MEDIA_SUPPORT_FILTER
 
 source "drivers/media/usb/Kconfig"
 source "drivers/media/pci/Kconfig"
