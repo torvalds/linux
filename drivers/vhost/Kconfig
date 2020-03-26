@@ -6,6 +6,7 @@ config VHOST_IOTLB
 
 config VHOST_RING
 	tristate
+	select VHOST_IOTLB
 	help
 	  This option is selected by any driver which needs to access
 	  the host side of a virtio ring.
