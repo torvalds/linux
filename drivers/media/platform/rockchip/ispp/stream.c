@@ -1057,7 +1057,14 @@ static int rkispp_queue_setup(struct vb2_queue *queue,
 		const struct v4l2_plane_pix_format *plane_fmt;
 
 		plane_fmt = &pixm->plane_fmt[i];
-		sizes[i] = plane_fmt->sizeimage;
+		/* height to align with 16 when allocating memory
+		 * so that Rockchip encoder can use DMA buffer directly
+		 */
+		sizes[i] = (stream->type == STREAM_OUTPUT &&
+			    cap_fmt->wr_fmt != FMT_FBC) ?
+				plane_fmt->sizeimage / pixm->height *
+				ALIGN(pixm->height, 16) :
+				plane_fmt->sizeimage;
 	}
 
 	v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,

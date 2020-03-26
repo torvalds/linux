@@ -465,8 +465,9 @@ int rkisp_csi_trigger_event(struct rkisp_csi_device *csi, void *arg)
 		return 0;
 
 	spin_lock_irqsave(&csi->rdbk_lock, lock_flags);
-	if (csi->is_first ||
-	    (trigger && csi->is_isp_end && kfifo_is_empty(fifo))) {
+	if (trigger &&
+	    (csi->is_first ||
+	     (csi->is_isp_end && kfifo_is_empty(fifo)))) {
 		/* isp idle and no event in queue
 		 * start read back direct
 		 */
@@ -484,8 +485,7 @@ int rkisp_csi_trigger_event(struct rkisp_csi_device *csi, void *arg)
 		}
 		if (trigger)
 			kfifo_in(fifo, trigger, sizeof(*trigger));
-		if (csi->is_isp_end)
-			csi->is_isp_end = false;
+		csi->is_isp_end = false;
 	} else if (!csi->is_isp_end && trigger) {
 		/* isp on idle, new event in fifo */
 		if (!kfifo_is_full(fifo))
