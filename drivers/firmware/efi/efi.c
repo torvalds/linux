@@ -502,21 +502,21 @@ void __init efi_mem_reserve(phys_addr_t addr, u64 size)
 }
 
 static const efi_config_table_type_t common_tables[] __initconst = {
-	{ACPI_20_TABLE_GUID, "ACPI 2.0", &efi.acpi20},
-	{ACPI_TABLE_GUID, "ACPI", &efi.acpi},
-	{SMBIOS_TABLE_GUID, "SMBIOS", &efi.smbios},
-	{SMBIOS3_TABLE_GUID, "SMBIOS 3.0", &efi.smbios3},
-	{EFI_SYSTEM_RESOURCE_TABLE_GUID, "ESRT", &efi.esrt},
-	{EFI_MEMORY_ATTRIBUTES_TABLE_GUID, "MEMATTR", &efi_mem_attr_table},
-	{LINUX_EFI_RANDOM_SEED_TABLE_GUID, "RNG", &efi_rng_seed},
-	{LINUX_EFI_TPM_EVENT_LOG_GUID, "TPMEventLog", &efi.tpm_log},
-	{LINUX_EFI_TPM_FINAL_LOG_GUID, "TPMFinalLog", &efi.tpm_final_log},
-	{LINUX_EFI_MEMRESERVE_TABLE_GUID, "MEMRESERVE", &mem_reserve},
-	{EFI_RT_PROPERTIES_TABLE_GUID, "RTPROP", &rt_prop},
+	{ACPI_20_TABLE_GUID,			&efi.acpi20,		"ACPI 2.0"	},
+	{ACPI_TABLE_GUID,			&efi.acpi,		"ACPI"		},
+	{SMBIOS_TABLE_GUID,			&efi.smbios,		"SMBIOS"	},
+	{SMBIOS3_TABLE_GUID,			&efi.smbios3,		"SMBIOS 3.0"	},
+	{EFI_SYSTEM_RESOURCE_TABLE_GUID,	&efi.esrt,		"ESRT"		},
+	{EFI_MEMORY_ATTRIBUTES_TABLE_GUID,	&efi_mem_attr_table,	"MEMATTR"	},
+	{LINUX_EFI_RANDOM_SEED_TABLE_GUID,	&efi_rng_seed,		"RNG"		},
+	{LINUX_EFI_TPM_EVENT_LOG_GUID,		&efi.tpm_log,		"TPMEventLog"	},
+	{LINUX_EFI_TPM_FINAL_LOG_GUID,		&efi.tpm_final_log,	"TPMFinalLog"	},
+	{LINUX_EFI_MEMRESERVE_TABLE_GUID,	&mem_reserve,		"MEMRESERVE"	},
+	{EFI_RT_PROPERTIES_TABLE_GUID,		&rt_prop,		"RTPROP"	},
 #ifdef CONFIG_EFI_RCI2_TABLE
-	{DELLEMC_EFI_RCI2_TABLE_GUID, NULL, &rci2_table_phys},
+	{DELLEMC_EFI_RCI2_TABLE_GUID,		&rci2_table_phys			},
 #endif
-	{NULL_GUID, NULL, NULL},
+	{},
 };
 
 static __init int match_config_table(const efi_guid_t *guid,
@@ -529,7 +529,7 @@ static __init int match_config_table(const efi_guid_t *guid,
 		for (i = 0; efi_guidcmp(table_types[i].guid, NULL_GUID); i++) {
 			if (!efi_guidcmp(*guid, table_types[i].guid)) {
 				*(table_types[i].ptr) = table;
-				if (table_types[i].name)
+				if (table_types[i].name[0])
 					pr_cont(" %s=0x%lx ",
 						table_types[i].name, table);
 				return 1;
