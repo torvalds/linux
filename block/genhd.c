@@ -1497,8 +1497,8 @@ static char *block_devnode(struct device *dev, umode_t *mode,
 {
 	struct gendisk *disk = dev_to_disk(dev);
 
-	if (disk->devnode)
-		return disk->devnode(disk, mode);
+	if (disk->fops->devnode)
+		return disk->fops->devnode(disk, mode);
 	return NULL;
 }
 

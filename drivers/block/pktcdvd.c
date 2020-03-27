@@ -2679,6 +2679,11 @@ static unsigned int pkt_check_events(struct gendisk *disk,
 	return attached_disk->fops->check_events(attached_disk, clearing);
 }
 
+static char *pkt_devnode(struct gendisk *disk, umode_t *mode)
+{
+	return kasprintf(GFP_KERNEL, "pktcdvd/%s", disk->disk_name);
+}
+
 static const struct block_device_operations pktcdvd_ops = {
 	.owner =		THIS_MODULE,
 	.open =			pkt_open,
@@ -2686,12 +2691,8 @@ static const struct block_device_operations pktcdvd_ops = {
 	.ioctl =		pkt_ioctl,
 	.compat_ioctl =		blkdev_compat_ptr_ioctl,
 	.check_events =		pkt_check_events,
+	.devnode =		pkt_devnode,
 };
-
-static char *pktcdvd_devnode(struct gendisk *gd, umode_t *mode)
-{
-	return kasprintf(GFP_KERNEL, "pktcdvd/%s", gd->disk_name);
-}
 
 /*
  * Set up mapping from pktcdvd device to CD-ROM device.
@@ -2748,7 +2749,6 @@ static int pkt_setup_dev(dev_t dev, dev_t* pkt_dev)
 	disk->fops = &pktcdvd_ops;
 	disk->flags = GENHD_FL_REMOVABLE;
 	strcpy(disk->disk_name, pd->name);
-	disk->devnode = pktcdvd_devnode;
 	disk->private_data = pd;
 	disk->queue = blk_alloc_queue(GFP_KERNEL);
 	if (!disk->queue)

@@ -191,7 +191,6 @@ struct gendisk {
                                          * disks that can't be partitioned. */
 
 	char disk_name[DISK_NAME_LEN];	/* name of major driver */
-	char *(*devnode)(struct gendisk *gd, umode_t *mode);
 
 	unsigned short events;		/* supported events */
 	unsigned short event_flags;	/* flags related to event processing */
