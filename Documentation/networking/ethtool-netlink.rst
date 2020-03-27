@@ -224,6 +224,7 @@ Kernel to userspace:
   ``ETHTOOL_MSG_CHANNELS_GET_REPLY``    channel counts
   ``ETHTOOL_MSG_CHANNELS_NTF``          channel counts
   ``ETHTOOL_MSG_COALESCE_GET_REPLY``    coalescing parameters
+  ``ETHTOOL_MSG_COALESCE_NTF``          coalescing parameters
   ===================================== =================================
 
 ``GET`` requests are sent by userspace applications to retrieve device
