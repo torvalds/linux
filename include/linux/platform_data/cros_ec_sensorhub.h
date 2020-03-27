@@ -22,9 +22,11 @@ struct cros_ec_sensor_platform {
  * struct cros_ec_sensorhub - Sensor Hub device data.
  *
  * @ec: Embedded Controller where the hub is located.
+ * @sensor_num: Number of MEMS sensors present in the EC.
  */
 struct cros_ec_sensorhub {
 	struct cros_ec_dev *ec;
+	int sensor_num;
 };
 
 #endif   /* __LINUX_PLATFORM_DATA_CROS_EC_SENSORHUB_H */

@@ -65,6 +65,7 @@ static int cros_ec_sensorhub_register(struct device *dev,
 		return sensor_num;
 	}
 
+	sensorhub->sensor_num = sensor_num;
 	if (sensor_num == 0) {
 		dev_err(dev, "Zero sensors reported.\n");
 		return -EINVAL;
@@ -172,7 +173,8 @@ static int cros_ec_sensorhub_probe(struct platform_device *pdev)
 		 * If the device has sensors but does not claim to
 		 * be a sensor hub, we are in legacy mode.
 		 */
-		for (i = 0; i < 2; i++) {
+		data->sensor_num = 2;
+		for (i = 0; i < data->sensor_num; i++) {
 			ret = cros_ec_sensorhub_allocate_sensor(dev,
 						"cros-ec-accel-legacy", i);
 			if (ret)
