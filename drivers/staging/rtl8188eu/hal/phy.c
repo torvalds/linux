@@ -345,8 +345,8 @@ static void dm_txpwr_track_setpwr(struct odm_dm_struct *dm_odm)
 {
 	if (dm_odm->BbSwingFlagOfdm || dm_odm->BbSwingFlagCck) {
 		ODM_RT_TRACE(dm_odm, ODM_COMP_TX_PWR_TRACK, ODM_DBG_LOUD,
-			     ("dm_txpwr_track_setpwr CH=%d\n", *(dm_odm->pChannel)));
-		phy_set_tx_power_level(dm_odm->Adapter, *(dm_odm->pChannel));
+			     ("dm_txpwr_track_setpwr CH=%d\n", *dm_odm->pChannel));
+		phy_set_tx_power_level(dm_odm->Adapter, *dm_odm->pChannel);
 		dm_odm->BbSwingFlagOfdm = false;
 		dm_odm->BbSwingFlagCck = false;
 	}
@@ -975,7 +975,7 @@ static void phy_iq_calibrate(struct adapter *adapt, s32 result[][8],
 
 	u32 retry_count = 9;
 
-	if (*(dm_odm->mp_mode) == 1)
+	if (*dm_odm->mp_mode == 1)
 		retry_count = 9;
 	else
 		retry_count = 2;
@@ -1320,7 +1320,7 @@ void rtl88eu_phy_lc_calibrate(struct adapter *adapt)
 	if (singletone || carrier_sup)
 		return;
 
-	while (*(dm_odm->pbScanInProcess) && timecount < timeout) {
+	while (*dm_odm->pbScanInProcess && timecount < timeout) {
 		mdelay(50);
 		timecount += 50;
 	}

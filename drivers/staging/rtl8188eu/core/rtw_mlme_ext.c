@@ -1932,11 +1932,11 @@ static void site_survey(struct adapter *padapter)
 				if (pmlmeext->sitesurvey_res.ssid[i].ssid_length) {
 					/* todo: to issue two probe req??? */
 					issue_probereq(padapter,
-					&(pmlmeext->sitesurvey_res.ssid[i]),
+					&pmlmeext->sitesurvey_res.ssid[i],
 								NULL, false);
 					/* msleep(SURVEY_TO>>1); */
 					issue_probereq(padapter,
-					&(pmlmeext->sitesurvey_res.ssid[i]),
+					&pmlmeext->sitesurvey_res.ssid[i],
 								NULL, false);
 				}
 			}
