@@ -11,6 +11,7 @@
 #include "../../../arch/x86/lib/inat.c"
 #include "../../../arch/x86/lib/insn.c"
 
+#include "../../check.h"
 #include "../../elf.h"
 #include "../../arch.h"
 #include "../../warn.h"
@@ -64,6 +65,16 @@ bool arch_callee_saved_reg(unsigned char reg)
 	default:
 		return false;
 	}
+}
+
+unsigned long arch_dest_rela_offset(int addend)
+{
+	return addend + 4;
+}
+
+unsigned long arch_jump_destination(struct instruction *insn)
+{
+	return insn->offset + insn->len + insn->immediate;
 }
 
 int arch_decode_instruction(struct elf *elf, struct section *sec,
