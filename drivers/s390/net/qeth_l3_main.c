@@ -2195,9 +2195,6 @@ static int qeth_l3_ip_event(struct notifier_block *this,
 	struct qeth_ipaddr addr;
 	struct qeth_card *card;
 
-	if (dev_net(dev) != &init_net)
-		return NOTIFY_DONE;
-
 	card = qeth_l3_get_card_from_dev(dev);
 	if (!card)
 		return NOTIFY_DONE;
