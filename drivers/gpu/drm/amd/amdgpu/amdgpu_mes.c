@@ -717,3 +717,39 @@ amdgpu_mes_ring_to_queue_props(struct amdgpu_device *adev,
 	props->paging = false;
 	props->ring = ring;
 }
+
+#define DEFINE_AMDGPU_MES_CTX_GET_OFFS_ENG(_eng)			\
+do {									\
+       if (id_offs < AMDGPU_MES_CTX_MAX_OFFS)				\
+		return offsetof(struct amdgpu_mes_ctx_meta_data,	\
+				_eng[ring->idx].slots[id_offs]);        \
+       else if (id_offs == AMDGPU_MES_CTX_RING_OFFS)			\
+		return offsetof(struct amdgpu_mes_ctx_meta_data,        \
+				_eng[ring->idx].ring);                  \
+       else if (id_offs == AMDGPU_MES_CTX_IB_OFFS)			\
+		return offsetof(struct amdgpu_mes_ctx_meta_data,        \
+				_eng[ring->idx].ib);                    \
+       else if (id_offs == AMDGPU_MES_CTX_PADDING_OFFS)			\
+		return offsetof(struct amdgpu_mes_ctx_meta_data,        \
+				_eng[ring->idx].padding);               \
+} while(0)
+
+int amdgpu_mes_ctx_get_offs(struct amdgpu_ring *ring, unsigned int id_offs)
+{
+	switch (ring->funcs->type) {
+	case AMDGPU_RING_TYPE_GFX:
+		DEFINE_AMDGPU_MES_CTX_GET_OFFS_ENG(gfx);
+		break;
+	case AMDGPU_RING_TYPE_COMPUTE:
+		DEFINE_AMDGPU_MES_CTX_GET_OFFS_ENG(compute);
+		break;
+	case AMDGPU_RING_TYPE_SDMA:
+		DEFINE_AMDGPU_MES_CTX_GET_OFFS_ENG(sdma);
+		break;
+	default:
+		break;
+	}
+
+	WARN_ON(1);
+	return -EINVAL;
+}
