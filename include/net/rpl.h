@@ -11,6 +11,18 @@
 
 #include <linux/rpl.h>
 
+#if IS_ENABLED(CONFIG_IPV6_RPL_LWTUNNEL)
+extern int rpl_init(void);
+extern void rpl_exit(void);
+#else
+static inline int rpl_init(void)
+{
+	return 0;
+}
+
+static inline void rpl_exit(void) {}
+#endif
+
 /* Worst decompression memory usage ipv6 address (16) + pad 7 */
 #define IPV6_RPL_SRH_WORST_SWAP_SIZE (sizeof(struct in6_addr) + 7)
 
