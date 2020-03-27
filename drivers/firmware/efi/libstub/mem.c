@@ -93,31 +93,24 @@ fail:
 efi_status_t efi_allocate_pages(unsigned long size, unsigned long *addr,
 				unsigned long max)
 {
-	efi_physical_addr_t alloc_addr = ALIGN_DOWN(max + 1, EFI_ALLOC_ALIGN) - 1;
-	int slack = EFI_ALLOC_ALIGN / EFI_PAGE_SIZE - 1;
+	efi_physical_addr_t alloc_addr;
 	efi_status_t status;
 
-	size = round_up(size, EFI_ALLOC_ALIGN);
+	if (EFI_ALLOC_ALIGN > EFI_PAGE_SIZE)
+		return efi_allocate_pages_aligned(size, addr, max,
+						  EFI_ALLOC_ALIGN);
+
+	alloc_addr = ALIGN_DOWN(max + 1, EFI_ALLOC_ALIGN) - 1;
 	status = efi_bs_call(allocate_pages, EFI_ALLOCATE_MAX_ADDRESS,
-			     EFI_LOADER_DATA, size / EFI_PAGE_SIZE + slack,
+			     EFI_LOADER_DATA, DIV_ROUND_UP(size, EFI_PAGE_SIZE),
 			     &alloc_addr);
 	if (status != EFI_SUCCESS)
 		return status;
 
-	*addr = ALIGN((unsigned long)alloc_addr, EFI_ALLOC_ALIGN);
-
-	if (slack > 0) {
-		int l = (alloc_addr % EFI_ALLOC_ALIGN) / EFI_PAGE_SIZE;
-
-		if (l) {
-			efi_bs_call(free_pages, alloc_addr, slack - l + 1);
-			slack = l - 1;
-		}
-		if (slack)
-			efi_bs_call(free_pages, *addr + size, slack);
-	}
+	*addr = alloc_addr;
 	return EFI_SUCCESS;
 }
+
 /**
  * efi_low_alloc_above() - allocate pages at or above given address
  * @size:	size of the memory area to allocate
