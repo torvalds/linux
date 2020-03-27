@@ -27,10 +27,9 @@
 struct scmi_smc {
 	struct scmi_chan_info *cinfo;
 	struct scmi_shared_mem __iomem *shmem;
+	struct mutex shmem_lock;
 	u32 func_id;
 };
-
-static DEFINE_MUTEX(smc_mutex);
 
 static bool smc_chan_available(struct device *dev, int idx)
 {
@@ -78,6 +77,7 @@ static int smc_chan_setup(struct scmi_chan_info *cinfo, struct device *dev,
 
 	scmi_info->func_id = func_id;
 	scmi_info->cinfo = cinfo;
+	mutex_init(&scmi_info->shmem_lock);
 	cinfo->transport_info = scmi_info;
 
 	return 0;
@@ -102,14 +102,14 @@ static int smc_send_message(struct scmi_chan_info *cinfo,
 	struct scmi_smc *scmi_info = cinfo->transport_info;
 	struct arm_smccc_res res;
 
-	mutex_lock(&smc_mutex);
+	mutex_lock(&scmi_info->shmem_lock);
 
 	shmem_tx_prepare(scmi_info->shmem, xfer);
 
 	arm_smccc_1_1_invoke(scmi_info->func_id, 0, 0, 0, 0, 0, 0, 0, &res);
 	scmi_rx_callback(scmi_info->cinfo, shmem_read_header(scmi_info->shmem));
 
-	mutex_unlock(&smc_mutex);
+	mutex_unlock(&scmi_info->shmem_lock);
 
 	return res.a0;
 }
