@@ -20,6 +20,13 @@
 #endif
 #include <net/mptcp.h>
 #include "protocol.h"
+#include "mib.h"
+
+static void SUBFLOW_REQ_INC_STATS(struct request_sock *req,
+				  enum linux_mptcp_mib_field field)
+{
+	MPTCP_INC_STATS(sock_net(req_to_sk(req)), field);
+}
 
 static int subflow_rebuild_header(struct sock *sk)
 {
@@ -88,8 +95,7 @@ static bool subflow_token_join_request(struct request_sock *req,
 
 	msk = mptcp_token_get_sock(subflow_req->token);
 	if (!msk) {
-		pr_debug("subflow_req=%p, token=%u - not found\n",
-			 subflow_req, subflow_req->token);
+		SUBFLOW_REQ_INC_STATS(req, MPTCP_MIB_JOINNOTOKEN);
 		return false;
 	}
 
@@ -137,8 +143,14 @@ static void subflow_init_req(struct request_sock *req,
 		return;
 #endif
 
-	if (rx_opt.mptcp.mp_capable && rx_opt.mptcp.mp_join)
-		return;
+	if (rx_opt.mptcp.mp_capable) {
+		SUBFLOW_REQ_INC_STATS(req, MPTCP_MIB_MPCAPABLEPASSIVE);
+
+		if (rx_opt.mptcp.mp_join)
+			return;
+	} else if (rx_opt.mptcp.mp_join) {
+		SUBFLOW_REQ_INC_STATS(req, MPTCP_MIB_JOINSYNRX);
+	}
 
 	if (rx_opt.mptcp.mp_capable && listener->request_mptcp) {
 		int err;
@@ -237,6 +249,7 @@ static void subflow_finish_connect(struct sock *sk, const struct sk_buff *skb)
 			 subflow, subflow->thmac,
 			 subflow->remote_nonce);
 		if (!subflow_thmac_valid(subflow)) {
+			MPTCP_INC_STATS(sock_net(sk), MPTCP_MIB_JOINACKMAC);
 			subflow->mp_join = 0;
 			goto do_reset;
 		}
@@ -253,6 +266,7 @@ static void subflow_finish_connect(struct sock *sk, const struct sk_buff *skb)
 			goto do_reset;
 
 		subflow->conn_finished = 1;
+		MPTCP_INC_STATS(sock_net(sk), MPTCP_MIB_JOINSYNACKRX);
 	} else {
 do_reset:
 		tcp_send_active_reset(sk, GFP_ATOMIC);
@@ -382,8 +396,10 @@ create_msk:
 		opt_rx.mptcp.mp_join = 0;
 		mptcp_get_options(skb, &opt_rx);
 		if (!opt_rx.mptcp.mp_join ||
-		    !subflow_hmac_valid(req, &opt_rx))
+		    !subflow_hmac_valid(req, &opt_rx)) {
+			SUBFLOW_REQ_INC_STATS(req, MPTCP_MIB_JOINACKMAC);
 			return NULL;
+		}
 	}
 
 create_child:
@@ -420,6 +436,8 @@ create_child:
 			ctx->conn = (struct sock *)owner;
 			if (!mptcp_finish_join(child))
 				goto close_child;
+
+			SUBFLOW_REQ_INC_STATS(req, MPTCP_MIB_JOINACKRX);
 		}
 	}
 
@@ -535,6 +553,7 @@ static enum mapping_status get_mapping_status(struct sock *ssk)
 	data_len = mpext->data_len;
 	if (data_len == 0) {
 		pr_err("Infinite mapping not handled");
+		MPTCP_INC_STATS(sock_net(ssk), MPTCP_MIB_INFINITEMAPRX);
 		return MAPPING_INVALID;
 	}
 
@@ -578,8 +597,10 @@ static enum mapping_status get_mapping_status(struct sock *ssk)
 		/* If this skb data are fully covered by the current mapping,
 		 * the new map would need caching, which is not supported
 		 */
-		if (skb_is_fully_mapped(ssk, skb))
+		if (skb_is_fully_mapped(ssk, skb)) {
+			MPTCP_INC_STATS(sock_net(ssk), MPTCP_MIB_DSSNOMATCH);
 			return MAPPING_INVALID;
+		}
 
 		/* will validate the next map after consuming the current one */
 		return MAPPING_OK;

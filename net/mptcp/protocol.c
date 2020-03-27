@@ -21,6 +21,7 @@
 #endif
 #include <net/mptcp.h>
 #include "protocol.h"
+#include "mib.h"
 
 #define MPTCP_SAME_STATE TCP_MAX_STATES
 
@@ -1032,6 +1033,7 @@ static void mptcp_worker(struct work_struct *work)
 		if (ret < 0)
 			break;
 
+		MPTCP_INC_STATS(sock_net(sk), MPTCP_MIB_RETRANSSEGS);
 		copied += ret;
 		dfrag->data_len -= ret;
 		dfrag->offset += ret;
@@ -1081,16 +1083,21 @@ static int __mptcp_init_sock(struct sock *sk)
 
 static int mptcp_init_sock(struct sock *sk)
 {
-	int ret = __mptcp_init_sock(sk);
+	struct net *net = sock_net(sk);
+	int ret;
 
+	if (!mptcp_is_enabled(net))
+		return -ENOPROTOOPT;
+
+	if (unlikely(!net->mib.mptcp_statistics) && !mptcp_mib_alloc(net))
+		return -ENOMEM;
+
+	ret = __mptcp_init_sock(sk);
 	if (ret)
 		return ret;
 
 	sk_sockets_allocated_inc(sk);
 	sk->sk_sndbuf = sock_net(sk)->ipv4.sysctl_tcp_wmem[2];
-
-	if (!mptcp_is_enabled(sock_net(sk)))
-		return -ENOPROTOOPT;
 
 	return 0;
 }
@@ -1327,7 +1334,12 @@ static struct sock *mptcp_accept(struct sock *sk, int flags, int *err,
 		list_add(&subflow->node, &msk->conn_list);
 
 		bh_unlock_sock(new_mptcp_sock);
+
+		__MPTCP_INC_STATS(sock_net(sk), MPTCP_MIB_MPCAPABLEPASSIVEACK);
 		local_bh_enable();
+	} else {
+		MPTCP_INC_STATS(sock_net(sk),
+				MPTCP_MIB_MPCAPABLEPASSIVEFALLBACK);
 	}
 
 	return newsk;
@@ -1448,12 +1460,14 @@ void mptcp_finish_connect(struct sock *ssk)
 	u64 ack_seq;
 
 	subflow = mptcp_subflow_ctx(ssk);
-
-	if (!subflow->mp_capable)
-		return;
-
 	sk = subflow->conn;
 	msk = mptcp_sk(sk);
+
+	if (!subflow->mp_capable) {
+		MPTCP_INC_STATS(sock_net(sk),
+				MPTCP_MIB_MPCAPABLEACTIVEFALLBACK);
+		return;
+	}
 
 	pr_debug("msk=%p, token=%u", sk, subflow->token);
 
