@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
+#include <linux/net_tstamp.h>
+
 #include "common.h"
 
 const char netdev_features_strings[NETDEV_FEATURE_COUNT][ETH_GSTRING_LEN] = {
@@ -203,6 +205,53 @@ const char wol_mode_names[][ETH_GSTRING_LEN] = {
 	[const_ilog2(WAKE_FILTER)]	= "filter",
 };
 static_assert(ARRAY_SIZE(wol_mode_names) == WOL_MODE_COUNT);
+
+const char sof_timestamping_names[][ETH_GSTRING_LEN] = {
+	[const_ilog2(SOF_TIMESTAMPING_TX_HARDWARE)]  = "hardware-transmit",
+	[const_ilog2(SOF_TIMESTAMPING_TX_SOFTWARE)]  = "software-transmit",
+	[const_ilog2(SOF_TIMESTAMPING_RX_HARDWARE)]  = "hardware-receive",
+	[const_ilog2(SOF_TIMESTAMPING_RX_SOFTWARE)]  = "software-receive",
+	[const_ilog2(SOF_TIMESTAMPING_SOFTWARE)]     = "software-system-clock",
+	[const_ilog2(SOF_TIMESTAMPING_SYS_HARDWARE)] = "hardware-legacy-clock",
+	[const_ilog2(SOF_TIMESTAMPING_RAW_HARDWARE)] = "hardware-raw-clock",
+	[const_ilog2(SOF_TIMESTAMPING_OPT_ID)]       = "option-id",
+	[const_ilog2(SOF_TIMESTAMPING_TX_SCHED)]     = "sched-transmit",
+	[const_ilog2(SOF_TIMESTAMPING_TX_ACK)]       = "ack-transmit",
+	[const_ilog2(SOF_TIMESTAMPING_OPT_CMSG)]     = "option-cmsg",
+	[const_ilog2(SOF_TIMESTAMPING_OPT_TSONLY)]   = "option-tsonly",
+	[const_ilog2(SOF_TIMESTAMPING_OPT_STATS)]    = "option-stats",
+	[const_ilog2(SOF_TIMESTAMPING_OPT_PKTINFO)]  = "option-pktinfo",
+	[const_ilog2(SOF_TIMESTAMPING_OPT_TX_SWHW)]  = "option-tx-swhw",
+};
+static_assert(ARRAY_SIZE(sof_timestamping_names) == __SOF_TIMESTAMPING_CNT);
+
+const char ts_tx_type_names[][ETH_GSTRING_LEN] = {
+	[HWTSTAMP_TX_OFF]		= "off",
+	[HWTSTAMP_TX_ON]		= "on",
+	[HWTSTAMP_TX_ONESTEP_SYNC]	= "onestep-sync",
+	[HWTSTAMP_TX_ONESTEP_P2P]	= "onestep-p2p",
+};
+static_assert(ARRAY_SIZE(ts_tx_type_names) == __HWTSTAMP_TX_CNT);
+
+const char ts_rx_filter_names[][ETH_GSTRING_LEN] = {
+	[HWTSTAMP_FILTER_NONE]			= "none",
+	[HWTSTAMP_FILTER_ALL]			= "all",
+	[HWTSTAMP_FILTER_SOME]			= "some",
+	[HWTSTAMP_FILTER_PTP_V1_L4_EVENT]	= "ptpv1-l4-event",
+	[HWTSTAMP_FILTER_PTP_V1_L4_SYNC]	= "ptpv1-l4-sync",
+	[HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ]	= "ptpv1-l4-delay-req",
+	[HWTSTAMP_FILTER_PTP_V2_L4_EVENT]	= "ptpv2-l4-event",
+	[HWTSTAMP_FILTER_PTP_V2_L4_SYNC]	= "ptpv2-l4-sync",
+	[HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ]	= "ptpv2-l4-delay-req",
+	[HWTSTAMP_FILTER_PTP_V2_L2_EVENT]	= "ptpv2-l2-event",
+	[HWTSTAMP_FILTER_PTP_V2_L2_SYNC]	= "ptpv2-l2-sync",
+	[HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ]	= "ptpv2-l2-delay-req",
+	[HWTSTAMP_FILTER_PTP_V2_EVENT]		= "ptpv2-event",
+	[HWTSTAMP_FILTER_PTP_V2_SYNC]		= "ptpv2-sync",
+	[HWTSTAMP_FILTER_PTP_V2_DELAY_REQ]	= "ptpv2-delay-req",
+	[HWTSTAMP_FILTER_NTP_ALL]		= "ntp-all",
+};
+static_assert(ARRAY_SIZE(ts_rx_filter_names) == __HWTSTAMP_FILTER_CNT);
 
 /* return false if legacy contained non-0 deprecated fields
  * maxtxpkt/maxrxpkt. rest of ksettings always updated
