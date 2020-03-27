@@ -198,6 +198,7 @@ Userspace to kernel:
   ``ETHTOOL_MSG_CHANNELS_GET``          get channel counts
   ``ETHTOOL_MSG_CHANNELS_SET``          set channel counts
   ``ETHTOOL_MSG_COALESCE_GET``          get coalescing parameters
+  ``ETHTOOL_MSG_COALESCE_SET``          set coalescing parameters
   ===================================== ================================
 
 Kernel to userspace:
@@ -791,6 +792,45 @@ corresponding bit in ``ethtool_ops::supported_coalesce_params`` is set (i.e.
 they are declared as supported by driver).
 
 
+COALESCE_SET
+============
+
+Sets coalescing parameters like ``ETHTOOL_SCOALESCE`` ioctl request.
+
+Request contents:
+
+  ===========================================  ======  =======================
+  ``ETHTOOL_A_COALESCE_HEADER``                nested  request header
+  ``ETHTOOL_A_COALESCE_RX_USECS``              u32     delay (us), normal Rx
+  ``ETHTOOL_A_COALESCE_RX_MAX_FRAMES``         u32     max packets, normal Rx
+  ``ETHTOOL_A_COALESCE_RX_USECS_IRQ``          u32     delay (us), Rx in IRQ
+  ``ETHTOOL_A_COALESCE_RX_MAX_FRAMES_IRQ``     u32     max packets, Rx in IRQ
+  ``ETHTOOL_A_COALESCE_TX_USECS``              u32     delay (us), normal Tx
+  ``ETHTOOL_A_COALESCE_TX_MAX_FRAMES``         u32     max packets, normal Tx
+  ``ETHTOOL_A_COALESCE_TX_USECS_IRQ``          u32     delay (us), Tx in IRQ
+  ``ETHTOOL_A_COALESCE_TX_MAX_FRAMES_IRQ``     u32     IRQ packets, Tx in IRQ
+  ``ETHTOOL_A_COALESCE_STATS_BLOCK_USECS``     u32     delay of stats update
+  ``ETHTOOL_A_COALESCE_USE_ADAPTIVE_RX``       bool    adaptive Rx coalesce
+  ``ETHTOOL_A_COALESCE_USE_ADAPTIVE_TX``       bool    adaptive Tx coalesce
+  ``ETHTOOL_A_COALESCE_PKT_RATE_LOW``          u32     threshold for low rate
+  ``ETHTOOL_A_COALESCE_RX_USECS_LOW``          u32     delay (us), low Rx
+  ``ETHTOOL_A_COALESCE_RX_MAX_FRAMES_LOW``     u32     max packets, low Rx
+  ``ETHTOOL_A_COALESCE_TX_USECS_LOW``          u32     delay (us), low Tx
+  ``ETHTOOL_A_COALESCE_TX_MAX_FRAMES_LOW``     u32     max packets, low Tx
+  ``ETHTOOL_A_COALESCE_PKT_RATE_HIGH``         u32     threshold for high rate
+  ``ETHTOOL_A_COALESCE_RX_USECS_HIGH``         u32     delay (us), high Rx
+  ``ETHTOOL_A_COALESCE_RX_MAX_FRAMES_HIGH``    u32     max packets, high Rx
+  ``ETHTOOL_A_COALESCE_TX_USECS_HIGH``         u32     delay (us), high Tx
+  ``ETHTOOL_A_COALESCE_TX_MAX_FRAMES_HIGH``    u32     max packets, high Tx
+  ``ETHTOOL_A_COALESCE_RATE_SAMPLE_INTERVAL``  u32     rate sampling interval
+  ===========================================  ======  =======================
+
+Request is rejected if it attributes declared as unsupported by driver (i.e.
+such that the corresponding bit in ``ethtool_ops::supported_coalesce_params``
+is not set), regardless of their values. Driver may impose additional
+constraints on coalescing parameters and their values.
+
+
 Request translation
 ===================
 
@@ -816,7 +856,7 @@ have their netlink replacement yet.
   ``ETHTOOL_GEEPROM``                 n/a
   ``ETHTOOL_SEEPROM``                 n/a
   ``ETHTOOL_GCOALESCE``               ``ETHTOOL_MSG_COALESCE_GET``
-  ``ETHTOOL_SCOALESCE``               n/a
+  ``ETHTOOL_SCOALESCE``               ``ETHTOOL_MSG_COALESCE_SET``
   ``ETHTOOL_GRINGPARAM``              ``ETHTOOL_MSG_RINGS_GET``
   ``ETHTOOL_SRINGPARAM``              ``ETHTOOL_MSG_RINGS_SET``
   ``ETHTOOL_GPAUSEPARAM``             n/a
