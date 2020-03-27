@@ -214,4 +214,7 @@ struct amdgpu_mes_funcs {
 int amdgpu_mes_init(struct amdgpu_device *adev);
 void amdgpu_mes_fini(struct amdgpu_device *adev);
 
+int amdgpu_mes_create_process(struct amdgpu_device *adev, int pasid,
+			      struct amdgpu_vm *vm);
+
 #endif /* __AMDGPU_MES_H__ */

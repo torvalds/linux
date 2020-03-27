@@ -214,3 +214,80 @@ void amdgpu_mes_fini(struct amdgpu_device *adev)
 	ida_destroy(&adev->mes.doorbell_ida);
 	mutex_destroy(&adev->mes.mutex);
 }
+
+int amdgpu_mes_create_process(struct amdgpu_device *adev, int pasid,
+			      struct amdgpu_vm *vm)
+{
+	struct amdgpu_mes_process *process;
+	int r;
+
+	mutex_lock(&adev->mes.mutex);
+
+	/* allocate the mes process buffer */
+	process = kzalloc(sizeof(struct amdgpu_mes_process), GFP_KERNEL);
+	if (!process) {
+		DRM_ERROR("no more memory to create mes process\n");
+		mutex_unlock(&adev->mes.mutex);
+		return -ENOMEM;
+	}
+
+	process->doorbell_bitmap =
+		kzalloc(DIV_ROUND_UP(AMDGPU_MES_MAX_NUM_OF_QUEUES_PER_PROCESS,
+				     BITS_PER_BYTE), GFP_KERNEL);
+	if (!process->doorbell_bitmap) {
+		DRM_ERROR("failed to allocate doorbell bitmap\n");
+		kfree(process);
+		mutex_unlock(&adev->mes.mutex);
+		return -ENOMEM;
+	}
+
+	/* add the mes process to idr list */
+	r = idr_alloc(&adev->mes.pasid_idr, process, pasid, pasid + 1,
+		      GFP_KERNEL);
+	if (r < 0) {
+		DRM_ERROR("failed to lock pasid=%d\n", pasid);
+		goto clean_up_memory;
+	}
+
+	/* allocate the process context bo and map it */
+	r = amdgpu_bo_create_kernel(adev, AMDGPU_MES_PROC_CTX_SIZE, PAGE_SIZE,
+				    AMDGPU_GEM_DOMAIN_GTT,
+				    &process->proc_ctx_bo,
+				    &process->proc_ctx_gpu_addr,
+				    &process->proc_ctx_cpu_ptr);
+	if (r) {
+		DRM_ERROR("failed to allocate process context bo\n");
+		goto clean_up_pasid;
+	}
+	memset(process->proc_ctx_cpu_ptr, 0, AMDGPU_MES_PROC_CTX_SIZE);
+
+	/* allocate the starting doorbell index of the process */
+	r = amdgpu_mes_alloc_process_doorbells(adev, process);
+	if (r < 0) {
+		DRM_ERROR("failed to allocate doorbell for process\n");
+		goto clean_up_ctx;
+	}
+
+	DRM_DEBUG("process doorbell index = %d\n", process->doorbell_index);
+
+	INIT_LIST_HEAD(&process->gang_list);
+	process->vm = vm;
+	process->pasid = pasid;
+	process->process_quantum = adev->mes.default_process_quantum;
+	process->pd_gpu_addr = amdgpu_bo_gpu_offset(vm->root.bo);
+
+	mutex_unlock(&adev->mes.mutex);
+	return 0;
+
+clean_up_ctx:
+	amdgpu_bo_free_kernel(&process->proc_ctx_bo,
+			      &process->proc_ctx_gpu_addr,
+			      &process->proc_ctx_cpu_ptr);
+clean_up_pasid:
+	idr_remove(&adev->mes.pasid_idr, pasid);
+clean_up_memory:
+	kfree(process->doorbell_bitmap);
+	kfree(process);
+	mutex_unlock(&adev->mes.mutex);
+	return r;
+}
