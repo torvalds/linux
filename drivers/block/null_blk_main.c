@@ -1698,27 +1698,6 @@ static bool null_setup_fault(void)
 	return true;
 }
 
-/*
- * This function is identical to blk_mq_init_queue() except that it sets
- * queuedata before .init_hctx is called.
- */
-static struct request_queue *nullb_alloc_queue(struct nullb *nullb)
-{
-	struct request_queue *uninit_q, *q;
-	struct blk_mq_tag_set *set = nullb->tag_set;
-
-	uninit_q = blk_alloc_queue_node(GFP_KERNEL, set->numa_node);
-	if (!uninit_q)
-		return ERR_PTR(-ENOMEM);
-
-	uninit_q->queuedata = nullb;
-	q = blk_mq_init_allocated_queue(set, uninit_q, false);
-	if (IS_ERR(q))
-		blk_cleanup_queue(uninit_q);
-
-	return q;
-}
-
 static int null_add_dev(struct nullb_device *dev)
 {
 	struct nullb *nullb;
@@ -1758,7 +1737,7 @@ static int null_add_dev(struct nullb_device *dev)
 			goto out_cleanup_queues;
 
 		nullb->tag_set->timeout = 5 * HZ;
-		nullb->q = nullb_alloc_queue(nullb);
+		nullb->q = blk_mq_init_queue_data(nullb->tag_set, nullb);
 		if (IS_ERR(nullb->q)) {
 			rv = -ENOMEM;
 			goto out_cleanup_tags;
