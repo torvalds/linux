@@ -3271,7 +3271,7 @@ void serial8250_console_write(struct uart_8250_port *up, const char *s,
 	serial_port_out(port, UART_IER, ier);
 
 	if (em485) {
-		mdelay(port->rs485.delay_rts_before_send);
+		mdelay(port->rs485.delay_rts_after_send);
 		if (em485->tx_stopped)
 			up->rs485_stop_tx(up);
 	}
