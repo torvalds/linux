@@ -1915,11 +1915,26 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 	 * of trouble.
 	 */
 	active = READ_ONCE(execlists->active);
-	while ((last = *active) && i915_request_completed(last))
-		active++;
 
-	if (last) {
+	/*
+	 * In theory we can skip over completed contexts that have not
+	 * yet been processed by events (as those events are in flight):
+	 *
+	 * while ((last = *active) && i915_request_completed(last))
+	 *	active++;
+	 *
+	 * However, the GPU cannot handle this as it will ultimately
+	 * find itself trying to jump back into a context it has just
+	 * completed and barf.
+	 */
+
+	if ((last = *active)) {
 		if (need_preempt(engine, last, rb)) {
+			if (i915_request_completed(last)) {
+				tasklet_hi_schedule(&execlists->tasklet);
+				return;
+			}
+
 			ENGINE_TRACE(engine,
 				     "preempting last=%llx:%lld, prio=%d, hint=%d\n",
 				     last->fence.context,
@@ -1947,6 +1962,11 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 			last = NULL;
 		} else if (need_timeslice(engine, last) &&
 			   timer_expired(&engine->execlists.timer)) {
+			if (i915_request_completed(last)) {
+				tasklet_hi_schedule(&execlists->tasklet);
+				return;
+			}
+
 			ENGINE_TRACE(engine,
 				     "expired last=%llx:%lld, prio=%d, hint=%d\n",
 				     last->fence.context,
