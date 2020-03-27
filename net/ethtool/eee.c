@@ -128,3 +128,76 @@ const struct ethnl_request_ops ethnl_eee_request_ops = {
 	.reply_size		= eee_reply_size,
 	.fill_reply		= eee_fill_reply,
 };
+
+/* EEE_SET */
+
+static const struct nla_policy
+eee_set_policy[ETHTOOL_A_EEE_MAX + 1] = {
+	[ETHTOOL_A_EEE_UNSPEC]		= { .type = NLA_REJECT },
+	[ETHTOOL_A_EEE_HEADER]		= { .type = NLA_NESTED },
+	[ETHTOOL_A_EEE_MODES_OURS]	= { .type = NLA_NESTED },
+	[ETHTOOL_A_EEE_MODES_PEER]	= { .type = NLA_REJECT },
+	[ETHTOOL_A_EEE_ACTIVE]		= { .type = NLA_REJECT },
+	[ETHTOOL_A_EEE_ENABLED]		= { .type = NLA_U8 },
+	[ETHTOOL_A_EEE_TX_LPI_ENABLED]	= { .type = NLA_U8 },
+	[ETHTOOL_A_EEE_TX_LPI_TIMER]	= { .type = NLA_U32 },
+};
+
+int ethnl_set_eee(struct sk_buff *skb, struct genl_info *info)
+{
+	struct nlattr *tb[ETHTOOL_A_EEE_MAX + 1];
+	struct ethtool_eee eee = {};
+	struct ethnl_req_info req_info = {};
+	const struct ethtool_ops *ops;
+	struct net_device *dev;
+	bool mod = false;
+	int ret;
+
+	ret = nlmsg_parse(info->nlhdr, GENL_HDRLEN, tb, ETHTOOL_A_EEE_MAX,
+			  eee_set_policy, info->extack);
+	if (ret < 0)
+		return ret;
+	ret = ethnl_parse_header_dev_get(&req_info,
+					 tb[ETHTOOL_A_EEE_HEADER],
+					 genl_info_net(info), info->extack,
+					 true);
+	if (ret < 0)
+		return ret;
+	dev = req_info.dev;
+	ops = dev->ethtool_ops;
+	ret = -EOPNOTSUPP;
+	if (!ops->get_eee || !ops->set_eee)
+		goto out_dev;
+
+	rtnl_lock();
+	ret = ethnl_ops_begin(dev);
+	if (ret < 0)
+		goto out_rtnl;
+	ret = ops->get_eee(dev, &eee);
+	if (ret < 0)
+		goto out_ops;
+
+	ret = ethnl_update_bitset32(&eee.advertised, EEE_MODES_COUNT,
+				    tb[ETHTOOL_A_EEE_MODES_OURS],
+				    link_mode_names, info->extack, &mod);
+	if (ret < 0)
+		goto out_ops;
+	ethnl_update_bool32(&eee.eee_enabled, tb[ETHTOOL_A_EEE_ENABLED], &mod);
+	ethnl_update_bool32(&eee.tx_lpi_enabled,
+			    tb[ETHTOOL_A_EEE_TX_LPI_ENABLED], &mod);
+	ethnl_update_bool32(&eee.tx_lpi_timer, tb[ETHTOOL_A_EEE_TX_LPI_TIMER],
+			    &mod);
+	ret = 0;
+	if (!mod)
+		goto out_ops;
+
+	ret = dev->ethtool_ops->set_eee(dev, &eee);
+
+out_ops:
+	ethnl_ops_complete(dev);
+out_rtnl:
+	rtnl_unlock();
+out_dev:
+	dev_put(dev);
+	return ret;
+}

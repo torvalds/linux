@@ -37,6 +37,7 @@ enum {
 	ETHTOOL_MSG_PAUSE_GET,
 	ETHTOOL_MSG_PAUSE_SET,
 	ETHTOOL_MSG_EEE_GET,
+	ETHTOOL_MSG_EEE_SET,
 
 	/* add new constants above here */
 	__ETHTOOL_MSG_USER_CNT,

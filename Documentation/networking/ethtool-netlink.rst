@@ -202,6 +202,7 @@ Userspace to kernel:
   ``ETHTOOL_MSG_PAUSE_GET``             get pause parameters
   ``ETHTOOL_MSG_PAUSE_SET``             set pause parameters
   ``ETHTOOL_MSG_EEE_GET``               get EEE settings
+  ``ETHTOOL_MSG_EEE_SET``               set EEE settings
   ===================================== ================================
 
 Kernel to userspace:
@@ -904,6 +905,28 @@ netlink interface allows reporting EEE status for all link modes but only
 first 32 are provided by the ``ethtool_ops`` callback.
 
 
+EEE_SET
+=======
+
+Sets pause parameters like ``ETHTOOL_GEEEPARAM`` ioctl request.
+
+Request contents:
+
+  =====================================  ======  ==========================
+  ``ETHTOOL_A_EEE_HEADER``               nested  request header
+  ``ETHTOOL_A_EEE_MODES_OURS``           bool    advertised modes
+  ``ETHTOOL_A_EEE_ENABLED``              bool    EEE is enabled
+  ``ETHTOOL_A_EEE_TX_LPI_ENABLED``       bool    Tx lpi enabled
+  ``ETHTOOL_A_EEE_TX_LPI_TIMER``         u32     Tx lpi timeout (in us)
+  =====================================  ======  ==========================
+
+``ETHTOOL_A_EEE_MODES_OURS`` is used to either list link modes to advertise
+EEE for (if there is no mask) or specify changes to the list (if there is
+a mask). The netlink interface allows reporting EEE status for all link modes
+but only first 32 can be set at the moment as that is what the ``ethtool_ops``
+callback supports.
+
+
 Request translation
 ===================
 
@@ -983,7 +1006,7 @@ have their netlink replacement yet.
   ``ETHTOOL_GMODULEINFO``             n/a
   ``ETHTOOL_GMODULEEEPROM``           n/a
   ``ETHTOOL_GEEE``                    ``ETHTOOL_MSG_EEE_GET``
-  ``ETHTOOL_SEEE``                    n/a
+  ``ETHTOOL_SEEE``                    ``ETHTOOL_MSG_EEE_SET``
   ``ETHTOOL_GRSSH``                   n/a
   ``ETHTOOL_SRSSH``                   n/a
   ``ETHTOOL_GTUNABLE``                n/a
