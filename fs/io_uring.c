@@ -2469,12 +2469,18 @@ static void io_req_map_rw(struct io_kiocb *req, ssize_t io_size,
 	}
 }
 
+static inline int __io_alloc_async_ctx(struct io_kiocb *req)
+{
+	req->io = kmalloc(sizeof(*req->io), GFP_KERNEL);
+	return req->io == NULL;
+}
+
 static int io_alloc_async_ctx(struct io_kiocb *req)
 {
 	if (!io_op_defs[req->opcode].async_ctx)
 		return 0;
-	req->io = kmalloc(sizeof(*req->io), GFP_KERNEL);
-	return req->io == NULL;
+
+	return  __io_alloc_async_ctx(req);
 }
 
 static int io_setup_async_rw(struct io_kiocb *req, ssize_t io_size,
@@ -2484,7 +2490,7 @@ static int io_setup_async_rw(struct io_kiocb *req, ssize_t io_size,
 	if (!io_op_defs[req->opcode].async_ctx)
 		return 0;
 	if (!req->io) {
-		if (io_alloc_async_ctx(req))
+		if (__io_alloc_async_ctx(req))
 			return -ENOMEM;
 
 		io_req_map_rw(req, io_size, iovec, fast_iov, iter);
