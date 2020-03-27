@@ -474,6 +474,18 @@ config HW_RANDOM_KEYSTONE
 	help
 	  This option enables Keystone's hardware random generator.
 
+config HW_RANDOM_CCTRNG
+	tristate "Arm CryptoCell True Random Number Generator support"
+	default HW_RANDOM
+	help
+	  This driver provides support for the True Random Number
+	  Generator available in Arm TrustZone CryptoCell.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called cctrng.
+
+	  If unsure, say Y.
+
 endif # HW_RANDOM
 
 config UML_RANDOM
