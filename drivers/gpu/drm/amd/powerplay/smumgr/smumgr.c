@@ -136,12 +136,18 @@ int smum_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg, uint32_t *resp)
 	    (resp && !hwmgr->smumgr_funcs->get_argument))
 		return -EINVAL;
 
+	mutex_lock(&hwmgr->msg_lock);
+
 	ret = hwmgr->smumgr_funcs->send_msg_to_smc(hwmgr, msg);
-	if (ret)
+	if (ret) {
+		mutex_unlock(&hwmgr->msg_lock);
 		return ret;
+	}
 
 	if (resp)
 		*resp = hwmgr->smumgr_funcs->get_argument(hwmgr);
+
+	mutex_unlock(&hwmgr->msg_lock);
 
 	return ret;
 }
@@ -158,13 +164,19 @@ int smum_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr,
 	    (resp && !hwmgr->smumgr_funcs->get_argument))
 		return -EINVAL;
 
+	mutex_lock(&hwmgr->msg_lock);
+
 	ret = hwmgr->smumgr_funcs->send_msg_to_smc_with_parameter(
 						hwmgr, msg, parameter);
-	if (ret)
+	if (ret) {
+		mutex_unlock(&hwmgr->msg_lock);
 		return ret;
+	}
 
 	if (resp)
 		*resp = hwmgr->smumgr_funcs->get_argument(hwmgr);
+
+	mutex_unlock(&hwmgr->msg_lock);
 
 	return ret;
 }
