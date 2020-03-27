@@ -197,6 +197,7 @@ Userspace to kernel:
   ``ETHTOOL_MSG_RINGS_SET``             set ring sizes
   ``ETHTOOL_MSG_CHANNELS_GET``          get channel counts
   ``ETHTOOL_MSG_CHANNELS_SET``          set channel counts
+  ``ETHTOOL_MSG_COALESCE_GET``          get coalescing parameters
   ===================================== ================================
 
 Kernel to userspace:
@@ -221,6 +222,7 @@ Kernel to userspace:
   ``ETHTOOL_MSG_RINGS_NTF``             ring sizes
   ``ETHTOOL_MSG_CHANNELS_GET_REPLY``    channel counts
   ``ETHTOOL_MSG_CHANNELS_NTF``          channel counts
+  ``ETHTOOL_MSG_COALESCE_GET_REPLY``    coalescing parameters
   ===================================== =================================
 
 ``GET`` requests are sent by userspace applications to retrieve device
@@ -745,6 +747,50 @@ driver. Driver may impose additional constraints and may not suspport all
 attributes.
 
 
+COALESCE_GET
+============
+
+Gets coalescing parameters like ``ETHTOOL_GCOALESCE`` ioctl request.
+
+Request contents:
+
+  ====================================  ======  ==========================
+  ``ETHTOOL_A_COALESCE_HEADER``         nested  request header
+  ====================================  ======  ==========================
+
+Kernel response contents:
+
+  ===========================================  ======  =======================
+  ``ETHTOOL_A_COALESCE_HEADER``                nested  reply header
+  ``ETHTOOL_A_COALESCE_RX_USECS``              u32     delay (us), normal Rx
+  ``ETHTOOL_A_COALESCE_RX_MAX_FRAMES``         u32     max packets, normal Rx
+  ``ETHTOOL_A_COALESCE_RX_USECS_IRQ``          u32     delay (us), Rx in IRQ
+  ``ETHTOOL_A_COALESCE_RX_MAX_FRAMES_IRQ``     u32     max packets, Rx in IRQ
+  ``ETHTOOL_A_COALESCE_TX_USECS``              u32     delay (us), normal Tx
+  ``ETHTOOL_A_COALESCE_TX_MAX_FRAMES``         u32     max packets, normal Tx
+  ``ETHTOOL_A_COALESCE_TX_USECS_IRQ``          u32     delay (us), Tx in IRQ
+  ``ETHTOOL_A_COALESCE_TX_MAX_FRAMES_IRQ``     u32     IRQ packets, Tx in IRQ
+  ``ETHTOOL_A_COALESCE_STATS_BLOCK_USECS``     u32     delay of stats update
+  ``ETHTOOL_A_COALESCE_USE_ADAPTIVE_RX``       bool    adaptive Rx coalesce
+  ``ETHTOOL_A_COALESCE_USE_ADAPTIVE_TX``       bool    adaptive Tx coalesce
+  ``ETHTOOL_A_COALESCE_PKT_RATE_LOW``          u32     threshold for low rate
+  ``ETHTOOL_A_COALESCE_RX_USECS_LOW``          u32     delay (us), low Rx
+  ``ETHTOOL_A_COALESCE_RX_MAX_FRAMES_LOW``     u32     max packets, low Rx
+  ``ETHTOOL_A_COALESCE_TX_USECS_LOW``          u32     delay (us), low Tx
+  ``ETHTOOL_A_COALESCE_TX_MAX_FRAMES_LOW``     u32     max packets, low Tx
+  ``ETHTOOL_A_COALESCE_PKT_RATE_HIGH``         u32     threshold for high rate
+  ``ETHTOOL_A_COALESCE_RX_USECS_HIGH``         u32     delay (us), high Rx
+  ``ETHTOOL_A_COALESCE_RX_MAX_FRAMES_HIGH``    u32     max packets, high Rx
+  ``ETHTOOL_A_COALESCE_TX_USECS_HIGH``         u32     delay (us), high Tx
+  ``ETHTOOL_A_COALESCE_TX_MAX_FRAMES_HIGH``    u32     max packets, high Tx
+  ``ETHTOOL_A_COALESCE_RATE_SAMPLE_INTERVAL``  u32     rate sampling interval
+  ===========================================  ======  =======================
+
+Attributes are only included in reply if their value is not zero or the
+corresponding bit in ``ethtool_ops::supported_coalesce_params`` is set (i.e.
+they are declared as supported by driver).
+
+
 Request translation
 ===================
 
@@ -769,7 +815,7 @@ have their netlink replacement yet.
   ``ETHTOOL_GLINK``                   ``ETHTOOL_MSG_LINKSTATE_GET``
   ``ETHTOOL_GEEPROM``                 n/a
   ``ETHTOOL_SEEPROM``                 n/a
-  ``ETHTOOL_GCOALESCE``               n/a
+  ``ETHTOOL_GCOALESCE``               ``ETHTOOL_MSG_COALESCE_GET``
   ``ETHTOOL_SCOALESCE``               n/a
   ``ETHTOOL_GRINGPARAM``              ``ETHTOOL_MSG_RINGS_GET``
   ``ETHTOOL_SRINGPARAM``              ``ETHTOOL_MSG_RINGS_SET``
