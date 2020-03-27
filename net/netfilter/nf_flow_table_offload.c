@@ -12,9 +12,7 @@
 #include <net/netfilter/nf_conntrack_core.h>
 #include <net/netfilter/nf_conntrack_tuple.h>
 
-static struct work_struct nf_flow_offload_work;
-static DEFINE_SPINLOCK(flow_offload_pending_list_lock);
-static LIST_HEAD(flow_offload_pending_list);
+static struct workqueue_struct *nf_flow_offload_wq;
 
 struct flow_offload_work {
 	struct list_head	list;
@@ -22,6 +20,7 @@ struct flow_offload_work {
 	int			priority;
 	struct nf_flowtable	*flowtable;
 	struct flow_offload	*flow;
+	struct work_struct	work;
 };
 
 #define NF_FLOW_DISSECTOR(__match, __type, __field)	\
@@ -788,15 +787,10 @@ static void flow_offload_work_stats(struct flow_offload_work *offload)
 
 static void flow_offload_work_handler(struct work_struct *work)
 {
-	struct flow_offload_work *offload, *next;
-	LIST_HEAD(offload_pending_list);
+	struct flow_offload_work *offload;
 
-	spin_lock_bh(&flow_offload_pending_list_lock);
-	list_replace_init(&flow_offload_pending_list, &offload_pending_list);
-	spin_unlock_bh(&flow_offload_pending_list_lock);
-
-	list_for_each_entry_safe(offload, next, &offload_pending_list, list) {
-		switch (offload->cmd) {
+	offload = container_of(work, struct flow_offload_work, work);
+	switch (offload->cmd) {
 		case FLOW_CLS_REPLACE:
 			flow_offload_work_add(offload);
 			break;
@@ -808,19 +802,14 @@ static void flow_offload_work_handler(struct work_struct *work)
 			break;
 		default:
 			WARN_ON_ONCE(1);
-		}
-		list_del(&offload->list);
-		kfree(offload);
 	}
+
+	kfree(offload);
 }
 
 static void flow_offload_queue_work(struct flow_offload_work *offload)
 {
-	spin_lock_bh(&flow_offload_pending_list_lock);
-	list_add_tail(&offload->list, &flow_offload_pending_list);
-	spin_unlock_bh(&flow_offload_pending_list_lock);
-
-	schedule_work(&nf_flow_offload_work);
+	queue_work(nf_flow_offload_wq, &offload->work);
 }
 
 static struct flow_offload_work *
@@ -837,6 +826,7 @@ nf_flow_offload_work_alloc(struct nf_flowtable *flowtable,
 	offload->flow = flow;
 	offload->priority = flowtable->priority;
 	offload->flowtable = flowtable;
+	INIT_WORK(&offload->work, flow_offload_work_handler);
 
 	return offload;
 }
@@ -887,7 +877,7 @@ void nf_flow_offload_stats(struct nf_flowtable *flowtable,
 void nf_flow_table_offload_flush(struct nf_flowtable *flowtable)
 {
 	if (nf_flowtable_hw_offload(flowtable))
-		flush_work(&nf_flow_offload_work);
+		flush_workqueue(nf_flow_offload_wq);
 }
 
 static int nf_flow_table_block_setup(struct nf_flowtable *flowtable,
@@ -1052,7 +1042,10 @@ static struct flow_indr_block_entry block_ing_entry = {
 
 int nf_flow_table_offload_init(void)
 {
-	INIT_WORK(&nf_flow_offload_work, flow_offload_work_handler);
+	nf_flow_offload_wq  = alloc_workqueue("nf_flow_table_offload",
+					      WQ_UNBOUND | WQ_MEM_RECLAIM, 0);
+	if (!nf_flow_offload_wq)
+		return -ENOMEM;
 
 	flow_indr_add_block_cb(&block_ing_entry);
 
@@ -1061,15 +1054,6 @@ int nf_flow_table_offload_init(void)
 
 void nf_flow_table_offload_exit(void)
 {
-	struct flow_offload_work *offload, *next;
-	LIST_HEAD(offload_pending_list);
-
 	flow_indr_del_block_cb(&block_ing_entry);
-
-	cancel_work_sync(&nf_flow_offload_work);
-
-	list_for_each_entry_safe(offload, next, &offload_pending_list, list) {
-		list_del(&offload->list);
-		kfree(offload);
-	}
+	destroy_workqueue(nf_flow_offload_wq);
 }
