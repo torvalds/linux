@@ -822,6 +822,28 @@ static bool ovl_pure_upper(struct dentry *dentry)
 	       !ovl_test_flag(OVL_WHITEOUTS, d_inode(dentry));
 }
 
+static void ovl_drop_nlink(struct dentry *dentry)
+{
+	struct inode *inode = d_inode(dentry);
+	struct dentry *alias;
+
+	/* Try to find another, hashed alias */
+	spin_lock(&inode->i_lock);
+	hlist_for_each_entry(alias, &inode->i_dentry, d_u.d_alias) {
+		if (alias != dentry && !d_unhashed(alias))
+			break;
+	}
+	spin_unlock(&inode->i_lock);
+
+	/*
+	 * Changes to underlying layers may cause i_nlink to lose sync with
+	 * reality.  In this case prevent the link count from going to zero
+	 * prematurely.
+	 */
+	if (inode->i_nlink > !!alias)
+		drop_nlink(inode);
+}
+
 static int ovl_do_remove(struct dentry *dentry, bool is_dir)
 {
 	int err;
@@ -859,7 +881,7 @@ static int ovl_do_remove(struct dentry *dentry, bool is_dir)
 		if (is_dir)
 			clear_nlink(dentry->d_inode);
 		else
-			drop_nlink(dentry->d_inode);
+			ovl_drop_nlink(dentry);
 	}
 	ovl_nlink_end(dentry);
 
@@ -1204,7 +1226,7 @@ static int ovl_rename(struct inode *olddir, struct dentry *old,
 		if (new_is_dir)
 			clear_nlink(d_inode(new));
 		else
-			drop_nlink(d_inode(new));
+			ovl_drop_nlink(new);
 	}
 
 	ovl_dir_modified(old->d_parent, ovl_type_origin(old) ||
