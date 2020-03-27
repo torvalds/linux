@@ -232,6 +232,7 @@ Kernel to userspace:
   ``ETHTOOL_MSG_PAUSE_GET_REPLY``       pause parameters
   ``ETHTOOL_MSG_PAUSE_NTF``             pause parameters
   ``ETHTOOL_MSG_EEE_GET_REPLY``         EEE settings
+  ``ETHTOOL_MSG_EEE_NTF``               EEE settings
   ===================================== =================================
 
 ``GET`` requests are sent by userspace applications to retrieve device

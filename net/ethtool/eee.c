@@ -192,6 +192,9 @@ int ethnl_set_eee(struct sk_buff *skb, struct genl_info *info)
 		goto out_ops;
 
 	ret = dev->ethtool_ops->set_eee(dev, &eee);
+	if (ret < 0)
+		goto out_ops;
+	ethtool_notify(dev, ETHTOOL_MSG_EEE_NTF, NULL);
 
 out_ops:
 	ethnl_ops_complete(dev);
