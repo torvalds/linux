@@ -25,7 +25,7 @@ static bool fanotify_path_equal(struct path *p1, struct path *p2)
 static inline bool fanotify_fsid_equal(__kernel_fsid_t *fsid1,
 				       __kernel_fsid_t *fsid2)
 {
-	return fsid1->val[0] == fsid1->val[0] && fsid2->val[1] == fsid2->val[1];
+	return fsid1->val[0] == fsid2->val[0] && fsid1->val[1] == fsid2->val[1];
 }
 
 static bool fanotify_fh_equal(struct fanotify_fh *fh1,
