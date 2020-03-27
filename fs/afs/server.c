@@ -212,8 +212,8 @@ static struct afs_server *afs_alloc_server(struct afs_net *net,
 	server->addr_version = alist->version;
 	server->uuid = *uuid;
 	rwlock_init(&server->fs_lock);
-	INIT_HLIST_HEAD(&server->cb_volumes);
-	rwlock_init(&server->cb_break_lock);
+	server->cb_volumes = RB_ROOT;
+	seqlock_init(&server->cb_break_lock);
 	init_waitqueue_head(&server->probe_wq);
 	INIT_LIST_HEAD(&server->probe_link);
 	spin_lock_init(&server->probe_lock);

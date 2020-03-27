@@ -28,7 +28,7 @@ static struct afs_cb_interest *afs_create_interest(struct afs_server *server,
 {
 	struct afs_vol_interest *new_vi, *vi;
 	struct afs_cb_interest *new;
-	struct hlist_node **pp;
+	struct rb_node *parent, **pp;
 
 	new_vi = kzalloc(sizeof(struct afs_vol_interest), GFP_KERNEL);
 	if (!new_vi)
@@ -42,7 +42,6 @@ static struct afs_cb_interest *afs_create_interest(struct afs_server *server,
 
 	new_vi->usage = 1;
 	new_vi->vid = vnode->volume->vid;
-	INIT_HLIST_NODE(&new_vi->srv_link);
 	INIT_HLIST_HEAD(&new_vi->cb_interests);
 
 	refcount_set(&new->usage, 1);
@@ -51,31 +50,31 @@ static struct afs_cb_interest *afs_create_interest(struct afs_server *server,
 	new->server = afs_get_server(server, afs_server_trace_get_new_cbi);
 	INIT_HLIST_NODE(&new->cb_vlink);
 
-	write_lock(&server->cb_break_lock);
+	write_seqlock(&server->cb_break_lock);
 
-	for (pp = &server->cb_volumes.first; *pp; pp = &(*pp)->next) {
-		vi = hlist_entry(*pp, struct afs_vol_interest, srv_link);
-		if (vi->vid < new_vi->vid)
-			continue;
-		if (vi->vid > new_vi->vid)
-			break;
-		vi->usage++;
-		goto found_vi;
+	pp = &server->cb_volumes.rb_node;
+	while ((parent = *pp)) {
+		vi = rb_entry(parent, struct afs_vol_interest, srv_node);
+		if (vi->vid < new_vi->vid) {
+			pp = &(*pp)->rb_left;
+		} else if (vi->vid > new_vi->vid) {
+			pp = &(*pp)->rb_right;
+		} else {
+			vi->usage++;
+			goto found_vi;
+		}
 	}
 
-	new_vi->srv_link.pprev = pp;
-	new_vi->srv_link.next = *pp;
-	if (*pp)
-		(*pp)->pprev = &new_vi->srv_link.next;
-	*pp = &new_vi->srv_link;
 	vi = new_vi;
 	new_vi = NULL;
-found_vi:
+	rb_link_node_rcu(&vi->srv_node, parent, pp);
+	rb_insert_color(&vi->srv_node, &server->cb_volumes);
 
+found_vi:
 	new->vol_interest = vi;
 	hlist_add_head(&new->cb_vlink, &vi->cb_interests);
 
-	write_unlock(&server->cb_break_lock);
+	write_sequnlock(&server->cb_break_lock);
 	kfree(new_vi);
 	return new;
 }
@@ -182,17 +181,17 @@ void afs_put_cb_interest(struct afs_net *net, struct afs_cb_interest *cbi)
 
 	if (cbi && refcount_dec_and_test(&cbi->usage)) {
 		if (!hlist_unhashed(&cbi->cb_vlink)) {
-			write_lock(&cbi->server->cb_break_lock);
+			write_seqlock(&cbi->server->cb_break_lock);
 
 			hlist_del_init(&cbi->cb_vlink);
 			vi = cbi->vol_interest;
 			cbi->vol_interest = NULL;
 			if (--vi->usage == 0)
-				hlist_del(&vi->srv_link);
+				rb_erase(&vi->srv_node, &cbi->server->cb_volumes);
 			else
 				vi = NULL;
 
-			write_unlock(&cbi->server->cb_break_lock);
+			write_sequnlock(&cbi->server->cb_break_lock);
 			if (vi)
 				kfree_rcu(vi, rcu);
 			afs_put_server(net, cbi->server, afs_server_trace_put_cbi);
@@ -238,43 +237,63 @@ void afs_break_callback(struct afs_vnode *vnode, enum afs_cb_break_reason reason
 }
 
 /*
+ * Look up a volume interest by volume ID under RCU conditions.
+ */
+static struct afs_vol_interest *afs_lookup_vol_interest_rcu(struct afs_server *server,
+							    afs_volid_t vid)
+{
+	struct afs_vol_interest *vi = NULL;
+	struct rb_node *p;
+	int seq = 0;
+
+	do {
+		/* Unfortunately, rbtree walking doesn't give reliable results
+		 * under just the RCU read lock, so we have to check for
+		 * changes.
+		 */
+		read_seqbegin_or_lock(&server->cb_break_lock, &seq);
+
+		p = rcu_dereference_raw(server->cb_volumes.rb_node);
+		while (p) {
+			vi = rb_entry(p, struct afs_vol_interest, srv_node);
+
+			if (vi->vid < vid)
+				p = rcu_dereference_raw(p->rb_left);
+			else if (vi->vid > vid)
+				p = rcu_dereference_raw(p->rb_right);
+			else
+				break;
+			/* We want to repeat the search, this time with the
+			 * lock properly locked.
+			 */
+			vi = NULL;
+		}
+
+	} while (need_seqretry(&server->cb_break_lock, seq));
+
+	done_seqretry(&server->cb_break_lock, seq);
+	return vi;
+}
+
+/*
  * allow the fileserver to explicitly break one callback
  * - happens when
  *   - the backing file is changed
  *   - a lock is released
  */
 static void afs_break_one_callback(struct afs_server *server,
-				   struct afs_fid *fid)
+				   struct afs_fid *fid,
+				   struct afs_vol_interest *vi)
 {
-	struct afs_vol_interest *vi;
 	struct afs_cb_interest *cbi;
 	struct afs_iget_data data;
 	struct afs_vnode *vnode;
 	struct inode *inode;
 
-	rcu_read_lock();
-	read_lock(&server->cb_break_lock);
-	hlist_for_each_entry(vi, &server->cb_volumes, srv_link) {
-		if (vi->vid < fid->vid)
-			continue;
-		if (vi->vid > fid->vid) {
-			vi = NULL;
-			break;
-		}
-		//atomic_inc(&vi->usage);
-		break;
-	}
-
-	/* TODO: Find all matching volumes if we couldn't match the server and
-	 * break them anyway.
-	 */
-	if (!vi)
-		goto out;
-
 	/* Step through all interested superblocks.  There may be more than one
 	 * because of cell aliasing.
 	 */
-	hlist_for_each_entry(cbi, &vi->cb_interests, cb_vlink) {
+	hlist_for_each_entry_rcu(cbi, &vi->cb_interests, cb_vlink) {
 		if (fid->vnode == 0 && fid->unique == 0) {
 			/* The callback break applies to an entire volume. */
 			struct afs_super_info *as = AFS_FS_S(cbi->sb);
@@ -303,10 +322,36 @@ static void afs_break_one_callback(struct afs_server *server,
 			}
 		}
 	}
+}
 
-out:
-	read_unlock(&server->cb_break_lock);
-	rcu_read_unlock();
+static void afs_break_some_callbacks(struct afs_server *server,
+				     struct afs_callback_break *cbb,
+				     size_t *_count)
+{
+	struct afs_callback_break *residue = cbb;
+	struct afs_vol_interest *vi;
+	afs_volid_t vid = cbb->fid.vid;
+	size_t i;
+
+	vi = afs_lookup_vol_interest_rcu(server, vid);
+
+	/* TODO: Find all matching volumes if we couldn't match the server and
+	 * break them anyway.
+	 */
+
+	for (i = *_count; i > 0; cbb++, i--) {
+		if (cbb->fid.vid == vid) {
+			_debug("- Fid { vl=%08llx n=%llu u=%u }",
+			       cbb->fid.vid,
+			       cbb->fid.vnode,
+			       cbb->fid.unique);
+			--*_count;
+			if (vi)
+				afs_break_one_callback(server, &cbb->fid, vi);
+		} else {
+			*residue++ = *cbb;
+		}
+	}
 }
 
 /*
@@ -319,17 +364,12 @@ void afs_break_callbacks(struct afs_server *server, size_t count,
 
 	ASSERT(server != NULL);
 
-	/* TODO: Sort the callback break list by volume ID */
+	rcu_read_lock();
 
-	for (; count > 0; callbacks++, count--) {
-		_debug("- Fid { vl=%08llx n=%llu u=%u }",
-		       callbacks->fid.vid,
-		       callbacks->fid.vnode,
-		       callbacks->fid.unique);
-		afs_break_one_callback(server, &callbacks->fid);
-	}
+	while (count > 0)
+		afs_break_some_callbacks(server, callbacks, &count);
 
-	_leave("");
+	rcu_read_unlock();
 	return;
 }
 
