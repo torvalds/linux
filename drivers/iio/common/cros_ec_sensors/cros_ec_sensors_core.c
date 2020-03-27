@@ -12,6 +12,7 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/kfifo_buf.h>
 #include <linux/iio/trigger_consumer.h>
+#include <linux/iio/triggered_buffer.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -82,17 +83,71 @@ static void get_default_min_max_freq(enum motionsensor_type type,
 	}
 }
 
+int cros_ec_sensors_push_data(struct iio_dev *indio_dev,
+			      s16 *data,
+			      s64 timestamp)
+{
+	struct cros_ec_sensors_core_state *st = iio_priv(indio_dev);
+	s16 *out;
+	s64 delta;
+	unsigned int i;
+
+	/*
+	 * Ignore samples if the buffer is not set: it is needed if the ODR is
+	 * set but the buffer is not enabled yet.
+	 */
+	if (!iio_buffer_enabled(indio_dev))
+		return 0;
+
+	out = (s16 *)st->samples;
+	for_each_set_bit(i,
+			 indio_dev->active_scan_mask,
+			 indio_dev->masklength) {
+		*out = data[i];
+		out++;
+	}
+
+	if (iio_device_get_clock(indio_dev) != CLOCK_BOOTTIME)
+		delta = iio_get_time_ns(indio_dev) - cros_ec_get_time_ns();
+	else
+		delta = 0;
+
+	iio_push_to_buffers_with_timestamp(indio_dev, st->samples,
+					   timestamp + delta);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(cros_ec_sensors_push_data);
+
+static void cros_ec_sensors_core_clean(void *arg)
+{
+	struct platform_device *pdev = (struct platform_device *)arg;
+	struct cros_ec_sensorhub *sensor_hub =
+		dev_get_drvdata(pdev->dev.parent);
+	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
+	struct cros_ec_sensors_core_state *st = iio_priv(indio_dev);
+	u8 sensor_num = st->param.info.sensor_num;
+
+	cros_ec_sensorhub_unregister_push_data(sensor_hub, sensor_num);
+}
+
 /**
  * cros_ec_sensors_core_init() - basic initialization of the core structure
  * @pdev:		platform device created for the sensors
  * @indio_dev:		iio device structure of the device
  * @physical_device:	true if the device refers to a physical device
+ * @trigger_capture:    function pointer to call buffer is triggered,
+ *    for backward compatibility.
+ * @push_data:          function to call when cros_ec_sensorhub receives
+ *    a sample for that sensor.
  *
  * Return: 0 on success, -errno on failure.
  */
 int cros_ec_sensors_core_init(struct platform_device *pdev,
 			      struct iio_dev *indio_dev,
-			      bool physical_device)
+			      bool physical_device,
+			      cros_ec_sensors_capture_t trigger_capture,
+			      cros_ec_sensorhub_push_data_cb_t push_data)
 {
 	struct device *dev = &pdev->dev;
 	struct cros_ec_sensors_core_state *state = iio_priv(indio_dev);
@@ -131,8 +186,6 @@ int cros_ec_sensors_core_init(struct platform_device *pdev,
 	indio_dev->name = pdev->name;
 
 	if (physical_device) {
-		indio_dev->modes = INDIO_DIRECT_MODE;
-
 		state->param.cmd = MOTIONSENSE_CMD_INFO;
 		state->param.info.sensor_num = sensor_platform->sensor_num;
 		ret = cros_ec_motion_send_host_cmd(state, 0);
@@ -160,6 +213,48 @@ int cros_ec_sensors_core_init(struct platform_device *pdev,
 			    state->resp->info_3.min_frequency;
 			state->frequencies[2] =
 			    state->resp->info_3.max_frequency;
+		}
+
+		if (cros_ec_check_features(ec, EC_FEATURE_MOTION_SENSE_FIFO)) {
+			/*
+			 * Create a software buffer, feed by the EC FIFO.
+			 * We can not use trigger here, as events are generated
+			 * as soon as sample_frequency is set.
+			 */
+			struct iio_buffer *buffer;
+
+			buffer = devm_iio_kfifo_allocate(dev);
+			if (!buffer)
+				return -ENOMEM;
+
+			iio_device_attach_buffer(indio_dev, buffer);
+			indio_dev->modes = INDIO_BUFFER_SOFTWARE;
+
+			ret = cros_ec_sensorhub_register_push_data(
+					sensor_hub, sensor_platform->sensor_num,
+					indio_dev, push_data);
+			if (ret)
+				return ret;
+
+			ret = devm_add_action_or_reset(
+					dev, cros_ec_sensors_core_clean, pdev);
+			if (ret)
+				return ret;
+
+			/* Timestamp coming from FIFO are in ns since boot. */
+			ret = iio_device_set_clock(indio_dev, CLOCK_BOOTTIME);
+			if (ret)
+				return ret;
+		} else {
+			/*
+			 * The only way to get samples in buffer is to set a
+			 * software tigger (systrig, hrtimer).
+			 */
+			ret = devm_iio_triggered_buffer_setup(
+					dev, indio_dev, NULL, trigger_capture,
+					NULL);
+			if (ret)
+				return ret;
 		}
 	}
 
