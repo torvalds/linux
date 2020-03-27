@@ -77,12 +77,42 @@ static const struct v4l2_ioctl_ops rkisp_luma_ioctl = {
 	.vidioc_querycap = rkisp_luma_querycap
 };
 
+static int rkisp_luma_fh_open(struct file *filp)
+{
+	struct rkisp_luma_vdev *params = video_drvdata(filp);
+	int ret;
+
+	ret = v4l2_fh_open(filp);
+	if (!ret) {
+		ret = v4l2_pipeline_pm_use(&params->vnode.vdev.entity, 1);
+		if (ret < 0)
+			vb2_fop_release(filp);
+	}
+
+	return ret;
+}
+
+static int rkisp_luma_fop_release(struct file *file)
+{
+	struct rkisp_luma_vdev *luma = video_drvdata(file);
+	int ret;
+
+	ret = vb2_fop_release(file);
+	if (!ret) {
+		ret = v4l2_pipeline_pm_use(&luma->vnode.vdev.entity, 0);
+		if (ret < 0)
+			v4l2_err(&luma->dev->v4l2_dev,
+				 "set pipeline power failed %d\n", ret);
+	}
+	return ret;
+}
+
 struct v4l2_file_operations rkisp_luma_fops = {
 	.mmap = vb2_fop_mmap,
 	.unlocked_ioctl = video_ioctl2,
 	.poll = vb2_fop_poll,
-	.open = v4l2_fh_open,
-	.release = vb2_fop_release
+	.open = rkisp_luma_fh_open,
+	.release = rkisp_luma_fop_release
 };
 
 static int rkisp_luma_vb2_queue_setup(struct vb2_queue *vq,
@@ -405,7 +435,6 @@ int rkisp_register_luma_vdev(struct rkisp_luma_vdev *luma_vdev,
 
 	strlcpy(vdev->name, "rkisp-mipi-luma", sizeof(vdev->name));
 
-	video_set_drvdata(vdev, luma_vdev);
 	vdev->ioctl_ops = &rkisp_luma_ioctl;
 	vdev->fops = &rkisp_luma_fops;
 	vdev->release = video_device_release_empty;

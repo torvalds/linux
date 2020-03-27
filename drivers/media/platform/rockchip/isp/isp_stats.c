@@ -79,12 +79,42 @@ static const struct v4l2_ioctl_ops rkisp_stats_ioctl = {
 	.vidioc_querycap = rkisp_stats_querycap
 };
 
+static int rkisp_stats_fh_open(struct file *filp)
+{
+	struct rkisp_isp_stats_vdev *stats = video_drvdata(filp);
+	int ret;
+
+	ret = v4l2_fh_open(filp);
+	if (!ret) {
+		ret = v4l2_pipeline_pm_use(&stats->vnode.vdev.entity, 1);
+		if (ret < 0)
+			vb2_fop_release(filp);
+	}
+
+	return ret;
+}
+
+static int rkisp_stats_fop_release(struct file *file)
+{
+	struct rkisp_isp_stats_vdev *stats = video_drvdata(file);
+	int ret;
+
+	ret = vb2_fop_release(file);
+	if (!ret) {
+		ret = v4l2_pipeline_pm_use(&stats->vnode.vdev.entity, 0);
+		if (ret < 0)
+			v4l2_err(&stats->dev->v4l2_dev,
+				 "set pipeline power failed %d\n", ret);
+	}
+	return ret;
+}
+
 struct v4l2_file_operations rkisp_stats_fops = {
 	.mmap = vb2_fop_mmap,
 	.unlocked_ioctl = video_ioctl2,
 	.poll = vb2_fop_poll,
-	.open = v4l2_fh_open,
-	.release = vb2_fop_release
+	.open = rkisp_stats_fh_open,
+	.release = rkisp_stats_fop_release
 };
 
 static int rkisp_stats_vb2_queue_setup(struct vb2_queue *vq,
@@ -265,7 +295,6 @@ int rkisp_register_stats_vdev(struct rkisp_isp_stats_vdev *stats_vdev,
 
 	strlcpy(vdev->name, STATS_NAME, sizeof(vdev->name));
 
-	video_set_drvdata(vdev, stats_vdev);
 	vdev->ioctl_ops = &rkisp_stats_ioctl;
 	vdev->fops = &rkisp_stats_fops;
 	vdev->release = video_device_release_empty;

@@ -206,12 +206,42 @@ static struct vb2_ops rkisp_params_vb2_ops = {
 
 };
 
+static int rkisp_params_fh_open(struct file *filp)
+{
+	struct rkisp_isp_params_vdev *params = video_drvdata(filp);
+	int ret;
+
+	ret = v4l2_fh_open(filp);
+	if (!ret) {
+		ret = v4l2_pipeline_pm_use(&params->vnode.vdev.entity, 1);
+		if (ret < 0)
+			vb2_fop_release(filp);
+	}
+
+	return ret;
+}
+
+static int rkisp_params_fop_release(struct file *file)
+{
+	struct rkisp_isp_params_vdev *params = video_drvdata(file);
+	int ret;
+
+	ret = vb2_fop_release(file);
+	if (!ret) {
+		ret = v4l2_pipeline_pm_use(&params->vnode.vdev.entity, 0);
+		if (ret < 0)
+			v4l2_err(&params->dev->v4l2_dev,
+				 "set pipeline power failed %d\n", ret);
+	}
+	return ret;
+}
+
 struct v4l2_file_operations rkisp_params_fops = {
 	.mmap = vb2_fop_mmap,
 	.unlocked_ioctl = video_ioctl2,
 	.poll = vb2_fop_poll,
-	.open = v4l2_fh_open,
-	.release = vb2_fop_release
+	.open = rkisp_params_fh_open,
+	.release = rkisp_params_fop_release
 };
 
 static int
@@ -289,7 +319,6 @@ int rkisp_register_params_vdev(struct rkisp_isp_params_vdev *params_vdev,
 
 	strlcpy(vdev->name, PARAMS_NAME, sizeof(vdev->name));
 
-	video_set_drvdata(vdev, params_vdev);
 	vdev->ioctl_ops = &rkisp_params_ioctl;
 	vdev->fops = &rkisp_params_fops;
 	vdev->release = video_device_release_empty;
