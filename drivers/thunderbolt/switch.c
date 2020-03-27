@@ -2533,6 +2533,10 @@ int tb_switch_resume(struct tb_switch *sw)
 	if (err)
 		return err;
 
+	err = tb_switch_tmu_init(sw);
+	if (err)
+		return err;
+
 	/* check for surviving downstream switches */
 	tb_switch_for_each_port(sw, port) {
 		if (!tb_port_has_remote(port) && !port->xdomain)
