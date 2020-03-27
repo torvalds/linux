@@ -291,3 +291,61 @@ clean_up_memory:
 	mutex_unlock(&adev->mes.mutex);
 	return r;
 }
+
+void amdgpu_mes_destroy_process(struct amdgpu_device *adev, int pasid)
+{
+	struct amdgpu_mes_process *process;
+	struct amdgpu_mes_gang *gang, *tmp1;
+	struct amdgpu_mes_queue *queue, *tmp2;
+	struct mes_remove_queue_input queue_input;
+	unsigned long flags;
+	int r;
+
+	mutex_lock(&adev->mes.mutex);
+
+	process = idr_find(&adev->mes.pasid_idr, pasid);
+	if (!process) {
+		DRM_WARN("pasid %d doesn't exist\n", pasid);
+		mutex_unlock(&adev->mes.mutex);
+		return;
+	}
+
+	/* free all gangs in the process */
+	list_for_each_entry_safe(gang, tmp1, &process->gang_list, list) {
+		/* free all queues in the gang */
+		list_for_each_entry_safe(queue, tmp2, &gang->queue_list, list) {
+			spin_lock_irqsave(&adev->mes.queue_id_lock, flags);
+			idr_remove(&adev->mes.queue_id_idr, queue->queue_id);
+			spin_unlock_irqrestore(&adev->mes.queue_id_lock, flags);
+
+			queue_input.doorbell_offset = queue->doorbell_off;
+			queue_input.gang_context_addr = gang->gang_ctx_gpu_addr;
+
+			r = adev->mes.funcs->remove_hw_queue(&adev->mes,
+							     &queue_input);
+			if (r)
+				DRM_WARN("failed to remove hardware queue\n");
+
+			list_del(&queue->list);
+			kfree(queue);
+		}
+
+		idr_remove(&adev->mes.gang_id_idr, gang->gang_id);
+		amdgpu_bo_free_kernel(&gang->gang_ctx_bo,
+				      &gang->gang_ctx_gpu_addr,
+				      &gang->gang_ctx_cpu_ptr);
+		list_del(&gang->list);
+		kfree(gang);
+	}
+
+	amdgpu_mes_free_process_doorbells(adev, process);
+
+	idr_remove(&adev->mes.pasid_idr, pasid);
+	amdgpu_bo_free_kernel(&process->proc_ctx_bo,
+			      &process->proc_ctx_gpu_addr,
+			      &process->proc_ctx_cpu_ptr);
+	kfree(process->doorbell_bitmap);
+	kfree(process);
+
+	mutex_unlock(&adev->mes.mutex);
+}

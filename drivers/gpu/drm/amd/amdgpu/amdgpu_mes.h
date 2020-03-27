@@ -216,5 +216,6 @@ void amdgpu_mes_fini(struct amdgpu_device *adev);
 
 int amdgpu_mes_create_process(struct amdgpu_device *adev, int pasid,
 			      struct amdgpu_vm *vm);
+void amdgpu_mes_destroy_process(struct amdgpu_device *adev, int pasid);
 
 #endif /* __AMDGPU_MES_H__ */
