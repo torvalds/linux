@@ -22,6 +22,7 @@
 
 struct drm_i915_private;
 struct file;
+struct i915_active;
 struct i915_gem_context;
 struct i915_perf;
 struct i915_vma;
@@ -340,8 +341,8 @@ struct i915_oa_ops {
 	 * counter reports being sampled. May apply system constraints such as
 	 * disabling EU clock gating as required.
 	 */
-	struct i915_request *
-		(*enable_metric_set)(struct i915_perf_stream *stream);
+	int (*enable_metric_set)(struct i915_perf_stream *stream,
+				 struct i915_active *active);
 
 	/**
 	 * @disable_metric_set: Remove system constraints associated with using

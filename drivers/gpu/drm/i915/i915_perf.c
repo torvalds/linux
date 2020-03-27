@@ -1916,10 +1916,11 @@ out:
 	return i915_vma_get(oa_bo->vma);
 }
 
-static struct i915_request *
+static int
 emit_oa_config(struct i915_perf_stream *stream,
 	       struct i915_oa_config *oa_config,
-	       struct intel_context *ce)
+	       struct intel_context *ce,
+	       struct i915_active *active)
 {
 	struct i915_request *rq;
 	struct i915_vma *vma;
@@ -1927,7 +1928,7 @@ emit_oa_config(struct i915_perf_stream *stream,
 
 	vma = get_oa_vma(stream, oa_config);
 	if (IS_ERR(vma))
-		return ERR_CAST(vma);
+		return PTR_ERR(vma);
 
 	err = i915_vma_pin(vma, 0, 0, PIN_GLOBAL | PIN_HIGH);
 	if (err)
@@ -1939,6 +1940,18 @@ emit_oa_config(struct i915_perf_stream *stream,
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
 		goto err_vma_unpin;
+	}
+
+	if (!IS_ERR_OR_NULL(active)) {
+		/* After all individual context modifications */
+		err = i915_request_await_active(rq, active,
+						I915_ACTIVE_AWAIT_ALL);
+		if (err)
+			goto err_add_request;
+
+		err = i915_active_add_request(active, rq);
+		if (err)
+			goto err_add_request;
 	}
 
 	i915_vma_lock(vma);
@@ -1955,14 +1968,13 @@ emit_oa_config(struct i915_perf_stream *stream,
 	if (err)
 		goto err_add_request;
 
-	i915_request_get(rq);
 err_add_request:
 	i915_request_add(rq);
 err_vma_unpin:
 	i915_vma_unpin(vma);
 err_vma_put:
 	i915_vma_put(vma);
-	return err ? ERR_PTR(err) : rq;
+	return err;
 }
 
 static struct intel_context *oa_context(struct i915_perf_stream *stream)
@@ -1970,8 +1982,9 @@ static struct intel_context *oa_context(struct i915_perf_stream *stream)
 	return stream->pinned_ctx ?: stream->engine->kernel_context;
 }
 
-static struct i915_request *
-hsw_enable_metric_set(struct i915_perf_stream *stream)
+static int
+hsw_enable_metric_set(struct i915_perf_stream *stream,
+		      struct i915_active *active)
 {
 	struct intel_uncore *uncore = stream->uncore;
 
@@ -1990,7 +2003,9 @@ hsw_enable_metric_set(struct i915_perf_stream *stream)
 	intel_uncore_rmw(uncore, GEN6_UCGCTL1,
 			 0, GEN6_CSUNIT_CLOCK_GATE_DISABLE);
 
-	return emit_oa_config(stream, stream->oa_config, oa_context(stream));
+	return emit_oa_config(stream,
+			      stream->oa_config, oa_context(stream),
+			      active);
 }
 
 static void hsw_disable_metric_set(struct i915_perf_stream *stream)
@@ -2137,8 +2152,10 @@ static int gen8_modify_context(struct intel_context *ce,
 	return err;
 }
 
-static int gen8_modify_self(struct intel_context *ce,
-			    const struct flex *flex, unsigned int count)
+static int
+gen8_modify_self(struct intel_context *ce,
+		 const struct flex *flex, unsigned int count,
+		 struct i915_active *active)
 {
 	struct i915_request *rq;
 	int err;
@@ -2149,8 +2166,17 @@ static int gen8_modify_self(struct intel_context *ce,
 	if (IS_ERR(rq))
 		return PTR_ERR(rq);
 
-	err = gen8_load_flex(rq, ce, flex, count);
+	if (!IS_ERR_OR_NULL(active)) {
+		err = i915_active_add_request(active, rq);
+		if (err)
+			goto err_add_request;
+	}
 
+	err = gen8_load_flex(rq, ce, flex, count);
+	if (err)
+		goto err_add_request;
+
+err_add_request:
 	i915_request_add(rq);
 	return err;
 }
@@ -2184,7 +2210,8 @@ static int gen8_configure_context(struct i915_gem_context *ctx,
 	return err;
 }
 
-static int gen12_configure_oar_context(struct i915_perf_stream *stream, bool enable)
+static int gen12_configure_oar_context(struct i915_perf_stream *stream,
+				       struct i915_active *active)
 {
 	int err;
 	struct intel_context *ce = stream->pinned_ctx;
@@ -2193,7 +2220,7 @@ static int gen12_configure_oar_context(struct i915_perf_stream *stream, bool ena
 		{
 			GEN8_OACTXCONTROL,
 			stream->perf->ctx_oactxctrl_offset + 1,
-			enable ? GEN8_OA_COUNTER_RESUME : 0,
+			active ? GEN8_OA_COUNTER_RESUME : 0,
 		},
 	};
 	/* Offsets in regs_lri are not used since this configuration is only
@@ -2205,13 +2232,13 @@ static int gen12_configure_oar_context(struct i915_perf_stream *stream, bool ena
 			GEN12_OAR_OACONTROL,
 			GEN12_OAR_OACONTROL_OFFSET + 1,
 			(format << GEN12_OAR_OACONTROL_COUNTER_FORMAT_SHIFT) |
-			(enable ? GEN12_OAR_OACONTROL_COUNTER_ENABLE : 0)
+			(active ? GEN12_OAR_OACONTROL_COUNTER_ENABLE : 0)
 		},
 		{
 			RING_CONTEXT_CONTROL(ce->engine->mmio_base),
 			CTX_CONTEXT_CONTROL,
 			_MASKED_FIELD(GEN12_CTX_CTRL_OAR_CONTEXT_ENABLE,
-				      enable ?
+				      active ?
 				      GEN12_CTX_CTRL_OAR_CONTEXT_ENABLE :
 				      0)
 		},
@@ -2228,7 +2255,7 @@ static int gen12_configure_oar_context(struct i915_perf_stream *stream, bool ena
 		return err;
 
 	/* Apply regs_lri using LRI with pinned context */
-	return gen8_modify_self(ce, regs_lri, ARRAY_SIZE(regs_lri));
+	return gen8_modify_self(ce, regs_lri, ARRAY_SIZE(regs_lri), active);
 }
 
 /*
@@ -2256,9 +2283,11 @@ static int gen12_configure_oar_context(struct i915_perf_stream *stream, bool ena
  * Note: it's only the RCS/Render context that has any OA state.
  * Note: the first flex register passed must always be R_PWR_CLK_STATE
  */
-static int oa_configure_all_contexts(struct i915_perf_stream *stream,
-				     struct flex *regs,
-				     size_t num_regs)
+static int
+oa_configure_all_contexts(struct i915_perf_stream *stream,
+			  struct flex *regs,
+			  size_t num_regs,
+			  struct i915_active *active)
 {
 	struct drm_i915_private *i915 = stream->perf->i915;
 	struct intel_engine_cs *engine;
@@ -2315,7 +2344,7 @@ static int oa_configure_all_contexts(struct i915_perf_stream *stream,
 
 		regs[0].value = intel_sseu_make_rpcs(i915, &ce->sseu);
 
-		err = gen8_modify_self(ce, regs, num_regs);
+		err = gen8_modify_self(ce, regs, num_regs, active);
 		if (err)
 			return err;
 	}
@@ -2323,8 +2352,10 @@ static int oa_configure_all_contexts(struct i915_perf_stream *stream,
 	return 0;
 }
 
-static int gen12_configure_all_contexts(struct i915_perf_stream *stream,
-					const struct i915_oa_config *oa_config)
+static int
+gen12_configure_all_contexts(struct i915_perf_stream *stream,
+			     const struct i915_oa_config *oa_config,
+			     struct i915_active *active)
 {
 	struct flex regs[] = {
 		{
@@ -2333,11 +2364,15 @@ static int gen12_configure_all_contexts(struct i915_perf_stream *stream,
 		},
 	};
 
-	return oa_configure_all_contexts(stream, regs, ARRAY_SIZE(regs));
+	return oa_configure_all_contexts(stream,
+					 regs, ARRAY_SIZE(regs),
+					 active);
 }
 
-static int lrc_configure_all_contexts(struct i915_perf_stream *stream,
-				      const struct i915_oa_config *oa_config)
+static int
+lrc_configure_all_contexts(struct i915_perf_stream *stream,
+			   const struct i915_oa_config *oa_config,
+			   struct i915_active *active)
 {
 	/* The MMIO offsets for Flex EU registers aren't contiguous */
 	const u32 ctx_flexeu0 = stream->perf->ctx_flexeu0_offset;
@@ -2370,11 +2405,14 @@ static int lrc_configure_all_contexts(struct i915_perf_stream *stream,
 	for (i = 2; i < ARRAY_SIZE(regs); i++)
 		regs[i].value = oa_config_flex_reg(oa_config, regs[i].reg);
 
-	return oa_configure_all_contexts(stream, regs, ARRAY_SIZE(regs));
+	return oa_configure_all_contexts(stream,
+					 regs, ARRAY_SIZE(regs),
+					 active);
 }
 
-static struct i915_request *
-gen8_enable_metric_set(struct i915_perf_stream *stream)
+static int
+gen8_enable_metric_set(struct i915_perf_stream *stream,
+		       struct i915_active *active)
 {
 	struct intel_uncore *uncore = stream->uncore;
 	struct i915_oa_config *oa_config = stream->oa_config;
@@ -2414,11 +2452,13 @@ gen8_enable_metric_set(struct i915_perf_stream *stream)
 	 * to make sure all slices/subslices are ON before writing to NOA
 	 * registers.
 	 */
-	ret = lrc_configure_all_contexts(stream, oa_config);
+	ret = lrc_configure_all_contexts(stream, oa_config, active);
 	if (ret)
-		return ERR_PTR(ret);
+		return ret;
 
-	return emit_oa_config(stream, oa_config, oa_context(stream));
+	return emit_oa_config(stream,
+			      stream->oa_config, oa_context(stream),
+			      active);
 }
 
 static u32 oag_report_ctx_switches(const struct i915_perf_stream *stream)
@@ -2428,8 +2468,9 @@ static u32 oag_report_ctx_switches(const struct i915_perf_stream *stream)
 			     0 : GEN12_OAG_OA_DEBUG_DISABLE_CTX_SWITCH_REPORTS);
 }
 
-static struct i915_request *
-gen12_enable_metric_set(struct i915_perf_stream *stream)
+static int
+gen12_enable_metric_set(struct i915_perf_stream *stream,
+			struct i915_active *active)
 {
 	struct intel_uncore *uncore = stream->uncore;
 	struct i915_oa_config *oa_config = stream->oa_config;
@@ -2458,9 +2499,9 @@ gen12_enable_metric_set(struct i915_perf_stream *stream)
 	 * to make sure all slices/subslices are ON before writing to NOA
 	 * registers.
 	 */
-	ret = gen12_configure_all_contexts(stream, oa_config);
+	ret = gen12_configure_all_contexts(stream, oa_config, active);
 	if (ret)
-		return ERR_PTR(ret);
+		return ret;
 
 	/*
 	 * For Gen12, performance counters are context
@@ -2468,12 +2509,14 @@ gen12_enable_metric_set(struct i915_perf_stream *stream)
 	 * requested this.
 	 */
 	if (stream->ctx) {
-		ret = gen12_configure_oar_context(stream, true);
+		ret = gen12_configure_oar_context(stream, active);
 		if (ret)
-			return ERR_PTR(ret);
+			return ret;
 	}
 
-	return emit_oa_config(stream, oa_config, oa_context(stream));
+	return emit_oa_config(stream,
+			      stream->oa_config, oa_context(stream),
+			      active);
 }
 
 static void gen8_disable_metric_set(struct i915_perf_stream *stream)
@@ -2481,7 +2524,7 @@ static void gen8_disable_metric_set(struct i915_perf_stream *stream)
 	struct intel_uncore *uncore = stream->uncore;
 
 	/* Reset all contexts' slices/subslices configurations. */
-	lrc_configure_all_contexts(stream, NULL);
+	lrc_configure_all_contexts(stream, NULL, NULL);
 
 	intel_uncore_rmw(uncore, GDT_CHICKEN_BITS, GT_NOA_ENABLE, 0);
 }
@@ -2491,7 +2534,7 @@ static void gen10_disable_metric_set(struct i915_perf_stream *stream)
 	struct intel_uncore *uncore = stream->uncore;
 
 	/* Reset all contexts' slices/subslices configurations. */
-	lrc_configure_all_contexts(stream, NULL);
+	lrc_configure_all_contexts(stream, NULL, NULL);
 
 	/* Make sure we disable noa to save power. */
 	intel_uncore_rmw(uncore, RPM_CONFIG1, GEN10_GT_NOA_ENABLE, 0);
@@ -2502,11 +2545,11 @@ static void gen12_disable_metric_set(struct i915_perf_stream *stream)
 	struct intel_uncore *uncore = stream->uncore;
 
 	/* Reset all contexts' slices/subslices configurations. */
-	gen12_configure_all_contexts(stream, NULL);
+	gen12_configure_all_contexts(stream, NULL, NULL);
 
 	/* disable the context save/restore or OAR counters */
 	if (stream->ctx)
-		gen12_configure_oar_context(stream, false);
+		gen12_configure_oar_context(stream, NULL);
 
 	/* Make sure we disable noa to save power. */
 	intel_uncore_rmw(uncore, RPM_CONFIG1, GEN10_GT_NOA_ENABLE, 0);
@@ -2680,16 +2723,19 @@ static const struct i915_perf_stream_ops i915_oa_stream_ops = {
 
 static int i915_perf_stream_enable_sync(struct i915_perf_stream *stream)
 {
-	struct i915_request *rq;
+	struct i915_active *active;
+	int err;
 
-	rq = stream->perf->ops.enable_metric_set(stream);
-	if (IS_ERR(rq))
-		return PTR_ERR(rq);
+	active = i915_active_create();
+	if (!active)
+		return -ENOMEM;
 
-	i915_request_wait(rq, 0, MAX_SCHEDULE_TIMEOUT);
-	i915_request_put(rq);
+	err = stream->perf->ops.enable_metric_set(stream, active);
+	if (err == 0)
+		__i915_active_wait(active, TASK_UNINTERRUPTIBLE);
 
-	return 0;
+	i915_active_put(active);
+	return err;
 }
 
 static void
@@ -3171,7 +3217,7 @@ static long i915_perf_config_locked(struct i915_perf_stream *stream,
 		return -EINVAL;
 
 	if (config != stream->oa_config) {
-		struct i915_request *rq;
+		int err;
 
 		/*
 		 * If OA is bound to a specific context, emit the
@@ -3182,13 +3228,11 @@ static long i915_perf_config_locked(struct i915_perf_stream *stream,
 		 * When set globally, we use a low priority kernel context,
 		 * so it will effectively take effect when idle.
 		 */
-		rq = emit_oa_config(stream, config, oa_context(stream));
-		if (!IS_ERR(rq)) {
+		err = emit_oa_config(stream, config, oa_context(stream), NULL);
+		if (!err)
 			config = xchg(&stream->oa_config, config);
-			i915_request_put(rq);
-		} else {
-			ret = PTR_ERR(rq);
-		}
+		else
+			ret = err;
 	}
 
 	i915_oa_config_put(config);
