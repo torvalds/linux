@@ -33,6 +33,11 @@ struct scmi_smc {
 
 static bool smc_chan_available(struct device *dev, int idx)
 {
+	struct device_node *np = of_parse_phandle(dev->of_node, "shmem", 0);
+	if (!np)
+		return false;
+
+	of_node_put(np);
 	return true;
 }
 
