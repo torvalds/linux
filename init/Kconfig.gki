@@ -137,6 +137,17 @@ config GKI_HIDDEN_SOC_BUS_CONFIGS
 	    If you are not building a kernel to be used for a variety of SoCs and
 	    out-of-tree drivers, say N here.
 
+config GKI_HIDDEN_RPMSG_CONFIGS
+	bool "Hidden RPMSG configuration needed for GKI"
+	select RPMSG
+	help
+	  Dummy config option used to enable the hidden RPMSG config.
+	  This configuration is usually only selected by another config
+	  option or a combination of them.
+
+	  If you are not building a kernel to be used for a variety of
+	  out-of-kernel build RPMSG drivers, say N here.
+
 # Atrocities needed for
 # a) building GKI modules in separate tree, or
 # b) building drivers that are not modularizable
@@ -159,6 +170,7 @@ config GKI_HACKS_TO_FIX
 	select GKI_HIDDEN_VIRTUAL_CONFIGS
 	select GKI_HIDDEN_USB_CONFIGS
 	select GKI_HIDDEN_SOC_BUS_CONFIGS
+	select GKI_HIDDEN_RPMSG_CONFIGS
 	help
 	  Dummy config option used to enable core functionality used by
 	  modules that may not be selectable in this config.
