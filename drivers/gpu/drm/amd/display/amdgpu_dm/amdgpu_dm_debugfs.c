@@ -1228,8 +1228,9 @@ static int current_backlight_read(struct seq_file *m, void *data)
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct amdgpu_device *adev = dev->dev_private;
-	struct dc *dc = adev->dm.dc;
-	unsigned int backlight = dc_get_current_backlight_pwm(dc);
+	struct amdgpu_display_manager *dm = &adev->dm;
+
+	unsigned int backlight = dc_link_get_backlight_level(dm->backlight_link);
 
 	seq_printf(m, "0x%x\n", backlight);
 	return 0;
@@ -1245,8 +1246,9 @@ static int target_backlight_read(struct seq_file *m, void *data)
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct amdgpu_device *adev = dev->dev_private;
-	struct dc *dc = adev->dm.dc;
-	unsigned int backlight = dc_get_target_backlight_pwm(dc);
+	struct amdgpu_display_manager *dm = &adev->dm;
+
+	unsigned int backlight = dc_link_get_target_backlight_pwm(dm->backlight_link);
 
 	seq_printf(m, "0x%x\n", backlight);
 	return 0;

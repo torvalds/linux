@@ -217,6 +217,8 @@ bool dc_link_set_default_brightness_aux(struct dc_link *link);
 
 int dc_link_get_backlight_level(const struct dc_link *dc_link);
 
+int dc_link_get_target_backlight_pwm(const struct dc_link *link);
+
 bool dc_link_set_abm_disable(const struct dc_link *dc_link);
 
 bool dc_link_set_psr_allow_active(struct dc_link *dc_link, bool enable, bool wait);

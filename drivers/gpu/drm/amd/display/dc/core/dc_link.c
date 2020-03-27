@@ -2450,6 +2450,16 @@ int dc_link_get_backlight_level(const struct dc_link *link)
 	return (int) abm->funcs->get_current_backlight(abm);
 }
 
+int dc_link_get_target_backlight_pwm(const struct dc_link *link)
+{
+	struct abm *abm = link->ctx->dc->res_pool->abm;
+
+	if (abm == NULL || abm->funcs->get_target_backlight == NULL)
+		return DC_ERROR_UNEXPECTED;
+
+	return (int) abm->funcs->get_target_backlight(abm);
+}
+
 bool dc_link_set_backlight_level(const struct dc_link *link,
 		uint32_t backlight_pwm_u16_16,
 		uint32_t frame_ramp)
@@ -2507,14 +2517,24 @@ bool dc_link_set_backlight_level(const struct dc_link *link,
 bool dc_link_set_abm_disable(const struct dc_link *link)
 {
 	struct dc  *dc = link->ctx->dc;
-	struct abm *abm = dc->res_pool->abm;
+	struct abm *abm = NULL;
+	bool success = false;
+	int i;
 
-	if ((abm == NULL) || (abm->funcs->set_backlight_level_pwm == NULL))
-		return false;
+	for (i = 0; i < MAX_PIPES; i++) {
+		struct pipe_ctx pipe_ctx = dc->current_state->res_ctx.pipe_ctx[i];
+		struct dc_stream_state *stream = pipe_ctx.stream;
 
-	abm->funcs->set_abm_immediate_disable(abm);
+		if (stream && stream->link == link) {
+			abm = pipe_ctx.stream_res.abm;
+			break;
+		}
+	}
 
-	return true;
+	if (abm)
+		success = abm->funcs->set_abm_immediate_disable(abm);
+
+	return success;
 }
 
 bool dc_link_set_psr_allow_active(struct dc_link *link, bool allow_active, bool wait)

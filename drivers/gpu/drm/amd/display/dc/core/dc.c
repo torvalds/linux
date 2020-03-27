@@ -2646,31 +2646,10 @@ void dc_set_power_state(
 
 void dc_resume(struct dc *dc)
 {
-
 	uint32_t i;
 
 	for (i = 0; i < dc->link_count; i++)
 		core_link_resume(dc->links[i]);
-}
-
-unsigned int dc_get_current_backlight_pwm(struct dc *dc)
-{
-	struct abm *abm = dc->res_pool->abm;
-
-	if (abm)
-		return abm->funcs->get_current_backlight(abm);
-
-	return 0;
-}
-
-unsigned int dc_get_target_backlight_pwm(struct dc *dc)
-{
-	struct abm *abm = dc->res_pool->abm;
-
-	if (abm)
-		return abm->funcs->get_target_backlight(abm);
-
-	return 0;
 }
 
 bool dc_is_dmcu_initialized(struct dc *dc)
