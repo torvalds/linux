@@ -228,6 +228,7 @@ Kernel to userspace:
   ``ETHTOOL_MSG_COALESCE_GET_REPLY``    coalescing parameters
   ``ETHTOOL_MSG_COALESCE_NTF``          coalescing parameters
   ``ETHTOOL_MSG_PAUSE_GET_REPLY``       pause parameters
+  ``ETHTOOL_MSG_PAUSE_NTF``             pause parameters
   ===================================== =================================
 
 ``GET`` requests are sent by userspace applications to retrieve device

@@ -131,6 +131,9 @@ int ethnl_set_pause(struct sk_buff *skb, struct genl_info *info)
 		goto out_ops;
 
 	ret = dev->ethtool_ops->set_pauseparam(dev, &params);
+	if (ret < 0)
+		goto out_ops;
+	ethtool_notify(dev, ETHTOOL_MSG_PAUSE_NTF, NULL);
 
 out_ops:
 	ethnl_ops_complete(dev);
