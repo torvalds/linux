@@ -56,13 +56,6 @@ struct mshw0011_data {
 	s32			full_capacity;
 };
 
-struct mshw0011_lookup {
-	struct mshw0011_data	*cdata;
-	unsigned int		n;
-	unsigned int		index;
-	int			addr;
-};
-
 struct mshw0011_handler_data {
 	struct acpi_connection_info	info;
 	struct i2c_client		*client;
