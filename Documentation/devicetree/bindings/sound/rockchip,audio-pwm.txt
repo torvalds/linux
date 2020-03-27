@@ -22,6 +22,7 @@ Optional properties:
 - rockchip,sample-width-bits: Output sampling data width,the value ranges from 8 to 11 bits.
 - rockchip,interpolat-points-cfg: Interpolation rate,the value must be 1/3/7/15 points,
   if this is set,the linear interpolation mode will be turned on.
+- spk-ctl-gpios: The gpio of speak controller.
 
 Example for Audio PWM controller:
 
@@ -36,5 +37,6 @@ audpwm: audpwm@ff840000 {
 	pinctrl-0 = <&audpwmm0_pins>;
 	rockchip,sample-width-bits = <11>;
 	rockchip,interpolat-points = <1>;
+	spk-ctl-gpios = <&gpio0 RK_PC0 GPIO_ACTIVE_HIGH>;
 	status = "disabled";
 };
