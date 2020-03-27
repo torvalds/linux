@@ -39,14 +39,11 @@ static struct dentry *nsim_dev_ddir;
 
 #define NSIM_DEV_DUMMY_REGION_SIZE (1024 * 32)
 
-static ssize_t nsim_dev_take_snapshot_write(struct file *file,
-					    const char __user *data,
-					    size_t count, loff_t *ppos)
+static int
+nsim_dev_take_snapshot(struct devlink *devlink, struct netlink_ext_ack *extack,
+		       u8 **data)
 {
-	struct nsim_dev *nsim_dev = file->private_data;
 	void *dummy_data;
-	int err;
-	u32 id;
 
 	dummy_data = kmalloc(NSIM_DEV_DUMMY_REGION_SIZE, GFP_KERNEL);
 	if (!dummy_data)
@@ -54,9 +51,35 @@ static ssize_t nsim_dev_take_snapshot_write(struct file *file,
 
 	get_random_bytes(dummy_data, NSIM_DEV_DUMMY_REGION_SIZE);
 
-	id = devlink_region_snapshot_id_get(priv_to_devlink(nsim_dev));
+	*data = dummy_data;
+
+	return 0;
+}
+
+static ssize_t nsim_dev_take_snapshot_write(struct file *file,
+					    const char __user *data,
+					    size_t count, loff_t *ppos)
+{
+	struct nsim_dev *nsim_dev = file->private_data;
+	struct devlink *devlink;
+	u8 *dummy_data;
+	int err;
+	u32 id;
+
+	devlink = priv_to_devlink(nsim_dev);
+
+	err = nsim_dev_take_snapshot(devlink, NULL, &dummy_data);
+	if (err)
+		return err;
+
+	err = devlink_region_snapshot_id_get(devlink, &id);
+	if (err) {
+		pr_err("Failed to get snapshot id\n");
+		return err;
+	}
 	err = devlink_region_snapshot_create(nsim_dev->dummy_region,
-					     dummy_data, id, kfree);
+					     dummy_data, id);
+	devlink_region_snapshot_id_put(devlink, id);
 	if (err) {
 		pr_err("Failed to create region snapshot\n");
 		kfree(dummy_data);
@@ -340,11 +363,17 @@ static void nsim_devlink_param_load_driverinit_values(struct devlink *devlink)
 
 #define NSIM_DEV_DUMMY_REGION_SNAPSHOT_MAX 16
 
+static const struct devlink_region_ops dummy_region_ops = {
+	.name = "dummy",
+	.destructor = &kfree,
+	.snapshot = nsim_dev_take_snapshot,
+};
+
 static int nsim_dev_dummy_region_init(struct nsim_dev *nsim_dev,
 				      struct devlink *devlink)
 {
 	nsim_dev->dummy_region =
-		devlink_region_create(devlink, "dummy",
+		devlink_region_create(devlink, &dummy_region_ops,
 				      NSIM_DEV_DUMMY_REGION_SNAPSHOT_MAX,
 				      NSIM_DEV_DUMMY_REGION_SIZE);
 	return PTR_ERR_OR_ZERO(nsim_dev->dummy_region);

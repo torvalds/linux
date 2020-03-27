@@ -318,3 +318,99 @@ void ice_devlink_destroy_port(struct ice_pf *pf)
 	devlink_port_type_clear(&pf->devlink_port);
 	devlink_port_unregister(&pf->devlink_port);
 }
+
+/**
+ * ice_devlink_nvm_snapshot - Capture a snapshot of the Shadow RAM contents
+ * @devlink: the devlink instance
+ * @extack: extended ACK response structure
+ * @data: on exit points to snapshot data buffer
+ *
+ * This function is called in response to the DEVLINK_CMD_REGION_TRIGGER for
+ * the shadow-ram devlink region. It captures a snapshot of the shadow ram
+ * contents. This snapshot can later be viewed via the devlink-region
+ * interface.
+ *
+ * @returns zero on success, and updates the data pointer. Returns a non-zero
+ * error code on failure.
+ */
+static int ice_devlink_nvm_snapshot(struct devlink *devlink,
+				    struct netlink_ext_ack *extack, u8 **data)
+{
+	struct ice_pf *pf = devlink_priv(devlink);
+	struct device *dev = ice_pf_to_dev(pf);
+	struct ice_hw *hw = &pf->hw;
+	enum ice_status status;
+	void *nvm_data;
+	u32 nvm_size;
+
+	nvm_size = hw->nvm.flash_size;
+	nvm_data = vzalloc(nvm_size);
+	if (!nvm_data)
+		return -ENOMEM;
+
+	status = ice_acquire_nvm(hw, ICE_RES_READ);
+	if (status) {
+		dev_dbg(dev, "ice_acquire_nvm failed, err %d aq_err %d\n",
+			status, hw->adminq.sq_last_status);
+		NL_SET_ERR_MSG_MOD(extack, "Failed to acquire NVM semaphore");
+		vfree(nvm_data);
+		return -EIO;
+	}
+
+	status = ice_read_flat_nvm(hw, 0, &nvm_size, nvm_data, false);
+	if (status) {
+		dev_dbg(dev, "ice_read_flat_nvm failed after reading %u bytes, err %d aq_err %d\n",
+			nvm_size, status, hw->adminq.sq_last_status);
+		NL_SET_ERR_MSG_MOD(extack, "Failed to read NVM contents");
+		ice_release_nvm(hw);
+		vfree(nvm_data);
+		return -EIO;
+	}
+
+	ice_release_nvm(hw);
+
+	*data = nvm_data;
+
+	return 0;
+}
+
+static const struct devlink_region_ops ice_nvm_region_ops = {
+	.name = "nvm-flash",
+	.destructor = vfree,
+	.snapshot = ice_devlink_nvm_snapshot,
+};
+
+/**
+ * ice_devlink_init_regions - Initialize devlink regions
+ * @pf: the PF device structure
+ *
+ * Create devlink regions used to enable access to dump the contents of the
+ * flash memory on the device.
+ */
+void ice_devlink_init_regions(struct ice_pf *pf)
+{
+	struct devlink *devlink = priv_to_devlink(pf);
+	struct device *dev = ice_pf_to_dev(pf);
+	u64 nvm_size;
+
+	nvm_size = pf->hw.nvm.flash_size;
+	pf->nvm_region = devlink_region_create(devlink, &ice_nvm_region_ops, 1,
+					       nvm_size);
+	if (IS_ERR(pf->nvm_region)) {
+		dev_err(dev, "failed to create NVM devlink region, err %ld\n",
+			PTR_ERR(pf->nvm_region));
+		pf->nvm_region = NULL;
+	}
+}
+
+/**
+ * ice_devlink_destroy_regions - Destroy devlink regions
+ * @pf: the PF device structure
+ *
+ * Remove previously created regions for this PF.
+ */
+void ice_devlink_destroy_regions(struct ice_pf *pf)
+{
+	if (pf->nvm_region)
+		devlink_region_destroy(pf->nvm_region);
+}

@@ -18,6 +18,7 @@
 #include <net/net_namespace.h>
 #include <net/flow_offload.h>
 #include <uapi/linux/devlink.h>
+#include <linux/xarray.h>
 
 struct devlink_ops;
 
@@ -29,13 +30,13 @@ struct devlink {
 	struct list_head resource_list;
 	struct list_head param_list;
 	struct list_head region_list;
-	u32 snapshot_id;
 	struct list_head reporter_list;
 	struct mutex reporters_lock; /* protects reporter_list */
 	struct devlink_dpipe_headers *dpipe_headers;
 	struct list_head trap_list;
 	struct list_head trap_group_list;
 	const struct devlink_ops *ops;
+	struct xarray snapshot_ids;
 	struct device *dev;
 	possible_net_t _net;
 	struct mutex lock;
@@ -496,7 +497,21 @@ enum devlink_param_generic_id {
 struct devlink_region;
 struct devlink_info_req;
 
-typedef void devlink_snapshot_data_dest_t(const void *data);
+/**
+ * struct devlink_region_ops - Region operations
+ * @name: region name
+ * @destructor: callback used to free snapshot memory when deleting
+ * @snapshot: callback to request an immediate snapshot. On success,
+ *            the data variable must be updated to point to the snapshot data.
+ *            The function will be called while the devlink instance lock is
+ *            held.
+ */
+struct devlink_region_ops {
+	const char *name;
+	void (*destructor)(const void *data);
+	int (*snapshot)(struct devlink *devlink, struct netlink_ext_ack *extack,
+			u8 **data);
+};
 
 struct devlink_fmsg;
 struct devlink_health_reporter;
@@ -963,15 +978,15 @@ void devlink_port_param_value_changed(struct devlink_port *devlink_port,
 				      u32 param_id);
 void devlink_param_value_str_fill(union devlink_param_value *dst_val,
 				  const char *src);
-struct devlink_region *devlink_region_create(struct devlink *devlink,
-					     const char *region_name,
-					     u32 region_max_snapshots,
-					     u64 region_size);
+struct devlink_region *
+devlink_region_create(struct devlink *devlink,
+		      const struct devlink_region_ops *ops,
+		      u32 region_max_snapshots, u64 region_size);
 void devlink_region_destroy(struct devlink_region *region);
-u32 devlink_region_snapshot_id_get(struct devlink *devlink);
+int devlink_region_snapshot_id_get(struct devlink *devlink, u32 *id);
+void devlink_region_snapshot_id_put(struct devlink *devlink, u32 id);
 int devlink_region_snapshot_create(struct devlink_region *region,
-				   u8 *data, u32 snapshot_id,
-				   devlink_snapshot_data_dest_t *data_destructor);
+				   u8 *data, u32 snapshot_id);
 int devlink_info_serial_number_put(struct devlink_info_req *req,
 				   const char *sn);
 int devlink_info_driver_name_put(struct devlink_info_req *req,
