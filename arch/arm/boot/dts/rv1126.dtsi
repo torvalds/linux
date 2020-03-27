@@ -211,6 +211,20 @@
 		#clock-cells = <0>;
 	};
 
+	gmac_clkin_m0: external-gmac-clockm0 {
+		compatible = "fixed-clock";
+		clock-frequency = <125000000>;
+		clock-output-names = "clk_gmac_rgmii_clkin_m0";
+		#clock-cells = <0>;
+	};
+
+	gmac_clkini_m1: external-gmac-clockm1 {
+		compatible = "fixed-clock";
+		clock-frequency = <125000000>;
+		clock-output-names = "clk_gmac_rgmii_clkin_m1";
+		#clock-cells = <0>;
+	};
+
 	grf: syscon@fe000000 {
 		compatible = "rockchip,rv1126-grf", "syscon";
 		reg = <0xfe000000 0x20000>;
