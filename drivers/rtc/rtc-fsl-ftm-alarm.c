@@ -152,6 +152,8 @@ static irqreturn_t ftm_rtc_alarm_interrupt(int irq, void *dev)
 {
 	struct ftm_rtc *rtc = dev;
 
+	rtc_update_irq(rtc->rtc_dev, 1, RTC_IRQF | RTC_AF);
+
 	ftm_irq_acknowledge(rtc);
 	ftm_irq_disable(rtc);
 	ftm_clean_alarm(rtc);
