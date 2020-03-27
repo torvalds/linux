@@ -34,6 +34,15 @@ efi_status_t check_platform_features(void)
 	return EFI_SUCCESS;
 }
 
+/*
+ * Relocatable kernels can fix up the misalignment with respect to
+ * MIN_KIMG_ALIGN, so they only require a minimum alignment of EFI_KIMG_ALIGN
+ * (which accounts for the alignment of statically allocated objects such as
+ * the swapper stack.)
+ */
+static const u64 min_kimg_align = IS_ENABLED(CONFIG_RELOCATABLE) ? EFI_KIMG_ALIGN
+								 : MIN_KIMG_ALIGN;
+
 efi_status_t handle_kernel_image(unsigned long *image_addr,
 				 unsigned long *image_size,
 				 unsigned long *reserve_addr,
@@ -43,7 +52,6 @@ efi_status_t handle_kernel_image(unsigned long *image_addr,
 {
 	efi_status_t status;
 	unsigned long kernel_size, kernel_memsize = 0;
-	unsigned long preferred_offset;
 	u64 phys_seed = 0;
 
 	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE)) {
@@ -61,14 +69,8 @@ efi_status_t handle_kernel_image(unsigned long *image_addr,
 		}
 	}
 
-	/*
-	 * The preferred offset of the kernel Image is TEXT_OFFSET bytes beyond
-	 * a 2 MB aligned base, which itself may be lower than dram_base, as
-	 * long as the resulting offset equals or exceeds it.
-	 */
-	preferred_offset = round_down(dram_base, MIN_KIMG_ALIGN) + TEXT_OFFSET;
-	if (preferred_offset < dram_base)
-		preferred_offset += MIN_KIMG_ALIGN;
+	if (image->image_base != _text)
+		pr_efi_err("FIRMWARE BUG: efi_loaded_image_t::image_base has bogus value\n");
 
 	kernel_size = _edata - _text;
 	kernel_memsize = kernel_size + (_end - _edata);
@@ -103,45 +105,31 @@ efi_status_t handle_kernel_image(unsigned long *image_addr,
 
 		*image_addr = *reserve_addr + offset;
 	} else {
-		/*
-		 * Else, try a straight allocation at the preferred offset.
-		 * This will work around the issue where, if dram_base == 0x0,
-		 * efi_low_alloc() refuses to allocate at 0x0 (to prevent the
-		 * address of the allocation to be mistaken for a FAIL return
-		 * value or a NULL pointer). It will also ensure that, on
-		 * platforms where the [dram_base, dram_base + TEXT_OFFSET)
-		 * interval is partially occupied by the firmware (like on APM
-		 * Mustang), we can still place the kernel at the address
-		 * 'dram_base + TEXT_OFFSET'.
-		 */
-		*image_addr = (unsigned long)_text;
-		if (*image_addr == preferred_offset)
-			return EFI_SUCCESS;
-
-		*image_addr = *reserve_addr = preferred_offset;
-		*reserve_size = round_up(kernel_memsize, EFI_ALLOC_ALIGN);
-
-		status = efi_bs_call(allocate_pages, EFI_ALLOCATE_ADDRESS,
-				     EFI_LOADER_DATA,
-				     *reserve_size / EFI_PAGE_SIZE,
-				     (efi_physical_addr_t *)reserve_addr);
+		status = EFI_OUT_OF_RESOURCES;
 	}
 
 	if (status != EFI_SUCCESS) {
-		*reserve_size = kernel_memsize + TEXT_OFFSET;
+		if (IS_ALIGNED((u64)_text - TEXT_OFFSET, min_kimg_align)) {
+			/*
+			 * Just execute from wherever we were loaded by the
+			 * UEFI PE/COFF loader if the alignment is suitable.
+			 */
+			*image_addr = (u64)_text;
+			*reserve_size = 0;
+			return EFI_SUCCESS;
+		}
+
+		*reserve_size = kernel_memsize + TEXT_OFFSET % min_kimg_align;
 		status = efi_low_alloc(*reserve_size,
-				       MIN_KIMG_ALIGN, reserve_addr);
+				       min_kimg_align, reserve_addr);
 
 		if (status != EFI_SUCCESS) {
 			pr_efi_err("Failed to relocate kernel\n");
 			*reserve_size = 0;
 			return status;
 		}
-		*image_addr = *reserve_addr + TEXT_OFFSET;
+		*image_addr = *reserve_addr + TEXT_OFFSET % min_kimg_align;
 	}
-
-	if (image->image_base != _text)
-		pr_efi_err("FIRMWARE BUG: efi_loaded_image_t::image_base has bogus value\n");
 
 	memcpy((void *)*image_addr, _text, kernel_size);
 
