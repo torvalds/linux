@@ -274,7 +274,8 @@ struct acpi_ivrs_header {
 /* Values for subtable Type above */
 
 enum acpi_ivrs_type {
-	ACPI_IVRS_TYPE_HARDWARE = 0x10,
+	ACPI_IVRS_TYPE_HARDWARE1 = 0x10,
+	ACPI_IVRS_TYPE_HARDWARE2 = 0x11,
 	ACPI_IVRS_TYPE_MEMORY1 = 0x20,
 	ACPI_IVRS_TYPE_MEMORY2 = 0x21,
 	ACPI_IVRS_TYPE_MEMORY3 = 0x22
@@ -301,13 +302,26 @@ enum acpi_ivrs_type {
 
 /* 0x10: I/O Virtualization Hardware Definition Block (IVHD) */
 
-struct acpi_ivrs_hardware {
+struct acpi_ivrs_hardware_10 {
 	struct acpi_ivrs_header header;
 	u16 capability_offset;	/* Offset for IOMMU control fields */
 	u64 base_address;	/* IOMMU control registers */
 	u16 pci_segment_group;
 	u16 info;		/* MSI number and unit ID */
 	u32 reserved;
+};
+
+/* 0x11: I/O Virtualization Hardware Definition Block (IVHD) */
+
+struct acpi_ivrs_hardware_11 {
+	struct acpi_ivrs_header header;
+	u16 capability_offset;	/* Offset for IOMMU control fields */
+	u64 base_address;	/* IOMMU control registers */
+	u16 pci_segment_group;
+	u16 info;		/* MSI number and unit ID */
+	u32 attributes;
+	u64 efr_register_image;
+	u64 reserved;
 };
 
 /* Masks for Info field above */
