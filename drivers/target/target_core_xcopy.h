@@ -18,8 +18,6 @@ enum xcopy_origin_list {
 	XCOL_DEST_RECV_OP = 0x02,
 };
 
-struct xcopy_pt_cmd;
-
 struct xcopy_op {
 	int op_origin;
 
@@ -35,9 +33,6 @@ struct xcopy_op {
 	unsigned short stdi;
 	unsigned short dtdi;
 	unsigned short nolb;
-
-	struct xcopy_pt_cmd *src_pt_cmd;
-	struct xcopy_pt_cmd *dst_pt_cmd;
 
 	u32 xop_data_bytes;
 	u32 xop_data_nents;

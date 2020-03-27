@@ -410,7 +410,8 @@ static void xcopy_pt_release_cmd(struct se_cmd *se_cmd)
 	struct xcopy_pt_cmd *xpt_cmd = container_of(se_cmd,
 				struct xcopy_pt_cmd, se_cmd);
 
-	kfree(xpt_cmd);
+	/* xpt_cmd is on the stack, nothing to free here */
+	pr_debug("xpt_cmd done: %p\n", xpt_cmd);
 }
 
 static int xcopy_pt_check_stop_free(struct se_cmd *se_cmd)
@@ -566,20 +567,15 @@ static int target_xcopy_read_source(
 	sector_t src_lba,
 	u32 src_sectors)
 {
-	struct xcopy_pt_cmd *xpt_cmd;
-	struct se_cmd *se_cmd;
+	struct xcopy_pt_cmd xpt_cmd;
+	struct se_cmd *se_cmd = &xpt_cmd.se_cmd;
 	u32 length = (src_sectors * src_dev->dev_attrib.block_size);
 	int rc;
 	unsigned char cdb[16];
 	bool remote_port = (xop->op_origin == XCOL_DEST_RECV_OP);
 
-	xpt_cmd = kzalloc(sizeof(struct xcopy_pt_cmd), GFP_KERNEL);
-	if (!xpt_cmd) {
-		pr_err("Unable to allocate xcopy_pt_cmd\n");
-		return -ENOMEM;
-	}
-	init_completion(&xpt_cmd->xpt_passthrough_sem);
-	se_cmd = &xpt_cmd->se_cmd;
+	memset(&xpt_cmd, 0, sizeof(xpt_cmd));
+	init_completion(&xpt_cmd.xpt_passthrough_sem);
 
 	memset(&cdb[0], 0, 16);
 	cdb[0] = READ_16;
@@ -589,28 +585,24 @@ static int target_xcopy_read_source(
 		(unsigned long long)src_lba, src_sectors, length);
 
 	transport_init_se_cmd(se_cmd, &xcopy_pt_tfo, &xcopy_pt_sess, length,
-			      DMA_FROM_DEVICE, 0, &xpt_cmd->sense_buffer[0]);
-	xop->src_pt_cmd = xpt_cmd;
+			      DMA_FROM_DEVICE, 0, &xpt_cmd.sense_buffer[0]);
 
-	rc = target_xcopy_setup_pt_cmd(xpt_cmd, xop, src_dev, &cdb[0],
+	rc = target_xcopy_setup_pt_cmd(&xpt_cmd, xop, src_dev, &cdb[0],
 				remote_port);
 	if (rc < 0) {
-		ec_cmd->scsi_status = xpt_cmd->se_cmd.scsi_status;
-		transport_generic_free_cmd(se_cmd, 0);
-		return rc;
+		ec_cmd->scsi_status = se_cmd->scsi_status;
+		goto out;
 	}
 
 	pr_debug("XCOPY-READ: Saved xop->xop_data_sg: %p, num: %u for READ"
 		" memory\n", xop->xop_data_sg, xop->xop_data_nents);
 
-	rc = target_xcopy_issue_pt_cmd(xpt_cmd);
-	if (rc < 0) {
-		ec_cmd->scsi_status = xpt_cmd->se_cmd.scsi_status;
-		transport_generic_free_cmd(se_cmd, 0);
-		return rc;
-	}
-
-	return 0;
+	rc = target_xcopy_issue_pt_cmd(&xpt_cmd);
+	if (rc < 0)
+		ec_cmd->scsi_status = se_cmd->scsi_status;
+out:
+	transport_generic_free_cmd(se_cmd, 0);
+	return rc;
 }
 
 static int target_xcopy_write_destination(
@@ -620,20 +612,15 @@ static int target_xcopy_write_destination(
 	sector_t dst_lba,
 	u32 dst_sectors)
 {
-	struct xcopy_pt_cmd *xpt_cmd;
-	struct se_cmd *se_cmd;
+	struct xcopy_pt_cmd xpt_cmd;
+	struct se_cmd *se_cmd = &xpt_cmd.se_cmd;
 	u32 length = (dst_sectors * dst_dev->dev_attrib.block_size);
 	int rc;
 	unsigned char cdb[16];
 	bool remote_port = (xop->op_origin == XCOL_SOURCE_RECV_OP);
 
-	xpt_cmd = kzalloc(sizeof(struct xcopy_pt_cmd), GFP_KERNEL);
-	if (!xpt_cmd) {
-		pr_err("Unable to allocate xcopy_pt_cmd\n");
-		return -ENOMEM;
-	}
-	init_completion(&xpt_cmd->xpt_passthrough_sem);
-	se_cmd = &xpt_cmd->se_cmd;
+	memset(&xpt_cmd, 0, sizeof(xpt_cmd));
+	init_completion(&xpt_cmd.xpt_passthrough_sem);
 
 	memset(&cdb[0], 0, 16);
 	cdb[0] = WRITE_16;
@@ -643,25 +630,21 @@ static int target_xcopy_write_destination(
 		(unsigned long long)dst_lba, dst_sectors, length);
 
 	transport_init_se_cmd(se_cmd, &xcopy_pt_tfo, &xcopy_pt_sess, length,
-			      DMA_TO_DEVICE, 0, &xpt_cmd->sense_buffer[0]);
-	xop->dst_pt_cmd = xpt_cmd;
+			      DMA_TO_DEVICE, 0, &xpt_cmd.sense_buffer[0]);
 
-	rc = target_xcopy_setup_pt_cmd(xpt_cmd, xop, dst_dev, &cdb[0],
+	rc = target_xcopy_setup_pt_cmd(&xpt_cmd, xop, dst_dev, &cdb[0],
 				remote_port);
 	if (rc < 0) {
-		ec_cmd->scsi_status = xpt_cmd->se_cmd.scsi_status;
-		transport_generic_free_cmd(se_cmd, 0);
-		return rc;
+		ec_cmd->scsi_status = se_cmd->scsi_status;
+		goto out;
 	}
 
-	rc = target_xcopy_issue_pt_cmd(xpt_cmd);
-	if (rc < 0) {
-		ec_cmd->scsi_status = xpt_cmd->se_cmd.scsi_status;
-		transport_generic_free_cmd(se_cmd, 0);
-		return rc;
-	}
-
-	return 0;
+	rc = target_xcopy_issue_pt_cmd(&xpt_cmd);
+	if (rc < 0)
+		ec_cmd->scsi_status = se_cmd->scsi_status;
+out:
+	transport_generic_free_cmd(se_cmd, 0);
+	return rc;
 }
 
 static void target_xcopy_do_work(struct work_struct *work)
@@ -736,10 +719,8 @@ static void target_xcopy_do_work(struct work_struct *work)
 
 		rc = target_xcopy_write_destination(ec_cmd, xop, dst_dev,
 						dst_lba, cur_nolb);
-		if (rc < 0) {
-			transport_generic_free_cmd(&xop->src_pt_cmd->se_cmd, 0);
+		if (rc < 0)
 			goto out;
-		}
 
 		dst_lba += cur_nolb;
 		pr_debug("target_xcopy_do_work: Incremented WRITE dst_lba to %llu\n",
@@ -747,9 +728,6 @@ static void target_xcopy_do_work(struct work_struct *work)
 
 		copied_nolb += cur_nolb;
 		nolb -= cur_nolb;
-
-		transport_generic_free_cmd(&xop->src_pt_cmd->se_cmd, 0);
-		transport_generic_free_cmd(&xop->dst_pt_cmd->se_cmd, 0);
 	}
 
 	xcopy_pt_undepend_remotedev(xop);
