@@ -114,10 +114,6 @@ static int smc_send_message(struct scmi_chan_info *cinfo,
 	return res.a0;
 }
 
-static void smc_mark_txdone(struct scmi_chan_info *cinfo, int ret)
-{
-}
-
 static void smc_fetch_response(struct scmi_chan_info *cinfo,
 			       struct scmi_xfer *xfer)
 {
@@ -139,7 +135,6 @@ static struct scmi_transport_ops scmi_smc_ops = {
 	.chan_setup = smc_chan_setup,
 	.chan_free = smc_chan_free,
 	.send_message = smc_send_message,
-	.mark_txdone = smc_mark_txdone,
 	.fetch_response = smc_fetch_response,
 	.poll_done = smc_poll_done,
 };
