@@ -2909,49 +2909,18 @@ static bool binder_proc_transaction(struct binder_transaction *t,
 	struct binder_priority node_prio;
 	bool oneway = !!(t->flags & TF_ONE_WAY);
 	bool pending_async = false;
-	bool retry = false;
 
 	BUG_ON(!node);
-
-set_thread_prio:
+	binder_node_lock(node);
 	node_prio.prio = node->min_priority;
 	node_prio.sched_policy = node->sched_policy;
-	if (thread) {
-		/*
-		 * Priority must be set outside of lock, but must be
-		 * done before enqueuing the transaction.
-		 */
-		binder_transaction_priority(thread->task, t, node_prio,
-					    node->inherit_rt);
-	}
-
-retry_after_prio_restore:
-	binder_node_lock(node);
 
 	if (oneway) {
-		BUG_ON(!retry && thread);
+		BUG_ON(thread);
 		if (node->has_async_transaction) {
 			pending_async = true;
 		} else {
 			node->has_async_transaction = true;
-		}
-		if (thread && pending_async) {
-			/*
-			 * The node state has changed since we selected
-			 * the thread. Return the thread to the
-			 * waiting_threads list. We have to drop
-			 * the node lock to restore priority so we
-			 * have to re-check the node state.
-			 */
-			binder_node_unlock(node);
-			binder_restore_priority(thread->task,
-						proc->default_priority);
-			binder_inner_proc_lock(proc);
-			list_add(&thread->waiting_thread_node,
-				 &proc->waiting_threads);
-			binder_inner_proc_unlock(proc);
-			thread = NULL;
-			goto retry_after_prio_restore;
 		}
 	}
 
@@ -2963,24 +2932,18 @@ retry_after_prio_restore:
 		return false;
 	}
 
-	if (!thread && !pending_async) {
+	if (!thread && !pending_async)
 		thread = binder_select_thread_ilocked(proc);
-		if (thread) {
-			if (oneway)
-				node->has_async_transaction = false;
-			binder_inner_proc_unlock(proc);
-			binder_node_unlock(node);
-			retry = true;
-			goto set_thread_prio;
-		}
-	}
 
-	if (thread)
+	if (thread) {
+		binder_transaction_priority(thread->task, t, node_prio,
+					    node->inherit_rt);
 		binder_enqueue_thread_work_ilocked(thread, &t->work);
-	else if (!pending_async)
+	} else if (!pending_async) {
 		binder_enqueue_work_ilocked(&t->work, &proc->todo);
-	else
+	} else {
 		binder_enqueue_work_ilocked(&t->work, &node->async_todo);
+	}
 
 	if (!pending_async)
 		binder_wakeup_thread_ilocked(proc, thread, !oneway /* sync */);
