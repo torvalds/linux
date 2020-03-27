@@ -286,6 +286,8 @@ static bool nft_bitmap_estimate(const struct nft_set_desc *desc, u32 features,
 	/* Make sure bitmaps we don't get bitmaps larger than 16 Kbytes. */
 	if (desc->klen > 2)
 		return false;
+	else if (desc->expr)
+		return false;
 
 	est->size   = nft_bitmap_total_size(desc->klen);
 	est->lookup = NFT_SET_CLASS_O_1;

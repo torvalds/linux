@@ -266,6 +266,7 @@ struct nft_set_iter {
  *	@size: number of set elements
  *	@field_len: length of each field in concatenation, bytes
  *	@field_count: number of concatenated fields in element
+ *	@expr: set must support for expressions
  */
 struct nft_set_desc {
 	unsigned int		klen;
@@ -273,6 +274,7 @@ struct nft_set_desc {
 	unsigned int		size;
 	u8			field_len[NFT_REG32_COUNT];
 	u8			field_count;
+	bool			expr;
 };
 
 /**
