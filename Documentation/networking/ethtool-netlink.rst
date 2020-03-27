@@ -199,6 +199,7 @@ Userspace to kernel:
   ``ETHTOOL_MSG_CHANNELS_SET``          set channel counts
   ``ETHTOOL_MSG_COALESCE_GET``          get coalescing parameters
   ``ETHTOOL_MSG_COALESCE_SET``          set coalescing parameters
+  ``ETHTOOL_MSG_PAUSE_GET``             get pause parameters
   ===================================== ================================
 
 Kernel to userspace:
@@ -225,6 +226,7 @@ Kernel to userspace:
   ``ETHTOOL_MSG_CHANNELS_NTF``          channel counts
   ``ETHTOOL_MSG_COALESCE_GET_REPLY``    coalescing parameters
   ``ETHTOOL_MSG_COALESCE_NTF``          coalescing parameters
+  ``ETHTOOL_MSG_PAUSE_GET_REPLY``       pause parameters
   ===================================== =================================
 
 ``GET`` requests are sent by userspace applications to retrieve device
@@ -832,6 +834,42 @@ is not set), regardless of their values. Driver may impose additional
 constraints on coalescing parameters and their values.
 
 
+PAUSE_GET
+============
+
+Gets channel counts like ``ETHTOOL_GPAUSE`` ioctl request.
+
+Request contents:
+
+  =====================================  ======  ==========================
+  ``ETHTOOL_A_PAUSE_HEADER``             nested  request header
+  =====================================  ======  ==========================
+
+Kernel response contents:
+
+  =====================================  ======  ==========================
+  ``ETHTOOL_A_PAUSE_HEADER``             nested  request header
+  ``ETHTOOL_A_PAUSE_AUTONEG``            bool    pause autonegotiation
+  ``ETHTOOL_A_PAUSE_RX``                 bool    receive pause frames
+  ``ETHTOOL_A_PAUSE_TX``                 bool    transmit pause frames
+  =====================================  ======  ==========================
+
+
+PAUSE_SET
+============
+
+Sets pause parameters like ``ETHTOOL_GPAUSEPARAM`` ioctl request.
+
+Request contents:
+
+  =====================================  ======  ==========================
+  ``ETHTOOL_A_PAUSE_HEADER``             nested  request header
+  ``ETHTOOL_A_PAUSE_AUTONEG``            bool    pause autonegotiation
+  ``ETHTOOL_A_PAUSE_RX``                 bool    receive pause frames
+  ``ETHTOOL_A_PAUSE_TX``                 bool    transmit pause frames
+  =====================================  ======  ==========================
+
+
 Request translation
 ===================
 
@@ -860,7 +898,7 @@ have their netlink replacement yet.
   ``ETHTOOL_SCOALESCE``               ``ETHTOOL_MSG_COALESCE_SET``
   ``ETHTOOL_GRINGPARAM``              ``ETHTOOL_MSG_RINGS_GET``
   ``ETHTOOL_SRINGPARAM``              ``ETHTOOL_MSG_RINGS_SET``
-  ``ETHTOOL_GPAUSEPARAM``             n/a
+  ``ETHTOOL_GPAUSEPARAM``             ``ETHTOOL_MSG_PAUSE_GET``
   ``ETHTOOL_SPAUSEPARAM``             n/a
   ``ETHTOOL_GRXCSUM``                 ``ETHTOOL_MSG_FEATURES_GET``
   ``ETHTOOL_SRXCSUM``                 ``ETHTOOL_MSG_FEATURES_SET``
