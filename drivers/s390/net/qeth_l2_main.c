@@ -869,6 +869,7 @@ struct qeth_discipline qeth_l2_discipline = {
 };
 EXPORT_SYMBOL_GPL(qeth_l2_discipline);
 
+#ifdef CONFIG_QETH_OSN
 static void qeth_osn_assist_cb(struct qeth_card *card,
 			       struct qeth_cmd_buffer *iob,
 			       unsigned int data_length)
@@ -945,6 +946,7 @@ void qeth_osn_deregister(struct net_device *dev)
 	return;
 }
 EXPORT_SYMBOL(qeth_osn_deregister);
+#endif
 
 /* SETBRIDGEPORT support, async notifications */
 
