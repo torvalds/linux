@@ -481,6 +481,8 @@ enum devlink_param_generic_id {
 #define DEVLINK_INFO_VERSION_GENERIC_FW		"fw"
 /* Control processor FW version */
 #define DEVLINK_INFO_VERSION_GENERIC_FW_MGMT	"fw.mgmt"
+/* FW interface specification version */
+#define DEVLINK_INFO_VERSION_GENERIC_FW_MGMT_API	"fw.mgmt.api"
 /* Data path microcode controlling high-speed packet processing */
 #define DEVLINK_INFO_VERSION_GENERIC_FW_APP	"fw.app"
 /* UNDI software version */
