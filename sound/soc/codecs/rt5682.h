@@ -651,6 +651,8 @@
 #define RT5682_DMIC_1_EN_SFT			15
 #define RT5682_DMIC_1_DIS			(0x0 << 15)
 #define RT5682_DMIC_1_EN			(0x1 << 15)
+#define RT5682_FIFO_CLK_DIV_MASK		(0x7 << 12)
+#define RT5682_FIFO_CLK_DIV_2			(0x1 << 12)
 #define RT5682_DMIC_1_DP_MASK			(0x3 << 4)
 #define RT5682_DMIC_1_DP_SFT			4
 #define RT5682_DMIC_1_DP_GPIO2			(0x0 << 4)
