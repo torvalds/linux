@@ -774,6 +774,19 @@
 	status = "okay";
 };
 
+&nandc {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	nand@0 {
+		reg = <0>;
+		nand-bus-width = <8>;
+		nand-ecc-mode = "hw";
+		nand-ecc-strength = <16>;
+		nand-ecc-step-size = <1024>;
+	};
+};
+
 &npu {
 	npu-supply = <&vdd_npu>;
 	status = "okay";
