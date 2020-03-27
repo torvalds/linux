@@ -74,7 +74,7 @@ struct nf_flowtable {
 	struct delayed_work		gc_work;
 	unsigned int			flags;
 	struct flow_block		flow_block;
-	struct mutex			flow_block_lock; /* Guards flow_block */
+	struct rw_semaphore		flow_block_lock; /* Guards flow_block */
 	possible_net_t			net;
 };
 

@@ -691,7 +691,7 @@ static int nf_flow_offload_tuple(struct nf_flowtable *flowtable,
 	if (cmd == FLOW_CLS_REPLACE)
 		cls_flow.rule = flow_rule->rule;
 
-	mutex_lock(&flowtable->flow_block_lock);
+	down_read(&flowtable->flow_block_lock);
 	list_for_each_entry(block_cb, block_cb_list, list) {
 		err = block_cb->cb(TC_SETUP_CLSFLOWER, &cls_flow,
 				   block_cb->cb_priv);
@@ -700,7 +700,7 @@ static int nf_flow_offload_tuple(struct nf_flowtable *flowtable,
 
 		i++;
 	}
-	mutex_unlock(&flowtable->flow_block_lock);
+	up_read(&flowtable->flow_block_lock);
 
 	if (cmd == FLOW_CLS_STATS)
 		memcpy(stats, &cls_flow.stats, sizeof(*stats));
