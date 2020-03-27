@@ -20,6 +20,8 @@
 #include "super-io.h"
 #include "trace.h"
 
+#include <linux/sched/mm.h>
+
 static void verify_no_dups(struct btree *b,
 			   struct bkey_packed *start,
 			   struct bkey_packed *end,
@@ -67,17 +69,19 @@ static void btree_bounce_free(struct bch_fs *c, unsigned order,
 static void *btree_bounce_alloc(struct bch_fs *c, unsigned order,
 				bool *used_mempool)
 {
+	unsigned flags = memalloc_nofs_save();
 	void *p;
 
 	BUG_ON(order > btree_page_order(c));
 
 	*used_mempool = false;
 	p = (void *) __get_free_pages(__GFP_NOWARN|GFP_NOWAIT, order);
-	if (p)
-		return p;
-
-	*used_mempool = true;
-	return mempool_alloc(&c->btree_bounce_pool, GFP_NOIO);
+	if (!p) {
+		*used_mempool = true;
+		p = mempool_alloc(&c->btree_bounce_pool, GFP_NOIO);
+	}
+	memalloc_nofs_restore(flags);
+	return p;
 }
 
 static void sort_bkey_ptrs(const struct btree *bt,
