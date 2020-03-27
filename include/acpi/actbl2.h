@@ -308,7 +308,7 @@ struct acpi_ivrs_hardware_10 {
 	u64 base_address;	/* IOMMU control registers */
 	u16 pci_segment_group;
 	u16 info;		/* MSI number and unit ID */
-	u32 reserved;
+	u32 feature_reporting;
 };
 
 /* 0x11: I/O Virtualization Hardware Definition Block (IVHD) */
