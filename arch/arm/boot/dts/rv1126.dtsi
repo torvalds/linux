@@ -1557,6 +1557,8 @@
 		nandc_id = <0>;
 		clocks = <&cru CLK_NANDC>, <&cru HCLK_NANDC>;
 		clock-names = "clk_nandc", "hclk_nandc";
+		pinctrl-names = "default";
+		pinctrl-0 = <&flash_pins>;
 		power-domains = <&power RV1126_PD_NVM>;
 		status = "disabled";
 	};
