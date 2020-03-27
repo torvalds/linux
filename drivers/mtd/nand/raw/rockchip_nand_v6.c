@@ -159,7 +159,7 @@ static void rk_nfc_init(struct rk_nfc *nfc)
 	writel(0, nfc->regs + NANDC_REG_V6_DMA_CFG);
 	writel(NANDC_V6_WP, nfc->regs + NANDC_REG_V6_FMCTL);
 	writel(NANDC_V6_FL_RST, nfc->regs + NANDC_REG_V6_FLCTL);
-	writel(0x1081, nfc->regs + NANDC_REG_V6_FMWAIT);
+	writel(0x1061, nfc->regs + NANDC_REG_V6_FMWAIT);
 }
 
 static irqreturn_t rk_nfc_interrupt(int irq, void *dev_id)
@@ -627,7 +627,7 @@ static int rk_nfc_setup_data_interface(struct mtd_info *mtd, int csline,
 	if (csline == NAND_DATA_IFACE_CHECK_ONLY)
 		return 0;
 
-	writel(0x10801, nfc->regs + NANDC_REG_V6_FMWAIT);
+	writel(0x1081, nfc->regs + NANDC_REG_V6_FMWAIT);
 
 	return 0;
 }
