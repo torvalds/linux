@@ -60,8 +60,6 @@ static int smc_chan_setup(struct scmi_chan_info *cinfo, struct device *dev,
 		return -ENOMEM;
 
 	np = of_parse_phandle(cdev->of_node, "shmem", 0);
-	if (!np)
-		np = of_parse_phandle(dev->of_node, "shmem", 0);
 	ret = of_address_to_resource(np, 0, &res);
 	of_node_put(np);
 	if (ret) {
