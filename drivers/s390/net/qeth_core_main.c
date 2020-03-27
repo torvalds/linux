@@ -4951,12 +4951,16 @@ static struct ccw_device_id qeth_ids[] = {
 					.driver_info = QETH_CARD_TYPE_OSD},
 	{CCW_DEVICE_DEVTYPE(0x1731, 0x05, 0x1732, 0x05),
 					.driver_info = QETH_CARD_TYPE_IQD},
+#ifdef CONFIG_QETH_OSN
 	{CCW_DEVICE_DEVTYPE(0x1731, 0x06, 0x1732, 0x06),
 					.driver_info = QETH_CARD_TYPE_OSN},
+#endif
 	{CCW_DEVICE_DEVTYPE(0x1731, 0x02, 0x1732, 0x03),
 					.driver_info = QETH_CARD_TYPE_OSM},
+#ifdef CONFIG_QETH_OSX
 	{CCW_DEVICE_DEVTYPE(0x1731, 0x02, 0x1732, 0x02),
 					.driver_info = QETH_CARD_TYPE_OSX},
+#endif
 	{},
 };
 MODULE_DEVICE_TABLE(ccw, qeth_ids);
