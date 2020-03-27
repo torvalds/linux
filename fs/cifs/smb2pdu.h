@@ -120,6 +120,9 @@ struct smb2_sync_hdr {
 	__u8   Signature[16];
 } __packed;
 
+/* The total header size for SMB2 read and write */
+#define SMB2_READWRITE_PDU_HEADER_SIZE (48 + sizeof(struct smb2_sync_hdr))
+
 struct smb2_sync_pdu {
 	struct smb2_sync_hdr sync_hdr;
 	__le16 StructureSize2; /* size of wct area (varies, request specific) */
