@@ -255,4 +255,9 @@ int amdgpu_mes_add_hw_queue(struct amdgpu_device *adev, int gang_id,
 			    int *queue_id);
 int amdgpu_mes_remove_hw_queue(struct amdgpu_device *adev, int queue_id);
 
+int amdgpu_mes_add_ring(struct amdgpu_device *adev, int gang_id,
+			int queue_type, int idx,
+			struct amdgpu_mes_ctx_data *ctx_data,
+			struct amdgpu_ring **out);
+
 #endif /* __AMDGPU_MES_H__ */

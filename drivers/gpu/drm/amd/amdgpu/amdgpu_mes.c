@@ -753,3 +753,96 @@ int amdgpu_mes_ctx_get_offs(struct amdgpu_ring *ring, unsigned int id_offs)
 	WARN_ON(1);
 	return -EINVAL;
 }
+
+int amdgpu_mes_add_ring(struct amdgpu_device *adev, int gang_id,
+			int queue_type, int idx,
+			struct amdgpu_mes_ctx_data *ctx_data,
+			struct amdgpu_ring **out)
+{
+	struct amdgpu_ring *ring;
+	struct amdgpu_mes_gang *gang;
+	struct amdgpu_mes_queue_properties qprops = {0};
+	int r, queue_id, pasid;
+
+	mutex_lock(&adev->mes.mutex);
+	gang = idr_find(&adev->mes.gang_id_idr, gang_id);
+	if (!gang) {
+		DRM_ERROR("gang id %d doesn't exist\n", gang_id);
+		mutex_unlock(&adev->mes.mutex);
+		return -EINVAL;
+	}
+	pasid = gang->process->pasid;
+
+	ring = kzalloc(sizeof(struct amdgpu_ring), GFP_KERNEL);
+	if (!ring) {
+		mutex_unlock(&adev->mes.mutex);
+		return -ENOMEM;
+	}
+
+	ring->ring_obj = NULL;
+	ring->use_doorbell = true;
+	ring->is_mes_queue = true;
+	ring->mes_ctx = ctx_data;
+	ring->idx = idx;
+	ring->no_scheduler = true;
+
+	if (queue_type == AMDGPU_RING_TYPE_COMPUTE) {
+		int offset = offsetof(struct amdgpu_mes_ctx_meta_data,
+				      compute[ring->idx].mec_hpd);
+		ring->eop_gpu_addr =
+			amdgpu_mes_ctx_get_offs_gpu_addr(ring, offset);
+	}
+
+	switch (queue_type) {
+	case AMDGPU_RING_TYPE_GFX:
+		ring->funcs = adev->gfx.gfx_ring[0].funcs;
+		break;
+	case AMDGPU_RING_TYPE_COMPUTE:
+		ring->funcs = adev->gfx.compute_ring[0].funcs;
+		break;
+	case AMDGPU_RING_TYPE_SDMA:
+		ring->funcs = adev->sdma.instance[0].ring.funcs;
+		break;
+	default:
+		BUG();
+	}
+
+	r = amdgpu_ring_init(adev, ring, 1024, NULL, 0,
+			     AMDGPU_RING_PRIO_DEFAULT, NULL);
+	if (r)
+		goto clean_up_memory;
+
+	amdgpu_mes_ring_to_queue_props(adev, ring, &qprops);
+
+	dma_fence_wait(gang->process->vm->last_update, false);
+	dma_fence_wait(ctx_data->meta_data_va->last_pt_update, false);
+	mutex_unlock(&adev->mes.mutex);
+
+	r = amdgpu_mes_add_hw_queue(adev, gang_id, &qprops, &queue_id);
+	if (r)
+		goto clean_up_ring;
+
+	ring->hw_queue_id = queue_id;
+	ring->doorbell_index = qprops.doorbell_off;
+
+	if (queue_type == AMDGPU_RING_TYPE_GFX)
+		sprintf(ring->name, "gfx_%d.%d.%d", pasid, gang_id, queue_id);
+	else if (queue_type == AMDGPU_RING_TYPE_COMPUTE)
+		sprintf(ring->name, "compute_%d.%d.%d", pasid, gang_id,
+			queue_id);
+	else if (queue_type == AMDGPU_RING_TYPE_SDMA)
+		sprintf(ring->name, "sdma_%d.%d.%d", pasid, gang_id,
+			queue_id);
+	else
+		BUG();
+
+	*out = ring;
+	return 0;
+
+clean_up_ring:
+	amdgpu_ring_fini(ring);
+clean_up_memory:
+	kfree(ring);
+	mutex_unlock(&adev->mes.mutex);
+	return r;
+}
