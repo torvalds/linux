@@ -159,6 +159,21 @@ struct amdgpu_mes_queue {
 	struct amdgpu_ring 		*ring;
 };
 
+struct amdgpu_mes_queue_properties {
+	int 			queue_type;
+	uint64_t                hqd_base_gpu_addr;
+	uint64_t                rptr_gpu_addr;
+	uint64_t                wptr_gpu_addr;
+	uint32_t                queue_size;
+	uint64_t                eop_gpu_addr;
+	uint32_t                hqd_pipe_priority;
+	uint32_t                hqd_queue_priority;
+	bool 			paging;
+	struct amdgpu_ring 	*ring;
+	/* out */
+	uint64_t       		doorbell_off;
+};
+
 struct amdgpu_mes_gang_properties {
 	uint32_t 	priority;
 	uint32_t 	gang_quantum;
@@ -233,5 +248,9 @@ int amdgpu_mes_remove_gang(struct amdgpu_device *adev, int gang_id);
 
 int amdgpu_mes_suspend(struct amdgpu_device *adev);
 int amdgpu_mes_resume(struct amdgpu_device *adev);
+
+int amdgpu_mes_add_hw_queue(struct amdgpu_device *adev, int gang_id,
+			    struct amdgpu_mes_queue_properties *qprops,
+			    int *queue_id);
 
 #endif /* __AMDGPU_MES_H__ */

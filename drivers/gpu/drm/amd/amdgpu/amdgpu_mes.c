@@ -550,3 +550,108 @@ static void amdgpu_mes_queue_free_mqd(struct amdgpu_mes_queue *q)
 			      &q->mqd_gpu_addr,
 			      &q->mqd_cpu_ptr);
 }
+
+int amdgpu_mes_add_hw_queue(struct amdgpu_device *adev, int gang_id,
+			    struct amdgpu_mes_queue_properties *qprops,
+			    int *queue_id)
+{
+	struct amdgpu_mes_queue *queue;
+	struct amdgpu_mes_gang *gang;
+	struct mes_add_queue_input queue_input;
+	unsigned long flags;
+	int r;
+
+	mutex_lock(&adev->mes.mutex);
+
+	gang = idr_find(&adev->mes.gang_id_idr, gang_id);
+	if (!gang) {
+		DRM_ERROR("gang id %d doesn't exist\n", gang_id);
+		mutex_unlock(&adev->mes.mutex);
+		return -EINVAL;
+	}
+
+	/* allocate the mes queue buffer */
+	queue = kzalloc(sizeof(struct amdgpu_mes_queue), GFP_KERNEL);
+	if (!queue) {
+		mutex_unlock(&adev->mes.mutex);
+		return -ENOMEM;
+	}
+
+	/* add the mes gang to idr list */
+	spin_lock_irqsave(&adev->mes.queue_id_lock, flags);
+	r = idr_alloc(&adev->mes.queue_id_idr, queue, 1, 0,
+		      GFP_ATOMIC);
+	if (r < 0) {
+		spin_unlock_irqrestore(&adev->mes.queue_id_lock, flags);
+		goto clean_up_memory;
+	}
+	spin_unlock_irqrestore(&adev->mes.queue_id_lock, flags);
+	*queue_id = queue->queue_id = r;
+
+	/* allocate a doorbell index for the queue */
+	r = amdgpu_mes_queue_doorbell_get(adev, gang->process,
+					  qprops->queue_type,
+					  &qprops->doorbell_off);
+	if (r)
+		goto clean_up_queue_id;
+
+	/* initialize the queue mqd */
+	r = amdgpu_mes_queue_init_mqd(adev, queue, qprops);
+	if (r)
+		goto clean_up_doorbell;
+
+	/* add hw queue to mes */
+	queue_input.process_id = gang->process->pasid;
+	queue_input.page_table_base_addr = gang->process->pd_gpu_addr;
+	queue_input.process_va_start = 0;
+	queue_input.process_va_end =
+		(adev->vm_manager.max_pfn - 1) << AMDGPU_GPU_PAGE_SHIFT;
+	queue_input.process_quantum = gang->process->process_quantum;
+	queue_input.process_context_addr = gang->process->proc_ctx_gpu_addr;
+	queue_input.gang_quantum = gang->gang_quantum;
+	queue_input.gang_context_addr = gang->gang_ctx_gpu_addr;
+	queue_input.inprocess_gang_priority = gang->inprocess_gang_priority;
+	queue_input.gang_global_priority_level = gang->global_priority_level;
+	queue_input.doorbell_offset = qprops->doorbell_off;
+	queue_input.mqd_addr = queue->mqd_gpu_addr;
+	queue_input.wptr_addr = qprops->wptr_gpu_addr;
+	queue_input.queue_type = qprops->queue_type;
+	queue_input.paging = qprops->paging;
+
+	r = adev->mes.funcs->add_hw_queue(&adev->mes, &queue_input);
+	if (r) {
+		DRM_ERROR("failed to add hardware queue to MES, doorbell=0x%llx\n",
+			  qprops->doorbell_off);
+		goto clean_up_mqd;
+	}
+
+	DRM_DEBUG("MES hw queue was added, pasid=%d, gang id=%d, "
+		  "queue type=%d, doorbell=0x%llx\n",
+		  gang->process->pasid, gang_id, qprops->queue_type,
+		  qprops->doorbell_off);
+
+	queue->ring = qprops->ring;
+	queue->doorbell_off = qprops->doorbell_off;
+	queue->wptr_gpu_addr = qprops->wptr_gpu_addr;
+	queue->queue_type = qprops->queue_type;
+	queue->paging = qprops->paging;
+	queue->gang = gang;
+	list_add_tail(&queue->list, &gang->queue_list);
+
+	mutex_unlock(&adev->mes.mutex);
+	return 0;
+
+clean_up_mqd:
+	amdgpu_mes_queue_free_mqd(queue);
+clean_up_doorbell:
+	amdgpu_mes_queue_doorbell_free(adev, gang->process,
+				       qprops->doorbell_off);
+clean_up_queue_id:
+	spin_lock_irqsave(&adev->mes.queue_id_lock, flags);
+	idr_remove(&adev->mes.queue_id_idr, queue->queue_id);
+	spin_unlock_irqrestore(&adev->mes.queue_id_lock, flags);
+clean_up_memory:
+	kfree(queue);
+	mutex_unlock(&adev->mes.mutex);
+	return r;
+}
