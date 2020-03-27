@@ -395,6 +395,24 @@ static int l2cap_sock_getname(struct socket *sock, struct sockaddr *addr,
 	return sizeof(struct sockaddr_l2);
 }
 
+static int l2cap_get_mode(struct l2cap_chan *chan)
+{
+	switch (chan->mode) {
+	case L2CAP_MODE_BASIC:
+		return BT_MODE_BASIC;
+	case L2CAP_MODE_ERTM:
+		return BT_MODE_ERTM;
+	case L2CAP_MODE_STREAMING:
+		return BT_MODE_STREAMING;
+	case L2CAP_MODE_LE_FLOWCTL:
+		return BT_MODE_LE_FLOWCTL;
+	case L2CAP_MODE_EXT_FLOWCTL:
+		return BT_MODE_EXT_FLOWCTL;
+	}
+
+	return -EINVAL;
+}
+
 static int l2cap_sock_getsockopt_old(struct socket *sock, int optname,
 				     char __user *optval, int __user *optlen)
 {
@@ -522,7 +540,7 @@ static int l2cap_sock_getsockopt(struct socket *sock, int level, int optname,
 	struct bt_security sec;
 	struct bt_power pwr;
 	u32 phys;
-	int len, err = 0;
+	int len, mode, err = 0;
 
 	BT_DBG("sk %p", sk);
 
@@ -635,6 +653,27 @@ static int l2cap_sock_getsockopt(struct socket *sock, int level, int optname,
 		phys = hci_conn_get_phy(chan->conn->hcon);
 
 		if (put_user(phys, (u32 __user *) optval))
+			err = -EFAULT;
+		break;
+
+	case BT_MODE:
+		if (!enable_ecred) {
+			err = -ENOPROTOOPT;
+			break;
+		}
+
+		if (chan->chan_type != L2CAP_CHAN_CONN_ORIENTED) {
+			err = -EINVAL;
+			break;
+		}
+
+		mode = l2cap_get_mode(chan);
+		if (mode < 0) {
+			err = mode;
+			break;
+		}
+
+		if (put_user(mode, (u8 __user *) optval))
 			err = -EFAULT;
 		break;
 
@@ -778,6 +817,45 @@ static int l2cap_sock_setsockopt_old(struct socket *sock, int optname,
 
 	release_sock(sk);
 	return err;
+}
+
+static int l2cap_set_mode(struct l2cap_chan *chan, u8 mode)
+{
+	switch (mode) {
+	case BT_MODE_BASIC:
+		if (bdaddr_type_is_le(chan->src_type))
+			return -EINVAL;
+		mode = L2CAP_MODE_BASIC;
+		clear_bit(CONF_STATE2_DEVICE, &chan->conf_state);
+		break;
+	case BT_MODE_ERTM:
+		if (!disable_ertm || bdaddr_type_is_le(chan->src_type))
+			return -EINVAL;
+		mode = L2CAP_MODE_ERTM;
+		break;
+	case BT_MODE_STREAMING:
+		if (!disable_ertm || bdaddr_type_is_le(chan->src_type))
+			return -EINVAL;
+		mode = L2CAP_MODE_STREAMING;
+		break;
+	case BT_MODE_LE_FLOWCTL:
+		if (!bdaddr_type_is_le(chan->src_type))
+			return -EINVAL;
+		mode = L2CAP_MODE_LE_FLOWCTL;
+		break;
+	case BT_MODE_EXT_FLOWCTL:
+		/* TODO: Add support for ECRED PDUs to BR/EDR */
+		if (!bdaddr_type_is_le(chan->src_type))
+			return -EINVAL;
+		mode = L2CAP_MODE_EXT_FLOWCTL;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	chan->mode = mode;
+
+	return 0;
 }
 
 static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname,
@@ -982,6 +1060,39 @@ static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname,
 			err = l2cap_chan_reconfigure(chan, opt);
 		else
 			chan->imtu = opt;
+
+		break;
+
+	case BT_MODE:
+		if (!enable_ecred) {
+			err = -ENOPROTOOPT;
+			break;
+		}
+
+		BT_DBG("sk->sk_state %u", sk->sk_state);
+
+		if (sk->sk_state != BT_BOUND) {
+			err = -EINVAL;
+			break;
+		}
+
+		if (chan->chan_type != L2CAP_CHAN_CONN_ORIENTED) {
+			err = -EINVAL;
+			break;
+		}
+
+		if (get_user(opt, (u8 __user *) optval)) {
+			err = -EFAULT;
+			break;
+		}
+
+		BT_DBG("opt %u", opt);
+
+		err = l2cap_set_mode(chan, opt);
+		if (err)
+			break;
+
+		BT_DBG("mode 0x%2.2x", chan->mode);
 
 		break;
 
