@@ -958,3 +958,35 @@ static int amdgpu_mes_test_create_gang_and_queues(struct amdgpu_device *adev,
 
 	return 0;
 }
+
+static int amdgpu_mes_test_queues(struct amdgpu_ring **added_rings)
+{
+	struct amdgpu_ring *ring;
+	int i, r;
+
+	for (i = 0; i < AMDGPU_MES_CTX_MAX_RINGS; i++) {
+		ring = added_rings[i];
+		if (!ring)
+			continue;
+
+		r = amdgpu_ring_test_ring(ring);
+		if (r) {
+			DRM_DEV_ERROR(ring->adev->dev,
+				      "ring %s test failed (%d)\n",
+				      ring->name, r);
+			return r;
+		} else
+			DRM_INFO("ring %s test pass\n", ring->name);
+
+		r = amdgpu_ring_test_ib(ring, 1000 * 10);
+		if (r) {
+			DRM_DEV_ERROR(ring->adev->dev,
+				      "ring %s ib test failed (%d)\n",
+				      ring->name, r);
+			return r;
+		} else
+			DRM_INFO("ring %s ib test pass\n", ring->name);
+	}
+
+	return 0;
+}
