@@ -475,7 +475,7 @@
 	phy-mode = "rgmii";
 	clock_in_out = "input";
 
-	snps,reset-gpio = <&gpio2 RK_PC0 GPIO_ACTIVE_LOW>;
+	snps,reset-gpio = <&gpio2 RK_PB1 GPIO_ACTIVE_LOW>;
 	snps,reset-active-low;
 	/* Reset time is 20ms, 100ms for rtl8211f */
 	snps,reset-delays-us = <0 20000 100000>;
