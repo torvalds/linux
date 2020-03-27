@@ -882,3 +882,40 @@ void amdgpu_mes_ctx_free_meta_data(struct amdgpu_mes_ctx_data *ctx_data)
 	if (ctx_data->meta_data_obj)
 		amdgpu_bo_free_kernel(&ctx_data->meta_data_obj, NULL, NULL);
 }
+
+static int amdgpu_mes_test_map_ctx_meta_data(struct amdgpu_device *adev,
+				     struct amdgpu_vm *vm,
+				     struct amdgpu_mes_ctx_data *ctx_data)
+{
+	struct amdgpu_bo_va *meta_data_va = NULL;
+	uint64_t meta_data_addr = AMDGPU_VA_RESERVED_SIZE;
+	int r;
+
+	r = amdgpu_map_static_csa(adev, vm, ctx_data->meta_data_obj,
+				  &meta_data_va, meta_data_addr,
+				  sizeof(struct amdgpu_mes_ctx_meta_data));
+	if (r)
+		return r;
+
+	r = amdgpu_vm_bo_update(adev, meta_data_va, false);
+	if (r)
+		goto error;
+
+	r = amdgpu_vm_update_pdes(adev, vm, false);
+	if (r)
+		goto error;
+
+	dma_fence_wait(vm->last_update, false);
+	dma_fence_wait(meta_data_va->last_pt_update, false);
+
+	ctx_data->meta_data_gpu_addr = meta_data_addr;
+	ctx_data->meta_data_va = meta_data_va;
+
+	return 0;
+
+error:
+	BUG_ON(amdgpu_bo_reserve(ctx_data->meta_data_obj, true));
+	amdgpu_vm_bo_rmv(adev, meta_data_va);
+	amdgpu_bo_unreserve(ctx_data->meta_data_obj);
+	return r;
+}
