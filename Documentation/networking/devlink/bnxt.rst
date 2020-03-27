@@ -66,6 +66,9 @@ The ``bnxt_en`` driver reports the following versions
    * - ``fw.app``
      - stored, running
      - Data path firmware version
+   * - ``fw.mgmt.api``
+     - running
+     - Minimum firmware interface spec version supported between driver and firmware
    * - ``fw.mgmt``
      - stored, running
      - Management firmware version

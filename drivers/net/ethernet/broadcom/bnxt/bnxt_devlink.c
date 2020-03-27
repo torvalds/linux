@@ -475,6 +475,12 @@ static int bnxt_dl_info_get(struct devlink *dl, struct devlink_info_req *req,
 	if (rc)
 		return rc;
 
+	rc = devlink_info_version_running_put(req,
+				DEVLINK_INFO_VERSION_GENERIC_FW_MGMT_API,
+				bp->hwrm_ver_supp);
+	if (rc)
+		return rc;
+
 	if (!(bp->flags & BNXT_FLAG_CHIP_P5)) {
 		rc = devlink_info_version_running_put(req,
 			DEVLINK_INFO_VERSION_GENERIC_FW_MGMT, mgmt_ver);
