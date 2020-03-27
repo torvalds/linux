@@ -1535,13 +1535,17 @@ static void mlxsw_sp_nexthop_rif_update(struct mlxsw_sp *mlxsw_sp,
 					struct mlxsw_sp_rif *rif);
 
 /**
- * Update the offload related to an IPIP entry. This always updates decap, and
- * in addition to that it also:
- * @recreate_loopback: recreates the associated loopback RIF
- * @keep_encap: updates next hops that use the tunnel netdevice. This is only
+ * __mlxsw_sp_ipip_entry_update_tunnel - Update offload related to IPIP entry.
+ * @mlxsw_sp: mlxsw_sp.
+ * @ipip_entry: IPIP entry.
+ * @recreate_loopback: Recreates the associated loopback RIF.
+ * @keep_encap: Updates next hops that use the tunnel netdevice. This is only
  *              relevant when recreate_loopback is true.
- * @update_nexthops: updates next hops, keeping the current loopback RIF. This
+ * @update_nexthops: Updates next hops, keeping the current loopback RIF. This
  *                   is only relevant when recreate_loopback is false.
+ * @extack: extack.
+ *
+ * Return: Non-zero value on failure.
  */
 int __mlxsw_sp_ipip_entry_update_tunnel(struct mlxsw_sp *mlxsw_sp,
 					struct mlxsw_sp_ipip_entry *ipip_entry,
