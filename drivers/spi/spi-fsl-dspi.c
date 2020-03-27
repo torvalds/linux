@@ -20,16 +20,9 @@
 
 #define DRIVER_NAME			"fsl-dspi"
 
-#ifdef CONFIG_M5441x
-#define DSPI_FIFO_SIZE			16
-#else
-#define DSPI_FIFO_SIZE			4
-#endif
-#define DSPI_DMA_BUFSIZE		(DSPI_FIFO_SIZE * 1024)
-
 #define SPI_MCR				0x00
 #define SPI_MCR_MASTER			BIT(31)
-#define SPI_MCR_PCSIS			(0x3F << 16)
+#define SPI_MCR_PCSIS(x)		((x) << 16)
 #define SPI_MCR_CLR_TXF			BIT(11)
 #define SPI_MCR_CLR_RXF			BIT(10)
 #define SPI_MCR_XSPI			BIT(3)
@@ -79,6 +72,7 @@
 #define SPI_RSER			0x30
 #define SPI_RSER_TCFQE			BIT(31)
 #define SPI_RSER_EOQFE			BIT(28)
+#define SPI_RSER_CMDTCFE		BIT(23)
 
 #define SPI_PUSHR			0x34
 #define SPI_PUSHR_CMD_CONT		BIT(15)
@@ -109,57 +103,95 @@
 #define SPI_FRAME_BITS(bits)		SPI_CTAR_FMSZ((bits) - 1)
 #define SPI_FRAME_EBITS(bits)		SPI_CTARE_FMSZE(((bits) - 1) >> 4)
 
-/* Register offsets for regmap_pushr */
-#define PUSHR_CMD			0x0
-#define PUSHR_TX			0x2
-
 #define DMA_COMPLETION_TIMEOUT		msecs_to_jiffies(3000)
 
 struct chip_data {
 	u32			ctar_val;
-	u16			void_write_data;
 };
 
 enum dspi_trans_mode {
 	DSPI_EOQ_MODE = 0,
-	DSPI_TCFQ_MODE,
+	DSPI_XSPI_MODE,
 	DSPI_DMA_MODE,
 };
 
 struct fsl_dspi_devtype_data {
 	enum dspi_trans_mode	trans_mode;
 	u8			max_clock_factor;
-	bool			ptp_sts_supported;
-	bool			xspi_mode;
+	int			fifo_size;
 };
 
-static const struct fsl_dspi_devtype_data vf610_data = {
-	.trans_mode		= DSPI_DMA_MODE,
-	.max_clock_factor	= 2,
+enum {
+	LS1021A,
+	LS1012A,
+	LS1028A,
+	LS1043A,
+	LS1046A,
+	LS2080A,
+	LS2085A,
+	LX2160A,
+	MCF5441X,
+	VF610,
 };
 
-static const struct fsl_dspi_devtype_data ls1021a_v1_data = {
-	.trans_mode		= DSPI_TCFQ_MODE,
-	.max_clock_factor	= 8,
-	.ptp_sts_supported	= true,
-	.xspi_mode		= true,
-};
-
-static const struct fsl_dspi_devtype_data ls2085a_data = {
-	.trans_mode		= DSPI_TCFQ_MODE,
-	.max_clock_factor	= 8,
-	.ptp_sts_supported	= true,
-};
-
-static const struct fsl_dspi_devtype_data coldfire_data = {
-	.trans_mode		= DSPI_EOQ_MODE,
-	.max_clock_factor	= 8,
+static const struct fsl_dspi_devtype_data devtype_data[] = {
+	[VF610] = {
+		.trans_mode		= DSPI_DMA_MODE,
+		.max_clock_factor	= 2,
+		.fifo_size		= 4,
+	},
+	[LS1021A] = {
+		/* Has A-011218 DMA erratum */
+		.trans_mode		= DSPI_XSPI_MODE,
+		.max_clock_factor	= 8,
+		.fifo_size		= 4,
+	},
+	[LS1012A] = {
+		/* Has A-011218 DMA erratum */
+		.trans_mode		= DSPI_XSPI_MODE,
+		.max_clock_factor	= 8,
+		.fifo_size		= 16,
+	},
+	[LS1028A] = {
+		.trans_mode		= DSPI_XSPI_MODE,
+		.max_clock_factor	= 8,
+		.fifo_size		= 4,
+	},
+	[LS1043A] = {
+		/* Has A-011218 DMA erratum */
+		.trans_mode		= DSPI_XSPI_MODE,
+		.max_clock_factor	= 8,
+		.fifo_size		= 16,
+	},
+	[LS1046A] = {
+		/* Has A-011218 DMA erratum */
+		.trans_mode		= DSPI_XSPI_MODE,
+		.max_clock_factor	= 8,
+		.fifo_size		= 16,
+	},
+	[LS2080A] = {
+		.trans_mode		= DSPI_DMA_MODE,
+		.max_clock_factor	= 8,
+		.fifo_size		= 4,
+	},
+	[LS2085A] = {
+		.trans_mode		= DSPI_DMA_MODE,
+		.max_clock_factor	= 8,
+		.fifo_size		= 4,
+	},
+	[LX2160A] = {
+		.trans_mode		= DSPI_DMA_MODE,
+		.max_clock_factor	= 8,
+		.fifo_size		= 4,
+	},
+	[MCF5441X] = {
+		.trans_mode		= DSPI_EOQ_MODE,
+		.max_clock_factor	= 8,
+		.fifo_size		= 16,
+	},
 };
 
 struct fsl_dspi_dma {
-	/* Length of transfer in words of DSPI_FIFO_SIZE */
-	u32					curr_xfer_len;
-
 	u32					*tx_dma_buf;
 	struct dma_chan				*chan_tx;
 	dma_addr_t				tx_dma_phys;
@@ -189,36 +221,99 @@ struct fsl_dspi {
 	size_t					len;
 	const void				*tx;
 	void					*rx;
-	void					*rx_end;
-	u16					void_write_data;
 	u16					tx_cmd;
-	u8					bits_per_word;
-	u8					bytes_per_word;
 	const struct fsl_dspi_devtype_data	*devtype_data;
 
-	wait_queue_head_t			waitq;
-	u32					waitflags;
+	struct completion			xfer_done;
 
 	struct fsl_dspi_dma			*dma;
+
+	int					oper_word_size;
+	int					oper_bits_per_word;
+
+	int					words_in_flight;
+
+	/*
+	 * Offsets for CMD and TXDATA within SPI_PUSHR when accessed
+	 * individually (in XSPI mode)
+	 */
+	int					pushr_cmd;
+	int					pushr_tx;
+
+	void (*host_to_dev)(struct fsl_dspi *dspi, u32 *txdata);
+	void (*dev_to_host)(struct fsl_dspi *dspi, u32 rxdata);
 };
 
+static void dspi_native_host_to_dev(struct fsl_dspi *dspi, u32 *txdata)
+{
+	memcpy(txdata, dspi->tx, dspi->oper_word_size);
+	dspi->tx += dspi->oper_word_size;
+}
+
+static void dspi_native_dev_to_host(struct fsl_dspi *dspi, u32 rxdata)
+{
+	memcpy(dspi->rx, &rxdata, dspi->oper_word_size);
+	dspi->rx += dspi->oper_word_size;
+}
+
+static void dspi_8on32_host_to_dev(struct fsl_dspi *dspi, u32 *txdata)
+{
+	*txdata = cpu_to_be32(*(u32 *)dspi->tx);
+	dspi->tx += sizeof(u32);
+}
+
+static void dspi_8on32_dev_to_host(struct fsl_dspi *dspi, u32 rxdata)
+{
+	*(u32 *)dspi->rx = be32_to_cpu(rxdata);
+	dspi->rx += sizeof(u32);
+}
+
+static void dspi_8on16_host_to_dev(struct fsl_dspi *dspi, u32 *txdata)
+{
+	*txdata = cpu_to_be16(*(u16 *)dspi->tx);
+	dspi->tx += sizeof(u16);
+}
+
+static void dspi_8on16_dev_to_host(struct fsl_dspi *dspi, u32 rxdata)
+{
+	*(u16 *)dspi->rx = be16_to_cpu(rxdata);
+	dspi->rx += sizeof(u16);
+}
+
+static void dspi_16on32_host_to_dev(struct fsl_dspi *dspi, u32 *txdata)
+{
+	u16 hi = *(u16 *)dspi->tx;
+	u16 lo = *(u16 *)(dspi->tx + 2);
+
+	*txdata = (u32)hi << 16 | lo;
+	dspi->tx += sizeof(u32);
+}
+
+static void dspi_16on32_dev_to_host(struct fsl_dspi *dspi, u32 rxdata)
+{
+	u16 hi = rxdata & 0xffff;
+	u16 lo = rxdata >> 16;
+
+	*(u16 *)dspi->rx = lo;
+	*(u16 *)(dspi->rx + 2) = hi;
+	dspi->rx += sizeof(u32);
+}
+
+/*
+ * Pop one word from the TX buffer for pushing into the
+ * PUSHR register (TX FIFO)
+ */
 static u32 dspi_pop_tx(struct fsl_dspi *dspi)
 {
 	u32 txdata = 0;
 
-	if (dspi->tx) {
-		if (dspi->bytes_per_word == 1)
-			txdata = *(u8 *)dspi->tx;
-		else if (dspi->bytes_per_word == 2)
-			txdata = *(u16 *)dspi->tx;
-		else  /* dspi->bytes_per_word == 4 */
-			txdata = *(u32 *)dspi->tx;
-		dspi->tx += dspi->bytes_per_word;
-	}
-	dspi->len -= dspi->bytes_per_word;
+	if (dspi->tx)
+		dspi->host_to_dev(dspi, &txdata);
+	dspi->len -= dspi->oper_word_size;
 	return txdata;
 }
 
+/* Prepare one TX FIFO entry (txdata plus cmd) */
 static u32 dspi_pop_tx_pushr(struct fsl_dspi *dspi)
 {
 	u16 cmd = dspi->tx_cmd, data = dspi_pop_tx(dspi);
@@ -231,21 +326,12 @@ static u32 dspi_pop_tx_pushr(struct fsl_dspi *dspi)
 	return cmd << 16 | data;
 }
 
+/* Push one word to the RX buffer from the POPR register (RX FIFO) */
 static void dspi_push_rx(struct fsl_dspi *dspi, u32 rxdata)
 {
 	if (!dspi->rx)
 		return;
-
-	/* Mask off undefined bits */
-	rxdata &= (1 << dspi->bits_per_word) - 1;
-
-	if (dspi->bytes_per_word == 1)
-		*(u8 *)dspi->rx = rxdata;
-	else if (dspi->bytes_per_word == 2)
-		*(u16 *)dspi->rx = rxdata;
-	else /* dspi->bytes_per_word == 4 */
-		*(u32 *)dspi->rx = rxdata;
-	dspi->rx += dspi->bytes_per_word;
+	dspi->dev_to_host(dspi, rxdata);
 }
 
 static void dspi_tx_dma_callback(void *arg)
@@ -263,7 +349,7 @@ static void dspi_rx_dma_callback(void *arg)
 	int i;
 
 	if (dspi->rx) {
-		for (i = 0; i < dma->curr_xfer_len; i++)
+		for (i = 0; i < dspi->words_in_flight; i++)
 			dspi_push_rx(dspi, dspi->dma->rx_dma_buf[i]);
 	}
 
@@ -277,12 +363,12 @@ static int dspi_next_xfer_dma_submit(struct fsl_dspi *dspi)
 	int time_left;
 	int i;
 
-	for (i = 0; i < dma->curr_xfer_len; i++)
+	for (i = 0; i < dspi->words_in_flight; i++)
 		dspi->dma->tx_dma_buf[i] = dspi_pop_tx_pushr(dspi);
 
 	dma->tx_desc = dmaengine_prep_slave_single(dma->chan_tx,
 					dma->tx_dma_phys,
-					dma->curr_xfer_len *
+					dspi->words_in_flight *
 					DMA_SLAVE_BUSWIDTH_4_BYTES,
 					DMA_MEM_TO_DEV,
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
@@ -300,7 +386,7 @@ static int dspi_next_xfer_dma_submit(struct fsl_dspi *dspi)
 
 	dma->rx_desc = dmaengine_prep_slave_single(dma->chan_rx,
 					dma->rx_dma_phys,
-					dma->curr_xfer_len *
+					dspi->words_in_flight *
 					DMA_SLAVE_BUSWIDTH_4_BYTES,
 					DMA_DEV_TO_MEM,
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
@@ -348,45 +434,42 @@ static int dspi_next_xfer_dma_submit(struct fsl_dspi *dspi)
 	return 0;
 }
 
+static void dspi_setup_accel(struct fsl_dspi *dspi);
+
 static int dspi_dma_xfer(struct fsl_dspi *dspi)
 {
 	struct spi_message *message = dspi->cur_msg;
 	struct device *dev = &dspi->pdev->dev;
-	struct fsl_dspi_dma *dma = dspi->dma;
-	int curr_remaining_bytes;
-	int bytes_per_buffer;
 	int ret = 0;
 
-	curr_remaining_bytes = dspi->len;
-	bytes_per_buffer = DSPI_DMA_BUFSIZE / DSPI_FIFO_SIZE;
-	while (curr_remaining_bytes) {
-		/* Check if current transfer fits the DMA buffer */
-		dma->curr_xfer_len = curr_remaining_bytes
-			/ dspi->bytes_per_word;
-		if (dma->curr_xfer_len > bytes_per_buffer)
-			dma->curr_xfer_len = bytes_per_buffer;
+	/*
+	 * dspi->len gets decremented by dspi_pop_tx_pushr in
+	 * dspi_next_xfer_dma_submit
+	 */
+	while (dspi->len) {
+		/* Figure out operational bits-per-word for this chunk */
+		dspi_setup_accel(dspi);
+
+		dspi->words_in_flight = dspi->len / dspi->oper_word_size;
+		if (dspi->words_in_flight > dspi->devtype_data->fifo_size)
+			dspi->words_in_flight = dspi->devtype_data->fifo_size;
+
+		message->actual_length += dspi->words_in_flight *
+					  dspi->oper_word_size;
 
 		ret = dspi_next_xfer_dma_submit(dspi);
 		if (ret) {
 			dev_err(dev, "DMA transfer failed\n");
-			goto exit;
-
-		} else {
-			const int len =
-				dma->curr_xfer_len * dspi->bytes_per_word;
-			curr_remaining_bytes -= len;
-			message->actual_length += len;
-			if (curr_remaining_bytes < 0)
-				curr_remaining_bytes = 0;
+			break;
 		}
 	}
 
-exit:
 	return ret;
 }
 
 static int dspi_request_dma(struct fsl_dspi *dspi, phys_addr_t phy_addr)
 {
+	int dma_bufsize = dspi->devtype_data->fifo_size * 2;
 	struct device *dev = &dspi->pdev->dev;
 	struct dma_slave_config cfg;
 	struct fsl_dspi_dma *dma;
@@ -410,15 +493,17 @@ static int dspi_request_dma(struct fsl_dspi *dspi, phys_addr_t phy_addr)
 		goto err_tx_channel;
 	}
 
-	dma->tx_dma_buf = dma_alloc_coherent(dev, DSPI_DMA_BUFSIZE,
-					     &dma->tx_dma_phys, GFP_KERNEL);
+	dma->tx_dma_buf = dma_alloc_coherent(dma->chan_tx->device->dev,
+					     dma_bufsize, &dma->tx_dma_phys,
+					     GFP_KERNEL);
 	if (!dma->tx_dma_buf) {
 		ret = -ENOMEM;
 		goto err_tx_dma_buf;
 	}
 
-	dma->rx_dma_buf = dma_alloc_coherent(dev, DSPI_DMA_BUFSIZE,
-					     &dma->rx_dma_phys, GFP_KERNEL);
+	dma->rx_dma_buf = dma_alloc_coherent(dma->chan_rx->device->dev,
+					     dma_bufsize, &dma->rx_dma_phys,
+					     GFP_KERNEL);
 	if (!dma->rx_dma_buf) {
 		ret = -ENOMEM;
 		goto err_rx_dma_buf;
@@ -454,11 +539,11 @@ static int dspi_request_dma(struct fsl_dspi *dspi, phys_addr_t phy_addr)
 	return 0;
 
 err_slave_config:
-	dma_free_coherent(dev, DSPI_DMA_BUFSIZE,
-			dma->rx_dma_buf, dma->rx_dma_phys);
+	dma_free_coherent(dma->chan_rx->device->dev,
+			  dma_bufsize, dma->rx_dma_buf, dma->rx_dma_phys);
 err_rx_dma_buf:
-	dma_free_coherent(dev, DSPI_DMA_BUFSIZE,
-			dma->tx_dma_buf, dma->tx_dma_phys);
+	dma_free_coherent(dma->chan_tx->device->dev,
+			  dma_bufsize, dma->tx_dma_buf, dma->tx_dma_phys);
 err_tx_dma_buf:
 	dma_release_channel(dma->chan_tx);
 err_tx_channel:
@@ -472,21 +557,21 @@ err_tx_channel:
 
 static void dspi_release_dma(struct fsl_dspi *dspi)
 {
+	int dma_bufsize = dspi->devtype_data->fifo_size * 2;
 	struct fsl_dspi_dma *dma = dspi->dma;
-	struct device *dev = &dspi->pdev->dev;
 
 	if (!dma)
 		return;
 
 	if (dma->chan_tx) {
-		dma_unmap_single(dev, dma->tx_dma_phys,
-				 DSPI_DMA_BUFSIZE, DMA_TO_DEVICE);
+		dma_unmap_single(dma->chan_tx->device->dev, dma->tx_dma_phys,
+				 dma_bufsize, DMA_TO_DEVICE);
 		dma_release_channel(dma->chan_tx);
 	}
 
 	if (dma->chan_rx) {
-		dma_unmap_single(dev, dma->rx_dma_phys,
-				 DSPI_DMA_BUFSIZE, DMA_FROM_DEVICE);
+		dma_unmap_single(dma->chan_rx->device->dev, dma->rx_dma_phys,
+				 dma_bufsize, DMA_FROM_DEVICE);
 		dma_release_channel(dma->chan_rx);
 	}
 }
@@ -562,48 +647,86 @@ static void ns_delay_scale(char *psc, char *sc, int delay_ns,
 	}
 }
 
-static void fifo_write(struct fsl_dspi *dspi)
+static void dspi_pushr_write(struct fsl_dspi *dspi)
 {
 	regmap_write(dspi->regmap, SPI_PUSHR, dspi_pop_tx_pushr(dspi));
 }
 
-static void cmd_fifo_write(struct fsl_dspi *dspi)
+static void dspi_pushr_cmd_write(struct fsl_dspi *dspi, u16 cmd)
 {
-	u16 cmd = dspi->tx_cmd;
-
-	if (dspi->len > 0)
+	/*
+	 * The only time when the PCS doesn't need continuation after this word
+	 * is when it's last. We need to look ahead, because we actually call
+	 * dspi_pop_tx (the function that decrements dspi->len) _after_
+	 * dspi_pushr_cmd_write with XSPI mode. As for how much in advance? One
+	 * word is enough. If there's more to transmit than that,
+	 * dspi_xspi_write will know to split the FIFO writes in 2, and
+	 * generate a new PUSHR command with the final word that will have PCS
+	 * deasserted (not continued) here.
+	 */
+	if (dspi->len > dspi->oper_word_size)
 		cmd |= SPI_PUSHR_CMD_CONT;
-	regmap_write(dspi->regmap_pushr, PUSHR_CMD, cmd);
+	regmap_write(dspi->regmap_pushr, dspi->pushr_cmd, cmd);
 }
 
-static void tx_fifo_write(struct fsl_dspi *dspi, u16 txdata)
+static void dspi_pushr_txdata_write(struct fsl_dspi *dspi, u16 txdata)
 {
-	regmap_write(dspi->regmap_pushr, PUSHR_TX, txdata);
+	regmap_write(dspi->regmap_pushr, dspi->pushr_tx, txdata);
 }
 
-static void dspi_tcfq_write(struct fsl_dspi *dspi)
+static void dspi_xspi_fifo_write(struct fsl_dspi *dspi, int num_words)
 {
-	/* Clear transfer count */
-	dspi->tx_cmd |= SPI_PUSHR_CMD_CTCNT;
+	int num_bytes = num_words * dspi->oper_word_size;
+	u16 tx_cmd = dspi->tx_cmd;
 
-	if (dspi->devtype_data->xspi_mode && dspi->bits_per_word > 16) {
-		/* Write the CMD FIFO entry first, and then the two
-		 * corresponding TX FIFO entries.
-		 */
+	/*
+	 * If the PCS needs to de-assert (i.e. we're at the end of the buffer
+	 * and cs_change does not want the PCS to stay on), then we need a new
+	 * PUSHR command, since this one (for the body of the buffer)
+	 * necessarily has the CONT bit set.
+	 * So send one word less during this go, to force a split and a command
+	 * with a single word next time, when CONT will be unset.
+	 */
+	if (!(dspi->tx_cmd & SPI_PUSHR_CMD_CONT) && num_bytes == dspi->len)
+		tx_cmd |= SPI_PUSHR_CMD_EOQ;
+
+	/* Update CTARE */
+	regmap_write(dspi->regmap, SPI_CTARE(0),
+		     SPI_FRAME_EBITS(dspi->oper_bits_per_word) |
+		     SPI_CTARE_DTCP(num_words));
+
+	/*
+	 * Write the CMD FIFO entry first, and then the two
+	 * corresponding TX FIFO entries (or one...).
+	 */
+	dspi_pushr_cmd_write(dspi, tx_cmd);
+
+	/* Fill TX FIFO with as many transfers as possible */
+	while (num_words--) {
 		u32 data = dspi_pop_tx(dspi);
 
-		cmd_fifo_write(dspi);
-		tx_fifo_write(dspi, data & 0xFFFF);
-		tx_fifo_write(dspi, data >> 16);
-	} else {
-		/* Write one entry to both TX FIFO and CMD FIFO
-		 * simultaneously.
-		 */
-		fifo_write(dspi);
+		dspi_pushr_txdata_write(dspi, data & 0xFFFF);
+		if (dspi->oper_bits_per_word > 16)
+			dspi_pushr_txdata_write(dspi, data >> 16);
 	}
 }
 
-static u32 fifo_read(struct fsl_dspi *dspi)
+static void dspi_eoq_fifo_write(struct fsl_dspi *dspi, int num_words)
+{
+	u16 xfer_cmd = dspi->tx_cmd;
+
+	/* Fill TX FIFO with as many transfers as possible */
+	while (num_words--) {
+		dspi->tx_cmd = xfer_cmd;
+		/* Request EOQF for last transfer in FIFO */
+		if (num_words == 0)
+			dspi->tx_cmd |= SPI_PUSHR_CMD_EOQ;
+		/* Write combined TX FIFO and CMD FIFO entry */
+		dspi_pushr_write(dspi);
+	}
+}
+
+static u32 dspi_popr_read(struct fsl_dspi *dspi)
 {
 	u32 rxdata = 0;
 
@@ -611,75 +734,133 @@ static u32 fifo_read(struct fsl_dspi *dspi)
 	return rxdata;
 }
 
-static void dspi_tcfq_read(struct fsl_dspi *dspi)
+static void dspi_fifo_read(struct fsl_dspi *dspi)
 {
-	dspi_push_rx(dspi, fifo_read(dspi));
-}
-
-static void dspi_eoq_write(struct fsl_dspi *dspi)
-{
-	int fifo_size = DSPI_FIFO_SIZE;
-	u16 xfer_cmd = dspi->tx_cmd;
-
-	/* Fill TX FIFO with as many transfers as possible */
-	while (dspi->len && fifo_size--) {
-		dspi->tx_cmd = xfer_cmd;
-		/* Request EOQF for last transfer in FIFO */
-		if (dspi->len == dspi->bytes_per_word || fifo_size == 0)
-			dspi->tx_cmd |= SPI_PUSHR_CMD_EOQ;
-		/* Clear transfer count for first transfer in FIFO */
-		if (fifo_size == (DSPI_FIFO_SIZE - 1))
-			dspi->tx_cmd |= SPI_PUSHR_CMD_CTCNT;
-		/* Write combined TX FIFO and CMD FIFO entry */
-		fifo_write(dspi);
-	}
-}
-
-static void dspi_eoq_read(struct fsl_dspi *dspi)
-{
-	int fifo_size = DSPI_FIFO_SIZE;
+	int num_fifo_entries = dspi->words_in_flight;
 
 	/* Read one FIFO entry and push to rx buffer */
-	while ((dspi->rx < dspi->rx_end) && fifo_size--)
-		dspi_push_rx(dspi, fifo_read(dspi));
+	while (num_fifo_entries--)
+		dspi_push_rx(dspi, dspi_popr_read(dspi));
+}
+
+static void dspi_setup_accel(struct fsl_dspi *dspi)
+{
+	struct spi_transfer *xfer = dspi->cur_transfer;
+	bool odd = !!(dspi->len & 1);
+
+	/* No accel for frames not multiple of 8 bits at the moment */
+	if (xfer->bits_per_word % 8)
+		goto no_accel;
+
+	if (!odd && dspi->len <= dspi->devtype_data->fifo_size * 2) {
+		dspi->oper_bits_per_word = 16;
+	} else if (odd && dspi->len <= dspi->devtype_data->fifo_size) {
+		dspi->oper_bits_per_word = 8;
+	} else {
+		/* Start off with maximum supported by hardware */
+		if (dspi->devtype_data->trans_mode == DSPI_XSPI_MODE)
+			dspi->oper_bits_per_word = 32;
+		else
+			dspi->oper_bits_per_word = 16;
+
+		/*
+		 * And go down only if the buffer can't be sent with
+		 * words this big
+		 */
+		do {
+			if (dspi->len >= DIV_ROUND_UP(dspi->oper_bits_per_word, 8))
+				break;
+
+			dspi->oper_bits_per_word /= 2;
+		} while (dspi->oper_bits_per_word > 8);
+	}
+
+	if (xfer->bits_per_word == 8 && dspi->oper_bits_per_word == 32) {
+		dspi->dev_to_host = dspi_8on32_dev_to_host;
+		dspi->host_to_dev = dspi_8on32_host_to_dev;
+	} else if (xfer->bits_per_word == 8 && dspi->oper_bits_per_word == 16) {
+		dspi->dev_to_host = dspi_8on16_dev_to_host;
+		dspi->host_to_dev = dspi_8on16_host_to_dev;
+	} else if (xfer->bits_per_word == 16 && dspi->oper_bits_per_word == 32) {
+		dspi->dev_to_host = dspi_16on32_dev_to_host;
+		dspi->host_to_dev = dspi_16on32_host_to_dev;
+	} else {
+no_accel:
+		dspi->dev_to_host = dspi_native_dev_to_host;
+		dspi->host_to_dev = dspi_native_host_to_dev;
+		dspi->oper_bits_per_word = xfer->bits_per_word;
+	}
+
+	dspi->oper_word_size = DIV_ROUND_UP(dspi->oper_bits_per_word, 8);
+
+	/*
+	 * Update CTAR here (code is common for EOQ, XSPI and DMA modes).
+	 * We will update CTARE in the portion specific to XSPI, when we
+	 * also know the preload value (DTCP).
+	 */
+	regmap_write(dspi->regmap, SPI_CTAR(0),
+		     dspi->cur_chip->ctar_val |
+		     SPI_FRAME_BITS(dspi->oper_bits_per_word));
+}
+
+static void dspi_fifo_write(struct fsl_dspi *dspi)
+{
+	int num_fifo_entries = dspi->devtype_data->fifo_size;
+	struct spi_transfer *xfer = dspi->cur_transfer;
+	struct spi_message *msg = dspi->cur_msg;
+	int num_words, num_bytes;
+
+	dspi_setup_accel(dspi);
+
+	/* In XSPI mode each 32-bit word occupies 2 TX FIFO entries */
+	if (dspi->oper_word_size == 4)
+		num_fifo_entries /= 2;
+
+	/*
+	 * Integer division intentionally trims off odd (or non-multiple of 4)
+	 * numbers of bytes at the end of the buffer, which will be sent next
+	 * time using a smaller oper_word_size.
+	 */
+	num_words = dspi->len / dspi->oper_word_size;
+	if (num_words > num_fifo_entries)
+		num_words = num_fifo_entries;
+
+	/* Update total number of bytes that were transferred */
+	num_bytes = num_words * dspi->oper_word_size;
+	msg->actual_length += num_bytes;
+	dspi->progress += num_bytes / DIV_ROUND_UP(xfer->bits_per_word, 8);
+
+	/*
+	 * Update shared variable for use in the next interrupt (both in
+	 * dspi_fifo_read and in dspi_fifo_write).
+	 */
+	dspi->words_in_flight = num_words;
+
+	spi_take_timestamp_pre(dspi->ctlr, xfer, dspi->progress, !dspi->irq);
+
+	if (dspi->devtype_data->trans_mode == DSPI_EOQ_MODE)
+		dspi_eoq_fifo_write(dspi, num_words);
+	else
+		dspi_xspi_fifo_write(dspi, num_words);
+	/*
+	 * Everything after this point is in a potential race with the next
+	 * interrupt, so we must never use dspi->words_in_flight again since it
+	 * might already be modified by the next dspi_fifo_write.
+	 */
+
+	spi_take_timestamp_post(dspi->ctlr, dspi->cur_transfer,
+				dspi->progress, !dspi->irq);
 }
 
 static int dspi_rxtx(struct fsl_dspi *dspi)
 {
-	struct spi_message *msg = dspi->cur_msg;
-	enum dspi_trans_mode trans_mode;
-	u16 spi_tcnt;
-	u32 spi_tcr;
-
-	spi_take_timestamp_post(dspi->ctlr, dspi->cur_transfer,
-				dspi->progress, !dspi->irq);
-
-	/* Get transfer counter (in number of SPI transfers). It was
-	 * reset to 0 when transfer(s) were started.
-	 */
-	regmap_read(dspi->regmap, SPI_TCR, &spi_tcr);
-	spi_tcnt = SPI_TCR_GET_TCNT(spi_tcr);
-	/* Update total number of bytes that were transferred */
-	msg->actual_length += spi_tcnt * dspi->bytes_per_word;
-	dspi->progress += spi_tcnt;
-
-	trans_mode = dspi->devtype_data->trans_mode;
-	if (trans_mode == DSPI_EOQ_MODE)
-		dspi_eoq_read(dspi);
-	else if (trans_mode == DSPI_TCFQ_MODE)
-		dspi_tcfq_read(dspi);
+	dspi_fifo_read(dspi);
 
 	if (!dspi->len)
 		/* Success! */
 		return 0;
 
-	spi_take_timestamp_pre(dspi->ctlr, dspi->cur_transfer,
-			       dspi->progress, !dspi->irq);
-
-	if (trans_mode == DSPI_EOQ_MODE)
-		dspi_eoq_write(dspi);
-	else if (trans_mode == DSPI_TCFQ_MODE)
-		dspi_tcfq_write(dspi);
+	dspi_fifo_write(dspi);
 
 	return -EINPROGRESS;
 }
@@ -693,7 +874,7 @@ static int dspi_poll(struct fsl_dspi *dspi)
 		regmap_read(dspi->regmap, SPI_SR, &spi_sr);
 		regmap_write(dspi->regmap, SPI_SR, spi_sr);
 
-		if (spi_sr & (SPI_SR_EOQF | SPI_SR_TCFQF))
+		if (spi_sr & (SPI_SR_EOQF | SPI_SR_CMDTCF))
 			break;
 	} while (--tries);
 
@@ -711,13 +892,11 @@ static irqreturn_t dspi_interrupt(int irq, void *dev_id)
 	regmap_read(dspi->regmap, SPI_SR, &spi_sr);
 	regmap_write(dspi->regmap, SPI_SR, spi_sr);
 
-	if (!(spi_sr & SPI_SR_EOQF))
+	if (!(spi_sr & (SPI_SR_EOQF | SPI_SR_CMDTCF)))
 		return IRQ_NONE;
 
-	if (dspi_rxtx(dspi) == 0) {
-		dspi->waitflags = 1;
-		wake_up_interruptible(&dspi->waitq);
-	}
+	if (dspi_rxtx(dspi) == 0)
+		complete(&dspi->xfer_done);
 
 	return IRQ_HANDLED;
 }
@@ -727,7 +906,6 @@ static int dspi_transfer_one_message(struct spi_controller *ctlr,
 {
 	struct fsl_dspi *dspi = spi_controller_get_devdata(ctlr);
 	struct spi_device *spi = message->spi;
-	enum dspi_trans_mode trans_mode;
 	struct spi_transfer *transfer;
 	int status = 0;
 
@@ -757,76 +935,38 @@ static int dspi_transfer_one_message(struct spi_controller *ctlr,
 				dspi->tx_cmd |= SPI_PUSHR_CMD_CONT;
 		}
 
-		dspi->void_write_data = dspi->cur_chip->void_write_data;
-
 		dspi->tx = transfer->tx_buf;
 		dspi->rx = transfer->rx_buf;
-		dspi->rx_end = dspi->rx + transfer->len;
 		dspi->len = transfer->len;
 		dspi->progress = 0;
-		/* Validated transfer specific frame size (defaults applied) */
-		dspi->bits_per_word = transfer->bits_per_word;
-		if (transfer->bits_per_word <= 8)
-			dspi->bytes_per_word = 1;
-		else if (transfer->bits_per_word <= 16)
-			dspi->bytes_per_word = 2;
-		else
-			dspi->bytes_per_word = 4;
 
 		regmap_update_bits(dspi->regmap, SPI_MCR,
 				   SPI_MCR_CLR_TXF | SPI_MCR_CLR_RXF,
 				   SPI_MCR_CLR_TXF | SPI_MCR_CLR_RXF);
-		regmap_write(dspi->regmap, SPI_CTAR(0),
-			     dspi->cur_chip->ctar_val |
-			     SPI_FRAME_BITS(transfer->bits_per_word));
-		if (dspi->devtype_data->xspi_mode)
-			regmap_write(dspi->regmap, SPI_CTARE(0),
-				     SPI_FRAME_EBITS(transfer->bits_per_word) |
-				     SPI_CTARE_DTCP(1));
 
 		spi_take_timestamp_pre(dspi->ctlr, dspi->cur_transfer,
 				       dspi->progress, !dspi->irq);
 
-		trans_mode = dspi->devtype_data->trans_mode;
-		switch (trans_mode) {
-		case DSPI_EOQ_MODE:
-			regmap_write(dspi->regmap, SPI_RSER, SPI_RSER_EOQFE);
-			dspi_eoq_write(dspi);
-			break;
-		case DSPI_TCFQ_MODE:
-			regmap_write(dspi->regmap, SPI_RSER, SPI_RSER_TCFQE);
-			dspi_tcfq_write(dspi);
-			break;
-		case DSPI_DMA_MODE:
-			regmap_write(dspi->regmap, SPI_RSER,
-				     SPI_RSER_TFFFE | SPI_RSER_TFFFD |
-				     SPI_RSER_RFDFE | SPI_RSER_RFDFD);
+		if (dspi->devtype_data->trans_mode == DSPI_DMA_MODE) {
 			status = dspi_dma_xfer(dspi);
-			break;
-		default:
-			dev_err(&dspi->pdev->dev, "unsupported trans_mode %u\n",
-				trans_mode);
-			status = -EINVAL;
-			goto out;
-		}
+		} else {
+			dspi_fifo_write(dspi);
 
-		if (!dspi->irq) {
-			do {
-				status = dspi_poll(dspi);
-			} while (status == -EINPROGRESS);
-		} else if (trans_mode != DSPI_DMA_MODE) {
-			status = wait_event_interruptible(dspi->waitq,
-							  dspi->waitflags);
-			dspi->waitflags = 0;
+			if (dspi->irq) {
+				wait_for_completion(&dspi->xfer_done);
+				reinit_completion(&dspi->xfer_done);
+			} else {
+				do {
+					status = dspi_poll(dspi);
+				} while (status == -EINPROGRESS);
+			}
 		}
 		if (status)
-			dev_err(&dspi->pdev->dev,
-				"Waiting for transfer to complete failed!\n");
+			break;
 
 		spi_transfer_delay_exec(transfer);
 	}
 
-out:
 	message->status = status;
 	spi_finalize_current_message(ctlr);
 
@@ -863,8 +1003,6 @@ static int dspi_setup(struct spi_device *spi)
 		cs_sck_delay = pdata->cs_sck_delay;
 		sck_cs_delay = pdata->sck_cs_delay;
 	}
-
-	chip->void_write_data = 0;
 
 	clkrate = clk_get_rate(dspi->clk);
 	hz_to_spi_baud(&pbr, &br, spi->max_speed_hz, clkrate);
@@ -909,9 +1047,34 @@ static void dspi_cleanup(struct spi_device *spi)
 }
 
 static const struct of_device_id fsl_dspi_dt_ids[] = {
-	{ .compatible = "fsl,vf610-dspi", .data = &vf610_data, },
-	{ .compatible = "fsl,ls1021a-v1.0-dspi", .data = &ls1021a_v1_data, },
-	{ .compatible = "fsl,ls2085a-dspi", .data = &ls2085a_data, },
+	{
+		.compatible = "fsl,vf610-dspi",
+		.data = &devtype_data[VF610],
+	}, {
+		.compatible = "fsl,ls1021a-v1.0-dspi",
+		.data = &devtype_data[LS1021A],
+	}, {
+		.compatible = "fsl,ls1012a-dspi",
+		.data = &devtype_data[LS1012A],
+	}, {
+		.compatible = "fsl,ls1028a-dspi",
+		.data = &devtype_data[LS1028A],
+	}, {
+		.compatible = "fsl,ls1043a-dspi",
+		.data = &devtype_data[LS1043A],
+	}, {
+		.compatible = "fsl,ls1046a-dspi",
+		.data = &devtype_data[LS1046A],
+	}, {
+		.compatible = "fsl,ls2080a-dspi",
+		.data = &devtype_data[LS2080A],
+	}, {
+		.compatible = "fsl,ls2085a-dspi",
+		.data = &devtype_data[LS2085A],
+	}, {
+		.compatible = "fsl,lx2160a-dspi",
+		.data = &devtype_data[LX2160A],
+	},
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, fsl_dspi_dt_ids);
@@ -997,20 +1160,40 @@ static const struct regmap_config dspi_xspi_regmap_config[] = {
 	},
 };
 
-static void dspi_init(struct fsl_dspi *dspi)
+static int dspi_init(struct fsl_dspi *dspi)
 {
-	unsigned int mcr = SPI_MCR_PCSIS;
+	unsigned int mcr;
 
-	if (dspi->devtype_data->xspi_mode)
+	/* Set idle states for all chip select signals to high */
+	mcr = SPI_MCR_PCSIS(GENMASK(dspi->ctlr->num_chipselect - 1, 0));
+
+	if (dspi->devtype_data->trans_mode == DSPI_XSPI_MODE)
 		mcr |= SPI_MCR_XSPI;
 	if (!spi_controller_is_slave(dspi->ctlr))
 		mcr |= SPI_MCR_MASTER;
 
 	regmap_write(dspi->regmap, SPI_MCR, mcr);
 	regmap_write(dspi->regmap, SPI_SR, SPI_SR_CLEAR);
-	if (dspi->devtype_data->xspi_mode)
-		regmap_write(dspi->regmap, SPI_CTARE(0),
-			     SPI_CTARE_FMSZE(0) | SPI_CTARE_DTCP(1));
+
+	switch (dspi->devtype_data->trans_mode) {
+	case DSPI_EOQ_MODE:
+		regmap_write(dspi->regmap, SPI_RSER, SPI_RSER_EOQFE);
+		break;
+	case DSPI_XSPI_MODE:
+		regmap_write(dspi->regmap, SPI_RSER, SPI_RSER_CMDTCFE);
+		break;
+	case DSPI_DMA_MODE:
+		regmap_write(dspi->regmap, SPI_RSER,
+			     SPI_RSER_TFFFE | SPI_RSER_TFFFD |
+			     SPI_RSER_RFDFE | SPI_RSER_RFDFD);
+		break;
+	default:
+		dev_err(&dspi->pdev->dev, "unsupported trans_mode %u\n",
+			dspi->devtype_data->trans_mode);
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static int dspi_slave_abort(struct spi_master *master)
@@ -1021,8 +1204,10 @@ static int dspi_slave_abort(struct spi_master *master)
 	 * Terminate all pending DMA transactions for the SPI working
 	 * in SLAVE mode.
 	 */
-	dmaengine_terminate_sync(dspi->dma->chan_rx);
-	dmaengine_terminate_sync(dspi->dma->chan_tx);
+	if (dspi->devtype_data->trans_mode == DSPI_DMA_MODE) {
+		dmaengine_terminate_sync(dspi->dma->chan_rx);
+		dmaengine_terminate_sync(dspi->dma->chan_tx);
+	}
 
 	/* Clear the internal DSPI RX and TX FIFO buffers */
 	regmap_update_bits(dspi->regmap, SPI_MCR,
@@ -1032,16 +1217,33 @@ static int dspi_slave_abort(struct spi_master *master)
 	return 0;
 }
 
+/*
+ * EOQ mode will inevitably deassert its PCS signal on last word in a queue
+ * (hardware limitation), so we need to inform the spi_device that larger
+ * buffers than the FIFO size are going to have the chip select randomly
+ * toggling, so it has a chance to adapt its message sizes.
+ */
+static size_t dspi_max_message_size(struct spi_device *spi)
+{
+	struct fsl_dspi *dspi = spi_controller_get_devdata(spi->controller);
+
+	if (dspi->devtype_data->trans_mode == DSPI_EOQ_MODE)
+		return dspi->devtype_data->fifo_size;
+
+	return SIZE_MAX;
+}
+
 static int dspi_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	const struct regmap_config *regmap_config;
 	struct fsl_dspi_platform_data *pdata;
 	struct spi_controller *ctlr;
-	int ret, cs_num, bus_num;
+	int ret, cs_num, bus_num = -1;
 	struct fsl_dspi *dspi;
 	struct resource *res;
 	void __iomem *base;
+	bool big_endian;
 
 	ctlr = spi_alloc_master(&pdev->dev, sizeof(struct fsl_dspi));
 	if (!ctlr)
@@ -1053,6 +1255,7 @@ static int dspi_probe(struct platform_device *pdev)
 
 	ctlr->setup = dspi_setup;
 	ctlr->transfer_one_message = dspi_transfer_one_message;
+	ctlr->max_message_size = dspi_max_message_size;
 	ctlr->dev.of_node = pdev->dev.of_node;
 
 	ctlr->cleanup = dspi_cleanup;
@@ -1064,7 +1267,9 @@ static int dspi_probe(struct platform_device *pdev)
 		ctlr->num_chipselect = pdata->cs_num;
 		ctlr->bus_num = pdata->bus_num;
 
-		dspi->devtype_data = &coldfire_data;
+		/* Only Coldfire uses platform data */
+		dspi->devtype_data = &devtype_data[MCF5441X];
+		big_endian = true;
 	} else {
 
 		ret = of_property_read_u32(np, "spi-num-chipselects", &cs_num);
@@ -1074,11 +1279,7 @@ static int dspi_probe(struct platform_device *pdev)
 		}
 		ctlr->num_chipselect = cs_num;
 
-		ret = of_property_read_u32(np, "bus-num", &bus_num);
-		if (ret < 0) {
-			dev_err(&pdev->dev, "can't get bus-num\n");
-			goto out_ctlr_put;
-		}
+		of_property_read_u32(np, "bus-num", &bus_num);
 		ctlr->bus_num = bus_num;
 
 		if (of_property_read_bool(np, "spi-slave"))
@@ -1090,9 +1291,18 @@ static int dspi_probe(struct platform_device *pdev)
 			ret = -EFAULT;
 			goto out_ctlr_put;
 		}
+
+		big_endian = of_device_is_big_endian(np);
+	}
+	if (big_endian) {
+		dspi->pushr_cmd = 0;
+		dspi->pushr_tx = 2;
+	} else {
+		dspi->pushr_cmd = 2;
+		dspi->pushr_tx = 0;
 	}
 
-	if (dspi->devtype_data->xspi_mode)
+	if (dspi->devtype_data->trans_mode == DSPI_XSPI_MODE)
 		ctlr->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 32);
 	else
 		ctlr->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 16);
@@ -1104,7 +1314,7 @@ static int dspi_probe(struct platform_device *pdev)
 		goto out_ctlr_put;
 	}
 
-	if (dspi->devtype_data->xspi_mode)
+	if (dspi->devtype_data->trans_mode == DSPI_XSPI_MODE)
 		regmap_config = &dspi_xspi_regmap_config[0];
 	else
 		regmap_config = &dspi_regmap_config;
@@ -1116,7 +1326,7 @@ static int dspi_probe(struct platform_device *pdev)
 		goto out_ctlr_put;
 	}
 
-	if (dspi->devtype_data->xspi_mode) {
+	if (dspi->devtype_data->trans_mode == DSPI_XSPI_MODE) {
 		dspi->regmap_pushr = devm_regmap_init_mmio(
 			&pdev->dev, base + SPI_PUSHR,
 			&dspi_xspi_regmap_config[1]);
@@ -1139,10 +1349,9 @@ static int dspi_probe(struct platform_device *pdev)
 	if (ret)
 		goto out_ctlr_put;
 
-	dspi_init(dspi);
-
-	if (dspi->devtype_data->trans_mode == DSPI_TCFQ_MODE)
-		goto poll_mode;
+	ret = dspi_init(dspi);
+	if (ret)
+		goto out_clk_put;
 
 	dspi->irq = platform_get_irq(pdev, 0);
 	if (dspi->irq <= 0) {
@@ -1159,7 +1368,7 @@ static int dspi_probe(struct platform_device *pdev)
 		goto out_clk_put;
 	}
 
-	init_waitqueue_head(&dspi->waitq);
+	init_completion(&dspi->xfer_done);
 
 poll_mode:
 
@@ -1174,7 +1383,8 @@ poll_mode:
 	ctlr->max_speed_hz =
 		clk_get_rate(dspi->clk) / dspi->devtype_data->max_clock_factor;
 
-	ctlr->ptp_sts_supported = dspi->devtype_data->ptp_sts_supported;
+	if (dspi->devtype_data->trans_mode != DSPI_DMA_MODE)
+		ctlr->ptp_sts_supported = true;
 
 	platform_set_drvdata(pdev, ctlr);
 

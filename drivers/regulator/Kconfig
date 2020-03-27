@@ -107,6 +107,7 @@ config REGULATOR_AD5398
 
 config REGULATOR_ANATOP
 	tristate "Freescale i.MX on-chip ANATOP LDO regulators"
+	depends on ARCH_MXC || COMPILE_TEST
 	depends on MFD_SYSCON
 	help
 	  Say y here to support Freescale i.MX on-chip ANATOP LDOs
@@ -612,6 +613,16 @@ config REGULATOR_MCP16502
 	  basic operations (get/set voltage, get/set operating mode)
 	  through the regulator interface. In addition it enables
 	  suspend-to-ram/standby transition.
+
+config REGULATOR_MP5416
+	tristate "Monolithic MP5416 PMIC"
+	depends on I2C && OF
+	select REGMAP_I2C
+	help
+	  Say y here to support the MP5416 PMIC. This will enable supports
+	  the software controllable 4 buck and 4 LDO regulators.
+	  Say M here if you want to include support for the regulator as a
+	  module.
 
 config REGULATOR_MP8859
 	tristate "MPS MP8859 regulator driver"
