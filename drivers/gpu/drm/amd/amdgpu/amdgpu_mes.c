@@ -655,3 +655,48 @@ clean_up_memory:
 	mutex_unlock(&adev->mes.mutex);
 	return r;
 }
+
+int amdgpu_mes_remove_hw_queue(struct amdgpu_device *adev, int queue_id)
+{
+	unsigned long flags;
+	struct amdgpu_mes_queue *queue;
+	struct amdgpu_mes_gang *gang;
+	struct mes_remove_queue_input queue_input;
+	int r;
+
+	mutex_lock(&adev->mes.mutex);
+
+	/* remove the mes gang from idr list */
+	spin_lock_irqsave(&adev->mes.queue_id_lock, flags);
+
+	queue = idr_find(&adev->mes.queue_id_idr, queue_id);
+	if (!queue) {
+		spin_unlock_irqrestore(&adev->mes.queue_id_lock, flags);
+		mutex_unlock(&adev->mes.mutex);
+		DRM_ERROR("queue id %d doesn't exist\n", queue_id);
+		return -EINVAL;
+	}
+
+	idr_remove(&adev->mes.queue_id_idr, queue_id);
+	spin_unlock_irqrestore(&adev->mes.queue_id_lock, flags);
+
+	DRM_DEBUG("try to remove queue, doorbell off = 0x%llx\n",
+		  queue->doorbell_off);
+
+	gang = queue->gang;
+	queue_input.doorbell_offset = queue->doorbell_off;
+	queue_input.gang_context_addr = gang->gang_ctx_gpu_addr;
+
+	r = adev->mes.funcs->remove_hw_queue(&adev->mes, &queue_input);
+	if (r)
+		DRM_ERROR("failed to remove hardware queue, queue id = %d\n",
+			  queue_id);
+
+	amdgpu_mes_queue_free_mqd(queue);
+	list_del(&queue->list);
+	amdgpu_mes_queue_doorbell_free(adev, gang->process,
+				       queue->doorbell_off);
+	kfree(queue);
+	mutex_unlock(&adev->mes.mutex);
+	return 0;
+}
