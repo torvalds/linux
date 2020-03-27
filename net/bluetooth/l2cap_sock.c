@@ -424,6 +424,20 @@ static int l2cap_sock_getsockopt_old(struct socket *sock, int optname,
 			break;
 		}
 
+		/* Only BR/EDR modes are supported here */
+		switch (chan->mode) {
+		case L2CAP_MODE_BASIC:
+		case L2CAP_MODE_ERTM:
+		case L2CAP_MODE_STREAMING:
+			break;
+		default:
+			err = -EINVAL;
+			break;
+		}
+
+		if (err < 0)
+			break;
+
 		memset(&opts, 0, sizeof(opts));
 		opts.imtu     = chan->imtu;
 		opts.omtu     = chan->omtu;
@@ -698,10 +712,8 @@ static int l2cap_sock_setsockopt_old(struct socket *sock, int optname,
 			break;
 		}
 
-		chan->mode = opts.mode;
-		switch (chan->mode) {
-		case L2CAP_MODE_LE_FLOWCTL:
-			break;
+		/* Only BR/EDR modes are supported here */
+		switch (opts.mode) {
 		case L2CAP_MODE_BASIC:
 			clear_bit(CONF_STATE2_DEVICE, &chan->conf_state);
 			break;
@@ -714,6 +726,11 @@ static int l2cap_sock_setsockopt_old(struct socket *sock, int optname,
 			err = -EINVAL;
 			break;
 		}
+
+		if (err < 0)
+			break;
+
+		chan->mode = opts.mode;
 
 		BT_DBG("mode 0x%2.2x", chan->mode);
 
