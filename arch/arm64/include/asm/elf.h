@@ -105,7 +105,7 @@
  *                CPU*: | arm32      | arm64      |
  * ELF:                 |            |            |
  * ---------------------|------------|------------|
- * missing PT_GNU_STACK | exec-all   | exec-all   |
+ * missing PT_GNU_STACK | exec-all   | exec-none  |
  * PT_GNU_STACK == RWX  | exec-stack | exec-stack |
  * PT_GNU_STACK == RW   | exec-none  | exec-none  |
  *
@@ -117,7 +117,7 @@
  *  *all arm64 CPUs support NX, so there is no "lacks NX" column.
  *
  */
-#define elf_read_implies_exec(ex, stk)	(stk == EXSTACK_DEFAULT)
+#define compat_elf_read_implies_exec(ex, stk)	(stk == EXSTACK_DEFAULT)
 
 #define CORE_DUMP_USE_REGSET
 #define ELF_EXEC_PAGESIZE	PAGE_SIZE
