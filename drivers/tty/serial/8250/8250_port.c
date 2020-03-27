@@ -3268,13 +3268,14 @@ void serial8250_console_write(struct uart_8250_port *up, const char *s,
 	 *	and restore the IER
 	 */
 	wait_for_xmitr(up, BOTH_EMPTY);
-	serial_port_out(port, UART_IER, ier);
 
 	if (em485) {
 		mdelay(port->rs485.delay_rts_after_send);
 		if (em485->tx_stopped)
 			up->rs485_stop_tx(up);
 	}
+
+	serial_port_out(port, UART_IER, ier);
 
 	/*
 	 *	The receive handling will happen properly because the
