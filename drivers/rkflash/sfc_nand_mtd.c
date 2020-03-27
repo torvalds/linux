@@ -47,7 +47,7 @@ static int sfc_erase_mtd(struct mtd_info *mtd, struct erase_info *instr)
 		if (ret) {
 			rkflash_print_dio("sfc_nand_erase addr 0x%x ret=%d\n",
 					  addr, ret);
-			instr->state = MTD_ERASE_FAILED;
+			instr->fail_addr = addr;
 			mutex_unlock(p_dev->lock);
 			return -EIO;
 		}
@@ -57,8 +57,6 @@ static int sfc_erase_mtd(struct mtd_info *mtd, struct erase_info *instr)
 	}
 
 	mutex_unlock(p_dev->lock);
-
-	instr->state = MTD_ERASE_DONE;
 
 	return 0;
 }

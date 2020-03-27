@@ -53,7 +53,7 @@ static int sfc_erase_mtd(struct mtd_info *mtd, struct erase_info *instr)
 		if (ret) {
 			rkflash_print_error("snor_erase CHIP 0x%x ret=%d\n",
 					    addr, ret);
-			instr->state = MTD_ERASE_FAILED;
+			instr->fail_addr = addr;
 			mutex_unlock(p_dev->lock);
 			return -EIO;
 		}
@@ -63,7 +63,7 @@ static int sfc_erase_mtd(struct mtd_info *mtd, struct erase_info *instr)
 			if (ret) {
 				rkflash_print_error("snor_erase 0x%x ret=%d\n",
 						    addr, ret);
-				instr->state = MTD_ERASE_FAILED;
+				instr->fail_addr = addr;
 				mutex_unlock(p_dev->lock);
 				return -EIO;
 			}
@@ -73,9 +73,6 @@ static int sfc_erase_mtd(struct mtd_info *mtd, struct erase_info *instr)
 	}
 
 	mutex_unlock(p_dev->lock);
-
-	instr->state = MTD_ERASE_DONE;
-	mtd_erase_callback(instr);
 
 	return 0;
 }
