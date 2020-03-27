@@ -97,6 +97,7 @@ config QETH_OSN
 	depends on QETH
 	help
 	  This enables the qeth driver to support devices in OSN mode.
+	  This feature will be removed in 2021.
 	  If unsure, choose N.
 
 config QETH_OSX
