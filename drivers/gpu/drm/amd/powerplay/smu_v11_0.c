@@ -1700,11 +1700,9 @@ enum smu_baco_state smu_v11_0_baco_get_state(struct smu_context *smu)
 
 int smu_v11_0_baco_set_state(struct smu_context *smu, enum smu_baco_state state)
 {
-
 	struct smu_baco_context *smu_baco = &smu->smu_baco;
 	struct amdgpu_device *adev = smu->adev;
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
-	uint32_t bif_doorbell_intr_cntl;
 	uint32_t data;
 	int ret = 0;
 
@@ -1713,14 +1711,7 @@ int smu_v11_0_baco_set_state(struct smu_context *smu, enum smu_baco_state state)
 
 	mutex_lock(&smu_baco->mutex);
 
-	bif_doorbell_intr_cntl = RREG32_SOC15(NBIO, 0, mmBIF_DOORBELL_INT_CNTL);
-
 	if (state == SMU_BACO_STATE_ENTER) {
-		bif_doorbell_intr_cntl = REG_SET_FIELD(bif_doorbell_intr_cntl,
-						BIF_DOORBELL_INT_CNTL,
-						DOORBELL_INTERRUPT_DISABLE, 1);
-		WREG32_SOC15(NBIO, 0, mmBIF_DOORBELL_INT_CNTL, bif_doorbell_intr_cntl);
-
 		if (!ras || !ras->supported) {
 			data = RREG32_SOC15(THM, 0, mmTHM_BACO_CNTL);
 			data |= 0x80000000;
@@ -1734,11 +1725,6 @@ int smu_v11_0_baco_set_state(struct smu_context *smu, enum smu_baco_state state)
 		ret = smu_send_smc_msg(smu, SMU_MSG_ExitBaco, NULL);
 		if (ret)
 			goto out;
-
-		bif_doorbell_intr_cntl = REG_SET_FIELD(bif_doorbell_intr_cntl,
-						BIF_DOORBELL_INT_CNTL,
-						DOORBELL_INTERRUPT_DISABLE, 0);
-		WREG32_SOC15(NBIO, 0, mmBIF_DOORBELL_INT_CNTL, bif_doorbell_intr_cntl);
 
 		/* clear vbios scratch 6 and 7 for coming asic reinit */
 		WREG32(adev->bios_scratch_reg_offset + 6, 0);
