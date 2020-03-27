@@ -207,7 +207,7 @@ uint32_t smu7_get_argument(struct pp_hwmgr *hwmgr)
 
 int smu7_send_msg_to_smc_offset(struct pp_hwmgr *hwmgr)
 {
-	return smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_Test, 0x20000);
+	return smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_Test, 0x20000, NULL);
 }
 
 enum cgs_ucode_id smu7_convert_fw_type_to_cgs(uint32_t fw_type)
@@ -337,10 +337,12 @@ int smu7_request_smu_load_fw(struct pp_hwmgr *hwmgr)
 		if (hwmgr->not_vf) {
 			smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SMU_DRAM_ADDR_HI,
-						upper_32_bits(smu_data->smu_buffer.mc_addr));
+						upper_32_bits(smu_data->smu_buffer.mc_addr),
+						NULL);
 			smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SMU_DRAM_ADDR_LO,
-						lower_32_bits(smu_data->smu_buffer.mc_addr));
+						lower_32_bits(smu_data->smu_buffer.mc_addr),
+						NULL);
 		}
 		fw_to_load = UCODE_ID_RLC_G_MASK
 			   + UCODE_ID_SDMA0_MASK
@@ -405,10 +407,16 @@ int smu7_request_smu_load_fw(struct pp_hwmgr *hwmgr)
 	}
 	memcpy_toio(smu_data->header_buffer.kaddr, smu_data->toc,
 		    sizeof(struct SMU_DRAMData_TOC));
-	smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_DRV_DRAM_ADDR_HI, upper_32_bits(smu_data->header_buffer.mc_addr));
-	smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_DRV_DRAM_ADDR_LO, lower_32_bits(smu_data->header_buffer.mc_addr));
+	smum_send_msg_to_smc_with_parameter(hwmgr,
+			PPSMC_MSG_DRV_DRAM_ADDR_HI,
+			upper_32_bits(smu_data->header_buffer.mc_addr),
+			NULL);
+	smum_send_msg_to_smc_with_parameter(hwmgr,
+			PPSMC_MSG_DRV_DRAM_ADDR_LO,
+			lower_32_bits(smu_data->header_buffer.mc_addr),
+			NULL);
 
-	smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_LoadUcodes, fw_to_load);
+	smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_LoadUcodes, fw_to_load, NULL);
 
 	r = smu7_check_fw_load_finish(hwmgr, fw_to_load);
 	if (!r)

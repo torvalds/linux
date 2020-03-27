@@ -128,13 +128,16 @@ static int smu10_copy_table_from_smc(struct pp_hwmgr *hwmgr,
 			"Invalid SMU Table Length!", return -EINVAL;);
 	smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrHigh,
-			upper_32_bits(priv->smu_tables.entry[table_id].mc_addr));
+			upper_32_bits(priv->smu_tables.entry[table_id].mc_addr),
+			NULL);
 	smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrLow,
-			lower_32_bits(priv->smu_tables.entry[table_id].mc_addr));
+			lower_32_bits(priv->smu_tables.entry[table_id].mc_addr),
+			NULL);
 	smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_TransferTableSmu2Dram,
-			priv->smu_tables.entry[table_id].table_id);
+			priv->smu_tables.entry[table_id].table_id,
+			NULL);
 
 	/* flush hdp cache */
 	amdgpu_asic_flush_hdp(adev, NULL);
@@ -166,13 +169,16 @@ static int smu10_copy_table_to_smc(struct pp_hwmgr *hwmgr,
 
 	smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrHigh,
-			upper_32_bits(priv->smu_tables.entry[table_id].mc_addr));
+			upper_32_bits(priv->smu_tables.entry[table_id].mc_addr),
+			NULL);
 	smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrLow,
-			lower_32_bits(priv->smu_tables.entry[table_id].mc_addr));
+			lower_32_bits(priv->smu_tables.entry[table_id].mc_addr),
+			NULL);
 	smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_TransferTableDram2Smu,
-			priv->smu_tables.entry[table_id].table_id);
+			priv->smu_tables.entry[table_id].table_id,
+			NULL);
 
 	return 0;
 }
@@ -182,8 +188,8 @@ static int smu10_verify_smc_interface(struct pp_hwmgr *hwmgr)
 	uint32_t smc_driver_if_version;
 
 	smum_send_msg_to_smc(hwmgr,
-			PPSMC_MSG_GetDriverIfVersion);
-	smc_driver_if_version = smum_get_argument(hwmgr);
+			PPSMC_MSG_GetDriverIfVersion,
+			&smc_driver_if_version);
 
 	if ((smc_driver_if_version != SMU10_DRIVER_IF_VERSION) &&
 	    (smc_driver_if_version != SMU10_DRIVER_IF_VERSION + 1)) {
@@ -217,8 +223,7 @@ static int smu10_start_smu(struct pp_hwmgr *hwmgr)
 {
 	struct amdgpu_device *adev = hwmgr->adev;
 
-	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetSmuVersion);
-	hwmgr->smu_version = smum_get_argument(hwmgr);
+	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetSmuVersion, &hwmgr->smu_version);
 	adev->pm.fw_version = hwmgr->smu_version >> 8;
 
 	if (adev->rev_id < 0x8 && adev->pdev->device != 0x15d8 &&

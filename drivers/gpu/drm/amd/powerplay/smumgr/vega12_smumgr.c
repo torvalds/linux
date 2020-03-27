@@ -52,16 +52,19 @@ static int vega12_copy_table_from_smc(struct pp_hwmgr *hwmgr,
 			"Invalid SMU Table Length!", return -EINVAL);
 	PP_ASSERT_WITH_CODE(smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrHigh,
-			upper_32_bits(priv->smu_tables.entry[table_id].mc_addr)) == 0,
+			upper_32_bits(priv->smu_tables.entry[table_id].mc_addr),
+			NULL) == 0,
 			"[CopyTableFromSMC] Attempt to Set Dram Addr High Failed!", return -EINVAL);
 	PP_ASSERT_WITH_CODE(smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrLow,
-			lower_32_bits(priv->smu_tables.entry[table_id].mc_addr)) == 0,
+			lower_32_bits(priv->smu_tables.entry[table_id].mc_addr),
+			NULL) == 0,
 			"[CopyTableFromSMC] Attempt to Set Dram Addr Low Failed!",
 			return -EINVAL);
 	PP_ASSERT_WITH_CODE(smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_TransferTableSmu2Dram,
-			table_id) == 0,
+			table_id,
+			NULL) == 0,
 			"[CopyTableFromSMC] Attempt to Transfer Table From SMU Failed!",
 			return -EINVAL);
 
@@ -100,17 +103,20 @@ static int vega12_copy_table_to_smc(struct pp_hwmgr *hwmgr,
 
 	PP_ASSERT_WITH_CODE(smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrHigh,
-			upper_32_bits(priv->smu_tables.entry[table_id].mc_addr)) == 0,
+			upper_32_bits(priv->smu_tables.entry[table_id].mc_addr),
+			NULL) == 0,
 			"[CopyTableToSMC] Attempt to Set Dram Addr High Failed!",
 			return -EINVAL;);
 	PP_ASSERT_WITH_CODE(smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrLow,
-			lower_32_bits(priv->smu_tables.entry[table_id].mc_addr)) == 0,
+			lower_32_bits(priv->smu_tables.entry[table_id].mc_addr),
+			NULL) == 0,
 			"[CopyTableToSMC] Attempt to Set Dram Addr Low Failed!",
 			return -EINVAL);
 	PP_ASSERT_WITH_CODE(smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_TransferTableDram2Smu,
-			table_id) == 0,
+			table_id,
+			NULL) == 0,
 			"[CopyTableToSMC] Attempt to Transfer Table To SMU Failed!",
 			return -EINVAL);
 
@@ -127,20 +133,20 @@ int vega12_enable_smc_features(struct pp_hwmgr *hwmgr,
 
 	if (enable) {
 		PP_ASSERT_WITH_CODE(smum_send_msg_to_smc_with_parameter(hwmgr,
-				PPSMC_MSG_EnableSmuFeaturesLow, smu_features_low) == 0,
+				PPSMC_MSG_EnableSmuFeaturesLow, smu_features_low, NULL) == 0,
 				"[EnableDisableSMCFeatures] Attempt to enable SMU features Low failed!",
 				return -EINVAL);
 		PP_ASSERT_WITH_CODE(smum_send_msg_to_smc_with_parameter(hwmgr,
-				PPSMC_MSG_EnableSmuFeaturesHigh, smu_features_high) == 0,
+				PPSMC_MSG_EnableSmuFeaturesHigh, smu_features_high, NULL) == 0,
 				"[EnableDisableSMCFeatures] Attempt to enable SMU features High failed!",
 				return -EINVAL);
 	} else {
 		PP_ASSERT_WITH_CODE(smum_send_msg_to_smc_with_parameter(hwmgr,
-				PPSMC_MSG_DisableSmuFeaturesLow, smu_features_low) == 0,
+				PPSMC_MSG_DisableSmuFeaturesLow, smu_features_low, NULL) == 0,
 				"[EnableDisableSMCFeatures] Attempt to disable SMU features Low failed!",
 				return -EINVAL);
 		PP_ASSERT_WITH_CODE(smum_send_msg_to_smc_with_parameter(hwmgr,
-				PPSMC_MSG_DisableSmuFeaturesHigh, smu_features_high) == 0,
+				PPSMC_MSG_DisableSmuFeaturesHigh, smu_features_high, NULL) == 0,
 				"[EnableDisableSMCFeatures] Attempt to disable SMU features High failed!",
 				return -EINVAL);
 	}
@@ -157,16 +163,16 @@ int vega12_get_enabled_smc_features(struct pp_hwmgr *hwmgr,
 		return -EINVAL;
 
 	PP_ASSERT_WITH_CODE(smum_send_msg_to_smc(hwmgr,
-			PPSMC_MSG_GetEnabledSmuFeaturesLow) == 0,
+			PPSMC_MSG_GetEnabledSmuFeaturesLow,
+			&smc_features_low) == 0,
 			"[GetEnabledSMCFeatures] Attempt to get SMU features Low failed!",
 			return -EINVAL);
-	smc_features_low = smum_get_argument(hwmgr);
 
 	PP_ASSERT_WITH_CODE(smum_send_msg_to_smc(hwmgr,
-			PPSMC_MSG_GetEnabledSmuFeaturesHigh) == 0,
+			PPSMC_MSG_GetEnabledSmuFeaturesHigh,
+			&smc_features_high) == 0,
 			"[GetEnabledSMCFeatures] Attempt to get SMU features High failed!",
 			return -EINVAL);
-	smc_features_high = smum_get_argument(hwmgr);
 
 	*features_enabled = ((((uint64_t)smc_features_low << SMU_FEATURES_LOW_SHIFT) & SMU_FEATURES_LOW_MASK) |
 			(((uint64_t)smc_features_high << SMU_FEATURES_HIGH_SHIFT) & SMU_FEATURES_HIGH_MASK));
@@ -194,10 +200,12 @@ static int vega12_set_tools_address(struct pp_hwmgr *hwmgr)
 	if (priv->smu_tables.entry[TABLE_PMSTATUSLOG].mc_addr) {
 		if (!smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetToolsDramAddrHigh,
-				upper_32_bits(priv->smu_tables.entry[TABLE_PMSTATUSLOG].mc_addr)))
+				upper_32_bits(priv->smu_tables.entry[TABLE_PMSTATUSLOG].mc_addr),
+				NULL))
 			smum_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_SetToolsDramAddrLow,
-					lower_32_bits(priv->smu_tables.entry[TABLE_PMSTATUSLOG].mc_addr));
+					lower_32_bits(priv->smu_tables.entry[TABLE_PMSTATUSLOG].mc_addr),
+					NULL);
 	}
 	return 0;
 }

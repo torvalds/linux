@@ -925,7 +925,8 @@ static void vega10_didt_set_mask(struct pp_hwmgr *hwmgr, const bool enable)
 
 	/* For Vega10, SMC does not support any mask yet. */
 	if (enable)
-		smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_ConfigureGfxDidt, didt_block_info);
+		smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_ConfigureGfxDidt, didt_block_info,
+						NULL);
 
 }
 
@@ -1327,7 +1328,8 @@ int vega10_set_power_limit(struct pp_hwmgr *hwmgr, uint32_t n)
 
 	if (data->registry_data.enable_pkg_pwr_tracking_feature)
 		smum_send_msg_to_smc_with_parameter(hwmgr,
-				PPSMC_MSG_SetPptLimit, n);
+				PPSMC_MSG_SetPptLimit, n,
+				NULL);
 
 	return 0;
 }
@@ -1393,7 +1395,8 @@ static void vega10_set_overdrive_target_percentage(struct pp_hwmgr *hwmgr,
 		uint32_t adjust_percent)
 {
 	smum_send_msg_to_smc_with_parameter(hwmgr,
-			PPSMC_MSG_OverDriveSetPercentage, adjust_percent);
+			PPSMC_MSG_OverDriveSetPercentage, adjust_percent,
+			NULL);
 }
 
 int vega10_power_control_set_level(struct pp_hwmgr *hwmgr)
