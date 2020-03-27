@@ -200,6 +200,7 @@ Userspace to kernel:
   ``ETHTOOL_MSG_COALESCE_GET``          get coalescing parameters
   ``ETHTOOL_MSG_COALESCE_SET``          set coalescing parameters
   ``ETHTOOL_MSG_PAUSE_GET``             get pause parameters
+  ``ETHTOOL_MSG_PAUSE_SET``             set pause parameters
   ===================================== ================================
 
 Kernel to userspace:
@@ -899,7 +900,7 @@ have their netlink replacement yet.
   ``ETHTOOL_GRINGPARAM``              ``ETHTOOL_MSG_RINGS_GET``
   ``ETHTOOL_SRINGPARAM``              ``ETHTOOL_MSG_RINGS_SET``
   ``ETHTOOL_GPAUSEPARAM``             ``ETHTOOL_MSG_PAUSE_GET``
-  ``ETHTOOL_SPAUSEPARAM``             n/a
+  ``ETHTOOL_SPAUSEPARAM``             ``ETHTOOL_MSG_PAUSE_SET``
   ``ETHTOOL_GRXCSUM``                 ``ETHTOOL_MSG_FEATURES_GET``
   ``ETHTOOL_SRXCSUM``                 ``ETHTOOL_MSG_FEATURES_SET``
   ``ETHTOOL_GTXCSUM``                 ``ETHTOOL_MSG_FEATURES_GET``

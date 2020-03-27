@@ -79,3 +79,64 @@ const struct ethnl_request_ops ethnl_pause_request_ops = {
 	.reply_size		= pause_reply_size,
 	.fill_reply		= pause_fill_reply,
 };
+
+/* PAUSE_SET */
+
+static const struct nla_policy
+pause_set_policy[ETHTOOL_A_PAUSE_MAX + 1] = {
+	[ETHTOOL_A_PAUSE_UNSPEC]		= { .type = NLA_REJECT },
+	[ETHTOOL_A_PAUSE_HEADER]		= { .type = NLA_NESTED },
+	[ETHTOOL_A_PAUSE_AUTONEG]		= { .type = NLA_U8 },
+	[ETHTOOL_A_PAUSE_RX]			= { .type = NLA_U8 },
+	[ETHTOOL_A_PAUSE_TX]			= { .type = NLA_U8 },
+};
+
+int ethnl_set_pause(struct sk_buff *skb, struct genl_info *info)
+{
+	struct nlattr *tb[ETHTOOL_A_PAUSE_MAX + 1];
+	struct ethtool_pauseparam params = {};
+	struct ethnl_req_info req_info = {};
+	const struct ethtool_ops *ops;
+	struct net_device *dev;
+	bool mod = false;
+	int ret;
+
+	ret = nlmsg_parse(info->nlhdr, GENL_HDRLEN, tb, ETHTOOL_A_PAUSE_MAX,
+			  pause_set_policy, info->extack);
+	if (ret < 0)
+		return ret;
+	ret = ethnl_parse_header_dev_get(&req_info,
+					 tb[ETHTOOL_A_PAUSE_HEADER],
+					 genl_info_net(info), info->extack,
+					 true);
+	if (ret < 0)
+		return ret;
+	dev = req_info.dev;
+	ops = dev->ethtool_ops;
+	ret = -EOPNOTSUPP;
+	if (!ops->get_pauseparam || !ops->set_pauseparam)
+		goto out_dev;
+
+	rtnl_lock();
+	ret = ethnl_ops_begin(dev);
+	if (ret < 0)
+		goto out_rtnl;
+	ops->get_pauseparam(dev, &params);
+
+	ethnl_update_bool32(&params.autoneg, tb[ETHTOOL_A_PAUSE_AUTONEG], &mod);
+	ethnl_update_bool32(&params.rx_pause, tb[ETHTOOL_A_PAUSE_RX], &mod);
+	ethnl_update_bool32(&params.tx_pause, tb[ETHTOOL_A_PAUSE_TX], &mod);
+	ret = 0;
+	if (!mod)
+		goto out_ops;
+
+	ret = dev->ethtool_ops->set_pauseparam(dev, &params);
+
+out_ops:
+	ethnl_ops_complete(dev);
+out_rtnl:
+	rtnl_unlock();
+out_dev:
+	dev_put(dev);
+	return ret;
+}
