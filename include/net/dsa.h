@@ -284,6 +284,12 @@ struct dsa_switch {
 	 */
 	bool			pcs_poll;
 
+	/* For switches that only have the MRU configurable. To ensure the
+	 * configured MTU is not exceeded, normalization of MRU on all bridged
+	 * interfaces is needed.
+	 */
+	bool			mtu_enforcement_ingress;
+
 	size_t num_ports;
 };
 

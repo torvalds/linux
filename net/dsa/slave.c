@@ -1218,6 +1218,116 @@ static int dsa_slave_vlan_rx_kill_vid(struct net_device *dev, __be16 proto,
 	return dsa_port_vid_del(dp, vid);
 }
 
+struct dsa_hw_port {
+	struct list_head list;
+	struct net_device *dev;
+	int old_mtu;
+};
+
+static int dsa_hw_port_list_set_mtu(struct list_head *hw_port_list, int mtu)
+{
+	const struct dsa_hw_port *p;
+	int err;
+
+	list_for_each_entry(p, hw_port_list, list) {
+		if (p->dev->mtu == mtu)
+			continue;
+
+		err = dev_set_mtu(p->dev, mtu);
+		if (err)
+			goto rollback;
+	}
+
+	return 0;
+
+rollback:
+	list_for_each_entry_continue_reverse(p, hw_port_list, list) {
+		if (p->dev->mtu == p->old_mtu)
+			continue;
+
+		if (dev_set_mtu(p->dev, p->old_mtu))
+			netdev_err(p->dev, "Failed to restore MTU\n");
+	}
+
+	return err;
+}
+
+static void dsa_hw_port_list_free(struct list_head *hw_port_list)
+{
+	struct dsa_hw_port *p, *n;
+
+	list_for_each_entry_safe(p, n, hw_port_list, list)
+		kfree(p);
+}
+
+/* Make the hardware datapath to/from @dev limited to a common MTU */
+void dsa_bridge_mtu_normalization(struct dsa_port *dp)
+{
+	struct list_head hw_port_list;
+	struct dsa_switch_tree *dst;
+	int min_mtu = ETH_MAX_MTU;
+	struct dsa_port *other_dp;
+	int err;
+
+	if (!dp->ds->mtu_enforcement_ingress)
+		return;
+
+	if (!dp->bridge_dev)
+		return;
+
+	INIT_LIST_HEAD(&hw_port_list);
+
+	/* Populate the list of ports that are part of the same bridge
+	 * as the newly added/modified port
+	 */
+	list_for_each_entry(dst, &dsa_tree_list, list) {
+		list_for_each_entry(other_dp, &dst->ports, list) {
+			struct dsa_hw_port *hw_port;
+			struct net_device *slave;
+
+			if (other_dp->type != DSA_PORT_TYPE_USER)
+				continue;
+
+			if (other_dp->bridge_dev != dp->bridge_dev)
+				continue;
+
+			if (!other_dp->ds->mtu_enforcement_ingress)
+				continue;
+
+			slave = other_dp->slave;
+
+			if (min_mtu > slave->mtu)
+				min_mtu = slave->mtu;
+
+			hw_port = kzalloc(sizeof(*hw_port), GFP_KERNEL);
+			if (!hw_port)
+				goto out;
+
+			hw_port->dev = slave;
+			hw_port->old_mtu = slave->mtu;
+
+			list_add(&hw_port->list, &hw_port_list);
+		}
+	}
+
+	/* Attempt to configure the entire hardware bridge to the newly added
+	 * interface's MTU first, regardless of whether the intention of the
+	 * user was to raise or lower it.
+	 */
+	err = dsa_hw_port_list_set_mtu(&hw_port_list, dp->slave->mtu);
+	if (!err)
+		goto out;
+
+	/* Clearly that didn't work out so well, so just set the minimum MTU on
+	 * all hardware bridge ports now. If this fails too, then all ports will
+	 * still have their old MTU rolled back anyway.
+	 */
+	dsa_hw_port_list_set_mtu(&hw_port_list, min_mtu);
+
+out:
+	dsa_hw_port_list_free(&hw_port_list);
+}
+
 static int dsa_slave_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct net_device *master = dsa_slave_to_master(dev);
@@ -1293,6 +1403,8 @@ static int dsa_slave_change_mtu(struct net_device *dev, int new_mtu)
 		goto out_port_failed;
 
 	dev->mtu = new_mtu;
+
+	dsa_bridge_mtu_normalization(dp);
 
 	return 0;
 
@@ -1648,6 +1760,8 @@ static int dsa_slave_changeupper(struct net_device *dev,
 	if (netif_is_bridge_master(info->upper_dev)) {
 		if (info->linking) {
 			err = dsa_port_bridge_join(dp, info->upper_dev);
+			if (!err)
+				dsa_bridge_mtu_normalization(dp);
 			err = notifier_from_errno(err);
 		} else {
 			dsa_port_bridge_leave(dp, info->upper_dev);
