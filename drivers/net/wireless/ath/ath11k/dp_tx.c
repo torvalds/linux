@@ -47,7 +47,7 @@ static u8 ath11k_dp_tx_get_tid(struct sk_buff *skb)
 		return skb->priority & IEEE80211_QOS_CTL_TID_MASK;
 }
 
-static enum hal_encrypt_type ath11k_dp_tx_get_encrypt_type(u32 cipher)
+enum hal_encrypt_type ath11k_dp_tx_get_encrypt_type(u32 cipher)
 {
 	switch (cipher) {
 	case WLAN_CIPHER_SUITE_WEP40:

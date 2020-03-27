@@ -53,6 +53,12 @@
 	le32p_replace_bits((__le32 *)(txdesc) + 0x02, value, BIT(19))
 #define SET_TX_DESC_SW_DEFINE(tx_desc, value)                                  \
 	le32p_replace_bits((__le32 *)(txdesc) + 0x06, value, GENMASK(11, 0))
+#define SET_TX_DESC_DISQSELSEQ(txdesc, value)                                 \
+	le32p_replace_bits((__le32 *)(txdesc) + 0x00, value, BIT(31))
+#define SET_TX_DESC_EN_HWSEQ(txdesc, value)                                   \
+	le32p_replace_bits((__le32 *)(txdesc) + 0x08, value, BIT(15))
+#define SET_TX_DESC_HW_SSN_SEL(txdesc, value)                                 \
+	le32p_replace_bits((__le32 *)(txdesc) + 0x03, value, GENMASK(7, 6))
 
 enum rtw_tx_desc_queue_select {
 	TX_DESC_QSEL_TID0	= 0,
