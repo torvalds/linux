@@ -33,7 +33,7 @@ struct apq8016_sbc_data {
 
 static int apq8016_sbc_dai_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
 	struct snd_soc_dai *codec_dai;
 	struct snd_soc_component *component;
 	struct snd_soc_card *card = rtd->card;

@@ -1169,6 +1169,10 @@ struct snd_soc_pcm_runtime {
 	int num_components;
 	struct snd_soc_component *components[0]; /* CPU/Codec/Platform */
 };
+/* see soc_new_pcm_runtime()  */
+#define asoc_rtd_to_cpu(rtd, n)   (rtd)->dais[n]
+#define asoc_rtd_to_codec(rtd, n) (rtd)->dais[n + (rtd)->num_cpus]
+
 #define for_each_rtd_components(rtd, i, component)			\
 	for ((i) = 0;							\
 	     ((i) < rtd->num_components) && ((component) = rtd->components[i]);\

@@ -45,7 +45,7 @@ static int tegra_wm8903_hw_params(struct snd_pcm_substream *substream,
 					struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
 	struct snd_soc_card *card = rtd->card;
 	struct tegra_wm8903 *machine = snd_soc_card_get_drvdata(card);
 	int srate, mclk;
@@ -173,7 +173,7 @@ static const struct snd_kcontrol_new tegra_wm8903_controls[] = {
 
 static int tegra_wm8903_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
 	struct snd_soc_component *component = codec_dai->component;
 	struct snd_soc_card *card = rtd->card;
 	struct tegra_wm8903 *machine = snd_soc_card_get_drvdata(card);
@@ -205,7 +205,7 @@ static int tegra_wm8903_remove(struct snd_soc_card *card)
 {
 	struct snd_soc_pcm_runtime *rtd =
 		snd_soc_get_pcm_runtime(card, &card->dai_link[0]);
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
 	struct snd_soc_component *component = codec_dai->component;
 
 	wm8903_mic_detect(component, NULL, 0, 0);
