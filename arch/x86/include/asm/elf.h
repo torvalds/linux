@@ -287,7 +287,7 @@ extern u32 elf_hwcap2;
  *                 CPU: | lacks NX*  | has NX, ia32     | has NX, x86_64 |
  * ELF:                 |            |                  |                |
  * ---------------------|------------|------------------|----------------|
- * missing PT_GNU_STACK | exec-all   | exec-all         | exec-all       |
+ * missing PT_GNU_STACK | exec-all   | exec-all         | exec-none      |
  * PT_GNU_STACK == RWX  | exec-stack | exec-stack       | exec-stack     |
  * PT_GNU_STACK == RW   | exec-none  | exec-none        | exec-none      |
  *
@@ -303,7 +303,7 @@ extern u32 elf_hwcap2;
  *
  */
 #define elf_read_implies_exec(ex, executable_stack)	\
-	(executable_stack == EXSTACK_DEFAULT)
+	(mmap_is_ia32() && executable_stack == EXSTACK_DEFAULT)
 
 struct task_struct;
 
