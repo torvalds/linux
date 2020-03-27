@@ -240,8 +240,8 @@ create_child:
 			/* new mpc subflow takes ownership of the newly
 			 * created mptcp socket
 			 */
-			inet_sk_state_store((struct sock *)new_msk,
-					    TCP_ESTABLISHED);
+			inet_sk_state_store(new_msk, TCP_ESTABLISHED);
+			mptcp_pm_new_connection(mptcp_sk(new_msk), 1);
 			ctx->conn = new_msk;
 			new_msk = NULL;
 		}
