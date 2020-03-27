@@ -203,6 +203,7 @@ Userspace to kernel:
   ``ETHTOOL_MSG_PAUSE_SET``             set pause parameters
   ``ETHTOOL_MSG_EEE_GET``               get EEE settings
   ``ETHTOOL_MSG_EEE_SET``               set EEE settings
+  ``ETHTOOL_MSG_TSINFO_GET``		get timestamping info
   ===================================== ================================
 
 Kernel to userspace:
@@ -233,6 +234,7 @@ Kernel to userspace:
   ``ETHTOOL_MSG_PAUSE_NTF``             pause parameters
   ``ETHTOOL_MSG_EEE_GET_REPLY``         EEE settings
   ``ETHTOOL_MSG_EEE_NTF``               EEE settings
+  ``ETHTOOL_MSG_TSINFO_GET_REPLY``	timestamping info
   ===================================== =================================
 
 ``GET`` requests are sent by userspace applications to retrieve device
@@ -928,6 +930,32 @@ but only first 32 can be set at the moment as that is what the ``ethtool_ops``
 callback supports.
 
 
+TSINFO_GET
+==========
+
+Gets timestamping information like ``ETHTOOL_GET_TS_INFO`` ioctl request.
+
+Request contents:
+
+  =====================================  ======  ==========================
+  ``ETHTOOL_A_TSINFO_HEADER``            nested  request header
+  =====================================  ======  ==========================
+
+Kernel response contents:
+
+  =====================================  ======  ==========================
+  ``ETHTOOL_A_TSINFO_HEADER``            nested  request header
+  ``ETHTOOL_A_TSINFO_TIMESTAMPING``      bitset  SO_TIMESTAMPING flags
+  ``ETHTOOL_A_TSINFO_TX_TYPES``          bitset  supported Tx types
+  ``ETHTOOL_A_TSINFO_RX_FILTERS``        bitset  supported Rx filters
+  ``ETHTOOL_A_TSINFO_PHC_INDEX``         u32     PTP hw clock index
+  =====================================  ======  ==========================
+
+``ETHTOOL_A_TSINFO_PHC_INDEX`` is absent if there is no associated PHC (there
+is no special value for this case). The bitset attributes are omitted if they
+would be empty (no bit set).
+
+
 Request translation
 ===================
 
@@ -1003,7 +1031,7 @@ have their netlink replacement yet.
   ``ETHTOOL_SET_DUMP``                n/a
   ``ETHTOOL_GET_DUMP_FLAG``           n/a
   ``ETHTOOL_GET_DUMP_DATA``           n/a
-  ``ETHTOOL_GET_TS_INFO``             n/a
+  ``ETHTOOL_GET_TS_INFO``             ``ETHTOOL_MSG_TSINFO_GET``
   ``ETHTOOL_GMODULEINFO``             n/a
   ``ETHTOOL_GMODULEEEPROM``           n/a
   ``ETHTOOL_GEEE``                    ``ETHTOOL_MSG_EEE_GET``

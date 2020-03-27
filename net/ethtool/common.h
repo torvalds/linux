@@ -35,5 +35,6 @@ bool convert_legacy_settings_to_link_ksettings(
 	struct ethtool_link_ksettings *link_ksettings,
 	const struct ethtool_cmd *legacy_settings);
 int ethtool_get_max_rxfh_channel(struct net_device *dev, u32 *max);
+int __ethtool_get_ts_info(struct net_device *dev, struct ethtool_ts_info *info);
 
 #endif /* _ETHTOOL_COMMON_H */
