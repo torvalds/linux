@@ -1212,7 +1212,7 @@ mlxsw_sp_ipip_entry_find_decap(struct mlxsw_sp *mlxsw_sp,
 		saddr_len = 4;
 		saddr_prefix_len = 32;
 		break;
-	case MLXSW_SP_L3_PROTO_IPV6:
+	default:
 		WARN_ON(1);
 		return NULL;
 	}
@@ -1380,9 +1380,9 @@ static bool mlxsw_sp_netdevice_ipip_can_offload(struct mlxsw_sp *mlxsw_sp,
 static int mlxsw_sp_netdevice_ipip_ol_reg_event(struct mlxsw_sp *mlxsw_sp,
 						struct net_device *ol_dev)
 {
+	enum mlxsw_sp_ipip_type ipipt = MLXSW_SP_IPIP_TYPE_MAX;
 	struct mlxsw_sp_ipip_entry *ipip_entry;
 	enum mlxsw_sp_l3proto ul_proto;
-	enum mlxsw_sp_ipip_type ipipt;
 	union mlxsw_sp_l3addr saddr;
 	u32 ul_tb_id;
 
@@ -1535,13 +1535,17 @@ static void mlxsw_sp_nexthop_rif_update(struct mlxsw_sp *mlxsw_sp,
 					struct mlxsw_sp_rif *rif);
 
 /**
- * Update the offload related to an IPIP entry. This always updates decap, and
- * in addition to that it also:
- * @recreate_loopback: recreates the associated loopback RIF
- * @keep_encap: updates next hops that use the tunnel netdevice. This is only
+ * __mlxsw_sp_ipip_entry_update_tunnel - Update offload related to IPIP entry.
+ * @mlxsw_sp: mlxsw_sp.
+ * @ipip_entry: IPIP entry.
+ * @recreate_loopback: Recreates the associated loopback RIF.
+ * @keep_encap: Updates next hops that use the tunnel netdevice. This is only
  *              relevant when recreate_loopback is true.
- * @update_nexthops: updates next hops, keeping the current loopback RIF. This
+ * @update_nexthops: Updates next hops, keeping the current loopback RIF. This
  *                   is only relevant when recreate_loopback is false.
+ * @extack: extack.
+ *
+ * Return: Non-zero value on failure.
  */
 int __mlxsw_sp_ipip_entry_update_tunnel(struct mlxsw_sp *mlxsw_sp,
 					struct mlxsw_sp_ipip_entry *ipip_entry,
@@ -3227,7 +3231,6 @@ mlxsw_sp_nexthop_group_update(struct mlxsw_sp *mlxsw_sp,
 	u32 adj_index = nh_grp->adj_index; /* base */
 	struct mlxsw_sp_nexthop *nh;
 	int i;
-	int err;
 
 	for (i = 0; i < nh_grp->count; i++) {
 		nh = &nh_grp->nexthops[i];
@@ -3238,6 +3241,8 @@ mlxsw_sp_nexthop_group_update(struct mlxsw_sp *mlxsw_sp,
 		}
 
 		if (nh->update || reallocate) {
+			int err = 0;
+
 			switch (nh->type) {
 			case MLXSW_SP_NEXTHOP_TYPE_ETH:
 				err = mlxsw_sp_nexthop_update
@@ -7471,113 +7476,6 @@ u8 mlxsw_sp_router_port(const struct mlxsw_sp *mlxsw_sp)
 	return mlxsw_core_max_ports(mlxsw_sp->core) + 1;
 }
 
-static int mlxsw_sp_rif_vlan_configure(struct mlxsw_sp_rif *rif)
-{
-	struct mlxsw_sp *mlxsw_sp = rif->mlxsw_sp;
-	u16 vid = mlxsw_sp_fid_8021q_vid(rif->fid);
-	int err;
-
-	err = mlxsw_sp_rif_vlan_fid_op(rif, MLXSW_REG_RITR_VLAN_IF, vid, true);
-	if (err)
-		return err;
-
-	err = mlxsw_sp_fid_flood_set(rif->fid, MLXSW_SP_FLOOD_TYPE_MC,
-				     mlxsw_sp_router_port(mlxsw_sp), true);
-	if (err)
-		goto err_fid_mc_flood_set;
-
-	err = mlxsw_sp_fid_flood_set(rif->fid, MLXSW_SP_FLOOD_TYPE_BC,
-				     mlxsw_sp_router_port(mlxsw_sp), true);
-	if (err)
-		goto err_fid_bc_flood_set;
-
-	err = mlxsw_sp_rif_fdb_op(rif->mlxsw_sp, rif->dev->dev_addr,
-				  mlxsw_sp_fid_index(rif->fid), true);
-	if (err)
-		goto err_rif_fdb_op;
-
-	mlxsw_sp_fid_rif_set(rif->fid, rif);
-	return 0;
-
-err_rif_fdb_op:
-	mlxsw_sp_fid_flood_set(rif->fid, MLXSW_SP_FLOOD_TYPE_BC,
-			       mlxsw_sp_router_port(mlxsw_sp), false);
-err_fid_bc_flood_set:
-	mlxsw_sp_fid_flood_set(rif->fid, MLXSW_SP_FLOOD_TYPE_MC,
-			       mlxsw_sp_router_port(mlxsw_sp), false);
-err_fid_mc_flood_set:
-	mlxsw_sp_rif_vlan_fid_op(rif, MLXSW_REG_RITR_VLAN_IF, vid, false);
-	return err;
-}
-
-static void mlxsw_sp_rif_vlan_deconfigure(struct mlxsw_sp_rif *rif)
-{
-	u16 vid = mlxsw_sp_fid_8021q_vid(rif->fid);
-	struct mlxsw_sp *mlxsw_sp = rif->mlxsw_sp;
-	struct mlxsw_sp_fid *fid = rif->fid;
-
-	mlxsw_sp_fid_rif_set(fid, NULL);
-	mlxsw_sp_rif_fdb_op(rif->mlxsw_sp, rif->dev->dev_addr,
-			    mlxsw_sp_fid_index(fid), false);
-	mlxsw_sp_rif_macvlan_flush(rif);
-	mlxsw_sp_fid_flood_set(rif->fid, MLXSW_SP_FLOOD_TYPE_BC,
-			       mlxsw_sp_router_port(mlxsw_sp), false);
-	mlxsw_sp_fid_flood_set(rif->fid, MLXSW_SP_FLOOD_TYPE_MC,
-			       mlxsw_sp_router_port(mlxsw_sp), false);
-	mlxsw_sp_rif_vlan_fid_op(rif, MLXSW_REG_RITR_VLAN_IF, vid, false);
-}
-
-static struct mlxsw_sp_fid *
-mlxsw_sp_rif_vlan_fid_get(struct mlxsw_sp_rif *rif,
-			  struct netlink_ext_ack *extack)
-{
-	struct net_device *br_dev = rif->dev;
-	u16 vid;
-	int err;
-
-	if (is_vlan_dev(rif->dev)) {
-		vid = vlan_dev_vlan_id(rif->dev);
-		br_dev = vlan_dev_real_dev(rif->dev);
-		if (WARN_ON(!netif_is_bridge_master(br_dev)))
-			return ERR_PTR(-EINVAL);
-	} else {
-		err = br_vlan_get_pvid(rif->dev, &vid);
-		if (err < 0 || !vid) {
-			NL_SET_ERR_MSG_MOD(extack, "Couldn't determine bridge PVID");
-			return ERR_PTR(-EINVAL);
-		}
-	}
-
-	return mlxsw_sp_fid_8021q_get(rif->mlxsw_sp, vid);
-}
-
-static void mlxsw_sp_rif_vlan_fdb_del(struct mlxsw_sp_rif *rif, const char *mac)
-{
-	u16 vid = mlxsw_sp_fid_8021q_vid(rif->fid);
-	struct switchdev_notifier_fdb_info info;
-	struct net_device *br_dev;
-	struct net_device *dev;
-
-	br_dev = is_vlan_dev(rif->dev) ? vlan_dev_real_dev(rif->dev) : rif->dev;
-	dev = br_fdb_find_port(br_dev, mac, vid);
-	if (!dev)
-		return;
-
-	info.addr = mac;
-	info.vid = vid;
-	call_switchdev_notifiers(SWITCHDEV_FDB_DEL_TO_BRIDGE, dev, &info.info,
-				 NULL);
-}
-
-static const struct mlxsw_sp_rif_ops mlxsw_sp_rif_vlan_ops = {
-	.type			= MLXSW_SP_RIF_TYPE_VLAN,
-	.rif_size		= sizeof(struct mlxsw_sp_rif),
-	.configure		= mlxsw_sp_rif_vlan_configure,
-	.deconfigure		= mlxsw_sp_rif_vlan_deconfigure,
-	.fid_get		= mlxsw_sp_rif_vlan_fid_get,
-	.fdb_del		= mlxsw_sp_rif_vlan_fdb_del,
-};
-
 static int mlxsw_sp_rif_fid_configure(struct mlxsw_sp_rif *rif)
 {
 	struct mlxsw_sp *mlxsw_sp = rif->mlxsw_sp;
@@ -7665,6 +7563,48 @@ static const struct mlxsw_sp_rif_ops mlxsw_sp_rif_fid_ops = {
 	.fid_get		= mlxsw_sp_rif_fid_fid_get,
 	.fdb_del		= mlxsw_sp_rif_fid_fdb_del,
 };
+
+static struct mlxsw_sp_fid *
+mlxsw_sp_rif_vlan_fid_get(struct mlxsw_sp_rif *rif,
+			  struct netlink_ext_ack *extack)
+{
+	struct net_device *br_dev = rif->dev;
+	u16 vid;
+	int err;
+
+	if (is_vlan_dev(rif->dev)) {
+		vid = vlan_dev_vlan_id(rif->dev);
+		br_dev = vlan_dev_real_dev(rif->dev);
+		if (WARN_ON(!netif_is_bridge_master(br_dev)))
+			return ERR_PTR(-EINVAL);
+	} else {
+		err = br_vlan_get_pvid(rif->dev, &vid);
+		if (err < 0 || !vid) {
+			NL_SET_ERR_MSG_MOD(extack, "Couldn't determine bridge PVID");
+			return ERR_PTR(-EINVAL);
+		}
+	}
+
+	return mlxsw_sp_fid_8021q_get(rif->mlxsw_sp, vid);
+}
+
+static void mlxsw_sp_rif_vlan_fdb_del(struct mlxsw_sp_rif *rif, const char *mac)
+{
+	u16 vid = mlxsw_sp_fid_8021q_vid(rif->fid);
+	struct switchdev_notifier_fdb_info info;
+	struct net_device *br_dev;
+	struct net_device *dev;
+
+	br_dev = is_vlan_dev(rif->dev) ? vlan_dev_real_dev(rif->dev) : rif->dev;
+	dev = br_fdb_find_port(br_dev, mac, vid);
+	if (!dev)
+		return;
+
+	info.addr = mac;
+	info.vid = vid;
+	call_switchdev_notifiers(SWITCHDEV_FDB_DEL_TO_BRIDGE, dev, &info.info,
+				 NULL);
+}
 
 static const struct mlxsw_sp_rif_ops mlxsw_sp_rif_vlan_emu_ops = {
 	.type			= MLXSW_SP_RIF_TYPE_VLAN,
