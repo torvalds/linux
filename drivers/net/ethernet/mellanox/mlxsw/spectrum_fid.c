@@ -438,16 +438,6 @@ static int mlxsw_sp_fid_vni_op(struct mlxsw_sp *mlxsw_sp, u16 fid_index,
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sfmr), sfmr_pl);
 }
 
-static int mlxsw_sp_fid_vid_map(struct mlxsw_sp *mlxsw_sp, u16 fid_index,
-				u16 vid, bool valid)
-{
-	enum mlxsw_reg_svfa_mt mt = MLXSW_REG_SVFA_MT_VID_TO_FID;
-	char svfa_pl[MLXSW_REG_SVFA_LEN];
-
-	mlxsw_reg_svfa_pack(svfa_pl, 0, mt, valid, fid_index, vid);
-	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(svfa), svfa_pl);
-}
-
 static int __mlxsw_sp_fid_port_vid_map(struct mlxsw_sp *mlxsw_sp, u16 fid_index,
 				       u8 local_port, u16 vid, bool valid)
 {
@@ -457,140 +447,6 @@ static int __mlxsw_sp_fid_port_vid_map(struct mlxsw_sp *mlxsw_sp, u16 fid_index,
 	mlxsw_reg_svfa_pack(svfa_pl, local_port, mt, valid, fid_index, vid);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(svfa), svfa_pl);
 }
-
-static int mlxsw_sp_fid_8021q_configure(struct mlxsw_sp_fid *fid)
-{
-	struct mlxsw_sp *mlxsw_sp = fid->fid_family->mlxsw_sp;
-	struct mlxsw_sp_fid_8021q *fid_8021q;
-	int err;
-
-	err = mlxsw_sp_fid_op(mlxsw_sp, fid->fid_index, fid->fid_index, true);
-	if (err)
-		return err;
-
-	fid_8021q = mlxsw_sp_fid_8021q_fid(fid);
-	err = mlxsw_sp_fid_vid_map(mlxsw_sp, fid->fid_index, fid_8021q->vid,
-				   true);
-	if (err)
-		goto err_fid_map;
-
-	return 0;
-
-err_fid_map:
-	mlxsw_sp_fid_op(mlxsw_sp, fid->fid_index, 0, false);
-	return err;
-}
-
-static void mlxsw_sp_fid_8021q_deconfigure(struct mlxsw_sp_fid *fid)
-{
-	struct mlxsw_sp *mlxsw_sp = fid->fid_family->mlxsw_sp;
-	struct mlxsw_sp_fid_8021q *fid_8021q;
-
-	fid_8021q = mlxsw_sp_fid_8021q_fid(fid);
-	mlxsw_sp_fid_vid_map(mlxsw_sp, fid->fid_index, fid_8021q->vid, false);
-	mlxsw_sp_fid_op(mlxsw_sp, fid->fid_index, 0, false);
-}
-
-static int mlxsw_sp_fid_8021q_index_alloc(struct mlxsw_sp_fid *fid,
-					  const void *arg, u16 *p_fid_index)
-{
-	struct mlxsw_sp_fid_family *fid_family = fid->fid_family;
-	u16 vid = *(u16 *) arg;
-
-	/* Use 1:1 mapping for simplicity although not a must */
-	if (vid < fid_family->start_index || vid > fid_family->end_index)
-		return -EINVAL;
-	*p_fid_index = vid;
-
-	return 0;
-}
-
-static bool
-mlxsw_sp_fid_8021q_compare(const struct mlxsw_sp_fid *fid, const void *arg)
-{
-	u16 vid = *(u16 *) arg;
-
-	return mlxsw_sp_fid_8021q_fid(fid)->vid == vid;
-}
-
-static u16 mlxsw_sp_fid_8021q_flood_index(const struct mlxsw_sp_fid *fid)
-{
-	return fid->fid_index;
-}
-
-static int mlxsw_sp_fid_8021q_port_vid_map(struct mlxsw_sp_fid *fid,
-					   struct mlxsw_sp_port *mlxsw_sp_port,
-					   u16 vid)
-{
-	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
-	u8 local_port = mlxsw_sp_port->local_port;
-
-	/* In case there are no {Port, VID} => FID mappings on the port,
-	 * we can use the global VID => FID mapping we created when the
-	 * FID was configured.
-	 */
-	if (mlxsw_sp->fid_core->port_fid_mappings[local_port] == 0)
-		return 0;
-	return __mlxsw_sp_fid_port_vid_map(mlxsw_sp, fid->fid_index, local_port,
-					   vid, true);
-}
-
-static void
-mlxsw_sp_fid_8021q_port_vid_unmap(struct mlxsw_sp_fid *fid,
-				  struct mlxsw_sp_port *mlxsw_sp_port, u16 vid)
-{
-	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
-	u8 local_port = mlxsw_sp_port->local_port;
-
-	if (mlxsw_sp->fid_core->port_fid_mappings[local_port] == 0)
-		return;
-	__mlxsw_sp_fid_port_vid_map(mlxsw_sp, fid->fid_index, local_port, vid,
-				    false);
-}
-
-static const struct mlxsw_sp_fid_ops mlxsw_sp_fid_8021q_ops = {
-	.setup			= mlxsw_sp_fid_8021q_setup,
-	.configure		= mlxsw_sp_fid_8021q_configure,
-	.deconfigure		= mlxsw_sp_fid_8021q_deconfigure,
-	.index_alloc		= mlxsw_sp_fid_8021q_index_alloc,
-	.compare		= mlxsw_sp_fid_8021q_compare,
-	.flood_index		= mlxsw_sp_fid_8021q_flood_index,
-	.port_vid_map		= mlxsw_sp_fid_8021q_port_vid_map,
-	.port_vid_unmap		= mlxsw_sp_fid_8021q_port_vid_unmap,
-};
-
-static const struct mlxsw_sp_flood_table mlxsw_sp_fid_8021q_flood_tables[] = {
-	{
-		.packet_type	= MLXSW_SP_FLOOD_TYPE_UC,
-		.bridge_type	= MLXSW_REG_SFGC_BRIDGE_TYPE_1Q_FID,
-		.table_type	= MLXSW_REG_SFGC_TABLE_TYPE_FID_OFFSET,
-		.table_index	= 0,
-	},
-	{
-		.packet_type	= MLXSW_SP_FLOOD_TYPE_MC,
-		.bridge_type	= MLXSW_REG_SFGC_BRIDGE_TYPE_1Q_FID,
-		.table_type	= MLXSW_REG_SFGC_TABLE_TYPE_FID_OFFSET,
-		.table_index	= 1,
-	},
-	{
-		.packet_type	= MLXSW_SP_FLOOD_TYPE_BC,
-		.bridge_type	= MLXSW_REG_SFGC_BRIDGE_TYPE_1Q_FID,
-		.table_type	= MLXSW_REG_SFGC_TABLE_TYPE_FID_OFFSET,
-		.table_index	= 2,
-	},
-};
-
-/* Range and flood configuration must match mlxsw_config_profile */
-static const struct mlxsw_sp_fid_family mlxsw_sp_fid_8021q_family = {
-	.type			= MLXSW_SP_FID_TYPE_8021Q,
-	.fid_size		= sizeof(struct mlxsw_sp_fid_8021q),
-	.start_index		= 1,
-	.end_index		= VLAN_VID_MASK,
-	.flood_tables		= mlxsw_sp_fid_8021q_flood_tables,
-	.nr_flood_tables	= ARRAY_SIZE(mlxsw_sp_fid_8021q_flood_tables),
-	.rif_type		= MLXSW_SP_RIF_TYPE_VLAN,
-	.ops			= &mlxsw_sp_fid_8021q_ops,
-};
 
 static struct mlxsw_sp_fid_8021d *
 mlxsw_sp_fid_8021d_fid(const struct mlxsw_sp_fid *fid)
@@ -845,6 +701,14 @@ static const struct mlxsw_sp_fid_family mlxsw_sp_fid_8021d_family = {
 	.ops			= &mlxsw_sp_fid_8021d_ops,
 	.lag_vid_valid		= 1,
 };
+
+static bool
+mlxsw_sp_fid_8021q_compare(const struct mlxsw_sp_fid *fid, const void *arg)
+{
+	u16 vid = *(u16 *) arg;
+
+	return mlxsw_sp_fid_8021q_fid(fid)->vid == vid;
+}
 
 static void
 mlxsw_sp_fid_8021q_fdb_clear_offload(const struct mlxsw_sp_fid *fid,
