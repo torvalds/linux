@@ -866,11 +866,10 @@ static int bcache_device_init(struct bcache_device *d, unsigned int block_size,
 	d->disk->fops		= &bcache_ops;
 	d->disk->private_data	= d;
 
-	q = blk_alloc_queue(GFP_KERNEL);
+	q = blk_alloc_queue(make_request_fn, NUMA_NO_NODE);
 	if (!q)
 		return -ENOMEM;
 
-	blk_queue_make_request(q, make_request_fn);
 	d->disk->queue			= q;
 	q->queuedata			= d;
 	q->backing_dev_info->congested_data = d;

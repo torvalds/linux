@@ -388,12 +388,6 @@ void blk_cleanup_queue(struct request_queue *q)
 }
 EXPORT_SYMBOL(blk_cleanup_queue);
 
-struct request_queue *blk_alloc_queue(gfp_t gfp_mask)
-{
-	return blk_alloc_queue_node(gfp_mask, NUMA_NO_NODE);
-}
-EXPORT_SYMBOL(blk_alloc_queue);
-
 /**
  * blk_queue_enter() - try to increase q->q_usage_counter
  * @q: request queue pointer
@@ -470,24 +464,19 @@ static void blk_timeout_work(struct work_struct *work)
 {
 }
 
-/**
- * blk_alloc_queue_node - allocate a request queue
- * @gfp_mask: memory allocation flags
- * @node_id: NUMA node to allocate memory from
- */
-struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
+struct request_queue *__blk_alloc_queue(int node_id)
 {
 	struct request_queue *q;
 	int ret;
 
 	q = kmem_cache_alloc_node(blk_requestq_cachep,
-				gfp_mask | __GFP_ZERO, node_id);
+				GFP_KERNEL | __GFP_ZERO, node_id);
 	if (!q)
 		return NULL;
 
 	q->last_merge = NULL;
 
-	q->id = ida_simple_get(&blk_queue_ida, 0, 0, gfp_mask);
+	q->id = ida_simple_get(&blk_queue_ida, 0, 0, GFP_KERNEL);
 	if (q->id < 0)
 		goto fail_q;
 
@@ -495,7 +484,7 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
 	if (ret)
 		goto fail_id;
 
-	q->backing_dev_info = bdi_alloc_node(gfp_mask, node_id);
+	q->backing_dev_info = bdi_alloc_node(GFP_KERNEL, node_id);
 	if (!q->backing_dev_info)
 		goto fail_split;
 
@@ -541,6 +530,9 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
 	if (blkcg_init_queue(q))
 		goto fail_ref;
 
+	blk_queue_dma_alignment(q, 511);
+	blk_set_default_limits(&q->limits);
+
 	return q;
 
 fail_ref:
@@ -557,7 +549,22 @@ fail_q:
 	kmem_cache_free(blk_requestq_cachep, q);
 	return NULL;
 }
-EXPORT_SYMBOL(blk_alloc_queue_node);
+
+struct request_queue *blk_alloc_queue(make_request_fn make_request, int node_id)
+{
+	struct request_queue *q;
+
+	if (WARN_ON_ONCE(!make_request))
+		return -EINVAL;
+
+	q = __blk_alloc_queue(node_id);
+	if (!q)
+		return NULL;
+	q->make_request_fn = make_request;
+	q->nr_requests = BLKDEV_MAX_RQ;
+	return q;
+}
+EXPORT_SYMBOL(blk_alloc_queue);
 
 bool blk_get_queue(struct request_queue *q)
 {

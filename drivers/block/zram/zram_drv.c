@@ -1895,15 +1895,13 @@ static int zram_add(void)
 #ifdef CONFIG_ZRAM_WRITEBACK
 	spin_lock_init(&zram->wb_limit_lock);
 #endif
-	queue = blk_alloc_queue(GFP_KERNEL);
+	queue = blk_alloc_queue(zram_make_request, NUMA_NO_NODE);
 	if (!queue) {
 		pr_err("Error allocating disk queue for device %d\n",
 			device_id);
 		ret = -ENOMEM;
 		goto out_free_idr;
 	}
-
-	blk_queue_make_request(queue, zram_make_request);
 
 	/* gendisk structure */
 	zram->disk = alloc_disk(1);

@@ -1743,12 +1743,11 @@ static int null_add_dev(struct nullb_device *dev)
 			goto out_cleanup_tags;
 		}
 	} else if (dev->queue_mode == NULL_Q_BIO) {
-		nullb->q = blk_alloc_queue_node(GFP_KERNEL, dev->home_node);
+		nullb->q = blk_alloc_queue(null_queue_bio, dev->home_node);
 		if (!nullb->q) {
 			rv = -ENOMEM;
 			goto out_cleanup_queues;
 		}
-		blk_queue_make_request(nullb->q, null_queue_bio);
 		rv = init_driver_queues(nullb);
 		if (rv)
 			goto out_cleanup_blk_queue;
