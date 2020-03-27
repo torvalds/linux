@@ -2856,26 +2856,6 @@ static int rt5682_probe(struct snd_soc_component *component)
 #endif
 	rt5682->component = component;
 
-#ifdef CONFIG_COMMON_CLK
-	/* Check if MCLK provided */
-	rt5682->mclk = devm_clk_get(component->dev, "mclk");
-	if (IS_ERR(rt5682->mclk)) {
-		if (PTR_ERR(rt5682->mclk) != -ENOENT) {
-			ret = PTR_ERR(rt5682->mclk);
-			return ret;
-		}
-		rt5682->mclk = NULL;
-	}
-
-	/* Register CCF DAI clock control */
-	ret = rt5682_register_dai_clks(component);
-	if (ret)
-		return ret;
-
-	/* Initial setup for CCF */
-	rt5682->lrck[RT5682_AIF1] = CLK_48;
-#endif
-
 	if (rt5682->is_sdw) {
 		slave = rt5682->slave;
 		time = wait_for_completion_timeout(
@@ -2885,6 +2865,25 @@ static int rt5682_probe(struct snd_soc_component *component)
 			dev_err(&slave->dev, "Initialization not complete, timed out\n");
 			return -ETIMEDOUT;
 		}
+	} else {
+#ifdef CONFIG_COMMON_CLK
+		/* Check if MCLK provided */
+		rt5682->mclk = devm_clk_get(component->dev, "mclk");
+		if (IS_ERR(rt5682->mclk)) {
+			if (PTR_ERR(rt5682->mclk) != -ENOENT) {
+				ret = PTR_ERR(rt5682->mclk);
+				return ret;
+			}
+			rt5682->mclk = NULL;
+		} else {
+			/* Register CCF DAI clock control */
+			ret = rt5682_register_dai_clks(component);
+			if (ret)
+				return ret;
+		}
+		/* Initial setup for CCF */
+		rt5682->lrck[RT5682_AIF1] = CLK_48;
+#endif
 	}
 
 	return 0;
