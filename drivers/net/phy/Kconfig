@@ -179,6 +179,13 @@ config MDIO_MSCC_MIIM
 	  This driver supports the MIIM (MDIO) interface found in the network
 	  switches of the Microsemi SoCs
 
+config MDIO_MVUSB
+	tristate "Marvell USB to MDIO Adapter"
+	depends on USB
+	help
+	  A USB to MDIO converter present on development boards for
+	  Marvell's Link Street family of Ethernet switches.
+
 config MDIO_OCTEON
 	tristate "Octeon and some ThunderX SOCs MDIO buses"
 	depends on (64BIT && OF_MDIO) || COMPILE_TEST
