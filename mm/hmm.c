@@ -83,9 +83,6 @@ static int hmm_vma_fault(unsigned long addr, unsigned long end,
 	WARN_ON_ONCE(!required_fault);
 	hmm_vma_walk->last = addr;
 
-	if (!vma)
-		return -EFAULT;
-
 	if (required_fault & HMM_NEED_WRITE_FAULT) {
 		if (!(vma->vm_flags & VM_WRITE))
 			return -EPERM;
@@ -170,6 +167,11 @@ static int hmm_vma_walk_hole(unsigned long addr, unsigned long end,
 	npages = (end - addr) >> PAGE_SHIFT;
 	pfns = &range->pfns[i];
 	required_fault = hmm_range_need_fault(hmm_vma_walk, pfns, npages, 0);
+	if (!walk->vma) {
+		if (required_fault)
+			return -EFAULT;
+		return hmm_pfns_fill(addr, end, range, HMM_PFN_ERROR);
+	}
 	if (required_fault)
 		return hmm_vma_fault(addr, end, required_fault, walk);
 	hmm_vma_walk->last = addr;
