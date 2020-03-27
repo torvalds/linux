@@ -2724,13 +2724,15 @@ void blk_mq_release(struct request_queue *q)
 	blk_mq_sysfs_deinit(q);
 }
 
-struct request_queue *blk_mq_init_queue(struct blk_mq_tag_set *set)
+struct request_queue *blk_mq_init_queue_data(struct blk_mq_tag_set *set,
+		void *queuedata)
 {
 	struct request_queue *uninit_q, *q;
 
 	uninit_q = blk_alloc_queue_node(GFP_KERNEL, set->numa_node);
 	if (!uninit_q)
 		return ERR_PTR(-ENOMEM);
+	uninit_q->queuedata = queuedata;
 
 	/*
 	 * Initialize the queue without an elevator. device_add_disk() will do
@@ -2741,6 +2743,12 @@ struct request_queue *blk_mq_init_queue(struct blk_mq_tag_set *set)
 		blk_cleanup_queue(uninit_q);
 
 	return q;
+}
+EXPORT_SYMBOL_GPL(blk_mq_init_queue_data);
+
+struct request_queue *blk_mq_init_queue(struct blk_mq_tag_set *set)
+{
+	return blk_mq_init_queue_data(set, NULL);
 }
 EXPORT_SYMBOL(blk_mq_init_queue);
 
