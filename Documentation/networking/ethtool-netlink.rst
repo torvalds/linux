@@ -201,6 +201,7 @@ Userspace to kernel:
   ``ETHTOOL_MSG_COALESCE_SET``          set coalescing parameters
   ``ETHTOOL_MSG_PAUSE_GET``             get pause parameters
   ``ETHTOOL_MSG_PAUSE_SET``             set pause parameters
+  ``ETHTOOL_MSG_EEE_GET``               get EEE settings
   ===================================== ================================
 
 Kernel to userspace:
@@ -229,6 +230,7 @@ Kernel to userspace:
   ``ETHTOOL_MSG_COALESCE_NTF``          coalescing parameters
   ``ETHTOOL_MSG_PAUSE_GET_REPLY``       pause parameters
   ``ETHTOOL_MSG_PAUSE_NTF``             pause parameters
+  ``ETHTOOL_MSG_EEE_GET_REPLY``         EEE settings
   ===================================== =================================
 
 ``GET`` requests are sent by userspace applications to retrieve device
@@ -872,6 +874,36 @@ Request contents:
   =====================================  ======  ==========================
 
 
+EEE_GET
+=======
+
+Gets channel counts like ``ETHTOOL_GEEE`` ioctl request.
+
+Request contents:
+
+  =====================================  ======  ==========================
+  ``ETHTOOL_A_EEE_HEADER``               nested  request header
+  =====================================  ======  ==========================
+
+Kernel response contents:
+
+  =====================================  ======  ==========================
+  ``ETHTOOL_A_EEE_HEADER``               nested  request header
+  ``ETHTOOL_A_EEE_MODES_OURS``           bool    supported/advertised modes
+  ``ETHTOOL_A_EEE_MODES_PEER``           bool    peer advertised link modes
+  ``ETHTOOL_A_EEE_ACTIVE``               bool    EEE is actively used
+  ``ETHTOOL_A_EEE_ENABLED``              bool    EEE is enabled
+  ``ETHTOOL_A_EEE_TX_LPI_ENABLED``       bool    Tx lpi enabled
+  ``ETHTOOL_A_EEE_TX_LPI_TIMER``         u32     Tx lpi timeout (in us)
+  =====================================  ======  ==========================
+
+In ``ETHTOOL_A_EEE_MODES_OURS``, mask consists of link modes for which EEE is
+enabled, value of link modes for which EEE is advertised. Link modes for which
+peer advertises EEE are listed in ``ETHTOOL_A_EEE_MODES_PEER`` (no mask). The
+netlink interface allows reporting EEE status for all link modes but only
+first 32 are provided by the ``ethtool_ops`` callback.
+
+
 Request translation
 ===================
 
@@ -950,7 +982,7 @@ have their netlink replacement yet.
   ``ETHTOOL_GET_TS_INFO``             n/a
   ``ETHTOOL_GMODULEINFO``             n/a
   ``ETHTOOL_GMODULEEEPROM``           n/a
-  ``ETHTOOL_GEEE``                    n/a
+  ``ETHTOOL_GEEE``                    ``ETHTOOL_MSG_EEE_GET``
   ``ETHTOOL_SEEE``                    n/a
   ``ETHTOOL_GRSSH``                   n/a
   ``ETHTOOL_SRSSH``                   n/a

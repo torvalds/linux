@@ -343,6 +343,7 @@ extern const struct ethnl_request_ops ethnl_rings_request_ops;
 extern const struct ethnl_request_ops ethnl_channels_request_ops;
 extern const struct ethnl_request_ops ethnl_coalesce_request_ops;
 extern const struct ethnl_request_ops ethnl_pause_request_ops;
+extern const struct ethnl_request_ops ethnl_eee_request_ops;
 
 int ethnl_set_linkinfo(struct sk_buff *skb, struct genl_info *info);
 int ethnl_set_linkmodes(struct sk_buff *skb, struct genl_info *info);
