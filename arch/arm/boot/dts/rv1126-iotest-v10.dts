@@ -329,3 +329,13 @@
 	vccio6-supply = <&vcc_1v8>;
 	vccio7-supply = <&vcc_1v8>;
 };
+
+&usbdrd {
+	status = "okay";
+};
+
+&usbdrd_dwc3 {
+	status = "okay";
+	/delete-property/ phys;
+	dr_mode = "peripheral";
+};
