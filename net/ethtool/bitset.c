@@ -305,7 +305,8 @@ nla_put_failure:
 static const struct nla_policy bitset_policy[ETHTOOL_A_BITSET_MAX + 1] = {
 	[ETHTOOL_A_BITSET_UNSPEC]	= { .type = NLA_REJECT },
 	[ETHTOOL_A_BITSET_NOMASK]	= { .type = NLA_FLAG },
-	[ETHTOOL_A_BITSET_SIZE]		= { .type = NLA_U32 },
+	[ETHTOOL_A_BITSET_SIZE]		= NLA_POLICY_MAX(NLA_U32,
+							 ETHNL_MAX_BITSET_SIZE),
 	[ETHTOOL_A_BITSET_BITS]		= { .type = NLA_NESTED },
 	[ETHTOOL_A_BITSET_VALUE]	= { .type = NLA_BINARY },
 	[ETHTOOL_A_BITSET_MASK]		= { .type = NLA_BINARY },
@@ -447,7 +448,10 @@ ethnl_update_bitset32_verbose(u32 *bitmap, unsigned int nbits,
 				    "mask only allowed in compact bitset");
 		return -EINVAL;
 	}
+
 	no_mask = tb[ETHTOOL_A_BITSET_NOMASK];
+	if (no_mask)
+		ethnl_bitmap32_clear(bitmap, 0, nbits, mod);
 
 	nla_for_each_nested(bit_attr, tb[ETHTOOL_A_BITSET_BITS], rem) {
 		bool old_val, new_val;

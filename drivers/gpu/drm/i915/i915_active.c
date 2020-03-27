@@ -416,13 +416,15 @@ int i915_active_acquire(struct i915_active *ref)
 	if (err)
 		return err;
 
-	if (!atomic_read(&ref->count) && ref->active)
-		err = ref->active(ref);
-	if (!err) {
-		spin_lock_irq(&ref->tree_lock); /* vs __active_retire() */
-		debug_active_activate(ref);
-		atomic_inc(&ref->count);
-		spin_unlock_irq(&ref->tree_lock);
+	if (likely(!i915_active_acquire_if_busy(ref))) {
+		if (ref->active)
+			err = ref->active(ref);
+		if (!err) {
+			spin_lock_irq(&ref->tree_lock); /* __active_retire() */
+			debug_active_activate(ref);
+			atomic_inc(&ref->count);
+			spin_unlock_irq(&ref->tree_lock);
+		}
 	}
 
 	mutex_unlock(&ref->mutex);
@@ -605,7 +607,7 @@ int i915_active_acquire_preallocate_barrier(struct i915_active *ref,
 					    struct intel_engine_cs *engine)
 {
 	intel_engine_mask_t tmp, mask = engine->mask;
-	struct llist_node *pos = NULL, *next;
+	struct llist_node *first = NULL, *last = NULL;
 	struct intel_gt *gt = engine->gt;
 	int err;
 
@@ -623,6 +625,7 @@ int i915_active_acquire_preallocate_barrier(struct i915_active *ref,
 	 */
 	for_each_engine_masked(engine, gt, mask, tmp) {
 		u64 idx = engine->kernel_context->timeline->fence_context;
+		struct llist_node *prev = first;
 		struct active_node *node;
 
 		node = reuse_idle_barrier(ref, idx);
@@ -656,23 +659,23 @@ int i915_active_acquire_preallocate_barrier(struct i915_active *ref,
 		GEM_BUG_ON(rcu_access_pointer(node->base.fence) != ERR_PTR(-EAGAIN));
 
 		GEM_BUG_ON(barrier_to_engine(node) != engine);
-		next = barrier_to_ll(node);
-		next->next = pos;
-		if (!pos)
-			pos = next;
+		first = barrier_to_ll(node);
+		first->next = prev;
+		if (!last)
+			last = first;
 		intel_engine_pm_get(engine);
 	}
 
 	GEM_BUG_ON(!llist_empty(&ref->preallocated_barriers));
-	llist_add_batch(next, pos, &ref->preallocated_barriers);
+	llist_add_batch(first, last, &ref->preallocated_barriers);
 
 	return 0;
 
 unwind:
-	while (pos) {
-		struct active_node *node = barrier_from_ll(pos);
+	while (first) {
+		struct active_node *node = barrier_from_ll(first);
 
-		pos = pos->next;
+		first = first->next;
 
 		atomic_dec(&ref->count);
 		intel_engine_pm_put(barrier_to_engine(node));

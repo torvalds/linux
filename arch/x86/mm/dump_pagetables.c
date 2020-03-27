@@ -363,13 +363,8 @@ static void ptdump_walk_pgd_level_core(struct seq_file *m,
 {
 	const struct ptdump_range ptdump_ranges[] = {
 #ifdef CONFIG_X86_64
-
-#define normalize_addr_shift (64 - (__VIRTUAL_MASK_SHIFT + 1))
-#define normalize_addr(u) ((signed long)((u) << normalize_addr_shift) >> \
-			   normalize_addr_shift)
-
 	{0, PTRS_PER_PGD * PGD_LEVEL_MULT / 2},
-	{normalize_addr(PTRS_PER_PGD * PGD_LEVEL_MULT / 2), ~0UL},
+	{GUARD_HOLE_END_ADDR, ~0UL},
 #else
 	{0, ~0UL},
 #endif

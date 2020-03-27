@@ -1,4 +1,5 @@
 /* Copyright 2008 - 2016 Freescale Semiconductor Inc.
+ * Copyright 2020 NXP
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -123,7 +124,22 @@ MODULE_PARM_DESC(tx_timeout, "The Tx timeout in ms");
 #define FSL_QMAN_MAX_OAL	127
 
 /* Default alignment for start of data in an Rx FD */
+#ifdef CONFIG_DPAA_ERRATUM_A050385
+/* aligning data start to 64 avoids DMA transaction splits, unless the buffer
+ * is crossing a 4k page boundary
+ */
+#define DPAA_FD_DATA_ALIGNMENT  (fman_has_errata_a050385() ? 64 : 16)
+/* aligning to 256 avoids DMA transaction splits caused by 4k page boundary
+ * crossings; also, all SG fragments except the last must have a size multiple
+ * of 256 to avoid DMA transaction splits
+ */
+#define DPAA_A050385_ALIGN 256
+#define DPAA_FD_RX_DATA_ALIGNMENT (fman_has_errata_a050385() ? \
+				   DPAA_A050385_ALIGN : 16)
+#else
 #define DPAA_FD_DATA_ALIGNMENT  16
+#define DPAA_FD_RX_DATA_ALIGNMENT DPAA_FD_DATA_ALIGNMENT
+#endif
 
 /* The DPAA requires 256 bytes reserved and mapped for the SGT */
 #define DPAA_SGT_SIZE 256
@@ -158,8 +174,13 @@ MODULE_PARM_DESC(tx_timeout, "The Tx timeout in ms");
 #define DPAA_PARSE_RESULTS_SIZE sizeof(struct fman_prs_result)
 #define DPAA_TIME_STAMP_SIZE 8
 #define DPAA_HASH_RESULTS_SIZE 8
+#ifdef CONFIG_DPAA_ERRATUM_A050385
+#define DPAA_RX_PRIV_DATA_SIZE (DPAA_A050385_ALIGN - (DPAA_PARSE_RESULTS_SIZE\
+	 + DPAA_TIME_STAMP_SIZE + DPAA_HASH_RESULTS_SIZE))
+#else
 #define DPAA_RX_PRIV_DATA_SIZE	(u16)(DPAA_TX_PRIV_DATA_SIZE + \
 					dpaa_rx_extra_headroom)
+#endif
 
 #define DPAA_ETH_PCD_RXQ_NUM	128
 
@@ -180,7 +201,12 @@ static struct dpaa_bp *dpaa_bp_array[BM_MAX_NUM_OF_POOLS];
 
 #define DPAA_BP_RAW_SIZE 4096
 
+#ifdef CONFIG_DPAA_ERRATUM_A050385
+#define dpaa_bp_size(raw_size) (SKB_WITH_OVERHEAD(raw_size) & \
+				~(DPAA_A050385_ALIGN - 1))
+#else
 #define dpaa_bp_size(raw_size) SKB_WITH_OVERHEAD(raw_size)
+#endif
 
 static int dpaa_max_frm;
 
@@ -1192,7 +1218,7 @@ static int dpaa_eth_init_rx_port(struct fman_port *port, struct dpaa_bp *bp,
 	buf_prefix_content.pass_prs_result = true;
 	buf_prefix_content.pass_hash_result = true;
 	buf_prefix_content.pass_time_stamp = true;
-	buf_prefix_content.data_align = DPAA_FD_DATA_ALIGNMENT;
+	buf_prefix_content.data_align = DPAA_FD_RX_DATA_ALIGNMENT;
 
 	rx_p = &params.specific_params.rx_params;
 	rx_p->err_fqid = errq->fqid;
@@ -1662,6 +1688,8 @@ static u8 rx_csum_offload(const struct dpaa_priv *priv, const struct qm_fd *fd)
 	return CHECKSUM_NONE;
 }
 
+#define PTR_IS_ALIGNED(x, a) (IS_ALIGNED((unsigned long)(x), (a)))
+
 /* Build a linear skb around the received buffer.
  * We are guaranteed there is enough room at the end of the data buffer to
  * accommodate the shared info area of the skb.
@@ -1733,8 +1761,7 @@ static struct sk_buff *sg_fd_to_skb(const struct dpaa_priv *priv,
 
 		sg_addr = qm_sg_addr(&sgt[i]);
 		sg_vaddr = phys_to_virt(sg_addr);
-		WARN_ON(!IS_ALIGNED((unsigned long)sg_vaddr,
-				    SMP_CACHE_BYTES));
+		WARN_ON(!PTR_IS_ALIGNED(sg_vaddr, SMP_CACHE_BYTES));
 
 		dma_unmap_page(priv->rx_dma_dev, sg_addr,
 			       DPAA_BP_RAW_SIZE, DMA_FROM_DEVICE);
@@ -2022,6 +2049,75 @@ static inline int dpaa_xmit(struct dpaa_priv *priv,
 	return 0;
 }
 
+#ifdef CONFIG_DPAA_ERRATUM_A050385
+int dpaa_a050385_wa(struct net_device *net_dev, struct sk_buff **s)
+{
+	struct dpaa_priv *priv = netdev_priv(net_dev);
+	struct sk_buff *new_skb, *skb = *s;
+	unsigned char *start, i;
+
+	/* check linear buffer alignment */
+	if (!PTR_IS_ALIGNED(skb->data, DPAA_A050385_ALIGN))
+		goto workaround;
+
+	/* linear buffers just need to have an aligned start */
+	if (!skb_is_nonlinear(skb))
+		return 0;
+
+	/* linear data size for nonlinear skbs needs to be aligned */
+	if (!IS_ALIGNED(skb_headlen(skb), DPAA_A050385_ALIGN))
+		goto workaround;
+
+	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
+		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
+
+		/* all fragments need to have aligned start addresses */
+		if (!IS_ALIGNED(skb_frag_off(frag), DPAA_A050385_ALIGN))
+			goto workaround;
+
+		/* all but last fragment need to have aligned sizes */
+		if (!IS_ALIGNED(skb_frag_size(frag), DPAA_A050385_ALIGN) &&
+		    (i < skb_shinfo(skb)->nr_frags - 1))
+			goto workaround;
+	}
+
+	return 0;
+
+workaround:
+	/* copy all the skb content into a new linear buffer */
+	new_skb = netdev_alloc_skb(net_dev, skb->len + DPAA_A050385_ALIGN - 1 +
+						priv->tx_headroom);
+	if (!new_skb)
+		return -ENOMEM;
+
+	/* NET_SKB_PAD bytes already reserved, adding up to tx_headroom */
+	skb_reserve(new_skb, priv->tx_headroom - NET_SKB_PAD);
+
+	/* Workaround for DPAA_A050385 requires data start to be aligned */
+	start = PTR_ALIGN(new_skb->data, DPAA_A050385_ALIGN);
+	if (start - new_skb->data != 0)
+		skb_reserve(new_skb, start - new_skb->data);
+
+	skb_put(new_skb, skb->len);
+	skb_copy_bits(skb, 0, new_skb->data, skb->len);
+	skb_copy_header(new_skb, skb);
+	new_skb->dev = skb->dev;
+
+	/* We move the headroom when we align it so we have to reset the
+	 * network and transport header offsets relative to the new data
+	 * pointer. The checksum offload relies on these offsets.
+	 */
+	skb_set_network_header(new_skb, skb_network_offset(skb));
+	skb_set_transport_header(new_skb, skb_transport_offset(skb));
+
+	/* TODO: does timestamping need the result in the old skb? */
+	dev_kfree_skb(skb);
+	*s = new_skb;
+
+	return 0;
+}
+#endif
+
 static netdev_tx_t
 dpaa_start_xmit(struct sk_buff *skb, struct net_device *net_dev)
 {
@@ -2067,6 +2163,14 @@ dpaa_start_xmit(struct sk_buff *skb, struct net_device *net_dev)
 
 		nonlinear = skb_is_nonlinear(skb);
 	}
+
+#ifdef CONFIG_DPAA_ERRATUM_A050385
+	if (unlikely(fman_has_errata_a050385())) {
+		if (dpaa_a050385_wa(net_dev, &skb))
+			goto enomem;
+		nonlinear = skb_is_nonlinear(skb);
+	}
+#endif
 
 	if (nonlinear) {
 		/* Just create a S/G fd based on the skb */
@@ -2741,9 +2845,7 @@ static inline u16 dpaa_get_headroom(struct dpaa_buffer_layout *bl)
 	headroom = (u16)(bl->priv_data_size + DPAA_PARSE_RESULTS_SIZE +
 		DPAA_TIME_STAMP_SIZE + DPAA_HASH_RESULTS_SIZE);
 
-	return DPAA_FD_DATA_ALIGNMENT ? ALIGN(headroom,
-					      DPAA_FD_DATA_ALIGNMENT) :
-					headroom;
+	return ALIGN(headroom, DPAA_FD_DATA_ALIGNMENT);
 }
 
 static int dpaa_eth_probe(struct platform_device *pdev)

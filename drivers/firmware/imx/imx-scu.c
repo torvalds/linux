@@ -29,6 +29,7 @@ struct imx_sc_chan {
 	struct mbox_client cl;
 	struct mbox_chan *ch;
 	int idx;
+	struct completion tx_done;
 };
 
 struct imx_sc_ipc {
@@ -100,6 +101,14 @@ int imx_scu_get_handle(struct imx_sc_ipc **ipc)
 }
 EXPORT_SYMBOL(imx_scu_get_handle);
 
+/* Callback called when the word of a message is ack-ed, eg read by SCU */
+static void imx_scu_tx_done(struct mbox_client *cl, void *mssg, int r)
+{
+	struct imx_sc_chan *sc_chan = container_of(cl, struct imx_sc_chan, cl);
+
+	complete(&sc_chan->tx_done);
+}
+
 static void imx_scu_rx_callback(struct mbox_client *c, void *msg)
 {
 	struct imx_sc_chan *sc_chan = container_of(c, struct imx_sc_chan, cl);
@@ -149,6 +158,19 @@ static int imx_scu_ipc_write(struct imx_sc_ipc *sc_ipc, void *msg)
 
 	for (i = 0; i < hdr->size; i++) {
 		sc_chan = &sc_ipc->chans[i % 4];
+
+		/*
+		 * SCU requires that all messages words are written
+		 * sequentially but linux MU driver implements multiple
+		 * independent channels for each register so ordering between
+		 * different channels must be ensured by SCU API interface.
+		 *
+		 * Wait for tx_done before every send to ensure that no
+		 * queueing happens at the mailbox channel level.
+		 */
+		wait_for_completion(&sc_chan->tx_done);
+		reinit_completion(&sc_chan->tx_done);
+
 		ret = mbox_send_message(sc_chan->ch, &data[i]);
 		if (ret < 0)
 			return ret;
@@ -246,6 +268,11 @@ static int imx_scu_probe(struct platform_device *pdev)
 		cl->tx_block = false;
 		cl->knows_txdone = true;
 		cl->rx_callback = imx_scu_rx_callback;
+
+		/* Initial tx_done completion as "done" */
+		cl->tx_done = imx_scu_tx_done;
+		init_completion(&sc_chan->tx_done);
+		complete(&sc_chan->tx_done);
 
 		sc_chan->sc_ipc = sc_ipc;
 		sc_chan->idx = i % 4;

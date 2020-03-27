@@ -67,21 +67,18 @@ static int intel_context_active_acquire(struct intel_context *ce)
 {
 	int err;
 
-	err = i915_active_acquire(&ce->active);
-	if (err)
-		return err;
+	__i915_active_acquire(&ce->active);
+
+	if (intel_context_is_barrier(ce))
+		return 0;
 
 	/* Preallocate tracking nodes */
-	if (!intel_context_is_barrier(ce)) {
-		err = i915_active_acquire_preallocate_barrier(&ce->active,
-							      ce->engine);
-		if (err) {
-			i915_active_release(&ce->active);
-			return err;
-		}
-	}
+	err = i915_active_acquire_preallocate_barrier(&ce->active,
+						      ce->engine);
+	if (err)
+		i915_active_release(&ce->active);
 
-	return 0;
+	return err;
 }
 
 static void intel_context_active_release(struct intel_context *ce)
@@ -101,13 +98,19 @@ int __intel_context_do_pin(struct intel_context *ce)
 			return err;
 	}
 
-	if (mutex_lock_interruptible(&ce->pin_mutex))
-		return -EINTR;
+	err = i915_active_acquire(&ce->active);
+	if (err)
+		return err;
 
-	if (likely(!atomic_read(&ce->pin_count))) {
+	if (mutex_lock_interruptible(&ce->pin_mutex)) {
+		err = -EINTR;
+		goto out_release;
+	}
+
+	if (likely(!atomic_add_unless(&ce->pin_count, 1, 0))) {
 		err = intel_context_active_acquire(ce);
 		if (unlikely(err))
-			goto err;
+			goto out_unlock;
 
 		err = ce->ops->pin(ce);
 		if (unlikely(err))
@@ -117,18 +120,19 @@ int __intel_context_do_pin(struct intel_context *ce)
 			 ce->ring->head, ce->ring->tail);
 
 		smp_mb__before_atomic(); /* flush pin before it is visible */
+		atomic_inc(&ce->pin_count);
 	}
 
-	atomic_inc(&ce->pin_count);
 	GEM_BUG_ON(!intel_context_is_pinned(ce)); /* no overflow! */
-
-	mutex_unlock(&ce->pin_mutex);
-	return 0;
+	GEM_BUG_ON(i915_active_is_idle(&ce->active));
+	goto out_unlock;
 
 err_active:
 	intel_context_active_release(ce);
-err:
+out_unlock:
 	mutex_unlock(&ce->pin_mutex);
+out_release:
+	i915_active_release(&ce->active);
 	return err;
 }
 

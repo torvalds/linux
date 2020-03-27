@@ -195,12 +195,12 @@ static struct sym_entry *read_symbol(FILE *in)
 		return NULL;
 	}
 
-	if (is_ignored_symbol(name, type))
-		return NULL;
-
-	/* Ignore most absolute/undefined (?) symbols. */
 	if (strcmp(name, "_text") == 0)
 		_text = addr;
+
+	/* Ignore most absolute/undefined (?) symbols. */
+	if (is_ignored_symbol(name, type))
+		return NULL;
 
 	check_symbol_range(name, addr, text_ranges, ARRAY_SIZE(text_ranges));
 	check_symbol_range(name, addr, &percpu_range, 1);
@@ -210,7 +210,7 @@ static struct sym_entry *read_symbol(FILE *in)
 
 	len = strlen(name) + 1;
 
-	sym = malloc(sizeof(*sym) + len);
+	sym = malloc(sizeof(*sym) + len + 1);
 	if (!sym) {
 		fprintf(stderr, "kallsyms failure: "
 			"unable to allocate required amount of memory\n");
@@ -219,7 +219,7 @@ static struct sym_entry *read_symbol(FILE *in)
 	sym->addr = addr;
 	sym->len = len;
 	sym->sym[0] = type;
-	memcpy(sym_name(sym), name, len);
+	strcpy(sym_name(sym), name);
 	sym->percpu_absolute = 0;
 
 	return sym;

@@ -222,7 +222,7 @@ int smu_set_soft_freq_range(struct smu_context *smu, enum smu_clk_type clk_type,
 {
 	int ret = 0;
 
-	if (min <= 0 && max <= 0)
+	if (min < 0 && max < 0)
 		return -EINVAL;
 
 	if (!smu_clk_dpm_is_enabled(smu, clk_type))
@@ -2006,8 +2006,11 @@ int smu_set_watermarks_for_clock_ranges(struct smu_context *smu,
 			smu_feature_is_enabled(smu, SMU_FEATURE_DPM_DCEFCLK_BIT) &&
 			smu_feature_is_enabled(smu, SMU_FEATURE_DPM_SOCCLK_BIT)) {
 		smu_set_watermarks_table(smu, table, clock_ranges);
-		smu->watermarks_bitmap |= WATERMARKS_EXIST;
-		smu->watermarks_bitmap &= ~WATERMARKS_LOADED;
+
+		if (!(smu->watermarks_bitmap & WATERMARKS_EXIST)) {
+			smu->watermarks_bitmap |= WATERMARKS_EXIST;
+			smu->watermarks_bitmap &= ~WATERMARKS_LOADED;
+		}
 	}
 
 	mutex_unlock(&smu->mutex);
