@@ -42,8 +42,6 @@
 #include "asic_reg/thm/thm_11_0_2_sh_mask.h"
 #include "asic_reg/mp/mp_11_0_offset.h"
 #include "asic_reg/mp/mp_11_0_sh_mask.h"
-#include "asic_reg/nbio/nbio_7_4_offset.h"
-#include "asic_reg/nbio/nbio_7_4_sh_mask.h"
 #include "asic_reg/smuio/smuio_11_0_0_offset.h"
 #include "asic_reg/smuio/smuio_11_0_0_sh_mask.h"
 
@@ -1662,9 +1660,7 @@ static int smu_v11_0_baco_set_armd3_sequence(struct smu_context *smu, enum smu_v
 
 bool smu_v11_0_baco_is_support(struct smu_context *smu)
 {
-	struct amdgpu_device *adev = smu->adev;
 	struct smu_baco_context *smu_baco = &smu->smu_baco;
-	uint32_t val;
 	bool baco_support;
 
 	mutex_lock(&smu_baco->mutex);
@@ -1679,11 +1675,7 @@ bool smu_v11_0_baco_is_support(struct smu_context *smu)
 	   !smu_feature_is_enabled(smu, SMU_FEATURE_BACO_BIT))
 		return false;
 
-	val = RREG32_SOC15(NBIO, 0, mmRCC_BIF_STRAP0);
-	if (val & RCC_BIF_STRAP0__STRAP_PX_CAPABLE_MASK)
-		return true;
-
-	return false;
+	return true;
 }
 
 enum smu_baco_state smu_v11_0_baco_get_state(struct smu_context *smu)
