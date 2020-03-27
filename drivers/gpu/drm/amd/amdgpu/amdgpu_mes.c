@@ -700,3 +700,20 @@ int amdgpu_mes_remove_hw_queue(struct amdgpu_device *adev, int queue_id)
 	mutex_unlock(&adev->mes.mutex);
 	return 0;
 }
+
+static void
+amdgpu_mes_ring_to_queue_props(struct amdgpu_device *adev,
+			       struct amdgpu_ring *ring,
+			       struct amdgpu_mes_queue_properties *props)
+{
+	props->queue_type = ring->funcs->type;
+	props->hqd_base_gpu_addr = ring->gpu_addr;
+	props->rptr_gpu_addr = ring->rptr_gpu_addr;
+	props->wptr_gpu_addr = ring->wptr_gpu_addr;
+	props->queue_size = ring->ring_size;
+	props->eop_gpu_addr = ring->eop_gpu_addr;
+	props->hqd_pipe_priority = AMDGPU_GFX_PIPE_PRIO_NORMAL;
+	props->hqd_queue_priority = AMDGPU_GFX_QUEUE_PRIORITY_MINIMUM;
+	props->paging = false;
+	props->ring = ring;
+}
