@@ -301,19 +301,16 @@ void rkisp_luma_isr(struct rkisp_luma_vdev *luma_vdev, u32 isp_stat)
 
 	switch (op_mode) {
 	case HDR_RDBK_FRAME2:
-	case HDR_FRAMEX2_DDR:
-	case HDR_LINEX2_DDR:
-	case HDR_LINEX2_NO_DDR:
 		frm_mode = RKISP_LUMA_TWOFRM;
 		break;
 	case HDR_RDBK_FRAME3:
-	case HDR_FRAMEX3_DDR:
-	case HDR_LINEX3_DDR:
 		frm_mode = RKISP_LUMA_THREEFRM;
 		break;
-	default:
+	case HDR_RDBK_FRAME1:
 		frm_mode = RKISP_LUMA_ONEFRM;
 		break;
+	default:
+		goto unlock;
 	}
 
 	if (isp_stat & RAW0_Y_STATE)
@@ -360,10 +357,10 @@ void rkisp_luma_isr(struct rkisp_luma_vdev *luma_vdev, u32 isp_stat)
 			send_task = true;
 	} else if (frm_mode == RKISP_LUMA_TWOFRM) {
 		if (luma_vdev->ystat_isrcnt[0] == RKISP_LUMA_YSTAT_ISR_NUM &&
-		    luma_vdev->ystat_isrcnt[1] == RKISP_LUMA_YSTAT_ISR_NUM)
+		    luma_vdev->ystat_isrcnt[2] == RKISP_LUMA_YSTAT_ISR_NUM)
 			send_task = true;
 	} else if (frm_mode == RKISP_LUMA_ONEFRM) {
-		if (luma_vdev->ystat_isrcnt[0] == RKISP_LUMA_YSTAT_ISR_NUM)
+		if (luma_vdev->ystat_isrcnt[2] == RKISP_LUMA_YSTAT_ISR_NUM)
 			send_task = true;
 	}
 
