@@ -176,8 +176,6 @@ static int debug_getc(struct platform_device *pdev)
 		} else {
 			return temp;
 		}
-	} else {
-		rk_fiq_read(t, UART_RX);
 	}
 
 	return FIQ_DEBUGGER_NO_CHAR;
