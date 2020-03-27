@@ -80,13 +80,15 @@ unsigned long arch_jump_destination(struct instruction *insn)
 int arch_decode_instruction(struct elf *elf, struct section *sec,
 			    unsigned long offset, unsigned int maxlen,
 			    unsigned int *len, enum insn_type *type,
-			    unsigned long *immediate, struct stack_op *op)
+			    unsigned long *immediate,
+			    struct list_head *ops_list)
 {
 	struct insn insn;
 	int x86_64, sign;
 	unsigned char op1, op2, rex = 0, rex_b = 0, rex_r = 0, rex_w = 0,
 		      rex_x = 0, modrm = 0, modrm_mod = 0, modrm_rm = 0,
 		      modrm_reg = 0, sib = 0;
+	struct stack_op *op;
 
 	x86_64 = is_x86_64(elf);
 	if (x86_64 == -1)
@@ -126,6 +128,10 @@ int arch_decode_instruction(struct elf *elf, struct section *sec,
 
 	if (insn.sib.nbytes)
 		sib = insn.sib.bytes[0];
+
+	op = calloc(1, sizeof(*op));
+	if (!op)
+		return -1;
 
 	switch (op1) {
 
@@ -487,6 +493,11 @@ int arch_decode_instruction(struct elf *elf, struct section *sec,
 	}
 
 	*immediate = insn.immediate.nbytes ? insn.immediate.value : 0;
+
+	if (*type == INSN_STACK)
+		list_add_tail(&op->list, ops_list);
+	else
+		free(op);
 
 	return 0;
 }
