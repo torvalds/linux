@@ -446,3 +446,28 @@ int amdgpu_mes_remove_gang(struct amdgpu_device *adev, int gang_id)
 	mutex_unlock(&adev->mes.mutex);
 	return 0;
 }
+
+int amdgpu_mes_suspend(struct amdgpu_device *adev)
+{
+	struct idr *idp;
+	struct amdgpu_mes_process *process;
+	struct amdgpu_mes_gang *gang;
+	struct mes_suspend_gang_input input;
+	int r, pasid;
+
+	mutex_lock(&adev->mes.mutex);
+
+	idp = &adev->mes.pasid_idr;
+
+	idr_for_each_entry(idp, process, pasid) {
+		list_for_each_entry(gang, &process->gang_list, list) {
+			r = adev->mes.funcs->suspend_gang(&adev->mes, &input);
+			if (r)
+				DRM_ERROR("failed to suspend pasid %d gangid %d",
+					 pasid, gang->gang_id);
+		}
+	}
+
+	mutex_unlock(&adev->mes.mutex);
+	return 0;
+}
