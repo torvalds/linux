@@ -46,6 +46,8 @@ struct mptcp_out_options {
 	u8 backup;
 	u32 nonce;
 	u64 thmac;
+	u32 token;
+	u8 hmac[20];
 	struct mptcp_ext ext_copy;
 #endif
 };

@@ -24,13 +24,31 @@
 static int subflow_rebuild_header(struct sock *sk)
 {
 	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(sk);
-	int err = 0;
+	int local_id, err = 0;
 
 	if (subflow->request_mptcp && !subflow->token) {
 		pr_debug("subflow=%p", sk);
 		err = mptcp_token_new_connect(sk);
+	} else if (subflow->request_join && !subflow->local_nonce) {
+		struct mptcp_sock *msk = (struct mptcp_sock *)subflow->conn;
+
+		pr_debug("subflow=%p", sk);
+
+		do {
+			get_random_bytes(&subflow->local_nonce, sizeof(u32));
+		} while (!subflow->local_nonce);
+
+		if (subflow->local_id)
+			goto out;
+
+		local_id = mptcp_pm_get_local_id(msk, (struct sock_common *)sk);
+		if (local_id < 0)
+			return -EINVAL;
+
+		subflow->local_id = local_id;
 	}
 
+out:
 	if (err)
 		return err;
 
@@ -131,6 +149,7 @@ static void subflow_init_req(struct request_sock *req,
 
 		subflow_req->ssn_offset = TCP_SKB_CB(skb)->seq;
 	} else if (rx_opt.mptcp.mp_join && listener->request_mptcp) {
+		subflow_req->ssn_offset = TCP_SKB_CB(skb)->seq;
 		subflow_req->mp_join = 1;
 		subflow_req->backup = rx_opt.mptcp.backup;
 		subflow_req->remote_id = rx_opt.mptcp.join_id;
@@ -169,6 +188,25 @@ static void subflow_v6_init_req(struct request_sock *req,
 }
 #endif
 
+/* validate received truncated hmac and create hmac for third ACK */
+static bool subflow_thmac_valid(struct mptcp_subflow_context *subflow)
+{
+	u8 hmac[MPTCPOPT_HMAC_LEN];
+	u64 thmac;
+
+	subflow_generate_hmac(subflow->remote_key, subflow->local_key,
+			      subflow->remote_nonce, subflow->local_nonce,
+			      hmac);
+
+	thmac = get_unaligned_be64(hmac);
+	pr_debug("subflow=%p, token=%u, thmac=%llu, subflow->thmac=%llu\n",
+		 subflow, subflow->token,
+		 (unsigned long long)thmac,
+		 (unsigned long long)subflow->thmac);
+
+	return thmac == subflow->thmac;
+}
+
 static void subflow_finish_connect(struct sock *sk, const struct sk_buff *skb)
 {
 	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(sk);
@@ -181,7 +219,10 @@ static void subflow_finish_connect(struct sock *sk, const struct sk_buff *skb)
 		parent->sk_state_change(parent);
 	}
 
-	if (!subflow->conn_finished) {
+	if (subflow->conn_finished || !tcp_sk(sk)->is_mptcp)
+		return;
+
+	if (subflow->mp_capable) {
 		pr_debug("subflow=%p, remote_key=%llu", mptcp_subflow_ctx(sk),
 			 subflow->remote_key);
 		mptcp_finish_connect(sk);
@@ -191,6 +232,31 @@ static void subflow_finish_connect(struct sock *sk, const struct sk_buff *skb)
 			pr_debug("synack seq=%u", TCP_SKB_CB(skb)->seq);
 			subflow->ssn_offset = TCP_SKB_CB(skb)->seq;
 		}
+	} else if (subflow->mp_join) {
+		pr_debug("subflow=%p, thmac=%llu, remote_nonce=%u",
+			 subflow, subflow->thmac,
+			 subflow->remote_nonce);
+		if (!subflow_thmac_valid(subflow)) {
+			subflow->mp_join = 0;
+			goto do_reset;
+		}
+
+		subflow_generate_hmac(subflow->local_key, subflow->remote_key,
+				      subflow->local_nonce,
+				      subflow->remote_nonce,
+				      subflow->hmac);
+
+		if (skb)
+			subflow->ssn_offset = TCP_SKB_CB(skb)->seq;
+
+		if (!mptcp_finish_join(sk))
+			goto do_reset;
+
+		subflow->conn_finished = 1;
+	} else {
+do_reset:
+		tcp_send_active_reset(sk, GFP_ATOMIC);
+		tcp_done(sk);
 	}
 }
 
@@ -737,6 +803,85 @@ void mptcpv6_handle_mapped(struct sock *sk, bool mapped)
 }
 #endif
 
+static void mptcp_info2sockaddr(const struct mptcp_addr_info *info,
+				struct sockaddr_storage *addr)
+{
+	memset(addr, 0, sizeof(*addr));
+	addr->ss_family = info->family;
+	if (addr->ss_family == AF_INET) {
+		struct sockaddr_in *in_addr = (struct sockaddr_in *)addr;
+
+		in_addr->sin_addr = info->addr;
+		in_addr->sin_port = info->port;
+	}
+#if IS_ENABLED(CONFIG_MPTCP_IPV6)
+	else if (addr->ss_family == AF_INET6) {
+		struct sockaddr_in6 *in6_addr = (struct sockaddr_in6 *)addr;
+
+		in6_addr->sin6_addr = info->addr6;
+		in6_addr->sin6_port = info->port;
+	}
+#endif
+}
+
+int __mptcp_subflow_connect(struct sock *sk, int ifindex,
+			    const struct mptcp_addr_info *loc,
+			    const struct mptcp_addr_info *remote)
+{
+	struct mptcp_sock *msk = mptcp_sk(sk);
+	struct mptcp_subflow_context *subflow;
+	struct sockaddr_storage addr;
+	struct socket *sf;
+	u32 remote_token;
+	int addrlen;
+	int err;
+
+	if (sk->sk_state != TCP_ESTABLISHED)
+		return -ENOTCONN;
+
+	err = mptcp_subflow_create_socket(sk, &sf);
+	if (err)
+		return err;
+
+	subflow = mptcp_subflow_ctx(sf->sk);
+	subflow->remote_key = msk->remote_key;
+	subflow->local_key = msk->local_key;
+	subflow->token = msk->token;
+	mptcp_info2sockaddr(loc, &addr);
+
+	addrlen = sizeof(struct sockaddr_in);
+#if IS_ENABLED(CONFIG_MPTCP_IPV6)
+	if (loc->family == AF_INET6)
+		addrlen = sizeof(struct sockaddr_in6);
+#endif
+	sf->sk->sk_bound_dev_if = ifindex;
+	err = kernel_bind(sf, (struct sockaddr *)&addr, addrlen);
+	if (err)
+		goto failed;
+
+	mptcp_crypto_key_sha(subflow->remote_key, &remote_token, NULL);
+	pr_debug("msk=%p remote_token=%u", msk, remote_token);
+	subflow->remote_token = remote_token;
+	subflow->local_id = loc->id;
+	subflow->request_join = 1;
+	subflow->request_bkup = 1;
+	mptcp_info2sockaddr(remote, &addr);
+
+	err = kernel_connect(sf, (struct sockaddr *)&addr, addrlen, O_NONBLOCK);
+	if (err && err != -EINPROGRESS)
+		goto failed;
+
+	spin_lock_bh(&msk->join_list_lock);
+	list_add_tail(&subflow->node, &msk->join_list);
+	spin_unlock_bh(&msk->join_list_lock);
+
+	return err;
+
+failed:
+	sock_release(sf);
+	return err;
+}
+
 int mptcp_subflow_create_socket(struct sock *sk, struct socket **new_sock)
 {
 	struct mptcp_subflow_context *subflow;
@@ -934,6 +1079,7 @@ static void subflow_ulp_clone(const struct request_sock *req,
 		new_ctx->ssn_offset = subflow_req->ssn_offset;
 		new_ctx->idsn = subflow_req->idsn;
 	} else if (subflow_req->mp_join) {
+		new_ctx->ssn_offset = subflow_req->ssn_offset;
 		new_ctx->mp_join = 1;
 		new_ctx->fully_established = 1;
 		new_ctx->backup = subflow_req->backup;

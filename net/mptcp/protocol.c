@@ -241,6 +241,16 @@ wake:
 	sk->sk_data_ready(sk);
 }
 
+static void __mptcp_flush_join_list(struct mptcp_sock *msk)
+{
+	if (likely(list_empty(&msk->join_list)))
+		return;
+
+	spin_lock_bh(&msk->join_list_lock);
+	list_splice_tail_init(&msk->join_list, &msk->conn_list);
+	spin_unlock_bh(&msk->join_list_lock);
+}
+
 static bool mptcp_ext_cache_refill(struct mptcp_sock *msk)
 {
 	if (!msk->cached_ext)
@@ -462,6 +472,7 @@ fallback:
 		return ret >= 0 ? ret + copied : (copied ? copied : ret);
 	}
 
+	__mptcp_flush_join_list(msk);
 	ssk = mptcp_subflow_get_send(msk);
 	while (!sk_stream_memory_free(sk) || !ssk) {
 		ret = sk_stream_wait_memory(sk, &timeo);
@@ -603,6 +614,7 @@ fallback:
 
 	len = min_t(size_t, len, INT_MAX);
 	target = sock_rcvlowat(sk, flags & MSG_WAITALL, len);
+	__mptcp_flush_join_list(msk);
 
 	while (len > (size_t)copied) {
 		int bytes_read;
@@ -718,6 +730,7 @@ static void mptcp_worker(struct work_struct *work)
 	struct sock *sk = &msk->sk.icsk_inet.sk;
 
 	lock_sock(sk);
+	__mptcp_flush_join_list(msk);
 	__mptcp_move_skbs(msk);
 	release_sock(sk);
 	sock_put(sk);
@@ -727,7 +740,10 @@ static int __mptcp_init_sock(struct sock *sk)
 {
 	struct mptcp_sock *msk = mptcp_sk(sk);
 
+	spin_lock_init(&msk->join_list_lock);
+
 	INIT_LIST_HEAD(&msk->conn_list);
+	INIT_LIST_HEAD(&msk->join_list);
 	__set_bit(MPTCP_SEND_SPACE, &msk->flags);
 	INIT_WORK(&msk->work, mptcp_worker);
 
@@ -799,6 +815,8 @@ static void mptcp_close(struct sock *sk, long timeout)
 
 	mptcp_token_destroy(msk->token);
 	inet_sk_state_store(sk, TCP_CLOSE);
+
+	__mptcp_flush_join_list(msk);
 
 	list_splice_init(&msk->conn_list, &conn_list);
 
@@ -1107,6 +1125,7 @@ bool mptcp_finish_join(struct sock *sk)
 	struct mptcp_sock *msk = mptcp_sk(subflow->conn);
 	struct sock *parent = (void *)msk;
 	struct socket *parent_sock;
+	bool ret;
 
 	pr_debug("msk=%p, subflow=%p", msk, subflow);
 
@@ -1122,7 +1141,15 @@ bool mptcp_finish_join(struct sock *sk)
 	if (parent_sock && !sk->sk_socket)
 		mptcp_sock_graft(sk, parent_sock);
 
-	return mptcp_pm_allow_new_subflow(msk);
+	ret = mptcp_pm_allow_new_subflow(msk);
+	if (ret) {
+		/* active connections are already on conn_list */
+		spin_lock_bh(&msk->join_list_lock);
+		if (!WARN_ON_ONCE(!list_empty(&subflow->node)))
+			list_add_tail(&subflow->node, &msk->join_list);
+		spin_unlock_bh(&msk->join_list_lock);
+	}
+	return ret;
 }
 
 bool mptcp_sk_is_subflow(const struct sock *sk)
@@ -1311,6 +1338,7 @@ static int mptcp_stream_accept(struct socket *sock, struct socket *newsock,
 		/* set ssk->sk_socket of accept()ed flows to mptcp socket.
 		 * This is needed so NOSPACE flag can be set from tcp stack.
 		 */
+		__mptcp_flush_join_list(msk);
 		list_for_each_entry(subflow, &msk->conn_list, node) {
 			struct sock *ssk = mptcp_subflow_tcp_sock(subflow);
 
@@ -1392,6 +1420,7 @@ static int mptcp_shutdown(struct socket *sock, int how)
 			sock->state = SS_CONNECTED;
 	}
 
+	__mptcp_flush_join_list(msk);
 	mptcp_for_each_subflow(msk, subflow) {
 		struct sock *tcp_sk = mptcp_subflow_tcp_sock(subflow);
 
