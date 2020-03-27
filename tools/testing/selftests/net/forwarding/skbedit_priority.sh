@@ -120,14 +120,19 @@ test_skbedit_priority_one()
 	   flower action skbedit priority $prio
 
 	local pkt0=$(qdisc_parent_stats_get $swp2 $classid .packets)
+	local pkt2=$(tc_rule_handle_stats_get "$locus" 101)
 	$MZ $h1 -t udp "sp=54321,dp=12345" -c 10 -d 20msec -p 100 \
 	    -a own -b $h2mac -A 192.0.2.1 -B 192.0.2.2 -q
+
 	local pkt1
 	pkt1=$(busywait "$HIT_TIMEOUT" until_counter_is ">= $((pkt0 + 10))" \
 			qdisc_parent_stats_get $swp2 $classid .packets)
+	check_err $? "Expected to get 10 packets on class $classid, but got $((pkt1 - pkt0))."
 
-	check_err $? "Expected to get 10 packets on class $classid, but got
-$((pkt1 - pkt0))."
+	local pkt3=$(tc_rule_handle_stats_get "$locus" 101)
+	((pkt3 >= pkt2 + 10))
+	check_err $? "Expected to get 10 packets on skbedit rule but got $((pkt3 - pkt2))."
+
 	log_test "$locus skbedit priority $prio -> classid $classid"
 
 	tc filter del $locus pref 1
