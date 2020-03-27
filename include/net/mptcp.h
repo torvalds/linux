@@ -33,6 +33,15 @@ struct mptcp_out_options {
 	u16 suboptions;
 	u64 sndr_key;
 	u64 rcvr_key;
+	union {
+		struct in_addr addr;
+#if IS_ENABLED(CONFIG_MPTCP_IPV6)
+		struct in6_addr addr6;
+#endif
+	};
+	u8 addr_id;
+	u64 ahmac;
+	u8 rm_id;
 	struct mptcp_ext ext_copy;
 #endif
 };
