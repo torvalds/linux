@@ -40,8 +40,8 @@
 #include <linux/uuid.h>
 #include <asm/unaligned.h>
 
-#define POLL_INTERVAL		(2 * HZ)
-#define SURFACE_3_STRLEN 10
+#define SURFACE_3_POLL_INTERVAL		(2 * HZ)
+#define SURFACE_3_STRLEN		10
 
 struct mshw0011_data {
 	struct i2c_client	*adp1;
@@ -350,7 +350,7 @@ static int mshw0011_poll_task(void *data)
 	set_freezable();
 
 	while (!kthread_should_stop()) {
-		schedule_timeout_interruptible(POLL_INTERVAL);
+		schedule_timeout_interruptible(SURFACE_3_POLL_INTERVAL);
 		try_to_freeze();
 		ret = mshw0011_isr(data);
 		if (ret)
