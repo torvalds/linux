@@ -335,6 +335,9 @@ sienna_cichlid_get_allowed_feature_mask(struct smu_context *smu,
 	if (smu->adev->pg_flags & AMD_PG_SUPPORT_ATHUB)
 		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_ATHUB_PG_BIT);
 
+	if (smu->adev->pg_flags & AMD_PG_SUPPORT_MMHUB)
+		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_MMHUB_PG_BIT);
+
 	if (smu->adev->pg_flags & AMD_PG_SUPPORT_VCN ||
 	    smu->adev->pg_flags & AMD_PG_SUPPORT_JPEG)
 		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_MM_DPM_PG_BIT);
