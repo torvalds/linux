@@ -519,12 +519,12 @@ static int sja1105_init_avb_params(struct sja1105_private *priv)
 #define SJA1105_RATE_MBPS(speed) (((speed) * 64000) / 1000)
 
 static void sja1105_setup_policer(struct sja1105_l2_policing_entry *policing,
-				  int index)
+				  int index, int mtu)
 {
 	policing[index].sharindx = index;
 	policing[index].smax = 65535; /* Burst size in bytes */
 	policing[index].rate = SJA1105_RATE_MBPS(1000);
-	policing[index].maxlen = ETH_FRAME_LEN + VLAN_HLEN + ETH_FCS_LEN;
+	policing[index].maxlen = mtu;
 	policing[index].partition = 0;
 }
 
@@ -556,12 +556,16 @@ static int sja1105_init_l2_policing(struct sja1105_private *priv)
 	 */
 	for (i = 0, k = 0; i < SJA1105_NUM_PORTS; i++) {
 		int bcast = (SJA1105_NUM_PORTS * SJA1105_NUM_TC) + i;
+		int mtu = VLAN_ETH_FRAME_LEN + ETH_FCS_LEN;
+
+		if (dsa_is_cpu_port(priv->ds, i))
+			mtu += VLAN_HLEN;
 
 		for (j = 0; j < SJA1105_NUM_TC; j++, k++)
-			sja1105_setup_policer(policing, k);
+			sja1105_setup_policer(policing, k, mtu);
 
 		/* Set up this port's policer for broadcast traffic */
-		sja1105_setup_policer(policing, bcast);
+		sja1105_setup_policer(policing, bcast, mtu);
 	}
 	return 0;
 }
@@ -1544,6 +1548,7 @@ static const char * const sja1105_reset_reasons[] = {
 	[SJA1105_RX_HWTSTAMPING] = "RX timestamping",
 	[SJA1105_AGEING_TIME] = "Ageing time",
 	[SJA1105_SCHEDULING] = "Time-aware scheduling",
+	[SJA1105_BEST_EFFORT_POLICING] = "Best-effort policing",
 };
 
 /* For situations where we need to change a setting at runtime that is only
@@ -1952,6 +1957,8 @@ static int sja1105_setup(struct dsa_switch *ds)
 	/* Advertise the 8 egress queues */
 	ds->num_tx_queues = SJA1105_NUM_TC;
 
+	ds->mtu_enforcement_ingress = true;
+
 	/* The DSA/switchdev model brings up switch ports in standalone mode by
 	 * default, and that means vlan_filtering is 0 since they're not under
 	 * a bridge, so it's safe to set up switch tagging at this time.
@@ -2120,6 +2127,39 @@ static int sja1105_set_ageing_time(struct dsa_switch *ds,
 	return sja1105_static_config_reload(priv, SJA1105_AGEING_TIME);
 }
 
+static int sja1105_change_mtu(struct dsa_switch *ds, int port, int new_mtu)
+{
+	int bcast = (SJA1105_NUM_PORTS * SJA1105_NUM_TC) + port;
+	struct sja1105_l2_policing_entry *policing;
+	struct sja1105_private *priv = ds->priv;
+	int tc;
+
+	new_mtu += VLAN_ETH_HLEN + ETH_FCS_LEN;
+
+	if (dsa_is_cpu_port(ds, port))
+		new_mtu += VLAN_HLEN;
+
+	policing = priv->static_config.tables[BLK_IDX_L2_POLICING].entries;
+
+	/* We set all 9 port policers to the same value, so just checking the
+	 * broadcast one is fine.
+	 */
+	if (policing[bcast].maxlen == new_mtu)
+		return 0;
+
+	for (tc = 0; tc < SJA1105_NUM_TC; tc++)
+		policing[port * SJA1105_NUM_TC + tc].maxlen = new_mtu;
+
+	policing[bcast].maxlen = new_mtu;
+
+	return sja1105_static_config_reload(priv, SJA1105_BEST_EFFORT_POLICING);
+}
+
+static int sja1105_get_max_mtu(struct dsa_switch *ds, int port)
+{
+	return 2043 - VLAN_ETH_HLEN - ETH_FCS_LEN;
+}
+
 static int sja1105_port_setup_tc(struct dsa_switch *ds, int port,
 				 enum tc_setup_type type,
 				 void *type_data)
@@ -2215,6 +2255,8 @@ static const struct dsa_switch_ops sja1105_switch_ops = {
 	.setup			= sja1105_setup,
 	.teardown		= sja1105_teardown,
 	.set_ageing_time	= sja1105_set_ageing_time,
+	.port_change_mtu	= sja1105_change_mtu,
+	.port_max_mtu		= sja1105_get_max_mtu,
 	.phylink_validate	= sja1105_phylink_validate,
 	.phylink_mac_link_state	= sja1105_mac_pcs_get_state,
 	.phylink_mac_config	= sja1105_mac_config,

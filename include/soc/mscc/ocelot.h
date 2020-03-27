@@ -517,6 +517,11 @@ struct ocelot {
 	 */
 	u8				num_phys_ports;
 
+	int				npi;
+
+	enum ocelot_tag_prefix		inj_prefix;
+	enum ocelot_tag_prefix		xtr_prefix;
+
 	u32				*lags;
 
 	struct list_head		multicast;
@@ -611,6 +616,8 @@ int ocelot_ptp_gettime64(struct ptp_clock_info *ptp, struct timespec64 *ts);
 int ocelot_port_add_txtstamp_skb(struct ocelot_port *ocelot_port,
 				 struct sk_buff *skb);
 void ocelot_get_txtstamp(struct ocelot *ocelot);
+void ocelot_port_set_maxlen(struct ocelot *ocelot, int port, size_t sdu);
+int ocelot_get_max_mtu(struct ocelot *ocelot, int port);
 int ocelot_cls_flower_replace(struct ocelot *ocelot, int port,
 			      struct flow_cls_offload *f, bool ingress);
 int ocelot_cls_flower_destroy(struct ocelot *ocelot, int port,

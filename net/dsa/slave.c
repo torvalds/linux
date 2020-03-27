@@ -1218,6 +1218,208 @@ static int dsa_slave_vlan_rx_kill_vid(struct net_device *dev, __be16 proto,
 	return dsa_port_vid_del(dp, vid);
 }
 
+struct dsa_hw_port {
+	struct list_head list;
+	struct net_device *dev;
+	int old_mtu;
+};
+
+static int dsa_hw_port_list_set_mtu(struct list_head *hw_port_list, int mtu)
+{
+	const struct dsa_hw_port *p;
+	int err;
+
+	list_for_each_entry(p, hw_port_list, list) {
+		if (p->dev->mtu == mtu)
+			continue;
+
+		err = dev_set_mtu(p->dev, mtu);
+		if (err)
+			goto rollback;
+	}
+
+	return 0;
+
+rollback:
+	list_for_each_entry_continue_reverse(p, hw_port_list, list) {
+		if (p->dev->mtu == p->old_mtu)
+			continue;
+
+		if (dev_set_mtu(p->dev, p->old_mtu))
+			netdev_err(p->dev, "Failed to restore MTU\n");
+	}
+
+	return err;
+}
+
+static void dsa_hw_port_list_free(struct list_head *hw_port_list)
+{
+	struct dsa_hw_port *p, *n;
+
+	list_for_each_entry_safe(p, n, hw_port_list, list)
+		kfree(p);
+}
+
+/* Make the hardware datapath to/from @dev limited to a common MTU */
+void dsa_bridge_mtu_normalization(struct dsa_port *dp)
+{
+	struct list_head hw_port_list;
+	struct dsa_switch_tree *dst;
+	int min_mtu = ETH_MAX_MTU;
+	struct dsa_port *other_dp;
+	int err;
+
+	if (!dp->ds->mtu_enforcement_ingress)
+		return;
+
+	if (!dp->bridge_dev)
+		return;
+
+	INIT_LIST_HEAD(&hw_port_list);
+
+	/* Populate the list of ports that are part of the same bridge
+	 * as the newly added/modified port
+	 */
+	list_for_each_entry(dst, &dsa_tree_list, list) {
+		list_for_each_entry(other_dp, &dst->ports, list) {
+			struct dsa_hw_port *hw_port;
+			struct net_device *slave;
+
+			if (other_dp->type != DSA_PORT_TYPE_USER)
+				continue;
+
+			if (other_dp->bridge_dev != dp->bridge_dev)
+				continue;
+
+			if (!other_dp->ds->mtu_enforcement_ingress)
+				continue;
+
+			slave = other_dp->slave;
+
+			if (min_mtu > slave->mtu)
+				min_mtu = slave->mtu;
+
+			hw_port = kzalloc(sizeof(*hw_port), GFP_KERNEL);
+			if (!hw_port)
+				goto out;
+
+			hw_port->dev = slave;
+			hw_port->old_mtu = slave->mtu;
+
+			list_add(&hw_port->list, &hw_port_list);
+		}
+	}
+
+	/* Attempt to configure the entire hardware bridge to the newly added
+	 * interface's MTU first, regardless of whether the intention of the
+	 * user was to raise or lower it.
+	 */
+	err = dsa_hw_port_list_set_mtu(&hw_port_list, dp->slave->mtu);
+	if (!err)
+		goto out;
+
+	/* Clearly that didn't work out so well, so just set the minimum MTU on
+	 * all hardware bridge ports now. If this fails too, then all ports will
+	 * still have their old MTU rolled back anyway.
+	 */
+	dsa_hw_port_list_set_mtu(&hw_port_list, min_mtu);
+
+out:
+	dsa_hw_port_list_free(&hw_port_list);
+}
+
+static int dsa_slave_change_mtu(struct net_device *dev, int new_mtu)
+{
+	struct net_device *master = dsa_slave_to_master(dev);
+	struct dsa_port *dp = dsa_slave_to_port(dev);
+	struct dsa_slave_priv *p = netdev_priv(dev);
+	struct dsa_switch *ds = p->dp->ds;
+	struct dsa_port *cpu_dp;
+	int port = p->dp->index;
+	int largest_mtu = 0;
+	int new_master_mtu;
+	int old_master_mtu;
+	int mtu_limit;
+	int cpu_mtu;
+	int err, i;
+
+	if (!ds->ops->port_change_mtu)
+		return -EOPNOTSUPP;
+
+	for (i = 0; i < ds->num_ports; i++) {
+		int slave_mtu;
+
+		if (!dsa_is_user_port(ds, i))
+			continue;
+
+		/* During probe, this function will be called for each slave
+		 * device, while not all of them have been allocated. That's
+		 * ok, it doesn't change what the maximum is, so ignore it.
+		 */
+		if (!dsa_to_port(ds, i)->slave)
+			continue;
+
+		/* Pretend that we already applied the setting, which we
+		 * actually haven't (still haven't done all integrity checks)
+		 */
+		if (i == port)
+			slave_mtu = new_mtu;
+		else
+			slave_mtu = dsa_to_port(ds, i)->slave->mtu;
+
+		if (largest_mtu < slave_mtu)
+			largest_mtu = slave_mtu;
+	}
+
+	cpu_dp = dsa_to_port(ds, port)->cpu_dp;
+
+	mtu_limit = min_t(int, master->max_mtu, dev->max_mtu);
+	old_master_mtu = master->mtu;
+	new_master_mtu = largest_mtu + cpu_dp->tag_ops->overhead;
+	if (new_master_mtu > mtu_limit)
+		return -ERANGE;
+
+	/* If the master MTU isn't over limit, there's no need to check the CPU
+	 * MTU, since that surely isn't either.
+	 */
+	cpu_mtu = largest_mtu;
+
+	/* Start applying stuff */
+	if (new_master_mtu != old_master_mtu) {
+		err = dev_set_mtu(master, new_master_mtu);
+		if (err < 0)
+			goto out_master_failed;
+
+		/* We only need to propagate the MTU of the CPU port to
+		 * upstream switches.
+		 */
+		err = dsa_port_mtu_change(cpu_dp, cpu_mtu, true);
+		if (err)
+			goto out_cpu_failed;
+	}
+
+	err = dsa_port_mtu_change(dp, new_mtu, false);
+	if (err)
+		goto out_port_failed;
+
+	dev->mtu = new_mtu;
+
+	dsa_bridge_mtu_normalization(dp);
+
+	return 0;
+
+out_port_failed:
+	if (new_master_mtu != old_master_mtu)
+		dsa_port_mtu_change(cpu_dp, old_master_mtu -
+				    cpu_dp->tag_ops->overhead,
+				    true);
+out_cpu_failed:
+	if (new_master_mtu != old_master_mtu)
+		dev_set_mtu(master, old_master_mtu);
+out_master_failed:
+	return err;
+}
+
 static const struct ethtool_ops dsa_slave_ethtool_ops = {
 	.get_drvinfo		= dsa_slave_get_drvinfo,
 	.get_regs_len		= dsa_slave_get_regs_len,
@@ -1295,6 +1497,7 @@ static const struct net_device_ops dsa_slave_netdev_ops = {
 	.ndo_vlan_rx_add_vid	= dsa_slave_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= dsa_slave_vlan_rx_kill_vid,
 	.ndo_get_devlink_port	= dsa_slave_get_devlink_port,
+	.ndo_change_mtu		= dsa_slave_change_mtu,
 };
 
 static struct device_type dsa_type = {
@@ -1465,7 +1668,10 @@ int dsa_slave_create(struct dsa_port *port)
 	slave_dev->priv_flags |= IFF_NO_QUEUE;
 	slave_dev->netdev_ops = &dsa_slave_netdev_ops;
 	slave_dev->min_mtu = 0;
-	slave_dev->max_mtu = ETH_MAX_MTU;
+	if (ds->ops->port_max_mtu)
+		slave_dev->max_mtu = ds->ops->port_max_mtu(ds, port->index);
+	else
+		slave_dev->max_mtu = ETH_MAX_MTU;
 	SET_NETDEV_DEVTYPE(slave_dev, &dsa_type);
 
 	SET_NETDEV_DEV(slave_dev, port->ds->dev);
@@ -1482,6 +1688,15 @@ int dsa_slave_create(struct dsa_port *port)
 	INIT_LIST_HEAD(&p->mall_tc_list);
 	p->xmit = cpu_dp->tag_ops->xmit;
 	port->slave = slave_dev;
+
+	rtnl_lock();
+	ret = dsa_slave_change_mtu(slave_dev, ETH_DATA_LEN);
+	rtnl_unlock();
+	if (ret && ret != -EOPNOTSUPP) {
+		dev_err(ds->dev, "error %d setting MTU on port %d\n",
+			ret, port->index);
+		goto out_free;
+	}
 
 	netif_carrier_off(slave_dev);
 
@@ -1545,6 +1760,8 @@ static int dsa_slave_changeupper(struct net_device *dev,
 	if (netif_is_bridge_master(info->upper_dev)) {
 		if (info->linking) {
 			err = dsa_port_bridge_join(dp, info->upper_dev);
+			if (!err)
+				dsa_bridge_mtu_normalization(dp);
 			err = notifier_from_errno(err);
 		} else {
 			dsa_port_bridge_leave(dp, info->upper_dev);
