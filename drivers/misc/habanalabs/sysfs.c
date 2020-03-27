@@ -183,6 +183,8 @@ static ssize_t soft_reset_store(struct device *dev,
 		goto out;
 	}
 
+	dev_warn(hdev->dev, "Soft-Reset requested through sysfs\n");
+
 	hl_device_reset(hdev, false, false);
 
 out:
@@ -203,6 +205,8 @@ static ssize_t hard_reset_store(struct device *dev,
 		count = -EINVAL;
 		goto out;
 	}
+
+	dev_warn(hdev->dev, "Hard-Reset requested through sysfs\n");
 
 	hl_device_reset(hdev, true, false);
 
