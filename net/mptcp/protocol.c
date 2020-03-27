@@ -37,6 +37,8 @@ struct mptcp_skb_cb {
 
 #define MPTCP_SKB_CB(__skb)	((struct mptcp_skb_cb *)&((__skb)->cb[0]))
 
+static struct percpu_counter mptcp_sockets_allocated;
+
 /* If msk has an initial subflow socket, and the MP_CAPABLE handshake has not
  * completed yet or has failed, return the subflow socket.
  * Otherwise return NULL.
@@ -333,9 +335,17 @@ static bool mptcp_frag_can_collapse_to(const struct mptcp_sock *msk,
 		df->data_seq + df->data_len == msk->write_seq;
 }
 
-static void dfrag_clear(struct mptcp_data_frag *dfrag)
+static void dfrag_uncharge(struct sock *sk, int len)
 {
+	sk_mem_uncharge(sk, len);
+}
+
+static void dfrag_clear(struct sock *sk, struct mptcp_data_frag *dfrag)
+{
+	int len = dfrag->data_len + dfrag->overhead;
+
 	list_del(&dfrag->list);
+	dfrag_uncharge(sk, len);
 	put_page(dfrag->page);
 }
 
@@ -344,12 +354,18 @@ static void mptcp_clean_una(struct sock *sk)
 	struct mptcp_sock *msk = mptcp_sk(sk);
 	struct mptcp_data_frag *dtmp, *dfrag;
 	u64 snd_una = atomic64_read(&msk->snd_una);
+	bool cleaned = false;
 
 	list_for_each_entry_safe(dfrag, dtmp, &msk->rtx_queue, list) {
 		if (after64(dfrag->data_seq + dfrag->data_len, snd_una))
 			break;
 
-		dfrag_clear(dfrag);
+		dfrag_clear(sk, dfrag);
+		cleaned = true;
+	}
+
+	if (cleaned) {
+		sk_mem_reclaim_partial(sk);
 	}
 }
 
@@ -461,6 +477,9 @@ static int mptcp_sendmsg_frag(struct sock *sk, struct sock *ssk,
 	if (!psize)
 		return -EINVAL;
 
+	if (!sk_wmem_schedule(sk, psize + dfrag->overhead))
+		return -ENOMEM;
+
 	/* tell the TCP stack to delay the push so that we can safely
 	 * access the skb after the sendpages call
 	 */
@@ -481,6 +500,11 @@ static int mptcp_sendmsg_frag(struct sock *sk, struct sock *ssk,
 		get_page(dfrag->page);
 		list_add_tail(&dfrag->list, &msk->rtx_queue);
 	}
+
+	/* charge data on mptcp rtx queue to the master socket
+	 * Note: we charge such data both to sk and ssk
+	 */
+	sk->sk_forward_alloc -= frag_truesize;
 
 	/* if the tail skb extension is still the cached one, collapsing
 	 * really happened. Note: we can't check for 'same skb' as the sk_buff
@@ -933,6 +957,8 @@ static int mptcp_init_sock(struct sock *sk)
 	if (ret)
 		return ret;
 
+	sk_sockets_allocated_inc(sk);
+
 	if (!mptcp_is_enabled(sock_net(sk)))
 		return -ENOPROTOOPT;
 
@@ -947,7 +973,7 @@ static void __mptcp_clear_xmit(struct sock *sk)
 	sk_stop_timer(sk, &msk->sk.icsk_retransmit_timer);
 
 	list_for_each_entry_safe(dfrag, dtmp, &msk->rtx_queue, list)
-		dfrag_clear(dfrag);
+		dfrag_clear(sk, dfrag);
 }
 
 static void mptcp_cancel_work(struct sock *sk)
@@ -1182,6 +1208,8 @@ static void mptcp_destroy(struct sock *sk)
 
 	if (msk->cached_ext)
 		__skb_ext_put(msk->cached_ext);
+
+	sk_sockets_allocated_dec(sk);
 }
 
 static int mptcp_setsockopt(struct sock *sk, int level, int optname,
@@ -1391,7 +1419,12 @@ static struct proto mptcp_prot = {
 	.hash		= inet_hash,
 	.unhash		= inet_unhash,
 	.get_port	= mptcp_get_port,
+	.sockets_allocated	= &mptcp_sockets_allocated,
+	.memory_allocated	= &tcp_memory_allocated,
+	.memory_pressure	= &tcp_memory_pressure,
 	.stream_memory_free	= mptcp_memory_free,
+	.sysctl_wmem_offset	= offsetof(struct net, ipv4.sysctl_tcp_wmem),
+	.sysctl_mem	= sysctl_tcp_mem,
 	.obj_size	= sizeof(struct mptcp_sock),
 	.no_autobind	= true,
 };
@@ -1679,6 +1712,9 @@ static struct inet_protosw mptcp_protosw = {
 void mptcp_proto_init(void)
 {
 	mptcp_prot.h.hashinfo = tcp_prot.h.hashinfo;
+
+	if (percpu_counter_init(&mptcp_sockets_allocated, 0, GFP_KERNEL))
+		panic("Failed to allocate MPTCP pcpu counter\n");
 
 	mptcp_subflow_init();
 	mptcp_pm_init();
