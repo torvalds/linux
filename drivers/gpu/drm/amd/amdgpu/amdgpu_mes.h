@@ -159,6 +159,14 @@ struct amdgpu_mes_queue {
 	struct amdgpu_ring 		*ring;
 };
 
+struct amdgpu_mes_gang_properties {
+	uint32_t 	priority;
+	uint32_t 	gang_quantum;
+	uint32_t 	inprocess_gang_priority;
+	uint32_t 	priority_level;
+	int 		global_priority_level;
+};
+
 struct mes_add_queue_input {
 	uint32_t	process_id;
 	uint64_t	page_table_base_addr;
@@ -217,5 +225,9 @@ void amdgpu_mes_fini(struct amdgpu_device *adev);
 int amdgpu_mes_create_process(struct amdgpu_device *adev, int pasid,
 			      struct amdgpu_vm *vm);
 void amdgpu_mes_destroy_process(struct amdgpu_device *adev, int pasid);
+
+int amdgpu_mes_add_gang(struct amdgpu_device *adev, int pasid,
+			struct amdgpu_mes_gang_properties *gprops,
+			int *gang_id);
 
 #endif /* __AMDGPU_MES_H__ */

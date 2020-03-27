@@ -349,3 +349,70 @@ void amdgpu_mes_destroy_process(struct amdgpu_device *adev, int pasid)
 
 	mutex_unlock(&adev->mes.mutex);
 }
+
+int amdgpu_mes_add_gang(struct amdgpu_device *adev, int pasid,
+			struct amdgpu_mes_gang_properties *gprops,
+			int *gang_id)
+{
+	struct amdgpu_mes_process *process;
+	struct amdgpu_mes_gang *gang;
+	int r;
+
+	mutex_lock(&adev->mes.mutex);
+
+	process = idr_find(&adev->mes.pasid_idr, pasid);
+	if (!process) {
+		DRM_ERROR("pasid %d doesn't exist\n", pasid);
+		mutex_unlock(&adev->mes.mutex);
+		return -EINVAL;
+	}
+
+	/* allocate the mes gang buffer */
+	gang = kzalloc(sizeof(struct amdgpu_mes_gang), GFP_KERNEL);
+	if (!gang) {
+		mutex_unlock(&adev->mes.mutex);
+		return -ENOMEM;
+	}
+
+	/* add the mes gang to idr list */
+	r = idr_alloc(&adev->mes.gang_id_idr, gang, 1, 0,
+		      GFP_KERNEL);
+	if (r < 0) {
+		kfree(gang);
+		mutex_unlock(&adev->mes.mutex);
+		return r;
+	}
+
+	gang->gang_id = r;
+	*gang_id = r;
+
+	/* allocate the gang context bo and map it to cpu space */
+	r = amdgpu_bo_create_kernel(adev, AMDGPU_MES_GANG_CTX_SIZE, PAGE_SIZE,
+				    AMDGPU_GEM_DOMAIN_GTT,
+				    &gang->gang_ctx_bo,
+				    &gang->gang_ctx_gpu_addr,
+				    &gang->gang_ctx_cpu_ptr);
+	if (r) {
+		DRM_ERROR("failed to allocate process context bo\n");
+		goto clean_up;
+	}
+	memset(gang->gang_ctx_cpu_ptr, 0, AMDGPU_MES_GANG_CTX_SIZE);
+
+	INIT_LIST_HEAD(&gang->queue_list);
+	gang->process = process;
+	gang->priority = gprops->priority;
+	gang->gang_quantum = gprops->gang_quantum ?
+		gprops->gang_quantum : adev->mes.default_gang_quantum;
+	gang->global_priority_level = gprops->global_priority_level;
+	gang->inprocess_gang_priority = gprops->inprocess_gang_priority;
+	list_add_tail(&gang->list, &process->gang_list);
+
+	mutex_unlock(&adev->mes.mutex);
+	return 0;
+
+clean_up:
+	idr_remove(&adev->mes.gang_id_idr, gang->gang_id);
+	kfree(gang);
+	mutex_unlock(&adev->mes.mutex);
+	return r;
+}
