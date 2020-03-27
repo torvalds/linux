@@ -175,9 +175,10 @@ int ethnl_set_privflags(struct sk_buff *skb, struct genl_info *info)
 		return ret;
 	dev = req_info.dev;
 	ops = dev->ethtool_ops;
+	ret = -EOPNOTSUPP;
 	if (!ops->get_priv_flags || !ops->set_priv_flags ||
 	    !ops->get_sset_count || !ops->get_strings)
-		return -EOPNOTSUPP;
+		goto out_dev;
 
 	rtnl_lock();
 	ret = ethnl_ops_begin(dev);
@@ -204,6 +205,7 @@ out_ops:
 	ethnl_ops_complete(dev);
 out_rtnl:
 	rtnl_unlock();
+out_dev:
 	dev_put(dev);
 	return ret;
 }
