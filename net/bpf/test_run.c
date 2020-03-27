@@ -114,6 +114,9 @@ out:
  * architecture dependent calling conventions. 7+ can be supported in the
  * future.
  */
+__diag_push();
+__diag_ignore(GCC, 8, "-Wmissing-prototypes",
+	      "Global functions as their definitions will be in vmlinux BTF");
 int noinline bpf_fentry_test1(int a)
 {
 	return a + 1;
@@ -149,6 +152,7 @@ int noinline bpf_modify_return_test(int a, int *b)
 	*b += 1;
 	return a + *b;
 }
+__diag_pop();
 
 ALLOW_ERROR_INJECTION(bpf_modify_return_test, ERRNO);
 
