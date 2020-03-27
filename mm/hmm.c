@@ -38,6 +38,18 @@ enum {
 	HMM_NEED_ALL_BITS = HMM_NEED_FAULT | HMM_NEED_WRITE_FAULT,
 };
 
+/*
+ * hmm_device_entry_from_pfn() - create a valid device entry value from pfn
+ * @range: range use to encode HMM pfn value
+ * @pfn: pfn value for which to create the device entry
+ * Return: valid device entry for the pfn
+ */
+static uint64_t hmm_device_entry_from_pfn(const struct hmm_range *range,
+					  unsigned long pfn)
+{
+	return (pfn << range->pfn_shift) | range->flags[HMM_PFN_VALID];
+}
+
 static int hmm_pfns_fill(unsigned long addr, unsigned long end,
 		struct hmm_range *range, enum hmm_pfn_value_e value)
 {
@@ -544,7 +556,7 @@ static const struct mm_walk_ops hmm_walk_ops = {
 
 /**
  * hmm_range_fault - try to fault some address in a virtual address range
- * @range:	range being faulted
+ * @range:	argument structure
  * @flags:	HMM_FAULT_* flags
  *
  * Return: the number of valid pages in range->pfns[] (from range start
@@ -558,13 +570,11 @@ static const struct mm_walk_ops hmm_walk_ops = {
  *		only).
  * -EBUSY:	The range has been invalidated and the caller needs to wait for
  *		the invalidation to finish.
- * -EFAULT:	Invalid (i.e., either no valid vma or it is illegal to access
- *		that range) number of valid pages in range->pfns[] (from
- *              range start address).
+ * -EFAULT:     A page was requested to be valid and could not be made valid
+ *              ie it has no backing VMA or it is illegal to access
  *
- * This is similar to a regular CPU page fault except that it will not trigger
- * any memory migration if the memory being faulted is not accessible by CPUs
- * and caller does not ask for migration.
+ * This is similar to get_user_pages(), except that it can read the page tables
+ * without mutating them (ie causing faults).
  *
  * On error, for one virtual address in the range, the function will mark the
  * corresponding HMM pfn entry with an error flag.
