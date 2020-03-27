@@ -990,3 +990,100 @@ static int amdgpu_mes_test_queues(struct amdgpu_ring **added_rings)
 
 	return 0;
 }
+
+int amdgpu_mes_self_test(struct amdgpu_device *adev)
+{
+	struct amdgpu_vm *vm = NULL;
+	struct amdgpu_mes_ctx_data ctx_data = {0};
+	struct amdgpu_ring *added_rings[AMDGPU_MES_CTX_MAX_RINGS] = { NULL };
+	int gang_ids[3] = {0};
+	int queue_types[][2] = { { AMDGPU_RING_TYPE_GFX,
+				   AMDGPU_MES_CTX_MAX_GFX_RINGS},
+				 { AMDGPU_RING_TYPE_COMPUTE,
+				   AMDGPU_MES_CTX_MAX_COMPUTE_RINGS},
+				 { AMDGPU_RING_TYPE_SDMA,
+				   AMDGPU_MES_CTX_MAX_SDMA_RINGS } };
+	int i, r, pasid, k = 0;
+
+	pasid = amdgpu_pasid_alloc(16);
+	if (pasid < 0) {
+		dev_warn(adev->dev, "No more PASIDs available!");
+		pasid = 0;
+	}
+
+	vm = kzalloc(sizeof(*vm), GFP_KERNEL);
+	if (!vm) {
+		r = -ENOMEM;
+		goto error_pasid;
+	}
+
+	r = amdgpu_vm_init(adev, vm);
+	if (r) {
+		DRM_ERROR("failed to initialize vm\n");
+		goto error_pasid;
+	}
+
+	r = amdgpu_mes_ctx_alloc_meta_data(adev, &ctx_data);
+	if (r) {
+		DRM_ERROR("failed to alloc ctx meta data\n");
+		goto error_pasid;
+	}
+
+	r = amdgpu_mes_test_map_ctx_meta_data(adev, vm, &ctx_data);
+	if (r) {
+		DRM_ERROR("failed to map ctx meta data\n");
+		goto error_vm;
+	}
+
+	r = amdgpu_mes_create_process(adev, pasid, vm);
+	if (r) {
+		DRM_ERROR("failed to create MES process\n");
+		goto error_vm;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(queue_types); i++) {
+		r = amdgpu_mes_test_create_gang_and_queues(adev, pasid,
+							   &gang_ids[i],
+							   queue_types[i][0],
+							   queue_types[i][1],
+							   &added_rings[k],
+							   &ctx_data);
+		if (r)
+			goto error_queues;
+
+		k += queue_types[i][1];
+	}
+
+	/* start ring test and ib test for MES queues */
+	amdgpu_mes_test_queues(added_rings);
+
+error_queues:
+	/* remove all queues */
+	for (i = 0; i < ARRAY_SIZE(added_rings); i++) {
+		if (!added_rings[i])
+			continue;
+		amdgpu_mes_remove_ring(adev, added_rings[i]);
+	}
+
+	for (i = 0; i < ARRAY_SIZE(gang_ids); i++) {
+		if (!gang_ids[i])
+			continue;
+		amdgpu_mes_remove_gang(adev, gang_ids[i]);
+	}
+
+	amdgpu_mes_destroy_process(adev, pasid);
+
+error_vm:
+	BUG_ON(amdgpu_bo_reserve(ctx_data.meta_data_obj, true));
+	amdgpu_vm_bo_rmv(adev, ctx_data.meta_data_va);
+	amdgpu_bo_unreserve(ctx_data.meta_data_obj);
+	amdgpu_vm_fini(adev, vm);
+
+error_pasid:
+	if (pasid)
+		amdgpu_pasid_free(pasid);
+
+	amdgpu_mes_ctx_free_meta_data(&ctx_data);
+	kfree(vm);
+	return 0;
+}
