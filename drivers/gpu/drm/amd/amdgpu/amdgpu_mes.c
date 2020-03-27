@@ -919,3 +919,42 @@ error:
 	amdgpu_bo_unreserve(ctx_data->meta_data_obj);
 	return r;
 }
+
+static int amdgpu_mes_test_create_gang_and_queues(struct amdgpu_device *adev,
+					  int pasid, int *gang_id,
+					  int queue_type, int num_queue,
+					  struct amdgpu_ring **added_rings,
+					  struct amdgpu_mes_ctx_data *ctx_data)
+{
+	struct amdgpu_ring *ring;
+	struct amdgpu_mes_gang_properties gprops = {0};
+	int r, j;
+
+	/* create a gang for the process */
+	gprops.priority = AMDGPU_MES_PRIORITY_LEVEL_NORMAL;
+	gprops.gang_quantum = adev->mes.default_gang_quantum;
+	gprops.inprocess_gang_priority = AMDGPU_MES_PRIORITY_LEVEL_NORMAL;
+	gprops.priority_level = AMDGPU_MES_PRIORITY_LEVEL_NORMAL;
+	gprops.global_priority_level = AMDGPU_MES_PRIORITY_LEVEL_NORMAL;
+
+	r = amdgpu_mes_add_gang(adev, pasid, &gprops, gang_id);
+	if (r) {
+		DRM_ERROR("failed to add gang\n");
+		return r;
+	}
+
+	/* create queues for the gang */
+	for (j = 0; j < num_queue; j++) {
+		r = amdgpu_mes_add_ring(adev, *gang_id, queue_type, j,
+					ctx_data, &ring);
+		if (r) {
+			DRM_ERROR("failed to add ring\n");
+			break;
+		}
+
+		DRM_INFO("ring %s was added\n", ring->name);
+		added_rings[j] = ring;
+	}
+
+	return 0;
+}
