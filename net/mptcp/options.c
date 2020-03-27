@@ -96,6 +96,38 @@ void mptcp_parse_option(const struct sk_buff *skb, const unsigned char *ptr,
 			 mp_opt->rcvr_key, mp_opt->data_len);
 		break;
 
+	case MPTCPOPT_MP_JOIN:
+		mp_opt->mp_join = 1;
+		if (opsize == TCPOLEN_MPTCP_MPJ_SYN) {
+			mp_opt->backup = *ptr++ & MPTCPOPT_BACKUP;
+			mp_opt->join_id = *ptr++;
+			mp_opt->token = get_unaligned_be32(ptr);
+			ptr += 4;
+			mp_opt->nonce = get_unaligned_be32(ptr);
+			ptr += 4;
+			pr_debug("MP_JOIN bkup=%u, id=%u, token=%u, nonce=%u",
+				 mp_opt->backup, mp_opt->join_id,
+				 mp_opt->token, mp_opt->nonce);
+		} else if (opsize == TCPOLEN_MPTCP_MPJ_SYNACK) {
+			mp_opt->backup = *ptr++ & MPTCPOPT_BACKUP;
+			mp_opt->join_id = *ptr++;
+			mp_opt->thmac = get_unaligned_be64(ptr);
+			ptr += 8;
+			mp_opt->nonce = get_unaligned_be32(ptr);
+			ptr += 4;
+			pr_debug("MP_JOIN bkup=%u, id=%u, thmac=%llu, nonce=%u",
+				 mp_opt->backup, mp_opt->join_id,
+				 mp_opt->thmac, mp_opt->nonce);
+		} else if (opsize == TCPOLEN_MPTCP_MPJ_ACK) {
+			ptr += 2;
+			memcpy(mp_opt->hmac, ptr, MPTCPOPT_HMAC_LEN);
+			pr_debug("MP_JOIN hmac");
+		} else {
+			pr_warn("MP_JOIN bad option size");
+			mp_opt->mp_join = 0;
+		}
+		break;
+
 	case MPTCPOPT_DSS:
 		pr_debug("DSS");
 		ptr++;
@@ -572,37 +604,80 @@ bool mptcp_synack_options(const struct request_sock *req, unsigned int *size,
 		pr_debug("subflow_req=%p, local_key=%llu",
 			 subflow_req, subflow_req->local_key);
 		return true;
+	} else if (subflow_req->mp_join) {
+		opts->suboptions = OPTION_MPTCP_MPJ_SYNACK;
+		opts->backup = subflow_req->backup;
+		opts->join_id = subflow_req->local_id;
+		opts->thmac = subflow_req->thmac;
+		opts->nonce = subflow_req->local_nonce;
+		pr_debug("req=%p, bkup=%u, id=%u, thmac=%llu, nonce=%u",
+			 subflow_req, opts->backup, opts->join_id,
+			 opts->thmac, opts->nonce);
+		*size = TCPOLEN_MPTCP_MPJ_SYNACK;
+		return true;
 	}
 	return false;
 }
 
-static bool check_fully_established(struct mptcp_subflow_context *subflow,
+static bool check_fully_established(struct mptcp_sock *msk, struct sock *sk,
+				    struct mptcp_subflow_context *subflow,
 				    struct sk_buff *skb,
 				    struct mptcp_options_received *mp_opt)
 {
 	/* here we can process OoO, in-window pkts, only in-sequence 4th ack
-	 * are relevant
+	 * will make the subflow fully established
 	 */
-	if (likely(subflow->fully_established ||
-		   TCP_SKB_CB(skb)->seq != subflow->ssn_offset + 1))
-		return true;
+	if (likely(subflow->fully_established)) {
+		/* on passive sockets, check for 3rd ack retransmission
+		 * note that msk is always set by subflow_syn_recv_sock()
+		 * for mp_join subflows
+		 */
+		if (TCP_SKB_CB(skb)->seq == subflow->ssn_offset + 1 &&
+		    TCP_SKB_CB(skb)->end_seq == TCP_SKB_CB(skb)->seq &&
+		    subflow->mp_join && mp_opt->mp_join &&
+		    READ_ONCE(msk->pm.server_side))
+			tcp_send_ack(sk);
+		goto fully_established;
+	}
 
-	if (mp_opt->use_ack)
+	/* we should process OoO packets before the first subflow is fully
+	 * established, but not expected for MP_JOIN subflows
+	 */
+	if (TCP_SKB_CB(skb)->seq != subflow->ssn_offset + 1)
+		return subflow->mp_capable;
+
+	if (mp_opt->use_ack) {
+		/* subflows are fully established as soon as we get any
+		 * additional ack.
+		 */
 		subflow->fully_established = 1;
+		goto fully_established;
+	}
 
-	if (subflow->can_ack)
-		return true;
+	WARN_ON_ONCE(subflow->can_ack);
 
 	/* If the first established packet does not contain MP_CAPABLE + data
 	 * then fallback to TCP
 	 */
 	if (!mp_opt->mp_capable) {
 		subflow->mp_capable = 0;
-		tcp_sk(mptcp_subflow_tcp_sock(subflow))->is_mptcp = 0;
+		tcp_sk(sk)->is_mptcp = 0;
 		return false;
 	}
+
+	subflow->fully_established = 1;
 	subflow->remote_key = mp_opt->sndr_key;
 	subflow->can_ack = 1;
+
+fully_established:
+	if (likely(subflow->pm_notified))
+		return true;
+
+	subflow->pm_notified = 1;
+	if (subflow->mp_join)
+		mptcp_pm_subflow_established(msk, subflow);
+	else
+		mptcp_pm_fully_established(msk);
 	return true;
 }
 
@@ -641,7 +716,7 @@ void mptcp_incoming_options(struct sock *sk, struct sk_buff *skb,
 	struct mptcp_ext *mpext;
 
 	mp_opt = &opt_rx->mptcp;
-	if (!check_fully_established(subflow, skb, mp_opt))
+	if (!check_fully_established(msk, sk, subflow, skb, mp_opt))
 		return;
 
 	if (mp_opt->add_addr && add_addr_hmac_valid(msk, mp_opt)) {
@@ -700,8 +775,6 @@ void mptcp_incoming_options(struct sock *sk, struct sk_buff *skb,
 	}
 
 	mpext->data_fin = mp_opt->data_fin;
-
-	mptcp_pm_fully_established(msk);
 }
 
 void mptcp_write_options(__be32 *ptr, struct mptcp_out_options *opts)
@@ -785,6 +858,16 @@ mp_capable_done:
 		*ptr++ = mptcp_option(MPTCPOPT_RM_ADDR,
 				      TCPOLEN_MPTCP_RM_ADDR_BASE,
 				      0, opts->rm_id);
+	}
+
+	if (OPTION_MPTCP_MPJ_SYNACK & opts->suboptions) {
+		*ptr++ = mptcp_option(MPTCPOPT_MP_JOIN,
+				      TCPOLEN_MPTCP_MPJ_SYNACK,
+				      opts->backup, opts->join_id);
+		put_unaligned_be64(opts->thmac, ptr);
+		ptr += 2;
+		put_unaligned_be32(opts->nonce, ptr);
+		ptr += 1;
 	}
 
 	if (opts->ext_copy.use_ack || opts->ext_copy.use_map) {

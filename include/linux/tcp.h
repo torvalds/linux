@@ -92,7 +92,13 @@ struct mptcp_options_received {
 		add_addr : 1,
 		rm_addr : 1,
 		family : 4,
-		echo : 1;
+		echo : 1,
+		backup : 1;
+	u32	token;
+	u32	nonce;
+	u64	thmac;
+	u8	hmac[20];
+	u8	join_id;
 	u8	use_map:1,
 		dsn64:1,
 		data_fin:1,

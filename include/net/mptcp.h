@@ -42,6 +42,10 @@ struct mptcp_out_options {
 	u8 addr_id;
 	u64 ahmac;
 	u8 rm_id;
+	u8 join_id;
+	u8 backup;
+	u32 nonce;
+	u64 thmac;
 	struct mptcp_ext ext_copy;
 #endif
 };
@@ -115,6 +119,8 @@ static inline bool mptcp_skb_can_collapse(const struct sk_buff *to,
 				 skb_ext_find(from, SKB_EXT_MPTCP));
 }
 
+bool mptcp_sk_is_subflow(const struct sock *sk);
+
 #else
 
 static inline void mptcp_init(void)
@@ -179,6 +185,11 @@ static inline bool mptcp_skb_can_collapse(const struct sk_buff *to,
 					  const struct sk_buff *from)
 {
 	return true;
+}
+
+static inline bool mptcp_sk_is_subflow(const struct sock *sk)
+{
+	return false;
 }
 
 #endif /* CONFIG_MPTCP */
