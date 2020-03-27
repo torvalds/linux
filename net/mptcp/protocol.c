@@ -338,6 +338,7 @@ static bool mptcp_frag_can_collapse_to(const struct mptcp_sock *msk,
 static void dfrag_uncharge(struct sock *sk, int len)
 {
 	sk_mem_uncharge(sk, len);
+	sk_wmem_queued_add(sk, -len);
 }
 
 static void dfrag_clear(struct sock *sk, struct mptcp_data_frag *dfrag)
@@ -364,8 +365,23 @@ static void mptcp_clean_una(struct sock *sk)
 		cleaned = true;
 	}
 
+	dfrag = mptcp_rtx_head(sk);
+	if (dfrag && after64(snd_una, dfrag->data_seq)) {
+		u64 delta = dfrag->data_seq + dfrag->data_len - snd_una;
+
+		dfrag->data_seq += delta;
+		dfrag->data_len -= delta;
+
+		dfrag_uncharge(sk, delta);
+		cleaned = true;
+	}
+
 	if (cleaned) {
 		sk_mem_reclaim_partial(sk);
+
+		/* Only wake up writers if a subflow is ready */
+		if (test_bit(MPTCP_SEND_SPACE, &msk->flags))
+			sk_stream_write_space(sk);
 	}
 }
 
