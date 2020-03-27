@@ -176,7 +176,7 @@ out_unlock:
 
 int mptcp_pm_get_local_id(struct mptcp_sock *msk, struct sock_common *skc)
 {
-	return 0;
+	return mptcp_pm_nl_get_local_id(msk, skc);
 }
 
 static void pm_worker(struct work_struct *work)
@@ -192,12 +192,15 @@ static void pm_worker(struct work_struct *work)
 	pr_debug("msk=%p status=%x", msk, pm->status);
 	if (pm->status & BIT(MPTCP_PM_ADD_ADDR_RECEIVED)) {
 		pm->status &= ~BIT(MPTCP_PM_ADD_ADDR_RECEIVED);
+		mptcp_pm_nl_add_addr_received(msk);
 	}
 	if (pm->status & BIT(MPTCP_PM_ESTABLISHED)) {
 		pm->status &= ~BIT(MPTCP_PM_ESTABLISHED);
+		mptcp_pm_nl_fully_established(msk);
 	}
 	if (pm->status & BIT(MPTCP_PM_SUBFLOW_ESTABLISHED)) {
 		pm->status &= ~BIT(MPTCP_PM_SUBFLOW_ESTABLISHED);
+		mptcp_pm_nl_subflow_established(msk);
 	}
 
 	spin_unlock_bh(&msk->pm.lock);
@@ -219,6 +222,8 @@ void mptcp_pm_data_init(struct mptcp_sock *msk)
 
 	spin_lock_init(&msk->pm.lock);
 	INIT_WORK(&msk->pm.work, pm_worker);
+
+	mptcp_pm_nl_data_init(msk);
 }
 
 void mptcp_pm_close(struct mptcp_sock *msk)
@@ -232,4 +237,6 @@ void mptcp_pm_init(void)
 	pm_wq = alloc_workqueue("pm_wq", WQ_UNBOUND | WQ_MEM_RECLAIM, 8);
 	if (!pm_wq)
 		panic("Failed to allocate workqueue");
+
+	mptcp_pm_nl_init();
 }
