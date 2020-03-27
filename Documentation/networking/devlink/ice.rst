@@ -90,8 +90,7 @@ Users can request an immediate capture of a snapshot via the
     0000000000000020 0016 0bb8 0016 1720 0000 0000 c00f 3ffc
     0000000000000030 bada cce5 bada cce5 bada cce5 bada cce5
 
-    $ devlink region read pci/0000:01:00.0/nvm-flash snapshot 1 address 0
-        length 16
+    $ devlink region read pci/0000:01:00.0/nvm-flash snapshot 1 address 0 length 16
     0000000000000000 0014 95dc 0014 9514 0035 1670 0034 db30
 
     $ devlink region delete pci/0000:01:00.0/nvm-flash snapshot 1

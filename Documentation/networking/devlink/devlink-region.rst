@@ -34,8 +34,7 @@ example usage
     $ devlink region show [ DEV/REGION ]
     $ devlink region del DEV/REGION snapshot SNAPSHOT_ID
     $ devlink region dump DEV/REGION [ snapshot SNAPSHOT_ID ]
-    $ devlink region read DEV/REGION [ snapshot SNAPSHOT_ID ]
-            address ADDRESS length length
+    $ devlink region read DEV/REGION [ snapshot SNAPSHOT_ID ] address ADDRESS length length
 
     # Show all of the exposed regions with region sizes:
     $ devlink region show
@@ -56,8 +55,7 @@ example usage
     0000000000000030 bada cce5 bada cce5 bada cce5 bada cce5
 
     # Read a specific part of a snapshot:
-    $ devlink region read pci/0000:00:05.0/fw-health snapshot 1 address 0
-            length 16
+    $ devlink region read pci/0000:00:05.0/fw-health snapshot 1 address 0 length 16
     0000000000000000 0014 95dc 0014 9514 0035 1670 0034 db30
 
 As regions are likely very device or driver specific, no generic regions are
