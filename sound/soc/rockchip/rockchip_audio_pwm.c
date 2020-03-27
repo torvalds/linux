@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/of_gpio.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <sound/dmaengine_pcm.h>
@@ -25,6 +26,7 @@ struct rk_audio_pwm_dev {
 	struct clk *hclk;
 	struct regmap *regmap;
 	struct snd_dmaengine_dai_dma_data playback_dma_data;
+	struct gpio_desc *spk_ctl_gpio;
 	int interpolat_points;
 	int sample_width_bits;
 };
@@ -34,12 +36,20 @@ static inline struct rk_audio_pwm_dev *to_info(struct snd_soc_dai *dai)
 	return snd_soc_dai_get_drvdata(dai);
 }
 
+static void rockchip_audio_spk_ctl(struct rk_audio_pwm_dev *apwm, int on)
+{
+	if (apwm->spk_ctl_gpio)
+		gpiod_direction_output(apwm->spk_ctl_gpio, on);
+}
+
 static void rockchip_audio_pwm_xfer(struct rk_audio_pwm_dev *apwm, int on)
 {
 	if (on) {
 		regmap_write(apwm->regmap, AUDPWM_FIFO_CFG, AUDPWM_DMA_EN);
 		regmap_write(apwm->regmap, AUDPWM_XFER, AUDPWM_XFER_START);
+		rockchip_audio_spk_ctl(apwm, on);
 	} else {
+		rockchip_audio_spk_ctl(apwm, on);
 		regmap_write(apwm->regmap, AUDPWM_FIFO_CFG, AUDPWM_DMA_DIS);
 		regmap_write(apwm->regmap, AUDPWM_XFER, AUDPWM_XFER_STOP);
 	}
@@ -294,6 +304,17 @@ static int rockchip_audio_pwm_probe(struct platform_device *pdev)
 
 	of_property_read_u32(np, "rockchip,interpolat-points",
 			     &apwm->interpolat_points);
+
+	apwm->spk_ctl_gpio = devm_gpiod_get_optional(&pdev->dev, "spk-ctl",
+						     GPIOD_OUT_LOW);
+
+	if (!apwm->spk_ctl_gpio) {
+		dev_info(&pdev->dev, "no need spk-ctl gpio\n");
+	} else if (IS_ERR(apwm->spk_ctl_gpio)) {
+		ret = PTR_ERR(apwm->spk_ctl_gpio);
+		dev_err(&pdev->dev, "fail to request gpio spk-ctl\n");
+		goto err_suspend;
+	}
 
 	ret = devm_snd_soc_register_component(&pdev->dev,
 					      &rockchip_audio_pwm_component,
