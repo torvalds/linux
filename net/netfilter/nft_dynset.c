@@ -187,6 +187,11 @@ static int nft_dynset_init(const struct nft_ctx *ctx,
 						     tb[NFTA_DYNSET_EXPR]);
 		if (IS_ERR(priv->expr))
 			return PTR_ERR(priv->expr);
+
+		if (set->expr && set->expr->ops != priv->expr->ops) {
+			err = -EOPNOTSUPP;
+			goto err_expr_free;
+		}
 	}
 
 	nft_set_ext_prepare(&priv->tmpl);
@@ -205,7 +210,7 @@ static int nft_dynset_init(const struct nft_ctx *ctx,
 
 	err = nf_tables_bind_set(ctx, set, &priv->binding);
 	if (err < 0)
-		goto err1;
+		goto err_expr_free;
 
 	if (set->size == 0)
 		set->size = 0xffff;
@@ -213,7 +218,7 @@ static int nft_dynset_init(const struct nft_ctx *ctx,
 	priv->set = set;
 	return 0;
 
-err1:
+err_expr_free:
 	if (priv->expr != NULL)
 		nft_expr_destroy(ctx, priv->expr);
 	return err;
