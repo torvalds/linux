@@ -2,7 +2,7 @@
 # Copyright 2020 Analog Devices Inc.
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/bindings/iio/dac/adi,ad5770r.yaml#
+$id: http://devicetree.org/schemas/iio/dac/adi,ad5770r.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Analog Devices AD5770R DAC device driver
