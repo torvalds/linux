@@ -1148,6 +1148,8 @@ void mptcp_subflow_init(void)
 	subflow_v6m_specific.net_frag_header_len = 0;
 #endif
 
+	mptcp_diag_subflow_init(&subflow_ulp_ops);
+
 	if (tcp_register_ulp(&subflow_ulp_ops) != 0)
 		panic("MPTCP: failed to register subflows to ULP\n");
 }
