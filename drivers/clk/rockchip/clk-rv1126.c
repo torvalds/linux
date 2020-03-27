@@ -188,7 +188,7 @@ PNAME(mux_rgmii_clk_p)			= { "clk_gmac_tx_src", "clk_gmac_tx_src", "clk_gmac_tx_
 PNAME(mux_rmii_clk_p)			= { "clk_gmac_rx_div2", "clk_gmac_rx_div20" };
 PNAME(mux_gmac_tx_rx_p)			= { "rgmii_mode_clk", "rmii_mode_clk" };
 PNAME(mux_dpll_gpll_p)			= { "dpll", "gpll" };
-PNAME(mux_gpll_cpll_apll_hpll_p)	= { "gpll", "cpll", "apll", "hpll" };
+PNAME(mux_gpll_cpll_apll_hpll_p)	= { "gpll", "cpll", "dummy_apll", "hpll" };
 PNAME(mux_aclk_pdnpu_p)			= { "aclk_pdnpu_div", "aclk_pdnpu_np5" };
 PNAME(mux_clk_npu_p)			= { "clk_npu_div", "clk_npu_np5" };
 
