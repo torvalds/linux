@@ -131,3 +131,75 @@ static int amdgpu_mes_doorbell_init(struct amdgpu_device *adev)
 	DRM_INFO("max_doorbell_slices=%ld\n", doorbell_process_limit);
 	return 0;
 }
+
+int amdgpu_mes_init(struct amdgpu_device *adev)
+{
+	int i, r;
+
+	adev->mes.adev = adev;
+
+	idr_init(&adev->mes.pasid_idr);
+	idr_init(&adev->mes.gang_id_idr);
+	idr_init(&adev->mes.queue_id_idr);
+	ida_init(&adev->mes.doorbell_ida);
+	spin_lock_init(&adev->mes.queue_id_lock);
+	mutex_init(&adev->mes.mutex);
+
+	adev->mes.total_max_queue = AMDGPU_FENCE_MES_QUEUE_ID_MASK;
+	adev->mes.vmid_mask_mmhub = 0xffffff00;
+	adev->mes.vmid_mask_gfxhub = 0xffffff00;
+
+	for (i = 0; i < AMDGPU_MES_MAX_COMPUTE_PIPES; i++) {
+		/* use only 1st MEC pipes */
+		if (i >= 4)
+			continue;
+		adev->mes.compute_hqd_mask[i] = 0xc;
+	}
+
+	for (i = 0; i < AMDGPU_MES_MAX_GFX_PIPES; i++)
+		adev->mes.gfx_hqd_mask[i] = i ? 0 : 0xfffffffe;
+
+	for (i = 0; i < AMDGPU_MES_MAX_SDMA_PIPES; i++)
+		adev->mes.sdma_hqd_mask[i] = i ? 0 : 0x3fc;
+
+	for (i = 0; i < AMDGPU_MES_PRIORITY_NUM_LEVELS; i++)
+		adev->mes.agreegated_doorbells[i] = 0xffffffff;
+
+	r = amdgpu_device_wb_get(adev, &adev->mes.sch_ctx_offs);
+	if (r) {
+		dev_err(adev->dev,
+			"(%d) ring trail_fence_offs wb alloc failed\n", r);
+		goto error_ids;
+	}
+	adev->mes.sch_ctx_gpu_addr =
+		adev->wb.gpu_addr + (adev->mes.sch_ctx_offs * 4);
+	adev->mes.sch_ctx_ptr =
+		(uint64_t *)&adev->wb.wb[adev->mes.sch_ctx_offs];
+
+	r = amdgpu_mes_doorbell_init(adev);
+	if (r)
+		goto error;
+
+	return 0;
+
+error:
+	amdgpu_device_wb_free(adev, adev->mes.sch_ctx_offs);
+error_ids:
+	idr_destroy(&adev->mes.pasid_idr);
+	idr_destroy(&adev->mes.gang_id_idr);
+	idr_destroy(&adev->mes.queue_id_idr);
+	ida_destroy(&adev->mes.doorbell_ida);
+	mutex_destroy(&adev->mes.mutex);
+	return r;
+}
+
+void amdgpu_mes_fini(struct amdgpu_device *adev)
+{
+	amdgpu_device_wb_free(adev, adev->mes.sch_ctx_offs);
+
+	idr_destroy(&adev->mes.pasid_idr);
+	idr_destroy(&adev->mes.gang_id_idr);
+	idr_destroy(&adev->mes.queue_id_idr);
+	ida_destroy(&adev->mes.doorbell_ida);
+	mutex_destroy(&adev->mes.mutex);
+}
