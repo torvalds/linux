@@ -1698,7 +1698,7 @@
 		clocks = <&cru ACLK_NPU>, <&cru HCLK_NPU>, <&cru PCLK_PDNPU>, <&cru CLK_CORE_NPU>;
 		clock-names = "aclk_npu", "hclk_npu", "pclk_pdnpu", "sclk_npu";
 		assigned-clocks = <&cru CLK_CORE_NPU>;
-		assigned-clock-rates = <400000000>;
+		assigned-clock-rates = <396000000>;
 		operating-points-v2 = <&npu_opp_table>;
 		interrupts = <GIC_SPI 107 IRQ_TYPE_LEVEL_HIGH>;
 		power-domains = <&power RV1126_PD_NPU>;
@@ -1708,13 +1708,33 @@
 	npu_opp_table: npu-opp-table {
 		compatible = "operating-points-v2";
 
-		opp-400000000 {
-			opp-hz = /bits/ 64 <400000000>;
-			opp-microvolt = <800000 800000 1000000>;
+		opp-200000000 {
+			opp-hz = /bits/ 64 <200000000>;
+			opp-microvolt = <725000 725000 1000000>;
+		};
+		opp-300000000 {
+			opp-hz = /bits/ 64 <300000000>;
+			opp-microvolt = <725000 725000 1000000>;
+		};
+		opp-396000000 {
+			opp-hz = /bits/ 64 <396000000>;
+			opp-microvolt = <725000 725000 1000000>;
+		};
+		opp-500000000 {
+			opp-hz = /bits/ 64 <500000000>;
+			opp-microvolt = <725000 725000 1000000>;
 		};
 		opp-600000000 {
 			opp-hz = /bits/ 64 <600000000>;
-			opp-microvolt = <800000 800000 1000000>;
+			opp-microvolt = <725000 725000 1000000>;
+		};
+		opp-700000000 {
+			opp-hz = /bits/ 64 <700000000>;
+			opp-microvolt = <775000 775000 1000000>;
+		};
+		opp-800000000 {
+			opp-hz = /bits/ 64 <800000000>;
+			opp-microvolt = <825000 825000 1000000>;
 		};
 	};
 
