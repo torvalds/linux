@@ -188,13 +188,14 @@ void gfs2_ail1_flush(struct gfs2_sbd *sdp, struct writeback_control *wbc)
 	struct list_head *head = &sdp->sd_ail1_list;
 	struct gfs2_trans *tr;
 	struct blk_plug plug;
-	int ret = 0;
+	int ret;
 	unsigned long flush_start = jiffies;
 
 	trace_gfs2_ail_flush(sdp, wbc, 1);
 	blk_start_plug(&plug);
 	spin_lock(&sdp->sd_ail_lock);
 restart:
+	ret = 0;
 	if (time_after(jiffies, flush_start + (HZ * 600))) {
 		dump_ail_list(sdp);
 		goto out;
