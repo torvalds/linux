@@ -857,3 +857,28 @@ void amdgpu_mes_remove_ring(struct amdgpu_device *adev,
 	amdgpu_ring_fini(ring);
 	kfree(ring);
 }
+
+int amdgpu_mes_ctx_alloc_meta_data(struct amdgpu_device *adev,
+				   struct amdgpu_mes_ctx_data *ctx_data)
+{
+	int r;
+
+	r = amdgpu_bo_create_kernel(adev,
+			    sizeof(struct amdgpu_mes_ctx_meta_data),
+			    PAGE_SIZE, AMDGPU_GEM_DOMAIN_GTT,
+			    &ctx_data->meta_data_obj, NULL,
+			    &ctx_data->meta_data_ptr);
+	if (!ctx_data->meta_data_obj)
+		return -ENOMEM;
+
+	memset(ctx_data->meta_data_ptr, 0,
+	       sizeof(struct amdgpu_mes_ctx_meta_data));
+
+	return 0;
+}
+
+void amdgpu_mes_ctx_free_meta_data(struct amdgpu_mes_ctx_data *ctx_data)
+{
+	if (ctx_data->meta_data_obj)
+		amdgpu_bo_free_kernel(&ctx_data->meta_data_obj, NULL, NULL);
+}

@@ -262,4 +262,8 @@ int amdgpu_mes_add_ring(struct amdgpu_device *adev, int gang_id,
 void amdgpu_mes_remove_ring(struct amdgpu_device *adev,
 			    struct amdgpu_ring *ring);
 
+int amdgpu_mes_ctx_alloc_meta_data(struct amdgpu_device *adev,
+				   struct amdgpu_mes_ctx_data *ctx_data);
+void amdgpu_mes_ctx_free_meta_data(struct amdgpu_mes_ctx_data *ctx_data);
+
 #endif /* __AMDGPU_MES_H__ */
