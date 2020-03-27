@@ -232,5 +232,6 @@ int amdgpu_mes_add_gang(struct amdgpu_device *adev, int pasid,
 int amdgpu_mes_remove_gang(struct amdgpu_device *adev, int gang_id);
 
 int amdgpu_mes_suspend(struct amdgpu_device *adev);
+int amdgpu_mes_resume(struct amdgpu_device *adev);
 
 #endif /* __AMDGPU_MES_H__ */
