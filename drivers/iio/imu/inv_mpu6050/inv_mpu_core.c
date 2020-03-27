@@ -1248,12 +1248,31 @@ static const struct attribute_group inv_attribute_group = {
 	.attrs = inv_attributes
 };
 
+static int inv_mpu6050_reg_access(struct iio_dev *indio_dev,
+				  unsigned int reg,
+				  unsigned int writeval,
+				  unsigned int *readval)
+{
+	struct inv_mpu6050_state *st = iio_priv(indio_dev);
+	int ret;
+
+	mutex_lock(&st->lock);
+	if (readval)
+		ret = regmap_read(st->map, reg, readval);
+	else
+		ret = regmap_write(st->map, reg, writeval);
+	mutex_unlock(&st->lock);
+
+	return ret;
+}
+
 static const struct iio_info mpu_info = {
 	.read_raw = &inv_mpu6050_read_raw,
 	.write_raw = &inv_mpu6050_write_raw,
 	.write_raw_get_fmt = &inv_write_raw_get_fmt,
 	.attrs = &inv_attribute_group,
 	.validate_trigger = inv_mpu6050_validate_trigger,
+	.debugfs_reg_access = &inv_mpu6050_reg_access,
 };
 
 /**
