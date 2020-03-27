@@ -88,6 +88,17 @@ struct macsec_tx_sc_stats {
 	__u64 OutOctetsEncrypted;
 };
 
+struct macsec_dev_stats {
+	__u64 OutPktsUntagged;
+	__u64 InPktsUntagged;
+	__u64 OutPktsTooLong;
+	__u64 InPktsNoTag;
+	__u64 InPktsBadTag;
+	__u64 InPktsUnknownSCI;
+	__u64 InPktsNoSCI;
+	__u64 InPktsOverrun;
+};
+
 /**
  * struct macsec_rx_sa - receive secure association
  * @active:
@@ -220,7 +231,10 @@ struct macsec_secy {
  * struct macsec_context - MACsec context for hardware offloading
  */
 struct macsec_context {
-	struct phy_device *phydev;
+	union {
+		struct net_device *netdev;
+		struct phy_device *phydev;
+	};
 	enum macsec_offload offload;
 
 	struct macsec_secy *secy;
@@ -233,6 +247,13 @@ struct macsec_context {
 			struct macsec_tx_sa *tx_sa;
 		};
 	} sa;
+	union {
+		struct macsec_tx_sc_stats *tx_sc_stats;
+		struct macsec_tx_sa_stats *tx_sa_stats;
+		struct macsec_rx_sc_stats *rx_sc_stats;
+		struct macsec_rx_sa_stats *rx_sa_stats;
+		struct macsec_dev_stats  *dev_stats;
+	} stats;
 
 	u8 prepare:1;
 };
@@ -259,6 +280,12 @@ struct macsec_ops {
 	int (*mdo_add_txsa)(struct macsec_context *ctx);
 	int (*mdo_upd_txsa)(struct macsec_context *ctx);
 	int (*mdo_del_txsa)(struct macsec_context *ctx);
+	/* Statistics */
+	int (*mdo_get_dev_stats)(struct macsec_context *ctx);
+	int (*mdo_get_tx_sc_stats)(struct macsec_context *ctx);
+	int (*mdo_get_tx_sa_stats)(struct macsec_context *ctx);
+	int (*mdo_get_rx_sc_stats)(struct macsec_context *ctx);
+	int (*mdo_get_rx_sa_stats)(struct macsec_context *ctx);
 };
 
 void macsec_pn_wrapped(struct macsec_secy *secy, struct macsec_tx_sa *tx_sa);
