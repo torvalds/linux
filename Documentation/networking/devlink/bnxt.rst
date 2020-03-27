@@ -66,15 +66,15 @@ The ``bnxt_en`` driver reports the following versions
    * - ``fw``
      - stored, running
      - Overall board firmware version
-   * - ``fw.app``
+   * - ``fw.mgmt``
      - stored, running
-     - Data path firmware version
+     - NIC hardware resource management firmware version
    * - ``fw.mgmt.api``
      - running
      - Minimum firmware interface spec version supported between driver and firmware
-   * - ``fw.mgmt``
+   * - ``fw.nsci``
      - stored, running
-     - Management firmware version
+     - General platform management firmware version
    * - ``fw.roce``
      - stored, running
      - RoCE management firmware version

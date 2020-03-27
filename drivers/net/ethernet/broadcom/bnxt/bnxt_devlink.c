@@ -479,7 +479,7 @@ static int bnxt_dl_info_get(struct devlink *dl, struct devlink_info_req *req,
 			 ver_resp->roce_fw_bld_8b, ver_resp->roce_fw_rsvd_8b);
 	}
 	rc = devlink_info_version_running_put(req,
-			DEVLINK_INFO_VERSION_GENERIC_FW_APP, fw_ver);
+			DEVLINK_INFO_VERSION_GENERIC_FW_MGMT, fw_ver);
 	if (rc)
 		return rc;
 
@@ -491,7 +491,7 @@ static int bnxt_dl_info_get(struct devlink *dl, struct devlink_info_req *req,
 
 	if (!(bp->flags & BNXT_FLAG_CHIP_P5)) {
 		rc = devlink_info_version_running_put(req,
-			DEVLINK_INFO_VERSION_GENERIC_FW_MGMT, mgmt_ver);
+			DEVLINK_INFO_VERSION_GENERIC_FW_NCSI, mgmt_ver);
 		if (rc)
 			return rc;
 
