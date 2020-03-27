@@ -24,6 +24,11 @@
 #ifndef __AMDGPU_MES_H__
 #define __AMDGPU_MES_H__
 
+#include "amdgpu_irq.h"
+#include "kgd_kfd_interface.h"
+#include "amdgpu_gfx.h"
+#include <linux/sched/mm.h>
+
 #define AMDGPU_MES_MAX_COMPUTE_PIPES        8
 #define AMDGPU_MES_MAX_GFX_PIPES            2
 #define AMDGPU_MES_MAX_SDMA_PIPES           2
@@ -37,10 +42,22 @@ enum amdgpu_mes_priority_level {
 	AMDGPU_MES_PRIORITY_NUM_LEVELS
 };
 
+#define AMDGPU_MES_PROC_CTX_SIZE 0x1000 /* one page area */
+#define AMDGPU_MES_GANG_CTX_SIZE 0x1000 /* one page area */
+
 struct amdgpu_mes_funcs;
 
 struct amdgpu_mes {
 	struct amdgpu_device            *adev;
+
+	struct mutex                    mutex;
+
+	struct idr                      pasid_idr;
+	struct idr                      gang_id_idr;
+	struct idr                      queue_id_idr;
+	struct ida                      doorbell_ida;
+
+	spinlock_t                      queue_id_lock;
 
 	uint32_t                        total_max_queue;
 	uint32_t                        doorbell_id_offset;
@@ -88,6 +105,48 @@ struct amdgpu_mes {
 
 	/* ip specific functions */
 	const struct amdgpu_mes_funcs   *funcs;
+};
+
+struct amdgpu_mes_process {
+	int			pasid;
+	struct			amdgpu_vm *vm;
+	uint64_t		pd_gpu_addr;
+	struct amdgpu_bo 	*proc_ctx_bo;
+	uint64_t 		proc_ctx_gpu_addr;
+	void 			*proc_ctx_cpu_ptr;
+	uint64_t 		process_quantum;
+	struct 			list_head gang_list;
+	uint32_t 		doorbell_index;
+	unsigned long 		*doorbell_bitmap;
+	struct mutex		doorbell_lock;
+};
+
+struct amdgpu_mes_gang {
+	int 				gang_id;
+	int 				priority;
+	int 				inprocess_gang_priority;
+	int 				global_priority_level;
+	struct list_head 		list;
+	struct amdgpu_mes_process 	*process;
+	struct amdgpu_bo 		*gang_ctx_bo;
+	uint64_t 			gang_ctx_gpu_addr;
+	void 				*gang_ctx_cpu_ptr;
+	uint64_t 			gang_quantum;
+	struct list_head 		queue_list;
+};
+
+struct amdgpu_mes_queue {
+	struct list_head 		list;
+	struct amdgpu_mes_gang 		*gang;
+	int 				queue_id;
+	uint64_t 			doorbell_off;
+	struct amdgpu_bo		*mqd_obj;
+	void				*mqd_cpu_ptr;
+	uint64_t 			mqd_gpu_addr;
+	uint64_t 			wptr_gpu_addr;
+	int 				queue_type;
+	int 				paging;
+	struct amdgpu_ring 		*ring;
 };
 
 struct mes_add_queue_input {
