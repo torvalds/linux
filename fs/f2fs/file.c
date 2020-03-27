@@ -1822,11 +1822,6 @@ static int f2fs_setflags_common(struct inode *inode, u32 iflags, u32 mask)
 		if (iflags & F2FS_NOCOMP_FL)
 			return -EINVAL;
 		if (iflags & F2FS_COMPR_FL) {
-			int err = f2fs_convert_inline_inode(inode);
-
-			if (err)
-				return err;
-
 			if (!f2fs_may_compress(inode))
 				return -EINVAL;
 
