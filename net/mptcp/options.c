@@ -744,6 +744,46 @@ fully_established:
 	return true;
 }
 
+static u64 expand_ack(u64 old_ack, u64 cur_ack, bool use_64bit)
+{
+	u32 old_ack32, cur_ack32;
+
+	if (use_64bit)
+		return cur_ack;
+
+	old_ack32 = (u32)old_ack;
+	cur_ack32 = (u32)cur_ack;
+	cur_ack = (old_ack & GENMASK_ULL(63, 32)) + cur_ack32;
+	if (unlikely(before(cur_ack32, old_ack32)))
+		return cur_ack + (1LL << 32);
+	return cur_ack;
+}
+
+static void update_una(struct mptcp_sock *msk,
+		       struct mptcp_options_received *mp_opt)
+{
+	u64 new_snd_una, snd_una, old_snd_una = atomic64_read(&msk->snd_una);
+	u64 write_seq = READ_ONCE(msk->write_seq);
+
+	/* avoid ack expansion on update conflict, to reduce the risk of
+	 * wrongly expanding to a future ack sequence number, which is way
+	 * more dangerous than missing an ack
+	 */
+	new_snd_una = expand_ack(old_snd_una, mp_opt->data_ack, mp_opt->ack64);
+
+	/* ACK for data not even sent yet? Ignore. */
+	if (after64(new_snd_una, write_seq))
+		new_snd_una = old_snd_una;
+
+	while (after64(new_snd_una, old_snd_una)) {
+		snd_una = old_snd_una;
+		old_snd_una = atomic64_cmpxchg(&msk->snd_una, snd_una,
+					       new_snd_una);
+		if (old_snd_una == snd_una)
+			break;
+	}
+}
+
 static bool add_addr_hmac_valid(struct mptcp_sock *msk,
 				struct mptcp_options_received *mp_opt)
 {
@@ -805,6 +845,12 @@ void mptcp_incoming_options(struct sock *sk, struct sk_buff *skb,
 	if (!mp_opt->dss)
 		return;
 
+	/* we can't wait for recvmsg() to update the ack_seq, otherwise
+	 * monodirectional flows will stuck
+	 */
+	if (mp_opt->use_ack)
+		update_una(msk, mp_opt);
+
 	mpext = skb_ext_add(skb, SKB_EXT_MPTCP);
 	if (!mpext)
 		return;
@@ -829,12 +875,6 @@ void mptcp_incoming_options(struct sock *sk, struct sk_buff *skb,
 		}
 		mpext->data_len = mp_opt->data_len;
 		mpext->use_map = 1;
-	}
-
-	if (mp_opt->use_ack) {
-		mpext->data_ack = mp_opt->data_ack;
-		mpext->use_ack = 1;
-		mpext->ack64 = mp_opt->ack64;
 	}
 
 	mpext->data_fin = mp_opt->data_fin;

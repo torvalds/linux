@@ -147,6 +147,7 @@ struct mptcp_sock {
 	u64		remote_key;
 	u64		write_seq;
 	u64		ack_seq;
+	atomic64_t	snd_una;
 	u32		token;
 	unsigned long	flags;
 	bool		can_ack;
