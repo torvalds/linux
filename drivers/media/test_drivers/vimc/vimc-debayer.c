@@ -532,7 +532,7 @@ struct vimc_ent_device *vimc_deb_add(struct vimc_device *vimc,
 	/* Allocate the vdeb struct */
 	vdeb = kzalloc(sizeof(*vdeb), GFP_KERNEL);
 	if (!vdeb)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	/* Create controls: */
 	v4l2_ctrl_handler_init(&vdeb->hdl, 2);
@@ -577,5 +577,5 @@ err_free_hdl:
 err_free_vdeb:
 	kfree(vdeb);
 
-	return NULL;
+	return ERR_PTR(ret);
 }

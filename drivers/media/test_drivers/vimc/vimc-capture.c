@@ -395,7 +395,7 @@ struct vimc_ent_device *vimc_cap_add(struct vimc_device *vimc,
 	/* Allocate the vimc_cap_device struct */
 	vcap = kzalloc(sizeof(*vcap), GFP_KERNEL);
 	if (!vcap)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	/* Initialize the media entity */
 	vcap->vdev.entity.name = vcfg_name;
@@ -476,5 +476,5 @@ err_clean_m_ent:
 err_free_vcap:
 	kfree(vcap);
 
-	return NULL;
+	return ERR_PTR(ret);
 }

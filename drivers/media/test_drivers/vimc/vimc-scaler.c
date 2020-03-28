@@ -483,7 +483,7 @@ struct vimc_ent_device *vimc_sca_add(struct vimc_device *vimc,
 	/* Allocate the vsca struct */
 	vsca = kzalloc(sizeof(*vsca), GFP_KERNEL);
 	if (!vsca)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	/* Initialize ved and sd */
 	vsca->pads[0].flags = MEDIA_PAD_FL_SINK;
@@ -495,7 +495,7 @@ struct vimc_ent_device *vimc_sca_add(struct vimc_device *vimc,
 				   vsca->pads, &vimc_sca_ops);
 	if (ret) {
 		kfree(vsca);
-		return NULL;
+		return ERR_PTR(ret);
 	}
 
 	vsca->ved.process_frame = vimc_sca_process_frame;

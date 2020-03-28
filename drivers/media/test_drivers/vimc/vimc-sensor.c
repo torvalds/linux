@@ -317,7 +317,7 @@ struct vimc_ent_device *vimc_sen_add(struct vimc_device *vimc,
 	/* Allocate the vsen struct */
 	vsen = kzalloc(sizeof(*vsen), GFP_KERNEL);
 	if (!vsen)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	v4l2_ctrl_handler_init(&vsen->hdl, 4);
 
@@ -372,5 +372,5 @@ err_free_hdl:
 err_free_vsen:
 	kfree(vsen);
 
-	return NULL;
+	return ERR_PTR(ret);
 }

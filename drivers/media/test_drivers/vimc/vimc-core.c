@@ -187,12 +187,15 @@ static int vimc_add_subdevs(struct vimc_device *vimc)
 			vimc->pipe_cfg->ents[i].name);
 		vimc->ent_devs[i] = vimc->pipe_cfg->ents[i].add(vimc,
 					vimc->pipe_cfg->ents[i].name);
-		if (!vimc->ent_devs[i]) {
-			dev_err(vimc->mdev.dev, "add new entity for %s\n",
-				vimc->pipe_cfg->ents[i].name);
+		if (IS_ERR(vimc->ent_devs[i])) {
+			int err = PTR_ERR(vimc->ent_devs[i]);
+
+			dev_err(vimc->mdev.dev, "adding entity %s failed (%d)\n",
+				vimc->pipe_cfg->ents[i].name, err);
+			vimc->ent_devs[i] = NULL;
 			vimc_unregister_subdevs(vimc);
 			vimc_release_subdevs(vimc);
-			return -EINVAL;
+			return err;
 		}
 	}
 	return 0;
