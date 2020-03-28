@@ -606,35 +606,6 @@ static int mes_v10_1_allocate_eop_buf(struct amdgpu_device *adev,
 	return 0;
 }
 
-static int mes_v10_1_allocate_mem_slots(struct amdgpu_device *adev)
-{
-	int r;
-
-	r = amdgpu_device_wb_get(adev, &adev->mes.sch_ctx_offs);
-	if (r) {
-		dev_err(adev->dev,
-			"(%d) mes sch_ctx_offs wb alloc failed\n", r);
-		return r;
-	}
-	adev->mes.sch_ctx_gpu_addr =
-		adev->wb.gpu_addr + (adev->mes.sch_ctx_offs * 4);
-	adev->mes.sch_ctx_ptr =
-		(uint64_t *)&adev->wb.wb[adev->mes.sch_ctx_offs];
-
-	r = amdgpu_device_wb_get(adev, &adev->mes.query_status_fence_offs);
-	if (r) {
-		dev_err(adev->dev,
-			"(%d) query_status_fence_offs wb alloc failed\n", r);
-		return r;
-	}
-	adev->mes.query_status_fence_gpu_addr =
-		adev->wb.gpu_addr + (adev->mes.query_status_fence_offs * 4);
-	adev->mes.query_status_fence_ptr =
-		(uint64_t *)&adev->wb.wb[adev->mes.query_status_fence_offs];
-
-	return 0;
-}
-
 static int mes_v10_1_mqd_init(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
@@ -988,10 +959,6 @@ static int mes_v10_1_sw_init(void *handle)
 	}
 
 	r = mes_v10_1_ring_init(adev);
-	if (r)
-		return r;
-
-	r = mes_v10_1_allocate_mem_slots(adev);
 	if (r)
 		return r;
 

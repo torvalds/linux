@@ -176,6 +176,17 @@ int amdgpu_mes_init(struct amdgpu_device *adev)
 	adev->mes.sch_ctx_ptr =
 		(uint64_t *)&adev->wb.wb[adev->mes.sch_ctx_offs];
 
+	r = amdgpu_device_wb_get(adev, &adev->mes.query_status_fence_offs);
+	if (r) {
+		dev_err(adev->dev,
+			"(%d) query_status_fence_offs wb alloc failed\n", r);
+		return r;
+	}
+	adev->mes.query_status_fence_gpu_addr =
+		adev->wb.gpu_addr + (adev->mes.query_status_fence_offs * 4);
+	adev->mes.query_status_fence_ptr =
+		(uint64_t *)&adev->wb.wb[adev->mes.query_status_fence_offs];
+
 	r = amdgpu_mes_doorbell_init(adev);
 	if (r)
 		goto error;
