@@ -18,7 +18,8 @@
 enum efi_cmdline_option {
 	EFI_CMDLINE_NONE,
 	EFI_CMDLINE_MODE_NUM,
-	EFI_CMDLINE_RES
+	EFI_CMDLINE_RES,
+	EFI_CMDLINE_AUTO
 };
 
 static struct {
@@ -86,12 +87,27 @@ static bool parse_res(char *option, char **next)
 	return true;
 }
 
+static bool parse_auto(char *option, char **next)
+{
+	if (!strstarts(option, "auto"))
+		return false;
+	option += strlen("auto");
+	if (*option && *option++ != ',')
+		return false;
+	cmdline.option = EFI_CMDLINE_AUTO;
+
+	*next = option;
+	return true;
+}
+
 void efi_parse_option_graphics(char *option)
 {
 	while (*option) {
 		if (parse_modenum(option, &option))
 			continue;
 		if (parse_res(option, &option))
+			continue;
+		if (parse_auto(option, &option))
 			continue;
 
 		while (*option && *option++ != ',')
@@ -211,6 +227,69 @@ static u32 choose_mode_res(efi_graphics_output_protocol_t *gop)
 	return cur_mode;
 }
 
+static u32 choose_mode_auto(efi_graphics_output_protocol_t *gop)
+{
+	efi_status_t status;
+
+	efi_graphics_output_protocol_mode_t *mode;
+	efi_graphics_output_mode_info_t *info;
+	unsigned long info_size;
+
+	u32 max_mode, cur_mode, best_mode, area;
+	u8 depth;
+	int pf;
+	efi_pixel_bitmask_t pi;
+	u32 m, w, h, a;
+	u8 d;
+
+	mode = efi_table_attr(gop, mode);
+
+	cur_mode = efi_table_attr(mode, mode);
+	max_mode = efi_table_attr(mode, max_mode);
+
+	info = efi_table_attr(mode, info);
+
+	pf = info->pixel_format;
+	pi = info->pixel_information;
+	w  = info->horizontal_resolution;
+	h  = info->vertical_resolution;
+
+	best_mode = cur_mode;
+	area = w * h;
+	depth = pixel_bpp(pf, pi);
+
+	for (m = 0; m < max_mode; m++) {
+		if (m == cur_mode)
+			continue;
+
+		status = efi_call_proto(gop, query_mode, m,
+					&info_size, &info);
+		if (status != EFI_SUCCESS)
+			continue;
+
+		pf = info->pixel_format;
+		pi = info->pixel_information;
+		w  = info->horizontal_resolution;
+		h  = info->vertical_resolution;
+
+		efi_bs_call(free_pool, info);
+
+		if (pf == PIXEL_BLT_ONLY || pf >= PIXEL_FORMAT_MAX)
+			continue;
+		a = w * h;
+		if (a < area)
+			continue;
+		d = pixel_bpp(pf, pi);
+		if (a > area || d > depth) {
+			best_mode = m;
+			area = a;
+			depth = d;
+		}
+	}
+
+	return best_mode;
+}
+
 static void set_mode(efi_graphics_output_protocol_t *gop)
 {
 	efi_graphics_output_protocol_mode_t *mode;
@@ -222,6 +301,9 @@ static void set_mode(efi_graphics_output_protocol_t *gop)
 		break;
 	case EFI_CMDLINE_RES:
 		new_mode = choose_mode_res(gop);
+		break;
+	case EFI_CMDLINE_AUTO:
+		new_mode = choose_mode_auto(gop);
 		break;
 	default:
 		return;

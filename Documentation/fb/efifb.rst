@@ -57,4 +57,10 @@ mode=n
         "rgb" or "bgr" to match specifically those pixel formats, or a number
         for a mode with matching bits per pixel.
 
+auto
+        The EFI stub will choose the mode with the highest resolution (product
+        of horizontal and vertical resolution). If there are multiple modes
+        with the highest resolution, it will choose one with the highest color
+        depth.
+
 Edgar Hucek <gimli@dark-green.com>
