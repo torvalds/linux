@@ -119,7 +119,8 @@ struct rockchip_tsadc_chip {
 			      int chn, void __iomem *reg, int temp);
 	int (*set_tshut_temp)(const struct chip_tsadc_table *table,
 			      int chn, void __iomem *reg, int temp);
-	void (*set_tshut_mode)(int chn, void __iomem *reg, enum tshut_mode m);
+	void (*set_tshut_mode)(struct regmap *grf, int chn,
+			       void __iomem *reg, enum tshut_mode m);
 
 	/* Per-table methods */
 	struct chip_tsadc_table table;
@@ -232,6 +233,12 @@ struct rockchip_thermal_data {
 #define PX30_GRF_SOC_CON2			0x0408
 
 #define RK1808_BUS_GRF_SOC_CON0			0x0400
+
+#define RV1126_GRF0_TSADC_CON			0x0100
+
+#define RV1126_GRF0_TSADC_TRM			(0xff00ff << 0)
+#define RV1126_GRF0_TSADC_SHUT_2CRU		(0x30003 << 10)
+#define RV1126_GRF0_TSADC_SHUT_2GPIO		(0x70007 << 12)
 
 #define GRF_SARADC_TESTBIT_ON			(0x10001 << 2)
 #define GRF_TSADC_TESTBIT_H_ON			(0x10001 << 2)
@@ -820,6 +827,16 @@ static void rk_tsadcv5_initialize(struct regmap *grf, void __iomem *regs,
 			     GRF_TSADC_BANDGAP_CHOPPER_EN);
 }
 
+static void rk_tsadcv6_initialize(struct regmap *grf, void __iomem *regs,
+				  enum tshut_polarity tshut_polarity)
+{
+	rk_tsadcv2_initialize(grf, regs, tshut_polarity);
+
+	if (!IS_ERR(grf))
+		regmap_write(grf, RV1126_GRF0_TSADC_CON,
+			     RV1126_GRF0_TSADC_TRM);
+}
+
 static void rk_tsadcv2_irq_ack(void __iomem *regs)
 {
 	u32 val;
@@ -934,7 +951,8 @@ static int rk_tsadcv2_tshut_temp(const struct chip_tsadc_table *table,
 	return 0;
 }
 
-static void rk_tsadcv2_tshut_mode(int chn, void __iomem *regs,
+static void rk_tsadcv2_tshut_mode(struct regmap *grf, int chn,
+				  void __iomem *regs,
 				  enum tshut_mode mode)
 {
 	u32 val;
@@ -946,6 +964,30 @@ static void rk_tsadcv2_tshut_mode(int chn, void __iomem *regs,
 	} else {
 		val &= ~TSADCV2_SHUT_2GPIO_SRC_EN(chn);
 		val |= TSADCV2_SHUT_2CRU_SRC_EN(chn);
+	}
+
+	writel_relaxed(val, regs + TSADCV2_INT_EN);
+}
+
+static void rk_tsadcv3_tshut_mode(struct regmap *grf, int chn,
+				  void __iomem *regs,
+				  enum tshut_mode mode)
+{
+	u32 val;
+
+	val = readl_relaxed(regs + TSADCV2_INT_EN);
+	if (mode == TSHUT_MODE_OTP) {
+		val &= ~TSADCV2_SHUT_2CRU_SRC_EN(chn);
+		val |= TSADCV2_SHUT_2GPIO_SRC_EN(chn);
+		if (!IS_ERR(grf))
+			regmap_write(grf, RV1126_GRF0_TSADC_CON,
+				     RV1126_GRF0_TSADC_SHUT_2GPIO);
+	} else {
+		val &= ~TSADCV2_SHUT_2GPIO_SRC_EN(chn);
+		val |= TSADCV2_SHUT_2CRU_SRC_EN(chn);
+		if (!IS_ERR(grf))
+			regmap_write(grf, RV1126_GRF0_TSADC_CON,
+				     RV1126_GRF0_TSADC_SHUT_2CRU);
 	}
 
 	writel_relaxed(val, regs + TSADCV2_INT_EN);
@@ -1007,13 +1049,13 @@ static const struct rockchip_tsadc_chip rv1126_tsadc_data = {
 	.tshut_polarity = TSHUT_LOW_ACTIVE, /* default TSHUT LOW ACTIVE */
 	.tshut_temp = 95000,
 
-	.initialize = rk_tsadcv2_initialize,
+	.initialize = rk_tsadcv6_initialize,
 	.irq_ack = rk_tsadcv3_irq_ack,
-	.control = rk_tsadcv3_control,
+	.control = rk_tsadcv2_control,
 	.get_temp = rk_tsadcv2_get_temp,
 	.set_alarm_temp = rk_tsadcv2_alarm_temp,
 	.set_tshut_temp = rk_tsadcv2_tshut_temp,
-	.set_tshut_mode = rk_tsadcv2_tshut_mode,
+	.set_tshut_mode = rk_tsadcv3_tshut_mode,
 
 	.table = {
 		.id = rv1126_code_table,
@@ -1384,7 +1426,8 @@ rockchip_thermal_register_sensor(struct platform_device *pdev,
 	const struct rockchip_tsadc_chip *tsadc = thermal->chip;
 	int error;
 
-	tsadc->set_tshut_mode(id, thermal->regs, thermal->tshut_mode);
+	tsadc->set_tshut_mode(thermal->grf, id, thermal->regs,
+			      thermal->tshut_mode);
 
 	error = tsadc->set_tshut_temp(&tsadc->table, id, thermal->regs,
 			      thermal->tshut_temp);
@@ -1616,7 +1659,8 @@ static void rockchip_thermal_shutdown(struct platform_device *pdev)
 		int id = thermal->sensors[i].id;
 
 		if (thermal->tshut_mode != TSHUT_MODE_CRU)
-			thermal->chip->set_tshut_mode(id, thermal->regs,
+			thermal->chip->set_tshut_mode(thermal->grf, id,
+						      thermal->regs,
 						      TSHUT_MODE_CRU);
 	}
 	if (thermal->tshut_mode == TSHUT_MODE_OTP)
@@ -1662,7 +1706,7 @@ static int __maybe_unused rockchip_thermal_resume(struct device *dev)
 	for (i = 0; i < thermal->chip->chn_num; i++) {
 		int id = thermal->sensors[i].id;
 
-		thermal->chip->set_tshut_mode(id, thermal->regs,
+		thermal->chip->set_tshut_mode(thermal->grf, id, thermal->regs,
 					      thermal->tshut_mode);
 
 		error = thermal->chip->set_tshut_temp(&thermal->chip->table,
