@@ -349,8 +349,8 @@ static int ext4_valid_extent_idx(struct inode *inode,
 }
 
 static int ext4_valid_extent_entries(struct inode *inode,
-				struct ext4_extent_header *eh,
-				int depth)
+				     struct ext4_extent_header *eh,
+				     ext4_fsblk_t *pblk, int depth)
 {
 	unsigned short entries;
 	if (eh->eh_entries == 0)
@@ -361,8 +361,6 @@ static int ext4_valid_extent_entries(struct inode *inode,
 	if (depth == 0) {
 		/* leaf entries */
 		struct ext4_extent *ext = EXT_FIRST_EXTENT(eh);
-		struct ext4_super_block *es = EXT4_SB(inode->i_sb)->s_es;
-		ext4_fsblk_t pblock = 0;
 		ext4_lblk_t lblock = 0;
 		ext4_lblk_t prev = 0;
 		int len = 0;
@@ -374,8 +372,7 @@ static int ext4_valid_extent_entries(struct inode *inode,
 			lblock = le32_to_cpu(ext->ee_block);
 			len = ext4_ext_get_actual_len(ext);
 			if ((lblock <= prev) && prev) {
-				pblock = ext4_ext_pblock(ext);
-				es->s_last_error_block = cpu_to_le64(pblock);
+				*pblk = ext4_ext_pblock(ext);
 				return 0;
 			}
 			ext++;
@@ -422,7 +419,7 @@ static int __ext4_ext_check(const char *function, unsigned int line,
 		error_msg = "invalid eh_entries";
 		goto corrupted;
 	}
-	if (!ext4_valid_extent_entries(inode, eh, depth)) {
+	if (!ext4_valid_extent_entries(inode, eh, &pblk, depth)) {
 		error_msg = "invalid extent entries";
 		goto corrupted;
 	}
@@ -440,14 +437,14 @@ static int __ext4_ext_check(const char *function, unsigned int line,
 	return 0;
 
 corrupted:
-	ext4_set_errno(inode->i_sb, -err);
-	ext4_error_inode(inode, function, line, 0,
-			 "pblk %llu bad header/extent: %s - magic %x, "
-			 "entries %u, max %u(%u), depth %u(%u)",
-			 (unsigned long long) pblk, error_msg,
-			 le16_to_cpu(eh->eh_magic),
-			 le16_to_cpu(eh->eh_entries), le16_to_cpu(eh->eh_max),
-			 max, le16_to_cpu(eh->eh_depth), depth);
+	ext4_error_inode_err(inode, function, line, 0, -err,
+			     "pblk %llu bad header/extent: %s - magic %x, "
+			     "entries %u, max %u(%u), depth %u(%u)",
+			     (unsigned long long) pblk, error_msg,
+			     le16_to_cpu(eh->eh_magic),
+			     le16_to_cpu(eh->eh_entries),
+			     le16_to_cpu(eh->eh_max),
+			     max, le16_to_cpu(eh->eh_depth), depth);
 	return err;
 }
 

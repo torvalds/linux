@@ -269,10 +269,9 @@ void ext4_evict_inode(struct inode *inode)
 	if (inode->i_blocks) {
 		err = ext4_truncate(inode);
 		if (err) {
-			ext4_set_errno(inode->i_sb, -err);
-			ext4_error(inode->i_sb,
-				   "couldn't truncate inode %lu (err %d)",
-				   inode->i_ino, err);
+			ext4_error_err(inode->i_sb, -err,
+				       "couldn't truncate inode %lu (err %d)",
+				       inode->i_ino, err);
 			goto stop_handle;
 		}
 	}
@@ -2478,10 +2477,9 @@ update_disksize:
 		up_write(&EXT4_I(inode)->i_data_sem);
 		err2 = ext4_mark_inode_dirty(handle, inode);
 		if (err2) {
-			ext4_set_errno(inode->i_sb, -err2);
-			ext4_error(inode->i_sb,
-				   "Failed to mark inode %lu dirty",
-				   inode->i_ino);
+			ext4_error_err(inode->i_sb, -err2,
+				       "Failed to mark inode %lu dirty",
+				       inode->i_ino);
 		}
 		if (!err)
 			err = err2;
@@ -4382,8 +4380,7 @@ make_io:
 		wait_on_buffer(bh);
 		if (!buffer_uptodate(bh)) {
 		simulate_eio:
-			ext4_set_errno(inode->i_sb, EIO);
-			EXT4_ERROR_INODE_BLOCK(inode, block,
+			ext4_error_inode_block(inode, block, EIO,
 					       "unable to read itable block");
 			brelse(bh);
 			return -EIO;
@@ -4535,7 +4532,7 @@ struct inode *__ext4_iget(struct super_block *sb, unsigned long ino,
 	    (ino > le32_to_cpu(EXT4_SB(sb)->s_es->s_inodes_count))) {
 		if (flags & EXT4_IGET_HANDLE)
 			return ERR_PTR(-ESTALE);
-		__ext4_error(sb, function, line,
+		__ext4_error(sb, function, line, EFSCORRUPTED, 0,
 			     "inode #%lu: comm %s: iget: illegal inode #",
 			     ino, current->comm);
 		return ERR_PTR(-EFSCORRUPTED);
@@ -4598,9 +4595,8 @@ struct inode *__ext4_iget(struct super_block *sb, unsigned long ino,
 
 	if (!ext4_inode_csum_verify(inode, raw_inode, ei) ||
 	    ext4_simulate_fail(sb, EXT4_SIM_INODE_CRC)) {
-		ext4_set_errno(inode->i_sb, EFSBADCRC);
-		ext4_error_inode(inode, function, line, 0,
-				 "iget: checksum invalid");
+		ext4_error_inode_err(inode, function, line, 0, EFSBADCRC,
+				     "iget: checksum invalid");
 		ret = -EFSBADCRC;
 		goto bad_inode;
 	}
@@ -5149,9 +5145,8 @@ int ext4_write_inode(struct inode *inode, struct writeback_control *wbc)
 		if (wbc->sync_mode == WB_SYNC_ALL && !wbc->for_sync)
 			sync_dirty_buffer(iloc.bh);
 		if (buffer_req(iloc.bh) && !buffer_uptodate(iloc.bh)) {
-			ext4_set_errno(inode->i_sb, EIO);
-			EXT4_ERROR_INODE_BLOCK(inode, iloc.bh->b_blocknr,
-					 "IO error syncing inode");
+			ext4_error_inode_block(inode, iloc.bh->b_blocknr, EIO,
+					       "IO error syncing inode");
 			err = -EIO;
 		}
 		brelse(iloc.bh);

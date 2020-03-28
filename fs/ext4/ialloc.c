@@ -196,10 +196,9 @@ ext4_read_inode_bitmap(struct super_block *sb, ext4_group_t block_group)
 	ext4_simulate_fail_bh(sb, bh, EXT4_SIM_IBITMAP_EIO);
 	if (!buffer_uptodate(bh)) {
 		put_bh(bh);
-		ext4_set_errno(sb, EIO);
-		ext4_error(sb, "Cannot read inode bitmap - "
-			   "block_group = %u, inode_bitmap = %llu",
-			   block_group, bitmap_blk);
+		ext4_error_err(sb, EIO, "Cannot read inode bitmap - "
+			       "block_group = %u, inode_bitmap = %llu",
+			       block_group, bitmap_blk);
 		ext4_mark_group_bitmap_corrupted(sb, block_group,
 				EXT4_GROUP_INFO_IBITMAP_CORRUPT);
 		return ERR_PTR(-EIO);
@@ -1244,9 +1243,9 @@ struct inode *ext4_orphan_get(struct super_block *sb, unsigned long ino)
 	inode = ext4_iget(sb, ino, EXT4_IGET_NORMAL);
 	if (IS_ERR(inode)) {
 		err = PTR_ERR(inode);
-		ext4_set_errno(sb, -err);
-		ext4_error(sb, "couldn't read orphan inode %lu (err %d)",
-			   ino, err);
+		ext4_error_err(sb, -err,
+			       "couldn't read orphan inode %lu (err %d)",
+			       ino, err);
 		return inode;
 	}
 
