@@ -160,24 +160,6 @@ err_rm_links:
 	return ret;
 }
 
-static int vimc_add_subdevs(struct vimc_device *vimc)
-{
-	unsigned int i;
-
-	for (i = 0; i < vimc->pipe_cfg->num_ents; i++) {
-		dev_dbg(vimc->mdev.dev, "new entity for %s\n",
-			vimc->pipe_cfg->ents[i].name);
-		vimc->ent_devs[i] = vimc->pipe_cfg->ents[i].add(vimc,
-					vimc->pipe_cfg->ents[i].name);
-		if (!vimc->ent_devs[i]) {
-			dev_err(vimc->mdev.dev, "add new entity for %s\n",
-				vimc->pipe_cfg->ents[i].name);
-			return -EINVAL;
-		}
-	}
-	return 0;
-}
-
 static void vimc_release_subdevs(struct vimc_device *vimc)
 {
 	unsigned int i;
@@ -194,6 +176,26 @@ static void vimc_unregister_subdevs(struct vimc_device *vimc)
 	for (i = 0; i < vimc->pipe_cfg->num_ents; i++)
 		if (vimc->ent_devs[i] && vimc->pipe_cfg->ents[i].unregister)
 			vimc->pipe_cfg->ents[i].unregister(vimc->ent_devs[i]);
+}
+
+static int vimc_add_subdevs(struct vimc_device *vimc)
+{
+	unsigned int i;
+
+	for (i = 0; i < vimc->pipe_cfg->num_ents; i++) {
+		dev_dbg(vimc->mdev.dev, "new entity for %s\n",
+			vimc->pipe_cfg->ents[i].name);
+		vimc->ent_devs[i] = vimc->pipe_cfg->ents[i].add(vimc,
+					vimc->pipe_cfg->ents[i].name);
+		if (!vimc->ent_devs[i]) {
+			dev_err(vimc->mdev.dev, "add new entity for %s\n",
+				vimc->pipe_cfg->ents[i].name);
+			vimc_unregister_subdevs(vimc);
+			vimc_release_subdevs(vimc);
+			return -EINVAL;
+		}
+	}
+	return 0;
 }
 
 static void vimc_v4l2_dev_release(struct v4l2_device *v4l2_dev)
@@ -229,8 +231,7 @@ static int vimc_register_devices(struct vimc_device *vimc)
 	/* Invoke entity config hooks to initialize and register subdevs */
 	ret = vimc_add_subdevs(vimc);
 	if (ret)
-		/* remove sundevs that got added */
-		goto err_rm_subdevs;
+		goto err_free_ent_devs;
 
 	/* Initialize links */
 	ret = vimc_create_links(vimc);
@@ -261,6 +262,7 @@ err_mdev_unregister:
 err_rm_subdevs:
 	vimc_unregister_subdevs(vimc);
 	vimc_release_subdevs(vimc);
+err_free_ent_devs:
 	kfree(vimc->ent_devs);
 err_v4l2_unregister:
 	v4l2_device_unregister(&vimc->v4l2_dev);
