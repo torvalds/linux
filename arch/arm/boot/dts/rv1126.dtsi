@@ -153,6 +153,14 @@
 		status = "disabled";
 	};
 
+	firmware {
+		optee: optee {
+			compatible = "linaro,optee-tz";
+			method = "smc";
+			status = "disabled";
+		};
+	};
+
 	mpp_srv: mpp-srv {
 		compatible = "rockchip,mpp-service";
 		rockchip,taskqueue-count = <3>;
