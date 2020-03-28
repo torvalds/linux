@@ -268,13 +268,6 @@ err_v4l2_unregister:
 	return ret;
 }
 
-static void vimc_unregister(struct vimc_device *vimc)
-{
-	vimc_unregister_subdevs(vimc);
-	media_device_unregister(&vimc->mdev);
-	v4l2_device_unregister(&vimc->v4l2_dev);
-}
-
 static int vimc_probe(struct platform_device *pdev)
 {
 	struct vimc_device *vimc;
@@ -321,7 +314,9 @@ static int vimc_remove(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "remove");
 
-	vimc_unregister(vimc);
+	vimc_unregister_subdevs(vimc);
+	media_device_unregister(&vimc->mdev);
+	v4l2_device_unregister(&vimc->v4l2_dev);
 	v4l2_device_put(&vimc->v4l2_dev);
 
 	return 0;
