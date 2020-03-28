@@ -1190,8 +1190,8 @@ static void rk817_platform_shutdown(struct platform_device *pdev)
 
 	DBG("%s\n", __func__);
 
-	rk817_codec_power_down(rk817->component, RK817_CODEC_ALL);
-
+	if (rk817 && rk817->component)
+		rk817_codec_power_down(rk817->component, RK817_CODEC_ALL);
 }
 
 static const struct of_device_id rk817_codec_dt_ids[] = {
