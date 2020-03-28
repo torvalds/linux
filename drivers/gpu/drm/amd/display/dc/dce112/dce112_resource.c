@@ -51,6 +51,7 @@
 #include "dce/dce_dmcu.h"
 #include "dce/dce_aux.h"
 #include "dce/dce_i2c.h"
+#include "dce/dce_panel.h"
 
 #include "reg_helper.h"
 
@@ -236,6 +237,18 @@ static const struct dce110_link_enc_aux_registers link_enc_aux_regs[] = {
 		aux_regs(3),
 		aux_regs(4),
 		aux_regs(5)
+};
+
+static const struct dce_panel_registers panel_regs[] = {
+	{ DCE_PANEL_REG_LIST() }
+};
+
+static const struct dce_panel_shift panel_shift = {
+	DCE_PANEL_MASK_SH_LIST(__SHIFT)
+};
+
+static const struct dce_panel_mask panel_mask = {
+	DCE_PANEL_MASK_SH_LIST(_MASK)
 };
 
 #define hpd_regs(id)\
@@ -631,6 +644,23 @@ struct link_encoder *dce112_link_encoder_create(
 	return &enc110->base;
 }
 
+static struct panel *dce112_panel_create(const struct panel_init_data *init_data)
+{
+	struct dce_panel *panel =
+		kzalloc(sizeof(struct dce_panel), GFP_KERNEL);
+
+	if (!panel)
+		return NULL;
+
+	dce_panel_construct(panel,
+			init_data,
+			&panel_regs[init_data->inst],
+			&panel_shift,
+			&panel_mask);
+
+	return &panel->base;
+}
+
 static struct input_pixel_processor *dce112_ipp_create(
 	struct dc_context *ctx, uint32_t inst)
 {
@@ -1021,6 +1051,7 @@ static void dce112_destroy_resource_pool(struct resource_pool **pool)
 static const struct resource_funcs dce112_res_pool_funcs = {
 	.destroy = dce112_destroy_resource_pool,
 	.link_enc_create = dce112_link_encoder_create,
+	.panel_create = dce112_panel_create,
 	.validate_bandwidth = dce112_validate_bandwidth,
 	.validate_plane = dce100_validate_plane,
 	.add_stream_to_ctx = dce112_add_stream_to_ctx,

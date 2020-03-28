@@ -46,6 +46,7 @@
 #include "dce/dce_audio.h"
 #include "dce/dce_hwseq.h"
 #include "dce100/dce100_hw_sequencer.h"
+#include "dce/dce_panel.h"
 
 #include "reg_helper.h"
 
@@ -247,6 +248,18 @@ static const struct dce_stream_encoder_shift se_shift = {
 
 static const struct dce_stream_encoder_mask se_mask = {
 		SE_COMMON_MASK_SH_LIST_DCE80_100(_MASK)
+};
+
+static const struct dce_panel_registers panel_regs[] = {
+	{ DCE_PANEL_REG_LIST() }
+};
+
+static const struct dce_panel_shift panel_shift = {
+	DCE_PANEL_MASK_SH_LIST(__SHIFT)
+};
+
+static const struct dce_panel_mask panel_mask = {
+	DCE_PANEL_MASK_SH_LIST(_MASK)
 };
 
 #define opp_regs(id)\
@@ -627,6 +640,23 @@ struct link_encoder *dce100_link_encoder_create(
 	return &enc110->base;
 }
 
+static struct panel *dce100_panel_create(const struct panel_init_data *init_data)
+{
+	struct dce_panel *panel =
+		kzalloc(sizeof(struct dce_panel), GFP_KERNEL);
+
+	if (!panel)
+		return NULL;
+
+	dce_panel_construct(panel,
+			init_data,
+			&panel_regs[init_data->inst],
+			&panel_shift,
+			&panel_mask);
+
+	return &panel->base;
+}
+
 struct output_pixel_processor *dce100_opp_create(
 	struct dc_context *ctx,
 	uint32_t inst)
@@ -943,6 +973,7 @@ struct stream_encoder *dce100_find_first_free_match_stream_enc_for_link(
 static const struct resource_funcs dce100_res_pool_funcs = {
 	.destroy = dce100_destroy_resource_pool,
 	.link_enc_create = dce100_link_encoder_create,
+	.panel_create = dce100_panel_create,
 	.validate_bandwidth = dce100_validate_bandwidth,
 	.validate_plane = dce100_validate_plane,
 	.add_stream_to_ctx = dce100_add_stream_to_ctx,

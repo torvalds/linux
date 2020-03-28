@@ -135,6 +135,7 @@ struct dc_link {
 
 	struct dc_context *ctx;
 
+	struct panel *panel;
 	struct link_encoder *link_enc;
 	struct graphics_object_id link_id;
 	union ddi_channel_mapping ddi_channel_mapping;

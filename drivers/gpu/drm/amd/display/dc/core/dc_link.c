@@ -47,6 +47,7 @@
 #include "hw/clk_mgr.h"
 #include "dce/dmub_psr.h"
 #include "dmub/inc/dmub_cmd_dal.h"
+#include "inc/hw/panel.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -1355,6 +1356,7 @@ static bool dc_link_construct(struct dc_link *link,
 	struct ddc_service_init_data ddc_service_init_data = { { 0 } };
 	struct dc_context *dc_ctx = init_params->ctx;
 	struct encoder_init_data enc_init_data = { 0 };
+	struct panel_init_data panel_init_data = { 0 };
 	struct integrated_info info = {{{ 0 }}};
 	struct dc_bios *bios = init_params->dc->ctx->dc_bios;
 	const struct dc_vbios_funcs *bp_funcs = bios->funcs;
@@ -1425,6 +1427,7 @@ static bool dc_link_construct(struct dc_link *link,
 			link->irq_source_hpd_rx =
 					dal_irq_get_rx_source(link->hpd_gpio);
 		}
+
 		break;
 	case CONNECTOR_ID_LVDS:
 		link->connector_signal = SIGNAL_TYPE_LVDS;
@@ -1453,6 +1456,22 @@ static bool dc_link_construct(struct dc_link *link,
 
 	link->ddc_hw_inst =
 		dal_ddc_get_line(dal_ddc_service_get_ddc_pin(link->ddc));
+
+
+	if (link->dc->res_pool->funcs->panel_create &&
+		(link->link_id.id == CONNECTOR_ID_EDP ||
+			link->link_id.id == CONNECTOR_ID_LVDS)) {
+		panel_init_data.ctx = dc_ctx;
+		panel_init_data.inst = 0;
+		link->panel =
+			link->dc->res_pool->funcs->panel_create(
+								&panel_init_data);
+
+		if (link->panel == NULL) {
+			DC_ERROR("Failed to create link panel!\n");
+			goto panel_create_fail;
+		}
+	}
 
 	enc_init_data.ctx = dc_ctx;
 	bp_funcs->get_src_obj(dc_ctx->dc_bios, link->link_id, 0,
@@ -1536,6 +1555,9 @@ static bool dc_link_construct(struct dc_link *link,
 device_tag_fail:
 	link->link_enc->funcs->destroy(&link->link_enc);
 link_enc_create_fail:
+	if (link->panel != NULL)
+		link->panel->funcs->destroy(&link->panel);
+panel_create_fail:
 	dal_ddc_service_destroy(&link->ddc);
 ddc_create_fail:
 create_fail:

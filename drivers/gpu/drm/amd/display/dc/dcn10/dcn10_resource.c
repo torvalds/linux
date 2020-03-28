@@ -51,6 +51,7 @@
 #include "dce112/dce112_resource.h"
 #include "dcn10_hubp.h"
 #include "dcn10_hubbub.h"
+#include "dce/dce_panel.h"
 
 #include "soc15_hw_ip.h"
 #include "vega10_ip_offset.h"
@@ -319,6 +320,18 @@ static const struct dcn10_link_enc_shift le_shift = {
 
 static const struct dcn10_link_enc_mask le_mask = {
 		LINK_ENCODER_MASK_SH_LIST_DCN10(_MASK)
+};
+
+static const struct dce_panel_registers panel_regs[] = {
+	{ DCN_PANEL_REG_LIST() }
+};
+
+static const struct dce_panel_shift panel_shift = {
+	DCE_PANEL_MASK_SH_LIST(__SHIFT)
+};
+
+static const struct dce_panel_mask panel_mask = {
+	DCE_PANEL_MASK_SH_LIST(_MASK)
 };
 
 static const struct dce110_aux_registers_shift aux_shift = {
@@ -807,6 +820,23 @@ struct link_encoder *dcn10_link_encoder_create(
 	return &enc10->base;
 }
 
+static struct panel *dcn10_panel_create(const struct panel_init_data *init_data)
+{
+	struct dce_panel *panel =
+		kzalloc(sizeof(struct dce_panel), GFP_KERNEL);
+
+	if (!panel)
+		return NULL;
+
+	dce_panel_construct(panel,
+			init_data,
+			&panel_regs[init_data->inst],
+			&panel_shift,
+			&panel_mask);
+
+	return &panel->base;
+}
+
 struct clock_source *dcn10_clock_source_create(
 	struct dc_context *ctx,
 	struct dc_bios *bios,
@@ -1291,6 +1321,7 @@ static const struct dc_cap_funcs cap_funcs = {
 static const struct resource_funcs dcn10_res_pool_funcs = {
 	.destroy = dcn10_destroy_resource_pool,
 	.link_enc_create = dcn10_link_encoder_create,
+	.panel_create = dcn10_panel_create,
 	.validate_bandwidth = dcn_validate_bandwidth,
 	.acquire_idle_pipe_for_layer = dcn10_acquire_idle_pipe_for_layer,
 	.validate_plane = dcn10_validate_plane,
