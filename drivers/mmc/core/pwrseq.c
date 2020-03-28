@@ -75,6 +75,7 @@ void mmc_pwrseq_power_off(struct mmc_host *host)
 	if (pwrseq && pwrseq->ops->power_off)
 		pwrseq->ops->power_off(host);
 }
+EXPORT_SYMBOL(mmc_pwrseq_power_off);
 
 void mmc_pwrseq_reset(struct mmc_host *host)
 {
