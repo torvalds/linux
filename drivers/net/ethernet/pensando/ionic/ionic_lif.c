@@ -271,8 +271,6 @@ static void ionic_lif_qcq_deinit(struct ionic_lif *lif, struct ionic_qcq *qcq)
 	if (!qcq)
 		return;
 
-	ionic_debugfs_del_qcq(qcq);
-
 	if (!(qcq->flags & IONIC_QCQ_F_INITED))
 		return;
 
@@ -294,6 +292,8 @@ static void ionic_qcq_free(struct ionic_lif *lif, struct ionic_qcq *qcq)
 
 	if (!qcq)
 		return;
+
+	ionic_debugfs_del_qcq(qcq);
 
 	dma_free_coherent(dev, qcq->total_size, qcq->base, qcq->base_pa);
 	qcq->base = NULL;
@@ -509,6 +509,7 @@ static int ionic_qcqs_alloc(struct ionic_lif *lif)
 			      0, lif->kern_pid, &lif->adminqcq);
 	if (err)
 		return err;
+	ionic_debugfs_add_qcq(lif, lif->adminqcq);
 
 	if (lif->ionic->nnqs_per_lif) {
 		flags = IONIC_QCQ_F_NOTIFYQ;
@@ -519,6 +520,7 @@ static int ionic_qcqs_alloc(struct ionic_lif *lif)
 				      0, lif->kern_pid, &lif->notifyqcq);
 		if (err)
 			goto err_out_free_adminqcq;
+		ionic_debugfs_add_qcq(lif, lif->notifyqcq);
 
 		/* Let the notifyq ride on the adminq interrupt */
 		ionic_link_qcq_interrupts(lif->adminqcq, lif->notifyqcq);
@@ -616,8 +618,6 @@ static int ionic_lif_txq_init(struct ionic_lif *lif, struct ionic_qcq *qcq)
 
 	qcq->flags |= IONIC_QCQ_F_INITED;
 
-	ionic_debugfs_add_qcq(lif, qcq);
-
 	return 0;
 }
 
@@ -671,8 +671,6 @@ static int ionic_lif_rxq_init(struct ionic_lif *lif, struct ionic_qcq *qcq)
 	}
 
 	qcq->flags |= IONIC_QCQ_F_INITED;
-
-	ionic_debugfs_add_qcq(lif, qcq);
 
 	return 0;
 }
@@ -1490,6 +1488,7 @@ static int ionic_txrx_alloc(struct ionic_lif *lif)
 			goto err_out;
 
 		lif->txqcqs[i].qcq->stats = lif->txqcqs[i].stats;
+		ionic_debugfs_add_qcq(lif, lif->txqcqs[i].qcq);
 	}
 
 	flags = IONIC_QCQ_F_RX_STATS | IONIC_QCQ_F_SG | IONIC_QCQ_F_INTR;
@@ -1510,6 +1509,7 @@ static int ionic_txrx_alloc(struct ionic_lif *lif)
 				     lif->rx_coalesce_hw);
 		ionic_link_qcq_interrupts(lif->rxqcqs[i].qcq,
 					  lif->txqcqs[i].qcq);
+		ionic_debugfs_add_qcq(lif, lif->rxqcqs[i].qcq);
 	}
 
 	return 0;
@@ -1974,6 +1974,8 @@ static struct ionic_lif *ionic_lif_alloc(struct ionic *ionic, unsigned int index
 		goto err_out_free_netdev;
 	}
 
+	ionic_debugfs_add_lif(lif);
+
 	/* allocate queues */
 	err = ionic_qcqs_alloc(lif);
 	if (err)
@@ -2154,8 +2156,6 @@ static int ionic_lif_adminq_init(struct ionic_lif *lif)
 
 	qcq->flags |= IONIC_QCQ_F_INITED;
 
-	ionic_debugfs_add_qcq(lif, qcq);
-
 	return 0;
 }
 
@@ -2202,8 +2202,6 @@ static int ionic_lif_notifyq_init(struct ionic_lif *lif)
 	q->info[0].cb_arg = lif;
 
 	qcq->flags |= IONIC_QCQ_F_INITED;
-
-	ionic_debugfs_add_qcq(lif, qcq);
 
 	return 0;
 }
@@ -2257,8 +2255,6 @@ static int ionic_lif_init(struct ionic_lif *lif)
 	struct ionic_lif_init_comp comp;
 	int dbpage_num;
 	int err;
-
-	ionic_debugfs_add_lif(lif);
 
 	mutex_lock(&lif->ionic->dev_cmd_lock);
 	ionic_dev_cmd_lif_init(idev, lif->index, lif->info_pa);
