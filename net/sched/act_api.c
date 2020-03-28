@@ -794,6 +794,11 @@ tcf_action_dump_1(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
 			       a->hw_stats, TCA_ACT_HW_STATS_ANY))
 		goto nla_put_failure;
 
+	if (a->used_hw_stats_valid &&
+	    nla_put_bitfield32(skb, TCA_ACT_USED_HW_STATS,
+			       a->used_hw_stats, TCA_ACT_HW_STATS_ANY))
+		goto nla_put_failure;
+
 	if (a->tcfa_flags &&
 	    nla_put_bitfield32(skb, TCA_ACT_FLAGS,
 			       a->tcfa_flags, a->tcfa_flags))

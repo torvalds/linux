@@ -42,6 +42,8 @@ struct tc_action {
 	struct tcf_chain	__rcu *goto_chain;
 	u32			tcfa_flags;
 	u8			hw_stats;
+	u8			used_hw_stats;
+	bool			used_hw_stats_valid;
 };
 #define tcf_index	common.tcfa_index
 #define tcf_refcnt	common.tcfa_refcnt

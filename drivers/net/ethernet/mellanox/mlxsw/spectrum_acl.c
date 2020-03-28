@@ -967,7 +967,8 @@ static void mlxsw_sp_acl_rule_activity_update_work(struct work_struct *work)
 
 int mlxsw_sp_acl_rule_get_stats(struct mlxsw_sp *mlxsw_sp,
 				struct mlxsw_sp_acl_rule *rule,
-				u64 *packets, u64 *bytes, u64 *last_use)
+				u64 *packets, u64 *bytes, u64 *last_use,
+				enum flow_action_hw_stats *used_hw_stats)
 
 {
 	struct mlxsw_sp_acl_rule_info *rulei;
@@ -982,6 +983,7 @@ int mlxsw_sp_acl_rule_get_stats(struct mlxsw_sp *mlxsw_sp,
 						&current_bytes);
 		if (err)
 			return err;
+		*used_hw_stats = FLOW_ACTION_HW_STATS_IMMEDIATE;
 	}
 	*packets = current_packets - rule->last_packets;
 	*bytes = current_bytes - rule->last_bytes;
