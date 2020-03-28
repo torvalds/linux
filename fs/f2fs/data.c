@@ -1832,6 +1832,25 @@ static int f2fs_xattr_fiemap(struct inode *inode,
 	return (err < 0 ? err : 0);
 }
 
+static loff_t max_inode_blocks(struct inode *inode)
+{
+	loff_t result = ADDRS_PER_INODE(inode);
+	loff_t leaf_count = ADDRS_PER_BLOCK(inode);
+
+	/* two direct node blocks */
+	result += (leaf_count * 2);
+
+	/* two indirect node blocks */
+	leaf_count *= NIDS_PER_BLOCK;
+	result += (leaf_count * 2);
+
+	/* one double indirect node block */
+	leaf_count *= NIDS_PER_BLOCK;
+	result += leaf_count;
+
+	return result;
+}
+
 int f2fs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		u64 start, u64 len)
 {
@@ -1841,6 +1860,8 @@ int f2fs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	u64 logical = 0, phys = 0, size = 0;
 	u32 flags = 0;
 	int ret = 0;
+	bool compr_cluster = false;
+	unsigned int cluster_size = F2FS_I(inode)->i_cluster_size;
 
 	if (fieinfo->fi_flags & FIEMAP_FLAG_CACHE) {
 		ret = f2fs_precache_extents(inode);
@@ -1875,6 +1896,9 @@ next:
 	memset(&map_bh, 0, sizeof(struct buffer_head));
 	map_bh.b_size = len;
 
+	if (compr_cluster)
+		map_bh.b_size = blk_to_logical(inode, cluster_size - 1);
+
 	ret = get_data_block(inode, start_blk, &map_bh, 0,
 					F2FS_GET_BLOCK_FIEMAP, &next_pgofs);
 	if (ret)
@@ -1885,7 +1909,7 @@ next:
 		start_blk = next_pgofs;
 
 		if (blk_to_logical(inode, start_blk) < blk_to_logical(inode,
-					F2FS_I_SB(inode)->max_file_blocks))
+						max_inode_blocks(inode)))
 			goto prep_next;
 
 		flags |= FIEMAP_EXTENT_LAST;
@@ -1897,10 +1921,37 @@ next:
 
 		ret = fiemap_fill_next_extent(fieinfo, logical,
 				phys, size, flags);
+		if (ret)
+			goto out;
+		size = 0;
 	}
 
-	if (start_blk > last_blk || ret)
+	if (start_blk > last_blk)
 		goto out;
+
+	if (compr_cluster) {
+		compr_cluster = false;
+
+
+		logical = blk_to_logical(inode, start_blk - 1);
+		phys = blk_to_logical(inode, map_bh.b_blocknr);
+		size = blk_to_logical(inode, cluster_size);
+
+		flags |= FIEMAP_EXTENT_ENCODED;
+
+		start_blk += cluster_size - 1;
+
+		if (start_blk > last_blk)
+			goto out;
+
+		goto prep_next;
+	}
+
+	if (map_bh.b_blocknr == COMPRESS_ADDR) {
+		compr_cluster = true;
+		start_blk++;
+		goto prep_next;
+	}
 
 	logical = blk_to_logical(inode, start_blk);
 	phys = blk_to_logical(inode, map_bh.b_blocknr);
