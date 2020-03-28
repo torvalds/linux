@@ -195,6 +195,24 @@
 		};
 	};
 
+	thermal_zones: thermal-zones {
+		cpu_thermal: cpu-thermal {
+			polling-delay-passive = <20>; /* milliseconds */
+			polling-delay = <1000>; /* milliseconds */
+			sustainable-power = <977>; /* milliwatts */
+
+			thermal-sensors = <&cpu_tsadc 0>;
+		};
+
+		npu_thermal: npu-thermal {
+			polling-delay-passive = <20>; /* milliseconds */
+			polling-delay = <1000>; /* milliseconds */
+			sustainable-power = <977>; /* milliwatts */
+
+			thermal-sensors = <&npu_tsadc 0>;
+		};
+	};
+
 	timer {
 		compatible = "arm,armv7-timer";
 		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>,
@@ -1014,9 +1032,10 @@
 	cpu_tsadc: tsadc@ff5f0000 {
 		compatible = "rockchip,rv1126-tsadc";
 		reg = <0xff5f0000 0x100>;
+		rockchip,grf = <&grf>;
 		interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
 		assigned-clocks = <&cru CLK_CPU_TSADC>;
-		assigned-clock-rates = <600000>;
+		assigned-clock-rates = <2000000>;
 		clocks = <&cru CLK_CPU_TSADC>, <&cru PCLK_CPU_TSADC>,
 			 <&cru CLK_CPU_TSADCPHY>;
 		clock-names = "tsadc", "apb_pclk", "phy_clk";
@@ -1031,9 +1050,10 @@
 	npu_tsadc: tsadc@ff5f8000 {
 		compatible = "rockchip,rv1126-tsadc";
 		reg = <0xff5f8000 0x100>;
+		rockchip,grf = <&grf>;
 		interrupts = <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>;
 		assigned-clocks = <&cru CLK_NPU_TSADC>;
-		assigned-clock-rates = <600000>;
+		assigned-clock-rates = <2000000>;
 		clocks = <&cru CLK_NPU_TSADC>, <&cru PCLK_NPU_TSADC>,
 			 <&cru CLK_NPU_TSADCPHY>;
 		clock-names = "tsadc", "apb_pclk", "phy_clk";
