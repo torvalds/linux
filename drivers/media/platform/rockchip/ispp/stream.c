@@ -755,9 +755,6 @@ static int config_modules(struct rkispp_device *dev)
 {
 	int ret;
 
-	if (dev->inp == INP_ISP)
-		dev->stream_vdev.module_ens |= ISPP_MODULE_NR;
-
 	v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
 		 "stream module ens:0x%x\n", dev->stream_vdev.module_ens);
 
@@ -817,7 +814,7 @@ static int config_mb(struct rkispp_stream *stream)
 	u32 i, limit_range, mult = 1;
 
 	for (i = ISPP_MODULE_FEC; i > 0; i = i >> 1) {
-		if (dev->stream_vdev.module_ens >> i)
+		if (dev->stream_vdev.module_ens & i)
 			break;
 	}
 	if (!i)
@@ -1288,6 +1285,9 @@ static int rkispp_start_streaming(struct vb2_queue *queue,
 	if (ret < 0)
 		goto free_buf_queue;
 
+	if (dev->inp == INP_ISP)
+		dev->stream_vdev.module_ens |= ISPP_MODULE_NR;
+
 	if (stream->ops->config) {
 		ret = stream->ops->config(stream);
 		if (ret < 0)
@@ -1313,6 +1313,9 @@ free_dummy_buf:
 free_buf_queue:
 	destroy_buf_queue(stream, VB2_BUF_STATE_QUEUED);
 	atomic_dec(&dev->stream_vdev.refcnt);
+	v4l2_err(&dev->v4l2_dev,
+		 "ispp stream:%d on failed ret:%d\n",
+		 stream->id, ret);
 	return ret;
 }
 

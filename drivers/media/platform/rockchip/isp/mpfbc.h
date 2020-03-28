@@ -10,16 +10,21 @@
 
 struct rkisp_mpfbc_device;
 
+struct rkisp_dma_buf {
+	struct dma_buf *dbuf;
+	void *mem_priv;
+};
+
 struct rkisp_mpfbc_device {
 	struct rkisp_device *ispdev;
 	struct v4l2_subdev sd;
 	struct v4l2_subdev_format fmt;
 	struct media_pad pad;
 	wait_queue_head_t done;
-	u32 *pic_cur;
-	u32 *pic_nxt;
-	u32 *gain_cur;
-	u32 *gain_nxt;
+	struct rkisp_dma_buf *pic_cur;
+	struct rkisp_dma_buf *pic_nxt;
+	struct rkisp_dma_buf *gain_cur;
+	struct rkisp_dma_buf *gain_nxt;
 	u8 pingpong;
 	u8 stopping;
 	u8 en;

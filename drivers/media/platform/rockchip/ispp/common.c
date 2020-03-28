@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (C) 2019 Rockchip Electronics Co., Ltd */
 
-#include <linux/dma-mapping.h>
+#include <media/videobuf2-dma-contig.h>
 #include <media/v4l2-mc.h>
 #include "dev.h"
 #include "regs.h"
@@ -43,23 +43,40 @@ int rkispp_fh_release(struct file *filp)
 int rkispp_allow_buffer(struct rkispp_device *dev,
 			struct rkispp_dummy_buffer *buf)
 {
-	if (!buf->size)
-		return -EINVAL;
+	const struct vb2_mem_ops *ops = &vb2_dma_contig_memops;
+	void *mem_priv;
+	int ret = 0;
 
-	buf->vaddr = dma_alloc_coherent(dev->dev, buf->size,
-					&buf->dma_addr, GFP_KERNEL);
-	if (!buf->vaddr)
-		return -ENOMEM;
-	return 0;
+	if (!buf->size) {
+		ret = -EINVAL;
+		goto err;
+	}
+
+	mem_priv = ops->alloc(dev->dev, 0, buf->size,
+			DMA_BIDIRECTIONAL, GFP_KERNEL);
+	if (IS_ERR_OR_NULL(mem_priv)) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	buf->mem_priv = mem_priv;
+	buf->dma_addr = *((dma_addr_t *)ops->cookie(mem_priv));
+	buf->vaddr = ops->vaddr(mem_priv);
+	return ret;
+err:
+	dev_err(dev->dev, "%s failed ret:%d\n", __func__, ret);
+	return ret;
 }
 
 void rkispp_free_buffer(struct rkispp_device *dev,
 			struct rkispp_dummy_buffer *buf)
 {
-	if (buf && buf->vaddr && buf->size) {
-		dma_free_coherent(dev->dev, buf->size,
-				  buf->vaddr, buf->dma_addr);
+	const struct vb2_mem_ops *ops = &vb2_dma_contig_memops;
+
+	if (buf && buf->mem_priv) {
+		ops->put(buf->mem_priv);
 		buf->size = 0;
 		buf->vaddr = NULL;
+		buf->mem_priv = NULL;
 	}
 }

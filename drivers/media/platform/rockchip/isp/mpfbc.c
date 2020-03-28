@@ -29,47 +29,97 @@ static int mpfbc_get_set_fmt(struct v4l2_subdev *sd,
 	return ret;
 }
 
+static void free_dma_buf(struct rkisp_dma_buf *buf)
+{
+	const struct vb2_mem_ops *ops = &vb2_dma_contig_memops;
+
+	if (!buf)
+		return;
+
+	ops->unmap_dmabuf(buf->mem_priv);
+	ops->detach_dmabuf(buf->mem_priv);
+	dma_buf_put(buf->dbuf);
+	kfree(buf);
+}
+
+static void mpfbc_free_dma_buf(struct rkisp_mpfbc_device *dev)
+{
+	free_dma_buf(dev->pic_cur);
+	dev->pic_cur = NULL;
+	free_dma_buf(dev->pic_nxt);
+	dev->pic_nxt = NULL;
+	free_dma_buf(dev->gain_cur);
+	dev->gain_cur = NULL;
+	free_dma_buf(dev->gain_nxt);
+	dev->gain_nxt = NULL;
+}
+
 static int mpfbc_s_rx_buffer(struct v4l2_subdev *sd,
-			     void *buf, unsigned int *size)
+			     void *dbuf, unsigned int *size)
 {
 	struct rkisp_mpfbc_device *mpfbc_dev = v4l2_get_subdevdata(sd);
 	struct rkisp_device *dev = mpfbc_dev->ispdev;
 	void __iomem *base = dev->base_addr;
+	const struct vb2_mem_ops *ops = &vb2_dma_contig_memops;
+	struct rkisp_dma_buf *buf;
+	dma_addr_t dma_addr;
 	u32 w = ALIGN(mpfbc_dev->fmt.format.width, 16);
 	u32 h = ALIGN(mpfbc_dev->fmt.format.height, 16);
 	u32 sizes = (w * h >> 4) + w * h * 2;
+	int ret = 0;
+
+	if (!dbuf || !size)
+		return -EINVAL;
+
+	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
+	if (!buf) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	buf->dbuf = dbuf;
+	buf->mem_priv = ops->attach_dmabuf(dev->dev, dbuf,
+				*size, DMA_FROM_DEVICE);
+	if (IS_ERR(buf->mem_priv)) {
+		ret = PTR_ERR(buf->mem_priv);
+		goto err;
+	}
+
+	ret = ops->map_dmabuf(buf->mem_priv);
+	if (ret) {
+		ops->detach_dmabuf(buf->mem_priv);
+		goto err;
+	}
+
+	dma_addr = *((dma_addr_t *)ops->cookie(buf->mem_priv));
 
 	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
 		 "%s buf:0x%x size:%d\n",
-		 __func__, *(u32 *)buf, *size);
+		 __func__, (u32)dma_addr, *size);
 
 	/* picture or gain buffer */
 	if (*size == sizes) {
 		if (mpfbc_dev->pic_cur) {
-			mpfbc_dev->pic_nxt = (u32 *)buf;
-			writel(*mpfbc_dev->pic_nxt,
-				base + ISP_MPFBC_HEAD_PTR2);
-			writel(*mpfbc_dev->pic_nxt + (w * h >> 4),
-				base + ISP_MPFBC_PAYL_PTR2);
+			mpfbc_dev->pic_nxt = buf;
+			writel(dma_addr, base + ISP_MPFBC_HEAD_PTR2);
+			writel(dma_addr + (w * h >> 4),
+			       base + ISP_MPFBC_PAYL_PTR2);
 			mpfbc_dev->pingpong = true;
 		} else {
-			mpfbc_dev->pic_cur = (u32 *)buf;
-			writel(*mpfbc_dev->pic_cur,
-				base + ISP_MPFBC_HEAD_PTR);
-			writel(*mpfbc_dev->pic_cur + (w * h >> 4),
-				base + ISP_MPFBC_PAYL_PTR);
+			mpfbc_dev->pic_cur = buf;
+			writel(dma_addr, base + ISP_MPFBC_HEAD_PTR);
+			writel(dma_addr + (w * h >> 4),
+			       base + ISP_MPFBC_PAYL_PTR);
 			mpfbc_dev->pingpong = false;
 		}
 	} else {
 		if (mpfbc_dev->gain_cur) {
-			mpfbc_dev->gain_nxt = (u32 *)buf;
-			writel(*mpfbc_dev->gain_nxt,
-				base + MI_GAIN_WR_BASE2);
+			mpfbc_dev->gain_nxt = buf;
+			writel(dma_addr, base + MI_GAIN_WR_BASE2);
 			mi_wr_ctrl2(base, SW_GAIN_WR_PINGPONG);
 		} else {
-			mpfbc_dev->gain_cur = (u32 *)buf;
-			writel(*mpfbc_dev->gain_cur,
-				base + MI_GAIN_WR_BASE);
+			mpfbc_dev->gain_cur = buf;
+			writel(dma_addr, base + MI_GAIN_WR_BASE);
 			isp_clear_bits(base + MI_WR_CTRL2,
 					SW_GAIN_WR_PINGPONG);
 		}
@@ -77,7 +127,13 @@ static int mpfbc_s_rx_buffer(struct v4l2_subdev *sd,
 		writel(w >> 4, base + MI_GAIN_WR_LENGTH);
 		mi_wr_ctrl2(base, SW_GAIN_WR_AUTOUPD);
 	}
+
 	return 0;
+err:
+	kfree(buf);
+	dma_buf_put(dbuf);
+	mpfbc_free_dma_buf(mpfbc_dev);
+	return ret;
 }
 
 static int mpfbc_start(struct rkisp_mpfbc_device *mpfbc_dev)
@@ -121,10 +177,7 @@ static int mpfbc_stop(struct rkisp_mpfbc_device *mpfbc_dev)
 	mpfbc_dev->stopping = false;
 	isp_clear_bits(base + MI_IMSC, MI_MPFBC_FRAME);
 	mpfbc_dev->en = false;
-	mpfbc_dev->pic_cur = NULL;
-	mpfbc_dev->pic_nxt = NULL;
-	mpfbc_dev->gain_cur = NULL;
-	mpfbc_dev->gain_nxt = NULL;
+	mpfbc_free_dma_buf(mpfbc_dev);
 	hdr_destroy_buf(dev);
 	return 0;
 }

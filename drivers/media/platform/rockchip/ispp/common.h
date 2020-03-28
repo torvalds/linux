@@ -42,6 +42,7 @@ struct rkispp_dummy_buffer {
 	dma_addr_t dma_addr;
 	void *vaddr;
 	u32 size;
+	void *mem_priv;
 };
 
 extern int rkispp_debug;

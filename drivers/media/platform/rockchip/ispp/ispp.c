@@ -2,9 +2,11 @@
 /* Copyright (c) 2019 Fuzhou Rockchip Electronics Co., Ltd. */
 
 #include <linux/interrupt.h>
+#include <linux/iommu.h>
 #include <linux/pm_runtime.h>
 #include <linux/videodev2.h>
 #include <media/media-entity.h>
+#include <media/videobuf2-dma-contig.h>
 
 #include "dev.h"
 #include "regs.h"
@@ -144,47 +146,89 @@ static int rkispp_sd_set_fmt(struct v4l2_subdev *sd,
 				set_fmt, NULL, fmt);
 }
 
+static int rkispp_s_rx_buffer(struct rkispp_subdev *ispp_sdev)
+{
+	const struct vb2_mem_ops *ops = &vb2_dma_contig_memops;
+	struct rkispp_device *dev = ispp_sdev->dev;
+	struct rkispp_stream_vdev *vdev = &dev->stream_vdev;
+	struct rkispp_dummy_buffer *buf;
+	struct dma_buf *dbuf;
+	void *size;
+	int ret;
+
+	if (vdev->module_ens & ISPP_MODULE_TNR) {
+		buf = &vdev->tnr_buf.pic_cur;
+		size = &buf->size;
+		dbuf = ops->get_dmabuf(buf->mem_priv, O_RDWR);
+		ret = v4l2_subdev_call(ispp_sdev->remote_sd,
+			video, s_rx_buffer, dbuf, size);
+		if (ret)
+			return ret;
+
+		buf = &vdev->tnr_buf.gain_cur;
+		size = &buf->size;
+		dbuf = ops->get_dmabuf(buf->mem_priv, O_RDWR);
+		if (vdev->tnr_mode) {
+			ret = v4l2_subdev_call(ispp_sdev->remote_sd,
+				video, s_rx_buffer, dbuf, size);
+			if (ret)
+				return ret;
+			buf = &vdev->tnr_buf.pic_next;
+			size = &buf->size;
+			dbuf = ops->get_dmabuf(buf->mem_priv, O_RDWR);
+			ret = v4l2_subdev_call(ispp_sdev->remote_sd,
+				video, s_rx_buffer, dbuf, size);
+			if (ret)
+				return ret;
+			buf = &vdev->tnr_buf.gain_next;
+			size = &buf->size;
+			dbuf = ops->get_dmabuf(buf->mem_priv, O_RDWR);
+		}
+	} else {
+		buf = &vdev->nr_buf.pic_cur;
+		size = &buf->size;
+		dbuf = ops->get_dmabuf(buf->mem_priv, O_RDWR);
+		ret = v4l2_subdev_call(ispp_sdev->remote_sd,
+			video, s_rx_buffer, dbuf, size);
+		if (ret)
+			return ret;
+		buf = &vdev->nr_buf.gain_cur;
+		size = &buf->size;
+		dbuf = ops->get_dmabuf(buf->mem_priv, O_RDWR);
+	}
+
+	return v4l2_subdev_call(ispp_sdev->remote_sd,
+		video, s_rx_buffer, dbuf, size);
+}
+
 static int rkispp_sd_s_stream(struct v4l2_subdev *sd, int on)
 {
 	struct rkispp_subdev *ispp_sdev = v4l2_get_subdevdata(sd);
 	struct rkispp_device *dev = ispp_sdev->dev;
-	struct rkispp_stream_vdev *vdev;
+	struct rkispp_stream *stream;
+	int ret, i;
 
-	v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
+	for (i = 0; i < STREAM_MAX; i++) {
+		stream = &dev->stream_vdev.stream[i];
+		if (stream->streaming)
+			break;
+	}
+
+	if (i == STREAM_MAX) {
+		v4l2_err(&dev->v4l2_dev,
+			 "no video start before subdev stream on\n");
+		return -EINVAL;
+	}
+
+	v4l2_dbg(1, rkispp_debug, &ispp_sdev->dev->v4l2_dev,
 		 "s_stream on:%d\n", on);
 
-	vdev = &dev->stream_vdev;
 	if (on) {
-		void *buf, *size;
-
-		if (vdev->module_ens & ISPP_MODULE_TNR) {
-			buf = &vdev->tnr_buf.pic_cur.dma_addr;
-			size = &vdev->tnr_buf.pic_cur.size;
-			v4l2_subdev_call(ispp_sdev->remote_sd,
-				video, s_rx_buffer, buf, size);
-			buf = &vdev->tnr_buf.gain_cur.dma_addr;
-			size = &vdev->tnr_buf.gain_cur.size;
-			if (vdev->tnr_mode) {
-				v4l2_subdev_call(ispp_sdev->remote_sd,
-					video, s_rx_buffer, buf, size);
-				buf = &vdev->tnr_buf.pic_next.dma_addr;
-				size = &vdev->tnr_buf.pic_next.size;
-				v4l2_subdev_call(ispp_sdev->remote_sd,
-					video, s_rx_buffer, buf, size);
-				buf = &vdev->tnr_buf.gain_next.dma_addr;
-				size = &vdev->tnr_buf.gain_next.size;
-			}
-		} else {
-			buf = &vdev->nr_buf.pic_cur.dma_addr;
-			size = &vdev->nr_buf.pic_cur.size;
-			v4l2_subdev_call(ispp_sdev->remote_sd,
-				video, s_rx_buffer, buf, size);
-			buf = &vdev->nr_buf.gain_cur.dma_addr;
-			size = &vdev->nr_buf.gain_cur.size;
-		}
-		v4l2_subdev_call(ispp_sdev->remote_sd,
-			video, s_rx_buffer, buf, size);
+		ret = rkispp_s_rx_buffer(ispp_sdev);
+		if (ret)
+			return ret;
 	}
+
 	return  v4l2_subdev_call(ispp_sdev->remote_sd,
 				video, s_stream, on);
 }
@@ -193,6 +237,7 @@ static int rkispp_sd_s_power(struct v4l2_subdev *sd, int on)
 {
 	struct rkispp_subdev *ispp_sdev = v4l2_get_subdevdata(sd);
 	struct rkispp_device *ispp_dev = ispp_sdev->dev;
+	struct iommu_domain *domain;
 	int ret;
 
 	v4l2_dbg(1, rkispp_debug, &ispp_dev->v4l2_dev,
@@ -207,7 +252,6 @@ static int rkispp_sd_s_power(struct v4l2_subdev *sd, int on)
 			return ret;
 		}
 		atomic_set(&ispp_sdev->frm_sync_seq, 0);
-		rkispp_soft_reset(ispp_dev->base_addr);
 		writel(0xfffffff, ispp_dev->base_addr + RKISPP_CTRL_INT_MSK);
 		if (ispp_dev->inp == INP_ISP) {
 			struct v4l2_subdev_format *fmt = &ispp_sdev->in_fmt;
@@ -231,6 +275,14 @@ static int rkispp_sd_s_power(struct v4l2_subdev *sd, int on)
 		}
 	} else {
 		writel(0, ispp_dev->base_addr + RKISPP_CTRL_INT_MSK);
+		rkispp_soft_reset(ispp_dev->base_addr);
+		domain = iommu_get_domain_for_dev(ispp_dev->dev);
+		if (domain) {
+#ifdef CONFIG_IOMMU_API
+			domain->ops->detach_dev(domain, ispp_dev->dev);
+			domain->ops->attach_dev(domain, ispp_dev->dev);
+#endif
+		}
 		if (ispp_dev->inp == INP_ISP)
 			v4l2_subdev_call(ispp_sdev->remote_sd, core, s_power, 0);
 		ret = pm_runtime_put(ispp_dev->dev);
