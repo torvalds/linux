@@ -21,6 +21,9 @@ static void ionic_lif_rx_mode(struct ionic_lif *lif, unsigned int rx_mode);
 static int ionic_lif_addr_add(struct ionic_lif *lif, const u8 *addr);
 static int ionic_lif_addr_del(struct ionic_lif *lif, const u8 *addr);
 static void ionic_link_status_check(struct ionic_lif *lif);
+static void ionic_lif_handle_fw_down(struct ionic_lif *lif);
+static void ionic_lif_handle_fw_up(struct ionic_lif *lif);
+static void ionic_lif_set_netdev_info(struct ionic_lif *lif);
 
 static int ionic_start_queues(struct ionic_lif *lif);
 static void ionic_stop_queues(struct ionic_lif *lif);
@@ -53,6 +56,12 @@ static void ionic_lif_deferred_work(struct work_struct *work)
 		case IONIC_DW_TYPE_LINK_STATUS:
 			ionic_link_status_check(lif);
 			break;
+		case IONIC_DW_TYPE_LIF_RESET:
+			if (w->fw_status)
+				ionic_lif_handle_fw_up(lif);
+			else
+				ionic_lif_handle_fw_down(lif);
+			break;
 		default:
 			break;
 		}
@@ -61,8 +70,8 @@ static void ionic_lif_deferred_work(struct work_struct *work)
 	}
 }
 
-static void ionic_lif_deferred_enqueue(struct ionic_deferred *def,
-				       struct ionic_deferred_work *work)
+void ionic_lif_deferred_enqueue(struct ionic_deferred *def,
+				struct ionic_deferred_work *work)
 {
 	spin_lock_bh(&def->lock);
 	list_add_tail(&work->list, &def->list);
@@ -682,6 +691,7 @@ static bool ionic_notifyq_service(struct ionic_cq *cq,
 				  struct ionic_cq_info *cq_info)
 {
 	union ionic_notifyq_comp *comp = cq_info->cq_desc;
+	struct ionic_deferred_work *work;
 	struct net_device *netdev;
 	struct ionic_queue *q;
 	struct ionic_lif *lif;
@@ -707,11 +717,13 @@ static bool ionic_notifyq_service(struct ionic_cq *cq,
 		ionic_link_status_check_request(lif);
 		break;
 	case IONIC_EVENT_RESET:
-		netdev_info(netdev, "Notifyq IONIC_EVENT_RESET eid=%lld\n",
-			    eid);
-		netdev_info(netdev, "  reset_code=%d state=%d\n",
-			    comp->reset.reset_code,
-			    comp->reset.state);
+		work = kzalloc(sizeof(*work), GFP_ATOMIC);
+		if (!work) {
+			netdev_err(lif->netdev, "%s OOM\n", __func__);
+		} else {
+			work->type = IONIC_DW_TYPE_LIF_RESET;
+			ionic_lif_deferred_enqueue(&lif->deferred, work);
+		}
 		break;
 	default:
 		netdev_warn(netdev, "Notifyq unknown event ecode=%d eid=%lld\n",
@@ -1224,7 +1236,8 @@ static int ionic_init_nic_features(struct ionic_lif *lif)
 	netdev->hw_features |= netdev->hw_enc_features;
 	netdev->features |= netdev->hw_features;
 
-	netdev->priv_flags |= IFF_UNICAST_FLT;
+	netdev->priv_flags |= IFF_UNICAST_FLT |
+			      IFF_LIVE_ADDR_CHANGE;
 
 	return 0;
 }
@@ -1669,6 +1682,9 @@ int ionic_stop(struct net_device *netdev)
 {
 	struct ionic_lif *lif = netdev_priv(netdev);
 
+	if (test_bit(IONIC_LIF_F_FW_RESET, lif->state))
+		return 0;
+
 	ionic_stop_queues(lif);
 	ionic_txrx_deinit(lif);
 	ionic_txrx_free(lif);
@@ -2064,6 +2080,80 @@ static void ionic_lif_reset(struct ionic_lif *lif)
 	mutex_unlock(&lif->ionic->dev_cmd_lock);
 }
 
+static void ionic_lif_handle_fw_down(struct ionic_lif *lif)
+{
+	struct ionic *ionic = lif->ionic;
+
+	if (test_and_set_bit(IONIC_LIF_F_FW_RESET, lif->state))
+		return;
+
+	dev_info(ionic->dev, "FW Down: Stopping LIFs\n");
+
+	netif_device_detach(lif->netdev);
+
+	if (test_bit(IONIC_LIF_F_UP, lif->state)) {
+		dev_info(ionic->dev, "Surprise FW stop, stopping queues\n");
+		ionic_stop_queues(lif);
+	}
+
+	if (netif_running(lif->netdev)) {
+		ionic_txrx_deinit(lif);
+		ionic_txrx_free(lif);
+	}
+	ionic_lifs_deinit(ionic);
+	ionic_qcqs_free(lif);
+
+	dev_info(ionic->dev, "FW Down: LIFs stopped\n");
+}
+
+static void ionic_lif_handle_fw_up(struct ionic_lif *lif)
+{
+	struct ionic *ionic = lif->ionic;
+	int err;
+
+	if (!test_bit(IONIC_LIF_F_FW_RESET, lif->state))
+		return;
+
+	dev_info(ionic->dev, "FW Up: restarting LIFs\n");
+
+	err = ionic_qcqs_alloc(lif);
+	if (err)
+		goto err_out;
+
+	err = ionic_lifs_init(ionic);
+	if (err)
+		goto err_qcqs_free;
+
+	if (lif->registered)
+		ionic_lif_set_netdev_info(lif);
+
+	if (netif_running(lif->netdev)) {
+		err = ionic_txrx_alloc(lif);
+		if (err)
+			goto err_lifs_deinit;
+
+		err = ionic_txrx_init(lif);
+		if (err)
+			goto err_txrx_free;
+	}
+
+	clear_bit(IONIC_LIF_F_FW_RESET, lif->state);
+	ionic_link_status_check_request(lif);
+	netif_device_attach(lif->netdev);
+	dev_info(ionic->dev, "FW Up: LIFs restarted\n");
+
+	return;
+
+err_txrx_free:
+	ionic_txrx_free(lif);
+err_lifs_deinit:
+	ionic_lifs_deinit(ionic);
+err_qcqs_free:
+	ionic_qcqs_free(lif);
+err_out:
+	dev_err(ionic->dev, "FW Up: LIFs restart failed - err %d\n", err);
+}
+
 static void ionic_lif_free(struct ionic_lif *lif)
 {
 	struct device *dev = lif->ionic->dev;
@@ -2076,7 +2166,8 @@ static void ionic_lif_free(struct ionic_lif *lif)
 
 	/* free queues */
 	ionic_qcqs_free(lif);
-	ionic_lif_reset(lif);
+	if (!test_bit(IONIC_LIF_F_FW_RESET, lif->state))
+		ionic_lif_reset(lif);
 
 	/* free lif info */
 	dma_free_coherent(dev, lif->info_sz, lif->info, lif->info_pa);
@@ -2109,17 +2200,19 @@ void ionic_lifs_free(struct ionic *ionic)
 
 static void ionic_lif_deinit(struct ionic_lif *lif)
 {
-	if (!test_bit(IONIC_LIF_F_INITED, lif->state))
+	if (!test_and_clear_bit(IONIC_LIF_F_INITED, lif->state))
 		return;
 
-	clear_bit(IONIC_LIF_F_INITED, lif->state);
+	if (!test_bit(IONIC_LIF_F_FW_RESET, lif->state)) {
+		cancel_work_sync(&lif->deferred.work);
+		cancel_work_sync(&lif->tx_timeout_work);
+	}
 
 	ionic_rx_filters_deinit(lif);
 	if (lif->netdev->features & NETIF_F_RXHASH)
 		ionic_lif_rss_deinit(lif);
 
 	napi_disable(&lif->adminqcq->napi);
-	netif_napi_del(&lif->adminqcq->napi);
 	ionic_lif_qcq_deinit(lif, lif->notifyqcq);
 	ionic_lif_qcq_deinit(lif, lif->adminqcq);
 
@@ -2213,6 +2306,7 @@ static int ionic_lif_notifyq_init(struct ionic_lif *lif)
 	if (err)
 		return err;
 
+	lif->last_eid = 0;
 	q->hw_type = ctx.comp.q_init.hw_type;
 	q->hw_index = le32_to_cpu(ctx.comp.q_init.hw_index);
 	q->dbval = IONIC_DBELL_QID(q->hw_index);
@@ -2253,8 +2347,8 @@ static int ionic_station_set(struct ionic_lif *lif)
 	addr.sa_family = AF_INET;
 	err = eth_prepare_mac_addr_change(netdev, &addr);
 	if (err) {
-		netdev_warn(lif->netdev, "ignoring bad MAC addr from NIC %pM\n",
-			    addr.sa_data);
+		netdev_warn(lif->netdev, "ignoring bad MAC addr from NIC %pM - err %d\n",
+			    addr.sa_data, err);
 		return 0;
 	}
 
@@ -2464,12 +2558,8 @@ void ionic_lifs_unregister(struct ionic *ionic)
 	 * current model, so don't bother searching the
 	 * ionic->lif for candidates to unregister
 	 */
-	if (!ionic->master_lif)
-		return;
-
-	cancel_work_sync(&ionic->master_lif->deferred.work);
-	cancel_work_sync(&ionic->master_lif->tx_timeout_work);
-	if (ionic->master_lif->netdev->reg_state == NETREG_REGISTERED)
+	if (ionic->master_lif &&
+	    ionic->master_lif->netdev->reg_state == NETREG_REGISTERED)
 		unregister_netdev(ionic->master_lif->netdev);
 }
 
