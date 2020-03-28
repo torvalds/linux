@@ -836,20 +836,17 @@ static struct platform_driver rfkill_wlan_driver = {
 	},
 };
 
-static int __init rfkill_wlan_init(void)
+int __init rfkill_wlan_init(void)
 {
 	LOG("Enter %s\n", __func__);
 	return platform_driver_register(&rfkill_wlan_driver);
 }
 
-static void __exit rfkill_wlan_exit(void)
+void __exit rfkill_wlan_exit(void)
 {
 	LOG("Enter %s\n", __func__);
 	platform_driver_unregister(&rfkill_wlan_driver);
 }
-
-module_init(rfkill_wlan_init);
-module_exit(rfkill_wlan_exit);
 
 MODULE_DESCRIPTION("rock-chips rfkill for wifi v0.1");
 MODULE_AUTHOR("gwl@rock-chips.com");

@@ -786,7 +786,12 @@ static struct platform_driver rfkill_rk_driver = {
 
 static int __init rfkill_rk_init(void)
 {
+	int err;
+
 	LOG("Enter %s\n", __func__);
+	err = rfkill_wlan_init();
+	if (err)
+		return err;
 	return platform_driver_register(&rfkill_rk_driver);
 }
 
@@ -794,6 +799,7 @@ static void __exit rfkill_rk_exit(void)
 {
 	LOG("Enter %s\n", __func__);
 	platform_driver_unregister(&rfkill_rk_driver);
+	rfkill_wlan_exit();
 }
 
 module_init(rfkill_rk_init);
