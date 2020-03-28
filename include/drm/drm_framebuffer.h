@@ -308,11 +308,11 @@ struct drm_afbc_framebuffer {
 	 */
 	struct drm_framebuffer base;
 	/**
-	 * @block_widht: width of a single afbc block
+	 * @block_width: width of a single afbc block
 	 */
 	u32 block_width;
 	/**
-	 * @block_widht: height of a single afbc block
+	 * @block_height: height of a single afbc block
 	 */
 	u32 block_height;
 	/**
