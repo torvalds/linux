@@ -419,7 +419,7 @@ static bool xdr_check_read_list(struct svc_rdma_recv_ctxt *rctxt)
 
 	len = 0;
 	first = true;
-	while (*p != xdr_zero) {
+	while (xdr_item_is_present(p)) {
 		p = xdr_inline_decode(&rctxt->rc_stream,
 				      rpcrdma_readseg_maxsz * sizeof(*p));
 		if (!p)
@@ -500,7 +500,7 @@ static bool xdr_check_write_list(struct svc_rdma_recv_ctxt *rctxt)
 	if (!p)
 		return false;
 	rctxt->rc_write_list = p;
-	while (*p != xdr_zero) {
+	while (xdr_item_is_present(p)) {
 		if (!xdr_check_write_chunk(rctxt, MAX_BYTES_WRITE_CHUNK))
 			return false;
 		++chcount;
@@ -532,12 +532,11 @@ static bool xdr_check_reply_chunk(struct svc_rdma_recv_ctxt *rctxt)
 	p = xdr_inline_decode(&rctxt->rc_stream, sizeof(*p));
 	if (!p)
 		return false;
-	rctxt->rc_reply_chunk = p;
-	if (*p != xdr_zero) {
+	rctxt->rc_reply_chunk = NULL;
+	if (xdr_item_is_present(p)) {
 		if (!xdr_check_write_chunk(rctxt, MAX_BYTES_SPECIAL_CHUNK))
 			return false;
-	} else {
-		rctxt->rc_reply_chunk = NULL;
+		rctxt->rc_reply_chunk = p;
 	}
 	return true;
 }
@@ -568,7 +567,7 @@ static void svc_rdma_get_inv_rkey(struct svcxprt_rdma *rdma,
 	p += rpcrdma_fixed_maxsz;
 
 	/* Read list */
-	while (*p++ != xdr_zero) {
+	while (xdr_item_is_present(p++)) {
 		p++;	/* position */
 		if (inv_rkey == xdr_zero)
 			inv_rkey = *p;
@@ -578,7 +577,7 @@ static void svc_rdma_get_inv_rkey(struct svcxprt_rdma *rdma,
 	}
 
 	/* Write list */
-	while (*p++ != xdr_zero) {
+	while (xdr_item_is_present(p++)) {
 		segcount = be32_to_cpup(p++);
 		for (i = 0; i < segcount; i++) {
 			if (inv_rkey == xdr_zero)
@@ -590,7 +589,7 @@ static void svc_rdma_get_inv_rkey(struct svcxprt_rdma *rdma,
 	}
 
 	/* Reply chunk */
-	if (*p++ != xdr_zero) {
+	if (xdr_item_is_present(p++)) {
 		segcount = be32_to_cpup(p++);
 		for (i = 0; i < segcount; i++) {
 			if (inv_rkey == xdr_zero)

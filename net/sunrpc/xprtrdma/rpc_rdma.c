@@ -1133,11 +1133,11 @@ rpcrdma_is_bcall(struct rpcrdma_xprt *r_xprt, struct rpcrdma_rep *rep)
 	p = xdr_inline_decode(xdr, 0);
 
 	/* Chunk lists */
-	if (*p++ != xdr_zero)
+	if (xdr_item_is_present(p++))
 		return false;
-	if (*p++ != xdr_zero)
+	if (xdr_item_is_present(p++))
 		return false;
-	if (*p++ != xdr_zero)
+	if (xdr_item_is_present(p++))
 		return false;
 
 	/* RPC header */
@@ -1215,7 +1215,7 @@ static int decode_read_list(struct xdr_stream *xdr)
 	p = xdr_inline_decode(xdr, sizeof(*p));
 	if (unlikely(!p))
 		return -EIO;
-	if (unlikely(*p != xdr_zero))
+	if (unlikely(xdr_item_is_present(p)))
 		return -EIO;
 	return 0;
 }
@@ -1234,7 +1234,7 @@ static int decode_write_list(struct xdr_stream *xdr, u32 *length)
 		p = xdr_inline_decode(xdr, sizeof(*p));
 		if (unlikely(!p))
 			return -EIO;
-		if (*p == xdr_zero)
+		if (xdr_item_is_absent(p))
 			break;
 		if (!first)
 			return -EIO;
@@ -1256,7 +1256,7 @@ static int decode_reply_chunk(struct xdr_stream *xdr, u32 *length)
 		return -EIO;
 
 	*length = 0;
-	if (*p != xdr_zero)
+	if (xdr_item_is_present(p))
 		if (decode_write_chunk(xdr, length))
 			return -EIO;
 	return 0;
