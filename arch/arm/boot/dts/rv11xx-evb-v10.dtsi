@@ -791,6 +791,10 @@
 	status = "okay";
 };
 
+&optee {
+	status = "disabled";
+};
+
 &pdm {
 	status = "okay";
 	#sound-dai-cells = <0>;
