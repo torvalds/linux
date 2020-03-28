@@ -216,7 +216,6 @@ struct vim2m_ctx {
 
 	struct mutex		vb_mutex;
 	struct delayed_work	work_run;
-	spinlock_t		irqlock;
 
 	/* Abort requested by m2m */
 	int			aborting;
@@ -622,7 +621,6 @@ static void device_work(struct work_struct *w)
 	struct vim2m_ctx *curr_ctx;
 	struct vim2m_dev *vim2m_dev;
 	struct vb2_v4l2_buffer *src_vb, *dst_vb;
-	unsigned long flags;
 
 	curr_ctx = container_of(w, struct vim2m_ctx, work_run.work);
 
@@ -638,10 +636,8 @@ static void device_work(struct work_struct *w)
 
 	curr_ctx->num_processed++;
 
-	spin_lock_irqsave(&curr_ctx->irqlock, flags);
 	v4l2_m2m_buf_done(src_vb, VB2_BUF_STATE_DONE);
 	v4l2_m2m_buf_done(dst_vb, VB2_BUF_STATE_DONE);
-	spin_unlock_irqrestore(&curr_ctx->irqlock, flags);
 
 	if (curr_ctx->num_processed == curr_ctx->translen
 	    || curr_ctx->aborting) {
@@ -1084,7 +1080,6 @@ static void vim2m_stop_streaming(struct vb2_queue *q)
 {
 	struct vim2m_ctx *ctx = vb2_get_drv_priv(q);
 	struct vb2_v4l2_buffer *vbuf;
-	unsigned long flags;
 
 	cancel_delayed_work_sync(&ctx->work_run);
 
@@ -1097,9 +1092,7 @@ static void vim2m_stop_streaming(struct vb2_queue *q)
 			return;
 		v4l2_ctrl_request_complete(vbuf->vb2_buf.req_obj.req,
 					   &ctx->hdl);
-		spin_lock_irqsave(&ctx->irqlock, flags);
 		v4l2_m2m_buf_done(vbuf, VB2_BUF_STATE_ERROR);
-		spin_unlock_irqrestore(&ctx->irqlock, flags);
 	}
 }
 
@@ -1226,7 +1219,6 @@ static int vim2m_open(struct file *file)
 	ctx->fh.m2m_ctx = v4l2_m2m_ctx_init(dev->m2m_dev, ctx, &queue_init);
 
 	mutex_init(&ctx->vb_mutex);
-	spin_lock_init(&ctx->irqlock);
 	INIT_DELAYED_WORK(&ctx->work_run, device_work);
 
 	if (IS_ERR(ctx->fh.m2m_ctx)) {
