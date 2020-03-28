@@ -115,9 +115,6 @@ struct iio_buffer {
 	 */
 	struct attribute_group scan_el_group;
 
-	/* @stufftoread: Flag to indicate new data. */
-	bool stufftoread;
-
 	/* @attrs: Standard attributes of the buffer. */
 	const struct attribute **attrs;
 
