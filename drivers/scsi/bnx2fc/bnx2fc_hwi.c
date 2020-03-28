@@ -1016,7 +1016,7 @@ static bool bnx2fc_pending_work(struct bnx2fc_rport *tgt, unsigned int wqe)
 	xid = wqe & FCOE_PEND_WQ_CQE_TASK_ID;
 	if (xid >= hba->max_tasks) {
 		pr_err(PFX "ERROR:xid out of range\n");
-		return 0;
+		return false;
 	}
 
 	task_idx = xid / BNX2FC_TASKS_PER_PAGE;
@@ -1059,14 +1059,14 @@ num_rq_zero:
 			list_add_tail(&work->list, &fps->work_list);
 			wake_up_process(fps->iothread);
 			spin_unlock_bh(&fps->fp_work_lock);
-			return 1;
+			return true;
 		}
 	}
 	spin_unlock_bh(&fps->fp_work_lock);
 	bnx2fc_process_cq_compl(tgt, wqe,
 				rq_data_buff, num_rq, task);
 
-	return 1;
+	return true;
 }
 
 int bnx2fc_process_new_cqes(struct bnx2fc_rport *tgt)
