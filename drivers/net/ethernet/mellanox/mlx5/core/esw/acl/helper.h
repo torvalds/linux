@@ -19,4 +19,8 @@ void esw_acl_egress_vlan_destroy(struct mlx5_vport *vport);
 int esw_acl_egress_vlan_grp_create(struct mlx5_eswitch *esw, struct mlx5_vport *vport);
 void esw_acl_egress_vlan_grp_destroy(struct mlx5_vport *vport);
 
+/* Ingress acl helper functions */
+void esw_acl_ingress_table_destroy(struct mlx5_vport *vport);
+void esw_acl_ingress_allow_rule_destroy(struct mlx5_vport *vport);
+
 #endif /* __MLX5_ESWITCH_ACL_HELPER_H__ */

@@ -140,3 +140,21 @@ void esw_acl_egress_table_destroy(struct mlx5_vport *vport)
 	mlx5_destroy_flow_table(vport->egress.acl);
 	vport->egress.acl = NULL;
 }
+
+void esw_acl_ingress_table_destroy(struct mlx5_vport *vport)
+{
+	if (!vport->ingress.acl)
+		return;
+
+	mlx5_destroy_flow_table(vport->ingress.acl);
+	vport->ingress.acl = NULL;
+}
+
+void esw_acl_ingress_allow_rule_destroy(struct mlx5_vport *vport)
+{
+	if (!vport->ingress.allow_rule)
+		return;
+
+	mlx5_del_flow_rules(vport->ingress.allow_rule);
+	vport->ingress.allow_rule = NULL;
+}
