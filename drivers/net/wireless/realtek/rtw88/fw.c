@@ -630,8 +630,8 @@ void rtw_fw_set_pg_info(struct rtw_dev *rtwdev)
 	rtw_fw_send_h2c_command(rtwdev, h2c_pkt);
 }
 
-u8 rtw_get_rsvd_page_probe_req_location(struct rtw_dev *rtwdev,
-					struct cfg80211_ssid *ssid)
+static u8 rtw_get_rsvd_page_probe_req_location(struct rtw_dev *rtwdev,
+					       struct cfg80211_ssid *ssid)
 {
 	struct rtw_rsvd_page *rsvd_pkt;
 	u8 location = 0;
@@ -647,8 +647,8 @@ u8 rtw_get_rsvd_page_probe_req_location(struct rtw_dev *rtwdev,
 	return location;
 }
 
-u16 rtw_get_rsvd_page_probe_req_size(struct rtw_dev *rtwdev,
-				     struct cfg80211_ssid *ssid)
+static u16 rtw_get_rsvd_page_probe_req_size(struct rtw_dev *rtwdev,
+					    struct cfg80211_ssid *ssid)
 {
 	struct rtw_rsvd_page *rsvd_pkt;
 	u16 size = 0;
