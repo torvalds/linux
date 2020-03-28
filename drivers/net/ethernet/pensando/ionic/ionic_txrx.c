@@ -593,6 +593,22 @@ void ionic_tx_flush(struct ionic_cq *cq)
 				   work_done, 0);
 }
 
+void ionic_tx_empty(struct ionic_queue *q)
+{
+	struct ionic_desc_info *desc_info;
+	int done = 0;
+
+	/* walk the not completed tx entries, if any */
+	while (q->head != q->tail) {
+		desc_info = q->tail;
+		q->tail = desc_info->next;
+		ionic_tx_clean(q, desc_info, NULL, desc_info->cb_arg);
+		desc_info->cb = NULL;
+		desc_info->cb_arg = NULL;
+		done++;
+	}
+}
+
 static int ionic_tx_tcp_inner_pseudo_csum(struct sk_buff *skb)
 {
 	int err;
