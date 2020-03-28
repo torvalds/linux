@@ -789,23 +789,15 @@ tcf_action_dump_1(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
 	}
 	rcu_read_unlock();
 
-	if (a->hw_stats != TCA_ACT_HW_STATS_ANY) {
-		struct nla_bitfield32 hw_stats = {
-			a->hw_stats,
-			TCA_ACT_HW_STATS_ANY,
-		};
+	if (a->hw_stats != TCA_ACT_HW_STATS_ANY &&
+	    nla_put_bitfield32(skb, TCA_ACT_HW_STATS,
+			       a->hw_stats, TCA_ACT_HW_STATS_ANY))
+		goto nla_put_failure;
 
-		if (nla_put(skb, TCA_ACT_HW_STATS, sizeof(hw_stats), &hw_stats))
-			goto nla_put_failure;
-	}
-
-	if (a->tcfa_flags) {
-		struct nla_bitfield32 flags = { a->tcfa_flags,
-						a->tcfa_flags, };
-
-		if (nla_put(skb, TCA_ACT_FLAGS, sizeof(flags), &flags))
-			goto nla_put_failure;
-	}
+	if (a->tcfa_flags &&
+	    nla_put_bitfield32(skb, TCA_ACT_FLAGS,
+			       a->tcfa_flags, a->tcfa_flags))
+		goto nla_put_failure;
 
 	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
 	if (nest == NULL)
