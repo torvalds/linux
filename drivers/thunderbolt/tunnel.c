@@ -536,7 +536,8 @@ static int tb_dp_activate(struct tb_tunnel *tunnel, bool active)
 	return 0;
 }
 
-static int tb_dp_consumed_bandwidth(struct tb_tunnel *tunnel)
+static int tb_dp_consumed_bandwidth(struct tb_tunnel *tunnel, int *consumed_up,
+				    int *consumed_down)
 {
 	struct tb_port *in = tunnel->src_port;
 	const struct tb_switch *sw = in->sw;
@@ -580,10 +581,20 @@ static int tb_dp_consumed_bandwidth(struct tb_tunnel *tunnel)
 		lanes = tb_dp_cap_get_lanes(val);
 	} else {
 		/* No bandwidth management for legacy devices  */
+		*consumed_up = 0;
+		*consumed_down = 0;
 		return 0;
 	}
 
-	return tb_dp_bandwidth(rate, lanes);
+	if (in->sw->config.depth < tunnel->dst_port->sw->config.depth) {
+		*consumed_up = 0;
+		*consumed_down = tb_dp_bandwidth(rate, lanes);
+	} else {
+		*consumed_up = tb_dp_bandwidth(rate, lanes);
+		*consumed_down = 0;
+	}
+
+	return 0;
 }
 
 static void tb_dp_init_aux_path(struct tb_path *path)
@@ -1174,21 +1185,39 @@ static bool tb_tunnel_is_active(const struct tb_tunnel *tunnel)
 /**
  * tb_tunnel_consumed_bandwidth() - Return bandwidth consumed by the tunnel
  * @tunnel: Tunnel to check
+ * @consumed_up: Consumed bandwidth in Mb/s from @dst_port to @src_port.
+ *		 Can be %NULL.
+ * @consumed_down: Consumed bandwidth in Mb/s from @src_port to @dst_port.
+ *		   Can be %NULL.
  *
- * Returns bandwidth currently consumed by @tunnel and %0 if the @tunnel
- * is not active or does consume bandwidth.
+ * Stores the amount of isochronous bandwidth @tunnel consumes in
+ * @consumed_up and @consumed_down. In case of success returns %0,
+ * negative errno otherwise.
  */
-int tb_tunnel_consumed_bandwidth(struct tb_tunnel *tunnel)
+int tb_tunnel_consumed_bandwidth(struct tb_tunnel *tunnel, int *consumed_up,
+				 int *consumed_down)
 {
+	int up_bw = 0, down_bw = 0;
+
 	if (!tb_tunnel_is_active(tunnel))
-		return 0;
+		goto out;
 
 	if (tunnel->consumed_bandwidth) {
-		int ret = tunnel->consumed_bandwidth(tunnel);
+		int ret;
 
-		tb_tunnel_dbg(tunnel, "consumed bandwidth %d Mb/s\n", ret);
-		return ret;
+		ret = tunnel->consumed_bandwidth(tunnel, &up_bw, &down_bw);
+		if (ret)
+			return ret;
+
+		tb_tunnel_dbg(tunnel, "consumed bandwidth %d/%d Mb/s\n", up_bw,
+			      down_bw);
 	}
+
+out:
+	if (consumed_up)
+		*consumed_up = up_bw;
+	if (consumed_down)
+		*consumed_down = down_bw;
 
 	return 0;
 }

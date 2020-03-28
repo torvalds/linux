@@ -42,7 +42,8 @@ struct tb_tunnel {
 	size_t npaths;
 	int (*init)(struct tb_tunnel *tunnel);
 	int (*activate)(struct tb_tunnel *tunnel, bool activate);
-	int (*consumed_bandwidth)(struct tb_tunnel *tunnel);
+	int (*consumed_bandwidth)(struct tb_tunnel *tunnel, int *consumed_up,
+				  int *consumed_down);
 	struct list_head list;
 	enum tb_tunnel_type type;
 	unsigned int max_bw;
@@ -69,7 +70,8 @@ void tb_tunnel_deactivate(struct tb_tunnel *tunnel);
 bool tb_tunnel_is_invalid(struct tb_tunnel *tunnel);
 bool tb_tunnel_switch_on_path(const struct tb_tunnel *tunnel,
 			      const struct tb_switch *sw);
-int tb_tunnel_consumed_bandwidth(struct tb_tunnel *tunnel);
+int tb_tunnel_consumed_bandwidth(struct tb_tunnel *tunnel, int *consumed_up,
+				 int *consumed_down);
 
 static inline bool tb_tunnel_is_pci(const struct tb_tunnel *tunnel)
 {

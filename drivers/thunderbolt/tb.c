@@ -535,7 +535,7 @@ static int tb_available_bw(struct tb_cm *tcm, struct tb_port *in,
 {
 	struct tb_switch *sw = out->sw;
 	struct tb_tunnel *tunnel;
-	int bw, available_bw = 40000;
+	int ret, bw, available_bw = 40000;
 
 	while (sw && sw != in->sw) {
 		bw = sw->link_speed * sw->link_width * 1000; /* Mb/s */
@@ -553,9 +553,10 @@ static int tb_available_bw(struct tb_cm *tcm, struct tb_port *in,
 			if (!tb_tunnel_switch_on_path(tunnel, sw))
 				continue;
 
-			consumed_bw = tb_tunnel_consumed_bandwidth(tunnel);
-			if (consumed_bw < 0)
-				return consumed_bw;
+			ret = tb_tunnel_consumed_bandwidth(tunnel, NULL,
+							   &consumed_bw);
+			if (ret)
+				return ret;
 
 			bw -= consumed_bw;
 		}
