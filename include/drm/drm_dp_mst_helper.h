@@ -157,6 +157,10 @@ struct drm_dp_mst_port {
 	 */
 	bool has_audio;
 
+	/**
+	 * @fec_capable: bool indicating if FEC can be supported up to that
+	 * point in the MST topology.
+	 */
 	bool fec_capable;
 };
 
