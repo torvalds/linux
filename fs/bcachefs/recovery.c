@@ -820,7 +820,7 @@ int bch2_fs_recovery(struct bch_fs *c)
 		set_bit(BCH_FS_REBUILD_REPLICAS, &c->flags);
 	}
 
-	if (!c->sb.clean || c->opts.fsck) {
+	if (!c->sb.clean || c->opts.fsck || c->opts.keep_journal) {
 		struct jset *j;
 
 		ret = bch2_journal_read(c, &c->journal_entries);
