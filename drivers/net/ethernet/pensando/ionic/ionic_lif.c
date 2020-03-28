@@ -73,31 +73,35 @@ static void ionic_link_status_check(struct ionic_lif *lif)
 	u16 link_status;
 	bool link_up;
 
+	if (lif->ionic->is_mgmt_nic)
+		return;
+
 	link_status = le16_to_cpu(lif->info->status.link_status);
 	link_up = link_status == IONIC_PORT_OPER_STATUS_UP;
 
-	/* filter out the no-change cases */
-	if (link_up == netif_carrier_ok(netdev))
-		goto link_out;
-
 	if (link_up) {
-		netdev_info(netdev, "Link up - %d Gbps\n",
-			    le32_to_cpu(lif->info->status.link_speed) / 1000);
+		if (!netif_carrier_ok(netdev)) {
+			u32 link_speed;
 
-		if (test_bit(IONIC_LIF_F_UP, lif->state)) {
-			netif_tx_wake_all_queues(lif->netdev);
+			ionic_port_identify(lif->ionic);
+			link_speed = le32_to_cpu(lif->info->status.link_speed);
+			netdev_info(netdev, "Link up - %d Gbps\n",
+				    link_speed / 1000);
 			netif_carrier_on(netdev);
 		}
-	} else {
-		netdev_info(netdev, "Link down\n");
 
-		/* carrier off first to avoid watchdog timeout */
-		netif_carrier_off(netdev);
+		if (test_bit(IONIC_LIF_F_UP, lif->state))
+			netif_tx_wake_all_queues(lif->netdev);
+	} else {
+		if (netif_carrier_ok(netdev)) {
+			netdev_info(netdev, "Link down\n");
+			netif_carrier_off(netdev);
+		}
+
 		if (test_bit(IONIC_LIF_F_UP, lif->state))
 			netif_tx_stop_all_queues(netdev);
 	}
 
-link_out:
 	clear_bit(IONIC_LIF_F_LINK_CHECK_REQUESTED, lif->state);
 }
 
@@ -1587,8 +1591,6 @@ int ionic_open(struct net_device *netdev)
 	struct ionic_lif *lif = netdev_priv(netdev);
 	int err;
 
-	netif_carrier_off(netdev);
-
 	err = ionic_txrx_alloc(lif);
 	if (err)
 		return err;
@@ -1936,6 +1938,8 @@ static struct ionic_lif *ionic_lif_alloc(struct ionic *ionic, unsigned int index
 	ionic_ethtool_set_ops(netdev);
 
 	netdev->watchdog_timeo = 2 * HZ;
+	netif_carrier_off(netdev);
+
 	netdev->min_mtu = IONIC_MIN_MTU;
 	netdev->max_mtu = IONIC_MAX_MTU;
 
