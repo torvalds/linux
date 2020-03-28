@@ -311,6 +311,7 @@ EXPORT_SYMBOL(devm_drm_panel_bridge_add_typed);
 
 /**
  * drm_panel_bridge_connector - return the connector for the panel bridge
+ * @bridge: The drm_bridge.
  *
  * drm_panel_bridge creates the connector.
  * This function gives external access to the connector.
