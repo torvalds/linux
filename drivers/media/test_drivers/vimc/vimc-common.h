@@ -63,7 +63,8 @@ do {									\
  *
  * @code:		media bus format code defined by MEDIA_BUS_FMT_* macros
  * @bbp:		number of bytes each pixel occupies
- * @pixelformat:	pixel format devined by V4L2_PIX_FMT_* macros
+ * @pixelformat:	pixel format defined by V4L2_PIX_FMT_* macros
+ * @bayer:		true if this is a bayer format
  *
  * Struct which matches the MEDIA_BUS_FMT_* codes with the corresponding
  * V4L2_PIX_FMT_* fourcc pixelformat and its bytes per pixel (bpp)
@@ -90,7 +91,7 @@ struct vimc_pix_map {
  * the node it will be of an instance of v4l2_subdev or video_device struct
  * where both contains a struct media_entity.
  * Those structures should embedded the vimc_ent_device struct through
- * v4l2_set_subdevdata() and video_set_drvdata() respectivaly, allowing the
+ * v4l2_set_subdevdata() and video_set_drvdata() respectively, allowing the
  * vimc_ent_device struct to be retrieved from the corresponding struct
  * media_entity
  */
@@ -123,10 +124,8 @@ struct vimc_device {
  *				configuration for each entity
  *
  * @name			entity name
- * @ved				pointer to vimc_ent_device (a node in the
- *					topology)
  * @add				initializes and registers
- *					vim entity - called from vimc-core
+ *					vimc entity - called from vimc-core
  * @unregister			unregisters vimc entity - called from vimc-core
  * @release			releases vimc entity - called from the v4l2_dev
  *					release callback
@@ -182,7 +181,7 @@ const struct vimc_pix_map *vimc_pix_map_by_code(u32 code);
 /**
  * vimc_pix_map_by_pixelformat - get vimc_pix_map struct by v4l2 pixel format
  *
- * @pixelformat:	pixel format devined by V4L2_PIX_FMT_* macros
+ * @pixelformat:	pixel format defined by V4L2_PIX_FMT_* macros
  */
 const struct vimc_pix_map *vimc_pix_map_by_pixelformat(u32 pixelformat);
 
