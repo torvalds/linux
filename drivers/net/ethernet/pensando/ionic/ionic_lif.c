@@ -105,7 +105,7 @@ static void ionic_link_status_check(struct ionic_lif *lif)
 	clear_bit(IONIC_LIF_F_LINK_CHECK_REQUESTED, lif->state);
 }
 
-static void ionic_link_status_check_request(struct ionic_lif *lif)
+void ionic_link_status_check_request(struct ionic_lif *lif)
 {
 	struct ionic_deferred_work *work;
 

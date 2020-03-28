@@ -14,11 +14,15 @@
 static void ionic_watchdog_cb(struct timer_list *t)
 {
 	struct ionic *ionic = from_timer(ionic, t, watchdog_timer);
+	int hb;
 
 	mod_timer(&ionic->watchdog_timer,
 		  round_jiffies(jiffies + ionic->watchdog_period));
 
-	ionic_heartbeat_check(ionic);
+	hb = ionic_heartbeat_check(ionic);
+
+	if (hb >= 0 && ionic->master_lif)
+		ionic_link_status_check_request(ionic->master_lif);
 }
 
 void ionic_init_devinfo(struct ionic *ionic)
