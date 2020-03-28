@@ -457,8 +457,8 @@ static const struct regval ov4689_hdr_x2_regs[] = {
 };
 
 static const struct regval ov4689_hdr_x3_regs[] = {
-	{0x380c, 0x05},
-	{0x380d, 0x10},
+	{0x380c, 0x0a},
+	{0x380d, 0x20},
 
 	{0x3841, 0x03},
 	{0x3846, 0x08},
@@ -510,10 +510,10 @@ static const struct ov4689_mode supported_modes[] = {
 		.height = 1520,
 		.max_fps = {
 			.numerator = 10000,
-			.denominator = 200000,
+			.denominator = 100000,
 		},
 		.exp_def = 0x0600,
-		.hts_def = 0x0510,
+		.hts_def = 0x0a20,
 		.vts_def = 0x0612,
 		.reg_list = ov4689_hdr_x3_regs,
 		.hdr_mode = HDR_X3,
@@ -843,7 +843,7 @@ static int ov4689_set_hdrae(struct ov4689 *ov4689,
 	if (ov4689->cur_mode->hdr_mode == HDR_X3) {
 		ret |= ov4689_write_reg(ov4689->client, OV4689_REG_S_GAIN,
 			OV4689_REG_VALUE_16BIT, s_gain);
-		ret |= ov4689_write_reg(ov4689->client, OV4689_REG_L_EXP,
+		ret |= ov4689_write_reg(ov4689->client, OV4689_REG_S_EXP,
 			OV4689_REG_VALUE_24BIT, s_exp << 4);
 	}
 	ret |= ov4689_write_reg(ov4689->client, OV4689_GROUP_UPDATE_ADDRESS,
