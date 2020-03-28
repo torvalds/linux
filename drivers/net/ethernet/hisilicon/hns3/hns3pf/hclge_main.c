@@ -6765,7 +6765,7 @@ static void hclge_set_timer_task(struct hnae3_handle *handle, bool enable)
 	struct hclge_dev *hdev = vport->back;
 
 	if (enable) {
-		hclge_task_schedule(hdev, round_jiffies_relative(HZ));
+		hclge_task_schedule(hdev, 0);
 	} else {
 		/* Set the DOWN flag here to disable link updating */
 		set_bit(HCLGE_STATE_DOWN, &hdev->state);
@@ -8978,6 +8978,12 @@ static void hclge_get_media_type(struct hnae3_handle *handle, u8 *media_type,
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
+
+	/* When nic is down, the service task is not running, doesn't update
+	 * the port information per second. Query the port information before
+	 * return the media type, ensure getting the correct media information.
+	 */
+	hclge_update_port_info(hdev);
 
 	if (media_type)
 		*media_type = hdev->hw.mac.media_type;
