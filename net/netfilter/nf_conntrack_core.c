@@ -865,7 +865,8 @@ out:
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_hash_check_insert);
 
-void nf_ct_acct_update(struct nf_conn *ct, u32 dir, unsigned int bytes)
+void nf_ct_acct_add(struct nf_conn *ct, u32 dir, unsigned int packets,
+		    unsigned int bytes)
 {
 	struct nf_conn_acct *acct;
 
@@ -873,11 +874,11 @@ void nf_ct_acct_update(struct nf_conn *ct, u32 dir, unsigned int bytes)
 	if (acct) {
 		struct nf_conn_counter *counter = acct->counter;
 
-		atomic64_inc(&counter[dir].packets);
+		atomic64_add(packets, &counter[dir].packets);
 		atomic64_add(bytes, &counter[dir].bytes);
 	}
 }
-EXPORT_SYMBOL_GPL(nf_ct_acct_update);
+EXPORT_SYMBOL_GPL(nf_ct_acct_add);
 
 static void nf_ct_acct_merge(struct nf_conn *ct, enum ip_conntrack_info ctinfo,
 			     const struct nf_conn *loser_ct)
