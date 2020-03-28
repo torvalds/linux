@@ -28,6 +28,7 @@
 #include <linux/iio/sysfs.h>
 #include <linux/bitfield.h>
 
+#include <linux/iio/common/st_sensors.h>
 #include "st_lsm6dsx.h"
 
 #define ST_LSM6DSX_SLV_ADDR(n, base)		((base) + (n) * 3)
@@ -85,6 +86,69 @@ static const struct st_lsm6dsx_ext_dev_settings st_lsm6dsx_ext_dev_table[] = {
 		},
 		.out = {
 			.addr = 0x68,
+			.len = 6,
+		},
+	},
+	/* LIS3MDL */
+	{
+		.i2c_addr = { 0x1e },
+		.wai = {
+			.addr = ST_SENSORS_DEFAULT_WAI_ADDRESS,
+			.val = 0x3d,
+		},
+		.id = ST_LSM6DSX_ID_MAGN,
+		.odr_table = {
+			.reg = {
+				.addr = 0x20,
+				.mask = GENMASK(4, 2),
+			},
+			.odr_avl[0] = {  1000, 0x0 },
+			.odr_avl[1] = {  2000, 0x1 },
+			.odr_avl[2] = {  3000, 0x2 },
+			.odr_avl[3] = {  5000, 0x3 },
+			.odr_avl[4] = { 10000, 0x4 },
+			.odr_avl[5] = { 20000, 0x5 },
+			.odr_avl[6] = { 40000, 0x6 },
+			.odr_avl[7] = { 80000, 0x7 },
+			.odr_len = 8,
+		},
+		.fs_table = {
+			.reg = {
+				.addr = 0x21,
+				.mask = GENMASK(6, 5),
+			},
+			.fs_avl[0] = {
+				.gain = 146,
+				.val = 0x00,
+			}, /* 4000 uG/LSB */
+			.fs_avl[1] = {
+				.gain = 292,
+				.val = 0x01,
+			}, /* 8000 uG/LSB */
+			.fs_avl[2] = {
+				.gain = 438,
+				.val = 0x02,
+			}, /* 12000 uG/LSB */
+			.fs_avl[3] = {
+				.gain = 584,
+				.val = 0x03,
+			}, /* 16000 uG/LSB */
+			.fs_len = 4,
+		},
+		.pwr_table = {
+			.reg = {
+				.addr = 0x22,
+				.mask = GENMASK(1, 0),
+			},
+			.off_val = 0x2,
+			.on_val = 0x0,
+		},
+		.bdu = {
+			.addr = 0x24,
+			.mask = BIT(6),
+		},
+		.out = {
+			.addr = 0x28,
 			.len = 6,
 		},
 	},
