@@ -581,7 +581,7 @@ err_free:
 
 /* Asynchronous interior node update machinery */
 
-static void bch2_btree_update_free(struct btree_update *as)
+static void __bch2_btree_update_free(struct btree_update *as)
 {
 	struct bch_fs *c = as->c;
 
@@ -596,13 +596,20 @@ static void bch2_btree_update_free(struct btree_update *as)
 	if (as->reserve)
 		bch2_btree_reserve_put(c, as->reserve);
 
-	mutex_lock(&c->btree_interior_update_lock);
 	list_del(&as->list);
 
 	closure_debug_destroy(&as->cl);
 	mempool_free(as, &c->btree_interior_update_pool);
 
 	closure_wake_up(&c->btree_interior_update_wait);
+}
+
+static void bch2_btree_update_free(struct btree_update *as)
+{
+	struct bch_fs *c = as->c;
+
+	mutex_lock(&c->btree_interior_update_lock);
+	__bch2_btree_update_free(as);
 	mutex_unlock(&c->btree_interior_update_lock);
 }
 
@@ -610,14 +617,11 @@ static void btree_update_nodes_reachable(struct btree_update *as, u64 seq)
 {
 	struct bch_fs *c = as->c;
 
-	mutex_lock(&c->btree_interior_update_lock);
-
 	while (as->nr_new_nodes) {
 		struct btree *b = as->new_nodes[--as->nr_new_nodes];
 
 		BUG_ON(b->will_make_reachable != (unsigned long) as);
 		b->will_make_reachable = 0;
-		mutex_unlock(&c->btree_interior_update_lock);
 
 		/*
 		 * b->will_make_reachable prevented it from being written, so
@@ -626,14 +630,11 @@ static void btree_update_nodes_reachable(struct btree_update *as, u64 seq)
 		btree_node_lock_type(c, b, SIX_LOCK_read);
 		bch2_btree_node_write_cond(c, b, btree_node_need_write(b));
 		six_unlock_read(&b->c.lock);
-		mutex_lock(&c->btree_interior_update_lock);
 	}
 
 	while (as->nr_pending)
 		bch2_btree_node_free_ondisk(c, &as->pending[--as->nr_pending],
 					    seq);
-
-	mutex_unlock(&c->btree_interior_update_lock);
 }
 
 static void btree_update_nodes_written(struct closure *cl)
@@ -667,8 +668,11 @@ again:
 		mutex_unlock(&c->btree_interior_update_lock);
 		btree_node_lock_type(c, b, SIX_LOCK_intent);
 		six_unlock_intent(&b->c.lock);
-		goto out;
+		mutex_lock(&c->btree_interior_update_lock);
+		goto again;
 	}
+
+	list_del(&as->unwritten_list);
 
 	journal_u64s = 0;
 
@@ -710,9 +714,6 @@ again:
 		bch2_btree_add_journal_pin(c, b, res.seq);
 		six_unlock_write(&b->c.lock);
 
-		list_del(&as->unwritten_list);
-		mutex_unlock(&c->btree_interior_update_lock);
-
 		/*
 		 * b->write_blocked prevented it from being written, so
 		 * write it now if it needs to be written:
@@ -723,9 +724,6 @@ again:
 
 	case BTREE_INTERIOR_UPDATING_AS:
 		BUG_ON(b);
-
-		list_del(&as->unwritten_list);
-		mutex_unlock(&c->btree_interior_update_lock);
 		break;
 
 	case BTREE_INTERIOR_UPDATING_ROOT: {
@@ -739,9 +737,6 @@ again:
 		r->alive = true;
 		c->btree_roots_dirty = true;
 		mutex_unlock(&c->btree_root_lock);
-
-		list_del(&as->unwritten_list);
-		mutex_unlock(&c->btree_interior_update_lock);
 		break;
 	}
 	}
@@ -753,14 +748,12 @@ again:
 
 	btree_update_nodes_reachable(as, res.seq);
 free_update:
-	bch2_btree_update_free(as);
+	__bch2_btree_update_free(as);
 	/*
 	 * for flush_held_btree_writes() waiting on updates to flush or
 	 * nodes to be writeable:
 	 */
 	closure_wake_up(&c->btree_interior_update_wait);
-out:
-	mutex_lock(&c->btree_interior_update_lock);
 	goto again;
 }
 
