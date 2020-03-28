@@ -22,6 +22,9 @@ static int ionic_lif_addr_add(struct ionic_lif *lif, const u8 *addr);
 static int ionic_lif_addr_del(struct ionic_lif *lif, const u8 *addr);
 static void ionic_link_status_check(struct ionic_lif *lif);
 
+static int ionic_start_queues(struct ionic_lif *lif);
+static void ionic_stop_queues(struct ionic_lif *lif);
+
 static void ionic_lif_deferred_work(struct work_struct *work)
 {
 	struct ionic_lif *lif = container_of(work, struct ionic_lif, deferred.work);
@@ -73,6 +76,9 @@ static void ionic_link_status_check(struct ionic_lif *lif)
 	u16 link_status;
 	bool link_up;
 
+	if (!test_bit(IONIC_LIF_F_LINK_CHECK_REQUESTED, lif->state))
+		return;
+
 	if (lif->ionic->is_mgmt_nic)
 		return;
 
@@ -90,16 +96,16 @@ static void ionic_link_status_check(struct ionic_lif *lif)
 			netif_carrier_on(netdev);
 		}
 
-		if (test_bit(IONIC_LIF_F_UP, lif->state))
-			netif_tx_wake_all_queues(lif->netdev);
+		if (netif_running(lif->netdev))
+			ionic_start_queues(lif);
 	} else {
 		if (netif_carrier_ok(netdev)) {
 			netdev_info(netdev, "Link down\n");
 			netif_carrier_off(netdev);
 		}
 
-		if (test_bit(IONIC_LIF_F_UP, lif->state))
-			netif_tx_stop_all_queues(netdev);
+		if (netif_running(lif->netdev))
+			ionic_stop_queues(lif);
 	}
 
 	clear_bit(IONIC_LIF_F_LINK_CHECK_REQUESTED, lif->state);
@@ -246,21 +252,6 @@ static int ionic_qcq_disable(struct ionic_qcq *qcq)
 	}
 
 	return ionic_adminq_post_wait(lif, &ctx);
-}
-
-static void ionic_lif_quiesce(struct ionic_lif *lif)
-{
-	struct ionic_admin_ctx ctx = {
-		.work = COMPLETION_INITIALIZER_ONSTACK(ctx.work),
-		.cmd.lif_setattr = {
-			.opcode = IONIC_CMD_LIF_SETATTR,
-			.attr = IONIC_LIF_ATTR_STATE,
-			.index = lif->index,
-			.state = IONIC_LIF_DISABLE
-		},
-	};
-
-	ionic_adminq_post_wait(lif, &ctx);
 }
 
 static void ionic_lif_qcq_deinit(struct ionic_lif *lif, struct ionic_qcq *qcq)
@@ -615,6 +606,10 @@ static int ionic_lif_txq_init(struct ionic_lif *lif, struct ionic_qcq *qcq)
 	dev_dbg(dev, "txq_init.ring_base 0x%llx\n", ctx.cmd.q_init.ring_base);
 	dev_dbg(dev, "txq_init.ring_size %d\n", ctx.cmd.q_init.ring_size);
 
+	q->tail = q->info;
+	q->head = q->tail;
+	cq->tail = cq->info;
+
 	err = ionic_adminq_post_wait(lif, &ctx);
 	if (err)
 		return err;
@@ -659,6 +654,10 @@ static int ionic_lif_rxq_init(struct ionic_lif *lif, struct ionic_qcq *qcq)
 	dev_dbg(dev, "rxq_init.index %d\n", ctx.cmd.q_init.index);
 	dev_dbg(dev, "rxq_init.ring_base 0x%llx\n", ctx.cmd.q_init.ring_base);
 	dev_dbg(dev, "rxq_init.ring_size %d\n", ctx.cmd.q_init.ring_size);
+
+	q->tail = q->info;
+	q->head = q->tail;
+	cq->tail = cq->info;
 
 	err = ionic_adminq_post_wait(lif, &ctx);
 	if (err)
@@ -1473,6 +1472,7 @@ static void ionic_txrx_deinit(struct ionic_lif *lif)
 			ionic_rx_empty(&lif->rxqcqs[i].qcq->q);
 		}
 	}
+	lif->rx_mode = 0;
 }
 
 static void ionic_txrx_free(struct ionic_lif *lif)
@@ -1582,15 +1582,15 @@ static int ionic_txrx_enable(struct ionic_lif *lif)
 	int i, err;
 
 	for (i = 0; i < lif->nxqs; i++) {
-		err = ionic_qcq_enable(lif->txqcqs[i].qcq);
+		ionic_rx_fill(&lif->rxqcqs[i].qcq->q);
+		err = ionic_qcq_enable(lif->rxqcqs[i].qcq);
 		if (err)
 			goto err_out;
 
-		ionic_rx_fill(&lif->rxqcqs[i].qcq->q);
-		err = ionic_qcq_enable(lif->rxqcqs[i].qcq);
+		err = ionic_qcq_enable(lif->txqcqs[i].qcq);
 		if (err) {
 			if (err != -ETIMEDOUT)
-				ionic_qcq_disable(lif->txqcqs[i].qcq);
+				ionic_qcq_disable(lif->rxqcqs[i].qcq);
 			goto err_out;
 		}
 	}
@@ -1599,15 +1599,32 @@ static int ionic_txrx_enable(struct ionic_lif *lif)
 
 err_out:
 	while (i--) {
-		err = ionic_qcq_disable(lif->rxqcqs[i].qcq);
+		err = ionic_qcq_disable(lif->txqcqs[i].qcq);
 		if (err == -ETIMEDOUT)
 			break;
-		err = ionic_qcq_disable(lif->txqcqs[i].qcq);
+		err = ionic_qcq_disable(lif->rxqcqs[i].qcq);
 		if (err == -ETIMEDOUT)
 			break;
 	}
 
 	return err;
+}
+
+static int ionic_start_queues(struct ionic_lif *lif)
+{
+	int err;
+
+	if (test_and_set_bit(IONIC_LIF_F_UP, lif->state))
+		return 0;
+
+	err = ionic_txrx_enable(lif);
+	if (err) {
+		clear_bit(IONIC_LIF_F_UP, lif->state);
+		return err;
+	}
+	netif_tx_wake_all_queues(lif->netdev);
+
+	return 0;
 }
 
 int ionic_open(struct net_device *netdev)
@@ -1621,54 +1638,42 @@ int ionic_open(struct net_device *netdev)
 
 	err = ionic_txrx_init(lif);
 	if (err)
-		goto err_txrx_free;
+		goto err_out;
 
-	err = ionic_txrx_enable(lif);
-	if (err)
-		goto err_txrx_deinit;
-
-	netif_set_real_num_tx_queues(netdev, lif->nxqs);
-	netif_set_real_num_rx_queues(netdev, lif->nxqs);
-
-	set_bit(IONIC_LIF_F_UP, lif->state);
-
-	ionic_link_status_check_request(lif);
-	if (netif_carrier_ok(netdev))
-		netif_tx_wake_all_queues(netdev);
+	/* don't start the queues until we have link */
+	if (netif_carrier_ok(netdev)) {
+		err = ionic_start_queues(lif);
+		if (err)
+			goto err_txrx_deinit;
+	}
 
 	return 0;
 
 err_txrx_deinit:
 	ionic_txrx_deinit(lif);
-err_txrx_free:
+err_out:
 	ionic_txrx_free(lif);
 	return err;
+}
+
+static void ionic_stop_queues(struct ionic_lif *lif)
+{
+	if (!test_and_clear_bit(IONIC_LIF_F_UP, lif->state))
+		return;
+
+	ionic_txrx_disable(lif);
+	netif_tx_disable(lif->netdev);
 }
 
 int ionic_stop(struct net_device *netdev)
 {
 	struct ionic_lif *lif = netdev_priv(netdev);
-	int err = 0;
 
-	if (!test_bit(IONIC_LIF_F_UP, lif->state)) {
-		dev_dbg(lif->ionic->dev, "%s: %s state=DOWN\n",
-			__func__, lif->name);
-		return 0;
-	}
-	dev_dbg(lif->ionic->dev, "%s: %s state=UP\n", __func__, lif->name);
-	clear_bit(IONIC_LIF_F_UP, lif->state);
-
-	/* carrier off before disabling queues to avoid watchdog timeout */
-	netif_carrier_off(netdev);
-	netif_tx_stop_all_queues(netdev);
-	netif_tx_disable(netdev);
-
-	ionic_txrx_disable(lif);
-	ionic_lif_quiesce(lif);
+	ionic_stop_queues(lif);
 	ionic_txrx_deinit(lif);
 	ionic_txrx_free(lif);
 
-	return err;
+	return 0;
 }
 
 static int ionic_get_vf_config(struct net_device *netdev,
