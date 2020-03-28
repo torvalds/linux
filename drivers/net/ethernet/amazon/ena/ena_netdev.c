@@ -457,10 +457,9 @@ static void ena_xdp_unregister_rxq_info(struct ena_ring *rx_ring)
 	xdp_rxq_info_unreg(&rx_ring->xdp_rxq);
 }
 
-void ena_xdp_exchange_program_rx_in_range(struct ena_adapter *adapter,
-					  struct bpf_prog *prog,
-					  int first,
-					  int count)
+static void ena_xdp_exchange_program_rx_in_range(struct ena_adapter *adapter,
+						 struct bpf_prog *prog,
+						 int first, int count)
 {
 	struct ena_ring *rx_ring;
 	int i = 0;
@@ -478,8 +477,8 @@ void ena_xdp_exchange_program_rx_in_range(struct ena_adapter *adapter,
 	}
 }
 
-void ena_xdp_exchange_program(struct ena_adapter *adapter,
-			      struct bpf_prog *prog)
+static void ena_xdp_exchange_program(struct ena_adapter *adapter,
+				     struct bpf_prog *prog)
 {
 	struct bpf_prog *old_bpf_prog = xchg(&adapter->xdp_bpf_prog, prog);
 
@@ -1552,7 +1551,7 @@ static void ena_set_rx_hash(struct ena_ring *rx_ring,
 	}
 }
 
-int ena_xdp_handle_buff(struct ena_ring *rx_ring, struct xdp_buff *xdp)
+static int ena_xdp_handle_buff(struct ena_ring *rx_ring, struct xdp_buff *xdp)
 {
 	struct ena_rx_buffer *rx_info;
 	int ret;
