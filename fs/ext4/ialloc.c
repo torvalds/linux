@@ -113,7 +113,7 @@ verified:
  * Read the inode allocation bitmap for a given block_group, reading
  * into the specified slot in the superblock's bitmap cache.
  *
- * Return buffer_head of bitmap on success or NULL.
+ * Return buffer_head of bitmap on success, or an ERR_PTR on error.
  */
 static struct buffer_head *
 ext4_read_inode_bitmap(struct super_block *sb, ext4_group_t block_group)
