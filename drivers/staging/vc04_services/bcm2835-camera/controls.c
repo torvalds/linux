@@ -514,42 +514,41 @@ static int ctrl_set_image_effect(struct bm2835_mmal_dev *dev,
 	struct mmal_parameter_imagefx_parameters imagefx;
 
 	for (i = 0; i < ARRAY_SIZE(v4l2_to_mmal_effects_values); i++) {
-		if (ctrl->val == v4l2_to_mmal_effects_values[i].v4l2_effect) {
-			imagefx.effect =
-				v4l2_to_mmal_effects_values[i].mmal_effect;
-			imagefx.num_effect_params =
-				v4l2_to_mmal_effects_values[i].num_effect_params;
+		if (ctrl->val != v4l2_to_mmal_effects_values[i].v4l2_effect)
+			continue;
 
-			if (imagefx.num_effect_params > MMAL_MAX_IMAGEFX_PARAMETERS)
-				imagefx.num_effect_params = MMAL_MAX_IMAGEFX_PARAMETERS;
+		imagefx.effect =
+			v4l2_to_mmal_effects_values[i].mmal_effect;
+		imagefx.num_effect_params =
+			v4l2_to_mmal_effects_values[i].num_effect_params;
 
-			for (j = 0; j < imagefx.num_effect_params; j++)
-				imagefx.effect_parameter[j] =
-					v4l2_to_mmal_effects_values[i].effect_params[j];
+		if (imagefx.num_effect_params > MMAL_MAX_IMAGEFX_PARAMETERS)
+			imagefx.num_effect_params = MMAL_MAX_IMAGEFX_PARAMETERS;
 
-			dev->colourfx.enable =
-				v4l2_to_mmal_effects_values[i].col_fx_enable;
-			if (!v4l2_to_mmal_effects_values[i].col_fx_fixed_cbcr) {
-				dev->colourfx.u =
-					v4l2_to_mmal_effects_values[i].u;
-				dev->colourfx.v =
-					v4l2_to_mmal_effects_values[i].v;
-			}
+		for (j = 0; j < imagefx.num_effect_params; j++)
+			imagefx.effect_parameter[j] =
+				v4l2_to_mmal_effects_values[i].effect_params[j];
 
-			control = &dev->component[COMP_CAMERA]->control;
-
-			ret = vchiq_mmal_port_parameter_set(
-					dev->instance, control,
-					MMAL_PARAMETER_IMAGE_EFFECT_PARAMETERS,
-					&imagefx, sizeof(imagefx));
-			if (ret)
-				goto exit;
-
-			ret = vchiq_mmal_port_parameter_set(
-					dev->instance, control,
-					MMAL_PARAMETER_COLOUR_EFFECT,
-					&dev->colourfx, sizeof(dev->colourfx));
+		dev->colourfx.enable =
+			v4l2_to_mmal_effects_values[i].col_fx_enable;
+		if (!v4l2_to_mmal_effects_values[i].col_fx_fixed_cbcr) {
+			dev->colourfx.u = v4l2_to_mmal_effects_values[i].u;
+			dev->colourfx.v = v4l2_to_mmal_effects_values[i].v;
 		}
+
+		control = &dev->component[COMP_CAMERA]->control;
+
+		ret = vchiq_mmal_port_parameter_set(
+				dev->instance, control,
+				MMAL_PARAMETER_IMAGE_EFFECT_PARAMETERS,
+				&imagefx, sizeof(imagefx));
+		if (ret)
+			goto exit;
+
+		ret = vchiq_mmal_port_parameter_set(
+				dev->instance, control,
+				MMAL_PARAMETER_COLOUR_EFFECT,
+				&dev->colourfx, sizeof(dev->colourfx));
 	}
 
 exit:
