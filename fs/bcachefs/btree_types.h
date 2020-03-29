@@ -275,7 +275,11 @@ struct btree_insert_entry {
 	struct btree_iter	*iter;
 };
 
+#ifndef CONFIG_LOCKDEP
 #define BTREE_ITER_MAX		64
+#else
+#define BTREE_ITER_MAX		32
+#endif
 
 struct btree_trans {
 	struct bch_fs		*c;
