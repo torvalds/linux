@@ -13,6 +13,7 @@
 #include <linux/of_net.h>
 #include <linux/pci.h>
 #include <linux/of.h>
+#include <net/pkt_sched.h>
 #include <net/dsa.h>
 #include "felix.h"
 
@@ -650,6 +651,27 @@ static int felix_cls_flower_stats(struct dsa_switch *ds, int port,
 	return ocelot_cls_flower_stats(ocelot, port, cls, ingress);
 }
 
+static int felix_port_policer_add(struct dsa_switch *ds, int port,
+				  struct dsa_mall_policer_tc_entry *policer)
+{
+	struct ocelot *ocelot = ds->priv;
+	struct ocelot_policer pol = {
+		.rate = div_u64(policer->rate_bytes_per_sec, 1000) * 8,
+		.burst = div_u64(policer->rate_bytes_per_sec *
+				 PSCHED_NS2TICKS(policer->burst),
+				 PSCHED_TICKS_PER_SEC),
+	};
+
+	return ocelot_port_policer_add(ocelot, port, &pol);
+}
+
+static void felix_port_policer_del(struct dsa_switch *ds, int port)
+{
+	struct ocelot *ocelot = ds->priv;
+
+	ocelot_port_policer_del(ocelot, port);
+}
+
 static const struct dsa_switch_ops felix_switch_ops = {
 	.get_tag_protocol	= felix_get_tag_protocol,
 	.setup			= felix_setup,
@@ -683,6 +705,8 @@ static const struct dsa_switch_ops felix_switch_ops = {
 	.port_txtstamp		= felix_txtstamp,
 	.port_change_mtu	= felix_change_mtu,
 	.port_max_mtu		= felix_get_max_mtu,
+	.port_policer_add	= felix_port_policer_add,
+	.port_policer_del	= felix_port_policer_del,
 	.cls_flower_add		= felix_cls_flower_add,
 	.cls_flower_del		= felix_cls_flower_del,
 	.cls_flower_stats	= felix_cls_flower_stats,

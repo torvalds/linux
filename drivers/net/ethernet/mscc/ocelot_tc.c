@@ -4,8 +4,8 @@
  * Copyright (c) 2019 Microsemi Corporation
  */
 
+#include <soc/mscc/ocelot.h>
 #include "ocelot_tc.h"
-#include "ocelot_police.h"
 #include "ocelot_ace.h"
 #include <net/pkt_cls.h>
 
