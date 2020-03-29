@@ -375,7 +375,8 @@ unlock:
 		goto retry;
 
 	if (ret == -ENOSPC) {
-		BUG_ON(!can_discard && (flags & JOURNAL_RES_GET_RESERVED));
+		WARN_ONCE(!can_discard && (flags & JOURNAL_RES_GET_RESERVED),
+			  "JOURNAL_RES_GET_RESERVED set but journal full");
 
 		/*
 		 * Journal is full - can't rely on reclaim from work item due to
