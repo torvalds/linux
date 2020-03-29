@@ -668,7 +668,7 @@ static int set_overlay_params(struct bm2835_mmal_dev *dev,
 			MMAL_DISPLAY_SET_ALPHA |
 			MMAL_DISPLAY_SET_DEST_RECT |
 			MMAL_DISPLAY_SET_FULLSCREEN,
-		.layer = PREVIEW_LAYER,
+		.layer = 2,
 		.alpha = dev->overlay.global_alpha,
 		.fullscreen = 0,
 		.dest_rect = {

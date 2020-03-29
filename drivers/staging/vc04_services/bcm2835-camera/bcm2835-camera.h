@@ -30,8 +30,6 @@ enum {
 	CAM_PORT_COUNT
 };
 
-#define PREVIEW_LAYER      2
-
 extern int bcm2835_v4l2_debug;
 
 struct bm2835_mmal_dev {
