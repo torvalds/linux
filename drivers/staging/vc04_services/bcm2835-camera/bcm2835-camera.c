@@ -1241,37 +1241,39 @@ static int mmal_setup_components(struct bm2835_mmal_dev *dev,
 			 f->fmt.pix.pixelformat);
 		/* ensure capture is not going to be tried */
 		dev->capture.port = NULL;
-	} else {
-		if (encode_component) {
-			ret = mmal_setup_encode_component(dev, f, port,
-							  camera_port,
-							  encode_component);
-		} else {
-			/* configure buffering */
-			camera_port->current_buffer.num = 1;
-			camera_port->current_buffer.size = f->fmt.pix.sizeimage;
-			camera_port->current_buffer.alignment = 0;
-		}
-
-		if (!ret) {
-			dev->capture.fmt = mfmt;
-			dev->capture.stride = f->fmt.pix.bytesperline;
-			dev->capture.width = camera_port->es.video.crop.width;
-			dev->capture.height = camera_port->es.video.crop.height;
-			dev->capture.buffersize = port->current_buffer.size;
-
-			/* select port for capture */
-			dev->capture.port = port;
-			dev->capture.camera_port = camera_port;
-			dev->capture.encode_component = encode_component;
-			v4l2_dbg(1, bcm2835_v4l2_debug,
-				 &dev->v4l2_dev,
-				"Set dev->capture.fmt %08X, %dx%d, stride %d, size %d",
-				port->format.encoding,
-				dev->capture.width, dev->capture.height,
-				dev->capture.stride, dev->capture.buffersize);
-		}
+		return ret;
 	}
+
+	if (encode_component) {
+		ret = mmal_setup_encode_component(dev, f, port,
+						  camera_port,
+						  encode_component);
+
+		if (ret)
+			return ret;
+	} else {
+		/* configure buffering */
+		camera_port->current_buffer.num = 1;
+		camera_port->current_buffer.size = f->fmt.pix.sizeimage;
+		camera_port->current_buffer.alignment = 0;
+	}
+
+	dev->capture.fmt = mfmt;
+	dev->capture.stride = f->fmt.pix.bytesperline;
+	dev->capture.width = camera_port->es.video.crop.width;
+	dev->capture.height = camera_port->es.video.crop.height;
+	dev->capture.buffersize = port->current_buffer.size;
+
+	/* select port for capture */
+	dev->capture.port = port;
+	dev->capture.camera_port = camera_port;
+	dev->capture.encode_component = encode_component;
+	v4l2_dbg(1, bcm2835_v4l2_debug,
+		 &dev->v4l2_dev,
+		"Set dev->capture.fmt %08X, %dx%d, stride %d, size %d",
+		port->format.encoding,
+		dev->capture.width, dev->capture.height,
+		dev->capture.stride, dev->capture.buffersize);
 
 	/* todo: Need to convert the vchiq/mmal error into a v4l2 error. */
 	return ret;
