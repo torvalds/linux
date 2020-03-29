@@ -150,7 +150,7 @@ void bnxt_dl_fw_reporters_create(struct bnxt *bp)
 	health->fw_reset_reporter =
 		devlink_health_reporter_create(bp->dl,
 					       &bnxt_dl_fw_reset_reporter_ops,
-					       0, true, bp);
+					       0, bp);
 	if (IS_ERR(health->fw_reset_reporter)) {
 		netdev_warn(bp->dev, "Failed to create FW fatal health reporter, rc = %ld\n",
 			    PTR_ERR(health->fw_reset_reporter));
@@ -166,7 +166,7 @@ err_recovery:
 		health->fw_reporter =
 			devlink_health_reporter_create(bp->dl,
 						       &bnxt_dl_fw_reporter_ops,
-						       0, false, bp);
+						       0, bp);
 		if (IS_ERR(health->fw_reporter)) {
 			netdev_warn(bp->dev, "Failed to create FW health reporter, rc = %ld\n",
 				    PTR_ERR(health->fw_reporter));
@@ -182,7 +182,7 @@ err_recovery:
 	health->fw_fatal_reporter =
 		devlink_health_reporter_create(bp->dl,
 					       &bnxt_dl_fw_fatal_reporter_ops,
-					       0, true, bp);
+					       0, bp);
 	if (IS_ERR(health->fw_fatal_reporter)) {
 		netdev_warn(bp->dev, "Failed to create FW fatal health reporter, rc = %ld\n",
 			    PTR_ERR(health->fw_fatal_reporter));

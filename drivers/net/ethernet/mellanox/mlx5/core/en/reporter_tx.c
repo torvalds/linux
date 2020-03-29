@@ -416,7 +416,7 @@ int mlx5e_reporter_tx_create(struct mlx5e_priv *priv)
 	reporter =
 		devlink_health_reporter_create(devlink, &mlx5_tx_reporter_ops,
 					       MLX5_REPORTER_TX_GRACEFUL_PERIOD,
-					       true, priv);
+					       priv);
 	if (IS_ERR(reporter)) {
 		netdev_warn(priv->netdev,
 			    "Failed to create tx reporter, err = %ld\n",
