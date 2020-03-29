@@ -9,6 +9,7 @@
 #define HL_BOOT_IF_H
 
 #define LKD_HARD_RESET_MAGIC		0xED7BD694
+#define HL_POWER9_HOST_MAGIC		0x1DA30009
 
 /*
  * CPU error bits in BOOT_ERROR registers

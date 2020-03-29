@@ -531,7 +531,7 @@ static int goya_early_init(struct hl_device *hdev)
 
 	prop->dram_pci_bar_size = pci_resource_len(pdev, DDR_BAR_ID);
 
-	rc = hl_pci_init(hdev, 48);
+	rc = hl_pci_init(hdev);
 	if (rc)
 		return rc;
 
@@ -5185,6 +5185,20 @@ u32 goya_get_queue_id_for_cq(struct hl_device *hdev, u32 cq_idx)
 	return cq_idx;
 }
 
+static void goya_set_dma_mask_from_fw(struct hl_device *hdev)
+{
+	if (RREG32(mmPSOC_GLOBAL_CONF_NON_RST_FLOPS_0) ==
+							HL_POWER9_HOST_MAGIC) {
+		dev_dbg(hdev->dev, "Working in 64-bit DMA mode\n");
+		hdev->power9_64bit_dma_enable = 1;
+		hdev->dma_mask = 64;
+	} else {
+		dev_dbg(hdev->dev, "Working in 48-bit DMA mode\n");
+		hdev->power9_64bit_dma_enable = 0;
+		hdev->dma_mask = 48;
+	}
+}
+
 static const struct hl_asic_funcs goya_funcs = {
 	.early_init = goya_early_init,
 	.early_fini = goya_early_fini,
@@ -5247,7 +5261,8 @@ static const struct hl_asic_funcs goya_funcs = {
 	.get_clk_rate = goya_get_clk_rate,
 	.get_queue_id_for_cq = goya_get_queue_id_for_cq,
 	.read_device_fw_version = goya_read_device_fw_version,
-	.load_firmware_to_device = goya_load_firmware_to_device
+	.load_firmware_to_device = goya_load_firmware_to_device,
+	.set_dma_mask_from_fw = goya_set_dma_mask_from_fw
 };
 
 /*

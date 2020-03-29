@@ -552,6 +552,8 @@ enum hl_pll_frequency {
  * @read_device_fw_version: read the device's firmware versions that are
  *                          contained in registers
  * @load_firmware_to_device: load the firmware to the device's memory
+ * @set_dma_mask_from_fw: set the DMA mask in the driver according to the
+ *                        firmware configuration
  */
 struct hl_asic_funcs {
 	int (*early_init)(struct hl_device *hdev);
@@ -642,6 +644,7 @@ struct hl_asic_funcs {
 	void (*read_device_fw_version)(struct hl_device *hdev,
 					enum hl_fw_component fwc);
 	int (*load_firmware_to_device)(struct hl_device *hdev);
+	void (*set_dma_mask_from_fw)(struct hl_device *hdev);
 };
 
 
@@ -1321,6 +1324,8 @@ struct hl_device_idle_busy_ts {
  * @dma_mask: the dma mask that was set for this device
  * @in_debug: is device under debug. This, together with fpriv_list, enforces
  *            that only a single user is configuring the debug infrastructure.
+ * @power9_64bit_dma_enable: true to enable 64-bit DMA mask support. Relevant
+ *                           only to POWER9 machines.
  * @cdev_sysfs_created: were char devices and sysfs nodes created.
  * @stop_on_err: true if engines should stop on error.
  */
@@ -1402,6 +1407,7 @@ struct hl_device {
 	u8				device_cpu_disabled;
 	u8				dma_mask;
 	u8				in_debug;
+	u8                              power9_64bit_dma_enable;
 	u8				cdev_sysfs_created;
 	u8				stop_on_err;
 
@@ -1632,9 +1638,8 @@ int hl_pci_set_dram_bar_base(struct hl_device *hdev, u8 inbound_region, u8 bar,
 int hl_pci_init_iatu(struct hl_device *hdev, u64 sram_base_address,
 			u64 dram_base_address, u64 host_phys_base_address,
 			u64 host_phys_size);
-int hl_pci_init(struct hl_device *hdev, u8 dma_mask);
+int hl_pci_init(struct hl_device *hdev);
 void hl_pci_fini(struct hl_device *hdev);
-int hl_pci_set_dma_mask(struct hl_device *hdev, u8 dma_mask);
 
 long hl_get_frequency(struct hl_device *hdev, u32 pll_index, bool curr);
 void hl_set_frequency(struct hl_device *hdev, u32 pll_index, u64 freq);
