@@ -277,7 +277,7 @@ efi_status_t efi_entry(efi_handle_t handle, efi_system_table_t *sys_table_arg)
 		} else if (status == EFI_NOT_FOUND) {
 			status = efi_load_initrd(image, &initrd_addr, &initrd_size,
 						 ULONG_MAX, max_addr);
-			if (status == EFI_SUCCESS)
+			if (status == EFI_SUCCESS && initrd_size > 0)
 				pr_efi("Loaded initrd from command line option\n");
 		}
 		if (status != EFI_SUCCESS)
