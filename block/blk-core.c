@@ -555,7 +555,7 @@ struct request_queue *blk_alloc_queue(make_request_fn make_request, int node_id)
 	struct request_queue *q;
 
 	if (WARN_ON_ONCE(!make_request))
-		return -EINVAL;
+		return NULL;
 
 	q = __blk_alloc_queue(node_id);
 	if (!q)
