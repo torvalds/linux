@@ -129,10 +129,10 @@ enum mlx5e_tc_attr_to_reg {
 	TUNNEL_TO_REG,
 	CTSTATE_TO_REG,
 	ZONE_TO_REG,
+	ZONE_RESTORE_TO_REG,
 	MARK_TO_REG,
 	LABELS_TO_REG,
 	FTEID_TO_REG,
-	TUPLEID_TO_REG,
 };
 
 struct mlx5e_tc_attr_to_reg_mapping {

@@ -67,16 +67,17 @@ struct mlx5_ct_attr {
 				 misc_parameters_2.metadata_reg_c_5),\
 }
 
-#define tupleid_to_reg_ct {\
+#define zone_restore_to_reg_ct {\
 	.mfield = MLX5_ACTION_IN_FIELD_METADATA_REG_C_1,\
 	.moffset = 0,\
-	.mlen = 3,\
+	.mlen = 2,\
 	.soffset = MLX5_BYTE_OFF(fte_match_param,\
 				 misc_parameters_2.metadata_reg_c_1),\
 }
 
-#define TUPLE_ID_BITS (mlx5e_tc_attr_to_reg_mappings[TUPLEID_TO_REG].mlen * 8)
-#define TUPLE_ID_MAX GENMASK(TUPLE_ID_BITS - 1, 0)
+#define REG_MAPPING_MLEN(reg) (mlx5e_tc_attr_to_reg_mappings[reg].mlen)
+#define ZONE_RESTORE_BITS (REG_MAPPING_MLEN(ZONE_RESTORE_TO_REG) * 8)
+#define ZONE_RESTORE_MAX GENMASK(ZONE_RESTORE_BITS - 1, 0)
 
 #if IS_ENABLED(CONFIG_MLX5_TC_CT)
 
@@ -112,7 +113,7 @@ mlx5_tc_ct_delete_flow(struct mlx5e_priv *priv,
 
 bool
 mlx5e_tc_ct_restore_flow(struct mlx5_rep_uplink_priv *uplink_priv,
-			 struct sk_buff *skb, u32 tupleid);
+			 struct sk_buff *skb, u16 zone);
 
 #else /* CONFIG_MLX5_TC_CT */
 
@@ -180,10 +181,10 @@ mlx5_tc_ct_delete_flow(struct mlx5e_priv *priv,
 
 static inline bool
 mlx5e_tc_ct_restore_flow(struct mlx5_rep_uplink_priv *uplink_priv,
-			 struct sk_buff *skb, u32 tupleid)
+			 struct sk_buff *skb, u16 zone)
 {
-	if  (!tupleid)
-		return  true;
+	if (!zone)
+		return true;
 
 	return false;
 }

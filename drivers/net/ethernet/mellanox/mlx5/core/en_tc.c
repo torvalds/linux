@@ -186,11 +186,11 @@ struct mlx5e_tc_attr_to_reg_mapping mlx5e_tc_attr_to_reg_mappings[] = {
 					 misc_parameters_2.metadata_reg_c_1),
 	},
 	[ZONE_TO_REG] = zone_to_reg_ct,
+	[ZONE_RESTORE_TO_REG] = zone_restore_to_reg_ct,
 	[CTSTATE_TO_REG] = ctstate_to_reg_ct,
 	[MARK_TO_REG] = mark_to_reg_ct,
 	[LABELS_TO_REG] = labels_to_reg_ct,
 	[FTEID_TO_REG] = fteid_to_reg_ct,
-	[TUPLEID_TO_REG] = tupleid_to_reg_ct,
 };
 
 static void mlx5e_put_flow_tunnel_id(struct mlx5e_tc_flow *flow);
