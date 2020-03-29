@@ -215,7 +215,7 @@ static int append_md_to_backing_file(struct backing_file_context *bfc,
 	return result;
 }
 
-int incfs_update_file_header_flags(struct backing_file_context *bfc, u32 flags)
+int incfs_write_file_header_flags(struct backing_file_context *bfc, u32 flags)
 {
 	if (!bfc)
 		return -EFAULT;

@@ -311,7 +311,7 @@ int incfs_write_file_attr_to_backing_file(struct backing_file_context *bfc,
 int incfs_write_signature_to_backing_file(struct backing_file_context *bfc,
 					  struct mem_range sig, u32 tree_size);
 
-int incfs_update_file_header_flags(struct backing_file_context *bfc, u32 flags);
+int incfs_write_file_header_flags(struct backing_file_context *bfc, u32 flags);
 
 int incfs_make_empty_backing_file(struct backing_file_context *bfc,
 				  incfs_uuid_t *uuid, u64 file_size);

@@ -371,17 +371,53 @@ static int get_data_file_block(struct data_file *df, int index,
 	return 0;
 }
 
+static int check_room_for_one_range(u32 size, u32 size_out)
+{
+	if (size_out + sizeof(struct incfs_filled_range) > size)
+		return -ERANGE;
+	return 0;
+}
+
 static int copy_one_range(struct incfs_filled_range *range, void __user *buffer,
 			  u32 size, u32 *size_out)
 {
-	if (*size_out + sizeof(*range) > size)
-		return -ERANGE;
+	int error = check_room_for_one_range(size, *size_out);
+	if (error)
+		return error;
 
 	if (copy_to_user(((char *)buffer) + *size_out, range, sizeof(*range)))
 		return -EFAULT;
 
 	*size_out += sizeof(*range);
 	return 0;
+}
+
+static int update_file_header_flags(struct data_file *df, u32 bits_to_reset,
+				    u32 bits_to_set)
+{
+	int result;
+	u32 new_flags;
+	struct backing_file_context *bfc;
+
+	if (!df)
+		return -EFAULT;
+	bfc = df->df_backing_file_context;
+	if (!bfc)
+		return -EFAULT;
+
+	result = mutex_lock_interruptible(&bfc->bc_mutex);
+	if (result)
+		return result;
+
+	new_flags = (df->df_header_flags & ~bits_to_reset) | bits_to_set;
+	if (new_flags != df->df_header_flags) {
+		df->df_header_flags = new_flags;
+		result = incfs_write_file_header_flags(bfc, new_flags);
+	}
+
+	mutex_unlock(&bfc->bc_mutex);
+
+	return result;
 }
 
 int incfs_get_filled_blocks(struct data_file *df,
@@ -407,14 +443,22 @@ int incfs_get_filled_blocks(struct data_file *df,
 			arg->index_out = arg->start_index;
 			return 0;
 		}
+		arg->index_out = arg->start_index;
+
+		error = check_room_for_one_range(size, *size_out);
+		if (error)
+			return error;
 
 		range = (struct incfs_filled_range){
 			.begin = arg->start_index,
 			.end = end_index,
 		};
 
+		error = copy_one_range(&range, buffer, size, size_out);
+		if (error)
+			return error;
 		arg->index_out = end_index;
-		return copy_one_range(&range, buffer, size, size_out);
+		return 0;
 	}
 
 	for (arg->index_out = arg->start_index; arg->index_out < end_index;
@@ -429,13 +473,20 @@ int incfs_get_filled_blocks(struct data_file *df,
 			continue;
 
 		if (!in_range) {
+			error = check_room_for_one_range(size, *size_out);
+			if (error)
+				break;
 			in_range = true;
 			range.begin = arg->index_out;
 		} else {
 			range.end = arg->index_out;
 			error = copy_one_range(&range, buffer, size, size_out);
-			if (error)
+			if (error) {
+				/* there will be another try out of the loop,
+				 * it will reset the index_out if it fails too
+				 */
 				break;
+			}
 			in_range = false;
 		}
 	}
@@ -443,17 +494,15 @@ int incfs_get_filled_blocks(struct data_file *df,
 	if (in_range) {
 		range.end = arg->index_out;
 		error = copy_one_range(&range, buffer, size, size_out);
+		if (error)
+			arg->index_out = range.begin;
 	}
 
 	if (!error && in_range && arg->start_index == 0 &&
 	    end_index == df->df_total_block_count &&
 	    *size_out == sizeof(struct incfs_filled_range)) {
-		int result;
-
-		df->df_header_flags |= INCFS_FILE_COMPLETE;
-		result = incfs_update_file_header_flags(
-			df->df_backing_file_context, df->df_header_flags);
-
+		int result =
+			update_file_header_flags(df, 0, INCFS_FILE_COMPLETE);
 		/* Log failure only, since it's just a failed optimization */
 		pr_debug("Marked file full with result %d", result);
 	}
