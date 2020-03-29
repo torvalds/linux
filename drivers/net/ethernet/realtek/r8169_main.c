@@ -4040,53 +4040,54 @@ static void rtl8169_tx_timeout(struct net_device *dev, unsigned int txqueue)
 	rtl_schedule_task(tp, RTL_FLAG_TASK_RESET_PENDING);
 }
 
-static __le32 rtl8169_get_txd_opts1(u32 opts0, u32 len, unsigned int entry)
+static int rtl8169_tx_map(struct rtl8169_private *tp, const u32 *opts, u32 len,
+			  void *addr, unsigned int entry, bool desc_own)
 {
-	u32 status = opts0 | len;
+	struct TxDesc *txd = tp->TxDescArray + entry;
+	struct device *d = tp_to_dev(tp);
+	dma_addr_t mapping;
+	u32 opts1;
+	int ret;
 
+	mapping = dma_map_single(d, addr, len, DMA_TO_DEVICE);
+	ret = dma_mapping_error(d, mapping);
+	if (unlikely(ret)) {
+		if (net_ratelimit())
+			netif_err(tp, drv, tp->dev, "Failed to map TX data!\n");
+		return ret;
+	}
+
+	txd->addr = cpu_to_le64(mapping);
+	txd->opts2 = cpu_to_le32(opts[1]);
+
+	opts1 = opts[0] | len;
 	if (entry == NUM_TX_DESC - 1)
-		status |= RingEnd;
+		opts1 |= RingEnd;
+	if (desc_own)
+		opts1 |= DescOwn;
+	txd->opts1 = cpu_to_le32(opts1);
 
-	return cpu_to_le32(status);
+	tp->tx_skb[entry].len = len;
+
+	return 0;
 }
 
 static int rtl8169_xmit_frags(struct rtl8169_private *tp, struct sk_buff *skb,
-			      u32 *opts)
+			      const u32 *opts, unsigned int entry)
 {
 	struct skb_shared_info *info = skb_shinfo(skb);
-	unsigned int cur_frag, entry;
-	struct TxDesc *uninitialized_var(txd);
-	struct device *d = tp_to_dev(tp);
+	unsigned int cur_frag;
 
-	entry = tp->cur_tx;
 	for (cur_frag = 0; cur_frag < info->nr_frags; cur_frag++) {
 		const skb_frag_t *frag = info->frags + cur_frag;
-		dma_addr_t mapping;
-		u32 len;
-		void *addr;
+		void *addr = skb_frag_address(frag);
+		u32 len = skb_frag_size(frag);
 
 		entry = (entry + 1) % NUM_TX_DESC;
 
-		txd = tp->TxDescArray + entry;
-		len = skb_frag_size(frag);
-		addr = skb_frag_address(frag);
-		mapping = dma_map_single(d, addr, len, DMA_TO_DEVICE);
-		if (unlikely(dma_mapping_error(d, mapping))) {
-			if (net_ratelimit())
-				netif_err(tp, drv, tp->dev,
-					  "Failed to map TX fragments DMA!\n");
+		if (unlikely(rtl8169_tx_map(tp, opts, len, addr, entry, true)))
 			goto err_out;
-		}
-
-		txd->opts1 = rtl8169_get_txd_opts1(opts[0], len, entry);
-		txd->opts2 = cpu_to_le32(opts[1]);
-		txd->addr = cpu_to_le64(mapping);
-
-		tp->tx_skb[entry].len = len;
 	}
-
-	tp->tx_skb[entry].skb = skb;
-	txd->opts1 |= cpu_to_le32(LastFrag);
 
 	return 0;
 
@@ -4216,52 +4217,41 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 	unsigned int frags = skb_shinfo(skb)->nr_frags;
 	struct rtl8169_private *tp = netdev_priv(dev);
 	unsigned int entry = tp->cur_tx % NUM_TX_DESC;
-	struct TxDesc *txd = tp->TxDescArray + entry;
-	struct device *d = tp_to_dev(tp);
-	dma_addr_t mapping;
-	u32 opts[2], len;
-	bool stop_queue;
-	bool door_bell;
+	struct TxDesc *txd_first, *txd_last;
+	bool stop_queue, door_bell;
+	u32 opts[2];
+
+	txd_first = tp->TxDescArray + entry;
 
 	if (unlikely(!rtl_tx_slots_avail(tp, frags))) {
 		netif_err(tp, drv, dev, "BUG! Tx Ring full when queue awake!\n");
 		goto err_stop_0;
 	}
 
-	if (unlikely(le32_to_cpu(txd->opts1) & DescOwn))
+	if (unlikely(le32_to_cpu(txd_first->opts1) & DescOwn))
 		goto err_stop_0;
 
 	opts[1] = rtl8169_tx_vlan_tag(skb);
-	opts[0] = DescOwn;
+	opts[0] = 0;
 
-	if (rtl_chip_supports_csum_v2(tp)) {
-		if (!rtl8169_tso_csum_v2(tp, skb, opts))
-			goto err_dma_0;
-	} else {
+	if (!rtl_chip_supports_csum_v2(tp))
 		rtl8169_tso_csum_v1(skb, opts);
-	}
-
-	len = skb_headlen(skb);
-	mapping = dma_map_single(d, skb->data, len, DMA_TO_DEVICE);
-	if (unlikely(dma_mapping_error(d, mapping))) {
-		if (net_ratelimit())
-			netif_err(tp, drv, dev, "Failed to map TX DMA!\n");
+	else if (!rtl8169_tso_csum_v2(tp, skb, opts))
 		goto err_dma_0;
-	}
 
-	tp->tx_skb[entry].len = len;
-	txd->addr = cpu_to_le64(mapping);
+	if (unlikely(rtl8169_tx_map(tp, opts, skb_headlen(skb), skb->data,
+				    entry, false)))
+		goto err_dma_0;
 
-	if (!frags) {
-		opts[0] |= FirstFrag | LastFrag;
-		tp->tx_skb[entry].skb = skb;
-	} else {
-		if (rtl8169_xmit_frags(tp, skb, opts))
+	if (frags) {
+		if (rtl8169_xmit_frags(tp, skb, opts, entry))
 			goto err_dma_1;
-		opts[0] |= FirstFrag;
+		entry = (entry + frags) % NUM_TX_DESC;
 	}
 
-	txd->opts2 = cpu_to_le32(opts[1]);
+	txd_last = tp->TxDescArray + entry;
+	txd_last->opts1 |= cpu_to_le32(LastFrag);
+	tp->tx_skb[entry].skb = skb;
 
 	skb_tx_timestamp(skb);
 
@@ -4270,7 +4260,7 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 
 	door_bell = __netdev_sent_queue(dev, skb->len, netdev_xmit_more());
 
-	txd->opts1 = rtl8169_get_txd_opts1(opts[0], len, entry);
+	txd_first->opts1 |= cpu_to_le32(DescOwn | FirstFrag);
 
 	/* Force all memory writes to complete before notifying device */
 	wmb();
