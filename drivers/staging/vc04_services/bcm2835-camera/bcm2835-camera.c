@@ -1001,6 +1001,53 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	return 0;
 }
 
+
+static int mmal_setup_video_component(struct bm2835_mmal_dev *dev,
+				      struct v4l2_format *f)
+{
+	bool overlay_enabled = !!dev->component[COMP_PREVIEW]->enabled;
+	struct vchiq_mmal_port *preview_port;
+	int ret;
+
+	preview_port = &dev->component[COMP_CAMERA]->output[CAM_PORT_PREVIEW];
+
+	/* Preview and encode ports need to match on resolution */
+	if (overlay_enabled) {
+		/* Need to disable the overlay before we can update
+		 * the resolution
+		 */
+		ret = vchiq_mmal_port_disable(dev->instance, preview_port);
+		if (!ret) {
+			ret = vchiq_mmal_port_connect_tunnel(dev->instance,
+							     preview_port,
+							     NULL);
+		}
+	}
+	preview_port->es.video.width = f->fmt.pix.width;
+	preview_port->es.video.height = f->fmt.pix.height;
+	preview_port->es.video.crop.x = 0;
+	preview_port->es.video.crop.y = 0;
+	preview_port->es.video.crop.width = f->fmt.pix.width;
+	preview_port->es.video.crop.height = f->fmt.pix.height;
+	preview_port->es.video.frame_rate.num =
+				  dev->capture.timeperframe.denominator;
+	preview_port->es.video.frame_rate.den =
+				  dev->capture.timeperframe.numerator;
+	ret = vchiq_mmal_port_set_format(dev->instance, preview_port);
+
+	if (overlay_enabled) {
+		ret = vchiq_mmal_port_connect_tunnel(dev->instance,
+				preview_port,
+				&dev->component[COMP_PREVIEW]->input[0]);
+		if (ret)
+			return ret;
+
+		ret = vchiq_mmal_port_enable(dev->instance, preview_port, NULL);
+	}
+
+	return ret;
+}
+
 static int mmal_setup_encode_component(struct bm2835_mmal_dev *dev,
 				       struct v4l2_format *f,
 				       struct vchiq_mmal_port *port,
@@ -1184,46 +1231,7 @@ static int mmal_setup_components(struct bm2835_mmal_dev *dev,
 	if (!ret &&
 	    camera_port ==
 	    &dev->component[COMP_CAMERA]->output[CAM_PORT_VIDEO]) {
-		bool overlay_enabled =
-		    !!dev->component[COMP_PREVIEW]->enabled;
-		struct vchiq_mmal_port *preview_port =
-		    &dev->component[COMP_CAMERA]->output[CAM_PORT_PREVIEW];
-		/* Preview and encode ports need to match on resolution */
-		if (overlay_enabled) {
-			/* Need to disable the overlay before we can update
-			 * the resolution
-			 */
-			ret =
-			    vchiq_mmal_port_disable(dev->instance,
-						    preview_port);
-			if (!ret)
-				ret =
-				    vchiq_mmal_port_connect_tunnel(
-						dev->instance,
-						preview_port,
-						NULL);
-		}
-		preview_port->es.video.width = f->fmt.pix.width;
-		preview_port->es.video.height = f->fmt.pix.height;
-		preview_port->es.video.crop.x = 0;
-		preview_port->es.video.crop.y = 0;
-		preview_port->es.video.crop.width = f->fmt.pix.width;
-		preview_port->es.video.crop.height = f->fmt.pix.height;
-		preview_port->es.video.frame_rate.num =
-					  dev->capture.timeperframe.denominator;
-		preview_port->es.video.frame_rate.den =
-					  dev->capture.timeperframe.numerator;
-		ret = vchiq_mmal_port_set_format(dev->instance, preview_port);
-		if (overlay_enabled) {
-			ret = vchiq_mmal_port_connect_tunnel(
-				dev->instance,
-				preview_port,
-				&dev->component[COMP_PREVIEW]->input[0]);
-			if (!ret)
-				ret = vchiq_mmal_port_enable(dev->instance,
-							     preview_port,
-							     NULL);
-		}
+		ret = mmal_setup_video_component(dev, f);
 	}
 
 	if (ret) {
