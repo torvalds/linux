@@ -135,8 +135,8 @@ static const struct v4l2_to_mmal_effects_setting
 };
 
 struct v4l2_mmal_scene_config {
-	enum v4l2_scene_mode			v4l2_scene;
-	enum mmal_parameter_exposuremode	exposure_mode;
+	enum v4l2_scene_mode v4l2_scene;
+	enum mmal_parameter_exposuremode exposure_mode;
 	enum mmal_parameter_exposuremeteringmode metering_mode;
 };
 
