@@ -1280,21 +1280,18 @@ int set_framerate_params(struct bm2835_mmal_dev *dev)
 	struct mmal_parameter_fps_range fps_range;
 	int ret;
 
+	fps_range.fps_high.num = dev->capture.timeperframe.denominator;
+	fps_range.fps_high.den = dev->capture.timeperframe.numerator;
+
 	if ((dev->exposure_mode_active != MMAL_PARAM_EXPOSUREMODE_OFF) &&
 	    (dev->exp_auto_priority)) {
-		/* Variable FPS. Define min FPS as 1fps.
-		 * Max as max defined FPS.
-		 */
+		/* Variable FPS. Define min FPS as 1fps. */
 		fps_range.fps_low.num = 1;
 		fps_range.fps_low.den = 1;
-		fps_range.fps_high.num = dev->capture.timeperframe.denominator;
-		fps_range.fps_high.den = dev->capture.timeperframe.numerator;
 	} else {
 		/* Fixed FPS - set min and max to be the same */
-		fps_range.fps_low.num = fps_range.fps_high.num =
-			dev->capture.timeperframe.denominator;
-		fps_range.fps_low.den = fps_range.fps_high.den =
-			dev->capture.timeperframe.numerator;
+		fps_range.fps_low.num = fps_range.fps_high.num;
+		fps_range.fps_low.den = fps_range.fps_high.den;
 	}
 
 	v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev,
