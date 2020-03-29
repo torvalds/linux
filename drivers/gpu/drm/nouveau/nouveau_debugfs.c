@@ -260,7 +260,7 @@ nouveau_debugfs_init(struct nouveau_drm *drm)
 	if (!drm->debugfs)
 		return -ENOMEM;
 
-	ret = nvif_object_init(&drm->client.device.object, 0,
+	ret = nvif_object_ctor(&drm->client.device.object, "debugfsCtrl", 0,
 			       NVIF_CLASS_CONTROL, NULL, 0,
 			       &drm->debugfs->ctrl);
 	if (ret)
@@ -273,7 +273,7 @@ void
 nouveau_debugfs_fini(struct nouveau_drm *drm)
 {
 	if (drm->debugfs && drm->debugfs->ctrl.priv)
-		nvif_object_fini(&drm->debugfs->ctrl);
+		nvif_object_dtor(&drm->debugfs->ctrl);
 
 	kfree(drm->debugfs);
 	drm->debugfs = NULL;

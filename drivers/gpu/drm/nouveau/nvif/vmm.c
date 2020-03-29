@@ -108,7 +108,7 @@ void
 nvif_vmm_fini(struct nvif_vmm *vmm)
 {
 	kfree(vmm->page);
-	nvif_object_fini(&vmm->object);
+	nvif_object_dtor(&vmm->object);
 }
 
 int
@@ -130,7 +130,7 @@ nvif_vmm_init(struct nvif_mmu *mmu, s32 oclass, bool managed, u64 addr,
 	args->size = size;
 	memcpy(args->data, argv, argc);
 
-	ret = nvif_object_init(&mmu->object, 0, oclass, args, argn,
+	ret = nvif_object_ctor(&mmu->object, "nvifVmm", 0, oclass, args, argn,
 			       &vmm->object);
 	if (ret)
 		goto done;

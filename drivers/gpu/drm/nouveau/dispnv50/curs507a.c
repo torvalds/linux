@@ -138,8 +138,8 @@ curs507a_new_(const struct nv50_wimm_func *func, struct nouveau_drm *drm,
 	if (*pwndw = wndw, ret)
 		return ret;
 
-	ret = nvif_object_init(&disp->disp->object, 0, oclass, &args,
-			       sizeof(args), &wndw->wimm.base.user);
+	ret = nvif_object_ctor(&disp->disp->object, "kmsCurs", 0, oclass,
+			       &args, sizeof(args), &wndw->wimm.base.user);
 	if (ret) {
 		NV_ERROR(drm, "curs%04x allocation failed: %d\n", oclass, ret);
 		return ret;

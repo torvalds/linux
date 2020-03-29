@@ -256,13 +256,13 @@ nouveau_fbcon_accel_fini(struct drm_device *dev)
 			fbcon->helper.fbdev->flags |= FBINFO_HWACCEL_DISABLED;
 		console_unlock();
 		nouveau_channel_idle(drm->channel);
-		nvif_object_fini(&fbcon->twod);
-		nvif_object_fini(&fbcon->blit);
-		nvif_object_fini(&fbcon->gdi);
-		nvif_object_fini(&fbcon->patt);
-		nvif_object_fini(&fbcon->rop);
-		nvif_object_fini(&fbcon->clip);
-		nvif_object_fini(&fbcon->surf2d);
+		nvif_object_dtor(&fbcon->twod);
+		nvif_object_dtor(&fbcon->blit);
+		nvif_object_dtor(&fbcon->gdi);
+		nvif_object_dtor(&fbcon->patt);
+		nvif_object_dtor(&fbcon->rop);
+		nvif_object_dtor(&fbcon->clip);
+		nvif_object_dtor(&fbcon->surf2d);
 	}
 }
 

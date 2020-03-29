@@ -114,7 +114,7 @@ static void
 nouveau_abi16_ntfy_fini(struct nouveau_abi16_chan *chan,
 			struct nouveau_abi16_ntfy *ntfy)
 {
-	nvif_object_fini(&ntfy->object);
+	nvif_object_dtor(&ntfy->object);
 	nvkm_mm_free(&chan->heap, &ntfy->node);
 	list_del(&ntfy->head);
 	kfree(ntfy);
@@ -502,8 +502,8 @@ nouveau_abi16_ioctl_grobj_alloc(ABI16_IOCTL_ARGS)
 	list_add(&ntfy->head, &chan->notifiers);
 
 	client->route = NVDRM_OBJECT_ABI16;
-	ret = nvif_object_init(&chan->chan->user, init->handle, oclass,
-			       NULL, 0, &ntfy->object);
+	ret = nvif_object_ctor(&chan->chan->user, "abi16EngObj", init->handle,
+			       oclass, NULL, 0, &ntfy->object);
 	client->route = NVDRM_OBJECT_NVIF;
 
 	if (ret)
@@ -569,7 +569,7 @@ nouveau_abi16_ioctl_notifierobj_alloc(ABI16_IOCTL_ARGS)
 
 	client->route = NVDRM_OBJECT_ABI16;
 	client->super = true;
-	ret = nvif_object_init(&chan->chan->user, info->handle,
+	ret = nvif_object_ctor(&chan->chan->user, "abi16Ntfy", info->handle,
 			       NV_DMA_IN_MEMORY, &args, sizeof(args),
 			       &ntfy->object);
 	client->super = false;

@@ -514,7 +514,7 @@ nv50_crc_ctx_init(struct nv50_head *head, struct nvif_mmu *mmu,
 	if (ret)
 		return ret;
 
-	ret = nvif_object_init(&core->chan.base.user,
+	ret = nvif_object_ctor(&core->chan.base.user, "kmsCrcNtfyCtxDma",
 			       NV50_DISP_HANDLE_CRC_CTX(head, idx),
 			       NV_DMA_IN_MEMORY,
 			       &(struct nv_dma_v0) {
@@ -538,7 +538,7 @@ fail_fini:
 static inline void
 nv50_crc_ctx_fini(struct nv50_crc_notifier_ctx *ctx)
 {
-	nvif_object_fini(&ctx->ntfy);
+	nvif_object_dtor(&ctx->ntfy);
 	nvif_mem_fini(&ctx->mem);
 }
 

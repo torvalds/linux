@@ -28,7 +28,7 @@ void
 nvif_user_fini(struct nvif_device *device)
 {
 	if (device->user.func) {
-		nvif_object_fini(&device->user.object);
+		nvif_object_dtor(&device->user.object);
 		device->user.func = NULL;
 	}
 }
@@ -53,7 +53,8 @@ nvif_user_init(struct nvif_device *device)
 	if (cid < 0)
 		return cid;
 
-	ret = nvif_object_init(&device->object, 0, users[cid].oclass, NULL, 0,
+	ret = nvif_object_ctor(&device->object, "nvifUsermode",
+			       0, users[cid].oclass, NULL, 0,
 			       &device->user.object);
 	if (ret)
 		return ret;

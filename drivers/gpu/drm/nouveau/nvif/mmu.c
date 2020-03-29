@@ -30,7 +30,7 @@ nvif_mmu_fini(struct nvif_mmu *mmu)
 	kfree(mmu->kind);
 	kfree(mmu->type);
 	kfree(mmu->heap);
-	nvif_object_fini(&mmu->object);
+	nvif_object_dtor(&mmu->object);
 }
 
 int
@@ -50,8 +50,8 @@ nvif_mmu_init(struct nvif_object *parent, s32 oclass, struct nvif_mmu *mmu)
 	mmu->type = NULL;
 	mmu->kind = NULL;
 
-	ret = nvif_object_init(parent, 0, oclass, &args, sizeof(args),
-			       &mmu->object);
+	ret = nvif_object_ctor(parent, "nvifMmu", 0, oclass, &args,
+			       sizeof(args), &mmu->object);
 	if (ret)
 		goto done;
 

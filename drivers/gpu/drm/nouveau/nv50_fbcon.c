@@ -181,8 +181,8 @@ nv50_fbcon_accel_init(struct fb_info *info)
 		return -EINVAL;
 	}
 
-	ret = nvif_object_init(&chan->user, 0x502d, 0x502d, NULL, 0,
-			       &nfbdev->twod);
+	ret = nvif_object_ctor(&chan->user, "fbconTwoD", 0x502d, 0x502d,
+			       NULL, 0, &nfbdev->twod);
 	if (ret)
 		return ret;
 

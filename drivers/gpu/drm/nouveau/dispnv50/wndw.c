@@ -35,7 +35,7 @@
 static void
 nv50_wndw_ctxdma_del(struct nv50_wndw_ctxdma *ctxdma)
 {
-	nvif_object_fini(&ctxdma->object);
+	nvif_object_dtor(&ctxdma->object);
 	list_del(&ctxdma->head);
 	kfree(ctxdma);
 }
@@ -94,8 +94,8 @@ nv50_wndw_ctxdma_new(struct nv50_wndw *wndw, struct drm_framebuffer *fb)
 		argc += sizeof(args.gf119);
 	}
 
-	ret = nvif_object_init(wndw->ctxdma.parent, handle, NV_DMA_IN_MEMORY,
-			       &args, argc, &ctxdma->object);
+	ret = nvif_object_ctor(wndw->ctxdma.parent, "kmsFbCtxDma", handle,
+			       NV_DMA_IN_MEMORY, &args, argc, &ctxdma->object);
 	if (ret) {
 		nv50_wndw_ctxdma_del(ctxdma);
 		return ERR_PTR(ret);

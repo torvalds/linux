@@ -905,7 +905,7 @@ nouveau_svm_fault_buffer_dtor(struct nouveau_svm *svm, int id)
 	nouveau_svm_fault_buffer_fini(svm, id);
 
 	nvif_notify_fini(&buffer->notify);
-	nvif_object_fini(&buffer->object);
+	nvif_object_dtor(&buffer->object);
 }
 
 static int
@@ -919,8 +919,8 @@ nouveau_svm_fault_buffer_ctor(struct nouveau_svm *svm, s32 oclass, int id)
 
 	buffer->id = id;
 
-	ret = nvif_object_init(device, 0, oclass, &args, sizeof(args),
-			       &buffer->object);
+	ret = nvif_object_ctor(device, "svmFaultBuffer", 0, oclass, &args,
+			       sizeof(args), &buffer->object);
 	if (ret < 0) {
 		SVM_ERR(svm, "Fault buffer allocation failed: %d", ret);
 		return ret;

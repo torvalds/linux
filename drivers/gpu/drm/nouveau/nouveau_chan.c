@@ -102,12 +102,12 @@ nouveau_channel_del(struct nouveau_channel **pchan)
 		if (cli)
 			nouveau_svmm_part(chan->vmm->svmm, chan->inst);
 
-		nvif_object_fini(&chan->nvsw);
-		nvif_object_fini(&chan->gart);
-		nvif_object_fini(&chan->vram);
+		nvif_object_dtor(&chan->nvsw);
+		nvif_object_dtor(&chan->gart);
+		nvif_object_dtor(&chan->vram);
 		nvif_notify_fini(&chan->kill);
-		nvif_object_fini(&chan->user);
-		nvif_object_fini(&chan->push.ctxdma);
+		nvif_object_dtor(&chan->user);
+		nvif_object_dtor(&chan->push.ctxdma);
 		nouveau_vma_del(&chan->push.vma);
 		nouveau_bo_unmap(chan->push.buffer);
 		if (chan->push.buffer && chan->push.buffer->pin_refcnt)
@@ -214,8 +214,9 @@ nouveau_channel_prep(struct nouveau_drm *drm, struct nvif_device *device,
 		}
 	}
 
-	ret = nvif_object_init(&device->object, 0, NV_DMA_FROM_MEMORY,
-			       &args, sizeof(args), &chan->push.ctxdma);
+	ret = nvif_object_ctor(&device->object, "abi16PushCtxDma", 0,
+			       NV_DMA_FROM_MEMORY, &args, sizeof(args),
+			       &chan->push.ctxdma);
 	if (ret) {
 		nouveau_channel_del(pchan);
 		return ret;
@@ -290,8 +291,8 @@ nouveau_channel_ind(struct nouveau_drm *drm, struct nvif_device *device,
 			size = sizeof(args.nv50);
 		}
 
-		ret = nvif_object_init(&device->object, 0, *oclass++,
-				       &args, size, &chan->user);
+		ret = nvif_object_ctor(&device->object, "abi16ChanUser", 0,
+				       *oclass++, &args, size, &chan->user);
 		if (ret == 0) {
 			if (chan->user.oclass >= VOLTA_CHANNEL_GPFIFO_A) {
 				chan->chid = args.volta.chid;
@@ -341,8 +342,9 @@ nouveau_channel_dma(struct nouveau_drm *drm, struct nvif_device *device,
 	args.offset = chan->push.addr;
 
 	do {
-		ret = nvif_object_init(&device->object, 0, *oclass++,
-				       &args, sizeof(args), &chan->user);
+		ret = nvif_object_ctor(&device->object, "abi16ChanUser", 0,
+				       *oclass++, &args, sizeof(args),
+				       &chan->user);
 		if (ret == 0) {
 			chan->chid = args.chid;
 			return ret;
@@ -390,8 +392,9 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 			args.limit = device->info.ram_user - 1;
 		}
 
-		ret = nvif_object_init(&chan->user, vram, NV_DMA_IN_MEMORY,
-				       &args, sizeof(args), &chan->vram);
+		ret = nvif_object_ctor(&chan->user, "abi16ChanVramCtxDma", vram,
+				       NV_DMA_IN_MEMORY, &args, sizeof(args),
+				       &chan->vram);
 		if (ret)
 			return ret;
 
@@ -414,8 +417,9 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 			args.limit = chan->vmm->vmm.limit - 1;
 		}
 
-		ret = nvif_object_init(&chan->user, gart, NV_DMA_IN_MEMORY,
-				       &args, sizeof(args), &chan->gart);
+		ret = nvif_object_ctor(&chan->user, "abi16ChanGartCtxDma", gart,
+				       NV_DMA_IN_MEMORY, &args, sizeof(args),
+				       &chan->gart);
 		if (ret)
 			return ret;
 	}
@@ -453,7 +457,7 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 
 	/* allocate software object class (used for fences on <= nv05) */
 	if (device->info.family < NV_DEVICE_INFO_V0_CELSIUS) {
-		ret = nvif_object_init(&chan->user, 0x006e,
+		ret = nvif_object_ctor(&chan->user, "abi16NvswFence", 0x006e,
 				       NVIF_CLASS_SW_NV04,
 				       NULL, 0, &chan->nvsw);
 		if (ret)

@@ -168,33 +168,33 @@ nv04_fbcon_accel_init(struct fb_info *info)
 		return -EINVAL;
 	}
 
-	ret = nvif_object_init(&chan->user, 0x0062,
+	ret = nvif_object_ctor(&chan->user, "fbconCtxSurf2d", 0x0062,
 			       device->info.family >= NV_DEVICE_INFO_V0_CELSIUS ?
 			       0x0062 : 0x0042, NULL, 0, &nfbdev->surf2d);
 	if (ret)
 		return ret;
 
-	ret = nvif_object_init(&chan->user, 0x0019, 0x0019, NULL, 0,
-			       &nfbdev->clip);
+	ret = nvif_object_ctor(&chan->user, "fbconCtxClip", 0x0019, 0x0019,
+			       NULL, 0, &nfbdev->clip);
 	if (ret)
 		return ret;
 
-	ret = nvif_object_init(&chan->user, 0x0043, 0x0043, NULL, 0,
-			       &nfbdev->rop);
+	ret = nvif_object_ctor(&chan->user, "fbconCtxRop", 0x0043, 0x0043,
+			       NULL, 0, &nfbdev->rop);
 	if (ret)
 		return ret;
 
-	ret = nvif_object_init(&chan->user, 0x0044, 0x0044, NULL, 0,
-			       &nfbdev->patt);
+	ret = nvif_object_ctor(&chan->user, "fbconCtxPatt", 0x0044, 0x0044,
+			       NULL, 0, &nfbdev->patt);
 	if (ret)
 		return ret;
 
-	ret = nvif_object_init(&chan->user, 0x004a, 0x004a, NULL, 0,
-			       &nfbdev->gdi);
+	ret = nvif_object_ctor(&chan->user, "fbconGdiRectText", 0x004a, 0x004a,
+			       NULL, 0, &nfbdev->gdi);
 	if (ret)
 		return ret;
 
-	ret = nvif_object_init(&chan->user, 0x005f,
+	ret = nvif_object_ctor(&chan->user, "fbconImageBlit", 0x005f,
 			       device->info.chipset >= 0x11 ? 0x009f : 0x005f,
 			       NULL, 0, &nfbdev->blit);
 	if (ret)

@@ -290,7 +290,7 @@ static void
 nouveau_accel_ce_fini(struct nouveau_drm *drm)
 {
 	nouveau_channel_idle(drm->cechan);
-	nvif_object_fini(&drm->ttm.copy);
+	nvif_object_dtor(&drm->ttm.copy);
 	nouveau_channel_del(&drm->cechan);
 }
 
@@ -328,9 +328,9 @@ static void
 nouveau_accel_gr_fini(struct nouveau_drm *drm)
 {
 	nouveau_channel_idle(drm->channel);
-	nvif_object_fini(&drm->ntfy);
+	nvif_object_dtor(&drm->ntfy);
 	nvkm_gpuobj_del(&drm->notify);
-	nvif_object_fini(&drm->nvsw);
+	nvif_object_dtor(&drm->nvsw);
 	nouveau_channel_del(&drm->channel);
 }
 
@@ -363,9 +363,9 @@ nouveau_accel_gr_init(struct nouveau_drm *drm)
 	 * on TNT/TNT2 HW that lacks any kind of support in host.
 	 */
 	if (device->info.family < NV_DEVICE_INFO_V0_TESLA) {
-		ret = nvif_object_init(&drm->channel->user, NVDRM_NVSW,
-				       nouveau_abi16_swclass(drm), NULL, 0,
-				       &drm->nvsw);
+		ret = nvif_object_ctor(&drm->channel->user, "drmNvsw",
+				       NVDRM_NVSW, nouveau_abi16_swclass(drm),
+				       NULL, 0, &drm->nvsw);
 		if (ret == 0) {
 			ret = RING_SPACE(drm->channel, 2);
 			if (ret == 0) {
@@ -394,8 +394,8 @@ nouveau_accel_gr_init(struct nouveau_drm *drm)
 			return;
 		}
 
-		ret = nvif_object_init(&drm->channel->user, NvNotify0,
-				       NV_DMA_IN_MEMORY,
+		ret = nvif_object_ctor(&drm->channel->user, "drmM2mfNtfy",
+				       NvNotify0, NV_DMA_IN_MEMORY,
 				       &(struct nv_dma_v0) {
 						.target = NV_DMA_V0_TARGET_VRAM,
 						.access = NV_DMA_V0_ACCESS_RDWR,

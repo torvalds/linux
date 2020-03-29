@@ -40,7 +40,7 @@ nvif_mem_init_map(struct nvif_mmu *mmu, u8 type, u64 size, struct nvif_mem *mem)
 void
 nvif_mem_fini(struct nvif_mem *mem)
 {
-	nvif_object_fini(&mem->object);
+	nvif_object_dtor(&mem->object);
 }
 
 int
@@ -67,7 +67,7 @@ nvif_mem_init_type(struct nvif_mmu *mmu, s32 oclass, int type, u8 page,
 	args->size = size;
 	memcpy(args->data, argv, argc);
 
-	ret = nvif_object_init(&mmu->object, 0, oclass, args,
+	ret = nvif_object_ctor(&mmu->object, "nvifMem", 0, oclass, args,
 			       sizeof(*args) + argc, &mem->object);
 	if (ret == 0) {
 		mem->type = mmu->type[type].type;

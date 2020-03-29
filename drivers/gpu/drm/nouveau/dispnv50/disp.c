@@ -79,8 +79,9 @@ nv50_chan_create(struct nvif_device *device, struct nvif_object *disp,
 	while (oclass[0]) {
 		for (i = 0; i < n; i++) {
 			if (sclass[i].oclass == oclass[0]) {
-				ret = nvif_object_init(disp, 0, oclass[0],
-						       data, size, &chan->user);
+				ret = nvif_object_ctor(disp, "kmsChan", 0,
+						       oclass[0], data, size,
+						       &chan->user);
 				if (ret == 0)
 					nvif_object_map(&chan->user, NULL, 0);
 				nvif_object_sclass_put(&sclass);
@@ -97,7 +98,7 @@ nv50_chan_create(struct nvif_device *device, struct nvif_object *disp,
 static void
 nv50_chan_destroy(struct nv50_chan *chan)
 {
-	nvif_object_fini(&chan->user);
+	nvif_object_dtor(&chan->user);
 }
 
 /******************************************************************************
@@ -107,8 +108,8 @@ nv50_chan_destroy(struct nv50_chan *chan)
 void
 nv50_dmac_destroy(struct nv50_dmac *dmac)
 {
-	nvif_object_fini(&dmac->vram);
-	nvif_object_fini(&dmac->sync);
+	nvif_object_dtor(&dmac->vram);
+	nvif_object_dtor(&dmac->sync);
 
 	nv50_chan_destroy(&dmac->base);
 
@@ -155,7 +156,7 @@ nv50_dmac_create(struct nvif_device *device, struct nvif_object *disp,
 	if (!syncbuf)
 		return 0;
 
-	ret = nvif_object_init(&dmac->base.user, NV50_DISP_HANDLE_SYNCBUF,
+	ret = nvif_object_ctor(&dmac->base.user, "kmsSyncCtxDma", NV50_DISP_HANDLE_SYNCBUF,
 			       NV_DMA_IN_MEMORY,
 			       &(struct nv_dma_v0) {
 					.target = NV_DMA_V0_TARGET_VRAM,
@@ -167,7 +168,7 @@ nv50_dmac_create(struct nvif_device *device, struct nvif_object *disp,
 	if (ret)
 		return ret;
 
-	ret = nvif_object_init(&dmac->base.user, NV50_DISP_HANDLE_VRAM,
+	ret = nvif_object_ctor(&dmac->base.user, "kmsVramCtxDma", NV50_DISP_HANDLE_VRAM,
 			       NV_DMA_IN_MEMORY,
 			       &(struct nv_dma_v0) {
 					.target = NV_DMA_V0_TARGET_VRAM,
@@ -2465,7 +2466,7 @@ nv50_display_destroy(struct drm_device *dev)
 	nv50_audio_component_fini(nouveau_drm(dev));
 
 	nvif_object_unmap(&disp->caps);
-	nvif_object_fini(&disp->caps);
+	nvif_object_dtor(&disp->caps);
 	nv50_core_del(&disp->core);
 
 	nouveau_bo_unmap(disp->sync);

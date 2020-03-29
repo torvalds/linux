@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: MIT */
 #ifndef __NVIF_OBJECT_H__
 #define __NVIF_OBJECT_H__
-
 #include <nvif/os.h>
 
 struct nvif_sclass {
@@ -12,6 +11,7 @@ struct nvif_sclass {
 
 struct nvif_object {
 	struct nvif_client *client;
+	const char *name;
 	u32 handle;
 	s32 oclass;
 	void *priv; /*XXX: hack */
@@ -21,9 +21,9 @@ struct nvif_object {
 	} map;
 };
 
-int  nvif_object_init(struct nvif_object *, u32 handle, s32 oclass, void *, u32,
-		      struct nvif_object *);
-void nvif_object_fini(struct nvif_object *);
+int  nvif_object_ctor(struct nvif_object *, const char *name, u32 handle,
+		      s32 oclass, void *, u32, struct nvif_object *);
+void nvif_object_dtor(struct nvif_object *);
 int  nvif_object_ioctl(struct nvif_object *, void *, u32, void **);
 int  nvif_object_sclass_get(struct nvif_object *, struct nvif_sclass **);
 void nvif_object_sclass_put(struct nvif_sclass **);
