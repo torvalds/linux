@@ -278,7 +278,7 @@ int nsim_dev_health_init(struct nsim_dev *nsim_dev, struct devlink *devlink)
 	health->dummy_reporter =
 		devlink_health_reporter_create(devlink,
 					       &nsim_dev_dummy_reporter_ops,
-					       0, false, health);
+					       0, true, health);
 	if (IS_ERR(health->dummy_reporter)) {
 		err = PTR_ERR(health->dummy_reporter);
 		goto err_empty_reporter_destroy;
