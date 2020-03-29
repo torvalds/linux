@@ -69,7 +69,7 @@ start_server(const struct sockaddr *addr, socklen_t len, int type)
 		goto close_out;
 	if (CHECK_FAIL(bind(fd, addr, len) == -1))
 		goto close_out;
-	if (CHECK_FAIL(listen(fd, 128) == -1))
+	if (type == SOCK_STREAM && CHECK_FAIL(listen(fd, 128) == -1))
 		goto close_out;
 
 	goto out;
@@ -125,6 +125,20 @@ get_port(int fd)
 	return port;
 }
 
+static ssize_t
+rcv_msg(int srv_client, int type)
+{
+	struct sockaddr_storage ss;
+	char buf[BUFSIZ];
+	socklen_t slen;
+
+	if (type == SOCK_STREAM)
+		return read(srv_client, &buf, sizeof(buf));
+	else
+		return recvfrom(srv_client, &buf, sizeof(buf), 0,
+				(struct sockaddr *)&ss, &slen);
+}
+
 static int
 run_test(int server_fd, const struct sockaddr *addr, socklen_t len, int type)
 {
@@ -139,16 +153,20 @@ run_test(int server_fd, const struct sockaddr *addr, socklen_t len, int type)
 		goto out;
 	}
 
-	srv_client = accept(server_fd, NULL, NULL);
-	if (CHECK_FAIL(srv_client == -1)) {
-		perror("Can't accept connection");
-		goto out;
+	if (type == SOCK_STREAM) {
+		srv_client = accept(server_fd, NULL, NULL);
+		if (CHECK_FAIL(srv_client == -1)) {
+			perror("Can't accept connection");
+			goto out;
+		}
+	} else {
+		srv_client = server_fd;
 	}
 	if (CHECK_FAIL(write(client, buf, sizeof(buf)) != sizeof(buf))) {
 		perror("Can't write on client");
 		goto out;
 	}
-	if (CHECK_FAIL(read(srv_client, &buf, sizeof(buf)) != sizeof(buf))) {
+	if (CHECK_FAIL(rcv_msg(srv_client, type) != sizeof(buf))) {
 		perror("Can't read on server");
 		goto out;
 	}
@@ -156,8 +174,19 @@ run_test(int server_fd, const struct sockaddr *addr, socklen_t len, int type)
 	port = get_port(srv_client);
 	if (CHECK_FAIL(!port))
 		goto out;
-	if (CHECK(port != htons(CONNECT_PORT), "Expected", "port %u but got %u",
+	/* SOCK_STREAM is connected via accept(), so the server's local address
+	 * will be the CONNECT_PORT rather than the BIND port that corresponds
+	 * to the listen socket. SOCK_DGRAM on the other hand is connectionless
+	 * so we can't really do the same check there; the server doesn't ever
+	 * create a socket with CONNECT_PORT.
+	 */
+	if (type == SOCK_STREAM &&
+	    CHECK(port != htons(CONNECT_PORT), "Expected", "port %u but got %u",
 		  CONNECT_PORT, ntohs(port)))
+		goto out;
+	else if (type == SOCK_DGRAM &&
+		 CHECK(port != htons(BIND_PORT), "Expected",
+		       "port %u but got %u", BIND_PORT, ntohs(port)))
 		goto out;
 
 	ret = 0;
@@ -230,6 +259,10 @@ void test_sk_assign(void)
 		TEST("ipv4 tcp addr redir", AF_INET, SOCK_STREAM, true),
 		TEST("ipv6 tcp port redir", AF_INET6, SOCK_STREAM, false),
 		TEST("ipv6 tcp addr redir", AF_INET6, SOCK_STREAM, true),
+		TEST("ipv4 udp port redir", AF_INET, SOCK_DGRAM, false),
+		TEST("ipv4 udp addr redir", AF_INET, SOCK_DGRAM, true),
+		TEST("ipv6 udp port redir", AF_INET6, SOCK_DGRAM, false),
+		TEST("ipv6 udp addr redir", AF_INET6, SOCK_DGRAM, true),
 	};
 	int server = -1;
 	int self_net;
