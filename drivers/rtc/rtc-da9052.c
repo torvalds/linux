@@ -298,11 +298,15 @@ static int da9052_rtc_probe(struct platform_device *pdev)
 		rtc_err(rtc, "Failed to disable TICKS: %d\n", ret);
 
 	device_init_wakeup(&pdev->dev, true);
-	rtc->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
-				       &da9052_rtc_ops, THIS_MODULE);
-
+	rtc->rtc = devm_rtc_allocate_device(&pdev->dev);
 	if (IS_ERR(rtc->rtc))
 		return PTR_ERR(rtc->rtc);
+
+	rtc->rtc->ops = &da9052_rtc_ops;
+
+	ret = rtc_register_device(rtc->rtc);
+	if (ret)
+		return ret;
 
 	ret = da9052_request_irq(rtc->da9052, DA9052_IRQ_ALARM, "ALM",
 				da9052_rtc_irq, rtc);
