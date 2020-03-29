@@ -839,8 +839,7 @@ static int ctrl_set_scene_mode(struct bm2835_mmal_dev *dev,
 		enum mmal_parameter_exposuremeteringmode metering_mode;
 
 		for (i = 0; i < ARRAY_SIZE(scene_configs); i++) {
-			if (scene_configs[i].v4l2_scene ==
-				ctrl->val) {
+			if (scene_configs[i].v4l2_scene == ctrl->val) {
 				scene = &scene_configs[i];
 				break;
 			}

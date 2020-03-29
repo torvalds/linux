@@ -369,8 +369,7 @@ static void buffer_cb(struct vchiq_mmal_instance *instance,
 
 	if (dev->capture.vc_start_timestamp != -1 && pts) {
 		ktime_t timestamp;
-		s64 runtime_us = pts -
-		    dev->capture.vc_start_timestamp;
+		s64 runtime_us = pts - dev->capture.vc_start_timestamp;
 		timestamp = ktime_add_us(dev->capture.kernel_start_ts,
 					 runtime_us);
 		v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev,
@@ -420,9 +419,8 @@ static int enable_camera(struct bm2835_mmal_dev *dev)
 			return -EINVAL;
 		}
 
-		ret = vchiq_mmal_component_enable(
-				dev->instance,
-				dev->component[COMP_CAMERA]);
+		ret = vchiq_mmal_component_enable(dev->instance,
+						  dev->component[COMP_CAMERA]);
 		if (ret < 0) {
 			v4l2_err(&dev->v4l2_dev,
 				 "Failed enabling camera, ret %d\n", ret);
@@ -451,10 +449,8 @@ static int disable_camera(struct bm2835_mmal_dev *dev)
 
 		v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev,
 			 "Disabling camera\n");
-		ret =
-		    vchiq_mmal_component_disable(
-				dev->instance,
-				dev->component[COMP_CAMERA]);
+		ret = vchiq_mmal_component_disable(dev->instance,
+						   dev->component[COMP_CAMERA]);
 		if (ret < 0) {
 			v4l2_err(&dev->v4l2_dev,
 				 "Failed disabling camera, ret %d\n", ret);
@@ -555,8 +551,8 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	/* enable the camera port */
 	dev->capture.port->cb_ctx = dev;
-	ret =
-	    vchiq_mmal_port_enable(dev->instance, dev->capture.port, buffer_cb);
+	ret = vchiq_mmal_port_enable(dev->instance, dev->capture.port,
+				     buffer_cb);
 	if (ret) {
 		v4l2_err(&dev->v4l2_dev,
 			 "Failed to enable capture port - error %d. Disabling camera port again\n",
@@ -767,16 +763,14 @@ static int vidioc_overlay(struct file *file, void *f, unsigned int on)
 	    (!on && !dev->component[COMP_PREVIEW]->enabled))
 		return 0;	/* already in requested state */
 
-	src =
-	    &dev->component[COMP_CAMERA]->output[CAM_PORT_PREVIEW];
+	src = &dev->component[COMP_CAMERA]->output[CAM_PORT_PREVIEW];
 
 	if (!on) {
 		/* disconnect preview ports and disable component */
 		ret = vchiq_mmal_port_disable(dev->instance, src);
 		if (!ret)
-			ret =
-			    vchiq_mmal_port_connect_tunnel(dev->instance, src,
-							   NULL);
+			ret = vchiq_mmal_port_connect_tunnel(dev->instance, src,
+							     NULL);
 		if (ret >= 0)
 			ret = vchiq_mmal_component_disable(
 					dev->instance,
@@ -800,9 +794,8 @@ static int vidioc_overlay(struct file *file, void *f, unsigned int on)
 	if (enable_camera(dev) < 0)
 		return -EINVAL;
 
-	ret = vchiq_mmal_component_enable(
-			dev->instance,
-			dev->component[COMP_PREVIEW]);
+	ret = vchiq_mmal_component_enable(dev->instance,
+					  dev->component[COMP_PREVIEW]);
 	if (ret < 0)
 		return ret;
 
@@ -1210,8 +1203,7 @@ static int mmal_setup_components(struct bm2835_mmal_dev *dev,
 	}
 
 	remove_padding = mfmt->remove_padding;
-	vchiq_mmal_port_parameter_set(dev->instance,
-				      camera_port,
+	vchiq_mmal_port_parameter_set(dev->instance, camera_port,
 				      MMAL_PARAMETER_NO_IMAGE_PADDING,
 				      &remove_padding, sizeof(remove_padding));
 
@@ -1665,9 +1657,8 @@ static int mmal_init(struct bm2835_mmal_dev *dev)
 	dev->capture.enc_level = V4L2_MPEG_VIDEO_H264_LEVEL_4_0;
 
 	/* get the preview component ready */
-	ret = vchiq_mmal_component_init(
-			dev->instance, "ril.video_render",
-			&dev->component[COMP_PREVIEW]);
+	ret = vchiq_mmal_component_init(dev->instance, "ril.video_render",
+					&dev->component[COMP_PREVIEW]);
 	if (ret < 0)
 		goto unreg_camera;
 
@@ -1679,9 +1670,8 @@ static int mmal_init(struct bm2835_mmal_dev *dev)
 	}
 
 	/* get the image encoder component ready */
-	ret = vchiq_mmal_component_init(
-		dev->instance, "ril.image_encode",
-		&dev->component[COMP_IMAGE_ENCODE]);
+	ret = vchiq_mmal_component_init(dev->instance, "ril.image_encode",
+					&dev->component[COMP_IMAGE_ENCODE]);
 	if (ret < 0)
 		goto unreg_preview;
 
@@ -1741,15 +1731,13 @@ static int mmal_init(struct bm2835_mmal_dev *dev)
 
 unreg_vid_encoder:
 	pr_err("Cleanup: Destroy video encoder\n");
-	vchiq_mmal_component_finalise(
-		dev->instance,
-		dev->component[COMP_VIDEO_ENCODE]);
+	vchiq_mmal_component_finalise(dev->instance,
+				      dev->component[COMP_VIDEO_ENCODE]);
 
 unreg_image_encoder:
 	pr_err("Cleanup: Destroy image encoder\n");
-	vchiq_mmal_component_finalise(
-		dev->instance,
-		dev->component[COMP_IMAGE_ENCODE]);
+	vchiq_mmal_component_finalise(dev->instance,
+				      dev->component[COMP_IMAGE_ENCODE]);
 
 unreg_preview:
 	pr_err("Cleanup: Destroy video render\n");
@@ -1782,8 +1770,7 @@ static int bm2835_mmal_init_device(struct bm2835_mmal_dev *dev,
 	/* video device needs to be able to access instance data */
 	video_set_drvdata(vfd, dev);
 
-	ret = video_register_device(vfd,
-				    VFL_TYPE_VIDEO,
+	ret = video_register_device(vfd, VFL_TYPE_VIDEO,
 				    video_nr[dev->camera_num]);
 	if (ret < 0)
 		return ret;
