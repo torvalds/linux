@@ -1056,18 +1056,28 @@ static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 		break;
 	case MCAST_MSFILTER:
 	{
+		struct group_filter __user *p = (void __user *)optval;
 		struct group_filter gsf;
+		const int size0 = offsetof(struct group_filter, gf_slist);
+		int num;
 		int err;
 
-		if (len < GROUP_FILTER_SIZE(0))
+		if (len < size0)
 			return -EINVAL;
-		if (copy_from_user(&gsf, optval, GROUP_FILTER_SIZE(0)))
+		if (copy_from_user(&gsf, p, size0))
 			return -EFAULT;
 		if (gsf.gf_group.ss_family != AF_INET6)
 			return -EADDRNOTAVAIL;
+		num = gsf.gf_numsrc;
 		lock_sock(sk);
-		err = ip6_mc_msfget(sk, &gsf,
-			(struct group_filter __user *)optval, optlen);
+		err = ip6_mc_msfget(sk, &gsf, p->gf_slist);
+		if (!err) {
+			if (num > gsf.gf_numsrc)
+				num = gsf.gf_numsrc;
+			if (put_user(GROUP_FILTER_SIZE(num), optlen) ||
+			    copy_to_user(p, &gsf, size0))
+				err = -EFAULT;
+		}
 		release_sock(sk);
 		return err;
 	}

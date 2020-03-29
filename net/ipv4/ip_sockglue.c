@@ -1473,19 +1473,28 @@ static int do_ip_getsockopt(struct sock *sk, int level, int optname,
 	}
 	case MCAST_MSFILTER:
 	{
+		struct group_filter __user *p = (void __user *)optval;
 		struct group_filter gsf;
+		const int size0 = offsetof(struct group_filter, gf_slist);
+		int num;
 
-		if (len < GROUP_FILTER_SIZE(0)) {
+		if (len < size0) {
 			err = -EINVAL;
 			goto out;
 		}
-		if (copy_from_user(&gsf, optval, GROUP_FILTER_SIZE(0))) {
+		if (copy_from_user(&gsf, p, size0)) {
 			err = -EFAULT;
 			goto out;
 		}
-		err = ip_mc_gsfget(sk, &gsf,
-				   (struct group_filter __user *)optval,
-				   optlen);
+		num = gsf.gf_numsrc;
+		err = ip_mc_gsfget(sk, &gsf, p->gf_slist);
+		if (err)
+			goto out;
+		if (gsf.gf_numsrc < num)
+			num = gsf.gf_numsrc;
+		if (put_user(GROUP_FILTER_SIZE(num), optlen) ||
+		    copy_to_user(p, &gsf, size0))
+			err = -EFAULT;
 		goto out;
 	}
 	case IP_MULTICAST_ALL:
