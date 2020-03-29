@@ -39,6 +39,8 @@ struct mlx5_tc_ct_priv {
 	struct idr fte_ids;
 	struct xarray tuple_ids;
 	struct rhashtable zone_ht;
+	struct rhashtable ct_tuples_ht;
+	struct rhashtable ct_tuples_nat_ht;
 	struct mlx5_flow_table *ct;
 	struct mlx5_flow_table *ct_nat;
 	struct mlx5_flow_table *post_ct;
@@ -82,12 +84,38 @@ struct mlx5_ct_ft {
 	struct mlx5_tc_ct_pre pre_ct_nat;
 };
 
+struct mlx5_ct_tuple {
+	u16 addr_type;
+	__be16 n_proto;
+	u8 ip_proto;
+	struct {
+		union {
+			__be32 src_v4;
+			struct in6_addr src_v6;
+		};
+		union {
+			__be32 dst_v4;
+			struct in6_addr dst_v6;
+		};
+	} ip;
+	struct {
+		__be16 src;
+		__be16 dst;
+	} port;
+
+	u16 zone;
+};
+
 struct mlx5_ct_entry {
 	u16 zone;
 	struct rhash_head node;
+	struct rhash_head tuple_node;
+	struct rhash_head tuple_nat_node;
 	struct mlx5_fc *counter;
 	unsigned long cookie;
 	unsigned long restore_cookie;
+	struct mlx5_ct_tuple tuple;
+	struct mlx5_ct_tuple tuple_nat;
 	struct mlx5_ct_zone_rule zone_rules[2];
 };
 
@@ -106,6 +134,22 @@ static const struct rhashtable_params zone_params = {
 	.automatic_shrinking = true,
 };
 
+static const struct rhashtable_params tuples_ht_params = {
+	.head_offset = offsetof(struct mlx5_ct_entry, tuple_node),
+	.key_offset = offsetof(struct mlx5_ct_entry, tuple),
+	.key_len = sizeof(((struct mlx5_ct_entry *)0)->tuple),
+	.automatic_shrinking = true,
+	.min_size = 16 * 1024,
+};
+
+static const struct rhashtable_params tuples_nat_ht_params = {
+	.head_offset = offsetof(struct mlx5_ct_entry, tuple_nat_node),
+	.key_offset = offsetof(struct mlx5_ct_entry, tuple_nat),
+	.key_len = sizeof(((struct mlx5_ct_entry *)0)->tuple_nat),
+	.automatic_shrinking = true,
+	.min_size = 16 * 1024,
+};
+
 static struct mlx5_tc_ct_priv *
 mlx5_tc_ct_get_ct_priv(struct mlx5e_priv *priv)
 {
@@ -116,6 +160,115 @@ mlx5_tc_ct_get_ct_priv(struct mlx5e_priv *priv)
 	uplink_rpriv = mlx5_eswitch_get_uplink_priv(esw, REP_ETH);
 	uplink_priv = &uplink_rpriv->uplink_priv;
 	return uplink_priv->ct_priv;
+}
+
+static int
+mlx5_tc_ct_rule_to_tuple(struct mlx5_ct_tuple *tuple, struct flow_rule *rule)
+{
+	struct flow_match_control control;
+	struct flow_match_basic basic;
+
+	flow_rule_match_basic(rule, &basic);
+	flow_rule_match_control(rule, &control);
+
+	tuple->n_proto = basic.key->n_proto;
+	tuple->ip_proto = basic.key->ip_proto;
+	tuple->addr_type = control.key->addr_type;
+
+	if (tuple->addr_type == FLOW_DISSECTOR_KEY_IPV4_ADDRS) {
+		struct flow_match_ipv4_addrs match;
+
+		flow_rule_match_ipv4_addrs(rule, &match);
+		tuple->ip.src_v4 = match.key->src;
+		tuple->ip.dst_v4 = match.key->dst;
+	} else if (tuple->addr_type == FLOW_DISSECTOR_KEY_IPV6_ADDRS) {
+		struct flow_match_ipv6_addrs match;
+
+		flow_rule_match_ipv6_addrs(rule, &match);
+		tuple->ip.src_v6 = match.key->src;
+		tuple->ip.dst_v6 = match.key->dst;
+	} else {
+		return -EOPNOTSUPP;
+	}
+
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_PORTS)) {
+		struct flow_match_ports match;
+
+		flow_rule_match_ports(rule, &match);
+		switch (tuple->ip_proto) {
+		case IPPROTO_TCP:
+		case IPPROTO_UDP:
+			tuple->port.src = match.key->src;
+			tuple->port.dst = match.key->dst;
+			break;
+		default:
+			return -EOPNOTSUPP;
+		}
+	} else {
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+static int
+mlx5_tc_ct_rule_to_tuple_nat(struct mlx5_ct_tuple *tuple,
+			     struct flow_rule *rule)
+{
+	struct flow_action *flow_action = &rule->action;
+	struct flow_action_entry *act;
+	u32 offset, val, ip6_offset;
+	int i;
+
+	flow_action_for_each(i, act, flow_action) {
+		if (act->id != FLOW_ACTION_MANGLE)
+			continue;
+
+		offset = act->mangle.offset;
+		val = act->mangle.val;
+		switch (act->mangle.htype) {
+		case FLOW_ACT_MANGLE_HDR_TYPE_IP4:
+			if (offset == offsetof(struct iphdr, saddr))
+				tuple->ip.src_v4 = cpu_to_be32(val);
+			else if (offset == offsetof(struct iphdr, daddr))
+				tuple->ip.dst_v4 = cpu_to_be32(val);
+			else
+				return -EOPNOTSUPP;
+			break;
+
+		case FLOW_ACT_MANGLE_HDR_TYPE_IP6:
+			ip6_offset = (offset - offsetof(struct ipv6hdr, saddr));
+			ip6_offset /= 4;
+			if (ip6_offset < 8)
+				tuple->ip.src_v6.s6_addr32[ip6_offset] = cpu_to_be32(val);
+			else
+				return -EOPNOTSUPP;
+			break;
+
+		case FLOW_ACT_MANGLE_HDR_TYPE_TCP:
+			if (offset == offsetof(struct tcphdr, source))
+				tuple->port.src = cpu_to_be16(val);
+			else if (offset == offsetof(struct tcphdr, dest))
+				tuple->port.dst = cpu_to_be16(val);
+			else
+				return -EOPNOTSUPP;
+			break;
+
+		case FLOW_ACT_MANGLE_HDR_TYPE_UDP:
+			if (offset == offsetof(struct udphdr, source))
+				tuple->port.src = cpu_to_be16(val);
+			else if (offset == offsetof(struct udphdr, dest))
+				tuple->port.dst = cpu_to_be16(val);
+			else
+				return -EOPNOTSUPP;
+			break;
+
+		default:
+			return -EOPNOTSUPP;
+		}
+	}
+
+	return 0;
 }
 
 static int
@@ -614,8 +767,32 @@ mlx5_tc_ct_block_flow_offload_add(struct mlx5_ct_ft *ft,
 		return -ENOMEM;
 
 	entry->zone = ft->zone;
+	entry->tuple.zone = ft->zone;
 	entry->cookie = flow->cookie;
 	entry->restore_cookie = meta_action->ct_metadata.cookie;
+
+	err = mlx5_tc_ct_rule_to_tuple(&entry->tuple, flow_rule);
+	if (err)
+		goto err_set;
+
+	memcpy(&entry->tuple_nat, &entry->tuple, sizeof(entry->tuple));
+	err = mlx5_tc_ct_rule_to_tuple_nat(&entry->tuple_nat, flow_rule);
+	if (err)
+		goto err_set;
+
+	err = rhashtable_insert_fast(&ct_priv->ct_tuples_ht,
+				     &entry->tuple_node,
+				     tuples_ht_params);
+	if (err)
+		goto err_tuple;
+
+	if (memcmp(&entry->tuple, &entry->tuple_nat, sizeof(entry->tuple))) {
+		err = rhashtable_insert_fast(&ct_priv->ct_tuples_nat_ht,
+					     &entry->tuple_nat_node,
+					     tuples_nat_ht_params);
+		if (err)
+			goto err_tuple_nat;
+	}
 
 	err = mlx5_tc_ct_entry_add_rules(ct_priv, flow_rule, entry);
 	if (err)
@@ -631,6 +808,15 @@ mlx5_tc_ct_block_flow_offload_add(struct mlx5_ct_ft *ft,
 err_insert:
 	mlx5_tc_ct_entry_del_rules(ct_priv, entry);
 err_rules:
+	rhashtable_remove_fast(&ct_priv->ct_tuples_nat_ht,
+			       &entry->tuple_nat_node, tuples_nat_ht_params);
+err_tuple_nat:
+	if (entry->tuple_node.next)
+		rhashtable_remove_fast(&ct_priv->ct_tuples_ht,
+				       &entry->tuple_node,
+				       tuples_ht_params);
+err_tuple:
+err_set:
 	kfree(entry);
 	netdev_warn(ct_priv->netdev,
 		    "Failed to offload ct entry, err: %d\n", err);
@@ -650,6 +836,12 @@ mlx5_tc_ct_block_flow_offload_del(struct mlx5_ct_ft *ft,
 		return -ENOENT;
 
 	mlx5_tc_ct_entry_del_rules(ft->ct_priv, entry);
+	if (entry->tuple_node.next)
+		rhashtable_remove_fast(&ft->ct_priv->ct_tuples_nat_ht,
+				       &entry->tuple_nat_node,
+				       tuples_nat_ht_params);
+	rhashtable_remove_fast(&ft->ct_priv->ct_tuples_ht, &entry->tuple_node,
+			       tuples_ht_params);
 	WARN_ON(rhashtable_remove_fast(&ft->ct_entries_ht,
 				       &entry->node,
 				       cts_ht_params));
@@ -1563,6 +1755,8 @@ mlx5_tc_ct_init(struct mlx5_rep_uplink_priv *uplink_priv)
 	xa_init_flags(&ct_priv->tuple_ids, XA_FLAGS_ALLOC1);
 	mutex_init(&ct_priv->control_lock);
 	rhashtable_init(&ct_priv->zone_ht, &zone_params);
+	rhashtable_init(&ct_priv->ct_tuples_ht, &tuples_ht_params);
+	rhashtable_init(&ct_priv->ct_tuples_nat_ht, &tuples_nat_ht_params);
 
 	/* Done, set ct_priv to know it initializted */
 	uplink_priv->ct_priv = ct_priv;
@@ -1593,6 +1787,8 @@ mlx5_tc_ct_clean(struct mlx5_rep_uplink_priv *uplink_priv)
 	mlx5_esw_chains_destroy_global_table(ct_priv->esw, ct_priv->ct_nat);
 	mlx5_esw_chains_destroy_global_table(ct_priv->esw, ct_priv->ct);
 
+	rhashtable_destroy(&ct_priv->ct_tuples_ht);
+	rhashtable_destroy(&ct_priv->ct_tuples_nat_ht);
 	rhashtable_destroy(&ct_priv->zone_ht);
 	mutex_destroy(&ct_priv->control_lock);
 	xa_destroy(&ct_priv->tuple_ids);
