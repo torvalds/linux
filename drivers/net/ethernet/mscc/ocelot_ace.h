@@ -7,6 +7,7 @@
 #define _MSCC_OCELOT_ACE_H_
 
 #include "ocelot.h"
+#include "ocelot_police.h"
 #include <net/sch_generic.h>
 #include <net/pkt_cls.h>
 
@@ -176,6 +177,7 @@ struct ocelot_ace_frame_ipv6 {
 enum ocelot_ace_action {
 	OCELOT_ACL_ACTION_DROP,
 	OCELOT_ACL_ACTION_TRAP,
+	OCELOT_ACL_ACTION_POLICE,
 };
 
 struct ocelot_ace_stats {
@@ -208,6 +210,8 @@ struct ocelot_ace_rule {
 		struct ocelot_ace_frame_ipv4 ipv4;
 		struct ocelot_ace_frame_ipv6 ipv6;
 	} frame;
+	struct ocelot_policer pol;
+	u32 pol_ix;
 };
 
 int ocelot_ace_rule_offload_add(struct ocelot *ocelot,

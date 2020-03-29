@@ -468,6 +468,7 @@ struct ocelot_ops {
 struct ocelot_acl_block {
 	struct list_head rules;
 	int count;
+	int pol_lpr;
 };
 
 struct ocelot_port {
