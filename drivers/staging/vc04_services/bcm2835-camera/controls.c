@@ -377,11 +377,9 @@ static int ctrl_set_metering_mode(struct bm2835_mmal_dev *dev,
 		dev->metering_mode = MMAL_PARAM_EXPOSUREMETERINGMODE_SPOT;
 		break;
 
-	/* todo matrix weighting not added to Linux API till 3.9
-	 * case V4L2_EXPOSURE_METERING_MATRIX:
-	 *	dev->metering_mode = MMAL_PARAM_EXPOSUREMETERINGMODE_MATRIX;
-	 *	break;
-	 */
+	case V4L2_EXPOSURE_METERING_MATRIX:
+		dev->metering_mode = MMAL_PARAM_EXPOSUREMETERINGMODE_MATRIX;
+		break;
 	}
 
 	if (dev->scene_mode == V4L2_SCENE_MODE_NONE) {
@@ -1045,8 +1043,8 @@ static const struct bm2835_mmal_v4l2_ctrl v4l2_ctrls[V4L2_CTRL_COUNT] = {
 	{
 		.id = V4L2_CID_EXPOSURE_METERING,
 		.type = MMAL_CONTROL_TYPE_STD_MENU,
-		.min = ~0x7,
-		.max = V4L2_EXPOSURE_METERING_SPOT,
+		.min = ~0xf,
+		.max = V4L2_EXPOSURE_METERING_MATRIX,
 		.def = V4L2_EXPOSURE_METERING_AVERAGE,
 		.step = 0,
 		.imenu = NULL,
