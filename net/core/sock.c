@@ -2077,7 +2077,8 @@ EXPORT_SYMBOL(sock_efree);
 #ifdef CONFIG_INET
 void sock_pfree(struct sk_buff *skb)
 {
-	sock_gen_put(skb->sk);
+	if (sk_is_refcounted(skb->sk))
+		sock_gen_put(skb->sk);
 }
 EXPORT_SYMBOL(sock_pfree);
 #endif /* CONFIG_INET */
