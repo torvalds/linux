@@ -8,6 +8,7 @@
  *          Mika Westerberg <mika.westerberg@linux.intel.com>
  */
 
+#include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/gpio.h>
 #include <linux/kernel.h>
@@ -707,6 +708,9 @@ static irqreturn_t smb347_interrupt(int irq, void *data)
 	unsigned int stat_c, irqstat_c, irqstat_d, irqstat_e;
 	bool handled = false;
 	int ret;
+
+	/* SMB347 it needs at least 20ms for setting IRQSTAT_E_*IN_UV_IRQ */
+	usleep_range(25000, 35000);
 
 	ret = regmap_read(smb->regmap, STAT_C, &stat_c);
 	if (ret < 0) {
