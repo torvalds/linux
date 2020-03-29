@@ -2021,6 +2021,7 @@ static void sja1105_teardown(struct dsa_switch *ds)
 			kthread_destroy_worker(sp->xmit_worker);
 	}
 
+	sja1105_flower_teardown(ds);
 	sja1105_tas_teardown(ds);
 	sja1105_ptp_clock_unregister(ds);
 	sja1105_static_config_free(&priv->static_config);
@@ -2356,6 +2357,8 @@ static const struct dsa_switch_ops sja1105_switch_ops = {
 	.port_mirror_del	= sja1105_mirror_del,
 	.port_policer_add	= sja1105_port_policer_add,
 	.port_policer_del	= sja1105_port_policer_del,
+	.cls_flower_add		= sja1105_cls_flower_add,
+	.cls_flower_del		= sja1105_cls_flower_del,
 };
 
 static int sja1105_check_device_id(struct sja1105_private *priv)
@@ -2459,6 +2462,7 @@ static int sja1105_probe(struct spi_device *spi)
 	mutex_init(&priv->mgmt_lock);
 
 	sja1105_tas_setup(ds);
+	sja1105_flower_setup(ds);
 
 	rc = dsa_register_switch(priv->ds);
 	if (rc)
