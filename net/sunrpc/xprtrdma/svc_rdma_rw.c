@@ -7,6 +7,7 @@
 
 #include <rdma/rw.h>
 
+#include <linux/sunrpc/xdr.h>
 #include <linux/sunrpc/rpc_rdma.h>
 #include <linux/sunrpc/svc_rdma.h>
 
@@ -441,34 +442,32 @@ svc_rdma_build_writes(struct svc_rdma_write_info *info,
 	seg = info->wi_segs + info->wi_seg_no * rpcrdma_segment_maxsz;
 	do {
 		unsigned int write_len;
-		u32 seg_length, seg_handle;
-		u64 seg_offset;
+		u32 handle, length;
+		u64 offset;
 
 		if (info->wi_seg_no >= info->wi_nsegs)
 			goto out_overflow;
 
-		seg_handle = be32_to_cpup(seg);
-		seg_length = be32_to_cpup(seg + 1);
-		xdr_decode_hyper(seg + 2, &seg_offset);
-		seg_offset += info->wi_seg_off;
+		xdr_decode_rdma_segment(seg, &handle, &length, &offset);
+		offset += info->wi_seg_off;
 
-		write_len = min(remaining, seg_length - info->wi_seg_off);
+		write_len = min(remaining, length - info->wi_seg_off);
 		ctxt = svc_rdma_get_rw_ctxt(rdma,
 					    (write_len >> PAGE_SHIFT) + 2);
 		if (!ctxt)
 			return -ENOMEM;
 
 		constructor(info, write_len, ctxt);
-		ret = svc_rdma_rw_ctx_init(rdma, ctxt, seg_offset, seg_handle,
+		ret = svc_rdma_rw_ctx_init(rdma, ctxt, offset, handle,
 					   DMA_TO_DEVICE);
 		if (ret < 0)
 			return -EIO;
 
-		trace_svcrdma_send_wseg(seg_handle, write_len, seg_offset);
+		trace_svcrdma_send_wseg(handle, write_len, offset);
 
 		list_add(&ctxt->rw_list, &cc->cc_rwctxts);
 		cc->cc_sqecount += ret;
-		if (write_len == seg_length - info->wi_seg_off) {
+		if (write_len == length - info->wi_seg_off) {
 			seg += 4;
 			info->wi_seg_no++;
 			info->wi_seg_off = 0;
@@ -689,21 +688,17 @@ static int svc_rdma_build_read_chunk(struct svc_rqst *rqstp,
 	ret = -EINVAL;
 	info->ri_chunklen = 0;
 	while (*p++ != xdr_zero && be32_to_cpup(p++) == info->ri_position) {
-		u32 rs_handle, rs_length;
-		u64 rs_offset;
+		u32 handle, length;
+		u64 offset;
 
-		rs_handle = be32_to_cpup(p++);
-		rs_length = be32_to_cpup(p++);
-		p = xdr_decode_hyper(p, &rs_offset);
-
-		ret = svc_rdma_build_read_segment(info, rqstp,
-						  rs_handle, rs_length,
-						  rs_offset);
+		p = xdr_decode_rdma_segment(p, &handle, &length, &offset);
+		ret = svc_rdma_build_read_segment(info, rqstp, handle, length,
+						  offset);
 		if (ret < 0)
 			break;
 
-		trace_svcrdma_send_rseg(rs_handle, rs_length, rs_offset);
-		info->ri_chunklen += rs_length;
+		trace_svcrdma_send_rseg(handle, length, offset);
+		info->ri_chunklen += length;
 	}
 
 	return ret;

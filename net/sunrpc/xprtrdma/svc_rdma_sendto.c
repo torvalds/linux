@@ -106,7 +106,6 @@
 #include <rdma/rdma_cm.h>
 
 #include <linux/sunrpc/debug.h>
-#include <linux/sunrpc/rpc_rdma.h>
 #include <linux/sunrpc/svc_rdma.h>
 
 #include "xprt_rdma.h"
@@ -375,9 +374,7 @@ static ssize_t svc_rdma_encode_write_segment(__be32 *src,
 	if (!p)
 		return -EMSGSIZE;
 
-	handle = be32_to_cpup(src++);
-	length = be32_to_cpup(src++);
-	xdr_decode_hyper(src, &offset);
+	xdr_decode_rdma_segment(src, &handle, &length, &offset);
 
 	*p++ = cpu_to_be32(handle);
 	if (*remaining < length) {

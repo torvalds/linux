@@ -124,4 +124,41 @@ rpcrdma_decode_buffer_size(u8 val)
 	return ((unsigned int)val + 1) << 10;
 }
 
+/**
+ * xdr_decode_rdma_segment - Decode contents of an RDMA segment
+ * @p: Pointer to the undecoded RDMA segment
+ * @handle: Upon return, the RDMA handle
+ * @length: Upon return, the RDMA length
+ * @offset: Upon return, the RDMA offset
+ *
+ * Return value:
+ *   Pointer to the XDR item that follows the RDMA segment
+ */
+static inline __be32 *xdr_decode_rdma_segment(__be32 *p, u32 *handle,
+					      u32 *length, u64 *offset)
+{
+	*handle = be32_to_cpup(p++);
+	*length = be32_to_cpup(p++);
+	return xdr_decode_hyper(p, offset);
+}
+
+/**
+ * xdr_decode_read_segment - Decode contents of a Read segment
+ * @p: Pointer to the undecoded Read segment
+ * @position: Upon return, the segment's position
+ * @handle: Upon return, the RDMA handle
+ * @length: Upon return, the RDMA length
+ * @offset: Upon return, the RDMA offset
+ *
+ * Return value:
+ *   Pointer to the XDR item that follows the Read segment
+ */
+static inline __be32 *xdr_decode_read_segment(__be32 *p, u32 *position,
+					      u32 *handle, u32 *length,
+					      u64 *offset)
+{
+	*position = be32_to_cpup(p++);
+	return xdr_decode_rdma_segment(p, handle, length, offset);
+}
+
 #endif				/* _LINUX_SUNRPC_RPC_RDMA_H */

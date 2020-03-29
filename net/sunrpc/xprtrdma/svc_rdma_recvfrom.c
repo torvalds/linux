@@ -466,9 +466,7 @@ static bool xdr_check_write_chunk(struct svc_rdma_recv_ctxt *rctxt, u32 maxlen)
 		if (!p)
 			return false;
 
-		handle = be32_to_cpup(p++);
-		length = be32_to_cpup(p++);
-		xdr_decode_hyper(p, &offset);
+		xdr_decode_rdma_segment(p, &handle, &length, &offset);
 		trace_svcrdma_decode_wseg(handle, length, offset);
 
 		total += length;
