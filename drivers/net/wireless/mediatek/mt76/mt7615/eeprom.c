@@ -72,7 +72,8 @@ static int mt7615_eeprom_load(struct mt7615_dev *dev, u32 addr)
 {
 	int ret;
 
-	ret = mt76_eeprom_init(&dev->mt76, MT7615_EEPROM_SIZE);
+	ret = mt76_eeprom_init(&dev->mt76, MT7615_EEPROM_SIZE +
+					   MT7615_EEPROM_EXTRA_DATA);
 	if (ret < 0)
 		return ret;
 
@@ -280,11 +281,13 @@ int mt7615_eeprom_init(struct mt7615_dev *dev, u32 addr)
 		return ret;
 
 	ret = mt7615_check_eeprom(&dev->mt76);
-	if (ret && dev->mt76.otp.data)
+	if (ret && dev->mt76.otp.data) {
 		memcpy(dev->mt76.eeprom.data, dev->mt76.otp.data,
 		       MT7615_EEPROM_SIZE);
-	else
+	} else {
+		dev->flash_eeprom = true;
 		mt7615_cal_free_data(dev);
+	}
 
 	mt7615_eeprom_parse_hw_cap(dev);
 	memcpy(dev->mt76.macaddr, dev->mt76.eeprom.data + MT_EE_MAC_ADDR,

@@ -2481,6 +2481,25 @@ static void mt7615_mcu_set_txpower_sku(struct mt7615_phy *phy, u8 *sku)
 	}
 }
 
+static u8 mt7615_mcu_chan_bw(struct cfg80211_chan_def *chandef)
+{
+	static const u8 width_to_bw[] = {
+		[NL80211_CHAN_WIDTH_40] = CMD_CBW_40MHZ,
+		[NL80211_CHAN_WIDTH_80] = CMD_CBW_80MHZ,
+		[NL80211_CHAN_WIDTH_80P80] = CMD_CBW_8080MHZ,
+		[NL80211_CHAN_WIDTH_160] = CMD_CBW_160MHZ,
+		[NL80211_CHAN_WIDTH_5] = CMD_CBW_5MHZ,
+		[NL80211_CHAN_WIDTH_10] = CMD_CBW_10MHZ,
+		[NL80211_CHAN_WIDTH_20] = CMD_CBW_20MHZ,
+		[NL80211_CHAN_WIDTH_20_NOHT] = CMD_CBW_20MHZ,
+	};
+
+	if (chandef->width >= ARRAY_SIZE(width_to_bw))
+		return 0;
+
+	return width_to_bw[chandef->width];
+}
+
 int mt7615_mcu_set_chan_info(struct mt7615_phy *phy, int cmd)
 {
 	struct mt7615_dev *dev = phy->dev;
@@ -2521,32 +2540,7 @@ int mt7615_mcu_set_chan_info(struct mt7615_phy *phy, int cmd)
 		req.switch_reason = CH_SWITCH_NORMAL;
 
 	req.band_idx = phy != &dev->phy;
-
-	switch (chandef->width) {
-	case NL80211_CHAN_WIDTH_40:
-		req.bw = CMD_CBW_40MHZ;
-		break;
-	case NL80211_CHAN_WIDTH_80:
-		req.bw = CMD_CBW_80MHZ;
-		break;
-	case NL80211_CHAN_WIDTH_80P80:
-		req.bw = CMD_CBW_8080MHZ;
-		break;
-	case NL80211_CHAN_WIDTH_160:
-		req.bw = CMD_CBW_160MHZ;
-		break;
-	case NL80211_CHAN_WIDTH_5:
-		req.bw = CMD_CBW_5MHZ;
-		break;
-	case NL80211_CHAN_WIDTH_10:
-		req.bw = CMD_CBW_10MHZ;
-		break;
-	case NL80211_CHAN_WIDTH_20_NOHT:
-	case NL80211_CHAN_WIDTH_20:
-	default:
-		req.bw = CMD_CBW_20MHZ;
-		break;
-	}
+	req.bw = mt7615_mcu_chan_bw(chandef);
 
 	mt7615_mcu_set_txpower_sku(phy, req.txpower_sku);
 
@@ -2835,4 +2829,153 @@ int mt7615_mcu_sched_scan_enable(struct mt7615_phy *phy,
 
 	return __mt76_mcu_send_msg(&dev->mt76, MCU_CMD_SCHED_SCAN_ENABLE,
 				   &req, sizeof(req), false);
+}
+
+static int mt7615_find_freq_idx(const u16 *freqs, int n_freqs, u16 cur)
+{
+	int i;
+
+	for (i = 0; i < n_freqs; i++)
+		if (cur == freqs[i])
+			return i;
+
+	return -1;
+}
+
+static int mt7615_dcoc_freq_idx(u16 freq, u8 bw)
+{
+	static const u16 freq_list[] = {
+		4980, 5805, 5905, 5190,
+		5230, 5270, 5310, 5350,
+		5390, 5430, 5470, 5510,
+		5550, 5590, 5630, 5670,
+		5710, 5755, 5795, 5835,
+		5875, 5210, 5290, 5370,
+		5450, 5530, 5610, 5690,
+		5775, 5855
+	};
+	static const u16 freq_bw40[] = {
+		5190, 5230, 5270, 5310,
+		5350, 5390, 5430, 5470,
+		5510, 5550, 5590, 5630,
+		5670, 5710, 5755, 5795,
+		5835, 5875
+	};
+	int offset_2g = ARRAY_SIZE(freq_list);
+	int idx;
+
+	if (freq < 4000) {
+		if (freq < 2427)
+			return offset_2g;
+		if (freq < 2442)
+			return offset_2g + 1;
+		if (freq < 2457)
+			return offset_2g + 2;
+
+		return offset_2g + 3;
+	}
+
+	switch (bw) {
+	case NL80211_CHAN_WIDTH_80:
+	case NL80211_CHAN_WIDTH_80P80:
+	case NL80211_CHAN_WIDTH_160:
+		break;
+	default:
+		idx = mt7615_find_freq_idx(freq_bw40, ARRAY_SIZE(freq_bw40),
+					   freq + 10);
+		if (idx >= 0) {
+			freq = freq_bw40[idx];
+			break;
+		}
+
+		idx = mt7615_find_freq_idx(freq_bw40, ARRAY_SIZE(freq_bw40),
+					   freq - 10);
+		if (idx >= 0) {
+			freq = freq_bw40[idx];
+			break;
+		}
+		/* fall through */
+	case NL80211_CHAN_WIDTH_40:
+		idx = mt7615_find_freq_idx(freq_bw40, ARRAY_SIZE(freq_bw40),
+					   freq);
+		if (idx >= 0)
+			break;
+
+		return -1;
+
+	}
+
+	return mt7615_find_freq_idx(freq_list, ARRAY_SIZE(freq_list), freq);
+}
+
+int mt7615_mcu_apply_rx_dcoc(struct mt7615_phy *phy)
+{
+	struct mt7615_dev *dev = phy->dev;
+	struct cfg80211_chan_def *chandef = &phy->mt76->chandef;
+	int freq2 = chandef->center_freq2;
+	int ret;
+	struct {
+		u8 direction;
+		u8 runtime_calibration;
+		u8 _rsv[2];
+
+		__le16 center_freq;
+		u8 bw;
+		u8 band;
+		u8 is_freq2;
+		u8 success;
+		u8 dbdc_en;
+
+		u8 _rsv2;
+
+		struct {
+			__le32 sx0_i_lna[4];
+			__le32 sx0_q_lna[4];
+
+			__le32 sx2_i_lna[4];
+			__le32 sx2_q_lna[4];
+		} dcoc_data[4];
+	} req = {
+		.direction = 1,
+
+		.bw = mt7615_mcu_chan_bw(chandef),
+		.band = chandef->center_freq1 > 4000,
+		.dbdc_en = !!dev->mt76.phy2,
+	};
+	u16 center_freq = chandef->center_freq1;
+	int freq_idx;
+	u8 *eep = dev->mt76.eeprom.data;
+
+	if (!(eep[MT_EE_CALDATA_FLASH] & MT_EE_CALDATA_FLASH_RX_CAL))
+		return 0;
+
+	if (chandef->width == NL80211_CHAN_WIDTH_160) {
+		freq2 = center_freq + 40;
+		center_freq -= 40;
+	}
+
+again:
+	req.runtime_calibration = 1;
+	freq_idx = mt7615_dcoc_freq_idx(center_freq, chandef->width);
+	if (freq_idx < 0)
+		goto out;
+
+	memcpy(req.dcoc_data, eep + MT7615_EEPROM_DCOC_OFFSET +
+			      freq_idx * MT7615_EEPROM_DCOC_SIZE,
+	       sizeof(req.dcoc_data));
+	req.runtime_calibration = 0;
+
+out:
+	req.center_freq = cpu_to_le16(center_freq);
+	ret = __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_RXDCOC_CAL, &req,
+				  sizeof(req), true);
+
+	if ((chandef->width == NL80211_CHAN_WIDTH_80P80 ||
+	     chandef->width == NL80211_CHAN_WIDTH_160) && !req.is_freq2) {
+		req.is_freq2 = true;
+		center_freq = freq2;
+		goto again;
+	}
+
+	return ret;
 }
