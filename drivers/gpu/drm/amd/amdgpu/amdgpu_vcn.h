@@ -88,7 +88,7 @@
 			(sram_sel << UVD_DPG_LMA_CTL__SRAM_SEL__SHIFT)); 		\
 	} while (0)
 
-#define SOC15_DPG_MODE_OFFSET_2_0(ip, inst_idx, reg) 						\
+#define SOC15_DPG_MODE_OFFSET(ip, inst_idx, reg) 						\
 	({											\
 		uint32_t internal_reg_offset, addr;						\
 		bool video_range, video1_range, aon_range, aon1_range;				\
@@ -121,7 +121,7 @@
 		internal_reg_offset >>= 2;							\
 	})
 
-#define RREG32_SOC15_DPG_MODE_2_0(inst_idx, offset, mask_en) 					\
+#define RREG32_SOC15_DPG_MODE(inst_idx, offset, mask_en) 					\
 	({											\
 		WREG32_SOC15(VCN, inst_idx, mmUVD_DPG_LMA_CTL, 					\
 			(0x0 << UVD_DPG_LMA_CTL__READ_WRITE__SHIFT |				\
@@ -130,7 +130,7 @@
 		RREG32_SOC15(VCN, inst_idx, mmUVD_DPG_LMA_DATA);				\
 	})
 
-#define WREG32_SOC15_DPG_MODE_2_0(inst_idx, offset, value, mask_en, indirect)			\
+#define WREG32_SOC15_DPG_MODE(inst_idx, offset, value, mask_en, indirect)			\
 	do {											\
 		if (!indirect) {								\
 			WREG32_SOC15(VCN, inst_idx, mmUVD_DPG_LMA_DATA, value);			\
