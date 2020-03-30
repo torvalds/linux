@@ -272,7 +272,7 @@ void mac_link_up(struct phylink_config *config, struct phy_device *phy,
 
 struct phylink *phylink_create(struct phylink_config *, struct fwnode_handle *,
 			       phy_interface_t iface,
-			       const struct phylink_mac_ops *ops);
+			       const struct phylink_mac_ops *mac_ops);
 void phylink_destroy(struct phylink *);
 
 int phylink_connect_phy(struct phylink *, struct phy_device *);

@@ -40,7 +40,7 @@ enum {
 struct phylink {
 	/* private: */
 	struct net_device *netdev;
-	const struct phylink_mac_ops *ops;
+	const struct phylink_mac_ops *mac_ops;
 	struct phylink_config *config;
 	struct device *dev;
 	unsigned int old_link_state:1;
@@ -154,7 +154,7 @@ static const char *phylink_an_mode_str(unsigned int mode)
 static int phylink_validate(struct phylink *pl, unsigned long *supported,
 			    struct phylink_link_state *state)
 {
-	pl->ops->validate(pl->config, supported, state);
+	pl->mac_ops->validate(pl->config, supported, state);
 
 	return phylink_is_empty_linkmode(supported) ? -EINVAL : 0;
 }
@@ -415,7 +415,7 @@ static void phylink_mac_config(struct phylink *pl,
 		    __ETHTOOL_LINK_MODE_MASK_NBITS, state->advertising,
 		    state->pause, state->link, state->an_enabled);
 
-	pl->ops->mac_config(pl->config, pl->cur_link_an_mode, state);
+	pl->mac_ops->mac_config(pl->config, pl->cur_link_an_mode, state);
 }
 
 static void phylink_mac_config_up(struct phylink *pl,
@@ -429,7 +429,7 @@ static void phylink_mac_an_restart(struct phylink *pl)
 {
 	if (pl->link_config.an_enabled &&
 	    phy_interface_mode_is_8023z(pl->link_config.interface))
-		pl->ops->mac_an_restart(pl->config);
+		pl->mac_ops->mac_an_restart(pl->config);
 }
 
 static void phylink_mac_pcs_get_state(struct phylink *pl,
@@ -445,7 +445,7 @@ static void phylink_mac_pcs_get_state(struct phylink *pl,
 	state->an_complete = 0;
 	state->link = 1;
 
-	pl->ops->mac_pcs_get_state(pl->config, state);
+	pl->mac_ops->mac_pcs_get_state(pl->config, state);
 }
 
 /* The fixed state is... fixed except for the link state,
@@ -512,11 +512,11 @@ static void phylink_mac_link_up(struct phylink *pl,
 	struct net_device *ndev = pl->netdev;
 
 	pl->cur_interface = link_state.interface;
-	pl->ops->mac_link_up(pl->config, pl->phydev,
-			     pl->cur_link_an_mode, pl->cur_interface,
-			     link_state.speed, link_state.duplex,
-			     !!(link_state.pause & MLO_PAUSE_TX),
-			     !!(link_state.pause & MLO_PAUSE_RX));
+	pl->mac_ops->mac_link_up(pl->config, pl->phydev,
+				 pl->cur_link_an_mode, pl->cur_interface,
+				 link_state.speed, link_state.duplex,
+				 !!(link_state.pause & MLO_PAUSE_TX),
+				 !!(link_state.pause & MLO_PAUSE_RX));
 
 	if (ndev)
 		netif_carrier_on(ndev);
@@ -534,8 +534,8 @@ static void phylink_mac_link_down(struct phylink *pl)
 
 	if (ndev)
 		netif_carrier_off(ndev);
-	pl->ops->mac_link_down(pl->config, pl->cur_link_an_mode,
-			       pl->cur_interface);
+	pl->mac_ops->mac_link_down(pl->config, pl->cur_link_an_mode,
+				   pl->cur_interface);
 	phylink_info(pl, "Link is Down\n");
 }
 
@@ -666,7 +666,7 @@ static int phylink_register_sfp(struct phylink *pl,
  * @fwnode: a pointer to a &struct fwnode_handle describing the network
  *	interface
  * @iface: the desired link mode defined by &typedef phy_interface_t
- * @ops: a pointer to a &struct phylink_mac_ops for the MAC.
+ * @mac_ops: a pointer to a &struct phylink_mac_ops for the MAC.
  *
  * Create a new phylink instance, and parse the link parameters found in @np.
  * This will parse in-band modes, fixed-link or SFP configuration.
@@ -679,7 +679,7 @@ static int phylink_register_sfp(struct phylink *pl,
 struct phylink *phylink_create(struct phylink_config *config,
 			       struct fwnode_handle *fwnode,
 			       phy_interface_t iface,
-			       const struct phylink_mac_ops *ops)
+			       const struct phylink_mac_ops *mac_ops)
 {
 	struct phylink *pl;
 	int ret;
@@ -712,7 +712,7 @@ struct phylink *phylink_create(struct phylink_config *config,
 	pl->link_config.speed = SPEED_UNKNOWN;
 	pl->link_config.duplex = DUPLEX_UNKNOWN;
 	pl->link_config.an_enabled = true;
-	pl->ops = ops;
+	pl->mac_ops = mac_ops;
 	__set_bit(PHYLINK_DISABLE_STOPPED, &pl->phylink_disable_state);
 	timer_setup(&pl->link_poll, phylink_fixed_poll, 0);
 
