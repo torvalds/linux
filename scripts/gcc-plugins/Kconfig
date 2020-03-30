@@ -23,7 +23,7 @@ menuconfig GCC_PLUGINS
 	  GCC plugins are loadable modules that provide extra features to the
 	  compiler. They are useful for runtime instrumentation and static analysis.
 
-	  See Documentation/core-api/gcc-plugins.rst for details.
+	  See Documentation/kbuild/gcc-plugins.rst for details.
 
 if GCC_PLUGINS
 

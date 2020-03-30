@@ -1099,6 +1099,12 @@
 			A valid base address must be provided, and the serial
 			port must already be setup and configured.
 
+		ec_imx21,<addr>
+		ec_imx6q,<addr>
+			Start an early, polled-mode, output-only console on the
+			Freescale i.MX UART at the specified address. The UART
+			must already be setup and configured.
+
 		ar3700_uart,<addr>
 			Start an early, polled-mode console on the
 			Armada 3700 serial port at the specified
@@ -1779,7 +1785,7 @@
 			provided by tboot because it makes the system
 			vulnerable to DMA attacks.
 		nobounce [Default off]
-			Disable bounce buffer for unstrusted devices such as
+			Disable bounce buffer for untrusted devices such as
 			the Thunderbolt devices. This will treat the untrusted
 			devices as the trusted ones, hence might expose security
 			risks of DMA attacks.
@@ -1883,7 +1889,7 @@
 			No delay
 
 	ip=		[IP_PNP]
-			See Documentation/filesystems/nfs/nfsroot.txt.
+			See Documentation/admin-guide/nfs/nfsroot.rst.
 
 	ipcmni_extend	[KNL] Extend the maximum number of unique System V
 			IPC identifiers from 32,768 to 16,777,216.
@@ -2795,7 +2801,7 @@
 			<name>,<region-number>[,<base>,<size>,<buswidth>,<altbuswidth>]
 
 	mtdparts=	[MTD]
-			See drivers/mtd/cmdlinepart.c.
+			See drivers/mtd/parsers/cmdlinepart.c
 
 	multitce=off	[PPC]  This parameter disables the use of the pSeries
 			firmware feature for updating multiple TCE entries
@@ -2853,13 +2859,13 @@
 			Default value is 0.
 
 	nfsaddrs=	[NFS] Deprecated.  Use ip= instead.
-			See Documentation/filesystems/nfs/nfsroot.txt.
+			See Documentation/admin-guide/nfs/nfsroot.rst.
 
 	nfsroot=	[NFS] nfs root filesystem for disk-less boxes.
-			See Documentation/filesystems/nfs/nfsroot.txt.
+			See Documentation/admin-guide/nfs/nfsroot.rst.
 
 	nfsrootdebug	[NFS] enable nfsroot debugging messages.
-			See Documentation/filesystems/nfs/nfsroot.txt.
+			See Documentation/admin-guide/nfs/nfsroot.rst.
 
 	nfs.callback_nr_threads=
 			[NFSv4] set the total number of threads that the
@@ -4514,10 +4520,10 @@
 			Format: <integer>
 
 			A nonzero value instructs the soft-lockup detector
-			to panic the machine when a soft-lockup occurs. This
-			is also controlled by CONFIG_BOOTPARAM_SOFTLOCKUP_PANIC
-			which is the respective build-time switch to that
-			functionality.
+			to panic the machine when a soft-lockup occurs. It is
+			also controlled by the kernel.softlockup_panic sysctl
+			and CONFIG_BOOTPARAM_SOFTLOCKUP_PANIC, which is the
+			respective build-time switch to that functionality.
 
 	softlockup_all_cpu_backtrace=
 			[KNL] Should the soft-lockup detector generate

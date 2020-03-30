@@ -908,8 +908,8 @@ A TLP probe packet is sent.
 
 A packet loss is detected and recovered by TLP.
 
-TCP Fast Open
-=============
+TCP Fast Open description
+=========================
 TCP Fast Open is a technology which allows data transfer before the
 3-way handshake complete. Please refer the `TCP Fast Open wiki`_ for a
 general description.
