@@ -200,9 +200,13 @@ fail:
  * This function reads status register to verify if HuC
  * firmware was successfully loaded.
  *
- * Returns: 1 if HuC firmware is loaded and verified,
- * 0 if HuC firmware is not loaded and -ENODEV if HuC
- * is not present on this platform.
+ * Returns:
+ *  * -ENODEV if HuC is not present on this platform,
+ *  * -EOPNOTSUPP if HuC firmware is disabled,
+ *  * -ENOPKG if HuC firmware was not installed,
+ *  * -ENOEXEC if HuC firmware is invalid or mismatched,
+ *  * 0 if HuC firmware is not running,
+ *  * 1 if HuC firmware is authenticated and running.
  */
 int intel_huc_check_status(struct intel_huc *huc)
 {
@@ -210,8 +214,18 @@ int intel_huc_check_status(struct intel_huc *huc)
 	intel_wakeref_t wakeref;
 	u32 status = 0;
 
-	if (!intel_huc_is_supported(huc))
+	switch (__intel_uc_fw_status(&huc->fw)) {
+	case INTEL_UC_FIRMWARE_NOT_SUPPORTED:
 		return -ENODEV;
+	case INTEL_UC_FIRMWARE_DISABLED:
+		return -EOPNOTSUPP;
+	case INTEL_UC_FIRMWARE_MISSING:
+		return -ENOPKG;
+	case INTEL_UC_FIRMWARE_ERROR:
+		return -ENOEXEC;
+	default:
+		break;
+	}
 
 	with_intel_runtime_pm(gt->uncore->rpm, wakeref)
 		status = intel_uncore_read(gt->uncore, huc->status.reg);
