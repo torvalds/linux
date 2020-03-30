@@ -286,7 +286,6 @@ int of_detach_node(struct device_node *np)
 {
 	struct of_reconfig_data rd;
 	unsigned long flags;
-	int rc = 0;
 
 	memset(&rd, 0, sizeof(rd));
 	rd.dn = np;
@@ -301,7 +300,7 @@ int of_detach_node(struct device_node *np)
 
 	of_reconfig_notify(OF_RECONFIG_DETACH_NODE, &rd);
 
-	return rc;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(of_detach_node);
 
