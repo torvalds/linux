@@ -335,14 +335,14 @@ static void print_addr(struct rtattr *attrs, int len)
 				error(1, errno, "wrong IP (v4) for family %d",
 				      family);
 			inet_ntop(AF_INET, RTA_DATA(attrs), str, sizeof(str));
-			printf("%s ", str);
+			printf("%s", str);
 		}
 		if (attrs->rta_type == MPTCP_PM_ADDR_ATTR_ADDR6) {
 			if (family != AF_INET6)
 				error(1, errno, "wrong IP (v6) for family %d",
 				      family);
 			inet_ntop(AF_INET6, RTA_DATA(attrs), str, sizeof(str));
-			printf("%s ", str);
+			printf("%s", str);
 		}
 		if (attrs->rta_type == MPTCP_PM_ADDR_ATTR_ID) {
 			memcpy(&id, RTA_DATA(attrs), 1);
