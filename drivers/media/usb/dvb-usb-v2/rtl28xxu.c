@@ -552,6 +552,9 @@ tuner_found:
 		if (ret)
 			goto err;
 
+		/* slave demod needs some time to wake up */
+		msleep(20);
+
 		/* check slave answers */
 		ret = rtl28xxu_ctrl_msg(d, &req_mn88472);
 		if (ret == 0 && buf[0] == 0x02) {

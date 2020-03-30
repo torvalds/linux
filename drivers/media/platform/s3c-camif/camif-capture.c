@@ -1158,7 +1158,7 @@ int s3c_camif_register_video_node(struct camif_dev *camif, int idx)
 	vfd->ctrl_handler = &vp->ctrl_handler;
 	vfd->device_caps = V4L2_CAP_STREAMING | V4L2_CAP_VIDEO_CAPTURE;
 
-	ret = video_register_device(vfd, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(vfd, VFL_TYPE_VIDEO, -1);
 	if (ret)
 		goto err_ctrlh_free;
 
