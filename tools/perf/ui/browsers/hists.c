@@ -677,7 +677,7 @@ static int hist_browser__title(struct hist_browser *browser, char *bf, size_t si
 	return browser->title ? browser->title(browser, bf, size) : 0;
 }
 
-static int hist_browser__handle_hotkey(struct hist_browser *browser, bool warn_lost_event, char *title, int key)
+static int hist_browser__handle_hotkey(struct hist_browser *browser, bool warn_lost_event, char *title, size_t size, int key)
 {
 	switch (key) {
 	case K_TIMER: {
@@ -703,7 +703,7 @@ static int hist_browser__handle_hotkey(struct hist_browser *browser, bool warn_l
 			ui_browser__warn_lost_events(&browser->b);
 		}
 
-		hist_browser__title(browser, title, sizeof(title));
+		hist_browser__title(browser, title, size);
 		ui_browser__show_title(&browser->b, title);
 		break;
 	}
@@ -764,13 +764,13 @@ int hist_browser__run(struct hist_browser *browser, const char *help,
 	if (ui_browser__show(&browser->b, title, "%s", help) < 0)
 		return -1;
 
-	if (key && hist_browser__handle_hotkey(browser, warn_lost_event, title, key))
+	if (key && hist_browser__handle_hotkey(browser, warn_lost_event, title, sizeof(title), key))
 		goto out;
 
 	while (1) {
 		key = ui_browser__run(&browser->b, delay_secs);
 
-		if (hist_browser__handle_hotkey(browser, warn_lost_event, title, key))
+		if (hist_browser__handle_hotkey(browser, warn_lost_event, title, sizeof(title), key))
 			break;
 	}
 out:
