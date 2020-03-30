@@ -6283,7 +6283,7 @@ __devlink_trap_group_action_set(struct devlink *devlink,
 static int
 devlink_trap_group_action_set(struct devlink *devlink,
 			      struct devlink_trap_group_item *group_item,
-			      struct genl_info *info)
+			      struct genl_info *info, bool *p_modified)
 {
 	enum devlink_trap_action trap_action;
 	int err;
@@ -6302,6 +6302,47 @@ devlink_trap_group_action_set(struct devlink *devlink,
 	if (err)
 		return err;
 
+	*p_modified = true;
+
+	return 0;
+}
+
+static int devlink_trap_group_set(struct devlink *devlink,
+				  struct devlink_trap_group_item *group_item,
+				  struct genl_info *info)
+{
+	struct devlink_trap_policer_item *policer_item;
+	struct netlink_ext_ack *extack = info->extack;
+	const struct devlink_trap_policer *policer;
+	struct nlattr **attrs = info->attrs;
+	int err;
+
+	if (!attrs[DEVLINK_ATTR_TRAP_POLICER_ID])
+		return 0;
+
+	if (!devlink->ops->trap_group_set)
+		return -EOPNOTSUPP;
+
+	policer_item = group_item->policer_item;
+	if (attrs[DEVLINK_ATTR_TRAP_POLICER_ID]) {
+		u32 policer_id;
+
+		policer_id = nla_get_u32(attrs[DEVLINK_ATTR_TRAP_POLICER_ID]);
+		policer_item = devlink_trap_policer_item_lookup(devlink,
+								policer_id);
+		if (policer_id && !policer_item) {
+			NL_SET_ERR_MSG_MOD(extack, "Device did not register this trap policer");
+			return -ENOENT;
+		}
+	}
+	policer = policer_item ? policer_item->policer : NULL;
+
+	err = devlink->ops->trap_group_set(devlink, group_item->group, policer);
+	if (err)
+		return err;
+
+	group_item->policer_item = policer_item;
+
 	return 0;
 }
 
@@ -6311,6 +6352,7 @@ static int devlink_nl_cmd_trap_group_set_doit(struct sk_buff *skb,
 	struct netlink_ext_ack *extack = info->extack;
 	struct devlink *devlink = info->user_ptr[0];
 	struct devlink_trap_group_item *group_item;
+	bool modified = false;
 	int err;
 
 	if (list_empty(&devlink->trap_group_list))
@@ -6322,11 +6364,21 @@ static int devlink_nl_cmd_trap_group_set_doit(struct sk_buff *skb,
 		return -ENOENT;
 	}
 
-	err = devlink_trap_group_action_set(devlink, group_item, info);
+	err = devlink_trap_group_action_set(devlink, group_item, info,
+					    &modified);
 	if (err)
 		return err;
 
+	err = devlink_trap_group_set(devlink, group_item, info);
+	if (err)
+		goto err_trap_group_set;
+
 	return 0;
+
+err_trap_group_set:
+	if (modified)
+		NL_SET_ERR_MSG_MOD(extack, "Trap group set failed, but some changes were committed already");
+	return err;
 }
 
 static struct devlink_trap_policer_item *
