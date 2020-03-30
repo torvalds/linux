@@ -3,6 +3,8 @@
 # error "Please do not build this file directly, build asm-offsets.c instead"
 #endif
 
+#include <linux/efi.h>
+
 #include <asm/ucontext.h>
 
 #define __SYSCALL_I386(nr, sym, qual) [nr] = 1,
@@ -64,4 +66,7 @@ void foo(void)
 	BLANK();
 	DEFINE(__NR_syscall_max, sizeof(syscalls) - 1);
 	DEFINE(NR_syscalls, sizeof(syscalls));
+
+	BLANK();
+	DEFINE(EFI_svam, offsetof(efi_runtime_services_t, set_virtual_address_map));
 }
