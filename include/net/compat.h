@@ -70,9 +70,6 @@ int cmsghdr_from_user_compat_to_kern(struct msghdr *, struct sock *,
 int compat_mc_setsockopt(struct sock *, int, int, char __user *, unsigned int,
 			 int (*)(struct sock *, int, int, char __user *,
 				 unsigned int));
-int compat_mc_getsockopt(struct sock *, int, int, char __user *, int __user *,
-			 int (*)(struct sock *, int, int, char __user *,
-				 int __user *));
 
 struct compat_group_req {
 	__u32				 gr_interface;
