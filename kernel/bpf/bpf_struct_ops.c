@@ -482,13 +482,21 @@ static int bpf_struct_ops_map_delete_elem(struct bpf_map *map, void *key)
 	prev_state = cmpxchg(&st_map->kvalue.state,
 			     BPF_STRUCT_OPS_STATE_INUSE,
 			     BPF_STRUCT_OPS_STATE_TOBEFREE);
-	if (prev_state == BPF_STRUCT_OPS_STATE_INUSE) {
+	switch (prev_state) {
+	case BPF_STRUCT_OPS_STATE_INUSE:
 		st_map->st_ops->unreg(&st_map->kvalue.data);
 		if (refcount_dec_and_test(&st_map->kvalue.refcnt))
 			bpf_map_put(map);
+		return 0;
+	case BPF_STRUCT_OPS_STATE_TOBEFREE:
+		return -EINPROGRESS;
+	case BPF_STRUCT_OPS_STATE_INIT:
+		return -ENOENT;
+	default:
+		WARN_ON_ONCE(1);
+		/* Should never happen.  Treat it as not found. */
+		return -ENOENT;
 	}
-
-	return 0;
 }
 
 static void bpf_struct_ops_map_seq_show_elem(struct bpf_map *map, void *key,

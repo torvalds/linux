@@ -140,6 +140,7 @@ int hif_shutdown(struct wfx_dev *wdev)
 	else
 		control_reg_write(wdev, 0);
 	mutex_unlock(&wdev->hif_cmd.lock);
+	mutex_unlock(&wdev->hif_cmd.key_renew_lock);
 	kfree(hif);
 	return ret;
 }
@@ -289,7 +290,7 @@ int hif_stop_scan(struct wfx_vif *wvif)
 }
 
 int hif_join(struct wfx_vif *wvif, const struct ieee80211_bss_conf *conf,
-	     const struct ieee80211_channel *channel, const u8 *ssidie)
+	     struct ieee80211_channel *channel, const u8 *ssid, int ssidlen)
 {
 	int ret;
 	struct hif_msg *hif;
@@ -307,9 +308,9 @@ int hif_join(struct wfx_vif *wvif, const struct ieee80211_bss_conf *conf,
 	body->basic_rate_set =
 		cpu_to_le32(wfx_rate_mask_to_hw(wvif->wdev, conf->basic_rates));
 	memcpy(body->bssid, conf->bssid, sizeof(body->bssid));
-	if (!conf->ibss_joined && ssidie) {
-		body->ssid_length = cpu_to_le32(ssidie[1]);
-		memcpy(body->ssid, &ssidie[2], ssidie[1]);
+	if (!conf->ibss_joined && ssid) {
+		body->ssid_length = cpu_to_le32(ssidlen);
+		memcpy(body->ssid, ssid, ssidlen);
 	}
 	wfx_fill_header(hif, wvif->id, HIF_REQ_ID_JOIN, sizeof(*body));
 	ret = wfx_cmd_send(wvif->wdev, hif, NULL, 0, false);
@@ -427,9 +428,9 @@ int hif_start(struct wfx_vif *wvif, const struct ieee80211_bss_conf *conf,
 	struct hif_msg *hif;
 	struct hif_req_start *body = wfx_alloc_hif(sizeof(*body), &hif);
 
-	body->dtim_period = conf->dtim_period,
-	body->short_preamble = conf->use_short_preamble,
-	body->channel_number = cpu_to_le16(channel->hw_value),
+	body->dtim_period = conf->dtim_period;
+	body->short_preamble = conf->use_short_preamble;
+	body->channel_number = cpu_to_le16(channel->hw_value);
 	body->beacon_interval = cpu_to_le32(conf->beacon_int);
 	body->basic_rate_set =
 		cpu_to_le32(wfx_rate_mask_to_hw(wvif->wdev, conf->basic_rates));

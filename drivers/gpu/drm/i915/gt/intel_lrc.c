@@ -237,7 +237,8 @@ static void execlists_init_reg_state(u32 *reg_state,
 				     bool close);
 static void
 __execlists_update_reg_state(const struct intel_context *ce,
-			     const struct intel_engine_cs *engine);
+			     const struct intel_engine_cs *engine,
+			     u32 head);
 
 static void mark_eio(struct i915_request *rq)
 {
@@ -1186,12 +1187,11 @@ static void reset_active(struct i915_request *rq,
 		head = rq->tail;
 	else
 		head = active_request(ce->timeline, rq)->head;
-	ce->ring->head = intel_ring_wrap(ce->ring, head);
-	intel_ring_update_space(ce->ring);
+	head = intel_ring_wrap(ce->ring, head);
 
 	/* Scrub the context image to prevent replaying the previous batch */
 	restore_default_state(ce, engine);
-	__execlists_update_reg_state(ce, engine);
+	__execlists_update_reg_state(ce, engine, head);
 
 	/* We've switched away, so this should be a no-op, but intent matters */
 	ce->lrc_desc |= CTX_DESC_FORCE_RESTORE;
@@ -1321,7 +1321,7 @@ static u64 execlists_update_context(struct i915_request *rq)
 {
 	struct intel_context *ce = rq->context;
 	u64 desc = ce->lrc_desc;
-	u32 tail;
+	u32 tail, prev;
 
 	/*
 	 * WaIdleLiteRestore:bdw,skl
@@ -1334,9 +1334,15 @@ static u64 execlists_update_context(struct i915_request *rq)
 	 * subsequent resubmissions (for lite restore). Should that fail us,
 	 * and we try and submit the same tail again, force the context
 	 * reload.
+	 *
+	 * If we need to return to a preempted context, we need to skip the
+	 * lite-restore and force it to reload the RING_TAIL. Otherwise, the
+	 * HW has a tendency to ignore us rewinding the TAIL to the end of
+	 * an earlier request.
 	 */
 	tail = intel_ring_set_tail(rq->ring, rq->tail);
-	if (unlikely(ce->lrc_reg_state[CTX_RING_TAIL] == tail))
+	prev = ce->lrc_reg_state[CTX_RING_TAIL];
+	if (unlikely(intel_ring_direction(rq->ring, tail, prev) <= 0))
 		desc |= CTX_DESC_FORCE_RESTORE;
 	ce->lrc_reg_state[CTX_RING_TAIL] = tail;
 	rq->tail = rq->wa_tail;
@@ -1594,16 +1600,10 @@ static void virtual_xfer_breadcrumbs(struct virtual_engine *ve,
 	spin_unlock(&old->breadcrumbs.irq_lock);
 }
 
-static struct i915_request *
-last_active(const struct intel_engine_execlists *execlists)
-{
-	struct i915_request * const *last = READ_ONCE(execlists->active);
-
-	while (*last && i915_request_completed(*last))
-		last++;
-
-	return *last;
-}
+#define for_each_waiter(p__, rq__) \
+	list_for_each_entry_lockless(p__, \
+				     &(rq__)->sched.waiters_list, \
+				     wait_link)
 
 static void defer_request(struct i915_request *rq, struct list_head * const pl)
 {
@@ -1622,7 +1622,7 @@ static void defer_request(struct i915_request *rq, struct list_head * const pl)
 		GEM_BUG_ON(i915_request_is_active(rq));
 		list_move_tail(&rq->sched.link, pl);
 
-		list_for_each_entry(p, &rq->sched.waiters_list, wait_link) {
+		for_each_waiter(p, rq) {
 			struct i915_request *w =
 				container_of(p->waiter, typeof(*w), sched);
 
@@ -1668,11 +1668,9 @@ need_timeslice(struct intel_engine_cs *engine, const struct i915_request *rq)
 	if (!intel_engine_has_timeslices(engine))
 		return false;
 
-	if (list_is_last(&rq->sched.link, &engine->active.requests))
-		return false;
-
-	hint = max(rq_prio(list_next_entry(rq, sched.link)),
-		   engine->execlists.queue_priority_hint);
+	hint = engine->execlists.queue_priority_hint;
+	if (!list_is_last(&rq->sched.link, &engine->active.requests))
+		hint = max(hint, rq_prio(list_next_entry(rq, sched.link)));
 
 	return hint >= effective_prio(rq);
 }
@@ -1714,16 +1712,26 @@ static void set_timeslice(struct intel_engine_cs *engine)
 	set_timer_ms(&engine->execlists.timer, active_timeslice(engine));
 }
 
+static void start_timeslice(struct intel_engine_cs *engine)
+{
+	struct intel_engine_execlists *execlists = &engine->execlists;
+
+	execlists->switch_priority_hint = execlists->queue_priority_hint;
+
+	if (timer_pending(&execlists->timer))
+		return;
+
+	set_timer_ms(&execlists->timer, timeslice(engine));
+}
+
 static void record_preemption(struct intel_engine_execlists *execlists)
 {
 	(void)I915_SELFTEST_ONLY(execlists->preempt_hang.count++);
 }
 
-static unsigned long active_preempt_timeout(struct intel_engine_cs *engine)
+static unsigned long active_preempt_timeout(struct intel_engine_cs *engine,
+					    const struct i915_request *rq)
 {
-	struct i915_request *rq;
-
-	rq = last_active(&engine->execlists);
 	if (!rq)
 		return 0;
 
@@ -1734,13 +1742,14 @@ static unsigned long active_preempt_timeout(struct intel_engine_cs *engine)
 	return READ_ONCE(engine->props.preempt_timeout_ms);
 }
 
-static void set_preempt_timeout(struct intel_engine_cs *engine)
+static void set_preempt_timeout(struct intel_engine_cs *engine,
+				const struct i915_request *rq)
 {
 	if (!intel_engine_has_preempt_reset(engine))
 		return;
 
 	set_timer_ms(&engine->execlists.preempt,
-		     active_preempt_timeout(engine));
+		     active_preempt_timeout(engine, rq));
 }
 
 static inline void clear_ports(struct i915_request **ports, int count)
@@ -1753,6 +1762,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 	struct intel_engine_execlists * const execlists = &engine->execlists;
 	struct i915_request **port = execlists->pending;
 	struct i915_request ** const last_port = port + execlists->port_mask;
+	struct i915_request * const *active;
 	struct i915_request *last;
 	struct rb_node *rb;
 	bool submit = false;
@@ -1807,7 +1817,10 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 	 * i.e. we will retrigger preemption following the ack in case
 	 * of trouble.
 	 */
-	last = last_active(execlists);
+	active = READ_ONCE(execlists->active);
+	while ((last = *active) && i915_request_completed(last))
+		active++;
+
 	if (last) {
 		if (need_preempt(engine, last, rb)) {
 			ENGINE_TRACE(engine,
@@ -1834,14 +1847,6 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 			 */
 			__unwind_incomplete_requests(engine);
 
-			/*
-			 * If we need to return to the preempted context, we
-			 * need to skip the lite-restore and force it to
-			 * reload the RING_TAIL. Otherwise, the HW has a
-			 * tendency to ignore us rewinding the TAIL to the
-			 * end of an earlier request.
-			 */
-			last->context->lrc_desc |= CTX_DESC_FORCE_RESTORE;
 			last = NULL;
 		} else if (need_timeslice(engine, last) &&
 			   timer_expired(&engine->execlists.timer)) {
@@ -1885,11 +1890,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 				 * Even if ELSP[1] is occupied and not worthy
 				 * of timeslices, our queue might be.
 				 */
-				if (!execlists->timer.expires &&
-				    need_timeslice(engine, last))
-					set_timer_ms(&execlists->timer,
-						     timeslice(engine));
-
+				start_timeslice(engine);
 				return;
 			}
 		}
@@ -1924,7 +1925,8 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 
 			if (last && !can_merge_rq(last, rq)) {
 				spin_unlock(&ve->base.active.lock);
-				return; /* leave this for another */
+				start_timeslice(engine);
+				return; /* leave this for another sibling */
 			}
 
 			ENGINE_TRACE(engine,
@@ -2100,7 +2102,7 @@ done:
 		 * Skip if we ended up with exactly the same set of requests,
 		 * e.g. trying to timeslice a pair of ordered contexts
 		 */
-		if (!memcmp(execlists->active, execlists->pending,
+		if (!memcmp(active, execlists->pending,
 			    (port - execlists->pending + 1) * sizeof(*port))) {
 			do
 				execlists_schedule_out(fetch_and_zero(port));
@@ -2111,7 +2113,7 @@ done:
 		clear_ports(port + 1, last_port - port);
 
 		execlists_submit_ports(engine);
-		set_preempt_timeout(engine);
+		set_preempt_timeout(engine, *active);
 	} else {
 skip_submit:
 		ring_set_paused(engine, 0);
@@ -2860,16 +2862,17 @@ static void execlists_context_unpin(struct intel_context *ce)
 
 static void
 __execlists_update_reg_state(const struct intel_context *ce,
-			     const struct intel_engine_cs *engine)
+			     const struct intel_engine_cs *engine,
+			     u32 head)
 {
 	struct intel_ring *ring = ce->ring;
 	u32 *regs = ce->lrc_reg_state;
 
-	GEM_BUG_ON(!intel_ring_offset_valid(ring, ring->head));
+	GEM_BUG_ON(!intel_ring_offset_valid(ring, head));
 	GEM_BUG_ON(!intel_ring_offset_valid(ring, ring->tail));
 
 	regs[CTX_RING_START] = i915_ggtt_offset(ring->vma);
-	regs[CTX_RING_HEAD] = ring->head;
+	regs[CTX_RING_HEAD] = head;
 	regs[CTX_RING_TAIL] = ring->tail;
 
 	/* RPCS */
@@ -2898,7 +2901,7 @@ __execlists_context_pin(struct intel_context *ce,
 
 	ce->lrc_desc = lrc_descriptor(ce, engine) | CTX_DESC_FORCE_RESTORE;
 	ce->lrc_reg_state = vaddr + LRC_STATE_PN * PAGE_SIZE;
-	__execlists_update_reg_state(ce, engine);
+	__execlists_update_reg_state(ce, engine, ce->ring->tail);
 
 	return 0;
 }
@@ -2939,7 +2942,7 @@ static void execlists_context_reset(struct intel_context *ce)
 	/* Scrub away the garbage */
 	execlists_init_reg_state(ce->lrc_reg_state,
 				 ce, ce->engine, ce->ring, true);
-	__execlists_update_reg_state(ce, ce->engine);
+	__execlists_update_reg_state(ce, ce->engine, ce->ring->tail);
 
 	ce->lrc_desc |= CTX_DESC_FORCE_RESTORE;
 }
@@ -3494,6 +3497,7 @@ static void __execlists_reset(struct intel_engine_cs *engine, bool stalled)
 	struct intel_engine_execlists * const execlists = &engine->execlists;
 	struct intel_context *ce;
 	struct i915_request *rq;
+	u32 head;
 
 	mb(); /* paranoia: read the CSB pointers from after the reset */
 	clflush(execlists->csb_write);
@@ -3521,15 +3525,15 @@ static void __execlists_reset(struct intel_engine_cs *engine, bool stalled)
 
 	if (i915_request_completed(rq)) {
 		/* Idle context; tidy up the ring so we can restart afresh */
-		ce->ring->head = intel_ring_wrap(ce->ring, rq->tail);
+		head = intel_ring_wrap(ce->ring, rq->tail);
 		goto out_replay;
 	}
 
 	/* Context has requests still in-flight; it should not be idle! */
 	GEM_BUG_ON(i915_active_is_idle(&ce->active));
 	rq = active_request(ce->timeline, rq);
-	ce->ring->head = intel_ring_wrap(ce->ring, rq->head);
-	GEM_BUG_ON(ce->ring->head == ce->ring->tail);
+	head = intel_ring_wrap(ce->ring, rq->head);
+	GEM_BUG_ON(head == ce->ring->tail);
 
 	/*
 	 * If this request hasn't started yet, e.g. it is waiting on a
@@ -3574,10 +3578,9 @@ static void __execlists_reset(struct intel_engine_cs *engine, bool stalled)
 
 out_replay:
 	ENGINE_TRACE(engine, "replay {head:%04x, tail:%04x}\n",
-		     ce->ring->head, ce->ring->tail);
-	intel_ring_update_space(ce->ring);
+		     head, ce->ring->tail);
 	__execlists_reset_reg_state(ce, engine);
-	__execlists_update_reg_state(ce, engine);
+	__execlists_update_reg_state(ce, engine, head);
 	ce->lrc_desc |= CTX_DESC_FORCE_RESTORE; /* paranoid: GPU was reset! */
 
 unwind:
@@ -3997,26 +4000,6 @@ static int gen12_emit_flush_render(struct i915_request *request,
 
 		*cs++ = preparser_disable(false);
 		intel_ring_advance(request, cs);
-
-		/*
-		 * Wa_1604544889:tgl
-		 */
-		if (IS_TGL_REVID(request->i915, TGL_REVID_A0, TGL_REVID_A0)) {
-			flags = 0;
-			flags |= PIPE_CONTROL_CS_STALL;
-			flags |= PIPE_CONTROL_HDC_PIPELINE_FLUSH;
-
-			flags |= PIPE_CONTROL_STORE_DATA_INDEX;
-			flags |= PIPE_CONTROL_QW_WRITE;
-
-			cs = intel_ring_begin(request, 6);
-			if (IS_ERR(cs))
-				return PTR_ERR(cs);
-
-			cs = gen8_emit_pipe_control(cs, flags,
-						    LRC_PPHWSP_SCRATCH_ADDR);
-			intel_ring_advance(request, cs);
-		}
 	}
 
 	return 0;
@@ -5220,10 +5203,7 @@ void intel_lr_context_reset(struct intel_engine_cs *engine,
 		restore_default_state(ce, engine);
 
 	/* Rerun the request; its payload has been neutered (if guilty). */
-	ce->ring->head = head;
-	intel_ring_update_space(ce->ring);
-
-	__execlists_update_reg_state(ce, engine);
+	__execlists_update_reg_state(ce, engine, head);
 }
 
 bool

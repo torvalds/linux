@@ -519,7 +519,7 @@ static const struct block_device_operations gdrom_bdops = {
 	.check_events		= gdrom_bdops_check_events,
 	.ioctl			= gdrom_bdops_ioctl,
 #ifdef CONFIG_COMPAT
-	.ioctl			= blkdev_compat_ptr_ioctl,
+	.compat_ioctl		= blkdev_compat_ptr_ioctl,
 #endif
 };
 

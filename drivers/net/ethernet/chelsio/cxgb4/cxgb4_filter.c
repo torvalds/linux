@@ -902,7 +902,7 @@ void clear_all_filters(struct adapter *adapter)
 				adapter->tids.tid_tab[i];
 
 			if (f && (f->valid || f->pending))
-				cxgb4_del_filter(dev, i, &f->fs);
+				cxgb4_del_filter(dev, f->tid, &f->fs);
 		}
 
 		sb = t4_read_reg(adapter, LE_DB_SRVR_START_INDEX_A);
@@ -910,7 +910,7 @@ void clear_all_filters(struct adapter *adapter)
 			f = (struct filter_entry *)adapter->tids.tid_tab[i];
 
 			if (f && (f->valid || f->pending))
-				cxgb4_del_filter(dev, i, &f->fs);
+				cxgb4_del_filter(dev, f->tid, &f->fs);
 		}
 	}
 }

@@ -682,6 +682,7 @@ static int unix_set_peek_off(struct sock *sk, int val)
 	return 0;
 }
 
+#ifdef CONFIG_PROC_FS
 static void unix_show_fdinfo(struct seq_file *m, struct socket *sock)
 {
 	struct sock *sk = sock->sk;
@@ -692,6 +693,9 @@ static void unix_show_fdinfo(struct seq_file *m, struct socket *sock)
 		seq_printf(m, "scm_fds: %u\n", READ_ONCE(u->scm_stat.nr_fds));
 	}
 }
+#else
+#define unix_show_fdinfo NULL
+#endif
 
 static const struct proto_ops unix_stream_ops = {
 	.family =	PF_UNIX,

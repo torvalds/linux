@@ -334,6 +334,8 @@ static bool mptcp_established_options_dss(struct sock *sk, struct sk_buff *skb,
 	struct mptcp_sock *msk;
 	unsigned int ack_size;
 	bool ret = false;
+	bool can_ack;
+	u64 ack_seq;
 	u8 tcp_fin;
 
 	if (skb) {
@@ -360,9 +362,22 @@ static bool mptcp_established_options_dss(struct sock *sk, struct sk_buff *skb,
 		ret = true;
 	}
 
+	/* passive sockets msk will set the 'can_ack' after accept(), even
+	 * if the first subflow may have the already the remote key handy
+	 */
+	can_ack = true;
 	opts->ext_copy.use_ack = 0;
 	msk = mptcp_sk(subflow->conn);
-	if (!msk || !READ_ONCE(msk->can_ack)) {
+	if (likely(msk && READ_ONCE(msk->can_ack))) {
+		ack_seq = msk->ack_seq;
+	} else if (subflow->can_ack) {
+		mptcp_crypto_key_sha(subflow->remote_key, NULL, &ack_seq);
+		ack_seq++;
+	} else {
+		can_ack = false;
+	}
+
+	if (unlikely(!can_ack)) {
 		*size = ALIGN(dss_size, 4);
 		return ret;
 	}
@@ -375,7 +390,7 @@ static bool mptcp_established_options_dss(struct sock *sk, struct sk_buff *skb,
 
 	dss_size += ack_size;
 
-	opts->ext_copy.data_ack = msk->ack_seq;
+	opts->ext_copy.data_ack = ack_seq;
 	opts->ext_copy.ack64 = 1;
 	opts->ext_copy.use_ack = 1;
 

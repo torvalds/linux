@@ -1090,21 +1090,12 @@ static const struct file_operations fops_regset32 = {
  * This function creates a file in debugfs with the given name that reports
  * the names and values of a set of 32-bit registers. If the @mode variable
  * is so set it can be read from. Writing is not supported.
- *
- * This function will return a pointer to a dentry if it succeeds.  This
- * pointer must be passed to the debugfs_remove() function when the file is
- * to be removed (no automatic cleanup happens if your module is unloaded,
- * you are responsible here.)  If an error occurs, ERR_PTR(-ERROR) will be
- * returned.
- *
- * If debugfs is not enabled in the kernel, the value ERR_PTR(-ENODEV) will
- * be returned.
  */
-struct dentry *debugfs_create_regset32(const char *name, umode_t mode,
-				       struct dentry *parent,
-				       struct debugfs_regset32 *regset)
+void debugfs_create_regset32(const char *name, umode_t mode,
+			     struct dentry *parent,
+			     struct debugfs_regset32 *regset)
 {
-	return debugfs_create_file(name, mode, parent, regset, &fops_regset32);
+	debugfs_create_file(name, mode, parent, regset, &fops_regset32);
 }
 EXPORT_SYMBOL_GPL(debugfs_create_regset32);
 

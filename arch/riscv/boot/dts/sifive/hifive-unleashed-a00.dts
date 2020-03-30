@@ -2,6 +2,7 @@
 /* Copyright (c) 2018-2019 SiFive, Inc */
 
 #include "fu540-c000.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 
 /* Clock frequency (in Hz) of the PCB crystal for rtcclk */
 #define RTCCLK_FREQ		1000000
@@ -40,6 +41,10 @@
 		compatible = "fixed-clock";
 		clock-frequency = <RTCCLK_FREQ>;
 		clock-output-names = "rtcclk";
+	};
+	gpio-restart {
+		compatible = "gpio-restart";
+		gpios = <&gpio 10 GPIO_ACTIVE_LOW>;
 	};
 };
 

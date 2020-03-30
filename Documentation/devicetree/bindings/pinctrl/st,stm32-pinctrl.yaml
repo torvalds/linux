@@ -248,7 +248,7 @@ examples:
       };
 
     //Example 3 pin groups
-      pinctrl@60020000 {
+      pinctrl {
         usart1_pins_a: usart1-0 {
                 pins1 {
                         pinmux = <STM32_PINMUX('A', 9, AF7)>;

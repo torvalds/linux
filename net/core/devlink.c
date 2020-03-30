@@ -2103,11 +2103,11 @@ err_action_values_put:
 
 static struct devlink_dpipe_table *
 devlink_dpipe_table_find(struct list_head *dpipe_tables,
-			 const char *table_name)
+			 const char *table_name, struct devlink *devlink)
 {
 	struct devlink_dpipe_table *table;
-
-	list_for_each_entry_rcu(table, dpipe_tables, list) {
+	list_for_each_entry_rcu(table, dpipe_tables, list,
+				lockdep_is_held(&devlink->lock)) {
 		if (!strcmp(table->name, table_name))
 			return table;
 	}
@@ -2226,7 +2226,7 @@ static int devlink_nl_cmd_dpipe_entries_get(struct sk_buff *skb,
 
 	table_name = nla_data(info->attrs[DEVLINK_ATTR_DPIPE_TABLE_NAME]);
 	table = devlink_dpipe_table_find(&devlink->dpipe_table_list,
-					 table_name);
+					 table_name, devlink);
 	if (!table)
 		return -EINVAL;
 
@@ -2382,7 +2382,7 @@ static int devlink_dpipe_table_counters_set(struct devlink *devlink,
 	struct devlink_dpipe_table *table;
 
 	table = devlink_dpipe_table_find(&devlink->dpipe_table_list,
-					 table_name);
+					 table_name, devlink);
 	if (!table)
 		return -EINVAL;
 
@@ -3352,34 +3352,41 @@ devlink_param_value_get_from_info(const struct devlink_param *param,
 				  struct genl_info *info,
 				  union devlink_param_value *value)
 {
+	struct nlattr *param_data;
 	int len;
 
-	if (param->type != DEVLINK_PARAM_TYPE_BOOL &&
-	    !info->attrs[DEVLINK_ATTR_PARAM_VALUE_DATA])
+	param_data = info->attrs[DEVLINK_ATTR_PARAM_VALUE_DATA];
+
+	if (param->type != DEVLINK_PARAM_TYPE_BOOL && !param_data)
 		return -EINVAL;
 
 	switch (param->type) {
 	case DEVLINK_PARAM_TYPE_U8:
-		value->vu8 = nla_get_u8(info->attrs[DEVLINK_ATTR_PARAM_VALUE_DATA]);
+		if (nla_len(param_data) != sizeof(u8))
+			return -EINVAL;
+		value->vu8 = nla_get_u8(param_data);
 		break;
 	case DEVLINK_PARAM_TYPE_U16:
-		value->vu16 = nla_get_u16(info->attrs[DEVLINK_ATTR_PARAM_VALUE_DATA]);
+		if (nla_len(param_data) != sizeof(u16))
+			return -EINVAL;
+		value->vu16 = nla_get_u16(param_data);
 		break;
 	case DEVLINK_PARAM_TYPE_U32:
-		value->vu32 = nla_get_u32(info->attrs[DEVLINK_ATTR_PARAM_VALUE_DATA]);
+		if (nla_len(param_data) != sizeof(u32))
+			return -EINVAL;
+		value->vu32 = nla_get_u32(param_data);
 		break;
 	case DEVLINK_PARAM_TYPE_STRING:
-		len = strnlen(nla_data(info->attrs[DEVLINK_ATTR_PARAM_VALUE_DATA]),
-			      nla_len(info->attrs[DEVLINK_ATTR_PARAM_VALUE_DATA]));
-		if (len == nla_len(info->attrs[DEVLINK_ATTR_PARAM_VALUE_DATA]) ||
+		len = strnlen(nla_data(param_data), nla_len(param_data));
+		if (len == nla_len(param_data) ||
 		    len >= __DEVLINK_PARAM_MAX_STRING_VALUE)
 			return -EINVAL;
-		strcpy(value->vstr,
-		       nla_data(info->attrs[DEVLINK_ATTR_PARAM_VALUE_DATA]));
+		strcpy(value->vstr, nla_data(param_data));
 		break;
 	case DEVLINK_PARAM_TYPE_BOOL:
-		value->vbool = info->attrs[DEVLINK_ATTR_PARAM_VALUE_DATA] ?
-			       true : false;
+		if (param_data && nla_len(param_data))
+			return -EINVAL;
+		value->vbool = nla_get_flag(param_data);
 		break;
 	}
 	return 0;
@@ -5951,6 +5958,8 @@ static const struct nla_policy devlink_nl_policy[DEVLINK_ATTR_MAX + 1] = {
 	[DEVLINK_ATTR_PARAM_VALUE_CMODE] = { .type = NLA_U8 },
 	[DEVLINK_ATTR_REGION_NAME] = { .type = NLA_NUL_STRING },
 	[DEVLINK_ATTR_REGION_SNAPSHOT_ID] = { .type = NLA_U32 },
+	[DEVLINK_ATTR_REGION_CHUNK_ADDR] = { .type = NLA_U64 },
+	[DEVLINK_ATTR_REGION_CHUNK_LEN] = { .type = NLA_U64 },
 	[DEVLINK_ATTR_HEALTH_REPORTER_NAME] = { .type = NLA_NUL_STRING },
 	[DEVLINK_ATTR_HEALTH_REPORTER_GRACEFUL_PERIOD] = { .type = NLA_U64 },
 	[DEVLINK_ATTR_HEALTH_REPORTER_AUTO_RECOVER] = { .type = NLA_U8 },
@@ -6854,7 +6863,7 @@ bool devlink_dpipe_table_counter_enabled(struct devlink *devlink,
 
 	rcu_read_lock();
 	table = devlink_dpipe_table_find(&devlink->dpipe_table_list,
-					 table_name);
+					 table_name, devlink);
 	enabled = false;
 	if (table)
 		enabled = table->counters_enabled;
@@ -6878,26 +6887,34 @@ int devlink_dpipe_table_register(struct devlink *devlink,
 				 void *priv, bool counter_control_extern)
 {
 	struct devlink_dpipe_table *table;
-
-	if (devlink_dpipe_table_find(&devlink->dpipe_table_list, table_name))
-		return -EEXIST;
+	int err = 0;
 
 	if (WARN_ON(!table_ops->size_get))
 		return -EINVAL;
 
+	mutex_lock(&devlink->lock);
+
+	if (devlink_dpipe_table_find(&devlink->dpipe_table_list, table_name,
+				     devlink)) {
+		err = -EEXIST;
+		goto unlock;
+	}
+
 	table = kzalloc(sizeof(*table), GFP_KERNEL);
-	if (!table)
-		return -ENOMEM;
+	if (!table) {
+		err = -ENOMEM;
+		goto unlock;
+	}
 
 	table->name = table_name;
 	table->table_ops = table_ops;
 	table->priv = priv;
 	table->counter_control_extern = counter_control_extern;
 
-	mutex_lock(&devlink->lock);
 	list_add_tail_rcu(&table->list, &devlink->dpipe_table_list);
+unlock:
 	mutex_unlock(&devlink->lock);
-	return 0;
+	return err;
 }
 EXPORT_SYMBOL_GPL(devlink_dpipe_table_register);
 
@@ -6914,7 +6931,7 @@ void devlink_dpipe_table_unregister(struct devlink *devlink,
 
 	mutex_lock(&devlink->lock);
 	table = devlink_dpipe_table_find(&devlink->dpipe_table_list,
-					 table_name);
+					 table_name, devlink);
 	if (!table)
 		goto unlock;
 	list_del_rcu(&table->list);
@@ -7071,7 +7088,7 @@ int devlink_dpipe_table_resource_set(struct devlink *devlink,
 
 	mutex_lock(&devlink->lock);
 	table = devlink_dpipe_table_find(&devlink->dpipe_table_list,
-					 table_name);
+					 table_name, devlink);
 	if (!table) {
 		err = -EINVAL;
 		goto out;

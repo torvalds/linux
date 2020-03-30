@@ -206,12 +206,11 @@ static ssize_t qeth_l3_dev_sniffer_store(struct device *dev,
 		qdio_get_ssqd_desc(CARD_DDEV(card), &card->ssqd);
 		if (card->ssqd.qdioac2 & CHSC_AC2_SNIFFER_AVAILABLE) {
 			card->options.sniffer = i;
-			if (card->qdio.init_pool.buf_count !=
-					QETH_IN_BUF_COUNT_MAX)
-				qeth_realloc_buffer_pool(card,
-					QETH_IN_BUF_COUNT_MAX);
-		} else
+			qeth_resize_buffer_pool(card, QETH_IN_BUF_COUNT_MAX);
+		} else {
 			rc = -EPERM;
+		}
+
 		break;
 	default:
 		rc = -EINVAL;

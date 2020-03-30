@@ -123,7 +123,7 @@ examples:
         samsung,syscon-phandle = <&pmu_system_controller>;
 
         /* NTC thermistor is a hwmon device */
-        ncp15wb473@0 {
+        ncp15wb473 {
             compatible = "murata,ncp15wb473";
             pullup-uv = <1800000>;
             pullup-ohm = <47000>;

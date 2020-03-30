@@ -186,7 +186,7 @@ static int live_unlite_restore(struct intel_gt *gt, int prio)
 		}
 		GEM_BUG_ON(!ce[1]->ring->size);
 		intel_ring_reset(ce[1]->ring, ce[1]->ring->size / 2);
-		__execlists_update_reg_state(ce[1], engine);
+		__execlists_update_reg_state(ce[1], engine, ce[1]->ring->head);
 
 		rq[0] = igt_spinner_create_request(&spin, ce[0], MI_ARB_CHECK);
 		if (IS_ERR(rq[0])) {
