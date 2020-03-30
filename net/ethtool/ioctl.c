@@ -1354,6 +1354,7 @@ static int ethtool_get_eee(struct net_device *dev, char __user *useraddr)
 static int ethtool_set_eee(struct net_device *dev, char __user *useraddr)
 {
 	struct ethtool_eee edata;
+	int ret;
 
 	if (!dev->ethtool_ops->set_eee)
 		return -EOPNOTSUPP;
@@ -1361,7 +1362,10 @@ static int ethtool_set_eee(struct net_device *dev, char __user *useraddr)
 	if (copy_from_user(&edata, useraddr, sizeof(edata)))
 		return -EFAULT;
 
-	return dev->ethtool_ops->set_eee(dev, &edata);
+	ret = dev->ethtool_ops->set_eee(dev, &edata);
+	if (!ret)
+		ethtool_notify(dev, ETHTOOL_MSG_EEE_NTF, NULL);
+	return ret;
 }
 
 static int ethtool_nway_reset(struct net_device *dev)
@@ -1571,6 +1575,7 @@ static noinline_for_stack int ethtool_set_coalesce(struct net_device *dev,
 						   void __user *useraddr)
 {
 	struct ethtool_coalesce coalesce;
+	int ret;
 
 	if (!dev->ethtool_ops->set_coalesce)
 		return -EOPNOTSUPP;
@@ -1581,7 +1586,10 @@ static noinline_for_stack int ethtool_set_coalesce(struct net_device *dev,
 	if (!ethtool_set_coalesce_supported(dev, &coalesce))
 		return -EOPNOTSUPP;
 
-	return dev->ethtool_ops->set_coalesce(dev, &coalesce);
+	ret = dev->ethtool_ops->set_coalesce(dev, &coalesce);
+	if (!ret)
+		ethtool_notify(dev, ETHTOOL_MSG_COALESCE_NTF, NULL);
+	return ret;
 }
 
 static int ethtool_get_ringparam(struct net_device *dev, void __user *useraddr)
@@ -1701,6 +1709,7 @@ static int ethtool_get_pauseparam(struct net_device *dev, void __user *useraddr)
 static int ethtool_set_pauseparam(struct net_device *dev, void __user *useraddr)
 {
 	struct ethtool_pauseparam pauseparam;
+	int ret;
 
 	if (!dev->ethtool_ops->set_pauseparam)
 		return -EOPNOTSUPP;
@@ -1708,7 +1717,10 @@ static int ethtool_set_pauseparam(struct net_device *dev, void __user *useraddr)
 	if (copy_from_user(&pauseparam, useraddr, sizeof(pauseparam)))
 		return -EFAULT;
 
-	return dev->ethtool_ops->set_pauseparam(dev, &pauseparam);
+	ret = dev->ethtool_ops->set_pauseparam(dev, &pauseparam);
+	if (!ret)
+		ethtool_notify(dev, ETHTOOL_MSG_PAUSE_NTF, NULL);
+	return ret;
 }
 
 static int ethtool_self_test(struct net_device *dev, char __user *useraddr)
@@ -2128,32 +2140,17 @@ out:
 
 static int ethtool_get_ts_info(struct net_device *dev, void __user *useraddr)
 {
-	int err = 0;
 	struct ethtool_ts_info info;
-	const struct ethtool_ops *ops = dev->ethtool_ops;
-	struct phy_device *phydev = dev->phydev;
+	int err;
 
-	memset(&info, 0, sizeof(info));
-	info.cmd = ETHTOOL_GET_TS_INFO;
-
-	if (phy_has_tsinfo(phydev)) {
-		err = phy_ts_info(phydev, &info);
-	} else if (ops->get_ts_info) {
-		err = ops->get_ts_info(dev, &info);
-	} else {
-		info.so_timestamping =
-			SOF_TIMESTAMPING_RX_SOFTWARE |
-			SOF_TIMESTAMPING_SOFTWARE;
-		info.phc_index = -1;
-	}
-
+	err = __ethtool_get_ts_info(dev, &info);
 	if (err)
 		return err;
 
 	if (copy_to_user(useraddr, &info, sizeof(info)))
-		err = -EFAULT;
+		return -EFAULT;
 
-	return err;
+	return 0;
 }
 
 static int __ethtool_get_module_info(struct net_device *dev,
