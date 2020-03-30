@@ -33,6 +33,11 @@
 			no-map;
 			reg = <0xB8000000 0x04000000>; /* 64M */
 		};
+
+		vga_memory: region@bf000000 {
+                        no-map;
+                        reg = <0xbf000000 0x01000000>;  /* 16M */
+                };
 	};
 
 	gpio-keys {
