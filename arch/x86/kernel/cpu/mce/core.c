@@ -142,6 +142,8 @@ void mce_setup(struct mce *m)
 
 	if (this_cpu_has(X86_FEATURE_INTEL_PPIN))
 		rdmsrl(MSR_PPIN, m->ppin);
+	else if (this_cpu_has(X86_FEATURE_AMD_PPIN))
+		rdmsrl(MSR_AMD_PPIN, m->ppin);
 
 	m->microcode = boot_cpu_data.microcode;
 }
@@ -1877,6 +1879,8 @@ bool filter_mce(struct mce *m)
 {
 	if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD)
 		return amd_filter_mce(m);
+	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL)
+		return intel_filter_mce(m);
 
 	return false;
 }

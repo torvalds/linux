@@ -102,7 +102,7 @@
 
 #define MCE_OVERFLOW 0		/* bit 0 in flags means overflow */
 
-#define MCE_LOG_LEN 32
+#define MCE_LOG_MIN_LEN 32U
 #define MCE_LOG_SIGNATURE	"MACHINECHECK"
 
 /* AMD Scalable MCA */
@@ -135,11 +135,11 @@
  */
 struct mce_log_buffer {
 	char signature[12]; /* "MACHINECHECK" */
-	unsigned len;	    /* = MCE_LOG_LEN */
+	unsigned len;	    /* = elements in .mce_entry[] */
 	unsigned next;
 	unsigned flags;
 	unsigned recordlen;	/* length of struct mce */
-	struct mce entry[MCE_LOG_LEN];
+	struct mce entry[];
 };
 
 enum mce_notifier_prios {
