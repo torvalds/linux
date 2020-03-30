@@ -478,7 +478,7 @@ static int pkg_thermal_cpu_online(unsigned int cpu)
 }
 
 static const struct x86_cpu_id __initconst pkg_temp_thermal_ids[] = {
-	{ X86_VENDOR_INTEL, X86_FAMILY_ANY, X86_MODEL_ANY, X86_FEATURE_PTS },
+	X86_MATCH_VENDOR_FEATURE(INTEL, X86_FEATURE_PTS, NULL),
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, pkg_temp_thermal_ids);

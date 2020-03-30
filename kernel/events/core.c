@@ -49,6 +49,7 @@
 #include <linux/sched/mm.h>
 #include <linux/proc_ns.h>
 #include <linux/mount.h>
+#include <linux/min_heap.h>
 
 #include "internal.h"
 
@@ -891,6 +892,47 @@ static inline void perf_cgroup_sched_in(struct task_struct *prev,
 	rcu_read_unlock();
 }
 
+static int perf_cgroup_ensure_storage(struct perf_event *event,
+				struct cgroup_subsys_state *css)
+{
+	struct perf_cpu_context *cpuctx;
+	struct perf_event **storage;
+	int cpu, heap_size, ret = 0;
+
+	/*
+	 * Allow storage to have sufficent space for an iterator for each
+	 * possibly nested cgroup plus an iterator for events with no cgroup.
+	 */
+	for (heap_size = 1; css; css = css->parent)
+		heap_size++;
+
+	for_each_possible_cpu(cpu) {
+		cpuctx = per_cpu_ptr(event->pmu->pmu_cpu_context, cpu);
+		if (heap_size <= cpuctx->heap_size)
+			continue;
+
+		storage = kmalloc_node(heap_size * sizeof(struct perf_event *),
+				       GFP_KERNEL, cpu_to_node(cpu));
+		if (!storage) {
+			ret = -ENOMEM;
+			break;
+		}
+
+		raw_spin_lock_irq(&cpuctx->ctx.lock);
+		if (cpuctx->heap_size < heap_size) {
+			swap(cpuctx->heap, storage);
+			if (storage == cpuctx->heap_default)
+				storage = NULL;
+			cpuctx->heap_size = heap_size;
+		}
+		raw_spin_unlock_irq(&cpuctx->ctx.lock);
+
+		kfree(storage);
+	}
+
+	return ret;
+}
+
 static inline int perf_cgroup_connect(int fd, struct perf_event *event,
 				      struct perf_event_attr *attr,
 				      struct perf_event *group_leader)
@@ -909,6 +951,10 @@ static inline int perf_cgroup_connect(int fd, struct perf_event *event,
 		ret = PTR_ERR(css);
 		goto out;
 	}
+
+	ret = perf_cgroup_ensure_storage(event, css);
+	if (ret)
+		goto out;
 
 	cgrp = container_of(css, struct perf_cgroup, css);
 	event->cgrp = cgrp;
@@ -1531,6 +1577,30 @@ perf_event_groups_less(struct perf_event *left, struct perf_event *right)
 	if (left->cpu > right->cpu)
 		return false;
 
+#ifdef CONFIG_CGROUP_PERF
+	if (left->cgrp != right->cgrp) {
+		if (!left->cgrp || !left->cgrp->css.cgroup) {
+			/*
+			 * Left has no cgroup but right does, no cgroups come
+			 * first.
+			 */
+			return true;
+		}
+		if (!right->cgrp || !right->cgrp->css.cgroup) {
+			/*
+			 * Right has no cgroup but left does, no cgroups come
+			 * first.
+			 */
+			return false;
+		}
+		/* Two dissimilar cgroups, order by id. */
+		if (left->cgrp->css.cgroup->kn->id < right->cgrp->css.cgroup->kn->id)
+			return true;
+
+		return false;
+	}
+#endif
+
 	if (left->group_index < right->group_index)
 		return true;
 	if (left->group_index > right->group_index)
@@ -1610,25 +1680,48 @@ del_event_from_groups(struct perf_event *event, struct perf_event_context *ctx)
 }
 
 /*
- * Get the leftmost event in the @cpu subtree.
+ * Get the leftmost event in the cpu/cgroup subtree.
  */
 static struct perf_event *
-perf_event_groups_first(struct perf_event_groups *groups, int cpu)
+perf_event_groups_first(struct perf_event_groups *groups, int cpu,
+			struct cgroup *cgrp)
 {
 	struct perf_event *node_event = NULL, *match = NULL;
 	struct rb_node *node = groups->tree.rb_node;
+#ifdef CONFIG_CGROUP_PERF
+	u64 node_cgrp_id, cgrp_id = 0;
+
+	if (cgrp)
+		cgrp_id = cgrp->kn->id;
+#endif
 
 	while (node) {
 		node_event = container_of(node, struct perf_event, group_node);
 
 		if (cpu < node_event->cpu) {
 			node = node->rb_left;
-		} else if (cpu > node_event->cpu) {
-			node = node->rb_right;
-		} else {
-			match = node_event;
-			node = node->rb_left;
+			continue;
 		}
+		if (cpu > node_event->cpu) {
+			node = node->rb_right;
+			continue;
+		}
+#ifdef CONFIG_CGROUP_PERF
+		node_cgrp_id = 0;
+		if (node_event->cgrp && node_event->cgrp->css.cgroup)
+			node_cgrp_id = node_event->cgrp->css.cgroup->kn->id;
+
+		if (cgrp_id < node_cgrp_id) {
+			node = node->rb_left;
+			continue;
+		}
+		if (cgrp_id > node_cgrp_id) {
+			node = node->rb_right;
+			continue;
+		}
+#endif
+		match = node_event;
+		node = node->rb_left;
 	}
 
 	return match;
@@ -1641,12 +1734,26 @@ static struct perf_event *
 perf_event_groups_next(struct perf_event *event)
 {
 	struct perf_event *next;
+#ifdef CONFIG_CGROUP_PERF
+	u64 curr_cgrp_id = 0;
+	u64 next_cgrp_id = 0;
+#endif
 
 	next = rb_entry_safe(rb_next(&event->group_node), typeof(*event), group_node);
-	if (next && next->cpu == event->cpu)
-		return next;
+	if (next == NULL || next->cpu != event->cpu)
+		return NULL;
 
-	return NULL;
+#ifdef CONFIG_CGROUP_PERF
+	if (event->cgrp && event->cgrp->css.cgroup)
+		curr_cgrp_id = event->cgrp->css.cgroup->kn->id;
+
+	if (next->cgrp && next->cgrp->css.cgroup)
+		next_cgrp_id = next->cgrp->css.cgroup->kn->id;
+
+	if (curr_cgrp_id != next_cgrp_id)
+		return NULL;
+#endif
+	return next;
 }
 
 /*
@@ -1986,6 +2093,12 @@ static int perf_get_aux_event(struct perf_event *event,
 	return 1;
 }
 
+static inline struct list_head *get_event_list(struct perf_event *event)
+{
+	struct perf_event_context *ctx = event->ctx;
+	return event->attr.pinned ? &ctx->pinned_active : &ctx->flexible_active;
+}
+
 static void perf_group_detach(struct perf_event *event)
 {
 	struct perf_event *sibling, *tmp;
@@ -2028,12 +2141,8 @@ static void perf_group_detach(struct perf_event *event)
 		if (!RB_EMPTY_NODE(&event->group_node)) {
 			add_event_to_groups(sibling, event->ctx);
 
-			if (sibling->state == PERF_EVENT_STATE_ACTIVE) {
-				struct list_head *list = sibling->attr.pinned ?
-					&ctx->pinned_active : &ctx->flexible_active;
-
-				list_add_tail(&sibling->active_list, list);
-			}
+			if (sibling->state == PERF_EVENT_STATE_ACTIVE)
+				list_add_tail(&sibling->active_list, get_event_list(sibling));
 		}
 
 		WARN_ON_ONCE(sibling->ctx != event->ctx);
@@ -2182,6 +2291,7 @@ __perf_remove_from_context(struct perf_event *event,
 
 	if (!ctx->nr_events && ctx->is_active) {
 		ctx->is_active = 0;
+		ctx->rotate_necessary = 0;
 		if (ctx->task) {
 			WARN_ON_ONCE(cpuctx->task_ctx != ctx);
 			cpuctx->task_ctx = NULL;
@@ -2349,6 +2459,8 @@ event_sched_in(struct perf_event *event,
 		 struct perf_event_context *ctx)
 {
 	int ret = 0;
+
+	WARN_ON_ONCE(event->ctx != ctx);
 
 	lockdep_assert_held(&ctx->lock);
 
@@ -3077,12 +3189,6 @@ static void ctx_sched_out(struct perf_event_context *ctx,
 	if (!ctx->nr_active || !(is_active & EVENT_ALL))
 		return;
 
-	/*
-	 * If we had been multiplexing, no rotations are necessary, now no events
-	 * are active.
-	 */
-	ctx->rotate_necessary = 0;
-
 	perf_pmu_disable(ctx->pmu);
 	if (is_active & EVENT_PINNED) {
 		list_for_each_entry_safe(event, tmp, &ctx->pinned_active, active_list)
@@ -3092,6 +3198,13 @@ static void ctx_sched_out(struct perf_event_context *ctx,
 	if (is_active & EVENT_FLEXIBLE) {
 		list_for_each_entry_safe(event, tmp, &ctx->flexible_active, active_list)
 			group_sched_out(event, cpuctx, ctx);
+
+		/*
+		 * Since we cleared EVENT_FLEXIBLE, also clear
+		 * rotate_necessary, is will be reset by
+		 * ctx_flexible_sched_in() when needed.
+		 */
+		ctx->rotate_necessary = 0;
 	}
 	perf_pmu_enable(ctx->pmu);
 }
@@ -3388,46 +3501,103 @@ static void cpu_ctx_sched_out(struct perf_cpu_context *cpuctx,
 	ctx_sched_out(&cpuctx->ctx, cpuctx, event_type);
 }
 
-static int visit_groups_merge(struct perf_event_groups *groups, int cpu,
-			      int (*func)(struct perf_event *, void *), void *data)
+static bool perf_less_group_idx(const void *l, const void *r)
 {
-	struct perf_event **evt, *evt1, *evt2;
+	const struct perf_event *le = l, *re = r;
+
+	return le->group_index < re->group_index;
+}
+
+static void swap_ptr(void *l, void *r)
+{
+	void **lp = l, **rp = r;
+
+	swap(*lp, *rp);
+}
+
+static const struct min_heap_callbacks perf_min_heap = {
+	.elem_size = sizeof(struct perf_event *),
+	.less = perf_less_group_idx,
+	.swp = swap_ptr,
+};
+
+static void __heap_add(struct min_heap *heap, struct perf_event *event)
+{
+	struct perf_event **itrs = heap->data;
+
+	if (event) {
+		itrs[heap->nr] = event;
+		heap->nr++;
+	}
+}
+
+static noinline int visit_groups_merge(struct perf_cpu_context *cpuctx,
+				struct perf_event_groups *groups, int cpu,
+				int (*func)(struct perf_event *, void *),
+				void *data)
+{
+#ifdef CONFIG_CGROUP_PERF
+	struct cgroup_subsys_state *css = NULL;
+#endif
+	/* Space for per CPU and/or any CPU event iterators. */
+	struct perf_event *itrs[2];
+	struct min_heap event_heap;
+	struct perf_event **evt;
 	int ret;
 
-	evt1 = perf_event_groups_first(groups, -1);
-	evt2 = perf_event_groups_first(groups, cpu);
+	if (cpuctx) {
+		event_heap = (struct min_heap){
+			.data = cpuctx->heap,
+			.nr = 0,
+			.size = cpuctx->heap_size,
+		};
 
-	while (evt1 || evt2) {
-		if (evt1 && evt2) {
-			if (evt1->group_index < evt2->group_index)
-				evt = &evt1;
-			else
-				evt = &evt2;
-		} else if (evt1) {
-			evt = &evt1;
-		} else {
-			evt = &evt2;
-		}
+		lockdep_assert_held(&cpuctx->ctx.lock);
 
+#ifdef CONFIG_CGROUP_PERF
+		if (cpuctx->cgrp)
+			css = &cpuctx->cgrp->css;
+#endif
+	} else {
+		event_heap = (struct min_heap){
+			.data = itrs,
+			.nr = 0,
+			.size = ARRAY_SIZE(itrs),
+		};
+		/* Events not within a CPU context may be on any CPU. */
+		__heap_add(&event_heap, perf_event_groups_first(groups, -1, NULL));
+	}
+	evt = event_heap.data;
+
+	__heap_add(&event_heap, perf_event_groups_first(groups, cpu, NULL));
+
+#ifdef CONFIG_CGROUP_PERF
+	for (; css; css = css->parent)
+		__heap_add(&event_heap, perf_event_groups_first(groups, cpu, css->cgroup));
+#endif
+
+	min_heapify_all(&event_heap, &perf_min_heap);
+
+	while (event_heap.nr) {
 		ret = func(*evt, data);
 		if (ret)
 			return ret;
 
 		*evt = perf_event_groups_next(*evt);
+		if (*evt)
+			min_heapify(&event_heap, 0, &perf_min_heap);
+		else
+			min_heap_pop(&event_heap, &perf_min_heap);
 	}
 
 	return 0;
 }
 
-struct sched_in_data {
-	struct perf_event_context *ctx;
-	struct perf_cpu_context *cpuctx;
-	int can_add_hw;
-};
-
-static int pinned_sched_in(struct perf_event *event, void *data)
+static int merge_sched_in(struct perf_event *event, void *data)
 {
-	struct sched_in_data *sid = data;
+	struct perf_event_context *ctx = event->ctx;
+	struct perf_cpu_context *cpuctx = __get_cpu_context(ctx);
+	int *can_add_hw = data;
 
 	if (event->state <= PERF_EVENT_STATE_OFF)
 		return 0;
@@ -3435,39 +3605,17 @@ static int pinned_sched_in(struct perf_event *event, void *data)
 	if (!event_filter_match(event))
 		return 0;
 
-	if (group_can_go_on(event, sid->cpuctx, sid->can_add_hw)) {
-		if (!group_sched_in(event, sid->cpuctx, sid->ctx))
-			list_add_tail(&event->active_list, &sid->ctx->pinned_active);
+	if (group_can_go_on(event, cpuctx, *can_add_hw)) {
+		if (!group_sched_in(event, cpuctx, ctx))
+			list_add_tail(&event->active_list, get_event_list(event));
 	}
 
-	/*
-	 * If this pinned group hasn't been scheduled,
-	 * put it in error state.
-	 */
-	if (event->state == PERF_EVENT_STATE_INACTIVE)
-		perf_event_set_state(event, PERF_EVENT_STATE_ERROR);
+	if (event->state == PERF_EVENT_STATE_INACTIVE) {
+		if (event->attr.pinned)
+			perf_event_set_state(event, PERF_EVENT_STATE_ERROR);
 
-	return 0;
-}
-
-static int flexible_sched_in(struct perf_event *event, void *data)
-{
-	struct sched_in_data *sid = data;
-
-	if (event->state <= PERF_EVENT_STATE_OFF)
-		return 0;
-
-	if (!event_filter_match(event))
-		return 0;
-
-	if (group_can_go_on(event, sid->cpuctx, sid->can_add_hw)) {
-		int ret = group_sched_in(event, sid->cpuctx, sid->ctx);
-		if (ret) {
-			sid->can_add_hw = 0;
-			sid->ctx->rotate_necessary = 1;
-			return 0;
-		}
-		list_add_tail(&event->active_list, &sid->ctx->flexible_active);
+		*can_add_hw = 0;
+		ctx->rotate_necessary = 1;
 	}
 
 	return 0;
@@ -3477,30 +3625,28 @@ static void
 ctx_pinned_sched_in(struct perf_event_context *ctx,
 		    struct perf_cpu_context *cpuctx)
 {
-	struct sched_in_data sid = {
-		.ctx = ctx,
-		.cpuctx = cpuctx,
-		.can_add_hw = 1,
-	};
+	int can_add_hw = 1;
 
-	visit_groups_merge(&ctx->pinned_groups,
+	if (ctx != &cpuctx->ctx)
+		cpuctx = NULL;
+
+	visit_groups_merge(cpuctx, &ctx->pinned_groups,
 			   smp_processor_id(),
-			   pinned_sched_in, &sid);
+			   merge_sched_in, &can_add_hw);
 }
 
 static void
 ctx_flexible_sched_in(struct perf_event_context *ctx,
 		      struct perf_cpu_context *cpuctx)
 {
-	struct sched_in_data sid = {
-		.ctx = ctx,
-		.cpuctx = cpuctx,
-		.can_add_hw = 1,
-	};
+	int can_add_hw = 1;
 
-	visit_groups_merge(&ctx->flexible_groups,
+	if (ctx != &cpuctx->ctx)
+		cpuctx = NULL;
+
+	visit_groups_merge(cpuctx, &ctx->flexible_groups,
 			   smp_processor_id(),
-			   flexible_sched_in, &sid);
+			   merge_sched_in, &can_add_hw);
 }
 
 static void
@@ -3840,6 +3986,12 @@ ctx_event_to_rotate(struct perf_event_context *ctx)
 		event = rb_entry_safe(rb_first(&ctx->flexible_groups.tree),
 				      typeof(*event), group_node);
 	}
+
+	/*
+	 * Unconditionally clear rotate_necessary; if ctx_flexible_sched_in()
+	 * finds there are unschedulable events, it will set it again.
+	 */
+	ctx->rotate_necessary = 0;
 
 	return event;
 }
@@ -6555,6 +6707,11 @@ static void perf_output_read(struct perf_output_handle *handle,
 		perf_output_read_one(handle, event, enabled, running);
 }
 
+static inline bool perf_sample_save_hw_index(struct perf_event *event)
+{
+	return event->attr.branch_sample_type & PERF_SAMPLE_BRANCH_HW_INDEX;
+}
+
 void perf_output_sample(struct perf_output_handle *handle,
 			struct perf_event_header *header,
 			struct perf_sample_data *data,
@@ -6643,6 +6800,8 @@ void perf_output_sample(struct perf_output_handle *handle,
 			     * sizeof(struct perf_branch_entry);
 
 			perf_output_put(handle, data->br_stack->nr);
+			if (perf_sample_save_hw_index(event))
+				perf_output_put(handle, data->br_stack->hw_idx);
 			perf_output_copy(handle, data->br_stack->entries, size);
 		} else {
 			/*
@@ -6836,6 +6995,9 @@ void perf_prepare_sample(struct perf_event_header *header,
 	if (sample_type & PERF_SAMPLE_BRANCH_STACK) {
 		int size = sizeof(u64); /* nr */
 		if (data->br_stack) {
+			if (perf_sample_save_hw_index(event))
+				size += sizeof(u64);
+
 			size += data->br_stack->nr
 			      * sizeof(struct perf_branch_entry);
 		}
@@ -10349,6 +10511,9 @@ skip_type:
 		cpuctx->online = cpumask_test_cpu(cpu, perf_online_mask);
 
 		__perf_mux_hrtimer_init(cpuctx, cpu);
+
+		cpuctx->heap_size = ARRAY_SIZE(cpuctx->heap_default);
+		cpuctx->heap = cpuctx->heap_default;
 	}
 
 got_cpu_context:
@@ -10794,12 +10959,6 @@ perf_event_alloc(struct perf_event_attr *attr, int cpu,
 	if (!has_branch_stack(event))
 		event->attr.branch_sample_type = 0;
 
-	if (cgroup_fd != -1) {
-		err = perf_cgroup_connect(cgroup_fd, event, attr, group_leader);
-		if (err)
-			goto err_ns;
-	}
-
 	pmu = perf_init_event(event);
 	if (IS_ERR(pmu)) {
 		err = PTR_ERR(pmu);
@@ -10819,6 +10978,12 @@ perf_event_alloc(struct perf_event_attr *attr, int cpu,
 	    !(pmu->capabilities & PERF_PMU_CAP_AUX_OUTPUT)) {
 		err = -EOPNOTSUPP;
 		goto err_pmu;
+	}
+
+	if (cgroup_fd != -1) {
+		err = perf_cgroup_connect(cgroup_fd, event, attr, group_leader);
+		if (err)
+			goto err_pmu;
 	}
 
 	err = exclusive_event_init(event);
@@ -10881,12 +11046,12 @@ err_per_task:
 	exclusive_event_destroy(event);
 
 err_pmu:
+	if (is_cgroup_event(event))
+		perf_detach_cgroup(event);
 	if (event->destroy)
 		event->destroy(event);
 	module_put(pmu->module);
 err_ns:
-	if (is_cgroup_event(event))
-		perf_detach_cgroup(event);
 	if (event->ns)
 		put_pid_ns(event->ns);
 	if (event->hw.target)

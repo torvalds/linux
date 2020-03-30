@@ -2584,9 +2584,10 @@ void hist__account_cycles(struct branch_stack *bs, struct addr_location *al,
 			  u64 *total_cycles)
 {
 	struct branch_info *bi;
+	struct branch_entry *entries = perf_sample__branch_entries(sample);
 
 	/* If we have branch cycles always annotate them. */
-	if (bs && bs->nr && bs->entries[0].flags.cycles) {
+	if (bs && bs->nr && entries[0].flags.cycles) {
 		int i;
 
 		bi = sample__resolve_bstack(sample, al);

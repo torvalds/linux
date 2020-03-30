@@ -4380,10 +4380,10 @@ static struct pci_dev *snr_uncore_get_mc_dev(int id)
 	return mc_dev;
 }
 
-static void snr_uncore_mmio_init_box(struct intel_uncore_box *box)
+static void __snr_uncore_mmio_init_box(struct intel_uncore_box *box,
+				       unsigned int box_ctl, int mem_offset)
 {
 	struct pci_dev *pdev = snr_uncore_get_mc_dev(box->dieid);
-	unsigned int box_ctl = uncore_mmio_box_ctl(box);
 	resource_size_t addr;
 	u32 pci_dword;
 
@@ -4393,7 +4393,7 @@ static void snr_uncore_mmio_init_box(struct intel_uncore_box *box)
 	pci_read_config_dword(pdev, SNR_IMC_MMIO_BASE_OFFSET, &pci_dword);
 	addr = (pci_dword & SNR_IMC_MMIO_BASE_MASK) << 23;
 
-	pci_read_config_dword(pdev, SNR_IMC_MMIO_MEM0_OFFSET, &pci_dword);
+	pci_read_config_dword(pdev, mem_offset, &pci_dword);
 	addr |= (pci_dword & SNR_IMC_MMIO_MEM0_MASK) << 12;
 
 	addr += box_ctl;
@@ -4403,6 +4403,12 @@ static void snr_uncore_mmio_init_box(struct intel_uncore_box *box)
 		return;
 
 	writel(IVBEP_PMON_BOX_CTL_INT, box->io_addr);
+}
+
+static void snr_uncore_mmio_init_box(struct intel_uncore_box *box)
+{
+	__snr_uncore_mmio_init_box(box, uncore_mmio_box_ctl(box),
+				   SNR_IMC_MMIO_MEM0_OFFSET);
 }
 
 static void snr_uncore_mmio_disable_box(struct intel_uncore_box *box)

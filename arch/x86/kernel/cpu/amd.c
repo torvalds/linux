@@ -955,7 +955,8 @@ static void init_amd(struct cpuinfo_x86 *c)
 	case 0x12: init_amd_ln(c); break;
 	case 0x15: init_amd_bd(c); break;
 	case 0x16: init_amd_jg(c); break;
-	case 0x17: init_amd_zn(c); break;
+	case 0x17: fallthrough;
+	case 0x19: init_amd_zn(c); break;
 	}
 
 	/*

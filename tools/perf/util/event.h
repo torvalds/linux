@@ -139,6 +139,7 @@ struct perf_sample {
 	u16 insn_len;
 	u8  cpumode;
 	u16 misc;
+	bool no_hw_idx;		/* No hw_idx collected in branch_stack */
 	char insn[MAX_INSN];
 	void *raw_data;
 	struct ip_callchain *callchain;
