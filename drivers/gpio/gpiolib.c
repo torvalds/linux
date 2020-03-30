@@ -2745,10 +2745,12 @@ static inline void gpiochip_irqchip_free_valid_mask(struct gpio_chip *gpiochip)
  */
 int gpiochip_generic_request(struct gpio_chip *chip, unsigned offset)
 {
-	if (!list_empty(&chip->gpiodev->pin_ranges))
-		return pinctrl_gpio_request(chip->gpiodev->base + offset);
+#ifdef CONFIG_PINCTRL
+	if (list_empty(&chip->gpiodev->pin_ranges))
+		return 0;
+#endif
 
-	return 0;
+	return pinctrl_gpio_request(chip->gpiodev->base + offset);
 }
 EXPORT_SYMBOL_GPL(gpiochip_generic_request);
 
