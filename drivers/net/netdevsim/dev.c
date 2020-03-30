@@ -452,10 +452,10 @@ static const struct devlink_trap_policer nsim_trap_policers_arr[] = {
 };
 
 static const struct devlink_trap_group nsim_trap_groups_arr[] = {
-	DEVLINK_TRAP_GROUP_GENERIC(L2_DROPS),
-	DEVLINK_TRAP_GROUP_GENERIC(L3_DROPS),
-	DEVLINK_TRAP_GROUP_GENERIC(BUFFER_DROPS),
-	DEVLINK_TRAP_GROUP_GENERIC(ACL_DROPS),
+	DEVLINK_TRAP_GROUP_GENERIC(L2_DROPS, 0),
+	DEVLINK_TRAP_GROUP_GENERIC(L3_DROPS, 1),
+	DEVLINK_TRAP_GROUP_GENERIC(BUFFER_DROPS, 2),
+	DEVLINK_TRAP_GROUP_GENERIC(ACL_DROPS, 3),
 };
 
 static const struct devlink_trap nsim_traps_arr[] = {

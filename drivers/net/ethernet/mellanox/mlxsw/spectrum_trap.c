@@ -166,10 +166,10 @@ static void mlxsw_sp_rx_exception_listener(struct sk_buff *skb, u8 local_port,
 		   _action, false, SP_##_group_id, SET_FW_DEFAULT)
 
 static const struct devlink_trap_group mlxsw_sp_trap_groups_arr[] = {
-	DEVLINK_TRAP_GROUP_GENERIC(L2_DROPS),
-	DEVLINK_TRAP_GROUP_GENERIC(L3_DROPS),
-	DEVLINK_TRAP_GROUP_GENERIC(TUNNEL_DROPS),
-	DEVLINK_TRAP_GROUP_GENERIC(ACL_DROPS),
+	DEVLINK_TRAP_GROUP_GENERIC(L2_DROPS, 0),
+	DEVLINK_TRAP_GROUP_GENERIC(L3_DROPS, 0),
+	DEVLINK_TRAP_GROUP_GENERIC(TUNNEL_DROPS, 0),
+	DEVLINK_TRAP_GROUP_GENERIC(ACL_DROPS, 0),
 };
 
 static const struct devlink_trap mlxsw_sp_traps_arr[] = {

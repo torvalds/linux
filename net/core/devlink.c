@@ -5739,6 +5739,7 @@ struct devlink_trap_policer_item {
 /**
  * struct devlink_trap_group_item - Packet trap group attributes.
  * @group: Immutable packet trap group attributes.
+ * @policer_item: Associated policer item. Can be NULL.
  * @list: trap_group_list member.
  * @stats: Trap group statistics.
  *
@@ -5747,6 +5748,7 @@ struct devlink_trap_policer_item {
  */
 struct devlink_trap_group_item {
 	const struct devlink_trap_group *group;
+	struct devlink_trap_policer_item *policer_item;
 	struct list_head list;
 	struct devlink_stats __percpu *stats;
 };
@@ -6159,6 +6161,11 @@ devlink_nl_trap_group_fill(struct sk_buff *msg, struct devlink *devlink,
 
 	if (group_item->group->generic &&
 	    nla_put_flag(msg, DEVLINK_ATTR_TRAP_GENERIC))
+		goto nla_put_failure;
+
+	if (group_item->policer_item &&
+	    nla_put_u32(msg, DEVLINK_ATTR_TRAP_POLICER_ID,
+			group_item->policer_item->policer->id))
 		goto nla_put_failure;
 
 	err = devlink_trap_stats_put(msg, group_item->stats);
@@ -8760,6 +8767,25 @@ void *devlink_trap_ctx_priv(void *trap_ctx)
 EXPORT_SYMBOL_GPL(devlink_trap_ctx_priv);
 
 static int
+devlink_trap_group_item_policer_link(struct devlink *devlink,
+				     struct devlink_trap_group_item *group_item)
+{
+	u32 policer_id = group_item->group->init_policer_id;
+	struct devlink_trap_policer_item *policer_item;
+
+	if (policer_id == 0)
+		return 0;
+
+	policer_item = devlink_trap_policer_item_lookup(devlink, policer_id);
+	if (WARN_ON_ONCE(!policer_item))
+		return -EINVAL;
+
+	group_item->policer_item = policer_item;
+
+	return 0;
+}
+
+static int
 devlink_trap_group_register(struct devlink *devlink,
 			    const struct devlink_trap_group *group)
 {
@@ -8781,6 +8807,10 @@ devlink_trap_group_register(struct devlink *devlink,
 
 	group_item->group = group;
 
+	err = devlink_trap_group_item_policer_link(devlink, group_item);
+	if (err)
+		goto err_policer_link;
+
 	if (devlink->ops->trap_group_init) {
 		err = devlink->ops->trap_group_init(devlink, group);
 		if (err)
@@ -8794,6 +8824,7 @@ devlink_trap_group_register(struct devlink *devlink,
 	return 0;
 
 err_group_init:
+err_policer_link:
 	free_percpu(group_item->stats);
 err_stats_alloc:
 	kfree(group_item);

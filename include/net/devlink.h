@@ -574,6 +574,7 @@ struct devlink_trap_policer {
  * @name: Trap group name.
  * @id: Trap group identifier.
  * @generic: Whether the trap group is generic or not.
+ * @init_policer_id: Initial policer identifier.
  *
  * Describes immutable attributes of packet trap groups that drivers register
  * with devlink.
@@ -582,6 +583,7 @@ struct devlink_trap_group {
 	const char *name;
 	u16 id;
 	bool generic;
+	u32 init_policer_id;
 };
 
 #define DEVLINK_TRAP_METADATA_TYPE_F_IN_PORT	BIT(0)
@@ -759,11 +761,12 @@ enum devlink_trap_group_generic_id {
 		.metadata_cap = _metadata_cap,				      \
 	}
 
-#define DEVLINK_TRAP_GROUP_GENERIC(_id)					      \
+#define DEVLINK_TRAP_GROUP_GENERIC(_id, _policer_id)			      \
 	{								      \
 		.name = DEVLINK_TRAP_GROUP_GENERIC_NAME_##_id,		      \
 		.id = DEVLINK_TRAP_GROUP_GENERIC_ID_##_id,		      \
 		.generic = true,					      \
+		.init_policer_id = _policer_id,				      \
 	}
 
 #define DEVLINK_TRAP_POLICER(_id, _rate, _burst, _max_rate, _min_rate,	      \
