@@ -1369,8 +1369,12 @@ static void __prep_cap(struct cap_msg_args *arg, struct ceph_cap *cap,
 	arg->size = inode->i_size;
 	ci->i_reported_size = arg->size;
 	arg->max_size = ci->i_wanted_max_size;
-	if (cap == ci->i_auth_cap)
-		ci->i_requested_max_size = arg->max_size;
+	if (cap == ci->i_auth_cap) {
+		if (want & CEPH_CAP_ANY_FILE_WR)
+			ci->i_requested_max_size = arg->max_size;
+		else
+			ci->i_requested_max_size = 0;
+	}
 
 	if (flushing & CEPH_CAP_XATTR_EXCL) {
 		arg->old_xattr_buf = __ceph_build_xattrs_blob(ci);
@@ -3342,10 +3346,6 @@ static void handle_cap_grant(struct inode *inode,
 				ci->i_requested_max_size = 0;
 			}
 			wake = true;
-		} else if (ci->i_wanted_max_size > ci->i_max_size &&
-			   ci->i_wanted_max_size > ci->i_requested_max_size) {
-			/* CEPH_CAP_OP_IMPORT */
-			wake = true;
 		}
 	}
 
@@ -3421,9 +3421,18 @@ static void handle_cap_grant(struct inode *inode,
 			fill_inline = true;
 	}
 
-	if (le32_to_cpu(grant->op) == CEPH_CAP_OP_IMPORT) {
+	if (ci->i_auth_cap == cap &&
+	    le32_to_cpu(grant->op) == CEPH_CAP_OP_IMPORT) {
 		if (newcaps & ~extra_info->issued)
 			wake = true;
+
+		if (ci->i_requested_max_size > max_size ||
+		    !(le32_to_cpu(grant->wanted) & CEPH_CAP_ANY_FILE_WR)) {
+			/* re-request max_size if necessary */
+			ci->i_requested_max_size = 0;
+			wake = true;
+		}
+
 		ceph_kick_flushing_inode_caps(session, ci);
 		spin_unlock(&ci->i_ceph_lock);
 		up_read(&session->s_mdsc->snap_rwsem);
@@ -3882,9 +3891,6 @@ retry:
 		__ceph_remove_cap(ocap, (ph->flags & CEPH_CAP_FLAG_RELEASE));
 	}
 
-	/* make sure we re-request max_size, if necessary */
-	ci->i_requested_max_size = 0;
-
 	*old_issued = issued;
 	*target_cap = cap;
 }
@@ -4318,6 +4324,9 @@ int ceph_encode_inode_release(void **p, struct inode *inode,
 				cap->issued &= ~drop;
 				cap->implemented &= ~drop;
 				cap->mds_wanted = wanted;
+				if (cap == ci->i_auth_cap &&
+				    !(wanted & CEPH_CAP_ANY_FILE_WR))
+					ci->i_requested_max_size = 0;
 			} else {
 				dout("encode_inode_release %p cap %p %s"
 				     " (force)\n", inode, cap,
