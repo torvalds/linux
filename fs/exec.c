@@ -1051,13 +1051,14 @@ static int exec_mmap(struct mm_struct *mm)
 	tsk = current;
 	old_mm = current->mm;
 	exec_mm_release(tsk, old_mm);
+	if (old_mm)
+		sync_mm_rss(old_mm);
 
 	ret = mutex_lock_killable(&tsk->signal->exec_update_mutex);
 	if (ret)
 		return ret;
 
 	if (old_mm) {
-		sync_mm_rss(old_mm);
 		/*
 		 * Make sure that if there is a core dump in progress
 		 * for the old mm, we get out and die instead of going
