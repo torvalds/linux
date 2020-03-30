@@ -947,7 +947,8 @@ static const struct cnl_ddi_buf_trans *
 ehl_get_combo_buf_trans(struct drm_i915_private *dev_priv, int type, int rate,
 			int *n_entries)
 {
-	if (type == INTEL_OUTPUT_DP && rate > 270000) {
+	if (type != INTEL_OUTPUT_HDMI && type != INTEL_OUTPUT_EDP &&
+	    rate > 270000) {
 		*n_entries = ARRAY_SIZE(ehl_combo_phy_ddi_translations_hbr2_hbr3);
 		return ehl_combo_phy_ddi_translations_hbr2_hbr3;
 	}
@@ -959,7 +960,7 @@ static const struct cnl_ddi_buf_trans *
 tgl_get_combo_buf_trans(struct drm_i915_private *dev_priv, int type, int rate,
 			int *n_entries)
 {
-	if (type != INTEL_OUTPUT_DP) {
+	if (type == INTEL_OUTPUT_HDMI || type == INTEL_OUTPUT_EDP) {
 		return icl_get_combo_buf_trans(dev_priv, type, rate, n_entries);
 	} else if (rate > 270000) {
 		*n_entries = ARRAY_SIZE(tgl_combo_phy_ddi_translations_dp_hbr2);
