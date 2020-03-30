@@ -161,6 +161,7 @@ struct psp_hdcp_context {
 	struct amdgpu_bo	*hdcp_shared_bo;
 	uint64_t		hdcp_shared_mc_addr;
 	void			*hdcp_shared_buf;
+	struct mutex		mutex;
 };
 
 struct psp_dtm_context {
@@ -169,6 +170,7 @@ struct psp_dtm_context {
 	struct amdgpu_bo	*dtm_shared_bo;
 	uint64_t		dtm_shared_mc_addr;
 	void			*dtm_shared_buf;
+	struct mutex		mutex;
 };
 
 #define MEM_TRAIN_SYSTEM_SIGNATURE		0x54534942

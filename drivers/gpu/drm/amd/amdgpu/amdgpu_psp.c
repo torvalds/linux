@@ -888,6 +888,7 @@ static int psp_hdcp_load(struct psp_context *psp)
 	if (!ret) {
 		psp->hdcp_context.hdcp_initialized = true;
 		psp->hdcp_context.session_id = cmd->resp.session_id;
+		mutex_init(&psp->hdcp_context.mutex);
 	}
 
 	kfree(cmd);
@@ -1033,6 +1034,7 @@ static int psp_dtm_load(struct psp_context *psp)
 	if (!ret) {
 		psp->dtm_context.dtm_initialized = true;
 		psp->dtm_context.session_id = cmd->resp.session_id;
+		mutex_init(&psp->dtm_context.mutex);
 	}
 
 	kfree(cmd);
