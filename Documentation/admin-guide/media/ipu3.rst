@@ -363,6 +363,19 @@ v4l2n --pipe=4 --load=/tmp/frame-#.bin --open=/dev/video4
 --output=/tmp/frames.3A --fmt=type:META_CAPTURE,?
 --reqbufs=count:1,type:META_CAPTURE --pipe=1,2,3,4 --stream=5
 
+You can also use yavta [#f2]_ command to do same thing as above:
+
+.. code-block:: none
+
+	yavta --data-prefix -Bcapture-mplane -c10 -n5 -I -s2592x1944 \
+	--file=frame-#.out-f NV12 /dev/video5 & \
+	yavta --data-prefix -Bcapture-mplane -c10 -n5 -I -s2592x1944 \
+	--file=frame-#.vf -f NV12 /dev/video6 & \
+	yavta --data-prefix -Bmeta-capture -c10 -n5 -I \
+	--file=frame-#.3a /dev/video7 & \
+	yavta --data-prefix -Boutput-mplane -c10 -n5 -I -s2592x1944 \
+	--file=/tmp/frame-in.cio2 -f IPU3_SGRBG10 /dev/video4
+
 where /dev/video4, /dev/video5, /dev/video6 and /dev/video7 devices point to
 input, output, viewfinder and 3A statistics video nodes respectively.
 
