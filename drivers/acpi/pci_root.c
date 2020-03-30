@@ -153,7 +153,7 @@ static void decode_osc_bits(struct acpi_pci_root *root, char *msg, u32 word,
 	buf[0] = '\0';
 	for (i = 0, entry = table; i < size; i++, entry++)
 		if (word & entry->bit)
-			len += snprintf(buf + len, sizeof(buf) - len, "%s%s",
+			len += scnprintf(buf + len, sizeof(buf) - len, "%s%s",
 					len ? " " : "", entry->desc);
 
 	dev_info(&root->device->dev, "_OSC: %s [%s]\n", msg, buf);
