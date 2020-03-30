@@ -184,13 +184,15 @@ PNAME(mux_usb480m_gpll_p)		= { "usb480m", "gpll" };
 PNAME(clk_gmac_src_m0_p)		= { "clk_gmac_div", "clk_gmac_rgmii_m0" };
 PNAME(clk_gmac_src_m1_p)		= { "clk_gmac_div", "clk_gmac_rgmii_m1" };
 PNAME(mux_clk_gmac_src_p)		= { "clk_gmac_src_m0", "clk_gmac_src_m1" };
-PNAME(mux_rgmii_clk_p)			= { "clk_gmac_tx_src", "clk_gmac_tx_src", "clk_gmac_tx_div50", "clk_gmac_tx_div5" };
+PNAME(mux_rgmii_clk_p)			= { "clk_gmac_tx_div50", "clk_gmac_tx_div5", "clk_gmac_tx_src", "clk_gmac_tx_src"};
 PNAME(mux_rmii_clk_p)			= { "clk_gmac_rx_div20", "clk_gmac_rx_div2" };
 PNAME(mux_gmac_tx_rx_p)			= { "rgmii_mode_clk", "rmii_mode_clk" };
 PNAME(mux_dpll_gpll_p)			= { "dpll", "gpll" };
 PNAME(mux_gpll_cpll_apll_hpll_p)	= { "gpll", "cpll", "dummy_apll", "hpll" };
 PNAME(mux_aclk_pdnpu_p)			= { "aclk_pdnpu_div", "aclk_pdnpu_np5" };
 PNAME(mux_clk_npu_p)			= { "clk_npu_div", "clk_npu_np5" };
+
+static u32 rgmii_mux_idx[]		= { 2, 3, 0, 1 };
 
 static struct rockchip_pll_clock rv1126_pmu_pll_clks[] __initdata = {
 	[gpll] = PLL(pll_rk3328, PLL_GPLL, "gpll",  mux_pll_p,
@@ -1154,8 +1156,8 @@ static struct rockchip_clk_branch rv1126_clk_branches[] __initdata = {
 			RV1126_CLKGATE_CON(20), 9, GFLAGS),
 	FACTOR(CLK_GMAC_TX_DIV5, "clk_gmac_tx_div5", "clk_gmac_tx_src", 0, 1, 5),
 	FACTOR(CLK_GMAC_TX_DIV50, "clk_gmac_tx_div50", "clk_gmac_tx_src", 0, 1, 50),
-	MUX(RGMII_MODE_CLK, "rgmii_mode_clk", mux_rgmii_clk_p, CLK_SET_RATE_PARENT,
-			RV1126_GMAC_CON, 2, 2, MFLAGS),
+	MUXTBL(RGMII_MODE_CLK, "rgmii_mode_clk", mux_rgmii_clk_p, CLK_SET_RATE_PARENT,
+			RV1126_GMAC_CON, 2, 2, MFLAGS, rgmii_mux_idx),
 	GATE(CLK_GMAC_RX_SRC, "clk_gmac_rx_src", "clk_gmac_src", 0,
 			RV1126_CLKGATE_CON(20), 8, GFLAGS),
 	FACTOR(CLK_GMAC_RX_DIV2, "clk_gmac_rx_div2", "clk_gmac_rx_src", 0, 1, 2),
