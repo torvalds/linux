@@ -1533,7 +1533,7 @@
 		clocks = <&cru CLK_GMAC_SRC>, <&cru CLK_GMAC_TX_RX>,
 			 <&cru CLK_GMAC_TX_RX>, <&cru CLK_GMAC_REF>,
 			 <&cru ACLK_GMAC>, <&cru PCLK_GMAC>,
-			 <&cru RGMII_MODE_CLK>, <&cru CLK_GMAC_PTPREF>;
+			 <&cru CLK_GMAC_TX_RX>, <&cru CLK_GMAC_PTPREF>;
 		clock-names = "stmmaceth", "mac_clk_rx",
 			      "mac_clk_tx", "clk_mac_refout",
 			      "aclk_mac", "pclk_mac",
