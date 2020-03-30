@@ -6978,6 +6978,12 @@ struct bpf_link {
 	bool disconnected;
 };
 
+/* Replace link's underlying BPF program with the new one */
+int bpf_link__update_program(struct bpf_link *link, struct bpf_program *prog)
+{
+	return bpf_link_update(bpf_link__fd(link), bpf_program__fd(prog), NULL);
+}
+
 /* Release "ownership" of underlying BPF resource (typically, BPF program
  * attached to some BPF hook, e.g., tracepoint, kprobe, etc). Disconnected
  * link, when destructed through bpf_link__destroy() call won't attempt to
@@ -7531,6 +7537,46 @@ static struct bpf_link *attach_lsm(const struct bpf_sec_def *sec,
 				   struct bpf_program *prog)
 {
 	return bpf_program__attach_lsm(prog);
+}
+
+struct bpf_link *
+bpf_program__attach_cgroup(struct bpf_program *prog, int cgroup_fd)
+{
+	const struct bpf_sec_def *sec_def;
+	enum bpf_attach_type attach_type;
+	char errmsg[STRERR_BUFSIZE];
+	struct bpf_link *link;
+	int prog_fd, link_fd;
+
+	prog_fd = bpf_program__fd(prog);
+	if (prog_fd < 0) {
+		pr_warn("program '%s': can't attach before loaded\n",
+			bpf_program__title(prog, false));
+		return ERR_PTR(-EINVAL);
+	}
+
+	link = calloc(1, sizeof(*link));
+	if (!link)
+		return ERR_PTR(-ENOMEM);
+	link->detach = &bpf_link__detach_fd;
+
+	attach_type = bpf_program__get_expected_attach_type(prog);
+	if (!attach_type) {
+		sec_def = find_sec_def(bpf_program__title(prog, false));
+		if (sec_def)
+			attach_type = sec_def->attach_type;
+	}
+	link_fd = bpf_link_create(prog_fd, cgroup_fd, attach_type, NULL);
+	if (link_fd < 0) {
+		link_fd = -errno;
+		free(link);
+		pr_warn("program '%s': failed to attach to cgroup: %s\n",
+			bpf_program__title(prog, false),
+			libbpf_strerror_r(link_fd, errmsg, sizeof(errmsg)));
+		return ERR_PTR(link_fd);
+	}
+	link->fd = link_fd;
+	return link;
 }
 
 struct bpf_link *bpf_program__attach(struct bpf_program *prog)
