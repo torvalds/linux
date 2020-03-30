@@ -1619,6 +1619,7 @@ config KALLSYMS_BASE_RELATIVE
 
 config BPF_LSM
 	bool "LSM Instrumentation with BPF"
+	depends on BPF_EVENTS
 	depends on BPF_SYSCALL
 	depends on SECURITY
 	depends on BPF_JIT
