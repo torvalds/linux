@@ -1307,8 +1307,9 @@ static inline void *write_tso_wr(struct adapter *adap, struct sk_buff *skb,
 int t4_sge_eth_txq_egress_update(struct adapter *adap, struct sge_eth_txq *eq,
 				 int maxreclaim)
 {
+	unsigned int reclaimed, hw_cidx;
 	struct sge_txq *q = &eq->q;
-	unsigned int reclaimed;
+	int hw_in_use;
 
 	if (!q->in_use || !__netif_tx_trylock(eq->txq))
 		return 0;
@@ -1316,12 +1317,17 @@ int t4_sge_eth_txq_egress_update(struct adapter *adap, struct sge_eth_txq *eq,
 	/* Reclaim pending completed TX Descriptors. */
 	reclaimed = reclaim_completed_tx(adap, &eq->q, maxreclaim, true);
 
+	hw_cidx = ntohs(READ_ONCE(q->stat->cidx));
+	hw_in_use = q->pidx - hw_cidx;
+	if (hw_in_use < 0)
+		hw_in_use += q->size;
+
 	/* If the TX Queue is currently stopped and there's now more than half
 	 * the queue available, restart it.  Otherwise bail out since the rest
 	 * of what we want do here is with the possibility of shipping any
 	 * currently buffered Coalesced TX Work Request.
 	 */
-	if (netif_tx_queue_stopped(eq->txq) && txq_avail(q) > (q->size / 2)) {
+	if (netif_tx_queue_stopped(eq->txq) && hw_in_use < (q->size / 2)) {
 		netif_tx_wake_queue(eq->txq);
 		eq->q.restarts++;
 	}
@@ -1486,16 +1492,7 @@ static netdev_tx_t cxgb4_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 		 * has opened up.
 		 */
 		eth_txq_stop(q);
-
-		/* If we're using the SGE Doorbell Queue Timer facility, we
-		 * don't need to ask the Firmware to send us Egress Queue CIDX
-		 * Updates: the Hardware will do this automatically.  And
-		 * since we send the Ingress Queue CIDX Updates to the
-		 * corresponding Ethernet Response Queue, we'll get them very
-		 * quickly.
-		 */
-		if (!q->dbqt)
-			wr_mid |= FW_WR_EQUEQ_F | FW_WR_EQUIQ_F;
+		wr_mid |= FW_WR_EQUEQ_F | FW_WR_EQUIQ_F;
 	}
 
 	wr = (void *)&q->q.desc[q->q.pidx];
@@ -1805,16 +1802,7 @@ static netdev_tx_t cxgb4_vf_eth_xmit(struct sk_buff *skb,
 		 * has opened up.
 		 */
 		eth_txq_stop(txq);
-
-		/* If we're using the SGE Doorbell Queue Timer facility, we
-		 * don't need to ask the Firmware to send us Egress Queue CIDX
-		 * Updates: the Hardware will do this automatically.  And
-		 * since we send the Ingress Queue CIDX Updates to the
-		 * corresponding Ethernet Response Queue, we'll get them very
-		 * quickly.
-		 */
-		if (!txq->dbqt)
-			wr_mid |= FW_WR_EQUEQ_F | FW_WR_EQUIQ_F;
+		wr_mid |= FW_WR_EQUEQ_F | FW_WR_EQUIQ_F;
 	}
 
 	/* Start filling in our Work Request.  Note that we do _not_ handle
@@ -3370,26 +3358,6 @@ static void t4_tx_completion_handler(struct sge_rspq *rspq,
 	}
 
 	txq = &s->ethtxq[pi->first_qset + rspq->idx];
-
-	/* We've got the Hardware Consumer Index Update in the Egress Update
-	 * message.  If we're using the SGE Doorbell Queue Timer mechanism,
-	 * these Egress Update messages will be our sole CIDX Updates we get
-	 * since we don't want to chew up PCIe bandwidth for both Ingress
-	 * Messages and Status Page writes.  However, The code which manages
-	 * reclaiming successfully DMA'ed TX Work Requests uses the CIDX value
-	 * stored in the Status Page at the end of the TX Queue.  It's easiest
-	 * to simply copy the CIDX Update value from the Egress Update message
-	 * to the Status Page.  Also note that no Endian issues need to be
-	 * considered here since both are Big Endian and we're just copying
-	 * bytes consistently ...
-	 */
-	if (txq->dbqt) {
-		struct cpl_sge_egr_update *egr;
-
-		egr = (struct cpl_sge_egr_update *)rsp;
-		WRITE_ONCE(txq->q.stat->cidx, egr->cidx);
-	}
-
 	t4_sge_eth_txq_egress_update(adapter, txq, -1);
 }
 

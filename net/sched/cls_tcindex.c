@@ -261,8 +261,10 @@ static void tcindex_partial_destroy_work(struct work_struct *work)
 					      struct tcindex_data,
 					      rwork);
 
+	rtnl_lock();
 	kfree(p->perfect);
 	kfree(p);
+	rtnl_unlock();
 }
 
 static void tcindex_free_perfect_hash(struct tcindex_data *cp)
@@ -357,6 +359,7 @@ tcindex_set_parms(struct net *net, struct tcf_proto *tp, unsigned long base,
 
 		if (tcindex_alloc_perfect_hash(net, cp) < 0)
 			goto errout;
+		cp->alloc_hash = cp->hash;
 		for (i = 0; i < min(cp->hash, p->hash); i++)
 			cp->perfect[i].res = p->perfect[i].res;
 		balloc = 1;

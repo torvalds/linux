@@ -258,11 +258,11 @@ conditions.
     |    option    | condition | size     read    write    read    write |
     +--------------+-----------+-----------------------------------------+
     |              | good      | fixed    yes     no       yes     yes   |
-    | remount-ro   | read-only | fixed    yes     no       yes     no    |
+    | remount-ro   | read-only | as is    yes     no       yes     no    |
     | (default)    | offline   |   0      no      no       no      no    |
     +--------------+-----------+-----------------------------------------+
     |              | good      | fixed    yes     no       yes     yes   |
-    | zone-ro      | read-only | fixed    yes     no       yes     no    |
+    | zone-ro      | read-only | as is    yes     no       yes     no    |
     |              | offline   |   0      no      no       no      no    |
     +--------------+-----------+-----------------------------------------+
     |              | good      |   0      no      no       yes     yes   |
@@ -270,7 +270,7 @@ conditions.
     |              | offline   |   0      no      no       no      no    |
     +--------------+-----------+-----------------------------------------+
     |              | good      | fixed    yes     yes      yes     yes   |
-    | repair       | read-only | fixed    yes     no       yes     no    |
+    | repair       | read-only | as is    yes     no       yes     no    |
     |              | offline   |   0      no      no       no      no    |
     +--------------+-----------+-----------------------------------------+
 
@@ -307,8 +307,16 @@ condition changes. The defined behaviors are as follow:
 * zone-offline
 * repair
 
-The I/O error actions defined for each behavior are detailed in the previous
-section.
+The run-time I/O error actions defined for each behavior are detailed in the
+previous section. Mount time I/O errors will cause the mount operation to fail.
+The handling of read-only zones also differs between mount-time and run-time.
+If a read-only zone is found at mount time, the zone is always treated in the
+same manner as offline zones, that is, all accesses are disabled and the zone
+file size set to 0. This is necessary as the write pointer of read-only zones
+is defined as invalib by the ZBC and ZAC standards, making it impossible to
+discover the amount of data that has been written to the zone. In the case of a
+read-only zone discovered at run-time, as indicated in the previous section.
+the size of the zone file is left unchanged from its last updated value.
 
 Zonefs User Space Tools
 =======================
