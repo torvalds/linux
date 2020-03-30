@@ -19,6 +19,7 @@
  * The passed parameter is in multiples of 1 ms.
  */
 #define SJA1105_AGEING_TIME_MS(ms)	((ms) / 10)
+#define SJA1105_NUM_L2_POLICERS		45
 
 typedef enum {
 	SPI_READ = 0,
@@ -95,6 +96,36 @@ struct sja1105_info {
 	const char *name;
 };
 
+enum sja1105_rule_type {
+	SJA1105_RULE_BCAST_POLICER,
+	SJA1105_RULE_TC_POLICER,
+};
+
+struct sja1105_rule {
+	struct list_head list;
+	unsigned long cookie;
+	unsigned long port_mask;
+	enum sja1105_rule_type type;
+
+	union {
+		/* SJA1105_RULE_BCAST_POLICER */
+		struct {
+			int sharindx;
+		} bcast_pol;
+
+		/* SJA1105_RULE_TC_POLICER */
+		struct {
+			int sharindx;
+			int tc;
+		} tc_pol;
+	};
+};
+
+struct sja1105_flow_block {
+	struct list_head rules;
+	bool l2_policer_used[SJA1105_NUM_L2_POLICERS];
+};
+
 struct sja1105_private {
 	struct sja1105_static_config static_config;
 	bool rgmii_rx_delay[SJA1105_NUM_PORTS];
@@ -103,6 +134,7 @@ struct sja1105_private {
 	struct gpio_desc *reset_gpio;
 	struct spi_device *spidev;
 	struct dsa_switch *ds;
+	struct sja1105_flow_block flow_block;
 	struct sja1105_port ports[SJA1105_NUM_PORTS];
 	/* Serializes transmission of management frames so that
 	 * the switch doesn't confuse them with one another.
@@ -221,5 +253,13 @@ size_t sja1105pqrs_mac_config_entry_packing(void *buf, void *entry_ptr,
 					    enum packing_op op);
 size_t sja1105pqrs_avb_params_entry_packing(void *buf, void *entry_ptr,
 					    enum packing_op op);
+
+/* From sja1105_flower.c */
+int sja1105_cls_flower_del(struct dsa_switch *ds, int port,
+			   struct flow_cls_offload *cls, bool ingress);
+int sja1105_cls_flower_add(struct dsa_switch *ds, int port,
+			   struct flow_cls_offload *cls, bool ingress);
+void sja1105_flower_setup(struct dsa_switch *ds);
+void sja1105_flower_teardown(struct dsa_switch *ds);
 
 #endif

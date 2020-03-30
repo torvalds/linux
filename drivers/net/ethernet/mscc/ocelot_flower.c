@@ -12,6 +12,8 @@ static int ocelot_flower_parse_action(struct flow_cls_offload *f,
 				      struct ocelot_ace_rule *ace)
 {
 	const struct flow_action_entry *a;
+	s64 burst;
+	u64 rate;
 	int i;
 
 	if (!flow_offload_has_one_action(&f->rule->action))
@@ -28,6 +30,13 @@ static int ocelot_flower_parse_action(struct flow_cls_offload *f,
 			break;
 		case FLOW_ACTION_TRAP:
 			ace->action = OCELOT_ACL_ACTION_TRAP;
+			break;
+		case FLOW_ACTION_POLICE:
+			ace->action = OCELOT_ACL_ACTION_POLICE;
+			rate = a->police.rate_bytes_ps;
+			ace->pol.rate = div_u64(rate, 1000) * 8;
+			burst = rate * PSCHED_NS2TICKS(a->police.burst);
+			ace->pol.burst = div_u64(burst, PSCHED_TICKS_PER_SEC);
 			break;
 		default:
 			return -EOPNOTSUPP;

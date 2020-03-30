@@ -516,23 +516,56 @@ static int sja1105_init_avb_params(struct sja1105_private *priv)
 	return 0;
 }
 
+/* The L2 policing table is 2-stage. The table is looked up for each frame
+ * according to the ingress port, whether it was broadcast or not, and the
+ * classified traffic class (given by VLAN PCP). This portion of the lookup is
+ * fixed, and gives access to the SHARINDX, an indirection register pointing
+ * within the policing table itself, which is used to resolve the policer that
+ * will be used for this frame.
+ *
+ *  Stage 1                              Stage 2
+ * +------------+--------+              +---------------------------------+
+ * |Port 0 TC 0 |SHARINDX|              | Policer 0: Rate, Burst, MTU     |
+ * +------------+--------+              +---------------------------------+
+ * |Port 0 TC 1 |SHARINDX|              | Policer 1: Rate, Burst, MTU     |
+ * +------------+--------+              +---------------------------------+
+ *    ...                               | Policer 2: Rate, Burst, MTU     |
+ * +------------+--------+              +---------------------------------+
+ * |Port 0 TC 7 |SHARINDX|              | Policer 3: Rate, Burst, MTU     |
+ * +------------+--------+              +---------------------------------+
+ * |Port 1 TC 0 |SHARINDX|              | Policer 4: Rate, Burst, MTU     |
+ * +------------+--------+              +---------------------------------+
+ *    ...                               | Policer 5: Rate, Burst, MTU     |
+ * +------------+--------+              +---------------------------------+
+ * |Port 1 TC 7 |SHARINDX|              | Policer 6: Rate, Burst, MTU     |
+ * +------------+--------+              +---------------------------------+
+ *    ...                               | Policer 7: Rate, Burst, MTU     |
+ * +------------+--------+              +---------------------------------+
+ * |Port 4 TC 7 |SHARINDX|                 ...
+ * +------------+--------+
+ * |Port 0 BCAST|SHARINDX|                 ...
+ * +------------+--------+
+ * |Port 1 BCAST|SHARINDX|                 ...
+ * +------------+--------+
+ *    ...                                  ...
+ * +------------+--------+              +---------------------------------+
+ * |Port 4 BCAST|SHARINDX|              | Policer 44: Rate, Burst, MTU    |
+ * +------------+--------+              +---------------------------------+
+ *
+ * In this driver, we shall use policers 0-4 as statically alocated port
+ * (matchall) policers. So we need to make the SHARINDX for all lookups
+ * corresponding to this ingress port (8 VLAN PCP lookups and 1 broadcast
+ * lookup) equal.
+ * The remaining policers (40) shall be dynamically allocated for flower
+ * policers, where the key is either vlan_prio or dst_mac ff:ff:ff:ff:ff:ff.
+ */
 #define SJA1105_RATE_MBPS(speed) (((speed) * 64000) / 1000)
-
-static void sja1105_setup_policer(struct sja1105_l2_policing_entry *policing,
-				  int index, int mtu)
-{
-	policing[index].sharindx = index;
-	policing[index].smax = 65535; /* Burst size in bytes */
-	policing[index].rate = SJA1105_RATE_MBPS(1000);
-	policing[index].maxlen = mtu;
-	policing[index].partition = 0;
-}
 
 static int sja1105_init_l2_policing(struct sja1105_private *priv)
 {
 	struct sja1105_l2_policing_entry *policing;
 	struct sja1105_table *table;
-	int i, j, k;
+	int port, tc;
 
 	table = &priv->static_config.tables[BLK_IDX_L2_POLICING];
 
@@ -551,22 +584,29 @@ static int sja1105_init_l2_policing(struct sja1105_private *priv)
 
 	policing = table->entries;
 
-	/* k sweeps through all unicast policers (0-39).
-	 * bcast sweeps through policers 40-44.
-	 */
-	for (i = 0, k = 0; i < SJA1105_NUM_PORTS; i++) {
-		int bcast = (SJA1105_NUM_PORTS * SJA1105_NUM_TC) + i;
+	/* Setup shared indices for the matchall policers */
+	for (port = 0; port < SJA1105_NUM_PORTS; port++) {
+		int bcast = (SJA1105_NUM_PORTS * SJA1105_NUM_TC) + port;
+
+		for (tc = 0; tc < SJA1105_NUM_TC; tc++)
+			policing[port * SJA1105_NUM_TC + tc].sharindx = port;
+
+		policing[bcast].sharindx = port;
+	}
+
+	/* Setup the matchall policer parameters */
+	for (port = 0; port < SJA1105_NUM_PORTS; port++) {
 		int mtu = VLAN_ETH_FRAME_LEN + ETH_FCS_LEN;
 
-		if (dsa_is_cpu_port(priv->ds, i))
+		if (dsa_is_cpu_port(priv->ds, port))
 			mtu += VLAN_HLEN;
 
-		for (j = 0; j < SJA1105_NUM_TC; j++, k++)
-			sja1105_setup_policer(policing, k, mtu);
-
-		/* Set up this port's policer for broadcast traffic */
-		sja1105_setup_policer(policing, bcast, mtu);
+		policing[port].smax = 65535; /* Burst size in bytes */
+		policing[port].rate = SJA1105_RATE_MBPS(1000);
+		policing[port].maxlen = mtu;
+		policing[port].partition = 0;
 	}
+
 	return 0;
 }
 
@@ -1981,6 +2021,7 @@ static void sja1105_teardown(struct dsa_switch *ds)
 			kthread_destroy_worker(sp->xmit_worker);
 	}
 
+	sja1105_flower_teardown(ds);
 	sja1105_tas_teardown(ds);
 	sja1105_ptp_clock_unregister(ds);
 	sja1105_static_config_free(&priv->static_config);
@@ -2129,10 +2170,8 @@ static int sja1105_set_ageing_time(struct dsa_switch *ds,
 
 static int sja1105_change_mtu(struct dsa_switch *ds, int port, int new_mtu)
 {
-	int bcast = (SJA1105_NUM_PORTS * SJA1105_NUM_TC) + port;
 	struct sja1105_l2_policing_entry *policing;
 	struct sja1105_private *priv = ds->priv;
-	int tc;
 
 	new_mtu += VLAN_ETH_HLEN + ETH_FCS_LEN;
 
@@ -2141,16 +2180,10 @@ static int sja1105_change_mtu(struct dsa_switch *ds, int port, int new_mtu)
 
 	policing = priv->static_config.tables[BLK_IDX_L2_POLICING].entries;
 
-	/* We set all 9 port policers to the same value, so just checking the
-	 * broadcast one is fine.
-	 */
-	if (policing[bcast].maxlen == new_mtu)
+	if (policing[port].maxlen == new_mtu)
 		return 0;
 
-	for (tc = 0; tc < SJA1105_NUM_TC; tc++)
-		policing[port * SJA1105_NUM_TC + tc].maxlen = new_mtu;
-
-	policing[bcast].maxlen = new_mtu;
+	policing[port].maxlen = new_mtu;
 
 	return sja1105_static_config_reload(priv, SJA1105_BEST_EFFORT_POLICING);
 }
@@ -2250,6 +2283,40 @@ static void sja1105_mirror_del(struct dsa_switch *ds, int port,
 			     mirror->ingress, false);
 }
 
+static int sja1105_port_policer_add(struct dsa_switch *ds, int port,
+				    struct dsa_mall_policer_tc_entry *policer)
+{
+	struct sja1105_l2_policing_entry *policing;
+	struct sja1105_private *priv = ds->priv;
+
+	policing = priv->static_config.tables[BLK_IDX_L2_POLICING].entries;
+
+	/* In hardware, every 8 microseconds the credit level is incremented by
+	 * the value of RATE bytes divided by 64, up to a maximum of SMAX
+	 * bytes.
+	 */
+	policing[port].rate = div_u64(512 * policer->rate_bytes_per_sec,
+				      1000000);
+	policing[port].smax = div_u64(policer->rate_bytes_per_sec *
+				      PSCHED_NS2TICKS(policer->burst),
+				      PSCHED_TICKS_PER_SEC);
+
+	return sja1105_static_config_reload(priv, SJA1105_BEST_EFFORT_POLICING);
+}
+
+static void sja1105_port_policer_del(struct dsa_switch *ds, int port)
+{
+	struct sja1105_l2_policing_entry *policing;
+	struct sja1105_private *priv = ds->priv;
+
+	policing = priv->static_config.tables[BLK_IDX_L2_POLICING].entries;
+
+	policing[port].rate = SJA1105_RATE_MBPS(1000);
+	policing[port].smax = 65535;
+
+	sja1105_static_config_reload(priv, SJA1105_BEST_EFFORT_POLICING);
+}
+
 static const struct dsa_switch_ops sja1105_switch_ops = {
 	.get_tag_protocol	= sja1105_get_tag_protocol,
 	.setup			= sja1105_setup,
@@ -2288,6 +2355,10 @@ static const struct dsa_switch_ops sja1105_switch_ops = {
 	.port_setup_tc		= sja1105_port_setup_tc,
 	.port_mirror_add	= sja1105_mirror_add,
 	.port_mirror_del	= sja1105_mirror_del,
+	.port_policer_add	= sja1105_port_policer_add,
+	.port_policer_del	= sja1105_port_policer_del,
+	.cls_flower_add		= sja1105_cls_flower_add,
+	.cls_flower_del		= sja1105_cls_flower_del,
 };
 
 static int sja1105_check_device_id(struct sja1105_private *priv)
@@ -2391,6 +2462,7 @@ static int sja1105_probe(struct spi_device *spi)
 	mutex_init(&priv->mgmt_lock);
 
 	sja1105_tas_setup(ds);
+	sja1105_flower_setup(ds);
 
 	rc = dsa_register_switch(priv->ds);
 	if (rc)

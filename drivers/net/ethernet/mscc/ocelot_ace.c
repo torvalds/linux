@@ -7,6 +7,7 @@
 #include <linux/proc_fs.h>
 
 #include <soc/mscc/ocelot_vcap.h>
+#include "ocelot_police.h"
 #include "ocelot_ace.h"
 #include "ocelot_s2.h"
 
@@ -299,9 +300,9 @@ static void vcap_action_set(struct ocelot *ocelot, struct vcap_data *data,
 }
 
 static void is2_action_set(struct ocelot *ocelot, struct vcap_data *data,
-			   enum ocelot_ace_action action)
+			   struct ocelot_ace_rule *ace)
 {
-	switch (action) {
+	switch (ace->action) {
 	case OCELOT_ACL_ACTION_DROP:
 		vcap_action_set(ocelot, data, VCAP_IS2_ACT_PORT_MASK, 0);
 		vcap_action_set(ocelot, data, VCAP_IS2_ACT_MASK_MODE, 1);
@@ -318,6 +319,15 @@ static void is2_action_set(struct ocelot *ocelot, struct vcap_data *data,
 		vcap_action_set(ocelot, data, VCAP_IS2_ACT_POLICE_IDX, 0);
 		vcap_action_set(ocelot, data, VCAP_IS2_ACT_CPU_QU_NUM, 0);
 		vcap_action_set(ocelot, data, VCAP_IS2_ACT_CPU_COPY_ENA, 1);
+		break;
+	case OCELOT_ACL_ACTION_POLICE:
+		vcap_action_set(ocelot, data, VCAP_IS2_ACT_PORT_MASK, 0);
+		vcap_action_set(ocelot, data, VCAP_IS2_ACT_MASK_MODE, 0);
+		vcap_action_set(ocelot, data, VCAP_IS2_ACT_POLICE_ENA, 1);
+		vcap_action_set(ocelot, data, VCAP_IS2_ACT_POLICE_IDX,
+				ace->pol_ix);
+		vcap_action_set(ocelot, data, VCAP_IS2_ACT_CPU_QU_NUM, 0);
+		vcap_action_set(ocelot, data, VCAP_IS2_ACT_CPU_COPY_ENA, 0);
 		break;
 	}
 }
@@ -611,7 +621,7 @@ static void is2_entry_set(struct ocelot *ocelot, int ix,
 	}
 
 	vcap_key_set(ocelot, &data, VCAP_IS2_TYPE, type, type_mask);
-	is2_action_set(ocelot, &data, ace->action);
+	is2_action_set(ocelot, &data, ace);
 	vcap_data_set(data.counter, data.counter_offset,
 		      vcap_is2->counter_width, ace->stats.pkts);
 
@@ -639,11 +649,18 @@ static void is2_entry_get(struct ocelot *ocelot, struct ocelot_ace_rule *rule,
 	rule->stats.pkts = cnt;
 }
 
-static void ocelot_ace_rule_add(struct ocelot_acl_block *block,
+static void ocelot_ace_rule_add(struct ocelot *ocelot,
+				struct ocelot_acl_block *block,
 				struct ocelot_ace_rule *rule)
 {
 	struct ocelot_ace_rule *tmp;
 	struct list_head *pos, *n;
+
+	if (rule->action == OCELOT_ACL_ACTION_POLICE) {
+		block->pol_lpr--;
+		rule->pol_ix = block->pol_lpr;
+		ocelot_ace_policer_add(ocelot, rule->pol_ix, &rule->pol);
+	}
 
 	block->count++;
 
@@ -697,7 +714,7 @@ int ocelot_ace_rule_offload_add(struct ocelot *ocelot,
 	int i, index;
 
 	/* Add rule to the linked list */
-	ocelot_ace_rule_add(block, rule);
+	ocelot_ace_rule_add(ocelot, block, rule);
 
 	/* Get the index of the inserted rule */
 	index = ocelot_ace_rule_get_index_id(block, rule);
@@ -713,7 +730,33 @@ int ocelot_ace_rule_offload_add(struct ocelot *ocelot,
 	return 0;
 }
 
-static void ocelot_ace_rule_del(struct ocelot_acl_block *block,
+static void ocelot_ace_police_del(struct ocelot *ocelot,
+				  struct ocelot_acl_block *block,
+				  u32 ix)
+{
+	struct ocelot_ace_rule *ace;
+	int index = -1;
+
+	if (ix < block->pol_lpr)
+		return;
+
+	list_for_each_entry(ace, &block->rules, list) {
+		index++;
+		if (ace->action == OCELOT_ACL_ACTION_POLICE &&
+		    ace->pol_ix < ix) {
+			ace->pol_ix += 1;
+			ocelot_ace_policer_add(ocelot, ace->pol_ix,
+					       &ace->pol);
+			is2_entry_set(ocelot, index, ace);
+		}
+	}
+
+	ocelot_ace_policer_del(ocelot, block->pol_lpr);
+	block->pol_lpr++;
+}
+
+static void ocelot_ace_rule_del(struct ocelot *ocelot,
+				struct ocelot_acl_block *block,
 				struct ocelot_ace_rule *rule)
 {
 	struct ocelot_ace_rule *tmp;
@@ -722,6 +765,10 @@ static void ocelot_ace_rule_del(struct ocelot_acl_block *block,
 	list_for_each_safe(pos, q, &block->rules) {
 		tmp = list_entry(pos, struct ocelot_ace_rule, list);
 		if (tmp->id == rule->id) {
+			if (tmp->action == OCELOT_ACL_ACTION_POLICE)
+				ocelot_ace_police_del(ocelot, block,
+						      tmp->pol_ix);
+
 			list_del(pos);
 			kfree(tmp);
 		}
@@ -744,7 +791,7 @@ int ocelot_ace_rule_offload_del(struct ocelot *ocelot,
 	index = ocelot_ace_rule_get_index_id(block, rule);
 
 	/* Delete rule */
-	ocelot_ace_rule_del(block, rule);
+	ocelot_ace_rule_del(ocelot, block, rule);
 
 	/* Move up all the blocks over the deleted rule */
 	for (i = index; i < block->count; i++) {
@@ -779,6 +826,7 @@ int ocelot_ace_rule_stats_update(struct ocelot *ocelot,
 int ocelot_ace_init(struct ocelot *ocelot)
 {
 	const struct vcap_props *vcap_is2 = &ocelot->vcap[VCAP_IS2];
+	struct ocelot_acl_block *block = &ocelot->acl_block;
 	struct vcap_data data;
 
 	memset(&data, 0, sizeof(data));
@@ -806,6 +854,8 @@ int ocelot_ace_init(struct ocelot *ocelot)
 			 OCELOT_POLICER_DISCARD);
 	ocelot_write_gix(ocelot, 0x3fffff, ANA_POL_CIR_STATE,
 			 OCELOT_POLICER_DISCARD);
+
+	block->pol_lpr = OCELOT_POLICER_DISCARD - 1;
 
 	INIT_LIST_HEAD(&ocelot->acl_block.rules);
 

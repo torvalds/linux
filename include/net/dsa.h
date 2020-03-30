@@ -130,15 +130,22 @@ struct dsa_switch_tree {
 	struct list_head rtable;
 };
 
-/* TC matchall action types, only mirroring for now */
+/* TC matchall action types */
 enum dsa_port_mall_action_type {
 	DSA_PORT_MALL_MIRROR,
+	DSA_PORT_MALL_POLICER,
 };
 
 /* TC mirroring entry */
 struct dsa_mall_mirror_tc_entry {
 	u8 to_local_port;
 	bool ingress;
+};
+
+/* TC port policer entry */
+struct dsa_mall_policer_tc_entry {
+	s64 burst;
+	u64 rate_bytes_per_sec;
 };
 
 /* TC matchall entry */
@@ -148,6 +155,7 @@ struct dsa_mall_tc_entry {
 	enum dsa_port_mall_action_type type;
 	union {
 		struct dsa_mall_mirror_tc_entry mirror;
+		struct dsa_mall_policer_tc_entry policer;
 	};
 };
 
@@ -557,6 +565,9 @@ struct dsa_switch_ops {
 				   bool ingress);
 	void	(*port_mirror_del)(struct dsa_switch *ds, int port,
 				   struct dsa_mall_mirror_tc_entry *mirror);
+	int	(*port_policer_add)(struct dsa_switch *ds, int port,
+				    struct dsa_mall_policer_tc_entry *policer);
+	void	(*port_policer_del)(struct dsa_switch *ds, int port);
 	int	(*port_setup_tc)(struct dsa_switch *ds, int port,
 				 enum tc_setup_type type, void *type_data);
 
