@@ -537,29 +537,37 @@ static int __maybe_unused intel_eth_pci_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(intel_eth_pm_ops, intel_eth_pci_suspend,
 			 intel_eth_pci_resume);
 
-#define PCI_DEVICE_ID_INTEL_QUARK_ID		0x0937
-#define PCI_DEVICE_ID_INTEL_EHL_RGMII1G_ID	0x4b30
-#define PCI_DEVICE_ID_INTEL_EHL_SGMII1G_ID	0x4b31
+#define PCI_DEVICE_ID_INTEL_QUARK_ID			0x0937
+#define PCI_DEVICE_ID_INTEL_EHL_RGMII1G_ID		0x4b30
+#define PCI_DEVICE_ID_INTEL_EHL_SGMII1G_ID		0x4b31
+#define PCI_DEVICE_ID_INTEL_EHL_SGMII2G5_ID		0x4b32
 /* Intel(R) Programmable Services Engine (Intel(R) PSE) consist of 2 MAC
  * which are named PSE0 and PSE1
  */
-#define PCI_DEVICE_ID_INTEL_EHL_PSE0_RGMII1G_ID	0x4ba0
-#define PCI_DEVICE_ID_INTEL_EHL_PSE0_SGMII1G_ID	0x4ba1
-#define PCI_DEVICE_ID_INTEL_EHL_PSE1_RGMII1G_ID	0x4bb0
-#define PCI_DEVICE_ID_INTEL_EHL_PSE1_SGMII1G_ID	0x4bb1
-#define PCI_DEVICE_ID_INTEL_TGL_SGMII1G_ID	0xa0ac
+#define PCI_DEVICE_ID_INTEL_EHL_PSE0_RGMII1G_ID		0x4ba0
+#define PCI_DEVICE_ID_INTEL_EHL_PSE0_SGMII1G_ID		0x4ba1
+#define PCI_DEVICE_ID_INTEL_EHL_PSE0_SGMII2G5_ID	0x4ba2
+#define PCI_DEVICE_ID_INTEL_EHL_PSE1_RGMII1G_ID		0x4bb0
+#define PCI_DEVICE_ID_INTEL_EHL_PSE1_SGMII1G_ID		0x4bb1
+#define PCI_DEVICE_ID_INTEL_EHL_PSE1_SGMII2G5_ID	0x4bb2
+#define PCI_DEVICE_ID_INTEL_TGL_SGMII1G_ID		0xa0ac
 
 static const struct pci_device_id intel_eth_pci_id_table[] = {
 	{ PCI_DEVICE_DATA(INTEL, QUARK_ID, &quark_pci_info) },
 	{ PCI_DEVICE_DATA(INTEL, EHL_RGMII1G_ID, &ehl_rgmii1g_pci_info) },
 	{ PCI_DEVICE_DATA(INTEL, EHL_SGMII1G_ID, &ehl_sgmii1g_pci_info) },
+	{ PCI_DEVICE_DATA(INTEL, EHL_SGMII2G5_ID, &ehl_sgmii1g_pci_info) },
 	{ PCI_DEVICE_DATA(INTEL, EHL_PSE0_RGMII1G_ID,
 			  &ehl_pse0_rgmii1g_pci_info) },
 	{ PCI_DEVICE_DATA(INTEL, EHL_PSE0_SGMII1G_ID,
 			  &ehl_pse0_sgmii1g_pci_info) },
+	{ PCI_DEVICE_DATA(INTEL, EHL_PSE0_SGMII2G5_ID,
+			  &ehl_pse0_sgmii1g_pci_info) },
 	{ PCI_DEVICE_DATA(INTEL, EHL_PSE1_RGMII1G_ID,
 			  &ehl_pse1_rgmii1g_pci_info) },
 	{ PCI_DEVICE_DATA(INTEL, EHL_PSE1_SGMII1G_ID,
+			  &ehl_pse1_sgmii1g_pci_info) },
+	{ PCI_DEVICE_DATA(INTEL, EHL_PSE1_SGMII2G5_ID,
 			  &ehl_pse1_sgmii1g_pci_info) },
 	{ PCI_DEVICE_DATA(INTEL, TGL_SGMII1G_ID, &tgl_sgmii1g_pci_info) },
 	{}
