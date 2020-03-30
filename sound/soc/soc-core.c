@@ -490,6 +490,8 @@ static struct snd_soc_pcm_runtime *soc_new_pcm_runtime(
 	 */
 	rtd->cpu_dais	= &rtd->dais[0];
 	rtd->codec_dais	= &rtd->dais[dai_link->num_cpus];
+	rtd->num_cpus	= dai_link->num_cpus;
+	rtd->num_codecs	= dai_link->num_codecs;
 
 	/*
 	 * rtd remaining settings
@@ -989,7 +991,6 @@ int snd_soc_add_pcm_runtime(struct snd_soc_card *card,
 	if (!rtd)
 		return -ENOMEM;
 
-	rtd->num_cpus = dai_link->num_cpus;
 	for_each_link_cpus(dai_link, i, cpu) {
 		asoc_rtd_to_cpu(rtd, i) = snd_soc_find_dai(cpu);
 		if (!asoc_rtd_to_cpu(rtd, i)) {
@@ -1004,7 +1005,6 @@ int snd_soc_add_pcm_runtime(struct snd_soc_card *card,
 	rtd->cpu_dai = rtd->cpu_dais[0];
 
 	/* Find CODEC from registered CODECs */
-	rtd->num_codecs = dai_link->num_codecs;
 	for_each_link_codecs(dai_link, i, codec) {
 		asoc_rtd_to_codec(rtd, i) = snd_soc_find_dai(codec);
 		if (!asoc_rtd_to_codec(rtd, i)) {
