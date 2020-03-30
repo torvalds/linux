@@ -692,6 +692,7 @@
 		reg = <0xff450000 0x1000>;
 		interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
+		#size-cells = <0>;
 		clocks = <&pmucru CLK_SPI0>, <&pmucru PCLK_SPI0>;
 		clock-names = "spiclk", "apb_pclk";
 		dmas = <&dmac 1>, <&dmac 0>;
@@ -1015,6 +1016,7 @@
 		reg = <0xff5b0000 0x1000>;
 		interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
+		#size-cells = <0>;
 		clocks = <&cru CLK_SPI1>, <&cru PCLK_SPI1>;
 		clock-names = "spiclk", "apb_pclk";
 		dmas = <&dmac 3>, <&dmac 2>;
