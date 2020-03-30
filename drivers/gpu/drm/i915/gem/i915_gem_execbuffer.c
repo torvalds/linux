@@ -2316,7 +2316,7 @@ static void eb_request_add(struct i915_execbuffer *eb)
 	prev = __i915_request_commit(rq);
 
 	/* Check that the context wasn't destroyed before submission */
-	if (likely(rcu_access_pointer(eb->context->gem_context))) {
+	if (likely(!intel_context_is_closed(eb->context))) {
 		attr = eb->gem_context->sched;
 
 		/*

@@ -603,6 +603,7 @@ void intel_rc6_unpark(struct intel_rc6 *rc6)
 void intel_rc6_park(struct intel_rc6 *rc6)
 {
 	struct intel_uncore *uncore = rc6_to_uncore(rc6);
+	unsigned int target;
 
 	if (!rc6->enabled)
 		return;
@@ -617,7 +618,14 @@ void intel_rc6_park(struct intel_rc6 *rc6)
 
 	/* Turn off the HW timers and go directly to rc6 */
 	set(uncore, GEN6_RC_CONTROL, GEN6_RC_CTL_RC6_ENABLE);
-	set(uncore, GEN6_RC_STATE, 0x4 << RC_SW_TARGET_STATE_SHIFT);
+
+	if (HAS_RC6pp(rc6_to_i915(rc6)))
+		target = 0x6; /* deepest rc6 */
+	else if (HAS_RC6p(rc6_to_i915(rc6)))
+		target = 0x5; /* deep rc6 */
+	else
+		target = 0x4; /* normal rc6 */
+	set(uncore, GEN6_RC_STATE, target << RC_SW_TARGET_STATE_SHIFT);
 }
 
 void intel_rc6_disable(struct intel_rc6 *rc6)
