@@ -8,7 +8,9 @@
 
 #include <linux/leds.h>
 
-#define QUERY_MAX_AVAIL_CURRENT		BIT(0)
+#define ENABLE_REGULATOR		BIT(0)
+#define DISABLE_REGULATOR		BIT(1)
+#define QUERY_MAX_AVAIL_CURRENT		BIT(2)
 
 /**
  * struct flash_led_param: QTI flash LED parameter data
