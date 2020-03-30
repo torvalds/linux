@@ -6248,7 +6248,7 @@ F:	drivers/video/fbdev/s1d13xxxfb.c
 F:	include/video/s1d13xxxfb.h
 
 EROFS FILE SYSTEM
-M:	Gao Xiang <gaoxiang25@huawei.com>
+M:	Gao Xiang <xiang@kernel.org>
 M:	Chao Yu <yuchao0@huawei.com>
 L:	linux-erofs@lists.ozlabs.org
 S:	Maintained
