@@ -92,6 +92,9 @@ void amdgpu_pm_acpi_event_handler(struct amdgpu_device *adev)
 		if (adev->powerplay.pp_funcs->enable_bapm)
 			amdgpu_dpm_enable_bapm(adev, adev->pm.ac_power);
 		mutex_unlock(&adev->pm.mutex);
+
+		if (is_support_sw_smu(adev))
+			smu_set_ac_dc(&adev->smu);
 	}
 }
 

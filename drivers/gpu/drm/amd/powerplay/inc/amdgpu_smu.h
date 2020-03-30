@@ -408,6 +408,7 @@ struct smu_context
 	uint32_t smc_if_version;
 
 	bool uploading_custom_pp_table;
+	bool dc_controlled_by_gpio;
 };
 
 struct i2c_adapter;
@@ -570,6 +571,7 @@ struct pptable_funcs {
 	int (*override_pcie_parameters)(struct smu_context *smu);
 	uint32_t (*get_pptable_power_limit)(struct smu_context *smu);
 	int (*disable_umc_cdr_12gbps_workaround)(struct smu_context *smu);
+	int (*set_power_source)(struct smu_context *smu, enum smu_power_src_type power_src);
 };
 
 int smu_load_microcode(struct smu_context *smu);
@@ -718,6 +720,7 @@ int smu_get_dpm_level_range(struct smu_context *smu, enum smu_clk_type clk_type,
 enum amd_dpm_forced_level smu_get_performance_level(struct smu_context *smu);
 int smu_force_performance_level(struct smu_context *smu, enum amd_dpm_forced_level level);
 int smu_set_display_count(struct smu_context *smu, uint32_t count);
+int smu_set_ac_dc(struct smu_context *smu);
 bool smu_clk_dpm_is_enabled(struct smu_context *smu, enum smu_clk_type clk_type);
 const char *smu_get_message_name(struct smu_context *smu, enum smu_message_type type);
 const char *smu_get_feature_name(struct smu_context *smu, enum smu_feature_mask feature);
