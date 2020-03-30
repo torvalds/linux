@@ -1454,8 +1454,7 @@ static void __prep_cap(struct cap_msg_args *arg, struct ceph_cap *cap,
  *
  * Caller should hold snap_rwsem (read), s_mutex.
  */
-static void __send_cap(struct ceph_mds_client *mdsc, struct cap_msg_args *arg,
-		       struct ceph_inode_info *ci)
+static void __send_cap(struct cap_msg_args *arg, struct ceph_inode_info *ci)
 {
 	struct inode *inode = &ci->vfs_inode;
 	int ret;
@@ -1467,7 +1466,7 @@ static void __send_cap(struct ceph_mds_client *mdsc, struct cap_msg_args *arg,
 		       ceph_vinop(inode), ceph_cap_string(arg->dirty),
 		       arg->flush_tid);
 		spin_lock(&ci->i_ceph_lock);
-		__cap_delay_requeue(mdsc, ci);
+		__cap_delay_requeue(arg->session->s_mdsc, ci);
 		spin_unlock(&ci->i_ceph_lock);
 	}
 
@@ -2147,7 +2146,7 @@ ack:
 			   want, retain, flushing, flush_tid, oldest_flush_tid);
 		spin_unlock(&ci->i_ceph_lock);
 
-		__send_cap(mdsc, &arg, ci);
+		__send_cap(&arg, ci);
 
 		goto retry; /* retake i_ceph_lock and restart our cap scan. */
 	}
@@ -2221,7 +2220,7 @@ retry_locked:
 			   flushing, flush_tid, oldest_flush_tid);
 		spin_unlock(&ci->i_ceph_lock);
 
-		__send_cap(mdsc, &arg, ci);
+		__send_cap(&arg, ci);
 	} else {
 		if (!list_empty(&ci->i_cap_flush_list)) {
 			struct ceph_cap_flush *cf =
@@ -2435,7 +2434,7 @@ static void __kick_flushing_caps(struct ceph_mds_client *mdsc,
 					  (cap->issued | cap->implemented),
 					  cf->caps, cf->tid, oldest_flush_tid);
 			spin_unlock(&ci->i_ceph_lock);
-			__send_cap(mdsc, &arg, ci);
+			__send_cap(&arg, ci);
 		} else {
 			struct ceph_cap_snap *capsnap =
 					container_of(cf, struct ceph_cap_snap,
