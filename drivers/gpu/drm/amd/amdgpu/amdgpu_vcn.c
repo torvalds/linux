@@ -182,6 +182,14 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 				return r;
 			}
 		}
+
+		r = amdgpu_bo_create_kernel(adev, AMDGPU_GPU_PAGE_ALIGN(sizeof(struct amdgpu_fw_shared)),
+				PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM, &adev->vcn.inst[i].fw_shared_bo,
+				&adev->vcn.inst[i].fw_shared_gpu_addr, &adev->vcn.inst[i].fw_shared_cpu_addr);
+		if (r) {
+			dev_err(adev->dev, "VCN %d (%d) failed to allocate fimware shared bo\n", i, r);
+			return r;
+		}
 	}
 
 	return 0;
@@ -196,6 +204,11 @@ int amdgpu_vcn_sw_fini(struct amdgpu_device *adev)
 	for (j = 0; j < adev->vcn.num_vcn_inst; ++j) {
 		if (adev->vcn.harvest_config & (1 << j))
 			continue;
+
+		amdgpu_bo_free_kernel(&adev->vcn.inst[j].fw_shared_bo,
+					  &adev->vcn.inst[j].fw_shared_gpu_addr,
+					  (void **)&adev->vcn.inst[j].fw_shared_cpu_addr);
+
 		if (adev->vcn.indirect_sram) {
 			amdgpu_bo_free_kernel(&adev->vcn.inst[j].dpg_sram_bo,
 						  &adev->vcn.inst[j].dpg_sram_gpu_addr,
