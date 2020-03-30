@@ -385,8 +385,13 @@ parallelism. This is a typical spin lock implementation:
       spin_unlock:
           mov [my_lock], 0
 
-   **bts** - bit test and set; it copies the src bit from the dts
-   memory address to the carry flag and then sets it
+   **bts dts, src** - bit test and set; it copies the src bit from the dts
+   memory address to the carry flag and then sets it:
+
+   .. code-block:: c
+
+      CF <- dts[src]
+      dts[src] <- 1
 
 
 As it can be seen, the spin lock uses an atomic instruction to make
