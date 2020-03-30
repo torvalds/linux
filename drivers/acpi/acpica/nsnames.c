@@ -164,7 +164,7 @@ acpi_ns_handle_to_pathname(acpi_handle target_handle,
 	/* Build the path in the caller buffer */
 
 	(void)acpi_ns_build_normalized_path(node, buffer->pointer,
-					    required_size, no_trailing);
+					    (u32)required_size, no_trailing);
 
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "%s [%X]\n",
 			  (char *)buffer->pointer, (u32) required_size));
@@ -315,7 +315,7 @@ char *acpi_ns_get_normalized_pathname(struct acpi_namespace_node *node,
 
 	/* Build the path in the allocated buffer */
 
-	(void)acpi_ns_build_normalized_path(node, name_buffer, size,
+	(void)acpi_ns_build_normalized_path(node, name_buffer, (u32)size,
 					    no_trailing);
 
 	ACPI_DEBUG_PRINT_RAW((ACPI_DB_NAMES, "%s: Path \"%s\"\n",
@@ -346,7 +346,7 @@ char *acpi_ns_build_prefixed_pathname(union acpi_generic_state *prefix_scope,
 	char *full_path = NULL;
 	char *external_path = NULL;
 	char *prefix_path = NULL;
-	u32 prefix_path_length = 0;
+	acpi_size prefix_path_length = 0;
 
 	/* If there is a prefix, get the pathname to it */
 
