@@ -215,6 +215,9 @@ static int nsim_dev_debugfs_init(struct nsim_dev *nsim_dev)
 			    &nsim_dev->fail_reload);
 	debugfs_create_file("trap_flow_action_cookie", 0600, nsim_dev->ddir,
 			    nsim_dev, &nsim_dev_trap_fa_cookie_fops);
+	debugfs_create_bool("fail_trap_group_set", 0600,
+			    nsim_dev->ddir,
+			    &nsim_dev->fail_trap_group_set);
 	debugfs_create_bool("fail_trap_policer_set", 0600,
 			    nsim_dev->ddir,
 			    &nsim_dev->fail_trap_policer_set);
@@ -814,6 +817,19 @@ nsim_dev_devlink_trap_action_set(struct devlink *devlink,
 }
 
 static int
+nsim_dev_devlink_trap_group_set(struct devlink *devlink,
+				const struct devlink_trap_group *group,
+				const struct devlink_trap_policer *policer)
+{
+	struct nsim_dev *nsim_dev = devlink_priv(devlink);
+
+	if (nsim_dev->fail_trap_group_set)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int
 nsim_dev_devlink_trap_policer_set(struct devlink *devlink,
 				  const struct devlink_trap_policer *policer,
 				  u64 rate, u64 burst,
@@ -854,6 +870,7 @@ static const struct devlink_ops nsim_dev_devlink_ops = {
 	.flash_update = nsim_dev_flash_update,
 	.trap_init = nsim_dev_devlink_trap_init,
 	.trap_action_set = nsim_dev_devlink_trap_action_set,
+	.trap_group_set = nsim_dev_devlink_trap_group_set,
 	.trap_policer_set = nsim_dev_devlink_trap_policer_set,
 	.trap_policer_counter_get = nsim_dev_devlink_trap_policer_counter_get,
 };
