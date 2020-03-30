@@ -1728,6 +1728,12 @@ int b53_br_join(struct dsa_switch *ds, int port, struct net_device *br)
 	u16 pvlan, reg;
 	unsigned int i;
 
+	/* On 7278, port 7 which connects to the ASP should only receive
+	 * traffic from matching CFP rules.
+	 */
+	if (dev->chip_id == BCM7278_DEVICE_ID && port == 7)
+		return -EINVAL;
+
 	/* Make this port leave the all VLANs join since we will have proper
 	 * VLAN entries from now on
 	 */
