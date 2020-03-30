@@ -55,8 +55,8 @@ nouveau_abi16(struct drm_file *file_priv)
 			 * device (ie. the one that belongs to the fd it
 			 * opened)
 			 */
-			if (nvif_device_init(&cli->base.object, 0, NV_DEVICE,
-					     &args, sizeof(args),
+			if (nvif_device_ctor(&cli->base.object, "abi16Device",
+					     0, NV_DEVICE, &args, sizeof(args),
 					     &abi16->device) == 0)
 				return cli->abi16;
 
@@ -167,7 +167,7 @@ nouveau_abi16_fini(struct nouveau_abi16 *abi16)
 	}
 
 	/* destroy the device object */
-	nvif_device_fini(&abi16->device);
+	nvif_device_dtor(&abi16->device);
 
 	kfree(cli->abi16);
 	cli->abi16 = NULL;
