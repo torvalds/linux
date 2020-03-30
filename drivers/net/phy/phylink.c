@@ -2184,7 +2184,8 @@ EXPORT_SYMBOL_GPL(phylink_mii_c22_pcs_get_state);
  * phylink_mii_c22_pcs_set_advertisement() - configure the clause 37 PCS
  *	advertisement
  * @pcs: a pointer to a &struct mdio_device.
- * @state: a pointer to the state being configured.
+ * @interface: the PHY interface mode being configured
+ * @advertising: the ethtool advertisement mask
  *
  * Helper for MAC PCS supporting the 802.3 clause 22 register set for
  * clause 37 negotiation and/or SGMII control.
@@ -2197,22 +2198,23 @@ EXPORT_SYMBOL_GPL(phylink_mii_c22_pcs_get_state);
  * zero if no change has been made, or one if the advertisement has changed.
  */
 int phylink_mii_c22_pcs_set_advertisement(struct mdio_device *pcs,
-					const struct phylink_link_state *state)
+					  phy_interface_t interface,
+					  const unsigned long *advertising)
 {
 	struct mii_bus *bus = pcs->bus;
 	int addr = pcs->addr;
 	int val, ret;
 	u16 adv;
 
-	switch (state->interface) {
+	switch (interface) {
 	case PHY_INTERFACE_MODE_1000BASEX:
 	case PHY_INTERFACE_MODE_2500BASEX:
 		adv = ADVERTISE_1000XFULL;
 		if (linkmode_test_bit(ETHTOOL_LINK_MODE_Pause_BIT,
-				      state->advertising))
+				      advertising))
 			adv |= ADVERTISE_1000XPAUSE;
 		if (linkmode_test_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT,
-				      state->advertising))
+				      advertising))
 			adv |= ADVERTISE_1000XPSE_ASYM;
 
 		val = mdiobus_read(bus, addr, MII_ADVERTISE);
