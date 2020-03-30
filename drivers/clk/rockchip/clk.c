@@ -488,7 +488,8 @@ void __init rockchip_clk_register_branches(
 					list->parent_names, list->num_parents,
 					flags,
 					ctx->reg_base + list->muxdiv_offset,
-					list->mux_shift, list->mux_width,
+					list->mux_shift,
+					BIT(list->mux_width) - 1,
 					list->mux_flags, list->mux_table,
 					&ctx->lock);
 			else
