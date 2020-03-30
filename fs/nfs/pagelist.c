@@ -33,9 +33,7 @@ static const struct rpc_call_ops nfs_pgio_common_ops;
 struct nfs_pgio_mirror *
 nfs_pgio_current_mirror(struct nfs_pageio_descriptor *desc)
 {
-	return nfs_pgio_has_mirroring(desc) ?
-		&desc->pg_mirrors[desc->pg_mirror_idx] :
-		&desc->pg_mirrors[0];
+	return &desc->pg_mirrors[desc->pg_mirror_idx];
 }
 EXPORT_SYMBOL_GPL(nfs_pgio_current_mirror);
 
@@ -1231,8 +1229,7 @@ static void nfs_pageio_complete_mirror(struct nfs_pageio_descriptor *desc,
 	struct nfs_pgio_mirror *mirror = &desc->pg_mirrors[mirror_idx];
 	u32 restore_idx = desc->pg_mirror_idx;
 
-	if (nfs_pgio_has_mirroring(desc))
-		desc->pg_mirror_idx = mirror_idx;
+	desc->pg_mirror_idx = mirror_idx;
 	for (;;) {
 		nfs_pageio_doio(desc);
 		if (desc->pg_error < 0 || !mirror->pg_recoalesce)

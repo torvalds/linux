@@ -274,12 +274,6 @@ void nfs_free_request(struct nfs_page *req);
 struct nfs_pgio_mirror *
 nfs_pgio_current_mirror(struct nfs_pageio_descriptor *desc);
 
-static inline bool nfs_pgio_has_mirroring(struct nfs_pageio_descriptor *desc)
-{
-	WARN_ON_ONCE(desc->pg_mirror_count < 1);
-	return desc->pg_mirror_count > 1;
-}
-
 static inline bool nfs_match_open_context(const struct nfs_open_context *ctx1,
 		const struct nfs_open_context *ctx2)
 {
