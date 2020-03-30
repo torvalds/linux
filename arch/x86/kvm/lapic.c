@@ -1445,6 +1445,8 @@ static void limit_periodic_timer_frequency(struct kvm_lapic *apic)
 	}
 }
 
+static void cancel_hv_timer(struct kvm_lapic *apic);
+
 static void apic_update_lvtt(struct kvm_lapic *apic)
 {
 	u32 timer_mode = kvm_lapic_get_reg(apic, APIC_LVTT) &
@@ -1454,6 +1456,10 @@ static void apic_update_lvtt(struct kvm_lapic *apic)
 		if (apic_lvtt_tscdeadline(apic) != (timer_mode ==
 				APIC_LVT_TIMER_TSCDEADLINE)) {
 			hrtimer_cancel(&apic->lapic_timer.timer);
+			preempt_disable();
+			if (apic->lapic_timer.hv_timer_in_use)
+				cancel_hv_timer(apic);
+			preempt_enable();
 			kvm_lapic_set_reg(apic, APIC_TMICT, 0);
 			apic->lapic_timer.period = 0;
 			apic->lapic_timer.tscdeadline = 0;
@@ -1715,7 +1721,7 @@ static void start_sw_period(struct kvm_lapic *apic)
 
 	hrtimer_start(&apic->lapic_timer.timer,
 		apic->lapic_timer.target_expiration,
-		HRTIMER_MODE_ABS);
+		HRTIMER_MODE_ABS_HARD);
 }
 
 bool kvm_lapic_hv_timer_in_use(struct kvm_vcpu *vcpu)

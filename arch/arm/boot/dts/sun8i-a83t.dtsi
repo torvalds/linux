@@ -1006,10 +1006,10 @@
 			reg = <0x01c30000 0x104>;
 			interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "macirq";
-			resets = <&ccu CLK_BUS_EMAC>;
-			reset-names = "stmmaceth";
-			clocks = <&ccu RST_BUS_EMAC>;
+			clocks = <&ccu CLK_BUS_EMAC>;
 			clock-names = "stmmaceth";
+			resets = <&ccu RST_BUS_EMAC>;
+			reset-names = "stmmaceth";
 			status = "disabled";
 
 			mdio: mdio {
