@@ -5,7 +5,6 @@
 /*
  * User space memory access functions
  */
-#include <linux/mm.h>
 #include <linux/string.h>
 
 #include <asm/segment.h>
