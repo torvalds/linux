@@ -370,14 +370,24 @@ struct flow_stats {
 	u64	pkts;
 	u64	bytes;
 	u64	lastused;
+	enum flow_action_hw_stats used_hw_stats;
+	bool used_hw_stats_valid;
 };
 
 static inline void flow_stats_update(struct flow_stats *flow_stats,
-				     u64 bytes, u64 pkts, u64 lastused)
+				     u64 bytes, u64 pkts, u64 lastused,
+				     enum flow_action_hw_stats used_hw_stats)
 {
 	flow_stats->pkts	+= pkts;
 	flow_stats->bytes	+= bytes;
 	flow_stats->lastused	= max_t(u64, flow_stats->lastused, lastused);
+
+	/* The driver should pass value with a maximum of one bit set.
+	 * Passing FLOW_ACTION_HW_STATS_ANY is invalid.
+	 */
+	WARN_ON(used_hw_stats == FLOW_ACTION_HW_STATS_ANY);
+	flow_stats->used_hw_stats |= used_hw_stats;
+	flow_stats->used_hw_stats_valid = true;
 }
 
 enum flow_block_command {

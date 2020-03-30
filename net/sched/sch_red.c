@@ -349,10 +349,6 @@ static int red_dump_offload_stats(struct Qdisc *sch)
 static int red_dump(struct Qdisc *sch, struct sk_buff *skb)
 {
 	struct red_sched_data *q = qdisc_priv(sch);
-	struct nla_bitfield32 flags_bf = {
-		.selector = red_supported_flags,
-		.value = q->flags,
-	};
 	struct nlattr *opts = NULL;
 	struct tc_red_qopt opt = {
 		.limit		= q->limit,
@@ -375,7 +371,8 @@ static int red_dump(struct Qdisc *sch, struct sk_buff *skb)
 		goto nla_put_failure;
 	if (nla_put(skb, TCA_RED_PARMS, sizeof(opt), &opt) ||
 	    nla_put_u32(skb, TCA_RED_MAX_P, q->parms.max_P) ||
-	    nla_put(skb, TCA_RED_FLAGS, sizeof(flags_bf), &flags_bf))
+	    nla_put_bitfield32(skb, TCA_RED_FLAGS,
+			       q->flags, red_supported_flags))
 		goto nla_put_failure;
 	return nla_nest_end(skb, opts);
 

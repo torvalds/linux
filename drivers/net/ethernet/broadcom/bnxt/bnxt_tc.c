@@ -1639,7 +1639,7 @@ static int bnxt_tc_get_flow_stats(struct bnxt *bp,
 	spin_unlock(&flow->stats_lock);
 
 	flow_stats_update(&tc_flow_cmd->stats, stats.bytes, stats.packets,
-			  lastused);
+			  lastused, FLOW_ACTION_HW_STATS_DELAYED);
 	return 0;
 }
 
