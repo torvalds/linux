@@ -1053,7 +1053,7 @@ For this purpose we can use barriers to order memory operations:
    * A write barrier (:c:func:`wmb()`, :c:func:`smp_wmb()`) is used to
      make sure that no write operation crosses the barrier
 
-   * A simple barrier (:c:func:`wmb()`, :c:func:`smp_wmb()`) is used
+   * A simple barrier (:c:func:`mb()`, :c:func:`smp_mb()`) is used
      to make sure that no write or read operation crosses the barrier
 
 
