@@ -409,21 +409,7 @@ snapshot_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	switch (cmd) {
 	case SNAPSHOT_GET_IMAGE_SIZE:
 	case SNAPSHOT_AVAIL_SWAP_SIZE:
-	case SNAPSHOT_ALLOC_SWAP_PAGE: {
-		compat_loff_t __user *uoffset = compat_ptr(arg);
-		loff_t offset;
-		mm_segment_t old_fs;
-		int err;
-
-		old_fs = get_fs();
-		set_fs(KERNEL_DS);
-		err = snapshot_ioctl(file, cmd, (unsigned long) &offset);
-		set_fs(old_fs);
-		if (!err && put_user(offset, uoffset))
-			err = -EFAULT;
-		return err;
-	}
-
+	case SNAPSHOT_ALLOC_SWAP_PAGE:
 	case SNAPSHOT_CREATE_IMAGE:
 		return snapshot_ioctl(file, cmd,
 				      (unsigned long) compat_ptr(arg));
