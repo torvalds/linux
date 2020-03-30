@@ -5,7 +5,7 @@ CC=clang
 LD=ld.lld
 NM=llvm-nm
 OBJCOPY=llvm-objcopy
-CLANG_PREBUILT_BIN=prebuilts-master/clang/host/linux-x86/clang-r377782b/bin
+CLANG_PREBUILT_BIN=prebuilts-master/clang/host/linux-x86/clang-r377782c/bin
 
 EXTRA_CMDS=''
 STOP_SHIP_TRACEPRINTK=1
