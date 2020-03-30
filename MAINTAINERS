@@ -17218,6 +17218,12 @@ S:	Maintained
 F:	Documentation/usb/acm.rst
 F:	drivers/usb/class/cdc-acm.*
 
+USB APPLE MFI FASTCHARGE DRIVER
+M:	Bastien Nocera <hadess@hadess.net>
+L:	linux-usb@vger.kernel.org
+S:	Maintained
+F:	drivers/usb/misc/apple-mfi-fastcharge.c
+
 USB AR5523 WIRELESS DRIVER
 M:	Pontus Fuchs <pontus.fuchs@gmail.com>
 L:	linux-wireless@vger.kernel.org

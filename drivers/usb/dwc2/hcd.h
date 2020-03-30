@@ -199,7 +199,7 @@ struct dwc2_hcd_urb {
 	u32 flags;
 	u16 interval;
 	struct dwc2_hcd_pipe_info pipe_info;
-	struct dwc2_hcd_iso_packet_desc iso_descs[0];
+	struct dwc2_hcd_iso_packet_desc iso_descs[];
 };
 
 /* Phases for control transfers */
