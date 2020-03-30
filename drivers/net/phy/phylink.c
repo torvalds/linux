@@ -41,6 +41,7 @@ struct phylink {
 	/* private: */
 	struct net_device *netdev;
 	const struct phylink_mac_ops *mac_ops;
+	const struct phylink_pcs_ops *pcs_ops;
 	struct phylink_config *config;
 	struct device *dev;
 	unsigned int old_link_state:1;
@@ -425,11 +426,32 @@ static void phylink_mac_config_up(struct phylink *pl,
 		phylink_mac_config(pl, state);
 }
 
-static void phylink_mac_an_restart(struct phylink *pl)
+static void phylink_mac_pcs_an_restart(struct phylink *pl)
 {
 	if (pl->link_config.an_enabled &&
-	    phy_interface_mode_is_8023z(pl->link_config.interface))
-		pl->mac_ops->mac_an_restart(pl->config);
+	    phy_interface_mode_is_8023z(pl->link_config.interface)) {
+		if (pl->pcs_ops)
+			pl->pcs_ops->pcs_an_restart(pl->config);
+		else
+			pl->mac_ops->mac_an_restart(pl->config);
+	}
+}
+
+static void phylink_pcs_config(struct phylink *pl, bool force_restart,
+			       const struct phylink_link_state *state)
+{
+	bool restart = force_restart;
+
+	if (pl->pcs_ops && pl->pcs_ops->pcs_config(pl->config,
+						   pl->cur_link_an_mode,
+						   state->interface,
+						   state->advertising))
+		restart = true;
+
+	phylink_mac_config(pl, state);
+
+	if (restart)
+		phylink_mac_pcs_an_restart(pl);
 }
 
 static void phylink_mac_pcs_get_state(struct phylink *pl,
@@ -445,7 +467,10 @@ static void phylink_mac_pcs_get_state(struct phylink *pl,
 	state->an_complete = 0;
 	state->link = 1;
 
-	pl->mac_ops->mac_pcs_get_state(pl->config, state);
+	if (pl->pcs_ops)
+		pl->pcs_ops->pcs_get_state(pl->config, state);
+	else
+		pl->mac_ops->mac_pcs_get_state(pl->config, state);
 }
 
 /* The fixed state is... fixed except for the link state,
@@ -463,7 +488,7 @@ static void phylink_get_fixed_state(struct phylink *pl,
 	phylink_resolve_flow(state);
 }
 
-static void phylink_mac_initial_config(struct phylink *pl)
+static void phylink_mac_initial_config(struct phylink *pl, bool force_restart)
 {
 	struct phylink_link_state link_state;
 
@@ -489,7 +514,7 @@ static void phylink_mac_initial_config(struct phylink *pl)
 	link_state.link = false;
 
 	phylink_apply_manual_flow(pl, &link_state);
-	phylink_mac_config(pl, &link_state);
+	phylink_pcs_config(pl, force_restart, &link_state);
 }
 
 static const char *phylink_pause_to_str(int pause)
@@ -506,12 +531,18 @@ static const char *phylink_pause_to_str(int pause)
 	}
 }
 
-static void phylink_mac_link_up(struct phylink *pl,
-				struct phylink_link_state link_state)
+static void phylink_link_up(struct phylink *pl,
+			    struct phylink_link_state link_state)
 {
 	struct net_device *ndev = pl->netdev;
 
 	pl->cur_interface = link_state.interface;
+
+	if (pl->pcs_ops && pl->pcs_ops->pcs_link_up)
+		pl->pcs_ops->pcs_link_up(pl->config, pl->cur_link_an_mode,
+					 pl->cur_interface,
+					 link_state.speed, link_state.duplex);
+
 	pl->mac_ops->mac_link_up(pl->config, pl->phydev,
 				 pl->cur_link_an_mode, pl->cur_interface,
 				 link_state.speed, link_state.duplex,
@@ -528,7 +559,7 @@ static void phylink_mac_link_up(struct phylink *pl,
 		     phylink_pause_to_str(link_state.pause));
 }
 
-static void phylink_mac_link_down(struct phylink *pl)
+static void phylink_link_down(struct phylink *pl)
 {
 	struct net_device *ndev = pl->netdev;
 
@@ -597,9 +628,9 @@ static void phylink_resolve(struct work_struct *w)
 	if (link_changed) {
 		pl->old_link_state = link_state.link;
 		if (!link_state.link)
-			phylink_mac_link_down(pl);
+			phylink_link_down(pl);
 		else
-			phylink_mac_link_up(pl, link_state);
+			phylink_link_up(pl, link_state);
 	}
 	if (!link_state.link && pl->mac_link_dropped) {
 		pl->mac_link_dropped = false;
@@ -745,6 +776,12 @@ struct phylink *phylink_create(struct phylink_config *config,
 	return pl;
 }
 EXPORT_SYMBOL_GPL(phylink_create);
+
+void phylink_add_pcs(struct phylink *pl, const struct phylink_pcs_ops *ops)
+{
+	pl->pcs_ops = ops;
+}
+EXPORT_SYMBOL_GPL(phylink_add_pcs);
 
 /**
  * phylink_destroy() - cleanup and destroy the phylink instance
@@ -1082,14 +1119,12 @@ void phylink_start(struct phylink *pl)
 	/* Apply the link configuration to the MAC when starting. This allows
 	 * a fixed-link to start with the correct parameters, and also
 	 * ensures that we set the appropriate advertisement for Serdes links.
-	 */
-	phylink_mac_initial_config(pl);
-
-	/* Restart autonegotiation if using 802.3z to ensure that the link
+	 *
+	 * Restart autonegotiation if using 802.3z to ensure that the link
 	 * parameters are properly negotiated.  This is necessary for DSA
 	 * switches using 802.3z negotiation to ensure they see our modes.
 	 */
-	phylink_mac_an_restart(pl);
+	phylink_mac_initial_config(pl, true);
 
 	clear_bit(PHYLINK_DISABLE_STOPPED, &pl->phylink_disable_state);
 	phylink_run_resolve(pl);
@@ -1386,8 +1421,7 @@ int phylink_ethtool_ksettings_set(struct phylink *pl,
 			 * advertisement; the only thing we have is the pause
 			 * modes which can only come from a PHY.
 			 */
-			phylink_mac_config(pl, &pl->link_config);
-			phylink_mac_an_restart(pl);
+			phylink_pcs_config(pl, true, &pl->link_config);
 		}
 		mutex_unlock(&pl->state_mutex);
 	}
@@ -1415,7 +1449,7 @@ int phylink_ethtool_nway_reset(struct phylink *pl)
 
 	if (pl->phydev)
 		ret = phy_restart_aneg(pl->phydev);
-	phylink_mac_an_restart(pl);
+	phylink_mac_pcs_an_restart(pl);
 
 	return ret;
 }
@@ -1494,8 +1528,7 @@ int phylink_ethtool_set_pauseparam(struct phylink *pl,
 				   pause->tx_pause);
 	} else if (!test_bit(PHYLINK_DISABLE_STOPPED,
 			     &pl->phylink_disable_state)) {
-		phylink_mac_config(pl, &pl->link_config);
-		phylink_mac_an_restart(pl);
+		phylink_pcs_config(pl, true, &pl->link_config);
 	}
 	mutex_unlock(&pl->state_mutex);
 
@@ -1901,7 +1934,7 @@ static int phylink_sfp_config(struct phylink *pl, u8 mode,
 
 	if (changed && !test_bit(PHYLINK_DISABLE_STOPPED,
 				 &pl->phylink_disable_state))
-		phylink_mac_initial_config(pl);
+		phylink_mac_initial_config(pl, false);
 
 	return ret;
 }
