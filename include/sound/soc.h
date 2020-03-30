@@ -1143,14 +1143,16 @@ struct snd_soc_pcm_runtime {
 	/* runtime devices */
 	struct snd_pcm *pcm;
 	struct snd_compr *compr;
-	struct snd_soc_dai *codec_dai;
-	struct snd_soc_dai *cpu_dai;
+
+	/*
+	 * dais = cpu_dai + codec_dai
+	 * see
+	 *	soc_new_pcm_runtime()
+	 *	asoc_rtd_to_cpu()
+	 *	asoc_rtd_to_codec()
+	 */
 	struct snd_soc_dai **dais;
-
-	struct snd_soc_dai **codec_dais;
 	unsigned int num_codecs;
-
-	struct snd_soc_dai **cpu_dais;
 	unsigned int num_cpus;
 
 	struct delayed_work delayed_work;

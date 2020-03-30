@@ -487,9 +487,10 @@ static struct snd_soc_pcm_runtime *soc_new_pcm_runtime(
 	 * dais = [][][][][][][][][][][][][][][][][][]
 	 *	  ^cpu_dais         ^codec_dais
 	 *	  |--- num_cpus ---|--- num_codecs --|
+	 * see
+	 *	asoc_rtd_to_cpu()
+	 *	asoc_rtd_to_codec()
 	 */
-	rtd->cpu_dais	= &rtd->dais[0];
-	rtd->codec_dais	= &rtd->dais[dai_link->num_cpus];
 	rtd->num_cpus	= dai_link->num_cpus;
 	rtd->num_codecs	= dai_link->num_codecs;
 	rtd->card	= card;
@@ -996,9 +997,6 @@ int snd_soc_add_pcm_runtime(struct snd_soc_card *card,
 		snd_soc_rtd_add_component(rtd, asoc_rtd_to_cpu(rtd, i)->component);
 	}
 
-	/* Single cpu links expect cpu and cpu_dai in runtime data */
-	rtd->cpu_dai = rtd->cpu_dais[0];
-
 	/* Find CODEC from registered CODECs */
 	for_each_link_codecs(dai_link, i, codec) {
 		asoc_rtd_to_codec(rtd, i) = snd_soc_find_dai(codec);
@@ -1010,9 +1008,6 @@ int snd_soc_add_pcm_runtime(struct snd_soc_card *card,
 
 		snd_soc_rtd_add_component(rtd, asoc_rtd_to_codec(rtd, i)->component);
 	}
-
-	/* Single codec links expect codec and codec_dai in runtime data */
-	rtd->codec_dai = rtd->codec_dais[0];
 
 	/* Find PLATFORM from registered PLATFORMs */
 	for_each_link_platforms(dai_link, i, platform) {
