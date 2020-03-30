@@ -261,6 +261,7 @@ static int bcm_sf2_cfp_act_pol_set(struct bcm_sf2_priv *priv,
 static void bcm_sf2_cfp_slice_ipv4(struct bcm_sf2_priv *priv,
 				   struct flow_dissector_key_ipv4_addrs *addrs,
 				   struct flow_dissector_key_ports *ports,
+				   const __be16 vlan_tci,
 				   unsigned int slice_num, u8 num_udf,
 				   bool mask)
 {
@@ -270,16 +271,17 @@ static void bcm_sf2_cfp_slice_ipv4(struct bcm_sf2_priv *priv,
 	 * S-Tag		[23:8]
 	 * C-Tag		[7:0]
 	 */
+	reg = udf_lower_bits(num_udf) << 24 | be16_to_cpu(vlan_tci) >> 8;
 	if (mask)
-		core_writel(priv, udf_lower_bits(num_udf) << 24, CORE_CFP_MASK_PORT(5));
+		core_writel(priv, reg, CORE_CFP_MASK_PORT(5));
 	else
-		core_writel(priv, udf_lower_bits(num_udf) << 24, CORE_CFP_DATA_PORT(5));
+		core_writel(priv, reg, CORE_CFP_DATA_PORT(5));
 
 	/* C-Tag		[31:24]
 	 * UDF_n_A8		[23:8]
 	 * UDF_n_A7		[7:0]
 	 */
-	reg = 0;
+	reg = (u32)(be16_to_cpu(vlan_tci) & 0xff) << 24;
 	if (mask)
 		offset = CORE_CFP_MASK_PORT(4);
 	else
@@ -345,6 +347,7 @@ static int bcm_sf2_cfp_ipv4_rule_set(struct bcm_sf2_priv *priv, int port,
 				     struct ethtool_rx_flow_spec *fs)
 {
 	struct ethtool_rx_flow_spec_input input = {};
+	__be16 vlan_tci = 0 , vlan_m_tci = 0xffff;
 	const struct cfp_udf_layout *layout;
 	unsigned int slice_num, rule_index;
 	struct ethtool_rx_flow_rule *flow;
@@ -368,6 +371,12 @@ static int bcm_sf2_cfp_ipv4_rule_set(struct bcm_sf2_priv *priv, int port,
 	}
 
 	ip_frag = !!(be32_to_cpu(fs->h_ext.data[0]) & 1);
+
+	/* Extract VLAN TCI */
+	if (fs->flow_type & FLOW_EXT) {
+		vlan_tci = fs->h_ext.vlan_tci;
+		vlan_m_tci = fs->m_ext.vlan_tci;
+	}
 
 	/* Locate the first rule available */
 	if (fs->location == RX_CLS_LOC_ANY)
@@ -431,10 +440,10 @@ static int bcm_sf2_cfp_ipv4_rule_set(struct bcm_sf2_priv *priv, int port,
 		    udf_upper_bits(num_udf), CORE_CFP_MASK_PORT(6));
 
 	/* Program the match and the mask */
-	bcm_sf2_cfp_slice_ipv4(priv, ipv4.key, ports.key, slice_num,
-			       num_udf, false);
-	bcm_sf2_cfp_slice_ipv4(priv, ipv4.mask, ports.mask, SLICE_NUM_MASK,
-			       num_udf, true);
+	bcm_sf2_cfp_slice_ipv4(priv, ipv4.key, ports.key, vlan_tci,
+			       slice_num, num_udf, false);
+	bcm_sf2_cfp_slice_ipv4(priv, ipv4.mask, ports.mask, vlan_m_tci,
+			       SLICE_NUM_MASK, num_udf, true);
 
 	/* Insert into TCAM now */
 	bcm_sf2_cfp_rule_addr_set(priv, rule_index);
@@ -470,6 +479,7 @@ out_err_flow_rule:
 
 static void bcm_sf2_cfp_slice_ipv6(struct bcm_sf2_priv *priv,
 				   const __be32 *ip6_addr, const __be16 port,
+				   const __be16 vlan_tci,
 				   unsigned int slice_num, u32 udf_bits,
 				   bool mask)
 {
@@ -479,10 +489,11 @@ static void bcm_sf2_cfp_slice_ipv6(struct bcm_sf2_priv *priv,
 	 * S-Tag		[23:8]
 	 * C-Tag		[7:0]
 	 */
+	reg = udf_bits << 24 | be16_to_cpu(vlan_tci) >> 8;
 	if (mask)
-		core_writel(priv, udf_bits << 24, CORE_CFP_MASK_PORT(5));
+		core_writel(priv, reg, CORE_CFP_MASK_PORT(5));
 	else
-		core_writel(priv, udf_bits << 24, CORE_CFP_DATA_PORT(5));
+		core_writel(priv, reg, CORE_CFP_DATA_PORT(5));
 
 	/* C-Tag		[31:24]
 	 * UDF_n_B8		[23:8]	(port)
@@ -490,6 +501,7 @@ static void bcm_sf2_cfp_slice_ipv6(struct bcm_sf2_priv *priv,
 	 */
 	reg = be32_to_cpu(ip6_addr[3]);
 	val = (u32)be16_to_cpu(port) << 8 | ((reg >> 8) & 0xff);
+	val |= (u32)(be16_to_cpu(vlan_tci) & 0xff) << 24;
 	if (mask)
 		offset = CORE_CFP_MASK_PORT(4);
 	else
@@ -598,6 +610,11 @@ static int bcm_sf2_cfp_rule_cmp(struct bcm_sf2_priv *priv, int port,
 
 		ret = memcmp(&rule->fs.h_u, &fs->h_u, fs_size);
 		ret |= memcmp(&rule->fs.m_u, &fs->m_u, fs_size);
+		/* Compare VLAN TCI values as well */
+		if (rule->fs.flow_type & FLOW_EXT) {
+			ret |= rule->fs.h_ext.vlan_tci != fs->h_ext.vlan_tci;
+			ret |= rule->fs.m_ext.vlan_tci != fs->m_ext.vlan_tci;
+		}
 		if (ret == 0)
 			break;
 	}
@@ -611,6 +628,7 @@ static int bcm_sf2_cfp_ipv6_rule_set(struct bcm_sf2_priv *priv, int port,
 				     struct ethtool_rx_flow_spec *fs)
 {
 	struct ethtool_rx_flow_spec_input input = {};
+	__be16 vlan_tci = 0, vlan_m_tci = 0xffff;
 	unsigned int slice_num, rule_index[2];
 	const struct cfp_udf_layout *layout;
 	struct ethtool_rx_flow_rule *flow;
@@ -633,6 +651,12 @@ static int bcm_sf2_cfp_ipv6_rule_set(struct bcm_sf2_priv *priv, int port,
 	}
 
 	ip_frag = !!(be32_to_cpu(fs->h_ext.data[0]) & 1);
+
+	/* Extract VLAN TCI */
+	if (fs->flow_type & FLOW_EXT) {
+		vlan_tci = fs->h_ext.vlan_tci;
+		vlan_m_tci = fs->m_ext.vlan_tci;
+	}
 
 	layout = &udf_tcpip6_layout;
 	slice_num = bcm_sf2_get_slice_number(layout, 0);
@@ -717,10 +741,10 @@ static int bcm_sf2_cfp_ipv6_rule_set(struct bcm_sf2_priv *priv, int port,
 
 	/* Slice the IPv6 source address and port */
 	bcm_sf2_cfp_slice_ipv6(priv, ipv6.key->src.in6_u.u6_addr32,
-			       ports.key->src, slice_num,
+			       ports.key->src, vlan_tci, slice_num,
 			       udf_lower_bits(num_udf), false);
 	bcm_sf2_cfp_slice_ipv6(priv, ipv6.mask->src.in6_u.u6_addr32,
-			       ports.mask->src, SLICE_NUM_MASK,
+			       ports.mask->src, vlan_m_tci, SLICE_NUM_MASK,
 			       udf_lower_bits(num_udf), true);
 
 	/* Insert into TCAM now because we need to insert a second rule */
@@ -773,10 +797,10 @@ static int bcm_sf2_cfp_ipv6_rule_set(struct bcm_sf2_priv *priv, int port,
 	core_writel(priv, reg, CORE_CFP_MASK_PORT(6));
 
 	bcm_sf2_cfp_slice_ipv6(priv, ipv6.key->dst.in6_u.u6_addr32,
-			       ports.key->dst, slice_num,
+			       ports.key->dst, 0, slice_num,
 			       0, false);
 	bcm_sf2_cfp_slice_ipv6(priv, ipv6.mask->dst.in6_u.u6_addr32,
-			       ports.key->dst, SLICE_NUM_MASK,
+			       ports.key->dst, 0, SLICE_NUM_MASK,
 			       0, true);
 
 	/* Insert into TCAM now */
@@ -878,8 +902,7 @@ static int bcm_sf2_cfp_rule_set(struct dsa_switch *ds, int port,
 	int ret = -EINVAL;
 
 	/* Check for unsupported extensions */
-	if ((fs->flow_type & FLOW_EXT) ||
-	    (fs->flow_type & FLOW_MAC_EXT) ||
+	if ((fs->flow_type & FLOW_MAC_EXT) ||
 	    fs->m_ext.data[1])
 		return -EINVAL;
 
