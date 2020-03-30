@@ -161,10 +161,10 @@ static int rockchip_can_set_bittiming(struct net_device *ndev)
 	struct can_bittiming *bt = &rcan->can.bittiming;
 	u32 cfg;
 
-	cfg = (((bt->sjw - 1) & BT_SJW_MASK) << BT_SJW_SHIFT) |
+	cfg = ((bt->sjw - 1) << BT_SJW_SHIFT) |
 	      (((bt->brp >> 1) - 1) << BT_BRP_SHIFT) |
-	      (((bt->phase_seg2 - 1) & BT_TSEG2_MASK) << BT_TSEG2_SHIFT) |
-	      (((bt->prop_seg + bt->phase_seg1 - 1) & BT_TSEG1_MASK));
+	      ((bt->phase_seg2 - 1) << BT_TSEG2_SHIFT) |
+	      ((bt->prop_seg + bt->phase_seg1 - 1));
 	if (rcan->can.ctrlmode & CAN_CTRLMODE_3_SAMPLES)
 		cfg |= MODE_3_SAMPLES;
 
