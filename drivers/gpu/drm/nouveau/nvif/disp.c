@@ -31,7 +31,8 @@ nvif_disp_dtor(struct nvif_disp *disp)
 }
 
 int
-nvif_disp_ctor(struct nvif_device *device, s32 oclass, struct nvif_disp *disp)
+nvif_disp_ctor(struct nvif_device *device, const char *name, s32 oclass,
+	       struct nvif_disp *disp)
 {
 	static const struct nvif_mclass disps[] = {
 		{ TU102_DISP, -1 },
@@ -56,6 +57,6 @@ nvif_disp_ctor(struct nvif_device *device, s32 oclass, struct nvif_disp *disp)
 	if (cid < 0)
 		return cid;
 
-	return nvif_object_ctor(&device->object, "nvifDisp", 0,
+	return nvif_object_ctor(&device->object, name ? name : "nvifDisp", 0,
 				disps[cid].oclass, NULL, 0, &disp->object);
 }
