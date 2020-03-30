@@ -5,7 +5,7 @@
 #include <linux/mlx5/mlx5_ifc.h>
 #include <linux/mlx5/fs.h>
 
-#include "eswitch_offloads_chains.h"
+#include "esw/chains.h"
 #include "en/mapping.h"
 #include "mlx5_core.h"
 #include "fs_core.h"

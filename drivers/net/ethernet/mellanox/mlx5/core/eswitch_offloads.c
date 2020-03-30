@@ -37,7 +37,7 @@
 #include <linux/mlx5/fs.h>
 #include "mlx5_core.h"
 #include "eswitch.h"
-#include "eswitch_offloads_chains.h"
+#include "esw/chains.h"
 #include "rdma.h"
 #include "en.h"
 #include "fs_core.h"

@@ -51,7 +51,7 @@
 #include "en_rep.h"
 #include "en_tc.h"
 #include "eswitch.h"
-#include "eswitch_offloads_chains.h"
+#include "esw/chains.h"
 #include "fs_core.h"
 #include "en/port.h"
 #include "en/tc_tun.h"

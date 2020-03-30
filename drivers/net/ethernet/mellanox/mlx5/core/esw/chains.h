@@ -4,6 +4,8 @@
 #ifndef __ML5_ESW_CHAINS_H__
 #define __ML5_ESW_CHAINS_H__
 
+#include "eswitch.h"
+
 bool
 mlx5_esw_chains_prios_supported(struct mlx5_eswitch *esw);
 bool

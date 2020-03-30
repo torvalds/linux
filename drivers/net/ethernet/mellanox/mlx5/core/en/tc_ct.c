@@ -13,11 +13,11 @@
 #include <net/netfilter/nf_flow_table.h>
 #include <linux/workqueue.h>
 
+#include "esw/chains.h"
 #include "en/tc_ct.h"
 #include "en.h"
 #include "en_tc.h"
 #include "en_rep.h"
-#include "eswitch_offloads_chains.h"
 
 #define MLX5_CT_ZONE_BITS (mlx5e_tc_attr_to_reg_mappings[ZONE_TO_REG].mlen * 8)
 #define MLX5_CT_ZONE_MASK GENMASK(MLX5_CT_ZONE_BITS - 1, 0)
