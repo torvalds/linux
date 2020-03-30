@@ -15,6 +15,7 @@
 #include "f2fs.h"
 #include "segment.h"
 #include "gc.h"
+#include <trace/events/f2fs.h>
 
 static struct proc_dir_entry *f2fs_proc_root;
 
@@ -379,6 +380,15 @@ out:
 		return count;
 	}
 
+	if (!strcmp(a->attr.name, "iostat_period_ms")) {
+		if (t < MIN_IOSTAT_PERIOD_MS || t > MAX_IOSTAT_PERIOD_MS)
+			return -EINVAL;
+		spin_lock(&sbi->iostat_lock);
+		sbi->iostat_period_ms = (unsigned int)t;
+		spin_unlock(&sbi->iostat_lock);
+		return count;
+	}
+
 	*ui = (unsigned int)t;
 
 	return count;
@@ -535,6 +545,7 @@ F2FS_RW_ATTR(F2FS_SBI, f2fs_sb_info, gc_idle_interval, interval_time[GC_TIME]);
 F2FS_RW_ATTR(F2FS_SBI, f2fs_sb_info,
 		umount_discard_timeout, interval_time[UMOUNT_DISCARD_TIMEOUT]);
 F2FS_RW_ATTR(F2FS_SBI, f2fs_sb_info, iostat_enable, iostat_enable);
+F2FS_RW_ATTR(F2FS_SBI, f2fs_sb_info, iostat_period_ms, iostat_period_ms);
 F2FS_RW_ATTR(F2FS_SBI, f2fs_sb_info, readdir_ra, readdir_ra);
 F2FS_RW_ATTR(F2FS_SBI, f2fs_sb_info, gc_pin_file_thresh, gc_pin_file_threshold);
 F2FS_RW_ATTR(F2FS_SBI, f2fs_super_block, extension_list, extension_list);
@@ -615,6 +626,7 @@ static struct attribute *f2fs_attrs[] = {
 	ATTR_LIST(gc_idle_interval),
 	ATTR_LIST(umount_discard_timeout),
 	ATTR_LIST(iostat_enable),
+	ATTR_LIST(iostat_period_ms),
 	ATTR_LIST(readdir_ra),
 	ATTR_LIST(gc_pin_file_thresh),
 	ATTR_LIST(extension_list),
@@ -747,6 +759,33 @@ static int __maybe_unused segment_bits_seq_show(struct seq_file *seq,
 		seq_putc(seq, '\n');
 	}
 	return 0;
+}
+
+void f2fs_record_iostat(struct f2fs_sb_info *sbi)
+{
+	unsigned long long iostat_diff[NR_IO_TYPE];
+	int i;
+
+	if (time_is_after_jiffies(sbi->iostat_next_period))
+		return;
+
+	/* Need double check under the lock */
+	spin_lock(&sbi->iostat_lock);
+	if (time_is_after_jiffies(sbi->iostat_next_period)) {
+		spin_unlock(&sbi->iostat_lock);
+		return;
+	}
+	sbi->iostat_next_period = jiffies +
+				msecs_to_jiffies(sbi->iostat_period_ms);
+
+	for (i = 0; i < NR_IO_TYPE; i++) {
+		iostat_diff[i] = sbi->write_iostat[i] -
+				sbi->prev_write_iostat[i];
+		sbi->prev_write_iostat[i] = sbi->write_iostat[i];
+	}
+	spin_unlock(&sbi->iostat_lock);
+
+	trace_f2fs_iostat(sbi, iostat_diff);
 }
 
 static int __maybe_unused iostat_info_seq_show(struct seq_file *seq,
