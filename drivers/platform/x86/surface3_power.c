@@ -402,12 +402,14 @@ mshw0011_space_handler(u32 function, acpi_physical_address command,
 
 	if (gsb->cmd.arg0 == MSHW0011_CMD_DEST_ADP1 &&
 	    gsb->cmd.arg1 == MSHW0011_CMD_ADP1_PSR) {
-		ret = mshw0011_adp_psr(cdata);
-		if (ret >= 0) {
-			status = ret;
-			ret = 0;
+		status = mshw0011_adp_psr(cdata);
+		if (status >= 0) {
+			ret = AE_OK;
+			goto out;
+		} else {
+			ret = AE_ERROR;
+			goto err;
 		}
-		goto out;
 	}
 
 	if (gsb->cmd.arg0 != MSHW0011_CMD_DEST_BAT0) {
