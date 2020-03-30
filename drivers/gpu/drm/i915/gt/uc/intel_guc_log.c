@@ -687,7 +687,7 @@ stringify_guc_log_type(enum guc_log_buffer_type type)
 
 /**
  * intel_guc_log_info - dump information about GuC log relay
- * @guc: the GuC
+ * @log: the GuC log
  * @p: the &drm_printer
  *
  * Pretty printer for GuC log info

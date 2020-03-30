@@ -193,9 +193,6 @@ static void __uc_fw_user_override(struct intel_uc_fw *uc_fw)
  * intel_uc_fw_init_early - initialize the uC object and select the firmware
  * @uc_fw: uC firmware
  * @type: type of uC
- * @supported: is uC support possible
- * @platform: platform identifier
- * @rev: hardware revision
  *
  * Initialize the state of our uC object and relevant tracking and select the
  * firmware to fetch and load.
