@@ -665,7 +665,8 @@ reduce power consumption.
 
 A similar implementation with support for fairness (the CPU cores are
 allowed in the critical section based on the time of arrival) is used
-in the Linux kernel (the ticket spin lock) for many architectures.
+in the Linux kernel (the `ticket spin lock <https://lwn.net/Articles/267968/>`_)
+for many architectures.
 
 However, for the x86 architecture, the current spin lock
 implementation uses a queued spin lock where the CPU cores spin on
