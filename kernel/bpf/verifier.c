@@ -4335,6 +4335,7 @@ static void do_refine_retval_range(struct bpf_reg_state *regs, int ret_type,
 		return;
 
 	ret_reg->smax_value = meta->msize_max_value;
+	ret_reg->s32_max_value = meta->msize_max_value;
 	__reg_deduce_bounds(ret_reg);
 	__reg_bound_offset(ret_reg);
 	__update_reg_bounds(ret_reg);
