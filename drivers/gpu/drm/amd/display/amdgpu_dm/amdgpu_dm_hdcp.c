@@ -266,7 +266,7 @@ static void event_callback(struct work_struct *work)
 
 	mutex_lock(&hdcp_work->mutex);
 
-	cancel_delayed_work(&hdcp_work->watchdog_timer_dwork);
+	cancel_delayed_work(&hdcp_work->callback_dwork);
 
 	mod_hdcp_process_event(&hdcp_work->hdcp, MOD_HDCP_EVENT_CALLBACK,
 			       &hdcp_work->output);
@@ -346,6 +346,8 @@ static void event_watchdog_timer(struct work_struct *work)
 				      watchdog_timer_dwork);
 
 	mutex_lock(&hdcp_work->mutex);
+
+	cancel_delayed_work(&hdcp_work->watchdog_timer_dwork);
 
 	mod_hdcp_process_event(&hdcp_work->hdcp,
 			       MOD_HDCP_EVENT_WATCHDOG_TIMEOUT,
