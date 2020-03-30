@@ -1869,7 +1869,7 @@ static void cacheflush(void)
 		catch_memory_errors = 1;
 		sync();
 
-		if (cmd != 'i') {
+		if (cmd != 'i' || IS_ENABLED(CONFIG_PPC_BOOK3S_64)) {
 			for (; nflush > 0; --nflush, adrs += L1_CACHE_BYTES)
 				cflush((void *) adrs);
 		} else {
