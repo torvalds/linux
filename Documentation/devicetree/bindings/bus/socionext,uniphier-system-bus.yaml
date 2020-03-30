@@ -72,7 +72,7 @@ examples:
     // - the UART device is connected at the offset 0x00200000 of CS5 and
     //   mapped to 0x46200000 of the parent bus.
 
-    system-bus {
+    system-bus@58c00000 {
         compatible = "socionext,uniphier-system-bus";
         reg = <0x58c00000 0x400>;
         #address-cells = <2>;
