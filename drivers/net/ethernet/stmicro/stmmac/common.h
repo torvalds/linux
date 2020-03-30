@@ -471,6 +471,8 @@ struct mac_device_info {
 	unsigned int pmt;
 	unsigned int ps;
 	unsigned int xlgmac;
+	unsigned int num_vlan;
+	u32 vlan_filter[32];
 };
 
 struct stmmac_rx_routing {
