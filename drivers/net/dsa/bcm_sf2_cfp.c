@@ -878,8 +878,9 @@ static int bcm_sf2_cfp_rule_set(struct dsa_switch *ds, int port,
 	int ret = -EINVAL;
 
 	/* Check for unsupported extensions */
-	if ((fs->flow_type & FLOW_EXT) && (fs->m_ext.vlan_etype ||
-	     fs->m_ext.data[1]))
+	if ((fs->flow_type & FLOW_EXT) ||
+	    (fs->flow_type & FLOW_MAC_EXT) ||
+	    fs->m_ext.data[1])
 		return -EINVAL;
 
 	if (fs->location != RX_CLS_LOC_ANY &&
