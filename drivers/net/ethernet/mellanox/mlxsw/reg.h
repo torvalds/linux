@@ -3296,6 +3296,12 @@ MLXSW_ITEM32(reg, qpcr, g, 0x00, 14, 2);
  */
 MLXSW_ITEM32(reg, qpcr, pid, 0x00, 0, 14);
 
+/* reg_qpcr_clear_counter
+ * Clear counters.
+ * Access: OP
+ */
+MLXSW_ITEM32(reg, qpcr, clear_counter, 0x04, 31, 1);
+
 /* reg_qpcr_color_aware
  * Is the policer aware of colors.
  * Must be 0 (unaware) for cpu port.
@@ -3392,6 +3398,17 @@ enum mlxsw_reg_qpcr_action {
  * Access: RW for unbounded policer. RO for bounded policer.
  */
 MLXSW_ITEM32(reg, qpcr, violate_action, 0x18, 0, 4);
+
+/* reg_qpcr_violate_count
+ * Counts the number of times violate_action happened on this PID.
+ * Access: RW
+ */
+MLXSW_ITEM64(reg, qpcr, violate_count, 0x20, 0, 64);
+
+#define MLXSW_REG_QPCR_LOWEST_CIR	1
+#define MLXSW_REG_QPCR_HIGHEST_CIR	(2 * 1000 * 1000 * 1000) /* 2Gpps */
+#define MLXSW_REG_QPCR_LOWEST_CBS	4
+#define MLXSW_REG_QPCR_HIGHEST_CBS	24
 
 static inline void mlxsw_reg_qpcr_pack(char *payload, u16 pid,
 				       enum mlxsw_reg_qpcr_ir_units ir_units,
