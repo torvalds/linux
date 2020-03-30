@@ -1360,7 +1360,7 @@ intel_dp_aux_xfer(struct intel_dp *intel_dp,
 	 * lowest possible wakeup latency and so prevent the cpu from going into
 	 * deep sleep states.
 	 */
-	pm_qos_update_request(&i915->pm_qos, 0);
+	cpu_latency_qos_update_request(&i915->pm_qos, 0);
 
 	intel_dp_check_edp(intel_dp);
 
@@ -1488,7 +1488,7 @@ done:
 
 	ret = recv_bytes;
 out:
-	pm_qos_update_request(&i915->pm_qos, PM_QOS_DEFAULT_VALUE);
+	cpu_latency_qos_update_request(&i915->pm_qos, PM_QOS_DEFAULT_VALUE);
 
 	if (vdd)
 		edp_panel_vdd_off(intel_dp, false);

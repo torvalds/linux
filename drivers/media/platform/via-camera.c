@@ -646,7 +646,7 @@ static int viacam_vb2_start_streaming(struct vb2_queue *vq, unsigned int count)
 	 * requirement which will keep the CPU out of the deeper sleep
 	 * states.
 	 */
-	pm_qos_add_request(&cam->qos_request, PM_QOS_CPU_DMA_LATENCY, 50);
+	cpu_latency_qos_add_request(&cam->qos_request, 50);
 	viacam_start_engine(cam);
 	return 0;
 out:
@@ -662,7 +662,7 @@ static void viacam_vb2_stop_streaming(struct vb2_queue *vq)
 	struct via_camera *cam = vb2_get_drv_priv(vq);
 	struct via_buffer *buf, *tmp;
 
-	pm_qos_remove_request(&cam->qos_request);
+	cpu_latency_qos_remove_request(&cam->qos_request);
 	viacam_stop_engine(cam);
 
 	list_for_each_entry_safe(buf, tmp, &cam->buffer_queue, queue) {
