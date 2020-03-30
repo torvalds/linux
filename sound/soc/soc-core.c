@@ -492,17 +492,12 @@ static struct snd_soc_pcm_runtime *soc_new_pcm_runtime(
 	rtd->codec_dais	= &rtd->dais[dai_link->num_cpus];
 	rtd->num_cpus	= dai_link->num_cpus;
 	rtd->num_codecs	= dai_link->num_codecs;
-
-	/*
-	 * rtd remaining settings
-	 */
-	rtd->card = card;
-	rtd->dai_link = dai_link;
+	rtd->card	= card;
+	rtd->dai_link	= dai_link;
+	rtd->num	= card->num_rtd++;
 
 	/* see for_each_card_rtds */
 	list_add_tail(&rtd->list, &card->rtd_list);
-	rtd->num = card->num_rtd;
-	card->num_rtd++;
 
 	return rtd;
 
