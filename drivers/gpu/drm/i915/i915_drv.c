@@ -505,8 +505,7 @@ static int i915_driver_early_probe(struct drm_i915_private *dev_priv)
 	mutex_init(&dev_priv->backlight_lock);
 
 	mutex_init(&dev_priv->sb_lock);
-	pm_qos_add_request(&dev_priv->sb_qos,
-			   PM_QOS_CPU_DMA_LATENCY, PM_QOS_DEFAULT_VALUE);
+	cpu_latency_qos_add_request(&dev_priv->sb_qos, PM_QOS_DEFAULT_VALUE);
 
 	mutex_init(&dev_priv->av_mutex);
 	mutex_init(&dev_priv->wm.wm_mutex);
@@ -571,7 +570,7 @@ static void i915_driver_late_release(struct drm_i915_private *dev_priv)
 	vlv_free_s0ix_state(dev_priv);
 	i915_workqueues_cleanup(dev_priv);
 
-	pm_qos_remove_request(&dev_priv->sb_qos);
+	cpu_latency_qos_remove_request(&dev_priv->sb_qos);
 	mutex_destroy(&dev_priv->sb_lock);
 }
 
@@ -1229,8 +1228,7 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 		}
 	}
 
-	pm_qos_add_request(&dev_priv->pm_qos, PM_QOS_CPU_DMA_LATENCY,
-			   PM_QOS_DEFAULT_VALUE);
+	cpu_latency_qos_add_request(&dev_priv->pm_qos, PM_QOS_DEFAULT_VALUE);
 
 	intel_gt_init_workarounds(dev_priv);
 
@@ -1276,7 +1274,7 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 err_msi:
 	if (pdev->msi_enabled)
 		pci_disable_msi(pdev);
-	pm_qos_remove_request(&dev_priv->pm_qos);
+	cpu_latency_qos_remove_request(&dev_priv->pm_qos);
 err_mem_regions:
 	intel_memory_regions_driver_release(dev_priv);
 err_ggtt:
@@ -1299,7 +1297,7 @@ static void i915_driver_hw_remove(struct drm_i915_private *dev_priv)
 	if (pdev->msi_enabled)
 		pci_disable_msi(pdev);
 
-	pm_qos_remove_request(&dev_priv->pm_qos);
+	cpu_latency_qos_remove_request(&dev_priv->pm_qos);
 }
 
 /**
