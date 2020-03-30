@@ -910,14 +910,6 @@ static int __init parse_memmap_one(char *p)
 		return -EINVAL;
 
 	if (!strncmp(p, "exactmap", 8)) {
-#ifdef CONFIG_CRASH_DUMP
-		/*
-		 * If we are doing a crash dump, we still need to know
-		 * the real memory size before the original memory map is
-		 * reset.
-		 */
-		saved_max_pfn = e820__end_of_ram_pfn();
-#endif
 		e820_table->nr_entries = 0;
 		userdef = 1;
 		return 0;

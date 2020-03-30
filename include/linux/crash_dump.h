@@ -97,8 +97,6 @@ extern void unregister_oldmem_pfn_is_ram(void);
 static inline bool is_kdump_kernel(void) { return 0; }
 #endif /* CONFIG_CRASH_DUMP */
 
-extern unsigned long saved_max_pfn;
-
 /* Device Dump information to be filled by drivers */
 struct vmcoredd_data {
 	char dump_name[VMCOREDD_MAX_NAME_BYTES]; /* Unique name of the dump */
