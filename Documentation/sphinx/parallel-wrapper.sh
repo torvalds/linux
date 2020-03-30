@@ -30,4 +30,4 @@ if [ -n "$parallel" ] ; then
 	parallel="-j$parallel"
 fi
 
-exec "$sphinx" "$parallel" "$@"
+exec "$sphinx" $parallel "$@"

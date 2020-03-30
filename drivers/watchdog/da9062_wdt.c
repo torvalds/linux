@@ -16,6 +16,7 @@
 #include <linux/jiffies.h>
 #include <linux/mfd/da9062/registers.h>
 #include <linux/mfd/da9062/core.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/of.h>
 
@@ -31,6 +32,7 @@ static const unsigned int wdt_timeout[] = { 0, 2, 4, 8, 16, 32, 65, 131 };
 struct da9062_watchdog {
 	struct da9062 *hw;
 	struct watchdog_device wdtdev;
+	bool use_sw_pm;
 };
 
 static unsigned int da9062_wdt_timeout_to_sel(unsigned int secs)
@@ -94,13 +96,6 @@ static int da9062_wdt_stop(struct watchdog_device *wdd)
 {
 	struct da9062_watchdog *wdt = watchdog_get_drvdata(wdd);
 	int ret;
-
-	ret = da9062_reset_watchdog_timer(wdt);
-	if (ret) {
-		dev_err(wdt->hw->dev, "Failed to ping the watchdog (err = %d)\n",
-			ret);
-		return ret;
-	}
 
 	ret = regmap_update_bits(wdt->hw->regmap,
 				 DA9062AA_CONTROL_D,
@@ -200,6 +195,8 @@ static int da9062_wdt_probe(struct platform_device *pdev)
 	if (!wdt)
 		return -ENOMEM;
 
+	wdt->use_sw_pm = device_property_present(dev, "dlg,use-sw-pm");
+
 	wdt->hw = chip;
 
 	wdt->wdtdev.info = &da9062_watchdog_info;
@@ -226,6 +223,10 @@ static int da9062_wdt_probe(struct platform_device *pdev)
 static int __maybe_unused da9062_wdt_suspend(struct device *dev)
 {
 	struct watchdog_device *wdd = dev_get_drvdata(dev);
+	struct da9062_watchdog *wdt = watchdog_get_drvdata(wdd);
+
+	if (!wdt->use_sw_pm)
+		return 0;
 
 	if (watchdog_active(wdd))
 		return da9062_wdt_stop(wdd);
@@ -236,6 +237,10 @@ static int __maybe_unused da9062_wdt_suspend(struct device *dev)
 static int __maybe_unused da9062_wdt_resume(struct device *dev)
 {
 	struct watchdog_device *wdd = dev_get_drvdata(dev);
+	struct da9062_watchdog *wdt = watchdog_get_drvdata(wdd);
+
+	if (!wdt->use_sw_pm)
+		return 0;
 
 	if (watchdog_active(wdd))
 		return da9062_wdt_start(wdd);

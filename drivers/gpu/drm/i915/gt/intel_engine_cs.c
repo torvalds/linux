@@ -671,6 +671,7 @@ void
 intel_engine_init_active(struct intel_engine_cs *engine, unsigned int subclass)
 {
 	INIT_LIST_HEAD(&engine->active.requests);
+	INIT_LIST_HEAD(&engine->active.hold);
 
 	spin_lock_init(&engine->active.lock);
 	lockdep_set_subclass(&engine->active.lock, subclass);
@@ -1422,6 +1423,17 @@ static void print_request_ring(struct drm_printer *m, struct i915_request *rq)
 	}
 }
 
+static unsigned long list_count(struct list_head *list)
+{
+	struct list_head *pos;
+	unsigned long count = 0;
+
+	list_for_each(pos, list)
+		count++;
+
+	return count;
+}
+
 void intel_engine_dump(struct intel_engine_cs *engine,
 		       struct drm_printer *m,
 		       const char *header, ...)
@@ -1491,6 +1503,7 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 			hexdump(m, rq->context->lrc_reg_state, PAGE_SIZE);
 		}
 	}
+	drm_printf(m, "\tOn hold?: %lu\n", list_count(&engine->active.hold));
 	spin_unlock_irqrestore(&engine->active.lock, flags);
 
 	drm_printf(m, "\tMMIO base:  0x%08x\n", engine->mmio_base);

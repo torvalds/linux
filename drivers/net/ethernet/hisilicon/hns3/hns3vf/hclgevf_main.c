@@ -2803,6 +2803,9 @@ static void hclgevf_uninit_hdev(struct hclgevf_dev *hdev)
 {
 	hclgevf_state_uninit(hdev);
 
+	hclgevf_send_mbx_msg(hdev, HCLGE_MBX_VF_UNINIT, 0, NULL, 0,
+			     false, NULL, 0);
+
 	if (test_bit(HCLGEVF_STATE_IRQ_INITED, &hdev->state)) {
 		hclgevf_misc_irq_uninit(hdev);
 		hclgevf_uninit_msi(hdev);

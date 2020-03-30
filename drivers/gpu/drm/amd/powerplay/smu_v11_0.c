@@ -898,6 +898,9 @@ int smu_v11_0_system_features_control(struct smu_context *smu,
 	if (ret)
 		return ret;
 
+	bitmap_zero(feature->enabled, feature->feature_num);
+	bitmap_zero(feature->supported, feature->feature_num);
+
 	if (en) {
 		ret = smu_feature_get_enabled_mask(smu, feature_mask, 2);
 		if (ret)
@@ -907,9 +910,6 @@ int smu_v11_0_system_features_control(struct smu_context *smu,
 			    feature->feature_num);
 		bitmap_copy(feature->supported, (unsigned long *)&feature_mask,
 			    feature->feature_num);
-	} else {
-		bitmap_zero(feature->enabled, feature->feature_num);
-		bitmap_zero(feature->supported, feature->feature_num);
 	}
 
 	return ret;
@@ -978,8 +978,12 @@ int smu_v11_0_init_max_sustainable_clocks(struct smu_context *smu)
 	struct smu_11_0_max_sustainable_clocks *max_sustainable_clocks;
 	int ret = 0;
 
-	max_sustainable_clocks = kzalloc(sizeof(struct smu_11_0_max_sustainable_clocks),
+	if (!smu->smu_table.max_sustainable_clocks)
+		max_sustainable_clocks = kzalloc(sizeof(struct smu_11_0_max_sustainable_clocks),
 					 GFP_KERNEL);
+	else
+		max_sustainable_clocks = smu->smu_table.max_sustainable_clocks;
+
 	smu->smu_table.max_sustainable_clocks = (void *)max_sustainable_clocks;
 
 	max_sustainable_clocks->uclock = smu->smu_table.boot_values.uclk / 100;

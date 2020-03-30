@@ -1225,10 +1225,9 @@ static void siw_cm_llp_data_ready(struct sock *sk)
 	read_lock(&sk->sk_callback_lock);
 
 	cep = sk_to_cep(sk);
-	if (!cep) {
-		WARN_ON(1);
+	if (!cep)
 		goto out;
-	}
+
 	siw_dbg_cep(cep, "state: %d\n", cep->state);
 
 	switch (cep->state) {

@@ -1518,8 +1518,6 @@ static int setup_commands(struct nullb_queue *nq)
 
 	for (i = 0; i < nq->queue_depth; i++) {
 		cmd = &nq->cmds[i];
-		INIT_LIST_HEAD(&cmd->list);
-		cmd->ll_list.next = NULL;
 		cmd->tag = -1U;
 	}
 

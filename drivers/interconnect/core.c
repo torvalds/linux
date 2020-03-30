@@ -445,6 +445,11 @@ struct icc_path *of_icc_get(struct device *dev, const char *name)
 		path->name = kasprintf(GFP_KERNEL, "%s-%s",
 				       src_node->name, dst_node->name);
 
+	if (!path->name) {
+		kfree(path);
+		return ERR_PTR(-ENOMEM);
+	}
+
 	return path;
 }
 EXPORT_SYMBOL_GPL(of_icc_get);
@@ -579,6 +584,10 @@ struct icc_path *icc_get(struct device *dev, const int src_id, const int dst_id)
 	}
 
 	path->name = kasprintf(GFP_KERNEL, "%s-%s", src->name, dst->name);
+	if (!path->name) {
+		kfree(path);
+		path = ERR_PTR(-ENOMEM);
+	}
 out:
 	mutex_unlock(&icc_lock);
 	return path;

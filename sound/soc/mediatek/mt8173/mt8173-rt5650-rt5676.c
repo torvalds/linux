@@ -51,7 +51,7 @@ static int mt8173_rt5650_rt5676_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *codec_dai;
 	int i, ret;
 
-	for_each_rtd_codec_dai(rtd, i, codec_dai) {
+	for_each_rtd_codec_dais(rtd, i, codec_dai) {
 		/* pll from mclk 12.288M */
 		ret = snd_soc_dai_set_pll(codec_dai, 0, 0, MCLK_FOR_CODECS,
 					  params_rate(params) * 512);
@@ -77,8 +77,8 @@ static struct snd_soc_jack mt8173_rt5650_rt5676_jack;
 static int mt8173_rt5650_rt5676_init(struct snd_soc_pcm_runtime *runtime)
 {
 	struct snd_soc_card *card = runtime->card;
-	struct snd_soc_component *component = runtime->codec_dais[0]->component;
-	struct snd_soc_component *component_sub = runtime->codec_dais[1]->component;
+	struct snd_soc_component *component = asoc_rtd_to_codec(runtime, 0)->component;
+	struct snd_soc_component *component_sub = asoc_rtd_to_codec(runtime, 1)->component;
 	int ret;
 
 	rt5645_sel_asrc_clk_src(component,

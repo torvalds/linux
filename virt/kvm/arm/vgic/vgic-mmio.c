@@ -179,18 +179,6 @@ unsigned long vgic_mmio_read_pending(struct kvm_vcpu *vcpu,
 	return value;
 }
 
-/*
- * This function will return the VCPU that performed the MMIO access and
- * trapped from within the VM, and will return NULL if this is a userspace
- * access.
- *
- * We can disable preemption locally around accessing the per-CPU variable,
- * and use the resolved vcpu pointer after enabling preemption again, because
- * even if the current thread is migrated to another CPU, reading the per-CPU
- * value later will give us the same value as we update the per-CPU variable
- * in the preempt notifier handlers.
- */
-
 /* Must be called with irq->irq_lock held */
 static void vgic_hw_irq_spending(struct kvm_vcpu *vcpu, struct vgic_irq *irq,
 				 bool is_uaccess)

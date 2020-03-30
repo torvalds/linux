@@ -26,7 +26,7 @@ For generic IOMMU bindings, see
 Documentation/devicetree/bindings/iommu/iommu.txt.
 
 For arm-smmu binding, see:
-Documentation/devicetree/bindings/iommu/arm,smmu.txt.
+Documentation/devicetree/bindings/iommu/arm,smmu.yaml.
 
 Required properties:
 

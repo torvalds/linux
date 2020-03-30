@@ -112,7 +112,7 @@ static int mmp_pcm_open(struct snd_soc_component *component,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct platform_device *pdev = to_platform_device(component->dev);
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
 	struct mmp_dma_data dma_data;
 	struct resource *r;
 

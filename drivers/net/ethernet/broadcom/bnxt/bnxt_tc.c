@@ -50,7 +50,7 @@ static u16 bnxt_flow_get_dst_fid(struct bnxt *pf_bp, struct net_device *dev)
 
 	/* check if dev belongs to the same switch */
 	if (!netdev_port_same_parent_id(pf_bp->dev, dev)) {
-		netdev_info(pf_bp->dev, "dev(ifindex=%d) not on same switch",
+		netdev_info(pf_bp->dev, "dev(ifindex=%d) not on same switch\n",
 			    dev->ifindex);
 		return BNXT_FID_INVALID;
 	}
@@ -70,7 +70,7 @@ static int bnxt_tc_parse_redir(struct bnxt *bp,
 	struct net_device *dev = act->dev;
 
 	if (!dev) {
-		netdev_info(bp->dev, "no dev in mirred action");
+		netdev_info(bp->dev, "no dev in mirred action\n");
 		return -EINVAL;
 	}
 
@@ -106,7 +106,7 @@ static int bnxt_tc_parse_tunnel_set(struct bnxt *bp,
 	const struct ip_tunnel_key *tun_key = &tun_info->key;
 
 	if (ip_tunnel_info_af(tun_info) != AF_INET) {
-		netdev_info(bp->dev, "only IPv4 tunnel-encap is supported");
+		netdev_info(bp->dev, "only IPv4 tunnel-encap is supported\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -295,7 +295,7 @@ static int bnxt_tc_parse_actions(struct bnxt *bp,
 	int i, rc;
 
 	if (!flow_action_has_entries(flow_action)) {
-		netdev_info(bp->dev, "no actions");
+		netdev_info(bp->dev, "no actions\n");
 		return -EINVAL;
 	}
 
@@ -370,7 +370,7 @@ static int bnxt_tc_parse_flow(struct bnxt *bp,
 	/* KEY_CONTROL and KEY_BASIC are needed for forming a meaningful key */
 	if ((dissector->used_keys & BIT(FLOW_DISSECTOR_KEY_CONTROL)) == 0 ||
 	    (dissector->used_keys & BIT(FLOW_DISSECTOR_KEY_BASIC)) == 0) {
-		netdev_info(bp->dev, "cannot form TC key: used_keys = 0x%x",
+		netdev_info(bp->dev, "cannot form TC key: used_keys = 0x%x\n",
 			    dissector->used_keys);
 		return -EOPNOTSUPP;
 	}
@@ -508,7 +508,7 @@ static int bnxt_hwrm_cfa_flow_free(struct bnxt *bp,
 
 	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 	if (rc)
-		netdev_info(bp->dev, "%s: Error rc=%d", __func__, rc);
+		netdev_info(bp->dev, "%s: Error rc=%d\n", __func__, rc);
 
 	return rc;
 }
@@ -841,7 +841,7 @@ static int hwrm_cfa_decap_filter_alloc(struct bnxt *bp,
 		resp = bnxt_get_hwrm_resp_addr(bp, &req);
 		*decap_filter_handle = resp->decap_filter_id;
 	} else {
-		netdev_info(bp->dev, "%s: Error rc=%d", __func__, rc);
+		netdev_info(bp->dev, "%s: Error rc=%d\n", __func__, rc);
 	}
 	mutex_unlock(&bp->hwrm_cmd_lock);
 
@@ -859,7 +859,7 @@ static int hwrm_cfa_decap_filter_free(struct bnxt *bp,
 
 	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 	if (rc)
-		netdev_info(bp->dev, "%s: Error rc=%d", __func__, rc);
+		netdev_info(bp->dev, "%s: Error rc=%d\n", __func__, rc);
 
 	return rc;
 }
@@ -906,7 +906,7 @@ static int hwrm_cfa_encap_record_alloc(struct bnxt *bp,
 		resp = bnxt_get_hwrm_resp_addr(bp, &req);
 		*encap_record_handle = resp->encap_record_id;
 	} else {
-		netdev_info(bp->dev, "%s: Error rc=%d", __func__, rc);
+		netdev_info(bp->dev, "%s: Error rc=%d\n", __func__, rc);
 	}
 	mutex_unlock(&bp->hwrm_cmd_lock);
 
@@ -924,7 +924,7 @@ static int hwrm_cfa_encap_record_free(struct bnxt *bp,
 
 	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 	if (rc)
-		netdev_info(bp->dev, "%s: Error rc=%d", __func__, rc);
+		netdev_info(bp->dev, "%s: Error rc=%d\n", __func__, rc);
 
 	return rc;
 }
@@ -943,7 +943,7 @@ static int bnxt_tc_put_l2_node(struct bnxt *bp,
 					     tc_info->l2_ht_params);
 		if (rc)
 			netdev_err(bp->dev,
-				   "Error: %s: rhashtable_remove_fast: %d",
+				   "Error: %s: rhashtable_remove_fast: %d\n",
 				   __func__, rc);
 		kfree_rcu(l2_node, rcu);
 	}
@@ -972,7 +972,7 @@ bnxt_tc_get_l2_node(struct bnxt *bp, struct rhashtable *l2_table,
 		if (rc) {
 			kfree_rcu(l2_node, rcu);
 			netdev_err(bp->dev,
-				   "Error: %s: rhashtable_insert_fast: %d",
+				   "Error: %s: rhashtable_insert_fast: %d\n",
 				   __func__, rc);
 			return NULL;
 		}
@@ -1031,7 +1031,7 @@ static bool bnxt_tc_can_offload(struct bnxt *bp, struct bnxt_tc_flow *flow)
 	if ((flow->flags & BNXT_TC_FLOW_FLAGS_PORTS) &&
 	    (flow->l4_key.ip_proto != IPPROTO_TCP &&
 	     flow->l4_key.ip_proto != IPPROTO_UDP)) {
-		netdev_info(bp->dev, "Cannot offload non-TCP/UDP (%d) ports",
+		netdev_info(bp->dev, "Cannot offload non-TCP/UDP (%d) ports\n",
 			    flow->l4_key.ip_proto);
 		return false;
 	}
@@ -1088,7 +1088,7 @@ static int bnxt_tc_put_tunnel_node(struct bnxt *bp,
 		rc =  rhashtable_remove_fast(tunnel_table, &tunnel_node->node,
 					     *ht_params);
 		if (rc) {
-			netdev_err(bp->dev, "rhashtable_remove_fast rc=%d", rc);
+			netdev_err(bp->dev, "rhashtable_remove_fast rc=%d\n", rc);
 			rc = -1;
 		}
 		kfree_rcu(tunnel_node, rcu);
@@ -1129,7 +1129,7 @@ bnxt_tc_get_tunnel_node(struct bnxt *bp, struct rhashtable *tunnel_table,
 	tunnel_node->refcount++;
 	return tunnel_node;
 err:
-	netdev_info(bp->dev, "error rc=%d", rc);
+	netdev_info(bp->dev, "error rc=%d\n", rc);
 	return NULL;
 }
 
@@ -1187,7 +1187,7 @@ static void bnxt_tc_put_decap_l2_node(struct bnxt *bp,
 					     &decap_l2_node->node,
 					     tc_info->decap_l2_ht_params);
 		if (rc)
-			netdev_err(bp->dev, "rhashtable_remove_fast rc=%d", rc);
+			netdev_err(bp->dev, "rhashtable_remove_fast rc=%d\n", rc);
 		kfree_rcu(decap_l2_node, rcu);
 	}
 }
@@ -1227,7 +1227,7 @@ static int bnxt_tc_resolve_tunnel_hdrs(struct bnxt *bp,
 
 	rt = ip_route_output_key(dev_net(real_dst_dev), &flow);
 	if (IS_ERR(rt)) {
-		netdev_info(bp->dev, "no route to %pI4b", &flow.daddr);
+		netdev_info(bp->dev, "no route to %pI4b\n", &flow.daddr);
 		return -EOPNOTSUPP;
 	}
 
@@ -1241,7 +1241,7 @@ static int bnxt_tc_resolve_tunnel_hdrs(struct bnxt *bp,
 
 		if (vlan->real_dev != real_dst_dev) {
 			netdev_info(bp->dev,
-				    "dst_dev(%s) doesn't use PF-if(%s)",
+				    "dst_dev(%s) doesn't use PF-if(%s)\n",
 				    netdev_name(dst_dev),
 				    netdev_name(real_dst_dev));
 			rc = -EOPNOTSUPP;
@@ -1253,7 +1253,7 @@ static int bnxt_tc_resolve_tunnel_hdrs(struct bnxt *bp,
 #endif
 	} else if (dst_dev != real_dst_dev) {
 		netdev_info(bp->dev,
-			    "dst_dev(%s) for %pI4b is not PF-if(%s)",
+			    "dst_dev(%s) for %pI4b is not PF-if(%s)\n",
 			    netdev_name(dst_dev), &flow.daddr,
 			    netdev_name(real_dst_dev));
 		rc = -EOPNOTSUPP;
@@ -1262,7 +1262,7 @@ static int bnxt_tc_resolve_tunnel_hdrs(struct bnxt *bp,
 
 	nbr = dst_neigh_lookup(&rt->dst, &flow.daddr);
 	if (!nbr) {
-		netdev_info(bp->dev, "can't lookup neighbor for %pI4b",
+		netdev_info(bp->dev, "can't lookup neighbor for %pI4b\n",
 			    &flow.daddr);
 		rc = -EOPNOTSUPP;
 		goto put_rt;
@@ -1472,7 +1472,7 @@ static int __bnxt_tc_del_flow(struct bnxt *bp,
 	rc = rhashtable_remove_fast(&tc_info->flow_table, &flow_node->node,
 				    tc_info->flow_ht_params);
 	if (rc)
-		netdev_err(bp->dev, "Error: %s: rhashtable_remove_fast rc=%d",
+		netdev_err(bp->dev, "Error: %s: rhashtable_remove_fast rc=%d\n",
 			   __func__, rc);
 
 	kfree_rcu(flow_node, rcu);
@@ -1587,7 +1587,7 @@ unlock:
 free_node:
 	kfree_rcu(new_node, rcu);
 done:
-	netdev_err(bp->dev, "Error: %s: cookie=0x%lx error=%d",
+	netdev_err(bp->dev, "Error: %s: cookie=0x%lx error=%d\n",
 		   __func__, tc_flow_cmd->cookie, rc);
 	return rc;
 }
@@ -1700,7 +1700,7 @@ bnxt_hwrm_cfa_flow_stats_get(struct bnxt *bp, int num_flows,
 						le64_to_cpu(resp_bytes[i]);
 		}
 	} else {
-		netdev_info(bp->dev, "error rc=%d", rc);
+		netdev_info(bp->dev, "error rc=%d\n", rc);
 	}
 	mutex_unlock(&bp->hwrm_cmd_lock);
 
@@ -1970,7 +1970,7 @@ static int bnxt_tc_indr_block_event(struct notifier_block *nb,
 						   bp);
 		if (rc)
 			netdev_info(bp->dev,
-				    "Failed to register indirect blk: dev: %s",
+				    "Failed to register indirect blk: dev: %s\n",
 				    netdev->name);
 		break;
 	case NETDEV_UNREGISTER:

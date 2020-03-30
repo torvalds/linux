@@ -11087,7 +11087,7 @@ static u32 intel_cursor_base(const struct intel_plane_state *plane_state)
 	u32 base;
 
 	if (INTEL_INFO(dev_priv)->display.cursor_needs_physical)
-		base = obj->phys_handle->busaddr;
+		base = sg_dma_address(obj->mm.pages->sgl);
 	else
 		base = intel_plane_ggtt_offset(plane_state);
 
@@ -12366,6 +12366,7 @@ static int icl_check_nv12_planes(struct intel_crtc_state *crtc_state)
 		/* Copy parameters to slave plane */
 		linked_state->ctl = plane_state->ctl | PLANE_CTL_YUV420_Y_PLANE;
 		linked_state->color_ctl = plane_state->color_ctl;
+		linked_state->view = plane_state->view;
 		memcpy(linked_state->color_plane, plane_state->color_plane,
 		       sizeof(linked_state->color_plane));
 
@@ -14476,35 +14477,21 @@ static int intel_atomic_check_crtcs(struct intel_atomic_state *state)
 	return 0;
 }
 
-static bool intel_cpu_transcoder_needs_modeset(struct intel_atomic_state *state,
-					       enum transcoder transcoder)
+static bool intel_cpu_transcoders_need_modeset(struct intel_atomic_state *state,
+					       u8 transcoders)
 {
-	struct intel_crtc_state *new_crtc_state;
+	const struct intel_crtc_state *new_crtc_state;
 	struct intel_crtc *crtc;
 	int i;
 
-	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i)
-		if (new_crtc_state->cpu_transcoder == transcoder)
-			return needs_modeset(new_crtc_state);
+	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
+		if (new_crtc_state->hw.enable &&
+		    transcoders & BIT(new_crtc_state->cpu_transcoder) &&
+		    needs_modeset(new_crtc_state))
+			return true;
+	}
 
 	return false;
-}
-
-static void
-intel_modeset_synced_crtcs(struct intel_atomic_state *state,
-			   u8 transcoders)
-{
-	struct intel_crtc_state *new_crtc_state;
-	struct intel_crtc *crtc;
-	int i;
-
-	for_each_new_intel_crtc_in_state(state, crtc,
-					 new_crtc_state, i) {
-		if (transcoders & BIT(new_crtc_state->cpu_transcoder)) {
-			new_crtc_state->uapi.mode_changed = true;
-			new_crtc_state->update_pipe = false;
-		}
-	}
 }
 
 static int
@@ -14662,15 +14649,20 @@ static int intel_atomic_check(struct drm_device *dev,
 		if (intel_dp_mst_is_slave_trans(new_crtc_state)) {
 			enum transcoder master = new_crtc_state->mst_master_transcoder;
 
-			if (intel_cpu_transcoder_needs_modeset(state, master)) {
+			if (intel_cpu_transcoders_need_modeset(state, BIT(master))) {
 				new_crtc_state->uapi.mode_changed = true;
 				new_crtc_state->update_pipe = false;
 			}
-		} else if (is_trans_port_sync_mode(new_crtc_state)) {
+		}
+
+		if (is_trans_port_sync_mode(new_crtc_state)) {
 			u8 trans = new_crtc_state->sync_mode_slaves_mask |
 				   BIT(new_crtc_state->master_transcoder);
 
-			intel_modeset_synced_crtcs(state, trans);
+			if (intel_cpu_transcoders_need_modeset(state, trans)) {
+				new_crtc_state->uapi.mode_changed = true;
+				new_crtc_state->update_pipe = false;
+			}
 		}
 	}
 
@@ -17441,6 +17433,24 @@ retry:
 			 * have readout for pipe gamma enable.
 			 */
 			crtc_state->uapi.color_mgmt_changed = true;
+
+			/*
+			 * FIXME hack to force full modeset when DSC is being
+			 * used.
+			 *
+			 * As long as we do not have full state readout and
+			 * config comparison of crtc_state->dsc, we have no way
+			 * to ensure reliable fastset. Remove once we have
+			 * readout for DSC.
+			 */
+			if (crtc_state->dsc.compression_enable) {
+				ret = drm_atomic_add_affected_connectors(state,
+									 &crtc->base);
+				if (ret)
+					goto out;
+				crtc_state->uapi.mode_changed = true;
+				drm_dbg_kms(dev, "Force full modeset for DSC\n");
+			}
 		}
 	}
 

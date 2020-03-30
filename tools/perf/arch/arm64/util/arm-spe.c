@@ -11,17 +11,17 @@
 #include <linux/zalloc.h>
 #include <time.h>
 
-#include "../../util/cpumap.h"
-#include "../../util/event.h"
-#include "../../util/evsel.h"
-#include "../../util/evlist.h"
-#include "../../util/session.h"
+#include "../../../util/cpumap.h"
+#include "../../../util/event.h"
+#include "../../../util/evsel.h"
+#include "../../../util/evlist.h"
+#include "../../../util/session.h"
 #include <internal/lib.h> // page_size
-#include "../../util/pmu.h"
-#include "../../util/debug.h"
-#include "../../util/auxtrace.h"
-#include "../../util/record.h"
-#include "../../util/arm-spe.h"
+#include "../../../util/pmu.h"
+#include "../../../util/debug.h"
+#include "../../../util/auxtrace.h"
+#include "../../../util/record.h"
+#include "../../../util/arm-spe.h"
 
 #define KiB(x) ((x) * 1024)
 #define MiB(x) ((x) * 1024 * 1024)
@@ -158,20 +158,6 @@ static void arm_spe_recording_free(struct auxtrace_record *itr)
 	free(sper);
 }
 
-static int arm_spe_read_finish(struct auxtrace_record *itr, int idx)
-{
-	struct arm_spe_recording *sper =
-			container_of(itr, struct arm_spe_recording, itr);
-	struct evsel *evsel;
-
-	evlist__for_each_entry(sper->evlist, evsel) {
-		if (evsel->core.attr.type == sper->arm_spe_pmu->type)
-			return perf_evlist__enable_event_idx(sper->evlist,
-							     evsel, idx);
-	}
-	return -EINVAL;
-}
-
 struct auxtrace_record *arm_spe_recording_init(int *err,
 					       struct perf_pmu *arm_spe_pmu)
 {
@@ -189,12 +175,13 @@ struct auxtrace_record *arm_spe_recording_init(int *err,
 	}
 
 	sper->arm_spe_pmu = arm_spe_pmu;
+	sper->itr.pmu = arm_spe_pmu;
 	sper->itr.recording_options = arm_spe_recording_options;
 	sper->itr.info_priv_size = arm_spe_info_priv_size;
 	sper->itr.info_fill = arm_spe_info_fill;
 	sper->itr.free = arm_spe_recording_free;
 	sper->itr.reference = arm_spe_reference;
-	sper->itr.read_finish = arm_spe_read_finish;
+	sper->itr.read_finish = auxtrace_record__read_finish;
 	sper->itr.alignment = 0;
 
 	*err = 0;
