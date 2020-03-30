@@ -1627,7 +1627,7 @@ static int am65_cpsw_nuss_init_slave_ports(struct am65_cpsw_common *common)
 							   port->slave.mac_addr) ||
 			   !is_valid_ether_addr(port->slave.mac_addr)) {
 			random_ether_addr(port->slave.mac_addr);
-			dev_err(dev, "Use rundom MAC address\n");
+			dev_err(dev, "Use random MAC address\n");
 		}
 	}
 	of_node_put(node);
