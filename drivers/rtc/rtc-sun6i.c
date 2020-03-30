@@ -108,7 +108,6 @@
  * driver, even though it is somewhat limited.
  */
 #define SUN6I_YEAR_MIN				1970
-#define SUN6I_YEAR_MAX				2033
 #define SUN6I_YEAR_OFF				(SUN6I_YEAR_MIN - 1900)
 
 /*
@@ -569,14 +568,6 @@ static int sun6i_rtc_settime(struct device *dev, struct rtc_time *rtc_tm)
 	struct sun6i_rtc_dev *chip = dev_get_drvdata(dev);
 	u32 date = 0;
 	u32 time = 0;
-	int year;
-
-	year = rtc_tm->tm_year + 1900;
-	if (year < SUN6I_YEAR_MIN || year > SUN6I_YEAR_MAX) {
-		dev_err(dev, "rtc only supports year in range %d - %d\n",
-			SUN6I_YEAR_MIN, SUN6I_YEAR_MAX);
-		return -EINVAL;
-	}
 
 	rtc_tm->tm_year -= SUN6I_YEAR_OFF;
 	rtc_tm->tm_mon += 1;
@@ -585,7 +576,7 @@ static int sun6i_rtc_settime(struct device *dev, struct rtc_time *rtc_tm)
 		SUN6I_DATE_SET_MON_VALUE(rtc_tm->tm_mon)  |
 		SUN6I_DATE_SET_YEAR_VALUE(rtc_tm->tm_year);
 
-	if (is_leap_year(year))
+	if (is_leap_year(rtc_tm->tm_year + SUN6I_YEAR_MIN))
 		date |= SUN6I_LEAP_SET_VALUE(1);
 
 	time = SUN6I_TIME_SET_SEC_VALUE(rtc_tm->tm_sec)  |
@@ -726,12 +717,16 @@ static int sun6i_rtc_probe(struct platform_device *pdev)
 
 	device_init_wakeup(&pdev->dev, 1);
 
-	chip->rtc = devm_rtc_device_register(&pdev->dev, "rtc-sun6i",
-					     &sun6i_rtc_ops, THIS_MODULE);
-	if (IS_ERR(chip->rtc)) {
-		dev_err(&pdev->dev, "unable to register device\n");
+	chip->rtc = devm_rtc_allocate_device(&pdev->dev);
+	if (IS_ERR(chip->rtc))
 		return PTR_ERR(chip->rtc);
-	}
+
+	chip->rtc->ops = &sun6i_rtc_ops;
+	chip->rtc->range_max = 2019686399LL; /* 2033-12-31 23:59:59 */
+
+	ret = rtc_register_device(chip->rtc);
+	if (ret)
+		return ret;
 
 	dev_info(&pdev->dev, "RTC enabled\n");
 
