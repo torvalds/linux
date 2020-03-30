@@ -58,9 +58,9 @@ u32 			Data
 	);
 
 /* MAC/BB/RF HAL config */
-int PHY_BBConfig8723B(struct adapter *Adapter	);
+int PHY_BBConfig8723B(struct adapter *Adapter);
 
-int PHY_RFConfig8723B(struct adapter *Adapter	);
+int PHY_RFConfig8723B(struct adapter *Adapter);
 
 s32 PHY_MACConfig8723B(struct adapter *padapter);
 

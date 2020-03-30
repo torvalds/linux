@@ -931,6 +931,14 @@ S:	Supported
 F:	drivers/iio/adc/ad7124.c
 F:	Documentation/devicetree/bindings/iio/adc/adi,ad7124.yaml
 
+ANALOG DEVICES INC AD7192 DRIVER
+M:	Alexandru Tachici <alexandru.tachici@analog.com>
+L:	linux-iio@vger.kernel.org
+W:	http://ez.analog.com/community/linux-device-drivers
+S:	Supported
+F:	drivers/iio/adc/ad7192.c
+F:	Documentation/devicetree/bindings/iio/adc/adi,ad7192.yaml
+
 ANALOG DEVICES INC AD7292 DRIVER
 M:	Marcelo Schmitt <marcelo.schmitt1@gmail.com>
 L:	linux-iio@vger.kernel.org
@@ -1080,6 +1088,15 @@ F:	drivers/iio/*/ad*
 F:	drivers/iio/adc/ltc249*
 X:	drivers/iio/*/adjd*
 F:	drivers/staging/iio/*/ad*
+
+ANALOG DEVICES INC HMC425A DRIVER
+M:	Beniamin Bia <beniamin.bia@analog.com>
+M:	Michael Hennerich <michael.hennerich@analog.com>
+L:	linux-iio@vger.kernel.org
+S:	Supported
+W:	http://ez.analog.com/community/linux-device-drivers
+F:	Documentation/devicetree/bindings/iio/amplifiers/adi,hmc425a.yaml
+F:	drivers/iio/amplifiers/hmc425a.c
 
 ANALOGBITS PLL LIBRARIES
 M:	Paul Walmsley <paul.walmsley@sifive.com>
@@ -3928,11 +3945,6 @@ F:	certs/
 F:	scripts/sign-file.c
 F:	scripts/extract-cert.c
 
-CERTIFIED WIRELESS USB (WUSB) SUBSYSTEM
-L:	devel@driverdev.osuosl.org
-S:	Obsolete
-F:	drivers/staging/wusbcore/
-
 CFAG12864B LCD DRIVER
 M:	Miguel Ojeda Sandonis <miguel.ojeda.sandonis@gmail.com>
 S:	Maintained
@@ -6317,12 +6329,6 @@ F:	include/linux/platform_data/mdio-gpio.h
 F:	include/trace/events/mdio.h
 F:	include/uapi/linux/mdio.h
 F:	include/uapi/linux/mii.h
-
-EXFAT FILE SYSTEM
-M:	Valdis Kletnieks <valdis.kletnieks@vt.edu>
-L:	linux-fsdevel@vger.kernel.org
-S:	Maintained
-F:	drivers/staging/exfat/
 
 EXT2 FILE SYSTEM
 M:	Jan Kara <jack@suse.com>
@@ -15094,6 +15100,14 @@ W:	http://www.ibm.com/developerworks/linux/linux390/
 S:	Supported
 F:	net/smc/
 
+SHARP GP2AP002A00F/GP2AP002S00F SENSOR DRIVER
+M:	Linus Walleij <linus.walleij@linaro.org>
+L:	linux-iio@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jic23/iio.git
+S:	Maintained
+F:	drivers/iio/light/gp2ap002.c
+F:	Documentation/devicetree/bindings/iio/light/sharp,gp2ap002.yaml
+
 SHARP RJ54N1CB0C SENSOR DRIVER
 M:	Jacopo Mondi <jacopo@jmondi.org>
 L:	linux-media@vger.kernel.org
@@ -17129,11 +17143,6 @@ L:	linux-usb@vger.kernel.org
 S:	Maintained
 F:	drivers/usb/common/ulpi.c
 F:	include/linux/ulpi/
-
-ULTRA-WIDEBAND (UWB) SUBSYSTEM
-L:	devel@driverdev.osuosl.org
-S:	Obsolete
-F:	drivers/staging/uwb/
 
 UNICODE SUBSYSTEM
 M:	Gabriel Krisman Bertazi <krisman@collabora.com>

@@ -169,7 +169,7 @@ struct mcu_msg_push_buffers_internal_buffer {
 struct mcu_msg_push_buffers_internal {
 	struct mcu_msg_header header;
 	u32 channel_id;
-	struct mcu_msg_push_buffers_internal_buffer buffer[0];
+	struct mcu_msg_push_buffers_internal_buffer buffer[];
 } __attribute__ ((__packed__));
 
 struct mcu_msg_put_stream_buffer {

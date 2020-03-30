@@ -2403,10 +2403,10 @@ static int allegro_open(struct file *file)
 			0, ALLEGRO_GOP_SIZE_MAX,
 			1, channel->gop_size);
 	v4l2_ctrl_new_std(handler,
-			&allegro_ctrl_ops,
-			V4L2_CID_MIN_BUFFERS_FOR_OUTPUT,
-			1, 32,
-			1, 1);
+			  &allegro_ctrl_ops,
+			  V4L2_CID_MIN_BUFFERS_FOR_OUTPUT,
+			  1, 32,
+			  1, 1);
 	if (handler->error != 0) {
 		ret = handler->error;
 		goto error;
@@ -3083,8 +3083,8 @@ static int allegro_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 	sram_regs = devm_ioremap(&pdev->dev,
-					 sram_res->start,
-					 resource_size(sram_res));
+				 sram_res->start,
+				 resource_size(sram_res));
 	if (IS_ERR(sram_regs)) {
 		dev_err(&pdev->dev, "failed to map sram\n");
 		return PTR_ERR(sram_regs);

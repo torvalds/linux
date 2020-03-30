@@ -1498,9 +1498,7 @@ s8 PHY_GetTxPowerByRate(
 		return value;
 	}
 
-	value = pHalData->TxPwrByRateOffset[Band][RFPath][TxNum][rateIndex];
-
-	return value;
+	return pHalData->TxPwrByRateOffset[Band][RFPath][TxNum][rateIndex];
 
 }
 

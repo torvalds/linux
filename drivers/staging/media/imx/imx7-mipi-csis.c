@@ -417,7 +417,7 @@ static void mipi_csis_set_hsync_settle(struct csi_state *state, int hs_settle)
 {
 	u32 val = mipi_csis_read(state, MIPI_CSIS_DPHYCTRL);
 
-	val = ((val & ~MIPI_CSIS_DPHYCTRL_HSS_MASK) | (hs_settle << 24));
+	val = (val & ~MIPI_CSIS_DPHYCTRL_HSS_MASK) | (hs_settle << 24);
 
 	mipi_csis_write(state, MIPI_CSIS_DPHYCTRL, val);
 }
