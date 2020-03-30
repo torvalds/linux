@@ -258,6 +258,6 @@ void intel_huc_load_status(struct intel_huc *huc, struct drm_printer *p)
 	intel_uc_fw_dump(&huc->fw, p);
 
 	with_intel_runtime_pm(gt->uncore->rpm, wakeref)
-		drm_printf(p, "\nHuC status 0x%08x:\n",
-			   intel_uncore_read(gt->uncore, HUC_STATUS2));
+		drm_printf(p, "HuC status: 0x%08x\n",
+			   intel_uncore_read(gt->uncore, huc->status.reg));
 }
