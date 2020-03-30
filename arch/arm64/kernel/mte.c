@@ -4,14 +4,18 @@
  */
 
 #include <linux/bitops.h>
+#include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/prctl.h>
 #include <linux/sched.h>
+#include <linux/sched/mm.h>
 #include <linux/string.h>
 #include <linux/thread_info.h>
+#include <linux/uio.h>
 
 #include <asm/cpufeature.h>
 #include <asm/mte.h>
+#include <asm/ptrace.h>
 #include <asm/sysreg.h>
 
 void mte_sync_tags(pte_t *ptep, pte_t pte)
@@ -176,6 +180,140 @@ long get_mte_ctrl(struct task_struct *task)
 		ret |= PR_MTE_TCF_ASYNC;
 		break;
 	}
+
+	return ret;
+}
+
+/*
+ * Access MTE tags in another process' address space as given in mm. Update
+ * the number of tags copied. Return 0 if any tags copied, error otherwise.
+ * Inspired by __access_remote_vm().
+ */
+static int __access_remote_tags(struct mm_struct *mm, unsigned long addr,
+				struct iovec *kiov, unsigned int gup_flags)
+{
+	struct vm_area_struct *vma;
+	void __user *buf = kiov->iov_base;
+	size_t len = kiov->iov_len;
+	int ret;
+	int write = gup_flags & FOLL_WRITE;
+
+	if (!access_ok(buf, len))
+		return -EFAULT;
+
+	if (mmap_read_lock_killable(mm))
+		return -EIO;
+
+	while (len) {
+		unsigned long tags, offset;
+		void *maddr;
+		struct page *page = NULL;
+
+		ret = get_user_pages_remote(mm, addr, 1, gup_flags, &page,
+					    &vma, NULL);
+		if (ret <= 0)
+			break;
+
+		/*
+		 * Only copy tags if the page has been mapped as PROT_MTE
+		 * (PG_mte_tagged set). Otherwise the tags are not valid and
+		 * not accessible to user. Moreover, an mprotect(PROT_MTE)
+		 * would cause the existing tags to be cleared if the page
+		 * was never mapped with PROT_MTE.
+		 */
+		if (!test_bit(PG_mte_tagged, &page->flags)) {
+			ret = -EOPNOTSUPP;
+			put_page(page);
+			break;
+		}
+
+		/* limit access to the end of the page */
+		offset = offset_in_page(addr);
+		tags = min(len, (PAGE_SIZE - offset) / MTE_GRANULE_SIZE);
+
+		maddr = page_address(page);
+		if (write) {
+			tags = mte_copy_tags_from_user(maddr + offset, buf, tags);
+			set_page_dirty_lock(page);
+		} else {
+			tags = mte_copy_tags_to_user(buf, maddr + offset, tags);
+		}
+		put_page(page);
+
+		/* error accessing the tracer's buffer */
+		if (!tags)
+			break;
+
+		len -= tags;
+		buf += tags;
+		addr += tags * MTE_GRANULE_SIZE;
+	}
+	mmap_read_unlock(mm);
+
+	/* return an error if no tags copied */
+	kiov->iov_len = buf - kiov->iov_base;
+	if (!kiov->iov_len) {
+		/* check for error accessing the tracee's address space */
+		if (ret <= 0)
+			return -EIO;
+		else
+			return -EFAULT;
+	}
+
+	return 0;
+}
+
+/*
+ * Copy MTE tags in another process' address space at 'addr' to/from tracer's
+ * iovec buffer. Return 0 on success. Inspired by ptrace_access_vm().
+ */
+static int access_remote_tags(struct task_struct *tsk, unsigned long addr,
+			      struct iovec *kiov, unsigned int gup_flags)
+{
+	struct mm_struct *mm;
+	int ret;
+
+	mm = get_task_mm(tsk);
+	if (!mm)
+		return -EPERM;
+
+	if (!tsk->ptrace || (current != tsk->parent) ||
+	    ((get_dumpable(mm) != SUID_DUMP_USER) &&
+	     !ptracer_capable(tsk, mm->user_ns))) {
+		mmput(mm);
+		return -EPERM;
+	}
+
+	ret = __access_remote_tags(mm, addr, kiov, gup_flags);
+	mmput(mm);
+
+	return ret;
+}
+
+int mte_ptrace_copy_tags(struct task_struct *child, long request,
+			 unsigned long addr, unsigned long data)
+{
+	int ret;
+	struct iovec kiov;
+	struct iovec __user *uiov = (void __user *)data;
+	unsigned int gup_flags = FOLL_FORCE;
+
+	if (!system_supports_mte())
+		return -EIO;
+
+	if (get_user(kiov.iov_base, &uiov->iov_base) ||
+	    get_user(kiov.iov_len, &uiov->iov_len))
+		return -EFAULT;
+
+	if (request == PTRACE_POKEMTETAGS)
+		gup_flags |= FOLL_WRITE;
+
+	/* align addr to the MTE tag granule */
+	addr &= MTE_GRANULE_MASK;
+
+	ret = access_remote_tags(child, addr, &kiov, gup_flags);
+	if (!ret)
+		ret = put_user(kiov.iov_len, &uiov->iov_len);
 
 	return ret;
 }
