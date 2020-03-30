@@ -510,7 +510,7 @@ nv50_crc_ctx_init(struct nv50_head *head, struct nvif_mmu *mmu,
 	struct nv50_core *core = nv50_disp(head->base.base.dev)->core;
 	int ret;
 
-	ret = nvif_mem_init_map(mmu, NVIF_MEM_VRAM, len, &ctx->mem);
+	ret = nvif_mem_ctor_map(mmu, "kmsCrcNtfy", NVIF_MEM_VRAM, len, &ctx->mem);
 	if (ret)
 		return ret;
 
@@ -531,7 +531,7 @@ nv50_crc_ctx_init(struct nv50_head *head, struct nvif_mmu *mmu,
 	return 0;
 
 fail_fini:
-	nvif_mem_fini(&ctx->mem);
+	nvif_mem_dtor(&ctx->mem);
 	return ret;
 }
 
@@ -539,7 +539,7 @@ static inline void
 nv50_crc_ctx_fini(struct nv50_crc_notifier_ctx *ctx)
 {
 	nvif_object_dtor(&ctx->ntfy);
-	nvif_mem_fini(&ctx->mem);
+	nvif_mem_dtor(&ctx->mem);
 }
 
 int nv50_crc_set_source(struct drm_crtc *crtc, const char *source_str)

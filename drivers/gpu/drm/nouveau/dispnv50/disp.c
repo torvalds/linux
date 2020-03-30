@@ -113,7 +113,7 @@ nv50_dmac_destroy(struct nv50_dmac *dmac)
 
 	nv50_chan_destroy(&dmac->base);
 
-	nvif_mem_fini(&dmac->push);
+	nvif_mem_dtor(&dmac->push);
 }
 
 int
@@ -140,7 +140,8 @@ nv50_dmac_create(struct nvif_device *device, struct nvif_object *disp,
 	if (device->info.family == NV_DEVICE_INFO_V0_PASCAL)
 		type |= NVIF_MEM_VRAM;
 
-	ret = nvif_mem_init_map(&cli->mmu, type, 0x1000, &dmac->push);
+	ret = nvif_mem_ctor_map(&cli->mmu, "kmsChanPush", type, 0x1000,
+				&dmac->push);
 	if (ret)
 		return ret;
 
