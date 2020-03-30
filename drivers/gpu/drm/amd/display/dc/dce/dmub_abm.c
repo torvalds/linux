@@ -136,6 +136,8 @@ static void dmcub_set_backlight_level(
 
 	dmub_abm_set_pipe(&dce_abm->base, otg_inst);
 
+	REG_UPDATE(BL1_PWM_USER_LEVEL, BL1_PWM_USER_LEVEL, backlight_pwm_u16_16);
+
 	if (otg_inst == 0)
 		frame_ramp = 0;
 
