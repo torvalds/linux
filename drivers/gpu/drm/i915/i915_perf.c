@@ -463,6 +463,7 @@ static bool oa_buffer_check_unlocked(struct i915_perf_stream *stream)
 	u32 gtt_offset = i915_ggtt_offset(stream->oa_buffer.vma);
 	int report_size = stream->oa_buffer.format_size;
 	unsigned long flags;
+	bool pollin;
 	u32 hw_tail;
 	u64 now;
 
@@ -532,10 +533,12 @@ static bool oa_buffer_check_unlocked(struct i915_perf_stream *stream)
 		stream->oa_buffer.aging_timestamp = now;
 	}
 
+	pollin = OA_TAKEN(stream->oa_buffer.tail - gtt_offset,
+			  stream->oa_buffer.head - gtt_offset) >= report_size;
+
 	spin_unlock_irqrestore(&stream->oa_buffer.ptr_lock, flags);
 
-	return OA_TAKEN(stream->oa_buffer.tail - gtt_offset,
-			stream->oa_buffer.head - gtt_offset) >= report_size;
+	return pollin;
 }
 
 /**
