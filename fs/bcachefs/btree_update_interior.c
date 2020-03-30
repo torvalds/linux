@@ -713,13 +713,6 @@ again:
 
 		bch2_btree_add_journal_pin(c, b, res.seq);
 		six_unlock_write(&b->c.lock);
-
-		/*
-		 * b->write_blocked prevented it from being written, so
-		 * write it now if it needs to be written:
-		 */
-		btree_node_write_if_need(c, b, SIX_LOCK_intent);
-		six_unlock_intent(&b->c.lock);
 		break;
 
 	case BTREE_INTERIOR_UPDATING_AS:
@@ -745,6 +738,16 @@ again:
 
 	bch2_journal_res_put(&c->journal, &res);
 	bch2_journal_preres_put(&c->journal, &as->journal_preres);
+
+	/* Do btree write after dropping journal res: */
+	if (b) {
+		/*
+		 * b->write_blocked prevented it from being written, so
+		 * write it now if it needs to be written:
+		 */
+		btree_node_write_if_need(c, b, SIX_LOCK_intent);
+		six_unlock_intent(&b->c.lock);
+	}
 
 	btree_update_nodes_reachable(as, res.seq);
 free_update:
