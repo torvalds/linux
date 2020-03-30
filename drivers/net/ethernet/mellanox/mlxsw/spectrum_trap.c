@@ -8,6 +8,7 @@
 #include "core.h"
 #include "reg.h"
 #include "spectrum.h"
+#include "spectrum_trap.h"
 
 /* All driver-specific traps must be documented in
  * Documentation/networking/devlink/mlxsw.rst
@@ -309,6 +310,7 @@ static int mlxsw_sp_trap_cpu_policers_set(struct mlxsw_sp *mlxsw_sp)
 	/* The purpose of "thin" policer is to drop as many packets
 	 * as possible. The dummy group is using it.
 	 */
+	__set_bit(MLXSW_SP_THIN_POLICER_ID, mlxsw_sp->trap->policers_usage);
 	mlxsw_reg_qpcr_pack(qpcr_pl, MLXSW_SP_THIN_POLICER_ID,
 			    MLXSW_REG_QPCR_IR_UNITS_M, false, 1, 4);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(qpcr), qpcr_pl);
