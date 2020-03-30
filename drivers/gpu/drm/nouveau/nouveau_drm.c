@@ -178,7 +178,7 @@ nouveau_cli_fini(struct nouveau_cli *cli)
 	usif_client_fini(cli);
 	nouveau_vmm_fini(&cli->svm);
 	nouveau_vmm_fini(&cli->vmm);
-	nvif_mmu_fini(&cli->mmu);
+	nvif_mmu_dtor(&cli->mmu);
 	nvif_device_dtor(&cli->device);
 	mutex_lock(&cli->drm->master.lock);
 	nvif_client_dtor(&cli->base);
@@ -254,7 +254,8 @@ nouveau_cli_init(struct nouveau_drm *drm, const char *sname,
 		goto done;
 	}
 
-	ret = nvif_mmu_init(&cli->device.object, mmus[ret].oclass, &cli->mmu);
+	ret = nvif_mmu_ctor(&cli->device.object, "drmMmu", mmus[ret].oclass,
+			    &cli->mmu);
 	if (ret) {
 		NV_PRINTK(err, cli, "MMU allocation failed: %d\n", ret);
 		goto done;
