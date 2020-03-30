@@ -25,7 +25,7 @@ config X86_PCC_CPUFREQ
 	  This driver adds support for the PCC interface.
 
 	  For details, take a look at:
-	  <file:Documentation/cpu-freq/pcc-cpufreq.txt>.
+	  <file:Documentation/admin-guide/pm/cpufreq_drivers.rst>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called pcc-cpufreq.
