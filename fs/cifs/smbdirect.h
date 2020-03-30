@@ -114,6 +114,7 @@ struct smbd_connection {
 	/* Activity accoutning */
 	atomic_t send_pending;
 	wait_queue_head_t wait_send_pending;
+	wait_queue_head_t wait_post_send;
 
 	/* Receive queue */
 	struct list_head receive_queue;

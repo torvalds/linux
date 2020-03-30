@@ -287,6 +287,7 @@ static void send_done(struct ib_cq *cq, struct ib_wc *wc)
 	if (atomic_dec_and_test(&request->info->send_pending))
 		wake_up(&request->info->wait_send_pending);
 
+	wake_up(&request->info->wait_post_send);
 
 	mempool_free(request, request->info->request_mempool);
 }
@@ -939,7 +940,14 @@ static int smbd_post_send(struct smbd_connection *info,
 	send_wr.opcode = IB_WR_SEND;
 	send_wr.send_flags = IB_SEND_SIGNALED;
 
-	atomic_inc(&info->send_pending);
+wait_sq:
+	wait_event(info->wait_post_send,
+		atomic_read(&info->send_pending) < info->send_credit_target);
+	if (unlikely(atomic_inc_return(&info->send_pending) >
+				info->send_credit_target)) {
+		atomic_dec(&info->send_pending);
+		goto wait_sq;
+	}
 
 	rc = ib_post_send(info->id->qp, &send_wr, NULL);
 	if (rc) {
@@ -1733,6 +1741,7 @@ static struct smbd_connection *_smbd_get_connection(
 	init_waitqueue_head(&info->wait_send_pending);
 	atomic_set(&info->send_pending, 0);
 
+	init_waitqueue_head(&info->wait_post_send);
 
 	INIT_WORK(&info->disconnect_work, smbd_disconnect_rdma_work);
 	INIT_WORK(&info->post_send_credits_work, smbd_post_send_credits);
