@@ -198,6 +198,15 @@ config DWMAC_SUN8I
 	  EMAC ethernet controller.
 endif
 
+config DWMAC_INTEL
+	tristate "Intel GMAC support"
+	default X86
+	depends on X86 && STMMAC_ETH && PCI
+	depends on COMMON_CLK
+	---help---
+	  This selects the Intel platform specific bus support for the
+	  stmmac driver. This driver is used for Intel Quark/EHL/TGL.
+
 config STMMAC_PCI
 	tristate "STMMAC PCI bus support"
 	depends on STMMAC_ETH && PCI
