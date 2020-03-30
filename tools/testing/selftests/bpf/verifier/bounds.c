@@ -257,17 +257,15 @@
 	 *      [0x00ff'ffff'ff00'0000, 0x00ff'ffff'ffff'ffff]
 	 */
 	BPF_ALU64_IMM(BPF_RSH, BPF_REG_1, 8),
-	/* no-op or OOB pointer computation */
+	/* error on OOB pointer computation */
 	BPF_ALU64_REG(BPF_ADD, BPF_REG_0, BPF_REG_1),
-	/* potentially OOB access */
-	BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_0, 0),
 	/* exit */
 	BPF_MOV64_IMM(BPF_REG_0, 0),
 	BPF_EXIT_INSN(),
 	},
 	.fixup_map_hash_8b = { 3 },
 	/* not actually fully unbounded, but the bound is very high */
-	.errstr = "R0 unbounded memory access",
+	.errstr = "value 72057594021150720 makes map_value pointer be out of bounds",
 	.result = REJECT
 },
 {
@@ -299,17 +297,15 @@
 	 *      [0x00ff'ffff'ff00'0000, 0x00ff'ffff'ffff'ffff]
 	 */
 	BPF_ALU64_IMM(BPF_RSH, BPF_REG_1, 8),
-	/* no-op or OOB pointer computation */
+	/* error on OOB pointer computation */
 	BPF_ALU64_REG(BPF_ADD, BPF_REG_0, BPF_REG_1),
-	/* potentially OOB access */
-	BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_0, 0),
 	/* exit */
 	BPF_MOV64_IMM(BPF_REG_0, 0),
 	BPF_EXIT_INSN(),
 	},
 	.fixup_map_hash_8b = { 3 },
 	/* not actually fully unbounded, but the bound is very high */
-	.errstr = "R0 unbounded memory access",
+	.errstr = "value 72057594021150720 makes map_value pointer be out of bounds",
 	.result = REJECT
 },
 {
