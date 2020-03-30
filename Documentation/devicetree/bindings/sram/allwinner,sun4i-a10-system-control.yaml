@@ -125,7 +125,7 @@ examples:
       #size-cells = <1>;
       ranges;
 
-      sram_a: sram@00000000 {
+      sram_a: sram@0 {
         compatible = "mmio-sram";
         reg = <0x00000000 0xc000>;
         #address-cells = <1>;

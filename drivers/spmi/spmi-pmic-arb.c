@@ -731,6 +731,7 @@ static int qpnpint_irq_domain_translate(struct irq_domain *d,
 	return 0;
 }
 
+static struct lock_class_key qpnpint_irq_lock_class, qpnpint_irq_request_class;
 
 static void qpnpint_irq_domain_map(struct spmi_pmic_arb *pmic_arb,
 				   struct irq_domain *domain, unsigned int virq,
@@ -746,6 +747,9 @@ static void qpnpint_irq_domain_map(struct spmi_pmic_arb *pmic_arb,
 	else
 		handler = handle_level_irq;
 
+
+	irq_set_lockdep_class(virq, &qpnpint_irq_lock_class,
+			      &qpnpint_irq_request_class);
 	irq_domain_set_info(domain, virq, hwirq, &pmic_arb_irqchip, pmic_arb,
 			    handler, NULL, NULL);
 }

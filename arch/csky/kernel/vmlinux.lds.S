@@ -2,6 +2,7 @@
 
 #include <asm/vmlinux.lds.h>
 #include <asm/page.h>
+#include <asm/memory.h>
 
 OUTPUT_ARCH(csky)
 ENTRY(_start)
@@ -52,6 +53,54 @@ SECTIONS
 	RO_DATA(PAGE_SIZE)
 	RW_DATA(L1_CACHE_BYTES, PAGE_SIZE, THREAD_SIZE)
 	_edata = .;
+
+#ifdef CONFIG_HAVE_TCM
+	.tcm_start : {
+		. = ALIGN(PAGE_SIZE);
+		__tcm_start = .;
+	}
+
+	.text_data_tcm FIXADDR_TCM : AT(__tcm_start)
+	{
+		. = ALIGN(4);
+		__stcm_text_data = .;
+		*(.tcm.text)
+		*(.tcm.rodata)
+#ifndef CONFIG_HAVE_DTCM
+		*(.tcm.data)
+#endif
+		. = ALIGN(4);
+		__etcm_text_data = .;
+	}
+
+	. = ADDR(.tcm_start) + SIZEOF(.tcm_start) + SIZEOF(.text_data_tcm);
+
+#ifdef CONFIG_HAVE_DTCM
+	#define ITCM_SIZE	CONFIG_ITCM_NR_PAGES * PAGE_SIZE
+
+	.dtcm_start : {
+		__dtcm_start = .;
+	}
+
+	.data_tcm FIXADDR_TCM + ITCM_SIZE : AT(__dtcm_start)
+	{
+		. = ALIGN(4);
+		__stcm_data = .;
+		*(.tcm.data)
+		. = ALIGN(4);
+		__etcm_data = .;
+	}
+
+	. = ADDR(.dtcm_start) + SIZEOF(.data_tcm);
+
+	.tcm_end : AT(ADDR(.dtcm_start) + SIZEOF(.data_tcm)) {
+#else
+	.tcm_end : AT(ADDR(.tcm_start) + SIZEOF(.text_data_tcm)) {
+#endif
+		. = ALIGN(PAGE_SIZE);
+		__tcm_end = .;
+	}
+#endif
 
 	EXCEPTION_TABLE(L1_CACHE_BYTES)
 	BSS_SECTION(L1_CACHE_BYTES, PAGE_SIZE, L1_CACHE_BYTES)

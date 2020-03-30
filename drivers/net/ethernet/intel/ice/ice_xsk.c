@@ -338,8 +338,8 @@ static int ice_xsk_umem_dma_map(struct ice_vsi *vsi, struct xdp_umem *umem)
 						    DMA_BIDIRECTIONAL,
 						    ICE_RX_DMA_ATTR);
 		if (dma_mapping_error(dev, dma)) {
-			dev_dbg(dev,
-				"XSK UMEM DMA mapping error on page num %d", i);
+			dev_dbg(dev, "XSK UMEM DMA mapping error on page num %d\n",
+				i);
 			goto out_unmap;
 		}
 

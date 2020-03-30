@@ -4409,12 +4409,22 @@ static void kvm_sched_out(struct preempt_notifier *pn,
 
 /**
  * kvm_get_running_vcpu - get the vcpu running on the current CPU.
- * Thanks to preempt notifiers, this can also be called from
- * preemptible context.
+ *
+ * We can disable preemption locally around accessing the per-CPU variable,
+ * and use the resolved vcpu pointer after enabling preemption again,
+ * because even if the current thread is migrated to another CPU, reading
+ * the per-CPU value later will give us the same value as we update the
+ * per-CPU variable in the preempt notifier handlers.
  */
 struct kvm_vcpu *kvm_get_running_vcpu(void)
 {
-        return __this_cpu_read(kvm_running_vcpu);
+	struct kvm_vcpu *vcpu;
+
+	preempt_disable();
+	vcpu = __this_cpu_read(kvm_running_vcpu);
+	preempt_enable();
+
+	return vcpu;
 }
 
 /**

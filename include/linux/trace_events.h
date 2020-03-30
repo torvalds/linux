@@ -440,7 +440,7 @@ struct synth_event_trace_state {
 	struct synth_event *event;
 	unsigned int cur_field;
 	unsigned int n_u64;
-	bool enabled;
+	bool disabled;
 	bool add_next;
 	bool add_name;
 };

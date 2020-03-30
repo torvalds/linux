@@ -160,7 +160,7 @@ properties:
         items:
           - enum:
               - armadeus,imx6dl-apf6      # APF6 (Solo) SoM
-              - armadeus,imx6dl-apf6dldev # APF6 (Solo) SoM on APF6Dev board
+              - armadeus,imx6dl-apf6dev   # APF6 (Solo) SoM on APF6Dev board
               - eckelmann,imx6dl-ci4x10
               - emtrion,emcon-mx6         # emCON-MX6S or emCON-MX6DL SoM
               - emtrion,emcon-mx6-avari   # emCON-MX6S or emCON-MX6DL SoM on Avari Base

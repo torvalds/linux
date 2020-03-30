@@ -688,11 +688,9 @@ struct phy *phy_get(struct device *dev, const char *string)
 	get_device(&phy->dev);
 
 	link = device_link_add(dev, &phy->dev, DL_FLAG_STATELESS);
-	if (!link) {
-		dev_err(dev, "failed to create device link to %s\n",
+	if (!link)
+		dev_dbg(dev, "failed to create device link to %s\n",
 			dev_name(phy->dev.parent));
-		return ERR_PTR(-EINVAL);
-	}
 
 	return phy;
 }
@@ -803,11 +801,9 @@ struct phy *devm_of_phy_get(struct device *dev, struct device_node *np,
 	}
 
 	link = device_link_add(dev, &phy->dev, DL_FLAG_STATELESS);
-	if (!link) {
-		dev_err(dev, "failed to create device link to %s\n",
+	if (!link)
+		dev_dbg(dev, "failed to create device link to %s\n",
 			dev_name(phy->dev.parent));
-		return ERR_PTR(-EINVAL);
-	}
 
 	return phy;
 }
@@ -852,11 +848,9 @@ struct phy *devm_of_phy_get_by_index(struct device *dev, struct device_node *np,
 	devres_add(dev, ptr);
 
 	link = device_link_add(dev, &phy->dev, DL_FLAG_STATELESS);
-	if (!link) {
-		dev_err(dev, "failed to create device link to %s\n",
+	if (!link)
+		dev_dbg(dev, "failed to create device link to %s\n",
 			dev_name(phy->dev.parent));
-		return ERR_PTR(-EINVAL);
-	}
 
 	return phy;
 }

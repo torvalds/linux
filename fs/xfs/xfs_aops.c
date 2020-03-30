@@ -587,7 +587,7 @@ xfs_dax_writepages(
 
 	xfs_iflags_clear(ip, XFS_ITRUNCATED);
 	return dax_writeback_mapping_range(mapping,
-			xfs_inode_buftarg(ip)->bt_bdev, wbc);
+			xfs_inode_buftarg(ip)->bt_daxdev, wbc);
 }
 
 STATIC sector_t

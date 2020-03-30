@@ -9,7 +9,7 @@ TEMPCONF=`mktemp temp-XXXX.bconf`
 NG=0
 
 cleanup() {
-  rm -f $INITRD $TEMPCONF
+  rm -f $INITRD $TEMPCONF $OUTFILE
   exit $NG
 }
 
@@ -49,7 +49,7 @@ xpass $BOOTCONF -a $TEMPCONF $INITRD
 new_size=$(stat -c %s $INITRD)
 
 echo "File size check"
-xpass test $new_size -eq $(expr $bconf_size + $initrd_size + 9)
+xpass test $new_size -eq $(expr $bconf_size + $initrd_size + 9 + 12)
 
 echo "Apply command repeat test"
 xpass $BOOTCONF -a $TEMPCONF $INITRD
@@ -63,6 +63,14 @@ xpass $BOOTCONF -d $INITRD
 echo "File size check"
 new_size=$(stat -c %s $INITRD)
 xpass test $new_size -eq $initrd_size
+
+echo "No error messge while applying"
+OUTFILE=`mktemp tempout-XXXX`
+dd if=/dev/zero of=$INITRD bs=4096 count=1
+printf " \0\0\0 \0\0\0" >> $INITRD
+$BOOTCONF -a $TEMPCONF $INITRD > $OUTFILE 2>&1
+xfail grep -i "failed" $OUTFILE
+xfail grep -i "error" $OUTFILE
 
 echo "Max node number check"
 
@@ -86,6 +94,19 @@ xfail $BOOTCONF -a $TEMPCONF $INITRD
 truncate -s 32764 $TEMPCONF
 echo "\"" >> $TEMPCONF	# add 2 bytes + terminal ('\"\n\0')
 xpass $BOOTCONF -a $TEMPCONF $INITRD
+
+echo "Adding same-key values"
+cat > $TEMPCONF << EOF
+key = bar, baz
+key += qux
+EOF
+echo > $INITRD
+
+xpass $BOOTCONF -a $TEMPCONF $INITRD
+$BOOTCONF $INITRD > $OUTFILE
+xpass grep -q "bar" $OUTFILE
+xpass grep -q "baz" $OUTFILE
+xpass grep -q "qux" $OUTFILE
 
 echo "=== expected failure cases ==="
 for i in samples/bad-* ; do
