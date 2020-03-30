@@ -537,8 +537,10 @@ int mlxsw_sp_trap_action_set(struct mlxsw_core *mlxsw_core,
 	return 0;
 }
 
-int mlxsw_sp_trap_group_init(struct mlxsw_core *mlxsw_core,
-			     const struct devlink_trap_group *group)
+static int
+__mlxsw_sp_trap_group_init(struct mlxsw_core *mlxsw_core,
+			   const struct devlink_trap_group *group,
+			   u32 policer_id)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
 	u16 hw_policer_id = MLXSW_REG_HTGT_INVALID_POLICER;
@@ -570,11 +572,11 @@ int mlxsw_sp_trap_group_init(struct mlxsw_core *mlxsw_core,
 		return -EINVAL;
 	}
 
-	if (group->init_policer_id) {
+	if (policer_id) {
 		struct mlxsw_sp_trap_policer_item *policer_item;
-		u32 id = group->init_policer_id;
 
-		policer_item = mlxsw_sp_trap_policer_item_lookup(mlxsw_sp, id);
+		policer_item = mlxsw_sp_trap_policer_item_lookup(mlxsw_sp,
+								 policer_id);
 		if (WARN_ON(!policer_item))
 			return -EINVAL;
 		hw_policer_id = policer_item->hw_id;
@@ -582,6 +584,22 @@ int mlxsw_sp_trap_group_init(struct mlxsw_core *mlxsw_core,
 
 	mlxsw_reg_htgt_pack(htgt_pl, group_id, hw_policer_id, priority, tc);
 	return mlxsw_reg_write(mlxsw_core, MLXSW_REG(htgt), htgt_pl);
+}
+
+int mlxsw_sp_trap_group_init(struct mlxsw_core *mlxsw_core,
+			     const struct devlink_trap_group *group)
+{
+	return __mlxsw_sp_trap_group_init(mlxsw_core, group,
+					  group->init_policer_id);
+}
+
+int mlxsw_sp_trap_group_set(struct mlxsw_core *mlxsw_core,
+			    const struct devlink_trap_group *group,
+			    const struct devlink_trap_policer *policer)
+{
+	u32 policer_id = policer ? policer->id : 0;
+
+	return __mlxsw_sp_trap_group_init(mlxsw_core, group, policer_id);
 }
 
 static struct mlxsw_sp_trap_policer_item *

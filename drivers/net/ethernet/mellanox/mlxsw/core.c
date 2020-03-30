@@ -1199,6 +1199,19 @@ mlxsw_devlink_trap_group_init(struct devlink *devlink,
 }
 
 static int
+mlxsw_devlink_trap_group_set(struct devlink *devlink,
+			     const struct devlink_trap_group *group,
+			     const struct devlink_trap_policer *policer)
+{
+	struct mlxsw_core *mlxsw_core = devlink_priv(devlink);
+	struct mlxsw_driver *mlxsw_driver = mlxsw_core->driver;
+
+	if (!mlxsw_driver->trap_group_set)
+		return -EOPNOTSUPP;
+	return mlxsw_driver->trap_group_set(mlxsw_core, group, policer);
+}
+
+static int
 mlxsw_devlink_trap_policer_init(struct devlink *devlink,
 				const struct devlink_trap_policer *policer)
 {
@@ -1273,6 +1286,7 @@ static const struct devlink_ops mlxsw_devlink_ops = {
 	.trap_fini			= mlxsw_devlink_trap_fini,
 	.trap_action_set		= mlxsw_devlink_trap_action_set,
 	.trap_group_init		= mlxsw_devlink_trap_group_init,
+	.trap_group_set			= mlxsw_devlink_trap_group_set,
 	.trap_policer_init		= mlxsw_devlink_trap_policer_init,
 	.trap_policer_fini		= mlxsw_devlink_trap_policer_fini,
 	.trap_policer_set		= mlxsw_devlink_trap_policer_set,
