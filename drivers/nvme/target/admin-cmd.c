@@ -6,6 +6,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
 #include <linux/rculist.h>
+#include <linux/part_stat.h>
 
 #include <generated/utsrelease.h>
 #include <asm/unaligned.h>

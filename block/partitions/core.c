@@ -1,75 +1,176 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *  Code extracted from drivers/block/genhd.c
- *  Copyright (C) 1991-1998  Linus Torvalds
- *  Re-organised Feb 1998 Russell King
- *
- *  We now have independent partition support from the
- *  block drivers, which allows all the partition code to
- *  be grouped in one location, and it to be mostly self
- *  contained.
+ * Copyright (C) 1991-1998  Linus Torvalds
+ * Re-organised Feb 1998 Russell King
  */
-
-#include <linux/init.h>
-#include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/slab.h>
-#include <linux/kmod.h>
 #include <linux/ctype.h>
 #include <linux/genhd.h>
+#include <linux/vmalloc.h>
 #include <linux/blktrace_api.h>
+#include <linux/raid/detect.h>
+#include "check.h"
 
-#include "partitions/check.h"
-
-#ifdef CONFIG_BLK_DEV_MD
-extern void md_autodetect_dev(dev_t dev);
+static int (*check_part[])(struct parsed_partitions *) = {
+	/*
+	 * Probe partition formats with tables at disk address 0
+	 * that also have an ADFS boot block at 0xdc0.
+	 */
+#ifdef CONFIG_ACORN_PARTITION_ICS
+	adfspart_check_ICS,
 #endif
- 
-/*
- * disk_name() is used by partition check code and the genhd driver.
- * It formats the devicename of the indicated disk into
- * the supplied buffer (of size at least 32), and returns
- * a pointer to that same buffer (for convenience).
- */
+#ifdef CONFIG_ACORN_PARTITION_POWERTEC
+	adfspart_check_POWERTEC,
+#endif
+#ifdef CONFIG_ACORN_PARTITION_EESOX
+	adfspart_check_EESOX,
+#endif
 
-char *disk_name(struct gendisk *hd, int partno, char *buf)
+	/*
+	 * Now move on to formats that only have partition info at
+	 * disk address 0xdc0.  Since these may also have stale
+	 * PC/BIOS partition tables, they need to come before
+	 * the msdos entry.
+	 */
+#ifdef CONFIG_ACORN_PARTITION_CUMANA
+	adfspart_check_CUMANA,
+#endif
+#ifdef CONFIG_ACORN_PARTITION_ADFS
+	adfspart_check_ADFS,
+#endif
+
+#ifdef CONFIG_CMDLINE_PARTITION
+	cmdline_partition,
+#endif
+#ifdef CONFIG_EFI_PARTITION
+	efi_partition,		/* this must come before msdos */
+#endif
+#ifdef CONFIG_SGI_PARTITION
+	sgi_partition,
+#endif
+#ifdef CONFIG_LDM_PARTITION
+	ldm_partition,		/* this must come before msdos */
+#endif
+#ifdef CONFIG_MSDOS_PARTITION
+	msdos_partition,
+#endif
+#ifdef CONFIG_OSF_PARTITION
+	osf_partition,
+#endif
+#ifdef CONFIG_SUN_PARTITION
+	sun_partition,
+#endif
+#ifdef CONFIG_AMIGA_PARTITION
+	amiga_partition,
+#endif
+#ifdef CONFIG_ATARI_PARTITION
+	atari_partition,
+#endif
+#ifdef CONFIG_MAC_PARTITION
+	mac_partition,
+#endif
+#ifdef CONFIG_ULTRIX_PARTITION
+	ultrix_partition,
+#endif
+#ifdef CONFIG_IBM_PARTITION
+	ibm_partition,
+#endif
+#ifdef CONFIG_KARMA_PARTITION
+	karma_partition,
+#endif
+#ifdef CONFIG_SYSV68_PARTITION
+	sysv68_partition,
+#endif
+	NULL
+};
+
+static struct parsed_partitions *allocate_partitions(struct gendisk *hd)
 {
-	if (!partno)
-		snprintf(buf, BDEVNAME_SIZE, "%s", hd->disk_name);
-	else if (isdigit(hd->disk_name[strlen(hd->disk_name)-1]))
-		snprintf(buf, BDEVNAME_SIZE, "%sp%d", hd->disk_name, partno);
-	else
-		snprintf(buf, BDEVNAME_SIZE, "%s%d", hd->disk_name, partno);
+	struct parsed_partitions *state;
+	int nr;
 
-	return buf;
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	if (!state)
+		return NULL;
+
+	nr = disk_max_parts(hd);
+	state->parts = vzalloc(array_size(nr, sizeof(state->parts[0])));
+	if (!state->parts) {
+		kfree(state);
+		return NULL;
+	}
+
+	state->limit = nr;
+
+	return state;
 }
 
-const char *bdevname(struct block_device *bdev, char *buf)
+static void free_partitions(struct parsed_partitions *state)
 {
-	return disk_name(bdev->bd_disk, bdev->bd_part->partno, buf);
+	vfree(state->parts);
+	kfree(state);
 }
 
-EXPORT_SYMBOL(bdevname);
-
-const char *bio_devname(struct bio *bio, char *buf)
+static struct parsed_partitions *check_partition(struct gendisk *hd,
+		struct block_device *bdev)
 {
-	return disk_name(bio->bi_disk, bio->bi_partno, buf);
-}
-EXPORT_SYMBOL(bio_devname);
+	struct parsed_partitions *state;
+	int i, res, err;
 
-/*
- * There's very little reason to use this, you should really
- * have a struct block_device just about everywhere and use
- * bdevname() instead.
- */
-const char *__bdevname(dev_t dev, char *buffer)
-{
-	scnprintf(buffer, BDEVNAME_SIZE, "unknown-block(%u,%u)",
-				MAJOR(dev), MINOR(dev));
-	return buffer;
-}
+	state = allocate_partitions(hd);
+	if (!state)
+		return NULL;
+	state->pp_buf = (char *)__get_free_page(GFP_KERNEL);
+	if (!state->pp_buf) {
+		free_partitions(state);
+		return NULL;
+	}
+	state->pp_buf[0] = '\0';
 
-EXPORT_SYMBOL(__bdevname);
+	state->bdev = bdev;
+	disk_name(hd, 0, state->name);
+	snprintf(state->pp_buf, PAGE_SIZE, " %s:", state->name);
+	if (isdigit(state->name[strlen(state->name)-1]))
+		sprintf(state->name, "p");
+
+	i = res = err = 0;
+	while (!res && check_part[i]) {
+		memset(state->parts, 0, state->limit * sizeof(state->parts[0]));
+		res = check_part[i++](state);
+		if (res < 0) {
+			/*
+			 * We have hit an I/O error which we don't report now.
+			 * But record it, and let the others do their job.
+			 */
+			err = res;
+			res = 0;
+		}
+
+	}
+	if (res > 0) {
+		printk(KERN_INFO "%s", state->pp_buf);
+
+		free_page((unsigned long)state->pp_buf);
+		return state;
+	}
+	if (state->access_beyond_eod)
+		err = -ENOSPC;
+	/*
+	 * The partition is unrecognized. So report I/O errors if there were any
+	 */
+	if (err)
+		res = err;
+	if (res) {
+		strlcat(state->pp_buf,
+			" unable to read partition table\n", PAGE_SIZE);
+		printk(KERN_INFO "%s", state->pp_buf);
+	}
+
+	free_page((unsigned long)state->pp_buf);
+	free_partitions(state);
+	return ERR_PTR(res);
+}
 
 static ssize_t part_partition_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
@@ -85,13 +186,6 @@ static ssize_t part_start_show(struct device *dev,
 	struct hd_struct *p = dev_to_part(dev);
 
 	return sprintf(buf, "%llu\n",(unsigned long long)p->start_sect);
-}
-
-ssize_t part_size_show(struct device *dev,
-		       struct device_attribute *attr, char *buf)
-{
-	struct hd_struct *p = dev_to_part(dev);
-	return sprintf(buf, "%llu\n",(unsigned long long)part_nr_sects_read(p));
 }
 
 static ssize_t part_ro_show(struct device *dev,
@@ -114,74 +208,6 @@ static ssize_t part_discard_alignment_show(struct device *dev,
 	struct hd_struct *p = dev_to_part(dev);
 	return sprintf(buf, "%u\n", p->discard_alignment);
 }
-
-ssize_t part_stat_show(struct device *dev,
-		       struct device_attribute *attr, char *buf)
-{
-	struct hd_struct *p = dev_to_part(dev);
-	struct request_queue *q = part_to_disk(p)->queue;
-	unsigned int inflight;
-
-	inflight = part_in_flight(q, p);
-	return sprintf(buf,
-		"%8lu %8lu %8llu %8u "
-		"%8lu %8lu %8llu %8u "
-		"%8u %8u %8u "
-		"%8lu %8lu %8llu %8u "
-		"%8lu %8u"
-		"\n",
-		part_stat_read(p, ios[STAT_READ]),
-		part_stat_read(p, merges[STAT_READ]),
-		(unsigned long long)part_stat_read(p, sectors[STAT_READ]),
-		(unsigned int)part_stat_read_msecs(p, STAT_READ),
-		part_stat_read(p, ios[STAT_WRITE]),
-		part_stat_read(p, merges[STAT_WRITE]),
-		(unsigned long long)part_stat_read(p, sectors[STAT_WRITE]),
-		(unsigned int)part_stat_read_msecs(p, STAT_WRITE),
-		inflight,
-		jiffies_to_msecs(part_stat_read(p, io_ticks)),
-		jiffies_to_msecs(part_stat_read(p, time_in_queue)),
-		part_stat_read(p, ios[STAT_DISCARD]),
-		part_stat_read(p, merges[STAT_DISCARD]),
-		(unsigned long long)part_stat_read(p, sectors[STAT_DISCARD]),
-		(unsigned int)part_stat_read_msecs(p, STAT_DISCARD),
-		part_stat_read(p, ios[STAT_FLUSH]),
-		(unsigned int)part_stat_read_msecs(p, STAT_FLUSH));
-}
-
-ssize_t part_inflight_show(struct device *dev, struct device_attribute *attr,
-			   char *buf)
-{
-	struct hd_struct *p = dev_to_part(dev);
-	struct request_queue *q = part_to_disk(p)->queue;
-	unsigned int inflight[2];
-
-	part_in_flight_rw(q, p, inflight);
-	return sprintf(buf, "%8u %8u\n", inflight[0], inflight[1]);
-}
-
-#ifdef CONFIG_FAIL_MAKE_REQUEST
-ssize_t part_fail_show(struct device *dev,
-		       struct device_attribute *attr, char *buf)
-{
-	struct hd_struct *p = dev_to_part(dev);
-
-	return sprintf(buf, "%d\n", p->make_it_fail);
-}
-
-ssize_t part_fail_store(struct device *dev,
-			struct device_attribute *attr,
-			const char *buf, size_t count)
-{
-	struct hd_struct *p = dev_to_part(dev);
-	int i;
-
-	if (count > 0 && sscanf(buf, "%d", &i) > 0)
-		p->make_it_fail = (i == 0) ? 0 : 1;
-
-	return count;
-}
-#endif
 
 static DEVICE_ATTR(partition, 0444, part_partition_show, NULL);
 static DEVICE_ATTR(start, 0444, part_start_show, NULL);
@@ -369,7 +395,9 @@ struct hd_struct *add_partition(struct gendisk *disk, int partno,
 	p->policy = get_disk_ro(disk);
 
 	if (info) {
-		struct partition_meta_info *pinfo = alloc_part_info(disk);
+		struct partition_meta_info *pinfo;
+
+		pinfo = kzalloc_node(sizeof(*pinfo), GFP_KERNEL, disk->node_id);
 		if (!pinfo) {
 			err = -ENOMEM;
 			goto out_free_stats;
@@ -428,7 +456,7 @@ struct hd_struct *add_partition(struct gendisk *disk, int partno,
 	return p;
 
 out_free_info:
-	free_part_info(p);
+	kfree(p->info);
 out_free_stats:
 	free_part_stats(p);
 out_free:
@@ -525,10 +553,10 @@ static bool blk_add_partition(struct gendisk *disk, struct block_device *bdev,
 		return true;
 	}
 
-#ifdef CONFIG_BLK_DEV_MD
-	if (state->parts[p].flags & ADDPART_FLAG_RAID)
+	if (IS_BUILTIN(CONFIG_BLK_DEV_MD) &&
+	    (state->parts[p].flags & ADDPART_FLAG_RAID))
 		md_autodetect_dev(part_to_dev(part)->devt);
-#endif
+
 	return true;
 }
 
@@ -602,22 +630,29 @@ out_free_state:
 	return ret;
 }
 
-unsigned char *read_dev_sector(struct block_device *bdev, sector_t n, Sector *p)
+void *read_part_sector(struct parsed_partitions *state, sector_t n, Sector *p)
 {
-	struct address_space *mapping = bdev->bd_inode->i_mapping;
+	struct address_space *mapping = state->bdev->bd_inode->i_mapping;
 	struct page *page;
 
-	page = read_mapping_page(mapping, (pgoff_t)(n >> (PAGE_SHIFT-9)), NULL);
-	if (!IS_ERR(page)) {
-		if (PageError(page))
-			goto fail;
-		p->v = page;
-		return (unsigned char *)page_address(page) +  ((n & ((1 << (PAGE_SHIFT - 9)) - 1)) << 9);
-fail:
-		put_page(page);
+	if (n >= get_capacity(state->bdev->bd_disk)) {
+		state->access_beyond_eod = true;
+		return NULL;
 	}
+
+	page = read_mapping_page(mapping,
+			(pgoff_t)(n >> (PAGE_SHIFT - 9)), NULL);
+	if (IS_ERR(page))
+		goto out;
+	if (PageError(page))
+		goto out_put_page;
+
+	p->v = page;
+	return (unsigned char *)page_address(page) +
+			((n & ((1 << (PAGE_SHIFT - 9)) - 1)) << SECTOR_SHIFT);
+out_put_page:
+	put_page(page);
+out:
 	p->v = NULL;
 	return NULL;
 }
-
-EXPORT_SYMBOL(read_dev_sector);

@@ -25,6 +25,7 @@
 #include <linux/wait.h>
 #include <linux/pr.h>
 #include <linux/refcount.h>
+#include <linux/part_stat.h>
 
 #define DM_MSG_PREFIX "core"
 
@@ -1938,16 +1939,15 @@ static struct mapped_device *alloc_dev(int minor)
 	INIT_LIST_HEAD(&md->table_devices);
 	spin_lock_init(&md->uevent_lock);
 
-	md->queue = blk_alloc_queue_node(GFP_KERNEL, numa_node_id);
-	if (!md->queue)
-		goto bad;
-	md->queue->queuedata = md;
 	/*
 	 * default to bio-based required ->make_request_fn until DM
 	 * table is loaded and md->type established. If request-based
 	 * table is loaded: blk-mq will override accordingly.
 	 */
-	blk_queue_make_request(md->queue, dm_make_request);
+	md->queue = blk_alloc_queue(dm_make_request, numa_node_id);
+	if (!md->queue)
+		goto bad;
+	md->queue->queuedata = md;
 
 	md->disk = alloc_disk_node(1, md->numa_node_id);
 	if (!md->disk)
