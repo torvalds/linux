@@ -149,6 +149,31 @@ static void nfs_io_completion_put(struct nfs_io_completion *ioc)
 		kref_put(&ioc->refcount, nfs_io_completion_release);
 }
 
+static void
+nfs_page_set_inode_ref(struct nfs_page *req, struct inode *inode)
+{
+	if (!test_and_set_bit(PG_INODE_REF, &req->wb_flags)) {
+		kref_get(&req->wb_kref);
+		atomic_long_inc(&NFS_I(inode)->nrequests);
+	}
+}
+
+static int
+nfs_cancel_remove_inode(struct nfs_page *req, struct inode *inode)
+{
+	int ret;
+
+	if (!test_bit(PG_REMOVE, &req->wb_flags))
+		return 0;
+	ret = nfs_page_group_lock(req);
+	if (ret)
+		return ret;
+	if (test_and_clear_bit(PG_REMOVE, &req->wb_flags))
+		nfs_page_set_inode_ref(req, inode);
+	nfs_page_group_unlock(req);
+	return 0;
+}
+
 static struct nfs_page *
 nfs_page_private_request(struct page *page)
 {
@@ -216,6 +241,36 @@ static struct nfs_page *nfs_page_find_head_request(struct page *page)
 	if (!req)
 		req = nfs_page_find_swap_request(page);
 	return req;
+}
+
+static struct nfs_page *nfs_find_and_lock_page_request(struct page *page)
+{
+	struct inode *inode = page_file_mapping(page)->host;
+	struct nfs_page *req, *head;
+	int ret;
+
+	for (;;) {
+		req = nfs_page_find_head_request(page);
+		if (!req)
+			return req;
+		head = nfs_page_group_lock_head(req);
+		if (head != req)
+			nfs_release_request(req);
+		if (IS_ERR(head))
+			return head;
+		ret = nfs_cancel_remove_inode(head, inode);
+		if (ret < 0) {
+			nfs_unlock_and_release_request(head);
+			return ERR_PTR(ret);
+		}
+		/* Ensure that nobody removed the request before we locked it */
+		if (head == nfs_page_private_request(page))
+			break;
+		if (PageSwapCache(page))
+			break;
+		nfs_unlock_and_release_request(head);
+	}
+	return head;
 }
 
 /* Adjust the file length if we're writing beyond the end */
@@ -436,65 +491,22 @@ nfs_destroy_unlinked_subrequests(struct nfs_page *destroy_list,
 }
 
 /*
- * nfs_lock_and_join_requests - join all subreqs to the head req and return
- *                              a locked reference, cancelling any pending
- *                              operations for this page.
- *
- * @page - the page used to lookup the "page group" of nfs_page structures
+ * nfs_join_page_group - destroy subrequests of the head req
+ * @head: the page used to lookup the "page group" of nfs_page structures
+ * @inode: Inode to which the request belongs.
  *
  * This function joins all sub requests to the head request by first
  * locking all requests in the group, cancelling any pending operations
  * and finally updating the head request to cover the whole range covered by
  * the (former) group.  All subrequests are removed from any write or commit
  * lists, unlinked from the group and destroyed.
- *
- * Returns a locked, referenced pointer to the head request - which after
- * this call is guaranteed to be the only request associated with the page.
- * Returns NULL if no requests are found for @page, or a ERR_PTR if an
- * error was encountered.
  */
-static struct nfs_page *
-nfs_lock_and_join_requests(struct page *page)
+static void
+nfs_join_page_group(struct nfs_page *head, struct inode *inode)
 {
-	struct inode *inode = page_file_mapping(page)->host;
-	struct nfs_page *head, *subreq;
+	struct nfs_page *subreq;
 	struct nfs_page *destroy_list = NULL;
 	unsigned int pgbase, off, bytes;
-	int ret;
-
-try_again:
-	/*
-	 * A reference is taken only on the head request which acts as a
-	 * reference to the whole page group - the group will not be destroyed
-	 * until the head reference is released.
-	 */
-	head = nfs_page_find_head_request(page);
-	if (!head)
-		return NULL;
-
-	/* lock the page head first in order to avoid an ABBA inefficiency */
-	if (!nfs_lock_request(head)) {
-		ret = nfs_wait_on_request(head);
-		nfs_release_request(head);
-		if (ret < 0)
-			return ERR_PTR(ret);
-		goto try_again;
-	}
-
-	/* Ensure that nobody removed the request before we locked it */
-	if (head != nfs_page_private_request(page) && !PageSwapCache(page)) {
-		nfs_unlock_and_release_request(head);
-		goto try_again;
-	}
-
-	ret = nfs_page_group_lock(head);
-	if (ret < 0)
-		goto release_request;
-
-	/* lock each request in the page group */
-	ret = nfs_page_group_lock_subrequests(head);
-	if (ret < 0)
-		goto release_request;
 
 	pgbase = head->wb_pgbase;
 	bytes = head->wb_bytes;
@@ -531,30 +543,50 @@ try_again:
 		head->wb_this_page = head;
 	}
 
-	/* Postpone destruction of this request */
-	if (test_and_clear_bit(PG_REMOVE, &head->wb_flags)) {
-		set_bit(PG_INODE_REF, &head->wb_flags);
-		kref_get(&head->wb_kref);
-		atomic_long_inc(&NFS_I(inode)->nrequests);
-	}
-
-	nfs_page_group_unlock(head);
-
 	nfs_destroy_unlinked_subrequests(destroy_list, head, inode);
+}
 
-	/* Did we lose a race with nfs_inode_remove_request()? */
-	if (!(PagePrivate(page) || PageSwapCache(page))) {
+/*
+ * nfs_lock_and_join_requests - join all subreqs to the head req
+ * @page: the page used to lookup the "page group" of nfs_page structures
+ *
+ * This function joins all sub requests to the head request by first
+ * locking all requests in the group, cancelling any pending operations
+ * and finally updating the head request to cover the whole range covered by
+ * the (former) group.  All subrequests are removed from any write or commit
+ * lists, unlinked from the group and destroyed.
+ *
+ * Returns a locked, referenced pointer to the head request - which after
+ * this call is guaranteed to be the only request associated with the page.
+ * Returns NULL if no requests are found for @page, or a ERR_PTR if an
+ * error was encountered.
+ */
+static struct nfs_page *
+nfs_lock_and_join_requests(struct page *page)
+{
+	struct inode *inode = page_file_mapping(page)->host;
+	struct nfs_page *head;
+	int ret;
+
+	/*
+	 * A reference is taken only on the head request which acts as a
+	 * reference to the whole page group - the group will not be destroyed
+	 * until the head reference is released.
+	 */
+	head = nfs_find_and_lock_page_request(page);
+	if (IS_ERR_OR_NULL(head))
+		return head;
+
+	/* lock each request in the page group */
+	ret = nfs_page_group_lock_subrequests(head);
+	if (ret < 0) {
 		nfs_unlock_and_release_request(head);
-		return NULL;
+		return ERR_PTR(ret);
 	}
 
-	/* still holds ref on head from nfs_page_find_head_request
-	 * and still has lock on head from lock loop */
-	return head;
+	nfs_join_page_group(head, inode);
 
-release_request:
-	nfs_unlock_and_release_request(head);
-	return ERR_PTR(ret);
+	return head;
 }
 
 static void nfs_write_error(struct nfs_page *req, int error)
