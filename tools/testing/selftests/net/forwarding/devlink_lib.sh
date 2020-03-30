@@ -420,6 +420,43 @@ devlink_trap_drop_cleanup()
 	tc filter del dev $dev egress protocol $proto pref $pref handle $handle flower
 }
 
+devlink_trap_policers_num_get()
+{
+	devlink -j -p trap policer show | jq '.[]["'$DEVLINK_DEV'"] | length'
+}
+
+devlink_trap_policer_rate_get()
+{
+	local policer_id=$1; shift
+
+	devlink -j -p trap policer show $DEVLINK_DEV policer $policer_id \
+		| jq '.[][][]["rate"]'
+}
+
+devlink_trap_policer_burst_get()
+{
+	local policer_id=$1; shift
+
+	devlink -j -p trap policer show $DEVLINK_DEV policer $policer_id \
+		| jq '.[][][]["burst"]'
+}
+
+devlink_trap_policer_rx_dropped_get()
+{
+	local policer_id=$1; shift
+
+	devlink -j -p -s trap policer show $DEVLINK_DEV policer $policer_id \
+		| jq '.[][][]["stats"]["rx"]["dropped"]'
+}
+
+devlink_trap_group_policer_get()
+{
+	local group_name=$1; shift
+
+	devlink -j -p trap group show $DEVLINK_DEV group $group_name \
+		| jq '.[][][]["policer"]'
+}
+
 devlink_port_by_netdev()
 {
 	local if_name=$1
