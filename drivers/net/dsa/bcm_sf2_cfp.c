@@ -13,6 +13,8 @@
 #include <net/dsa.h>
 #include <linux/bitmap.h>
 #include <net/flow_offload.h>
+#include <net/switchdev.h>
+#include <uapi/linux/if_bridge.h>
 
 #include "bcm_sf2.h"
 #include "bcm_sf2_regs.h"
@@ -847,7 +849,9 @@ static int bcm_sf2_cfp_rule_insert(struct dsa_switch *ds, int port,
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
 	s8 cpu_port = dsa_to_port(ds, port)->cpu_dp->index;
 	__u64 ring_cookie = fs->ring_cookie;
+	struct switchdev_obj_port_vlan vlan;
 	unsigned int queue_num, port_num;
+	u16 vid;
 	int ret;
 
 	/* This rule is a Wake-on-LAN filter and we must specifically
@@ -867,6 +871,34 @@ static int bcm_sf2_cfp_rule_insert(struct dsa_switch *ds, int port,
 	      dsa_is_cpu_port(ds, port_num)) ||
 	    port_num >= priv->hw_params.num_ports)
 		return -EINVAL;
+
+	/* If the rule is matching a particular VLAN, make sure that we honor
+	 * the matching and have it tagged or untagged on the destination port,
+	 * we do this on egress with a VLAN entry. The egress tagging attribute
+	 * is expected to be provided in h_ext.data[1] bit 0. A 1 means untagged,
+	 * a 0 means tagged.
+	 */
+	if (fs->flow_type & FLOW_EXT) {
+		/* We cannot support matching multiple VLAN IDs yet */
+		if ((be16_to_cpu(fs->m_ext.vlan_tci) & VLAN_VID_MASK) !=
+		    VLAN_VID_MASK)
+			return -EINVAL;
+
+		vid = be16_to_cpu(fs->h_ext.vlan_tci) & VLAN_VID_MASK;
+		vlan.vid_begin = vid;
+		vlan.vid_end = vid;
+		if (cpu_to_be32(fs->h_ext.data[1]) & 1)
+			vlan.flags = BRIDGE_VLAN_INFO_UNTAGGED;
+		else
+			vlan.flags = 0;
+
+		ret = ds->ops->port_vlan_prepare(ds, port_num, &vlan);
+		if (ret)
+			return ret;
+
+		ds->ops->port_vlan_add(ds, port_num, &vlan);
+	}
+
 	/*
 	 * We have a small oddity where Port 6 just does not have a
 	 * valid bit here (so we substract by one).
@@ -902,13 +934,17 @@ static int bcm_sf2_cfp_rule_set(struct dsa_switch *ds, int port,
 	int ret = -EINVAL;
 
 	/* Check for unsupported extensions */
-	if ((fs->flow_type & FLOW_MAC_EXT) ||
-	    fs->m_ext.data[1])
+	if (fs->flow_type & FLOW_MAC_EXT)
 		return -EINVAL;
 
 	if (fs->location != RX_CLS_LOC_ANY &&
 	    fs->location > bcm_sf2_cfp_rule_size(priv))
 		return -EINVAL;
+
+	if ((fs->flow_type & FLOW_EXT) &&
+	    !(ds->ops->port_vlan_prepare || ds->ops->port_vlan_add ||
+	      ds->ops->port_vlan_del))
+		return -EOPNOTSUPP;
 
 	if (fs->location != RX_CLS_LOC_ANY &&
 	    test_bit(fs->location, priv->cfp.used))
