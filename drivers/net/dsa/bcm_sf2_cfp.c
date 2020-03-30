@@ -261,10 +261,19 @@ static int bcm_sf2_cfp_act_pol_set(struct bcm_sf2_priv *priv,
 static void bcm_sf2_cfp_slice_ipv4(struct bcm_sf2_priv *priv,
 				   struct flow_dissector_key_ipv4_addrs *addrs,
 				   struct flow_dissector_key_ports *ports,
-				   unsigned int slice_num,
+				   unsigned int slice_num, u8 num_udf,
 				   bool mask)
 {
 	u32 reg, offset;
+
+	/* UDF_Valid[7:0]	[31:24]
+	 * S-Tag		[23:8]
+	 * C-Tag		[7:0]
+	 */
+	if (mask)
+		core_writel(priv, udf_lower_bits(num_udf) << 24, CORE_CFP_MASK_PORT(5));
+	else
+		core_writel(priv, udf_lower_bits(num_udf) << 24, CORE_CFP_DATA_PORT(5));
 
 	/* C-Tag		[31:24]
 	 * UDF_n_A8		[23:8]
@@ -421,18 +430,11 @@ static int bcm_sf2_cfp_ipv4_rule_set(struct bcm_sf2_priv *priv, int port,
 	core_writel(priv, layout->udfs[slice_num].mask_value |
 		    udf_upper_bits(num_udf), CORE_CFP_MASK_PORT(6));
 
-	/* UDF_Valid[7:0]	[31:24]
-	 * S-Tag		[23:8]
-	 * C-Tag		[7:0]
-	 */
-	core_writel(priv, udf_lower_bits(num_udf) << 24, CORE_CFP_DATA_PORT(5));
-
-	/* Mask all but valid UDFs */
-	core_writel(priv, udf_lower_bits(num_udf) << 24, CORE_CFP_MASK_PORT(5));
-
 	/* Program the match and the mask */
-	bcm_sf2_cfp_slice_ipv4(priv, ipv4.key, ports.key, slice_num, false);
-	bcm_sf2_cfp_slice_ipv4(priv, ipv4.mask, ports.mask, SLICE_NUM_MASK, true);
+	bcm_sf2_cfp_slice_ipv4(priv, ipv4.key, ports.key, slice_num,
+			       num_udf, false);
+	bcm_sf2_cfp_slice_ipv4(priv, ipv4.mask, ports.mask, SLICE_NUM_MASK,
+			       num_udf, true);
 
 	/* Insert into TCAM now */
 	bcm_sf2_cfp_rule_addr_set(priv, rule_index);
@@ -468,10 +470,19 @@ out_err_flow_rule:
 
 static void bcm_sf2_cfp_slice_ipv6(struct bcm_sf2_priv *priv,
 				   const __be32 *ip6_addr, const __be16 port,
-				   unsigned int slice_num,
+				   unsigned int slice_num, u32 udf_bits,
 				   bool mask)
 {
 	u32 reg, tmp, val, offset;
+
+	/* UDF_Valid[7:0]	[31:24]
+	 * S-Tag		[23:8]
+	 * C-Tag		[7:0]
+	 */
+	if (mask)
+		core_writel(priv, udf_bits << 24, CORE_CFP_MASK_PORT(5));
+	else
+		core_writel(priv, udf_bits << 24, CORE_CFP_DATA_PORT(5));
 
 	/* C-Tag		[31:24]
 	 * UDF_n_B8		[23:8]	(port)
@@ -704,20 +715,13 @@ static int bcm_sf2_cfp_ipv6_rule_set(struct bcm_sf2_priv *priv, int port,
 	reg = layout->udfs[slice_num].mask_value | udf_upper_bits(num_udf);
 	core_writel(priv, reg, CORE_CFP_MASK_PORT(6));
 
-	/* UDF_Valid[7:0]	[31:24]
-	 * S-Tag		[23:8]
-	 * C-Tag		[7:0]
-	 */
-	core_writel(priv, udf_lower_bits(num_udf) << 24, CORE_CFP_DATA_PORT(5));
-
-	/* Mask all but valid UDFs */
-	core_writel(priv, udf_lower_bits(num_udf) << 24, CORE_CFP_MASK_PORT(5));
-
 	/* Slice the IPv6 source address and port */
 	bcm_sf2_cfp_slice_ipv6(priv, ipv6.key->src.in6_u.u6_addr32,
-			       ports.key->src, slice_num, false);
+			       ports.key->src, slice_num,
+			       udf_lower_bits(num_udf), false);
 	bcm_sf2_cfp_slice_ipv6(priv, ipv6.mask->src.in6_u.u6_addr32,
-			       ports.mask->src, SLICE_NUM_MASK, true);
+			       ports.mask->src, SLICE_NUM_MASK,
+			       udf_lower_bits(num_udf), true);
 
 	/* Insert into TCAM now because we need to insert a second rule */
 	bcm_sf2_cfp_rule_addr_set(priv, rule_index[0]);
@@ -768,16 +772,12 @@ static int bcm_sf2_cfp_ipv6_rule_set(struct bcm_sf2_priv *priv, int port,
 		udf_lower_bits(num_udf) << 8;
 	core_writel(priv, reg, CORE_CFP_MASK_PORT(6));
 
-	/* Don't care */
-	core_writel(priv, 0, CORE_CFP_DATA_PORT(5));
-
-	/* Mask all */
-	core_writel(priv, 0, CORE_CFP_MASK_PORT(5));
-
 	bcm_sf2_cfp_slice_ipv6(priv, ipv6.key->dst.in6_u.u6_addr32,
-			       ports.key->dst, slice_num, false);
+			       ports.key->dst, slice_num,
+			       0, false);
 	bcm_sf2_cfp_slice_ipv6(priv, ipv6.mask->dst.in6_u.u6_addr32,
-			       ports.key->dst, SLICE_NUM_MASK, true);
+			       ports.key->dst, SLICE_NUM_MASK,
+			       0, true);
 
 	/* Insert into TCAM now */
 	bcm_sf2_cfp_rule_addr_set(priv, rule_index[1]);
