@@ -13381,7 +13381,9 @@ F:	Documentation/devicetree/bindings/iio/magnetometer/pni,rm3100.txt
 
 PNP SUPPORT
 M:	"Rafael J. Wysocki" <rafael.j.wysocki@intel.com>
+L:	linux-acpi@vger.kernel.org
 S:	Maintained
+F:	include/linux/pnp.h
 F:	drivers/pnp/
 
 POSIX CLOCKS and TIMERS
