@@ -114,7 +114,7 @@ static inline void btree_node_write_if_need(struct bch_fs *c, struct btree *b,
 			break;
 		}
 
-		six_unlock_read(&b->c.lock);
+		six_unlock_type(&b->c.lock, lock_held);
 		btree_node_wait_on_io(b);
 		btree_node_lock_type(c, b, lock_held);
 	}
