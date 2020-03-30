@@ -41,7 +41,7 @@ nvif_device_time(struct nvif_device *device)
 void
 nvif_device_dtor(struct nvif_device *device)
 {
-	nvif_user_fini(device);
+	nvif_user_dtor(device);
 	kfree(device->runlist);
 	device->runlist = NULL;
 	nvif_object_dtor(&device->object);

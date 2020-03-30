@@ -483,7 +483,7 @@ nouveau_accel_init(struct nouveau_drm *drm)
 
 	/* Volta requires access to a doorbell register for kickoff. */
 	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_VOLTA) {
-		ret = nvif_user_init(device);
+		ret = nvif_user_ctor(device, "drmUsermode");
 		if (ret)
 			return;
 	}

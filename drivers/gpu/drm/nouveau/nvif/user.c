@@ -25,7 +25,7 @@
 #include <nvif/class.h>
 
 void
-nvif_user_fini(struct nvif_device *device)
+nvif_user_dtor(struct nvif_device *device)
 {
 	if (device->user.func) {
 		nvif_object_dtor(&device->user.object);
@@ -34,7 +34,7 @@ nvif_user_fini(struct nvif_device *device)
 }
 
 int
-nvif_user_init(struct nvif_device *device)
+nvif_user_ctor(struct nvif_device *device, const char *name)
 {
 	struct {
 		s32 oclass;
@@ -53,7 +53,7 @@ nvif_user_init(struct nvif_device *device)
 	if (cid < 0)
 		return cid;
 
-	ret = nvif_object_ctor(&device->object, "nvifUsermode",
+	ret = nvif_object_ctor(&device->object, name ? name : "nvifUsermode",
 			       0, users[cid].oclass, NULL, 0,
 			       &device->user.object);
 	if (ret)
