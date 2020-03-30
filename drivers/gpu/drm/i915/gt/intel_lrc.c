@@ -2342,6 +2342,13 @@ gen8_csb_parse(const struct intel_engine_execlists *execlists, const u32 *csb)
 	return *csb & (GEN8_CTX_STATUS_IDLE_ACTIVE | GEN8_CTX_STATUS_PREEMPTED);
 }
 
+static inline void flush_hwsp(const struct i915_request *rq)
+{
+	mb();
+	clflush((void *)READ_ONCE(rq->hwsp_seqno));
+	mb();
+}
+
 static void process_csb(struct intel_engine_cs *engine)
 {
 	struct intel_engine_execlists * const execlists = &engine->execlists;
@@ -2418,8 +2425,6 @@ static void process_csb(struct intel_engine_cs *engine)
 		if (promote) {
 			struct i915_request * const *old = execlists->active;
 
-			GEM_BUG_ON(!assert_pending_valid(execlists, "promote"));
-
 			ring_set_paused(engine, 0);
 
 			/* Point active to the new ELSP; prevent overwriting */
@@ -2432,6 +2437,7 @@ static void process_csb(struct intel_engine_cs *engine)
 				execlists_schedule_out(*old++);
 
 			/* switch pending to inflight */
+			GEM_BUG_ON(!assert_pending_valid(execlists, "promote"));
 			memcpy(execlists->inflight,
 			       execlists->pending,
 			       execlists_num_ports(execlists) *
@@ -2453,12 +2459,23 @@ static void process_csb(struct intel_engine_cs *engine)
 			 * user interrupt and CSB is processed.
 			 */
 			if (GEM_SHOW_DEBUG() &&
-			    !i915_request_completed(*execlists->active) &&
-			    !reset_in_progress(execlists)) {
-				struct i915_request *rq __maybe_unused =
-					*execlists->active;
+			    !i915_request_completed(*execlists->active)) {
+				struct i915_request *rq = *execlists->active;
 				const u32 *regs __maybe_unused =
 					rq->context->lrc_reg_state;
+
+				/*
+				 * Flush the breadcrumb before crying foul.
+				 *
+				 * Since we have hit this on icl and seen the
+				 * breadcrumb advance as we print out the debug
+				 * info (so the problem corrected itself without
+				 * lasting damage), and we know that icl suffers
+				 * from missing global observation points in
+				 * execlists, presume that affects even more
+				 * coherency.
+				 */
+				flush_hwsp(rq);
 
 				ENGINE_TRACE(engine,
 					     "ring:{start:0x%08x, head:%04x, tail:%04x, ctl:%08x, mode:%08x}\n",
@@ -2480,7 +2497,10 @@ static void process_csb(struct intel_engine_cs *engine)
 					     regs[CTX_RING_HEAD],
 					     regs[CTX_RING_TAIL]);
 
-				GEM_BUG_ON("context completed before request");
+				/* Still? Declare it caput! */
+				if (!i915_request_completed(rq) &&
+				    !reset_in_progress(execlists))
+					GEM_BUG_ON("context completed before request");
 			}
 
 			execlists_schedule_out(*execlists->active++);
