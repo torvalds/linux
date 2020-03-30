@@ -270,9 +270,97 @@ void mac_link_up(struct phylink_config *config, struct phy_device *phy,
 		 int speed, int duplex, bool tx_pause, bool rx_pause);
 #endif
 
+/**
+ * struct phylink_pcs_ops - MAC PCS operations structure.
+ * @pcs_get_state: read the current MAC PCS link state from the hardware.
+ * @pcs_config: configure the MAC PCS for the selected mode and state.
+ * @pcs_an_restart: restart 802.3z BaseX autonegotiation.
+ * @pcs_link_up: program the PCS for the resolved link configuration
+ *               (where necessary).
+ */
+struct phylink_pcs_ops {
+	void (*pcs_get_state)(struct phylink_config *config,
+			      struct phylink_link_state *state);
+	int (*pcs_config)(struct phylink_config *config, unsigned int mode,
+			  phy_interface_t interface,
+			  const unsigned long *advertising);
+	void (*pcs_an_restart)(struct phylink_config *config);
+	void (*pcs_link_up)(struct phylink_config *config, unsigned int mode,
+			    phy_interface_t interface, int speed, int duplex);
+};
+
+#if 0 /* For kernel-doc purposes only. */
+/**
+ * pcs_get_state() - Read the current inband link state from the hardware
+ * @config: a pointer to a &struct phylink_config.
+ * @state: a pointer to a &struct phylink_link_state.
+ *
+ * Read the current inband link state from the MAC PCS, reporting the
+ * current speed in @state->speed, duplex mode in @state->duplex, pause
+ * mode in @state->pause using the %MLO_PAUSE_RX and %MLO_PAUSE_TX bits,
+ * negotiation completion state in @state->an_complete, and link up state
+ * in @state->link. If possible, @state->lp_advertising should also be
+ * populated.
+ *
+ * When present, this overrides mac_pcs_get_state() in &struct
+ * phylink_mac_ops.
+ */
+void pcs_get_state(struct phylink_config *config,
+		   struct phylink_link_state *state);
+
+/**
+ * pcs_config() - Configure the PCS mode and advertisement
+ * @config: a pointer to a &struct phylink_config.
+ * @mode: one of %MLO_AN_FIXED, %MLO_AN_PHY, %MLO_AN_INBAND.
+ * @interface: interface mode to be used
+ * @advertising: adertisement ethtool link mode mask
+ *
+ * Configure the PCS for the operating mode, the interface mode, and set
+ * the advertisement mask.
+ *
+ * When operating in %MLO_AN_INBAND, inband should always be enabled,
+ * otherwise inband should be disabled.
+ *
+ * For SGMII, there is no advertisement from the MAC side, the PCS should
+ * be programmed to acknowledge the inband word from the PHY.
+ *
+ * For 1000BASE-X, the advertisement should be programmed into the PCS.
+ *
+ * For most 10GBASE-R, there is no advertisement.
+ */
+int (*pcs_config)(struct phylink_config *config, unsigned int mode,
+		  phy_interface_t interface, const unsigned long *advertising);
+
+/**
+ * pcs_an_restart() - restart 802.3z BaseX autonegotiation
+ * @config: a pointer to a &struct phylink_config.
+ *
+ * When PCS ops are present, this overrides mac_an_restart() in &struct
+ * phylink_mac_ops.
+ */
+void (*pcs_an_restart)(struct phylink_config *config);
+
+/**
+ * pcs_link_up() - program the PCS for the resolved link configuration
+ * @config: a pointer to a &struct phylink_config.
+ * @mode: link autonegotiation mode
+ * @interface: link &typedef phy_interface_t mode
+ * @speed: link speed
+ * @duplex: link duplex
+ *
+ * This call will be made just before mac_link_up() to inform the PCS of
+ * the resolved link parameters. For example, a PCS operating in SGMII
+ * mode without in-band AN needs to be manually configured for the link
+ * and duplex setting. Otherwise, this should be a no-op.
+ */
+void (*pcs_link_up)(struct phylink_config *config, unsigned int mode,
+		    phy_interface_t interface, int speed, int duplex);
+#endif
+
 struct phylink *phylink_create(struct phylink_config *, struct fwnode_handle *,
 			       phy_interface_t iface,
-			       const struct phylink_mac_ops *ops);
+			       const struct phylink_mac_ops *mac_ops);
+void phylink_add_pcs(struct phylink *, const struct phylink_pcs_ops *ops);
 void phylink_destroy(struct phylink *);
 
 int phylink_connect_phy(struct phylink *, struct phy_device *);
@@ -320,7 +408,8 @@ void phylink_helper_basex_speed(struct phylink_link_state *state);
 void phylink_mii_c22_pcs_get_state(struct mdio_device *pcs,
 				   struct phylink_link_state *state);
 int phylink_mii_c22_pcs_set_advertisement(struct mdio_device *pcs,
-					const struct phylink_link_state *state);
+					  phy_interface_t interface,
+					  const unsigned long *advertising);
 void phylink_mii_c22_pcs_an_restart(struct mdio_device *pcs);
 
 void phylink_mii_c45_pcs_get_state(struct mdio_device *pcs,
