@@ -181,11 +181,13 @@ struct aa_file_rules {
 	/* struct perms perms; */
 	struct aa_domain trans;
 	/* TODO: add delegate table */
+	struct aa_perms *fperms_table;
 };
 
-struct aa_perms aa_compute_fperms(struct aa_dfa *dfa, unsigned int state,
-				    struct path_cond *cond);
-unsigned int aa_str_perms(struct aa_dfa *dfa, unsigned int start,
+void aa_compute_fperms(struct aa_file_rules *file_rules);
+struct aa_perms *aa_lookup_fperms(struct aa_file_rules *file_rules,
+				 unsigned int state, struct path_cond *cond);
+unsigned int aa_str_perms(struct aa_file_rules *file_rules, unsigned int start,
 			  const char *name, struct path_cond *cond,
 			  struct aa_perms *perms);
 
@@ -204,10 +206,17 @@ int aa_file_perm(const char *op, struct aa_label *label, struct file *file,
 
 void aa_inherit_files(const struct cred *cred, struct files_struct *files);
 
+static inline void aa_free_fperms_table(struct aa_perms *fperms_table)
+{
+	if (fperms_table)
+		kvfree(fperms_table);
+}
+
 static inline void aa_free_file_rules(struct aa_file_rules *rules)
 {
 	aa_put_dfa(rules->dfa);
 	aa_free_domain_entries(&rules->trans);
+	aa_free_fperms_table(rules->fperms_table);
 }
 
 /**

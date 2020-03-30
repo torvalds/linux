@@ -22,6 +22,7 @@
 #include "include/audit.h"
 #include "include/cred.h"
 #include "include/crypto.h"
+#include "include/file.h"
 #include "include/match.h"
 #include "include/path.h"
 #include "include/policy.h"
@@ -877,6 +878,8 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 		profile->file.start = profile->policy.start[AA_CLASS_FILE];
 	} else
 		profile->file.dfa = aa_get_dfa(nulldfa);
+
+	aa_compute_fperms(&(profile->file));
 
 	if (!unpack_trans_table(e, profile)) {
 		info = "failed to unpack profile transition table";

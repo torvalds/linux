@@ -624,7 +624,7 @@ static void profile_query_cb(struct aa_profile *profile, struct aa_perms *perms,
 		if (state) {
 			struct path_cond cond = { };
 
-			tmp = aa_compute_fperms(dfa, state, &cond);
+			tmp = *(aa_lookup_fperms(&(profile->file), state, &cond));
 		}
 	} else if (profile->policy.dfa) {
 		if (!PROFILE_MEDIATES(profile, *match_str))

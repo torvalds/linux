@@ -162,7 +162,7 @@ next:
 		if (!state)
 			goto fail;
 	}
-	*perms = aa_compute_fperms(profile->file.dfa, state, &cond);
+	*perms = *(aa_lookup_fperms(&(profile->file), state, &cond));
 	aa_apply_modes_to_perms(profile, perms);
 	if ((perms->allow & request) != request)
 		return -EACCES;
@@ -215,7 +215,7 @@ static int label_components_match(struct aa_profile *profile,
 	return 0;
 
 next:
-	tmp = aa_compute_fperms(profile->file.dfa, state, &cond);
+	tmp = *(aa_lookup_fperms(&(profile->file), state, &cond));
 	aa_apply_modes_to_perms(profile, &tmp);
 	aa_perms_accum(perms, &tmp);
 	label_for_each_cont(i, label, tp) {
@@ -224,7 +224,7 @@ next:
 		state = match_component(profile, tp, stack, start);
 		if (!state)
 			goto fail;
-		tmp = aa_compute_fperms(profile->file.dfa, state, &cond);
+		tmp = *(aa_lookup_fperms(&(profile->file), state, &cond));
 		aa_apply_modes_to_perms(profile, &tmp);
 		aa_perms_accum(perms, &tmp);
 	}
@@ -661,7 +661,7 @@ static struct aa_label *profile_transition(struct aa_profile *profile,
 	}
 
 	/* find exec permissions for name */
-	state = aa_str_perms(profile->file.dfa, state, name, cond, &perms);
+	state = aa_str_perms(&(profile->file), state, name, cond, &perms);
 	if (perms.allow & MAY_EXEC) {
 		/* exec permission determine how to transition */
 		new = x_to_label(profile, bprm, name, perms.xindex, &target,
@@ -756,7 +756,7 @@ static int profile_onexec(struct aa_profile *profile, struct aa_label *onexec,
 	}
 
 	/* find exec permissions for name */
-	state = aa_str_perms(profile->file.dfa, state, xname, cond, &perms);
+	state = aa_str_perms(&(profile->file), state, xname, cond, &perms);
 	if (!(perms.allow & AA_MAY_ONEXEC)) {
 		info = "no change_onexec valid for executable";
 		goto audit;

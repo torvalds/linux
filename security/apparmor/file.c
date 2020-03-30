@@ -201,47 +201,97 @@ static u32 map_old_perms(u32 old)
 	return new;
 }
 
-/**
- * aa_compute_fperms - convert dfa compressed perms to internal perms
- * @dfa: dfa to compute perms for   (NOT NULL)
- * @state: state in dfa
- * @cond:  conditions to consider  (NOT NULL)
- *
- * TODO: convert from dfa + state to permission entry, do computation conversion
- *       at load time.
- *
- * Returns: computed permission set
- */
-struct aa_perms aa_compute_fperms(struct aa_dfa *dfa, unsigned int state,
-				  struct path_cond *cond)
+static void __aa_compute_fperms_allow(struct aa_perms *perms,
+				      struct aa_dfa *dfa,
+				      unsigned int state)
 {
-	/* FIXME: change over to new dfa format
-	 * currently file perms are encoded in the dfa, new format
-	 * splits the permissions from the dfa.  This mapping can be
-	 * done at profile load
-	 */
-	struct aa_perms perms = { };
-
-	if (uid_eq(current_fsuid(), cond->uid)) {
-		perms.allow = map_old_perms(dfa_user_allow(dfa, state));
-		perms.audit = map_old_perms(dfa_user_audit(dfa, state));
-		perms.quiet = map_old_perms(dfa_user_quiet(dfa, state));
-		perms.xindex = dfa_user_xindex(dfa, state);
-	} else {
-		perms.allow = map_old_perms(dfa_other_allow(dfa, state));
-		perms.audit = map_old_perms(dfa_other_audit(dfa, state));
-		perms.quiet = map_old_perms(dfa_other_quiet(dfa, state));
-		perms.xindex = dfa_other_xindex(dfa, state);
-	}
-	perms.allow |= AA_MAY_GETATTR;
+	perms->allow |= AA_MAY_GETATTR;
 
 	/* change_profile wasn't determined by ownership in old mapping */
 	if (ACCEPT_TABLE(dfa)[state] & 0x80000000)
-		perms.allow |= AA_MAY_CHANGE_PROFILE;
+		perms->allow |= AA_MAY_CHANGE_PROFILE;
 	if (ACCEPT_TABLE(dfa)[state] & 0x40000000)
-		perms.allow |= AA_MAY_ONEXEC;
+		perms->allow |= AA_MAY_ONEXEC;
+}
+
+static struct aa_perms __aa_compute_fperms_user(struct aa_dfa *dfa,
+						unsigned int state)
+{
+	struct aa_perms perms = { };
+
+	perms.allow = map_old_perms(dfa_user_allow(dfa, state));
+	perms.audit = map_old_perms(dfa_user_audit(dfa, state));
+	perms.quiet = map_old_perms(dfa_user_quiet(dfa, state));
+	perms.xindex = dfa_user_xindex(dfa, state);
+
+	__aa_compute_fperms_allow(&perms, dfa, state);
 
 	return perms;
+}
+
+static struct aa_perms __aa_compute_fperms_other(struct aa_dfa *dfa,
+						 unsigned int state)
+{
+	struct aa_perms perms = { };
+
+	perms.allow = map_old_perms(dfa_other_allow(dfa, state));
+	perms.audit = map_old_perms(dfa_other_audit(dfa, state));
+	perms.quiet = map_old_perms(dfa_other_quiet(dfa, state));
+	perms.xindex = dfa_other_xindex(dfa, state);
+
+	__aa_compute_fperms_allow(&perms, dfa, state);
+
+	return perms;
+}
+
+/**
+ * aa_compute_fperms - convert dfa compressed perms to internal perms and store
+ *		       them so they can be retrieved later.
+ * @file_rules: a file_rules structure containing a dfa (NOT NULL) for which
+ *		permissions will be computed   (NOT NULL)
+ *
+ * TODO: convert from dfa + state to permission entry
+ */
+void aa_compute_fperms(struct aa_file_rules *file_rules)
+{
+	int state;
+	int state_count = file_rules->dfa->tables[YYTD_ID_BASE]->td_lolen;
+
+	// DFAs are restricted from having a state_count of less than 2
+	file_rules->fperms_table = kvzalloc(
+			state_count * 2 * sizeof(struct aa_perms), GFP_KERNEL);
+
+	// Since fperms_table is initialized with zeroes via kvzalloc(), we can
+	// skip the trap state (state == 0)
+	for (state = 1; state < state_count; state++) {
+		file_rules->fperms_table[state * 2] =
+			__aa_compute_fperms_user(file_rules->dfa, state);
+		file_rules->fperms_table[state * 2 + 1] =
+			__aa_compute_fperms_other(file_rules->dfa, state);
+	}
+}
+
+/**
+ * aa_lookup_fperms - convert dfa compressed perms to internal perms
+ * @dfa: dfa to lookup perms for   (NOT NULL)
+ * @state: state in dfa
+ * @cond:  conditions to consider  (NOT NULL)
+ *
+ * TODO: convert from dfa + state to permission entry
+ *
+ * Returns: a pointer to a file permission set
+ */
+struct aa_perms default_perms = {};
+struct aa_perms *aa_lookup_fperms(struct aa_file_rules *file_rules,
+				 unsigned int state, struct path_cond *cond)
+{
+	if (!(file_rules->fperms_table))
+		return &default_perms;
+
+	if (uid_eq(current_fsuid(), cond->uid))
+		return &(file_rules->fperms_table[state * 2]);
+
+	return &(file_rules->fperms_table[state * 2 + 1]);
 }
 
 /**
@@ -254,13 +304,13 @@ struct aa_perms aa_compute_fperms(struct aa_dfa *dfa, unsigned int state,
  *
  * Returns: the final state in @dfa when beginning @start and walking @name
  */
-unsigned int aa_str_perms(struct aa_dfa *dfa, unsigned int start,
+unsigned int aa_str_perms(struct aa_file_rules *file_rules, unsigned int start,
 			  const char *name, struct path_cond *cond,
 			  struct aa_perms *perms)
 {
 	unsigned int state;
-	state = aa_dfa_match(dfa, start, name);
-	*perms = aa_compute_fperms(dfa, state, cond);
+	state = aa_dfa_match(file_rules->dfa, start, name);
+	*perms = *(aa_lookup_fperms(file_rules, state, cond));
 
 	return state;
 }
@@ -273,7 +323,7 @@ int __aa_path_perm(const char *op, struct aa_profile *profile, const char *name,
 
 	if (profile_unconfined(profile))
 		return 0;
-	aa_str_perms(profile->file.dfa, profile->file.start, name, cond, perms);
+	aa_str_perms(&(profile->file), profile->file.start, name, cond, perms);
 	if (request & ~perms->allow)
 		e = -EACCES;
 	return aa_audit_file(profile, perms, op, request, name, NULL, NULL,
@@ -380,7 +430,7 @@ static int profile_path_link(struct aa_profile *profile,
 
 	error = -EACCES;
 	/* aa_str_perms - handles the case of the dfa being NULL */
-	state = aa_str_perms(profile->file.dfa, profile->file.start, lname,
+	state = aa_str_perms(&(profile->file), profile->file.start, lname,
 			     cond, &lperms);
 
 	if (!(lperms.allow & AA_MAY_LINK))
@@ -388,7 +438,7 @@ static int profile_path_link(struct aa_profile *profile,
 
 	/* test to see if target can be paired with link */
 	state = aa_dfa_null_transition(profile->file.dfa, state);
-	aa_str_perms(profile->file.dfa, state, tname, cond, &perms);
+	aa_str_perms(&(profile->file), state, tname, cond, &perms);
 
 	/* force audit/quiet masks for link are stored in the second entry
 	 * in the link pair.
@@ -410,7 +460,7 @@ static int profile_path_link(struct aa_profile *profile,
 	/* Do link perm subset test requiring allowed permission on link are
 	 * a subset of the allowed permissions on target.
 	 */
-	aa_str_perms(profile->file.dfa, profile->file.start, tname, cond,
+	aa_str_perms(&(profile->file), profile->file.start, tname, cond,
 		     &perms);
 
 	/* AA_MAY_LINK is not considered in the subset test */
