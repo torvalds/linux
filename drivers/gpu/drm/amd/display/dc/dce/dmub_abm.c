@@ -161,6 +161,21 @@ static void dmcub_set_backlight_level(
 	REG_WRITE(BIOS_SCRATCH_2, s2);
 }
 
+static void dmub_abm_enable_fractional_pwm(struct dc_context *dc)
+{
+	union dmub_rb_cmd cmd;
+	uint32_t fractional_pwm = (dc->dc->config.disable_fractional_pwm == false) ? 1 : 0;
+
+	cmd.abm_set_pwm_frac.header.type = DMUB_CMD__ABM;
+	cmd.abm_set_pwm_frac.header.sub_type = DMUB_CMD__ABM_SET_PWM_FRAC;
+	cmd.abm_set_pwm_frac.abm_set_pwm_frac_data.fractional_pwm = fractional_pwm;
+	cmd.abm_set_pwm_frac.header.payload_bytes = sizeof(struct dmub_cmd_abm_set_pwm_frac_data);
+
+	dc_dmub_srv_cmd_queue(dc->dmub_srv, &cmd.abm_set_pwm_frac.header);
+	dc_dmub_srv_cmd_execute(dc->dmub_srv);
+	dc_dmub_srv_wait_idle(dc->dmub_srv);
+}
+
 static void dmub_abm_init(struct abm *abm)
 {
 	struct dce_abm *dce_abm = TO_DMUB_ABM(abm);
@@ -199,6 +214,8 @@ static void dmub_abm_init(struct abm *abm)
 			ABM1_HG_REG_READ_MISSED_FRAME_CLEAR, 1,
 			ABM1_LS_REG_READ_MISSED_FRAME_CLEAR, 1,
 			ABM1_BL_REG_READ_MISSED_FRAME_CLEAR, 1);
+
+	dmub_abm_enable_fractional_pwm(abm->ctx);
 }
 
 static unsigned int dmub_abm_get_current_backlight(struct abm *abm)
@@ -259,27 +276,10 @@ static bool dmub_abm_immediate_disable(struct abm *abm)
 	return true;
 }
 
-static void dmub_abm_enable_fractional_pwm(struct dc_context *dc)
-{
-	union dmub_rb_cmd cmd;
-	uint32_t fractional_pwm = (dc->dc->config.disable_fractional_pwm == false) ? 1 : 0;
-
-	cmd.abm_set_pwm_frac.header.type = DMUB_CMD__ABM;
-	cmd.abm_set_pwm_frac.header.sub_type = DMUB_CMD__ABM_SET_PWM_FRAC;
-	cmd.abm_set_pwm_frac.abm_set_pwm_frac_data.fractional_pwm = fractional_pwm;
-	cmd.abm_set_pwm_frac.header.payload_bytes = sizeof(struct dmub_cmd_abm_set_pwm_frac_data);
-
-	dc_dmub_srv_cmd_queue(dc->dmub_srv, &cmd.abm_set_pwm_frac.header);
-	dc_dmub_srv_cmd_execute(dc->dmub_srv);
-	dc_dmub_srv_wait_idle(dc->dmub_srv);
-}
-
 static bool dmub_abm_init_backlight(struct abm *abm)
 {
 	struct dce_abm *dce_abm = TO_DMUB_ABM(abm);
 	uint32_t value;
-
-	dmub_abm_enable_fractional_pwm(abm->ctx);
 
 	/* It must not be 0, so we have to restore them
 	 * Bios bug w/a - period resets to zero,
