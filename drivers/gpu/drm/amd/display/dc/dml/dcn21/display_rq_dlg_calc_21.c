@@ -1500,9 +1500,12 @@ static void dml_rq_dlg_get_dlg_params(
 				< (unsigned int)dml_pow(2, 13));
 	}
 
-	disp_dlg_regs->refcyc_per_meta_chunk_vblank_l =
+	if (src->dcc)
+		disp_dlg_regs->refcyc_per_meta_chunk_vblank_l =
 			(unsigned int) (dst_y_per_row_vblank * (double) htotal
 					* ref_freq_to_pix_freq / (double) meta_chunks_per_row_ub_l);
+	else
+		disp_dlg_regs->refcyc_per_meta_chunk_vblank_l = 0;
 	ASSERT(disp_dlg_regs->refcyc_per_meta_chunk_vblank_l < (unsigned int)dml_pow(2, 13));
 
 	disp_dlg_regs->refcyc_per_meta_chunk_vblank_c =
