@@ -30,7 +30,7 @@
 		acodec_pins: acodec-pins {
 			rockchip,pins =
 				/* acodec_adc_clk */
-				<3 RK_PD1 4 &pcfg_pull_none>,
+				<3 RK_PD1 3 &pcfg_pull_none>,
 				/* acodec_adc_data */
 				<3 RK_PD7 3 &pcfg_pull_none>,
 				/* acodec_adc_sync */
