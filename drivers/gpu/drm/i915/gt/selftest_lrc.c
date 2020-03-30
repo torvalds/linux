@@ -68,26 +68,41 @@ static void engine_heartbeat_enable(struct intel_engine_cs *engine,
 	engine->props.heartbeat_interval_ms = saved;
 }
 
+static bool is_active(struct i915_request *rq)
+{
+	if (i915_request_is_active(rq))
+		return true;
+
+	if (i915_request_on_hold(rq))
+		return true;
+
+	if (i915_request_started(rq))
+		return true;
+
+	return false;
+}
+
 static int wait_for_submit(struct intel_engine_cs *engine,
 			   struct i915_request *rq,
 			   unsigned long timeout)
 {
 	timeout += jiffies;
 	do {
-		cond_resched();
+		bool done = time_after(jiffies, timeout);
+
+		if (i915_request_completed(rq)) /* that was quick! */
+			return 0;
+
+		/* Wait until the HW has acknowleged the submission (or err) */
 		intel_engine_flush_submission(engine);
-
-		if (READ_ONCE(engine->execlists.pending[0]))
-			continue;
-
-		if (i915_request_is_active(rq))
+		if (!READ_ONCE(engine->execlists.pending[0]) && is_active(rq))
 			return 0;
 
-		if (i915_request_started(rq)) /* that was quick! */
-			return 0;
-	} while (time_before(jiffies, timeout));
+		if (done)
+			return -ETIME;
 
-	return -ETIME;
+		cond_resched();
+	} while (1);
 }
 
 static int wait_for_reset(struct intel_engine_cs *engine,
