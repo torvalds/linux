@@ -1223,10 +1223,10 @@ static int allocate_threshold_blocks(unsigned int cpu, struct threshold_bank *tb
 	u32 low, high;
 	int err;
 
-	if ((bank >= per_cpu(mce_num_banks, cpu)) || (block >= NR_BLOCKS))
+	if ((bank >= this_cpu_read(mce_num_banks)) || (block >= NR_BLOCKS))
 		return 0;
 
-	if (rdmsr_safe_on_cpu(cpu, address, &low, &high))
+	if (rdmsr_safe(address, &low, &high))
 		return 0;
 
 	if (!(high & MASK_VALID_HI)) {
@@ -1316,9 +1316,10 @@ static int __threshold_add_blocks(struct threshold_bank *b)
 	return err;
 }
 
-static int threshold_create_bank(unsigned int cpu, unsigned int bank)
+static int threshold_create_bank(struct threshold_bank **bp, unsigned int cpu,
+				 unsigned int bank)
 {
-	struct device *dev = per_cpu(mce_device, cpu);
+	struct device *dev = this_cpu_read(mce_device);
 	struct amd_northbridge *nb = NULL;
 	struct threshold_bank *b = NULL;
 	const char *name = get_name(bank, NULL);
@@ -1338,7 +1339,7 @@ static int threshold_create_bank(unsigned int cpu, unsigned int bank)
 			if (err)
 				goto out;
 
-			per_cpu(threshold_banks, cpu)[bank] = b;
+			bp[bank] = b;
 			refcount_inc(&b->cpus);
 
 			err = __threshold_add_blocks(b);
@@ -1374,8 +1375,7 @@ static int threshold_create_bank(unsigned int cpu, unsigned int bank)
 	if (err)
 		goto out_kobj;
 
-	per_cpu(threshold_banks, cpu)[bank] = b;
-
+	bp[bank] = b;
 	return 0;
 
 out_kobj:
@@ -1487,35 +1487,33 @@ int mce_threshold_remove_device(unsigned int cpu)
  */
 int mce_threshold_create_device(unsigned int cpu)
 {
-	unsigned int bank;
+	unsigned int numbanks, bank;
 	struct threshold_bank **bp;
 	int err;
 
 	if (!mce_flags.amd_threshold)
 		return 0;
 
-	bp = per_cpu(threshold_banks, cpu);
+	bp = this_cpu_read(threshold_banks);
 	if (bp)
 		return 0;
 
-	bp = kcalloc(per_cpu(mce_num_banks, cpu), sizeof(struct threshold_bank *),
-		     GFP_KERNEL);
+	numbanks = this_cpu_read(mce_num_banks);
+	bp = kcalloc(numbanks, sizeof(*bp), GFP_KERNEL);
 	if (!bp)
 		return -ENOMEM;
 
-	per_cpu(threshold_banks, cpu) = bp;
-
-	for (bank = 0; bank < per_cpu(mce_num_banks, cpu); ++bank) {
-		if (!(per_cpu(bank_map, cpu) & (1 << bank)))
+	for (bank = 0; bank < numbanks; ++bank) {
+		if (!(this_cpu_read(bank_map) & (1 << bank)))
 			continue;
-		err = threshold_create_bank(cpu, bank);
+		err = threshold_create_bank(bp, cpu, bank);
 		if (err)
 			goto out_err;
 	}
+	this_cpu_write(threshold_banks, bp);
 
 	if (thresholding_irq_en)
 		mce_threshold_vector = amd_threshold_interrupt;
-
 	return 0;
 out_err:
 	mce_threshold_remove_device(cpu);
