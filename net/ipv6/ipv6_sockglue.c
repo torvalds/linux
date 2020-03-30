@@ -780,7 +780,7 @@ done:
 			retv = -EINVAL;
 			break;
 		}
-		retv = ip6_mc_msfilter(sk, gsf);
+		retv = ip6_mc_msfilter(sk, gsf, gsf->gf_slist);
 		kfree(gsf);
 
 		break;

@@ -457,7 +457,8 @@ done:
 	return err;
 }
 
-int ip6_mc_msfilter(struct sock *sk, struct group_filter *gsf)
+int ip6_mc_msfilter(struct sock *sk, struct group_filter *gsf,
+		    struct sockaddr_storage *list)
 {
 	const struct in6_addr *group;
 	struct ipv6_mc_socklist *pmc;
@@ -509,10 +510,10 @@ int ip6_mc_msfilter(struct sock *sk, struct group_filter *gsf)
 			goto done;
 		}
 		newpsl->sl_max = newpsl->sl_count = gsf->gf_numsrc;
-		for (i = 0; i < newpsl->sl_count; ++i) {
+		for (i = 0; i < newpsl->sl_count; ++i, ++list) {
 			struct sockaddr_in6 *psin6;
 
-			psin6 = (struct sockaddr_in6 *)&gsf->gf_slist[i];
+			psin6 = (struct sockaddr_in6 *)list;
 			newpsl->sl_addr[i] = psin6->sin6_addr;
 		}
 		err = ip6_mc_add_src(idev, group, gsf->gf_fmode,
