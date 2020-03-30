@@ -2481,6 +2481,13 @@ static __init void mce_init_banks(void)
 	}
 }
 
+/*
+ * When running on XEN, this initcall is ordered against the XEN mcelog
+ * initcall:
+ *
+ *   device_initcall(xen_late_init_mcelog);
+ *   device_initcall_sync(mcheck_init_device);
+ */
 static __init int mcheck_init_device(void)
 {
 	int err;
@@ -2512,6 +2519,10 @@ static __init int mcheck_init_device(void)
 	if (err)
 		goto err_out_mem;
 
+	/*
+	 * Invokes mce_cpu_online() on all CPUs which are online when
+	 * the state is installed.
+	 */
 	err = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "x86/mce:online",
 				mce_cpu_online, mce_cpu_pre_down);
 	if (err < 0)

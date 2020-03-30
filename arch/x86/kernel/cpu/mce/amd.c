@@ -1474,12 +1474,22 @@ int mce_threshold_remove_device(unsigned int cpu)
 	return 0;
 }
 
-/* create dir/files for all valid threshold banks */
+/**
+ * mce_threshold_create_device - Create the per-CPU MCE threshold device
+ * @cpu:	The plugged in CPU
+ *
+ * Create directories and files for all valid threshold banks.
+ *
+ * This is invoked from the CPU hotplug callback which was installed in
+ * mcheck_init_device(). The invocation happens in context of the hotplug
+ * thread running on @cpu.  The callback is invoked on all CPUs which are
+ * online when the callback is installed or during a real hotplug event.
+ */
 int mce_threshold_create_device(unsigned int cpu)
 {
 	unsigned int bank;
 	struct threshold_bank **bp;
-	int err = 0;
+	int err;
 
 	if (!mce_flags.amd_threshold)
 		return 0;
@@ -1500,49 +1510,14 @@ int mce_threshold_create_device(unsigned int cpu)
 			continue;
 		err = threshold_create_bank(cpu, bank);
 		if (err)
-			goto err;
-	}
-	return err;
-err:
-	mce_threshold_remove_device(cpu);
-	return err;
-}
-
-static __init int threshold_init_device(void)
-{
-	unsigned lcpu = 0;
-
-	/* to hit CPUs online before the notifier is up */
-	for_each_online_cpu(lcpu) {
-		int err = mce_threshold_create_device(lcpu);
-
-		if (err)
-			return err;
+			goto out_err;
 	}
 
 	if (thresholding_irq_en)
 		mce_threshold_vector = amd_threshold_interrupt;
 
 	return 0;
+out_err:
+	mce_threshold_remove_device(cpu);
+	return err;
 }
-/*
- * there are 3 funcs which need to be _initcalled in a logic sequence:
- * 1. xen_late_init_mcelog
- * 2. mcheck_init_device
- * 3. threshold_init_device
- *
- * xen_late_init_mcelog must register xen_mce_chrdev_device before
- * native mce_chrdev_device registration if running under xen platform;
- *
- * mcheck_init_device should be inited before threshold_init_device to
- * initialize mce_device, otherwise a NULL ptr dereference will cause panic.
- *
- * so we use following _initcalls
- * 1. device_initcall(xen_late_init_mcelog);
- * 2. device_initcall_sync(mcheck_init_device);
- * 3. late_initcall(threshold_init_device);
- *
- * when running under xen, the initcall order is 1,2,3;
- * on baremetal, we skip 1 and we do only 2 and 3.
- */
-late_initcall(threshold_init_device);
