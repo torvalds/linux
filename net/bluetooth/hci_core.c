@@ -3305,6 +3305,15 @@ static void hci_prepare_suspend(struct work_struct *work)
 	hci_dev_unlock(hdev);
 }
 
+static int hci_change_suspend_state(struct hci_dev *hdev,
+				    enum suspended_state next)
+{
+	hdev->suspend_state_next = next;
+	set_bit(SUSPEND_PREPARE_NOTIFIER, hdev->suspend_tasks);
+	queue_work(hdev->req_workqueue, &hdev->suspend_prepare);
+	return hci_suspend_wait_event(hdev);
+}
+
 static int hci_suspend_notifier(struct notifier_block *nb, unsigned long action,
 				void *data)
 {
@@ -3330,32 +3339,24 @@ static int hci_suspend_notifier(struct notifier_block *nb, unsigned long action,
 		 *    connectable (disabling scanning)
 		 *  - Second, program event filter/whitelist and enable scan
 		 */
-		hdev->suspend_state_next = BT_SUSPEND_DISCONNECT;
-		set_bit(SUSPEND_PREPARE_NOTIFIER, hdev->suspend_tasks);
-		queue_work(hdev->req_workqueue, &hdev->suspend_prepare);
-		ret = hci_suspend_wait_event(hdev);
+		ret = hci_change_suspend_state(hdev, BT_SUSPEND_DISCONNECT);
 
-		/* If the disconnect portion failed, don't attempt to complete
-		 * by configuring the whitelist. The suspend notifier will
-		 * follow a cancelled suspend with a PM_POST_SUSPEND
-		 * notification.
-		 */
-		if (!ret) {
-			hdev->suspend_state_next = BT_SUSPEND_COMPLETE;
-			set_bit(SUSPEND_PREPARE_NOTIFIER, hdev->suspend_tasks);
-			queue_work(hdev->req_workqueue, &hdev->suspend_prepare);
-			ret = hci_suspend_wait_event(hdev);
-		}
+		/* Only configure whitelist if disconnect succeeded */
+		if (!ret)
+			ret = hci_change_suspend_state(hdev,
+						       BT_SUSPEND_COMPLETE);
 	} else if (action == PM_POST_SUSPEND) {
-		hdev->suspend_state_next = BT_RUNNING;
-		set_bit(SUSPEND_PREPARE_NOTIFIER, hdev->suspend_tasks);
-		queue_work(hdev->req_workqueue, &hdev->suspend_prepare);
-		ret = hci_suspend_wait_event(hdev);
+		ret = hci_change_suspend_state(hdev, BT_RUNNING);
 	}
+
+	/* If suspend failed, restore it to running */
+	if (ret && action == PM_SUSPEND_PREPARE)
+		hci_change_suspend_state(hdev, BT_RUNNING);
 
 done:
 	return ret ? notifier_from_errno(-EBUSY) : NOTIFY_STOP;
 }
+
 /* Alloc HCI device */
 struct hci_dev *hci_alloc_dev(void)
 {
