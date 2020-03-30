@@ -1415,6 +1415,23 @@ static inline void write_desc(struct intel_engine_execlists *execlists, u64 desc
 	}
 }
 
+static __maybe_unused char *
+dump_port(char *buf, int buflen, const char *prefix, struct i915_request *rq)
+{
+	if (!rq)
+		return "";
+
+	snprintf(buf, buflen, "%s%llx:%lld%s prio %d",
+		 prefix,
+		 rq->fence.context, rq->fence.seqno,
+		 i915_request_completed(rq) ? "!" :
+		 i915_request_started(rq) ? "*" :
+		 "",
+		 rq_prio(rq));
+
+	return buf;
+}
+
 static __maybe_unused void
 trace_ports(const struct intel_engine_execlists *execlists,
 	    const char *msg,
@@ -1422,18 +1439,14 @@ trace_ports(const struct intel_engine_execlists *execlists,
 {
 	const struct intel_engine_cs *engine =
 		container_of(execlists, typeof(*engine), execlists);
+	char __maybe_unused p0[40], p1[40];
 
 	if (!ports[0])
 		return;
 
-	ENGINE_TRACE(engine, "%s { %llx:%lld%s, %llx:%lld }\n", msg,
-		     ports[0]->fence.context,
-		     ports[0]->fence.seqno,
-		     i915_request_completed(ports[0]) ? "!" :
-		     i915_request_started(ports[0]) ? "*" :
-		     "",
-		     ports[1] ? ports[1]->fence.context : 0,
-		     ports[1] ? ports[1]->fence.seqno : 0);
+	ENGINE_TRACE(engine, "%s { %s%s }\n", msg,
+		     dump_port(p0, sizeof(p0), "", ports[0]),
+		     dump_port(p1, sizeof(p1), ", ", ports[1]));
 }
 
 static inline bool
