@@ -980,9 +980,33 @@
 	status = "okay";
 };
 
+&u2phy0 {
+	status = "okay";
+	u2phy_otg: otg-port {
+		status = "okay";
+	};
+};
+
+&u2phy1 {
+	status = "okay";
+
+	u2phy_host: host-port {
+		status = "okay";
+		phy-supply = <&vcc5v0_host>;
+	};
+};
+
 &uart0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart0_xfer &uart0_ctsn>;
+	status = "okay";
+};
+
+&usb_host0_ehci {
+	status = "okay";
+};
+
+&usb_host0_ohci {
 	status = "okay";
 };
 
@@ -992,8 +1016,7 @@
 
 &usbdrd_dwc3 {
 	status = "okay";
-	/delete-property/ phys;
-	dr_mode = "peripheral";
+	extcon = <&u2phy0>;
 };
 
 &vdpu {
