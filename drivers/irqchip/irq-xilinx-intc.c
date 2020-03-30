@@ -124,6 +124,20 @@ static unsigned int xintc_get_irq_local(struct xintc_irq_chip *irqc)
 	return irq;
 }
 
+unsigned int xintc_get_irq(void)
+{
+	unsigned int irq = -1;
+	u32 hwirq;
+
+	hwirq = xintc_read(primary_intc, IVR);
+	if (hwirq != -1U)
+		irq = irq_find_mapping(primary_intc->root_domain, hwirq);
+
+	pr_debug("irq-xilinx: hwirq=%d, irq=%d\n", hwirq, irq);
+
+	return irq;
+}
+
 static int xintc_map(struct irq_domain *d, unsigned int irq, irq_hw_number_t hw)
 {
 	struct xintc_irq_chip *irqc = d->host_data;
@@ -161,25 +175,6 @@ static void xil_intc_irq_handler(struct irq_desc *desc)
 		generic_handle_irq(pending);
 	} while (true);
 	chained_irq_exit(chip, desc);
-}
-
-static void xil_intc_handle_irq(struct pt_regs *regs)
-{
-	u32 hwirq;
-	struct xintc_irq_chip *irqc = primary_intc;
-
-	do {
-		hwirq = xintc_read(irqc, IVR);
-		if (likely(hwirq != -1U)) {
-			int ret;
-
-			ret = handle_domain_irq(irqc->root_domain, hwirq, regs);
-			WARN_ONCE(ret, "Unhandled HWIRQ %d\n", hwirq);
-			continue;
-		}
-
-		break;
-	} while (1);
 }
 
 static int __init xilinx_intc_of_init(struct device_node *intc,
@@ -251,7 +246,6 @@ static int __init xilinx_intc_of_init(struct device_node *intc,
 	} else {
 		primary_intc = irqc;
 		irq_set_default_host(primary_intc->root_domain);
-		set_handle_irq(xil_intc_handle_irq);
 	}
 
 	return 0;
