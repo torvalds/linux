@@ -284,13 +284,9 @@ static void send_done(struct ib_cq *cq, struct ib_wc *wc)
 			request->sge[i].length,
 			DMA_TO_DEVICE);
 
-	if (request->has_payload) {
-		if (atomic_dec_and_test(&request->info->send_payload_pending))
-			wake_up(&request->info->wait_send_payload_pending);
-	} else {
-		if (atomic_dec_and_test(&request->info->send_pending))
-			wake_up(&request->info->wait_send_pending);
-	}
+	if (atomic_dec_and_test(&request->info->send_pending))
+		wake_up(&request->info->wait_send_pending);
+
 
 	mempool_free(request, request->info->request_mempool);
 }
@@ -749,7 +745,6 @@ static int smbd_post_send_negotiate_req(struct smbd_connection *info)
 		request->sge[0].addr,
 		request->sge[0].length, request->sge[0].lkey);
 
-	request->has_payload = false;
 	atomic_inc(&info->send_pending);
 	rc = ib_post_send(info->id->qp, &send_wr, NULL);
 	if (!rc)
@@ -919,7 +914,7 @@ static void smbd_destroy_header(struct smbd_connection *info,
 
 /* Post the send request */
 static int smbd_post_send(struct smbd_connection *info,
-		struct smbd_request *request, bool has_payload)
+		struct smbd_request *request)
 {
 	struct ib_send_wr send_wr;
 	int rc, i;
@@ -944,24 +939,13 @@ static int smbd_post_send(struct smbd_connection *info,
 	send_wr.opcode = IB_WR_SEND;
 	send_wr.send_flags = IB_SEND_SIGNALED;
 
-	if (has_payload) {
-		request->has_payload = true;
-		atomic_inc(&info->send_payload_pending);
-	} else {
-		request->has_payload = false;
-		atomic_inc(&info->send_pending);
-	}
+	atomic_inc(&info->send_pending);
 
 	rc = ib_post_send(info->id->qp, &send_wr, NULL);
 	if (rc) {
 		log_rdma_send(ERR, "ib_post_send failed rc=%d\n", rc);
-		if (has_payload) {
-			if (atomic_dec_and_test(&info->send_payload_pending))
-				wake_up(&info->wait_send_payload_pending);
-		} else {
-			if (atomic_dec_and_test(&info->send_pending))
-				wake_up(&info->wait_send_pending);
-		}
+		if (atomic_dec_and_test(&info->send_pending))
+			wake_up(&info->wait_send_pending);
 		smbd_disconnect_rdma_connection(info);
 		rc = -EAGAIN;
 	} else
@@ -1001,7 +985,7 @@ static int smbd_post_send_sgl(struct smbd_connection *info,
 		request->num_sge++;
 	}
 
-	rc = smbd_post_send(info, request, data_length);
+	rc = smbd_post_send(info, request);
 	if (!rc)
 		return 0;
 
@@ -1413,8 +1397,6 @@ void smbd_destroy(struct TCP_Server_Info *server)
 	log_rdma_event(INFO, "wait for all send posted to IB to finish\n");
 	wait_event(info->wait_send_pending,
 		atomic_read(&info->send_pending) == 0);
-	wait_event(info->wait_send_payload_pending,
-		atomic_read(&info->send_payload_pending) == 0);
 
 	/* It's not posssible for upper layer to get to reassembly */
 	log_rdma_event(INFO, "drain the reassembly queue\n");
@@ -1751,8 +1733,6 @@ static struct smbd_connection *_smbd_get_connection(
 	init_waitqueue_head(&info->wait_send_pending);
 	atomic_set(&info->send_pending, 0);
 
-	init_waitqueue_head(&info->wait_send_payload_pending);
-	atomic_set(&info->send_payload_pending, 0);
 
 	INIT_WORK(&info->disconnect_work, smbd_disconnect_rdma_work);
 	INIT_WORK(&info->post_send_credits_work, smbd_post_send_credits);
@@ -2226,8 +2206,8 @@ done:
 	 * that means all the I/Os have been out and we are good to return
 	 */
 
-	wait_event(info->wait_send_payload_pending,
-		atomic_read(&info->send_payload_pending) == 0);
+	wait_event(info->wait_send_pending,
+		atomic_read(&info->send_pending) == 0);
 
 	return rc;
 }

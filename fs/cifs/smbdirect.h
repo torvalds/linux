@@ -114,8 +114,6 @@ struct smbd_connection {
 	/* Activity accoutning */
 	atomic_t send_pending;
 	wait_queue_head_t wait_send_pending;
-	atomic_t send_payload_pending;
-	wait_queue_head_t wait_send_payload_pending;
 
 	/* Receive queue */
 	struct list_head receive_queue;
@@ -233,9 +231,6 @@ struct smbd_buffer_descriptor_v1 {
 struct smbd_request {
 	struct smbd_connection *info;
 	struct ib_cqe cqe;
-
-	/* true if this request carries upper layer payload */
-	bool has_payload;
 
 	/* the SGE entries for this packet */
 	struct ib_sge sge[SMBDIRECT_MAX_SGE];
