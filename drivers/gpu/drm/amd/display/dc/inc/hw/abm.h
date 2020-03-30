@@ -56,7 +56,7 @@ struct abm_funcs {
 			unsigned int backlight_pwm_u16_16,
 			unsigned int frame_ramp,
 			unsigned int controller_id,
-			bool use_smooth_brightness);
+			bool fw_set_brightness);
 
 	unsigned int (*get_current_backlight)(struct abm *abm);
 	unsigned int (*get_target_backlight)(struct abm *abm);

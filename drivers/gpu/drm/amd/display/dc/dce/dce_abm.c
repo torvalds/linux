@@ -420,7 +420,7 @@ static bool dce_abm_set_backlight_level_pwm(
 		unsigned int backlight_pwm_u16_16,
 		unsigned int frame_ramp,
 		unsigned int controller_id,
-		bool use_smooth_brightness)
+		bool fw_set_brightness)
 {
 	struct dce_abm *abm_dce = TO_DCE_ABM(abm);
 
@@ -428,7 +428,7 @@ static bool dce_abm_set_backlight_level_pwm(
 			backlight_pwm_u16_16, backlight_pwm_u16_16);
 
 	/* If DMCU is in reset state, DMCU is uninitialized */
-	if (use_smooth_brightness)
+	if (fw_set_brightness)
 		dmcu_set_backlight_level(abm_dce,
 				backlight_pwm_u16_16,
 				frame_ramp,

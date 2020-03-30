@@ -338,7 +338,7 @@ static bool dmub_abm_set_backlight_level_pwm(
 		unsigned int backlight_pwm_u16_16,
 		unsigned int frame_ramp,
 		unsigned int otg_inst,
-		bool use_smooth_brightness)
+		bool fw_set_brightness)
 {
 	struct dce_abm *dce_abm = TO_DMUB_ABM(abm);
 
