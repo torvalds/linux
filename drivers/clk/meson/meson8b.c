@@ -1725,7 +1725,7 @@ static struct clk_regmap meson8b_hdmi_sys_sel = {
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "hdmi_sys_sel",
-		.ops = &clk_regmap_mux_ro_ops,
+		.ops = &clk_regmap_mux_ops,
 		/* FIXME: all other parents are unknown */
 		.parent_data = &(const struct clk_parent_data) {
 			.fw_name = "xtal",
@@ -1745,7 +1745,7 @@ static struct clk_regmap meson8b_hdmi_sys_div = {
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "hdmi_sys_div",
-		.ops = &clk_regmap_divider_ro_ops,
+		.ops = &clk_regmap_divider_ops,
 		.parent_hws = (const struct clk_hw *[]) {
 			&meson8b_hdmi_sys_sel.hw
 		},
@@ -1761,7 +1761,7 @@ static struct clk_regmap meson8b_hdmi_sys = {
 	},
 	.hw.init = &(struct clk_init_data) {
 		.name = "hdmi_sys",
-		.ops = &clk_regmap_gate_ro_ops,
+		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) {
 			&meson8b_hdmi_sys_div.hw
 		},
