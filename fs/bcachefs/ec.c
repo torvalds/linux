@@ -804,8 +804,6 @@ static int ec_stripe_update_ptrs(struct bch_fs *c,
 			continue;
 		}
 
-		bch2_btree_iter_set_pos(iter, bkey_start_pos(k.k));
-
 		dev = s->key.v.ptrs[idx].dev;
 
 		bkey_on_stack_reassemble(&sk, c, k);
@@ -820,6 +818,7 @@ static int ec_stripe_update_ptrs(struct bch_fs *c,
 
 		extent_stripe_ptr_add(e, s, ec_ptr, idx);
 
+		bch2_btree_iter_set_pos(iter, bkey_start_pos(&sk.k->k));
 		bch2_trans_update(&trans, iter, sk.k, 0);
 
 		ret = bch2_trans_commit(&trans, NULL, NULL,
