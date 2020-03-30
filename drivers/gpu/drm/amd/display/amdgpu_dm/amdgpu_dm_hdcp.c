@@ -419,7 +419,7 @@ static void update_config(void *handle, struct cp_psp_stream_config *config)
 	link->dp.rev = aconnector->dc_link->dpcd_caps.dpcd_rev.raw;
 	link->dp.mst_supported = config->mst_supported;
 	display->adjust.disable = 1;
-	link->adjust.auth_delay = 2;
+	link->adjust.auth_delay = 3;
 	link->adjust.hdcp1.disable = 0;
 
 	hdcp_update_display(hdcp_work, link_index, aconnector, DRM_MODE_HDCP_CONTENT_TYPE0, false);
