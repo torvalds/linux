@@ -568,7 +568,7 @@ static const struct cnl_ddi_buf_trans icl_combo_phy_ddi_translations_hdmi[] = {
 	{ 0x6, 0x7F, 0x35, 0x00, 0x0A },	/* 600   850      3.0   */
 };
 
-static const struct cnl_ddi_buf_trans ehl_combo_phy_ddi_translations_hbr2_hbr3[] = {
+static const struct cnl_ddi_buf_trans ehl_combo_phy_ddi_translations_dp[] = {
 						/* NT mV Trans mV db    */
 	{ 0xA, 0x33, 0x3F, 0x00, 0x00 },	/* 350   350      0.0   */
 	{ 0xA, 0x47, 0x36, 0x00, 0x09 },	/* 350   500      3.1   */
@@ -947,10 +947,9 @@ static const struct cnl_ddi_buf_trans *
 ehl_get_combo_buf_trans(struct drm_i915_private *dev_priv, int type, int rate,
 			int *n_entries)
 {
-	if (type != INTEL_OUTPUT_HDMI && type != INTEL_OUTPUT_EDP &&
-	    rate > 270000) {
-		*n_entries = ARRAY_SIZE(ehl_combo_phy_ddi_translations_hbr2_hbr3);
-		return ehl_combo_phy_ddi_translations_hbr2_hbr3;
+	if (type != INTEL_OUTPUT_HDMI && type != INTEL_OUTPUT_EDP) {
+		*n_entries = ARRAY_SIZE(ehl_combo_phy_ddi_translations_dp);
+		return ehl_combo_phy_ddi_translations_dp;
 	}
 
 	return icl_get_combo_buf_trans(dev_priv, type, rate, n_entries);
