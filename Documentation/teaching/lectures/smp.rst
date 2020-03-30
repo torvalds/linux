@@ -339,7 +339,8 @@ architecture independent APIs to disable and enable interrupts:
 
       #define local_irq_save(flags) \
           asm volatile ("pushf ; pop %0" :"=g" (flags)
-                        : /* no input */: "memory")
+                        : /* no input */: "memory") \
+          asm volatile("cli": : :"memory")
 
       #define local_irq_restore(flags) \
           asm volatile ("push %0 ; popf"
