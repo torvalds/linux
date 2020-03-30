@@ -13,6 +13,7 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/nvmem-consumer.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
@@ -117,6 +118,7 @@
 
 #define HAP_CFG_MOD_STATUS_SEL_REG		0x70
 #define MOD_STATUS_SEL_FIFO_FILL_STATUS_VAL	5
+#define MOD_STATUS_SEL_BRAKE_CAL_RNAT_RCAL_VAL	6
 
 #define HAP_CFG_MOD_STATUS_XT_V2_REG		0x71
 #define MOD_STATUS_XT_V2_FIFO_FILL_STATUS_VAL	0x80
@@ -374,6 +376,7 @@ struct haptics_chip {
 	struct dentry			*debugfs_dir;
 	struct regulator_dev		*swr_slave_rdev;
 	struct mutex			irq_lock;
+	struct nvmem_cell		*cl_brake_nvmem;
 	int				fifo_empty_irq;
 	u32				effects_count;
 	u32				cfg_addr_base;
@@ -1288,12 +1291,41 @@ static void haptics_set_gain(struct input_dev *dev, u16 gain)
 	haptics_set_vmax_mv(chip, play->vmax_mv);
 }
 
+static int haptics_store_cl_brake_settings(struct haptics_chip *chip)
+{
+	int rc = 0;
+	u8 val;
+
+	val = MOD_STATUS_SEL_BRAKE_CAL_RNAT_RCAL_VAL;
+	rc = haptics_write(chip, chip->cfg_addr_base,
+			HAP_CFG_MOD_STATUS_SEL_REG, &val, 1);
+	if (rc < 0)
+		return rc;
+
+	rc = haptics_read(chip, chip->cfg_addr_base,
+			HAP_CFG_STATUS_DATA_LSB_REG, &val, 1);
+	if (rc < 0)
+		return rc;
+
+	rc = nvmem_cell_write(chip->cl_brake_nvmem, &val, sizeof(val));
+	if (rc < 0)
+		dev_err(chip->dev, "store RNAT/RCAL to SDAM failed, rc=%d\n");
+
+	return rc;
+}
+
+
 static int haptics_hw_init(struct haptics_chip *chip)
 {
 	struct haptics_hw_config *config = &chip->config;
 	struct haptics_effect *effect;
 	int rc = 0, tmp, i;
 	u8 val[2];
+
+	/* Store CL brake settings */
+	rc = haptics_store_cl_brake_settings(chip);
+	if (rc < 0)
+		return rc;
 
 	/* Config VMAX */
 	rc = haptics_set_vmax_mv(chip, config->vmax_mv);
@@ -2383,6 +2415,19 @@ static int haptics_parse_dt(struct haptics_chip *chip)
 	struct platform_device *pdev = to_platform_device(chip->dev);
 	const __be32 *addr;
 	int rc = 0, tmp;
+
+	if (of_find_property(node, "nvmem-cells", NULL)) {
+		chip->cl_brake_nvmem = devm_nvmem_cell_get(chip->dev,
+						"hap_cl_brake");
+		if (IS_ERR(chip->cl_brake_nvmem)) {
+			rc = PTR_ERR(chip->cl_brake_nvmem);
+			if (rc != -EPROBE_DEFER)
+				dev_err(chip->dev, "Failed to get nvmem-cells, rc=%d\n",
+							rc);
+
+			return rc;
+		}
+	}
 
 	addr = of_get_address(node, 0, NULL, NULL);
 	if (!addr) {
