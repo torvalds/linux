@@ -1262,7 +1262,7 @@ static int of_link_property(struct device *dev, struct device_node *con_np,
 	u32 dl_flags;
 
 	if (dev->of_node == con_np)
-		dl_flags = DL_FLAG_AUTOPROBE_CONSUMER;
+		dl_flags = fw_devlink_get_flags();
 	else
 		dl_flags = DL_FLAG_SYNC_STATE_ONLY;
 
@@ -1299,15 +1299,9 @@ static int of_link_to_suppliers(struct device *dev,
 	return ret;
 }
 
-static bool of_devlink;
-core_param(of_devlink, of_devlink, bool, 0);
-
 static int of_fwnode_add_links(const struct fwnode_handle *fwnode,
 			       struct device *dev)
 {
-	if (!of_devlink)
-		return 0;
-
 	if (unlikely(!is_of_node(fwnode)))
 		return 0;
 

@@ -92,7 +92,7 @@ struct platform_device_info {
 		size_t size_data;
 		u64 dma_mask;
 
-		struct property_entry *properties;
+		const struct property_entry *properties;
 };
 extern struct platform_device *platform_device_register_full(
 		const struct platform_device_info *pdevinfo);

@@ -1124,6 +1124,7 @@ extern int __init efi_setup_pcdp_console(char *);
 #define EFI_NX_PE_DATA		9	/* Can runtime data regions be mapped non-executable? */
 #define EFI_MEM_ATTR		10	/* Did firmware publish an EFI_MEMORY_ATTRIBUTES table? */
 #define EFI_MEM_NO_SOFT_RESERVE	11	/* Is the kernel configured to ignore soft reservations? */
+#define EFI_PRESERVE_BS_REGIONS	12	/* Are EFI boot-services memory segments available? */
 
 #ifdef CONFIG_EFI
 /*
@@ -1551,6 +1552,12 @@ void efi_enable_reset_attack_mitigation(void);
 #else
 static inline void
 efi_enable_reset_attack_mitigation(void) { }
+#endif
+
+#ifdef CONFIG_EFI_EMBEDDED_FIRMWARE
+void efi_check_for_embedded_firmwares(void);
+#else
+static inline void efi_check_for_embedded_firmwares(void) { }
 #endif
 
 efi_status_t efi_random_get_seed(void);

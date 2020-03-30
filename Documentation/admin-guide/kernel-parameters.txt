@@ -1360,6 +1360,24 @@
 			can be changed at run time by the max_graph_depth file
 			in the tracefs tracing directory. default: 0 (no limit)
 
+	fw_devlink=	[KNL] Create device links between consumer and supplier
+			devices by scanning the firmware to infer the
+			consumer/supplier relationships. This feature is
+			especially useful when drivers are loaded as modules as
+			it ensures proper ordering of tasks like device probing
+			(suppliers first, then consumers), supplier boot state
+			clean up (only after all consumers have probed),
+			suspend/resume & runtime PM (consumers first, then
+			suppliers).
+			Format: { off | permissive | on | rpm }
+			off --	Don't create device links from firmware info.
+			permissive -- Create device links from firmware info
+				but use it only for ordering boot state clean
+				up (sync_state() calls).
+			on -- 	Create device links from firmware info and use it
+				to enforce probe and suspend/resume ordering.
+			rpm --	Like "on", but also use to order runtime PM.
+
 	gamecon.map[2|3]=
 			[HW,JOY] Multisystem joystick and NES/SNES/PSX pad
 			support via parallel port (up to 5 devices per port)
@@ -3290,12 +3308,6 @@
 			'node', 'default' can be specified
 			This can be set from sysctl after boot.
 			See Documentation/admin-guide/sysctl/vm.rst for details.
-
-	of_devlink	[OF, KNL] Create device links between consumer and
-			supplier devices by scanning the devictree to infer the
-			consumer/supplier relationships.  A consumer device
-			will not be probed until all the supplier devices have
-			probed successfully.
 
 	ohci1394_dma=early	[HW] enable debugging via the ohci1394 driver.
 			See Documentation/debugging-via-ohci1394.txt for more

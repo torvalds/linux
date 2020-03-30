@@ -64,12 +64,12 @@ static inline void device_links_write_unlock(void)
 	mutex_unlock(&device_links_lock);
 }
 
-int device_links_read_lock(void)
+int device_links_read_lock(void) __acquires(&device_links_srcu)
 {
 	return srcu_read_lock(&device_links_srcu);
 }
 
-void device_links_read_unlock(int idx)
+void device_links_read_unlock(int idx) __releases(&device_links_srcu)
 {
 	srcu_read_unlock(&device_links_srcu, idx);
 }
@@ -523,9 +523,13 @@ static void device_link_add_missing_supplier_links(void)
 
 	mutex_lock(&wfs_lock);
 	list_for_each_entry_safe(dev, tmp, &wait_for_suppliers,
-				 links.needs_suppliers)
-		if (!fwnode_call_int_op(dev->fwnode, add_links, dev))
+				 links.needs_suppliers) {
+		int ret = fwnode_call_int_op(dev->fwnode, add_links, dev);
+		if (!ret)
 			list_del_init(&dev->links.needs_suppliers);
+		else if (ret != -ENODEV)
+			dev->links.need_for_probe = false;
+	}
 	mutex_unlock(&wfs_lock);
 }
 
@@ -2341,6 +2345,31 @@ static int device_private_init(struct device *dev)
 	return 0;
 }
 
+static u32 fw_devlink_flags;
+static int __init fw_devlink_setup(char *arg)
+{
+	if (!arg)
+		return -EINVAL;
+
+	if (strcmp(arg, "off") == 0) {
+		fw_devlink_flags = 0;
+	} else if (strcmp(arg, "permissive") == 0) {
+		fw_devlink_flags = DL_FLAG_SYNC_STATE_ONLY;
+	} else if (strcmp(arg, "on") == 0) {
+		fw_devlink_flags = DL_FLAG_AUTOPROBE_CONSUMER;
+	} else if (strcmp(arg, "rpm") == 0) {
+		fw_devlink_flags = DL_FLAG_AUTOPROBE_CONSUMER |
+				   DL_FLAG_PM_RUNTIME;
+	}
+	return 0;
+}
+early_param("fw_devlink", fw_devlink_setup);
+
+u32 fw_devlink_get_flags(void)
+{
+	return fw_devlink_flags;
+}
+
 /**
  * device_add - add device to device hierarchy.
  * @dev: device.
@@ -2375,6 +2404,7 @@ int device_add(struct device *dev)
 	struct class_interface *class_intf;
 	int error = -EINVAL, fw_ret;
 	struct kobject *glue_dir = NULL;
+	bool is_fwnode_dev = false;
 
 	dev = get_device(dev);
 	if (!dev)
@@ -2472,8 +2502,10 @@ int device_add(struct device *dev)
 
 	kobject_uevent(&dev->kobj, KOBJ_ADD);
 
-	if (dev->fwnode && !dev->fwnode->dev)
+	if (dev->fwnode && !dev->fwnode->dev) {
 		dev->fwnode->dev = dev;
+		is_fwnode_dev = true;
+	}
 
 	/*
 	 * Check if any of the other devices (consumers) have been waiting for
@@ -2489,7 +2521,8 @@ int device_add(struct device *dev)
 	 */
 	device_link_add_missing_supplier_links();
 
-	if (fwnode_has_op(dev->fwnode, add_links)) {
+	if (fw_devlink_flags && is_fwnode_dev &&
+	    fwnode_has_op(dev->fwnode, add_links)) {
 		fw_ret = fwnode_call_int_op(dev->fwnode, add_links, dev);
 		if (fw_ret == -ENODEV)
 			device_link_wait_for_mandatory_supplier(dev);

@@ -62,10 +62,10 @@ missing.
 Create a file with an initial size, the following function can be used
 instead::
 
-    struct dentry *debugfs_create_file_size(const char *name, umode_t mode,
-				struct dentry *parent, void *data,
-				const struct file_operations *fops,
-				loff_t file_size);
+    void debugfs_create_file_size(const char *name, umode_t mode,
+				  struct dentry *parent, void *data,
+				  const struct file_operations *fops,
+				  loff_t file_size);
 
 file_size is the initial file size. The other parameters are the same
 as the function debugfs_create_file.
