@@ -52,14 +52,6 @@ config SPI_HISI_SFC
 	help
 	  This enables support for HiSilicon FMC SPI-NOR flash controller.
 
-config SPI_MTK_QUADSPI
-	tristate "MediaTek Quad SPI controller"
-	depends on HAS_IOMEM
-	help
-	  This enables support for the Quad SPI controller in master mode.
-	  This controller does not support generic SPI. It only supports
-	  SPI NOR.
-
 config SPI_NXP_SPIFI
 	tristate "NXP SPI Flash Interface (SPIFI)"
 	depends on OF && (ARCH_LPC18XX || COMPILE_TEST)
