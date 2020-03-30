@@ -141,6 +141,33 @@ int mptcp_token_new_accept(u32 token, struct sock *conn)
 }
 
 /**
+ * mptcp_token_get_sock - retrieve mptcp connection sock using its token
+ * @token: token of the mptcp connection to retrieve
+ *
+ * This function returns the mptcp connection structure with the given token.
+ * A reference count on the mptcp socket returned is taken.
+ *
+ * returns NULL if no connection with the given token value exists.
+ */
+struct mptcp_sock *mptcp_token_get_sock(u32 token)
+{
+	struct sock *conn;
+
+	spin_lock_bh(&token_tree_lock);
+	conn = radix_tree_lookup(&token_tree, token);
+	if (conn) {
+		/* token still reserved? */
+		if (conn == (struct sock *)&token_used)
+			conn = NULL;
+		else
+			sock_hold(conn);
+	}
+	spin_unlock_bh(&token_tree_lock);
+
+	return mptcp_sk(conn);
+}
+
+/**
  * mptcp_token_destroy_request - remove mptcp connection/token
  * @token - token of mptcp connection to remove
  *
