@@ -1353,18 +1353,18 @@ static int bch2_gc_walk_inodes(struct bch_fs *c,
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
 
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_INODES,
-				   POS(range_start, 0), 0);
+				   POS(0, range_start), 0);
 	nlinks_iter = genradix_iter_init(links, 0);
 
 	while ((k = bch2_btree_iter_peek(iter)).k &&
 	       !(ret2 = bkey_err(k))) {
 peek_nlinks:	link = genradix_iter_peek(&nlinks_iter, links);
 
-		if (!link && (!k.k || iter->pos.inode >= range_end))
+		if (!link && (!k.k || iter->pos.offset >= range_end))
 			break;
 
 		nlinks_pos = range_start + nlinks_iter.pos;
-		if (iter->pos.inode > nlinks_pos) {
+		if (iter->pos.offset > nlinks_pos) {
 			/* Should have been caught by dirents pass: */
 			need_fsck_err_on(link && link->count, c,
 				"missing inode %llu (nlink %u)",
@@ -1373,7 +1373,7 @@ peek_nlinks:	link = genradix_iter_peek(&nlinks_iter, links);
 			goto peek_nlinks;
 		}
 
-		if (iter->pos.inode < nlinks_pos || !link)
+		if (iter->pos.offset < nlinks_pos || !link)
 			link = &zero_links;
 
 		if (k.k && k.k->type == KEY_TYPE_inode) {
@@ -1389,7 +1389,7 @@ peek_nlinks:	link = genradix_iter_peek(&nlinks_iter, links);
 				nlinks_pos, link->count);
 		}
 
-		if (nlinks_pos == iter->pos.inode)
+		if (nlinks_pos == iter->pos.offset)
 			genradix_iter_advance(&nlinks_iter, links);
 
 		bch2_btree_iter_next(iter);
