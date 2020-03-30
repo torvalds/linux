@@ -681,7 +681,9 @@ int b53_configure_vlan(struct dsa_switch *ds)
 {
 	struct b53_device *dev = ds->priv;
 	struct b53_vlan vl = { 0 };
+	struct b53_vlan *v;
 	int i, def_vid;
+	u16 vid;
 
 	def_vid = b53_default_pvid(dev);
 
@@ -698,6 +700,19 @@ int b53_configure_vlan(struct dsa_switch *ds)
 	b53_for_each_port(dev, i)
 		b53_write16(dev, B53_VLAN_PAGE,
 			    B53_VLAN_PORT_DEF_TAG(i), def_vid);
+
+	/* Upon initial call we have not set-up any VLANs, but upon
+	 * system resume, we need to restore all VLAN entries.
+	 */
+	for (vid = def_vid; vid < dev->num_vlans; vid++) {
+		v = &dev->vlans[vid];
+
+		if (!v->members)
+			continue;
+
+		b53_set_vlan_entry(dev, vid, v);
+		b53_fast_age_vlan(dev, vid);
+	}
 
 	return 0;
 }
