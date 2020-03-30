@@ -117,6 +117,11 @@ enum devlink_command {
 	DEVLINK_CMD_TRAP_GROUP_NEW,
 	DEVLINK_CMD_TRAP_GROUP_DEL,
 
+	DEVLINK_CMD_TRAP_POLICER_GET,	/* can dump */
+	DEVLINK_CMD_TRAP_POLICER_SET,
+	DEVLINK_CMD_TRAP_POLICER_NEW,
+	DEVLINK_CMD_TRAP_POLICER_DEL,
+
 	/* add new commands above here */
 	__DEVLINK_CMD_MAX,
 	DEVLINK_CMD_MAX = __DEVLINK_CMD_MAX - 1
@@ -217,6 +222,7 @@ enum devlink_param_reset_dev_on_drv_probe_value {
 enum {
 	DEVLINK_ATTR_STATS_RX_PACKETS,		/* u64 */
 	DEVLINK_ATTR_STATS_RX_BYTES,		/* u64 */
+	DEVLINK_ATTR_STATS_RX_DROPPED,		/* u64 */
 
 	__DEVLINK_ATTR_STATS_MAX,
 	DEVLINK_ATTR_STATS_MAX = __DEVLINK_ATTR_STATS_MAX - 1
@@ -431,6 +437,11 @@ enum devlink_attr {
 	DEVLINK_ATTR_NETNS_ID,			/* u32 */
 
 	DEVLINK_ATTR_HEALTH_REPORTER_AUTO_DUMP,	/* u8 */
+
+	DEVLINK_ATTR_TRAP_POLICER_ID,			/* u32 */
+	DEVLINK_ATTR_TRAP_POLICER_RATE,			/* u64 */
+	DEVLINK_ATTR_TRAP_POLICER_BURST,		/* u64 */
+
 	/* add new attributes above here, update the policy in devlink.c */
 
 	__DEVLINK_ATTR_MAX,

@@ -5720,6 +5720,23 @@ struct devlink_stats {
 };
 
 /**
+ * struct devlink_trap_policer_item - Packet trap policer attributes.
+ * @policer: Immutable packet trap policer attributes.
+ * @rate: Rate in packets / sec.
+ * @burst: Burst size in packets.
+ * @list: trap_policer_list member.
+ *
+ * Describes packet trap policer attributes. Created by devlink during trap
+ * policer registration.
+ */
+struct devlink_trap_policer_item {
+	const struct devlink_trap_policer *policer;
+	u64 rate;
+	u64 burst;
+	struct list_head list;
+};
+
+/**
  * struct devlink_trap_group_item - Packet trap group attributes.
  * @group: Immutable packet trap group attributes.
  * @list: trap_group_list member.
@@ -5754,6 +5771,19 @@ struct devlink_trap_item {
 	struct devlink_stats __percpu *stats;
 	void *priv;
 };
+
+static struct devlink_trap_policer_item *
+devlink_trap_policer_item_lookup(struct devlink *devlink, u32 id)
+{
+	struct devlink_trap_policer_item *policer_item;
+
+	list_for_each_entry(policer_item, &devlink->trap_policer_list, list) {
+		if (policer_item->policer->id == id)
+			return policer_item;
+	}
+
+	return NULL;
+}
 
 static struct devlink_trap_item *
 devlink_trap_item_lookup(struct devlink *devlink, const char *name)
@@ -6292,7 +6322,245 @@ static int devlink_nl_cmd_trap_group_set_doit(struct sk_buff *skb,
 	return 0;
 }
 
+static struct devlink_trap_policer_item *
+devlink_trap_policer_item_get_from_info(struct devlink *devlink,
+					struct genl_info *info)
+{
+	u32 id;
+
+	if (!info->attrs[DEVLINK_ATTR_TRAP_POLICER_ID])
+		return NULL;
+	id = nla_get_u32(info->attrs[DEVLINK_ATTR_TRAP_POLICER_ID]);
+
+	return devlink_trap_policer_item_lookup(devlink, id);
+}
+
+static int
+devlink_trap_policer_stats_put(struct sk_buff *msg, struct devlink *devlink,
+			       const struct devlink_trap_policer *policer)
+{
+	struct nlattr *attr;
+	u64 drops;
+	int err;
+
+	if (!devlink->ops->trap_policer_counter_get)
+		return 0;
+
+	err = devlink->ops->trap_policer_counter_get(devlink, policer, &drops);
+	if (err)
+		return err;
+
+	attr = nla_nest_start(msg, DEVLINK_ATTR_STATS);
+	if (!attr)
+		return -EMSGSIZE;
+
+	if (nla_put_u64_64bit(msg, DEVLINK_ATTR_STATS_RX_DROPPED, drops,
+			      DEVLINK_ATTR_PAD))
+		goto nla_put_failure;
+
+	nla_nest_end(msg, attr);
+
+	return 0;
+
+nla_put_failure:
+	nla_nest_cancel(msg, attr);
+	return -EMSGSIZE;
+}
+
+static int
+devlink_nl_trap_policer_fill(struct sk_buff *msg, struct devlink *devlink,
+			     const struct devlink_trap_policer_item *policer_item,
+			     enum devlink_command cmd, u32 portid, u32 seq,
+			     int flags)
+{
+	void *hdr;
+	int err;
+
+	hdr = genlmsg_put(msg, portid, seq, &devlink_nl_family, flags, cmd);
+	if (!hdr)
+		return -EMSGSIZE;
+
+	if (devlink_nl_put_handle(msg, devlink))
+		goto nla_put_failure;
+
+	if (nla_put_u32(msg, DEVLINK_ATTR_TRAP_POLICER_ID,
+			policer_item->policer->id))
+		goto nla_put_failure;
+
+	if (nla_put_u64_64bit(msg, DEVLINK_ATTR_TRAP_POLICER_RATE,
+			      policer_item->rate, DEVLINK_ATTR_PAD))
+		goto nla_put_failure;
+
+	if (nla_put_u64_64bit(msg, DEVLINK_ATTR_TRAP_POLICER_BURST,
+			      policer_item->burst, DEVLINK_ATTR_PAD))
+		goto nla_put_failure;
+
+	err = devlink_trap_policer_stats_put(msg, devlink,
+					     policer_item->policer);
+	if (err)
+		goto nla_put_failure;
+
+	genlmsg_end(msg, hdr);
+
+	return 0;
+
+nla_put_failure:
+	genlmsg_cancel(msg, hdr);
+	return -EMSGSIZE;
+}
+
+static int devlink_nl_cmd_trap_policer_get_doit(struct sk_buff *skb,
+						struct genl_info *info)
+{
+	struct devlink_trap_policer_item *policer_item;
+	struct netlink_ext_ack *extack = info->extack;
+	struct devlink *devlink = info->user_ptr[0];
+	struct sk_buff *msg;
+	int err;
+
+	if (list_empty(&devlink->trap_policer_list))
+		return -EOPNOTSUPP;
+
+	policer_item = devlink_trap_policer_item_get_from_info(devlink, info);
+	if (!policer_item) {
+		NL_SET_ERR_MSG_MOD(extack, "Device did not register this trap policer");
+		return -ENOENT;
+	}
+
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!msg)
+		return -ENOMEM;
+
+	err = devlink_nl_trap_policer_fill(msg, devlink, policer_item,
+					   DEVLINK_CMD_TRAP_POLICER_NEW,
+					   info->snd_portid, info->snd_seq, 0);
+	if (err)
+		goto err_trap_policer_fill;
+
+	return genlmsg_reply(msg, info);
+
+err_trap_policer_fill:
+	nlmsg_free(msg);
+	return err;
+}
+
+static int devlink_nl_cmd_trap_policer_get_dumpit(struct sk_buff *msg,
+						  struct netlink_callback *cb)
+{
+	enum devlink_command cmd = DEVLINK_CMD_TRAP_POLICER_NEW;
+	struct devlink_trap_policer_item *policer_item;
+	u32 portid = NETLINK_CB(cb->skb).portid;
+	struct devlink *devlink;
+	int start = cb->args[0];
+	int idx = 0;
+	int err;
+
+	mutex_lock(&devlink_mutex);
+	list_for_each_entry(devlink, &devlink_list, list) {
+		if (!net_eq(devlink_net(devlink), sock_net(msg->sk)))
+			continue;
+		mutex_lock(&devlink->lock);
+		list_for_each_entry(policer_item, &devlink->trap_policer_list,
+				    list) {
+			if (idx < start) {
+				idx++;
+				continue;
+			}
+			err = devlink_nl_trap_policer_fill(msg, devlink,
+							   policer_item, cmd,
+							   portid,
+							   cb->nlh->nlmsg_seq,
+							   NLM_F_MULTI);
+			if (err) {
+				mutex_unlock(&devlink->lock);
+				goto out;
+			}
+			idx++;
+		}
+		mutex_unlock(&devlink->lock);
+	}
+out:
+	mutex_unlock(&devlink_mutex);
+
+	cb->args[0] = idx;
+	return msg->len;
+}
+
+static int
+devlink_trap_policer_set(struct devlink *devlink,
+			 struct devlink_trap_policer_item *policer_item,
+			 struct genl_info *info)
+{
+	struct netlink_ext_ack *extack = info->extack;
+	struct nlattr **attrs = info->attrs;
+	u64 rate, burst;
+	int err;
+
+	rate = policer_item->rate;
+	burst = policer_item->burst;
+
+	if (attrs[DEVLINK_ATTR_TRAP_POLICER_RATE])
+		rate = nla_get_u64(attrs[DEVLINK_ATTR_TRAP_POLICER_RATE]);
+
+	if (attrs[DEVLINK_ATTR_TRAP_POLICER_BURST])
+		burst = nla_get_u64(attrs[DEVLINK_ATTR_TRAP_POLICER_BURST]);
+
+	if (rate < policer_item->policer->min_rate) {
+		NL_SET_ERR_MSG_MOD(extack, "Policer rate lower than limit");
+		return -EINVAL;
+	}
+
+	if (rate > policer_item->policer->max_rate) {
+		NL_SET_ERR_MSG_MOD(extack, "Policer rate higher than limit");
+		return -EINVAL;
+	}
+
+	if (burst < policer_item->policer->min_burst) {
+		NL_SET_ERR_MSG_MOD(extack, "Policer burst size lower than limit");
+		return -EINVAL;
+	}
+
+	if (burst > policer_item->policer->max_burst) {
+		NL_SET_ERR_MSG_MOD(extack, "Policer burst size higher than limit");
+		return -EINVAL;
+	}
+
+	err = devlink->ops->trap_policer_set(devlink, policer_item->policer,
+					     rate, burst, info->extack);
+	if (err)
+		return err;
+
+	policer_item->rate = rate;
+	policer_item->burst = burst;
+
+	return 0;
+}
+
+static int devlink_nl_cmd_trap_policer_set_doit(struct sk_buff *skb,
+						struct genl_info *info)
+{
+	struct devlink_trap_policer_item *policer_item;
+	struct netlink_ext_ack *extack = info->extack;
+	struct devlink *devlink = info->user_ptr[0];
+
+	if (list_empty(&devlink->trap_policer_list))
+		return -EOPNOTSUPP;
+
+	if (!devlink->ops->trap_policer_set)
+		return -EOPNOTSUPP;
+
+	policer_item = devlink_trap_policer_item_get_from_info(devlink, info);
+	if (!policer_item) {
+		NL_SET_ERR_MSG_MOD(extack, "Device did not register this trap policer");
+		return -ENOENT;
+	}
+
+	return devlink_trap_policer_set(devlink, policer_item, info);
+}
+
 static const struct nla_policy devlink_nl_policy[DEVLINK_ATTR_MAX + 1] = {
+	[DEVLINK_ATTR_UNSPEC] = { .strict_start_type =
+		DEVLINK_ATTR_TRAP_POLICER_ID },
 	[DEVLINK_ATTR_BUS_NAME] = { .type = NLA_NUL_STRING },
 	[DEVLINK_ATTR_DEV_NAME] = { .type = NLA_NUL_STRING },
 	[DEVLINK_ATTR_PORT_INDEX] = { .type = NLA_U32 },
@@ -6331,6 +6599,9 @@ static const struct nla_policy devlink_nl_policy[DEVLINK_ATTR_MAX + 1] = {
 	[DEVLINK_ATTR_NETNS_FD] = { .type = NLA_U32 },
 	[DEVLINK_ATTR_NETNS_ID] = { .type = NLA_U32 },
 	[DEVLINK_ATTR_HEALTH_REPORTER_AUTO_DUMP] = { .type = NLA_U8 },
+	[DEVLINK_ATTR_TRAP_POLICER_ID] = { .type = NLA_U32 },
+	[DEVLINK_ATTR_TRAP_POLICER_RATE] = { .type = NLA_U64 },
+	[DEVLINK_ATTR_TRAP_POLICER_BURST] = { .type = NLA_U64 },
 };
 
 static const struct genl_ops devlink_nl_ops[] = {
@@ -6666,6 +6937,19 @@ static const struct genl_ops devlink_nl_ops[] = {
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = DEVLINK_NL_FLAG_NEED_DEVLINK,
 	},
+	{
+		.cmd = DEVLINK_CMD_TRAP_POLICER_GET,
+		.doit = devlink_nl_cmd_trap_policer_get_doit,
+		.dumpit = devlink_nl_cmd_trap_policer_get_dumpit,
+		.internal_flags = DEVLINK_NL_FLAG_NEED_DEVLINK,
+		/* can be retrieved by unprivileged users */
+	},
+	{
+		.cmd = DEVLINK_CMD_TRAP_POLICER_SET,
+		.doit = devlink_nl_cmd_trap_policer_set_doit,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = DEVLINK_NL_FLAG_NEED_DEVLINK,
+	},
 };
 
 static struct genl_family devlink_nl_family __ro_after_init = {
@@ -6714,6 +6998,7 @@ struct devlink *devlink_alloc(const struct devlink_ops *ops, size_t priv_size)
 	INIT_LIST_HEAD(&devlink->reporter_list);
 	INIT_LIST_HEAD(&devlink->trap_list);
 	INIT_LIST_HEAD(&devlink->trap_group_list);
+	INIT_LIST_HEAD(&devlink->trap_policer_list);
 	mutex_init(&devlink->lock);
 	mutex_init(&devlink->reporters_lock);
 	return devlink;
@@ -6798,6 +7083,7 @@ void devlink_free(struct devlink *devlink)
 {
 	mutex_destroy(&devlink->reporters_lock);
 	mutex_destroy(&devlink->lock);
+	WARN_ON(!list_empty(&devlink->trap_policer_list));
 	WARN_ON(!list_empty(&devlink->trap_group_list));
 	WARN_ON(!list_empty(&devlink->trap_list));
 	WARN_ON(!list_empty(&devlink->reporter_list));
@@ -8588,6 +8874,148 @@ void devlink_trap_groups_unregister(struct devlink *devlink,
 	mutex_unlock(&devlink->lock);
 }
 EXPORT_SYMBOL_GPL(devlink_trap_groups_unregister);
+
+static void
+devlink_trap_policer_notify(struct devlink *devlink,
+			    const struct devlink_trap_policer_item *policer_item,
+			    enum devlink_command cmd)
+{
+	struct sk_buff *msg;
+	int err;
+
+	WARN_ON_ONCE(cmd != DEVLINK_CMD_TRAP_POLICER_NEW &&
+		     cmd != DEVLINK_CMD_TRAP_POLICER_DEL);
+
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!msg)
+		return;
+
+	err = devlink_nl_trap_policer_fill(msg, devlink, policer_item, cmd, 0,
+					   0, 0);
+	if (err) {
+		nlmsg_free(msg);
+		return;
+	}
+
+	genlmsg_multicast_netns(&devlink_nl_family, devlink_net(devlink),
+				msg, 0, DEVLINK_MCGRP_CONFIG, GFP_KERNEL);
+}
+
+static int
+devlink_trap_policer_register(struct devlink *devlink,
+			      const struct devlink_trap_policer *policer)
+{
+	struct devlink_trap_policer_item *policer_item;
+	int err;
+
+	if (devlink_trap_policer_item_lookup(devlink, policer->id))
+		return -EEXIST;
+
+	policer_item = kzalloc(sizeof(*policer_item), GFP_KERNEL);
+	if (!policer_item)
+		return -ENOMEM;
+
+	policer_item->policer = policer;
+	policer_item->rate = policer->init_rate;
+	policer_item->burst = policer->init_burst;
+
+	if (devlink->ops->trap_policer_init) {
+		err = devlink->ops->trap_policer_init(devlink, policer);
+		if (err)
+			goto err_policer_init;
+	}
+
+	list_add_tail(&policer_item->list, &devlink->trap_policer_list);
+	devlink_trap_policer_notify(devlink, policer_item,
+				    DEVLINK_CMD_TRAP_POLICER_NEW);
+
+	return 0;
+
+err_policer_init:
+	kfree(policer_item);
+	return err;
+}
+
+static void
+devlink_trap_policer_unregister(struct devlink *devlink,
+				const struct devlink_trap_policer *policer)
+{
+	struct devlink_trap_policer_item *policer_item;
+
+	policer_item = devlink_trap_policer_item_lookup(devlink, policer->id);
+	if (WARN_ON_ONCE(!policer_item))
+		return;
+
+	devlink_trap_policer_notify(devlink, policer_item,
+				    DEVLINK_CMD_TRAP_POLICER_DEL);
+	list_del(&policer_item->list);
+	if (devlink->ops->trap_policer_fini)
+		devlink->ops->trap_policer_fini(devlink, policer);
+	kfree(policer_item);
+}
+
+/**
+ * devlink_trap_policers_register - Register packet trap policers with devlink.
+ * @devlink: devlink.
+ * @policers: Packet trap policers.
+ * @policers_count: Count of provided packet trap policers.
+ *
+ * Return: Non-zero value on failure.
+ */
+int
+devlink_trap_policers_register(struct devlink *devlink,
+			       const struct devlink_trap_policer *policers,
+			       size_t policers_count)
+{
+	int i, err;
+
+	mutex_lock(&devlink->lock);
+	for (i = 0; i < policers_count; i++) {
+		const struct devlink_trap_policer *policer = &policers[i];
+
+		if (WARN_ON(policer->id == 0 ||
+			    policer->max_rate < policer->min_rate ||
+			    policer->max_burst < policer->min_burst)) {
+			err = -EINVAL;
+			goto err_trap_policer_verify;
+		}
+
+		err = devlink_trap_policer_register(devlink, policer);
+		if (err)
+			goto err_trap_policer_register;
+	}
+	mutex_unlock(&devlink->lock);
+
+	return 0;
+
+err_trap_policer_register:
+err_trap_policer_verify:
+	for (i--; i >= 0; i--)
+		devlink_trap_policer_unregister(devlink, &policers[i]);
+	mutex_unlock(&devlink->lock);
+	return err;
+}
+EXPORT_SYMBOL_GPL(devlink_trap_policers_register);
+
+/**
+ * devlink_trap_policers_unregister - Unregister packet trap policers from devlink.
+ * @devlink: devlink.
+ * @policers: Packet trap policers.
+ * @policers_count: Count of provided packet trap policers.
+ */
+void
+devlink_trap_policers_unregister(struct devlink *devlink,
+				 const struct devlink_trap_policer *policers,
+				 size_t policers_count)
+{
+	int i;
+
+	mutex_lock(&devlink->lock);
+	for (i = policers_count - 1; i >= 0; i--)
+		devlink_trap_policer_unregister(devlink, &policers[i]);
+	mutex_unlock(&devlink->lock);
+}
+EXPORT_SYMBOL_GPL(devlink_trap_policers_unregister);
 
 static void __devlink_compat_running_version(struct devlink *devlink,
 					     char *buf, size_t len)
