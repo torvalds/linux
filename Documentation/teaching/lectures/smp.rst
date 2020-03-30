@@ -207,7 +207,7 @@ to access atomic operations:
    * integer based:
 
      * simple: :c:func:`atomic_inc`, :c:func:`atomic_dec`,
-     :c:func:`atomic_add`, :c:func:`atomic_sub`
+       :c:func:`atomic_add`, :c:func:`atomic_sub`
 
      * conditional: :c:func:`atomic_dec_and_test`, :c:func:`atomic_sub_and_test`
 
@@ -767,15 +767,14 @@ work, it is recommended to use dedicated APIs:
    :level: 2
 
    * In process context use :c:func:`spin_lock_bh` (which combines
-   :c:func:`local_bh_disable` and :c:func:`spin_lock`) and
-   :c:func:`spin_unlock_bh` (which combines :c:func:`spin_unlock` and
-   :c:func:`local_bh_enable`)
-
+     :c:func:`local_bh_disable` and :c:func:`spin_lock`) and
+     :c:func:`spin_unlock_bh` (which combines :c:func:`spin_unlock` and
+     :c:func:`local_bh_enable`)
 
    * In bottom half context use: :c:func:`spin_lock` and
-   :c:func:`spin_unlock` (or :c:func:`spin_lock_irqsave` and
-   :c:func:`spin_lock_irqrestore` if sharing data with interrupt
-   handlers)
+     :c:func:`spin_unlock` (or :c:func:`spin_lock_irqsave` and
+     :c:func:`spin_lock_irqrestore` if sharing data with interrupt
+     handlers)
 
 
 As mentioned before, another source of concurrency in the Linux kernel
