@@ -150,7 +150,7 @@ PNAME(mux_usbphy_host_ref_p)		= { "clk_ref12m", "xin_osc0_div2_usbphyref_host" }
 PNAME(mux_mipidsiphy_ref_p)		= { "clk_ref24m", "xin_osc0_mipiphyref" };
 PNAME(mux_usb480m_p)			= { "xin24m", "usb480m_phy", "clk_rtc32k" };
 PNAME(mux_armclk_p)			= { "gpll", "cpll", "apll" };
-PNAME(mux_gpll_cpll_dpll_p)		= { "gpll", "cpll", "dpll" };
+PNAME(mux_gpll_cpll_dpll_p)		= { "gpll", "cpll", "dummy_dpll" };
 PNAME(mux_gpll_cpll_p)			= { "gpll", "cpll" };
 PNAME(mux_gpll_cpll_usb480m_xin24m_p)	= { "gpll", "cpll", "usb480m", "xin24m" };
 PNAME(mux_uart0_p)			= { "sclk_uart0_div", "sclk_uart0_frac", "xin24m" };
@@ -184,8 +184,8 @@ PNAME(mux_usb480m_gpll_p)		= { "usb480m", "gpll" };
 PNAME(clk_gmac_src_m0_p)		= { "clk_gmac_div", "clk_gmac_rgmii_m0" };
 PNAME(clk_gmac_src_m1_p)		= { "clk_gmac_div", "clk_gmac_rgmii_m1" };
 PNAME(mux_clk_gmac_src_p)		= { "clk_gmac_src_m0", "clk_gmac_src_m1" };
-PNAME(mux_rgmii_clk_p)			= { "clk_gmac_tx_src", "clk_gmac_tx_src", "clk_gmac_tx_div5", "clk_gmac_tx_div50" };
-PNAME(mux_rmii_clk_p)			= { "clk_gmac_rx_div2", "clk_gmac_rx_div20" };
+PNAME(mux_rgmii_clk_p)			= { "clk_gmac_tx_src", "clk_gmac_tx_src", "clk_gmac_tx_div50", "clk_gmac_tx_div5" };
+PNAME(mux_rmii_clk_p)			= { "clk_gmac_rx_div20", "clk_gmac_rx_div2" };
 PNAME(mux_gmac_tx_rx_p)			= { "rgmii_mode_clk", "rmii_mode_clk" };
 PNAME(mux_dpll_gpll_p)			= { "dpll", "gpll" };
 PNAME(mux_gpll_cpll_apll_hpll_p)	= { "gpll", "cpll", "dummy_apll", "hpll" };
@@ -297,7 +297,7 @@ static struct rockchip_clk_branch rv1126_aclk_pdispp_np5 __initdata =
 
 static struct rockchip_clk_branch rv1126_clk_ispp_np5 __initdata =
 	COMPOSITE_HALFDIV_OFFSET(CLK_ISPP_NP5, "clk_ispp_np5", mux_cpll_gpll_hpll_p, 0,
-			RV1126_CLKSEL_CON(68), 6, 2, MFLAGS,
+			RV1126_CLKSEL_CON(69), 6, 2, MFLAGS,
 			RV1126_CLKSEL_CON(77), 8, 5, DFLAGS,
 			RV1126_CLKGATE_CON(16), 8, GFLAGS);
 
@@ -515,7 +515,7 @@ static struct rockchip_clk_branch rv1126_clk_branches[] __initdata = {
 			RV1126_CLKGATE_CON(6), 14, GFLAGS),
 	GATE(PCLK_MAILBOX, "pclk_mailbox", "pclk_pdbus", 0,
 			RV1126_CLKGATE_CON(7), 10, GFLAGS),
-	GATE(0, "pclk_intmem", "hclk_pdbus", 0,
+	GATE(0, "aclk_sysram", "hclk_pdbus", 0,
 			RV1126_CLKGATE_CON(3), 9, GFLAGS),
 	GATE(0, "pclk_intmux", "pclk_pdbus", 0,
 			RV1126_CLKGATE_CON(7), 14, GFLAGS),
@@ -679,7 +679,7 @@ static struct rockchip_clk_branch rv1126_clk_branches[] __initdata = {
 	GATE(PCLK_CAN, "pclk_can", "pclk_pdbus", 0,
 			RV1126_CLKGATE_CON(7), 8, GFLAGS),
 	COMPOSITE(CLK_CAN, "clk_can", mux_gpll_xin24m_p, 0,
-			RV1126_CLKSEL_CON(25), 1, 1, MFLAGS, 0, 7, DFLAGS,
+			RV1126_CLKSEL_CON(25), 7, 1, MFLAGS, 0, 7, DFLAGS,
 			RV1126_CLKGATE_CON(7), 9, GFLAGS),
 	/* pclk_otp and clk_otp are controlled by sgrf_clkgat_con. */
 	SGRF_GATE(CLK_OTP, "clk_otp", "xin24m"),
@@ -813,9 +813,9 @@ static struct rockchip_clk_branch rv1126_clk_branches[] __initdata = {
 
 	GATE(PCLK_ACDCDIG, "pclk_acdcdig", "hclk_pdaudio", 0,
 			RV1126_CLKGATE_CON(11), 0, GFLAGS),
-	GATE(CLK_ACDCDIG_ADC, "clk_acdcdig_adc", "mclk_i2s8ch_rx", 0,
+	GATE(CLK_ACDCDIG_ADC, "clk_acdcdig_adc", "mclk_i2s0_rx", 0,
 			RV1126_CLKGATE_CON(11), 2, GFLAGS),
-	GATE(CLK_ACDCDIG_DAC, "clk_acdcdig_dac", "mclk_i2s8ch_tx", 0,
+	GATE(CLK_ACDCDIG_DAC, "clk_acdcdig_dac", "mclk_i2s0_tx", 0,
 			RV1126_CLKGATE_CON(11), 3, GFLAGS),
 	COMPOSITE(CLK_ACDCDIG_I2C, "clk_acdcdig_i2c", mux_gpll_xin24m_p, 0,
 			RV1126_CLKSEL_CON(72), 8, 1, MFLAGS, 0, 7, DFLAGS,
@@ -927,12 +927,12 @@ static struct rockchip_clk_branch rv1126_clk_branches[] __initdata = {
 	GATE(PCLK_DSIHOST, "pclk_dsihost", "pclk_pdvo", 0,
 			RV1126_CLKGATE_CON(14), 14, GFLAGS),
 	GATE(ACLK_IEP, "aclk_iep", "aclk_pdvo", 0,
-			RV1126_CLKGATE_CON(16), 7, GFLAGS),
+			RV1126_CLKGATE_CON(12), 7, GFLAGS),
 	GATE(HCLK_IEP, "hclk_iep", "hclk_pdvo", 0,
-			RV1126_CLKGATE_CON(16), 8, GFLAGS),
+			RV1126_CLKGATE_CON(12), 8, GFLAGS),
 	COMPOSITE(CLK_IEP_CORE, "clk_iep_core", mux_gpll_cpll_p, 0,
 			RV1126_CLKSEL_CON(54), 7, 1, MFLAGS, 0, 5, DFLAGS,
-			RV1126_CLKGATE_CON(16), 9, GFLAGS),
+			RV1126_CLKGATE_CON(12), 9, GFLAGS),
 
 	/*
 	 * Clock-Architecture Diagram 10
@@ -1048,7 +1048,7 @@ static struct rockchip_clk_branch rv1126_clk_branches[] __initdata = {
 	GATE(0, "hclk_pdphpmid_niu", "hclk_pdphpmid", CLK_IGNORE_UNUSED,
 			RV1126_CLKGATE_CON(17), 5, GFLAGS),
 	/* PD_SDCARD */
-	GATE(HCLK_PDSDMMC, "hclk_pdsdmmc", "aclk_pdphp", 0,
+	GATE(HCLK_PDSDMMC, "hclk_pdsdmmc", "hclk_pdphp", 0,
 			RV1126_CLKGATE_CON(17), 6, GFLAGS),
 	GATE(0, "hclk_pdsdmmc_niu", "hclk_pdsdmmc", CLK_IGNORE_UNUSED,
 			RV1126_CLKGATE_CON(17), 7, GFLAGS),
@@ -1061,7 +1061,7 @@ static struct rockchip_clk_branch rv1126_clk_branches[] __initdata = {
 	MMC(SCLK_SDMMC_SAMPLE,  "sdmmc_sample", "clk_sdmmc", RV1126_SDMMC_CON1, 1),
 
 	/* PD_SDIO */
-	GATE(HCLK_PDSDIO, "hclk_pdsdio", "aclk_pdphp", 0,
+	GATE(HCLK_PDSDIO, "hclk_pdsdio", "hclk_pdphp", 0,
 			RV1126_CLKGATE_CON(17), 8, GFLAGS),
 	GATE(0, "hclk_pdsdio_niu", "hclk_pdsdio", CLK_IGNORE_UNUSED,
 			RV1126_CLKGATE_CON(17), 9, GFLAGS),
@@ -1074,7 +1074,7 @@ static struct rockchip_clk_branch rv1126_clk_branches[] __initdata = {
 	MMC(SCLK_SDIO_SAMPLE, "sdio_sample", "clk_sdio", RV1126_SDIO_CON1, 1),
 
 	/* PD_NVM */
-	GATE(HCLK_PDNVM, "hclk_pdnvm", "aclk_pdphp", 0,
+	GATE(HCLK_PDNVM, "hclk_pdnvm", "hclk_pdphp", 0,
 			RV1126_CLKGATE_CON(18), 1, GFLAGS),
 	GATE(0, "hclk_pdnvm_niu", "hclk_pdnvm", CLK_IGNORE_UNUSED,
 			RV1126_CLKGATE_CON(18), 3, GFLAGS),
