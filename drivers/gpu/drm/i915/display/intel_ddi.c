@@ -4518,15 +4518,14 @@ static int intel_hdmi_reset_link(struct intel_encoder *encoder,
 
 static enum intel_hotplug_state
 intel_ddi_hotplug(struct intel_encoder *encoder,
-		  struct intel_connector *connector,
-		  bool irq_received)
+		  struct intel_connector *connector)
 {
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 	struct drm_modeset_acquire_ctx ctx;
 	enum intel_hotplug_state state;
 	int ret;
 
-	state = intel_encoder_hotplug(encoder, connector, irq_received);
+	state = intel_encoder_hotplug(encoder, connector);
 
 	drm_modeset_acquire_init(&ctx, 0);
 
@@ -4565,7 +4564,7 @@ intel_ddi_hotplug(struct intel_encoder *encoder,
 	 * time around we didn't detect any change in the sink's connection
 	 * status.
 	 */
-	if (state == INTEL_HOTPLUG_UNCHANGED && irq_received &&
+	if (state == INTEL_HOTPLUG_UNCHANGED && !connector->hotplug_retries &&
 	    !dig_port->dp.is_mst)
 		state = INTEL_HOTPLUG_RETRY;
 

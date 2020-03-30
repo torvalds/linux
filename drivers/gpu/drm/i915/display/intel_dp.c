@@ -5571,14 +5571,13 @@ int intel_dp_retrain_link(struct intel_encoder *encoder,
  */
 static enum intel_hotplug_state
 intel_dp_hotplug(struct intel_encoder *encoder,
-		 struct intel_connector *connector,
-		 bool irq_received)
+		 struct intel_connector *connector)
 {
 	struct drm_modeset_acquire_ctx ctx;
 	enum intel_hotplug_state state;
 	int ret;
 
-	state = intel_encoder_hotplug(encoder, connector, irq_received);
+	state = intel_encoder_hotplug(encoder, connector);
 
 	drm_modeset_acquire_init(&ctx, 0);
 
@@ -5602,7 +5601,7 @@ intel_dp_hotplug(struct intel_encoder *encoder,
 	 * Keeping it consistent with intel_ddi_hotplug() and
 	 * intel_hdmi_hotplug().
 	 */
-	if (state == INTEL_HOTPLUG_UNCHANGED && irq_received)
+	if (state == INTEL_HOTPLUG_UNCHANGED && !connector->hotplug_retries)
 		state = INTEL_HOTPLUG_RETRY;
 
 	return state;

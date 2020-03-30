@@ -132,8 +132,7 @@ struct intel_encoder {
 	u16 cloneable;
 	u8 pipe_mask;
 	enum intel_hotplug_state (*hotplug)(struct intel_encoder *encoder,
-					    struct intel_connector *connector,
-					    bool irq_received);
+					    struct intel_connector *connector);
 	enum intel_output_type (*compute_output_type)(struct intel_encoder *,
 						      struct intel_crtc_state *,
 						      struct drm_connector_state *);
@@ -431,6 +430,9 @@ struct intel_connector {
 	/* Cached EDID for eDP and LVDS. May hold ERR_PTR for invalid EDID. */
 	struct edid *edid;
 	struct edid *detect_edid;
+
+	/* Number of times hotplug detection was tried after an HPD interrupt */
+	int hotplug_retries;
 
 	/* since POLL and HPD connectors may use the same HPD line keep the native
 	   state of connector->polled in case hotplug storm detection changes it */
