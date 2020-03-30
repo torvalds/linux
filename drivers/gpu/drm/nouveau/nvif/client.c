@@ -48,7 +48,7 @@ nvif_client_resume(struct nvif_client *client)
 }
 
 void
-nvif_client_fini(struct nvif_client *client)
+nvif_client_dtor(struct nvif_client *client)
 {
 	nvif_object_fini(&client->object);
 	if (client->driver) {
@@ -59,7 +59,7 @@ nvif_client_fini(struct nvif_client *client)
 }
 
 int
-nvif_client_init(struct nvif_client *parent, const char *name, u64 device,
+nvif_client_ctor(struct nvif_client *parent, const char *name, u64 device,
 		 struct nvif_client *client)
 {
 	struct nvif_client_v0 args = { .device = device };
@@ -88,6 +88,6 @@ nvif_client_init(struct nvif_client *parent, const char *name, u64 device,
 	}
 
 	if (ret)
-		nvif_client_fini(client);
+		nvif_client_dtor(client);
 	return ret;
 }
