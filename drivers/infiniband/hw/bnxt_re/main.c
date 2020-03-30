@@ -1310,7 +1310,7 @@ static void bnxt_re_query_hwrm_intf_version(struct bnxt_re_dev *rdev)
 		le16_to_cpu(resp.hwrm_intf_patch);
 }
 
-int bnxt_re_ib_init(struct bnxt_re_dev *rdev)
+static int bnxt_re_ib_init(struct bnxt_re_dev *rdev)
 {
 	int rc = 0;
 	u32 event;
