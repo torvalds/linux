@@ -377,6 +377,11 @@ dummy_reporter_test()
 {
 	RET=0
 
+	check_reporter_info dummy healthy 0 0 0 true
+
+	devlink health set $DL_HANDLE reporter dummy auto_recover false
+	check_err $? "Failed to dummy reporter auto_recover option"
+
 	check_reporter_info dummy healthy 0 0 0 false
 
 	local BREAK_MSG="foo bar"
