@@ -142,6 +142,16 @@
 			linux,code = <7>;
 		};
 	};
+
+	iio-hwmon-dps310 {
+		compatible = "iio-hwmon";
+		io-channels = <&dps 0>;
+	};
+
+	iio-hwmon-bmp280 {
+		compatible = "iio-hwmon";
+		io-channels = <&bmp 1>;
+	};
 };
 
 &gpio0 {
