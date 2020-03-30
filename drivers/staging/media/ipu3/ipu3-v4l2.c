@@ -1300,19 +1300,17 @@ static void imgu_v4l2_nodes_cleanup_pipe(struct imgu_device *imgu,
 
 static int imgu_v4l2_nodes_setup_pipe(struct imgu_device *imgu, int pipe)
 {
-	int i, r;
+	int i;
 
 	for (i = 0; i < IMGU_NODE_NUM; i++) {
-		r = imgu_v4l2_node_setup(imgu, pipe, i);
-		if (r)
-			goto cleanup;
+		int r = imgu_v4l2_node_setup(imgu, pipe, i);
+
+		if (r) {
+			imgu_v4l2_nodes_cleanup_pipe(imgu, pipe, i);
+			return r;
+		}
 	}
-
 	return 0;
-
-cleanup:
-	imgu_v4l2_nodes_cleanup_pipe(imgu, pipe, i);
-	return r;
 }
 
 static void imgu_v4l2_subdev_cleanup(struct imgu_device *imgu, unsigned int i)
