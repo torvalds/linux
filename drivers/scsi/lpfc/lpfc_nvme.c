@@ -792,17 +792,82 @@ lpfc_nvme_ls_req(struct nvme_fc_local_port *pnvme_lport,
 }
 
 /**
- * lpfc_nvme_ls_abort - Issue an Link Service request
- * @lpfc_pnvme: Pointer to the driver's nvme instance data
- * @lpfc_nvme_lport: Pointer to the driver's local port data
- * @lpfc_nvme_rport: Pointer to the rport getting the @lpfc_nvme_ereq
+ * __lpfc_nvme_ls_abort - Generic service routine to abort a prior
+ *         NVME LS request
+ * @vport: The local port that issued the LS
+ * @ndlp: The remote port the LS was sent to
+ * @pnvme_lsreq: Pointer to LS request structure from the transport
  *
- * Driver registers this routine to handle any link service request
- * from the nvme_fc transport to a remote nvme-aware port.
+ * The driver validates the ndlp, looks for the LS, and aborts the
+ * LS if found.
  *
- * Return value :
- *   0 - Success
- *   TODO: What are the failure codes.
+ * Returns:
+ * 0 : if LS found and aborted
+ * non-zero: various error conditions in form -Exxx
+ **/
+int
+__lpfc_nvme_ls_abort(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
+			struct nvmefc_ls_req *pnvme_lsreq)
+{
+	struct lpfc_hba *phba = vport->phba;
+	struct lpfc_sli_ring *pring;
+	struct lpfc_iocbq *wqe, *next_wqe;
+	bool foundit = false;
+
+	if (!ndlp) {
+		lpfc_printf_log(phba, KERN_ERR,
+				LOG_NVME_DISC | LOG_NODE |
+					LOG_NVME_IOERR | LOG_NVME_ABTS,
+				"6049 NVMEx LS REQ Abort: Bad NDLP x%px DID "
+				"x%06x, Failing LS Req\n",
+				ndlp, ndlp ? ndlp->nlp_DID : 0);
+		return -EINVAL;
+	}
+
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_DISC | LOG_NVME_ABTS,
+			 "6040 NVMEx LS REQ Abort: Issue LS_ABORT for lsreq "
+			 "x%p rqstlen:%d rsplen:%d %pad %pad\n",
+			 pnvme_lsreq, pnvme_lsreq->rqstlen,
+			 pnvme_lsreq->rsplen, &pnvme_lsreq->rqstdma,
+			 &pnvme_lsreq->rspdma);
+
+	/*
+	 * Lock the ELS ring txcmplq and look for the wqe that matches
+	 * this ELS. If found, issue an abort on the wqe.
+	 */
+	pring = phba->sli4_hba.nvmels_wq->pring;
+	spin_lock_irq(&phba->hbalock);
+	spin_lock(&pring->ring_lock);
+	list_for_each_entry_safe(wqe, next_wqe, &pring->txcmplq, list) {
+		if (wqe->context2 == pnvme_lsreq) {
+			wqe->iocb_flag |= LPFC_DRIVER_ABORTED;
+			foundit = true;
+			break;
+		}
+	}
+	spin_unlock(&pring->ring_lock);
+
+	if (foundit)
+		lpfc_sli_issue_abort_iotag(phba, pring, wqe);
+	spin_unlock_irq(&phba->hbalock);
+
+	if (foundit)
+		return 0;
+
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_DISC | LOG_NVME_ABTS,
+			 "6213 NVMEx LS REQ Abort: Unable to locate req x%p\n",
+			 pnvme_lsreq);
+	return 1;
+}
+
+/**
+ * lpfc_nvme_ls_abort - Abort a prior NVME LS request
+ * @lpfc_nvme_lport: Transport localport that LS is to be issued from.
+ * @lpfc_nvme_rport: Transport remoteport that LS is to be sent to.
+ * @pnvme_lsreq - the transport nvme_ls_req structure for the LS
+ *
+ * Driver registers this routine to abort a NVME LS request that is
+ * in progress (from the transports perspective).
  **/
 static void
 lpfc_nvme_ls_abort(struct nvme_fc_local_port *pnvme_lport,
@@ -813,9 +878,7 @@ lpfc_nvme_ls_abort(struct nvme_fc_local_port *pnvme_lport,
 	struct lpfc_vport *vport;
 	struct lpfc_hba *phba;
 	struct lpfc_nodelist *ndlp;
-	LIST_HEAD(abort_list);
-	struct lpfc_sli_ring *pring;
-	struct lpfc_iocbq *wqe, *next_wqe;
+	int ret;
 
 	lport = (struct lpfc_nvme_lport *)pnvme_lport->private;
 	if (unlikely(!lport))
@@ -827,48 +890,10 @@ lpfc_nvme_ls_abort(struct nvme_fc_local_port *pnvme_lport,
 		return;
 
 	ndlp = lpfc_findnode_did(vport, pnvme_rport->port_id);
-	if (!ndlp) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_ABTS,
-				 "6049 Could not find node for DID %x\n",
-				 pnvme_rport->port_id);
-		return;
-	}
 
-	/* Expand print to include key fields. */
-	lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_ABTS,
-			 "6040 ENTER.  lport x%px, rport x%px lsreq x%px rqstlen:%d "
-			 "rsplen:%d %pad %pad\n",
-			 pnvme_lport, pnvme_rport,
-			 pnvme_lsreq, pnvme_lsreq->rqstlen,
-			 pnvme_lsreq->rsplen, &pnvme_lsreq->rqstdma,
-			 &pnvme_lsreq->rspdma);
-
-	/*
-	 * Lock the ELS ring txcmplq and build a local list of all ELS IOs
-	 * that need an ABTS.  The IOs need to stay on the txcmplq so that
-	 * the abort operation completes them successfully.
-	 */
-	pring = phba->sli4_hba.nvmels_wq->pring;
-	spin_lock_irq(&phba->hbalock);
-	spin_lock(&pring->ring_lock);
-	list_for_each_entry_safe(wqe, next_wqe, &pring->txcmplq, list) {
-		/* Add to abort_list on on NDLP match. */
-		if (lpfc_check_sli_ndlp(phba, pring, wqe, ndlp)) {
-			wqe->iocb_flag |= LPFC_DRIVER_ABORTED;
-			list_add_tail(&wqe->dlist, &abort_list);
-		}
-	}
-	spin_unlock(&pring->ring_lock);
-	spin_unlock_irq(&phba->hbalock);
-
-	/* Abort the targeted IOs and remove them from the abort list. */
-	list_for_each_entry_safe(wqe, next_wqe, &abort_list, dlist) {
+	ret = __lpfc_nvme_ls_abort(vport, ndlp, pnvme_lsreq);
+	if (!ret)
 		atomic_inc(&lport->xmt_ls_abort);
-		spin_lock_irq(&phba->hbalock);
-		list_del_init(&wqe->dlist);
-		lpfc_sli_issue_abort_iotag(phba, pring, wqe);
-		spin_unlock_irq(&phba->hbalock);
-	}
 }
 
 /* Fix up the existing sgls for NVME IO. */
