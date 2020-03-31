@@ -11202,6 +11202,7 @@ S:	Maintained
 F:	arch/mips/loongson64/
 F:	arch/mips/include/asm/mach-loongson64/
 F:	drivers/platform/mips/cpu_hwmon.c
+F:	drivers/irqchip/irq-loongson*
 F:	drivers/*/*loongson3*
 F:	drivers/*/*/*loongson3*
 

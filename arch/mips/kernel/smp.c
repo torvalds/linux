@@ -207,25 +207,13 @@ static irqreturn_t ipi_call_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static struct irqaction irq_resched = {
-	.handler	= ipi_resched_interrupt,
-	.flags		= IRQF_PERCPU,
-	.name		= "IPI resched"
-};
-
-static struct irqaction irq_call = {
-	.handler	= ipi_call_interrupt,
-	.flags		= IRQF_PERCPU,
-	.name		= "IPI call"
-};
-
-static void smp_ipi_init_one(unsigned int virq,
-				    struct irqaction *action)
+static void smp_ipi_init_one(unsigned int virq, const char *name,
+			     irq_handler_t handler)
 {
 	int ret;
 
 	irq_set_handler(virq, handle_percpu_irq);
-	ret = setup_irq(virq, action);
+	ret = request_irq(virq, handler, IRQF_PERCPU, name, NULL);
 	BUG_ON(ret);
 }
 
@@ -278,12 +266,15 @@ int mips_smp_ipi_allocate(const struct cpumask *mask)
 		int cpu;
 
 		for_each_cpu(cpu, mask) {
-			smp_ipi_init_one(call_virq + cpu, &irq_call);
-			smp_ipi_init_one(sched_virq + cpu, &irq_resched);
+			smp_ipi_init_one(call_virq + cpu, "IPI call",
+					 ipi_call_interrupt);
+			smp_ipi_init_one(sched_virq + cpu, "IPI resched",
+					 ipi_resched_interrupt);
 		}
 	} else {
-		smp_ipi_init_one(call_virq, &irq_call);
-		smp_ipi_init_one(sched_virq, &irq_resched);
+		smp_ipi_init_one(call_virq, "IPI call", ipi_call_interrupt);
+		smp_ipi_init_one(sched_virq, "IPI resched",
+				 ipi_resched_interrupt);
 	}
 
 	return 0;
@@ -311,8 +302,8 @@ int mips_smp_ipi_free(const struct cpumask *mask)
 		int cpu;
 
 		for_each_cpu(cpu, mask) {
-			remove_irq(call_virq + cpu, &irq_call);
-			remove_irq(sched_virq + cpu, &irq_resched);
+			free_irq(call_virq + cpu, NULL);
+			free_irq(sched_virq + cpu, NULL);
 		}
 	}
 	irq_destroy_ipi(call_virq, mask);

@@ -254,13 +254,13 @@ struct thread_struct {
 #ifdef CONFIG_MIPS_FP_SUPPORT
 	/* Saved fpu/fpu emulator stuff. */
 	struct mips_fpu_struct fpu FPU_ALIGN;
-#endif
 	/* Assigned branch delay slot 'emulation' frame */
 	atomic_t bd_emu_frame;
 	/* PC of the branch from a branch delay slot 'emulation' */
 	unsigned long bd_emu_branch_pc;
 	/* PC to continue from following a branch delay slot 'emulation' */
 	unsigned long bd_emu_cont_pc;
+#endif
 #ifdef CONFIG_MIPS_MT_FPAFF
 	/* Emulated instruction count */
 	unsigned long emulated_fp;
@@ -303,7 +303,11 @@ struct thread_struct {
 		.fpr		= {{{0,},},},			\
 		.fcr31		= 0,				\
 		.msacsr		= 0,				\
-	},
+	},							\
+	/* Delay slot emulation */				\
+	.bd_emu_frame = ATOMIC_INIT(BD_EMUFRAME_NONE),		\
+	.bd_emu_branch_pc = 0,					\
+	.bd_emu_cont_pc = 0,
 #else
 # define FPU_INIT
 #endif
@@ -335,10 +339,6 @@ struct thread_struct {
 	 * FPU affinity state (null if not FPAFF)		\
 	 */							\
 	FPAFF_INIT						\
-	/* Delay slot emulation */				\
-	.bd_emu_frame = ATOMIC_INIT(BD_EMUFRAME_NONE),		\
-	.bd_emu_branch_pc = 0,					\
-	.bd_emu_cont_pc = 0,					\
 	/*							\
 	 * Saved DSP stuff					\
 	 */							\

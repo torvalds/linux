@@ -486,9 +486,11 @@ config MACH_LOONGSON64
 	select SYS_SUPPORTS_HIGHMEM
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_ZBOOT
-	select LOONGSON_MC146818
 	select ZONE_DMA32
 	select NUMA
+	select COMMON_CLK
+	select USE_OF
+	select BUILTIN_DTB
 	help
 	  This enables the support of Loongson-2/3 family of machines.
 
@@ -973,6 +975,9 @@ config CAVIUM_OCTEON_SOC
 	select SYS_HAS_EARLY_PRINTK
 	select SYS_HAS_CPU_CAVIUM_OCTEON
 	select HAVE_PCI
+	select HAVE_PLAT_DELAY
+	select HAVE_PLAT_FW_INIT_CMDLINE
+	select HAVE_PLAT_MEMCPY
 	select ZONE_DMA32
 	select HOLES_IN_ZONE
 	select GPIOLIB
@@ -1228,6 +1233,15 @@ config GENERIC_ISA_DMA
 config GENERIC_ISA_DMA_SUPPORT_BROKEN
 	bool
 	select GENERIC_ISA_DMA
+
+config HAVE_PLAT_DELAY
+	bool
+
+config HAVE_PLAT_FW_INIT_CMDLINE
+	bool
+
+config HAVE_PLAT_MEMCPY
+	bool
 
 config ISA_DMA_API
 	bool
@@ -2676,7 +2690,7 @@ config NUMA
 	  Say Y to compile the kernel to support NUMA (Non-Uniform Memory
 	  Access).  This option improves performance on systems with more
 	  than two nodes; on two node systems it is generally better to
-	  leave it disabled; on single node systems disable this option
+	  leave it disabled; on single node systems leave this option
 	  disabled.
 
 config SYS_SUPPORTS_NUMA
@@ -2757,6 +2771,17 @@ config HW_PERF_EVENTS
 	help
 	  Enable hardware performance counter support for perf events. If
 	  disabled, perf events will use software events only.
+
+config DMI
+	bool "Enable DMI scanning"
+	depends on MACH_LOONGSON64
+	select DMI_SCAN_MACHINE_NON_EFI_FALLBACK
+	default y
+	help
+	  Enabled scanning of DMI to identify machine quirks. Say Y
+	  here unless you have verified that your setup is not
+	  affected by entries in the DMI blacklist. Required by PNP
+	  BIOS code.
 
 config SMP
 	bool "Multi-Processing support"
@@ -3070,7 +3095,7 @@ endchoice
 choice
 	prompt "Kernel command line type" if !CMDLINE_OVERRIDE
 	default MIPS_CMDLINE_FROM_DTB if USE_OF && !ATH79 && !MACH_INGENIC && \
-					 !MIPS_MALTA && \
+					 !MACH_LOONGSON64 && !MIPS_MALTA && \
 					 !CAVIUM_OCTEON_SOC
 	default MIPS_CMDLINE_FROM_BOOTLOADER
 

@@ -9,6 +9,6 @@
 
 #define NR_IRQS 32
 
-#include_next <irq.h>
+#include <asm/mach-generic/irq.h>
 
 #endif /* __MIPS_ASM_MACH_XILFPGA_IRQ_H__ */

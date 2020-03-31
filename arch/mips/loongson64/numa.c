@@ -122,7 +122,7 @@ static unsigned long nid_to_addroffset(unsigned int nid)
 static void __init szmem(unsigned int node)
 {
 	u32 i, mem_type;
-	static unsigned long num_physpages = 0;
+	static unsigned long num_physpages;
 	u64 node_id, node_psize, start_pfn, end_pfn, mem_start, mem_size;
 
 	/* Parse memory information and activate */
