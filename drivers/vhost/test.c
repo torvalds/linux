@@ -49,7 +49,7 @@ static void handle_vq(struct vhost_test *n)
 	void *private;
 
 	mutex_lock(&vq->mutex);
-	private = vq->private_data;
+	private = vhost_vq_get_backend(vq);
 	if (!private) {
 		mutex_unlock(&vq->mutex);
 		return;
@@ -133,8 +133,8 @@ static void *vhost_test_stop_vq(struct vhost_test *n,
 	void *private;
 
 	mutex_lock(&vq->mutex);
-	private = vq->private_data;
-	vq->private_data = NULL;
+	private = vhost_vq_get_backend(vq);
+	vhost_vq_set_backend(vq, NULL);
 	mutex_unlock(&vq->mutex);
 	return private;
 }
@@ -198,8 +198,8 @@ static long vhost_test_run(struct vhost_test *n, int test)
 		priv = test ? n : NULL;
 
 		/* start polling new socket */
-		oldpriv = vq->private_data;
-		vq->private_data = priv;
+		oldpriv = vhost_vq_get_backend(vq);
+		vhost_vq_set_backend(vq, priv);
 
 		r = vhost_vq_init_access(&n->vqs[index]);
 
