@@ -649,9 +649,9 @@ static int live_error_interrupt(void *arg)
 						 error_repr(p->error[i]));
 
 				if (!i915_request_started(client[i])) {
-					pr_debug("%s: %s request not stated!\n",
-						 engine->name,
-						 error_repr(p->error[i]));
+					pr_err("%s: %s request not started!\n",
+					       engine->name,
+					       error_repr(p->error[i]));
 					err = -ETIME;
 					goto out;
 				}
@@ -659,9 +659,10 @@ static int live_error_interrupt(void *arg)
 				/* Kick the tasklet to process the error */
 				intel_engine_flush_submission(engine);
 				if (client[i]->fence.error != p->error[i]) {
-					pr_err("%s: %s request completed with wrong error code: %d\n",
+					pr_err("%s: %s request (%s) with wrong error code: %d\n",
 					       engine->name,
 					       error_repr(p->error[i]),
+					       i915_request_completed(client[i]) ? "completed" : "running",
 					       client[i]->fence.error);
 					err = -EINVAL;
 					goto out;
