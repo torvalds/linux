@@ -155,8 +155,10 @@ static int rpl_do_srh_inline(struct sk_buff *skb, const struct rpl_lwt *rlwt,
 	hdrlen = ((csrh->hdrlen + 1) << 3);
 
 	err = skb_cow_head(skb, hdrlen + skb->mac_len);
-	if (unlikely(err))
+	if (unlikely(err)) {
+		kfree(buf);
 		return err;
+	}
 
 	skb_pull(skb, sizeof(struct ipv6hdr));
 	skb_postpull_rcsum(skb, skb_network_header(skb),
