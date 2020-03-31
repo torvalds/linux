@@ -281,6 +281,53 @@ lpfc_nvmet_defer_release(struct lpfc_hba *phba,
 }
 
 /**
+ * __lpfc_nvme_xmt_ls_rsp_cmp - Generic completion handler for the
+ *         transmission of an NVME LS response.
+ * @phba: Pointer to HBA context object.
+ * @cmdwqe: Pointer to driver command WQE object.
+ * @wcqe: Pointer to driver response CQE object.
+ *
+ * The function is called from SLI ring event handler with no
+ * lock held. The function frees memory resources used for the command
+ * used to send the NVME LS RSP.
+ **/
+void
+__lpfc_nvme_xmt_ls_rsp_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
+			   struct lpfc_wcqe_complete *wcqe)
+{
+	struct lpfc_async_xchg_ctx *axchg = cmdwqe->context2;
+	struct nvmefc_ls_rsp *ls_rsp = &axchg->ls_rsp;
+	uint32_t status, result;
+
+	status = bf_get(lpfc_wcqe_c_status, wcqe) & LPFC_IOCB_STATUS_MASK;
+	result = wcqe->parameter;
+
+	if (axchg->state != LPFC_NVME_STE_LS_RSP || axchg->entry_cnt != 2) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_NVME_DISC | LOG_NVME_IOERR,
+				"6410 NVMEx LS cmpl state mismatch IO x%x: "
+				"%d %d\n",
+				axchg->oxid, axchg->state, axchg->entry_cnt);
+	}
+
+	lpfc_nvmeio_data(phba, "NVMEx LS  CMPL: xri x%x stat x%x result x%x\n",
+			 axchg->oxid, status, result);
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_NVME_DISC,
+			"6038 NVMEx LS rsp cmpl: %d %d oxid x%x\n",
+			status, result, axchg->oxid);
+
+	lpfc_nlp_put(cmdwqe->context1);
+	cmdwqe->context2 = NULL;
+	cmdwqe->context3 = NULL;
+	lpfc_sli_release_iocbq(phba, cmdwqe);
+	ls_rsp->done(ls_rsp);
+	lpfc_printf_log(phba, KERN_INFO, LOG_NVME_DISC,
+			"6200 NVMEx LS rsp cmpl done status %d oxid x%x\n",
+			status, axchg->oxid);
+	kfree(axchg);
+}
+
+/**
  * lpfc_nvmet_xmt_ls_rsp_cmp - Completion handler for LS Response
  * @phba: Pointer to HBA context object.
  * @cmdwqe: Pointer to driver command WQE object.
@@ -288,33 +335,23 @@ lpfc_nvmet_defer_release(struct lpfc_hba *phba,
  *
  * The function is called from SLI ring event handler with no
  * lock held. This function is the completion handler for NVME LS commands
- * The function frees memory resources used for the NVME commands.
+ * The function updates any states and statistics, then calls the
+ * generic completion handler to free resources.
  **/
 static void
 lpfc_nvmet_xmt_ls_rsp_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 			  struct lpfc_wcqe_complete *wcqe)
 {
 	struct lpfc_nvmet_tgtport *tgtp;
-	struct nvmefc_ls_rsp *rsp;
-	struct lpfc_async_xchg_ctx *ctxp;
 	uint32_t status, result;
 
-	status = bf_get(lpfc_wcqe_c_status, wcqe);
-	result = wcqe->parameter;
-	ctxp = cmdwqe->context2;
-
-	if (ctxp->state != LPFC_NVME_STE_LS_RSP || ctxp->entry_cnt != 2) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
-				"6410 NVMET LS cmpl state mismatch IO x%x: "
-				"%d %d\n",
-				ctxp->oxid, ctxp->state, ctxp->entry_cnt);
-	}
-
 	if (!phba->targetport)
-		goto out;
+		goto finish;
+
+	status = bf_get(lpfc_wcqe_c_status, wcqe) & LPFC_IOCB_STATUS_MASK;
+	result = wcqe->parameter;
 
 	tgtp = (struct lpfc_nvmet_tgtport *)phba->targetport->private;
-
 	if (tgtp) {
 		if (status) {
 			atomic_inc(&tgtp->xmt_ls_rsp_error);
@@ -327,22 +364,8 @@ lpfc_nvmet_xmt_ls_rsp_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 		}
 	}
 
-out:
-	rsp = &ctxp->ls_rsp;
-
-	lpfc_nvmeio_data(phba, "NVMET LS  CMPL: xri x%x stat x%x result x%x\n",
-			 ctxp->oxid, status, result);
-
-	lpfc_printf_log(phba, KERN_INFO, LOG_NVME_DISC,
-			"6038 NVMET LS rsp cmpl: %d %d oxid x%x\n",
-			status, result, ctxp->oxid);
-
-	lpfc_nlp_put(cmdwqe->context1);
-	cmdwqe->context2 = NULL;
-	cmdwqe->context3 = NULL;
-	lpfc_sli_release_iocbq(phba, cmdwqe);
-	rsp->done(rsp);
-	kfree(ctxp);
+finish:
+	__lpfc_nvme_xmt_ls_rsp_cmp(phba, cmdwqe, wcqe);
 }
 
 /**
@@ -819,17 +842,32 @@ lpfc_nvmet_xmt_fcp_op_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 #endif
 }
 
-static int
-lpfc_nvmet_xmt_ls_rsp(struct nvmet_fc_target_port *tgtport,
-		      struct nvmefc_ls_rsp *rsp)
+/**
+ * __lpfc_nvme_xmt_ls_rsp - Generic service routine to issue transmit
+ *         an NVME LS rsp for a prior NVME LS request that was received.
+ * @axchg: pointer to exchange context for the NVME LS request the response
+ *         is for.
+ * @ls_rsp: pointer to the transport LS RSP that is to be sent
+ * @xmt_ls_rsp_cmp: completion routine to call upon RSP transmit done
+ *
+ * This routine is used to format and send a WQE to transmit a NVME LS
+ * Response.  The response is for a prior NVME LS request that was
+ * received and posted to the transport.
+ *
+ * Returns:
+ *  0 : if response successfully transmit
+ *  non-zero : if response failed to transmit, of the form -Exxx.
+ **/
+int
+__lpfc_nvme_xmt_ls_rsp(struct lpfc_async_xchg_ctx *axchg,
+			struct nvmefc_ls_rsp *ls_rsp,
+			void (*xmt_ls_rsp_cmp)(struct lpfc_hba *phba,
+				struct lpfc_iocbq *cmdwqe,
+				struct lpfc_wcqe_complete *wcqe))
 {
-	struct lpfc_async_xchg_ctx *ctxp =
-		container_of(rsp, struct lpfc_async_xchg_ctx, ls_rsp);
-	struct lpfc_hba *phba = ctxp->phba;
-	struct hbq_dmabuf *nvmebuf =
-		(struct hbq_dmabuf *)ctxp->rqb_buffer;
+	struct lpfc_hba *phba = axchg->phba;
+	struct hbq_dmabuf *nvmebuf = (struct hbq_dmabuf *)axchg->rqb_buffer;
 	struct lpfc_iocbq *nvmewqeq;
-	struct lpfc_nvmet_tgtport *nvmep = tgtport->private;
 	struct lpfc_dmabuf dmabuf;
 	struct ulp_bde64 bpl;
 	int rc;
@@ -837,34 +875,28 @@ lpfc_nvmet_xmt_ls_rsp(struct nvmet_fc_target_port *tgtport,
 	if (phba->pport->load_flag & FC_UNLOADING)
 		return -ENODEV;
 
-	if (phba->pport->load_flag & FC_UNLOADING)
-		return -ENODEV;
-
 	lpfc_printf_log(phba, KERN_INFO, LOG_NVME_DISC,
-			"6023 NVMET LS rsp oxid x%x\n", ctxp->oxid);
+			"6023 NVMEx LS rsp oxid x%x\n", axchg->oxid);
 
-	if ((ctxp->state != LPFC_NVME_STE_LS_RCV) ||
-	    (ctxp->entry_cnt != 1)) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
-				"6412 NVMET LS rsp state mismatch "
+	if (axchg->state != LPFC_NVME_STE_LS_RCV || axchg->entry_cnt != 1) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_NVME_DISC | LOG_NVME_IOERR,
+				"6412 NVMEx LS rsp state mismatch "
 				"oxid x%x: %d %d\n",
-				ctxp->oxid, ctxp->state, ctxp->entry_cnt);
+				axchg->oxid, axchg->state, axchg->entry_cnt);
+		return -EALREADY;
 	}
-	ctxp->state = LPFC_NVME_STE_LS_RSP;
-	ctxp->entry_cnt++;
+	axchg->state = LPFC_NVME_STE_LS_RSP;
+	axchg->entry_cnt++;
 
-	nvmewqeq = lpfc_nvmet_prep_ls_wqe(phba, ctxp, rsp->rspdma,
-				      rsp->rsplen);
+	nvmewqeq = lpfc_nvmet_prep_ls_wqe(phba, axchg, ls_rsp->rspdma,
+					 ls_rsp->rsplen);
 	if (nvmewqeq == NULL) {
-		atomic_inc(&nvmep->xmt_ls_drop);
-		lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
-				"6150 LS Drop IO x%x: Prep\n",
-				ctxp->oxid);
-		lpfc_in_buf_free(phba, &nvmebuf->dbuf);
-		atomic_inc(&nvmep->xmt_ls_abort);
-		lpfc_nvme_unsol_ls_issue_abort(phba, ctxp,
-						ctxp->sid, ctxp->oxid);
-		return -ENOMEM;
+		lpfc_printf_log(phba, KERN_ERR,
+				LOG_NVME_DISC | LOG_NVME_IOERR | LOG_NVME_ABTS,
+				"6150 NVMEx LS Drop Rsp x%x: Prep\n",
+				axchg->oxid);
+		rc = -ENOMEM;
+		goto out_free_buf;
 	}
 
 	/* Save numBdes for bpl2sgl */
@@ -874,39 +906,106 @@ lpfc_nvmet_xmt_ls_rsp(struct nvmet_fc_target_port *tgtport,
 	dmabuf.virt = &bpl;
 	bpl.addrLow = nvmewqeq->wqe.xmit_sequence.bde.addrLow;
 	bpl.addrHigh = nvmewqeq->wqe.xmit_sequence.bde.addrHigh;
-	bpl.tus.f.bdeSize = rsp->rsplen;
+	bpl.tus.f.bdeSize = ls_rsp->rsplen;
 	bpl.tus.f.bdeFlags = 0;
 	bpl.tus.w = le32_to_cpu(bpl.tus.w);
+	/*
+	 * Note: although we're using stack space for the dmabuf, the
+	 * call to lpfc_sli4_issue_wqe is synchronous, so it will not
+	 * be referenced after it returns back to this routine.
+	 */
 
-	nvmewqeq->wqe_cmpl = lpfc_nvmet_xmt_ls_rsp_cmp;
+	nvmewqeq->wqe_cmpl = xmt_ls_rsp_cmp;
 	nvmewqeq->iocb_cmpl = NULL;
-	nvmewqeq->context2 = ctxp;
+	nvmewqeq->context2 = axchg;
 
-	lpfc_nvmeio_data(phba, "NVMET LS  RESP: xri x%x wqidx x%x len x%x\n",
-			 ctxp->oxid, nvmewqeq->hba_wqidx, rsp->rsplen);
+	lpfc_nvmeio_data(phba, "NVMEx LS RSP: xri x%x wqidx x%x len x%x\n",
+			 axchg->oxid, nvmewqeq->hba_wqidx, ls_rsp->rsplen);
 
-	rc = lpfc_sli4_issue_wqe(phba, ctxp->hdwq, nvmewqeq);
+	rc = lpfc_sli4_issue_wqe(phba, axchg->hdwq, nvmewqeq);
+
+	/* clear to be sure there's no reference */
+	nvmewqeq->context3 = NULL;
+
 	if (rc == WQE_SUCCESS) {
 		/*
 		 * Okay to repost buffer here, but wait till cmpl
 		 * before freeing ctxp and iocbq.
 		 */
 		lpfc_in_buf_free(phba, &nvmebuf->dbuf);
-		atomic_inc(&nvmep->xmt_ls_rsp);
 		return 0;
 	}
-	/* Give back resources */
-	atomic_inc(&nvmep->xmt_ls_drop);
-	lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
-			"6151 LS Drop IO x%x: Issue %d\n",
-			ctxp->oxid, rc);
+
+	lpfc_printf_log(phba, KERN_ERR,
+			LOG_NVME_DISC | LOG_NVME_IOERR | LOG_NVME_ABTS,
+			"6151 NVMEx LS RSP x%x: failed to transmit %d\n",
+			axchg->oxid, rc);
+
+	rc = -ENXIO;
 
 	lpfc_nlp_put(nvmewqeq->context1);
 
+out_free_buf:
+	/* Give back resources */
 	lpfc_in_buf_free(phba, &nvmebuf->dbuf);
-	atomic_inc(&nvmep->xmt_ls_abort);
-	lpfc_nvme_unsol_ls_issue_abort(phba, ctxp, ctxp->sid, ctxp->oxid);
-	return -ENXIO;
+
+	/*
+	 * As transport doesn't track completions of responses, if the rsp
+	 * fails to send, the transport will effectively ignore the rsp
+	 * and consider the LS done. However, the driver has an active
+	 * exchange open for the LS - so be sure to abort the exchange
+	 * if the response isn't sent.
+	 */
+	lpfc_nvme_unsol_ls_issue_abort(phba, axchg, axchg->sid, axchg->oxid);
+	return rc;
+}
+
+/**
+ * lpfc_nvmet_xmt_ls_rsp - Transmit NVME LS response
+ * @tgtport: pointer to target port that NVME LS is to be transmit from.
+ * @ls_rsp: pointer to the transport LS RSP that is to be sent
+ *
+ * Driver registers this routine to transmit responses for received NVME
+ * LS requests.
+ *
+ * This routine is used to format and send a WQE to transmit a NVME LS
+ * Response. The ls_rsp is used to reverse-map the LS to the original
+ * NVME LS request sequence, which provides addressing information for
+ * the remote port the LS to be sent to, as well as the exchange id
+ * that is the LS is bound to.
+ *
+ * Returns:
+ *  0 : if response successfully transmit
+ *  non-zero : if response failed to transmit, of the form -Exxx.
+ **/
+static int
+lpfc_nvmet_xmt_ls_rsp(struct nvmet_fc_target_port *tgtport,
+		      struct nvmefc_ls_rsp *ls_rsp)
+{
+	struct lpfc_async_xchg_ctx *axchg =
+		container_of(ls_rsp, struct lpfc_async_xchg_ctx, ls_rsp);
+	struct lpfc_nvmet_tgtport *nvmep = tgtport->private;
+	int rc;
+
+	if (axchg->phba->pport->load_flag & FC_UNLOADING)
+		return -ENODEV;
+
+	rc = __lpfc_nvme_xmt_ls_rsp(axchg, ls_rsp, lpfc_nvmet_xmt_ls_rsp_cmp);
+
+	if (rc) {
+		atomic_inc(&nvmep->xmt_ls_drop);
+		/*
+		 * unless the failure is due to having already sent
+		 * the response, an abort will be generated for the
+		 * exchange if the rsp can't be sent.
+		 */
+		if (rc != -EALREADY)
+			atomic_inc(&nvmep->xmt_ls_abort);
+		return rc;
+	}
+
+	atomic_inc(&nvmep->xmt_ls_rsp);
+	return 0;
 }
 
 static int

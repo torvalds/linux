@@ -244,3 +244,10 @@ int __lpfc_nvme_ls_abort(struct lpfc_vport *vport,
 int lpfc_nvme_unsol_ls_issue_abort(struct lpfc_hba *phba,
 			struct lpfc_async_xchg_ctx *ctxp, uint32_t sid,
 			uint16_t xri);
+int __lpfc_nvme_xmt_ls_rsp(struct lpfc_async_xchg_ctx *axchg,
+			struct nvmefc_ls_rsp *ls_rsp,
+			void (*xmt_ls_rsp_cmp)(struct lpfc_hba *phba,
+				struct lpfc_iocbq *cmdwqe,
+				struct lpfc_wcqe_complete *wcqe));
+void __lpfc_nvme_xmt_ls_rsp_cmp(struct lpfc_hba *phba,
+		struct lpfc_iocbq *cmdwqe, struct lpfc_wcqe_complete *wcqe);
