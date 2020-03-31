@@ -188,6 +188,7 @@ struct lpfc_async_xchg_ctx {
 	} hdlrctx;
 	struct list_head list;
 	struct lpfc_hba *phba;
+	struct lpfc_nodelist *ndlp;
 	struct nvmefc_ls_req *ls_req;
 	struct nvmefc_ls_rsp ls_rsp;
 	struct lpfc_iocbq *wqeq;
@@ -202,6 +203,7 @@ struct lpfc_async_xchg_ctx {
 	uint16_t idx;
 	uint16_t state;
 	uint16_t flag;
+	void *payload;
 	struct rqb_dmabuf *rqb_buffer;
 	struct lpfc_nvmet_ctxbuf *ctxbuf;
 	struct lpfc_sli4_hdw_queue *hdwq;
@@ -224,3 +226,6 @@ struct lpfc_async_xchg_ctx {
 /* routines found in lpfc_nvme.c */
 
 /* routines found in lpfc_nvmet.c */
+int lpfc_nvme_unsol_ls_issue_abort(struct lpfc_hba *phba,
+			struct lpfc_async_xchg_ctx *ctxp, uint32_t sid,
+			uint16_t xri);

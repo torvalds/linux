@@ -63,9 +63,6 @@ static int lpfc_nvmet_sol_fcp_issue_abort(struct lpfc_hba *,
 static int lpfc_nvmet_unsol_fcp_issue_abort(struct lpfc_hba *,
 					    struct lpfc_async_xchg_ctx *,
 					    uint32_t, uint16_t);
-static int lpfc_nvmet_unsol_ls_issue_abort(struct lpfc_hba *,
-					   struct lpfc_async_xchg_ctx *,
-					   uint32_t, uint16_t);
 static void lpfc_nvmet_wqfull_flush(struct lpfc_hba *, struct lpfc_queue *,
 				    struct lpfc_async_xchg_ctx *);
 static void lpfc_nvmet_fcp_rqst_defer_work(struct work_struct *);
@@ -865,7 +862,7 @@ lpfc_nvmet_xmt_ls_rsp(struct nvmet_fc_target_port *tgtport,
 				ctxp->oxid);
 		lpfc_in_buf_free(phba, &nvmebuf->dbuf);
 		atomic_inc(&nvmep->xmt_ls_abort);
-		lpfc_nvmet_unsol_ls_issue_abort(phba, ctxp,
+		lpfc_nvme_unsol_ls_issue_abort(phba, ctxp,
 						ctxp->sid, ctxp->oxid);
 		return -ENOMEM;
 	}
@@ -908,7 +905,7 @@ lpfc_nvmet_xmt_ls_rsp(struct nvmet_fc_target_port *tgtport,
 
 	lpfc_in_buf_free(phba, &nvmebuf->dbuf);
 	atomic_inc(&nvmep->xmt_ls_abort);
-	lpfc_nvmet_unsol_ls_issue_abort(phba, ctxp, ctxp->sid, ctxp->oxid);
+	lpfc_nvme_unsol_ls_issue_abort(phba, ctxp, ctxp->sid, ctxp->oxid);
 	return -ENXIO;
 }
 
@@ -1922,107 +1919,49 @@ lpfc_nvmet_destroy_targetport(struct lpfc_hba *phba)
 }
 
 /**
- * lpfc_nvmet_unsol_ls_buffer - Process an unsolicited event data buffer
+ * lpfc_nvmet_handle_lsreq - Process an NVME LS request
  * @phba: pointer to lpfc hba data structure.
- * @pring: pointer to a SLI ring.
- * @nvmebuf: pointer to lpfc nvme command HBQ data structure.
+ * @axchg: pointer to exchange context for the NVME LS request
  *
- * This routine is used for processing the WQE associated with a unsolicited
- * event. It first determines whether there is an existing ndlp that matches
- * the DID from the unsolicited WQE. If not, it will create a new one with
- * the DID from the unsolicited WQE. The ELS command from the unsolicited
- * WQE is then used to invoke the proper routine and to set up proper state
- * of the discovery state machine.
- **/
-static void
-lpfc_nvmet_unsol_ls_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
-			   struct hbq_dmabuf *nvmebuf)
+ * This routine is used for processing an asychronously received NVME LS
+ * request. Any remaining validation is done and the LS is then forwarded
+ * to the nvmet-fc transport via nvmet_fc_rcv_ls_req().
+ *
+ * The calling sequence should be: nvmet_fc_rcv_ls_req() -> (processing)
+ * -> lpfc_nvmet_xmt_ls_rsp/cmp -> req->done.
+ * lpfc_nvme_xmt_ls_rsp_cmp should free the allocated axchg.
+ *
+ * Returns 0 if LS was handled and delivered to the transport
+ * Returns 1 if LS failed to be handled and should be dropped
+ */
+int
+lpfc_nvmet_handle_lsreq(struct lpfc_hba *phba,
+			struct lpfc_async_xchg_ctx *axchg)
 {
 #if (IS_ENABLED(CONFIG_NVME_TARGET_FC))
-	struct lpfc_nvmet_tgtport *tgtp;
-	struct fc_frame_header *fc_hdr;
-	struct lpfc_async_xchg_ctx *ctxp;
-	uint32_t *payload;
-	uint32_t size, oxid, sid, rc;
+	struct lpfc_nvmet_tgtport *tgtp = phba->targetport->private;
+	uint32_t *payload = axchg->payload;
+	int rc;
 
-
-	if (!nvmebuf || !phba->targetport) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
-				"6154 LS Drop IO\n");
-		oxid = 0;
-		size = 0;
-		sid = 0;
-		ctxp = NULL;
-		goto dropit;
-	}
-
-	fc_hdr = (struct fc_frame_header *)(nvmebuf->hbuf.virt);
-	oxid = be16_to_cpu(fc_hdr->fh_ox_id);
-
-	tgtp = (struct lpfc_nvmet_tgtport *)phba->targetport->private;
-	payload = (uint32_t *)(nvmebuf->dbuf.virt);
-	size = bf_get(lpfc_rcqe_length,  &nvmebuf->cq_event.cqe.rcqe_cmpl);
-	sid = sli4_sid_from_fc_hdr(fc_hdr);
-
-	ctxp = kzalloc(sizeof(struct lpfc_async_xchg_ctx), GFP_ATOMIC);
-	if (ctxp == NULL) {
-		atomic_inc(&tgtp->rcv_ls_req_drop);
-		lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
-				"6155 LS Drop IO x%x: Alloc\n",
-				oxid);
-dropit:
-		lpfc_nvmeio_data(phba, "NVMET LS  DROP: "
-				 "xri x%x sz %d from %06x\n",
-				 oxid, size, sid);
-		lpfc_in_buf_free(phba, &nvmebuf->dbuf);
-		return;
-	}
-	ctxp->phba = phba;
-	ctxp->size = size;
-	ctxp->oxid = oxid;
-	ctxp->sid = sid;
-	ctxp->wqeq = NULL;
-	ctxp->state = LPFC_NVME_STE_LS_RCV;
-	ctxp->entry_cnt = 1;
-	ctxp->rqb_buffer = (void *)nvmebuf;
-	ctxp->hdwq = &phba->sli4_hba.hdwq[0];
-
-	lpfc_nvmeio_data(phba, "NVMET LS   RCV: xri x%x sz %d from %06x\n",
-			 oxid, size, sid);
-	/*
-	 * The calling sequence should be:
-	 * nvmet_fc_rcv_ls_req -> lpfc_nvmet_xmt_ls_rsp/cmp ->_req->done
-	 * lpfc_nvmet_xmt_ls_rsp_cmp should free the allocated ctxp.
-	 */
 	atomic_inc(&tgtp->rcv_ls_req_in);
-	rc = nvmet_fc_rcv_ls_req(phba->targetport, NULL, &ctxp->ls_rsp,
-				 payload, size);
+
+	rc = nvmet_fc_rcv_ls_req(phba->targetport, NULL, &axchg->ls_rsp,
+				 axchg->payload, axchg->size);
 
 	lpfc_printf_log(phba, KERN_INFO, LOG_NVME_DISC,
 			"6037 NVMET Unsol rcv: sz %d rc %d: %08x %08x %08x "
-			"%08x %08x %08x\n", size, rc,
+			"%08x %08x %08x\n", axchg->size, rc,
 			*payload, *(payload+1), *(payload+2),
 			*(payload+3), *(payload+4), *(payload+5));
 
-	if (rc == 0) {
+	if (!rc) {
 		atomic_inc(&tgtp->rcv_ls_req_out);
-		return;
+		return 0;
 	}
 
-	lpfc_nvmeio_data(phba, "NVMET LS  DROP: xri x%x sz %d from %06x\n",
-			 oxid, size, sid);
-
 	atomic_inc(&tgtp->rcv_ls_req_drop);
-	lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
-			"6156 LS Drop IO x%x: nvmet_fc_rcv_ls_req %d\n",
-			ctxp->oxid, rc);
-
-	/* We assume a rcv'ed cmd ALWAYs fits into 1 buffer */
-	lpfc_in_buf_free(phba, &nvmebuf->dbuf);
-
-	atomic_inc(&tgtp->xmt_ls_abort);
-	lpfc_nvmet_unsol_ls_issue_abort(phba, ctxp, sid, oxid);
 #endif
+	return 1;
 }
 
 static void
@@ -2362,40 +2301,6 @@ lpfc_nvmet_unsol_fcp_buffer(struct lpfc_hba *phba,
 		spin_unlock_irqrestore(&ctxp->ctxlock, iflag);
 		lpfc_nvmet_unsol_fcp_issue_abort(phba, ctxp, sid, oxid);
 	}
-}
-
-/**
- * lpfc_nvmet_unsol_ls_event - Process an unsolicited event from an nvme nport
- * @phba: pointer to lpfc hba data structure.
- * @pring: pointer to a SLI ring.
- * @nvmebuf: pointer to received nvme data structure.
- *
- * This routine is used to process an unsolicited event received from a SLI
- * (Service Level Interface) ring. The actual processing of the data buffer
- * associated with the unsolicited event is done by invoking the routine
- * lpfc_nvmet_unsol_ls_buffer() after properly set up the buffer from the
- * SLI RQ on which the unsolicited event was received.
- **/
-void
-lpfc_nvmet_unsol_ls_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
-			  struct lpfc_iocbq *piocb)
-{
-	struct lpfc_dmabuf *d_buf;
-	struct hbq_dmabuf *nvmebuf;
-
-	d_buf = piocb->context2;
-	nvmebuf = container_of(d_buf, struct hbq_dmabuf, dbuf);
-
-	if (!nvmebuf) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
-				"3015 LS Drop IO\n");
-		return;
-	}
-	if (phba->nvmet_support == 0) {
-		lpfc_in_buf_free(phba, &nvmebuf->dbuf);
-		return;
-	}
-	lpfc_nvmet_unsol_ls_buffer(phba, pring, nvmebuf);
 }
 
 /**
@@ -3402,8 +3307,16 @@ aerr:
 	return 1;
 }
 
-static int
-lpfc_nvmet_unsol_ls_issue_abort(struct lpfc_hba *phba,
+/**
+ * lpfc_nvme_unsol_ls_issue_abort - issue ABTS on an exchange received
+ *        via async frame receive where the frame is not handled.
+ * @phba: pointer to adapter structure
+ * @ctxp: pointer to the asynchronously received received sequence
+ * @sid: address of the remote port to send the ABTS to
+ * @xri: oxid value to for the ABTS (other side's exchange id).
+ **/
+int
+lpfc_nvme_unsol_ls_issue_abort(struct lpfc_hba *phba,
 				struct lpfc_async_xchg_ctx *ctxp,
 				uint32_t sid, uint16_t xri)
 {
