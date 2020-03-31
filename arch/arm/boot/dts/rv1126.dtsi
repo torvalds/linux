@@ -173,6 +173,22 @@
 		method = "smc";
 	};
 
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		ramoops: ramoops@8000000 {
+			compatible = "ramoops";
+			reg = <0x8000000 0xf0000>;
+			record-size = <0x30000>;
+			console-size = <0xc0000>;
+			ftrace-size = <0x00000>;
+			pmsg-size = <0x00000>;
+			status = "disabled";
+		};
+	};
+
 	rgb: rgb {
 		compatible = "rockchip,rv1126-rgb";
 		status = "disabled";
