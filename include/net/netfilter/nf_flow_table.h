@@ -62,7 +62,8 @@ struct nf_flowtable_type {
 };
 
 enum nf_flowtable_flags {
-	NF_FLOWTABLE_HW_OFFLOAD		= 0x1,
+	NF_FLOWTABLE_HW_OFFLOAD		= 0x1,	/* NFT_FLOWTABLE_HW_OFFLOAD */
+	NF_FLOWTABLE_COUNTER		= 0x2,	/* NFT_FLOWTABLE_COUNTER */
 };
 
 struct nf_flowtable {
@@ -73,7 +74,7 @@ struct nf_flowtable {
 	struct delayed_work		gc_work;
 	unsigned int			flags;
 	struct flow_block		flow_block;
-	struct mutex			flow_block_lock; /* Guards flow_block */
+	struct rw_semaphore		flow_block_lock; /* Guards flow_block */
 	possible_net_t			net;
 };
 

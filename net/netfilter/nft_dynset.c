@@ -24,23 +24,6 @@ struct nft_dynset {
 	struct nft_set_binding		binding;
 };
 
-static int nft_expr_clone(struct nft_expr *dst, struct nft_expr *src)
-{
-	int err;
-
-	if (src->ops->clone) {
-		dst->ops = src->ops;
-		err = src->ops->clone(dst, src);
-		if (err < 0)
-			return err;
-	} else {
-		memcpy(dst, src, src->ops->size);
-	}
-
-	__module_get(src->ops->type->owner);
-	return 0;
-}
-
 static void *nft_dynset_new(struct nft_set *set, const struct nft_expr *expr,
 			    struct nft_regs *regs)
 {
@@ -204,6 +187,11 @@ static int nft_dynset_init(const struct nft_ctx *ctx,
 						     tb[NFTA_DYNSET_EXPR]);
 		if (IS_ERR(priv->expr))
 			return PTR_ERR(priv->expr);
+
+		if (set->expr && set->expr->ops != priv->expr->ops) {
+			err = -EOPNOTSUPP;
+			goto err_expr_free;
+		}
 	}
 
 	nft_set_ext_prepare(&priv->tmpl);
@@ -222,7 +210,7 @@ static int nft_dynset_init(const struct nft_ctx *ctx,
 
 	err = nf_tables_bind_set(ctx, set, &priv->binding);
 	if (err < 0)
-		goto err1;
+		goto err_expr_free;
 
 	if (set->size == 0)
 		set->size = 0xffff;
@@ -230,7 +218,7 @@ static int nft_dynset_init(const struct nft_ctx *ctx,
 	priv->set = set;
 	return 0;
 
-err1:
+err_expr_free:
 	if (priv->expr != NULL)
 		nft_expr_destroy(ctx, priv->expr);
 	return err;

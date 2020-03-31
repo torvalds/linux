@@ -392,7 +392,7 @@ int nf_flow_table_offload_add_cb(struct nf_flowtable *flow_table,
 	struct flow_block_cb *block_cb;
 	int err = 0;
 
-	mutex_lock(&flow_table->flow_block_lock);
+	down_write(&flow_table->flow_block_lock);
 	block_cb = flow_block_cb_lookup(block, cb, cb_priv);
 	if (block_cb) {
 		err = -EEXIST;
@@ -408,7 +408,7 @@ int nf_flow_table_offload_add_cb(struct nf_flowtable *flow_table,
 	list_add_tail(&block_cb->list, &block->cb_list);
 
 unlock:
-	mutex_unlock(&flow_table->flow_block_lock);
+	up_write(&flow_table->flow_block_lock);
 	return err;
 }
 EXPORT_SYMBOL_GPL(nf_flow_table_offload_add_cb);
@@ -419,13 +419,13 @@ void nf_flow_table_offload_del_cb(struct nf_flowtable *flow_table,
 	struct flow_block *block = &flow_table->flow_block;
 	struct flow_block_cb *block_cb;
 
-	mutex_lock(&flow_table->flow_block_lock);
+	down_write(&flow_table->flow_block_lock);
 	block_cb = flow_block_cb_lookup(block, cb, cb_priv);
 	if (block_cb)
 		list_del(&block_cb->list);
 	else
 		WARN_ON(true);
-	mutex_unlock(&flow_table->flow_block_lock);
+	up_write(&flow_table->flow_block_lock);
 }
 EXPORT_SYMBOL_GPL(nf_flow_table_offload_del_cb);
 
@@ -551,7 +551,7 @@ int nf_flow_table_init(struct nf_flowtable *flowtable)
 
 	INIT_DEFERRABLE_WORK(&flowtable->gc_work, nf_flow_offload_work_gc);
 	flow_block_init(&flowtable->flow_block);
-	mutex_init(&flowtable->flow_block_lock);
+	init_rwsem(&flowtable->flow_block_lock);
 
 	err = rhashtable_init(&flowtable->rhashtable,
 			      &nf_flow_offload_rhash_params);
@@ -617,7 +617,6 @@ void nf_flow_table_free(struct nf_flowtable *flow_table)
 		nf_flow_table_iterate(flow_table, nf_flow_offload_gc_step,
 				      flow_table);
 	rhashtable_destroy(&flow_table->rhashtable);
-	mutex_destroy(&flow_table->flow_block_lock);
 }
 EXPORT_SYMBOL_GPL(nf_flow_table_free);
 
