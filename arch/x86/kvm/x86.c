@@ -1554,7 +1554,10 @@ EXPORT_SYMBOL_GPL(kvm_emulate_wrmsr);
  */
 static int handle_fastpath_set_x2apic_icr_irqoff(struct kvm_vcpu *vcpu, u64 data)
 {
-	if (lapic_in_kernel(vcpu) && apic_x2apic_mode(vcpu->arch.apic) &&
+	if (!lapic_in_kernel(vcpu) || !apic_x2apic_mode(vcpu->arch.apic))
+		return 1;
+
+	if (((data & APIC_SHORT_MASK) == APIC_DEST_NOSHORT) &&
 		((data & APIC_DEST_MASK) == APIC_DEST_PHYSICAL) &&
 		((data & APIC_MODE_MASK) == APIC_DM_FIXED)) {
 
@@ -2444,7 +2447,6 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 	vcpu->hv_clock.tsc_timestamp = tsc_timestamp;
 	vcpu->hv_clock.system_time = kernel_ns + v->kvm->arch.kvmclock_offset;
 	vcpu->last_guest_tsc = tsc_timestamp;
-	WARN_ON((s64)vcpu->hv_clock.system_time < 0);
 
 	/* If the host uses TSC clocksource, then it is stable */
 	pvclock_flags = 0;
@@ -7195,10 +7197,12 @@ static void kvm_timer_init(void)
 
 		cpu = get_cpu();
 		policy = cpufreq_cpu_get(cpu);
-		if (policy && policy->cpuinfo.max_freq)
-			max_tsc_khz = policy->cpuinfo.max_freq;
+		if (policy) {
+			if (policy->cpuinfo.max_freq)
+				max_tsc_khz = policy->cpuinfo.max_freq;
+			cpufreq_cpu_put(policy);
+		}
 		put_cpu();
-		cpufreq_cpu_put(policy);
 #endif
 		cpufreq_register_notifier(&kvmclock_cpufreq_notifier_block,
 					  CPUFREQ_TRANSITION_NOTIFIER);

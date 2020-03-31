@@ -90,7 +90,7 @@ static int mlx5e_rx_reporter_err_icosq_cqe_recover(void *ctx)
 		goto out;
 
 	mlx5e_reset_icosq_cc_pc(icosq);
-	mlx5e_free_rx_descs(rq);
+	mlx5e_free_rx_in_progress_descs(rq);
 	clear_bit(MLX5E_SQ_STATE_RECOVERING, &icosq->state);
 	mlx5e_activate_icosq(icosq);
 	mlx5e_activate_rq(rq);

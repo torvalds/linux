@@ -240,8 +240,7 @@ again:
 	if (!page_counter_try_charge(&h_cg->hugepage[idx], nr_pages,
 				     &counter)) {
 		ret = -ENOMEM;
-		hugetlb_event(hugetlb_cgroup_from_counter(counter, idx), idx,
-			      HUGETLB_MAX);
+		hugetlb_event(h_cg, idx, HUGETLB_MAX);
 	}
 	css_put(&h_cg->css);
 done:

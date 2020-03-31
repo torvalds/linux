@@ -482,12 +482,9 @@ int hsr_get_node_data(struct hsr_priv *hsr,
 	struct hsr_port *port;
 	unsigned long tdiff;
 
-	rcu_read_lock();
 	node = find_node_by_addr_A(&hsr->node_db, addr);
-	if (!node) {
-		rcu_read_unlock();
-		return -ENOENT;	/* No such entry */
-	}
+	if (!node)
+		return -ENOENT;
 
 	ether_addr_copy(addr_b, node->macaddress_B);
 
@@ -521,8 +518,6 @@ int hsr_get_node_data(struct hsr_priv *hsr,
 	} else {
 		*addr_b_ifindex = -1;
 	}
-
-	rcu_read_unlock();
 
 	return 0;
 }

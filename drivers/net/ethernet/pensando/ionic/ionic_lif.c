@@ -948,18 +948,18 @@ static void ionic_lif_rx_mode(struct ionic_lif *lif, unsigned int rx_mode)
 	int i;
 #define REMAIN(__x) (sizeof(buf) - (__x))
 
-	i = snprintf(buf, sizeof(buf), "rx_mode 0x%04x -> 0x%04x:",
-		     lif->rx_mode, rx_mode);
+	i = scnprintf(buf, sizeof(buf), "rx_mode 0x%04x -> 0x%04x:",
+		      lif->rx_mode, rx_mode);
 	if (rx_mode & IONIC_RX_MODE_F_UNICAST)
-		i += snprintf(&buf[i], REMAIN(i), " RX_MODE_F_UNICAST");
+		i += scnprintf(&buf[i], REMAIN(i), " RX_MODE_F_UNICAST");
 	if (rx_mode & IONIC_RX_MODE_F_MULTICAST)
-		i += snprintf(&buf[i], REMAIN(i), " RX_MODE_F_MULTICAST");
+		i += scnprintf(&buf[i], REMAIN(i), " RX_MODE_F_MULTICAST");
 	if (rx_mode & IONIC_RX_MODE_F_BROADCAST)
-		i += snprintf(&buf[i], REMAIN(i), " RX_MODE_F_BROADCAST");
+		i += scnprintf(&buf[i], REMAIN(i), " RX_MODE_F_BROADCAST");
 	if (rx_mode & IONIC_RX_MODE_F_PROMISC)
-		i += snprintf(&buf[i], REMAIN(i), " RX_MODE_F_PROMISC");
+		i += scnprintf(&buf[i], REMAIN(i), " RX_MODE_F_PROMISC");
 	if (rx_mode & IONIC_RX_MODE_F_ALLMULTI)
-		i += snprintf(&buf[i], REMAIN(i), " RX_MODE_F_ALLMULTI");
+		i += scnprintf(&buf[i], REMAIN(i), " RX_MODE_F_ALLMULTI");
 	netdev_dbg(lif->netdev, "lif%d %s\n", lif->index, buf);
 
 	err = ionic_adminq_post_wait(lif, &ctx);
@@ -1688,7 +1688,7 @@ static int ionic_set_vf_mac(struct net_device *netdev, int vf, u8 *mac)
 	if (!(is_zero_ether_addr(mac) || is_valid_ether_addr(mac)))
 		return -EINVAL;
 
-	down_read(&ionic->vf_op_lock);
+	down_write(&ionic->vf_op_lock);
 
 	if (vf >= pci_num_vf(ionic->pdev) || !ionic->vfs) {
 		ret = -EINVAL;
@@ -1698,7 +1698,7 @@ static int ionic_set_vf_mac(struct net_device *netdev, int vf, u8 *mac)
 			ether_addr_copy(ionic->vfs[vf].macaddr, mac);
 	}
 
-	up_read(&ionic->vf_op_lock);
+	up_write(&ionic->vf_op_lock);
 	return ret;
 }
 
@@ -1719,7 +1719,7 @@ static int ionic_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan,
 	if (proto != htons(ETH_P_8021Q))
 		return -EPROTONOSUPPORT;
 
-	down_read(&ionic->vf_op_lock);
+	down_write(&ionic->vf_op_lock);
 
 	if (vf >= pci_num_vf(ionic->pdev) || !ionic->vfs) {
 		ret = -EINVAL;
@@ -1730,7 +1730,7 @@ static int ionic_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan,
 			ionic->vfs[vf].vlanid = vlan;
 	}
 
-	up_read(&ionic->vf_op_lock);
+	up_write(&ionic->vf_op_lock);
 	return ret;
 }
 

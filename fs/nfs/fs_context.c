@@ -832,6 +832,8 @@ static int nfs_parse_source(struct fs_context *fc,
 	if (len > maxnamlen)
 		goto out_hostname;
 
+	kfree(ctx->nfs_server.hostname);
+
 	/* N.B. caller will free nfs_server.hostname in all cases */
 	ctx->nfs_server.hostname = kmemdup_nul(dev_name, len, GFP_KERNEL);
 	if (!ctx->nfs_server.hostname)
@@ -1239,6 +1241,13 @@ static int nfs_fs_context_validate(struct fs_context *fc)
 			goto out_version_unavailable;
 		}
 		ctx->nfs_mod = nfs_mod;
+	}
+
+	/* Ensure the filesystem context has the correct fs_type */
+	if (fc->fs_type != ctx->nfs_mod->nfs_fs) {
+		module_put(fc->fs_type->owner);
+		__module_get(ctx->nfs_mod->nfs_fs->owner);
+		fc->fs_type = ctx->nfs_mod->nfs_fs;
 	}
 	return 0;
 

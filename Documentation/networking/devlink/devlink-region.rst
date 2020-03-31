@@ -40,9 +40,6 @@ example usage
     # Delete a snapshot using:
     $ devlink region del pci/0000:00:05.0/cr-space snapshot 1
 
-    # Trigger (request) a snapshot be taken:
-    $ devlink region trigger pci/0000:00:05.0/cr-space
-
     # Dump a snapshot:
     $ devlink region dump pci/0000:00:05.0/fw-health snapshot 1
     0000000000000000 0014 95dc 0014 9514 0035 1670 0034 db30
