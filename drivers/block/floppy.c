@@ -1561,29 +1561,29 @@ static void seek_interrupt(void)
 	floppy_ready();
 }
 
-static void check_wp(void)
+static void check_wp(int fdc, int drive)
 {
-	if (test_bit(FD_VERIFY_BIT, &drive_state[current_drive].flags)) {
+	if (test_bit(FD_VERIFY_BIT, &drive_state[drive].flags)) {
 					/* check write protection */
-		output_byte(current_fdc, FD_GETSTATUS);
-		output_byte(current_fdc, UNIT(current_drive));
-		if (result(current_fdc) != 1) {
-			fdc_state[current_fdc].reset = 1;
+		output_byte(fdc, FD_GETSTATUS);
+		output_byte(fdc, UNIT(drive));
+		if (result(fdc) != 1) {
+			fdc_state[fdc].reset = 1;
 			return;
 		}
-		clear_bit(FD_VERIFY_BIT, &drive_state[current_drive].flags);
+		clear_bit(FD_VERIFY_BIT, &drive_state[drive].flags);
 		clear_bit(FD_NEED_TWADDLE_BIT,
-			  &drive_state[current_drive].flags);
-		debug_dcl(drive_params[current_drive].flags,
+			  &drive_state[drive].flags);
+		debug_dcl(drive_params[drive].flags,
 			  "checking whether disk is write protected\n");
-		debug_dcl(drive_params[current_drive].flags, "wp=%x\n",
+		debug_dcl(drive_params[drive].flags, "wp=%x\n",
 			  reply_buffer[ST3] & 0x40);
 		if (!(reply_buffer[ST3] & 0x40))
 			set_bit(FD_DISK_WRITABLE_BIT,
-				&drive_state[current_drive].flags);
+				&drive_state[drive].flags);
 		else
 			clear_bit(FD_DISK_WRITABLE_BIT,
-				  &drive_state[current_drive].flags);
+				  &drive_state[drive].flags);
 	}
 }
 
@@ -1627,7 +1627,7 @@ static void seek_floppy(void)
 			track = 1;
 		}
 	} else {
-		check_wp();
+		check_wp(current_fdc, current_drive);
 		if (raw_cmd->track != drive_state[current_drive].track &&
 		    (raw_cmd->flags & FD_RAW_NEED_SEEK))
 			track = raw_cmd->track;
