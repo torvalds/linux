@@ -563,8 +563,7 @@ static ssize_t align_store(struct device *dev,
 	 * contribute to the tail capacity in system-physical-address
 	 * space for the namespace.
 	 */
-	dpa = val;
-	remainder = do_div(dpa, nd_region->ndr_mappings);
+	dpa = div_u64_rem(val, nd_region->ndr_mappings, &remainder);
 	if (!is_power_of_2(dpa) || dpa < PAGE_SIZE
 			|| val > region_size(nd_region) || remainder)
 		return -EINVAL;
@@ -1010,7 +1009,7 @@ EXPORT_SYMBOL(nd_region_release_lane);
 
 static unsigned long default_align(struct nd_region *nd_region)
 {
-	unsigned long align, per_mapping;
+	unsigned long align;
 	int i, mappings;
 	u32 remainder;
 
@@ -1030,8 +1029,7 @@ static unsigned long default_align(struct nd_region *nd_region)
 	}
 
 	mappings = max_t(u16, 1, nd_region->ndr_mappings);
-	per_mapping = align;
-	remainder = do_div(per_mapping, mappings);
+	div_u64_rem(align, mappings, &remainder);
 	if (remainder)
 		align *= mappings;
 
