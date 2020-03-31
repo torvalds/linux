@@ -296,8 +296,8 @@ shadow_context_descriptor_update(struct intel_context *ce,
 	 * Update bits 0-11 of the context descriptor which includes flags
 	 * like GEN8_CTX_* cached in desc_template
 	 */
-	desc &= ~(0x3 << GEN8_CTX_ADDRESSING_MODE_SHIFT);
-	desc |= workload->ctx_desc.addressing_mode <<
+	desc &= ~(0x3ull << GEN8_CTX_ADDRESSING_MODE_SHIFT);
+	desc |= (u64)workload->ctx_desc.addressing_mode <<
 		GEN8_CTX_ADDRESSING_MODE_SHIFT;
 
 	ce->lrc_desc = desc;
