@@ -740,7 +740,7 @@ int kvmppc_handle_pagefault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		    (vcpu->arch.hflags & BOOK3S_HFLAG_SPLIT_HACK) &&
 		    ((pte.raddr & SPLIT_HACK_MASK) == SPLIT_HACK_OFFS))
 			pte.raddr &= ~SPLIT_HACK_MASK;
-		/* fall through */
+		fallthrough;
 	case MSR_IR:
 		vcpu->arch.mmu.esid_to_vsid(vcpu, eaddr >> SID_SHIFT, &vsid);
 
@@ -1795,7 +1795,7 @@ static int kvmppc_core_vcpu_create_pr(struct kvm_vcpu *vcpu)
 
 	vcpu->arch.shadow_msr = MSR_USER64 & ~MSR_LE;
 
-	err = kvmppc_mmu_init(vcpu);
+	err = kvmppc_mmu_init_pr(vcpu);
 	if (err < 0)
 		goto free_shared_page;
 
@@ -1817,6 +1817,7 @@ static void kvmppc_core_vcpu_free_pr(struct kvm_vcpu *vcpu)
 {
 	struct kvmppc_vcpu_book3s *vcpu_book3s = to_book3s(vcpu);
 
+	kvmppc_mmu_destroy_pr(vcpu);
 	free_page((unsigned long)vcpu->arch.shared & PAGE_MASK);
 #ifdef CONFIG_KVM_BOOK3S_32_HANDLER
 	kfree(vcpu->arch.shadow_vcpu);
@@ -2086,7 +2087,6 @@ static struct kvmppc_ops kvm_ops_pr = {
 	.age_hva  = kvm_age_hva_pr,
 	.test_age_hva = kvm_test_age_hva_pr,
 	.set_spte_hva = kvm_set_spte_hva_pr,
-	.mmu_destroy  = kvmppc_mmu_destroy_pr,
 	.free_memslot = kvmppc_core_free_memslot_pr,
 	.init_vm = kvmppc_core_init_vm_pr,
 	.destroy_vm = kvmppc_core_destroy_vm_pr,

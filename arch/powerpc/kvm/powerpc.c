@@ -524,7 +524,6 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		r = 1;
 		break;
 	case KVM_CAP_PPC_GUEST_DEBUG_SSTEP:
-		/* fall through */
 	case KVM_CAP_PPC_PAIRED_SINGLES:
 	case KVM_CAP_PPC_OSI:
 	case KVM_CAP_PPC_GET_PVINFO:
@@ -670,6 +669,12 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		     (hv_enabled && cpu_has_feature(CPU_FTR_P9_TM_HV_ASSIST));
 		break;
 #endif
+#if defined(CONFIG_KVM_BOOK3S_HV_POSSIBLE)
+	case KVM_CAP_PPC_SECURE_GUEST:
+		r = hv_enabled && kvmppc_hv_ops->enable_svm &&
+			!kvmppc_hv_ops->enable_svm(NULL);
+		break;
+#endif
 	default:
 		r = 0;
 		break;
@@ -751,7 +756,6 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 	return 0;
 
 out_vcpu_uninit:
-	kvmppc_mmu_destroy(vcpu);
 	kvmppc_subarch_vcpu_uninit(vcpu);
 	return err;
 }
@@ -784,7 +788,6 @@ void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 
 	kvmppc_core_vcpu_free(vcpu);
 
-	kvmppc_mmu_destroy(vcpu);
 	kvmppc_subarch_vcpu_uninit(vcpu);
 }
 
@@ -2168,6 +2171,14 @@ int kvm_vm_ioctl_enable_cap(struct kvm *kvm,
 		    !kvm->arch.kvm_ops->enable_nested)
 			break;
 		r = kvm->arch.kvm_ops->enable_nested(kvm);
+		break;
+#endif
+#if defined(CONFIG_KVM_BOOK3S_HV_POSSIBLE)
+	case KVM_CAP_PPC_SECURE_GUEST:
+		r = -EINVAL;
+		if (!is_kvmppc_hv_enabled(kvm) || !kvm->arch.kvm_ops->enable_svm)
+			break;
+		r = kvm->arch.kvm_ops->enable_svm(kvm);
 		break;
 #endif
 	default:

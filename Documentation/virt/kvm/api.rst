@@ -5785,6 +5785,23 @@ it hard or impossible to use it correctly.  The availability of
 KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2 signals that those bugs are fixed.
 Userspace should not try to use KVM_CAP_MANUAL_DIRTY_LOG_PROTECT.
 
+7.19 KVM_CAP_PPC_SECURE_GUEST
+------------------------------
+
+:Architectures: ppc
+
+This capability indicates that KVM is running on a host that has
+ultravisor firmware and thus can support a secure guest.  On such a
+system, a guest can ask the ultravisor to make it a secure guest,
+one whose memory is inaccessible to the host except for pages which
+are explicitly requested to be shared with the host.  The ultravisor
+notifies KVM when a guest requests to become a secure guest, and KVM
+has the opportunity to veto the transition.
+
+If present, this capability can be enabled for a VM, meaning that KVM
+will allow the transition to secure guest mode.  Otherwise KVM will
+veto the transition.
+
 8. Other capabilities.
 ======================
 

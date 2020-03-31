@@ -303,6 +303,7 @@ struct kvm_arch {
 	u8 radix;
 	u8 fwnmi_enabled;
 	u8 secure_guest;
+	u8 svm_enabled;
 	bool threads_indep;
 	bool nested_enable;
 	pgd_t *pgtable;
