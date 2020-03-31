@@ -53,16 +53,15 @@ static bool dmub_psr_set_version(struct dmub_psr *dmub, struct dc_stream_state *
 	union dmub_rb_cmd cmd;
 	struct dc_context *dc = dmub->ctx;
 
+	if (stream->link->psr_settings.psr_version == PSR_VERSION_UNSUPPORTED)
+		return false;
+
 	cmd.psr_set_version.header.type = DMUB_CMD__PSR;
 	cmd.psr_set_version.header.sub_type = DMUB_CMD__PSR_SET_VERSION;
+	cmd.psr_set_version.psr_set_version_data.version = stream->link->psr_settings.psr_version;
+	cmd.psr_set_version.header.payload_bytes = sizeof(struct dmub_cmd_psr_set_version_data);
 
-	if (stream->psr_version == 0x0) // Unsupported
-		return false;
-	else if (stream->psr_version == 0x1)
-		cmd.psr_set_version.psr_set_version_data.version = PSR_VERSION_1;
-	cmd.psr_enable.header.payload_bytes = sizeof(struct dmub_cmd_psr_set_version_data);
-
-	dc_dmub_srv_cmd_queue(dc->dmub_srv, &cmd.psr_enable.header);
+	dc_dmub_srv_cmd_queue(dc->dmub_srv, &cmd.psr_set_version.header);
 	dc_dmub_srv_cmd_execute(dc->dmub_srv);
 	dc_dmub_srv_wait_idle(dc->dmub_srv);
 

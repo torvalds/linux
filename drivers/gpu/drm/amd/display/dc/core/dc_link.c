@@ -46,6 +46,7 @@
 #include "dmcu.h"
 #include "hw/clk_mgr.h"
 #include "dce/dmub_psr.h"
+#include "dmub/inc/dmub_cmd_dal.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -1529,6 +1530,8 @@ static bool dc_link_construct(struct dc_link *link,
 	 */
 	program_hpd_filter(link);
 
+	link->psr_settings.psr_version = PSR_VERSION_UNSUPPORTED;
+
 	return true;
 device_tag_fail:
 	link->link_enc->funcs->destroy(&link->link_enc);
@@ -2521,12 +2524,12 @@ bool dc_link_set_psr_allow_active(struct dc_link *link, bool allow_active, bool 
 	struct dmcu *dmcu = dc->res_pool->dmcu;
 	struct dmub_psr *psr = dc->res_pool->psr;
 
-	if (psr != NULL && link->psr_feature_enabled)
+	if (psr != NULL && link->psr_settings.psr_feature_enabled)
 		psr->funcs->psr_enable(psr, allow_active);
-	else if ((dmcu != NULL && dmcu->funcs->is_dmcu_initialized(dmcu)) && link->psr_feature_enabled)
+	else if ((dmcu != NULL && dmcu->funcs->is_dmcu_initialized(dmcu)) && link->psr_settings.psr_feature_enabled)
 		dmcu->funcs->set_psr_enable(dmcu, allow_active, wait);
 
-	link->psr_allow_active = allow_active;
+	link->psr_settings.psr_allow_active = allow_active;
 
 	return true;
 }
@@ -2537,9 +2540,9 @@ bool dc_link_get_psr_state(const struct dc_link *link, uint32_t *psr_state)
 	struct dmcu *dmcu = dc->res_pool->dmcu;
 	struct dmub_psr *psr = dc->res_pool->psr;
 
-	if (psr != NULL && link->psr_feature_enabled)
+	if (psr != NULL && link->psr_settings.psr_feature_enabled)
 		psr->funcs->psr_get_state(psr, psr_state);
-	else if (dmcu != NULL && link->psr_feature_enabled)
+	else if (dmcu != NULL && link->psr_settings.psr_feature_enabled)
 		dmcu->funcs->get_psr_state(dmcu, psr_state);
 
 	return true;
@@ -2710,14 +2713,14 @@ bool dc_link_setup_psr(struct dc_link *link,
 	psr_context->frame_delay = 0;
 
 	if (psr)
-		link->psr_feature_enabled = psr->funcs->psr_copy_settings(psr, link, psr_context);
+		link->psr_settings.psr_feature_enabled = psr->funcs->psr_copy_settings(psr, link, psr_context);
 	else
-		link->psr_feature_enabled = dmcu->funcs->setup_psr(dmcu, link, psr_context);
+		link->psr_settings.psr_feature_enabled = dmcu->funcs->setup_psr(dmcu, link, psr_context);
 
 	/* psr_enabled == 0 indicates setup_psr did not succeed, but this
 	 * should not happen since firmware should be running at this point
 	 */
-	if (link->psr_feature_enabled == 0)
+	if (link->psr_settings.psr_feature_enabled == 0)
 		ASSERT(0);
 
 	return true;

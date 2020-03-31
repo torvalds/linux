@@ -4330,14 +4330,10 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 
 	if (stream->signal == SIGNAL_TYPE_HDMI_TYPE_A)
 		mod_build_hf_vsif_infopacket(stream, &stream->vsp_infopacket, false, false);
-	if (stream->link->psr_feature_enabled)	{
+	if (stream->link->psr_settings.psr_feature_enabled)	{
 		struct dc  *core_dc = stream->link->ctx->dc;
 
 		if (dc_is_dmcu_initialized(core_dc)) {
-			struct dmcu *dmcu = core_dc->res_pool->dmcu;
-
-			stream->psr_version = dmcu->dmcu_version.psr_version;
-
 			//
 			// should decide stream support vsc sdp colorimetry capability
 			// before building vsc info packet
@@ -6824,7 +6820,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 		}
 		mutex_lock(&dm->dc_lock);
 		if ((acrtc_state->update_type > UPDATE_TYPE_FAST) &&
-				acrtc_state->stream->link->psr_allow_active)
+				acrtc_state->stream->link->psr_settings.psr_allow_active)
 			amdgpu_dm_psr_disable(acrtc_state->stream);
 
 		dc_commit_updates_for_stream(dm->dc,
@@ -6835,12 +6831,12 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 						     dc_state);
 
 		if ((acrtc_state->update_type > UPDATE_TYPE_FAST) &&
-						acrtc_state->stream->psr_version &&
-						!acrtc_state->stream->link->psr_feature_enabled)
+				acrtc_state->stream->link->psr_settings.psr_version != PSR_VERSION_UNSUPPORTED &&
+				!acrtc_state->stream->link->psr_settings.psr_feature_enabled)
 			amdgpu_dm_link_setup_psr(acrtc_state->stream);
 		else if ((acrtc_state->update_type == UPDATE_TYPE_FAST) &&
-						acrtc_state->stream->link->psr_feature_enabled &&
-						!acrtc_state->stream->link->psr_allow_active) {
+				acrtc_state->stream->link->psr_settings.psr_feature_enabled &&
+				!acrtc_state->stream->link->psr_settings.psr_allow_active) {
 			amdgpu_dm_psr_enable(acrtc_state->stream);
 		}
 
@@ -7154,7 +7150,7 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 			DRM_DEBUG_DRIVER("Atomic commit: RESET. crtc id %d:[%p]\n", acrtc->crtc_id, acrtc);
 			/* i.e. reset mode */
 			if (dm_old_crtc_state->stream) {
-				if (dm_old_crtc_state->stream->link->psr_allow_active)
+				if (dm_old_crtc_state->stream->link->psr_settings.psr_allow_active)
 					amdgpu_dm_psr_disable(dm_old_crtc_state->stream);
 
 				remove_stream(adev, acrtc, dm_old_crtc_state->stream);
@@ -8603,8 +8599,17 @@ static void amdgpu_dm_set_psr_caps(struct dc_link *link)
 		return;
 	if (dm_helpers_dp_read_dpcd(NULL, link, DP_PSR_SUPPORT,
 					dpcd_data, sizeof(dpcd_data))) {
-		link->psr_feature_enabled = dpcd_data[0] ? true:false;
-		DRM_INFO("PSR support:%d\n", link->psr_feature_enabled);
+		link->dpcd_caps.psr_caps.psr_version = dpcd_data[0];
+
+		if (dpcd_data[0] == 0) {
+			link->psr_settings.psr_version = PSR_VERSION_UNSUPPORTED;
+			link->psr_settings.psr_feature_enabled = false;
+		} else {
+			link->psr_settings.psr_version = PSR_VERSION_1;
+			link->psr_settings.psr_feature_enabled = true;
+		}
+
+		DRM_INFO("PSR support:%d\n", link->psr_settings.psr_feature_enabled);
 	}
 }
 
@@ -8628,7 +8633,7 @@ static bool amdgpu_dm_link_setup_psr(struct dc_stream_state *stream)
 	link = stream->link;
 	dc = link->ctx->dc;
 
-	psr_config.psr_version = dc->res_pool->dmcu->dmcu_version.psr_version;
+	psr_config.psr_version = link->dpcd_caps.psr_caps.psr_version;
 
 	if (psr_config.psr_version > 0) {
 		psr_config.psr_exit_link_training_required = 0x1;
@@ -8640,7 +8645,7 @@ static bool amdgpu_dm_link_setup_psr(struct dc_stream_state *stream)
 		ret = dc_link_setup_psr(link, stream, &psr_config, &psr_context);
 
 	}
-	DRM_DEBUG_DRIVER("PSR link: %d\n",	link->psr_feature_enabled);
+	DRM_DEBUG_DRIVER("PSR link: %d\n",	link->psr_settings.psr_feature_enabled);
 
 	return ret;
 }

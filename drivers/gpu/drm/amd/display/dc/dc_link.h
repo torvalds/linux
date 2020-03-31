@@ -29,6 +29,7 @@
 #include "dc.h"
 #include "dc_types.h"
 #include "grph_object_defs.h"
+#include "dmub/inc/dmub_cmd_dal.h"
 
 enum dc_link_fec_state {
 	dc_link_fec_not_ready,
@@ -66,6 +67,22 @@ struct time_stamp {
 struct link_trace {
 	struct time_stamp time_stamp;
 };
+
+/* PSR feature flags */
+struct psr_settings {
+	bool psr_feature_enabled;		// PSR is supported by sink
+	bool psr_allow_active;			// PSR is currently active
+	enum psr_version psr_version;		// Internal PSR version, determined based on DPCD
+
+	/* These parameters are calculated in Driver,
+	 * based on display timing and Sink capabilities.
+	 * If VBLANK region is too small and Sink takes a long time
+	 * to set up RFB, it may take an extra frame to enter PSR state.
+	 */
+	bool psr_frame_capture_indication_req;
+	unsigned int psr_sdp_transmit_line_num_deadline;
+};
+
 /*
  * A link contains one or more sinks and their connected status.
  * The currently active signal type (HDMI, DP-SST, DP-MST) is also reported.
@@ -130,9 +147,9 @@ struct dc_link {
 	struct hdcp_caps hdcp_caps;
 #endif
 	enum edp_revision edp_revision;
-	bool psr_feature_enabled;
-	bool psr_allow_active;
 	union dpcd_sink_ext_caps dpcd_sink_ext_caps;
+
+	struct psr_settings psr_settings;
 
 	/* MST record stream using this link */
 	struct link_flags {

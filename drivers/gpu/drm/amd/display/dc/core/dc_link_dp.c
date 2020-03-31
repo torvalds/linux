@@ -2417,7 +2417,7 @@ static bool handle_hpd_irq_psr_sink(struct dc_link *link)
 {
 	union dpcd_psr_configuration psr_configuration;
 
-	if (!link->psr_feature_enabled)
+	if (!link->psr_settings.psr_feature_enabled)
 		return false;
 
 	dm_helpers_dp_read_dpcd(

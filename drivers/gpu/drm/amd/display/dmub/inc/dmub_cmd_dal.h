@@ -41,6 +41,7 @@ enum dmub_cmd_psr_type {
 
 enum psr_version {
 	PSR_VERSION_1				= 0,
+	PSR_VERSION_UNSUPPORTED			= 0xFFFFFFFF,
 };
 
 enum dmub_cmd_abm_type {
