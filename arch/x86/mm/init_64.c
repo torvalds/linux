@@ -818,8 +818,7 @@ void __init paging_init(void)
 	 *	 will not set it back.
 	 */
 	node_clear_state(0, N_MEMORY);
-	if (N_MEMORY != N_NORMAL_MEMORY)
-		node_clear_state(0, N_NORMAL_MEMORY);
+	node_clear_state(0, N_NORMAL_MEMORY);
 
 	zone_sizes_init();
 }
