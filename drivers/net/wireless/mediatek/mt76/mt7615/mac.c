@@ -1754,20 +1754,30 @@ mt7615_mac_update_mib_stats(struct mt7615_phy *phy)
 	struct mib_stats *mib = &phy->mib;
 	bool ext_phy = phy != &dev->phy;
 	int i, aggr;
+	u32 val, val2;
 
 	memset(mib, 0, sizeof(*mib));
 
 	mib->fcs_err_cnt = mt76_get_field(dev, MT_MIB_SDR3(ext_phy),
 					  MT_MIB_SDR3_FCS_ERR_MASK);
 
+	val = mt76_get_field(dev, MT_MIB_SDR14(ext_phy),
+			     MT_MIB_AMPDU_MPDU_COUNT);
+	val2 = mt76_get_field(dev, MT_MIB_SDR15(ext_phy),
+			      MT_MIB_AMPDU_ACK_COUNT);
+	mib->aggr_per = 1000 * (val - val2) / val;
+
 	aggr = ext_phy ? ARRAY_SIZE(dev->mt76.aggr_stats) / 2 : 0;
 	for (i = 0; i < 4; i++) {
-		u32 val, val2;
+		val = mt76_rr(dev, MT_MIB_MB_SDR1(ext_phy, i));
 
-		val = mt76_get_field(dev, MT_MIB_MB_SDR1(ext_phy, i),
-				     MT_MIB_ACK_FAIL_COUNT_MASK);
-		if (val > mib->ack_fail_cnt)
-			mib->ack_fail_cnt = val;
+		val2 = FIELD_GET(MT_MIB_ACK_FAIL_COUNT_MASK, val);
+		if (val2 > mib->ack_fail_cnt)
+			mib->ack_fail_cnt = val2;
+
+		val2 = FIELD_GET(MT_MIB_BA_MISS_COUNT_MASK, val);
+		if (val2 > mib->ba_miss_cnt)
+			mib->ba_miss_cnt = val2;
 
 		val = mt76_rr(dev, MT_MIB_MB_SDR0(ext_phy, i));
 		val2 = FIELD_GET(MT_MIB_RTS_RETRIES_COUNT_MASK, val);

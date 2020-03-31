@@ -150,6 +150,10 @@ mt7615_ampdu_stat_read_phy(struct mt7615_phy *phy,
 	for (i = 0; i < ARRAY_SIZE(bound); i++)
 		seq_printf(file, "%8d | ", dev->mt76.aggr_stats[i + range]);
 	seq_puts(file, "\n");
+
+	seq_printf(file, "BA miss count: %d\n", phy->mib.ba_miss_cnt);
+	seq_printf(file, "PER: %ld.%1ld%%\n",
+		   phy->mib.aggr_per / 10, phy->mib.aggr_per % 10);
 }
 
 static int

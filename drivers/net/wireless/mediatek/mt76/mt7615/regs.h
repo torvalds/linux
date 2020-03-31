@@ -389,6 +389,12 @@ enum mt7615_reg_base {
 #define MT_MIB_SDR9(_band)		MT_WF_MIB(_band, 0x02c)
 #define MT_MIB_SDR9_BUSY_MASK		GENMASK(23, 0)
 
+#define MT_MIB_SDR14(_band)		MT_WF_MIB(_band, 0x040)
+#define MT_MIB_AMPDU_MPDU_COUNT		GENMASK(23, 0)
+
+#define MT_MIB_SDR15(_band)		MT_WF_MIB(_band, 0x044)
+#define MT_MIB_AMPDU_ACK_COUNT		GENMASK(23, 0)
+
 #define MT_MIB_SDR16(_band)		MT_WF_MIB(_band, 0x048)
 #define MT_MIB_SDR16_BUSY_MASK		GENMASK(23, 0)
 
@@ -402,6 +408,7 @@ enum mt7615_reg_base {
 #define MT_MIB_RTS_COUNT_MASK		GENMASK(15, 0)
 
 #define MT_MIB_MB_SDR1(_band, n)	MT_WF_MIB(_band, 0x104 + ((n) << 4))
+#define MT_MIB_BA_MISS_COUNT_MASK	GENMASK(15, 0)
 #define MT_MIB_ACK_FAIL_COUNT_MASK	GENMASK(31, 16)
 
 #define MT_TX_AGG_CNT(_band, n)		MT_WF_MIB(_band, 0xa8 + ((n) << 2))

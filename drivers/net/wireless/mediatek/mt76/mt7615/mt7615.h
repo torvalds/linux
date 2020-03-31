@@ -117,6 +117,8 @@ struct mib_stats {
 	u16 fcs_err_cnt;
 	u16 rts_cnt;
 	u16 rts_retries_cnt;
+	u16 ba_miss_cnt;
+	unsigned long aggr_per;
 };
 
 struct mt7615_phy {
