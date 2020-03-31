@@ -473,6 +473,7 @@ struct mipidphy_priv {
 	u64 data_rate_mbps;
 	struct v4l2_async_notifier notifier;
 	struct v4l2_subdev sd;
+	struct mutex mutex; /* lock for updating protection */
 	struct media_pad pads[MIPI_DPHY_RX_PADS_NUM];
 	struct mipidphy_sensor sensors[MAX_DPHY_SENSORS];
 	int num_sensors;
@@ -715,10 +716,18 @@ static int mipidphy_s_stream_stop(struct v4l2_subdev *sd)
 
 static int mipidphy_s_stream(struct v4l2_subdev *sd, int on)
 {
+	int ret = 0;
+	struct mipidphy_priv *priv = to_dphy_priv(sd);
+
+	dev_info(priv->dev, "%s(%d) enter on(%d) !\n",
+			__func__, __LINE__, on);
+	mutex_lock(&priv->mutex);
 	if (on)
-		return mipidphy_s_stream_start(sd);
+		ret = mipidphy_s_stream_start(sd);
 	else
-		return mipidphy_s_stream_stop(sd);
+		ret = mipidphy_s_stream_stop(sd);
+	mutex_unlock(&priv->mutex);
+	return ret;
 }
 
 static int mipidphy_g_frame_interval(struct v4l2_subdev *sd,
@@ -1509,6 +1518,7 @@ static int rockchip_mipidphy_probe(struct platform_device *pdev)
 	}
 
 	sd = &priv->sd;
+	mutex_init(&priv->mutex);
 	v4l2_subdev_init(sd, &mipidphy_subdev_ops);
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	snprintf(sd->name, sizeof(sd->name), "rockchip-mipi-dphy-rx");
@@ -1518,11 +1528,14 @@ static int rockchip_mipidphy_probe(struct platform_device *pdev)
 
 	ret = rockchip_mipidphy_media_init(priv);
 	if (ret < 0)
-		return ret;
+		goto destroy_mutex;
 
 	pm_runtime_enable(&pdev->dev);
 	drv_data->individual_init(priv);
+	return 0;
 
+destroy_mutex:
+	mutex_destroy(&priv->mutex);
 	return 0;
 }
 
@@ -1530,11 +1543,12 @@ static int rockchip_mipidphy_remove(struct platform_device *pdev)
 {
 	struct media_entity *me = platform_get_drvdata(pdev);
 	struct v4l2_subdev *sd = media_entity_to_v4l2_subdev(me);
+	struct mipidphy_priv *priv = platform_get_drvdata(pdev);
 
 	media_entity_cleanup(&sd->entity);
 
 	pm_runtime_disable(&pdev->dev);
-
+	mutex_destroy(&priv->mutex);
 	return 0;
 }
 
