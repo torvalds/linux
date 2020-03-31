@@ -908,12 +908,7 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 				      wr_lst, rp_ch);
 	if (ret < 0)
 		goto err1;
-	ret = 0;
-
-out:
-	rqstp->rq_xprt_ctxt = NULL;
-	svc_rdma_recv_ctxt_put(rdma, rctxt);
-	return ret;
+	return 0;
 
  err2:
 	if (ret != -E2BIG && ret != -EINVAL)
@@ -922,14 +917,12 @@ out:
 	ret = svc_rdma_send_error_msg(rdma, sctxt, rqstp);
 	if (ret < 0)
 		goto err1;
-	ret = 0;
-	goto out;
+	return 0;
 
  err1:
 	svc_rdma_send_ctxt_put(rdma, sctxt);
  err0:
 	trace_svcrdma_send_failed(rqstp, ret);
 	set_bit(XPT_CLOSE, &xprt->xpt_flags);
-	ret = -ENOTCONN;
-	goto out;
+	return -ENOTCONN;
 }
