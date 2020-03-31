@@ -1362,6 +1362,7 @@ static int threshold_create_bank(struct threshold_bank **bp, unsigned int cpu,
 	}
 
 	if (is_shared_bank(bank)) {
+		b->shared = 1;
 		refcount_set(&b->cpus, 1);
 
 		/* nb is already initialized, see above */
@@ -1391,21 +1392,16 @@ static void threshold_block_release(struct kobject *kobj)
 	kfree(to_block(kobj));
 }
 
-static void deallocate_threshold_block(unsigned int cpu, unsigned int bank)
+static void deallocate_threshold_blocks(struct threshold_bank *bank)
 {
-	struct threshold_block *pos = NULL;
-	struct threshold_block *tmp = NULL;
-	struct threshold_bank *head = per_cpu(threshold_banks, cpu)[bank];
+	struct threshold_block *pos, *tmp;
 
-	if (!head)
-		return;
-
-	list_for_each_entry_safe(pos, tmp, &head->blocks->miscj, miscj) {
+	list_for_each_entry_safe(pos, tmp, &bank->blocks->miscj, miscj) {
 		list_del(&pos->miscj);
 		kobject_put(&pos->kobj);
 	}
 
-	kobject_put(&head->blocks->kobj);
+	kobject_put(&bank->blocks->kobj);
 }
 
 static void __threshold_remove_blocks(struct threshold_bank *b)
@@ -1419,57 +1415,56 @@ static void __threshold_remove_blocks(struct threshold_bank *b)
 		kobject_del(&pos->kobj);
 }
 
-static void threshold_remove_bank(unsigned int cpu, int bank)
+static void threshold_remove_bank(struct threshold_bank *bank)
 {
 	struct amd_northbridge *nb;
-	struct threshold_bank *b;
 
-	b = per_cpu(threshold_banks, cpu)[bank];
-	if (!b)
+	if (!bank->blocks)
+		goto out_free;
+
+	if (!bank->shared)
+		goto out_dealloc;
+
+	if (!refcount_dec_and_test(&bank->cpus)) {
+		__threshold_remove_blocks(bank);
 		return;
-
-	if (!b->blocks)
-		goto free_out;
-
-	if (is_shared_bank(bank)) {
-		if (!refcount_dec_and_test(&b->cpus)) {
-			__threshold_remove_blocks(b);
-			per_cpu(threshold_banks, cpu)[bank] = NULL;
-			return;
-		} else {
-			/*
-			 * the last CPU on this node using the shared bank is
-			 * going away, remove that bank now.
-			 */
-			nb = node_to_amd_nb(amd_get_nb_id(cpu));
-			nb->bank4 = NULL;
-		}
+	} else {
+		/*
+		 * The last CPU on this node using the shared bank is going
+		 * away, remove that bank now.
+		 */
+		nb = node_to_amd_nb(amd_get_nb_id(smp_processor_id()));
+		nb->bank4 = NULL;
 	}
 
-	deallocate_threshold_block(cpu, bank);
+out_dealloc:
+	deallocate_threshold_blocks(bank);
 
-free_out:
-	kobject_del(b->kobj);
-	kobject_put(b->kobj);
-	kfree(b);
-	per_cpu(threshold_banks, cpu)[bank] = NULL;
+out_free:
+	kobject_put(bank->kobj);
+	kfree(bank);
 }
 
 int mce_threshold_remove_device(unsigned int cpu)
 {
 	struct threshold_bank **bp = this_cpu_read(threshold_banks);
-	unsigned int bank;
+	unsigned int bank, numbanks = this_cpu_read(mce_num_banks);
 
 	if (!bp)
 		return 0;
 
-	for (bank = 0; bank < per_cpu(mce_num_banks, cpu); ++bank) {
-		if (!(per_cpu(bank_map, cpu) & (1 << bank)))
-			continue;
-		threshold_remove_bank(cpu, bank);
-	}
-	/* Clear the pointer before freeing the memory */
+	/*
+	 * Clear the pointer before cleaning up, so that the interrupt won't
+	 * touch anything of this.
+	 */
 	this_cpu_write(threshold_banks, NULL);
+
+	for (bank = 0; bank < numbanks; bank++) {
+		if (bp[bank]) {
+			threshold_remove_bank(bp[bank]);
+			bp[bank] = NULL;
+		}
+	}
 	kfree(bp);
 	return 0;
 }
