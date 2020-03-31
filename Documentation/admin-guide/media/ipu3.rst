@@ -442,16 +442,16 @@ set of parameters as input. The major stages of pipelines are shown here:
        o [label="Total Color Correction"]
        p [label="XNR3"]
        q [label="TNR"]
-       r [label="DDR"]
+       r [label="DDR", style=filled, fillcolor=yellow, shape=cylinder]
+       s [label="YUV Downscaling"]
+       t [label="DDR", style=filled, fillcolor=yellow, shape=cylinder]
 
-       { rank=same; a -> b -> c -> d -> e -> f }
-       { rank=same; g -> h -> i -> j -> k -> l }
-       { rank=same; m -> n -> o -> p -> q -> r }
+       { rank=same; a -> b -> c -> d -> e -> f -> g -> h -> i }
+       { rank=same; j -> k -> l -> m -> n -> o -> p -> q -> s -> t}
 
-       a -> g -> m [style=invis, weight=10]
-
-       f -> g
-       l -> m
+       a -> j [style=invis, weight=10]
+       i -> j
+       q -> r
    }
 
 The table below presents a description of the above algorithms.
