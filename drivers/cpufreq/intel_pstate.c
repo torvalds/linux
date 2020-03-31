@@ -922,6 +922,7 @@ static void intel_pstate_update_limits(unsigned int cpu)
 	 */
 	if (global.turbo_disabled_mf != global.turbo_disabled) {
 		global.turbo_disabled_mf = global.turbo_disabled;
+		arch_set_max_freq_ratio(global.turbo_disabled);
 		for_each_possible_cpu(cpu)
 			intel_pstate_update_max_freq(cpu);
 	} else {

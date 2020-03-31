@@ -4428,6 +4428,22 @@
 			incurs a small amount of overhead in the scheduler
 			but is useful for debugging and performance tuning.
 
+	sched_thermal_decay_shift=
+			[KNL, SMP] Set a decay shift for scheduler thermal
+			pressure signal. Thermal pressure signal follows the
+			default decay period of other scheduler pelt
+			signals(usually 32 ms but configurable). Setting
+			sched_thermal_decay_shift will left shift the decay
+			period for the thermal pressure signal by the shift
+			value.
+			i.e. with the default pelt decay period of 32 ms
+			sched_thermal_decay_shift   thermal pressure decay pr
+				1			64 ms
+				2			128 ms
+			and so on.
+			Format: integer between 0 and 10
+			Default is 0.
+
 	skew_tick=	[KNL] Offset the periodic timer tick per cpu to mitigate
 			xtime_lock contention on larger systems, and/or RCU lock
 			contention on all systems with CONFIG_MAXSMP set.
