@@ -311,7 +311,7 @@ static struct rockchip_clk_branch rv1126_aclk_pdnpu_npu5 __initdata =
 static struct rockchip_clk_branch rv1126_clk_npu_np5 __initdata =
 	COMPOSITE_HALFDIV(CLK_NPU_NP5, "clk_npu_np5", mux_gpll_cpll_apll_hpll_p, 0,
 			RV1126_CLKSEL_CON(67), 8, 2, MFLAGS, 4, 4, DFLAGS,
-			RV1126_CLKGATE_CON(22), 11, GFLAGS);
+			RV1126_CLKGATE_CON(22), 10, GFLAGS);
 
 static struct rockchip_clk_branch rv1126_clk_pmu_branches[] __initdata = {
 	/*
@@ -1241,7 +1241,7 @@ static struct rockchip_clk_branch rv1126_clk_branches[] __initdata = {
 			RV1126_CLKGATE_CON(22), 8, GFLAGS),
 	COMPOSITE_BROTHER(CLK_NPU_DIV, "clk_npu_div", mux_gpll_cpll_apll_hpll_p, 0,
 			RV1126_CLKSEL_CON(67), 8, 2, MFLAGS, 0, 4, DFLAGS,
-			RV1126_CLKGATE_CON(22), 10, GFLAGS,
+			RV1126_CLKGATE_CON(22), 9, GFLAGS,
 			&rv1126_clk_npu_np5),
 	MUX(CLK_CORE_NPU, "clk_core_npu", mux_clk_npu_p, CLK_SET_RATE_PARENT | CLK_OPS_PARENT_ENABLE,
 			RV1126_CLKSEL_CON(67), 12, 1, MFLAGS),
