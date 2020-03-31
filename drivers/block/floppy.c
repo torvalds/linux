@@ -2058,18 +2058,18 @@ static void success_and_wakeup(void)
  * ==========================
  */
 
-static int next_valid_format(void)
+static int next_valid_format(int drive)
 {
 	int probed_format;
 
-	probed_format = drive_state[current_drive].probed_format;
+	probed_format = drive_state[drive].probed_format;
 	while (1) {
-		if (probed_format >= 8 || !drive_params[current_drive].autodetect[probed_format]) {
-			drive_state[current_drive].probed_format = 0;
+		if (probed_format >= 8 || !drive_params[drive].autodetect[probed_format]) {
+			drive_state[drive].probed_format = 0;
 			return 1;
 		}
-		if (floppy_type[drive_params[current_drive].autodetect[probed_format]].sect) {
-			drive_state[current_drive].probed_format = probed_format;
+		if (floppy_type[drive_params[drive].autodetect[probed_format]].sect) {
+			drive_state[drive].probed_format = probed_format;
 			return 0;
 		}
 		probed_format++;
@@ -2082,7 +2082,7 @@ static void bad_flp_intr(void)
 
 	if (probing) {
 		drive_state[current_drive].probed_format++;
-		if (!next_valid_format())
+		if (!next_valid_format(current_drive))
 			return;
 	}
 	err_count = ++(*errors);
@@ -2884,7 +2884,7 @@ do_request:
 	if (!_floppy) {	/* Autodetection */
 		if (!probing) {
 			drive_state[current_drive].probed_format = 0;
-			if (next_valid_format()) {
+			if (next_valid_format(current_drive)) {
 				DPRINT("no autodetectable formats\n");
 				_floppy = NULL;
 				request_done(0);
