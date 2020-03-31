@@ -2965,7 +2965,7 @@ static int cdns3_init_eps(struct cdns3_device *priv_dev)
 
 		priv_ep->flags = 0;
 
-		dev_info(priv_dev->dev, "Initialized  %s support: %s %s\n",
+		dev_dbg(priv_dev->dev, "Initialized  %s support: %s %s\n",
 			 priv_ep->name,
 			 priv_ep->endpoint.caps.type_bulk ? "BULK, INT" : "",
 			 priv_ep->endpoint.caps.type_iso ? "ISO" : "");
