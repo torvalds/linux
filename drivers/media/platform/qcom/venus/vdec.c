@@ -1241,6 +1241,9 @@ static void vdec_buf_done(struct venus_inst *inst, unsigned int buf_type,
 			if (inst->codec_state == VENUS_DEC_STATE_DRAIN)
 				inst->codec_state = VENUS_DEC_STATE_STOPPED;
 		}
+
+		if (!bytesused)
+			state = VB2_BUF_STATE_ERROR;
 	} else {
 		vbuf->sequence = inst->sequence_out++;
 	}
