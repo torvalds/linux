@@ -1791,7 +1791,9 @@ static void reset_interrupt(void)
 
 /*
  * reset is done by pulling bit 2 of DOR low for a while (old FDCs),
- * or by setting the self clearing bit 7 of STATUS (newer FDCs)
+ * or by setting the self clearing bit 7 of STATUS (newer FDCs).
+ * This WILL trigger an interrupt, causing the handlers in the current
+ * cont's ->redo() to be called via reset_interrupt().
  */
 static void reset_fdc(void)
 {
@@ -2003,6 +2005,9 @@ static const struct cont_t intr_cont = {
 	.done		= (done_f)empty
 };
 
+/* schedules handler, waiting for completion. May be interrupted, will then
+ * return -EINTR, in which case the driver will automatically be unlocked.
+ */
 static int wait_til_done(void (*handler)(void), bool interruptible)
 {
 	int ret;
@@ -2842,6 +2847,9 @@ static int set_next_request(void)
 	return current_req != NULL;
 }
 
+/* Starts or continues processing request. Will automatically unlock the
+ * driver at end of request.
+ */
 static void redo_fd_request(void)
 {
 	int drive;
@@ -2916,6 +2924,7 @@ static const struct cont_t rw_cont = {
 	.done		= request_done
 };
 
+/* schedule the request and automatically unlock the driver on completion */
 static void process_fd_request(void)
 {
 	cont = &rw_cont;
@@ -3005,6 +3014,9 @@ static int user_reset_fdc(int drive, int arg, bool interruptible)
 	if (arg == FD_RESET_ALWAYS)
 		fdc_state[current_fdc].reset = 1;
 	if (fdc_state[current_fdc].reset) {
+		/* note: reset_fdc will take care of unlocking the driver
+		 * on completion.
+		 */
 		cont = &reset_cont;
 		ret = wait_til_done(reset_fdc, interruptible);
 		if (ret == -EINTR)
