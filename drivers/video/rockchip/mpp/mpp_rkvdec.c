@@ -1468,6 +1468,8 @@ static int rkvdec_set_freq(struct mpp_dev *mpp,
 		clk_set_rate(dec->aclk, task->aclk_freq * MHZ);
 		clk_set_rate(dec->clk_cabac, task->clk_cabac_freq * MHZ);
 		clk_set_rate(dec->clk_core, task->clk_core_freq * MHZ);
+		clk_set_rate(dec->clk_hevc_cabac,
+			     task->clk_hevc_cabac_freq * MHZ);
 	}
 
 	return 0;

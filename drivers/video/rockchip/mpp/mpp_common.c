@@ -314,6 +314,7 @@ mpp_reset_control_get(struct mpp_dev *mpp, const char *name)
 		"video_a", "video_h",
 		"niu_a", "niu_h",
 		"video_cabac", "video_core",
+		"video_hevc_cabac",
 	};
 
 	if (!name) {
