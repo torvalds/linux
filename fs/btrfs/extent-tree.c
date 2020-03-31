@@ -3369,6 +3369,7 @@ static struct btrfs_block_group *btrfs_lock_cluster(
 		   struct btrfs_block_group *block_group,
 		   struct btrfs_free_cluster *cluster,
 		   int delalloc)
+	__acquires(&cluster->refill_lock)
 {
 	struct btrfs_block_group *used_bg = NULL;
 
