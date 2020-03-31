@@ -162,13 +162,14 @@ struct lpfc_nvmet_ctx_info {
 #define lpfc_get_ctx_list(phba, cpu, mrq)  \
 	(phba->sli4_hba.nvmet_ctx_info + ((cpu * phba->cfg_nvmet_mrq) + mrq))
 
-struct lpfc_nvmet_rcv_ctx {
+struct lpfc_async_xchg_ctx {
 	union {
-		struct nvmefc_ls_rsp ls_rsp;
 		struct nvmefc_tgt_fcp_req fcp_req;
-	} ctx;
+	} hdlrctx;
 	struct list_head list;
 	struct lpfc_hba *phba;
+	struct nvmefc_ls_req *ls_req;
+	struct nvmefc_ls_rsp ls_rsp;
 	struct lpfc_iocbq *wqeq;
 	struct lpfc_iocbq *abort_wqeq;
 	spinlock_t ctxlock; /* protect flag access */

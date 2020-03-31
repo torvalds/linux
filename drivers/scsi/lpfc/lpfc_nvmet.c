@@ -52,22 +52,22 @@
 #include "lpfc_debugfs.h"
 
 static struct lpfc_iocbq *lpfc_nvmet_prep_ls_wqe(struct lpfc_hba *,
-						 struct lpfc_nvmet_rcv_ctx *,
+						 struct lpfc_async_xchg_ctx *,
 						 dma_addr_t rspbuf,
 						 uint16_t rspsize);
 static struct lpfc_iocbq *lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *,
-						  struct lpfc_nvmet_rcv_ctx *);
+						  struct lpfc_async_xchg_ctx *);
 static int lpfc_nvmet_sol_fcp_issue_abort(struct lpfc_hba *,
-					  struct lpfc_nvmet_rcv_ctx *,
+					  struct lpfc_async_xchg_ctx *,
 					  uint32_t, uint16_t);
 static int lpfc_nvmet_unsol_fcp_issue_abort(struct lpfc_hba *,
-					    struct lpfc_nvmet_rcv_ctx *,
+					    struct lpfc_async_xchg_ctx *,
 					    uint32_t, uint16_t);
 static int lpfc_nvmet_unsol_ls_issue_abort(struct lpfc_hba *,
-					   struct lpfc_nvmet_rcv_ctx *,
+					   struct lpfc_async_xchg_ctx *,
 					   uint32_t, uint16_t);
 static void lpfc_nvmet_wqfull_flush(struct lpfc_hba *, struct lpfc_queue *,
-				    struct lpfc_nvmet_rcv_ctx *);
+				    struct lpfc_async_xchg_ctx *);
 static void lpfc_nvmet_fcp_rqst_defer_work(struct work_struct *);
 
 static void lpfc_nvmet_process_rcv_fcp_req(struct lpfc_nvmet_ctxbuf *ctx_buf);
@@ -216,10 +216,10 @@ lpfc_nvmet_cmd_template(void)
 }
 
 #if (IS_ENABLED(CONFIG_NVME_TARGET_FC))
-static struct lpfc_nvmet_rcv_ctx *
+static struct lpfc_async_xchg_ctx *
 lpfc_nvmet_get_ctx_for_xri(struct lpfc_hba *phba, u16 xri)
 {
-	struct lpfc_nvmet_rcv_ctx *ctxp;
+	struct lpfc_async_xchg_ctx *ctxp;
 	unsigned long iflag;
 	bool found = false;
 
@@ -238,10 +238,10 @@ lpfc_nvmet_get_ctx_for_xri(struct lpfc_hba *phba, u16 xri)
 	return NULL;
 }
 
-static struct lpfc_nvmet_rcv_ctx *
+static struct lpfc_async_xchg_ctx *
 lpfc_nvmet_get_ctx_for_oxid(struct lpfc_hba *phba, u16 oxid, u32 sid)
 {
-	struct lpfc_nvmet_rcv_ctx *ctxp;
+	struct lpfc_async_xchg_ctx *ctxp;
 	unsigned long iflag;
 	bool found = false;
 
@@ -262,7 +262,8 @@ lpfc_nvmet_get_ctx_for_oxid(struct lpfc_hba *phba, u16 oxid, u32 sid)
 #endif
 
 static void
-lpfc_nvmet_defer_release(struct lpfc_hba *phba, struct lpfc_nvmet_rcv_ctx *ctxp)
+lpfc_nvmet_defer_release(struct lpfc_hba *phba,
+			struct lpfc_async_xchg_ctx *ctxp)
 {
 	lockdep_assert_held(&ctxp->ctxlock);
 
@@ -298,7 +299,7 @@ lpfc_nvmet_xmt_ls_rsp_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 {
 	struct lpfc_nvmet_tgtport *tgtp;
 	struct nvmefc_ls_rsp *rsp;
-	struct lpfc_nvmet_rcv_ctx *ctxp;
+	struct lpfc_async_xchg_ctx *ctxp;
 	uint32_t status, result;
 
 	status = bf_get(lpfc_wcqe_c_status, wcqe);
@@ -330,7 +331,7 @@ lpfc_nvmet_xmt_ls_rsp_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 	}
 
 out:
-	rsp = &ctxp->ctx.ls_rsp;
+	rsp = &ctxp->ls_rsp;
 
 	lpfc_nvmeio_data(phba, "NVMET LS  CMPL: xri x%x stat x%x result x%x\n",
 			 ctxp->oxid, status, result);
@@ -364,7 +365,7 @@ void
 lpfc_nvmet_ctxbuf_post(struct lpfc_hba *phba, struct lpfc_nvmet_ctxbuf *ctx_buf)
 {
 #if (IS_ENABLED(CONFIG_NVME_TARGET_FC))
-	struct lpfc_nvmet_rcv_ctx *ctxp = ctx_buf->context;
+	struct lpfc_async_xchg_ctx *ctxp = ctx_buf->context;
 	struct lpfc_nvmet_tgtport *tgtp;
 	struct fc_frame_header *fc_hdr;
 	struct rqb_dmabuf *nvmebuf;
@@ -416,7 +417,7 @@ lpfc_nvmet_ctxbuf_post(struct lpfc_hba *phba, struct lpfc_nvmet_ctxbuf *ctx_buf)
 		size = nvmebuf->bytes_recv;
 		sid = sli4_sid_from_fc_hdr(fc_hdr);
 
-		ctxp = (struct lpfc_nvmet_rcv_ctx *)ctx_buf->context;
+		ctxp = (struct lpfc_async_xchg_ctx *)ctx_buf->context;
 		ctxp->wqeq = NULL;
 		ctxp->offset = 0;
 		ctxp->phba = phba;
@@ -490,7 +491,7 @@ lpfc_nvmet_ctxbuf_post(struct lpfc_hba *phba, struct lpfc_nvmet_ctxbuf *ctx_buf)
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 static void
 lpfc_nvmet_ktime(struct lpfc_hba *phba,
-		 struct lpfc_nvmet_rcv_ctx *ctxp)
+		 struct lpfc_async_xchg_ctx *ctxp)
 {
 	uint64_t seg1, seg2, seg3, seg4, seg5;
 	uint64_t seg6, seg7, seg8, seg9, seg10;
@@ -699,7 +700,7 @@ lpfc_nvmet_xmt_fcp_op_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 {
 	struct lpfc_nvmet_tgtport *tgtp;
 	struct nvmefc_tgt_fcp_req *rsp;
-	struct lpfc_nvmet_rcv_ctx *ctxp;
+	struct lpfc_async_xchg_ctx *ctxp;
 	uint32_t status, result, op, start_clean, logerr;
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	int id;
@@ -708,7 +709,7 @@ lpfc_nvmet_xmt_fcp_op_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 	ctxp = cmdwqe->context2;
 	ctxp->flag &= ~LPFC_NVMET_IO_INP;
 
-	rsp = &ctxp->ctx.fcp_req;
+	rsp = &ctxp->hdlrctx.fcp_req;
 	op = rsp->op;
 
 	status = bf_get(lpfc_wcqe_c_status, wcqe);
@@ -825,8 +826,8 @@ static int
 lpfc_nvmet_xmt_ls_rsp(struct nvmet_fc_target_port *tgtport,
 		      struct nvmefc_ls_rsp *rsp)
 {
-	struct lpfc_nvmet_rcv_ctx *ctxp =
-		container_of(rsp, struct lpfc_nvmet_rcv_ctx, ctx.ls_rsp);
+	struct lpfc_async_xchg_ctx *ctxp =
+		container_of(rsp, struct lpfc_async_xchg_ctx, ls_rsp);
 	struct lpfc_hba *phba = ctxp->phba;
 	struct hbq_dmabuf *nvmebuf =
 		(struct hbq_dmabuf *)ctxp->rqb_buffer;
@@ -916,8 +917,8 @@ lpfc_nvmet_xmt_fcp_op(struct nvmet_fc_target_port *tgtport,
 		      struct nvmefc_tgt_fcp_req *rsp)
 {
 	struct lpfc_nvmet_tgtport *lpfc_nvmep = tgtport->private;
-	struct lpfc_nvmet_rcv_ctx *ctxp =
-		container_of(rsp, struct lpfc_nvmet_rcv_ctx, ctx.fcp_req);
+	struct lpfc_async_xchg_ctx *ctxp =
+		container_of(rsp, struct lpfc_async_xchg_ctx, hdlrctx.fcp_req);
 	struct lpfc_hba *phba = ctxp->phba;
 	struct lpfc_queue *wq;
 	struct lpfc_iocbq *nvmewqeq;
@@ -1051,8 +1052,8 @@ lpfc_nvmet_xmt_fcp_abort(struct nvmet_fc_target_port *tgtport,
 			 struct nvmefc_tgt_fcp_req *req)
 {
 	struct lpfc_nvmet_tgtport *lpfc_nvmep = tgtport->private;
-	struct lpfc_nvmet_rcv_ctx *ctxp =
-		container_of(req, struct lpfc_nvmet_rcv_ctx, ctx.fcp_req);
+	struct lpfc_async_xchg_ctx *ctxp =
+		container_of(req, struct lpfc_async_xchg_ctx, hdlrctx.fcp_req);
 	struct lpfc_hba *phba = ctxp->phba;
 	struct lpfc_queue *wq;
 	unsigned long flags;
@@ -1113,8 +1114,8 @@ lpfc_nvmet_xmt_fcp_release(struct nvmet_fc_target_port *tgtport,
 			   struct nvmefc_tgt_fcp_req *rsp)
 {
 	struct lpfc_nvmet_tgtport *lpfc_nvmep = tgtport->private;
-	struct lpfc_nvmet_rcv_ctx *ctxp =
-		container_of(rsp, struct lpfc_nvmet_rcv_ctx, ctx.fcp_req);
+	struct lpfc_async_xchg_ctx *ctxp =
+		container_of(rsp, struct lpfc_async_xchg_ctx, hdlrctx.fcp_req);
 	struct lpfc_hba *phba = ctxp->phba;
 	unsigned long flags;
 	bool aborting = false;
@@ -1156,8 +1157,8 @@ lpfc_nvmet_defer_rcv(struct nvmet_fc_target_port *tgtport,
 		     struct nvmefc_tgt_fcp_req *rsp)
 {
 	struct lpfc_nvmet_tgtport *tgtp;
-	struct lpfc_nvmet_rcv_ctx *ctxp =
-		container_of(rsp, struct lpfc_nvmet_rcv_ctx, ctx.fcp_req);
+	struct lpfc_async_xchg_ctx *ctxp =
+		container_of(rsp, struct lpfc_async_xchg_ctx, hdlrctx.fcp_req);
 	struct rqb_dmabuf *nvmebuf = ctxp->rqb_buffer;
 	struct lpfc_hba *phba = ctxp->phba;
 	unsigned long iflag;
@@ -1563,7 +1564,7 @@ lpfc_sli4_nvmet_xri_aborted(struct lpfc_hba *phba,
 #if (IS_ENABLED(CONFIG_NVME_TARGET_FC))
 	uint16_t xri = bf_get(lpfc_wcqe_xa_xri, axri);
 	uint16_t rxid = bf_get(lpfc_wcqe_xa_remote_xid, axri);
-	struct lpfc_nvmet_rcv_ctx *ctxp, *next_ctxp;
+	struct lpfc_async_xchg_ctx *ctxp, *next_ctxp;
 	struct lpfc_nvmet_tgtport *tgtp;
 	struct nvmefc_tgt_fcp_req *req = NULL;
 	struct lpfc_nodelist *ndlp;
@@ -1649,7 +1650,7 @@ lpfc_sli4_nvmet_xri_aborted(struct lpfc_hba *phba,
 				 "NVMET ABTS RCV: xri x%x CPU %02x rjt %d\n",
 				 xri, raw_smp_processor_id(), 0);
 
-		req = &ctxp->ctx.fcp_req;
+		req = &ctxp->hdlrctx.fcp_req;
 		if (req)
 			nvmet_fc_rcv_fcp_abort(phba->targetport, req);
 	}
@@ -1662,7 +1663,7 @@ lpfc_nvmet_rcv_unsol_abort(struct lpfc_vport *vport,
 {
 #if (IS_ENABLED(CONFIG_NVME_TARGET_FC))
 	struct lpfc_hba *phba = vport->phba;
-	struct lpfc_nvmet_rcv_ctx *ctxp, *next_ctxp;
+	struct lpfc_async_xchg_ctx *ctxp, *next_ctxp;
 	struct nvmefc_tgt_fcp_req *rsp;
 	uint32_t sid;
 	uint16_t oxid, xri;
@@ -1695,7 +1696,7 @@ lpfc_nvmet_rcv_unsol_abort(struct lpfc_vport *vport,
 		lpfc_printf_log(phba, KERN_INFO, LOG_NVME_ABTS,
 				"6319 NVMET Rcv ABTS:acc xri x%x\n", xri);
 
-		rsp = &ctxp->ctx.fcp_req;
+		rsp = &ctxp->hdlrctx.fcp_req;
 		nvmet_fc_rcv_fcp_abort(phba->targetport, rsp);
 
 		/* Respond with BA_ACC accordingly */
@@ -1769,7 +1770,7 @@ lpfc_nvmet_rcv_unsol_abort(struct lpfc_vport *vport,
 		if (ctxp->flag & LPFC_NVMET_TNOTIFY) {
 			/* Notify the transport */
 			nvmet_fc_rcv_fcp_abort(phba->targetport,
-					       &ctxp->ctx.fcp_req);
+					       &ctxp->hdlrctx.fcp_req);
 		} else {
 			cancel_work_sync(&ctxp->ctxbuf->defer_work);
 			spin_lock_irqsave(&ctxp->ctxlock, iflag);
@@ -1797,7 +1798,7 @@ lpfc_nvmet_rcv_unsol_abort(struct lpfc_vport *vport,
 
 static void
 lpfc_nvmet_wqfull_flush(struct lpfc_hba *phba, struct lpfc_queue *wq,
-			struct lpfc_nvmet_rcv_ctx *ctxp)
+			struct lpfc_async_xchg_ctx *ctxp)
 {
 	struct lpfc_sli_ring *pring;
 	struct lpfc_iocbq *nvmewqeq;
@@ -1848,7 +1849,7 @@ lpfc_nvmet_wqfull_process(struct lpfc_hba *phba,
 #if (IS_ENABLED(CONFIG_NVME_TARGET_FC))
 	struct lpfc_sli_ring *pring;
 	struct lpfc_iocbq *nvmewqeq;
-	struct lpfc_nvmet_rcv_ctx *ctxp;
+	struct lpfc_async_xchg_ctx *ctxp;
 	unsigned long iflags;
 	int rc;
 
@@ -1862,7 +1863,7 @@ lpfc_nvmet_wqfull_process(struct lpfc_hba *phba,
 		list_remove_head(&wq->wqfull_list, nvmewqeq, struct lpfc_iocbq,
 				 list);
 		spin_unlock_irqrestore(&pring->ring_lock, iflags);
-		ctxp = (struct lpfc_nvmet_rcv_ctx *)nvmewqeq->context2;
+		ctxp = (struct lpfc_async_xchg_ctx *)nvmewqeq->context2;
 		rc = lpfc_sli4_issue_wqe(phba, ctxp->hdwq, nvmewqeq);
 		spin_lock_irqsave(&pring->ring_lock, iflags);
 		if (rc == -EBUSY) {
@@ -1874,7 +1875,7 @@ lpfc_nvmet_wqfull_process(struct lpfc_hba *phba,
 		if (rc == WQE_SUCCESS) {
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 			if (ctxp->ts_cmd_nvme) {
-				if (ctxp->ctx.fcp_req.op == NVMET_FCOP_RSP)
+				if (ctxp->hdlrctx.fcp_req.op == NVMET_FCOP_RSP)
 					ctxp->ts_status_wqput = ktime_get_ns();
 				else
 					ctxp->ts_data_wqput = ktime_get_ns();
@@ -1940,7 +1941,7 @@ lpfc_nvmet_unsol_ls_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 #if (IS_ENABLED(CONFIG_NVME_TARGET_FC))
 	struct lpfc_nvmet_tgtport *tgtp;
 	struct fc_frame_header *fc_hdr;
-	struct lpfc_nvmet_rcv_ctx *ctxp;
+	struct lpfc_async_xchg_ctx *ctxp;
 	uint32_t *payload;
 	uint32_t size, oxid, sid, rc;
 
@@ -1963,7 +1964,7 @@ lpfc_nvmet_unsol_ls_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	size = bf_get(lpfc_rcqe_length,  &nvmebuf->cq_event.cqe.rcqe_cmpl);
 	sid = sli4_sid_from_fc_hdr(fc_hdr);
 
-	ctxp = kzalloc(sizeof(struct lpfc_nvmet_rcv_ctx), GFP_ATOMIC);
+	ctxp = kzalloc(sizeof(struct lpfc_async_xchg_ctx), GFP_ATOMIC);
 	if (ctxp == NULL) {
 		atomic_inc(&tgtp->rcv_ls_req_drop);
 		lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
@@ -1994,7 +1995,7 @@ dropit:
 	 * lpfc_nvmet_xmt_ls_rsp_cmp should free the allocated ctxp.
 	 */
 	atomic_inc(&tgtp->rcv_ls_req_in);
-	rc = nvmet_fc_rcv_ls_req(phba->targetport, NULL, &ctxp->ctx.ls_rsp,
+	rc = nvmet_fc_rcv_ls_req(phba->targetport, NULL, &ctxp->ls_rsp,
 				 payload, size);
 
 	lpfc_printf_log(phba, KERN_INFO, LOG_NVME_DISC,
@@ -2028,7 +2029,7 @@ static void
 lpfc_nvmet_process_rcv_fcp_req(struct lpfc_nvmet_ctxbuf *ctx_buf)
 {
 #if (IS_ENABLED(CONFIG_NVME_TARGET_FC))
-	struct lpfc_nvmet_rcv_ctx *ctxp = ctx_buf->context;
+	struct lpfc_async_xchg_ctx *ctxp = ctx_buf->context;
 	struct lpfc_hba *phba = ctxp->phba;
 	struct rqb_dmabuf *nvmebuf = ctxp->rqb_buffer;
 	struct lpfc_nvmet_tgtport *tgtp;
@@ -2072,7 +2073,7 @@ lpfc_nvmet_process_rcv_fcp_req(struct lpfc_nvmet_ctxbuf *ctx_buf)
 	 * A buffer has already been reposted for this IO, so just free
 	 * the nvmebuf.
 	 */
-	rc = nvmet_fc_rcv_fcp_req(phba->targetport, &ctxp->ctx.fcp_req,
+	rc = nvmet_fc_rcv_fcp_req(phba->targetport, &ctxp->hdlrctx.fcp_req,
 				  payload, ctxp->size);
 	/* Process FCP command */
 	if (rc == 0) {
@@ -2219,7 +2220,7 @@ lpfc_nvmet_unsol_fcp_buffer(struct lpfc_hba *phba,
 			    uint64_t isr_timestamp,
 			    uint8_t cqflag)
 {
-	struct lpfc_nvmet_rcv_ctx *ctxp;
+	struct lpfc_async_xchg_ctx *ctxp;
 	struct lpfc_nvmet_tgtport *tgtp;
 	struct fc_frame_header *fc_hdr;
 	struct lpfc_nvmet_ctxbuf *ctx_buf;
@@ -2301,7 +2302,7 @@ lpfc_nvmet_unsol_fcp_buffer(struct lpfc_hba *phba,
 
 	sid = sli4_sid_from_fc_hdr(fc_hdr);
 
-	ctxp = (struct lpfc_nvmet_rcv_ctx *)ctx_buf->context;
+	ctxp = (struct lpfc_async_xchg_ctx *)ctx_buf->context;
 	spin_lock_irqsave(&phba->sli4_hba.t_active_list_lock, iflag);
 	list_add_tail(&ctxp->list, &phba->sli4_hba.t_active_ctx_list);
 	spin_unlock_irqrestore(&phba->sli4_hba.t_active_list_lock, iflag);
@@ -2457,7 +2458,7 @@ lpfc_nvmet_unsol_fcp_event(struct lpfc_hba *phba,
  **/
 static struct lpfc_iocbq *
 lpfc_nvmet_prep_ls_wqe(struct lpfc_hba *phba,
-		       struct lpfc_nvmet_rcv_ctx *ctxp,
+		       struct lpfc_async_xchg_ctx *ctxp,
 		       dma_addr_t rspbuf, uint16_t rspsize)
 {
 	struct lpfc_nodelist *ndlp;
@@ -2579,9 +2580,9 @@ nvme_wqe_free_wqeq_exit:
 
 static struct lpfc_iocbq *
 lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
-			struct lpfc_nvmet_rcv_ctx *ctxp)
+			struct lpfc_async_xchg_ctx *ctxp)
 {
-	struct nvmefc_tgt_fcp_req *rsp = &ctxp->ctx.fcp_req;
+	struct nvmefc_tgt_fcp_req *rsp = &ctxp->hdlrctx.fcp_req;
 	struct lpfc_nvmet_tgtport *tgtp;
 	struct sli4_sge *sgl;
 	struct lpfc_nodelist *ndlp;
@@ -2926,7 +2927,7 @@ static void
 lpfc_nvmet_sol_fcp_abort_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 			     struct lpfc_wcqe_complete *wcqe)
 {
-	struct lpfc_nvmet_rcv_ctx *ctxp;
+	struct lpfc_async_xchg_ctx *ctxp;
 	struct lpfc_nvmet_tgtport *tgtp;
 	uint32_t result;
 	unsigned long flags;
@@ -2995,7 +2996,7 @@ static void
 lpfc_nvmet_unsol_fcp_abort_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 			       struct lpfc_wcqe_complete *wcqe)
 {
-	struct lpfc_nvmet_rcv_ctx *ctxp;
+	struct lpfc_async_xchg_ctx *ctxp;
 	struct lpfc_nvmet_tgtport *tgtp;
 	unsigned long flags;
 	uint32_t result;
@@ -3076,7 +3077,7 @@ static void
 lpfc_nvmet_xmt_ls_abort_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 			    struct lpfc_wcqe_complete *wcqe)
 {
-	struct lpfc_nvmet_rcv_ctx *ctxp;
+	struct lpfc_async_xchg_ctx *ctxp;
 	struct lpfc_nvmet_tgtport *tgtp;
 	uint32_t result;
 
@@ -3117,7 +3118,7 @@ lpfc_nvmet_xmt_ls_abort_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 
 static int
 lpfc_nvmet_unsol_issue_abort(struct lpfc_hba *phba,
-			     struct lpfc_nvmet_rcv_ctx *ctxp,
+			     struct lpfc_async_xchg_ctx *ctxp,
 			     uint32_t sid, uint16_t xri)
 {
 	struct lpfc_nvmet_tgtport *tgtp;
@@ -3212,7 +3213,7 @@ lpfc_nvmet_unsol_issue_abort(struct lpfc_hba *phba,
 
 static int
 lpfc_nvmet_sol_fcp_issue_abort(struct lpfc_hba *phba,
-			       struct lpfc_nvmet_rcv_ctx *ctxp,
+			       struct lpfc_async_xchg_ctx *ctxp,
 			       uint32_t sid, uint16_t xri)
 {
 	struct lpfc_nvmet_tgtport *tgtp;
@@ -3338,7 +3339,7 @@ lpfc_nvmet_sol_fcp_issue_abort(struct lpfc_hba *phba,
 
 static int
 lpfc_nvmet_unsol_fcp_issue_abort(struct lpfc_hba *phba,
-				 struct lpfc_nvmet_rcv_ctx *ctxp,
+				 struct lpfc_async_xchg_ctx *ctxp,
 				 uint32_t sid, uint16_t xri)
 {
 	struct lpfc_nvmet_tgtport *tgtp;
@@ -3403,7 +3404,7 @@ aerr:
 
 static int
 lpfc_nvmet_unsol_ls_issue_abort(struct lpfc_hba *phba,
-				struct lpfc_nvmet_rcv_ctx *ctxp,
+				struct lpfc_async_xchg_ctx *ctxp,
 				uint32_t sid, uint16_t xri)
 {
 	struct lpfc_nvmet_tgtport *tgtp;
