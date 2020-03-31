@@ -113,6 +113,7 @@ static int cs_parser(struct hl_fpriv *hpriv, struct hl_cs_job *job)
 		if (!rc) {
 			job->patched_cb = parser.patched_cb;
 			job->job_cb_size = parser.patched_cb_size;
+			job->contains_dma_pkt = parser.contains_dma_pkt;
 
 			spin_lock(&job->patched_cb->lock);
 			job->patched_cb->cs_cnt++;

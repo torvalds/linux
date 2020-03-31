@@ -598,7 +598,8 @@ struct hl_asic_funcs {
 					struct sg_table *sgt);
 	void (*add_end_of_cb_packets)(struct hl_device *hdev,
 					u64 kernel_address, u32 len,
-					u64 cq_addr, u32 cq_val, u32 msix_num);
+					u64 cq_addr, u32 cq_val, u32 msix_num,
+					bool eb);
 	void (*update_eq_ci)(struct hl_device *hdev, u32 val);
 	int (*context_switch)(struct hl_device *hdev, u32 asid);
 	void (*restore_phase_topology)(struct hl_device *hdev);
@@ -824,6 +825,12 @@ struct hl_cs {
  * @is_kernel_allocated_cb: true if the CB handle we got from the user holds a
  *                          handle to a kernel-allocated CB object, false
  *                          otherwise (SRAM/DRAM/host address).
+ * @contains_dma_pkt: whether the JOB contains at least one DMA packet. This
+ *                    info is needed later, when adding the 2xMSG_PROT at the
+ *                    end of the JOB, to know which barriers to put in the
+ *                    MSG_PROT packets. Relevant only for GAUDI as GOYA doesn't
+ *                    have streams so the engine can't be busy by another
+ *                    stream.
  */
 struct hl_cs_job {
 	struct list_head	cs_node;
@@ -839,6 +846,7 @@ struct hl_cs_job {
 	u32			user_cb_size;
 	u32			job_cb_size;
 	u8			is_kernel_allocated_cb;
+	u8			contains_dma_pkt;
 };
 
 /**
@@ -858,6 +866,12 @@ struct hl_cs_job {
  * @is_kernel_allocated_cb: true if the CB handle we got from the user holds a
  *                          handle to a kernel-allocated CB object, false
  *                          otherwise (SRAM/DRAM/host address).
+ * @contains_dma_pkt: whether the JOB contains at least one DMA packet. This
+ *                    info is needed later, when adding the 2xMSG_PROT at the
+ *                    end of the JOB, to know which barriers to put in the
+ *                    MSG_PROT packets. Relevant only for GAUDI as GOYA doesn't
+ *                    have streams so the engine can't be busy by another
+ *                    stream.
  */
 struct hl_cs_parser {
 	struct hl_cb		*user_cb;
@@ -871,6 +885,7 @@ struct hl_cs_parser {
 	u32			patched_cb_size;
 	u8			job_id;
 	u8			is_kernel_allocated_cb;
+	u8			contains_dma_pkt;
 };
 
 
