@@ -838,19 +838,19 @@ static void twaddle(int fdc, int drive)
 }
 
 /*
- * Reset all driver information about the current fdc.
+ * Reset all driver information about the specified fdc.
  * This is needed after a reset, and after a raw command.
  */
-static void reset_fdc_info(int mode)
+static void reset_fdc_info(int fdc, int mode)
 {
 	int drive;
 
-	fdc_state[current_fdc].spec1 = fdc_state[current_fdc].spec2 = -1;
-	fdc_state[current_fdc].need_configure = 1;
-	fdc_state[current_fdc].perp_mode = 1;
-	fdc_state[current_fdc].rawcmd = 0;
+	fdc_state[fdc].spec1 = fdc_state[fdc].spec2 = -1;
+	fdc_state[fdc].need_configure = 1;
+	fdc_state[fdc].perp_mode = 1;
+	fdc_state[fdc].rawcmd = 0;
 	for (drive = 0; drive < N_DRIVE; drive++)
-		if (FDC(drive) == current_fdc &&
+		if (FDC(drive) == fdc &&
 		    (mode || drive_state[drive].track != NEED_1_RECAL))
 			drive_state[drive].track = NEED_2_RECAL;
 }
@@ -874,7 +874,7 @@ static void set_fdc(int drive)
 	set_dor(1 - current_fdc, ~8, 0);
 #endif
 	if (fdc_state[current_fdc].rawcmd == 2)
-		reset_fdc_info(1);
+		reset_fdc_info(current_fdc, 1);
 	if (fdc_inb(current_fdc, FD_STATUS) != STATUS_READY)
 		fdc_state[current_fdc].reset = 1;
 }
@@ -1800,7 +1800,7 @@ static void reset_fdc(void)
 
 	do_floppy = reset_interrupt;
 	fdc_state[current_fdc].reset = 0;
-	reset_fdc_info(0);
+	reset_fdc_info(current_fdc, 0);
 
 	/* Pseudo-DMA may intercept 'reset finished' interrupt.  */
 	/* Irrelevant for systems with true DMA (i386).          */
@@ -4890,7 +4890,7 @@ static int floppy_grab_irq_and_dma(void)
 	}
 	for (current_fdc = 0; current_fdc < N_FDC; current_fdc++) {
 		if (fdc_state[current_fdc].address != -1) {
-			reset_fdc_info(1);
+			reset_fdc_info(current_fdc, 1);
 			fdc_outb(fdc_state[current_fdc].dor, current_fdc, FD_DOR);
 		}
 	}
