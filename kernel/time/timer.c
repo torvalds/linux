@@ -1829,21 +1829,23 @@ static void process_timeout(struct timer_list *t)
  * schedule_timeout - sleep until timeout
  * @timeout: timeout value in jiffies
  *
- * Make the current task sleep until @timeout jiffies have
- * elapsed. The routine will return immediately unless
- * the current task state has been set (see set_current_state()).
+ * Make the current task sleep until @timeout jiffies have elapsed.
+ * The function behavior depends on the current task state
+ * (see also set_current_state() description):
  *
- * You can set the task state as follows -
+ * %TASK_RUNNING - the scheduler is called, but the task does not sleep
+ * at all. That happens because sched_submit_work() does nothing for
+ * tasks in %TASK_RUNNING state.
  *
  * %TASK_UNINTERRUPTIBLE - at least @timeout jiffies are guaranteed to
  * pass before the routine returns unless the current task is explicitly
- * woken up, (e.g. by wake_up_process())".
+ * woken up, (e.g. by wake_up_process()).
  *
  * %TASK_INTERRUPTIBLE - the routine may return early if a signal is
  * delivered to the current task or the current task is explicitly woken
  * up.
  *
- * The current task state is guaranteed to be TASK_RUNNING when this
+ * The current task state is guaranteed to be %TASK_RUNNING when this
  * routine returns.
  *
  * Specifying a @timeout value of %MAX_SCHEDULE_TIMEOUT will schedule
@@ -1851,7 +1853,7 @@ static void process_timeout(struct timer_list *t)
  * value will be %MAX_SCHEDULE_TIMEOUT.
  *
  * Returns 0 when the timer has expired otherwise the remaining time in
- * jiffies will be returned.  In all cases the return value is guaranteed
+ * jiffies will be returned. In all cases the return value is guaranteed
  * to be non-negative.
  */
 signed long __sched schedule_timeout(signed long timeout)
