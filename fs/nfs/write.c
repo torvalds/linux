@@ -501,7 +501,7 @@ nfs_destroy_unlinked_subrequests(struct nfs_page *destroy_list,
  * the (former) group.  All subrequests are removed from any write or commit
  * lists, unlinked from the group and destroyed.
  */
-static void
+void
 nfs_join_page_group(struct nfs_page *head, struct inode *inode)
 {
 	struct nfs_page *subreq;
