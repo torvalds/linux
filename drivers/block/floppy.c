@@ -1107,30 +1107,30 @@ static void setup_DMA(void)
 static void show_floppy(int fdc);
 
 /* waits until the fdc becomes ready */
-static int wait_til_ready(void)
+static int wait_til_ready(int fdc)
 {
 	int status;
 	int counter;
 
-	if (fdc_state[current_fdc].reset)
+	if (fdc_state[fdc].reset)
 		return -1;
 	for (counter = 0; counter < 10000; counter++) {
-		status = fdc_inb(current_fdc, FD_STATUS);
+		status = fdc_inb(fdc, FD_STATUS);
 		if (status & STATUS_READY)
 			return status;
 	}
 	if (initialized) {
-		DPRINT("Getstatus times out (%x) on fdc %d\n", status, current_fdc);
-		show_floppy(current_fdc);
+		DPRINT("Getstatus times out (%x) on fdc %d\n", status, fdc);
+		show_floppy(fdc);
 	}
-	fdc_state[current_fdc].reset = 1;
+	fdc_state[fdc].reset = 1;
 	return -1;
 }
 
 /* sends a command byte to the fdc */
 static int output_byte(char byte)
 {
-	int status = wait_til_ready();
+	int status = wait_til_ready(current_fdc);
 
 	if (status < 0)
 		return -1;
@@ -1159,7 +1159,7 @@ static int result(void)
 	int status = 0;
 
 	for (i = 0; i < MAX_REPLIES; i++) {
-		status = wait_til_ready();
+		status = wait_til_ready(current_fdc);
 		if (status < 0)
 			break;
 		status &= STATUS_DIR | STATUS_READY | STATUS_BUSY | STATUS_DMA;
@@ -1186,7 +1186,7 @@ static int result(void)
 /* does the fdc need more output? */
 static int need_more_output(void)
 {
-	int status = wait_til_ready();
+	int status = wait_til_ready(current_fdc);
 
 	if (status < 0)
 		return -1;
