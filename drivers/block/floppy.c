@@ -1200,7 +1200,7 @@ static int need_more_output(int fdc)
 /* Set perpendicular mode as required, based on data rate, if supported.
  * 82077 Now tested. 1Mbps data rate only possible with 82077-1.
  */
-static void perpendicular_mode(void)
+static void perpendicular_mode(int fdc)
 {
 	unsigned char perp_mode;
 
@@ -1215,7 +1215,7 @@ static void perpendicular_mode(void)
 		default:
 			DPRINT("Invalid data rate for perpendicular mode!\n");
 			cont->done(0);
-			fdc_state[current_fdc].reset = 1;
+			fdc_state[fdc].reset = 1;
 					/*
 					 * convenient way to return to
 					 * redo without too much hassle
@@ -1226,12 +1226,12 @@ static void perpendicular_mode(void)
 	} else
 		perp_mode = 0;
 
-	if (fdc_state[current_fdc].perp_mode == perp_mode)
+	if (fdc_state[fdc].perp_mode == perp_mode)
 		return;
-	if (fdc_state[current_fdc].version >= FDC_82077_ORIG) {
-		output_byte(current_fdc, FD_PERPENDICULAR);
-		output_byte(current_fdc, perp_mode);
-		fdc_state[current_fdc].perp_mode = perp_mode;
+	if (fdc_state[fdc].version >= FDC_82077_ORIG) {
+		output_byte(fdc, FD_PERPENDICULAR);
+		output_byte(fdc, perp_mode);
+		fdc_state[fdc].perp_mode = perp_mode;
 	} else if (perp_mode) {
 		DPRINT("perpendicular mode not supported by this FDC.\n");
 	}
@@ -1946,7 +1946,7 @@ static void floppy_ready(void)
 #endif
 
 	if (raw_cmd->flags & (FD_RAW_NEED_SEEK | FD_RAW_NEED_DISK)) {
-		perpendicular_mode();
+		perpendicular_mode(current_fdc);
 		fdc_specify();	/* must be done here because of hut, hlt ... */
 		seek_floppy();
 	} else {
