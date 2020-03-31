@@ -386,6 +386,10 @@ static void threshold_restart_bank(void *_tr)
 	struct thresh_restart *tr = _tr;
 	u32 hi, lo;
 
+	/* sysfs write might race against an offline operation */
+	if (this_cpu_read(threshold_banks))
+		return;
+
 	rdmsr(tr->b->address, lo, hi);
 
 	if (tr->b->threshold_limit < (hi & THRESHOLD_MAX))
@@ -1085,7 +1089,8 @@ store_interrupt_enable(struct threshold_block *b, const char *buf, size_t size)
 	memset(&tr, 0, sizeof(tr));
 	tr.b		= b;
 
-	smp_call_function_single(b->cpu, threshold_restart_bank, &tr, 1);
+	if (smp_call_function_single(b->cpu, threshold_restart_bank, &tr, 1))
+		return -ENODEV;
 
 	return size;
 }
@@ -1109,7 +1114,8 @@ store_threshold_limit(struct threshold_block *b, const char *buf, size_t size)
 	b->threshold_limit = new;
 	tr.b = b;
 
-	smp_call_function_single(b->cpu, threshold_restart_bank, &tr, 1);
+	if (smp_call_function_single(b->cpu, threshold_restart_bank, &tr, 1))
+		return -ENODEV;
 
 	return size;
 }
@@ -1118,7 +1124,9 @@ static ssize_t show_error_count(struct threshold_block *b, char *buf)
 {
 	u32 lo, hi;
 
-	rdmsr_on_cpu(b->cpu, b->address, &lo, &hi);
+	/* CPU might be offline by now */
+	if (rdmsr_on_cpu(b->cpu, b->address, &lo, &hi))
+		return -ENODEV;
 
 	return sprintf(buf, "%u\n", ((hi & THRESHOLD_MAX) -
 				     (THRESHOLD_MAX - b->threshold_limit)));
