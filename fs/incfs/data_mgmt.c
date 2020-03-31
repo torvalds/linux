@@ -34,13 +34,13 @@ struct mount_info *incfs_alloc_mount_info(struct super_block *sb,
 	mutex_init(&mi->mi_dir_struct_mutex);
 	mutex_init(&mi->mi_pending_reads_mutex);
 	init_waitqueue_head(&mi->mi_pending_reads_notif_wq);
+	init_waitqueue_head(&mi->mi_log.ml_notif_wq);
 	INIT_LIST_HEAD(&mi->mi_reads_list_head);
 
 	if (options->read_log_pages != 0) {
 		size_t buf_size = PAGE_SIZE * options->read_log_pages;
 
 		spin_lock_init(&mi->mi_log.rl_writer_lock);
-		init_waitqueue_head(&mi->mi_log.ml_notif_wq);
 
 		mi->mi_log.rl_size = buf_size / sizeof(*mi->mi_log.rl_ring_buf);
 		mi->mi_log.rl_ring_buf = kzalloc(buf_size, GFP_NOFS);
