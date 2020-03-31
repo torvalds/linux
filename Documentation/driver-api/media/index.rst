@@ -6,8 +6,16 @@
 Media subsystem kernel internal API
 ===================================
 
+This section contains usage information about media subsystem and
+its supported drivers.
 
+Please see:
 
+- :doc:`/admin-guide/media/index`
+    for usage information about media subsystem and supported drivers;
+
+- :doc:`/userspace-api/media/index`
+     for the userspace APIs used on media devices.
 
 
 .. only:: html

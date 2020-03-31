@@ -2,9 +2,21 @@
 
 .. include:: <isonum.txt>
 
+============================
+Media subsystem usage guides
+============================
 
+This section contains usage information about media subsystem and
+its supported drivers.
 
+Please see:
 
+- :doc:`/userspace-api/media/index`
+     for the userspace APIs used on media devices.
+
+- :doc:`/driver-api/media/index`
+     for driver development information and Kernel APIs used by
+     media devices;
 
 .. _uapi-v4l-drivers:
 
