@@ -1,21 +1,13 @@
 #include <linux/module.h>
-#include <linux/init.h>
-#include <linux/sched.h>
-#include <linux/list.h>
-#include <linux/slab.h>
-#include <linux/delay.h>
 #include <linux/kthread.h>
 
-DEFINE_MUTEX(a);
-DEFINE_MUTEX(b);
-
-struct task_struct *t1, *t2;
+static DEFINE_MUTEX(a);
+static DEFINE_MUTEX(b);
 
 static noinline int thread_a(void *unused)
 {
-	mutex_lock(&a);
-	schedule_timeout(HZ);
-	mutex_lock(&b);
+	mutex_lock(&a); pr_info("%s acquired A\n", __func__);
+	mutex_lock(&b);	pr_info("%s acquired B\n", __func__);
 
 	mutex_unlock(&b);
 	mutex_unlock(&a);
@@ -25,9 +17,8 @@ static noinline int thread_a(void *unused)
 
 static noinline int thread_b(void *unused)
 {
-	mutex_lock(&b);
-	schedule_timeout(HZ);
-	mutex_lock(&a);
+	mutex_lock(&b); pr_info("%s acquired B\n", __func__);
+	mutex_lock(&a); pr_info("%s acquired A\n", __func__);
 
 	mutex_unlock(&a);
 	mutex_unlock(&b);
@@ -36,21 +27,16 @@ static noinline int thread_b(void *unused)
 }
 
 
-static int so2_locking_init(void)
+int init_module(void)
 {
-	pr_info("locking_init\n");
-
-	t1 = kthread_run(thread_a, NULL, "thread_a");
-	t2 = kthread_run(thread_b, NULL, "thread_b");
+	kthread_run(thread_a, NULL, "thread_a");
+	kthread_run(thread_b, NULL, "thread_b");
 
 	return 0;
 }
 
-static void so2_locking_exit(void)
+void exit_module(void)
 {
-	pr_info("locking exit\n");
 }
 
 MODULE_LICENSE("GPL v2");
-module_init(so2_locking_init);
-module_exit(so2_locking_exit);
