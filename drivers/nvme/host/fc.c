@@ -395,7 +395,10 @@ nvme_fc_register_localport(struct nvme_fc_port_info *pinfo,
 	newrec->ops = template;
 	newrec->dev = dev;
 	ida_init(&newrec->endp_cnt);
-	newrec->localport.private = &newrec[1];
+	if (template->local_priv_sz)
+		newrec->localport.private = &newrec[1];
+	else
+		newrec->localport.private = NULL;
 	newrec->localport.node_name = pinfo->node_name;
 	newrec->localport.port_name = pinfo->port_name;
 	newrec->localport.port_role = pinfo->port_role;
@@ -704,7 +707,10 @@ nvme_fc_register_remoteport(struct nvme_fc_local_port *localport,
 	newrec->remoteport.localport = &lport->localport;
 	newrec->dev = lport->dev;
 	newrec->lport = lport;
-	newrec->remoteport.private = &newrec[1];
+	if (lport->ops->remote_priv_sz)
+		newrec->remoteport.private = &newrec[1];
+	else
+		newrec->remoteport.private = NULL;
 	newrec->remoteport.port_role = pinfo->port_role;
 	newrec->remoteport.node_name = pinfo->node_name;
 	newrec->remoteport.port_name = pinfo->port_name;
@@ -1152,18 +1158,23 @@ nvme_fc_connect_admin_queue(struct nvme_fc_ctrl *ctrl,
 	int ret, fcret = 0;
 
 	lsop = kzalloc((sizeof(*lsop) +
-			 ctrl->lport->ops->lsrqst_priv_sz +
-			 sizeof(*assoc_rqst) + sizeof(*assoc_acc)), GFP_KERNEL);
+			 sizeof(*assoc_rqst) + sizeof(*assoc_acc) +
+			 ctrl->lport->ops->lsrqst_priv_sz), GFP_KERNEL);
 	if (!lsop) {
+		dev_info(ctrl->ctrl.device,
+			"NVME-FC{%d}: send Create Association failed: ENOMEM\n",
+			ctrl->cnum);
 		ret = -ENOMEM;
 		goto out_no_memory;
 	}
-	lsreq = &lsop->ls_req;
 
-	lsreq->private = (void *)&lsop[1];
-	assoc_rqst = (struct fcnvme_ls_cr_assoc_rqst *)
-			(lsreq->private + ctrl->lport->ops->lsrqst_priv_sz);
+	assoc_rqst = (struct fcnvme_ls_cr_assoc_rqst *)&lsop[1];
 	assoc_acc = (struct fcnvme_ls_cr_assoc_acc *)&assoc_rqst[1];
+	lsreq = &lsop->ls_req;
+	if (ctrl->lport->ops->lsrqst_priv_sz)
+		lsreq->private = &assoc_acc[1];
+	else
+		lsreq->private = NULL;
 
 	assoc_rqst->w0.ls_cmd = FCNVME_LS_CREATE_ASSOCIATION;
 	assoc_rqst->desc_list_len =
@@ -1261,18 +1272,23 @@ nvme_fc_connect_queue(struct nvme_fc_ctrl *ctrl, struct nvme_fc_queue *queue,
 	int ret, fcret = 0;
 
 	lsop = kzalloc((sizeof(*lsop) +
-			 ctrl->lport->ops->lsrqst_priv_sz +
-			 sizeof(*conn_rqst) + sizeof(*conn_acc)), GFP_KERNEL);
+			 sizeof(*conn_rqst) + sizeof(*conn_acc) +
+			 ctrl->lport->ops->lsrqst_priv_sz), GFP_KERNEL);
 	if (!lsop) {
+		dev_info(ctrl->ctrl.device,
+			"NVME-FC{%d}: send Create Connection failed: ENOMEM\n",
+			ctrl->cnum);
 		ret = -ENOMEM;
 		goto out_no_memory;
 	}
-	lsreq = &lsop->ls_req;
 
-	lsreq->private = (void *)&lsop[1];
-	conn_rqst = (struct fcnvme_ls_cr_conn_rqst *)
-			(lsreq->private + ctrl->lport->ops->lsrqst_priv_sz);
+	conn_rqst = (struct fcnvme_ls_cr_conn_rqst *)&lsop[1];
 	conn_acc = (struct fcnvme_ls_cr_conn_acc *)&conn_rqst[1];
+	lsreq = &lsop->ls_req;
+	if (ctrl->lport->ops->lsrqst_priv_sz)
+		lsreq->private = (void *)&conn_acc[1];
+	else
+		lsreq->private = NULL;
 
 	conn_rqst->w0.ls_cmd = FCNVME_LS_CREATE_CONNECTION;
 	conn_rqst->desc_list_len = cpu_to_be32(
@@ -1386,19 +1402,23 @@ nvme_fc_xmt_disconnect_assoc(struct nvme_fc_ctrl *ctrl)
 	int ret;
 
 	lsop = kzalloc((sizeof(*lsop) +
-			 ctrl->lport->ops->lsrqst_priv_sz +
-			 sizeof(*discon_rqst) + sizeof(*discon_acc)),
-			GFP_KERNEL);
-	if (!lsop)
-		/* couldn't sent it... too bad */
+			sizeof(*discon_rqst) + sizeof(*discon_acc) +
+			ctrl->lport->ops->lsrqst_priv_sz), GFP_KERNEL);
+	if (!lsop) {
+		dev_info(ctrl->ctrl.device,
+			"NVME-FC{%d}: send Disconnect Association "
+			"failed: ENOMEM\n",
+			ctrl->cnum);
 		return;
+	}
 
-	lsreq = &lsop->ls_req;
-
-	lsreq->private = (void *)&lsop[1];
-	discon_rqst = (struct fcnvme_ls_disconnect_assoc_rqst *)
-			(lsreq->private + ctrl->lport->ops->lsrqst_priv_sz);
+	discon_rqst = (struct fcnvme_ls_disconnect_assoc_rqst *)&lsop[1];
 	discon_acc = (struct fcnvme_ls_disconnect_assoc_acc *)&discon_rqst[1];
+	lsreq = &lsop->ls_req;
+	if (ctrl->lport->ops->lsrqst_priv_sz)
+		lsreq->private = (void *)&discon_acc[1];
+	else
+		lsreq->private = NULL;
 
 	discon_rqst->w0.ls_cmd = FCNVME_LS_DISCONNECT_ASSOC;
 	discon_rqst->desc_list_len = cpu_to_be32(
@@ -1784,15 +1804,17 @@ nvme_fc_init_aen_ops(struct nvme_fc_ctrl *ctrl)
 	struct nvme_fc_fcp_op *aen_op;
 	struct nvme_fc_cmd_iu *cmdiu;
 	struct nvme_command *sqe;
-	void *private;
+	void *private = NULL;
 	int i, ret;
 
 	aen_op = ctrl->aen_ops;
 	for (i = 0; i < NVME_NR_AEN_COMMANDS; i++, aen_op++) {
-		private = kzalloc(ctrl->lport->ops->fcprqst_priv_sz,
+		if (ctrl->lport->ops->fcprqst_priv_sz) {
+			private = kzalloc(ctrl->lport->ops->fcprqst_priv_sz,
 						GFP_KERNEL);
-		if (!private)
-			return -ENOMEM;
+			if (!private)
+				return -ENOMEM;
+		}
 
 		cmdiu = &aen_op->cmd_iu;
 		sqe = &cmdiu->sqe;
@@ -1823,9 +1845,6 @@ nvme_fc_term_aen_ops(struct nvme_fc_ctrl *ctrl)
 
 	aen_op = ctrl->aen_ops;
 	for (i = 0; i < NVME_NR_AEN_COMMANDS; i++, aen_op++) {
-		if (!aen_op->fcp_req.private)
-			continue;
-
 		__nvme_fc_exit_request(ctrl, aen_op);
 
 		kfree(aen_op->fcp_req.private);

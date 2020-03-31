@@ -1047,7 +1047,10 @@ nvmet_fc_register_targetport(struct nvmet_fc_port_info *pinfo,
 
 	newrec->fc_target_port.node_name = pinfo->node_name;
 	newrec->fc_target_port.port_name = pinfo->port_name;
-	newrec->fc_target_port.private = &newrec[1];
+	if (template->target_priv_sz)
+		newrec->fc_target_port.private = &newrec[1];
+	else
+		newrec->fc_target_port.private = NULL;
 	newrec->fc_target_port.port_id = pinfo->port_id;
 	newrec->fc_target_port.port_num = idx;
 	INIT_LIST_HEAD(&newrec->tgt_list);
