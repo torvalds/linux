@@ -5171,7 +5171,6 @@ static int compare_isolation(struct intel_engine_cs *engine,
 					       A[0][x], B[0][x], B[1][x],
 					       poison, lrc[dw + 1]);
 					err = -EINVAL;
-					break;
 				}
 			}
 			dw += 2;
@@ -5310,6 +5309,7 @@ static int live_lrc_isolation(void *arg)
 		0xffffffff,
 		0xffff0000,
 	};
+	int err = 0;
 
 	/*
 	 * Our goal is try and verify that per-context state cannot be
@@ -5320,7 +5320,6 @@ static int live_lrc_isolation(void *arg)
 	 */
 
 	for_each_engine(engine, gt, id) {
-		int err = 0;
 		int i;
 
 		/* Just don't even ask */
@@ -5331,23 +5330,25 @@ static int live_lrc_isolation(void *arg)
 		intel_engine_pm_get(engine);
 		if (engine->pinned_default_state) {
 			for (i = 0; i < ARRAY_SIZE(poison); i++) {
-				err = __lrc_isolation(engine, poison[i]);
-				if (err)
-					break;
+				int result;
 
-				err = __lrc_isolation(engine, ~poison[i]);
-				if (err)
-					break;
+				result = __lrc_isolation(engine, poison[i]);
+				if (result && !err)
+					err = result;
+
+				result = __lrc_isolation(engine, ~poison[i]);
+				if (result && !err)
+					err = result;
 			}
 		}
 		intel_engine_pm_put(engine);
-		if (igt_flush_test(gt->i915))
+		if (igt_flush_test(gt->i915)) {
 			err = -EIO;
-		if (err)
-			return err;
+			break;
+		}
 	}
 
-	return 0;
+	return err;
 }
 
 static void garbage_reset(struct intel_engine_cs *engine,
