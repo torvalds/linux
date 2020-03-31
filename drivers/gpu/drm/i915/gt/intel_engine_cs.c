@@ -1221,6 +1221,49 @@ static void print_request(struct drm_printer *m,
 		   name);
 }
 
+static struct intel_timeline *get_timeline(struct i915_request *rq)
+{
+	struct intel_timeline *tl;
+
+	/*
+	 * Even though we are holding the engine->active.lock here, there
+	 * is no control over the submission queue per-se and we are
+	 * inspecting the active state at a random point in time, with an
+	 * unknown queue. Play safe and make sure the timeline remains valid.
+	 * (Only being used for pretty printing, one extra kref shouldn't
+	 * cause a camel stampede!)
+	 */
+	rcu_read_lock();
+	tl = rcu_dereference(rq->timeline);
+	if (!kref_get_unless_zero(&tl->kref))
+		tl = NULL;
+	rcu_read_unlock();
+
+	return tl;
+}
+
+static int print_ring(char *buf, int sz, struct i915_request *rq)
+{
+	int len = 0;
+
+	if (!i915_request_signaled(rq)) {
+		struct intel_timeline *tl = get_timeline(rq);
+
+		len = scnprintf(buf, sz,
+				"ring:{start:%08x, hwsp:%08x, seqno:%08x, runtime:%llums}, ",
+				i915_ggtt_offset(rq->ring->vma),
+				tl ? tl->hwsp_offset : 0,
+				hwsp_seqno(rq),
+				DIV_ROUND_CLOSEST_ULL(intel_context_get_total_runtime_ns(rq->context),
+						      1000 * 1000));
+
+		if (tl)
+			intel_timeline_put(tl);
+	}
+
+	return len;
+}
+
 static void hexdump(struct drm_printer *m, const void *buf, size_t len)
 {
 	const size_t rowsize = 8 * sizeof(u32);
@@ -1248,27 +1291,6 @@ static void hexdump(struct drm_printer *m, const void *buf, size_t len)
 		prev = buf + pos;
 		skip = false;
 	}
-}
-
-static struct intel_timeline *get_timeline(struct i915_request *rq)
-{
-	struct intel_timeline *tl;
-
-	/*
-	 * Even though we are holding the engine->active.lock here, there
-	 * is no control over the submission queue per-se and we are
-	 * inspecting the active state at a random point in time, with an
-	 * unknown queue. Play safe and make sure the timeline remains valid.
-	 * (Only being used for pretty printing, one extra kref shouldn't
-	 * cause a camel stampede!)
-	 */
-	rcu_read_lock();
-	tl = rcu_dereference(rq->timeline);
-	if (!kref_get_unless_zero(&tl->kref))
-		tl = NULL;
-	rcu_read_unlock();
-
-	return tl;
 }
 
 static const char *repr_timer(const struct timer_list *t)
@@ -1383,39 +1405,24 @@ static void intel_engine_print_registers(struct intel_engine_cs *engine,
 			int len;
 
 			len = scnprintf(hdr, sizeof(hdr),
-					"\t\tActive[%d]: ",
-					(int)(port - execlists->active));
-			if (!i915_request_signaled(rq)) {
-				struct intel_timeline *tl = get_timeline(rq);
-
-				len += scnprintf(hdr + len, sizeof(hdr) - len,
-						 "ring:{start:%08x, hwsp:%08x, seqno:%08x, runtime:%llums}, ",
-						 i915_ggtt_offset(rq->ring->vma),
-						 tl ? tl->hwsp_offset : 0,
-						 hwsp_seqno(rq),
-						 DIV_ROUND_CLOSEST_ULL(intel_context_get_total_runtime_ns(rq->context),
-								       1000 * 1000));
-
-				if (tl)
-					intel_timeline_put(tl);
-			}
+					"\t\tActive[%d]: ccid:%08x, ",
+					(int)(port - execlists->active),
+					upper_32_bits(rq->context->lrc_desc));
+			len += print_ring(hdr + len, sizeof(hdr) - len, rq);
 			scnprintf(hdr + len, sizeof(hdr) - len, "rq: ");
 			print_request(m, rq, hdr);
 		}
 		for (port = execlists->pending; (rq = *port); port++) {
-			struct intel_timeline *tl = get_timeline(rq);
-			char hdr[80];
+			char hdr[160];
+			int len;
 
-			snprintf(hdr, sizeof(hdr),
-				 "\t\tPending[%d] ring:{start:%08x, hwsp:%08x, seqno:%08x}, rq: ",
-				 (int)(port - execlists->pending),
-				 i915_ggtt_offset(rq->ring->vma),
-				 tl ? tl->hwsp_offset : 0,
-				 hwsp_seqno(rq));
+			len = scnprintf(hdr, sizeof(hdr),
+					"\t\tPending[%d]: ccid:%08x, ",
+					(int)(port - execlists->pending),
+					upper_32_bits(rq->context->lrc_desc));
+			len += print_ring(hdr + len, sizeof(hdr) - len, rq);
+			scnprintf(hdr + len, sizeof(hdr) - len, "rq: ");
 			print_request(m, rq, hdr);
-
-			if (tl)
-				intel_timeline_put(tl);
 		}
 		rcu_read_unlock();
 		execlists_active_unlock_bh(execlists);
