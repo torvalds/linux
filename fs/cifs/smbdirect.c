@@ -459,25 +459,6 @@ static void smbd_post_send_credits(struct work_struct *work)
 	check_and_send_immediate(info);
 }
 
-static void smbd_recv_done_work(struct work_struct *work)
-{
-	struct smbd_connection *info =
-		container_of(work, struct smbd_connection, recv_done_work);
-
-	/*
-	 * We may have new send credits granted from remote peer
-	 * If any sender is blcoked on lack of credets, unblock it
-	 */
-	if (atomic_read(&info->send_credits))
-		wake_up_interruptible(&info->wait_send_queue);
-
-	/*
-	 * Check if we need to send something to remote peer to
-	 * grant more credits or respond to KEEP_ALIVE packet
-	 */
-	check_and_send_immediate(info);
-}
-
 /* Called from softirq, when recv is done */
 static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 {
@@ -546,8 +527,15 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 		atomic_dec(&info->receive_credits);
 		info->receive_credit_target =
 			le16_to_cpu(data_transfer->credits_requested);
-		atomic_add(le16_to_cpu(data_transfer->credits_granted),
-			&info->send_credits);
+		if (le16_to_cpu(data_transfer->credits_granted)) {
+			atomic_add(le16_to_cpu(data_transfer->credits_granted),
+				&info->send_credits);
+			/*
+			 * We have new send credits granted from remote peer
+			 * If any sender is waiting for credits, unblock it
+			 */
+			wake_up_interruptible(&info->wait_send_queue);
+		}
 
 		log_incoming(INFO, "data flags %d data_offset %d "
 			"data_length %d remaining_data_length %d\n",
@@ -563,7 +551,12 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 			info->keep_alive_requested = KEEP_ALIVE_PENDING;
 		}
 
-		queue_work(info->workqueue, &info->recv_done_work);
+		/*
+		 * Check if we need to send something to remote peer to
+		 * grant more credits or respond to KEEP_ALIVE packet
+		 */
+		check_and_send_immediate(info);
+
 		return;
 
 	default:
@@ -1762,7 +1755,6 @@ static struct smbd_connection *_smbd_get_connection(
 	atomic_set(&info->send_payload_pending, 0);
 
 	INIT_WORK(&info->disconnect_work, smbd_disconnect_rdma_work);
-	INIT_WORK(&info->recv_done_work, smbd_recv_done_work);
 	INIT_WORK(&info->post_send_credits_work, smbd_post_send_credits);
 	info->new_credits_offered = 0;
 	spin_lock_init(&info->lock_new_credits_offered);
@@ -2097,8 +2089,7 @@ int smbd_send(struct TCP_Server_Info *server,
 	for (i = 0; i < num_rqst; i++)
 		remaining_data_length += smb_rqst_len(server, &rqst_array[i]);
 
-	if (remaining_data_length + sizeof(struct smbd_data_transfer) >
-		info->max_fragmented_send_size) {
+	if (remaining_data_length > info->max_fragmented_send_size) {
 		log_write(ERR, "payload size %d > max size %d\n",
 			remaining_data_length, info->max_fragmented_send_size);
 		rc = -EINVAL;

@@ -602,7 +602,7 @@ int
 smb2_verify_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 {
 	unsigned int rc;
-	char server_response_sig[16];
+	char server_response_sig[SMB2_SIGNATURE_SIZE];
 	struct smb2_sync_hdr *shdr =
 			(struct smb2_sync_hdr *)rqst->rq_iov[0].iov_base;
 
@@ -638,9 +638,11 @@ smb2_verify_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 	if (rc)
 		return rc;
 
-	if (memcmp(server_response_sig, shdr->Signature, SMB2_SIGNATURE_SIZE))
+	if (memcmp(server_response_sig, shdr->Signature, SMB2_SIGNATURE_SIZE)) {
+		dump_stack();
+		cifs_dbg(VFS, "sign fail cmd 0x%x message id 0x%llx\n", shdr->Command, shdr->MessageId);
 		return -EACCES;
-	else
+	} else
 		return 0;
 }
 
