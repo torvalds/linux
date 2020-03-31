@@ -329,7 +329,7 @@ struct sc16is7xx_port {
 	struct task_struct		*kworker_task;
 	struct kthread_work		irq_work;
 	struct mutex			efr_lock;
-	struct sc16is7xx_one		p[0];
+	struct sc16is7xx_one		p[];
 };
 
 static unsigned long sc16is7xx_lines;
