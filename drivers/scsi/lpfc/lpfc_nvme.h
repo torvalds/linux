@@ -98,9 +98,12 @@ struct lpfc_nvme_fcpreq_priv {
 #define LPFC_NVMET_WAIT_TMO		(5 * MSEC_PER_SEC)
 
 /* Used for NVME Target */
+#define LPFC_NVMET_INV_HOST_ACTIVE      1
+
 struct lpfc_nvmet_tgtport {
 	struct lpfc_hba *phba;
 	struct completion *tport_unreg_cmp;
+	atomic_t state;		/* tracks nvmet hosthandle invalidation */
 
 	/* Stats counters - lpfc_nvmet_unsol_ls_buffer */
 	atomic_t rcv_ls_req_in;
