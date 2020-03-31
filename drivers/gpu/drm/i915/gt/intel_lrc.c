@@ -1814,16 +1814,25 @@ active_timeslice(const struct intel_engine_cs *engine)
 
 static void set_timeslice(struct intel_engine_cs *engine)
 {
+	unsigned long duration;
+
 	if (!intel_engine_has_timeslices(engine))
 		return;
 
-	set_timer_ms(&engine->execlists.timer, active_timeslice(engine));
+	duration = active_timeslice(engine);
+	ENGINE_TRACE(engine, "bump timeslicing, interval:%lu", duration);
+
+	set_timer_ms(&engine->execlists.timer, duration);
 }
 
 static void start_timeslice(struct intel_engine_cs *engine)
 {
 	struct intel_engine_execlists *execlists = &engine->execlists;
-	int prio = queue_prio(execlists);
+	const int prio = queue_prio(execlists);
+	unsigned long duration;
+
+	if (!intel_engine_has_timeslices(engine))
+		return;
 
 	WRITE_ONCE(execlists->switch_priority_hint, prio);
 	if (prio == INT_MIN)
@@ -1832,7 +1841,12 @@ static void start_timeslice(struct intel_engine_cs *engine)
 	if (timer_pending(&execlists->timer))
 		return;
 
-	set_timer_ms(&execlists->timer, timeslice(engine));
+	duration = timeslice(engine);
+	ENGINE_TRACE(engine,
+		     "start timeslicing, prio:%d, interval:%lu",
+		     prio, duration);
+
+	set_timer_ms(&execlists->timer, duration);
 }
 
 static void record_preemption(struct intel_engine_execlists *execlists)
