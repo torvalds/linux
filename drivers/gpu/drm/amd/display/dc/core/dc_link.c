@@ -1098,13 +1098,13 @@ bool dc_link_get_hpd_state(struct dc_link *dc_link)
 	return state;
 }
 
-static enum hpd_source_id get_hpd_line(
-		struct dc_link *link)
+static enum hpd_source_id get_hpd_line(struct dc_link *link)
 {
 	struct gpio *hpd;
 	enum hpd_source_id hpd_id = HPD_SOURCEID_UNKNOWN;
 
-	hpd = get_hpd_gpio(link->ctx->dc_bios, link->link_id, link->ctx->gpio_service);
+	hpd = get_hpd_gpio(link->ctx->dc_bios, link->link_id,
+			   link->ctx->gpio_service);
 
 	if (hpd) {
 		switch (dal_irq_get_source(hpd)) {
@@ -1179,8 +1179,7 @@ static enum channel_id get_ddc_line(struct dc_link *link)
 	return channel;
 }
 
-static enum transmitter translate_encoder_to_transmitter(
-	struct graphics_object_id encoder)
+static enum transmitter translate_encoder_to_transmitter(struct graphics_object_id encoder)
 {
 	switch (encoder.id) {
 	case ENCODER_ID_INTERNAL_UNIPHY:
@@ -1244,9 +1243,8 @@ static enum transmitter translate_encoder_to_transmitter(
 	}
 }
 
-static bool dc_link_construct(
-	struct dc_link *link,
-	const struct link_init_data *init_params)
+static bool dc_link_construct(struct dc_link *link,
+			      const struct link_init_data *init_params)
 {
 	uint8_t i;
 	struct ddc_service_init_data ddc_service_init_data = { { 0 } };
@@ -1255,6 +1253,7 @@ static bool dc_link_construct(
 	struct integrated_info info = {{{ 0 }}};
 	struct dc_bios *bios = init_params->dc->ctx->dc_bios;
 	const struct dc_vbios_funcs *bp_funcs = bios->funcs;
+
 	DC_LOGGER_INIT(dc_ctx->logger);
 
 	link->irq_source_hpd = DC_IRQ_SOURCE_INVALID;
@@ -1266,23 +1265,27 @@ static bool dc_link_construct(
 	link->ctx = dc_ctx;
 	link->link_index = init_params->link_index;
 
-	memset(&link->preferred_training_settings, 0, sizeof(struct dc_link_training_overrides));
-	memset(&link->preferred_link_setting, 0, sizeof(struct dc_link_settings));
+	memset(&link->preferred_training_settings, 0,
+	       sizeof(struct dc_link_training_overrides));
+	memset(&link->preferred_link_setting, 0,
+	       sizeof(struct dc_link_settings));
 
-	link->link_id = bios->funcs->get_connector_id(bios, init_params->connector_index);
+	link->link_id =
+		bios->funcs->get_connector_id(bios, init_params->connector_index);
 
 	if (link->link_id.type != OBJECT_TYPE_CONNECTOR) {
 		dm_output_to_console("%s: Invalid Connector ObjectID from Adapter Service for connector index:%d! type %d expected %d\n",
-			 __func__, init_params->connector_index,
-			 link->link_id.type, OBJECT_TYPE_CONNECTOR);
+				     __func__, init_params->connector_index,
+				     link->link_id.type, OBJECT_TYPE_CONNECTOR);
 		goto create_fail;
 	}
 
 	if (link->dc->res_pool->funcs->link_init)
 		link->dc->res_pool->funcs->link_init(link);
 
-	link->hpd_gpio = get_hpd_gpio(link->ctx->dc_bios, link->link_id, link->ctx->gpio_service);
-	if (link->hpd_gpio != NULL) {
+	link->hpd_gpio = get_hpd_gpio(link->ctx->dc_bios, link->link_id,
+				      link->ctx->gpio_service);
+	if (link->hpd_gpio) {
 		dal_gpio_open(link->hpd_gpio, GPIO_MODE_INTERRUPT);
 		dal_gpio_unlock_pin(link->hpd_gpio);
 		link->irq_source_hpd = dal_irq_get_source(link->hpd_gpio);
@@ -1302,9 +1305,9 @@ static bool dc_link_construct(
 		link->connector_signal = SIGNAL_TYPE_DVI_DUAL_LINK;
 		break;
 	case CONNECTOR_ID_DISPLAY_PORT:
-		link->connector_signal =	SIGNAL_TYPE_DISPLAY_PORT;
+		link->connector_signal = SIGNAL_TYPE_DISPLAY_PORT;
 
-		if (link->hpd_gpio != NULL)
+		if (link->hpd_gpio)
 			link->irq_source_hpd_rx =
 					dal_irq_get_rx_source(link->hpd_gpio);
 
@@ -1312,7 +1315,7 @@ static bool dc_link_construct(
 	case CONNECTOR_ID_EDP:
 		link->connector_signal = SIGNAL_TYPE_EDP;
 
-		if (link->hpd_gpio != NULL) {
+		if (link->hpd_gpio) {
 			link->irq_source_hpd = DC_IRQ_SOURCE_INVALID;
 			link->irq_source_hpd_rx =
 					dal_irq_get_rx_source(link->hpd_gpio);
@@ -1322,32 +1325,33 @@ static bool dc_link_construct(
 		link->connector_signal = SIGNAL_TYPE_LVDS;
 		break;
 	default:
-		DC_LOG_WARNING("Unsupported Connector type:%d!\n", link->link_id.id);
+		DC_LOG_WARNING("Unsupported Connector type:%d!\n",
+			       link->link_id.id);
 		goto create_fail;
 	}
 
 	/* TODO: #DAL3 Implement id to str function.*/
 	LINK_INFO("Connector[%d] description:"
-			"signal %d\n",
-			init_params->connector_index,
-			link->connector_signal);
+		  "signal %d\n",
+		  init_params->connector_index,
+		  link->connector_signal);
 
 	ddc_service_init_data.ctx = link->ctx;
 	ddc_service_init_data.id = link->link_id;
 	ddc_service_init_data.link = link;
 	link->ddc = dal_ddc_service_create(&ddc_service_init_data);
 
-	if (link->ddc == NULL) {
+	if (!link->ddc) {
 		DC_ERROR("Failed to create ddc_service!\n");
 		goto ddc_create_fail;
 	}
 
 	link->ddc_hw_inst =
-		dal_ddc_get_line(
-			dal_ddc_service_get_ddc_pin(link->ddc));
+		dal_ddc_get_line(dal_ddc_service_get_ddc_pin(link->ddc));
 
 	enc_init_data.ctx = dc_ctx;
-	bp_funcs->get_src_obj(dc_ctx->dc_bios, link->link_id, 0, &enc_init_data.encoder);
+	bp_funcs->get_src_obj(dc_ctx->dc_bios, link->link_id, 0,
+			      &enc_init_data.encoder);
 	enc_init_data.connector = link->link_id;
 	enc_init_data.channel = get_ddc_line(link);
 	enc_init_data.hpd_source = get_hpd_line(link);
@@ -1355,11 +1359,11 @@ static bool dc_link_construct(
 	link->hpd_src = enc_init_data.hpd_source;
 
 	enc_init_data.transmitter =
-			translate_encoder_to_transmitter(enc_init_data.encoder);
-	link->link_enc = link->dc->res_pool->funcs->link_enc_create(
-								&enc_init_data);
+		translate_encoder_to_transmitter(enc_init_data.encoder);
+	link->link_enc =
+		link->dc->res_pool->funcs->link_enc_create(&enc_init_data);
 
-	if (link->link_enc == NULL) {
+	if (!link->link_enc) {
 		DC_ERROR("Failed to create link encoder!\n");
 		goto link_enc_create_fail;
 	}
@@ -1367,8 +1371,9 @@ static bool dc_link_construct(
 	link->link_enc_hw_inst = link->link_enc->transmitter;
 
 	for (i = 0; i < 4; i++) {
-		if (BP_RESULT_OK !=
-				bp_funcs->get_device_tag(dc_ctx->dc_bios, link->link_id, i, &link->device_tag)) {
+		if (bp_funcs->get_device_tag(dc_ctx->dc_bios,
+					     link->link_id, i,
+					     &link->device_tag) != BP_RESULT_OK) {
 			DC_ERROR("Failed to find device tag!\n");
 			goto device_tag_fail;
 		}
@@ -1376,13 +1381,14 @@ static bool dc_link_construct(
 		/* Look for device tag that matches connector signal,
 		 * CRT for rgb, LCD for other supported signal tyes
 		 */
-		if (!bp_funcs->is_device_id_supported(dc_ctx->dc_bios, link->device_tag.dev_id))
+		if (!bp_funcs->is_device_id_supported(dc_ctx->dc_bios,
+						      link->device_tag.dev_id))
 			continue;
-		if (link->device_tag.dev_id.device_type == DEVICE_TYPE_CRT
-			&& link->connector_signal != SIGNAL_TYPE_RGB)
+		if (link->device_tag.dev_id.device_type == DEVICE_TYPE_CRT &&
+		    link->connector_signal != SIGNAL_TYPE_RGB)
 			continue;
-		if (link->device_tag.dev_id.device_type == DEVICE_TYPE_LCD
-			&& link->connector_signal == SIGNAL_TYPE_RGB)
+		if (link->device_tag.dev_id.device_type == DEVICE_TYPE_LCD &&
+		    link->connector_signal == SIGNAL_TYPE_RGB)
 			continue;
 		break;
 	}
@@ -1394,16 +1400,16 @@ static bool dc_link_construct(
 	for (i = 0; i < MAX_NUMBER_OF_EXT_DISPLAY_PATH; i++) {
 		struct external_display_path *path =
 			&info.ext_disp_conn_info.path[i];
-		if (path->device_connector_id.enum_id == link->link_id.enum_id
-			&& path->device_connector_id.id == link->link_id.id
-			&& path->device_connector_id.type == link->link_id.type) {
 
-			if (link->device_tag.acpi_device != 0
-				&& path->device_acpi_enum == link->device_tag.acpi_device) {
+		if (path->device_connector_id.enum_id == link->link_id.enum_id &&
+		    path->device_connector_id.id == link->link_id.id &&
+		    path->device_connector_id.type == link->link_id.type) {
+			if (link->device_tag.acpi_device != 0 &&
+			    path->device_acpi_enum == link->device_tag.acpi_device) {
 				link->ddi_channel_mapping = path->channel_mapping;
 				link->chip_caps = path->caps;
 			} else if (path->device_tag ==
-					link->device_tag.dev_id.raw_device_tag) {
+				   link->device_tag.dev_id.raw_device_tag) {
 				link->ddi_channel_mapping = path->channel_mapping;
 				link->chip_caps = path->caps;
 			}
@@ -1427,7 +1433,7 @@ link_enc_create_fail:
 ddc_create_fail:
 create_fail:
 
-	if (link->hpd_gpio != NULL) {
+	if (link->hpd_gpio) {
 		dal_gpio_destroy_irq(&link->hpd_gpio);
 		link->hpd_gpio = NULL;
 	}
