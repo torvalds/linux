@@ -79,6 +79,12 @@ struct lpfc_nvme_fcpreq_priv {
 	struct lpfc_io_buf *nvme_buf;
 };
 
+/*
+ * set NVME LS request timeouts to 30s. It is larger than the 2*R_A_TOV
+ * set by the spec, which appears to have issues with some devices.
+ */
+#define LPFC_NVME_LS_TIMEOUT		30
+
 
 #define LPFC_NVMET_DEFAULT_SEGS		(64 + 1)	/* 256K IOs */
 #define LPFC_NVMET_RQE_MIN_POST		128
@@ -224,6 +230,13 @@ struct lpfc_async_xchg_ctx {
 
 
 /* routines found in lpfc_nvme.c */
+int __lpfc_nvme_ls_req(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
+		struct nvmefc_ls_req *pnvme_lsreq,
+		void (*gen_req_cmp)(struct lpfc_hba *phba,
+				struct lpfc_iocbq *cmdwqe,
+				struct lpfc_wcqe_complete *wcqe));
+void __lpfc_nvme_ls_req_cmp(struct lpfc_hba *phba,  struct lpfc_vport *vport,
+		struct lpfc_iocbq *cmdwqe, struct lpfc_wcqe_complete *wcqe);
 
 /* routines found in lpfc_nvmet.c */
 int lpfc_nvme_unsol_ls_issue_abort(struct lpfc_hba *phba,
