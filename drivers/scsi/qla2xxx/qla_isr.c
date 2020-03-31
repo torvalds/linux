@@ -757,6 +757,39 @@ qla2x00_find_fcport_by_nportid(scsi_qla_host_t *vha, port_id_t *id,
 	return NULL;
 }
 
+/* Shall be called only on supported adapters. */
+static void
+qla27xx_handle_8200_aen(scsi_qla_host_t *vha, uint16_t *mb)
+{
+	struct qla_hw_data *ha = vha->hw;
+	bool reset_isp_needed = 0;
+
+	ql_log(ql_log_warn, vha, 0x02f0,
+	       "MPI Heartbeat stop. MPI reset is%s needed. "
+	       "MB0[%xh] MB1[%xh] MB2[%xh] MB3[%xh]\n",
+	       mb[0] & BIT_8 ? "" : " not",
+	       mb[0], mb[1], mb[2], mb[3]);
+
+	if ((mb[1] & BIT_8) == 0)
+		return;
+
+	ql_log(ql_log_warn, vha, 0x02f1,
+	       "MPI Heartbeat stop. FW dump needed\n");
+
+	if (ql2xfulldump_on_mpifail) {
+		ha->isp_ops->fw_dump(vha, 1);
+		reset_isp_needed = 1;
+	}
+
+	ha->isp_ops->mpi_fw_dump(vha, 1);
+
+	if (reset_isp_needed) {
+		vha->hw->flags.fw_init_done = 0;
+		set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
+		qla2xxx_wake_dpc(vha);
+	}
+}
+
 /**
  * qla2x00_async_event() - Process aynchronous events.
  * @vha: SCSI driver HA context
@@ -872,9 +905,9 @@ skip_rio:
 			    "ISP System Error - mbx1=%xh mbx2=%xh mbx3=%xh.\n ",
 			    mb[1], mb[2], mb[3]);
 
-		ha->fw_dump_mpi =
-		    (IS_QLA27XX(ha) || IS_QLA28XX(ha)) &&
-		    RD_REG_WORD(&reg24->mailbox7) & BIT_8;
+		if ((IS_QLA27XX(ha) || IS_QLA28XX(ha)) &&
+		    RD_REG_WORD(&reg24->mailbox7) & BIT_8)
+			ha->isp_ops->mpi_fw_dump(vha, 1);
 		ha->isp_ops->fw_dump(vha, 1);
 		ha->flags.fw_init_done = 0;
 		QLA_FW_STOPPED(ha);
@@ -1375,20 +1408,7 @@ global_port_update:
 
 	case MBA_IDC_AEN:
 		if (IS_QLA27XX(ha) || IS_QLA28XX(ha)) {
-			ha->flags.fw_init_done = 0;
-			ql_log(ql_log_warn, vha, 0xffff,
-			    "MPI Heartbeat stop. Chip reset needed. MB0[%xh] MB1[%xh] MB2[%xh] MB3[%xh]\n",
-			    mb[0], mb[1], mb[2], mb[3]);
-
-			if ((mb[1] & BIT_8) ||
-			    (mb[2] & BIT_8)) {
-				ql_log(ql_log_warn, vha, 0xd013,
-				    "MPI Heartbeat stop. FW dump needed\n");
-				ha->fw_dump_mpi = 1;
-				ha->isp_ops->fw_dump(vha, 1);
-			}
-			set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
-			qla2xxx_wake_dpc(vha);
+			qla27xx_handle_8200_aen(vha, mb);
 		} else if (IS_QLA83XX(ha)) {
 			mb[4] = RD_REG_WORD(&reg24->mailbox4);
 			mb[5] = RD_REG_WORD(&reg24->mailbox5);
