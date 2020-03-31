@@ -905,7 +905,6 @@ static int msm_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 			dev_err(pctrl->dev,
 				"Failed routing %lu interrupt to Apps proc",
 				d->hwirq);
-		}
 	} else {
 		val = msm_readl_intr_target(pctrl, g);
 		val &= ~(7 << g->intr_target_bit);
