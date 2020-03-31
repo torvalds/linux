@@ -214,6 +214,21 @@ void bch2_btree_ptr_to_text(struct printbuf *out, struct bch_fs *c,
 	bch2_bkey_ptrs_to_text(out, c, k);
 }
 
+void bch2_btree_ptr_v2_to_text(struct printbuf *out, struct bch_fs *c,
+			    struct bkey_s_c k)
+{
+	struct bkey_s_c_btree_ptr_v2 bp = bkey_s_c_to_btree_ptr_v2(k);
+
+	pr_buf(out, "seq %llu sectors %u written %u min_key ",
+	       le64_to_cpu(bp.v->seq),
+	       le16_to_cpu(bp.v->sectors),
+	       le16_to_cpu(bp.v->sectors_written));
+
+	bch2_bpos_to_text(out, bp.v->min_key);
+	pr_buf(out, " ");
+	bch2_bkey_ptrs_to_text(out, c, k);
+}
+
 void bch2_btree_ptr_v2_compat(enum btree_id btree_id, unsigned version,
 			      unsigned big_endian, int write,
 			      struct bkey_s k)
