@@ -386,7 +386,7 @@ static void enter_uniprocessor(void)
 	put_online_cpus();
 
 	for_each_cpu(cpu, downed_cpus) {
-		err = cpu_down(cpu);
+		err = remove_cpu(cpu);
 		if (!err)
 			pr_info("CPU%d is down.\n", cpu);
 		else
@@ -406,7 +406,7 @@ static void leave_uniprocessor(void)
 		return;
 	pr_notice("Re-enabling CPUs...\n");
 	for_each_cpu(cpu, downed_cpus) {
-		err = cpu_up(cpu);
+		err = add_cpu(cpu);
 		if (!err)
 			pr_info("enabled CPU%d.\n", cpu);
 		else
