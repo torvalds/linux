@@ -162,6 +162,26 @@ struct lpfc_nvmet_ctx_info {
 #define lpfc_get_ctx_list(phba, cpu, mrq)  \
 	(phba->sli4_hba.nvmet_ctx_info + ((cpu * phba->cfg_nvmet_mrq) + mrq))
 
+/* Values for state field of struct lpfc_async_xchg_ctx */
+#define LPFC_NVME_STE_LS_RCV		1
+#define LPFC_NVME_STE_LS_ABORT		2
+#define LPFC_NVME_STE_LS_RSP		3
+#define LPFC_NVME_STE_RCV		4
+#define LPFC_NVME_STE_DATA		5
+#define LPFC_NVME_STE_ABORT		6
+#define LPFC_NVME_STE_DONE		7
+#define LPFC_NVME_STE_FREE		0xff
+
+/* Values for flag field of struct lpfc_async_xchg_ctx */
+#define LPFC_NVME_IO_INP		0x1  /* IO is in progress on exchange */
+#define LPFC_NVME_ABORT_OP		0x2  /* Abort WQE issued on exchange */
+#define LPFC_NVME_XBUSY			0x4  /* XB bit set on IO cmpl */
+#define LPFC_NVME_CTX_RLS		0x8  /* ctx free requested */
+#define LPFC_NVME_ABTS_RCV		0x10  /* ABTS received on exchange */
+#define LPFC_NVME_CTX_REUSE_WQ		0x20  /* ctx reused via WQ */
+#define LPFC_NVME_DEFER_WQFULL		0x40  /* Waiting on a free WQE */
+#define LPFC_NVME_TNOTIFY		0x80  /* notify transport of abts */
+
 struct lpfc_async_xchg_ctx {
 	union {
 		struct nvmefc_tgt_fcp_req fcp_req;
@@ -181,24 +201,7 @@ struct lpfc_async_xchg_ctx {
 	uint16_t cpu;
 	uint16_t idx;
 	uint16_t state;
-	/* States */
-#define LPFC_NVMET_STE_LS_RCV		1
-#define LPFC_NVMET_STE_LS_ABORT		2
-#define LPFC_NVMET_STE_LS_RSP		3
-#define LPFC_NVMET_STE_RCV		4
-#define LPFC_NVMET_STE_DATA		5
-#define LPFC_NVMET_STE_ABORT		6
-#define LPFC_NVMET_STE_DONE		7
-#define LPFC_NVMET_STE_FREE		0xff
 	uint16_t flag;
-#define LPFC_NVMET_IO_INP		0x1  /* IO is in progress on exchange */
-#define LPFC_NVMET_ABORT_OP		0x2  /* Abort WQE issued on exchange */
-#define LPFC_NVMET_XBUSY		0x4  /* XB bit set on IO cmpl */
-#define LPFC_NVMET_CTX_RLS		0x8  /* ctx free requested */
-#define LPFC_NVMET_ABTS_RCV		0x10  /* ABTS received on exchange */
-#define LPFC_NVMET_CTX_REUSE_WQ		0x20  /* ctx reused via WQ */
-#define LPFC_NVMET_DEFER_WQFULL		0x40  /* Waiting on a free WQE */
-#define LPFC_NVMET_TNOTIFY		0x80  /* notify transport of abts */
 	struct rqb_dmabuf *rqb_buffer;
 	struct lpfc_nvmet_ctxbuf *ctxbuf;
 	struct lpfc_sli4_hdw_queue *hdwq;
