@@ -17,6 +17,7 @@
  */
 
 union nvmefc_ls_requests {
+	struct fcnvme_ls_rqst_w0		w0;
 	struct fcnvme_ls_cr_assoc_rqst		rq_cr_assoc;
 	struct fcnvme_ls_cr_conn_rqst		rq_cr_conn;
 	struct fcnvme_ls_disconnect_assoc_rqst	rq_dis_assoc;
@@ -144,5 +145,83 @@ static char *validation_errors[] = {
 	"Not Disconnect Rqst",
 	"Bad Disconnect ACC Length",
 };
+
+#define NVME_FC_LAST_LS_CMD_VALUE	FCNVME_LS_DISCONNECT_CONN
+
+static char *nvmefc_ls_names[] = {
+	"Reserved (0)",
+	"RJT (1)",
+	"ACC (2)",
+	"Create Association",
+	"Create Connection",
+	"Disconnect Association",
+	"Disconnect Connection",
+};
+
+static inline void
+nvmefc_fmt_lsreq_discon_assoc(struct nvmefc_ls_req *lsreq,
+	struct fcnvme_ls_disconnect_assoc_rqst *discon_rqst,
+	struct fcnvme_ls_disconnect_assoc_acc *discon_acc,
+	u64 association_id)
+{
+	lsreq->rqstaddr = discon_rqst;
+	lsreq->rqstlen = sizeof(*discon_rqst);
+	lsreq->rspaddr = discon_acc;
+	lsreq->rsplen = sizeof(*discon_acc);
+	lsreq->timeout = NVME_FC_LS_TIMEOUT_SEC;
+
+	discon_rqst->w0.ls_cmd = FCNVME_LS_DISCONNECT_ASSOC;
+	discon_rqst->desc_list_len = cpu_to_be32(
+				sizeof(struct fcnvme_lsdesc_assoc_id) +
+				sizeof(struct fcnvme_lsdesc_disconn_cmd));
+
+	discon_rqst->associd.desc_tag = cpu_to_be32(FCNVME_LSDESC_ASSOC_ID);
+	discon_rqst->associd.desc_len =
+			fcnvme_lsdesc_len(
+				sizeof(struct fcnvme_lsdesc_assoc_id));
+
+	discon_rqst->associd.association_id = cpu_to_be64(association_id);
+
+	discon_rqst->discon_cmd.desc_tag = cpu_to_be32(
+						FCNVME_LSDESC_DISCONN_CMD);
+	discon_rqst->discon_cmd.desc_len =
+			fcnvme_lsdesc_len(
+				sizeof(struct fcnvme_lsdesc_disconn_cmd));
+}
+
+static inline int
+nvmefc_vldt_lsreq_discon_assoc(u32 rqstlen,
+	struct fcnvme_ls_disconnect_assoc_rqst *rqst)
+{
+	int ret = 0;
+
+	if (rqstlen < sizeof(struct fcnvme_ls_disconnect_assoc_rqst))
+		ret = VERR_DISCONN_LEN;
+	else if (rqst->desc_list_len !=
+			fcnvme_lsdesc_len(
+				sizeof(struct fcnvme_ls_disconnect_assoc_rqst)))
+		ret = VERR_DISCONN_RQST_LEN;
+	else if (rqst->associd.desc_tag != cpu_to_be32(FCNVME_LSDESC_ASSOC_ID))
+		ret = VERR_ASSOC_ID;
+	else if (rqst->associd.desc_len !=
+			fcnvme_lsdesc_len(
+				sizeof(struct fcnvme_lsdesc_assoc_id)))
+		ret = VERR_ASSOC_ID_LEN;
+	else if (rqst->discon_cmd.desc_tag !=
+			cpu_to_be32(FCNVME_LSDESC_DISCONN_CMD))
+		ret = VERR_DISCONN_CMD;
+	else if (rqst->discon_cmd.desc_len !=
+			fcnvme_lsdesc_len(
+				sizeof(struct fcnvme_lsdesc_disconn_cmd)))
+		ret = VERR_DISCONN_CMD_LEN;
+	/*
+	 * As the standard changed on the LS, check if old format and scope
+	 * something other than Association (e.g. 0).
+	 */
+	else if (rqst->discon_cmd.rsvd8[0])
+		ret = VERR_DISCONN_SCOPE;
+
+	return ret;
+}
 
 #endif /* _NVME_FC_TRANSPORT_H */

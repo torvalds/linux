@@ -1419,29 +1419,8 @@ nvme_fc_xmt_disconnect_assoc(struct nvme_fc_ctrl *ctrl)
 	else
 		lsreq->private = NULL;
 
-	discon_rqst->w0.ls_cmd = FCNVME_LS_DISCONNECT_ASSOC;
-	discon_rqst->desc_list_len = cpu_to_be32(
-				sizeof(struct fcnvme_lsdesc_assoc_id) +
-				sizeof(struct fcnvme_lsdesc_disconn_cmd));
-
-	discon_rqst->associd.desc_tag = cpu_to_be32(FCNVME_LSDESC_ASSOC_ID);
-	discon_rqst->associd.desc_len =
-			fcnvme_lsdesc_len(
-				sizeof(struct fcnvme_lsdesc_assoc_id));
-
-	discon_rqst->associd.association_id = cpu_to_be64(ctrl->association_id);
-
-	discon_rqst->discon_cmd.desc_tag = cpu_to_be32(
-						FCNVME_LSDESC_DISCONN_CMD);
-	discon_rqst->discon_cmd.desc_len =
-			fcnvme_lsdesc_len(
-				sizeof(struct fcnvme_lsdesc_disconn_cmd));
-
-	lsreq->rqstaddr = discon_rqst;
-	lsreq->rqstlen = sizeof(*discon_rqst);
-	lsreq->rspaddr = discon_acc;
-	lsreq->rsplen = sizeof(*discon_acc);
-	lsreq->timeout = NVME_FC_LS_TIMEOUT_SEC;
+	nvmefc_fmt_lsreq_discon_assoc(lsreq, discon_rqst, discon_acc,
+				ctrl->association_id);
 
 	ret = nvme_fc_send_ls_req_async(ctrl->rport, lsop,
 				nvme_fc_disconnect_assoc_done);
