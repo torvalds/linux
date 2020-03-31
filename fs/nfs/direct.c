@@ -646,6 +646,7 @@ static void nfs_direct_write_clear_reqs(struct nfs_direct_req *dreq)
 	while (!list_empty(&reqs)) {
 		req = nfs_list_entry(reqs.next);
 		nfs_list_remove_request(req);
+		nfs_release_request(req);
 		nfs_unlock_and_release_request(req);
 	}
 }
