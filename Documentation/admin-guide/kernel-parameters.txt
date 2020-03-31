@@ -22,11 +22,13 @@
 			default: 0
 
 	acpi_backlight=	[HW,ACPI]
-			acpi_backlight=vendor
-			acpi_backlight=video
-			If set to vendor, prefer vendor specific driver
+			{ vendor | video | native | none }
+			If set to vendor, prefer vendor-specific driver
 			(e.g. thinkpad_acpi, sony_acpi, etc.) instead
 			of the ACPI video.ko driver.
+			If set to video, use the ACPI video.ko driver.
+			If set to native, use the device's native backlight mode.
+			If set to none, disable the ACPI backlight interface.
 
 	acpi_force_32bit_fadt_addr
 			force FADT to use 32 bit addresses rather than the
