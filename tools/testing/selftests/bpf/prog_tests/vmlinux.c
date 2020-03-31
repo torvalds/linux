@@ -11,7 +11,7 @@ static void nsleep()
 {
 	struct timespec ts = { .tv_nsec = MY_TV_NSEC };
 
-	(void)nanosleep(&ts, NULL);
+	(void)syscall(__NR_nanosleep, &ts, NULL);
 }
 
 void test_vmlinux(void)

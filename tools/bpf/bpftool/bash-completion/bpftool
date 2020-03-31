@@ -576,6 +576,34 @@ _bpftool()
                     ;;
             esac
             ;;
+        struct_ops)
+            local STRUCT_OPS_TYPE='id name'
+            case $command in
+                show|list|dump|unregister)
+                    case $prev in
+                        $command)
+                            COMPREPLY=( $( compgen -W "$STRUCT_OPS_TYPE" -- "$cur" ) )
+                            ;;
+                        id)
+                            _bpftool_get_map_ids_for_type struct_ops
+                            ;;
+                        name)
+                            _bpftool_get_map_names_for_type struct_ops
+                            ;;
+                    esac
+                    return 0
+                    ;;
+                register)
+                    _filedir
+                    return 0
+                    ;;
+                *)
+                    [[ $prev == $object ]] && \
+                        COMPREPLY=( $( compgen -W 'register unregister show list dump help' \
+                            -- "$cur" ) )
+                    ;;
+            esac
+            ;;
         map)
             local MAP_TYPE='id pinned name'
             case $command in

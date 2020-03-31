@@ -161,6 +161,7 @@ int do_tracelog(int argc, char **arg);
 int do_feature(int argc, char **argv);
 int do_btf(int argc, char **argv);
 int do_gen(int argc, char **argv);
+int do_struct_ops(int argc, char **argv);
 
 int parse_u32_arg(int *argc, char ***argv, __u32 *val, const char *what);
 int prog_parse_fd(int *argc, char ***argv);
@@ -205,6 +206,7 @@ struct btf_dumper {
 	const struct btf *btf;
 	json_writer_t *jw;
 	bool is_plain_text;
+	bool prog_id_as_func_ptr;
 };
 
 /* btf_dumper_type - print data along with type information

@@ -71,6 +71,7 @@ struct test_env {
 	FILE *stderr;
 	char *log_buf;
 	size_t log_cnt;
+	int nr_cpus;
 
 	int succ_cnt; /* successful tests */
 	int sub_succ_cnt; /* successful sub-tests */
