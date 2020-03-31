@@ -29,8 +29,8 @@
 #define CSW fd_routine[can_use_virtual_dma & 1]
 
 
-#define fd_inb(port)			readb(port)
-#define fd_outb(value, port)		writeb(value, port)
+#define fd_inb(base, reg)		readb((base) + (reg))
+#define fd_outb(value, base, reg)	writeb(value, (base) + (reg))
 
 #define fd_request_dma()        CSW._request_dma(FLOPPY_DMA,"floppy")
 #define fd_free_dma()           CSW._free_dma(FLOPPY_DMA)
@@ -75,19 +75,19 @@ static void floppy_hardint(int irq, void *dev_id, struct pt_regs * regs)
 		register char *lptr = virtual_dma_addr;
 
 		for (lcount = virtual_dma_count; lcount; lcount--) {
-			st = fd_inb(virtual_dma_port+4) & 0xa0 ;
+			st = fd_inb(virtual_dma_port, 4) & 0xa0;
 			if (st != 0xa0) 
 				break;
 			if (virtual_dma_mode) {
-				fd_outb(*lptr, virtual_dma_port+5);
+				fd_outb(*lptr, virtual_dma_port, 5);
 			} else {
-				*lptr = fd_inb(virtual_dma_port+5);
+				*lptr = fd_inb(virtual_dma_port, 5);
 			}
 			lptr++;
 		}
 		virtual_dma_count = lcount;
 		virtual_dma_addr = lptr;
-		st = fd_inb(virtual_dma_port+4);
+		st = fd_inb(virtual_dma_port, 4);
 	}
 
 #ifdef TRACE_FLPY_INT

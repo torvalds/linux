@@ -595,12 +595,12 @@ static unsigned char in_sector_offset;	/* offset within physical sector,
 
 static inline unsigned char fdc_inb(int fdc, int reg)
 {
-	return fd_inb(fdc_state[fdc].address + reg);
+	return fd_inb(fdc_state[fdc].address, reg);
 }
 
 static inline void fdc_outb(unsigned char value, int fdc, int reg)
 {
-	fd_outb(value, fdc_state[fdc].address + reg);
+	fd_outb(value, fdc_state[fdc].address, reg);
 }
 
 static inline bool drive_no_geom(int drive)

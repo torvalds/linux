@@ -31,8 +31,8 @@
 #define CSW fd_routine[can_use_virtual_dma & 1]
 
 
-#define fd_inb(port)		inb_p(port)
-#define fd_outb(value, port)	outb_p(value, port)
+#define fd_inb(base, reg)		inb_p((base) + (reg))
+#define fd_outb(value, base, reg)	outb_p(value, (base) + (reg))
 
 #define fd_request_dma()	CSW._request_dma(FLOPPY_DMA, "floppy")
 #define fd_free_dma()		CSW._free_dma(FLOPPY_DMA)

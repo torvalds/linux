@@ -59,8 +59,8 @@ struct sun_floppy_ops {
 
 static struct sun_floppy_ops sun_fdops;
 
-#define fd_inb(port)              sun_fdops.fd_inb(port)
-#define fd_outb(value,port)       sun_fdops.fd_outb(value,port)
+#define fd_inb(base, reg)         sun_fdops.fd_inb(reg)
+#define fd_outb(value, base, reg) sun_fdops.fd_outb(value, reg)
 #define fd_enable_dma()           sun_fd_enable_dma()
 #define fd_disable_dma()          sun_fd_disable_dma()
 #define fd_request_dma()          (0) /* nothing... */

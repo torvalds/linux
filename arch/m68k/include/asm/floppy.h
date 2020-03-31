@@ -63,21 +63,21 @@ static __inline__ void release_dma_lock(unsigned long flags)
 }
 
 
-static __inline__ unsigned char fd_inb(int port)
+static __inline__ unsigned char fd_inb(int base, int reg)
 {
 	if(MACH_IS_Q40)
-		return inb_p(port);
+		return inb_p(base + reg);
 	else if(MACH_IS_SUN3X)
-		return sun3x_82072_fd_inb(port);
+		return sun3x_82072_fd_inb(base + reg);
 	return 0;
 }
 
-static __inline__ void fd_outb(unsigned char value, int port)
+static __inline__ void fd_outb(unsigned char value, int base, int reg)
 {
 	if(MACH_IS_Q40)
-		outb_p(value, port);
+		outb_p(value, base + reg);
 	else if(MACH_IS_SUN3X)
-		sun3x_82072_fd_outb(value, port);
+		sun3x_82072_fd_outb(value, base + reg);
 }
 
 
