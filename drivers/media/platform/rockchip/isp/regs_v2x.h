@@ -1898,9 +1898,32 @@
 #define ISP_ISP_LSC_TABLE_DATA(v0, v1)	\
 	(((v0) & 0x1FFF) | (((v1) & 0x1FFF) << 16))
 
-static inline bool dmatx_is_stream_stopped(void __iomem *base)
+static inline bool dmatx0_is_stream_stopped(void __iomem *base)
 {
-	return true;
+	u32 ret = readl(base + CSI2RX_RAW0_WR_CTRL);
+
+	return !(ret & SW_CSI2RX_EN);
+}
+
+static inline bool dmatx1_is_stream_stopped(void __iomem *base)
+{
+	u32 ret = readl(base + CSI2RX_RAW1_WR_CTRL);
+
+	return !(ret & SW_CSI2RX_EN);
+}
+
+static inline bool dmatx2_is_stream_stopped(void __iomem *base)
+{
+	u32 ret = readl(base + CSI2RX_RAW2_WR_CTRL);
+
+	return !(ret & SW_CSI2RX_EN);
+}
+
+static inline bool dmatx3_is_stream_stopped(void __iomem *base)
+{
+	u32 ret = readl(base + CSI2RX_RAW3_WR_CTRL);
+
+	return !(ret & SW_CSI2RX_EN);
 }
 
 static inline bool is_mpfbc_stopped(void __iomem *base)

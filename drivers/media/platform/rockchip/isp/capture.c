@@ -1392,7 +1392,7 @@ static struct streams_ops rkisp2_dmatx0_streams_ops = {
 	.config_mi = dmatx0_config_mi,
 	.enable_mi = dmatx_enable_mi,
 	.stop_mi = dmatx_stop_mi,
-	.is_stream_stopped = dmatx_is_stream_stopped,
+	.is_stream_stopped = dmatx0_is_stream_stopped,
 	.update_mi = update_dmatx_v2,
 };
 
@@ -1400,7 +1400,7 @@ static struct streams_ops rkisp2_dmatx1_streams_ops = {
 	.config_mi = dmatx1_config_mi,
 	.enable_mi = dmatx_enable_mi,
 	.stop_mi = dmatx_stop_mi,
-	.is_stream_stopped = dmatx_is_stream_stopped,
+	.is_stream_stopped = dmatx1_is_stream_stopped,
 	.update_mi = update_dmatx_v2,
 };
 
@@ -1408,7 +1408,7 @@ static struct streams_ops rkisp2_dmatx2_streams_ops = {
 	.config_mi = dmatx2_config_mi,
 	.enable_mi = dmatx_enable_mi,
 	.stop_mi = dmatx_stop_mi,
-	.is_stream_stopped = dmatx_is_stream_stopped,
+	.is_stream_stopped = dmatx2_is_stream_stopped,
 	.update_mi = update_dmatx_v2,
 };
 
@@ -1416,7 +1416,7 @@ static struct streams_ops rkisp2_dmatx3_streams_ops = {
 	.config_mi = dmatx3_config_mi,
 	.enable_mi = dmatx_enable_mi,
 	.stop_mi = dmatx_stop_mi,
-	.is_stream_stopped = dmatx_is_stream_stopped,
+	.is_stream_stopped = dmatx3_is_stream_stopped,
 	.update_mi = update_dmatx_v2,
 };
 
@@ -1748,6 +1748,7 @@ static void rkisp_stream_stop(struct rkisp_stream *stream)
 	int ret = 0;
 
 	if (dev->isp_ver == ISP_V20 &&
+	    !dev->dmarx_dev.trigger &&
 	    ((dev->hdr.op_mode == HDR_RDBK_FRAME1 &&
 	      stream->id == RKISP_STREAM_DMATX2) ||
 	     (dev->hdr.op_mode == HDR_RDBK_FRAME2 &&
@@ -1764,8 +1765,7 @@ static void rkisp_stream_stop(struct rkisp_stream *stream)
 	stream->stopping = true;
 	stream->ops->stop_mi(stream);
 	if (dev->isp_state == ISP_START &&
-	    dev->isp_inp != INP_DMARX_ISP &&
-	    !dev->dmarx_dev.trigger) {
+	    dev->isp_inp != INP_DMARX_ISP) {
 		ret = wait_event_timeout(stream->done,
 					 !stream->streaming,
 					 msecs_to_jiffies(1000));
