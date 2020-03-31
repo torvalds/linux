@@ -175,8 +175,13 @@ static int open_proxy_open(struct inode *inode, struct file *filp)
 	if (r)
 		goto out;
 
-	real_fops = fops_get(real_fops);
-	if (!real_fops) {
+	if (!fops_get(real_fops)) {
+#ifdef MODULE
+		if (real_fops->owner &&
+		    real_fops->owner->state == MODULE_STATE_GOING)
+			goto out;
+#endif
+
 		/* Huh? Module did not clean up after itself at exit? */
 		WARN(1, "debugfs file owner did not clean up at exit: %pd",
 			dentry);
@@ -305,8 +310,13 @@ static int full_proxy_open(struct inode *inode, struct file *filp)
 	if (r)
 		goto out;
 
-	real_fops = fops_get(real_fops);
-	if (!real_fops) {
+	if (!fops_get(real_fops)) {
+#ifdef MODULE
+		if (real_fops->owner &&
+		    real_fops->owner->state == MODULE_STATE_GOING)
+			goto out;
+#endif
+
 		/* Huh? Module did not cleanup after itself at exit? */
 		WARN(1, "debugfs file owner did not clean up at exit: %pd",
 			dentry);

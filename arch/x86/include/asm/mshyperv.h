@@ -46,7 +46,9 @@ typedef int (*hyperv_fill_flush_list_func)(
 #define hv_set_reference_tsc(val) \
 	wrmsrl(HV_X64_MSR_REFERENCE_TSC, val)
 #define hv_set_clocksource_vdso(val) \
-	((val).archdata.vclock_mode = VCLOCK_HVCLOCK)
+	((val).vdso_clock_mode = VDSO_CLOCKMODE_HVCLOCK)
+#define hv_enable_vdso_clocksource() \
+	vclocks_set_used(VDSO_CLOCKMODE_HVCLOCK);
 #define hv_get_raw_timer() rdtsc_ordered()
 
 void hyperv_callback_vector(void);

@@ -31,7 +31,7 @@ __setup("dump_apple_properties", dump_properties_enable);
 struct dev_header {
 	u32 len;
 	u32 prop_count;
-	struct efi_dev_path path[0];
+	struct efi_dev_path path[];
 	/*
 	 * followed by key/value pairs, each key and value preceded by u32 len,
 	 * len includes itself, value may be empty (in which case its len is 4)
@@ -42,11 +42,11 @@ struct properties_header {
 	u32 len;
 	u32 version;
 	u32 dev_count;
-	struct dev_header dev_header[0];
+	struct dev_header dev_header[];
 };
 
 static void __init unmarshal_key_value_pairs(struct dev_header *dev_header,
-					     struct device *dev, void *ptr,
+					     struct device *dev, const void *ptr,
 					     struct property_entry entry[])
 {
 	int i;
@@ -117,10 +117,10 @@ static int __init unmarshal_devices(struct properties_header *properties)
 	while (offset + sizeof(struct dev_header) < properties->len) {
 		struct dev_header *dev_header = (void *)properties + offset;
 		struct property_entry *entry = NULL;
+		const struct efi_dev_path *ptr;
 		struct device *dev;
 		size_t len;
 		int ret, i;
-		void *ptr;
 
 		if (offset + dev_header->len > properties->len ||
 		    dev_header->len <= sizeof(*dev_header)) {
@@ -131,10 +131,10 @@ static int __init unmarshal_devices(struct properties_header *properties)
 		ptr = dev_header->path;
 		len = dev_header->len - sizeof(*dev_header);
 
-		dev = efi_get_device_by_path((struct efi_dev_path **)&ptr, &len);
+		dev = efi_get_device_by_path(&ptr, &len);
 		if (IS_ERR(dev)) {
 			pr_err("device path parse error %ld at %#zx:\n",
-			       PTR_ERR(dev), ptr - (void *)dev_header);
+			       PTR_ERR(dev), (void *)ptr - (void *)dev_header);
 			print_hex_dump(KERN_ERR, pr_fmt(), DUMP_PREFIX_OFFSET,
 			       16, 1, dev_header, dev_header->len, true);
 			dev = NULL;

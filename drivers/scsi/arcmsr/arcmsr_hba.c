@@ -353,16 +353,11 @@ static irqreturn_t arcmsr_do_interrupt(int irq, void *dev_id)
 static int arcmsr_bios_param(struct scsi_device *sdev,
 		struct block_device *bdev, sector_t capacity, int *geom)
 {
-	int ret, heads, sectors, cylinders, total_capacity;
-	unsigned char *buffer;/* return copy of block device's partition table */
+	int heads, sectors, cylinders, total_capacity;
 
-	buffer = scsi_bios_ptable(bdev);
-	if (buffer) {
-		ret = scsi_partsize(buffer, capacity, &geom[2], &geom[0], &geom[1]);
-		kfree(buffer);
-		if (ret != -1)
-			return ret;
-	}
+	if (scsi_partsize(bdev, capacity, geom))
+		return 0;
+
 	total_capacity = capacity;
 	heads = 64;
 	sectors = 32;

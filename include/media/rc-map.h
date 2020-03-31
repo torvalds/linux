@@ -85,11 +85,11 @@
 /**
  * struct rc_map_table - represents a scancode/keycode pair
  *
- * @scancode: scan code (u32)
+ * @scancode: scan code (u64)
  * @keycode: Linux input keycode
  */
 struct rc_map_table {
-	u32	scancode;
+	u64	scancode;
 	u32	keycode;
 };
 
@@ -274,6 +274,7 @@ struct rc_map *rc_map_get(const char *name);
 #define RC_MAP_VIDEOMATE_K100            "rc-videomate-k100"
 #define RC_MAP_VIDEOMATE_S350            "rc-videomate-s350"
 #define RC_MAP_VIDEOMATE_TV_PVR          "rc-videomate-tv-pvr"
+#define RC_MAP_KII_PRO                   "rc-videostrong-kii-pro"
 #define RC_MAP_WETEK_HUB                 "rc-wetek-hub"
 #define RC_MAP_WETEK_PLAY2               "rc-wetek-play2"
 #define RC_MAP_WINFAST                   "rc-winfast"

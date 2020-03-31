@@ -26,6 +26,7 @@
  *
  */
 
+#include <linux/bits.h>
 #include "device.h"
 #include "card.h"
 #include "baseband.h"
@@ -63,7 +64,8 @@ void vnt_set_channel(struct vnt_private *priv, u32 connection_channel)
 	vnt_mac_reg_bits_on(priv, MAC_REG_MACCR, MACCR_CLRNAV);
 
 	/* Set Channel[7] = 0 to tell H/W channel is changing now. */
-	vnt_mac_reg_bits_off(priv, MAC_REG_CHANNEL, 0xb0);
+	vnt_mac_reg_bits_off(priv, MAC_REG_CHANNEL,
+			     (BIT(7) | BIT(5) | BIT(4)));
 
 	vnt_control_out(priv, MESSAGE_TYPE_SELECT_CHANNEL,
 			connection_channel, 0, 0, NULL);

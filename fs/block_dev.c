@@ -1520,10 +1520,22 @@ rescan:
 	if (ret)
 		return ret;
 
-	if (invalidate)
-		set_capacity(disk, 0);
-	else if (disk->fops->revalidate_disk)
-		disk->fops->revalidate_disk(disk);
+	/*
+	 * Historically we only set the capacity to zero for devices that
+	 * support partitions (independ of actually having partitions created).
+	 * Doing that is rather inconsistent, but changing it broke legacy
+	 * udisks polling for legacy ide-cdrom devices.  Use the crude check
+	 * below to get the sane behavior for most device while not breaking
+	 * userspace for this particular setup.
+	 */
+	if (invalidate) {
+		if (disk_part_scan_enabled(disk) ||
+		    !(disk->flags & GENHD_FL_REMOVABLE))
+			set_capacity(disk, 0);
+	} else {
+		if (disk->fops->revalidate_disk)
+			disk->fops->revalidate_disk(disk);
+	}
 
 	check_disk_size_change(disk, bdev, !invalidate);
 

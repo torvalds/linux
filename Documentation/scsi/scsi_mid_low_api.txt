@@ -299,7 +299,6 @@ Summary:
    scsi_host_alloc - return a new scsi_host instance whose refcount==1
    scsi_host_get - increments Scsi_Host instance's refcount
    scsi_host_put - decrements Scsi_Host instance's refcount (free if 0)
-   scsi_partsize - parse partition table into cylinders, heads + sectors
    scsi_register - create and register a scsi host adapter instance.
    scsi_remove_device - detach and remove a SCSI device
    scsi_remove_host - detach and remove all SCSI devices owned by host
@@ -470,26 +469,6 @@ void scsi_host_get(struct Scsi_Host *shost)
  *      Defined in: drivers/scsi/hosts.c
  **/
 void scsi_host_put(struct Scsi_Host *shost)
-
-
-/**
- * scsi_partsize - parse partition table into cylinders, heads + sectors
- * @buf: pointer to partition table
- * @capacity: size of (total) disk in 512 byte sectors
- * @cyls: outputs number of cylinders calculated via this pointer
- * @hds: outputs number of heads calculated via this pointer
- * @secs: outputs number of sectors calculated via this pointer
- *
- *      Returns 0 on success, -1 on failure
- *
- *      Might block: no
- *
- *      Notes: Caller owns memory returned (free with kfree() )
- *
- *      Defined in: drivers/scsi/scsicam.c
- **/
-int scsi_partsize(unsigned char *buf, unsigned long capacity,
-                  unsigned int *cyls, unsigned int *hds, unsigned int *secs)
 
 
 /**

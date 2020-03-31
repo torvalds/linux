@@ -497,11 +497,8 @@ static DEFINE_SPINLOCK(efi_runtime_lock);
  */
 #define __efi_thunk(func, ...)						\
 ({									\
-	efi_runtime_services_32_t *__rt;				\
 	unsigned short __ds, __es;					\
 	efi_status_t ____s;						\
-									\
-	__rt = (void *)(unsigned long)efi.systab->mixed_mode.runtime;	\
 									\
 	savesegment(ds, __ds);						\
 	savesegment(es, __es);						\
@@ -510,7 +507,7 @@ static DEFINE_SPINLOCK(efi_runtime_lock);
 	loadsegment(ds, __KERNEL_DS);					\
 	loadsegment(es, __KERNEL_DS);					\
 									\
-	____s = efi64_thunk(__rt->func, __VA_ARGS__);			\
+	____s = efi64_thunk(efi.runtime->mixed_mode.func, __VA_ARGS__);	\
 									\
 	loadsegment(ds, __ds);						\
 	loadsegment(es, __es);						\
@@ -839,8 +836,10 @@ efi_status_t __init __no_sanitize_address
 efi_set_virtual_address_map(unsigned long memory_map_size,
 			    unsigned long descriptor_size,
 			    u32 descriptor_version,
-			    efi_memory_desc_t *virtual_map)
+			    efi_memory_desc_t *virtual_map,
+			    unsigned long systab_phys)
 {
+	const efi_system_table_t *systab = (efi_system_table_t *)systab_phys;
 	efi_status_t status;
 	unsigned long flags;
 	pgd_t *save_pgd = NULL;
@@ -863,12 +862,15 @@ efi_set_virtual_address_map(unsigned long memory_map_size,
 
 	/* Disable interrupts around EFI calls: */
 	local_irq_save(flags);
-	status = efi_call(efi.systab->runtime->set_virtual_address_map,
+	status = efi_call(efi.runtime->set_virtual_address_map,
 			  memory_map_size, descriptor_size,
 			  descriptor_version, virtual_map);
 	local_irq_restore(flags);
 
 	kernel_fpu_end();
+
+	/* grab the virtually remapped EFI runtime services table pointer */
+	efi.runtime = READ_ONCE(systab->runtime);
 
 	if (save_pgd)
 		efi_uv1_memmap_phys_epilog(save_pgd);

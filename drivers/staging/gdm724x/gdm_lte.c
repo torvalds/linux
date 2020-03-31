@@ -513,7 +513,7 @@ static int gdm_lte_event_send(struct net_device *dev, char *buf, int len)
 
 	length = gdm_dev16_to_cpu(phy_dev->get_endian(phy_dev->priv_dev),
 				  hci->len) + HCI_HEADER_SIZE;
-	return netlink_send(lte_event.sock, idx, 0, buf, length);
+	return netlink_send(lte_event.sock, idx, 0, buf, length, dev);
 }
 
 static void gdm_lte_event_rcv(struct net_device *dev, u16 type,

@@ -207,10 +207,10 @@ DPIO
 CSR firmware support for DMC
 ----------------------------
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_csr.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_csr.c
    :doc: csr support for dmc
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_csr.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_csr.c
    :internal:
 
 Video BIOS Table (VBT)

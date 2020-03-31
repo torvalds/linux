@@ -1035,7 +1035,7 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 	ni_660x_init_tio_chips(dev, board->n_chips);
 
 	/* prepare the device for globally-named routes. */
-	if (ni_assign_device_routes("ni_660x", board->name,
+	if (ni_assign_device_routes("ni_660x", board->name, NULL,
 				    &devpriv->routing_tables) < 0) {
 		dev_warn(dev->class_dev, "%s: %s device has no signal routing table.\n",
 			 __func__, board->name);

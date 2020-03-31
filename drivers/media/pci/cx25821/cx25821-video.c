@@ -757,7 +757,7 @@ int cx25821_video_register(struct cx25821_dev *dev)
 		snprintf(vdev->name, sizeof(vdev->name), "%s #%d", dev->name, i);
 		video_set_drvdata(vdev, chan);
 
-		err = video_register_device(vdev, VFL_TYPE_GRABBER,
+		err = video_register_device(vdev, VFL_TYPE_VIDEO,
 					    video_nr[dev->nr]);
 
 		if (err < 0)

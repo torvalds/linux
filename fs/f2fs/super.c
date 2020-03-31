@@ -24,6 +24,7 @@
 #include <linux/sysfs.h>
 #include <linux/quota.h>
 #include <linux/unicode.h>
+#include <linux/part_stat.h>
 
 #include "f2fs.h"
 #include "node.h"
