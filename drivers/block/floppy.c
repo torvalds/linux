@@ -1240,16 +1240,15 @@ static void perpendicular_mode(int fdc)
 static int fifo_depth = 0xa;
 static int no_fifo;
 
-static int fdc_configure(void)
+static int fdc_configure(int fdc)
 {
 	/* Turn on FIFO */
-	output_byte(current_fdc, FD_CONFIGURE);
-	if (need_more_output(current_fdc) != MORE_OUTPUT)
+	output_byte(fdc, FD_CONFIGURE);
+	if (need_more_output(fdc) != MORE_OUTPUT)
 		return 0;
-	output_byte(current_fdc, 0);
-	output_byte(current_fdc, 0x10 | (no_fifo & 0x20) | (fifo_depth & 0xf));
-	output_byte(current_fdc, 0);		/* pre-compensation from track
-				   0 upwards */
+	output_byte(fdc, 0);
+	output_byte(fdc, 0x10 | (no_fifo & 0x20) | (fifo_depth & 0xf));
+	output_byte(fdc, 0);    /* pre-compensation from track 0 upwards */
 	return 1;
 }
 
@@ -1288,7 +1287,7 @@ static void fdc_specify(void)
 
 	if (fdc_state[current_fdc].need_configure &&
 	    fdc_state[current_fdc].version >= FDC_82072A) {
-		fdc_configure();
+		fdc_configure(current_fdc);
 		fdc_state[current_fdc].need_configure = 0;
 	}
 
@@ -4318,7 +4317,7 @@ static char __init get_fdc_version(void)
 		return FDC_UNKNOWN;
 	}
 
-	if (!fdc_configure()) {
+	if (!fdc_configure(current_fdc)) {
 		pr_info("FDC %d is an 82072\n", current_fdc);
 		return FDC_82072;	/* 82072 doesn't know CONFIGURE */
 	}
