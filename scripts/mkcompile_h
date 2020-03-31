@@ -10,17 +10,6 @@ CC=$6
 
 vecho() { [ "${quiet}" = "silent_" ] || echo "$@" ; }
 
-# If compile.h exists already and we don't own autoconf.h
-# (i.e. we're not the same user who did make *config), don't
-# modify compile.h
-# So "sudo make install" won't change the "compiled by <user>"
-# do "compiled by root"
-
-if [ -r $TARGET -a ! -O include/generated/autoconf.h ]; then
-  vecho "  SKIPPED $TARGET"
-  exit 0
-fi
-
 # Do not expand names
 set -f
 
