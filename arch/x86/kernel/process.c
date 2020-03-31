@@ -649,6 +649,9 @@ void __switch_to_xtra(struct task_struct *prev_p, struct task_struct *next_p)
 		/* Enforce MSR update to ensure consistent state */
 		__speculation_ctrl_update(~tifn, tifn);
 	}
+
+	if ((tifp ^ tifn) & _TIF_SLD)
+		switch_to_sld(tifn);
 }
 
 /*

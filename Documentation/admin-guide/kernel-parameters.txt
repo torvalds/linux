@@ -4711,6 +4711,28 @@
 	spia_pedr=
 	spia_peddr=
 
+	split_lock_detect=
+			[X86] Enable split lock detection
+
+			When enabled (and if hardware support is present), atomic
+			instructions that access data across cache line
+			boundaries will result in an alignment check exception.
+
+			off	- not enabled
+
+			warn	- the kernel will emit rate limited warnings
+				  about applications triggering the #AC
+				  exception. This mode is the default on CPUs
+				  that supports split lock detection.
+
+			fatal	- the kernel will send SIGBUS to applications
+				  that trigger the #AC exception.
+
+			If an #AC exception is hit in the kernel or in
+			firmware (i.e. not while executing in user mode)
+			the kernel will oops in either "warn" or "fatal"
+			mode.
+
 	srcutree.counter_wrap_check [KNL]
 			Specifies how frequently to check for
 			grace-period sequence counter wrap for the
