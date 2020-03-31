@@ -13,6 +13,20 @@
 #include <linux/syscore_ops.h>
 #include <linux/soc/brcmstb/brcmstb.h>
 
+#define RACENPREF_MASK			0x3
+#define RACPREFINST_SHIFT		0
+#define RACENINST_SHIFT			2
+#define RACPREFDATA_SHIFT		4
+#define RACENDATA_SHIFT			6
+#define RAC_CPU_SHIFT			8
+#define RACCFG_MASK			0xff
+
+/* Bitmask to enable instruction and data prefetching with a 256-bytes stride */
+#define RAC_DATA_INST_EN_MASK		(1 << RACPREFINST_SHIFT | \
+					 RACENPREF_MASK << RACENINST_SHIFT | \
+					 1 << RACPREFDATA_SHIFT | \
+					 RACENPREF_MASK << RACENDATA_SHIFT)
+
 #define  CPU_CREDIT_REG_MCPx_WR_PAIRING_EN_MASK	0x70000000
 #define CPU_CREDIT_REG_MCPx_READ_CRED_MASK	0xf
 #define CPU_CREDIT_REG_MCPx_WRITE_CRED_MASK	0xf
@@ -31,11 +45,20 @@ static void __iomem *cpubiuctrl_base;
 static bool mcp_wr_pairing_en;
 static const int *cpubiuctrl_regs;
 
+enum cpubiuctrl_regs {
+	CPU_CREDIT_REG = 0,
+	CPU_MCP_FLOW_REG,
+	CPU_WRITEBACK_CTRL_REG,
+	RAC_CONFIG0_REG,
+	NUM_CPU_BIUCTRL_REGS,
+};
+
 static inline u32 cbc_readl(int reg)
 {
 	int offset = cpubiuctrl_regs[reg];
 
-	if (offset == -1)
+	if (offset == -1 ||
+	    (IS_ENABLED(CONFIG_CACHE_B15_RAC) && reg == RAC_CONFIG0_REG))
 		return (u32)-1;
 
 	return readl_relaxed(cpubiuctrl_base + offset);
@@ -45,22 +68,18 @@ static inline void cbc_writel(u32 val, int reg)
 {
 	int offset = cpubiuctrl_regs[reg];
 
-	if (offset == -1)
+	if (offset == -1 ||
+	    (IS_ENABLED(CONFIG_CACHE_B15_RAC) && reg == RAC_CONFIG0_REG))
 		return;
 
 	writel(val, cpubiuctrl_base + offset);
 }
 
-enum cpubiuctrl_regs {
-	CPU_CREDIT_REG = 0,
-	CPU_MCP_FLOW_REG,
-	CPU_WRITEBACK_CTRL_REG
-};
-
 static const int b15_cpubiuctrl_regs[] = {
 	[CPU_CREDIT_REG] = 0x184,
 	[CPU_MCP_FLOW_REG] = -1,
 	[CPU_WRITEBACK_CTRL_REG] = -1,
+	[RAC_CONFIG0_REG] = -1,
 };
 
 /* Odd cases, e.g: 7260A0 */
@@ -68,21 +87,22 @@ static const int b53_cpubiuctrl_no_wb_regs[] = {
 	[CPU_CREDIT_REG] = 0x0b0,
 	[CPU_MCP_FLOW_REG] = 0x0b4,
 	[CPU_WRITEBACK_CTRL_REG] = -1,
+	[RAC_CONFIG0_REG] = 0x78,
 };
 
 static const int b53_cpubiuctrl_regs[] = {
 	[CPU_CREDIT_REG] = 0x0b0,
 	[CPU_MCP_FLOW_REG] = 0x0b4,
 	[CPU_WRITEBACK_CTRL_REG] = 0x22c,
+	[RAC_CONFIG0_REG] = 0x78,
 };
 
 static const int a72_cpubiuctrl_regs[] = {
 	[CPU_CREDIT_REG] = 0x18,
 	[CPU_MCP_FLOW_REG] = 0x1c,
 	[CPU_WRITEBACK_CTRL_REG] = 0x20,
+	[RAC_CONFIG0_REG] = 0x08,
 };
-
-#define NUM_CPU_BIUCTRL_REGS	3
 
 static int __init mcp_write_pairing_set(void)
 {
@@ -116,6 +136,52 @@ static const u32 a72_b53_mach_compat[] = {
 	0x7271,
 	0x7278,
 };
+
+/* The read-ahead cache present in the Brahma-B53 CPU is a special piece of
+ * hardware after the integrated L2 cache of the B53 CPU complex whose purpose
+ * is to prefetch instruction and/or data with a line size of either 64 bytes
+ * or 256 bytes. The rationale is that the data-bus of the CPU interface is
+ * optimized for 256-byte transactions, and enabling the read-ahead cache
+ * provides a significant performance boost (typically twice the performance
+ * for a memcpy benchmark application).
+ *
+ * The read-ahead cache is transparent for Virtual Address cache maintenance
+ * operations: IC IVAU, DC IVAC, DC CVAC, DC CVAU and DC CIVAC.  So no special
+ * handling is needed for the DMA API above and beyond what is included in the
+ * arm64 implementation.
+ *
+ * In addition, since the Point of Unification is typically between L1 and L2
+ * for the Brahma-B53 processor no special read-ahead cache handling is needed
+ * for the IC IALLU and IC IALLUIS cache maintenance operations.
+ *
+ * However, it is not possible to specify the cache level (L3) for the cache
+ * maintenance instructions operating by set/way to operate on the read-ahead
+ * cache.  The read-ahead cache will maintain coherency when inner cache lines
+ * are cleaned by set/way, but if it is necessary to invalidate inner cache
+ * lines by set/way to maintain coherency with system masters operating on
+ * shared memory that does not have hardware support for coherency, then it
+ * will also be necessary to explicitly invalidate the read-ahead cache.
+ */
+static void __init a72_b53_rac_enable_all(struct device_node *np)
+{
+	unsigned int cpu;
+	u32 enable = 0;
+
+	if (IS_ENABLED(CONFIG_CACHE_B15_RAC))
+		return;
+
+	if (WARN(num_possible_cpus() > 4, "RAC only supports 4 CPUs\n"))
+		return;
+
+	for_each_possible_cpu(cpu)
+		enable |= RAC_DATA_INST_EN_MASK << (cpu * RAC_CPU_SHIFT);
+
+	cbc_writel(enable, RAC_CONFIG0_REG);
+
+	pr_info("%pOF: Broadcom %s read-ahead cache\n",
+		np, cpubiuctrl_regs == a72_cpubiuctrl_regs ?
+		"Cortex-A72" : "Brahma-B53");
+}
 
 static void __init mcp_a72_b53_set(void)
 {
@@ -262,6 +328,7 @@ static int __init brcmstb_biuctrl_init(void)
 		return ret;
 	}
 
+	a72_b53_rac_enable_all(np);
 	mcp_a72_b53_set();
 #ifdef CONFIG_PM_SLEEP
 	register_syscore_ops(&brcmstb_cpu_credit_syscore_ops);
