@@ -447,12 +447,6 @@ static void update_temperature(struct thermal_zone_device *tz)
 	mutex_unlock(&tz->lock);
 
 	trace_thermal_temperature(tz);
-	if (tz->last_temperature == THERMAL_TEMP_INVALID)
-		dev_dbg(&tz->device, "last_temperature N/A, current_temperature=%d\n",
-			tz->temperature);
-	else
-		dev_dbg(&tz->device, "last_temperature=%d, current_temperature=%d\n",
-			tz->last_temperature, tz->temperature);
 }
 
 static void thermal_zone_device_init(struct thermal_zone_device *tz)
