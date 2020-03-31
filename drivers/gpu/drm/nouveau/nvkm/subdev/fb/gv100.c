@@ -51,3 +51,5 @@ MODULE_FIRMWARE("nvidia/gv100/nvdec/scrubber.bin");
 MODULE_FIRMWARE("nvidia/tu102/nvdec/scrubber.bin");
 MODULE_FIRMWARE("nvidia/tu104/nvdec/scrubber.bin");
 MODULE_FIRMWARE("nvidia/tu106/nvdec/scrubber.bin");
+MODULE_FIRMWARE("nvidia/tu116/nvdec/scrubber.bin");
+MODULE_FIRMWARE("nvidia/tu117/nvdec/scrubber.bin");

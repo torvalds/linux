@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 
 ccflags-y += -Iarch/x86/kvm
-ccflags-y += -Werror
+ccflags-$(CONFIG_KVM_WERROR) += -Werror
 
 KVM := ../../../virt/kvm
 

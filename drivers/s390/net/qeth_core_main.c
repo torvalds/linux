@@ -1128,9 +1128,10 @@ static void qeth_clear_output_buffer(struct qeth_qdio_out_q *queue,
 	qeth_tx_complete_buf(buf, error, budget);
 
 	for (i = 0; i < queue->max_elements; ++i) {
-		if (buf->buffer->element[i].addr && buf->is_header[i])
-			kmem_cache_free(qeth_core_header_cache,
-				buf->buffer->element[i].addr);
+		void *data = phys_to_virt(buf->buffer->element[i].addr);
+
+		if (data && buf->is_header[i])
+			kmem_cache_free(qeth_core_header_cache, data);
 		buf->is_header[i] = 0;
 	}
 
@@ -2641,7 +2642,8 @@ static int qeth_init_input_buffer(struct qeth_card *card,
 	buf->pool_entry = pool_entry;
 	for (i = 0; i < QETH_MAX_BUFFER_ELEMENTS(card); ++i) {
 		buf->buffer->element[i].length = PAGE_SIZE;
-		buf->buffer->element[i].addr =  pool_entry->elements[i];
+		buf->buffer->element[i].addr =
+			virt_to_phys(pool_entry->elements[i]);
 		if (i == QETH_MAX_BUFFER_ELEMENTS(card) - 1)
 			buf->buffer->element[i].eflags = SBAL_EFLAGS_LAST_ENTRY;
 		else
@@ -3459,9 +3461,8 @@ static void qeth_qdio_cq_handler(struct qeth_card *card, unsigned int qdio_err,
 
 		while ((e < QDIO_MAX_ELEMENTS_PER_BUFFER) &&
 		       buffer->element[e].addr) {
-			unsigned long phys_aob_addr;
+			unsigned long phys_aob_addr = buffer->element[e].addr;
 
-			phys_aob_addr = (unsigned long) buffer->element[e].addr;
 			qeth_qdio_handle_aob(card, phys_aob_addr);
 			++e;
 		}
@@ -3750,7 +3751,7 @@ static unsigned int __qeth_fill_buffer(struct sk_buff *skb,
 		elem_length = min_t(unsigned int, length,
 				    PAGE_SIZE - offset_in_page(data));
 
-		buffer->element[element].addr = data;
+		buffer->element[element].addr = virt_to_phys(data);
 		buffer->element[element].length = elem_length;
 		length -= elem_length;
 		if (is_first_elem) {
@@ -3780,7 +3781,7 @@ static unsigned int __qeth_fill_buffer(struct sk_buff *skb,
 			elem_length = min_t(unsigned int, length,
 					    PAGE_SIZE - offset_in_page(data));
 
-			buffer->element[element].addr = data;
+			buffer->element[element].addr = virt_to_phys(data);
 			buffer->element[element].length = elem_length;
 			buffer->element[element].eflags =
 				SBAL_EFLAGS_MIDDLE_FRAG;
@@ -3820,7 +3821,7 @@ static unsigned int qeth_fill_buffer(struct qeth_qdio_out_buffer *buf,
 		int element = buf->next_element_to_fill;
 		is_first_elem = false;
 
-		buffer->element[element].addr = hdr;
+		buffer->element[element].addr = virt_to_phys(hdr);
 		buffer->element[element].length = hd_len;
 		buffer->element[element].eflags = SBAL_EFLAGS_FIRST_FRAG;
 		/* remember to free cache-allocated qeth_hdr: */
@@ -4746,10 +4747,10 @@ static void qeth_qdio_establish_cq(struct qeth_card *card,
 	if (card->options.cq == QETH_CQ_ENABLED) {
 		int offset = QDIO_MAX_BUFFERS_PER_Q *
 			     (card->qdio.no_in_queues - 1);
-		for (i = 0; i < QDIO_MAX_BUFFERS_PER_Q; ++i) {
-			in_sbal_ptrs[offset + i] = (struct qdio_buffer *)
-				virt_to_phys(card->qdio.c_q->bufs[i].buffer);
-		}
+
+		for (i = 0; i < QDIO_MAX_BUFFERS_PER_Q; i++)
+			in_sbal_ptrs[offset + i] =
+				card->qdio.c_q->bufs[i].buffer;
 
 		queue_start_poll[card->qdio.no_in_queues - 1] = NULL;
 	}
@@ -4783,10 +4784,9 @@ static int qeth_qdio_establish(struct qeth_card *card)
 		rc = -ENOMEM;
 		goto out_free_qib_param;
 	}
-	for (i = 0; i < QDIO_MAX_BUFFERS_PER_Q; ++i) {
-		in_sbal_ptrs[i] = (struct qdio_buffer *)
-			virt_to_phys(card->qdio.in_q->bufs[i].buffer);
-	}
+
+	for (i = 0; i < QDIO_MAX_BUFFERS_PER_Q; i++)
+		in_sbal_ptrs[i] = card->qdio.in_q->bufs[i].buffer;
 
 	queue_start_poll = kcalloc(card->qdio.no_in_queues, sizeof(void *),
 				   GFP_KERNEL);
@@ -4807,11 +4807,11 @@ static int qeth_qdio_establish(struct qeth_card *card)
 		rc = -ENOMEM;
 		goto out_free_queue_start_poll;
 	}
+
 	for (i = 0, k = 0; i < card->qdio.no_out_queues; ++i)
-		for (j = 0; j < QDIO_MAX_BUFFERS_PER_Q; ++j, ++k) {
-			out_sbal_ptrs[k] = (struct qdio_buffer *)virt_to_phys(
-				card->qdio.out_qs[i]->bufs[j]->buffer);
-		}
+		for (j = 0; j < QDIO_MAX_BUFFERS_PER_Q; j++, k++)
+			out_sbal_ptrs[k] =
+				card->qdio.out_qs[i]->bufs[j]->buffer;
 
 	memset(&init_data, 0, sizeof(struct qdio_initialize));
 	init_data.cdev                   = CARD_DDEV(card);
@@ -5289,7 +5289,7 @@ next_packet:
 		offset = 0;
 	}
 
-	hdr = element->addr + offset;
+	hdr = phys_to_virt(element->addr) + offset;
 	offset += sizeof(*hdr);
 	skb = NULL;
 
@@ -5344,7 +5344,7 @@ next_packet:
 	}
 
 	use_rx_sg = (card->options.cq == QETH_CQ_ENABLED) ||
-		    ((skb_len >= card->options.rx_sg_cb) &&
+		    (skb_len > card->options.rx_sg_cb &&
 		     !atomic_read(&card->force_alloc_skb) &&
 		     !IS_OSN(card));
 
@@ -5388,7 +5388,7 @@ use_skb:
 walk_packet:
 	while (skb_len) {
 		int data_len = min(skb_len, (int)(element->length - offset));
-		char *data = element->addr + offset;
+		char *data = phys_to_virt(element->addr) + offset;
 
 		skb_len -= data_len;
 		offset += data_len;
@@ -5447,7 +5447,6 @@ static int qeth_extract_skbs(struct qeth_card *card, int budget,
 {
 	int work_done = 0;
 
-	WARN_ON_ONCE(!budget);
 	*done = false;
 
 	while (budget) {

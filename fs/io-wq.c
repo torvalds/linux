@@ -535,42 +535,23 @@ next:
 	} while (1);
 }
 
-static inline void io_worker_spin_for_work(struct io_wqe *wqe)
-{
-	int i = 0;
-
-	while (++i < 1000) {
-		if (io_wqe_run_queue(wqe))
-			break;
-		if (need_resched())
-			break;
-		cpu_relax();
-	}
-}
-
 static int io_wqe_worker(void *data)
 {
 	struct io_worker *worker = data;
 	struct io_wqe *wqe = worker->wqe;
 	struct io_wq *wq = wqe->wq;
-	bool did_work;
 
 	io_worker_start(wqe, worker);
 
-	did_work = false;
 	while (!test_bit(IO_WQ_BIT_EXIT, &wq->state)) {
 		set_current_state(TASK_INTERRUPTIBLE);
 loop:
-		if (did_work)
-			io_worker_spin_for_work(wqe);
 		spin_lock_irq(&wqe->lock);
 		if (io_wqe_run_queue(wqe)) {
 			__set_current_state(TASK_RUNNING);
 			io_worker_handle_work(worker);
-			did_work = true;
 			goto loop;
 		}
-		did_work = false;
 		/* drops the lock on success, retry */
 		if (__io_worker_idle(wqe, worker)) {
 			__release(&wqe->lock);

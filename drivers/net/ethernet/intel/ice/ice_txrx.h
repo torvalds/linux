@@ -222,7 +222,7 @@ enum ice_rx_dtype {
 #define ICE_ITR_GRAN_S		1	/* ITR granularity is always 2us */
 #define ICE_ITR_GRAN_US		BIT(ICE_ITR_GRAN_S)
 #define ICE_ITR_MASK		0x1FFE	/* ITR register value alignment mask */
-#define ITR_REG_ALIGN(setting)	__ALIGN_MASK(setting, ~ICE_ITR_MASK)
+#define ITR_REG_ALIGN(setting)	((setting) & ICE_ITR_MASK)
 
 #define ICE_ITR_ADAPTIVE_MIN_INC	0x0002
 #define ICE_ITR_ADAPTIVE_MIN_USECS	0x0002
