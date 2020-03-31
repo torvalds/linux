@@ -1683,6 +1683,10 @@ static int rk_gmac_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_gmac_powerdown;
 
+	ret = dwmac_rk_create_loopback_sysfs(&pdev->dev);
+	if (ret)
+		goto err_gmac_powerdown;
+
 	return 0;
 
 err_gmac_powerdown:
@@ -1699,6 +1703,7 @@ static int rk_gmac_remove(struct platform_device *pdev)
 	int ret = stmmac_dvr_remove(&pdev->dev);
 
 	rk_gmac_powerdown(bsp_priv);
+	dwmac_rk_remove_loopback_sysfs(&pdev->dev);
 
 	return ret;
 }

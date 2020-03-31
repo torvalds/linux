@@ -1207,7 +1207,8 @@ static int dwmac_rk_loopback_run(struct stmmac_priv *priv,
 		if (priv->plat->stmmac_rst)
 			reset_control_assert(priv->plat->stmmac_rst);
 
-		stmmac_mdio_reset(priv->mii);
+		if (priv->mii)
+			priv->mii->reset(priv->mii);
 
 		if (priv->plat->stmmac_rst)
 			reset_control_deassert(priv->plat->stmmac_rst);
