@@ -677,12 +677,12 @@ static bool is_same_edid(struct dc_edid *old_edid, struct dc_edid *new_edid)
 	if (new_edid->length == 0)
 		return false;
 
-	return (memcmp(old_edid->raw_edid, new_edid->raw_edid, new_edid->length) == 0);
+	return (memcmp(old_edid->raw_edid,
+		       new_edid->raw_edid, new_edid->length) == 0);
 }
 
 static bool wait_for_alt_mode(struct dc_link *link)
 {
-
 	/**
 	 * something is terribly wrong if time out is > 200ms. (5Hz)
 	 * 500 microseconds * 400 tries us 200 ms
@@ -697,7 +697,7 @@ static bool wait_for_alt_mode(struct dc_link *link)
 
 	DC_LOGGER_INIT(link->ctx->logger);
 
-	if (link->link_enc->funcs->is_in_alt_mode == NULL)
+	if (!link->link_enc->funcs->is_in_alt_mode)
 		return true;
 
 	is_in_alt_mode = link->link_enc->funcs->is_in_alt_mode(link->link_enc);
@@ -712,21 +712,21 @@ static bool wait_for_alt_mode(struct dc_link *link)
 		udelay(sleep_time_in_microseconds);
 		/* ask the link if alt mode is enabled, if so return ok */
 		if (link->link_enc->funcs->is_in_alt_mode(link->link_enc)) {
-
 			finish_timestamp = dm_get_timestamp(link->ctx);
-			time_taken_in_ns = dm_get_elapse_time_in_ns(
-				link->ctx, finish_timestamp, enter_timestamp);
+			time_taken_in_ns =
+				dm_get_elapse_time_in_ns(link->ctx,
+							 finish_timestamp,
+							 enter_timestamp);
 			DC_LOG_WARNING("Alt mode entered finished after %llu ms\n",
 				       div_u64(time_taken_in_ns, 1000000));
 			return true;
 		}
-
 	}
 	finish_timestamp = dm_get_timestamp(link->ctx);
 	time_taken_in_ns = dm_get_elapse_time_in_ns(link->ctx, finish_timestamp,
 						    enter_timestamp);
 	DC_LOG_WARNING("Alt mode has timed out after %llu ms\n",
-			div_u64(time_taken_in_ns, 1000000));
+		       div_u64(time_taken_in_ns, 1000000));
 	return false;
 }
 
@@ -762,30 +762,30 @@ static bool dc_link_detect_helper(struct dc_link *link,
 		return false;
 
 	if ((link->connector_signal == SIGNAL_TYPE_LVDS ||
-			link->connector_signal == SIGNAL_TYPE_EDP) &&
-			link->local_sink) {
-
+	     link->connector_signal == SIGNAL_TYPE_EDP) &&
+	    link->local_sink) {
 		// need to re-write OUI and brightness in resume case
 		if (link->connector_signal == SIGNAL_TYPE_EDP) {
 			dpcd_set_source_specific_data(link);
-			dc_link_set_default_brightness_aux(link); //TODO: use cached
+			dc_link_set_default_brightness_aux(link);
+			//TODO: use cached
 		}
 
 		return true;
 	}
 
-	if (false == dc_link_detect_sink(link, &new_connection_type)) {
+	if (!dc_link_detect_sink(link, &new_connection_type)) {
 		BREAK_TO_DEBUGGER();
 		return false;
 	}
 
 	prev_sink = link->local_sink;
-	if (prev_sink != NULL) {
+	if (prev_sink) {
 		dc_sink_retain(prev_sink);
 		memcpy(&prev_dpcd_caps, &link->dpcd_caps, sizeof(struct dpcd_caps));
 	}
-	link_disconnect_sink(link);
 
+	link_disconnect_sink(link);
 	if (new_connection_type != dc_connection_none) {
 		link->type = new_connection_type;
 		link->link_state_valid = false;
@@ -832,35 +832,31 @@ static bool dc_link_detect_helper(struct dc_link *link,
 		}
 
 		case SIGNAL_TYPE_DISPLAY_PORT: {
-
 			/* wa HPD high coming too early*/
 			if (link->link_enc->features.flags.bits.DP_IS_USB_C == 1) {
-
 				/* if alt mode times out, return false */
-				if (wait_for_alt_mode(link) == false) {
+				if (!wait_for_alt_mode(link))
 					return false;
-				}
 			}
 
-			if (!detect_dp(
-				link,
-				&sink_caps,
-				&converter_disable_audio,
-				aud_support, reason)) {
-				if (prev_sink != NULL)
+			if (!detect_dp(link, &sink_caps,
+				       &converter_disable_audio,
+				       aud_support, reason)) {
+				if (prev_sink)
 					dc_sink_release(prev_sink);
 				return false;
 			}
 
 			// Check if dpcp block is the same
-			if (prev_sink != NULL) {
-				if (memcmp(&link->dpcd_caps, &prev_dpcd_caps, sizeof(struct dpcd_caps)))
+			if (prev_sink) {
+				if (memcmp(&link->dpcd_caps, &prev_dpcd_caps,
+					   sizeof(struct dpcd_caps)))
 					same_dpcd = false;
 			}
 			/* Active dongle downstream unplug*/
 			if (link->type == dc_connection_active_dongle &&
-				link->dpcd_caps.sink_count.bits.SINK_COUNT == 0) {
-				if (prev_sink != NULL)
+			    link->dpcd_caps.sink_count.bits.SINK_COUNT == 0) {
+				if (prev_sink)
 					/* Downstream unplug */
 					dc_sink_release(prev_sink);
 				return true;
@@ -868,7 +864,7 @@ static bool dc_link_detect_helper(struct dc_link *link,
 
 			if (link->type == dc_connection_mst_branch) {
 				LINK_INFO("link=%d, mst branch is now Connected\n",
-					link->link_index);
+					  link->link_index);
 				/* Need to setup mst link_cap struct here
 				 * otherwise dc_link_detect() will leave mst link_cap
 				 * empty which leads to allocate_mst_payload() has "0"
@@ -876,15 +872,15 @@ static bool dc_link_detect_helper(struct dc_link *link,
 				 */
 				dp_verify_mst_link_cap(link);
 
-				if (prev_sink != NULL)
+				if (prev_sink)
 					dc_sink_release(prev_sink);
 				return false;
 			}
 
 			// For seamless boot, to skip verify link cap, we read UEFI settings and set them as verified.
 			if (reason == DETECT_REASON_BOOT &&
-					dc_ctx->dc->config.power_down_display_on_boot == false &&
-					link->link_status.link_active == true)
+			    !dc_ctx->dc->config.power_down_display_on_boot &&
+			    link->link_status.link_active)
 				perform_dp_seamless_boot = true;
 
 			if (perform_dp_seamless_boot) {
@@ -897,24 +893,23 @@ static bool dc_link_detect_helper(struct dc_link *link,
 
 		default:
 			DC_ERROR("Invalid connector type! signal:%d\n",
-				link->connector_signal);
-			if (prev_sink != NULL)
+				 link->connector_signal);
+			if (prev_sink)
 				dc_sink_release(prev_sink);
 			return false;
 		} /* switch() */
 
 		if (link->dpcd_caps.sink_count.bits.SINK_COUNT)
-			link->dpcd_sink_count = link->dpcd_caps.sink_count.
-					bits.SINK_COUNT;
+			link->dpcd_sink_count =
+				link->dpcd_caps.sink_count.bits.SINK_COUNT;
 		else
 			link->dpcd_sink_count = 1;
 
-		dal_ddc_service_set_transaction_type(
-						link->ddc,
-						sink_caps.transaction_type);
+		dal_ddc_service_set_transaction_type(link->ddc,
+						     sink_caps.transaction_type);
 
-		link->aux_mode = dal_ddc_service_is_in_aux_transaction_mode(
-				link->ddc);
+		link->aux_mode =
+			dal_ddc_service_is_in_aux_transaction_mode(link->ddc);
 
 		sink_init_data.link = link;
 		sink_init_data.sink_signal = sink_caps.signal;
@@ -922,7 +917,7 @@ static bool dc_link_detect_helper(struct dc_link *link,
 		sink = dc_sink_create(&sink_init_data);
 		if (!sink) {
 			DC_ERROR("Failed to create sink!\n");
-			if (prev_sink != NULL)
+			if (prev_sink)
 				dc_sink_release(prev_sink);
 			return false;
 		}
@@ -933,10 +928,8 @@ static bool dc_link_detect_helper(struct dc_link *link,
 		/* dc_sink_create returns a new reference */
 		link->local_sink = sink;
 
-		edid_status = dm_helpers_read_local_edid(
-				link->ctx,
-				link,
-				sink);
+		edid_status = dm_helpers_read_local_edid(link->ctx,
+							 link, sink);
 
 		switch (edid_status) {
 		case EDID_BAD_CHECKSUM:
@@ -944,7 +937,6 @@ static bool dc_link_detect_helper(struct dc_link *link,
 			break;
 		case EDID_NO_RESPONSE:
 			DC_LOG_ERROR("No EDID read.\n");
-
 			/*
 			 * Abort detection for non-DP connectors if we have
 			 * no EDID
@@ -955,7 +947,7 @@ static bool dc_link_detect_helper(struct dc_link *link,
 			 */
 			if (dc_is_hdmi_signal(link->connector_signal) ||
 			    dc_is_dvi_signal(link->connector_signal)) {
-				if (prev_sink != NULL)
+				if (prev_sink)
 					dc_sink_release(prev_sink);
 
 				return false;
@@ -968,14 +960,17 @@ static bool dc_link_detect_helper(struct dc_link *link,
 			link->ctx->dc->debug.disable_fec = true;
 
 		// Check if edid is the same
-		if ((prev_sink != NULL) && ((edid_status == EDID_THE_SAME) || (edid_status == EDID_OK)))
-			same_edid = is_same_edid(&prev_sink->dc_edid, &sink->dc_edid);
+		if ((prev_sink) &&
+		    (edid_status == EDID_THE_SAME || edid_status == EDID_OK))
+			same_edid = is_same_edid(&prev_sink->dc_edid,
+						 &sink->dc_edid);
 
 		if (sink->edid_caps.panel_patch.skip_scdc_overwrite)
 			link->ctx->dc->debug.hdmi20_disable = true;
 
 		if (link->connector_signal == SIGNAL_TYPE_DISPLAY_PORT &&
-			sink_caps.transaction_type == DDC_TRANSACTION_TYPE_I2C_OVER_AUX) {
+		    sink_caps.transaction_type ==
+		    DDC_TRANSACTION_TYPE_I2C_OVER_AUX) {
 			/*
 			 * TODO debug why Dell 2413 doesn't like
 			 *  two link trainings
@@ -984,29 +979,28 @@ static bool dc_link_detect_helper(struct dc_link *link,
 			// verify link cap for SST non-seamless boot
 			if (!perform_dp_seamless_boot)
 				dp_verify_link_cap_with_retries(link,
-						&link->reported_link_cap,
-						LINK_TRAINING_MAX_VERIFY_RETRY);
+								&link->reported_link_cap,
+								LINK_TRAINING_MAX_VERIFY_RETRY);
 		} else {
 			// If edid is the same, then discard new sink and revert back to original sink
 			if (same_edid) {
 				link_disconnect_remap(prev_sink, link);
 				sink = prev_sink;
 				prev_sink = NULL;
-
 			}
 		}
 
 		/* HDMI-DVI Dongle */
 		if (sink->sink_signal == SIGNAL_TYPE_HDMI_TYPE_A &&
-				!sink->edid_caps.edid_hdmi)
+		    !sink->edid_caps.edid_hdmi)
 			sink->sink_signal = SIGNAL_TYPE_DVI_SINGLE_LINK;
 
 		/* Connectivity log: detection */
 		for (i = 0; i < sink->dc_edid.length / DC_EDID_BLOCK_SIZE; i++) {
 			CONN_DATA_DETECT(link,
-					&sink->dc_edid.raw_edid[i * DC_EDID_BLOCK_SIZE],
-					DC_EDID_BLOCK_SIZE,
-					"%s: [Block %d] ", sink->edid_caps.display_name, i);
+					 &sink->dc_edid.raw_edid[i * DC_EDID_BLOCK_SIZE],
+					 DC_EDID_BLOCK_SIZE,
+					 "%s: [Block %d] ", sink->edid_caps.display_name, i);
 		}
 
 		DC_LOG_DETECTION_EDID_PARSER("%s: "
@@ -1041,17 +1035,18 @@ static bool dc_link_detect_helper(struct dc_link *link,
 				sink->edid_caps.audio_modes[i].sample_rate,
 				sink->edid_caps.audio_modes[i].sample_size);
 		}
-
 	} else {
 		/* From Connected-to-Disconnected. */
 		if (link->type == dc_connection_mst_branch) {
 			LINK_INFO("link=%d, mst branch is now Disconnected\n",
-				link->link_index);
+				  link->link_index);
 
 			dm_helpers_dp_mst_stop_top_mgr(link->ctx, link);
 
 			link->mst_stream_alloc_table.stream_count = 0;
-			memset(link->mst_stream_alloc_table.stream_allocations, 0, sizeof(link->mst_stream_alloc_table.stream_allocations));
+			memset(link->mst_stream_alloc_table.stream_allocations,
+			       0,
+			       sizeof(link->mst_stream_alloc_table.stream_allocations));
 		}
 
 		link->type = dc_connection_none;
@@ -1065,16 +1060,15 @@ static bool dc_link_detect_helper(struct dc_link *link,
 	}
 
 	LINK_INFO("link=%d, dc_sink_in=%p is now %s prev_sink=%p dpcd same=%d edid same=%d\n",
-		link->link_index, sink,
-		(sink_caps.signal == SIGNAL_TYPE_NONE ?
-			"Disconnected":"Connected"), prev_sink,
-			same_dpcd, same_edid);
+		  link->link_index, sink,
+		  (sink_caps.signal ==
+		   SIGNAL_TYPE_NONE ? "Disconnected" : "Connected"),
+		  prev_sink, same_dpcd, same_edid);
 
-	if (prev_sink != NULL)
+	if (prev_sink)
 		dc_sink_release(prev_sink);
 
 	return true;
-
 }
 
 bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
