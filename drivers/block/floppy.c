@@ -1104,7 +1104,7 @@ static void setup_DMA(void)
 #endif
 }
 
-static void show_floppy(void);
+static void show_floppy(int fdc);
 
 /* waits until the fdc becomes ready */
 static int wait_til_ready(void)
@@ -1121,7 +1121,7 @@ static int wait_til_ready(void)
 	}
 	if (initialized) {
 		DPRINT("Getstatus times out (%x) on fdc %d\n", status, current_fdc);
-		show_floppy();
+		show_floppy(current_fdc);
 	}
 	fdc_state[current_fdc].reset = 1;
 	return -1;
@@ -1147,7 +1147,7 @@ static int output_byte(char byte)
 	if (initialized) {
 		DPRINT("Unable to send byte %x to FDC. Fdc=%x Status=%x\n",
 		       byte, current_fdc, status);
-		show_floppy();
+		show_floppy(current_fdc);
 	}
 	return -1;
 }
@@ -1176,7 +1176,7 @@ static int result(void)
 	if (initialized) {
 		DPRINT("get result error. Fdc=%d Last status=%x Read bytes=%d\n",
 		       current_fdc, status, i);
-		show_floppy();
+		show_floppy(current_fdc);
 	}
 	fdc_state[current_fdc].reset = 1;
 	return -1;
@@ -1819,7 +1819,7 @@ static void reset_fdc(void)
 	}
 }
 
-static void show_floppy(void)
+static void show_floppy(int fdc)
 {
 	int i;
 
@@ -1842,7 +1842,7 @@ static void show_floppy(void)
 	print_hex_dump(KERN_INFO, "", DUMP_PREFIX_NONE, 16, 1,
 		       reply_buffer, resultsize, true);
 
-	pr_info("status=%x\n", fdc_inb(current_fdc, FD_STATUS));
+	pr_info("status=%x\n", fdc_inb(fdc, FD_STATUS));
 	pr_info("fdc_busy=%lu\n", fdc_busy);
 	if (do_floppy)
 		pr_info("do_floppy=%ps\n", do_floppy);
@@ -1868,7 +1868,7 @@ static void floppy_shutdown(struct work_struct *arg)
 	unsigned long flags;
 
 	if (initialized)
-		show_floppy();
+		show_floppy(current_fdc);
 	cancel_activity();
 
 	flags = claim_dma_lock();
