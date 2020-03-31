@@ -379,35 +379,32 @@ enum mt7615_reg_base {
 #define MT_LPON_UTTR1			MT_LPON(0x01c)
 
 #define MT_WF_MIB_BASE			(dev->reg_map[MT_MIB_BASE])
-#define MT_WF_MIB(ofs)			(MT_WF_MIB_BASE + (ofs))
+#define MT_WF_MIB(_band, ofs)		(MT_WF_MIB_BASE + (ofs) + (_band) * 0x200)
 
-#define MT_MIB_M0_MISC_CR		MT_WF_MIB(0x00c)
+#define MT_MIB_M0_MISC_CR(_band)	MT_WF_MIB(_band, 0x00c)
 
-#define MT_MIB_SDR3(n)			MT_WF_MIB(0x014 + ((n) << 9))
+#define MT_MIB_SDR3(_band)		MT_WF_MIB(_band, 0x014)
 #define MT_MIB_SDR3_FCS_ERR_MASK	GENMASK(15, 0)
 
-#define MT_MIB_SDR9(n)			MT_WF_MIB(0x02c + ((n) << 9))
+#define MT_MIB_SDR9(_band)		MT_WF_MIB(_band, 0x02c)
 #define MT_MIB_SDR9_BUSY_MASK		GENMASK(23, 0)
 
-#define MT_MIB_SDR16(n)			MT_WF_MIB(0x048 + ((n) << 9))
+#define MT_MIB_SDR16(_band)		MT_WF_MIB(_band, 0x048)
 #define MT_MIB_SDR16_BUSY_MASK		GENMASK(23, 0)
 
-#define MT_MIB_SDR36(n)			MT_WF_MIB(0x098 + ((n) << 9))
+#define MT_MIB_SDR36(_band)		MT_WF_MIB(_band, 0x098)
 #define MT_MIB_SDR36_TXTIME_MASK	GENMASK(23, 0)
-#define MT_MIB_SDR37(n)			MT_WF_MIB(0x09c + ((n) << 9))
+#define MT_MIB_SDR37(_band)		MT_WF_MIB(_band, 0x09c)
 #define MT_MIB_SDR37_RXTIME_MASK	GENMASK(23, 0)
 
-#define MT_MIB_MB_SDR0(_band, n)	MT_WF_MIB(0x100 + ((_band) << 9) + \
-						  ((n) << 4))
+#define MT_MIB_MB_SDR0(_band, n)	MT_WF_MIB(_band, 0x100 + ((n) << 4))
 #define MT_MIB_RTS_RETRIES_COUNT_MASK	GENMASK(31, 16)
 #define MT_MIB_RTS_COUNT_MASK		GENMASK(15, 0)
 
-#define MT_MIB_MB_SDR1(_band, n)	MT_WF_MIB(0x104 + ((_band) << 9) + \
-						  ((n) << 4))
+#define MT_MIB_MB_SDR1(_band, n)	MT_WF_MIB(_band, 0x104 + ((n) << 4))
 #define MT_MIB_ACK_FAIL_COUNT_MASK	GENMASK(31, 16)
 
-#define MT_TX_AGG_CNT(_band, n)		MT_WF_MIB(0xa8 + ((_band) << 9) + \
-						  ((n) << 2))
+#define MT_TX_AGG_CNT(_band, n)		MT_WF_MIB(_band, 0xa8 + ((n) << 2))
 
 #define MT_DMA_SHDL(ofs)		(dev->reg_map[MT_DMA_SHDL_BASE] + (ofs))
 
