@@ -176,7 +176,7 @@
 #define RKISP_PARAM_LDCH_BUF_NUM		2
 
 #define RKISP_PARAM_LSC_LUT_BUF_NUM		2
-#define RKISP_PARAM_LSC_LUT_TBL_SIZE		(9 * 17)
+#define RKISP_PARAM_LSC_LUT_TBL_SIZE		(9 * 17 * 4)
 #define RKISP_PARAM_LSC_LUT_BUF_SIZE		(RKISP_PARAM_LSC_LUT_TBL_SIZE * 4)
 
 struct rkisp_isp_params_vdev;

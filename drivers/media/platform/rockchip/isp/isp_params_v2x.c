@@ -564,20 +564,19 @@ isp_lsc_matrix_cfg_ddr(struct rkisp_isp_params_vdev *params_vdev,
 		       const struct isp2x_lsc_cfg *pconfig)
 {
 	struct rkisp_isp_params_val_v2x *priv_val;
-	u32 value, buf_idx;
-	unsigned int data;
-	u32 *vaddr[4];
-	u32 index[4];
+	u32 data, buf_idx, *vaddr[4], index[4];
+	void *buf_vaddr;
 	int i, j;
 
+	memset(&index[0], 0, sizeof(index));
 	priv_val = (struct rkisp_isp_params_val_v2x *)params_vdev->priv_val;
 	buf_idx = (priv_val->buf_lsclut_idx++) % RKISP_PARAM_LSC_LUT_BUF_NUM;
+	buf_vaddr = priv_val->buf_lsclut[buf_idx].vaddr;
 
-	memset(&index[0], 0, sizeof(index));
-	vaddr[0] = priv_val->buf_lsclut[buf_idx].vaddr;
-	vaddr[1] = vaddr[0] + RKISP_PARAM_LSC_LUT_TBL_SIZE;
-	vaddr[2] = vaddr[1] + RKISP_PARAM_LSC_LUT_TBL_SIZE;
-	vaddr[3] = vaddr[2] + RKISP_PARAM_LSC_LUT_TBL_SIZE;
+	vaddr[0] = buf_vaddr;
+	vaddr[1] = buf_vaddr + RKISP_PARAM_LSC_LUT_TBL_SIZE;
+	vaddr[2] = buf_vaddr + RKISP_PARAM_LSC_LUT_TBL_SIZE * 2;
+	vaddr[3] = buf_vaddr + RKISP_PARAM_LSC_LUT_TBL_SIZE * 3;
 
 	/* program data tables (table size is 9 * 17 = 153) */
 	for (i = 0; i < CIF_ISP_LSC_SECTORS_MAX * CIF_ISP_LSC_SECTORS_MAX;
@@ -598,13 +597,13 @@ isp_lsc_matrix_cfg_ddr(struct rkisp_isp_params_vdev *params_vdev,
 			vaddr[1][index[1]++] = data;
 
 			data = ISP_ISP_LSC_TABLE_DATA(
-					pconfig->gb_data_tbl[i + j],
-					pconfig->gb_data_tbl[i + j + 1]);
+					pconfig->b_data_tbl[i + j],
+					pconfig->b_data_tbl[i + j + 1]);
 			vaddr[2][index[2]++] = data;
 
 			data = ISP_ISP_LSC_TABLE_DATA(
-					pconfig->b_data_tbl[i + j],
-					pconfig->b_data_tbl[i + j + 1]);
+					pconfig->gb_data_tbl[i + j],
+					pconfig->gb_data_tbl[i + j + 1]);
 			vaddr[3][index[3]++] = data;
 		}
 
@@ -619,22 +618,19 @@ isp_lsc_matrix_cfg_ddr(struct rkisp_isp_params_vdev *params_vdev,
 		vaddr[1][index[1]++] = data;
 
 		data = ISP_ISP_LSC_TABLE_DATA(
-				pconfig->gb_data_tbl[i + j],
+				pconfig->b_data_tbl[i + j],
 				0);
 		vaddr[2][index[2]++] = data;
 
 		data = ISP_ISP_LSC_TABLE_DATA(
-				pconfig->b_data_tbl[i + j],
+				pconfig->gb_data_tbl[i + j],
 				0);
 		vaddr[3][index[3]++] = data;
 	}
 
-	value = priv_val->buf_lsclut[buf_idx].dma_addr;
-	rkisp_iowrite32(params_vdev, value, MI_LUT_LSC_RD_BASE);
+	data = priv_val->buf_lsclut[buf_idx].dma_addr;
+	rkisp_iowrite32(params_vdev, data, MI_LUT_LSC_RD_BASE);
 	rkisp_iowrite32(params_vdev, RKISP_PARAM_LSC_LUT_BUF_SIZE, MI_LUT_LSC_RD_WSIZE);
-	isp_param_set_bits(params_vdev,
-			   ISP_LSC_CTRL,
-			   ISP_LSC_LUT_EN);
 }
 
 static void
@@ -649,7 +645,7 @@ isp_lsc_config(struct rkisp_isp_params_vdev *params_vdev,
 	lsc_ctrl = rkisp_ioread32(params_vdev, ISP_LSC_CTRL);
 	isp_param_clear_bits(params_vdev, ISP_LSC_CTRL,
 			     ISP_LSC_EN);
-	isp_lsc_matrix_cfg_sram(params_vdev, arg);
+	isp_lsc_matrix_cfg_ddr(params_vdev, arg);
 
 	for (i = 0; i < 4; i++) {
 		/* program x size tables */
@@ -696,7 +692,7 @@ isp_lsc_enable(struct rkisp_isp_params_vdev *params_vdev,
 	if (en) {
 		isp_param_set_bits(params_vdev,
 				   ISP_LSC_CTRL,
-				   ISP_LSC_EN);
+				   ISP_LSC_LUT_EN | ISP_LSC_EN);
 	} else {
 		isp_param_clear_bits(params_vdev,
 				     ISP_LSC_CTRL,
