@@ -528,6 +528,8 @@ static int cdns3_probe(struct platform_device *pdev)
 	sw_desc.get = cdns3_role_get;
 	sw_desc.allow_userspace_control = true;
 	sw_desc.driver_data = cdns;
+	if (device_property_read_bool(dev, "usb-role-switch"))
+		sw_desc.fwnode = dev->fwnode;
 
 	cdns->role_sw = usb_role_switch_register(dev, &sw_desc);
 	if (IS_ERR(cdns->role_sw)) {
