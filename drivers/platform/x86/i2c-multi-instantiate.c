@@ -28,7 +28,7 @@ struct i2c_inst_data {
 
 struct i2c_multi_inst_data {
 	int num_clients;
-	struct i2c_client *clients[0];
+	struct i2c_client *clients[];
 };
 
 static int i2c_multi_inst_count(struct acpi_resource *ares, void *data)
