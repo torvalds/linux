@@ -75,27 +75,28 @@ static void floppy_hardint(int irq, void *dev_id, struct pt_regs * regs)
 		register char *lptr = virtual_dma_addr;
 
 		for (lcount = virtual_dma_count; lcount; lcount--) {
-			st = fd_inb(virtual_dma_port, 4) & 0xa0;
-			if (st != 0xa0) 
+			st = fd_inb(virtual_dma_port, FD_STATUS);
+			st &= STATUS_DMA | STATUS_READY;
+			if (st != (STATUS_DMA | STATUS_READY))
 				break;
 			if (virtual_dma_mode) {
-				fd_outb(*lptr, virtual_dma_port, 5);
+				fd_outb(*lptr, virtual_dma_port, FD_DATA);
 			} else {
-				*lptr = fd_inb(virtual_dma_port, 5);
+				*lptr = fd_inb(virtual_dma_port, FD_DATA);
 			}
 			lptr++;
 		}
 		virtual_dma_count = lcount;
 		virtual_dma_addr = lptr;
-		st = fd_inb(virtual_dma_port, 4);
+		st = fd_inb(virtual_dma_port, FD_STATUS);
 	}
 
 #ifdef TRACE_FLPY_INT
 	calls++;
 #endif
-	if (st == 0x20)
+	if (st == STATUS_DMA)
 		return;
-	if (!(st & 0x20)) {
+	if (!(st & STATUS_DMA)) {
 		virtual_dma_residue += virtual_dma_count;
 		virtual_dma_count = 0;
 #ifdef TRACE_FLPY_INT
