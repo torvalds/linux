@@ -827,14 +827,14 @@ static int set_dor(int fdc, char mask, char data)
 	return olddor;
 }
 
-static void twaddle(void)
+static void twaddle(int fdc, int drive)
 {
-	if (drive_params[current_drive].select_delay)
+	if (drive_params[drive].select_delay)
 		return;
-	fdc_outb(fdc_state[current_fdc].dor & ~(0x10 << UNIT(current_drive)),
-		 current_fdc, FD_DOR);
-	fdc_outb(fdc_state[current_fdc].dor, current_fdc, FD_DOR);
-	drive_state[current_drive].select_date = jiffies;
+	fdc_outb(fdc_state[fdc].dor & ~(0x10 << UNIT(drive)),
+		 fdc, FD_DOR);
+	fdc_outb(fdc_state[fdc].dor, fdc, FD_DOR);
+	drive_state[drive].select_date = jiffies;
 }
 
 /*
@@ -1934,7 +1934,7 @@ static void floppy_ready(void)
 		  "calling disk change from floppy_ready\n");
 	if (!(raw_cmd->flags & FD_RAW_NO_MOTOR) &&
 	    disk_change(current_drive) && !drive_params[current_drive].select_delay)
-		twaddle();	/* this clears the dcl on certain
+		twaddle(current_fdc, current_drive);	/* this clears the dcl on certain
 				 * drive/controller combinations */
 
 #ifdef fd_chose_dma_mode
@@ -2904,7 +2904,7 @@ do_request:
 	}
 
 	if (test_bit(FD_NEED_TWADDLE_BIT, &drive_state[current_drive].flags))
-		twaddle();
+		twaddle(current_fdc, current_drive);
 	schedule_bh(floppy_start);
 	debugt(__func__, "queue fd request");
 	return;
@@ -3610,7 +3610,7 @@ static int fd_locked_ioctl(struct block_device *bdev, fmode_t mode, unsigned int
 	case FDTWADDLE:
 		if (lock_fdc(drive))
 			return -EINTR;
-		twaddle();
+		twaddle(current_fdc, current_drive);
 		process_fd_request();
 		return 0;
 	default:
