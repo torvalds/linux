@@ -335,6 +335,7 @@ static int venus_remove(struct platform_device *pdev)
 
 	v4l2_device_unregister(&core->v4l2_dev);
 	mutex_destroy(&core->pm_lock);
+	mutex_destroy(&core->lock);
 
 	return ret;
 }
