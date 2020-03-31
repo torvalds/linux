@@ -127,9 +127,9 @@ struct nvme_fc_rport {
 	unsigned long			dev_loss_end;
 } __aligned(sizeof(u64));	/* alignment for other things alloc'd with */
 
-enum nvme_fcctrl_flags {
-	FCCTRL_TERMIO		= (1 << 0),
-};
+/* fc_ctrl flags values - specified as bit positions */
+#define ASSOC_ACTIVE		0
+#define FCCTRL_TERMIO		1
 
 struct nvme_fc_ctrl {
 	spinlock_t		lock;
@@ -140,7 +140,6 @@ struct nvme_fc_ctrl {
 	u32			cnum;
 
 	bool			ioq_live;
-	bool			assoc_active;
 	atomic_t		err_work_active;
 	u64			association_id;
 
@@ -153,7 +152,7 @@ struct nvme_fc_ctrl {
 	struct work_struct	err_work;
 
 	struct kref		ref;
-	u32			flags;
+	unsigned long		flags;
 	u32			iocnt;
 	wait_queue_head_t	ioabort_wait;
 
@@ -1521,7 +1520,7 @@ __nvme_fc_abort_op(struct nvme_fc_ctrl *ctrl, struct nvme_fc_fcp_op *op)
 	opstate = atomic_xchg(&op->state, FCPOP_STATE_ABORTED);
 	if (opstate != FCPOP_STATE_ACTIVE)
 		atomic_set(&op->state, opstate);
-	else if (ctrl->flags & FCCTRL_TERMIO)
+	else if (test_bit(FCCTRL_TERMIO, &ctrl->flags))
 		ctrl->iocnt++;
 	spin_unlock_irqrestore(&ctrl->lock, flags);
 
@@ -1558,7 +1557,7 @@ __nvme_fc_fcpop_chk_teardowns(struct nvme_fc_ctrl *ctrl,
 
 	if (opstate == FCPOP_STATE_ABORTED) {
 		spin_lock_irqsave(&ctrl->lock, flags);
-		if (ctrl->flags & FCCTRL_TERMIO) {
+		if (test_bit(FCCTRL_TERMIO, &ctrl->flags)) {
 			if (!--ctrl->iocnt)
 				wake_up(&ctrl->ioabort_wait);
 		}
@@ -2386,16 +2385,9 @@ nvme_fc_submit_async_event(struct nvme_ctrl *arg)
 {
 	struct nvme_fc_ctrl *ctrl = to_fc_ctrl(arg);
 	struct nvme_fc_fcp_op *aen_op;
-	unsigned long flags;
-	bool terminating = false;
 	blk_status_t ret;
 
-	spin_lock_irqsave(&ctrl->lock, flags);
-	if (ctrl->flags & FCCTRL_TERMIO)
-		terminating = true;
-	spin_unlock_irqrestore(&ctrl->lock, flags);
-
-	if (terminating)
+	if (test_bit(FCCTRL_TERMIO, &ctrl->flags))
 		return;
 
 	aen_op = &ctrl->aen_ops[0];
@@ -2604,10 +2596,9 @@ nvme_fc_ctlr_active_on_rport(struct nvme_fc_ctrl *ctrl)
 	struct nvme_fc_rport *rport = ctrl->rport;
 	u32 cnt;
 
-	if (ctrl->assoc_active)
+	if (test_and_set_bit(ASSOC_ACTIVE, &ctrl->flags))
 		return 1;
 
-	ctrl->assoc_active = true;
 	cnt = atomic_inc_return(&rport->act_ctrl_cnt);
 	if (cnt == 1)
 		nvme_fc_rport_active_on_lport(rport);
@@ -2622,7 +2613,7 @@ nvme_fc_ctlr_inactive_on_rport(struct nvme_fc_ctrl *ctrl)
 	struct nvme_fc_lport *lport = rport->lport;
 	u32 cnt;
 
-	/* ctrl->assoc_active=false will be set independently */
+	/* clearing of ctrl->flags ASSOC_ACTIVE bit is in association delete */
 
 	cnt = atomic_dec_return(&rport->act_ctrl_cnt);
 	if (cnt == 0) {
@@ -2764,7 +2755,7 @@ out_delete_hw_queue:
 	__nvme_fc_delete_hw_queue(ctrl, &ctrl->queues[0], 0);
 out_free_queue:
 	nvme_fc_free_queue(&ctrl->queues[0]);
-	ctrl->assoc_active = false;
+	clear_bit(ASSOC_ACTIVE, &ctrl->flags);
 	nvme_fc_ctlr_inactive_on_rport(ctrl);
 
 	return ret;
@@ -2781,12 +2772,11 @@ nvme_fc_delete_association(struct nvme_fc_ctrl *ctrl)
 {
 	unsigned long flags;
 
-	if (!ctrl->assoc_active)
+	if (!test_and_clear_bit(ASSOC_ACTIVE, &ctrl->flags))
 		return;
-	ctrl->assoc_active = false;
 
 	spin_lock_irqsave(&ctrl->lock, flags);
-	ctrl->flags |= FCCTRL_TERMIO;
+	set_bit(FCCTRL_TERMIO, &ctrl->flags);
 	ctrl->iocnt = 0;
 	spin_unlock_irqrestore(&ctrl->lock, flags);
 
@@ -2837,7 +2827,7 @@ nvme_fc_delete_association(struct nvme_fc_ctrl *ctrl)
 	/* wait for all io that had to be aborted */
 	spin_lock_irq(&ctrl->lock);
 	wait_event_lock_irq(ctrl->ioabort_wait, ctrl->iocnt == 0, ctrl->lock);
-	ctrl->flags &= ~FCCTRL_TERMIO;
+	clear_bit(FCCTRL_TERMIO, &ctrl->flags);
 	spin_unlock_irq(&ctrl->lock);
 
 	nvme_fc_term_aen_ops(ctrl);
@@ -3109,7 +3099,6 @@ nvme_fc_init_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 	ctrl->dev = lport->dev;
 	ctrl->cnum = idx;
 	ctrl->ioq_live = false;
-	ctrl->assoc_active = false;
 	atomic_set(&ctrl->err_work_active, 0);
 	init_waitqueue_head(&ctrl->ioabort_wait);
 
