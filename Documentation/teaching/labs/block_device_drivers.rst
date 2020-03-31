@@ -46,7 +46,7 @@ Starting with version 4.9 of the Linux kernel, the call to
 :c:func:`register_blkdev` is optional. The only operations performed by this
 function are the dynamic allocation of a major (if the major argument is 0 when
 calling the function) and creating an entry in :file:`/proc/devices`. In
-future kernel versions it may be removed; however, most drivers still call it. 
+future kernel versions it may be removed; however, most drivers still call it.
 
 Usually, the call to the register function is performed in the module
 initialization function, and the call to the deregister function is performed in
@@ -56,14 +56,14 @@ the module exit function. A typical scenario is presented below:
 .. code-block:: c
 
    #include <linux/fs.h>
- 
+
    #define MY_BLOCK_MAJOR           240
    #define MY_BLKDEV_NAME          "mybdev"
- 
+
    static int my_block_init(void)
    {
        int status;
- 
+
        status = register_blkdev(MY_BLOCK_MAJOR, MY_BLKDEV_NAME);
        if (status < 0) {
                 printk(KERN_ERR "unable to register mybdev block device\n");
@@ -71,7 +71,7 @@ the module exit function. A typical scenario is presented below:
         }
         //...
    }
- 
+
    static void my_block_exit(void)
    {
         //...
@@ -101,34 +101,34 @@ the module exit function.
 
    #include <linux/fs.h>
    #include <linux/genhd.h>
- 
+
    #define MY_BLOCK_MINORS	 1
- 
+
    static struct my_block_dev {
        struct gendisk *gd;
        //...
    } dev;
- 
+
    static int create_block_device(struct my_block_dev *dev)
    {
        dev->gd = alloc_disk(MY_BLOCK_MINORS);
        //...
        add_disk(dev->gd);
    }
- 
+
    static int my_block_init(void)
    {
        //...
        create_block_device(&dev);
    }
- 
+
    static void delete_block_device(struct my_block_dev *dev)
    {
        if (dev->gd)
            del_gendisk(dev->gd);
        //...
    }
- 
+
    static void my_block_exit(void)
    {
        delete_block_device(&dev);
@@ -183,11 +183,11 @@ An example of filling a :c:type:`struct gendisk` structure is presented below:
    #include <linux/genhd.h>
    #include <linux/fs.h>
    #include <linux/blkdev.h>
- 
+
    #define NR_SECTORS			1024
- 
+
    #define KERNEL_SECTOR_SIZE		512
- 
+
    static struct my_block_dev {
        //...
        spinlock_t lock;                /* For mutual exclusion */
@@ -195,7 +195,7 @@ An example of filling a :c:type:`struct gendisk` structure is presented below:
        struct gendisk *gd;             /* The gendisk structure */
        //...
    } dev;
- 
+
    static int create_block_device(struct my_block_dev *dev)
    {
        ...
@@ -218,7 +218,7 @@ An example of filling a :c:type:`struct gendisk` structure is presented below:
 
        return 0;
    }
- 
+
    static int my_block_init(void)
    {
        int status;
@@ -228,7 +228,7 @@ An example of filling a :c:type:`struct gendisk` structure is presented below:
            return status;
        //...
    }
- 
+
    static void delete_block_device(struct my_block_dev *dev)
    {
        if (dev->gd) {
@@ -236,7 +236,7 @@ An example of filling a :c:type:`struct gendisk` structure is presented below:
        }
        //...
    }
- 
+
    static void my_block_exit(void)
    {
        delete_block_device(&dev);
@@ -302,33 +302,33 @@ An example of how to use these two functions is given below:
 
    #include <linux/fs.h>
    #include <linux/genhd.h>
- 
+
    static struct my_block_dev {
        //...
        struct gendisk * gd;
        //...
    } dev;
- 
+
    static int my_block_open(struct block_device *bdev, fmode_t mode)
    {
        //...
 
        return 0;
    }
- 
+
    static int my_block_release(struct gendisk *gd, fmode_t mode)
    {
        //...
 
        return 0;
    }
- 
+
    struct block_device_operations my_block_ops = {
        .owner = THIS_MODULE,
        .open = my_block_open,
        .release = my_block_release
    };
- 
+
    static int create_block_device(struct my_block_dev *dev)
    {
        //....
@@ -372,31 +372,31 @@ An example of using these functions is as follows:
    #include <linux/fs.h>
    #include <linux/genhd.h>
    #include <linux/blkdev.h>
- 
+
    static struct my_block_dev {
        //...
        struct request_queue *queue;
        //...
    } dev;
- 
+
    static void my_block_request(struct request_queue *q);
    //...
- 
+
    static int create_block_device(struct my_block_dev *dev)
    {
        /* Initialize the I/O queue */
-       spin_lock_init(&dev->lock); 
+       spin_lock_init(&dev->lock);
        dev->queue = blk_init_queue(my_block_request, &dev->lock);
        if (dev->queue == NULL)
            goto out_err;
        blk_queue_logical_block_size(dev->queue, KERNEL_SECTOR_SIZE);
        dev->queue->queuedata = dev;
        //...
- 
+
    out_err:
        return -ENOMEM;
    }
- 
+
    static int my_block_init(void)
    {
        int status;
@@ -406,14 +406,14 @@ An example of using these functions is as follows:
            return status;
        //...
    }
- 
+
    static void delete_block_device(struct block_dev *dev)
    {
        //...
        if (dev->queue)
            blk_cleanup_queue(dev->queue);
    }
- 
+
    static void my_block_exit(void)
    {
        delete_block_device(&dev);
@@ -605,7 +605,7 @@ The kernel can combine requests that refer to adjacent sectors but will not
 combine write requests with read requests into a single
 :c:type:`struct request` structure.
 
-A :c:type:`struct request` structure is implemented as a linked list of 
+A :c:type:`struct request` structure is implemented as a linked list of
 :c:type:`struct bio` structures together with information that allows the
 driver to retain its current position while processing the request.
 
@@ -618,7 +618,7 @@ a block I/O request.
        //...
        struct gendisk          *bi_disk;
        unsigned int            bi_opf;         /* bottom bits req flags, top bits REQ_OP. Use accessors. */
-       //... 
+       //...
        struct bio_vec          *bi_io_vec;     /* the actual vec list */
        //...
        struct bvec_iter        bi_iter;
@@ -706,7 +706,7 @@ The :c:member:`bi_opf` field specifies the type of operation. Use the
 
 .. code-block:: c
 
-   struct bio *bio = bio_alloc(GFP_NOIO, 1);  
+   struct bio *bio = bio_alloc(GFP_NOIO, 1);
    //...
    bio->bi_disk = bdev->bd_disk;
    bio->bi_iter.bi_sector = sector;
@@ -740,15 +740,15 @@ A typical example of use is:
 
    static void my_block_transfer(struct my_block_dev *dev, size_t start,
                                  size_t len, char *buffer, int dir);
- 
- 
+
+
    static int my_xfer_bio(struct my_block_dev *dev, struct bio *bio)
    {
        int i;
        struct bio_vec bvec;
        struct bvec_iter i;
        int dir = bio_data_dir(bio);
- 
+
        /* Do each segment independently. */
        bio_for_each_segment(bvec, bio, i) {
            sector_t sector = i.bi_sector;
@@ -761,7 +761,7 @@ A typical example of use is:
 
            kunmap_atomic(buffer);
        }
- 
+
        return 0;
    }
 
@@ -834,8 +834,8 @@ processing at :c:type:`struct bio` structure level:
    // the declaration of the function that carries out processing
    // :c:type:`struct bio` structures
    static void my_make_request(struct request_queue *q, struct bio *bio);
- 
- 
+
+
    // ...
    // queue creation
    dev->queue = blk_alloc_queue (GFP_KERNEL);
@@ -886,7 +886,7 @@ Using |LXR|_ find the definitions of the following symbols in the Linux kernel:
 
 Create a kernel module that allows you to register or deregister a block device.
 Start from the files in the :file:`1-2-3-6-ram-disk/kernel` directory in the
-labs task archive.
+lab skeleton.
 
 Follow the comments marked with **TODO 1** in the laboratory skeleton. Use the
 existing macrodefinitions (:c:macro:`MY_BLOCK_MAJOR`,
@@ -904,7 +904,7 @@ Unload the kernel module and check that the device was unregistered.
 
 Change the :c:macro:`MY_BLOCK_MAJOR` value to 7. Compile the module, copy it to
 the virtual machine, and insert it into the kernel. Notice that the insertion
-fails because there is already another driver /device registered in the kernel
+fails because there is already another driver/device registered in the kernel
 with the major 7.
 
 Restore the 240 value for the :c:macro:`MY_BLOCK_MAJOR` macro.
@@ -921,7 +921,7 @@ Follow the comments marked with **TODO 2**. Use the
 
 .. hint:: Review the `Register a disk`_ and `Process a request`_ sections.
 
-Fill in the :c:func:`my_block_request` function which processes the request queue
+Fill in the :c:func:`my_block_request` function to process the request queue
 without actually processing your request: display the "request received" message
 and the following information: start sector, total size, data size from the
 current :c:type:`struct bio` structure, direction. To validate a request type,
@@ -934,7 +934,7 @@ which we are interested, i.e. when the request is generated by the file system).
 Use the :c:func:`__blk_end_request_all` function to finish processing the
 request.
 
-Insert the module into the kernel. Use :command:`dmesg` to view a message sent
+Insert the module into the kernel and inspect the messages printed
 by the module. When a device is added, a request is sent to the device. Check
 the presence of :file:`/dev/myblock` and if it doesn't exist, create the device
 using the command:
@@ -949,27 +949,27 @@ To generate writing requests, use the command:
 
    echo "abc"> /dev/myblock
 
-Notice that is created a write request preceded by a read request. The read
-request takes place to read the block from the disk and "update" in its content
-what it was provided by the user without overwriting the rest. After reading and
+Notice that a write request is preceded by a read request. The request
+is done to read the block from the disk and "update" its content with the
+data provided by the user, without overwriting the rest. After reading and
 updating, writing takes place.
 
 3. RAM disk
 -----------
 
 Modify the previous module to create a RAM disk: requests to the device will
-result in read/write in a memory area.
+result in reads/writes in a memory area.
 
 The memory area :c:data:`dev->data` is already allocated in the source code of
-the module using :c:func:`vmalloc`. To deallocate, use :c:func:`vfree`.
+the module using :c:func:`vmalloc` and deallocated using :c:func:`vfree`.
 
 .. note:: Review the `Process a request`_ section.
 
 Follow the comments marked with **TODO 3** to complete the
-:c:func:`my_block_transfer` function to write /read the request information
-in /from the memory area. The function will be called for each request within
-the queue processing function: :c:func:`my_block_request`. To write /read
-in /from the memory area use :c:func:`memcpy`. To determine the write /read
+:c:func:`my_block_transfer` function to write/read the request information
+in/from the memory area. The function will be called for each request within
+the queue processing function: :c:func:`my_block_request`. To write/read
+to/from the memory area, use :c:func:`memcpy`. To determine the write/read
 information, use the fields of the :c:type:`struct request` structure.
 
 .. hint:: To find out the size of the request data, use the
@@ -982,26 +982,23 @@ information, use the fields of the :c:type:`struct request` structure.
 .. hint:: A description of useful macros is in the `Requests for block devices`_
           section.
 
-Useful information can be found in the example of the block device driver in
-Linux Device Drivers.
+.. hint:: You can find useful information in the
+          [block device driver example](https://github.com/martinezjavier/ldd3/blob/master/sbull/sbull.c)
+          from [Linux Device Driver](http://lwn.net/Kernel/LDD3/).
 
-For testing, use the :file:`ram-disk-test.c` test file. You compile it using on
-the host, the command:
-
-.. code-block:: shell
-
-    make -f Makefile.test
-
-and then run it using the QEMU virtual machine command:
+For testing, use the test file :file:`user/ram-disk-test.c`.
+The test program is compiled automatically at ``make build``, copied to the
+virtual machine at ``make copy`` and can be run on the QEMU virtual machine
+using the command:
 
 .. code-block:: shell
 
    ./ram-disk-test
 
 There is no need to insert the module into the kernel, it will be inserted by
-the :command:`ram-disk-test` executable.
+the ``ram-disk-test`` command.
 
-Some tests may crash because of lack of synchronization between the transmitted
+Some tests may fail because of lack of synchronization between the transmitted
 data (flush).
 
 4. Read data from the disk
@@ -1010,18 +1007,22 @@ data (flush).
 The purpose of this exercise is to read data from the
 :c:macro:`PHYSICAL_DISK_NAME` disk (:file:`/dev/vdb`) directly from the kernel.
 
-.. attention:: Before solving the exercise, we need to add the disk to the
-               virtual machine. To do this, generate a file that we will use as
+.. attention:: Before solving the exercise, we need to make sure the disk is
+               added to the virtual machine.
+
+               Check the variable ``QEMU_OPTS`` from :file:`qemu/Makefile`.
+               There should already be two extra disks added using ``-drive ...``.
+
+               If there are not, generate a file that we will use as
                the disk image using the command:
                :command:`dd if=/dev/zero of=qemu/mydisk.img bs=1024 count=1`
                and add the following option:
-               :command:`-drive file = qemu/mydisk.img, if=virtio, format=raw 
-               qemu`
-               in the :file:`qemu/Makefile` file (in the
-               :c:data:`QEMU_OPTS` variable)
+               :command:`-drive file=qemu/mydisk.img,if=virtio,format=raw`
+               to :file:`qemu/Makefile` (in the :c:data:`QEMU_OPTS` variable,
+               after the root disk).
 
 Follow the comments marked with **TODO 4** in the directory :file:`4-5-relay/`
-and implement the :c:func:`open_disk` and the :c:func:`close_disk` functions.
+and implement :c:func:`open_disk` and :c:func:`close_disk`.
 Use the :c:func:`blkdev_get_by_path` and :c:func:`blkdev_put` functions. The
 device must be opened in read-write mode exclusively
 (:c:macro:`FMODE_READ` | :c:macro:`FMODE_WRITE` | :c:macro:`FMODE_EXCL`), and
@@ -1031,15 +1032,15 @@ Implement the :c:func:`send_test_bio` function. You will have to create a new
 :c:type:`struct bio` structure and fill it, submit it and wait for it. Read the
 first sector of the disk. To wait, call the :c:func:`submit_bio_wait` function.
 
-.. hint:: The first sector of the disk is the sector with the index 0. At this
-          value the field :c:member:`bi_iter.bi_sector` of the
-          :c:type:`struct bio` structure must be initialized.
+.. hint:: The first sector of the disk is the sector with the index 0.
+          This value must be used to initialize the field
+          :c:member:`bi_iter.bi_sector` of the :c:type:`struct bio`.
 
-For the read operation, use the :c:macro:`REQ_OP_READ` and the
-:c:macro:`bio_set_op_attrs` macros.
+          For the read operation, use the macros :c:macro:`REQ_OP_READ` and
+          :c:macro:`bio_set_op_attrs`.
 
 After finishing the operation, display the first 3 bytes of data read by
-:c:type:`struct bio` structure. Use the format "% 02x" for the :c:func:`printk`
+:c:type:`struct bio` structure. Use the format ``"% 02x"`` for :c:func:`printk`
 to display the data and the :c:macro:`kmap_atomic` and :c:macro:`kunmap_atomic`
 macros respectively.
 
@@ -1057,7 +1058,7 @@ sure it is executable:
 
    chmod +x test-relay-disk
 
-There is no need to load the module into the kernel, it will be loaded by the
+There is no need to load the module into the kernel, it will be loaded by
 :command:`test-relay-disk`.
 
 Use the command below to run the script:
@@ -1070,7 +1071,7 @@ The script writes "abc" at the beginning of the disk indicated by
 :c:macro:`PHYSICAL_DISK_NAME`. After running, the module will display 61 62 63
 (the corresponding hexadecimal values of letters "a", "b" and "c").
 
-5. Write data to the disk 
+5. Write data to the disk
 -------------------------
 
 Follow the comments marked with **TODO 5** to write a message
@@ -1084,12 +1085,12 @@ macros.
 
 Inside the :c:func:`send_test_bio` function, if the operation is write, fill in
 the buffer associated to the :c:type:`struct bio` structure with the message
-:c:macro:`BIO_WRITE_MESSAGE`. Use the :c:macro:`kmap_atomic` and the 
+:c:macro:`BIO_WRITE_MESSAGE`. Use the :c:macro:`kmap_atomic` and the
 :c:macro:`kunmap_atomic` macros to work with the buffer associated to the
 :c:type:`struct bio` structure.
 
 .. hint:: You need to update the type of the operation associated to the
-          :c:type:`struct bio` structure operation using
+          :c:type:`struct bio` structure using the
           :c:macro:`bio_set_op_attrs` macrodefinition.
 
 For testing, run the :file:`test-relay-disk` script using the command:
@@ -1098,7 +1099,7 @@ For testing, run the :file:`test-relay-disk` script using the command:
 
    ./test-relay-disk
 
-The script will display the "read from /dev/sdb: 64 65 66" message at the
+The script will display the ``"read from /dev/sdb: 64 65 66"`` message at the
 standard output.
 
 6. Processing requests from the request queue at :c:type:`struct bio` level
@@ -1139,14 +1140,7 @@ the pages of each :c:type:`struct bio` structure and access its associated
 buffers. For the actual transfer, call the :c:func:`my_block_transfer` function
 implemented in the previous exercise.
 
-For testing, use the :file:`ram-disk-test.c` test file. Compile it on
-the host, using the command:
-
-.. code-block:: shell
-
-    make -f Makefile.test
-
-and then run it in the QEMU virtual machine using the following command:
+For testing, use the :file:`ram-disk-test.c` test file:
 
 .. code-block:: shell
 
