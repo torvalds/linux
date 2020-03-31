@@ -350,7 +350,7 @@ bool dc_stream_configure_crc(struct dc *dc, struct dc_stream_state *stream,
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		pipe = &dc->current_state->res_ctx.pipe_ctx[i];
-		if (pipe->stream == stream)
+		if (pipe->stream == stream && !pipe->top_pipe && !pipe->prev_odm_pipe)
 			break;
 	}
 	/* Stream not found */
@@ -366,6 +366,9 @@ bool dc_stream_configure_crc(struct dc *dc, struct dc_stream_state *stream,
 	param.windowb_y_start = 0;
 	param.windowb_x_end = pipe->stream->timing.h_addressable;
 	param.windowb_y_end = pipe->stream->timing.v_addressable;
+
+	param.dsc_mode = pipe->stream->timing.flags.DSC ? 1:0;
+	param.odm_mode = pipe->next_odm_pipe ? 1:0;
 
 	/* Default to the union of both windows */
 	param.selection = UNION_WINDOW_A_B;
