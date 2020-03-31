@@ -50,7 +50,7 @@ struct bcm7038_l1_chip {
 
 struct bcm7038_l1_cpu {
 	void __iomem		*map_base;
-	u32			mask_cache[0];
+	u32			mask_cache[];
 };
 
 /*
