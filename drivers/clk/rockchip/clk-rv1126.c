@@ -1292,6 +1292,10 @@ static const char *const rv1126_cru_critical_clocks[] __initconst = {
 	"pclk_pdddr",
 	"pclk_pdtop",
 	"clk_usbhost_utmi_ohci",
+	"aclk_pdjpeg_niu",
+	"hclk_pdjpeg_niu",
+	"aclk_pdvdec_niu",
+	"hclk_pdvdec_niu",
 };
 
 static void __iomem *rv1126_cru_base;
