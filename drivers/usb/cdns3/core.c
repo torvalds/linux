@@ -82,8 +82,6 @@ static void cdns3_exit_roles(struct cdns3 *cdns)
 	cdns3_drd_exit(cdns);
 }
 
-static enum usb_role cdsn3_hw_role_state_machine(struct cdns3 *cdns);
-
 /**
  * cdns3_core_init_role - initialize role of operation
  * @cdns: Pointer to cdns3 structure
@@ -193,12 +191,12 @@ err:
 }
 
 /**
- * cdsn3_hw_role_state_machine  - role switch state machine based on hw events.
+ * cdns3_hw_role_state_machine  - role switch state machine based on hw events.
  * @cdns: Pointer to controller structure.
  *
  * Returns next role to be entered based on hw events.
  */
-static enum usb_role cdsn3_hw_role_state_machine(struct cdns3 *cdns)
+static enum usb_role cdns3_hw_role_state_machine(struct cdns3 *cdns)
 {
 	enum usb_role role;
 	int id, vbus;
@@ -294,7 +292,7 @@ int cdns3_hw_role_switch(struct cdns3 *cdns)
 	pm_runtime_get_sync(cdns->dev);
 
 	current_role = cdns->role;
-	real_role = cdsn3_hw_role_state_machine(cdns);
+	real_role = cdns3_hw_role_state_machine(cdns);
 
 	/* Do nothing if nothing changed */
 	if (current_role == real_role)
