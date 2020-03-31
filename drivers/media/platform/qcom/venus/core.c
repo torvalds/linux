@@ -318,7 +318,6 @@ static int venus_remove(struct platform_device *pdev)
 	ret = hfi_core_deinit(core, true);
 	WARN_ON(ret);
 
-	hfi_destroy(core);
 	venus_shutdown(core);
 	of_platform_depopulate(dev);
 
@@ -329,6 +328,8 @@ static int venus_remove(struct platform_device *pdev)
 
 	if (pm_ops->core_put)
 		pm_ops->core_put(dev);
+
+	hfi_destroy(core);
 
 	icc_put(core->video_path);
 	icc_put(core->cpucfg_path);
