@@ -202,24 +202,12 @@ static int csi2_start(struct csi2_dev *csi2)
 	csi2_enable(csi2, host_type);
 
 	pr_debug("stream sd: %s\n", csi2->src_sd->name);
-	ret = v4l2_subdev_call(csi2->src_sd, video, s_stream, 1);
-	ret = (ret && ret != -ENOIOCTLCMD) ? ret : 0;
-	if (ret)
-		goto err_assert_reset;
 
 	return 0;
-
-err_assert_reset:
-	csi2_disable(csi2);
-	clk_disable_unprepare(csi2->pix_clk);
-	return ret;
 }
 
 static void csi2_stop(struct csi2_dev *csi2)
 {
-	/* stop upstream */
-	v4l2_subdev_call(csi2->src_sd, video, s_stream, 0);
-
 	csi2_disable(csi2);
 	clk_disable_unprepare(csi2->pix_clk);
 }
