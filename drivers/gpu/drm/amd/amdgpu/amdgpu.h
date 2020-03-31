@@ -765,7 +765,6 @@ struct amdgpu_device {
 	uint8_t				*bios;
 	uint32_t			bios_size;
 	struct amdgpu_bo		*stolen_vga_memory;
-	struct amdgpu_bo		*discovery_memory;
 	uint32_t			bios_scratch_reg_offset;
 	uint32_t			bios_scratch[AMDGPU_BIOS_NUM_SCRATCH];
 
@@ -918,7 +917,9 @@ struct amdgpu_device {
 	struct amdgpu_display_manager dm;
 
 	/* discovery */
-	uint8_t				*discovery;
+	uint8_t				*discovery_bin;
+	uint32_t			discovery_tmr_size;
+	struct amdgpu_bo		*discovery_memory;
 
 	/* mes */
 	bool                            enable_mes;
