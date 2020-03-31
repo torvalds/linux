@@ -28,7 +28,7 @@ struct nvmet_fc_tgtport;
 struct nvmet_fc_tgt_assoc;
 
 struct nvmet_fc_ls_iod {
-	struct nvmefc_tgt_ls_req	*lsreq;
+	struct nvmefc_ls_rsp		*lsrsp;
 	struct nvmefc_tgt_fcp_req	*fcpreq;	/* only if RS */
 
 	struct list_head		ls_list;	/* tgtport->ls_list */
@@ -1146,6 +1146,42 @@ __nvmet_fc_free_assocs(struct nvmet_fc_tgtport *tgtport)
 	spin_unlock_irqrestore(&tgtport->lock, flags);
 }
 
+/**
+ * nvmet_fc_invalidate_host - transport entry point called by an LLDD
+ *                       to remove references to a hosthandle for LS's.
+ *
+ * The nvmet-fc layer ensures that any references to the hosthandle
+ * on the targetport are forgotten (set to NULL).  The LLDD will
+ * typically call this when a login with a remote host port has been
+ * lost, thus LS's for the remote host port are no longer possible.
+ *
+ * If an LS request is outstanding to the targetport/hosthandle (or
+ * issued concurrently with the call to invalidate the host), the
+ * LLDD is responsible for terminating/aborting the LS and completing
+ * the LS request. It is recommended that these terminations/aborts
+ * occur after calling to invalidate the host handle to avoid additional
+ * retries by the nvmet-fc transport. The nvmet-fc transport may
+ * continue to reference host handle while it cleans up outstanding
+ * NVME associations. The nvmet-fc transport will call the
+ * ops->host_release() callback to notify the LLDD that all references
+ * are complete and the related host handle can be recovered.
+ * Note: if there are no references, the callback may be called before
+ * the invalidate host call returns.
+ *
+ * @target_port: pointer to the (registered) target port that a prior
+ *              LS was received on and which supplied the transport the
+ *              hosthandle.
+ * @hosthandle: the handle (pointer) that represents the host port
+ *              that no longer has connectivity and that LS's should
+ *              no longer be directed to.
+ */
+void
+nvmet_fc_invalidate_host(struct nvmet_fc_target_port *target_port,
+			void *hosthandle)
+{
+}
+EXPORT_SYMBOL_GPL(nvmet_fc_invalidate_host);
+
 /*
  * nvmet layer has called to terminate an association
  */
@@ -1371,7 +1407,7 @@ nvmet_fc_ls_create_association(struct nvmet_fc_tgtport *tgtport,
 		dev_err(tgtport->dev,
 			"Create Association LS failed: %s\n",
 			validation_errors[ret]);
-		iod->lsreq->rsplen = nvmet_fc_format_rjt(acc,
+		iod->lsrsp->rsplen = nvmet_fc_format_rjt(acc,
 				NVME_FC_MAX_LS_BUFFER_SIZE, rqst->w0.ls_cmd,
 				FCNVME_RJT_RC_LOGIC,
 				FCNVME_RJT_EXP_NONE, 0);
@@ -1384,7 +1420,7 @@ nvmet_fc_ls_create_association(struct nvmet_fc_tgtport *tgtport,
 
 	/* format a response */
 
-	iod->lsreq->rsplen = sizeof(*acc);
+	iod->lsrsp->rsplen = sizeof(*acc);
 
 	nvmet_fc_format_rsp_hdr(acc, FCNVME_LS_ACC,
 			fcnvme_lsdesc_len(
@@ -1462,7 +1498,7 @@ nvmet_fc_ls_create_connection(struct nvmet_fc_tgtport *tgtport,
 		dev_err(tgtport->dev,
 			"Create Connection LS failed: %s\n",
 			validation_errors[ret]);
-		iod->lsreq->rsplen = nvmet_fc_format_rjt(acc,
+		iod->lsrsp->rsplen = nvmet_fc_format_rjt(acc,
 				NVME_FC_MAX_LS_BUFFER_SIZE, rqst->w0.ls_cmd,
 				(ret == VERR_NO_ASSOC) ?
 					FCNVME_RJT_RC_INV_ASSOC :
@@ -1477,7 +1513,7 @@ nvmet_fc_ls_create_connection(struct nvmet_fc_tgtport *tgtport,
 
 	/* format a response */
 
-	iod->lsreq->rsplen = sizeof(*acc);
+	iod->lsrsp->rsplen = sizeof(*acc);
 
 	nvmet_fc_format_rsp_hdr(acc, FCNVME_LS_ACC,
 			fcnvme_lsdesc_len(sizeof(struct fcnvme_ls_cr_conn_acc)),
@@ -1542,7 +1578,7 @@ nvmet_fc_ls_disconnect(struct nvmet_fc_tgtport *tgtport,
 		dev_err(tgtport->dev,
 			"Disconnect LS failed: %s\n",
 			validation_errors[ret]);
-		iod->lsreq->rsplen = nvmet_fc_format_rjt(acc,
+		iod->lsrsp->rsplen = nvmet_fc_format_rjt(acc,
 				NVME_FC_MAX_LS_BUFFER_SIZE, rqst->w0.ls_cmd,
 				(ret == VERR_NO_ASSOC) ?
 					FCNVME_RJT_RC_INV_ASSOC :
@@ -1555,7 +1591,7 @@ nvmet_fc_ls_disconnect(struct nvmet_fc_tgtport *tgtport,
 
 	/* format a response */
 
-	iod->lsreq->rsplen = sizeof(*acc);
+	iod->lsrsp->rsplen = sizeof(*acc);
 
 	nvmet_fc_format_rsp_hdr(acc, FCNVME_LS_ACC,
 			fcnvme_lsdesc_len(
@@ -1577,9 +1613,9 @@ static void nvmet_fc_fcp_nvme_cmd_done(struct nvmet_req *nvme_req);
 static const struct nvmet_fabrics_ops nvmet_fc_tgt_fcp_ops;
 
 static void
-nvmet_fc_xmt_ls_rsp_done(struct nvmefc_tgt_ls_req *lsreq)
+nvmet_fc_xmt_ls_rsp_done(struct nvmefc_ls_rsp *lsrsp)
 {
-	struct nvmet_fc_ls_iod *iod = lsreq->nvmet_fc_private;
+	struct nvmet_fc_ls_iod *iod = lsrsp->nvme_fc_private;
 	struct nvmet_fc_tgtport *tgtport = iod->tgtport;
 
 	fc_dma_sync_single_for_cpu(tgtport->dev, iod->rspdma,
@@ -1597,9 +1633,9 @@ nvmet_fc_xmt_ls_rsp(struct nvmet_fc_tgtport *tgtport,
 	fc_dma_sync_single_for_device(tgtport->dev, iod->rspdma,
 				  NVME_FC_MAX_LS_BUFFER_SIZE, DMA_TO_DEVICE);
 
-	ret = tgtport->ops->xmt_ls_rsp(&tgtport->fc_target_port, iod->lsreq);
+	ret = tgtport->ops->xmt_ls_rsp(&tgtport->fc_target_port, iod->lsrsp);
 	if (ret)
-		nvmet_fc_xmt_ls_rsp_done(iod->lsreq);
+		nvmet_fc_xmt_ls_rsp_done(iod->lsrsp);
 }
 
 /*
@@ -1612,12 +1648,12 @@ nvmet_fc_handle_ls_rqst(struct nvmet_fc_tgtport *tgtport,
 	struct fcnvme_ls_rqst_w0 *w0 =
 			(struct fcnvme_ls_rqst_w0 *)iod->rqstbuf;
 
-	iod->lsreq->nvmet_fc_private = iod;
-	iod->lsreq->rspbuf = iod->rspbuf;
-	iod->lsreq->rspdma = iod->rspdma;
-	iod->lsreq->done = nvmet_fc_xmt_ls_rsp_done;
+	iod->lsrsp->nvme_fc_private = iod;
+	iod->lsrsp->rspbuf = iod->rspbuf;
+	iod->lsrsp->rspdma = iod->rspdma;
+	iod->lsrsp->done = nvmet_fc_xmt_ls_rsp_done;
 	/* Be preventative. handlers will later set to valid length */
-	iod->lsreq->rsplen = 0;
+	iod->lsrsp->rsplen = 0;
 
 	iod->assoc = NULL;
 
@@ -1640,7 +1676,7 @@ nvmet_fc_handle_ls_rqst(struct nvmet_fc_tgtport *tgtport,
 		nvmet_fc_ls_disconnect(tgtport, iod);
 		break;
 	default:
-		iod->lsreq->rsplen = nvmet_fc_format_rjt(iod->rspbuf,
+		iod->lsrsp->rsplen = nvmet_fc_format_rjt(iod->rspbuf,
 				NVME_FC_MAX_LS_BUFFER_SIZE, w0->ls_cmd,
 				FCNVME_RJT_RC_INVAL, FCNVME_RJT_EXP_NONE, 0);
 	}
@@ -1674,14 +1710,15 @@ nvmet_fc_handle_ls_rqst_work(struct work_struct *work)
  *
  * @target_port: pointer to the (registered) target port the LS was
  *              received on.
- * @lsreq:      pointer to a lsreq request structure to be used to reference
+ * @lsrsp:      pointer to a lsrsp structure to be used to reference
  *              the exchange corresponding to the LS.
  * @lsreqbuf:   pointer to the buffer containing the LS Request
  * @lsreqbuf_len: length, in bytes, of the received LS request
  */
 int
 nvmet_fc_rcv_ls_req(struct nvmet_fc_target_port *target_port,
-			struct nvmefc_tgt_ls_req *lsreq,
+			void *hosthandle,
+			struct nvmefc_ls_rsp *lsrsp,
 			void *lsreqbuf, u32 lsreqbuf_len)
 {
 	struct nvmet_fc_tgtport *tgtport = targetport_to_tgtport(target_port);
@@ -1699,7 +1736,7 @@ nvmet_fc_rcv_ls_req(struct nvmet_fc_target_port *target_port,
 		return -ENOENT;
 	}
 
-	iod->lsreq = lsreq;
+	iod->lsrsp = lsrsp;
 	iod->fcpreq = NULL;
 	memcpy(iod->rqstbuf, lsreqbuf, lsreqbuf_len);
 	iod->rqstdatalen = lsreqbuf_len;

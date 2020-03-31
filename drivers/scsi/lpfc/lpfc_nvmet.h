@@ -105,7 +105,7 @@ struct lpfc_nvmet_ctx_info {
 
 struct lpfc_nvmet_rcv_ctx {
 	union {
-		struct nvmefc_tgt_ls_req ls_req;
+		struct nvmefc_ls_rsp ls_rsp;
 		struct nvmefc_tgt_fcp_req fcp_req;
 	} ctx;
 	struct list_head list;

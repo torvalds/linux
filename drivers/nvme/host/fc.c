@@ -1464,6 +1464,41 @@ nvme_fc_xmt_disconnect_assoc(struct nvme_fc_ctrl *ctrl)
 		kfree(lsop);
 }
 
+/**
+ * nvme_fc_rcv_ls_req - transport entry point called by an LLDD
+ *                       upon the reception of a NVME LS request.
+ *
+ * The nvme-fc layer will copy payload to an internal structure for
+ * processing.  As such, upon completion of the routine, the LLDD may
+ * immediately free/reuse the LS request buffer passed in the call.
+ *
+ * If this routine returns error, the LLDD should abort the exchange.
+ *
+ * @remoteport: pointer to the (registered) remote port that the LS
+ *              was received from. The remoteport is associated with
+ *              a specific localport.
+ * @lsrsp:      pointer to a nvmefc_ls_rsp response structure to be
+ *              used to reference the exchange corresponding to the LS
+ *              when issuing an ls response.
+ * @lsreqbuf:   pointer to the buffer containing the LS Request
+ * @lsreqbuf_len: length, in bytes, of the received LS request
+ */
+int
+nvme_fc_rcv_ls_req(struct nvme_fc_remote_port *portptr,
+			struct nvmefc_ls_rsp *lsrsp,
+			void *lsreqbuf, u32 lsreqbuf_len)
+{
+	struct nvme_fc_rport *rport = remoteport_to_rport(portptr);
+	struct nvme_fc_lport *lport = rport->lport;
+
+	/* validate there's a routine to transmit a response */
+	if (!lport->ops->xmt_ls_rsp)
+		return(-EINVAL);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(nvme_fc_rcv_ls_req);
+
 
 /* *********************** NVME Ctrl Routines **************************** */
 
