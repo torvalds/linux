@@ -104,6 +104,10 @@ struct btree_update {
 	struct btree			*new_nodes[BTREE_MAX_DEPTH * 2 + GC_MERGE_NODES];
 	unsigned			nr_new_nodes;
 
+	unsigned			journal_u64s;
+	u64				journal_entries[
+		(BKEY_BTREE_PTR_U64s_MAX + 1) * (BTREE_MAX_DEPTH - 1) * 2];
+
 	/* Only here to reduce stack usage on recursive splits: */
 	struct keylist			parent_keys;
 	/*

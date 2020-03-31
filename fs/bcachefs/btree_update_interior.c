@@ -27,43 +27,37 @@ static void btree_update_drop_new_node(struct bch_fs *, struct btree *);
 
 /* Debug code: */
 
+/*
+ * Verify that child nodes correctly span parent node's range:
+ */
 static void btree_node_interior_verify(struct btree *b)
 {
+#ifdef CONFIG_BCACHEFS_DEBUG
+	struct bpos next_node = b->data->min_key;
 	struct btree_node_iter iter;
-	struct bkey_packed *k;
+	struct bkey_s_c k;
+	struct bkey_s_c_btree_ptr_v2 bp;
+	struct bkey unpacked;
 
 	BUG_ON(!b->c.level);
 
-	bch2_btree_node_iter_init(&iter, b, &b->key.k.p);
-#if 1
-	BUG_ON(!(k = bch2_btree_node_iter_peek(&iter, b)) ||
-	       bkey_cmp_left_packed(b, k, &b->key.k.p));
+	bch2_btree_node_iter_init_from_start(&iter, b);
 
-	BUG_ON((bch2_btree_node_iter_advance(&iter, b),
-		!bch2_btree_node_iter_end(&iter)));
-#else
-	const char *msg;
+	while (1) {
+		k = bch2_btree_node_iter_peek_unpack(&iter, b, &unpacked);
+		bp = bkey_s_c_to_btree_ptr_v2(k);
 
-	msg = "not found";
-	k = bch2_btree_node_iter_peek(&iter, b);
-	if (!k)
-		goto err;
+		BUG_ON(bkey_cmp(next_node, bp.v->min_key));
 
-	msg = "isn't what it should be";
-	if (bkey_cmp_left_packed(b, k, &b->key.k.p))
-		goto err;
+		bch2_btree_node_iter_advance(&iter, b);
 
-	bch2_btree_node_iter_advance(&iter, b);
+		if (bch2_btree_node_iter_end(&iter)) {
+			BUG_ON(bkey_cmp(k.k->p, b->key.k.p));
+			break;
+		}
 
-	msg = "isn't last key";
-	if (!bch2_btree_node_iter_end(&iter))
-		goto err;
-	return;
-err:
-	bch2_dump_btree_node(b);
-	printk(KERN_ERR "last key %llu:%llu %s\n", b->key.k.p.inode,
-	       b->key.k.p.offset, msg);
-	BUG();
+		next_node = bkey_successor(k.k->p);
+	}
 #endif
 }
 
@@ -644,8 +638,6 @@ static void btree_update_nodes_written(struct closure *cl)
 	struct bch_fs *c = as->c;
 	struct btree *b;
 	struct bset *i;
-	struct bkey_i *k;
-	unsigned journal_u64s = 0;
 	int ret;
 
 	/*
@@ -674,13 +666,7 @@ again:
 
 	list_del(&as->unwritten_list);
 
-	journal_u64s = 0;
-
-	if (as->mode != BTREE_INTERIOR_UPDATING_ROOT)
-		for_each_keylist_key(&as->parent_keys, k)
-			journal_u64s += jset_u64s(k->k.u64s);
-
-	ret = bch2_journal_res_get(&c->journal, &res, journal_u64s,
+	ret = bch2_journal_res_get(&c->journal, &res, as->journal_u64s,
 				   JOURNAL_RES_GET_RESERVED);
 	if (ret) {
 		BUG_ON(!bch2_journal_error(&c->journal));
@@ -688,13 +674,14 @@ again:
 		goto free_update;
 	}
 
-	if (as->mode != BTREE_INTERIOR_UPDATING_ROOT)
-		for_each_keylist_key(&as->parent_keys, k)
-			bch2_journal_add_entry(&c->journal, &res,
-					       BCH_JSET_ENTRY_btree_keys,
-					       as->btree_id,
-					       as->level,
-					       k, k->k.u64s);
+	{
+		struct journal_buf *buf = &c->journal.buf[res.idx];
+		struct jset_entry *entry = vstruct_idx(buf->data, res.offset);
+
+		res.offset	+= as->journal_u64s;
+		res.u64s	-= as->journal_u64s;
+		memcpy_u64s(entry, as->journal_entries, as->journal_u64s);
+	}
 
 	switch (as->mode) {
 	case BTREE_INTERIOR_NO_UPDATE:
@@ -983,7 +970,7 @@ bch2_btree_update_start(struct bch_fs *c, enum btree_id id,
 	bch2_keylist_init(&as->parent_keys, as->inline_keys);
 
 	ret = bch2_journal_preres_get(&c->journal, &as->journal_preres,
-				 jset_u64s(BKEY_BTREE_PTR_U64s_MAX) * 3, 0);
+				      ARRAY_SIZE(as->journal_entries), 0);
 	if (ret) {
 		bch2_btree_reserve_put(c, reserve);
 		closure_debug_destroy(&as->cl);
@@ -1103,10 +1090,21 @@ static void bch2_insert_fixup_btree_ptr(struct btree_update *as, struct btree *b
 {
 	struct bch_fs *c = as->c;
 	struct bch_fs_usage_online *fs_usage;
+	struct jset_entry *entry;
 	struct bkey_packed *k;
 	struct bkey tmp;
 
-	BUG_ON(insert->k.u64s > bch_btree_keys_u64s_remaining(c, b));
+	BUG_ON(as->journal_u64s + jset_u64s(insert->k.u64s) >
+	       ARRAY_SIZE(as->journal_entries));
+
+	entry = (void *) &as->journal_entries[as->journal_u64s];
+	memset(entry, 0, sizeof(*entry));
+	entry->u64s	= cpu_to_le16(insert->k.u64s);
+	entry->type	= BCH_JSET_ENTRY_btree_keys;
+	entry->btree_id = b->c.btree_id;
+	entry->level	= b->c.level;
+	memcpy_u64s_small(entry->_data, insert, insert->k.u64s);
+	as->journal_u64s += jset_u64s(insert->k.u64s);
 
 	mutex_lock(&c->btree_interior_update_lock);
 	percpu_down_read(&c->mark_lock);
@@ -1255,17 +1253,20 @@ static void btree_split_insert_keys(struct btree_update *as, struct btree *b,
 	struct bkey_packed *src, *dst, *n;
 	struct bset *i;
 
+	/*
+	 * XXX
+	 *
+	 * these updates must be journalled
+	 *
+	 * oops
+	 */
+
 	BUG_ON(btree_node_type(b) != BKEY_TYPE_BTREE);
 
 	bch2_btree_node_iter_init(&node_iter, b, &k->k.p);
 
 	while (!bch2_keylist_empty(keys)) {
 		k = bch2_keylist_front(keys);
-
-		BUG_ON(bch_keylist_u64s(keys) >
-		       bch_btree_keys_u64s_remaining(as->c, b));
-		BUG_ON(bkey_cmp(k->k.p, b->data->min_key) < 0);
-		BUG_ON(bkey_cmp(k->k.p, b->data->max_key) > 0);
 
 		bch2_insert_fixup_btree_ptr(as, b, iter, k, &node_iter);
 		bch2_keylist_pop_front(keys);
