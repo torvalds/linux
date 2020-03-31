@@ -1184,9 +1184,9 @@ static int result(int fdc)
 
 #define MORE_OUTPUT -2
 /* does the fdc need more output? */
-static int need_more_output(void)
+static int need_more_output(int fdc)
 {
-	int status = wait_til_ready(current_fdc);
+	int status = wait_til_ready(fdc);
 
 	if (status < 0)
 		return -1;
@@ -1194,7 +1194,7 @@ static int need_more_output(void)
 	if (is_ready_state(status))
 		return MORE_OUTPUT;
 
-	return result(current_fdc);
+	return result(fdc);
 }
 
 /* Set perpendicular mode as required, based on data rate, if supported.
@@ -1244,7 +1244,7 @@ static int fdc_configure(void)
 {
 	/* Turn on FIFO */
 	output_byte(current_fdc, FD_CONFIGURE);
-	if (need_more_output() != MORE_OUTPUT)
+	if (need_more_output(current_fdc) != MORE_OUTPUT)
 		return 0;
 	output_byte(current_fdc, 0);
 	output_byte(current_fdc, 0x10 | (no_fifo & 0x20) | (fifo_depth & 0xf));
@@ -1302,7 +1302,7 @@ static void fdc_specify(void)
 			/* chose the default rate table, not the one
 			 * where 1 = 2 Mbps */
 			output_byte(current_fdc, FD_DRIVESPEC);
-			if (need_more_output() == MORE_OUTPUT) {
+			if (need_more_output(current_fdc) == MORE_OUTPUT) {
 				output_byte(current_fdc, UNIT(current_drive));
 				output_byte(current_fdc, 0xc0);
 			}
@@ -4324,7 +4324,7 @@ static char __init get_fdc_version(void)
 	}
 
 	output_byte(current_fdc, FD_PERPENDICULAR);
-	if (need_more_output() == MORE_OUTPUT) {
+	if (need_more_output(current_fdc) == MORE_OUTPUT) {
 		output_byte(current_fdc, 0);
 	} else {
 		pr_info("FDC %d is an 82072A\n", current_fdc);
