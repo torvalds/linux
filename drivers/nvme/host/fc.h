@@ -16,6 +16,21 @@
  * ******************  FC-NVME LS HANDLING ******************
  */
 
+union nvmefc_ls_requests {
+	struct fcnvme_ls_cr_assoc_rqst		rq_cr_assoc;
+	struct fcnvme_ls_cr_conn_rqst		rq_cr_conn;
+	struct fcnvme_ls_disconnect_assoc_rqst	rq_dis_assoc;
+	struct fcnvme_ls_disconnect_conn_rqst	rq_dis_conn;
+} __aligned(128);	/* alignment for other things alloc'd with */
+
+union nvmefc_ls_responses {
+	struct fcnvme_ls_rjt			rsp_rjt;
+	struct fcnvme_ls_cr_assoc_acc		rsp_cr_assoc;
+	struct fcnvme_ls_cr_conn_acc		rsp_cr_conn;
+	struct fcnvme_ls_disconnect_assoc_acc	rsp_dis_assoc;
+	struct fcnvme_ls_disconnect_conn_acc	rsp_dis_conn;
+} __aligned(128);	/* alignment for other things alloc'd with */
+
 static inline void
 nvme_fc_format_rsp_hdr(void *buf, u8 ls_cmd, __be32 desc_len, u8 rqst_ls_cmd)
 {

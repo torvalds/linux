@@ -22,9 +22,6 @@
 
 #define NVMET_LS_CTX_COUNT		256
 
-/* for this implementation, assume small single frame rqst/rsp */
-#define NVME_FC_MAX_LS_BUFFER_SIZE		2048
-
 struct nvmet_fc_tgtport;
 struct nvmet_fc_tgt_assoc;
 
@@ -37,8 +34,8 @@ struct nvmet_fc_ls_iod {
 	struct nvmet_fc_tgtport		*tgtport;
 	struct nvmet_fc_tgt_assoc	*assoc;
 
-	u8				*rqstbuf;
-	u8				*rspbuf;
+	union nvmefc_ls_requests	*rqstbuf;
+	union nvmefc_ls_responses	*rspbuf;
 	u16				rqstdatalen;
 	dma_addr_t			rspdma;
 
@@ -340,15 +337,16 @@ nvmet_fc_alloc_ls_iodlist(struct nvmet_fc_tgtport *tgtport)
 		iod->tgtport = tgtport;
 		list_add_tail(&iod->ls_list, &tgtport->ls_list);
 
-		iod->rqstbuf = kcalloc(2, NVME_FC_MAX_LS_BUFFER_SIZE,
-			GFP_KERNEL);
+		iod->rqstbuf = kzalloc(sizeof(union nvmefc_ls_requests) +
+				       sizeof(union nvmefc_ls_responses),
+				       GFP_KERNEL);
 		if (!iod->rqstbuf)
 			goto out_fail;
 
-		iod->rspbuf = iod->rqstbuf + NVME_FC_MAX_LS_BUFFER_SIZE;
+		iod->rspbuf = (union nvmefc_ls_responses *)&iod->rqstbuf[1];
 
 		iod->rspdma = fc_dma_map_single(tgtport->dev, iod->rspbuf,
-						NVME_FC_MAX_LS_BUFFER_SIZE,
+						sizeof(*iod->rspbuf),
 						DMA_TO_DEVICE);
 		if (fc_dma_mapping_error(tgtport->dev, iod->rspdma))
 			goto out_fail;
@@ -361,7 +359,7 @@ out_fail:
 	list_del(&iod->ls_list);
 	for (iod--, i--; i >= 0; iod--, i--) {
 		fc_dma_unmap_single(tgtport->dev, iod->rspdma,
-				NVME_FC_MAX_LS_BUFFER_SIZE, DMA_TO_DEVICE);
+				sizeof(*iod->rspbuf), DMA_TO_DEVICE);
 		kfree(iod->rqstbuf);
 		list_del(&iod->ls_list);
 	}
@@ -379,7 +377,7 @@ nvmet_fc_free_ls_iodlist(struct nvmet_fc_tgtport *tgtport)
 
 	for (i = 0; i < NVMET_LS_CTX_COUNT; iod++, i++) {
 		fc_dma_unmap_single(tgtport->dev,
-				iod->rspdma, NVME_FC_MAX_LS_BUFFER_SIZE,
+				iod->rspdma, sizeof(*iod->rspbuf),
 				DMA_TO_DEVICE);
 		kfree(iod->rqstbuf);
 		list_del(&iod->ls_list);
@@ -1262,10 +1260,8 @@ static void
 nvmet_fc_ls_create_association(struct nvmet_fc_tgtport *tgtport,
 			struct nvmet_fc_ls_iod *iod)
 {
-	struct fcnvme_ls_cr_assoc_rqst *rqst =
-				(struct fcnvme_ls_cr_assoc_rqst *)iod->rqstbuf;
-	struct fcnvme_ls_cr_assoc_acc *acc =
-				(struct fcnvme_ls_cr_assoc_acc *)iod->rspbuf;
+	struct fcnvme_ls_cr_assoc_rqst *rqst = &iod->rqstbuf->rq_cr_assoc;
+	struct fcnvme_ls_cr_assoc_acc *acc = &iod->rspbuf->rsp_cr_assoc;
 	struct nvmet_fc_tgt_queue *queue;
 	int ret = 0;
 
@@ -1313,7 +1309,7 @@ nvmet_fc_ls_create_association(struct nvmet_fc_tgtport *tgtport,
 			"Create Association LS failed: %s\n",
 			validation_errors[ret]);
 		iod->lsrsp->rsplen = nvme_fc_format_rjt(acc,
-				NVME_FC_MAX_LS_BUFFER_SIZE, rqst->w0.ls_cmd,
+				sizeof(*acc), rqst->w0.ls_cmd,
 				FCNVME_RJT_RC_LOGIC,
 				FCNVME_RJT_EXP_NONE, 0);
 		return;
@@ -1348,10 +1344,8 @@ static void
 nvmet_fc_ls_create_connection(struct nvmet_fc_tgtport *tgtport,
 			struct nvmet_fc_ls_iod *iod)
 {
-	struct fcnvme_ls_cr_conn_rqst *rqst =
-				(struct fcnvme_ls_cr_conn_rqst *)iod->rqstbuf;
-	struct fcnvme_ls_cr_conn_acc *acc =
-				(struct fcnvme_ls_cr_conn_acc *)iod->rspbuf;
+	struct fcnvme_ls_cr_conn_rqst *rqst = &iod->rqstbuf->rq_cr_conn;
+	struct fcnvme_ls_cr_conn_acc *acc = &iod->rspbuf->rsp_cr_conn;
 	struct nvmet_fc_tgt_queue *queue;
 	int ret = 0;
 
@@ -1404,7 +1398,7 @@ nvmet_fc_ls_create_connection(struct nvmet_fc_tgtport *tgtport,
 			"Create Connection LS failed: %s\n",
 			validation_errors[ret]);
 		iod->lsrsp->rsplen = nvme_fc_format_rjt(acc,
-				NVME_FC_MAX_LS_BUFFER_SIZE, rqst->w0.ls_cmd,
+				sizeof(*acc), rqst->w0.ls_cmd,
 				(ret == VERR_NO_ASSOC) ?
 					FCNVME_RJT_RC_INV_ASSOC :
 					FCNVME_RJT_RC_LOGIC,
@@ -1437,9 +1431,9 @@ nvmet_fc_ls_disconnect(struct nvmet_fc_tgtport *tgtport,
 			struct nvmet_fc_ls_iod *iod)
 {
 	struct fcnvme_ls_disconnect_assoc_rqst *rqst =
-			(struct fcnvme_ls_disconnect_assoc_rqst *)iod->rqstbuf;
+						&iod->rqstbuf->rq_dis_assoc;
 	struct fcnvme_ls_disconnect_assoc_acc *acc =
-			(struct fcnvme_ls_disconnect_assoc_acc *)iod->rspbuf;
+						&iod->rspbuf->rsp_dis_assoc;
 	struct nvmet_fc_tgt_assoc *assoc;
 	int ret = 0;
 
@@ -1484,7 +1478,7 @@ nvmet_fc_ls_disconnect(struct nvmet_fc_tgtport *tgtport,
 			"Disconnect LS failed: %s\n",
 			validation_errors[ret]);
 		iod->lsrsp->rsplen = nvme_fc_format_rjt(acc,
-				NVME_FC_MAX_LS_BUFFER_SIZE, rqst->w0.ls_cmd,
+				sizeof(*acc), rqst->w0.ls_cmd,
 				(ret == VERR_NO_ASSOC) ?
 					FCNVME_RJT_RC_INV_ASSOC :
 					FCNVME_RJT_RC_LOGIC,
@@ -1522,7 +1516,7 @@ nvmet_fc_xmt_ls_rsp_done(struct nvmefc_ls_rsp *lsrsp)
 	struct nvmet_fc_tgtport *tgtport = iod->tgtport;
 
 	fc_dma_sync_single_for_cpu(tgtport->dev, iod->rspdma,
-				NVME_FC_MAX_LS_BUFFER_SIZE, DMA_TO_DEVICE);
+				sizeof(*iod->rspbuf), DMA_TO_DEVICE);
 	nvmet_fc_free_ls_iod(tgtport, iod);
 	nvmet_fc_tgtport_put(tgtport);
 }
@@ -1534,7 +1528,7 @@ nvmet_fc_xmt_ls_rsp(struct nvmet_fc_tgtport *tgtport,
 	int ret;
 
 	fc_dma_sync_single_for_device(tgtport->dev, iod->rspdma,
-				  NVME_FC_MAX_LS_BUFFER_SIZE, DMA_TO_DEVICE);
+				  sizeof(*iod->rspbuf), DMA_TO_DEVICE);
 
 	ret = tgtport->ops->xmt_ls_rsp(&tgtport->fc_target_port, iod->lsrsp);
 	if (ret)
@@ -1548,8 +1542,7 @@ static void
 nvmet_fc_handle_ls_rqst(struct nvmet_fc_tgtport *tgtport,
 			struct nvmet_fc_ls_iod *iod)
 {
-	struct fcnvme_ls_rqst_w0 *w0 =
-			(struct fcnvme_ls_rqst_w0 *)iod->rqstbuf;
+	struct fcnvme_ls_rqst_w0 *w0 = &iod->rqstbuf->rq_cr_assoc.w0;
 
 	iod->lsrsp->nvme_fc_private = iod;
 	iod->lsrsp->rspbuf = iod->rspbuf;
@@ -1580,7 +1573,7 @@ nvmet_fc_handle_ls_rqst(struct nvmet_fc_tgtport *tgtport,
 		break;
 	default:
 		iod->lsrsp->rsplen = nvme_fc_format_rjt(iod->rspbuf,
-				NVME_FC_MAX_LS_BUFFER_SIZE, w0->ls_cmd,
+				sizeof(*iod->rspbuf), w0->ls_cmd,
 				FCNVME_RJT_RC_INVAL, FCNVME_RJT_EXP_NONE, 0);
 	}
 
@@ -1627,7 +1620,7 @@ nvmet_fc_rcv_ls_req(struct nvmet_fc_target_port *target_port,
 	struct nvmet_fc_tgtport *tgtport = targetport_to_tgtport(target_port);
 	struct nvmet_fc_ls_iod *iod;
 
-	if (lsreqbuf_len > NVME_FC_MAX_LS_BUFFER_SIZE)
+	if (lsreqbuf_len > sizeof(union nvmefc_ls_requests))
 		return -E2BIG;
 
 	if (!nvmet_fc_tgtport_get(tgtport))
