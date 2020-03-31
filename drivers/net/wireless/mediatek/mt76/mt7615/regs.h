@@ -406,7 +406,8 @@ enum mt7615_reg_base {
 						  ((n) << 4))
 #define MT_MIB_ACK_FAIL_COUNT_MASK	GENMASK(31, 16)
 
-#define MT_TX_AGG_CNT(n)		MT_WF_MIB(0xa8 + ((n) << 2))
+#define MT_TX_AGG_CNT(_band, n)		MT_WF_MIB(0xa8 + ((_band) << 9) + \
+						  ((n) << 2))
 
 #define MT_DMA_SHDL(ofs)		(dev->reg_map[MT_DMA_SHDL_BASE] + (ofs))
 

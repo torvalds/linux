@@ -145,8 +145,10 @@ mt7615_ampdu_stat_read_phy(struct mt7615_phy *phy,
 		seq_printf(file, "%3d -%3d | ",
 			   bound[i], bound[i + 1]);
 	seq_puts(file, "\nCount:  ");
+
+	range = ext_phy ? ARRAY_SIZE(dev->mt76.aggr_stats) / 2 : 0;
 	for (i = 0; i < ARRAY_SIZE(bound); i++)
-		seq_printf(file, "%8d | ", dev->mt76.aggr_stats[i]);
+		seq_printf(file, "%8d | ", dev->mt76.aggr_stats[i + range]);
 	seq_puts(file, "\n");
 }
 

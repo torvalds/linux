@@ -82,8 +82,10 @@ void mt7615_mac_reset_counters(struct mt7615_dev *dev)
 {
 	int i;
 
-	for (i = 0; i < 4; i++)
-		mt76_rr(dev, MT_TX_AGG_CNT(i));
+	for (i = 0; i < 4; i++) {
+		mt76_rr(dev, MT_TX_AGG_CNT(0, i));
+		mt76_rr(dev, MT_TX_AGG_CNT(1, i));
+	}
 
 	memset(dev->mt76.aggr_stats, 0, sizeof(dev->mt76.aggr_stats));
 	dev->mt76.phy.survey_time = ktime_get_boottime();
@@ -1751,13 +1753,14 @@ mt7615_mac_update_mib_stats(struct mt7615_phy *phy)
 	struct mt7615_dev *dev = phy->dev;
 	struct mib_stats *mib = &phy->mib;
 	bool ext_phy = phy != &dev->phy;
-	int i;
+	int i, aggr;
 
 	memset(mib, 0, sizeof(*mib));
 
 	mib->fcs_err_cnt = mt76_get_field(dev, MT_MIB_SDR3(ext_phy),
 					  MT_MIB_SDR3_FCS_ERR_MASK);
 
+	aggr = ext_phy ? ARRAY_SIZE(dev->mt76.aggr_stats) / 2 : 0;
 	for (i = 0; i < 4; i++) {
 		u32 data, val, val2;
 
@@ -1772,6 +1775,11 @@ mt7615_mac_update_mib_stats(struct mt7615_phy *phy)
 			mib->rts_cnt = FIELD_GET(MT_MIB_RTS_COUNT_MASK, val2);
 			mib->rts_retries_cnt = data;
 		}
+
+		val = mt76_rr(dev, MT_TX_AGG_CNT(ext_phy, i));
+
+		dev->mt76.aggr_stats[aggr++] += val & 0xffff;
+		dev->mt76.aggr_stats[aggr++] += val >> 16;
 	}
 }
 
@@ -1779,7 +1787,6 @@ void mt7615_mac_work(struct work_struct *work)
 {
 	struct mt7615_dev *dev;
 	struct mt7615_phy *ext_phy;
-	int i, idx;
 
 	dev = (struct mt7615_dev *)container_of(work, struct mt76_dev,
 						mac_work.work);
@@ -1799,12 +1806,6 @@ void mt7615_mac_work(struct work_struct *work)
 		dev->mac_work_count = 0;
 	}
 
-	for (i = 0, idx = 0; i < 4; i++) {
-		u32 val = mt76_rr(dev, MT_TX_AGG_CNT(i));
-
-		dev->mt76.aggr_stats[idx++] += val & 0xffff;
-		dev->mt76.aggr_stats[idx++] += val >> 16;
-	}
 	mutex_unlock(&dev->mt76.mutex);
 
 	mt76_tx_status_check(&dev->mt76, NULL, false);
