@@ -331,13 +331,6 @@ struct drm_afbc_framebuffer {
 	 * @afbc_size: minimum size of afbc buffer
 	 */
 	u32 afbc_size;
-	/**
-	 * @bpp: bpp value for this afbc buffer
-	 * To be removed when users such as malidp
-	 * properly store the cpp in drm_format_info.
-	 * New users should not start using this field.
-	 */
-	u32 bpp;
 };
 
 #define fb_to_afbc_fb(x) container_of(x, struct drm_afbc_framebuffer, base)

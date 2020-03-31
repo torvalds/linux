@@ -309,11 +309,37 @@ drm_gem_fb_create_with_dirty(struct drm_device *dev, struct drm_file *file,
 }
 EXPORT_SYMBOL_GPL(drm_gem_fb_create_with_dirty);
 
+static __u32 drm_gem_afbc_get_bpp(struct drm_device *dev,
+				  const struct drm_mode_fb_cmd2 *mode_cmd)
+{
+	const struct drm_format_info *info;
+
+	info = drm_get_format_info(dev, mode_cmd);
+
+	/* use whatever a driver has set */
+	if (info->cpp[0])
+		return info->cpp[0] * 8;
+
+	/* guess otherwise */
+	switch (info->format) {
+	case DRM_FORMAT_YUV420_8BIT:
+		return 12;
+	case DRM_FORMAT_YUV420_10BIT:
+		return 15;
+	case DRM_FORMAT_VUY101010:
+		return 30;
+	default:
+		break;
+	}
+
+	/* all attempts failed */
+	return 0;
+}
+
 static int drm_gem_afbc_min_size(struct drm_device *dev,
 				 const struct drm_mode_fb_cmd2 *mode_cmd,
 				 struct drm_afbc_framebuffer *afbc_fb)
 {
-	const struct drm_format_info *info;
 	__u32 n_blocks, w_alignment, h_alignment, hdr_alignment;
 	/* remove bpp when all users properly encode cpp in drm_format_info */
 	__u32 bpp;
@@ -351,12 +377,11 @@ static int drm_gem_afbc_min_size(struct drm_device *dev,
 	afbc_fb->aligned_height = ALIGN(mode_cmd->height, h_alignment);
 	afbc_fb->offset = mode_cmd->offsets[0];
 
-	info = drm_get_format_info(dev, mode_cmd);
-	/*
-	 * Change to always using info->cpp[0]
-	 * when all users properly encode it
-	 */
-	bpp = info->cpp[0] ? info->cpp[0] * 8 : afbc_fb->bpp;
+	bpp = drm_gem_afbc_get_bpp(dev, mode_cmd);
+	if (!bpp) {
+		drm_dbg_kms(dev, "Invalid AFBC bpp value: %d\n", bpp);
+		return -EINVAL;
+	}
 
 	n_blocks = (afbc_fb->aligned_width * afbc_fb->aligned_height)
 		   / AFBC_SUPERBLOCK_PIXELS;
