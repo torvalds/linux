@@ -14,6 +14,7 @@
 #include "nvmet.h"
 #include <linux/nvme-fc-driver.h>
 #include <linux/nvme-fc.h>
+#include "../host/fc.h"
 
 
 /* *************************** Data Structures/Defines ****************** */
@@ -1258,102 +1259,6 @@ EXPORT_SYMBOL_GPL(nvmet_fc_unregister_targetport);
 
 
 static void
-nvmet_fc_format_rsp_hdr(void *buf, u8 ls_cmd, __be32 desc_len, u8 rqst_ls_cmd)
-{
-	struct fcnvme_ls_acc_hdr *acc = buf;
-
-	acc->w0.ls_cmd = ls_cmd;
-	acc->desc_list_len = desc_len;
-	acc->rqst.desc_tag = cpu_to_be32(FCNVME_LSDESC_RQST);
-	acc->rqst.desc_len =
-			fcnvme_lsdesc_len(sizeof(struct fcnvme_lsdesc_rqst));
-	acc->rqst.w0.ls_cmd = rqst_ls_cmd;
-}
-
-static int
-nvmet_fc_format_rjt(void *buf, u16 buflen, u8 ls_cmd,
-			u8 reason, u8 explanation, u8 vendor)
-{
-	struct fcnvme_ls_rjt *rjt = buf;
-
-	nvmet_fc_format_rsp_hdr(buf, FCNVME_LSDESC_RQST,
-			fcnvme_lsdesc_len(sizeof(struct fcnvme_ls_rjt)),
-			ls_cmd);
-	rjt->rjt.desc_tag = cpu_to_be32(FCNVME_LSDESC_RJT);
-	rjt->rjt.desc_len = fcnvme_lsdesc_len(sizeof(struct fcnvme_lsdesc_rjt));
-	rjt->rjt.reason_code = reason;
-	rjt->rjt.reason_explanation = explanation;
-	rjt->rjt.vendor = vendor;
-
-	return sizeof(struct fcnvme_ls_rjt);
-}
-
-/* Validation Error indexes into the string table below */
-enum {
-	VERR_NO_ERROR		= 0,
-	VERR_CR_ASSOC_LEN	= 1,
-	VERR_CR_ASSOC_RQST_LEN	= 2,
-	VERR_CR_ASSOC_CMD	= 3,
-	VERR_CR_ASSOC_CMD_LEN	= 4,
-	VERR_ERSP_RATIO		= 5,
-	VERR_ASSOC_ALLOC_FAIL	= 6,
-	VERR_QUEUE_ALLOC_FAIL	= 7,
-	VERR_CR_CONN_LEN	= 8,
-	VERR_CR_CONN_RQST_LEN	= 9,
-	VERR_ASSOC_ID		= 10,
-	VERR_ASSOC_ID_LEN	= 11,
-	VERR_NO_ASSOC		= 12,
-	VERR_CONN_ID		= 13,
-	VERR_CONN_ID_LEN	= 14,
-	VERR_NO_CONN		= 15,
-	VERR_CR_CONN_CMD	= 16,
-	VERR_CR_CONN_CMD_LEN	= 17,
-	VERR_DISCONN_LEN	= 18,
-	VERR_DISCONN_RQST_LEN	= 19,
-	VERR_DISCONN_CMD	= 20,
-	VERR_DISCONN_CMD_LEN	= 21,
-	VERR_DISCONN_SCOPE	= 22,
-	VERR_RS_LEN		= 23,
-	VERR_RS_RQST_LEN	= 24,
-	VERR_RS_CMD		= 25,
-	VERR_RS_CMD_LEN		= 26,
-	VERR_RS_RCTL		= 27,
-	VERR_RS_RO		= 28,
-};
-
-static char *validation_errors[] = {
-	"OK",
-	"Bad CR_ASSOC Length",
-	"Bad CR_ASSOC Rqst Length",
-	"Not CR_ASSOC Cmd",
-	"Bad CR_ASSOC Cmd Length",
-	"Bad Ersp Ratio",
-	"Association Allocation Failed",
-	"Queue Allocation Failed",
-	"Bad CR_CONN Length",
-	"Bad CR_CONN Rqst Length",
-	"Not Association ID",
-	"Bad Association ID Length",
-	"No Association",
-	"Not Connection ID",
-	"Bad Connection ID Length",
-	"No Connection",
-	"Not CR_CONN Cmd",
-	"Bad CR_CONN Cmd Length",
-	"Bad DISCONN Length",
-	"Bad DISCONN Rqst Length",
-	"Not DISCONN Cmd",
-	"Bad DISCONN Cmd Length",
-	"Bad Disconnect Scope",
-	"Bad RS Length",
-	"Bad RS Rqst Length",
-	"Not RS Cmd",
-	"Bad RS Cmd Length",
-	"Bad RS R_CTL",
-	"Bad RS Relative Offset",
-};
-
-static void
 nvmet_fc_ls_create_association(struct nvmet_fc_tgtport *tgtport,
 			struct nvmet_fc_ls_iod *iod)
 {
@@ -1407,7 +1312,7 @@ nvmet_fc_ls_create_association(struct nvmet_fc_tgtport *tgtport,
 		dev_err(tgtport->dev,
 			"Create Association LS failed: %s\n",
 			validation_errors[ret]);
-		iod->lsrsp->rsplen = nvmet_fc_format_rjt(acc,
+		iod->lsrsp->rsplen = nvme_fc_format_rjt(acc,
 				NVME_FC_MAX_LS_BUFFER_SIZE, rqst->w0.ls_cmd,
 				FCNVME_RJT_RC_LOGIC,
 				FCNVME_RJT_EXP_NONE, 0);
@@ -1422,7 +1327,7 @@ nvmet_fc_ls_create_association(struct nvmet_fc_tgtport *tgtport,
 
 	iod->lsrsp->rsplen = sizeof(*acc);
 
-	nvmet_fc_format_rsp_hdr(acc, FCNVME_LS_ACC,
+	nvme_fc_format_rsp_hdr(acc, FCNVME_LS_ACC,
 			fcnvme_lsdesc_len(
 				sizeof(struct fcnvme_ls_cr_assoc_acc)),
 			FCNVME_LS_CREATE_ASSOCIATION);
@@ -1498,7 +1403,7 @@ nvmet_fc_ls_create_connection(struct nvmet_fc_tgtport *tgtport,
 		dev_err(tgtport->dev,
 			"Create Connection LS failed: %s\n",
 			validation_errors[ret]);
-		iod->lsrsp->rsplen = nvmet_fc_format_rjt(acc,
+		iod->lsrsp->rsplen = nvme_fc_format_rjt(acc,
 				NVME_FC_MAX_LS_BUFFER_SIZE, rqst->w0.ls_cmd,
 				(ret == VERR_NO_ASSOC) ?
 					FCNVME_RJT_RC_INV_ASSOC :
@@ -1515,7 +1420,7 @@ nvmet_fc_ls_create_connection(struct nvmet_fc_tgtport *tgtport,
 
 	iod->lsrsp->rsplen = sizeof(*acc);
 
-	nvmet_fc_format_rsp_hdr(acc, FCNVME_LS_ACC,
+	nvme_fc_format_rsp_hdr(acc, FCNVME_LS_ACC,
 			fcnvme_lsdesc_len(sizeof(struct fcnvme_ls_cr_conn_acc)),
 			FCNVME_LS_CREATE_CONNECTION);
 	acc->connectid.desc_tag = cpu_to_be32(FCNVME_LSDESC_CONN_ID);
@@ -1578,13 +1483,11 @@ nvmet_fc_ls_disconnect(struct nvmet_fc_tgtport *tgtport,
 		dev_err(tgtport->dev,
 			"Disconnect LS failed: %s\n",
 			validation_errors[ret]);
-		iod->lsrsp->rsplen = nvmet_fc_format_rjt(acc,
+		iod->lsrsp->rsplen = nvme_fc_format_rjt(acc,
 				NVME_FC_MAX_LS_BUFFER_SIZE, rqst->w0.ls_cmd,
 				(ret == VERR_NO_ASSOC) ?
 					FCNVME_RJT_RC_INV_ASSOC :
-					(ret == VERR_NO_CONN) ?
-						FCNVME_RJT_RC_INV_CONN :
-						FCNVME_RJT_RC_LOGIC,
+					FCNVME_RJT_RC_LOGIC,
 				FCNVME_RJT_EXP_NONE, 0);
 		return;
 	}
@@ -1593,7 +1496,7 @@ nvmet_fc_ls_disconnect(struct nvmet_fc_tgtport *tgtport,
 
 	iod->lsrsp->rsplen = sizeof(*acc);
 
-	nvmet_fc_format_rsp_hdr(acc, FCNVME_LS_ACC,
+	nvme_fc_format_rsp_hdr(acc, FCNVME_LS_ACC,
 			fcnvme_lsdesc_len(
 				sizeof(struct fcnvme_ls_disconnect_assoc_acc)),
 			FCNVME_LS_DISCONNECT_ASSOC);
@@ -1676,7 +1579,7 @@ nvmet_fc_handle_ls_rqst(struct nvmet_fc_tgtport *tgtport,
 		nvmet_fc_ls_disconnect(tgtport, iod);
 		break;
 	default:
-		iod->lsrsp->rsplen = nvmet_fc_format_rjt(iod->rspbuf,
+		iod->lsrsp->rsplen = nvme_fc_format_rjt(iod->rspbuf,
 				NVME_FC_MAX_LS_BUFFER_SIZE, w0->ls_cmd,
 				FCNVME_RJT_RC_INVAL, FCNVME_RJT_EXP_NONE, 0);
 	}

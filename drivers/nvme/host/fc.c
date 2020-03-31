@@ -14,6 +14,7 @@
 #include "fabrics.h"
 #include <linux/nvme-fc-driver.h>
 #include <linux/nvme-fc.h>
+#include "fc.h"
 #include <scsi/scsi_transport_fc.h>
 
 /* *************************** Data Structures/Defines ****************** */
@@ -1139,41 +1140,6 @@ nvme_fc_send_ls_req_async(struct nvme_fc_rport *rport,
 
 	return __nvme_fc_send_ls_req(rport, lsop, done);
 }
-
-/* Validation Error indexes into the string table below */
-enum {
-	VERR_NO_ERROR		= 0,
-	VERR_LSACC		= 1,
-	VERR_LSDESC_RQST	= 2,
-	VERR_LSDESC_RQST_LEN	= 3,
-	VERR_ASSOC_ID		= 4,
-	VERR_ASSOC_ID_LEN	= 5,
-	VERR_CONN_ID		= 6,
-	VERR_CONN_ID_LEN	= 7,
-	VERR_CR_ASSOC		= 8,
-	VERR_CR_ASSOC_ACC_LEN	= 9,
-	VERR_CR_CONN		= 10,
-	VERR_CR_CONN_ACC_LEN	= 11,
-	VERR_DISCONN		= 12,
-	VERR_DISCONN_ACC_LEN	= 13,
-};
-
-static char *validation_errors[] = {
-	"OK",
-	"Not LS_ACC",
-	"Not LSDESC_RQST",
-	"Bad LSDESC_RQST Length",
-	"Not Association ID",
-	"Bad Association ID Length",
-	"Not Connection ID",
-	"Bad Connection ID Length",
-	"Not CR_ASSOC Rqst",
-	"Bad CR_ASSOC ACC Length",
-	"Not CR_CONN Rqst",
-	"Bad CR_CONN ACC Length",
-	"Not Disconnect Rqst",
-	"Bad Disconnect ACC Length",
-};
 
 static int
 nvme_fc_connect_admin_queue(struct nvme_fc_ctrl *ctrl,
