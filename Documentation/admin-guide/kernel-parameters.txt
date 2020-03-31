@@ -525,6 +525,7 @@
 			Default value is set via a kernel config option.
 			Value can be changed at runtime via
 				/sys/fs/selinux/checkreqprot.
+			Setting checkreqprot to 1 is deprecated.
 
 	cio_ignore=	[S390]
 			See Documentation/s390/common_io.rst for details.

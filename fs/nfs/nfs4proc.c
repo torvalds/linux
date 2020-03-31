@@ -4002,7 +4002,7 @@ static int nfs4_proc_get_root(struct nfs_server *server, struct nfs_fh *mntfh,
 {
 	int error;
 	struct nfs_fattr *fattr = info->fattr;
-	struct nfs4_label *label = NULL;
+	struct nfs4_label *label = fattr->label;
 
 	error = nfs4_server_capabilities(server, mntfh);
 	if (error < 0) {
@@ -4010,23 +4010,17 @@ static int nfs4_proc_get_root(struct nfs_server *server, struct nfs_fh *mntfh,
 		return error;
 	}
 
-	label = nfs4_label_alloc(server, GFP_KERNEL);
-	if (IS_ERR(label))
-		return PTR_ERR(label);
-
 	error = nfs4_proc_getattr(server, mntfh, fattr, label, NULL);
 	if (error < 0) {
 		dprintk("nfs4_get_root: getattr error = %d\n", -error);
-		goto err_free_label;
+		goto out;
 	}
 
 	if (fattr->valid & NFS_ATTR_FATTR_FSID &&
 	    !nfs_fsid_equal(&server->fsid, &fattr->fsid))
 		memcpy(&server->fsid, &fattr->fsid, sizeof(server->fsid));
 
-err_free_label:
-	nfs4_label_free(label);
-
+out:
 	return error;
 }
 
