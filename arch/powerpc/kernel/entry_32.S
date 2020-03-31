@@ -1380,10 +1380,4 @@ _GLOBAL(enter_rtas)
 	mtspr	SPRN_SRR0,r8
 	mtspr	SPRN_SRR1,r9
 	RFI			/* return to caller */
-
-	.globl	machine_check_in_rtas
-machine_check_in_rtas:
-	twi	31,0,0
-	/* XXX load up BATs and panic */
-
 #endif /* CONFIG_PPC_RTAS */
