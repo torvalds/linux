@@ -276,7 +276,8 @@ not_angel:
 		mov	r4, pc
 		and	r4, r4, #0xf8000000
 		/* Determine final kernel image address. */
-		add	r4, r4, #TEXT_OFFSET
+		add	r4, r4, #(TEXT_OFFSET & 0xffff0000)
+		add	r4, r4, #(TEXT_OFFSET & 0x0000ffff)
 #else
 		ldr	r4, =zreladdr
 #endif
@@ -378,7 +379,8 @@ restart:	adr	r0, LC1
 		 * of RAM and hope for the best.
 		 */
 		cmp	r0, #1
-		sub	r0, r4, #TEXT_OFFSET
+		sub	r0, r4, #(TEXT_OFFSET & 0xffff0000)
+		sub	r0, r0, #(TEXT_OFFSET & 0x0000ffff)
 		bic	r0, r0, #1
 		add	r0, r0, #0x100
 		mov	r1, r6
