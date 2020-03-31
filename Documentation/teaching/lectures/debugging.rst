@@ -45,25 +45,25 @@ Lets consider the following Linux kernel module:
    :level: 2
 
    .. code-block:: c
-      
+
       static noinline void do_oops(void)
       {
           *(int*)0x42 = 'a';
       }
-       
+
       static int so2_oops_init(void)
       {
           pr_info("oops_init\n");
           do_oops();
-      
+
           return 0;
       }
-      
+
       static void so2_oops_exit(void)
       {
           pr_info("oops exit\n");
       }
-      
+
       module_init(so2_oops_init);
       module_exit(so2_oops_exit);
 
@@ -73,10 +73,10 @@ which ''do_oops'' runs. Then it prints the following oops message:
 
    .. code-block:: bash
 
-      root@qemux86:~/skels/debugging/oops# insmod oops.ko 
+      root@qemux86:~/skels/debugging/oops# insmod oops.ko
       BUG: unable to handle kernel NULL pointer dereference at 00000042
       IP: do_oops+0x8/0x10 [oops]
-      *pde = 00000000 
+      *pde = 00000000
       Oops: 0002 [#1] SMP
       Modules linked in: oops(O+)
       CPU: 0 PID: 234 Comm: insmod Tainted: G           O     4.15.0+ #3
@@ -121,10 +121,10 @@ CPU on which the fault happend like below:
 
    .. code-block:: bash
 
-      root@qemux86:~/skels/debugging/oops# insmod oops.ko 
+      root@qemux86:~/skels/debugging/oops# insmod oops.ko
       BUG: unable to handle kernel NULL pointer dereference at 00000042
       IP: do_oops+0x8/0x10 [oops]
-      *pde = 00000000 
+      *pde = 00000000
       Oops: 0002 [#1] SMP
       Modules linked in: oops(O+)
       CPU: 0 PID: 234 Comm: insmod Tainted: G           O     4.15.0+ #3
@@ -149,7 +149,7 @@ the fault happend:
 
    .. code-block:: bash
 
-      root@qemux86:~/skels/debugging/oops# insmod oops.ko 
+      root@qemux86:~/skels/debugging/oops# insmod oops.ko
       BUG: unable to handle kernel NULL pointer dereference at 00000042
       Call Trace:
       so2_oops_init+0x17/0x20 [oops]
@@ -176,7 +176,7 @@ Decoding an oops
 
    * CONFIG_DEBUG_INFO
    * addr2line
-   * gdb 
+   * gdb
    * objdump -dSr
 
 addr2line
@@ -195,11 +195,11 @@ we need to know module's load address.
    :level: 2
 
    .. code-block:: bash
-      
+
       $ addr2line -e oops.o  0x08
       $ skels/debugging/oops/oops.c:5
       $ # 0x08 is the offset of the offending instruction inside the oops.ko module
-      
+
 objdump
 -------
 
@@ -210,13 +210,13 @@ Similar we can determine the offending line using objdump:
    :level: 2
 
    .. code-block:: bash
-      
-      $ cat /proc/modules 
+
+      $ cat /proc/modules
       oops 20480 1 - Loading 0xc8816000 (O+)
-      
+
       $ objdump -dS --adjust-vma=0xc8816000 oops.ko
       c8816000:       b8 61 00 00 00          mov    $0x61,%eax
-      
+
       static noinline void do_oops(void)
       {
       c8816005:       55                      push   %ebp
@@ -237,16 +237,16 @@ gdb
 
       (gdb) list *(do_panic+0x8)
       0xc1244138 is in do_panic (lib/test_panic.c:8).
-      3	
+      3
       4	static struct timer_list panic_timer;
-      5	
+      5
       6	static void do_panic(struct timer_list *unused)
       7	{
       8		*(int*)0x42 = 'a';
       9	}
-      10	
+      10
       11	static int so2_panic_init(void)
-      
+
 Kernel panic
 ------------
 
@@ -261,21 +261,21 @@ Here is a sample code that will generate a kernel panic:
    :level: 2
 
    .. code-block:: c
- 
+
       static struct timer_list panic_timer;
-      
+
       static void do_panic(struct timer_list *unused)
       {
           *(int*)0x42 = 'a';
       }
-      
+
       static int so2_panic_init(void)
       {
           pr_info("panic_init\n");
-      
+
           timer_setup(&panic_timer,  do_panic, 0);
           mod_timer(&panic_timer, jiffies + 2 * HZ);
-      
+
           return 0;
       }
 
@@ -283,12 +283,12 @@ Loading the module will generate the following kernel panic message:
 
 .. code-block:: bash
 
-    root@qemux86:~/skels/debugging/panic# insmod panic.ko 
+    root@qemux86:~/skels/debugging/panic# insmod panic.ko
     panic: loading out-of-tree module taints kernel.
     panic_init
     root@qemux86:~/skels/debugging/panic# BUG: unable to handle kernel NULL pointer dereference at 00000042
     IP: do_panic+0x8/0x10 [panic]
-    *pde = 00000000 
+    *pde = 00000000
     Oops: 0002 [#1] SMP
     Modules linked in: panic(O)
     CPU: 0 PID: 0 Comm: swapper/0 Tainted: G           O     4.15.0+ #19
