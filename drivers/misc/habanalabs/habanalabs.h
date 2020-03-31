@@ -554,6 +554,7 @@ enum hl_pll_frequency {
  * @load_firmware_to_device: load the firmware to the device's memory
  * @set_dma_mask_from_fw: set the DMA mask in the driver according to the
  *                        firmware configuration
+ * @get_device_time: Get the device time.
  */
 struct hl_asic_funcs {
 	int (*early_init)(struct hl_device *hdev);
@@ -646,6 +647,7 @@ struct hl_asic_funcs {
 					enum hl_fw_component fwc);
 	int (*load_firmware_to_device)(struct hl_device *hdev);
 	void (*set_dma_mask_from_fw)(struct hl_device *hdev);
+	u64 (*get_device_time)(struct hl_device *hdev);
 };
 
 

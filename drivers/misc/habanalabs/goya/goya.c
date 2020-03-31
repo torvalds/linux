@@ -5200,6 +5200,13 @@ static void goya_set_dma_mask_from_fw(struct hl_device *hdev)
 	}
 }
 
+u64 goya_get_device_time(struct hl_device *hdev)
+{
+	u64 device_time = ((u64) RREG32(mmPSOC_TIMESTAMP_CNTCVU)) << 32;
+
+	return device_time | RREG32(mmPSOC_TIMESTAMP_CNTCVL);
+}
+
 static const struct hl_asic_funcs goya_funcs = {
 	.early_init = goya_early_init,
 	.early_fini = goya_early_fini,
@@ -5263,7 +5270,8 @@ static const struct hl_asic_funcs goya_funcs = {
 	.get_queue_id_for_cq = goya_get_queue_id_for_cq,
 	.read_device_fw_version = goya_read_device_fw_version,
 	.load_firmware_to_device = goya_load_firmware_to_device,
-	.set_dma_mask_from_fw = goya_set_dma_mask_from_fw
+	.set_dma_mask_from_fw = goya_set_dma_mask_from_fw,
+	.get_device_time = goya_get_device_time
 };
 
 /*

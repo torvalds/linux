@@ -101,6 +101,8 @@ enum hl_device_status {
  * HL_INFO_RESET_COUNT   - Retrieve the counts of the soft and hard reset
  *                         operations performed on the device since the last
  *                         time the driver was loaded.
+ * HL_INFO_TIME_SYNC     - Retrieve the device's time alongside the host's time
+ *                         for synchronization.
  */
 #define HL_INFO_HW_IP_INFO		0
 #define HL_INFO_HW_EVENTS		1
@@ -111,6 +113,7 @@ enum hl_device_status {
 #define HL_INFO_HW_EVENTS_AGGREGATE	7
 #define HL_INFO_CLK_RATE		8
 #define HL_INFO_RESET_COUNT		9
+#define HL_INFO_TIME_SYNC		10
 
 #define HL_INFO_VERSION_MAX_LEN	128
 #define HL_INFO_CARD_NAME_MAX_LEN	16
@@ -167,6 +170,11 @@ struct hl_info_clk_rate {
 struct hl_info_reset_count {
 	__u32 hard_reset_cnt;
 	__u32 soft_reset_cnt;
+};
+
+struct hl_info_time_sync {
+	__u64 device_time;
+	__u64 host_time;
 };
 
 struct hl_info_args {
