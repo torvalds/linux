@@ -681,7 +681,9 @@ int b53_configure_vlan(struct dsa_switch *ds)
 {
 	struct b53_device *dev = ds->priv;
 	struct b53_vlan vl = { 0 };
+	struct b53_vlan *v;
 	int i, def_vid;
+	u16 vid;
 
 	def_vid = b53_default_pvid(dev);
 
@@ -698,6 +700,19 @@ int b53_configure_vlan(struct dsa_switch *ds)
 	b53_for_each_port(dev, i)
 		b53_write16(dev, B53_VLAN_PAGE,
 			    B53_VLAN_PORT_DEF_TAG(i), def_vid);
+
+	/* Upon initial call we have not set-up any VLANs, but upon
+	 * system resume, we need to restore all VLAN entries.
+	 */
+	for (vid = def_vid; vid < dev->num_vlans; vid++) {
+		v = &dev->vlans[vid];
+
+		if (!v->members)
+			continue;
+
+		b53_set_vlan_entry(dev, vid, v);
+		b53_fast_age_vlan(dev, vid);
+	}
 
 	return 0;
 }
@@ -1340,6 +1355,14 @@ int b53_vlan_prepare(struct dsa_switch *ds, int port,
 	if ((is5325(dev) || is5365(dev)) && vlan->vid_begin == 0)
 		return -EOPNOTSUPP;
 
+	/* Port 7 on 7278 connects to the ASP's UniMAC which is not capable of
+	 * receiving VLAN tagged frames at all, we can still allow the port to
+	 * be configured for egress untagged.
+	 */
+	if (dev->chip_id == BCM7278_DEVICE_ID && port == 7 &&
+	    !(vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED))
+		return -EINVAL;
+
 	if (vlan->vid_end > dev->num_vlans)
 		return -ERANGE;
 
@@ -1704,6 +1727,12 @@ int b53_br_join(struct dsa_switch *ds, int port, struct net_device *br)
 	s8 cpu_port = dsa_to_port(ds, port)->cpu_dp->index;
 	u16 pvlan, reg;
 	unsigned int i;
+
+	/* On 7278, port 7 which connects to the ASP should only receive
+	 * traffic from matching CFP rules.
+	 */
+	if (dev->chip_id == BCM7278_DEVICE_ID && port == 7)
+		return -EINVAL;
 
 	/* Make this port leave the all VLANs join since we will have proper
 	 * VLAN entries from now on
