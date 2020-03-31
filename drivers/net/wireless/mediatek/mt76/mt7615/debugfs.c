@@ -120,11 +120,16 @@ mt7615_reset_test_set(void *data, u64 val)
 DEFINE_DEBUGFS_ATTRIBUTE(fops_reset_test, NULL,
 			 mt7615_reset_test_set, "%lld\n");
 
-static int
-mt7615_ampdu_stat_read(struct seq_file *file, void *data)
+static void
+mt7615_ampdu_stat_read_phy(struct mt7615_phy *phy,
+			   struct seq_file *file)
 {
 	struct mt7615_dev *dev = file->private;
+	bool ext_phy = phy != &dev->phy;
 	int bound[7], i, range;
+
+	if (!phy)
+		return;
 
 	range = mt76_rr(dev, MT_AGG_ASRCR0);
 	for (i = 0; i < 4; i++)
@@ -132,6 +137,8 @@ mt7615_ampdu_stat_read(struct seq_file *file, void *data)
 	range = mt76_rr(dev, MT_AGG_ASRCR1);
 	for (i = 0; i < 3; i++)
 		bound[i + 4] = MT_AGG_ASRCR_RANGE(range, i) + 1;
+
+	seq_printf(file, "\nPhy %d\n", ext_phy);
 
 	seq_printf(file, "Length: %8d | ", bound[0]);
 	for (i = 0; i < ARRAY_SIZE(bound) - 1; i++)
@@ -141,6 +148,15 @@ mt7615_ampdu_stat_read(struct seq_file *file, void *data)
 	for (i = 0; i < ARRAY_SIZE(bound); i++)
 		seq_printf(file, "%8d | ", dev->mt76.aggr_stats[i]);
 	seq_puts(file, "\n");
+}
+
+static int
+mt7615_ampdu_stat_read(struct seq_file *file, void *data)
+{
+	struct mt7615_dev *dev = file->private;
+
+	mt7615_ampdu_stat_read_phy(&dev->phy, file);
+	mt7615_ampdu_stat_read_phy(mt7615_ext_phy(dev), file);
 
 	return 0;
 }
