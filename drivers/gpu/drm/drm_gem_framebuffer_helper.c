@@ -331,9 +331,9 @@ static int drm_gem_afbc_min_size(struct drm_device *dev,
 	case AFBC_FORMAT_MOD_BLOCK_SIZE_64x4:
 	case AFBC_FORMAT_MOD_BLOCK_SIZE_32x8_64x4:
 	default:
-		DRM_DEBUG_KMS("Invalid AFBC_FORMAT_MOD_BLOCK_SIZE: %lld.\n",
-			      mode_cmd->modifier[0]
-			      & AFBC_FORMAT_MOD_BLOCK_SIZE_MASK);
+		drm_dbg_kms(dev, "Invalid AFBC_FORMAT_MOD_BLOCK_SIZE: %lld.\n",
+			    mode_cmd->modifier[0]
+			    & AFBC_FORMAT_MOD_BLOCK_SIZE_MASK);
 		return -EINVAL;
 	}
 
