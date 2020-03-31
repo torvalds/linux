@@ -340,12 +340,6 @@ pointer which points to one of:
      entry->insn. It is used to distinguish page faults from machine
      check.
 
-3) ``int ex_handler_ext(const struct exception_table_entry *fixup)``
-     This case is used for uaccess_err ... we need to set a flag
-     in the task structure. Before the handler functions existed this
-     case was handled by adding a large offset to the fixup to tag
-     it as special.
-
 More functions can easily be added.
 
 CONFIG_BUILDTIME_TABLE_SORT allows the __ex_table section to be sorted post

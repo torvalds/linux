@@ -62,19 +62,16 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static struct irqaction irq0  = {
-	.handler = timer_interrupt,
-	.flags = IRQF_NOBALANCING | IRQF_IRQPOLL | IRQF_TIMER,
-	.name = "timer"
-};
-
 static void __init setup_default_timer_irq(void)
 {
+	unsigned long flags = IRQF_NOBALANCING | IRQF_IRQPOLL | IRQF_TIMER;
+
 	/*
-	 * Unconditionally register the legacy timer; even without legacy
-	 * PIC/PIT we need this for the HPET0 in legacy replacement mode.
+	 * Unconditionally register the legacy timer interrupt; even
+	 * without legacy PIC/PIT we need this for the HPET0 in legacy
+	 * replacement mode.
 	 */
-	if (setup_irq(0, &irq0))
+	if (request_irq(0, timer_interrupt, flags, "timer", NULL))
 		pr_info("Failed to register legacy timer interrupt\n");
 }
 

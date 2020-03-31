@@ -34,6 +34,7 @@
 #include <asm/fpu/api.h>
 #include <asm/nospec-branch.h>
 #include <asm/io_bitmap.h>
+#include <asm/syscall.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/syscalls.h>

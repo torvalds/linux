@@ -159,6 +159,11 @@ static inline int syscall_get_arch(struct task_struct *task)
 		task->thread_info.status & TS_COMPAT)
 		? AUDIT_ARCH_I386 : AUDIT_ARCH_X86_64;
 }
+
+void do_syscall_64(unsigned long nr, struct pt_regs *regs);
+void do_int80_syscall_32(struct pt_regs *regs);
+long do_fast_syscall_32(struct pt_regs *regs);
+
 #endif	/* CONFIG_X86_32 */
 
 #endif	/* _ASM_X86_SYSCALL_H */
