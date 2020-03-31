@@ -279,7 +279,7 @@ static const struct v4l2_ctrl_ops vimc_sen_ctrl_ops = {
 	.s_ctrl = vimc_sen_s_ctrl,
 };
 
-void vimc_sen_release(struct vimc_ent_device *ved)
+static void vimc_sen_release(struct vimc_ent_device *ved)
 {
 	struct vimc_sen_device *vsen =
 		container_of(ved, struct vimc_sen_device, ved);
@@ -307,8 +307,8 @@ static const struct v4l2_ctrl_config vimc_sen_ctrl_test_pattern = {
 	.qmenu = tpg_pattern_strings,
 };
 
-struct vimc_ent_device *vimc_sen_add(struct vimc_device *vimc,
-				     const char *vcfg_name)
+static struct vimc_ent_device *vimc_sen_add(struct vimc_device *vimc,
+					    const char *vcfg_name)
 {
 	struct v4l2_device *v4l2_dev = &vimc->v4l2_dev;
 	struct vimc_sen_device *vsen;
@@ -374,3 +374,8 @@ err_free_vsen:
 
 	return ERR_PTR(ret);
 }
+
+struct vimc_ent_type vimc_sen_type = {
+	.add = vimc_sen_add,
+	.release = vimc_sen_release
+};

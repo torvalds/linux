@@ -120,22 +120,33 @@ struct vimc_device {
 };
 
 /**
- * struct vimc_ent_config	Structure which describes individual
- *				configuration for each entity
+ * struct vimc_ent_type		Structure for the callbacks of the entity types
  *
- * @name			entity name
+ *
  * @add				initializes and registers
  *					vimc entity - called from vimc-core
  * @unregister			unregisters vimc entity - called from vimc-core
  * @release			releases vimc entity - called from the v4l2_dev
  *					release callback
  */
-struct vimc_ent_config {
-	const char *name;
+struct vimc_ent_type {
 	struct vimc_ent_device *(*add)(struct vimc_device *vimc,
 				       const char *vcfg_name);
 	void (*unregister)(struct vimc_ent_device *ved);
 	void (*release)(struct vimc_ent_device *ved);
+};
+
+/**
+ * struct vimc_ent_config	Structure which describes individual
+ *				configuration for each entity
+ *
+ * @name			entity name
+ * @type			contain the callbacks of this entity type
+ *
+ */
+struct vimc_ent_config {
+	const char *name;
+	struct vimc_ent_type *type;
 };
 
 /**
@@ -146,23 +157,10 @@ struct vimc_ent_config {
  */
 bool vimc_is_source(struct media_entity *ent);
 
-/* prototypes for vimc_ent_config hooks */
-struct vimc_ent_device *vimc_cap_add(struct vimc_device *vimc,
-				     const char *vcfg_name);
-void vimc_cap_unregister(struct vimc_ent_device *ved);
-void vimc_cap_release(struct vimc_ent_device *ved);
-
-struct vimc_ent_device *vimc_deb_add(struct vimc_device *vimc,
-				     const char *vcfg_name);
-void vimc_deb_release(struct vimc_ent_device *ved);
-
-struct vimc_ent_device *vimc_sca_add(struct vimc_device *vimc,
-				     const char *vcfg_name);
-void vimc_sca_release(struct vimc_ent_device *ved);
-
-struct vimc_ent_device *vimc_sen_add(struct vimc_device *vimc,
-				     const char *vcfg_name);
-void vimc_sen_release(struct vimc_ent_device *ved);
+extern struct vimc_ent_type vimc_sen_type;
+extern struct vimc_ent_type vimc_deb_type;
+extern struct vimc_ent_type vimc_sca_type;
+extern struct vimc_ent_type vimc_cap_type;
 
 /**
  * vimc_pix_map_by_index - get vimc_pix_map struct by its index

@@ -47,52 +47,40 @@ struct vimc_pipeline_config {
 static struct vimc_ent_config ent_config[] = {
 	{
 		.name = "Sensor A",
-		.add = vimc_sen_add,
-		.release = vimc_sen_release,
+		.type = &vimc_sen_type
 	},
 	{
 		.name = "Sensor B",
-		.add = vimc_sen_add,
-		.release = vimc_sen_release,
+		.type = &vimc_sen_type
 	},
 	{
 		.name = "Debayer A",
-		.add = vimc_deb_add,
-		.release = vimc_deb_release,
+		.type = &vimc_deb_type
 	},
 	{
 		.name = "Debayer B",
-		.add = vimc_deb_add,
-		.release = vimc_deb_release,
+		.type = &vimc_deb_type
 	},
 	{
 		.name = "Raw Capture 0",
-		.add = vimc_cap_add,
-		.unregister = vimc_cap_unregister,
-		.release = vimc_cap_release,
+		.type = &vimc_cap_type
 	},
 	{
 		.name = "Raw Capture 1",
-		.add = vimc_cap_add,
-		.unregister = vimc_cap_unregister,
-		.release = vimc_cap_release,
+		.type = &vimc_cap_type
 	},
 	{
 		/* TODO: change this to vimc-input when it is implemented */
 		.name = "RGB/YUV Input",
-		.add = vimc_sen_add,
-		.release = vimc_sen_release,
+		.type = &vimc_sen_type
 	},
 	{
 		.name = "Scaler",
-		.add = vimc_sca_add,
-		.release = vimc_sca_release,
+		.type = &vimc_sca_type
 	},
 	{
 		.name = "RGB/YUV Capture",
-		.add = vimc_cap_add,
-		.unregister = vimc_cap_unregister,
-		.release = vimc_cap_release,
+		.type = &vimc_cap_type
 	},
 };
 
@@ -166,7 +154,7 @@ static void vimc_release_subdevs(struct vimc_device *vimc)
 
 	for (i = 0; i < vimc->pipe_cfg->num_ents; i++)
 		if (vimc->ent_devs[i])
-			vimc->pipe_cfg->ents[i].release(vimc->ent_devs[i]);
+			vimc->pipe_cfg->ents[i].type->release(vimc->ent_devs[i]);
 }
 
 static void vimc_unregister_subdevs(struct vimc_device *vimc)
@@ -174,8 +162,8 @@ static void vimc_unregister_subdevs(struct vimc_device *vimc)
 	unsigned int i;
 
 	for (i = 0; i < vimc->pipe_cfg->num_ents; i++)
-		if (vimc->ent_devs[i] && vimc->pipe_cfg->ents[i].unregister)
-			vimc->pipe_cfg->ents[i].unregister(vimc->ent_devs[i]);
+		if (vimc->ent_devs[i] && vimc->pipe_cfg->ents[i].type->unregister)
+			vimc->pipe_cfg->ents[i].type->unregister(vimc->ent_devs[i]);
 }
 
 static int vimc_add_subdevs(struct vimc_device *vimc)
@@ -185,7 +173,7 @@ static int vimc_add_subdevs(struct vimc_device *vimc)
 	for (i = 0; i < vimc->pipe_cfg->num_ents; i++) {
 		dev_dbg(vimc->mdev.dev, "new entity for %s\n",
 			vimc->pipe_cfg->ents[i].name);
-		vimc->ent_devs[i] = vimc->pipe_cfg->ents[i].add(vimc,
+		vimc->ent_devs[i] = vimc->pipe_cfg->ents[i].type->add(vimc,
 					vimc->pipe_cfg->ents[i].name);
 		if (IS_ERR(vimc->ent_devs[i])) {
 			int err = PTR_ERR(vimc->ent_devs[i]);

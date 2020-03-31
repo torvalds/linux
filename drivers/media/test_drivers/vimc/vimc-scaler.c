@@ -464,7 +464,7 @@ static void *vimc_sca_process_frame(struct vimc_ent_device *ved,
 	return vsca->src_frame;
 };
 
-void vimc_sca_release(struct vimc_ent_device *ved)
+static void vimc_sca_release(struct vimc_ent_device *ved)
 {
 	struct vimc_sca_device *vsca =
 		container_of(ved, struct vimc_sca_device, ved);
@@ -473,8 +473,8 @@ void vimc_sca_release(struct vimc_ent_device *ved)
 	kfree(vsca);
 }
 
-struct vimc_ent_device *vimc_sca_add(struct vimc_device *vimc,
-				     const char *vcfg_name)
+static struct vimc_ent_device *vimc_sca_add(struct vimc_device *vimc,
+					    const char *vcfg_name)
 {
 	struct v4l2_device *v4l2_dev = &vimc->v4l2_dev;
 	struct vimc_sca_device *vsca;
@@ -509,3 +509,8 @@ struct vimc_ent_device *vimc_sca_add(struct vimc_device *vimc,
 
 	return &vsca->ved;
 }
+
+struct vimc_ent_type vimc_sca_type = {
+	.add = vimc_sca_add,
+	.release = vimc_sca_release
+};

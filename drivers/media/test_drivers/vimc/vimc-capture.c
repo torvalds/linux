@@ -325,7 +325,7 @@ static const struct media_entity_operations vimc_cap_mops = {
 	.link_validate		= vimc_vdev_link_validate,
 };
 
-void vimc_cap_release(struct vimc_ent_device *ved)
+static void vimc_cap_release(struct vimc_ent_device *ved)
 {
 	struct vimc_cap_device *vcap =
 		container_of(ved, struct vimc_cap_device, ved);
@@ -334,7 +334,7 @@ void vimc_cap_release(struct vimc_ent_device *ved)
 	kfree(vcap);
 }
 
-void vimc_cap_unregister(struct vimc_ent_device *ved)
+static void vimc_cap_unregister(struct vimc_ent_device *ved)
 {
 	struct vimc_cap_device *vcap =
 		container_of(ved, struct vimc_cap_device, ved);
@@ -382,8 +382,8 @@ static void *vimc_cap_process_frame(struct vimc_ent_device *ved,
 	return NULL;
 }
 
-struct vimc_ent_device *vimc_cap_add(struct vimc_device *vimc,
-				     const char *vcfg_name)
+static struct vimc_ent_device *vimc_cap_add(struct vimc_device *vimc,
+					    const char *vcfg_name)
 {
 	struct v4l2_device *v4l2_dev = &vimc->v4l2_dev;
 	const struct vimc_pix_map *vpix;
@@ -478,3 +478,9 @@ err_free_vcap:
 
 	return ERR_PTR(ret);
 }
+
+struct vimc_ent_type vimc_cap_type = {
+	.add = vimc_cap_add,
+	.unregister = vimc_cap_unregister,
+	.release = vimc_cap_release
+};

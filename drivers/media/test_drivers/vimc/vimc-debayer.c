@@ -494,7 +494,7 @@ static const struct v4l2_ctrl_ops vimc_deb_ctrl_ops = {
 	.s_ctrl = vimc_deb_s_ctrl,
 };
 
-void vimc_deb_release(struct vimc_ent_device *ved)
+static void vimc_deb_release(struct vimc_ent_device *ved)
 {
 	struct vimc_deb_device *vdeb =
 		container_of(ved, struct vimc_deb_device, ved);
@@ -522,8 +522,8 @@ static const struct v4l2_ctrl_config vimc_deb_ctrl_mean_win_size = {
 	.def = 3,
 };
 
-struct vimc_ent_device *vimc_deb_add(struct vimc_device *vimc,
-				     const char *vcfg_name)
+static struct vimc_ent_device *vimc_deb_add(struct vimc_device *vimc,
+					    const char *vcfg_name)
 {
 	struct v4l2_device *v4l2_dev = &vimc->v4l2_dev;
 	struct vimc_deb_device *vdeb;
@@ -579,3 +579,8 @@ err_free_vdeb:
 
 	return ERR_PTR(ret);
 }
+
+struct vimc_ent_type vimc_deb_type = {
+	.add = vimc_deb_add,
+	.release = vimc_deb_release
+};
