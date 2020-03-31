@@ -1215,8 +1215,14 @@ static void __mc_scan_banks(struct mce *m, struct mce *final,
  * On Intel systems this is entered on all CPUs in parallel through
  * MCE broadcast. However some CPUs might be broken beyond repair,
  * so be always careful when synchronizing with others.
+ *
+ * Tracing and kprobes are disabled: if we interrupted a kernel context
+ * with IF=1, we need to minimize stack usage.  There are also recursion
+ * issues: if the machine check was due to a failure of the memory
+ * backing the user stack, tracing that reads the user stack will cause
+ * potentially infinite recursion.
  */
-void do_machine_check(struct pt_regs *regs, long error_code)
+void notrace do_machine_check(struct pt_regs *regs, long error_code)
 {
 	DECLARE_BITMAP(valid_banks, MAX_NR_BANKS);
 	DECLARE_BITMAP(toclear, MAX_NR_BANKS);
@@ -1362,6 +1368,7 @@ out_ist:
 	ist_exit(regs);
 }
 EXPORT_SYMBOL_GPL(do_machine_check);
+NOKPROBE_SYMBOL(do_machine_check);
 
 #ifndef CONFIG_MEMORY_FAILURE
 int memory_failure(unsigned long pfn, int flags)
@@ -1896,10 +1903,11 @@ static void unexpected_machine_check(struct pt_regs *regs, long error_code)
 void (*machine_check_vector)(struct pt_regs *, long error_code) =
 						unexpected_machine_check;
 
-dotraplinkage void do_mce(struct pt_regs *regs, long error_code)
+dotraplinkage notrace void do_mce(struct pt_regs *regs, long error_code)
 {
 	machine_check_vector(regs, error_code);
 }
+NOKPROBE_SYMBOL(do_mce);
 
 /*
  * Called for each booted CPU to set up machine checks.

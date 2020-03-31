@@ -42,8 +42,6 @@
 #endif /* CONFIG_X86_64 */
 
 #include <asm/syscall.h>
-#include <asm/syscalls.h>
-
 #include <asm/sigframe.h>
 #include <asm/signal.h>
 
@@ -859,7 +857,7 @@ void signal_fault(struct pt_regs *regs, void __user *frame, char *where)
 }
 
 #ifdef CONFIG_X86_X32_ABI
-asmlinkage long sys32_x32_rt_sigreturn(void)
+COMPAT_SYSCALL_DEFINE0(x32_rt_sigreturn)
 {
 	struct pt_regs *regs = current_pt_regs();
 	struct rt_sigframe_x32 __user *frame;

@@ -21,7 +21,6 @@
 
 #include <asm/elf.h>
 #include <asm/ia32.h>
-#include <asm/syscalls.h>
 
 /*
  * Align a virtual address to avoid aliasing in the I$ on AMD F15h.
