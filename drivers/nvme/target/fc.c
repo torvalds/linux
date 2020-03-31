@@ -29,7 +29,7 @@ struct nvmet_fc_ls_iod {
 	struct nvmefc_ls_rsp		*lsrsp;
 	struct nvmefc_tgt_fcp_req	*fcpreq;	/* only if RS */
 
-	struct list_head		ls_list;	/* tgtport->ls_list */
+	struct list_head		ls_rcv_list; /* tgtport->ls_rcv_list */
 
 	struct nvmet_fc_tgtport		*tgtport;
 	struct nvmet_fc_tgt_assoc	*assoc;
@@ -90,7 +90,7 @@ struct nvmet_fc_tgtport {
 
 	struct nvmet_fc_ls_iod		*iod;
 	spinlock_t			lock;
-	struct list_head		ls_list;
+	struct list_head		ls_rcv_list;
 	struct list_head		ls_busylist;
 	struct list_head		assoc_list;
 	struct list_head		host_list;
@@ -346,7 +346,7 @@ nvmet_fc_alloc_ls_iodlist(struct nvmet_fc_tgtport *tgtport)
 	for (i = 0; i < NVMET_LS_CTX_COUNT; iod++, i++) {
 		INIT_WORK(&iod->work, nvmet_fc_handle_ls_rqst_work);
 		iod->tgtport = tgtport;
-		list_add_tail(&iod->ls_list, &tgtport->ls_list);
+		list_add_tail(&iod->ls_rcv_list, &tgtport->ls_rcv_list);
 
 		iod->rqstbuf = kzalloc(sizeof(union nvmefc_ls_requests) +
 				       sizeof(union nvmefc_ls_responses),
@@ -367,12 +367,12 @@ nvmet_fc_alloc_ls_iodlist(struct nvmet_fc_tgtport *tgtport)
 
 out_fail:
 	kfree(iod->rqstbuf);
-	list_del(&iod->ls_list);
+	list_del(&iod->ls_rcv_list);
 	for (iod--, i--; i >= 0; iod--, i--) {
 		fc_dma_unmap_single(tgtport->dev, iod->rspdma,
 				sizeof(*iod->rspbuf), DMA_TO_DEVICE);
 		kfree(iod->rqstbuf);
-		list_del(&iod->ls_list);
+		list_del(&iod->ls_rcv_list);
 	}
 
 	kfree(iod);
@@ -391,7 +391,7 @@ nvmet_fc_free_ls_iodlist(struct nvmet_fc_tgtport *tgtport)
 				iod->rspdma, sizeof(*iod->rspbuf),
 				DMA_TO_DEVICE);
 		kfree(iod->rqstbuf);
-		list_del(&iod->ls_list);
+		list_del(&iod->ls_rcv_list);
 	}
 	kfree(tgtport->iod);
 }
@@ -403,10 +403,10 @@ nvmet_fc_alloc_ls_iod(struct nvmet_fc_tgtport *tgtport)
 	unsigned long flags;
 
 	spin_lock_irqsave(&tgtport->lock, flags);
-	iod = list_first_entry_or_null(&tgtport->ls_list,
-					struct nvmet_fc_ls_iod, ls_list);
+	iod = list_first_entry_or_null(&tgtport->ls_rcv_list,
+					struct nvmet_fc_ls_iod, ls_rcv_list);
 	if (iod)
-		list_move_tail(&iod->ls_list, &tgtport->ls_busylist);
+		list_move_tail(&iod->ls_rcv_list, &tgtport->ls_busylist);
 	spin_unlock_irqrestore(&tgtport->lock, flags);
 	return iod;
 }
@@ -419,7 +419,7 @@ nvmet_fc_free_ls_iod(struct nvmet_fc_tgtport *tgtport,
 	unsigned long flags;
 
 	spin_lock_irqsave(&tgtport->lock, flags);
-	list_move(&iod->ls_list, &tgtport->ls_list);
+	list_move(&iod->ls_rcv_list, &tgtport->ls_rcv_list);
 	spin_unlock_irqrestore(&tgtport->lock, flags);
 }
 
@@ -1170,7 +1170,7 @@ nvmet_fc_register_targetport(struct nvmet_fc_port_info *pinfo,
 	newrec->dev = dev;
 	newrec->ops = template;
 	spin_lock_init(&newrec->lock);
-	INIT_LIST_HEAD(&newrec->ls_list);
+	INIT_LIST_HEAD(&newrec->ls_rcv_list);
 	INIT_LIST_HEAD(&newrec->ls_busylist);
 	INIT_LIST_HEAD(&newrec->assoc_list);
 	INIT_LIST_HEAD(&newrec->host_list);
