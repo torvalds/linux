@@ -1614,7 +1614,8 @@ static int dwc3_probe(struct platform_device *pdev)
 		goto err3;
 
 	if (dwc->dr_mode == USB_DR_MODE_OTG &&
-	    of_machine_is_compatible("rockchip,rk3399")) {
+	    of_device_is_compatible(dev->parent->of_node,
+				    "rockchip,rk3399-dwc3")) {
 		pm_runtime_allow(dev);
 		dwc->en_runtime = true;
 	}
