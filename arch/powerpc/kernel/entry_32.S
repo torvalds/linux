@@ -50,6 +50,7 @@ mcheck_transfer_to_handler:
 	mfspr	r0,SPRN_DSRR1
 	stw	r0,_DSRR1(r11)
 	/* fall through */
+_ASM_NOKPROBE_SYMBOL(mcheck_transfer_to_handler)
 
 	.globl	debug_transfer_to_handler
 debug_transfer_to_handler:
@@ -58,6 +59,7 @@ debug_transfer_to_handler:
 	mfspr	r0,SPRN_CSRR1
 	stw	r0,_CSRR1(r11)
 	/* fall through */
+_ASM_NOKPROBE_SYMBOL(debug_transfer_to_handler)
 
 	.globl	crit_transfer_to_handler
 crit_transfer_to_handler:
@@ -93,6 +95,7 @@ crit_transfer_to_handler:
 	rlwinm	r0,r1,0,0,(31 - THREAD_SHIFT)
 	stw	r0,KSP_LIMIT(r8)
 	/* fall through */
+_ASM_NOKPROBE_SYMBOL(crit_transfer_to_handler)
 #endif
 
 #ifdef CONFIG_40x
@@ -114,6 +117,7 @@ crit_transfer_to_handler:
 	rlwinm	r0,r1,0,0,(31 - THREAD_SHIFT)
 	stw	r0,KSP_LIMIT(r8)
 	/* fall through */
+_ASM_NOKPROBE_SYMBOL(crit_transfer_to_handler)
 #endif
 
 /*
@@ -126,6 +130,7 @@ crit_transfer_to_handler:
 	.globl	transfer_to_handler_full
 transfer_to_handler_full:
 	SAVE_NVGPRS(r11)
+_ASM_NOKPROBE_SYMBOL(transfer_to_handler_full)
 	/* fall through */
 
 	.globl	transfer_to_handler
@@ -226,6 +231,23 @@ transfer_to_handler_cont:
 	SYNC
 	RFI				/* jump to handler, enable MMU */
 
+#if defined (CONFIG_PPC_BOOK3S_32) || defined(CONFIG_E500)
+4:	rlwinm	r12,r12,0,~_TLF_NAPPING
+	stw	r12,TI_LOCAL_FLAGS(r2)
+	b	power_save_ppc32_restore
+
+7:	rlwinm	r12,r12,0,~_TLF_SLEEPING
+	stw	r12,TI_LOCAL_FLAGS(r2)
+	lwz	r9,_MSR(r11)		/* if sleeping, clear MSR.EE */
+	rlwinm	r9,r9,0,~MSR_EE
+	lwz	r12,_LINK(r11)		/* and return to address in LR */
+	kuap_restore r11, r2, r3, r4, r5
+	lwz	r2, GPR2(r11)
+	b	fast_exception_return
+#endif
+_ASM_NOKPROBE_SYMBOL(transfer_to_handler)
+_ASM_NOKPROBE_SYMBOL(transfer_to_handler_cont)
+
 #ifdef CONFIG_TRACE_IRQFLAGS
 1:	/* MSR is changing, re-enable MMU so we can notify lockdep. We need to
 	 * keep interrupts disabled at this point otherwise we might risk
@@ -270,21 +292,6 @@ reenable_mmu:
 	mtlr	r9
 	bctr				/* jump to handler */
 #endif /* CONFIG_TRACE_IRQFLAGS */
-
-#if defined (CONFIG_PPC_BOOK3S_32) || defined(CONFIG_E500)
-4:	rlwinm	r12,r12,0,~_TLF_NAPPING
-	stw	r12,TI_LOCAL_FLAGS(r2)
-	b	power_save_ppc32_restore
-
-7:	rlwinm	r12,r12,0,~_TLF_SLEEPING
-	stw	r12,TI_LOCAL_FLAGS(r2)
-	lwz	r9,_MSR(r11)		/* if sleeping, clear MSR.EE */
-	rlwinm	r9,r9,0,~MSR_EE
-	lwz	r12,_LINK(r11)		/* and return to address in LR */
-	kuap_restore r11, r2, r3, r4, r5
-	lwz	r2, GPR2(r11)
-	b	fast_exception_return
-#endif
 
 #ifndef CONFIG_VMAP_STACK
 /*
