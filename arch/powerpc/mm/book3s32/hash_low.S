@@ -163,6 +163,7 @@ _GLOBAL(hash_page)
 	stw	r0, (mmu_hash_lock - PAGE_OFFSET)@l(r8)
 	blr
 #endif /* CONFIG_SMP */
+_ASM_NOKPROBE_SYMBOL(hash_page)
 
 /*
  * Add an entry for a particular page to the hash table.
@@ -267,6 +268,7 @@ _GLOBAL(add_hash_page)
 	lwz	r0,4(r1)
 	mtlr	r0
 	blr
+_ASM_NOKPROBE_SYMBOL(add_hash_page)
 
 /*
  * This routine adds a hardware PTE to the hash table.
@@ -474,6 +476,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_NEED_COHERENT)
 
 	sync		/* make sure pte updates get to memory */
 	blr
+_ASM_NOKPROBE_SYMBOL(create_hpte)
 
 	.section .bss
 	.align	2
@@ -630,6 +633,7 @@ _GLOBAL(flush_hash_pages)
 	isync
 	blr
 EXPORT_SYMBOL(flush_hash_pages)
+_ASM_NOKPROBE_SYMBOL(flush_hash_pages)
 
 /*
  * Flush an entry from the TLB
@@ -667,6 +671,7 @@ _GLOBAL(_tlbie)
 	sync
 #endif /* CONFIG_SMP */
 	blr
+_ASM_NOKPROBE_SYMBOL(_tlbie)
 
 /*
  * Flush the entire TLB. 603/603e only
@@ -708,3 +713,4 @@ _GLOBAL(_tlbia)
 	isync
 #endif /* CONFIG_SMP */
 	blr
+_ASM_NOKPROBE_SYMBOL(_tlbia)
