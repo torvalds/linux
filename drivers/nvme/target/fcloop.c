@@ -208,10 +208,13 @@ struct fcloop_rport {
 };
 
 struct fcloop_tport {
-	struct nvmet_fc_target_port *targetport;
-	struct nvme_fc_remote_port *remoteport;
-	struct fcloop_nport *nport;
-	struct fcloop_lport *lport;
+	struct nvmet_fc_target_port	*targetport;
+	struct nvme_fc_remote_port	*remoteport;
+	struct fcloop_nport		*nport;
+	struct fcloop_lport		*lport;
+	spinlock_t			lock;
+	struct list_head		ls_list;
+	struct work_struct		ls_work;
 };
 
 struct fcloop_nport {
@@ -224,11 +227,6 @@ struct fcloop_nport {
 	u64 port_name;
 	u32 port_role;
 	u32 port_id;
-};
-
-enum {
-	H2T	= 0,
-	T2H	= 1,
 };
 
 struct fcloop_lsreq {
@@ -337,7 +335,6 @@ fcloop_h2t_ls_req(struct nvme_fc_local_port *localport,
 	struct fcloop_rport *rport = remoteport->private;
 	int ret = 0;
 
-	tls_req->lsdir = H2T;
 	tls_req->lsreq = lsreq;
 	INIT_LIST_HEAD(&tls_req->ls_list);
 
@@ -351,8 +348,9 @@ fcloop_h2t_ls_req(struct nvme_fc_local_port *localport,
 	}
 
 	tls_req->status = 0;
-	ret = nvmet_fc_rcv_ls_req(rport->targetport, NULL, &tls_req->ls_rsp,
-				 lsreq->rqstaddr, lsreq->rqstlen);
+	ret = nvmet_fc_rcv_ls_req(rport->targetport, rport,
+				  &tls_req->ls_rsp,
+				  lsreq->rqstaddr, lsreq->rqstlen);
 
 	return ret;
 }
@@ -382,6 +380,99 @@ fcloop_h2t_xmt_ls_rsp(struct nvmet_fc_target_port *targetport,
 	}
 
 	return 0;
+}
+
+static void
+fcloop_tport_lsrqst_work(struct work_struct *work)
+{
+	struct fcloop_tport *tport =
+		container_of(work, struct fcloop_tport, ls_work);
+	struct fcloop_lsreq *tls_req;
+
+	spin_lock(&tport->lock);
+	for (;;) {
+		tls_req = list_first_entry_or_null(&tport->ls_list,
+				struct fcloop_lsreq, ls_list);
+		if (!tls_req)
+			break;
+
+		list_del(&tls_req->ls_list);
+		spin_unlock(&tport->lock);
+
+		tls_req->lsreq->done(tls_req->lsreq, tls_req->status);
+		/*
+		 * callee may free memory containing tls_req.
+		 * do not reference lsreq after this.
+		 */
+
+		spin_lock(&tport->lock);
+	}
+	spin_unlock(&tport->lock);
+}
+
+static int
+fcloop_t2h_ls_req(struct nvmet_fc_target_port *targetport, void *hosthandle,
+			struct nvmefc_ls_req *lsreq)
+{
+	struct fcloop_lsreq *tls_req = lsreq->private;
+	struct fcloop_tport *tport = targetport->private;
+	int ret = 0;
+
+	/*
+	 * hosthandle should be the dst.rport value.
+	 * hosthandle ignored as fcloop currently is
+	 * 1:1 tgtport vs remoteport
+	 */
+	tls_req->lsreq = lsreq;
+	INIT_LIST_HEAD(&tls_req->ls_list);
+
+	if (!tport->remoteport) {
+		tls_req->status = -ECONNREFUSED;
+		spin_lock(&tport->lock);
+		list_add_tail(&tport->ls_list, &tls_req->ls_list);
+		spin_unlock(&tport->lock);
+		schedule_work(&tport->ls_work);
+		return ret;
+	}
+
+	tls_req->status = 0;
+	ret = nvme_fc_rcv_ls_req(tport->remoteport, &tls_req->ls_rsp,
+				 lsreq->rqstaddr, lsreq->rqstlen);
+
+	return ret;
+}
+
+static int
+fcloop_t2h_xmt_ls_rsp(struct nvme_fc_local_port *localport,
+			struct nvme_fc_remote_port *remoteport,
+			struct nvmefc_ls_rsp *lsrsp)
+{
+	struct fcloop_lsreq *tls_req = ls_rsp_to_lsreq(lsrsp);
+	struct nvmefc_ls_req *lsreq = tls_req->lsreq;
+	struct fcloop_rport *rport = remoteport->private;
+	struct nvmet_fc_target_port *targetport = rport->targetport;
+	struct fcloop_tport *tport;
+
+	memcpy(lsreq->rspaddr, lsrsp->rspbuf,
+		((lsreq->rsplen < lsrsp->rsplen) ?
+				lsreq->rsplen : lsrsp->rsplen));
+	lsrsp->done(lsrsp);
+
+	if (targetport) {
+		tport = targetport->private;
+		spin_lock(&tport->lock);
+		list_add_tail(&tport->ls_list, &tls_req->ls_list);
+		spin_unlock(&tport->lock);
+		schedule_work(&tport->ls_work);
+	}
+
+	return 0;
+}
+
+static void
+fcloop_t2h_host_release(void *hosthandle)
+{
+	/* host handle ignored for now */
 }
 
 /*
@@ -776,6 +867,12 @@ fcloop_h2t_ls_abort(struct nvme_fc_local_port *localport,
 }
 
 static void
+fcloop_t2h_ls_abort(struct nvmet_fc_target_port *targetport,
+			void *hosthandle, struct nvmefc_ls_req *lsreq)
+{
+}
+
+static void
 fcloop_fcp_abort(struct nvme_fc_local_port *localport,
 			struct nvme_fc_remote_port *remoteport,
 			void *hw_queue_handle,
@@ -874,6 +971,7 @@ fcloop_targetport_delete(struct nvmet_fc_target_port *targetport)
 {
 	struct fcloop_tport *tport = targetport->private;
 
+	flush_work(&tport->ls_work);
 	fcloop_nport_put(tport->nport);
 }
 
@@ -890,6 +988,7 @@ static struct nvme_fc_port_template fctemplate = {
 	.fcp_io			= fcloop_fcp_req,
 	.ls_abort		= fcloop_h2t_ls_abort,
 	.fcp_abort		= fcloop_fcp_abort,
+	.xmt_ls_rsp		= fcloop_t2h_xmt_ls_rsp,
 	.max_hw_queues		= FCLOOP_HW_QUEUES,
 	.max_sgl_segments	= FCLOOP_SGL_SEGS,
 	.max_dif_sgl_segments	= FCLOOP_SGL_SEGS,
@@ -908,6 +1007,9 @@ static struct nvmet_fc_target_template tgttemplate = {
 	.fcp_abort		= fcloop_tgt_fcp_abort,
 	.fcp_req_release	= fcloop_fcp_req_release,
 	.discovery_event	= fcloop_tgt_discovery_evt,
+	.ls_req			= fcloop_t2h_ls_req,
+	.ls_abort		= fcloop_t2h_ls_abort,
+	.host_release		= fcloop_t2h_host_release,
 	.max_hw_queues		= FCLOOP_HW_QUEUES,
 	.max_sgl_segments	= FCLOOP_SGL_SEGS,
 	.max_dif_sgl_segments	= FCLOOP_SGL_SEGS,
@@ -916,6 +1018,7 @@ static struct nvmet_fc_target_template tgttemplate = {
 	.target_features	= 0,
 	/* sizes of additional private data for data structures */
 	.target_priv_sz		= sizeof(struct fcloop_tport),
+	.lsrqst_priv_sz		= sizeof(struct fcloop_lsreq),
 };
 
 static ssize_t
@@ -1265,6 +1368,9 @@ fcloop_create_target_port(struct device *dev, struct device_attribute *attr,
 	tport->nport = nport;
 	tport->lport = nport->lport;
 	nport->tport = tport;
+	spin_lock_init(&tport->lock);
+	INIT_WORK(&tport->ls_work, fcloop_tport_lsrqst_work);
+	INIT_LIST_HEAD(&tport->ls_list);
 
 	return count;
 }
