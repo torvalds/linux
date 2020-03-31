@@ -106,6 +106,15 @@ static char adapter_stats_strings[][ETH_GSTRING_LEN] = {
 	"db_empty               ",
 	"write_coal_success     ",
 	"write_coal_fail        ",
+#ifdef CONFIG_CHELSIO_TLS_DEVICE
+	"tx_tls_encrypted_packets",
+	"tx_tls_encrypted_bytes  ",
+	"tx_tls_ctx              ",
+	"tx_tls_ooo              ",
+	"tx_tls_skip_no_sync_data",
+	"tx_tls_drop_no_sync_data",
+	"tx_tls_drop_bypass_req  ",
+#endif
 };
 
 static char loopback_stats_strings[][ETH_GSTRING_LEN] = {
@@ -232,6 +241,15 @@ struct adapter_stats {
 	u64 db_empty;
 	u64 wc_success;
 	u64 wc_fail;
+#ifdef CONFIG_CHELSIO_TLS_DEVICE
+	u64 tx_tls_encrypted_packets;
+	u64 tx_tls_encrypted_bytes;
+	u64 tx_tls_ctx;
+	u64 tx_tls_ooo;
+	u64 tx_tls_skip_no_sync_data;
+	u64 tx_tls_drop_no_sync_data;
+	u64 tx_tls_drop_bypass_req;
+#endif
 };
 
 static void collect_sge_port_stats(const struct adapter *adap,
