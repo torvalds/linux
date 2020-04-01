@@ -179,14 +179,6 @@ static void nr_config(struct rkispp_params_vdev *params_vdev,
 	void __iomem *base = params_vdev->dev->base_addr;
 	u32 i, val;
 
-	val = arg->uvnr_step1_en << 1 | arg->uvnr_step2_en << 2 |
-		arg->nr_gain_en << 3 | arg->uvnr_nobig_en << 5 |
-		arg->uvnr_big_en << 6;
-	rkispp_set_bits(base + RKISPP_NR_UVNR_CTRL_PARA,
-			SW_UVNR_STEP1_ON | SW_UVNR_STEP2_ON |
-			SW_NR_GAIN_BYPASS | SW_UVNR_NOBIG_EN |
-			SW_UVNR_BIG_EN, val);
-
 	rkispp_write(base + RKISPP_NR_UVNR_GAIN_1SIGMA,
 		arg->uvnr_gain_1sigma);
 	rkispp_write(base + RKISPP_NR_UVNR_GAIN_OFFSET,
@@ -307,11 +299,23 @@ static void nr_config(struct rkispp_params_vdev *params_vdev,
 	rkispp_write(base + RKISPP_NR_YNR_ST_SCALE_LV3, arg->ynr_st_scale[2]);
 }
 
-static void nr_enable(struct rkispp_params_vdev *params_vdev, bool en)
+static void nr_enable(struct rkispp_params_vdev *params_vdev, bool en,
+		      struct rkispp_nr_config *arg)
 {
 	void __iomem *base = params_vdev->dev->base_addr;
+	u32 val;
 
-	rkispp_set_bits(base + RKISPP_NR_UVNR_CTRL_PARA, SW_NR_EN, en);
+	val = arg->uvnr_step1_en << 1 | arg->uvnr_step2_en << 2 |
+	      arg->nr_gain_en << 3 | arg->uvnr_nobig_en << 5 |
+	      arg->uvnr_big_en << 6;
+
+	if (en)
+		val |= SW_NR_EN;
+
+	rkispp_set_bits(base + RKISPP_NR_UVNR_CTRL_PARA,
+			SW_UVNR_STEP1_ON | SW_UVNR_STEP2_ON |
+			SW_NR_GAIN_BYPASS | SW_UVNR_NOBIG_EN |
+			SW_UVNR_BIG_EN | SW_NR_EN, val);
 }
 
 static void shp_config(struct rkispp_params_vdev *params_vdev,
@@ -782,7 +786,8 @@ void rkispp_params_isr(struct rkispp_params_vdev *params_vdev, u32 mis)
 	if (module_en_update & ISPP_MODULE_NR &&
 	    mis & NR_INT) {
 		nr_enable(params_vdev,
-			  !!(module_ens & ISPP_MODULE_NR));
+			  !!(module_ens & ISPP_MODULE_NR),
+			  &new_params->nr_cfg);
 		module_en_update &= ~ISPP_MODULE_NR;
 	}
 
@@ -846,7 +851,8 @@ void rkispp_params_configure(struct rkispp_params_vdev *params_vdev)
 			  &params_vdev->cur_params.nr_cfg);
 	if (module_en_update & ISPP_MODULE_NR)
 		nr_enable(params_vdev,
-			  !!(module_ens & ISPP_MODULE_NR));
+			  !!(module_ens & ISPP_MODULE_NR),
+			  &params_vdev->cur_params.nr_cfg);
 
 	if (module_cfg_update & ISPP_MODULE_SHP)
 		shp_config(params_vdev,
