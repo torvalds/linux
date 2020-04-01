@@ -61,11 +61,12 @@ static int amdgpu_vm_sdma_prepare(struct amdgpu_vm_update_params *p,
 				  struct dma_resv *resv,
 				  enum amdgpu_sync_mode sync_mode)
 {
+	enum amdgpu_ib_pool_type pool = p->direct ? AMDGPU_IB_POOL_IMMEDIATE :
+		AMDGPU_IB_POOL_DELAYED;
 	unsigned int ndw = AMDGPU_VM_SDMA_MIN_NUM_DW;
 	int r;
 
-	r = amdgpu_job_alloc_with_ib(p->adev, ndw * 4,
-			p->direct ? AMDGPU_IB_POOL_VM : AMDGPU_IB_POOL_NORMAL, &p->job);
+	r = amdgpu_job_alloc_with_ib(p->adev, ndw * 4, pool, &p->job);
 	if (r)
 		return r;
 
@@ -199,6 +200,8 @@ static int amdgpu_vm_sdma_update(struct amdgpu_vm_update_params *p,
 				 uint64_t addr, unsigned count, uint32_t incr,
 				 uint64_t flags)
 {
+	enum amdgpu_ib_pool_type pool = p->direct ? AMDGPU_IB_POOL_IMMEDIATE :
+		AMDGPU_IB_POOL_DELAYED;
 	unsigned int i, ndw, nptes;
 	uint64_t *pte;
 	int r;
@@ -224,8 +227,8 @@ static int amdgpu_vm_sdma_update(struct amdgpu_vm_update_params *p,
 			ndw = max(ndw, AMDGPU_VM_SDMA_MIN_NUM_DW);
 			ndw = min(ndw, AMDGPU_VM_SDMA_MAX_NUM_DW);
 
-			r = amdgpu_job_alloc_with_ib(p->adev, ndw * 4,
-					p->direct ? AMDGPU_IB_POOL_VM : AMDGPU_IB_POOL_NORMAL, &p->job);
+			r = amdgpu_job_alloc_with_ib(p->adev, ndw * 4, pool,
+						     &p->job);
 			if (r)
 				return r;
 

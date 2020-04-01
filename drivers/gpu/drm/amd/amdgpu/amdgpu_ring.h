@@ -50,6 +50,8 @@
 
 #define to_amdgpu_ring(s) container_of((s), struct amdgpu_ring, sched)
 
+#define AMDGPU_IB_POOL_SIZE	(1024 * 1024)
+
 enum amdgpu_ring_type {
 	AMDGPU_RING_TYPE_GFX		= AMDGPU_HW_IP_GFX,
 	AMDGPU_RING_TYPE_COMPUTE	= AMDGPU_HW_IP_COMPUTE,
@@ -61,6 +63,17 @@ enum amdgpu_ring_type {
 	AMDGPU_RING_TYPE_VCN_ENC	= AMDGPU_HW_IP_VCN_ENC,
 	AMDGPU_RING_TYPE_VCN_JPEG	= AMDGPU_HW_IP_VCN_JPEG,
 	AMDGPU_RING_TYPE_KIQ
+};
+
+enum amdgpu_ib_pool_type {
+	/* Normal submissions to the top of the pipeline. */
+	AMDGPU_IB_POOL_DELAYED,
+	/* Immediate submissions to the bottom of the pipeline. */
+	AMDGPU_IB_POOL_IMMEDIATE,
+	/* Direct submission to the ring buffer during init and reset. */
+	AMDGPU_IB_POOL_DIRECT,
+
+	AMDGPU_IB_POOL_MAX
 };
 
 struct amdgpu_device;

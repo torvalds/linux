@@ -44,7 +44,7 @@ static void amdgpu_do_test_moves(struct amdgpu_device *adev)
 	/* Number of tests =
 	 * (Total GTT - IB pool - writeback page - ring buffers) / test size
 	 */
-	n = adev->gmc.gart_size - AMDGPU_IB_POOL_SIZE*64*1024;
+	n = adev->gmc.gart_size - AMDGPU_IB_POOL_SIZE;
 	for (i = 0; i < AMDGPU_MAX_RINGS; ++i)
 		if (adev->rings[i])
 			n -= adev->rings[i]->ring_size;
