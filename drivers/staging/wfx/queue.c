@@ -158,16 +158,17 @@ void wfx_tx_queue_put(struct wfx_dev *wdev, struct wfx_queue *queue,
 
 static struct sk_buff *wfx_tx_queue_get(struct wfx_dev *wdev,
 					struct wfx_queue *queue,
-					u32 link_id_map)
+					bool mcast)
 {
 	struct wfx_queue_stats *stats = &wdev->tx_queue_stats;
+	struct ieee80211_tx_info *tx_info;
 	struct sk_buff *item, *skb = NULL;
 	struct wfx_tx_priv *tx_priv;
 
 	spin_lock_bh(&queue->queue.lock);
 	skb_queue_walk(&queue->queue, item) {
-		tx_priv = wfx_skb_tx_priv(item);
-		if (link_id_map & BIT(tx_priv->link_id)) {
+		tx_info = IEEE80211_SKB_CB(item);
+		if (mcast == !!(tx_info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM)) {
 			skb = item;
 			break;
 		}
@@ -381,7 +382,7 @@ struct hif_msg *wfx_tx_queues_get(struct wfx_dev *wdev)
 			for (i = 0; i < IEEE80211_NUM_ACS; ++i) {
 				skb = wfx_tx_queue_get(wvif->wdev,
 						       &wdev->tx_queue[i],
-						       BIT(WFX_LINK_ID_AFTER_DTIM));
+						       true);
 				if (skb) {
 					hif = (struct hif_msg *)skb->data;
 					// Cannot happen since only one vif can
@@ -416,7 +417,7 @@ struct hif_msg *wfx_tx_queues_get(struct wfx_dev *wdev)
 
 		queue_num = queue - wdev->tx_queue;
 
-		skb = wfx_tx_queue_get(wdev, queue, ~BIT(WFX_LINK_ID_AFTER_DTIM));
+		skb = wfx_tx_queue_get(wdev, queue, false);
 		if (!skb)
 			continue;
 
