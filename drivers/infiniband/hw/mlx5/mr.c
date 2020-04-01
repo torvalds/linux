@@ -140,6 +140,19 @@ static int destroy_mkey(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr)
 	return mlx5_core_destroy_mkey(dev->mdev, mr->mmkey.key);
 }
 
+static void create_mkey_warn(struct mlx5_ib_dev *dev, int status, void *out)
+{
+	if (status == -ENXIO) /* core driver is not available */
+		return;
+
+	mlx5_ib_warn(dev, "async reg mr failed. status %d\n", status);
+	if (status != -EREMOTEIO) /* driver specific failure */
+		return;
+
+	/* Failed in FW, print cmd out failure details */
+	mlx5_cmd_out_err(dev->mdev, MLX5_CMD_OP_CREATE_MKEY, 0, out);
+}
+
 static void create_mkey_callback(int status, struct mlx5_async_work *context)
 {
 	struct mlx5_ib_mr *mr =
@@ -149,7 +162,7 @@ static void create_mkey_callback(int status, struct mlx5_async_work *context)
 	unsigned long flags;
 
 	if (status) {
-		mlx5_ib_warn(dev, "async reg mr failed. status %d\n", status);
+		create_mkey_warn(dev, status, mr->out);
 		kfree(mr);
 		spin_lock_irqsave(&ent->lock, flags);
 		ent->pending--;

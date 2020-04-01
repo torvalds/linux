@@ -760,6 +760,18 @@ struct mlx5_ifc_mbox_in_bits {
 	u8         reserved_at_40[0x40];
 };
 
+void mlx5_cmd_out_err(struct mlx5_core_dev *dev, u16 opcode, u16 op_mod, void *out)
+{
+	u32 syndrome = MLX5_GET(mbox_out, out, syndrome);
+	u8 status = MLX5_GET(mbox_out, out, status);
+
+	mlx5_core_err_rl(dev,
+			 "%s(0x%x) op_mod(0x%x) failed, status %s(0x%x), syndrome (0x%x), err(%d)\n",
+			 mlx5_command_str(opcode), opcode, op_mod,
+			 cmd_status_str(status), status, syndrome, cmd_status_to_err(status));
+}
+EXPORT_SYMBOL(mlx5_cmd_out_err);
+
 static void cmd_status_print(struct mlx5_core_dev *dev, void *in, void *out)
 {
 	u16 opcode, op_mod;
@@ -778,10 +790,7 @@ static void cmd_status_print(struct mlx5_core_dev *dev, void *in, void *out)
 	err = cmd_status_to_err(status);
 
 	if (!uid && opcode != MLX5_CMD_OP_DESTROY_MKEY)
-		mlx5_core_err_rl(dev,
-			"%s(0x%x) op_mod(0x%x) failed, status %s(0x%x), syndrome (0x%x), err(%d)\n",
-			mlx5_command_str(opcode), opcode, op_mod,
-			cmd_status_str(status), status, syndrome, err);
+		mlx5_cmd_out_err(dev, opcode, op_mod, out);
 	else
 		mlx5_core_dbg(dev,
 			"%s(0x%x) op_mod(0x%x) uid(%d) failed, status %s(0x%x), syndrome (0x%x), err(%d)\n",
@@ -1686,20 +1695,18 @@ static void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, u64 vec, bool force
 
 				callback = ent->callback;
 				context = ent->context;
-				err = ent->ret;
-				if (!err && !ent->status) {
+				err = ent->ret ? : ent->status;
+				if (err > 0) /* Failed in FW, command didn't execute */
+					err = deliv_status_to_err(err);
+
+				if (!err)
 					err = mlx5_copy_from_msg(ent->uout,
 								 ent->out,
 								 ent->uout_size);
 
-					err = mlx5_cmd_check(dev, err, ent->in->first.data,
-							     ent->uout);
-				}
-
 				mlx5_free_cmd_msg(dev, ent->out);
 				free_msg(dev, ent->in);
 
-				err = err ? err : ent->status;
 				/* final consumer is done, release ent */
 				cmd_ent_put(ent);
 				callback(err, context);
@@ -1870,6 +1877,18 @@ out_in:
 	return err;
 }
 
+/* preserve -EREMOTEIO for outbox.status != OK, otherwise return err as is */
+static int cmd_status_err(int err, void *out)
+{
+	if (err) /* -EREMOTEIO is preserved */
+		return err == -EREMOTEIO ? -EIO : err;
+
+	if (MLX5_GET(mbox_out, out, status) != MLX5_CMD_STAT_OK)
+		return -EREMOTEIO;
+
+	return 0;
+}
+
 /**
  * mlx5_cmd_do - Executes a fw command, wait for completion.
  * Unlike mlx5_cmd_exec, this function will not translate or intercept
@@ -1892,13 +1911,7 @@ int mlx5_cmd_do(struct mlx5_core_dev *dev, void *in, int in_size, void *out, int
 {
 	int err = cmd_exec(dev, in, in_size, out, out_size, NULL, NULL, false);
 
-	if (err) /* -EREMOTEIO is preserved */
-		return err == -EREMOTEIO ? -EIO : err;
-
-	if (MLX5_GET(mbox_out, out, status) != MLX5_CMD_STAT_OK)
-		return -EREMOTEIO;
-
-	return 0;
+	return cmd_status_err(err, out);
 }
 EXPORT_SYMBOL(mlx5_cmd_do);
 
@@ -1942,12 +1955,7 @@ int mlx5_cmd_exec_polling(struct mlx5_core_dev *dev, void *in, int in_size,
 {
 	int err = cmd_exec(dev, in, in_size, out, out_size, NULL, NULL, true);
 
-	if (err) /* -EREMOTEIO is preserved */
-		return err == -EREMOTEIO ? -EIO : err;
-
-	if (MLX5_GET(mbox_out, out, status) != MLX5_CMD_STAT_OK)
-		err = -EREMOTEIO;
-
+	err = cmd_status_err(err, out);
 	return mlx5_cmd_check(dev, err, in, out);
 }
 EXPORT_SYMBOL(mlx5_cmd_exec_polling);
@@ -1980,8 +1988,10 @@ EXPORT_SYMBOL(mlx5_cmd_cleanup_async_ctx);
 static void mlx5_cmd_exec_cb_handler(int status, void *_work)
 {
 	struct mlx5_async_work *work = _work;
-	struct mlx5_async_ctx *ctx = work->ctx;
+	struct mlx5_async_ctx *ctx;
 
+	ctx = work->ctx;
+	status = cmd_status_err(status, work->out);
 	work->user_callback(status, work);
 	if (atomic_dec_and_test(&ctx->num_inflight))
 		wake_up(&ctx->wait);
@@ -1995,6 +2005,7 @@ int mlx5_cmd_exec_cb(struct mlx5_async_ctx *ctx, void *in, int in_size,
 
 	work->ctx = ctx;
 	work->user_callback = callback;
+	work->out = out;
 	if (WARN_ON(!atomic_inc_not_zero(&ctx->num_inflight)))
 		return -EIO;
 	ret = cmd_exec(ctx->dev, in, in_size, out, out_size,

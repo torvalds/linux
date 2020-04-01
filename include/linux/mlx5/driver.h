@@ -955,6 +955,7 @@ typedef void (*mlx5_async_cbk_t)(int status, struct mlx5_async_work *context);
 struct mlx5_async_work {
 	struct mlx5_async_ctx *ctx;
 	mlx5_async_cbk_t user_callback;
+	void *out; /* pointer to the cmd output buffer */
 };
 
 void mlx5_cmd_init_async_ctx(struct mlx5_core_dev *dev,
@@ -963,7 +964,7 @@ void mlx5_cmd_cleanup_async_ctx(struct mlx5_async_ctx *ctx);
 int mlx5_cmd_exec_cb(struct mlx5_async_ctx *ctx, void *in, int in_size,
 		     void *out, int out_size, mlx5_async_cbk_t callback,
 		     struct mlx5_async_work *work);
-
+void mlx5_cmd_out_err(struct mlx5_core_dev *dev, u16 opcode, u16 op_mod, void *out);
 int mlx5_cmd_do(struct mlx5_core_dev *dev, void *in, int in_size, void *out, int out_size);
 int mlx5_cmd_check(struct mlx5_core_dev *dev, int err, void *in, void *out);
 int mlx5_cmd_exec(struct mlx5_core_dev *dev, void *in, int in_size, void *out,
