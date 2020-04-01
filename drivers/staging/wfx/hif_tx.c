@@ -297,6 +297,8 @@ int hif_join(struct wfx_vif *wvif, const struct ieee80211_bss_conf *conf,
 	struct hif_req_join *body = wfx_alloc_hif(sizeof(*body), &hif);
 
 	WARN_ON(!conf->basic_rates);
+	WARN_ON(sizeof(body->ssid) < ssidlen);
+	WARN(!conf->ibss_joined && !ssidlen, "joining an unknown BSS");
 	body->infrastructure_bss_mode = !conf->ibss_joined;
 	body->short_preamble = conf->use_short_preamble;
 	if (channel && channel->flags & IEEE80211_CHAN_NO_IR)
