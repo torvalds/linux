@@ -191,6 +191,8 @@
 
 	rgb: rgb {
 		compatible = "rockchip,rv1126-rgb";
+		pinctrl-names = "default";
+		pinctrl-0 = <&lcdc_ctl>;
 		status = "disabled";
 
 		ports {
@@ -1300,6 +1302,7 @@
 		compatible = "rockchip,rv1126-vop";
 		reg = <0xffb00000 0x200>, <0xffb00a00 0x400>;
 		reg-names = "regs", "gamma_lut";
+		rockchip,grf = <&grf>;
 		interrupts = <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru ACLK_VOP>, <&cru DCLK_VOP>, <&cru HCLK_VOP>;
 		clock-names = "aclk_vop", "dclk_vop", "hclk_vop";
