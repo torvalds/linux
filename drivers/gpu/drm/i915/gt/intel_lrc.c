@@ -2804,6 +2804,45 @@ err_cap:
 	return NULL;
 }
 
+static struct i915_request *
+active_context(struct intel_engine_cs *engine, u32 ccid)
+{
+	const struct intel_engine_execlists * const el = &engine->execlists;
+	struct i915_request * const *port, *rq;
+
+	/*
+	 * Use the most recent result from process_csb(), but just in case
+	 * we trigger an error (via interrupt) before the first CS event has
+	 * been written, peek at the next submission.
+	 */
+
+	for (port = el->active; (rq = *port); port++) {
+		if (upper_32_bits(rq->context->lrc_desc) == ccid) {
+			ENGINE_TRACE(engine,
+				     "ccid found at active:%zd\n",
+				     port - el->active);
+			return rq;
+		}
+	}
+
+	for (port = el->pending; (rq = *port); port++) {
+		if (upper_32_bits(rq->context->lrc_desc) == ccid) {
+			ENGINE_TRACE(engine,
+				     "ccid found at pending:%zd\n",
+				     port - el->pending);
+			return rq;
+		}
+	}
+
+	ENGINE_TRACE(engine, "ccid:%x not found\n", ccid);
+	return NULL;
+}
+
+static u32 active_ccid(struct intel_engine_cs *engine)
+{
+	return ENGINE_READ_FW(engine, RING_EXECLIST_STATUS_HI);
+}
+
 static bool execlists_capture(struct intel_engine_cs *engine)
 {
 	struct execlists_capture *cap;
@@ -2821,7 +2860,7 @@ static bool execlists_capture(struct intel_engine_cs *engine)
 		return true;
 
 	spin_lock_irq(&engine->active.lock);
-	cap->rq = execlists_active(&engine->execlists);
+	cap->rq = active_context(engine, active_ccid(engine));
 	if (cap->rq) {
 		cap->rq = active_request(cap->rq->context->timeline, cap->rq);
 		cap->rq = i915_request_get_rcu(cap->rq);
