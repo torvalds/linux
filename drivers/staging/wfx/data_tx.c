@@ -287,9 +287,8 @@ static void wfx_tx_manage_pm(struct wfx_vif *wvif, struct ieee80211_hdr *hdr,
 	}
 }
 
-static u8 wfx_tx_get_raw_link_id(struct wfx_vif *wvif,
-				 struct ieee80211_sta *sta,
-				 struct ieee80211_hdr *hdr)
+static u8 wfx_tx_get_link_id(struct wfx_vif *wvif, struct ieee80211_sta *sta,
+			     struct ieee80211_hdr *hdr)
 {
 	struct wfx_sta_priv *sta_priv =
 		sta ? (struct wfx_sta_priv *)&sta->drv_priv : NULL;
@@ -454,7 +453,7 @@ static int wfx_tx_inner(struct wfx_vif *wvif, struct ieee80211_sta *sta,
 	req->data_flags.fc_offset = offset;
 	if (tx_info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM)
 		req->data_flags.after_dtim = 1;
-	req->queue_id.peer_sta_id = wfx_tx_get_raw_link_id(wvif, sta, hdr);
+	req->queue_id.peer_sta_id = wfx_tx_get_link_id(wvif, sta, hdr);
 	// Queue index are inverted between firmware and Linux
 	req->queue_id.queue_id = 3 - queue_id;
 	req->ht_tx_parameters = wfx_tx_get_tx_parms(wvif->wdev, tx_info);
