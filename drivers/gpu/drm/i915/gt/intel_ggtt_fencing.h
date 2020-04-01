@@ -54,6 +54,10 @@ struct i915_fence_reg {
 	 * command (such as BLT on gen2/3), as a "fence".
 	 */
 	bool dirty;
+	u32 start;
+	u32 size;
+	u32 tiling;
+	u32 stride;
 };
 
 struct i915_fence_reg *i915_reserve_fence(struct i915_ggtt *ggtt);

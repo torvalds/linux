@@ -68,8 +68,7 @@ static struct intel_uncore *fence_to_uncore(struct i915_fence_reg *fence)
 	return fence->ggtt->vm.gt->uncore;
 }
 
-static void i965_write_fence_reg(struct i915_fence_reg *fence,
-				 struct i915_vma *vma)
+static void i965_write_fence_reg(struct i915_fence_reg *fence)
 {
 	i915_reg_t fence_reg_lo, fence_reg_hi;
 	int fence_pitch_shift;
@@ -87,18 +86,16 @@ static void i965_write_fence_reg(struct i915_fence_reg *fence,
 	}
 
 	val = 0;
-	if (vma) {
-		unsigned int stride = i915_gem_object_get_stride(vma->obj);
+	if (fence->tiling) {
+		unsigned int stride = fence->stride;
 
-		GEM_BUG_ON(!i915_vma_is_map_and_fenceable(vma));
-		GEM_BUG_ON(!IS_ALIGNED(vma->node.start, I965_FENCE_PAGE));
-		GEM_BUG_ON(!IS_ALIGNED(vma->fence_size, I965_FENCE_PAGE));
 		GEM_BUG_ON(!IS_ALIGNED(stride, 128));
 
-		val = (vma->node.start + vma->fence_size - I965_FENCE_PAGE) << 32;
-		val |= vma->node.start;
+		val = fence->start + fence->size - I965_FENCE_PAGE;
+		val <<= 32;
+		val |= fence->start;
 		val |= (u64)((stride / 128) - 1) << fence_pitch_shift;
-		if (i915_gem_object_get_tiling(vma->obj) == I915_TILING_Y)
+		if (fence->tiling == I915_TILING_Y)
 			val |= BIT(I965_FENCE_TILING_Y_SHIFT);
 		val |= I965_FENCE_REG_VALID;
 	}
@@ -125,21 +122,15 @@ static void i965_write_fence_reg(struct i915_fence_reg *fence,
 	}
 }
 
-static void i915_write_fence_reg(struct i915_fence_reg *fence,
-				 struct i915_vma *vma)
+static void i915_write_fence_reg(struct i915_fence_reg *fence)
 {
 	u32 val;
 
 	val = 0;
-	if (vma) {
-		unsigned int tiling = i915_gem_object_get_tiling(vma->obj);
+	if (fence->tiling) {
+		unsigned int stride = fence->stride;
+		unsigned int tiling = fence->tiling;
 		bool is_y_tiled = tiling == I915_TILING_Y;
-		unsigned int stride = i915_gem_object_get_stride(vma->obj);
-
-		GEM_BUG_ON(!i915_vma_is_map_and_fenceable(vma));
-		GEM_BUG_ON(vma->node.start & ~I915_FENCE_START_MASK);
-		GEM_BUG_ON(!is_power_of_2(vma->fence_size));
-		GEM_BUG_ON(!IS_ALIGNED(vma->node.start, vma->fence_size));
 
 		if (is_y_tiled && HAS_128_BYTE_Y_TILING(fence_to_i915(fence)))
 			stride /= 128;
@@ -147,10 +138,10 @@ static void i915_write_fence_reg(struct i915_fence_reg *fence,
 			stride /= 512;
 		GEM_BUG_ON(!is_power_of_2(stride));
 
-		val = vma->node.start;
+		val = fence->start;
 		if (is_y_tiled)
 			val |= BIT(I830_FENCE_TILING_Y_SHIFT);
-		val |= I915_FENCE_SIZE_BITS(vma->fence_size);
+		val |= I915_FENCE_SIZE_BITS(fence->size);
 		val |= ilog2(stride) << I830_FENCE_PITCH_SHIFT;
 
 		val |= I830_FENCE_REG_VALID;
@@ -165,25 +156,18 @@ static void i915_write_fence_reg(struct i915_fence_reg *fence,
 	}
 }
 
-static void i830_write_fence_reg(struct i915_fence_reg *fence,
-				 struct i915_vma *vma)
+static void i830_write_fence_reg(struct i915_fence_reg *fence)
 {
 	u32 val;
 
 	val = 0;
-	if (vma) {
-		unsigned int stride = i915_gem_object_get_stride(vma->obj);
+	if (fence->tiling) {
+		unsigned int stride = fence->stride;
 
-		GEM_BUG_ON(!i915_vma_is_map_and_fenceable(vma));
-		GEM_BUG_ON(vma->node.start & ~I830_FENCE_START_MASK);
-		GEM_BUG_ON(!is_power_of_2(vma->fence_size));
-		GEM_BUG_ON(!is_power_of_2(stride / 128));
-		GEM_BUG_ON(!IS_ALIGNED(vma->node.start, vma->fence_size));
-
-		val = vma->node.start;
-		if (i915_gem_object_get_tiling(vma->obj) == I915_TILING_Y)
+		val = fence->start;
+		if (fence->tiling == I915_TILING_Y)
 			val |= BIT(I830_FENCE_TILING_Y_SHIFT);
-		val |= I830_FENCE_SIZE_BITS(vma->fence_size);
+		val |= I830_FENCE_SIZE_BITS(fence->size);
 		val |= ilog2(stride / 128) << I830_FENCE_PITCH_SHIFT;
 		val |= I830_FENCE_REG_VALID;
 	}
@@ -197,8 +181,7 @@ static void i830_write_fence_reg(struct i915_fence_reg *fence,
 	}
 }
 
-static void fence_write(struct i915_fence_reg *fence,
-			struct i915_vma *vma)
+static void fence_write(struct i915_fence_reg *fence)
 {
 	struct drm_i915_private *i915 = fence_to_i915(fence);
 
@@ -209,18 +192,16 @@ static void fence_write(struct i915_fence_reg *fence,
 	 */
 
 	if (IS_GEN(i915, 2))
-		i830_write_fence_reg(fence, vma);
+		i830_write_fence_reg(fence);
 	else if (IS_GEN(i915, 3))
-		i915_write_fence_reg(fence, vma);
+		i915_write_fence_reg(fence);
 	else
-		i965_write_fence_reg(fence, vma);
+		i965_write_fence_reg(fence);
 
 	/*
 	 * Access through the fenced region afterwards is
 	 * ordered by the posting reads whilst writing the registers.
 	 */
-
-	fence->dirty = false;
 }
 
 static bool gpu_uses_fence_registers(struct i915_fence_reg *fence)
@@ -237,6 +218,7 @@ static int fence_update(struct i915_fence_reg *fence,
 	struct i915_vma *old;
 	int ret;
 
+	fence->tiling = 0;
 	if (vma) {
 		GEM_BUG_ON(!i915_gem_object_get_stride(vma->obj) ||
 			   !i915_gem_object_get_tiling(vma->obj));
@@ -250,7 +232,13 @@ static int fence_update(struct i915_fence_reg *fence,
 			if (ret)
 				return ret;
 		}
+
+		fence->start = vma->node.start;
+		fence->size = vma->fence_size;
+		fence->stride = i915_gem_object_get_stride(vma->obj);
+		fence->tiling = i915_gem_object_get_tiling(vma->obj);
 	}
+	WRITE_ONCE(fence->dirty, false);
 
 	old = xchg(&fence->vma, NULL);
 	if (old) {
@@ -293,7 +281,7 @@ static int fence_update(struct i915_fence_reg *fence,
 	}
 
 	WRITE_ONCE(fence->vma, vma);
-	fence_write(fence, vma);
+	fence_write(fence);
 
 	if (vma) {
 		vma->fence = fence;
@@ -501,23 +489,8 @@ void intel_ggtt_restore_fences(struct i915_ggtt *ggtt)
 {
 	int i;
 
-	rcu_read_lock(); /* keep obj alive as we dereference */
-	for (i = 0; i < ggtt->num_fences; i++) {
-		struct i915_fence_reg *reg = &ggtt->fence_regs[i];
-		struct i915_vma *vma = READ_ONCE(reg->vma);
-
-		GEM_BUG_ON(vma && vma->fence != reg);
-
-		/*
-		 * Commit delayed tiling changes if we have an object still
-		 * attached to the fence, otherwise just clear the fence.
-		 */
-		if (vma && !i915_gem_object_is_tiled(vma->obj))
-			vma = NULL;
-
-		fence_write(reg, vma);
-	}
-	rcu_read_unlock();
+	for (i = 0; i < ggtt->num_fences; i++)
+		fence_write(&ggtt->fence_regs[i]);
 }
 
 /**
