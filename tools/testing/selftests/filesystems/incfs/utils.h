@@ -23,7 +23,7 @@ int mount_fs(const char *mount_dir, const char *backing_dir,
 	     int read_timeout_ms);
 
 int mount_fs_opt(const char *mount_dir, const char *backing_dir,
-		 const char *opt);
+		 const char *opt, bool remount);
 
 int get_file_bmap(int cmd_fd, int ino, unsigned char *buf, int buf_size);
 
