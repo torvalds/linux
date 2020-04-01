@@ -223,6 +223,11 @@ static void fence_write(struct i915_fence_reg *fence,
 	fence->dirty = false;
 }
 
+static bool gpu_uses_fence_registers(struct i915_fence_reg *fence)
+{
+	return INTEL_GEN(fence_to_i915(fence)) < 4;
+}
+
 static int fence_update(struct i915_fence_reg *fence,
 			struct i915_vma *vma)
 {
@@ -239,15 +244,18 @@ static int fence_update(struct i915_fence_reg *fence,
 		if (!i915_vma_is_map_and_fenceable(vma))
 			return -EINVAL;
 
-		ret = i915_vma_sync(vma);
-		if (ret)
-			return ret;
+		if (gpu_uses_fence_registers(fence)) {
+			/* implicit 'unfenced' GPU blits */
+			ret = i915_vma_sync(vma);
+			if (ret)
+				return ret;
+		}
 	}
 
 	old = xchg(&fence->vma, NULL);
 	if (old) {
 		/* XXX Ideally we would move the waiting to outside the mutex */
-		ret = i915_vma_sync(old);
+		ret = i915_active_wait(&fence->active);
 		if (ret) {
 			fence->vma = old;
 			return ret;
@@ -869,6 +877,7 @@ void intel_ggtt_init_fences(struct i915_ggtt *ggtt)
 	for (i = 0; i < num_fences; i++) {
 		struct i915_fence_reg *fence = &ggtt->fence_regs[i];
 
+		i915_active_init(&fence->active, NULL, NULL);
 		fence->ggtt = ggtt;
 		fence->id = i;
 		list_add_tail(&fence->link, &ggtt->fence_list);
@@ -880,6 +889,14 @@ void intel_ggtt_init_fences(struct i915_ggtt *ggtt)
 
 void intel_ggtt_fini_fences(struct i915_ggtt *ggtt)
 {
+	int i;
+
+	for (i = 0; i < ggtt->num_fences; i++) {
+		struct i915_fence_reg *fence = &ggtt->fence_regs[i];
+
+		i915_active_fini(&fence->active);
+	}
+
 	kfree(ggtt->fence_regs);
 }
 

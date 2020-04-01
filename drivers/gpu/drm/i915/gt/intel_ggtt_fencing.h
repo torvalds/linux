@@ -28,6 +28,8 @@
 #include <linux/list.h>
 #include <linux/types.h>
 
+#include "i915_active.h"
+
 struct drm_i915_gem_object;
 struct i915_ggtt;
 struct i915_vma;
@@ -41,6 +43,7 @@ struct i915_fence_reg {
 	struct i915_ggtt *ggtt;
 	struct i915_vma *vma;
 	atomic_t pin_count;
+	struct i915_active active;
 	int id;
 	/**
 	 * Whether the tiling parameters for the currently
