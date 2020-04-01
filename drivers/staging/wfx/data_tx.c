@@ -423,7 +423,6 @@ static int wfx_tx_inner(struct wfx_vif *wvif, struct ieee80211_sta *sta,
 	memset(tx_info->rate_driver_data, 0, sizeof(struct wfx_tx_priv));
 	// Fill tx_priv
 	tx_priv = (struct wfx_tx_priv *)tx_info->rate_driver_data;
-	tx_priv->raw_link_id = wfx_tx_get_raw_link_id(wvif, sta, hdr);
 	if (ieee80211_has_protected(hdr->frame_control))
 		tx_priv->hw_key = hw_key;
 
@@ -455,7 +454,7 @@ static int wfx_tx_inner(struct wfx_vif *wvif, struct ieee80211_sta *sta,
 	req->data_flags.fc_offset = offset;
 	if (tx_info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM)
 		req->data_flags.after_dtim = 1;
-	req->queue_id.peer_sta_id = tx_priv->raw_link_id;
+	req->queue_id.peer_sta_id = wfx_tx_get_raw_link_id(wvif, sta, hdr);
 	// Queue index are inverted between firmware and Linux
 	req->queue_id.queue_id = 3 - queue_id;
 	req->ht_tx_parameters = wfx_tx_get_tx_parms(wvif->wdev, tx_info);
