@@ -298,23 +298,26 @@ static int fence_update(struct i915_fence_reg *fence,
  *
  * This function force-removes any fence from the given object, which is useful
  * if the kernel wants to do untiled GTT access.
- *
- * Returns:
- *
- * 0 on success, negative error code on failure.
  */
-int i915_vma_revoke_fence(struct i915_vma *vma)
+void i915_vma_revoke_fence(struct i915_vma *vma)
 {
 	struct i915_fence_reg *fence = vma->fence;
+	intel_wakeref_t wakeref;
 
 	lockdep_assert_held(&vma->vm->mutex);
 	if (!fence)
-		return 0;
+		return;
 
-	if (atomic_read(&fence->pin_count))
-		return -EBUSY;
+	GEM_BUG_ON(fence->vma != vma);
+	GEM_BUG_ON(!i915_active_is_idle(&fence->active));
+	GEM_BUG_ON(atomic_read(&fence->pin_count));
 
-	return fence_update(fence, NULL);
+	fence->tiling = 0;
+	WRITE_ONCE(fence->vma, NULL);
+	vma->fence = NULL;
+
+	with_intel_runtime_pm_if_in_use(fence_to_uncore(fence)->rpm, wakeref)
+		fence_write(fence);
 }
 
 static struct i915_fence_reg *fence_find(struct i915_ggtt *ggtt)

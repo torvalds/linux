@@ -1298,9 +1298,7 @@ int __i915_vma_unbind(struct i915_vma *vma)
 		i915_vma_flush_writes(vma);
 
 		/* release the fence reg _after_ flushing */
-		ret = i915_vma_revoke_fence(vma);
-		if (ret)
-			return ret;
+		i915_vma_revoke_fence(vma);
 
 		/* Force a pagefault for domain tracking on next user access */
 		i915_vma_revoke_mmap(vma);
