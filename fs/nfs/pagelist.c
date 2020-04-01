@@ -133,8 +133,43 @@ nfs_async_iocounter_wait(struct rpc_task *task, struct nfs_lock_context *l_ctx)
 EXPORT_SYMBOL_GPL(nfs_async_iocounter_wait);
 
 /*
+ * nfs_page_set_headlock - set the request PG_HEADLOCK
+ * @req: request that is to be locked
+ *
+ * this lock must be held when modifying req->wb_head
+ *
+ * return 0 on success, < 0 on error
+ */
+int
+nfs_page_set_headlock(struct nfs_page *req)
+{
+	if (!test_and_set_bit(PG_HEADLOCK, &req->wb_flags))
+		return 0;
+
+	set_bit(PG_CONTENDED1, &req->wb_flags);
+	smp_mb__after_atomic();
+	return wait_on_bit_lock(&req->wb_flags, PG_HEADLOCK,
+				TASK_UNINTERRUPTIBLE);
+}
+
+/*
+ * nfs_page_clear_headlock - clear the request PG_HEADLOCK
+ * @req: request that is to be locked
+ */
+void
+nfs_page_clear_headlock(struct nfs_page *req)
+{
+	smp_mb__before_atomic();
+	clear_bit(PG_HEADLOCK, &req->wb_flags);
+	smp_mb__after_atomic();
+	if (!test_bit(PG_CONTENDED1, &req->wb_flags))
+		return;
+	wake_up_bit(&req->wb_flags, PG_HEADLOCK);
+}
+
+/*
  * nfs_page_group_lock - lock the head of the page group
- * @req - request in group that is to be locked
+ * @req: request in group that is to be locked
  *
  * this lock must be held when traversing or modifying the page
  * group list
@@ -144,36 +179,24 @@ EXPORT_SYMBOL_GPL(nfs_async_iocounter_wait);
 int
 nfs_page_group_lock(struct nfs_page *req)
 {
-	struct nfs_page *head = req->wb_head;
+	int ret;
 
-	WARN_ON_ONCE(head != head->wb_head);
-
-	if (!test_and_set_bit(PG_HEADLOCK, &head->wb_flags))
-		return 0;
-
-	set_bit(PG_CONTENDED1, &head->wb_flags);
-	smp_mb__after_atomic();
-	return wait_on_bit_lock(&head->wb_flags, PG_HEADLOCK,
-				TASK_UNINTERRUPTIBLE);
+	ret = nfs_page_set_headlock(req);
+	if (ret || req->wb_head == req)
+		return ret;
+	return nfs_page_set_headlock(req->wb_head);
 }
 
 /*
  * nfs_page_group_unlock - unlock the head of the page group
- * @req - request in group that is to be unlocked
+ * @req: request in group that is to be unlocked
  */
 void
 nfs_page_group_unlock(struct nfs_page *req)
 {
-	struct nfs_page *head = req->wb_head;
-
-	WARN_ON_ONCE(head != head->wb_head);
-
-	smp_mb__before_atomic();
-	clear_bit(PG_HEADLOCK, &head->wb_flags);
-	smp_mb__after_atomic();
-	if (!test_bit(PG_CONTENDED1, &head->wb_flags))
-		return;
-	wake_up_bit(&head->wb_flags, PG_HEADLOCK);
+	if (req != req->wb_head)
+		nfs_page_clear_headlock(req->wb_head);
+	nfs_page_clear_headlock(req);
 }
 
 /*
