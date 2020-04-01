@@ -459,6 +459,10 @@
 	pinctrl-0 = <&pwm1m0_pins_pull_down>;
 };
 
+&ramoops {
+	status = "okay";
+};
+
 &rk_rga {
 	status = "okay";
 };
