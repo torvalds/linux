@@ -217,7 +217,7 @@ i915_debugfs_describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 struct file_stats {
 	struct i915_address_space *vm;
 	unsigned long count;
-	u64 total, unbound;
+	u64 total;
 	u64 active, inactive;
 	u64 closed;
 };
@@ -233,8 +233,6 @@ static int per_file_stats(int id, void *ptr, void *data)
 
 	stats->count++;
 	stats->total += obj->base.size;
-	if (!atomic_read(&obj->bind_count))
-		stats->unbound += obj->base.size;
 
 	spin_lock(&obj->vma.lock);
 	if (!stats->vm) {
@@ -284,13 +282,12 @@ static int per_file_stats(int id, void *ptr, void *data)
 
 #define print_file_stats(m, name, stats) do { \
 	if (stats.count) \
-		seq_printf(m, "%s: %lu objects, %llu bytes (%llu active, %llu inactive, %llu unbound, %llu closed)\n", \
+		seq_printf(m, "%s: %lu objects, %llu bytes (%llu active, %llu inactive, %llu closed)\n", \
 			   name, \
 			   stats.count, \
 			   stats.total, \
 			   stats.active, \
 			   stats.inactive, \
-			   stats.unbound, \
 			   stats.closed); \
 } while (0)
 

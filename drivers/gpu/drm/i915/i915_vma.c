@@ -608,18 +608,6 @@ bool i915_gem_valid_gtt_space(struct i915_vma *vma, unsigned long color)
 	return true;
 }
 
-static void assert_bind_count(const struct drm_i915_gem_object *obj)
-{
-	/*
-	 * Combine the assertion that the object is bound and that we have
-	 * pinned its pages. But we should never have bound the object
-	 * more than we have pinned its pages. (For complete accuracy, we
-	 * assume that no else is pinning the pages, but as a rough assertion
-	 * that we will not run into problems later, this will do!)
-	 */
-	GEM_BUG_ON(atomic_read(&obj->mm.pages_pin_count) < atomic_read(&obj->bind_count));
-}
-
 /**
  * i915_vma_insert - finds a slot for the vma in its address space
  * @vma: the vma
@@ -738,12 +726,6 @@ i915_vma_insert(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
 	GEM_BUG_ON(!i915_gem_valid_gtt_space(vma, color));
 
-	if (vma->obj) {
-		struct drm_i915_gem_object *obj = vma->obj;
-
-		atomic_inc(&obj->bind_count);
-		assert_bind_count(obj);
-	}
 	list_add_tail(&vma->vm_link, &vma->vm->bound_list);
 
 	return 0;
@@ -761,12 +743,6 @@ i915_vma_detach(struct i915_vma *vma)
 	 * it to be reaped by the shrinker.
 	 */
 	list_del(&vma->vm_link);
-	if (vma->obj) {
-		struct drm_i915_gem_object *obj = vma->obj;
-
-		assert_bind_count(obj);
-		atomic_dec(&obj->bind_count);
-	}
 }
 
 static bool try_qad_pin(struct i915_vma *vma, unsigned int flags)

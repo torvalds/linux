@@ -1156,9 +1156,6 @@ static int __igt_mmap_revoke(struct drm_i915_private *i915,
 	if (err)
 		goto out_unmap;
 
-	GEM_BUG_ON(mmo->mmap_type == I915_MMAP_TYPE_GTT &&
-		   !atomic_read(&obj->bind_count));
-
 	err = check_present(addr, obj->base.size);
 	if (err) {
 		pr_err("%s: was not present\n", obj->mm.region->name);
@@ -1175,7 +1172,6 @@ static int __igt_mmap_revoke(struct drm_i915_private *i915,
 		pr_err("Failed to unbind object!\n");
 		goto out_unmap;
 	}
-	GEM_BUG_ON(atomic_read(&obj->bind_count));
 
 	if (type != I915_MMAP_TYPE_GTT) {
 		__i915_gem_object_put_pages(obj);
