@@ -319,13 +319,17 @@ bool wfx_tx_queues_is_empty(struct wfx_dev *wdev)
 	return ret;
 }
 
-static bool hif_handle_tx_data(struct wfx_vif *wvif, struct sk_buff *skb,
-			       struct wfx_queue *queue)
+static bool wfx_handle_tx_data(struct wfx_dev *wdev, struct sk_buff *skb)
 {
 	struct hif_req_tx *req = wfx_skb_txreq(skb);
 	struct ieee80211_key_conf *hw_key = wfx_skb_tx_priv(skb)->hw_key;
 	struct ieee80211_hdr *frame =
 		(struct ieee80211_hdr *)(req->frame + req->data_flags.fc_offset);
+	struct wfx_vif *wvif =
+		wdev_to_wvif(wdev, ((struct hif_msg *)skb->data)->interface);
+
+	if (!wvif)
+		return false;
 
 	// FIXME: mac80211 is smart enough to handle BSS loss. Driver should not
 	// try to do anything about that.
@@ -344,12 +348,12 @@ static bool hif_handle_tx_data(struct wfx_vif *wvif, struct sk_buff *skb,
 	    hw_key && hw_key->keyidx != wvif->wep_default_key_id &&
 	    (hw_key->cipher == WLAN_CIPHER_SUITE_WEP40 ||
 	     hw_key->cipher == WLAN_CIPHER_SUITE_WEP104)) {
-		wfx_tx_lock(wvif->wdev);
+		wfx_tx_lock(wdev);
 		WARN_ON(wvif->wep_pending_skb);
 		wvif->wep_default_key_id = hw_key->keyidx;
 		wvif->wep_pending_skb = skb;
 		if (!schedule_work(&wvif->wep_key_work))
-			wfx_tx_unlock(wvif->wdev);
+			wfx_tx_unlock(wdev);
 		return true;
 	} else {
 		return false;
@@ -496,13 +500,10 @@ struct hif_msg *wfx_tx_queues_get(struct wfx_dev *wdev)
 		skb = wfx_tx_queue_get(wdev, queue, tx_allowed_mask);
 		if (!skb)
 			continue;
-		hif = (struct hif_msg *)skb->data;
-		wvif = wdev_to_wvif(wdev, hif->interface);
-		WARN_ON(!wvif);
 
-		if (hif_handle_tx_data(wvif, skb, queue))
+		if (wfx_handle_tx_data(wdev, skb))
 			continue;  /* Handled by WSM */
 
-		return hif;
+		return (struct hif_msg *)skb->data;
 	}
 }
