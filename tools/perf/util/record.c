@@ -167,17 +167,46 @@ bool perf_can_aux_sample(void)
 	return true;
 }
 
-static void perf_evsel__config_leader_sampling(struct evsel *evsel)
+/*
+ * perf_evsel__config_leader_sampling() uses special rules for leader sampling.
+ * However, if the leader is an AUX area event, then assume the event to sample
+ * is the next event.
+ */
+static struct evsel *perf_evsel__read_sampler(struct evsel *evsel,
+					      struct evlist *evlist)
+{
+	struct evsel *leader = evsel->leader;
+
+	if (perf_evsel__is_aux_event(leader)) {
+		evlist__for_each_entry(evlist, evsel) {
+			if (evsel->leader == leader && evsel != evsel->leader)
+				return evsel;
+		}
+	}
+
+	return leader;
+}
+
+static void perf_evsel__config_leader_sampling(struct evsel *evsel,
+					       struct evlist *evlist)
 {
 	struct perf_event_attr *attr = &evsel->core.attr;
 	struct evsel *leader = evsel->leader;
+	struct evsel *read_sampler;
 
-	if (leader == evsel || !leader->sample_read)
+	if (!leader->sample_read)
+		return;
+
+	read_sampler = perf_evsel__read_sampler(evsel, evlist);
+
+	if (evsel == read_sampler)
 		return;
 
 	/*
-	 * Disable sampling for all group members other
-	 * than leader in case leader 'leads' the sampling.
+	 * Disable sampling for all group members other than the leader in
+	 * case the leader 'leads' the sampling, except when the leader is an
+	 * AUX area event, in which case the 2nd event in the group is the one
+	 * that 'leads' the sampling.
 	 */
 	attr->freq           = 0;
 	attr->sample_freq    = 0;
@@ -188,8 +217,12 @@ static void perf_evsel__config_leader_sampling(struct evsel *evsel)
 	 * We don't get a sample for slave events, we make them when delivering
 	 * the group leader sample. Set the slave event to follow the master
 	 * sample_type to ease up reporting.
+	 * An AUX area event also has sample_type requirements, so also include
+	 * the sample type bits from the leader's sample_type to cover that
+	 * case.
 	 */
-	attr->sample_type = leader->core.attr.sample_type;
+	attr->sample_type = read_sampler->core.attr.sample_type |
+			    leader->core.attr.sample_type;
 }
 
 void perf_evlist__config(struct evlist *evlist, struct record_opts *opts,
@@ -220,7 +253,7 @@ void perf_evlist__config(struct evlist *evlist, struct record_opts *opts,
 
 	/* Configure leader sampling here now that the sample type is known */
 	evlist__for_each_entry(evlist, evsel)
-		perf_evsel__config_leader_sampling(evsel);
+		perf_evsel__config_leader_sampling(evsel, evlist);
 
 	if (opts->full_auxtrace) {
 		/*
