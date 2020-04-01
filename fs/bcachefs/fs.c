@@ -145,8 +145,6 @@ retry:
 				  &inode->ei_journal_seq,
 				  BTREE_INSERT_NOUNLOCK|
 				  BTREE_INSERT_NOFAIL);
-	if (ret == -EINTR)
-		goto retry;
 
 	/*
 	 * the btree node lock protects inode->ei_inode, not ei_update_lock;
@@ -154,6 +152,11 @@ retry:
 	 */
 	if (!ret)
 		bch2_inode_update_after_write(c, inode, &inode_u, fields);
+
+	bch2_trans_iter_put(&trans, iter);
+
+	if (ret == -EINTR)
+		goto retry;
 
 	bch2_trans_exit(&trans);
 	return ret < 0 ? ret : 0;
