@@ -686,6 +686,19 @@ static void wfx_join_finalize(struct wfx_vif *wvif,
 	}
 }
 
+void wfx_enable_beacon(struct wfx_vif *wvif, bool enable)
+{
+	// Driver has Content After DTIM Beacon in queue. Driver is waiting for
+	// a signal from the firmware. Since we are going to stop to send
+	// beacons, this signal will never happens. See also
+	// wfx_suspend_resume_mc()
+	if (!enable && wfx_tx_queues_has_cab(wvif)) {
+		wvif->after_dtim_tx_allowed = true;
+		wfx_bh_request_tx(wvif->wdev);
+	}
+	hif_beacon_transmit(wvif, enable);
+}
+
 void wfx_bss_info_changed(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif,
 			     struct ieee80211_bss_conf *info,
@@ -724,7 +737,7 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changed & BSS_CHANGED_BEACON_ENABLED &&
 	    wvif->state != WFX_STATE_IBSS)
-		hif_beacon_transmit(wvif, info->enable_beacon);
+		wfx_enable_beacon(wvif, info->enable_beacon);
 
 	if (changed & BSS_CHANGED_BEACON_INFO)
 		hif_set_beacon_wakeup_period(wvif, info->dtim_period,
