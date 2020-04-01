@@ -5968,6 +5968,7 @@ static int io_sq_thread(void *data)
 				}
 				if (current->task_works) {
 					task_work_run();
+					finish_wait(&ctx->sqo_wait, &wait);
 					continue;
 				}
 				if (signal_pending(current))
