@@ -55,35 +55,6 @@ void wfx_tx_lock_flush(struct wfx_dev *wdev)
 	wfx_tx_flush(wdev);
 }
 
-void wfx_tx_queues_lock(struct wfx_dev *wdev)
-{
-	int i;
-	struct wfx_queue *queue;
-
-	for (i = 0; i < IEEE80211_NUM_ACS; ++i) {
-		queue = &wdev->tx_queue[i];
-		spin_lock_bh(&queue->queue.lock);
-		if (queue->tx_locked_cnt++ == 0)
-			ieee80211_stop_queue(wdev->hw, queue->queue_id);
-		spin_unlock_bh(&queue->queue.lock);
-	}
-}
-
-void wfx_tx_queues_unlock(struct wfx_dev *wdev)
-{
-	int i;
-	struct wfx_queue *queue;
-
-	for (i = 0; i < IEEE80211_NUM_ACS; ++i) {
-		queue = &wdev->tx_queue[i];
-		spin_lock_bh(&queue->queue.lock);
-		WARN(!queue->tx_locked_cnt, "queue already unlocked");
-		if (--queue->tx_locked_cnt == 0)
-			ieee80211_wake_queue(wdev->hw, queue->queue_id);
-		spin_unlock_bh(&queue->queue.lock);
-	}
-}
-
 /* If successful, LOCKS the TX queue! */
 void wfx_tx_queues_wait_empty_vif(struct wfx_vif *wvif)
 {

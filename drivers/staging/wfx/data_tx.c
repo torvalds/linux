@@ -189,10 +189,8 @@ static int wfx_tx_policy_get(struct wfx_vif *wvif,
 		idx = entry - cache->cache;
 	}
 	wfx_tx_policy_use(cache, &cache->cache[idx]);
-	if (list_empty(&cache->free)) {
-		/* Lock TX queues. */
-		wfx_tx_queues_lock(wvif->wdev);
-	}
+	if (list_empty(&cache->free))
+		ieee80211_stop_queues(wvif->wdev->hw);
 	spin_unlock_bh(&cache->lock);
 	return idx;
 }
@@ -207,10 +205,8 @@ static void wfx_tx_policy_put(struct wfx_vif *wvif, int idx)
 	spin_lock_bh(&cache->lock);
 	locked = list_empty(&cache->free);
 	usage = wfx_tx_policy_release(cache, &cache->cache[idx]);
-	if (locked && !usage) {
-		/* Unlock TX queues. */
-		wfx_tx_queues_unlock(wvif->wdev);
-	}
+	if (locked && !usage)
+		ieee80211_wake_queues(wvif->wdev->hw);
 	spin_unlock_bh(&cache->lock);
 }
 

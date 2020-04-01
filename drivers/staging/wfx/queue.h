@@ -23,7 +23,6 @@ struct wfx_vif;
 
 struct wfx_queue {
 	struct sk_buff_head	queue;
-	int			tx_locked_cnt;
 	int			link_map_cache[WFX_LINK_ID_MAX];
 	u8			queue_id;
 };
@@ -41,8 +40,6 @@ void wfx_tx_lock_flush(struct wfx_dev *wdev);
 
 void wfx_tx_queues_init(struct wfx_dev *wdev);
 void wfx_tx_queues_deinit(struct wfx_dev *wdev);
-void wfx_tx_queues_lock(struct wfx_dev *wdev);
-void wfx_tx_queues_unlock(struct wfx_dev *wdev);
 void wfx_tx_queues_clear(struct wfx_dev *wdev);
 bool wfx_tx_queues_is_empty(struct wfx_dev *wdev);
 void wfx_tx_queues_wait_empty_vif(struct wfx_vif *wvif);
