@@ -2233,14 +2233,17 @@ static int igc_add_mac_filter(struct igc_adapter *adapter, const u8 *addr,
 	return -ENOSPC;
 }
 
-/* Remove a MAC filter for 'addr' directing matching traffic to
- * 'queue', 'flags' is used to indicate what kind of match need to be
- * removed, match is by default for the destination address, if
- * matching by source address is to be removed the flag
- * IGC_MAC_STATE_SRC_ADDR can be used.
+/**
+ * igc_del_mac_filter() - Delete MAC address filter
+ * @adapter: Pointer to adapter where the filter should be deleted from
+ * @addr: MAC address
+ * @flags: Set IGC_MAC_STATE_SRC_ADDR bit to indicate @address is a source
+ *         address
+ *
+ * Return: 0 in case of success, negative errno code otherwise.
  */
 static int igc_del_mac_filter(struct igc_adapter *adapter, const u8 *addr,
-			      const u8 queue, const u8 flags)
+			      const u8 flags)
 {
 	struct igc_hw *hw = &adapter->hw;
 	int rar_entries = hw->mac.rar_entry_count;
@@ -2249,16 +2252,10 @@ static int igc_del_mac_filter(struct igc_adapter *adapter, const u8 *addr,
 	if (!is_valid_ether_addr(addr))
 		return -EINVAL;
 
-	/* Search for matching entry in the MAC table based on given address
-	 * and queue. Do not touch entries at the end of the table reserved
-	 * for the VF MAC addresses.
-	 */
 	for (i = 0; i < rar_entries; i++) {
 		if (!(adapter->mac_table[i].state & IGC_MAC_STATE_IN_USE))
 			continue;
 		if (flags && (adapter->mac_table[i].state & flags) != flags)
-			continue;
-		if (adapter->mac_table[i].queue != queue)
 			continue;
 		if (!ether_addr_equal(adapter->mac_table[i].addr, addr))
 			continue;
@@ -2295,7 +2292,7 @@ static int igc_uc_unsync(struct net_device *netdev, const unsigned char *addr)
 {
 	struct igc_adapter *adapter = netdev_priv(netdev);
 
-	return igc_del_mac_filter(adapter, addr, adapter->num_rx_queues, 0);
+	return igc_del_mac_filter(adapter, addr, 0);
 }
 
 /**
@@ -3738,7 +3735,7 @@ int igc_add_mac_steering_filter(struct igc_adapter *adapter,
 int igc_del_mac_steering_filter(struct igc_adapter *adapter,
 				const u8 *addr, u8 queue, u8 flags)
 {
-	return igc_del_mac_filter(adapter, addr, queue,
+	return igc_del_mac_filter(adapter, addr,
 				  IGC_MAC_STATE_QUEUE_STEERING | flags);
 }
 
