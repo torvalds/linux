@@ -16,18 +16,15 @@
 #define WFX_LINK_ID_NO_ASSOC      15
 #define WFX_LINK_ID_AFTER_DTIM    (WFX_LINK_ID_NO_ASSOC + 1)
 #define WFX_LINK_ID_UAPSD         (WFX_LINK_ID_NO_ASSOC + 2)
-#define WFX_LINK_ID_MAX           (WFX_LINK_ID_NO_ASSOC + 3)
 
 struct wfx_dev;
 struct wfx_vif;
 
 struct wfx_queue {
 	struct sk_buff_head	queue;
-	int			link_map_cache[WFX_LINK_ID_MAX];
 };
 
 struct wfx_queue_stats {
-	int			link_map_cache[WFX_LINK_ID_MAX];
 	struct sk_buff_head	pending;
 	wait_queue_head_t	wait_link_id_empty;
 };
