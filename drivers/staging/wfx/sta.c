@@ -318,29 +318,6 @@ int wfx_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 	return 0;
 }
 
-static int __wfx_flush(struct wfx_dev *wdev, bool drop)
-{
-	for (;;) {
-		if (drop)
-			wfx_tx_queues_clear(wdev);
-		if (wait_event_timeout(wdev->tx_dequeue,
-				       wfx_tx_queues_empty(wdev),
-				       2 * HZ) <= 0)
-			return -ETIMEDOUT;
-		wfx_tx_flush(wdev);
-		if (wfx_tx_queues_empty(wdev))
-			return 0;
-		dev_warn(wdev->dev, "frames queued while flushing tx queues");
-	}
-}
-
-void wfx_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		  u32 queues, bool drop)
-{
-	// FIXME: only flush requested vif and queues
-	__wfx_flush(hw->priv, drop);
-}
-
 /* WSM callbacks */
 
 static void wfx_event_report_rssi(struct wfx_vif *wvif, u8 raw_rcpi_rssi)
@@ -843,10 +820,8 @@ static int wfx_update_tim(struct wfx_vif *wvif)
 
 	skb = ieee80211_beacon_get_tim(wvif->wdev->hw, wvif->vif,
 				       &tim_offset, &tim_length);
-	if (!skb) {
-		__wfx_flush(wvif->wdev, true);
+	if (!skb)
 		return -ENOENT;
-	}
 	tim_ptr = skb->data + tim_offset;
 
 	if (tim_offset && tim_length >= 6) {
@@ -1062,8 +1037,6 @@ void wfx_remove_interface(struct ieee80211_hw *hw,
 	}
 
 	wvif->state = WFX_STATE_PASSIVE;
-	wfx_tx_queues_wait_empty_vif(wvif);
-	wfx_tx_unlock(wdev);
 
 	/* FIXME: In add to reset MAC address, try to reset interface */
 	hif_set_macaddr(wvif, NULL);
@@ -1097,10 +1070,5 @@ void wfx_stop(struct ieee80211_hw *hw)
 {
 	struct wfx_dev *wdev = hw->priv;
 
-	wfx_tx_lock_flush(wdev);
-	mutex_lock(&wdev->conf_mutex);
-	wfx_tx_queues_clear(wdev);
-	mutex_unlock(&wdev->conf_mutex);
-	wfx_tx_unlock(wdev);
-	WARN(atomic_read(&wdev->tx_lock), "tx_lock is locked");
+	wfx_tx_queues_check_empty(wdev);
 }

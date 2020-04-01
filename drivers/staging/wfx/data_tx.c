@@ -524,7 +524,7 @@ static void wfx_notify_buffered_tx(struct wfx_vif *wvif, struct sk_buff *skb)
 	rcu_read_unlock();
 }
 
-void wfx_skb_dtor(struct wfx_dev *wdev, struct sk_buff *skb)
+static void wfx_skb_dtor(struct wfx_dev *wdev, struct sk_buff *skb)
 {
 	struct hif_msg *hif = (struct hif_msg *)skb->data;
 	struct hif_req_tx *req = (struct hif_req_tx *)hif->body;
@@ -626,4 +626,36 @@ void wfx_tx_confirm_cb(struct wfx_vif *wvif, const struct hif_cnf_tx *arg)
 	wfx_skb_dtor(wvif->wdev, skb);
 }
 
+void wfx_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+	       u32 queues, bool drop)
+{
+	struct wfx_dev *wdev = hw->priv;
+	struct sk_buff_head dropped;
+	struct wfx_queue *queue;
+	struct sk_buff *skb;
+	int vif_id = -1;
+	int i;
+
+	if (vif)
+		vif_id = ((struct wfx_vif *)vif->drv_priv)->id;
+	skb_queue_head_init(&dropped);
+	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
+		if (!(BIT(i) & queues))
+			continue;
+		queue = &wdev->tx_queue[i];
+		if (drop)
+			wfx_tx_queue_drop(wdev, queue, vif_id, &dropped);
+		if (wdev->chip_frozen)
+			continue;
+		if (wait_event_timeout(wdev->tx_dequeue,
+				       wfx_tx_queue_empty(wdev, queue, vif_id),
+				       msecs_to_jiffies(1000)) <= 0)
+			dev_warn(wdev->dev, "frames queued while flushing tx queues?");
+	}
+	wfx_tx_flush(wdev);
+	if (wdev->chip_frozen)
+		wfx_pending_drop(wdev, &dropped);
+	while ((skb = skb_dequeue(&dropped)) != NULL)
+		wfx_skb_dtor(wdev, skb);
+}
 

@@ -267,7 +267,6 @@ static void wfx_free_common(void *data)
 
 	mutex_destroy(&wdev->rx_stats_lock);
 	mutex_destroy(&wdev->conf_mutex);
-	wfx_tx_queues_deinit(wdev);
 	ieee80211_free_hw(wdev->hw);
 }
 

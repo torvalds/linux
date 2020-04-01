@@ -62,92 +62,79 @@ void wfx_tx_lock_flush(struct wfx_dev *wdev)
 	wfx_tx_flush(wdev);
 }
 
-/* If successful, LOCKS the TX queue! */
-void wfx_tx_queues_wait_empty_vif(struct wfx_vif *wvif)
-{
-	int i;
-	bool done;
-	struct wfx_queue *queue;
-	struct sk_buff *item;
-	struct wfx_dev *wdev = wvif->wdev;
-	struct hif_msg *hif;
-
-	if (wvif->wdev->chip_frozen) {
-		wfx_tx_lock_flush(wdev);
-		wfx_tx_queues_clear(wdev);
-		return;
-	}
-
-	do {
-		done = true;
-		wfx_tx_lock_flush(wdev);
-		for (i = 0; i < IEEE80211_NUM_ACS && done; ++i) {
-			queue = &wdev->tx_queue[i];
-			spin_lock_bh(&queue->normal.lock);
-			skb_queue_walk(&queue->normal, item) {
-				hif = (struct hif_msg *)item->data;
-				if (hif->interface == wvif->id)
-					done = false;
-			}
-			spin_unlock_bh(&queue->normal.lock);
-			spin_lock_bh(&queue->cab.lock);
-			skb_queue_walk(&queue->cab, item) {
-				hif = (struct hif_msg *)item->data;
-				if (hif->interface == wvif->id)
-					done = false;
-			}
-			spin_unlock_bh(&queue->cab.lock);
-		}
-		if (!done) {
-			wfx_tx_unlock(wdev);
-			msleep(20);
-		}
-	} while (!done);
-}
-
-static void wfx_tx_queue_clear(struct wfx_dev *wdev, struct wfx_queue *queue,
-			       struct sk_buff_head *gc_list)
-{
-	struct sk_buff *item;
-
-	while ((item = skb_dequeue(&queue->normal)) != NULL)
-		skb_queue_head(gc_list, item);
-	while ((item = skb_dequeue(&queue->cab)) != NULL)
-		skb_queue_head(gc_list, item);
-}
-
-void wfx_tx_queues_clear(struct wfx_dev *wdev)
-{
-	int i;
-	struct sk_buff *item;
-	struct sk_buff_head gc_list;
-
-	skb_queue_head_init(&gc_list);
-	for (i = 0; i < IEEE80211_NUM_ACS; ++i)
-		wfx_tx_queue_clear(wdev, &wdev->tx_queue[i], &gc_list);
-	wake_up(&wdev->tx_dequeue);
-	while ((item = skb_dequeue(&gc_list)) != NULL)
-		wfx_skb_dtor(wdev, item);
-}
-
 void wfx_tx_queues_init(struct wfx_dev *wdev)
 {
 	int i;
 
-	memset(wdev->tx_queue, 0, sizeof(wdev->tx_queue));
 	skb_queue_head_init(&wdev->tx_pending);
 	init_waitqueue_head(&wdev->tx_dequeue);
-
 	for (i = 0; i < IEEE80211_NUM_ACS; ++i) {
 		skb_queue_head_init(&wdev->tx_queue[i].normal);
 		skb_queue_head_init(&wdev->tx_queue[i].cab);
 	}
 }
 
-void wfx_tx_queues_deinit(struct wfx_dev *wdev)
+void wfx_tx_queues_check_empty(struct wfx_dev *wdev)
 {
-	WARN_ON(!skb_queue_empty(&wdev->tx_pending));
-	wfx_tx_queues_clear(wdev);
+	int i;
+
+	WARN_ON(!skb_queue_empty_lockless(&wdev->tx_pending));
+	for (i = 0; i < IEEE80211_NUM_ACS; ++i) {
+		WARN_ON(atomic_read(&wdev->tx_queue[i].pending_frames));
+		WARN_ON(!skb_queue_empty_lockless(&wdev->tx_queue[i].normal));
+		WARN_ON(!skb_queue_empty_lockless(&wdev->tx_queue[i].cab));
+	}
+}
+
+static bool __wfx_tx_queue_empty(struct wfx_dev *wdev,
+				 struct sk_buff_head *skb_queue, int vif_id)
+{
+	struct hif_msg *hif_msg;
+	struct sk_buff *skb;
+
+	spin_lock_bh(&skb_queue->lock);
+	skb_queue_walk(skb_queue, skb) {
+		hif_msg = (struct hif_msg *)skb->data;
+		if (vif_id < 0 || hif_msg->interface == vif_id) {
+			spin_unlock_bh(&skb_queue->lock);
+			return false;
+		}
+	}
+	spin_unlock_bh(&skb_queue->lock);
+	return true;
+}
+
+bool wfx_tx_queue_empty(struct wfx_dev *wdev,
+			struct wfx_queue *queue, int vif_id)
+{
+	return __wfx_tx_queue_empty(wdev, &queue->normal, vif_id) &&
+	       __wfx_tx_queue_empty(wdev, &queue->cab, vif_id);
+}
+
+static void __wfx_tx_queue_drop(struct wfx_dev *wdev,
+				struct sk_buff_head *skb_queue, int vif_id,
+				struct sk_buff_head *dropped)
+{
+	struct sk_buff *skb, *tmp;
+	struct hif_msg *hif_msg;
+
+	spin_lock_bh(&skb_queue->lock);
+	skb_queue_walk_safe(skb_queue, skb, tmp) {
+		hif_msg = (struct hif_msg *)skb->data;
+		if (vif_id < 0 || hif_msg->interface == vif_id) {
+			__skb_unlink(skb, skb_queue);
+			skb_queue_head(dropped, skb);
+		}
+	}
+	spin_unlock_bh(&skb_queue->lock);
+}
+
+void wfx_tx_queue_drop(struct wfx_dev *wdev, struct wfx_queue *queue,
+		       int vif_id, struct sk_buff_head *dropped)
+{
+	__wfx_tx_queue_drop(wdev, &queue->cab, vif_id, dropped);
+	__wfx_tx_queue_drop(wdev, &queue->normal, vif_id, dropped);
+	wake_up(&wdev->tx_dequeue);
 }
 
 void wfx_tx_queues_put(struct wfx_dev *wdev, struct sk_buff *skb)
@@ -172,6 +159,22 @@ int wfx_pending_requeue(struct wfx_dev *wdev, struct sk_buff *skb)
 	skb_unlink(skb, &wdev->tx_pending);
 	wfx_tx_queues_put(wdev, skb);
 	return 0;
+}
+
+void wfx_pending_drop(struct wfx_dev *wdev, struct sk_buff_head *dropped)
+{
+	struct wfx_queue *queue;
+	struct sk_buff *skb;
+
+	WARN(!wdev->chip_frozen, "%s should only be used to recover a frozen device",
+	     __func__);
+	while ((skb = skb_dequeue(&wdev->tx_pending)) != NULL) {
+		queue = &wdev->tx_queue[skb_get_queue_mapping(skb)];
+		WARN_ON(skb_get_queue_mapping(skb) > 3);
+		WARN_ON(!atomic_read(&queue->pending_frames));
+		atomic_dec(&queue->pending_frames);
+		skb_queue_head(dropped, skb);
+	}
 }
 
 struct sk_buff *wfx_pending_get(struct wfx_dev *wdev, u32 packet_id)
@@ -247,17 +250,6 @@ bool wfx_tx_queues_has_cab(struct wfx_vif *wvif)
 		if (!skb_queue_empty_lockless(&wdev->tx_queue[i].cab))
 			return true;
 	return false;
-}
-
-bool wfx_tx_queues_empty(struct wfx_dev *wdev)
-{
-	int i;
-
-	for (i = 0; i < IEEE80211_NUM_ACS; i++)
-		if (!skb_queue_empty_lockless(&wdev->tx_queue[i].normal) ||
-		    !skb_queue_empty_lockless(&wdev->tx_queue[i].cab))
-			return false;
-	return true;
 }
 
 static bool wfx_handle_tx_data(struct wfx_dev *wdev, struct sk_buff *skb)
@@ -364,8 +356,7 @@ struct hif_msg *wfx_tx_queues_get(struct wfx_dev *wdev)
 		if (!skb)
 			return NULL;
 		skb_queue_tail(&wdev->tx_pending, skb);
-		if (wfx_tx_queues_empty(wdev))
-			wake_up(&wdev->tx_dequeue);
+		wake_up(&wdev->tx_dequeue);
 		// FIXME: is it useful?
 		if (wfx_handle_tx_data(wdev, skb))
 			continue;
