@@ -244,9 +244,7 @@ void wfx_tx_policy_upload_work(struct work_struct *work)
 		container_of(work, struct wfx_vif, tx_policy_upload_work);
 
 	wfx_tx_policy_upload(wvif);
-
 	wfx_tx_unlock(wvif->wdev);
-	wfx_tx_queues_unlock(wvif->wdev);
 }
 
 void wfx_tx_policy_init(struct wfx_vif *wvif)
@@ -379,15 +377,9 @@ static u8 wfx_tx_get_rate_id(struct wfx_vif *wvif,
 		dev_warn(wvif->wdev->dev, "unable to get a valid Tx policy");
 
 	if (tx_policy_renew) {
-		/* FIXME: It's not so optimal to stop TX queues every now and
-		 * then.  Better to reimplement task scheduling with a counter.
-		 */
 		wfx_tx_lock(wvif->wdev);
-		wfx_tx_queues_lock(wvif->wdev);
-		if (!schedule_work(&wvif->tx_policy_upload_work)) {
-			wfx_tx_queues_unlock(wvif->wdev);
+		if (!schedule_work(&wvif->tx_policy_upload_work))
 			wfx_tx_unlock(wvif->wdev);
-		}
 	}
 	return rate_id;
 }
