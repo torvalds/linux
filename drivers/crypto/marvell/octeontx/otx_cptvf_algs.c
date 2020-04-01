@@ -1161,13 +1161,13 @@ static inline u32 create_aead_null_output_list(struct aead_request *req,
 					   inputlen);
 		if (status != inputlen) {
 			status = -EINVAL;
-			goto error;
+			goto error_free;
 		}
 		status = sg_copy_from_buffer(req->dst, sg_nents(req->dst), ptr,
 					     inputlen);
 		if (status != inputlen) {
 			status = -EINVAL;
-			goto error;
+			goto error_free;
 		}
 		kfree(ptr);
 	}
@@ -1209,8 +1209,10 @@ static inline u32 create_aead_null_output_list(struct aead_request *req,
 
 	req_info->outcnt = argcnt;
 	return 0;
-error:
+
+error_free:
 	kfree(ptr);
+error:
 	return status;
 }
 
