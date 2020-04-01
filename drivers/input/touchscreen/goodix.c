@@ -63,6 +63,11 @@
 #define MAX_CONTACTS_LOC	5
 #define TRIGGER_LOC		6
 
+/* Our special handling for GPIO accesses through ACPI is x86 specific */
+#if defined CONFIG_X86 && defined CONFIG_ACPI
+#define ACPI_GPIO_SUPPORT
+#endif
+
 struct goodix_ts_data;
 
 enum goodix_irq_pin_access_method {
@@ -600,12 +605,42 @@ static int goodix_send_cfg(struct goodix_ts_data *ts, const u8 *cfg, int len)
 	return 0;
 }
 
-static int goodix_irq_direction_output(struct goodix_ts_data *ts,
-				       int value)
+#ifdef ACPI_GPIO_SUPPORT
+static int goodix_pin_acpi_direction_input(struct goodix_ts_data *ts)
 {
-	struct device *dev = &ts->client->dev;
+	acpi_handle handle = ACPI_HANDLE(&ts->client->dev);
 	acpi_status status;
 
+	status = acpi_evaluate_object(handle, "INTI", NULL, NULL);
+	return ACPI_SUCCESS(status) ? 0 : -EIO;
+}
+
+static int goodix_pin_acpi_output_method(struct goodix_ts_data *ts, int value)
+{
+	acpi_handle handle = ACPI_HANDLE(&ts->client->dev);
+	acpi_status status;
+
+	status = acpi_execute_simple_method(handle, "INTO", value);
+	return ACPI_SUCCESS(status) ? 0 : -EIO;
+}
+#else
+static int goodix_pin_acpi_direction_input(struct goodix_ts_data *ts)
+{
+	dev_err(&ts->client->dev,
+		"%s called on device without ACPI support\n", __func__);
+	return -EINVAL;
+}
+
+static int goodix_pin_acpi_output_method(struct goodix_ts_data *ts, int value)
+{
+	dev_err(&ts->client->dev,
+		"%s called on device without ACPI support\n", __func__);
+	return -EINVAL;
+}
+#endif
+
+static int goodix_irq_direction_output(struct goodix_ts_data *ts, int value)
+{
 	switch (ts->irq_pin_access_method) {
 	case IRQ_PIN_ACCESS_NONE:
 		dev_err(&ts->client->dev,
@@ -621,9 +656,7 @@ static int goodix_irq_direction_output(struct goodix_ts_data *ts,
 		 */
 		return gpiod_direction_output_raw(ts->gpiod_int, value);
 	case IRQ_PIN_ACCESS_ACPI_METHOD:
-		status = acpi_execute_simple_method(ACPI_HANDLE(dev),
-						    "INTO", value);
-		return ACPI_SUCCESS(status) ? 0 : -EIO;
+		return goodix_pin_acpi_output_method(ts, value);
 	}
 
 	return -EINVAL; /* Never reached */
@@ -631,9 +664,6 @@ static int goodix_irq_direction_output(struct goodix_ts_data *ts,
 
 static int goodix_irq_direction_input(struct goodix_ts_data *ts)
 {
-	struct device *dev = &ts->client->dev;
-	acpi_status status;
-
 	switch (ts->irq_pin_access_method) {
 	case IRQ_PIN_ACCESS_NONE:
 		dev_err(&ts->client->dev,
@@ -641,12 +671,11 @@ static int goodix_irq_direction_input(struct goodix_ts_data *ts)
 			__func__);
 		return -EINVAL;
 	case IRQ_PIN_ACCESS_GPIO:
+		return gpiod_direction_input(ts->gpiod_int);
 	case IRQ_PIN_ACCESS_ACPI_GPIO:
 		return gpiod_direction_input(ts->gpiod_int);
 	case IRQ_PIN_ACCESS_ACPI_METHOD:
-		status = acpi_evaluate_object(ACPI_HANDLE(dev), "INTI",
-					      NULL, NULL);
-		return ACPI_SUCCESS(status) ? 0 : -EIO;
+		return goodix_pin_acpi_direction_input(ts);
 	}
 
 	return -EINVAL; /* Never reached */
@@ -710,7 +739,7 @@ static int goodix_reset(struct goodix_ts_data *ts)
 	return 0;
 }
 
-#if defined CONFIG_X86 && defined CONFIG_ACPI
+#ifdef ACPI_GPIO_SUPPORT
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
 
