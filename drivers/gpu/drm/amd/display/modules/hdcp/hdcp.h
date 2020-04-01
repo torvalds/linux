@@ -357,8 +357,6 @@ enum mod_hdcp_status mod_hdcp_hdcp2_prepare_stream_management(
 		struct mod_hdcp *hdcp);
 enum mod_hdcp_status mod_hdcp_hdcp2_validate_stream_ready(
 		struct mod_hdcp *hdcp);
-enum mod_hdcp_status mod_hdcp_hdcp2_get_link_encryption_status(struct mod_hdcp *hdcp,
-							       enum mod_hdcp_encryption_status *encryption_status);
 
 /* ddc functions */
 enum mod_hdcp_status mod_hdcp_read_bksv(struct mod_hdcp *hdcp);

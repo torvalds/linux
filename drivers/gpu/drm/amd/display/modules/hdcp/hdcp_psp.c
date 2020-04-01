@@ -831,32 +831,3 @@ enum mod_hdcp_status mod_hdcp_hdcp2_validate_stream_ready(struct mod_hdcp *hdcp)
 		       : MOD_HDCP_STATUS_HDCP2_VALIDATE_STREAM_READY_FAILURE;
 }
 
-enum mod_hdcp_status mod_hdcp_hdcp2_get_link_encryption_status(struct mod_hdcp *hdcp,
-							       enum mod_hdcp_encryption_status *encryption_status)
-{
-	struct psp_context *psp = hdcp->config.psp.handle;
-	struct ta_hdcp_shared_memory *hdcp_cmd;
-
-	hdcp_cmd = (struct ta_hdcp_shared_memory *)psp->hdcp_context.hdcp_shared_buf;
-
-	memset(hdcp_cmd, 0, sizeof(struct ta_hdcp_shared_memory));
-
-	hdcp_cmd->in_msg.hdcp2_get_encryption_status.session_handle = hdcp->auth.id;
-	hdcp_cmd->out_msg.hdcp2_get_encryption_status.protection_level = 0;
-	hdcp_cmd->cmd_id = TA_HDCP_COMMAND__HDCP2_GET_ENCRYPTION_STATUS;
-	*encryption_status = MOD_HDCP_ENCRYPTION_STATUS_HDCP_OFF;
-
-	psp_hdcp_invoke(psp, hdcp_cmd->cmd_id);
-
-	if (hdcp_cmd->hdcp_status != TA_HDCP_STATUS__SUCCESS)
-		return MOD_HDCP_STATUS_FAILURE;
-
-	if (hdcp_cmd->out_msg.hdcp2_get_encryption_status.protection_level == 1) {
-		if (hdcp_cmd->out_msg.hdcp2_get_encryption_status.hdcp2_type == TA_HDCP2_CONTENT_TYPE__TYPE1)
-			*encryption_status = MOD_HDCP_ENCRYPTION_STATUS_HDCP2_TYPE1_ON;
-		else
-			*encryption_status = MOD_HDCP_ENCRYPTION_STATUS_HDCP2_TYPE0_ON;
-	}
-
-	return MOD_HDCP_STATUS_SUCCESS;
-}
