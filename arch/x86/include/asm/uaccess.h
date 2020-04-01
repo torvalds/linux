@@ -198,7 +198,7 @@ __typeof__(__builtin_choose_expr(sizeof(x) > sizeof(0UL), 0ULL, 0UL))
 		     : "A" ((typeof(*(ptr)))(x)), "c" (ptr) : "ebx")
 #else
 #define __put_user_goto_u64(x, ptr, label) \
-	__put_user_goto(x, ptr, "q", "", "er", label)
+	__put_user_goto(x, ptr, "q", "er", label)
 #define __put_user_x8(x, ptr, __ret_pu) __put_user_x(8, x, ptr, __ret_pu)
 #endif
 
@@ -262,13 +262,13 @@ do {									\
 	__chk_user_ptr(ptr);						\
 	switch (size) {							\
 	case 1:								\
-		__put_user_goto(x, ptr, "b", "b", "iq", label);	\
+		__put_user_goto(x, ptr, "b", "iq", label);		\
 		break;							\
 	case 2:								\
-		__put_user_goto(x, ptr, "w", "w", "ir", label);		\
+		__put_user_goto(x, ptr, "w", "ir", label);		\
 		break;							\
 	case 4:								\
-		__put_user_goto(x, ptr, "l", "k", "ir", label);		\
+		__put_user_goto(x, ptr, "l", "ir", label);		\
 		break;							\
 	case 8:								\
 		__put_user_goto_u64(x, ptr, label);			\
@@ -376,10 +376,10 @@ struct __large_struct { unsigned long buf[100]; };
  * we do not write to any memory gcc knows about, so there are no
  * aliasing issues.
  */
-#define __put_user_goto(x, addr, itype, rtype, ltype, label)	\
+#define __put_user_goto(x, addr, itype, ltype, label)			\
 	asm_volatile_goto("\n"						\
-		"1:	mov"itype" %"rtype"0,%1\n"			\
-		_ASM_EXTABLE_UA(1b, %l2)					\
+		"1:	mov"itype" %0,%1\n"				\
+		_ASM_EXTABLE_UA(1b, %l2)				\
 		: : ltype(x), "m" (__m(addr))				\
 		: : label)
 
