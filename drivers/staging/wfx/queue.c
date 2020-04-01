@@ -83,13 +83,20 @@ void wfx_tx_queues_wait_empty_vif(struct wfx_vif *wvif)
 		wfx_tx_lock_flush(wdev);
 		for (i = 0; i < IEEE80211_NUM_ACS && done; ++i) {
 			queue = &wdev->tx_queue[i];
-			spin_lock_bh(&queue->queue.lock);
-			skb_queue_walk(&queue->queue, item) {
-				hif = (struct hif_msg *) item->data;
+			spin_lock_bh(&queue->normal.lock);
+			skb_queue_walk(&queue->normal, item) {
+				hif = (struct hif_msg *)item->data;
 				if (hif->interface == wvif->id)
 					done = false;
 			}
-			spin_unlock_bh(&queue->queue.lock);
+			spin_unlock_bh(&queue->normal.lock);
+			spin_lock_bh(&queue->cab.lock);
+			skb_queue_walk(&queue->cab, item) {
+				hif = (struct hif_msg *)item->data;
+				if (hif->interface == wvif->id)
+					done = false;
+			}
+			spin_unlock_bh(&queue->cab.lock);
 		}
 		if (!done) {
 			wfx_tx_unlock(wdev);
@@ -103,7 +110,9 @@ static void wfx_tx_queue_clear(struct wfx_dev *wdev, struct wfx_queue *queue,
 {
 	struct sk_buff *item;
 
-	while ((item = skb_dequeue(&queue->queue)) != NULL)
+	while ((item = skb_dequeue(&queue->normal)) != NULL)
+		skb_queue_head(gc_list, item);
+	while ((item = skb_dequeue(&queue->cab)) != NULL)
 		skb_queue_head(gc_list, item);
 }
 
@@ -131,8 +140,10 @@ void wfx_tx_queues_init(struct wfx_dev *wdev)
 	skb_queue_head_init(&wdev->tx_queue_stats.pending);
 	init_waitqueue_head(&wdev->tx_queue_stats.wait_link_id_empty);
 
-	for (i = 0; i < IEEE80211_NUM_ACS; ++i)
-		skb_queue_head_init(&wdev->tx_queue[i].queue);
+	for (i = 0; i < IEEE80211_NUM_ACS; ++i) {
+		skb_queue_head_init(&wdev->tx_queue[i].normal);
+		skb_queue_head_init(&wdev->tx_queue[i].cab);
+	}
 }
 
 void wfx_tx_queues_deinit(struct wfx_dev *wdev)
@@ -141,57 +152,15 @@ void wfx_tx_queues_deinit(struct wfx_dev *wdev)
 	wfx_tx_queues_clear(wdev);
 }
 
-int wfx_tx_queue_get_num_queued(struct wfx_queue *queue)
-{
-	struct ieee80211_tx_info *tx_info;
-	struct sk_buff *skb;
-	int ret = 0;
-
-	spin_lock_bh(&queue->queue.lock);
-	skb_queue_walk(&queue->queue, skb) {
-		tx_info = IEEE80211_SKB_CB(skb);
-		if (!(tx_info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM))
-			ret++;
-	}
-	spin_unlock_bh(&queue->queue.lock);
-	return ret;
-}
-
 void wfx_tx_queue_put(struct wfx_dev *wdev, struct wfx_queue *queue,
 		      struct sk_buff *skb)
 {
-	skb_queue_tail(&queue->queue, skb);
-}
+	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 
-static struct sk_buff *wfx_tx_queue_get(struct wfx_dev *wdev,
-					struct wfx_queue *queue,
-					bool mcast)
-{
-	struct wfx_queue_stats *stats = &wdev->tx_queue_stats;
-	struct ieee80211_tx_info *tx_info;
-	struct sk_buff *item, *skb = NULL;
-	struct wfx_tx_priv *tx_priv;
-
-	spin_lock_bh(&queue->queue.lock);
-	skb_queue_walk(&queue->queue, item) {
-		tx_info = IEEE80211_SKB_CB(item);
-		if (mcast == !!(tx_info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM)) {
-			skb = item;
-			break;
-		}
-	}
-	spin_unlock_bh(&queue->queue.lock);
-	if (skb) {
-		skb_unlink(skb, &queue->queue);
-		atomic_inc(&queue->pending_frames);
-		tx_priv = wfx_skb_tx_priv(skb);
-		tx_priv->xmit_timestamp = ktime_get();
-		skb_queue_tail(&stats->pending, skb);
-		if (skb_queue_empty(&queue->queue))
-			wake_up(&stats->wait_link_id_empty);
-		return skb;
-	}
-	return skb;
+	if (tx_info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM)
+		skb_queue_tail(&queue->cab, skb);
+	else
+		skb_queue_tail(&queue->normal, skb);
 }
 
 int wfx_pending_requeue(struct wfx_dev *wdev, struct sk_buff *skb)
@@ -204,7 +173,7 @@ int wfx_pending_requeue(struct wfx_dev *wdev, struct sk_buff *skb)
 
 	atomic_dec(&queue->pending_frames);
 	skb_unlink(skb, &stats->pending);
-	skb_queue_tail(&queue->queue, skb);
+	wfx_tx_queue_put(wdev, queue, skb);
 	return 0;
 }
 
@@ -282,20 +251,15 @@ unsigned int wfx_pending_get_pkt_us_delay(struct wfx_dev *wdev,
 bool wfx_tx_queues_has_cab(struct wfx_vif *wvif)
 {
 	struct wfx_dev *wdev = wvif->wdev;
-	struct ieee80211_tx_info *tx_info;
-	struct hif_msg *hif;
-	struct sk_buff *skb;
 	int i;
 
-	for (i = 0; i < IEEE80211_NUM_ACS; ++i) {
-		skb_queue_walk(&wdev->tx_queue[i].queue, skb) {
-			tx_info = IEEE80211_SKB_CB(skb);
-			hif = (struct hif_msg *)skb->data;
-			if ((tx_info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM) &&
-			    (hif->interface == wvif->id))
-				return true;
-		}
-	}
+	if (wvif->vif->type != NL80211_IFTYPE_AP)
+		return false;
+	for (i = 0; i < IEEE80211_NUM_ACS; ++i)
+		// Note: since only AP can have mcast frames in queue and only
+		// one vif can be AP, all queued frames has same interface id
+		if (!skb_queue_empty_lockless(&wdev->tx_queue[i].cab))
+			return true;
 	return false;
 }
 
@@ -304,7 +268,8 @@ bool wfx_tx_queues_empty(struct wfx_dev *wdev)
 	int i;
 
 	for (i = 0; i < IEEE80211_NUM_ACS; i++)
-		if (!skb_queue_empty_lockless(&wdev->tx_queue[i].queue))
+		if (!skb_queue_empty_lockless(&wdev->tx_queue[i].normal) ||
+		    !skb_queue_empty_lockless(&wdev->tx_queue[i].cab))
 			return false;
 	return true;
 }
@@ -350,95 +315,76 @@ static bool wfx_handle_tx_data(struct wfx_dev *wdev, struct sk_buff *skb)
 	}
 }
 
-static struct wfx_queue *wfx_tx_queue_mask_get(struct wfx_vif *wvif)
+static struct sk_buff *wfx_tx_queues_get_skb(struct wfx_dev *wdev)
 {
-	const struct ieee80211_tx_queue_params *edca;
-	unsigned int score, best = -1;
-	int winner = -1;
-	int i;
+	struct wfx_queue *sorted_queues[IEEE80211_NUM_ACS];
+	struct wfx_vif *wvif;
+	struct hif_msg *hif;
+	struct sk_buff *skb;
+	int i, j;
 
-	/* search for a winner using edca params */
-	for (i = 0; i < IEEE80211_NUM_ACS; ++i) {
-		int queued;
-
-		edca = &wvif->edca_params[i];
-		queued = wfx_tx_queue_get_num_queued(&wvif->wdev->tx_queue[i]);
-		if (!queued)
+	// bubble sort
+	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
+		sorted_queues[i] = &wdev->tx_queue[i];
+		for (j = i; j > 0; j--)
+			if (atomic_read(&sorted_queues[j]->pending_frames) >
+			    atomic_read(&sorted_queues[j - 1]->pending_frames))
+				swap(sorted_queues[j - 1], sorted_queues[j]);
+	}
+	wvif = NULL;
+	while ((wvif = wvif_iterate(wdev, wvif)) != NULL) {
+		if (!wvif->after_dtim_tx_allowed)
 			continue;
-		score = ((edca->aifs + edca->cw_min) << 16) +
-			((edca->cw_max - edca->cw_min) *
-			 (get_random_int() & 0xFFFF));
-		if (score < best && (winner < 0 || i != 3)) {
-			best = score;
-			winner = i;
+		for (i = 0; i < IEEE80211_NUM_ACS; i++) {
+			skb = skb_dequeue(&sorted_queues[i]->cab);
+			if (!skb)
+				continue;
+			// Note: since only AP can have mcast frames in queue
+			// and only one vif can be AP, all queued frames has
+			// same interface id
+			hif = (struct hif_msg *)skb->data;
+			WARN_ON(hif->interface != wvif->id);
+			WARN_ON(sorted_queues[i] !=
+				&wdev->tx_queue[skb_get_queue_mapping(skb)]);
+			atomic_inc(&sorted_queues[i]->pending_frames);
+			return skb;
+		}
+		// No more multicast to sent
+		wvif->after_dtim_tx_allowed = false;
+		schedule_work(&wvif->update_tim_work);
+	}
+	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
+		skb = skb_dequeue(&sorted_queues[i]->normal);
+		if (skb) {
+			WARN_ON(sorted_queues[i] !=
+				&wdev->tx_queue[skb_get_queue_mapping(skb)]);
+			atomic_inc(&sorted_queues[i]->pending_frames);
+			return skb;
 		}
 	}
-
-	if (winner < 0)
-		return NULL;
-	return &wvif->wdev->tx_queue[winner];
+	return NULL;
 }
 
 struct hif_msg *wfx_tx_queues_get(struct wfx_dev *wdev)
 {
+	struct wfx_tx_priv *tx_priv;
 	struct sk_buff *skb;
-	struct hif_msg *hif = NULL;
-	struct wfx_queue *queue = NULL;
-	struct wfx_queue *vif_queue = NULL;
-	struct wfx_vif *wvif;
-	int i;
 
 	if (atomic_read(&wdev->tx_lock))
 		return NULL;
 
-	wvif = NULL;
-	while ((wvif = wvif_iterate(wdev, wvif)) != NULL) {
-		if (wvif->after_dtim_tx_allowed) {
-			for (i = 0; i < IEEE80211_NUM_ACS; ++i) {
-				skb = wfx_tx_queue_get(wvif->wdev,
-						       &wdev->tx_queue[i],
-						       true);
-				if (skb) {
-					hif = (struct hif_msg *)skb->data;
-					// Cannot happen since only one vif can
-					// be AP at time
-					WARN_ON(wvif->id != hif->interface);
-					return hif;
-				}
-			}
-			// No more multicast to sent
-			wvif->after_dtim_tx_allowed = false;
-			schedule_work(&wvif->update_tim_work);
-		}
-	}
-
 	for (;;) {
-		int ret = -ENOENT;
-		int queue_num;
-
-		wvif = NULL;
-		while ((wvif = wvif_iterate(wdev, wvif)) != NULL) {
-			vif_queue = wfx_tx_queue_mask_get(wvif);
-			if (vif_queue) {
-				if (queue && queue != vif_queue)
-					dev_info(wdev->dev, "vifs disagree about queue priority\n");
-				queue = vif_queue;
-				ret = 0;
-			}
-		}
-
-		if (ret)
-			return NULL;
-
-		queue_num = queue - wdev->tx_queue;
-
-		skb = wfx_tx_queue_get(wdev, queue, false);
+		skb = wfx_tx_queues_get_skb(wdev);
 		if (!skb)
-			continue;
-
+			return NULL;
+		skb_queue_tail(&wdev->tx_queue_stats.pending, skb);
+		if (wfx_tx_queues_empty(wdev))
+			wake_up(&wdev->tx_queue_stats.wait_link_id_empty);
+		// FIXME: is it useful?
 		if (wfx_handle_tx_data(wdev, skb))
-			continue;  /* Handled by WSM */
-
+			continue;
+		tx_priv = wfx_skb_tx_priv(skb);
+		tx_priv->xmit_timestamp = ktime_get();
 		return (struct hif_msg *)skb->data;
 	}
 }

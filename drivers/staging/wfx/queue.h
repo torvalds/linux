@@ -20,7 +20,8 @@ struct wfx_dev;
 struct wfx_vif;
 
 struct wfx_queue {
-	struct sk_buff_head	queue;
+	struct sk_buff_head	normal;
+	struct sk_buff_head	cab; // Content After (DTIM) Beacon
 	atomic_t		pending_frames;
 };
 
@@ -44,7 +45,6 @@ struct hif_msg *wfx_tx_queues_get(struct wfx_dev *wdev);
 
 void wfx_tx_queue_put(struct wfx_dev *wdev, struct wfx_queue *queue,
 		      struct sk_buff *skb);
-int wfx_tx_queue_get_num_queued(struct wfx_queue *queue);
 
 struct sk_buff *wfx_pending_get(struct wfx_dev *wdev, u32 packet_id);
 int wfx_pending_remove(struct wfx_dev *wdev, struct sk_buff *skb);
