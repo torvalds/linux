@@ -629,8 +629,10 @@ int auxtrace_record__options(struct auxtrace_record *itr,
 			     struct evlist *evlist,
 			     struct record_opts *opts)
 {
-	if (itr)
+	if (itr) {
+		itr->evlist = evlist;
 		return itr->recording_options(itr, evlist, opts);
+	}
 	return 0;
 }
 
@@ -661,6 +663,24 @@ int auxtrace_parse_snapshot_options(struct auxtrace_record *itr,
 		return itr->parse_snapshot_options(itr, opts, str);
 
 	pr_err("No AUX area tracing to snapshot\n");
+	return -EINVAL;
+}
+
+int auxtrace_record__read_finish(struct auxtrace_record *itr, int idx)
+{
+	struct evsel *evsel;
+
+	if (!itr->evlist || !itr->pmu)
+		return -EINVAL;
+
+	evlist__for_each_entry(itr->evlist, evsel) {
+		if (evsel->core.attr.type == itr->pmu->type) {
+			if (evsel->disabled)
+				return 0;
+			return perf_evlist__enable_event_idx(itr->evlist, evsel,
+							     idx);
+		}
+	}
 	return -EINVAL;
 }
 

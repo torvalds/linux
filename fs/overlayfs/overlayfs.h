@@ -318,7 +318,12 @@ static inline unsigned int ovl_xino_bits(struct super_block *sb)
 	return ovl_same_dev(sb) ? OVL_FS(sb)->xino_mode : 0;
 }
 
-static inline int ovl_inode_lock(struct inode *inode)
+static inline void ovl_inode_lock(struct inode *inode)
+{
+	mutex_lock(&OVL_I(inode)->lock);
+}
+
+static inline int ovl_inode_lock_interruptible(struct inode *inode)
 {
 	return mutex_lock_interruptible(&OVL_I(inode)->lock);
 }

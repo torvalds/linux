@@ -81,7 +81,7 @@ struct drm_dp_vcpi {
  * &drm_dp_mst_topology_mgr.base.lock.
  * @num_sdp_stream_sinks: Number of stream sinks. Protected by
  * &drm_dp_mst_topology_mgr.base.lock.
- * @available_pbn: Available bandwidth for this port. Protected by
+ * @full_pbn: Max possible bandwidth for this port. Protected by
  * &drm_dp_mst_topology_mgr.base.lock.
  * @next: link to next port on this branch device
  * @aux: i2c aux transport to talk to device connected to this port, protected
@@ -126,7 +126,7 @@ struct drm_dp_mst_port {
 	u8 dpcd_rev;
 	u8 num_sdp_streams;
 	u8 num_sdp_stream_sinks;
-	uint16_t available_pbn;
+	uint16_t full_pbn;
 	struct list_head next;
 	/**
 	 * @mstb: the branch device connected to this port, if there is one.

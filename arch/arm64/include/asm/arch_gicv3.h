@@ -32,7 +32,7 @@ static inline void gic_write_eoir(u32 irq)
 	isb();
 }
 
-static inline void gic_write_dir(u32 irq)
+static __always_inline void gic_write_dir(u32 irq)
 {
 	write_sysreg_s(irq, SYS_ICC_DIR_EL1);
 	isb();

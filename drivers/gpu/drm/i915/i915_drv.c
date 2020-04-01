@@ -56,6 +56,7 @@
 #include "display/intel_hotplug.h"
 #include "display/intel_overlay.h"
 #include "display/intel_pipe_crc.h"
+#include "display/intel_psr.h"
 #include "display/intel_sprite.h"
 #include "display/intel_vga.h"
 
@@ -329,6 +330,8 @@ static int i915_driver_modeset_probe(struct drm_i915_private *i915)
 	intel_hpd_init(i915);
 
 	intel_init_ipc(i915);
+
+	intel_psr_set_force_mode_changed(i915->psr.dp);
 
 	return 0;
 

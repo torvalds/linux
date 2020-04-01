@@ -64,11 +64,13 @@
 MODULE_AUTHOR("Qumranet");
 MODULE_LICENSE("GPL");
 
+#ifdef MODULE
 static const struct x86_cpu_id vmx_cpu_id[] = {
 	X86_FEATURE_MATCH(X86_FEATURE_VMX),
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, vmx_cpu_id);
+#endif
 
 bool __read_mostly enable_vpid = 1;
 module_param_named(vpid, enable_vpid, bool, 0444);
@@ -2336,6 +2338,17 @@ static void hardware_disable(void)
 	kvm_cpu_vmxoff();
 }
 
+/*
+ * There is no X86_FEATURE for SGX yet, but anyway we need to query CPUID
+ * directly instead of going through cpu_has(), to ensure KVM is trapping
+ * ENCLS whenever it's supported in hardware.  It does not matter whether
+ * the host OS supports or has enabled SGX.
+ */
+static bool cpu_has_sgx(void)
+{
+	return cpuid_eax(0) >= 0x12 && (cpuid_eax(0x12) & BIT(0));
+}
+
 static __init int adjust_vmx_controls(u32 ctl_min, u32 ctl_opt,
 				      u32 msr, u32 *result)
 {
@@ -2416,8 +2429,9 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf,
 			SECONDARY_EXEC_ENABLE_USR_WAIT_PAUSE |
 			SECONDARY_EXEC_PT_USE_GPA |
 			SECONDARY_EXEC_PT_CONCEAL_VMX |
-			SECONDARY_EXEC_ENABLE_VMFUNC |
-			SECONDARY_EXEC_ENCLS_EXITING;
+			SECONDARY_EXEC_ENABLE_VMFUNC;
+		if (cpu_has_sgx())
+			opt2 |= SECONDARY_EXEC_ENCLS_EXITING;
 		if (adjust_vmx_controls(min2, opt2,
 					MSR_IA32_VMX_PROCBASED_CTLS2,
 					&_cpu_based_2nd_exec_control) < 0)
@@ -7175,6 +7189,7 @@ static int vmx_check_intercept_io(struct kvm_vcpu *vcpu,
 	else
 		intercept = nested_vmx_check_io_bitmaps(vcpu, port, size);
 
+	/* FIXME: produce nested vmexit and return X86EMUL_INTERCEPTED.  */
 	return intercept ? X86EMUL_UNHANDLEABLE : X86EMUL_CONTINUE;
 }
 
@@ -7203,6 +7218,20 @@ static int vmx_check_intercept(struct kvm_vcpu *vcpu,
 	case x86_intercept_out:
 	case x86_intercept_outs:
 		return vmx_check_intercept_io(vcpu, info);
+
+	case x86_intercept_lgdt:
+	case x86_intercept_lidt:
+	case x86_intercept_lldt:
+	case x86_intercept_ltr:
+	case x86_intercept_sgdt:
+	case x86_intercept_sidt:
+	case x86_intercept_sldt:
+	case x86_intercept_str:
+		if (!nested_cpu_has2(vmcs12, SECONDARY_EXEC_DESC))
+			return X86EMUL_CONTINUE;
+
+		/* FIXME: produce nested vmexit and return X86EMUL_INTERCEPTED.  */
+		break;
 
 	/* TODO: check more intercepts... */
 	default:

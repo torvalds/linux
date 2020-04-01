@@ -153,7 +153,7 @@ struct vfsmount *nfs_d_automount(struct path *path)
 	/* Open a new filesystem context, transferring parameters from the
 	 * parent superblock, including the network namespace.
 	 */
-	fc = fs_context_for_submount(&nfs_fs_type, path->dentry);
+	fc = fs_context_for_submount(path->mnt->mnt_sb->s_type, path->dentry);
 	if (IS_ERR(fc))
 		return ERR_CAST(fc);
 

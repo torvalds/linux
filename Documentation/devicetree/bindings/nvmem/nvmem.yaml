@@ -76,6 +76,8 @@ examples:
       qfprom: eeprom@700000 {
           #address-cells = <1>;
           #size-cells = <1>;
+          reg = <0x00700000 0x100000>;
+
           wp-gpios = <&gpio1 3 GPIO_ACTIVE_HIGH>;
 
           /* ... */

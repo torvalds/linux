@@ -765,7 +765,7 @@ is not sufficient this sometimes needs to be explicit.
 	Example::
 
 		#arch/x86/boot/Makefile
-		subdir- := compressed/
+		subdir- := compressed
 
 The above assignment instructs kbuild to descend down in the
 directory compressed/ when "make clean" is executed.
@@ -1378,9 +1378,6 @@ See subsequent chapter for the syntax of the Kbuild file.
 	This works like optional generic-y. If a mandatory header is missing
 	in arch/$(ARCH)/include/(uapi/)/asm, Kbuild will automatically generate
 	a wrapper of the asm-generic one.
-
-	The convention is to list one subdir per line and
-	preferably in alphabetic order.
 
 8 Kbuild Variables
 ==================

@@ -838,13 +838,15 @@ static void free_moved_vector(struct apic_chip_data *apicd)
 	bool managed = apicd->is_managed;
 
 	/*
-	 * This should never happen. Managed interrupts are not
-	 * migrated except on CPU down, which does not involve the
-	 * cleanup vector. But try to keep the accounting correct
-	 * nevertheless.
+	 * Managed interrupts are usually not migrated away
+	 * from an online CPU, but CPU isolation 'managed_irq'
+	 * can make that happen.
+	 * 1) Activation does not take the isolation into account
+	 *    to keep the code simple
+	 * 2) Migration away from an isolated CPU can happen when
+	 *    a non-isolated CPU which is in the calculated
+	 *    affinity mask comes online.
 	 */
-	WARN_ON_ONCE(managed);
-
 	trace_vector_free_moved(apicd->irq, cpu, vector, managed);
 	irq_matrix_free(vector_matrix, cpu, vector, managed);
 	per_cpu(vector_irq, cpu)[vector] = VECTOR_UNUSED;

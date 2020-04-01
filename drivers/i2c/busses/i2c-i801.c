@@ -132,11 +132,6 @@
 #define TCOBASE		0x050
 #define TCOCTL		0x054
 
-#define ACPIBASE		0x040
-#define ACPIBASE_SMI_OFF	0x030
-#define ACPICTRL		0x044
-#define ACPICTRL_EN		0x080
-
 #define SBREG_BAR		0x10
 #define SBREG_SMBCTRL		0xc6000c
 #define SBREG_SMBCTRL_DNV	0xcf000c
@@ -1553,7 +1548,7 @@ i801_add_tco_spt(struct i801_priv *priv, struct pci_dev *pci_dev,
 		pci_bus_write_config_byte(pci_dev->bus, devfn, 0xe1, hidden);
 	spin_unlock(&p2sb_spinlock);
 
-	res = &tco_res[ICH_RES_MEM_OFF];
+	res = &tco_res[1];
 	if (pci_dev->device == PCI_DEVICE_ID_INTEL_DNV_SMBUS)
 		res->start = (resource_size_t)base64_addr + SBREG_SMBCTRL_DNV;
 	else
@@ -1563,7 +1558,7 @@ i801_add_tco_spt(struct i801_priv *priv, struct pci_dev *pci_dev,
 	res->flags = IORESOURCE_MEM;
 
 	return platform_device_register_resndata(&pci_dev->dev, "iTCO_wdt", -1,
-					tco_res, 3, &spt_tco_platform_data,
+					tco_res, 2, &spt_tco_platform_data,
 					sizeof(spt_tco_platform_data));
 }
 
@@ -1576,17 +1571,16 @@ static struct platform_device *
 i801_add_tco_cnl(struct i801_priv *priv, struct pci_dev *pci_dev,
 		 struct resource *tco_res)
 {
-	return platform_device_register_resndata(&pci_dev->dev, "iTCO_wdt", -1,
-					tco_res, 2, &cnl_tco_platform_data,
-					sizeof(cnl_tco_platform_data));
+	return platform_device_register_resndata(&pci_dev->dev,
+			"iTCO_wdt", -1, tco_res, 1, &cnl_tco_platform_data,
+			sizeof(cnl_tco_platform_data));
 }
 
 static void i801_add_tco(struct i801_priv *priv)
 {
-	u32 base_addr, tco_base, tco_ctl, ctrl_val;
 	struct pci_dev *pci_dev = priv->pci_dev;
-	struct resource tco_res[3], *res;
-	unsigned int devfn;
+	struct resource tco_res[2], *res;
+	u32 tco_base, tco_ctl;
 
 	/* If we have ACPI based watchdog use that instead */
 	if (acpi_has_watchdog())
@@ -1601,29 +1595,14 @@ static void i801_add_tco(struct i801_priv *priv)
 		return;
 
 	memset(tco_res, 0, sizeof(tco_res));
-
-	res = &tco_res[ICH_RES_IO_TCO];
+	/*
+	 * Always populate the main iTCO IO resource here. The second entry
+	 * for NO_REBOOT MMIO is filled by the SPT specific function.
+	 */
+	res = &tco_res[0];
 	res->start = tco_base & ~1;
 	res->end = res->start + 32 - 1;
 	res->flags = IORESOURCE_IO;
-
-	/*
-	 * Power Management registers.
-	 */
-	devfn = PCI_DEVFN(PCI_SLOT(pci_dev->devfn), 2);
-	pci_bus_read_config_dword(pci_dev->bus, devfn, ACPIBASE, &base_addr);
-
-	res = &tco_res[ICH_RES_IO_SMI];
-	res->start = (base_addr & ~1) + ACPIBASE_SMI_OFF;
-	res->end = res->start + 3;
-	res->flags = IORESOURCE_IO;
-
-	/*
-	 * Enable the ACPI I/O space.
-	 */
-	pci_bus_read_config_dword(pci_dev->bus, devfn, ACPICTRL, &ctrl_val);
-	ctrl_val |= ACPICTRL_EN;
-	pci_bus_write_config_dword(pci_dev->bus, devfn, ACPICTRL, ctrl_val);
 
 	if (priv->features & FEATURE_TCO_CNL)
 		priv->tco_pdev = i801_add_tco_cnl(priv, pci_dev, tco_res);

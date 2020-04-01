@@ -44,7 +44,6 @@ struct mlx5_lag {
 	struct workqueue_struct   *wq;
 	struct delayed_work       bond_work;
 	struct notifier_block     nb;
-	struct netdev_net_notifier	nn;
 	struct lag_mp             lag_mp;
 };
 

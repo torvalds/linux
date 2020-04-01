@@ -362,6 +362,13 @@ config HID_GFRM
 	---help---
 	Support for Google Fiber TV Box remote controls
 
+config HID_GLORIOUS
+	tristate "Glorious PC Gaming Race mice"
+	depends on HID
+	help
+	  Support for Glorious PC Gaming Race mice such as
+	  the Glorious Model O, O- and D.
+
 config HID_HOLTEK
 	tristate "Holtek HID devices"
 	depends on USB_HID

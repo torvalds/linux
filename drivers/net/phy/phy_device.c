@@ -247,7 +247,7 @@ static bool mdio_bus_phy_may_suspend(struct phy_device *phydev)
 	 * MDIO bus driver and clock gated at this point.
 	 */
 	if (!netdev)
-		return !phydev->suspended;
+		goto out;
 
 	if (netdev->wol_enabled)
 		return false;
@@ -267,7 +267,8 @@ static bool mdio_bus_phy_may_suspend(struct phy_device *phydev)
 	if (device_may_wakeup(&netdev->dev))
 		return false;
 
-	return true;
+out:
+	return !phydev->suspended;
 }
 
 static int mdio_bus_phy_suspend(struct device *dev)
@@ -285,6 +286,8 @@ static int mdio_bus_phy_suspend(struct device *dev)
 	if (!mdio_bus_phy_may_suspend(phydev))
 		return 0;
 
+	phydev->suspended_by_mdio_bus = 1;
+
 	return phy_suspend(phydev);
 }
 
@@ -293,8 +296,10 @@ static int mdio_bus_phy_resume(struct device *dev)
 	struct phy_device *phydev = to_phy_device(dev);
 	int ret;
 
-	if (!mdio_bus_phy_may_suspend(phydev))
+	if (!phydev->suspended_by_mdio_bus)
 		goto no_resume;
+
+	phydev->suspended_by_mdio_bus = 0;
 
 	ret = phy_resume(phydev);
 	if (ret < 0)
@@ -1792,7 +1797,7 @@ EXPORT_SYMBOL(genphy_restart_aneg);
  */
 int genphy_check_and_restart_aneg(struct phy_device *phydev, bool restart)
 {
-	int ret = 0;
+	int ret;
 
 	if (!restart) {
 		/* Advertisement hasn't changed, but maybe aneg was never on to
@@ -1807,9 +1812,9 @@ int genphy_check_and_restart_aneg(struct phy_device *phydev, bool restart)
 	}
 
 	if (restart)
-		ret = genphy_restart_aneg(phydev);
+		return genphy_restart_aneg(phydev);
 
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL(genphy_check_and_restart_aneg);
 
