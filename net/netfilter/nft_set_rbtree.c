@@ -218,27 +218,26 @@ static int __nft_rbtree_insert(const struct net *net, const struct nft_set *set,
 
 	/* Detect overlaps as we descend the tree. Set the flag in these cases:
 	 *
-	 * a1. |__ _ _?  >|__ _ _  (insert start after existing start)
-	 * a2. _ _ __>|  ?_ _ __|  (insert end before existing end)
-	 * a3. _ _ ___|  ?_ _ _>|  (insert end after existing end)
-	 * a4. >|__ _ _   _ _ __|  (insert start before existing end)
+	 * a1. _ _ __>|  ?_ _ __|  (insert end before existing end)
+	 * a2. _ _ ___|  ?_ _ _>|  (insert end after existing end)
+	 * a3. _ _ ___? >|_ _ __|  (insert start before existing end)
 	 *
 	 * and clear it later on, as we eventually reach the points indicated by
 	 * '?' above, in the cases described below. We'll always meet these
 	 * later, locally, due to tree ordering, and overlaps for the intervals
 	 * that are the closest together are always evaluated last.
 	 *
-	 * b1. |__ _ _!  >|__ _ _  (insert start after existing end)
-	 * b2. _ _ __>|  !_ _ __|  (insert end before existing start)
-	 * b3. !_____>|            (insert end after existing start)
+	 * b1. _ _ __>|  !_ _ __|  (insert end before existing start)
+	 * b2. _ _ ___|  !_ _ _>|  (insert end after existing start)
+	 * b3. _ _ ___! >|_ _ __|  (insert start after existing end)
 	 *
-	 * Case a4. resolves to b1.:
+	 * Case a3. resolves to b3.:
 	 * - if the inserted start element is the leftmost, because the '0'
 	 *   element in the tree serves as end element
 	 * - otherwise, if an existing end is found. Note that end elements are
 	 *   always inserted after corresponding start elements.
 	 *
-	 * For a new, rightmost pair of elements, we'll hit cases b1. and b3.,
+	 * For a new, rightmost pair of elements, we'll hit cases b3. and b2.,
 	 * in that order.
 	 *
 	 * The flag is also cleared in two special cases:
@@ -262,9 +261,9 @@ static int __nft_rbtree_insert(const struct net *net, const struct nft_set *set,
 			p = &parent->rb_left;
 
 			if (nft_rbtree_interval_start(new)) {
-				overlap = nft_rbtree_interval_start(rbe) &&
-					  nft_set_elem_active(&rbe->ext,
-							      genmask);
+				if (nft_rbtree_interval_end(rbe) &&
+				    nft_set_elem_active(&rbe->ext, genmask))
+					overlap = false;
 			} else {
 				overlap = nft_rbtree_interval_end(rbe) &&
 					  nft_set_elem_active(&rbe->ext,
