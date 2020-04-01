@@ -321,6 +321,9 @@ struct incfs_get_filled_blocks_args {
 	/* Actual number of blocks in file */
 	__u32 total_blocks_out;
 
+	/* The  number of data blocks in file */
+	__u32 data_blocks_out;
+
 	/* Number of bytes written to range buffer */
 	__u32 range_buffer_size_out;
 

@@ -436,6 +436,7 @@ int incfs_get_filled_blocks(struct data_file *df,
 	if (end_index > df->df_total_block_count)
 		end_index = df->df_total_block_count;
 	arg->total_blocks_out = df->df_total_block_count;
+	arg->data_blocks_out = df->df_data_block_count;
 
 	if (df->df_header_flags & INCFS_FILE_COMPLETE) {
 		pr_debug("File marked full, fast get_filled_blocks");
