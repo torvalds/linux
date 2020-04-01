@@ -2484,10 +2484,8 @@ reassemble:
 		bkey_on_stack_reassemble(&copy, c, k);
 
 		if (insert &&
-		    bkey_cmp(bkey_start_pos(k.k), move_pos) < 0) {
+		    bkey_cmp(bkey_start_pos(k.k), move_pos) < 0)
 			bch2_cut_front(move_pos, copy.k);
-			bch2_btree_iter_set_pos(src, bkey_start_pos(&copy.k->k));
-		}
 
 		copy.k->k.p.offset += shift >> 9;
 		bch2_btree_iter_set_pos(dst, bkey_start_pos(&copy.k->k));
@@ -2507,8 +2505,9 @@ reassemble:
 		}
 
 		bkey_init(&delete.k);
-		delete.k.p = src->pos;
-		bch2_key_resize(&delete.k, copy.k->k.size);
+		delete.k.p = copy.k->k.p;
+		delete.k.size = copy.k->k.size;
+		delete.k.p.offset -= shift >> 9;
 
 		next_pos = insert ? bkey_start_pos(&delete.k) : delete.k.p;
 
@@ -2528,6 +2527,8 @@ reassemble:
 					BCH_DISK_RESERVATION_NOFAIL);
 			BUG_ON(ret);
 		}
+
+		bch2_btree_iter_set_pos(src, bkey_start_pos(&delete.k));
 
 		ret =   bch2_trans_update(&trans, src, &delete, trigger_flags) ?:
 			bch2_trans_update(&trans, dst, copy.k, trigger_flags) ?:
