@@ -276,7 +276,7 @@ static void x25_asy_write_wakeup(struct tty_struct *tty)
 	sl->xhead += actual;
 }
 
-static void x25_asy_timeout(struct net_device *dev)
+static void x25_asy_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct x25_asy *sl = netdev_priv(dev);
 

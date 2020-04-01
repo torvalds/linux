@@ -57,7 +57,7 @@ static int cfag12864bfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	return vm_map_pages_zero(vma, &pages, 1);
 }
 
-static struct fb_ops cfag12864bfb_ops = {
+static const struct fb_ops cfag12864bfb_ops = {
 	.owner = THIS_MODULE,
 	.fb_read = fb_sys_read,
 	.fb_write = fb_sys_write,

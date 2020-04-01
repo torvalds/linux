@@ -222,7 +222,7 @@ static int mdio_read(struct net_device *net_dev, int phy_id, int location);
 static void mdio_write(struct net_device *net_dev, int phy_id, int location, int val);
 static void sis900_timer(struct timer_list *t);
 static void sis900_check_mode (struct net_device *net_dev, struct mii_phy *mii_phy);
-static void sis900_tx_timeout(struct net_device *net_dev);
+static void sis900_tx_timeout(struct net_device *net_dev, unsigned int txqueue);
 static void sis900_init_tx_ring(struct net_device *net_dev);
 static void sis900_init_rx_ring(struct net_device *net_dev);
 static netdev_tx_t sis900_start_xmit(struct sk_buff *skb,
@@ -1537,7 +1537,7 @@ static void sis900_read_mode(struct net_device *net_dev, int *speed, int *duplex
  *	disable interrupts and do some tasks
  */
 
-static void sis900_tx_timeout(struct net_device *net_dev)
+static void sis900_tx_timeout(struct net_device *net_dev, unsigned int txqueue)
 {
 	struct sis900_private *sis_priv = netdev_priv(net_dev);
 	void __iomem *ioaddr = sis_priv->ioaddr;

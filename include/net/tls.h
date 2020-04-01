@@ -641,6 +641,7 @@ int tls_sw_fallback_init(struct sock *sk,
 #ifdef CONFIG_TLS_DEVICE
 void tls_device_init(void);
 void tls_device_cleanup(void);
+void tls_device_sk_destruct(struct sock *sk);
 int tls_set_device_offload(struct sock *sk, struct tls_context *ctx);
 void tls_device_free_resources_tx(struct sock *sk);
 int tls_set_device_offload_rx(struct sock *sk, struct tls_context *ctx);
@@ -649,6 +650,14 @@ void tls_device_rx_resync_new_rec(struct sock *sk, u32 rcd_len, u32 seq);
 void tls_offload_tx_resync_request(struct sock *sk, u32 got_seq, u32 exp_seq);
 int tls_device_decrypted(struct sock *sk, struct tls_context *tls_ctx,
 			 struct sk_buff *skb, struct strp_msg *rxm);
+
+static inline bool tls_is_sk_rx_device_offloaded(struct sock *sk)
+{
+	if (!sk_fullsock(sk) ||
+	    smp_load_acquire(&sk->sk_destruct) != tls_device_sk_destruct)
+		return false;
+	return tls_get_ctx(sk)->rx_conf == TLS_HW;
+}
 #else
 static inline void tls_device_init(void) {}
 static inline void tls_device_cleanup(void) {}

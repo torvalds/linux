@@ -36,6 +36,8 @@ Optional properties:
  - pinctrl-0:   a phandle pointing to the pin settings for the
                 control gpios
 
+ - wakeup-source: If present the device will act as wakeup-source
+
  - threshold:   allows setting the "click"-threshold in the range
                 from 0 to 80.
 

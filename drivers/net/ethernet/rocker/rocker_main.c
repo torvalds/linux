@@ -2159,7 +2159,7 @@ static void rocker_router_fib_event_work(struct work_struct *work)
 	/* Protect internal structures from changes */
 	rtnl_lock();
 	switch (fib_work->event) {
-	case FIB_EVENT_ENTRY_ADD:
+	case FIB_EVENT_ENTRY_REPLACE:
 		err = rocker_world_fib4_add(rocker, &fib_work->fen_info);
 		if (err)
 			rocker_world_fib4_abort(rocker);
@@ -2201,7 +2201,7 @@ static int rocker_router_fib_event(struct notifier_block *nb,
 	fib_work->event = event;
 
 	switch (event) {
-	case FIB_EVENT_ENTRY_ADD: /* fall through */
+	case FIB_EVENT_ENTRY_REPLACE: /* fall through */
 	case FIB_EVENT_ENTRY_DEL:
 		if (info->family == AF_INET) {
 			struct fib_entry_notifier_info *fen_info = ptr;

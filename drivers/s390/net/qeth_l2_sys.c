@@ -246,40 +246,6 @@ static struct attribute_group qeth_l2_bridgeport_attr_group = {
 	.attrs = qeth_l2_bridgeport_attrs,
 };
 
-/**
- * qeth_l2_setup_bridgeport_attrs() - set/restore attrs when turning online.
- * @card:			      qeth_card structure pointer
- *
- * Note: this function is called with conf_mutex held by the caller
- */
-void qeth_l2_setup_bridgeport_attrs(struct qeth_card *card)
-{
-	int rc;
-
-	if (!card)
-		return;
-	if (!card->options.sbp.supported_funcs)
-		return;
-
-	mutex_lock(&card->sbp_lock);
-	if (!card->options.sbp.reflect_promisc &&
-	    card->options.sbp.role != QETH_SBP_ROLE_NONE) {
-		/* Conditional to avoid spurious error messages */
-		qeth_bridgeport_setrole(card, card->options.sbp.role);
-		/* Let the callback function refresh the stored role value. */
-		qeth_bridgeport_query_ports(card,
-			&card->options.sbp.role, NULL);
-	}
-	if (card->options.sbp.hostnotification) {
-		rc = qeth_bridgeport_an_set(card, 1);
-		if (rc)
-			card->options.sbp.hostnotification = 0;
-	} else {
-		qeth_bridgeport_an_set(card, 0);
-	}
-	mutex_unlock(&card->sbp_lock);
-}
-
 /* VNIC CHARS support */
 
 /* convert sysfs attr name to VNIC characteristic */

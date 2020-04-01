@@ -24,6 +24,10 @@
 
 #define SD_MAJOR	3
 #define SD_MINOR	0
+#define SD_MINOR_1	1
+#define SD_MINOR_2	2
+#define SD_VERSION_3_1	(SD_MAJOR << 16 | SD_MINOR_1)
+#define SD_VERSION_3_2	(SD_MAJOR << 16 | SD_MINOR_2)
 #define SD_VERSION	(SD_MAJOR << 16 | SD_MINOR)
 
 #define SD_MAJOR_1	1
@@ -50,8 +54,10 @@ static int sd_srv_version;
 static int ts_srv_version;
 static int hb_srv_version;
 
-#define SD_VER_COUNT 2
+#define SD_VER_COUNT 4
 static const int sd_versions[] = {
+	SD_VERSION_3_2,
+	SD_VERSION_3_1,
 	SD_VERSION,
 	SD_VERSION_1
 };
@@ -75,18 +81,56 @@ static const int fw_versions[] = {
 	UTIL_WS2K8_FW_VERSION
 };
 
+/*
+ * Send the "hibernate" udev event in a thread context.
+ */
+struct hibernate_work_context {
+	struct work_struct work;
+	struct hv_device *dev;
+};
+
+static struct hibernate_work_context hibernate_context;
+static bool hibernation_supported;
+
+static void send_hibernate_uevent(struct work_struct *work)
+{
+	char *uevent_env[2] = { "EVENT=hibernate", NULL };
+	struct hibernate_work_context *ctx;
+
+	ctx = container_of(work, struct hibernate_work_context, work);
+
+	kobject_uevent_env(&ctx->dev->device.kobj, KOBJ_CHANGE, uevent_env);
+
+	pr_info("Sent hibernation uevent\n");
+}
+
+static int hv_shutdown_init(struct hv_util_service *srv)
+{
+	struct vmbus_channel *channel = srv->channel;
+
+	INIT_WORK(&hibernate_context.work, send_hibernate_uevent);
+	hibernate_context.dev = channel->device_obj;
+
+	hibernation_supported = hv_is_hibernation_supported();
+
+	return 0;
+}
+
 static void shutdown_onchannelcallback(void *context);
 static struct hv_util_service util_shutdown = {
 	.util_cb = shutdown_onchannelcallback,
+	.util_init = hv_shutdown_init,
 };
 
 static int hv_timesync_init(struct hv_util_service *srv);
+static int hv_timesync_pre_suspend(void);
 static void hv_timesync_deinit(void);
 
 static void timesync_onchannelcallback(void *context);
 static struct hv_util_service util_timesynch = {
 	.util_cb = timesync_onchannelcallback,
 	.util_init = hv_timesync_init,
+	.util_pre_suspend = hv_timesync_pre_suspend,
 	.util_deinit = hv_timesync_deinit,
 };
 
@@ -98,18 +142,24 @@ static struct hv_util_service util_heartbeat = {
 static struct hv_util_service util_kvp = {
 	.util_cb = hv_kvp_onchannelcallback,
 	.util_init = hv_kvp_init,
+	.util_pre_suspend = hv_kvp_pre_suspend,
+	.util_pre_resume = hv_kvp_pre_resume,
 	.util_deinit = hv_kvp_deinit,
 };
 
 static struct hv_util_service util_vss = {
 	.util_cb = hv_vss_onchannelcallback,
 	.util_init = hv_vss_init,
+	.util_pre_suspend = hv_vss_pre_suspend,
+	.util_pre_resume = hv_vss_pre_resume,
 	.util_deinit = hv_vss_deinit,
 };
 
 static struct hv_util_service util_fcopy = {
 	.util_cb = hv_fcopy_onchannelcallback,
 	.util_init = hv_fcopy_init,
+	.util_pre_suspend = hv_fcopy_pre_suspend,
+	.util_pre_resume = hv_fcopy_pre_resume,
 	.util_deinit = hv_fcopy_deinit,
 };
 
@@ -118,17 +168,27 @@ static void perform_shutdown(struct work_struct *dummy)
 	orderly_poweroff(true);
 }
 
+static void perform_restart(struct work_struct *dummy)
+{
+	orderly_reboot();
+}
+
 /*
  * Perform the shutdown operation in a thread context.
  */
 static DECLARE_WORK(shutdown_work, perform_shutdown);
 
+/*
+ * Perform the restart operation in a thread context.
+ */
+static DECLARE_WORK(restart_work, perform_restart);
+
 static void shutdown_onchannelcallback(void *context)
 {
 	struct vmbus_channel *channel = context;
+	struct work_struct *work = NULL;
 	u32 recvlen;
 	u64 requestid;
-	bool execute_shutdown = false;
 	u8  *shut_txf_buf = util_shutdown.recv_buffer;
 
 	struct shutdown_msg_data *shutdown_msg;
@@ -157,19 +217,37 @@ static void shutdown_onchannelcallback(void *context)
 					sizeof(struct vmbuspipe_hdr) +
 					sizeof(struct icmsg_hdr)];
 
+			/*
+			 * shutdown_msg->flags can be 0(shut down), 2(reboot),
+			 * or 4(hibernate). It may bitwise-OR 1, which means
+			 * performing the request by force. Linux always tries
+			 * to perform the request by force.
+			 */
 			switch (shutdown_msg->flags) {
 			case 0:
 			case 1:
 				icmsghdrp->status = HV_S_OK;
-				execute_shutdown = true;
-
+				work = &shutdown_work;
 				pr_info("Shutdown request received -"
 					    " graceful shutdown initiated\n");
 				break;
+			case 2:
+			case 3:
+				icmsghdrp->status = HV_S_OK;
+				work = &restart_work;
+				pr_info("Restart request received -"
+					    " graceful restart initiated\n");
+				break;
+			case 4:
+			case 5:
+				pr_info("Hibernation request received\n");
+				icmsghdrp->status = hibernation_supported ?
+					HV_S_OK : HV_E_FAIL;
+				if (hibernation_supported)
+					work = &hibernate_context.work;
+				break;
 			default:
 				icmsghdrp->status = HV_E_FAIL;
-				execute_shutdown = false;
-
 				pr_info("Shutdown request received -"
 					    " Invalid request\n");
 				break;
@@ -184,8 +262,8 @@ static void shutdown_onchannelcallback(void *context)
 				       VM_PKT_DATA_INBAND, 0);
 	}
 
-	if (execute_shutdown == true)
-		schedule_work(&shutdown_work);
+	if (work)
+		schedule_work(work);
 }
 
 /*
@@ -211,7 +289,7 @@ static struct timespec64 hv_get_adj_host_time(void)
 	unsigned long flags;
 
 	spin_lock_irqsave(&host_ts.lock, flags);
-	reftime = hyperv_cs->read(hyperv_cs);
+	reftime = hv_read_reference_counter();
 	newtime = host_ts.host_time + (reftime - host_ts.ref_time);
 	ts = ns_to_timespec64((newtime - WLTIMEDELTA) * 100);
 	spin_unlock_irqrestore(&host_ts.lock, flags);
@@ -250,7 +328,7 @@ static inline void adj_guesttime(u64 hosttime, u64 reftime, u8 adj_flags)
 	 */
 	spin_lock_irqsave(&host_ts.lock, flags);
 
-	cur_reftime = hyperv_cs->read(hyperv_cs);
+	cur_reftime = hv_read_reference_counter();
 	host_ts.host_time = hosttime;
 	host_ts.ref_time = cur_reftime;
 
@@ -315,7 +393,7 @@ static void timesync_onchannelcallback(void *context)
 					sizeof(struct vmbuspipe_hdr) +
 					sizeof(struct icmsg_hdr)];
 				adj_guesttime(timedatap->parenttime,
-					      hyperv_cs->read(hyperv_cs),
+					      hv_read_reference_counter(),
 					      timedatap->flags);
 			}
 		}
@@ -441,6 +519,44 @@ static int util_remove(struct hv_device *dev)
 	return 0;
 }
 
+/*
+ * When we're in util_suspend(), all the userspace processes have been frozen
+ * (refer to hibernate() -> freeze_processes()). The userspace is thawed only
+ * after the whole resume procedure, including util_resume(), finishes.
+ */
+static int util_suspend(struct hv_device *dev)
+{
+	struct hv_util_service *srv = hv_get_drvdata(dev);
+	int ret = 0;
+
+	if (srv->util_pre_suspend) {
+		ret = srv->util_pre_suspend();
+		if (ret)
+			return ret;
+	}
+
+	vmbus_close(dev->channel);
+
+	return 0;
+}
+
+static int util_resume(struct hv_device *dev)
+{
+	struct hv_util_service *srv = hv_get_drvdata(dev);
+	int ret = 0;
+
+	if (srv->util_pre_resume) {
+		ret = srv->util_pre_resume();
+		if (ret)
+			return ret;
+	}
+
+	ret = vmbus_open(dev->channel, 4 * HV_HYP_PAGE_SIZE,
+			 4 * HV_HYP_PAGE_SIZE, NULL, 0, srv->util_cb,
+			 dev->channel);
+	return ret;
+}
+
 static const struct hv_vmbus_device_id id_table[] = {
 	/* Shutdown guid */
 	{ HV_SHUTDOWN_GUID,
@@ -477,6 +593,8 @@ static  struct hv_driver util_drv = {
 	.id_table = id_table,
 	.probe =  util_probe,
 	.remove =  util_remove,
+	.suspend = util_suspend,
+	.resume =  util_resume,
 	.driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
@@ -524,7 +642,7 @@ static struct ptp_clock *hv_ptp_clock;
 static int hv_timesync_init(struct hv_util_service *srv)
 {
 	/* TimeSync requires Hyper-V clocksource. */
-	if (!hyperv_cs)
+	if (!hv_read_reference_counter)
 		return -ENODEV;
 
 	spin_lock_init(&host_ts.lock);
@@ -546,11 +664,23 @@ static int hv_timesync_init(struct hv_util_service *srv)
 	return 0;
 }
 
+static void hv_timesync_cancel_work(void)
+{
+	cancel_work_sync(&adj_time_work);
+}
+
+static int hv_timesync_pre_suspend(void)
+{
+	hv_timesync_cancel_work();
+	return 0;
+}
+
 static void hv_timesync_deinit(void)
 {
 	if (hv_ptp_clock)
 		ptp_clock_unregister(hv_ptp_clock);
-	cancel_work_sync(&adj_time_work);
+
+	hv_timesync_cancel_work();
 }
 
 static int __init init_hyperv_utils(void)

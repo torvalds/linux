@@ -611,7 +611,7 @@ static const struct genl_ops smc_pnet_ops[] = {
 	{
 		.cmd = SMC_PNETID_GET,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
-		.flags = GENL_ADMIN_PERM,
+		/* can be retrieved by unprivileged users */
 		.doit = smc_pnet_get,
 		.dumpit = smc_pnet_dump,
 		.start = smc_pnet_dump_start

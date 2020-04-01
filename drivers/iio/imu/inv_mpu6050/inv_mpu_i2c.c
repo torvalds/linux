@@ -77,6 +77,7 @@ static bool inv_mpu_i2c_aux_bus(struct device *dev)
 	case INV_ICM20602:
 		/* no i2c auxiliary bus on the chip */
 		return false;
+	case INV_MPU9150:
 	case INV_MPU9250:
 	case INV_MPU9255:
 		if (st->magn_disabled)
@@ -102,6 +103,7 @@ static int inv_mpu_magn_disable(struct iio_dev *indio_dev)
 	struct device_node *mux_node;
 
 	switch (st->chip_type) {
+	case INV_MPU9150:
 	case INV_MPU9250:
 	case INV_MPU9255:
 		mux_node = of_get_child_by_name(dev->of_node, "i2c-gate");

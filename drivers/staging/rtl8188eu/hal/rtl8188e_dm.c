@@ -21,7 +21,7 @@
 /*  Initialize GPIO setting registers */
 static void dm_InitGPIOSetting(struct adapter *Adapter)
 {
-	u8	tmp1byte;
+	u8 tmp1byte;
 
 	tmp1byte = usb_read8(Adapter, REG_GPIO_MUXCFG);
 	tmp1byte &= (GPIOSEL_GPIO | ~GPIOSEL_ENBT);
@@ -35,8 +35,8 @@ static void dm_InitGPIOSetting(struct adapter *Adapter)
 static void Init_ODM_ComInfo_88E(struct adapter *Adapter)
 {
 	struct hal_data_8188e *hal_data = Adapter->HalData;
-	struct dm_priv	*pdmpriv = &hal_data->dmpriv;
-	struct odm_dm_struct *dm_odm = &(hal_data->odmpriv);
+	struct dm_priv *pdmpriv = &hal_data->dmpriv;
+	struct odm_dm_struct *dm_odm = &hal_data->odmpriv;
 
 	/*  Init Value */
 	memset(dm_odm, 0, sizeof(*dm_odm));
@@ -51,44 +51,46 @@ static void Init_ODM_ComInfo_88E(struct adapter *Adapter)
 
 	dm_odm->AntDivType = hal_data->TRxAntDivType;
 
-	/*  Tx power tracking BB swing table. */
-	/*  The base index = 12. +((12-n)/2)dB 13~?? = decrease tx pwr by -((n-12)/2)dB */
+	/* Tx power tracking BB swing table.
+	 * The base index =
+	 * 12. +((12-n)/2)dB 13~?? = decrease tx pwr by -((n-12)/2)dB
+	 */
 	dm_odm->BbSwingIdxOfdm = 12; /*  Set defalut value as index 12. */
 	dm_odm->BbSwingIdxOfdmCurrent = 12;
 	dm_odm->BbSwingFlagOfdm = false;
 
-	pdmpriv->InitODMFlag =	ODM_RF_CALIBRATION |
-				ODM_RF_TX_PWR_TRACK;
+	pdmpriv->InitODMFlag = ODM_RF_CALIBRATION |
+			       ODM_RF_TX_PWR_TRACK;
 
 	dm_odm->SupportAbility = pdmpriv->InitODMFlag;
 }
 
 static void Update_ODM_ComInfo_88E(struct adapter *Adapter)
 {
-	struct mlme_ext_priv	*pmlmeext = &Adapter->mlmeextpriv;
-	struct mlme_priv	*pmlmepriv = &Adapter->mlmepriv;
+	struct mlme_ext_priv *pmlmeext = &Adapter->mlmeextpriv;
+	struct mlme_priv *pmlmepriv = &Adapter->mlmepriv;
 	struct pwrctrl_priv *pwrctrlpriv = &Adapter->pwrctrlpriv;
 	struct hal_data_8188e *hal_data = Adapter->HalData;
-	struct odm_dm_struct *dm_odm = &(hal_data->odmpriv);
-	struct dm_priv	*pdmpriv = &hal_data->dmpriv;
+	struct odm_dm_struct *dm_odm = &hal_data->odmpriv;
+	struct dm_priv *pdmpriv = &hal_data->dmpriv;
 	int i;
 
-	pdmpriv->InitODMFlag =	ODM_BB_DIG |
-				ODM_BB_RA_MASK |
-				ODM_BB_DYNAMIC_TXPWR |
-				ODM_BB_FA_CNT |
-				ODM_BB_RSSI_MONITOR |
-				ODM_BB_CCK_PD |
-				ODM_BB_PWR_SAVE |
-				ODM_MAC_EDCA_TURBO |
-				ODM_RF_CALIBRATION |
-				ODM_RF_TX_PWR_TRACK;
+	pdmpriv->InitODMFlag = ODM_BB_DIG |
+			       ODM_BB_RA_MASK |
+			       ODM_BB_DYNAMIC_TXPWR |
+			       ODM_BB_FA_CNT |
+			       ODM_BB_RSSI_MONITOR |
+			       ODM_BB_CCK_PD |
+			       ODM_BB_PWR_SAVE |
+			       ODM_MAC_EDCA_TURBO |
+			       ODM_RF_CALIBRATION |
+			       ODM_RF_TX_PWR_TRACK;
 	if (hal_data->AntDivCfg)
 		pdmpriv->InitODMFlag |= ODM_BB_ANT_DIV;
 
 	if (Adapter->registrypriv.mp_mode == 1) {
-		pdmpriv->InitODMFlag =	ODM_RF_CALIBRATION |
-					ODM_RF_TX_PWR_TRACK;
+		pdmpriv->InitODMFlag = ODM_RF_CALIBRATION |
+				       ODM_RF_TX_PWR_TRACK;
 	}
 
 	dm_odm->SupportAbility = pdmpriv->InitODMFlag;
@@ -106,20 +108,23 @@ static void Update_ODM_ComInfo_88E(struct adapter *Adapter)
 	dm_odm->pbPowerSaving = (bool *)&pwrctrlpriv->bpower_saving;
 	dm_odm->AntDivType = hal_data->TRxAntDivType;
 
-	/*  Tx power tracking BB swing table. */
-	/*  The base index = 12. +((12-n)/2)dB 13~?? = decrease tx pwr by -((n-12)/2)dB */
+	/* Tx power tracking BB swing table.
+	 * The base index =
+	 * 12. +((12-n)/2)dB 13~?? = decrease tx pwr by -((n-12)/2)dB
+	 */
 	dm_odm->BbSwingIdxOfdm = 12; /*  Set defalut value as index 12. */
 	dm_odm->BbSwingIdxOfdmCurrent = 12;
 	dm_odm->BbSwingFlagOfdm = false;
 
 	for (i = 0; i < NUM_STA; i++)
-		ODM_CmnInfoPtrArrayHook(dm_odm, ODM_CMNINFO_STA_STATUS, i, NULL);
+		ODM_CmnInfoPtrArrayHook(dm_odm, ODM_CMNINFO_STA_STATUS, i,
+					NULL);
 }
 
 void rtl8188e_InitHalDm(struct adapter *Adapter)
 {
-	struct dm_priv	*pdmpriv = &Adapter->HalData->dmpriv;
-	struct odm_dm_struct *dm_odm = &(Adapter->HalData->odmpriv);
+	struct dm_priv *pdmpriv = &Adapter->HalData->dmpriv;
+	struct odm_dm_struct *dm_odm = &Adapter->HalData->odmpriv;
 
 	dm_InitGPIOSetting(Adapter);
 	pdmpriv->DM_Type = DM_Type_ByDriver;
@@ -162,7 +167,7 @@ skip_dm:
 
 void rtw_hal_dm_init(struct adapter *Adapter)
 {
-	struct dm_priv	*pdmpriv = &Adapter->HalData->dmpriv;
+	struct dm_priv *pdmpriv = &Adapter->HalData->dmpriv;
 	struct odm_dm_struct *podmpriv = &Adapter->HalData->odmpriv;
 
 	memset(pdmpriv, 0, sizeof(struct dm_priv));
@@ -172,23 +177,28 @@ void rtw_hal_dm_init(struct adapter *Adapter)
 
 /*  Add new function to reset the state of antenna diversity before link. */
 /*  Compare RSSI for deciding antenna */
-void rtw_hal_antdiv_rssi_compared(struct adapter *Adapter, struct wlan_bssid_ex *dst, struct wlan_bssid_ex *src)
+void rtw_hal_antdiv_rssi_compared(struct adapter *Adapter,
+				  struct wlan_bssid_ex *dst,
+				  struct wlan_bssid_ex *src)
 {
 	if (Adapter->HalData->AntDivCfg != 0) {
-		/* select optimum_antenna for before linked =>For antenna diversity */
-		if (dst->Rssi >=  src->Rssi) {/* keep org parameter */
+		/* select optimum_antenna for before linked => For antenna
+		 * diversity
+		 */
+		if (dst->Rssi >= src->Rssi) {/* keep org parameter */
 			src->Rssi = dst->Rssi;
-			src->PhyInfo.Optimum_antenna = dst->PhyInfo.Optimum_antenna;
+			src->PhyInfo.Optimum_antenna =
+				dst->PhyInfo.Optimum_antenna;
 		}
 	}
 }
 
 /*  Add new function to reset the state of antenna diversity before link. */
-u8 rtw_hal_antdiv_before_linked(struct adapter *Adapter)
+bool rtw_hal_antdiv_before_linked(struct adapter *Adapter)
 {
 	struct odm_dm_struct *dm_odm = &Adapter->HalData->odmpriv;
 	struct sw_ant_switch *dm_swat_tbl = &dm_odm->DM_SWAT_Table;
-	struct mlme_priv *pmlmepriv = &(Adapter->mlmepriv);
+	struct mlme_priv *pmlmepriv = &Adapter->mlmepriv;
 
 	/*  Condition that does not need to use antenna diversity. */
 	if (Adapter->HalData->AntDivCfg == 0)
@@ -197,15 +207,16 @@ u8 rtw_hal_antdiv_before_linked(struct adapter *Adapter)
 	if (check_fwstate(pmlmepriv, _FW_LINKED))
 		return false;
 
-	if (dm_swat_tbl->SWAS_NoLink_State == 0) {
-		/* switch channel */
-		dm_swat_tbl->SWAS_NoLink_State = 1;
-		dm_swat_tbl->CurAntenna = (dm_swat_tbl->CurAntenna == Antenna_A) ? Antenna_B : Antenna_A;
-
-		rtw_antenna_select_cmd(Adapter, dm_swat_tbl->CurAntenna, false);
-		return true;
-	} else {
+	if (dm_swat_tbl->SWAS_NoLink_State != 0) {
 		dm_swat_tbl->SWAS_NoLink_State = 0;
 		return false;
 	}
+
+	/* switch channel */
+	dm_swat_tbl->SWAS_NoLink_State = 1;
+	dm_swat_tbl->CurAntenna = (dm_swat_tbl->CurAntenna == Antenna_A) ?
+				  Antenna_B : Antenna_A;
+
+	rtw_antenna_select_cmd(Adapter, dm_swat_tbl->CurAntenna, false);
+	return true;
 }

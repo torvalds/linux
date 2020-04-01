@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * HiSilicon SPI Nor Flash Controller Driver
+ * HiSilicon FMC SPI-NOR flash controller driver
  *
  * Copyright (c) 2015-2016 HiSilicon Technologies Co., Ltd.
  */
@@ -144,7 +144,7 @@ static void hisi_spi_nor_init(struct hifmc_host *host)
 	writel(reg, host->regbase + FMC_SPI_TIMING_CFG);
 }
 
-static int hisi_spi_nor_prep(struct spi_nor *nor, enum spi_nor_ops ops)
+static int hisi_spi_nor_prep(struct spi_nor *nor)
 {
 	struct hifmc_priv *priv = nor->priv;
 	struct hifmc_host *host = priv->host;
@@ -167,7 +167,7 @@ out:
 	return ret;
 }
 
-static void hisi_spi_nor_unprep(struct spi_nor *nor, enum spi_nor_ops ops)
+static void hisi_spi_nor_unprep(struct spi_nor *nor)
 {
 	struct hifmc_priv *priv = nor->priv;
 	struct hifmc_host *host = priv->host;

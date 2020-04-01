@@ -3,7 +3,7 @@
  * Copyright (c) 2010-2011 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
  *
- * EXYNOS - Memory map definitions
+ * Exynos - Memory map definitions
  */
 
 #ifndef __ASM_ARCH_MAP_H

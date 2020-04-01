@@ -124,7 +124,7 @@ void __init plat_irq_setup(void)
 	unsigned long reg;
 	int i;
 
-	intc_virt = (unsigned long)ioremap_nocache(INTC_BASE, 1024);
+	intc_virt = (unsigned long)ioremap(INTC_BASE, 1024);
 	if (!intc_virt) {
 		panic("Unable to remap INTC\n");
 	}

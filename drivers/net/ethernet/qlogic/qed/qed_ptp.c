@@ -44,8 +44,8 @@
 /* Add/subtract the Adjustment_Value when making a Drift adjustment */
 #define QED_DRIFT_CNTR_DIRECTION_SHIFT		31
 #define QED_TIMESTAMP_MASK			BIT(16)
-/* Param mask for Hardware to detect/timestamp the unicast PTP packets */
-#define QED_PTP_UCAST_PARAM_MASK		0xF
+/* Param mask for Hardware to detect/timestamp the L2/L4 unicast PTP packets */
+#define QED_PTP_UCAST_PARAM_MASK              0x70F
 
 static enum qed_resc_lock qed_ptcdev_to_resc(struct qed_hwfn *p_hwfn)
 {

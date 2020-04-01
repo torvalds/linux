@@ -51,6 +51,26 @@ enum mod_hdcp_ddc_message_id {
 	MOD_HDCP_MESSAGE_ID_READ_KSV_FIFO,
 	MOD_HDCP_MESSAGE_ID_READ_BINFO,
 
+	/* HDCP 2.2 */
+
+	MOD_HDCP_MESSAGE_ID_HDCP2VERSION,
+	MOD_HDCP_MESSAGE_ID_RX_CAPS,
+	MOD_HDCP_MESSAGE_ID_WRITE_AKE_INIT,
+	MOD_HDCP_MESSAGE_ID_READ_AKE_SEND_CERT,
+	MOD_HDCP_MESSAGE_ID_WRITE_AKE_NO_STORED_KM,
+	MOD_HDCP_MESSAGE_ID_WRITE_AKE_STORED_KM,
+	MOD_HDCP_MESSAGE_ID_READ_AKE_SEND_H_PRIME,
+	MOD_HDCP_MESSAGE_ID_READ_AKE_SEND_PAIRING_INFO,
+	MOD_HDCP_MESSAGE_ID_WRITE_LC_INIT,
+	MOD_HDCP_MESSAGE_ID_READ_LC_SEND_L_PRIME,
+	MOD_HDCP_MESSAGE_ID_WRITE_SKE_SEND_EKS,
+	MOD_HDCP_MESSAGE_ID_READ_REPEATER_AUTH_SEND_RECEIVERID_LIST,
+	MOD_HDCP_MESSAGE_ID_WRITE_REPEATER_AUTH_SEND_ACK,
+	MOD_HDCP_MESSAGE_ID_WRITE_REPEATER_AUTH_STREAM_MANAGE,
+	MOD_HDCP_MESSAGE_ID_READ_REPEATER_AUTH_STREAM_READY,
+	MOD_HDCP_MESSAGE_ID_READ_RXSTATUS,
+	MOD_HDCP_MESSAGE_ID_WRITE_CONTENT_STREAM_TYPE,
+
 	MOD_HDCP_MESSAGE_ID_MAX
 };
 
@@ -70,6 +90,22 @@ static const uint8_t hdcp_i2c_offsets[] = {
 	[MOD_HDCP_MESSAGE_ID_READ_BSTATUS] = 0x41,
 	[MOD_HDCP_MESSAGE_ID_READ_KSV_FIFO] = 0x43,
 	[MOD_HDCP_MESSAGE_ID_READ_BINFO] = 0xFF,
+	[MOD_HDCP_MESSAGE_ID_HDCP2VERSION] = 0x50,
+	[MOD_HDCP_MESSAGE_ID_WRITE_AKE_INIT] = 0x60,
+	[MOD_HDCP_MESSAGE_ID_READ_AKE_SEND_CERT] = 0x80,
+	[MOD_HDCP_MESSAGE_ID_WRITE_AKE_NO_STORED_KM] = 0x60,
+	[MOD_HDCP_MESSAGE_ID_WRITE_AKE_STORED_KM] = 0x60,
+	[MOD_HDCP_MESSAGE_ID_READ_AKE_SEND_H_PRIME] = 0x80,
+	[MOD_HDCP_MESSAGE_ID_READ_AKE_SEND_PAIRING_INFO] = 0x80,
+	[MOD_HDCP_MESSAGE_ID_WRITE_LC_INIT] = 0x60,
+	[MOD_HDCP_MESSAGE_ID_READ_LC_SEND_L_PRIME] = 0x80,
+	[MOD_HDCP_MESSAGE_ID_WRITE_SKE_SEND_EKS] = 0x60,
+	[MOD_HDCP_MESSAGE_ID_READ_REPEATER_AUTH_SEND_RECEIVERID_LIST] = 0x80,
+	[MOD_HDCP_MESSAGE_ID_WRITE_REPEATER_AUTH_SEND_ACK] = 0x60,
+	[MOD_HDCP_MESSAGE_ID_WRITE_REPEATER_AUTH_STREAM_MANAGE] = 0x60,
+	[MOD_HDCP_MESSAGE_ID_READ_REPEATER_AUTH_STREAM_READY] = 0x80,
+	[MOD_HDCP_MESSAGE_ID_READ_RXSTATUS] = 0x70,
+	[MOD_HDCP_MESSAGE_ID_WRITE_CONTENT_STREAM_TYPE] = 0x0
 };
 
 static const uint32_t hdcp_dpcd_addrs[] = {
@@ -88,6 +124,22 @@ static const uint32_t hdcp_dpcd_addrs[] = {
 	[MOD_HDCP_MESSAGE_ID_READ_BSTATUS] = 0x68029,
 	[MOD_HDCP_MESSAGE_ID_READ_KSV_FIFO] = 0x6802c,
 	[MOD_HDCP_MESSAGE_ID_READ_BINFO] = 0x6802a,
+	[MOD_HDCP_MESSAGE_ID_RX_CAPS] = 0x6921d,
+	[MOD_HDCP_MESSAGE_ID_WRITE_AKE_INIT] = 0x69000,
+	[MOD_HDCP_MESSAGE_ID_READ_AKE_SEND_CERT] = 0x6900b,
+	[MOD_HDCP_MESSAGE_ID_WRITE_AKE_NO_STORED_KM] = 0x69220,
+	[MOD_HDCP_MESSAGE_ID_WRITE_AKE_STORED_KM] = 0x692a0,
+	[MOD_HDCP_MESSAGE_ID_READ_AKE_SEND_H_PRIME] = 0x692c0,
+	[MOD_HDCP_MESSAGE_ID_READ_AKE_SEND_PAIRING_INFO] = 0x692e0,
+	[MOD_HDCP_MESSAGE_ID_WRITE_LC_INIT] = 0x692f0,
+	[MOD_HDCP_MESSAGE_ID_READ_LC_SEND_L_PRIME] = 0x692f8,
+	[MOD_HDCP_MESSAGE_ID_WRITE_SKE_SEND_EKS] = 0x69318,
+	[MOD_HDCP_MESSAGE_ID_READ_REPEATER_AUTH_SEND_RECEIVERID_LIST] = 0x69330,
+	[MOD_HDCP_MESSAGE_ID_WRITE_REPEATER_AUTH_SEND_ACK] = 0x693e0,
+	[MOD_HDCP_MESSAGE_ID_WRITE_REPEATER_AUTH_STREAM_MANAGE] = 0x693f0,
+	[MOD_HDCP_MESSAGE_ID_READ_REPEATER_AUTH_STREAM_READY] = 0x69473,
+	[MOD_HDCP_MESSAGE_ID_READ_RXSTATUS] = 0x69493,
+	[MOD_HDCP_MESSAGE_ID_WRITE_CONTENT_STREAM_TYPE] = 0x69494
 };
 
 static enum mod_hdcp_status read(struct mod_hdcp *hdcp,
@@ -302,4 +354,278 @@ enum mod_hdcp_status mod_hdcp_write_an(struct mod_hdcp *hdcp)
 	return write(hdcp, MOD_HDCP_MESSAGE_ID_WRITE_AN,
 			hdcp->auth.msg.hdcp1.an,
 			sizeof(hdcp->auth.msg.hdcp1.an));
+}
+
+enum mod_hdcp_status mod_hdcp_read_hdcp2version(struct mod_hdcp *hdcp)
+{
+	enum mod_hdcp_status status;
+
+	if (is_dp_hdcp(hdcp))
+		status = MOD_HDCP_STATUS_INVALID_OPERATION;
+	else
+		status = read(hdcp, MOD_HDCP_MESSAGE_ID_HDCP2VERSION,
+				&hdcp->auth.msg.hdcp2.hdcp2version_hdmi,
+				sizeof(hdcp->auth.msg.hdcp2.hdcp2version_hdmi));
+
+	return status;
+}
+
+enum mod_hdcp_status mod_hdcp_read_rxcaps(struct mod_hdcp *hdcp)
+{
+	enum mod_hdcp_status status;
+
+	if (!is_dp_hdcp(hdcp))
+		status = MOD_HDCP_STATUS_INVALID_OPERATION;
+	else
+		status = read(hdcp, MOD_HDCP_MESSAGE_ID_RX_CAPS,
+				hdcp->auth.msg.hdcp2.rxcaps_dp,
+				sizeof(hdcp->auth.msg.hdcp2.rxcaps_dp));
+
+	return status;
+}
+
+enum mod_hdcp_status mod_hdcp_read_rxstatus(struct mod_hdcp *hdcp)
+{
+	enum mod_hdcp_status status;
+
+	if (is_dp_hdcp(hdcp)) {
+		status = read(hdcp, MOD_HDCP_MESSAGE_ID_READ_RXSTATUS,
+				&hdcp->auth.msg.hdcp2.rxstatus_dp,
+				1);
+	} else {
+		status = read(hdcp, MOD_HDCP_MESSAGE_ID_READ_RXSTATUS,
+					(uint8_t *)&hdcp->auth.msg.hdcp2.rxstatus,
+					sizeof(hdcp->auth.msg.hdcp2.rxstatus));
+	}
+	return status;
+}
+
+enum mod_hdcp_status mod_hdcp_read_ake_cert(struct mod_hdcp *hdcp)
+{
+	enum mod_hdcp_status status;
+
+	if (is_dp_hdcp(hdcp)) {
+		hdcp->auth.msg.hdcp2.ake_cert[0] = 3;
+		status = read(hdcp, MOD_HDCP_MESSAGE_ID_READ_AKE_SEND_CERT,
+				hdcp->auth.msg.hdcp2.ake_cert+1,
+				sizeof(hdcp->auth.msg.hdcp2.ake_cert)-1);
+
+	} else {
+		status = read(hdcp, MOD_HDCP_MESSAGE_ID_READ_AKE_SEND_CERT,
+					hdcp->auth.msg.hdcp2.ake_cert,
+					sizeof(hdcp->auth.msg.hdcp2.ake_cert));
+	}
+	return status;
+}
+
+enum mod_hdcp_status mod_hdcp_read_h_prime(struct mod_hdcp *hdcp)
+{
+	enum mod_hdcp_status status;
+
+	if (is_dp_hdcp(hdcp)) {
+		hdcp->auth.msg.hdcp2.ake_h_prime[0] = 7;
+		status = read(hdcp, MOD_HDCP_MESSAGE_ID_READ_AKE_SEND_H_PRIME,
+				hdcp->auth.msg.hdcp2.ake_h_prime+1,
+				sizeof(hdcp->auth.msg.hdcp2.ake_h_prime)-1);
+
+	} else {
+		status = read(hdcp, MOD_HDCP_MESSAGE_ID_READ_AKE_SEND_H_PRIME,
+				hdcp->auth.msg.hdcp2.ake_h_prime,
+				sizeof(hdcp->auth.msg.hdcp2.ake_h_prime));
+	}
+	return status;
+}
+
+enum mod_hdcp_status mod_hdcp_read_pairing_info(struct mod_hdcp *hdcp)
+{
+	enum mod_hdcp_status status;
+
+	if (is_dp_hdcp(hdcp)) {
+		hdcp->auth.msg.hdcp2.ake_pairing_info[0] = 8;
+		status = read(hdcp, MOD_HDCP_MESSAGE_ID_READ_AKE_SEND_PAIRING_INFO,
+				hdcp->auth.msg.hdcp2.ake_pairing_info+1,
+				sizeof(hdcp->auth.msg.hdcp2.ake_pairing_info)-1);
+
+	} else {
+		status = read(hdcp, MOD_HDCP_MESSAGE_ID_READ_AKE_SEND_PAIRING_INFO,
+				hdcp->auth.msg.hdcp2.ake_pairing_info,
+				sizeof(hdcp->auth.msg.hdcp2.ake_pairing_info));
+	}
+	return status;
+}
+
+enum mod_hdcp_status mod_hdcp_read_l_prime(struct mod_hdcp *hdcp)
+{
+	enum mod_hdcp_status status;
+
+	if (is_dp_hdcp(hdcp)) {
+		hdcp->auth.msg.hdcp2.lc_l_prime[0] = 10;
+		status = read(hdcp, MOD_HDCP_MESSAGE_ID_READ_LC_SEND_L_PRIME,
+				hdcp->auth.msg.hdcp2.lc_l_prime+1,
+				sizeof(hdcp->auth.msg.hdcp2.lc_l_prime)-1);
+
+	} else {
+		status = read(hdcp, MOD_HDCP_MESSAGE_ID_READ_LC_SEND_L_PRIME,
+				hdcp->auth.msg.hdcp2.lc_l_prime,
+				sizeof(hdcp->auth.msg.hdcp2.lc_l_prime));
+	}
+	return status;
+}
+
+enum mod_hdcp_status mod_hdcp_read_rx_id_list(struct mod_hdcp *hdcp)
+{
+	enum mod_hdcp_status status;
+
+	if (is_dp_hdcp(hdcp)) {
+		hdcp->auth.msg.hdcp2.rx_id_list[0] = 12;
+		status = read(hdcp, MOD_HDCP_MESSAGE_ID_READ_REPEATER_AUTH_SEND_RECEIVERID_LIST,
+				hdcp->auth.msg.hdcp2.rx_id_list+1,
+				sizeof(hdcp->auth.msg.hdcp2.rx_id_list)-1);
+
+	} else {
+		status = read(hdcp, MOD_HDCP_MESSAGE_ID_READ_REPEATER_AUTH_SEND_RECEIVERID_LIST,
+				hdcp->auth.msg.hdcp2.rx_id_list,
+				hdcp->auth.msg.hdcp2.rx_id_list_size);
+	}
+	return status;
+}
+
+enum mod_hdcp_status mod_hdcp_read_stream_ready(struct mod_hdcp *hdcp)
+{
+	enum mod_hdcp_status status;
+
+	if (is_dp_hdcp(hdcp)) {
+		hdcp->auth.msg.hdcp2.repeater_auth_stream_ready[0] = 17;
+		status = read(hdcp, MOD_HDCP_MESSAGE_ID_READ_REPEATER_AUTH_STREAM_READY,
+				hdcp->auth.msg.hdcp2.repeater_auth_stream_ready+1,
+				sizeof(hdcp->auth.msg.hdcp2.repeater_auth_stream_ready)-1);
+
+	} else {
+		status = read(hdcp, MOD_HDCP_MESSAGE_ID_READ_REPEATER_AUTH_STREAM_READY,
+				hdcp->auth.msg.hdcp2.repeater_auth_stream_ready,
+				sizeof(hdcp->auth.msg.hdcp2.repeater_auth_stream_ready));
+	}
+	return status;
+}
+
+enum mod_hdcp_status mod_hdcp_write_ake_init(struct mod_hdcp *hdcp)
+{
+	enum mod_hdcp_status status;
+
+	if (is_dp_hdcp(hdcp))
+		status = write(hdcp, MOD_HDCP_MESSAGE_ID_WRITE_AKE_INIT,
+				hdcp->auth.msg.hdcp2.ake_init+1,
+				sizeof(hdcp->auth.msg.hdcp2.ake_init)-1);
+	else
+		status = write(hdcp, MOD_HDCP_MESSAGE_ID_WRITE_AKE_INIT,
+					hdcp->auth.msg.hdcp2.ake_init,
+					sizeof(hdcp->auth.msg.hdcp2.ake_init));
+	return status;
+}
+
+enum mod_hdcp_status mod_hdcp_write_no_stored_km(struct mod_hdcp *hdcp)
+{
+	enum mod_hdcp_status status;
+
+	if (is_dp_hdcp(hdcp))
+		status = write(hdcp, MOD_HDCP_MESSAGE_ID_WRITE_AKE_NO_STORED_KM,
+				hdcp->auth.msg.hdcp2.ake_no_stored_km+1,
+				sizeof(hdcp->auth.msg.hdcp2.ake_no_stored_km)-1);
+	else
+		status = write(hdcp, MOD_HDCP_MESSAGE_ID_WRITE_AKE_NO_STORED_KM,
+			hdcp->auth.msg.hdcp2.ake_no_stored_km,
+			sizeof(hdcp->auth.msg.hdcp2.ake_no_stored_km));
+	return status;
+}
+
+enum mod_hdcp_status mod_hdcp_write_stored_km(struct mod_hdcp *hdcp)
+{
+	enum mod_hdcp_status status;
+
+	if (is_dp_hdcp(hdcp))
+		status = write(hdcp, MOD_HDCP_MESSAGE_ID_WRITE_AKE_STORED_KM,
+				hdcp->auth.msg.hdcp2.ake_stored_km+1,
+				sizeof(hdcp->auth.msg.hdcp2.ake_stored_km)-1);
+	else
+		status = write(hdcp, MOD_HDCP_MESSAGE_ID_WRITE_AKE_STORED_KM,
+				hdcp->auth.msg.hdcp2.ake_stored_km,
+				sizeof(hdcp->auth.msg.hdcp2.ake_stored_km));
+	return status;
+}
+
+enum mod_hdcp_status mod_hdcp_write_lc_init(struct mod_hdcp *hdcp)
+{
+	enum mod_hdcp_status status;
+
+	if (is_dp_hdcp(hdcp))
+		status = write(hdcp, MOD_HDCP_MESSAGE_ID_WRITE_LC_INIT,
+				hdcp->auth.msg.hdcp2.lc_init+1,
+				sizeof(hdcp->auth.msg.hdcp2.lc_init)-1);
+	else
+		status = write(hdcp, MOD_HDCP_MESSAGE_ID_WRITE_LC_INIT,
+				hdcp->auth.msg.hdcp2.lc_init,
+				sizeof(hdcp->auth.msg.hdcp2.lc_init));
+	return status;
+}
+
+enum mod_hdcp_status mod_hdcp_write_eks(struct mod_hdcp *hdcp)
+{
+	enum mod_hdcp_status status;
+
+	if (is_dp_hdcp(hdcp))
+		status = write(hdcp,
+				MOD_HDCP_MESSAGE_ID_WRITE_SKE_SEND_EKS,
+				hdcp->auth.msg.hdcp2.ske_eks+1,
+				sizeof(hdcp->auth.msg.hdcp2.ske_eks)-1);
+	else
+		status = write(hdcp,
+			MOD_HDCP_MESSAGE_ID_WRITE_SKE_SEND_EKS,
+			hdcp->auth.msg.hdcp2.ske_eks,
+			sizeof(hdcp->auth.msg.hdcp2.ske_eks));
+	return status;
+}
+
+enum mod_hdcp_status mod_hdcp_write_repeater_auth_ack(struct mod_hdcp *hdcp)
+{
+	enum mod_hdcp_status status;
+
+	if (is_dp_hdcp(hdcp))
+		status = write(hdcp, MOD_HDCP_MESSAGE_ID_WRITE_REPEATER_AUTH_SEND_ACK,
+				hdcp->auth.msg.hdcp2.repeater_auth_ack+1,
+				sizeof(hdcp->auth.msg.hdcp2.repeater_auth_ack)-1);
+	else
+		status = write(hdcp, MOD_HDCP_MESSAGE_ID_WRITE_REPEATER_AUTH_SEND_ACK,
+				hdcp->auth.msg.hdcp2.repeater_auth_ack,
+				sizeof(hdcp->auth.msg.hdcp2.repeater_auth_ack));
+	return status;
+}
+
+enum mod_hdcp_status mod_hdcp_write_stream_manage(struct mod_hdcp *hdcp)
+{
+	enum mod_hdcp_status status;
+
+	if (is_dp_hdcp(hdcp))
+		status = write(hdcp,
+				MOD_HDCP_MESSAGE_ID_WRITE_REPEATER_AUTH_STREAM_MANAGE,
+				hdcp->auth.msg.hdcp2.repeater_auth_stream_manage+1,
+				hdcp->auth.msg.hdcp2.stream_manage_size-1);
+	else
+		status = write(hdcp,
+				MOD_HDCP_MESSAGE_ID_WRITE_REPEATER_AUTH_STREAM_MANAGE,
+				hdcp->auth.msg.hdcp2.repeater_auth_stream_manage,
+				hdcp->auth.msg.hdcp2.stream_manage_size);
+	return status;
+}
+
+enum mod_hdcp_status mod_hdcp_write_content_type(struct mod_hdcp *hdcp)
+{
+	enum mod_hdcp_status status;
+
+	if (is_dp_hdcp(hdcp))
+		status = write(hdcp, MOD_HDCP_MESSAGE_ID_WRITE_CONTENT_STREAM_TYPE,
+				hdcp->auth.msg.hdcp2.content_stream_type_dp+1,
+				sizeof(hdcp->auth.msg.hdcp2.content_stream_type_dp)-1);
+	else
+		status = MOD_HDCP_STATUS_INVALID_OPERATION;
+	return status;
 }

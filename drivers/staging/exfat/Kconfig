@@ -1,41 +1,41 @@
 # SPDX-License-Identifier: GPL-2.0
-config EXFAT_FS
+config STAGING_EXFAT_FS
 	tristate "exFAT fs support"
 	depends on BLOCK
 	select NLS
 	help
 	  This adds support for the exFAT file system.
 
-config EXFAT_DISCARD
+config STAGING_EXFAT_DISCARD
 	bool "enable discard support"
-	depends on EXFAT_FS
+	depends on STAGING_EXFAT_FS
 	default y
 
-config EXFAT_DELAYED_SYNC
+config STAGING_EXFAT_DELAYED_SYNC
 	bool "enable delayed sync"
-	depends on EXFAT_FS
+	depends on STAGING_EXFAT_FS
 	default n
 
-config EXFAT_KERNEL_DEBUG
+config STAGING_EXFAT_KERNEL_DEBUG
 	bool "enable kernel debug features via ioctl"
-	depends on EXFAT_FS
+	depends on STAGING_EXFAT_FS
 	default n
 
-config EXFAT_DEBUG_MSG
+config STAGING_EXFAT_DEBUG_MSG
 	bool "print debug messages"
-	depends on EXFAT_FS
+	depends on STAGING_EXFAT_FS
 	default n
 
-config EXFAT_DEFAULT_CODEPAGE
+config STAGING_EXFAT_DEFAULT_CODEPAGE
 	int "Default codepage for exFAT"
 	default 437
-	depends on EXFAT_FS
+	depends on STAGING_EXFAT_FS
 	help
 	  This option should be set to the codepage of your exFAT filesystems.
 
-config EXFAT_DEFAULT_IOCHARSET
+config STAGING_EXFAT_DEFAULT_IOCHARSET
 	string "Default iocharset for exFAT"
 	default "utf8"
-	depends on EXFAT_FS
+	depends on STAGING_EXFAT_FS
 	help
 	  Set this to the default input/output character set you'd like exFAT to use.

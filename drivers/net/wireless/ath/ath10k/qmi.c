@@ -84,6 +84,9 @@ static int ath10k_qmi_setup_msa_permissions(struct ath10k_qmi *qmi)
 	int ret;
 	int i;
 
+	if (qmi->msa_fixed_perm)
+		return 0;
+
 	for (i = 0; i < qmi->nr_mem_region; i++) {
 		ret = ath10k_qmi_map_msa_permission(qmi, &qmi->mem_region[i]);
 		if (ret)
@@ -101,6 +104,9 @@ err_unmap:
 static void ath10k_qmi_remove_msa_permission(struct ath10k_qmi *qmi)
 {
 	int i;
+
+	if (qmi->msa_fixed_perm)
+		return;
 
 	for (i = 0; i < qmi->nr_mem_region; i++)
 		ath10k_qmi_unmap_msa_permission(qmi, &qmi->mem_region[i]);
@@ -279,7 +285,15 @@ static int ath10k_qmi_bdf_dnld_send_sync(struct ath10k_qmi *qmi)
 		if (ret < 0)
 			goto out;
 
-		if (resp.resp.result != QMI_RESULT_SUCCESS_V01) {
+		/* end = 1 triggers a CRC check on the BDF.  If this fails, we
+		 * get a QMI_ERR_MALFORMED_MSG_V01 error, but the FW is still
+		 * willing to use the BDF.  For some platforms, all the valid
+		 * released BDFs fail this CRC check, so attempt to detect this
+		 * scenario and treat it as non-fatal.
+		 */
+		if (resp.resp.result != QMI_RESULT_SUCCESS_V01 &&
+		    !(req->end == 1 &&
+		      resp.resp.result == QMI_ERR_MALFORMED_MSG_V01)) {
 			ath10k_err(ar, "failed to download board data file: %d\n",
 				   resp.resp.error);
 			ret = -EINVAL;
@@ -635,7 +649,9 @@ static int ath10k_qmi_host_cap_send_sync(struct ath10k_qmi *qmi)
 	if (ret < 0)
 		goto out;
 
-	if (resp.resp.result != QMI_RESULT_SUCCESS_V01) {
+	/* older FW didn't support this request, which is not fatal */
+	if (resp.resp.result != QMI_RESULT_SUCCESS_V01 &&
+	    resp.resp.error != QMI_ERR_NOT_SUPPORTED_V01) {
 		ath10k_err(ar, "host capability request rejected: %d\n", resp.resp.error);
 		ret = -EINVAL;
 		goto out;
@@ -1024,6 +1040,9 @@ static int ath10k_qmi_setup_msa_resources(struct ath10k_qmi *qmi, u32 msa_size)
 		}
 		qmi->msa_mem_size = msa_size;
 	}
+
+	if (of_property_read_bool(dev->of_node, "qcom,msa-fixed-perm"))
+		qmi->msa_fixed_perm = true;
 
 	ath10k_dbg(ar, ATH10K_DBG_QMI, "msa pa: %pad , msa va: 0x%p\n",
 		   &qmi->msa_pa,

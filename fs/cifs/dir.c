@@ -355,13 +355,10 @@ cifs_do_create(struct inode *inode, struct dentry *direntry, unsigned int xid,
 	if (!tcon->unix_ext && (mode & S_IWUGO) == 0)
 		create_options |= CREATE_OPTION_READONLY;
 
-	if (backup_cred(cifs_sb))
-		create_options |= CREATE_OPEN_BACKUP_INTENT;
-
 	oparms.tcon = tcon;
 	oparms.cifs_sb = cifs_sb;
 	oparms.desired_access = desired_access;
-	oparms.create_options = create_options;
+	oparms.create_options = cifs_create_options(cifs_sb, create_options);
 	oparms.disposition = disposition;
 	oparms.path = full_path;
 	oparms.fid = fid;

@@ -1981,10 +1981,10 @@ int udf_setup_indirect_aext(struct inode *inode, udf_pblk_t block,
 
 		__udf_add_aext(inode, &nepos, &cp_loc, cp_len, 1);
 		udf_write_aext(inode, epos, &nepos.block,
-			       sb->s_blocksize | EXT_NEXT_EXTENT_ALLOCDECS, 0);
+			       sb->s_blocksize | EXT_NEXT_EXTENT_ALLOCDESCS, 0);
 	} else {
 		__udf_add_aext(inode, epos, &nepos.block,
-			       sb->s_blocksize | EXT_NEXT_EXTENT_ALLOCDECS, 0);
+			       sb->s_blocksize | EXT_NEXT_EXTENT_ALLOCDESCS, 0);
 	}
 
 	brelse(epos->bh);
@@ -2143,7 +2143,7 @@ int8_t udf_next_aext(struct inode *inode, struct extent_position *epos,
 	unsigned int indirections = 0;
 
 	while ((etype = udf_current_aext(inode, epos, eloc, elen, inc)) ==
-	       (EXT_NEXT_EXTENT_ALLOCDECS >> 30)) {
+	       (EXT_NEXT_EXTENT_ALLOCDESCS >> 30)) {
 		udf_pblk_t block;
 
 		if (++indirections > UDF_MAX_INDIR_EXTS) {

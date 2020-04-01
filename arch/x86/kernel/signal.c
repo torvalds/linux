@@ -151,8 +151,6 @@ static int restore_sigcontext(struct pt_regs *regs,
 
 	err |= fpu__restore_sig(buf, IS_ENABLED(CONFIG_X86_32));
 
-	force_iret();
-
 	return err;
 }
 

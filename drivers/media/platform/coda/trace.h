@@ -154,6 +154,16 @@ DEFINE_EVENT(coda_buf_meta_class, coda_dec_rot_done,
 	TP_ARGS(ctx, buf, meta)
 );
 
+DEFINE_EVENT(coda_buf_class, coda_jpeg_run,
+	TP_PROTO(struct coda_ctx *ctx, struct vb2_v4l2_buffer *buf),
+	TP_ARGS(ctx, buf)
+);
+
+DEFINE_EVENT(coda_buf_class, coda_jpeg_done,
+	TP_PROTO(struct coda_ctx *ctx, struct vb2_v4l2_buffer *buf),
+	TP_ARGS(ctx, buf)
+);
+
 #endif /* __CODA_TRACE_H__ */
 
 #undef TRACE_INCLUDE_PATH

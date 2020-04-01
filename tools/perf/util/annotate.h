@@ -94,6 +94,8 @@ struct annotation_options {
 	int  context;
 	const char *objdump_path;
 	const char *disassembler_style;
+	const char *prefix;
+	const char *prefix_strip;
 	unsigned int percent_type;
 };
 
@@ -415,4 +417,7 @@ void annotation_config__init(void);
 
 int annotate_parse_percent_type(const struct option *opt, const char *_str,
 				int unset);
+
+int annotate_check_args(struct annotation_options *args);
+
 #endif	/* __PERF_ANNOTATE_H */

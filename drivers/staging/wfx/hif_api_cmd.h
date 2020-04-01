@@ -137,7 +137,7 @@ struct hif_ie_tlv {
 
 struct hif_req_update_ie {
 	struct hif_ie_flags ie_flags;
-	u16   num_i_es;
+	u16   num_ies;
 	struct hif_ie_tlv ie[];
 } __packed;
 
@@ -180,7 +180,7 @@ struct hif_req_start_scan {
 	struct hif_auto_scan_param auto_scan_param;
 	u8    num_of_probe_requests;
 	u8    probe_delay;
-	u8    num_of_ssi_ds;
+	u8    num_of_ssids;
 	u8    num_of_channels;
 	u32   min_channel_time;
 	u32   max_channel_time;
@@ -188,7 +188,7 @@ struct hif_req_start_scan {
 	u8    ssid_and_channel_lists[];
 } __packed;
 
-struct hif_start_scan_req_cstnbssid_body {
+struct hif_req_start_scan_alt {
 	u8    band;
 	struct hif_scan_type scan_type;
 	struct hif_scan_flags scan_flags;
@@ -196,7 +196,7 @@ struct hif_start_scan_req_cstnbssid_body {
 	struct hif_auto_scan_param auto_scan_param;
 	u8    num_of_probe_requests;
 	u8    probe_delay;
-	u8    num_of_ssi_ds;
+	u8    num_of_ssids;
 	u8    num_of_channels;
 	u32   min_channel_time;
 	u32   max_channel_time;
@@ -253,7 +253,8 @@ struct hif_queue {
 struct hif_data_flags {
 	u8    more:1;
 	u8    fc_offset:3;
-	u8    reserved:4;
+	u8    after_dtim:1;
+	u8    reserved:3;
 } __packed;
 
 struct hif_tx_flags {
@@ -377,17 +378,6 @@ struct hif_cnf_edca_queue_params {
 	u32   status;
 } __packed;
 
-enum hif_ap_mode {
-	HIF_MODE_IBSS                              = 0x0,
-	HIF_MODE_BSS                               = 0x1
-};
-
-enum hif_preamble {
-	HIF_PREAMBLE_LONG                          = 0x0,
-	HIF_PREAMBLE_SHORT                         = 0x1,
-	HIF_PREAMBLE_SHORT_LONG12                  = 0x2
-};
-
 struct hif_join_flags {
 	u8    reserved1:2;
 	u8    force_no_beacon:1;
@@ -396,14 +386,16 @@ struct hif_join_flags {
 } __packed;
 
 struct hif_req_join {
-	u8    mode;
+	u8    infrastructure_bss_mode:1;
+	u8    reserved1:7;
 	u8    band;
 	u16   channel_number;
 	u8    bssid[ETH_ALEN];
 	u16   atim_window;
-	u8    preamble_type;
+	u8    short_preamble:1;
+	u8    reserved2:7;
 	u8    probe_for_join;
-	u8    reserved;
+	u8    reserved3;
 	struct hif_join_flags join_flags;
 	u32   ssid_length;
 	u8    ssid[HIF_API_SSID_SIZE];
@@ -466,8 +458,9 @@ struct hif_req_start {
 	u32   reserved1;
 	u32   beacon_interval;
 	u8    dtim_period;
-	u8    preamble_type;
-	u8    reserved2;
+	u8    short_preamble:1;
+	u8    reserved2:7;
+	u8    reserved3;
 	u8    ssid_length;
 	u8    ssid[HIF_API_SSID_SIZE];
 	u32   basic_rate_set;

@@ -31,8 +31,7 @@ void intel_context_free(struct intel_context *ce)
 }
 
 struct intel_context *
-intel_context_create(struct i915_gem_context *ctx,
-		     struct intel_engine_cs *engine)
+intel_context_create(struct intel_engine_cs *engine)
 {
 	struct intel_context *ce;
 
@@ -40,86 +39,128 @@ intel_context_create(struct i915_gem_context *ctx,
 	if (!ce)
 		return ERR_PTR(-ENOMEM);
 
-	intel_context_init(ce, ctx, engine);
+	intel_context_init(ce, engine);
 	return ce;
+}
+
+int intel_context_alloc_state(struct intel_context *ce)
+{
+	int err = 0;
+
+	if (mutex_lock_interruptible(&ce->pin_mutex))
+		return -EINTR;
+
+	if (!test_bit(CONTEXT_ALLOC_BIT, &ce->flags)) {
+		err = ce->ops->alloc(ce);
+		if (unlikely(err))
+			goto unlock;
+
+		set_bit(CONTEXT_ALLOC_BIT, &ce->flags);
+	}
+
+unlock:
+	mutex_unlock(&ce->pin_mutex);
+	return err;
+}
+
+static int intel_context_active_acquire(struct intel_context *ce)
+{
+	int err;
+
+	__i915_active_acquire(&ce->active);
+
+	if (intel_context_is_barrier(ce))
+		return 0;
+
+	/* Preallocate tracking nodes */
+	err = i915_active_acquire_preallocate_barrier(&ce->active,
+						      ce->engine);
+	if (err)
+		i915_active_release(&ce->active);
+
+	return err;
+}
+
+static void intel_context_active_release(struct intel_context *ce)
+{
+	/* Nodes preallocated in intel_context_active() */
+	i915_active_acquire_barrier(&ce->active);
+	i915_active_release(&ce->active);
 }
 
 int __intel_context_do_pin(struct intel_context *ce)
 {
 	int err;
 
-	if (mutex_lock_interruptible(&ce->pin_mutex))
-		return -EINTR;
-
-	if (likely(!atomic_read(&ce->pin_count))) {
-		intel_wakeref_t wakeref;
-
-		if (unlikely(!test_bit(CONTEXT_ALLOC_BIT, &ce->flags))) {
-			err = ce->ops->alloc(ce);
-			if (unlikely(err))
-				goto err;
-
-			__set_bit(CONTEXT_ALLOC_BIT, &ce->flags);
-		}
-
-		err = 0;
-		with_intel_runtime_pm(ce->engine->uncore->rpm, wakeref)
-			err = ce->ops->pin(ce);
+	if (unlikely(!test_bit(CONTEXT_ALLOC_BIT, &ce->flags))) {
+		err = intel_context_alloc_state(ce);
 		if (err)
-			goto err;
-
-		GEM_TRACE("%s context:%llx pin ring:{head:%04x, tail:%04x}\n",
-			  ce->engine->name, ce->timeline->fence_context,
-			  ce->ring->head, ce->ring->tail);
-
-		i915_gem_context_get(ce->gem_context); /* for ctx->ppgtt */
-
-		smp_mb__before_atomic(); /* flush pin before it is visible */
+			return err;
 	}
 
-	atomic_inc(&ce->pin_count);
+	err = i915_active_acquire(&ce->active);
+	if (err)
+		return err;
+
+	if (mutex_lock_interruptible(&ce->pin_mutex)) {
+		err = -EINTR;
+		goto out_release;
+	}
+
+	if (likely(!atomic_add_unless(&ce->pin_count, 1, 0))) {
+		err = intel_context_active_acquire(ce);
+		if (unlikely(err))
+			goto out_unlock;
+
+		err = ce->ops->pin(ce);
+		if (unlikely(err))
+			goto err_active;
+
+		CE_TRACE(ce, "pin ring:{head:%04x, tail:%04x}\n",
+			 ce->ring->head, ce->ring->tail);
+
+		smp_mb__before_atomic(); /* flush pin before it is visible */
+		atomic_inc(&ce->pin_count);
+	}
+
 	GEM_BUG_ON(!intel_context_is_pinned(ce)); /* no overflow! */
+	GEM_BUG_ON(i915_active_is_idle(&ce->active));
+	goto out_unlock;
 
+err_active:
+	intel_context_active_release(ce);
+out_unlock:
 	mutex_unlock(&ce->pin_mutex);
-	return 0;
-
-err:
-	mutex_unlock(&ce->pin_mutex);
+out_release:
+	i915_active_release(&ce->active);
 	return err;
 }
 
 void intel_context_unpin(struct intel_context *ce)
 {
-	if (likely(atomic_add_unless(&ce->pin_count, -1, 1)))
+	if (!atomic_dec_and_test(&ce->pin_count))
 		return;
 
-	/* We may be called from inside intel_context_pin() to evict another */
+	CE_TRACE(ce, "unpin\n");
+	ce->ops->unpin(ce);
+
+	/*
+	 * Once released, we may asynchronously drop the active reference.
+	 * As that may be the only reference keeping the context alive,
+	 * take an extra now so that it is not freed before we finish
+	 * dereferencing it.
+	 */
 	intel_context_get(ce);
-	mutex_lock_nested(&ce->pin_mutex, SINGLE_DEPTH_NESTING);
-
-	if (likely(atomic_dec_and_test(&ce->pin_count))) {
-		GEM_TRACE("%s context:%llx retire\n",
-			  ce->engine->name, ce->timeline->fence_context);
-
-		ce->ops->unpin(ce);
-
-		i915_gem_context_put(ce->gem_context);
-		intel_context_active_release(ce);
-	}
-
-	mutex_unlock(&ce->pin_mutex);
+	intel_context_active_release(ce);
 	intel_context_put(ce);
 }
 
 static int __context_pin_state(struct i915_vma *vma)
 {
-	u64 flags;
+	unsigned int bias = i915_ggtt_pin_bias(vma) | PIN_OFFSET_BIAS;
 	int err;
 
-	flags = i915_ggtt_pin_bias(vma) | PIN_OFFSET_BIAS;
-	flags |= PIN_HIGH | PIN_GLOBAL;
-
-	err = i915_vma_pin(vma, 0, 0, flags);
+	err = i915_ggtt_pin(vma, 0, bias | PIN_HIGH);
 	if (err)
 		return err;
 
@@ -178,9 +219,9 @@ static void __intel_context_retire(struct i915_active *active)
 {
 	struct intel_context *ce = container_of(active, typeof(*ce), active);
 
-	GEM_TRACE("%s context:%llx retire\n",
-		  ce->engine->name, ce->timeline->fence_context);
+	CE_TRACE(ce, "retire\n");
 
+	set_bit(CONTEXT_VALID_BIT, &ce->flags);
 	if (ce->state)
 		__context_unpin_state(ce->state);
 
@@ -194,6 +235,8 @@ static int __intel_context_active(struct i915_active *active)
 {
 	struct intel_context *ce = container_of(active, typeof(*ce), active);
 	int err;
+
+	CE_TRACE(ce, "active\n");
 
 	intel_context_get(ce);
 
@@ -223,60 +266,21 @@ err_put:
 	return err;
 }
 
-int intel_context_active_acquire(struct intel_context *ce)
-{
-	int err;
-
-	err = i915_active_acquire(&ce->active);
-	if (err)
-		return err;
-
-	/* Preallocate tracking nodes */
-	if (!i915_gem_context_is_kernel(ce->gem_context)) {
-		err = i915_active_acquire_preallocate_barrier(&ce->active,
-							      ce->engine);
-		if (err) {
-			i915_active_release(&ce->active);
-			return err;
-		}
-	}
-
-	return 0;
-}
-
-void intel_context_active_release(struct intel_context *ce)
-{
-	/* Nodes preallocated in intel_context_active() */
-	i915_active_acquire_barrier(&ce->active);
-	i915_active_release(&ce->active);
-}
-
 void
 intel_context_init(struct intel_context *ce,
-		   struct i915_gem_context *ctx,
 		   struct intel_engine_cs *engine)
 {
-	struct i915_address_space *vm;
-
 	GEM_BUG_ON(!engine->cops);
+	GEM_BUG_ON(!engine->gt->vm);
 
 	kref_init(&ce->ref);
-
-	ce->gem_context = ctx;
-	rcu_read_lock();
-	vm = rcu_dereference(ctx->vm);
-	if (vm)
-		ce->vm = i915_vm_get(vm);
-	else
-		ce->vm = i915_vm_get(&engine->gt->ggtt->vm);
-	rcu_read_unlock();
-	if (ctx->timeline)
-		ce->timeline = intel_timeline_get(ctx->timeline);
 
 	ce->engine = engine;
 	ce->ops = engine->cops;
 	ce->sseu = engine->sseu;
-	ce->ring = __intel_context_ring_size(SZ_16K);
+	ce->ring = __intel_context_ring_size(SZ_4K);
+
+	ce->vm = i915_vm_get(engine->gt->vm);
 
 	INIT_LIST_HEAD(&ce->signal_link);
 	INIT_LIST_HEAD(&ce->signals);
@@ -341,30 +345,11 @@ int intel_context_prepare_remote_request(struct intel_context *ce,
 	int err;
 
 	/* Only suitable for use in remotely modifying this context */
-	GEM_BUG_ON(rq->hw_context == ce);
+	GEM_BUG_ON(rq->context == ce);
 
 	if (rcu_access_pointer(rq->timeline) != tl) { /* timeline sharing! */
-		/*
-		 * Ideally, we just want to insert our foreign fence as
-		 * a barrier into the remove context, such that this operation
-		 * occurs after all current operations in that context, and
-		 * all future operations must occur after this.
-		 *
-		 * Currently, the timeline->last_request tracking is guarded
-		 * by its mutex and so we must obtain that to atomically
-		 * insert our barrier. However, since we already hold our
-		 * timeline->mutex, we must be careful against potential
-		 * inversion if we are the kernel_context as the remote context
-		 * will itself poke at the kernel_context when it needs to
-		 * unpin. Ergo, if already locked, we drop both locks and
-		 * try again (through the magic of userspace repeating EAGAIN).
-		 */
-		if (!mutex_trylock(&tl->mutex))
-			return -EAGAIN;
-
 		/* Queue this switch after current activity by this context. */
 		err = i915_active_fence_set(&tl->last_request, rq);
-		mutex_unlock(&tl->mutex);
 		if (err)
 			return err;
 	}

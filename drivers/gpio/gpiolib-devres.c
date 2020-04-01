@@ -308,7 +308,7 @@ devm_gpiod_get_array_optional(struct device *dev, const char *con_id,
 	struct gpio_descs *descs;
 
 	descs = devm_gpiod_get_array(dev, con_id, flags);
-	if (IS_ERR(descs) && (PTR_ERR(descs) == -ENOENT))
+	if (PTR_ERR(descs) == -ENOENT)
 		return NULL;
 
 	return descs;

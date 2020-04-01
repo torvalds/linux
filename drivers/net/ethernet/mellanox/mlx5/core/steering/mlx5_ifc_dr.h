@@ -32,6 +32,7 @@ enum {
 };
 
 enum {
+	MLX5DR_ACTION_MDFY_HW_OP_COPY		= 0x1,
 	MLX5DR_ACTION_MDFY_HW_OP_SET		= 0x2,
 	MLX5DR_ACTION_MDFY_HW_OP_ADD		= 0x3,
 };
@@ -623,6 +624,21 @@ struct mlx5_ifc_dr_action_hw_set_bits {
 	u8         destination_length[0x5];
 
 	u8         inline_data[0x20];
+};
+
+struct mlx5_ifc_dr_action_hw_copy_bits {
+	u8         opcode[0x8];
+	u8         destination_field_code[0x8];
+	u8         reserved_at_10[0x2];
+	u8         destination_left_shifter[0x6];
+	u8         reserved_at_18[0x2];
+	u8         destination_length[0x6];
+
+	u8         reserved_at_20[0x8];
+	u8         source_field_code[0x8];
+	u8         reserved_at_30[0x2];
+	u8         source_left_shifter[0x6];
+	u8         reserved_at_38[0x8];
 };
 
 #endif /* MLX5_IFC_DR_H */

@@ -19,12 +19,12 @@ config PLAT_S3C24XX
 
 
 
-menu "SAMSUNG S3C24XX SoCs Support"
+menu "Samsung S3C24XX SoCs Support"
 
 comment "S3C24XX SoCs"
 
 config CPU_S3C2410
-	bool "SAMSUNG S3C2410"
+	bool "Samsung S3C2410"
 	default y
 	select CPU_ARM920T
 	select S3C2410_COMMON_CLK
@@ -35,7 +35,7 @@ config CPU_S3C2410
 	  of Samsung Mobile CPUs.
 
 config CPU_S3C2412
-	bool "SAMSUNG S3C2412"
+	bool "Samsung S3C2412"
 	select CPU_ARM926T
 	select S3C2412_COMMON_CLK
 	select S3C2412_PM if PM_SLEEP
@@ -43,7 +43,7 @@ config CPU_S3C2412
 	  Support for the S3C2412 and S3C2413 SoCs from the S3C24XX line
 
 config CPU_S3C2416
-	bool "SAMSUNG S3C2416/S3C2450"
+	bool "Samsung S3C2416/S3C2450"
 	select CPU_ARM926T
 	select S3C2416_PM if PM_SLEEP
 	select S3C2443_COMMON_CLK
@@ -51,7 +51,7 @@ config CPU_S3C2416
 	  Support for the S3C2416 SoC from the S3C24XX line
 
 config CPU_S3C2440
-	bool "SAMSUNG S3C2440"
+	bool "Samsung S3C2440"
 	select CPU_ARM920T
 	select S3C2410_COMMON_CLK
 	select S3C2410_PM if PM_SLEEP
@@ -59,7 +59,7 @@ config CPU_S3C2440
 	  Support for S3C2440 Samsung Mobile CPU based systems.
 
 config CPU_S3C2442
-	bool "SAMSUNG S3C2442"
+	bool "Samsung S3C2442"
 	select CPU_ARM920T
 	select S3C2410_COMMON_CLK
 	select S3C2410_PM if PM_SLEEP
@@ -71,7 +71,7 @@ config CPU_S3C244X
 	depends on CPU_S3C2440 || CPU_S3C2442
 
 config CPU_S3C2443
-	bool "SAMSUNG S3C2443"
+	bool "Samsung S3C2443"
 	select CPU_ARM920T
 	select S3C2443_COMMON_CLK
 	help
@@ -591,6 +591,6 @@ config PM_H1940
 	help
 	  Internal node for H1940 and related PM
 
-endmenu	# SAMSUNG S3C24XX SoCs Support
+endmenu	# Samsung S3C24XX SoCs Support
 
 endif	# ARCH_S3C24XX

@@ -170,6 +170,16 @@ extern void cleanup_module(void);
 #define MODULE_SOFTDEP(_softdep) MODULE_INFO(softdep, _softdep)
 
 /*
+ * MODULE_FILE is used for generating modules.builtin
+ * So, make it no-op when this is being built as a module
+ */
+#ifdef MODULE
+#define MODULE_FILE
+#else
+#define MODULE_FILE	MODULE_INFO(file, KBUILD_MODFILE);
+#endif
+
+/*
  * The following license idents are currently accepted as indicating free
  * software modules
  *
@@ -213,7 +223,7 @@ extern void cleanup_module(void);
  * 2.	So the community can ignore bug reports including proprietary modules
  * 3.	So vendors can do likewise based on their own policies
  */
-#define MODULE_LICENSE(_license) MODULE_INFO(license, _license)
+#define MODULE_LICENSE(_license) MODULE_FILE MODULE_INFO(license, _license)
 
 /*
  * Author(s), use "Name <email>" or just "Name", for multiple
@@ -429,7 +439,7 @@ struct module {
 
 #ifdef CONFIG_KALLSYMS
 	/* Protected by RCU and/or module_mutex: use rcu_dereference() */
-	struct mod_kallsyms *kallsyms;
+	struct mod_kallsyms __rcu *kallsyms;
 	struct mod_kallsyms core_kallsyms;
 
 	/* Section attributes */
@@ -849,13 +859,9 @@ extern int module_sysfs_initialized;
 #define __MODULE_STRING(x) __stringify(x)
 
 #ifdef CONFIG_STRICT_MODULE_RWX
-extern void set_all_modules_text_rw(void);
-extern void set_all_modules_text_ro(void);
 extern void module_enable_ro(const struct module *mod, bool after_init);
 extern void module_disable_ro(const struct module *mod);
 #else
-static inline void set_all_modules_text_rw(void) { }
-static inline void set_all_modules_text_ro(void) { }
 static inline void module_enable_ro(const struct module *mod, bool after_init) { }
 static inline void module_disable_ro(const struct module *mod) { }
 #endif

@@ -8,6 +8,7 @@
  * Copyright (c) 2007 Novell Inc.
  */
 
+#include <linux/device/driver.h>
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/errno.h>

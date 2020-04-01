@@ -1287,6 +1287,7 @@ static int fsl_diu_ioctl(struct fb_info *info, unsigned int cmd,
 		dev_warn(info->dev,
 			 "MFB_SET_PIXFMT value of 0x%08x is deprecated.\n",
 			 MFB_SET_PIXFMT_OLD);
+		/* fall through */
 	case MFB_SET_PIXFMT:
 		if (copy_from_user(&pix_fmt, buf, sizeof(pix_fmt)))
 			return -EFAULT;
@@ -1296,6 +1297,7 @@ static int fsl_diu_ioctl(struct fb_info *info, unsigned int cmd,
 		dev_warn(info->dev,
 			 "MFB_GET_PIXFMT value of 0x%08x is deprecated.\n",
 			 MFB_GET_PIXFMT_OLD);
+		/* fall through */
 	case MFB_GET_PIXFMT:
 		pix_fmt = ad->pix_fmt;
 		if (copy_to_user(buf, &pix_fmt, sizeof(pix_fmt)))
@@ -1448,7 +1450,7 @@ static int fsl_diu_release(struct fb_info *info, int user)
 	return res;
 }
 
-static struct fb_ops fsl_diu_ops = {
+static const struct fb_ops fsl_diu_ops = {
 	.owner = THIS_MODULE,
 	.fb_check_var = fsl_diu_check_var,
 	.fb_set_par = fsl_diu_set_par,

@@ -2,7 +2,7 @@
 /*
  * AMD Secure Processor driver
  *
- * Copyright (C) 2017-2018 Advanced Micro Devices, Inc.
+ * Copyright (C) 2017-2019 Advanced Micro Devices, Inc.
  *
  * Author: Tom Lendacky <thomas.lendacky@amd.com>
  * Author: Gary R Hook <gary.hook@amd.com>
@@ -39,10 +39,23 @@ struct ccp_vdata {
 	const unsigned int rsamax;
 };
 
-struct psp_vdata {
+struct sev_vdata {
 	const unsigned int cmdresp_reg;
 	const unsigned int cmdbuff_addr_lo_reg;
 	const unsigned int cmdbuff_addr_hi_reg;
+};
+
+struct tee_vdata {
+	const unsigned int cmdresp_reg;
+	const unsigned int cmdbuff_addr_lo_reg;
+	const unsigned int cmdbuff_addr_hi_reg;
+	const unsigned int ring_wptr_reg;
+	const unsigned int ring_rptr_reg;
+};
+
+struct psp_vdata {
+	const struct sev_vdata *sev;
+	const struct tee_vdata *tee;
 	const unsigned int feature_reg;
 	const unsigned int inten_reg;
 	const unsigned int intsts_reg;

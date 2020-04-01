@@ -253,7 +253,7 @@ static int aq_pci_probe(struct pci_dev *pdev,
 				goto err_free_aq_hw;
 			}
 
-			self->aq_hw->mmio = ioremap_nocache(mmio_pa, reg_sz);
+			self->aq_hw->mmio = ioremap(mmio_pa, reg_sz);
 			if (!self->aq_hw->mmio) {
 				err = -EIO;
 				goto err_free_aq_hw;
@@ -359,7 +359,8 @@ static int aq_suspend_common(struct device *dev, bool deep)
 	netif_device_detach(nic->ndev);
 	netif_tx_stop_all_queues(nic->ndev);
 
-	aq_nic_stop(nic);
+	if (netif_running(nic->ndev))
+		aq_nic_stop(nic);
 
 	if (deep) {
 		aq_nic_deinit(nic, !nic->aq_hw->aq_nic_cfg->wol);
@@ -375,7 +376,7 @@ static int atl_resume_common(struct device *dev, bool deep)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct aq_nic_s *nic;
-	int ret;
+	int ret = 0;
 
 	nic = pci_get_drvdata(pdev);
 
@@ -390,9 +391,11 @@ static int atl_resume_common(struct device *dev, bool deep)
 			goto err_exit;
 	}
 
-	ret = aq_nic_start(nic);
-	if (ret)
-		goto err_exit;
+	if (netif_running(nic->ndev)) {
+		ret = aq_nic_start(nic);
+		if (ret)
+			goto err_exit;
+	}
 
 	netif_device_attach(nic->ndev);
 	netif_tx_start_all_queues(nic->ndev);

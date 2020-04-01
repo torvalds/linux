@@ -1434,7 +1434,7 @@ static void rtw_load_rfk_table(struct rtw_dev *rtwdev)
 
 	rtw_load_table(rtwdev, chip->rfk_init_tbl);
 
-	dpk_info->is_dpk_pwr_on = 1;
+	dpk_info->is_dpk_pwr_on = true;
 }
 
 void rtw_phy_load_tables(struct rtw_dev *rtwdev)

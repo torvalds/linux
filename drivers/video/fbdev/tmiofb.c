@@ -646,7 +646,7 @@ static int tmiofb_blank(int blank, struct fb_info *info)
 	return 0;
 }
 
-static struct fb_ops tmiofb_ops = {
+static const struct fb_ops tmiofb_ops = {
 	.owner		= THIS_MODULE,
 
 	.fb_ioctl	= tmiofb_ioctl,

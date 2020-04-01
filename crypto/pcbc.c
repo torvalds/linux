@@ -153,10 +153,9 @@ static int crypto_pcbc_decrypt(struct skcipher_request *req)
 static int crypto_pcbc_create(struct crypto_template *tmpl, struct rtattr **tb)
 {
 	struct skcipher_instance *inst;
-	struct crypto_alg *alg;
 	int err;
 
-	inst = skcipher_alloc_instance_simple(tmpl, tb, &alg);
+	inst = skcipher_alloc_instance_simple(tmpl, tb);
 	if (IS_ERR(inst))
 		return PTR_ERR(inst);
 
@@ -166,7 +165,7 @@ static int crypto_pcbc_create(struct crypto_template *tmpl, struct rtattr **tb)
 	err = skcipher_register_instance(tmpl, inst);
 	if (err)
 		inst->free(inst);
-	crypto_mod_put(alg);
+
 	return err;
 }
 

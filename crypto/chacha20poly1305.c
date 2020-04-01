@@ -16,8 +16,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 
-#include "internal.h"
-
 struct chachapoly_instance_ctx {
 	struct crypto_skcipher_spawn chacha;
 	struct crypto_ahash_spawn poly;
@@ -477,7 +475,6 @@ static int chachapoly_setkey(struct crypto_aead *aead, const u8 *key,
 			     unsigned int keylen)
 {
 	struct chachapoly_ctx *ctx = crypto_aead_ctx(aead);
-	int err;
 
 	if (keylen != ctx->saltlen + CHACHA_KEY_SIZE)
 		return -EINVAL;
@@ -488,11 +485,7 @@ static int chachapoly_setkey(struct crypto_aead *aead, const u8 *key,
 	crypto_skcipher_clear_flags(ctx->chacha, CRYPTO_TFM_REQ_MASK);
 	crypto_skcipher_set_flags(ctx->chacha, crypto_aead_get_flags(aead) &
 					       CRYPTO_TFM_REQ_MASK);
-
-	err = crypto_skcipher_setkey(ctx->chacha, key, keylen);
-	crypto_aead_set_flags(aead, crypto_skcipher_get_flags(ctx->chacha) &
-				    CRYPTO_TFM_RES_MASK);
-	return err;
+	return crypto_skcipher_setkey(ctx->chacha, key, keylen);
 }
 
 static int chachapoly_setauthsize(struct crypto_aead *tfm,
@@ -563,12 +556,11 @@ static int chachapoly_create(struct crypto_template *tmpl, struct rtattr **tb,
 			     const char *name, unsigned int ivsize)
 {
 	struct crypto_attr_type *algt;
+	u32 mask;
 	struct aead_instance *inst;
-	struct skcipher_alg *chacha;
-	struct crypto_alg *poly;
-	struct hash_alg_common *poly_hash;
 	struct chachapoly_instance_ctx *ctx;
-	const char *chacha_name, *poly_name;
+	struct skcipher_alg *chacha;
+	struct hash_alg_common *poly;
 	int err;
 
 	if (ivsize > CHACHAPOLY_IV_SIZE)
@@ -581,72 +573,53 @@ static int chachapoly_create(struct crypto_template *tmpl, struct rtattr **tb,
 	if ((algt->type ^ CRYPTO_ALG_TYPE_AEAD) & algt->mask)
 		return -EINVAL;
 
-	chacha_name = crypto_attr_alg_name(tb[1]);
-	if (IS_ERR(chacha_name))
-		return PTR_ERR(chacha_name);
-	poly_name = crypto_attr_alg_name(tb[2]);
-	if (IS_ERR(poly_name))
-		return PTR_ERR(poly_name);
+	mask = crypto_requires_sync(algt->type, algt->mask);
 
-	poly = crypto_find_alg(poly_name, &crypto_ahash_type,
-			       CRYPTO_ALG_TYPE_HASH,
-			       CRYPTO_ALG_TYPE_AHASH_MASK |
-			       crypto_requires_sync(algt->type,
-						    algt->mask));
-	if (IS_ERR(poly))
-		return PTR_ERR(poly);
-	poly_hash = __crypto_hash_alg_common(poly);
-
-	err = -EINVAL;
-	if (poly_hash->digestsize != POLY1305_DIGEST_SIZE)
-		goto out_put_poly;
-
-	err = -ENOMEM;
 	inst = kzalloc(sizeof(*inst) + sizeof(*ctx), GFP_KERNEL);
 	if (!inst)
-		goto out_put_poly;
-
+		return -ENOMEM;
 	ctx = aead_instance_ctx(inst);
 	ctx->saltlen = CHACHAPOLY_IV_SIZE - ivsize;
-	err = crypto_init_ahash_spawn(&ctx->poly, poly_hash,
-				      aead_crypto_instance(inst));
+
+	err = crypto_grab_skcipher(&ctx->chacha, aead_crypto_instance(inst),
+				   crypto_attr_alg_name(tb[1]), 0, mask);
 	if (err)
 		goto err_free_inst;
-
-	crypto_set_skcipher_spawn(&ctx->chacha, aead_crypto_instance(inst));
-	err = crypto_grab_skcipher(&ctx->chacha, chacha_name, 0,
-				   crypto_requires_sync(algt->type,
-							algt->mask));
-	if (err)
-		goto err_drop_poly;
-
 	chacha = crypto_spawn_skcipher_alg(&ctx->chacha);
 
+	err = crypto_grab_ahash(&ctx->poly, aead_crypto_instance(inst),
+				crypto_attr_alg_name(tb[2]), 0, mask);
+	if (err)
+		goto err_free_inst;
+	poly = crypto_spawn_ahash_alg(&ctx->poly);
+
 	err = -EINVAL;
+	if (poly->digestsize != POLY1305_DIGEST_SIZE)
+		goto err_free_inst;
 	/* Need 16-byte IV size, including Initial Block Counter value */
 	if (crypto_skcipher_alg_ivsize(chacha) != CHACHA_IV_SIZE)
-		goto out_drop_chacha;
+		goto err_free_inst;
 	/* Not a stream cipher? */
 	if (chacha->base.cra_blocksize != 1)
-		goto out_drop_chacha;
+		goto err_free_inst;
 
 	err = -ENAMETOOLONG;
 	if (snprintf(inst->alg.base.cra_name, CRYPTO_MAX_ALG_NAME,
 		     "%s(%s,%s)", name, chacha->base.cra_name,
-		     poly->cra_name) >= CRYPTO_MAX_ALG_NAME)
-		goto out_drop_chacha;
+		     poly->base.cra_name) >= CRYPTO_MAX_ALG_NAME)
+		goto err_free_inst;
 	if (snprintf(inst->alg.base.cra_driver_name, CRYPTO_MAX_ALG_NAME,
 		     "%s(%s,%s)", name, chacha->base.cra_driver_name,
-		     poly->cra_driver_name) >= CRYPTO_MAX_ALG_NAME)
-		goto out_drop_chacha;
+		     poly->base.cra_driver_name) >= CRYPTO_MAX_ALG_NAME)
+		goto err_free_inst;
 
-	inst->alg.base.cra_flags = (chacha->base.cra_flags | poly->cra_flags) &
-				   CRYPTO_ALG_ASYNC;
+	inst->alg.base.cra_flags = (chacha->base.cra_flags |
+				    poly->base.cra_flags) & CRYPTO_ALG_ASYNC;
 	inst->alg.base.cra_priority = (chacha->base.cra_priority +
-				       poly->cra_priority) / 2;
+				       poly->base.cra_priority) / 2;
 	inst->alg.base.cra_blocksize = 1;
 	inst->alg.base.cra_alignmask = chacha->base.cra_alignmask |
-				       poly->cra_alignmask;
+				       poly->base.cra_alignmask;
 	inst->alg.base.cra_ctxsize = sizeof(struct chachapoly_ctx) +
 				     ctx->saltlen;
 	inst->alg.ivsize = ivsize;
@@ -662,20 +635,11 @@ static int chachapoly_create(struct crypto_template *tmpl, struct rtattr **tb,
 	inst->free = chachapoly_free;
 
 	err = aead_register_instance(tmpl, inst);
-	if (err)
-		goto out_drop_chacha;
-
-out_put_poly:
-	crypto_mod_put(poly);
-	return err;
-
-out_drop_chacha:
-	crypto_drop_skcipher(&ctx->chacha);
-err_drop_poly:
-	crypto_drop_ahash(&ctx->poly);
+	if (err) {
 err_free_inst:
-	kfree(inst);
-	goto out_put_poly;
+		chachapoly_free(inst);
+	}
+	return err;
 }
 
 static int rfc7539_create(struct crypto_template *tmpl, struct rtattr **tb)

@@ -3256,7 +3256,7 @@ static int __init cy_detect_isa(void)
 			return nboard;
 
 		/* probe for CD1400... */
-		cy_isa_address = ioremap_nocache(isa_address, CyISA_Ywin);
+		cy_isa_address = ioremap(isa_address, CyISA_Ywin);
 		if (cy_isa_address == NULL) {
 			printk(KERN_ERR "Cyclom-Y/ISA: can't remap base "
 					"address\n");
@@ -3690,13 +3690,13 @@ static int cy_pci_probe(struct pci_dev *pdev,
 			device_id == PCI_DEVICE_ID_CYCLOM_Y_Hi) {
 		card_name = "Cyclom-Y";
 
-		addr0 = ioremap_nocache(pci_resource_start(pdev, 0),
+		addr0 = ioremap(pci_resource_start(pdev, 0),
 				CyPCI_Yctl);
 		if (addr0 == NULL) {
 			dev_err(&pdev->dev, "can't remap ctl region\n");
 			goto err_reg;
 		}
-		addr2 = ioremap_nocache(pci_resource_start(pdev, 2),
+		addr2 = ioremap(pci_resource_start(pdev, 2),
 				CyPCI_Ywin);
 		if (addr2 == NULL) {
 			dev_err(&pdev->dev, "can't remap base region\n");
@@ -3712,7 +3712,7 @@ static int cy_pci_probe(struct pci_dev *pdev,
 	} else if (device_id == PCI_DEVICE_ID_CYCLOM_Z_Hi) {
 		struct RUNTIME_9060 __iomem *ctl_addr;
 
-		ctl_addr = addr0 = ioremap_nocache(pci_resource_start(pdev, 0),
+		ctl_addr = addr0 = ioremap(pci_resource_start(pdev, 0),
 				CyPCI_Zctl);
 		if (addr0 == NULL) {
 			dev_err(&pdev->dev, "can't remap ctl region\n");
@@ -3727,7 +3727,7 @@ static int cy_pci_probe(struct pci_dev *pdev,
 
 		mailbox = readl(&ctl_addr->mail_box_0);
 
-		addr2 = ioremap_nocache(pci_resource_start(pdev, 2),
+		addr2 = ioremap(pci_resource_start(pdev, 2),
 				mailbox == ZE_V1 ? CyPCI_Ze_win : CyPCI_Zwin);
 		if (addr2 == NULL) {
 			dev_err(&pdev->dev, "can't remap base region\n");

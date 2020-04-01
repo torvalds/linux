@@ -111,7 +111,14 @@ struct msm_gpu {
 	struct clk *ebi1_clk, *core_clk, *rbbmtimer_clk;
 	uint32_t fast_rate;
 
+	/* The gfx-mem interconnect path that's used by all GPU types. */
 	struct icc_path *icc_path;
+
+	/*
+	 * Second interconnect path for some A3xx and all A4xx GPUs to the
+	 * On Chip MEMory (OCMEM).
+	 */
+	struct icc_path *ocmem_icc_path;
 
 	/* Hang and Inactivity Detection:
 	 */

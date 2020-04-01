@@ -84,6 +84,12 @@
 	clock-frequency = <100000>;
 	status = "okay";
 
+	eeprom@57 {
+		compatible = "atmel,24c02";
+		reg = <0x57>;
+		status = "okay";
+	};
+
 	rtc@69 {
 		compatible = "abracon,ab1805";
 		reg = <0x69>;

@@ -341,11 +341,28 @@ static int ide_gd_ioctl(struct block_device *bdev, fmode_t mode,
 	return drive->disk_ops->ioctl(drive, bdev, mode, cmd, arg);
 }
 
+#ifdef CONFIG_COMPAT
+static int ide_gd_compat_ioctl(struct block_device *bdev, fmode_t mode,
+			       unsigned int cmd, unsigned long arg)
+{
+	struct ide_disk_obj *idkp = ide_drv_g(bdev->bd_disk, ide_disk_obj);
+	ide_drive_t *drive = idkp->drive;
+
+	if (!drive->disk_ops->compat_ioctl)
+		return -ENOIOCTLCMD;
+
+	return drive->disk_ops->compat_ioctl(drive, bdev, mode, cmd, arg);
+}
+#endif
+
 static const struct block_device_operations ide_gd_ops = {
 	.owner			= THIS_MODULE,
 	.open			= ide_gd_unlocked_open,
 	.release		= ide_gd_release,
 	.ioctl			= ide_gd_ioctl,
+#ifdef CONFIG_COMPAT
+	.ioctl			= ide_gd_compat_ioctl,
+#endif
 	.getgeo			= ide_gd_getgeo,
 	.check_events		= ide_gd_check_events,
 	.unlock_native_capacity	= ide_gd_unlock_native_capacity,

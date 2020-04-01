@@ -129,9 +129,6 @@ config USB_SERIAL_DIGI_ACCELEPORT
 	  parallel port on the USB 2 appears as a third serial port on Linux.
 	  The Digi Acceleport USB 8 is not yet supported by this driver.
 
-	  This driver works under SMP with the usb-uhci driver.  It does not
-	  work under SMP with the uhci driver.
-
 	  To compile this driver as a module, choose M here: the
 	  module will be called digi_acceleport.
 

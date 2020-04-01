@@ -1,7 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0
-sfc-y			+= efx.o nic.o farch.o siena.o ef10.o tx.o rx.o \
-			   selftest.o ethtool.o ptp.o tx_tso.o \
-			   mcdi.o mcdi_port.o mcdi_mon.o
+sfc-y			+= efx.o efx_common.o efx_channels.o nic.o \
+			   farch.o siena.o ef10.o \
+			   tx.o tx_common.o tx_tso.o rx.o rx_common.o \
+			   selftest.o ethtool.o ethtool_common.o ptp.o \
+			   mcdi.o mcdi_port.o mcdi_port_common.o \
+			   mcdi_functions.o mcdi_filters.o mcdi_mon.o
 sfc-$(CONFIG_SFC_MTD)	+= mtd.o
 sfc-$(CONFIG_SFC_SRIOV)	+= sriov.o siena_sriov.o ef10_sriov.o
 

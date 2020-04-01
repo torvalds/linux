@@ -99,7 +99,7 @@ With this change, the rcu_dereference() is always within an RCU
 read-side critical section, which again would have suppressed the
 above lockdep-RCU splat.
 
-But in this particular case, we don't actually deference the pointer
+But in this particular case, we don't actually dereference the pointer
 returned from rcu_dereference().  Instead, that pointer is just compared
 to the cic pointer, which means that the rcu_dereference() can be replaced
 by rcu_access_pointer() as follows:

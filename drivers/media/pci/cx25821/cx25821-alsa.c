@@ -639,7 +639,6 @@ static struct page *snd_cx25821_page(struct snd_pcm_substream *substream,
 static const struct snd_pcm_ops snd_cx25821_pcm_ops = {
 	.open = snd_cx25821_pcm_open,
 	.close = snd_cx25821_close,
-	.ioctl = snd_pcm_lib_ioctl,
 	.hw_params = snd_cx25821_hw_params,
 	.hw_free = snd_cx25821_hw_free,
 	.prepare = snd_cx25821_prepare,

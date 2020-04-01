@@ -22,6 +22,8 @@ struct mtk_plane_pending_state {
 	unsigned int			height;
 	unsigned int			rotation;
 	bool				dirty;
+	bool				async_dirty;
+	bool				async_config;
 };
 
 struct mtk_plane_state {

@@ -194,6 +194,10 @@ create_req:
 	req = rpcrdma_req_create(r_xprt, size, GFP_KERNEL);
 	if (!req)
 		return NULL;
+	if (rpcrdma_req_setup(r_xprt, req)) {
+		rpcrdma_req_destroy(req);
+		return NULL;
+	}
 
 	xprt->bc_alloc_count++;
 	rqst = &req->rl_slot;

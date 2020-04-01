@@ -7,7 +7,6 @@
  */
 
 #include <linux/types.h>
-#include <linux/omap-dma.h>
 
 #include "omap_hwmod.h"
 #include "omap_hwmod_common_data.h"
@@ -93,23 +92,6 @@ static struct omap_hwmod_class_sysconfig omap2xxx_gpio_sysc = {
 struct omap_hwmod_class omap2xxx_gpio_hwmod_class = {
 	.name = "gpio",
 	.sysc = &omap2xxx_gpio_sysc,
-};
-
-/* system dma */
-static struct omap_hwmod_class_sysconfig omap2xxx_dma_sysc = {
-	.rev_offs	= 0x0000,
-	.sysc_offs	= 0x002c,
-	.syss_offs	= 0x0028,
-	.sysc_flags	= (SYSC_HAS_SOFTRESET | SYSC_HAS_MIDLEMODE |
-			   SYSC_HAS_CLOCKACTIVITY | SYSC_HAS_EMUFREE |
-			   SYSC_HAS_AUTOIDLE | SYSS_HAS_RESET_STATUS),
-	.idlemodes	= (MSTANDBY_FORCE | MSTANDBY_NO | MSTANDBY_SMART),
-	.sysc_fields	= &omap_hwmod_sysc_type1,
-};
-
-struct omap_hwmod_class omap2xxx_dma_hwmod_class = {
-	.name	= "dma",
-	.sysc	= &omap2xxx_dma_sysc,
 };
 
 /*

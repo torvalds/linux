@@ -177,6 +177,9 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinmux_i2s_gpio>;		/* GPIO0..3 */
 
+	fifo-size = <8>;
+	tx-threshold = <8>;
+
 	rts-gpios = <&gpio 1 GPIO_ACTIVE_LOW>;
 	cts-gpios = <&gpio 2 GPIO_ACTIVE_LOW>;
 };
@@ -194,4 +197,9 @@
 
 &watchdog {
 	status = "okay";
+};
+
+&wmac {
+	status = "okay";
+	mediatek,mtd-eeprom = <&factory 0x0000>;
 };

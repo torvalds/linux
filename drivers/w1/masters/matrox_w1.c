@@ -139,7 +139,7 @@ static int matrox_w1_probe(struct pci_dev *pdev, const struct pci_device_id *ent
 
 	dev->phys_addr = pci_resource_start(pdev, 1);
 
-	dev->virt_addr = ioremap_nocache(dev->phys_addr, 16384);
+	dev->virt_addr = ioremap(dev->phys_addr, 16384);
 	if (!dev->virt_addr) {
 		dev_err(&pdev->dev, "%s: failed to ioremap(0x%lx, %d).\n",
 			__func__, dev->phys_addr, 16384);

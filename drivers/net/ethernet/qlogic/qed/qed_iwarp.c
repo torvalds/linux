@@ -137,8 +137,8 @@ qed_iwarp_init_fw_ramrod(struct qed_hwfn *p_hwfn,
 			 struct iwarp_init_func_ramrod_data *p_ramrod)
 {
 	p_ramrod->iwarp.ll2_ooo_q_index =
-		RESC_START(p_hwfn, QED_LL2_QUEUE) +
-		p_hwfn->p_rdma_info->iwarp.ll2_ooo_handle;
+	    RESC_START(p_hwfn, QED_LL2_RAM_QUEUE) +
+	    p_hwfn->p_rdma_info->iwarp.ll2_ooo_handle;
 
 	p_ramrod->tcp.max_fin_rt = QED_IWARP_MAX_FIN_RT_DEFAULT;
 
@@ -2651,6 +2651,8 @@ qed_iwarp_ll2_start(struct qed_hwfn *p_hwfn,
 
 	memset(&data, 0, sizeof(data));
 	data.input.conn_type = QED_LL2_TYPE_IWARP;
+	/* SYN will use ctx based queues */
+	data.input.rx_conn_type = QED_LL2_RX_TYPE_CTX;
 	data.input.mtu = params->max_mtu;
 	data.input.rx_num_desc = QED_IWARP_LL2_SYN_RX_SIZE;
 	data.input.tx_num_desc = QED_IWARP_LL2_SYN_TX_SIZE;
@@ -2683,6 +2685,8 @@ qed_iwarp_ll2_start(struct qed_hwfn *p_hwfn,
 
 	/* Start OOO connection */
 	data.input.conn_type = QED_LL2_TYPE_OOO;
+	/* OOO/unaligned will use legacy ll2 queues (ram based) */
+	data.input.rx_conn_type = QED_LL2_RX_TYPE_LEGACY;
 	data.input.mtu = params->max_mtu;
 
 	n_ooo_bufs = (QED_IWARP_MAX_OOO * rcv_wnd_size) /

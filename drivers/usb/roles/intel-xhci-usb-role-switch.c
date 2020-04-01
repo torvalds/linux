@@ -161,7 +161,7 @@ static int intel_xhci_usb_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
 		return -EINVAL;
-	data->base = devm_ioremap_nocache(dev, res->start, resource_size(res));
+	data->base = devm_ioremap(dev, res->start, resource_size(res));
 	if (!data->base)
 		return -ENOMEM;
 

@@ -698,6 +698,9 @@ enum rtl8152_flags {
 #define VENDOR_ID_NVIDIA		0x0955
 #define VENDOR_ID_TPLINK		0x2357
 
+#define DEVICE_ID_THINKPAD_THUNDERBOLT3_DOCK_GEN2	0x3082
+#define DEVICE_ID_THINKPAD_USB_C_DOCK_GEN2		0xa387
+
 #define MCU_TYPE_PLA			0x0100
 #define MCU_TYPE_USB			0x0000
 
@@ -1913,8 +1916,8 @@ static void r8152_csum_workaround(struct r8152 *tp, struct sk_buff *skb,
 {
 	if (skb_shinfo(skb)->gso_size) {
 		netdev_features_t features = tp->netdev->features;
+		struct sk_buff *segs, *seg, *next;
 		struct sk_buff_head seg_list;
-		struct sk_buff *segs, *nskb;
 
 		features &= ~(NETIF_F_SG | NETIF_F_IPV6_CSUM | NETIF_F_TSO6);
 		segs = skb_gso_segment(skb, features);
@@ -1923,12 +1926,10 @@ static void r8152_csum_workaround(struct r8152 *tp, struct sk_buff *skb,
 
 		__skb_queue_head_init(&seg_list);
 
-		do {
-			nskb = segs;
-			segs = segs->next;
-			nskb->next = NULL;
-			__skb_queue_tail(&seg_list, nskb);
-		} while (segs);
+		skb_list_walk_safe(segs, seg, next) {
+			skb_mark_not_on_list(seg);
+			__skb_queue_tail(&seg_list, seg);
+		}
 
 		skb_queue_splice(&seg_list, list);
 		dev_kfree_skb(skb);
@@ -2523,7 +2524,7 @@ static void rtl_drop_queued_tx(struct r8152 *tp)
 	}
 }
 
-static void rtl8152_tx_timeout(struct net_device *netdev)
+static void rtl8152_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 {
 	struct r8152 *tp = netdev_priv(netdev);
 
@@ -6761,9 +6762,13 @@ static int rtl8152_probe(struct usb_interface *intf,
 		netdev->hw_features &= ~NETIF_F_RXCSUM;
 	}
 
-	if (le16_to_cpu(udev->descriptor.idVendor) == VENDOR_ID_LENOVO &&
-	    le16_to_cpu(udev->descriptor.idProduct) == 0x3082)
-		set_bit(LENOVO_MACPASSTHRU, &tp->flags);
+	if (le16_to_cpu(udev->descriptor.idVendor) == VENDOR_ID_LENOVO) {
+		switch (le16_to_cpu(udev->descriptor.idProduct)) {
+		case DEVICE_ID_THINKPAD_THUNDERBOLT3_DOCK_GEN2:
+		case DEVICE_ID_THINKPAD_USB_C_DOCK_GEN2:
+			set_bit(LENOVO_MACPASSTHRU, &tp->flags);
+		}
+	}
 
 	if (le16_to_cpu(udev->descriptor.bcdDevice) == 0x3011 && udev->serial &&
 	    (!strcmp(udev->serial, "000001000000") ||

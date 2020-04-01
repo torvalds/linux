@@ -22,8 +22,8 @@ static const char *__doc__ = " XDP RX-queue info extract example\n\n"
 #include <arpa/inet.h>
 #include <linux/if_link.h>
 
-#include "bpf.h"
-#include "libbpf.h"
+#include <bpf/bpf.h>
+#include <bpf/libbpf.h>
 #include "bpf_util.h"
 
 static int ifindex = -1;
@@ -551,6 +551,10 @@ int main(int argc, char **argv)
 			return EXIT_FAIL_OPTION;
 		}
 	}
+
+	if (!(xdp_flags & XDP_FLAGS_SKB_MODE))
+		xdp_flags |= XDP_FLAGS_DRV_MODE;
+
 	/* Required option */
 	if (ifindex == -1) {
 		fprintf(stderr, "ERR: required option --dev missing\n");

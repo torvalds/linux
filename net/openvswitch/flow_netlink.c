@@ -79,6 +79,7 @@ static bool actions_may_change_flow(const struct nlattr *actions)
 		case OVS_ACTION_ATTR_SET_MASKED:
 		case OVS_ACTION_ATTR_METER:
 		case OVS_ACTION_ATTR_CHECK_PKT_LEN:
+		case OVS_ACTION_ATTR_ADD_MPLS:
 		default:
 			return true;
 		}
@@ -2707,10 +2708,6 @@ static int validate_set(const struct nlattr *a,
 		return -EINVAL;
 
 	switch (key_type) {
-	const struct ovs_key_ipv4 *ipv4_key;
-	const struct ovs_key_ipv6 *ipv6_key;
-	int err;
-
 	case OVS_KEY_ATTR_PRIORITY:
 	case OVS_KEY_ATTR_SKB_MARK:
 	case OVS_KEY_ATTR_CT_MARK:
@@ -2722,7 +2719,9 @@ static int validate_set(const struct nlattr *a,
 			return -EINVAL;
 		break;
 
-	case OVS_KEY_ATTR_TUNNEL:
+	case OVS_KEY_ATTR_TUNNEL: {
+		int err;
+
 		if (masked)
 			return -EINVAL; /* Masked tunnel set not supported. */
 
@@ -2731,8 +2730,10 @@ static int validate_set(const struct nlattr *a,
 		if (err)
 			return err;
 		break;
+	}
+	case OVS_KEY_ATTR_IPV4: {
+		const struct ovs_key_ipv4 *ipv4_key;
 
-	case OVS_KEY_ATTR_IPV4:
 		if (eth_type != htons(ETH_P_IP))
 			return -EINVAL;
 
@@ -2752,8 +2753,10 @@ static int validate_set(const struct nlattr *a,
 				return -EINVAL;
 		}
 		break;
+	}
+	case OVS_KEY_ATTR_IPV6: {
+		const struct ovs_key_ipv6 *ipv6_key;
 
-	case OVS_KEY_ATTR_IPV6:
 		if (eth_type != htons(ETH_P_IPV6))
 			return -EINVAL;
 
@@ -2780,7 +2783,7 @@ static int validate_set(const struct nlattr *a,
 			return -EINVAL;
 
 		break;
-
+	}
 	case OVS_KEY_ATTR_TCP:
 		if ((eth_type != htons(ETH_P_IP) &&
 		     eth_type != htons(ETH_P_IPV6)) ||
@@ -3005,6 +3008,7 @@ static int __ovs_nla_copy_actions(struct net *net, const struct nlattr *attr,
 			[OVS_ACTION_ATTR_METER] = sizeof(u32),
 			[OVS_ACTION_ATTR_CLONE] = (u32)-1,
 			[OVS_ACTION_ATTR_CHECK_PKT_LEN] = (u32)-1,
+			[OVS_ACTION_ATTR_ADD_MPLS] = sizeof(struct ovs_action_add_mpls),
 		};
 		const struct ovs_action_push_vlan *vlan;
 		int type = nla_type(a);
@@ -3072,6 +3076,33 @@ static int __ovs_nla_copy_actions(struct net *net, const struct nlattr *attr,
 		case OVS_ACTION_ATTR_RECIRC:
 			break;
 
+		case OVS_ACTION_ATTR_ADD_MPLS: {
+			const struct ovs_action_add_mpls *mpls = nla_data(a);
+
+			if (!eth_p_mpls(mpls->mpls_ethertype))
+				return -EINVAL;
+
+			if (mpls->tun_flags & OVS_MPLS_L3_TUNNEL_FLAG_MASK) {
+				if (vlan_tci & htons(VLAN_CFI_MASK) ||
+				    (eth_type != htons(ETH_P_IP) &&
+				     eth_type != htons(ETH_P_IPV6) &&
+				     eth_type != htons(ETH_P_ARP) &&
+				     eth_type != htons(ETH_P_RARP) &&
+				     !eth_p_mpls(eth_type)))
+					return -EINVAL;
+				mpls_label_count++;
+			} else {
+				if (mac_proto == MAC_PROTO_ETHERNET) {
+					mpls_label_count = 1;
+					mac_proto = MAC_PROTO_NONE;
+				} else {
+					mpls_label_count++;
+				}
+			}
+			eth_type = mpls->mpls_ethertype;
+			break;
+		}
+
 		case OVS_ACTION_ATTR_PUSH_MPLS: {
 			const struct ovs_action_push_mpls *mpls = nla_data(a);
 
@@ -3109,6 +3140,11 @@ static int __ovs_nla_copy_actions(struct net *net, const struct nlattr *attr,
 			 * recirculation.
 			 */
 			proto = nla_get_be16(a);
+
+			if (proto == htons(ETH_P_TEB) &&
+			    mac_proto != MAC_PROTO_NONE)
+				return -EINVAL;
+
 			mpls_label_count--;
 
 			if (!eth_p_mpls(proto) || !mpls_label_count)

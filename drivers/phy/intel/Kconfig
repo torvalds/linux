@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# Phy drivers for Intel Lightning Mountain(LGM) platform
+#
+config PHY_INTEL_EMMC
+	tristate "Intel EMMC PHY driver"
+	select GENERIC_PHY
+	help
+	  Enable this to support the Intel EMMC PHY

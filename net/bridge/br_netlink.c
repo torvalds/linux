@@ -561,52 +561,73 @@ static int br_vlan_info(struct net_bridge *br, struct net_bridge_port *p,
 	return err;
 }
 
-static int br_process_vlan_info(struct net_bridge *br,
-				struct net_bridge_port *p, int cmd,
-				struct bridge_vlan_info *vinfo_curr,
-				struct bridge_vlan_info **vinfo_last,
-				bool *changed,
-				struct netlink_ext_ack *extack)
+int br_process_vlan_info(struct net_bridge *br,
+			 struct net_bridge_port *p, int cmd,
+			 struct bridge_vlan_info *vinfo_curr,
+			 struct bridge_vlan_info **vinfo_last,
+			 bool *changed,
+			 struct netlink_ext_ack *extack)
 {
-	if (!vinfo_curr->vid || vinfo_curr->vid >= VLAN_VID_MASK)
+	int err, rtm_cmd;
+
+	if (!br_vlan_valid_id(vinfo_curr->vid, extack))
 		return -EINVAL;
 
+	/* needed for vlan-only NEWVLAN/DELVLAN notifications */
+	rtm_cmd = br_afspec_cmd_to_rtm(cmd);
+
 	if (vinfo_curr->flags & BRIDGE_VLAN_INFO_RANGE_BEGIN) {
-		/* check if we are already processing a range */
-		if (*vinfo_last)
+		if (!br_vlan_valid_range(vinfo_curr, *vinfo_last, extack))
 			return -EINVAL;
 		*vinfo_last = vinfo_curr;
-		/* don't allow range of pvids */
-		if ((*vinfo_last)->flags & BRIDGE_VLAN_INFO_PVID)
-			return -EINVAL;
 		return 0;
 	}
 
 	if (*vinfo_last) {
 		struct bridge_vlan_info tmp_vinfo;
-		int v, err;
+		int v, v_change_start = 0;
 
-		if (!(vinfo_curr->flags & BRIDGE_VLAN_INFO_RANGE_END))
-			return -EINVAL;
-
-		if (vinfo_curr->vid <= (*vinfo_last)->vid)
+		if (!br_vlan_valid_range(vinfo_curr, *vinfo_last, extack))
 			return -EINVAL;
 
 		memcpy(&tmp_vinfo, *vinfo_last,
 		       sizeof(struct bridge_vlan_info));
 		for (v = (*vinfo_last)->vid; v <= vinfo_curr->vid; v++) {
+			bool curr_change = false;
+
 			tmp_vinfo.vid = v;
-			err = br_vlan_info(br, p, cmd, &tmp_vinfo, changed,
+			err = br_vlan_info(br, p, cmd, &tmp_vinfo, &curr_change,
 					   extack);
 			if (err)
 				break;
+			if (curr_change) {
+				*changed = curr_change;
+				if (!v_change_start)
+					v_change_start = v;
+			} else {
+				/* nothing to notify yet */
+				if (!v_change_start)
+					continue;
+				br_vlan_notify(br, p, v_change_start,
+					       v - 1, rtm_cmd);
+				v_change_start = 0;
+			}
 		}
+		/* v_change_start is set only if the last/whole range changed */
+		if (v_change_start)
+			br_vlan_notify(br, p, v_change_start,
+				       v - 1, rtm_cmd);
+
 		*vinfo_last = NULL;
 
 		return err;
 	}
 
-	return br_vlan_info(br, p, cmd, vinfo_curr, changed, extack);
+	err = br_vlan_info(br, p, cmd, vinfo_curr, changed, extack);
+	if (*changed)
+		br_vlan_notify(br, p, vinfo_curr->vid, 0, rtm_cmd);
+
+	return err;
 }
 
 static int br_afspec(struct net_bridge *br,
@@ -1607,6 +1628,19 @@ static int br_fill_linkxstats(struct sk_buff *skb,
 		br_multicast_get_stats(br, p, nla_data(nla));
 	}
 #endif
+
+	if (p) {
+		nla = nla_reserve_64bit(skb, BRIDGE_XSTATS_STP,
+					sizeof(p->stp_xstats),
+					BRIDGE_XSTATS_PAD);
+		if (!nla)
+			goto nla_put_failure;
+
+		spin_lock_bh(&br->lock);
+		memcpy(nla_data(nla), &p->stp_xstats, sizeof(p->stp_xstats));
+		spin_unlock_bh(&br->lock);
+	}
+
 	nla_nest_end(skb, nest);
 	*prividx = 0;
 
@@ -1651,6 +1685,7 @@ int __init br_netlink_init(void)
 	int err;
 
 	br_mdb_init();
+	br_vlan_rtnl_init();
 	rtnl_af_register(&br_af_ops);
 
 	err = rtnl_link_register(&br_link_ops);
@@ -1668,6 +1703,7 @@ out_af:
 void br_netlink_fini(void)
 {
 	br_mdb_uninit();
+	br_vlan_rtnl_uninit();
 	rtnl_af_unregister(&br_af_ops);
 	rtnl_link_unregister(&br_link_ops);
 }

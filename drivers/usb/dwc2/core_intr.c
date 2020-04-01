@@ -288,14 +288,9 @@ static void dwc2_handle_conn_id_status_change_intr(struct dwc2_hsotg *hsotg)
 
 	/*
 	 * Need to schedule a work, as there are possible DELAY function calls.
-	 * Release lock before scheduling workq as it holds spinlock during
-	 * scheduling.
 	 */
-	if (hsotg->wq_otg) {
-		spin_unlock(&hsotg->lock);
+	if (hsotg->wq_otg)
 		queue_work(hsotg->wq_otg, &hsotg->wf_otg);
-		spin_lock(&hsotg->lock);
-	}
 }
 
 /**

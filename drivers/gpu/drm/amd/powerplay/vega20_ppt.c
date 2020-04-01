@@ -338,6 +338,10 @@ static int vega20_tables_init(struct smu_context *smu, struct smu_table *tables)
 		return -ENOMEM;
 	smu_table->metrics_time = 0;
 
+	smu_table->watermarks_table = kzalloc(sizeof(Watermarks_t), GFP_KERNEL);
+	if (!smu_table->watermarks_table)
+		return -ENOMEM;
+
 	return 0;
 }
 
@@ -1702,22 +1706,11 @@ static int vega20_set_default_od_settings(struct smu_context *smu,
 	struct smu_table_context *table_context = &smu->smu_table;
 	int ret;
 
+	ret = smu_v11_0_set_default_od_settings(smu, initialize, sizeof(OverDriveTable_t));
+	if (ret)
+		return ret;
+
 	if (initialize) {
-		if (table_context->overdrive_table)
-			return -EINVAL;
-
-		table_context->overdrive_table = kzalloc(sizeof(OverDriveTable_t), GFP_KERNEL);
-
-		if (!table_context->overdrive_table)
-			return -ENOMEM;
-
-		ret = smu_update_table(smu, SMU_TABLE_OVERDRIVE, 0,
-				       table_context->overdrive_table, false);
-		if (ret) {
-			pr_err("Failed to export over drive table!\n");
-			return ret;
-		}
-
 		ret = vega20_set_default_od8_setttings(smu);
 		if (ret)
 			return ret;
@@ -2235,7 +2228,7 @@ static int vega20_apply_clocks_adjust_rules(struct smu_context *smu)
 }
 
 static int
-vega20_notify_smc_dispaly_config(struct smu_context *smu)
+vega20_notify_smc_display_config(struct smu_context *smu)
 {
 	struct vega20_dpm_table *dpm_table = smu->smu_dpm.dpm_context;
 	struct vega20_single_dpm_table *memtable = &dpm_table->mem_table;
@@ -2774,12 +2767,11 @@ static int vega20_odn_edit_dpm_table(struct smu_context *smu,
 		break;
 
 	case PP_OD_RESTORE_DEFAULT_TABLE:
-		ret = smu_update_table(smu, SMU_TABLE_OVERDRIVE, 0, table_context->overdrive_table, false);
-		if (ret) {
-			pr_err("Failed to export over drive table!\n");
-			return ret;
+		if (!(table_context->overdrive_table && table_context->boot_overdrive_table)) {
+			pr_err("Overdrive table was not initialized!\n");
+			return -EINVAL;
 		}
-
+		memcpy(table_context->overdrive_table, table_context->boot_overdrive_table, sizeof(OverDriveTable_t));
 		break;
 
 	case PP_OD_COMMIT_DPM_TABLE:
@@ -3194,6 +3186,7 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.get_od_percentage = vega20_get_od_percentage,
 	.get_power_profile_mode = vega20_get_power_profile_mode,
 	.set_power_profile_mode = vega20_set_power_profile_mode,
+	.set_performance_level = smu_v11_0_set_performance_level,
 	.set_od_percentage = vega20_set_od_percentage,
 	.set_default_od_settings = vega20_set_default_od_settings,
 	.od_edit_dpm_table = vega20_odn_edit_dpm_table,
@@ -3203,7 +3196,7 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.pre_display_config_changed = vega20_pre_display_config_changed,
 	.display_config_changed = vega20_display_config_changed,
 	.apply_clocks_adjust_rules = vega20_apply_clocks_adjust_rules,
-	.notify_smc_dispaly_config = vega20_notify_smc_dispaly_config,
+	.notify_smc_display_config = vega20_notify_smc_display_config,
 	.force_dpm_limit_value = vega20_force_dpm_limit_value,
 	.unforce_dpm_levels = vega20_unforce_dpm_levels,
 	.get_profiling_clk_mask = vega20_get_profiling_clk_mask,
@@ -3231,6 +3224,7 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.check_fw_version = smu_v11_0_check_fw_version,
 	.write_pptable = smu_v11_0_write_pptable,
 	.set_min_dcef_deep_sleep = smu_v11_0_set_min_dcef_deep_sleep,
+	.set_driver_table_location = smu_v11_0_set_driver_table_location,
 	.set_tool_table_location = smu_v11_0_set_tool_table_location,
 	.notify_memory_pool_location = smu_v11_0_notify_memory_pool_location,
 	.system_features_control = smu_v11_0_system_features_control,
@@ -3259,7 +3253,8 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.baco_is_support= smu_v11_0_baco_is_support,
 	.baco_get_state = smu_v11_0_baco_get_state,
 	.baco_set_state = smu_v11_0_baco_set_state,
-	.baco_reset = smu_v11_0_baco_reset,
+	.baco_enter = smu_v11_0_baco_enter,
+	.baco_exit = smu_v11_0_baco_exit,
 	.get_dpm_ultimate_freq = smu_v11_0_get_dpm_ultimate_freq,
 	.set_soft_freq_limited_range = smu_v11_0_set_soft_freq_limited_range,
 	.override_pcie_parameters = smu_v11_0_override_pcie_parameters,

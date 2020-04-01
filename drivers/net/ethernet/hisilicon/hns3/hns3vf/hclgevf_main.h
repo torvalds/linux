@@ -142,12 +142,13 @@ enum hclgevf_states {
 	HCLGEVF_STATE_REMOVING,
 	HCLGEVF_STATE_NIC_REGISTERED,
 	/* task states */
-	HCLGEVF_STATE_SERVICE_SCHED,
 	HCLGEVF_STATE_RST_SERVICE_SCHED,
 	HCLGEVF_STATE_RST_HANDLING,
 	HCLGEVF_STATE_MBX_SERVICE_SCHED,
 	HCLGEVF_STATE_MBX_HANDLING,
 	HCLGEVF_STATE_CMD_DISABLE,
+	HCLGEVF_STATE_LINK_UPDATING,
+	HCLGEVF_STATE_RST_FAIL,
 };
 
 struct hclgevf_mac {
@@ -220,6 +221,7 @@ struct hclgevf_rss_cfg {
 struct hclgevf_misc_vector {
 	u8 __iomem *addr;
 	int vector_irq;
+	char name[HNAE3_INT_NAME_LEN];
 };
 
 struct hclgevf_rst_stats {
@@ -251,6 +253,7 @@ struct hclgevf_dev {
 	unsigned long reset_state;	/* requested, pending */
 	struct hclgevf_rst_stats rst_stats;
 	u32 reset_attempts;
+	struct semaphore reset_sem;	/* protect reset process */
 
 	u32 fw_version;
 	u16 num_tqps;		/* num task queue pairs of this PF */
@@ -283,12 +286,7 @@ struct hclgevf_dev {
 	struct hclgevf_mbx_resp_status mbx_resp; /* mailbox response */
 	struct hclgevf_mbx_arq_ring arq; /* mailbox async rx queue */
 
-	struct timer_list service_timer;
-	struct timer_list keep_alive_timer;
-	struct work_struct service_task;
-	struct work_struct keep_alive_task;
-	struct work_struct rst_service_task;
-	struct work_struct mbx_service_task;
+	struct delayed_work service_task;
 
 	struct hclgevf_tqp *htqp;
 
@@ -298,7 +296,8 @@ struct hclgevf_dev {
 	struct hnae3_client *nic_client;
 	struct hnae3_client *roce_client;
 	u32 flag;
-	u32 stats_timer;
+	unsigned long serv_processed_cnt;
+	unsigned long last_serv_processed;
 };
 
 static inline bool hclgevf_is_reset_pending(struct hclgevf_dev *hdev)

@@ -568,18 +568,18 @@ int tipc_bclink_reset_stats(struct net *net)
 	return 0;
 }
 
-static int tipc_bc_link_set_queue_limits(struct net *net, u32 limit)
+static int tipc_bc_link_set_queue_limits(struct net *net, u32 max_win)
 {
 	struct tipc_link *l = tipc_bc_sndlink(net);
 
 	if (!l)
 		return -ENOPROTOOPT;
-	if (limit < BCLINK_WIN_MIN)
-		limit = BCLINK_WIN_MIN;
-	if (limit > TIPC_MAX_LINK_WIN)
+	if (max_win < BCLINK_WIN_MIN)
+		max_win = BCLINK_WIN_MIN;
+	if (max_win > TIPC_MAX_LINK_WIN)
 		return -EINVAL;
 	tipc_bcast_lock(net);
-	tipc_link_set_queue_limits(l, limit);
+	tipc_link_set_queue_limits(l, BCLINK_WIN_MIN, max_win);
 	tipc_bcast_unlock(net);
 	return 0;
 }
@@ -688,6 +688,7 @@ int tipc_bcast_init(struct net *net)
 
 	if (!tipc_link_bc_create(net, 0, 0,
 				 FB_MTU,
+				 BCLINK_WIN_DEFAULT,
 				 BCLINK_WIN_DEFAULT,
 				 0,
 				 &bb->inputq,

@@ -3381,9 +3381,17 @@ enum shmem_param {
 	Opt_uid,
 };
 
-static const struct fs_parameter_spec shmem_param_specs[] = {
+static const struct constant_table shmem_param_enums_huge[] = {
+	{"never",	SHMEM_HUGE_NEVER },
+	{"always",	SHMEM_HUGE_ALWAYS },
+	{"within_size",	SHMEM_HUGE_WITHIN_SIZE },
+	{"advise",	SHMEM_HUGE_ADVISE },
+	{}
+};
+
+const struct fs_parameter_spec shmem_fs_parameters[] = {
 	fsparam_u32   ("gid",		Opt_gid),
-	fsparam_enum  ("huge",		Opt_huge),
+	fsparam_enum  ("huge",		Opt_huge,  shmem_param_enums_huge),
 	fsparam_u32oct("mode",		Opt_mode),
 	fsparam_string("mpol",		Opt_mpol),
 	fsparam_string("nr_blocks",	Opt_nr_blocks),
@@ -3391,20 +3399,6 @@ static const struct fs_parameter_spec shmem_param_specs[] = {
 	fsparam_string("size",		Opt_size),
 	fsparam_u32   ("uid",		Opt_uid),
 	{}
-};
-
-static const struct fs_parameter_enum shmem_param_enums[] = {
-	{ Opt_huge,	"never",	SHMEM_HUGE_NEVER },
-	{ Opt_huge,	"always",	SHMEM_HUGE_ALWAYS },
-	{ Opt_huge,	"within_size",	SHMEM_HUGE_WITHIN_SIZE },
-	{ Opt_huge,	"advise",	SHMEM_HUGE_ADVISE },
-	{}
-};
-
-const struct fs_parameter_description shmem_fs_parameters = {
-	.name		= "tmpfs",
-	.specs		= shmem_param_specs,
-	.enums		= shmem_param_enums,
 };
 
 static int shmem_parse_one(struct fs_context *fc, struct fs_parameter *param)
@@ -3415,7 +3409,7 @@ static int shmem_parse_one(struct fs_context *fc, struct fs_parameter *param)
 	char *rest;
 	int opt;
 
-	opt = fs_parse(fc, &shmem_fs_parameters, param, &result);
+	opt = fs_parse(fc, shmem_fs_parameters, param, &result);
 	if (opt < 0)
 		return opt;
 
@@ -3479,9 +3473,9 @@ static int shmem_parse_one(struct fs_context *fc, struct fs_parameter *param)
 	return 0;
 
 unsupported_parameter:
-	return invalf(fc, "tmpfs: Unsupported parameter '%s'", param->key);
+	return invalfc(fc, "Unsupported parameter '%s'", param->key);
 bad_value:
-	return invalf(fc, "tmpfs: Bad value for '%s'", param->key);
+	return invalfc(fc, "Bad value for '%s'", param->key);
 }
 
 static int shmem_parse_options(struct fs_context *fc, void *data)
@@ -3587,7 +3581,7 @@ static int shmem_reconfigure(struct fs_context *fc)
 	return 0;
 out:
 	spin_unlock(&sbinfo->stat_lock);
-	return invalf(fc, "tmpfs: %s", err);
+	return invalfc(fc, "%s", err);
 }
 
 static int shmem_show_options(struct seq_file *seq, struct dentry *root)
@@ -3889,7 +3883,7 @@ static struct file_system_type shmem_fs_type = {
 	.name		= "tmpfs",
 	.init_fs_context = shmem_init_fs_context,
 #ifdef CONFIG_TMPFS
-	.parameters	= &shmem_fs_parameters,
+	.parameters	= shmem_fs_parameters,
 #endif
 	.kill_sb	= kill_litter_super,
 	.fs_flags	= FS_USERNS_MOUNT,
@@ -4035,7 +4029,7 @@ bool shmem_huge_enabled(struct vm_area_struct *vma)
 static struct file_system_type shmem_fs_type = {
 	.name		= "tmpfs",
 	.init_fs_context = ramfs_init_fs_context,
-	.parameters	= &ramfs_fs_parameters,
+	.parameters	= ramfs_fs_parameters,
 	.kill_sb	= kill_litter_super,
 	.fs_flags	= FS_USERNS_MOUNT,
 };

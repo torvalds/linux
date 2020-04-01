@@ -970,7 +970,7 @@ static void gem_poll_controller(struct net_device *dev)
 }
 #endif
 
-static void gem_tx_timeout(struct net_device *dev)
+static void gem_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct gem *gp = netdev_priv(dev);
 

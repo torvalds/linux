@@ -464,7 +464,7 @@ out:
 	rcu_read_unlock();
 }
 
-static void sl_tx_timeout(struct net_device *dev)
+static void sl_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct slip *sl = netdev_priv(dev);
 

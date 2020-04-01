@@ -141,6 +141,15 @@ menuconfig FTRACE
 
 if FTRACE
 
+config BOOTTIME_TRACING
+	bool "Boot-time Tracing support"
+	depends on TRACING
+	select BOOT_CONFIG
+	help
+	  Enable developer to setup ftrace subsystem via supplemental
+	  kernel cmdline at boot time for debugging (tracing) driver
+	  initialization and boot process.
+
 config FUNCTION_TRACER
 	bool "Kernel Function Tracer"
 	depends on HAVE_FUNCTION_TRACER
@@ -171,6 +180,77 @@ config FUNCTION_GRAPH_TRACER
 	  draw a call graph for each thread with some information like
 	  the return value. This is done by setting the current return
 	  address on the current task structure into a stack of calls.
+
+config DYNAMIC_FTRACE
+	bool "enable/disable function tracing dynamically"
+	depends on FUNCTION_TRACER
+	depends on HAVE_DYNAMIC_FTRACE
+	default y
+	help
+	  This option will modify all the calls to function tracing
+	  dynamically (will patch them out of the binary image and
+	  replace them with a No-Op instruction) on boot up. During
+	  compile time, a table is made of all the locations that ftrace
+	  can function trace, and this table is linked into the kernel
+	  image. When this is enabled, functions can be individually
+	  enabled, and the functions not enabled will not affect
+	  performance of the system.
+
+	  See the files in /sys/kernel/debug/tracing:
+	    available_filter_functions
+	    set_ftrace_filter
+	    set_ftrace_notrace
+
+	  This way a CONFIG_FUNCTION_TRACER kernel is slightly larger, but
+	  otherwise has native performance as long as no tracing is active.
+
+config DYNAMIC_FTRACE_WITH_REGS
+	def_bool y
+	depends on DYNAMIC_FTRACE
+	depends on HAVE_DYNAMIC_FTRACE_WITH_REGS
+
+config DYNAMIC_FTRACE_WITH_DIRECT_CALLS
+	def_bool y
+	depends on DYNAMIC_FTRACE
+	depends on HAVE_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
+
+config FUNCTION_PROFILER
+	bool "Kernel function profiler"
+	depends on FUNCTION_TRACER
+	default n
+	help
+	  This option enables the kernel function profiler. A file is created
+	  in debugfs called function_profile_enabled which defaults to zero.
+	  When a 1 is echoed into this file profiling begins, and when a
+	  zero is entered, profiling stops. A "functions" file is created in
+	  the trace_stat directory; this file shows the list of functions that
+	  have been hit and their counters.
+
+	  If in doubt, say N.
+
+config STACK_TRACER
+	bool "Trace max stack"
+	depends on HAVE_FUNCTION_TRACER
+	select FUNCTION_TRACER
+	select STACKTRACE
+	select KALLSYMS
+	help
+	  This special tracer records the maximum stack footprint of the
+	  kernel and displays it in /sys/kernel/debug/tracing/stack_trace.
+
+	  This tracer works by hooking into every function call that the
+	  kernel executes, and keeping a maximum stack depth value and
+	  stack-trace saved.  If this is configured with DYNAMIC_FTRACE
+	  then it will not have any overhead while the stack tracer
+	  is disabled.
+
+	  To enable the stack tracer on bootup, pass in 'stacktrace'
+	  on the kernel command line.
+
+	  The stack tracer can also be enabled or disabled via the
+	  sysctl kernel.stack_tracer_enabled
+
+	  Say N if unsure.
 
 config TRACE_PREEMPT_TOGGLE
 	bool
@@ -281,6 +361,19 @@ config HWLAT_TRACER
 	 To enable this tracer, echo in "hwlat" into the current_tracer
 	 file. Every time a latency is greater than tracing_thresh, it will
 	 be recorded into the ring buffer.
+
+config MMIOTRACE
+	bool "Memory mapped IO tracing"
+	depends on HAVE_MMIOTRACE_SUPPORT && PCI
+	select GENERIC_TRACER
+	help
+	  Mmiotrace traces Memory Mapped I/O access and is meant for
+	  debugging and reverse engineering. It is called from the ioremap
+	  implementation and works via page faults. Tracing is disabled by
+	  default and can be enabled at run-time.
+
+	  See Documentation/trace/mmiotrace.rst.
+	  If you are not helping to develop drivers, say N.
 
 config ENABLE_DEFAULT_TRACERS
 	bool "Trace process context switches and events"
@@ -410,30 +503,6 @@ config BRANCH_TRACER
 
 	  Say N if unsure.
 
-config STACK_TRACER
-	bool "Trace max stack"
-	depends on HAVE_FUNCTION_TRACER
-	select FUNCTION_TRACER
-	select STACKTRACE
-	select KALLSYMS
-	help
-	  This special tracer records the maximum stack footprint of the
-	  kernel and displays it in /sys/kernel/debug/tracing/stack_trace.
-
-	  This tracer works by hooking into every function call that the
-	  kernel executes, and keeping a maximum stack depth value and
-	  stack-trace saved.  If this is configured with DYNAMIC_FTRACE
-	  then it will not have any overhead while the stack tracer
-	  is disabled.
-
-	  To enable the stack tracer on bootup, pass in 'stacktrace'
-	  on the kernel command line.
-
-	  The stack tracer can also be enabled or disabled via the
-	  sysctl kernel.stack_tracer_enabled
-
-	  Say N if unsure.
-
 config BLK_DEV_IO_TRACE
 	bool "Support for tracing block IO actions"
 	depends on SYSFS
@@ -531,53 +600,6 @@ config DYNAMIC_EVENTS
 config PROBE_EVENTS
 	def_bool n
 
-config DYNAMIC_FTRACE
-	bool "enable/disable function tracing dynamically"
-	depends on FUNCTION_TRACER
-	depends on HAVE_DYNAMIC_FTRACE
-	default y
-	help
-	  This option will modify all the calls to function tracing
-	  dynamically (will patch them out of the binary image and
-	  replace them with a No-Op instruction) on boot up. During
-	  compile time, a table is made of all the locations that ftrace
-	  can function trace, and this table is linked into the kernel
-	  image. When this is enabled, functions can be individually
-	  enabled, and the functions not enabled will not affect
-	  performance of the system.
-
-	  See the files in /sys/kernel/debug/tracing:
-	    available_filter_functions
-	    set_ftrace_filter
-	    set_ftrace_notrace
-
-	  This way a CONFIG_FUNCTION_TRACER kernel is slightly larger, but
-	  otherwise has native performance as long as no tracing is active.
-
-config DYNAMIC_FTRACE_WITH_REGS
-	def_bool y
-	depends on DYNAMIC_FTRACE
-	depends on HAVE_DYNAMIC_FTRACE_WITH_REGS
-
-config DYNAMIC_FTRACE_WITH_DIRECT_CALLS
-	def_bool y
-	depends on DYNAMIC_FTRACE
-	depends on HAVE_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
-
-config FUNCTION_PROFILER
-	bool "Kernel function profiler"
-	depends on FUNCTION_TRACER
-	default n
-	help
-	  This option enables the kernel function profiler. A file is created
-	  in debugfs called function_profile_enabled which defaults to zero.
-	  When a 1 is echoed into this file profiling begins, and when a
-	  zero is entered, profiling stops. A "functions" file is created in
-	  the trace_stat directory; this file shows the list of functions that
-	  have been hit and their counters.
-
-	  If in doubt, say N.
-
 config BPF_KPROBE_OVERRIDE
 	bool "Enable BPF programs to override a kprobed function"
 	depends on BPF_EVENTS
@@ -591,54 +613,6 @@ config FTRACE_MCOUNT_RECORD
 	def_bool y
 	depends on DYNAMIC_FTRACE
 	depends on HAVE_FTRACE_MCOUNT_RECORD
-
-config FTRACE_SELFTEST
-	bool
-
-config FTRACE_STARTUP_TEST
-	bool "Perform a startup test on ftrace"
-	depends on GENERIC_TRACER
-	select FTRACE_SELFTEST
-	help
-	  This option performs a series of startup tests on ftrace. On bootup
-	  a series of tests are made to verify that the tracer is
-	  functioning properly. It will do tests on all the configured
-	  tracers of ftrace.
-
-config EVENT_TRACE_STARTUP_TEST
-	bool "Run selftest on trace events"
-	depends on FTRACE_STARTUP_TEST
-	default y
-	help
-	  This option performs a test on all trace events in the system.
-	  It basically just enables each event and runs some code that
-	  will trigger events (not necessarily the event it enables)
-	  This may take some time run as there are a lot of events.
-
-config EVENT_TRACE_TEST_SYSCALLS
-	bool "Run selftest on syscall events"
-	depends on EVENT_TRACE_STARTUP_TEST
-	help
-	 This option will also enable testing every syscall event.
-	 It only enables the event and disables it and runs various loads
-	 with the event enabled. This adds a bit more time for kernel boot
-	 up since it runs this on every system call defined.
-
-	 TBD - enable a way to actually call the syscalls as we test their
-	       events
-
-config MMIOTRACE
-	bool "Memory mapped IO tracing"
-	depends on HAVE_MMIOTRACE_SUPPORT && PCI
-	select GENERIC_TRACER
-	help
-	  Mmiotrace traces Memory Mapped I/O access and is meant for
-	  debugging and reverse engineering. It is called from the ioremap
-	  implementation and works via page faults. Tracing is disabled by
-	  default and can be enabled at run-time.
-
-	  See Documentation/trace/mmiotrace.rst.
-	  If you are not helping to develop drivers, say N.
 
 config TRACING_MAP
 	bool
@@ -679,16 +653,6 @@ config TRACE_EVENT_INJECT
 	  buffer. This is mainly used for testing purpose.
 
 	  If unsure, say N.
-
-config MMIOTRACE_TEST
-	tristate "Test module for mmiotrace"
-	depends on MMIOTRACE && m
-	help
-	  This is a dumb module for testing mmiotrace. It is very dangerous
-	  as it will write garbage to IO memory starting at a given address.
-	  However, it should be safe to use on e.g. unused portion of VRAM.
-
-	  Say N, unless you absolutely know what you are doing.
 
 config TRACEPOINT_BENCHMARK
 	bool "Add tracepoint that benchmarks tracepoints"
@@ -736,44 +700,6 @@ config RING_BUFFER_BENCHMARK
 
 	  If unsure, say N.
 
-config RING_BUFFER_STARTUP_TEST
-       bool "Ring buffer startup self test"
-       depends on RING_BUFFER
-       help
-	 Run a simple self test on the ring buffer on boot up. Late in the
-	 kernel boot sequence, the test will start that kicks off
-	 a thread per cpu. Each thread will write various size events
-	 into the ring buffer. Another thread is created to send IPIs
-	 to each of the threads, where the IPI handler will also write
-	 to the ring buffer, to test/stress the nesting ability.
-	 If any anomalies are discovered, a warning will be displayed
-	 and all ring buffers will be disabled.
-
-	 The test runs for 10 seconds. This will slow your boot time
-	 by at least 10 more seconds.
-
-	 At the end of the test, statics and more checks are done.
-	 It will output the stats of each per cpu buffer. What
-	 was written, the sizes, what was read, what was lost, and
-	 other similar details.
-
-	 If unsure, say N
-
-config PREEMPTIRQ_DELAY_TEST
-	tristate "Preempt / IRQ disable delay thread to test latency tracers"
-	depends on m
-	help
-	  Select this option to build a test module that can help test latency
-	  tracers by executing a preempt or irq disable section with a user
-	  configurable delay. The module busy waits for the duration of the
-	  critical section.
-
-	  For example, the following invocation generates a burst of three
-	  irq-disabled critical sections for 500us:
-	  modprobe preemptirq_delay_test test_mode=irq delay=500 burst_size=3
-
-	  If unsure, say N
-
 config TRACE_EVAL_MAP_FILE
        bool "Show eval mappings for trace events"
        depends on TRACING
@@ -813,6 +739,114 @@ config GCOV_PROFILE_FTRACE
 
 	  Note that on a kernel compiled with this config, ftrace will
 	  run significantly slower.
+
+config FTRACE_SELFTEST
+	bool
+
+config FTRACE_STARTUP_TEST
+	bool "Perform a startup test on ftrace"
+	depends on GENERIC_TRACER
+	select FTRACE_SELFTEST
+	help
+	  This option performs a series of startup tests on ftrace. On bootup
+	  a series of tests are made to verify that the tracer is
+	  functioning properly. It will do tests on all the configured
+	  tracers of ftrace.
+
+config EVENT_TRACE_STARTUP_TEST
+	bool "Run selftest on trace events"
+	depends on FTRACE_STARTUP_TEST
+	default y
+	help
+	  This option performs a test on all trace events in the system.
+	  It basically just enables each event and runs some code that
+	  will trigger events (not necessarily the event it enables)
+	  This may take some time run as there are a lot of events.
+
+config EVENT_TRACE_TEST_SYSCALLS
+	bool "Run selftest on syscall events"
+	depends on EVENT_TRACE_STARTUP_TEST
+	help
+	 This option will also enable testing every syscall event.
+	 It only enables the event and disables it and runs various loads
+	 with the event enabled. This adds a bit more time for kernel boot
+	 up since it runs this on every system call defined.
+
+	 TBD - enable a way to actually call the syscalls as we test their
+	       events
+
+config RING_BUFFER_STARTUP_TEST
+       bool "Ring buffer startup self test"
+       depends on RING_BUFFER
+       help
+	 Run a simple self test on the ring buffer on boot up. Late in the
+	 kernel boot sequence, the test will start that kicks off
+	 a thread per cpu. Each thread will write various size events
+	 into the ring buffer. Another thread is created to send IPIs
+	 to each of the threads, where the IPI handler will also write
+	 to the ring buffer, to test/stress the nesting ability.
+	 If any anomalies are discovered, a warning will be displayed
+	 and all ring buffers will be disabled.
+
+	 The test runs for 10 seconds. This will slow your boot time
+	 by at least 10 more seconds.
+
+	 At the end of the test, statics and more checks are done.
+	 It will output the stats of each per cpu buffer. What
+	 was written, the sizes, what was read, what was lost, and
+	 other similar details.
+
+	 If unsure, say N
+
+config MMIOTRACE_TEST
+	tristate "Test module for mmiotrace"
+	depends on MMIOTRACE && m
+	help
+	  This is a dumb module for testing mmiotrace. It is very dangerous
+	  as it will write garbage to IO memory starting at a given address.
+	  However, it should be safe to use on e.g. unused portion of VRAM.
+
+	  Say N, unless you absolutely know what you are doing.
+
+config PREEMPTIRQ_DELAY_TEST
+	tristate "Test module to create a preempt / IRQ disable delay thread to test latency tracers"
+	depends on m
+	help
+	  Select this option to build a test module that can help test latency
+	  tracers by executing a preempt or irq disable section with a user
+	  configurable delay. The module busy waits for the duration of the
+	  critical section.
+
+	  For example, the following invocation generates a burst of three
+	  irq-disabled critical sections for 500us:
+	  modprobe preemptirq_delay_test test_mode=irq delay=500 burst_size=3
+
+	  If unsure, say N
+
+config SYNTH_EVENT_GEN_TEST
+	tristate "Test module for in-kernel synthetic event generation"
+	depends on HIST_TRIGGERS
+	help
+          This option creates a test module to check the base
+          functionality of in-kernel synthetic event definition and
+          generation.
+
+          To test, insert the module, and then check the trace buffer
+	  for the generated sample events.
+
+	  If unsure, say N.
+
+config KPROBE_EVENT_GEN_TEST
+	tristate "Test module for in-kernel kprobe event generation"
+	depends on KPROBE_EVENTS
+	help
+          This option creates a test module to check the base
+          functionality of in-kernel kprobe event definition.
+
+          To test, insert the module, and then check the trace buffer
+	  for the generated kprobe events.
+
+	  If unsure, say N.
 
 endif # FTRACE
 

@@ -239,6 +239,14 @@ config FSL_RAID
 	  the capability to offload memcpy, xor and pq computation
 	  for raid5/6.
 
+config HISI_DMA
+	tristate "HiSilicon DMA Engine support"
+	depends on ARM64 || (COMPILE_TEST && PCI_MSI)
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Support HiSilicon Kunpeng DMA engine.
+
 config IMG_MDC_DMA
 	tristate "IMG MDC support"
 	depends on MIPS || COMPILE_TEST
@@ -272,6 +280,19 @@ config INTEL_IDMA64
 	help
 	  Enable DMA support for Intel Low Power Subsystem such as found on
 	  Intel Skylake PCH.
+
+config INTEL_IDXD
+	tristate "Intel Data Accelerators support"
+	depends on PCI && X86_64
+	select DMA_ENGINE
+	select SBITMAP
+	help
+	  Enable support for the Intel(R) data accelerators present
+	  in Intel Xeon CPU.
+
+	  Say Y if you have such a platform.
+
+	  If unsure, say N.
 
 config INTEL_IOATDMA
 	tristate "Intel I/OAT DMA support"
@@ -496,6 +517,15 @@ config PXA_DMA
 	  platform. The internal DMA IP of all PXA variants is supported, with
 	  16 to 32 channels for peripheral to memory or memory to memory
 	  transfers.
+
+config PLX_DMA
+	tristate "PLX ExpressLane PEX Switch DMA Engine Support"
+	depends on PCI
+	select DMA_ENGINE
+	help
+	  Some PLX ExpressLane PCI Switches support additional DMA engines.
+	  These are exposed via extra functions on the switch's
+	  upstream port. Each function exposes one DMA channel.
 
 config SIRF_DMA
 	tristate "CSR SiRFprimaII/SiRFmarco DMA support"

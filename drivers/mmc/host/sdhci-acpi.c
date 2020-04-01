@@ -719,7 +719,7 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 		goto err_free;
 	}
 
-	host->ioaddr = devm_ioremap_nocache(dev, iomem->start,
+	host->ioaddr = devm_ioremap(dev, iomem->start,
 					    resource_size(iomem));
 	if (host->ioaddr == NULL) {
 		err = -ENOMEM;

@@ -500,7 +500,7 @@ static int sas_ex_general(struct domain_device *dev)
 		ex_assign_report_general(dev, rg_resp);
 
 		if (dev->ex_dev.configuring) {
-			pr_debug("RG: ex %llx self-configuring...\n",
+			pr_debug("RG: ex %016llx self-configuring...\n",
 				 SAS_ADDR(dev->sas_addr));
 			schedule_timeout_interruptible(5*HZ);
 		} else
@@ -881,7 +881,7 @@ static struct domain_device *sas_ex_discover_end_dev(
 
 		res = sas_discover_end_dev(child);
 		if (res) {
-			pr_notice("sas_discover_end_dev() for device %16llx at %016llx:%02d returned 0x%x\n",
+			pr_notice("sas_discover_end_dev() for device %016llx at %016llx:%02d returned 0x%x\n",
 				  SAS_ADDR(child->sas_addr),
 				  SAS_ADDR(parent->sas_addr), phy_id, res);
 			goto out_list_del;

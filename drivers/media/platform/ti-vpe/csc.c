@@ -149,36 +149,28 @@ void csc_set_coeff(struct csc_data *csc, u32 *csc_reg0,
 	enum v4l2_quantization src_quantization, dst_quantization;
 	u32 src_pixelformat, dst_pixelformat;
 
-	switch (src_fmt->type) {
-	case V4L2_BUF_TYPE_VIDEO_OUTPUT:
-		pix = &src_fmt->fmt.pix;
-		src_pixelformat = pix->pixelformat;
-		src_ycbcr_enc = pix->ycbcr_enc;
-		src_quantization = pix->quantization;
-		break;
-	case V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE:
-	default:
+	if (V4L2_TYPE_IS_MULTIPLANAR(src_fmt->type)) {
 		mp = &src_fmt->fmt.pix_mp;
 		src_pixelformat = mp->pixelformat;
 		src_ycbcr_enc = mp->ycbcr_enc;
 		src_quantization = mp->quantization;
-		break;
+	} else {
+		pix = &src_fmt->fmt.pix;
+		src_pixelformat = pix->pixelformat;
+		src_ycbcr_enc = pix->ycbcr_enc;
+		src_quantization = pix->quantization;
 	}
 
-	switch (dst_fmt->type) {
-	case V4L2_BUF_TYPE_VIDEO_OUTPUT:
-		pix = &dst_fmt->fmt.pix;
-		dst_pixelformat = pix->pixelformat;
-		dst_ycbcr_enc = pix->ycbcr_enc;
-		dst_quantization = pix->quantization;
-		break;
-	case V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE:
-	default:
+	if (V4L2_TYPE_IS_MULTIPLANAR(dst_fmt->type)) {
 		mp = &dst_fmt->fmt.pix_mp;
 		dst_pixelformat = mp->pixelformat;
 		dst_ycbcr_enc = mp->ycbcr_enc;
 		dst_quantization = mp->quantization;
-		break;
+	} else {
+		pix = &dst_fmt->fmt.pix;
+		dst_pixelformat = pix->pixelformat;
+		dst_ycbcr_enc = pix->ycbcr_enc;
+		dst_quantization = pix->quantization;
 	}
 
 	src_finfo = v4l2_format_info(src_pixelformat);

@@ -166,8 +166,9 @@ static const unsigned int sdm845_ufsphy_regs_layout[] = {
 };
 
 static const unsigned int sm8150_ufsphy_regs_layout[] = {
-	[QPHY_START_CTRL]		= 0x00,
-	[QPHY_PCS_READY_STATUS]		= 0x180,
+	[QPHY_START_CTRL]		= QPHY_V4_PHY_START,
+	[QPHY_PCS_READY_STATUS]		= QPHY_V4_PCS_READY_STATUS,
+	[QPHY_SW_RESET]			= QPHY_V4_SW_RESET,
 };
 
 static const struct qmp_phy_init_tbl msm8996_pcie_serdes_tbl[] = {
@@ -885,7 +886,6 @@ static const struct qmp_phy_init_tbl msm8998_usb3_pcs_tbl[] = {
 };
 
 static const struct qmp_phy_init_tbl sm8150_ufsphy_serdes_tbl[] = {
-	QMP_PHY_INIT_CFG(QPHY_POWER_DOWN_CONTROL, 0x01),
 	QMP_PHY_INIT_CFG(QSERDES_V4_COM_SYSCLK_EN_SEL, 0xd9),
 	QMP_PHY_INIT_CFG(QSERDES_V4_COM_HSCLK_SEL, 0x11),
 	QMP_PHY_INIT_CFG(QSERDES_V4_COM_HSCLK_HS_SWITCH_SEL, 0x00),
@@ -1390,7 +1390,6 @@ static const struct qmp_phy_cfg sm8150_ufsphy_cfg = {
 	.pwrdn_ctrl		= SW_PWRDN,
 
 	.is_dual_lane_phy	= true,
-	.no_pcs_sw_reset	= true,
 };
 
 static void qcom_qmp_phy_configure(void __iomem *base,

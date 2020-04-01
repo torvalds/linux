@@ -190,6 +190,38 @@ static ssize_t mem_sleep_store(struct kobject *kobj, struct kobj_attribute *attr
 }
 
 power_attr(mem_sleep);
+
+/*
+ * sync_on_suspend: invoke ksys_sync_helper() before suspend.
+ *
+ * show() returns whether ksys_sync_helper() is invoked before suspend.
+ * store() accepts 0 or 1.  0 disables ksys_sync_helper() and 1 enables it.
+ */
+bool sync_on_suspend_enabled = !IS_ENABLED(CONFIG_SUSPEND_SKIP_SYNC);
+
+static ssize_t sync_on_suspend_show(struct kobject *kobj,
+				   struct kobj_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", sync_on_suspend_enabled);
+}
+
+static ssize_t sync_on_suspend_store(struct kobject *kobj,
+				    struct kobj_attribute *attr,
+				    const char *buf, size_t n)
+{
+	unsigned long val;
+
+	if (kstrtoul(buf, 10, &val))
+		return -EINVAL;
+
+	if (val > 1)
+		return -EINVAL;
+
+	sync_on_suspend_enabled = !!val;
+	return n;
+}
+
+power_attr(sync_on_suspend);
 #endif /* CONFIG_SUSPEND */
 
 #ifdef CONFIG_PM_SLEEP_DEBUG
@@ -855,6 +887,7 @@ static struct attribute * g[] = {
 	&wakeup_count_attr.attr,
 #ifdef CONFIG_SUSPEND
 	&mem_sleep_attr.attr,
+	&sync_on_suspend_attr.attr,
 #endif
 #ifdef CONFIG_PM_AUTOSLEEP
 	&autosleep_attr.attr,

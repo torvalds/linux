@@ -54,15 +54,15 @@ static u32 pxp_global_win[] = {
 	0x1c80, /* win 3: addr=0x1c80000, size=4096 bytes */
 	0x1d00, /* win 4: addr=0x1d00000, size=4096 bytes */
 	0x1d01, /* win 5: addr=0x1d01000, size=4096 bytes */
-	0x1d80, /* win 6: addr=0x1d80000, size=4096 bytes */
-	0x1d81, /* win 7: addr=0x1d81000, size=4096 bytes */
-	0x1d82, /* win 8: addr=0x1d82000, size=4096 bytes */
-	0x1e00, /* win 9: addr=0x1e00000, size=4096 bytes */
-	0x1e80, /* win 10: addr=0x1e80000, size=4096 bytes */
-	0x1f00, /* win 11: addr=0x1f00000, size=4096 bytes */
-	0,
-	0,
-	0,
+	0x1d02, /* win 6: addr=0x1d02000, size=4096 bytes */
+	0x1d80, /* win 7: addr=0x1d80000, size=4096 bytes */
+	0x1d81, /* win 8: addr=0x1d81000, size=4096 bytes */
+	0x1d82, /* win 9: addr=0x1d82000, size=4096 bytes */
+	0x1e00, /* win 10: addr=0x1e00000, size=4096 bytes */
+	0x1e01, /* win 11: addr=0x1e01000, size=4096 bytes */
+	0x1e80, /* win 12: addr=0x1e80000, size=4096 bytes */
+	0x1f00, /* win 13: addr=0x1f00000, size=4096 bytes */
+	0x1c08, /* win 14: addr=0x1c08000, size=4096 bytes */
 	0,
 	0,
 	0,
@@ -72,15 +72,6 @@ static u32 pxp_global_win[] = {
 void qed_init_iro_array(struct qed_dev *cdev)
 {
 	cdev->iro_arr = iro_arr;
-}
-
-/* Runtime configuration helpers */
-void qed_init_clear_rt_data(struct qed_hwfn *p_hwfn)
-{
-	int i;
-
-	for (i = 0; i < RUNTIME_ARRAY_SIZE; i++)
-		p_hwfn->rt_data.b_valid[i] = false;
 }
 
 void qed_init_store_rt_reg(struct qed_hwfn *p_hwfn, u32 rt_offset, u32 val)
@@ -106,7 +97,7 @@ static int qed_init_rt(struct qed_hwfn	*p_hwfn,
 {
 	u32 *p_init_val = &p_hwfn->rt_data.init_val[rt_offset];
 	bool *p_valid = &p_hwfn->rt_data.b_valid[rt_offset];
-	u16 i, segment;
+	u16 i, j, segment;
 	int rc = 0;
 
 	/* Since not all RT entries are initialized, go over the RT and
@@ -121,6 +112,7 @@ static int qed_init_rt(struct qed_hwfn	*p_hwfn,
 		 */
 		if (!b_must_dmae) {
 			qed_wr(p_hwfn, p_ptt, addr + (i << 2), p_init_val[i]);
+			p_valid[i] = false;
 			continue;
 		}
 
@@ -134,6 +126,10 @@ static int qed_init_rt(struct qed_hwfn	*p_hwfn,
 				       addr + (i << 2), segment, NULL);
 		if (rc)
 			return rc;
+
+		/* invalidate after writing */
+		for (j = i; j < i + segment; j++)
+			p_valid[j] = false;
 
 		/* Jump over the entire segment, including invalid entry */
 		i += segment;
@@ -215,7 +211,7 @@ static int qed_init_fill_dmae(struct qed_hwfn *p_hwfn,
 	 * 3. p_hwfb->temp_data,
 	 * 4. fill_count
 	 */
-	params.flags = QED_DMAE_FLAG_RW_REPL_SRC;
+	SET_FIELD(params.flags, QED_DMAE_PARAMS_RW_REPL_SRC, 0x1);
 	return qed_dmae_host2grc(p_hwfn, p_ptt,
 				 (uintptr_t)(&zero_buffer[0]),
 				 addr, fill_count, &params);
@@ -490,10 +486,10 @@ static u32 qed_init_cmd_phase(struct qed_hwfn *p_hwfn,
 int qed_init_run(struct qed_hwfn *p_hwfn,
 		 struct qed_ptt *p_ptt, int phase, int phase_id, int modes)
 {
+	bool b_dmae = (phase != PHASE_ENGINE);
 	struct qed_dev *cdev = p_hwfn->cdev;
 	u32 cmd_num, num_init_ops;
 	union init_op *init_ops;
-	bool b_dmae = false;
 	int rc = 0;
 
 	num_init_ops = cdev->fw_data->init_ops_size;
@@ -522,7 +518,6 @@ int qed_init_run(struct qed_hwfn *p_hwfn,
 		case INIT_OP_IF_PHASE:
 			cmd_num += qed_init_cmd_phase(p_hwfn, &cmd->if_phase,
 						      phase, phase_id);
-			b_dmae = GET_FIELD(data, INIT_IF_PHASE_OP_DMAE_ENABLE);
 			break;
 		case INIT_OP_DELAY:
 			/* qed_init_run is always invoked from
@@ -533,6 +528,9 @@ int qed_init_run(struct qed_hwfn *p_hwfn,
 
 		case INIT_OP_CALLBACK:
 			rc = qed_init_cmd_cb(p_hwfn, p_ptt, &cmd->callback);
+			if (phase == PHASE_ENGINE &&
+			    cmd->callback.callback_id == DMAE_READY_CB)
+				b_dmae = true;
 			break;
 		}
 
@@ -586,6 +584,11 @@ int qed_init_fw_data(struct qed_dev *cdev, const u8 *data)
 	fw->modes_tree_buf = (u8 *)(data + offset);
 	len = buf_hdr[BIN_BUF_INIT_CMD].length;
 	fw->init_ops_size = len / sizeof(struct init_raw_op);
+
+	offset = buf_hdr[BIN_BUF_INIT_OVERLAYS].offset;
+	fw->fw_overlays = (u32 *)(data + offset);
+	len = buf_hdr[BIN_BUF_INIT_OVERLAYS].length;
+	fw->fw_overlays_len = len;
 
 	return 0;
 }

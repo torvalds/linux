@@ -220,8 +220,7 @@ static const struct regmap_config tps65132_regmap_config = {
 	.wr_table	= &tps65132_no_reg_table,
 };
 
-static int tps65132_probe(struct i2c_client *client,
-			  const struct i2c_device_id *client_id)
+static int tps65132_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct tps65132_regulator *tps;
@@ -272,7 +271,7 @@ static struct i2c_driver tps65132_i2c_driver = {
 	.driver = {
 		.name = "tps65132",
 	},
-	.probe = tps65132_probe,
+	.probe_new = tps65132_probe,
 	.id_table = tps65132_id,
 };
 

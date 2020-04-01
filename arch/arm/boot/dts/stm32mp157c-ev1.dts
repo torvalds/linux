@@ -283,6 +283,18 @@
 	};
 };
 
+&sdmmc3 {
+	pinctrl-names = "default", "opendrain", "sleep";
+	pinctrl-0 = <&sdmmc3_b4_pins_a>;
+	pinctrl-1 = <&sdmmc3_b4_od_pins_a>;
+	pinctrl-2 = <&sdmmc3_b4_sleep_pins_a>;
+	broken-cd;
+	st,neg-edge;
+	bus-width = <4>;
+	vmmc-supply = <&v3v3>;
+	status = "disabled";
+};
+
 &spi1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi1_pins_a>;
@@ -296,7 +308,8 @@
 	status = "disabled";
 	pwm {
 		pinctrl-0 = <&pwm2_pins_a>;
-		pinctrl-names = "default";
+		pinctrl-1 = <&pwm2_sleep_pins_a>;
+		pinctrl-names = "default", "sleep";
 		status = "okay";
 	};
 	timer@1 {
@@ -310,7 +323,8 @@
 	status = "disabled";
 	pwm {
 		pinctrl-0 = <&pwm8_pins_a>;
-		pinctrl-names = "default";
+		pinctrl-1 = <&pwm8_sleep_pins_a>;
+		pinctrl-names = "default", "sleep";
 		status = "okay";
 	};
 	timer@7 {
@@ -324,7 +338,8 @@
 	status = "disabled";
 	pwm {
 		pinctrl-0 = <&pwm12_pins_a>;
-		pinctrl-names = "default";
+		pinctrl-1 = <&pwm12_sleep_pins_a>;
+		pinctrl-names = "default", "sleep";
 		status = "okay";
 	};
 	timer@11 {
@@ -340,6 +355,7 @@
 &usbotg_hs {
 	dr_mode = "peripheral";
 	phys = <&usbphyc_port1 0>;
+	phy-names = "usb2-phy";
 	status = "okay";
 };
 

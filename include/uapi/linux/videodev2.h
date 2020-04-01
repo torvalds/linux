@@ -912,6 +912,25 @@ struct v4l2_jpegcompression {
 /*
  *	M E M O R Y - M A P P I N G   B U F F E R S
  */
+
+#ifdef __KERNEL__
+/*
+ * This corresponds to the user space version of timeval
+ * for 64-bit time_t. sparc64 is different from everyone
+ * else, using the microseconds in the wrong half of the
+ * second 64-bit word.
+ */
+struct __kernel_v4l2_timeval {
+	long long	tv_sec;
+#if defined(__sparc__) && defined(__arch64__)
+	int		tv_usec;
+	int		__pad;
+#else
+	long long	tv_usec;
+#endif
+};
+#endif
+
 struct v4l2_requestbuffers {
 	__u32			count;
 	__u32			type;		/* enum v4l2_buf_type */
@@ -997,7 +1016,11 @@ struct v4l2_buffer {
 	__u32			bytesused;
 	__u32			flags;
 	__u32			field;
+#ifdef __KERNEL__
+	struct __kernel_v4l2_timeval timestamp;
+#else
 	struct timeval		timestamp;
+#endif
 	struct v4l2_timecode	timecode;
 	__u32			sequence;
 
@@ -1017,6 +1040,7 @@ struct v4l2_buffer {
 	};
 };
 
+#ifndef __KERNEL__
 /**
  * v4l2_timeval_to_ns - Convert timeval to nanoseconds
  * @ts:		pointer to the timeval variable to be converted
@@ -1028,6 +1052,7 @@ static inline __u64 v4l2_timeval_to_ns(const struct timeval *tv)
 {
 	return (__u64)tv->tv_sec * 1000000000ULL + tv->tv_usec * 1000;
 }
+#endif
 
 /*  Flags for 'flags' field */
 /* Buffer is mapped (flag) */
@@ -2339,7 +2364,11 @@ struct v4l2_event {
 	} u;
 	__u32				pending;
 	__u32				sequence;
+#ifdef __KERNEL__
+	struct __kernel_timespec	timestamp;
+#else
 	struct timespec			timestamp;
+#endif
 	__u32				id;
 	__u32				reserved[8];
 };

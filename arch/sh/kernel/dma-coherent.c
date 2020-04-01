@@ -28,7 +28,7 @@ void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
 	arch_sync_dma_for_device(virt_to_phys(ret), size,
 			DMA_BIDIRECTIONAL);
 
-	ret_nocache = (void __force *)ioremap_nocache(virt_to_phys(ret), size);
+	ret_nocache = (void __force *)ioremap(virt_to_phys(ret), size);
 	if (!ret_nocache) {
 		free_pages((unsigned long)ret, order);
 		return NULL;

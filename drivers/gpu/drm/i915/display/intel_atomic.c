@@ -37,6 +37,7 @@
 #include "intel_atomic.h"
 #include "intel_display_types.h"
 #include "intel_hdcp.h"
+#include "intel_psr.h"
 #include "intel_sprite.h"
 
 /**
@@ -129,6 +130,7 @@ int intel_digital_connector_atomic_check(struct drm_connector *conn,
 	struct drm_crtc_state *crtc_state;
 
 	intel_hdcp_atomic_check(conn, old_state, new_state);
+	intel_psr_atomic_check(conn, old_state, new_state);
 
 	if (!new_state->crtc)
 		return 0;
@@ -175,6 +177,38 @@ intel_digital_connector_duplicate_state(struct drm_connector *connector)
 }
 
 /**
+ * intel_connector_needs_modeset - check if connector needs a modeset
+ */
+bool
+intel_connector_needs_modeset(struct intel_atomic_state *state,
+			      struct drm_connector *connector)
+{
+	const struct drm_connector_state *old_conn_state, *new_conn_state;
+
+	old_conn_state = drm_atomic_get_old_connector_state(&state->base, connector);
+	new_conn_state = drm_atomic_get_new_connector_state(&state->base, connector);
+
+	return old_conn_state->crtc != new_conn_state->crtc ||
+	       (new_conn_state->crtc &&
+		drm_atomic_crtc_needs_modeset(drm_atomic_get_new_crtc_state(&state->base,
+									    new_conn_state->crtc)));
+}
+
+struct intel_digital_connector_state *
+intel_atomic_get_digital_connector_state(struct intel_atomic_state *state,
+					 struct intel_connector *connector)
+{
+	struct drm_connector_state *conn_state;
+
+	conn_state = drm_atomic_get_connector_state(&state->base,
+						    &connector->base);
+	if (IS_ERR(conn_state))
+		return ERR_CAST(conn_state);
+
+	return to_intel_digital_connector_state(conn_state);
+}
+
+/**
  * intel_crtc_duplicate_state - duplicate crtc state
  * @crtc: drm crtc
  *
@@ -186,13 +220,22 @@ intel_digital_connector_duplicate_state(struct drm_connector *connector)
 struct drm_crtc_state *
 intel_crtc_duplicate_state(struct drm_crtc *crtc)
 {
+	const struct intel_crtc_state *old_crtc_state = to_intel_crtc_state(crtc->state);
 	struct intel_crtc_state *crtc_state;
 
-	crtc_state = kmemdup(crtc->state, sizeof(*crtc_state), GFP_KERNEL);
+	crtc_state = kmemdup(old_crtc_state, sizeof(*crtc_state), GFP_KERNEL);
 	if (!crtc_state)
 		return NULL;
 
-	__drm_atomic_helper_crtc_duplicate_state(crtc, &crtc_state->base);
+	__drm_atomic_helper_crtc_duplicate_state(crtc, &crtc_state->uapi);
+
+	/* copy color blobs */
+	if (crtc_state->hw.degamma_lut)
+		drm_property_blob_get(crtc_state->hw.degamma_lut);
+	if (crtc_state->hw.ctm)
+		drm_property_blob_get(crtc_state->hw.ctm);
+	if (crtc_state->hw.gamma_lut)
+		drm_property_blob_get(crtc_state->hw.gamma_lut);
 
 	crtc_state->update_pipe = false;
 	crtc_state->disable_lp_wm = false;
@@ -205,7 +248,29 @@ intel_crtc_duplicate_state(struct drm_crtc *crtc)
 	crtc_state->fb_bits = 0;
 	crtc_state->update_planes = 0;
 
-	return &crtc_state->base;
+	return &crtc_state->uapi;
+}
+
+static void intel_crtc_put_color_blobs(struct intel_crtc_state *crtc_state)
+{
+	drm_property_blob_put(crtc_state->hw.degamma_lut);
+	drm_property_blob_put(crtc_state->hw.gamma_lut);
+	drm_property_blob_put(crtc_state->hw.ctm);
+}
+
+void intel_crtc_free_hw_state(struct intel_crtc_state *crtc_state)
+{
+	intel_crtc_put_color_blobs(crtc_state);
+}
+
+void intel_crtc_copy_color_blobs(struct intel_crtc_state *crtc_state)
+{
+	drm_property_replace_blob(&crtc_state->hw.degamma_lut,
+				  crtc_state->uapi.degamma_lut);
+	drm_property_replace_blob(&crtc_state->hw.gamma_lut,
+				  crtc_state->uapi.gamma_lut);
+	drm_property_replace_blob(&crtc_state->hw.ctm,
+				  crtc_state->uapi.ctm);
 }
 
 /**
@@ -220,7 +285,11 @@ void
 intel_crtc_destroy_state(struct drm_crtc *crtc,
 			 struct drm_crtc_state *state)
 {
-	drm_atomic_helper_crtc_destroy_state(crtc, state);
+	struct intel_crtc_state *crtc_state = to_intel_crtc_state(state);
+
+	__drm_atomic_helper_crtc_destroy_state(&crtc_state->uapi);
+	intel_crtc_free_hw_state(crtc_state);
+	kfree(crtc_state);
 }
 
 static void intel_atomic_setup_scaler(struct intel_crtc_scaler_state *scaler_state,
@@ -249,10 +318,10 @@ static void intel_atomic_setup_scaler(struct intel_crtc_scaler_state *scaler_sta
 		return;
 
 	/* set scaler mode */
-	if (plane_state && plane_state->base.fb &&
-	    plane_state->base.fb->format->is_yuv &&
-	    plane_state->base.fb->format->num_planes > 1) {
-		struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
+	if (plane_state && plane_state->hw.fb &&
+	    plane_state->hw.fb->format->is_yuv &&
+	    plane_state->hw.fb->format->num_planes > 1) {
+		struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
 		if (IS_GEN(dev_priv, 9) &&
 		    !IS_GEMINILAKE(dev_priv)) {
 			mode = SKL_PS_SCALER_MODE_NV12;
@@ -319,7 +388,7 @@ int intel_atomic_setup_scalers(struct drm_i915_private *dev_priv,
 	struct intel_plane_state *plane_state = NULL;
 	struct intel_crtc_scaler_state *scaler_state =
 		&crtc_state->scaler_state;
-	struct drm_atomic_state *drm_state = crtc_state->base.state;
+	struct drm_atomic_state *drm_state = crtc_state->uapi.state;
 	struct intel_atomic_state *intel_state = to_intel_atomic_state(drm_state);
 	int num_scalers_need;
 	int i;

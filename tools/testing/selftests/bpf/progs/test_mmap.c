@@ -3,7 +3,7 @@
 
 #include <linux/bpf.h>
 #include <stdint.h>
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 
 char _license[] SEC("license") = "GPL";
 

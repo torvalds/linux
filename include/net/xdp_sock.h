@@ -72,7 +72,6 @@ struct xdp_umem {
 
 struct xsk_map {
 	struct bpf_map map;
-	struct list_head __percpu *flush_list;
 	spinlock_t lock; /* Synchronize map updates */
 	struct xdp_sock *xsk_map[];
 };
@@ -119,8 +118,8 @@ int xsk_generic_rcv(struct xdp_sock *xs, struct xdp_buff *xdp);
 bool xsk_is_setup_for_bpf_map(struct xdp_sock *xs);
 /* Used from netdev driver */
 bool xsk_umem_has_addrs(struct xdp_umem *umem, u32 cnt);
-u64 *xsk_umem_peek_addr(struct xdp_umem *umem, u64 *addr);
-void xsk_umem_discard_addr(struct xdp_umem *umem);
+bool xsk_umem_peek_addr(struct xdp_umem *umem, u64 *addr);
+void xsk_umem_release_addr(struct xdp_umem *umem);
 void xsk_umem_complete_tx(struct xdp_umem *umem, u32 nb_entries);
 bool xsk_umem_consume_tx(struct xdp_umem *umem, struct xdp_desc *desc);
 void xsk_umem_consume_tx_done(struct xdp_umem *umem);
@@ -139,9 +138,8 @@ void xsk_map_try_sock_delete(struct xsk_map *map, struct xdp_sock *xs,
 			     struct xdp_sock **map_entry);
 int xsk_map_inc(struct xsk_map *map);
 void xsk_map_put(struct xsk_map *map);
-int __xsk_map_redirect(struct bpf_map *map, struct xdp_buff *xdp,
-		       struct xdp_sock *xs);
-void __xsk_map_flush(struct bpf_map *map);
+int __xsk_map_redirect(struct xdp_sock *xs, struct xdp_buff *xdp);
+void __xsk_map_flush(void);
 
 static inline struct xdp_sock *__xsk_map_lookup_elem(struct bpf_map *map,
 						     u32 key)
@@ -199,7 +197,7 @@ static inline bool xsk_umem_has_addrs_rq(struct xdp_umem *umem, u32 cnt)
 	return xsk_umem_has_addrs(umem, cnt - rq->length);
 }
 
-static inline u64 *xsk_umem_peek_addr_rq(struct xdp_umem *umem, u64 *addr)
+static inline bool xsk_umem_peek_addr_rq(struct xdp_umem *umem, u64 *addr)
 {
 	struct xdp_umem_fq_reuse *rq = umem->fq_reuse;
 
@@ -210,12 +208,12 @@ static inline u64 *xsk_umem_peek_addr_rq(struct xdp_umem *umem, u64 *addr)
 	return addr;
 }
 
-static inline void xsk_umem_discard_addr_rq(struct xdp_umem *umem)
+static inline void xsk_umem_release_addr_rq(struct xdp_umem *umem)
 {
 	struct xdp_umem_fq_reuse *rq = umem->fq_reuse;
 
 	if (!rq->length)
-		xsk_umem_discard_addr(umem);
+		xsk_umem_release_addr(umem);
 	else
 		rq->length--;
 }
@@ -260,7 +258,7 @@ static inline u64 *xsk_umem_peek_addr(struct xdp_umem *umem, u64 *addr)
 	return NULL;
 }
 
-static inline void xsk_umem_discard_addr(struct xdp_umem *umem)
+static inline void xsk_umem_release_addr(struct xdp_umem *umem)
 {
 }
 
@@ -334,7 +332,7 @@ static inline u64 *xsk_umem_peek_addr_rq(struct xdp_umem *umem, u64 *addr)
 	return NULL;
 }
 
-static inline void xsk_umem_discard_addr_rq(struct xdp_umem *umem)
+static inline void xsk_umem_release_addr_rq(struct xdp_umem *umem)
 {
 }
 
@@ -369,13 +367,12 @@ static inline u64 xsk_umem_adjust_offset(struct xdp_umem *umem, u64 handle,
 	return 0;
 }
 
-static inline int __xsk_map_redirect(struct bpf_map *map, struct xdp_buff *xdp,
-				     struct xdp_sock *xs)
+static inline int __xsk_map_redirect(struct xdp_sock *xs, struct xdp_buff *xdp)
 {
 	return -EOPNOTSUPP;
 }
 
-static inline void __xsk_map_flush(struct bpf_map *map)
+static inline void __xsk_map_flush(void)
 {
 }
 

@@ -2152,7 +2152,7 @@ static int xgbe_change_mtu(struct net_device *netdev, int mtu)
 	return 0;
 }
 
-static void xgbe_tx_timeout(struct net_device *netdev)
+static void xgbe_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 {
 	struct xgbe_prv_data *pdata = netdev_priv(netdev);
 

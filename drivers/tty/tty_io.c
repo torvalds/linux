@@ -1893,7 +1893,7 @@ static struct tty_driver *tty_lookup_driver(dev_t device, struct file *filp,
 struct tty_struct *tty_kopen(dev_t device)
 {
 	struct tty_struct *tty;
-	struct tty_driver *driver = NULL;
+	struct tty_driver *driver;
 	int index = -1;
 
 	mutex_lock(&tty_mutex);

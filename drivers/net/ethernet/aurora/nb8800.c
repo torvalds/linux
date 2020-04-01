@@ -1005,18 +1005,13 @@ static int nb8800_stop(struct net_device *dev)
 	return 0;
 }
 
-static int nb8800_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
-{
-	return phy_mii_ioctl(dev->phydev, rq, cmd);
-}
-
 static const struct net_device_ops nb8800_netdev_ops = {
 	.ndo_open		= nb8800_open,
 	.ndo_stop		= nb8800_stop,
 	.ndo_start_xmit		= nb8800_xmit,
 	.ndo_set_mac_address	= nb8800_set_mac_address,
 	.ndo_set_rx_mode	= nb8800_set_rx_mode,
-	.ndo_do_ioctl		= nb8800_ioctl,
+	.ndo_do_ioctl		= phy_do_ioctl,
 	.ndo_validate_addr	= eth_validate_addr,
 };
 

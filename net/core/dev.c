@@ -146,7 +146,6 @@
 #include "net-sysfs.h"
 
 #define MAX_GRO_SKBS 8
-#define MAX_NEST_DEV 8
 
 /* This should be increased if a protocol with a bigger head is added. */
 #define GRO_MAX_HEAD (MAX_HEADER + 128)
@@ -331,6 +330,12 @@ int netdev_name_node_alt_destroy(struct net_device *dev, const char *name)
 	name_node = netdev_name_node_lookup(net, name);
 	if (!name_node)
 		return -ENOENT;
+	/* lookup might have found our primary name or a name belonging
+	 * to another device.
+	 */
+	if (name_node == dev->name_node || name_node->dev != dev)
+		return -EINVAL;
+
 	__netdev_name_node_alt_destroy(name_node);
 
 	return 0;
@@ -928,7 +933,7 @@ EXPORT_SYMBOL(dev_get_by_napi_id);
  *
  *	The use of raw_seqcount_begin() and cond_resched() before
  *	retrying is required as we want to give the writers a chance
- *	to complete when CONFIG_PREEMPT is not set.
+ *	to complete when CONFIG_PREEMPTION is not set.
  */
 int netdev_get_name(struct net *net, char *name, int ifindex)
 {
@@ -1764,7 +1769,6 @@ EXPORT_SYMBOL(register_netdevice_notifier);
 
 int unregister_netdevice_notifier(struct notifier_block *nb)
 {
-	struct net_device *dev;
 	struct net *net;
 	int err;
 
@@ -1775,22 +1779,51 @@ int unregister_netdevice_notifier(struct notifier_block *nb)
 	if (err)
 		goto unlock;
 
-	for_each_net(net) {
-		for_each_netdev(net, dev) {
-			if (dev->flags & IFF_UP) {
-				call_netdevice_notifier(nb, NETDEV_GOING_DOWN,
-							dev);
-				call_netdevice_notifier(nb, NETDEV_DOWN, dev);
-			}
-			call_netdevice_notifier(nb, NETDEV_UNREGISTER, dev);
-		}
-	}
+	for_each_net(net)
+		call_netdevice_unregister_net_notifiers(nb, net);
+
 unlock:
 	rtnl_unlock();
 	up_write(&pernet_ops_rwsem);
 	return err;
 }
 EXPORT_SYMBOL(unregister_netdevice_notifier);
+
+static int __register_netdevice_notifier_net(struct net *net,
+					     struct notifier_block *nb,
+					     bool ignore_call_fail)
+{
+	int err;
+
+	err = raw_notifier_chain_register(&net->netdev_chain, nb);
+	if (err)
+		return err;
+	if (dev_boot_phase)
+		return 0;
+
+	err = call_netdevice_register_net_notifiers(nb, net);
+	if (err && !ignore_call_fail)
+		goto chain_unregister;
+
+	return 0;
+
+chain_unregister:
+	raw_notifier_chain_unregister(&net->netdev_chain, nb);
+	return err;
+}
+
+static int __unregister_netdevice_notifier_net(struct net *net,
+					       struct notifier_block *nb)
+{
+	int err;
+
+	err = raw_notifier_chain_unregister(&net->netdev_chain, nb);
+	if (err)
+		return err;
+
+	call_netdevice_unregister_net_notifiers(nb, net);
+	return 0;
+}
 
 /**
  * register_netdevice_notifier_net - register a per-netns network notifier block
@@ -1812,23 +1845,9 @@ int register_netdevice_notifier_net(struct net *net, struct notifier_block *nb)
 	int err;
 
 	rtnl_lock();
-	err = raw_notifier_chain_register(&net->netdev_chain, nb);
-	if (err)
-		goto unlock;
-	if (dev_boot_phase)
-		goto unlock;
-
-	err = call_netdevice_register_net_notifiers(nb, net);
-	if (err)
-		goto chain_unregister;
-
-unlock:
+	err = __register_netdevice_notifier_net(net, nb, false);
 	rtnl_unlock();
 	return err;
-
-chain_unregister:
-	raw_notifier_chain_unregister(&netdev_chain, nb);
-	goto unlock;
 }
 EXPORT_SYMBOL(register_netdevice_notifier_net);
 
@@ -1854,17 +1873,53 @@ int unregister_netdevice_notifier_net(struct net *net,
 	int err;
 
 	rtnl_lock();
-	err = raw_notifier_chain_unregister(&net->netdev_chain, nb);
-	if (err)
-		goto unlock;
-
-	call_netdevice_unregister_net_notifiers(nb, net);
-
-unlock:
+	err = __unregister_netdevice_notifier_net(net, nb);
 	rtnl_unlock();
 	return err;
 }
 EXPORT_SYMBOL(unregister_netdevice_notifier_net);
+
+int register_netdevice_notifier_dev_net(struct net_device *dev,
+					struct notifier_block *nb,
+					struct netdev_net_notifier *nn)
+{
+	int err;
+
+	rtnl_lock();
+	err = __register_netdevice_notifier_net(dev_net(dev), nb, false);
+	if (!err) {
+		nn->nb = nb;
+		list_add(&nn->list, &dev->net_notifier_list);
+	}
+	rtnl_unlock();
+	return err;
+}
+EXPORT_SYMBOL(register_netdevice_notifier_dev_net);
+
+int unregister_netdevice_notifier_dev_net(struct net_device *dev,
+					  struct notifier_block *nb,
+					  struct netdev_net_notifier *nn)
+{
+	int err;
+
+	rtnl_lock();
+	list_del(&nn->list);
+	err = __unregister_netdevice_notifier_net(dev_net(dev), nb);
+	rtnl_unlock();
+	return err;
+}
+EXPORT_SYMBOL(unregister_netdevice_notifier_dev_net);
+
+static void move_netdevice_notifiers_dev_net(struct net_device *dev,
+					     struct net *net)
+{
+	struct netdev_net_notifier *nn;
+
+	list_for_each_entry(nn, &dev->net_notifier_list, list) {
+		__unregister_netdevice_notifier_net(dev_net(dev), nn->nb);
+		__register_netdevice_notifier_net(net, nn->nb, true);
+	}
+}
 
 /**
  *	call_netdevice_notifiers_info - call all network notifier blocks
@@ -3249,7 +3304,7 @@ struct sk_buff *__skb_gso_segment(struct sk_buff *skb,
 
 	segs = skb_mac_gso_segment(skb, features);
 
-	if (unlikely(skb_needs_check(skb, tx_path) && !IS_ERR(segs)))
+	if (segs != skb && unlikely(skb_needs_check(skb, tx_path) && !IS_ERR(segs)))
 		skb_warn_bad_offload(skb);
 
 	return segs;
@@ -3607,26 +3662,8 @@ static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 	qdisc_calculate_pkt_len(skb, q);
 
 	if (q->flags & TCQ_F_NOLOCK) {
-		if ((q->flags & TCQ_F_CAN_BYPASS) && READ_ONCE(q->empty) &&
-		    qdisc_run_begin(q)) {
-			if (unlikely(test_bit(__QDISC_STATE_DEACTIVATED,
-					      &q->state))) {
-				__qdisc_drop(skb, &to_free);
-				rc = NET_XMIT_DROP;
-				goto end_run;
-			}
-			qdisc_bstats_cpu_update(q, skb);
-
-			rc = NET_XMIT_SUCCESS;
-			if (sch_direct_xmit(skb, q, dev, txq, NULL, true))
-				__qdisc_run(q);
-
-end_run:
-			qdisc_run_end(q);
-		} else {
-			rc = q->enqueue(skb, q, &to_free) & NET_XMIT_MASK;
-			qdisc_run(q);
-		}
+		rc = q->enqueue(skb, q, &to_free) & NET_XMIT_MASK;
+		qdisc_run(q);
 
 		if (unlikely(to_free))
 			kfree_skb_list(to_free);
@@ -4477,14 +4514,14 @@ static u32 netif_receive_generic_xdp(struct sk_buff *skb,
 	/* Reinjected packets coming from act_mirred or similar should
 	 * not get XDP generic processing.
 	 */
-	if (skb_cloned(skb) || skb_is_tc_redirected(skb))
+	if (skb_is_tc_redirected(skb))
 		return XDP_PASS;
 
 	/* XDP packets must be linear and must have sufficient headroom
 	 * of XDP_PACKET_HEADROOM bytes. This is the guarantee that also
 	 * native XDP provides, thus we need to do it here as well.
 	 */
-	if (skb_is_nonlinear(skb) ||
+	if (skb_cloned(skb) || skb_is_nonlinear(skb) ||
 	    skb_headroom(skb) < XDP_PACKET_HEADROOM) {
 		int hroom = XDP_PACKET_HEADROOM - skb_headroom(skb);
 		int troom = skb->tail + skb->data_len - skb->end;
@@ -4932,7 +4969,6 @@ static bool skb_pfmemalloc_protocol(struct sk_buff *skb)
 static inline int nf_ingress(struct sk_buff *skb, struct packet_type **pt_prev,
 			     int *ret, struct net_device *orig_dev)
 {
-#ifdef CONFIG_NETFILTER_INGRESS
 	if (nf_hook_ingress_active(skb)) {
 		int ingress_retval;
 
@@ -4946,7 +4982,6 @@ static inline int nf_ingress(struct sk_buff *skb, struct packet_type **pt_prev,
 		rcu_read_unlock();
 		return ingress_retval;
 	}
-#endif /* CONFIG_NETFILTER_INGRESS */
 	return 0;
 }
 
@@ -5744,7 +5779,7 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 	if (&ptype->list == head)
 		goto normal;
 
-	if (IS_ERR(pp) && PTR_ERR(pp) == -EINPROGRESS) {
+	if (PTR_ERR(pp) == -EINPROGRESS) {
 		ret = GRO_CONSUMED;
 		goto ok;
 	}
@@ -7153,8 +7188,8 @@ static int __netdev_walk_all_lower_dev(struct net_device *dev,
 	return 0;
 }
 
-static struct net_device *netdev_next_lower_dev_rcu(struct net_device *dev,
-						    struct list_head **iter)
+struct net_device *netdev_next_lower_dev_rcu(struct net_device *dev,
+					     struct list_head **iter)
 {
 	struct netdev_adjacent *lower;
 
@@ -7166,6 +7201,7 @@ static struct net_device *netdev_next_lower_dev_rcu(struct net_device *dev,
 
 	return lower->dev;
 }
+EXPORT_SYMBOL(netdev_next_lower_dev_rcu);
 
 static u8 __netdev_upper_depth(struct net_device *dev)
 {
@@ -8553,7 +8589,17 @@ static int dev_xdp_install(struct net_device *dev, bpf_op_t bpf_op,
 			   struct netlink_ext_ack *extack, u32 flags,
 			   struct bpf_prog *prog)
 {
+	bool non_hw = !(flags & XDP_FLAGS_HW_MODE);
+	struct bpf_prog *prev_prog = NULL;
 	struct netdev_bpf xdp;
+	int err;
+
+	if (non_hw) {
+		prev_prog = bpf_prog_by_id(__dev_xdp_query(dev, bpf_op,
+							   XDP_QUERY_PROG));
+		if (IS_ERR(prev_prog))
+			prev_prog = NULL;
+	}
 
 	memset(&xdp, 0, sizeof(xdp));
 	if (flags & XDP_FLAGS_HW_MODE)
@@ -8564,7 +8610,14 @@ static int dev_xdp_install(struct net_device *dev, bpf_op_t bpf_op,
 	xdp.flags = flags;
 	xdp.prog = prog;
 
-	return bpf_op(dev, &xdp);
+	err = bpf_op(dev, &xdp);
+	if (!err && non_hw)
+		bpf_prog_change_xdp(prev_prog, prog);
+
+	if (prev_prog)
+		bpf_prog_put(prev_prog);
+
+	return err;
 }
 
 static void dev_xdp_uninstall(struct net_device *dev)
@@ -9268,7 +9321,7 @@ int register_netdevice(struct net_device *dev)
 	/* Transfer changeable features to wanted_features and enable
 	 * software offloads (GSO and GRO).
 	 */
-	dev->hw_features |= NETIF_F_SOFT_FEATURES;
+	dev->hw_features |= (NETIF_F_SOFT_FEATURES | NETIF_F_SOFT_FEATURES_OFF);
 	dev->features |= NETIF_F_SOFT_FEATURES;
 
 	if (dev->netdev_ops->ndo_udp_tunnel_add) {
@@ -9763,6 +9816,7 @@ struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
 	INIT_LIST_HEAD(&dev->adj_list.lower);
 	INIT_LIST_HEAD(&dev->ptype_all);
 	INIT_LIST_HEAD(&dev->ptype_specific);
+	INIT_LIST_HEAD(&dev->net_notifier_list);
 #ifdef CONFIG_NET_SCHED
 	hash_init(dev->qdisc_hash);
 #endif
@@ -9833,6 +9887,8 @@ void free_netdev(struct net_device *dev)
 
 	free_percpu(dev->pcpu_refcnt);
 	dev->pcpu_refcnt = NULL;
+	free_percpu(dev->xdp_bulkq);
+	dev->xdp_bulkq = NULL;
 
 	netdev_unregister_lockdep_key(dev);
 
@@ -10023,6 +10079,9 @@ int dev_change_net_namespace(struct net_device *dev, struct net *net, const char
 	/* Send a netdev-removed uevent to the old namespace */
 	kobject_uevent(&dev->dev.kobj, KOBJ_REMOVE);
 	netdev_adjacent_del_links(dev);
+
+	/* Move per-net netdevice notifiers that are following the netdevice */
+	move_netdevice_notifiers_dev_net(dev, net);
 
 	/* Actually switch the network namespace */
 	dev_net_set(dev, net);

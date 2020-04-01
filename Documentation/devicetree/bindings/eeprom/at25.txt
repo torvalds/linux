@@ -20,6 +20,7 @@ Optional properties:
 - spi-cpha : SPI shifted clock phase, as per spi-bus bindings.
 - spi-cpol : SPI inverse clock polarity, as per spi-bus bindings.
 - read-only : this parameter-less property disables writes to the eeprom
+- wp-gpios : GPIO to which the write-protect pin of the chip is connected
 
 Obsolete legacy properties can be used in place of "size", "pagesize",
 "address-width", and "read-only":
@@ -36,6 +37,7 @@ Example:
 		spi-max-frequency = <5000000>;
 		spi-cpha;
 		spi-cpol;
+		wp-gpios = <&gpio1 3 0>;
 
 		pagesize = <64>;
 		size = <32768>;

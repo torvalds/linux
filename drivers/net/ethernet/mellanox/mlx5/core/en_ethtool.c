@@ -218,13 +218,9 @@ static const struct pflag_desc mlx5e_priv_flags[MLX5E_NUM_PFLAGS];
 
 int mlx5e_ethtool_get_sset_count(struct mlx5e_priv *priv, int sset)
 {
-	int i, num_stats = 0;
-
 	switch (sset) {
 	case ETH_SS_STATS:
-		for (i = 0; i < mlx5e_num_stats_grps; i++)
-			num_stats += mlx5e_stats_grps[i].get_num_stats(priv);
-		return num_stats;
+		return mlx5e_stats_total_num(priv);
 	case ETH_SS_PRIV_FLAGS:
 		return MLX5E_NUM_PFLAGS;
 	case ETH_SS_TEST:
@@ -240,14 +236,6 @@ static int mlx5e_get_sset_count(struct net_device *dev, int sset)
 	struct mlx5e_priv *priv = netdev_priv(dev);
 
 	return mlx5e_ethtool_get_sset_count(priv, sset);
-}
-
-static void mlx5e_fill_stats_strings(struct mlx5e_priv *priv, u8 *data)
-{
-	int i, idx = 0;
-
-	for (i = 0; i < mlx5e_num_stats_grps; i++)
-		idx = mlx5e_stats_grps[i].fill_strings(priv, data, idx);
 }
 
 void mlx5e_ethtool_get_strings(struct mlx5e_priv *priv, u32 stringset, u8 *data)
@@ -268,7 +256,7 @@ void mlx5e_ethtool_get_strings(struct mlx5e_priv *priv, u32 stringset, u8 *data)
 		break;
 
 	case ETH_SS_STATS:
-		mlx5e_fill_stats_strings(priv, data);
+		mlx5e_stats_fill_strings(priv, data);
 		break;
 	}
 }
@@ -283,14 +271,13 @@ static void mlx5e_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 void mlx5e_ethtool_get_ethtool_stats(struct mlx5e_priv *priv,
 				     struct ethtool_stats *stats, u64 *data)
 {
-	int i, idx = 0;
+	int idx = 0;
 
 	mutex_lock(&priv->state_lock);
-	mlx5e_update_stats(priv);
+	mlx5e_stats_update(priv);
 	mutex_unlock(&priv->state_lock);
 
-	for (i = 0; i < mlx5e_num_stats_grps; i++)
-		idx = mlx5e_stats_grps[i].fill_stats(priv, data, idx);
+	mlx5e_stats_fill(priv, data, idx);
 }
 
 static void mlx5e_get_ethtool_stats(struct net_device *dev,

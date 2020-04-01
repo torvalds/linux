@@ -220,35 +220,6 @@ gss_mech_get_by_pseudoflavor(u32 pseudoflavor)
 }
 
 /**
- * gss_mech_list_pseudoflavors - Discover registered GSS pseudoflavors
- * @array_ptr: array to fill in
- * @size: size of "array"
- *
- * Returns the number of array items filled in, or a negative errno.
- *
- * The returned array is not sorted by any policy.  Callers should not
- * rely on the order of the items in the returned array.
- */
-int gss_mech_list_pseudoflavors(rpc_authflavor_t *array_ptr, int size)
-{
-	struct gss_api_mech *pos = NULL;
-	int j, i = 0;
-
-	rcu_read_lock();
-	list_for_each_entry_rcu(pos, &registered_mechs, gm_list) {
-		for (j = 0; j < pos->gm_pf_num; j++) {
-			if (i >= size) {
-				spin_unlock(&registered_mechs_lock);
-				return -ENOMEM;
-			}
-			array_ptr[i++] = pos->gm_pfs[j].pseudoflavor;
-		}
-	}
-	rcu_read_unlock();
-	return i;
-}
-
-/**
  * gss_svc_to_pseudoflavor - map a GSS service number to a pseudoflavor
  * @gm: GSS mechanism handle
  * @qop: GSS quality-of-protection value
@@ -376,7 +347,7 @@ int
 gss_import_sec_context(const void *input_token, size_t bufsize,
 		       struct gss_api_mech	*mech,
 		       struct gss_ctx		**ctx_id,
-		       time_t			*endtime,
+		       time64_t			*endtime,
 		       gfp_t gfp_mask)
 {
 	if (!(*ctx_id = kzalloc(sizeof(**ctx_id), gfp_mask)))

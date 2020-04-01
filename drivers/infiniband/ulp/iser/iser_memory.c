@@ -527,7 +527,7 @@ int iser_reg_rdma_mem(struct iscsi_iser_task *task,
 		if (unlikely(err))
 			goto err_reg;
 
-		desc->sig_protected = 1;
+		desc->sig_protected = true;
 	}
 
 	return 0;

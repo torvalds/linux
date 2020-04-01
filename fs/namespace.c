@@ -2979,39 +2979,10 @@ static void shrink_submounts(struct mount *mnt)
 	}
 }
 
-/*
- * Some copy_from_user() implementations do not return the exact number of
- * bytes remaining to copy on a fault.  But copy_mount_options() requires that.
- * Note that this function differs from copy_from_user() in that it will oops
- * on bad values of `to', rather than returning a short copy.
- */
-static long exact_copy_from_user(void *to, const void __user * from,
-				 unsigned long n)
-{
-	char *t = to;
-	const char __user *f = from;
-	char c;
-
-	if (!access_ok(from, n))
-		return n;
-
-	while (n) {
-		if (__get_user(c, f)) {
-			memset(t, 0, n);
-			break;
-		}
-		*t++ = c;
-		f++;
-		n--;
-	}
-	return n;
-}
-
 void *copy_mount_options(const void __user * data)
 {
-	int i;
-	unsigned long size;
 	char *copy;
+	unsigned size;
 
 	if (!data)
 		return NULL;
@@ -3020,22 +2991,16 @@ void *copy_mount_options(const void __user * data)
 	if (!copy)
 		return ERR_PTR(-ENOMEM);
 
-	/* We only care that *some* data at the address the user
-	 * gave us is valid.  Just in case, we'll zero
-	 * the remainder of the page.
-	 */
-	/* copy_from_user cannot cross TASK_SIZE ! */
-	size = TASK_SIZE - (unsigned long)untagged_addr(data);
-	if (size > PAGE_SIZE)
-		size = PAGE_SIZE;
+	size = PAGE_SIZE - offset_in_page(data);
 
-	i = size - exact_copy_from_user(copy, data, size);
-	if (!i) {
+	if (copy_from_user(copy, data, size)) {
 		kfree(copy);
 		return ERR_PTR(-EFAULT);
 	}
-	if (i != PAGE_SIZE)
-		memset(copy + i, 0, PAGE_SIZE - i);
+	if (size != PAGE_SIZE) {
+		if (copy_from_user(copy + size, data + size, PAGE_SIZE - size))
+			memset(copy + size, 0, PAGE_SIZE - size);
+	}
 	return copy;
 }
 

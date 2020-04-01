@@ -37,10 +37,7 @@ static struct cpuidle_driver clps711x_idle_driver = {
 
 static int __init clps711x_cpuidle_probe(struct platform_device *pdev)
 {
-	struct resource *res;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	clps711x_halt = devm_ioremap_resource(&pdev->dev, res);
+	clps711x_halt = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(clps711x_halt))
 		return PTR_ERR(clps711x_halt);
 

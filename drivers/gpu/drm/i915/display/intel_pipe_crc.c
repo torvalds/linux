@@ -98,7 +98,7 @@ static int i9xx_pipe_crc_auto_source(struct drm_i915_private *dev_priv,
 			break;
 		case INTEL_OUTPUT_DP:
 		case INTEL_OUTPUT_EDP:
-			dig_port = enc_to_dig_port(&encoder->base);
+			dig_port = enc_to_dig_port(encoder);
 			switch (dig_port->base.port) {
 			case PORT_B:
 				*source = INTEL_PIPE_CRC_SOURCE_DP_B;
@@ -309,13 +309,13 @@ retry:
 		goto put_state;
 	}
 
-	pipe_config->base.mode_changed = pipe_config->has_psr;
+	pipe_config->uapi.mode_changed = pipe_config->has_psr;
 	pipe_config->crc_enabled = enable;
 
 	if (IS_HASWELL(dev_priv) &&
-	    pipe_config->base.active && crtc->pipe == PIPE_A &&
+	    pipe_config->hw.active && crtc->pipe == PIPE_A &&
 	    pipe_config->cpu_transcoder == TRANSCODER_EDP)
-		pipe_config->base.mode_changed = true;
+		pipe_config->uapi.mode_changed = true;
 
 	ret = drm_atomic_commit(state);
 

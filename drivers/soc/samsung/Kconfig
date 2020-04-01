@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# SAMSUNG SoC drivers
+# Samsung SoC drivers
 #
 menuconfig SOC_SAMSUNG
 	bool "Samsung SoC driver support" if COMPILE_TEST

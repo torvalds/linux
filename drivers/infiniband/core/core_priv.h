@@ -149,6 +149,7 @@ unsigned long roce_gid_type_mask_support(struct ib_device *ib_dev, u8 port);
 int ib_cache_setup_one(struct ib_device *device);
 void ib_cache_cleanup_one(struct ib_device *device);
 void ib_cache_release_one(struct ib_device *device);
+void ib_dispatch_event_clients(struct ib_event *event);
 
 #ifdef CONFIG_CGROUP_RDMA
 void ib_device_register_rdmacg(struct ib_device *device);
@@ -320,7 +321,7 @@ static inline struct ib_qp *_ib_create_qp(struct ib_device *dev,
 					  struct ib_pd *pd,
 					  struct ib_qp_init_attr *attr,
 					  struct ib_udata *udata,
-					  struct ib_uobject *uobj)
+					  struct ib_uqp_object *uobj)
 {
 	enum ib_qp_type qp_type = attr->qp_type;
 	struct ib_qp *qp;

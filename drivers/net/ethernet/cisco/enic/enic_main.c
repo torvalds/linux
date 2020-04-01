@@ -1095,7 +1095,7 @@ static void enic_set_rx_mode(struct net_device *netdev)
 }
 
 /* netif_tx_lock held, BHs disabled */
-static void enic_tx_timeout(struct net_device *netdev)
+static void enic_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 {
 	struct enic *enic = netdev_priv(netdev);
 	schedule_work(&enic->tx_hang_reset);
@@ -2013,10 +2013,10 @@ static int enic_stop(struct net_device *netdev)
 		napi_disable(&enic->napi[i]);
 
 	netif_carrier_off(netdev);
-	netif_tx_disable(netdev);
 	if (vnic_dev_get_intr_mode(enic->vdev) == VNIC_DEV_INTR_MODE_MSIX)
 		for (i = 0; i < enic->wq_count; i++)
 			napi_disable(&enic->napi[enic_cq_wq(enic, i)]);
+	netif_tx_disable(netdev);
 
 	if (!enic_is_dynamic(enic) && !enic_is_sriov_vf(enic))
 		enic_dev_del_station_addr(enic);

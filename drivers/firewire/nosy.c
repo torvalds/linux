@@ -551,7 +551,7 @@ add_card(struct pci_dev *dev, const struct pci_device_id *unused)
 	INIT_LIST_HEAD(&lynx->client_list);
 	kref_init(&lynx->kref);
 
-	lynx->registers = ioremap_nocache(pci_resource_start(dev, 0),
+	lynx->registers = ioremap(pci_resource_start(dev, 0),
 					  PCILYNX_MAX_REGISTER);
 	if (lynx->registers == NULL) {
 		dev_err(&dev->dev, "Failed to map registers\n");

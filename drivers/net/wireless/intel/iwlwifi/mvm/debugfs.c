@@ -752,7 +752,7 @@ static ssize_t iwl_dbgfs_fw_ver_read(struct file *file, char __user *user_buf,
 	pos += scnprintf(pos, endpos - pos, "FW: %s\n",
 			 mvm->fwrt.fw->human_readable);
 	pos += scnprintf(pos, endpos - pos, "Device: %s\n",
-			 mvm->fwrt.trans->cfg->name);
+			 mvm->fwrt.trans->name);
 	pos += scnprintf(pos, endpos - pos, "Bus: %s\n",
 			 mvm->fwrt.dev->bus->name);
 

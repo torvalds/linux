@@ -34,9 +34,17 @@ enum ice_status
 ice_acquire_res(struct ice_hw *hw, enum ice_aq_res_ids res,
 		enum ice_aq_res_access_type access, u32 timeout);
 void ice_release_res(struct ice_hw *hw, enum ice_aq_res_ids res);
+enum ice_status
+ice_alloc_hw_res(struct ice_hw *hw, u16 type, u16 num, bool btm, u16 *res);
+enum ice_status
+ice_free_hw_res(struct ice_hw *hw, u16 type, u16 num, u16 *res);
 enum ice_status ice_init_nvm(struct ice_hw *hw);
 enum ice_status
 ice_read_sr_buf(struct ice_hw *hw, u16 offset, u16 *words, u16 *data);
+enum ice_status
+ice_aq_alloc_free_res(struct ice_hw *hw, u16 num_entries,
+		      struct ice_aqc_alloc_free_res_elem *buf, u16 buf_size,
+		      enum ice_adminq_opc opc, struct ice_sq_cd *cd);
 enum ice_status
 ice_sq_send_cmd(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 		struct ice_aq_desc *desc, void *buf, u16 buf_size,
@@ -45,8 +53,6 @@ void ice_clear_pxe_mode(struct ice_hw *hw);
 enum ice_status ice_get_caps(struct ice_hw *hw);
 
 void ice_set_safe_mode_caps(struct ice_hw *hw);
-
-void ice_dev_onetime_setup(struct ice_hw *hw);
 
 enum ice_status
 ice_write_rxq_ctx(struct ice_hw *hw, struct ice_rlan_ctx *rlan_ctx,

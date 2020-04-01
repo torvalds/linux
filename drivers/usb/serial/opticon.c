@@ -41,6 +41,9 @@ struct opticon_private {
 	bool rts;
 	bool cts;
 	int outstanding_urbs;
+	int outstanding_bytes;
+
+	struct usb_anchor anchor;
 };
 
 
@@ -149,6 +152,15 @@ static int opticon_open(struct tty_struct *tty, struct usb_serial_port *port)
 	return res;
 }
 
+static void opticon_close(struct usb_serial_port *port)
+{
+	struct opticon_private *priv = usb_get_serial_port_data(port);
+
+	usb_kill_anchored_urbs(&priv->anchor);
+
+	usb_serial_generic_close(port);
+}
+
 static void opticon_write_control_callback(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
@@ -169,6 +181,7 @@ static void opticon_write_control_callback(struct urb *urb)
 
 	spin_lock_irqsave(&priv->lock, flags);
 	--priv->outstanding_urbs;
+	priv->outstanding_bytes -= urb->transfer_buffer_length;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	usb_serial_port_softint(port);
@@ -182,8 +195,8 @@ static int opticon_write(struct tty_struct *tty, struct usb_serial_port *port,
 	struct urb *urb;
 	unsigned char *buffer;
 	unsigned long flags;
-	int status;
 	struct usb_ctrlrequest *dr;
+	int ret = -ENOMEM;
 
 	spin_lock_irqsave(&priv->lock, flags);
 	if (priv->outstanding_urbs > URB_UPPER_LIMIT) {
@@ -192,19 +205,16 @@ static int opticon_write(struct tty_struct *tty, struct usb_serial_port *port,
 		return 0;
 	}
 	priv->outstanding_urbs++;
+	priv->outstanding_bytes += count;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	buffer = kmalloc(count, GFP_ATOMIC);
-	if (!buffer) {
-		count = -ENOMEM;
+	if (!buffer)
 		goto error_no_buffer;
-	}
 
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
-	if (!urb) {
-		count = -ENOMEM;
+	if (!urb)
 		goto error_no_urb;
-	}
 
 	memcpy(buffer, buf, count);
 
@@ -213,10 +223,8 @@ static int opticon_write(struct tty_struct *tty, struct usb_serial_port *port,
 	/* The connected devices do not have a bulk write endpoint,
 	 * to transmit data to de barcode device the control endpoint is used */
 	dr = kmalloc(sizeof(struct usb_ctrlrequest), GFP_ATOMIC);
-	if (!dr) {
-		count = -ENOMEM;
+	if (!dr)
 		goto error_no_dr;
-	}
 
 	dr->bRequestType = USB_TYPE_VENDOR | USB_RECIP_INTERFACE | USB_DIR_OUT;
 	dr->bRequest = 0x01;
@@ -229,13 +237,13 @@ static int opticon_write(struct tty_struct *tty, struct usb_serial_port *port,
 		(unsigned char *)dr, buffer, count,
 		opticon_write_control_callback, port);
 
+	usb_anchor_urb(urb, &priv->anchor);
+
 	/* send it down the pipe */
-	status = usb_submit_urb(urb, GFP_ATOMIC);
-	if (status) {
-		dev_err(&port->dev,
-		"%s - usb_submit_urb(write endpoint) failed status = %d\n",
-							__func__, status);
-		count = status;
+	ret = usb_submit_urb(urb, GFP_ATOMIC);
+	if (ret) {
+		dev_err(&port->dev, "failed to submit write urb: %d\n", ret);
+		usb_unanchor_urb(urb);
 		goto error;
 	}
 
@@ -253,8 +261,10 @@ error_no_urb:
 error_no_buffer:
 	spin_lock_irqsave(&priv->lock, flags);
 	--priv->outstanding_urbs;
+	priv->outstanding_bytes -= count;
 	spin_unlock_irqrestore(&priv->lock, flags);
-	return count;
+
+	return ret;
 }
 
 static int opticon_write_room(struct tty_struct *tty)
@@ -277,6 +287,20 @@ static int opticon_write_room(struct tty_struct *tty)
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return 2048;
+}
+
+static int opticon_chars_in_buffer(struct tty_struct *tty)
+{
+	struct usb_serial_port *port = tty->driver_data;
+	struct opticon_private *priv = usb_get_serial_port_data(port);
+	unsigned long flags;
+	int count;
+
+	spin_lock_irqsave(&priv->lock, flags);
+	count = priv->outstanding_bytes;
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	return count;
 }
 
 static int opticon_tiocmget(struct tty_struct *tty)
@@ -354,6 +378,7 @@ static int opticon_port_probe(struct usb_serial_port *port)
 		return -ENOMEM;
 
 	spin_lock_init(&priv->lock);
+	init_usb_anchor(&priv->anchor);
 
 	usb_set_serial_port_data(port, priv);
 
@@ -381,8 +406,10 @@ static struct usb_serial_driver opticon_device = {
 	.port_probe =		opticon_port_probe,
 	.port_remove =		opticon_port_remove,
 	.open =			opticon_open,
+	.close =		opticon_close,
 	.write =		opticon_write,
 	.write_room = 		opticon_write_room,
+	.chars_in_buffer =	opticon_chars_in_buffer,
 	.throttle =		usb_serial_generic_throttle,
 	.unthrottle =		usb_serial_generic_unthrottle,
 	.get_serial =		get_serial_info,

@@ -52,9 +52,17 @@ bool drm_rect_intersect(struct drm_rect *r1, const struct drm_rect *r2)
 }
 EXPORT_SYMBOL(drm_rect_intersect);
 
-static u32 clip_scaled(u32 src, u32 dst, u32 clip)
+static u32 clip_scaled(int src, int dst, int *clip)
 {
-	u64 tmp = mul_u32_u32(src, dst - clip);
+	u64 tmp;
+
+	if (dst == 0)
+		return 0;
+
+	/* Only clip what we have. Keeps the result bounded. */
+	*clip = min(*clip, dst);
+
+	tmp = mul_u32_u32(src, dst - *clip);
 
 	/*
 	 * Round toward 1.0 when clipping so that we don't accidentally
@@ -73,11 +81,13 @@ static u32 clip_scaled(u32 src, u32 dst, u32 clip)
  * @clip: clip rectangle
  *
  * Clip rectangle @dst by rectangle @clip. Clip rectangle @src by the
- * same amounts multiplied by @hscale and @vscale.
+ * the corresponding amounts, retaining the vertical and horizontal scaling
+ * factors from @src to @dst.
  *
  * RETURNS:
+ *
  * %true if rectangle @dst is still visible after being clipped,
- * %false otherwise
+ * %false otherwise.
  */
 bool drm_rect_clip_scaled(struct drm_rect *src, struct drm_rect *dst,
 			  const struct drm_rect *clip)
@@ -87,34 +97,34 @@ bool drm_rect_clip_scaled(struct drm_rect *src, struct drm_rect *dst,
 	diff = clip->x1 - dst->x1;
 	if (diff > 0) {
 		u32 new_src_w = clip_scaled(drm_rect_width(src),
-					    drm_rect_width(dst), diff);
+					    drm_rect_width(dst), &diff);
 
-		src->x1 = clamp_t(int64_t, src->x2 - new_src_w, INT_MIN, INT_MAX);
-		dst->x1 = clip->x1;
+		src->x1 = src->x2 - new_src_w;
+		dst->x1 += diff;
 	}
 	diff = clip->y1 - dst->y1;
 	if (diff > 0) {
 		u32 new_src_h = clip_scaled(drm_rect_height(src),
-					    drm_rect_height(dst), diff);
+					    drm_rect_height(dst), &diff);
 
-		src->y1 = clamp_t(int64_t, src->y2 - new_src_h, INT_MIN, INT_MAX);
-		dst->y1 = clip->y1;
+		src->y1 = src->y2 - new_src_h;
+		dst->y1 += diff;
 	}
 	diff = dst->x2 - clip->x2;
 	if (diff > 0) {
 		u32 new_src_w = clip_scaled(drm_rect_width(src),
-					    drm_rect_width(dst), diff);
+					    drm_rect_width(dst), &diff);
 
-		src->x2 = clamp_t(int64_t, src->x1 + new_src_w, INT_MIN, INT_MAX);
-		dst->x2 = clip->x2;
+		src->x2 = src->x1 + new_src_w;
+		dst->x2 -= diff;
 	}
 	diff = dst->y2 - clip->y2;
 	if (diff > 0) {
 		u32 new_src_h = clip_scaled(drm_rect_height(src),
-					    drm_rect_height(dst), diff);
+					    drm_rect_height(dst), &diff);
 
-		src->y2 = clamp_t(int64_t, src->y1 + new_src_h, INT_MIN, INT_MAX);
-		dst->y2 = clip->y2;
+		src->y2 = src->y1 + new_src_h;
+		dst->y2 -= diff;
 	}
 
 	return drm_rect_visible(dst);

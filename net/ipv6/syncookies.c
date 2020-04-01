@@ -178,6 +178,9 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 	treq = tcp_rsk(req);
 	treq->tfo_listener = false;
 
+	if (IS_ENABLED(CONFIG_MPTCP))
+		treq->is_mptcp = 0;
+
 	if (security_inet_conn_request(sk, skb, req))
 		goto out_free;
 

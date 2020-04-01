@@ -451,8 +451,8 @@ static int cuse_send_init(struct cuse_conn *cc)
 	ap->args.out_args[0].size = sizeof(ia->out);
 	ap->args.out_args[0].value = &ia->out;
 	ap->args.out_args[1].size = CUSE_INIT_INFO_MAX;
-	ap->args.out_argvar = 1;
-	ap->args.out_pages = 1;
+	ap->args.out_argvar = true;
+	ap->args.out_pages = true;
 	ap->num_pages = 1;
 	ap->pages = &ia->page;
 	ap->descs = &ia->desc;

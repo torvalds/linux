@@ -9,6 +9,7 @@
 #include "gem/selftests/igt_gem_utils.h"
 #include "gem/selftests/mock_context.h"
 #include "gt/intel_gt.h"
+#include "gt/intel_gt_pm.h"
 
 #include "i915_selftest.h"
 
@@ -123,8 +124,6 @@ static void pm_resume(struct drm_i915_private *i915)
 	 * that runtime-pm just works.
 	 */
 	with_intel_runtime_pm(&i915->runtime_pm, wakeref) {
-		intel_gt_sanitize(&i915->gt, false);
-
 		i915_gem_restore_gtt_mappings(i915);
 		i915_gem_restore_fences(&i915->ggtt);
 
@@ -136,7 +135,7 @@ static int igt_gem_suspend(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
 	struct i915_gem_context *ctx;
-	struct drm_file *file;
+	struct file *file;
 	int err;
 
 	file = mock_file(i915);
@@ -163,7 +162,7 @@ static int igt_gem_suspend(void *arg)
 
 	err = switch_to_context(ctx);
 out:
-	mock_file_free(i915, file);
+	fput(file);
 	return err;
 }
 
@@ -171,7 +170,7 @@ static int igt_gem_hibernate(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
 	struct i915_gem_context *ctx;
-	struct drm_file *file;
+	struct file *file;
 	int err;
 
 	file = mock_file(i915);
@@ -198,7 +197,7 @@ static int igt_gem_hibernate(void *arg)
 
 	err = switch_to_context(ctx);
 out:
-	mock_file_free(i915, file);
+	fput(file);
 	return err;
 }
 

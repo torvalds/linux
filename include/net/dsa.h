@@ -43,6 +43,7 @@ struct phylink_link_state;
 #define DSA_TAG_PROTO_SJA1105_VALUE		13
 #define DSA_TAG_PROTO_KSZ8795_VALUE		14
 #define DSA_TAG_PROTO_OCELOT_VALUE		15
+#define DSA_TAG_PROTO_AR9331_VALUE		16
 
 enum dsa_tag_protocol {
 	DSA_TAG_PROTO_NONE		= DSA_TAG_PROTO_NONE_VALUE,
@@ -61,6 +62,7 @@ enum dsa_tag_protocol {
 	DSA_TAG_PROTO_SJA1105		= DSA_TAG_PROTO_SJA1105_VALUE,
 	DSA_TAG_PROTO_KSZ8795		= DSA_TAG_PROTO_KSZ8795_VALUE,
 	DSA_TAG_PROTO_OCELOT		= DSA_TAG_PROTO_OCELOT_VALUE,
+	DSA_TAG_PROTO_AR9331		= DSA_TAG_PROTO_AR9331_VALUE,
 };
 
 struct packet_type;
@@ -88,7 +90,6 @@ struct dsa_device_ops {
 
 struct dsa_skb_cb {
 	struct sk_buff *clone;
-	bool deferred_xmit;
 };
 
 struct __dsa_skb_cb {
@@ -190,9 +191,6 @@ struct dsa_port {
 	struct phylink		*pl;
 	struct phylink_config	pl_config;
 
-	struct work_struct	xmit_work;
-	struct sk_buff_head	xmit_queue;
-
 	struct list_head list;
 
 	/*
@@ -280,6 +278,11 @@ struct dsa_switch {
 	 * should be retrieved from here and not from the per-port settings.
 	 */
 	bool			vlan_filtering;
+
+	/* MAC PCS does not provide link state change interrupt, and requires
+	 * polling. Flag passed on to PHYLINK.
+	 */
+	bool			pcs_poll;
 
 	size_t num_ports;
 };
@@ -377,7 +380,8 @@ typedef int dsa_fdb_dump_cb_t(const unsigned char *addr, u16 vid,
 			      bool is_static, void *data);
 struct dsa_switch_ops {
 	enum dsa_tag_protocol (*get_tag_protocol)(struct dsa_switch *ds,
-						  int port);
+						  int port,
+						  enum dsa_tag_protocol mprot);
 
 	int	(*setup)(struct dsa_switch *ds);
 	void	(*teardown)(struct dsa_switch *ds);
@@ -562,11 +566,6 @@ struct dsa_switch_ops {
 	bool	(*port_rxtstamp)(struct dsa_switch *ds, int port,
 				 struct sk_buff *skb, unsigned int type);
 
-	/*
-	 * Deferred frame Tx
-	 */
-	netdev_tx_t (*port_deferred_xmit)(struct dsa_switch *ds, int port,
-					  struct sk_buff *skb);
 	/* Devlink parameters */
 	int	(*devlink_param_get)(struct dsa_switch *ds, u32 id,
 				     struct devlink_param_gset_ctx *ctx);

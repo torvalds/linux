@@ -1,0 +1,29 @@
+
+config MPTCP
+	bool "MPTCP: Multipath TCP"
+	depends on INET
+	select SKB_EXTENSIONS
+	select CRYPTO_LIB_SHA256
+	select CRYPTO
+	help
+	  Multipath TCP (MPTCP) connections send and receive data over multiple
+	  subflows in order to utilize multiple network paths. Each subflow
+	  uses the TCP protocol, and TCP options carry header information for
+	  MPTCP.
+
+if MPTCP
+
+config MPTCP_IPV6
+	bool "MPTCP: IPv6 support for Multipath TCP"
+	select IPV6
+	default y
+
+config MPTCP_HMAC_TEST
+	bool "Tests for MPTCP HMAC implementation"
+	help
+	  This option enable boot time self-test for the HMAC implementation
+	  used by the MPTCP code
+
+	  Say N if you are unsure.
+
+endif

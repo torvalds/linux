@@ -428,21 +428,8 @@ static int rv3028_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 		if (ret < 0)
 			return ret;
 
-		if (status & RV3028_STATUS_PORF)
-			dev_warn(&rv3028->rtc->dev, "Voltage low, data loss detected.\n");
-
-		status &= RV3028_STATUS_PORF;
-
-		if (copy_to_user((void __user *)arg, &status, sizeof(int)))
-			return -EFAULT;
-
-		return 0;
-
-	case RTC_VL_CLR:
-		ret = regmap_update_bits(rv3028->regmap, RV3028_STATUS,
-					 RV3028_STATUS_PORF, 0);
-
-		return ret;
+		status = status & RV3028_STATUS_PORF ? RTC_VL_DATA_INVALID : 0;
+		return put_user(status, (unsigned int __user *)arg);
 
 	default:
 		return -ENOIOCTLCMD;

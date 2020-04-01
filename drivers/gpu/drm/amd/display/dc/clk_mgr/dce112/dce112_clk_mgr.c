@@ -72,8 +72,8 @@ int dce112_set_clock(struct clk_mgr *clk_mgr_base, int requested_clk_khz)
 	struct clk_mgr_internal *clk_mgr_dce = TO_CLK_MGR_INTERNAL(clk_mgr_base);
 	struct bp_set_dce_clock_parameters dce_clk_params;
 	struct dc_bios *bp = clk_mgr_base->ctx->dc_bios;
-	struct dc *core_dc = clk_mgr_base->ctx->dc;
-	struct dmcu *dmcu = core_dc->res_pool->dmcu;
+	struct dc *dc = clk_mgr_base->ctx->dc;
+	struct dmcu *dmcu = dc->res_pool->dmcu;
 	int actual_clock = requested_clk_khz;
 	/* Prepare to program display clock*/
 	memset(&dce_clk_params, 0, sizeof(dce_clk_params));
@@ -110,7 +110,7 @@ int dce112_set_clock(struct clk_mgr *clk_mgr_base, int requested_clk_khz)
 
 	bp->funcs->set_dce_clock(bp, &dce_clk_params);
 
-	if (!IS_FPGA_MAXIMUS_DC(core_dc->ctx->dce_environment)) {
+	if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
 		if (dmcu && dmcu->funcs->is_dmcu_initialized(dmcu)) {
 			if (clk_mgr_dce->dfs_bypass_disp_clk != actual_clock)
 				dmcu->funcs->set_psr_wait_loop(dmcu,
@@ -126,8 +126,8 @@ int dce112_set_dispclk(struct clk_mgr_internal *clk_mgr, int requested_clk_khz)
 {
 	struct bp_set_dce_clock_parameters dce_clk_params;
 	struct dc_bios *bp = clk_mgr->base.ctx->dc_bios;
-	struct dc *core_dc = clk_mgr->base.ctx->dc;
-	struct dmcu *dmcu = core_dc->res_pool->dmcu;
+	struct dc *dc = clk_mgr->base.ctx->dc;
+	struct dmcu *dmcu = dc->res_pool->dmcu;
 	int actual_clock = requested_clk_khz;
 	/* Prepare to program display clock*/
 	memset(&dce_clk_params, 0, sizeof(dce_clk_params));
@@ -152,7 +152,7 @@ int dce112_set_dispclk(struct clk_mgr_internal *clk_mgr, int requested_clk_khz)
 		clk_mgr->cur_min_clks_state = DM_PP_CLOCKS_STATE_NOMINAL;
 
 
-	if (!IS_FPGA_MAXIMUS_DC(core_dc->ctx->dce_environment)) {
+	if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
 		if (dmcu && dmcu->funcs->is_dmcu_initialized(dmcu)) {
 			if (clk_mgr->dfs_bypass_disp_clk != actual_clock)
 				dmcu->funcs->set_psr_wait_loop(dmcu,

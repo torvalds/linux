@@ -47,7 +47,8 @@ void qce_dma_release(struct qce_dma_data *dma)
 }
 
 struct scatterlist *
-qce_sgtable_add(struct sg_table *sgt, struct scatterlist *new_sgl)
+qce_sgtable_add(struct sg_table *sgt, struct scatterlist *new_sgl,
+		int max_ents)
 {
 	struct scatterlist *sg = sgt->sgl, *sg_last = NULL;
 
@@ -60,12 +61,13 @@ qce_sgtable_add(struct sg_table *sgt, struct scatterlist *new_sgl)
 	if (!sg)
 		return ERR_PTR(-EINVAL);
 
-	while (new_sgl && sg) {
+	while (new_sgl && sg && max_ents) {
 		sg_set_page(sg, sg_page(new_sgl), new_sgl->length,
 			    new_sgl->offset);
 		sg_last = sg;
 		sg = sg_next(sg);
 		new_sgl = sg_next(new_sgl);
+		max_ents--;
 	}
 
 	return sg_last;

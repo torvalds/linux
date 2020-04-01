@@ -12,6 +12,7 @@ extern bool __read_mostly enable_ept;
 extern bool __read_mostly enable_unrestricted_guest;
 extern bool __read_mostly enable_ept_ad_bits;
 extern bool __read_mostly enable_pml;
+extern bool __read_mostly enable_apicv;
 extern int __read_mostly pt_mode;
 
 #define PT_MODE_SYSTEM		0
@@ -143,6 +144,11 @@ static inline bool vmx_umip_emulated(void)
 {
 	return vmcs_config.cpu_based_2nd_exec_ctrl &
 		SECONDARY_EXEC_DESC;
+}
+
+static inline bool vmx_pku_supported(void)
+{
+	return boot_cpu_has(X86_FEATURE_PKU);
 }
 
 static inline bool cpu_has_vmx_rdtscp(void)

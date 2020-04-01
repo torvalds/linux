@@ -7,7 +7,6 @@ generated-y += unistd_nr.h
 generic-y += asm-offsets.h
 generic-y += cacheflush.h
 generic-y += device.h
-generic-y += dma-contiguous.h
 generic-y += dma-mapping.h
 generic-y += div64.h
 generic-y += emergency-restart.h

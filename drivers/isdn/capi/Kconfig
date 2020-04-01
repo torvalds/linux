@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
-menuconfig ISDN_CAPI
-	tristate "CAPI 2.0 subsystem"
+config ISDN_CAPI
+	def_bool ISDN && BT
 	help
 	  This provides CAPI (the Common ISDN Application Programming
 	  Interface) Version 2.0, a standard making it easy for programs to
@@ -15,42 +15,18 @@ menuconfig ISDN_CAPI
 	  See CONFIG_BT_CMTP for the last remaining regular driver
 	  in the kernel that uses the CAPI subsystem.
 
-if ISDN_CAPI
-
 config CAPI_TRACE
-	bool "CAPI trace support"
-	default y
+	def_bool BT_CMTP
 	help
 	  If you say Y here, the kernelcapi driver can make verbose traces
 	  of CAPI messages. This feature can be enabled/disabled via IOCTL for
 	  every controller (default disabled).
-	  This will increase the size of the kernelcapi module by 20 KB.
-	  If unsure, say Y.
-
-config ISDN_CAPI_CAPI20
-	tristate "CAPI2.0 /dev/capi20 support"
-	help
-	  This option will provide the CAPI 2.0 interface to userspace
-	  applications via /dev/capi20. Applications should use the
-	  standardized libcapi20 to access this functionality.  You should say
-	  Y/M here.
 
 config ISDN_CAPI_MIDDLEWARE
-	bool "CAPI2.0 Middleware support"
-	depends on ISDN_CAPI_CAPI20 && TTY
+	def_bool BT_CMTP && TTY
 	help
 	  This option will enhance the capabilities of the /dev/capi20
 	  interface.  It will provide a means of moving a data connection,
 	  established via the usual /dev/capi20 interface to a special tty
 	  device.  If you want to use pppd with pppdcapiplugin to dial up to
 	  your ISP, say Y here.
-
-config ISDN_CAPI_CAPIDRV_VERBOSE
-	bool "Verbose reason code reporting"
-	depends on ISDN_CAPI_CAPIDRV
-	help
-	  If you say Y here, the capidrv interface will give verbose reasons
-	  for disconnecting. This will increase the size of the kernel by 7 KB.
-	  If unsure, say N.
-
-endif

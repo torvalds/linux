@@ -19,6 +19,7 @@
 
 /* For TOKTYPE_NON_CCA: */
 #define TOKVER_PROTECTED_KEY	0x01 /* Protected key token */
+#define TOKVER_CLEAR_KEY	0x02 /* Clear key token */
 
 /* For TOKTYPE_CCA_INTERNAL: */
 #define TOKVER_CCA_AES		0x04 /* CCA AES key token */

@@ -64,7 +64,6 @@ function set_dynamic_debug() {
 }
 
 function set_ftrace_enabled() {
-	local sysctl="$1"
 	result=$(sysctl kernel.ftrace_enabled="$1" 2>&1 | paste --serial --delimiters=' ')
 	echo "livepatch: $result" > /dev/kmsg
 }

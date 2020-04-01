@@ -288,7 +288,7 @@ static int snd_pcm_plug_formats(const struct snd_mask *mask,
 	return snd_mask_test(&formats, (__force int)format);
 }
 
-static snd_pcm_format_t preferred_formats[] = {
+static const snd_pcm_format_t preferred_formats[] = {
 	SNDRV_PCM_FORMAT_S16_LE,
 	SNDRV_PCM_FORMAT_S16_BE,
 	SNDRV_PCM_FORMAT_U16_LE,

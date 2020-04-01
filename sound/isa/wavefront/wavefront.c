@@ -409,6 +409,7 @@ snd_wavefront_probe (struct snd_card *card, int dev)
 	}
 	
 	acard->wavefront.irq = ics2115_irq[dev];
+	card->sync_irq = acard->wavefront.irq;
 	acard->wavefront.base = ics2115_port[dev];
 
 	wavefront_synth = snd_wavefront_new_synth(card, hw_dev, acard);

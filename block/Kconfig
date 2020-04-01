@@ -66,7 +66,6 @@ config BLK_DEV_BSGLIB
 
 config BLK_DEV_INTEGRITY
 	bool "Block layer data integrity support"
-	select CRC_T10DIF if BLK_DEV_INTEGRITY
 	---help---
 	Some storage devices allow extra information to be
 	stored/retrieved to help protect the data.  The block layer
@@ -76,6 +75,11 @@ config BLK_DEV_INTEGRITY
 	Say yes here if you have a storage device that provides the
 	T10/SCSI Data Integrity Field or the T13/ATA External Path
 	Protection.  If in doubt, say N.
+
+config BLK_DEV_INTEGRITY_T10
+	tristate
+	depends on BLK_DEV_INTEGRITY
+	select CRC_T10DIF
 
 config BLK_DEV_ZONED
 	bool "Zoned block device support"

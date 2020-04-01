@@ -140,7 +140,7 @@ static int rb532_pata_driver_probe(struct platform_device *pdev)
 	info->gpio_line = gpiod;
 	info->irq = irq;
 
-	info->iobase = devm_ioremap_nocache(&pdev->dev, res->start,
+	info->iobase = devm_ioremap(&pdev->dev, res->start,
 				resource_size(res));
 	if (!info->iobase)
 		return -ENOMEM;

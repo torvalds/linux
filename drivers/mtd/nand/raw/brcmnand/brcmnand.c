@@ -2635,6 +2635,16 @@ int brcmnand_probe(struct platform_device *pdev, struct brcmnand_soc *soc)
 		/* initialize the dma version */
 		brcmnand_flash_dma_revision_init(ctrl);
 
+		ret = -EIO;
+		if (ctrl->nand_version >= 0x0700)
+			ret = dma_set_mask_and_coherent(&pdev->dev,
+							DMA_BIT_MASK(40));
+		if (ret)
+			ret = dma_set_mask_and_coherent(&pdev->dev,
+							DMA_BIT_MASK(32));
+		if (ret)
+			goto err;
+
 		/* linked-list and stop on error */
 		flash_dma_writel(ctrl, FLASH_DMA_MODE, FLASH_DMA_MODE_MASK);
 		flash_dma_writel(ctrl, FLASH_DMA_ERROR_STATUS, 0);

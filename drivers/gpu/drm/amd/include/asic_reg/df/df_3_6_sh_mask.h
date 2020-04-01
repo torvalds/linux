@@ -33,6 +33,14 @@
 #define DF_PIE_AON0_DfGlobalClkGater__MGCGMode__SHIFT							0x0
 #define DF_PIE_AON0_DfGlobalClkGater__MGCGMode_MASK							0x0000000FL
 
+/* DF_CS_UMC_AON0_DfGlobalCtrl */
+#define DF_CS_UMC_AON0_DfGlobalCtrl__GlbHashIntlvCtl64K__SHIFT						0x14
+#define DF_CS_UMC_AON0_DfGlobalCtrl__GlbHashIntlvCtl2M__SHIFT						0x15
+#define DF_CS_UMC_AON0_DfGlobalCtrl__GlbHashIntlvCtl1G__SHIFT						0x16
+#define DF_CS_UMC_AON0_DfGlobalCtrl__GlbHashIntlvCtl64K_MASK						0x00100000L
+#define DF_CS_UMC_AON0_DfGlobalCtrl__GlbHashIntlvCtl2M_MASK						0x00200000L
+#define DF_CS_UMC_AON0_DfGlobalCtrl__GlbHashIntlvCtl1G_MASK						0x00400000L
+
 /* DF_CS_AON0_DramBaseAddress0 */
 #define DF_CS_UMC_AON0_DramBaseAddress0__AddrRngVal__SHIFT						0x0
 #define DF_CS_UMC_AON0_DramBaseAddress0__LgcyMmioHoleEn__SHIFT						0x1
@@ -44,5 +52,13 @@
 #define DF_CS_UMC_AON0_DramBaseAddress0__IntLvNumChan_MASK						0x0000003CL
 #define DF_CS_UMC_AON0_DramBaseAddress0__IntLvAddrSel_MASK						0x00000E00L
 #define DF_CS_UMC_AON0_DramBaseAddress0__DramBaseAddr_MASK						0xFFFFF000L
+
+//DF_CS_UMC_AON0_DramLimitAddress0
+#define DF_CS_UMC_AON0_DramLimitAddress0__DstFabricID__SHIFT                                                  0x0
+#define DF_CS_UMC_AON0_DramLimitAddress0__AllowReqIO__SHIFT                                                   0xa
+#define DF_CS_UMC_AON0_DramLimitAddress0__DramLimitAddr__SHIFT                                                0xc
+#define DF_CS_UMC_AON0_DramLimitAddress0__DstFabricID_MASK                                                    0x000003FFL
+#define DF_CS_UMC_AON0_DramLimitAddress0__AllowReqIO_MASK                                                     0x00000400L
+#define DF_CS_UMC_AON0_DramLimitAddress0__DramLimitAddr_MASK                                                  0xFFFFF000L
 
 #endif

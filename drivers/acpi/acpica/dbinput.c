@@ -816,7 +816,7 @@ acpi_db_command_dispatch(char *input_buffer,
 		if (ACPI_FAILURE(status)
 		    || temp64 >= ACPI_NUM_PREDEFINED_REGIONS) {
 			acpi_os_printf
-			    ("Invalid adress space ID: must be between 0 and %u inclusive\n",
+			    ("Invalid address space ID: must be between 0 and %u inclusive\n",
 			     ACPI_NUM_PREDEFINED_REGIONS - 1);
 			return (AE_OK);
 		}

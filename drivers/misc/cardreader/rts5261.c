@@ -628,7 +628,8 @@ int rts5261_pci_switch_clock(struct rtsx_pcr *pcr, unsigned int card_clock,
 		u8 ssc_depth, bool initial_mode, bool double_clk, bool vpclk)
 {
 	int err, clk;
-	u8 n, clk_divider, mcu_cnt, div;
+	u16 n;
+	u8 clk_divider, mcu_cnt, div;
 	static const u8 depth[] = {
 		[RTSX_SSC_DEPTH_4M] = RTS5261_SSC_DEPTH_4M,
 		[RTSX_SSC_DEPTH_2M] = RTS5261_SSC_DEPTH_2M,
@@ -661,13 +662,13 @@ int rts5261_pci_switch_clock(struct rtsx_pcr *pcr, unsigned int card_clock,
 		return 0;
 
 	if (pcr->ops->conv_clk_and_div_n)
-		n = (u8)pcr->ops->conv_clk_and_div_n(clk, CLK_TO_DIV_N);
+		n = pcr->ops->conv_clk_and_div_n(clk, CLK_TO_DIV_N);
 	else
-		n = (u8)(clk - 4);
+		n = clk - 4;
 	if ((clk <= 4) || (n > 396))
 		return -EINVAL;
 
-	mcu_cnt = (u8)(125/clk + 3);
+	mcu_cnt = 125/clk + 3;
 	if (mcu_cnt > 15)
 		mcu_cnt = 15;
 
@@ -676,7 +677,7 @@ int rts5261_pci_switch_clock(struct rtsx_pcr *pcr, unsigned int card_clock,
 		if (pcr->ops->conv_clk_and_div_n) {
 			int dbl_clk = pcr->ops->conv_clk_and_div_n(n,
 					DIV_N_TO_CLK) * 2;
-			n = (u8)pcr->ops->conv_clk_and_div_n(dbl_clk,
+			n = pcr->ops->conv_clk_and_div_n(dbl_clk,
 					CLK_TO_DIV_N);
 		} else {
 			n = (n + 4) * 2 - 4;

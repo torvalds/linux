@@ -131,7 +131,7 @@
 	tbl		bd4.16b, {\bd\().16b}, perm4.16b
 	.endm
 
-__pmull_p8_core:
+SYM_FUNC_START_LOCAL(__pmull_p8_core)
 .L__pmull_p8_core:
 	ext		t4.8b, ad.8b, ad.8b, #1			// A1
 	ext		t5.8b, ad.8b, ad.8b, #2			// A2
@@ -194,7 +194,7 @@ __pmull_p8_core:
 	eor		t4.16b, t4.16b, t5.16b
 	eor		t6.16b, t6.16b, t3.16b
 	ret
-ENDPROC(__pmull_p8_core)
+SYM_FUNC_END(__pmull_p8_core)
 
 	.macro		__pmull_p8, rq, ad, bd, i
 	.ifnc		\bd, fold_consts
@@ -488,9 +488,9 @@ CPU_LE(	ext		v7.16b, v7.16b, v7.16b, #8	)
 //
 // Assumes len >= 16.
 //
-ENTRY(crc_t10dif_pmull_p8)
+SYM_FUNC_START(crc_t10dif_pmull_p8)
 	crc_t10dif_pmull	p8
-ENDPROC(crc_t10dif_pmull_p8)
+SYM_FUNC_END(crc_t10dif_pmull_p8)
 
 	.align		5
 //
@@ -498,9 +498,9 @@ ENDPROC(crc_t10dif_pmull_p8)
 //
 // Assumes len >= 16.
 //
-ENTRY(crc_t10dif_pmull_p64)
+SYM_FUNC_START(crc_t10dif_pmull_p64)
 	crc_t10dif_pmull	p64
-ENDPROC(crc_t10dif_pmull_p64)
+SYM_FUNC_END(crc_t10dif_pmull_p64)
 
 	.section	".rodata", "a"
 	.align		4

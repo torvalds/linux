@@ -923,27 +923,27 @@ static bool simularity_compare(struct adapter *adapt, s32 resulta[][8],
 			}
 		}
 		return result;
-	} else {
-		if (!(sim_bitmap & 0x03)) {		   /* path A TX OK */
-			for (i = 0; i < 2; i++)
-				resulta[3][i] = resulta[c1][i];
-		}
-		if (!(sim_bitmap & 0x0c)) {		   /* path A RX OK */
-			for (i = 2; i < 4; i++)
-				resulta[3][i] = resulta[c1][i];
-		}
-
-		if (!(sim_bitmap & 0x30)) { /* path B TX OK */
-			for (i = 4; i < 6; i++)
-				resulta[3][i] = resulta[c1][i];
-		}
-
-		if (!(sim_bitmap & 0xc0)) { /* path B RX OK */
-			for (i = 6; i < 8; i++)
-				resulta[3][i] = resulta[c1][i];
-		}
-		return false;
 	}
+
+	if (!(sim_bitmap & 0x03)) {		   /* path A TX OK */
+		for (i = 0; i < 2; i++)
+			resulta[3][i] = resulta[c1][i];
+	}
+	if (!(sim_bitmap & 0x0c)) {		   /* path A RX OK */
+		for (i = 2; i < 4; i++)
+			resulta[3][i] = resulta[c1][i];
+	}
+
+	if (!(sim_bitmap & 0x30)) { /* path B TX OK */
+		for (i = 4; i < 6; i++)
+			resulta[3][i] = resulta[c1][i];
+	}
+
+	if (!(sim_bitmap & 0xc0)) { /* path B RX OK */
+		for (i = 6; i < 8; i++)
+			resulta[3][i] = resulta[c1][i];
+	}
+	return false;
 }
 
 static void phy_iq_calibrate(struct adapter *adapt, s32 result[][8],
@@ -1053,10 +1053,9 @@ static void phy_iq_calibrate(struct adapter *adapt, s32 result[][8],
 				result[t][3] = (phy_query_bb_reg(adapt, rRx_Power_After_IQK_A_2,
 								 bMaskDWord)&0x3FF0000)>>16;
 			break;
-		} else {
-			ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD,
-				     ("Path A Rx IQK Fail!!\n"));
 		}
+		ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD,
+			     ("Path A Rx IQK Fail!!\n"));
 	}
 
 	if (path_a_ok == 0x00) {

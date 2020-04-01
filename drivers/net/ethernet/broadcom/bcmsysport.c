@@ -1354,7 +1354,7 @@ out:
 	return ret;
 }
 
-static void bcm_sysport_tx_timeout(struct net_device *dev)
+static void bcm_sysport_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	netdev_warn(dev, "transmit timeout!\n");
 
@@ -2428,6 +2428,14 @@ static int bcm_sysport_probe(struct platform_device *pdev)
 	if (!of_id || !of_id->data)
 		return -EINVAL;
 
+	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(40));
+	if (ret)
+		ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+	if (ret) {
+		dev_err(&pdev->dev, "unable to set DMA mask: %d\n", ret);
+		return ret;
+	}
+
 	/* Fairly quickly we need to know the type of adapter we have */
 	params = of_id->data;
 
@@ -2727,6 +2735,9 @@ static int __maybe_unused bcm_sysport_resume(struct device *d)
 		return 0;
 
 	umac_reset(priv);
+
+	/* Disable the UniMAC RX/TX */
+	umac_enable_set(priv, CMD_RX_EN | CMD_TX_EN, 0);
 
 	/* We may have been suspended and never received a WOL event that
 	 * would turn off MPD detection, take care of that now

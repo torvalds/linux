@@ -47,9 +47,6 @@ static void __init csky_memblock_init(void)
 	signed long size;
 
 	memblock_reserve(__pa(_stext), _end - _stext);
-#ifdef CONFIG_BLK_DEV_INITRD
-	memblock_reserve(__pa(initrd_start), initrd_end - initrd_start);
-#endif
 
 	early_init_fdt_reserve_self();
 	early_init_fdt_scan_reserved_mem();
@@ -133,12 +130,10 @@ void __init setup_arch(char **cmdline_p)
 
 	sparse_init();
 
+	fixaddr_init();
+
 #ifdef CONFIG_HIGHMEM
 	kmap_init();
-#endif
-
-#if defined(CONFIG_VT) && defined(CONFIG_DUMMY_CONSOLE)
-	conswitchp = &dummy_con;
 #endif
 }
 

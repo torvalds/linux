@@ -120,7 +120,7 @@ static void fips_dsr(unsigned long devarg)
 		cc_tee_handle_fips_error(drvdata);
 	}
 
-	/* after verifing that there is nothing to do,
+	/* after verifying that there is nothing to do,
 	 * unmask AXI completion interrupt.
 	 */
 	val = (CC_REG(HOST_IMR) & ~irq);

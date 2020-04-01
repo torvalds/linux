@@ -367,6 +367,12 @@ OPTIONS
 --objdump=<path>::
         Path to objdump binary.
 
+--prefix=PREFIX::
+--prefix-strip=N::
+	Remove first N entries from source file path names in executables
+	and add PREFIX. This allows to display source code compiled on systems
+	with different file system layout.
+
 --group::
 	Show event group information together. It forces group output also
 	if there are no groups defined in data file.

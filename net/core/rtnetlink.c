@@ -1041,6 +1041,7 @@ static noinline size_t if_nlmsg_size(const struct net_device *dev,
 	       + nla_total_size(4)  /* IFLA_MIN_MTU */
 	       + nla_total_size(4)  /* IFLA_MAX_MTU */
 	       + rtnl_prop_list_size(dev)
+	       + nla_total_size(MAX_ADDR_LEN) /* IFLA_PERM_ADDRESS */
 	       + 0;
 }
 
@@ -1241,6 +1242,8 @@ static noinline_for_stack int rtnl_fill_vfinfo(struct sk_buff *skb,
 		return 0;
 
 	memset(&vf_vlan_info, 0, sizeof(vf_vlan_info));
+	memset(&node_guid, 0, sizeof(node_guid));
+	memset(&port_guid, 0, sizeof(port_guid));
 
 	vf_mac.vf =
 		vf_vlan.vf =
@@ -1289,8 +1292,6 @@ static noinline_for_stack int rtnl_fill_vfinfo(struct sk_buff *skb,
 		    sizeof(vf_trust), &vf_trust))
 		goto nla_put_vf_failure;
 
-	memset(&node_guid, 0, sizeof(node_guid));
-	memset(&port_guid, 0, sizeof(port_guid));
 	if (dev->netdev_ops->ndo_get_vf_guid &&
 	    !dev->netdev_ops->ndo_get_vf_guid(dev, vfs_num, &node_guid,
 					      &port_guid)) {
@@ -1757,6 +1758,9 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb,
 	    nla_put_s32(skb, IFLA_NEW_IFINDEX, new_ifindex) < 0)
 		goto nla_put_failure;
 
+	if (memchr_inv(dev->perm_addr, '\0', dev->addr_len) &&
+	    nla_put(skb, IFLA_PERM_ADDRESS, dev->addr_len, dev->perm_addr))
+		goto nla_put_failure;
 
 	rcu_read_lock();
 	if (rtnl_fill_link_af(skb, dev, ext_filter_mask))
@@ -1822,6 +1826,7 @@ static const struct nla_policy ifla_policy[IFLA_MAX+1] = {
 	[IFLA_PROP_LIST]	= { .type = NLA_NESTED },
 	[IFLA_ALT_IFNAME]	= { .type = NLA_STRING,
 				    .len = ALTIFNAMSIZ - 1 },
+	[IFLA_PERM_ADDRESS]	= { .type = NLA_REJECT },
 };
 
 static const struct nla_policy ifla_info_policy[IFLA_INFO_MAX+1] = {
@@ -3499,27 +3504,25 @@ static int rtnl_alt_ifname(int cmd, struct net_device *dev, struct nlattr *attr,
 	if (err)
 		return err;
 
-	alt_ifname = nla_data(attr);
+	alt_ifname = nla_strdup(attr, GFP_KERNEL);
+	if (!alt_ifname)
+		return -ENOMEM;
+
 	if (cmd == RTM_NEWLINKPROP) {
-		alt_ifname = kstrdup(alt_ifname, GFP_KERNEL);
-		if (!alt_ifname)
-			return -ENOMEM;
 		err = netdev_name_node_alt_create(dev, alt_ifname);
-		if (err) {
-			kfree(alt_ifname);
-			return err;
-		}
+		if (!err)
+			alt_ifname = NULL;
 	} else if (cmd == RTM_DELLINKPROP) {
 		err = netdev_name_node_alt_destroy(dev, alt_ifname);
-		if (err)
-			return err;
 	} else {
-		WARN_ON(1);
-		return 0;
+		WARN_ON_ONCE(1);
+		err = -EINVAL;
 	}
 
-	*changed = true;
-	return 0;
+	kfree(alt_ifname);
+	if (!err)
+		*changed = true;
+	return err;
 }
 
 static int rtnl_linkprop(int cmd, struct sk_buff *skb, struct nlmsghdr *nlh,

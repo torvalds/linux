@@ -98,7 +98,7 @@ static void zfcp_qdio_int_resp(struct ccw_device *cdev, unsigned int qdio_err,
 			memset(pl, 0,
 			       ZFCP_QDIO_MAX_SBALS_PER_REQ * sizeof(void *));
 			sbale = qdio->res_q[idx]->element;
-			req_id = (u64) sbale->addr;
+			req_id = sbale->addr;
 			scount = min(sbale->scount + 1,
 				     ZFCP_QDIO_MAX_SBALS_PER_REQ + 1);
 				     /* incl. signaling SBAL */
@@ -199,7 +199,7 @@ int zfcp_qdio_sbals_from_sg(struct zfcp_qdio *qdio, struct zfcp_qdio_req *q_req,
 					     q_req->sbal_number);
 			return -EINVAL;
 		}
-		sbale->addr = sg_virt(sg);
+		sbale->addr = sg_phys(sg);
 		sbale->length = sg->length;
 	}
 	return 0;
@@ -418,7 +418,7 @@ int zfcp_qdio_open(struct zfcp_qdio *qdio)
 		sbale->length = 0;
 		sbale->eflags = SBAL_EFLAGS_LAST_ENTRY;
 		sbale->sflags = 0;
-		sbale->addr = NULL;
+		sbale->addr = 0;
 	}
 
 	if (do_QDIO(cdev, QDIO_FLAG_SYNC_INPUT, 0, 0, QDIO_MAX_BUFFERS_PER_Q))

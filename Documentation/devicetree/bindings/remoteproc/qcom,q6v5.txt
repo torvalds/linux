@@ -13,6 +13,7 @@ on the Qualcomm Hexagon core.
 		    "qcom,msm8974-mss-pil"
 		    "qcom,msm8996-mss-pil"
 		    "qcom,msm8998-mss-pil"
+		    "qcom,sc7180-mss-pil"
 		    "qcom,sdm845-mss-pil"
 
 - reg:
@@ -43,6 +44,7 @@ on the Qualcomm Hexagon core.
 		    must be "wdog", "fatal", "ready", "handover", "stop-ack"
 	qcom,msm8996-mss-pil:
 	qcom,msm8998-mss-pil:
+	qcom,sc7180-mss-pil:
 	qcom,sdm845-mss-pil:
 		    must be "wdog", "fatal", "ready", "handover", "stop-ack",
 		    "shutdown-ack"
@@ -75,6 +77,9 @@ on the Qualcomm Hexagon core.
 	qcom,msm8998-mss-pil:
 		    must be "iface", "bus", "mem", "xo", "gpll0_mss",
 		    "snoc_axi", "mnoc_axi", "qdss"
+	qcom,sc7180-mss-pil:
+		    must be "iface", "bus", "xo", "snoc_axi", "mnoc_axi",
+		    "mss_crypto", "mss_nav", "nav"
 	qcom,sdm845-mss-pil:
 		    must be "iface", "bus", "mem", "xo", "gpll0_mss",
 		    "snoc_axi", "mnoc_axi", "prng"
@@ -86,7 +91,7 @@ on the Qualcomm Hexagon core.
 		    reference to the list of 3 reset-controllers for the
 		    wcss sub-system
 		    reference to the list of 2 reset-controllers for the modem
-		    sub-system on SDM845 SoCs
+		    sub-system on SC7180, SDM845 SoCs
 
 - reset-names:
 	Usage: required
@@ -95,7 +100,7 @@ on the Qualcomm Hexagon core.
 		    must be "wcss_aon_reset", "wcss_reset", "wcss_q6_reset"
 		    for the wcss sub-system
 		    must be "mss_restart", "pdc_reset" for the modem
-		    sub-system on SDM845 SoCs
+		    sub-system on SC7180, SDM845 SoCs
 
 For the compatible strings below the following supplies are required:
   "qcom,q6v5-pil"
@@ -144,6 +149,7 @@ For the compatible string below the following supplies are required:
 	qcom,msm8996-mss-pil:
 	qcom,msm8998-mss-pil:
 		    must be "cx", "mx"
+	qcom,sc7180-mss-pil:
 	qcom,sdm845-mss-pil:
 		    must be "cx", "mx", "mss", "load_state"
 
@@ -164,6 +170,19 @@ For the compatible string below the following supplies are required:
 	Definition: a phandle reference to a syscon representing TCSR followed
 		    by the three offsets within syscon for q6, modem and nc
 		    halt registers.
+
+For the compatible strings below the following phandle references are required:
+  "qcom,sc7180-mss-pil"
+- qcom,halt-nav-regs:
+	Usage: required
+	Value type: <prop-encoded-array>
+	Definition: reference to a list of 2 phandles with one offset each for
+		    the modem sub-system running on SC7180 SoC. The first
+		    phandle reference is to the mss clock node followed by the
+		    offset within register space for nav halt register. The
+		    second phandle reference is to a syscon representing TCSR
+		    followed by the offset within syscon for conn_box_spare0
+		    register.
 
 = SUBNODES:
 The Hexagon node must contain two subnodes, named "mba" and "mpss" representing

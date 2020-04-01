@@ -2651,17 +2651,12 @@ static int max98090_resume(struct device *dev)
 
 	return 0;
 }
-
-static int max98090_suspend(struct device *dev)
-{
-	return 0;
-}
 #endif
 
 static const struct dev_pm_ops max98090_pm = {
 	SET_RUNTIME_PM_OPS(max98090_runtime_suspend,
 		max98090_runtime_resume, NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(max98090_suspend, max98090_resume)
+	SET_SYSTEM_SLEEP_PM_OPS(NULL, max98090_resume)
 };
 
 static const struct i2c_device_id max98090_i2c_id[] = {

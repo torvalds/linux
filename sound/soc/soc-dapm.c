@@ -3888,9 +3888,6 @@ snd_soc_dai_link_event_pre_pmu(struct snd_soc_dapm_widget *w,
 	runtime->rate = params_rate(params);
 
 out:
-	if (ret < 0)
-		kfree(runtime);
-
 	kfree(params);
 	return ret;
 }
@@ -4446,6 +4443,29 @@ void snd_soc_dapm_stream_event(struct snd_soc_pcm_runtime *rtd, int stream,
 	soc_dapm_stream_event(rtd, stream, event);
 	mutex_unlock(&card->dapm_mutex);
 }
+
+void snd_soc_dapm_stream_stop(struct snd_soc_pcm_runtime *rtd, int stream)
+{
+	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		if (snd_soc_runtime_ignore_pmdown_time(rtd)) {
+			/* powered down playback stream now */
+			snd_soc_dapm_stream_event(rtd,
+						  SNDRV_PCM_STREAM_PLAYBACK,
+						  SND_SOC_DAPM_STREAM_STOP);
+		} else {
+			/* start delayed pop wq here for playback streams */
+			rtd->pop_wait = 1;
+			queue_delayed_work(system_power_efficient_wq,
+					   &rtd->delayed_work,
+					   msecs_to_jiffies(rtd->pmdown_time));
+		}
+	} else {
+		/* capture streams can be powered down now */
+		snd_soc_dapm_stream_event(rtd, SNDRV_PCM_STREAM_CAPTURE,
+					  SND_SOC_DAPM_STREAM_STOP);
+	}
+}
+EXPORT_SYMBOL_GPL(snd_soc_dapm_stream_stop);
 
 /**
  * snd_soc_dapm_enable_pin_unlocked - enable pin.

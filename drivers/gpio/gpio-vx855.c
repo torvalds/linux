@@ -71,7 +71,7 @@ static inline u_int32_t gpio_o_bit(int i)
 		return 1 << (i + 13);
 }
 
-/* Mapping betwee numeric GPIO ID and the actual GPIO hardware numbering:
+/* Mapping between numeric GPIO ID and the actual GPIO hardware numbering:
  * 0..13	GPI 0..13
  * 14..26	GPO 0..12
  * 27..41	GPIO 0..14

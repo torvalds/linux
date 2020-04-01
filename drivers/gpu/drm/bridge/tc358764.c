@@ -282,7 +282,7 @@ static int tc358764_get_modes(struct drm_connector *connector)
 {
 	struct tc358764 *ctx = connector_to_tc358764(connector);
 
-	return drm_panel_get_modes(ctx->panel);
+	return drm_panel_get_modes(ctx->panel, connector);
 }
 
 static const

@@ -429,7 +429,7 @@ static void update_bmc_sta(struct adapter *padapter)
 
 		/* prepare for add_RATid */
 		supportRateNum = rtw_get_rateset_len((u8 *)&pcur_network->SupportedRates);
-		network_type = rtw_check_network_type((u8 *)&pcur_network->SupportedRates, supportRateNum, 1);
+		network_type = rtw_check_network_type((u8 *)&pcur_network->SupportedRates);
 
 		memcpy(psta->bssrateset, &pcur_network->SupportedRates, supportRateNum);
 		psta->bssratelen = supportRateNum;
@@ -802,7 +802,7 @@ int rtw_check_beacon_data(struct adapter *padapter, u8 *pbuf,  int len)
 		supportRateNum += ie_len;
 	}
 
-	network_type = rtw_check_network_type(supportRate, supportRateNum, channel);
+	network_type = rtw_check_network_type(supportRate);
 
 	rtw_set_supported_rate(pbss_network->SupportedRates, network_type);
 

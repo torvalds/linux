@@ -78,7 +78,7 @@ static void simplefb_destroy(struct fb_info *info)
 		iounmap(info->screen_base);
 }
 
-static struct fb_ops simplefb_ops = {
+static const struct fb_ops simplefb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_destroy	= simplefb_destroy,
 	.fb_setcolreg	= simplefb_setcolreg,

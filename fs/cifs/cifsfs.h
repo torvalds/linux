@@ -149,9 +149,12 @@ extern ssize_t cifs_file_copychunk_range(unsigned int xid,
 					size_t len, unsigned int flags);
 
 extern long cifs_ioctl(struct file *filep, unsigned int cmd, unsigned long arg);
+extern void cifs_setsize(struct inode *inode, loff_t offset);
+extern int cifs_truncate_page(struct address_space *mapping, loff_t from);
+
 #ifdef CONFIG_CIFS_NFSD_EXPORT
 extern const struct export_operations cifs_export_ops;
 #endif /* CONFIG_CIFS_NFSD_EXPORT */
 
-#define CIFS_VERSION   "2.24"
+#define CIFS_VERSION   "2.25"
 #endif				/* _CIFSFS_H */

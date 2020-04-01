@@ -901,14 +901,13 @@ mv64xxx_i2c_probe(struct platform_device *pd)
 
 	/* Not all platforms have clocks */
 	drv_data->clk = devm_clk_get(&pd->dev, NULL);
-	if (IS_ERR(drv_data->clk) && PTR_ERR(drv_data->clk) == -EPROBE_DEFER)
+	if (PTR_ERR(drv_data->clk) == -EPROBE_DEFER)
 		return -EPROBE_DEFER;
 	if (!IS_ERR(drv_data->clk))
 		clk_prepare_enable(drv_data->clk);
 
 	drv_data->reg_clk = devm_clk_get(&pd->dev, "reg");
-	if (IS_ERR(drv_data->reg_clk) &&
-	    PTR_ERR(drv_data->reg_clk) == -EPROBE_DEFER)
+	if (PTR_ERR(drv_data->reg_clk) == -EPROBE_DEFER)
 		return -EPROBE_DEFER;
 	if (!IS_ERR(drv_data->reg_clk))
 		clk_prepare_enable(drv_data->reg_clk);

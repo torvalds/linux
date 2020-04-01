@@ -305,7 +305,7 @@ static void aspeed_smc_stop_user(struct spi_nor *nor)
 	writel(ctl, chip->ctl);		/* default to fread or read mode */
 }
 
-static int aspeed_smc_prep(struct spi_nor *nor, enum spi_nor_ops ops)
+static int aspeed_smc_prep(struct spi_nor *nor)
 {
 	struct aspeed_smc_chip *chip = nor->priv;
 
@@ -313,7 +313,7 @@ static int aspeed_smc_prep(struct spi_nor *nor, enum spi_nor_ops ops)
 	return 0;
 }
 
-static void aspeed_smc_unprep(struct spi_nor *nor, enum spi_nor_ops ops)
+static void aspeed_smc_unprep(struct spi_nor *nor)
 {
 	struct aspeed_smc_chip *chip = nor->priv;
 

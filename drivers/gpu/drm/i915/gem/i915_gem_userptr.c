@@ -129,9 +129,10 @@ userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,
 		spin_unlock(&mn->lock);
 
 		ret = i915_gem_object_unbind(obj,
-					     I915_GEM_OBJECT_UNBIND_ACTIVE);
+					     I915_GEM_OBJECT_UNBIND_ACTIVE |
+					     I915_GEM_OBJECT_UNBIND_BARRIER);
 		if (ret == 0)
-			ret = __i915_gem_object_put_pages(obj, I915_MM_SHRINKER);
+			ret = __i915_gem_object_put_pages(obj);
 		i915_gem_object_put(obj);
 		if (ret)
 			return ret;
@@ -460,31 +461,36 @@ __i915_gem_userptr_get_pages_worker(struct work_struct *_work)
 	if (pvec != NULL) {
 		struct mm_struct *mm = obj->userptr.mm->mm;
 		unsigned int flags = 0;
+		int locked = 0;
 
 		if (!i915_gem_object_is_readonly(obj))
 			flags |= FOLL_WRITE;
 
 		ret = -EFAULT;
 		if (mmget_not_zero(mm)) {
-			down_read(&mm->mmap_sem);
 			while (pinned < npages) {
+				if (!locked) {
+					down_read(&mm->mmap_sem);
+					locked = 1;
+				}
 				ret = get_user_pages_remote
 					(work->task, mm,
 					 obj->userptr.ptr + pinned * PAGE_SIZE,
 					 npages - pinned,
 					 flags,
-					 pvec + pinned, NULL, NULL);
+					 pvec + pinned, NULL, &locked);
 				if (ret < 0)
 					break;
 
 				pinned += ret;
 			}
-			up_read(&mm->mmap_sem);
+			if (locked)
+				up_read(&mm->mmap_sem);
 			mmput(mm);
 		}
 	}
 
-	mutex_lock(&obj->mm.lock);
+	mutex_lock_nested(&obj->mm.lock, I915_MM_GET_PAGES);
 	if (obj->userptr.work == &work->work) {
 		struct sg_table *pages = ERR_PTR(ret);
 
@@ -774,15 +780,11 @@ i915_gem_userptr_ioctl(struct drm_device *dev,
 		return -EFAULT;
 
 	if (args->flags & I915_USERPTR_READ_ONLY) {
-		struct i915_address_space *vm;
-
 		/*
 		 * On almost all of the older hw, we cannot tell the GPU that
 		 * a page is readonly.
 		 */
-		vm = rcu_dereference_protected(dev_priv->kernel_context->vm,
-					       true); /* static vm */
-		if (!vm || !vm->has_read_only)
+		if (!dev_priv->gt.vm->has_read_only)
 			return -ENODEV;
 	}
 

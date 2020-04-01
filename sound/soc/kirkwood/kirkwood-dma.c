@@ -316,7 +316,6 @@ const struct snd_soc_component_driver kirkwood_soc_component = {
 	.name		= DRV_NAME,
 	.open		= kirkwood_dma_open,
 	.close		= kirkwood_dma_close,
-	.ioctl		= snd_soc_pcm_lib_ioctl,
 	.hw_params	= kirkwood_dma_hw_params,
 	.hw_free	= kirkwood_dma_hw_free,
 	.prepare	= kirkwood_dma_prepare,

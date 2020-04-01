@@ -33,6 +33,9 @@
 #define REG(reg)\
 	mpc20->mpc_regs->reg
 
+#define IND_REG(index) \
+	(index)
+
 #define CTX \
 	mpc20->base.ctx
 
@@ -132,18 +135,32 @@ void mpc2_set_output_csc(
 		const uint16_t *regval,
 		enum mpc_output_csc_mode ocsc_mode)
 {
+	uint32_t cur_mode;
 	struct dcn20_mpc *mpc20 = TO_DCN20_MPC(mpc);
 	struct color_matrices_reg ocsc_regs;
 
-	REG_SET(CSC_MODE[opp_id], 0, MPC_OCSC_MODE, ocsc_mode);
-
-	if (ocsc_mode == MPC_OUTPUT_CSC_DISABLE)
+	if (ocsc_mode == MPC_OUTPUT_CSC_DISABLE) {
+		REG_SET(CSC_MODE[opp_id], 0, MPC_OCSC_MODE, ocsc_mode);
 		return;
+	}
 
 	if (regval == NULL) {
 		BREAK_TO_DEBUGGER();
 		return;
 	}
+
+	/* determine which CSC coefficients (A or B) we are using
+	 * currently.  select the alternate set to double buffer
+	 * the CSC update so CSC is updated on frame boundary
+	 */
+	IX_REG_GET(MPC_OCSC_TEST_DEBUG_INDEX, MPC_OCSC_TEST_DEBUG_DATA,
+						MPC_OCSC_TEST_DEBUG_DATA_STATUS_IDX,
+						MPC_OCSC_TEST_DEBUG_DATA_OCSC_MODE, &cur_mode);
+
+	if (cur_mode != MPC_OUTPUT_CSC_COEF_A)
+		ocsc_mode = MPC_OUTPUT_CSC_COEF_A;
+	else
+		ocsc_mode = MPC_OUTPUT_CSC_COEF_B;
 
 	ocsc_regs.shifts.csc_c11 = mpc20->mpc_shift->MPC_OCSC_C11_A;
 	ocsc_regs.masks.csc_c11  = mpc20->mpc_mask->MPC_OCSC_C11_A;
@@ -157,10 +174,13 @@ void mpc2_set_output_csc(
 		ocsc_regs.csc_c11_c12 = REG(CSC_C11_C12_B[opp_id]);
 		ocsc_regs.csc_c33_c34 = REG(CSC_C33_C34_B[opp_id]);
 	}
+
 	cm_helper_program_color_matrices(
 			mpc20->base.ctx,
 			regval,
 			&ocsc_regs);
+
+	REG_SET(CSC_MODE[opp_id], 0, MPC_OCSC_MODE, ocsc_mode);
 }
 
 void mpc2_set_ocsc_default(
@@ -169,14 +189,16 @@ void mpc2_set_ocsc_default(
 		enum dc_color_space color_space,
 		enum mpc_output_csc_mode ocsc_mode)
 {
+	uint32_t cur_mode;
 	struct dcn20_mpc *mpc20 = TO_DCN20_MPC(mpc);
 	uint32_t arr_size;
 	struct color_matrices_reg ocsc_regs;
 	const uint16_t *regval = NULL;
 
-	REG_SET(CSC_MODE[opp_id], 0, MPC_OCSC_MODE, ocsc_mode);
-	if (ocsc_mode == MPC_OUTPUT_CSC_DISABLE)
+	if (ocsc_mode == MPC_OUTPUT_CSC_DISABLE) {
+		REG_SET(CSC_MODE[opp_id], 0, MPC_OCSC_MODE, ocsc_mode);
 		return;
+	}
 
 	regval = find_color_matrix(color_space, &arr_size);
 
@@ -184,6 +206,19 @@ void mpc2_set_ocsc_default(
 		BREAK_TO_DEBUGGER();
 		return;
 	}
+
+	/* determine which CSC coefficients (A or B) we are using
+	 * currently.  select the alternate set to double buffer
+	 * the CSC update so CSC is updated on frame boundary
+	 */
+	IX_REG_GET(MPC_OCSC_TEST_DEBUG_INDEX, MPC_OCSC_TEST_DEBUG_DATA,
+						MPC_OCSC_TEST_DEBUG_DATA_STATUS_IDX,
+						MPC_OCSC_TEST_DEBUG_DATA_OCSC_MODE, &cur_mode);
+
+	if (cur_mode != MPC_OUTPUT_CSC_COEF_A)
+		ocsc_mode = MPC_OUTPUT_CSC_COEF_A;
+	else
+		ocsc_mode = MPC_OUTPUT_CSC_COEF_B;
 
 	ocsc_regs.shifts.csc_c11 = mpc20->mpc_shift->MPC_OCSC_C11_A;
 	ocsc_regs.masks.csc_c11  = mpc20->mpc_mask->MPC_OCSC_C11_A;
@@ -203,6 +238,8 @@ void mpc2_set_ocsc_default(
 			mpc20->base.ctx,
 			regval,
 			&ocsc_regs);
+
+	REG_SET(CSC_MODE[opp_id], 0, MPC_OCSC_MODE, ocsc_mode);
 }
 
 static void mpc2_ogam_get_reg_field(
@@ -345,6 +382,9 @@ static void mpc20_program_ogam_pwl(
 	uint32_t i;
 	struct dcn20_mpc *mpc20 = TO_DCN20_MPC(mpc);
 
+	PERF_TRACE();
+	REG_SEQ_START();
+
 	for (i = 0 ; i < num; i++) {
 		REG_SET(MPCC_OGAM_LUT_DATA[mpcc_id], 0, MPCC_OGAM_LUT_DATA, rgb[i].red_reg);
 		REG_SET(MPCC_OGAM_LUT_DATA[mpcc_id], 0, MPCC_OGAM_LUT_DATA, rgb[i].green_reg);
@@ -463,6 +503,11 @@ void mpc2_assert_mpcc_idle_before_connect(struct mpc *mpc, int mpcc_id)
 		ASSERT(!mpc_disabled);
 		ASSERT(!mpc_idle);
 	}
+
+	REG_SEQ_SUBMIT();
+	PERF_TRACE();
+	REG_SEQ_WAIT_DONE();
+	PERF_TRACE();
 }
 
 static void mpc2_init_mpcc(struct mpcc *mpcc, int mpcc_inst)

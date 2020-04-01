@@ -6,7 +6,7 @@
 
 #include <linux/ieee80211.h>
 
-#define QLINK_PROTO_VER		15
+#define QLINK_PROTO_VER		16
 
 #define QLINK_MACID_RSVD		0xFF
 #define QLINK_VIFID_RSVD		0xFF
@@ -194,6 +194,45 @@ struct qlink_auth_encr {
 struct qlink_sta_info_state {
 	__le32 mask;
 	__le32 value;
+} __packed;
+
+/**
+ * enum qlink_sr_ctrl_flags - control flags for spatial reuse parameter set
+ *
+ * @QLINK_SR_PSR_DISALLOWED: indicates whether or not PSR-based spatial reuse
+ * transmissions are allowed for STAs associated with the AP
+ * @QLINK_SR_NON_SRG_OBSS_PD_SR_DISALLOWED: indicates whether or not
+ * Non-SRG OBSS PD spatial reuse transmissions are allowed for STAs associated
+ * with the AP
+ * @NON_SRG_OFFSET_PRESENT: indicates whether or not Non-SRG OBSS PD Max offset
+ * field is valid in the element
+ * @QLINK_SR_SRG_INFORMATION_PRESENT: indicates whether or not SRG OBSS PD
+ * Min/Max offset fields ore valid in the element
+ */
+enum qlink_sr_ctrl_flags {
+	QLINK_SR_PSR_DISALLOWED                = BIT(0),
+	QLINK_SR_NON_SRG_OBSS_PD_SR_DISALLOWED = BIT(1),
+	QLINK_SR_NON_SRG_OFFSET_PRESENT        = BIT(2),
+	QLINK_SR_SRG_INFORMATION_PRESENT       = BIT(3),
+};
+
+/**
+ * struct qlink_sr_params - spatial reuse parameters
+ *
+ * @sr_control: spatial reuse control field; flags contained in this field are
+ * defined in @qlink_sr_ctrl_flags
+ * @non_srg_obss_pd_max: added to -82 dBm to generate the value of the
+ * Non-SRG OBSS PD Max parameter
+ * @srg_obss_pd_min_offset: added to -82 dBm to generate the value of the
+ * SRG OBSS PD Min parameter
+ * @srg_obss_pd_max_offset: added to -82 dBm to generate the value of the
+ * SRG PBSS PD Max parameter
+ */
+struct qlink_sr_params {
+	u8 sr_control;
+	u8 non_srg_obss_pd_max;
+	u8 srg_obss_pd_min_offset;
+	u8 srg_obss_pd_max_offset;
 } __packed;
 
 /* QLINK Command messages related definitions
@@ -596,8 +635,9 @@ enum qlink_user_reg_hint_type {
  *	of &enum qlink_user_reg_hint_type.
  * @num_channels: number of &struct qlink_tlv_channel in a variable portion of a
  *	payload.
- * @slave_radar: whether slave device should enable radar detection.
  * @dfs_region: one of &enum qlink_dfs_regions.
+ * @slave_radar: whether slave device should enable radar detection.
+ * @dfs_offload: enable or disable DFS offload to firmware.
  * @info: variable portion of regulatory notifier callback.
  */
 struct qlink_cmd_reg_notify {
@@ -608,7 +648,7 @@ struct qlink_cmd_reg_notify {
 	u8 num_channels;
 	u8 dfs_region;
 	u8 slave_radar;
-	u8 rsvd[1];
+	u8 dfs_offload;
 	u8 info[0];
 } __packed;
 
@@ -650,6 +690,8 @@ enum qlink_hidden_ssid {
  * @ht_required: stations must support HT
  * @vht_required: stations must support VHT
  * @aen: encryption info
+ * @sr_params: spatial reuse parameters
+ * @twt_responder: enable Target Wake Time
  * @info: variable configurations
  */
 struct qlink_cmd_start_ap {
@@ -665,6 +707,9 @@ struct qlink_cmd_start_ap {
 	u8 ht_required;
 	u8 vht_required;
 	struct qlink_auth_encr aen;
+	struct qlink_sr_params sr_params;
+	u8 twt_responder;
+	u8 rsvd[3];
 	u8 info[0];
 } __packed;
 
@@ -948,6 +993,7 @@ enum qlink_sta_info_rate_flags {
 	QLINK_STA_INFO_RATE_FLAG_VHT_MCS	= BIT(1),
 	QLINK_STA_INFO_RATE_FLAG_SHORT_GI	= BIT(2),
 	QLINK_STA_INFO_RATE_FLAG_60G		= BIT(3),
+	QLINK_STA_INFO_RATE_FLAG_HE_MCS		= BIT(4),
 };
 
 /**

@@ -210,15 +210,6 @@ static int smsc9420_eeprom_reload(struct smsc9420_pdata *pd)
 	return -EIO;
 }
 
-/* Standard ioctls for mii-tool */
-static int smsc9420_do_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
-{
-	if (!netif_running(dev) || !dev->phydev)
-		return -EINVAL;
-
-	return phy_mii_ioctl(dev->phydev, ifr, cmd);
-}
-
 static void smsc9420_ethtool_get_drvinfo(struct net_device *netdev,
 					 struct ethtool_drvinfo *drvinfo)
 {
@@ -1504,7 +1495,7 @@ static const struct net_device_ops smsc9420_netdev_ops = {
 	.ndo_start_xmit		= smsc9420_hard_start_xmit,
 	.ndo_get_stats		= smsc9420_get_stats,
 	.ndo_set_rx_mode	= smsc9420_set_multicast_list,
-	.ndo_do_ioctl		= smsc9420_do_ioctl,
+	.ndo_do_ioctl		= phy_do_ioctl_running,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address 	= eth_mac_addr,
 #ifdef CONFIG_NET_POLL_CONTROLLER

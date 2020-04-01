@@ -790,7 +790,7 @@ ENTRY(io_int_handler)
 .Lio_work:
 	tm	__PT_PSW+1(%r11),0x01	# returning to user ?
 	jo	.Lio_work_user		# yes -> do resched & signal
-#ifdef CONFIG_PREEMPT
+#ifdef CONFIG_PREEMPTION
 	# check for preemptive scheduling
 	icm	%r0,15,__LC_PREEMPT_COUNT
 	jnz	.Lio_restore		# preemption is disabled

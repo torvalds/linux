@@ -84,6 +84,15 @@ static struct clockdomain l3s_tsc_43xx_clkdm = {
 	.flags		  = CLKDM_CAN_SWSUP,
 };
 
+static struct clockdomain lcdc_43xx_clkdm = {
+	.name		  = "lcdc_clkdm",
+	.pwrdm		  = { .name = "per_pwrdm" },
+	.prcm_partition	  = AM43XX_CM_PARTITION,
+	.cm_inst	  = AM43XX_CM_PER_INST,
+	.clkdm_offs	  = AM43XX_CM_PER_LCDC_CDOFFS,
+	.flags		  = CLKDM_CAN_SWSUP,
+};
+
 static struct clockdomain dss_43xx_clkdm = {
 	.name		  = "dss_clkdm",
 	.pwrdm		  = { .name = "per_pwrdm" },
@@ -173,6 +182,7 @@ static struct clockdomain *clockdomains_am43xx[] __initdata = {
 	&pruss_ocp_43xx_clkdm,
 	&ocpwp_l3_43xx_clkdm,
 	&l3s_tsc_43xx_clkdm,
+	&lcdc_43xx_clkdm,
 	&dss_43xx_clkdm,
 	&l3_aon_43xx_clkdm,
 	&emif_43xx_clkdm,

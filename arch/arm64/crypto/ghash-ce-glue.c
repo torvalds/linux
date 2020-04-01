@@ -248,10 +248,8 @@ static int ghash_setkey(struct crypto_shash *tfm,
 {
 	struct ghash_key *key = crypto_shash_ctx(tfm);
 
-	if (keylen != GHASH_BLOCK_SIZE) {
-		crypto_shash_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (keylen != GHASH_BLOCK_SIZE)
 		return -EINVAL;
-	}
 
 	return __ghash_setkey(key, inkey, keylen);
 }
@@ -259,7 +257,7 @@ static int ghash_setkey(struct crypto_shash *tfm,
 static struct shash_alg ghash_alg[] = {{
 	.base.cra_name		= "ghash",
 	.base.cra_driver_name	= "ghash-neon",
-	.base.cra_priority	= 100,
+	.base.cra_priority	= 150,
 	.base.cra_blocksize	= GHASH_BLOCK_SIZE,
 	.base.cra_ctxsize	= sizeof(struct ghash_key),
 	.base.cra_module	= THIS_MODULE,
@@ -306,10 +304,8 @@ static int gcm_setkey(struct crypto_aead *tfm, const u8 *inkey,
 	int ret;
 
 	ret = aes_expandkey(&ctx->aes_key, inkey, keylen);
-	if (ret) {
-		tfm->base.crt_flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
+	if (ret)
 		return -EINVAL;
-	}
 
 	aes_encrypt(&ctx->aes_key, key, (u8[AES_BLOCK_SIZE]){});
 

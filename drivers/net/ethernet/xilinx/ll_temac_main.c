@@ -1080,17 +1080,6 @@ temac_poll_controller(struct net_device *ndev)
 }
 #endif
 
-static int temac_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd)
-{
-	if (!netif_running(ndev))
-		return -EINVAL;
-
-	if (!ndev->phydev)
-		return -EINVAL;
-
-	return phy_mii_ioctl(ndev->phydev, rq, cmd);
-}
-
 static const struct net_device_ops temac_netdev_ops = {
 	.ndo_open = temac_open,
 	.ndo_stop = temac_stop,
@@ -1098,7 +1087,7 @@ static const struct net_device_ops temac_netdev_ops = {
 	.ndo_set_rx_mode = temac_set_multicast_list,
 	.ndo_set_mac_address = temac_set_mac_address,
 	.ndo_validate_addr = eth_validate_addr,
-	.ndo_do_ioctl = temac_ioctl,
+	.ndo_do_ioctl = phy_do_ioctl_running,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = temac_poll_controller,
 #endif
@@ -1202,7 +1191,7 @@ static int temac_probe(struct platform_device *pdev)
 
 	/* map device registers */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	lp->regs = devm_ioremap_nocache(&pdev->dev, res->start,
+	lp->regs = devm_ioremap(&pdev->dev, res->start,
 					resource_size(res));
 	if (IS_ERR(lp->regs)) {
 		dev_err(&pdev->dev, "could not map TEMAC registers\n");
@@ -1296,7 +1285,7 @@ static int temac_probe(struct platform_device *pdev)
 	} else if (pdata) {
 		/* 2nd memory resource specifies DMA registers */
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-		lp->sdma_regs = devm_ioremap_nocache(&pdev->dev, res->start,
+		lp->sdma_regs = devm_ioremap(&pdev->dev, res->start,
 						     resource_size(res));
 		if (IS_ERR(lp->sdma_regs)) {
 			dev_err(&pdev->dev,

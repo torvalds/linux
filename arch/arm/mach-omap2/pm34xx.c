@@ -25,7 +25,6 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
-#include <linux/omap-dma.h>
 #include <linux/omap-gpmc.h>
 
 #include <trace/events/power.h>
@@ -85,7 +84,6 @@ static void omap3_core_save_context(void)
 	omap3_gpmc_save_context();
 	/* Save the system control module context, padconf already save above*/
 	omap3_control_save_context();
-	omap_dma_global_context_save();
 }
 
 static void omap3_core_restore_context(void)
@@ -96,7 +94,6 @@ static void omap3_core_restore_context(void)
 	omap3_gpmc_restore_context();
 	/* Restore the interrupt controller context */
 	omap_intc_restore_context();
-	omap_dma_global_context_restore();
 }
 
 /*
@@ -547,9 +544,7 @@ int __init omap3_pm_init(void)
 
 		local_irq_disable();
 
-		omap_dma_global_context_save();
 		omap3_save_secure_ram_context();
-		omap_dma_global_context_restore();
 
 		local_irq_enable();
 	}

@@ -2,16 +2,22 @@
 /* Copyright 2019 NXP Semiconductors
  */
 #include <uapi/linux/if_bridge.h>
+#include <soc/mscc/ocelot_qsys.h>
+#include <soc/mscc/ocelot_sys.h>
+#include <soc/mscc/ocelot_dev.h>
+#include <soc/mscc/ocelot_ana.h>
 #include <soc/mscc/ocelot.h>
 #include <linux/packing.h>
 #include <linux/module.h>
+#include <linux/of_net.h>
 #include <linux/pci.h>
 #include <linux/of.h>
 #include <net/dsa.h>
 #include "felix.h"
 
 static enum dsa_tag_protocol felix_get_tag_protocol(struct dsa_switch *ds,
-						    int port)
+						    int port,
+						    enum dsa_tag_protocol mp)
 {
 	return DSA_TAG_PROTO_OCELOT;
 }
@@ -24,14 +30,6 @@ static int felix_set_ageing_time(struct dsa_switch *ds,
 	ocelot_set_ageing_time(ocelot, ageing_time);
 
 	return 0;
-}
-
-static void felix_adjust_link(struct dsa_switch *ds, int port,
-			      struct phy_device *phydev)
-{
-	struct ocelot *ocelot = ds->priv;
-
-	ocelot_adjust_link(ocelot, port, phydev);
 }
 
 static int felix_fdb_dump(struct dsa_switch *ds, int port,
@@ -155,6 +153,141 @@ static void felix_port_disable(struct dsa_switch *ds, int port)
 	return ocelot_port_disable(ocelot, port);
 }
 
+static void felix_phylink_validate(struct dsa_switch *ds, int port,
+				   unsigned long *supported,
+				   struct phylink_link_state *state)
+{
+	struct ocelot *ocelot = ds->priv;
+	struct ocelot_port *ocelot_port = ocelot->ports[port];
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
+
+	if (state->interface != PHY_INTERFACE_MODE_NA &&
+	    state->interface != ocelot_port->phy_mode) {
+		bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
+		return;
+	}
+
+	/* No half-duplex. */
+	phylink_set_port_modes(mask);
+	phylink_set(mask, Autoneg);
+	phylink_set(mask, Pause);
+	phylink_set(mask, Asym_Pause);
+	phylink_set(mask, 10baseT_Full);
+	phylink_set(mask, 100baseT_Full);
+	phylink_set(mask, 1000baseT_Full);
+
+	/* The internal ports that run at 2.5G are overclocked GMII */
+	if (state->interface == PHY_INTERFACE_MODE_GMII ||
+	    state->interface == PHY_INTERFACE_MODE_2500BASEX ||
+	    state->interface == PHY_INTERFACE_MODE_USXGMII) {
+		phylink_set(mask, 2500baseT_Full);
+		phylink_set(mask, 2500baseX_Full);
+	}
+
+	bitmap_and(supported, supported, mask,
+		   __ETHTOOL_LINK_MODE_MASK_NBITS);
+	bitmap_and(state->advertising, state->advertising, mask,
+		   __ETHTOOL_LINK_MODE_MASK_NBITS);
+}
+
+static int felix_phylink_mac_pcs_get_state(struct dsa_switch *ds, int port,
+					   struct phylink_link_state *state)
+{
+	struct ocelot *ocelot = ds->priv;
+	struct felix *felix = ocelot_to_felix(ocelot);
+
+	if (felix->info->pcs_link_state)
+		felix->info->pcs_link_state(ocelot, port, state);
+
+	return 0;
+}
+
+static void felix_phylink_mac_config(struct dsa_switch *ds, int port,
+				     unsigned int link_an_mode,
+				     const struct phylink_link_state *state)
+{
+	struct ocelot *ocelot = ds->priv;
+	struct ocelot_port *ocelot_port = ocelot->ports[port];
+	struct felix *felix = ocelot_to_felix(ocelot);
+	u32 mac_fc_cfg;
+
+	/* Take port out of reset by clearing the MAC_TX_RST, MAC_RX_RST and
+	 * PORT_RST bits in CLOCK_CFG
+	 */
+	ocelot_port_writel(ocelot_port, DEV_CLOCK_CFG_LINK_SPEED(state->speed),
+			   DEV_CLOCK_CFG);
+
+	/* Flow control. Link speed is only used here to evaluate the time
+	 * specification in incoming pause frames.
+	 */
+	mac_fc_cfg = SYS_MAC_FC_CFG_FC_LINK_SPEED(state->speed);
+
+	/* handle Rx pause in all cases, with 2500base-X this is used for rate
+	 * adaptation.
+	 */
+	mac_fc_cfg |= SYS_MAC_FC_CFG_RX_FC_ENA;
+
+	if (state->pause & MLO_PAUSE_TX)
+		mac_fc_cfg |= SYS_MAC_FC_CFG_TX_FC_ENA |
+			      SYS_MAC_FC_CFG_PAUSE_VAL_CFG(0xffff) |
+			      SYS_MAC_FC_CFG_FC_LATENCY_CFG(0x7) |
+			      SYS_MAC_FC_CFG_ZERO_PAUSE_ENA;
+	ocelot_write_rix(ocelot, mac_fc_cfg, SYS_MAC_FC_CFG, port);
+
+	ocelot_write_rix(ocelot, 0, ANA_POL_FLOWC, port);
+
+	if (felix->info->pcs_init)
+		felix->info->pcs_init(ocelot, port, link_an_mode, state);
+}
+
+static void felix_phylink_mac_an_restart(struct dsa_switch *ds, int port)
+{
+	struct ocelot *ocelot = ds->priv;
+	struct felix *felix = ocelot_to_felix(ocelot);
+
+	if (felix->info->pcs_an_restart)
+		felix->info->pcs_an_restart(ocelot, port);
+}
+
+static void felix_phylink_mac_link_down(struct dsa_switch *ds, int port,
+					unsigned int link_an_mode,
+					phy_interface_t interface)
+{
+	struct ocelot *ocelot = ds->priv;
+	struct ocelot_port *ocelot_port = ocelot->ports[port];
+
+	ocelot_port_writel(ocelot_port, 0, DEV_MAC_ENA_CFG);
+	ocelot_rmw_rix(ocelot, 0, QSYS_SWITCH_PORT_MODE_PORT_ENA,
+		       QSYS_SWITCH_PORT_MODE, port);
+}
+
+static void felix_phylink_mac_link_up(struct dsa_switch *ds, int port,
+				      unsigned int link_an_mode,
+				      phy_interface_t interface,
+				      struct phy_device *phydev)
+{
+	struct ocelot *ocelot = ds->priv;
+	struct ocelot_port *ocelot_port = ocelot->ports[port];
+
+	/* Enable MAC module */
+	ocelot_port_writel(ocelot_port, DEV_MAC_ENA_CFG_RX_ENA |
+			   DEV_MAC_ENA_CFG_TX_ENA, DEV_MAC_ENA_CFG);
+
+	/* Enable receiving frames on the port, and activate auto-learning of
+	 * MAC addresses.
+	 */
+	ocelot_write_gix(ocelot, ANA_PORT_PORT_CFG_LEARNAUTO |
+			 ANA_PORT_PORT_CFG_RECV_ENA |
+			 ANA_PORT_PORT_CFG_PORTID_VAL(port),
+			 ANA_PORT_PORT_CFG, port);
+
+	/* Core: Enable port for frame transfer */
+	ocelot_write_rix(ocelot, QSYS_SWITCH_PORT_MODE_INGRESS_DROP_MODE |
+			 QSYS_SWITCH_PORT_MODE_SCH_NEXT_CFG(1) |
+			 QSYS_SWITCH_PORT_MODE_PORT_ENA,
+			 QSYS_SWITCH_PORT_MODE, port);
+}
+
 static void felix_get_strings(struct dsa_switch *ds, int port,
 			      u32 stringset, u8 *data)
 {
@@ -185,10 +318,76 @@ static int felix_get_ts_info(struct dsa_switch *ds, int port,
 	return ocelot_get_ts_info(ocelot, port, info);
 }
 
+static int felix_parse_ports_node(struct felix *felix,
+				  struct device_node *ports_node,
+				  phy_interface_t *port_phy_modes)
+{
+	struct ocelot *ocelot = &felix->ocelot;
+	struct device *dev = felix->ocelot.dev;
+	struct device_node *child;
+
+	for_each_available_child_of_node(ports_node, child) {
+		phy_interface_t phy_mode;
+		u32 port;
+		int err;
+
+		/* Get switch port number from DT */
+		if (of_property_read_u32(child, "reg", &port) < 0) {
+			dev_err(dev, "Port number not defined in device tree "
+				"(property \"reg\")\n");
+			of_node_put(child);
+			return -ENODEV;
+		}
+
+		/* Get PHY mode from DT */
+		err = of_get_phy_mode(child, &phy_mode);
+		if (err) {
+			dev_err(dev, "Failed to read phy-mode or "
+				"phy-interface-type property for port %d\n",
+				port);
+			of_node_put(child);
+			return -ENODEV;
+		}
+
+		err = felix->info->prevalidate_phy_mode(ocelot, port, phy_mode);
+		if (err < 0) {
+			dev_err(dev, "Unsupported PHY mode %s on port %d\n",
+				phy_modes(phy_mode), port);
+			return err;
+		}
+
+		port_phy_modes[port] = phy_mode;
+	}
+
+	return 0;
+}
+
+static int felix_parse_dt(struct felix *felix, phy_interface_t *port_phy_modes)
+{
+	struct device *dev = felix->ocelot.dev;
+	struct device_node *switch_node;
+	struct device_node *ports_node;
+	int err;
+
+	switch_node = dev->of_node;
+
+	ports_node = of_get_child_by_name(switch_node, "ports");
+	if (!ports_node) {
+		dev_err(dev, "Incorrect bindings: absent \"ports\" node\n");
+		return -ENODEV;
+	}
+
+	err = felix_parse_ports_node(felix, ports_node, port_phy_modes);
+	of_node_put(ports_node);
+
+	return err;
+}
+
 static int felix_init_structs(struct felix *felix, int num_phys_ports)
 {
 	struct ocelot *ocelot = &felix->ocelot;
-	resource_size_t base;
+	phy_interface_t *port_phy_modes;
+	resource_size_t switch_base;
 	int port, i, err;
 
 	ocelot->num_phys_ports = num_phys_ports;
@@ -203,7 +402,19 @@ static int felix_init_structs(struct felix *felix, int num_phys_ports)
 	ocelot->shared_queue_sz	= felix->info->shared_queue_sz;
 	ocelot->ops		= felix->info->ops;
 
-	base = pci_resource_start(felix->pdev, felix->info->pci_bar);
+	port_phy_modes = kcalloc(num_phys_ports, sizeof(phy_interface_t),
+				 GFP_KERNEL);
+	if (!port_phy_modes)
+		return -ENOMEM;
+
+	err = felix_parse_dt(felix, port_phy_modes);
+	if (err) {
+		kfree(port_phy_modes);
+		return err;
+	}
+
+	switch_base = pci_resource_start(felix->pdev,
+					 felix->info->switch_pci_bar);
 
 	for (i = 0; i < TARGET_MAX; i++) {
 		struct regmap *target;
@@ -214,13 +425,14 @@ static int felix_init_structs(struct felix *felix, int num_phys_ports)
 
 		res = &felix->info->target_io_res[i];
 		res->flags = IORESOURCE_MEM;
-		res->start += base;
-		res->end += base;
+		res->start += switch_base;
+		res->end += switch_base;
 
 		target = ocelot_regmap_init(ocelot, res);
 		if (IS_ERR(target)) {
 			dev_err(ocelot->dev,
 				"Failed to map device memory space\n");
+			kfree(port_phy_modes);
 			return PTR_ERR(target);
 		}
 
@@ -230,6 +442,7 @@ static int felix_init_structs(struct felix *felix, int num_phys_ports)
 	err = ocelot_regfields_init(ocelot, felix->info->regfields);
 	if (err) {
 		dev_err(ocelot->dev, "failed to init reg fields map\n");
+		kfree(port_phy_modes);
 		return err;
 	}
 
@@ -244,24 +457,35 @@ static int felix_init_structs(struct felix *felix, int num_phys_ports)
 		if (!ocelot_port) {
 			dev_err(ocelot->dev,
 				"failed to allocate port memory\n");
+			kfree(port_phy_modes);
 			return -ENOMEM;
 		}
 
 		res = &felix->info->port_io_res[port];
 		res->flags = IORESOURCE_MEM;
-		res->start += base;
-		res->end += base;
+		res->start += switch_base;
+		res->end += switch_base;
 
 		port_regs = devm_ioremap_resource(ocelot->dev, res);
 		if (IS_ERR(port_regs)) {
 			dev_err(ocelot->dev,
 				"failed to map registers for port %d\n", port);
+			kfree(port_phy_modes);
 			return PTR_ERR(port_regs);
 		}
 
+		ocelot_port->phy_mode = port_phy_modes[port];
 		ocelot_port->ocelot = ocelot;
 		ocelot_port->regs = port_regs;
 		ocelot->ports[port] = ocelot_port;
+	}
+
+	kfree(port_phy_modes);
+
+	if (felix->info->mdio_bus_alloc) {
+		err = felix->info->mdio_bus_alloc(ocelot);
+		if (err < 0)
+			return err;
 	}
 
 	return 0;
@@ -293,12 +517,22 @@ static int felix_setup(struct dsa_switch *ds)
 					    OCELOT_TAG_PREFIX_LONG);
 	}
 
+	/* It looks like the MAC/PCS interrupt register - PM0_IEVENT (0x8040)
+	 * isn't instantiated for the Felix PF.
+	 * In-band AN may take a few ms to complete, so we need to poll.
+	 */
+	ds->pcs_poll = true;
+
 	return 0;
 }
 
 static void felix_teardown(struct dsa_switch *ds)
 {
 	struct ocelot *ocelot = ds->priv;
+	struct felix *felix = ocelot_to_felix(ocelot);
+
+	if (felix->info->mdio_bus_free)
+		felix->info->mdio_bus_free(ocelot);
 
 	/* stop workqueue thread */
 	ocelot_deinit(ocelot);
@@ -369,7 +603,12 @@ static const struct dsa_switch_ops felix_switch_ops = {
 	.get_ethtool_stats	= felix_get_ethtool_stats,
 	.get_sset_count		= felix_get_sset_count,
 	.get_ts_info		= felix_get_ts_info,
-	.adjust_link		= felix_adjust_link,
+	.phylink_validate	= felix_phylink_validate,
+	.phylink_mac_link_state	= felix_phylink_mac_pcs_get_state,
+	.phylink_mac_config	= felix_phylink_mac_config,
+	.phylink_mac_an_restart	= felix_phylink_mac_an_restart,
+	.phylink_mac_link_down	= felix_phylink_mac_link_down,
+	.phylink_mac_link_up	= felix_phylink_mac_link_up,
 	.port_enable		= felix_port_enable,
 	.port_disable		= felix_port_disable,
 	.port_fdb_dump		= felix_fdb_dump,

@@ -123,7 +123,7 @@ static int g12a_ephy_pll_is_enabled(struct clk_hw *hw)
 	return (val & PLL_CTL0_LOCK_DIG) ? 1 : 0;
 }
 
-static void g12a_ephy_pll_init(struct clk_hw *hw)
+static int g12a_ephy_pll_init(struct clk_hw *hw)
 {
 	struct g12a_ephy_pll *pll = g12a_ephy_pll_to_dev(hw);
 
@@ -136,6 +136,8 @@ static void g12a_ephy_pll_init(struct clk_hw *hw)
 	writel(0x20200000, pll->base + ETH_PLL_CTL5);
 	writel(0x0000c002, pll->base + ETH_PLL_CTL6);
 	writel(0x00000023, pll->base + ETH_PLL_CTL7);
+
+	return 0;
 }
 
 static const struct clk_ops g12a_ephy_pll_ops = {

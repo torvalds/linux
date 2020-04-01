@@ -21,7 +21,7 @@ endif
 drop-sections := .reginfo .mdebug .comment .note .pdr .options .MIPS.options
 strip-flags   := $(addprefix --remove-section=,$(drop-sections))
 
-hostprogs-y := elf2ecoff
+hostprogs := elf2ecoff
 
 suffix-y			:= bin
 suffix-$(CONFIG_KERNEL_BZIP2)	:= bz2
@@ -123,7 +123,7 @@ $(obj)/vmlinux.its.S: $(addprefix $(srctree)/arch/mips/$(PLATFORM)/,$(ITS_INPUTS
 targets += vmlinux.its
 targets += vmlinux.gz.its
 targets += vmlinux.bz2.its
-targets += vmlinux.lzmo.its
+targets += vmlinux.lzma.its
 targets += vmlinux.lzo.its
 
 quiet_cmd_cpp_its_S = ITS     $@

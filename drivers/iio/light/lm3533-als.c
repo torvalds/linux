@@ -742,7 +742,7 @@ static int lm3533_als_set_resistor(struct lm3533_als *als, u8 val)
 	if (val < LM3533_ALS_RESISTOR_MIN || val > LM3533_ALS_RESISTOR_MAX) {
 		dev_err(&als->pdev->dev, "invalid resistor value\n");
 		return -EINVAL;
-	};
+	}
 
 	ret = lm3533_write(als->lm3533, LM3533_REG_ALS_RESISTOR_SELECT, val);
 	if (ret) {

@@ -789,7 +789,7 @@ static int ab8500_charger_max_usb_curr(struct ab8500_charger *di,
 		di->max_usb_in_curr.usb_type_max = USB_CH_IP_CUR_LVL_0P05;
 		ret = -ENXIO;
 		break;
-	};
+	}
 
 	di->max_usb_in_curr.set_max = di->max_usb_in_curr.usb_type_max;
 	dev_dbg(di->dev, "USB Type - 0x%02x MaxCurr: %d",
@@ -1079,7 +1079,7 @@ static int ab8500_charger_get_usb_cur(struct ab8500_charger *di)
 		di->max_usb_in_curr.usb_type_max = USB_CH_IP_CUR_LVL_0P05;
 		ret = -EPERM;
 		break;
-	};
+	}
 	di->max_usb_in_curr.set_max = di->max_usb_in_curr.usb_type_max;
 	return ret;
 }
@@ -2427,7 +2427,7 @@ static void ab8500_charger_usb_state_changed_work(struct work_struct *work)
 
 	default:
 		break;
-	};
+	}
 }
 
 /**

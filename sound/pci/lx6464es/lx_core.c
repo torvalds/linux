@@ -161,7 +161,7 @@ struct dsp_cmd_info {
     the number of status words (in addition to the return value)
 */
 
-static struct dsp_cmd_info dsp_commands[] =
+static const struct dsp_cmd_info dsp_commands[] =
 {
 	{ (CMD_00_INFO_DEBUG << OPCODE_OFFSET)			, 1 /*custom*/
 	  , 1	, 0 /**/		    , CMD_NAME("INFO_DEBUG") },
@@ -858,7 +858,7 @@ int lx_level_unmute(struct lx6464es *chip, int is_capture, int unmute)
 	return err;
 }
 
-static u32 peak_map[] = {
+static const u32 peak_map[] = {
 	0x00000109, /* -90.308dB */
 	0x0000083B, /* -72.247dB */
 	0x000020C4, /* -60.205dB */

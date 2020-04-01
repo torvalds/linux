@@ -122,18 +122,24 @@ DECLARE_EVENT_CLASS(cdns3_log_epx_irq,
 		__string(ep_name, priv_ep->name)
 		__field(u32, ep_sts)
 		__field(u32, ep_traddr)
+		__field(u32, ep_last_sid)
+		__field(u32, use_streams)
 		__dynamic_array(char, str, CDNS3_MSG_MAX)
 	),
 	TP_fast_assign(
 		__assign_str(ep_name, priv_ep->name);
 		__entry->ep_sts = readl(&priv_dev->regs->ep_sts);
 		__entry->ep_traddr = readl(&priv_dev->regs->ep_traddr);
+		__entry->ep_last_sid = priv_ep->last_stream_id;
+		__entry->use_streams = priv_ep->use_streams;
 	),
-	TP_printk("%s, ep_traddr: %08x",
+	TP_printk("%s, ep_traddr: %08x ep_last_sid: %08x use_streams: %d",
 		  cdns3_decode_epx_irq(__get_str(str),
 				       __get_str(ep_name),
 				       __entry->ep_sts),
-		  __entry->ep_traddr)
+		  __entry->ep_traddr,
+		  __entry->ep_last_sid,
+		  __entry->use_streams)
 );
 
 DEFINE_EVENT(cdns3_log_epx_irq, cdns3_epx_irq,
@@ -210,6 +216,7 @@ DECLARE_EVENT_CLASS(cdns3_log_request,
 		__field(int, end_trb)
 		__field(struct cdns3_trb *, start_trb_addr)
 		__field(int, flags)
+		__field(unsigned int, stream_id)
 	),
 	TP_fast_assign(
 		__assign_str(name, req->priv_ep->name);
@@ -225,9 +232,10 @@ DECLARE_EVENT_CLASS(cdns3_log_request,
 		__entry->end_trb = req->end_trb;
 		__entry->start_trb_addr = req->trb;
 		__entry->flags = req->flags;
+		__entry->stream_id = req->request.stream_id;
 	),
 	TP_printk("%s: req: %p, req buff %p, length: %u/%u %s%s%s, status: %d,"
-		  " trb: [start:%d, end:%d: virt addr %pa], flags:%x ",
+		  " trb: [start:%d, end:%d: virt addr %pa], flags:%x SID: %u",
 		__get_str(name), __entry->req, __entry->buf, __entry->actual,
 		__entry->length,
 		__entry->zero ? "Z" : "z",
@@ -237,7 +245,8 @@ DECLARE_EVENT_CLASS(cdns3_log_request,
 		__entry->start_trb,
 		__entry->end_trb,
 		__entry->start_trb_addr,
-		__entry->flags
+		__entry->flags,
+		__entry->stream_id
 	)
 );
 
@@ -281,6 +290,39 @@ TRACE_EVENT(cdns3_ep0_queue,
 		  __entry->length)
 );
 
+DECLARE_EVENT_CLASS(cdns3_stream_split_transfer_len,
+	TP_PROTO(struct cdns3_request *req),
+	TP_ARGS(req),
+	TP_STRUCT__entry(
+		__string(name, req->priv_ep->name)
+		__field(struct cdns3_request *, req)
+		__field(unsigned int, length)
+		__field(unsigned int, actual)
+		__field(unsigned int, stream_id)
+	),
+	TP_fast_assign(
+		__assign_str(name, req->priv_ep->name);
+		__entry->req = req;
+		__entry->actual = req->request.length;
+		__entry->length = req->request.actual;
+		__entry->stream_id = req->request.stream_id;
+	),
+	TP_printk("%s: req: %p,request length: %u actual length: %u  SID: %u",
+		  __get_str(name), __entry->req, __entry->length,
+		  __entry->actual, __entry->stream_id)
+);
+
+DEFINE_EVENT(cdns3_stream_split_transfer_len, cdns3_stream_transfer_split,
+	     TP_PROTO(struct cdns3_request *req),
+	     TP_ARGS(req)
+);
+
+DEFINE_EVENT(cdns3_stream_split_transfer_len,
+	     cdns3_stream_transfer_split_next_part,
+	     TP_PROTO(struct cdns3_request *req),
+	     TP_ARGS(req)
+);
+
 DECLARE_EVENT_CLASS(cdns3_log_aligned_request,
 	TP_PROTO(struct cdns3_request *priv_req),
 	TP_ARGS(priv_req),
@@ -319,6 +361,34 @@ DEFINE_EVENT(cdns3_log_aligned_request, cdns3_prepare_aligned_request,
 	TP_ARGS(req)
 );
 
+DECLARE_EVENT_CLASS(cdns3_log_map_request,
+	TP_PROTO(struct cdns3_request *priv_req),
+	TP_ARGS(priv_req),
+	TP_STRUCT__entry(
+		__string(name, priv_req->priv_ep->name)
+		__field(struct usb_request *, req)
+		__field(void *, buf)
+		__field(dma_addr_t, dma)
+	),
+	TP_fast_assign(
+		__assign_str(name, priv_req->priv_ep->name);
+		__entry->req = &priv_req->request;
+		__entry->buf = priv_req->request.buf;
+		__entry->dma = priv_req->request.dma;
+	),
+	TP_printk("%s: req: %p, req buf %p, dma %p",
+		  __get_str(name), __entry->req, __entry->buf, &__entry->dma
+	)
+);
+DEFINE_EVENT(cdns3_log_map_request, cdns3_map_request,
+	     TP_PROTO(struct cdns3_request *req),
+	     TP_ARGS(req)
+);
+DEFINE_EVENT(cdns3_log_map_request, cdns3_mapped_request,
+	     TP_PROTO(struct cdns3_request *req),
+	     TP_ARGS(req)
+);
+
 DECLARE_EVENT_CLASS(cdns3_log_trb,
 	TP_PROTO(struct cdns3_endpoint *priv_ep, struct cdns3_trb *trb),
 	TP_ARGS(priv_ep, trb),
@@ -329,6 +399,7 @@ DECLARE_EVENT_CLASS(cdns3_log_trb,
 		__field(u32, length)
 		__field(u32, control)
 		__field(u32, type)
+		__field(unsigned int, last_stream_id)
 	),
 	TP_fast_assign(
 		__assign_str(name, priv_ep->name);
@@ -337,8 +408,9 @@ DECLARE_EVENT_CLASS(cdns3_log_trb,
 		__entry->length = trb->length;
 		__entry->control = trb->control;
 		__entry->type = usb_endpoint_type(priv_ep->endpoint.desc);
+		__entry->last_stream_id = priv_ep->last_stream_id;
 	),
-	TP_printk("%s: trb %p, dma buf: 0x%08x, size: %ld, burst: %d ctrl: 0x%08x (%s%s%s%s%s%s%s)",
+	TP_printk("%s: trb %p, dma buf: 0x%08x, size: %ld, burst: %d ctrl: 0x%08x (%s%s%s%s%s%s%s) SID:%lu LAST_SID:%u",
 		__get_str(name), __entry->trb, __entry->buffer,
 		TRB_LEN(__entry->length),
 		(u8)TRB_BURST_LEN_GET(__entry->length),
@@ -349,7 +421,9 @@ DECLARE_EVENT_CLASS(cdns3_log_trb,
 		__entry->control & TRB_FIFO_MODE ? "FIFO, " : "",
 		__entry->control & TRB_CHAIN ? "CHAIN, " : "",
 		__entry->control & TRB_IOC ? "IOC, " : "",
-		TRB_FIELD_TO_TYPE(__entry->control) == TRB_NORMAL ? "Normal" : "LINK"
+		TRB_FIELD_TO_TYPE(__entry->control) == TRB_NORMAL ? "Normal" : "LINK",
+		TRB_FIELD_TO_STREAMID(__entry->control),
+		__entry->last_stream_id
 	)
 );
 
@@ -398,6 +472,7 @@ DECLARE_EVENT_CLASS(cdns3_log_ep,
 		__field(unsigned int, maxpacket)
 		__field(unsigned int, maxpacket_limit)
 		__field(unsigned int, max_streams)
+		__field(unsigned int, use_streams)
 		__field(unsigned int, maxburst)
 		__field(unsigned int, flags)
 		__field(unsigned int, dir)
@@ -409,16 +484,18 @@ DECLARE_EVENT_CLASS(cdns3_log_ep,
 		__entry->maxpacket = priv_ep->endpoint.maxpacket;
 		__entry->maxpacket_limit = priv_ep->endpoint.maxpacket_limit;
 		__entry->max_streams = priv_ep->endpoint.max_streams;
+		__entry->use_streams = priv_ep->use_streams;
 		__entry->maxburst = priv_ep->endpoint.maxburst;
 		__entry->flags = priv_ep->flags;
 		__entry->dir = priv_ep->dir;
 		__entry->enqueue = priv_ep->enqueue;
 		__entry->dequeue = priv_ep->dequeue;
 	),
-	TP_printk("%s: mps: %d/%d. streams: %d, burst: %d, enq idx: %d, "
-		  "deq idx: %d, flags %s%s%s%s%s%s%s%s, dir: %s",
+	TP_printk("%s: mps: %d/%d. streams: %d, stream enable: %d, burst: %d, "
+		  "enq idx: %d, deq idx: %d, flags %s%s%s%s%s%s%s%s, dir: %s",
 		__get_str(name), __entry->maxpacket,
 		__entry->maxpacket_limit, __entry->max_streams,
+		__entry->use_streams,
 		__entry->maxburst, __entry->enqueue,
 		__entry->dequeue,
 		__entry->flags & EP_ENABLED ? "EN | " : "",

@@ -56,7 +56,7 @@ static int qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent);
 static void qlcnic_remove(struct pci_dev *pdev);
 static int qlcnic_open(struct net_device *netdev);
 static int qlcnic_close(struct net_device *netdev);
-static void qlcnic_tx_timeout(struct net_device *netdev);
+static void qlcnic_tx_timeout(struct net_device *netdev, unsigned int txqueue);
 static void qlcnic_attach_work(struct work_struct *work);
 static void qlcnic_fwinit_work(struct work_struct *work);
 
@@ -3068,7 +3068,7 @@ static void qlcnic_dump_rings(struct qlcnic_adapter *adapter)
 
 }
 
-static void qlcnic_tx_timeout(struct net_device *netdev)
+static void qlcnic_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 

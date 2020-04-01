@@ -69,6 +69,7 @@ int pci_enable_ats(struct pci_dev *dev, int ps)
 	dev->ats_enabled = 1;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(pci_enable_ats);
 
 /**
  * pci_disable_ats - disable the ATS capability
@@ -87,6 +88,7 @@ void pci_disable_ats(struct pci_dev *dev)
 
 	dev->ats_enabled = 0;
 }
+EXPORT_SYMBOL_GPL(pci_disable_ats);
 
 void pci_restore_ats_state(struct pci_dev *dev)
 {
@@ -424,11 +426,12 @@ void pci_restore_pasid_state(struct pci_dev *pdev)
 int pci_pasid_features(struct pci_dev *pdev)
 {
 	u16 supported;
-	int pasid = pdev->pasid_cap;
+	int pasid;
 
 	if (pdev->is_virtfn)
 		pdev = pci_physfn(pdev);
 
+	pasid = pdev->pasid_cap;
 	if (!pasid)
 		return -EINVAL;
 
@@ -451,11 +454,12 @@ int pci_pasid_features(struct pci_dev *pdev)
 int pci_max_pasids(struct pci_dev *pdev)
 {
 	u16 supported;
-	int pasid = pdev->pasid_cap;
+	int pasid;
 
 	if (pdev->is_virtfn)
 		pdev = pci_physfn(pdev);
 
+	pasid = pdev->pasid_cap;
 	if (!pasid)
 		return -EINVAL;
 

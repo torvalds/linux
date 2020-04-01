@@ -7,7 +7,7 @@
 #ifndef IGT_LIVE_TEST_H
 #define IGT_LIVE_TEST_H
 
-#include "../i915_gem.h"
+#include "gt/intel_engine.h" /* for I915_NUM_ENGINES */
 
 struct drm_i915_private;
 

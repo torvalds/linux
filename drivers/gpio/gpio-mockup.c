@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * GPIO Testing Device Driver
  *
@@ -7,18 +7,18 @@
  * Copyright (C) 2017 Bartosz Golaszewski <brgl@bgdev.pl>
  */
 
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/gpio/driver.h>
+#include <linux/debugfs.h>
 #include <linux/gpio/consumer.h>
-#include <linux/platform_device.h>
-#include <linux/slab.h>
+#include <linux/gpio/driver.h>
+#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/irq_sim.h>
-#include <linux/debugfs.h>
-#include <linux/uaccess.h>
+#include <linux/module.h>
+#include <linux/platform_device.h>
 #include <linux/property.h>
+#include <linux/slab.h>
+#include <linux/uaccess.h>
 
 #include "gpiolib.h"
 

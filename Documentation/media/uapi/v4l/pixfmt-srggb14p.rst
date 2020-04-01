@@ -13,7 +13,7 @@
 .. _v4l2-pix-fmt-sgrbg14p:
 
 *******************************************************************************************************************************
-V4L2_PIX_FMT_SRGGB14P ('pRCC'), V4L2_PIX_FMT_SGRBG14P ('pgCC'), V4L2_PIX_FMT_SGBRG14P ('pGCC'), V4L2_PIX_FMT_SBGGR14P ('pBCC'),
+V4L2_PIX_FMT_SRGGB14P ('pREE'), V4L2_PIX_FMT_SGRBG14P ('pgEE'), V4L2_PIX_FMT_SGBRG14P ('pGEE'), V4L2_PIX_FMT_SBGGR14P ('pBEE'),
 *******************************************************************************************************************************
 
 *man V4L2_PIX_FMT_SRGGB14P(2)*

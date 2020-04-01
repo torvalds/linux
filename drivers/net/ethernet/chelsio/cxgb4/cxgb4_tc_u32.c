@@ -176,7 +176,7 @@ int cxgb4_config_knode(struct net_device *dev, struct tc_cls_u32_offload *cls)
 	/* Only insert U32 rule if its priority doesn't conflict with
 	 * existing rules in the LETCAM.
 	 */
-	if (filter_id >= adapter->tids.nftids ||
+	if (filter_id >= adapter->tids.nftids + adapter->tids.nhpftids ||
 	    !cxgb4_filter_prio_in_range(dev, filter_id, cls->common.prio)) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "No free LETCAM index available");
@@ -199,6 +199,8 @@ int cxgb4_config_knode(struct net_device *dev, struct tc_cls_u32_offload *cls)
 
 	memset(&fs, 0, sizeof(fs));
 
+	if (filter_id < adapter->tids.nhpftids)
+		fs.prio = 1;
 	fs.tc_prio = cls->common.prio;
 	fs.tc_cookie = cls->knode.handle;
 
@@ -355,6 +357,7 @@ int cxgb4_delete_knode(struct net_device *dev, struct tc_cls_u32_offload *cls)
 	unsigned int filter_id, max_tids, i, j;
 	struct cxgb4_link *link = NULL;
 	struct cxgb4_tc_u32_table *t;
+	struct filter_entry *f;
 	u32 handle, uhtid;
 	int ret;
 
@@ -363,8 +366,15 @@ int cxgb4_delete_knode(struct net_device *dev, struct tc_cls_u32_offload *cls)
 
 	/* Fetch the location to delete the filter. */
 	filter_id = TC_U32_NODE(cls->knode.handle) - 1;
-	if (filter_id >= adapter->tids.nftids ||
-	    cls->knode.handle != adapter->tids.ftid_tab[filter_id].fs.tc_cookie)
+	if (filter_id >= adapter->tids.nftids + adapter->tids.nhpftids)
+		return -ERANGE;
+
+	if (filter_id < adapter->tids.nhpftids)
+		f = &adapter->tids.hpftid_tab[filter_id];
+	else
+		f = &adapter->tids.ftid_tab[filter_id - adapter->tids.nhpftids];
+
+	if (cls->knode.handle != f->fs.tc_cookie)
 		return -ERANGE;
 
 	t = adapter->tc_u32;
@@ -445,7 +455,7 @@ void cxgb4_cleanup_tc_u32(struct adapter *adap)
 
 struct cxgb4_tc_u32_table *cxgb4_init_tc_u32(struct adapter *adap)
 {
-	unsigned int max_tids = adap->tids.nftids;
+	unsigned int max_tids = adap->tids.nftids + adap->tids.nhpftids;
 	struct cxgb4_tc_u32_table *t;
 	unsigned int i;
 

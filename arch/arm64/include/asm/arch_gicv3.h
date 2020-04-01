@@ -140,10 +140,11 @@ static inline u32 gic_read_rpr(void)
 #define gicr_write_pendbaser(v, c)	writeq_relaxed(v, c)
 #define gicr_read_pendbaser(c)		readq_relaxed(c)
 
-#define gits_write_vpropbaser(v, c)	writeq_relaxed(v, c)
+#define gicr_write_vpropbaser(v, c)	writeq_relaxed(v, c)
+#define gicr_read_vpropbaser(c)		readq_relaxed(c)
 
-#define gits_write_vpendbaser(v, c)	writeq_relaxed(v, c)
-#define gits_read_vpendbaser(c)		readq_relaxed(c)
+#define gicr_write_vpendbaser(v, c)	writeq_relaxed(v, c)
+#define gicr_read_vpendbaser(c)		readq_relaxed(c)
 
 static inline bool gic_prio_masking_enabled(void)
 {

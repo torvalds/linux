@@ -154,8 +154,7 @@ static const struct iwl_ht_params iwl7000_ht_params = {
 	.nvm_hw_section_num = 0,				\
 	.non_shared_ant = ANT_A,				\
 	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,	\
-	.dccm_offset = IWL7000_DCCM_OFFSET,			\
-	.trans.csr = &iwl_csr_v1
+	.dccm_offset = IWL7000_DCCM_OFFSET
 
 #define IWL_DEVICE_7000						\
 	IWL_DEVICE_7000_COMMON,					\

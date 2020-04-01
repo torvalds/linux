@@ -2,7 +2,7 @@
 # Copyright 2019 Analog Devices Inc.
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/bindings/iio/adc/adi,ad7192.yaml#
+$id: http://devicetree.org/schemas/iio/adc/adi,ad7192.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Analog Devices AD7192 ADC device driver

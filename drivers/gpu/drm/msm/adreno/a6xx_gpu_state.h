@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (c) 2018 The Linux Foundation. All rights reserved. */
+/* Copyright (c) 2018-2019 The Linux Foundation. All rights reserved. */
 
 #ifndef _A6XX_CRASH_DUMP_H_
 #define _A6XX_CRASH_DUMP_H_
@@ -307,10 +307,19 @@ static const u32 a6xx_vbif_registers[] = {
 	0x3410, 0x3410, 0x3800, 0x3801,
 };
 
+static const u32 a6xx_gbif_registers[] = {
+	0x3C00, 0X3C0B, 0X3C40, 0X3C47, 0X3CC0, 0X3CD1, 0xE3A, 0xE3A,
+};
+
 static const struct a6xx_registers a6xx_ahb_reglist[] = {
 	REGS(a6xx_ahb_registers, 0, 0),
-	REGS(a6xx_vbif_registers, 0, 0),
 };
+
+static const struct a6xx_registers a6xx_vbif_reglist =
+			REGS(a6xx_vbif_registers, 0, 0);
+
+static const struct a6xx_registers a6xx_gbif_reglist =
+			REGS(a6xx_gbif_registers, 0, 0);
 
 static const u32 a6xx_gmu_gx_registers[] = {
 	/* GMU GX */
@@ -421,6 +430,9 @@ static const struct a6xx_debugbus_block {
 	DEBUGBUS(A6XX_DBGBUS_TPL1_2, 0x100),
 	DEBUGBUS(A6XX_DBGBUS_TPL1_3, 0x100),
 };
+
+static const struct a6xx_debugbus_block a6xx_gbif_debugbus_block =
+			DEBUGBUS(A6XX_DBGBUS_VBIF, 0x100);
 
 static const struct a6xx_debugbus_block a6xx_cx_debugbus_blocks[] = {
 	DEBUGBUS(A6XX_DBGBUS_GMU_CX, 0x100),

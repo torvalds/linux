@@ -30,7 +30,6 @@
 #include "inc/hw/aux_engine.h"
 
 
-#ifdef CONFIG_DRM_AMD_DC_DCN2_0
 #define AUX_COMMON_REG_LIST0(id)\
 	SRI(AUX_CONTROL, DP_AUX, id), \
 	SRI(AUX_ARB_CONTROL, DP_AUX, id), \
@@ -39,7 +38,6 @@
 	SRI(AUX_INTERRUPT_CONTROL, DP_AUX, id), \
 	SRI(AUX_DPHY_RX_CONTROL1, DP_AUX, id), \
 	SRI(AUX_SW_STATUS, DP_AUX, id)
-#endif
 
 #define AUX_COMMON_REG_LIST(id)\
 	SRI(AUX_CONTROL, DP_AUX, id), \
@@ -311,7 +309,7 @@ bool dce_aux_transfer_with_retries(struct ddc_service *ddc,
 		struct aux_payload *cmd);
 
 struct dce_aux_funcs {
-	bool (*configure_timeout)
+	uint32_t (*configure_timeout)
 		(struct ddc_service *ddc,
 		 uint32_t timeout);
 	void (*destroy)

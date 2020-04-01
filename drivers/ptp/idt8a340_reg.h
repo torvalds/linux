@@ -77,6 +77,8 @@
 #define JTAG_DEVICE_ID                    0x001c
 #define PRODUCT_ID                        0x001e
 
+#define OTP_SCSR_CONFIG_SELECT            0x0022
+
 #define STATUS                            0xc03c
 #define USER_GPIO0_TO_7_STATUS            0x008a
 #define USER_GPIO8_TO_15_STATUS           0x008b

@@ -5,6 +5,7 @@
 
 #include <linux/kernel.h>
 #include <linux/ide.h>
+#include <linux/compat.h>
 #include <linux/cdrom.h>
 #include <linux/mutex.h>
 
@@ -302,3 +303,37 @@ out:
 	mutex_unlock(&ide_floppy_ioctl_mutex);
 	return err;
 }
+
+#ifdef CONFIG_COMPAT
+int ide_floppy_compat_ioctl(ide_drive_t *drive, struct block_device *bdev,
+			    fmode_t mode, unsigned int cmd, unsigned long arg)
+{
+	struct ide_atapi_pc pc;
+	void __user *argp = compat_ptr(arg);
+	int err;
+
+	mutex_lock(&ide_floppy_ioctl_mutex);
+	if (cmd == CDROMEJECT || cmd == CDROM_LOCKDOOR) {
+		err = ide_floppy_lockdoor(drive, &pc, arg, cmd);
+		goto out;
+	}
+
+	err = ide_floppy_format_ioctl(drive, &pc, mode, cmd, argp);
+	if (err != -ENOTTY)
+		goto out;
+
+	/*
+	 * skip SCSI_IOCTL_SEND_COMMAND (deprecated)
+	 * and CDROM_SEND_PACKET (legacy) ioctls
+	 */
+	if (cmd != CDROM_SEND_PACKET && cmd != SCSI_IOCTL_SEND_COMMAND)
+		err = scsi_cmd_blk_ioctl(bdev, mode, cmd, argp);
+
+	if (err == -ENOTTY)
+		err = generic_ide_ioctl(drive, bdev, cmd, arg);
+
+out:
+	mutex_unlock(&ide_floppy_ioctl_mutex);
+	return err;
+}
+#endif

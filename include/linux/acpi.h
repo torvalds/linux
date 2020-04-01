@@ -279,6 +279,21 @@ static inline bool invalid_phys_cpuid(phys_cpuid_t phys_id)
 
 /* Validate the processor object's proc_id */
 bool acpi_duplicate_processor_id(int proc_id);
+/* Processor _CTS control */
+struct acpi_processor_power;
+
+#ifdef CONFIG_ACPI_PROCESSOR_CSTATE
+bool acpi_processor_claim_cst_control(void);
+int acpi_processor_evaluate_cst(acpi_handle handle, u32 cpu,
+				struct acpi_processor_power *info);
+#else
+static inline bool acpi_processor_claim_cst_control(void) { return false; }
+static inline int acpi_processor_evaluate_cst(acpi_handle handle, u32 cpu,
+					      struct acpi_processor_power *info)
+{
+	return -ENODEV;
+}
+#endif
 
 #ifdef CONFIG_ACPI_HOTPLUG_CPU
 /* Arch dependent functions for cpu hotplug support */

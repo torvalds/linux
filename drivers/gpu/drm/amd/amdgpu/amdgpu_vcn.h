@@ -31,6 +31,7 @@
 #define AMDGPU_VCN_MAX_ENC_RINGS	3
 
 #define AMDGPU_MAX_VCN_INSTANCES	2
+#define AMDGPU_MAX_VCN_ENC_RINGS  AMDGPU_VCN_MAX_ENC_RINGS * AMDGPU_MAX_VCN_INSTANCES
 
 #define AMDGPU_VCN_HARVEST_VCN0 (1 << 0)
 #define AMDGPU_VCN_HARVEST_VCN1 (1 << 1)
@@ -56,33 +57,41 @@
 #define VCN_VID_IP_ADDRESS_2_0		0x0
 #define VCN_AON_IP_ADDRESS_2_0		0x30000
 
-#define RREG32_SOC15_DPG_MODE(ip, inst, reg, mask, sram_sel) 				\
-	({	WREG32_SOC15(ip, inst, mmUVD_DPG_LMA_MASK, mask); 			\
-		WREG32_SOC15(ip, inst, mmUVD_DPG_LMA_CTL, 				\
+#define mmUVD_RBC_XX_IB_REG_CHECK 					0x026b
+#define mmUVD_RBC_XX_IB_REG_CHECK_BASE_IDX 				1
+#define mmUVD_REG_XX_MASK 						0x026c
+#define mmUVD_REG_XX_MASK_BASE_IDX 					1
+
+/* 1 second timeout */
+#define VCN_IDLE_TIMEOUT	msecs_to_jiffies(1000)
+
+#define RREG32_SOC15_DPG_MODE(ip, inst_idx, reg, mask, sram_sel) 			\
+	({	WREG32_SOC15(ip, inst_idx, mmUVD_DPG_LMA_MASK, mask); 			\
+		WREG32_SOC15(ip, inst_idx, mmUVD_DPG_LMA_CTL, 				\
 			UVD_DPG_LMA_CTL__MASK_EN_MASK | 				\
-			((adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg) 	\
+			((adev->reg_offset[ip##_HWIP][inst_idx][reg##_BASE_IDX] + reg) 	\
 			<< UVD_DPG_LMA_CTL__READ_WRITE_ADDR__SHIFT) | 			\
 			(sram_sel << UVD_DPG_LMA_CTL__SRAM_SEL__SHIFT)); 		\
-		RREG32_SOC15(ip, inst, mmUVD_DPG_LMA_DATA); 				\
+		RREG32_SOC15(ip, inst_idx, mmUVD_DPG_LMA_DATA); 			\
 	})
 
-#define WREG32_SOC15_DPG_MODE(ip, inst, reg, value, mask, sram_sel) 			\
+#define WREG32_SOC15_DPG_MODE(ip, inst_idx, reg, value, mask, sram_sel) 		\
 	do { 										\
-		WREG32_SOC15(ip, inst, mmUVD_DPG_LMA_DATA, value); 			\
-		WREG32_SOC15(ip, inst, mmUVD_DPG_LMA_MASK, mask); 			\
-		WREG32_SOC15(ip, inst, mmUVD_DPG_LMA_CTL, 				\
+		WREG32_SOC15(ip, inst_idx, mmUVD_DPG_LMA_DATA, value); 			\
+		WREG32_SOC15(ip, inst_idx, mmUVD_DPG_LMA_MASK, mask); 			\
+		WREG32_SOC15(ip, inst_idx, mmUVD_DPG_LMA_CTL, 				\
 			UVD_DPG_LMA_CTL__READ_WRITE_MASK | 				\
-			((adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg) 	\
+			((adev->reg_offset[ip##_HWIP][inst_idx][reg##_BASE_IDX] + reg) 	\
 			<< UVD_DPG_LMA_CTL__READ_WRITE_ADDR__SHIFT) | 			\
 			(sram_sel << UVD_DPG_LMA_CTL__SRAM_SEL__SHIFT)); 		\
 	} while (0)
 
-#define SOC15_DPG_MODE_OFFSET_2_0(ip, inst, reg) 						\
+#define SOC15_DPG_MODE_OFFSET_2_0(ip, inst_idx, reg) 						\
 	({											\
 		uint32_t internal_reg_offset, addr;						\
 		bool video_range, aon_range;							\
 												\
-		addr = (adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg);		\
+		addr = (adev->reg_offset[ip##_HWIP][inst_idx][reg##_BASE_IDX] + reg);		\
 		addr <<= 2; 									\
 		video_range = ((((0xFFFFF & addr) >= (VCN_VID_SOC_ADDRESS_2_0)) && 		\
 				((0xFFFFF & addr) < ((VCN_VID_SOC_ADDRESS_2_0 + 0x2600)))));	\
@@ -100,27 +109,27 @@
 		internal_reg_offset >>= 2;							\
 	})
 
-#define RREG32_SOC15_DPG_MODE_2_0(offset, mask_en) 						\
-	({ 											\
-		WREG32_SOC15(VCN, 0, mmUVD_DPG_LMA_CTL, 					\
-			(0x0 << UVD_DPG_LMA_CTL__READ_WRITE__SHIFT | 				\
-			mask_en << UVD_DPG_LMA_CTL__MASK_EN__SHIFT | 				\
-			offset << UVD_DPG_LMA_CTL__READ_WRITE_ADDR__SHIFT)); 			\
-		RREG32_SOC15(VCN, 0, mmUVD_DPG_LMA_DATA); 					\
+#define RREG32_SOC15_DPG_MODE_2_0(inst_idx, offset, mask_en) 					\
+	({											\
+		WREG32_SOC15(VCN, inst_idx, mmUVD_DPG_LMA_CTL, 					\
+			(0x0 << UVD_DPG_LMA_CTL__READ_WRITE__SHIFT |				\
+			mask_en << UVD_DPG_LMA_CTL__MASK_EN__SHIFT |				\
+			offset << UVD_DPG_LMA_CTL__READ_WRITE_ADDR__SHIFT));			\
+		RREG32_SOC15(VCN, inst_idx, mmUVD_DPG_LMA_DATA);				\
 	})
 
-#define WREG32_SOC15_DPG_MODE_2_0(offset, value, mask_en, indirect)				\
-	do { 											\
-		if (!indirect) { 								\
-			WREG32_SOC15(VCN, 0, mmUVD_DPG_LMA_DATA, value); 			\
-			WREG32_SOC15(VCN, 0, mmUVD_DPG_LMA_CTL, 				\
-				(0x1 << UVD_DPG_LMA_CTL__READ_WRITE__SHIFT | 			\
-				 mask_en << UVD_DPG_LMA_CTL__MASK_EN__SHIFT | 			\
-				 offset << UVD_DPG_LMA_CTL__READ_WRITE_ADDR__SHIFT)); 		\
-		} else { 									\
-			*adev->vcn.dpg_sram_curr_addr++ = offset; 				\
-			*adev->vcn.dpg_sram_curr_addr++ = value; 				\
-		} 										\
+#define WREG32_SOC15_DPG_MODE_2_0(inst_idx, offset, value, mask_en, indirect)			\
+	do {											\
+		if (!indirect) {								\
+			WREG32_SOC15(VCN, inst_idx, mmUVD_DPG_LMA_DATA, value);			\
+			WREG32_SOC15(VCN, inst_idx, mmUVD_DPG_LMA_CTL, 				\
+				(0x1 << UVD_DPG_LMA_CTL__READ_WRITE__SHIFT |			\
+				 mask_en << UVD_DPG_LMA_CTL__MASK_EN__SHIFT |			\
+				 offset << UVD_DPG_LMA_CTL__READ_WRITE_ADDR__SHIFT));		\
+		} else {									\
+			*adev->vcn.inst[inst_idx].dpg_sram_curr_addr++ = offset;		\
+			*adev->vcn.inst[inst_idx].dpg_sram_curr_addr++ = value;			\
+		}										\
 	} while (0)
 
 enum engine_status_constants {
@@ -158,7 +167,6 @@ struct amdgpu_vcn_reg{
 	unsigned	ib_size;
 	unsigned	gp_scratch8;
 	unsigned	scratch9;
-	unsigned	jpeg_pitch;
 };
 
 struct amdgpu_vcn_inst {
@@ -168,9 +176,13 @@ struct amdgpu_vcn_inst {
 	void			*saved_bo;
 	struct amdgpu_ring	ring_dec;
 	struct amdgpu_ring	ring_enc[AMDGPU_VCN_MAX_ENC_RINGS];
-	struct amdgpu_ring	ring_jpeg;
 	struct amdgpu_irq_src	irq;
 	struct amdgpu_vcn_reg	external;
+	struct amdgpu_bo	*dpg_sram_bo;
+	struct dpg_pause_state	pause_state;
+	void			*dpg_sram_cpu_addr;
+	uint64_t		dpg_sram_gpu_addr;
+	uint32_t		*dpg_sram_curr_addr;
 };
 
 struct amdgpu_vcn {
@@ -179,21 +191,19 @@ struct amdgpu_vcn {
 	const struct firmware	*fw;	/* VCN firmware */
 	unsigned		num_enc_rings;
 	enum amd_powergating_state cur_state;
-	struct dpg_pause_state pause_state;
-
 	bool			indirect_sram;
-	struct amdgpu_bo	*dpg_sram_bo;
-	void			*dpg_sram_cpu_addr;
-	uint64_t		dpg_sram_gpu_addr;
-	uint32_t		*dpg_sram_curr_addr;
 
 	uint8_t	num_vcn_inst;
-	struct amdgpu_vcn_inst	inst[AMDGPU_MAX_VCN_INSTANCES];
-	struct amdgpu_vcn_reg	internal;
+	struct amdgpu_vcn_inst	 inst[AMDGPU_MAX_VCN_INSTANCES];
+	struct amdgpu_vcn_reg	 internal;
+	struct drm_gpu_scheduler *vcn_enc_sched[AMDGPU_MAX_VCN_ENC_RINGS];
+	struct drm_gpu_scheduler *vcn_dec_sched[AMDGPU_MAX_VCN_INSTANCES];
+	uint32_t		 num_vcn_enc_sched;
+	uint32_t		 num_vcn_dec_sched;
 
 	unsigned	harvest_config;
 	int (*pause_dpg_mode)(struct amdgpu_device *adev,
-		struct dpg_pause_state *new_state);
+		int inst_idx, struct dpg_pause_state *new_state);
 };
 
 int amdgpu_vcn_sw_init(struct amdgpu_device *adev);
@@ -208,8 +218,5 @@ int amdgpu_vcn_dec_ring_test_ib(struct amdgpu_ring *ring, long timeout);
 
 int amdgpu_vcn_enc_ring_test_ring(struct amdgpu_ring *ring);
 int amdgpu_vcn_enc_ring_test_ib(struct amdgpu_ring *ring, long timeout);
-
-int amdgpu_vcn_jpeg_ring_test_ring(struct amdgpu_ring *ring);
-int amdgpu_vcn_jpeg_ring_test_ib(struct amdgpu_ring *ring, long timeout);
 
 #endif

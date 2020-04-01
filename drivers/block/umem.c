@@ -827,7 +827,7 @@ static int mm_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		goto failed_req_csr;
 	}
 
-	card->csr_remap = ioremap_nocache(csr_base, csr_len);
+	card->csr_remap = ioremap(csr_base, csr_len);
 	if (!card->csr_remap) {
 		dev_printk(KERN_ERR, &card->dev->dev,
 			"Unable to remap memory region\n");

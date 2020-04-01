@@ -134,7 +134,7 @@ static int ql_get_mb_sts(struct ql_adapter *qdev, struct mbox_params *mbcp)
 	for (i = 0; i < mbcp->out_count; i++) {
 		status =
 		    ql_read_mpi_reg(qdev, qdev->mailbox_out + i,
-				     &mbcp->mbox_out[i]);
+				    &mbcp->mbox_out[i]);
 		if (status) {
 			netif_err(qdev, drv, qdev->ndev, "Failed mailbox read.\n");
 			break;
@@ -184,7 +184,7 @@ static int ql_exec_mb_cmd(struct ql_adapter *qdev, struct mbox_params *mbcp)
 	 */
 	for (i = 0; i < mbcp->in_count; i++) {
 		status = ql_write_mpi_reg(qdev, qdev->mailbox_in + i,
-						mbcp->mbox_in[i]);
+					  mbcp->mbox_in[i]);
 		if (status)
 			goto end;
 	}
@@ -293,7 +293,7 @@ static void ql_link_up(struct ql_adapter *qdev, struct mbox_params *mbcp)
 		 */
 		ql_write32(qdev, INTR_MASK, (INTR_MASK_PI << 16));
 		queue_delayed_work(qdev->workqueue,
-				&qdev->mpi_port_cfg_work, 0);
+				   &qdev->mpi_port_cfg_work, 0);
 	}
 
 	ql_link_on(qdev);
@@ -544,7 +544,6 @@ static int ql_mailbox_command(struct ql_adapter *qdev, struct mbox_params *mbcp)
 	if (status)
 		goto end;
 
-
 	/* If we're generating a system error, then there's nothing
 	 * to wait for.
 	 */
@@ -730,7 +729,6 @@ int ql_mb_set_port_cfg(struct ql_adapter *qdev)
 	mbcp->mbox_in[1] = qdev->link_config;
 	mbcp->mbox_in[2] = qdev->max_frame_size;
 
-
 	status = ql_mailbox_command(qdev, mbcp);
 	if (status)
 		return status;
@@ -747,7 +745,7 @@ int ql_mb_set_port_cfg(struct ql_adapter *qdev)
 }
 
 static int ql_mb_dump_ram(struct ql_adapter *qdev, u64 req_dma, u32 addr,
-	u32 size)
+			  u32 size)
 {
 	int status = 0;
 	struct mbox_params mbc;
@@ -768,7 +766,6 @@ static int ql_mb_dump_ram(struct ql_adapter *qdev, u64 req_dma, u32 addr,
 	mbcp->mbox_in[7] = LSW(MSD(req_dma));
 	mbcp->mbox_in[8] = MSW(addr);
 
-
 	status = ql_mailbox_command(qdev, mbcp);
 	if (status)
 		return status;
@@ -782,14 +779,14 @@ static int ql_mb_dump_ram(struct ql_adapter *qdev, u64 req_dma, u32 addr,
 
 /* Issue a mailbox command to dump RISC RAM. */
 int ql_dump_risc_ram_area(struct ql_adapter *qdev, void *buf,
-		u32 ram_addr, int word_count)
+			  u32 ram_addr, int word_count)
 {
 	int status;
 	char *my_buf;
 	dma_addr_t buf_dma;
 
 	my_buf = pci_alloc_consistent(qdev->pdev, word_count * sizeof(u32),
-					&buf_dma);
+				      &buf_dma);
 	if (!my_buf)
 		return -EIO;
 
@@ -798,7 +795,7 @@ int ql_dump_risc_ram_area(struct ql_adapter *qdev, void *buf,
 		memcpy(buf, my_buf, word_count * sizeof(u32));
 
 	pci_free_consistent(qdev->pdev, word_count * sizeof(u32), my_buf,
-				buf_dma);
+			    buf_dma);
 	return status;
 }
 
@@ -849,7 +846,6 @@ int ql_mb_wol_mode(struct ql_adapter *qdev, u32 wol)
 
 	mbcp->mbox_in[0] = MB_CMD_SET_WOL_MODE;
 	mbcp->mbox_in[1] = wol;
-
 
 	status = ql_mailbox_command(qdev, mbcp);
 	if (status)
@@ -922,7 +918,7 @@ static int ql_idc_wait(struct ql_adapter *qdev)
 		 */
 		wait_time =
 			wait_for_completion_timeout(&qdev->ide_completion,
-							wait_time);
+						    wait_time);
 		if (!wait_time) {
 			netif_err(qdev, drv, qdev->ndev, "IDC Timeout.\n");
 			break;
@@ -964,7 +960,6 @@ int ql_mb_set_led_cfg(struct ql_adapter *qdev, u32 led_config)
 
 	mbcp->mbox_in[0] = MB_CMD_SET_LED_CFG;
 	mbcp->mbox_in[1] = led_config;
-
 
 	status = ql_mailbox_command(qdev, mbcp);
 	if (status)
@@ -1130,8 +1125,7 @@ void ql_mpi_port_cfg_work(struct work_struct *work)
 	}
 
 	if (qdev->link_config & CFG_JUMBO_FRAME_SIZE &&
-			qdev->max_frame_size ==
-			CFG_DEFAULT_MAX_FRAME_SIZE)
+	    qdev->max_frame_size == CFG_DEFAULT_MAX_FRAME_SIZE)
 		goto end;
 
 	qdev->link_config |=	CFG_JUMBO_FRAME_SIZE;
@@ -1278,7 +1272,7 @@ void ql_mpi_reset_work(struct work_struct *work)
 		netif_err(qdev, drv, qdev->ndev, "Core is dumped!\n");
 		qdev->core_is_dumped = 1;
 		queue_delayed_work(qdev->workqueue,
-			&qdev->mpi_core_to_log, 5 * HZ);
+				   &qdev->mpi_core_to_log, 5 * HZ);
 	}
 	ql_soft_reset_mpi_risc(qdev);
 }

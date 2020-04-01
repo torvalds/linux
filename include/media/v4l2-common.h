@@ -14,6 +14,7 @@
 #ifndef V4L2_COMMON_H_
 #define V4L2_COMMON_H_
 
+#include <linux/time.h>
 #include <media/v4l2-dev.h>
 
 /* Common printk constructs for v4l-i2c drivers. These macros create a unique
@@ -517,5 +518,25 @@ int v4l2_fill_pixfmt(struct v4l2_pix_format *pixfmt, u32 pixelformat,
 		     u32 width, u32 height);
 int v4l2_fill_pixfmt_mp(struct v4l2_pix_format_mplane *pixfmt, u32 pixelformat,
 			u32 width, u32 height);
+
+static inline u64 v4l2_buffer_get_timestamp(const struct v4l2_buffer *buf)
+{
+	/*
+	 * When the timestamp comes from 32-bit user space, there may be
+	 * uninitialized data in tv_usec, so cast it to u32.
+	 * Otherwise allow invalid input for backwards compatibility.
+	 */
+	return buf->timestamp.tv_sec * NSEC_PER_SEC +
+		(u32)buf->timestamp.tv_usec * NSEC_PER_USEC;
+}
+
+static inline void v4l2_buffer_set_timestamp(struct v4l2_buffer *buf,
+					     u64 timestamp)
+{
+	struct timespec64 ts = ns_to_timespec64(timestamp);
+
+	buf->timestamp.tv_sec  = ts.tv_sec;
+	buf->timestamp.tv_usec = ts.tv_nsec / NSEC_PER_USEC;
+}
 
 #endif /* V4L2_COMMON_H_ */

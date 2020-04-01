@@ -63,8 +63,8 @@
 #include "soc15_hw_ip.h"
 #include "vega10_ip_offset.h"
 #include "nbio/nbio_6_1_offset.h"
-#include "mmhub/mmhub_9_4_0_offset.h"
-#include "mmhub/mmhub_9_4_0_sh_mask.h"
+#include "mmhub/mmhub_1_0_offset.h"
+#include "mmhub/mmhub_1_0_sh_mask.h"
 #include "reg_helper.h"
 
 #include "dce100/dce100_resource.h"
@@ -587,7 +587,7 @@ static void dce120_transform_destroy(struct transform **xfm)
 	*xfm = NULL;
 }
 
-static void destruct(struct dce110_resource_pool *pool)
+static void dce120_resource_destruct(struct dce110_resource_pool *pool)
 {
 	unsigned int i;
 
@@ -872,7 +872,7 @@ static void dce120_destroy_resource_pool(struct resource_pool **pool)
 {
 	struct dce110_resource_pool *dce110_pool = TO_DCE110_RES_POOL(*pool);
 
-	destruct(dce110_pool);
+	dce120_resource_destruct(dce110_pool);
 	kfree(dce110_pool);
 	*pool = NULL;
 }
@@ -1024,7 +1024,7 @@ static uint32_t read_pipe_fuses(struct dc_context *ctx)
 	return value;
 }
 
-static bool construct(
+static bool dce120_resource_construct(
 	uint8_t num_virtual_links,
 	struct dc *dc,
 	struct dce110_resource_pool *pool)
@@ -1237,7 +1237,7 @@ controller_create_fail:
 clk_src_create_fail:
 res_create_fail:
 
-	destruct(pool);
+	dce120_resource_destruct(pool);
 
 	return false;
 }
@@ -1252,7 +1252,7 @@ struct resource_pool *dce120_create_resource_pool(
 	if (!pool)
 		return NULL;
 
-	if (construct(num_virtual_links, dc, pool))
+	if (dce120_resource_construct(num_virtual_links, dc, pool))
 		return &pool->base;
 
 	kfree(pool);

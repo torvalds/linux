@@ -1101,9 +1101,12 @@
 /*
  * Bits 22:20 of the FPU Status Register will be read as 0,
  * and should be written as zero.
+ * MAC2008 was removed in Release 5 so we still treat it as
+ * reserved.
  */
 #define FPU_CSR_RSVD	(_ULCAST_(7) << 20)
 
+#define FPU_CSR_MAC2008	(_ULCAST_(1) << 20)
 #define FPU_CSR_ABS2008	(_ULCAST_(1) << 19)
 #define FPU_CSR_NAN2008	(_ULCAST_(1) << 18)
 

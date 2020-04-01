@@ -960,10 +960,6 @@ static inline void __iomem *ioremap(phys_addr_t addr, size_t size)
 }
 #endif /* !CONFIG_MMU || CONFIG_GENERIC_IOREMAP */
 
-#ifndef ioremap_nocache
-#define ioremap_nocache ioremap
-#endif
-
 #ifndef ioremap_wc
 #define ioremap_wc ioremap
 #endif

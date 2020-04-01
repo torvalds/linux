@@ -1394,7 +1394,7 @@ static int __init samsung_sabi_init(struct samsung_laptop *samsung)
 	int ret = 0;
 	int i;
 
-	samsung->f0000_segment = ioremap_nocache(0xf0000, 0xffff);
+	samsung->f0000_segment = ioremap(0xf0000, 0xffff);
 	if (!samsung->f0000_segment) {
 		if (debug || force)
 			pr_err("Can't map the segment at 0xf0000\n");
@@ -1434,7 +1434,7 @@ static int __init samsung_sabi_init(struct samsung_laptop *samsung)
 	if (debug)
 		samsung_sabi_infos(samsung, loca, ifaceP);
 
-	samsung->sabi_iface = ioremap_nocache(ifaceP, 16);
+	samsung->sabi_iface = ioremap(ifaceP, 16);
 	if (!samsung->sabi_iface) {
 		pr_err("Can't remap %x\n", ifaceP);
 		ret = -EINVAL;

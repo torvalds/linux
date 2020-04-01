@@ -153,7 +153,6 @@ int amdgpu_job_submit(struct amdgpu_job *job, struct drm_sched_entity *entity,
 	if (r)
 		return r;
 
-	job->owner = owner;
 	*f = dma_fence_get(&job->base.s_fence->finished);
 	amdgpu_job_free_resources(job);
 	priority = job->base.s_priority;
@@ -193,8 +192,7 @@ static struct dma_fence *amdgpu_job_dependency(struct drm_sched_job *sched_job,
 	fence = amdgpu_sync_get_fence(&job->sync, &explicit);
 	if (fence && explicit) {
 		if (drm_sched_dependency_optimized(fence, s_entity)) {
-			r = amdgpu_sync_fence(ring->adev, &job->sched_sync,
-					      fence, false);
+			r = amdgpu_sync_fence(&job->sched_sync, fence, false);
 			if (r)
 				DRM_ERROR("Error adding fence (%d)\n", r);
 		}

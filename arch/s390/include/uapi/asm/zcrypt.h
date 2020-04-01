@@ -161,17 +161,17 @@ struct ica_xcRB {
  * @payload_len:	Payload length
  */
 struct ep11_cprb {
-	__u16		cprb_len;
-	unsigned char	cprb_ver_id;
-	unsigned char	pad_000[2];
-	unsigned char	flags;
-	unsigned char	func_id[2];
-	__u32		source_id;
-	__u32		target_id;
-	__u32		ret_code;
-	__u32		reserved1;
-	__u32		reserved2;
-	__u32		payload_len;
+	__u16	cprb_len;
+	__u8	cprb_ver_id;
+	__u8	pad_000[2];
+	__u8	flags;
+	__u8	func_id[2];
+	__u32	source_id;
+	__u32	target_id;
+	__u32	ret_code;
+	__u32	reserved1;
+	__u32	reserved2;
+	__u32	payload_len;
 } __attribute__((packed));
 
 /**
@@ -197,13 +197,13 @@ struct ep11_target_dev {
  */
 struct ep11_urb {
 	__u16		targets_num;
-	__u64		targets;
+	__u8 __user    *targets;
 	__u64		weight;
 	__u64		req_no;
 	__u64		req_len;
-	__u64		req;
+	__u8 __user    *req;
 	__u64		resp_len;
-	__u64		resp;
+	__u8 __user    *resp;
 } __attribute__((packed));
 
 /**
@@ -237,7 +237,9 @@ struct zcrypt_device_matrix_ext {
 	struct zcrypt_device_status_ext device[MAX_ZDEV_ENTRIES_EXT];
 };
 
-#define AUTOSELECT 0xFFFFFFFF
+#define AUTOSELECT  0xFFFFFFFF
+#define AUTOSEL_AP  ((__u16) 0xFFFF)
+#define AUTOSEL_DOM ((__u16) 0xFFFF)
 
 #define ZCRYPT_IOCTL_MAGIC 'z'
 

@@ -13,6 +13,7 @@ Required properties:
 			"atmel,at91sam9n12-matrix", "syscon"
 			"atmel,at91sam9x5-matrix", "syscon"
 			"atmel,sama5d3-matrix", "syscon"
+			"microchip,sam9x60-matrix", "syscon"
 - reg:			Contains offset/length value of the Bus Matrix
 			memory region.
 

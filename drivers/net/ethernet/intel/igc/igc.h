@@ -10,6 +10,9 @@
 #include <linux/vmalloc.h>
 #include <linux/ethtool.h>
 #include <linux/sctp.h>
+#include <linux/ptp_clock_kernel.h>
+#include <linux/timecounter.h>
+#include <linux/net_tstamp.h>
 
 #include "igc_hw.h"
 
@@ -45,11 +48,15 @@ extern char igc_driver_version[];
 #define IGC_REGS_LEN			740
 #define IGC_RETA_SIZE			128
 
+/* flags controlling PTP/1588 function */
+#define IGC_PTP_ENABLED		BIT(0)
+
 /* Interrupt defines */
 #define IGC_START_ITR			648 /* ~6000 ints/sec */
 #define IGC_FLAG_HAS_MSI		BIT(0)
 #define IGC_FLAG_QUEUE_PAIRS		BIT(3)
 #define IGC_FLAG_DMAC			BIT(4)
+#define IGC_FLAG_PTP			BIT(8)
 #define IGC_FLAG_NEED_LINK_UPDATE	BIT(9)
 #define IGC_FLAG_MEDIA_RESET		BIT(10)
 #define IGC_FLAG_MAS_ENABLE		BIT(12)
@@ -99,6 +106,20 @@ extern char igc_driver_version[];
 
 #define AUTO_ALL_MODES		0
 #define IGC_RX_HDR_LEN			IGC_RXBUFFER_256
+
+/* Transmit and receive latency (for PTP timestamps) */
+/* FIXME: These values were estimated using the ones that i210 has as
+ * basis, they seem to provide good numbers with ptp4l/phc2sys, but we
+ * need to confirm them.
+ */
+#define IGC_I225_TX_LATENCY_10		9542
+#define IGC_I225_TX_LATENCY_100		1024
+#define IGC_I225_TX_LATENCY_1000	178
+#define IGC_I225_TX_LATENCY_2500	64
+#define IGC_I225_RX_LATENCY_10		20662
+#define IGC_I225_RX_LATENCY_100		2213
+#define IGC_I225_RX_LATENCY_1000	448
+#define IGC_I225_RX_LATENCY_2500	160
 
 /* RX and TX descriptor control thresholds.
  * PTHRESH - MAC will consider prefetch if it has fewer than this number of
@@ -370,6 +391,8 @@ struct igc_adapter {
 	struct timer_list dma_err_timer;
 	struct timer_list phy_info_timer;
 
+	u32 wol;
+	u32 en_mng_pt;
 	u16 link_speed;
 	u16 link_duplex;
 
@@ -430,6 +453,20 @@ struct igc_adapter {
 
 	unsigned long link_check_timeout;
 	struct igc_info ei;
+
+	struct ptp_clock *ptp_clock;
+	struct ptp_clock_info ptp_caps;
+	struct work_struct ptp_tx_work;
+	struct sk_buff *ptp_tx_skb;
+	struct hwtstamp_config tstamp_config;
+	unsigned long ptp_tx_start;
+	unsigned long last_rx_ptp_check;
+	unsigned long last_rx_timestamp;
+	unsigned int ptp_flags;
+	/* System time value lock */
+	spinlock_t tmreg_lock;
+	struct cyclecounter cc;
+	struct timecounter tc;
 };
 
 /* igc_desc_unused - calculate if we have unused descriptors */
@@ -512,6 +549,16 @@ int igc_add_filter(struct igc_adapter *adapter,
 		   struct igc_nfc_filter *input);
 int igc_erase_filter(struct igc_adapter *adapter,
 		     struct igc_nfc_filter *input);
+
+void igc_ptp_init(struct igc_adapter *adapter);
+void igc_ptp_reset(struct igc_adapter *adapter);
+void igc_ptp_stop(struct igc_adapter *adapter);
+void igc_ptp_rx_rgtstamp(struct igc_q_vector *q_vector, struct sk_buff *skb);
+void igc_ptp_rx_pktstamp(struct igc_q_vector *q_vector, void *va,
+			 struct sk_buff *skb);
+int igc_ptp_set_ts_config(struct net_device *netdev, struct ifreq *ifr);
+int igc_ptp_get_ts_config(struct net_device *netdev, struct ifreq *ifr);
+void igc_ptp_tx_hang(struct igc_adapter *adapter);
 
 #define igc_rx_pg_size(_ring) (PAGE_SIZE << igc_rx_pg_order(_ring))
 

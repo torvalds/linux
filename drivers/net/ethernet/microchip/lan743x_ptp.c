@@ -1265,6 +1265,9 @@ int lan743x_ptp_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 
 		lan743x_ptp_set_sync_ts_insert(adapter, true);
 		break;
+	case HWTSTAMP_TX_ONESTEP_P2P:
+		ret = -ERANGE;
+		break;
 	default:
 		netif_warn(adapter, drv, adapter->netdev,
 			   "  tx_type = %d, UNKNOWN\n", config.tx_type);

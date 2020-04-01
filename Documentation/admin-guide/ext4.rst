@@ -92,6 +92,8 @@ Currently Available
 * efficient new ordered mode in JBD2 and ext4 (avoid using buffer head to force
   the ordering)
 * Case-insensitive file name lookups
+* file-based encryption support (fscrypt)
+* file-based verity support (fsverity)
 
 [1] Filesystems with a block size of 1k may see a limit imposed by the
 directory hash tree having a maximum depth of two.

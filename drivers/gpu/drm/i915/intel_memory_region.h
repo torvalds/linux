@@ -47,6 +47,10 @@ enum intel_region_id {
 #define I915_ALLOC_MIN_PAGE_SIZE  BIT(0)
 #define I915_ALLOC_CONTIGUOUS     BIT(1)
 
+#define for_each_memory_region(mr, i915, id) \
+	for (id = 0; id < ARRAY_SIZE((i915)->mm.regions); id++) \
+		for_each_if((mr) = (i915)->mm.regions[id])
+
 /**
  * Memory regions encoded as type | instance
  */
@@ -82,10 +86,13 @@ struct intel_memory_region {
 
 	resource_size_t io_start;
 	resource_size_t min_page_size;
+	resource_size_t total;
+	resource_size_t avail;
 
 	unsigned int type;
 	unsigned int instance;
 	unsigned int id;
+	char name[8];
 
 	dma_addr_t remap_addr;
 
@@ -125,5 +132,12 @@ void intel_memory_region_put(struct intel_memory_region *mem);
 
 int intel_memory_regions_hw_probe(struct drm_i915_private *i915);
 void intel_memory_regions_driver_release(struct drm_i915_private *i915);
+struct intel_memory_region *
+intel_memory_region_by_type(struct drm_i915_private *i915,
+			    enum intel_memory_type mem_type);
+
+__printf(2, 3) void
+intel_memory_region_set_name(struct intel_memory_region *mem,
+			     const char *fmt, ...);
 
 #endif

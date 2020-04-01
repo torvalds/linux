@@ -94,9 +94,10 @@ extern int zone_grow_free_lists(struct zone *zone, unsigned long new_nr_pages);
 extern int zone_grow_waitqueues(struct zone *zone, unsigned long nr_pages);
 extern int add_one_highpage(struct page *page, int pfn, int bad_ppro);
 /* VM interface that may be used by firmware interface */
-extern int online_pages(unsigned long, unsigned long, int);
-extern int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn,
-	unsigned long *valid_start, unsigned long *valid_end);
+extern int online_pages(unsigned long pfn, unsigned long nr_pages,
+			int online_type, int nid);
+extern struct zone *test_pages_in_a_zone(unsigned long start_pfn,
+					 unsigned long end_pfn);
 extern unsigned long __offline_isolated_pages(unsigned long start_pfn,
 						unsigned long end_pfn);
 

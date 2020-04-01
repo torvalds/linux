@@ -104,6 +104,10 @@ properties:
           - infineon,slb9645tt
             # Infineon TLV493D-A1B6 I2C 3D Magnetic Sensor
           - infineon,tlv493d-a1b6
+            # Infineon Multi-phase Digital VR Controller xdpe12254
+          - infineon,xdpe12254
+            # Infineon Multi-phase Digital VR Controller xdpe12284
+          - infineon,xdpe12284
             # Inspur Power System power supply unit version 1
           - inspur,ipsps1
             # Intersil ISL29028 Ambient Light and Proximity Sensor
@@ -132,6 +136,8 @@ properties:
           - maxim,max6621
             # 9-Bit/12-Bit Temperature Sensors with I²C-Compatible Serial Interface
           - maxim,max6625
+            # 3-Channel Remote Temperature Sensor
+          - maxim,max31730
             # mCube 3-axis 8-bit digital accelerometer
           - mcube,mc3230
             # MEMSIC 2-axis 8-bit digital accelerometer
@@ -354,6 +360,10 @@ properties:
           - ti,tmp103
             # Digital Temperature Sensor
           - ti,tmp275
+            # TI Dual channel DCAP+ multiphase controller TPS53679
+          - ti,tps53679
+            # TI Dual channel DCAP+ multiphase controller TPS53688
+          - ti,tps53688
             # Winbond/Nuvoton H/W Monitor
           - winbond,w83793
             # i2c trusted platform module (TPM)

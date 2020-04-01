@@ -11,6 +11,7 @@
 #include "i915_drv.h"
 #include "intel_engine.h"
 #include "intel_engine_user.h"
+#include "intel_gt.h"
 
 struct intel_engine_cs *
 intel_engine_lookup_user(struct drm_i915_private *i915, u8 class, u8 instance)
@@ -199,6 +200,9 @@ void intel_engines_driver_register(struct drm_i915_private *i915)
 			container_of((struct rb_node *)it, typeof(*engine),
 				     uabi_node);
 		char old[sizeof(engine->name)];
+
+		if (intel_gt_has_init_error(engine->gt))
+			continue; /* ignore incomplete engines */
 
 		GEM_BUG_ON(engine->class >= ARRAY_SIZE(uabi_classes));
 		engine->uabi_class = uabi_classes[engine->class];

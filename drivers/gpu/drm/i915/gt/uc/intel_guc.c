@@ -32,18 +32,17 @@
  * just the HuC, but more are expected to land in the future).
  */
 
-static void gen8_guc_raise_irq(struct intel_guc *guc)
+void intel_guc_notify(struct intel_guc *guc)
 {
 	struct intel_gt *gt = guc_to_gt(guc);
 
-	intel_uncore_write(gt->uncore, GUC_SEND_INTERRUPT, GUC_SEND_TRIGGER);
-}
-
-static void gen11_guc_raise_irq(struct intel_guc *guc)
-{
-	struct intel_gt *gt = guc_to_gt(guc);
-
-	intel_uncore_write(gt->uncore, GEN11_GUC_HOST_INTERRUPT, 0);
+	/*
+	 * On Gen11+, the value written to the register is passes as a payload
+	 * to the FW. However, the FW currently treats all values the same way
+	 * (H2G interrupt), so we can just write the value that the HW expects
+	 * on older gens.
+	 */
+	intel_uncore_write(gt->uncore, guc->notify_reg, GUC_SEND_TRIGGER);
 }
 
 static inline i915_reg_t guc_send_reg(struct intel_guc *guc, u32 i)
@@ -177,15 +176,13 @@ void intel_guc_init_early(struct intel_guc *guc)
 
 	mutex_init(&guc->send_mutex);
 	spin_lock_init(&guc->irq_lock);
-	guc->send = intel_guc_send_nop;
-	guc->handler = intel_guc_to_host_event_handler_nop;
 	if (INTEL_GEN(i915) >= 11) {
-		guc->notify = gen11_guc_raise_irq;
+		guc->notify_reg = GEN11_GUC_HOST_INTERRUPT;
 		guc->interrupts.reset = gen11_reset_guc_interrupts;
 		guc->interrupts.enable = gen11_enable_guc_interrupts;
 		guc->interrupts.disable = gen11_disable_guc_interrupts;
 	} else {
-		guc->notify = gen8_guc_raise_irq;
+		guc->notify_reg = GUC_SEND_INTERRUPT;
 		guc->interrupts.reset = gen9_reset_guc_interrupts;
 		guc->interrupts.enable = gen9_enable_guc_interrupts;
 		guc->interrupts.disable = gen9_disable_guc_interrupts;
@@ -401,18 +398,8 @@ void intel_guc_fini(struct intel_guc *guc)
 	intel_guc_log_destroy(&guc->log);
 	intel_uc_fw_fini(&guc->fw);
 	intel_uc_fw_cleanup_fetch(&guc->fw);
-}
 
-int intel_guc_send_nop(struct intel_guc *guc, const u32 *action, u32 len,
-		       u32 *response_buf, u32 response_buf_size)
-{
-	WARN(1, "Unexpected send: action=%#x\n", *action);
-	return -ENODEV;
-}
-
-void intel_guc_to_host_event_handler_nop(struct intel_guc *guc)
-{
-	WARN(1, "Unexpected event: no suitable handler\n");
+	intel_uc_fw_change_status(&guc->fw, INTEL_UC_FIRMWARE_DISABLED);
 }
 
 /*
@@ -703,4 +690,38 @@ struct i915_vma *intel_guc_allocate_vma(struct intel_guc *guc, u32 size)
 err:
 	i915_gem_object_put(obj);
 	return vma;
+}
+
+/**
+ * intel_guc_allocate_and_map_vma() - Allocate and map VMA for GuC usage
+ * @guc:	the guc
+ * @size:	size of area to allocate (both virtual space and memory)
+ * @out_vma:	return variable for the allocated vma pointer
+ * @out_vaddr:	return variable for the obj mapping
+ *
+ * This wrapper calls intel_guc_allocate_vma() and then maps the allocated
+ * object with I915_MAP_WB.
+ *
+ * Return:	0 if successful, a negative errno code otherwise.
+ */
+int intel_guc_allocate_and_map_vma(struct intel_guc *guc, u32 size,
+				   struct i915_vma **out_vma, void **out_vaddr)
+{
+	struct i915_vma *vma;
+	void *vaddr;
+
+	vma = intel_guc_allocate_vma(guc, size);
+	if (IS_ERR(vma))
+		return PTR_ERR(vma);
+
+	vaddr = i915_gem_object_pin_map(vma->obj, I915_MAP_WB);
+	if (IS_ERR(vaddr)) {
+		i915_vma_unpin_and_release(&vma, 0);
+		return PTR_ERR(vaddr);
+	}
+
+	*out_vma = vma;
+	*out_vaddr = vaddr;
+
+	return 0;
 }

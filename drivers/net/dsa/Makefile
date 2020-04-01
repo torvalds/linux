@@ -21,4 +21,5 @@ obj-y				+= b53/
 obj-y				+= microchip/
 obj-y				+= mv88e6xxx/
 obj-y				+= ocelot/
+obj-y				+= qca/
 obj-y				+= sja1105/

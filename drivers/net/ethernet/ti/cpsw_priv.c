@@ -272,7 +272,7 @@ void soft_reset(const char *module, void __iomem *reg)
 	WARN(readl_relaxed(reg) & 1, "failed to soft-reset %s\n", module);
 }
 
-void cpsw_ndo_tx_timeout(struct net_device *ndev)
+void cpsw_ndo_tx_timeout(struct net_device *ndev, unsigned int txqueue)
 {
 	struct cpsw_priv *priv = netdev_priv(ndev);
 	struct cpsw_common *cpsw = priv->cpsw;

@@ -1699,6 +1699,16 @@ qla1280_load_firmware_pio(struct scsi_qla_host *ha)
 	return err;
 }
 
+#ifdef QLA_64BIT_PTR
+#define LOAD_CMD	MBC_LOAD_RAM_A64_ROM
+#define DUMP_CMD	MBC_DUMP_RAM_A64_ROM
+#define CMD_ARGS	(BIT_7 | BIT_6 | BIT_4 | BIT_3 | BIT_2 | BIT_1 | BIT_0)
+#else
+#define LOAD_CMD	MBC_LOAD_RAM
+#define DUMP_CMD	MBC_DUMP_RAM
+#define CMD_ARGS	(BIT_4 | BIT_3 | BIT_2 | BIT_1 | BIT_0)
+#endif
+
 #define DUMP_IT_BACK 0		/* for debug of RISC loading */
 static int
 qla1280_load_firmware_dma(struct scsi_qla_host *ha)
@@ -1748,7 +1758,7 @@ qla1280_load_firmware_dma(struct scsi_qla_host *ha)
 		for(i = 0; i < cnt; i++)
 			((__le16 *)ha->request_ring)[i] = fw_data[i];
 
-		mb[0] = MBC_LOAD_RAM;
+		mb[0] = LOAD_CMD;
 		mb[1] = risc_address;
 		mb[4] = cnt;
 		mb[3] = ha->request_dma & 0xffff;
@@ -1759,8 +1769,7 @@ qla1280_load_firmware_dma(struct scsi_qla_host *ha)
 				__func__, mb[0],
 				(void *)(long)ha->request_dma,
 				mb[6], mb[7], mb[2], mb[3]);
-		err = qla1280_mailbox_command(ha, BIT_4 | BIT_3 | BIT_2 |
-				BIT_1 | BIT_0, mb);
+		err = qla1280_mailbox_command(ha, CMD_ARGS, mb);
 		if (err) {
 			printk(KERN_ERR "scsi(%li): Failed to load partial "
 			       "segment of f\n", ha->host_no);
@@ -1768,7 +1777,7 @@ qla1280_load_firmware_dma(struct scsi_qla_host *ha)
 		}
 
 #if DUMP_IT_BACK
-		mb[0] = MBC_DUMP_RAM;
+		mb[0] = DUMP_CMD;
 		mb[1] = risc_address;
 		mb[4] = cnt;
 		mb[3] = p_tbuf & 0xffff;
@@ -1776,8 +1785,7 @@ qla1280_load_firmware_dma(struct scsi_qla_host *ha)
 		mb[7] = upper_32_bits(p_tbuf) & 0xffff;
 		mb[6] = upper_32_bits(p_tbuf) >> 16;
 
-		err = qla1280_mailbox_command(ha, BIT_4 | BIT_3 | BIT_2 |
-				BIT_1 | BIT_0, mb);
+		err = qla1280_mailbox_command(ha, CMD_ARGS, mb);
 		if (err) {
 			printk(KERN_ERR
 			       "Failed to dump partial segment of f/w\n");

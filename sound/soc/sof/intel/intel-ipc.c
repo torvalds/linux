@@ -39,7 +39,7 @@ void intel_ipc_msg_data(struct snd_sof_dev *sdev,
 			sof_mailbox_read(sdev, stream->posn_offset, p, sz);
 	}
 }
-EXPORT_SYMBOL(intel_ipc_msg_data);
+EXPORT_SYMBOL_NS(intel_ipc_msg_data, SND_SOC_SOF_INTEL_HIFI_EP_IPC);
 
 int intel_ipc_pcm_params(struct snd_sof_dev *sdev,
 			 struct snd_pcm_substream *substream,
@@ -60,7 +60,7 @@ int intel_ipc_pcm_params(struct snd_sof_dev *sdev,
 
 	return 0;
 }
-EXPORT_SYMBOL(intel_ipc_pcm_params);
+EXPORT_SYMBOL_NS(intel_ipc_pcm_params, SND_SOC_SOF_INTEL_HIFI_EP_IPC);
 
 int intel_pcm_open(struct snd_sof_dev *sdev,
 		   struct snd_pcm_substream *substream)
@@ -75,7 +75,7 @@ int intel_pcm_open(struct snd_sof_dev *sdev,
 
 	return 0;
 }
-EXPORT_SYMBOL(intel_pcm_open);
+EXPORT_SYMBOL_NS(intel_pcm_open, SND_SOC_SOF_INTEL_HIFI_EP_IPC);
 
 int intel_pcm_close(struct snd_sof_dev *sdev,
 		    struct snd_pcm_substream *substream)
@@ -87,6 +87,6 @@ int intel_pcm_close(struct snd_sof_dev *sdev,
 
 	return 0;
 }
-EXPORT_SYMBOL(intel_pcm_close);
+EXPORT_SYMBOL_NS(intel_pcm_close, SND_SOC_SOF_INTEL_HIFI_EP_IPC);
 
 MODULE_LICENSE("Dual BSD/GPL");

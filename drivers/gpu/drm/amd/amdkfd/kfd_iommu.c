@@ -62,9 +62,6 @@ int kfd_iommu_device_init(struct kfd_dev *kfd)
 	struct amd_iommu_device_info iommu_info;
 	unsigned int pasid_limit;
 	int err;
-	struct kfd_topology_device *top_dev;
-
-	top_dev = kfd_topology_device_by_id(kfd->id);
 
 	if (!kfd->device_info->needs_iommu_device)
 		return 0;

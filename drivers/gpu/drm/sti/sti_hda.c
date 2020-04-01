@@ -759,14 +759,14 @@ static int sti_hda_probe(struct platform_device *pdev)
 		DRM_ERROR("Invalid hda resource\n");
 		return -ENOMEM;
 	}
-	hda->regs = devm_ioremap_nocache(dev, res->start, resource_size(res));
+	hda->regs = devm_ioremap(dev, res->start, resource_size(res));
 	if (!hda->regs)
 		return -ENOMEM;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 			"video-dacs-ctrl");
 	if (res) {
-		hda->video_dacs_ctrl = devm_ioremap_nocache(dev, res->start,
+		hda->video_dacs_ctrl = devm_ioremap(dev, res->start,
 				resource_size(res));
 		if (!hda->video_dacs_ctrl)
 			return -ENOMEM;
