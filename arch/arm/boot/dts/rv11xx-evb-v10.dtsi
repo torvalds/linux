@@ -672,6 +672,7 @@
 			};
 
 			vcc_dovdd: LDO_REG5 {
+				regulator-boot-on;
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-name = "vcc_dovdd";
