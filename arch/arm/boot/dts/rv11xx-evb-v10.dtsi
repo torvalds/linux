@@ -869,6 +869,10 @@
 	status = "okay";
 };
 
+&ramoops {
+	status = "okay";
+};
+
 &rk_rga {
 	status = "okay";
 };
