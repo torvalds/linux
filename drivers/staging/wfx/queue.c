@@ -144,22 +144,15 @@ void wfx_tx_queues_deinit(struct wfx_dev *wdev)
 	wfx_tx_queues_clear(wdev);
 }
 
-int wfx_tx_queue_get_num_queued(struct wfx_queue *queue, u32 link_id_map)
+int wfx_tx_queue_get_num_queued(struct wfx_queue *queue)
 {
 	int ret, i;
 
-	if (!link_id_map)
-		return 0;
-
+	ret = 0;
 	spin_lock_bh(&queue->queue.lock);
-	if (link_id_map == (u32)-1) {
-		ret = skb_queue_len(&queue->queue);
-	} else {
-		ret = 0;
-		for (i = 0; i < ARRAY_SIZE(queue->link_map_cache); i++)
-			if (link_id_map & BIT(i))
-				ret += queue->link_map_cache[i];
-	}
+	for (i = 0; i < ARRAY_SIZE(queue->link_map_cache); i++)
+		if (i != WFX_LINK_ID_AFTER_DTIM)
+			ret += queue->link_map_cache[i];
 	spin_unlock_bh(&queue->queue.lock);
 	return ret;
 }
@@ -354,7 +347,7 @@ static bool wfx_handle_tx_data(struct wfx_dev *wdev, struct sk_buff *skb)
 	}
 }
 
-static int wfx_get_prio_queue(struct wfx_vif *wvif, u32 tx_allowed_mask)
+static struct wfx_queue *wfx_tx_queue_mask_get(struct wfx_vif *wvif)
 {
 	const struct ieee80211_tx_queue_params *edca;
 	unsigned int score, best = -1;
@@ -366,8 +359,7 @@ static int wfx_get_prio_queue(struct wfx_vif *wvif, u32 tx_allowed_mask)
 		int queued;
 
 		edca = &wvif->edca_params[i];
-		queued = wfx_tx_queue_get_num_queued(&wvif->wdev->tx_queue[i],
-				tx_allowed_mask);
+		queued = wfx_tx_queue_get_num_queued(&wvif->wdev->tx_queue[i]);
 		if (!queued)
 			continue;
 		score = ((edca->aifs + edca->cw_min) << 16) +
@@ -379,23 +371,9 @@ static int wfx_get_prio_queue(struct wfx_vif *wvif, u32 tx_allowed_mask)
 		}
 	}
 
-	return winner;
-}
-
-static struct wfx_queue *wfx_tx_queue_mask_get(struct wfx_vif *wvif,
-					       u32 *tx_allowed_mask_p)
-{
-	int idx;
-	u32 tx_allowed_mask;
-
-	tx_allowed_mask = BIT(WFX_LINK_ID_MAX) - 1;
-	tx_allowed_mask &= ~BIT(WFX_LINK_ID_AFTER_DTIM);
-	idx = wfx_get_prio_queue(wvif, tx_allowed_mask);
-	if (idx < 0)
+	if (winner < 0)
 		return NULL;
-
-	*tx_allowed_mask_p = tx_allowed_mask;
-	return &wvif->wdev->tx_queue[idx];
+	return &wvif->wdev->tx_queue[winner];
 }
 
 struct hif_msg *wfx_tx_queues_get_after_dtim(struct wfx_vif *wvif)
@@ -424,8 +402,6 @@ struct hif_msg *wfx_tx_queues_get(struct wfx_dev *wdev)
 	struct hif_msg *hif = NULL;
 	struct wfx_queue *queue = NULL;
 	struct wfx_queue *vif_queue = NULL;
-	u32 tx_allowed_mask = 0;
-	u32 vif_tx_allowed_mask = 0;
 	struct wfx_vif *wvif;
 	int i;
 
@@ -459,12 +435,10 @@ struct hif_msg *wfx_tx_queues_get(struct wfx_dev *wdev)
 
 		wvif = NULL;
 		while ((wvif = wvif_iterate(wdev, wvif)) != NULL) {
-			vif_queue = wfx_tx_queue_mask_get(wvif,
-							  &vif_tx_allowed_mask);
+			vif_queue = wfx_tx_queue_mask_get(wvif);
 			if (vif_queue) {
 				if (queue && queue != vif_queue)
 					dev_info(wdev->dev, "vifs disagree about queue priority\n");
-				tx_allowed_mask |= vif_tx_allowed_mask;
 				queue = vif_queue;
 				ret = 0;
 			}
@@ -475,7 +449,7 @@ struct hif_msg *wfx_tx_queues_get(struct wfx_dev *wdev)
 
 		queue_num = queue - wdev->tx_queue;
 
-		skb = wfx_tx_queue_get(wdev, queue, tx_allowed_mask);
+		skb = wfx_tx_queue_get(wdev, queue, ~BIT(WFX_LINK_ID_AFTER_DTIM));
 		if (!skb)
 			continue;
 

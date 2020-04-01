@@ -47,7 +47,7 @@ struct hif_msg *wfx_tx_queues_get_after_dtim(struct wfx_vif *wvif);
 
 void wfx_tx_queue_put(struct wfx_dev *wdev, struct wfx_queue *queue,
 		      struct sk_buff *skb);
-int wfx_tx_queue_get_num_queued(struct wfx_queue *queue, u32 link_id_map);
+int wfx_tx_queue_get_num_queued(struct wfx_queue *queue);
 
 struct sk_buff *wfx_pending_get(struct wfx_dev *wdev, u32 packet_id);
 int wfx_pending_remove(struct wfx_dev *wdev, struct sk_buff *skb);
