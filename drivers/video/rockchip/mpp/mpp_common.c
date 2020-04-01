@@ -1520,10 +1520,10 @@ int mpp_time_diff(struct mpp_task *task)
 	struct mpp_dev *mpp = task->session->mpp;
 
 	do_gettimeofday(&end);
-	mpp_debug(DEBUG_TIMING, "%s: pid:%d time: %ld ms\n",
+	mpp_debug(DEBUG_TIMING, "%s: pid:%d time: %ld us\n",
 		  dev_name(mpp->dev), task->session->pid,
-		  (end.tv_sec  - task->start.tv_sec)  * 1000 +
-		  (end.tv_usec - task->start.tv_usec) / 1000);
+		  (end.tv_sec  - task->start.tv_sec)  * 1000000 +
+		  (end.tv_usec - task->start.tv_usec));
 
 	return 0;
 }
