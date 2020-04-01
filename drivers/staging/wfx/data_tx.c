@@ -424,13 +424,8 @@ static int wfx_tx_inner(struct wfx_vif *wvif, struct ieee80211_sta *sta,
 	// Fill tx_priv
 	tx_priv = (struct wfx_tx_priv *)tx_info->rate_driver_data;
 	tx_priv->raw_link_id = wfx_tx_get_raw_link_id(wvif, sta, hdr);
-	tx_priv->link_id = tx_priv->raw_link_id;
 	if (ieee80211_has_protected(hdr->frame_control))
 		tx_priv->hw_key = hw_key;
-	if (tx_info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM)
-		tx_priv->link_id = WFX_LINK_ID_AFTER_DTIM;
-	if (sta && (sta->uapsd_queues & BIT(queue_id)))
-		tx_priv->link_id = WFX_LINK_ID_UAPSD;
 
 	// Fill hif_msg
 	WARN(skb_headroom(skb) < wmsg_len, "not enough space in skb");

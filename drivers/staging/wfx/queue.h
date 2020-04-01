@@ -14,8 +14,6 @@
 
 #define WFX_MAX_STA_IN_AP_MODE    14
 #define WFX_LINK_ID_NO_ASSOC      15
-#define WFX_LINK_ID_AFTER_DTIM    (WFX_LINK_ID_NO_ASSOC + 1)
-#define WFX_LINK_ID_UAPSD         (WFX_LINK_ID_NO_ASSOC + 2)
 
 struct wfx_dev;
 struct wfx_vif;

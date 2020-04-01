@@ -36,7 +36,6 @@ struct tx_policy_cache {
 struct wfx_tx_priv {
 	ktime_t xmit_timestamp;
 	struct ieee80211_key_conf *hw_key;
-	u8 link_id;
 	u8 raw_link_id;
 } __packed;
 
