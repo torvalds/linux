@@ -1079,7 +1079,7 @@ static bool check_auxtrace_itrace(struct itrace_synth_opts *itops)
 		itops->pwr_events || itops->errors ||
 		itops->dont_decode || itops->calls || itops->returns ||
 		itops->callchain || itops->thread_stack ||
-		itops->last_branch;
+		itops->last_branch || itops->add_callchain;
 	if (!ison)
 		return true;
 	pr_err("Unsupported --itrace options specified\n");
