@@ -1444,6 +1444,9 @@ static long ioctl_get_filled_blocks(struct file *f, void __user *arg)
 	if (!df)
 		return -EINVAL;
 
+	if ((uintptr_t)f->private_data != CAN_FILL)
+		return -EPERM;
+
 	if (copy_from_user(&args, args_usr_ptr, sizeof(args)) > 0)
 		return -EINVAL;
 
