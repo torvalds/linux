@@ -206,9 +206,9 @@ struct amdgpu_vm_update_params {
 	struct amdgpu_vm *vm;
 
 	/**
-	 * @direct: if changes should be made directly
+	 * @immediate: if changes should be made immediately
 	 */
-	bool direct;
+	bool immediate;
 
 	/**
 	 * @pages_addr:
@@ -274,11 +274,11 @@ struct amdgpu_vm {
 	struct dma_fence	*last_update;
 
 	/* Scheduler entities for page table updates */
-	struct drm_sched_entity	direct;
+	struct drm_sched_entity	immediate;
 	struct drm_sched_entity	delayed;
 
 	/* Last submission to the scheduler entities */
-	struct dma_fence	*last_direct;
+	struct dma_fence	*last_immediate;
 
 	unsigned int		pasid;
 	/* dedicated to vm */
@@ -379,7 +379,7 @@ int amdgpu_vm_validate_pt_bos(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 			      void *param);
 int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job, bool need_pipe_sync);
 int amdgpu_vm_update_pdes(struct amdgpu_device *adev,
-			  struct amdgpu_vm *vm, bool direct);
+			  struct amdgpu_vm *vm, bool immediate);
 int amdgpu_vm_clear_freed(struct amdgpu_device *adev,
 			  struct amdgpu_vm *vm,
 			  struct dma_fence **fence);
