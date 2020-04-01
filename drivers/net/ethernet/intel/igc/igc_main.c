@@ -765,42 +765,52 @@ static void igc_setup_tctl(struct igc_adapter *adapter)
 }
 
 /**
- * igc_rar_set_index - Sync RAL[index] and RAH[index] registers with MAC table
- * @adapter: address of board private structure
- * @index: Index of the RAR entry which need to be synced with MAC table
+ * igc_set_mac_filter_hw() - Set MAC address filter in hardware
+ * @adapter: Pointer to adapter where the filter should be set
+ * @index: Filter index
+ * @addr: Destination MAC address
+ * @queue: If non-negative, queue assignment feature is enabled and frames
+ *         matching the filter are enqueued onto 'queue'. Otherwise, queue
+ *         assignment is disabled.
  */
-static void igc_rar_set_index(struct igc_adapter *adapter, u32 index)
+static void igc_set_mac_filter_hw(struct igc_adapter *adapter, int index,
+				  const u8 *addr, int queue)
 {
-	u8 *addr = adapter->mac_table[index].addr;
 	struct igc_hw *hw = &adapter->hw;
-	u32 rar_low, rar_high;
+	u32 ral, rah;
 
-	/* HW expects these to be in network order when they are plugged
-	 * into the registers which are little endian.  In order to guarantee
-	 * that ordering we need to do an leXX_to_cpup here in order to be
-	 * ready for the byteswap that occurs with writel
-	 */
-	rar_low = le32_to_cpup((__le32 *)(addr));
-	rar_high = le16_to_cpup((__le16 *)(addr + 4));
+	if (WARN_ON(index >= hw->mac.rar_entry_count))
+		return;
 
-	if (adapter->mac_table[index].state & IGC_MAC_STATE_QUEUE_STEERING) {
-		u8 queue = adapter->mac_table[index].queue;
-		u32 qsel = IGC_RAH_QSEL_MASK & (queue << IGC_RAH_QSEL_SHIFT);
+	ral = le32_to_cpup((__le32 *)(addr));
+	rah = le16_to_cpup((__le16 *)(addr + 4));
 
-		rar_high |= qsel;
-		rar_high |= IGC_RAH_QSEL_ENABLE;
+	if (queue >= 0) {
+		rah &= ~IGC_RAH_QSEL_MASK;
+		rah |= (queue << IGC_RAH_QSEL_SHIFT);
+		rah |= IGC_RAH_QSEL_ENABLE;
 	}
 
-	/* Indicate to hardware the Address is Valid. */
-	if (adapter->mac_table[index].state & IGC_MAC_STATE_IN_USE) {
-		if (is_valid_ether_addr(addr))
-			rar_high |= IGC_RAH_AV;
-	}
+	rah |= IGC_RAH_AV;
 
-	wr32(IGC_RAL(index), rar_low);
-	wrfl();
-	wr32(IGC_RAH(index), rar_high);
-	wrfl();
+	wr32(IGC_RAL(index), ral);
+	wr32(IGC_RAH(index), rah);
+}
+
+/**
+ * igc_clear_mac_filter_hw() - Clear MAC address filter in hardware
+ * @adapter: Pointer to adapter where the filter should be cleared
+ * @index: Filter index
+ */
+static void igc_clear_mac_filter_hw(struct igc_adapter *adapter, int index)
+{
+	struct igc_hw *hw = &adapter->hw;
+
+	if (WARN_ON(index >= hw->mac.rar_entry_count))
+		return;
+
+	wr32(IGC_RAL(index), 0);
+	wr32(IGC_RAH(index), 0);
 }
 
 /* Set default MAC address for the PF in the first RAR entry */
@@ -811,7 +821,7 @@ static void igc_set_default_mac_filter(struct igc_adapter *adapter)
 	ether_addr_copy(mac_table->addr, adapter->hw.mac.addr);
 	mac_table->state = IGC_MAC_STATE_DEFAULT | IGC_MAC_STATE_IN_USE;
 
-	igc_rar_set_index(adapter, 0);
+	igc_set_mac_filter_hw(adapter, 0, mac_table->addr, -1);
 }
 
 /**
@@ -2198,7 +2208,7 @@ static int igc_add_mac_filter(struct igc_adapter *adapter, const u8 *addr,
 	int rar_entries = hw->mac.rar_entry_count;
 	int i;
 
-	if (is_zero_ether_addr(addr))
+	if (!is_valid_ether_addr(addr))
 		return -EINVAL;
 	if (flags & IGC_MAC_STATE_SRC_ADDR)
 		return -ENOTSUPP;
@@ -2216,7 +2226,7 @@ static int igc_add_mac_filter(struct igc_adapter *adapter, const u8 *addr,
 		adapter->mac_table[i].queue = queue;
 		adapter->mac_table[i].state |= IGC_MAC_STATE_IN_USE | flags;
 
-		igc_rar_set_index(adapter, i);
+		igc_set_mac_filter_hw(adapter, i, addr, queue);
 		return 0;
 	}
 
@@ -2260,13 +2270,14 @@ static int igc_del_mac_filter(struct igc_adapter *adapter, const u8 *addr,
 			adapter->mac_table[i].state =
 				IGC_MAC_STATE_DEFAULT | IGC_MAC_STATE_IN_USE;
 			adapter->mac_table[i].queue = 0;
+			igc_set_mac_filter_hw(adapter, 0, addr, -1);
 		} else {
 			adapter->mac_table[i].state = 0;
 			adapter->mac_table[i].queue = 0;
 			memset(adapter->mac_table[i].addr, 0, ETH_ALEN);
+			igc_clear_mac_filter_hw(adapter, i);
 		}
 
-		igc_rar_set_index(adapter, i);
 		return 0;
 	}
 
