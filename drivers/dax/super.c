@@ -349,9 +349,6 @@ int dax_zero_page_range(struct dax_device *dax_dev, pgoff_t pgoff,
 {
 	if (!dax_alive(dax_dev))
 		return -ENXIO;
-
-	if (!dax_dev->ops->zero_page_range)
-		return -EOPNOTSUPP;
 	/*
 	 * There are no callers that want to zero more than one page as of now.
 	 * Once users are there, this check can be removed after the
@@ -571,9 +568,16 @@ struct dax_device *alloc_dax(void *private, const char *__host,
 	dev_t devt;
 	int minor;
 
+	if (ops && !ops->zero_page_range) {
+		pr_debug("%s: error: device does not provide dax"
+			 " operation zero_page_range()\n",
+			 __host ? __host : "Unknown");
+		return ERR_PTR(-EINVAL);
+	}
+
 	host = kstrdup(__host, GFP_KERNEL);
 	if (__host && !host)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	minor = ida_simple_get(&dax_minor_ida, 0, MINORMASK+1, GFP_KERNEL);
 	if (minor < 0)
@@ -596,7 +600,7 @@ struct dax_device *alloc_dax(void *private, const char *__host,
 	ida_simple_remove(&dax_minor_ida, minor);
  err_minor:
 	kfree(host);
-	return NULL;
+	return ERR_PTR(-ENOMEM);
 }
 EXPORT_SYMBOL_GPL(alloc_dax);
 
