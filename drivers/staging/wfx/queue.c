@@ -190,7 +190,6 @@ static struct sk_buff *wfx_tx_queue_get(struct wfx_dev *wdev,
 	struct sk_buff *item;
 	struct wfx_queue_stats *stats = &wdev->tx_queue_stats;
 	struct wfx_tx_priv *tx_priv;
-	bool wakeup_stats = false;
 
 	spin_lock_bh(&queue->queue.lock);
 	skb_queue_walk(&queue->queue, item) {
@@ -208,12 +207,11 @@ static struct sk_buff *wfx_tx_queue_get(struct wfx_dev *wdev,
 
 		spin_lock_nested(&stats->pending.lock, 1);
 		__skb_queue_tail(&stats->pending, skb);
-		if (!--stats->link_map_cache[tx_priv->link_id])
-			wakeup_stats = true;
+		--stats->link_map_cache[tx_priv->link_id];
 		spin_unlock(&stats->pending.lock);
 	}
 	spin_unlock_bh(&queue->queue.lock);
-	if (wakeup_stats)
+	if (skb_queue_empty(&queue->queue))
 		wake_up(&stats->wait_link_id_empty);
 	return skb;
 }
