@@ -275,14 +275,8 @@ static void wfx_tx_manage_pm(struct wfx_vif *wvif, struct ieee80211_hdr *hdr,
 			     struct wfx_tx_priv *tx_priv,
 			     struct ieee80211_sta *sta)
 {
-	u32 mask = ~BIT(tx_priv->raw_link_id);
 	struct wfx_sta_priv *sta_priv;
 	int tid = ieee80211_get_tid(hdr);
-
-	spin_lock_bh(&wvif->ps_state_lock);
-	if (ieee80211_is_auth(hdr->frame_control))
-		wvif->sta_asleep_mask &= mask;
-	spin_unlock_bh(&wvif->ps_state_lock);
 
 	if (sta) {
 		sta_priv = (struct wfx_sta_priv *)&sta->drv_priv;

@@ -388,13 +388,8 @@ static struct wfx_queue *wfx_tx_queue_mask_get(struct wfx_vif *wvif,
 	int idx;
 	u32 tx_allowed_mask;
 
-	/* Search for unicast traffic */
-	tx_allowed_mask = ~wvif->sta_asleep_mask;
-	tx_allowed_mask |= BIT(WFX_LINK_ID_UAPSD);
-	if (wvif->sta_asleep_mask)
-		tx_allowed_mask &= ~BIT(WFX_LINK_ID_AFTER_DTIM);
-	else
-		tx_allowed_mask |= BIT(WFX_LINK_ID_AFTER_DTIM);
+	tx_allowed_mask = BIT(WFX_LINK_ID_MAX) - 1;
+	tx_allowed_mask &= ~BIT(WFX_LINK_ID_AFTER_DTIM);
 	idx = wfx_get_prio_queue(wvif, tx_allowed_mask);
 	if (idx < 0)
 		return NULL;
@@ -464,13 +459,8 @@ struct hif_msg *wfx_tx_queues_get(struct wfx_dev *wdev)
 
 		wvif = NULL;
 		while ((wvif = wvif_iterate(wdev, wvif)) != NULL) {
-			spin_lock_bh(&wvif->ps_state_lock);
-
 			vif_queue = wfx_tx_queue_mask_get(wvif,
 							  &vif_tx_allowed_mask);
-
-			spin_unlock_bh(&wvif->ps_state_lock);
-
 			if (vif_queue) {
 				if (queue && queue != vif_queue)
 					dev_info(wdev->dev, "vifs disagree about queue priority\n");

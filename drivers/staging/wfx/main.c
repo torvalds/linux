@@ -138,7 +138,6 @@ static const struct ieee80211_ops wfx_ops = {
 	.cancel_hw_scan		= wfx_cancel_hw_scan,
 	.sta_add		= wfx_sta_add,
 	.sta_remove		= wfx_sta_remove,
-	.sta_notify		= wfx_sta_notify,
 	.set_tim		= wfx_set_tim,
 	.set_key		= wfx_set_key,
 	.set_rts_threshold	= wfx_set_rts_threshold,

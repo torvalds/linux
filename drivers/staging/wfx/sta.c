@@ -590,11 +590,6 @@ int wfx_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	WARN_ON(sta_priv->link_id >= WFX_MAX_STA_IN_AP_MODE);
 	hif_map_link(wvif, sta->addr, 0, sta_priv->link_id);
 
-	spin_lock_bh(&wvif->ps_state_lock);
-	if ((sta->uapsd_queues & IEEE80211_WMM_IE_STA_QOSINFO_AC_MASK) ==
-					IEEE80211_WMM_IE_STA_QOSINFO_AC_MASK)
-		wvif->sta_asleep_mask |= BIT(sta_priv->link_id);
-	spin_unlock_bh(&wvif->ps_state_lock);
 	return 0;
 }
 
@@ -841,28 +836,6 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw,
 		wfx_do_join(wvif);
 }
 
-static void wfx_ps_notify_sta(struct wfx_vif *wvif,
-			      enum sta_notify_cmd notify_cmd, int link_id)
-{
-	spin_lock_bh(&wvif->ps_state_lock);
-	if (notify_cmd == STA_NOTIFY_SLEEP)
-		wvif->sta_asleep_mask |= BIT(link_id);
-	else // notify_cmd == STA_NOTIFY_AWAKE
-		wvif->sta_asleep_mask &= ~BIT(link_id);
-	spin_unlock_bh(&wvif->ps_state_lock);
-	if (notify_cmd == STA_NOTIFY_AWAKE)
-		wfx_bh_request_tx(wvif->wdev);
-}
-
-void wfx_sta_notify(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		    enum sta_notify_cmd notify_cmd, struct ieee80211_sta *sta)
-{
-	struct wfx_vif *wvif = (struct wfx_vif *) vif->drv_priv;
-	struct wfx_sta_priv *sta_priv = (struct wfx_sta_priv *) &sta->drv_priv;
-
-	wfx_ps_notify_sta(wvif, notify_cmd, sta_priv->link_id);
-}
-
 static int wfx_update_tim(struct wfx_vif *wvif)
 {
 	struct sk_buff *skb;
@@ -1019,7 +992,6 @@ int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	wvif->wdev = wdev;
 
 	wvif->link_id_map = 1; // link-id 0 is reserved for multicast
-	spin_lock_init(&wvif->ps_state_lock);
 	INIT_WORK(&wvif->update_tim_work, wfx_update_tim_work);
 
 	memset(&wvif->bss_params, 0, sizeof(wvif->bss_params));
@@ -1083,7 +1055,6 @@ void wfx_remove_interface(struct ieee80211_hw *hw,
 			wfx_tx_unlock(wdev);
 		break;
 	case WFX_STATE_AP:
-		wvif->sta_asleep_mask = 0;
 		/* reset.link_id = 0; */
 		hif_reset(wvif, false);
 		break;
