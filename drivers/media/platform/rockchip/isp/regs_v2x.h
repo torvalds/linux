@@ -1679,6 +1679,7 @@
 #define ISP2X_AFM_LUM_OF		BIT(13)
 #define ISP2X_SIAF_FIN			BIT(14)
 #define ISP2X_SIHST_RDY			BIT(15)
+#define ISP2X_LSC_LUT_ERR		BIT(16)
 #define ISP2X_FLASH_CAP			BIT(17)
 #define ISP2X_YUVAE_END			BIT(18)
 #define ISP2X_VSM_END			BIT(19)
@@ -1699,6 +1700,7 @@
 #define ISP2X_3A_RAWAF_LUM		BIT(9)
 #define ISP2X_3A_RAWAF			BIT(10)
 #define ISP2X_3A_RAWAWB			BIT(11)
+#define ISP2X_3A_DDR_DONE		BIT(12)
 
 /* mi interrupt */
 #define MI_MP_FRAME			BIT(0)

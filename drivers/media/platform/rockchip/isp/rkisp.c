@@ -621,6 +621,8 @@ static int rkisp_config_isp(struct rkisp_device *dev)
 	/* interrupt mask */
 	irq_mask |= CIF_ISP_FRAME | CIF_ISP_V_START | CIF_ISP_PIC_SIZE_ERROR |
 		    CIF_ISP_FRAME_IN;
+	if (dev->isp_ver == ISP_V20)
+		irq_mask |= ISP2X_LSC_LUT_ERR;
 	writel(irq_mask, base + CIF_ISP_IMSC);
 
 	if (dev->isp_ver == ISP_V20 && IS_HDR_RDBK(dev->hdr.op_mode)) {
@@ -2078,6 +2080,15 @@ vs_skip:
 			v4l2_err(&dev->v4l2_dev,
 				 "Too many isp error, stop isp!\n");
 		}
+	}
+
+	if (isp_mis & ISP2X_LSC_LUT_ERR) {
+		writel(ISP2X_LSC_LUT_ERR, base + CIF_ISP_ICR);
+
+		isp_err = readl(base + CIF_ISP_ERR);
+		v4l2_err(&dev->v4l2_dev,
+			"ISP2X_LSC_LUT_ERR. ISP_ERR 0x%x\n", isp_err);
+		writel(isp_err, base + CIF_ISP_ERR_CLR);
 	}
 
 	/* sampled input frame is complete */
