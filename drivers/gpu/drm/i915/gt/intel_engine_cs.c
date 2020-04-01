@@ -1405,7 +1405,7 @@ static void intel_engine_print_registers(struct intel_engine_cs *engine,
 			int len;
 
 			len = scnprintf(hdr, sizeof(hdr),
-					"\t\tActive[%d]: ccid:%08x, ",
+					"\t\tActive[%d]:  ccid:%08x, ",
 					(int)(port - execlists->active),
 					upper_32_bits(rq->context->lrc_desc));
 			len += print_ring(hdr + len, sizeof(hdr) - len, rq);
