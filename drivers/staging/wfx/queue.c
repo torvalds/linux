@@ -174,30 +174,22 @@ int wfx_pending_requeue(struct wfx_dev *wdev, struct sk_buff *skb)
 	return 0;
 }
 
-int wfx_pending_remove(struct wfx_dev *wdev, struct sk_buff *skb)
-{
-	struct wfx_queue *queue = &wdev->tx_queue[skb_get_queue_mapping(skb)];
-
-	WARN_ON(skb_get_queue_mapping(skb) > 3);
-	WARN_ON(!atomic_read(&queue->pending_frames));
-
-	atomic_dec(&queue->pending_frames);
-	skb_unlink(skb, &wdev->tx_pending);
-	wfx_skb_dtor(wdev, skb);
-
-	return 0;
-}
-
 struct sk_buff *wfx_pending_get(struct wfx_dev *wdev, u32 packet_id)
 {
-	struct sk_buff *skb;
+	struct wfx_queue *queue;
 	struct hif_req_tx *req;
+	struct sk_buff *skb;
 
 	spin_lock_bh(&wdev->tx_pending.lock);
 	skb_queue_walk(&wdev->tx_pending, skb) {
 		req = wfx_skb_txreq(skb);
 		if (req->packet_id == packet_id) {
 			spin_unlock_bh(&wdev->tx_pending.lock);
+			queue = &wdev->tx_queue[skb_get_queue_mapping(skb)];
+			WARN_ON(skb_get_queue_mapping(skb) > 3);
+			WARN_ON(!atomic_read(&queue->pending_frames));
+			atomic_dec(&queue->pending_frames);
+			skb_unlink(skb, &wdev->tx_pending);
 			return skb;
 		}
 	}

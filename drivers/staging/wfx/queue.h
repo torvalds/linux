@@ -41,7 +41,6 @@ struct hif_msg *wfx_tx_queues_get(struct wfx_dev *wdev);
 
 
 struct sk_buff *wfx_pending_get(struct wfx_dev *wdev, u32 packet_id);
-int wfx_pending_remove(struct wfx_dev *wdev, struct sk_buff *skb);
 int wfx_pending_requeue(struct wfx_dev *wdev, struct sk_buff *skb);
 unsigned int wfx_pending_get_pkt_us_delay(struct wfx_dev *wdev,
 					  struct sk_buff *skb);

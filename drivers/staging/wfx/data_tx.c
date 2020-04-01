@@ -586,7 +586,7 @@ void wfx_tx_confirm_cb(struct wfx_vif *wvif, const struct hif_cnf_tx *arg)
 		    arg->packet_id == wvif->bss_loss_confirm_id)
 			wfx_cqm_bssloss_sm(wvif, 0, 0, 1);
 	}
-	wfx_pending_remove(wvif->wdev, skb);
+	wfx_skb_dtor(wvif->wdev, skb);
 }
 
 static void wfx_notify_buffered_tx(struct wfx_vif *wvif, struct sk_buff *skb)
