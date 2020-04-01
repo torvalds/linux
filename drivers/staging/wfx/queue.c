@@ -146,13 +146,16 @@ void wfx_tx_queues_deinit(struct wfx_dev *wdev)
 
 int wfx_tx_queue_get_num_queued(struct wfx_queue *queue)
 {
-	int ret, i;
+	struct ieee80211_tx_info *tx_info;
+	struct sk_buff *skb;
+	int ret = 0;
 
-	ret = 0;
 	spin_lock_bh(&queue->queue.lock);
-	for (i = 0; i < ARRAY_SIZE(queue->link_map_cache); i++)
-		if (i != WFX_LINK_ID_AFTER_DTIM)
-			ret += queue->link_map_cache[i];
+	skb_queue_walk(&queue->queue, skb) {
+		tx_info = IEEE80211_SKB_CB(skb);
+		if (!(tx_info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM))
+			ret++;
+	}
 	spin_unlock_bh(&queue->queue.lock);
 	return ret;
 }
