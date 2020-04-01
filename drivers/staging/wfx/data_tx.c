@@ -417,7 +417,7 @@ static int wfx_tx_inner(struct wfx_vif *wvif, struct ieee80211_sta *sta,
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_key_conf *hw_key = tx_info->control.hw_key;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
-	int queue_id = tx_info->hw_queue;
+	int queue_id = skb_get_queue_mapping(skb);
 	size_t offset = (size_t)skb->data & 3;
 	int wmsg_len = sizeof(struct hif_msg) +
 			sizeof(struct hif_req_tx) + offset;
