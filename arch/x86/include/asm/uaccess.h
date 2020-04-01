@@ -126,11 +126,17 @@ extern int __get_user_bad(void);
 })
 
 /*
- * This is a type: either unsigned long, if the argument fits into
- * that type, or otherwise unsigned long long.
+ * This is the smallest unsigned integer type that can fit a value
+ * (up to 'long long')
  */
-#define __inttype(x) \
-__typeof__(__builtin_choose_expr(sizeof(x) > sizeof(0UL), 0ULL, 0UL))
+#define __inttype(x) __typeof__(		\
+	__typefits(x,char,			\
+	  __typefits(x,short,			\
+	    __typefits(x,int,			\
+	      __typefits(x,long,0ULL)))))
+
+#define __typefits(x,type,not) \
+	__builtin_choose_expr(sizeof(x)<=sizeof(type),(unsigned type)0,not)
 
 /**
  * get_user - Get a simple variable from user space.
@@ -301,7 +307,7 @@ do {									\
 
 #else
 #define __get_user_asm_u64(x, ptr, retval) \
-	 __get_user_asm(x, ptr, retval, "q", "", "=r")
+	 __get_user_asm(x, ptr, retval, "q", "=r")
 #endif
 
 #define __get_user_size(x, ptr, size, retval)				\
@@ -310,13 +316,13 @@ do {									\
 	__chk_user_ptr(ptr);						\
 	switch (size) {							\
 	case 1:								\
-		__get_user_asm(x, ptr, retval, "b", "b", "=q");		\
+		__get_user_asm(x, ptr, retval, "b", "=q");		\
 		break;							\
 	case 2:								\
-		__get_user_asm(x, ptr, retval, "w", "w", "=r");		\
+		__get_user_asm(x, ptr, retval, "w", "=r");		\
 		break;							\
 	case 4:								\
-		__get_user_asm(x, ptr, retval, "l", "k", "=r");		\
+		__get_user_asm(x, ptr, retval, "l", "=r");		\
 		break;							\
 	case 8:								\
 		__get_user_asm_u64(x, ptr, retval);			\
@@ -326,13 +332,13 @@ do {									\
 	}								\
 } while (0)
 
-#define __get_user_asm(x, addr, err, itype, rtype, ltype)		\
+#define __get_user_asm(x, addr, err, itype, ltype)			\
 	asm volatile("\n"						\
-		     "1:	mov"itype" %2,%"rtype"1\n"		\
+		     "1:	mov"itype" %2,%1\n"			\
 		     "2:\n"						\
 		     ".section .fixup,\"ax\"\n"				\
 		     "3:	mov %3,%0\n"				\
-		     "	xor"itype" %"rtype"1,%"rtype"1\n"		\
+		     "	xor"itype" %1,%1\n"				\
 		     "	jmp 2b\n"					\
 		     ".previous\n"					\
 		     _ASM_EXTABLE_UA(1b, 3b)				\
