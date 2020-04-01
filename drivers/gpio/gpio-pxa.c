@@ -361,11 +361,8 @@ static int pxa_init_gpio_chip(struct pxa_gpio_chip *pchip, int ngpio,
 	pchip->chip.set = pxa_gpio_set;
 	pchip->chip.to_irq = pxa_gpio_to_irq;
 	pchip->chip.ngpio = ngpio;
-
-	if (pxa_gpio_has_pinctrl()) {
-		pchip->chip.request = gpiochip_generic_request;
-		pchip->chip.free = gpiochip_generic_free;
-	}
+	pchip->chip.request = gpiochip_generic_request;
+	pchip->chip.free = gpiochip_generic_free;
 
 #ifdef CONFIG_OF_GPIO
 	pchip->chip.of_node = np;

@@ -298,11 +298,8 @@ static int pl061_probe(struct amba_device *adev, const struct amba_id *id)
 		return PTR_ERR(pl061->base);
 
 	raw_spin_lock_init(&pl061->lock);
-	if (of_property_read_bool(dev->of_node, "gpio-ranges")) {
-		pl061->gc.request = gpiochip_generic_request;
-		pl061->gc.free = gpiochip_generic_free;
-	}
-
+	pl061->gc.request = gpiochip_generic_request;
+	pl061->gc.free = gpiochip_generic_free;
 	pl061->gc.base = -1;
 	pl061->gc.get_direction = pl061_get_direction;
 	pl061->gc.direction_input = pl061_direction_input;
