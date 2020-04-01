@@ -383,17 +383,6 @@ struct __large_struct { unsigned long buf[100]; };
 		: : ltype(x), "m" (__m(addr))				\
 		: : label)
 
-#define __put_user_failed(x, addr, itype, rtype, ltype, errret)		\
-	({	__label__ __puflab;					\
-		int __pufret = errret;					\
-		__put_user_goto(x,addr,itype,rtype,ltype,__puflab);	\
-		__pufret = 0;						\
-	__puflab: __pufret; })
-
-#define __put_user_asm(x, addr, retval, itype, rtype, ltype, errret)	do {	\
-	retval = __put_user_failed(x, addr, itype, rtype, ltype, errret);	\
-} while (0)
-
 /**
  * __get_user - Get a simple variable from user space, with less checking.
  * @x:   Variable to store result.
