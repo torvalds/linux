@@ -35,6 +35,7 @@ Library functionality that is used throughout the kernel.
    xarray
    idr
    circular-buffers
+   rbtree
    generic-radix-tree
    packing
    timekeeping
