@@ -28,11 +28,11 @@
 
 #include "virtgpu_drv.h"
 
-int virtio_gpu_gem_create(struct drm_file *file,
-			  struct drm_device *dev,
-			  struct virtio_gpu_object_params *params,
-			  struct drm_gem_object **obj_p,
-			  uint32_t *handle_p)
+static int virtio_gpu_gem_create(struct drm_file *file,
+				 struct drm_device *dev,
+				 struct virtio_gpu_object_params *params,
+				 struct drm_gem_object **obj_p,
+				 uint32_t *handle_p)
 {
 	struct virtio_gpu_device *vgdev = dev->dev_private;
 	struct virtio_gpu_object *obj;
