@@ -363,8 +363,6 @@ static bool hif_handle_tx_data(struct wfx_vif *wvif, struct sk_buff *skb,
 static int wfx_get_prio_queue(struct wfx_vif *wvif,
 				 u32 tx_allowed_mask, int *total)
 {
-	static const int urgent = BIT(WFX_LINK_ID_AFTER_DTIM) |
-		BIT(WFX_LINK_ID_UAPSD);
 	const struct ieee80211_tx_queue_params *edca;
 	unsigned int score, best = -1;
 	int winner = -1;
@@ -388,14 +386,6 @@ static int wfx_get_prio_queue(struct wfx_vif *wvif,
 			winner = i;
 		}
 	}
-
-	/* override winner if bursting */
-	if (winner >= 0 && wvif->wdev->tx_burst_idx >= 0 &&
-	    winner != wvif->wdev->tx_burst_idx &&
-	    !wfx_tx_queue_get_num_queued(&wvif->wdev->tx_queue[winner],
-					 tx_allowed_mask & urgent) &&
-	    wfx_tx_queue_get_num_queued(&wvif->wdev->tx_queue[wvif->wdev->tx_burst_idx], tx_allowed_mask))
-		winner = wvif->wdev->tx_burst_idx;
 
 	return winner;
 }
@@ -454,7 +444,6 @@ struct hif_msg *wfx_tx_queues_get(struct wfx_dev *wdev)
 	u32 vif_tx_allowed_mask = 0;
 	struct wfx_vif *wvif;
 	int not_found;
-	int burst;
 	int i;
 
 	if (atomic_read(&wdev->tx_lock))
@@ -517,18 +506,6 @@ struct hif_msg *wfx_tx_queues_get(struct wfx_dev *wdev)
 
 		if (hif_handle_tx_data(wvif, skb, queue))
 			continue;  /* Handled by WSM */
-
-		/* allow bursting if txop is set */
-		if (wvif->edca_params[queue_num].txop)
-			burst = wfx_tx_queue_get_num_queued(queue, tx_allowed_mask) + 1;
-		else
-			burst = 1;
-
-		/* store index of bursting queue */
-		if (burst > 1)
-			wdev->tx_burst_idx = queue_num;
-		else
-			wdev->tx_burst_idx = -1;
 
 		return hif;
 	}

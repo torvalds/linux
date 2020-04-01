@@ -51,7 +51,6 @@ struct wfx_dev {
 	struct wfx_hif_cmd	hif_cmd;
 	struct wfx_queue	tx_queue[4];
 	struct wfx_queue_stats	tx_queue_stats;
-	int			tx_burst_idx;
 	atomic_t		tx_lock;
 
 	atomic_t		packet_id;

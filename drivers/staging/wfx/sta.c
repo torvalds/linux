@@ -531,7 +531,6 @@ static void wfx_do_join(struct wfx_vif *wvif)
 
 	wfx_set_mfp(wvif, bss);
 
-	wvif->wdev->tx_burst_idx = -1;
 	ret = hif_join(wvif, conf, wvif->channel, ssid, ssidlen);
 	if (ret) {
 		ieee80211_connection_loss(wvif->vif);
@@ -624,7 +623,6 @@ static int wfx_start_ap(struct wfx_vif *wvif)
 	int ret;
 
 	wvif->beacon_int = wvif->vif->bss_conf.beacon_int;
-	wvif->wdev->tx_burst_idx = -1;
 	ret = hif_start(wvif, &wvif->vif->bss_conf, wvif->channel);
 	if (ret)
 		return ret;
