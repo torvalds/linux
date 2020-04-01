@@ -207,10 +207,6 @@ struct amdgpu_vcn {
 	uint8_t	num_vcn_inst;
 	struct amdgpu_vcn_inst	 inst[AMDGPU_MAX_VCN_INSTANCES];
 	struct amdgpu_vcn_reg	 internal;
-	struct drm_gpu_scheduler *vcn_enc_sched[AMDGPU_MAX_VCN_ENC_RINGS];
-	struct drm_gpu_scheduler *vcn_dec_sched[AMDGPU_MAX_VCN_INSTANCES];
-	uint32_t		 num_vcn_enc_sched;
-	uint32_t		 num_vcn_dec_sched;
 	struct mutex		 vcn_pg_lock;
 	atomic_t		 total_submission_cnt;
 

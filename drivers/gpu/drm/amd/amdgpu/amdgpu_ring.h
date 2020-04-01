@@ -30,10 +30,14 @@
 
 /* max number of rings */
 #define AMDGPU_MAX_RINGS		28
+#define AMDGPU_MAX_HWIP_RINGS		8
 #define AMDGPU_MAX_GFX_RINGS		2
 #define AMDGPU_MAX_COMPUTE_RINGS	8
 #define AMDGPU_MAX_VCE_RINGS		3
 #define AMDGPU_MAX_UVD_ENC_RINGS	2
+
+#define AMDGPU_RING_PRIO_DEFAULT	1
+#define AMDGPU_RING_PRIO_MAX		AMDGPU_GFX_PIPE_PRIO_MAX
 
 /* some special values for the owner field */
 #define AMDGPU_FENCE_OWNER_UNDEFINED	((void *)0ul)
@@ -64,6 +68,11 @@ struct amdgpu_ring;
 struct amdgpu_ib;
 struct amdgpu_cs_parser;
 struct amdgpu_job;
+
+struct amdgpu_sched {
+	u32				num_scheds;
+	struct drm_gpu_scheduler	*sched[AMDGPU_MAX_HWIP_RINGS];
+};
 
 /*
  * Fences.
@@ -219,7 +228,6 @@ struct amdgpu_ring {
 	struct mutex		priority_mutex;
 	/* protected by priority_mutex */
 	int			priority;
-	bool			has_high_prio;
 
 #if defined(CONFIG_DEBUG_FS)
 	struct dentry *ent;
@@ -257,8 +265,8 @@ void amdgpu_ring_generic_pad_ib(struct amdgpu_ring *ring, struct amdgpu_ib *ib);
 void amdgpu_ring_commit(struct amdgpu_ring *ring);
 void amdgpu_ring_undo(struct amdgpu_ring *ring);
 int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
-		     unsigned ring_size, struct amdgpu_irq_src *irq_src,
-		     unsigned irq_type);
+		     unsigned int ring_size, struct amdgpu_irq_src *irq_src,
+		     unsigned int irq_type, unsigned int prio);
 void amdgpu_ring_fini(struct amdgpu_ring *ring);
 void amdgpu_ring_emit_reg_write_reg_wait_helper(struct amdgpu_ring *ring,
 						uint32_t reg0, uint32_t val0,

@@ -853,6 +853,7 @@ struct amdgpu_device {
 	struct amdgpu_ring		*rings[AMDGPU_MAX_RINGS];
 	bool				ib_pool_ready;
 	struct amdgpu_sa_manager	ring_tmp_bo[AMDGPU_IB_POOL_MAX];
+	struct amdgpu_sched		gpu_sched[AMDGPU_HW_IP_NUM][AMDGPU_RING_PRIO_MAX];
 
 	/* interrupts */
 	struct amdgpu_irq		irq;
