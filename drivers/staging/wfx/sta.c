@@ -323,7 +323,7 @@ static int __wfx_flush(struct wfx_dev *wdev, bool drop)
 	for (;;) {
 		if (drop)
 			wfx_tx_queues_clear(wdev);
-		if (wait_event_timeout(wdev->tx_queue_stats.wait_link_id_empty,
+		if (wait_event_timeout(wdev->tx_dequeue,
 				       wfx_tx_queues_empty(wdev),
 				       2 * HZ) <= 0)
 			return -ETIMEDOUT;

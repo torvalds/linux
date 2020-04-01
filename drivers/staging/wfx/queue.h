@@ -25,11 +25,6 @@ struct wfx_queue {
 	atomic_t		pending_frames;
 };
 
-struct wfx_queue_stats {
-	struct sk_buff_head	pending;
-	wait_queue_head_t	wait_link_id_empty;
-};
-
 void wfx_tx_lock(struct wfx_dev *wdev);
 void wfx_tx_unlock(struct wfx_dev *wdev);
 void wfx_tx_flush(struct wfx_dev *wdev);

@@ -50,7 +50,8 @@ struct wfx_dev {
 
 	struct wfx_hif_cmd	hif_cmd;
 	struct wfx_queue	tx_queue[4];
-	struct wfx_queue_stats	tx_queue_stats;
+	struct sk_buff_head	tx_pending;
+	wait_queue_head_t	tx_dequeue;
 	atomic_t		tx_lock;
 
 	atomic_t		packet_id;

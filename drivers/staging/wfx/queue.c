@@ -121,12 +121,11 @@ void wfx_tx_queues_clear(struct wfx_dev *wdev)
 	int i;
 	struct sk_buff *item;
 	struct sk_buff_head gc_list;
-	struct wfx_queue_stats *stats = &wdev->tx_queue_stats;
 
 	skb_queue_head_init(&gc_list);
 	for (i = 0; i < IEEE80211_NUM_ACS; ++i)
 		wfx_tx_queue_clear(wdev, &wdev->tx_queue[i], &gc_list);
-	wake_up(&stats->wait_link_id_empty);
+	wake_up(&wdev->tx_dequeue);
 	while ((item = skb_dequeue(&gc_list)) != NULL)
 		wfx_skb_dtor(wdev, item);
 }
@@ -135,10 +134,9 @@ void wfx_tx_queues_init(struct wfx_dev *wdev)
 {
 	int i;
 
-	memset(&wdev->tx_queue_stats, 0, sizeof(wdev->tx_queue_stats));
 	memset(wdev->tx_queue, 0, sizeof(wdev->tx_queue));
-	skb_queue_head_init(&wdev->tx_queue_stats.pending);
-	init_waitqueue_head(&wdev->tx_queue_stats.wait_link_id_empty);
+	skb_queue_head_init(&wdev->tx_pending);
+	init_waitqueue_head(&wdev->tx_dequeue);
 
 	for (i = 0; i < IEEE80211_NUM_ACS; ++i) {
 		skb_queue_head_init(&wdev->tx_queue[i].normal);
@@ -148,7 +146,7 @@ void wfx_tx_queues_init(struct wfx_dev *wdev)
 
 void wfx_tx_queues_deinit(struct wfx_dev *wdev)
 {
-	WARN_ON(!skb_queue_empty(&wdev->tx_queue_stats.pending));
+	WARN_ON(!skb_queue_empty(&wdev->tx_pending));
 	wfx_tx_queues_clear(wdev);
 }
 
@@ -165,28 +163,26 @@ void wfx_tx_queue_put(struct wfx_dev *wdev, struct wfx_queue *queue,
 
 int wfx_pending_requeue(struct wfx_dev *wdev, struct sk_buff *skb)
 {
-	struct wfx_queue_stats *stats = &wdev->tx_queue_stats;
 	struct wfx_queue *queue = &wdev->tx_queue[skb_get_queue_mapping(skb)];
 
 	WARN_ON(skb_get_queue_mapping(skb) > 3);
 	WARN_ON(!atomic_read(&queue->pending_frames));
 
 	atomic_dec(&queue->pending_frames);
-	skb_unlink(skb, &stats->pending);
+	skb_unlink(skb, &wdev->tx_pending);
 	wfx_tx_queue_put(wdev, queue, skb);
 	return 0;
 }
 
 int wfx_pending_remove(struct wfx_dev *wdev, struct sk_buff *skb)
 {
-	struct wfx_queue_stats *stats = &wdev->tx_queue_stats;
 	struct wfx_queue *queue = &wdev->tx_queue[skb_get_queue_mapping(skb)];
 
 	WARN_ON(skb_get_queue_mapping(skb) > 3);
 	WARN_ON(!atomic_read(&queue->pending_frames));
 
 	atomic_dec(&queue->pending_frames);
-	skb_unlink(skb, &stats->pending);
+	skb_unlink(skb, &wdev->tx_pending);
 	wfx_skb_dtor(wdev, skb);
 
 	return 0;
@@ -196,32 +192,30 @@ struct sk_buff *wfx_pending_get(struct wfx_dev *wdev, u32 packet_id)
 {
 	struct sk_buff *skb;
 	struct hif_req_tx *req;
-	struct wfx_queue_stats *stats = &wdev->tx_queue_stats;
 
-	spin_lock_bh(&stats->pending.lock);
-	skb_queue_walk(&stats->pending, skb) {
+	spin_lock_bh(&wdev->tx_pending.lock);
+	skb_queue_walk(&wdev->tx_pending, skb) {
 		req = wfx_skb_txreq(skb);
 		if (req->packet_id == packet_id) {
-			spin_unlock_bh(&stats->pending.lock);
+			spin_unlock_bh(&wdev->tx_pending.lock);
 			return skb;
 		}
 	}
-	spin_unlock_bh(&stats->pending.lock);
+	spin_unlock_bh(&wdev->tx_pending.lock);
 	WARN(1, "cannot find packet in pending queue");
 	return NULL;
 }
 
 void wfx_pending_dump_old_frames(struct wfx_dev *wdev, unsigned int limit_ms)
 {
-	struct wfx_queue_stats *stats = &wdev->tx_queue_stats;
 	ktime_t now = ktime_get();
 	struct wfx_tx_priv *tx_priv;
 	struct hif_req_tx *req;
 	struct sk_buff *skb;
 	bool first = true;
 
-	spin_lock_bh(&stats->pending.lock);
-	skb_queue_walk(&stats->pending, skb) {
+	spin_lock_bh(&wdev->tx_pending.lock);
+	skb_queue_walk(&wdev->tx_pending, skb) {
 		tx_priv = wfx_skb_tx_priv(skb);
 		req = wfx_skb_txreq(skb);
 		if (ktime_after(now, ktime_add_ms(tx_priv->xmit_timestamp,
@@ -236,7 +230,7 @@ void wfx_pending_dump_old_frames(struct wfx_dev *wdev, unsigned int limit_ms)
 				 ktime_ms_delta(now, tx_priv->xmit_timestamp));
 		}
 	}
-	spin_unlock_bh(&stats->pending.lock);
+	spin_unlock_bh(&wdev->tx_pending.lock);
 }
 
 unsigned int wfx_pending_get_pkt_us_delay(struct wfx_dev *wdev,
@@ -377,9 +371,9 @@ struct hif_msg *wfx_tx_queues_get(struct wfx_dev *wdev)
 		skb = wfx_tx_queues_get_skb(wdev);
 		if (!skb)
 			return NULL;
-		skb_queue_tail(&wdev->tx_queue_stats.pending, skb);
+		skb_queue_tail(&wdev->tx_pending, skb);
 		if (wfx_tx_queues_empty(wdev))
-			wake_up(&wdev->tx_queue_stats.wait_link_id_empty);
+			wake_up(&wdev->tx_dequeue);
 		// FIXME: is it useful?
 		if (wfx_handle_tx_data(wdev, skb))
 			continue;
