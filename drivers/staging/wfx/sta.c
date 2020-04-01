@@ -298,7 +298,6 @@ int wfx_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	mutex_lock(&wdev->conf_mutex);
 	assign_bit(queue, &wvif->uapsd_mask, params->uapsd);
-	memcpy(&wvif->edca_params[queue], params, sizeof(*params));
 	hif_set_edca_queue_params(wvif, queue, params);
 	if (wvif->vif->type == NL80211_IFTYPE_STATION &&
 	    old_uapsd != wvif->uapsd_mask) {

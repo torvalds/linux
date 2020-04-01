@@ -94,7 +94,6 @@ struct wfx_vif {
 	struct work_struct	update_filtering_work;
 
 	unsigned long		uapsd_mask;
-	struct ieee80211_tx_queue_params edca_params[IEEE80211_NUM_ACS];
 	struct hif_req_set_bss_params bss_params;
 	struct work_struct	bss_params_work;
 
