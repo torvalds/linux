@@ -34,7 +34,7 @@ struct instruction {
 	enum insn_type type;
 	unsigned long immediate;
 	bool alt_group, dead_end, ignore, ignore_alts;
-	bool hint, save, restore;
+	bool hint;
 	bool retpoline_safe;
 	u8 visited;
 	u8 ret_offset;
