@@ -18,6 +18,7 @@
 #include <linux/extable.h>
 #include <linux/uaccess.h>
 #include <linux/perf_event.h>
+#include <linux/kprobes.h>
 
 #include <asm/hardirq.h>
 #include <asm/mmu_context.h>
@@ -52,6 +53,9 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long write,
 	int si_code;
 	int fault;
 	unsigned long address = mmu_meh & PAGE_MASK;
+
+	if (kprobe_page_fault(regs, tsk->thread.trap_no))
+		return;
 
 	si_code = SEGV_MAPERR;
 

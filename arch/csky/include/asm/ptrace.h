@@ -13,6 +13,8 @@
 
 #define PS_S	0x80000000 /* Supervisor Mode */
 
+#define USR_BKPT	0x1464
+
 #define arch_has_single_step() (1)
 #define current_pt_regs() \
 ({ (struct pt_regs *)((char *)current_thread_info() + THREAD_SIZE) - 1; })
