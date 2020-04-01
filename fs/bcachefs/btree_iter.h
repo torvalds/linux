@@ -257,10 +257,35 @@ int bch2_trans_iter_free(struct btree_trans *, struct btree_iter *);
 
 void bch2_trans_unlink_iters(struct btree_trans *);
 
-struct btree_iter *bch2_trans_get_iter(struct btree_trans *, enum btree_id,
-				       struct bpos, unsigned);
-struct btree_iter *bch2_trans_copy_iter(struct btree_trans *,
+struct btree_iter *__bch2_trans_get_iter(struct btree_trans *, enum btree_id,
+					 struct bpos, unsigned);
+
+static inline struct btree_iter *
+bch2_trans_get_iter(struct btree_trans *trans, enum btree_id btree_id,
+		    struct bpos pos, unsigned flags)
+{
+	struct btree_iter *iter =
+		__bch2_trans_get_iter(trans, btree_id, pos, flags);
+
+	if (!IS_ERR(iter))
+		iter->ip_allocated = _THIS_IP_;
+	return iter;
+}
+
+struct btree_iter *__bch2_trans_copy_iter(struct btree_trans *,
 					struct btree_iter *);
+static inline struct btree_iter *
+bch2_trans_copy_iter(struct btree_trans *trans, struct btree_iter *src)
+{
+	struct btree_iter *iter =
+		__bch2_trans_copy_iter(trans, src);
+
+	if (!IS_ERR(iter))
+		iter->ip_allocated = _THIS_IP_;
+	return iter;
+
+}
+
 struct btree_iter *bch2_trans_get_node_iter(struct btree_trans *,
 				enum btree_id, struct bpos,
 				unsigned, unsigned, unsigned);

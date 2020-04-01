@@ -256,6 +256,7 @@ struct btree_iter {
 	 * bch2_btree_iter_next_slot() can correctly advance pos.
 	 */
 	struct bkey		k;
+	unsigned long		ip_allocated;
 };
 
 static inline enum btree_iter_type btree_iter_type(struct btree_iter *iter)

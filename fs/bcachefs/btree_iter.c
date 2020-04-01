@@ -1912,13 +1912,14 @@ static struct btree_iter *btree_trans_iter_alloc(struct btree_trans *trans)
 			struct btree_iter *iter;
 
 			trans_for_each_iter(trans, iter) {
-				pr_err("iter: btree %s pos %llu:%llu%s%s%s",
+				pr_err("iter: btree %s pos %llu:%llu%s%s%s %pf",
 				       bch2_btree_ids[iter->btree_id],
 				       iter->pos.inode,
 				       iter->pos.offset,
 				       (trans->iters_live & (1ULL << iter->idx)) ? " live" : "",
 				       (trans->iters_touched & (1ULL << iter->idx)) ? " touched" : "",
-				       iter->flags & BTREE_ITER_KEEP_UNTIL_COMMIT ? " keep" : "");
+				       iter->flags & BTREE_ITER_KEEP_UNTIL_COMMIT ? " keep" : "",
+				       (void *) iter->ip_allocated);
 			}
 
 			panic("trans iter oveflow\n");
@@ -2025,9 +2026,9 @@ static struct btree_iter *__btree_trans_get_iter(struct btree_trans *trans,
 	return iter;
 }
 
-struct btree_iter *bch2_trans_get_iter(struct btree_trans *trans,
-				       enum btree_id btree_id,
-				       struct bpos pos, unsigned flags)
+struct btree_iter *__bch2_trans_get_iter(struct btree_trans *trans,
+					 enum btree_id btree_id,
+					 struct bpos pos, unsigned flags)
 {
 	struct btree_iter *iter =
 		__btree_trans_get_iter(trans, btree_id, pos, flags);
@@ -2064,7 +2065,7 @@ struct btree_iter *bch2_trans_get_node_iter(struct btree_trans *trans,
 	return iter;
 }
 
-struct btree_iter *bch2_trans_copy_iter(struct btree_trans *trans,
+struct btree_iter *__bch2_trans_copy_iter(struct btree_trans *trans,
 					struct btree_iter *src)
 {
 	struct btree_iter *iter;
