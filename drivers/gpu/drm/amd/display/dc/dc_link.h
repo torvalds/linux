@@ -126,6 +126,9 @@ struct dc_link {
 	uint32_t dongle_max_pix_clk;
 	unsigned short chip_caps;
 	unsigned int dpcd_sink_count;
+#if defined(CONFIG_DRM_AMD_DC_HDCP)
+	struct hdcp_caps hdcp_caps;
+#endif
 	enum edp_revision edp_revision;
 	bool psr_feature_enabled;
 	bool psr_allow_active;

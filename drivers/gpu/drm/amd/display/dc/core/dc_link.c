@@ -515,6 +515,50 @@ static void link_disconnect_remap(struct dc_sink *prev_sink, struct dc_link *lin
 	link->local_sink = prev_sink;
 }
 
+#if defined(CONFIG_DRM_AMD_DC_HDCP)
+static void query_hdcp_capability(enum signal_type signal, struct dc_link *link)
+{
+	struct hdcp_protection_message msg22;
+	struct hdcp_protection_message msg14;
+
+	memset(&msg22, 0, sizeof(struct hdcp_protection_message));
+	memset(&msg14, 0, sizeof(struct hdcp_protection_message));
+	memset(link->hdcp_caps.rx_caps.raw, 0,
+		sizeof(link->hdcp_caps.rx_caps.raw));
+
+	if ((link->connector_signal == SIGNAL_TYPE_DISPLAY_PORT &&
+			link->ddc->transaction_type ==
+			DDC_TRANSACTION_TYPE_I2C_OVER_AUX) ||
+			link->connector_signal == SIGNAL_TYPE_EDP) {
+		msg22.data = link->hdcp_caps.rx_caps.raw;
+		msg22.length = sizeof(link->hdcp_caps.rx_caps.raw);
+		msg22.msg_id = HDCP_MESSAGE_ID_RX_CAPS;
+	} else {
+		msg22.data = &link->hdcp_caps.rx_caps.fields.version;
+		msg22.length = sizeof(link->hdcp_caps.rx_caps.fields.version);
+		msg22.msg_id = HDCP_MESSAGE_ID_HDCP2VERSION;
+	}
+	msg22.version = HDCP_VERSION_22;
+	msg22.link = HDCP_LINK_PRIMARY;
+	msg22.max_retries = 5;
+	dc_process_hdcp_msg(signal, link, &msg22);
+
+	if (signal == SIGNAL_TYPE_DISPLAY_PORT || signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
+		enum hdcp_message_status status = HDCP_MESSAGE_UNSUPPORTED;
+
+		msg14.data = &link->hdcp_caps.bcaps.raw;
+		msg14.length = sizeof(link->hdcp_caps.bcaps.raw);
+		msg14.msg_id = HDCP_MESSAGE_ID_READ_BCAPS;
+		msg14.version = HDCP_VERSION_14;
+		msg14.link = HDCP_LINK_PRIMARY;
+		msg14.max_retries = 5;
+
+		status = dc_process_hdcp_msg(signal, link, &msg14);
+	}
+
+}
+#endif
+
 static void read_current_link_settings_on_detect(struct dc_link *link)
 {
 	union lane_count_set lane_count_set = { {0} };
@@ -607,6 +651,12 @@ static bool detect_dp(struct dc_link *link,
 			dal_ddc_service_set_transaction_type(link->ddc,
 							     sink_caps->transaction_type);
 
+#if defined(CONFIG_DRM_AMD_DC_HDCP)
+			/* In case of fallback to SST when topology discovery below fails
+			 * HDCP caps will be querried again later by the upper layer (caller
+			 * of this function). */
+			query_hdcp_capability(SIGNAL_TYPE_DISPLAY_PORT_MST, link);
+#endif
 			/*
 			 * This call will initiate MST topology discovery. Which
 			 * will detect MST ports and add new DRM connector DRM
@@ -976,6 +1026,9 @@ static bool dc_link_detect_helper(struct dc_link *link,
 			 * TODO debug why Dell 2413 doesn't like
 			 *  two link trainings
 			 */
+#if defined(CONFIG_DRM_AMD_DC_HDCP)
+			query_hdcp_capability(sink->sink_signal, link);
+#endif
 
 			// verify link cap for SST non-seamless boot
 			if (!perform_dp_seamless_boot)
@@ -989,6 +1042,9 @@ static bool dc_link_detect_helper(struct dc_link *link,
 				sink = prev_sink;
 				prev_sink = NULL;
 			}
+#if defined(CONFIG_DRM_AMD_DC_HDCP)
+			query_hdcp_capability(sink->sink_signal, link);
+#endif
 		}
 
 		/* HDMI-DVI Dongle */

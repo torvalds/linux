@@ -29,6 +29,9 @@
 #include "dc_types.h"
 #include "grph_object_defs.h"
 #include "logger_types.h"
+#if defined(CONFIG_DRM_AMD_DC_HDCP)
+#include "hdcp_types.h"
+#endif
 #include "gpio_types.h"
 #include "link_service_types.h"
 #include "grph_object_ctrl_defs.h"
@@ -1004,6 +1007,35 @@ union dpcd_sink_ext_caps {
 	uint8_t raw;
 };
 
+#if defined(CONFIG_DRM_AMD_DC_HDCP)
+union hdcp_rx_caps {
+	struct {
+		uint8_t version;
+		uint8_t reserved;
+		struct {
+			uint8_t repeater	: 1;
+			uint8_t hdcp_capable	: 1;
+			uint8_t reserved	: 6;
+		} byte0;
+	} fields;
+	uint8_t raw[3];
+};
+
+union hdcp_bcaps {
+	struct {
+		uint8_t HDCP_CAPABLE:1;
+		uint8_t REPEATER:1;
+		uint8_t RESERVED:6;
+	} bits;
+	uint8_t raw;
+};
+
+struct hdcp_caps {
+	union hdcp_rx_caps rx_caps;
+	union hdcp_bcaps bcaps;
+};
+#endif
+
 #include "dc_link.h"
 
 /*******************************************************************************
@@ -1107,6 +1139,15 @@ void dc_resume(struct dc *dc);
 unsigned int dc_get_current_backlight_pwm(struct dc *dc);
 unsigned int dc_get_target_backlight_pwm(struct dc *dc);
 
+#if defined(CONFIG_DRM_AMD_DC_HDCP)
+/*
+ * HDCP Interfaces
+ */
+enum hdcp_message_status dc_process_hdcp_msg(
+		enum signal_type signal,
+		struct dc_link *link,
+		struct hdcp_protection_message *message_info);
+#endif
 bool dc_is_dmcu_initialized(struct dc *dc);
 
 enum dc_status dc_set_clock(struct dc *dc, enum dc_clock_type clock_type, uint32_t clk_khz, uint32_t stepping);
