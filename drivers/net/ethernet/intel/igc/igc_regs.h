@@ -36,9 +36,6 @@
 #define IGC_FCRTH		0x02168  /* FC Receive Threshold High - RW */
 #define IGC_FCRTV		0x02460  /* FC Refresh Timer Value - RW */
 
-/* PCIe Register Description */
-#define IGC_GCR			0x05B00  /* PCIe control- RW */
-
 /* Semaphore registers */
 #define IGC_SW_FW_SYNC		0x05B5C  /* SW-FW Synchronization - RW */
 #define IGC_SWSM		0x05B50  /* SW Semaphore */
