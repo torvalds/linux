@@ -1043,4 +1043,6 @@
 #define PX30_GRF_PD_VO_CON1			0x00438
 /* px30 register definition end */
 
+#define RV1126_GRF_IOFUNC_CON3			0x1026c
+
 #endif /* _ROCKCHIP_VOP_REG_H */

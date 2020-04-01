@@ -1735,6 +1735,8 @@ static const struct vop_ctrl rv1126_ctrl_data = {
 	.mcu_type = VOP_REG(RK3366_LIT_MCU_CTRL, 0x1, 31),
 	.mcu_rw_bypass_port = VOP_REG(RK3366_LIT_MCU_RW_BYPASS_PORT,
 				      0xffffffff, 0),
+	.bt1120_yc_swap = VOP_REG(RK3366_LIT_DSP_CTRL0, 0x1, 30),
+	.bt1120_en = VOP_REG(RK3366_LIT_DSP_CTRL0, 0x1, 31),
 };
 
 static const struct vop_win_data rv1126_vop_win_data[] = {
@@ -1747,12 +1749,17 @@ static const struct vop_win_data rv1126_vop_win_data[] = {
 	  .area_size = ARRAY_SIZE(rk3368_area_data), },
 };
 
+static const struct vop_grf_ctrl rv1126_grf_ctrl = {
+	.grf_dclk_inv = VOP_REG(RV1126_GRF_IOFUNC_CON3, 0x1, 2),
+};
+
 static const struct vop_data rv1126_vop = {
 	.version = VOP_VERSION(2, 7),
 	.max_input = {1920, 1920},
 	.max_output = {1920, 1080},
 	.ctrl = &rv1126_ctrl_data,
 	.intr = &rk3366_lit_intr,
+	.grf_ctrl = &rv1126_grf_ctrl,
 	.win = rv1126_vop_win_data,
 	.win_size = ARRAY_SIZE(rv1126_vop_win_data),
 };
