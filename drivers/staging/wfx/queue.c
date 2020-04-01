@@ -354,8 +354,7 @@ static bool wfx_handle_tx_data(struct wfx_dev *wdev, struct sk_buff *skb)
 	}
 }
 
-static int wfx_get_prio_queue(struct wfx_vif *wvif,
-				 u32 tx_allowed_mask, int *total)
+static int wfx_get_prio_queue(struct wfx_vif *wvif, u32 tx_allowed_mask)
 {
 	const struct ieee80211_tx_queue_params *edca;
 	unsigned int score, best = -1;
@@ -371,7 +370,6 @@ static int wfx_get_prio_queue(struct wfx_vif *wvif,
 				tx_allowed_mask);
 		if (!queued)
 			continue;
-		*total += queued;
 		score = ((edca->aifs + edca->cw_min) << 16) +
 			((edca->cw_max - edca->cw_min) *
 			 (get_random_int() & 0xFFFF));
@@ -390,7 +388,6 @@ static int wfx_tx_queue_mask_get(struct wfx_vif *wvif,
 {
 	int idx;
 	u32 tx_allowed_mask;
-	int total = 0;
 
 	/* Search for unicast traffic */
 	tx_allowed_mask = ~wvif->sta_asleep_mask;
@@ -399,7 +396,7 @@ static int wfx_tx_queue_mask_get(struct wfx_vif *wvif,
 		tx_allowed_mask &= ~BIT(WFX_LINK_ID_AFTER_DTIM);
 	else
 		tx_allowed_mask |= BIT(WFX_LINK_ID_AFTER_DTIM);
-	idx = wfx_get_prio_queue(wvif, tx_allowed_mask, &total);
+	idx = wfx_get_prio_queue(wvif, tx_allowed_mask);
 	if (idx < 0)
 		return -ENOENT;
 
