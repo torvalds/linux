@@ -279,13 +279,13 @@ do {									\
 } while (0)
 
 #ifdef CONFIG_X86_32
-#define __get_user_asm_u64(x, ptr, retval, errret)			\
+#define __get_user_asm_u64(x, ptr, retval)				\
 ({									\
 	__typeof__(ptr) __ptr = (ptr);					\
-	asm volatile("\n"					\
+	asm volatile("\n"						\
 		     "1:	movl %2,%%eax\n"			\
 		     "2:	movl %3,%%edx\n"			\
-		     "3:\n"				\
+		     "3:\n"						\
 		     ".section .fixup,\"ax\"\n"				\
 		     "4:	mov %4,%0\n"				\
 		     "	xorl %%eax,%%eax\n"				\
@@ -296,37 +296,37 @@ do {									\
 		     _ASM_EXTABLE_UA(2b, 4b)				\
 		     : "=r" (retval), "=&A"(x)				\
 		     : "m" (__m(__ptr)), "m" __m(((u32 __user *)(__ptr)) + 1),	\
-		       "i" (errret), "0" (retval));			\
+		       "i" (-EFAULT), "0" (retval));			\
 })
 
 #else
-#define __get_user_asm_u64(x, ptr, retval, errret) \
-	 __get_user_asm(x, ptr, retval, "q", "", "=r", errret)
+#define __get_user_asm_u64(x, ptr, retval) \
+	 __get_user_asm(x, ptr, retval, "q", "", "=r")
 #endif
 
-#define __get_user_size(x, ptr, size, retval, errret)			\
+#define __get_user_size(x, ptr, size, retval)				\
 do {									\
 	retval = 0;							\
 	__chk_user_ptr(ptr);						\
 	switch (size) {							\
 	case 1:								\
-		__get_user_asm(x, ptr, retval, "b", "b", "=q", errret);	\
+		__get_user_asm(x, ptr, retval, "b", "b", "=q");		\
 		break;							\
 	case 2:								\
-		__get_user_asm(x, ptr, retval, "w", "w", "=r", errret);	\
+		__get_user_asm(x, ptr, retval, "w", "w", "=r");		\
 		break;							\
 	case 4:								\
-		__get_user_asm(x, ptr, retval, "l", "k", "=r", errret);	\
+		__get_user_asm(x, ptr, retval, "l", "k", "=r");		\
 		break;							\
 	case 8:								\
-		__get_user_asm_u64(x, ptr, retval, errret);		\
+		__get_user_asm_u64(x, ptr, retval);			\
 		break;							\
 	default:							\
 		(x) = __get_user_bad();					\
 	}								\
 } while (0)
 
-#define __get_user_asm(x, addr, err, itype, rtype, ltype, errret)	\
+#define __get_user_asm(x, addr, err, itype, rtype, ltype)		\
 	asm volatile("\n"						\
 		     "1:	mov"itype" %2,%"rtype"1\n"		\
 		     "2:\n"						\
@@ -337,7 +337,7 @@ do {									\
 		     ".previous\n"					\
 		     _ASM_EXTABLE_UA(1b, 3b)				\
 		     : "=r" (err), ltype(x)				\
-		     : "m" (__m(addr)), "i" (errret), "0" (err))
+		     : "m" (__m(addr)), "i" (-EFAULT), "0" (err))
 
 #define __put_user_nocheck(x, ptr, size)			\
 ({								\
@@ -361,7 +361,7 @@ __pu_label:							\
 	__typeof__(ptr) __gu_ptr = (ptr);				\
 	__typeof__(size) __gu_size = (size);				\
 	__uaccess_begin_nospec();					\
-	__get_user_size(__gu_val, __gu_ptr, __gu_size, __gu_err, -EFAULT);	\
+	__get_user_size(__gu_val, __gu_ptr, __gu_size, __gu_err);	\
 	__uaccess_end();						\
 	(x) = (__force __typeof__(*(ptr)))__gu_val;			\
 	__builtin_expect(__gu_err, 0);					\
@@ -485,7 +485,7 @@ static __must_check __always_inline bool user_access_begin(const void __user *pt
 do {										\
 	int __gu_err;								\
 	__inttype(*(ptr)) __gu_val;						\
-	__get_user_size(__gu_val, (ptr), sizeof(*(ptr)), __gu_err, -EFAULT);	\
+	__get_user_size(__gu_val, (ptr), sizeof(*(ptr)), __gu_err);		\
 	(x) = (__force __typeof__(*(ptr)))__gu_val;				\
 	if (unlikely(__gu_err)) goto err_label;					\
 } while (0)
