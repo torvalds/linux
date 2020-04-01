@@ -164,9 +164,7 @@ struct mpp_dev_var {
 };
 
 struct mpp_mem_region {
-	struct list_head srv_lnk;
-	struct list_head reg_lnk;
-	struct list_head session_lnk;
+	struct list_head reg_link;
 	/* address for iommu */
 	dma_addr_t iova;
 	unsigned long len;
@@ -214,8 +212,13 @@ struct mpp_session {
 	struct mpp_dev *mpp;
 	struct mpp_dma_session *dma;
 
-	/* session tasks list lock */
-	struct mutex list_lock;
+	/* session tasks pending list lock */
+	struct mutex pending_lock;
+	/* session tasks register list lock */
+	struct mutex reg_lock;
+	/* session tasks done list lock */
+	struct mutex done_lock;
+	/* task pending list in session */
 	struct list_head pending;
 
 	DECLARE_KFIFO_PTR(done_fifo, struct mpp_task *);
@@ -223,6 +226,7 @@ struct mpp_session {
 	wait_queue_head_t wait;
 	pid_t pid;
 	atomic_t task_running;
+	atomic_t release_request;
 	/* trans info set by user */
 	int trans_count;
 	u16 trans_table[MPP_MAX_REG_TRANS_NUM];

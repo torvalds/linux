@@ -15,9 +15,11 @@
 #include <linux/dma-mapping.h>
 
 struct mpp_dma_buffer {
-	struct list_head list;
-	struct mpp_dma_session *dma;
+	/* link to dma session buffer list */
+	struct list_head link;
 
+	/* dma session belong */
+	struct mpp_dma_session *dma;
 	/* DMABUF information */
 	struct dma_buf *dmabuf;
 	struct dma_buf_attachment *attach;
@@ -35,6 +37,7 @@ struct mpp_dma_buffer {
 };
 
 struct mpp_dma_session {
+	/* the buffer used in session */
 	struct list_head buffer_list;
 	/* the mutex for the above buffer list */
 	struct mutex list_mutex;
@@ -76,6 +79,8 @@ int mpp_dma_free(struct mpp_dma_session *dma,
 struct mpp_dma_buffer *
 mpp_dma_import_fd(struct mpp_iommu_info *iommu_info,
 		  struct mpp_dma_session *dma, int fd);
+int mpp_dma_release(struct mpp_dma_session *dma,
+		    struct mpp_dma_buffer *buffer);
 int mpp_dma_release_fd(struct mpp_dma_session *dma, int fd);
 
 int mpp_dma_unmap_kernel(struct mpp_dma_session *dma,

@@ -389,6 +389,7 @@ static int rkvenc_run(struct mpp_dev *mpp,
 		 * otherwise, osd setting will not work
 		 */
 		mpp_write_relaxed(mpp, RKVENC_OSD_CFG_BASE, 0);
+		/* ensure clear finish */
 		wmb();
 		for (i = 0; i < task->w_req_cnt; i++) {
 			int s, e;

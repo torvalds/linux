@@ -36,7 +36,7 @@ mpp_dma_find_buffer_fd(struct mpp_dma_session *dma, int fd)
 
 	mutex_lock(&dma->list_mutex);
 	list_for_each_entry_safe(buffer, n,
-				 &dma->buffer_list, list) {
+				 &dma->buffer_list, link) {
 		/*
 		 * As long as the last reference is hold by the buffer pool,
 		 * the same fd won't be assigned to the other application.
@@ -60,7 +60,7 @@ static void mpp_dma_release_buffer(struct kref *ref)
 		container_of(ref, struct mpp_dma_buffer, ref);
 
 	buffer->dma->buffer_count--;
-	list_del_init(&buffer->list);
+	list_del_init(&buffer->link);
 
 	dma_buf_unmap_attachment(buffer->attach, buffer->sgt, buffer->dir);
 	dma_buf_detach(buffer->dmabuf, buffer->attach);
@@ -80,7 +80,7 @@ mpp_dma_remove_extra_buffer(struct mpp_dma_session *dma)
 		mutex_lock(&dma->list_mutex);
 		list_for_each_entry_safe(buffer, n,
 					 &dma->buffer_list,
-					 list) {
+					 link) {
 			if (ktime_to_ns(oldest_time) == 0 ||
 			    ktime_after(oldest_time, buffer->last_used)) {
 				oldest_time = buffer->last_used;
@@ -91,6 +91,16 @@ mpp_dma_remove_extra_buffer(struct mpp_dma_session *dma)
 			kref_put(&oldest->ref, mpp_dma_release_buffer);
 		mutex_unlock(&dma->list_mutex);
 	}
+
+	return 0;
+}
+
+int mpp_dma_release(struct mpp_dma_session *dma,
+		    struct mpp_dma_buffer *buffer)
+{
+	mutex_lock(&dma->list_mutex);
+	kref_put(&buffer->ref, mpp_dma_release_buffer);
+	mutex_unlock(&dma->list_mutex);
 
 	return 0;
 }
@@ -219,11 +229,11 @@ struct mpp_dma_buffer *mpp_dma_import_fd(struct mpp_iommu_info *iommu_info,
 	kref_init(&buffer->ref);
 	/* Increase the reference for used outside the buffer pool */
 	kref_get(&buffer->ref);
-	INIT_LIST_HEAD(&buffer->list);
+	INIT_LIST_HEAD(&buffer->link);
 
 	mutex_lock(&dma->list_mutex);
 	dma->buffer_count++;
-	list_add_tail(&buffer->list, &dma->buffer_list);
+	list_add_tail(&buffer->link, &dma->buffer_list);
 	mutex_unlock(&dma->list_mutex);
 
 	return buffer;
@@ -299,7 +309,7 @@ int mpp_dma_session_destroy(struct mpp_dma_session *dma)
 	mutex_lock(&dma->list_mutex);
 	list_for_each_entry_safe(buffer, n,
 				 &dma->buffer_list,
-				 list) {
+				 link) {
 		kref_put(&buffer->ref, mpp_dma_release_buffer);
 	}
 	mutex_unlock(&dma->list_mutex);
