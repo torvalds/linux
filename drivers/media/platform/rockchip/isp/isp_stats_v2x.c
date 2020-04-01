@@ -219,6 +219,7 @@ out:
 	value = readl(base_addr + ISP_RAWAF_CTRL);
 	value |= ISP2X_3A_MEAS_DONE;
 	writel(value, base_addr + ISP_RAWAF_CTRL);
+	writel(0, base_addr + ISP_RAWAF_INT_STATE);
 }
 
 static void
@@ -822,6 +823,7 @@ OUT:
 	value = readl(base_addr + ISP_RAWAF_CTRL);
 	value |= ISP2X_3A_MEAS_DONE;
 	writel(value, base_addr + ISP_RAWAF_CTRL);
+	writel(0, base_addr + ISP_RAWAF_INT_STATE);
 }
 
 static void
