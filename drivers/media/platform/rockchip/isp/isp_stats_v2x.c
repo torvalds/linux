@@ -752,14 +752,28 @@ rkisp_stats_get_rawawb_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
 			reg_addr[(ISP_RAWAWB_WP_NM_EXC_0 - tmp_oft + 0x10 * i) / 4];
 	}
 
-	for (i = 0; i < ISP2X_RAWAWB_RAMDATA_NUM; i++) {
-		lsb = raw_addr[2 * i];
-		msb = raw_addr[2 * i + 1];
-		pbuf->params.rawawb.ramdata[i].b = lsb & 0x3FFFF;
-		pbuf->params.rawawb.ramdata[i].g = ((lsb & 0xFFFC0000) >> 18) | (msb & 0xF) << 14;
-		pbuf->params.rawawb.ramdata[i].r = (msb & 0x3FFFF0) >> 4;
-		pbuf->params.rawawb.ramdata[i].wp = (msb & 0xE0000000) >> 29;
+	for (i = 0; i < ISP2X_RAWAWB_RAMDATA_NUM / 2; i++) {
+		lsb = raw_addr[4 * i];
+		msb = raw_addr[4 * i + 1];
+		pbuf->params.rawawb.ramdata[2 * i].b = lsb & 0x3FFFF;
+		pbuf->params.rawawb.ramdata[2 * i].g = ((lsb & 0xFFFC0000) >> 18) | (msb & 0xF) << 14;
+		pbuf->params.rawawb.ramdata[2 * i].r = (msb & 0x3FFFF0) >> 4;
+		pbuf->params.rawawb.ramdata[2 * i].wp = (msb & 0x01C00000) >> 22;
+
+		lsb = ((raw_addr[4 * i + 2] & 0x3FFFFFF) << 6) | ((raw_addr[4 * i + 1] & 0xFC000000) >> 26);
+		msb = ((raw_addr[4 * i + 3] & 0x3FFFFFF) << 6) | ((raw_addr[4 * i + 2] & 0xFC000000) >> 26);
+		pbuf->params.rawawb.ramdata[2 * i + 1].b = lsb & 0x3FFFF;
+		pbuf->params.rawawb.ramdata[2 * i + 1].g = ((lsb & 0xFFFC0000) >> 18) | (msb & 0xF) << 14;
+		pbuf->params.rawawb.ramdata[2 * i + 1].r = (msb & 0x3FFFF0) >> 4;
+		pbuf->params.rawawb.ramdata[2 * i + 1].wp = (msb & 0x01C00000) >> 22;
 	}
+
+	lsb = raw_addr[4 * i];
+	msb = raw_addr[4 * i + 1];
+	pbuf->params.rawawb.ramdata[2 * i].b = lsb & 0x3FFFF;
+	pbuf->params.rawawb.ramdata[2 * i].g = ((lsb & 0xFFFC0000) >> 18) | (msb & 0xF) << 14;
+	pbuf->params.rawawb.ramdata[2 * i].r = (msb & 0x3FFFF0) >> 4;
+	pbuf->params.rawawb.ramdata[2 * i].wp = (msb & 0x01C00000) >> 22;
 
 OUT:
 	value = readl(base_addr + ISP_RAWAWB_CTRL);
@@ -907,11 +921,11 @@ rkisp_stats_get_rawaebig_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
 	switch (blk_no) {
 	case 1:
 		addr = RAWAE_BIG2_BASE;
-		ddr_addr += 0x0390;
+		ddr_addr += 0x0390 >> 2;
 		break;
 	case 2:
 		addr = RAWAE_BIG3_BASE;
-		ddr_addr += 0x0720;
+		ddr_addr += 0x0720 >> 2;
 		break;
 	default:
 		addr = RAWAE_BIG1_BASE;
@@ -960,11 +974,11 @@ rkisp_stats_get_rawhstbig_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
 	switch (blk_no) {
 	case 1:
 		addr = ISP_RAWHIST_BIG2_BASE;
-		ddr_addr += 0x0800;
+		ddr_addr += 0x0800 >> 2;
 		break;
 	case 2:
 		addr = ISP_RAWHIST_BIG3_BASE;
-		ddr_addr += 0x0C00;
+		ddr_addr += 0x0C00 >> 2;
 		break;
 	default:
 		addr = ISP_RAWHIST_BIG1_BASE;
