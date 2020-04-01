@@ -4577,7 +4577,9 @@ S:	Supported
 F:	drivers/scsi/cxgbi/cxgb3i
 
 CXGB4 CRYPTO DRIVER (chcr)
-M:	Atul Gupta <atul.gupta@chelsio.com>
+M:	Ayush Sawal <ayush.sawal@chelsio.com>
+M:	Vinay Kumar Yadav <vinay.yadav@chelsio.com>
+M:	Rohit Maheshwari <rohitm@chelsio.com>
 L:	linux-crypto@vger.kernel.org
 W:	http://www.chelsio.com
 S:	Supported
@@ -10066,6 +10068,7 @@ F:	Documentation/devicetree/bindings/phy/phy-mvebu-utmi.txt
 MARVELL CRYPTO DRIVER
 M:	Boris Brezillon <bbrezillon@kernel.org>
 M:	Arnaud Ebalard <arno@natisbad.org>
+M:	Srujana Challa <schalla@marvell.com>
 F:	drivers/crypto/marvell/
 S:	Maintained
 L:	linux-crypto@vger.kernel.org
@@ -17138,6 +17141,18 @@ T:	git git://linuxtv.org/media_tree.git
 W:	http://linuxtv.org
 S:	Maintained
 F:	drivers/media/pci/tw686x/
+
+UACCE ACCELERATOR FRAMEWORK
+M:	Zhangfei Gao <zhangfei.gao@linaro.org>
+M:	Zhou Wang <wangzhou1@hisilicon.com>
+L:	linux-accelerators@lists.ozlabs.org
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+F:	Documentation/ABI/testing/sysfs-driver-uacce
+F:	Documentation/misc-devices/uacce.rst
+F:	drivers/misc/uacce/
+F:	include/linux/uacce.h
+F:	include/uapi/misc/uacce/
 
 UBI FILE SYSTEM (UBIFS)
 M:	Richard Weinberger <richard@nod.at>

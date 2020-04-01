@@ -195,6 +195,7 @@ static void *chcr_uld_add(const struct cxgb4_lld_info *lld)
 	struct uld_ctx *u_ctx;
 
 	/* Create the device and add it in the device list */
+	pr_info_once("%s - version %s\n", DRV_DESC, DRV_VERSION);
 	if (!(lld->ulp_crypto & ULP_CRYPTO_LOOKASIDE))
 		return ERR_PTR(-EOPNOTSUPP);
 
@@ -287,6 +288,8 @@ static int chcr_uld_state_change(void *handle, enum cxgb4_state state)
 
 	case CXGB4_STATE_DETACH:
 		chcr_detach_device(u_ctx);
+		if (!atomic_read(&drv_data.dev_count))
+			stop_crypto();
 		break;
 
 	case CXGB4_STATE_START_RECOVERY:

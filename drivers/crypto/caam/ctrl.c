@@ -10,6 +10,7 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/sys_soc.h>
+#include <linux/fsl/mc.h>
 
 #include "compat.h"
 #include "regs.h"
@@ -36,7 +37,8 @@ static void build_instantiation_desc(u32 *desc, int handle, int do_sk)
 	init_job_desc(desc, 0);
 
 	op_flags = OP_TYPE_CLASS1_ALG | OP_ALG_ALGSEL_RNG |
-			(handle << OP_ALG_AAI_SHIFT) | OP_ALG_AS_INIT;
+			(handle << OP_ALG_AAI_SHIFT) | OP_ALG_AS_INIT |
+			OP_ALG_PR_ON;
 
 	/* INIT RNG in non-test mode */
 	append_operation(desc, op_flags);
@@ -196,7 +198,7 @@ static int deinstantiate_rng(struct device *ctrldev, int state_handle_mask)
 	u32 *desc, status;
 	int sh_idx, ret = 0;
 
-	desc = kmalloc(CAAM_CMD_SZ * 3, GFP_KERNEL);
+	desc = kmalloc(CAAM_CMD_SZ * 3, GFP_KERNEL | GFP_DMA);
 	if (!desc)
 		return -ENOMEM;
 
@@ -273,17 +275,30 @@ static int instantiate_rng(struct device *ctrldev, int state_handle_mask,
 	int ret = 0, sh_idx;
 
 	ctrl = (struct caam_ctrl __iomem *)ctrlpriv->ctrl;
-	desc = kmalloc(CAAM_CMD_SZ * 7, GFP_KERNEL);
+	desc = kmalloc(CAAM_CMD_SZ * 7, GFP_KERNEL | GFP_DMA);
 	if (!desc)
 		return -ENOMEM;
 
 	for (sh_idx = 0; sh_idx < RNG4_MAX_HANDLES; sh_idx++) {
+		const u32 rdsta_if = RDSTA_IF0 << sh_idx;
+		const u32 rdsta_pr = RDSTA_PR0 << sh_idx;
+		const u32 rdsta_mask = rdsta_if | rdsta_pr;
 		/*
 		 * If the corresponding bit is set, this state handle
 		 * was initialized by somebody else, so it's left alone.
 		 */
-		if ((1 << sh_idx) & state_handle_mask)
-			continue;
+		if (rdsta_if & state_handle_mask) {
+			if (rdsta_pr & state_handle_mask)
+				continue;
+
+			dev_info(ctrldev,
+				 "RNG4 SH%d was previously instantiated without prediction resistance. Tearing it down\n",
+				 sh_idx);
+
+			ret = deinstantiate_rng(ctrldev, rdsta_if);
+			if (ret)
+				break;
+		}
 
 		/* Create the descriptor for instantiating RNG State Handle */
 		build_instantiation_desc(desc, sh_idx, gen_sk);
@@ -303,9 +318,9 @@ static int instantiate_rng(struct device *ctrldev, int state_handle_mask,
 		if (ret)
 			break;
 
-		rdsta_val = rd_reg32(&ctrl->r4tst[0].rdsta) & RDSTA_IFMASK;
+		rdsta_val = rd_reg32(&ctrl->r4tst[0].rdsta) & RDSTA_MASK;
 		if ((status && status != JRSTA_SSRC_JUMP_HALT_CC) ||
-		    !(rdsta_val & (1 << sh_idx))) {
+		    (rdsta_val & rdsta_mask) != rdsta_mask) {
 			ret = -EAGAIN;
 			break;
 		}
@@ -341,8 +356,12 @@ static void kick_trng(struct platform_device *pdev, int ent_delay)
 	ctrl = (struct caam_ctrl __iomem *)ctrlpriv->ctrl;
 	r4tst = &ctrl->r4tst[0];
 
-	/* put RNG4 into program mode */
-	clrsetbits_32(&r4tst->rtmctl, 0, RTMCTL_PRGM);
+	/*
+	 * Setting both RTMCTL:PRGM and RTMCTL:TRNG_ACC causes TRNG to
+	 * properly invalidate the entropy in the entropy register and
+	 * force re-generation.
+	 */
+	clrsetbits_32(&r4tst->rtmctl, 0, RTMCTL_PRGM | RTMCTL_ACC);
 
 	/*
 	 * Performance-wise, it does not make sense to
@@ -372,7 +391,8 @@ start_rng:
 	 * select raw sampling in both entropy shifter
 	 * and statistical checker; ; put RNG4 into run mode
 	 */
-	clrsetbits_32(&r4tst->rtmctl, RTMCTL_PRGM, RTMCTL_SAMP_MODE_RAW_ES_SC);
+	clrsetbits_32(&r4tst->rtmctl, RTMCTL_PRGM | RTMCTL_ACC,
+		      RTMCTL_SAMP_MODE_RAW_ES_SC);
 }
 
 static int caam_get_era_from_hw(struct caam_ctrl __iomem *ctrl)
@@ -559,6 +579,26 @@ static void caam_remove_debugfs(void *root)
 }
 #endif
 
+#ifdef CONFIG_FSL_MC_BUS
+static bool check_version(struct fsl_mc_version *mc_version, u32 major,
+			  u32 minor, u32 revision)
+{
+	if (mc_version->major > major)
+		return true;
+
+	if (mc_version->major == major) {
+		if (mc_version->minor > minor)
+			return true;
+
+		if (mc_version->minor == minor &&
+		    mc_version->revision > revision)
+			return true;
+	}
+
+	return false;
+}
+#endif
+
 /* Probe routine for CAAM top (controller) level */
 static int caam_probe(struct platform_device *pdev)
 {
@@ -577,6 +617,7 @@ static int caam_probe(struct platform_device *pdev)
 	u8 rng_vid;
 	int pg_size;
 	int BLOCK_OFFSET = 0;
+	bool pr_support = false;
 
 	ctrlpriv = devm_kzalloc(&pdev->dev, sizeof(*ctrlpriv), GFP_KERNEL);
 	if (!ctrlpriv)
@@ -662,6 +703,21 @@ static int caam_probe(struct platform_device *pdev)
 
 	/* Get the IRQ of the controller (for security violations only) */
 	ctrlpriv->secvio_irq = irq_of_parse_and_map(nprop, 0);
+	np = of_find_compatible_node(NULL, NULL, "fsl,qoriq-mc");
+	ctrlpriv->mc_en = !!np;
+	of_node_put(np);
+
+#ifdef CONFIG_FSL_MC_BUS
+	if (ctrlpriv->mc_en) {
+		struct fsl_mc_version *mc_version;
+
+		mc_version = fsl_mc_get_version();
+		if (mc_version)
+			pr_support = check_version(mc_version, 10, 20, 0);
+		else
+			return -EPROBE_DEFER;
+	}
+#endif
 
 	/*
 	 * Enable DECO watchdogs and, if this is a PHYS_ADDR_T_64BIT kernel,
@@ -669,10 +725,6 @@ static int caam_probe(struct platform_device *pdev)
 	 * In case of SoCs with Management Complex, MC f/w performs
 	 * the configuration.
 	 */
-	np = of_find_compatible_node(NULL, NULL, "fsl,qoriq-mc");
-	ctrlpriv->mc_en = !!np;
-	of_node_put(np);
-
 	if (!ctrlpriv->mc_en)
 		clrsetbits_32(&ctrl->mcr, MCFGR_AWCACHE_MASK,
 			      MCFGR_AWCACHE_CACH | MCFGR_AWCACHE_BUFF |
@@ -779,7 +831,7 @@ static int caam_probe(struct platform_device *pdev)
 	 * already instantiated, do RNG instantiation
 	 * In case of SoCs with Management Complex, RNG is managed by MC f/w.
 	 */
-	if (!ctrlpriv->mc_en && rng_vid >= 4) {
+	if (!(ctrlpriv->mc_en && pr_support) && rng_vid >= 4) {
 		ctrlpriv->rng4_sh_init =
 			rd_reg32(&ctrl->r4tst[0].rdsta);
 		/*
@@ -789,11 +841,11 @@ static int caam_probe(struct platform_device *pdev)
 		 * to regenerate these keys before the next POR.
 		 */
 		gen_sk = ctrlpriv->rng4_sh_init & RDSTA_SKVN ? 0 : 1;
-		ctrlpriv->rng4_sh_init &= RDSTA_IFMASK;
+		ctrlpriv->rng4_sh_init &= RDSTA_MASK;
 		do {
 			int inst_handles =
 				rd_reg32(&ctrl->r4tst[0].rdsta) &
-								RDSTA_IFMASK;
+								RDSTA_MASK;
 			/*
 			 * If either SH were instantiated by somebody else
 			 * (e.g. u-boot) then it is assumed that the entropy
@@ -833,7 +885,7 @@ static int caam_probe(struct platform_device *pdev)
 		 * Set handles init'ed by this module as the complement of the
 		 * already initialized ones
 		 */
-		ctrlpriv->rng4_sh_init = ~ctrlpriv->rng4_sh_init & RDSTA_IFMASK;
+		ctrlpriv->rng4_sh_init = ~ctrlpriv->rng4_sh_init & RDSTA_MASK;
 
 		/* Enable RDB bit so that RNG works faster */
 		clrsetbits_32(&ctrl->scfgr, 0, SCFGR_RDBENABLE);

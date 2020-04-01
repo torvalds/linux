@@ -141,9 +141,11 @@ static int mv_cesa_ahash_pad_req(struct mv_cesa_ahash_req *creq, u8 *buf)
 
 	if (creq->algo_le) {
 		__le64 bits = cpu_to_le64(creq->len << 3);
+
 		memcpy(buf + padlen, &bits, sizeof(bits));
 	} else {
 		__be64 bits = cpu_to_be64(creq->len << 3);
+
 		memcpy(buf + padlen, &bits, sizeof(bits));
 	}
 
@@ -168,7 +170,8 @@ static void mv_cesa_ahash_std_step(struct ahash_request *req)
 	if (!sreq->offset) {
 		digsize = crypto_ahash_digestsize(crypto_ahash_reqtfm(req));
 		for (i = 0; i < digsize / 4; i++)
-			writel_relaxed(creq->state[i], engine->regs + CESA_IVDIG(i));
+			writel_relaxed(creq->state[i],
+				       engine->regs + CESA_IVDIG(i));
 	}
 
 	if (creq->cache_ptr)
@@ -245,8 +248,8 @@ static void mv_cesa_ahash_std_step(struct ahash_request *req)
 
 	mv_cesa_set_int_mask(engine, CESA_SA_INT_ACCEL0_DONE);
 	writel_relaxed(CESA_SA_CFG_PARA_DIS, engine->regs + CESA_SA_CFG);
-	BUG_ON(readl(engine->regs + CESA_SA_CMD) &
-	       CESA_SA_CMD_EN_CESA_SA_ACCL0);
+	WARN_ON(readl(engine->regs + CESA_SA_CMD) &
+		CESA_SA_CMD_EN_CESA_SA_ACCL0);
 	writel(CESA_SA_CMD_EN_CESA_SA_ACCL0, engine->regs + CESA_SA_CMD);
 }
 
@@ -329,11 +332,12 @@ static void mv_cesa_ahash_complete(struct crypto_async_request *req)
 	digsize = crypto_ahash_digestsize(crypto_ahash_reqtfm(ahashreq));
 
 	if (mv_cesa_req_get_type(&creq->base) == CESA_DMA_REQ &&
-	    (creq->base.chain.last->flags & CESA_TDMA_TYPE_MSK) == CESA_TDMA_RESULT) {
+	    (creq->base.chain.last->flags & CESA_TDMA_TYPE_MSK) ==
+	     CESA_TDMA_RESULT) {
 		__le32 *data = NULL;
 
 		/*
-		 * Result is already in the correct endianess when the SA is
+		 * Result is already in the correct endianness when the SA is
 		 * used
 		 */
 		data = creq->base.chain.last->op->ctx.hash.hash;
@@ -347,9 +351,9 @@ static void mv_cesa_ahash_complete(struct crypto_async_request *req)
 						       CESA_IVDIG(i));
 		if (creq->last_req) {
 			/*
-			* Hardware's MD5 digest is in little endian format, but
-			* SHA in big endian format
-			*/
+			 * Hardware's MD5 digest is in little endian format, but
+			 * SHA in big endian format
+			 */
 			if (creq->algo_le) {
 				__le32 *result = (void *)ahashreq->result;
 
@@ -439,7 +443,8 @@ static bool mv_cesa_ahash_cache_req(struct ahash_request *req)
 	struct mv_cesa_ahash_req *creq = ahash_request_ctx(req);
 	bool cached = false;
 
-	if (creq->cache_ptr + req->nbytes < CESA_MAX_HASH_BLOCK_SIZE && !creq->last_req) {
+	if (creq->cache_ptr + req->nbytes < CESA_MAX_HASH_BLOCK_SIZE &&
+	    !creq->last_req) {
 		cached = true;
 
 		if (!req->nbytes)
@@ -648,7 +653,8 @@ static int mv_cesa_ahash_dma_req_init(struct ahash_request *req)
 			if (!mv_cesa_ahash_req_iter_next_op(&iter))
 				break;
 
-			op = mv_cesa_dma_add_frag(&basereq->chain, &creq->op_tmpl,
+			op = mv_cesa_dma_add_frag(&basereq->chain,
+						  &creq->op_tmpl,
 						  frag_len, flags);
 			if (IS_ERR(op)) {
 				ret = PTR_ERR(op);
@@ -920,7 +926,7 @@ struct ahash_alg mv_md5_alg = {
 			.cra_ctxsize = sizeof(struct mv_cesa_hash_ctx),
 			.cra_init = mv_cesa_ahash_cra_init,
 			.cra_module = THIS_MODULE,
-		 }
+		}
 	}
 };
 
@@ -990,7 +996,7 @@ struct ahash_alg mv_sha1_alg = {
 			.cra_ctxsize = sizeof(struct mv_cesa_hash_ctx),
 			.cra_init = mv_cesa_ahash_cra_init,
 			.cra_module = THIS_MODULE,
-		 }
+		}
 	}
 };
 
@@ -1063,7 +1069,7 @@ struct ahash_alg mv_sha256_alg = {
 			.cra_ctxsize = sizeof(struct mv_cesa_hash_ctx),
 			.cra_init = mv_cesa_ahash_cra_init,
 			.cra_module = THIS_MODULE,
-		 }
+		}
 	}
 };
 
@@ -1297,7 +1303,7 @@ struct ahash_alg mv_ahmac_md5_alg = {
 			.cra_ctxsize = sizeof(struct mv_cesa_hmac_ctx),
 			.cra_init = mv_cesa_ahmac_cra_init,
 			.cra_module = THIS_MODULE,
-		 }
+		}
 	}
 };
 
@@ -1367,7 +1373,7 @@ struct ahash_alg mv_ahmac_sha1_alg = {
 			.cra_ctxsize = sizeof(struct mv_cesa_hmac_ctx),
 			.cra_init = mv_cesa_ahmac_cra_init,
 			.cra_module = THIS_MODULE,
-		 }
+		}
 	}
 };
 
@@ -1437,6 +1443,6 @@ struct ahash_alg mv_ahmac_sha256_alg = {
 			.cra_ctxsize = sizeof(struct mv_cesa_hmac_ctx),
 			.cra_init = mv_cesa_ahmac_cra_init,
 			.cra_module = THIS_MODULE,
-		 }
+		}
 	}
 };

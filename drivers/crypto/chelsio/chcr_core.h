@@ -43,7 +43,8 @@
 #include "cxgb4_uld.h"
 
 #define DRV_MODULE_NAME "chcr"
-#define DRV_VERSION "1.0.0.0"
+#define DRV_VERSION "1.0.0.0-ko"
+#define DRV_DESC "Chelsio T6 Crypto Co-processor Driver"
 
 #define MAX_PENDING_REQ_TO_HW 20
 #define CHCR_TEST_RESPONSE_TIMEOUT 1000
@@ -67,7 +68,7 @@ struct _key_ctx {
 	__be32 ctx_hdr;
 	u8 salt[MAX_SALT];
 	__be64 iv_to_auth;
-	unsigned char key[0];
+	unsigned char key[];
 };
 
 #define KEYCTX_TX_WR_IV_S  55
@@ -147,7 +148,6 @@ struct chcr_dev {
 	int wqretry;
 	struct delayed_work detach_work;
 	struct completion detach_comp;
-	unsigned char tx_channel_id;
 };
 
 struct uld_ctx {
