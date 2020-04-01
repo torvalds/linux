@@ -290,7 +290,7 @@ static struct rockchip_clk_branch rv1126_clk_isp_np5 __initdata =
 	COMPOSITE_HALFDIV_OFFSET(CLK_ISP_NP5, "clk_isp_np5", mux_gpll_cpll_hpll_p, 0,
 			RV1126_CLKSEL_CON(50), 6, 2, MFLAGS,
 			RV1126_CLKSEL_CON(76), 8, 5, DFLAGS,
-			RV1126_CLKGATE_CON(16), 4, GFLAGS);
+			RV1126_CLKGATE_CON(16), 14, GFLAGS);
 
 static struct rockchip_clk_branch rv1126_aclk_pdispp_np5 __initdata =
 	COMPOSITE_HALFDIV_OFFSET(ACLK_PDISPP_NP5, "aclk_pdispp_np5", mux_cpll_gpll_hpll_p, 0,
