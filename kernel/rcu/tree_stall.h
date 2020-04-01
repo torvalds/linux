@@ -299,6 +299,16 @@ static const char *gp_state_getname(short gs)
 	return gp_state_names[gs];
 }
 
+/* Is the RCU grace-period kthread being starved of CPU time? */
+static bool rcu_is_gp_kthread_starving(unsigned long *jp)
+{
+	unsigned long j = jiffies - READ_ONCE(rcu_state.gp_activity);
+
+	if (jp)
+		*jp = j;
+	return j > 2 * HZ;
+}
+
 /*
  * Print out diagnostic information for the specified stalled CPU.
  *
@@ -313,6 +323,7 @@ static const char *gp_state_getname(short gs)
 static void print_cpu_stall_info(int cpu)
 {
 	unsigned long delta;
+	bool falsepositive;
 	char fast_no_hz[72];
 	struct rcu_data *rdp = per_cpu_ptr(&rcu_data, cpu);
 	char *ticks_title;
@@ -333,7 +344,9 @@ static void print_cpu_stall_info(int cpu)
 	}
 	print_cpu_stall_fast_no_hz(fast_no_hz, cpu);
 	delta = rcu_seq_ctr(rdp->mynode->gp_seq - rdp->rcu_iw_gp_seq);
-	pr_err("\t%d-%c%c%c%c: (%lu %s) idle=%03x/%ld/%#lx softirq=%u/%u fqs=%ld %s\n",
+	falsepositive = rcu_is_gp_kthread_starving(NULL) &&
+			rcu_dynticks_in_eqs(rcu_dynticks_snap(rdp));
+	pr_err("\t%d-%c%c%c%c: (%lu %s) idle=%03x/%ld/%#lx softirq=%u/%u fqs=%ld %s%s\n",
 	       cpu,
 	       "O."[!!cpu_online(cpu)],
 	       "o."[!!(rdp->grpmask & rdp->mynode->qsmaskinit)],
@@ -345,8 +358,9 @@ static void print_cpu_stall_info(int cpu)
 	       rcu_dynticks_snap(rdp) & 0xfff,
 	       rdp->dynticks_nesting, rdp->dynticks_nmi_nesting,
 	       rdp->softirq_snap, kstat_softirqs_cpu(RCU_SOFTIRQ, cpu),
-	       READ_ONCE(rcu_state.n_force_qs) - rcu_state.n_force_qs_gpstart,
-	       fast_no_hz);
+	       data_race(rcu_state.n_force_qs) - rcu_state.n_force_qs_gpstart,
+	       fast_no_hz,
+	       falsepositive ? " (false positive?)" : "");
 }
 
 /* Complain about starvation of grace-period kthread.  */
@@ -355,8 +369,7 @@ static void rcu_check_gp_kthread_starvation(void)
 	struct task_struct *gpk = rcu_state.gp_kthread;
 	unsigned long j;
 
-	j = jiffies - READ_ONCE(rcu_state.gp_activity);
-	if (j > 2 * HZ) {
+	if (rcu_is_gp_kthread_starving(&j)) {
 		pr_err("%s kthread starved for %ld jiffies! g%ld f%#x %s(%d) ->state=%#lx ->cpu=%d\n",
 		       rcu_state.name, j,
 		       (long)rcu_seq_current(&rcu_state.gp_seq),
@@ -364,6 +377,7 @@ static void rcu_check_gp_kthread_starvation(void)
 		       gp_state_getname(rcu_state.gp_state), rcu_state.gp_state,
 		       gpk ? gpk->state : ~0, gpk ? task_cpu(gpk) : -1);
 		if (gpk) {
+			pr_err("\tUnless %s kthread gets sufficient CPU time, OOM is now expected behavior.\n", rcu_state.name);
 			pr_err("RCU grace-period kthread stack dump:\n");
 			sched_show_task(gpk);
 			wake_up_process(gpk);
