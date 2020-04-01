@@ -1374,6 +1374,8 @@
 		clocks = <&cru ACLK_ISP>, <&cru HCLK_ISP>,
 			 <&cru CLK_ISP>;
 		clock-names = "aclk_isp", "hclk_isp", "clk_isp";
+		assigned-clocks = <&cru ACLK_ISP>, <&cru HCLK_ISP>;
+		assigned-clock-rates = <500000000>, <250000000>;
 		power-domains = <&power RV1126_PD_VI>;
 		iommus = <&rkisp_mmu>;
 		status = "disabled";
@@ -1401,6 +1403,10 @@
 		clocks = <&cru ACLK_ISPP>, <&cru HCLK_ISPP>,
 			 <&cru CLK_ISPP>;
 		clock-names = "aclk_ispp", "hclk_ispp", "clk_ispp";
+		assigned-clocks = <&cru ACLK_ISPP>, <&cru HCLK_ISPP>,
+				  <&cru CLK_ISPP>;
+		assigned-clock-rates = <500000000>, <250000000>,
+				       <500000000>;
 		power-domains = <&power RV1126_PD_ISPP>;
 		iommus = <&rkispp_mmu>;
 		status = "disabled";
