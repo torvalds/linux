@@ -2215,10 +2215,9 @@ static int incfs_remount_fs(struct super_block *sb, int *flags, char *data)
 	if (err)
 		return err;
 
-	if (mi->mi_options.read_timeout_ms != options.read_timeout_ms) {
-		mi->mi_options.read_timeout_ms = options.read_timeout_ms;
-		pr_debug("incfs: new timeout_ms=%d", options.read_timeout_ms);
-	}
+	err = incfs_realloc_mount_info(mi, &options);
+	if (err)
+		return err;
 
 	pr_debug("incfs: remount\n");
 	return 0;

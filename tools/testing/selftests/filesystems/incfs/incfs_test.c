@@ -2029,14 +2029,14 @@ static int read_log_test(char *mount_dir)
 	struct test_files_set test = get_test_files_set();
 	const int file_num = test.files_count;
 	int i = 0;
-	int cmd_fd = -1, log_fd = -1;
+	int cmd_fd = -1, log_fd = -1, drop_caches = -1;
 	char *backing_dir;
 
 	backing_dir = create_backing_dir(mount_dir);
 	if (!backing_dir)
 		goto failure;
 
-	if (mount_fs_opt(mount_dir, backing_dir, "readahead=0") != 0)
+	if (mount_fs_opt(mount_dir, backing_dir, "readahead=0", false) != 0)
 		goto failure;
 
 	cmd_fd = open_commands_file(mount_dir);
@@ -2076,7 +2076,7 @@ static int read_log_test(char *mount_dir)
 		goto failure;
 	}
 
-	if (mount_fs_opt(mount_dir, backing_dir, "readahead=0") != 0)
+	if (mount_fs_opt(mount_dir, backing_dir, "readahead=0", false) != 0)
 		goto failure;
 
 	cmd_fd = open_commands_file(mount_dir);
@@ -2106,8 +2106,8 @@ static int read_log_test(char *mount_dir)
 		goto failure;
 	}
 
-	if (mount_fs_opt(mount_dir, backing_dir, "readahead=0,rlog_pages=0") !=
-	    0)
+	if (mount_fs_opt(mount_dir, backing_dir, "readahead=0,rlog_pages=0",
+			 false) != 0)
 		goto failure;
 
 	log_fd = open_log_file(mount_dir);
@@ -2119,6 +2119,29 @@ static int read_log_test(char *mount_dir)
 		struct test_file *file = &test.files[i];
 
 		if (validate_logs(mount_dir, log_fd, file, true))
+			goto failure;
+	}
+
+	/*
+	 * Remount and check that logs start working again
+	 */
+	drop_caches = open("/proc/sys/vm/drop_caches", O_WRONLY);
+	if (drop_caches == -1)
+		goto failure;
+	i = write(drop_caches, "3", 1);
+	close(drop_caches);
+	if (i != 1)
+		goto failure;
+
+	if (mount_fs_opt(mount_dir, backing_dir, "readahead=0,rlog_pages=4",
+			 true) != 0)
+		goto failure;
+
+	/* Validate data again */
+	for (i = 0; i < file_num; i++) {
+		struct test_file *file = &test.files[i];
+
+		if (validate_logs(mount_dir, log_fd, file, false))
 			goto failure;
 	}
 
@@ -2320,7 +2343,7 @@ static int get_blocks_test(char *mount_dir)
 	if (!backing_dir)
 		goto failure;
 
-	if (mount_fs_opt(mount_dir, backing_dir, "readahead=0") != 0)
+	if (mount_fs_opt(mount_dir, backing_dir, "readahead=0", false) != 0)
 		goto failure;
 
 	cmd_fd = open_commands_file(mount_dir);
@@ -2495,7 +2518,7 @@ static int get_hash_blocks_test(char *mount_dir)
 	if (!backing_dir)
 		goto failure;
 
-	if (mount_fs_opt(mount_dir, backing_dir, "readahead=0") != 0)
+	if (mount_fs_opt(mount_dir, backing_dir, "readahead=0", false) != 0)
 		goto failure;
 
 	cmd_fd = open_commands_file(mount_dir);

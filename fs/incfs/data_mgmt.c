@@ -27,7 +27,6 @@ struct mount_info *incfs_alloc_mount_info(struct super_block *sb,
 		return ERR_PTR(-ENOMEM);
 
 	mi->mi_sb = sb;
-	mi->mi_options = *options;
 	mi->mi_backing_dir_path = *backing_dir_path;
 	mi->mi_owner = get_current_cred();
 	path_get(&mi->mi_backing_dir_path);
@@ -35,26 +34,38 @@ struct mount_info *incfs_alloc_mount_info(struct super_block *sb,
 	mutex_init(&mi->mi_pending_reads_mutex);
 	init_waitqueue_head(&mi->mi_pending_reads_notif_wq);
 	init_waitqueue_head(&mi->mi_log.ml_notif_wq);
+	spin_lock_init(&mi->mi_log.rl_writer_lock);
 	INIT_LIST_HEAD(&mi->mi_reads_list_head);
 
-	if (options->read_log_pages != 0) {
-		size_t buf_size = PAGE_SIZE * options->read_log_pages;
-
-		spin_lock_init(&mi->mi_log.rl_writer_lock);
-
-		mi->mi_log.rl_size = buf_size / sizeof(*mi->mi_log.rl_ring_buf);
-		mi->mi_log.rl_ring_buf = kzalloc(buf_size, GFP_NOFS);
-		if (!mi->mi_log.rl_ring_buf) {
-			error = -ENOMEM;
-			goto err;
-		}
-	}
+	error = incfs_realloc_mount_info(mi, options);
+	if (error)
+		goto err;
 
 	return mi;
 
 err:
 	incfs_free_mount_info(mi);
 	return ERR_PTR(error);
+}
+
+int incfs_realloc_mount_info(struct mount_info *mi,
+			     struct mount_options *options)
+{
+	kfree(mi->mi_log.rl_ring_buf);
+	mi->mi_log.rl_ring_buf = NULL;
+	mi->mi_log.rl_size = 0;
+
+	mi->mi_options = *options;
+	if (options->read_log_pages != 0) {
+		size_t buf_size = PAGE_SIZE * options->read_log_pages;
+
+		mi->mi_log.rl_size = buf_size / sizeof(*mi->mi_log.rl_ring_buf);
+		mi->mi_log.rl_ring_buf = kzalloc(buf_size, GFP_NOFS);
+		if (!mi->mi_log.rl_ring_buf)
+			return -ENOMEM;
+	}
+
+	return 0;
 }
 
 void incfs_free_mount_info(struct mount_info *mi)

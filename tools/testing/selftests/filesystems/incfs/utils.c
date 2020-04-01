@@ -41,12 +41,13 @@ int mount_fs(const char *mount_dir, const char *backing_dir,
 }
 
 int mount_fs_opt(const char *mount_dir, const char *backing_dir,
-		 const char *opt)
+		 const char *opt, bool remount)
 {
 	static const char fs_name[] = INCFS_NAME;
 	int result;
 
-	result = mount(backing_dir, mount_dir, fs_name, 0, opt);
+	result = mount(backing_dir, mount_dir, fs_name,
+		       remount ? MS_REMOUNT : 0, opt);
 	if (result != 0)
 		perror("Error mounting fs.");
 	return result;

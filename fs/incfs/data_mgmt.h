@@ -223,6 +223,9 @@ struct mount_info *incfs_alloc_mount_info(struct super_block *sb,
 					  struct mount_options *options,
 					  struct path *backing_dir_path);
 
+int incfs_realloc_mount_info(struct mount_info *mi,
+			     struct mount_options *options);
+
 void incfs_free_mount_info(struct mount_info *mi);
 
 struct data_file *incfs_open_data_file(struct mount_info *mi, struct file *bf);
