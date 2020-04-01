@@ -2577,3 +2577,12 @@ void auxtrace__free(struct perf_session *session)
 
 	return session->auxtrace->free(session);
 }
+
+bool auxtrace__evsel_is_auxtrace(struct perf_session *session,
+				 struct evsel *evsel)
+{
+	if (!session->auxtrace || !session->auxtrace->evsel_is_auxtrace)
+		return false;
+
+	return session->auxtrace->evsel_is_auxtrace(session, evsel);
+}
