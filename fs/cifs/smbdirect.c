@@ -380,27 +380,6 @@ static bool process_negotiation_response(
 	return true;
 }
 
-/*
- * Check and schedule to send an immediate packet
- * This is used to extend credtis to remote peer to keep the transport busy
- */
-static void check_and_send_immediate(struct smbd_connection *info)
-{
-	if (info->transport_status != SMBD_CONNECTED)
-		return;
-
-	info->send_immediate = true;
-
-	/*
-	 * Promptly send a packet if our peer is running low on receive
-	 * credits
-	 */
-	if (atomic_read(&info->receive_credits) <
-		info->receive_credit_target - 1)
-		queue_delayed_work(
-			info->workqueue, &info->send_immediate_work, 0);
-}
-
 static void smbd_post_send_credits(struct work_struct *work)
 {
 	int ret = 0;
@@ -450,8 +429,16 @@ static void smbd_post_send_credits(struct work_struct *work)
 	info->new_credits_offered += ret;
 	spin_unlock(&info->lock_new_credits_offered);
 
-	/* Check if we can post new receive and grant credits to peer */
-	check_and_send_immediate(info);
+	/* Promptly send an immediate packet as defined in [MS-SMBD] 3.1.1.1 */
+	info->send_immediate = true;
+	if (atomic_read(&info->receive_credits) <
+		info->receive_credit_target - 1) {
+		if (info->keep_alive_requested == KEEP_ALIVE_PENDING ||
+		    info->send_immediate) {
+			log_keep_alive(INFO, "send an empty message\n");
+			smbd_post_send_empty(info);
+		}
+	}
 }
 
 /* Called from softirq, when recv is done */
@@ -545,12 +532,6 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 				SMB_DIRECT_RESPONSE_REQUESTED) {
 			info->keep_alive_requested = KEEP_ALIVE_PENDING;
 		}
-
-		/*
-		 * Check if we need to send something to remote peer to
-		 * grant more credits or respond to KEEP_ALIVE packet
-		 */
-		check_and_send_immediate(info);
 
 		return;
 
@@ -1311,25 +1292,6 @@ static void destroy_receive_buffers(struct smbd_connection *info)
 		mempool_free(response, info->response_mempool);
 }
 
-/*
- * Check and send an immediate or keep alive packet
- * The condition to send those packets are defined in [MS-SMBD] 3.1.1.1
- * Connection.KeepaliveRequested and Connection.SendImmediate
- * The idea is to extend credits to server as soon as it becomes available
- */
-static void send_immediate_work(struct work_struct *work)
-{
-	struct smbd_connection *info = container_of(
-					work, struct smbd_connection,
-					send_immediate_work.work);
-
-	if (info->keep_alive_requested == KEEP_ALIVE_PENDING ||
-	    info->send_immediate) {
-		log_keep_alive(INFO, "send an empty message\n");
-		smbd_post_send_empty(info);
-	}
-}
-
 /* Implement idle connection timer [MS-SMBD] 3.1.6.2 */
 static void idle_connection_timer(struct work_struct *work)
 {
@@ -1384,8 +1346,6 @@ void smbd_destroy(struct TCP_Server_Info *server)
 
 	log_rdma_event(INFO, "cancelling idle timer\n");
 	cancel_delayed_work_sync(&info->idle_timer_work);
-	log_rdma_event(INFO, "cancelling send immediate work\n");
-	cancel_delayed_work_sync(&info->send_immediate_work);
 
 	log_rdma_event(INFO, "wait for all send posted to IB to finish\n");
 	wait_event(info->wait_send_pending,
@@ -1719,7 +1679,6 @@ static struct smbd_connection *_smbd_get_connection(
 
 	init_waitqueue_head(&info->wait_send_queue);
 	INIT_DELAYED_WORK(&info->idle_timer_work, idle_connection_timer);
-	INIT_DELAYED_WORK(&info->send_immediate_work, send_immediate_work);
 	queue_delayed_work(info->workqueue, &info->idle_timer_work,
 		info->keep_alive_interval*HZ);
 

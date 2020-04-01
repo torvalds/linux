@@ -153,7 +153,6 @@ struct smbd_connection {
 
 	struct workqueue_struct *workqueue;
 	struct delayed_work idle_timer_work;
-	struct delayed_work send_immediate_work;
 
 	/* Memory pool for preallocating buffers */
 	/* request pool for RDMA send */
