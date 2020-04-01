@@ -503,6 +503,43 @@ drop:
 	ieee80211_tx_status_irqsafe(wdev->hw, skb);
 }
 
+static void wfx_notify_buffered_tx(struct wfx_vif *wvif, struct sk_buff *skb)
+{
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	struct ieee80211_sta *sta;
+	struct wfx_sta_priv *sta_priv;
+	int tid = ieee80211_get_tid(hdr);
+
+	rcu_read_lock(); // protect sta
+	sta = ieee80211_find_sta(wvif->vif, hdr->addr1);
+	if (sta) {
+		sta_priv = (struct wfx_sta_priv *)&sta->drv_priv;
+		spin_lock_bh(&sta_priv->lock);
+		WARN(!sta_priv->buffered[tid], "inconsistent notification");
+		sta_priv->buffered[tid]--;
+		if (!sta_priv->buffered[tid])
+			ieee80211_sta_set_buffered(sta, tid, false);
+		spin_unlock_bh(&sta_priv->lock);
+	}
+	rcu_read_unlock();
+}
+
+void wfx_skb_dtor(struct wfx_dev *wdev, struct sk_buff *skb)
+{
+	struct hif_msg *hif = (struct hif_msg *)skb->data;
+	struct hif_req_tx *req = (struct hif_req_tx *)hif->body;
+	struct wfx_vif *wvif = wdev_to_wvif(wdev, hif->interface);
+	unsigned int offset = sizeof(struct hif_req_tx) +
+				sizeof(struct hif_msg) +
+				req->data_flags.fc_offset;
+
+	WARN_ON(!wvif);
+	skb_pull(skb, offset);
+	wfx_notify_buffered_tx(wvif, skb);
+	wfx_tx_policy_put(wvif, req->tx_flags.retry_policy_index);
+	ieee80211_tx_status_irqsafe(wdev->hw, skb);
+}
+
 void wfx_tx_confirm_cb(struct wfx_vif *wvif, const struct hif_cnf_tx *arg)
 {
 	int i;
@@ -589,39 +626,4 @@ void wfx_tx_confirm_cb(struct wfx_vif *wvif, const struct hif_cnf_tx *arg)
 	wfx_skb_dtor(wvif->wdev, skb);
 }
 
-static void wfx_notify_buffered_tx(struct wfx_vif *wvif, struct sk_buff *skb)
-{
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
-	struct ieee80211_sta *sta;
-	struct wfx_sta_priv *sta_priv;
-	int tid = ieee80211_get_tid(hdr);
 
-	rcu_read_lock(); // protect sta
-	sta = ieee80211_find_sta(wvif->vif, hdr->addr1);
-	if (sta) {
-		sta_priv = (struct wfx_sta_priv *)&sta->drv_priv;
-		spin_lock_bh(&sta_priv->lock);
-		WARN(!sta_priv->buffered[tid], "inconsistent notification");
-		sta_priv->buffered[tid]--;
-		if (!sta_priv->buffered[tid])
-			ieee80211_sta_set_buffered(sta, tid, false);
-		spin_unlock_bh(&sta_priv->lock);
-	}
-	rcu_read_unlock();
-}
-
-void wfx_skb_dtor(struct wfx_dev *wdev, struct sk_buff *skb)
-{
-	struct hif_msg *hif = (struct hif_msg *)skb->data;
-	struct hif_req_tx *req = (struct hif_req_tx *)hif->body;
-	struct wfx_vif *wvif = wdev_to_wvif(wdev, hif->interface);
-	unsigned int offset = sizeof(struct hif_req_tx) +
-				sizeof(struct hif_msg) +
-				req->data_flags.fc_offset;
-
-	WARN_ON(!wvif);
-	skb_pull(skb, offset);
-	wfx_notify_buffered_tx(wvif, skb);
-	wfx_tx_policy_put(wvif, req->tx_flags.retry_policy_index);
-	ieee80211_tx_status_irqsafe(wdev->hw, skb);
-}
