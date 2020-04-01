@@ -820,8 +820,9 @@ static void igc_set_default_mac_filter(struct igc_adapter *adapter)
 
 	ether_addr_copy(mac_table->addr, adapter->hw.mac.addr);
 	mac_table->state = IGC_MAC_STATE_DEFAULT | IGC_MAC_STATE_IN_USE;
+	mac_table->queue = -1;
 
-	igc_set_mac_filter_hw(adapter, 0, mac_table->addr, -1);
+	igc_set_mac_filter_hw(adapter, 0, mac_table->addr, mac_table->queue);
 }
 
 /**
@@ -2196,13 +2197,20 @@ static bool igc_mac_entry_can_be_used(const struct igc_mac_addr *entry,
 	return true;
 }
 
-/* Add a MAC filter for 'addr' directing matching traffic to 'queue',
- * 'flags' is used to indicate what kind of match is made, match is by
- * default for the destination address, if matching by source address
- * is desired the flag IGC_MAC_STATE_SRC_ADDR can be used.
+/**
+ * igc_add_mac_filter() - Add MAC address filter
+ * @adapter: Pointer to adapter where the filter should be added
+ * @addr: MAC address
+ * @queue: If non-negative, queue assignment feature is enabled and frames
+ *         matching the filter are enqueued onto 'queue'. Otherwise, queue
+ *         assignment is disabled.
+ * @flags: Set IGC_MAC_STATE_SRC_ADDR bit to indicate @address is a source
+ *         address
+ *
+ * Return: 0 in case of success, negative errno code otherwise.
  */
 static int igc_add_mac_filter(struct igc_adapter *adapter, const u8 *addr,
-			      const u8 queue, const u8 flags)
+			      const s8 queue, const u8 flags)
 {
 	struct igc_hw *hw = &adapter->hw;
 	int rar_entries = hw->mac.rar_entry_count;
@@ -2266,11 +2274,11 @@ static int igc_del_mac_filter(struct igc_adapter *adapter, const u8 *addr,
 		if (adapter->mac_table[i].state & IGC_MAC_STATE_DEFAULT) {
 			adapter->mac_table[i].state =
 				IGC_MAC_STATE_DEFAULT | IGC_MAC_STATE_IN_USE;
-			adapter->mac_table[i].queue = 0;
+			adapter->mac_table[i].queue = -1;
 			igc_set_mac_filter_hw(adapter, 0, addr, -1);
 		} else {
 			adapter->mac_table[i].state = 0;
-			adapter->mac_table[i].queue = 0;
+			adapter->mac_table[i].queue = -1;
 			memset(adapter->mac_table[i].addr, 0, ETH_ALEN);
 			igc_clear_mac_filter_hw(adapter, i);
 		}
@@ -2285,7 +2293,7 @@ static int igc_uc_sync(struct net_device *netdev, const unsigned char *addr)
 {
 	struct igc_adapter *adapter = netdev_priv(netdev);
 
-	return igc_add_mac_filter(adapter, addr, adapter->num_rx_queues, 0);
+	return igc_add_mac_filter(adapter, addr, -1, 0);
 }
 
 static int igc_uc_unsync(struct net_device *netdev, const unsigned char *addr)
@@ -3728,15 +3736,13 @@ igc_features_check(struct sk_buff *skb, struct net_device *dev,
 int igc_add_mac_steering_filter(struct igc_adapter *adapter,
 				const u8 *addr, u8 queue, u8 flags)
 {
-	return igc_add_mac_filter(adapter, addr, queue,
-				  IGC_MAC_STATE_QUEUE_STEERING | flags);
+	return igc_add_mac_filter(adapter, addr, queue, flags);
 }
 
 int igc_del_mac_steering_filter(struct igc_adapter *adapter,
 				const u8 *addr, u8 queue, u8 flags)
 {
-	return igc_del_mac_filter(adapter, addr,
-				  IGC_MAC_STATE_QUEUE_STEERING | flags);
+	return igc_del_mac_filter(adapter, addr, flags);
 }
 
 static void igc_tsync_interrupt(struct igc_adapter *adapter)

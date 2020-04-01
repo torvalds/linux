@@ -466,14 +466,13 @@ struct igc_nfc_filter {
 
 struct igc_mac_addr {
 	u8 addr[ETH_ALEN];
-	u8 queue;
+	s8 queue;
 	u8 state; /* bitmask */
 };
 
 #define IGC_MAC_STATE_DEFAULT		0x1
 #define IGC_MAC_STATE_IN_USE		0x2
 #define IGC_MAC_STATE_SRC_ADDR		0x4
-#define IGC_MAC_STATE_QUEUE_STEERING	0x8
 
 #define IGC_MAX_RXNFC_FILTERS		16
 
