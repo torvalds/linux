@@ -134,31 +134,27 @@
 #define PICASSO_A0 0x41
 /* DCN1_01 */
 #define RAVEN2_A0 0x81
-#define RAVEN2_15D8_REV_94 0x94
-#define RAVEN2_15D8_REV_95 0x95
-#define RAVEN2_15D8_REV_E3 0xE3
-#define RAVEN2_15D8_REV_E4 0xE4
-#define RAVEN2_15D8_REV_E9 0xE9
-#define RAVEN2_15D8_REV_EA 0xEA
-#define RAVEN2_15D8_REV_EB 0xEB
 #define RAVEN1_F0 0xF0
 #define RAVEN_UNKNOWN 0xFF
 #ifndef ASICREV_IS_RAVEN
 #define ASICREV_IS_RAVEN(eChipRev) ((eChipRev >= RAVEN_A0) && eChipRev < RAVEN_UNKNOWN)
 #endif
+#define PRID_DALI_DE 0xDE
+#define PRID_DALI_DF 0xDF
+#define PRID_DALI_E3 0xE3
+#define PRID_DALI_E4 0xE4
+
+#define PRID_POLLOCK_94 0x94
+#define PRID_POLLOCK_95 0x95
+#define PRID_POLLOCK_E9 0xE9
+#define PRID_POLLOCK_EA 0xEA
+#define PRID_POLLOCK_EB 0xEB
 
 #define ASICREV_IS_PICASSO(eChipRev) ((eChipRev >= PICASSO_A0) && (eChipRev < RAVEN2_A0))
 #ifndef ASICREV_IS_RAVEN2
-#define ASICREV_IS_RAVEN2(eChipRev) ((eChipRev >= RAVEN2_A0) && (eChipRev < RAVEN1_F0))
+#define ASICREV_IS_RAVEN2(eChipRev) ((eChipRev >= RAVEN2_A0) && (eChipRev < RENOIR_A0))
 #endif
 #define ASICREV_IS_RV1_F0(eChipRev) ((eChipRev >= RAVEN1_F0) && (eChipRev < RAVEN_UNKNOWN))
-#define ASICREV_IS_DALI(eChipRev) ((eChipRev == RAVEN2_15D8_REV_E3) \
-		|| (eChipRev == RAVEN2_15D8_REV_E4))
-#define ASICREV_IS_POLLOCK(eChipRev) (eChipRev == RAVEN2_15D8_REV_94 \
-		|| eChipRev == RAVEN2_15D8_REV_95 \
-			|| eChipRev == RAVEN2_15D8_REV_E9 \
-				|| eChipRev == RAVEN2_15D8_REV_EA \
-					|| eChipRev == RAVEN2_15D8_REV_EB)
 
 #define FAMILY_RV 142 /* DCN 1*/
 
@@ -177,7 +173,7 @@ enum {
 #define ASICREV_IS_NAVI14_M(eChipRev)        ((eChipRev >= NV_NAVI14_M_A0) && (eChipRev < NV_UNKNOWN))
 #define RENOIR_A0 0x91
 #define DEVICE_ID_RENOIR_1636 0x1636   // Renoir
-#define ASICREV_IS_RENOIR(eChipRev) ((eChipRev >= RENOIR_A0) && (eChipRev < 0xFF))
+#define ASICREV_IS_RENOIR(eChipRev) ((eChipRev >= RENOIR_A0) && (eChipRev < RAVEN1_F0))
 
 /*
  * ASIC chip ID
