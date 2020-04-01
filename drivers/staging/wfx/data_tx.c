@@ -461,7 +461,7 @@ static int wfx_tx_inner(struct wfx_vif *wvif, struct ieee80211_sta *sta,
 
 	// Auxiliary operations
 	wfx_tx_manage_pm(wvif, hdr, tx_priv, sta);
-	wfx_tx_queue_put(wvif->wdev, &wvif->wdev->tx_queue[queue_id], skb);
+	wfx_tx_queues_put(wvif->wdev, skb);
 	if (tx_info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM)
 		schedule_work(&wvif->update_tim_work);
 	wfx_bh_request_tx(wvif->wdev);

@@ -150,9 +150,9 @@ void wfx_tx_queues_deinit(struct wfx_dev *wdev)
 	wfx_tx_queues_clear(wdev);
 }
 
-void wfx_tx_queue_put(struct wfx_dev *wdev, struct wfx_queue *queue,
-		      struct sk_buff *skb)
+void wfx_tx_queues_put(struct wfx_dev *wdev, struct sk_buff *skb)
 {
+	struct wfx_queue *queue = &wdev->tx_queue[skb_get_queue_mapping(skb)];
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 
 	if (tx_info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM)
@@ -170,7 +170,7 @@ int wfx_pending_requeue(struct wfx_dev *wdev, struct sk_buff *skb)
 
 	atomic_dec(&queue->pending_frames);
 	skb_unlink(skb, &wdev->tx_pending);
-	wfx_tx_queue_put(wdev, queue, skb);
+	wfx_tx_queues_put(wdev, skb);
 	return 0;
 }
 
