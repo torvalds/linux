@@ -110,9 +110,9 @@
 #define ANCHOR_NUM_PRIOS 1
 #define ANCHOR_MIN_LEVEL (BY_PASS_MIN_LEVEL + 1)
 
-#define OFFLOADS_MAX_FT 1
-#define OFFLOADS_NUM_PRIOS 1
-#define OFFLOADS_MIN_LEVEL (ANCHOR_MIN_LEVEL + 1)
+#define OFFLOADS_MAX_FT 2
+#define OFFLOADS_NUM_PRIOS 2
+#define OFFLOADS_MIN_LEVEL (ANCHOR_MIN_LEVEL + OFFLOADS_NUM_PRIOS)
 
 #define LAG_PRIO_NUM_LEVELS 1
 #define LAG_NUM_PRIOS 1
@@ -145,7 +145,7 @@ static struct init_tree_node {
 			   ADD_NS(MLX5_FLOW_TABLE_MISS_ACTION_DEF,
 				  ADD_MULTIPLE_PRIO(LAG_NUM_PRIOS,
 						    LAG_PRIO_NUM_LEVELS))),
-		  ADD_PRIO(0, OFFLOADS_MIN_LEVEL, 0, {},
+		  ADD_PRIO(0, OFFLOADS_MIN_LEVEL, 0, FS_CHAINING_CAPS,
 			   ADD_NS(MLX5_FLOW_TABLE_MISS_ACTION_DEF,
 				  ADD_MULTIPLE_PRIO(OFFLOADS_NUM_PRIOS,
 						    OFFLOADS_MAX_FT))),
@@ -1322,7 +1322,7 @@ add_rule_fte(struct fs_fte *fte,
 
 	fte->node.active = true;
 	fte->status |= FS_FTE_STATUS_EXISTING;
-	atomic_inc(&fte->node.version);
+	atomic_inc(&fg->node.version);
 
 out:
 	return handle;
@@ -1577,28 +1577,19 @@ struct match_list {
 	struct mlx5_flow_group *g;
 };
 
-struct match_list_head {
-	struct list_head  list;
-	struct match_list first;
-};
-
-static void free_match_list(struct match_list_head *head, bool ft_locked)
+static void free_match_list(struct match_list *head, bool ft_locked)
 {
-	if (!list_empty(&head->list)) {
-		struct match_list *iter, *match_tmp;
+	struct match_list *iter, *match_tmp;
 
-		list_del(&head->first.list);
-		tree_put_node(&head->first.g->node, ft_locked);
-		list_for_each_entry_safe(iter, match_tmp, &head->list,
-					 list) {
-			tree_put_node(&iter->g->node, ft_locked);
-			list_del(&iter->list);
-			kfree(iter);
-		}
+	list_for_each_entry_safe(iter, match_tmp, &head->list,
+				 list) {
+		tree_put_node(&iter->g->node, ft_locked);
+		list_del(&iter->list);
+		kfree(iter);
 	}
 }
 
-static int build_match_list(struct match_list_head *match_head,
+static int build_match_list(struct match_list *match_head,
 			    struct mlx5_flow_table *ft,
 			    const struct mlx5_flow_spec *spec,
 			    bool ft_locked)
@@ -1615,24 +1606,14 @@ static int build_match_list(struct match_list_head *match_head,
 	rhl_for_each_entry_rcu(g, tmp, list, hash) {
 		struct match_list *curr_match;
 
-		if (likely(list_empty(&match_head->list))) {
-			if (!tree_get_node(&g->node))
-				continue;
-			match_head->first.g = g;
-			list_add_tail(&match_head->first.list,
-				      &match_head->list);
+		if (unlikely(!tree_get_node(&g->node)))
 			continue;
-		}
 
 		curr_match = kmalloc(sizeof(*curr_match), GFP_ATOMIC);
 		if (!curr_match) {
 			free_match_list(match_head, ft_locked);
 			err = -ENOMEM;
 			goto out;
-		}
-		if (!tree_get_node(&g->node)) {
-			kfree(curr_match);
-			continue;
 		}
 		curr_match->g = g;
 		list_add_tail(&curr_match->list, &match_head->list);
@@ -1699,7 +1680,7 @@ try_add_to_existing_fg(struct mlx5_flow_table *ft,
 	struct match_list *iter;
 	bool take_write = false;
 	struct fs_fte *fte;
-	u64  version;
+	u64  version = 0;
 	int err;
 
 	fte = alloc_fte(ft, spec, flow_act);
@@ -1707,10 +1688,12 @@ try_add_to_existing_fg(struct mlx5_flow_table *ft,
 		return  ERR_PTR(-ENOMEM);
 
 search_again_locked:
-	version = matched_fgs_get_version(match_head);
 	if (flow_act->flags & FLOW_ACT_NO_APPEND)
 		goto skip_search;
-	/* Try to find a fg that already contains a matching fte */
+	version = matched_fgs_get_version(match_head);
+	/* Try to find an fte with identical match value and attempt update its
+	 * action.
+	 */
 	list_for_each_entry(iter, match_head, list) {
 		struct fs_fte *fte_tmp;
 
@@ -1738,10 +1721,12 @@ skip_search:
 		goto out;
 	}
 
-	/* Check the fgs version, for case the new FTE with the
-	 * same values was added while the fgs weren't locked
+	/* Check the fgs version. If version have changed it could be that an
+	 * FTE with the same match value was added while the fgs weren't
+	 * locked.
 	 */
-	if (version != matched_fgs_get_version(match_head)) {
+	if (!(flow_act->flags & FLOW_ACT_NO_APPEND) &&
+	    version != matched_fgs_get_version(match_head)) {
 		take_write = true;
 		goto search_again_locked;
 	}
@@ -1785,9 +1770,9 @@ _mlx5_add_flow_rules(struct mlx5_flow_table *ft,
 
 {
 	struct mlx5_flow_steering *steering = get_steering(&ft->node);
-	struct mlx5_flow_group *g;
 	struct mlx5_flow_handle *rule;
-	struct match_list_head match_head;
+	struct match_list match_head;
+	struct mlx5_flow_group *g;
 	bool take_write = false;
 	struct fs_fte *fte;
 	int version;
@@ -1892,11 +1877,15 @@ mlx5_add_flow_rules(struct mlx5_flow_table *ft,
 		    int num_dest)
 {
 	struct mlx5_flow_root_namespace *root = find_root(&ft->node);
+	static const struct mlx5_flow_spec zero_spec = {};
 	struct mlx5_flow_destination gen_dest = {};
 	struct mlx5_flow_table *next_ft = NULL;
 	struct mlx5_flow_handle *handle = NULL;
 	u32 sw_action = flow_act->action;
 	struct fs_prio *prio;
+
+	if (!spec)
+		spec = &zero_spec;
 
 	fs_get_obj(prio, ft->node.parent);
 	if (flow_act->action == MLX5_FLOW_CONTEXT_ACTION_FWD_NEXT_PRIO) {
@@ -2695,6 +2684,17 @@ static int init_fdb_root_ns(struct mlx5_flow_steering *steering)
 		goto out_err;
 
 	maj_prio = fs_create_prio(&steering->fdb_root_ns->ns, FDB_SLOW_PATH, 1);
+	if (IS_ERR(maj_prio)) {
+		err = PTR_ERR(maj_prio);
+		goto out_err;
+	}
+
+	/* We put this priority last, knowing that nothing will get here
+	 * unless explicitly forwarded to. This is possible because the
+	 * slow path tables have catch all rules and nothing gets passed
+	 * those tables.
+	 */
+	maj_prio = fs_create_prio(&steering->fdb_root_ns->ns, FDB_PER_VPORT, 1);
 	if (IS_ERR(maj_prio)) {
 		err = PTR_ERR(maj_prio);
 		goto out_err;

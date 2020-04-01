@@ -76,7 +76,7 @@ static u8 nci_core_get_config_otp_ram_version[5] = {
 struct nci_core_get_config_rsp {
 	u8 status;
 	u8 count;
-	u8 data[0];
+	u8 data[];
 };
 
 static int fdp_nci_create_conn(struct nci_dev *ndev)

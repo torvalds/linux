@@ -26,5 +26,9 @@ int ethnl_update_bitset(unsigned long *bitmap, unsigned int nbits,
 int ethnl_update_bitset32(u32 *bitmap, unsigned int nbits,
 			  const struct nlattr *attr, ethnl_string_array_t names,
 			  struct netlink_ext_ack *extack, bool *mod);
+int ethnl_parse_bitset(unsigned long *val, unsigned long *mask,
+		       unsigned int nbits, const struct nlattr *attr,
+		       ethnl_string_array_t names,
+		       struct netlink_ext_ack *extack);
 
 #endif /* _NET_ETHTOOL_BITSET_H */

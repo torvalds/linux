@@ -84,6 +84,7 @@ enum {
 	FDB_TC_OFFLOAD,
 	FDB_FT_OFFLOAD,
 	FDB_SLOW_PATH,
+	FDB_PER_VPORT,
 };
 
 struct mlx5_pkt_reformat;

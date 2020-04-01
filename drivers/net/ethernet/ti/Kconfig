@@ -6,7 +6,7 @@
 config NET_VENDOR_TI
 	bool "Texas Instruments (TI) devices"
 	default y
-	depends on PCI || EISA || AR7 || ARCH_DAVINCI || ARCH_OMAP2PLUS || ARCH_KEYSTONE
+	depends on PCI || EISA || AR7 || ARCH_DAVINCI || ARCH_OMAP2PLUS || ARCH_KEYSTONE || ARCH_K3
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
@@ -31,7 +31,7 @@ config TI_DAVINCI_EMAC
 
 config TI_DAVINCI_MDIO
 	tristate "TI DaVinci MDIO Support"
-	depends on ARCH_DAVINCI || ARCH_OMAP2PLUS || ARCH_KEYSTONE || COMPILE_TEST
+	depends on ARCH_DAVINCI || ARCH_OMAP2PLUS || ARCH_KEYSTONE || ARCH_K3 || COMPILE_TEST
 	select PHYLIB
 	---help---
 	  This driver supports TI's DaVinci MDIO module.
@@ -53,6 +53,7 @@ config TI_CPSW
 	select MFD_SYSCON
 	select PAGE_POOL
 	select REGMAP
+	imply PHY_TI_GMII_SEL
 	---help---
 	  This driver supports TI's CPSW Ethernet Switch.
 
@@ -93,6 +94,21 @@ config TI_CPTS_MOD
 	select NET_PTP_CLASSIFY
 	imply PTP_1588_CLOCK
 	default m
+
+config TI_K3_AM65_CPSW_NUSS
+	tristate "TI K3 AM654x/J721E CPSW Ethernet driver"
+	depends on ARCH_K3 && OF && TI_K3_UDMA_GLUE_LAYER
+	select TI_DAVINCI_MDIO
+	imply PHY_TI_GMII_SEL
+	help
+	  This driver supports TI K3 AM654/J721E CPSW2G Ethernet SubSystem.
+	  The two-port Gigabit Ethernet MAC (MCU_CPSW0) subsystem provides
+	  Ethernet packet communication for the device: One Ethernet port
+	  (port 1) with selectable RGMII and RMII interfaces and an internal
+	  Communications Port Programming Interface (CPPI) port (port 0).
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called ti-am65-cpsw-nuss.
 
 config TI_KEYSTONE_NETCP
 	tristate "TI Keystone NETCP Core Support"

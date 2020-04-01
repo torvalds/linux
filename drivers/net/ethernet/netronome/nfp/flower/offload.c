@@ -1490,7 +1490,8 @@ nfp_flower_get_stats(struct nfp_app *app, struct net_device *netdev,
 		nfp_flower_update_merge_stats(app, nfp_flow);
 
 	flow_stats_update(&flow->stats, priv->stats[ctx_id].bytes,
-			  priv->stats[ctx_id].pkts, priv->stats[ctx_id].used);
+			  priv->stats[ctx_id].pkts, priv->stats[ctx_id].used,
+			  FLOW_ACTION_HW_STATS_DELAYED);
 
 	priv->stats[ctx_id].pkts = 0;
 	priv->stats[ctx_id].bytes = 0;

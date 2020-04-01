@@ -22,6 +22,7 @@
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/remoteproc.h>
+#include "linux/remoteproc/qcom_q6v5_ipa_notify.h"
 #include <linux/reset.h>
 #include <linux/soc/qcom/mdt_loader.h>
 #include <linux/iopoll.h>
@@ -201,6 +202,7 @@ struct q6v5 {
 	struct qcom_rproc_glink glink_subdev;
 	struct qcom_rproc_subdev smd_subdev;
 	struct qcom_rproc_ssr ssr_subdev;
+	struct qcom_rproc_ipa_notify ipa_notify_subdev;
 	struct qcom_sysmon *sysmon;
 	bool need_mem_protection;
 	bool has_alt_reset;
@@ -1540,6 +1542,39 @@ static int q6v5_alloc_memory_region(struct q6v5 *qproc)
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_QCOM_Q6V5_IPA_NOTIFY)
+
+/* Register IPA notification function */
+int qcom_register_ipa_notify(struct rproc *rproc, qcom_ipa_notify_t notify,
+			     void *data)
+{
+	struct qcom_rproc_ipa_notify *ipa_notify;
+	struct q6v5 *qproc = rproc->priv;
+
+	if (!notify)
+		return -EINVAL;
+
+	ipa_notify = &qproc->ipa_notify_subdev;
+	if (ipa_notify->notify)
+		return -EBUSY;
+
+	ipa_notify->notify = notify;
+	ipa_notify->data = data;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(qcom_register_ipa_notify);
+
+/* Deregister IPA notification function */
+void qcom_deregister_ipa_notify(struct rproc *rproc)
+{
+	struct q6v5 *qproc = rproc->priv;
+
+	qproc->ipa_notify_subdev.notify = NULL;
+}
+EXPORT_SYMBOL_GPL(qcom_deregister_ipa_notify);
+#endif /* !IS_ENABLED(CONFIG_QCOM_Q6V5_IPA_NOTIFY) */
+
 static int q6v5_probe(struct platform_device *pdev)
 {
 	const struct rproc_hexagon_res *desc;
@@ -1664,6 +1699,7 @@ static int q6v5_probe(struct platform_device *pdev)
 	qcom_add_glink_subdev(rproc, &qproc->glink_subdev);
 	qcom_add_smd_subdev(rproc, &qproc->smd_subdev);
 	qcom_add_ssr_subdev(rproc, &qproc->ssr_subdev, "mpss");
+	qcom_add_ipa_notify_subdev(rproc, &qproc->ipa_notify_subdev);
 	qproc->sysmon = qcom_add_sysmon_subdev(rproc, "modem", 0x12);
 	if (IS_ERR(qproc->sysmon)) {
 		ret = PTR_ERR(qproc->sysmon);
@@ -1677,6 +1713,7 @@ static int q6v5_probe(struct platform_device *pdev)
 	return 0;
 
 detach_proxy_pds:
+	qcom_remove_ipa_notify_subdev(qproc->rproc, &qproc->ipa_notify_subdev);
 	q6v5_pds_detach(qproc, qproc->proxy_pds, qproc->proxy_pd_count);
 detach_active_pds:
 	q6v5_pds_detach(qproc, qproc->active_pds, qproc->active_pd_count);
@@ -1693,6 +1730,7 @@ static int q6v5_remove(struct platform_device *pdev)
 	rproc_del(qproc->rproc);
 
 	qcom_remove_sysmon_subdev(qproc->sysmon);
+	qcom_remove_ipa_notify_subdev(qproc->rproc, &qproc->ipa_notify_subdev);
 	qcom_remove_glink_subdev(qproc->rproc, &qproc->glink_subdev);
 	qcom_remove_smd_subdev(qproc->rproc, &qproc->smd_subdev);
 	qcom_remove_ssr_subdev(qproc->rproc, &qproc->ssr_subdev);

@@ -53,5 +53,4 @@ void clear_all_filters(struct adapter *adapter);
 void init_hash_filter(struct adapter *adap);
 bool is_filter_exact_match(struct adapter *adap,
 			   struct ch_filter_specification *fs);
-bool cxgb4_filter_prio_in_range(struct net_device *dev, u32 idx, u32 prio);
 #endif /* __CXGB4_FILTER_H */

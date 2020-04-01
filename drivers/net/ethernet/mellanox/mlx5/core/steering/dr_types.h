@@ -705,7 +705,7 @@ struct mlx5dr_matcher {
 	struct mlx5dr_matcher_rx_tx rx;
 	struct mlx5dr_matcher_rx_tx tx;
 	struct list_head matcher_list;
-	u16 prio;
+	u32 prio;
 	struct mlx5dr_match_param mask;
 	u8 match_criteria;
 	refcount_t refcount;

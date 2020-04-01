@@ -338,7 +338,7 @@ typedef void qdio_handler_t(struct ccw_device *, unsigned int, int,
  * @no_output_qs: number of output queues
  * @input_handler: handler to be called for input queues
  * @output_handler: handler to be called for output queues
- * @queue_start_poll_array: polling handlers (one per input queue or NULL)
+ * @irq_poll: Data IRQ polling handler (NULL when not supported)
  * @scan_threshold: # of in-use buffers that triggers scan on output queue
  * @int_parm: interruption parameter
  * @input_sbal_addr_array:  address of no_input_qs * 128 pointers
@@ -359,8 +359,7 @@ struct qdio_initialize {
 	unsigned int no_output_qs;
 	qdio_handler_t *input_handler;
 	qdio_handler_t *output_handler;
-	void (**queue_start_poll_array) (struct ccw_device *, int,
-					  unsigned long);
+	void (*irq_poll)(struct ccw_device *cdev, unsigned long data);
 	unsigned int scan_threshold;
 	unsigned long int_parm;
 	struct qdio_buffer **input_sbal_addr_array;
@@ -415,8 +414,8 @@ extern int qdio_activate(struct ccw_device *);
 extern void qdio_release_aob(struct qaob *);
 extern int do_QDIO(struct ccw_device *, unsigned int, int, unsigned int,
 		   unsigned int);
-extern int qdio_start_irq(struct ccw_device *, int);
-extern int qdio_stop_irq(struct ccw_device *, int);
+extern int qdio_start_irq(struct ccw_device *cdev);
+extern int qdio_stop_irq(struct ccw_device *cdev);
 extern int qdio_get_next_buffers(struct ccw_device *, int, int *, int *);
 extern int qdio_inspect_queue(struct ccw_device *cdev, unsigned int nr,
 			      bool is_input, unsigned int *bufnr,

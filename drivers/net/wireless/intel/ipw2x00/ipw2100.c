@@ -629,30 +629,30 @@ static char *snprint_line(char *buf, size_t count,
 	int out, i, j, l;
 	char c;
 
-	out = snprintf(buf, count, "%08X", ofs);
+	out = scnprintf(buf, count, "%08X", ofs);
 
 	for (l = 0, i = 0; i < 2; i++) {
-		out += snprintf(buf + out, count - out, " ");
+		out += scnprintf(buf + out, count - out, " ");
 		for (j = 0; j < 8 && l < len; j++, l++)
-			out += snprintf(buf + out, count - out, "%02X ",
+			out += scnprintf(buf + out, count - out, "%02X ",
 					data[(i * 8 + j)]);
 		for (; j < 8; j++)
-			out += snprintf(buf + out, count - out, "   ");
+			out += scnprintf(buf + out, count - out, "   ");
 	}
 
-	out += snprintf(buf + out, count - out, " ");
+	out += scnprintf(buf + out, count - out, " ");
 	for (l = 0, i = 0; i < 2; i++) {
-		out += snprintf(buf + out, count - out, " ");
+		out += scnprintf(buf + out, count - out, " ");
 		for (j = 0; j < 8 && l < len; j++, l++) {
 			c = data[(i * 8 + j)];
 			if (!isascii(c) || !isprint(c))
 				c = '.';
 
-			out += snprintf(buf + out, count - out, "%c", c);
+			out += scnprintf(buf + out, count - out, "%c", c);
 		}
 
 		for (; j < 8; j++)
-			out += snprintf(buf + out, count - out, " ");
+			out += scnprintf(buf + out, count - out, " ");
 	}
 
 	return buf;

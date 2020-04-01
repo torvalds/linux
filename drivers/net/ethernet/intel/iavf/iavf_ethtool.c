@@ -860,7 +860,7 @@ static void iavf_get_channels(struct net_device *netdev,
 	struct iavf_adapter *adapter = netdev_priv(netdev);
 
 	/* Report maximum channels */
-	ch->max_combined = IAVF_MAX_REQ_QUEUES;
+	ch->max_combined = adapter->vsi_res->num_queue_pairs;
 
 	ch->max_other = NONQ_VECS;
 	ch->other_count = NONQ_VECS;
@@ -881,14 +881,7 @@ static int iavf_set_channels(struct net_device *netdev,
 			     struct ethtool_channels *ch)
 {
 	struct iavf_adapter *adapter = netdev_priv(netdev);
-	int num_req = ch->combined_count;
-
-	if (num_req != adapter->num_active_queues &&
-	    !(adapter->vf_res->vf_cap_flags &
-	      VIRTCHNL_VF_OFFLOAD_REQ_QUEUES)) {
-		dev_info(&adapter->pdev->dev, "PF is not capable of queue negotiation.\n");
-		return -EINVAL;
-	}
+	u32 num_req = ch->combined_count;
 
 	if ((adapter->vf_res->vf_cap_flags & VIRTCHNL_VF_OFFLOAD_ADQ) &&
 	    adapter->num_tc) {
@@ -899,14 +892,19 @@ static int iavf_set_channels(struct net_device *netdev,
 	/* All of these should have already been checked by ethtool before this
 	 * even gets to us, but just to be sure.
 	 */
-	if (num_req <= 0 || num_req > IAVF_MAX_REQ_QUEUES)
+	if (num_req > adapter->vsi_res->num_queue_pairs)
 		return -EINVAL;
+
+	if (num_req == adapter->num_active_queues)
+		return 0;
 
 	if (ch->rx_count || ch->tx_count || ch->other_count != NONQ_VECS)
 		return -EINVAL;
 
 	adapter->num_req_queues = num_req;
-	return iavf_request_queues(adapter, num_req);
+	adapter->flags |= IAVF_FLAG_REINIT_ITR_NEEDED;
+	iavf_schedule_reset(adapter);
+	return 0;
 }
 
 /**
@@ -998,6 +996,10 @@ static int iavf_set_rxfh(struct net_device *netdev, const u32 *indir,
 }
 
 static const struct ethtool_ops iavf_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
+				     ETHTOOL_COALESCE_MAX_FRAMES |
+				     ETHTOOL_COALESCE_MAX_FRAMES_IRQ |
+				     ETHTOOL_COALESCE_USE_ADAPTIVE,
 	.get_drvinfo		= iavf_get_drvinfo,
 	.get_link		= ethtool_op_get_link,
 	.get_ringparam		= iavf_get_ringparam,

@@ -178,8 +178,16 @@ static int bcm_sf2_port_setup(struct dsa_switch *ds, int port,
 	core_writel(priv, reg, CORE_DIS_LEARN);
 
 	/* Enable Broadcom tags for that port if requested */
-	if (priv->brcm_tag_mask & BIT(port))
+	if (priv->brcm_tag_mask & BIT(port)) {
 		b53_brcm_hdr_setup(ds, port);
+
+		/* Disable learning on ASP port */
+		if (port == 7) {
+			reg = core_readl(priv, CORE_DIS_LEARN);
+			reg |= BIT(port);
+			core_writel(priv, reg, CORE_DIS_LEARN);
+		}
+	}
 
 	/* Configure Traffic Class to QoS mapping, allow each priority to map
 	 * to a different queue number
@@ -648,7 +656,9 @@ static void bcm_sf2_sw_mac_link_down(struct dsa_switch *ds, int port,
 static void bcm_sf2_sw_mac_link_up(struct dsa_switch *ds, int port,
 				   unsigned int mode,
 				   phy_interface_t interface,
-				   struct phy_device *phydev)
+				   struct phy_device *phydev,
+				   int speed, int duplex,
+				   bool tx_pause, bool rx_pause)
 {
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
 	struct ethtool_eee *p = &priv->dev->ports[port].eee;

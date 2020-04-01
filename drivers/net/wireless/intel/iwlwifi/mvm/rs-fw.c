@@ -416,8 +416,7 @@ u16 rs_fw_get_max_amsdu_len(struct ieee80211_sta *sta)
 			return IEEE80211_MAX_MPDU_LEN_VHT_7991;
 		default:
 			return IEEE80211_MAX_MPDU_LEN_VHT_3895;
-	}
-
+		}
 	} else if (ht_cap->ht_supported) {
 		if (ht_cap->cap & IEEE80211_HT_CAP_MAX_AMSDU)
 			/*

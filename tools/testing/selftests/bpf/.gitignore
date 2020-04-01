@@ -31,6 +31,7 @@ test_tcp_check_syncookie_user
 test_sysctl
 test_hashmap
 test_btf_dump
+test_current_pid_tgid_new_ns
 xdping
 test_cpp
 *.skel.h

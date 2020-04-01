@@ -96,9 +96,10 @@ void phy_print_status(struct phy_device *phydev)
 {
 	if (phydev->link) {
 		netdev_info(phydev->attached_dev,
-			"Link is Up - %s/%s - flow control %s\n",
+			"Link is Up - %s/%s %s- flow control %s\n",
 			phy_speed_to_str(phydev->speed),
 			phy_duplex_to_str(phydev->duplex),
+			phydev->downshifted_rate ? "(downshifted) " : "",
 			phy_pause_str(phydev));
 	} else	{
 		netdev_info(phydev->attached_dev, "Link is Down\n");
@@ -507,6 +508,7 @@ static int phy_check_link_status(struct phy_device *phydev)
 		return err;
 
 	if (phydev->link && phydev->state != PHY_RUNNING) {
+		phy_check_downshift(phydev);
 		phydev->state = PHY_RUNNING;
 		phy_link_up(phydev);
 	} else if (!phydev->link && phydev->state != PHY_NOLINK) {
@@ -715,26 +717,24 @@ static int phy_disable_interrupts(struct phy_device *phydev)
 static irqreturn_t phy_interrupt(int irq, void *phy_dat)
 {
 	struct phy_device *phydev = phy_dat;
+	struct phy_driver *drv = phydev->drv;
 
-	if (phydev->drv->did_interrupt && !phydev->drv->did_interrupt(phydev))
+	if (drv->handle_interrupt)
+		return drv->handle_interrupt(phydev);
+
+	if (drv->did_interrupt && !drv->did_interrupt(phydev))
 		return IRQ_NONE;
 
-	if (phydev->drv->handle_interrupt) {
-		if (phydev->drv->handle_interrupt(phydev))
-			goto phy_err;
-	} else {
-		/* reschedule state queue work to run as soon as possible */
-		phy_trigger_machine(phydev);
-	}
+	/* reschedule state queue work to run as soon as possible */
+	phy_trigger_machine(phydev);
 
 	/* did_interrupt() may have cleared the interrupt already */
-	if (!phydev->drv->did_interrupt && phy_clear_interrupt(phydev))
-		goto phy_err;
-	return IRQ_HANDLED;
+	if (!drv->did_interrupt && phy_clear_interrupt(phydev)) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
 
-phy_err:
-	phy_error(phydev);
-	return IRQ_NONE;
+	return IRQ_HANDLED;
 }
 
 /**

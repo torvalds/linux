@@ -146,6 +146,8 @@ static u32 ieee80211_hw_conf_chan(struct ieee80211_local *local)
 			continue;
 		if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
 			continue;
+		if (sdata->vif.bss_conf.txpower == INT_MIN)
+			continue;
 		power = min(power, sdata->vif.bss_conf.txpower);
 	}
 	rcu_read_unlock();
@@ -416,7 +418,20 @@ ieee80211_default_mgmt_stypes[NUM_NL80211_IFTYPES] = {
 	},
 	[NL80211_IFTYPE_STATION] = {
 		.tx = 0xffff,
+		/*
+		 * To support Pre Association Security Negotiation (PASN) while
+		 * already associated to one AP, allow user space to register to
+		 * Rx authentication frames, so that the user space logic would
+		 * be able to receive/handle authentication frames from a
+		 * different AP as part of PASN.
+		 * It is expected that user space would intelligently register
+		 * for Rx authentication frames, i.e., only when PASN is used
+		 * and configure a match filter only for PASN authentication
+		 * algorithm, as otherwise the MLME functionality of mac80211
+		 * would be broken.
+		 */
 		.rx = BIT(IEEE80211_STYPE_ACTION >> 4) |
+			BIT(IEEE80211_STYPE_AUTH >> 4) |
 			BIT(IEEE80211_STYPE_PROBE_REQ >> 4),
 	},
 	[NL80211_IFTYPE_AP] = {
@@ -561,7 +576,7 @@ struct ieee80211_hw *ieee80211_alloc_hw_nm(size_t priv_data_len,
 			WIPHY_FLAG_REPORTS_OBSS |
 			WIPHY_FLAG_OFFCHAN_TX;
 
-	if (ops->remain_on_channel)
+	if (!use_chanctx || ops->remain_on_channel)
 		wiphy->flags |= WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
 
 	wiphy->features |= NL80211_FEATURE_SK_TX_STATUS |
@@ -574,6 +589,8 @@ struct ieee80211_hw *ieee80211_alloc_hw_nm(size_t priv_data_len,
 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_FILS_STA);
 	wiphy_ext_feature_set(wiphy,
 			      NL80211_EXT_FEATURE_CONTROL_PORT_OVER_NL80211);
+	wiphy_ext_feature_set(wiphy,
+			      NL80211_EXT_FEATURE_CONTROL_PORT_NO_PREAUTH);
 
 	if (!ops->hw_scan) {
 		wiphy->features |= NL80211_FEATURE_LOW_PRIORITY_SCAN |
@@ -872,7 +889,6 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	enum nl80211_band band;
 	int channels, max_bitrates;
 	bool supp_ht, supp_vht, supp_he;
-	netdev_features_t feature_whitelist;
 	struct cfg80211_chan_def dflt_chandef = {};
 
 	if (ieee80211_hw_check(hw, QUEUE_CONTROL) &&
@@ -931,10 +947,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	}
 
 	/* Only HW csum features are currently compatible with mac80211 */
-	feature_whitelist = NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
-			    NETIF_F_HW_CSUM | NETIF_F_SG | NETIF_F_HIGHDMA |
-			    NETIF_F_GSO_SOFTWARE | NETIF_F_RXCSUM;
-	if (WARN_ON(hw->netdev_features & ~feature_whitelist))
+	if (WARN_ON(hw->netdev_features & ~MAC80211_SUPPORTED_FEATURES))
 		return -EINVAL;
 
 	if (hw->max_report_rates == 0)
@@ -980,6 +993,11 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 
 		if (!supp_he)
 			supp_he = !!ieee80211_get_he_sta_cap(sband);
+
+		/* HT, VHT, HE require QoS, thus >= 4 queues */
+		if (WARN_ON(local->hw.queues < IEEE80211_NUM_ACS &&
+			    (supp_ht || supp_vht || supp_he)))
+			return -EINVAL;
 
 		if (!sband->ht_cap.ht_supported)
 			continue;
@@ -1064,6 +1082,10 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		wiphy_ext_feature_set(local->hw.wiphy,
 				      NL80211_EXT_FEATURE_EXT_KEY_ID);
 	}
+
+	if (local->hw.wiphy->interface_modes & BIT(NL80211_IFTYPE_ADHOC))
+		wiphy_ext_feature_set(local->hw.wiphy,
+				      NL80211_EXT_FEATURE_DEL_IBSS_STA);
 
 	/*
 	 * Calculate scan IE length -- we need this to alloc
@@ -1184,10 +1206,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	if (!local->hw.weight_multiplier)
 		local->hw.weight_multiplier = 1;
 
-	result = ieee80211_wep_init(local);
-	if (result < 0)
-		wiphy_debug(local->hw.wiphy, "Failed to initialize wep: %d\n",
-			    result);
+	ieee80211_wep_init(local);
 
 	local->hw.conf.flags = IEEE80211_CONF_IDLE;
 

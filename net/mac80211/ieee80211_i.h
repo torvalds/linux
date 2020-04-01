@@ -5,7 +5,7 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2015  Intel Mobile Communications GmbH
- * Copyright (C) 2018-2019 Intel Corporation
+ * Copyright (C) 2018-2020 Intel Corporation
  */
 
 #ifndef IEEE80211_I_H
@@ -292,10 +292,7 @@ struct ieee80211_if_ap {
 
 	struct ps_data ps;
 	atomic_t num_mcast_sta; /* number of stations receiving multicast */
-	enum ieee80211_smps_mode req_smps, /* requested smps mode */
-			 driver_smps_mode; /* smps mode request */
 
-	struct work_struct request_smps_work;
 	bool multicast_to_unicast;
 };
 
@@ -904,14 +901,18 @@ struct ieee80211_sub_if_data {
 	/* bit field of ACM bits (BIT(802.1D tag)) */
 	u8 wmm_acm;
 
-	struct ieee80211_key __rcu *keys[NUM_DEFAULT_KEYS + NUM_DEFAULT_MGMT_KEYS];
+	struct ieee80211_key __rcu *keys[NUM_DEFAULT_KEYS +
+					 NUM_DEFAULT_MGMT_KEYS +
+					 NUM_DEFAULT_BEACON_KEYS];
 	struct ieee80211_key __rcu *default_unicast_key;
 	struct ieee80211_key __rcu *default_multicast_key;
 	struct ieee80211_key __rcu *default_mgmt_key;
+	struct ieee80211_key __rcu *default_beacon_key;
 
 	u16 sequence_number;
 	__be16 control_port_protocol;
 	bool control_port_no_encrypt;
+	bool control_port_no_preauth;
 	bool control_port_over_nl80211;
 	int encrypt_headroom;
 
@@ -981,8 +982,11 @@ struct ieee80211_sub_if_data {
 		struct dentry *default_unicast_key;
 		struct dentry *default_multicast_key;
 		struct dentry *default_mgmt_key;
+		struct dentry *default_beacon_key;
 	} debugfs;
 #endif
+
+	bool hw_80211_encap;
 
 	/* must be last, dynamically sized area in this! */
 	struct ieee80211_vif vif;
@@ -1473,6 +1477,7 @@ struct ieee802_11_elems {
 	const struct ieee80211_tim_ie *tim;
 	const u8 *challenge;
 	const u8 *rsn;
+	const u8 *rsnx;
 	const u8 *erp_info;
 	const u8 *ext_supp_rates;
 	const u8 *wmm_info;
@@ -1520,6 +1525,7 @@ struct ieee802_11_elems {
 	u8 tim_len;
 	u8 challenge_len;
 	u8 rsn_len;
+	u8 rsnx_len;
 	u8 ext_supp_rates_len;
 	u8 wmm_info_len;
 	u8 wmm_param_len;
@@ -1727,6 +1733,13 @@ int ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 			     struct cfg80211_csa_settings *params);
 
 /* interface handling */
+#define MAC80211_SUPPORTED_FEATURES_TX	(NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM | \
+					 NETIF_F_HW_CSUM | NETIF_F_SG | \
+					 NETIF_F_HIGHDMA | NETIF_F_GSO_SOFTWARE)
+#define MAC80211_SUPPORTED_FEATURES_RX	(NETIF_F_RXCSUM)
+#define MAC80211_SUPPORTED_FEATURES	(MAC80211_SUPPORTED_FEATURES_TX | \
+					 MAC80211_SUPPORTED_FEATURES_RX)
+
 int ieee80211_iface_init(void);
 void ieee80211_iface_exit(void);
 int ieee80211_if_add(struct ieee80211_local *local, const char *name,
@@ -1762,6 +1775,8 @@ netdev_tx_t ieee80211_monitor_start_xmit(struct sk_buff *skb,
 					 struct net_device *dev);
 netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 				       struct net_device *dev);
+netdev_tx_t ieee80211_subif_start_xmit_8023(struct sk_buff *skb,
+					    struct net_device *dev);
 void __ieee80211_subif_start_xmit(struct sk_buff *skb,
 				  struct net_device *dev,
 				  u32 info_flags,
@@ -1948,6 +1963,11 @@ void __ieee80211_tx_skb_tid_band(struct ieee80211_sub_if_data *sdata,
 				 struct sk_buff *skb, int tid,
 				 enum nl80211_band band, u32 txdata_flags);
 
+/* sta_out needs to be checked for ERR_PTR() before using */
+int ieee80211_lookup_ra_sta(struct ieee80211_sub_if_data *sdata,
+			    struct sk_buff *skb,
+			    struct sta_info **sta_out);
+
 static inline void
 ieee80211_tx_skb_tid_band(struct ieee80211_sub_if_data *sdata,
 			  struct sk_buff *skb, int tid,
@@ -2132,8 +2152,6 @@ u32 ieee80211_sta_get_rates(struct ieee80211_sub_if_data *sdata,
 			    enum nl80211_band band, u32 *basic_rates);
 int __ieee80211_request_smps_mgd(struct ieee80211_sub_if_data *sdata,
 				 enum ieee80211_smps_mode smps_mode);
-int __ieee80211_request_smps_ap(struct ieee80211_sub_if_data *sdata,
-				enum ieee80211_smps_mode smps_mode);
 void ieee80211_recalc_smps(struct ieee80211_sub_if_data *sdata);
 void ieee80211_recalc_min_chandef(struct ieee80211_sub_if_data *sdata);
 
