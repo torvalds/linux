@@ -1073,7 +1073,7 @@ static void nvme_tcp_io_work(struct work_struct *w)
 		if (result > 0)
 			pending = true;
 		else if (unlikely(result < 0))
-			break;
+			return;
 
 		if (!pending)
 			return;
