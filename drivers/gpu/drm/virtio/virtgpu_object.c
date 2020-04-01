@@ -235,11 +235,7 @@ int virtio_gpu_object_create(struct virtio_gpu_device *vgdev,
 		return ret;
 	}
 
-	ret = virtio_gpu_object_attach(vgdev, bo, ents, nents);
-	if (ret != 0) {
-		virtio_gpu_free_object(&shmem_obj->base);
-		return ret;
-	}
+	virtio_gpu_object_attach(vgdev, bo, ents, nents);
 
 	*bo_ptr = bo;
 	return 0;
