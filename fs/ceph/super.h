@@ -351,9 +351,22 @@ struct ceph_inode_info {
 	struct rb_root i_caps;           /* cap list */
 	struct ceph_cap *i_auth_cap;     /* authoritative cap, if any */
 	unsigned i_dirty_caps, i_flushing_caps;     /* mask of dirtied fields */
-	struct list_head i_dirty_item, i_flushing_item; /* protected by
-							 * mdsc->cap_dirty_lock
-							 */
+
+	/*
+	 * Link to the the auth cap's session's s_cap_dirty list. s_cap_dirty
+	 * is protected by the mdsc->cap_dirty_lock, but each individual item
+	 * is also protected by the inode's i_ceph_lock. Walking s_cap_dirty
+	 * requires the mdsc->cap_dirty_lock. List presence for an item can
+	 * be tested under the i_ceph_lock. Changing anything requires both.
+	 */
+	struct list_head i_dirty_item;
+
+	/*
+	 * Link to session's s_cap_flushing list. Protected by
+	 * mdsc->cap_dirty_lock.
+	 */
+	struct list_head i_flushing_item;
+
 	/* we need to track cap writeback on a per-cap-bit basis, to allow
 	 * overlapping, pipelined cap flushes to the mds.  we can probably
 	 * reduce the tid to 8 bits if we're concerned about inode size. */
