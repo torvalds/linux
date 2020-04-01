@@ -112,7 +112,8 @@ static struct sg_table *ion_map_dma_buf(struct dma_buf_attachment *attachment,
 	a = attachment->priv;
 	table = a->table;
 
-	if (!dma_map_sg(attachment->dev, table->sgl, table->nents, direction))
+	if (!dma_map_sg_attrs(attachment->dev, table->sgl, table->nents,
+			      direction, attachment->dma_map_attrs))
 		return ERR_PTR(-ENOMEM);
 
 	a->mapped = true;
@@ -134,7 +135,8 @@ static void ion_unmap_dma_buf(struct dma_buf_attachment *attachment,
 		return heap->buf_ops.unmap_dma_buf(attachment, table,
 						   direction);
 
-	dma_unmap_sg(attachment->dev, table->sgl, table->nents, direction);
+	dma_unmap_sg_attrs(attachment->dev, table->sgl, table->nents,
+			   direction, attachment->dma_map_attrs);
 }
 
 static void ion_dma_buf_release(struct dma_buf *dmabuf)
