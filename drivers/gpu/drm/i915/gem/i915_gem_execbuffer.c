@@ -429,6 +429,32 @@ eb_vma_misplaced(const struct drm_i915_gem_exec_object2 *entry,
 	return false;
 }
 
+static u64 eb_pin_flags(const struct drm_i915_gem_exec_object2 *entry,
+			unsigned int exec_flags)
+{
+	u64 pin_flags = 0;
+
+	if (exec_flags & EXEC_OBJECT_NEEDS_GTT)
+		pin_flags |= PIN_GLOBAL;
+
+	/*
+	 * Wa32bitGeneralStateOffset & Wa32bitInstructionBaseOffset,
+	 * limit address to the first 4GBs for unflagged objects.
+	 */
+	if (!(exec_flags & EXEC_OBJECT_SUPPORTS_48B_ADDRESS))
+		pin_flags |= PIN_ZONE_4G;
+
+	if (exec_flags & __EXEC_OBJECT_NEEDS_MAP)
+		pin_flags |= PIN_MAPPABLE;
+
+	if (exec_flags & EXEC_OBJECT_PINNED)
+		pin_flags |= entry->offset | PIN_OFFSET_FIXED;
+	else if (exec_flags & __EXEC_OBJECT_NEEDS_BIAS)
+		pin_flags |= BATCH_OFFSET_BIAS | PIN_OFFSET_BIAS;
+
+	return pin_flags;
+}
+
 static inline bool
 eb_pin_vma(struct i915_execbuffer *eb,
 	   const struct drm_i915_gem_exec_object2 *entry,
@@ -446,8 +472,19 @@ eb_pin_vma(struct i915_execbuffer *eb,
 	if (unlikely(ev->flags & EXEC_OBJECT_NEEDS_GTT))
 		pin_flags |= PIN_GLOBAL;
 
-	if (unlikely(i915_vma_pin(vma, 0, 0, pin_flags)))
-		return false;
+	/* Attempt to reuse the current location if available */
+	if (unlikely(i915_vma_pin(vma, 0, 0, pin_flags))) {
+		if (entry->flags & EXEC_OBJECT_PINNED)
+			return false;
+
+		/* Failing that pick any _free_ space if suitable */
+		if (unlikely(i915_vma_pin(vma,
+					  entry->pad_to_size,
+					  entry->alignment,
+					  eb_pin_flags(entry, ev->flags) |
+					  PIN_USER | PIN_NOEVICT)))
+			return false;
+	}
 
 	if (unlikely(ev->flags & EXEC_OBJECT_NEEDS_FENCE)) {
 		if (unlikely(i915_vma_pin_fence(vma))) {
@@ -588,27 +625,8 @@ static int eb_reserve_vma(const struct i915_execbuffer *eb,
 			  u64 pin_flags)
 {
 	struct drm_i915_gem_exec_object2 *entry = ev->exec;
-	unsigned int exec_flags = ev->flags;
 	struct i915_vma *vma = ev->vma;
 	int err;
-
-	if (exec_flags & EXEC_OBJECT_NEEDS_GTT)
-		pin_flags |= PIN_GLOBAL;
-
-	/*
-	 * Wa32bitGeneralStateOffset & Wa32bitInstructionBaseOffset,
-	 * limit address to the first 4GBs for unflagged objects.
-	 */
-	if (!(exec_flags & EXEC_OBJECT_SUPPORTS_48B_ADDRESS))
-		pin_flags |= PIN_ZONE_4G;
-
-	if (exec_flags & __EXEC_OBJECT_NEEDS_MAP)
-		pin_flags |= PIN_MAPPABLE;
-
-	if (exec_flags & EXEC_OBJECT_PINNED)
-		pin_flags |= entry->offset | PIN_OFFSET_FIXED;
-	else if (exec_flags & __EXEC_OBJECT_NEEDS_BIAS)
-		pin_flags |= BATCH_OFFSET_BIAS | PIN_OFFSET_BIAS;
 
 	if (drm_mm_node_allocated(&vma->node) &&
 	    eb_vma_misplaced(entry, vma, ev->flags)) {
@@ -619,7 +637,7 @@ static int eb_reserve_vma(const struct i915_execbuffer *eb,
 
 	err = i915_vma_pin(vma,
 			   entry->pad_to_size, entry->alignment,
-			   pin_flags);
+			   eb_pin_flags(entry, ev->flags) | pin_flags);
 	if (err)
 		return err;
 
@@ -628,7 +646,7 @@ static int eb_reserve_vma(const struct i915_execbuffer *eb,
 		eb->args->flags |= __EXEC_HAS_RELOC;
 	}
 
-	if (unlikely(exec_flags & EXEC_OBJECT_NEEDS_FENCE)) {
+	if (unlikely(ev->flags & EXEC_OBJECT_NEEDS_FENCE)) {
 		err = i915_vma_pin_fence(vma);
 		if (unlikely(err)) {
 			i915_vma_unpin(vma);
@@ -636,10 +654,10 @@ static int eb_reserve_vma(const struct i915_execbuffer *eb,
 		}
 
 		if (vma->fence)
-			exec_flags |= __EXEC_OBJECT_HAS_FENCE;
+			ev->flags |= __EXEC_OBJECT_HAS_FENCE;
 	}
 
-	ev->flags = exec_flags | __EXEC_OBJECT_HAS_PIN;
+	ev->flags |= __EXEC_OBJECT_HAS_PIN;
 	GEM_BUG_ON(eb_vma_misplaced(entry, vma, ev->flags));
 
 	return 0;
