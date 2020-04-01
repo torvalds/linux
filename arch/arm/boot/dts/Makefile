@@ -849,6 +849,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rv1126-evb-lp3-v10.dtb \
 	rv1126-iotest-v10.dtb \
 	rv1126-ipc2-ddr3-v10.dtb \
+	rv1126-sphericalipc-ddr3-v10.dtb \
 	rk3036-evb.dtb \
 	rk3036-kylin.dtb \
 	rk3066a-bqcurie2.dtb \
