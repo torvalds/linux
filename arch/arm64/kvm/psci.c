@@ -94,7 +94,7 @@ static unsigned long kvm_psci_vcpu_on(struct kvm_vcpu *source_vcpu)
 
 	/*
 	 * NOTE: We always update r0 (or x0) because for PSCI v0.1
-	 * the general puspose registers are undefined upon CPU_ON.
+	 * the general purpose registers are undefined upon CPU_ON.
 	 */
 	reset_state->r0 = smccc_get_arg3(source_vcpu);
 
@@ -265,10 +265,10 @@ static int kvm_psci_0_2_call(struct kvm_vcpu *vcpu)
 	case PSCI_0_2_FN_SYSTEM_OFF:
 		kvm_psci_system_off(vcpu);
 		/*
-		 * We should'nt be going back to guest VCPU after
+		 * We shouldn't be going back to guest VCPU after
 		 * receiving SYSTEM_OFF request.
 		 *
-		 * If user space accidently/deliberately resumes
+		 * If user space accidentally/deliberately resumes
 		 * guest VCPU after SYSTEM_OFF request then guest
 		 * VCPU should see internal failure from PSCI return
 		 * value. To achieve this, we preload r0 (or x0) with

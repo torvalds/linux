@@ -131,7 +131,7 @@ int io_mem_abort(struct kvm_vcpu *vcpu, struct kvm_run *run,
 
 	/*
 	 * No valid syndrome? Ask userspace for help if it has
-	 * voluntered to do so, and bail out otherwise.
+	 * volunteered to do so, and bail out otherwise.
 	 */
 	if (!kvm_vcpu_dabt_isvalid(vcpu)) {
 		if (vcpu->kvm->arch.return_nisv_io_abort_to_user) {

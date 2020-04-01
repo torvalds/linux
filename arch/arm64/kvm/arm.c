@@ -455,9 +455,9 @@ void force_vm_exit(const cpumask_t *mask)
  *
  * The hardware supports a limited set of values with the value zero reserved
  * for the host, so we check if an assigned value belongs to a previous
- * generation, which which requires us to assign a new value. If we're the
- * first to use a VMID for the new generation, we must flush necessary caches
- * and TLBs on all CPUs.
+ * generation, which requires us to assign a new value. If we're the first to
+ * use a VMID for the new generation, we must flush necessary caches and TLBs
+ * on all CPUs.
  */
 static bool need_new_vmid_gen(struct kvm_vmid *vmid)
 {

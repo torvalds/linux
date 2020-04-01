@@ -784,7 +784,7 @@ static int __create_hyp_private_mapping(phys_addr_t phys_addr, size_t size,
 	mutex_lock(&kvm_hyp_pgd_mutex);
 
 	/*
-	 * This assumes that we we have enough space below the idmap
+	 * This assumes that we have enough space below the idmap
 	 * page to allocate our VAs. If not, the check below will
 	 * kick. A potential alternative would be to detect that
 	 * overflow and switch to an allocation above the idmap.
@@ -964,7 +964,7 @@ static void stage2_unmap_memslot(struct kvm *kvm,
  * stage2_unmap_vm - Unmap Stage-2 RAM mappings
  * @kvm: The struct kvm pointer
  *
- * Go through the memregions and unmap any reguler RAM
+ * Go through the memregions and unmap any regular RAM
  * backing memory already mapped to the VM.
  */
 void stage2_unmap_vm(struct kvm *kvm)
@@ -2262,7 +2262,7 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 {
 	/*
 	 * At this point memslot has been committed and there is an
-	 * allocated dirty_bitmap[], dirty pages will be be tracked while the
+	 * allocated dirty_bitmap[], dirty pages will be tracked while the
 	 * memory slot is write protected.
 	 */
 	if (change != KVM_MR_DELETE && mem->flags & KVM_MEM_LOG_DIRTY_PAGES)

@@ -577,7 +577,7 @@ static u8 __hyp_text __vgic_v3_pri_to_pre(u8 pri, u32 vmcr, int grp)
 
 /*
  * The priority value is independent of any of the BPR values, so we
- * normalize it using the minumal BPR value. This guarantees that no
+ * normalize it using the minimal BPR value. This guarantees that no
  * matter what the guest does with its BPR, we can always set/get the
  * same value of a priority.
  */

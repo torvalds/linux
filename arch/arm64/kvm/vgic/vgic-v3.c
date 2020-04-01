@@ -587,7 +587,7 @@ int vgic_v3_probe(const struct gic_kvm_info *info)
 	int ret;
 
 	/*
-	 * The ListRegs field is 5 bits, but there is a architectural
+	 * The ListRegs field is 5 bits, but there is an architectural
 	 * maximum of 16 list registers. Just ignore bit 4...
 	 */
 	kvm_vgic_global_state.nr_lr = (ich_vtr_el2 & 0xf) + 1;
