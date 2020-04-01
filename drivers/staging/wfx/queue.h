@@ -40,7 +40,7 @@ void wfx_tx_lock_flush(struct wfx_dev *wdev);
 void wfx_tx_queues_init(struct wfx_dev *wdev);
 void wfx_tx_queues_deinit(struct wfx_dev *wdev);
 void wfx_tx_queues_clear(struct wfx_dev *wdev);
-bool wfx_tx_queues_is_empty(struct wfx_dev *wdev);
+bool wfx_tx_queues_empty(struct wfx_dev *wdev);
 void wfx_tx_queues_wait_empty_vif(struct wfx_vif *wvif);
 struct hif_msg *wfx_tx_queues_get(struct wfx_dev *wdev);
 struct hif_msg *wfx_tx_queues_get_after_dtim(struct wfx_vif *wvif);

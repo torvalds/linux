@@ -325,11 +325,11 @@ static int __wfx_flush(struct wfx_dev *wdev, bool drop)
 		if (drop)
 			wfx_tx_queues_clear(wdev);
 		if (wait_event_timeout(wdev->tx_queue_stats.wait_link_id_empty,
-				       wfx_tx_queues_is_empty(wdev),
+				       wfx_tx_queues_empty(wdev),
 				       2 * HZ) <= 0)
 			return -ETIMEDOUT;
 		wfx_tx_flush(wdev);
-		if (wfx_tx_queues_is_empty(wdev))
+		if (wfx_tx_queues_empty(wdev))
 			return 0;
 		dev_warn(wdev->dev, "frames queued while flushing tx queues");
 	}

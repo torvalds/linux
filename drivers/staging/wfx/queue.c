@@ -303,20 +303,14 @@ unsigned int wfx_pending_get_pkt_us_delay(struct wfx_dev *wdev,
 	return ktime_us_delta(now, tx_priv->xmit_timestamp);
 }
 
-bool wfx_tx_queues_is_empty(struct wfx_dev *wdev)
+bool wfx_tx_queues_empty(struct wfx_dev *wdev)
 {
 	int i;
-	struct sk_buff_head *queue;
-	bool ret = true;
 
-	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
-		queue = &wdev->tx_queue[i].queue;
-		spin_lock_bh(&queue->lock);
-		if (!skb_queue_empty(queue))
-			ret = false;
-		spin_unlock_bh(&queue->lock);
-	}
-	return ret;
+	for (i = 0; i < IEEE80211_NUM_ACS; i++)
+		if (!skb_queue_empty_lockless(&wdev->tx_queue[i].queue))
+			return false;
+	return true;
 }
 
 static bool wfx_handle_tx_data(struct wfx_dev *wdev, struct sk_buff *skb)
