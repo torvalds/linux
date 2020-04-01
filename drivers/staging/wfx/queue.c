@@ -30,6 +30,7 @@ void wfx_tx_unlock(struct wfx_dev *wdev)
 void wfx_tx_flush(struct wfx_dev *wdev)
 {
 	int ret;
+	int i;
 
 	// Do not wait for any reply if chip is frozen
 	if (wdev->chip_frozen)
@@ -39,6 +40,12 @@ void wfx_tx_flush(struct wfx_dev *wdev)
 	ret = wait_event_timeout(wdev->hif.tx_buffers_empty,
 				 !wdev->hif.tx_buffers_used,
 				 msecs_to_jiffies(3000));
+	if (ret) {
+		for (i = 0; i < IEEE80211_NUM_ACS; i++)
+			WARN(atomic_read(&wdev->tx_queue[i].pending_frames),
+			     "there are still %d pending frames on queue %d",
+			     atomic_read(&wdev->tx_queue[i].pending_frames), i);
+	}
 	if (!ret) {
 		dev_warn(wdev->dev, "cannot flush tx buffers (%d still busy)\n",
 			 wdev->hif.tx_buffers_used);
@@ -176,6 +183,7 @@ static struct sk_buff *wfx_tx_queue_get(struct wfx_dev *wdev,
 	spin_unlock_bh(&queue->queue.lock);
 	if (skb) {
 		skb_unlink(skb, &queue->queue);
+		atomic_inc(&queue->pending_frames);
 		tx_priv = wfx_skb_tx_priv(skb);
 		tx_priv->xmit_timestamp = ktime_get();
 		skb_queue_tail(&stats->pending, skb);
@@ -192,7 +200,9 @@ int wfx_pending_requeue(struct wfx_dev *wdev, struct sk_buff *skb)
 	struct wfx_queue *queue = &wdev->tx_queue[skb_get_queue_mapping(skb)];
 
 	WARN_ON(skb_get_queue_mapping(skb) > 3);
+	WARN_ON(!atomic_read(&queue->pending_frames));
 
+	atomic_dec(&queue->pending_frames);
 	skb_unlink(skb, &stats->pending);
 	skb_queue_tail(&queue->queue, skb);
 	return 0;
@@ -201,7 +211,12 @@ int wfx_pending_requeue(struct wfx_dev *wdev, struct sk_buff *skb)
 int wfx_pending_remove(struct wfx_dev *wdev, struct sk_buff *skb)
 {
 	struct wfx_queue_stats *stats = &wdev->tx_queue_stats;
+	struct wfx_queue *queue = &wdev->tx_queue[skb_get_queue_mapping(skb)];
 
+	WARN_ON(skb_get_queue_mapping(skb) > 3);
+	WARN_ON(!atomic_read(&queue->pending_frames));
+
+	atomic_dec(&queue->pending_frames);
 	skb_unlink(skb, &stats->pending);
 	wfx_skb_dtor(wdev, skb);
 

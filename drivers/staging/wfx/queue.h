@@ -9,6 +9,7 @@
 #define WFX_QUEUE_H
 
 #include <linux/skbuff.h>
+#include <linux/atomic.h>
 
 #include "hif_api_cmd.h"
 
@@ -20,6 +21,7 @@ struct wfx_vif;
 
 struct wfx_queue {
 	struct sk_buff_head	queue;
+	atomic_t		pending_frames;
 };
 
 struct wfx_queue_stats {
