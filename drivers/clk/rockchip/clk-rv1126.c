@@ -1281,6 +1281,9 @@ static struct rockchip_clk_branch rv1126_clk_branches[] __initdata = {
 };
 
 static const char *const rv1126_cru_critical_clocks[] __initconst = {
+	"gpll",
+	"cpll",
+	"hpll",
 	"armclk",
 	"pclk_dbg",
 	"pclk_pdpmu",
