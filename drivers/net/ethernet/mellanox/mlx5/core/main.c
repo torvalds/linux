@@ -549,6 +549,9 @@ static int handle_hca_cap(struct mlx5_core_dev *dev, void *set_ctx)
 			 num_vhca_ports,
 			 MLX5_CAP_GEN_MAX(dev, num_vhca_ports));
 
+	if (MLX5_CAP_GEN_MAX(dev, release_all_pages))
+		MLX5_SET(cmd_hca_cap, set_hca_cap, release_all_pages, 1);
+
 	return set_caps(dev, set_ctx, MLX5_SET_HCA_CAP_OP_MOD_GENERAL_DEVICE);
 }
 

@@ -50,6 +50,7 @@ struct mlx5_pages_req {
 	u8	ec_function;
 	s32	npages;
 	struct work_struct work;
+	u8	release_all;
 };
 
 struct fw_page {
@@ -341,6 +342,33 @@ out_free:
 	return err;
 }
 
+static void release_all_pages(struct mlx5_core_dev *dev, u32 func_id,
+			      bool ec_function)
+{
+	struct rb_node *p;
+	int npages = 0;
+
+	p = rb_first(&dev->priv.page_root);
+	while (p) {
+		struct fw_page *fwp = rb_entry(p, struct fw_page, rb_node);
+
+		p = rb_next(p);
+		if (fwp->func_id != func_id)
+			continue;
+		free_fwp(dev, fwp);
+		npages++;
+	}
+
+	dev->priv.fw_pages -= npages;
+	if (func_id)
+		dev->priv.vfs_pages -= npages;
+	else if (mlx5_core_is_ecpf(dev) && !ec_function)
+		dev->priv.peer_pf_pages -= npages;
+
+	mlx5_core_dbg(dev, "npages %d, ec_function %d, func_id 0x%x\n",
+		      npages, ec_function, func_id);
+}
+
 static int reclaim_pages_cmd(struct mlx5_core_dev *dev,
 			     u32 *in, int in_size, u32 *out, int out_size)
 {
@@ -434,7 +462,9 @@ static void pages_work_handler(struct work_struct *work)
 	struct mlx5_core_dev *dev = req->dev;
 	int err = 0;
 
-	if (req->npages < 0)
+	if (req->release_all)
+		release_all_pages(dev, req->func_id, req->ec_function);
+	else if (req->npages < 0)
 		err = reclaim_pages(dev, req->func_id, -1 * req->npages, NULL,
 				    req->ec_function);
 	else if (req->npages > 0)
@@ -449,6 +479,7 @@ static void pages_work_handler(struct work_struct *work)
 
 enum {
 	EC_FUNCTION_MASK = 0x8000,
+	RELEASE_ALL_PAGES_MASK = 0x4000,
 };
 
 static int req_pages_handler(struct notifier_block *nb,
@@ -459,6 +490,7 @@ static int req_pages_handler(struct notifier_block *nb,
 	struct mlx5_priv *priv;
 	struct mlx5_eqe *eqe;
 	bool ec_function;
+	bool release_all;
 	u16 func_id;
 	s32 npages;
 
@@ -469,8 +501,10 @@ static int req_pages_handler(struct notifier_block *nb,
 	func_id = be16_to_cpu(eqe->data.req_pages.func_id);
 	npages  = be32_to_cpu(eqe->data.req_pages.num_pages);
 	ec_function = be16_to_cpu(eqe->data.req_pages.ec_function) & EC_FUNCTION_MASK;
-	mlx5_core_dbg(dev, "page request for func 0x%x, npages %d\n",
-		      func_id, npages);
+	release_all = be16_to_cpu(eqe->data.req_pages.ec_function) &
+		      RELEASE_ALL_PAGES_MASK;
+	mlx5_core_dbg(dev, "page request for func 0x%x, npages %d, release_all %d\n",
+		      func_id, npages, release_all);
 	req = kzalloc(sizeof(*req), GFP_ATOMIC);
 	if (!req) {
 		mlx5_core_warn(dev, "failed to allocate pages request\n");
@@ -481,6 +515,7 @@ static int req_pages_handler(struct notifier_block *nb,
 	req->func_id = func_id;
 	req->npages = npages;
 	req->ec_function = ec_function;
+	req->release_all = release_all;
 	INIT_WORK(&req->work, pages_work_handler);
 	queue_work(dev->priv.pg_wq, &req->work);
 	return NOTIFY_OK;
