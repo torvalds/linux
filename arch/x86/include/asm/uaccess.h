@@ -289,20 +289,22 @@ do {									\
 ({									\
 	__typeof__(ptr) __ptr = (ptr);					\
 	asm volatile("\n"						\
-		     "1:	movl %2,%%eax\n"			\
-		     "2:	movl %3,%%edx\n"			\
+		     "1:	movl %[lowbits],%%eax\n"		\
+		     "2:	movl %[highbits],%%edx\n"		\
 		     "3:\n"						\
 		     ".section .fixup,\"ax\"\n"				\
-		     "4:	mov %4,%0\n"				\
+		     "4:	mov %[efault],%[errout]\n"		\
 		     "	xorl %%eax,%%eax\n"				\
 		     "	xorl %%edx,%%edx\n"				\
 		     "	jmp 3b\n"					\
 		     ".previous\n"					\
 		     _ASM_EXTABLE_UA(1b, 4b)				\
 		     _ASM_EXTABLE_UA(2b, 4b)				\
-		     : "=r" (retval), "=&A"(x)				\
-		     : "m" (__m(__ptr)), "m" __m(((u32 __user *)(__ptr)) + 1),	\
-		       "i" (-EFAULT), "0" (retval));			\
+		     : [errout] "=r" (retval),				\
+		       [output] "=&A"(x)				\
+		     : [lowbits] "m" (__m(__ptr)),			\
+		       [highbits] "m" __m(((u32 __user *)(__ptr)) + 1),	\
+		       [efault] "i" (-EFAULT), "0" (retval));		\
 })
 
 #else
@@ -334,16 +336,18 @@ do {									\
 
 #define __get_user_asm(x, addr, err, itype, ltype)			\
 	asm volatile("\n"						\
-		     "1:	mov"itype" %2,%1\n"			\
+		     "1:	mov"itype" %[umem],%[output]\n"		\
 		     "2:\n"						\
 		     ".section .fixup,\"ax\"\n"				\
-		     "3:	mov %3,%0\n"				\
-		     "	xor"itype" %1,%1\n"				\
+		     "3:	mov %[efault],%[errout]\n"		\
+		     "	xor"itype" %[output],%[output]\n"		\
 		     "	jmp 2b\n"					\
 		     ".previous\n"					\
 		     _ASM_EXTABLE_UA(1b, 3b)				\
-		     : "=r" (err), ltype(x)				\
-		     : "m" (__m(addr)), "i" (-EFAULT), "0" (err))
+		     : [errout] "=r" (err),				\
+		       [output] ltype(x)				\
+		     : [umem] "m" (__m(addr)),				\
+		       [efault] "i" (-EFAULT), "0" (err))
 
 #define __put_user_nocheck(x, ptr, size)			\
 ({								\
