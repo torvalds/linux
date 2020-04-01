@@ -15542,10 +15542,19 @@ void cfg80211_rx_unprot_mlme_mgmt(struct net_device *dev, const u8 *buf,
 	if (WARN_ON(len < 2))
 		return;
 
-	if (ieee80211_is_deauth(mgmt->frame_control))
+	if (ieee80211_is_deauth(mgmt->frame_control)) {
 		cmd = NL80211_CMD_UNPROT_DEAUTHENTICATE;
-	else
+	} else if (ieee80211_is_disassoc(mgmt->frame_control)) {
 		cmd = NL80211_CMD_UNPROT_DISASSOCIATE;
+	} else if (ieee80211_is_beacon(mgmt->frame_control)) {
+		if (wdev->unprot_beacon_reported &&
+		    elapsed_jiffies_msecs(wdev->unprot_beacon_reported) < 10000)
+			return;
+		cmd = NL80211_CMD_UNPROT_BEACON;
+		wdev->unprot_beacon_reported = jiffies;
+	} else {
+		return;
+	}
 
 	trace_cfg80211_rx_unprot_mlme_mgmt(dev, buf, len);
 	nl80211_send_mlme_event(rdev, dev, buf, len, cmd, GFP_ATOMIC, -1,

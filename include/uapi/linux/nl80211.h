@@ -1151,6 +1151,11 @@
  * @NL80211_CMD_SET_TID_CONFIG: Data frame TID specific configuration
  *	is passed using %NL80211_ATTR_TID_CONFIG attribute.
  *
+ * @NL80211_CMD_UNPROT_BEACON: Unprotected or incorrectly protected Beacon
+ *	frame. This event is used to indicate that a received Beacon frame was
+ *	dropped because it did not include a valid MME MIC while beacon
+ *	protection was enabled (BIGTK configured in station mode).
+ *
  * @NL80211_CMD_MAX: highest used command number
  * @__NL80211_CMD_AFTER_LAST: internal use
  */
@@ -1376,6 +1381,8 @@ enum nl80211_commands {
 	NL80211_CMD_PROBE_MESH_LINK,
 
 	NL80211_CMD_SET_TID_CONFIG,
+
+	NL80211_CMD_UNPROT_BEACON,
 
 	/* add new commands above here */
 

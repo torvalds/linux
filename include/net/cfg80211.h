@@ -5045,6 +5045,8 @@ struct cfg80211_cqm_config;
  * @pmsr_list: (private) peer measurement requests
  * @pmsr_lock: (private) peer measurements requests/results lock
  * @pmsr_free_wk: (private) peer measurements cleanup work
+ * @unprot_beacon_reported: (private) timestamp of last
+ *	unprotected beacon report
  */
 struct wireless_dev {
 	struct wiphy *wiphy;
@@ -5121,6 +5123,8 @@ struct wireless_dev {
 	struct list_head pmsr_list;
 	spinlock_t pmsr_lock;
 	struct work_struct pmsr_free_wk;
+
+	unsigned long unprot_beacon_reported;
 };
 
 static inline u8 *wdev_address(struct wireless_dev *wdev)
@@ -6135,12 +6139,16 @@ void cfg80211_tx_mlme_mgmt(struct net_device *dev, const u8 *buf, size_t len);
 /**
  * cfg80211_rx_unprot_mlme_mgmt - notification of unprotected mlme mgmt frame
  * @dev: network device
- * @buf: deauthentication frame (header + body)
+ * @buf: received management frame (header + body)
  * @len: length of the frame data
  *
  * This function is called whenever a received deauthentication or dissassoc
  * frame has been dropped in station mode because of MFP being used but the
- * frame was not protected. This function may sleep.
+ * frame was not protected. This is also used to notify reception of a Beacon
+ * frame that was dropped because it did not include a valid MME MIC while
+ * beacon protection was enabled (BIGTK configured in station mode).
+ *
+ * This function may sleep.
  */
 void cfg80211_rx_unprot_mlme_mgmt(struct net_device *dev,
 				  const u8 *buf, size_t len);
