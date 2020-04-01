@@ -124,6 +124,8 @@ struct intel_pt {
 
 	struct range *time_ranges;
 	unsigned int range_cnt;
+
+	struct ip_callchain *chain;
 };
 
 enum switch_state {
@@ -868,6 +870,45 @@ static u64 intel_pt_ns_to_ticks(const struct intel_pt *pt, u64 ns)
 		pt->tc.time_mult;
 }
 
+static struct ip_callchain *intel_pt_alloc_chain(struct intel_pt *pt)
+{
+	size_t sz = sizeof(struct ip_callchain);
+
+	/* Add 1 to callchain_sz for callchain context */
+	sz += (pt->synth_opts.callchain_sz + 1) * sizeof(u64);
+	return zalloc(sz);
+}
+
+static int intel_pt_callchain_init(struct intel_pt *pt)
+{
+	struct evsel *evsel;
+
+	evlist__for_each_entry(pt->session->evlist, evsel) {
+		if (!(evsel->core.attr.sample_type & PERF_SAMPLE_CALLCHAIN))
+			evsel->synth_sample_type |= PERF_SAMPLE_CALLCHAIN;
+	}
+
+	pt->chain = intel_pt_alloc_chain(pt);
+	if (!pt->chain)
+		return -ENOMEM;
+
+	return 0;
+}
+
+static void intel_pt_add_callchain(struct intel_pt *pt,
+				   struct perf_sample *sample)
+{
+	struct thread *thread = machine__findnew_thread(pt->machine,
+							sample->pid,
+							sample->tid);
+
+	thread_stack__sample_late(thread, sample->cpu, pt->chain,
+				  pt->synth_opts.callchain_sz + 1, sample->ip,
+				  pt->kernel_start);
+
+	sample->callchain = pt->chain;
+}
+
 static struct intel_pt_queue *intel_pt_alloc_queue(struct intel_pt *pt,
 						   unsigned int queue_nr)
 {
@@ -880,11 +921,7 @@ static struct intel_pt_queue *intel_pt_alloc_queue(struct intel_pt *pt,
 		return NULL;
 
 	if (pt->synth_opts.callchain) {
-		size_t sz = sizeof(struct ip_callchain);
-
-		/* Add 1 to callchain_sz for callchain context */
-		sz += (pt->synth_opts.callchain_sz + 1) * sizeof(u64);
-		ptq->chain = zalloc(sz);
+		ptq->chain = intel_pt_alloc_chain(pt);
 		if (!ptq->chain)
 			goto out_free;
 	}
@@ -1992,7 +2029,8 @@ static int intel_pt_sample(struct intel_pt_queue *ptq)
 	if (!(state->type & INTEL_PT_BRANCH))
 		return 0;
 
-	if (pt->synth_opts.callchain || pt->synth_opts.thread_stack)
+	if (pt->synth_opts.callchain || pt->synth_opts.add_callchain ||
+	    pt->synth_opts.thread_stack)
 		thread_stack__event(ptq->thread, ptq->cpu, ptq->flags, state->from_ip,
 				    state->to_ip, ptq->insn_len,
 				    state->trace_nr);
@@ -2639,6 +2677,11 @@ static int intel_pt_process_event(struct perf_session *session,
 	if (err)
 		return err;
 
+	if (event->header.type == PERF_RECORD_SAMPLE) {
+		if (pt->synth_opts.add_callchain && !sample->callchain)
+			intel_pt_add_callchain(pt, sample);
+	}
+
 	if (event->header.type == PERF_RECORD_AUX &&
 	    (event->aux.flags & PERF_AUX_FLAG_TRUNCATED) &&
 	    pt->synth_opts.errors) {
@@ -2710,6 +2753,7 @@ static void intel_pt_free(struct perf_session *session)
 	session->auxtrace = NULL;
 	thread__put(pt->unknown_thread);
 	addr_filters__exit(&pt->filts);
+	zfree(&pt->chain);
 	zfree(&pt->filter);
 	zfree(&pt->time_ranges);
 	free(pt);
@@ -3348,6 +3392,7 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 		    !session->itrace_synth_opts->inject) {
 			pt->synth_opts.branches = false;
 			pt->synth_opts.callchain = true;
+			pt->synth_opts.add_callchain = true;
 		}
 		pt->synth_opts.thread_stack =
 				session->itrace_synth_opts->thread_stack;
@@ -3380,12 +3425,20 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 		pt->branches_filter |= PERF_IP_FLAG_RETURN |
 				       PERF_IP_FLAG_TRACE_BEGIN;
 
-	if (pt->synth_opts.callchain && !symbol_conf.use_callchain) {
+	if ((pt->synth_opts.callchain || pt->synth_opts.add_callchain) &&
+	    !symbol_conf.use_callchain) {
 		symbol_conf.use_callchain = true;
 		if (callchain_register_param(&callchain_param) < 0) {
 			symbol_conf.use_callchain = false;
 			pt->synth_opts.callchain = false;
+			pt->synth_opts.add_callchain = false;
 		}
+	}
+
+	if (pt->synth_opts.add_callchain) {
+		err = intel_pt_callchain_init(pt);
+		if (err)
+			goto err_delete_thread;
 	}
 
 	err = intel_pt_synth_events(pt, session);
@@ -3410,6 +3463,7 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 	return 0;
 
 err_delete_thread:
+	zfree(&pt->chain);
 	thread__zput(pt->unknown_thread);
 err_free_queues:
 	intel_pt_log_disable();
