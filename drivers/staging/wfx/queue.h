@@ -24,7 +24,6 @@ struct wfx_vif;
 struct wfx_queue {
 	struct sk_buff_head	queue;
 	int			link_map_cache[WFX_LINK_ID_MAX];
-	u8			queue_id;
 };
 
 struct wfx_queue_stats {

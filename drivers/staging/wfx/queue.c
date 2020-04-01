@@ -134,10 +134,8 @@ void wfx_tx_queues_init(struct wfx_dev *wdev)
 	skb_queue_head_init(&wdev->tx_queue_stats.pending);
 	init_waitqueue_head(&wdev->tx_queue_stats.wait_link_id_empty);
 
-	for (i = 0; i < IEEE80211_NUM_ACS; ++i) {
-		wdev->tx_queue[i].queue_id = i;
+	for (i = 0; i < IEEE80211_NUM_ACS; ++i)
 		skb_queue_head_init(&wdev->tx_queue[i].queue);
-	}
 }
 
 void wfx_tx_queues_deinit(struct wfx_dev *wdev)
