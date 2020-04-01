@@ -762,6 +762,7 @@
 	phy: phy@0 {
 		compatible = "ethernet-phy-ieee802.3-c22";
 		reg = <0x0>;
+		clocks = <&cru CLK_GMAC_ETHERNET_OUT>;
 	};
 };
 
