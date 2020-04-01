@@ -264,6 +264,26 @@ unsigned int wfx_pending_get_pkt_us_delay(struct wfx_dev *wdev,
 	return ktime_us_delta(now, tx_priv->xmit_timestamp);
 }
 
+bool wfx_tx_queues_has_cab(struct wfx_vif *wvif)
+{
+	struct wfx_dev *wdev = wvif->wdev;
+	struct ieee80211_tx_info *tx_info;
+	struct hif_msg *hif;
+	struct sk_buff *skb;
+	int i;
+
+	for (i = 0; i < IEEE80211_NUM_ACS; ++i) {
+		skb_queue_walk(&wdev->tx_queue[i].queue, skb) {
+			tx_info = IEEE80211_SKB_CB(skb);
+			hif = (struct hif_msg *)skb->data;
+			if ((tx_info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM) &&
+			    (hif->interface == wvif->id))
+				return true;
+		}
+	}
+	return false;
+}
+
 bool wfx_tx_queues_empty(struct wfx_dev *wdev)
 {
 	int i;
@@ -342,26 +362,6 @@ static struct wfx_queue *wfx_tx_queue_mask_get(struct wfx_vif *wvif)
 	if (winner < 0)
 		return NULL;
 	return &wvif->wdev->tx_queue[winner];
-}
-
-struct hif_msg *wfx_tx_queues_get_after_dtim(struct wfx_vif *wvif)
-{
-	struct wfx_dev *wdev = wvif->wdev;
-	struct ieee80211_tx_info *tx_info;
-	struct hif_msg *hif;
-	struct sk_buff *skb;
-	int i;
-
-	for (i = 0; i < IEEE80211_NUM_ACS; ++i) {
-		skb_queue_walk(&wdev->tx_queue[i].queue, skb) {
-			tx_info = IEEE80211_SKB_CB(skb);
-			hif = (struct hif_msg *)skb->data;
-			if ((tx_info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM) &&
-			    (hif->interface == wvif->id))
-				return (struct hif_msg *)skb->data;
-		}
-	}
-	return NULL;
 }
 
 struct hif_msg *wfx_tx_queues_get(struct wfx_dev *wdev)

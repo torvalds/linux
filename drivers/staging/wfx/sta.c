@@ -857,7 +857,7 @@ static int wfx_update_tim(struct wfx_vif *wvif)
 		tim_ptr[2] = 0;
 
 		/* Set/reset aid0 bit */
-		if (wfx_tx_queues_get_after_dtim(wvif))
+		if (wfx_tx_queues_has_cab(wvif))
 			tim_ptr[4] |= 1;
 		else
 			tim_ptr[4] &= ~1;
@@ -888,7 +888,7 @@ int wfx_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta, bool set)
 
 void wfx_suspend_resume_mc(struct wfx_vif *wvif, enum sta_notify_cmd notify_cmd)
 {
-	WARN(!wfx_tx_queues_get_after_dtim(wvif), "incorrect sequence");
+	WARN(!wfx_tx_queues_has_cab(wvif), "incorrect sequence");
 	WARN(wvif->after_dtim_tx_allowed, "incorrect sequence");
 	wvif->after_dtim_tx_allowed = true;
 	wfx_bh_request_tx(wvif->wdev);
