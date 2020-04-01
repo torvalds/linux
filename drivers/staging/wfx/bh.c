@@ -108,8 +108,6 @@ static int rx_helper(struct wfx_dev *wdev, size_t read_len, int *is_cnf)
 			release_count = 1;
 		WARN(wdev->hif.tx_buffers_used < release_count, "corrupted buffer counter");
 		wdev->hif.tx_buffers_used -= release_count;
-		if (!wdev->hif.tx_buffers_used)
-			wake_up(&wdev->hif.tx_buffers_empty);
 	}
 	_trace_hif_recv(hif, wdev->hif.tx_buffers_used);
 
@@ -123,6 +121,8 @@ static int rx_helper(struct wfx_dev *wdev, size_t read_len, int *is_cnf)
 	skb_put(skb, hif->len);
 	// wfx_handle_rx takes care on SKB livetime
 	wfx_handle_rx(wdev, skb);
+	if (!wdev->hif.tx_buffers_used)
+		wake_up(&wdev->hif.tx_buffers_empty);
 
 	return piggyback;
 
