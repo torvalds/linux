@@ -36,6 +36,7 @@ void wfx_tx_flush(struct wfx_dev *wdev)
 	if (wdev->chip_frozen)
 		return;
 
+	wfx_tx_lock(wdev);
 	mutex_lock(&wdev->hif_cmd.lock);
 	ret = wait_event_timeout(wdev->hif.tx_buffers_empty,
 				 !wdev->hif.tx_buffers_used,
@@ -54,6 +55,7 @@ void wfx_tx_flush(struct wfx_dev *wdev)
 		wdev->chip_frozen = 1;
 	}
 	mutex_unlock(&wdev->hif_cmd.lock);
+	wfx_tx_unlock(wdev);
 }
 
 void wfx_tx_lock_flush(struct wfx_dev *wdev)
