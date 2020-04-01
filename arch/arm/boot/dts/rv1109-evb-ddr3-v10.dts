@@ -12,6 +12,6 @@
 	compatible = "rockchip,rv1109-evb-ddr3-v10", "rockchip,rv1109";
 
 	chosen {
-		bootargs = "clk_ignore_unused earlycon=uart8250,mmio32,0xff570000 console=ttyFIQ0 root=PARTUUID=614e0000-0000 rootfstype=ext4 rootwait snd_aloop.index=7";
+		bootargs = "earlycon=uart8250,mmio32,0xff570000 console=ttyFIQ0 root=PARTUUID=614e0000-0000 rootfstype=ext4 rootwait snd_aloop.index=7";
 	};
 };

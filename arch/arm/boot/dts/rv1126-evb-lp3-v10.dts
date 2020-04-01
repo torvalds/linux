@@ -13,6 +13,6 @@
 	compatible = "rockchip,rv1126-evb-lp3-v10", "rockchip,rv1126";
 
 	chosen {
-		bootargs = "clk_ignore_unused earlycon=uart8250,mmio32,0xff570000 console=ttyFIQ0 root=PARTUUID=614e0000-0000 rootfstype=ext4 rootwait snd_aloop.index=7";
+		bootargs = "earlycon=uart8250,mmio32,0xff570000 console=ttyFIQ0 root=PARTUUID=614e0000-0000 rootfstype=ext4 rootwait snd_aloop.index=7";
 	};
 };
