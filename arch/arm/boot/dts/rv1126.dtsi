@@ -1699,8 +1699,9 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
-		clocks = <&cru CLK_USBOTG_REF>, <&cru ACLK_USBOTG>;
-		clock-names = "ref_clk", "bus_clk";
+		clocks = <&cru CLK_USBOTG_REF>, <&cru ACLK_USBOTG>,
+			 <&cru HCLK_PDUSB>;
+		clock-names = "ref_clk", "bus_clk", "hclk";
 		status = "disabled";
 
 		usbdrd_dwc3: dwc3@ffd00000 {
