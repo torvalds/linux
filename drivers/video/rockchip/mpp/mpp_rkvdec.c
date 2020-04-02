@@ -78,7 +78,10 @@
 
 #define RKVDEC_REG_SYS_CTRL		0x008
 #define RKVDEC_REG_SYS_CTRL_INDEX	(2)
+#define RKVDEC_RGE_WIDTH_INDEX		(3)
 #define RKVDEC_GET_FORMAT(x)		(((x) >> 20) & 0x3)
+#define REVDEC_GET_PROD_NUM(x)		(((x) >> 16) & 0xffff)
+#define RKVDEC_GET_WIDTH(x)		(((x) & 0x3ff) << 4)
 #define RKVDEC_FMT_H265D		(0)
 #define RKVDEC_FMT_H264D		(1)
 #define RKVDEC_FMT_VP9D			(2)
@@ -123,6 +126,12 @@ enum SET_CLK_EVENT {
 	EVENT_ADJUST,
 	EVENT_THERMAL,
 	EVENT_BUTT,
+};
+
+enum RKVDEC_HW_ID {
+	HEVC_DEC_ID_6867 = 0x6867,
+	RKVDEC_ID_6876   = 0x6876,
+	RKVDEC_ID_3410   = 0x3410,
 };
 
 struct rkvdec_task {
@@ -1440,6 +1449,45 @@ static int rkvdec_3328_get_freq(struct mpp_dev *mpp,
 	return 0;
 }
 
+static int rkvdec_probe_width(struct mpp_dev *mpp,
+			      struct mpp_task *mpp_task)
+{
+	u32 width = 0;
+	struct rkvdec_task *task = to_rkvdec_task(mpp_task);
+	u32 prod_num = REVDEC_GET_PROD_NUM(mpp->var->hw_info->hw_id);
+
+	switch (prod_num) {
+	case HEVC_DEC_ID_6867:
+	case RKVDEC_ID_6876:
+	case RKVDEC_ID_3410:
+		width = RKVDEC_GET_WIDTH(task->reg[RKVDEC_RGE_WIDTH_INDEX]);
+		break;
+	default:
+		break;
+	}
+
+	return width;
+}
+
+static int rkvdec_3368_get_freq(struct mpp_dev *mpp,
+				struct mpp_task *mpp_task)
+{
+	struct rkvdec_task *task = to_rkvdec_task(mpp_task);
+	u32 width = rkvdec_probe_width(mpp, mpp_task);
+
+	if (width > 2560) {
+		task->aclk_freq = 600;
+		task->clk_cabac_freq = 400;
+		task->clk_core_freq = 400;
+	} else {
+		task->aclk_freq = 300;
+		task->clk_cabac_freq = 200;
+		task->clk_core_freq = 200;
+	}
+
+	return 0;
+}
+
 static int rkvdec_set_freq(struct mpp_dev *mpp,
 			   struct mpp_task *mpp_task)
 {
@@ -1575,6 +1623,16 @@ static struct mpp_hw_ops rkvdec_3399_hw_ops = {
 	.reset = rkvdec_sip_reset,
 };
 
+static struct mpp_hw_ops rkvdec_3368_hw_ops = {
+	.init = rkvdec_init,
+	.power_on = rkvdec_power_on,
+	.power_off = rkvdec_power_off,
+	.get_freq = rkvdec_3368_get_freq,
+	.set_freq = rkvdec_set_freq,
+	.reduce_freq = rkvdec_reduce_freq,
+	.reset = rkvdec_sip_reset,
+};
+
 static struct mpp_dev_ops rkvdec_v1_dev_ops = {
 	.alloc_task = rkvdec_alloc_task,
 	.prepare = rkvdec_prepare,
@@ -1613,6 +1671,14 @@ static const struct mpp_dev_var rk_hevcdec_data = {
 	.hw_info = &rk_hevcdec_hw_info,
 	.trans_info = rk_hevcdec_trans,
 	.hw_ops = &rkvdec_v1_hw_ops,
+	.dev_ops = &rkvdec_v1_dev_ops,
+};
+
+static const struct mpp_dev_var rk_hevcdec_3368_data = {
+	.device_type = MPP_DEVICE_HEVC_DEC,
+	.hw_info = &rk_hevcdec_hw_info,
+	.trans_info = rk_hevcdec_trans,
+	.hw_ops = &rkvdec_3368_hw_ops,
 	.dev_ops = &rkvdec_v1_dev_ops,
 };
 
@@ -1656,6 +1722,10 @@ static const struct of_device_id mpp_rkvdec_dt_match[] = {
 	{
 		.compatible = "rockchip,hevc-decoder-px30",
 		.data = &rk_hevcdec_px30_data,
+	},
+	{
+		.compatible = "rockchip,hevc-decoder-rk3368",
+		.data = &rk_hevcdec_3368_data,
 	},
 	{
 		.compatible = "rockchip,rkv-decoder-v1",

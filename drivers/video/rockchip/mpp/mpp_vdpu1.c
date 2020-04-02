@@ -60,7 +60,10 @@
 
 #define VDPU1_REG_SYS_CTRL		0x00c
 #define VDPU1_REG_SYS_CTRL_INDEX	(3)
+#define VDPU1_RGE_WIDTH_INDEX		(4)
 #define	VDPU1_GET_FORMAT(x)		(((x) >> 28) & 0xf)
+#define VDPU1_GET_PROD_NUM(x)		(((x) >> 16) & 0xffff)
+#define VDPU1_GET_WIDTH(x)		(((x) & 0xff800000) >> 19)
 #define	VDPU1_FMT_H264D			0
 #define	VDPU1_FMT_MPEG4D		1
 #define	VDPU1_FMT_H263D			2
@@ -86,6 +89,11 @@
 		container_of(task, struct vdpu_task, mpp_task)
 #define to_vdpu_dev(dev)		\
 		container_of(dev, struct vdpu_dev, mpp)
+
+enum VPUD1_HW_ID {
+	VDPU1_ID_0102 = 0x0102,
+	VDPU1_ID_9190 = 0x6731,
+};
 
 struct vdpu_task {
 	struct mpp_task mpp_task;
@@ -590,6 +598,39 @@ static int vdpu_get_freq(struct mpp_dev *mpp,
 	return 0;
 }
 
+static int vdpu_probe_width(struct mpp_dev *mpp,
+			    struct mpp_task *mpp_task)
+{
+	u32 width = 0;
+	struct vdpu_task *task = to_vdpu_task(mpp_task);
+	u32 prod_num = VDPU1_GET_PROD_NUM(mpp->var->hw_info->hw_id);
+
+	switch (prod_num) {
+	case VDPU1_ID_0102:
+	case VDPU1_ID_9190:
+		width = VDPU1_GET_WIDTH(task->reg[VDPU1_RGE_WIDTH_INDEX]);
+		break;
+	default:
+		break;
+	}
+
+	return width;
+}
+
+static int vdpu_3368_get_freq(struct mpp_dev *mpp,
+			      struct mpp_task *mpp_task)
+{
+	struct vdpu_task *task = to_vdpu_task(mpp_task);
+	u32 width = vdpu_probe_width(mpp, mpp_task);
+
+	if (width > 2560)
+		task->aclk_freq = 600;
+	else
+		task->aclk_freq = 300;
+
+	return 0;
+}
+
 static int vdpu_set_freq(struct mpp_dev *mpp,
 			 struct mpp_task *mpp_task)
 {
@@ -698,6 +739,16 @@ static struct mpp_hw_ops vdpu_v1_hw_ops = {
 	.reset = vdpu_reset,
 };
 
+static struct mpp_hw_ops vdpu_3368_hw_ops = {
+	.init = vdpu_init,
+	.power_on = vdpu_power_on,
+	.power_off = vdpu_power_off,
+	.get_freq = vdpu_3368_get_freq,
+	.set_freq = vdpu_set_freq,
+	.reduce_freq = vdpu_reduce_freq,
+	.reset = vdpu_reset,
+};
+
 static struct mpp_dev_ops vdpu_v1_dev_ops = {
 	.alloc_task = vdpu_alloc_task,
 	.prepare = vdpu_prepare,
@@ -717,6 +768,14 @@ static const struct mpp_dev_var vdpu_v1_data = {
 	.dev_ops = &vdpu_v1_dev_ops,
 };
 
+static const struct mpp_dev_var vdpu_3368_data = {
+	.device_type = MPP_DEVICE_VDPU1,
+	.hw_info = &vdpu_v1_hw_info,
+	.trans_info = vdpu_v1_trans,
+	.hw_ops = &vdpu_3368_hw_ops,
+	.dev_ops = &vdpu_v1_dev_ops,
+};
+
 static const struct mpp_dev_var avsd_plus_data = {
 	.device_type = MPP_DEVICE_AVSPLUS_DEC,
 	.hw_info = &vdpu_v1_hw_info,
@@ -729,6 +788,10 @@ static const struct of_device_id mpp_vdpu1_dt_match[] = {
 	{
 		.compatible = "rockchip,vpu-decoder-v1",
 		.data = &vdpu_v1_data,
+	},
+	{
+		.compatible = "rockchip,vpu-decoder-rk3368",
+		.data = &vdpu_3368_data,
 	},
 	{
 		.compatible = "rockchip,avs-plus-decoder",
