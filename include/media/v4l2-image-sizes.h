@@ -10,6 +10,12 @@
 #define CIF_WIDTH	352
 #define CIF_HEIGHT	288
 
+#define HD_720_WIDTH	1280
+#define HD_720_HEIGHT	720
+
+#define HD_1080_WIDTH	1920
+#define HD_1080_HEIGHT	1080
+
 #define QCIF_WIDTH	176
 #define QCIF_HEIGHT	144
 
