@@ -1268,17 +1268,13 @@ static int tb_plug_events_active(struct tb_switch *sw, bool active)
 	u32 data;
 	int res;
 
-	if (tb_switch_is_icm(sw))
+	if (tb_switch_is_icm(sw) || tb_switch_is_usb4(sw))
 		return 0;
 
 	sw->config.plug_events_delay = 0xff;
 	res = tb_sw_write(sw, ((u32 *) &sw->config) + 4, TB_CFG_SWITCH, 4, 1);
 	if (res)
 		return res;
-
-	/* Plug events are always enabled in USB4 */
-	if (tb_switch_is_usb4(sw))
-		return 0;
 
 	res = tb_sw_read(sw, &data, TB_CFG_SWITCH, sw->cap_plug_events + 1, 1);
 	if (res)
