@@ -3287,6 +3287,12 @@ __ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 		goto out;
 	}
 
+	if (params->chandef.chan->freq_offset) {
+		/* this may work, but is untested */
+		err = -EOPNOTSUPP;
+		goto out;
+	}
+
 	chanctx = container_of(conf, struct ieee80211_chanctx, conf);
 
 	ch_switch.timestamp = 0;

@@ -162,6 +162,7 @@ ieee80211_determine_chantype(struct ieee80211_sub_if_data *sdata,
 	chandef->chan = channel;
 	chandef->width = NL80211_CHAN_WIDTH_20_NOHT;
 	chandef->center_freq1 = channel->center_freq;
+	chandef->freq1_offset = channel->freq_offset;
 
 	if (!ht_oper || !sta_ht_cap.ht_supported) {
 		ret = IEEE80211_STA_DISABLE_HT |
@@ -396,9 +397,12 @@ static int ieee80211_config_bw(struct ieee80211_sub_if_data *sdata,
 		return 0;
 
 	sdata_info(sdata,
-		   "AP %pM changed bandwidth, new config is %d MHz, width %d (%d/%d MHz)\n",
-		   ifmgd->bssid, chandef.chan->center_freq, chandef.width,
-		   chandef.center_freq1, chandef.center_freq2);
+		   "AP %pM changed bandwidth, new config is %d.%03d MHz, "
+		   "width %d (%d.%03d/%d MHz)\n",
+		   ifmgd->bssid, chandef.chan->center_freq,
+		   chandef.chan->freq_offset, chandef.width,
+		   chandef.center_freq1, chandef.freq1_offset,
+		   chandef.center_freq2);
 
 	if (flags != (ifmgd->flags & (IEEE80211_STA_DISABLE_HT |
 				      IEEE80211_STA_DISABLE_VHT |
@@ -1364,10 +1368,14 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 	if (!cfg80211_chandef_usable(local->hw.wiphy, &csa_ie.chandef,
 				     IEEE80211_CHAN_DISABLED)) {
 		sdata_info(sdata,
-			   "AP %pM switches to unsupported channel (%d MHz, width:%d, CF1/2: %d/%d MHz), disconnecting\n",
+			   "AP %pM switches to unsupported channel "
+			   "(%d.%03d MHz, width:%d, CF1/2: %d.%03d/%d MHz), "
+			   "disconnecting\n",
 			   ifmgd->associated->bssid,
 			   csa_ie.chandef.chan->center_freq,
+			   csa_ie.chandef.chan->freq_offset,
 			   csa_ie.chandef.width, csa_ie.chandef.center_freq1,
+			   csa_ie.chandef.freq1_offset,
 			   csa_ie.chandef.center_freq2);
 		ieee80211_queue_work(&local->hw,
 				     &ifmgd->csa_connection_drop_work);

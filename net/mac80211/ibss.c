@@ -1758,6 +1758,11 @@ int ieee80211_ibss_join(struct ieee80211_sub_if_data *sdata,
 	int i;
 	int ret;
 
+	if (params->chandef.chan->freq_offset) {
+		/* this may work, but is untested */
+		return -EOPNOTSUPP;
+	}
+
 	ret = cfg80211_chandef_dfs_required(local->hw.wiphy,
 					    &params->chandef,
 					    sdata->wdev.iftype);

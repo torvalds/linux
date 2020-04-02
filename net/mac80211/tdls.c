@@ -1566,6 +1566,10 @@ ieee80211_tdls_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 	u32 ch_sw_tm_ie;
 	int ret;
 
+	if (chandef->chan->freq_offset)
+		/* this may work, but is untested */
+		return -EOPNOTSUPP;
+
 	mutex_lock(&local->sta_mtx);
 	sta = sta_info_get(sdata, addr);
 	if (!sta) {
