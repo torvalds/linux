@@ -1060,7 +1060,6 @@ bail:
 			brelse(bhs[i]);
 			bhs[i] = NULL;
 		}
-		mlog_errno(status);
 	}
 	return status;
 }
