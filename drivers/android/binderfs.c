@@ -747,7 +747,7 @@ static const struct fs_context_operations binderfs_fs_context_ops = {
 
 static int binderfs_init_fs_context(struct fs_context *fc)
 {
-	struct binderfs_mount_opts *ctx = fc->fs_private;
+	struct binderfs_mount_opts *ctx;
 
 	ctx = kzalloc(sizeof(struct binderfs_mount_opts), GFP_KERNEL);
 	if (!ctx)
