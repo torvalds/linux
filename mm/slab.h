@@ -366,7 +366,7 @@ static __always_inline int memcg_charge_slab(struct page *page,
 		return 0;
 	}
 
-	ret = memcg_kmem_charge_memcg(memcg, gfp, nr_pages);
+	ret = memcg_kmem_charge(memcg, gfp, nr_pages);
 	if (ret)
 		goto out;
 
@@ -397,7 +397,7 @@ static __always_inline void memcg_uncharge_slab(struct page *page, int order,
 	if (likely(!mem_cgroup_is_root(memcg))) {
 		lruvec = mem_cgroup_lruvec(memcg, page_pgdat(page));
 		mod_lruvec_state(lruvec, cache_vmstat_idx(s), -nr_pages);
-		memcg_kmem_uncharge_memcg(memcg, nr_pages);
+		memcg_kmem_uncharge(memcg, nr_pages);
 	} else {
 		mod_node_page_state(page_pgdat(page), cache_vmstat_idx(s),
 				    -nr_pages);
