@@ -420,7 +420,7 @@ tegra_actmon_cpufreq_contribution(struct tegra_devfreq *tegra,
 
 	static_cpu_emc_freq = actmon_cpu_to_emc_rate(tegra, cpu_freq);
 
-	if (dev_freq >= static_cpu_emc_freq)
+	if (dev_freq + actmon_dev->boost_freq >= static_cpu_emc_freq)
 		return 0;
 
 	return static_cpu_emc_freq;
