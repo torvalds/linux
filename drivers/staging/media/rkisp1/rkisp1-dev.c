@@ -454,16 +454,17 @@ static void rkisp1_debug_init(struct rkisp1_device *rkisp1)
 
 static int rkisp1_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
 	const struct rkisp1_match_data *clk_data;
-	const struct of_device_id *match;
 	struct device *dev = &pdev->dev;
 	struct rkisp1_device *rkisp1;
 	struct v4l2_device *v4l2_dev;
 	unsigned int i;
 	int ret, irq;
 
-	match = of_match_node(rkisp1_of_match, node);
+	clk_data = of_device_get_match_data(&pdev->dev);
+	if (!clk_data)
+		return -ENODEV;
+
 	rkisp1 = devm_kzalloc(dev, sizeof(*rkisp1), GFP_KERNEL);
 	if (!rkisp1)
 		return -ENOMEM;
@@ -487,7 +488,6 @@ static int rkisp1_probe(struct platform_device *pdev)
 	}
 
 	rkisp1->irq = irq;
-	clk_data = match->data;
 
 	for (i = 0; i < clk_data->size; i++)
 		rkisp1->clks[i].id = clk_data->clks[i];
