@@ -112,24 +112,29 @@
 	} while (0)
 
 #define CHAN_ENTRY __field(enum nl80211_band, band) \
-		   __field(u32, center_freq)
+		   __field(u32, center_freq)		\
+		   __field(u16, freq_offset)
 #define CHAN_ASSIGN(chan)					  \
 	do {							  \
 		if (chan) {					  \
 			__entry->band = chan->band;		  \
 			__entry->center_freq = chan->center_freq; \
+			__entry->freq_offset = chan->freq_offset; \
 		} else {					  \
 			__entry->band = 0;			  \
 			__entry->center_freq = 0;		  \
+			__entry->freq_offset = 0;		  \
 		}						  \
 	} while (0)
-#define CHAN_PR_FMT "band: %d, freq: %u"
-#define CHAN_PR_ARG __entry->band, __entry->center_freq
+#define CHAN_PR_FMT "band: %d, freq: %u.%03u"
+#define CHAN_PR_ARG __entry->band, __entry->center_freq, __entry->freq_offset
 
 #define CHAN_DEF_ENTRY __field(enum nl80211_band, band)		\
 		       __field(u32, control_freq)			\
+		       __field(u32, freq_offset)			\
 		       __field(u32, width)				\
 		       __field(u32, center_freq1)			\
+		       __field(u32, freq1_offset)			\
 		       __field(u32, center_freq2)
 #define CHAN_DEF_ASSIGN(chandef)					\
 	do {								\
@@ -137,21 +142,27 @@
 			__entry->band = (chandef)->chan->band;		\
 			__entry->control_freq =				\
 				(chandef)->chan->center_freq;		\
+			__entry->freq_offset =				\
+				(chandef)->chan->freq_offset;		\
 			__entry->width = (chandef)->width;		\
 			__entry->center_freq1 = (chandef)->center_freq1;\
+			__entry->freq1_offset = (chandef)->freq1_offset;\
 			__entry->center_freq2 = (chandef)->center_freq2;\
 		} else {						\
 			__entry->band = 0;				\
 			__entry->control_freq = 0;			\
+			__entry->freq_offset = 0;			\
 			__entry->width = 0;				\
 			__entry->center_freq1 = 0;			\
+			__entry->freq1_offset = 0;			\
 			__entry->center_freq2 = 0;			\
 		}							\
 	} while (0)
 #define CHAN_DEF_PR_FMT							\
-	"band: %d, control freq: %u, width: %d, cf1: %u, cf2: %u"
+	"band: %d, control freq: %u.%03u, width: %d, cf1: %u.%03u, cf2: %u"
 #define CHAN_DEF_PR_ARG __entry->band, __entry->control_freq,		\
-			__entry->width, __entry->center_freq1,		\
+			__entry->freq_offset, __entry->width,		\
+			__entry->center_freq1, __entry->freq1_offset,	\
 			__entry->center_freq2
 
 #define SINFO_ENTRY __field(int, generation)	    \
