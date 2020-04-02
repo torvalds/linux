@@ -1104,7 +1104,7 @@
 		rockchip,grf = <&grf>;
 		interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
 		assigned-clocks = <&cru CLK_CPU_TSADC>;
-		assigned-clock-rates = <2000000>;
+		assigned-clock-rates = <4000000>;
 		clocks = <&cru CLK_CPU_TSADC>, <&cru PCLK_CPU_TSADC>,
 			 <&cru CLK_CPU_TSADCPHY>;
 		clock-names = "tsadc", "apb_pclk", "phy_clk";
@@ -1122,7 +1122,7 @@
 		rockchip,grf = <&grf>;
 		interrupts = <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>;
 		assigned-clocks = <&cru CLK_NPU_TSADC>;
-		assigned-clock-rates = <2000000>;
+		assigned-clock-rates = <4000000>;
 		clocks = <&cru CLK_NPU_TSADC>, <&cru PCLK_NPU_TSADC>,
 			 <&cru CLK_NPU_TSADCPHY>;
 		clock-names = "tsadc", "apb_pclk", "phy_clk";
