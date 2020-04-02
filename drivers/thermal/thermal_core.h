@@ -46,6 +46,19 @@ struct thermal_attr {
 	char name[THERMAL_NAME_LENGTH];
 };
 
+static inline bool cdev_is_power_actor(struct thermal_cooling_device *cdev)
+{
+	return cdev->ops->get_requested_power && cdev->ops->state2power &&
+		cdev->ops->power2state;
+}
+
+int power_actor_get_max_power(struct thermal_cooling_device *cdev,
+			      struct thermal_zone_device *tz, u32 *max_power);
+int power_actor_get_min_power(struct thermal_cooling_device *cdev,
+			      struct thermal_zone_device *tz, u32 *min_power);
+int power_actor_set_power(struct thermal_cooling_device *cdev,
+			  struct thermal_instance *ti, u32 power);
+
 /*
  * This structure is used to describe the behavior of
  * a certain cooling device on a certain trip point
