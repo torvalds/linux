@@ -225,6 +225,13 @@ ret_from_exception:
 	cmpnei	r12, 0
 	bt	exit_work
 1:
+#ifdef CONFIG_TRACE_IRQFLAGS
+	ld	r10, (sp, LSAVE_PSR)
+	btsti	r10, 6
+	bf	2f
+	jbsr	trace_hardirqs_on
+2:
+#endif
 	RESTORE_ALL
 
 exit_work:
@@ -279,6 +286,10 @@ ENTRY(csky_irq)
 	SAVE_ALL 0
 	zero_fp
 	psrset	ee
+
+#ifdef CONFIG_TRACE_IRQFLAGS
+	jbsr	trace_hardirqs_off
+#endif
 
 #ifdef CONFIG_PREEMPTION
 	mov	r9, sp			/* Get current stack  pointer */

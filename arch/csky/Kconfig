@@ -69,6 +69,9 @@ config CSKY
 	select PCI_SYSCALL if PCI
 	select PCI_MSI if PCI
 
+config LOCKDEP_SUPPORT
+	def_bool y
+
 config CPU_HAS_CACHEV2
 	bool
 
