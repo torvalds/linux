@@ -254,7 +254,8 @@ static int vcn_v3_0_hw_init(void *handle)
 
 done:
 	if (!r)
-		DRM_INFO("VCN decode and encode initialized successfully.\n");
+		DRM_INFO("VCN decode and encode initialized successfully(under %s).\n",
+			(adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG)?"DPG Mode":"SPG Mode");
 
 	return r;
 }
@@ -278,7 +279,9 @@ static int vcn_v3_0_hw_fini(void *handle)
 
 		ring = &adev->vcn.inst[i].ring_dec;
 
-		if (RREG32_SOC15(VCN, i, mmUVD_STATUS))
+		if ((adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG) ||
+			(adev->vcn.cur_state != AMD_PG_STATE_GATE &&
+			RREG32_SOC15(VCN, i, mmUVD_STATUS)))
 			vcn_v3_0_set_powergating_state(adev, AMD_PG_STATE_GATE);
 
 		ring->sched.ready = false;
