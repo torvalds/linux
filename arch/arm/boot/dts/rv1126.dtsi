@@ -430,6 +430,14 @@
 		interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
 	};
 
+	arm-debug@ff010000 {
+		compatible = "rockchip,debug";
+		reg = <0xff010000 0x1000>,
+		      <0xff012000 0x1000>,
+		      <0xff014000 0x1000>,
+		      <0xff016000 0x1000>;
+	};
+
 	pvtm@ff040000 {
 		compatible = "rockchip,rv1126-cpu-pvtm";
 		reg = <0xff040000 0x100>;
