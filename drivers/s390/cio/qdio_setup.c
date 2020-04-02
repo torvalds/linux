@@ -135,6 +135,18 @@ output:
 	}
 }
 
+static void __qdio_free_queues(struct qdio_q **queues, unsigned int count)
+{
+	struct qdio_q *q;
+	unsigned int i;
+
+	for (i = 0; i < count; i++) {
+		q = queues[i];
+		free_page((unsigned long) q->slib);
+		kmem_cache_free(qdio_q_cache, q);
+	}
+}
+
 static int __qdio_allocate_qs(struct qdio_q **irq_ptr_qs, int nr_queues)
 {
 	struct qdio_q *q;
@@ -142,12 +154,15 @@ static int __qdio_allocate_qs(struct qdio_q **irq_ptr_qs, int nr_queues)
 
 	for (i = 0; i < nr_queues; i++) {
 		q = kmem_cache_zalloc(qdio_q_cache, GFP_KERNEL);
-		if (!q)
+		if (!q) {
+			__qdio_free_queues(irq_ptr_qs, i);
 			return -ENOMEM;
+		}
 
 		q->slib = (struct slib *) __get_free_page(GFP_KERNEL);
 		if (!q->slib) {
 			kmem_cache_free(qdio_q_cache, q);
+			__qdio_free_queues(irq_ptr_qs, i);
 			return -ENOMEM;
 		}
 		irq_ptr_qs[i] = q;
@@ -162,7 +177,11 @@ int qdio_allocate_qs(struct qdio_irq *irq_ptr, int nr_input_qs, int nr_output_qs
 	rc = __qdio_allocate_qs(irq_ptr->input_qs, nr_input_qs);
 	if (rc)
 		return rc;
+
 	rc = __qdio_allocate_qs(irq_ptr->output_qs, nr_output_qs);
+	if (rc)
+		__qdio_free_queues(irq_ptr->input_qs, nr_input_qs);
+
 	return rc;
 }
 

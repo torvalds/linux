@@ -1271,7 +1271,6 @@ int qdio_allocate(struct ccw_device *cdev, unsigned int no_input_qs,
 	return 0;
 
 err_queues:
-	qdio_free_queues(irq_ptr);
 	free_page((unsigned long) irq_ptr->qdr);
 err_qdr:
 	free_page(irq_ptr->chsc_page);
