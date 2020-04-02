@@ -446,7 +446,7 @@ static void print_shadow_for_address(const void *addr)
 	}
 }
 
-static bool report_enabled(void)
+bool report_enabled(void)
 {
 	if (current->kasan_depth)
 		return false;
@@ -477,9 +477,6 @@ void __kasan_report(unsigned long addr, size_t size, bool is_write, unsigned lon
 	void *tagged_addr;
 	void *untagged_addr;
 	unsigned long flags;
-
-	if (likely(!report_enabled()))
-		return;
 
 	disable_trace_on_warning();
 

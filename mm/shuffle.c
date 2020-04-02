@@ -72,7 +72,7 @@ static struct page * __meminit shuffle_valid_page(unsigned long pfn, int order)
 		return NULL;
 
 	/* ...is the pfn in a present section or a hole? */
-	if (!pfn_present(pfn))
+	if (!pfn_in_present_section(pfn))
 		return NULL;
 
 	/* ...is the page free and currently on a free_area list? */
