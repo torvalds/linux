@@ -27,7 +27,6 @@
 #include "usbpipe.h"
 
 #define CB_AL2230_INIT_SEQ    15
-#define AL2230_PWR_IDX_LEN    64
 
 #define CB_AL7230_INIT_SEQ    16
 #define AL7230_PWR_IDX_LEN    64
@@ -518,74 +517,6 @@ static u8 vt3342_channel_table1[CB_MAX_CHANNEL][3] = {
 	{0x03, 0x00, 0x04}
 };
 
-/* Power Table */
-static const u32 al2230_power_table[AL2230_PWR_IDX_LEN] = {
-	0x04040900,
-	0x04041900,
-	0x04042900,
-	0x04043900,
-	0x04044900,
-	0x04045900,
-	0x04046900,
-	0x04047900,
-	0x04048900,
-	0x04049900,
-	0x0404a900,
-	0x0404b900,
-	0x0404c900,
-	0x0404d900,
-	0x0404e900,
-	0x0404f900,
-	0x04050900,
-	0x04051900,
-	0x04052900,
-	0x04053900,
-	0x04054900,
-	0x04055900,
-	0x04056900,
-	0x04057900,
-	0x04058900,
-	0x04059900,
-	0x0405a900,
-	0x0405b900,
-	0x0405c900,
-	0x0405d900,
-	0x0405e900,
-	0x0405f900,
-	0x04060900,
-	0x04061900,
-	0x04062900,
-	0x04063900,
-	0x04064900,
-	0x04065900,
-	0x04066900,
-	0x04067900,
-	0x04068900,
-	0x04069900,
-	0x0406a900,
-	0x0406b900,
-	0x0406c900,
-	0x0406d900,
-	0x0406e900,
-	0x0406f900,
-	0x04070900,
-	0x04071900,
-	0x04072900,
-	0x04073900,
-	0x04074900,
-	0x04075900,
-	0x04076900,
-	0x04077900,
-	0x04078900,
-	0x04079900,
-	0x0407a900,
-	0x0407b900,
-	0x0407c900,
-	0x0407d900,
-	0x0407e900,
-	0x0407f900
-};
-
 /*
  * Description: Write to IF/RF, by embedded programming
  */
@@ -685,10 +616,9 @@ int vnt_rf_set_txpower(struct vnt_private *priv, u8 power, u32 rate)
 
 	switch (priv->rf_type) {
 	case RF_AL2230:
-		if (power >= AL2230_PWR_IDX_LEN)
-			return false;
+		power_setting = 0x0404090 | (power << 12);
 
-		ret &= vnt_rf_write_embedded(priv, al2230_power_table[power]);
+		ret &= vnt_rf_write_embedded(priv, power_setting);
 
 		if (rate <= RATE_11M)
 			ret &= vnt_rf_write_embedded(priv, 0x0001b400);
@@ -696,10 +626,9 @@ int vnt_rf_set_txpower(struct vnt_private *priv, u8 power, u32 rate)
 			ret &= vnt_rf_write_embedded(priv, 0x0005a400);
 		break;
 	case RF_AL2230S:
-		if (power >= AL2230_PWR_IDX_LEN)
-			return false;
+		power_setting = 0x0404090 | (power << 12);
 
-		ret &= vnt_rf_write_embedded(priv, al2230_power_table[power]);
+		ret &= vnt_rf_write_embedded(priv, power_setting);
 
 		if (rate <= RATE_11M) {
 			ret &= vnt_rf_write_embedded(priv, 0x040c1400);
