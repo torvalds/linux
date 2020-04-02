@@ -87,12 +87,6 @@ static inline u32 bnxt_qplib_cmdqe_page_size(u32 depth)
 	return (bnxt_qplib_cmdqe_npages(depth) * PAGE_SIZE);
 }
 
-static inline u32 bnxt_qplib_cmdqe_cnt_per_pg(u32 depth)
-{
-	return (bnxt_qplib_cmdqe_page_size(depth) /
-		 BNXT_QPLIB_CMDQE_UNITS);
-}
-
 /* Set the cmd_size to a factor of CMDQE unit */
 static inline void bnxt_qplib_set_cmd_slots(struct cmdq_base *req)
 {
@@ -100,29 +94,11 @@ static inline void bnxt_qplib_set_cmd_slots(struct cmdq_base *req)
 			 BNXT_QPLIB_CMDQE_UNITS;
 }
 
-#define MAX_CMDQ_IDX(depth)		((depth) - 1)
-
-static inline u32 bnxt_qplib_max_cmdq_idx_per_pg(u32 depth)
-{
-	return (bnxt_qplib_cmdqe_cnt_per_pg(depth) - 1);
-}
-
 #define RCFW_MAX_COOKIE_VALUE		0x7FFF
 #define RCFW_CMD_IS_BLOCKING		0x8000
 #define RCFW_BLOCKED_CMD_WAIT_COUNT	0x4E20
 
 #define HWRM_VERSION_RCFW_CMDQ_DEPTH_CHECK 0x1000900020011ULL
-
-static inline u32 get_cmdq_pg(u32 val, u32 depth)
-{
-	return (val & ~(bnxt_qplib_max_cmdq_idx_per_pg(depth))) /
-		(bnxt_qplib_cmdqe_cnt_per_pg(depth));
-}
-
-static inline u32 get_cmdq_idx(u32 val, u32 depth)
-{
-	return val & (bnxt_qplib_max_cmdq_idx_per_pg(depth));
-}
 
 /* Crsq buf is 1024-Byte */
 struct bnxt_qplib_crsbe {
@@ -133,23 +109,6 @@ struct bnxt_qplib_crsbe {
 /* Allocate 1 per QP for async error notification for now */
 #define BNXT_QPLIB_CREQE_MAX_CNT	(64 * 1024)
 #define BNXT_QPLIB_CREQE_UNITS		16	/* 16-Bytes per prod unit */
-#define BNXT_QPLIB_CREQE_CNT_PER_PG	(PAGE_SIZE / BNXT_QPLIB_CREQE_UNITS)
-
-#define MAX_CREQ_IDX			(BNXT_QPLIB_CREQE_MAX_CNT - 1)
-#define MAX_CREQ_IDX_PER_PG		(BNXT_QPLIB_CREQE_CNT_PER_PG - 1)
-
-static inline u32 get_creq_pg(u32 val)
-{
-	return (val & ~MAX_CREQ_IDX_PER_PG) / BNXT_QPLIB_CREQE_CNT_PER_PG;
-}
-
-static inline u32 get_creq_idx(u32 val)
-{
-	return val & MAX_CREQ_IDX_PER_PG;
-}
-
-#define BNXT_QPLIB_CREQE_PER_PG	(PAGE_SIZE / sizeof(struct creq_base))
-
 #define CREQ_CMP_VALID(hdr, raw_cons, cp_bit)			\
 	(!!((hdr)->v & CREQ_BASE_V) ==				\
 	   !((raw_cons) & (cp_bit)))

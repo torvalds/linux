@@ -135,6 +135,7 @@ struct bnxt_qplib_hwq {
 	u32				max_elements;
 	u32				depth;
 	u16				element_size;	/* Size of each entry */
+	u16				qe_ppg;	/* queue entry per page */
 
 	u32				prod;		/* raw */
 	u32				cons;		/* raw */
@@ -302,6 +303,18 @@ static inline u8 bnxt_qplib_base_pg_size(struct bnxt_qplib_hwq *hwq)
 	}
 
 	return pg_size;
+}
+
+static inline void *bnxt_qplib_get_qe(struct bnxt_qplib_hwq *hwq,
+				      u32 indx, u64 *pg)
+{
+	u32 pg_num, pg_idx;
+
+	pg_num = (indx / hwq->qe_ppg);
+	pg_idx = (indx % hwq->qe_ppg);
+	if (pg)
+		*pg = (u64)&hwq->pbl_ptr[pg_num];
+	return (void *)(hwq->pbl_ptr[pg_num] + hwq->element_size * pg_idx);
 }
 
 #define to_bnxt_qplib(ptr, type, member)	\

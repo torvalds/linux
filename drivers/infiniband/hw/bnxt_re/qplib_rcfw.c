@@ -89,10 +89,9 @@ static int __send_message(struct bnxt_qplib_rcfw *rcfw, struct cmdq_base *req,
 			  struct creq_base *resp, void *sb, u8 is_block)
 {
 	struct bnxt_qplib_cmdq_ctx *cmdq = &rcfw->cmdq;
-	struct bnxt_qplib_cmdqe *cmdqe, **hwq_ptr;
 	struct bnxt_qplib_hwq *hwq = &cmdq->hwq;
 	struct bnxt_qplib_crsqe *crsqe;
-	u32 cmdq_depth = rcfw->cmdq_depth;
+	struct bnxt_qplib_cmdqe *cmdqe;
 	u32 sw_prod, cmdq_prod;
 	struct pci_dev *pdev;
 	unsigned long flags;
@@ -163,13 +162,11 @@ static int __send_message(struct bnxt_qplib_rcfw *rcfw, struct cmdq_base *req,
 				  BNXT_QPLIB_CMDQE_UNITS;
 	}
 
-	hwq_ptr = (struct bnxt_qplib_cmdqe **)hwq->pbl_ptr;
 	preq = (u8 *)req;
 	do {
 		/* Locate the next cmdq slot */
 		sw_prod = HWQ_CMP(hwq->prod, hwq);
-		cmdqe = &hwq_ptr[get_cmdq_pg(sw_prod, cmdq_depth)]
-				[get_cmdq_idx(sw_prod, cmdq_depth)];
+		cmdqe = bnxt_qplib_get_qe(hwq, sw_prod, NULL);
 		if (!cmdqe) {
 			dev_err(&pdev->dev,
 				"RCFW request failed with no cmdqe!\n");
@@ -378,7 +375,7 @@ static void bnxt_qplib_service_creq(unsigned long data)
 	struct bnxt_qplib_creq_ctx *creq = &rcfw->creq;
 	u32 type, budget = CREQ_ENTRY_POLL_BUDGET;
 	struct bnxt_qplib_hwq *hwq = &creq->hwq;
-	struct creq_base *creqe, **hwq_ptr;
+	struct creq_base *creqe;
 	u32 sw_cons, raw_cons;
 	unsigned long flags;
 
@@ -387,8 +384,7 @@ static void bnxt_qplib_service_creq(unsigned long data)
 	raw_cons = hwq->cons;
 	while (budget > 0) {
 		sw_cons = HWQ_CMP(raw_cons, hwq);
-		hwq_ptr = (struct creq_base **)hwq->pbl_ptr;
-		creqe = &hwq_ptr[get_creq_pg(sw_cons)][get_creq_idx(sw_cons)];
+		creqe = bnxt_qplib_get_qe(hwq, sw_cons, NULL);
 		if (!CREQ_CMP_VALID(creqe, raw_cons, hwq->max_elements))
 			break;
 		/* The valid test of the entry must be done first before
@@ -434,7 +430,6 @@ static irqreturn_t bnxt_qplib_creq_irq(int irq, void *dev_instance)
 {
 	struct bnxt_qplib_rcfw *rcfw = dev_instance;
 	struct bnxt_qplib_creq_ctx *creq;
-	struct creq_base **creq_ptr;
 	struct bnxt_qplib_hwq *hwq;
 	u32 sw_cons;
 
@@ -442,8 +437,7 @@ static irqreturn_t bnxt_qplib_creq_irq(int irq, void *dev_instance)
 	hwq = &creq->hwq;
 	/* Prefetch the CREQ element */
 	sw_cons = HWQ_CMP(hwq->cons, hwq);
-	creq_ptr = (struct creq_base **)creq->hwq.pbl_ptr;
-	prefetch(&creq_ptr[get_creq_pg(sw_cons)][get_creq_idx(sw_cons)]);
+	prefetch(bnxt_qplib_get_qe(hwq, sw_cons, NULL));
 
 	tasklet_schedule(&creq->creq_tasklet);
 
