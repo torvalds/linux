@@ -2462,8 +2462,7 @@ bool dc_link_set_backlight_level(const struct dc_link *link,
 	int i;
 	DC_LOGGER_INIT(link->ctx->logger);
 
-	if ((dmcu == NULL && abm == NULL) ||
-		(abm->funcs->set_backlight_level_pwm == NULL))
+	if (abm == NULL || (abm->funcs->set_backlight_level_pwm == NULL))
 		return false;
 
 	if (dmcu)
