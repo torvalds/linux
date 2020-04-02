@@ -220,31 +220,6 @@ static inline struct hugepage_subpool *subpool_vma(struct vm_area_struct *vma)
 	return subpool_inode(file_inode(vma->vm_file));
 }
 
-/*
- * Region tracking -- allows tracking of reservations and instantiated pages
- *                    across the pages in a mapping.
- *
- * The region data structures are embedded into a resv_map and protected
- * by a resv_map's lock.  The set of regions within the resv_map represent
- * reservations for huge pages, or huge pages that have already been
- * instantiated within the map.  The from and to elements are huge page
- * indicies into the associated mapping.  from indicates the starting index
- * of the region.  to represents the first index past the end of  the region.
- *
- * For example, a file region structure with from == 0 and to == 4 represents
- * four huge pages in a mapping.  It is important to note that the to element
- * represents the first element past the end of the region. This is used in
- * arithmetic as 4(to) - 0(from) = 4 huge pages in the region.
- *
- * Interval notation of the form [from, to) will be used to indicate that
- * the endpoint from is inclusive and to is exclusive.
- */
-struct file_region {
-	struct list_head link;
-	long from;
-	long to;
-};
-
 /* Helper that removes a struct file_region from the resv_map cache and returns
  * it for use.
  */
@@ -266,6 +241,41 @@ get_file_region_entry_from_cache(struct resv_map *resv, long from, long to)
 	return nrg;
 }
 
+static void copy_hugetlb_cgroup_uncharge_info(struct file_region *nrg,
+					      struct file_region *rg)
+{
+#ifdef CONFIG_CGROUP_HUGETLB
+	nrg->reservation_counter = rg->reservation_counter;
+	nrg->css = rg->css;
+	if (rg->css)
+		css_get(rg->css);
+#endif
+}
+
+/* Helper that records hugetlb_cgroup uncharge info. */
+static void record_hugetlb_cgroup_uncharge_info(struct hugetlb_cgroup *h_cg,
+						struct hstate *h,
+						struct resv_map *resv,
+						struct file_region *nrg)
+{
+#ifdef CONFIG_CGROUP_HUGETLB
+	if (h_cg) {
+		nrg->reservation_counter =
+			&h_cg->rsvd_hugepage[hstate_index(h)];
+		nrg->css = &h_cg->css;
+		if (!resv->pages_per_hpage)
+			resv->pages_per_hpage = pages_per_huge_page(h);
+		/* pages_per_hpage should be the same for all entries in
+		 * a resv_map.
+		 */
+		VM_BUG_ON(resv->pages_per_hpage != pages_per_huge_page(h));
+	} else {
+		nrg->reservation_counter = NULL;
+		nrg->css = NULL;
+	}
+#endif
+}
+
 /* Must be called with resv->lock held. Calling this with count_only == true
  * will count the number of pages to be added but will not modify the linked
  * list. If regions_needed != NULL and count_only == true, then regions_needed
@@ -273,7 +283,9 @@ get_file_region_entry_from_cache(struct resv_map *resv, long from, long to)
  * add the regions for this range.
  */
 static long add_reservation_in_range(struct resv_map *resv, long f, long t,
-				     long *regions_needed, bool count_only)
+				     struct hugetlb_cgroup *h_cg,
+				     struct hstate *h, long *regions_needed,
+				     bool count_only)
 {
 	long add = 0;
 	struct list_head *head = &resv->regions;
@@ -312,6 +324,8 @@ static long add_reservation_in_range(struct resv_map *resv, long f, long t,
 			if (!count_only) {
 				nrg = get_file_region_entry_from_cache(
 					resv, last_accounted_offset, rg->from);
+				record_hugetlb_cgroup_uncharge_info(h_cg, h,
+								    resv, nrg);
 				list_add(&nrg->link, rg->link.prev);
 			} else if (regions_needed)
 				*regions_needed += 1;
@@ -328,6 +342,7 @@ static long add_reservation_in_range(struct resv_map *resv, long f, long t,
 		if (!count_only) {
 			nrg = get_file_region_entry_from_cache(
 				resv, last_accounted_offset, t);
+			record_hugetlb_cgroup_uncharge_info(h_cg, h, resv, nrg);
 			list_add(&nrg->link, rg->link.prev);
 		} else if (regions_needed)
 			*regions_needed += 1;
@@ -416,7 +431,8 @@ out_of_memory:
  * 1 page will only require at most 1 entry.
  */
 static long region_add(struct resv_map *resv, long f, long t,
-		       long in_regions_needed)
+		       long in_regions_needed, struct hstate *h,
+		       struct hugetlb_cgroup *h_cg)
 {
 	long add = 0, actual_regions_needed = 0;
 
@@ -424,7 +440,8 @@ static long region_add(struct resv_map *resv, long f, long t,
 retry:
 
 	/* Count how many regions are actually needed to execute this add. */
-	add_reservation_in_range(resv, f, t, &actual_regions_needed, true);
+	add_reservation_in_range(resv, f, t, NULL, NULL, &actual_regions_needed,
+				 true);
 
 	/*
 	 * Check for sufficient descriptors in the cache to accommodate
@@ -452,7 +469,7 @@ retry:
 		goto retry;
 	}
 
-	add = add_reservation_in_range(resv, f, t, NULL, false);
+	add = add_reservation_in_range(resv, f, t, h_cg, h, NULL, false);
 
 	resv->adds_in_progress -= in_regions_needed;
 
@@ -489,7 +506,8 @@ static long region_chg(struct resv_map *resv, long f, long t,
 	spin_lock(&resv->lock);
 
 	/* Count how many hugepages in this range are NOT respresented. */
-	chg = add_reservation_in_range(resv, f, t, out_regions_needed, true);
+	chg = add_reservation_in_range(resv, f, t, NULL, NULL,
+				       out_regions_needed, true);
 
 	if (*out_regions_needed == 0)
 		*out_regions_needed = 1;
@@ -589,10 +607,16 @@ retry:
 			/* New entry for end of split region */
 			nrg->from = t;
 			nrg->to = rg->to;
+
+			copy_hugetlb_cgroup_uncharge_info(nrg, rg);
+
 			INIT_LIST_HEAD(&nrg->link);
 
 			/* Original entry is trimmed */
 			rg->to = f;
+
+			hugetlb_cgroup_uncharge_file_region(
+				resv, rg, nrg->to - nrg->from);
 
 			list_add(&nrg->link, &rg->link);
 			nrg = NULL;
@@ -601,6 +625,8 @@ retry:
 
 		if (f <= rg->from && t >= rg->to) { /* Remove entire region */
 			del += rg->to - rg->from;
+			hugetlb_cgroup_uncharge_file_region(resv, rg,
+							    rg->to - rg->from);
 			list_del(&rg->link);
 			kfree(rg);
 			continue;
@@ -609,9 +635,15 @@ retry:
 		if (f <= rg->from) {	/* Trim beginning of region */
 			del += t - rg->from;
 			rg->from = t;
+
+			hugetlb_cgroup_uncharge_file_region(resv, rg,
+							    t - rg->from);
 		} else {		/* Trim end of region */
 			del += rg->to - f;
 			rg->to = f;
+
+			hugetlb_cgroup_uncharge_file_region(resv, rg,
+							    rg->to - f);
 		}
 	}
 
@@ -2124,7 +2156,7 @@ static long __vma_reservation_common(struct hstate *h,
 		VM_BUG_ON(dummy_out_regions_needed != 1);
 		break;
 	case VMA_COMMIT_RESV:
-		ret = region_add(resv, idx, idx + 1, 1);
+		ret = region_add(resv, idx, idx + 1, 1, NULL, NULL);
 		/* region_add calls of range 1 should never fail. */
 		VM_BUG_ON(ret < 0);
 		break;
@@ -2134,7 +2166,7 @@ static long __vma_reservation_common(struct hstate *h,
 		break;
 	case VMA_ADD_RESV:
 		if (vma->vm_flags & VM_MAYSHARE) {
-			ret = region_add(resv, idx, idx + 1, 1);
+			ret = region_add(resv, idx, idx + 1, 1, NULL, NULL);
 			/* region_add calls of range 1 should never fail. */
 			VM_BUG_ON(ret < 0);
 		} else {
@@ -4830,7 +4862,7 @@ int hugetlb_reserve_pages(struct inode *inode,
 	struct hstate *h = hstate_inode(inode);
 	struct hugepage_subpool *spool = subpool_inode(inode);
 	struct resv_map *resv_map;
-	struct hugetlb_cgroup *h_cg;
+	struct hugetlb_cgroup *h_cg = NULL;
 	long gbl_reserve, regions_needed = 0;
 
 	/* This should never happen */
@@ -4871,19 +4903,6 @@ int hugetlb_reserve_pages(struct inode *inode,
 
 		chg = to - from;
 
-		if (hugetlb_cgroup_charge_cgroup_rsvd(
-			    hstate_index(h), chg * pages_per_huge_page(h),
-			    &h_cg)) {
-			kref_put(&resv_map->refs, resv_map_release);
-			return -ENOMEM;
-		}
-
-		/*
-		 * Since this branch handles private mappings, we attach the
-		 * counter to uncharge for this reservation off resv_map.
-		 */
-		resv_map_set_hugetlb_cgroup_uncharge_info(resv_map, h_cg, h);
-
 		set_vma_resv_map(vma, resv_map);
 		set_vma_resv_flags(vma, HPAGE_RESV_OWNER);
 	}
@@ -4891,6 +4910,21 @@ int hugetlb_reserve_pages(struct inode *inode,
 	if (chg < 0) {
 		ret = chg;
 		goto out_err;
+	}
+
+	ret = hugetlb_cgroup_charge_cgroup_rsvd(
+		hstate_index(h), chg * pages_per_huge_page(h), &h_cg);
+
+	if (ret < 0) {
+		ret = -ENOMEM;
+		goto out_err;
+	}
+
+	if (vma && !(vma->vm_flags & VM_MAYSHARE) && h_cg) {
+		/* For private mappings, the hugetlb_cgroup uncharge info hangs
+		 * of the resv_map.
+		 */
+		resv_map_set_hugetlb_cgroup_uncharge_info(resv_map, h_cg, h);
 	}
 
 	/*
@@ -4901,7 +4935,7 @@ int hugetlb_reserve_pages(struct inode *inode,
 	gbl_reserve = hugepage_subpool_get_pages(spool, chg);
 	if (gbl_reserve < 0) {
 		ret = -ENOSPC;
-		goto out_err;
+		goto out_uncharge_cgroup;
 	}
 
 	/*
@@ -4910,9 +4944,7 @@ int hugetlb_reserve_pages(struct inode *inode,
 	 */
 	ret = hugetlb_acct_memory(h, gbl_reserve);
 	if (ret < 0) {
-		/* put back original number of pages, chg */
-		(void)hugepage_subpool_put_pages(spool, chg);
-		goto out_err;
+		goto out_put_pages;
 	}
 
 	/*
@@ -4927,13 +4959,11 @@ int hugetlb_reserve_pages(struct inode *inode,
 	 * else has to be done for private mappings here
 	 */
 	if (!vma || vma->vm_flags & VM_MAYSHARE) {
-		add = region_add(resv_map, from, to, regions_needed);
+		add = region_add(resv_map, from, to, regions_needed, h, h_cg);
 
 		if (unlikely(add < 0)) {
 			hugetlb_acct_memory(h, -gbl_reserve);
-			/* put back original number of pages, chg */
-			(void)hugepage_subpool_put_pages(spool, chg);
-			goto out_err;
+			goto out_put_pages;
 		} else if (unlikely(chg > add)) {
 			/*
 			 * pages in this range were added to the reserve
@@ -4944,12 +4974,22 @@ int hugetlb_reserve_pages(struct inode *inode,
 			 */
 			long rsv_adjust;
 
+			hugetlb_cgroup_uncharge_cgroup_rsvd(
+				hstate_index(h),
+				(chg - add) * pages_per_huge_page(h), h_cg);
+
 			rsv_adjust = hugepage_subpool_put_pages(spool,
 								chg - add);
 			hugetlb_acct_memory(h, -rsv_adjust);
 		}
 	}
 	return 0;
+out_put_pages:
+	/* put back original number of pages, chg */
+	(void)hugepage_subpool_put_pages(spool, chg);
+out_uncharge_cgroup:
+	hugetlb_cgroup_uncharge_cgroup_rsvd(hstate_index(h),
+					    chg * pages_per_huge_page(h), h_cg);
 out_err:
 	if (!vma || vma->vm_flags & VM_MAYSHARE)
 		/* Only call region_abort if the region_chg succeeded but the

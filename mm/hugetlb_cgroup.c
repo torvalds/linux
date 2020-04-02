@@ -391,6 +391,21 @@ void hugetlb_cgroup_uncharge_counter(struct resv_map *resv, unsigned long start,
 	css_put(resv->css);
 }
 
+void hugetlb_cgroup_uncharge_file_region(struct resv_map *resv,
+					 struct file_region *rg,
+					 unsigned long nr_pages)
+{
+	if (hugetlb_cgroup_disabled() || !resv || !rg || !nr_pages)
+		return;
+
+	if (rg->reservation_counter && resv->pages_per_hpage && nr_pages > 0 &&
+	    !resv->reservation_counter) {
+		page_counter_uncharge(rg->reservation_counter,
+				      nr_pages * resv->pages_per_hpage);
+		css_put(rg->css);
+	}
+}
+
 enum {
 	RES_USAGE,
 	RES_RSVD_USAGE,

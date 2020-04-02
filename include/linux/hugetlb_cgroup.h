@@ -19,6 +19,7 @@
 
 struct hugetlb_cgroup;
 struct resv_map;
+struct file_region;
 
 /*
  * Minimum page order trackable by hugetlb cgroup.
@@ -135,11 +136,21 @@ extern void hugetlb_cgroup_uncharge_counter(struct resv_map *resv,
 					    unsigned long start,
 					    unsigned long end);
 
+extern void hugetlb_cgroup_uncharge_file_region(struct resv_map *resv,
+						struct file_region *rg,
+						unsigned long nr_pages);
+
 extern void hugetlb_cgroup_file_init(void) __init;
 extern void hugetlb_cgroup_migrate(struct page *oldhpage,
 				   struct page *newhpage);
 
 #else
+static inline void hugetlb_cgroup_uncharge_file_region(struct resv_map *resv,
+						       struct file_region *rg,
+						       unsigned long nr_pages)
+{
+}
+
 static inline struct hugetlb_cgroup *hugetlb_cgroup_from_page(struct page *page)
 {
 	return NULL;
