@@ -464,8 +464,8 @@ void pwm_free(struct pwm_device *pwm)
 }
 EXPORT_SYMBOL_GPL(pwm_free);
 
-void pwm_apply_state_debug(struct pwm_device *pwm,
-			   const struct pwm_state *state)
+static void pwm_apply_state_debug(struct pwm_device *pwm,
+				  const struct pwm_state *state)
 {
 	struct pwm_state *last = &pwm->last;
 	struct pwm_chip *chip = pwm->chip;
