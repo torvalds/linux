@@ -221,7 +221,7 @@ ret_from_exception:
 	andn	r9, r10
 
 	ldw	r12, (r9, TINFO_FLAGS)
-	andi	r12, (_TIF_SIGPENDING | _TIF_NOTIFY_RESUME | _TIF_NEED_RESCHED)
+	andi	r12, (_TIF_SIGPENDING | _TIF_NOTIFY_RESUME | _TIF_NEED_RESCHED | _TIF_UPROBE)
 	cmpnei	r12, 0
 	bt	exit_work
 1:

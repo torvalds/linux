@@ -130,6 +130,10 @@ asmlinkage void trap_c(struct pt_regs *regs)
 		if (kprobe_single_step_handler(regs))
 			return;
 #endif
+#ifdef CONFIG_UPROBES
+		if (uprobe_single_step_handler(regs))
+			return;
+#endif
 		info.si_code = TRAP_TRACE;
 		sig = SIGTRAP;
 		break;
@@ -137,6 +141,10 @@ asmlinkage void trap_c(struct pt_regs *regs)
 		tsk->thread.trap_no = vector;
 #ifdef CONFIG_KPROBES
 		if (kprobe_breakpoint_handler(regs))
+			return;
+#endif
+#ifdef CONFIG_UPROBES
+		if (uprobe_breakpoint_handler(regs))
 			return;
 #endif
 		die_if_kernel("Kernel mode ILLEGAL", regs, vector);
