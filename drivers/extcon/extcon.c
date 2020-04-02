@@ -925,6 +925,22 @@ int extcon_register_notifier(struct extcon_dev *edev, unsigned int id,
 }
 EXPORT_SYMBOL_GPL(extcon_register_notifier);
 
+int extcon_register_blocking_notifier(struct extcon_dev *edev, unsigned int id,
+			struct notifier_block *nb)
+{
+	int idx = -EINVAL;
+
+	if (!edev || !nb)
+		return -EINVAL;
+
+	idx = find_cable_index_by_id(edev, id);
+	if (idx < 0)
+		return idx;
+
+	return blocking_notifier_chain_register(&edev->bnh[idx], nb);
+}
+EXPORT_SYMBOL(extcon_register_blocking_notifier);
+
 /**
  * extcon_unregister_notifier() - Unregister a notifier block from the extcon.
  * @edev:	the extcon device

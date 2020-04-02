@@ -499,6 +499,7 @@ struct snd_pcm_substream {
 #endif /* CONFIG_SND_VERBOSE_PROCFS */
 	/* misc flags */
 	unsigned int hw_opened: 1;
+	unsigned int hw_no_buffer: 1; /* substream may not have a buffer */
 };
 
 #define SUBSTREAM_BUSY(substream) ((substream)->ref_count > 0)
@@ -524,6 +525,8 @@ struct snd_pcm_str {
 #endif
 #endif
 	struct snd_kcontrol *chmap_kctl; /* channel-mapping controls */
+	struct snd_kcontrol *vol_kctl; /* volume controls */
+	struct snd_kcontrol *usr_kctl; /* user controls */
 	struct device dev;
 };
 
@@ -1443,6 +1446,54 @@ static inline u64 pcm_format_to_bits(snd_pcm_format_t pcm_format)
 {
 	return 1ULL << (__force int) pcm_format;
 }
+
+/*
+ * PCM Volume control API
+ */
+/* array element of volume */
+struct snd_pcm_volume_elem {
+	int volume;
+};
+
+/* pp information; retrieved via snd_kcontrol_chip() */
+struct snd_pcm_volume {
+	struct snd_pcm *pcm;	/* assigned PCM instance */
+	int stream;		/* PLAYBACK or CAPTURE */
+	struct snd_kcontrol *kctl;
+	const struct snd_pcm_volume_elem *volume;
+	int max_length;
+	void *private_data;	/* optional: private data pointer */
+};
+
+int snd_pcm_add_volume_ctls(struct snd_pcm *pcm, int stream,
+			   const struct snd_pcm_volume_elem *volume,
+			   int max_length,
+			   unsigned long private_value,
+			   struct snd_pcm_volume **info_ret);
+
+/*
+ * PCM User control API
+ */
+/* array element of usr elem */
+struct snd_pcm_usr_elem {
+	int val[128];
+};
+
+/* pp information; retrieved via snd_kcontrol_chip() */
+struct snd_pcm_usr {
+	struct snd_pcm *pcm;	/* assigned PCM instance */
+	int stream;		/* PLAYBACK or CAPTURE */
+	struct snd_kcontrol *kctl;
+	const struct snd_pcm_usr_elem *usr;
+	int max_length;
+	void *private_data;	/* optional: private data pointer */
+};
+
+int snd_pcm_add_usr_ctls(struct snd_pcm *pcm, int stream,
+			 const struct snd_pcm_usr_elem *usr,
+			 int max_length, int max_control_str_len,
+			 unsigned long private_value,
+			 struct snd_pcm_usr **info_ret);
 
 /* printk helpers */
 #define pcm_err(pcm, fmt, args...) \

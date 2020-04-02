@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 
 #include "format.h"
+#include "data_mgmt.h"
 
 struct backing_file_context *incfs_alloc_bfc(struct file *backing_file)
 {
@@ -214,12 +215,23 @@ static int append_md_to_backing_file(struct backing_file_context *bfc,
 	return result;
 }
 
+int incfs_update_file_header_flags(struct backing_file_context *bfc, u32 flags)
+{
+	if (!bfc)
+		return -EFAULT;
+
+	return write_to_bf(bfc, &flags, sizeof(flags),
+			   offsetof(struct incfs_file_header,
+				    fh_file_header_flags),
+			   false);
+}
+
 /*
  * Reserve 0-filled space for the blockmap body, and append
  * incfs_blockmap metadata record pointing to it.
  */
 int incfs_write_blockmap_to_backing_file(struct backing_file_context *bfc,
-				u32 block_count, loff_t *map_base_off)
+					 u32 block_count)
 {
 	struct incfs_blockmap blockmap = {};
 	int result = 0;
@@ -245,12 +257,9 @@ int incfs_write_blockmap_to_backing_file(struct backing_file_context *bfc,
 	/* Write blockmap metadata record pointing to the body written above. */
 	blockmap.m_base_offset = cpu_to_le64(file_end);
 	result = append_md_to_backing_file(bfc, &blockmap.m_header);
-	if (result) {
+	if (result)
 		/* Error, rollback file changes */
 		truncate_backing_file(bfc, file_end);
-	} else if (map_base_off) {
-		*map_base_off = file_end;
-	}
 
 	return result;
 }
@@ -299,9 +308,7 @@ int incfs_write_file_attr_to_backing_file(struct backing_file_context *bfc,
 }
 
 int incfs_write_signature_to_backing_file(struct backing_file_context *bfc,
-		u8 hash_alg, u32 tree_size,
-		struct mem_range root_hash, struct mem_range add_data,
-		struct mem_range sig)
+					  struct mem_range sig, u32 tree_size)
 {
 	struct incfs_file_signature sg = {};
 	int result = 0;
@@ -311,8 +318,6 @@ int incfs_write_signature_to_backing_file(struct backing_file_context *bfc,
 
 	if (!bfc)
 		return -EFAULT;
-	if (root_hash.len > sizeof(sg.sg_root_hash))
-		return -E2BIG;
 
 	LOCK_REQUIRED(bfc->bc_mutex);
 
@@ -321,7 +326,6 @@ int incfs_write_signature_to_backing_file(struct backing_file_context *bfc,
 	sg.sg_header.h_md_entry_type = INCFS_MD_SIGNATURE;
 	sg.sg_header.h_record_size = cpu_to_le16(sizeof(sg));
 	sg.sg_header.h_next_md_offset = cpu_to_le64(0);
-	sg.sg_hash_alg = hash_alg;
 	if (sig.data != NULL && sig.len > 0) {
 		loff_t pos = incfs_get_end_offset(bfc->bc_file);
 
@@ -333,20 +337,8 @@ int incfs_write_signature_to_backing_file(struct backing_file_context *bfc,
 			goto err;
 	}
 
-	if (add_data.len > 0) {
-		loff_t pos = incfs_get_end_offset(bfc->bc_file);
-
-		sg.sg_add_data_size = cpu_to_le32(add_data.len);
-		sg.sg_add_data_offset = cpu_to_le64(pos);
-
-		result = write_to_bf(bfc, add_data.data,
-			add_data.len, pos, false);
-		if (result)
-			goto err;
-	}
-
 	tree_area_pos = incfs_get_end_offset(bfc->bc_file);
-	if (hash_alg && tree_size > 0) {
+	if (tree_size > 0) {
 		if (tree_size > 5 * INCFS_DATA_FILE_BLOCK_SIZE) {
 			/*
 			 * If hash tree is big enough, it makes sense to
@@ -369,7 +361,6 @@ int incfs_write_signature_to_backing_file(struct backing_file_context *bfc,
 		sg.sg_hash_tree_size = cpu_to_le32(tree_size);
 		sg.sg_hash_tree_offset = cpu_to_le64(tree_area_pos);
 	}
-	memcpy(sg.sg_root_hash, root_hash.data, root_hash.len);
 
 	/* Write a hash tree metadata record pointing to the hash tree above. */
 	result = append_md_to_backing_file(bfc, &sg.sg_header);
@@ -456,12 +447,19 @@ int incfs_write_data_block_to_backing_file(struct backing_file_context *bfc,
 }
 
 int incfs_write_hash_block_to_backing_file(struct backing_file_context *bfc,
-					struct mem_range block,
-					int block_index, loff_t hash_area_off)
+					   struct mem_range block,
+					   int block_index,
+					   loff_t hash_area_off,
+					   loff_t bm_base_off, int file_size)
 {
+	struct incfs_blockmap_entry bm_entry = {};
+	int result;
 	loff_t data_offset = 0;
 	loff_t file_end = 0;
-
+	loff_t bm_entry_off =
+		bm_base_off +
+		sizeof(struct incfs_blockmap_entry) *
+			(block_index + get_blocks_count_for_size(file_size));
 
 	if (!bfc)
 		return -EFAULT;
@@ -475,7 +473,17 @@ int incfs_write_hash_block_to_backing_file(struct backing_file_context *bfc,
 		return -EINVAL;
 	}
 
-	return write_to_bf(bfc, block.data, block.len, data_offset, false);
+	result = write_to_bf(bfc, block.data, block.len, data_offset, false);
+	if (result)
+		return result;
+
+	bm_entry.me_data_offset_lo = cpu_to_le32((u32)data_offset);
+	bm_entry.me_data_offset_hi = cpu_to_le16((u16)(data_offset >> 32));
+	bm_entry.me_data_size = cpu_to_le16(INCFS_DATA_FILE_BLOCK_SIZE);
+	bm_entry.me_flags = cpu_to_le16(INCFS_BLOCK_HASH);
+
+	return write_to_bf(bfc, &bm_entry, sizeof(bm_entry), bm_entry_off,
+			   false);
 }
 
 /* Initialize a new image in a given backing file. */
@@ -535,10 +543,9 @@ int incfs_read_blockmap_entries(struct backing_file_context *bfc,
 	return 0;
 }
 
-
 int incfs_read_file_header(struct backing_file_context *bfc,
 			   loff_t *first_md_off, incfs_uuid_t *uuid,
-			   u64 *file_size)
+			   u64 *file_size, u32 *flags)
 {
 	ssize_t bytes_read = 0;
 	struct incfs_file_header fh = {};
@@ -572,6 +579,8 @@ int incfs_read_file_header(struct backing_file_context *bfc,
 		*uuid = fh.fh_uuid;
 	if (file_size)
 		*file_size = le64_to_cpu(fh.fh_file_size);
+	if (flags)
+		*flags = le32_to_cpu(fh.fh_file_header_flags);
 	return 0;
 }
 

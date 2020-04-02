@@ -14,6 +14,7 @@
 #include <linux/tty.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
+#include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/types.h>
 
@@ -43,6 +44,7 @@ static volatile int sel_start = -1; 	/* cleared by clear_selection */
 static int sel_end;
 static int sel_buffer_lth;
 static char *sel_buffer;
+static DEFINE_MUTEX(sel_lock);
 
 /* clear_selection, highlight and highlight_pointer can be called
    from interrupt (via scrollback/front) */
@@ -165,7 +167,7 @@ static int store_utf8(u32 c, char *p)
  *	The entire selection process is managed under the console_lock. It's
  *	 a lot under the lock but its hardly a performance path
  */
-int set_selection(const struct tiocl_selection __user *sel, struct tty_struct *tty)
+static int __set_selection(const struct tiocl_selection __user *sel, struct tty_struct *tty)
 {
 	struct vc_data *vc = vc_cons[fg_console].d;
 	int new_sel_start, new_sel_end, spc;
@@ -173,7 +175,7 @@ int set_selection(const struct tiocl_selection __user *sel, struct tty_struct *t
 	char *bp, *obp;
 	int i, ps, pe, multiplier;
 	u32 c;
-	int mode;
+	int mode, ret = 0;
 
 	poke_blanked_console();
 	if (copy_from_user(&v, sel, sizeof(*sel)))
@@ -322,7 +324,21 @@ int set_selection(const struct tiocl_selection __user *sel, struct tty_struct *t
 		}
 	}
 	sel_buffer_lth = bp - sel_buffer;
-	return 0;
+
+	return ret;
+}
+
+int set_selection(const struct tiocl_selection __user *v, struct tty_struct *tty)
+{
+	int ret;
+
+	mutex_lock(&sel_lock);
+	console_lock();
+	ret = __set_selection(v, tty);
+	console_unlock();
+	mutex_unlock(&sel_lock);
+
+	return ret;
 }
 
 /* Insert the contents of the selection buffer into the
@@ -351,6 +367,7 @@ int paste_selection(struct tty_struct *tty)
 	tty_buffer_lock_exclusive(&vc->port);
 
 	add_wait_queue(&vc->paste_wait, &wait);
+	mutex_lock(&sel_lock);
 	while (sel_buffer && sel_buffer_lth > pasted) {
 		set_current_state(TASK_INTERRUPTIBLE);
 		if (signal_pending(current)) {
@@ -358,7 +375,9 @@ int paste_selection(struct tty_struct *tty)
 			break;
 		}
 		if (tty_throttled(tty)) {
+			mutex_unlock(&sel_lock);
 			schedule();
+			mutex_lock(&sel_lock);
 			continue;
 		}
 		__set_current_state(TASK_RUNNING);
@@ -367,6 +386,7 @@ int paste_selection(struct tty_struct *tty)
 					      count);
 		pasted += count;
 	}
+	mutex_unlock(&sel_lock);
 	remove_wait_queue(&vc->paste_wait, &wait);
 	__set_current_state(TASK_RUNNING);
 

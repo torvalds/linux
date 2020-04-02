@@ -494,20 +494,8 @@ int fscrypt_get_encryption_info(struct inode *inode)
 		goto out;
 	}
 
-	switch (ctx.version) {
-	case FSCRYPT_CONTEXT_V1:
-		memcpy(crypt_info->ci_nonce, ctx.v1.nonce,
-		       FS_KEY_DERIVATION_NONCE_SIZE);
-		break;
-	case FSCRYPT_CONTEXT_V2:
-		memcpy(crypt_info->ci_nonce, ctx.v2.nonce,
-		       FS_KEY_DERIVATION_NONCE_SIZE);
-		break;
-	default:
-		WARN_ON(1);
-		res = -EINVAL;
-		goto out;
-	}
+	memcpy(crypt_info->ci_nonce, fscrypt_context_nonce(&ctx),
+	       FS_KEY_DERIVATION_NONCE_SIZE);
 
 	if (!fscrypt_supported_policy(&crypt_info->ci_policy, inode)) {
 		res = -EINVAL;
@@ -606,6 +594,15 @@ int fscrypt_drop_inode(struct inode *inode)
 	if (!ci || !ci->ci_master_key)
 		return 0;
 	mk = ci->ci_master_key->payload.data[0];
+
+	/*
+	 * With proper, non-racy use of FS_IOC_REMOVE_ENCRYPTION_KEY, all inodes
+	 * protected by the key were cleaned by sync_filesystem().  But if
+	 * userspace is still using the files, inodes can be dirtied between
+	 * then and now.  We mustn't lose any writes, so skip dirty inodes here.
+	 */
+	if (inode->i_state & I_DIRTY_ALL)
+		return 0;
 
 	/*
 	 * Note: since we aren't holding ->mk_secret_sem, the result here can

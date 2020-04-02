@@ -22,7 +22,7 @@
 
 #define FOR_ALL_ZONES(xx) DMA_ZONE(xx) DMA32_ZONE(xx) xx##_NORMAL, HIGHMEM_ZONE(xx) xx##_MOVABLE
 
-enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
+enum vm_event_item { PGPGIN, PGPGOUT, PGPGOUTCLEAN, PSWPIN, PSWPOUT,
 		FOR_ALL_ZONES(PGALLOC),
 		FOR_ALL_ZONES(ALLOCSTALL),
 		FOR_ALL_ZONES(PGSCAN_SKIP),
@@ -110,6 +110,8 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
 		SWAP_RA,
 		SWAP_RA_HIT,
 #endif
+		SPECULATIVE_PGFAULT_ANON,	/* Speculative page fault field */
+		SPECULATIVE_PGFAULT_FILE,	/* Speculative page fault field */
 		NR_VM_EVENT_ITEMS
 };
 

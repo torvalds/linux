@@ -1,2 +1,4 @@
 [abi_whitelist]
-  dummy_symbol
+# commonly used symbols
+  module_layout
+  __put_task_struct

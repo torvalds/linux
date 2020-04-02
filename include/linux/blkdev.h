@@ -646,10 +646,8 @@ struct request_queue {
 	int			bypass_depth;
 	atomic_t		mq_freeze_depth;
 
-#if defined(CONFIG_BLK_DEV_BSG)
 	bsg_job_fn		*bsg_job_fn;
 	struct bsg_class_device bsg_dev;
-#endif
 
 #ifdef CONFIG_BLK_DEV_THROTTLING
 	/* Throttle data */

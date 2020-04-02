@@ -118,6 +118,7 @@ enum usb_dr_mode {
 	USB_DR_MODE_HOST,
 	USB_DR_MODE_PERIPHERAL,
 	USB_DR_MODE_OTG,
+	USB_DR_MODE_DRD,
 };
 
 /**

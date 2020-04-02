@@ -81,6 +81,33 @@ void of_fdt_limit_memory(int limit)
 }
 
 /**
+ * of_fdt_get_ddrtype - Return the type of ddr (4/5) on the current device
+ *
+ * On match, returns a non-zero positive value which matches the ddr type.
+ * Otherwise returns -ENOENT.
+ */
+int of_fdt_get_ddrtype(void)
+{
+	int memory;
+	int len;
+	int ret;
+	fdt32_t *prop = NULL;
+
+	memory = fdt_path_offset(initial_boot_params, "/memory");
+	if (memory > 0)
+		prop = fdt_getprop_w(initial_boot_params, memory,
+				  "ddr_device_type", &len);
+
+	if (!prop || len != sizeof(u32))
+		return -ENOENT;
+
+	ret = fdt32_to_cpu(*prop);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(of_fdt_get_ddrtype);
+
+/**
  * of_fdt_is_compatible - Return true if given node from the given blob has
  * compat in its compatible list
  * @blob: A device tree blob

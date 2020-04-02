@@ -272,10 +272,17 @@ void intel_gvt_destroy_vgpu(struct intel_vgpu *vgpu)
 {
 	struct intel_gvt *gvt = vgpu->gvt;
 
-	mutex_lock(&vgpu->vgpu_lock);
-
 	WARN(vgpu->active, "vGPU is still active!\n");
 
+	/*
+	 * remove idr first so later clean can judge if need to stop
+	 * service if no active vgpu.
+	 */
+	mutex_lock(&gvt->lock);
+	idr_remove(&gvt->vgpu_idr, vgpu->id);
+	mutex_unlock(&gvt->lock);
+
+	mutex_lock(&vgpu->vgpu_lock);
 	intel_gvt_debugfs_remove_vgpu(vgpu);
 	intel_vgpu_clean_sched_policy(vgpu);
 	intel_vgpu_clean_submission(vgpu);
@@ -290,7 +297,6 @@ void intel_gvt_destroy_vgpu(struct intel_vgpu *vgpu)
 	mutex_unlock(&vgpu->vgpu_lock);
 
 	mutex_lock(&gvt->lock);
-	idr_remove(&gvt->vgpu_idr, vgpu->id);
 	if (idr_is_empty(&gvt->vgpu_idr))
 		intel_gvt_clean_irq(gvt);
 	intel_gvt_update_vgpu_types(gvt);
@@ -556,9 +562,9 @@ void intel_gvt_reset_vgpu_locked(struct intel_vgpu *vgpu, bool dmlr,
 
 		intel_vgpu_reset_mmio(vgpu, dmlr);
 		populate_pvinfo_page(vgpu);
-		intel_vgpu_reset_display(vgpu);
 
 		if (dmlr) {
+			intel_vgpu_reset_display(vgpu);
 			intel_vgpu_reset_cfg_space(vgpu);
 			/* only reset the failsafe mode when dmlr reset */
 			vgpu->failsafe = false;

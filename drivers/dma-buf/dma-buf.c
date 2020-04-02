@@ -55,10 +55,10 @@ static char *dmabuffs_dname(struct dentry *dentry, char *buffer, int buflen)
 	size_t ret = 0;
 
 	dmabuf = dentry->d_fsdata;
-	mutex_lock(&dmabuf->lock);
+	spin_lock(&dmabuf->name_lock);
 	if (dmabuf->name)
 		ret = strlcpy(name, dmabuf->name, DMA_BUF_NAME_LEN);
-	mutex_unlock(&dmabuf->lock);
+	spin_unlock(&dmabuf->name_lock);
 
 	return dynamic_dname(dentry, buffer, buflen, "/%s:%s",
 			     dentry->d_name.name, ret > 0 ? name : "");
@@ -86,6 +86,7 @@ static struct file_system_type dma_buf_fs_type = {
 static int dma_buf_release(struct inode *inode, struct file *file)
 {
 	struct dma_buf *dmabuf;
+	int dtor_ret = 0;
 
 	if (!is_dma_buf_file(file))
 		return -EINVAL;
@@ -104,11 +105,18 @@ static int dma_buf_release(struct inode *inode, struct file *file)
 	 */
 	BUG_ON(dmabuf->cb_shared.active || dmabuf->cb_excl.active);
 
-	dmabuf->ops->release(dmabuf);
-
 	mutex_lock(&db_list.lock);
 	list_del(&dmabuf->list_node);
 	mutex_unlock(&db_list.lock);
+
+	if (dmabuf->dtor)
+		dtor_ret = dmabuf->dtor(dmabuf, dmabuf->dtor_data);
+
+	if (!dtor_ret)
+		dmabuf->ops->release(dmabuf);
+	else
+		pr_warn_ratelimited("Leaking dmabuf %s because destructor failed error:%d\n",
+				    dmabuf->name, dtor_ret);
 
 	if (dmabuf->resv == (struct reservation_object *)&dmabuf[1])
 		reservation_object_fini(dmabuf->resv);
@@ -337,6 +345,7 @@ static long dma_buf_set_name(struct dma_buf *dmabuf, const char __user *buf)
 		return PTR_ERR(name);
 
 	mutex_lock(&dmabuf->lock);
+	spin_lock(&dmabuf->name_lock);
 	if (!list_empty(&dmabuf->attachments)) {
 		ret = -EBUSY;
 		kfree(name);
@@ -346,16 +355,24 @@ static long dma_buf_set_name(struct dma_buf *dmabuf, const char __user *buf)
 	dmabuf->name = name;
 
 out_unlock:
+	spin_unlock(&dmabuf->name_lock);
 	mutex_unlock(&dmabuf->lock);
 	return ret;
 }
+
+static int dma_buf_begin_cpu_access_umapped(struct dma_buf *dmabuf,
+					    enum dma_data_direction direction);
+
+
+static int dma_buf_end_cpu_access_umapped(struct dma_buf *dmabuf,
+					  enum dma_data_direction direction);
 
 static long dma_buf_ioctl(struct file *file,
 			  unsigned int cmd, unsigned long arg)
 {
 	struct dma_buf *dmabuf;
 	struct dma_buf_sync sync;
-	enum dma_data_direction direction;
+	enum dma_data_direction dir;
 	int ret;
 
 	dmabuf = file->private_data;
@@ -370,22 +387,30 @@ static long dma_buf_ioctl(struct file *file,
 
 		switch (sync.flags & DMA_BUF_SYNC_RW) {
 		case DMA_BUF_SYNC_READ:
-			direction = DMA_FROM_DEVICE;
+			dir = DMA_FROM_DEVICE;
 			break;
 		case DMA_BUF_SYNC_WRITE:
-			direction = DMA_TO_DEVICE;
+			dir = DMA_TO_DEVICE;
 			break;
 		case DMA_BUF_SYNC_RW:
-			direction = DMA_BIDIRECTIONAL;
+			dir = DMA_BIDIRECTIONAL;
 			break;
 		default:
 			return -EINVAL;
 		}
 
 		if (sync.flags & DMA_BUF_SYNC_END)
-			ret = dma_buf_end_cpu_access(dmabuf, direction);
+			if (sync.flags & DMA_BUF_SYNC_USER_MAPPED)
+				ret = dma_buf_end_cpu_access_umapped(dmabuf,
+								     dir);
+			else
+				ret = dma_buf_end_cpu_access(dmabuf, dir);
 		else
-			ret = dma_buf_begin_cpu_access(dmabuf, direction);
+			if (sync.flags & DMA_BUF_SYNC_USER_MAPPED)
+				ret = dma_buf_begin_cpu_access_umapped(dmabuf,
+								       dir);
+			else
+				ret = dma_buf_begin_cpu_access(dmabuf, dir);
 
 		return ret;
 
@@ -405,10 +430,10 @@ static void dma_buf_show_fdinfo(struct seq_file *m, struct file *file)
 	/* Don't count the temporary reference taken inside procfs seq_show */
 	seq_printf(m, "count:\t%ld\n", file_count(dmabuf->file) - 1);
 	seq_printf(m, "exp_name:\t%s\n", dmabuf->exp_name);
-	mutex_lock(&dmabuf->lock);
+	spin_lock(&dmabuf->name_lock);
 	if (dmabuf->name)
 		seq_printf(m, "name:\t%s\n", dmabuf->name);
-	mutex_unlock(&dmabuf->lock);
+	spin_unlock(&dmabuf->name_lock);
 }
 
 static const struct file_operations dma_buf_fops = {
@@ -563,6 +588,7 @@ struct dma_buf *dma_buf_export(const struct dma_buf_export_info *exp_info)
 	dmabuf->file = file;
 
 	mutex_init(&dmabuf->lock);
+	spin_lock_init(&dmabuf->name_lock);
 	INIT_LIST_HEAD(&dmabuf->attachments);
 
 	mutex_lock(&db_list.lock);
@@ -851,7 +877,8 @@ EXPORT_SYMBOL_GPL(dma_buf_unmap_attachment);
  *     - for each drawing/upload cycle in CPU 1. SYNC_START ioctl, 2. read/write
  *       to mmap area 3. SYNC_END ioctl. This can be repeated as often as you
  *       want (with the new data being consumed by say the GPU or the scanout
- *       device)
+ *       device). Optionally SYNC_USER_MAPPED can be set to restrict cache
+ *       maintenance to only the parts of the buffer which are mmap(ed).
  *     - munmap once you don't need the buffer any more
  *
  *    For correctness and optimal performance, it is always required to use
@@ -938,6 +965,51 @@ int dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
 }
 EXPORT_SYMBOL_GPL(dma_buf_begin_cpu_access);
 
+static int dma_buf_begin_cpu_access_umapped(struct dma_buf *dmabuf,
+			     enum dma_data_direction direction)
+{
+	int ret = 0;
+
+	if (WARN_ON(!dmabuf))
+		return -EINVAL;
+
+	if (dmabuf->ops->begin_cpu_access_umapped)
+		ret = dmabuf->ops->begin_cpu_access_umapped(dmabuf, direction);
+
+	/* Ensure that all fences are waited upon - but we first allow
+	 * the native handler the chance to do so more efficiently if it
+	 * chooses. A double invocation here will be reasonably cheap no-op.
+	 */
+	if (ret == 0)
+		ret = __dma_buf_begin_cpu_access(dmabuf, direction);
+
+	return ret;
+}
+
+int dma_buf_begin_cpu_access_partial(struct dma_buf *dmabuf,
+				     enum dma_data_direction direction,
+				     unsigned int offset, unsigned int len)
+{
+	int ret = 0;
+
+	if (WARN_ON(!dmabuf))
+		return -EINVAL;
+
+	if (dmabuf->ops->begin_cpu_access_partial)
+		ret = dmabuf->ops->begin_cpu_access_partial(dmabuf, direction,
+							    offset, len);
+
+	/* Ensure that all fences are waited upon - but we first allow
+	 * the native handler the chance to do so more efficiently if it
+	 * chooses. A double invocation here will be reasonably cheap no-op.
+	 */
+	if (ret == 0)
+		ret = __dma_buf_begin_cpu_access(dmabuf, direction);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(dma_buf_begin_cpu_access_partial);
+
 /**
  * dma_buf_end_cpu_access - Must be called after accessing a dma_buf from the
  * cpu in the kernel context. Calls end_cpu_access to allow exporter-specific
@@ -963,6 +1035,35 @@ int dma_buf_end_cpu_access(struct dma_buf *dmabuf,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(dma_buf_end_cpu_access);
+
+static int dma_buf_end_cpu_access_umapped(struct dma_buf *dmabuf,
+			   enum dma_data_direction direction)
+{
+	int ret = 0;
+
+	WARN_ON(!dmabuf);
+
+	if (dmabuf->ops->end_cpu_access_umapped)
+		ret = dmabuf->ops->end_cpu_access_umapped(dmabuf, direction);
+
+	return ret;
+}
+
+int dma_buf_end_cpu_access_partial(struct dma_buf *dmabuf,
+				   enum dma_data_direction direction,
+				   unsigned int offset, unsigned int len)
+{
+	int ret = 0;
+
+	WARN_ON(!dmabuf);
+
+	if (dmabuf->ops->end_cpu_access_partial)
+		ret = dmabuf->ops->end_cpu_access_partial(dmabuf, direction,
+							  offset, len);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(dma_buf_end_cpu_access_partial);
 
 /**
  * dma_buf_kmap - Map a page of the buffer object into kernel address space. The
@@ -1124,6 +1225,20 @@ void dma_buf_vunmap(struct dma_buf *dmabuf, void *vaddr)
 	mutex_unlock(&dmabuf->lock);
 }
 EXPORT_SYMBOL_GPL(dma_buf_vunmap);
+
+int dma_buf_get_flags(struct dma_buf *dmabuf, unsigned long *flags)
+{
+	int ret = 0;
+
+	if (WARN_ON(!dmabuf) || !flags)
+		return -EINVAL;
+
+	if (dmabuf->ops->get_flags)
+		ret = dmabuf->ops->get_flags(dmabuf, flags);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(dma_buf_get_flags);
 
 #ifdef CONFIG_DEBUG_FS
 static int dma_buf_debug_show(struct seq_file *s, void *unused)

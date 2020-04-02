@@ -208,6 +208,8 @@ extern int extcon_register_notifier(struct extcon_dev *edev, unsigned int id,
 				struct notifier_block *nb);
 extern int extcon_unregister_notifier(struct extcon_dev *edev, unsigned int id,
 				struct notifier_block *nb);
+extern int extcon_register_blocking_notifier(struct extcon_dev *edev,
+		unsigned int id, struct notifier_block *nb);
 extern int devm_extcon_register_notifier(struct device *dev,
 				struct extcon_dev *edev, unsigned int id,
 				struct notifier_block *nb);
@@ -264,6 +266,13 @@ static inline int extcon_register_notifier(struct extcon_dev *edev,
 
 static inline int extcon_unregister_notifier(struct extcon_dev *edev,
 				unsigned int id, struct notifier_block *nb)
+{
+	return 0;
+}
+
+static inline int extcon_register_blocking_notifier(struct extcon_dev *edev,
+					unsigned int id,
+					struct notifier_block *nb)
 {
 	return 0;
 }

@@ -69,6 +69,7 @@ struct snd_compr_stream {
 	bool metadata_set;
 	bool next_track;
 	void *private_data;
+	struct snd_soc_pcm_runtime *be;
 };
 
 /**

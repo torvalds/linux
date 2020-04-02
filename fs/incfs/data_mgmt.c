@@ -118,8 +118,8 @@ struct data_file *incfs_open_data_file(struct mount_info *mi, struct file *bf)
 	error = mutex_lock_interruptible(&bfc->bc_mutex);
 	if (error)
 		goto out;
-	error = incfs_read_file_header(bfc, &df->df_metadata_off,
-					&df->df_id, &size);
+	error = incfs_read_file_header(bfc, &df->df_metadata_off, &df->df_id,
+				       &size, &df->df_header_flags);
 	mutex_unlock(&bfc->bc_mutex);
 
 	if (error)
@@ -127,7 +127,7 @@ struct data_file *incfs_open_data_file(struct mount_info *mi, struct file *bf)
 
 	df->df_size = size;
 	if (size > 0)
-		df->df_block_count = get_blocks_count_for_size(size);
+		df->df_data_block_count = get_blocks_count_for_size(size);
 
 	md_records = incfs_scan_metadata_chain(df);
 	if (md_records < 0)
@@ -250,7 +250,7 @@ static int validate_hash_tree(struct file *bf, struct data_file *df,
 {
 	u8 digest[INCFS_MAX_HASH_SIZE] = {};
 	struct mtree *tree = NULL;
-	struct ondisk_signature *sig = NULL;
+	struct incfs_df_signature *sig = NULL;
 	struct mem_range calc_digest_rng;
 	struct mem_range saved_digest_rng;
 	struct mem_range root_hash_rng;
@@ -273,8 +273,8 @@ static int validate_hash_tree(struct file *bf, struct data_file *df,
 		return res;
 
 	for (lvl = 0; lvl < tree->depth; lvl++) {
-		loff_t lvl_off = tree->hash_level_suboffset[lvl] +
-					sig->mtree_offset;
+		loff_t lvl_off =
+			tree->hash_level_suboffset[lvl] + sig->hash_offset;
 		loff_t hash_block_off = lvl_off +
 			round_down(hash_block_index * digest_size,
 				INCFS_DATA_FILE_BLOCK_SIZE);
@@ -322,72 +322,6 @@ static int validate_hash_tree(struct file *bf, struct data_file *df,
 	return 0;
 }
 
-static int revalidate_signature(struct file *bf, struct data_file *df)
-{
-	struct ondisk_signature *sig = df->df_signature;
-	struct mem_range root_hash = {};
-	int result = 0;
-	u8 *sig_buf = NULL;
-	u8 *add_data_buf = NULL;
-	ssize_t read_res;
-
-	/* File has no signature. */
-	if (!sig || !df->df_hash_tree || sig->sig_size == 0)
-		return 0;
-
-	/* Signature has already been validated. */
-	if (df->df_signature_validated)
-		return 0;
-
-	add_data_buf = kzalloc(sig->add_data_size, GFP_NOFS);
-	if (!add_data_buf) {
-		result = -ENOMEM;
-		goto out;
-	}
-
-	read_res = incfs_kread(bf, add_data_buf, sig->add_data_size,
-				sig->add_data_offset);
-	if (read_res < 0) {
-		result = read_res;
-		goto out;
-	}
-	if (read_res != sig->add_data_size) {
-		result = -EIO;
-		goto out;
-	}
-
-	sig_buf = kzalloc(sig->sig_size, GFP_NOFS);
-	if (!sig_buf) {
-		result = -ENOMEM;
-		goto out;
-	}
-
-	read_res = incfs_kread(bf, sig_buf, sig->sig_size, sig->sig_offset);
-	if (read_res < 0) {
-		result = read_res;
-		goto out;
-	}
-	if (read_res != sig->sig_size) {
-		result = -EIO;
-		goto out;
-	}
-
-	root_hash = range(df->df_hash_tree->root_hash,
-		df->df_hash_tree->alg->digest_size);
-
-	result = incfs_validate_pkcs7_signature(
-		range(sig_buf, sig->sig_size),
-		root_hash,
-		range(add_data_buf, sig->add_data_size));
-
-	if (result == 0)
-		df->df_signature_validated = true;
-out:
-	kfree(sig_buf);
-	kfree(add_data_buf);
-	return result;
-}
-
 static struct data_file_segment *get_file_segment(struct data_file *df,
 						  int block_index)
 {
@@ -417,7 +351,7 @@ static int get_data_file_block(struct data_file *df, int index,
 	blockmap_off = df->df_blockmap_off;
 	bfc = df->df_backing_file_context;
 
-	if (index < 0 || index >= df->df_block_count || blockmap_off == 0)
+	if (index < 0 || blockmap_off == 0)
 		return -EINVAL;
 
 	error = incfs_read_blockmap_entry(bfc, index, blockmap_off, &bme);
@@ -435,6 +369,96 @@ static int get_data_file_block(struct data_file *df, int index,
 					 COMPRESSION_LZ4 :
 					 COMPRESSION_NONE;
 	return 0;
+}
+
+static int copy_one_range(struct incfs_filled_range *range, void __user *buffer,
+			  u32 size, u32 *size_out)
+{
+	if (*size_out + sizeof(*range) > size)
+		return -ERANGE;
+
+	if (copy_to_user(((char *)buffer) + *size_out, range, sizeof(*range)))
+		return -EFAULT;
+
+	*size_out += sizeof(*range);
+	return 0;
+}
+
+int incfs_get_filled_blocks(struct data_file *df,
+			    struct incfs_get_filled_blocks_args *arg)
+{
+	int error = 0;
+	bool in_range = false;
+	struct incfs_filled_range range;
+	void *buffer = u64_to_user_ptr(arg->range_buffer);
+	u32 size = arg->range_buffer_size;
+	u32 end_index =
+		arg->end_index ? arg->end_index : df->df_total_block_count;
+	u32 *size_out = &arg->range_buffer_size_out;
+
+	*size_out = 0;
+	if (end_index > df->df_total_block_count)
+		end_index = df->df_total_block_count;
+	arg->total_blocks_out = df->df_total_block_count;
+
+	if (df->df_header_flags & INCFS_FILE_COMPLETE) {
+		pr_debug("File marked full, fast get_filled_blocks");
+		if (arg->start_index > end_index) {
+			arg->index_out = arg->start_index;
+			return 0;
+		}
+
+		range = (struct incfs_filled_range){
+			.begin = arg->start_index,
+			.end = end_index,
+		};
+
+		arg->index_out = end_index;
+		return copy_one_range(&range, buffer, size, size_out);
+	}
+
+	for (arg->index_out = arg->start_index; arg->index_out < end_index;
+	     ++arg->index_out) {
+		struct data_file_block dfb;
+
+		error = get_data_file_block(df, arg->index_out, &dfb);
+		if (error)
+			break;
+
+		if (is_data_block_present(&dfb) == in_range)
+			continue;
+
+		if (!in_range) {
+			in_range = true;
+			range.begin = arg->index_out;
+		} else {
+			range.end = arg->index_out;
+			error = copy_one_range(&range, buffer, size, size_out);
+			if (error)
+				break;
+			in_range = false;
+		}
+	}
+
+	if (in_range) {
+		range.end = arg->index_out;
+		error = copy_one_range(&range, buffer, size, size_out);
+	}
+
+	if (!error && in_range && arg->start_index == 0 &&
+	    end_index == df->df_total_block_count &&
+	    *size_out == sizeof(struct incfs_filled_range)) {
+		int result;
+
+		df->df_header_flags |= INCFS_FILE_COMPLETE;
+		result = incfs_update_file_header_flags(
+			df->df_backing_file_context, df->df_header_flags);
+
+		/* Log failure only, since it's just a failed optimization */
+		pr_debug("Marked file full with result %d", result);
+	}
+
+	return error;
 }
 
 static bool is_read_done(struct pending_read *read)
@@ -536,7 +560,7 @@ static int wait_for_data_block(struct data_file *df, int block_index,
 	if (!df || !res_block)
 		return -EFAULT;
 
-	if (block_index < 0 || block_index >= df->df_block_count)
+	if (block_index < 0 || block_index >= df->df_data_block_count)
 		return -EINVAL;
 
 	if (df->df_blockmap_off <= 0)
@@ -683,13 +707,6 @@ ssize_t incfs_read_data_file_block(struct mem_range dst, struct data_file *df,
 			result = err;
 	}
 
-	if (result > 0) {
-		int err = revalidate_signature(bf, df);
-
-		if (err < 0)
-			result = err;
-	}
-
 	if (result >= 0)
 		log_block_read(mi, &df->df_id, index, false /*timed out*/);
 
@@ -698,7 +715,7 @@ out:
 }
 
 int incfs_process_new_data_block(struct data_file *df,
-				 struct incfs_new_data_block *block, u8 *data)
+				 struct incfs_fill_block *block, u8 *data)
 {
 	struct mount_info *mi = NULL;
 	struct backing_file_context *bfc = NULL;
@@ -713,7 +730,7 @@ int incfs_process_new_data_block(struct data_file *df,
 	bfc = df->df_backing_file_context;
 	mi = df->df_mount_info;
 
-	if (block->block_index >= df->df_block_count)
+	if (block->block_index >= df->df_data_block_count)
 		return -ERANGE;
 
 	segment = get_file_segment(df, block->block_index);
@@ -755,7 +772,7 @@ unlock:
 int incfs_read_file_signature(struct data_file *df, struct mem_range dst)
 {
 	struct file *bf = df->df_backing_file_context->bc_file;
-	struct ondisk_signature *sig;
+	struct incfs_df_signature *sig;
 	int read_res = 0;
 
 	if (!dst.data)
@@ -780,12 +797,12 @@ int incfs_read_file_signature(struct data_file *df, struct mem_range dst)
 }
 
 int incfs_process_new_hash_block(struct data_file *df,
-				 struct incfs_new_data_block *block, u8 *data)
+				 struct incfs_fill_block *block, u8 *data)
 {
 	struct backing_file_context *bfc = NULL;
 	struct mount_info *mi = NULL;
 	struct mtree *hash_tree = NULL;
-	struct ondisk_signature *sig = NULL;
+	struct incfs_df_signature *sig = NULL;
 	loff_t hash_area_base = 0;
 	loff_t hash_area_size = 0;
 	int error = 0;
@@ -804,11 +821,11 @@ int incfs_process_new_hash_block(struct data_file *df,
 
 	hash_tree = df->df_hash_tree;
 	sig = df->df_signature;
-	if (!hash_tree || !sig || sig->mtree_offset == 0)
+	if (!hash_tree || !sig || sig->hash_offset == 0)
 		return -ENOTSUPP;
 
-	hash_area_base = sig->mtree_offset;
-	hash_area_size = sig->mtree_size;
+	hash_area_base = sig->hash_offset;
+	hash_area_size = sig->hash_size;
 	if (hash_area_size < block->block_index * INCFS_DATA_FILE_BLOCK_SIZE
 				+ block->data_len) {
 		/* Hash block goes beyond dedicated hash area of this file. */
@@ -819,7 +836,7 @@ int incfs_process_new_hash_block(struct data_file *df,
 	if (!error)
 		error = incfs_write_hash_block_to_backing_file(
 			bfc, range(data, block->data_len), block->block_index,
-			hash_area_base);
+			hash_area_base, df->df_blockmap_off, df->df_size);
 	mutex_unlock(&bfc->bc_mutex);
 	return error;
 }
@@ -835,9 +852,10 @@ static int process_blockmap_md(struct incfs_blockmap *bm,
 	if (!df)
 		return -EFAULT;
 
-	if (df->df_block_count != block_count)
+	if (df->df_data_block_count > block_count)
 		return -EBADMSG;
 
+	df->df_total_block_count = block_count;
 	df->df_blockmap_off = base_off;
 	return error;
 }
@@ -866,58 +884,69 @@ static int process_file_signature_md(struct incfs_file_signature *sg,
 {
 	struct data_file *df = handler->context;
 	struct mtree *hash_tree = NULL;
-	struct ondisk_signature *signature = NULL;
 	int error = 0;
-	loff_t base_tree_off = le64_to_cpu(sg->sg_hash_tree_offset);
-	u32 tree_size = le32_to_cpu(sg->sg_hash_tree_size);
-	loff_t sig_off = le64_to_cpu(sg->sg_sig_offset);
-	u32 sig_size = le32_to_cpu(sg->sg_sig_size);
-	loff_t add_data_off = le64_to_cpu(sg->sg_add_data_offset);
-	u32 add_data_size = le32_to_cpu(sg->sg_add_data_size);
+	struct incfs_df_signature *signature =
+		kzalloc(sizeof(*signature), GFP_NOFS);
+	void *buf = NULL;
+	ssize_t read;
 
-	if (!df)
-		return -ENOENT;
+	if (!df || !df->df_backing_file_context ||
+	    !df->df_backing_file_context->bc_file) {
+		error = -ENOENT;
+		goto out;
+	}
 
-	signature = kzalloc(sizeof(*signature), GFP_NOFS);
-	if (!signature) {
+	signature->hash_offset = le64_to_cpu(sg->sg_hash_tree_offset);
+	signature->hash_size = le32_to_cpu(sg->sg_hash_tree_size);
+	signature->sig_offset = le64_to_cpu(sg->sg_sig_offset);
+	signature->sig_size = le32_to_cpu(sg->sg_sig_size);
+
+	buf = kzalloc(signature->sig_size, GFP_NOFS);
+	if (!buf) {
 		error = -ENOMEM;
 		goto out;
 	}
 
-	signature->add_data_offset = add_data_off;
-	signature->add_data_size = add_data_size;
-	signature->sig_offset = sig_off;
-	signature->sig_size = sig_size;
-	signature->mtree_offset = base_tree_off;
-	signature->mtree_size = tree_size;
+	read = incfs_kread(df->df_backing_file_context->bc_file, buf,
+			   signature->sig_size, signature->sig_offset);
+	if (read < 0) {
+		error = read;
+		goto out;
+	}
 
-	hash_tree = incfs_alloc_mtree(sg->sg_hash_alg, df->df_block_count,
-			range(sg->sg_root_hash, sizeof(sg->sg_root_hash)));
+	if (read != signature->sig_size) {
+		error = -EINVAL;
+		goto out;
+	}
+
+	hash_tree = incfs_alloc_mtree(range(buf, signature->sig_size),
+				      df->df_data_block_count);
 	if (IS_ERR(hash_tree)) {
 		error = PTR_ERR(hash_tree);
 		hash_tree = NULL;
 		goto out;
 	}
-	if (hash_tree->hash_tree_area_size != tree_size) {
+	if (hash_tree->hash_tree_area_size != signature->hash_size) {
 		error = -EINVAL;
 		goto out;
 	}
-	if (tree_size > 0 && handler->md_record_offset <= base_tree_off) {
+	if (signature->hash_size > 0 &&
+	    handler->md_record_offset <= signature->hash_offset) {
 		error = -EINVAL;
 		goto out;
 	}
-	if (handler->md_record_offset <= signature->add_data_offset ||
-	    handler->md_record_offset <= signature->sig_offset) {
+	if (handler->md_record_offset <= signature->sig_offset) {
 		error = -EINVAL;
 		goto out;
 	}
 	df->df_hash_tree = hash_tree;
+	hash_tree = NULL;
 	df->df_signature = signature;
+	signature = NULL;
 out:
-	if (error) {
-		incfs_free_mtree(hash_tree);
-		kfree(signature);
-	}
+	incfs_free_mtree(hash_tree);
+	kfree(signature);
+	kfree(buf);
 
 	return error;
 }
@@ -973,6 +1002,17 @@ int incfs_scan_metadata_chain(struct data_file *df)
 		result = records_count;
 	}
 	mutex_unlock(&bfc->bc_mutex);
+
+	if (df->df_hash_tree) {
+		int hash_block_count = get_blocks_count_for_size(
+			df->df_hash_tree->hash_tree_area_size);
+
+		if (df->df_data_block_count + hash_block_count !=
+		    df->df_total_block_count)
+			result = -EINVAL;
+	} else if (df->df_data_block_count != df->df_total_block_count)
+		result = -EINVAL;
+
 out:
 	kfree(handler);
 	return result;

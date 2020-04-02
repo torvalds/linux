@@ -1162,6 +1162,35 @@ static struct device_node *parse_##fname(struct device_node *np,	     \
 	return parse_suffix_prop_cells(np, prop_name, index, suffix, cells); \
 }
 
+static struct device_node *parse_msm_bus_name(struct device_node *np,
+					    const char *prop_name, int index)
+{
+	static struct device_node *bus_dev_np;
+
+	if (index || strcmp(prop_name, "qcom,msm-bus,name"))
+		return NULL;
+
+	if (!bus_dev_np)
+		bus_dev_np = of_find_compatible_node(NULL, NULL,
+						     "qcom,msm-bus-device");
+
+	return bus_dev_np;
+}
+
+/* Force ignore of any qcom properties. */
+static struct device_node *parse_qcom_any(struct device_node *np,
+					  const char *prop_name, int index)
+{
+	if (index || strncmp(prop_name, "qcom,", strlen("qcom,")))
+		return NULL;
+
+	/*
+	 * Returning np will cause this property to be matched and then
+	 * ignored.
+	 */
+	return np;
+}
+
 /**
  * struct supplier_bindings - Property parsing functions for suppliers
  *
@@ -1190,6 +1219,12 @@ DEFINE_SIMPLE_PROP(mboxes, "mboxes", "#mbox-cells")
 DEFINE_SIMPLE_PROP(io_channels, "io-channel", "#io-channel-cells")
 DEFINE_SIMPLE_PROP(interrupt_parent, "interrupt-parent", NULL)
 DEFINE_SIMPLE_PROP(dmas, "dmas", "#dma-cells")
+DEFINE_SIMPLE_PROP(power_domains, "power-domains", "#power-domain-cells")
+DEFINE_SIMPLE_PROP(hwlocks, "hwlocks", "#hwlock-cells")
+DEFINE_SIMPLE_PROP(pinctrl0, "pinctrl-0", NULL)
+DEFINE_SIMPLE_PROP(pinctrl1, "pinctrl-1", NULL)
+DEFINE_SIMPLE_PROP(pinctrl2, "pinctrl-2", NULL)
+DEFINE_SIMPLE_PROP(pinctrl3, "pinctrl-3", NULL)
 DEFINE_SUFFIX_PROP(regulators, "-supply", NULL)
 DEFINE_SUFFIX_PROP(gpio, "-gpio", "#gpio-cells")
 DEFINE_SUFFIX_PROP(gpios, "-gpios", "#gpio-cells")
@@ -1204,6 +1239,8 @@ static struct device_node *parse_iommu_maps(struct device_node *np,
 }
 
 static const struct supplier_bindings of_supplier_bindings[] = {
+	{ .parse_prop = parse_msm_bus_name, },
+	{ .parse_prop = parse_qcom_any, },
 	{ .parse_prop = parse_clocks, },
 	{ .parse_prop = parse_interconnects, },
 	{ .parse_prop = parse_iommus, },
@@ -1212,6 +1249,12 @@ static const struct supplier_bindings of_supplier_bindings[] = {
 	{ .parse_prop = parse_io_channels, },
 	{ .parse_prop = parse_interrupt_parent, },
 	{ .parse_prop = parse_dmas, },
+	{ .parse_prop = parse_power_domains, },
+	{ .parse_prop = parse_hwlocks, },
+	{ .parse_prop = parse_pinctrl0, },
+	{ .parse_prop = parse_pinctrl1, },
+	{ .parse_prop = parse_pinctrl2, },
+	{ .parse_prop = parse_pinctrl3, },
 	{ .parse_prop = parse_regulators, },
 	{ .parse_prop = parse_gpio, },
 	{ .parse_prop = parse_gpios, },

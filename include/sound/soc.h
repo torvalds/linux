@@ -239,6 +239,14 @@
 	.get = xhandler_get, .put = xhandler_put, \
 	.private_value = SOC_DOUBLE_R_VALUE(reg_left, reg_right, xshift, \
 					    xmax, xinvert) }
+#define SOC_SINGLE_MULTI_EXT(xname, xreg, xshift, xmax, xinvert, xcount,\
+	xhandler_get, xhandler_put) \
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
+	.info = snd_soc_info_multi_ext, \
+	.get = xhandler_get, .put = xhandler_put, \
+	.private_value = (unsigned long)&(struct soc_multi_mixer_control) \
+		{.reg = xreg, .shift = xshift, .rshift = xshift, .max = xmax, \
+		.count = xcount, .platform_max = xmax, .invert = xinvert} }
 #define SOC_SINGLE_EXT_TLV(xname, xreg, xshift, xmax, xinvert,\
 	 xhandler_get, xhandler_put, tlv_array) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
@@ -548,6 +556,8 @@ static inline void snd_soc_jack_free_gpios(struct snd_soc_jack *jack, int count,
 }
 #endif
 
+void snd_soc_card_change_online_state(struct snd_soc_card *soc_card,
+				      int online);
 struct snd_ac97 *snd_soc_alloc_ac97_component(struct snd_soc_component *component);
 struct snd_ac97 *snd_soc_new_ac97_component(struct snd_soc_component *component,
 	unsigned int id, unsigned int id_mask);
@@ -635,6 +645,8 @@ int snd_soc_get_strobe(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
 int snd_soc_put_strobe(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
+int snd_soc_info_multi_ext(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_info *uinfo);
 
 /**
  * struct snd_soc_jack_pin - Describes a pin to update based on jack detection
@@ -877,6 +889,14 @@ struct snd_soc_dai_link_component {
 	const char *dai_name;
 };
 
+enum snd_soc_async_ops {
+	ASYNC_DPCM_SND_SOC_OPEN = 1 << 0,
+	ASYNC_DPCM_SND_SOC_CLOSE = 1 << 1,
+	ASYNC_DPCM_SND_SOC_PREPARE = 1 << 2,
+	ASYNC_DPCM_SND_SOC_HW_PARAMS = 1 << 3,
+	ASYNC_DPCM_SND_SOC_FREE = 1 << 4,
+};
+
 struct snd_soc_dai_link {
 	/* config - must be set by machine driver */
 	const char *name;			/* Codec name */
@@ -975,6 +995,9 @@ struct snd_soc_dai_link {
 
 	struct list_head list; /* DAI link list of the soc card */
 	struct snd_soc_dobj dobj; /* For topology */
+
+	/* this value determines what all ops can be started asynchronously */
+	enum snd_soc_async_ops async_ops;
 };
 
 struct snd_soc_codec_conf {
@@ -1130,6 +1153,8 @@ struct snd_soc_pcm_runtime {
 
 	long pmdown_time;
 
+	/* err in case of ops failed */
+	int err_ops;
 	/* runtime devices */
 	struct snd_pcm *pcm;
 	struct snd_compr *compr;
@@ -1185,6 +1210,11 @@ struct soc_bytes_ext {
 struct soc_mreg_control {
 	long min, max;
 	unsigned int regbase, regcount, nbits, invert;
+};
+
+struct soc_multi_mixer_control {
+	int min, max, platform_max, count;
+	unsigned int reg, rreg, shift, rshift, invert;
 };
 
 /* enumerated kcontrol */

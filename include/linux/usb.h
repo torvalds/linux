@@ -824,6 +824,7 @@ static inline bool usb_device_no_sg_constraint(struct usb_device *udev)
 
 /* for drivers using iso endpoints */
 extern int usb_get_current_frame_number(struct usb_device *usb_dev);
+extern int usb_get_controller_id(struct usb_device *dev);
 
 /* Sets up a group of bulk endpoints to support multiple stream IDs. */
 extern int usb_alloc_streams(struct usb_interface *interface,

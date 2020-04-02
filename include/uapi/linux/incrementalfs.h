@@ -35,6 +35,8 @@
 #define INCFS_XATTR_METADATA_NAME (XATTR_USER_PREFIX "incfs.metadata")
 
 #define INCFS_MAX_SIGNATURE_SIZE 8096
+#define INCFS_SIGNATURE_VERSION 2
+#define INCFS_SIGNATURE_SECTIONS 2
 
 #define INCFS_IOCTL_BASE_CODE 'g'
 
@@ -46,7 +48,49 @@
 
 /* Read file signature */
 #define INCFS_IOC_READ_FILE_SIGNATURE                                          \
-	_IOWR(INCFS_IOCTL_BASE_CODE, 31, struct incfs_get_file_sig_args)
+	_IOR(INCFS_IOCTL_BASE_CODE, 31, struct incfs_get_file_sig_args)
+
+/*
+ * Fill in one or more data block. This may only be called on a handle
+ * passed as a parameter to INCFS_IOC_PERMIT_FILLING
+ *
+ * Returns number of blocks filled in, or error if none were
+ */
+#define INCFS_IOC_FILL_BLOCKS                                                  \
+	_IOR(INCFS_IOCTL_BASE_CODE, 32, struct incfs_fill_blocks)
+
+/*
+ * Permit INCFS_IOC_FILL_BLOCKS on the given file descriptor
+ * May only be called on .pending_reads file
+ *
+ * Returns 0 on success or error
+ */
+#define INCFS_IOC_PERMIT_FILL                                                  \
+	_IOW(INCFS_IOCTL_BASE_CODE, 33, struct incfs_permit_fill)
+
+/*
+ * Fills buffer with ranges of populated blocks
+ *
+ * Returns 0 if all ranges written
+ *	   error otherwise
+ *
+ *	   Either way, range_buffer_size_out is set to the number
+ *	   of bytes written. Should be set to 0 by caller. The ranges
+ *	   filled are valid, but if an error was returned there might
+ *	   be more ranges to come.
+ *
+ *	   Ranges are ranges of filled blocks:
+ *
+ *	   1 2 7 9
+ *
+ *	   means blocks 1, 2, 7, 8, 9 are filled, 0, 3, 4, 5, 6 and 10 on
+ *	   are not
+ *
+ *	   If hashing is enabled for the file, the hash blocks are simply
+ *	   treated as though they immediately followed the data blocks.
+ */
+#define INCFS_IOC_GET_FILLED_BLOCKS                                            \
+	_IOR(INCFS_IOCTL_BASE_CODE, 34, struct incfs_get_filled_blocks_args)
 
 enum incfs_compression_alg {
 	COMPRESSION_NONE = 0,
@@ -81,10 +125,9 @@ struct incfs_pending_read_info {
 };
 
 /*
- * A struct to be written into a control file to load a data or hash
- * block to a data file.
+ * Description of a data or hash block to add to a data file.
  */
-struct incfs_new_data_block {
+struct incfs_fill_block {
 	/* Index of a data block. */
 	__u32 block_index;
 
@@ -114,49 +157,33 @@ struct incfs_new_data_block {
 	__aligned_u64 reserved3;
 };
 
+/*
+ * Description of a number of blocks to add to a data file
+ *
+ * Argument for INCFS_IOC_FILL_BLOCKS
+ */
+struct incfs_fill_blocks {
+	/* Number of blocks */
+	__u64 count;
+
+	/* A pointer to an array of incfs_fill_block structs */
+	__aligned_u64 fill_blocks;
+};
+
+/*
+ * Permit INCFS_IOC_FILL_BLOCKS on the given file descriptor
+ * May only be called on .pending_reads file
+ *
+ * Argument for INCFS_IOC_PERMIT_FILL
+ */
+struct incfs_permit_fill {
+	/* File to permit fills on */
+	__u32 file_descriptor;
+};
+
 enum incfs_hash_tree_algorithm {
 	INCFS_HASH_TREE_NONE = 0,
 	INCFS_HASH_TREE_SHA256 = 1
-};
-
-struct incfs_file_signature_info {
-	/*
-	 * A pointer to file's root hash (if determined != 0)
-	 * Actual hash size determined by hash_tree_alg.
-	 * Size of the buffer should be at least INCFS_MAX_HASH_SIZE
-	 *
-	 * Equivalent to: u8 *root_hash;
-	 */
-	__aligned_u64 root_hash;
-
-	/*
-	 * A pointer to additional data that was attached to the root hash
-	 * before signing.
-	 *
-	 * Equivalent to: u8 *additional_data;
-	 */
-	__aligned_u64 additional_data;
-
-	/* Size of additional data. */
-	__u32 additional_data_size;
-
-	__u32 reserved1;
-
-	/*
-	 * A pointer to pkcs7 signature DER blob.
-	 *
-	 * Equivalent to: u8 *signature;
-	 */
-	__aligned_u64 signature;
-
-
-	/* Size of pkcs7 signature DER blob */
-	__u32 signature_size;
-
-	__u32 reserved2;
-
-	/* Value from incfs_hash_tree_algorithm */
-	__u8 hash_tree_alg;
 };
 
 /*
@@ -212,10 +239,30 @@ struct incfs_new_file_args {
 
 	__u32 reserved4;
 
-	/* struct incfs_file_signature_info *signature_info; */
+	/*
+	 * Points to an APK V4 Signature data blob
+	 * Signature must have two sections
+	 * Format is:
+	 *	u32 version
+	 *	u32 size_of_hash_info_section
+	 *	u8 hash_info_section[]
+	 *	u32 size_of_signing_info_section
+	 *	u8 signing_info_section[]
+	 *
+	 * Note that incfs does not care about what is in signing_info_section
+	 *
+	 * hash_info_section has following format:
+	 *	u32 hash_algorithm; // Must be SHA256 == 1
+	 *	u8 log2_blocksize;  // Must be 12 for 4096 byte blocks
+	 *	u32 salt_size;
+	 *	u8 salt[];
+	 *	u32 hash_size;
+	 *	u8 root_hash[];
+	 */
 	__aligned_u64 signature_info;
 
-	__aligned_u64 reserved5;
+	/* Size of signature_info */
+	__aligned_u64 signature_size;
 
 	__aligned_u64 reserved6;
 };
@@ -240,6 +287,45 @@ struct incfs_get_file_sig_args {
 	 * It is set after ioctl done.
 	 */
 	__u32 file_signature_len_out;
+};
+
+struct incfs_filled_range {
+	__u32 begin;
+	__u32 end;
+};
+
+/*
+ * Request ranges of filled blocks
+ * Argument for INCFS_IOC_GET_FILLED_BLOCKS
+ */
+struct incfs_get_filled_blocks_args {
+	/*
+	 * A buffer to populate with ranges of filled blocks
+	 *
+	 * Equivalent to struct incfs_filled_ranges *range_buffer
+	 */
+	__aligned_u64 range_buffer;
+
+	/* Size of range_buffer */
+	__u32 range_buffer_size;
+
+	/* Start index to read from */
+	__u32 start_index;
+
+	/*
+	 * End index to read to. 0 means read to end. This is a range,
+	 * so incfs will read from start_index to end_index - 1
+	 */
+	__u32 end_index;
+
+	/* Actual number of blocks in file */
+	__u32 total_blocks_out;
+
+	/* Number of bytes written to range buffer */
+	__u32 range_buffer_size_out;
+
+	/* Sector scanned up to, if the call was interrupted */
+	__u32 index_out;
 };
 
 #endif /* _UAPI_LINUX_INCREMENTALFS_H */
