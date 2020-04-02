@@ -333,14 +333,19 @@ static inline struct page *grab_cache_page_nowait(struct address_space *mapping,
 			mapping_gfp_mask(mapping));
 }
 
-static inline struct page *find_subpage(struct page *page, pgoff_t offset)
+/*
+ * Given the page we found in the page cache, return the page corresponding
+ * to this index in the file
+ */
+static inline struct page *find_subpage(struct page *head, pgoff_t index)
 {
-	if (PageHuge(page))
-		return page;
+	/* HugeTLBfs wants the head page regardless */
+	if (PageHuge(head))
+		return head;
 
-	VM_BUG_ON_PAGE(PageTail(page), page);
+	VM_BUG_ON_PAGE(PageTail(head), head);
 
-	return page + (offset & (compound_nr(page) - 1));
+	return head + (index & (compound_nr(head) - 1));
 }
 
 struct page *find_get_entry(struct address_space *mapping, pgoff_t offset);
