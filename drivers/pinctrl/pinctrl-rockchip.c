@@ -117,6 +117,21 @@ enum rockchip_pin_pull_type {
 };
 
 /**
+ * enum mux route register type, should be invalid/default/topgrf/pmugrf.
+ * INVALID: means do not need to set mux route
+ * DEFAULT: means same regmap as pin iomux
+ * TOPGRF: means mux route setting in topgrf
+ * PMUGRF: means mux route setting in pmugrf
+ */
+enum rockchip_pin_route_type {
+	ROUTE_TYPE_DEFAULT = 0,
+	ROUTE_TYPE_TOPGRF = 1,
+	ROUTE_TYPE_PMUGRF = 2,
+
+	ROUTE_TYPE_INVALID = -1,
+};
+
+/**
  * @drv_type: drive strength variant using rockchip_perpin_drv_type
  * @offset: if initialized to -1 it will be autocalculated, by specifying
  *	    an initial offset value the relevant source offset can be reset
@@ -296,6 +311,25 @@ struct rockchip_pin_bank {
 		.pull_type[3] = pull3,					\
 	}
 
+#define PIN_BANK_MUX_ROUTE_FLAGS(ID, PIN, FUNC, REG, VAL, FLAG)		\
+	{								\
+		.bank_num	= ID,					\
+		.pin		= PIN,					\
+		.func		= FUNC,					\
+		.route_offset	= REG,					\
+		.route_val	= VAL,					\
+		.route_type	= FLAG,					\
+	}
+
+#define MR_DEFAULT(ID, PIN, FUNC, REG, VAL)	\
+	PIN_BANK_MUX_ROUTE_FLAGS(ID, PIN, FUNC, REG, VAL, ROUTE_TYPE_DEFAULT)
+
+#define MR_TOPGRF(ID, PIN, FUNC, REG, VAL)	\
+	PIN_BANK_MUX_ROUTE_FLAGS(ID, PIN, FUNC, REG, VAL, ROUTE_TYPE_TOPGRF)
+
+#define MR_PMUGRF(ID, PIN, FUNC, REG, VAL)	\
+	PIN_BANK_MUX_ROUTE_FLAGS(ID, PIN, FUNC, REG, VAL, ROUTE_TYPE_PMUGRF)
+
 /**
  * struct rockchip_mux_recalced_data: represent a pin iomux data.
  * @num: bank number.
@@ -317,6 +351,7 @@ struct rockchip_mux_recalced_data {
  * @bank_num: bank number.
  * @pin: index at register or used to calc index.
  * @func: the min pin.
+ * @route_type: the register type.
  * @route_offset: the max pin.
  * @route_val: the register offset.
  */
@@ -324,6 +359,7 @@ struct rockchip_mux_route_data {
 	u8 bank_num;
 	u8 pin;
 	u8 func;
+	enum rockchip_pin_route_type route_type : 8;
 	u32 route_offset;
 	u32 route_val;
 };
@@ -1658,8 +1694,9 @@ static struct rockchip_mux_route_data rk3399_mux_route_data[] = {
 	},
 };
 
-static bool rockchip_get_mux_route(struct rockchip_pin_bank *bank, int pin,
-				   int mux, u32 *reg, u32 *value)
+static enum rockchip_pin_route_type
+rockchip_get_mux_route(struct rockchip_pin_bank *bank, int pin,
+		       int mux, u32 *reg, u32 *value)
 {
 	struct rockchip_pinctrl *info = bank->drvdata;
 	struct rockchip_pin_ctrl *ctrl = info->ctrl;
@@ -1674,12 +1711,12 @@ static bool rockchip_get_mux_route(struct rockchip_pin_bank *bank, int pin,
 	}
 
 	if (i >= ctrl->niomux_routes)
-		return false;
+		return ROUTE_TYPE_INVALID;
 
 	*reg = data->route_offset;
 	*value = data->route_val;
 
-	return true;
+	return data->route_type;
 }
 
 static int rockchip_get_mux(struct rockchip_pin_bank *bank, int pin)
@@ -1778,7 +1815,7 @@ static int rockchip_set_mux(struct rockchip_pin_bank *bank, int pin, int mux)
 	struct regmap *regmap;
 	int reg, ret, mask, mux_type;
 	u8 bit;
-	u32 data, rmask, route_reg, route_val;
+	u32 data, rmask;
 
 	ret = rockchip_verify_mux(bank, pin, mux);
 	if (ret < 0)
@@ -1818,11 +1855,23 @@ static int rockchip_set_mux(struct rockchip_pin_bank *bank, int pin, int mux)
 		return -EINVAL;
 
 	if (bank->route_mask & BIT(pin)) {
-		if (rockchip_get_mux_route(bank, pin, mux, &route_reg,
-					   &route_val)) {
-			ret = regmap_write(regmap, route_reg, route_val);
-			if (ret)
-				return ret;
+		u32 route_reg = 0, route_val = 0;
+
+		ret = rockchip_get_mux_route(bank, pin, mux,
+					     &route_reg, &route_val);
+		switch (ret) {
+		case ROUTE_TYPE_DEFAULT:
+			regmap_write(regmap, route_reg, route_val);
+			break;
+		case ROUTE_TYPE_TOPGRF:
+			regmap_write(info->regmap_base, route_reg, route_val);
+			break;
+		case ROUTE_TYPE_PMUGRF:
+			regmap_write(info->regmap_pmu, route_reg, route_val);
+			break;
+		case ROUTE_TYPE_INVALID: /* Fall through */
+		default:
+			break;
 		}
 	}
 
