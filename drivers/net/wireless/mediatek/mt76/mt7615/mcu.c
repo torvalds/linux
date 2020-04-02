@@ -967,10 +967,11 @@ mt7615_mcu_wtbl_ht_tlv(struct sk_buff *skb, struct ieee80211_sta *sta,
 }
 
 static int
-mt7615_mcu_add_bss(struct mt7615_dev *dev, struct ieee80211_vif *vif,
+mt7615_mcu_add_bss(struct mt7615_phy *phy, struct ieee80211_vif *vif,
 		   bool enable)
 {
 	struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
+	struct mt7615_dev *dev = phy->dev;
 	struct sk_buff *skb;
 
 	skb = mt7615_mcu_alloc_sta_req(mvif, NULL);
@@ -1244,12 +1245,15 @@ mt7615_mcu_uni_ctrl_pm_state(struct mt7615_dev *dev, int band, int state)
 }
 
 static int
-mt7615_mcu_uni_add_bss(struct mt7615_dev *dev,
+mt7615_mcu_uni_add_bss(struct mt7615_phy *phy,
 		       struct ieee80211_vif *vif, bool enable)
 {
 	struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
+	struct cfg80211_chan_def *chandef = &phy->mt76->chandef;
+	int freq1 = chandef->center_freq1, freq2 = chandef->center_freq2;
+	struct mt7615_dev *dev = phy->dev;
 	struct {
-		struct req_hdr {
+		struct {
 			u8 bss_idx;
 			u8 pad[3];
 		} __packed hdr;
@@ -1267,12 +1271,18 @@ mt7615_mcu_uni_add_bss(struct mt7615_dev *dev,
 			__le16 bmc_tx_wlan_idx;
 			__le16 bcn_interval;
 			u8 dtim_period;
-			u8 phymode;
+			u8 phymode; /* bit(0): A
+				     * bit(1): B
+				     * bit(2): G
+				     * bit(3): GN
+				     * bit(4): AN
+				     * bit(5): AC
+				     */
 			__le16 sta_idx;
 			u8 nonht_basic_phy;
 			u8 pad[3];
 		} __packed basic;
-	} req = {
+	} basic_req = {
 		.hdr = {
 			.bss_idx = mvif->idx,
 		},
@@ -1285,17 +1295,53 @@ mt7615_mcu_uni_add_bss(struct mt7615_dev *dev,
 			.band_idx = mvif->band_idx,
 			.wmm_idx = mvif->wmm_idx,
 			.active = enable,
+			.phymode = 0x38,
+		},
+	};
+	struct {
+		struct {
+			u8 bss_idx;
+			u8 pad[3];
+		} __packed hdr;
+		struct rlm_tlv {
+			__le16 tag;
+			__le16 len;
+			u8 control_channel;
+			u8 center_chan;
+			u8 center_chan2;
+			u8 bw;
+			u8 tx_streams;
+			u8 rx_streams;
+			u8 short_st;
+			u8 ht_op_info;
+			u8 sco;
+			u8 pad[3];
+		} __packed rlm;
+	} __packed rlm_req = {
+		.hdr = {
+			.bss_idx = mvif->idx,
+		},
+		.rlm = {
+			.tag = cpu_to_le16(UNI_BSS_INFO_RLM),
+			.len = cpu_to_le16(sizeof(struct rlm_tlv)),
+			.control_channel = chandef->chan->hw_value,
+			.center_chan = ieee80211_frequency_to_channel(freq1),
+			.center_chan2 = ieee80211_frequency_to_channel(freq2),
+			.tx_streams = hweight8(phy->mt76->antenna_mask),
+			.rx_streams = phy->chainmask,
+			.short_st = true,
 		},
 	};
 	u8 idx, tx_wlan_idx = 0;
+	int err;
 
 	idx = mvif->omac_idx > EXT_BSSID_START ? HW_BSSID_0 : mvif->omac_idx;
-	req.basic.hw_bss_idx = idx;
+	basic_req.basic.hw_bss_idx = idx;
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_MESH_POINT:
 	case NL80211_IFTYPE_AP:
-		req.basic.conn_type = cpu_to_le32(CONNECTION_INFRA_AP);
+		basic_req.basic.conn_type = cpu_to_le32(CONNECTION_INFRA_AP);
 		tx_wlan_idx = mvif->sta.wcid.idx;
 		break;
 	case NL80211_IFTYPE_STATION:
@@ -1314,20 +1360,59 @@ mt7615_mcu_uni_add_bss(struct mt7615_dev *dev,
 			tx_wlan_idx = msta->wcid.idx;
 			rcu_read_unlock();
 		}
-		req.basic.conn_type = cpu_to_le32(CONNECTION_INFRA_STA);
+		basic_req.basic.conn_type = cpu_to_le32(CONNECTION_INFRA_STA);
 		break;
 	default:
 		WARN_ON(1);
 		break;
 	}
 
-	memcpy(req.basic.bssid, vif->bss_conf.bssid, ETH_ALEN);
-	req.basic.bmc_tx_wlan_idx = cpu_to_le16(tx_wlan_idx);
-	req.basic.sta_idx = cpu_to_le16(tx_wlan_idx);
-	req.basic.conn_state = !enable;
+	memcpy(basic_req.basic.bssid, vif->bss_conf.bssid, ETH_ALEN);
+	basic_req.basic.bmc_tx_wlan_idx = cpu_to_le16(tx_wlan_idx);
+	basic_req.basic.sta_idx = cpu_to_le16(tx_wlan_idx);
+	basic_req.basic.conn_state = !enable;
+
+	err = __mt76_mcu_send_msg(&dev->mt76, MCU_UNI_CMD_BSS_INFO_UPDATE,
+				  &basic_req, sizeof(basic_req), true);
+	if (err < 0)
+		return err;
+
+	if (!mt7615_firmware_offload(dev))
+		return 0;
+
+	switch (chandef->width) {
+	case NL80211_CHAN_WIDTH_40:
+		rlm_req.rlm.bw = CMD_CBW_40MHZ;
+		break;
+	case NL80211_CHAN_WIDTH_80:
+		rlm_req.rlm.bw = CMD_CBW_80MHZ;
+		break;
+	case NL80211_CHAN_WIDTH_80P80:
+		rlm_req.rlm.bw = CMD_CBW_8080MHZ;
+		break;
+	case NL80211_CHAN_WIDTH_160:
+		rlm_req.rlm.bw = CMD_CBW_160MHZ;
+		break;
+	case NL80211_CHAN_WIDTH_5:
+		rlm_req.rlm.bw = CMD_CBW_5MHZ;
+		break;
+	case NL80211_CHAN_WIDTH_10:
+		rlm_req.rlm.bw = CMD_CBW_10MHZ;
+		break;
+	case NL80211_CHAN_WIDTH_20_NOHT:
+	case NL80211_CHAN_WIDTH_20:
+	default:
+		rlm_req.rlm.bw = CMD_CBW_20MHZ;
+		break;
+	}
+
+	if (rlm_req.rlm.control_channel < rlm_req.rlm.center_chan)
+		rlm_req.rlm.sco = 1; /* SCA */
+	else if (rlm_req.rlm.control_channel > rlm_req.rlm.center_chan)
+		rlm_req.rlm.sco = 3; /* SCB */
 
 	return __mt76_mcu_send_msg(&dev->mt76, MCU_UNI_CMD_BSS_INFO_UPDATE,
-				   &req, sizeof(req), true);
+				   &rlm_req, sizeof(rlm_req), true);
 }
 
 static int

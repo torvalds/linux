@@ -166,7 +166,7 @@ struct mt7615_phy {
 #define mt7615_mcu_add_rx_ba(dev, ...)	(dev)->mcu_ops->add_rx_ba((dev), __VA_ARGS__)
 #define mt7615_mcu_sta_add(dev, ...)	(dev)->mcu_ops->sta_add((dev),  __VA_ARGS__)
 #define mt7615_mcu_add_dev_info(dev, ...) (dev)->mcu_ops->add_dev_info((dev),  __VA_ARGS__)
-#define mt7615_mcu_add_bss_info(dev, ...) (dev)->mcu_ops->add_bss_info((dev),  __VA_ARGS__)
+#define mt7615_mcu_add_bss_info(phy, ...) (phy->dev)->mcu_ops->add_bss_info((phy),  __VA_ARGS__)
 #define mt7615_mcu_add_beacon(dev, ...)	(dev)->mcu_ops->add_beacon_offload((dev),  __VA_ARGS__)
 #define mt7615_mcu_set_pm(dev, ...)	(dev)->mcu_ops->set_pm_state((dev),  __VA_ARGS__)
 struct mt7615_mcu_ops {
@@ -181,7 +181,7 @@ struct mt7615_mcu_ops {
 		       struct ieee80211_sta *sta, bool enable);
 	int (*add_dev_info)(struct mt7615_dev *dev,
 			    struct ieee80211_vif *vif, bool enable);
-	int (*add_bss_info)(struct mt7615_dev *dev, struct ieee80211_vif *vif,
+	int (*add_bss_info)(struct mt7615_phy *phy, struct ieee80211_vif *vif,
 			    bool enable);
 	int (*add_beacon_offload)(struct mt7615_dev *dev,
 				  struct ieee80211_hw *hw,

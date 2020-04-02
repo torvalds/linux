@@ -410,15 +410,15 @@ static void mt7615_bss_info_changed(struct ieee80211_hw *hw,
 				    u32 changed)
 {
 	struct mt7615_dev *dev = mt7615_hw_dev(hw);
+	struct mt7615_phy *phy = mt7615_hw_phy(hw);
 
 	mutex_lock(&dev->mt76.mutex);
 
 	if (changed & BSS_CHANGED_ASSOC)
-		mt7615_mcu_add_bss_info(dev, vif, info->assoc);
+		mt7615_mcu_add_bss_info(phy, vif, info->assoc);
 
 	if (changed & BSS_CHANGED_ERP_SLOT) {
 		int slottime = info->use_short_slot ? 9 : 20;
-		struct mt7615_phy *phy = mt7615_hw_phy(hw);
 
 		if (slottime != phy->slottime) {
 			phy->slottime = slottime;
@@ -427,7 +427,7 @@ static void mt7615_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changed & BSS_CHANGED_BEACON_ENABLED) {
-		mt7615_mcu_add_bss_info(dev, vif, info->enable_beacon);
+		mt7615_mcu_add_bss_info(phy, vif, info->enable_beacon);
 		mt7615_mcu_sta_add(dev, vif, NULL, info->enable_beacon);
 	}
 
