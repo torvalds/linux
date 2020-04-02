@@ -1914,8 +1914,14 @@ static int mt7663_load_n9(struct mt7615_dev *dev, const char *name)
 	}
 
 	ret = mt7615_mcu_start_firmware(dev, override_addr, flag);
-	if (ret)
+	if (ret) {
 		dev_err(dev->mt76.dev, "Failed to start N9 firmware\n");
+		goto out;
+	}
+
+	snprintf(dev->mt76.hw->wiphy->fw_version,
+		 sizeof(dev->mt76.hw->wiphy->fw_version),
+		 "%.10s-%.15s", hdr->fw_ver, hdr->build_date);
 
 out:
 	release_firmware(fw);
