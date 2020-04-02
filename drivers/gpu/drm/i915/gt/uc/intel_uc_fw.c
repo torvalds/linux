@@ -296,7 +296,7 @@ int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw)
 
 	/* Check the size of the blob before examining buffer contents */
 	if (unlikely(fw->size < sizeof(struct uc_css_header))) {
-		dev_warn(dev, "%s firmware %s: invalid size: %zu < %zu\n",
+		drm_warn(&i915->drm, "%s firmware %s: invalid size: %zu < %zu\n",
 			 intel_uc_fw_type_repr(uc_fw->type), uc_fw->path,
 			 fw->size, sizeof(struct uc_css_header));
 		err = -ENODATA;
@@ -309,7 +309,7 @@ int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw)
 	size = (css->header_size_dw - css->key_size_dw - css->modulus_size_dw -
 		css->exponent_size_dw) * sizeof(u32);
 	if (unlikely(size != sizeof(struct uc_css_header))) {
-		dev_warn(dev,
+		drm_warn(&i915->drm,
 			 "%s firmware %s: unexpected header size: %zu != %zu\n",
 			 intel_uc_fw_type_repr(uc_fw->type), uc_fw->path,
 			 fw->size, sizeof(struct uc_css_header));
@@ -322,7 +322,7 @@ int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw)
 
 	/* now RSA */
 	if (unlikely(css->key_size_dw != UOS_RSA_SCRATCH_COUNT)) {
-		dev_warn(dev, "%s firmware %s: unexpected key size: %u != %u\n",
+		drm_warn(&i915->drm, "%s firmware %s: unexpected key size: %u != %u\n",
 			 intel_uc_fw_type_repr(uc_fw->type), uc_fw->path,
 			 css->key_size_dw, UOS_RSA_SCRATCH_COUNT);
 		err = -EPROTO;
@@ -333,7 +333,7 @@ int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw)
 	/* At least, it should have header, uCode and RSA. Size of all three. */
 	size = sizeof(struct uc_css_header) + uc_fw->ucode_size + uc_fw->rsa_size;
 	if (unlikely(fw->size < size)) {
-		dev_warn(dev, "%s firmware %s: invalid size: %zu < %zu\n",
+		drm_warn(&i915->drm, "%s firmware %s: invalid size: %zu < %zu\n",
 			 intel_uc_fw_type_repr(uc_fw->type), uc_fw->path,
 			 fw->size, size);
 		err = -ENOEXEC;
@@ -343,7 +343,7 @@ int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw)
 	/* Sanity check whether this fw is not larger than whole WOPCM memory */
 	size = __intel_uc_fw_get_upload_size(uc_fw);
 	if (unlikely(size >= i915->wopcm.size)) {
-		dev_warn(dev, "%s firmware %s: invalid size: %zu > %zu\n",
+		drm_warn(&i915->drm, "%s firmware %s: invalid size: %zu > %zu\n",
 			 intel_uc_fw_type_repr(uc_fw->type), uc_fw->path,
 			 size, (size_t)i915->wopcm.size);
 		err = -E2BIG;
@@ -358,7 +358,7 @@ int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw)
 
 	if (uc_fw->major_ver_found != uc_fw->major_ver_wanted ||
 	    uc_fw->minor_ver_found < uc_fw->minor_ver_wanted) {
-		dev_notice(dev, "%s firmware %s: unexpected version: %u.%u != %u.%u\n",
+		drm_notice(&i915->drm, "%s firmware %s: unexpected version: %u.%u != %u.%u\n",
 			   intel_uc_fw_type_repr(uc_fw->type), uc_fw->path,
 			   uc_fw->major_ver_found, uc_fw->minor_ver_found,
 			   uc_fw->major_ver_wanted, uc_fw->minor_ver_wanted);
@@ -386,9 +386,9 @@ fail:
 				  INTEL_UC_FIRMWARE_MISSING :
 				  INTEL_UC_FIRMWARE_ERROR);
 
-	dev_notice(dev, "%s firmware %s: fetch failed with error %d\n",
+	drm_notice(&i915->drm, "%s firmware %s: fetch failed with error %d\n",
 		   intel_uc_fw_type_repr(uc_fw->type), uc_fw->path, err);
-	dev_info(dev, "%s firmware(s) can be downloaded from %s\n",
+	drm_info(&i915->drm, "%s firmware(s) can be downloaded from %s\n",
 		 intel_uc_fw_type_repr(uc_fw->type), INTEL_UC_FIRMWARE_URL);
 
 	release_firmware(fw);		/* OK even if fw is NULL */
@@ -473,7 +473,7 @@ static int uc_fw_xfer(struct intel_uc_fw *uc_fw, u32 dst_offset, u32 dma_flags)
 	/* Wait for DMA to finish */
 	ret = intel_wait_for_register_fw(uncore, DMA_CTRL, START_DMA, 0, 100);
 	if (ret)
-		dev_err(gt->i915->drm.dev, "DMA for %s fw failed, DMA_CTRL=%u\n",
+		drm_err(&gt->i915->drm, "DMA for %s fw failed, DMA_CTRL=%u\n",
 			intel_uc_fw_type_repr(uc_fw->type),
 			intel_uncore_read_fw(uncore, DMA_CTRL));
 

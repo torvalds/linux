@@ -63,25 +63,25 @@ static void __confirm_options(struct intel_uc *uc)
 	}
 
 	if (!intel_uc_supports_guc(uc))
-		dev_info(i915->drm.dev,
+		drm_info(&i915->drm,
 			 "Incompatible option enable_guc=%d - %s\n",
 			 i915_modparams.enable_guc, "GuC is not supported!");
 
 	if (i915_modparams.enable_guc & ENABLE_GUC_LOAD_HUC &&
 	    !intel_uc_supports_huc(uc))
-		dev_info(i915->drm.dev,
+		drm_info(&i915->drm,
 			 "Incompatible option enable_guc=%d - %s\n",
 			 i915_modparams.enable_guc, "HuC is not supported!");
 
 	if (i915_modparams.enable_guc & ENABLE_GUC_SUBMISSION &&
 	    !intel_uc_supports_guc_submission(uc))
-		dev_info(i915->drm.dev,
+		drm_info(&i915->drm,
 			 "Incompatible option enable_guc=%d - %s\n",
 			 i915_modparams.enable_guc, "GuC submission is N/A");
 
 	if (i915_modparams.enable_guc & ~(ENABLE_GUC_SUBMISSION |
 					  ENABLE_GUC_LOAD_HUC))
-		dev_info(i915->drm.dev,
+		drm_info(&i915->drm,
 			 "Incompatible option enable_guc=%d - %s\n",
 			 i915_modparams.enable_guc, "undocumented flag");
 }
@@ -480,14 +480,14 @@ static int __uc_init_hw(struct intel_uc *uc)
 	if (intel_uc_uses_guc_submission(uc))
 		intel_guc_submission_enable(guc);
 
-	dev_info(i915->drm.dev, "%s firmware %s version %u.%u %s:%s\n",
+	drm_info(&i915->drm, "%s firmware %s version %u.%u %s:%s\n",
 		 intel_uc_fw_type_repr(INTEL_UC_FW_TYPE_GUC), guc->fw.path,
 		 guc->fw.major_ver_found, guc->fw.minor_ver_found,
 		 "submission",
 		 enableddisabled(intel_uc_uses_guc_submission(uc)));
 
 	if (intel_uc_uses_huc(uc)) {
-		dev_info(i915->drm.dev, "%s firmware %s version %u.%u %s:%s\n",
+		drm_info(&i915->drm, "%s firmware %s version %u.%u %s:%s\n",
 			 intel_uc_fw_type_repr(INTEL_UC_FW_TYPE_HUC),
 			 huc->fw.path,
 			 huc->fw.major_ver_found, huc->fw.minor_ver_found,
@@ -508,7 +508,7 @@ err_out:
 	__uc_sanitize(uc);
 
 	if (!ret) {
-		dev_notice(i915->drm.dev, "GuC is uninitialized\n");
+		drm_notice(&i915->drm, "GuC is uninitialized\n");
 		/* We want to run without GuC submission */
 		return 0;
 	}
