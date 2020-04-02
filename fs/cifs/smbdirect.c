@@ -450,8 +450,6 @@ static void smbd_post_send_credits(struct work_struct *work)
 	info->new_credits_offered += ret;
 	spin_unlock(&info->lock_new_credits_offered);
 
-	atomic_add(ret, &info->receive_credits);
-
 	/* Check if we can post new receive and grant credits to peer */
 	check_and_send_immediate(info);
 }
@@ -822,6 +820,7 @@ static int smbd_create_header(struct smbd_connection *info,
 	struct smbd_request *request;
 	struct smbd_data_transfer *packet;
 	int header_length;
+	int new_credits;
 	int rc;
 
 	/* Wait for send credits. A SMBD packet needs one credit */
@@ -840,7 +839,7 @@ static int smbd_create_header(struct smbd_connection *info,
 	request = mempool_alloc(info->request_mempool, GFP_KERNEL);
 	if (!request) {
 		rc = -ENOMEM;
-		goto err;
+		goto err_alloc;
 	}
 
 	request->info = info;
@@ -848,8 +847,11 @@ static int smbd_create_header(struct smbd_connection *info,
 	/* Fill in the packet header */
 	packet = smbd_request_payload(request);
 	packet->credits_requested = cpu_to_le16(info->send_credit_target);
-	packet->credits_granted =
-		cpu_to_le16(manage_credits_prior_sending(info));
+
+	new_credits = manage_credits_prior_sending(info);
+	atomic_add(new_credits, &info->receive_credits);
+	packet->credits_granted = cpu_to_le16(new_credits);
+
 	info->send_immediate = false;
 
 	packet->flags = 0;
@@ -887,7 +889,7 @@ static int smbd_create_header(struct smbd_connection *info,
 	if (ib_dma_mapping_error(info->id->device, request->sge[0].addr)) {
 		mempool_free(request, info->request_mempool);
 		rc = -EIO;
-		goto err;
+		goto err_dma;
 	}
 
 	request->sge[0].length = header_length;
@@ -896,8 +898,17 @@ static int smbd_create_header(struct smbd_connection *info,
 	*request_out = request;
 	return 0;
 
-err:
+err_dma:
+	/* roll back receive credits */
+	spin_lock(&info->lock_new_credits_offered);
+	info->new_credits_offered += new_credits;
+	spin_unlock(&info->lock_new_credits_offered);
+	atomic_sub(new_credits, &info->receive_credits);
+
+err_alloc:
+	/* roll back send credits */
 	atomic_inc(&info->send_credits);
+
 	return rc;
 }
 
