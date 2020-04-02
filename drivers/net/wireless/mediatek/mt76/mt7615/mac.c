@@ -2047,6 +2047,9 @@ int mt7615_dfs_init_radar_detector(struct mt7615_phy *phy)
 	bool ext_phy = phy != &dev->phy;
 	int err;
 
+	if (is_mt7663(&dev->mt76))
+		return 0;
+
 	if (dev->mt76.region == NL80211_DFS_UNSET) {
 		phy->dfs_state = -1;
 		if (phy->rdd_state)
