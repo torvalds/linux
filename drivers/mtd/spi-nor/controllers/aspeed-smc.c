@@ -109,7 +109,7 @@ struct aspeed_smc_controller {
 	void __iomem *ahb_base;			/* per-chip windows resource */
 	u32 ahb_window_size;			/* full mapping window size */
 
-	struct aspeed_smc_chip *chips[0];	/* pointers to attached chips */
+	struct aspeed_smc_chip *chips[];	/* pointers to attached chips */
 };
 
 /*
@@ -354,7 +354,7 @@ static void aspeed_smc_send_cmd_addr(struct spi_nor *nor, u8 cmd, u32 addr)
 	default:
 		WARN_ONCE(1, "Unexpected address width %u, defaulting to 3\n",
 			  nor->addr_width);
-		/* FALLTHROUGH */
+		fallthrough;
 	case 3:
 		cmdaddr = addr & 0xFFFFFF;
 		cmdaddr |= cmd << 24;
