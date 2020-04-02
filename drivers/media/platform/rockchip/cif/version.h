@@ -23,8 +23,10 @@
  *8. fix dvp camera fails to link with cif on rk1808
  *9. add camera support hotplug for n4
  *10. reconstruct register's reading and writing
+ *v0.1.3
+ *1. support kernel-4.19 and support vicap single dvp for rv1126
  */
 
-#define RKCIF_DRIVER_VERSION KERNEL_VERSION(0, 1, 0x2)
+#define RKCIF_DRIVER_VERSION KERNEL_VERSION(0, 1, 0x3)
 
 #endif

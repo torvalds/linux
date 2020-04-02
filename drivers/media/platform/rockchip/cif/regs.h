@@ -73,6 +73,7 @@ enum cif_reg_index {
 #define CIF_WB_LOW_FILTER		0x3c
 #define CIF_WBC_CNT			0x40
 #define CIF_CROP			0x44
+#define RV1126_CIF_CROP			0x34
 #define CIF_SCL_CTRL			0x48
 #define CIF_PATH_SEL			0x48
 #define CIF_SCL_DST			0x4c
@@ -81,9 +82,15 @@ enum cif_reg_index {
 #define CIF_FIFO_ENTRY			0x54
 #define CIF_LINE_LOOP_CTR		0x58
 #define CIF_FRAME_STATUS		0x60
+#define RV1126_CIF_FRAME_STATUS		0x3c
 #define CIF_CUR_DST			0x64
+#define RV1126_CIF_CUR_DST		0x40
 #define CIF_LAST_LINE			0x68
+#define RV1126_CIF_LAST_LINE		0x44
 #define CIF_LAST_PIX			0x6c
+#define RV1126_CIF_LAST_PIX		0x48
+#define CIF_MULTI_ID			0x10
+
 #define CIF_FETCH_Y_LAST_LINE(val)	((val) & 0x1fff)
 /* Check if swap y and c in bt1120 mode */
 #define CIF_FETCH_IS_Y_FIRST(val)	((val) & 0xf)

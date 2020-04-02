@@ -201,7 +201,8 @@ static int rkcif_create_links(struct rkcif_device *dev)
 	u32 flags;
 	unsigned int s, pad, id, stream_num = 0;
 
-	if (dev->chip_id == CHIP_RK1808_CIF)
+	if (dev->chip_id == CHIP_RK1808_CIF ||
+	    dev->chip_id == CHIP_RV1126_CIF)
 		stream_num = RKCIF_MULTI_STREAMS_NUM;
 	else
 		stream_num = RKCIF_SINGLE_STREAM;
@@ -224,7 +225,8 @@ static int rkcif_create_links(struct rkcif_device *dev)
 
 				if ((sensor->mbus.type == V4L2_MBUS_BT656 ||
 				     sensor->mbus.type == V4L2_MBUS_PARALLEL) &&
-				    dev->chip_id == CHIP_RK1808_CIF) {
+				    (dev->chip_id == CHIP_RK1808_CIF ||
+				     dev->chip_id == CHIP_RV1126_CIF)) {
 					source_entity = &sensor->sd->entity;
 					sink_entity = &dev->stream[RKCIF_STREAM_DVP].vnode.vdev.entity;
 
@@ -243,7 +245,7 @@ static int rkcif_create_links(struct rkcif_device *dev)
 					source_entity = &sensor->sd->entity;
 					sink_entity = &dev->stream[id].vnode.vdev.entity;
 
-					(dev->chip_id != CHIP_RK1808_CIF) | (id == pad - 1) ?
+					(dev->chip_id != CHIP_RK1808_CIF && dev->chip_id != CHIP_RV1126_CIF) | (id == pad - 1) ?
 					(flags = MEDIA_LNK_FL_ENABLED) : (flags = 0);
 
 					ret = media_create_pad_link(source_entity,
@@ -381,7 +383,8 @@ static int rkcif_register_platform_subdevs(struct rkcif_device *cif_dev)
 {
 	int stream_num = 0, ret;
 
-	if (cif_dev->chip_id == CHIP_RK1808_CIF) {
+	if (cif_dev->chip_id == CHIP_RK1808_CIF ||
+	    cif_dev->chip_id == CHIP_RV1126_CIF) {
 		stream_num = RKCIF_MULTI_STREAMS_NUM;
 		ret = rkcif_register_stream_vdevs(cif_dev, stream_num,
 						  true);
@@ -583,6 +586,47 @@ static const char * const rk3328_cif_rsts[] = {
 	"rst_cif_h",
 };
 
+static const char * const rv1126_cif_clks[] = {
+	"aclk_cif",
+	"hclk_cif",
+	"aclk_cif_lite",
+	"hclk_cif_lite",
+};
+
+static const char * const rv1126_cif_rsts[] = {
+	"rst_cif_a",
+	"rst_cif_h",
+	"rst_cif_d",
+	"rst_cif_p",
+	"rst_cif_i",
+	"rst_cif_rx_p",
+	"rst_cif_lite_a",
+	"rst_cif_lite_h",
+	"rst_cif_lite_d",
+	"rst_cif_lite_rx_p",
+};
+
+static const struct cif_reg rv1126_cif_regs[] = {
+	[CIF_REG_DVP_CTRL] = CIF_REG(CIF_CTRL),
+	[CIF_REG_DVP_INTEN] = CIF_REG(CIF_INTEN),
+	[CIF_REG_DVP_INTSTAT] = CIF_REG(CIF_INTSTAT),
+	[CIF_REG_DVP_FOR] = CIF_REG(CIF_FOR),
+	[CIF_REG_DVP_MULTI_ID] = CIF_REG(CIF_MULTI_ID),
+	[CIF_REG_DVP_FRM0_ADDR_Y] = CIF_REG(CIF_FRM0_ADDR_Y),
+	[CIF_REG_DVP_FRM0_ADDR_UV] = CIF_REG(CIF_FRM0_ADDR_UV),
+	[CIF_REG_DVP_FRM1_ADDR_Y] = CIF_REG(CIF_FRM1_ADDR_Y),
+	[CIF_REG_DVP_FRM1_ADDR_UV] = CIF_REG(CIF_FRM1_ADDR_UV),
+	[CIF_REG_DVP_VIR_LINE_WIDTH] = CIF_REG(CIF_VIR_LINE_WIDTH),
+	[CIF_REG_DVP_SET_SIZE] = CIF_REG(CIF_SET_SIZE),
+	[CIF_REG_DVP_LINE_INT_NUM] = CIF_REG(CIF_LINE_INT_NUM),
+	[CIF_REG_DVP_LINE_CNT] = CIF_REG(CIF_LINE_CNT),
+	[CIF_REG_DVP_CROP] = CIF_REG(RV1126_CIF_CROP),
+	[CIF_REG_DVP_FRAME_STATUS] = CIF_REG(RV1126_CIF_FRAME_STATUS),
+	[CIF_REG_DVP_CUR_DST] = CIF_REG(RV1126_CIF_CUR_DST),
+	[CIF_REG_DVP_LAST_LINE] = CIF_REG(RV1126_CIF_LAST_LINE),
+	[CIF_REG_DVP_LAST_PIX] = CIF_REG(RV1126_CIF_LAST_PIX),
+};
+
 static const struct cif_match_data px30_cif_match_data = {
 	.chip_id = CHIP_PX30_CIF,
 	.clks = px30_cif_clks,
@@ -628,6 +672,15 @@ static const struct cif_match_data rk3328_cif_match_data = {
 	.cif_regs = rk3328_cif_regs,
 };
 
+static const struct cif_match_data rv1126_cif_match_data = {
+	.chip_id = CHIP_RV1126_CIF,
+	.clks = rv1126_cif_clks,
+	.clks_num = ARRAY_SIZE(rv1126_cif_clks),
+	.rsts = rv1126_cif_rsts,
+	.rsts_num = ARRAY_SIZE(rv1126_cif_rsts),
+	.cif_regs = rv1126_cif_regs,
+};
+
 static const struct of_device_id rkcif_plat_of_match[] = {
 	{
 		.compatible = "rockchip,px30-cif",
@@ -648,6 +701,10 @@ static const struct of_device_id rkcif_plat_of_match[] = {
 	{
 		.compatible = "rockchip,rk3328-cif",
 		.data = &rk3328_cif_match_data,
+	},
+	{
+		.compatible = "rockchip,rv1126-cif",
+		.data = &rv1126_cif_match_data,
 	},
 	{},
 };
@@ -786,7 +843,8 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 	cif_dev->irq = irq;
 	data = match->data;
 	cif_dev->chip_id = data->chip_id;
-	if (data->chip_id == CHIP_RK1808_CIF) {
+	if (data->chip_id == CHIP_RK1808_CIF ||
+	    data->chip_id == CHIP_RV1126_CIF) {
 		res = platform_get_resource_byname(pdev,
 						   IORESOURCE_MEM,
 						   "cif_regs");
@@ -849,7 +907,8 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 	cif_dev->pipe.close = rkcif_pipeline_close;
 	cif_dev->pipe.set_stream = rkcif_pipeline_set_stream;
 
-	if (data->chip_id == CHIP_RK1808_CIF) {
+	if (data->chip_id == CHIP_RK1808_CIF ||
+	    data->chip_id == CHIP_RV1126_CIF) {
 		rkcif_stream_init(cif_dev, RKCIF_STREAM_MIPI_ID0);
 		rkcif_stream_init(cif_dev, RKCIF_STREAM_MIPI_ID1);
 		rkcif_stream_init(cif_dev, RKCIF_STREAM_MIPI_ID2);
@@ -929,7 +988,8 @@ static int rkcif_plat_remove(struct platform_device *pdev)
 
 	media_device_unregister(&cif_dev->media_dev);
 	v4l2_device_unregister(&cif_dev->v4l2_dev);
-	if (cif_dev->chip_id == CHIP_RK1808_CIF)
+	if (cif_dev->chip_id == CHIP_RK1808_CIF ||
+	    cif_dev->chip_id == CHIP_RV1126_CIF)
 		stream_num = RKCIF_MULTI_STREAMS_NUM;
 	else
 		stream_num = RKCIF_SINGLE_STREAM;

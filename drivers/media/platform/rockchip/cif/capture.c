@@ -1300,7 +1300,8 @@ static int rkcif_stream_start(struct rkcif_stream *stream)
 	rkcif_write_register(dev, CIF_REG_DVP_INTSTAT, INTSTAT_CLS);
 	rkcif_write_register(dev, CIF_REG_DVP_SCL_CTRL, rkcif_scl_ctl(stream));
 
-	if (dev->chip_id == CHIP_RK1808_CIF &&
+	if ((dev->chip_id == CHIP_RK1808_CIF ||
+	     dev->chip_id == CHIP_RV1126_CIF) &&
 	    rkcif_determine_input_mode(stream) == INPUT_MODE_BT1120)
 		rkcif_assign_new_buffer_pingpong(stream, 1, 0);
 	else
@@ -1318,7 +1319,8 @@ static int rkcif_stream_start(struct rkcif_stream *stream)
 	else
 		workmode = MODE_LINELOOP;
 
-	if (dev->chip_id == CHIP_RK1808_CIF &&
+	if ((dev->chip_id == CHIP_RK1808_CIF ||
+	     dev->chip_id == CHIP_RV1126_CIF) &&
 	    rkcif_determine_input_mode(stream) == INPUT_MODE_BT1120) {
 		dev->workmode = RKCIF_WORKMODE_PINGPONG;
 		rkcif_write_register(dev, CIF_REG_DVP_CTRL,
@@ -1439,7 +1441,8 @@ static int rkcif_start_streaming(struct vb2_queue *queue, unsigned int count)
 			goto runtime_put;
 	}
 
-	if (dev->chip_id == CHIP_RK1808_CIF) {
+	if (dev->chip_id == CHIP_RK1808_CIF ||
+	    dev->chip_id == CHIP_RV1126_CIF) {
 		if (dev->active_sensor->mbus.type == V4L2_MBUS_CSI2)
 			ret = rkcif_csi_stream_start(stream);
 		else
@@ -1654,7 +1657,8 @@ static int rkcif_fh_open(struct file *filp)
 	 * Because CRU would reset iommu too, so there's not chance
 	 * to reset cif once we hold buffers after buf queued
 	 */
-	if (cifdev->chip_id == CHIP_RK1808_CIF) {
+	if (cifdev->chip_id == CHIP_RK1808_CIF ||
+	    cifdev->chip_id == CHIP_RV1126_CIF) {
 		mutex_lock(&cifdev->stream_lock);
 		if (!atomic_read(&cifdev->fh_cnt))
 			rkcif_soft_reset(cifdev, true);
@@ -2053,7 +2057,8 @@ void rkcif_irq_oneframe(struct rkcif_device *cif_dev)
 	 *  - PST_INF_FRAME_END: cif FIFO is ready, this is prior to FRAME_END
 	 *  -         FRAME_END: cif has saved frame to memory, a frame ready
 	 */
-	if (cif_dev->chip_id == CHIP_RK1808_CIF)
+	if (cif_dev->chip_id == CHIP_RK1808_CIF ||
+	    cif_dev->chip_id == CHIP_RV1126_CIF)
 		stream = &cif_dev->stream[RKCIF_STREAM_DVP];
 	else
 		stream = &cif_dev->stream[RKCIF_STREAM_CIF];
@@ -2169,7 +2174,8 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 	unsigned int intstat, i = 0xff;
 
 	if (cif_dev->active_sensor->mbus.type == V4L2_MBUS_CSI2 &&
-	    cif_dev->chip_id == CHIP_RK1808_CIF) {
+	    (cif_dev->chip_id == CHIP_RK1808_CIF ||
+	     cif_dev->chip_id == CHIP_RV1126_CIF)) {
 		int mipi_id;
 		struct vb2_v4l2_buffer *vb_done = NULL;
 		u32 lastline = 0;
@@ -2268,7 +2274,8 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 		lastpix =  CIF_FETCH_Y_LAST_LINE(lastpix);
 		ctl = rkcif_read_register(cif_dev, CIF_REG_DVP_CTRL);
 
-		if (cif_dev->chip_id == CHIP_RK1808_CIF)
+		if (cif_dev->chip_id == CHIP_RK1808_CIF ||
+		    cif_dev->chip_id == CHIP_RV1126_CIF)
 			stream = &cif_dev->stream[RKCIF_STREAM_DVP];
 		else
 			stream = &cif_dev->stream[RKCIF_STREAM_CIF];
