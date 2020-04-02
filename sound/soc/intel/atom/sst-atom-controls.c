@@ -50,6 +50,8 @@ static int sst_fill_and_send_cmd_unlocked(struct sst_data *drv,
 {
 	int ret = 0;
 
+	WARN_ON(!mutex_is_locked(&drv->lock));
+
 	ret = sst_fill_byte_control(drv, ipc_msg,
 				block, task_id, pipe_id, len, cmd_data);
 	if (ret < 0)
