@@ -177,7 +177,7 @@
 #define EnCFG_BBType_a		0x00
 #define EnCFG_BBType_b		BIT(0)
 #define EnCFG_BBType_g		BIT(1)
-#define EnCFG_BBType_MASK	(BIT(0) | BIT(1))
+#define EnCFG_BBType_MASK	(EnCFG_BBType_b | EnCFG_BBType_g)
 #define EnCFG_ProtectMd		BIT(5)
 
 /* Bits in the EnhanceCFG_1 register */
