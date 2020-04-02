@@ -387,7 +387,7 @@ static int config_tnr(struct rkispp_device *dev)
 	if (fmt & FMT_FBC)
 		pic_size += w * h >> 4;
 
-	gain_size = ALIGN(width, 64) * ALIGN(height, 128) >> 5;
+	gain_size = ALIGN(width, 64) * ALIGN(height, 128) >> 4;
 	kg_size = gain_size * 4;
 	if (fmt & FMT_YUYV)
 		mult = 2;
@@ -562,7 +562,7 @@ static int config_nr_shp(struct rkispp_device *dev)
 	if (fmt & FMT_FBC)
 		pic_size += w * h >> 4;
 
-	gain_size = ALIGN(width, 64) * ALIGN(height, 128) >> 5;
+	gain_size = ALIGN(width, 64) * ALIGN(height, 128) >> 4;
 	if (fmt & FMT_YUYV)
 		mult = 2;
 
@@ -881,7 +881,8 @@ static void stop_mb(struct rkispp_stream *stream)
 	case ISPP_MODULE_NR:
 	case ISPP_MODULE_SHP:
 		rkispp_clear_bits(base + RKISPP_NR_UVNR_CTRL_PARA, SW_NR_EN);
-		rkispp_clear_bits(base + RKISPP_SHARP_CORE_CTRL, SW_SHP_EN);
+		rkispp_set_bits(base + RKISPP_SHARP_CORE_CTRL,
+				SW_SHP_DMA_DIS | SW_SHP_EN, SW_SHP_DMA_DIS);
 		break;
 	default:
 		rkispp_clear_bits(base + RKISPP_FEC_CORE_CTRL, SW_FEC_EN);
@@ -903,8 +904,6 @@ static int is_stopped_mb(struct rkispp_stream *stream)
 	case ISPP_MODULE_SHP:
 		en = SW_SHP_EN;
 		val = readl(base + RKISPP_SHARP_CORE_CTRL);
-		rkispp_set_bits(base + RKISPP_SHARP_CORE_CTRL,
-				0, SW_SHP_DMA_DIS);
 		break;
 	default:
 		en = SW_FEC_EN_SHD;

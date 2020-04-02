@@ -253,6 +253,8 @@ static int rkispp_sd_s_power(struct v4l2_subdev *sd, int on)
 		}
 		atomic_set(&ispp_sdev->frm_sync_seq, 0);
 		writel(0xfffffff, ispp_dev->base_addr + RKISPP_CTRL_INT_MSK);
+		writel(SW_SHP_DMA_DIS,
+		       ispp_dev->base_addr + RKISPP_SHARP_CORE_CTRL);
 		if (ispp_dev->inp == INP_ISP) {
 			struct v4l2_subdev_format *fmt = &ispp_sdev->in_fmt;
 
