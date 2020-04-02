@@ -680,7 +680,6 @@ static void dlm_flush_asts(struct dlm_ctxt *dlm)
 
 #define DLM_THREAD_TIMEOUT_MS (4 * 1000)
 #define DLM_THREAD_MAX_DIRTY  100
-#define DLM_THREAD_MAX_ASTS   10
 
 static int dlm_thread(void *data)
 {
