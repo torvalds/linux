@@ -1205,7 +1205,10 @@ int qdio_free(struct ccw_device *cdev)
 	cdev->private->qdio_data = NULL;
 	mutex_unlock(&irq_ptr->setup_mutex);
 
-	qdio_release_memory(irq_ptr);
+	qdio_free_queues(irq_ptr);
+	free_page((unsigned long) irq_ptr->qdr);
+	free_page(irq_ptr->chsc_page);
+	free_page((unsigned long) irq_ptr);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(qdio_free);
@@ -1221,6 +1224,7 @@ int qdio_allocate(struct ccw_device *cdev, unsigned int no_input_qs,
 {
 	struct subchannel_id schid;
 	struct qdio_irq *irq_ptr;
+	int rc = -ENOMEM;
 
 	ccw_device_get_schid(cdev, &schid);
 	DBF_EVENT("qallocate:%4x", schid.sch_no);
@@ -1232,12 +1236,12 @@ int qdio_allocate(struct ccw_device *cdev, unsigned int no_input_qs,
 	/* irq_ptr must be in GFP_DMA since it contains ccw1.cda */
 	irq_ptr = (void *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
 	if (!irq_ptr)
-		goto out_err;
+		return -ENOMEM;
 
 	irq_ptr->cdev = cdev;
 	mutex_init(&irq_ptr->setup_mutex);
 	if (qdio_allocate_dbf(irq_ptr))
-		goto out_rel;
+		goto err_dbf;
 
 	DBF_DEV_EVENT(DBF_ERR, irq_ptr, "alloc niq:%1u noq:%1u", no_input_qs,
 		      no_output_qs);
@@ -1250,24 +1254,31 @@ int qdio_allocate(struct ccw_device *cdev, unsigned int no_input_qs,
 	 */
 	irq_ptr->chsc_page = get_zeroed_page(GFP_KERNEL);
 	if (!irq_ptr->chsc_page)
-		goto out_rel;
+		goto err_chsc;
 
 	/* qdr is used in ccw1.cda which is u32 */
 	irq_ptr->qdr = (struct qdr *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
 	if (!irq_ptr->qdr)
-		goto out_rel;
+		goto err_qdr;
 
-	if (qdio_allocate_qs(irq_ptr, no_input_qs, no_output_qs))
-		goto out_rel;
+	rc = qdio_allocate_qs(irq_ptr, no_input_qs, no_output_qs);
+	if (rc)
+		goto err_queues;
 
 	INIT_LIST_HEAD(&irq_ptr->entry);
 	cdev->private->qdio_data = irq_ptr;
 	qdio_set_state(irq_ptr, QDIO_IRQ_STATE_INACTIVE);
 	return 0;
-out_rel:
-	qdio_release_memory(irq_ptr);
-out_err:
-	return -ENOMEM;
+
+err_queues:
+	qdio_free_queues(irq_ptr);
+	free_page((unsigned long) irq_ptr->qdr);
+err_qdr:
+	free_page(irq_ptr->chsc_page);
+err_chsc:
+err_dbf:
+	free_page((unsigned long) irq_ptr);
+	return rc;
 }
 EXPORT_SYMBOL_GPL(qdio_allocate);
 

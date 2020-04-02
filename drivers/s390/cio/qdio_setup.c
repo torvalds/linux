@@ -347,7 +347,7 @@ void qdio_setup_ssqd_info(struct qdio_irq *irq_ptr)
 	DBF_EVENT("3:%4x qib:%4x", irq_ptr->ssqd_desc.qdioac3, irq_ptr->qib.ac);
 }
 
-void qdio_release_memory(struct qdio_irq *irq_ptr)
+void qdio_free_queues(struct qdio_irq *irq_ptr)
 {
 	struct qdio_q *q;
 	int i;
@@ -383,9 +383,6 @@ void qdio_release_memory(struct qdio_irq *irq_ptr)
 			kmem_cache_free(qdio_q_cache, q);
 		}
 	}
-	free_page((unsigned long) irq_ptr->qdr);
-	free_page(irq_ptr->chsc_page);
-	free_page((unsigned long) irq_ptr);
 }
 
 static void __qdio_allocate_fill_qdr(struct qdio_irq *irq_ptr,
