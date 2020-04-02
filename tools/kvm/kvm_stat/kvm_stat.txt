@@ -65,8 +65,10 @@ OPTIONS
 	run in batch mode for one second
 
 -c::
---csv=<file>::
-        log in csv format - requires option -l/--log
+--csv::
+        log in csv format. Requires option -l/--log or -L/--log-to-file.
+        When used with option -L/--log-to-file, the header is only ever
+        written to start of file to preserve the format.
 
 -d::
 --debugfs::
@@ -91,6 +93,11 @@ OPTIONS
 -l::
 --log::
         run in logging mode (like vmstat)
+
+
+-L<file>::
+--log-to-file=<file>::
+        like -l/--log, but logging to a file. Appends to existing files.
 
 -p<pid>::
 --pid=<pid>::
