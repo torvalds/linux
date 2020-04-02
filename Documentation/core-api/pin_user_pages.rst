@@ -173,8 +173,8 @@ CASE 4: Pinning for struct page manipulation only
 -------------------------------------------------
 Here, normal GUP calls are sufficient, so neither flag needs to be set.
 
-page_dma_pinned(): the whole point of pinning
-=============================================
+page_maybe_dma_pinned(): the whole point of pinning
+===================================================
 
 The whole point of marking pages as "DMA-pinned" or "gup-pinned" is to be able
 to query, "is this page DMA-pinned?" That allows code such as page_mkclean()
@@ -186,7 +186,7 @@ and debates (see the References at the end of this document). It's a TODO item
 here: fill in the details once that's worked out. Meanwhile, it's safe to say
 that having this available: ::
 
-        static inline bool page_dma_pinned(struct page *page)
+        static inline bool page_maybe_dma_pinned(struct page *page)
 
 ...is a prerequisite to solving the long-running gup+DMA problem.
 
