@@ -2511,7 +2511,7 @@ static struct xfs_inode *
 xfs_ifree_get_one_inode(
 	struct xfs_perag	*pag,
 	struct xfs_inode	*free_ip,
-	int			inum)
+	xfs_ino_t		inum)
 {
 	struct xfs_mount	*mp = pag->pag_mount;
 	struct xfs_inode	*ip;
