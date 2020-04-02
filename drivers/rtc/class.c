@@ -48,7 +48,7 @@ int rtc_hctosys_ret = -ENODEV;
 
 static void rtc_hctosys(struct rtc_device *rtc)
 {
-	int err = -ENODEV;
+	int err;
 	struct rtc_time tm;
 	struct timespec64 tv64 = {
 		.tv_nsec = NSEC_PER_SEC >> 1,
