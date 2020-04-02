@@ -318,6 +318,26 @@ mt7615_mcu_rx_ext_event(struct mt7615_dev *dev, struct sk_buff *skb)
 }
 
 static void
+mt7615_mcu_scan_done_event(struct mt7615_dev *dev, struct sk_buff *skb)
+{
+	struct mt7615_mcu_rxd *rxd = (struct mt7615_mcu_rxd *)skb->data;
+	struct mt7615_hw_scan_done *event;
+	struct mt7615_phy *phy;
+	struct mt76_phy *mphy;
+
+	skb_pull(skb, sizeof(*rxd));
+	event = (struct mt7615_hw_scan_done *)skb->data;
+	if (event->seq_num & BIT(7) && dev->mt76.phy2)
+		mphy = dev->mt76.phy2;
+	else
+		mphy = &dev->mt76.phy;
+
+	phy = (struct mt7615_phy *)mphy->priv;
+	ieee80211_queue_delayed_work(mphy->hw, &phy->scan_work,
+				     MT7615_HW_SCAN_TIMEOUT);
+}
+
+static void
 mt7615_mcu_rx_unsolicited_event(struct mt7615_dev *dev, struct sk_buff *skb)
 {
 	struct mt7615_mcu_rxd *rxd = (struct mt7615_mcu_rxd *)skb->data;
@@ -325,6 +345,9 @@ mt7615_mcu_rx_unsolicited_event(struct mt7615_dev *dev, struct sk_buff *skb)
 	switch (rxd->eid) {
 	case MCU_EVENT_EXT:
 		mt7615_mcu_rx_ext_event(dev, skb);
+		break;
+	case MCU_EVENT_SCAN_DONE:
+		mt7615_mcu_scan_done_event(dev, skb);
 		break;
 	default:
 		break;
@@ -340,6 +363,7 @@ void mt7615_mcu_rx_event(struct mt7615_dev *dev, struct sk_buff *skb)
 	    rxd->ext_eid == MCU_EXT_EVENT_FW_LOG_2_HOST ||
 	    rxd->ext_eid == MCU_EXT_EVENT_ASSERT_DUMP ||
 	    rxd->ext_eid == MCU_EXT_EVENT_PS_SYNC ||
+	    rxd->eid == MCU_EVENT_SCAN_DONE ||
 	    !rxd->seq)
 		mt7615_mcu_rx_unsolicited_event(dev, skb);
 	else
@@ -2488,4 +2512,105 @@ int mt7615_mcu_set_channel_domain(struct mt7615_phy *phy)
 
 	return __mt76_mcu_skb_send_msg(&dev->mt76, skb,
 				       MCU_CMD_SET_CHAN_DOMAIN, false);
+}
+
+#define MT7615_SCAN_CHANNEL_TIME	120
+int mt7615_mcu_hw_scan(struct mt7615_phy *phy, struct ieee80211_vif *vif,
+		       struct ieee80211_scan_request *scan_req)
+{
+	struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
+	struct cfg80211_scan_request *sreq = &scan_req->req;
+	int ext_channels_num = max_t(int, sreq->n_channels - 32, 0);
+	struct ieee80211_channel **scan_list = sreq->channels;
+	int err, i, duration = MT7615_SCAN_CHANNEL_TIME;
+	struct mt7615_dev *dev = phy->dev;
+	bool ext_phy = phy != &dev->phy;
+	struct mt7615_mcu_scan_channel *chan;
+	struct mt7615_hw_scan_req *req;
+	struct sk_buff *skb;
+
+	/* fall-back to sw-scan */
+	if (!mt7615_firmware_offload(dev))
+		return 1;
+
+	skb = mt7615_mcu_msg_alloc(NULL, sizeof(*req));
+	if (!skb)
+		return -ENOMEM;
+
+	set_bit(MT76_HW_SCANNING, &phy->mt76->state);
+	mvif->scan_seq_num = (mvif->scan_seq_num + 1) & 0x7f;
+
+	req = (struct mt7615_hw_scan_req *)skb_put(skb, sizeof(*req));
+
+	req->seq_num = mvif->scan_seq_num | ext_phy << 7;
+	req->bss_idx = mvif->idx;
+	req->scan_type = 1;
+	req->ssid_type = 1;
+	req->probe_req_num = 2;
+	req->version = 1;
+	req->channel_type = 4;
+
+	for (i = 0; i < sreq->n_ssids; i++) {
+		req->ssids[i].ssid_len = cpu_to_le32(sreq->ssids[i].ssid_len);
+		memcpy(req->ssids[i].ssid, sreq->ssids[i].ssid,
+		       sreq->ssids[i].ssid_len);
+	}
+
+	req->timeout_value = cpu_to_le16(sreq->n_channels * duration);
+	req->channel_min_dwell_time = cpu_to_le16(duration);
+	req->channel_dwell_time = cpu_to_le16(duration);
+
+	req->channels_num = min_t(u8, sreq->n_channels, 32);
+	req->ext_channels_num = min_t(u8, ext_channels_num, 32);
+	for (i = 0; i < req->channels_num + req->ext_channels_num; i++) {
+		if (i >= 32)
+			chan = &req->ext_channels[i - 32];
+		else
+			chan = &req->channels[i];
+
+		chan->band = scan_list[i]->band == NL80211_BAND_2GHZ ? 1 : 2;
+		chan->channel_num = scan_list[i]->hw_value;
+	}
+
+	if (sreq->ie_len > 0) {
+		memcpy(req->ies, sreq->ie, sreq->ie_len);
+		req->ies_len = cpu_to_le16(sreq->ie_len);
+	}
+
+	memcpy(req->bssid, sreq->bssid, ETH_ALEN);
+	if (sreq->flags & NL80211_SCAN_FLAG_RANDOM_ADDR) {
+		get_random_mask_addr(req->random_mac, sreq->mac_addr,
+				     sreq->mac_addr_mask);
+		req->scan_func = 1;
+	}
+
+	err = __mt76_mcu_skb_send_msg(&dev->mt76, skb, MCU_CMD_START_HW_SCAN,
+				      false);
+	if (err < 0)
+		clear_bit(MT76_HW_SCANNING, &phy->mt76->state);
+
+	return err;
+}
+
+int mt7615_mcu_cancel_hw_scan(struct mt7615_phy *phy,
+			      struct ieee80211_vif *vif)
+{
+	struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
+	struct mt7615_dev *dev = phy->dev;
+	struct cfg80211_scan_info info = {
+		.aborted = true,
+	};
+	struct {
+		u8 seq_num;
+		u8 is_ext_channel;
+		u8 rsv[2];
+	} __packed req = {
+		.seq_num = mvif->scan_seq_num,
+	};
+
+	ieee80211_scan_completed(phy->mt76->hw, &info);
+	clear_bit(MT76_HW_SCANNING, &phy->mt76->state);
+
+	return __mt76_mcu_send_msg(&dev->mt76,  MCU_CMD_CANCEL_HW_SCAN, &req,
+				   sizeof(req), false);
 }

@@ -18,6 +18,7 @@
 					 MT7615_MAX_INTERFACES)
 
 #define MT7615_WATCHDOG_TIME		(HZ / 10)
+#define MT7615_HW_SCAN_TIMEOUT		(HZ / 10)
 #define MT7615_RESET_TIMEOUT		(30 * HZ)
 #define MT7615_RATE_RETRY		2
 
@@ -56,6 +57,8 @@
 #define MT7615_BAR_RATE_DEFAULT		0x4b /* OFDM 6M */
 #define MT7615_CFEND_RATE_DEFAULT	0x49 /* OFDM 24M */
 #define MT7615_CFEND_RATE_11B		0x03 /* 11B LP, 11M */
+
+#define MT7615_SCAN_IE_LEN		600
 
 struct mt7615_vif;
 struct mt7615_sta;
@@ -108,6 +111,7 @@ struct mt7615_vif {
 	u8 omac_idx;
 	u8 band_idx;
 	u8 wmm_idx;
+	u8 scan_seq_num;
 
 	struct mt7615_sta sta;
 };
@@ -150,6 +154,8 @@ struct mt7615_phy {
 	u32 ampdu_ref;
 
 	struct mib_stats mib;
+
+	struct delayed_work scan_work;
 };
 
 #define mt7615_mcu_add_tx_ba(dev, ...)	(dev)->mcu_ops->add_tx_ba((dev), __VA_ARGS__)
@@ -371,6 +377,7 @@ static inline bool mt7615_firmware_offload(struct mt7615_dev *dev)
 	return dev->fw_ver > MT7615_FIRMWARE_V2;
 }
 
+void mt7615_scan_work(struct work_struct *work);
 void mt7615_update_channel(struct mt76_dev *mdev);
 bool mt7615_mac_wtbl_update(struct mt7615_dev *dev, int idx, u32 mask);
 void mt7615_mac_reset_counters(struct mt7615_dev *dev);
@@ -401,6 +408,10 @@ void mt7615_mcu_exit(struct mt7615_dev *dev);
 void mt7615_mcu_fill_msg(struct mt7615_dev *dev, struct sk_buff *skb,
 			 int cmd, int *wait_seq);
 int mt7615_mcu_set_channel_domain(struct mt7615_phy *phy);
+int mt7615_mcu_hw_scan(struct mt7615_phy *phy, struct ieee80211_vif *vif,
+		       struct ieee80211_scan_request *scan_req);
+int mt7615_mcu_cancel_hw_scan(struct mt7615_phy *phy,
+			      struct ieee80211_vif *vif);
 
 int mt7615_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 			  enum mt76_txq_id qid, struct mt76_wcid *wcid,

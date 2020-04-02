@@ -77,6 +77,7 @@ static void mt7615_stop(struct ieee80211_hw *hw)
 	mutex_lock(&dev->mt76.mutex);
 
 	clear_bit(MT76_STATE_RUNNING, &phy->mt76->state);
+	cancel_delayed_work_sync(&phy->scan_work);
 
 	if (phy != &dev->phy) {
 		mt7615_mcu_set_pm(dev, 1, 1);
@@ -702,6 +703,37 @@ mt7615_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
 	return 0;
 }
 
+void mt7615_scan_work(struct work_struct *work)
+{
+	struct cfg80211_scan_info info = {
+		.aborted = false,
+	};
+	struct mt7615_phy *phy;
+
+	phy = (struct mt7615_phy *)container_of(work, struct mt7615_phy,
+						scan_work.work);
+
+	clear_bit(MT76_HW_SCANNING, &phy->mt76->state);
+	ieee80211_scan_completed(phy->mt76->hw, &info);
+}
+
+static int
+mt7615_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+	       struct ieee80211_scan_request *req)
+{
+	struct mt76_phy *mphy = hw->priv;
+
+	return mt7615_mcu_hw_scan(mphy->priv, vif, req);
+}
+
+static void
+mt7615_cancel_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
+{
+	struct mt76_phy *mphy = hw->priv;
+
+	mt7615_mcu_cancel_hw_scan(mphy->priv, vif);
+}
+
 const struct ieee80211_ops mt7615_ops = {
 	.tx = mt7615_tx,
 	.start = mt7615_start,
@@ -731,6 +763,8 @@ const struct ieee80211_ops mt7615_ops = {
 	.get_antenna = mt76_get_antenna,
 	.set_antenna = mt7615_set_antenna,
 	.set_coverage_class = mt7615_set_coverage_class,
+	.hw_scan = mt7615_hw_scan,
+	.cancel_hw_scan = mt7615_cancel_hw_scan,
 };
 
 static int __init mt7615_init(void)
