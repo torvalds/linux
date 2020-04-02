@@ -2241,7 +2241,7 @@ again:
 	arch_enter_lazy_mmu_mode();
 
 	for (; addr < end; addr += PAGE_SIZE, ptep++) {
-		unsigned long mpfn, pfn;
+		unsigned long mpfn = 0, pfn;
 		struct page *page;
 		swp_entry_t entry;
 		pte_t pte;
@@ -2255,8 +2255,6 @@ again:
 		}
 
 		if (!pte_present(pte)) {
-			mpfn = 0;
-
 			/*
 			 * Only care about unaddressable device page special
 			 * page table entry. Other special swap entries are not
@@ -2267,11 +2265,16 @@ again:
 				goto next;
 
 			page = device_private_entry_to_page(entry);
+			if (page->pgmap->owner != migrate->src_owner)
+				goto next;
+
 			mpfn = migrate_pfn(page_to_pfn(page)) |
 					MIGRATE_PFN_MIGRATE;
 			if (is_write_device_private_entry(entry))
 				mpfn |= MIGRATE_PFN_WRITE;
 		} else {
+			if (migrate->src_owner)
+				goto next;
 			pfn = pte_pfn(pte);
 			if (is_zero_pfn(pfn)) {
 				mpfn = MIGRATE_PFN_MIGRATE;
