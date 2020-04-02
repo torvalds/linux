@@ -57,9 +57,42 @@ static bool __mptcp_needs_tcp_fallback(const struct mptcp_sock *msk)
 	return msk->first && !sk_is_mptcp(msk->first);
 }
 
+static struct socket *mptcp_is_tcpsk(struct sock *sk)
+{
+	struct socket *sock = sk->sk_socket;
+
+	if (sock->sk != sk)
+		return NULL;
+
+	if (unlikely(sk->sk_prot == &tcp_prot)) {
+		/* we are being invoked after mptcp_accept() has
+		 * accepted a non-mp-capable flow: sk is a tcp_sk,
+		 * not an mptcp one.
+		 *
+		 * Hand the socket over to tcp so all further socket ops
+		 * bypass mptcp.
+		 */
+		sock->ops = &inet_stream_ops;
+		return sock;
+#if IS_ENABLED(CONFIG_MPTCP_IPV6)
+	} else if (unlikely(sk->sk_prot == &tcpv6_prot)) {
+		sock->ops = &inet6_stream_ops;
+		return sock;
+#endif
+	}
+
+	return NULL;
+}
+
 static struct socket *__mptcp_tcp_fallback(struct mptcp_sock *msk)
 {
+	struct socket *sock;
+
 	sock_owned_by_me((const struct sock *)msk);
+
+	sock = mptcp_is_tcpsk((struct sock *)msk);
+	if (unlikely(sock))
+		return sock;
 
 	if (likely(!__mptcp_needs_tcp_fallback(msk)))
 		return NULL;
@@ -83,6 +116,10 @@ static struct socket *__mptcp_socket_create(struct mptcp_sock *msk, int state)
 	struct sock *sk = (struct sock *)msk;
 	struct socket *ssock;
 	int err;
+
+	ssock = __mptcp_tcp_fallback(msk);
+	if (unlikely(ssock))
+		return ssock;
 
 	ssock = __mptcp_nmpc_socket(msk);
 	if (ssock)
@@ -1752,7 +1789,9 @@ static __poll_t mptcp_poll(struct file *file, struct socket *sock,
 
 	msk = mptcp_sk(sk);
 	lock_sock(sk);
-	ssock = __mptcp_nmpc_socket(msk);
+	ssock = __mptcp_tcp_fallback(msk);
+	if (!ssock)
+		ssock = __mptcp_nmpc_socket(msk);
 	if (ssock) {
 		mask = ssock->ops->poll(file, ssock, wait);
 		release_sock(sk);
@@ -1762,9 +1801,6 @@ static __poll_t mptcp_poll(struct file *file, struct socket *sock,
 	release_sock(sk);
 	sock_poll_wait(file, sock, wait);
 	lock_sock(sk);
-	ssock = __mptcp_tcp_fallback(msk);
-	if (unlikely(ssock))
-		return ssock->ops->poll(file, ssock, NULL);
 
 	if (test_bit(MPTCP_DATA_READY, &msk->flags))
 		mask = EPOLLIN | EPOLLRDNORM;
@@ -1783,11 +1819,17 @@ static int mptcp_shutdown(struct socket *sock, int how)
 {
 	struct mptcp_sock *msk = mptcp_sk(sock->sk);
 	struct mptcp_subflow_context *subflow;
+	struct socket *ssock;
 	int ret = 0;
 
 	pr_debug("sk=%p, how=%d", msk, how);
 
 	lock_sock(sock->sk);
+	ssock = __mptcp_tcp_fallback(msk);
+	if (ssock) {
+		release_sock(sock->sk);
+		return inet_shutdown(ssock, how);
+	}
 
 	if (how == SHUT_WR || how == SHUT_RDWR)
 		inet_sk_state_store(sock->sk, TCP_FIN_WAIT1);
