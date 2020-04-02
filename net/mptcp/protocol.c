@@ -57,9 +57,42 @@ static bool __mptcp_needs_tcp_fallback(const struct mptcp_sock *msk)
 	return msk->first && !sk_is_mptcp(msk->first);
 }
 
+static struct socket *mptcp_is_tcpsk(struct sock *sk)
+{
+	struct socket *sock = sk->sk_socket;
+
+	if (sock->sk != sk)
+		return NULL;
+
+	if (unlikely(sk->sk_prot == &tcp_prot)) {
+		/* we are being invoked after mptcp_accept() has
+		 * accepted a non-mp-capable flow: sk is a tcp_sk,
+		 * not an mptcp one.
+		 *
+		 * Hand the socket over to tcp so all further socket ops
+		 * bypass mptcp.
+		 */
+		sock->ops = &inet_stream_ops;
+		return sock;
+#if IS_ENABLED(CONFIG_MPTCP_IPV6)
+	} else if (unlikely(sk->sk_prot == &tcpv6_prot)) {
+		sock->ops = &inet6_stream_ops;
+		return sock;
+#endif
+	}
+
+	return NULL;
+}
+
 static struct socket *__mptcp_tcp_fallback(struct mptcp_sock *msk)
 {
+	struct socket *sock;
+
 	sock_owned_by_me((const struct sock *)msk);
+
+	sock = mptcp_is_tcpsk((struct sock *)msk);
+	if (unlikely(sock))
+		return sock;
 
 	if (likely(!__mptcp_needs_tcp_fallback(msk)))
 		return NULL;
@@ -83,6 +116,10 @@ static struct socket *__mptcp_socket_create(struct mptcp_sock *msk, int state)
 	struct sock *sk = (struct sock *)msk;
 	struct socket *ssock;
 	int err;
+
+	ssock = __mptcp_tcp_fallback(msk);
+	if (unlikely(ssock))
+		return ssock;
 
 	ssock = __mptcp_nmpc_socket(msk);
 	if (ssock)
@@ -121,6 +158,27 @@ static void __mptcp_move_skb(struct mptcp_sock *msk, struct sock *ssk,
 	MPTCP_SKB_CB(skb)->offset = offset;
 }
 
+/* both sockets must be locked */
+static bool mptcp_subflow_dsn_valid(const struct mptcp_sock *msk,
+				    struct sock *ssk)
+{
+	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(ssk);
+	u64 dsn = mptcp_subflow_get_mapped_dsn(subflow);
+
+	/* revalidate data sequence number.
+	 *
+	 * mptcp_subflow_data_available() is usually called
+	 * without msk lock.  Its unlikely (but possible)
+	 * that msk->ack_seq has been advanced since the last
+	 * call found in-sequence data.
+	 */
+	if (likely(dsn == msk->ack_seq))
+		return true;
+
+	subflow->data_avail = 0;
+	return mptcp_subflow_data_available(ssk);
+}
+
 static bool __mptcp_move_skbs_from_subflow(struct mptcp_sock *msk,
 					   struct sock *ssk,
 					   unsigned int *bytes)
@@ -131,6 +189,11 @@ static bool __mptcp_move_skbs_from_subflow(struct mptcp_sock *msk,
 	bool more_data_avail;
 	struct tcp_sock *tp;
 	bool done = false;
+
+	if (!mptcp_subflow_dsn_valid(msk, ssk)) {
+		*bytes = 0;
+		return false;
+	}
 
 	if (!(sk->sk_userlocks & SOCK_RCVBUF_LOCK)) {
 		int rcvbuf = max(ssk->sk_rcvbuf, sk->sk_rcvbuf);
@@ -287,6 +350,15 @@ void mptcp_data_acked(struct sock *sk)
 
 	if (!sk_stream_is_writeable(sk) &&
 	    schedule_work(&mptcp_sk(sk)->work))
+		sock_hold(sk);
+}
+
+void mptcp_subflow_eof(struct sock *sk)
+{
+	struct mptcp_sock *msk = mptcp_sk(sk);
+
+	if (!test_and_set_bit(MPTCP_WORK_EOF, &msk->flags) &&
+	    schedule_work(&msk->work))
 		sock_hold(sk);
 }
 
@@ -994,6 +1066,27 @@ static unsigned int mptcp_sync_mss(struct sock *sk, u32 pmtu)
 	return 0;
 }
 
+static void mptcp_check_for_eof(struct mptcp_sock *msk)
+{
+	struct mptcp_subflow_context *subflow;
+	struct sock *sk = (struct sock *)msk;
+	int receivers = 0;
+
+	mptcp_for_each_subflow(msk, subflow)
+		receivers += !subflow->rx_eof;
+
+	if (!receivers && !(sk->sk_shutdown & RCV_SHUTDOWN)) {
+		/* hopefully temporary hack: propagate shutdown status
+		 * to msk, when all subflows agree on it
+		 */
+		sk->sk_shutdown |= RCV_SHUTDOWN;
+
+		smp_mb__before_atomic(); /* SHUTDOWN must be visible first */
+		set_bit(MPTCP_DATA_READY, &msk->flags);
+		sk->sk_data_ready(sk);
+	}
+}
+
 static void mptcp_worker(struct work_struct *work)
 {
 	struct mptcp_sock *msk = container_of(work, struct mptcp_sock, work);
@@ -1009,6 +1102,9 @@ static void mptcp_worker(struct work_struct *work)
 	mptcp_clean_una(sk);
 	__mptcp_flush_join_list(msk);
 	__mptcp_move_skbs(msk);
+
+	if (test_and_clear_bit(MPTCP_WORK_EOF, &msk->flags))
+		mptcp_check_for_eof(msk);
 
 	if (!test_and_clear_bit(MPTCP_WORK_RTX, &msk->flags))
 		goto unlock;
@@ -1752,7 +1848,9 @@ static __poll_t mptcp_poll(struct file *file, struct socket *sock,
 
 	msk = mptcp_sk(sk);
 	lock_sock(sk);
-	ssock = __mptcp_nmpc_socket(msk);
+	ssock = __mptcp_tcp_fallback(msk);
+	if (!ssock)
+		ssock = __mptcp_nmpc_socket(msk);
 	if (ssock) {
 		mask = ssock->ops->poll(file, ssock, wait);
 		release_sock(sk);
@@ -1762,9 +1860,6 @@ static __poll_t mptcp_poll(struct file *file, struct socket *sock,
 	release_sock(sk);
 	sock_poll_wait(file, sock, wait);
 	lock_sock(sk);
-	ssock = __mptcp_tcp_fallback(msk);
-	if (unlikely(ssock))
-		return ssock->ops->poll(file, ssock, NULL);
 
 	if (test_bit(MPTCP_DATA_READY, &msk->flags))
 		mask = EPOLLIN | EPOLLRDNORM;
@@ -1783,11 +1878,17 @@ static int mptcp_shutdown(struct socket *sock, int how)
 {
 	struct mptcp_sock *msk = mptcp_sk(sock->sk);
 	struct mptcp_subflow_context *subflow;
+	struct socket *ssock;
 	int ret = 0;
 
 	pr_debug("sk=%p, how=%d", msk, how);
 
 	lock_sock(sock->sk);
+	ssock = __mptcp_tcp_fallback(msk);
+	if (ssock) {
+		release_sock(sock->sk);
+		return inet_shutdown(ssock, how);
+	}
 
 	if (how == SHUT_WR || how == SHUT_RDWR)
 		inet_sk_state_store(sock->sk, TCP_FIN_WAIT1);
