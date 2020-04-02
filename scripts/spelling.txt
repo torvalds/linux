@@ -1328,6 +1328,7 @@ swithcing||switching
 swithed||switched
 swithing||switching
 swtich||switch
+syfs||sysfs
 symetric||symmetric
 synax||syntax
 synchonized||synchronized
