@@ -464,8 +464,14 @@ static int sprd_pinconf_get(struct pinctrl_dev *pctldev, unsigned int pin_id,
 		case PIN_CONFIG_INPUT_ENABLE:
 			arg = (reg >> SLEEP_INPUT_SHIFT) & SLEEP_INPUT_MASK;
 			break;
-		case PIN_CONFIG_OUTPUT:
+		case PIN_CONFIG_OUTPUT_ENABLE:
 			arg = reg & SLEEP_OUTPUT_MASK;
+			break;
+		case PIN_CONFIG_BIAS_HIGH_IMPEDANCE:
+			if ((reg & SLEEP_OUTPUT) || (reg & SLEEP_INPUT))
+				return -EINVAL;
+
+			arg = 1;
 			break;
 		case PIN_CONFIG_DRIVE_STRENGTH:
 			arg = (reg >> DRIVE_STRENGTH_SHIFT) &
@@ -635,11 +641,21 @@ static int sprd_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin_id,
 					shift = SLEEP_INPUT_SHIFT;
 				}
 				break;
-			case PIN_CONFIG_OUTPUT:
+			case PIN_CONFIG_OUTPUT_ENABLE:
 				if (is_sleep_config == true) {
-					val |= SLEEP_OUTPUT;
+					if (arg > 0)
+						val |= SLEEP_OUTPUT;
+					else
+						val &= ~SLEEP_OUTPUT;
+
 					mask = SLEEP_OUTPUT_MASK;
 					shift = SLEEP_OUTPUT_SHIFT;
+				}
+				break;
+			case PIN_CONFIG_BIAS_HIGH_IMPEDANCE:
+				if (is_sleep_config == true) {
+					val = shift = 0;
+					mask = SLEEP_OUTPUT | SLEEP_INPUT;
 				}
 				break;
 			case PIN_CONFIG_DRIVE_STRENGTH:
@@ -1090,6 +1106,7 @@ int sprd_pinctrl_core_probe(struct platform_device *pdev,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(sprd_pinctrl_core_probe);
 
 int sprd_pinctrl_remove(struct platform_device *pdev)
 {
@@ -1098,6 +1115,7 @@ int sprd_pinctrl_remove(struct platform_device *pdev)
 	pinctrl_unregister(sprd_pctl->pctl);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(sprd_pinctrl_remove);
 
 void sprd_pinctrl_shutdown(struct platform_device *pdev)
 {
@@ -1112,6 +1130,7 @@ void sprd_pinctrl_shutdown(struct platform_device *pdev)
 		return;
 	pinctrl_select_state(pinctl, state);
 }
+EXPORT_SYMBOL_GPL(sprd_pinctrl_shutdown);
 
 MODULE_DESCRIPTION("SPREADTRUM Pin Controller Driver");
 MODULE_AUTHOR("Baolin Wang <baolin.wang@spreadtrum.com>");

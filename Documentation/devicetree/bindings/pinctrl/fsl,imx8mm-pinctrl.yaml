@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/pinctrl/fsl,imx8mp-pinctrl.yaml#
+$id: http://devicetree.org/schemas/pinctrl/fsl,imx8mm-pinctrl.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Freescale IMX8MP IOMUX Controller
+title: Freescale IMX8MM IOMUX Controller
 
 maintainers:
   - Anson Huang <Anson.Huang@nxp.com>
@@ -15,7 +15,7 @@ description:
 
 properties:
   compatible:
-    const: fsl,imx8mp-iomuxc
+    const: fsl,imx8mm-iomuxc
 
   reg:
     maxItems: 1
@@ -34,9 +34,9 @@ patternProperties:
           each entry consists of 6 integers and represents the mux and config
           setting for one pin. The first 5 integers <mux_reg conf_reg input_reg
           mux_val input_val> are specified using a PIN_FUNC_ID macro, which can
-          be found in <arch/arm64/boot/dts/freescale/imx8mp-pinfunc.h>. The last
+          be found in <arch/arm64/boot/dts/freescale/imx8mm-pinfunc.h>. The last
           integer CONFIG is the pad setting value like pull-up on this pin. Please
-          refer to i.MX8M Plus Reference Manual for detailed CONFIG settings.
+          refer to i.MX8M Mini Reference Manual for detailed CONFIG settings.
         allOf:
           - $ref: /schemas/types.yaml#/definitions/uint32-matrix
           - items:
@@ -69,13 +69,13 @@ examples:
   # Pinmux controller node
   - |
     iomuxc: pinctrl@30330000 {
-        compatible = "fsl,imx8mp-iomuxc";
+        compatible = "fsl,imx8mm-iomuxc";
         reg = <0x30330000 0x10000>;
 
         pinctrl_uart2: uart2grp {
             fsl,pins =
-                <0x228 0x488 0x5F0 0x0 0x6	0x49>,
-                <0x228 0x488 0x000 0x0 0x0	0x49>;
+                <0x23C 0x4A4 0x4FC 0x0 0x0	0x140>,
+                <0x240 0x4A8 0x000 0x0 0x0	0x140>;
         };
     };
 
