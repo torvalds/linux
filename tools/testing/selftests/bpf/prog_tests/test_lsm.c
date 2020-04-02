@@ -15,7 +15,10 @@
 
 char *CMD_ARGS[] = {"true", NULL};
 
-int heap_mprotect(void)
+#define GET_PAGE_ADDR(ADDR, PAGE_SIZE)					\
+	(char *)(((unsigned long) (ADDR + PAGE_SIZE)) & ~(PAGE_SIZE-1))
+
+int stack_mprotect(void)
 {
 	void *buf;
 	long sz;
@@ -25,12 +28,9 @@ int heap_mprotect(void)
 	if (sz < 0)
 		return sz;
 
-	buf = memalign(sz, 2 * sz);
-	if (buf == NULL)
-		return -ENOMEM;
-
-	ret = mprotect(buf, sz, PROT_READ | PROT_WRITE | PROT_EXEC);
-	free(buf);
+	buf = alloca(sz * 3);
+	ret = mprotect(GET_PAGE_ADDR(buf, sz), sz,
+		       PROT_READ | PROT_WRITE | PROT_EXEC);
 	return ret;
 }
 
@@ -73,8 +73,8 @@ void test_test_lsm(void)
 
 	skel->bss->monitored_pid = getpid();
 
-	err = heap_mprotect();
-	if (CHECK(errno != EPERM, "heap_mprotect", "want errno=EPERM, got %d\n",
+	err = stack_mprotect();
+	if (CHECK(errno != EPERM, "stack_mprotect", "want err=EPERM, got %d\n",
 		  errno))
 		goto close_prog;
 
