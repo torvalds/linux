@@ -1781,12 +1781,6 @@ int hisi_qm_get_vft(struct hisi_qm *qm, u32 *base, u32 *number)
 EXPORT_SYMBOL_GPL(hisi_qm_get_vft);
 
 /**
- * hisi_qm_set_vft() - Set "virtual function table" for a qm.
- * @fun_num: Number of operated function.
- * @qm: The qm in which to set vft, alway in a PF.
- * @base: The base number of queue in vft.
- * @number: The number of queues in vft. 0 means invalid vft.
- *
  * This function is alway called in PF driver, it is used to assign queues
  * among PF and VFs.
  *
@@ -1794,7 +1788,7 @@ EXPORT_SYMBOL_GPL(hisi_qm_get_vft);
  * Assign queues A~B to VF: hisi_qm_set_vft(qm, 2, A, B - A + 1)
  * (VF function number 0x2)
  */
-int hisi_qm_set_vft(struct hisi_qm *qm, u32 fun_num, u32 base,
+static int hisi_qm_set_vft(struct hisi_qm *qm, u32 fun_num, u32 base,
 		    u32 number)
 {
 	u32 max_q_num = qm->ctrl_qp_num;
@@ -1805,7 +1799,6 @@ int hisi_qm_set_vft(struct hisi_qm *qm, u32 fun_num, u32 base,
 
 	return qm_set_sqc_cqc_vft(qm, fun_num, base, number);
 }
-EXPORT_SYMBOL_GPL(hisi_qm_set_vft);
 
 static void qm_init_eq_aeq_status(struct hisi_qm *qm)
 {
@@ -2298,6 +2291,133 @@ err:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(hisi_qm_alloc_qps_node);
+
+static int qm_vf_q_assign(struct hisi_qm *qm, u32 num_vfs)
+{
+	u32 remain_q_num, q_num, i, j;
+	u32 q_base = qm->qp_num;
+	int ret;
+
+	if (!num_vfs)
+		return -EINVAL;
+
+	remain_q_num = qm->ctrl_qp_num - qm->qp_num;
+
+	/* If remain queues not enough, return error. */
+	if (qm->ctrl_qp_num < qm->qp_num || remain_q_num < num_vfs)
+		return -EINVAL;
+
+	q_num = remain_q_num / num_vfs;
+	for (i = 1; i <= num_vfs; i++) {
+		if (i == num_vfs)
+			q_num += remain_q_num % num_vfs;
+		ret = hisi_qm_set_vft(qm, i, q_base, q_num);
+		if (ret) {
+			for (j = i; j > 0; j--)
+				hisi_qm_set_vft(qm, j, 0, 0);
+			return ret;
+		}
+		q_base += q_num;
+	}
+
+	return 0;
+}
+
+static int qm_clear_vft_config(struct hisi_qm *qm)
+{
+	int ret;
+	u32 i;
+
+	for (i = 1; i <= qm->vfs_num; i++) {
+		ret = hisi_qm_set_vft(qm, i, 0, 0);
+		if (ret)
+			return ret;
+	}
+	qm->vfs_num = 0;
+
+	return 0;
+}
+
+/**
+ * hisi_qm_sriov_enable() - enable virtual functions
+ * @pdev: the PCIe device
+ * @max_vfs: the number of virtual functions to enable
+ *
+ * Returns the number of enabled VFs. If there are VFs enabled already or
+ * max_vfs is more than the total number of device can be enabled, returns
+ * failure.
+ */
+int hisi_qm_sriov_enable(struct pci_dev *pdev, int max_vfs)
+{
+	struct hisi_qm *qm = pci_get_drvdata(pdev);
+	int pre_existing_vfs, num_vfs, total_vfs, ret;
+
+	total_vfs = pci_sriov_get_totalvfs(pdev);
+	pre_existing_vfs = pci_num_vf(pdev);
+	if (pre_existing_vfs) {
+		pci_err(pdev, "%d VFs already enabled. Please disable pre-enabled VFs!\n",
+			pre_existing_vfs);
+		return 0;
+	}
+
+	num_vfs = min_t(int, max_vfs, total_vfs);
+	ret = qm_vf_q_assign(qm, num_vfs);
+	if (ret) {
+		pci_err(pdev, "Can't assign queues for VF!\n");
+		return ret;
+	}
+
+	qm->vfs_num = num_vfs;
+
+	ret = pci_enable_sriov(pdev, num_vfs);
+	if (ret) {
+		pci_err(pdev, "Can't enable VF!\n");
+		qm_clear_vft_config(qm);
+		return ret;
+	}
+
+	pci_info(pdev, "VF enabled, vfs_num(=%d)!\n", num_vfs);
+
+	return num_vfs;
+}
+EXPORT_SYMBOL_GPL(hisi_qm_sriov_enable);
+
+/**
+ * hisi_qm_sriov_disable - disable virtual functions
+ * @pdev: the PCI device
+ *
+ * Return failure if there are VFs assigned already.
+ */
+int hisi_qm_sriov_disable(struct pci_dev *pdev)
+{
+	struct hisi_qm *qm = pci_get_drvdata(pdev);
+
+	if (pci_vfs_assigned(pdev)) {
+		pci_err(pdev, "Failed to disable VFs as VFs are assigned!\n");
+		return -EPERM;
+	}
+
+	/* remove in hpre_pci_driver will be called to free VF resources */
+	pci_disable_sriov(pdev);
+	return qm_clear_vft_config(qm);
+}
+EXPORT_SYMBOL_GPL(hisi_qm_sriov_disable);
+
+/**
+ * hisi_qm_sriov_configure - configure the number of VFs
+ * @pdev: The PCI device
+ * @num_vfs: The number of VFs need enabled
+ *
+ * Enable SR-IOV according to num_vfs, 0 means disable.
+ */
+int hisi_qm_sriov_configure(struct pci_dev *pdev, int num_vfs)
+{
+	if (num_vfs == 0)
+		return hisi_qm_sriov_disable(pdev);
+	else
+		return hisi_qm_sriov_enable(pdev, num_vfs);
+}
+EXPORT_SYMBOL_GPL(hisi_qm_sriov_configure);
 
 static pci_ers_result_t qm_dev_err_handle(struct hisi_qm *qm)
 {

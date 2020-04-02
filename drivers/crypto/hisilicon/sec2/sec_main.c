@@ -892,110 +892,6 @@ err_qm_uninit:
 	return ret;
 }
 
-/* now we only support equal assignment */
-static int sec_vf_q_assign(struct sec_dev *sec, u32 num_vfs)
-{
-	struct hisi_qm *qm = &sec->qm;
-	u32 qp_num = qm->qp_num;
-	u32 q_base = qp_num;
-	u32 q_num, remain_q_num;
-	int i, j, ret;
-
-	if (!num_vfs)
-		return -EINVAL;
-
-	remain_q_num = qm->ctrl_qp_num - qp_num;
-	q_num = remain_q_num / num_vfs;
-
-	for (i = 1; i <= num_vfs; i++) {
-		if (i == num_vfs)
-			q_num += remain_q_num % num_vfs;
-		ret = hisi_qm_set_vft(qm, i, q_base, q_num);
-		if (ret) {
-			for (j = i; j > 0; j--)
-				hisi_qm_set_vft(qm, j, 0, 0);
-			return ret;
-		}
-		q_base += q_num;
-	}
-
-	return 0;
-}
-
-static int sec_clear_vft_config(struct sec_dev *sec)
-{
-	struct hisi_qm *qm = &sec->qm;
-	u32 num_vfs = qm->vfs_num;
-	int ret;
-	u32 i;
-
-	for (i = 1; i <= num_vfs; i++) {
-		ret = hisi_qm_set_vft(qm, i, 0, 0);
-		if (ret)
-			return ret;
-	}
-
-	qm->vfs_num = 0;
-
-	return 0;
-}
-
-static int sec_sriov_enable(struct pci_dev *pdev, int max_vfs)
-{
-	struct sec_dev *sec = pci_get_drvdata(pdev);
-	int pre_existing_vfs, ret;
-	u32 num_vfs;
-
-	pre_existing_vfs = pci_num_vf(pdev);
-
-	if (pre_existing_vfs) {
-		pci_err(pdev, "Can't enable VF. Please disable at first!\n");
-		return 0;
-	}
-
-	num_vfs = min_t(u32, max_vfs, SEC_VF_NUM);
-
-	ret = sec_vf_q_assign(sec, num_vfs);
-	if (ret) {
-		pci_err(pdev, "Can't assign queues for VF!\n");
-		return ret;
-	}
-
-	sec->qm.vfs_num = num_vfs;
-
-	ret = pci_enable_sriov(pdev, num_vfs);
-	if (ret) {
-		pci_err(pdev, "Can't enable VF!\n");
-		sec_clear_vft_config(sec);
-		return ret;
-	}
-
-	return num_vfs;
-}
-
-static int sec_sriov_disable(struct pci_dev *pdev)
-{
-	struct sec_dev *sec = pci_get_drvdata(pdev);
-
-	if (pci_vfs_assigned(pdev)) {
-		pci_err(pdev, "Can't disable VFs while VFs are assigned!\n");
-		return -EPERM;
-	}
-
-	/* remove in sec_pci_driver will be called to free VF resources */
-	pci_disable_sriov(pdev);
-
-	return sec_clear_vft_config(sec);
-}
-
-static int sec_sriov_configure(struct pci_dev *pdev, int num_vfs)
-{
-	if (num_vfs)
-		return sec_sriov_enable(pdev, num_vfs);
-	else
-		return sec_sriov_disable(pdev);
-}
-
 static void sec_remove(struct pci_dev *pdev)
 {
 	struct sec_dev *sec = pci_get_drvdata(pdev);
@@ -1006,7 +902,7 @@ static void sec_remove(struct pci_dev *pdev)
 	hisi_qm_del_from_list(qm, &sec_devices);
 
 	if (qm->fun_type == QM_HW_PF && qm->vfs_num)
-		(void)sec_sriov_disable(pdev);
+		hisi_qm_sriov_disable(pdev);
 
 	sec_debugfs_exit(sec);
 
@@ -1030,7 +926,7 @@ static struct pci_driver sec_pci_driver = {
 	.probe = sec_probe,
 	.remove = sec_remove,
 	.err_handler = &sec_err_handler,
-	.sriov_configure = sec_sriov_configure,
+	.sriov_configure = hisi_qm_sriov_configure,
 };
 
 static void sec_register_debugfs(void)
