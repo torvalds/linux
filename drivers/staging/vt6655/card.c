@@ -17,7 +17,6 @@
  *      CARDvSetFirstNextTBTT - Set NIC Beacon time
  *      CARDvUpdateNextTBTT - Sync. NIC Beacon time
  *      CARDbRadioPowerOff - Turn Off NIC Radio Power
- *      CARDbRadioPowerOn - Turn On NIC Radio Power
  *
  * Revision History:
  *      06-10-2003 Bryan YC Fan:  Re-write codes to support VT3253 spec.
@@ -435,60 +434,6 @@ void CARDbRadioPowerOff(struct vnt_private *priv)
 	pr_debug("chester power off\n");
 	MACvRegBitsOn(priv->PortOffset, MAC_REG_GPIOCTL0,
 		      LED_ACTSET);  /* LED issue */
-}
-
-/*
- * Description: Turn on Radio power
- *
- * Parameters:
- *  In:
- *      priv         - The adapter to be turned on
- *  Out:
- *      none
- *
- * Return Value: true if success; otherwise false
- */
-bool CARDbRadioPowerOn(struct vnt_private *priv)
-{
-	bool bResult = true;
-
-	pr_debug("chester power on\n");
-	if (priv->bRadioControlOff) {
-		if (priv->bHWRadioOff)
-			pr_debug("chester bHWRadioOff\n");
-		if (priv->bRadioControlOff)
-			pr_debug("chester bRadioControlOff\n");
-		return false; }
-
-	if (!priv->bRadioOff) {
-		pr_debug("chester pbRadioOff\n");
-		return true; }
-
-	BBvExitDeepSleep(priv, priv->byLocalID);
-
-	MACvRegBitsOn(priv->PortOffset, MAC_REG_HOSTCR, HOSTCR_RXON);
-
-	switch (priv->byRFType) {
-	case RF_RFMD2959:
-		MACvWordRegBitsOn(priv->PortOffset, MAC_REG_SOFTPWRCTL,
-				  SOFTPWRCTL_TXPEINV);
-		MACvWordRegBitsOff(priv->PortOffset, MAC_REG_SOFTPWRCTL,
-				   SOFTPWRCTL_SWPE1);
-		break;
-
-	case RF_AIROHA:
-	case RF_AL2230S:
-	case RF_AIROHA7230:
-		MACvWordRegBitsOn(priv->PortOffset, MAC_REG_SOFTPWRCTL,
-				  (SOFTPWRCTL_SWPE2 | SOFTPWRCTL_SWPE3));
-		break;
-	}
-
-	priv->bRadioOff = false;
-	pr_debug("chester power on\n");
-	MACvRegBitsOff(priv->PortOffset, MAC_REG_GPIOCTL0,
-		       LED_ACTSET); /* LED issue */
-	return bResult;
 }
 
 void CARDvSafeResetTx(struct vnt_private *priv)
