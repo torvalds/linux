@@ -31,11 +31,9 @@ static irqreturn_t ifcvf_intr_handler(int irq, void *arg)
 static int ifcvf_start_datapath(void *private)
 {
 	struct ifcvf_hw *vf = ifcvf_private_to_vf(private);
-	struct ifcvf_adapter *ifcvf;
 	u8 status;
 	int ret;
 
-	ifcvf = vf_to_adapter(vf);
 	vf->nr_vring = IFCVF_MAX_QUEUE_PAIRS * 2;
 	ret = ifcvf_start_hw(vf);
 	if (ret < 0) {
