@@ -1391,6 +1391,7 @@ EXPORT_SYMBOL(would_dump);
 
 void setup_new_exec(struct linux_binprm * bprm)
 {
+	struct task_struct *me = current;
 	/*
 	 * Once here, prepare_binrpm() will not be called any more, so
 	 * the final state of setuid/setgid/fscaps can be merged into the
@@ -1400,7 +1401,7 @@ void setup_new_exec(struct linux_binprm * bprm)
 
 	if (bprm->secureexec) {
 		/* Make sure parent cannot signal privileged process. */
-		current->pdeath_signal = 0;
+		me->pdeath_signal = 0;
 
 		/*
 		 * For secureexec, reset the stack limit to sane default to
@@ -1413,9 +1414,9 @@ void setup_new_exec(struct linux_binprm * bprm)
 			bprm->rlim_stack.rlim_cur = _STK_LIM;
 	}
 
-	arch_pick_mmap_layout(current->mm, &bprm->rlim_stack);
+	arch_pick_mmap_layout(me->mm, &bprm->rlim_stack);
 
-	current->sas_ss_sp = current->sas_ss_size = 0;
+	me->sas_ss_sp = me->sas_ss_size = 0;
 
 	/*
 	 * Figure out dumpability. Note that this checking only of current
@@ -1431,18 +1432,18 @@ void setup_new_exec(struct linux_binprm * bprm)
 
 	arch_setup_new_exec();
 	perf_event_exec();
-	__set_task_comm(current, kbasename(bprm->filename), true);
+	__set_task_comm(me, kbasename(bprm->filename), true);
 
 	/* Set the new mm task size. We have to do that late because it may
 	 * depend on TIF_32BIT which is only updated in flush_thread() on
 	 * some architectures like powerpc
 	 */
-	current->mm->task_size = TASK_SIZE;
+	me->mm->task_size = TASK_SIZE;
 
 	/* An exec changes our domain. We are no longer part of the thread
 	   group */
-	WRITE_ONCE(current->self_exec_id, current->self_exec_id + 1);
-	flush_signal_handlers(current, 0);
+	WRITE_ONCE(me->self_exec_id, me->self_exec_id + 1);
+	flush_signal_handlers(me, 0);
 
 	/*
 	 * install the new credentials for this executable
@@ -1458,16 +1459,16 @@ void setup_new_exec(struct linux_binprm * bprm)
 	 * wait until new credentials are committed
 	 * by commit_creds() above
 	 */
-	if (get_dumpable(current->mm) != SUID_DUMP_USER)
-		perf_event_exit_task(current);
+	if (get_dumpable(me->mm) != SUID_DUMP_USER)
+		perf_event_exit_task(me);
 	/*
 	 * cred_guard_mutex must be held at least to this point to prevent
 	 * ptrace_attach() from altering our determination of the task's
 	 * credentials; any time after this it may be unlocked.
 	 */
 	security_bprm_committed_creds(bprm);
-	mutex_unlock(&current->signal->exec_update_mutex);
-	mutex_unlock(&current->signal->cred_guard_mutex);
+	mutex_unlock(&me->signal->exec_update_mutex);
+	mutex_unlock(&me->signal->cred_guard_mutex);
 }
 EXPORT_SYMBOL(setup_new_exec);
 
