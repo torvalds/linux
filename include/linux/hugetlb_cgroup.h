@@ -20,30 +20,62 @@
 struct hugetlb_cgroup;
 /*
  * Minimum page order trackable by hugetlb cgroup.
- * At least 3 pages are necessary for all the tracking information.
+ * At least 4 pages are necessary for all the tracking information.
+ * The second tail page (hpage[2]) is the fault usage cgroup.
+ * The third tail page (hpage[3]) is the reservation usage cgroup.
  */
 #define HUGETLB_CGROUP_MIN_ORDER	2
 
 #ifdef CONFIG_CGROUP_HUGETLB
 
-static inline struct hugetlb_cgroup *hugetlb_cgroup_from_page(struct page *page)
+static inline struct hugetlb_cgroup *
+__hugetlb_cgroup_from_page(struct page *page, bool rsvd)
 {
 	VM_BUG_ON_PAGE(!PageHuge(page), page);
 
 	if (compound_order(page) < HUGETLB_CGROUP_MIN_ORDER)
 		return NULL;
-	return (struct hugetlb_cgroup *)page[2].private;
+	if (rsvd)
+		return (struct hugetlb_cgroup *)page[3].private;
+	else
+		return (struct hugetlb_cgroup *)page[2].private;
 }
 
-static inline
-int set_hugetlb_cgroup(struct page *page, struct hugetlb_cgroup *h_cg)
+static inline struct hugetlb_cgroup *hugetlb_cgroup_from_page(struct page *page)
+{
+	return __hugetlb_cgroup_from_page(page, false);
+}
+
+static inline struct hugetlb_cgroup *
+hugetlb_cgroup_from_page_rsvd(struct page *page)
+{
+	return __hugetlb_cgroup_from_page(page, true);
+}
+
+static inline int __set_hugetlb_cgroup(struct page *page,
+				       struct hugetlb_cgroup *h_cg, bool rsvd)
 {
 	VM_BUG_ON_PAGE(!PageHuge(page), page);
 
 	if (compound_order(page) < HUGETLB_CGROUP_MIN_ORDER)
 		return -1;
-	page[2].private	= (unsigned long)h_cg;
+	if (rsvd)
+		page[3].private = (unsigned long)h_cg;
+	else
+		page[2].private = (unsigned long)h_cg;
 	return 0;
+}
+
+static inline int set_hugetlb_cgroup(struct page *page,
+				     struct hugetlb_cgroup *h_cg)
+{
+	return __set_hugetlb_cgroup(page, h_cg, false);
+}
+
+static inline int set_hugetlb_cgroup_rsvd(struct page *page,
+					  struct hugetlb_cgroup *h_cg)
+{
+	return __set_hugetlb_cgroup(page, h_cg, true);
 }
 
 static inline bool hugetlb_cgroup_disabled(void)
@@ -53,13 +85,27 @@ static inline bool hugetlb_cgroup_disabled(void)
 
 extern int hugetlb_cgroup_charge_cgroup(int idx, unsigned long nr_pages,
 					struct hugetlb_cgroup **ptr);
+extern int hugetlb_cgroup_charge_cgroup_rsvd(int idx, unsigned long nr_pages,
+					     struct hugetlb_cgroup **ptr);
 extern void hugetlb_cgroup_commit_charge(int idx, unsigned long nr_pages,
 					 struct hugetlb_cgroup *h_cg,
 					 struct page *page);
+extern void hugetlb_cgroup_commit_charge_rsvd(int idx, unsigned long nr_pages,
+					      struct hugetlb_cgroup *h_cg,
+					      struct page *page);
 extern void hugetlb_cgroup_uncharge_page(int idx, unsigned long nr_pages,
 					 struct page *page);
+extern void hugetlb_cgroup_uncharge_page_rsvd(int idx, unsigned long nr_pages,
+					      struct page *page);
+
 extern void hugetlb_cgroup_uncharge_cgroup(int idx, unsigned long nr_pages,
 					   struct hugetlb_cgroup *h_cg);
+extern void hugetlb_cgroup_uncharge_cgroup_rsvd(int idx, unsigned long nr_pages,
+						struct hugetlb_cgroup *h_cg);
+extern void hugetlb_cgroup_uncharge_counter(struct page_counter *p,
+					    unsigned long nr_pages,
+					    struct cgroup_subsys_state *css);
+
 extern void hugetlb_cgroup_file_init(void) __init;
 extern void hugetlb_cgroup_migrate(struct page *oldhpage,
 				   struct page *newhpage);
@@ -70,8 +116,26 @@ static inline struct hugetlb_cgroup *hugetlb_cgroup_from_page(struct page *page)
 	return NULL;
 }
 
-static inline
-int set_hugetlb_cgroup(struct page *page, struct hugetlb_cgroup *h_cg)
+static inline struct hugetlb_cgroup *
+hugetlb_cgroup_from_page_resv(struct page *page)
+{
+	return NULL;
+}
+
+static inline struct hugetlb_cgroup *
+hugetlb_cgroup_from_page_rsvd(struct page *page)
+{
+	return NULL;
+}
+
+static inline int set_hugetlb_cgroup(struct page *page,
+				     struct hugetlb_cgroup *h_cg)
+{
+	return 0;
+}
+
+static inline int set_hugetlb_cgroup_rsvd(struct page *page,
+					  struct hugetlb_cgroup *h_cg)
 {
 	return 0;
 }
@@ -81,28 +145,51 @@ static inline bool hugetlb_cgroup_disabled(void)
 	return true;
 }
 
-static inline int
-hugetlb_cgroup_charge_cgroup(int idx, unsigned long nr_pages,
-			     struct hugetlb_cgroup **ptr)
+static inline int hugetlb_cgroup_charge_cgroup(int idx, unsigned long nr_pages,
+					       struct hugetlb_cgroup **ptr)
 {
 	return 0;
 }
 
-static inline void
-hugetlb_cgroup_commit_charge(int idx, unsigned long nr_pages,
-			     struct hugetlb_cgroup *h_cg,
-			     struct page *page)
+static inline int hugetlb_cgroup_charge_cgroup_rsvd(int idx,
+						    unsigned long nr_pages,
+						    struct hugetlb_cgroup **ptr)
+{
+	return 0;
+}
+
+static inline void hugetlb_cgroup_commit_charge(int idx, unsigned long nr_pages,
+						struct hugetlb_cgroup *h_cg,
+						struct page *page)
 {
 }
 
 static inline void
-hugetlb_cgroup_uncharge_page(int idx, unsigned long nr_pages, struct page *page)
+hugetlb_cgroup_commit_charge_rsvd(int idx, unsigned long nr_pages,
+				  struct hugetlb_cgroup *h_cg,
+				  struct page *page)
+{
+}
+
+static inline void hugetlb_cgroup_uncharge_page(int idx, unsigned long nr_pages,
+						struct page *page)
+{
+}
+
+static inline void hugetlb_cgroup_uncharge_page_rsvd(int idx,
+						     unsigned long nr_pages,
+						     struct page *page)
+{
+}
+static inline void hugetlb_cgroup_uncharge_cgroup(int idx,
+						  unsigned long nr_pages,
+						  struct hugetlb_cgroup *h_cg)
 {
 }
 
 static inline void
-hugetlb_cgroup_uncharge_cgroup(int idx, unsigned long nr_pages,
-			       struct hugetlb_cgroup *h_cg)
+hugetlb_cgroup_uncharge_cgroup_rsvd(int idx, unsigned long nr_pages,
+				    struct hugetlb_cgroup *h_cg)
 {
 }
 
