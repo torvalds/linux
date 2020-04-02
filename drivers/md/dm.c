@@ -1739,8 +1739,9 @@ static blk_qc_t dm_process_bio(struct mapped_device *md,
 	 * won't be imposed.
 	 */
 	if (current->bio_list) {
-		blk_queue_split(md->queue, &bio);
-		if (!is_abnormal_io(bio))
+		if (is_abnormal_io(bio))
+			blk_queue_split(md->queue, &bio);
+		else
 			dm_queue_split(md, ti, &bio);
 	}
 
