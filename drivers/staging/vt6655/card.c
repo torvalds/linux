@@ -11,7 +11,6 @@
  *      CARDvUpdateBasicTopRate - Update BasicTopRate
  *      CARDbAddBasicRate - Add to BasicRateSet
  *      CARDbIsOFDMinBasicRate - Check if any OFDM rate is in BasicRateSet
- *      CARDvSetLoopbackMode - Set Loopback mode
  *      CARDqGetTSFOffset - Calculate TSFOffset
  *      CARDbGetCurrentTSF - Read Current NIC TSF counter
  *      CARDqGetNextTBTT - Calculate Next Beacon TSF counter
@@ -812,34 +811,6 @@ unsigned char CARDbyGetPktType(struct vnt_private *priv)
 		return PK_TYPE_11GA;
 	else
 		return PK_TYPE_11GB;
-}
-
-/*
- * Description: Set NIC Loopback mode
- *
- * Parameters:
- *  In:
- *      priv         - The adapter to be set
- *      wLoopbackMode   - Loopback mode to be set
- *  Out:
- *      none
- *
- * Return Value: none
- */
-void CARDvSetLoopbackMode(struct vnt_private *priv,
-			  unsigned short wLoopbackMode)
-{
-	switch (wLoopbackMode) {
-	case CARD_LB_NONE:
-	case CARD_LB_MAC:
-	case CARD_LB_PHY:
-		break;
-	default:
-		break;
-	}
-	/* set MAC loopback */
-	MACvSetLoopbackMode(priv, LOBYTE(wLoopbackMode));
-	/* set Baseband loopback */
 }
 
 /*
