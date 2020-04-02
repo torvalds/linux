@@ -3472,6 +3472,9 @@ __find_next_entry(struct trace_iterator *iter, int *ent_cpu,
 	return next;
 }
 
+#define STATIC_TEMP_BUF_SIZE	128
+static char static_temp_buf[STATIC_TEMP_BUF_SIZE];
+
 /* Find the next real entry, without updating the iterator itself */
 struct trace_entry *trace_find_next_entry(struct trace_iterator *iter,
 					  int *ent_cpu, u64 *ent_ts)
@@ -3481,12 +3484,25 @@ struct trace_entry *trace_find_next_entry(struct trace_iterator *iter,
 	struct trace_entry *entry;
 
 	/*
+	 * If called from ftrace_dump(), then the iter->temp buffer
+	 * will be the static_temp_buf and not created from kmalloc.
+	 * If the entry size is greater than the buffer, we can
+	 * not save it. Just return NULL in that case. This is only
+	 * used to add markers when two consecutive events' time
+	 * stamps have a large delta. See trace_print_lat_context()
+	 */
+	if (iter->temp == static_temp_buf &&
+	    STATIC_TEMP_BUF_SIZE < ent_size)
+		return NULL;
+
+	/*
 	 * The __find_next_entry() may call peek_next_entry(), which may
 	 * call ring_buffer_peek() that may make the contents of iter->ent
 	 * undefined. Need to copy iter->ent now.
 	 */
 	if (iter->ent && iter->ent != iter->temp) {
-		if (!iter->temp || iter->temp_size < iter->ent_size) {
+		if ((!iter->temp || iter->temp_size < iter->ent_size) &&
+		    !WARN_ON_ONCE(iter->temp == static_temp_buf)) {
 			kfree(iter->temp);
 			iter->temp = kmalloc(iter->ent_size, GFP_KERNEL);
 			if (!iter->temp)
@@ -9203,6 +9219,9 @@ void ftrace_dump(enum ftrace_dump_mode oops_dump_mode)
 
 	/* Simulate the iterator */
 	trace_init_global_iter(&iter);
+	/* Can not use kmalloc for iter.temp */
+	iter.temp = static_temp_buf;
+	iter.temp_size = STATIC_TEMP_BUF_SIZE;
 
 	for_each_tracing_cpu(cpu) {
 		atomic_inc(&per_cpu_ptr(iter.array_buffer->data, cpu)->disabled);
