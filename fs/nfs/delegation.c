@@ -1243,8 +1243,10 @@ restart_locked:
 		inode = nfs_delegation_grab_inode(delegation);
 		if (inode == NULL)
 			goto restart_locked;
+		spin_lock(&delegation->lock);
 		cred = get_cred_rcu(delegation->cred);
 		nfs4_stateid_copy(&stateid, &delegation->stateid);
+		spin_unlock(&delegation->lock);
 		clear_bit(NFS_DELEGATION_TEST_EXPIRED, &delegation->flags);
 		rcu_read_unlock();
 		nfs_delegation_test_free_expired(inode, &stateid, cred);
@@ -1363,11 +1365,14 @@ bool nfs4_copy_delegation_stateid(struct inode *inode, fmode_t flags,
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
 	struct nfs_delegation *delegation;
-	bool ret;
+	bool ret = false;
 
 	flags &= FMODE_READ|FMODE_WRITE;
 	rcu_read_lock();
 	delegation = rcu_dereference(nfsi->delegation);
+	if (!delegation)
+		goto out;
+	spin_lock(&delegation->lock);
 	ret = nfs4_is_valid_delegation(delegation, flags);
 	if (ret) {
 		nfs4_stateid_copy(dst, &delegation->stateid);
@@ -1375,6 +1380,8 @@ bool nfs4_copy_delegation_stateid(struct inode *inode, fmode_t flags,
 		if (cred)
 			*cred = get_cred(delegation->cred);
 	}
+	spin_unlock(&delegation->lock);
+out:
 	rcu_read_unlock();
 	return ret;
 }
