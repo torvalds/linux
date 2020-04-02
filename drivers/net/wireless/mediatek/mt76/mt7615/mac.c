@@ -1558,10 +1558,12 @@ out:
 
 void mt7615_mac_enable_nf(struct mt7615_dev *dev, bool ext_phy)
 {
-	u32 rxtd;
+	u32 rxtd, reg;
 
 	if (is_mt7663(&dev->mt76))
-		return;
+		reg = MT7663_WF_PHY_R0_PHYMUX_5;
+	else
+		reg = MT_WF_PHY_R0_PHYMUX_5(ext_phy);
 
 	if (ext_phy)
 		rxtd = MT_WF_PHY_RXTD2(10);
@@ -1569,7 +1571,7 @@ void mt7615_mac_enable_nf(struct mt7615_dev *dev, bool ext_phy)
 		rxtd = MT_WF_PHY_RXTD(12);
 
 	mt76_set(dev, rxtd, BIT(18) | BIT(29));
-	mt76_set(dev, MT_WF_PHY_R0_PHYMUX_5(ext_phy), 0x5 << 12);
+	mt76_set(dev, reg, 0x5 << 12);
 }
 
 void mt7615_mac_cca_stats_reset(struct mt7615_phy *phy)
@@ -1693,9 +1695,13 @@ static u8
 mt7615_phy_get_nf(struct mt7615_dev *dev, int idx)
 {
 	static const u8 nf_power[] = { 92, 89, 86, 83, 80, 75, 70, 65, 60, 55, 52 };
-	u32 reg = idx ? MT_WF_PHY_RXTD2(17) : MT_WF_PHY_RXTD(20);
-	u32 val, sum = 0, n = 0;
+	u32 reg, val, sum = 0, n = 0;
 	int i;
+
+	if (is_mt7663(&dev->mt76))
+		reg = MT7663_WF_PHY_RXTD(20);
+	else
+		reg = idx ? MT_WF_PHY_RXTD2(17) : MT_WF_PHY_RXTD(20);
 
 	for (i = 0; i < ARRAY_SIZE(nf_power); i++, reg += 4) {
 		val = mt76_rr(dev, reg);

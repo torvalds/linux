@@ -170,6 +170,8 @@ enum mt7615_reg_base {
 #define MT_WF_PHY_RXTD_BASE		MT_WF_PHY(0x2200)
 #define MT_WF_PHY_RXTD(_n)		(MT_WF_PHY_RXTD_BASE + ((_n) << 2))
 
+#define MT7663_WF_PHY_RXTD(_n)		(MT_WF_PHY(0x25b0) + ((_n) << 2))
+
 #define MT_WF_PHY_RXTD_CCK_PD(_phy)	MT_WF_PHY((_phy) ? 0x2314 : 0x2310)
 #define MT_WF_PHY_PD_CCK_MASK(_phy)	(_phy) ? GENMASK(31, 24) : \
 					 GENMASK(8, 1)
