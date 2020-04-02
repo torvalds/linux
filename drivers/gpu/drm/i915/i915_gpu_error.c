@@ -1858,7 +1858,7 @@ void i915_error_state_store(struct i915_gpu_coredump *error)
 		return;
 
 	i915 = error->i915;
-	dev_info(i915->drm.dev, "%s\n", error_msg(error));
+	drm_info(&i915->drm, "%s\n", error_msg(error));
 
 	if (error->simulated ||
 	    cmpxchg(&i915->gpu_error.first_error, NULL, error))
