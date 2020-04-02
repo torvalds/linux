@@ -368,9 +368,6 @@ int usb4_switch_configure_link(struct tb_switch *sw)
 {
 	struct tb_port *up;
 
-	if (!tb_route(sw))
-		return 0;
-
 	up = tb_upstream_port(sw);
 	return usb4_set_port_configured(up, true);
 }
@@ -384,9 +381,6 @@ int usb4_switch_configure_link(struct tb_switch *sw)
 void usb4_switch_unconfigure_link(struct tb_switch *sw)
 {
 	struct tb_port *up;
-
-	if (sw->is_unplugged || !tb_route(sw))
-		return;
 
 	up = tb_upstream_port(sw);
 	usb4_set_port_configured(up, false);

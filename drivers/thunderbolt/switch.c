@@ -2011,10 +2011,6 @@ int tb_switch_configure(struct tb_switch *sw)
 			return ret;
 
 		ret = usb4_switch_setup(sw);
-		if (ret)
-			return ret;
-
-		ret = usb4_switch_configure_link(sw);
 	} else {
 		if (sw->config.vendor_id != PCI_VENDOR_ID_INTEL)
 			tb_sw_warn(sw, "unknown switch vendor id %#x\n",
@@ -2028,10 +2024,6 @@ int tb_switch_configure(struct tb_switch *sw)
 		/* Enumerate the switch */
 		ret = tb_sw_write(sw, (u32 *)&sw->config + 1, TB_CFG_SWITCH,
 				  ROUTER_CS_1, 3);
-		if (ret)
-			return ret;
-
-		ret = tb_lc_configure_link(sw);
 	}
 	if (ret)
 		return ret;
@@ -2315,6 +2307,48 @@ void tb_switch_lane_bonding_disable(struct tb_switch *sw)
 }
 
 /**
+ * tb_switch_configure_link() - Set link configured
+ * @sw: Switch whose link is configured
+ *
+ * Sets the link upstream from @sw configured (from both ends) so that
+ * it will not be disconnected when the domain exits sleep. Can be
+ * called for any switch.
+ *
+ * It is recommended that this is called after lane bonding is enabled.
+ *
+ * Returns %0 on success and negative errno in case of error.
+ */
+int tb_switch_configure_link(struct tb_switch *sw)
+{
+	if (!tb_route(sw) || tb_switch_is_icm(sw))
+		return 0;
+
+	if (tb_switch_is_usb4(sw))
+		return usb4_switch_configure_link(sw);
+	return tb_lc_configure_link(sw);
+}
+
+/**
+ * tb_switch_unconfigure_link() - Unconfigure link
+ * @sw: Switch whose link is unconfigured
+ *
+ * Sets the link unconfigured so the @sw will be disconnected if the
+ * domain exists sleep.
+ */
+void tb_switch_unconfigure_link(struct tb_switch *sw)
+{
+	if (sw->is_unplugged)
+		return;
+	if (!tb_route(sw) || tb_switch_is_icm(sw))
+		return;
+
+	if (tb_switch_is_usb4(sw))
+		usb4_switch_unconfigure_link(sw);
+	else
+		tb_lc_unconfigure_link(sw);
+}
+
+/**
  * tb_switch_add() - Add a switch to the domain
  * @sw: Switch to add
  *
@@ -2447,11 +2481,6 @@ void tb_switch_remove(struct tb_switch *sw)
 
 	if (!sw->is_unplugged)
 		tb_plug_events_active(sw, false);
-
-	if (tb_switch_is_usb4(sw))
-		usb4_switch_unconfigure_link(sw);
-	else
-		tb_lc_unconfigure_link(sw);
 
 	tb_switch_nvm_remove(sw);
 

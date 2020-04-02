@@ -767,6 +767,8 @@ static inline bool tb_switch_is_icm(const struct tb_switch *sw)
 
 int tb_switch_lane_bonding_enable(struct tb_switch *sw);
 void tb_switch_lane_bonding_disable(struct tb_switch *sw);
+int tb_switch_configure_link(struct tb_switch *sw);
+void tb_switch_unconfigure_link(struct tb_switch *sw);
 
 bool tb_switch_query_dp_resource(struct tb_switch *sw, struct tb_port *in);
 int tb_switch_alloc_dp_resource(struct tb_switch *sw, struct tb_port *in);
