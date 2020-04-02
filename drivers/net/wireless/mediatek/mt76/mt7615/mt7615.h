@@ -90,6 +90,18 @@ struct mt7615_rate_set {
 	struct ieee80211_tx_rate rates[4];
 };
 
+struct mt7615_rate_desc {
+	struct list_head node;
+
+	struct mt7615_sta *sta;
+
+	bool rateset;
+	u16 probe_val;
+	u16 val[4];
+	u8 bw_idx;
+	u8 bw;
+};
+
 struct mt7615_sta {
 	struct mt76_wcid wcid; /* must be first */
 
