@@ -70,6 +70,5 @@ void BBvPowerSaveModeOFF(struct vnt_private *priv);
 void BBvSetTxAntennaMode(struct vnt_private *priv, unsigned char byAntennaMode);
 void BBvSetRxAntennaMode(struct vnt_private *priv, unsigned char byAntennaMode);
 void BBvSetDeepSleep(struct vnt_private *priv, unsigned char byLocalID);
-void BBvExitDeepSleep(struct vnt_private *priv, unsigned char byLocalID);
 
 #endif /* __BASEBAND_H__ */
