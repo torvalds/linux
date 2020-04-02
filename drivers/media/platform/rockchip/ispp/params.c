@@ -443,6 +443,18 @@ static void shp_enable(struct rkispp_params_vdev *params_vdev, bool en)
 {
 	void __iomem *base = params_vdev->dev->base_addr;
 
+	if (en) {
+		rkispp_set_bits(base + RKISPP_SCL0_CTRL,
+				SW_SCL_FIRST_MODE, SW_SCL_FIRST_MODE);
+		rkispp_set_bits(base + RKISPP_SCL1_CTRL,
+				SW_SCL_FIRST_MODE, SW_SCL_FIRST_MODE);
+		rkispp_set_bits(base + RKISPP_SCL2_CTRL,
+				SW_SCL_FIRST_MODE, SW_SCL_FIRST_MODE);
+	} else {
+		rkispp_clear_bits(base + RKISPP_SCL0_CTRL, SW_SCL_FIRST_MODE);
+		rkispp_clear_bits(base + RKISPP_SCL1_CTRL, SW_SCL_FIRST_MODE);
+		rkispp_clear_bits(base + RKISPP_SCL2_CTRL, SW_SCL_FIRST_MODE);
+	}
 	rkispp_set_bits(base + RKISPP_SHARP_CORE_CTRL, SW_SHP_EN, en);
 }
 
@@ -487,6 +499,11 @@ static void fec_enable(struct rkispp_params_vdev *params_vdev, bool en)
 {
 	void __iomem *base = params_vdev->dev->base_addr;
 
+	if (en) {
+		rkispp_clear_bits(base + RKISPP_SCL0_CTRL, SW_SCL_FIRST_MODE);
+		rkispp_clear_bits(base + RKISPP_SCL1_CTRL, SW_SCL_FIRST_MODE);
+		rkispp_clear_bits(base + RKISPP_SCL2_CTRL, SW_SCL_FIRST_MODE);
+	}
 	rkispp_set_bits(base + RKISPP_FEC_CORE_CTRL, SW_FEC_EN, en);
 }
 
