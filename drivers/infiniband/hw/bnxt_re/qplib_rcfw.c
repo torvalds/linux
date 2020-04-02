@@ -468,29 +468,13 @@ int bnxt_qplib_deinit_rcfw(struct bnxt_qplib_rcfw *rcfw)
 	return 0;
 }
 
-static int __get_pbl_pg_idx(struct bnxt_qplib_pbl *pbl)
-{
-	return (pbl->pg_size == ROCE_PG_SIZE_4K ?
-				      CMDQ_INITIALIZE_FW_QPC_PG_SIZE_PG_4K :
-		pbl->pg_size == ROCE_PG_SIZE_8K ?
-				      CMDQ_INITIALIZE_FW_QPC_PG_SIZE_PG_8K :
-		pbl->pg_size == ROCE_PG_SIZE_64K ?
-				      CMDQ_INITIALIZE_FW_QPC_PG_SIZE_PG_64K :
-		pbl->pg_size == ROCE_PG_SIZE_2M ?
-				      CMDQ_INITIALIZE_FW_QPC_PG_SIZE_PG_2M :
-		pbl->pg_size == ROCE_PG_SIZE_8M ?
-				      CMDQ_INITIALIZE_FW_QPC_PG_SIZE_PG_8M :
-		pbl->pg_size == ROCE_PG_SIZE_1G ?
-				      CMDQ_INITIALIZE_FW_QPC_PG_SIZE_PG_1G :
-				      CMDQ_INITIALIZE_FW_QPC_PG_SIZE_PG_4K);
-}
-
 int bnxt_qplib_init_rcfw(struct bnxt_qplib_rcfw *rcfw,
 			 struct bnxt_qplib_ctx *ctx, int is_virtfn)
 {
-	struct cmdq_initialize_fw req;
 	struct creq_initialize_fw_resp resp;
-	u16 cmd_flags = 0, level;
+	struct cmdq_initialize_fw req;
+	u16 cmd_flags = 0;
+	u8 pgsz, lvl;
 	int rc;
 
 	RCFW_CMD_PREP(req, INITIALIZE_FW, cmd_flags);
@@ -511,32 +495,30 @@ int bnxt_qplib_init_rcfw(struct bnxt_qplib_rcfw *rcfw,
 	if (bnxt_qplib_is_chip_gen_p5(rcfw->res->cctx))
 		goto config_vf_res;
 
-	level = ctx->qpc_tbl.level;
-	req.qpc_pg_size_qpc_lvl = (level << CMDQ_INITIALIZE_FW_QPC_LVL_SFT) |
-				__get_pbl_pg_idx(&ctx->qpc_tbl.pbl[level]);
-	level = ctx->mrw_tbl.level;
-	req.mrw_pg_size_mrw_lvl = (level << CMDQ_INITIALIZE_FW_MRW_LVL_SFT) |
-				__get_pbl_pg_idx(&ctx->mrw_tbl.pbl[level]);
-	level = ctx->srqc_tbl.level;
-	req.srq_pg_size_srq_lvl = (level << CMDQ_INITIALIZE_FW_SRQ_LVL_SFT) |
-				__get_pbl_pg_idx(&ctx->srqc_tbl.pbl[level]);
-	level = ctx->cq_tbl.level;
-	req.cq_pg_size_cq_lvl = (level << CMDQ_INITIALIZE_FW_CQ_LVL_SFT) |
-				__get_pbl_pg_idx(&ctx->cq_tbl.pbl[level]);
-	level = ctx->srqc_tbl.level;
-	req.srq_pg_size_srq_lvl = (level << CMDQ_INITIALIZE_FW_SRQ_LVL_SFT) |
-				__get_pbl_pg_idx(&ctx->srqc_tbl.pbl[level]);
-	level = ctx->cq_tbl.level;
-	req.cq_pg_size_cq_lvl = (level << CMDQ_INITIALIZE_FW_CQ_LVL_SFT) |
-				__get_pbl_pg_idx(&ctx->cq_tbl.pbl[level]);
-	level = ctx->tim_tbl.level;
-	req.tim_pg_size_tim_lvl = (level << CMDQ_INITIALIZE_FW_TIM_LVL_SFT) |
-				  __get_pbl_pg_idx(&ctx->tim_tbl.pbl[level]);
-	level = ctx->tqm_ctx.pde.level;
-	req.tqm_pg_size_tqm_lvl =
-		(level << CMDQ_INITIALIZE_FW_TQM_LVL_SFT) |
-		 __get_pbl_pg_idx(&ctx->tqm_ctx.pde.pbl[level]);
-
+	lvl = ctx->qpc_tbl.level;
+	pgsz = bnxt_qplib_base_pg_size(&ctx->qpc_tbl);
+	req.qpc_pg_size_qpc_lvl = (pgsz << CMDQ_INITIALIZE_FW_QPC_PG_SIZE_SFT) |
+				   lvl;
+	lvl = ctx->mrw_tbl.level;
+	pgsz = bnxt_qplib_base_pg_size(&ctx->mrw_tbl);
+	req.mrw_pg_size_mrw_lvl = (pgsz << CMDQ_INITIALIZE_FW_QPC_PG_SIZE_SFT) |
+				   lvl;
+	lvl = ctx->srqc_tbl.level;
+	pgsz = bnxt_qplib_base_pg_size(&ctx->srqc_tbl);
+	req.srq_pg_size_srq_lvl = (pgsz << CMDQ_INITIALIZE_FW_QPC_PG_SIZE_SFT) |
+				   lvl;
+	lvl = ctx->cq_tbl.level;
+	pgsz = bnxt_qplib_base_pg_size(&ctx->cq_tbl);
+	req.cq_pg_size_cq_lvl = (pgsz << CMDQ_INITIALIZE_FW_QPC_PG_SIZE_SFT) |
+				 lvl;
+	lvl = ctx->tim_tbl.level;
+	pgsz = bnxt_qplib_base_pg_size(&ctx->tim_tbl);
+	req.tim_pg_size_tim_lvl = (pgsz << CMDQ_INITIALIZE_FW_QPC_PG_SIZE_SFT) |
+				   lvl;
+	lvl = ctx->tqm_ctx.pde.level;
+	pgsz = bnxt_qplib_base_pg_size(&ctx->tqm_ctx.pde);
+	req.tqm_pg_size_tqm_lvl = (pgsz << CMDQ_INITIALIZE_FW_QPC_PG_SIZE_SFT) |
+				   lvl;
 	req.qpc_page_dir =
 		cpu_to_le64(ctx->qpc_tbl.pbl[PBL_LVL_0].pg_map_arr[0]);
 	req.mrw_page_dir =

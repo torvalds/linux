@@ -80,6 +80,15 @@ enum bnxt_qplib_pbl_lvl {
 #define ROCE_PG_SIZE_8M		(8 * 1024 * 1024)
 #define ROCE_PG_SIZE_1G		(1024 * 1024 * 1024)
 
+enum bnxt_qplib_hwrm_pg_size {
+	BNXT_QPLIB_HWRM_PG_SIZE_4K	= 0,
+	BNXT_QPLIB_HWRM_PG_SIZE_8K	= 1,
+	BNXT_QPLIB_HWRM_PG_SIZE_64K	= 2,
+	BNXT_QPLIB_HWRM_PG_SIZE_2M	= 3,
+	BNXT_QPLIB_HWRM_PG_SIZE_8M	= 4,
+	BNXT_QPLIB_HWRM_PG_SIZE_1G	= 5,
+};
+
 struct bnxt_qplib_reg_desc {
 	u8		bar_id;
 	resource_size_t	bar_base;
@@ -263,6 +272,37 @@ static inline u8 bnxt_qplib_get_ring_type(struct bnxt_qplib_chip_ctx *cctx)
 	       RING_ALLOC_REQ_RING_TYPE_ROCE_CMPL;
 }
 
+static inline u8 bnxt_qplib_base_pg_size(struct bnxt_qplib_hwq *hwq)
+{
+	u8 pg_size = BNXT_QPLIB_HWRM_PG_SIZE_4K;
+	struct bnxt_qplib_pbl *pbl;
+
+	pbl = &hwq->pbl[PBL_LVL_0];
+	switch (pbl->pg_size) {
+	case ROCE_PG_SIZE_4K:
+		pg_size = BNXT_QPLIB_HWRM_PG_SIZE_4K;
+		break;
+	case ROCE_PG_SIZE_8K:
+		pg_size = BNXT_QPLIB_HWRM_PG_SIZE_8K;
+		break;
+	case ROCE_PG_SIZE_64K:
+		pg_size = BNXT_QPLIB_HWRM_PG_SIZE_64K;
+		break;
+	case ROCE_PG_SIZE_2M:
+		pg_size = BNXT_QPLIB_HWRM_PG_SIZE_2M;
+		break;
+	case ROCE_PG_SIZE_8M:
+		pg_size = BNXT_QPLIB_HWRM_PG_SIZE_8M;
+		break;
+	case ROCE_PG_SIZE_1G:
+		pg_size = BNXT_QPLIB_HWRM_PG_SIZE_1G;
+		break;
+	default:
+		break;
+	}
+
+	return pg_size;
+}
 
 #define to_bnxt_qplib(ptr, type, member)	\
 	container_of(ptr, type, member)
