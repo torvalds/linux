@@ -8,6 +8,7 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/regmap.h>
+#include <linux/vexpress.h>
 
 #include "pl111_versatile.h"
 #include "pl111_vexpress.h"
@@ -391,17 +392,8 @@ int pl111_versatile_init(struct device *dev, struct pl111_drm_dev_private *priv)
 	}
 
 	/* Versatile Express special handling */
-	if (versatile_clcd_type == VEXPRESS_CLCD_V2M) {
+	if (IS_ENABLED(CONFIG_VEXPRESS_CONFIG) && versatile_clcd_type == VEXPRESS_CLCD_V2M) {
 		struct platform_device *pdev;
-
-		/* Registers a driver for the muxfpga */
-		ret = vexpress_muxfpga_init();
-		if (ret) {
-			dev_err(dev, "unable to initialize muxfpga driver\n");
-			of_node_put(np);
-			return ret;
-		}
-
 		/* Call into deep Vexpress configuration API */
 		pdev = of_find_device_by_node(np);
 		if (!pdev) {
@@ -409,13 +401,8 @@ int pl111_versatile_init(struct device *dev, struct pl111_drm_dev_private *priv)
 			of_node_put(np);
 			return -EPROBE_DEFER;
 		}
-		map = dev_get_drvdata(&pdev->dev);
-		if (!map) {
-			dev_err(dev, "sysreg has not yet probed\n");
-			platform_device_put(pdev);
-			of_node_put(np);
-			return -EPROBE_DEFER;
-		}
+		map = devm_regmap_init_vexpress_config(&pdev->dev);
+		platform_device_put(pdev);
 	} else {
 		map = syscon_node_to_regmap(np);
 	}
