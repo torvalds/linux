@@ -412,6 +412,14 @@ include::itrace.txt[]
 --xed::
 	Run xed disassembler on output. Requires installing the xed disassembler.
 
+-S::
+--symbols=symbol[,symbol...]::
+	Only consider the listed symbols. Symbols are typically a name
+	but they may also be hexadecimal address.
+
+	For example, to select the symbol noploop or the address 0x4007a0:
+	perf script --symbols=noploop,0x4007a0
+
 --call-trace::
 	Show call stream for intel_pt traces. The CPUs are interleaved, but
 	can be filtered with -C.
