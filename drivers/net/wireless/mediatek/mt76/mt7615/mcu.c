@@ -2078,11 +2078,9 @@ out:
 	return ret;
 }
 
-static int mt7663_load_firmware(struct mt7615_dev *dev)
+int __mt7663_load_firmware(struct mt7615_dev *dev)
 {
 	int ret;
-
-	mt76_set(dev, MT_WPDMA_GLO_CFG, MT_WPDMA_GLO_CFG_BYPASS_TX_SCH);
 
 	ret = mt76_get_field(dev, MT_CONN_ON_MISC, MT_TOP_MISC2_FW_N9_RDY);
 	if (ret) {
@@ -2109,9 +2107,23 @@ static int mt7663_load_firmware(struct mt7615_dev *dev)
 		return -EIO;
 	}
 
-	mt76_clear(dev, MT_WPDMA_GLO_CFG, MT_WPDMA_GLO_CFG_BYPASS_TX_SCH);
-
 	dev_dbg(dev->mt76.dev, "Firmware init done\n");
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(__mt7663_load_firmware);
+
+static int mt7663_load_firmware(struct mt7615_dev *dev)
+{
+	int ret;
+
+	mt76_set(dev, MT_WPDMA_GLO_CFG, MT_WPDMA_GLO_CFG_BYPASS_TX_SCH);
+
+	ret = __mt7663_load_firmware(dev);
+	if (ret)
+		return ret;
+
+	mt76_clear(dev, MT_WPDMA_GLO_CFG, MT_WPDMA_GLO_CFG_BYPASS_TX_SCH);
 
 	return 0;
 }
