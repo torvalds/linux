@@ -149,19 +149,6 @@ static struct css_device_id io_subchannel_ids[] = {
 	{ /* end of list */ },
 };
 
-static int io_subchannel_prepare(struct subchannel *sch)
-{
-	struct ccw_device *cdev;
-	/*
-	 * Don't allow suspend while a ccw device registration
-	 * is still outstanding.
-	 */
-	cdev = sch_get_cdev(sch);
-	if (cdev && !device_is_registered(&cdev->dev))
-		return -EAGAIN;
-	return 0;
-}
-
 static int io_subchannel_settle(void)
 {
 	int ret;
@@ -186,7 +173,6 @@ static struct css_driver io_subchannel_driver = {
 	.probe = io_subchannel_probe,
 	.remove = io_subchannel_remove,
 	.shutdown = io_subchannel_shutdown,
-	.prepare = io_subchannel_prepare,
 	.settle = io_subchannel_settle,
 };
 
