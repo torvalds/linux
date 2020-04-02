@@ -45,12 +45,12 @@ static void __confirm_options(struct intel_uc *uc)
 {
 	struct drm_i915_private *i915 = uc_to_gt(uc)->i915;
 
-	DRM_DEV_DEBUG_DRIVER(i915->drm.dev,
-			     "enable_guc=%d (guc:%s submission:%s huc:%s)\n",
-			     i915_modparams.enable_guc,
-			     yesno(intel_uc_wants_guc(uc)),
-			     yesno(intel_uc_wants_guc_submission(uc)),
-			     yesno(intel_uc_wants_huc(uc)));
+	drm_dbg(&i915->drm,
+		"enable_guc=%d (guc:%s submission:%s huc:%s)\n",
+		i915_modparams.enable_guc,
+		yesno(intel_uc_wants_guc(uc)),
+		yesno(intel_uc_wants_guc_submission(uc)),
+		yesno(intel_uc_wants_huc(uc)));
 
 	if (i915_modparams.enable_guc == -1)
 		return;

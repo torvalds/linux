@@ -32,11 +32,11 @@ void intel_uc_fw_change_status(struct intel_uc_fw *uc_fw,
 			       enum intel_uc_fw_status status)
 {
 	uc_fw->__status =  status;
-	DRM_DEV_DEBUG_DRIVER(__uc_fw_to_gt(uc_fw)->i915->drm.dev,
-			     "%s firmware -> %s\n",
-			     intel_uc_fw_type_repr(uc_fw->type),
-			     status == INTEL_UC_FIRMWARE_SELECTED ?
-			     uc_fw->path : intel_uc_fw_status_repr(status));
+	drm_dbg(&__uc_fw_to_gt(uc_fw)->i915->drm,
+		"%s firmware -> %s\n",
+		intel_uc_fw_type_repr(uc_fw->type),
+		status == INTEL_UC_FIRMWARE_SELECTED ?
+		uc_fw->path : intel_uc_fw_status_repr(status));
 }
 #endif
 
