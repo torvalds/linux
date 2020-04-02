@@ -1500,8 +1500,7 @@ class StdFormat(object):
     def get_banner(self):
         return self._banner
 
-    @staticmethod
-    def get_statline(keys, s):
+    def get_statline(self, keys, s):
         res = ''
         for key in keys:
             res += ' %9d' % s[key].delta
@@ -1517,8 +1516,7 @@ class CSVFormat(object):
     def get_banner(self):
         return self._banner
 
-    @staticmethod
-    def get_statline(keys, s):
+    def get_statline(self, keys, s):
         return reduce(lambda res, key: "{},{!s}".format(res, s[key].delta),
                       keys, '')
 
@@ -1527,14 +1525,21 @@ def log(stats, opts, frmt, keys):
     """Prints statistics as reiterating key block, multiple value blocks."""
     line = 0
     banner_repeat = 20
+    banner_printed = False
+
     while True:
         try:
             time.sleep(opts.set_delay)
-            if line % banner_repeat == 0:
+            if line % banner_repeat == 0 and not banner_printed:
                 print(frmt.get_banner())
-            print(datetime.now().strftime("%Y-%m-%d %H:%M:%S") +
-                  frmt.get_statline(keys, stats.get()))
-            line += 1
+                banner_printed = True
+            values = stats.get()
+            if (not opts.skip_zero_records or
+                any(values[k].delta != 0 for k in keys)):
+                print(datetime.now().strftime("%Y-%m-%d %H:%M:%S") +
+                      frmt.get_statline(keys, values))
+                line += 1
+                banner_printed = False
         except KeyboardInterrupt:
             break
 
@@ -1655,9 +1660,16 @@ Press any other key to refresh statistics immediately.
                            default=False,
                            help='retrieve statistics from tracepoints',
                            )
+    argparser.add_argument('-z', '--skip-zero-records',
+                           action='store_true',
+                           default=False,
+                           help='omit records with all zeros in logging mode',
+                           )
     options = argparser.parse_args()
     if options.csv and not options.log:
         sys.exit('Error: Option -c/--csv requires -l/--log')
+    if options.skip_zero_records and not options.log:
+        sys.exit('Error: Option -z/--skip-zero-records requires -l/--log')
     try:
         # verify that we were passed a valid regex up front
         re.compile(options.fields)

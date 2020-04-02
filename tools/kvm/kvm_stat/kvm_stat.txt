@@ -104,6 +104,10 @@ OPTIONS
 --tracepoints::
         retrieve statistics from tracepoints
 
+*z*::
+--skip-zero-records::
+        omit records with all zeros in logging mode
+
 SEE ALSO
 --------
 'perf'(1), 'trace-cmd'(1)
