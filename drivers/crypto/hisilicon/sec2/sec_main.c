@@ -424,23 +424,22 @@ static u32 sec_current_qm_read(struct sec_debug_file *file)
 static int sec_current_qm_write(struct sec_debug_file *file, u32 val)
 {
 	struct hisi_qm *qm = file->qm;
-	struct sec_dev *sec = container_of(qm, struct sec_dev, qm);
 	u32 vfq_num;
 	u32 tmp;
 
-	if (val > sec->num_vfs)
+	if (val > qm->vfs_num)
 		return -EINVAL;
 
 	/* According PF or VF Dev ID to calculation curr_qm_qp_num and store */
 	if (!val) {
 		qm->debug.curr_qm_qp_num = qm->qp_num;
 	} else {
-		vfq_num = (qm->ctrl_qp_num - qm->qp_num) / sec->num_vfs;
+		vfq_num = (qm->ctrl_qp_num - qm->qp_num) / qm->vfs_num;
 
-		if (val == sec->num_vfs)
+		if (val == qm->vfs_num)
 			qm->debug.curr_qm_qp_num =
 				qm->ctrl_qp_num - qm->qp_num -
-				(sec->num_vfs - 1) * vfq_num;
+				(qm->vfs_num - 1) * vfq_num;
 		else
 			qm->debug.curr_qm_qp_num = vfq_num;
 	}
@@ -926,7 +925,7 @@ static int sec_vf_q_assign(struct sec_dev *sec, u32 num_vfs)
 static int sec_clear_vft_config(struct sec_dev *sec)
 {
 	struct hisi_qm *qm = &sec->qm;
-	u32 num_vfs = sec->num_vfs;
+	u32 num_vfs = qm->vfs_num;
 	int ret;
 	u32 i;
 
@@ -936,7 +935,7 @@ static int sec_clear_vft_config(struct sec_dev *sec)
 			return ret;
 	}
 
-	sec->num_vfs = 0;
+	qm->vfs_num = 0;
 
 	return 0;
 }
@@ -962,7 +961,7 @@ static int sec_sriov_enable(struct pci_dev *pdev, int max_vfs)
 		return ret;
 	}
 
-	sec->num_vfs = num_vfs;
+	sec->qm.vfs_num = num_vfs;
 
 	ret = pci_enable_sriov(pdev, num_vfs);
 	if (ret) {
@@ -1006,7 +1005,7 @@ static void sec_remove(struct pci_dev *pdev)
 
 	hisi_qm_del_from_list(qm, &sec_devices);
 
-	if (qm->fun_type == QM_HW_PF && sec->num_vfs)
+	if (qm->fun_type == QM_HW_PF && qm->vfs_num)
 		(void)sec_sriov_disable(pdev);
 
 	sec_debugfs_exit(sec);

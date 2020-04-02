@@ -172,7 +172,6 @@ struct sec_dev {
 	struct sec_debug debug;
 	u32 ctx_q_num;
 	bool iommu_used;
-	u32 num_vfs;
 	unsigned long status;
 };
 

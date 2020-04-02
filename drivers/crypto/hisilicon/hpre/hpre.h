@@ -47,7 +47,6 @@ struct hpre_debug {
 struct hpre {
 	struct hisi_qm qm;
 	struct hpre_debug debug;
-	u32 num_vfs;
 	unsigned long status;
 };
 

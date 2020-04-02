@@ -134,7 +134,6 @@ struct ctrl_debug_file {
  * Just relevant for PF.
  */
 struct hisi_zip_ctrl {
-	u32 num_vfs;
 	struct hisi_zip *hisi_zip;
 	struct dentry *debug_root;
 	struct ctrl_debug_file files[HZIP_DEBUG_FILE_NUM];
@@ -342,21 +341,20 @@ static u32 current_qm_read(struct ctrl_debug_file *file)
 static int current_qm_write(struct ctrl_debug_file *file, u32 val)
 {
 	struct hisi_qm *qm = file_to_qm(file);
-	struct hisi_zip_ctrl *ctrl = file->ctrl;
 	u32 vfq_num;
 	u32 tmp;
 
-	if (val > ctrl->num_vfs)
+	if (val > qm->vfs_num)
 		return -EINVAL;
 
 	/* Calculate curr_qm_qp_num and store */
 	if (val == 0) {
 		qm->debug.curr_qm_qp_num = qm->qp_num;
 	} else {
-		vfq_num = (qm->ctrl_qp_num - qm->qp_num) / ctrl->num_vfs;
-		if (val == ctrl->num_vfs)
+		vfq_num = (qm->ctrl_qp_num - qm->qp_num) / qm->vfs_num;
+		if (val == qm->vfs_num)
 			qm->debug.curr_qm_qp_num = qm->ctrl_qp_num -
-				qm->qp_num - (ctrl->num_vfs - 1) * vfq_num;
+				qm->qp_num - (qm->vfs_num - 1) * vfq_num;
 		else
 			qm->debug.curr_qm_qp_num = vfq_num;
 	}
@@ -686,9 +684,8 @@ static int hisi_zip_vf_q_assign(struct hisi_zip *hisi_zip, int num_vfs)
 
 static int hisi_zip_clear_vft_config(struct hisi_zip *hisi_zip)
 {
-	struct hisi_zip_ctrl *ctrl = hisi_zip->ctrl;
 	struct hisi_qm *qm = &hisi_zip->qm;
-	u32 i, num_vfs = ctrl->num_vfs;
+	u32 i, num_vfs = qm->vfs_num;
 	int ret;
 
 	for (i = 1; i <= num_vfs; i++) {
@@ -697,7 +694,7 @@ static int hisi_zip_clear_vft_config(struct hisi_zip *hisi_zip)
 			return ret;
 	}
 
-	ctrl->num_vfs = 0;
+	qm->vfs_num = 0;
 
 	return 0;
 }
@@ -723,7 +720,7 @@ static int hisi_zip_sriov_enable(struct pci_dev *pdev, int max_vfs)
 		return ret;
 	}
 
-	hisi_zip->ctrl->num_vfs = num_vfs;
+	hisi_zip->qm.vfs_num = num_vfs;
 
 	ret = pci_enable_sriov(pdev, num_vfs);
 	if (ret) {
@@ -852,7 +849,7 @@ static void hisi_zip_remove(struct pci_dev *pdev)
 	struct hisi_zip *hisi_zip = pci_get_drvdata(pdev);
 	struct hisi_qm *qm = &hisi_zip->qm;
 
-	if (qm->fun_type == QM_HW_PF && hisi_zip->ctrl->num_vfs != 0)
+	if (qm->fun_type == QM_HW_PF && qm->vfs_num)
 		hisi_zip_sriov_disable(pdev);
 
 	hisi_zip_debugfs_exit(hisi_zip);

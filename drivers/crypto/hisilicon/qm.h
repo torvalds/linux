@@ -161,6 +161,7 @@ struct hisi_qm {
 	u32 qp_num;
 	u32 qp_in_used;
 	u32 ctrl_qp_num;
+	u32 vfs_num;
 	struct list_head list;
 
 	struct qm_dma qdma;

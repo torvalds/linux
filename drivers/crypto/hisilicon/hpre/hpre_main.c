@@ -354,9 +354,7 @@ static u32 hpre_current_qm_read(struct hpre_debugfs_file *file)
 static int hpre_current_qm_write(struct hpre_debugfs_file *file, u32 val)
 {
 	struct hisi_qm *qm = hpre_file_to_qm(file);
-	struct hpre_debug *debug = file->debug;
-	struct hpre *hpre = container_of(debug, struct hpre, debug);
-	u32 num_vfs = hpre->num_vfs;
+	u32 num_vfs = qm->vfs_num;
 	u32 vfq_num, tmp;
 
 
@@ -827,7 +825,7 @@ static int hpre_vf_q_assign(struct hpre *hpre, int num_vfs)
 static int hpre_clear_vft_config(struct hpre *hpre)
 {
 	struct hisi_qm *qm = &hpre->qm;
-	u32 num_vfs = hpre->num_vfs;
+	u32 num_vfs = qm->vfs_num;
 	int ret;
 	u32 i;
 
@@ -836,7 +834,7 @@ static int hpre_clear_vft_config(struct hpre *hpre)
 		if (ret)
 			return ret;
 	}
-	hpre->num_vfs = 0;
+	qm->vfs_num = 0;
 
 	return 0;
 }
@@ -860,7 +858,7 @@ static int hpre_sriov_enable(struct pci_dev *pdev, int max_vfs)
 		return ret;
 	}
 
-	hpre->num_vfs = num_vfs;
+	hpre->qm.vfs_num = num_vfs;
 
 	ret = pci_enable_sriov(pdev, num_vfs);
 	if (ret) {
@@ -903,7 +901,7 @@ static void hpre_remove(struct pci_dev *pdev)
 
 	hpre_algs_unregister();
 	hisi_qm_del_from_list(qm, &hpre_devices);
-	if (qm->fun_type == QM_HW_PF && hpre->num_vfs != 0) {
+	if (qm->fun_type == QM_HW_PF && qm->vfs_num) {
 		ret = hpre_sriov_disable(pdev);
 		if (ret) {
 			pci_err(pdev, "Disable SRIOV fail!\n");
