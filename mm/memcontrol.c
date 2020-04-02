@@ -1931,6 +1931,14 @@ struct mem_cgroup *mem_cgroup_get_oom_group(struct task_struct *victim,
 		goto out;
 
 	/*
+	 * If the victim task has been asynchronously moved to a different
+	 * memory cgroup, we might end up killing tasks outside oom_domain.
+	 * In this case it's better to ignore memory.group.oom.
+	 */
+	if (unlikely(!mem_cgroup_is_descendant(memcg, oom_domain)))
+		goto out;
+
+	/*
 	 * Traverse the memory cgroup hierarchy from the victim task's
 	 * cgroup up to the OOMing cgroup (or root) to find the
 	 * highest-level memory cgroup with oom.group set.
