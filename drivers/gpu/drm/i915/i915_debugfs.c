@@ -741,7 +741,7 @@ i915_error_state_write(struct file *filp,
 	if (!error)
 		return 0;
 
-	DRM_DEBUG_DRIVER("Resetting error state\n");
+	drm_dbg(&error->i915->drm, "Resetting error state\n");
 	i915_reset_error_state(error->i915);
 
 	return cnt;
