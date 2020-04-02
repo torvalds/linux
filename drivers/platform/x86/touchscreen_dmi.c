@@ -605,6 +605,22 @@ static const struct ts_dmi_data schneider_sct101ctm_data = {
 	.properties	= schneider_sct101ctm_props,
 };
 
+static const struct property_entry techbite_arc_11_6_props[] = {
+	PROPERTY_ENTRY_U32("touchscreen-min-x", 5),
+	PROPERTY_ENTRY_U32("touchscreen-min-y", 7),
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 1981),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 1270),
+	PROPERTY_ENTRY_BOOL("touchscreen-inverted-y"),
+	PROPERTY_ENTRY_STRING("firmware-name", "gsl1680-techbite-arc-11-6.fw"),
+	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
+	{ }
+};
+
+static const struct ts_dmi_data techbite_arc_11_6_data = {
+	.acpi_name	= "MSSL1680:00",
+	.properties	= techbite_arc_11_6_props,
+};
+
 static const struct property_entry teclast_x3_plus_props[] = {
 	PROPERTY_ENTRY_U32("touchscreen-size-x", 1980),
 	PROPERTY_ENTRY_U32("touchscreen-size-y", 1500),
@@ -1052,6 +1068,15 @@ const struct dmi_system_id touchscreen_dmi_table[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Default string"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "SCT101CTM"),
+		},
+	},
+	{
+		/* Techbite Arc 11.6 */
+		.driver_data = (void *)&techbite_arc_11_6_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "mPTech"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "techBite Arc 11.6"),
+			DMI_MATCH(DMI_BOARD_NAME, "G8316_272B"),
 		},
 	},
 	{
