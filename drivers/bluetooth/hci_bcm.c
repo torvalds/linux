@@ -1153,7 +1153,8 @@ static int bcm_of_probe(struct bcm_device *bdev)
 	device_property_read_u8_array(bdev->dev, "brcm,bt-pcm-int-params",
 				      bdev->pcm_int_params, 5);
 	bdev->irq = of_irq_get_byname(bdev->dev->of_node, "host-wakeup");
-
+	bdev->irq_active_low = irq_get_trigger_type(bdev->irq)
+			     & (IRQ_TYPE_EDGE_FALLING | IRQ_TYPE_LEVEL_LOW);
 	return 0;
 }
 
