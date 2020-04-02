@@ -12,6 +12,17 @@
 #include <linux/device.h>
 #include <linux/thermal.h>
 
+/* Default Thermal Governor */
+#if defined(CONFIG_THERMAL_DEFAULT_GOV_STEP_WISE)
+#define DEFAULT_THERMAL_GOVERNOR       "step_wise"
+#elif defined(CONFIG_THERMAL_DEFAULT_GOV_FAIR_SHARE)
+#define DEFAULT_THERMAL_GOVERNOR       "fair_share"
+#elif defined(CONFIG_THERMAL_DEFAULT_GOV_USER_SPACE)
+#define DEFAULT_THERMAL_GOVERNOR       "user_space"
+#elif defined(CONFIG_THERMAL_DEFAULT_GOV_POWER_ALLOCATOR)
+#define DEFAULT_THERMAL_GOVERNOR       "power_allocator"
+#endif
+
 /* Initial state of a cooling device during binding */
 #define THERMAL_NO_TARGET -1UL
 
