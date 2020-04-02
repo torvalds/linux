@@ -2046,6 +2046,9 @@ static int __cancel_hostile(struct live_preempt_cancel *arg)
 	if (!IS_ACTIVE(CONFIG_DRM_I915_PREEMPT_TIMEOUT))
 		return 0;
 
+	if (!intel_has_reset_engine(arg->engine->gt))
+		return 0;
+
 	GEM_TRACE("%s(%s)\n", __func__, arg->engine->name);
 	rq = spinner_create_request(&arg->a.spin,
 				    arg->a.ctx, arg->engine,
