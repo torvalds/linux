@@ -742,7 +742,10 @@ void ConfigList::keyPressEvent(QKeyEvent* ev)
 		type = menu->prompt ? menu->prompt->type : P_UNKNOWN;
 		if (type == P_MENU && rootEntry != menu &&
 		    mode != fullMode && mode != menuMode) {
-			emit menuSelected(menu);
+			if (mode == menuMode)
+				emit menuSelected(menu);
+			else
+				emit itemSelected(menu);
 			break;
 		}
 	case Qt::Key_Space:
@@ -849,9 +852,12 @@ void ConfigList::mouseDoubleClickEvent(QMouseEvent* e)
 	if (!menu)
 		goto skip;
 	ptype = menu->prompt ? menu->prompt->type : P_UNKNOWN;
-	if (ptype == P_MENU && (mode == singleMode || mode == symbolMode))
-		emit menuSelected(menu);
-	else if (menu->sym)
+	if (ptype == P_MENU) {
+		if (mode == singleMode)
+			emit itemSelected(menu);
+		else if (mode == symbolMode)
+			emit menuSelected(menu);
+	} else if (menu->sym)
 		changeValue(item);
 
 skip:
@@ -1503,6 +1509,8 @@ ConfigMainWindow::ConfigMainWindow(void)
 		helpText, SLOT(setInfo(struct menu *)));
 	connect(configList, SIGNAL(menuSelected(struct menu *)),
 		SLOT(changeMenu(struct menu *)));
+	connect(configList, SIGNAL(itemSelected(struct menu *)),
+		SLOT(changeItens(struct menu *)));
 	connect(configList, SIGNAL(parentSelected()),
 		SLOT(goBack()));
 	connect(menuList, SIGNAL(menuChanged(struct menu *)),
@@ -1599,10 +1607,21 @@ void ConfigMainWindow::searchConfig(void)
 	searchWindow->show();
 }
 
-void ConfigMainWindow::changeMenu(struct menu *menu)
+void ConfigMainWindow::changeItens(struct menu *menu)
 {
 	configList->setRootMenu(menu);
+
 	if (configList->rootEntry->parent == &rootmenu)
+		backAction->setEnabled(false);
+	else
+		backAction->setEnabled(true);
+}
+
+void ConfigMainWindow::changeMenu(struct menu *menu)
+{
+	menuList->setRootMenu(menu);
+
+	if (menuList->rootEntry->parent == &rootmenu)
 		backAction->setEnabled(false);
 	else
 		backAction->setEnabled(true);
@@ -1717,14 +1736,14 @@ void ConfigMainWindow::showSplitView(void)
 	fullViewAction->setEnabled(true);
 	fullViewAction->setChecked(false);
 
-	configList->mode = symbolMode;
+	configList->mode = menuMode;
 	if (configList->rootEntry == &rootmenu)
 		configList->updateListAll();
 	else
 		configList->setRootMenu(&rootmenu);
 	configList->setAllOpen(true);
 	configApp->processEvents();
-	menuList->mode = menuMode;
+	menuList->mode = symbolMode;
 	menuList->setRootMenu(&rootmenu);
 	menuList->setAllOpen(true);
 	menuView->show();
