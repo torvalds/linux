@@ -67,7 +67,8 @@ FILES=                                          \
          test-llvm.bin				\
          test-llvm-version.bin			\
          test-libaio.bin			\
-         test-libzstd.bin
+         test-libzstd.bin			\
+         test-file-handle.bin
 
 FILES := $(addprefix $(OUTPUT),$(FILES))
 
@@ -320,6 +321,9 @@ $(OUTPUT)test-libaio.bin:
 
 $(OUTPUT)test-libzstd.bin:
 	$(BUILD) -lzstd
+
+$(OUTPUT)test-file-handle.bin:
+	$(BUILD)
 
 ###############################
 
