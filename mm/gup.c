@@ -29,6 +29,22 @@ struct follow_page_context {
 	unsigned int page_mask;
 };
 
+static void hpage_pincount_add(struct page *page, int refs)
+{
+	VM_BUG_ON_PAGE(!hpage_pincount_available(page), page);
+	VM_BUG_ON_PAGE(page != compound_head(page), page);
+
+	atomic_add(refs, compound_pincount_ptr(page));
+}
+
+static void hpage_pincount_sub(struct page *page, int refs)
+{
+	VM_BUG_ON_PAGE(!hpage_pincount_available(page), page);
+	VM_BUG_ON_PAGE(page != compound_head(page), page);
+
+	atomic_sub(refs, compound_pincount_ptr(page));
+}
+
 /*
  * Return the compound head page with ref appropriately incremented,
  * or NULL if that failed.
@@ -70,8 +86,25 @@ static __maybe_unused struct page *try_grab_compound_head(struct page *page,
 	if (flags & FOLL_GET)
 		return try_get_compound_head(page, refs);
 	else if (flags & FOLL_PIN) {
-		refs *= GUP_PIN_COUNTING_BIAS;
-		return try_get_compound_head(page, refs);
+		/*
+		 * When pinning a compound page of order > 1 (which is what
+		 * hpage_pincount_available() checks for), use an exact count to
+		 * track it, via hpage_pincount_add/_sub().
+		 *
+		 * However, be sure to *also* increment the normal page refcount
+		 * field at least once, so that the page really is pinned.
+		 */
+		if (!hpage_pincount_available(page))
+			refs *= GUP_PIN_COUNTING_BIAS;
+
+		page = try_get_compound_head(page, refs);
+		if (!page)
+			return NULL;
+
+		if (hpage_pincount_available(page))
+			hpage_pincount_add(page, refs);
+
+		return page;
 	}
 
 	WARN_ON_ONCE(1);
@@ -106,12 +139,25 @@ bool __must_check try_grab_page(struct page *page, unsigned int flags)
 	if (flags & FOLL_GET)
 		return try_get_page(page);
 	else if (flags & FOLL_PIN) {
+		int refs = 1;
+
 		page = compound_head(page);
 
 		if (WARN_ON_ONCE(page_ref_count(page) <= 0))
 			return false;
 
-		page_ref_add(page, GUP_PIN_COUNTING_BIAS);
+		if (hpage_pincount_available(page))
+			hpage_pincount_add(page, 1);
+		else
+			refs = GUP_PIN_COUNTING_BIAS;
+
+		/*
+		 * Similar to try_grab_compound_head(): even if using the
+		 * hpage_pincount_add/_sub() routines, be sure to
+		 * *also* increment the normal page refcount field at least
+		 * once, so that the page really is pinned.
+		 */
+		page_ref_add(page, refs);
 	}
 
 	return true;
@@ -120,12 +166,17 @@ bool __must_check try_grab_page(struct page *page, unsigned int flags)
 #ifdef CONFIG_DEV_PAGEMAP_OPS
 static bool __unpin_devmap_managed_user_page(struct page *page)
 {
-	int count;
+	int count, refs = 1;
 
 	if (!page_is_devmap_managed(page))
 		return false;
 
-	count = page_ref_sub_return(page, GUP_PIN_COUNTING_BIAS);
+	if (hpage_pincount_available(page))
+		hpage_pincount_sub(page, 1);
+	else
+		refs = GUP_PIN_COUNTING_BIAS;
+
+	count = page_ref_sub_return(page, refs);
 
 	/*
 	 * devmap page refcounts are 1-based, rather than 0-based: if
@@ -157,6 +208,8 @@ static bool __unpin_devmap_managed_user_page(struct page *page)
  */
 void unpin_user_page(struct page *page)
 {
+	int refs = 1;
+
 	page = compound_head(page);
 
 	/*
@@ -168,7 +221,12 @@ void unpin_user_page(struct page *page)
 	if (__unpin_devmap_managed_user_page(page))
 		return;
 
-	if (page_ref_sub_and_test(page, GUP_PIN_COUNTING_BIAS))
+	if (hpage_pincount_available(page))
+		hpage_pincount_sub(page, 1);
+	else
+		refs = GUP_PIN_COUNTING_BIAS;
+
+	if (page_ref_sub_and_test(page, refs))
 		__put_page(page);
 }
 EXPORT_SYMBOL(unpin_user_page);
@@ -1955,8 +2013,12 @@ EXPORT_SYMBOL(get_user_pages_unlocked);
 
 static void put_compound_head(struct page *page, int refs, unsigned int flags)
 {
-	if (flags & FOLL_PIN)
-		refs *= GUP_PIN_COUNTING_BIAS;
+	if (flags & FOLL_PIN) {
+		if (hpage_pincount_available(page))
+			hpage_pincount_sub(page, refs);
+		else
+			refs *= GUP_PIN_COUNTING_BIAS;
+	}
 
 	VM_BUG_ON_PAGE(page_ref_count(page) < refs, page);
 	/*

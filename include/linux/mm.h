@@ -770,6 +770,24 @@ static inline unsigned int compound_order(struct page *page)
 	return page[1].compound_order;
 }
 
+static inline bool hpage_pincount_available(struct page *page)
+{
+	/*
+	 * Can the page->hpage_pinned_refcount field be used? That field is in
+	 * the 3rd page of the compound page, so the smallest (2-page) compound
+	 * pages cannot support it.
+	 */
+	page = compound_head(page);
+	return PageCompound(page) && compound_order(page) > 1;
+}
+
+static inline int compound_pincount(struct page *page)
+{
+	VM_BUG_ON_PAGE(!hpage_pincount_available(page), page);
+	page = compound_head(page);
+	return atomic_read(compound_pincount_ptr(page));
+}
+
 static inline void set_compound_order(struct page *page, unsigned int order)
 {
 	page[1].compound_order = order;
@@ -1084,6 +1102,11 @@ void unpin_user_pages(struct page **pages, unsigned long npages);
  * refcounts, and b) all the callers of this routine are expected to be able to
  * deal gracefully with a false positive.
  *
+ * For huge pages, the result will be exactly correct. That's because we have
+ * more tracking data available: the 3rd struct page in the compound page is
+ * used to track the pincount (instead using of the GUP_PIN_COUNTING_BIAS
+ * scheme).
+ *
  * For more information, please see Documentation/vm/pin_user_pages.rst.
  *
  * @page:	pointer to page to be queried.
@@ -1092,6 +1115,9 @@ void unpin_user_pages(struct page **pages, unsigned long npages);
  */
 static inline bool page_maybe_dma_pinned(struct page *page)
 {
+	if (hpage_pincount_available(page))
+		return compound_pincount(page) > 0;
+
 	/*
 	 * page_ref_count() is signed. If that refcount overflows, then
 	 * page_ref_count() returns a negative value, and callers will avoid

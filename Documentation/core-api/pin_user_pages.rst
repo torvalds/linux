@@ -52,8 +52,22 @@ Which flags are set by each wrapper
 
 For these pin_user_pages*() functions, FOLL_PIN is OR'd in with whatever gup
 flags the caller provides. The caller is required to pass in a non-null struct
-pages* array, and the function then pin pages by incrementing each by a special
-value. For now, that value is +1, just like get_user_pages*().::
+pages* array, and the function then pins pages by incrementing each by a special
+value: GUP_PIN_COUNTING_BIAS.
+
+For huge pages (and in fact, any compound page of more than 2 pages), the
+GUP_PIN_COUNTING_BIAS scheme is not used. Instead, an exact form of pin counting
+is achieved, by using the 3rd struct page in the compound page. A new struct
+page field, hpage_pinned_refcount, has been added in order to support this.
+
+This approach for compound pages avoids the counting upper limit problems that
+are discussed below. Those limitations would have been aggravated severely by
+huge pages, because each tail page adds a refcount to the head page. And in
+fact, testing revealed that, without a separate hpage_pinned_refcount field,
+page overflows were seen in some huge page stress tests.
+
+This also means that huge pages and compound pages (of order > 1) do not suffer
+from the false positives problem that is mentioned below.::
 
  Function
  --------
@@ -98,27 +112,6 @@ pages:
 
 This also leads to limitations: there are only 31-10==21 bits available for a
 counter that increments 10 bits at a time.
-
-TODO: for 1GB and larger huge pages, this is cutting it close. That's because
-when pin_user_pages() follows such pages, it increments the head page by "1"
-(where "1" used to mean "+1" for get_user_pages(), but now means "+1024" for
-pin_user_pages()) for each tail page. So if you have a 1GB huge page:
-
-* There are 256K (18 bits) worth of 4 KB tail pages.
-* There are 21 bits available to count up via GUP_PIN_COUNTING_BIAS (that is,
-  10 bits at a time)
-* There are 21 - 18 == 3 bits available to count. Except that there aren't,
-  because you need to allow for a few normal get_page() calls on the head page,
-  as well. Fortunately, the approach of using addition, rather than "hard"
-  bitfields, within page->_refcount, allows for sharing these bits gracefully.
-  But we're still looking at about 8 references.
-
-This, however, is a missing feature more than anything else, because it's easily
-solved by addressing an obvious inefficiency in the original get_user_pages()
-approach of retrieving pages: stop treating all the pages as if they were
-PAGE_SIZE. Retrieve huge pages as huge pages. The callers need to be aware of
-this, so some work is required. Once that's in place, this limitation mostly
-disappears from view, because there will be ample refcounting range available.
 
 * Callers must specifically request "dma-pinned tracking of pages". In other
   words, just calling get_user_pages() will not suffice; a new set of functions,
@@ -228,5 +221,6 @@ References
 * `Some slow progress on get_user_pages() (Apr 2, 2019) <https://lwn.net/Articles/784574/>`_
 * `DMA and get_user_pages() (LPC: Dec 12, 2018) <https://lwn.net/Articles/774411/>`_
 * `The trouble with get_user_pages() (Apr 30, 2018) <https://lwn.net/Articles/753027/>`_
+* `LWN kernel index: get_user_pages() <https://lwn.net/Kernel/Index/#Memory_management-get_user_pages>`_
 
 John Hubbard, October, 2019
