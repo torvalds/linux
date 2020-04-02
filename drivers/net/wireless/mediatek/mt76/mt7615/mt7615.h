@@ -67,6 +67,7 @@ struct mt7615_vif;
 struct mt7615_sta;
 struct mt7615_dfs_pulse;
 struct mt7615_dfs_pattern;
+enum mt7615_cipher_type;
 
 enum mt7615_hw_txq_id {
 	MT7615_TXQ_MAIN,
@@ -412,6 +413,19 @@ void mt7615_mac_tx_free(struct mt7615_dev *dev, struct sk_buff *skb);
 int mt7615_mac_wtbl_set_key(struct mt7615_dev *dev, struct mt76_wcid *wcid,
 			    struct ieee80211_key_conf *key,
 			    enum set_key_cmd cmd);
+int mt7615_mac_wtbl_update_pk(struct mt7615_dev *dev,
+			      struct mt76_wcid *wcid,
+			      enum mt7615_cipher_type cipher,
+			      int keyidx, enum set_key_cmd cmd);
+void mt7615_mac_wtbl_update_cipher(struct mt7615_dev *dev,
+				   struct mt76_wcid *wcid,
+				   enum mt7615_cipher_type cipher,
+				   enum set_key_cmd cmd);
+int mt7615_mac_wtbl_update_key(struct mt7615_dev *dev,
+			       struct mt76_wcid *wcid,
+			       u8 *key, u8 keylen,
+			       enum mt7615_cipher_type cipher,
+			       enum set_key_cmd cmd);
 void mt7615_mac_reset_work(struct work_struct *work);
 
 int mt7615_mcu_wait_response(struct mt7615_dev *dev, int cmd, int seq);
