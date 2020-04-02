@@ -643,7 +643,7 @@ static int mlxsw_sp_trap_policer_bs(u64 burst, u8 *p_burst_size,
 {
 	int bs = fls64(burst) - 1;
 
-	if (burst != (1 << bs)) {
+	if (burst != (BIT_ULL(bs))) {
 		NL_SET_ERR_MSG_MOD(extack, "Policer burst size is not power of two");
 		return -EINVAL;
 	}
