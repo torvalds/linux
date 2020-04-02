@@ -304,7 +304,7 @@ static struct img_i2c_timings timings[] = {
 	/* Standard mode */
 	{
 		.name = "standard",
-		.max_bitrate = 100000,
+		.max_bitrate = I2C_MAX_STANDARD_MODE_FREQ,
 		.tckh = 4000,
 		.tckl = 4700,
 		.tsdh = 4700,
@@ -316,7 +316,7 @@ static struct img_i2c_timings timings[] = {
 	/* Fast mode */
 	{
 		.name = "fast",
-		.max_bitrate = 400000,
+		.max_bitrate = I2C_MAX_FAST_MODE_FREQ,
 		.tckh = 600,
 		.tckl = 1300,
 		.tsdh = 600,

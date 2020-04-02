@@ -3470,7 +3470,7 @@ L:	linux-i2c@vger.kernel.org
 L:	bcm-kernel-feedback-list@broadcom.com
 S:	Supported
 F:	drivers/i2c/busses/i2c-brcmstb.c
-F:	Documentation/devicetree/bindings/i2c/i2c-brcmstb.txt
+F:	Documentation/devicetree/bindings/i2c/brcm,brcmstb-i2c.yaml
 
 BROADCOM BRCMSTB USB2 and USB3 PHY DRIVER
 M:	Al Cooper <alcooperx@gmail.com>
