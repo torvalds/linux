@@ -757,21 +757,46 @@ err_free:
 	return ERR_PTR(err);
 }
 
+static inline struct i915_gem_engines *
+__context_engines_await(const struct i915_gem_context *ctx)
+{
+	struct i915_gem_engines *engines;
+
+	rcu_read_lock();
+	do {
+		engines = rcu_dereference(ctx->engines);
+		GEM_BUG_ON(!engines);
+
+		if (unlikely(!i915_sw_fence_await(&engines->fence)))
+			continue;
+
+		if (likely(engines == rcu_access_pointer(ctx->engines)))
+			break;
+
+		i915_sw_fence_complete(&engines->fence);
+	} while (1);
+	rcu_read_unlock();
+
+	return engines;
+}
+
 static int
 context_apply_all(struct i915_gem_context *ctx,
 		  int (*fn)(struct intel_context *ce, void *data),
 		  void *data)
 {
 	struct i915_gem_engines_iter it;
+	struct i915_gem_engines *e;
 	struct intel_context *ce;
 	int err = 0;
 
-	for_each_gem_engine(ce, i915_gem_context_lock_engines(ctx), it) {
+	e = __context_engines_await(ctx);
+	for_each_gem_engine(ce, e, it) {
 		err = fn(ce, data);
 		if (err)
 			break;
 	}
-	i915_gem_context_unlock_engines(ctx);
+	i915_sw_fence_complete(&e->fence);
 
 	return err;
 }
@@ -786,11 +811,13 @@ static int __apply_ppgtt(struct intel_context *ce, void *vm)
 static struct i915_address_space *
 __set_ppgtt(struct i915_gem_context *ctx, struct i915_address_space *vm)
 {
-	struct i915_address_space *old = i915_gem_context_vm(ctx);
+	struct i915_address_space *old;
 
+	old = rcu_replace_pointer(ctx->vm,
+				  i915_vm_open(vm),
+				  lockdep_is_held(&ctx->mutex));
 	GEM_BUG_ON(old && i915_vm_is_4lvl(vm) != i915_vm_is_4lvl(old));
 
-	rcu_assign_pointer(ctx->vm, i915_vm_open(vm));
 	context_apply_all(ctx, __apply_ppgtt, vm);
 
 	return old;
@@ -1067,30 +1094,6 @@ static void cb_retire(struct i915_active *base)
 
 	i915_active_fini(&cb->base);
 	kfree(cb);
-}
-
-static inline struct i915_gem_engines *
-__context_engines_await(const struct i915_gem_context *ctx)
-{
-	struct i915_gem_engines *engines;
-
-	rcu_read_lock();
-	do {
-		engines = rcu_dereference(ctx->engines);
-		if (unlikely(!engines))
-			break;
-
-		if (unlikely(!i915_sw_fence_await(&engines->fence)))
-			continue;
-
-		if (likely(engines == rcu_access_pointer(ctx->engines)))
-			break;
-
-		i915_sw_fence_complete(&engines->fence);
-	} while (1);
-	rcu_read_unlock();
-
-	return engines;
 }
 
 I915_SELFTEST_DECLARE(static intel_engine_mask_t context_barrier_inject_fault);
