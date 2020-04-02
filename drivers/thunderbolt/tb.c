@@ -404,6 +404,7 @@ static void tb_scan_port(struct tb_port *port)
 	if (tcm->hotplug_active && tb_tunnel_usb3(sw->tb, sw))
 		tb_sw_warn(sw, "USB3 tunnel creation failed\n");
 
+	tb_add_dp_resources(sw);
 	tb_scan_switch(sw);
 }
 
@@ -573,6 +574,43 @@ static int tb_available_bw(struct tb_cm *tcm, struct tb_port *in,
 	return available_bw;
 }
 
+static struct tb_port *tb_find_dp_out(struct tb *tb, struct tb_port *in)
+{
+	struct tb_port *host_port, *port;
+	struct tb_cm *tcm = tb_priv(tb);
+
+	host_port = tb_route(in->sw) ?
+		tb_port_at(tb_route(in->sw), tb->root_switch) : NULL;
+
+	list_for_each_entry(port, &tcm->dp_resources, list) {
+		if (!tb_port_is_dpout(port))
+			continue;
+
+		if (tb_port_is_enabled(port)) {
+			tb_port_dbg(port, "in use\n");
+			continue;
+		}
+
+		tb_port_dbg(port, "DP OUT available\n");
+
+		/*
+		 * Keep the DP tunnel under the topology starting from
+		 * the same host router downstream port.
+		 */
+		if (host_port && tb_route(port->sw)) {
+			struct tb_port *p;
+
+			p = tb_port_at(tb_route(port->sw), tb->root_switch);
+			if (p != host_port)
+				continue;
+		}
+
+		return port;
+	}
+
+	return NULL;
+}
+
 static void tb_tunnel_dp(struct tb *tb)
 {
 	struct tb_cm *tcm = tb_priv(tb);
@@ -589,17 +627,21 @@ static void tb_tunnel_dp(struct tb *tb)
 	in = NULL;
 	out = NULL;
 	list_for_each_entry(port, &tcm->dp_resources, list) {
+		if (!tb_port_is_dpin(port))
+			continue;
+
 		if (tb_port_is_enabled(port)) {
 			tb_port_dbg(port, "in use\n");
 			continue;
 		}
 
-		tb_port_dbg(port, "available\n");
+		tb_port_dbg(port, "DP IN available\n");
 
-		if (!in && tb_port_is_dpin(port))
+		out = tb_find_dp_out(tb, port);
+		if (out) {
 			in = port;
-		else if (!out && tb_port_is_dpout(port))
-			out = port;
+			break;
+		}
 	}
 
 	if (!in) {
