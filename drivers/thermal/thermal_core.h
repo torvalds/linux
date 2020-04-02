@@ -41,6 +41,11 @@ extern struct thermal_governor *__governor_thermal_table_end[];
 	     __governor < __governor_thermal_table_end;	\
 	     __governor++)
 
+struct thermal_attr {
+	struct device_attribute attr;
+	char name[THERMAL_NAME_LENGTH];
+};
+
 /*
  * This structure is used to describe the behavior of
  * a certain cooling device on a certain trip point
