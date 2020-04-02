@@ -287,7 +287,11 @@ static inline struct list_head *page_deferred_list(struct page *page)
 #define HPAGE_PUD_MASK ({ BUILD_BUG(); 0; })
 #define HPAGE_PUD_SIZE ({ BUILD_BUG(); 0; })
 
-#define hpage_nr_pages(x) 1
+static inline int hpage_nr_pages(struct page *page)
+{
+	VM_BUG_ON_PAGE(PageTail(page), page);
+	return 1;
+}
 
 static inline bool __transparent_hugepage_enabled(struct vm_area_struct *vma)
 {
