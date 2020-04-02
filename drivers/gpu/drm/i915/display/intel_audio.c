@@ -252,14 +252,16 @@ static u32 audio_config_hdmi_pixel_clock(const struct intel_crtc_state *crtc_sta
 		i = ARRAY_SIZE(hdmi_audio_clock);
 
 	if (i == ARRAY_SIZE(hdmi_audio_clock)) {
-		DRM_DEBUG_KMS("HDMI audio pixel clock setting for %d not found, falling back to defaults\n",
-			      adjusted_mode->crtc_clock);
+		drm_dbg_kms(&dev_priv->drm,
+			    "HDMI audio pixel clock setting for %d not found, falling back to defaults\n",
+			    adjusted_mode->crtc_clock);
 		i = 1;
 	}
 
-	DRM_DEBUG_KMS("Configuring HDMI audio for pixel clock %d (0x%08x)\n",
-		      hdmi_audio_clock[i].clock,
-		      hdmi_audio_clock[i].config);
+	drm_dbg_kms(&dev_priv->drm,
+		    "Configuring HDMI audio for pixel clock %d (0x%08x)\n",
+		    hdmi_audio_clock[i].clock,
+		    hdmi_audio_clock[i].config);
 
 	return hdmi_audio_clock[i].config;
 }
