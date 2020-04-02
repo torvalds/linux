@@ -1861,16 +1861,11 @@ static int __init init_QDIO(void)
 	rc = qdio_setup_init();
 	if (rc)
 		goto out_debug;
-	rc = tiqdio_allocate_memory();
+	rc = qdio_thinint_init();
 	if (rc)
 		goto out_cache;
-	rc = tiqdio_register_thinints();
-	if (rc)
-		goto out_ti;
 	return 0;
 
-out_ti:
-	tiqdio_free_memory();
 out_cache:
 	qdio_setup_exit();
 out_debug:
@@ -1880,8 +1875,7 @@ out_debug:
 
 static void __exit exit_QDIO(void)
 {
-	tiqdio_unregister_thinints();
-	tiqdio_free_memory();
+	qdio_thinint_exit();
 	qdio_setup_exit();
 	qdio_debug_exit();
 }

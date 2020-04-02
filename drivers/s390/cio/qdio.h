@@ -369,10 +369,8 @@ void qdio_shutdown_thinint(struct qdio_irq *irq_ptr);
 void tiqdio_add_device(struct qdio_irq *irq_ptr);
 void tiqdio_remove_device(struct qdio_irq *irq_ptr);
 void tiqdio_inbound_processing(unsigned long q);
-int tiqdio_allocate_memory(void);
-void tiqdio_free_memory(void);
-int tiqdio_register_thinints(void);
-void tiqdio_unregister_thinints(void);
+int qdio_thinint_init(void);
+void qdio_thinint_exit(void);
 int test_nonshared_ind(struct qdio_irq *);
 
 /* prototypes for setup */
