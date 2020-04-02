@@ -1080,7 +1080,7 @@ static int i915_gmch_probe(struct i915_ggtt *ggtt)
 	ggtt->vm.vma_ops.clear_pages = clear_pages;
 
 	if (unlikely(ggtt->do_idle_maps))
-		dev_notice(i915->drm.dev,
+		drm_notice(&i915->drm,
 			   "Applying Ironlake quirks for intel_iommu\n");
 
 	return 0;
@@ -1145,7 +1145,7 @@ int i915_ggtt_probe_hw(struct drm_i915_private *i915)
 		return ret;
 
 	if (intel_vtd_active())
-		dev_info(i915->drm.dev, "VT-d active for gfx access\n");
+		drm_info(&i915->drm, "VT-d active for gfx access\n");
 
 	return 0;
 }

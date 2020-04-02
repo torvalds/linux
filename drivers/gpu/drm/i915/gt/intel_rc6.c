@@ -468,7 +468,7 @@ static bool rc6_supported(struct intel_rc6 *rc6)
 		return false;
 
 	if (IS_GEN9_LP(i915) && !bxt_check_bios_rc6_setup(rc6)) {
-		dev_notice(i915->drm.dev,
+		drm_notice(&i915->drm,
 			   "RC6 and powersaving disabled by BIOS\n");
 		return false;
 	}
@@ -500,7 +500,7 @@ static bool pctx_corrupted(struct intel_rc6 *rc6)
 	if (intel_uncore_read(rc6_to_uncore(rc6), GEN8_RC6_CTX_INFO))
 		return false;
 
-	dev_notice(i915->drm.dev,
+	drm_notice(&i915->drm,
 		   "RC6 context corruption, disabling runtime power management\n");
 	return true;
 }
