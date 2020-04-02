@@ -284,12 +284,6 @@ static int rvt_query_gid(struct ib_device *ibdev, u8 port_num,
 					 &gid->global.interface_id);
 }
 
-static inline struct rvt_ucontext *to_iucontext(struct ib_ucontext
-						*ibucontext)
-{
-	return container_of(ibucontext, struct rvt_ucontext, ibucontext);
-}
-
 /**
  * rvt_alloc_ucontext - Allocate a user context
  * @uctx: Verbs context
