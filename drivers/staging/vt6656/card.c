@@ -75,32 +75,6 @@ void vnt_set_channel(struct vnt_private *priv, u32 connection_channel)
 }
 
 /*
- * Description: Get CCK mode basic rate
- *
- * Parameters:
- *  In:
- *      priv		- The adapter to be set
- *      rate_idx	- Receiving data rate
- *  Out:
- *      none
- *
- * Return Value: response Control frame rate
- *
- */
-static u16 vnt_get_cck_rate(struct vnt_private *priv, u16 rate_idx)
-{
-	u16 ui = rate_idx;
-
-	while (ui > RATE_1M) {
-		if (priv->basic_rates & (1 << ui))
-			return ui;
-		ui--;
-	}
-
-	return RATE_1M;
-}
-
-/*
  * Description: Calculate TxRate and RsvTime fields for RSPINF in OFDM mode.
  *
  * Parameters:
@@ -216,20 +190,16 @@ void vnt_set_rspinf(struct vnt_private *priv, u8 bb_type)
 	int i;
 
 	/*RSPINF_b_1*/
-	vnt_get_phy_field(priv, 14, vnt_get_cck_rate(priv, RATE_1M),
-			  PK_TYPE_11B, &phy[0]);
+	vnt_get_phy_field(priv, 14, RATE_1M, PK_TYPE_11B, &phy[0]);
 
 	/*RSPINF_b_2*/
-	vnt_get_phy_field(priv, 14, vnt_get_cck_rate(priv, RATE_2M),
-			  PK_TYPE_11B, &phy[1]);
+	vnt_get_phy_field(priv, 14, RATE_2M, PK_TYPE_11B, &phy[1]);
 
 	/*RSPINF_b_5*/
-	vnt_get_phy_field(priv, 14, vnt_get_cck_rate(priv, RATE_5M),
-			  PK_TYPE_11B, &phy[2]);
+	vnt_get_phy_field(priv, 14, RATE_5M, PK_TYPE_11B, &phy[2]);
 
 	/*RSPINF_b_11*/
-	vnt_get_phy_field(priv, 14, vnt_get_cck_rate(priv, RATE_11M),
-			  PK_TYPE_11B, &phy[3]);
+	vnt_get_phy_field(priv, 14, RATE_11M, PK_TYPE_11B, &phy[3]);
 
 	/*RSPINF_a_6*/
 	vnt_calculate_ofdm_rate(RATE_6M, bb_type, &tx_rate[0], &rsv_time[0]);
