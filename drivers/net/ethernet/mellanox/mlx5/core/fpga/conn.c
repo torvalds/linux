@@ -534,8 +534,9 @@ static int mlx5_fpga_conn_create_qp(struct mlx5_fpga_conn *conn,
 				    unsigned int tx_size, unsigned int rx_size)
 {
 	struct mlx5_fpga_device *fdev = conn->fdev;
+	u32 out[MLX5_ST_SZ_DW(create_qp_out)] = {};
 	struct mlx5_core_dev *mdev = fdev->mdev;
-	u32 temp_qpc[MLX5_ST_SZ_DW(qpc)] = {0};
+	u32 temp_qpc[MLX5_ST_SZ_DW(qpc)] = {};
 	void *in = NULL, *qpc;
 	int err, inlen;
 
@@ -600,10 +601,12 @@ static int mlx5_fpga_conn_create_qp(struct mlx5_fpga_conn *conn,
 	mlx5_fill_page_frag_array(&conn->qp.wq_ctrl.buf,
 				  (__be64 *)MLX5_ADDR_OF(create_qp_in, in, pas));
 
-	err = mlx5_core_create_qp(mdev, &conn->qp.mqp, in, inlen);
+	MLX5_SET(create_qp_in, in, opcode, MLX5_CMD_OP_CREATE_QP);
+	err = mlx5_cmd_exec(mdev, in, inlen, out, sizeof(out));
 	if (err)
 		goto err_sq_bufs;
 
+	conn->qp.mqp.qpn = MLX5_GET(create_qp_out, out, qpn);
 	conn->qp.mqp.event = mlx5_fpga_conn_event;
 	mlx5_fpga_dbg(fdev, "Created QP #0x%x\n", conn->qp.mqp.qpn);
 
@@ -658,7 +661,14 @@ static void mlx5_fpga_conn_flush_send_bufs(struct mlx5_fpga_conn *conn)
 
 static void mlx5_fpga_conn_destroy_qp(struct mlx5_fpga_conn *conn)
 {
-	mlx5_core_destroy_qp(conn->fdev->mdev, &conn->qp.mqp);
+	struct mlx5_core_dev *dev = conn->fdev->mdev;
+	u32 in[MLX5_ST_SZ_DW(destroy_qp_in)] = {};
+	struct mlx5_core_qp *qp = &conn->qp.mqp;
+
+	MLX5_SET(destroy_qp_in, in, opcode, MLX5_CMD_OP_DESTROY_QP);
+	MLX5_SET(destroy_qp_in, in, qpn, qp->qpn);
+	mlx5_cmd_exec_in(dev, destroy_qp, in);
+
 	mlx5_fpga_conn_free_recv_bufs(conn);
 	mlx5_fpga_conn_flush_send_bufs(conn);
 	kvfree(conn->qp.sq.bufs);
@@ -972,19 +982,11 @@ out:
 
 void mlx5_fpga_conn_destroy(struct mlx5_fpga_conn *conn)
 {
-	struct mlx5_fpga_device *fdev = conn->fdev;
-	struct mlx5_core_dev *mdev = fdev->mdev;
-	int err = 0;
-
 	conn->qp.active = false;
 	tasklet_disable(&conn->cq.tasklet);
 	synchronize_irq(conn->cq.mcq.irqn);
 
 	mlx5_fpga_destroy_qp(conn->fdev->mdev, conn->fpga_qpn);
-	err = mlx5_core_qp_modify(mdev, MLX5_CMD_OP_2ERR_QP, 0, NULL,
-				  &conn->qp.mqp);
-	if (err)
-		mlx5_fpga_warn(fdev, "qp_modify 2ERR failed: %d\n", err);
 	mlx5_fpga_conn_destroy_qp(conn);
 	mlx5_fpga_conn_destroy_cq(conn);
 

@@ -219,16 +219,11 @@ void mlx5i_uninit_underlay_qp(struct mlx5e_priv *priv)
 
 int mlx5i_create_underlay_qp(struct mlx5_core_dev *mdev, struct mlx5_core_qp *qp)
 {
-	u32 *in = NULL;
+	u32 out[MLX5_ST_SZ_DW(create_qp_out)] = {};
+	u32 in[MLX5_ST_SZ_DW(create_qp_in)] = {};
 	void *addr_path;
 	int ret = 0;
-	int inlen;
 	void *qpc;
-
-	inlen = MLX5_ST_SZ_BYTES(create_qp_in);
-	in = kvzalloc(inlen, GFP_KERNEL);
-	if (!in)
-		return -ENOMEM;
 
 	qpc = MLX5_ADDR_OF(create_qp_in, in, qpc);
 	MLX5_SET(qpc, qpc, st, MLX5_QP_ST_UD);
@@ -240,20 +235,23 @@ int mlx5i_create_underlay_qp(struct mlx5_core_dev *mdev, struct mlx5_core_qp *qp
 	MLX5_SET(ads, addr_path, vhca_port_num, 1);
 	MLX5_SET(ads, addr_path, grh, 1);
 
-	ret = mlx5_core_create_qp(mdev, qp, in, inlen);
-	if (ret) {
-		mlx5_core_err(mdev, "Failed creating IPoIB QP err : %d\n", ret);
-		goto out;
-	}
+	MLX5_SET(create_qp_in, in, opcode, MLX5_CMD_OP_CREATE_QP);
+	ret = mlx5_cmd_exec_inout(mdev, create_qp, in, out);
+	if (ret)
+		return ret;
 
-out:
-	kvfree(in);
-	return ret;
+	qp->qpn = MLX5_GET(create_qp_out, out, qpn);
+
+	return 0;
 }
 
 void mlx5i_destroy_underlay_qp(struct mlx5_core_dev *mdev, struct mlx5_core_qp *qp)
 {
-	mlx5_core_destroy_qp(mdev, qp);
+	u32 in[MLX5_ST_SZ_DW(destroy_qp_in)] = {};
+
+	MLX5_SET(destroy_qp_in, in, opcode, MLX5_CMD_OP_DESTROY_QP);
+	MLX5_SET(destroy_qp_in, in, qpn, qp->qpn);
+	mlx5_cmd_exec_in(mdev, destroy_qp, in);
 }
 
 int mlx5i_create_tis(struct mlx5_core_dev *mdev, u32 underlay_qpn, u32 *tisn)
