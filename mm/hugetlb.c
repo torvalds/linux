@@ -1322,6 +1322,106 @@ int PageHeadHuge(struct page *page_head)
 	return get_compound_page_dtor(page_head) == free_huge_page;
 }
 
+/*
+ * Find address_space associated with hugetlbfs page.
+ * Upon entry page is locked and page 'was' mapped although mapped state
+ * could change.  If necessary, use anon_vma to find vma and associated
+ * address space.  The returned mapping may be stale, but it can not be
+ * invalid as page lock (which is held) is required to destroy mapping.
+ */
+static struct address_space *_get_hugetlb_page_mapping(struct page *hpage)
+{
+	struct anon_vma *anon_vma;
+	pgoff_t pgoff_start, pgoff_end;
+	struct anon_vma_chain *avc;
+	struct address_space *mapping = page_mapping(hpage);
+
+	/* Simple file based mapping */
+	if (mapping)
+		return mapping;
+
+	/*
+	 * Even anonymous hugetlbfs mappings are associated with an
+	 * underlying hugetlbfs file (see hugetlb_file_setup in mmap
+	 * code).  Find a vma associated with the anonymous vma, and
+	 * use the file pointer to get address_space.
+	 */
+	anon_vma = page_lock_anon_vma_read(hpage);
+	if (!anon_vma)
+		return mapping;  /* NULL */
+
+	/* Use first found vma */
+	pgoff_start = page_to_pgoff(hpage);
+	pgoff_end = pgoff_start + hpage_nr_pages(hpage) - 1;
+	anon_vma_interval_tree_foreach(avc, &anon_vma->rb_root,
+					pgoff_start, pgoff_end) {
+		struct vm_area_struct *vma = avc->vma;
+
+		mapping = vma->vm_file->f_mapping;
+		break;
+	}
+
+	anon_vma_unlock_read(anon_vma);
+	return mapping;
+}
+
+/*
+ * Find and lock address space (mapping) in write mode.
+ *
+ * Upon entry, the page is locked which allows us to find the mapping
+ * even in the case of an anon page.  However, locking order dictates
+ * the i_mmap_rwsem be acquired BEFORE the page lock.  This is hugetlbfs
+ * specific.  So, we first try to lock the sema while still holding the
+ * page lock.  If this works, great!  If not, then we need to drop the
+ * page lock and then acquire i_mmap_rwsem and reacquire page lock.  Of
+ * course, need to revalidate state along the way.
+ */
+struct address_space *hugetlb_page_mapping_lock_write(struct page *hpage)
+{
+	struct address_space *mapping, *mapping2;
+
+	mapping = _get_hugetlb_page_mapping(hpage);
+retry:
+	if (!mapping)
+		return mapping;
+
+	/*
+	 * If no contention, take lock and return
+	 */
+	if (i_mmap_trylock_write(mapping))
+		return mapping;
+
+	/*
+	 * Must drop page lock and wait on mapping sema.
+	 * Note:  Once page lock is dropped, mapping could become invalid.
+	 * As a hack, increase map count until we lock page again.
+	 */
+	atomic_inc(&hpage->_mapcount);
+	unlock_page(hpage);
+	i_mmap_lock_write(mapping);
+	lock_page(hpage);
+	atomic_add_negative(-1, &hpage->_mapcount);
+
+	/* verify page is still mapped */
+	if (!page_mapped(hpage)) {
+		i_mmap_unlock_write(mapping);
+		return NULL;
+	}
+
+	/*
+	 * Get address space again and verify it is the same one
+	 * we locked.  If not, drop lock and retry.
+	 */
+	mapping2 = _get_hugetlb_page_mapping(hpage);
+	if (mapping2 != mapping) {
+		i_mmap_unlock_write(mapping);
+		mapping = mapping2;
+		goto retry;
+	}
+
+	return mapping;
+}
+
 pgoff_t __basepage_index(struct page *page)
 {
 	struct page *page_head = compound_head(page);
@@ -3312,6 +3412,7 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
 	int cow;
 	struct hstate *h = hstate_vma(vma);
 	unsigned long sz = huge_page_size(h);
+	struct address_space *mapping = vma->vm_file->f_mapping;
 	struct mmu_notifier_range range;
 	int ret = 0;
 
@@ -3322,6 +3423,14 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
 					vma->vm_start,
 					vma->vm_end);
 		mmu_notifier_invalidate_range_start(&range);
+	} else {
+		/*
+		 * For shared mappings i_mmap_rwsem must be held to call
+		 * huge_pte_alloc, otherwise the returned ptep could go
+		 * away if part of a shared pmd and another thread calls
+		 * huge_pmd_unshare.
+		 */
+		i_mmap_lock_read(mapping);
 	}
 
 	for (addr = vma->vm_start; addr < vma->vm_end; addr += sz) {
@@ -3399,6 +3508,8 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
 
 	if (cow)
 		mmu_notifier_invalidate_range_end(&range);
+	else
+		i_mmap_unlock_read(mapping);
 
 	return ret;
 }
@@ -3847,13 +3958,15 @@ retry:
 			};
 
 			/*
-			 * hugetlb_fault_mutex must be dropped before
-			 * handling userfault.  Reacquire after handling
-			 * fault to make calling code simpler.
+			 * hugetlb_fault_mutex and i_mmap_rwsem must be
+			 * dropped before handling userfault.  Reacquire
+			 * after handling fault to make calling code simpler.
 			 */
 			hash = hugetlb_fault_mutex_hash(mapping, idx);
 			mutex_unlock(&hugetlb_fault_mutex_table[hash]);
+			i_mmap_unlock_read(mapping);
 			ret = handle_userfault(&vmf, VM_UFFD_MISSING);
+			i_mmap_lock_read(mapping);
 			mutex_lock(&hugetlb_fault_mutex_table[hash]);
 			goto out;
 		}
@@ -4018,6 +4131,11 @@ vm_fault_t hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 
 	ptep = huge_pte_offset(mm, haddr, huge_page_size(h));
 	if (ptep) {
+		/*
+		 * Since we hold no locks, ptep could be stale.  That is
+		 * OK as we are only making decisions based on content and
+		 * not actually modifying content here.
+		 */
 		entry = huge_ptep_get(ptep);
 		if (unlikely(is_hugetlb_entry_migration(entry))) {
 			migration_entry_wait_huge(vma, mm, ptep);
@@ -4031,14 +4149,29 @@ vm_fault_t hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 			return VM_FAULT_OOM;
 	}
 
+	/*
+	 * Acquire i_mmap_rwsem before calling huge_pte_alloc and hold
+	 * until finished with ptep.  This prevents huge_pmd_unshare from
+	 * being called elsewhere and making the ptep no longer valid.
+	 *
+	 * ptep could have already be assigned via huge_pte_offset.  That
+	 * is OK, as huge_pte_alloc will return the same value unless
+	 * something has changed.
+	 */
 	mapping = vma->vm_file->f_mapping;
-	idx = vma_hugecache_offset(h, vma, haddr);
+	i_mmap_lock_read(mapping);
+	ptep = huge_pte_alloc(mm, haddr, huge_page_size(h));
+	if (!ptep) {
+		i_mmap_unlock_read(mapping);
+		return VM_FAULT_OOM;
+	}
 
 	/*
 	 * Serialize hugepage allocation and instantiation, so that we don't
 	 * get spurious allocation failures if two CPUs race to instantiate
 	 * the same page in the page cache.
 	 */
+	idx = vma_hugecache_offset(h, vma, haddr);
 	hash = hugetlb_fault_mutex_hash(mapping, idx);
 	mutex_lock(&hugetlb_fault_mutex_table[hash]);
 
@@ -4126,6 +4259,7 @@ out_ptl:
 	}
 out_mutex:
 	mutex_unlock(&hugetlb_fault_mutex_table[hash]);
+	i_mmap_unlock_read(mapping);
 	/*
 	 * Generally it's safe to hold refcount during waiting page lock. But
 	 * here we just wait to defer the next page fault to avoid busy loop and
@@ -4776,10 +4910,12 @@ void adjust_range_if_pmd_sharing_possible(struct vm_area_struct *vma,
  * Search for a shareable pmd page for hugetlb. In any case calls pmd_alloc()
  * and returns the corresponding pte. While this is not necessary for the
  * !shared pmd case because we can allocate the pmd later as well, it makes the
- * code much cleaner. pmd allocation is essential for the shared case because
- * pud has to be populated inside the same i_mmap_rwsem section - otherwise
- * racing tasks could either miss the sharing (see huge_pte_offset) or select a
- * bad pmd for sharing.
+ * code much cleaner.
+ *
+ * This routine must be called with i_mmap_rwsem held in at least read mode.
+ * For hugetlbfs, this prevents removal of any page table entries associated
+ * with the address space.  This is important as we are setting up sharing
+ * based on existing page table entries (mappings).
  */
 pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
 {
@@ -4796,7 +4932,6 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
 	if (!vma_shareable(vma, addr))
 		return (pte_t *)pmd_alloc(mm, pud, addr);
 
-	i_mmap_lock_read(mapping);
 	vma_interval_tree_foreach(svma, &mapping->i_mmap, idx, idx) {
 		if (svma == vma)
 			continue;
@@ -4826,7 +4961,6 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
 	spin_unlock(ptl);
 out:
 	pte = (pte_t *)pmd_alloc(mm, pud, addr);
-	i_mmap_unlock_read(mapping);
 	return pte;
 }
 
@@ -4837,7 +4971,7 @@ out:
  * indicated by page_count > 1, unmap is achieved by clearing pud and
  * decrementing the ref count. If count == 1, the pte page is not shared.
  *
- * called with page table lock held.
+ * Called with page table lock held and i_mmap_rwsem held in write mode.
  *
  * returns: 1 successfully unmapped a shared pte page
  *	    0 the underlying pte page is not shared, or it is the last user
