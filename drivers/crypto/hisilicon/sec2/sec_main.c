@@ -207,6 +207,15 @@ static u32 ctx_q_num = SEC_CTX_Q_NUM_DEF;
 module_param_cb(ctx_q_num, &sec_ctx_q_num_ops, &ctx_q_num, 0444);
 MODULE_PARM_DESC(ctx_q_num, "Queue num in ctx (24 default, 2, 4, ..., 32)");
 
+static const struct kernel_param_ops vfs_num_ops = {
+	.set = vfs_num_set,
+	.get = param_get_int,
+};
+
+static u32 vfs_num;
+module_param_cb(vfs_num, &vfs_num_ops, &vfs_num, 0444);
+MODULE_PARM_DESC(vfs_num, "Number of VFs to enable(1-63), 0(default)");
+
 void sec_destroy_qps(struct hisi_qp **qps, int qp_num)
 {
 	hisi_qm_free_qps(qps, qp_num);
@@ -876,7 +885,16 @@ static int sec_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_remove_from_list;
 	}
 
+	if (qm->fun_type == QM_HW_PF && vfs_num) {
+		ret = hisi_qm_sriov_enable(pdev, vfs_num);
+		if (ret < 0)
+			goto err_crypto_unregister;
+	}
+
 	return 0;
+
+err_crypto_unregister:
+	sec_unregister_from_crypto();
 
 err_remove_from_list:
 	hisi_qm_del_from_list(qm, &sec_devices);

@@ -195,6 +195,15 @@ static u32 hpre_pf_q_num = HPRE_PF_DEF_Q_NUM;
 module_param_cb(hpre_pf_q_num, &hpre_pf_q_num_ops, &hpre_pf_q_num, 0444);
 MODULE_PARM_DESC(hpre_pf_q_num, "Number of queues in PF of CS(1-1024)");
 
+static const struct kernel_param_ops vfs_num_ops = {
+	.set = vfs_num_set,
+	.get = param_get_int,
+};
+
+static u32 vfs_num;
+module_param_cb(vfs_num, &vfs_num_ops, &vfs_num, 0444);
+MODULE_PARM_DESC(vfs_num, "Number of VFs to enable(1-63), 0(default)");
+
 struct hisi_qp *hpre_create_qp(void)
 {
 	int node = cpu_to_node(smp_processor_id());
@@ -777,7 +786,17 @@ static int hpre_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		pci_err(pdev, "fail to register algs to crypto!\n");
 		goto err_with_qm_start;
 	}
+
+	if (qm->fun_type == QM_HW_PF && vfs_num) {
+		ret = hisi_qm_sriov_enable(pdev, vfs_num);
+		if (ret < 0)
+			goto err_with_crypto_register;
+	}
+
 	return 0;
+
+err_with_crypto_register:
+	hpre_algs_unregister();
 
 err_with_qm_start:
 	hisi_qm_del_from_list(qm, &hpre_devices);

@@ -8,6 +8,8 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 
+#define QM_MAX_VFS_NUM_V2		63
+
 /* qm user domain */
 #define QM_ARUSER_M_CFG_1		0x100088
 #define AXUSER_SNOOP_ENABLE		BIT(30)
@@ -234,6 +236,24 @@ struct hisi_qp {
 	u16 pasid;
 	struct uacce_queue *uacce_q;
 };
+
+static inline int vfs_num_set(const char *val, const struct kernel_param *kp)
+{
+	u32 n;
+	int ret;
+
+	if (!val)
+		return -EINVAL;
+
+	ret = kstrtou32(val, 10, &n);
+	if (ret < 0)
+		return ret;
+
+	if (n > QM_MAX_VFS_NUM_V2)
+		return -EINVAL;
+
+	return param_set_int(val, kp);
+}
 
 static inline void hisi_qm_init_list(struct hisi_qm_list *qm_list)
 {
