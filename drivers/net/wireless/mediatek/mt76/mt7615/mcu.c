@@ -135,14 +135,21 @@ void mt7615_mcu_fill_msg(struct mt7615_dev *dev, struct sk_buff *skb,
 	mcu_txd->pkt_type = MCU_PKT_ID;
 	mcu_txd->seq = seq;
 
-	if (cmd & MCU_FW_PREFIX) {
+	switch (cmd & ~MCU_CMD_MASK) {
+	case MCU_FW_PREFIX:
 		mcu_txd->set_query = MCU_Q_NA;
 		mcu_txd->cid = mcu_cmd;
-	} else {
+		break;
+	case MCU_CE_PREFIX:
+		mcu_txd->set_query = MCU_Q_SET;
+		mcu_txd->cid = mcu_cmd;
+		break;
+	default:
 		mcu_txd->cid = MCU_CMD_EXT_CID;
 		mcu_txd->set_query = MCU_Q_SET;
 		mcu_txd->ext_cid = cmd;
 		mcu_txd->ext_cid_ack = 1;
+		break;
 	}
 }
 
@@ -2420,4 +2427,65 @@ int mt7615_mcu_set_sku_en(struct mt7615_phy *phy, bool enable)
 
 	return __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_TX_POWER_FEATURE_CTRL, &req,
 				   sizeof(req), true);
+}
+
+int mt7615_mcu_set_channel_domain(struct mt7615_phy *phy)
+{
+	struct mt76_phy *mphy = phy->mt76;
+	struct mt7615_dev *dev = phy->dev;
+	struct mt7615_mcu_channel_domain {
+		__le32 country_code; /* regulatory_request.alpha2 */
+		u8 bw_2g; /* BW_20_40M		0
+			   * BW_20M		1
+			   * BW_20_40_80M	2
+			   * BW_20_40_80_160M	3
+			   * BW_20_40_80_8080M	4
+			   */
+		u8 bw_5g;
+		__le16 pad;
+		u8 n_2ch;
+		u8 n_5ch;
+		__le16 pad2;
+	} __packed hdr = {
+		.bw_2g = 0,
+		.bw_5g = 3,
+		.n_2ch = mphy->sband_2g.sband.n_channels,
+		.n_5ch = mphy->sband_5g.sband.n_channels,
+	};
+	struct mt7615_mcu_chan {
+		__le16 hw_value;
+		__le16 pad;
+		__le32 flags;
+	} __packed;
+	int i, n_channels = hdr.n_2ch + hdr.n_5ch;
+	int len = sizeof(hdr) + n_channels * sizeof(struct mt7615_mcu_chan);
+	struct sk_buff *skb;
+
+	if (!mt7615_firmware_offload(dev))
+		return 0;
+
+	skb = mt7615_mcu_msg_alloc(NULL, len);
+	if (!skb)
+		return -ENOMEM;
+
+	skb_put_data(skb, &hdr, sizeof(hdr));
+
+	for (i = 0; i < n_channels; i++) {
+		struct ieee80211_channel *chan;
+		struct mt7615_mcu_chan channel;
+
+		if (i < hdr.n_2ch)
+			chan = &mphy->sband_2g.sband.channels[i];
+		else
+			chan = &mphy->sband_5g.sband.channels[i - hdr.n_2ch];
+
+		channel.hw_value = cpu_to_le16(chan->hw_value);
+		channel.flags = cpu_to_le32(chan->flags);
+		channel.pad = 0;
+
+		skb_put_data(skb, &channel, sizeof(channel));
+	}
+
+	return __mt76_mcu_skb_send_msg(&dev->mt76, skb,
+				       MCU_CMD_SET_CHAN_DOMAIN, false);
 }

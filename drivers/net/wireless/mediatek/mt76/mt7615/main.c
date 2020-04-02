@@ -50,6 +50,7 @@ static int mt7615_start(struct ieee80211_hw *hw)
 		mt7615_mac_enable_nf(dev, 1);
 	}
 
+	mt7615_mcu_set_channel_domain(phy);
 	mt7615_mcu_set_chan_info(phy, MCU_EXT_CMD_SET_RX_PATH);
 
 	set_bit(MT76_STATE_RUNNING, &phy->mt76->state);
