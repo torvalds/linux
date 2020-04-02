@@ -308,6 +308,9 @@ struct intel_engine_cs {
 		struct list_head hold; /* ready requests, but on hold */
 	} active;
 
+	/* keep a request in reserve for a [pm] barrier under oom */
+	struct i915_request *request_pool;
+
 	struct llist_head barrier_tasks;
 
 	struct intel_context *kernel_context; /* pinned */

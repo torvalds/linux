@@ -431,7 +431,14 @@ void intel_engines_free(struct intel_gt *gt)
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
+	/* Free the requests! dma-resv keeps fences around for an eternity */
+	rcu_barrier();
+
 	for_each_engine(engine, gt, id) {
+		if (engine->request_pool)
+			kmem_cache_free(i915_request_slab_cache(),
+					engine->request_pool);
+
 		kfree(engine);
 		gt->engine[id] = NULL;
 	}
