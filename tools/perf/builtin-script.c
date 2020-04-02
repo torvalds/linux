@@ -3265,10 +3265,10 @@ static char *get_script_path(const char *script_root, const char *suffix)
 			__script_root = get_script_root(script_dirent, suffix);
 			if (__script_root && !strcmp(script_root, __script_root)) {
 				free(__script_root);
-				closedir(lang_dir);
 				closedir(scripts_dir);
 				scnprintf(script_path, MAXPATHLEN, "%s/%s",
 					  lang_path, script_dirent->d_name);
+				closedir(lang_dir);
 				return strdup(script_path);
 			}
 			free(__script_root);
