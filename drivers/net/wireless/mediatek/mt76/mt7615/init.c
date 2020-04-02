@@ -90,7 +90,7 @@ static void mt7615_mac_init(struct mt7615_dev *dev)
 		 MT_TMAC_CTCR0_INS_DDLMT_EN);
 
 	mt7615_mcu_set_rts_thresh(&dev->phy, 0x92b);
-	mt7615_mac_set_scs(dev, true);
+	mt7615_mac_set_scs(&dev->phy, true);
 
 	mt76_rmw(dev, MT_AGG_SCR, MT_AGG_SCR_NLNAV_MID_PTEC_DIS,
 		 MT_AGG_SCR_NLNAV_MID_PTEC_DIS);
@@ -410,6 +410,8 @@ int mt7615_register_ext_phy(struct mt7615_dev *dev)
 	phy->chainmask = dev->chainmask & ~dev->phy.chainmask;
 	mphy->antenna_mask = BIT(hweight8(phy->chainmask)) - 1;
 	mt7615_init_wiphy(mphy->hw);
+
+	mt7615_mac_set_scs(phy, true);
 
 	/*
 	 * Make the secondary PHY MAC address local without overlapping with

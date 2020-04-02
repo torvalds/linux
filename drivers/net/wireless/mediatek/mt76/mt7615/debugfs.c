@@ -20,11 +20,15 @@ static int
 mt7615_scs_set(void *data, u64 val)
 {
 	struct mt7615_dev *dev = data;
+	struct mt7615_phy *ext_phy;
 
 	if (!mt7615_wait_for_mcu_init(dev))
 		return 0;
 
-	mt7615_mac_set_scs(dev, val);
+	mt7615_mac_set_scs(&dev->phy, val);
+	ext_phy = mt7615_ext_phy(dev);
+	if (ext_phy)
+		mt7615_mac_set_scs(ext_phy, val);
 
 	return 0;
 }
@@ -34,7 +38,7 @@ mt7615_scs_get(void *data, u64 *val)
 {
 	struct mt7615_dev *dev = data;
 
-	*val = dev->scs_en;
+	*val = dev->phy.scs_en;
 
 	return 0;
 }
