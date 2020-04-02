@@ -292,6 +292,8 @@ struct qdio_irq {
 
 	struct qdio_q *input_qs[QDIO_MAX_QUEUES_PER_IRQ];
 	struct qdio_q *output_qs[QDIO_MAX_QUEUES_PER_IRQ];
+	unsigned int max_input_qs;
+	unsigned int max_output_qs;
 
 	void (*irq_poll)(struct ccw_device *cdev, unsigned long data);
 	unsigned long poll_state;
@@ -389,6 +391,7 @@ int qdio_setup_irq(struct qdio_irq *irq_ptr, struct qdio_initialize *init_data);
 void qdio_shutdown_irq(struct qdio_irq *irq);
 void qdio_print_subchannel_info(struct qdio_irq *irq_ptr);
 void qdio_free_queues(struct qdio_irq *irq_ptr);
+void qdio_free_async_data(struct qdio_irq *irq_ptr);
 int qdio_setup_init(void);
 void qdio_setup_exit(void);
 int qdio_enable_async_operation(struct qdio_output_q *q);

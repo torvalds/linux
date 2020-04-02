@@ -1205,6 +1205,7 @@ int qdio_free(struct ccw_device *cdev)
 	cdev->private->qdio_data = NULL;
 	mutex_unlock(&irq_ptr->setup_mutex);
 
+	qdio_free_async_data(irq_ptr);
 	qdio_free_queues(irq_ptr);
 	free_page((unsigned long) irq_ptr->qdr);
 	free_page(irq_ptr->chsc_page);
@@ -1339,6 +1340,10 @@ int qdio_establish(struct ccw_device *cdev,
 
 	if (!irq_ptr)
 		return -ENODEV;
+
+	if (init_data->no_input_qs > irq_ptr->max_input_qs ||
+	    init_data->no_output_qs > irq_ptr->max_output_qs)
+		return -EINVAL;
 
 	if ((init_data->no_input_qs && !init_data->input_handler) ||
 	    (init_data->no_output_qs && !init_data->output_handler))
