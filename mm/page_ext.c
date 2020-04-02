@@ -304,7 +304,7 @@ static int __meminit online_page_ext(unsigned long start_pfn,
 	}
 
 	for (pfn = start; !fail && pfn < end; pfn += PAGES_PER_SECTION) {
-		if (!pfn_present(pfn))
+		if (!pfn_in_present_section(pfn))
 			continue;
 		fail = init_section_page_ext(pfn, nid);
 	}

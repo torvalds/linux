@@ -360,7 +360,7 @@ static bool lmb_is_removable(struct drmem_lmb *lmb)
 
 	for (i = 0; i < scns_per_block; i++) {
 		pfn = PFN_DOWN(phys_addr);
-		if (!pfn_present(pfn)) {
+		if (!pfn_in_present_section(pfn)) {
 			phys_addr += MIN_MEMORY_BLOCK_SIZE;
 			continue;
 		}
