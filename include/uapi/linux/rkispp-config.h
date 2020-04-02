@@ -9,11 +9,14 @@
 #include <linux/types.h>
 #include <linux/v4l2-controls.h>
 
-#define ISPP_MODULE_TNR			BIT(0)
+#define ISPP_MODULE_TNR			BIT(0)//2TO1
 #define ISPP_MODULE_NR			BIT(1)
 #define ISPP_MODULE_SHP			BIT(2)
-#define ISPP_MODULE_FEC			BIT(3)
+#define ISPP_MODULE_FEC			BIT(3)//CALIBRATION
 #define ISPP_MODULE_ORB			BIT(4)
+//extra function
+#define ISPP_MODULE_TNR_3TO1		(BIT(16) | ISPP_MODULE_TNR)
+#define ISPP_MODULE_FEC_ST		(BIT(17) | ISPP_MODULE_FEC)//STABILIZATION
 
 #define TNR_SIGMA_CURVE_SIZE		17
 #define TNR_LUMA_CURVE_SIZE		6
@@ -69,7 +72,6 @@
 #define FEC_MESH_XY_NUM			5120
 
 struct rkispp_tnr_config {
-	u8 mode;
 	u8 opty_en;
 	u8 optc_en;
 	u8 gain_en;
@@ -236,11 +238,13 @@ struct rkispp_orb_config {
  * @module_ens: mask the enable value of each module, only update the module
  * which correspond bit was set in module_en_update
  * @module_cfg_update: mask the config bits of which module  should be updated
+ * @module_init_en: initial enable module function
  */
 struct rkispp_params_cfg {
 	u32 module_en_update;
 	u32 module_ens;
 	u32 module_cfg_update;
+	u32 module_init_ens;
 
 	struct rkispp_tnr_config tnr_cfg;
 	struct rkispp_nr_config nr_cfg;

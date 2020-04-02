@@ -253,7 +253,8 @@ static int rkispp_s_rx_buffer(struct rkispp_subdev *ispp_sdev)
 		buf = &vdev->tnr_buf.gain_cur;
 		size = &buf->size;
 		dbuf = ops->get_dmabuf(buf->mem_priv, O_RDWR);
-		if (vdev->tnr_mode) {
+		if ((vdev->module_ens & ISPP_MODULE_TNR_3TO1) ==
+		    ISPP_MODULE_TNR_3TO1) {
 			ret = v4l2_subdev_call(ispp_sdev->remote_sd,
 				video, s_rx_buffer, dbuf, size);
 			if (ret)

@@ -185,7 +185,6 @@ static int rkispp_create_links(struct rkispp_device *ispp_dev)
 	/* default enable tnr (2to1), nr, sharp */
 	ispp_dev->stream_vdev.module_ens =
 		ISPP_MODULE_TNR | ISPP_MODULE_NR | ISPP_MODULE_SHP;
-	ispp_dev->stream_vdev.tnr_mode = 0;
 	return 0;
 }
 

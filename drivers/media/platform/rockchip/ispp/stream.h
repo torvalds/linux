@@ -146,7 +146,6 @@ struct rkispp_stream_vdev {
 	struct in_fec_buf fec_buf;
 	atomic_t refcnt;
 	u32 module_ens;
-	u8 tnr_mode;
 	u8 is_update_manual;
 };
 

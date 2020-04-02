@@ -427,7 +427,8 @@ static int config_tnr(struct rkispp_device *dev)
 			if (ret < 0)
 				goto err;
 
-			if (vdev->tnr_mode) {
+			if ((vdev->module_ens & ISPP_MODULE_TNR_3TO1) ==
+			    ISPP_MODULE_TNR_3TO1) {
 				buf = &vdev->tnr_buf.pic_next;
 				buf->size = pic_size;
 				ret = rkispp_allow_buffer(dev, buf);
@@ -506,7 +507,9 @@ static int config_tnr(struct rkispp_device *dev)
 			base + RKISPP_TNR_NXT_VIR_STRIDE);
 	}
 	rkispp_set_bits(base + RKISPP_TNR_CORE_CTRL, SW_TNR_MODE,
-		(vdev->tnr_mode && dev->inp == INP_ISP) ? SW_TNR_MODE : 0);
+		((vdev->module_ens & ISPP_MODULE_TNR_3TO1) ==
+		 ISPP_MODULE_TNR_3TO1 &&
+		 dev->inp == INP_ISP) ? SW_TNR_MODE : 0);
 	writel(ALIGN(width, 64) >> 4,
 		base + RKISPP_TNR_GAIN_CUR_VIR_STRIDE);
 	writel(ALIGN(width, 64) >> 4,

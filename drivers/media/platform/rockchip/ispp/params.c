@@ -633,18 +633,21 @@ static void rkispp_params_vb2_buf_queue(struct vb2_buffer *vb)
 	struct rkispp_params_cfg *new_params;
 	unsigned long flags;
 
+	new_params = (struct rkispp_params_cfg *)vb2_plane_vaddr(vb, 0);
+	spin_lock_irqsave(&params_vdev->config_lock, flags);
 	if (params_vdev->first_params) {
-		new_params = (struct rkispp_params_cfg *)
-			(vb2_plane_vaddr(vb, 0));
 		vb2_buffer_done(&params_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 		params_vdev->first_params = false;
 		params_vdev->cur_params = *new_params;
-		stream_vdev->module_ens = new_params->module_ens;
-		stream_vdev->tnr_mode = new_params->tnr_cfg.mode;
+		if (new_params->module_init_ens)
+			stream_vdev->module_ens = new_params->module_init_ens;
+		spin_unlock_irqrestore(&params_vdev->config_lock, flags);
 		return;
 	}
+	spin_unlock_irqrestore(&params_vdev->config_lock, flags);
 
-	params_buf->vaddr[0] = vb2_plane_vaddr(vb, 0);
+	new_params->module_init_ens = stream_vdev->module_ens;
+	params_buf->vaddr[0] = new_params;
 	spin_lock_irqsave(&params_vdev->config_lock, flags);
 	list_add_tail(&params_buf->queue, &params_vdev->params);
 	spin_unlock_irqrestore(&params_vdev->config_lock, flags);
@@ -779,7 +782,8 @@ rkispp_params_init_vb2_queue(struct vb2_queue *q,
 void rkispp_params_isr(struct rkispp_params_vdev *params_vdev, u32 mis)
 {
 	struct rkispp_params_cfg *new_params = NULL;
-	u32 module_en_update, module_cfg_update, module_ens;
+	u32 module_en_update, module_cfg_update;
+	u32 module_ens, module_init_ens;
 
 	spin_lock(&params_vdev->config_lock);
 	if (!params_vdev->streamon) {
@@ -800,9 +804,10 @@ void rkispp_params_isr(struct rkispp_params_vdev *params_vdev, u32 mis)
 	}
 	new_params = (struct rkispp_params_cfg *)(params_vdev->cur_buf->vaddr[0]);
 
+	module_init_ens = new_params->module_init_ens;
 	module_en_update = new_params->module_en_update;
 	module_cfg_update = new_params->module_cfg_update;
-	module_ens = new_params->module_ens;
+	module_ens = new_params->module_ens & module_init_ens;
 
 	if (module_cfg_update & ISPP_MODULE_TNR &&
 	    mis & TNR_INT) {
@@ -874,10 +879,15 @@ void rkispp_params_configure(struct rkispp_params_vdev *params_vdev)
 	u32 module_en_update = params_vdev->cur_params.module_en_update;
 	u32 module_cfg_update = params_vdev->cur_params.module_cfg_update;
 	u32 module_ens = params_vdev->cur_params.module_ens;
+	unsigned long flags;
 
-	if (!module_cfg_update && !module_en_update)
+	spin_lock_irqsave(&params_vdev->config_lock, flags);
+	if (params_vdev->first_params) {
+		params_vdev->first_params = false;
 		v4l2_warn(&params_vdev->dev->v4l2_dev,
 			  "can not get first iq setting in stream on\n");
+	}
+	spin_unlock_irqrestore(&params_vdev->config_lock, flags);
 
 	if (module_cfg_update & ISPP_MODULE_TNR)
 		tnr_config(params_vdev,
