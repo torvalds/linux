@@ -682,6 +682,12 @@ static void rkispp_params_vb2_stop_streaming(struct vb2_queue *vq)
 		buf = NULL;
 	}
 
+	if (params_vdev->cur_buf) {
+		vb2_buffer_done(&params_vdev->cur_buf->vb.vb2_buf,
+				VB2_BUF_STATE_ERROR);
+		params_vdev->cur_buf = NULL;
+	}
+
 	/* clean module params */
 	params_vdev->cur_params.module_cfg_update = 0;
 	params_vdev->cur_params.module_en_update = 0;
