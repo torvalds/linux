@@ -45,7 +45,7 @@ static int find_port_lc_cap(struct tb_port *port)
 	return sw->cap_lc + start + phys * size;
 }
 
-static int tb_lc_configure_lane(struct tb_port *port, bool configure)
+static int tb_lc_set_port_configured(struct tb_port *port, bool configured)
 {
 	bool upstream = tb_is_upstream_port(port);
 	struct tb_switch *sw = port->sw;
@@ -69,7 +69,7 @@ static int tb_lc_configure_lane(struct tb_port *port, bool configure)
 	else
 		lane = TB_LC_SX_CTRL_L2C;
 
-	if (configure) {
+	if (configured) {
 		ctrl |= lane;
 		if (upstream)
 			ctrl |= TB_LC_SX_CTRL_UPSTREAM;
@@ -83,49 +83,25 @@ static int tb_lc_configure_lane(struct tb_port *port, bool configure)
 }
 
 /**
- * tb_lc_configure_link() - Let LC know about configured link
- * @sw: Switch that is being added
+ * tb_lc_configure_port() - Let LC know about configured port
+ * @port: Port that is set as configured
  *
- * Informs LC of both parent switch and @sw that there is established
- * link between the two.
+ * Sets the port configured for power management purposes.
  */
-int tb_lc_configure_link(struct tb_switch *sw)
+int tb_lc_configure_port(struct tb_port *port)
 {
-	struct tb_port *up, *down;
-	int ret;
-
-	up = tb_upstream_port(sw);
-	down = tb_port_at(tb_route(sw), tb_to_switch(sw->dev.parent));
-
-	/* Configure parent link toward this switch */
-	ret = tb_lc_configure_lane(down, true);
-	if (ret)
-		return ret;
-
-	/* Configure upstream link from this switch to the parent */
-	ret = tb_lc_configure_lane(up, true);
-	if (ret)
-		tb_lc_configure_lane(down, false);
-
-	return ret;
+	return tb_lc_set_port_configured(port, true);
 }
 
 /**
- * tb_lc_unconfigure_link() - Let LC know about unconfigured link
- * @sw: Switch to unconfigure
+ * tb_lc_unconfigure_port() - Let LC know about unconfigured port
+ * @port: Port that is set as configured
  *
- * Informs LC of both parent switch and @sw that the link between the
- * two does not exist anymore.
+ * Sets the port unconfigured for power management purposes.
  */
-void tb_lc_unconfigure_link(struct tb_switch *sw)
+void tb_lc_unconfigure_port(struct tb_port *port)
 {
-	struct tb_port *up, *down;
-
-	up = tb_upstream_port(sw);
-	down = tb_port_at(tb_route(sw), tb_to_switch(sw->dev.parent));
-
-	tb_lc_configure_lane(up, false);
-	tb_lc_configure_lane(down, false);
+	tb_lc_set_port_configured(port, false);
 }
 
 /**

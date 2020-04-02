@@ -338,54 +338,6 @@ int usb4_switch_drom_read(struct tb_switch *sw, unsigned int address, void *buf,
 				 usb4_switch_drom_read_block, sw);
 }
 
-static int usb4_set_port_configured(struct tb_port *port, bool configured)
-{
-	int ret;
-	u32 val;
-
-	ret = tb_port_read(port, &val, TB_CFG_PORT,
-			   port->cap_usb4 + PORT_CS_19, 1);
-	if (ret)
-		return ret;
-
-	if (configured)
-		val |= PORT_CS_19_PC;
-	else
-		val &= ~PORT_CS_19_PC;
-
-	return tb_port_write(port, &val, TB_CFG_PORT,
-			     port->cap_usb4 + PORT_CS_19, 1);
-}
-
-/**
- * usb4_switch_configure_link() - Set upstream USB4 link configured
- * @sw: USB4 router
- *
- * Sets the upstream USB4 link to be configured for power management
- * purposes.
- */
-int usb4_switch_configure_link(struct tb_switch *sw)
-{
-	struct tb_port *up;
-
-	up = tb_upstream_port(sw);
-	return usb4_set_port_configured(up, true);
-}
-
-/**
- * usb4_switch_unconfigure_link() - Un-set upstream USB4 link configuration
- * @sw: USB4 router
- *
- * Reverse of usb4_switch_configure_link().
- */
-void usb4_switch_unconfigure_link(struct tb_switch *sw)
-{
-	struct tb_port *up;
-
-	up = tb_upstream_port(sw);
-	usb4_set_port_configured(up, false);
-}
-
 /**
  * usb4_switch_lane_bonding_possible() - Are conditions met for lane bonding
  * @sw: USB4 router
@@ -787,6 +739,50 @@ int usb4_port_unlock(struct tb_port *port)
 
 	val &= ~ADP_CS_4_LCK;
 	return tb_port_write(port, &val, TB_CFG_PORT, ADP_CS_4, 1);
+}
+
+static int usb4_port_set_configured(struct tb_port *port, bool configured)
+{
+	int ret;
+	u32 val;
+
+	if (!port->cap_usb4)
+		return -EINVAL;
+
+	ret = tb_port_read(port, &val, TB_CFG_PORT,
+			   port->cap_usb4 + PORT_CS_19, 1);
+	if (ret)
+		return ret;
+
+	if (configured)
+		val |= PORT_CS_19_PC;
+	else
+		val &= ~PORT_CS_19_PC;
+
+	return tb_port_write(port, &val, TB_CFG_PORT,
+			     port->cap_usb4 + PORT_CS_19, 1);
+}
+
+/**
+ * usb4_port_configure() - Set USB4 port configured
+ * @port: USB4 router
+ *
+ * Sets the USB4 link to be configured for power management purposes.
+ */
+int usb4_port_configure(struct tb_port *port)
+{
+	return usb4_port_set_configured(port, true);
+}
+
+/**
+ * usb4_port_unconfigure() - Set USB4 port unconfigured
+ * @port: USB4 router
+ *
+ * Sets the USB4 link to be unconfigured for power management purposes.
+ */
+void usb4_port_unconfigure(struct tb_port *port)
+{
+	usb4_port_set_configured(port, false);
 }
 
 static int usb4_port_wait_for_bit(struct tb_port *port, u32 offset, u32 bit,

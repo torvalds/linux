@@ -2320,12 +2320,24 @@ void tb_switch_lane_bonding_disable(struct tb_switch *sw)
  */
 int tb_switch_configure_link(struct tb_switch *sw)
 {
+	struct tb_port *up, *down;
+	int ret;
+
 	if (!tb_route(sw) || tb_switch_is_icm(sw))
 		return 0;
 
-	if (tb_switch_is_usb4(sw))
-		return usb4_switch_configure_link(sw);
-	return tb_lc_configure_link(sw);
+	up = tb_upstream_port(sw);
+	if (tb_switch_is_usb4(up->sw))
+		ret = usb4_port_configure(up);
+	else
+		ret = tb_lc_configure_port(up);
+	if (ret)
+		return ret;
+
+	down = up->remote;
+	if (tb_switch_is_usb4(down->sw))
+		return usb4_port_configure(down);
+	return tb_lc_configure_port(down);
 }
 
 /**
@@ -2337,15 +2349,24 @@ int tb_switch_configure_link(struct tb_switch *sw)
  */
 void tb_switch_unconfigure_link(struct tb_switch *sw)
 {
+	struct tb_port *up, *down;
+
 	if (sw->is_unplugged)
 		return;
 	if (!tb_route(sw) || tb_switch_is_icm(sw))
 		return;
 
-	if (tb_switch_is_usb4(sw))
-		usb4_switch_unconfigure_link(sw);
+	up = tb_upstream_port(sw);
+	if (tb_switch_is_usb4(up->sw))
+		usb4_port_unconfigure(up);
 	else
-		tb_lc_unconfigure_link(sw);
+		tb_lc_unconfigure_port(up);
+
+	down = up->remote;
+	if (tb_switch_is_usb4(down->sw))
+		usb4_port_unconfigure(down);
+	else
+		tb_lc_unconfigure_port(down);
 }
 
 /**
