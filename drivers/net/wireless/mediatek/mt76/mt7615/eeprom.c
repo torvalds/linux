@@ -40,11 +40,11 @@ static int mt7615_efuse_read(struct mt7615_dev *dev, u32 base,
 	return 0;
 }
 
-static int mt7615_efuse_init(struct mt7615_dev *dev)
+static int mt7615_efuse_init(struct mt7615_dev *dev, u32 base)
 {
-	u32 val, base = mt7615_reg_map(dev, MT_EFUSE_BASE);
 	int i, len = MT7615_EEPROM_SIZE;
 	void *buf;
+	u32 val;
 
 	val = mt76_rr(dev, base + MT_EFUSE_BASE_CTRL);
 	if (val & MT_EFUSE_BASE_CTRL_EMPTY)
@@ -67,7 +67,7 @@ static int mt7615_efuse_init(struct mt7615_dev *dev)
 	return 0;
 }
 
-static int mt7615_eeprom_load(struct mt7615_dev *dev)
+static int mt7615_eeprom_load(struct mt7615_dev *dev, u32 addr)
 {
 	int ret;
 
@@ -75,7 +75,7 @@ static int mt7615_eeprom_load(struct mt7615_dev *dev)
 	if (ret < 0)
 		return ret;
 
-	return mt7615_efuse_init(dev);
+	return mt7615_efuse_init(dev, addr);
 }
 
 static int mt7615_check_eeprom(struct mt76_dev *dev)
@@ -265,11 +265,11 @@ static void mt7615_cal_free_data(struct mt7615_dev *dev)
 	}
 }
 
-int mt7615_eeprom_init(struct mt7615_dev *dev)
+int mt7615_eeprom_init(struct mt7615_dev *dev, u32 addr)
 {
 	int ret;
 
-	ret = mt7615_eeprom_load(dev);
+	ret = mt7615_eeprom_load(dev, addr);
 	if (ret < 0)
 		return ret;
 

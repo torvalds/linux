@@ -146,6 +146,7 @@ static void mt7615_init_work(struct work_struct *work)
 
 static int mt7615_init_hardware(struct mt7615_dev *dev)
 {
+	u32 addr = mt7615_reg_map(dev, MT_EFUSE_BASE);
 	int ret, idx;
 
 	mt76_wr(dev, MT_INT_SOURCE_CSR, ~0);
@@ -154,7 +155,7 @@ static int mt7615_init_hardware(struct mt7615_dev *dev)
 	spin_lock_init(&dev->token_lock);
 	idr_init(&dev->token);
 
-	ret = mt7615_eeprom_init(dev);
+	ret = mt7615_eeprom_init(dev, addr);
 	if (ret < 0)
 		return ret;
 
