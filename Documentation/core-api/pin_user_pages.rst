@@ -208,12 +208,35 @@ has the following new calls to exercise the new pin*() wrapper functions:
 You can monitor how many total dma-pinned pages have been acquired and released
 since the system was booted, via two new /proc/vmstat entries: ::
 
-    /proc/vmstat/nr_foll_pin_requested
-    /proc/vmstat/nr_foll_pin_requested
+    /proc/vmstat/nr_foll_pin_acquired
+    /proc/vmstat/nr_foll_pin_released
 
-Those are both going to show zero, unless CONFIG_DEBUG_VM is set. This is
-because there is a noticeable performance drop in unpin_user_page(), when they
-are activated.
+Under normal conditions, these two values will be equal unless there are any
+long-term [R]DMA pins in place, or during pin/unpin transitions.
+
+* nr_foll_pin_acquired: This is the number of logical pins that have been
+  acquired since the system was powered on. For huge pages, the head page is
+  pinned once for each page (head page and each tail page) within the huge page.
+  This follows the same sort of behavior that get_user_pages() uses for huge
+  pages: the head page is refcounted once for each tail or head page in the huge
+  page, when get_user_pages() is applied to a huge page.
+
+* nr_foll_pin_released: The number of logical pins that have been released since
+  the system was powered on. Note that pages are released (unpinned) on a
+  PAGE_SIZE granularity, even if the original pin was applied to a huge page.
+  Becaused of the pin count behavior described above in "nr_foll_pin_acquired",
+  the accounting balances out, so that after doing this::
+
+    pin_user_pages(huge_page);
+    for (each page in huge_page)
+        unpin_user_page(page);
+
+...the following is expected::
+
+    nr_foll_pin_released == nr_foll_pin_acquired
+
+(...unless it was already out of balance due to a long-term RDMA pin being in
+place.)
 
 References
 ==========
