@@ -705,16 +705,36 @@ mt7615_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
 
 void mt7615_scan_work(struct work_struct *work)
 {
-	struct cfg80211_scan_info info = {
-		.aborted = false,
-	};
 	struct mt7615_phy *phy;
 
 	phy = (struct mt7615_phy *)container_of(work, struct mt7615_phy,
 						scan_work.work);
 
-	clear_bit(MT76_HW_SCANNING, &phy->mt76->state);
-	ieee80211_scan_completed(phy->mt76->hw, &info);
+	while (true) {
+		struct mt7615_mcu_rxd *rxd;
+		struct sk_buff *skb;
+
+		spin_lock_bh(&phy->dev->mt76.lock);
+		skb = __skb_dequeue(&phy->scan_event_list);
+		spin_unlock_bh(&phy->dev->mt76.lock);
+
+		if (!skb)
+			break;
+
+		rxd = (struct mt7615_mcu_rxd *)skb->data;
+		if (rxd->eid == MCU_EVENT_SCAN_DONE) {
+			struct cfg80211_scan_info info = {
+				.aborted = false,
+			};
+
+			clear_bit(MT76_HW_SCANNING, &phy->mt76->state);
+			ieee80211_scan_completed(phy->mt76->hw, &info);
+		} else {
+			clear_bit(MT76_HW_SCHED_SCANNING, &phy->mt76->state);
+			ieee80211_sched_scan_results(phy->mt76->hw);
+		}
+		dev_kfree_skb(skb);
+	}
 }
 
 static int
@@ -732,6 +752,29 @@ mt7615_cancel_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	struct mt76_phy *mphy = hw->priv;
 
 	mt7615_mcu_cancel_hw_scan(mphy->priv, vif);
+}
+
+static int
+mt7615_start_sched_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			struct cfg80211_sched_scan_request *req,
+			struct ieee80211_scan_ies *ies)
+{
+	struct mt76_phy *mphy = hw->priv;
+	int err;
+
+	err = mt7615_mcu_sched_scan_req(mphy->priv, vif, req);
+	if (err < 0)
+		return err;
+
+	return mt7615_mcu_sched_scan_enable(mphy->priv, vif, true);
+}
+
+static int
+mt7615_stop_sched_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
+{
+	struct mt76_phy *mphy = hw->priv;
+
+	return mt7615_mcu_sched_scan_enable(mphy->priv, vif, false);
 }
 
 const struct ieee80211_ops mt7615_ops = {
@@ -765,6 +808,8 @@ const struct ieee80211_ops mt7615_ops = {
 	.set_coverage_class = mt7615_set_coverage_class,
 	.hw_scan = mt7615_hw_scan,
 	.cancel_hw_scan = mt7615_cancel_hw_scan,
+	.sched_scan_start = mt7615_start_sched_scan,
+	.sched_scan_stop = mt7615_stop_sched_scan,
 };
 
 static int __init mt7615_init(void)

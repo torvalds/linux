@@ -83,6 +83,7 @@ enum {
 	MCU_EVENT_MT_PATCH_SEM = 0x04,
 	MCU_EVENT_SCAN_DONE = 0x0d,
 	MCU_EVENT_CH_PRIVILEGE = 0x18,
+	MCU_EVENT_SCHED_SCAN_DONE = 0x23,
 	MCU_EVENT_EXT = 0xed,
 	MCU_EVENT_RESTART_DL = 0xef,
 };
@@ -291,6 +292,13 @@ struct mt7615_mcu_scan_channel {
 	u8 channel_num;
 } __packed;
 
+struct mt7615_mcu_scan_match {
+	__le32 rssi_th;
+	u8 ssid[IEEE80211_MAX_SSID_LEN];
+	u8 ssid_len;
+	u8 rsv[3];
+} __packed;
+
 struct mt7615_hw_scan_req {
 	u8 seq_num;
 	u8 bss_idx;
@@ -365,11 +373,38 @@ struct mt7615_hw_scan_done {
 	__le32 beacon_5g_num;
 } __packed;
 
+struct mt7615_sched_scan_req {
+	u8 version;
+	u8 seq_num;
+	u8 stop_on_match;
+	u8 ssids_num;
+	u8 match_num;
+	u8 pad;
+	__le16 ie_len;
+	struct mt7615_mcu_scan_ssid ssids[MT7615_MAX_SCHED_SCAN_SSID];
+	struct mt7615_mcu_scan_match match[MT7615_MAX_SCAN_MATCH];
+	u8 channel_type;
+	u8 channels_num;
+	u8 intervals_num;
+	u8 scan_func;
+	struct mt7615_mcu_scan_channel channels[64];
+	__le16 intervals[MT7615_MAX_SCHED_SCAN_INTERVAL];
+	u8 pad2[64];
+} __packed;
+
+struct nt7615_sched_scan_done {
+	u8 seq_num;
+	u8 status; /* 0: ssid found */
+	__le16 pad;
+} __packed;
+
 /* offload mcu commands */
 enum {
 	MCU_CMD_START_HW_SCAN = MCU_CE_PREFIX | 0x03,
 	MCU_CMD_SET_CHAN_DOMAIN = MCU_CE_PREFIX | 0x0f,
 	MCU_CMD_CANCEL_HW_SCAN = MCU_CE_PREFIX | 0x1b,
+	MCU_CMD_SCHED_SCAN_ENABLE = MCU_CE_PREFIX | 0x61,
+	MCU_CMD_SCHED_SCAN_REQ = MCU_CE_PREFIX | 0x62,
 };
 
 #define MCU_CMD_ACK		BIT(0)
