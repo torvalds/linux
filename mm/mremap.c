@@ -133,7 +133,7 @@ static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
 	 * such races:
 	 *
 	 * - During exec() shift_arg_pages(), we use a specially tagged vma
-	 *   which rmap call sites look for using is_vma_temporary_stack().
+	 *   which rmap call sites look for using vma_is_temporary_stack().
 	 *
 	 * - During mremap(), new_vma is often known to be placed after vma
 	 *   in rmap traversal order. This ensures rmap will always observe

@@ -1699,23 +1699,9 @@ discard:
 	return ret;
 }
 
-bool is_vma_temporary_stack(struct vm_area_struct *vma)
-{
-	int maybe_stack = vma->vm_flags & (VM_GROWSDOWN | VM_GROWSUP);
-
-	if (!maybe_stack)
-		return false;
-
-	if ((vma->vm_flags & VM_STACK_INCOMPLETE_SETUP) ==
-						VM_STACK_INCOMPLETE_SETUP)
-		return true;
-
-	return false;
-}
-
 static bool invalid_migration_vma(struct vm_area_struct *vma, void *arg)
 {
-	return is_vma_temporary_stack(vma);
+	return vma_is_temporary_stack(vma);
 }
 
 static int page_mapcount_is_zero(struct page *page)
