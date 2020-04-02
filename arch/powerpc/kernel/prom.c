@@ -515,9 +515,14 @@ static void __init early_init_drmem_lmb(struct drmem_lmb *lmb,
 				size = 0x80000000ul - base;
 		}
 
+		if (!validate_mem_limit(base, &size))
+			continue;
+
 		DBG("Adding: %llx -> %llx\n", base, size);
-		if (validate_mem_limit(base, &size))
-			memblock_add(base, size);
+		memblock_add(base, size);
+
+		if (lmb->flags & DRCONF_MEM_HOTREMOVABLE)
+			memblock_mark_hotplug(base, size);
 	} while (--rngs);
 }
 #endif /* CONFIG_PPC_PSERIES */
