@@ -592,8 +592,7 @@ static void tb_scan_port(struct tb_port *port)
 	}
 
 	/* Enable lane bonding if supported */
-	if (tb_switch_lane_bonding_enable(sw))
-		tb_sw_warn(sw, "failed to enable lane bonding\n");
+	tb_switch_lane_bonding_enable(sw);
 
 	if (tb_enable_tmu(sw))
 		tb_sw_warn(sw, "failed to enable TMU\n");
@@ -1245,8 +1244,7 @@ static void tb_restore_children(struct tb_switch *sw)
 		if (!tb_port_has_remote(port))
 			continue;
 
-		if (tb_switch_lane_bonding_enable(port->remote->sw))
-			dev_warn(&sw->dev, "failed to restore lane bonding\n");
+		tb_switch_lane_bonding_enable(port->remote->sw);
 
 		tb_restore_children(port->remote->sw);
 	}
