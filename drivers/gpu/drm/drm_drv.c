@@ -305,7 +305,7 @@ void drm_minor_release(struct drm_minor *minor)
  *
  *		ret = devm_drm_dev_init(&pdev->dev, drm, &driver_drm_driver);
  *		if (ret) {
- *			kfree(drm);
+ *			kfree(priv);
  *			return ret;
  *		}
  *		drmm_add_final_kfree(drm, priv);
