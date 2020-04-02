@@ -92,15 +92,36 @@ struct mt7615_rate_set {
 };
 
 struct mt7615_rate_desc {
-	struct list_head node;
-
-	struct mt7615_sta *sta;
-
 	bool rateset;
 	u16 probe_val;
 	u16 val[4];
 	u8 bw_idx;
 	u8 bw;
+};
+
+enum mt7615_wtbl_desc_type {
+	MT7615_WTBL_RATE_DESC,
+	MT7615_WTBL_KEY_DESC
+};
+
+struct mt7615_key_desc {
+	enum set_key_cmd cmd;
+	u32 cipher;
+	s8 keyidx;
+	u8 keylen;
+	u8 *key;
+};
+
+struct mt7615_wtbl_desc {
+	struct list_head node;
+
+	enum mt7615_wtbl_desc_type type;
+	struct mt7615_sta *sta;
+
+	union {
+		struct mt7615_rate_desc rate;
+		struct mt7615_key_desc key;
+	};
 };
 
 struct mt7615_sta {

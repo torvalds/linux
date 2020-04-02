@@ -895,7 +895,6 @@ mt7615_mac_update_rate_desc(struct mt7615_phy *phy, struct mt7615_sta *sta,
 		rd->bw_idx = 7;
 
 	rd->rateset = rateset;
-	rd->sta = sta;
 	rd->bw = bw;
 }
 
