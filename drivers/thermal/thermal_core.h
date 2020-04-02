@@ -72,6 +72,8 @@ struct thermal_trip {
 	enum thermal_trip_type type;
 };
 
+int get_tz_trend(struct thermal_zone_device *tz, int trip);
+
 /*
  * This structure is used to describe the behavior of
  * a certain cooling device on a certain trip point
