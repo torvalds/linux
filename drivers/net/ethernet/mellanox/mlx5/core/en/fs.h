@@ -105,11 +105,16 @@ enum mlx5e_tunnel_types {
 
 bool mlx5e_tunnel_inner_ft_supported(struct mlx5_core_dev *mdev);
 
+struct mlx5e_ttc_rule {
+	struct mlx5_flow_handle *rule;
+	struct mlx5_flow_destination default_dest;
+};
+
 /* L3/L4 traffic type classifier */
 struct mlx5e_ttc_table {
-	struct mlx5e_flow_table  ft;
-	struct mlx5_flow_handle	 *rules[MLX5E_NUM_TT];
-	struct mlx5_flow_handle  *tunnel_rules[MLX5E_NUM_TUNNEL_TT];
+	struct mlx5e_flow_table ft;
+	struct mlx5e_ttc_rule rules[MLX5E_NUM_TT];
+	struct mlx5_flow_handle *tunnel_rules[MLX5E_NUM_TUNNEL_TT];
 };
 
 /* NIC prio FTS */
@@ -248,6 +253,11 @@ void mlx5e_destroy_inner_ttc_table(struct mlx5e_priv *priv,
 				   struct mlx5e_ttc_table *ttc);
 
 void mlx5e_destroy_flow_table(struct mlx5e_flow_table *ft);
+int mlx5e_ttc_fwd_dest(struct mlx5e_priv *priv, enum mlx5e_traffic_types type,
+		       struct mlx5_flow_destination *new_dest);
+struct mlx5_flow_destination
+mlx5e_ttc_get_default_dest(struct mlx5e_priv *priv, enum mlx5e_traffic_types type);
+int mlx5e_ttc_fwd_default_dest(struct mlx5e_priv *priv, enum mlx5e_traffic_types type);
 
 void mlx5e_enable_cvlan_filter(struct mlx5e_priv *priv);
 void mlx5e_disable_cvlan_filter(struct mlx5e_priv *priv);
