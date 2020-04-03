@@ -684,6 +684,11 @@ static int battery_psy_set_charge_current(struct battery_chg_dev *bcdev,
 	if (!bcdev->num_thermal_levels)
 		return 0;
 
+	if (bcdev->num_thermal_levels < 0) {
+		pr_err("Incorrect num_thermal_levels\n");
+		return -EINVAL;
+	}
+
 	if (val < 0 || val > bcdev->num_thermal_levels)
 		return -EINVAL;
 
@@ -1007,6 +1012,7 @@ static int battery_chg_parse_dt(struct battery_chg_dev *bcdev)
 	struct device_node *node = bcdev->dev->of_node;
 	struct psy_state *pst = &bcdev->psy_list[PSY_TYPE_BATTERY];
 	int i, rc, len;
+	u32 prev, val;
 
 	rc = of_property_count_elems_of_size(node, "qcom,thermal-mitigation",
 						sizeof(u32));
@@ -1014,6 +1020,28 @@ static int battery_chg_parse_dt(struct battery_chg_dev *bcdev)
 		return 0;
 
 	len = rc;
+
+	rc = read_property_id(bcdev, pst, BATT_CHG_CTRL_LIM_MAX);
+	if (rc < 0)
+		return rc;
+
+	prev = pst->prop[BATT_CHG_CTRL_LIM_MAX];
+
+	for (i = 0; i < len; i++) {
+		rc = of_property_read_u32_index(node, "qcom,thermal-mitigation",
+						i, &val);
+		if (rc < 0)
+			return rc;
+
+		if (val > prev) {
+			pr_err("Thermal levels should be in descending order\n");
+			bcdev->num_thermal_levels = -EINVAL;
+			return 0;
+		}
+
+		prev = val;
+	}
+
 	bcdev->thermal_levels = devm_kcalloc(bcdev->dev, len + 1,
 					sizeof(*bcdev->thermal_levels),
 					GFP_KERNEL);
@@ -1024,24 +1052,14 @@ static int battery_chg_parse_dt(struct battery_chg_dev *bcdev)
 	 * Element 0 is for normal charging current. Elements from index 1
 	 * onwards is for thermal mitigation charging currents.
 	 */
+
+	bcdev->thermal_levels[0] = pst->prop[BATT_CHG_CTRL_LIM_MAX];
+
 	rc = of_property_read_u32_array(node, "qcom,thermal-mitigation",
 					&bcdev->thermal_levels[1], len);
 	if (rc < 0) {
 		pr_err("Error in reading qcom,thermal-mitigation, rc=%d\n", rc);
 		return rc;
-	}
-
-	rc = read_property_id(bcdev, pst, BATT_CHG_CTRL_LIM_MAX);
-	if (rc < 0)
-		return rc;
-
-	bcdev->thermal_levels[0] = pst->prop[BATT_CHG_CTRL_LIM_MAX];
-
-	for (i = 1; i <= len; i++) {
-		if (bcdev->thermal_levels[i] > bcdev->thermal_levels[i - 1]) {
-			pr_err("Thermal levels should be in descending order\n");
-			return -EINVAL;
-		}
 	}
 
 	bcdev->num_thermal_levels = len;
