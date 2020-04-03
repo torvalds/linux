@@ -103,6 +103,7 @@ int fscrypt_prepare_inline_crypt_key(struct fscrypt_prepared_key *prep_key,
 		queue_refs++;
 
 		err = blk_crypto_start_using_mode(crypto_mode, sb->s_blocksize,
+						  is_hw_wrapped,
 						  blk_key->devs[i]);
 		if (err) {
 			fscrypt_err(inode,

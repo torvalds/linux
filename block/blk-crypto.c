@@ -109,7 +109,8 @@ int blk_crypto_submit_bio(struct bio **bio_ptr)
 	/* Get device keyslot if supported */
 	if (keyslot_manager_crypto_mode_supported(q->ksm,
 						  bc->bc_key->crypto_mode,
-						  bc->bc_key->data_unit_size)) {
+						  bc->bc_key->data_unit_size,
+						  bc->bc_key->is_hw_wrapped)) {
 		err = bio_crypt_ctx_acquire_keyslot(bc, q->ksm);
 		if (!err)
 			return 0;
@@ -236,6 +237,7 @@ EXPORT_SYMBOL_GPL(blk_crypto_init_key);
  * blk_crypto_start_using_mode() - Start using blk-crypto on a device
  * @crypto_mode: the crypto mode that will be used
  * @data_unit_size: the data unit size that will be used
+ * @is_hw_wrapped_key: whether the key will be hardware-wrapped
  * @q: the request queue for the device
  *
  * Upper layers must call this function to ensure that either the hardware
@@ -248,11 +250,17 @@ EXPORT_SYMBOL_GPL(blk_crypto_init_key);
  */
 int blk_crypto_start_using_mode(enum blk_crypto_mode_num crypto_mode,
 				unsigned int data_unit_size,
+				bool is_hw_wrapped_key,
 				struct request_queue *q)
 {
 	if (keyslot_manager_crypto_mode_supported(q->ksm, crypto_mode,
-						  data_unit_size))
+						  data_unit_size,
+						  is_hw_wrapped_key))
 		return 0;
+	if (is_hw_wrapped_key) {
+		pr_warn_once("hardware doesn't support wrapped keys\n");
+		return -EOPNOTSUPP;
+	}
 	return blk_crypto_fallback_start_using_mode(crypto_mode);
 }
 EXPORT_SYMBOL_GPL(blk_crypto_start_using_mode);
@@ -277,7 +285,8 @@ int blk_crypto_evict_key(struct request_queue *q,
 {
 	if (q->ksm &&
 	    keyslot_manager_crypto_mode_supported(q->ksm, key->crypto_mode,
-						  key->data_unit_size))
+						  key->data_unit_size,
+						  key->is_hw_wrapped))
 		return keyslot_manager_evict_key(q->ksm, key);
 
 	return blk_crypto_fallback_evict_key(key);
