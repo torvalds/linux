@@ -199,6 +199,8 @@ void intel_engine_cleanup(struct intel_engine_cs *engine);
 int intel_engines_init_mmio(struct intel_gt *gt);
 int intel_engines_init(struct intel_gt *gt);
 
+void intel_engine_free_request_pool(struct intel_engine_cs *engine);
+
 void intel_engines_release(struct intel_gt *gt);
 void intel_engines_free(struct intel_gt *gt);
 
