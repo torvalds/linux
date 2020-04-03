@@ -212,7 +212,7 @@ static int __init amiga_parallel_probe(struct platform_device *pdev)
 	if (err)
 		goto out_irq;
 
-	printk(KERN_INFO "%s: Amiga built-in port using irq\n", p->name);
+	pr_info("%s: Amiga built-in port using irq\n", p->name);
 	/* XXX: set operating mode */
 	parport_announce_port(p);
 

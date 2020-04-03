@@ -579,8 +579,7 @@ size_t parport_ieee1284_ecp_read_data (struct parport *port,
 			pr_debug("ECP read timed out at 45\n");
 
 			if (command)
-				printk (KERN_WARNING
-					"%s: command ignored (%02x)\n",
+				pr_warn("%s: command ignored (%02x)\n",
 					port->name, byte);
 
 			break;

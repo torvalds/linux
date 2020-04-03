@@ -145,8 +145,7 @@ again:
 	    ((num_ports = num_mux_ports(port)) == 2 || num_ports == 4)) {
 		/* Leave original as port zero. */
 		port->muxport = 0;
-		printk(KERN_INFO
-			"%s: 1st (default) port of %d-way multiplexor\n",
+		pr_info("%s: 1st (default) port of %d-way multiplexor\n",
 			port->name, num_ports);
 		for (i = 1; i < num_ports; i++) {
 			/* Clone the port. */
@@ -159,8 +158,7 @@ again:
 				continue;
 			}
 
-			printk(KERN_INFO
-				"%s: %d%s port of %d-way multiplexor on %s\n",
+			pr_info("%s: %d%s port of %d-way multiplexor on %s\n",
 				extra->name, i + 1, th[i + 1], num_ports,
 				port->name);
 
