@@ -1244,7 +1244,12 @@ static int live_timeslice_queue(void *arg)
 		if (err)
 			goto err_rq;
 
-		intel_engine_flush_submission(engine);
+		/* Wait until we ack the release_queue and start timeslicing */
+		do {
+			cond_resched();
+			intel_engine_flush_submission(engine);
+		} while (READ_ONCE(engine->execlists.pending[0]));
+
 		if (!READ_ONCE(engine->execlists.timer.expires) &&
 		    !i915_request_completed(rq)) {
 			struct drm_printer p =
