@@ -1741,25 +1741,12 @@ static int exclude_super_stripes(struct btrfs_block_group *cache)
 			return ret;
 
 		while (nr--) {
-			u64 start, len;
-
-			if (logical[nr] > cache->start + cache->length)
-				continue;
-
-			if (logical[nr] + stripe_len <= cache->start)
-				continue;
-
-			start = logical[nr];
-			if (start < cache->start) {
-				start = cache->start;
-				len = (logical[nr] + stripe_len) - start;
-			} else {
-				len = min_t(u64, stripe_len,
-					    cache->start + cache->length - start);
-			}
+			u64 len = min_t(u64, stripe_len,
+				cache->start + cache->length - logical[nr]);
 
 			cache->bytes_super += len;
-			ret = btrfs_add_excluded_extent(fs_info, start, len);
+			ret = btrfs_add_excluded_extent(fs_info, logical[nr],
+							len);
 			if (ret) {
 				kfree(logical);
 				return ret;
