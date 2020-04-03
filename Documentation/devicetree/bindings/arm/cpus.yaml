@@ -212,6 +212,8 @@ properties:
               - rockchip,rk3066-smp
               - socionext,milbeaut-m10v-smp
               - ste,dbx500-smp
+              - ti,am3352
+              - ti,am4372
 
   cpu-release-addr:
     $ref: '/schemas/types.yaml#/definitions/uint64'
