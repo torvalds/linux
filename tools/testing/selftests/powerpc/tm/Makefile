@@ -25,6 +25,7 @@ $(OUTPUT)/tm-unavailable: CFLAGS += -O0 -pthread -m64 -Wno-error=uninitialized -
 $(OUTPUT)/tm-trap: CFLAGS += -O0 -pthread -m64
 $(OUTPUT)/tm-signal-context-force-tm: CFLAGS += -pthread -m64
 $(OUTPUT)/tm-signal-pagefault: CFLAGS += -pthread -m64
+$(OUTPUT)/tm-poison: CFLAGS += -m64
 
 SIGNAL_CONTEXT_CHK_TESTS := $(patsubst %,$(OUTPUT)/%,$(SIGNAL_CONTEXT_CHK_TESTS))
 $(SIGNAL_CONTEXT_CHK_TESTS): tm-signal.S
