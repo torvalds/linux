@@ -34,12 +34,44 @@
 				pinctrl-0 = <&pinctrl_qspi1_default>;
 
 				flash@0 {
+					#address-cells = <1>;
+					#size-cells = <1>;
 					compatible = "jedec,spi-nor";
 					reg = <0>;
 					spi-max-frequency = <80000000>;
 					spi-tx-bus-width = <4>;
 					spi-rx-bus-width = <4>;
 					m25p,fast-read;
+
+					at91bootstrap@00000000 {
+						label = "at91bootstrap";
+						reg = <0x00000000 0x00040000>;
+					};
+
+					bootloader@00040000 {
+						label = "bootloader";
+						reg = <0x00040000 0x000c0000>;
+					};
+
+					bootloaderenvred@00100000 {
+						label = "bootloader env redundant";
+						reg = <0x00100000 0x00040000>;
+					};
+
+					bootloaderenv@00140000 {
+						label = "bootloader env";
+						reg = <0x00140000 0x00040000>;
+					};
+
+					dtb@00180000 {
+						label = "device tree";
+						reg = <0x00180000 0x00080000>;
+					};
+
+					kernel@00200000 {
+						label = "kernel";
+						reg = <0x00200000 0x00600000>;
+					};
 				};
 			};
 
