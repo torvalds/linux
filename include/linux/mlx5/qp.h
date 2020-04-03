@@ -595,10 +595,6 @@ int mlx5_core_create_sq_tracked(struct mlx5_core_dev *dev, u32 *in, int inlen,
 				struct mlx5_core_qp *sq);
 void mlx5_core_destroy_sq_tracked(struct mlx5_core_dev *dev,
 				  struct mlx5_core_qp *sq);
-int mlx5_core_alloc_q_counter(struct mlx5_core_dev *dev, u16 *counter_id);
-int mlx5_core_dealloc_q_counter(struct mlx5_core_dev *dev, u16 counter_id);
-int mlx5_core_query_q_counter(struct mlx5_core_dev *dev, u16 counter_id,
-			      int reset, void *out, int out_size);
 
 struct mlx5_core_rsc_common *mlx5_core_res_hold(struct mlx5_core_dev *dev,
 						int res_num,

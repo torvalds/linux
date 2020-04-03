@@ -4997,29 +4997,40 @@ static void mlx5e_build_nic_netdev(struct net_device *netdev)
 
 void mlx5e_create_q_counters(struct mlx5e_priv *priv)
 {
+	u32 out[MLX5_ST_SZ_DW(alloc_q_counter_out)] = {};
+	u32 in[MLX5_ST_SZ_DW(alloc_q_counter_in)] = {};
 	struct mlx5_core_dev *mdev = priv->mdev;
 	int err;
 
-	err = mlx5_core_alloc_q_counter(mdev, &priv->q_counter);
-	if (err) {
-		mlx5_core_warn(mdev, "alloc queue counter failed, %d\n", err);
-		priv->q_counter = 0;
-	}
+	MLX5_SET(alloc_q_counter_in, in, opcode, MLX5_CMD_OP_ALLOC_Q_COUNTER);
+	err = mlx5_cmd_exec_inout(mdev, alloc_q_counter, in, out);
+	if (!err)
+		priv->q_counter =
+			MLX5_GET(alloc_q_counter_out, out, counter_set_id);
 
-	err = mlx5_core_alloc_q_counter(mdev, &priv->drop_rq_q_counter);
-	if (err) {
-		mlx5_core_warn(mdev, "alloc drop RQ counter failed, %d\n", err);
-		priv->drop_rq_q_counter = 0;
-	}
+	err = mlx5_cmd_exec_inout(mdev, alloc_q_counter, in, out);
+	if (!err)
+		priv->drop_rq_q_counter =
+			MLX5_GET(alloc_q_counter_out, out, counter_set_id);
 }
 
 void mlx5e_destroy_q_counters(struct mlx5e_priv *priv)
 {
-	if (priv->q_counter)
-		mlx5_core_dealloc_q_counter(priv->mdev, priv->q_counter);
+	u32 in[MLX5_ST_SZ_DW(dealloc_q_counter_in)] = {};
 
-	if (priv->drop_rq_q_counter)
-		mlx5_core_dealloc_q_counter(priv->mdev, priv->drop_rq_q_counter);
+	MLX5_SET(dealloc_q_counter_in, in, opcode,
+		 MLX5_CMD_OP_DEALLOC_Q_COUNTER);
+	if (priv->q_counter) {
+		MLX5_SET(dealloc_q_counter_in, in, counter_set_id,
+			 priv->q_counter);
+		mlx5_cmd_exec_in(priv->mdev, dealloc_q_counter, in);
+	}
+
+	if (priv->drop_rq_q_counter) {
+		MLX5_SET(dealloc_q_counter_in, in, counter_set_id,
+			 priv->drop_rq_q_counter);
+		mlx5_cmd_exec_in(priv->mdev, dealloc_q_counter, in);
+	}
 }
 
 static int mlx5e_nic_init(struct mlx5_core_dev *mdev,

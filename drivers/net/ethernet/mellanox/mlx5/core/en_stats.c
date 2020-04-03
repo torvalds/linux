@@ -411,18 +411,29 @@ static MLX5E_DECLARE_STATS_GRP_OP_FILL_STATS(qcnt)
 static MLX5E_DECLARE_STATS_GRP_OP_UPDATE_STATS(qcnt)
 {
 	struct mlx5e_qcounter_stats *qcnt = &priv->stats.qcnt;
-	u32 out[MLX5_ST_SZ_DW(query_q_counter_out)];
+	u32 out[MLX5_ST_SZ_DW(query_q_counter_out)] = {};
+	u32 in[MLX5_ST_SZ_DW(query_q_counter_in)] = {};
+	int ret;
 
-	if (priv->q_counter &&
-	    !mlx5_core_query_q_counter(priv->mdev, priv->q_counter, 0, out,
-				       sizeof(out)))
-		qcnt->rx_out_of_buffer = MLX5_GET(query_q_counter_out,
-						  out, out_of_buffer);
-	if (priv->drop_rq_q_counter &&
-	    !mlx5_core_query_q_counter(priv->mdev, priv->drop_rq_q_counter, 0,
-				       out, sizeof(out)))
-		qcnt->rx_if_down_packets = MLX5_GET(query_q_counter_out, out,
-						    out_of_buffer);
+	MLX5_SET(query_q_counter_in, in, opcode, MLX5_CMD_OP_QUERY_Q_COUNTER);
+
+	if (priv->q_counter) {
+		MLX5_SET(query_q_counter_in, in, counter_set_id,
+			 priv->q_counter);
+		ret = mlx5_cmd_exec_inout(priv->mdev, query_q_counter, in, out);
+		if (!ret)
+			qcnt->rx_out_of_buffer = MLX5_GET(query_q_counter_out,
+							  out, out_of_buffer);
+	}
+
+	if (priv->drop_rq_q_counter) {
+		MLX5_SET(query_q_counter_in, in, counter_set_id,
+			 priv->drop_rq_q_counter);
+		ret = mlx5_cmd_exec_inout(priv->mdev, query_q_counter, in, out);
+		if (!ret)
+			qcnt->rx_if_down_packets = MLX5_GET(query_q_counter_out,
+							    out, out_of_buffer);
+	}
 }
 
 #define VNIC_ENV_OFF(c) MLX5_BYTE_OFF(query_vnic_env_out, c)

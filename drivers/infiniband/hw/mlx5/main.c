@@ -5439,15 +5439,21 @@ static bool is_mdev_switchdev_mode(const struct mlx5_core_dev *mdev)
 
 static void mlx5_ib_dealloc_counters(struct mlx5_ib_dev *dev)
 {
+	u32 in[MLX5_ST_SZ_DW(dealloc_q_counter_in)] = {};
 	int num_cnt_ports;
 	int i;
 
 	num_cnt_ports = is_mdev_switchdev_mode(dev->mdev) ? 1 : dev->num_ports;
 
+	MLX5_SET(dealloc_q_counter_in, in, opcode,
+		 MLX5_CMD_OP_DEALLOC_Q_COUNTER);
+
 	for (i = 0; i < num_cnt_ports; i++) {
-		if (dev->port[i].cnts.set_id_valid)
-			mlx5_core_dealloc_q_counter(dev->mdev,
-						    dev->port[i].cnts.set_id);
+		if (dev->port[i].cnts.set_id_valid) {
+			MLX5_SET(dealloc_q_counter_in, in, counter_set_id,
+				 dev->port[i].cnts.set_id);
+			mlx5_cmd_exec_in(dev->mdev, dealloc_q_counter, in);
+		}
 		kfree(dev->port[i].cnts.names);
 		kfree(dev->port[i].cnts.offsets);
 	}
@@ -5638,27 +5644,23 @@ static int mlx5_ib_query_q_counters(struct mlx5_core_dev *mdev,
 				    struct rdma_hw_stats *stats,
 				    u16 set_id)
 {
-	int outlen = MLX5_ST_SZ_BYTES(query_q_counter_out);
-	void *out;
+	u32 out[MLX5_ST_SZ_DW(query_q_counter_out)] = {};
+	u32 in[MLX5_ST_SZ_DW(query_q_counter_in)] = {};
 	__be32 val;
 	int ret, i;
 
-	out = kvzalloc(outlen, GFP_KERNEL);
-	if (!out)
-		return -ENOMEM;
-
-	ret = mlx5_core_query_q_counter(mdev, set_id, 0, out, outlen);
+	MLX5_SET(query_q_counter_in, in, opcode, MLX5_CMD_OP_QUERY_Q_COUNTER);
+	MLX5_SET(query_q_counter_in, in, counter_set_id, set_id);
+	ret = mlx5_cmd_exec_inout(mdev, query_q_counter, in, out);
 	if (ret)
-		goto free;
+		return ret;
 
 	for (i = 0; i < cnts->num_q_counters; i++) {
-		val = *(__be32 *)(out + cnts->offsets[i]);
+		val = *(__be32 *)((void *)out + cnts->offsets[i]);
 		stats->value[i] = (u64)be32_to_cpu(val);
 	}
 
-free:
-	kvfree(out);
-	return ret;
+	return 0;
 }
 
 static int mlx5_ib_query_ext_ppcnt_counters(struct mlx5_ib_dev *dev,
@@ -5765,6 +5767,20 @@ static int mlx5_ib_counter_update_stats(struct rdma_counter *counter)
 					counter->stats, counter->id);
 }
 
+static int mlx5_ib_counter_dealloc(struct rdma_counter *counter)
+{
+	struct mlx5_ib_dev *dev = to_mdev(counter->device);
+	u32 in[MLX5_ST_SZ_DW(dealloc_q_counter_in)] = {};
+
+	if (!counter->id)
+		return 0;
+
+	MLX5_SET(dealloc_q_counter_in, in, opcode,
+		 MLX5_CMD_OP_DEALLOC_Q_COUNTER);
+	MLX5_SET(dealloc_q_counter_in, in, counter_set_id, counter->id);
+	return mlx5_cmd_exec_in(dev->mdev, dealloc_q_counter, in);
+}
+
 static int mlx5_ib_counter_bind_qp(struct rdma_counter *counter,
 				   struct ib_qp *qp)
 {
@@ -5788,7 +5804,7 @@ static int mlx5_ib_counter_bind_qp(struct rdma_counter *counter,
 	return 0;
 
 fail_set_counter:
-	mlx5_core_dealloc_q_counter(dev->mdev, cnt_set_id);
+	mlx5_ib_counter_dealloc(counter);
 	counter->id = 0;
 
 	return err;
@@ -5797,13 +5813,6 @@ fail_set_counter:
 static int mlx5_ib_counter_unbind_qp(struct ib_qp *qp)
 {
 	return mlx5_ib_qp_set_counter(qp, NULL);
-}
-
-static int mlx5_ib_counter_dealloc(struct rdma_counter *counter)
-{
-	struct mlx5_ib_dev *dev = to_mdev(counter->device);
-
-	return mlx5_core_dealloc_q_counter(dev->mdev, counter->id);
 }
 
 static int mlx5_ib_rn_get_params(struct ib_device *device, u8 port_num,
