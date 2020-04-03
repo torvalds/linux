@@ -42,8 +42,6 @@
 &i2c0 {
 	status = "okay";
 	clock-frequency = <400000>;
-	i2c-scl-rising-time-ns = <280>;
-	i2c-scl-falling-time-ns = <16>;
 
 	rk809: pmic@20 {
 		compatible = "rockchip,rk809";
