@@ -316,6 +316,8 @@ static void igc_get_regs(struct net_device *netdev,
 		regs_buff[172 + i] = rd32(IGC_RAL(i));
 	for (i = 0; i < 16; i++)
 		regs_buff[188 + i] = rd32(IGC_RAH(i));
+
+	regs_buff[204] = rd32(IGC_VLANPQF);
 }
 
 static void igc_get_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
