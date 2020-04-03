@@ -841,6 +841,68 @@ static void free_pardevice(struct device *dev)
 	kfree(par_dev);
 }
 
+/**
+ *	parport_register_dev_model - register a device on a parallel port
+ *	@port: port to which the device is attached
+ *	@name: a name to refer to the device
+ *	@par_dev_cb: struct containing callbacks
+ *	@id: device number to be given to the device
+ *
+ *	This function, called by parallel port device drivers,
+ *	declares that a device is connected to a port, and tells the
+ *	system all it needs to know.
+ *
+ *	The struct pardev_cb contains pointer to callbacks. preemption
+ *	callback function, @preempt, is called when this device driver
+ *	has claimed access to the port but another device driver wants
+ *	to use it.  It is given, @private, as its parameter, and should
+ *	return zero if it is willing for the system to release the port
+ *	to another driver on its behalf. If it wants to keep control of
+ *	the port it should return non-zero, and no action will be taken.
+ *	It is good manners for the driver to try to release the port at
+ *	the earliest opportunity after its preemption callback rejects a
+ *	preemption attempt. Note that if a preemption callback is happy
+ *	for preemption to go ahead, there is no need to release the
+ *	port; it is done automatically. This function may not block, as
+ *	it may be called from interrupt context. If the device driver
+ *	does not support preemption, @preempt can be %NULL.
+ *
+ *	The wake-up ("kick") callback function, @wakeup, is called when
+ *	the port is available to be claimed for exclusive access; that
+ *	is, parport_claim() is guaranteed to succeed when called from
+ *	inside the wake-up callback function.  If the driver wants to
+ *	claim the port it should do so; otherwise, it need not take
+ *	any action.  This function may not block, as it may be called
+ *	from interrupt context.  If the device driver does not want to
+ *	be explicitly invited to claim the port in this way, @wakeup can
+ *	be %NULL.
+ *
+ *	The interrupt handler, @irq_func, is called when an interrupt
+ *	arrives from the parallel port.  Note that if a device driver
+ *	wants to use interrupts it should use parport_enable_irq(),
+ *	and can also check the irq member of the parport structure
+ *	representing the port.
+ *
+ *	The parallel port (lowlevel) driver is the one that has called
+ *	request_irq() and whose interrupt handler is called first.
+ *	This handler does whatever needs to be done to the hardware to
+ *	acknowledge the interrupt (for PC-style ports there is nothing
+ *	special to be done).  It then tells the IEEE 1284 code about
+ *	the interrupt, which may involve reacting to an IEEE 1284
+ *	event depending on the current IEEE 1284 phase.  After this,
+ *	it calls @irq_func.  Needless to say, @irq_func will be called
+ *	from interrupt context, and may not block.
+ *
+ *	The %PARPORT_DEV_EXCL flag is for preventing port sharing, and
+ *	so should only be used when sharing the port with other device
+ *	drivers is impossible and would lead to incorrect behaviour.
+ *	Use it sparingly!  Normally, @flags will be zero.
+ *
+ *	This function returns a pointer to a structure that represents
+ *	the device on the port, or %NULL if there is not enough memory
+ *	to allocate space for that structure.
+ **/
+
 struct pardevice *
 parport_register_dev_model(struct parport *port, const char *name,
 			   const struct pardev_cb *par_dev_cb, int id)

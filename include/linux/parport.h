@@ -337,6 +337,10 @@ struct pardevice *parport_register_device(struct parport *port,
 			  void (*irq_func)(void *), 
 			  int flags, void *handle);
 
+/*
+ * parport_register_dev_model declares that a device is connected to a
+ * port, and tells the kernel all it needs to know.
+ */
 struct pardevice *
 parport_register_dev_model(struct parport *port, const char *name,
 			   const struct pardev_cb *par_dev_cb, int cnt);
