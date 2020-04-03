@@ -8,6 +8,7 @@ Required properties :
  - reg : Offset and length of the register set for the device
  - compatible: should be one of the following:
    - "rockchip,rv1108-i2c": for rv1108
+   - "rockchip,rv1126-i2c": for rv1126
    - "rockchip,rk3066-i2c": for rk3066
    - "rockchip,rk3188-i2c": for rk3188
    - "rockchip,rk3228-i2c": for rk3228
