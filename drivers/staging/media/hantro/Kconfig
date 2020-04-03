@@ -8,6 +8,7 @@ config VIDEO_HANTRO
 	select VIDEOBUF2_DMA_CONTIG
 	select VIDEOBUF2_VMALLOC
 	select V4L2_MEM2MEM_DEV
+	select V4L2_H264
 	help
 	  Support for the Hantro IP based Video Processing Units present on
 	  Rockchip and NXP i.MX8M SoCs, which accelerate video and image
