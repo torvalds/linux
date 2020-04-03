@@ -160,7 +160,6 @@
 		clock-names = "i2c", "pclk";
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c1_xfer>;
-		rockchip,grf = <&grf>;
 		status = "disabled";
 	};
 
@@ -188,7 +187,6 @@
 		clock-names = "i2c", "pclk";
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c3_xfer>;
-		rockchip,grf = <&grf>;
 		status = "disabled";
 	};
 
@@ -369,7 +367,6 @@
 		clock-names = "i2c", "pclk";
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c0_xfer>;
-		rockchip,grf = <&grf>;
 		status = "disabled";
 	};
 
