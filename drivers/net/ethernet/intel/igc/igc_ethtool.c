@@ -1229,23 +1229,23 @@ static int igc_rxnfc_write_vlan_prio_filter(struct igc_adapter *adapter,
 	u16 queue_index;
 	u32 vlapqf;
 
-	vlapqf = rd32(IGC_VLAPQF);
+	vlapqf = rd32(IGC_VLANPQF);
 	vlan_priority = (ntohs(input->filter.vlan_tci) & VLAN_PRIO_MASK)
 				>> VLAN_PRIO_SHIFT;
-	queue_index = (vlapqf >> (vlan_priority * 4)) & IGC_VLAPQF_QUEUE_MASK;
+	queue_index = (vlapqf >> (vlan_priority * 4)) & IGC_VLANPQF_QUEUE_MASK;
 
-	/* check whether this vlan prio is already set */
-	if (vlapqf & IGC_VLAPQF_P_VALID(vlan_priority) &&
+	/* check whether this VLAN prio is already set */
+	if (vlapqf & IGC_VLANPQF_VALID(vlan_priority) &&
 	    queue_index != input->action) {
 		netdev_err(adapter->netdev,
 			   "ethtool rxnfc set VLAN prio filter failed\n");
 		return -EEXIST;
 	}
 
-	vlapqf |= IGC_VLAPQF_P_VALID(vlan_priority);
-	vlapqf |= IGC_VLAPQF_QUEUE_SEL(vlan_priority, input->action);
+	vlapqf |= IGC_VLANPQF_VALID(vlan_priority);
+	vlapqf |= IGC_VLANPQF_QSEL(vlan_priority, input->action);
 
-	wr32(IGC_VLAPQF, vlapqf);
+	wr32(IGC_VLANPQF, vlapqf);
 
 	return 0;
 }
@@ -1313,12 +1313,11 @@ static void igc_clear_vlan_prio_filter(struct igc_adapter *adapter,
 
 	vlan_priority = (vlan_tci & VLAN_PRIO_MASK) >> VLAN_PRIO_SHIFT;
 
-	vlapqf = rd32(IGC_VLAPQF);
-	vlapqf &= ~IGC_VLAPQF_P_VALID(vlan_priority);
-	vlapqf &= ~IGC_VLAPQF_QUEUE_SEL(vlan_priority,
-						IGC_VLAPQF_QUEUE_MASK);
+	vlapqf = rd32(IGC_VLANPQF);
+	vlapqf &= ~IGC_VLANPQF_VALID(vlan_priority);
+	vlapqf &= ~IGC_VLANPQF_QSEL(vlan_priority, IGC_VLANPQF_QUEUE_MASK);
 
-	wr32(IGC_VLAPQF, vlapqf);
+	wr32(IGC_VLANPQF, vlapqf);
 }
 
 int igc_erase_filter(struct igc_adapter *adapter, struct igc_nfc_filter *input)
