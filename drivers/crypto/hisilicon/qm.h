@@ -133,16 +133,28 @@ struct hisi_qm_status {
 struct hisi_qm;
 
 struct hisi_qm_err_info {
+	char *acpi_rst;
+	u32 msi_wr_port;
+	u32 ecc_2bits_mask;
 	u32 ce;
 	u32 nfe;
 	u32 fe;
 	u32 msi;
 };
 
+struct hisi_qm_err_status {
+	u32 is_qm_ecc_mbit;
+	u32 is_dev_ecc_mbit;
+};
+
 struct hisi_qm_err_ini {
+	int (*hw_init)(struct hisi_qm *qm);
 	void (*hw_err_enable)(struct hisi_qm *qm);
 	void (*hw_err_disable)(struct hisi_qm *qm);
 	u32 (*get_dev_hw_err_status)(struct hisi_qm *qm);
+	void (*clear_dev_hw_err_status)(struct hisi_qm *qm, u32 err_sts);
+	void (*open_axi_master_ooo)(struct hisi_qm *qm);
+	void (*close_axi_master_ooo)(struct hisi_qm *qm);
 	void (*log_dev_hw_err)(struct hisi_qm *qm, u32 err_sts);
 	struct hisi_qm_err_info err_info;
 };
@@ -165,6 +177,7 @@ struct hisi_qm {
 	u32 ctrl_qp_num;
 	u32 vfs_num;
 	struct list_head list;
+	struct hisi_qm_list *qm_list;
 
 	struct qm_dma qdma;
 	struct qm_sqc *sqc;
@@ -178,6 +191,8 @@ struct hisi_qm {
 
 	struct hisi_qm_status status;
 	const struct hisi_qm_err_ini *err_ini;
+	struct hisi_qm_err_status err_status;
+	unsigned long reset_flag;
 
 	rwlock_t qps_lock;
 	unsigned long *qp_bitmap;
@@ -298,6 +313,7 @@ void hisi_qm_dev_err_init(struct hisi_qm *qm);
 void hisi_qm_dev_err_uninit(struct hisi_qm *qm);
 pci_ers_result_t hisi_qm_dev_err_detected(struct pci_dev *pdev,
 					  pci_channel_state_t state);
+pci_ers_result_t hisi_qm_dev_slot_reset(struct pci_dev *pdev);
 
 struct hisi_acc_sgl_pool;
 struct hisi_acc_hw_sgl *hisi_acc_sg_buf_map_to_hw_sgl(struct device *dev,
