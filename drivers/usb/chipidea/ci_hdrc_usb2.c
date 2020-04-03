@@ -28,7 +28,7 @@ static const struct ci_hdrc_platform_data ci_default_pdata = {
 	.flags		= CI_HDRC_DISABLE_STREAMING,
 };
 
-static struct ci_hdrc_platform_data ci_zynq_pdata = {
+static const struct ci_hdrc_platform_data ci_zynq_pdata = {
 	.capoffset	= DEF_CAPOFFSET,
 };
 
