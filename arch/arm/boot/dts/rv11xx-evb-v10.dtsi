@@ -771,6 +771,31 @@
 	status = "okay";
 	clock-frequency = <400000>;
 
+	ar0230: ar0230@10 {
+		compatible = "aptina,ar0230";
+		reg = <0x10>;
+		clocks = <&cru CLK_CIF_OUT>;
+		clock-names = "xvclk";
+		avdd-supply = <&vcc_avdd>;
+		dovdd-supply = <&vcc_dovdd>;
+		dvdd-supply = <&vcc_dvdd>;
+		power-domains = <&power RV1126_PD_VI>;
+		pwdn-gpios = <&gpio2 RK_PA6 GPIO_ACTIVE_HIGH>;
+		/*reset-gpios = <&gpio2 RK_PC5 GPIO_ACTIVE_HIGH>;*/
+		rockchip,grf = <&grf>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cifm0_dvp_ctl>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "CMK-OT0836-PT2";
+		rockchip,camera-module-lens-name = "YT-2929";
+		port {
+		       cam_para_out1: endpoint {
+			       remote-endpoint = <&cif_para_in>;
+		       };
+		};
+	};
+
 	os04a10: os04a10@36 {
 		compatible = "ovti,os04a10";
 		reg = <0x36>;
@@ -936,6 +961,31 @@
 
 &rk_rga {
 	status = "okay";
+};
+
+&rkcif {
+	status = "okay";
+
+	port {
+		/* Parallel bus endpoint */
+		cif_para_in: endpoint {
+			remote-endpoint = <&cam_para_out1>;
+			bus-width = <12>;
+			hsync-active = <1>;
+			vsync-active = <0>;
+		};
+
+		/* MIPI CSI-2 endpoint */
+		/*
+		 * cif_mipi_in: endpoint {
+		 *	remote-endpoint = <&csi_host_output>;
+		 * };
+		 */
+	};
+};
+
+&rkcif_mmu {
+	status = "disabled";
 };
 
 &rkisp {
