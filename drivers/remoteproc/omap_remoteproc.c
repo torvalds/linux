@@ -171,7 +171,7 @@ static int omap_rproc_request_timer(struct device *dev, struct device_node *np,
 	}
 
 	/* clean counter, remoteproc code will set the value */
-	timer->timer_ops->set_load(timer->odt, 0, 0);
+	timer->timer_ops->set_load(timer->odt, 0);
 
 	return 0;
 }
