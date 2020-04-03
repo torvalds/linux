@@ -1274,7 +1274,7 @@ static long ioctl_fill_blocks(struct file *f, void __user *arg)
 {
 	struct incfs_fill_blocks __user *usr_fill_blocks = arg;
 	struct incfs_fill_blocks fill_blocks;
-	struct incfs_fill_block *usr_fill_block_array;
+	struct incfs_fill_block __user *usr_fill_block_array;
 	struct data_file *df = get_incfs_data_file(f);
 	const ssize_t data_buf_size = 2 * INCFS_DATA_FILE_BLOCK_SIZE;
 	u8 *data_buf = NULL;
@@ -1344,7 +1344,7 @@ static long ioctl_permit_fill(struct file *f, void __user *arg)
 	struct incfs_permit_fill __user *usr_permit_fill = arg;
 	struct incfs_permit_fill permit_fill;
 	long error = 0;
-	struct file *file = 0;
+	struct file *file = NULL;
 
 	if (f->f_op != &incfs_pending_read_file_ops)
 		return -EPERM;
