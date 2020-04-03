@@ -62,6 +62,7 @@
 
 #define HZIP_CORE_INT_SOURCE		0x3010A0
 #define HZIP_CORE_INT_MASK_REG		0x3010A4
+#define HZIP_CORE_INT_SET		0x3010A8
 #define HZIP_CORE_INT_STATUS		0x3010AC
 #define HZIP_CORE_INT_STATUS_M_ECC	BIT(1)
 #define HZIP_CORE_SRAM_ECC_ERR_INFO	0x301148
@@ -83,6 +84,9 @@
 
 #define HZIP_SOFT_CTRL_CNT_CLR_CE	0x301000
 #define SOFT_CTRL_CNT_CLR_CE_BIT	BIT(0)
+#define HZIP_SOFT_CTRL_ZIP_CONTROL	0x30100C
+#define HZIP_AXI_SHUTDOWN_ENABLE	BIT(14)
+#define HZIP_WR_PORT			BIT(11)
 
 #define HZIP_BUF_SIZE			22
 
@@ -254,9 +258,9 @@ int zip_create_qps(struct hisi_qp **qps, int qp_num)
 	return hisi_qm_alloc_qps_node(&zip_devices, qp_num, 0, node, qps);
 }
 
-static void hisi_zip_set_user_domain_and_cache(struct hisi_zip *hisi_zip)
+static int hisi_zip_set_user_domain_and_cache(struct hisi_qm *qm)
 {
-	void __iomem *base = hisi_zip->qm.io_base;
+	void __iomem *base = qm->io_base;
 
 	/* qm user domain */
 	writel(AXUSER_BASE, base + QM_ARUSER_M_CFG_1);
@@ -283,7 +287,7 @@ static void hisi_zip_set_user_domain_and_cache(struct hisi_zip *hisi_zip)
 	writel(AXUSER_BASE, base + HZIP_SGL_RUSER_32_63);
 	writel(AXUSER_BASE, base + HZIP_BD_WUSER_32_63);
 
-	if (hisi_zip->qm.use_sva) {
+	if (qm->use_sva) {
 		writel(AXUSER_BASE | AXUSER_SSV, base + HZIP_DATA_RUSER_32_63);
 		writel(AXUSER_BASE | AXUSER_SSV, base + HZIP_DATA_WUSER_32_63);
 	} else {
@@ -299,6 +303,8 @@ static void hisi_zip_set_user_domain_and_cache(struct hisi_zip *hisi_zip)
 	writel(SQC_CACHE_ENABLE | CQC_CACHE_ENABLE | SQC_CACHE_WB_ENABLE |
 	       CQC_CACHE_WB_ENABLE | FIELD_PREP(SQC_CACHE_WB_THRD, 1) |
 	       FIELD_PREP(CQC_CACHE_WB_THRD, 1), base + QM_CACHE_CTL);
+
+	return 0;
 }
 
 static void hisi_zip_hw_error_enable(struct hisi_qm *qm)
@@ -601,8 +607,6 @@ static void hisi_zip_log_hw_error(struct hisi_qm *qm, u32 err_sts)
 		}
 		err++;
 	}
-
-	writel(err_sts, qm->io_base + HZIP_CORE_INT_SOURCE);
 }
 
 static u32 hisi_zip_get_hw_err_status(struct hisi_qm *qm)
@@ -610,17 +614,56 @@ static u32 hisi_zip_get_hw_err_status(struct hisi_qm *qm)
 	return readl(qm->io_base + HZIP_CORE_INT_STATUS);
 }
 
+static void hisi_zip_clear_hw_err_status(struct hisi_qm *qm, u32 err_sts)
+{
+	writel(err_sts, qm->io_base + HZIP_CORE_INT_SOURCE);
+}
+
+static void hisi_zip_open_axi_master_ooo(struct hisi_qm *qm)
+{
+	u32 val;
+
+	val = readl(qm->io_base + HZIP_SOFT_CTRL_ZIP_CONTROL);
+
+	writel(val & ~HZIP_AXI_SHUTDOWN_ENABLE,
+	       qm->io_base + HZIP_SOFT_CTRL_ZIP_CONTROL);
+
+	writel(val | HZIP_AXI_SHUTDOWN_ENABLE,
+	       qm->io_base + HZIP_SOFT_CTRL_ZIP_CONTROL);
+}
+
+static void hisi_zip_close_axi_master_ooo(struct hisi_qm *qm)
+{
+	u32 nfe_enb;
+
+	/* Disable ECC Mbit error report. */
+	nfe_enb = readl(qm->io_base + HZIP_CORE_INT_RAS_NFE_ENB);
+	writel(nfe_enb & ~HZIP_CORE_INT_STATUS_M_ECC,
+	       qm->io_base + HZIP_CORE_INT_RAS_NFE_ENB);
+
+	/* Inject zip ECC Mbit error to block master ooo. */
+	writel(HZIP_CORE_INT_STATUS_M_ECC,
+	       qm->io_base + HZIP_CORE_INT_SET);
+}
+
 static const struct hisi_qm_err_ini hisi_zip_err_ini = {
+	.hw_init		= hisi_zip_set_user_domain_and_cache,
 	.hw_err_enable		= hisi_zip_hw_error_enable,
 	.hw_err_disable		= hisi_zip_hw_error_disable,
 	.get_dev_hw_err_status	= hisi_zip_get_hw_err_status,
+	.clear_dev_hw_err_status = hisi_zip_clear_hw_err_status,
 	.log_dev_hw_err		= hisi_zip_log_hw_error,
+	.open_axi_master_ooo	= hisi_zip_open_axi_master_ooo,
+	.close_axi_master_ooo	= hisi_zip_close_axi_master_ooo,
 	.err_info		= {
 		.ce			= QM_BASE_CE,
 		.nfe			= QM_BASE_NFE |
 					  QM_ACC_WB_NOT_READY_TIMEOUT,
 		.fe			= 0,
 		.msi			= QM_DB_RANDOM_INVALID,
+		.ecc_2bits_mask		= HZIP_CORE_INT_STATUS_M_ECC,
+		.msi_wr_port		= HZIP_WR_PORT,
+		.acpi_rst		= "ZRST",
 	}
 };
 
@@ -651,7 +694,7 @@ static int hisi_zip_pf_probe_init(struct hisi_zip *hisi_zip)
 
 	qm->err_ini = &hisi_zip_err_ini;
 
-	hisi_zip_set_user_domain_and_cache(hisi_zip);
+	hisi_zip_set_user_domain_and_cache(qm);
 	hisi_qm_dev_err_init(qm);
 	hisi_zip_debug_regs_clear(hisi_zip);
 
@@ -697,6 +740,7 @@ static int hisi_zip_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 		qm->qp_base = HZIP_PF_DEF_Q_BASE;
 		qm->qp_num = pf_q_num;
+		qm->qm_list = &zip_devices;
 	} else if (qm->fun_type == QM_HW_VF) {
 		/*
 		 * have no way to get qm configure in VM in v1 hardware,
@@ -764,6 +808,7 @@ static void hisi_zip_remove(struct pci_dev *pdev)
 
 static const struct pci_error_handlers hisi_zip_err_handler = {
 	.error_detected	= hisi_qm_dev_err_detected,
+	.slot_reset	= hisi_qm_dev_slot_reset,
 };
 
 static struct pci_driver hisi_zip_pci_driver = {
