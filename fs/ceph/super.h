@@ -362,8 +362,11 @@ struct ceph_inode_info {
 	struct list_head i_dirty_item;
 
 	/*
-	 * Link to session's s_cap_flushing list. Protected by
-	 * mdsc->cap_dirty_lock.
+	 * Link to session's s_cap_flushing list. Protected in a similar
+	 * fashion to i_dirty_item, but also by the s_mutex for changes. The
+	 * s_cap_flushing list can be walked while holding either the s_mutex
+	 * or msdc->cap_dirty_lock. List presence can also be checked while
+	 * holding the i_ceph_lock for this inode.
 	 */
 	struct list_head i_flushing_item;
 

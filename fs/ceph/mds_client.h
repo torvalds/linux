@@ -199,8 +199,10 @@ struct ceph_mds_session {
 	struct list_head  s_cap_releases; /* waiting cap_release messages */
 	struct work_struct s_cap_release_work;
 
-	/* both protected by s_mdsc->cap_dirty_lock */
+	/* See ceph_inode_info->i_dirty_item. */
 	struct list_head  s_cap_dirty;	      /* inodes w/ dirty caps */
+
+	/* See ceph_inode_info->i_flushing_item. */
 	struct list_head  s_cap_flushing;     /* inodes w/ flushing caps */
 
 	unsigned long     s_renew_requested; /* last time we sent a renew req */
