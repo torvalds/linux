@@ -5449,7 +5449,7 @@ static void mlx5_ib_dealloc_counters(struct mlx5_ib_dev *dev)
 		 MLX5_CMD_OP_DEALLOC_Q_COUNTER);
 
 	for (i = 0; i < num_cnt_ports; i++) {
-		if (dev->port[i].cnts.set_id_valid) {
+		if (dev->port[i].cnts.set_id) {
 			MLX5_SET(dealloc_q_counter_in, in, counter_set_id,
 				 dev->port[i].cnts.set_id);
 			mlx5_cmd_exec_in(dev->mdev, dealloc_q_counter, in);
@@ -5562,11 +5562,14 @@ static void mlx5_ib_fill_counters(struct mlx5_ib_dev *dev,
 
 static int mlx5_ib_alloc_counters(struct mlx5_ib_dev *dev)
 {
+	u32 out[MLX5_ST_SZ_DW(alloc_q_counter_out)] = {};
+	u32 in[MLX5_ST_SZ_DW(alloc_q_counter_in)] = {};
 	int num_cnt_ports;
 	int err = 0;
 	int i;
 	bool is_shared;
 
+	MLX5_SET(alloc_q_counter_in, in, opcode, MLX5_CMD_OP_ALLOC_Q_COUNTER);
 	is_shared = MLX5_CAP_GEN(dev->mdev, log_max_uctx) != 0;
 	num_cnt_ports = is_mdev_switchdev_mode(dev->mdev) ? 1 : dev->num_ports;
 
@@ -5578,17 +5581,19 @@ static int mlx5_ib_alloc_counters(struct mlx5_ib_dev *dev)
 		mlx5_ib_fill_counters(dev, dev->port[i].cnts.names,
 				      dev->port[i].cnts.offsets);
 
-		err = mlx5_cmd_alloc_q_counter(dev->mdev,
-					       &dev->port[i].cnts.set_id,
-					       is_shared ?
-					       MLX5_SHARED_RESOURCE_UID : 0);
+		MLX5_SET(alloc_q_counter_in, in, uid,
+			 is_shared ? MLX5_SHARED_RESOURCE_UID : 0);
+
+		err = mlx5_cmd_exec_inout(dev->mdev, alloc_q_counter, in, out);
 		if (err) {
 			mlx5_ib_warn(dev,
 				     "couldn't allocate queue counter for port %d, err %d\n",
 				     i + 1, err);
 			goto err_alloc;
 		}
-		dev->port[i].cnts.set_id_valid = true;
+
+		dev->port[i].cnts.set_id =
+			MLX5_GET(alloc_q_counter_out, out, counter_set_id);
 	}
 	return 0;
 
@@ -5785,16 +5790,20 @@ static int mlx5_ib_counter_bind_qp(struct rdma_counter *counter,
 				   struct ib_qp *qp)
 {
 	struct mlx5_ib_dev *dev = to_mdev(qp->device);
-	u16 cnt_set_id = 0;
 	int err;
 
 	if (!counter->id) {
-		err = mlx5_cmd_alloc_q_counter(dev->mdev,
-					       &cnt_set_id,
-					       MLX5_SHARED_RESOURCE_UID);
+		u32 out[MLX5_ST_SZ_DW(alloc_q_counter_out)] = {};
+		u32 in[MLX5_ST_SZ_DW(alloc_q_counter_in)] = {};
+
+		MLX5_SET(alloc_q_counter_in, in, opcode,
+			 MLX5_CMD_OP_ALLOC_Q_COUNTER);
+		MLX5_SET(alloc_q_counter_in, in, uid, MLX5_SHARED_RESOURCE_UID);
+		err = mlx5_cmd_exec_inout(dev->mdev, alloc_q_counter, in, out);
 		if (err)
 			return err;
-		counter->id = cnt_set_id;
+		counter->id =
+			MLX5_GET(alloc_q_counter_out, out, counter_set_id);
 	}
 
 	err = mlx5_ib_qp_set_counter(qp, counter);
