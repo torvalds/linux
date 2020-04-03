@@ -72,6 +72,58 @@
 		};
 
 		apb {
+			qspi0: spi@f0020000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_qspi0_default>;
+				status = "disabled"; /* conflict with sdmmc1 */
+
+				flash@0 {
+					#address-cells = <1>;
+					#size-cells = <1>;
+					compatible = "jedec,spi-nor";
+					reg = <0>;
+					spi-max-frequency = <80000000>;
+					spi-tx-bus-width = <4>;
+					spi-rx-bus-width = <4>;
+					m25p,fast-read;
+
+					at91bootstrap@00000000 {
+						label = "at91bootstrap";
+						reg = <0x00000000 0x00040000>;
+					};
+
+					bootloader@00040000 {
+						label = "bootloader";
+						reg = <0x00040000 0x000c0000>;
+					};
+
+					bootloaderenvred@00100000 {
+						label = "bootloader env redundant";
+						reg = <0x00100000 0x00040000>;
+					};
+
+					bootloaderenv@00140000 {
+						label = "bootloader env";
+						reg = <0x00140000 0x00040000>;
+					};
+
+					dtb@00180000 {
+						label = "device tree";
+						reg = <0x00180000 0x00080000>;
+					};
+
+					kernel@00200000 {
+						label = "kernel";
+						reg = <0x00200000 0x00600000>;
+					};
+
+					misc@00800000 {
+						label = "misc";
+						reg = <0x00800000 0x00000000>;
+					};
+				};
+			};
+
 			spi0: spi@f8000000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_spi0_default>;
@@ -533,6 +585,22 @@
 					pinmux = <PIN_PB26__PDMIC_DAT>,
 						<PIN_PB27__PDMIC_CLK>;
 					bias-disable;
+				};
+
+				pinctrl_qspi0_default: qspi0_default {
+					sck_cs {
+						pinmux = <PIN_PA22__QSPI0_SCK>,
+							 <PIN_PA23__QSPI0_CS>;
+						bias-disable;
+					};
+
+					data {
+						pinmux = <PIN_PA24__QSPI0_IO0>,
+							 <PIN_PA25__QSPI0_IO1>,
+							 <PIN_PA26__QSPI0_IO2>,
+							 <PIN_PA27__QSPI0_IO3>;
+						bias-pull-up;
+					};
 				};
 
 				pinctrl_sdmmc0_default: sdmmc0_default {
