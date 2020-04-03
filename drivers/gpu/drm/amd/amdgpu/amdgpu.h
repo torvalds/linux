@@ -1023,8 +1023,6 @@ int emu_soc_asic_init(struct amdgpu_device *adev);
 /*
  * Registers read & write functions.
  */
-
-#define AMDGPU_REGS_IDX       (1<<0)
 #define AMDGPU_REGS_NO_KIQ    (1<<1)
 #define AMDGPU_REGS_KIQ       (1<<2)
 
@@ -1038,10 +1036,8 @@ int emu_soc_asic_init(struct amdgpu_device *adev);
 #define WREG8(reg, v) amdgpu_mm_wreg8(adev, (reg), (v))
 
 #define RREG32(reg) amdgpu_mm_rreg(adev, (reg), 0)
-#define RREG32_IDX(reg) amdgpu_mm_rreg(adev, (reg), AMDGPU_REGS_IDX)
 #define DREG32(reg) printk(KERN_INFO "REGISTER: " #reg " : 0x%08X\n", amdgpu_mm_rreg(adev, (reg), 0))
 #define WREG32(reg, v) amdgpu_mm_wreg(adev, (reg), (v), 0)
-#define WREG32_IDX(reg, v) amdgpu_mm_wreg(adev, (reg), (v), AMDGPU_REGS_IDX)
 #define REG_SET(FIELD, v) (((v) << FIELD##_SHIFT) & FIELD##_MASK)
 #define REG_GET(FIELD, v) (((v) << FIELD##_SHIFT) & FIELD##_MASK)
 #define RREG32_PCIE(reg) adev->pcie_rreg(adev, (reg))
