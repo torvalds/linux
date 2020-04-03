@@ -11,7 +11,6 @@ struct afu_irq {
 	int hw_irq;
 	unsigned int virq;
 	char *name;
-	u64 trigger_page;
 	irqreturn_t (*handler)(void *private);
 	void (*free_private)(void *private);
 	void *private;
@@ -125,8 +124,7 @@ int ocxl_afu_irq_alloc(struct ocxl_context *ctx, int *irq_id)
 		goto err_unlock;
 	}
 
-	rc = ocxl_link_irq_alloc(ctx->afu->fn->link, &irq->hw_irq,
-				&irq->trigger_page);
+	rc = ocxl_link_irq_alloc(ctx->afu->fn->link, &irq->hw_irq);
 	if (rc)
 		goto err_idr;
 

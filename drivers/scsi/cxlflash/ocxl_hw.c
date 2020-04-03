@@ -614,7 +614,6 @@ static int alloc_afu_irqs(struct ocxlflash_context *ctx, int num)
 	struct ocxl_hw_afu *afu = ctx->hw_afu;
 	struct device *dev = afu->dev;
 	struct ocxlflash_irqs *irqs;
-	u64 addr;
 	int rc = 0;
 	int hwirq;
 	int i;
@@ -639,7 +638,7 @@ static int alloc_afu_irqs(struct ocxlflash_context *ctx, int num)
 	}
 
 	for (i = 0; i < num; i++) {
-		rc = ocxl_link_irq_alloc(afu->link_token, &hwirq, &addr);
+		rc = ocxl_link_irq_alloc(afu->link_token, &hwirq);
 		if (unlikely(rc)) {
 			dev_err(dev, "%s: ocxl_link_irq_alloc failed rc=%d\n",
 				__func__, rc);

@@ -9,7 +9,7 @@ config OCXL_BASE
 
 config OCXL
 	tristate "OpenCAPI coherent accelerator support"
-	depends on PPC_POWERNV && PCI && EEH
+	depends on PPC_POWERNV && PCI && EEH && PPC_XIVE_NATIVE
 	select OCXL_BASE
 	select HOTPLUG_PCI_POWERNV
 	default m
