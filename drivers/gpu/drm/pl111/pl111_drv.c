@@ -444,6 +444,7 @@ static const struct amba_id pl111_id_table[] = {
 	},
 	{0, 0},
 };
+MODULE_DEVICE_TABLE(amba, pl111_id_table);
 
 static struct amba_driver pl111_amba_driver __maybe_unused = {
 	.drv = {
