@@ -327,10 +327,10 @@ struct spi_nor_manufacturer;
 struct spi_nor_flash_parameter;
 
 /**
- * struct spi_nor - Structure for defining a the SPI NOR layer
- * @mtd:		point to a mtd_info structure
+ * struct spi_nor - Structure for defining the SPI NOR layer
+ * @mtd:		pointer to an mtd_info structure
  * @lock:		the lock for the read/write/erase/lock/unlock operations
- * @dev:		point to a spi device, or a spi nor controller device.
+ * @dev:		pointer to an SPI device or an SPI NOR controller device
  * @spimem:		point to the spi mem device
  * @bouncebuf:		bounce buffer used when the buffer passed by the MTD
  *                      layer is not DMA-able
@@ -354,7 +354,7 @@ struct spi_nor_flash_parameter;
  *                      settings that can be overwritten by the spi_nor_fixups
  *                      hooks, or dynamically when parsing the SFDP tables.
  * @dirmap:		pointers to struct spi_mem_dirmap_desc for reads/writes.
- * @priv:		the private data
+ * @priv:		pointer to the private data
  */
 struct spi_nor {
 	struct mtd_info		mtd;
