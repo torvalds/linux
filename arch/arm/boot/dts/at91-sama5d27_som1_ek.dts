@@ -20,7 +20,6 @@
 		serial0 = &uart1;	/* DBGU */
 		serial1 = &uart4;	/* mikro BUS 1 */
 		serial2 = &uart2;	/* mikro BUS 2 */
-		i2c0	= &i2c0;
 		i2c1	= &i2c1;
 		i2c2	= &i2c2;
 	};
@@ -113,13 +112,6 @@
 				pinctrl-0 = <&pinctrl_mikrobus2_uart>;
 				atmel,use-dma-rx;
 				atmel,use-dma-tx;
-				status = "okay";
-			};
-
-			i2c0: i2c@f8028000 {
-				dmas = <0>, <0>;
-				pinctrl-names = "default";
-				pinctrl-0 = <&pinctrl_i2c0_default>;
 				status = "okay";
 			};
 
@@ -286,12 +278,6 @@
 						 <PIN_PC18__FLEXCOM3_IO2>,
 						 <PIN_PC21__FLEXCOM3_IO3>,
 						 <PIN_PC22__FLEXCOM3_IO4>;
-					bias-disable;
-				};
-
-				pinctrl_i2c0_default: i2c0_default {
-					pinmux = <PIN_PD21__TWD0>,
-						 <PIN_PD22__TWCK0>;
 					bias-disable;
 				};
 
