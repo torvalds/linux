@@ -4477,10 +4477,14 @@ int drm_dp_check_act_status(struct drm_dp_mst_topology_mgr *mgr)
 				 status & DP_PAYLOAD_ACT_HANDLED || status < 0,
 				 200, timeout_ms * USEC_PER_MSEC);
 	if (ret < 0 && status >= 0) {
-		DRM_DEBUG_KMS("Failed to get ACT after %dms, last status: %02x\n",
-			      timeout_ms, status);
+		DRM_ERROR("Failed to get ACT after %dms, last status: %02x\n",
+			  timeout_ms, status);
 		return -EINVAL;
 	} else if (status < 0) {
+		/*
+		 * Failure here isn't unexpected - the hub may have
+		 * just been unplugged
+		 */
 		DRM_DEBUG_KMS("Failed to read payload table status: %d\n",
 			      status);
 		return status;
