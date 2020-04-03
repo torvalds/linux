@@ -34,30 +34,4 @@
 
 #include <linux/pci.h>
 
-struct drm_dma_handle;
-struct drm_device;
-struct drm_driver;
-struct drm_master;
-
-#ifdef CONFIG_PCI
-
-struct drm_dma_handle *drm_pci_alloc(struct drm_device *dev, size_t size,
-				     size_t align);
-void drm_pci_free(struct drm_device *dev, struct drm_dma_handle * dmah);
-
-#else
-
-static inline struct drm_dma_handle *drm_pci_alloc(struct drm_device *dev,
-						   size_t size, size_t align)
-{
-	return NULL;
-}
-
-static inline void drm_pci_free(struct drm_device *dev,
-				struct drm_dma_handle *dmah)
-{
-}
-
-#endif
-
 #endif /* _DRM_PCI_H_ */
