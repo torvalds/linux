@@ -966,6 +966,13 @@ static int haptics_set_fifo(struct haptics_chip *chip, struct fifo_cfg *fifo)
 		return -EBUSY;
 	}
 
+	if (chip->ptn_revision == HAP_PTN_V1 &&
+			fifo->period_per_s > F_8KHZ &&
+			fifo->num_s > MAX_FIFO_SAMPLES(chip)) {
+		dev_err(chip->dev, "PM8350B v1 doesn't support playing long FIFO pattern higher than 8 KHz play rate\n");
+		return -EINVAL;
+	}
+
 	/* Configure FIFO play rate */
 	rc = haptics_set_fifo_playrate(chip, fifo->period_per_s);
 	if (rc < 0)
