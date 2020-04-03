@@ -402,7 +402,8 @@ static int copy_one_range(struct incfs_filled_range *range, void __user *buffer,
 	if (error)
 		return error;
 
-	if (copy_to_user(((char *)buffer) + *size_out, range, sizeof(*range)))
+	if (copy_to_user(((char __user *)buffer) + *size_out, range,
+				sizeof(*range)))
 		return -EFAULT;
 
 	*size_out += sizeof(*range);
@@ -444,7 +445,7 @@ int incfs_get_filled_blocks(struct data_file *df,
 	int error = 0;
 	bool in_range = false;
 	struct incfs_filled_range range;
-	void *buffer = u64_to_user_ptr(arg->range_buffer);
+	void __user *buffer = u64_to_user_ptr(arg->range_buffer);
 	u32 size = arg->range_buffer_size;
 	u32 end_index =
 		arg->end_index ? arg->end_index : df->df_total_block_count;
