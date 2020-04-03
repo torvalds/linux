@@ -121,7 +121,7 @@
 	assigned-clock-rates = <50000000>;
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&rmiim0_pins &gmac_clk_m0_drv_level3_pins>;
+	pinctrl-0 = <&rmiim0_pins &gmac_clk_m0_drv_level0_pins>;
 
 	phy-handle = <&phy>;
 	status = "okay";

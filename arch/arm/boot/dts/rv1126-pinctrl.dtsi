@@ -1206,7 +1206,7 @@
 		rmiim0_pins: rmiim0-pins {
 			rockchip,pins =
 				/* rmii_mdc_m0 */
-				<3 RK_PC4 2 &pcfg_pull_none>,
+				<3 RK_PC4 2 &pcfg_pull_none_drv_level_0>,
 				/* rmii_mdio_m0 */
 				<3 RK_PC3 2 &pcfg_pull_none>,
 				/* rmii_rxd0_m0 */
@@ -1218,17 +1218,17 @@
 				/* rmii_rxer_m0 */
 				<3 RK_PC2 2 &pcfg_pull_none>,
 				/* rmii_txd0_m0 */
-				<3 RK_PB3 2 &pcfg_pull_none_drv_level_3>,
+				<3 RK_PB3 2 &pcfg_pull_none_drv_level_0>,
 				/* rmii_txd1_m0 */
-				<3 RK_PB4 2 &pcfg_pull_none_drv_level_3>,
+				<3 RK_PB4 2 &pcfg_pull_none_drv_level_0>,
 				/* rmii_txen_m0 */
-				<3 RK_PB5 2 &pcfg_pull_none_drv_level_3>;
+				<3 RK_PB5 2 &pcfg_pull_none_drv_level_0>;
 		};
 		/omit-if-no-ref/
 		rmiim1_pins: rmiim1-pins {
 			rockchip,pins =
 				/* rmii_mdc_m1 */
-				<2 RK_PC2 2 &pcfg_pull_none>,
+				<2 RK_PC2 2 &pcfg_pull_none_drv_level_0>,
 				/* rmii_mdio_m1 */
 				<2 RK_PC1 2 &pcfg_pull_none>,
 				/* rmii_rxd0_m1 */
@@ -1240,11 +1240,11 @@
 				/* rmii_rxer_m1 */
 				<2 RK_PC0 2 &pcfg_pull_none>,
 				/* rmii_txd0_m1 */
-				<2 RK_PC3 2 &pcfg_pull_none_drv_level_3>,
+				<2 RK_PC3 2 &pcfg_pull_none_drv_level_0>,
 				/* rmii_txd1_m1 */
-				<2 RK_PC4 2 &pcfg_pull_none_drv_level_3>,
+				<2 RK_PC4 2 &pcfg_pull_none_drv_level_0>,
 				/* rmii_txen_m1 */
-				<2 RK_PC6 2 &pcfg_pull_none_drv_level_3>;
+				<2 RK_PC6 2 &pcfg_pull_none_drv_level_0>;
 		};
 	};
 	gmac_clk {
@@ -1253,6 +1253,12 @@
 			rockchip,pins =
 				/* rgmii_clk_m0 */
 				<3 RK_PC0 2 &pcfg_pull_none>;
+		};
+		/omit-if-no-ref/
+		gmac_clk_m0_drv_level0_pins: gmac-clk-m0-drv-level0-pins {
+			rockchip,pins =
+				/* rgmii_clk_m0 */
+				<3 RK_PC0 2 &pcfg_pull_none_drv_level_0>;
 		};
 		/omit-if-no-ref/
 		gmac_clk_m0_drv_level3_pins: gmac-clk-m0-drv-level3-pins {
@@ -1267,7 +1273,13 @@
 				<2 RK_PB7 2 &pcfg_pull_none>;
 		};
 		/omit-if-no-ref/
-		gmac_clk_m1_level3_pins: gmac-clk-m1-drv-level3-pins {
+		gmac_clk_m1_drv_level0_pins: gmac-clk-m1-drv-level0-pins {
+			rockchip,pins =
+				/* rgmii_clk_m1 */
+				<2 RK_PB7 2 &pcfg_pull_none_drv_level_0>;
+		};
+		/omit-if-no-ref/
+		gmac_clk_m1_drv_level3_pins: gmac-clk-m1-drv-level3-pins {
 			rockchip,pins =
 				/* rgmii_clk_m1 */
 				<2 RK_PB7 2 &pcfg_pull_none>;
