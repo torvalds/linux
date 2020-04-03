@@ -1009,6 +1009,10 @@ static bool acpi_s2idle_wake(void)
 		if (acpi_any_fixed_event_status_set())
 			return true;
 
+		/* Check wakeups from drivers sharing the SCI. */
+		if (acpi_check_wakeup_handlers())
+			return true;
+
 		/*
 		 * If the status bit is set for any enabled GPE other than the
 		 * EC one, the wakeup is regarded as a genuine one.
