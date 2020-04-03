@@ -847,6 +847,29 @@ config KPROBE_EVENT_GEN_TEST
 
 	  If unsure, say N.
 
+config HIST_TRIGGERS_DEBUG
+	bool "Hist trigger debug support"
+	depends on HIST_TRIGGERS
+	help
+          Add "hist_debug" file for each event, which when read will
+          dump out a bunch of internal details about the hist triggers
+          defined on that event.
+
+          The hist_debug file serves a couple of purposes:
+
+            - Helps developers verify that nothing is broken.
+
+            - Provides educational information to support the details
+              of the hist trigger internals as described by
+              Documentation/trace/histogram-design.rst.
+
+          The hist_debug output only covers the data structures
+          related to the histogram definitions themselves and doesn't
+          display the internals of map buckets or variable values of
+          running histograms.
+
+          If unsure, say N.
+
 endif # FTRACE
 
 endif # TRACING_SUPPORT

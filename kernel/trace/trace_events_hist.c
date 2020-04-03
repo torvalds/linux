@@ -6478,6 +6478,279 @@ const struct file_operations event_hist_fops = {
 	.release = single_release,
 };
 
+#ifdef CONFIG_HIST_TRIGGERS_DEBUG
+static void hist_field_debug_show_flags(struct seq_file *m,
+					unsigned long flags)
+{
+	seq_puts(m, "      flags:\n");
+
+	if (flags & HIST_FIELD_FL_KEY)
+		seq_puts(m, "        HIST_FIELD_FL_KEY\n");
+	else if (flags & HIST_FIELD_FL_HITCOUNT)
+		seq_puts(m, "        VAL: HIST_FIELD_FL_HITCOUNT\n");
+	else if (flags & HIST_FIELD_FL_VAR)
+		seq_puts(m, "        HIST_FIELD_FL_VAR\n");
+	else if (flags & HIST_FIELD_FL_VAR_REF)
+		seq_puts(m, "        HIST_FIELD_FL_VAR_REF\n");
+	else
+		seq_puts(m, "        VAL: normal u64 value\n");
+
+	if (flags & HIST_FIELD_FL_ALIAS)
+		seq_puts(m, "        HIST_FIELD_FL_ALIAS\n");
+}
+
+static int hist_field_debug_show(struct seq_file *m,
+				 struct hist_field *field, unsigned long flags)
+{
+	if ((field->flags & flags) != flags) {
+		seq_printf(m, "ERROR: bad flags - %lx\n", flags);
+		return -EINVAL;
+	}
+
+	hist_field_debug_show_flags(m, field->flags);
+	if (field->field)
+		seq_printf(m, "      ftrace_event_field name: %s\n",
+			   field->field->name);
+
+	if (field->flags & HIST_FIELD_FL_VAR) {
+		seq_printf(m, "      var.name: %s\n", field->var.name);
+		seq_printf(m, "      var.idx (into tracing_map_elt.vars[]): %u\n",
+			   field->var.idx);
+	}
+
+	if (field->flags & HIST_FIELD_FL_ALIAS)
+		seq_printf(m, "      var_ref_idx (into hist_data->var_refs[]): %u\n",
+			   field->var_ref_idx);
+
+	if (field->flags & HIST_FIELD_FL_VAR_REF) {
+		seq_printf(m, "      name: %s\n", field->name);
+		seq_printf(m, "      var.idx (into tracing_map_elt.vars[]): %u\n",
+			   field->var.idx);
+		seq_printf(m, "      var.hist_data: %p\n", field->var.hist_data);
+		seq_printf(m, "      var_ref_idx (into hist_data->var_refs[]): %u\n",
+			   field->var_ref_idx);
+		if (field->system)
+			seq_printf(m, "      system: %s\n", field->system);
+		if (field->event_name)
+			seq_printf(m, "      event_name: %s\n", field->event_name);
+	}
+
+	seq_printf(m, "      type: %s\n", field->type);
+	seq_printf(m, "      size: %u\n", field->size);
+	seq_printf(m, "      is_signed: %u\n", field->is_signed);
+
+	return 0;
+}
+
+static int field_var_debug_show(struct seq_file *m,
+				struct field_var *field_var, unsigned int i,
+				bool save_vars)
+{
+	const char *vars_name = save_vars ? "save_vars" : "field_vars";
+	struct hist_field *field;
+	int ret = 0;
+
+	seq_printf(m, "\n    hist_data->%s[%d]:\n", vars_name, i);
+
+	field = field_var->var;
+
+	seq_printf(m, "\n      %s[%d].var:\n", vars_name, i);
+
+	hist_field_debug_show_flags(m, field->flags);
+	seq_printf(m, "      var.name: %s\n", field->var.name);
+	seq_printf(m, "      var.idx (into tracing_map_elt.vars[]): %u\n",
+		   field->var.idx);
+
+	field = field_var->val;
+
+	seq_printf(m, "\n      %s[%d].val:\n", vars_name, i);
+	if (field->field)
+		seq_printf(m, "      ftrace_event_field name: %s\n",
+			   field->field->name);
+	else {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	seq_printf(m, "      type: %s\n", field->type);
+	seq_printf(m, "      size: %u\n", field->size);
+	seq_printf(m, "      is_signed: %u\n", field->is_signed);
+out:
+	return ret;
+}
+
+static int hist_action_debug_show(struct seq_file *m,
+				  struct action_data *data, int i)
+{
+	int ret = 0;
+
+	if (data->handler == HANDLER_ONMAX ||
+	    data->handler == HANDLER_ONCHANGE) {
+		seq_printf(m, "\n    hist_data->actions[%d].track_data.var_ref:\n", i);
+		ret = hist_field_debug_show(m, data->track_data.var_ref,
+					    HIST_FIELD_FL_VAR_REF);
+		if (ret)
+			goto out;
+
+		seq_printf(m, "\n    hist_data->actions[%d].track_data.track_var:\n", i);
+		ret = hist_field_debug_show(m, data->track_data.track_var,
+					    HIST_FIELD_FL_VAR);
+		if (ret)
+			goto out;
+	}
+
+	if (data->handler == HANDLER_ONMATCH) {
+		seq_printf(m, "\n    hist_data->actions[%d].match_data.event_system: %s\n",
+			   i, data->match_data.event_system);
+		seq_printf(m, "    hist_data->actions[%d].match_data.event: %s\n",
+			   i, data->match_data.event);
+	}
+out:
+	return ret;
+}
+
+static int hist_actions_debug_show(struct seq_file *m,
+				   struct hist_trigger_data *hist_data)
+{
+	int i, ret = 0;
+
+	if (hist_data->n_actions)
+		seq_puts(m, "\n  action tracking variables (for onmax()/onchange()/onmatch()):\n");
+
+	for (i = 0; i < hist_data->n_actions; i++) {
+		struct action_data *action = hist_data->actions[i];
+
+		ret = hist_action_debug_show(m, action, i);
+		if (ret)
+			goto out;
+	}
+
+	if (hist_data->n_save_vars)
+		seq_puts(m, "\n  save action variables (save() params):\n");
+
+	for (i = 0; i < hist_data->n_save_vars; i++) {
+		ret = field_var_debug_show(m, hist_data->save_vars[i], i, true);
+		if (ret)
+			goto out;
+	}
+out:
+	return ret;
+}
+
+static void hist_trigger_debug_show(struct seq_file *m,
+				    struct event_trigger_data *data, int n)
+{
+	struct hist_trigger_data *hist_data;
+	int i, ret;
+
+	if (n > 0)
+		seq_puts(m, "\n\n");
+
+	seq_puts(m, "# event histogram\n#\n# trigger info: ");
+	data->ops->print(m, data->ops, data);
+	seq_puts(m, "#\n\n");
+
+	hist_data = data->private_data;
+
+	seq_printf(m, "hist_data: %p\n\n", hist_data);
+	seq_printf(m, "  n_vals: %u\n", hist_data->n_vals);
+	seq_printf(m, "  n_keys: %u\n", hist_data->n_keys);
+	seq_printf(m, "  n_fields: %u\n", hist_data->n_fields);
+
+	seq_puts(m, "\n  val fields:\n\n");
+
+	seq_puts(m, "    hist_data->fields[0]:\n");
+	ret = hist_field_debug_show(m, hist_data->fields[0],
+				    HIST_FIELD_FL_HITCOUNT);
+	if (ret)
+		return;
+
+	for (i = 1; i < hist_data->n_vals; i++) {
+		seq_printf(m, "\n    hist_data->fields[%d]:\n", i);
+		ret = hist_field_debug_show(m, hist_data->fields[i], 0);
+		if (ret)
+			return;
+	}
+
+	seq_puts(m, "\n  key fields:\n");
+
+	for (i = hist_data->n_vals; i < hist_data->n_fields; i++) {
+		seq_printf(m, "\n    hist_data->fields[%d]:\n", i);
+		ret = hist_field_debug_show(m, hist_data->fields[i],
+					    HIST_FIELD_FL_KEY);
+		if (ret)
+			return;
+	}
+
+	if (hist_data->n_var_refs)
+		seq_puts(m, "\n  variable reference fields:\n");
+
+	for (i = 0; i < hist_data->n_var_refs; i++) {
+		seq_printf(m, "\n    hist_data->var_refs[%d]:\n", i);
+		ret = hist_field_debug_show(m, hist_data->var_refs[i],
+					    HIST_FIELD_FL_VAR_REF);
+		if (ret)
+			return;
+	}
+
+	if (hist_data->n_field_vars)
+		seq_puts(m, "\n  field variables:\n");
+
+	for (i = 0; i < hist_data->n_field_vars; i++) {
+		ret = field_var_debug_show(m, hist_data->field_vars[i], i, false);
+		if (ret)
+			return;
+	}
+
+	ret = hist_actions_debug_show(m, hist_data);
+	if (ret)
+		return;
+}
+
+static int hist_debug_show(struct seq_file *m, void *v)
+{
+	struct event_trigger_data *data;
+	struct trace_event_file *event_file;
+	int n = 0, ret = 0;
+
+	mutex_lock(&event_mutex);
+
+	event_file = event_file_data(m->private);
+	if (unlikely(!event_file)) {
+		ret = -ENODEV;
+		goto out_unlock;
+	}
+
+	list_for_each_entry(data, &event_file->triggers, list) {
+		if (data->cmd_ops->trigger_type == ETT_EVENT_HIST)
+			hist_trigger_debug_show(m, data, n++);
+	}
+
+ out_unlock:
+	mutex_unlock(&event_mutex);
+
+	return ret;
+}
+
+static int event_hist_debug_open(struct inode *inode, struct file *file)
+{
+	int ret;
+
+	ret = security_locked_down(LOCKDOWN_TRACEFS);
+	if (ret)
+		return ret;
+
+	return single_open(file, hist_debug_show, file);
+}
+
+const struct file_operations event_hist_debug_fops = {
+	.open = event_hist_debug_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+#endif
+
 static void hist_field_print(struct seq_file *m, struct hist_field *hist_field)
 {
 	const char *field_name = hist_field_name(hist_field, 0);
