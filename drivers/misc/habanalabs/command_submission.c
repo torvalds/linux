@@ -129,6 +129,8 @@ static int cs_parser(struct hl_fpriv *hpriv, struct hl_cs_job *job)
 		spin_unlock(&job->user_cb->lock);
 		hl_cb_put(job->user_cb);
 		job->user_cb = NULL;
+	} else if (!rc) {
+		job->job_cb_size = job->user_cb_size;
 	}
 
 	return rc;
@@ -507,7 +509,7 @@ static int _hl_cs_ioctl(struct hl_fpriv *hpriv, void __user *chunks,
 	struct hl_cb *cb;
 	bool int_queues_only = true;
 	u32 size_to_copy;
-	int rc, i, parse_cnt;
+	int rc, i;
 
 	*cs_seq = ULLONG_MAX;
 
@@ -547,7 +549,7 @@ static int _hl_cs_ioctl(struct hl_fpriv *hpriv, void __user *chunks,
 	hl_debugfs_add_cs(cs);
 
 	/* Validate ALL the CS chunks before submitting the CS */
-	for (i = 0, parse_cnt = 0 ; i < num_chunks ; i++, parse_cnt++) {
+	for (i = 0 ; i < num_chunks ; i++) {
 		struct hl_cs_chunk *chunk = &cs_chunk_array[i];
 		enum hl_queue_type queue_type;
 		bool is_kernel_allocated_cb;
@@ -585,10 +587,6 @@ static int _hl_cs_ioctl(struct hl_fpriv *hpriv, void __user *chunks,
 		job->cs = cs;
 		job->user_cb = cb;
 		job->user_cb_size = chunk->cb_size;
-		if (is_kernel_allocated_cb)
-			job->job_cb_size = cb->size;
-		else
-			job->job_cb_size = chunk->cb_size;
 		job->hw_queue_id = chunk->queue_index;
 
 		cs->jobs_in_queue_cnt[job->hw_queue_id]++;
@@ -659,8 +657,8 @@ int hl_cs_ioctl(struct hl_fpriv *hpriv, void *data)
 	struct hl_device *hdev = hpriv->hdev;
 	union hl_cs_args *args = data;
 	struct hl_ctx *ctx = hpriv->ctx;
-	void __user *chunks;
-	u32 num_chunks;
+	void __user *chunks_execute, *chunks_restore;
+	u32 num_chunks_execute, num_chunks_restore;
 	u64 cs_seq = ULONG_MAX;
 	int rc, do_ctx_switch;
 	bool need_soft_reset = false;
@@ -673,13 +671,25 @@ int hl_cs_ioctl(struct hl_fpriv *hpriv, void *data)
 		goto out;
 	}
 
+	chunks_execute = (void __user *) (uintptr_t) args->in.chunks_execute;
+	num_chunks_execute = args->in.num_chunks_execute;
+
+	if (!num_chunks_execute) {
+		dev_err(hdev->dev,
+			"Got execute CS with 0 chunks, context %d\n",
+			ctx->asid);
+		rc = -EINVAL;
+		goto out;
+	}
+
 	do_ctx_switch = atomic_cmpxchg(&ctx->thread_ctx_switch_token, 1, 0);
 
 	if (do_ctx_switch || (args->in.cs_flags & HL_CS_FLAGS_FORCE_RESTORE)) {
 		long ret;
 
-		chunks = (void __user *)(uintptr_t)args->in.chunks_restore;
-		num_chunks = args->in.num_chunks_restore;
+		chunks_restore =
+			(void __user *) (uintptr_t) args->in.chunks_restore;
+		num_chunks_restore = args->in.num_chunks_restore;
 
 		mutex_lock(&hpriv->restore_phase_mutex);
 
@@ -707,13 +717,13 @@ int hl_cs_ioctl(struct hl_fpriv *hpriv, void *data)
 
 		hdev->asic_funcs->restore_phase_topology(hdev);
 
-		if (num_chunks == 0) {
+		if (!num_chunks_restore) {
 			dev_dbg(hdev->dev,
 			"Need to run restore phase but restore CS is empty\n");
 			rc = 0;
 		} else {
-			rc = _hl_cs_ioctl(hpriv, chunks, num_chunks,
-						&cs_seq);
+			rc = _hl_cs_ioctl(hpriv, chunks_restore,
+						num_chunks_restore, &cs_seq);
 		}
 
 		mutex_unlock(&hpriv->restore_phase_mutex);
@@ -726,7 +736,7 @@ int hl_cs_ioctl(struct hl_fpriv *hpriv, void *data)
 		}
 
 		/* Need to wait for restore completion before execution phase */
-		if (num_chunks > 0) {
+		if (num_chunks_restore) {
 			ret = _hl_cs_wait_ioctl(hdev, ctx,
 					jiffies_to_usecs(hdev->timeout_jiffies),
 					cs_seq);
@@ -754,18 +764,7 @@ int hl_cs_ioctl(struct hl_fpriv *hpriv, void *data)
 		}
 	}
 
-	chunks = (void __user *)(uintptr_t)args->in.chunks_execute;
-	num_chunks = args->in.num_chunks_execute;
-
-	if (num_chunks == 0) {
-		dev_err(hdev->dev,
-			"Got execute CS with 0 chunks, context %d\n",
-			ctx->asid);
-		rc = -EINVAL;
-		goto out;
-	}
-
-	rc = _hl_cs_ioctl(hpriv, chunks, num_chunks, &cs_seq);
+	rc = _hl_cs_ioctl(hpriv, chunks_execute, num_chunks_execute, &cs_seq);
 
 out:
 	if (rc != -EAGAIN) {

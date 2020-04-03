@@ -3,8 +3,6 @@
 # Serial device configuration
 #
 
-if TTY
-
 menu "Serial drivers"
 	depends on HAS_IOMEM
 
@@ -1568,5 +1566,3 @@ endmenu
 
 config SERIAL_MCTRL_GPIO
 	tristate
-
-endif # TTY
