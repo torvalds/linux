@@ -3813,7 +3813,6 @@ static int drm_dp_mst_handle_down_rep(struct drm_dp_mst_topology_mgr *mgr)
 			      txmsg->reply.u.nak.reason,
 			      drm_dp_mst_nak_reason_str(txmsg->reply.u.nak.reason),
 			      txmsg->reply.u.nak.nak_data);
-		goto out_clear_reply;
 	}
 
 	memset(msg, 0, sizeof(struct drm_dp_sideband_msg_rx));
