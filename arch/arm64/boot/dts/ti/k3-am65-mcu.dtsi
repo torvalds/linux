@@ -12,6 +12,12 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x0 0x0 0x40f00000 0x20000>;
+
+		phy_gmii_sel: phy@4040 {
+			compatible = "ti,am654-phy-gmii-sel";
+			reg = <0x4040 0x4>;
+			#phy-cells = <1>;
+		};
 	};
 
 	mcu_uart0: serial@40a00000 {
@@ -82,6 +88,9 @@
 		assigned-clocks = <&k3_clks 0 2>;
 		assigned-clock-rates = <60000000>;
 		clock-names = "adc_tsc_fck";
+		dmas = <&mcu_udmap 0x7100>,
+			<&mcu_udmap 0x7101 >;
+		dma-names = "fifo0", "fifo1";
 
 		adc {
 			#io-channel-cells = <1>;
@@ -97,6 +106,9 @@
 		assigned-clocks = <&k3_clks 1 2>;
 		assigned-clock-rates = <60000000>;
 		clock-names = "adc_tsc_fck";
+		dmas = <&mcu_udmap 0x7102>,
+			<&mcu_udmap 0x7103>;
+		dma-names = "fifo0", "fifo1";
 
 		adc {
 			#io-channel-cells = <1>;

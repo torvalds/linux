@@ -9,7 +9,6 @@
 / {
 	model = "ARM Integrator/AP";
 	compatible = "arm,integrator-ap";
-	dma-ranges = <0x80000000 0x0 0x80000000>;
 
 	cpus {
 		#address-cells = <1>;
