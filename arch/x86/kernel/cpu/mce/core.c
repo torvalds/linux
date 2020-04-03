@@ -1100,8 +1100,10 @@ static void mce_clear_state(unsigned long *toclear)
  * kdump kernel establishing a new #MC handler where a broadcasted MCE
  * might not get handled properly.
  */
-static bool __mc_check_crashing_cpu(int cpu)
+static noinstr bool mce_check_crashing_cpu(void)
 {
+	unsigned int cpu = smp_processor_id();
+
 	if (cpu_is_offline(cpu) ||
 	    (crashing_cpu != -1 && crashing_cpu != cpu)) {
 		u64 mcgstatus;
@@ -1235,7 +1237,6 @@ void noinstr do_machine_check(struct pt_regs *regs, long error_code)
 	DECLARE_BITMAP(valid_banks, MAX_NR_BANKS);
 	DECLARE_BITMAP(toclear, MAX_NR_BANKS);
 	struct mca_config *cfg = &mca_cfg;
-	int cpu = smp_processor_id();
 	struct mce m, *final;
 	char *msg = NULL;
 	int worst = 0;
@@ -1263,11 +1264,6 @@ void noinstr do_machine_check(struct pt_regs *regs, long error_code)
 	 * on Intel.
 	 */
 	int lmce = 1;
-
-	if (__mc_check_crashing_cpu(cpu))
-		return;
-
-	nmi_enter();
 
 	this_cpu_inc(mce_exception_count);
 
@@ -1356,7 +1352,7 @@ void noinstr do_machine_check(struct pt_regs *regs, long error_code)
 	sync_core();
 
 	if (worst != MCE_AR_SEVERITY && !kill_it)
-		goto out_ist;
+		return;
 
 	/* Fault was in user mode and we need to take some action */
 	if ((m.cs & 3) == 3) {
@@ -1373,9 +1369,6 @@ void noinstr do_machine_check(struct pt_regs *regs, long error_code)
 		if (!fixup_exception(regs, X86_TRAP_MC, error_code, 0))
 			mce_panic("Failed kernel mode recovery", &m, msg);
 	}
-
-out_ist:
-	nmi_exit();
 }
 EXPORT_SYMBOL_GPL(do_machine_check);
 
@@ -1912,11 +1905,18 @@ static void unexpected_machine_check(struct pt_regs *regs, long error_code)
 void (*machine_check_vector)(struct pt_regs *, long error_code) =
 						unexpected_machine_check;
 
-dotraplinkage notrace void do_mce(struct pt_regs *regs, long error_code)
+dotraplinkage noinstr void do_mce(struct pt_regs *regs, long error_code)
 {
+	if (machine_check_vector == do_machine_check &&
+	    mce_check_crashing_cpu())
+		return;
+
+	nmi_enter();
+
 	machine_check_vector(regs, error_code);
+
+	nmi_exit();
 }
-NOKPROBE_SYMBOL(do_mce);
 
 /*
  * Called for each booted CPU to set up machine checks.
