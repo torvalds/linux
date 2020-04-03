@@ -249,9 +249,8 @@ static const struct pci_device_id sec_dev_ids[] = {
 };
 MODULE_DEVICE_TABLE(pci, sec_dev_ids);
 
-static u8 sec_get_endian(struct sec_dev *sec)
+static u8 sec_get_endian(struct hisi_qm *qm)
 {
-	struct hisi_qm *qm = &sec->qm;
 	u32 reg;
 
 	/*
@@ -279,9 +278,8 @@ static u8 sec_get_endian(struct sec_dev *sec)
 		return SEC_64BE;
 }
 
-static int sec_engine_init(struct sec_dev *sec)
+static int sec_engine_init(struct hisi_qm *qm)
 {
-	struct hisi_qm *qm = &sec->qm;
 	int ret;
 	u32 reg;
 
@@ -324,7 +322,7 @@ static int sec_engine_init(struct sec_dev *sec)
 
 	/* config endian */
 	reg = readl_relaxed(SEC_ADDR(qm, SEC_CONTROL_REG));
-	reg |= sec_get_endian(sec);
+	reg |= sec_get_endian(qm);
 	writel_relaxed(reg, SEC_ADDR(qm, SEC_CONTROL_REG));
 
 	/* Enable sm4 xts mode multiple iv */
@@ -334,10 +332,8 @@ static int sec_engine_init(struct sec_dev *sec)
 	return 0;
 }
 
-static int sec_set_user_domain_and_cache(struct sec_dev *sec)
+static int sec_set_user_domain_and_cache(struct hisi_qm *qm)
 {
-	struct hisi_qm *qm = &sec->qm;
-
 	/* qm user domain */
 	writel(AXUSER_BASE, qm->io_base + QM_ARUSER_M_CFG_1);
 	writel(ARUSER_M_CFG_ENABLE, qm->io_base + QM_ARUSER_M_CFG_ENABLE);
@@ -358,7 +354,7 @@ static int sec_set_user_domain_and_cache(struct sec_dev *sec)
 	       CQC_CACHE_WB_ENABLE | FIELD_PREP(SQC_CACHE_WB_THRD, 1) |
 	       FIELD_PREP(CQC_CACHE_WB_THRD, 1), qm->io_base + QM_CACHE_CTL);
 
-	return sec_engine_init(sec);
+	return sec_engine_init(qm);
 }
 
 /* sec_debug_regs_clear() - clear the sec debug regs */
@@ -683,8 +679,6 @@ static void sec_log_hw_error(struct hisi_qm *qm, u32 err_sts)
 		}
 		errs++;
 	}
-
-	writel(err_sts, qm->io_base + SEC_CORE_INT_SOURCE);
 }
 
 static u32 sec_get_hw_err_status(struct hisi_qm *qm)
@@ -692,17 +686,37 @@ static u32 sec_get_hw_err_status(struct hisi_qm *qm)
 	return readl(qm->io_base + SEC_CORE_INT_STATUS);
 }
 
+static void sec_clear_hw_err_status(struct hisi_qm *qm, u32 err_sts)
+{
+	writel(err_sts, qm->io_base + SEC_CORE_INT_SOURCE);
+}
+
+static void sec_open_axi_master_ooo(struct hisi_qm *qm)
+{
+	u32 val;
+
+	val = readl(SEC_ADDR(qm, SEC_CONTROL_REG));
+	writel(val & SEC_AXI_SHUTDOWN_DISABLE, SEC_ADDR(qm, SEC_CONTROL_REG));
+	writel(val | SEC_AXI_SHUTDOWN_ENABLE, SEC_ADDR(qm, SEC_CONTROL_REG));
+}
+
 static const struct hisi_qm_err_ini sec_err_ini = {
+	.hw_init		= sec_set_user_domain_and_cache,
 	.hw_err_enable		= sec_hw_error_enable,
 	.hw_err_disable		= sec_hw_error_disable,
 	.get_dev_hw_err_status	= sec_get_hw_err_status,
+	.clear_dev_hw_err_status = sec_clear_hw_err_status,
 	.log_dev_hw_err		= sec_log_hw_error,
+	.open_axi_master_ooo	= sec_open_axi_master_ooo,
 	.err_info		= {
 		.ce			= QM_BASE_CE,
 		.nfe			= QM_BASE_NFE | QM_ACC_DO_TASK_TIMEOUT |
 					  QM_ACC_WB_NOT_READY_TIMEOUT,
 		.fe			= 0,
 		.msi			= QM_DB_RANDOM_INVALID,
+		.ecc_2bits_mask		= SEC_CORE_INT_STATUS_M_ECC,
+		.msi_wr_port		= BIT(0),
+		.acpi_rst		= "SRST",
 	}
 };
 
@@ -726,7 +740,7 @@ static int sec_pf_probe_init(struct sec_dev *sec)
 
 	qm->err_ini = &sec_err_ini;
 
-	ret = sec_set_user_domain_and_cache(sec);
+	ret = sec_set_user_domain_and_cache(qm);
 	if (ret)
 		return ret;
 
@@ -783,6 +797,7 @@ static int sec_probe_init(struct hisi_qm *qm, struct sec_dev *sec)
 		qm->qp_base = SEC_PF_DEF_Q_BASE;
 		qm->qp_num = pf_q_num;
 		qm->debug.curr_qm_qp_num = pf_q_num;
+		qm->qm_list = &sec_devices;
 
 		ret = sec_pf_probe_init(sec);
 		if (ret)
@@ -936,6 +951,7 @@ static void sec_remove(struct pci_dev *pdev)
 
 static const struct pci_error_handlers sec_err_handler = {
 	.error_detected = hisi_qm_dev_err_detected,
+	.slot_reset =  hisi_qm_dev_slot_reset,
 };
 
 static struct pci_driver sec_pci_driver = {
