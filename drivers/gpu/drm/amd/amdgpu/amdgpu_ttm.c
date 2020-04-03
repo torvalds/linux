@@ -450,9 +450,9 @@ int amdgpu_ttm_copy_mem_to_mem(struct amdgpu_device *adev,
 		/* Copy size cannot exceed GTT_MAX_BYTES. So if src or dst
 		 * begins at an offset, then adjust the size accordingly
 		 */
-		cur_size = min3(src_node_size, dst_node_size, size);
-		cur_size = min(GTT_MAX_BYTES - src_page_offset, cur_size);
-		cur_size = min(GTT_MAX_BYTES - dst_page_offset, cur_size);
+		cur_size = max(src_page_offset, dst_page_offset);
+		cur_size = min(min3(src_node_size, dst_node_size, size),
+			       (uint64_t)(GTT_MAX_BYTES - cur_size));
 
 		/* Map src to window 0 and dst to window 1. */
 		r = amdgpu_ttm_map_buffer(src->bo, src->mem, src_mm,
