@@ -83,6 +83,7 @@
 #define EMC_EMRS						0xd0
 #define EMC_EMRS_USE_EMRS_LONG_CNT				BIT(26)
 #define EMC_REF							0xd4
+#define  EMC_REF_REF_CMD					BIT(0)
 #define EMC_SELF_REF						0xe0
 #define EMC_MRW							0xe8
 #define EMC_MRW_MRW_OP_SHIFT					0
@@ -871,6 +872,13 @@ struct tegra210_emc_timing {
 	u32 latency;
 };
 
+enum tegra210_emc_refresh {
+	TEGRA210_EMC_REFRESH_NOMINAL = 0,
+	TEGRA210_EMC_REFRESH_2X,
+	TEGRA210_EMC_REFRESH_4X,
+	TEGRA210_EMC_REFRESH_THROTTLE, /* 4x Refresh + derating. */
+};
+
 #define DRAM_TYPE_DDR3		0
 #define DRAM_TYPE_LPDDR4	1
 #define DRAM_TYPE_LPDDR2	2
@@ -881,6 +889,12 @@ struct tegra210_emc {
 	struct device *dev;
 	struct clk *clk;
 
+	/* nominal EMC frequency table */
+	struct tegra210_emc_timing *nominal;
+	/* derated EMC frequency table */
+	struct tegra210_emc_timing *derated;
+
+	/* currently selected table (nominal or derated) */
 	struct tegra210_emc_timing *timings;
 	unsigned int num_timings;
 
@@ -900,6 +914,12 @@ struct tegra210_emc {
 	unsigned int training_interval;
 	struct timer_list training;
 
+	enum tegra210_emc_refresh refresh;
+	unsigned int refresh_poll_interval;
+	struct timer_list refresh_timer;
+	unsigned int temperature;
+	atomic_t refresh_poll;
+
 	ktime_t clkchange_time;
 	int clkchange_delay;
 
@@ -909,6 +929,7 @@ struct tegra210_emc {
 		struct dentry *root;
 		unsigned long min_rate;
 		unsigned long max_rate;
+		unsigned int temperature;
 	} debugfs;
 
 	struct tegra210_clk_emc_provider provider;
@@ -967,6 +988,8 @@ static inline u32 div_o3(u32 a, u32 b)
 /* from tegra210-emc-r21021.c */
 extern const struct tegra210_emc_sequence tegra210_emc_r21021;
 
+int tegra210_emc_set_refresh(struct tegra210_emc *emc,
+			     enum tegra210_emc_refresh refresh);
 u32 tegra210_emc_mrr_read(struct tegra210_emc *emc, unsigned int chip,
 			  unsigned int address);
 void tegra210_emc_do_clock_change(struct tegra210_emc *emc, u32 clksrc);
@@ -975,6 +998,8 @@ void tegra210_emc_timing_update(struct tegra210_emc *emc);
 u32 tegra210_emc_get_dll_state(struct tegra210_emc_timing *next);
 struct tegra210_emc_timing *tegra210_emc_find_timing(struct tegra210_emc *emc,
 						     unsigned long rate);
+void tegra210_emc_adjust_timing(struct tegra210_emc *emc,
+				struct tegra210_emc_timing *timing);
 int tegra210_emc_wait_for_update(struct tegra210_emc *emc, unsigned int channel,
 				 unsigned int offset, u32 bit_mask, bool state);
 unsigned long tegra210_emc_actual_osc_clocks(u32 in);

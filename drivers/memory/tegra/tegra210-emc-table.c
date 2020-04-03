@@ -13,22 +13,47 @@ static int tegra210_emc_table_device_init(struct reserved_mem *rmem,
 					  struct device *dev)
 {
 	struct tegra210_emc *emc = dev_get_drvdata(dev);
-	unsigned int i;
+	struct tegra210_emc_timing *timings;
+	unsigned int i, count = 0;
 
-	emc->timings = memremap(rmem->base, rmem->size, MEMREMAP_WB);
-	if (!emc->timings) {
+	timings = memremap(rmem->base, rmem->size, MEMREMAP_WB);
+	if (!timings) {
 		dev_err(dev, "failed to map EMC table\n");
 		return -ENOMEM;
 	}
 
-	emc->num_timings = 0;
+	count = 0;
 
 	for (i = 0; i < TEGRA_EMC_MAX_FREQS; i++) {
-		if (emc->timings[i].revision == 0)
+		if (timings[i].revision == 0)
 			break;
 
-		emc->num_timings++;
+		count++;
 	}
+
+	/* only the nominal and derated tables are expected */
+	if (emc->derated) {
+		dev_warn(dev, "excess EMC table '%s'\n", rmem->name);
+		goto out;
+	}
+
+	if (emc->nominal) {
+		if (count != emc->num_timings) {
+			dev_warn(dev, "%u derated vs. %u nominal entries\n",
+				 count, emc->num_timings);
+			memunmap(timings);
+			return -EINVAL;
+		}
+
+		emc->derated = timings;
+	} else {
+		emc->num_timings = count;
+		emc->nominal = timings;
+	}
+
+out:
+	/* keep track of which table this is */
+	rmem->priv = timings;
 
 	return 0;
 }
@@ -36,9 +61,15 @@ static int tegra210_emc_table_device_init(struct reserved_mem *rmem,
 static void tegra210_emc_table_device_release(struct reserved_mem *rmem,
 					      struct device *dev)
 {
+	struct tegra210_emc_timing *timings = rmem->priv;
 	struct tegra210_emc *emc = dev_get_drvdata(dev);
 
-	memunmap(emc->timings);
+	if ((emc->nominal && timings != emc->nominal) &&
+	    (emc->derated && timings != emc->derated))
+		dev_warn(dev, "trying to release unassigned EMC table '%s'\n",
+			 rmem->name);
+
+	memunmap(timings);
 }
 
 static const struct reserved_mem_ops tegra210_emc_table_ops = {

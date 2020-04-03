@@ -3,6 +3,7 @@
  * Copyright (c) 2015-2020, NVIDIA CORPORATION.  All rights reserved.
  */
 
+#include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/clk/tegra.h>
 #include <linux/clk-provider.h>
@@ -14,6 +15,7 @@
 #include <linux/of_platform.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/slab.h>
+#include <linux/thermal.h>
 #include <soc/tegra/fuse.h>
 #include <soc/tegra/mc.h>
 
@@ -26,6 +28,7 @@
 	(0x7 << EMC_CLK_EMC_2X_CLK_SRC_SHIFT)
 #define EMC_CLK_SOURCE_PLLM_LJ				0x4
 #define EMC_CLK_SOURCE_PLLMB_LJ				0x5
+#define EMC_CLK_FORCE_CC_TRIGGER			BIT(27)
 #define EMC_CLK_MC_EMC_SAME_FREQ			BIT(16)
 #define EMC_CLK_EMC_2X_CLK_DIVISOR_SHIFT		0
 #define EMC_CLK_EMC_2X_CLK_DIVISOR_MASK			\
@@ -82,6 +85,8 @@
 
 #define REFRESH_SPEEDUP(value, speedup) \
 		(((value) & 0xffff0000) | ((value) & 0xffff) * (speedup))
+
+#define LPDDR2_MR4_SRR GENMASK(2, 0)
 
 static const struct tegra210_emc_sequence *tegra210_emc_sequences[] = {
 	&tegra210_emc_r21021,
@@ -582,6 +587,137 @@ static void tegra210_emc_training_stop(struct tegra210_emc *emc)
 	del_timer(&emc->training);
 }
 
+static unsigned int tegra210_emc_get_temperature(struct tegra210_emc *emc)
+{
+	unsigned long flags;
+	u32 value, max = 0;
+	unsigned int i;
+
+	spin_lock_irqsave(&emc->lock, flags);
+
+	for (i = 0; i < emc->num_devices; i++) {
+		value = tegra210_emc_mrr_read(emc, i, 4);
+
+		if (value & BIT(7))
+			dev_dbg(emc->dev,
+				"sensor reading changed for device %u: %08x\n",
+				i, value);
+
+		value = FIELD_GET(LPDDR2_MR4_SRR, value);
+		if (value > max)
+			max = value;
+	}
+
+	spin_unlock_irqrestore(&emc->lock, flags);
+
+	return max;
+}
+
+static void tegra210_emc_poll_refresh(struct timer_list *timer)
+{
+	struct tegra210_emc *emc = from_timer(emc, timer, refresh_timer);
+	unsigned int temperature;
+
+	if (!emc->debugfs.temperature)
+		temperature = tegra210_emc_get_temperature(emc);
+	else
+		temperature = emc->debugfs.temperature;
+
+	if (temperature == emc->temperature)
+		goto reset;
+
+	switch (temperature) {
+	case 0 ... 3:
+		/* temperature is fine, using regular refresh */
+		dev_dbg(emc->dev, "switching to nominal refresh...\n");
+		tegra210_emc_set_refresh(emc, TEGRA210_EMC_REFRESH_NOMINAL);
+		break;
+
+	case 4:
+		dev_dbg(emc->dev, "switching to 2x refresh...\n");
+		tegra210_emc_set_refresh(emc, TEGRA210_EMC_REFRESH_2X);
+		break;
+
+	case 5:
+		dev_dbg(emc->dev, "switching to 4x refresh...\n");
+		tegra210_emc_set_refresh(emc, TEGRA210_EMC_REFRESH_4X);
+		break;
+
+	case 6 ... 7:
+		dev_dbg(emc->dev, "switching to throttle refresh...\n");
+		tegra210_emc_set_refresh(emc, TEGRA210_EMC_REFRESH_THROTTLE);
+		break;
+
+	default:
+		WARN(1, "invalid DRAM temperature state %u\n", temperature);
+		return;
+	}
+
+	emc->temperature = temperature;
+
+reset:
+	if (atomic_read(&emc->refresh_poll) > 0) {
+		unsigned int interval = emc->refresh_poll_interval;
+		unsigned int timeout = msecs_to_jiffies(interval);
+
+		mod_timer(&emc->refresh_timer, jiffies + timeout);
+	}
+}
+
+static void tegra210_emc_poll_refresh_stop(struct tegra210_emc *emc)
+{
+	atomic_set(&emc->refresh_poll, 0);
+	del_timer_sync(&emc->refresh_timer);
+}
+
+static void tegra210_emc_poll_refresh_start(struct tegra210_emc *emc)
+{
+	atomic_set(&emc->refresh_poll, 1);
+
+	mod_timer(&emc->refresh_timer,
+		  jiffies + msecs_to_jiffies(emc->refresh_poll_interval));
+}
+
+static int tegra210_emc_cd_max_state(struct thermal_cooling_device *cd,
+				     unsigned long *state)
+{
+	*state = 1;
+
+	return 0;
+}
+
+static int tegra210_emc_cd_get_state(struct thermal_cooling_device *cd,
+				     unsigned long *state)
+{
+	struct tegra210_emc *emc = cd->devdata;
+
+	*state = atomic_read(&emc->refresh_poll);
+
+	return 0;
+}
+
+static int tegra210_emc_cd_set_state(struct thermal_cooling_device *cd,
+				     unsigned long state)
+{
+	struct tegra210_emc *emc = cd->devdata;
+
+	if (state == atomic_read(&emc->refresh_poll))
+		return 0;
+
+	if (state)
+		tegra210_emc_poll_refresh_start(emc);
+	else
+		tegra210_emc_poll_refresh_stop(emc);
+
+	return 0;
+}
+
+static struct thermal_cooling_device_ops tegra210_emc_cd_ops = {
+	.get_max_state = tegra210_emc_cd_max_state,
+	.get_cur_state = tegra210_emc_cd_get_state,
+	.set_cur_state = tegra210_emc_cd_set_state,
+};
+
 static void tegra210_emc_set_clock(struct tegra210_emc *emc, u32 clksrc)
 {
 	emc->sequence->set_clock(emc, clksrc);
@@ -626,6 +762,54 @@ static void tegra210_change_dll_src(struct tegra210_emc *emc,
 		tegra210_clk_emc_dll_enable(true);
 	else
 		tegra210_clk_emc_dll_enable(false);
+}
+
+int tegra210_emc_set_refresh(struct tegra210_emc *emc,
+			     enum tegra210_emc_refresh refresh)
+{
+	struct tegra210_emc_timing *timings;
+	unsigned long flags;
+
+	if ((emc->dram_type != DRAM_TYPE_LPDDR2 &&
+	     emc->dram_type != DRAM_TYPE_LPDDR4) ||
+	    !emc->last)
+		return -ENODEV;
+
+	if (refresh > TEGRA210_EMC_REFRESH_THROTTLE)
+		return -EINVAL;
+
+	if (refresh == emc->refresh)
+		return 0;
+
+	spin_lock_irqsave(&emc->lock, flags);
+
+	if (refresh == TEGRA210_EMC_REFRESH_THROTTLE && emc->derated)
+		timings = emc->derated;
+	else
+		timings = emc->nominal;
+
+	if (timings != emc->timings) {
+		unsigned int index = emc->last - emc->timings;
+		u32 clksrc;
+
+		clksrc = emc->provider.configs[index].value |
+			 EMC_CLK_FORCE_CC_TRIGGER;
+
+		emc->next = &timings[index];
+		emc->timings = timings;
+
+		tegra210_emc_set_clock(emc, clksrc);
+	} else {
+		tegra210_emc_adjust_timing(emc, emc->last);
+		tegra210_emc_timing_update(emc);
+
+		if (refresh != TEGRA210_EMC_REFRESH_NOMINAL)
+			emc_writel(emc, EMC_REF_REF_CMD, EMC_REF);
+	}
+
+	spin_unlock_irqrestore(&emc->lock, flags);
+
+	return 0;
 }
 
 u32 tegra210_emc_mrr_read(struct tegra210_emc *emc, unsigned int chip,
@@ -1306,6 +1490,42 @@ void tegra210_emc_dll_enable(struct tegra210_emc *emc)
 	update_dll_control(emc, value, true);
 }
 
+void tegra210_emc_adjust_timing(struct tegra210_emc *emc,
+				struct tegra210_emc_timing *timing)
+{
+	u32 dsr_cntrl = timing->burst_regs[EMC_DYN_SELF_REF_CONTROL_INDEX];
+	u32 pre_ref = timing->burst_regs[EMC_PRE_REFRESH_REQ_CNT_INDEX];
+	u32 ref = timing->burst_regs[EMC_REFRESH_INDEX];
+
+	switch (emc->refresh) {
+	case TEGRA210_EMC_REFRESH_NOMINAL:
+	case TEGRA210_EMC_REFRESH_THROTTLE:
+		break;
+
+	case TEGRA210_EMC_REFRESH_2X:
+		ref = REFRESH_SPEEDUP(ref, 2);
+		pre_ref = REFRESH_SPEEDUP(pre_ref, 2);
+		dsr_cntrl = REFRESH_SPEEDUP(dsr_cntrl, 2);
+		break;
+
+	case TEGRA210_EMC_REFRESH_4X:
+		ref = REFRESH_SPEEDUP(ref, 4);
+		pre_ref = REFRESH_SPEEDUP(pre_ref, 4);
+		dsr_cntrl = REFRESH_SPEEDUP(dsr_cntrl, 4);
+		break;
+
+	default:
+		dev_warn(emc->dev, "failed to set refresh: %d\n", emc->refresh);
+		return;
+	}
+
+	emc_writel(emc, ref, emc->offsets->burst[EMC_REFRESH_INDEX]);
+	emc_writel(emc, pre_ref,
+		   emc->offsets->burst[EMC_PRE_REFRESH_REQ_CNT_INDEX]);
+	emc_writel(emc, dsr_cntrl,
+		   emc->offsets->burst[EMC_DYN_SELF_REF_CONTROL_INDEX]);
+}
+
 static int tegra210_emc_set_rate(struct device *dev,
 				 const struct tegra210_clk_emc_config *config)
 {
@@ -1477,6 +1697,37 @@ DEFINE_SIMPLE_ATTRIBUTE(tegra210_emc_debug_max_rate_fops,
 			tegra210_emc_debug_max_rate_get,
 			tegra210_emc_debug_max_rate_set, "%llu\n");
 
+static int tegra210_emc_debug_temperature_get(void *data, u64 *temperature)
+{
+	struct tegra210_emc *emc = data;
+	unsigned int value;
+
+	if (!emc->debugfs.temperature)
+		value = tegra210_emc_get_temperature(emc);
+	else
+		value = emc->debugfs.temperature;
+
+	*temperature = value;
+
+	return 0;
+}
+
+static int tegra210_emc_debug_temperature_set(void *data, u64 temperature)
+{
+	struct tegra210_emc *emc = data;
+
+	if (temperature > 7)
+		return -EINVAL;
+
+	emc->debugfs.temperature = temperature;
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(tegra210_emc_debug_temperature_fops,
+			tegra210_emc_debug_temperature_get,
+			tegra210_emc_debug_temperature_set, "%llu\n");
+
 static void tegra210_emc_debugfs_init(struct tegra210_emc *emc)
 {
 	struct device *dev = emc->dev;
@@ -1520,6 +1771,8 @@ static void tegra210_emc_debugfs_init(struct tegra210_emc *emc)
 			    &tegra210_emc_debug_min_rate_fops);
 	debugfs_create_file("max_rate", 0644, emc->debugfs.root, emc,
 			    &tegra210_emc_debug_max_rate_fops);
+	debugfs_create_file("temperature", 0644, emc->debugfs.root, emc,
+			    &tegra210_emc_debug_temperature_fops);
 }
 
 static void tegra210_emc_detect(struct tegra210_emc *emc)
@@ -1574,6 +1827,7 @@ static int tegra210_emc_validate_timings(struct tegra210_emc *emc,
 
 static int tegra210_emc_probe(struct platform_device *pdev)
 {
+	struct thermal_cooling_device *cd;
 	unsigned long current_rate;
 	struct platform_device *mc;
 	struct tegra210_emc *emc;
@@ -1627,17 +1881,36 @@ static int tegra210_emc_probe(struct platform_device *pdev)
 	tegra210_emc_detect(emc);
 	np = pdev->dev.of_node;
 
-	err = of_reserved_mem_device_init(emc->dev);
+	/* attach to the nominal and (optional) derated tables */
+	err = of_reserved_mem_device_init_by_name(emc->dev, np, "nominal");
 	if (err < 0) {
-		dev_err(&pdev->dev, "failed to get EMC table: %d\n", err);
+		dev_err(emc->dev, "failed to get nominal EMC table: %d\n", err);
 		goto put_mc;
 	}
 
-	/* validate the tables */
-	err = tegra210_emc_validate_timings(emc, emc->timings,
-					    emc->num_timings);
-	if (err < 0)
+	err = of_reserved_mem_device_init_by_name(emc->dev, np, "derated");
+	if (err < 0 && err != -ENODEV) {
+		dev_err(emc->dev, "failed to get derated EMC table: %d\n", err);
 		goto release;
+	}
+
+	/* validate the tables */
+	if (emc->nominal) {
+		err = tegra210_emc_validate_timings(emc, emc->nominal,
+						    emc->num_timings);
+		if (err < 0)
+			goto release;
+	}
+
+	if (emc->derated) {
+		err = tegra210_emc_validate_timings(emc, emc->derated,
+						    emc->num_timings);
+		if (err < 0)
+			goto release;
+	}
+
+	/* default to the nominal table */
+	emc->timings = emc->nominal;
 
 	/* pick the current timing based on the current EMC clock rate */
 	current_rate = clk_get_rate(emc->clk) / 1000;
@@ -1675,6 +1948,7 @@ static int tegra210_emc_probe(struct platform_device *pdev)
 	}
 
 	emc->offsets = &tegra210_emc_table_register_offsets;
+	emc->refresh = TEGRA210_EMC_REFRESH_NOMINAL;
 
 	emc->provider.owner = THIS_MODULE;
 	emc->provider.dev = &pdev->dev;
@@ -1717,12 +1991,29 @@ static int tegra210_emc_probe(struct platform_device *pdev)
 	emc->training_interval = 100;
 	dev_set_drvdata(emc->dev, emc);
 
+	timer_setup(&emc->refresh_timer, tegra210_emc_poll_refresh,
+		    TIMER_DEFERRABLE);
+	atomic_set(&emc->refresh_poll, 0);
+	emc->refresh_poll_interval = 1000;
+
 	timer_setup(&emc->training, tegra210_emc_train, 0);
 
 	tegra210_emc_debugfs_init(emc);
 
+	cd = devm_thermal_of_cooling_device_register(emc->dev, np, "emc", emc,
+						     &tegra210_emc_cd_ops);
+	if (IS_ERR(cd)) {
+		err = PTR_ERR(cd);
+		dev_err(emc->dev, "failed to register cooling device: %d\n",
+			err);
+		goto detach;
+	}
+
 	return 0;
 
+detach:
+	debugfs_remove_recursive(emc->debugfs.root);
+	tegra210_clk_emc_detach(emc->clk);
 release:
 	of_reserved_mem_device_release(emc->dev);
 put_mc:

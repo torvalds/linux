@@ -1070,6 +1070,9 @@ static void tegra210_emc_r21021_set_clock(struct tegra210_emc *emc, u32 clksrc)
 		emc_writel(emc, value, offset);
 	}
 
+	/* SW addition: do EMC refresh adjustment here. */
+	tegra210_emc_adjust_timing(emc, next);
+
 	if (dram_type == DRAM_TYPE_LPDDR4) {
 		value = (23 << EMC_MRW_MRW_MA_SHIFT) |
 			(next->run_clocks & EMC_MRW_MRW_OP_MASK);
