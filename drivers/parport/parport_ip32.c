@@ -328,19 +328,19 @@ static void parport_ip32_dump_state(struct parport *p, char *str,
 						     "TST", "CFG"};
 		unsigned int ecr = readb(priv->regs.ecr);
 		printk(KERN_DEBUG PPIP32 "    ecr=0x%02x", ecr);
-		printk(" %s",
-		       ecr_modes[(ecr & ECR_MODE_MASK) >> ECR_MODE_SHIFT]);
+		pr_cont(" %s",
+			ecr_modes[(ecr & ECR_MODE_MASK) >> ECR_MODE_SHIFT]);
 		if (ecr & ECR_nERRINTR)
-			printk(",nErrIntrEn");
+			pr_cont(",nErrIntrEn");
 		if (ecr & ECR_DMAEN)
-			printk(",dmaEn");
+			pr_cont(",dmaEn");
 		if (ecr & ECR_SERVINTR)
-			printk(",serviceIntr");
+			pr_cont(",serviceIntr");
 		if (ecr & ECR_F_FULL)
-			printk(",f_full");
+			pr_cont(",f_full");
 		if (ecr & ECR_F_EMPTY)
-			printk(",f_empty");
-		printk("\n");
+			pr_cont(",f_empty");
+		pr_cont("\n");
 	}
 	if (show_ecp_config) {
 		unsigned int oecr, cnfgA, cnfgB;
@@ -352,52 +352,53 @@ static void parport_ip32_dump_state(struct parport *p, char *str,
 		writeb(ECR_MODE_PS2, priv->regs.ecr);
 		writeb(oecr, priv->regs.ecr);
 		printk(KERN_DEBUG PPIP32 "    cnfgA=0x%02x", cnfgA);
-		printk(" ISA-%s", (cnfgA & CNFGA_IRQ) ? "Level" : "Pulses");
+		pr_cont(" ISA-%s", (cnfgA & CNFGA_IRQ) ? "Level" : "Pulses");
 		switch (cnfgA & CNFGA_ID_MASK) {
 		case CNFGA_ID_8:
-			printk(",8 bits");
+			pr_cont(",8 bits");
 			break;
 		case CNFGA_ID_16:
-			printk(",16 bits");
+			pr_cont(",16 bits");
 			break;
 		case CNFGA_ID_32:
-			printk(",32 bits");
+			pr_cont(",32 bits");
 			break;
 		default:
-			printk(",unknown ID");
+			pr_cont(",unknown ID");
 			break;
 		}
 		if (!(cnfgA & CNFGA_nBYTEINTRANS))
-			printk(",ByteInTrans");
+			pr_cont(",ByteInTrans");
 		if ((cnfgA & CNFGA_ID_MASK) != CNFGA_ID_8)
-			printk(",%d byte%s left", cnfgA & CNFGA_PWORDLEFT,
-			       ((cnfgA & CNFGA_PWORDLEFT) > 1) ? "s" : "");
-		printk("\n");
+			pr_cont(",%d byte%s left",
+				cnfgA & CNFGA_PWORDLEFT,
+				((cnfgA & CNFGA_PWORDLEFT) > 1) ? "s" : "");
+		pr_cont("\n");
 		printk(KERN_DEBUG PPIP32 "    cnfgB=0x%02x", cnfgB);
-		printk(" irq=%u,dma=%u",
-		       (cnfgB & CNFGB_IRQ_MASK) >> CNFGB_IRQ_SHIFT,
-		       (cnfgB & CNFGB_DMA_MASK) >> CNFGB_DMA_SHIFT);
-		printk(",intrValue=%d", !!(cnfgB & CNFGB_INTRVAL));
+		pr_cont(" irq=%u,dma=%u",
+			(cnfgB & CNFGB_IRQ_MASK) >> CNFGB_IRQ_SHIFT,
+			(cnfgB & CNFGB_DMA_MASK) >> CNFGB_DMA_SHIFT);
+		pr_cont(",intrValue=%d", !!(cnfgB & CNFGB_INTRVAL));
 		if (cnfgB & CNFGB_COMPRESS)
-			printk(",compress");
-		printk("\n");
+			pr_cont(",compress");
+		pr_cont("\n");
 	}
 	for (i = 0; i < 2; i++) {
 		unsigned int dcr = i ? priv->dcr_cache : readb(priv->regs.dcr);
 		printk(KERN_DEBUG PPIP32 "    dcr(%s)=0x%02x",
 		       i ? "soft" : "hard", dcr);
-		printk(" %s", (dcr & DCR_DIR) ? "rev" : "fwd");
+		pr_cont(" %s", (dcr & DCR_DIR) ? "rev" : "fwd");
 		if (dcr & DCR_IRQ)
-			printk(",ackIntEn");
+			pr_cont(",ackIntEn");
 		if (!(dcr & DCR_SELECT))
-			printk(",nSelectIn");
+			pr_cont(",nSelectIn");
 		if (dcr & DCR_nINIT)
-			printk(",nInit");
+			pr_cont(",nInit");
 		if (!(dcr & DCR_AUTOFD))
-			printk(",nAutoFD");
+			pr_cont(",nAutoFD");
 		if (!(dcr & DCR_STROBE))
-			printk(",nStrobe");
-		printk("\n");
+			pr_cont(",nStrobe");
+		pr_cont("\n");
 	}
 #define sep (f++ ? ',' : ' ')
 	{
@@ -405,20 +406,20 @@ static void parport_ip32_dump_state(struct parport *p, char *str,
 		unsigned int dsr = readb(priv->regs.dsr);
 		printk(KERN_DEBUG PPIP32 "    dsr=0x%02x", dsr);
 		if (!(dsr & DSR_nBUSY))
-			printk("%cBusy", sep);
+			pr_cont("%cBusy", sep);
 		if (dsr & DSR_nACK)
-			printk("%cnAck", sep);
+			pr_cont("%cnAck", sep);
 		if (dsr & DSR_PERROR)
-			printk("%cPError", sep);
+			pr_cont("%cPError", sep);
 		if (dsr & DSR_SELECT)
-			printk("%cSelect", sep);
+			pr_cont("%cSelect", sep);
 		if (dsr & DSR_nFAULT)
-			printk("%cnFault", sep);
+			pr_cont("%cnFault", sep);
 		if (!(dsr & DSR_nPRINT))
-			printk("%c(Print)", sep);
+			pr_cont("%c(Print)", sep);
 		if (dsr & DSR_TIMEOUT)
-			printk("%cTimeout", sep);
-		printk("\n");
+			pr_cont("%cTimeout", sep);
+		pr_cont("\n");
 	}
 #undef sep
 }
@@ -1703,7 +1704,7 @@ static size_t parport_ip32_ecp_write_data(struct parport *p,
 
 		/* Event 49: PError goes high. */
 		if (parport_wait_peripheral(p, DSR_PERROR, DSR_PERROR)) {
-			printk(KERN_DEBUG PPIP32 "%s: PError timeout in %s",
+			printk(KERN_DEBUG PPIP32 "%s: PError timeout in %s\n",
 			       p->name, __func__);
 			physport->ieee1284.phase = IEEE1284_PH_ECP_DIR_UNKNOWN;
 			return 0;
@@ -2132,10 +2133,13 @@ static __init struct parport *parport_ip32_probe_port(void)
 	/* Print out what we found */
 	pr_info("%s: SGI IP32 at 0x%lx (0x%lx)", p->name, p->base, p->base_hi);
 	if (p->irq != PARPORT_IRQ_NONE)
-		printk(", irq %d", p->irq);
-	printk(" [");
-#define printmode(x)	if (p->modes & PARPORT_MODE_##x)		\
-				printk("%s%s", f++ ? "," : "", #x)
+		pr_cont(", irq %d", p->irq);
+	pr_cont(" [");
+#define printmode(x)							\
+do {									\
+	if (p->modes & PARPORT_MODE_##x)				\
+		pr_cont("%s%s", f++ ? "," : "", #x);			\
+} while (0)
 	{
 		unsigned int f = 0;
 		printmode(PCSPP);
@@ -2146,7 +2150,7 @@ static __init struct parport *parport_ip32_probe_port(void)
 		printmode(DMA);
 	}
 #undef printmode
-	printk("]\n");
+	pr_cont("]\n");
 
 	parport_announce_port(p);
 	return p;

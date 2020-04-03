@@ -720,8 +720,7 @@ parport_register_device(struct parport *port, const char *name,
 
 	if (port->physport->flags & PARPORT_FLAG_EXCL) {
 		/* An exclusive device is registered. */
-		printk(KERN_DEBUG "%s: no more devices allowed\n",
-			port->name);
+		printk(KERN_DEBUG "%s: no more devices allowed\n", port->name);
 		return NULL;
 	}
 
@@ -789,9 +788,8 @@ parport_register_device(struct parport *port, const char *name,
 	if (flags & PARPORT_DEV_EXCL) {
 		if (port->physport->devices) {
 			spin_unlock(&port->physport->pardevice_lock);
-			printk(KERN_DEBUG
-				"%s: cannot grant exclusive access for device %s\n",
-				port->name, name);
+			printk(KERN_DEBUG "%s: cannot grant exclusive access for device %s\n",
+			       port->name, name);
 			goto out_free_all;
 		}
 		port->flags |= PARPORT_FLAG_EXCL;
@@ -1259,7 +1257,8 @@ int parport_claim_or_block(struct pardevice *dev)
 	r = parport_claim(dev);
 	if (r == -EAGAIN) {
 #ifdef PARPORT_DEBUG_SHARING
-		printk(KERN_DEBUG "%s: parport_claim() returned -EAGAIN\n", dev->name);
+		printk(KERN_DEBUG "%s: parport_claim() returned -EAGAIN\n",
+		       dev->name);
 #endif
 		/*
 		 * FIXME!!! Use the proper locking for dev->waiting,
@@ -1292,7 +1291,7 @@ int parport_claim_or_block(struct pardevice *dev)
 		if (dev->port->physport->cad != dev)
 			printk(KERN_DEBUG "%s: exiting parport_claim_or_block but %s owns port!\n",
 			       dev->name, dev->port->physport->cad ?
-			       dev->port->physport->cad->name:"nobody");
+			       dev->port->physport->cad->name : "nobody");
 #endif
 	}
 	dev->waiting = 0;
