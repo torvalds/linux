@@ -143,6 +143,8 @@ patternProperties:
     description: BIPAI KEJI LIMITED
   "^beacon,.*":
     description: Compass Electronics Group, LLC
+  "^beagle,.*":
+    description: BeagleBoard.org Foundation
   "^bhf,.*":
     description: Beckhoff Automation GmbH & Co. KG
   "^bitmain,.*":
