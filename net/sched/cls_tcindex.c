@@ -151,6 +151,7 @@ static int tcindex_init(struct tcf_proto *tp)
 	p->mask = 0xffff;
 	p->hash = DEFAULT_HASH_SIZE;
 	p->fall_through = 1;
+	refcount_set(&p->refcnt, 1); /* Paired with tcindex_destroy_work() */
 
 	rcu_assign_pointer(tp->root, p);
 	return 0;
