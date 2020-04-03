@@ -31,6 +31,17 @@
 	 ISPP_MODULE_SHP | \
 	 ISPP_MODULE_ORB)
 
+#define ISPP_NOBIG_OVERFLOW_SIZE	(2560 * 1440)
+
+static inline size_t get_input_size(struct rkispp_params_vdev *params_vdev)
+{
+	struct rkispp_device *dev = params_vdev->dev;
+	struct rkispp_subdev *isp_sdev = &dev->ispp_sdev;
+	struct v4l2_mbus_framefmt *frmfmt = &isp_sdev->in_fmt.format;
+
+	return frmfmt->width * frmfmt->height;
+}
+
 static void tnr_config(struct rkispp_params_vdev *params_vdev,
 		       struct rkispp_tnr_config *arg)
 {
@@ -303,11 +314,18 @@ static void nr_enable(struct rkispp_params_vdev *params_vdev, bool en,
 		      struct rkispp_nr_config *arg)
 {
 	void __iomem *base = params_vdev->dev->base_addr;
+	u8 big_en, nobig_en;
 	u32 val;
 
+	big_en = arg->uvnr_big_en & 0x01;
+	nobig_en = arg->uvnr_nobig_en & 0x01;
+	if (get_input_size(params_vdev) > ISPP_NOBIG_OVERFLOW_SIZE) {
+		big_en = 1;
+		nobig_en = 0;
+	}
+
 	val = arg->uvnr_step1_en << 1 | arg->uvnr_step2_en << 2 |
-	      arg->nr_gain_en << 3 | arg->uvnr_nobig_en << 5 |
-	      arg->uvnr_big_en << 6;
+	      arg->nr_gain_en << 3 | nobig_en << 5 | big_en << 6;
 
 	if (en)
 		val |= SW_NR_EN;
