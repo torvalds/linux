@@ -192,6 +192,11 @@ struct boot_params {
 	struct efi_reset_system_t reset_system;
 };
 
+enum loongson_bridge_type {
+	RS780E = 1,
+	LS7A = 2
+};
+
 struct loongson_system_configuration {
 	u32 nr_cpus;
 	u32 nr_nodes;
@@ -200,6 +205,7 @@ struct loongson_system_configuration {
 	u16 boot_cpu_id;
 	u16 reserved_cpus_mask;
 	enum loongson_cpu_type cputype;
+	enum loongson_bridge_type bridgetype;
 	u64 ht_control_base;
 	u64 pci_mem_start_addr;
 	u64 pci_mem_end_addr;
