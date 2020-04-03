@@ -98,6 +98,39 @@ static bool power_supply_hwmon_is_a_label(enum hwmon_sensor_types type,
 	return type == hwmon_temp && attr == hwmon_temp_label;
 }
 
+struct hwmon_type_attr_list {
+	const u32 *attrs;
+	size_t n_attrs;
+};
+
+static const u32 ps_temp_attrs[] = {
+	hwmon_temp_input,
+	hwmon_temp_min, hwmon_temp_max,
+	hwmon_temp_min_alarm, hwmon_temp_max_alarm,
+};
+
+static const struct hwmon_type_attr_list ps_type_attrs[hwmon_max] = {
+	[hwmon_temp] = { ps_temp_attrs, ARRAY_SIZE(ps_temp_attrs) },
+};
+
+static bool power_supply_hwmon_has_input(
+	const struct power_supply_hwmon *psyhw,
+	enum hwmon_sensor_types type, int channel)
+{
+	const struct hwmon_type_attr_list *attr_list = &ps_type_attrs[type];
+	size_t i;
+
+	for (i = 0; i < attr_list->n_attrs; ++i) {
+		int prop = power_supply_hwmon_to_property(type,
+			attr_list->attrs[i], channel);
+
+		if (prop >= 0 && test_bit(prop, psyhw->props))
+			return true;
+	}
+
+	return false;
+}
+
 static bool power_supply_hwmon_is_writable(enum hwmon_sensor_types type,
 					   u32 attr)
 {
@@ -124,9 +157,12 @@ static umode_t power_supply_hwmon_is_visible(const void *data,
 	const struct power_supply_hwmon *psyhw = data;
 	int prop;
 
-
-	if (power_supply_hwmon_is_a_label(type, attr))
-		return 0444;
+	if (power_supply_hwmon_is_a_label(type, attr)) {
+		if (power_supply_hwmon_has_input(psyhw, type, channel))
+			return 0444;
+		else
+			return 0;
+	}
 
 	prop = power_supply_hwmon_to_property(type, attr, channel);
 	if (prop < 0 || !test_bit(prop, psyhw->props))
