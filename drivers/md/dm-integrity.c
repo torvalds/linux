@@ -1333,7 +1333,7 @@ static int dm_integrity_rw_tag(struct dm_integrity_c *ic, unsigned char *tag, se
 			if (likely(is_power_of_2(ic->tag_size))) {
 				if (unlikely(memcmp(dp, tag, to_copy)))
 					if (unlikely(!ic->discard) ||
-					    unlikely(!memchr_inv(dp, DISCARD_FILLER, to_copy))) {
+					    unlikely(memchr_inv(dp, DISCARD_FILLER, to_copy) != NULL)) {
 						goto thorough_test;
 				}
 			} else {
