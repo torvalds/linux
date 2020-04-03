@@ -422,8 +422,9 @@ static enum signal_type link_detect_sink(struct dc_link *link,
 	 */
 
 	/* PCIE detects the actual connector on add-on board */
-	if (link->link_id.id == CONNECTOR_ID_PCIE)
+	if (link->link_id.id == CONNECTOR_ID_PCIE) {
 		/* ZAZTODO implement PCIE add-on card detection */
+	}
 
 	switch (link->link_id.id) {
 	case CONNECTOR_ID_HDMI_TYPE_A: {
