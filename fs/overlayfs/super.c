@@ -1825,17 +1825,21 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 		sb->s_flags |= SB_RDONLY;
 
 	if (!(ovl_force_readonly(ofs)) && ofs->config.index) {
+		/* index dir will act also as workdir */
+		dput(ofs->workdir);
+		ofs->workdir = NULL;
+		iput(ofs->workdir_trap);
+		ofs->workdir_trap = NULL;
+
 		err = ovl_get_indexdir(sb, ofs, oe, &upperpath);
 		if (err)
 			goto out_free_oe;
 
 		/* Force r/o mount with no index dir */
-		if (!ofs->indexdir) {
-			dput(ofs->workdir);
-			ofs->workdir = NULL;
+		if (ofs->indexdir)
+			ofs->workdir = dget(ofs->indexdir);
+		else
 			sb->s_flags |= SB_RDONLY;
-		}
-
 	}
 
 	err = ovl_check_overlapping_layers(sb, ofs);
