@@ -1744,11 +1744,24 @@ static void io_iopoll_complete(struct io_ring_ctx *ctx, unsigned int *nr_events,
 	io_free_req_many(ctx, &rb);
 }
 
+static void io_iopoll_queue(struct list_head *again)
+{
+	struct io_kiocb *req;
+
+	do {
+		req = list_first_entry(again, struct io_kiocb, list);
+		list_del(&req->list);
+		refcount_inc(&req->refs);
+		io_queue_async_work(req);
+	} while (!list_empty(again));
+}
+
 static int io_do_iopoll(struct io_ring_ctx *ctx, unsigned int *nr_events,
 			long min)
 {
 	struct io_kiocb *req, *tmp;
 	LIST_HEAD(done);
+	LIST_HEAD(again);
 	bool spin;
 	int ret;
 
@@ -1763,15 +1776,22 @@ static int io_do_iopoll(struct io_ring_ctx *ctx, unsigned int *nr_events,
 		struct kiocb *kiocb = &req->rw.kiocb;
 
 		/*
-		 * Move completed entries to our local list. If we find a
-		 * request that requires polling, break out and complete
-		 * the done list first, if we have entries there.
+		 * Move completed and retryable entries to our local lists.
+		 * If we find a request that requires polling, break out
+		 * and complete those lists first, if we have entries there.
 		 */
 		if (req->flags & REQ_F_IOPOLL_COMPLETED) {
 			list_move_tail(&req->list, &done);
 			continue;
 		}
 		if (!list_empty(&done))
+			break;
+
+		if (req->result == -EAGAIN) {
+			list_move_tail(&req->list, &again);
+			continue;
+		}
+		if (!list_empty(&again))
 			break;
 
 		ret = kiocb->ki_filp->f_op->iopoll(kiocb, spin);
@@ -1785,6 +1805,9 @@ static int io_do_iopoll(struct io_ring_ctx *ctx, unsigned int *nr_events,
 
 	if (!list_empty(&done))
 		io_iopoll_complete(ctx, nr_events, &done);
+
+	if (!list_empty(&again))
+		io_iopoll_queue(&again);
 
 	return ret;
 }
