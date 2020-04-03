@@ -105,6 +105,8 @@ struct share_params {
 	 */
 	u32 wait_flag0;
 	u32 complt_hwirq;
+	u32 update_drv_odt_cfg;
+	u32 update_deskew_cfg;
 	 /* if need, add parameter after */
 };
 
@@ -2834,10 +2836,13 @@ static __maybe_unused int rv1126_dmc_init(struct platform_device *pdev,
 {
 	struct arm_smccc_res res;
 	u32 size;
+	int ret;
+	int complt_irq;
+	struct device_node *node;
 
 	res = sip_smc_dram(0, 0,
 			   ROCKCHIP_SIP_CONFIG_DRAM_GET_VERSION);
-	dev_notice(&pdev->dev, "current ATF version 0x%lx!\n", res.a1);
+	dev_notice(&pdev->dev, "current ATF version 0x%lx\n", res.a1);
 	if (res.a0 || res.a1 < 0x100) {
 		dev_err(&pdev->dev,
 			"trusted firmware need to update or is invalid!\n");
@@ -2858,6 +2863,39 @@ static __maybe_unused int rv1126_dmc_init(struct platform_device *pdev,
 	ddr_psci_param = (struct share_params *)res.a1;
 	of_get_rv1126_timings(&pdev->dev, pdev->dev.of_node,
 			      (uint32_t *)ddr_psci_param);
+
+	/* enable start dcf in kernel after dcf ready */
+	node = of_parse_phandle(pdev->dev.of_node, "dcf", 0);
+	wait_ctrl.regmap_dcf = syscon_node_to_regmap(node);
+	if (IS_ERR(wait_ctrl.regmap_dcf))
+		return PTR_ERR(wait_ctrl.regmap_dcf);
+	wait_ctrl.dcf_en = 1;
+
+	init_waitqueue_head(&wait_ctrl.wait_wq);
+	wait_ctrl.wait_en = 1;
+	wait_ctrl.wait_time_out_ms = 17 * 5;
+
+	complt_irq = platform_get_irq_byname(pdev, "complete");
+	if (complt_irq < 0) {
+		dev_err(&pdev->dev, "no IRQ for complt_irq: %d\n",
+			complt_irq);
+		return complt_irq;
+	}
+
+	ret = devm_request_irq(&pdev->dev, complt_irq, wait_dcf_complete_irq,
+			       0, dev_name(&pdev->dev), &wait_ctrl);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "cannot request complt_irq\n");
+		return ret;
+	}
+
+	if (of_property_read_u32(pdev->dev.of_node, "update_drv_odt_cfg",
+				 &ddr_psci_param->update_drv_odt_cfg))
+		ddr_psci_param->update_drv_odt_cfg = 0;
+
+	if (of_property_read_u32(pdev->dev.of_node, "update_deskew_cfg",
+				 &ddr_psci_param->update_deskew_cfg))
+		ddr_psci_param->update_deskew_cfg = 0;
 
 	res = sip_smc_dram(SHARE_PAGE_TYPE_DDR, 0,
 			   ROCKCHIP_SIP_CONFIG_DRAM_INIT);
