@@ -1275,6 +1275,13 @@ struct hci_rp_read_data_block_size {
 
 #define HCI_OP_READ_LOCAL_CODECS	0x100b
 
+#define HCI_OP_READ_LOCAL_PAIRING_OPTS	0x100c
+struct hci_rp_read_local_pairing_opts {
+	__u8     status;
+	__u8     pairing_opts;
+	__u8     max_key_size;
+} __packed;
+
 #define HCI_OP_READ_PAGE_SCAN_ACTIVITY	0x0c1b
 struct hci_rp_read_page_scan_activity {
 	__u8     status;
