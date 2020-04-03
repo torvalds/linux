@@ -4384,13 +4384,13 @@ ahc_alloc(void *platform_arg, char *name)
 	struct  ahc_softc *ahc;
 	int	i;
 
-	ahc = kmalloc(sizeof(*ahc), GFP_ATOMIC);
+	ahc = kzalloc(sizeof(*ahc), GFP_ATOMIC);
 	if (!ahc) {
 		printk("aic7xxx: cannot malloc softc!\n");
 		kfree(name);
 		return NULL;
 	}
-	memset(ahc, 0, sizeof(*ahc));
+
 	ahc->seep_config = kmalloc(sizeof(*ahc->seep_config), GFP_ATOMIC);
 	if (ahc->seep_config == NULL) {
 		kfree(ahc);

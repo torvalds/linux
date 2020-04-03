@@ -6054,14 +6054,13 @@ ahd_alloc(void *platform_arg, char *name)
 {
 	struct  ahd_softc *ahd;
 
-	ahd = kmalloc(sizeof(*ahd), GFP_ATOMIC);
+	ahd = kzalloc(sizeof(*ahd), GFP_ATOMIC);
 	if (!ahd) {
 		printk("aic7xxx: cannot malloc softc!\n");
 		kfree(name);
 		return NULL;
 	}
 
-	memset(ahd, 0, sizeof(*ahd));
 	ahd->seep_config = kmalloc(sizeof(*ahd->seep_config), GFP_ATOMIC);
 	if (ahd->seep_config == NULL) {
 		kfree(ahd);
