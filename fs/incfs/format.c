@@ -514,8 +514,19 @@ int incfs_read_blockmap_entry(struct backing_file_context *bfc, int block_index,
 			loff_t bm_base_off,
 			struct incfs_blockmap_entry *bm_entry)
 {
-	return incfs_read_blockmap_entries(bfc, bm_entry, block_index, 1,
-		bm_base_off);
+	int error = incfs_read_blockmap_entries(bfc, bm_entry, block_index, 1,
+						bm_base_off);
+
+	if (error < 0)
+		return error;
+
+	if (error == 0)
+		return -EIO;
+
+	if (error != 1)
+		return -EFAULT;
+
+	return 0;
 }
 
 int incfs_read_blockmap_entries(struct backing_file_context *bfc,
@@ -539,9 +550,7 @@ int incfs_read_blockmap_entries(struct backing_file_context *bfc,
 			     bm_entry_off);
 	if (result < 0)
 		return result;
-	if (result < bytes_to_read)
-		return -EIO;
-	return 0;
+	return result / sizeof(*entries);
 }
 
 int incfs_read_file_header(struct backing_file_context *bfc,

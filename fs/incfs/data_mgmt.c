@@ -347,13 +347,28 @@ static bool is_data_block_present(struct data_file_block *block)
 	       (block->db_stored_size != 0);
 }
 
+static void convert_data_file_block(struct incfs_blockmap_entry *bme,
+				    struct data_file_block *res_block)
+{
+	u16 flags = le16_to_cpu(bme->me_flags);
+
+	res_block->db_backing_file_data_offset =
+		le16_to_cpu(bme->me_data_offset_hi);
+	res_block->db_backing_file_data_offset <<= 32;
+	res_block->db_backing_file_data_offset |=
+		le32_to_cpu(bme->me_data_offset_lo);
+	res_block->db_stored_size = le16_to_cpu(bme->me_data_size);
+	res_block->db_comp_alg = (flags & INCFS_BLOCK_COMPRESSED_LZ4) ?
+					 COMPRESSION_LZ4 :
+					 COMPRESSION_NONE;
+}
+
 static int get_data_file_block(struct data_file *df, int index,
 			       struct data_file_block *res_block)
 {
 	struct incfs_blockmap_entry bme = {};
 	struct backing_file_context *bfc = NULL;
 	loff_t blockmap_off = 0;
-	u16 flags = 0;
 	int error = 0;
 
 	if (!df || !res_block)
@@ -369,16 +384,7 @@ static int get_data_file_block(struct data_file *df, int index,
 	if (error)
 		return error;
 
-	flags = le16_to_cpu(bme.me_flags);
-	res_block->db_backing_file_data_offset =
-		le16_to_cpu(bme.me_data_offset_hi);
-	res_block->db_backing_file_data_offset <<= 32;
-	res_block->db_backing_file_data_offset |=
-		le32_to_cpu(bme.me_data_offset_lo);
-	res_block->db_stored_size = le16_to_cpu(bme.me_data_size);
-	res_block->db_comp_alg = (flags & INCFS_BLOCK_COMPRESSED_LZ4) ?
-					 COMPRESSION_LZ4 :
-					 COMPRESSION_NONE;
+	convert_data_file_block(&bme, res_block);
 	return 0;
 }
 
@@ -431,6 +437,7 @@ static int update_file_header_flags(struct data_file *df, u32 bits_to_reset,
 	return result;
 }
 
+#define READ_BLOCKMAP_ENTRIES 512
 int incfs_get_filled_blocks(struct data_file *df,
 			    struct incfs_get_filled_blocks_args *arg)
 {
@@ -442,6 +449,9 @@ int incfs_get_filled_blocks(struct data_file *df,
 	u32 end_index =
 		arg->end_index ? arg->end_index : df->df_total_block_count;
 	u32 *size_out = &arg->range_buffer_size_out;
+	int i = READ_BLOCKMAP_ENTRIES - 1;
+	int entries_read = 0;
+	struct incfs_blockmap_entry *bme;
 
 	*size_out = 0;
 	if (end_index > df->df_total_block_count)
@@ -473,13 +483,33 @@ int incfs_get_filled_blocks(struct data_file *df,
 		return 0;
 	}
 
+	bme = kzalloc(sizeof(*bme) * READ_BLOCKMAP_ENTRIES, GFP_NOFS);
+	if (!bme)
+		return -ENOMEM;
+
 	for (arg->index_out = arg->start_index; arg->index_out < end_index;
 	     ++arg->index_out) {
 		struct data_file_block dfb;
 
-		error = get_data_file_block(df, arg->index_out, &dfb);
-		if (error)
+		if (++i == READ_BLOCKMAP_ENTRIES) {
+			entries_read = incfs_read_blockmap_entries(
+				df->df_backing_file_context, bme,
+				arg->index_out, READ_BLOCKMAP_ENTRIES,
+				df->df_blockmap_off);
+			if (entries_read < 0) {
+				error = entries_read;
+				break;
+			}
+
+			i = 0;
+		}
+
+		if (i >= entries_read) {
+			error = -EIO;
 			break;
+		}
+
+		convert_data_file_block(bme + i, &dfb);
 
 		if (is_data_block_present(&dfb) == in_range)
 			continue;
@@ -519,6 +549,7 @@ int incfs_get_filled_blocks(struct data_file *df,
 		pr_debug("Marked file full with result %d", result);
 	}
 
+	kfree(bme);
 	return error;
 }
 
