@@ -1657,19 +1657,12 @@ int btrfs_rmap_block(struct btrfs_fs_info *fs_info, u64 chunk_start,
 		return -EIO;
 
 	map = em->map_lookup;
-	data_stripe_length = em->len;
+	data_stripe_length = em->orig_block_len;
 	io_stripe_size = map->stripe_len;
 
-	if (map->type & BTRFS_BLOCK_GROUP_RAID10)
-		data_stripe_length = div_u64(data_stripe_length,
-					     map->num_stripes / map->sub_stripes);
-	else if (map->type & BTRFS_BLOCK_GROUP_RAID0)
-		data_stripe_length = div_u64(data_stripe_length, map->num_stripes);
-	else if (map->type & BTRFS_BLOCK_GROUP_RAID56_MASK) {
-		data_stripe_length = div_u64(data_stripe_length,
-					     nr_data_stripes(map));
+	/* For RAID5/6 adjust to a full IO stripe length */
+	if (map->type & BTRFS_BLOCK_GROUP_RAID56_MASK)
 		io_stripe_size = map->stripe_len * nr_data_stripes(map);
-	}
 
 	buf = kcalloc(map->num_stripes, sizeof(u64), GFP_NOFS);
 	if (!buf) {
