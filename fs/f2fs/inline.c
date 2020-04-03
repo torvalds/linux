@@ -572,7 +572,7 @@ int f2fs_try_convert_inline_dir(struct inode *dir, struct dentry *dentry)
 
 	err = fscrypt_setup_filename(dir, &dentry->d_name, 0, &fname);
 	if (err)
-		goto out;
+		goto out_unlock;
 
 	ipage = f2fs_get_node_page(sbi, dir->i_ino);
 	if (IS_ERR(ipage)) {
@@ -591,6 +591,8 @@ int f2fs_try_convert_inline_dir(struct inode *dir, struct dentry *dentry)
 	if (!err)
 		f2fs_put_page(ipage, 1);
 out:
+	fscrypt_free_filename(&fname);
+out_unlock:
 	f2fs_unlock_op(sbi);
 	return err;
 }
