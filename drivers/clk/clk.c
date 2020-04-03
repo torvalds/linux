@@ -4865,8 +4865,8 @@ static int parent_ready(struct device_node *np)
  *
  * Return: error code or zero on success
  */
-int of_clk_detect_critical(struct device_node *np,
-					  int index, unsigned long *flags)
+int of_clk_detect_critical(struct device_node *np, int index,
+			   unsigned long *flags)
 {
 	struct property *prop;
 	const __be32 *cur;
