@@ -278,46 +278,32 @@ static int port_detect(struct device *dev, void *dev_drv)
 int __parport_register_driver(struct parport_driver *drv, struct module *owner,
 			      const char *mod_name)
 {
-	if (drv->devmodel) {
-		/* using device model */
-		int ret;
+	/* using device model */
+	int ret;
 
-		/* initialize common driver fields */
-		drv->driver.name = drv->name;
-		drv->driver.bus = &parport_bus_type;
-		drv->driver.owner = owner;
-		drv->driver.mod_name = mod_name;
-		ret = driver_register(&drv->driver);
-		if (ret)
-			return ret;
+	/* initialize common driver fields */
+	drv->driver.name = drv->name;
+	drv->driver.bus = &parport_bus_type;
+	drv->driver.owner = owner;
+	drv->driver.mod_name = mod_name;
+	ret = driver_register(&drv->driver);
+	if (ret)
+		return ret;
 
-		/*
-		 * check if bus has any parallel port registered, if
-		 * none is found then load the lowlevel driver.
-		 */
-		ret = bus_for_each_dev(&parport_bus_type, NULL, NULL,
-				       port_detect);
-		if (!ret)
-			get_lowlevel_driver();
+	/*
+	 * check if bus has any parallel port registered, if
+	 * none is found then load the lowlevel driver.
+	 */
+	ret = bus_for_each_dev(&parport_bus_type, NULL, NULL,
+			       port_detect);
+	if (!ret)
+		get_lowlevel_driver();
 
-		mutex_lock(&registration_lock);
-		if (drv->match_port)
-			bus_for_each_dev(&parport_bus_type, NULL, drv,
-					 port_check);
-		mutex_unlock(&registration_lock);
-	} else {
-		struct parport *port;
-
-		drv->devmodel = false;
-
-		if (list_empty(&portlist))
-			get_lowlevel_driver();
-		mutex_lock(&registration_lock);
-		list_for_each_entry(port, &portlist, list)
-			drv->attach(port);
-		list_add(&drv->list, &drivers);
-		mutex_unlock(&registration_lock);
-	}
+	mutex_lock(&registration_lock);
+	if (drv->match_port)
+		bus_for_each_dev(&parport_bus_type, NULL, drv,
+				 port_check);
+	mutex_unlock(&registration_lock);
 
 	return 0;
 }
@@ -352,17 +338,9 @@ static int port_detach(struct device *dev, void *_drv)
 
 void parport_unregister_driver(struct parport_driver *drv)
 {
-	struct parport *port;
-
 	mutex_lock(&registration_lock);
-	if (drv->devmodel) {
-		bus_for_each_dev(&parport_bus_type, NULL, drv, port_detach);
-		driver_unregister(&drv->driver);
-	} else {
-		list_del_init(&drv->list);
-		list_for_each_entry(port, &portlist, list)
-			drv->detach(port);
-	}
+	bus_for_each_dev(&parport_bus_type, NULL, drv, port_detach);
+	driver_unregister(&drv->driver);
 	mutex_unlock(&registration_lock);
 }
 EXPORT_SYMBOL(parport_unregister_driver);
@@ -915,10 +893,7 @@ void parport_unregister_device(struct pardevice *dev)
 	spin_unlock_irq(&port->waitlist_lock);
 
 	kfree(dev->state);
-	if (dev->devmodel)
-		device_unregister(&dev->dev);
-	else
-		kfree(dev);
+	device_unregister(&dev->dev);
 
 	module_put(port->ops->owner);
 	parport_put_port(port);
