@@ -1673,6 +1673,8 @@ static void ds1307_wdt_register(struct ds1307 *ds1307)
 		return;
 
 	wdt = devm_kzalloc(ds1307->dev, sizeof(*wdt), GFP_KERNEL);
+	if (!wdt)
+		return;
 
 	wdt->info = &ds1388_wdt_info;
 	wdt->ops = &ds1388_wdt_ops;
