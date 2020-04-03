@@ -55,6 +55,7 @@
 #define QM_SQ_TYPE_SHIFT		8
 
 #define QM_SQ_TYPE_MASK			GENMASK(3, 0)
+#define QM_SQ_TAIL_IDX(sqc)		((le16_to_cpu((sqc)->w11) >> 6) & 0x1)
 
 /* cqc shift */
 #define QM_CQ_HOP_NUM_SHIFT		0
@@ -66,6 +67,7 @@
 
 #define QM_CQE_PHASE(cqe)		(le16_to_cpu((cqe)->w7) & 0x1)
 #define QM_QC_CQE_SIZE			4
+#define QM_CQ_TAIL_IDX(cqc)		((le16_to_cpu((cqc)->w11) >> 6) & 0x1)
 
 /* eqc shift */
 #define QM_EQE_AEQE_SIZE		(2UL << 12)
@@ -162,6 +164,8 @@
 
 #define POLL_PERIOD			10
 #define POLL_TIMEOUT			1000
+#define WAIT_PERIOD_US_MAX		200
+#define WAIT_PERIOD_US_MIN		100
 #define MAX_WAIT_COUNTS			1000
 #define QM_CACHE_WB_START		0x204
 #define QM_CACHE_WB_DONE		0x208
@@ -1362,6 +1366,107 @@ int hisi_qm_start_qp(struct hisi_qp *qp, unsigned long arg)
 }
 EXPORT_SYMBOL_GPL(hisi_qm_start_qp);
 
+static void *qm_ctx_alloc(struct hisi_qm *qm, size_t ctx_size,
+			  dma_addr_t *dma_addr)
+{
+	struct device *dev = &qm->pdev->dev;
+	void *ctx_addr;
+
+	ctx_addr = kzalloc(ctx_size, GFP_KERNEL);
+	if (!ctx_addr)
+		return ERR_PTR(-ENOMEM);
+
+	*dma_addr = dma_map_single(dev, ctx_addr, ctx_size, DMA_FROM_DEVICE);
+	if (dma_mapping_error(dev, *dma_addr)) {
+		dev_err(dev, "DMA mapping error!\n");
+		kfree(ctx_addr);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	return ctx_addr;
+}
+
+static void qm_ctx_free(struct hisi_qm *qm, size_t ctx_size,
+			const void *ctx_addr, dma_addr_t *dma_addr)
+{
+	struct device *dev = &qm->pdev->dev;
+
+	dma_unmap_single(dev, *dma_addr, ctx_size, DMA_FROM_DEVICE);
+	kfree(ctx_addr);
+}
+
+static int qm_dump_sqc_raw(struct hisi_qm *qm, dma_addr_t dma_addr, u16 qp_id)
+{
+	return qm_mb(qm, QM_MB_CMD_SQC, dma_addr, qp_id, 1);
+}
+
+static int qm_dump_cqc_raw(struct hisi_qm *qm, dma_addr_t dma_addr, u16 qp_id)
+{
+	return qm_mb(qm, QM_MB_CMD_CQC, dma_addr, qp_id, 1);
+}
+
+/**
+ * Determine whether the queue is cleared by judging the tail pointers of
+ * sq and cq.
+ */
+static int qm_drain_qp(struct hisi_qp *qp)
+{
+	size_t size = sizeof(struct qm_sqc) + sizeof(struct qm_cqc);
+	struct hisi_qm *qm = qp->qm;
+	struct device *dev = &qm->pdev->dev;
+	struct qm_sqc *sqc;
+	struct qm_cqc *cqc;
+	dma_addr_t dma_addr;
+	int ret = 0, i = 0;
+	void *addr;
+
+	/*
+	 * No need to judge if ECC multi-bit error occurs because the
+	 * master OOO will be blocked.
+	 */
+	if (qm->err_status.is_qm_ecc_mbit || qm->err_status.is_dev_ecc_mbit)
+		return 0;
+
+	addr = qm_ctx_alloc(qm, size, &dma_addr);
+	if (IS_ERR(addr)) {
+		dev_err(dev, "Failed to alloc ctx for sqc and cqc!\n");
+		return -ENOMEM;
+	}
+
+	while (++i) {
+		ret = qm_dump_sqc_raw(qm, dma_addr, qp->qp_id);
+		if (ret) {
+			dev_err_ratelimited(dev, "Failed to dump sqc!\n");
+			break;
+		}
+		sqc = addr;
+
+		ret = qm_dump_cqc_raw(qm, (dma_addr + sizeof(struct qm_sqc)),
+				      qp->qp_id);
+		if (ret) {
+			dev_err_ratelimited(dev, "Failed to dump cqc!\n");
+			break;
+		}
+		cqc = addr + sizeof(struct qm_sqc);
+
+		if ((sqc->tail == cqc->tail) &&
+		    (QM_SQ_TAIL_IDX(sqc) == QM_CQ_TAIL_IDX(cqc)))
+			break;
+
+		if (i == MAX_WAIT_COUNTS) {
+			dev_err(dev, "Fail to empty queue %u!\n", qp->qp_id);
+			ret = -EBUSY;
+			break;
+		}
+
+		usleep_range(WAIT_PERIOD_US_MIN, WAIT_PERIOD_US_MAX);
+	}
+
+	qm_ctx_free(qm, size, addr, &dma_addr);
+
+	return ret;
+}
+
 /**
  * hisi_qm_stop_qp() - Stop a qp in qm.
  * @qp: The qp we want to stop.
@@ -1371,20 +1476,20 @@ EXPORT_SYMBOL_GPL(hisi_qm_start_qp);
 int hisi_qm_stop_qp(struct hisi_qp *qp)
 {
 	struct device *dev = &qp->qm->pdev->dev;
-	int i = 0;
+	int ret;
 
 	/* it is stopped */
 	if (test_bit(QP_STOP, &qp->qp_status.flags))
 		return 0;
 
-	while (atomic_read(&qp->qp_status.used)) {
-		i++;
-		msleep(20);
-		if (i == 10) {
-			dev_err(dev, "Cannot drain out data for stopping, Force to stop!\n");
-			return 0;
-		}
-	}
+	ret = qm_drain_qp(qp);
+	if (ret)
+		dev_err(dev, "Failed to drain out data for stopping!\n");
+
+	if (qp->qm->wq)
+		flush_workqueue(qp->qm->wq);
+	else
+		flush_work(&qp->qm->work);
 
 	set_bit(QP_STOP, &qp->qp_status.flags);
 
