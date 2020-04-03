@@ -2128,25 +2128,25 @@ void dcn10_get_surface_visual_confirm_color(
 
 	switch (pipe_ctx->plane_res.scl_data.format) {
 	case PIXEL_FORMAT_ARGB8888:
-		/* set boarder color to red */
+		/* set border color to red */
 		color->color_r_cr = color_value;
 		break;
 
 	case PIXEL_FORMAT_ARGB2101010:
-		/* set boarder color to blue */
+		/* set border color to blue */
 		color->color_b_cb = color_value;
 		break;
 	case PIXEL_FORMAT_420BPP8:
-		/* set boarder color to green */
+		/* set border color to green */
 		color->color_g_y = color_value;
 		break;
 	case PIXEL_FORMAT_420BPP10:
-		/* set boarder color to yellow */
+		/* set border color to yellow */
 		color->color_g_y = color_value;
 		color->color_r_cr = color_value;
 		break;
 	case PIXEL_FORMAT_FP16:
-		/* set boarder color to white */
+		/* set border color to white */
 		color->color_r_cr = color_value;
 		color->color_b_cb = color_value;
 		color->color_g_y = color_value;
@@ -2171,25 +2171,25 @@ void dcn10_get_hdr_visual_confirm_color(
 	switch (top_pipe_ctx->plane_res.scl_data.format) {
 	case PIXEL_FORMAT_ARGB2101010:
 		if (top_pipe_ctx->stream->out_transfer_func->tf == TRANSFER_FUNCTION_PQ) {
-			/* HDR10, ARGB2101010 - set boarder color to red */
+			/* HDR10, ARGB2101010 - set border color to red */
 			color->color_r_cr = color_value;
 		} else if (top_pipe_ctx->stream->out_transfer_func->tf == TRANSFER_FUNCTION_GAMMA22) {
-			/* FreeSync 2 ARGB2101010 - set boarder color to pink */
+			/* FreeSync 2 ARGB2101010 - set border color to pink */
 			color->color_r_cr = color_value;
 			color->color_b_cb = color_value;
 		}
 		break;
 	case PIXEL_FORMAT_FP16:
 		if (top_pipe_ctx->stream->out_transfer_func->tf == TRANSFER_FUNCTION_PQ) {
-			/* HDR10, FP16 - set boarder color to blue */
+			/* HDR10, FP16 - set border color to blue */
 			color->color_b_cb = color_value;
 		} else if (top_pipe_ctx->stream->out_transfer_func->tf == TRANSFER_FUNCTION_GAMMA22) {
-			/* FreeSync 2 HDR - set boarder color to green */
+			/* FreeSync 2 HDR - set border color to green */
 			color->color_g_y = color_value;
 		}
 		break;
 	default:
-		/* SDR - set boarder color to Gray */
+		/* SDR - set border color to Gray */
 		color->color_r_cr = color_value/2;
 		color->color_b_cb = color_value/2;
 		color->color_g_y = color_value/2;
