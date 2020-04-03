@@ -1845,7 +1845,6 @@ __synth_event_trace_start(struct trace_event_file *file,
 	if (!(file->flags & EVENT_FILE_FL_ENABLED) ||
 	    trace_trigger_soft_disabled(file)) {
 		trace_state->disabled = true;
-		ret = -ENOENT;
 		goto out;
 	}
 
@@ -1907,11 +1906,8 @@ int synth_event_trace(struct trace_event_file *file, unsigned int n_vals, ...)
 	int ret;
 
 	ret = __synth_event_trace_start(file, &state);
-	if (ret) {
-		if (ret == -ENOENT)
-			ret = 0; /* just disabled, not really an error */
+	if (ret || state.disabled)
 		return ret;
-	}
 
 	if (n_vals != state.event->n_fields) {
 		ret = -EINVAL;
@@ -1987,11 +1983,8 @@ int synth_event_trace_array(struct trace_event_file *file, u64 *vals,
 	int ret;
 
 	ret = __synth_event_trace_start(file, &state);
-	if (ret) {
-		if (ret == -ENOENT)
-			ret = 0; /* just disabled, not really an error */
+	if (ret || state.disabled)
 		return ret;
-	}
 
 	if (n_vals != state.event->n_fields) {
 		ret = -EINVAL;
@@ -2067,16 +2060,10 @@ EXPORT_SYMBOL_GPL(synth_event_trace_array);
 int synth_event_trace_start(struct trace_event_file *file,
 			    struct synth_event_trace_state *trace_state)
 {
-	int ret;
-
 	if (!trace_state)
 		return -EINVAL;
 
-	ret = __synth_event_trace_start(file, trace_state);
-	if (ret == -ENOENT)
-		ret = 0; /* just disabled, not really an error */
-
-	return ret;
+	return __synth_event_trace_start(file, trace_state);
 }
 EXPORT_SYMBOL_GPL(synth_event_trace_start);
 
