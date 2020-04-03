@@ -29,6 +29,8 @@
 		i2c6 = &i2c6;
 		spi0 = &spi0;
 		spi1 = &spi1;
+		ethernet0 = &eth0;
+		ethernet1 = &eth1;
 	};
 
 	memory@80000000 {
