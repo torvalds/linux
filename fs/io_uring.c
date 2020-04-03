@@ -4120,6 +4120,7 @@ static int __io_async_wake(struct io_kiocb *req, struct io_poll_iocb *poll,
 			   __poll_t mask, task_work_func_t func)
 {
 	struct task_struct *tsk;
+	int ret;
 
 	/* for instances that support it check for an event match first: */
 	if (mask && !(mask & poll->events))
@@ -4133,11 +4134,15 @@ static int __io_async_wake(struct io_kiocb *req, struct io_poll_iocb *poll,
 	req->result = mask;
 	init_task_work(&req->task_work, func);
 	/*
-	 * If this fails, then the task is exiting. If that is the case, then
-	 * the exit check will ultimately cancel these work items. Hence we
-	 * don't need to check here and handle it specifically.
+	 * If this fails, then the task is exiting. Punt to one of the io-wq
+	 * threads to ensure the work gets run, we can't always rely on exit
+	 * cancelation taking care of this.
 	 */
-	task_work_add(tsk, &req->task_work, true);
+	ret = task_work_add(tsk, &req->task_work, true);
+	if (unlikely(ret)) {
+		tsk = io_wq_get_task(req->ctx->io_wq);
+		task_work_add(tsk, &req->task_work, true);
+	}
 	wake_up_process(tsk);
 	return 1;
 }
