@@ -1285,7 +1285,6 @@ static int rk3x_i2c_probe(struct platform_device *pdev)
 	struct rk3x_i2c *i2c;
 	struct resource *mem;
 	int ret = 0;
-	int bus_nr;
 	u32 value;
 	int irq;
 	unsigned long clk_rate;
@@ -1326,9 +1325,6 @@ static int rk3x_i2c_probe(struct platform_device *pdev)
 	if (IS_ERR(i2c->regs))
 		return PTR_ERR(i2c->regs);
 
-	/* Try to set the I2C adapter number from dt */
-	bus_nr = of_alias_get_id(np, "i2c");
-
 	/*
 	 * Switch to new interface if the SoC also offers the old one.
 	 * The control bit is located in the GRF register space.
@@ -1337,28 +1333,30 @@ static int rk3x_i2c_probe(struct platform_device *pdev)
 		struct regmap *grf;
 
 		grf = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
-		if (IS_ERR(grf)) {
-			dev_err(&pdev->dev,
-				"rk3x-i2c needs 'rockchip,grf' property\n");
-			return PTR_ERR(grf);
-		}
+		if (!IS_ERR(grf)) {
+			int bus_nr;
 
-		if (bus_nr < 0) {
-			dev_err(&pdev->dev, "rk3x-i2c needs i2cX alias");
-			return -EINVAL;
-		}
+			/* Try to set the I2C adapter number from dt */
+			bus_nr = of_alias_get_id(np, "i2c");
+			if (bus_nr < 0) {
+				dev_err(&pdev->dev, "rk3x-i2c needs i2cX alias");
+				return -EINVAL;
+			}
 
-		if (i2c->soc_data == &rv1108_soc_data && bus_nr == 2)
-			/* rv1108 i2c2 need to set grf offset-0x408, bit-10 */
-			value = BIT(26) | BIT(10);
-		else
-			/* 27+i: write mask, 11+i: value */
-			value = BIT(27 + bus_nr) | BIT(11 + bus_nr);
+			if (i2c->soc_data == &rv1108_soc_data && bus_nr == 2)
+				/* rv1108 i2c2 set grf offset-0x408, bit-10 */
+				value = BIT(26) | BIT(10);
+			else
+				/* rk3xxx 27+i: write mask, 11+i: value */
+				value = BIT(27 + bus_nr) | BIT(11 + bus_nr);
 
-		ret = regmap_write(grf, i2c->soc_data->grf_offset, value);
-		if (ret != 0) {
-			dev_err(i2c->dev, "Could not write to GRF: %d\n", ret);
-			return ret;
+			ret = regmap_write(grf, i2c->soc_data->grf_offset,
+					   value);
+			if (ret != 0) {
+				dev_err(i2c->dev, "Could not write to GRF: %d\n",
+					ret);
+				return ret;
+			}
 		}
 	}
 
