@@ -47,6 +47,8 @@ required:
   - "#gpio-cells"
   - gpio-controller
 
+additionalProperties: false
+
 dependencies:
   interrupt-controller: [ interrupts ]
 

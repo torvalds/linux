@@ -738,6 +738,8 @@
 			compatible = "allwinner,sun8i-r40-mbus";
 			reg = <0x01c62000 0x1000>;
 			clocks = <&ccu 155>;
+			#address-cells = <1>;
+			#size-cells = <1>;
 			dma-ranges = <0x00000000 0x40000000 0x80000000>;
 			#interconnect-cells = <1>;
 		};

@@ -123,11 +123,18 @@ properties:
       - arm,cortex-a12
       - arm,cortex-a15
       - arm,cortex-a17
+      - arm,cortex-a32
+      - arm,cortex-a34
+      - arm,cortex-a35
       - arm,cortex-a53
       - arm,cortex-a55
       - arm,cortex-a57
+      - arm,cortex-a65
       - arm,cortex-a72
       - arm,cortex-a73
+      - arm,cortex-a75
+      - arm,cortex-a76
+      - arm,cortex-a77
       - arm,cortex-m0
       - arm,cortex-m0+
       - arm,cortex-m1
@@ -136,6 +143,8 @@ properties:
       - arm,cortex-r4
       - arm,cortex-r5
       - arm,cortex-r7
+      - arm,neoverse-e1
+      - arm,neoverse-n1
       - brcm,brahma-b15
       - brcm,brahma-b53
       - brcm,vulcan
@@ -155,6 +164,8 @@ properties:
       - nvidia,tegra194-carmel
       - qcom,krait
       - qcom,kryo
+      - qcom,kryo260
+      - qcom,kryo280
       - qcom,kryo385
       - qcom,kryo485
       - qcom,scorpion
