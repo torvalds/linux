@@ -330,6 +330,12 @@ struct rkisp_isp_params_val_v2x {
 
 	struct rkisp_dummy_buffer buf_lsclut[RKISP_PARAM_LSC_LUT_BUF_NUM];
 	u32 buf_lsclut_idx;
+
+	u8 dhaz_en;
+	u8 wdr_en;
+	u8 tmo_en;
+	u8 lsc_en;
+	u8 mge_en;
 };
 
 void rkisp_init_params_vdev_v2x(struct rkisp_isp_params_vdev *params_vdev);

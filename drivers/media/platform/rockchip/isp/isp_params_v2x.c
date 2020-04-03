@@ -3312,13 +3312,15 @@ static void
 isp_gain_config(struct rkisp_isp_params_vdev *params_vdev,
 		const struct isp2x_gain_cfg *arg)
 {
+	struct rkisp_isp_params_val_v2x *priv_val =
+		(struct rkisp_isp_params_val_v2x *)params_vdev->priv_val;
 	u32 value, i;
 
-	value = (arg->dhaz_en & 0x01) << 16 |
-		(arg->wdr_en & 0x01) << 12 |
-		(arg->tmo_en & 0x01) << 8 |
-		(arg->lsc_en & 0x01) << 4 |
-		(arg->mge_en & 0x01);
+	value = (priv_val->dhaz_en & 0x01) << 16 |
+		(priv_val->wdr_en & 0x01) << 12 |
+		(priv_val->tmo_en & 0x01) << 8 |
+		(priv_val->lsc_en & 0x01) << 4 |
+		(priv_val->mge_en & 0x01);
 	rkisp_iowrite32(params_vdev, value, ISP_GAIN_CTRL);
 
 	value = arg->mge_gain[0];
@@ -3532,6 +3534,8 @@ void __isp_isr_other_config(struct rkisp_isp_params_vdev *params_vdev,
 	u64 module_en_update, module_cfg_update, module_ens;
 	struct rkisp_isp_params_v2x_ops *ops =
 		(struct rkisp_isp_params_v2x_ops *)params_vdev->priv_ops;
+	struct rkisp_isp_params_val_v2x *priv_val =
+		(struct rkisp_isp_params_val_v2x *)params_vdev->priv_val;
 
 	module_en_update = new_params->module_en_update;
 	module_cfg_update = new_params->module_cfg_update;
@@ -3576,9 +3580,11 @@ void __isp_isr_other_config(struct rkisp_isp_params_vdev *params_vdev,
 			ops->lsc_config(params_vdev,
 				&new_params->others.lsc_cfg);
 
-		if (module_en_update & ISP2X_MODULE_LSC)
+		if (module_en_update & ISP2X_MODULE_LSC) {
 			ops->lsc_enable(params_vdev,
 				!!(module_ens & ISP2X_MODULE_LSC));
+			priv_val->lsc_en = !!(module_ens & ISP2X_MODULE_LSC);
+		}
 	}
 
 	if ((module_en_update & ISP2X_MODULE_AWB_GAIN) ||
@@ -3653,9 +3659,11 @@ void __isp_isr_other_config(struct rkisp_isp_params_vdev *params_vdev,
 			ops->wdr_config(params_vdev,
 				&new_params->others.wdr_cfg);
 
-		if (module_en_update & ISP2X_MODULE_WDR)
+		if (module_en_update & ISP2X_MODULE_WDR) {
 			ops->wdr_enable(params_vdev,
 				!!(module_ens & ISP2X_MODULE_WDR));
+			priv_val->wdr_en = !!(module_ens & ISP2X_MODULE_WDR);
+		}
 	}
 
 	if ((module_en_update & ISP2X_MODULE_RK_IESHARP) ||
@@ -3675,9 +3683,11 @@ void __isp_isr_other_config(struct rkisp_isp_params_vdev *params_vdev,
 			ops->hdrmge_config(params_vdev,
 				&new_params->others.hdrmge_cfg);
 
-		if (module_en_update & ISP2X_MODULE_HDRMGE)
+		if (module_en_update & ISP2X_MODULE_HDRMGE) {
 			ops->hdrmge_enable(params_vdev,
 				!!(module_ens & ISP2X_MODULE_HDRMGE));
+			priv_val->mge_en = !!(module_ens & ISP2X_MODULE_HDRMGE);
+		}
 	}
 
 	if ((module_en_update & ISP2X_MODULE_RAWNR) ||
@@ -3697,9 +3707,11 @@ void __isp_isr_other_config(struct rkisp_isp_params_vdev *params_vdev,
 			ops->hdrtmo_config(params_vdev,
 				&new_params->others.hdrtmo_cfg);
 
-		if (module_en_update & ISP2X_MODULE_HDRTMO)
+		if (module_en_update & ISP2X_MODULE_HDRTMO) {
 			ops->hdrtmo_enable(params_vdev,
 				!!(module_ens & ISP2X_MODULE_HDRTMO));
+			priv_val->tmo_en = !!(module_ens & ISP2X_MODULE_HDRTMO);
+		}
 	}
 
 	if ((module_en_update & ISP2X_MODULE_GIC) ||
@@ -3719,9 +3731,11 @@ void __isp_isr_other_config(struct rkisp_isp_params_vdev *params_vdev,
 			ops->dhaz_config(params_vdev,
 				&new_params->others.dhaz_cfg);
 
-		if (module_en_update & ISP2X_MODULE_DHAZ)
+		if (module_en_update & ISP2X_MODULE_DHAZ) {
 			ops->dhaz_enable(params_vdev,
 				!!(module_ens & ISP2X_MODULE_DHAZ));
+			priv_val->dhaz_en = !!(module_ens & ISP2X_MODULE_DHAZ);
+		}
 	}
 
 	if ((module_en_update & ISP2X_MODULE_3DLUT) ||
@@ -3938,6 +3952,8 @@ rkisp_params_configure_isp_v2x(struct rkisp_isp_params_vdev *params_vdev)
 	struct device *dev = params_vdev->dev->dev;
 	struct rkisp_isp_params_v2x_ops *ops =
 		(struct rkisp_isp_params_v2x_ops *)params_vdev->priv_ops;
+	struct rkisp_isp_params_val_v2x *priv_val =
+		(struct rkisp_isp_params_val_v2x *)params_vdev->priv_val;
 
 	spin_lock(&params_vdev->config_lock);
 	/* override the default things */
@@ -3951,6 +3967,11 @@ rkisp_params_configure_isp_v2x(struct rkisp_isp_params_vdev *params_vdev)
 	else
 		ops->csm_config(params_vdev, false);
 
+	priv_val->dhaz_en = 0;
+	priv_val->wdr_en = 0;
+	priv_val->tmo_en = 0;
+	priv_val->lsc_en = 0;
+	priv_val->mge_en = 0;
 	__isp_isr_other_config(params_vdev, &params_vdev->isp2x_params);
 	__isp_isr_meas_config(params_vdev, &params_vdev->isp2x_params);
 	__preisp_isr_update_hdrae_para(params_vdev, &params_vdev->isp2x_params);
