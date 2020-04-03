@@ -48,6 +48,37 @@
 	};
 };
 
+&csi_dphy0 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_in_ucam0: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&ucam_out0>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csidphy0_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&isp_in>;
+			};
+		};
+	};
+};
+
 &emmc {
 	bus-width = <8>;
 	cap-mmc-highspeed;
@@ -254,28 +285,29 @@
 				};
 			};
 
-			vcc_ldo5: LDO_REG5 {
-				regulator-always-off;
-				regulator-boot-off;
-				regulator-name = "vcc_ldo5";
+			vcc_dovdd: LDO_REG5 {
+				regulator-boot-on;
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-name = "vcc_dovdd";
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
 			};
 
-			vcc_ldo6: LDO_REG6 {
-				regulator-always-off;
-				regulator-boot-off;
-				regulator-name = "vcc_ldo5";
+			vcc_dvdd: LDO_REG6 {
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <1200000>;
+				regulator-name = "vcc_dvdd";
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
 			};
 
-			vcc_ldo7: LDO_REG7 {
-				regulator-always-off;
-				regulator-boot-off;
-				regulator-name = "vcc_ldo7";
+			vcc_avdd: LDO_REG7 {
+				regulator-min-microvolt = <2800000>;
+				regulator-max-microvolt = <2800000>;
+				regulator-name = "vcc_avdd";
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
@@ -325,6 +357,38 @@
 	};
 };
 
+&i2c1 {
+	status = "okay";
+	clock-frequency = <400000>;
+
+	os04a10: os04a10@36 {
+		compatible = "ovti,os04a10";
+		reg = <0x36>;
+		clocks = <&cru CLK_MIPICSI_OUT>;
+		clock-names = "xvclk";
+		power-domains = <&power RV1126_PD_VI>;
+		pinctrl-names = "rockchip,camera_default";
+		pinctrl-0 = <&mipi_csi_clk0>;
+		avdd-supply = <&vcc_avdd>;
+		dovdd-supply = <&vcc_dovdd>;
+		dvdd-supply = <&vcc_dvdd>;
+		pwdn-gpios = <&gpio1 RK_PD4 GPIO_ACTIVE_HIGH>;
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "front";
+		rockchip,camera-module-name = "JSD3425-C1";
+		rockchip,camera-module-lens-name = "JSD3425-C1";
+		/* NO_HDR:0 HDR_X2:5 HDR_X3:6 */
+		rockchip,camera-hdr-mode = <0>;
+		port {
+			ucam_out0: endpoint {
+				remote-endpoint = <&mipi_in_ucam0>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+
+	};
+};
+
 &i2s0_8ch {
 	status = "okay";
 	#sound-dai-cells = <0>;
@@ -353,6 +417,49 @@
 	vccio5-supply = <&vcc_3v3>;
 	vccio6-supply = <&vcc_3v3>;
 	vccio7-supply = <&vcc_1v8>;
+};
+
+&rkisp {
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			isp_in: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&csidphy0_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			isp_out: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&ispp_in>;
+			};
+		};
+	};
+};
+
+&rkispp {
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ispp_in: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&isp_out>;
+		};
+	};
 };
 
 &saradc {
