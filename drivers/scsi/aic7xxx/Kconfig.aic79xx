@@ -32,7 +32,7 @@ config AIC79XX_CMDS_PER_DEVICE
 	on some devices.  The upper bound is 253.  0 disables tagged queueing.
 
 	Per device tag depth can be controlled via the kernel command line
-	"tag_info" option.  See Documentation/scsi/aic79xx.txt for details.
+	"tag_info" option.  See Documentation/scsi/aic79xx.rst for details.
 
 config AIC79XX_RESET_DELAY_MS
 	int "Initial bus reset delay in milli-seconds"

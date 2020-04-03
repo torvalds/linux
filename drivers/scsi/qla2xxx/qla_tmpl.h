@@ -18,11 +18,11 @@ struct __packed qla27xx_fwdt_template {
 
 	__le32 entry_count;
 	uint32_t template_version;
-	uint32_t capture_timestamp;
+	__le32 capture_timestamp;
 	uint32_t template_checksum;
 
 	uint32_t reserved_2;
-	uint32_t driver_info[3];
+	__le32 driver_info[3];
 
 	uint32_t saved_state[16];
 

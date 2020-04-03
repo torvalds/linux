@@ -131,6 +131,7 @@ needed).
    bpf/index
    usb/index
    PCI/index
+   scsi/index
    misc-devices/index
    scheduler/index
 
