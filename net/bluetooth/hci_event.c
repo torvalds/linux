@@ -5269,7 +5269,7 @@ static struct hci_conn *check_pending_le_conn(struct hci_dev *hdev,
 		case HCI_AUTO_CONN_ALWAYS:
 			/* Devices advertising with ADV_IND or ADV_DIRECT_IND
 			 * are triggering a connection attempt. This means
-			 * that incoming connectioms from slave device are
+			 * that incoming connections from slave device are
 			 * accepted and also outgoing connections to slave
 			 * devices are established when found.
 			 */
