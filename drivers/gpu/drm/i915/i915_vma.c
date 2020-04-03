@@ -1258,6 +1258,9 @@ int __i915_vma_unbind(struct i915_vma *vma)
 	GEM_BUG_ON(i915_vma_is_active(vma));
 
 	if (i915_vma_is_map_and_fenceable(vma)) {
+		/* Force a pagefault for domain tracking on next user access */
+		i915_vma_revoke_mmap(vma);
+
 		/*
 		 * Check that we have flushed all writes through the GGTT
 		 * before the unbind, other due to non-strict nature of those
@@ -1275,9 +1278,6 @@ int __i915_vma_unbind(struct i915_vma *vma)
 
 		/* release the fence reg _after_ flushing */
 		i915_vma_revoke_fence(vma);
-
-		/* Force a pagefault for domain tracking on next user access */
-		i915_vma_revoke_mmap(vma);
 
 		__i915_vma_iounmap(vma);
 		clear_bit(I915_VMA_CAN_FENCE_BIT, __i915_vma_flags(vma));
