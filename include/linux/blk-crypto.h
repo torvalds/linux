@@ -22,6 +22,7 @@ int blk_crypto_init_key(struct blk_crypto_key *blk_key,
 
 int blk_crypto_start_using_mode(enum blk_crypto_mode_num crypto_mode,
 				unsigned int data_unit_size,
+				bool is_hw_wrapped_key,
 				struct request_queue *q);
 
 int blk_crypto_evict_key(struct request_queue *q,

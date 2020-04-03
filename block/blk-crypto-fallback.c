@@ -600,9 +600,11 @@ int __init blk_crypto_fallback_init(void)
 		crypto_mode_supported[i] = 0xFFFFFFFF;
 	crypto_mode_supported[BLK_ENCRYPTION_MODE_INVALID] = 0;
 
-	blk_crypto_ksm = keyslot_manager_create(NULL, blk_crypto_num_keyslots,
-						&blk_crypto_ksm_ll_ops,
-						crypto_mode_supported, NULL);
+	blk_crypto_ksm = keyslot_manager_create(
+				NULL, blk_crypto_num_keyslots,
+				&blk_crypto_ksm_ll_ops,
+				BLK_CRYPTO_FEATURE_STANDARD_KEYS,
+				crypto_mode_supported, NULL);
 	if (!blk_crypto_ksm)
 		return -ENOMEM;
 
