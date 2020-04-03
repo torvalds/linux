@@ -1340,6 +1340,43 @@
 		};
 	};
 
+	rkcif: rkcif@ffae0000 {
+		compatible = "rockchip,rv1126-cif";
+		reg = <0xffae0000 0x10000>;
+		reg-names = "cif_regs";
+		interrupts = <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "cif-intr";
+		clocks = <&cru ACLK_CIF>, <&cru ACLK_CIFLITE>,
+			 <&cru HCLK_CIF>, <&cru HCLK_CIFLITE>;
+		clock-names = "aclk_cif", "aclk_cif_lite",
+			      "hclk_cif", "hclk_cif_lite";
+		resets = <&cru SRST_CIF_A>, <&cru SRST_CIF_H>,
+			 <&cru SRST_CIF_D>, <&cru SRST_CIF_P>,
+			 <&cru SRST_CIF_I>, <&cru SRST_CIF_RX_P>,
+			 <&cru SRST_CIFLITE_A>, <&cru SRST_CIFLITE_H>,
+			 <&cru SRST_CIFLITE_D>, <&cru SRST_CIFLITE_RX_P>;
+		reset-names = "rst_cif_a", "rst_cif_h",
+			      "rst_cif_d", "rst_cif_p",
+			      "rst_cif_i", "rst_cif_rx_p",
+			      "rst_cif_lite_a", "rst_cif_lite_h",
+			      "rst_cif_lite_d", "rst_cif_lite_rx_p";
+		power-domains = <&power RV1126_PD_VI>;
+		iommus = <&rkcif_mmu>;
+		status = "disabled";
+	};
+
+	rkcif_mmu: iommu@ffae0800 {
+		compatible = "rockchip,iommu";
+		reg = <0xffae0800 0x100>;
+		interrupts = <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "cif_mmu";
+		clocks = <&cru ACLK_CIF>, <&cru HCLK_CIF>;
+		clock-names = "aclk", "hclk";
+		power-domains = <&power RV1126_PD_VI>;
+		#iommu-cells = <0>;
+		status = "disabled";
+	};
+
 	rk_rga: rk_rga@ffaf0000 {
 		compatible = "rockchip,rga2";
 		reg = <0xffaf0000 0x1000>;
