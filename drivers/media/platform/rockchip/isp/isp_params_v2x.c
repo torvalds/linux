@@ -18,7 +18,8 @@
 #define ISP2X_PACK_2SHORT(a, b)	\
 	(((a) & 0xFFFF) << 0 | ((b) & 0xFFFF) << 16)
 
-#define ISP2X_REG_WR_MASK BIT(31) //disable write protect
+#define ISP2X_REG_WR_MASK		BIT(31) //disable write protect
+#define ISP2X_NOBIG_OVERFLOW_SIZE	(2560 * 1440)
 
 static inline void
 rkisp_iowrite32(struct rkisp_isp_params_vdev *params_vdev,
@@ -52,6 +53,15 @@ isp_param_clear_bits(struct rkisp_isp_params_vdev *params_vdev,
 
 	val = rkisp_ioread32(params_vdev, reg);
 	rkisp_iowrite32(params_vdev, val & ~bit_mask, reg);
+}
+
+static inline size_t
+isp_param_get_insize(struct rkisp_isp_params_vdev *params_vdev)
+{
+	struct rkisp_device *dev = params_vdev->dev;
+	struct rkisp_isp_subdev *isp_sdev = &dev->isp_sdev;
+
+	return isp_sdev->in_crop.width * isp_sdev->in_crop.height;
 }
 
 static void
@@ -3012,16 +3022,23 @@ static void
 isp_hdrtmo_config(struct rkisp_isp_params_vdev *params_vdev,
 		  const struct isp2x_hdrtmo_cfg *arg)
 {
+	u8 big_en, nobig_en;
 	u32 value;
+
+	big_en = arg->big_en & 0x01;
+	nobig_en = arg->nobig_en & 0x01;
+	if (isp_param_get_insize(params_vdev) > ISP2X_NOBIG_OVERFLOW_SIZE) {
+		big_en = 1;
+		nobig_en = 0;
+	}
 
 	value = rkisp_ioread32(params_vdev, ISP_HDRTMO_CTRL);
 	value &= ISP_HDRTMO_EN;
-
 	value |= (arg->cnt_vsize & 0x1FFF) << 16 |
 		 (arg->gain_ld_off2 & 0x0F) << 12 |
 		 (arg->gain_ld_off1 & 0x0F) << 8 |
-		 (arg->big_en & 0x01) << 5 |
-		 (arg->nobig_en & 0x01) << 4 |
+		 (big_en & 0x01) << 5 |
+		 (nobig_en & 0x01) << 4 |
 		 (arg->newhst_en & 0x01) << 2 |
 		 (arg->cnt_mode & 0x01) << 1;
 	rkisp_iowrite32(params_vdev, value, ISP_HDRTMO_CTRL);
@@ -3168,14 +3185,21 @@ static void
 isp_dhaz_config(struct rkisp_isp_params_vdev *params_vdev,
 		const struct isp2x_dhaz_cfg *arg)
 {
+	u8 big_en, nobig_en;
 	u32 value;
+
+	big_en = arg->big_en & 0x01;
+	nobig_en = arg->nobig_en & 0x01;
+	if (isp_param_get_insize(params_vdev) > ISP2X_NOBIG_OVERFLOW_SIZE) {
+		big_en = 1;
+		nobig_en = 0;
+	}
 
 	value = rkisp_ioread32(params_vdev, ISP_DHAZ_CTRL);
 	value &= ISP_DHAZ_ENMUX;
-
-	if (arg->nobig_en)
+	if (nobig_en)
 		value |= ISP_DHAZ_NOBIGEN;
-	if (arg->big_en)
+	if (big_en)
 		value |= ISP_DHAZ_BIGEN;
 	if (arg->dc_en)
 		value |= ISP_DHAZ_DCEN;
