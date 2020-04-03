@@ -1071,14 +1071,13 @@ out:
 	ovl_cache_free(&list);
 }
 
-void ovl_workdir_cleanup(struct inode *dir, struct vfsmount *mnt,
+int ovl_workdir_cleanup(struct inode *dir, struct vfsmount *mnt,
 			 struct dentry *dentry, int level)
 {
 	int err;
 
 	if (!d_is_dir(dentry) || level > 1) {
-		ovl_cleanup(dir, dentry);
-		return;
+		return ovl_cleanup(dir, dentry);
 	}
 
 	err = ovl_do_rmdir(dir, dentry);
@@ -1088,8 +1087,10 @@ void ovl_workdir_cleanup(struct inode *dir, struct vfsmount *mnt,
 		inode_unlock(dir);
 		ovl_workdir_cleanup_recurse(&path, level + 1);
 		inode_lock_nested(dir, I_MUTEX_PARENT);
-		ovl_cleanup(dir, dentry);
+		err = ovl_cleanup(dir, dentry);
 	}
+
+	return err;
 }
 
 int ovl_indexdir_cleanup(struct ovl_fs *ofs)
@@ -1127,6 +1128,13 @@ int ovl_indexdir_cleanup(struct ovl_fs *ofs)
 			err = PTR_ERR(index);
 			index = NULL;
 			break;
+		}
+		/* Cleanup leftover from index create/cleanup attempt */
+		if (index->d_name.name[0] == '#') {
+			err = ovl_workdir_cleanup(dir, path.mnt, index, 1);
+			if (err)
+				break;
+			goto next;
 		}
 		err = ovl_verify_index(ofs, index);
 		if (!err) {

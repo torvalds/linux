@@ -484,12 +484,6 @@ struct dentry *ovl_index_upper(struct ovl_fs *ofs, struct dentry *index)
 	return upper;
 }
 
-/* Is this a leftover from create/whiteout of directory index entry? */
-static bool ovl_is_temp_index(struct dentry *index)
-{
-	return index->d_name.name[0] == '#';
-}
-
 /*
  * Verify that an index entry name matches the origin file handle stored in
  * OVL_XATTR_ORIGIN and that origin file handle can be decoded to lower path.
@@ -506,11 +500,6 @@ int ovl_verify_index(struct ovl_fs *ofs, struct dentry *index)
 
 	if (!d_inode(index))
 		return 0;
-
-	/* Cleanup leftover from index create/cleanup attempt */
-	err = -ESTALE;
-	if (ovl_is_temp_index(index))
-		goto fail;
 
 	err = -EINVAL;
 	if (index->d_name.len < sizeof(struct ovl_fb)*2)
