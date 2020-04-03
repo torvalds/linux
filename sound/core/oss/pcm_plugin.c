@@ -197,7 +197,8 @@ int snd_pcm_plugin_free(struct snd_pcm_plugin *plugin)
 }
 
 static snd_pcm_sframes_t calc_dst_frames(struct snd_pcm_substream *plug,
-					 snd_pcm_sframes_t frames)
+					 snd_pcm_sframes_t frames,
+					 bool check_size)
 {
 	struct snd_pcm_plugin *plugin, *plugin_next;
 
@@ -209,7 +210,7 @@ static snd_pcm_sframes_t calc_dst_frames(struct snd_pcm_substream *plug,
 			if (frames < 0)
 				return frames;
 		}
-		if (frames > plugin->buf_frames)
+		if (check_size && frames > plugin->buf_frames)
 			frames = plugin->buf_frames;
 		plugin = plugin_next;
 	}
@@ -217,13 +218,14 @@ static snd_pcm_sframes_t calc_dst_frames(struct snd_pcm_substream *plug,
 }
 
 static snd_pcm_sframes_t calc_src_frames(struct snd_pcm_substream *plug,
-					 snd_pcm_sframes_t frames)
+					 snd_pcm_sframes_t frames,
+					 bool check_size)
 {
 	struct snd_pcm_plugin *plugin, *plugin_prev;
 
 	plugin = snd_pcm_plug_last(plug);
 	while (plugin && frames > 0) {
-		if (frames > plugin->buf_frames)
+		if (check_size && frames > plugin->buf_frames)
 			frames = plugin->buf_frames;
 		plugin_prev = plugin->prev;
 		if (plugin->src_frames) {
@@ -242,9 +244,9 @@ snd_pcm_sframes_t snd_pcm_plug_client_size(struct snd_pcm_substream *plug, snd_p
 		return -ENXIO;
 	switch (snd_pcm_plug_stream(plug)) {
 	case SNDRV_PCM_STREAM_PLAYBACK:
-		return calc_src_frames(plug, drv_frames);
+		return calc_src_frames(plug, drv_frames, false);
 	case SNDRV_PCM_STREAM_CAPTURE:
-		return calc_dst_frames(plug, drv_frames);
+		return calc_dst_frames(plug, drv_frames, false);
 	default:
 		snd_BUG();
 		return -EINVAL;
@@ -257,9 +259,9 @@ snd_pcm_sframes_t snd_pcm_plug_slave_size(struct snd_pcm_substream *plug, snd_pc
 		return -ENXIO;
 	switch (snd_pcm_plug_stream(plug)) {
 	case SNDRV_PCM_STREAM_PLAYBACK:
-		return calc_dst_frames(plug, clt_frames);
+		return calc_dst_frames(plug, clt_frames, false);
 	case SNDRV_PCM_STREAM_CAPTURE:
-		return calc_src_frames(plug, clt_frames);
+		return calc_src_frames(plug, clt_frames, false);
 	default:
 		snd_BUG();
 		return -EINVAL;
@@ -622,7 +624,7 @@ snd_pcm_sframes_t snd_pcm_plug_write_transfer(struct snd_pcm_substream *plug, st
 		src_channels = dst_channels;
 		plugin = next;
 	}
-	return snd_pcm_plug_client_size(plug, frames);
+	return calc_src_frames(plug, frames, true);
 }
 
 snd_pcm_sframes_t snd_pcm_plug_read_transfer(struct snd_pcm_substream *plug, struct snd_pcm_plugin_channel *dst_channels_final, snd_pcm_uframes_t size)
@@ -632,7 +634,7 @@ snd_pcm_sframes_t snd_pcm_plug_read_transfer(struct snd_pcm_substream *plug, str
 	snd_pcm_sframes_t frames = size;
 	int err;
 
-	frames = snd_pcm_plug_slave_size(plug, frames);
+	frames = calc_src_frames(plug, frames, true);
 	if (frames < 0)
 		return frames;
 
