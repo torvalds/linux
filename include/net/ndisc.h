@@ -81,12 +81,12 @@ extern struct neigh_table nd_tbl;
 struct nd_msg {
         struct icmp6hdr	icmph;
         struct in6_addr	target;
-	__u8		opt[0];
+	__u8		opt[];
 };
 
 struct rs_msg {
 	struct icmp6hdr	icmph;
-	__u8		opt[0];
+	__u8		opt[];
 };
 
 struct ra_msg {
@@ -99,7 +99,7 @@ struct rd_msg {
 	struct icmp6hdr icmph;
 	struct in6_addr	target;
 	struct in6_addr	dest;
-	__u8		opt[0];
+	__u8		opt[];
 };
 
 struct nd_opt_hdr {

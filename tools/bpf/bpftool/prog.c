@@ -4,6 +4,7 @@
 #define _GNU_SOURCE
 #include <errno.h>
 #include <fcntl.h>
+#include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,10 +12,13 @@
 #include <time.h>
 #include <unistd.h>
 #include <net/if.h>
+#include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/syscall.h>
 
 #include <linux/err.h>
+#include <linux/perf_event.h>
 #include <linux/sizes.h>
 
 #include <bpf/bpf.h>
@@ -809,7 +813,7 @@ static int do_pin(int argc, char **argv)
 {
 	int err;
 
-	err = do_pin_any(argc, argv, bpf_prog_get_fd_by_id);
+	err = do_pin_any(argc, argv, prog_parse_fd);
 	if (!err && json_output)
 		jsonw_null(json_wtr);
 	return err;
@@ -1243,6 +1247,25 @@ free_data_in:
 	return err;
 }
 
+static int
+get_prog_type_by_name(const char *name, enum bpf_prog_type *prog_type,
+		      enum bpf_attach_type *expected_attach_type)
+{
+	libbpf_print_fn_t print_backup;
+	int ret;
+
+	ret = libbpf_prog_type_by_name(name, prog_type, expected_attach_type);
+	if (!ret)
+		return ret;
+
+	/* libbpf_prog_type_by_name() failed, let's re-run with debug level */
+	print_backup = libbpf_set_print(print_all_levels);
+	ret = libbpf_prog_type_by_name(name, prog_type, expected_attach_type);
+	libbpf_set_print(print_backup);
+
+	return ret;
+}
+
 static int load_with_options(int argc, char **argv, bool first_prog_only)
 {
 	enum bpf_prog_type common_prog_type = BPF_PROG_TYPE_UNSPEC;
@@ -1292,8 +1315,8 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 			strcat(type, *argv);
 			strcat(type, "/");
 
-			err = libbpf_prog_type_by_name(type, &common_prog_type,
-						       &expected_attach_type);
+			err = get_prog_type_by_name(type, &common_prog_type,
+						    &expected_attach_type);
 			free(type);
 			if (err < 0)
 				goto err_free_reuse_maps;
@@ -1392,8 +1415,8 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 		if (prog_type == BPF_PROG_TYPE_UNSPEC) {
 			const char *sec_name = bpf_program__title(pos, false);
 
-			err = libbpf_prog_type_by_name(sec_name, &prog_type,
-						       &expected_attach_type);
+			err = get_prog_type_by_name(sec_name, &prog_type,
+						    &expected_attach_type);
 			if (err < 0)
 				goto err_close_obj;
 		}
@@ -1537,6 +1560,422 @@ static int do_loadall(int argc, char **argv)
 	return load_with_options(argc, argv, false);
 }
 
+#ifdef BPFTOOL_WITHOUT_SKELETONS
+
+static int do_profile(int argc, char **argv)
+{
+	p_err("bpftool prog profile command is not supported. Please build bpftool with clang >= 10.0.0");
+	return 0;
+}
+
+#else /* BPFTOOL_WITHOUT_SKELETONS */
+
+#include "profiler.skel.h"
+
+struct profile_metric {
+	const char *name;
+	struct bpf_perf_event_value val;
+	struct perf_event_attr attr;
+	bool selected;
+
+	/* calculate ratios like instructions per cycle */
+	const int ratio_metric; /* 0 for N/A, 1 for index 0 (cycles) */
+	const char *ratio_desc;
+	const float ratio_mul;
+} metrics[] = {
+	{
+		.name = "cycles",
+		.attr = {
+			.type = PERF_TYPE_HARDWARE,
+			.config = PERF_COUNT_HW_CPU_CYCLES,
+			.exclude_user = 1,
+		},
+	},
+	{
+		.name = "instructions",
+		.attr = {
+			.type = PERF_TYPE_HARDWARE,
+			.config = PERF_COUNT_HW_INSTRUCTIONS,
+			.exclude_user = 1,
+		},
+		.ratio_metric = 1,
+		.ratio_desc = "insns per cycle",
+		.ratio_mul = 1.0,
+	},
+	{
+		.name = "l1d_loads",
+		.attr = {
+			.type = PERF_TYPE_HW_CACHE,
+			.config =
+				PERF_COUNT_HW_CACHE_L1D |
+				(PERF_COUNT_HW_CACHE_OP_READ << 8) |
+				(PERF_COUNT_HW_CACHE_RESULT_ACCESS << 16),
+			.exclude_user = 1,
+		},
+	},
+	{
+		.name = "llc_misses",
+		.attr = {
+			.type = PERF_TYPE_HW_CACHE,
+			.config =
+				PERF_COUNT_HW_CACHE_LL |
+				(PERF_COUNT_HW_CACHE_OP_READ << 8) |
+				(PERF_COUNT_HW_CACHE_RESULT_MISS << 16),
+			.exclude_user = 1
+		},
+		.ratio_metric = 2,
+		.ratio_desc = "LLC misses per million insns",
+		.ratio_mul = 1e6,
+	},
+};
+
+static __u64 profile_total_count;
+
+#define MAX_NUM_PROFILE_METRICS 4
+
+static int profile_parse_metrics(int argc, char **argv)
+{
+	unsigned int metric_cnt;
+	int selected_cnt = 0;
+	unsigned int i;
+
+	metric_cnt = sizeof(metrics) / sizeof(struct profile_metric);
+
+	while (argc > 0) {
+		for (i = 0; i < metric_cnt; i++) {
+			if (is_prefix(argv[0], metrics[i].name)) {
+				if (!metrics[i].selected)
+					selected_cnt++;
+				metrics[i].selected = true;
+				break;
+			}
+		}
+		if (i == metric_cnt) {
+			p_err("unknown metric %s", argv[0]);
+			return -1;
+		}
+		NEXT_ARG();
+	}
+	if (selected_cnt > MAX_NUM_PROFILE_METRICS) {
+		p_err("too many (%d) metrics, please specify no more than %d metrics at at time",
+		      selected_cnt, MAX_NUM_PROFILE_METRICS);
+		return -1;
+	}
+	return selected_cnt;
+}
+
+static void profile_read_values(struct profiler_bpf *obj)
+{
+	__u32 m, cpu, num_cpu = obj->rodata->num_cpu;
+	int reading_map_fd, count_map_fd;
+	__u64 counts[num_cpu];
+	__u32 key = 0;
+	int err;
+
+	reading_map_fd = bpf_map__fd(obj->maps.accum_readings);
+	count_map_fd = bpf_map__fd(obj->maps.counts);
+	if (reading_map_fd < 0 || count_map_fd < 0) {
+		p_err("failed to get fd for map");
+		return;
+	}
+
+	err = bpf_map_lookup_elem(count_map_fd, &key, counts);
+	if (err) {
+		p_err("failed to read count_map: %s", strerror(errno));
+		return;
+	}
+
+	profile_total_count = 0;
+	for (cpu = 0; cpu < num_cpu; cpu++)
+		profile_total_count += counts[cpu];
+
+	for (m = 0; m < ARRAY_SIZE(metrics); m++) {
+		struct bpf_perf_event_value values[num_cpu];
+
+		if (!metrics[m].selected)
+			continue;
+
+		err = bpf_map_lookup_elem(reading_map_fd, &key, values);
+		if (err) {
+			p_err("failed to read reading_map: %s",
+			      strerror(errno));
+			return;
+		}
+		for (cpu = 0; cpu < num_cpu; cpu++) {
+			metrics[m].val.counter += values[cpu].counter;
+			metrics[m].val.enabled += values[cpu].enabled;
+			metrics[m].val.running += values[cpu].running;
+		}
+		key++;
+	}
+}
+
+static void profile_print_readings_json(void)
+{
+	__u32 m;
+
+	jsonw_start_array(json_wtr);
+	for (m = 0; m < ARRAY_SIZE(metrics); m++) {
+		if (!metrics[m].selected)
+			continue;
+		jsonw_start_object(json_wtr);
+		jsonw_string_field(json_wtr, "metric", metrics[m].name);
+		jsonw_lluint_field(json_wtr, "run_cnt", profile_total_count);
+		jsonw_lluint_field(json_wtr, "value", metrics[m].val.counter);
+		jsonw_lluint_field(json_wtr, "enabled", metrics[m].val.enabled);
+		jsonw_lluint_field(json_wtr, "running", metrics[m].val.running);
+
+		jsonw_end_object(json_wtr);
+	}
+	jsonw_end_array(json_wtr);
+}
+
+static void profile_print_readings_plain(void)
+{
+	__u32 m;
+
+	printf("\n%18llu %-20s\n", profile_total_count, "run_cnt");
+	for (m = 0; m < ARRAY_SIZE(metrics); m++) {
+		struct bpf_perf_event_value *val = &metrics[m].val;
+		int r;
+
+		if (!metrics[m].selected)
+			continue;
+		printf("%18llu %-20s", val->counter, metrics[m].name);
+
+		r = metrics[m].ratio_metric - 1;
+		if (r >= 0 && metrics[r].selected &&
+		    metrics[r].val.counter > 0) {
+			printf("# %8.2f %-30s",
+			       val->counter * metrics[m].ratio_mul /
+			       metrics[r].val.counter,
+			       metrics[m].ratio_desc);
+		} else {
+			printf("%-41s", "");
+		}
+
+		if (val->enabled > val->running)
+			printf("(%4.2f%%)",
+			       val->running * 100.0 / val->enabled);
+		printf("\n");
+	}
+}
+
+static void profile_print_readings(void)
+{
+	if (json_output)
+		profile_print_readings_json();
+	else
+		profile_print_readings_plain();
+}
+
+static char *profile_target_name(int tgt_fd)
+{
+	struct bpf_prog_info_linear *info_linear;
+	struct bpf_func_info *func_info;
+	const struct btf_type *t;
+	char *name = NULL;
+	struct btf *btf;
+
+	info_linear = bpf_program__get_prog_info_linear(
+		tgt_fd, 1UL << BPF_PROG_INFO_FUNC_INFO);
+	if (IS_ERR_OR_NULL(info_linear)) {
+		p_err("failed to get info_linear for prog FD %d", tgt_fd);
+		return NULL;
+	}
+
+	if (info_linear->info.btf_id == 0 ||
+	    btf__get_from_id(info_linear->info.btf_id, &btf)) {
+		p_err("prog FD %d doesn't have valid btf", tgt_fd);
+		goto out;
+	}
+
+	func_info = (struct bpf_func_info *)(info_linear->info.func_info);
+	t = btf__type_by_id(btf, func_info[0].type_id);
+	if (!t) {
+		p_err("btf %d doesn't have type %d",
+		      info_linear->info.btf_id, func_info[0].type_id);
+		goto out;
+	}
+	name = strdup(btf__name_by_offset(btf, t->name_off));
+out:
+	free(info_linear);
+	return name;
+}
+
+static struct profiler_bpf *profile_obj;
+static int profile_tgt_fd = -1;
+static char *profile_tgt_name;
+static int *profile_perf_events;
+static int profile_perf_event_cnt;
+
+static void profile_close_perf_events(struct profiler_bpf *obj)
+{
+	int i;
+
+	for (i = profile_perf_event_cnt - 1; i >= 0; i--)
+		close(profile_perf_events[i]);
+
+	free(profile_perf_events);
+	profile_perf_event_cnt = 0;
+}
+
+static int profile_open_perf_events(struct profiler_bpf *obj)
+{
+	unsigned int cpu, m;
+	int map_fd, pmu_fd;
+
+	profile_perf_events = calloc(
+		sizeof(int), obj->rodata->num_cpu * obj->rodata->num_metric);
+	if (!profile_perf_events) {
+		p_err("failed to allocate memory for perf_event array: %s",
+		      strerror(errno));
+		return -1;
+	}
+	map_fd = bpf_map__fd(obj->maps.events);
+	if (map_fd < 0) {
+		p_err("failed to get fd for events map");
+		return -1;
+	}
+
+	for (m = 0; m < ARRAY_SIZE(metrics); m++) {
+		if (!metrics[m].selected)
+			continue;
+		for (cpu = 0; cpu < obj->rodata->num_cpu; cpu++) {
+			pmu_fd = syscall(__NR_perf_event_open, &metrics[m].attr,
+					 -1/*pid*/, cpu, -1/*group_fd*/, 0);
+			if (pmu_fd < 0 ||
+			    bpf_map_update_elem(map_fd, &profile_perf_event_cnt,
+						&pmu_fd, BPF_ANY) ||
+			    ioctl(pmu_fd, PERF_EVENT_IOC_ENABLE, 0)) {
+				p_err("failed to create event %s on cpu %d",
+				      metrics[m].name, cpu);
+				return -1;
+			}
+			profile_perf_events[profile_perf_event_cnt++] = pmu_fd;
+		}
+	}
+	return 0;
+}
+
+static void profile_print_and_cleanup(void)
+{
+	profile_close_perf_events(profile_obj);
+	profile_read_values(profile_obj);
+	profile_print_readings();
+	profiler_bpf__destroy(profile_obj);
+
+	close(profile_tgt_fd);
+	free(profile_tgt_name);
+}
+
+static void int_exit(int signo)
+{
+	profile_print_and_cleanup();
+	exit(0);
+}
+
+static int do_profile(int argc, char **argv)
+{
+	int num_metric, num_cpu, err = -1;
+	struct bpf_program *prog;
+	unsigned long duration;
+	char *endptr;
+
+	/* we at least need two args for the prog and one metric */
+	if (!REQ_ARGS(3))
+		return -EINVAL;
+
+	/* parse target fd */
+	profile_tgt_fd = prog_parse_fd(&argc, &argv);
+	if (profile_tgt_fd < 0) {
+		p_err("failed to parse fd");
+		return -1;
+	}
+
+	/* parse profiling optional duration */
+	if (argc > 2 && is_prefix(argv[0], "duration")) {
+		NEXT_ARG();
+		duration = strtoul(*argv, &endptr, 0);
+		if (*endptr)
+			usage();
+		NEXT_ARG();
+	} else {
+		duration = UINT_MAX;
+	}
+
+	num_metric = profile_parse_metrics(argc, argv);
+	if (num_metric <= 0)
+		goto out;
+
+	num_cpu = libbpf_num_possible_cpus();
+	if (num_cpu <= 0) {
+		p_err("failed to identify number of CPUs");
+		goto out;
+	}
+
+	profile_obj = profiler_bpf__open();
+	if (!profile_obj) {
+		p_err("failed to open and/or load BPF object");
+		goto out;
+	}
+
+	profile_obj->rodata->num_cpu = num_cpu;
+	profile_obj->rodata->num_metric = num_metric;
+
+	/* adjust map sizes */
+	bpf_map__resize(profile_obj->maps.events, num_metric * num_cpu);
+	bpf_map__resize(profile_obj->maps.fentry_readings, num_metric);
+	bpf_map__resize(profile_obj->maps.accum_readings, num_metric);
+	bpf_map__resize(profile_obj->maps.counts, 1);
+
+	/* change target name */
+	profile_tgt_name = profile_target_name(profile_tgt_fd);
+	if (!profile_tgt_name)
+		goto out;
+
+	bpf_object__for_each_program(prog, profile_obj->obj) {
+		err = bpf_program__set_attach_target(prog, profile_tgt_fd,
+						     profile_tgt_name);
+		if (err) {
+			p_err("failed to set attach target\n");
+			goto out;
+		}
+	}
+
+	set_max_rlimit();
+	err = profiler_bpf__load(profile_obj);
+	if (err) {
+		p_err("failed to load profile_obj");
+		goto out;
+	}
+
+	err = profile_open_perf_events(profile_obj);
+	if (err)
+		goto out;
+
+	err = profiler_bpf__attach(profile_obj);
+	if (err) {
+		p_err("failed to attach profile_obj");
+		goto out;
+	}
+	signal(SIGINT, int_exit);
+
+	sleep(duration);
+	profile_print_and_cleanup();
+	return 0;
+
+out:
+	profile_close_perf_events(profile_obj);
+	if (profile_obj)
+		profiler_bpf__destroy(profile_obj);
+	close(profile_tgt_fd);
+	free(profile_tgt_name);
+	return err;
+}
+
+#endif /* BPFTOOL_WITHOUT_SKELETONS */
+
 static int do_help(int argc, char **argv)
 {
 	if (json_output) {
@@ -1560,6 +1999,7 @@ static int do_help(int argc, char **argv)
 		"                         [data_out FILE [data_size_out L]] \\\n"
 		"                         [ctx_in FILE [ctx_out FILE [ctx_size_out M]]] \\\n"
 		"                         [repeat N]\n"
+		"       %s %s profile PROG [duration DURATION] METRICs\n"
 		"       %s %s tracelog\n"
 		"       %s %s help\n"
 		"\n"
@@ -1573,16 +2013,17 @@ static int do_help(int argc, char **argv)
 		"                 cgroup/bind4 | cgroup/bind6 | cgroup/post_bind4 |\n"
 		"                 cgroup/post_bind6 | cgroup/connect4 | cgroup/connect6 |\n"
 		"                 cgroup/sendmsg4 | cgroup/sendmsg6 | cgroup/recvmsg4 |\n"
-		"                 cgroup/recvmsg6 | cgroup/getsockopt |\n"
-		"                 cgroup/setsockopt }\n"
+		"                 cgroup/recvmsg6 | cgroup/getsockopt | cgroup/setsockopt |\n"
+		"                 struct_ops | fentry | fexit | freplace }\n"
 		"       ATTACH_TYPE := { msg_verdict | stream_verdict | stream_parser |\n"
 		"                        flow_dissector }\n"
+		"       METRIC := { cycles | instructions | l1d_loads | llc_misses }\n"
 		"       " HELP_SPEC_OPTIONS "\n"
 		"",
 		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
 		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
 		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
-		bin_name, argv[-2]);
+		bin_name, argv[-2], bin_name, argv[-2]);
 
 	return 0;
 }
@@ -1599,6 +2040,7 @@ static const struct cmd cmds[] = {
 	{ "detach",	do_detach },
 	{ "tracelog",	do_tracelog },
 	{ "run",	do_run },
+	{ "profile",	do_profile },
 	{ 0 }
 };
 

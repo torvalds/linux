@@ -190,8 +190,6 @@ void fs_cleanup_bds(struct net_device *dev);
 
 #define DRV_MODULE_NAME		"fs_enet"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"1.1"
-#define DRV_MODULE_RELDATE	"Sep 22, 2014"
 
 /***************************************************************************/
 

@@ -1108,6 +1108,38 @@ static int iwl_dump_ini_csr_iter(struct iwl_fw_runtime *fwrt,
 	return sizeof(*range) + le32_to_cpu(range->range_data_size);
 }
 
+static int iwl_dump_ini_config_iter(struct iwl_fw_runtime *fwrt,
+				    struct iwl_dump_ini_region_data *reg_data,
+				    void *range_ptr, int idx)
+{
+	struct iwl_trans *trans = fwrt->trans;
+	struct iwl_fw_ini_region_tlv *reg = (void *)reg_data->reg_tlv->data;
+	struct iwl_fw_ini_error_dump_range *range = range_ptr;
+	__le32 *val = range->data;
+	u32 addr = le32_to_cpu(reg->addrs[idx]) +
+		   le32_to_cpu(reg->dev_addr.offset);
+	int i;
+
+	/* we shouldn't get here if the trans doesn't have read_config32 */
+	if (WARN_ON_ONCE(!trans->ops->read_config32))
+		return -EOPNOTSUPP;
+
+	range->internal_base_addr = cpu_to_le32(addr);
+	range->range_data_size = reg->dev_addr.size;
+	for (i = 0; i < le32_to_cpu(reg->dev_addr.size); i += 4) {
+		int ret;
+		u32 tmp;
+
+		ret = trans->ops->read_config32(trans, addr + i, &tmp);
+		if (ret < 0)
+			return ret;
+
+		*val++ = cpu_to_le32(tmp);
+	}
+
+	return sizeof(*range) + le32_to_cpu(range->range_data_size);
+}
+
 static int iwl_dump_ini_dev_mem_iter(struct iwl_fw_runtime *fwrt,
 				     struct iwl_dump_ini_region_data *reg_data,
 				     void *range_ptr, int idx)
@@ -1701,13 +1733,7 @@ iwl_dump_ini_mon_smem_get_size(struct iwl_fw_runtime *fwrt,
 			       struct iwl_dump_ini_region_data *reg_data)
 {
 	struct iwl_fw_ini_region_tlv *reg = (void *)reg_data->reg_tlv->data;
-	struct iwl_fw_ini_allocation_tlv *fw_mon_cfg;
-	u32 alloc_id = le32_to_cpu(reg->internal_buffer.alloc_id), size;
-
-	fw_mon_cfg = &fwrt->trans->dbg.fw_mon_cfg[alloc_id];
-	if (le32_to_cpu(fw_mon_cfg->buf_location) !=
-	    IWL_FW_INI_LOCATION_SRAM_PATH)
-		return 0;
+	u32 size;
 
 	size = le32_to_cpu(reg->internal_buffer.size);
 	if (!size)
@@ -2048,7 +2074,12 @@ static const struct iwl_dump_ini_mem_ops iwl_dump_ini_region_ops[] = {
 		.fill_range = iwl_dump_ini_csr_iter,
 	},
 	[IWL_FW_INI_REGION_DRAM_IMR] = {},
-	[IWL_FW_INI_REGION_PCI_IOSF_CONFIG] = {},
+	[IWL_FW_INI_REGION_PCI_IOSF_CONFIG] = {
+		.get_num_of_ranges = iwl_dump_ini_mem_ranges,
+		.get_size = iwl_dump_ini_mem_get_size,
+		.fill_mem_hdr = iwl_dump_ini_mem_fill_header,
+		.fill_range = iwl_dump_ini_config_iter,
+	},
 };
 
 static u32 iwl_dump_ini_trigger(struct iwl_fw_runtime *fwrt,

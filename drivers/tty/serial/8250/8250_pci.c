@@ -53,7 +53,7 @@ struct serial_private {
 	unsigned int		nr;
 	struct pci_serial_quirk	*quirk;
 	const struct pciserial_board *board;
-	int			line[0];
+	int			line[];
 };
 
 static const struct pci_device_id pci_use_msi[] = {

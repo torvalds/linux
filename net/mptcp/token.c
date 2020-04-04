@@ -128,43 +128,43 @@ int mptcp_token_new_connect(struct sock *sk)
  *
  * Called when a SYN packet creates a new logical connection, i.e.
  * is not a join request.
- *
- * We don't have an mptcp socket yet at that point.
- * This is paired with mptcp_token_update_accept, called on accept().
  */
-int mptcp_token_new_accept(u32 token)
+int mptcp_token_new_accept(u32 token, struct sock *conn)
 {
 	int err;
 
 	spin_lock_bh(&token_tree_lock);
-	err = radix_tree_insert(&token_tree, token, &token_used);
+	err = radix_tree_insert(&token_tree, token, conn);
 	spin_unlock_bh(&token_tree_lock);
 
 	return err;
 }
 
 /**
- * mptcp_token_update_accept - update token to map to mptcp socket
- * @conn: the new struct mptcp_sock
- * @sk: the initial subflow for this mptcp socket
+ * mptcp_token_get_sock - retrieve mptcp connection sock using its token
+ * @token: token of the mptcp connection to retrieve
  *
- * Called when the first mptcp socket is created on accept to
- * refresh the dummy mapping (done to reserve the token) with
- * the mptcp_socket structure that wasn't allocated before.
+ * This function returns the mptcp connection structure with the given token.
+ * A reference count on the mptcp socket returned is taken.
+ *
+ * returns NULL if no connection with the given token value exists.
  */
-void mptcp_token_update_accept(struct sock *sk, struct sock *conn)
+struct mptcp_sock *mptcp_token_get_sock(u32 token)
 {
-	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(sk);
-	void __rcu **slot;
+	struct sock *conn;
 
 	spin_lock_bh(&token_tree_lock);
-	slot = radix_tree_lookup_slot(&token_tree, subflow->token);
-	WARN_ON_ONCE(!slot);
-	if (slot) {
-		WARN_ON_ONCE(rcu_access_pointer(*slot) != &token_used);
-		radix_tree_replace_slot(&token_tree, slot, conn);
+	conn = radix_tree_lookup(&token_tree, token);
+	if (conn) {
+		/* token still reserved? */
+		if (conn == (struct sock *)&token_used)
+			conn = NULL;
+		else
+			sock_hold(conn);
 	}
 	spin_unlock_bh(&token_tree_lock);
+
+	return mptcp_sk(conn);
 }
 
 /**

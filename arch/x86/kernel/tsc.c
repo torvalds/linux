@@ -477,7 +477,7 @@ static unsigned long pit_calibrate_tsc(u32 latch, unsigned long ms, int loopmin)
  * transition from one expected value to another with a fairly
  * high accuracy, and we didn't miss any events. We can thus
  * use the TSC value at the transitions to calculate a pretty
- * good value for the TSC frequencty.
+ * good value for the TSC frequency.
  */
 static inline int pit_verify_msb(unsigned char val)
 {

@@ -1018,7 +1018,7 @@ struct file_system_type cifs_fs_type = {
 	.name = "cifs",
 	.mount = cifs_do_mount,
 	.kill_sb = cifs_kill_sb,
-	/*  .fs_flags */
+	.fs_flags = FS_RENAME_DOES_D_MOVE,
 };
 MODULE_ALIAS_FS("cifs");
 
@@ -1027,7 +1027,7 @@ static struct file_system_type smb3_fs_type = {
 	.name = "smb3",
 	.mount = smb3_do_mount,
 	.kill_sb = cifs_kill_sb,
-	/*  .fs_flags */
+	.fs_flags = FS_RENAME_DOES_D_MOVE,
 };
 MODULE_ALIAS_FS("smb3");
 MODULE_ALIAS("smb3");

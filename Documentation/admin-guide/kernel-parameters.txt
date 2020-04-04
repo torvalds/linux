@@ -525,6 +525,7 @@
 			Default value is set via a kernel config option.
 			Value can be changed at runtime via
 				/sys/fs/selinux/checkreqprot.
+			Setting checkreqprot to 1 is deprecated.
 
 	cio_ignore=	[S390]
 			See Documentation/s390/common_io.rst for details.
@@ -3201,7 +3202,7 @@
 			[X86,PV_OPS] Disable paravirtualized VMware scheduler
 			clock and use the default one.
 
-	no-steal-acc	[X86,KVM,ARM64] Disable paravirtualized steal time
+	no-steal-acc	[X86,PV_OPS,ARM64] Disable paravirtualized steal time
 			accounting. steal time is computed, but won't
 			influence scheduler behaviour
 

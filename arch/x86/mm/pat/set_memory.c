@@ -15,6 +15,7 @@
 #include <linux/gfp.h>
 #include <linux/pci.h>
 #include <linux/vmalloc.h>
+#include <linux/libnvdimm.h>
 
 #include <asm/e820/api.h>
 #include <asm/processor.h>
@@ -304,11 +305,13 @@ void clflush_cache_range(void *vaddr, unsigned int size)
 }
 EXPORT_SYMBOL_GPL(clflush_cache_range);
 
+#ifdef CONFIG_ARCH_HAS_PMEM_API
 void arch_invalidate_pmem(void *addr, size_t size)
 {
 	clflush_cache_range(addr, size);
 }
 EXPORT_SYMBOL_GPL(arch_invalidate_pmem);
+#endif
 
 static void __cpa_flush_all(void *arg)
 {

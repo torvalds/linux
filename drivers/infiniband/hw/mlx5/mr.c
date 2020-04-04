@@ -47,6 +47,46 @@ enum {
 
 #define MLX5_UMR_ALIGN 2048
 
+static void
+create_mkey_callback(int status, struct mlx5_async_work *context);
+
+static void
+assign_mkey_variant(struct mlx5_ib_dev *dev, struct mlx5_core_mkey *mkey,
+		    u32 *in)
+{
+	void *mkc;
+	u8 key;
+
+	spin_lock_irq(&dev->mkey_lock);
+	key = dev->mkey_key++;
+	spin_unlock_irq(&dev->mkey_lock);
+
+	mkc = MLX5_ADDR_OF(create_mkey_in, in, memory_key_mkey_entry);
+	MLX5_SET(mkc, mkc, mkey_7_0, key);
+	mkey->key = key;
+}
+
+static int
+mlx5_ib_create_mkey(struct mlx5_ib_dev *dev, struct mlx5_core_mkey *mkey,
+		    u32 *in, int inlen)
+{
+	assign_mkey_variant(dev, mkey, in);
+	return mlx5_core_create_mkey(dev->mdev, mkey, in, inlen);
+}
+
+static int
+mlx5_ib_create_mkey_cb(struct mlx5_ib_dev *dev,
+		       struct mlx5_core_mkey *mkey,
+		       struct mlx5_async_ctx *async_ctx,
+		       u32 *in, int inlen, u32 *out, int outlen,
+		       struct mlx5_async_work *context)
+{
+	MLX5_SET(create_mkey_in, in, opcode, MLX5_CMD_OP_CREATE_MKEY);
+	assign_mkey_variant(dev, mkey, in);
+	return mlx5_cmd_exec_cb(async_ctx, in, inlen, out, outlen,
+				create_mkey_callback, context);
+}
+
 static void clean_mr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr);
 static void dereg_mr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr);
 static int mr_cache_max_order(struct mlx5_ib_dev *dev);
@@ -79,7 +119,7 @@ static bool use_umr_mtt_update(struct mlx5_ib_mr *mr, u64 start, u64 length)
 		length + (start & (MLX5_ADAPTER_PAGE_SIZE - 1));
 }
 
-static void reg_mr_callback(int status, struct mlx5_async_work *context)
+static void create_mkey_callback(int status, struct mlx5_async_work *context)
 {
 	struct mlx5_ib_mr *mr =
 		container_of(context, struct mlx5_ib_mr, cb_work);
@@ -87,7 +127,6 @@ static void reg_mr_callback(int status, struct mlx5_async_work *context)
 	struct mlx5_mr_cache *cache = &dev->cache;
 	int c = order2idx(dev, mr->order);
 	struct mlx5_cache_ent *ent = &cache->ent[c];
-	u8 key;
 	unsigned long flags;
 
 	spin_lock_irqsave(&ent->lock, flags);
@@ -102,10 +141,8 @@ static void reg_mr_callback(int status, struct mlx5_async_work *context)
 	}
 
 	mr->mmkey.type = MLX5_MKEY_MR;
-	spin_lock_irqsave(&dev->mdev->priv.mkey_lock, flags);
-	key = dev->mdev->priv.mkey_key++;
-	spin_unlock_irqrestore(&dev->mdev->priv.mkey_lock, flags);
-	mr->mmkey.key = mlx5_idx_to_mkey(MLX5_GET(create_mkey_out, mr->out, mkey_index)) | key;
+	mr->mmkey.key |= mlx5_idx_to_mkey(
+		MLX5_GET(create_mkey_out, mr->out, mkey_index));
 
 	cache->last_add = jiffies;
 
@@ -163,10 +200,10 @@ static int add_keys(struct mlx5_ib_dev *dev, int c, int num)
 		spin_lock_irq(&ent->lock);
 		ent->pending++;
 		spin_unlock_irq(&ent->lock);
-		err = mlx5_core_create_mkey_cb(dev->mdev, &mr->mmkey,
+		err = mlx5_ib_create_mkey_cb(dev, &mr->mmkey,
 					       &dev->async_ctx, in, inlen,
 					       mr->out, sizeof(mr->out),
-					       reg_mr_callback, &mr->cb_work);
+					       &mr->cb_work);
 		if (err) {
 			spin_lock_irq(&ent->lock);
 			ent->pending--;
@@ -685,7 +722,6 @@ struct ib_mr *mlx5_ib_get_dma_mr(struct ib_pd *pd, int acc)
 {
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
 	int inlen = MLX5_ST_SZ_BYTES(create_mkey_in);
-	struct mlx5_core_dev *mdev = dev->mdev;
 	struct mlx5_ib_mr *mr;
 	void *mkc;
 	u32 *in;
@@ -707,7 +743,7 @@ struct ib_mr *mlx5_ib_get_dma_mr(struct ib_pd *pd, int acc)
 	MLX5_SET(mkc, mkc, length64, 1);
 	set_mkc_access_pd_addr_fields(mkc, acc, 0, pd);
 
-	err = mlx5_core_create_mkey(mdev, &mr->mmkey, in, inlen);
+	err = mlx5_ib_create_mkey(dev, &mr->mmkey, in, inlen);
 	if (err)
 		goto err_in;
 
@@ -1097,7 +1133,7 @@ static struct mlx5_ib_mr *reg_create(struct ib_mr *ibmr, struct ib_pd *pd,
 			 get_octo_len(virt_addr, length, page_shift));
 	}
 
-	err = mlx5_core_create_mkey(dev->mdev, &mr->mmkey, in, inlen);
+	err = mlx5_ib_create_mkey(dev, &mr->mmkey, in, inlen);
 	if (err) {
 		mlx5_ib_warn(dev, "create mkey failed\n");
 		goto err_2;
@@ -1137,7 +1173,6 @@ static struct ib_mr *mlx5_ib_get_dm_mr(struct ib_pd *pd, u64 start_addr,
 {
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
 	int inlen = MLX5_ST_SZ_BYTES(create_mkey_in);
-	struct mlx5_core_dev *mdev = dev->mdev;
 	struct mlx5_ib_mr *mr;
 	void *mkc;
 	u32 *in;
@@ -1160,7 +1195,7 @@ static struct ib_mr *mlx5_ib_get_dm_mr(struct ib_pd *pd, u64 start_addr,
 	MLX5_SET64(mkc, mkc, len, length);
 	set_mkc_access_pd_addr_fields(mkc, acc, start_addr, pd);
 
-	err = mlx5_core_create_mkey(mdev, &mr->mmkey, in, inlen);
+	err = mlx5_ib_create_mkey(dev, &mr->mmkey, in, inlen);
 	if (err)
 		goto err_in;
 
@@ -1638,7 +1673,7 @@ static int _mlx5_alloc_mkey_descs(struct ib_pd *pd, struct mlx5_ib_mr *mr,
 
 	mlx5_set_umr_free_mkey(pd, in, ndescs, access_mode, page_shift);
 
-	err = mlx5_core_create_mkey(dev->mdev, &mr->mmkey, in, inlen);
+	err = mlx5_ib_create_mkey(dev, &mr->mmkey, in, inlen);
 	if (err)
 		goto err_free_descs;
 
@@ -1905,7 +1940,7 @@ struct ib_mw *mlx5_ib_alloc_mw(struct ib_pd *pd, enum ib_mw_type type,
 	MLX5_SET(mkc, mkc, en_rinval, !!((type == IB_MW_TYPE_2)));
 	MLX5_SET(mkc, mkc, qpn, 0xffffff);
 
-	err = mlx5_core_create_mkey(dev->mdev, &mw->mmkey, in, inlen);
+	err = mlx5_ib_create_mkey(dev, &mw->mmkey, in, inlen);
 	if (err)
 		goto free;
 

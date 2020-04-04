@@ -176,7 +176,7 @@ L:	linux-wpan@vger.kernel.org
 S:	Maintained
 F:	net/6lowpan/
 F:	include/net/6lowpan.h
-F:	Documentation/networking/6lowpan.txt
+F:	Documentation/networking/6lowpan.rst
 
 6PACK NETWORK DRIVER FOR AX.25
 M:	Andreas Koensgen <ajk@comnets.uni-bremen.de>
@@ -303,8 +303,8 @@ F:	drivers/net/ethernet/alteon/acenic*
 ACER ASPIRE ONE TEMPERATURE AND FAN DRIVER
 M:	Peter Kaestle <peter@piie.net>
 L:	platform-driver-x86@vger.kernel.org
-W:	http://piie.net/?section=acerhdf
 S:	Maintained
+W:	http://piie.net/?section=acerhdf
 F:	drivers/platform/x86/acerhdf.c
 
 ACER WMI LAPTOP EXTRAS
@@ -2766,8 +2766,8 @@ ASUS NOTEBOOKS AND EEEPC ACPI/WMI EXTRAS DRIVERS
 M:	Corentin Chary <corentin.chary@gmail.com>
 L:	acpi4asus-user@lists.sourceforge.net
 L:	platform-driver-x86@vger.kernel.org
-W:	http://acpi4asus.sf.net
 S:	Maintained
+W:	http://acpi4asus.sf.net
 F:	drivers/platform/x86/asus*.c
 F:	drivers/platform/x86/eeepc*.c
 
@@ -3173,6 +3173,8 @@ R:	Martin KaFai Lau <kafai@fb.com>
 R:	Song Liu <songliubraving@fb.com>
 R:	Yonghong Song <yhs@fb.com>
 R:	Andrii Nakryiko <andriin@fb.com>
+R:	John Fastabend <john.fastabend@gmail.com>
+R:	KP Singh <kpsingh@chromium.org>
 L:	netdev@vger.kernel.org
 L:	bpf@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/bpf/bpf.git
@@ -3239,11 +3241,22 @@ L:	bpf@vger.kernel.org
 S:	Maintained
 F:	arch/powerpc/net/
 
-BPF JIT for RISC-V (RV64G)
-M:	Björn Töpel <bjorn.topel@gmail.com>
+BPF JIT for RISC-V (32-bit)
+M:	Luke Nelson <luke.r.nels@gmail.com>
+M:	Xi Wang <xi.wang@gmail.com>
 L:	netdev@vger.kernel.org
+L:	bpf@vger.kernel.org
 S:	Maintained
 F:	arch/riscv/net/
+X:	arch/riscv/net/bpf_jit_comp64.c
+
+BPF JIT for RISC-V (64-bit)
+M:	Björn Töpel <bjorn.topel@gmail.com>
+L:	netdev@vger.kernel.org
+L:	bpf@vger.kernel.org
+S:	Maintained
+F:	arch/riscv/net/
+X:	arch/riscv/net/bpf_jit_comp32.c
 
 BPF JIT for S390
 M:	Ilya Leoshkevich <iii@linux.ibm.com>
@@ -4139,6 +4152,7 @@ B:	https://github.com/ClangBuiltLinux/linux/issues
 C:	irc://chat.freenode.net/clangbuiltlinux
 S:	Supported
 K:	\b(?i:clang|llvm)\b
+F:	Documentation/kbuild/llvm.rst
 
 CLEANCACHE API
 M:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
@@ -4744,26 +4758,6 @@ S:	Maintained
 F:	drivers/media/platform/sunxi/sun8i-di/
 F:	Documentation/devicetree/bindings/media/allwinner,sun8i-h3-deinterlace.yaml
 
-DELL SMBIOS DRIVER
-M:	Pali Rohár <pali.rohar@gmail.com>
-M:	Mario Limonciello <mario.limonciello@dell.com>
-L:	platform-driver-x86@vger.kernel.org
-S:	Maintained
-F:	drivers/platform/x86/dell-smbios.*
-
-DELL SMBIOS SMM DRIVER
-M:	Mario Limonciello <mario.limonciello@dell.com>
-L:	platform-driver-x86@vger.kernel.org
-S:	Maintained
-F:	drivers/platform/x86/dell-smbios-smm.c
-
-DELL SMBIOS WMI DRIVER
-M:	Mario Limonciello <mario.limonciello@dell.com>
-L:	platform-driver-x86@vger.kernel.org
-S:	Maintained
-F:	drivers/platform/x86/dell-smbios-wmi.c
-F:	tools/wmi/dell-smbios-example.c
-
 DEFZA FDDI NETWORK DRIVER
 M:	"Maciej W. Rozycki" <macro@linux-mips.org>
 S:	Maintained
@@ -4786,17 +4780,37 @@ M:	Pali Rohár <pali.rohar@gmail.com>
 S:	Maintained
 F:	drivers/platform/x86/dell-rbtn.*
 
+DELL LAPTOP SMM DRIVER
+M:	Pali Rohár <pali.rohar@gmail.com>
+S:	Maintained
+F:	drivers/hwmon/dell-smm-hwmon.c
+F:	include/uapi/linux/i8k.h
+
 DELL REMOTE BIOS UPDATE DRIVER
 M:	Stuart Hayes <stuart.w.hayes@gmail.com>
 L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 F:	drivers/platform/x86/dell_rbu.c
 
-DELL LAPTOP SMM DRIVER
+DELL SMBIOS DRIVER
 M:	Pali Rohár <pali.rohar@gmail.com>
+M:	Mario Limonciello <mario.limonciello@dell.com>
+L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
-F:	drivers/hwmon/dell-smm-hwmon.c
-F:	include/uapi/linux/i8k.h
+F:	drivers/platform/x86/dell-smbios.*
+
+DELL SMBIOS SMM DRIVER
+M:	Mario Limonciello <mario.limonciello@dell.com>
+L:	platform-driver-x86@vger.kernel.org
+S:	Maintained
+F:	drivers/platform/x86/dell-smbios-smm.c
+
+DELL SMBIOS WMI DRIVER
+M:	Mario Limonciello <mario.limonciello@dell.com>
+L:	platform-driver-x86@vger.kernel.org
+S:	Maintained
+F:	drivers/platform/x86/dell-smbios-wmi.c
+F:	tools/wmi/dell-smbios-example.c
 
 DELL SYSTEMS MANAGEMENT BASE DRIVER (dcdbas)
 M:	Stuart Hayes <stuart.w.hayes@gmail.com>
@@ -4805,16 +4819,16 @@ S:	Maintained
 F:	Documentation/driver-api/dcdbas.rst
 F:	drivers/platform/x86/dcdbas.*
 
+DELL WMI DESCRIPTOR DRIVER
+M:	Mario Limonciello <mario.limonciello@dell.com>
+S:	Maintained
+F:	drivers/platform/x86/dell-wmi-descriptor.c
+
 DELL WMI NOTIFICATIONS DRIVER
 M:	Matthew Garrett <mjg59@srcf.ucam.org>
 M:	Pali Rohár <pali.rohar@gmail.com>
 S:	Maintained
 F:	drivers/platform/x86/dell-wmi.c
-
-DELL WMI DESCRIPTOR DRIVER
-M:	Mario Limonciello <mario.limonciello@dell.com>
-S:	Maintained
-F:	drivers/platform/x86/dell-wmi-descriptor.c
 
 DELTA ST MEDIA DRIVER
 M:	Hugues Fruchet <hugues.fruchet@st.com>
@@ -7374,8 +7388,8 @@ F:	drivers/media/usb/hackrf/
 HARD DRIVE ACTIVE PROTECTION SYSTEM (HDAPS) DRIVER
 M:	Frank Seidel <frank@f-seidel.de>
 L:	platform-driver-x86@vger.kernel.org
-W:	http://www.kernel.org/pub/linux/kernel/people/fseidel/hdaps/
 S:	Maintained
+W:	http://www.kernel.org/pub/linux/kernel/people/fseidel/hdaps/
 F:	drivers/platform/x86/hdaps.c
 
 HARDWARE MONITORING
@@ -7978,6 +7992,7 @@ L:	linux-ia64@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/aegl/linux.git
 S:	Maintained
 F:	arch/ia64/
+F:	Documentation/ia64/
 
 IBM Power 842 compression accelerator
 M:	Haren Myneni <haren@us.ibm.com>
@@ -8117,15 +8132,15 @@ F:	drivers/ide/ide-cd*
 IDEAPAD LAPTOP EXTRAS DRIVER
 M:	Ike Panhc <ike.pan@canonical.com>
 L:	platform-driver-x86@vger.kernel.org
-W:	http://launchpad.net/ideapad-laptop
 S:	Maintained
+W:	http://launchpad.net/ideapad-laptop
 F:	drivers/platform/x86/ideapad-laptop.c
 
 IDEAPAD LAPTOP SLIDEBAR DRIVER
 M:	Andrey Moiseev <o2g.org.ru@gmail.com>
 L:	linux-input@vger.kernel.org
-W:	https://github.com/o2genum/ideapad-slidebar
 S:	Maintained
+W:	https://github.com/o2genum/ideapad-slidebar
 F:	drivers/input/misc/ideapad_slidebar.c
 
 IDT VersaClock 5 CLOCK DRIVER
@@ -8591,8 +8606,8 @@ F:	samples/mei/*
 INTEL MENLOW THERMAL DRIVER
 M:	Sujith Thomas <sujith.thomas@intel.com>
 L:	platform-driver-x86@vger.kernel.org
-W:	https://01.org/linux-acpi
 S:	Supported
+W:	https://01.org/linux-acpi
 F:	drivers/platform/x86/intel_menlow.c
 
 INTEL MIC DRIVERS (mic)
@@ -8622,10 +8637,10 @@ INTEL PMC/P-Unit IPC DRIVER
 M:	Zha Qipeng<qipeng.zha@intel.com>
 L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
-F:	drivers/platform/x86/intel_pmc_ipc.c
-F:	drivers/platform/x86/intel_punit_ipc.c
 F:	arch/x86/include/asm/intel_pmc_ipc.h
 F:	arch/x86/include/asm/intel_punit_ipc.h
+F:	drivers/platform/x86/intel_pmc_ipc.c
+F:	drivers/platform/x86/intel_punit_ipc.c
 
 INTEL PMIC GPIO DRIVERS
 M:	Andy Shevchenko <andy@kernel.org>
@@ -8670,8 +8685,8 @@ M:	Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>
 L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 F:	drivers/platform/x86/intel_speed_select_if/
-F:	tools/power/x86/intel-speed-select/
 F:	include/uapi/linux/isst_if.h
+F:	tools/power/x86/intel-speed-select/
 
 INTEL STRATIX10 FIRMWARE DRIVERS
 M:	Richard Gong <richard.gong@linux.intel.com>
@@ -9383,6 +9398,8 @@ F:	include/net/l3mdev.h
 L7 BPF FRAMEWORK
 M:	John Fastabend <john.fastabend@gmail.com>
 M:	Daniel Borkmann <daniel@iogearbox.net>
+M:	Jakub Sitnicki <jakub@cloudflare.com>
+M:	Lorenz Bauer <lmb@cloudflare.com>
 L:	netdev@vger.kernel.org
 L:	bpf@vger.kernel.org
 S:	Maintained
@@ -9390,6 +9407,7 @@ F:	include/linux/skmsg.h
 F:	net/core/skmsg.c
 F:	net/core/sock_map.c
 F:	net/ipv4/tcp_bpf.c
+F:	net/ipv4/udp_bpf.c
 
 LANTIQ / INTEL Ethernet drivers
 M:	Hauke Mehrtens <hauke@hauke-m.de>
@@ -10119,6 +10137,13 @@ MARVELL SOC MMC/SD/SDIO CONTROLLER DRIVER
 M:	Nicolas Pitre <nico@fluxnic.net>
 S:	Odd Fixes
 F:	drivers/mmc/host/mvsdio.*
+
+MARVELL USB MDIO CONTROLLER DRIVER
+M:	Tobias Waldekranz <tobias@waldekranz.com>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	drivers/net/phy/mdio-mvusb.c
+F:	Documentation/devicetree/bindings/net/marvell,mvusb.yaml
 
 MARVELL XENON MMC/SD/SDIO HOST CONTROLLER DRIVER
 M:	Hu Ziji <huziji@marvell.com>
@@ -11202,6 +11227,7 @@ S:	Maintained
 F:	arch/mips/loongson64/
 F:	arch/mips/include/asm/mach-loongson64/
 F:	drivers/platform/mips/cpu_hwmon.c
+F:	drivers/irqchip/irq-loongson*
 F:	drivers/*/*loongson3*
 F:	drivers/*/*/*loongson3*
 
@@ -11735,6 +11761,7 @@ W:	https://github.com/multipath-tcp/mptcp_net-next/wiki
 B:	https://github.com/multipath-tcp/mptcp_net-next/issues
 S:	Maintained
 F:	include/net/mptcp.h
+F:	include/uapi/linux/mptcp.h
 F:	net/mptcp/
 F:	tools/testing/selftests/net/mptcp/
 
@@ -11899,6 +11926,7 @@ F:	scripts/nsdeps
 F:	Documentation/core-api/symbol-namespaces.rst
 
 NTB AMD DRIVER
+M:	Sanjay R Mehta <sanju.mehta@amd.com>
 M:	Shyam Sundar S K <Shyam-sundar.S-k@amd.com>
 L:	linux-ntb@googlegroups.com
 S:	Supported
@@ -13708,6 +13736,12 @@ L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 S:	Supported
 F:	sound/soc/qcom/
 
+QCOM IPA DRIVER
+M:	Alex Elder <elder@kernel.org>
+L:	netdev@vger.kernel.org
+S:	Supported
+F:	drivers/net/ipa/
+
 QEMU MACHINE EMULATOR AND VIRTUALIZER SUPPORT
 M:	Gabriel Somlo <somlo@cmu.edu>
 M:	"Michael S. Tsirkin" <mst@redhat.com>
@@ -15031,7 +15065,7 @@ X:	security/selinux/
 
 SELINUX SECURITY MODULE
 M:	Paul Moore <paul@paul-moore.com>
-M:	Stephen Smalley <sds@tycho.nsa.gov>
+M:	Stephen Smalley <stephen.smalley.work@gmail.com>
 M:	Eric Paris <eparis@parisplace.org>
 L:	selinux@vger.kernel.org
 W:	https://selinuxproject.org
@@ -15043,6 +15077,7 @@ F:	security/selinux/
 F:	scripts/selinux/
 F:	Documentation/admin-guide/LSM/SELinux.rst
 F:	Documentation/ABI/obsolete/sysfs-selinux-disable
+F:	Documentation/ABI/obsolete/sysfs-selinux-checkreqprot
 
 SENSABLE PHANTOM
 M:	Jiri Slaby <jirislaby@gmail.com>
@@ -15099,14 +15134,6 @@ SGI GRU DRIVER
 M:	Dimitri Sivanich <sivanich@sgi.com>
 S:	Maintained
 F:	drivers/misc/sgi-gru/
-
-SGI SN-IA64 (Altix) SERIAL CONSOLE DRIVER
-M:	Pat Gefre <pfg@sgi.com>
-L:	linux-ia64@vger.kernel.org
-S:	Supported
-F:	Documentation/ia64/serial.rst
-F:	drivers/tty/serial/ioc?_serial.c
-F:	include/linux/ioc?.h
 
 SGI XP/XPC/XPNET DRIVER
 M:	Cliff Whickman <cpw@sgi.com>
@@ -15636,8 +15663,8 @@ F:	include/linux/memstick.h
 SONY VAIO CONTROL DEVICE DRIVER
 M:	Mattia Dongili <malattia@linux.it>
 L:	platform-driver-x86@vger.kernel.org
-W:	http://www.linux.it/~malattia/wiki/index.php/Sony_drivers
 S:	Maintained
+W:	http://www.linux.it/~malattia/wiki/index.php/Sony_drivers
 F:	Documentation/admin-guide/laptops/sony-laptop.rst
 F:	drivers/char/sonypi.c
 F:	drivers/platform/x86/sony-laptop.c
@@ -16184,6 +16211,13 @@ L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/ethernet/synopsys/
 
+SYNOPSYS DESIGNWARE ETHERNET XPCS DRIVER
+M:	Jose Abreu <Jose.Abreu@synopsys.com>
+L:	netdev@vger.kernel.org
+S:	Supported
+F:	drivers/net/phy/mdio-xpcs.c
+F:	include/linux/mdio-xpcs.h
+
 SYNOPSYS DESIGNWARE I2C DRIVER
 M:	Jarkko Nikula <jarkko.nikula@linux.intel.com>
 R:	Andy Shevchenko <andriy.shevchenko@linux.intel.com>
@@ -16612,10 +16646,10 @@ THINKPAD ACPI EXTRAS DRIVER
 M:	Henrique de Moraes Holschuh <ibm-acpi@hmh.eng.br>
 L:	ibm-acpi-devel@lists.sourceforge.net
 L:	platform-driver-x86@vger.kernel.org
+S:	Maintained
 W:	http://ibm-acpi.sourceforge.net
 W:	http://thinkwiki.org/wiki/Ibm-acpi
 T:	git git://repo.or.cz/linux-2.6/linux-acpi-2.6/ibm-acpi-2.6.git
-S:	Maintained
 F:	drivers/platform/x86/thinkpad_acpi.c
 
 THUNDERBOLT DRIVER
@@ -17926,6 +17960,13 @@ S:	Supported
 F:	arch/x86/kernel/cpu/vmware.c
 F:	arch/x86/include/asm/vmware.h
 
+VMWARE VIRTUAL PTP CLOCK DRIVER
+M:	Vivek Thampi <vithampi@vmware.com>
+M:	"VMware, Inc." <pv-drivers@vmware.com>
+L:	netdev@vger.kernel.org
+S:	Supported
+F:	drivers/ptp/ptp_vmw.c
+
 VMWARE PVRDMA DRIVER
 M:	Adit Ranadive <aditr@vmware.com>
 M:	VMware PV-Drivers <pv-drivers@vmware.com>
@@ -18260,10 +18301,10 @@ X86 PLATFORM DRIVERS
 M:	Darren Hart <dvhart@infradead.org>
 M:	Andy Shevchenko <andy@infradead.org>
 L:	platform-driver-x86@vger.kernel.org
-T:	git git://git.infradead.org/linux-platform-drivers-x86.git
 S:	Odd Fixes
-F:	drivers/platform/x86/
+T:	git git://git.infradead.org/linux-platform-drivers-x86.git
 F:	drivers/platform/olpc/
+F:	drivers/platform/x86/
 
 X86 PLATFORM DRIVERS - ARCH
 R:	Darren Hart <dvhart@infradead.org>

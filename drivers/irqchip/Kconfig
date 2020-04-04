@@ -513,4 +513,23 @@ config EXYNOS_IRQ_COMBINER
 	  Say yes here to add support for the IRQ combiner devices embedded
 	  in Samsung Exynos chips.
 
+config LOONGSON_LIOINTC
+	bool "Loongson Local I/O Interrupt Controller"
+	depends on MACH_LOONGSON64
+	default y
+	select IRQ_DOMAIN
+	select GENERIC_IRQ_CHIP
+	help
+	  Support for the Loongson Local I/O Interrupt Controller.
+
+config LOONGSON_HTPIC
+	bool "Loongson3 HyperTransport PIC Controller"
+	depends on MACH_LOONGSON64
+	default y
+	select IRQ_DOMAIN
+	select GENERIC_IRQ_CHIP
+	select I8259
+	help
+	  Support for the Loongson-3 HyperTransport PIC Controller.
+
 endmenu

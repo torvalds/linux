@@ -75,6 +75,7 @@ struct nfs_fattr {
 	struct nfs4_string	*owner_name;
 	struct nfs4_string	*group_name;
 	struct nfs4_threshold	*mdsthreshold;	/* pNFS threshold hints */
+	struct nfs4_label	*label;
 };
 
 #define NFS_ATTR_FATTR_TYPE		(1U << 0)

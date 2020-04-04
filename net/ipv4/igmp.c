@@ -107,8 +107,6 @@
 #ifdef CONFIG_IP_MULTICAST
 /* Parameter names and values are taken from igmp-v2-06 draft */
 
-#define IGMP_V2_UNSOLICITED_REPORT_INTERVAL	(10*HZ)
-#define IGMP_V3_UNSOLICITED_REPORT_INTERVAL	(1*HZ)
 #define IGMP_QUERY_INTERVAL			(125*HZ)
 #define IGMP_QUERY_RESPONSE_INTERVAL		(10*HZ)
 

@@ -826,8 +826,8 @@ again:
 						  ste_location, send_ste_list);
 			if (!new_htbl) {
 				mlx5dr_htbl_put(cur_htbl);
-				mlx5dr_info(dmn, "failed creating rehash table, htbl-log_size: %d\n",
-					    cur_htbl->chunk_size);
+				mlx5dr_err(dmn, "Failed creating rehash table, htbl-log_size: %d\n",
+					   cur_htbl->chunk_size);
 			} else {
 				cur_htbl = new_htbl;
 			}
@@ -877,7 +877,7 @@ static bool dr_rule_verify(struct mlx5dr_matcher *matcher,
 	if (!value_size ||
 	    (value_size > sizeof(struct mlx5dr_match_param) ||
 	     (value_size % sizeof(u32)))) {
-		mlx5dr_dbg(matcher->tbl->dmn, "Rule parameters length is incorrect\n");
+		mlx5dr_err(matcher->tbl->dmn, "Rule parameters length is incorrect\n");
 		return false;
 	}
 
@@ -888,7 +888,7 @@ static bool dr_rule_verify(struct mlx5dr_matcher *matcher,
 		e_idx = min(s_idx + sizeof(param->outer), value_size);
 
 		if (!dr_rule_cmp_value_to_mask(mask_p, param_p, s_idx, e_idx)) {
-			mlx5dr_dbg(matcher->tbl->dmn, "Rule outer parameters contains a value not specified by mask\n");
+			mlx5dr_err(matcher->tbl->dmn, "Rule outer parameters contains a value not specified by mask\n");
 			return false;
 		}
 	}
@@ -898,7 +898,7 @@ static bool dr_rule_verify(struct mlx5dr_matcher *matcher,
 		e_idx = min(s_idx + sizeof(param->misc), value_size);
 
 		if (!dr_rule_cmp_value_to_mask(mask_p, param_p, s_idx, e_idx)) {
-			mlx5dr_dbg(matcher->tbl->dmn, "Rule misc parameters contains a value not specified by mask\n");
+			mlx5dr_err(matcher->tbl->dmn, "Rule misc parameters contains a value not specified by mask\n");
 			return false;
 		}
 	}
@@ -908,7 +908,7 @@ static bool dr_rule_verify(struct mlx5dr_matcher *matcher,
 		e_idx = min(s_idx + sizeof(param->inner), value_size);
 
 		if (!dr_rule_cmp_value_to_mask(mask_p, param_p, s_idx, e_idx)) {
-			mlx5dr_dbg(matcher->tbl->dmn, "Rule inner parameters contains a value not specified by mask\n");
+			mlx5dr_err(matcher->tbl->dmn, "Rule inner parameters contains a value not specified by mask\n");
 			return false;
 		}
 	}
@@ -918,7 +918,7 @@ static bool dr_rule_verify(struct mlx5dr_matcher *matcher,
 		e_idx = min(s_idx + sizeof(param->misc2), value_size);
 
 		if (!dr_rule_cmp_value_to_mask(mask_p, param_p, s_idx, e_idx)) {
-			mlx5dr_dbg(matcher->tbl->dmn, "Rule misc2 parameters contains a value not specified by mask\n");
+			mlx5dr_err(matcher->tbl->dmn, "Rule misc2 parameters contains a value not specified by mask\n");
 			return false;
 		}
 	}
@@ -928,7 +928,7 @@ static bool dr_rule_verify(struct mlx5dr_matcher *matcher,
 		e_idx = min(s_idx + sizeof(param->misc3), value_size);
 
 		if (!dr_rule_cmp_value_to_mask(mask_p, param_p, s_idx, e_idx)) {
-			mlx5dr_dbg(matcher->tbl->dmn, "Rule misc3 parameters contains a value not specified by mask\n");
+			mlx5dr_err(matcher->tbl->dmn, "Rule misc3 parameters contains a value not specified by mask\n");
 			return false;
 		}
 	}
@@ -1221,7 +1221,7 @@ remove_action_members:
 	dr_rule_remove_action_members(rule);
 free_rule:
 	kfree(rule);
-	mlx5dr_info(dmn, "Failed creating rule\n");
+	mlx5dr_err(dmn, "Failed creating rule\n");
 	return NULL;
 }
 

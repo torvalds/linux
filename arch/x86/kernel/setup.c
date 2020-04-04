@@ -64,7 +64,6 @@ RESERVE_BRK(dmi_alloc, 65536);
  * at link time, with RESERVE_BRK*() facility reserving additional
  * chunks.
  */
-static __initdata
 unsigned long _brk_start = (unsigned long)__brk_base;
 unsigned long _brk_end   = (unsigned long)__brk_base;
 

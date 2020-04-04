@@ -550,8 +550,7 @@ static bool nft_rbtree_estimate(const struct nft_set_desc *desc, u32 features,
 	return true;
 }
 
-struct nft_set_type nft_set_rbtree_type __read_mostly = {
-	.owner		= THIS_MODULE,
+const struct nft_set_type nft_set_rbtree_type = {
 	.features	= NFT_SET_INTERVAL | NFT_SET_MAP | NFT_SET_OBJECT | NFT_SET_TIMEOUT,
 	.ops		= {
 		.privsize	= nft_rbtree_privsize,

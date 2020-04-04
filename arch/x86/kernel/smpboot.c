@@ -1438,7 +1438,7 @@ early_param("possible_cpus", _setup_possible_cpus);
 /*
  * cpu_possible_mask should be static, it cannot change as cpu's
  * are onlined, or offlined. The reason is per-cpu data-structures
- * are allocated by some modules at init time, and dont expect to
+ * are allocated by some modules at init time, and don't expect to
  * do this dynamically on cpu arrival/departure.
  * cpu_present_mask on the other hand can change dynamically.
  * In case when cpu_hotplug is not compiled, then we resort to current

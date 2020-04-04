@@ -5249,6 +5249,11 @@ static const struct ethtool_ops i40e_ethtool_recovery_mode_ops = {
 };
 
 static const struct ethtool_ops i40e_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
+				     ETHTOOL_COALESCE_MAX_FRAMES_IRQ |
+				     ETHTOOL_COALESCE_USE_ADAPTIVE |
+				     ETHTOOL_COALESCE_RX_USECS_HIGH |
+				     ETHTOOL_COALESCE_TX_USECS_HIGH,
 	.get_drvinfo		= i40e_get_drvinfo,
 	.get_regs_len		= i40e_get_regs_len,
 	.get_regs		= i40e_get_regs,

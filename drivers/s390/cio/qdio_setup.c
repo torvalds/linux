@@ -224,8 +224,6 @@ static void setup_queues(struct qdio_irq *irq_ptr,
 		setup_queues_misc(q, irq_ptr, qdio_init->input_handler, i);
 
 		q->is_input_q = 1;
-		q->u.in.queue_start_poll = qdio_init->queue_start_poll_array ?
-				qdio_init->queue_start_poll_array[i] : NULL;
 
 		setup_storage_lists(q, irq_ptr, input_sbal_array, i);
 		input_sbal_array += QDIO_MAX_BUFFERS_PER_Q;
@@ -475,6 +473,13 @@ int qdio_setup_irq(struct qdio_initialize *init_data)
 	irq_ptr->scan_threshold = init_data->scan_threshold;
 	ccw_device_get_schid(irq_ptr->cdev, &irq_ptr->schid);
 	setup_queues(irq_ptr, init_data);
+
+	if (init_data->irq_poll) {
+		irq_ptr->irq_poll = init_data->irq_poll;
+		set_bit(QDIO_IRQ_DISABLED, &irq_ptr->poll_state);
+	} else {
+		irq_ptr->irq_poll = NULL;
+	}
 
 	setup_qib(irq_ptr, init_data);
 	qdio_setup_thinint(irq_ptr);

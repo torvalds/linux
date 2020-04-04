@@ -26,7 +26,6 @@ extern void gfs2_jindex_free(struct gfs2_sbd *sdp);
 
 extern struct gfs2_jdesc *gfs2_jdesc_find(struct gfs2_sbd *sdp, unsigned int jid);
 extern int gfs2_jdesc_check(struct gfs2_jdesc *jd);
-
 extern int gfs2_lookup_in_master_dir(struct gfs2_sbd *sdp, char *filename,
 				     struct gfs2_inode **ipp);
 

@@ -13,7 +13,7 @@
 struct mlxsw_sp_acl_bf {
 	struct mutex lock; /* Protects Bloom Filter updates. */
 	unsigned int bank_size;
-	refcount_t refcnt[0];
+	refcount_t refcnt[];
 };
 
 /* Bloom filter uses a crc-16 hash over chunks of data which contain 4 key

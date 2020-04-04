@@ -438,13 +438,118 @@ int cxgb4_get_filter_counters(struct net_device *dev, unsigned int fidx,
 	return get_filter_count(adapter, fidx, hitcnt, bytecnt, hash);
 }
 
-int cxgb4_get_free_ftid(struct net_device *dev, int family)
+static bool cxgb4_filter_prio_in_range(struct tid_info *t, u32 idx, u8 nslots,
+				       u32 prio)
+{
+	struct filter_entry *prev_tab, *next_tab, *prev_fe, *next_fe;
+	u32 prev_ftid, next_ftid;
+
+	/* Only insert the rule if both of the following conditions
+	 * are met:
+	 * 1. The immediate previous rule has priority <= @prio.
+	 * 2. The immediate next rule has priority >= @prio.
+	 */
+
+	/* High Priority (HPFILTER) region always has higher priority
+	 * than normal FILTER region. So, all rules in HPFILTER region
+	 * must have prio value <= rules in normal FILTER region.
+	 */
+	if (idx < t->nhpftids) {
+		/* Don't insert if there's a rule already present at @idx
+		 * in HPFILTER region.
+		 */
+		if (test_bit(idx, t->hpftid_bmap))
+			return false;
+
+		next_tab = t->hpftid_tab;
+		next_ftid = find_next_bit(t->hpftid_bmap, t->nhpftids, idx);
+		if (next_ftid >= t->nhpftids) {
+			/* No next entry found in HPFILTER region.
+			 * See if there's any next entry in normal
+			 * FILTER region.
+			 */
+			next_ftid = find_first_bit(t->ftid_bmap, t->nftids);
+			if (next_ftid >= t->nftids)
+				next_ftid = idx;
+			else
+				next_tab = t->ftid_tab;
+		}
+
+		/* Search for the closest previous filter entry in HPFILTER
+		 * region. No need to search in normal FILTER region because
+		 * there can never be any entry in normal FILTER region whose
+		 * prio value is < last entry in HPFILTER region.
+		 */
+		prev_ftid = find_last_bit(t->hpftid_bmap, idx);
+		if (prev_ftid >= idx)
+			prev_ftid = idx;
+
+		prev_tab = t->hpftid_tab;
+	} else {
+		idx -= t->nhpftids;
+
+		/* Don't insert if there's a rule already present at @idx
+		 * in normal FILTER region.
+		 */
+		if (test_bit(idx, t->ftid_bmap))
+			return false;
+
+		prev_tab = t->ftid_tab;
+		prev_ftid = find_last_bit(t->ftid_bmap, idx);
+		if (prev_ftid >= idx) {
+			/* No previous entry found in normal FILTER
+			 * region. See if there's any previous entry
+			 * in HPFILTER region.
+			 */
+			prev_ftid = find_last_bit(t->hpftid_bmap, t->nhpftids);
+			if (prev_ftid >= t->nhpftids)
+				prev_ftid = idx;
+			else
+				prev_tab = t->hpftid_tab;
+		}
+
+		/* Search for the closest next filter entry in normal
+		 * FILTER region. No need to search in HPFILTER region
+		 * because there can never be any entry in HPFILTER
+		 * region whose prio value is > first entry in normal
+		 * FILTER region.
+		 */
+		next_ftid = find_next_bit(t->ftid_bmap, t->nftids, idx);
+		if (next_ftid >= t->nftids)
+			next_ftid = idx;
+
+		next_tab = t->ftid_tab;
+	}
+
+	next_fe = &next_tab[next_ftid];
+
+	/* See if the filter entry belongs to an IPv6 rule, which
+	 * occupy 4 slots on T5 and 2 slots on T6. Adjust the
+	 * reference to the previously inserted filter entry
+	 * accordingly.
+	 */
+	prev_fe = &prev_tab[prev_ftid & ~(nslots - 1)];
+	if (!prev_fe->fs.type)
+		prev_fe = &prev_tab[prev_ftid];
+
+	if ((prev_fe->valid && prev_fe->fs.tc_prio > prio) ||
+	    (next_fe->valid && next_fe->fs.tc_prio < prio))
+		return false;
+
+	return true;
+}
+
+int cxgb4_get_free_ftid(struct net_device *dev, u8 family, bool hash_en,
+			u32 tc_prio)
 {
 	struct adapter *adap = netdev2adap(dev);
 	struct tid_info *t = &adap->tids;
+	u32 bmap_ftid, max_ftid;
+	struct filter_entry *f;
+	unsigned long *bmap;
 	bool found = false;
-	u8 i, n, cnt;
-	int ftid;
+	u8 i, cnt, n;
+	int ftid = 0;
 
 	/* IPv4 occupy 1 slot. IPv6 occupy 2 slots on T6 and 4 slots
 	 * on T5.
@@ -456,34 +561,127 @@ int cxgb4_get_free_ftid(struct net_device *dev, int family)
 			n += 2;
 	}
 
-	if (n > t->nftids)
-		return -ENOMEM;
-
-	/* Find free filter slots from the end of TCAM. Appropriate
-	 * checks must be done by caller later to ensure the prio
-	 * passed by TC doesn't conflict with prio saved by existing
-	 * rules in the TCAM.
+	/* There are 3 filter regions available in hardware in
+	 * following order of priority:
+	 *
+	 * 1. High Priority (HPFILTER) region (Highest Priority).
+	 * 2. HASH region.
+	 * 3. Normal FILTER region (Lowest Priority).
+	 *
+	 * Entries in HPFILTER and normal FILTER region have index
+	 * 0 as the highest priority and the rules will be scanned
+	 * in ascending order until either a rule hits or end of
+	 * the region is reached.
+	 *
+	 * All HASH region entries have same priority. The set of
+	 * fields to match in headers are pre-determined. The same
+	 * set of header match fields must be compulsorily specified
+	 * in all the rules wanting to get inserted in HASH region.
+	 * Hence, HASH region is an exact-match region. A HASH is
+	 * generated for a rule based on the values in the
+	 * pre-determined set of header match fields. The generated
+	 * HASH serves as an index into the HASH region. There can
+	 * never be 2 rules having the same HASH. Hardware will
+	 * compute a HASH for every incoming packet based on the
+	 * values in the pre-determined set of header match fields
+	 * and uses it as an index to check if there's a rule
+	 * inserted in the HASH region at the specified index. If
+	 * there's a rule inserted, then it's considered as a filter
+	 * hit. Otherwise, it's a filter miss and normal FILTER region
+	 * is scanned afterwards.
 	 */
+
 	spin_lock_bh(&t->ftid_lock);
-	ftid = t->nftids - 1;
-	while (ftid >= n - 1) {
+
+	ftid = (tc_prio <= t->nhpftids) ? 0 : t->nhpftids;
+	max_ftid = t->nftids + t->nhpftids;
+	while (ftid < max_ftid) {
+		if (ftid < t->nhpftids) {
+			/* If the new rule wants to get inserted into
+			 * HPFILTER region, but its prio is greater
+			 * than the rule with the highest prio in HASH
+			 * region, then reject the rule.
+			 */
+			if (t->tc_hash_tids_max_prio &&
+			    tc_prio > t->tc_hash_tids_max_prio)
+				break;
+
+			/* If there's not enough slots available
+			 * in HPFILTER region, then move on to
+			 * normal FILTER region immediately.
+			 */
+			if (ftid + n > t->nhpftids) {
+				ftid = t->nhpftids;
+				continue;
+			}
+
+			bmap = t->hpftid_bmap;
+			bmap_ftid = ftid;
+		} else if (hash_en) {
+			/* Ensure priority is >= last rule in HPFILTER
+			 * region.
+			 */
+			ftid = find_last_bit(t->hpftid_bmap, t->nhpftids);
+			if (ftid < t->nhpftids) {
+				f = &t->hpftid_tab[ftid];
+				if (f->valid && tc_prio < f->fs.tc_prio)
+					break;
+			}
+
+			/* Ensure priority is <= first rule in normal
+			 * FILTER region.
+			 */
+			ftid = find_first_bit(t->ftid_bmap, t->nftids);
+			if (ftid < t->nftids) {
+				f = &t->ftid_tab[ftid];
+				if (f->valid && tc_prio > f->fs.tc_prio)
+					break;
+			}
+
+			found = true;
+			ftid = t->nhpftids;
+			goto out_unlock;
+		} else {
+			/* If the new rule wants to get inserted into
+			 * normal FILTER region, but its prio is less
+			 * than the rule with the highest prio in HASH
+			 * region, then reject the rule.
+			 */
+			if (t->tc_hash_tids_max_prio &&
+			    tc_prio < t->tc_hash_tids_max_prio)
+				break;
+
+			if (ftid + n > max_ftid)
+				break;
+
+			bmap = t->ftid_bmap;
+			bmap_ftid = ftid - t->nhpftids;
+		}
+
 		cnt = 0;
 		for (i = 0; i < n; i++) {
-			if (test_bit(ftid - i, t->ftid_bmap))
+			if (test_bit(bmap_ftid + i, bmap))
 				break;
 			cnt++;
 		}
+
 		if (cnt == n) {
-			ftid &= ~(n - 1);
-			found = true;
-			break;
+			/* Ensure the new rule's prio doesn't conflict
+			 * with existing rules.
+			 */
+			if (cxgb4_filter_prio_in_range(t, ftid, n,
+						       tc_prio)) {
+				ftid &= ~(n - 1);
+				found = true;
+				break;
+			}
 		}
 
-		ftid -= n;
+		ftid += n;
 	}
-	spin_unlock_bh(&t->ftid_lock);
-	ftid += t->nhpftids;
 
+out_unlock:
+	spin_unlock_bh(&t->ftid_lock);
 	return found ? ftid : -ENOMEM;
 }
 
@@ -553,73 +751,6 @@ static void cxgb4_clear_hpftid(struct tid_info *t, int fidx, int family)
 		bitmap_release_region(t->hpftid_bmap, fidx, 1);
 
 	spin_unlock_bh(&t->ftid_lock);
-}
-
-bool cxgb4_filter_prio_in_range(struct net_device *dev, u32 idx, u32 prio)
-{
-	struct filter_entry *prev_fe, *next_fe, *tab;
-	struct adapter *adap = netdev2adap(dev);
-	u32 prev_ftid, next_ftid, max_tid;
-	struct tid_info *t = &adap->tids;
-	unsigned long *bmap;
-	bool valid = true;
-
-	if (idx < t->nhpftids) {
-		bmap = t->hpftid_bmap;
-		tab = t->hpftid_tab;
-		max_tid = t->nhpftids;
-	} else {
-		idx -= t->nhpftids;
-		bmap = t->ftid_bmap;
-		tab = t->ftid_tab;
-		max_tid = t->nftids;
-	}
-
-	/* Only insert the rule if both of the following conditions
-	 * are met:
-	 * 1. The immediate previous rule has priority <= @prio.
-	 * 2. The immediate next rule has priority >= @prio.
-	 */
-	spin_lock_bh(&t->ftid_lock);
-
-	/* Don't insert if there's a rule already present at @idx. */
-	if (test_bit(idx, bmap)) {
-		valid = false;
-		goto out_unlock;
-	}
-
-	next_ftid = find_next_bit(bmap, max_tid, idx);
-	if (next_ftid >= max_tid)
-		next_ftid = idx;
-
-	next_fe = &tab[next_ftid];
-
-	prev_ftid = find_last_bit(bmap, idx);
-	if (prev_ftid >= idx)
-		prev_ftid = idx;
-
-	/* See if the filter entry belongs to an IPv6 rule, which
-	 * occupy 4 slots on T5 and 2 slots on T6. Adjust the
-	 * reference to the previously inserted filter entry
-	 * accordingly.
-	 */
-	if (CHELSIO_CHIP_VERSION(adap->params.chip) < CHELSIO_T6) {
-		prev_fe = &tab[prev_ftid & ~0x3];
-		if (!prev_fe->fs.type)
-			prev_fe = &tab[prev_ftid];
-	} else {
-		prev_fe = &tab[prev_ftid & ~0x1];
-		if (!prev_fe->fs.type)
-			prev_fe = &tab[prev_ftid];
-	}
-
-	if ((prev_fe->valid && prio < prev_fe->fs.tc_prio) ||
-	    (next_fe->valid && prio > next_fe->fs.tc_prio))
-		valid = false;
-
-out_unlock:
-	spin_unlock_bh(&t->ftid_lock);
-	return valid;
 }
 
 /* Delete the filter at a specified index. */

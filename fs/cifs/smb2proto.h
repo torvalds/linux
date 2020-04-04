@@ -139,6 +139,7 @@ extern int SMB2_tdis(const unsigned int xid, struct cifs_tcon *tcon);
 extern int SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms,
 		     __le16 *path, __u8 *oplock,
 		     struct smb2_file_all_info *buf,
+		     struct create_posix_rsp *posix,
 		     struct kvec *err_iov, int *resp_buftype);
 extern int SMB2_open_init(struct cifs_tcon *tcon, struct smb_rqst *rqst,
 			  __u8 *oplock, struct cifs_open_parms *oparms,
@@ -252,7 +253,8 @@ extern enum securityEnum smb2_select_sectype(struct TCP_Server_Info *,
 extern void smb2_parse_contexts(struct TCP_Server_Info *server,
 				struct smb2_create_rsp *rsp,
 				unsigned int *epoch, char *lease_key,
-				__u8 *oplock, struct smb2_file_all_info *buf);
+				__u8 *oplock, struct smb2_file_all_info *buf,
+				struct create_posix_rsp *posix);
 extern int smb3_encryption_required(const struct cifs_tcon *tcon);
 extern int smb2_validate_iov(unsigned int offset, unsigned int buffer_length,
 			     struct kvec *iov, unsigned int min_buf_size);
@@ -272,4 +274,7 @@ extern int smb2_query_info_compound(const unsigned int xid,
 				    u32 class, u32 type, u32 output_len,
 				    struct kvec *rsp, int *buftype,
 				    struct cifs_sb_info *cifs_sb);
+int posix_info_parse(const void *beg, const void *end,
+		     struct smb2_posix_info_parsed *out);
+int posix_info_sid_size(const void *beg, const void *end);
 #endif			/* _SMB2PROTO_H */

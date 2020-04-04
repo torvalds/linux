@@ -208,8 +208,8 @@
 				clocks = <&soc_clocks MMP2_CLK_TIMER>;
 			};
 
-			uart1: uart@d4030000 {
-				compatible = "mrvl,mmp-uart";
+			uart1: serial@d4030000 {
+				compatible = "mrvl,mmp-uart", "intel,xscale-uart";
 				reg = <0xd4030000 0x1000>;
 				interrupts = <27>;
 				clocks = <&soc_clocks MMP2_CLK_UART0>;
@@ -218,8 +218,8 @@
 				status = "disabled";
 			};
 
-			uart2: uart@d4017000 {
-				compatible = "mrvl,mmp-uart";
+			uart2: serial@d4017000 {
+				compatible = "mrvl,mmp-uart", "intel,xscale-uart";
 				reg = <0xd4017000 0x1000>;
 				interrupts = <28>;
 				clocks = <&soc_clocks MMP2_CLK_UART1>;
@@ -228,8 +228,8 @@
 				status = "disabled";
 			};
 
-			uart3: uart@d4018000 {
-				compatible = "mrvl,mmp-uart";
+			uart3: serial@d4018000 {
+				compatible = "mrvl,mmp-uart", "intel,xscale-uart";
 				reg = <0xd4018000 0x1000>;
 				interrupts = <24>;
 				clocks = <&soc_clocks MMP2_CLK_UART2>;
@@ -238,8 +238,8 @@
 				status = "disabled";
 			};
 
-			uart4: uart@d4016000 {
-				compatible = "mrvl,mmp-uart";
+			uart4: serial@d4016000 {
+				compatible = "mrvl,mmp-uart", "intel,xscale-uart";
 				reg = <0xd4016000 0x1000>;
 				interrupts = <46>;
 				clocks = <&soc_clocks MMP2_CLK_UART3>;

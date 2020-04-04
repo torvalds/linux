@@ -201,10 +201,10 @@ struct netlink_callback {
 	struct module		*module;
 	struct netlink_ext_ack	*extack;
 	u16			family;
-	u16			min_dump_alloc;
-	bool			strict_check;
 	u16			answer_flags;
+	u32			min_dump_alloc;
 	unsigned int		prev_seq, seq;
+	bool			strict_check;
 	union {
 		u8		ctx[48];
 

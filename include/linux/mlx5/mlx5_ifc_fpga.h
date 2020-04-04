@@ -608,7 +608,7 @@ struct mlx5_ifc_tls_cmd_bits {
 struct mlx5_ifc_tls_resp_bits {
 	u8         syndrome[0x20];
 	u8         stream_id[0x20];
-	u8         reserverd[0x40];
+	u8         reserved[0x40];
 };
 
 #define MLX5_TLS_COMMAND_SIZE (0x100)

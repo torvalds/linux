@@ -660,6 +660,10 @@ int sja1105_clocking_setup_port(struct sja1105_private *priv, int port)
 	case XMII_MODE_RGMII:
 		rc = sja1105_rgmii_clocking_setup(priv, port, role);
 		break;
+	case XMII_MODE_SGMII:
+		/* Nothing to do in the CGU for SGMII */
+		rc = 0;
+		break;
 	default:
 		dev_err(dev, "Invalid interface mode specified: %d\n",
 			phy_mode);

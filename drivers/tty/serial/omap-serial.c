@@ -37,8 +37,6 @@
 #include <linux/of_gpio.h>
 #include <linux/platform_data/serial-omap.h>
 
-#include <dt-bindings/gpio/gpio.h>
-
 #define OMAP_MAX_HSUART_PORTS	10
 
 #define UART_BUILD_REVISION(x, y)	(((x) << 8) | (y))

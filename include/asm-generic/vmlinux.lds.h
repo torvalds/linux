@@ -540,6 +540,7 @@
 									\
 	RO_EXCEPTION_TABLE						\
 	NOTES								\
+	BTF								\
 									\
 	. = ALIGN((align));						\
 	__end_rodata = .;
@@ -627,6 +628,20 @@
 		KEEP(*(__ex_table))					\
 		__stop___ex_table = .;					\
 	}
+
+/*
+ * .BTF
+ */
+#ifdef CONFIG_DEBUG_INFO_BTF
+#define BTF								\
+	.BTF : AT(ADDR(.BTF) - LOAD_OFFSET) {				\
+		__start_BTF = .;					\
+		*(.BTF)							\
+		__stop_BTF = .;						\
+	}
+#else
+#define BTF
+#endif
 
 /*
  * Init task
@@ -901,10 +916,17 @@
  * section definitions so that such archs put those in earlier section
  * definitions.
  */
+#ifdef RUNTIME_DISCARD_EXIT
+#define EXIT_DISCARDS
+#else
+#define EXIT_DISCARDS							\
+	EXIT_TEXT							\
+	EXIT_DATA
+#endif
+
 #define DISCARDS							\
 	/DISCARD/ : {							\
-	EXIT_TEXT							\
-	EXIT_DATA							\
+	EXIT_DISCARDS							\
 	EXIT_CALL							\
 	*(.discard)							\
 	*(.discard.*)							\
