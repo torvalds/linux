@@ -541,7 +541,6 @@ struct mlx5_priv {
 	struct mlx5_core_health health;
 
 	/* start: qp staff */
-	struct mlx5_qp_table	qp_table;
 	struct dentry	       *qp_debugfs;
 	struct dentry	       *eq_debugfs;
 	struct dentry	       *cq_debugfs;
@@ -687,7 +686,6 @@ struct mlx5_core_dev {
 	unsigned long		intf_state;
 	struct mlx5_priv	priv;
 	struct mlx5_profile	*profile;
-	atomic_t		num_qps;
 	u32			issi;
 	struct mlx5e_resources  mlx5e_res;
 	struct mlx5_dm          *dm;

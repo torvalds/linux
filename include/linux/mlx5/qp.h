@@ -553,53 +553,8 @@ struct mlx5_qp_context {
 	u8			rsvd1[24];
 };
 
-static inline struct mlx5_core_qp *__mlx5_qp_lookup(struct mlx5_core_dev *dev, u32 qpn)
-{
-	return radix_tree_lookup(&dev->priv.qp_table.tree, qpn);
-}
-
-int mlx5_core_create_dct(struct mlx5_core_dev *dev,
-			 struct mlx5_core_dct *qp,
-			 u32 *in, int inlen,
-			 u32 *out, int outlen);
-int mlx5_core_create_qp(struct mlx5_core_dev *dev,
-			struct mlx5_core_qp *qp,
-			u32 *in,
-			int inlen);
-int mlx5_core_qp_modify(struct mlx5_core_dev *dev, u16 opcode,
-			u32 opt_param_mask, void *qpc,
-			struct mlx5_core_qp *qp);
-int mlx5_core_destroy_qp(struct mlx5_core_dev *dev,
-			 struct mlx5_core_qp *qp);
-int mlx5_core_destroy_dct(struct mlx5_core_dev *dev,
-			  struct mlx5_core_dct *dct);
-int mlx5_core_qp_query(struct mlx5_core_dev *dev, struct mlx5_core_qp *qp,
-		       u32 *out, int outlen);
-int mlx5_core_dct_query(struct mlx5_core_dev *dev, struct mlx5_core_dct *dct,
-			u32 *out, int outlen);
-
-int mlx5_core_set_delay_drop(struct mlx5_core_dev *dev,
-			     u32 timeout_usec);
-
-int mlx5_core_xrcd_alloc(struct mlx5_core_dev *dev, u32 *xrcdn);
-int mlx5_core_xrcd_dealloc(struct mlx5_core_dev *dev, u32 xrcdn);
-void mlx5_init_qp_table(struct mlx5_core_dev *dev);
-void mlx5_cleanup_qp_table(struct mlx5_core_dev *dev);
 int mlx5_debug_qp_add(struct mlx5_core_dev *dev, struct mlx5_core_qp *qp);
 void mlx5_debug_qp_remove(struct mlx5_core_dev *dev, struct mlx5_core_qp *qp);
-int mlx5_core_create_rq_tracked(struct mlx5_core_dev *dev, u32 *in, int inlen,
-				struct mlx5_core_qp *rq);
-void mlx5_core_destroy_rq_tracked(struct mlx5_core_dev *dev,
-				  struct mlx5_core_qp *rq);
-int mlx5_core_create_sq_tracked(struct mlx5_core_dev *dev, u32 *in, int inlen,
-				struct mlx5_core_qp *sq);
-void mlx5_core_destroy_sq_tracked(struct mlx5_core_dev *dev,
-				  struct mlx5_core_qp *sq);
-
-struct mlx5_core_rsc_common *mlx5_core_res_hold(struct mlx5_core_dev *dev,
-						int res_num,
-						enum mlx5_res_type res_type);
-void mlx5_core_res_put(struct mlx5_core_rsc_common *res);
 
 static inline const char *mlx5_qp_type_str(int type)
 {

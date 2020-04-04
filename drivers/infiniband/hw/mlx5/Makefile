@@ -13,6 +13,7 @@ mlx5_ib-y := ah.o \
 	     mem.o \
 	     mr.o \
 	     qp.o \
+	     qpc.o \
 	     restrack.o \
 	     srq.o \
 	     srq_cmd.o

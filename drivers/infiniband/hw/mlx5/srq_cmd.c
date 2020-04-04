@@ -7,6 +7,7 @@
 #include <linux/mlx5/driver.h>
 #include "mlx5_ib.h"
 #include "srq.h"
+#include "qp.h"
 
 static int get_pas_size(struct mlx5_srq_attr *in)
 {
