@@ -10,7 +10,6 @@ ci_hdrc-$(CONFIG_USB_OTG_FSM)		+= otg_fsm.o
 
 obj-$(CONFIG_USB_CHIPIDEA)	+= ci_hdrc_usb2.o
 obj-$(CONFIG_USB_CHIPIDEA)	+= ci_hdrc_msm.o
-obj-$(CONFIG_USB_CHIPIDEA)	+= ci_hdrc_zevio.o
 
 obj-$(CONFIG_USB_CHIPIDEA_PCI)	+= ci_hdrc_pci.o
 
