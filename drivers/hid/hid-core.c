@@ -2430,7 +2430,11 @@ static void __exit hid_exit(void)
 	hid_quirks_exit(HID_BUS_ANY);
 }
 
+#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
+rootfs_initcall(hid_init);
+#else
 module_init(hid_init);
+#endif
 module_exit(hid_exit);
 
 MODULE_AUTHOR("Andreas Gal");
