@@ -725,7 +725,7 @@ again:
 
 	bch2_journal_res_put(&c->journal, &res);
 	bch2_journal_preres_put(&c->journal, &as->journal_preres);
-
+free_update:
 	/* Do btree write after dropping journal res: */
 	if (b) {
 		/*
@@ -736,8 +736,9 @@ again:
 		six_unlock_intent(&b->c.lock);
 	}
 
-	btree_update_nodes_reachable(as, res.seq);
-free_update:
+	if (!ret)
+		btree_update_nodes_reachable(as, res.seq);
+
 	__bch2_btree_update_free(as);
 	/*
 	 * for flush_held_btree_writes() waiting on updates to flush or
