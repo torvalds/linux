@@ -66,15 +66,20 @@ static int mlx5_cmd_dr_create_flow_table(struct mlx5_flow_root_namespace *ns,
 					 struct mlx5_flow_table *next_ft)
 {
 	struct mlx5dr_table *tbl;
+	u32 flags;
 	int err;
 
 	if (mlx5_dr_is_fw_table(ft->flags))
 		return mlx5_fs_cmd_get_fw_cmds()->create_flow_table(ns, ft,
 								    log_size,
 								    next_ft);
+	flags = ft->flags;
+	/* turn off encap/decap if not supported for sw-str by fw */
+	if (!MLX5_CAP_FLOWTABLE(ns->dev, sw_owner_reformat_supported))
+		flags = ft->flags & ~(MLX5_FLOW_TABLE_TUNNEL_EN_REFORMAT |
+				      MLX5_FLOW_TABLE_TUNNEL_EN_DECAP);
 
-	tbl = mlx5dr_table_create(ns->fs_dr_domain.dr_domain,
-				  ft->level, ft->flags);
+	tbl = mlx5dr_table_create(ns->fs_dr_domain.dr_domain, ft->level, flags);
 	if (!tbl) {
 		mlx5_core_err(ns->dev, "Failed creating dr flow_table\n");
 		return -EINVAL;

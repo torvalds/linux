@@ -1446,11 +1446,15 @@ enum link_training_result dc_link_dp_perform_link_training(
 			&link->preferred_training_settings,
 			&lt_settings);
 
-	/* 1. set link rate, lane count and spread. */
+	/* Configure lttpr mode */
+	if (!link->is_lttpr_mode_transparent)
+		configure_lttpr_mode(link);
+
 	if (link->ctx->dc->work_arounds.lt_early_cr_pattern)
 		start_clock_recovery_pattern_early(link, &lt_settings, DPRX);
-	else
-		dpcd_set_link_settings(link, &lt_settings);
+
+	/* 1. set link rate, lane count and spread. */
+	dpcd_set_link_settings(link, &lt_settings);
 
 	if (link->preferred_training_settings.fec_enable != NULL)
 		fec_enable = *link->preferred_training_settings.fec_enable;
@@ -1460,8 +1464,6 @@ enum link_training_result dc_link_dp_perform_link_training(
 	dp_set_fec_ready(link, fec_enable);
 
 	if (!link->is_lttpr_mode_transparent) {
-		/* Configure lttpr mode */
-		configure_lttpr_mode(link);
 
 		/* 2. perform link training (set link training done
 		 *  to false is done as well)
@@ -1669,11 +1671,11 @@ enum link_training_result dc_link_dp_sync_lt_attempt(
 	dp_set_panel_mode(link, panel_mode);
 
 	/* Attempt to train with given link training settings */
-	/* Set link rate, lane count and spread. */
 	if (link->ctx->dc->work_arounds.lt_early_cr_pattern)
 		start_clock_recovery_pattern_early(link, &lt_settings, DPRX);
-	else
-		dpcd_set_link_settings(link, &lt_settings);
+
+	/* Set link rate, lane count and spread. */
+	dpcd_set_link_settings(link, &lt_settings);
 
 	/* 2. perform link training (set link training done
 	 *  to false is done as well)
@@ -2672,9 +2674,12 @@ static void dp_test_send_link_test_pattern(struct dc_link *link)
 	break;
 	}
 
-	test_pattern_color_space = dpcd_test_params.bits.YCBCR_COEFS ?
-			DP_TEST_PATTERN_COLOR_SPACE_YCBCR709 :
-			DP_TEST_PATTERN_COLOR_SPACE_YCBCR601;
+	if (dpcd_test_params.bits.CLR_FORMAT == 0)
+		test_pattern_color_space = DP_TEST_PATTERN_COLOR_SPACE_RGB;
+	else
+		test_pattern_color_space = dpcd_test_params.bits.YCBCR_COEFS ?
+				DP_TEST_PATTERN_COLOR_SPACE_YCBCR709 :
+				DP_TEST_PATTERN_COLOR_SPACE_YCBCR601;
 
 	dc_link_dp_set_test_pattern(
 			link,
@@ -3436,6 +3441,17 @@ static bool retrieve_link_cap(struct dc_link *link)
 		sink_id.ieee_device_id,
 		sizeof(sink_id.ieee_device_id));
 
+	/* Quirk Apple MBP 2017 15" Retina panel: Wrong DP_MAX_LINK_RATE */
+	{
+		uint8_t str_mbp_2017[] = { 101, 68, 21, 101, 98, 97 };
+
+		if ((link->dpcd_caps.sink_dev_id == 0x0010fa) &&
+		    !memcmp(link->dpcd_caps.sink_dev_id_str, str_mbp_2017,
+			    sizeof(str_mbp_2017))) {
+			link->reported_link_cap.link_rate = 0x0c;
+		}
+	}
+
 	core_link_read_dpcd(
 		link,
 		DP_SINK_HW_REVISION_START,
@@ -3720,7 +3736,8 @@ static void set_crtc_test_pattern(struct dc_link *link,
 			struct pipe_ctx *odm_pipe;
 			enum controller_dp_color_space controller_color_space;
 			int opp_cnt = 1;
-			uint16_t count = 0;
+			int offset = 0;
+			int dpg_width = width;
 
 			switch (test_pattern_color_space) {
 			case DP_TEST_PATTERN_COLOR_SPACE_RGB:
@@ -3742,33 +3759,30 @@ static void set_crtc_test_pattern(struct dc_link *link,
 
 			for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe)
 				opp_cnt++;
+			dpg_width = width / opp_cnt;
+			offset = dpg_width;
 
-			width /= opp_cnt;
+			opp->funcs->opp_set_disp_pattern_generator(opp,
+				controller_test_pattern,
+				controller_color_space,
+				color_depth,
+				NULL,
+				dpg_width,
+				height,
+				0);
 
 			for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe) {
 				struct output_pixel_processor *odm_opp = odm_pipe->stream_res.opp;
-
 				odm_opp->funcs->opp_program_bit_depth_reduction(odm_opp, &params);
 				odm_opp->funcs->opp_set_disp_pattern_generator(odm_opp,
 					controller_test_pattern,
 					controller_color_space,
 					color_depth,
 					NULL,
-					width,
-					height);
-			}
-			opp->funcs->opp_set_disp_pattern_generator(opp,
-				controller_test_pattern,
-				controller_color_space,
-				color_depth,
-				NULL,
-				width,
-				height);
-			/* wait for dpg to blank pixel data with test pattern */
-			for (count = 0; count < 1000; count++) {
-				if (opp->funcs->dpg_is_blanked(opp))
-					break;
-				udelay(100);
+					dpg_width,
+					height,
+					offset);
+				offset += offset;
 			}
 		}
 	}
@@ -3786,11 +3800,12 @@ static void set_crtc_test_pattern(struct dc_link *link,
 		else if (opp->funcs->opp_set_disp_pattern_generator) {
 			struct pipe_ctx *odm_pipe;
 			int opp_cnt = 1;
+			int dpg_width = width;
 
 			for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe)
 				opp_cnt++;
 
-			width /= opp_cnt;
+			dpg_width = width / opp_cnt;
 			for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe) {
 				struct output_pixel_processor *odm_opp = odm_pipe->stream_res.opp;
 
@@ -3800,16 +3815,18 @@ static void set_crtc_test_pattern(struct dc_link *link,
 					CONTROLLER_DP_COLOR_SPACE_UDEFINED,
 					color_depth,
 					NULL,
-					width,
-					height);
+					dpg_width,
+					height,
+					0);
 			}
 			opp->funcs->opp_set_disp_pattern_generator(opp,
 				CONTROLLER_DP_TEST_PATTERN_VIDEOMODE,
 				CONTROLLER_DP_COLOR_SPACE_UDEFINED,
 				color_depth,
 				NULL,
-				width,
-				height);
+				dpg_width,
+				height,
+				0);
 		}
 	}
 	break;
@@ -3987,6 +4004,11 @@ bool dc_link_dp_set_test_pattern(
 		default:
 			break;
 		}
+
+		if (pipe_ctx->stream_res.tg->funcs->lock_doublebuffer_enable)
+			pipe_ctx->stream_res.tg->funcs->lock_doublebuffer_enable(
+					pipe_ctx->stream_res.tg);
+		pipe_ctx->stream_res.tg->funcs->lock(pipe_ctx->stream_res.tg);
 		/* update MSA to requested color space */
 		pipe_ctx->stream_res.stream_enc->funcs->dp_set_stream_attribute(pipe_ctx->stream_res.stream_enc,
 				&pipe_ctx->stream->timing,
@@ -3994,9 +4016,27 @@ bool dc_link_dp_set_test_pattern(
 				pipe_ctx->stream->use_vsc_sdp_for_colorimetry,
 				link->dpcd_caps.dprx_feature.bits.SST_SPLIT_SDP_CAP);
 
+		if (pipe_ctx->stream->use_vsc_sdp_for_colorimetry) {
+			if (test_pattern == DP_TEST_PATTERN_COLOR_SQUARES_CEA)
+				pipe_ctx->stream->vsc_infopacket.sb[17] |= (1 << 7); // sb17 bit 7 Dynamic Range: 0 = VESA range, 1 = CTA range
+			else
+				pipe_ctx->stream->vsc_infopacket.sb[17] &= ~(1 << 7);
+			resource_build_info_frame(pipe_ctx);
+			link->dc->hwss.update_info_frame(pipe_ctx);
+		}
+
 		/* CRTC Patterns */
 		set_crtc_test_pattern(link, pipe_ctx, test_pattern, test_pattern_color_space);
-
+		pipe_ctx->stream_res.tg->funcs->unlock(pipe_ctx->stream_res.tg);
+		pipe_ctx->stream_res.tg->funcs->wait_for_state(pipe_ctx->stream_res.tg,
+				CRTC_STATE_VACTIVE);
+		pipe_ctx->stream_res.tg->funcs->wait_for_state(pipe_ctx->stream_res.tg,
+				CRTC_STATE_VBLANK);
+		pipe_ctx->stream_res.tg->funcs->wait_for_state(pipe_ctx->stream_res.tg,
+				CRTC_STATE_VACTIVE);
+		if (pipe_ctx->stream_res.tg->funcs->lock_doublebuffer_disable)
+			pipe_ctx->stream_res.tg->funcs->lock_doublebuffer_disable(
+					pipe_ctx->stream_res.tg);
 		/* Set Test Pattern state */
 		link->test_pattern_enabled = true;
 	}
@@ -4126,8 +4166,7 @@ void dp_set_fec_ready(struct dc_link *link, bool ready)
 	struct link_encoder *link_enc = link->link_enc;
 	uint8_t fec_config = 0;
 
-	if (link->dc->debug.disable_fec ||
-			IS_FPGA_MAXIMUS_DC(link->ctx->dce_environment))
+	if (!dc_link_is_fec_supported(link) || link->dc->debug.disable_fec)
 		return;
 
 	if (link_enc->funcs->fec_set_ready &&
@@ -4162,8 +4201,7 @@ void dp_set_fec_enable(struct dc_link *link, bool enable)
 {
 	struct link_encoder *link_enc = link->link_enc;
 
-	if (link->dc->debug.disable_fec ||
-			IS_FPGA_MAXIMUS_DC(link->ctx->dce_environment))
+	if (!dc_link_is_fec_supported(link) || link->dc->debug.disable_fec)
 		return;
 
 	if (link_enc->funcs->fec_set_enable &&

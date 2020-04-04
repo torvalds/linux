@@ -412,6 +412,7 @@ static void update_config(void *handle, struct cp_psp_stream_config *config)
 	link->dig_be = config->link_enc_inst;
 	link->ddc_line = aconnector->dc_link->ddc_hw_inst + 1;
 	link->dp.rev = aconnector->dc_link->dpcd_caps.dpcd_rev.raw;
+	link->dp.mst_supported = config->mst_supported;
 	display->adjust.disable = 1;
 	link->adjust.auth_delay = 2;
 

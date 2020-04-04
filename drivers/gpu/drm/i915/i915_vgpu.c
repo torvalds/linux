@@ -21,6 +21,8 @@
  * SOFTWARE.
  */
 
+#include "i915_drv.h"
+#include "i915_pvinfo.h"
 #include "i915_vgpu.h"
 
 /**
@@ -51,13 +53,13 @@
  */
 
 /**
- * i915_detect_vgpu - detect virtual GPU
+ * intel_vgpu_detect - detect virtual GPU
  * @dev_priv: i915 device private
  *
  * This function is called at the initialization stage, to detect whether
  * running on a vGPU.
  */
-void i915_detect_vgpu(struct drm_i915_private *dev_priv)
+void intel_vgpu_detect(struct drm_i915_private *dev_priv)
 {
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 	u64 magic;
@@ -102,9 +104,34 @@ out:
 	pci_iounmap(pdev, shared_area);
 }
 
+void intel_vgpu_register(struct drm_i915_private *i915)
+{
+	/*
+	 * Notify a valid surface after modesetting, when running inside a VM.
+	 */
+	if (intel_vgpu_active(i915))
+		intel_uncore_write(&i915->uncore, vgtif_reg(display_ready),
+				   VGT_DRV_DISPLAY_READY);
+}
+
+bool intel_vgpu_active(struct drm_i915_private *dev_priv)
+{
+	return dev_priv->vgpu.active;
+}
+
 bool intel_vgpu_has_full_ppgtt(struct drm_i915_private *dev_priv)
 {
 	return dev_priv->vgpu.caps & VGT_CAPS_FULL_PPGTT;
+}
+
+bool intel_vgpu_has_hwsp_emulation(struct drm_i915_private *dev_priv)
+{
+	return dev_priv->vgpu.caps & VGT_CAPS_HWSP_EMULATION;
+}
+
+bool intel_vgpu_has_huge_gtt(struct drm_i915_private *dev_priv)
+{
+	return dev_priv->vgpu.caps & VGT_CAPS_HUGE_GTT;
 }
 
 struct _balloon_info_ {

@@ -276,7 +276,6 @@ struct amdgpu_vm {
 
 	/* Last submission to the scheduler entities */
 	struct dma_fence	*last_direct;
-	struct dma_fence	*last_delayed;
 
 	unsigned int		pasid;
 	/* dedicated to vm */

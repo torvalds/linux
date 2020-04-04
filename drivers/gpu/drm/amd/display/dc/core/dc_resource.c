@@ -893,6 +893,7 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx)
 	int vpc_div = (data->format == PIXEL_FORMAT_420BPP8
 			|| data->format == PIXEL_FORMAT_420BPP10) ? 2 : 1;
 	bool orthogonal_rotation, flip_vert_scan_dir, flip_horz_scan_dir;
+	int odm_idx = 0;
 
 	/*
 	 * Need to calculate the scan direction for viewport to make adjustments
@@ -924,11 +925,13 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx)
 					* stream->dst.width / stream->src.width -
 					src.x * plane_state->dst_rect.width / src.width
 					* stream->dst.width / stream->src.width);
-	/*modified recout_skip_h calculation due to odm having no recout offset caused by split*/
+	/*modified recout_skip_h calculation due to odm having no recout offset*/
 	while (odm_pipe) {
-		recout_skip_h += odm_pipe->plane_res.scl_data.recout.width + odm_pipe->plane_res.scl_data.recout.x;
+		odm_idx++;
 		odm_pipe = odm_pipe->prev_odm_pipe;
 	}
+	if (odm_idx)
+		recout_skip_h += odm_idx * data->recout.width;
 
 	recout_skip_v = data->recout.y - (stream->dst.y + (plane_state->dst_rect.y - stream->src.y)
 					* stream->dst.height / stream->src.height -
@@ -2171,10 +2174,10 @@ enum dc_status dc_validate_global_state(
 			if (pipe_ctx->stream != stream)
 				continue;
 
-			if (dc->res_pool->funcs->get_default_swizzle_mode &&
+			if (dc->res_pool->funcs->patch_unknown_plane_state &&
 					pipe_ctx->plane_state &&
 					pipe_ctx->plane_state->tiling_info.gfx9.swizzle == DC_SW_UNKNOWN) {
-				result = dc->res_pool->funcs->get_default_swizzle_mode(pipe_ctx->plane_state);
+				result = dc->res_pool->funcs->patch_unknown_plane_state(pipe_ctx->plane_state);
 				if (result != DC_OK)
 					return result;
 			}

@@ -1004,7 +1004,7 @@ emit_rpcs_query(struct drm_i915_gem_object *obj,
 	return 0;
 
 skip_request:
-	i915_request_skip(rq, err);
+	i915_request_set_error_once(rq, err);
 err_request:
 	i915_request_add(rq);
 err_batch:
@@ -1559,7 +1559,7 @@ static int write_to_scratch(struct i915_gem_context *ctx,
 
 	goto out_vm;
 skip_request:
-	i915_request_skip(rq, err);
+	i915_request_set_error_once(rq, err);
 err_request:
 	i915_request_add(rq);
 err_unpin:
@@ -1708,7 +1708,7 @@ static int read_from_scratch(struct i915_gem_context *ctx,
 
 	goto out_vm;
 skip_request:
-	i915_request_skip(rq, err);
+	i915_request_set_error_once(rq, err);
 err_request:
 	i915_request_add(rq);
 err_unpin:
@@ -1809,7 +1809,6 @@ static int igt_vm_isolation(void *arg)
 
 	vm_total = ctx_vm(ctx_a)->total;
 	GEM_BUG_ON(ctx_vm(ctx_b)->total != vm_total);
-	vm_total -= I915_GTT_PAGE_SIZE;
 
 	count = 0;
 	num_engines = 0;
@@ -1828,10 +1827,10 @@ static int igt_vm_isolation(void *arg)
 			u32 value = 0xc5c5c5c5;
 			u64 offset;
 
-			div64_u64_rem(i915_prandom_u64_state(&prng),
-				      vm_total, &offset);
-			offset = round_down(offset, alignof_dword);
-			offset += I915_GTT_PAGE_SIZE;
+			/* Leave enough space at offset 0 for the batch */
+			offset = igt_random_offset(&prng,
+						   I915_GTT_PAGE_SIZE, vm_total,
+						   sizeof(u32), alignof_dword);
 
 			err = write_to_scratch(ctx_a, engine,
 					       offset, 0xdeadbeef);

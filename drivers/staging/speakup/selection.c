@@ -51,9 +51,7 @@ static void __speakup_set_selection(struct work_struct *work)
 		goto unref;
 	}
 
-	console_lock();
 	set_selection_kernel(&sel, tty);
-	console_unlock();
 
 unref:
 	tty_kref_put(tty);

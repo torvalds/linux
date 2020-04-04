@@ -23,6 +23,7 @@
  */
 
 #include <drm/drm_print.h>
+#include <drm/i915_pciids.h>
 
 #include "display/intel_cdclk.h"
 #include "intel_device_info.h"

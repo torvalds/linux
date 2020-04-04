@@ -183,7 +183,13 @@ static inline bool i915_active_has_exclusive(struct i915_active *ref)
 
 int i915_active_wait(struct i915_active *ref);
 
-int i915_request_await_active(struct i915_request *rq, struct i915_active *ref);
+int i915_sw_fence_await_active(struct i915_sw_fence *fence,
+			       struct i915_active *ref,
+			       unsigned int flags);
+int i915_request_await_active(struct i915_request *rq,
+			      struct i915_active *ref,
+			      unsigned int flags);
+#define I915_ACTIVE_AWAIT_ALL BIT(0)
 
 int i915_active_acquire(struct i915_active *ref);
 bool i915_active_acquire_if_busy(struct i915_active *ref);

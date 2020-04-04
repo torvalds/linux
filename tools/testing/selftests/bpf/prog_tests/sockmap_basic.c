@@ -3,6 +3,11 @@
 
 #include "test_progs.h"
 
+#define TCP_REPAIR		19	/* TCP sock is under repair right now */
+
+#define TCP_REPAIR_ON		1
+#define TCP_REPAIR_OFF_NO_WP	-1	/* Turn off without window probes */
+
 static int connected_socket_v4(void)
 {
 	struct sockaddr_in addr = {

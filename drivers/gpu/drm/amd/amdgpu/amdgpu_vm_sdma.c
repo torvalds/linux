@@ -104,12 +104,13 @@ static int amdgpu_vm_sdma_commit(struct amdgpu_vm_update_params *p,
 	if (r)
 		goto error;
 
-	tmp = dma_fence_get(f);
-	if (p->direct)
+	if (p->direct) {
+		tmp = dma_fence_get(f);
 		swap(p->vm->last_direct, tmp);
-	else
-		swap(p->vm->last_delayed, tmp);
-	dma_fence_put(tmp);
+		dma_fence_put(tmp);
+	} else {
+		dma_resv_add_shared_fence(p->vm->root.base.bo->tbo.base.resv, f);
+	}
 
 	if (fence && !p->direct)
 		swap(*fence, f);

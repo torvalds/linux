@@ -1080,7 +1080,11 @@ int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job,
 	struct dma_fence *fence = NULL;
 	bool pasid_mapping_needed = false;
 	unsigned patch_offset = 0;
+	bool update_spm_vmid_needed = (job->vm && (job->vm->reserved_vmid[vmhub] != NULL));
 	int r;
+
+	if (update_spm_vmid_needed && adev->gfx.rlc.funcs->update_spm_vmid)
+		adev->gfx.rlc.funcs->update_spm_vmid(adev, job->vmid);
 
 	if (amdgpu_vmid_had_gpu_reset(adev, id)) {
 		gds_switch_needed = true;
@@ -1442,7 +1446,7 @@ static int amdgpu_vm_update_ptes(struct amdgpu_vm_update_params *params,
 		uint64_t incr, entry_end, pe_start;
 		struct amdgpu_bo *pt;
 
-		if (flags & AMDGPU_PTE_VALID) {
+		if (flags & (AMDGPU_PTE_VALID | AMDGPU_PTE_PRT)) {
 			/* make sure that the page tables covering the
 			 * address range are actually allocated
 			 */
@@ -1599,14 +1603,11 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 		goto error_unlock;
 	}
 
-	if (flags & AMDGPU_PTE_VALID) {
+	if (flags & (AMDGPU_PTE_VALID | AMDGPU_PTE_PRT)) {
 		struct amdgpu_bo *root = vm->root.base.bo;
 
 		if (!dma_fence_is_signaled(vm->last_direct))
 			amdgpu_bo_fence(root, vm->last_direct, true);
-
-		if (!dma_fence_is_signaled(vm->last_delayed))
-			amdgpu_bo_fence(root, vm->last_delayed, true);
 	}
 
 	r = vm->update_funcs->prepare(&params, resv, sync_mode);
@@ -1714,7 +1715,7 @@ static int amdgpu_vm_bo_split_mapping(struct amdgpu_device *adev,
 					AMDGPU_GPU_PAGES_IN_CPU_PAGE;
 			}
 
-		} else if (flags & AMDGPU_PTE_VALID) {
+		} else if (flags & (AMDGPU_PTE_VALID | AMDGPU_PTE_PRT)) {
 			addr += bo_adev->vm_manager.vram_base_offset;
 			addr += pfn << PAGE_SHIFT;
 		}
@@ -2584,8 +2585,7 @@ bool amdgpu_vm_evictable(struct amdgpu_bo *bo)
 		return false;
 
 	/* Don't evict VM page tables while they are updated */
-	if (!dma_fence_is_signaled(bo_base->vm->last_direct) ||
-	    !dma_fence_is_signaled(bo_base->vm->last_delayed)) {
+	if (!dma_fence_is_signaled(bo_base->vm->last_direct)) {
 		amdgpu_vm_eviction_unlock(bo_base->vm);
 		return false;
 	}
@@ -2762,11 +2762,7 @@ long amdgpu_vm_wait_idle(struct amdgpu_vm *vm, long timeout)
 	if (timeout <= 0)
 		return timeout;
 
-	timeout = dma_fence_wait_timeout(vm->last_direct, true, timeout);
-	if (timeout <= 0)
-		return timeout;
-
-	return dma_fence_wait_timeout(vm->last_delayed, true, timeout);
+	return dma_fence_wait_timeout(vm->last_direct, true, timeout);
 }
 
 /**
@@ -2839,7 +2835,6 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		vm->update_funcs = &amdgpu_vm_sdma_funcs;
 	vm->last_update = NULL;
 	vm->last_direct = dma_fence_get_stub();
-	vm->last_delayed = dma_fence_get_stub();
 
 	mutex_init(&vm->eviction_lock);
 	vm->evicting = false;
@@ -2894,7 +2889,6 @@ error_free_root:
 
 error_free_delayed:
 	dma_fence_put(vm->last_direct);
-	dma_fence_put(vm->last_delayed);
 	drm_sched_entity_destroy(&vm->delayed);
 
 error_free_direct:
@@ -3097,8 +3091,6 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 
 	dma_fence_wait(vm->last_direct, false);
 	dma_fence_put(vm->last_direct);
-	dma_fence_wait(vm->last_delayed, false);
-	dma_fence_put(vm->last_delayed);
 
 	list_for_each_entry_safe(mapping, tmp, &vm->freed, list) {
 		if (mapping->flags & AMDGPU_PTE_PRT && prt_fini_needed) {
@@ -3209,6 +3201,7 @@ int amdgpu_vm_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	union drm_amdgpu_vm *args = data;
 	struct amdgpu_device *adev = dev->dev_private;
 	struct amdgpu_fpriv *fpriv = filp->driver_priv;
+	long timeout = msecs_to_jiffies(2000);
 	int r;
 
 	switch (args->in.op) {
@@ -3220,6 +3213,21 @@ int amdgpu_vm_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 			return r;
 		break;
 	case AMDGPU_VM_OP_UNRESERVE_VMID:
+		if (amdgpu_sriov_runtime(adev))
+			timeout = 8 * timeout;
+
+		/* Wait vm idle to make sure the vmid set in SPM_VMID is
+		 * not referenced anymore.
+		 */
+		r = amdgpu_bo_reserve(fpriv->vm.root.base.bo, true);
+		if (r)
+			return r;
+
+		r = amdgpu_vm_wait_idle(&fpriv->vm, timeout);
+		if (r < 0)
+			return r;
+
+		amdgpu_bo_unreserve(fpriv->vm.root.base.bo);
 		amdgpu_vmid_free_reserved(adev, &fpriv->vm, AMDGPU_GFXHUB_0);
 		break;
 	default:

@@ -667,6 +667,9 @@ void intel_gt_driver_release(struct intel_gt *gt)
 
 void intel_gt_driver_late_release(struct intel_gt *gt)
 {
+	/* We need to wait for inflight RCU frees to release their grip */
+	rcu_barrier();
+
 	intel_uc_driver_late_release(&gt->uc);
 	intel_gt_fini_requests(gt);
 	intel_gt_fini_reset(gt);

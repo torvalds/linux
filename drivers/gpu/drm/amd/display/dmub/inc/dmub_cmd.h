@@ -50,6 +50,7 @@ enum dmub_cmd_type {
 	DMUB_CMD__REG_REG_WAIT = 4,
 	DMUB_CMD__PLAT_54186_WA = 5,
 	DMUB_CMD__PSR = 64,
+	DMUB_CMD__ABM = 66,
 	DMUB_CMD__VBIOS = 128,
 };
 
@@ -256,6 +257,52 @@ struct dmub_rb_cmd_psr_set_version {
 	struct dmub_cmd_psr_set_version_data psr_set_version_data;
 };
 
+struct dmub_cmd_abm_set_pipe_data {
+	uint32_t ramping_boundary;
+	uint32_t otg_inst;
+};
+
+struct dmub_rb_cmd_abm_set_pipe {
+	struct dmub_cmd_header header;
+	struct dmub_cmd_abm_set_pipe_data abm_set_pipe_data;
+};
+
+struct dmub_cmd_abm_set_backlight_data {
+	uint32_t frame_ramp;
+};
+
+struct dmub_rb_cmd_abm_set_backlight {
+	struct dmub_cmd_header header;
+	struct dmub_cmd_abm_set_backlight_data abm_set_backlight_data;
+};
+
+struct dmub_cmd_abm_set_level_data {
+	uint32_t level;
+};
+
+struct dmub_rb_cmd_abm_set_level {
+	struct dmub_cmd_header header;
+	struct dmub_cmd_abm_set_level_data abm_set_level_data;
+};
+
+struct dmub_cmd_abm_set_ambient_level_data {
+	uint32_t ambient_lux;
+};
+
+struct dmub_rb_cmd_abm_set_ambient_level {
+	struct dmub_cmd_header header;
+	struct dmub_cmd_abm_set_ambient_level_data abm_set_ambient_level_data;
+};
+
+struct dmub_cmd_abm_set_pwm_frac_data {
+	uint32_t fractional_pwm;
+};
+
+struct dmub_rb_cmd_abm_set_pwm_frac {
+	struct dmub_cmd_header header;
+	struct dmub_cmd_abm_set_pwm_frac_data abm_set_pwm_frac_data;
+};
+
 union dmub_rb_cmd {
 	struct dmub_rb_cmd_read_modify_write read_modify_write;
 	struct dmub_rb_cmd_reg_field_update_sequence reg_field_update_seq;
@@ -272,6 +319,11 @@ union dmub_rb_cmd {
 	struct dmub_rb_cmd_psr_enable psr_enable;
 	struct dmub_rb_cmd_psr_set_level psr_set_level;
 	struct dmub_rb_cmd_PLAT_54186_wa PLAT_54186_wa;
+	struct dmub_rb_cmd_abm_set_pipe abm_set_pipe;
+	struct dmub_rb_cmd_abm_set_backlight abm_set_backlight;
+	struct dmub_rb_cmd_abm_set_level abm_set_level;
+	struct dmub_rb_cmd_abm_set_ambient_level abm_set_ambient_level;
+	struct dmub_rb_cmd_abm_set_pwm_frac abm_set_pwm_frac;
 };
 
 #pragma pack(pop)

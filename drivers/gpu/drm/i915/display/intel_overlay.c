@@ -27,7 +27,6 @@
  */
 
 #include <drm/drm_fourcc.h>
-#include <drm/i915_drm.h>
 
 #include "gem/i915_gem_pm.h"
 #include "gt/intel_ring.h"
@@ -324,7 +323,7 @@ static int intel_overlay_continue(struct intel_overlay *overlay,
 	/* check for underruns */
 	tmp = intel_de_read(dev_priv, DOVSTA);
 	if (tmp & (1 << 17))
-		DRM_DEBUG("overlay underrun, DOVSTA: %x\n", tmp);
+		drm_dbg(&dev_priv->drm, "overlay underrun, DOVSTA: %x\n", tmp);
 
 	rq = alloc_request(overlay, NULL);
 	if (IS_ERR(rq))
@@ -1069,7 +1068,7 @@ int intel_overlay_put_image_ioctl(struct drm_device *dev, void *data,
 
 	overlay = dev_priv->overlay;
 	if (!overlay) {
-		DRM_DEBUG("userspace bug: no overlay\n");
+		drm_dbg(&dev_priv->drm, "userspace bug: no overlay\n");
 		return -ENODEV;
 	}
 
@@ -1093,7 +1092,8 @@ int intel_overlay_put_image_ioctl(struct drm_device *dev, void *data,
 	drm_modeset_lock_all(dev);
 
 	if (i915_gem_object_is_tiled(new_bo)) {
-		DRM_DEBUG_KMS("buffer used for overlay image can not be tiled\n");
+		drm_dbg_kms(&dev_priv->drm,
+			    "buffer used for overlay image can not be tiled\n");
 		ret = -EINVAL;
 		goto out_unlock;
 	}
@@ -1228,7 +1228,7 @@ int intel_overlay_attrs_ioctl(struct drm_device *dev, void *data,
 
 	overlay = dev_priv->overlay;
 	if (!overlay) {
-		DRM_DEBUG("userspace bug: no overlay\n");
+		drm_dbg(&dev_priv->drm, "userspace bug: no overlay\n");
 		return -ENODEV;
 	}
 
@@ -1372,7 +1372,7 @@ void intel_overlay_setup(struct drm_i915_private *dev_priv)
 	update_reg_attrs(overlay, overlay->regs);
 
 	dev_priv->overlay = overlay;
-	DRM_INFO("Initialized overlay support.\n");
+	drm_info(&dev_priv->drm, "Initialized overlay support.\n");
 	return;
 
 out_free:

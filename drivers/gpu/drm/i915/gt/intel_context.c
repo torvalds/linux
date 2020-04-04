@@ -51,6 +51,11 @@ int intel_context_alloc_state(struct intel_context *ce)
 		return -EINTR;
 
 	if (!test_bit(CONTEXT_ALLOC_BIT, &ce->flags)) {
+		if (intel_context_is_banned(ce)) {
+			err = -EIO;
+			goto unlock;
+		}
+
 		err = ce->ops->alloc(ce);
 		if (unlikely(err))
 			goto unlock;
@@ -91,6 +96,8 @@ static void intel_context_active_release(struct intel_context *ce)
 int __intel_context_do_pin(struct intel_context *ce)
 {
 	int err;
+
+	GEM_BUG_ON(intel_context_is_closed(ce));
 
 	if (unlikely(!test_bit(CONTEXT_ALLOC_BIT, &ce->flags))) {
 		err = intel_context_alloc_state(ce);

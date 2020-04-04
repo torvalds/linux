@@ -52,8 +52,8 @@ static uint8_t is_cp_desired_hdcp1(struct mod_hdcp *hdcp)
 	 * hdcp is not desired
 	 */
 	for (i = 0; i < MAX_NUM_OF_DISPLAYS; i++) {
-		if (hdcp->connection.displays[i].state != MOD_HDCP_DISPLAY_INACTIVE &&
-				!hdcp->connection.displays[i].adjust.disable) {
+		if (hdcp->displays[i].state != MOD_HDCP_DISPLAY_INACTIVE &&
+				!hdcp->displays[i].adjust.disable) {
 			is_auth_needed = 1;
 			break;
 		}
@@ -73,8 +73,8 @@ static uint8_t is_cp_desired_hdcp2(struct mod_hdcp *hdcp)
 	 * hdcp is not desired
 	 */
 	for (i = 0; i < MAX_NUM_OF_DISPLAYS; i++) {
-		if (hdcp->connection.displays[i].state != MOD_HDCP_DISPLAY_INACTIVE &&
-				!hdcp->connection.displays[i].adjust.disable) {
+		if (hdcp->displays[i].state != MOD_HDCP_DISPLAY_INACTIVE &&
+				!hdcp->displays[i].adjust.disable) {
 			is_auth_needed = 1;
 			break;
 		}
@@ -114,6 +114,9 @@ static enum mod_hdcp_status execution(struct mod_hdcp *hdcp,
 	} else if (is_in_hdcp2_dp_states(hdcp)) {
 		status = mod_hdcp_hdcp2_dp_execution(hdcp,
 				event_ctx, &input->hdcp2);
+	} else {
+		event_ctx->unexpected_event = 1;
+		goto out;
 	}
 out:
 	return status;
@@ -325,7 +328,8 @@ enum mod_hdcp_status mod_hdcp_add_display(struct mod_hdcp *hdcp,
 	/* add display to connection */
 	hdcp->connection.link = *link;
 	*display_container = *display;
-	status = mod_hdcp_add_display_to_topology(hdcp, display->index);
+	status = mod_hdcp_add_display_to_topology(hdcp, display_container);
+
 	if (status != MOD_HDCP_STATUS_SUCCESS)
 		goto out;
 
@@ -371,10 +375,10 @@ enum mod_hdcp_status mod_hdcp_remove_display(struct mod_hdcp *hdcp,
 	status = mod_hdcp_remove_display_from_topology(hdcp, index);
 	if (status != MOD_HDCP_STATUS_SUCCESS)
 		goto out;
-	display->state = MOD_HDCP_DISPLAY_INACTIVE;
+	memset(display, 0, sizeof(struct mod_hdcp_display));
 
-	/* request authentication for remaining displays*/
-	if (get_active_display_count(hdcp) > 0)
+	/* request authentication when connection is not reset */
+	if (current_state(hdcp) != HDCP_UNINITIALIZED)
 		callback_in_ms(hdcp->connection.link.adjust.auth_delay * 1000,
 				output);
 out:
@@ -481,10 +485,8 @@ enum mod_hdcp_operation_mode mod_hdcp_signal_type_to_operation_mode(
 		break;
 	case SIGNAL_TYPE_EDP:
 	case SIGNAL_TYPE_DISPLAY_PORT:
-		mode = MOD_HDCP_MODE_DP;
-		break;
 	case SIGNAL_TYPE_DISPLAY_PORT_MST:
-		mode = MOD_HDCP_MODE_DP_MST;
+		mode = MOD_HDCP_MODE_DP;
 		break;
 	default:
 		break;

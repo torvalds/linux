@@ -93,7 +93,6 @@ int amdgpu_sdma_ras_late_init(struct amdgpu_device *adev,
 	struct ras_ih_if *ih_info = (struct ras_ih_if *)ras_ih_info;
 	struct ras_fs_if fs_info = {
 		.sysfs_name = "sdma_err_count",
-		.debugfs_name = "sdma_err_inject",
 	};
 
 	if (!ih_info)

@@ -85,7 +85,7 @@ properties:
         # LED will act as a back-light, controlled by the framebuffer system
       - backlight
         # LED will turn on (but for leds-gpio see "default-state" property in
-        # Documentation/devicetree/bindings/leds/leds-gpio.txt)
+        # Documentation/devicetree/bindings/leds/leds-gpio.yaml)
       - default-on
         # LED "double" flashes at a load average based rate
       - heartbeat

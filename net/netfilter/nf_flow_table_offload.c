@@ -87,6 +87,7 @@ static int nf_flow_rule_match(struct nf_flow_match *match,
 	default:
 		return -EOPNOTSUPP;
 	}
+	mask->control.addr_type = 0xffff;
 	match->dissector.used_keys |= BIT(key->control.addr_type);
 	mask->basic.n_proto = 0xffff;
 
@@ -847,9 +848,6 @@ static int nf_flow_table_offload_cmd(struct flow_block_offload *bo,
 {
 	int err;
 
-	if (!nf_flowtable_hw_offload(flowtable))
-		return 0;
-
 	if (!dev->netdev_ops->ndo_setup_tc)
 		return -EOPNOTSUPP;
 
@@ -875,6 +873,9 @@ int nf_flow_table_offload_setup(struct nf_flowtable *flowtable,
 	struct netlink_ext_ack extack = {};
 	struct flow_block_offload bo;
 	int err;
+
+	if (!nf_flowtable_hw_offload(flowtable))
+		return 0;
 
 	err = nf_flow_table_offload_cmd(&bo, flowtable, dev, cmd, &extack);
 	if (err < 0)

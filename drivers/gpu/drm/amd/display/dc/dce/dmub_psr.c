@@ -134,17 +134,15 @@ static bool dmub_psr_copy_settings(struct dmub_psr *dmub,
 	int i = 0;
 
 	for (i = 0; i < MAX_PIPES; i++) {
-		if (res_ctx &&
-			res_ctx->pipe_ctx[i].stream &&
-			res_ctx->pipe_ctx[i].stream->link &&
-			res_ctx->pipe_ctx[i].stream->link == link &&
-			res_ctx->pipe_ctx[i].stream->link->connector_signal == SIGNAL_TYPE_EDP) {
+		if (res_ctx->pipe_ctx[i].stream &&
+		    res_ctx->pipe_ctx[i].stream->link == link &&
+		    res_ctx->pipe_ctx[i].stream->link->connector_signal == SIGNAL_TYPE_EDP) {
 			pipe_ctx = &res_ctx->pipe_ctx[i];
 			break;
 		}
 	}
 
-	if (!pipe_ctx || !&pipe_ctx->plane_res || !&pipe_ctx->stream_res)
+	if (!pipe_ctx)
 		return false;
 
 	// First, set the psr version
@@ -235,6 +233,6 @@ struct dmub_psr *dmub_psr_create(struct dc_context *ctx)
  */
 void dmub_psr_destroy(struct dmub_psr **dmub)
 {
-	kfree(dmub);
+	kfree(*dmub);
 	*dmub = NULL;
 }

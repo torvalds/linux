@@ -230,6 +230,9 @@ enum mod_hdcp_status mod_hdcp_hdcp1_dp_transition(struct mod_hdcp *hdcp,
 				(!conn->is_repeater && is_dp_mst_hdcp(hdcp) && input->stream_encryption_dp != PASS)) {
 			fail_and_restart_in_ms(0, &status, output);
 			break;
+		} else if (conn->hdcp1_retry_count < conn->link.adjust.hdcp1.min_auth_retries_wa) {
+			fail_and_restart_in_ms(0, &status, output);
+			break;
 		}
 		if (conn->is_repeater) {
 			set_watchdog_in_ms(hdcp, 5000, output);

@@ -233,8 +233,11 @@ static void sock_map_free(struct bpf_map *map)
 	struct bpf_stab *stab = container_of(map, struct bpf_stab, map);
 	int i;
 
+	/* After the sync no updates or deletes will be in-flight so it
+	 * is safe to walk map and remove entries without risking a race
+	 * in EEXIST update case.
+	 */
 	synchronize_rcu();
-	raw_spin_lock_bh(&stab->lock);
 	for (i = 0; i < stab->map.max_entries; i++) {
 		struct sock **psk = &stab->sks[i];
 		struct sock *sk;
@@ -248,7 +251,6 @@ static void sock_map_free(struct bpf_map *map)
 			release_sock(sk);
 		}
 	}
-	raw_spin_unlock_bh(&stab->lock);
 
 	/* wait for psock readers accessing its map link */
 	synchronize_rcu();
@@ -863,10 +865,13 @@ static void sock_hash_free(struct bpf_map *map)
 	struct hlist_node *node;
 	int i;
 
+	/* After the sync no updates or deletes will be in-flight so it
+	 * is safe to walk map and remove entries without risking a race
+	 * in EEXIST update case.
+	 */
 	synchronize_rcu();
 	for (i = 0; i < htab->buckets_num; i++) {
 		bucket = sock_hash_select_bucket(htab, i);
-		raw_spin_lock_bh(&bucket->lock);
 		hlist_for_each_entry_safe(elem, node, &bucket->head, node) {
 			hlist_del_rcu(&elem->node);
 			lock_sock(elem->sk);
@@ -875,7 +880,6 @@ static void sock_hash_free(struct bpf_map *map)
 			rcu_read_unlock();
 			release_sock(elem->sk);
 		}
-		raw_spin_unlock_bh(&bucket->lock);
 	}
 
 	/* wait for psock readers accessing its map link */

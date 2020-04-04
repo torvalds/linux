@@ -39,7 +39,7 @@
 #include "inc/hw/dmcu.h"
 #include "dml/display_mode_lib.h"
 
-#define DC_VER "3.2.74"
+#define DC_VER "3.2.76"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -230,6 +230,7 @@ struct dc_config {
 	bool forced_clocks;
 	bool disable_extended_timeout_support; // Used to disable extended timeout and lttpr feature as well
 	bool multi_mon_pp_mclk_switch;
+	bool psr_on_dmub;
 };
 
 enum visual_confirm {
@@ -389,6 +390,7 @@ struct dc_debug_options {
 	int always_scale;
 	bool disable_pplib_clock_request;
 	bool disable_clock_gate;
+	bool disable_mem_low_power;
 	bool disable_dmcu;
 	bool disable_psr;
 	bool force_abm_enable;
@@ -410,7 +412,6 @@ struct dc_debug_options {
 	bool dmub_offload_enabled;
 	bool dmcub_emulation;
 	bool dmub_command_table; /* for testing only */
-	bool psr_on_dmub;
 	struct dc_bw_validation_profile bw_val_profile;
 	bool disable_fec;
 	bool disable_48mhz_pwrdwn;
@@ -520,7 +521,7 @@ struct dc {
 	struct dce_hwseq *hwseq;
 
 	/* Require to optimize clocks and bandwidth for added/removed planes */
-	bool clk_optimized_required;
+	bool optimized_required;
 	bool wm_optimized_required;
 
 	/* Require to maintain clocks and bandwidth for UEFI enabled HW */
@@ -871,6 +872,7 @@ struct dc_flip_addrs {
 	unsigned int flip_timestamp_in_us;
 	bool flip_immediate;
 	/* TODO: add flip duration for FreeSync */
+	bool triplebuffer_flips;
 };
 
 bool dc_post_update_surfaces_to_stream(
@@ -1024,6 +1026,11 @@ struct dc_sink_dsc_caps {
 	struct dsc_dec_dpcd_caps dsc_dec_caps;
 };
 
+struct dc_sink_fec_caps {
+	bool is_rx_fec_supported;
+	bool is_topology_fec_supported;
+};
+
 /*
  * The sink structure contains EDID and other display device properties
  */
@@ -1037,7 +1044,10 @@ struct dc_sink {
 	struct stereo_3d_features features_3d[TIMING_3D_FORMAT_MAX];
 	bool converter_disable_audio;
 
-	struct dc_sink_dsc_caps sink_dsc_caps;
+	struct dc_sink_dsc_caps dsc_caps;
+	struct dc_sink_fec_caps fec_caps;
+
+	bool is_vsc_sdp_colorimetry_supported;
 
 	/* private to DC core */
 	struct dc_link *link;
