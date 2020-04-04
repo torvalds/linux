@@ -1305,6 +1305,11 @@ int begin_new_exec(struct linux_binprm * bprm)
 	int retval;
 
 	/*
+	 * Ensure all future errors are fatal.
+	 */
+	bprm->point_of_no_return = true;
+
+	/*
 	 * Make this the only thread in the thread group.
 	 */
 	retval = de_thread(me);
@@ -1326,13 +1331,6 @@ int begin_new_exec(struct linux_binprm * bprm)
 	if (retval)
 		goto out;
 
-	/*
-	 * With the new mm installed it is completely impossible to
-	 * fail and return to the original process.  If anything from
-	 * here on returns an error, the check in __do_execve_file()
-	 * will SEGV current.
-	 */
-	bprm->point_of_no_return = true;
 	bprm->mm = NULL;
 
 #ifdef CONFIG_POSIX_TIMERS
