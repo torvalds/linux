@@ -718,6 +718,7 @@ static void __exit exit_exfat_fs(void)
 module_init(init_exfat_fs);
 module_exit(exit_exfat_fs);
 
+MODULE_ALIAS_FS("exfat");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("exFAT filesystem support");
 MODULE_AUTHOR("Samsung Electronics Co., Ltd.");
