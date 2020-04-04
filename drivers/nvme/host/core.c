@@ -3742,6 +3742,7 @@ static void nvme_remove_invalid_namespaces(struct nvme_ctrl *ctrl,
 
 static int nvme_scan_ns_list(struct nvme_ctrl *ctrl)
 {
+	const int nr_entries = NVME_IDENTIFY_DATA_SIZE / sizeof(__le32);
 	__le32 *ns_list;
 	u32 prev = 0;
 	int ret = 0, i;
@@ -3758,7 +3759,7 @@ static int nvme_scan_ns_list(struct nvme_ctrl *ctrl)
 		if (ret)
 			goto free;
 
-		for (i = 0; i < 1024; i++) {
+		for (i = 0; i < nr_entries; i++) {
 			u32 nsid = le32_to_cpu(ns_list[i]);
 
 			if (!nsid)	/* end of the list? */
