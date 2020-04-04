@@ -3360,26 +3360,27 @@ isp_3dlut_config(struct rkisp_isp_params_vdev *params_vdev,
 	u32 value, buf_idx, i;
 	u32 *data;
 
-	value = rkisp_ioread32(params_vdev, ISP_3DLUT_CTRL);
-	value &= ~ISP_3DLUT_EN;
-
-	if (arg->bypass_en)
-		value |= ISP_3DLUT_BYPASS;
-
-	rkisp_iowrite32(params_vdev, value, ISP_3DLUT_CTRL);
-
 	priv_val = (struct rkisp_isp_params_val_v2x *)params_vdev->priv_val;
 	buf_idx = (priv_val->buf_3dlut_idx++) % RKISP_PARAM_3DLUT_BUF_NUM;
 
 	data = (u32 *)priv_val->buf_3dlut[buf_idx].vaddr;
 	for (i = 0; i < arg->actual_size; i++)
-		data[i] = (arg->lut_r[i] & 0x3FF) | (arg->lut_g[i] & 0xFFF) << 10 |
-			(arg->lut_b[i] & 0x3FF) << 22;
+		data[i] = (arg->lut_b[i] & 0x3FF) |
+			  (arg->lut_g[i] & 0xFFF) << 10 |
+			  (arg->lut_r[i] & 0x3FF) << 22;
 
 	value = priv_val->buf_3dlut[buf_idx].dma_addr;
 	rkisp_iowrite32(params_vdev, value, MI_LUT_3D_RD_BASE);
 	rkisp_iowrite32(params_vdev, arg->actual_size, MI_LUT_3D_RD_WSIZE);
 	isp_param_set_bits(params_vdev, ISP_3DLUT_UPDATE, 0x01);
+
+	value = rkisp_ioread32(params_vdev, ISP_3DLUT_CTRL);
+	value &= ISP_3DLUT_EN;
+
+	if (arg->bypass_en)
+		value |= ISP_3DLUT_BYPASS;
+
+	rkisp_iowrite32(params_vdev, value, ISP_3DLUT_CTRL);
 }
 
 static void
