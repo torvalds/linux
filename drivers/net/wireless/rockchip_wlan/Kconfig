@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 menuconfig WL_ROCKCHIP
-	bool "Rockchip Wireless LAN support"
+	tristate "Rockchip Wireless LAN support"
 	select WIRELESS_EXT
 	select WEXT_PRIV
 	select CFG80211
