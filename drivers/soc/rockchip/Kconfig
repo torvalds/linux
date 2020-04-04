@@ -134,4 +134,10 @@ config ROCKCHIP_DEBUG
 	help
 	  Print dbgpcsr for every cpu when panic.
 
+config ROCKCHIP_THUNDER_BOOT
+	bool "Rockchip Thunder Boot support"
+	help
+	  Say y here to enable Rockchip thunder boot support.
+	  This option make the kernel boot faster.
+
 endif
