@@ -718,7 +718,11 @@ static void __exit nf_conntrack_standalone_fini(void)
 	nf_conntrack_cleanup_end();
 }
 
+#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
+rootfs_initcall(nf_conntrack_standalone_init);
+#else
 module_init(nf_conntrack_standalone_init);
+#endif
 module_exit(nf_conntrack_standalone_fini);
 
 /* Some modules need us, but don't depend directly on any symbol.
