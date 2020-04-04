@@ -50,6 +50,12 @@ properties:
       Documentation/devicetree/bindings/media/video-interfaces.txt
       Documentation/devicetree/bindings/graph.txt
     properties:
+      '#address-cells':
+        const: 1
+
+      '#size-cells':
+        const: 0
+
       port@0:
         type: object
         description: |
@@ -62,6 +68,8 @@ properties:
 
     required:
       - port@0
+
+    additionalProperties: false
 
 required:
   - compatible
