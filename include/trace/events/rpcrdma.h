@@ -1469,7 +1469,7 @@ DECLARE_EVENT_CLASS(svcrdma_segment_event,
 );
 
 #define DEFINE_SEGMENT_EVENT(name)					\
-		DEFINE_EVENT(svcrdma_segment_event, svcrdma_encode_##name,\
+		DEFINE_EVENT(svcrdma_segment_event, svcrdma_##name,\
 				TP_PROTO(				\
 					u32 handle,			\
 					u32 length,			\
@@ -1477,8 +1477,11 @@ DECLARE_EVENT_CLASS(svcrdma_segment_event,
 				),					\
 				TP_ARGS(handle, length, offset))
 
-DEFINE_SEGMENT_EVENT(rseg);
-DEFINE_SEGMENT_EVENT(wseg);
+DEFINE_SEGMENT_EVENT(decode_wseg);
+DEFINE_SEGMENT_EVENT(encode_rseg);
+DEFINE_SEGMENT_EVENT(send_rseg);
+DEFINE_SEGMENT_EVENT(encode_wseg);
+DEFINE_SEGMENT_EVENT(send_wseg);
 
 DECLARE_EVENT_CLASS(svcrdma_chunk_event,
 	TP_PROTO(
@@ -1501,17 +1504,19 @@ DECLARE_EVENT_CLASS(svcrdma_chunk_event,
 );
 
 #define DEFINE_CHUNK_EVENT(name)					\
-		DEFINE_EVENT(svcrdma_chunk_event, svcrdma_encode_##name,\
+		DEFINE_EVENT(svcrdma_chunk_event, svcrdma_##name,	\
 				TP_PROTO(				\
 					u32 length			\
 				),					\
 				TP_ARGS(length))
 
-DEFINE_CHUNK_EVENT(pzr);
-DEFINE_CHUNK_EVENT(write);
-DEFINE_CHUNK_EVENT(reply);
+DEFINE_CHUNK_EVENT(send_pzr);
+DEFINE_CHUNK_EVENT(encode_write_chunk);
+DEFINE_CHUNK_EVENT(send_write_chunk);
+DEFINE_CHUNK_EVENT(encode_read_chunk);
+DEFINE_CHUNK_EVENT(send_reply_chunk);
 
-TRACE_EVENT(svcrdma_encode_read,
+TRACE_EVENT(svcrdma_send_read_chunk,
 	TP_PROTO(
 		u32 length,
 		u32 position
@@ -1632,6 +1637,24 @@ TRACE_EVENT(svcrdma_dma_map_rwctx,
 	TP_printk("addr=%s device=%s status=%d",
 		__get_str(addr), __get_str(device), __entry->status
 	)
+);
+
+TRACE_EVENT(svcrdma_send_pullup,
+	TP_PROTO(
+		unsigned int len
+	),
+
+	TP_ARGS(len),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, len)
+	),
+
+	TP_fast_assign(
+		__entry->len = len;
+	),
+
+	TP_printk("len=%u", __entry->len)
 );
 
 TRACE_EVENT(svcrdma_send_failed,
@@ -1812,34 +1835,6 @@ TRACE_EVENT(svcrdma_post_rw,
 
 DEFINE_SENDCOMP_EVENT(read);
 DEFINE_SENDCOMP_EVENT(write);
-
-TRACE_EVENT(svcrdma_cm_event,
-	TP_PROTO(
-		const struct rdma_cm_event *event,
-		const struct sockaddr *sap
-	),
-
-	TP_ARGS(event, sap),
-
-	TP_STRUCT__entry(
-		__field(unsigned int, event)
-		__field(int, status)
-		__array(__u8, addr, INET6_ADDRSTRLEN + 10)
-	),
-
-	TP_fast_assign(
-		__entry->event = event->event;
-		__entry->status = event->status;
-		snprintf(__entry->addr, sizeof(__entry->addr) - 1,
-			 "%pISpc", sap);
-	),
-
-	TP_printk("addr=%s event=%s (%u/%d)",
-		__entry->addr,
-		rdma_show_cm_event(__entry->event),
-		__entry->event, __entry->status
-	)
-);
 
 TRACE_EVENT(svcrdma_qp_error,
 	TP_PROTO(
