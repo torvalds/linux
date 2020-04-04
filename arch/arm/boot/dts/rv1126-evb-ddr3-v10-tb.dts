@@ -1,0 +1,77 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2020 Fuzhou Rockchip Electronics Co., Ltd.
+ */
+
+#include "rv1126-evb-ddr3-v10.dts"
+
+/ {
+	model = "Rockchip RV1126 EVB DDR3 Board (Thunder Boot)";
+	compatible = "rockchip,rv1126-evb-ddr3-v10-tb", "rockchip,rv1126";
+
+	chosen {
+		bootargs = "loglevel=0 initcall_nr_threads=0 initcall_debug=0 root=/dev/rd0 console=ttyFIQ0 snd_aloop.index=7";
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x20000000>;
+	};
+
+	ramdisk {
+		compatible = "rockchip,ramdisk";
+		memory-region = <&ramdisk_r>;
+	};
+
+	reserved-memory {
+		trust@0 {
+			reg = <0x00000000 0x00200000>;
+			no-map;
+		};
+
+		ramoops@210000 {
+			compatible = "ramoops";
+			reg = <0x00210000 0x000f0000>;
+			record-size = <0x20000>;
+			console-size = <0x20000>;
+			ftrace-size = <0x00000>;
+			pmsg-size = <0x50000>;
+		};
+
+		rtos@300000 {
+			reg = <0x00300000 0x00100000>;
+			no-map;
+		};
+
+		ramdisk_r: ramdisk@2800000 {
+			reg = <0x02800000 (32 * 0x00100000)>;
+		};
+
+		ramdisk_c: ramdisk@5800000 {
+			reg = <0x05800000 (16 * 0x00100000)>;
+		};
+	};
+};
+
+&cpu0_opp_table {
+	/delete-node/ opp-1296000000;
+	/delete-node/ opp-1416000000;
+	/delete-node/ opp-1512000000;
+};
+
+&ddr_timing {
+	status = "disabled";
+};
+
+&hw_decompress {
+	status = "okay";
+	memory-region = <&ramdisk_c>;
+};
+
+&i2c0 {
+	clock-frequency = <1000000>;
+};
+
+&ramoops {
+	status = "disabled";
+};
