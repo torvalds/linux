@@ -803,8 +803,10 @@ static int lg_g15_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	}
 
 	if (ret < 0) {
-		hid_err(hdev, "Error disabling keyboard emulation for the G-keys\n");
-		goto error_hw_stop;
+		hid_err(hdev, "Error %d disabling keyboard emulation for the G-keys, falling back to generic hid-input driver\n",
+			ret);
+		hid_set_drvdata(hdev, NULL);
+		return 0;
 	}
 
 	/* Get initial brightness levels */

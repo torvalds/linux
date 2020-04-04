@@ -50,8 +50,8 @@ void mv_cesa_dma_step(struct mv_cesa_req *dreq)
 		       engine->regs + CESA_SA_CFG);
 	writel_relaxed(dreq->chain.first->cur_dma,
 		       engine->regs + CESA_TDMA_NEXT_ADDR);
-	BUG_ON(readl(engine->regs + CESA_SA_CMD) &
-	       CESA_SA_CMD_EN_CESA_SA_ACCL0);
+	WARN_ON(readl(engine->regs + CESA_SA_CMD) &
+		CESA_SA_CMD_EN_CESA_SA_ACCL0);
 	writel(CESA_SA_CMD_EN_CESA_SA_ACCL0, engine->regs + CESA_SA_CMD);
 }
 
@@ -175,8 +175,10 @@ int mv_cesa_tdma_process(struct mv_cesa_engine *engine, u32 status)
 			break;
 	}
 
-	/* Save the last request in error to engine->req, so that the core
-	 * knows which request was fautly */
+	/*
+	 * Save the last request in error to engine->req, so that the core
+	 * knows which request was fautly
+	 */
 	if (res) {
 		spin_lock_bh(&engine->lock);
 		engine->req = req;

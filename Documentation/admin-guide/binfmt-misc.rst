@@ -140,8 +140,8 @@ Hints
 -----
 
 If you want to pass special arguments to your interpreter, you can
-write a wrapper script for it. See Documentation/admin-guide/java.rst for an
-example.
+write a wrapper script for it.
+See :doc:`Documentation/admin-guide/java.rst <./java>` for an example.
 
 Your interpreter should NOT look in the PATH for the filename; the kernel
 passes it the full filename (or the file descriptor) to use.  Using ``$PATH`` can

@@ -147,26 +147,18 @@ static void hpre_rm_req_from_ctx(struct hpre_asym_request *hpre_req)
 static struct hisi_qp *hpre_get_qp_and_start(void)
 {
 	struct hisi_qp *qp;
-	struct hpre *hpre;
 	int ret;
 
-	/* find the proper hpre device, which is near the current CPU core */
-	hpre = hpre_find_device(cpu_to_node(smp_processor_id()));
-	if (!hpre) {
-		pr_err("Can not find proper hpre device!\n");
-		return ERR_PTR(-ENODEV);
-	}
-
-	qp = hisi_qm_create_qp(&hpre->qm, 0);
-	if (IS_ERR(qp)) {
-		pci_err(hpre->qm.pdev, "Can not create qp!\n");
+	qp = hpre_create_qp();
+	if (!qp) {
+		pr_err("Can not create hpre qp!\n");
 		return ERR_PTR(-ENODEV);
 	}
 
 	ret = hisi_qm_start_qp(qp, 0);
 	if (ret < 0) {
-		hisi_qm_release_qp(qp);
-		pci_err(hpre->qm.pdev, "Can not start qp!\n");
+		hisi_qm_free_qps(&qp, 1);
+		pci_err(qp->qm->pdev, "Can not start qp!\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -338,7 +330,7 @@ static void hpre_ctx_clear(struct hpre_ctx *ctx, bool is_clear_all)
 	if (is_clear_all) {
 		idr_destroy(&ctx->req_idr);
 		kfree(ctx->req_list);
-		hisi_qm_release_qp(ctx->qp);
+		hisi_qm_free_qps(&ctx->qp, 1);
 	}
 
 	ctx->crt_g2_mode = false;

@@ -126,11 +126,17 @@ extern int __get_user_bad(void);
 })
 
 /*
- * This is a type: either unsigned long, if the argument fits into
- * that type, or otherwise unsigned long long.
+ * This is the smallest unsigned integer type that can fit a value
+ * (up to 'long long')
  */
-#define __inttype(x) \
-__typeof__(__builtin_choose_expr(sizeof(x) > sizeof(0UL), 0ULL, 0UL))
+#define __inttype(x) __typeof__(		\
+	__typefits(x,char,			\
+	  __typefits(x,short,			\
+	    __typefits(x,int,			\
+	      __typefits(x,long,0ULL)))))
+
+#define __typefits(x,type,not) \
+	__builtin_choose_expr(sizeof(x)<=sizeof(type),(unsigned type)0,not)
 
 /**
  * get_user - Get a simple variable from user space.
@@ -198,7 +204,7 @@ __typeof__(__builtin_choose_expr(sizeof(x) > sizeof(0UL), 0ULL, 0UL))
 		     : "A" ((typeof(*(ptr)))(x)), "c" (ptr) : "ebx")
 #else
 #define __put_user_goto_u64(x, ptr, label) \
-	__put_user_goto(x, ptr, "q", "", "er", label)
+	__put_user_goto(x, ptr, "q", "er", label)
 #define __put_user_x8(x, ptr, __ret_pu) __put_user_x(8, x, ptr, __ret_pu)
 #endif
 
@@ -262,13 +268,13 @@ do {									\
 	__chk_user_ptr(ptr);						\
 	switch (size) {							\
 	case 1:								\
-		__put_user_goto(x, ptr, "b", "b", "iq", label);	\
+		__put_user_goto(x, ptr, "b", "iq", label);		\
 		break;							\
 	case 2:								\
-		__put_user_goto(x, ptr, "w", "w", "ir", label);		\
+		__put_user_goto(x, ptr, "w", "ir", label);		\
 		break;							\
 	case 4:								\
-		__put_user_goto(x, ptr, "l", "k", "ir", label);		\
+		__put_user_goto(x, ptr, "l", "ir", label);		\
 		break;							\
 	case 8:								\
 		__put_user_goto_u64(x, ptr, label);			\
@@ -283,25 +289,27 @@ do {									\
 ({									\
 	__typeof__(ptr) __ptr = (ptr);					\
 	asm volatile("\n"						\
-		     "1:	movl %2,%%eax\n"			\
-		     "2:	movl %3,%%edx\n"			\
+		     "1:	movl %[lowbits],%%eax\n"		\
+		     "2:	movl %[highbits],%%edx\n"		\
 		     "3:\n"						\
 		     ".section .fixup,\"ax\"\n"				\
-		     "4:	mov %4,%0\n"				\
+		     "4:	mov %[efault],%[errout]\n"		\
 		     "	xorl %%eax,%%eax\n"				\
 		     "	xorl %%edx,%%edx\n"				\
 		     "	jmp 3b\n"					\
 		     ".previous\n"					\
 		     _ASM_EXTABLE_UA(1b, 4b)				\
 		     _ASM_EXTABLE_UA(2b, 4b)				\
-		     : "=r" (retval), "=&A"(x)				\
-		     : "m" (__m(__ptr)), "m" __m(((u32 __user *)(__ptr)) + 1),	\
-		       "i" (-EFAULT), "0" (retval));			\
+		     : [errout] "=r" (retval),				\
+		       [output] "=&A"(x)				\
+		     : [lowbits] "m" (__m(__ptr)),			\
+		       [highbits] "m" __m(((u32 __user *)(__ptr)) + 1),	\
+		       [efault] "i" (-EFAULT), "0" (retval));		\
 })
 
 #else
 #define __get_user_asm_u64(x, ptr, retval) \
-	 __get_user_asm(x, ptr, retval, "q", "", "=r")
+	 __get_user_asm(x, ptr, retval, "q", "=r")
 #endif
 
 #define __get_user_size(x, ptr, size, retval)				\
@@ -310,13 +318,13 @@ do {									\
 	__chk_user_ptr(ptr);						\
 	switch (size) {							\
 	case 1:								\
-		__get_user_asm(x, ptr, retval, "b", "b", "=q");		\
+		__get_user_asm(x, ptr, retval, "b", "=q");		\
 		break;							\
 	case 2:								\
-		__get_user_asm(x, ptr, retval, "w", "w", "=r");		\
+		__get_user_asm(x, ptr, retval, "w", "=r");		\
 		break;							\
 	case 4:								\
-		__get_user_asm(x, ptr, retval, "l", "k", "=r");		\
+		__get_user_asm(x, ptr, retval, "l", "=r");		\
 		break;							\
 	case 8:								\
 		__get_user_asm_u64(x, ptr, retval);			\
@@ -326,18 +334,20 @@ do {									\
 	}								\
 } while (0)
 
-#define __get_user_asm(x, addr, err, itype, rtype, ltype)		\
+#define __get_user_asm(x, addr, err, itype, ltype)			\
 	asm volatile("\n"						\
-		     "1:	mov"itype" %2,%"rtype"1\n"		\
+		     "1:	mov"itype" %[umem],%[output]\n"		\
 		     "2:\n"						\
 		     ".section .fixup,\"ax\"\n"				\
-		     "3:	mov %3,%0\n"				\
-		     "	xor"itype" %"rtype"1,%"rtype"1\n"		\
+		     "3:	mov %[efault],%[errout]\n"		\
+		     "	xor"itype" %[output],%[output]\n"		\
 		     "	jmp 2b\n"					\
 		     ".previous\n"					\
 		     _ASM_EXTABLE_UA(1b, 3b)				\
-		     : "=r" (err), ltype(x)				\
-		     : "m" (__m(addr)), "i" (-EFAULT), "0" (err))
+		     : [errout] "=r" (err),				\
+		       [output] ltype(x)				\
+		     : [umem] "m" (__m(addr)),				\
+		       [efault] "i" (-EFAULT), "0" (err))
 
 #define __put_user_nocheck(x, ptr, size)			\
 ({								\
@@ -376,10 +386,10 @@ struct __large_struct { unsigned long buf[100]; };
  * we do not write to any memory gcc knows about, so there are no
  * aliasing issues.
  */
-#define __put_user_goto(x, addr, itype, rtype, ltype, label)	\
+#define __put_user_goto(x, addr, itype, ltype, label)			\
 	asm_volatile_goto("\n"						\
-		"1:	mov"itype" %"rtype"0,%1\n"			\
-		_ASM_EXTABLE_UA(1b, %l2)					\
+		"1:	mov"itype" %0,%1\n"				\
+		_ASM_EXTABLE_UA(1b, %l2)				\
 		: : ltype(x), "m" (__m(addr))				\
 		: : label)
 
