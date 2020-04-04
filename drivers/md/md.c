@@ -7512,7 +7512,7 @@ static int md_ioctl(struct block_device *bdev, fmode_t mode,
 
 	}
 
-	if (cmd == ADD_NEW_DISK)
+	if (cmd == ADD_NEW_DISK || cmd == HOT_ADD_DISK)
 		flush_rdev_wq(mddev);
 
 	if (cmd == HOT_REMOVE_DISK)
