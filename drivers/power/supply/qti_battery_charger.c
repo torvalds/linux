@@ -5,6 +5,7 @@
 
 #define pr_fmt(fmt)	"BATTERY_CHG: %s: " fmt, __func__
 
+#include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -145,12 +146,15 @@ struct battery_chg_dev {
 	struct mutex			rw_lock;
 	struct completion		ack;
 	struct psy_state		psy_list[PSY_TYPE_MAX];
+	struct dentry			*debugfs_dir;
 	u32				*thermal_levels;
 	int				curr_thermal_level;
 	int				num_thermal_levels;
 	atomic_t			state;
 	struct work_struct		subsys_up_work;
 	int				fake_soc;
+	bool				block_tx;
+	bool				debug_battery_detected;
 };
 
 static const int battery_prop_map[BATT_PROP_MAX] = {
@@ -210,6 +214,9 @@ static int battery_chg_write(struct battery_chg_dev *bcdev, void *data,
 		pr_debug("glink state is down\n");
 		return 0;
 	}
+
+	if (bcdev->debug_battery_detected && bcdev->block_tx)
+		return 0;
 
 	mutex_lock(&bcdev->rw_lock);
 	reinit_completion(&bcdev->ack);
@@ -383,6 +390,7 @@ static bool validate_message(struct battery_charger_resp_msg *resp_msg,
 	return true;
 }
 
+#define MODEL_DEBUG_BOARD	"Debug_Board"
 static void handle_message(struct battery_chg_dev *bcdev, void *data,
 				size_t len)
 {
@@ -399,6 +407,8 @@ static void handle_message(struct battery_chg_dev *bcdev, void *data,
 		if (pst->model && len == sizeof(*model_resp_msg)) {
 			memcpy(pst->model, model_resp_msg->model, MAX_STR_LEN);
 			ack_set = true;
+			bcdev->debug_battery_detected = !strcmp(pst->model,
+					MODEL_DEBUG_BOARD);
 			break;
 		}
 
@@ -1008,6 +1018,38 @@ static struct attribute *battery_class_attrs[] = {
 };
 ATTRIBUTE_GROUPS(battery_class);
 
+#ifdef CONFIG_DEBUG_FS
+static void battery_chg_add_debugfs(struct battery_chg_dev *bcdev)
+{
+	int rc;
+	struct dentry *dir, *file;
+
+	dir = debugfs_create_dir("battery_charger", NULL);
+	if (IS_ERR(dir)) {
+		rc = PTR_ERR(dir);
+		pr_err("Failed to create charger debugfs directory, rc=%d\n",
+			rc);
+		return;
+	}
+
+	file = debugfs_create_bool("block_tx", 0600, dir, &bcdev->block_tx);
+	if (IS_ERR(file)) {
+		rc = PTR_ERR(file);
+		pr_err("Failed to create block_tx debugfs file, rc=%d\n",
+			rc);
+		goto error;
+	}
+
+	bcdev->debugfs_dir = dir;
+
+	return;
+error:
+	debugfs_remove_recursive(dir);
+}
+#else
+static void battery_chg_add_debugfs(struct battery_chg_dev *bcdev) { }
+#endif
+
 static int battery_chg_parse_dt(struct battery_chg_dev *bcdev)
 {
 	struct device_node *node = bcdev->dev->of_node;
@@ -1144,6 +1186,7 @@ static int battery_chg_probe(struct platform_device *pdev)
 		goto error;
 	}
 
+	battery_chg_add_debugfs(bcdev);
 	battery_chg_notify_enable(bcdev);
 
 	return 0;
@@ -1157,6 +1200,7 @@ static int battery_chg_remove(struct platform_device *pdev)
 	struct battery_chg_dev *bcdev = platform_get_drvdata(pdev);
 	int rc;
 
+	debugfs_remove_recursive(bcdev->debugfs_dir);
 	class_unregister(&bcdev->battery_class);
 	rc = pmic_glink_unregister_client(bcdev->client);
 	if (rc < 0) {
