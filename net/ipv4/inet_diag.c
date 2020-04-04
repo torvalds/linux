@@ -1313,7 +1313,11 @@ static void __exit inet_diag_exit(void)
 	kfree(inet_diag_table);
 }
 
+#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
+rootfs_initcall(inet_diag_init);
+#else
 module_init(inet_diag_init);
+#endif
 module_exit(inet_diag_exit);
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_NET_PF_PROTO_TYPE(PF_NETLINK, NETLINK_SOCK_DIAG, 2 /* AF_INET */);
