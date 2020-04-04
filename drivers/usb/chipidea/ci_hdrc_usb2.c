@@ -64,13 +64,14 @@ static int ci_hdrc_usb2_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	priv->clk = devm_clk_get(dev, NULL);
-	if (!IS_ERR(priv->clk)) {
-		ret = clk_prepare_enable(priv->clk);
-		if (ret) {
-			dev_err(dev, "failed to enable the clock: %d\n", ret);
-			return ret;
-		}
+	priv->clk = devm_clk_get_optional(dev, NULL);
+	if (IS_ERR(priv->clk))
+		return PTR_ERR(priv->clk);;
+
+	ret = clk_prepare_enable(priv->clk);
+	if (ret) {
+		dev_err(dev, "failed to enable the clock: %d\n", ret);
+		return ret;
 	}
 
 	ci_pdata->name = dev_name(dev);
@@ -94,8 +95,7 @@ static int ci_hdrc_usb2_probe(struct platform_device *pdev)
 	return 0;
 
 clk_err:
-	if (!IS_ERR(priv->clk))
-		clk_disable_unprepare(priv->clk);
+	clk_disable_unprepare(priv->clk);
 	return ret;
 }
 
