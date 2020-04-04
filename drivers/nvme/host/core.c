@@ -3740,12 +3740,11 @@ static void nvme_remove_invalid_namespaces(struct nvme_ctrl *ctrl,
 
 }
 
-static int nvme_scan_ns_list(struct nvme_ctrl *ctrl, unsigned nn)
+static int nvme_scan_ns_list(struct nvme_ctrl *ctrl)
 {
 	__le32 *ns_list;
-	unsigned i, j, nsid, prev = 0;
-	unsigned num_lists = DIV_ROUND_UP_ULL((u64)nn, 1024);
-	int ret = 0;
+	u32 prev = 0;
+	int ret = 0, i;
 
 	if (nvme_ctrl_limited_cns(ctrl))
 		return -EOPNOTSUPP;
@@ -3754,22 +3753,20 @@ static int nvme_scan_ns_list(struct nvme_ctrl *ctrl, unsigned nn)
 	if (!ns_list)
 		return -ENOMEM;
 
-	for (i = 0; i < num_lists; i++) {
+	for (;;) {
 		ret = nvme_identify_ns_list(ctrl, prev, ns_list);
 		if (ret)
 			goto free;
 
-		for (j = 0; j < min(nn, 1024U); j++) {
-			nsid = le32_to_cpu(ns_list[j]);
-			if (!nsid)
+		for (i = 0; i < 1024; i++) {
+			u32 nsid = le32_to_cpu(ns_list[i]);
+
+			if (!nsid)	/* end of the list? */
 				goto out;
-
 			nvme_validate_ns(ctrl, nsid);
-
 			while (++prev < nsid)
 				nvme_ns_remove_by_nsid(ctrl, prev);
 		}
-		nn -= j;
 	}
  out:
 	nvme_remove_invalid_namespaces(ctrl, prev);
@@ -3778,9 +3775,15 @@ static int nvme_scan_ns_list(struct nvme_ctrl *ctrl, unsigned nn)
 	return ret;
 }
 
-static void nvme_scan_ns_sequential(struct nvme_ctrl *ctrl, unsigned nn)
+static void nvme_scan_ns_sequential(struct nvme_ctrl *ctrl)
 {
-	unsigned i;
+	struct nvme_id_ctrl *id;
+	u32 nn, i;
+
+	if (nvme_identify_ctrl(ctrl, &id))
+		return;
+	nn = le32_to_cpu(id->nn);
+	kfree(id);
 
 	for (i = 1; i <= nn; i++)
 		nvme_validate_ns(ctrl, i);
@@ -3817,8 +3820,6 @@ static void nvme_scan_work(struct work_struct *work)
 {
 	struct nvme_ctrl *ctrl =
 		container_of(work, struct nvme_ctrl, scan_work);
-	struct nvme_id_ctrl *id;
-	unsigned nn;
 
 	/* No tagset on a live ctrl means IO queues could not created */
 	if (ctrl->state != NVME_CTRL_LIVE || !ctrl->tagset)
@@ -3829,14 +3830,9 @@ static void nvme_scan_work(struct work_struct *work)
 		nvme_clear_changed_ns_log(ctrl);
 	}
 
-	if (nvme_identify_ctrl(ctrl, &id))
-		return;
-	nn = le32_to_cpu(id->nn);
-	kfree(id);
-
 	mutex_lock(&ctrl->scan_lock);
-	if (nvme_scan_ns_list(ctrl, nn) != 0)
-		nvme_scan_ns_sequential(ctrl, nn);
+	if (nvme_scan_ns_list(ctrl) != 0)
+		nvme_scan_ns_sequential(ctrl);
 	mutex_unlock(&ctrl->scan_lock);
 
 	down_write(&ctrl->namespaces_rwsem);
