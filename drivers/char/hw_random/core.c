@@ -617,7 +617,11 @@ static void __exit hwrng_modexit(void)
 	unregister_miscdev();
 }
 
+#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
+rootfs_initcall(hwrng_modinit);
+#else
 module_init(hwrng_modinit);
+#endif
 module_exit(hwrng_modexit);
 
 MODULE_DESCRIPTION("H/W Random Number Generator (RNG) driver");
