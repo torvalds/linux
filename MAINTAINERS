@@ -13285,6 +13285,7 @@ S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/brauner/linux.git
 F:	samples/pidfd/
 F:	tools/testing/selftests/pidfd/
+F:	tools/testing/selftests/pid_namespace/
 F:	tools/testing/selftests/clone3/
 K:	(?i)pidfd
 K:	(?i)clone3
