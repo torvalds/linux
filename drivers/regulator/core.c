@@ -5851,7 +5851,11 @@ static int __init regulator_init(void)
 }
 
 /* init early to allow our consumers to complete system booting */
+#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
+core_initcall_sync(regulator_init);
+#else
 core_initcall(regulator_init);
+#endif
 
 static int regulator_late_cleanup(struct device *dev, void *data)
 {
