@@ -89,6 +89,7 @@ static struct module *md_cluster_mod;
 static DECLARE_WAIT_QUEUE_HEAD(resync_wait);
 static struct workqueue_struct *md_wq;
 static struct workqueue_struct *md_misc_wq;
+static struct workqueue_struct *md_rdev_misc_wq;
 
 static int remove_and_add_spares(struct mddev *mddev,
 				 struct md_rdev *this);
@@ -2454,7 +2455,7 @@ static int bind_rdev_to_array(struct md_rdev *rdev, struct mddev *mddev)
 	return err;
 }
 
-static void md_delayed_delete(struct work_struct *ws)
+static void rdev_delayed_delete(struct work_struct *ws)
 {
 	struct md_rdev *rdev = container_of(ws, struct md_rdev, del_work);
 	kobject_del(&rdev->kobj);
@@ -2479,9 +2480,9 @@ static void unbind_rdev_from_array(struct md_rdev *rdev)
 	 * to delay it due to rcu usage.
 	 */
 	synchronize_rcu();
-	INIT_WORK(&rdev->del_work, md_delayed_delete);
+	INIT_WORK(&rdev->del_work, rdev_delayed_delete);
 	kobject_get(&rdev->kobj);
-	queue_work(md_misc_wq, &rdev->del_work);
+	queue_work(md_rdev_misc_wq, &rdev->del_work);
 }
 
 /*
@@ -4514,6 +4515,20 @@ null_show(struct mddev *mddev, char *page)
 	return -EINVAL;
 }
 
+/* need to ensure rdev_delayed_delete() has completed */
+static void flush_rdev_wq(struct mddev *mddev)
+{
+	struct md_rdev *rdev;
+
+	rcu_read_lock();
+	rdev_for_each_rcu(rdev, mddev)
+		if (work_pending(&rdev->del_work)) {
+			flush_workqueue(md_rdev_misc_wq);
+			break;
+		}
+	rcu_read_unlock();
+}
+
 static ssize_t
 new_dev_store(struct mddev *mddev, const char *buf, size_t len)
 {
@@ -4541,8 +4556,7 @@ new_dev_store(struct mddev *mddev, const char *buf, size_t len)
 	    minor != MINOR(dev))
 		return -EOVERFLOW;
 
-	flush_workqueue(md_misc_wq);
-
+	flush_rdev_wq(mddev);
 	err = mddev_lock(mddev);
 	if (err)
 		return err;
@@ -4780,7 +4794,8 @@ action_store(struct mddev *mddev, const char *page, size_t len)
 			clear_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
 		if (test_bit(MD_RECOVERY_RUNNING, &mddev->recovery) &&
 		    mddev_lock(mddev) == 0) {
-			flush_workqueue(md_misc_wq);
+			if (work_pending(&mddev->del_work))
+				flush_workqueue(md_misc_wq);
 			if (mddev->sync_thread) {
 				set_bit(MD_RECOVERY_INTR, &mddev->recovery);
 				md_reap_sync_thread(mddev);
@@ -7498,8 +7513,7 @@ static int md_ioctl(struct block_device *bdev, fmode_t mode,
 	}
 
 	if (cmd == ADD_NEW_DISK)
-		/* need to ensure md_delayed_delete() has completed */
-		flush_workqueue(md_misc_wq);
+		flush_rdev_wq(mddev);
 
 	if (cmd == HOT_REMOVE_DISK)
 		/* need to ensure recovery thread has run */
@@ -9471,6 +9485,10 @@ static int __init md_init(void)
 	if (!md_misc_wq)
 		goto err_misc_wq;
 
+	md_rdev_misc_wq = alloc_workqueue("md_rdev_misc", 0, 0);
+	if (!md_misc_wq)
+		goto err_rdev_misc_wq;
+
 	if ((ret = register_blkdev(MD_MAJOR, "md")) < 0)
 		goto err_md;
 
@@ -9492,6 +9510,8 @@ static int __init md_init(void)
 err_mdp:
 	unregister_blkdev(MD_MAJOR, "md");
 err_md:
+	destroy_workqueue(md_rdev_misc_wq);
+err_rdev_misc_wq:
 	destroy_workqueue(md_misc_wq);
 err_misc_wq:
 	destroy_workqueue(md_wq);
@@ -9778,6 +9798,7 @@ static __exit void md_exit(void)
 		 * destroy_workqueue() below will wait for that to complete.
 		 */
 	}
+	destroy_workqueue(md_rdev_misc_wq);
 	destroy_workqueue(md_misc_wq);
 	destroy_workqueue(md_wq);
 }
