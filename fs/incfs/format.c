@@ -450,7 +450,8 @@ int incfs_write_hash_block_to_backing_file(struct backing_file_context *bfc,
 					   struct mem_range block,
 					   int block_index,
 					   loff_t hash_area_off,
-					   loff_t bm_base_off, int file_size)
+					   loff_t bm_base_off,
+					   loff_t file_size)
 {
 	struct incfs_blockmap_entry bm_entry = {};
 	int result;
