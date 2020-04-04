@@ -3738,6 +3738,9 @@ static int nvme_scan_ns_list(struct nvme_ctrl *ctrl, unsigned nn)
 	unsigned num_lists = DIV_ROUND_UP_ULL((u64)nn, 1024);
 	int ret = 0;
 
+	if (nvme_ctrl_limited_cns(ctrl))
+		return -EOPNOTSUPP;
+
 	ns_list = kzalloc(NVME_IDENTIFY_DATA_SIZE, GFP_KERNEL);
 	if (!ns_list)
 		return -ENOMEM;
@@ -3824,17 +3827,14 @@ static void nvme_scan_work(struct work_struct *work)
 
 	if (nvme_identify_ctrl(ctrl, &id))
 		return;
+	nn = le32_to_cpu(id->nn);
+	kfree(id);
 
 	mutex_lock(&ctrl->scan_lock);
-	nn = le32_to_cpu(id->nn);
-	if (!nvme_ctrl_limited_cns(ctrl)) {
-		if (!nvme_scan_ns_list(ctrl, nn))
-			goto out_free_id;
-	}
-	nvme_scan_ns_sequential(ctrl, nn);
-out_free_id:
+	if (nvme_scan_ns_list(ctrl, nn) != 0)
+		nvme_scan_ns_sequential(ctrl, nn);
 	mutex_unlock(&ctrl->scan_lock);
-	kfree(id);
+
 	down_write(&ctrl->namespaces_rwsem);
 	list_sort(NULL, &ctrl->namespaces, ns_cmp);
 	up_write(&ctrl->namespaces_rwsem);
