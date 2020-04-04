@@ -1329,8 +1329,8 @@ int begin_new_exec(struct linux_binprm * bprm)
 	/*
 	 * With the new mm installed it is completely impossible to
 	 * fail and return to the original process.  If anything from
-	 * here on returns an error, the check in
-	 * search_binary_handler() will SEGV current.
+	 * here on returns an error, the check in __do_execve_file()
+	 * will SEGV current.
 	 */
 	bprm->point_of_no_return = true;
 	bprm->mm = NULL;
@@ -1721,13 +1721,8 @@ int search_binary_handler(struct linux_binprm *bprm)
 
 		read_lock(&binfmt_lock);
 		put_binfmt(fmt);
-		if (retval < 0 && bprm->point_of_no_return) {
-			/* we got to flush_old_exec() and failed after it */
-			read_unlock(&binfmt_lock);
-			force_sigsegv(SIGSEGV);
-			return retval;
-		}
-		if (retval != -ENOEXEC || !bprm->file) {
+		if (bprm->point_of_no_return || !bprm->file ||
+		    (retval != -ENOEXEC)) {
 			read_unlock(&binfmt_lock);
 			return retval;
 		}
@@ -1898,6 +1893,14 @@ static int __do_execve_file(int fd, struct filename *filename,
 	return retval;
 
 out:
+	/*
+	 * If past the point of no return ensure the the code never
+	 * returns to the userspace process.  Use an existing fatal
+	 * signal if present otherwise terminate the process with
+	 * SIGSEGV.
+	 */
+	if (bprm->point_of_no_return && !fatal_signal_pending(current))
+		force_sigsegv(SIGSEGV);
 	if (bprm->mm) {
 		acct_arg_size(bprm, 0);
 		mmput(bprm->mm);
