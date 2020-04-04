@@ -326,7 +326,6 @@ unsigned long hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
 	struct hstate *h = hstate_file(file);
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma;
-	int rc;
 
 	if (len & ~huge_page_mask(h))
 		return -EINVAL;
@@ -353,15 +352,9 @@ unsigned long hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
 	else
 		addr = hugetlb_get_unmapped_area_topdown(file, addr, len,
 				pgoff, flags);
-	if (addr & ~PAGE_MASK)
+	if (offset_in_page(addr))
 		return addr;
 
 check_asce_limit:
-	if (addr + len > current->mm->context.asce_limit &&
-	    addr + len <= TASK_SIZE) {
-		rc = crst_table_upgrade(mm, addr + len);
-		if (rc)
-			return (unsigned long) rc;
-	}
-	return addr;
+	return check_asce_limit(mm, addr, len);
 }
