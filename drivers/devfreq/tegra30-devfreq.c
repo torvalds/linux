@@ -807,10 +807,9 @@ static int tegra_devfreq_probe(struct platform_device *pdev)
 	}
 
 	err = platform_get_irq(pdev, 0);
-	if (err < 0) {
-		dev_err(&pdev->dev, "Failed to get IRQ: %d\n", err);
+	if (err < 0)
 		return err;
-	}
+
 	tegra->irq = err;
 
 	irq_set_status_flags(tegra->irq, IRQ_NOAUTOEN);
