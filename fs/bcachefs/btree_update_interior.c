@@ -45,6 +45,8 @@ static void btree_node_interior_verify(struct btree *b)
 
 	while (1) {
 		k = bch2_btree_node_iter_peek_unpack(&iter, b, &unpacked);
+		if (k.k->type != KEY_TYPE_btree_ptr_v2)
+			break;
 		bp = bkey_s_c_to_btree_ptr_v2(k);
 
 		BUG_ON(bkey_cmp(next_node, bp.v->min_key));
