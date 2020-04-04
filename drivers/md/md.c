@@ -3192,8 +3192,7 @@ slot_store(struct md_rdev *rdev, const char *buf, size_t len)
 			rdev->saved_raid_disk = -1;
 		clear_bit(In_sync, &rdev->flags);
 		clear_bit(Bitmap_sync, &rdev->flags);
-		err = rdev->mddev->pers->
-			hot_add_disk(rdev->mddev, rdev);
+		err = rdev->mddev->pers->hot_add_disk(rdev->mddev, rdev);
 		if (err) {
 			rdev->raid_disk = -1;
 			return err;
@@ -9057,8 +9056,7 @@ static int remove_and_add_spares(struct mddev *mddev,
 
 			rdev->recovery_offset = 0;
 		}
-		if (mddev->pers->
-		    hot_add_disk(mddev, rdev) == 0) {
+		if (mddev->pers->hot_add_disk(mddev, rdev) == 0) {
 			if (sysfs_link_rdev(mddev, rdev))
 				/* failure here is OK */;
 			if (!test_bit(Journal, &rdev->flags))
