@@ -2175,7 +2175,8 @@ void dcn20_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	mpcc_id = hubp->inst;
 
 	/* If there is no full update, don't need to touch MPC tree*/
-	if (!pipe_ctx->plane_state->update_flags.bits.full_update) {
+	if (!pipe_ctx->plane_state->update_flags.bits.full_update &&
+		!pipe_ctx->update_flags.bits.mpcc) {
 		mpc->funcs->update_blending(mpc, &blnd_cfg, mpcc_id);
 		return;
 	}
