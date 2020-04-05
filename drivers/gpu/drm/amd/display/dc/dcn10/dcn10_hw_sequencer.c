@@ -3050,9 +3050,15 @@ void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)
 	 *
 	 * This translation isn't affected by scaling so it needs to be
 	 * done *after* we adjust the position for the scale factor.
+	 *
+	 * This is only done by opt-in for now since there are still
+	 * some usecases like tiled display that might enable the
+	 * cursor on both streams while expecting dc to clip it.
 	 */
-	x_pos += pipe_ctx->plane_state->src_rect.x;
-	y_pos += pipe_ctx->plane_state->src_rect.y;
+	if (pos_cpy.translate_by_source) {
+		x_pos += pipe_ctx->plane_state->src_rect.x;
+		y_pos += pipe_ctx->plane_state->src_rect.y;
+	}
 
 	/**
 	 * If the position is negative then we need to add to the hotspot

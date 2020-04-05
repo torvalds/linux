@@ -2692,9 +2692,15 @@ void dce110_set_cursor_position(struct pipe_ctx *pipe_ctx)
 	 *
 	 * This translation isn't affected by scaling so it needs to be
 	 * done *after* we adjust the position for the scale factor.
+	 *
+	 * This is only done by opt-in for now since there are still
+	 * some usecases like tiled display that might enable the
+	 * cursor on both streams while expecting dc to clip it.
 	 */
-	pos_cpy.x += pipe_ctx->plane_state->src_rect.x;
-	pos_cpy.y += pipe_ctx->plane_state->src_rect.y;
+	if (pos_cpy.translate_by_source) {
+		pos_cpy.x += pipe_ctx->plane_state->src_rect.x;
+		pos_cpy.y += pipe_ctx->plane_state->src_rect.y;
+	}
 
 	if (pipe_ctx->plane_state->address.type
 			== PLN_ADDR_TYPE_VIDEO_PROGRESSIVE)
