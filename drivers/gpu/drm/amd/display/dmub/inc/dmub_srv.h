@@ -565,6 +565,16 @@ dmub_srv_send_gpint_command(struct dmub_srv *dmub,
 enum dmub_status dmub_srv_get_gpint_response(struct dmub_srv *dmub,
 					     uint32_t *response);
 
+/**
+ * dmub_flush_buffer_mem() - Read back entire frame buffer region.
+ * This ensures that the write from x86 has been flushed and will not
+ * hang the DMCUB.
+ * @fb: frame buffer to flush
+ *
+ * Can be called after software initialization.
+ */
+void dmub_flush_buffer_mem(const struct dmub_fb *fb);
+
 #if defined(__cplusplus)
 }
 #endif

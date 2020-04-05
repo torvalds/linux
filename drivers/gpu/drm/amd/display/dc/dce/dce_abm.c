@@ -447,7 +447,7 @@ static const struct abm_funcs dce_funcs = {
 	.set_backlight_level_pwm = dce_abm_set_backlight_level_pwm,
 	.get_current_backlight = dce_abm_get_current_backlight,
 	.get_target_backlight = dce_abm_get_target_backlight,
-	.load_abm_config = NULL,
+	.init_abm_config = NULL,
 	.set_abm_immediate_disable = dce_abm_immediate_disable
 };
 

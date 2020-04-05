@@ -70,7 +70,7 @@ static inline uint32_t dmub_align(uint32_t val, uint32_t factor)
 	return (val + factor - 1) / factor * factor;
 }
 
-static void dmub_flush_buffer_mem(const struct dmub_fb *fb)
+void dmub_flush_buffer_mem(const struct dmub_fb *fb)
 {
 	const uint8_t *base = (const uint8_t *)fb->cpu_addr;
 	uint8_t buf[64];

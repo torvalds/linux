@@ -348,11 +348,30 @@ static bool dmub_abm_set_backlight_level_pwm(
 	return true;
 }
 
-static bool dmub_abm_load_config(struct abm *abm,
-	unsigned int start_offset,
+static bool dmub_abm_init_config(struct abm *abm,
 	const char *src,
 	unsigned int bytes)
 {
+	union dmub_rb_cmd cmd;
+	struct dc_context *dc = abm->ctx;
+
+	// TODO: Optimize by only reading back final 4 bytes
+	dmub_flush_buffer_mem(&dc->dmub_srv->dmub->scratch_mem_fb);
+
+	// Copy iramtable into cw7
+	memcpy(dc->dmub_srv->dmub->scratch_mem_fb.cpu_addr, (void *)src, bytes);
+
+	// Fw will copy from cw7 to fw_state
+	cmd.abm_init_config.header.type = DMUB_CMD__ABM;
+	cmd.abm_init_config.header.sub_type = DMUB_CMD__ABM_INIT_CONFIG;
+	cmd.abm_init_config.abm_init_config_data.src.quad_part = dc->dmub_srv->dmub->scratch_mem_fb.gpu_addr;
+	cmd.abm_init_config.abm_init_config_data.bytes = bytes;
+	cmd.abm_init_config.header.payload_bytes = sizeof(struct dmub_cmd_abm_init_config_data);
+
+	dc_dmub_srv_cmd_queue(dc->dmub_srv, &cmd.abm_init_config.header);
+	dc_dmub_srv_cmd_execute(dc->dmub_srv);
+	dc_dmub_srv_wait_idle(dc->dmub_srv);
+
 	return true;
 }
 
@@ -365,7 +384,7 @@ static const struct abm_funcs abm_funcs = {
 	.get_current_backlight = dmub_abm_get_current_backlight,
 	.get_target_backlight = dmub_abm_get_target_backlight,
 	.set_abm_immediate_disable = dmub_abm_immediate_disable,
-	.load_abm_config = dmub_abm_load_config,
+	.init_abm_config = dmub_abm_init_config,
 };
 
 static void dmub_abm_construct(

@@ -671,8 +671,8 @@ bool dmcu_load_iram(struct dmcu *dmcu,
 	// ABM 2.4 and up are implemented on dmcub
 	if (dmcu == NULL) {
 		fill_iram_v_2_3((struct iram_table_v_2_2 *)ram_table, params);
-		result = abm->funcs->load_abm_config(
-			abm, 0, (char *)(&ram_table), IRAM_RESERVE_AREA_START_V2_2);
+		result = abm->funcs->init_abm_config(
+			abm, (char *)(&ram_table), IRAM_RESERVE_AREA_START_V2_2);
 	} else if (dmcu->dmcu_version.abm_version == 0x24) {
 		fill_iram_v_2_3((struct iram_table_v_2_2 *)ram_table, params);
 			result = dmcu->funcs->load_iram(
