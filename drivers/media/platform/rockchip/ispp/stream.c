@@ -15,6 +15,9 @@
 #define STREAM_IN_REQ_BUFS_MIN 1
 #define STREAM_OUT_REQ_BUFS_MIN 0
 
+/* memory align for mpp */
+#define RK_MPP_ALIGN 4096
+
 /*
  * DDR->|                                 |->MB------->DDR
  *      |->TNR->DDR->NR->SHARP->DDR->FEC->|->SCL0----->DDR
@@ -79,13 +82,13 @@ static const struct capture_fmt mb_fmts[] = {
 		.fourcc = V4L2_PIX_FMT_FBC2,
 		.bpp = { 8, 16 },
 		.cplanes = 2,
-		.mplanes = 2,
+		.mplanes = 1,
 		.wr_fmt = FMT_YUV422 | FMT_FBC,
 	}, {
 		.fourcc = V4L2_PIX_FMT_FBC0,
 		.bpp = { 8, 16 },
 		.cplanes = 2,
-		.mplanes = 2,
+		.mplanes = 1,
 		.wr_fmt = FMT_YUV420 | FMT_FBC,
 	}
 };
@@ -1085,6 +1088,7 @@ static void rkispp_buf_queue(struct vb2_buffer *vb)
 	unsigned long lock_flags = 0;
 	struct v4l2_pix_format_mplane *pixm = &stream->out_fmt;
 	struct capture_fmt *cap_fmt = &stream->out_cap_fmt;
+	u32 height, size, offset;
 	int i;
 
 	memset(isppbuf->buff_addr, 0, sizeof(isppbuf->buff_addr));
@@ -1097,12 +1101,16 @@ static void rkispp_buf_queue(struct vb2_buffer *vb)
 	 */
 	if (cap_fmt->mplanes == 1) {
 		for (i = 0; i < cap_fmt->cplanes - 1; i++) {
-			isppbuf->buff_addr[i + 1] = (i == 0) ?
-				isppbuf->buff_addr[i] +
-				pixm->plane_fmt[i].bytesperline *
-				pixm->height :
-				isppbuf->buff_addr[i] +
+			/* FBC mode calculate payload offset */
+			height = (cap_fmt->wr_fmt & FMT_FBC) ?
+				ALIGN(pixm->height, 16) >> 4 : pixm->height;
+			size = (i == 0) ?
+				pixm->plane_fmt[i].bytesperline * height :
 				pixm->plane_fmt[i].sizeimage;
+			offset = (cap_fmt->wr_fmt & FMT_FBC) ?
+				ALIGN(size, RK_MPP_ALIGN) : size;
+			isppbuf->buff_addr[i + 1] =
+				isppbuf->buff_addr[i] + offset;
 		}
 	}
 
@@ -1410,15 +1418,15 @@ static int rkispp_set_fmt(struct rkispp_stream *stream,
 			plane_fmt->bytesperline = bytesperline;
 
 		plane_fmt->sizeimage = plane_fmt->bytesperline * height;
-		/* FBC header: width * height / 16
+		/* FBC header: width * height / 16, and 4096 align for mpp
 		 * FBC payload: yuv420 or yuv422 size
 		 * FBC width and height need 16 align
 		 */
 		if (fmt->wr_fmt & FMT_FBC && i == 0)
-			plane_fmt->sizeimage >>= 4;
+			plane_fmt->sizeimage =
+				ALIGN(plane_fmt->sizeimage >> 4, RK_MPP_ALIGN);
 		else if (fmt->wr_fmt & FMT_FBC)
 			plane_fmt->sizeimage += w * h;
-
 		imagsize += plane_fmt->sizeimage;
 	}
 
