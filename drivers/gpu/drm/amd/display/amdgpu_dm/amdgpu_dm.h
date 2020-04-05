@@ -481,7 +481,7 @@ void amdgpu_dm_update_freesync_caps(struct drm_connector *connector,
 void amdgpu_dm_init_color_mod(void);
 int amdgpu_dm_update_crtc_color_mgmt(struct dm_crtc_state *crtc);
 int amdgpu_dm_update_plane_color_mgmt(struct dm_crtc_state *crtc,
-				      struct dc_plane_state *dc_plane_state);
+				      struct dm_plane_state *plane);
 
 void amdgpu_dm_update_connector_after_detect(
 		struct amdgpu_dm_connector *aconnector);

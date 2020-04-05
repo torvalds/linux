@@ -416,9 +416,10 @@ int amdgpu_dm_update_crtc_color_mgmt(struct dm_crtc_state *crtc)
  * Returns 0 on success.
  */
 int amdgpu_dm_update_plane_color_mgmt(struct dm_crtc_state *crtc,
-				      struct dc_plane_state *dc_plane_state)
+				      struct dm_plane_state *plane)
 {
 	const struct drm_color_lut *degamma_lut;
+	struct dc_plane_state *dc_plane_state = plane->dc_state;
 	uint32_t degamma_size;
 	int r;
 

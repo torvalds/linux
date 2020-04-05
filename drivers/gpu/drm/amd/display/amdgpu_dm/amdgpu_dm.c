@@ -3693,11 +3693,12 @@ fill_dc_plane_info_and_addr(struct amdgpu_device *adev,
 }
 
 static int fill_dc_plane_attributes(struct amdgpu_device *adev,
-				    struct dc_plane_state *dc_plane_state,
+				    struct dm_plane_state *dm_plane_state,
 				    struct drm_plane_state *plane_state,
 				    struct drm_crtc_state *crtc_state)
 {
 	struct dm_crtc_state *dm_crtc_state = to_dm_crtc_state(crtc_state);
+	struct dc_plane_state *dc_plane_state = dm_plane_state->dc_state;
 	const struct amdgpu_framebuffer *amdgpu_fb =
 		to_amdgpu_framebuffer(plane_state->fb);
 	struct dc_scaling_info scaling_info;
@@ -3743,7 +3744,7 @@ static int fill_dc_plane_attributes(struct amdgpu_device *adev,
 	 * Always set input transfer function, since plane state is refreshed
 	 * every time.
 	 */
-	ret = amdgpu_dm_update_plane_color_mgmt(dm_crtc_state, dc_plane_state);
+	ret = amdgpu_dm_update_plane_color_mgmt(dm_crtc_state, dm_plane_state);
 	if (ret)
 		return ret;
 
@@ -7926,16 +7927,6 @@ static int dm_update_plane_state(struct dc *dc,
 		DRM_DEBUG_DRIVER("Enabling DRM plane: %d on DRM crtc %d\n",
 				plane->base.id, new_plane_crtc->base.id);
 
-		ret = fill_dc_plane_attributes(
-			new_plane_crtc->dev->dev_private,
-			dc_new_plane_state,
-			new_plane_state,
-			new_crtc_state);
-		if (ret) {
-			dc_plane_state_release(dc_new_plane_state);
-			return ret;
-		}
-
 		ret = dm_atomic_get_state(state, &dm_state);
 		if (ret) {
 			dc_plane_state_release(dc_new_plane_state);
@@ -7960,6 +7951,14 @@ static int dm_update_plane_state(struct dc *dc,
 		}
 
 		dm_new_plane_state->dc_state = dc_new_plane_state;
+
+		ret = fill_dc_plane_attributes(
+			new_plane_crtc->dev->dev_private,
+			dm_new_plane_state,
+			new_plane_state,
+			new_crtc_state);
+		if (ret)
+			return ret;
 
 		/* Tell DC to do a full surface update every time there
 		 * is a plane change. Inefficient, but works for now.
