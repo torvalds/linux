@@ -2444,7 +2444,7 @@ static void _rtl92e_dm_init_dynamic_tx_power(struct net_device *dev)
 static void _rtl92e_dm_dynamic_tx_power(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	unsigned int txhipower_threshhold = 0;
+	unsigned int txhipower_threshold = 0;
 	unsigned int txlowpower_threshold = 0;
 
 	if (priv->rtllib->bdynamic_txpower_enable != true) {
@@ -2454,10 +2454,10 @@ static void _rtl92e_dm_dynamic_tx_power(struct net_device *dev)
 	}
 	if ((priv->rtllib->pHTInfo->IOTPeer == HT_IOT_PEER_ATHEROS) &&
 	    (priv->rtllib->mode == IEEE_G)) {
-		txhipower_threshhold = TX_POWER_ATHEROAP_THRESH_HIGH;
+		txhipower_threshold = TX_POWER_ATHEROAP_THRESH_HIGH;
 		txlowpower_threshold = TX_POWER_ATHEROAP_THRESH_LOW;
 	} else {
-		txhipower_threshhold = TX_POWER_NEAR_FIELD_THRESH_HIGH;
+		txhipower_threshold = TX_POWER_NEAR_FIELD_THRESH_HIGH;
 		txlowpower_threshold = TX_POWER_NEAR_FIELD_THRESH_LOW;
 	}
 
@@ -2465,7 +2465,7 @@ static void _rtl92e_dm_dynamic_tx_power(struct net_device *dev)
 		 priv->undecorated_smoothed_pwdb);
 
 	if (priv->rtllib->state == RTLLIB_LINKED) {
-		if (priv->undecorated_smoothed_pwdb >= txhipower_threshhold) {
+		if (priv->undecorated_smoothed_pwdb >= txhipower_threshold) {
 			priv->bDynamicTxHighPower = true;
 			priv->bDynamicTxLowPower = false;
 		} else {
