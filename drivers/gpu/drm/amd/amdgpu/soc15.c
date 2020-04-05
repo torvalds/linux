@@ -917,7 +917,9 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 	if (!amdgpu_sriov_vf(adev))
 		soc15_reg_base_init(adev);
 
-	if (adev->asic_type == CHIP_VEGA20 || adev->asic_type == CHIP_ARCTURUS)
+	if (adev->asic_type == CHIP_VEGA20 ||
+	    adev->asic_type == CHIP_ARCTURUS ||
+	    adev->asic_type == CHIP_ALDEBARAN)
 		adev->gmc.xgmi.supported = true;
 
 	if (adev->flags & AMD_IS_APU) {
