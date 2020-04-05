@@ -668,10 +668,9 @@ static int zynqmp_ipi_probe(struct platform_device *pdev)
 
 	/* IPI IRQ */
 	ret = platform_get_irq(pdev, 0);
-	if (ret < 0) {
-		dev_err(dev, "unable to find IPI IRQ.\n");
+	if (ret < 0)
 		goto free_mbox_dev;
-	}
+
 	pdata->irq = ret;
 	ret = devm_request_irq(dev, pdata->irq, zynqmp_ipi_interrupt,
 			       IRQF_SHARED, dev_name(dev), pdata);
