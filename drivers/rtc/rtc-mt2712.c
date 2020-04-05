@@ -328,10 +328,8 @@ static int mt2712_rtc_probe(struct platform_device *pdev)
 	mt2712_rtc_hw_init(mt2712_rtc);
 
 	mt2712_rtc->irq = platform_get_irq(pdev, 0);
-	if (mt2712_rtc->irq < 0) {
-		dev_err(&pdev->dev, "No IRQ resource\n");
+	if (mt2712_rtc->irq < 0)
 		return mt2712_rtc->irq;
-	}
 
 	platform_set_drvdata(pdev, mt2712_rtc);
 
