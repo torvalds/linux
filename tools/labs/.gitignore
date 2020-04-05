@@ -5,6 +5,6 @@ serial.pts
 rootfs.img
 disk1.img
 disk2.img
-/*core-image-minimal-*.ext4
+/*core-image-*.ext4
 .modinst
 /out/
