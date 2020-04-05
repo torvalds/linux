@@ -230,7 +230,7 @@ struct dc_config {
 	bool forced_clocks;
 	bool disable_extended_timeout_support; // Used to disable extended timeout and lttpr feature as well
 	bool multi_mon_pp_mclk_switch;
-	bool psr_on_dmub;
+	bool disable_dmcu;
 };
 
 enum visual_confirm {

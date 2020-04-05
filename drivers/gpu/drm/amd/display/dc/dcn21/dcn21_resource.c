@@ -993,7 +993,7 @@ static void dcn21_resource_destruct(struct dcn21_resource_pool *pool)
 	}
 
 	if (pool->base.abm != NULL) {
-		if (pool->base.abm->ctx->dc->debug.disable_dmcu)
+		if (pool->base.abm->ctx->dc->config.disable_dmcu)
 			dmub_abm_destroy(&pool->base.abm);
 		else
 			dce_abm_destroy(&pool->base.abm);
@@ -1846,7 +1846,7 @@ static bool dcn21_resource_construct(
 		goto create_fail;
 	}
 
-	if (!dc->debug.disable_dmcu) {
+	if (!dc->config.disable_dmcu) {
 		pool->base.dmcu = dcn21_dmcu_create(ctx,
 				&dmcu_regs,
 				&dmcu_shift,
@@ -1858,7 +1858,7 @@ static bool dcn21_resource_construct(
 		}
 	}
 
-	if (dc->debug.disable_dmcu) {
+	if (dc->config.disable_dmcu) {
 		pool->base.psr = dmub_psr_create(ctx);
 
 		if (pool->base.psr == NULL) {
@@ -1868,7 +1868,7 @@ static bool dcn21_resource_construct(
 		}
 	}
 
-	if (dc->debug.disable_dmcu)
+	if (dc->config.disable_dmcu)
 		pool->base.abm = dmub_abm_create(ctx,
 			&abm_regs,
 			&abm_shift,
