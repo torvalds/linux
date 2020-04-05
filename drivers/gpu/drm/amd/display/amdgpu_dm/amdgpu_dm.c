@@ -825,8 +825,9 @@ static int dm_dmub_hw_init(struct amdgpu_device *adev)
 				fw_inst_const_size);
 	}
 
-	memcpy(fb_info->fb[DMUB_WINDOW_2_BSS_DATA].cpu_addr, fw_bss_data,
-	       fw_bss_data_size);
+	if (fw_bss_data_size)
+		memcpy(fb_info->fb[DMUB_WINDOW_2_BSS_DATA].cpu_addr,
+		       fw_bss_data, fw_bss_data_size);
 
 	/* Copy firmware bios info into FB memory. */
 	memcpy(fb_info->fb[DMUB_WINDOW_3_VBIOS].cpu_addr, adev->bios,
@@ -1265,6 +1266,10 @@ static int dm_dmub_sw_init(struct amdgpu_device *adev)
 		adev->dm.dmub_fw->data +
 		le32_to_cpu(hdr->header.ucode_array_offset_bytes) +
 		le32_to_cpu(hdr->inst_const_bytes);
+	region_params.fw_inst_const =
+		adev->dm.dmub_fw->data +
+		le32_to_cpu(hdr->header.ucode_array_offset_bytes) +
+		PSP_HEADER_BYTES;
 
 	status = dmub_srv_calc_region_info(dmub_srv, &region_params,
 					   &region_info);

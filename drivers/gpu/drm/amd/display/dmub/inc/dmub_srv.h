@@ -151,6 +151,7 @@ struct dmub_srv_region_params {
 	uint32_t inst_const_size;
 	uint32_t bss_data_size;
 	uint32_t vbios_size;
+	const uint8_t *fw_inst_const;
 	const uint8_t *fw_bss_data;
 };
 
