@@ -13,6 +13,9 @@ description: |
   Ambient light sensing with proximity detection over an i2c
   interface.
 
+allOf:
+  - $ref: ../common.yaml#
+
 properties:
   compatible:
     enum:
@@ -21,9 +24,10 @@ properties:
       - vishay,vcnl4020
       - vishay,vcnl4040
       - vishay,vcnl4200
-
   reg:
     maxItems: 1
+
+  proximity-near-level: true
 
 required:
   - compatible
@@ -40,6 +44,7 @@ examples:
       light-sensor@51 {
               compatible = "vishay,vcnl4200";
               reg = <0x51>;
+              proximity-near-level = <220>;
       };
   };
 ...
