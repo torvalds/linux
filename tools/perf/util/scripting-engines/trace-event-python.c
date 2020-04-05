@@ -694,6 +694,9 @@ static int regs_map(struct regs_dump *regs, uint64_t mask, char *bf, int size)
 
 	bf[0] = 0;
 
+	if (!regs || !regs->regs)
+		return 0;
+
 	for_each_set_bit(r, (unsigned long *) &mask, sizeof(mask) * 8) {
 		u64 val = regs->regs[i++];
 
