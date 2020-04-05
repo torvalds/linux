@@ -101,7 +101,7 @@ static int __init ide_scan_pcibus(void)
 	 */
 
 	list_for_each_entry_safe(d, tmp, &ide_pci_drivers, node) {
-		list_del(d->node);
+		list_del(&d->node);
 		if (__pci_register_driver(d, d->driver.owner,
 					  d->driver.mod_name))
 			printk(KERN_ERR "%s: failed to register %s driver\n",
