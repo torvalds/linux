@@ -311,6 +311,28 @@ void enc2_hw_init(struct link_encoder *enc)
 	dcn10_aux_initialize(enc10);
 }
 
+void dcn20_link_encoder_get_max_link_cap(struct link_encoder *enc,
+	struct dc_link_settings *link_settings)
+{
+	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
+	uint32_t value;
+
+	REG_GET(RDPCSTX_PHY_CNTL6, RDPCS_PHY_DPALT_DP4, &value);
+
+	if (!value && link_settings->lane_count > LANE_COUNT_TWO)
+		link_settings->lane_count = LANE_COUNT_TWO;
+}
+bool dcn20_link_encoder_is_in_alt_mode(struct link_encoder *enc)
+{
+	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
+	uint32_t value;
+
+	REG_GET(RDPCSTX_PHY_CNTL6, RDPCS_PHY_DPALT_DISABLE, &value);
+
+	// if value == 1 alt mode is disabled, otherwise it is enabled
+	return !value;
+}
+
 static const struct link_encoder_funcs dcn20_link_enc_funcs = {
 	.read_state = link_enc2_read_state,
 	.validate_output_with_stream =
@@ -338,6 +360,8 @@ static const struct link_encoder_funcs dcn20_link_enc_funcs = {
 	.fec_is_active = enc2_fec_is_active,
 	.get_dig_mode = dcn10_get_dig_mode,
 	.get_dig_frontend = dcn10_get_dig_frontend,
+	.is_in_alt_mode = dcn20_link_encoder_is_in_alt_mode,
+	.get_max_link_cap = dcn20_link_encoder_get_max_link_cap,
 };
 
 void dcn20_link_encoder_construct(
