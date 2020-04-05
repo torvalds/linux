@@ -1338,6 +1338,7 @@ int aa_change_profile(const char *fqname, int flags)
 		ctx->nnp = aa_get_label(label);
 
 	if (!fqname || !*fqname) {
+		aa_put_label(label);
 		AA_DEBUG("no profile name");
 		return -EINVAL;
 	}
@@ -1355,8 +1356,6 @@ int aa_change_profile(const char *fqname, int flags)
 		else
 			op = OP_CHANGE_PROFILE;
 	}
-
-	label = aa_get_current_label();
 
 	if (*fqname == '&') {
 		stack = true;
