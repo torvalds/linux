@@ -155,9 +155,12 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 							   proto, prio, extack);
 			}
 		case FLOW_ACTION_PRIORITY:
-			return mlxsw_sp_acl_rulei_act_priority(mlxsw_sp, rulei,
-							       act->priority,
-							       extack);
+			err = mlxsw_sp_acl_rulei_act_priority(mlxsw_sp, rulei,
+							      act->priority,
+							      extack);
+			if (err)
+				return err;
+			break;
 		case FLOW_ACTION_MANGLE: {
 			enum flow_action_mangle_base htype = act->mangle.htype;
 			__be32 be_mask = (__force __be32) act->mangle.mask;
