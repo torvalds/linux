@@ -90,6 +90,7 @@ static const struct hw_sequencer_funcs dcn21_funcs = {
 	.set_cursor_sdr_white_level = dcn10_set_cursor_sdr_white_level,
 	.optimize_pwr_state = dcn21_optimize_pwr_state,
 	.exit_optimized_pwr_state = dcn21_exit_optimized_pwr_state,
+	.power_down = dce110_power_down,
 };
 
 static const struct hwseq_private_funcs dcn21_private_funcs = {
