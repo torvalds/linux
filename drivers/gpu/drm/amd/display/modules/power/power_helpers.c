@@ -651,14 +651,31 @@ void fill_iram_v_2_3(struct iram_table_v_2_2 *ram_table, struct dmcu_iram_parame
 			params, ram_table);
 }
 
+bool dmub_init_abm_config(struct abm *abm,
+	struct dmcu_iram_parameters params)
+{
+	unsigned char ram_table[IRAM_SIZE];
+	bool result = false;
+
+	if (abm == NULL)
+		return false;
+
+	memset(&ram_table, 0, sizeof(ram_table));
+
+	fill_iram_v_2_3((struct iram_table_v_2_2 *)ram_table, params);
+	result = abm->funcs->init_abm_config(
+		abm, (char *)(&ram_table), IRAM_RESERVE_AREA_START_V2_2);
+
+	return result;
+}
+
 bool dmcu_load_iram(struct dmcu *dmcu,
 	struct dmcu_iram_parameters params)
 {
 	unsigned char ram_table[IRAM_SIZE];
 	bool result = false;
-	struct abm *abm = dmcu->ctx->dc->res_pool->abm;
 
-	if (dmcu == NULL && abm == NULL)
+	if (dmcu == NULL)
 		return false;
 
 	if (dmcu && !dmcu->funcs->is_dmcu_initialized(dmcu))
@@ -666,14 +683,7 @@ bool dmcu_load_iram(struct dmcu *dmcu,
 
 	memset(&ram_table, 0, sizeof(ram_table));
 
-	// In the case where abm is implemented on dmcub,
-	// dmcu object will be null.
-	// ABM 2.4 and up are implemented on dmcub
-	if (dmcu == NULL) {
-		fill_iram_v_2_3((struct iram_table_v_2_2 *)ram_table, params);
-		result = abm->funcs->init_abm_config(
-			abm, (char *)(&ram_table), IRAM_RESERVE_AREA_START_V2_2);
-	} else if (dmcu->dmcu_version.abm_version == 0x24) {
+	if (dmcu->dmcu_version.abm_version == 0x24) {
 		fill_iram_v_2_3((struct iram_table_v_2_2 *)ram_table, params);
 			result = dmcu->funcs->load_iram(
 					dmcu, 0, (char *)(&ram_table), IRAM_RESERVE_AREA_START_V2_2);
