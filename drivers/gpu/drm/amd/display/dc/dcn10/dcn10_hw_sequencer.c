@@ -1238,7 +1238,7 @@ void dcn10_init_pipes(struct dc *dc, struct dc_state *context)
 
 void dcn10_init_hw(struct dc *dc)
 {
-	int i;
+	int i, j;
 	struct abm *abm = dc->res_pool->abm;
 	struct dmcu *dmcu = dc->res_pool->dmcu;
 	struct dce_hwseq *hws = dc->hwseq;
@@ -1328,14 +1328,6 @@ void dcn10_init_hw(struct dc *dc)
 		uint8_t dpcd_power_state = '\0';
 		enum dc_status status = DC_ERROR_UNEXPECTED;
 
-		/* blank all dp streams before power off receiver,
-		 * this should only impact DP
-		 */
-		for (i = 0; i < dc->res_pool->stream_enc_count; i++) {
-			dc->res_pool->stream_enc[i]->funcs->dp_blank(
-						dc->res_pool->stream_enc[i]);
-		}
-
 		for (i = 0; i < dc->link_count; i++) {
 			if (dc->links[i]->connector_signal != SIGNAL_TYPE_DISPLAY_PORT)
 				continue;
@@ -1350,8 +1342,21 @@ void dcn10_init_hw(struct dc *dc)
 				/* if any of the displays are lit up turn them off */
 				status = core_link_read_dpcd(dc->links[i], DP_SET_POWER,
 								&dpcd_power_state, sizeof(dpcd_power_state));
-				if (status == DC_OK && dpcd_power_state == DP_POWER_STATE_D0)
+				if (status == DC_OK && dpcd_power_state == DP_POWER_STATE_D0) {
+					/* blank dp stream before power off receiver*/
+					if (dc->links[i]->link_enc->funcs->get_dig_frontend) {
+						unsigned int fe = dc->links[i]->link_enc->funcs->get_dig_frontend(dc->links[i]->link_enc);
+
+						for (j = 0; j < dc->res_pool->stream_enc_count; j++) {
+							if (fe == dc->res_pool->stream_enc[j]->id) {
+								dc->res_pool->stream_enc[j]->funcs->dp_blank(
+											dc->res_pool->stream_enc[j]);
+								break;
+							}
+						}
+					}
 					dp_receiver_power_ctrl(dc->links[i], false);
+				}
 			}
 		}
 	}
