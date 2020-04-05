@@ -624,6 +624,159 @@ TRACE_EVENT(nfsd_drc_mismatch,
 		__entry->ingress)
 );
 
+TRACE_EVENT(nfsd_cb_args,
+	TP_PROTO(
+		const struct nfs4_client *clp,
+		const struct nfs4_cb_conn *conn
+	),
+	TP_ARGS(clp, conn),
+	TP_STRUCT__entry(
+		__field(u32, cl_boot)
+		__field(u32, cl_id)
+		__field(u32, prog)
+		__field(u32, ident)
+		__array(unsigned char, addr, sizeof(struct sockaddr_in6))
+	),
+	TP_fast_assign(
+		__entry->cl_boot = clp->cl_clientid.cl_boot;
+		__entry->cl_id = clp->cl_clientid.cl_id;
+		__entry->prog = conn->cb_prog;
+		__entry->ident = conn->cb_ident;
+		memcpy(__entry->addr, &conn->cb_addr,
+			sizeof(struct sockaddr_in6));
+	),
+	TP_printk("client %08x:%08x callback addr=%pISpc prog=%u ident=%u",
+		__entry->cl_boot, __entry->cl_id,
+		__entry->addr, __entry->prog, __entry->ident)
+);
+
+TRACE_EVENT(nfsd_cb_nodelegs,
+	TP_PROTO(const struct nfs4_client *clp),
+	TP_ARGS(clp),
+	TP_STRUCT__entry(
+		__field(u32, cl_boot)
+		__field(u32, cl_id)
+	),
+	TP_fast_assign(
+		__entry->cl_boot = clp->cl_clientid.cl_boot;
+		__entry->cl_id = clp->cl_clientid.cl_id;
+	),
+	TP_printk("client %08x:%08x", __entry->cl_boot, __entry->cl_id)
+)
+
+TRACE_DEFINE_ENUM(NFSD4_CB_UP);
+TRACE_DEFINE_ENUM(NFSD4_CB_UNKNOWN);
+TRACE_DEFINE_ENUM(NFSD4_CB_DOWN);
+TRACE_DEFINE_ENUM(NFSD4_CB_FAULT);
+
+#define show_cb_state(val)						\
+	__print_symbolic(val,						\
+		{ NFSD4_CB_UP,		"UP" },				\
+		{ NFSD4_CB_UNKNOWN,	"UNKNOWN" },			\
+		{ NFSD4_CB_DOWN,	"DOWN" },			\
+		{ NFSD4_CB_FAULT,	"FAULT"})
+
+DECLARE_EVENT_CLASS(nfsd_cb_class,
+	TP_PROTO(const struct nfs4_client *clp),
+	TP_ARGS(clp),
+	TP_STRUCT__entry(
+		__field(unsigned long, state)
+		__field(u32, cl_boot)
+		__field(u32, cl_id)
+		__array(unsigned char, addr, sizeof(struct sockaddr_in6))
+	),
+	TP_fast_assign(
+		__entry->state = clp->cl_cb_state;
+		__entry->cl_boot = clp->cl_clientid.cl_boot;
+		__entry->cl_id = clp->cl_clientid.cl_id;
+		memcpy(__entry->addr, &clp->cl_cb_conn.cb_addr,
+			sizeof(struct sockaddr_in6));
+	),
+	TP_printk("addr=%pISpc client %08x:%08x state=%s",
+		__entry->addr, __entry->cl_boot, __entry->cl_id,
+		show_cb_state(__entry->state))
+);
+
+#define DEFINE_NFSD_CB_EVENT(name)			\
+DEFINE_EVENT(nfsd_cb_class, nfsd_cb_##name,		\
+	TP_PROTO(const struct nfs4_client *clp),	\
+	TP_ARGS(clp))
+
+DEFINE_NFSD_CB_EVENT(setup);
+DEFINE_NFSD_CB_EVENT(state);
+DEFINE_NFSD_CB_EVENT(shutdown);
+
+TRACE_EVENT(nfsd_cb_setup_err,
+	TP_PROTO(
+		const struct nfs4_client *clp,
+		long error
+	),
+	TP_ARGS(clp, error),
+	TP_STRUCT__entry(
+		__field(long, error)
+		__field(u32, cl_boot)
+		__field(u32, cl_id)
+		__array(unsigned char, addr, sizeof(struct sockaddr_in6))
+	),
+	TP_fast_assign(
+		__entry->error = error;
+		__entry->cl_boot = clp->cl_clientid.cl_boot;
+		__entry->cl_id = clp->cl_clientid.cl_id;
+		memcpy(__entry->addr, &clp->cl_cb_conn.cb_addr,
+			sizeof(struct sockaddr_in6));
+	),
+	TP_printk("addr=%pISpc client %08x:%08x error=%ld",
+		__entry->addr, __entry->cl_boot, __entry->cl_id, __entry->error)
+);
+
+TRACE_EVENT(nfsd_cb_work,
+	TP_PROTO(
+		const struct nfs4_client *clp,
+		const char *procedure
+	),
+	TP_ARGS(clp, procedure),
+	TP_STRUCT__entry(
+		__field(u32, cl_boot)
+		__field(u32, cl_id)
+		__string(procedure, procedure)
+		__array(unsigned char, addr, sizeof(struct sockaddr_in6))
+	),
+	TP_fast_assign(
+		__entry->cl_boot = clp->cl_clientid.cl_boot;
+		__entry->cl_id = clp->cl_clientid.cl_id;
+		__assign_str(procedure, procedure)
+		memcpy(__entry->addr, &clp->cl_cb_conn.cb_addr,
+			sizeof(struct sockaddr_in6));
+	),
+	TP_printk("addr=%pISpc client %08x:%08x procedure=%s",
+		__entry->addr, __entry->cl_boot, __entry->cl_id,
+		__get_str(procedure))
+);
+
+TRACE_EVENT(nfsd_cb_done,
+	TP_PROTO(
+		const struct nfs4_client *clp,
+		int status
+	),
+	TP_ARGS(clp, status),
+	TP_STRUCT__entry(
+		__field(u32, cl_boot)
+		__field(u32, cl_id)
+		__field(int, status)
+		__array(unsigned char, addr, sizeof(struct sockaddr_in6))
+	),
+	TP_fast_assign(
+		__entry->cl_boot = clp->cl_clientid.cl_boot;
+		__entry->cl_id = clp->cl_clientid.cl_id;
+		__entry->status = status;
+		memcpy(__entry->addr, &clp->cl_cb_conn.cb_addr,
+			sizeof(struct sockaddr_in6));
+	),
+	TP_printk("addr=%pISpc client %08x:%08x status=%d",
+		__entry->addr, __entry->cl_boot, __entry->cl_id,
+		__entry->status)
+);
+
 #endif /* _NFSD_TRACE_H */
 
 #undef TRACE_INCLUDE_PATH
