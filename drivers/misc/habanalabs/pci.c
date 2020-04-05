@@ -320,7 +320,7 @@ int hl_pci_init_iatu(struct hl_device *hdev, u64 sram_base_address,
  *
  * Return: 0 on success, non-zero for failure.
  */
-int hl_pci_set_dma_mask(struct hl_device *hdev)
+static int hl_pci_set_dma_mask(struct hl_device *hdev)
 {
 	struct pci_dev *pdev = hdev->pdev;
 	int rc;
