@@ -257,7 +257,7 @@ enum mod_hdcp_status mod_hdcp_hdcp1_enable_encryption(struct mod_hdcp *hdcp)
 	psp_hdcp_invoke(psp, hdcp_cmd->cmd_id);
 
 	if (hdcp_cmd->hdcp_status != TA_HDCP_STATUS__SUCCESS) {
-		status = MOD_HDCP_STATUS_HDCP1_ENABLE_ENCRYPTION;
+		status = MOD_HDCP_STATUS_HDCP1_ENABLE_ENCRYPTION_FAILURE;
 	} else if (!is_dp_mst_hdcp(hdcp)) {
 		display->state = MOD_HDCP_DISPLAY_ENCRYPTION_ENABLED;
 		HDCP_HDCP1_ENABLED_TRACE(hdcp, display->index);
@@ -832,7 +832,7 @@ enum mod_hdcp_status mod_hdcp_hdcp2_enable_dp_stream_encryption(struct mod_hdcp 
 	if (hdcp_cmd->hdcp_status == TA_HDCP_STATUS__SUCCESS)
 		status = MOD_HDCP_STATUS_SUCCESS;
 	else
-		status = MOD_HDCP_STATUS_HDCP2_ENABLE_STREAM_ENCRYPTION;
+		status = MOD_HDCP_STATUS_HDCP2_ENABLE_STREAM_ENCRYPTION_FAILURE;
 
 	mutex_unlock(&psp->hdcp_context.mutex);
 	return status;
