@@ -2,3 +2,4 @@
 signal
 signal_tm
 sigfuz
+sigreturn_vdso

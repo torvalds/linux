@@ -1376,9 +1376,8 @@ static const struct file_operations debugfs_radix_fops = {
 
 void kvmhv_radix_debugfs_init(struct kvm *kvm)
 {
-	kvm->arch.radix_dentry = debugfs_create_file("radix", 0400,
-						     kvm->arch.debugfs_dir, kvm,
-						     &debugfs_radix_fops);
+	debugfs_create_file("radix", 0400, kvm->arch.debugfs_dir, kvm,
+			    &debugfs_radix_fops);
 }
 
 int kvmppc_radix_init(void)

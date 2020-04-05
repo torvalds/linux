@@ -558,6 +558,9 @@ static int mce_handle_error(struct pt_regs *regs, struct rtas_error_log *errp)
 	switch (mce_log->error_type) {
 	case MC_ERROR_TYPE_UE:
 		mce_err.error_type = MCE_ERROR_TYPE_UE;
+		mce_common_process_ue(regs, &mce_err);
+		if (mce_err.ignore_event)
+			disposition = RTAS_DISP_FULLY_RECOVERED;
 		switch (err_sub_type) {
 		case MC_ERROR_UE_IFETCH:
 			mce_err.u.ue_error_type = MCE_UE_ERROR_IFETCH;

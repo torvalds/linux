@@ -366,10 +366,8 @@ static inline void __ptep_set_access_flags(struct vm_area_struct *vma,
 	(((address) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
 #define pte_offset_kernel(dir, addr)	\
 	((pte_t *) pmd_page_vaddr(*(dir)) + pte_index(addr))
-#define pte_offset_map(dir, addr)		\
-	((pte_t *)(kmap_atomic(pmd_page(*(dir))) + \
-		   (pmd_page_vaddr(*(dir)) & ~PAGE_MASK)) + pte_index(addr))
-#define pte_unmap(pte)		kunmap_atomic(pte)
+#define pte_offset_map(dir, addr)	pte_offset_kernel((dir), (addr))
+static inline void pte_unmap(pte_t *pte) { }
 
 /*
  * Encode and decode a swap entry.

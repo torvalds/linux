@@ -187,11 +187,6 @@ static int memtrace_init_debugfs(void)
 
 		snprintf(ent->name, 16, "%08x", ent->nid);
 		dir = debugfs_create_dir(ent->name, memtrace_debugfs_dir);
-		if (!dir) {
-			pr_err("Failed to create debugfs directory for node %d\n",
-				ent->nid);
-			return -1;
-		}
 
 		ent->dir = dir;
 		debugfs_create_file("trace", 0400, dir, ent, &memtrace_fops);
@@ -314,8 +309,6 @@ static int memtrace_init(void)
 {
 	memtrace_debugfs_dir = debugfs_create_dir("memtrace",
 						  powerpc_debugfs_root);
-	if (!memtrace_debugfs_dir)
-		return -1;
 
 	debugfs_create_file("enable", 0600, memtrace_debugfs_dir,
 			    NULL, &memtrace_init_fops);
