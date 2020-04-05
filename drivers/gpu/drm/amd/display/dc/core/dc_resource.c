@@ -1358,9 +1358,6 @@ bool dc_add_plane_to_context(
 	dc_plane_state_retain(plane_state);
 
 	while (head_pipe) {
-		tail_pipe = resource_get_tail_pipe(&context->res_ctx, head_pipe);
-		ASSERT(tail_pipe);
-
 		free_pipe = acquire_free_pipe_for_head(context, pool, head_pipe);
 
 	#if defined(CONFIG_DRM_AMD_DC_DCN)
@@ -1378,6 +1375,8 @@ bool dc_add_plane_to_context(
 		free_pipe->plane_state = plane_state;
 
 		if (head_pipe != free_pipe) {
+			tail_pipe = resource_get_tail_pipe(&context->res_ctx, head_pipe);
+			ASSERT(tail_pipe);
 			free_pipe->stream_res.tg = tail_pipe->stream_res.tg;
 			free_pipe->stream_res.abm = tail_pipe->stream_res.abm;
 			free_pipe->stream_res.opp = tail_pipe->stream_res.opp;
