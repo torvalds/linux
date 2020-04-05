@@ -692,6 +692,9 @@ static void calculate_viewport(struct pipe_ctx *pipe_ctx)
 	/* Round up, assume original video size always even dimensions */
 	data->viewport_c.width = (data->viewport.width + vpc_div - 1) / vpc_div;
 	data->viewport_c.height = (data->viewport.height + vpc_div - 1) / vpc_div;
+
+	data->viewport_unadjusted = data->viewport;
+	data->viewport_c_unadjusted = data->viewport_c;
 }
 
 static void calculate_recout(struct pipe_ctx *pipe_ctx)
