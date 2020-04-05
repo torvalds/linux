@@ -514,15 +514,15 @@ static int tpm_add_legacy_sysfs(struct tpm_chip *chip)
 	if (chip->flags & (TPM_CHIP_FLAG_TPM2 | TPM_CHIP_FLAG_VIRTUAL))
 		return 0;
 
-	rc = __compat_only_sysfs_link_entry_to_kobj(
-		    &chip->dev.parent->kobj, &chip->dev.kobj, "ppi");
+	rc = compat_only_sysfs_link_entry_to_kobj(
+		    &chip->dev.parent->kobj, &chip->dev.kobj, "ppi", NULL);
 	if (rc && rc != -ENOENT)
 		return rc;
 
 	/* All the names from tpm-sysfs */
 	for (i = chip->groups[0]->attrs; *i != NULL; ++i) {
-		rc = __compat_only_sysfs_link_entry_to_kobj(
-		    &chip->dev.parent->kobj, &chip->dev.kobj, (*i)->name);
+		rc = compat_only_sysfs_link_entry_to_kobj(
+		    &chip->dev.parent->kobj, &chip->dev.kobj, (*i)->name, NULL);
 		if (rc) {
 			tpm_del_legacy_sysfs(chip);
 			return rc;

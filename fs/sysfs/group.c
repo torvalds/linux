@@ -416,22 +416,6 @@ void sysfs_remove_link_from_group(struct kobject *kobj, const char *group_name,
 EXPORT_SYMBOL_GPL(sysfs_remove_link_from_group);
 
 /**
- * __compat_only_sysfs_link_entry_to_kobj - add a symlink to a kobject pointing
- * to a group or an attribute
- * @kobj:		The kobject containing the group.
- * @target_kobj:	The target kobject.
- * @target_name:	The name of the target group or attribute.
- */
-int __compat_only_sysfs_link_entry_to_kobj(struct kobject *kobj,
-				      struct kobject *target_kobj,
-				      const char *target_name)
-{
-	return compat_only_sysfs_link_entry_to_kobj(kobj, target_kobj,
-						    target_name, NULL);
-}
-EXPORT_SYMBOL_GPL(__compat_only_sysfs_link_entry_to_kobj);
-
-/**
  * compat_only_sysfs_link_entry_to_kobj - add a symlink to a kobject pointing
  * to a group or an attribute
  * @kobj:		The kobject containing the group.
