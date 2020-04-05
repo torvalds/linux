@@ -277,6 +277,7 @@ DECLARE_EVENT_CLASS(nfsd_stateid_class,
 DEFINE_EVENT(nfsd_stateid_class, nfsd_##name, \
 	TP_PROTO(stateid_t *stp), \
 	TP_ARGS(stp))
+
 DEFINE_STATEID_EVENT(layoutstate_alloc);
 DEFINE_STATEID_EVENT(layoutstate_unhash);
 DEFINE_STATEID_EVENT(layoutstate_free);
@@ -287,6 +288,138 @@ DEFINE_STATEID_EVENT(layout_recall);
 DEFINE_STATEID_EVENT(layout_recall_done);
 DEFINE_STATEID_EVENT(layout_recall_fail);
 DEFINE_STATEID_EVENT(layout_recall_release);
+
+DEFINE_STATEID_EVENT(deleg_open);
+DEFINE_STATEID_EVENT(deleg_none);
+DEFINE_STATEID_EVENT(deleg_break);
+DEFINE_STATEID_EVENT(deleg_recall);
+
+DECLARE_EVENT_CLASS(nfsd_stateseqid_class,
+	TP_PROTO(u32 seqid, const stateid_t *stp),
+	TP_ARGS(seqid, stp),
+	TP_STRUCT__entry(
+		__field(u32, seqid)
+		__field(u32, cl_boot)
+		__field(u32, cl_id)
+		__field(u32, si_id)
+		__field(u32, si_generation)
+	),
+	TP_fast_assign(
+		__entry->seqid = seqid;
+		__entry->cl_boot = stp->si_opaque.so_clid.cl_boot;
+		__entry->cl_id = stp->si_opaque.so_clid.cl_id;
+		__entry->si_id = stp->si_opaque.so_id;
+		__entry->si_generation = stp->si_generation;
+	),
+	TP_printk("seqid=%u client %08x:%08x stateid %08x:%08x",
+		__entry->seqid, __entry->cl_boot, __entry->cl_id,
+		__entry->si_id, __entry->si_generation)
+)
+
+#define DEFINE_STATESEQID_EVENT(name) \
+DEFINE_EVENT(nfsd_stateseqid_class, nfsd_##name, \
+	TP_PROTO(u32 seqid, const stateid_t *stp), \
+	TP_ARGS(seqid, stp))
+
+DEFINE_STATESEQID_EVENT(preprocess);
+DEFINE_STATESEQID_EVENT(open_confirm);
+
+DECLARE_EVENT_CLASS(nfsd_clientid_class,
+	TP_PROTO(const clientid_t *clid),
+	TP_ARGS(clid),
+	TP_STRUCT__entry(
+		__field(u32, cl_boot)
+		__field(u32, cl_id)
+	),
+	TP_fast_assign(
+		__entry->cl_boot = clid->cl_boot;
+		__entry->cl_id = clid->cl_id;
+	),
+	TP_printk("client %08x:%08x", __entry->cl_boot, __entry->cl_id)
+)
+
+#define DEFINE_CLIENTID_EVENT(name) \
+DEFINE_EVENT(nfsd_clientid_class, nfsd_clid_##name, \
+	TP_PROTO(const clientid_t *clid), \
+	TP_ARGS(clid))
+
+DEFINE_CLIENTID_EVENT(expired);
+DEFINE_CLIENTID_EVENT(purged);
+DEFINE_CLIENTID_EVENT(renew);
+DEFINE_CLIENTID_EVENT(stale);
+
+DECLARE_EVENT_CLASS(nfsd_net_class,
+	TP_PROTO(const struct nfsd_net *nn),
+	TP_ARGS(nn),
+	TP_STRUCT__entry(
+		__field(unsigned long long, boot_time)
+	),
+	TP_fast_assign(
+		__entry->boot_time = nn->boot_time;
+	),
+	TP_printk("boot_time=%16llx", __entry->boot_time)
+)
+
+#define DEFINE_NET_EVENT(name) \
+DEFINE_EVENT(nfsd_net_class, nfsd_##name, \
+	TP_PROTO(const struct nfsd_net *nn), \
+	TP_ARGS(nn))
+
+DEFINE_NET_EVENT(grace_start);
+DEFINE_NET_EVENT(grace_complete);
+
+DECLARE_EVENT_CLASS(nfsd_clid_class,
+	TP_PROTO(const struct nfsd_net *nn,
+		 unsigned int namelen,
+		 const unsigned char *namedata),
+	TP_ARGS(nn, namelen, namedata),
+	TP_STRUCT__entry(
+		__field(unsigned long long, boot_time)
+		__field(unsigned int, namelen)
+		__dynamic_array(unsigned char,  name, namelen)
+	),
+	TP_fast_assign(
+		__entry->boot_time = nn->boot_time;
+		__entry->namelen = namelen;
+		memcpy(__get_dynamic_array(name), namedata, namelen);
+	),
+	TP_printk("boot_time=%16llx nfs4_clientid=%.*s",
+		__entry->boot_time, __entry->namelen, __get_str(name))
+)
+
+#define DEFINE_CLID_EVENT(name) \
+DEFINE_EVENT(nfsd_clid_class, nfsd_clid_##name, \
+	TP_PROTO(const struct nfsd_net *nn, \
+		 unsigned int namelen, \
+		 const unsigned char *namedata), \
+	TP_ARGS(nn, namelen, namedata))
+
+DEFINE_CLID_EVENT(find);
+DEFINE_CLID_EVENT(reclaim);
+
+TRACE_EVENT(nfsd_clid_inuse_err,
+	TP_PROTO(const struct nfs4_client *clp),
+	TP_ARGS(clp),
+	TP_STRUCT__entry(
+		__field(u32, cl_boot)
+		__field(u32, cl_id)
+		__array(unsigned char, addr, sizeof(struct sockaddr_in6))
+		__field(unsigned int, namelen)
+		__dynamic_array(unsigned char, name, clp->cl_name.len)
+	),
+	TP_fast_assign(
+		__entry->cl_boot = clp->cl_clientid.cl_boot;
+		__entry->cl_id = clp->cl_clientid.cl_id;
+		memcpy(__entry->addr, &clp->cl_addr,
+			sizeof(struct sockaddr_in6));
+		__entry->namelen = clp->cl_name.len;
+		memcpy(__get_dynamic_array(name), clp->cl_name.data,
+			clp->cl_name.len);
+	),
+	TP_printk("nfs4_clientid %.*s already in use by %pISpc, client %08x:%08x",
+		__entry->namelen, __get_str(name), __entry->addr,
+		__entry->cl_boot, __entry->cl_id)
+)
 
 TRACE_DEFINE_ENUM(NFSD_FILE_HASHED);
 TRACE_DEFINE_ENUM(NFSD_FILE_PENDING);
