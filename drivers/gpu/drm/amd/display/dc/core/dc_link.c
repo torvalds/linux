@@ -682,7 +682,7 @@ static bool is_same_edid(struct dc_edid *old_edid, struct dc_edid *new_edid)
 		       new_edid->raw_edid, new_edid->length) == 0);
 }
 
-static bool wait_for_alt_mode(struct dc_link *link)
+static bool wait_for_entering_dp_alt_mode(struct dc_link *link)
 {
 	/**
 	 * something is terribly wrong if time out is > 200ms. (5Hz)
@@ -836,7 +836,7 @@ static bool dc_link_detect_helper(struct dc_link *link,
 			/* wa HPD high coming too early*/
 			if (link->link_enc->features.flags.bits.DP_IS_USB_C == 1) {
 				/* if alt mode times out, return false */
-				if (!wait_for_alt_mode(link))
+				if (!wait_for_entering_dp_alt_mode(link))
 					return false;
 			}
 
