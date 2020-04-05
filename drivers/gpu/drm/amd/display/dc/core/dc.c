@@ -1861,8 +1861,9 @@ enum surface_update_type dc_check_update_surfaces_for_stream(
 		// Else we fallback to mem compare.
 		} else if (memcmp(&dc->current_state->bw_ctx.bw.dcn.clk, &dc->clk_mgr->clks, offsetof(struct dc_clocks, prev_p_state_change_support)) != 0) {
 			dc->optimized_required = true;
-		} else if (dc->wm_optimized_required)
-			dc->optimized_required = true;
+		}
+
+		dc->optimized_required |= dc->wm_optimized_required;
 	}
 
 	return type;
