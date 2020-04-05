@@ -426,8 +426,7 @@ static irqreturn_t atlas_trigger_handler(int irq, void *private)
 	int ret;
 
 	ret = regmap_bulk_read(data->regmap, data->chip->data_reg,
-			      (u8 *) &data->buffer,
-			      sizeof(__be32) * channels);
+			      &data->buffer, sizeof(__be32) * channels);
 
 	if (!ret)
 		iio_push_to_buffers_with_timestamp(indio_dev, data->buffer,
@@ -463,7 +462,7 @@ static int atlas_read_measurement(struct atlas_data *data, int reg, __be32 *val)
 	if (suspended)
 		msleep(data->chip->delay);
 
-	ret = regmap_bulk_read(data->regmap, reg, (u8 *) val, sizeof(*val));
+	ret = regmap_bulk_read(data->regmap, reg, val, sizeof(*val));
 
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
@@ -485,7 +484,7 @@ static int atlas_read_raw(struct iio_dev *indio_dev,
 		switch (chan->type) {
 		case IIO_TEMP:
 			ret = regmap_bulk_read(data->regmap, chan->address,
-					      (u8 *) &reg, sizeof(reg));
+					       &reg, sizeof(reg));
 			break;
 		case IIO_PH:
 		case IIO_CONCENTRATION:
