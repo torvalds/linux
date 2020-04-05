@@ -1328,6 +1328,14 @@ void dcn10_init_hw(struct dc *dc)
 		uint8_t dpcd_power_state = '\0';
 		enum dc_status status = DC_ERROR_UNEXPECTED;
 
+		/* blank all dp streams before power off receiver,
+		 * this should only impact DP
+		 */
+		for (i = 0; i < dc->res_pool->stream_enc_count; i++) {
+			dc->res_pool->stream_enc[i]->funcs->dp_blank(
+						dc->res_pool->stream_enc[i]);
+		}
+
 		for (i = 0; i < dc->link_count; i++) {
 			if (dc->links[i]->connector_signal != SIGNAL_TYPE_DISPLAY_PORT)
 				continue;
