@@ -241,6 +241,7 @@ enum visual_confirm {
 	VISUAL_CONFIRM_SURFACE = 1,
 	VISUAL_CONFIRM_HDR = 2,
 	VISUAL_CONFIRM_MPCTREE = 4,
+	VISUAL_CONFIRM_PSR = 5,
 };
 
 enum dcc_option {

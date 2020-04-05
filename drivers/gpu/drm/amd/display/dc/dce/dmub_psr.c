@@ -33,6 +33,45 @@
 #define MAX_PIPES 6
 
 /**
+ * Convert dmcub psr state to dmcu psr state.
+ */
+static void convert_psr_state(uint32_t *psr_state)
+{
+	if (*psr_state == 0)
+		*psr_state = 0;
+	else if (*psr_state == 0x10)
+		*psr_state = 1;
+	else if (*psr_state == 0x11)
+		*psr_state = 2;
+	else if (*psr_state == 0x20)
+		*psr_state = 3;
+	else if (*psr_state == 0x21)
+		*psr_state = 4;
+	else if (*psr_state == 0x30)
+		*psr_state = 5;
+	else if (*psr_state == 0x31)
+		*psr_state = 6;
+	else if (*psr_state == 0x40)
+		*psr_state = 7;
+	else if (*psr_state == 0x41)
+		*psr_state = 8;
+	else if (*psr_state == 0x42)
+		*psr_state = 9;
+	else if (*psr_state == 0x43)
+		*psr_state = 10;
+	else if (*psr_state == 0x44)
+		*psr_state = 11;
+	else if (*psr_state == 0x50)
+		*psr_state = 12;
+	else if (*psr_state == 0x51)
+		*psr_state = 13;
+	else if (*psr_state == 0x52)
+		*psr_state = 14;
+	else if (*psr_state == 0x53)
+		*psr_state = 15;
+}
+
+/**
  * Get PSR state from firmware.
  */
 static void dmub_psr_get_state(struct dmub_psr *dmub, uint32_t *psr_state)
@@ -43,6 +82,8 @@ static void dmub_psr_get_state(struct dmub_psr *dmub, uint32_t *psr_state)
 	dmub_srv_send_gpint_command(srv, DMUB_GPINT__GET_PSR_STATE, 0, 30);
 
 	dmub_srv_get_gpint_response(srv, psr_state);
+
+	convert_psr_state(psr_state);
 }
 
 /**
@@ -158,7 +199,7 @@ static bool dmub_psr_copy_settings(struct dmub_psr *dmub,
 	cmd.psr_copy_settings.header.payload_bytes = sizeof(struct dmub_cmd_psr_copy_settings_data);
 
 	// Hw insts
-	copy_settings_data->dpphy_inst				= psr_context->phyType;
+	copy_settings_data->dpphy_inst				= psr_context->transmitterId;
 	copy_settings_data->aux_inst				= psr_context->channel;
 	copy_settings_data->digfe_inst				= psr_context->engineId;
 	copy_settings_data->digbe_inst				= psr_context->transmitterId;
@@ -183,6 +224,8 @@ static bool dmub_psr_copy_settings(struct dmub_psr *dmub,
 	copy_settings_data->smu_optimizations_en		= psr_context->allow_smu_optimizations;
 	copy_settings_data->frame_delay				= psr_context->frame_delay;
 	copy_settings_data->frame_cap_ind			= psr_context->psrFrameCaptureIndicationReq;
+	copy_settings_data->debug.visual_confirm		= dc->dc->debug.visual_confirm == VISUAL_CONFIRM_PSR ?
+									true : false;
 
 	dc_dmub_srv_cmd_queue(dc->dmub_srv, &cmd.psr_copy_settings.header);
 	dc_dmub_srv_cmd_execute(dc->dmub_srv);
