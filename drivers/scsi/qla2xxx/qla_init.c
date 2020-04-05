@@ -5081,6 +5081,54 @@ qla2x00_configure_loop(scsi_qla_host_t *vha)
 	return (rval);
 }
 
+static int qla2x00_configure_n2n_loop(scsi_qla_host_t *vha)
+{
+	struct qla_hw_data *ha = vha->hw;
+	unsigned long flags;
+	fc_port_t *fcport;
+	int rval;
+
+	if (test_and_clear_bit(N2N_LOGIN_NEEDED, &vha->dpc_flags)) {
+		/* borrowing */
+		u32 *bp, sz;
+
+		memset(ha->init_cb, 0, ha->init_cb_size);
+		sz = min_t(int, sizeof(struct els_plogi_payload),
+			   ha->init_cb_size);
+		rval = qla24xx_get_port_login_templ(vha, ha->init_cb_dma,
+						    ha->init_cb, sz);
+		if (rval == QLA_SUCCESS) {
+			__be32 *q = &ha->plogi_els_payld.data[0];
+
+			bp = (uint32_t *)ha->init_cb;
+			cpu_to_be32_array(q, bp, sz / 4);
+			memcpy(bp, q, sizeof(ha->plogi_els_payld.data));
+		} else {
+			ql_dbg(ql_dbg_init, vha, 0x00d1,
+			       "PLOGI ELS param read fail.\n");
+			goto skip_login;
+		}
+	}
+
+	list_for_each_entry(fcport, &vha->vp_fcports, list) {
+		if (fcport->n2n_flag) {
+			qla24xx_fcport_handle_login(vha, fcport);
+			return QLA_SUCCESS;
+		}
+	}
+
+skip_login:
+	spin_lock_irqsave(&vha->work_lock, flags);
+	vha->scan.scan_retry++;
+	spin_unlock_irqrestore(&vha->work_lock, flags);
+
+	if (vha->scan.scan_retry < MAX_SCAN_RETRIES) {
+		set_bit(LOCAL_LOOP_UPDATE, &vha->dpc_flags);
+		set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
+	}
+	return QLA_FUNCTION_FAILED;
+}
+
 /*
  * qla2x00_configure_local_loop
  *	Updates Fibre Channel Device Database with local loop devices.
@@ -5098,7 +5146,6 @@ qla2x00_configure_local_loop(scsi_qla_host_t *vha)
 	int		found_devs;
 	int		found;
 	fc_port_t	*fcport, *new_fcport;
-
 	uint16_t	index;
 	uint16_t	entries;
 	struct gid_list_info *gid;
@@ -5108,47 +5155,8 @@ qla2x00_configure_local_loop(scsi_qla_host_t *vha)
 	unsigned long flags;
 
 	/* Inititae N2N login. */
-	if (N2N_TOPO(ha)) {
-		if (test_and_clear_bit(N2N_LOGIN_NEEDED, &vha->dpc_flags)) {
-			/* borrowing */
-			u32 *bp, sz;
-
-			memset(ha->init_cb, 0, ha->init_cb_size);
-			sz = min_t(int, sizeof(struct els_plogi_payload),
-			    ha->init_cb_size);
-			rval = qla24xx_get_port_login_templ(vha,
-			    ha->init_cb_dma, (void *)ha->init_cb, sz);
-			if (rval == QLA_SUCCESS) {
-				__be32 *q = &ha->plogi_els_payld.data[0];
-
-				bp = (uint32_t *)ha->init_cb;
-				cpu_to_be32_array(q, bp, sz / 4);
-
-				memcpy(bp, q, sizeof(ha->plogi_els_payld.data));
-			} else {
-				ql_dbg(ql_dbg_init, vha, 0x00d1,
-				    "PLOGI ELS param read fail.\n");
-				goto skip_login;
-			}
-		}
-
-		list_for_each_entry(fcport, &vha->vp_fcports, list) {
-			if (fcport->n2n_flag) {
-				qla24xx_fcport_handle_login(vha, fcport);
-				return QLA_SUCCESS;
-			}
-		}
-skip_login:
-		spin_lock_irqsave(&vha->work_lock, flags);
-		vha->scan.scan_retry++;
-		spin_unlock_irqrestore(&vha->work_lock, flags);
-
-		if (vha->scan.scan_retry < MAX_SCAN_RETRIES) {
-			set_bit(LOCAL_LOOP_UPDATE, &vha->dpc_flags);
-			set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
-		}
-		return QLA_FUNCTION_FAILED;
-	}
+	if (N2N_TOPO(ha))
+		return qla2x00_configure_n2n_loop(vha);
 
 	found_devs = 0;
 	new_fcport = NULL;
