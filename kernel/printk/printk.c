@@ -58,6 +58,24 @@
 #include "braille.h"
 #include "internal.h"
 
+#ifdef CONFIG_PRINTK_TIME_FROM_ARM_ARCH_TIMER
+#include <clocksource/arm_arch_timer.h>
+static u64 get_local_clock(void)
+{
+	u64 ns;
+
+	ns = arch_timer_read_counter() * 1000;
+	do_div(ns, 24);
+
+	return ns;
+}
+#else
+static inline u64 get_local_clock(void)
+{
+	return local_clock();
+}
+#endif
+
 int console_printk[4] = {
 	CONSOLE_LOGLEVEL_DEFAULT,	/* console_loglevel */
 	MESSAGE_LOGLEVEL_DEFAULT,	/* default_message_loglevel */
@@ -660,7 +678,7 @@ static int log_store(int facility, int level,
 	if (ts_nsec > 0)
 		msg->ts_nsec = ts_nsec;
 	else
-		msg->ts_nsec = local_clock();
+		msg->ts_nsec = get_local_clock();
 	memset(log_dict(msg) + dict_len, 0, pad_len);
 	msg->len = size;
 
@@ -1835,7 +1853,7 @@ static bool cont_add(int facility, int level, enum log_flags flags, const char *
 		cont.facility = facility;
 		cont.level = level;
 		cont.owner = current;
-		cont.ts_nsec = local_clock();
+		cont.ts_nsec = get_local_clock();
 		cont.flags = flags;
 	}
 
