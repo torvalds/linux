@@ -17,7 +17,6 @@
 #include "hif_tx_mib.h"
 
 #define WFX_INVALID_RATE_ID    15
-#define WFX_LINK_ID_GC_TIMEOUT ((unsigned long)(10 * HZ))
 
 static int wfx_get_hw_rate(struct wfx_dev *wdev,
 			   const struct ieee80211_tx_rate *rate)
