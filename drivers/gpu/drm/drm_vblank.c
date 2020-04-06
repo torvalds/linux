@@ -41,6 +41,69 @@
 /**
  * DOC: vblank handling
  *
+ * From the computer's perspective, every time the monitor displays
+ * a new frame the scanout engine has "scanned out" the display image
+ * from top to bottom, one row of pixels at a time. The current row
+ * of pixels is referred to as the current scanline.
+ *
+ * In addition to the display's visible area, there's usually a couple of
+ * extra scanlines which aren't actually displayed on the screen.
+ * These extra scanlines don't contain image data and are occasionally used
+ * for features like audio and infoframes. The region made up of these
+ * scanlines is referred to as the vertical blanking region, or vblank for
+ * short.
+ *
+ * For historical reference, the vertical blanking period was designed to
+ * give the electron gun (on CRTs) enough time to move back to the top of
+ * the screen to start scanning out the next frame. Similar for horizontal
+ * blanking periods. They were designed to give the electron gun enough
+ * time to move back to the other side of the screen to start scanning the
+ * next scanline.
+ *
+ * ::
+ *
+ *
+ *    physical →   ⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽
+ *    top of      |                                        |
+ *    display     |                                        |
+ *                |               New frame                |
+ *                |                                        |
+ *                |↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓|
+ *                |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~| ← Scanline,
+ *                |↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓|   updates the
+ *                |                                        |   frame as it
+ *                |                                        |   travels down
+ *                |                                        |   ("sacn out")
+ *                |               Old frame                |
+ *                |                                        |
+ *                |                                        |
+ *                |                                        |
+ *                |                                        |   physical
+ *                |                                        |   bottom of
+ *    vertical    |⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽| ← display
+ *    blanking    ┆xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx┆
+ *    region   →  ┆xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx┆
+ *                ┆xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx┆
+ *    start of →   ⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽
+ *    new frame
+ *
+ * "Physical top of display" is the reference point for the high-precision/
+ * corrected timestamp.
+ *
+ * On a lot of display hardware, programming needs to take effect during the
+ * vertical blanking period so that settings like gamma, the image buffer
+ * buffer to be scanned out, etc. can safely be changed without showing
+ * any visual artifacts on the screen. In some unforgiving hardware, some of
+ * this programming has to both start and end in the same vblank. To help
+ * with the timing of the hardware programming, an interrupt is usually
+ * available to notify the driver when it can start the updating of registers.
+ * The interrupt is in this context named the vblank interrupt.
+ *
+ * The vblank interrupt may be fired at different points depending on the
+ * hardware. Some hardware implementations will fire the interrupt when the
+ * new frame start, other implementations will fire the interrupt at different
+ * points in time.
+ *
  * Vertical blanking plays a major role in graphics rendering. To achieve
  * tear-free display, users must synchronize page flips and/or rendering to
  * vertical blanking. The DRM API offers ioctls to perform page flips
