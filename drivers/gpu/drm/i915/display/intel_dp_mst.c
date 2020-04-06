@@ -158,8 +158,7 @@ static int intel_dp_mst_compute_config(struct intel_encoder *encoder,
 	pipe_config->has_pch_encoder = false;
 
 	if (intel_conn_state->force_audio == HDMI_AUDIO_AUTO)
-		pipe_config->has_audio =
-			drm_dp_mst_port_has_audio(&intel_dp->mst_mgr, port);
+		pipe_config->has_audio = connector->port->has_audio;
 	else
 		pipe_config->has_audio =
 			intel_conn_state->force_audio == HDMI_AUDIO_ON;
