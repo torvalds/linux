@@ -1301,6 +1301,17 @@ static u32 *reloc_gpu(struct i915_execbuffer *eb,
 	return cmd;
 }
 
+static inline bool use_reloc_gpu(struct i915_vma *vma)
+{
+	if (DBG_FORCE_RELOC == FORCE_GPU_RELOC)
+		return true;
+
+	if (DBG_FORCE_RELOC)
+		return false;
+
+	return !dma_resv_test_signaled_rcu(vma->resv, true);
+}
+
 static u64
 relocate_entry(struct i915_vma *vma,
 	       const struct drm_i915_gem_relocation_entry *reloc,
@@ -1312,9 +1323,7 @@ relocate_entry(struct i915_vma *vma,
 	bool wide = eb->reloc_cache.use_64bit_reloc;
 	void *vaddr;
 
-	if (!eb->reloc_cache.vaddr &&
-	    (DBG_FORCE_RELOC == FORCE_GPU_RELOC ||
-	     !dma_resv_test_signaled_rcu(vma->resv, true))) {
+	if (!eb->reloc_cache.vaddr && use_reloc_gpu(vma)) {
 		const unsigned int gen = eb->reloc_cache.gen;
 		unsigned int len;
 		u32 *batch;
