@@ -13,9 +13,6 @@
 
 #include "hif_api_cmd.h"
 
-#define WFX_MAX_STA_IN_AP_MODE    14
-#define WFX_LINK_ID_NO_ASSOC      15
-
 struct wfx_dev;
 struct wfx_vif;
 

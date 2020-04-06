@@ -563,7 +563,7 @@ int wfx_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	sta_priv->link_id = ffz(wvif->link_id_map);
 	wvif->link_id_map |= BIT(sta_priv->link_id);
 	WARN_ON(!sta_priv->link_id);
-	WARN_ON(sta_priv->link_id >= WFX_MAX_STA_IN_AP_MODE);
+	WARN_ON(sta_priv->link_id >= HIF_LINK_ID_MAX);
 	hif_map_link(wvif, sta->addr, 0, sta_priv->link_id);
 
 	return 0;

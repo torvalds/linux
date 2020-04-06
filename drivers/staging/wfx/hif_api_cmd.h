@@ -480,6 +480,9 @@ struct hif_cnf_beacon_transmit {
 	u32   status;
 } __packed;
 
+#define HIF_LINK_ID_MAX            14
+#define HIF_LINK_ID_NOT_ASSOCIATED (HIF_LINK_ID_MAX + 1)
+
 enum hif_sta_map_direction {
 	HIF_STA_MAP                       = 0x0,
 	HIF_STA_UNMAP                     = 0x1

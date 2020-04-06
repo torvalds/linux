@@ -246,7 +246,7 @@ static u8 wfx_tx_get_link_id(struct wfx_vif *wvif, struct ieee80211_sta *sta,
 		return 0;
 	if (is_multicast_ether_addr(da))
 		return 0;
-	return WFX_LINK_ID_NO_ASSOC;
+	return HIF_LINK_ID_NOT_ASSOCIATED;
 }
 
 static void wfx_tx_fixup_rates(struct ieee80211_tx_rate *rates)

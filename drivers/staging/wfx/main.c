@@ -313,7 +313,7 @@ struct wfx_dev *wfx_init_common(struct device *dev,
 	hw->wiphy->flags |= WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD;
 	hw->wiphy->flags |= WIPHY_FLAG_AP_UAPSD;
 	hw->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
-	hw->wiphy->max_ap_assoc_sta = WFX_MAX_STA_IN_AP_MODE;
+	hw->wiphy->max_ap_assoc_sta = HIF_LINK_ID_MAX;
 	hw->wiphy->max_scan_ssids = 2;
 	hw->wiphy->max_scan_ie_len = IEEE80211_MAX_DATA_LEN;
 	hw->wiphy->n_iface_combinations = ARRAY_SIZE(wfx_iface_combinations);
