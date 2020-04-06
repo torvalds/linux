@@ -657,30 +657,29 @@ static void mlx5_fpga_conn_destroy_qp(struct mlx5_fpga_conn *conn)
 	mlx5_wq_destroy(&conn->qp.wq_ctrl);
 }
 
-static inline int mlx5_fpga_conn_reset_qp(struct mlx5_fpga_conn *conn)
+static int mlx5_fpga_conn_reset_qp(struct mlx5_fpga_conn *conn)
 {
 	struct mlx5_core_dev *mdev = conn->fdev->mdev;
+	u32 in[MLX5_ST_SZ_DW(qp_2rst_in)] = {};
 
 	mlx5_fpga_dbg(conn->fdev, "Modifying QP %u to RST\n", conn->qp.mqp.qpn);
 
-	return mlx5_core_qp_modify(mdev, MLX5_CMD_OP_2RST_QP, 0, NULL,
-				   &conn->qp.mqp);
+	MLX5_SET(qp_2rst_in, in, opcode, MLX5_CMD_OP_2RST_QP);
+	MLX5_SET(qp_2rst_in, in, qpn, conn->qp.mqp.qpn);
+
+	return mlx5_cmd_exec_in(mdev, qp_2rst, in);
 }
 
-static inline int mlx5_fpga_conn_init_qp(struct mlx5_fpga_conn *conn)
+static int mlx5_fpga_conn_init_qp(struct mlx5_fpga_conn *conn)
 {
+	u32 in[MLX5_ST_SZ_DW(rst2init_qp_in)] = {};
 	struct mlx5_fpga_device *fdev = conn->fdev;
 	struct mlx5_core_dev *mdev = fdev->mdev;
-	u32 *qpc = NULL;
-	int err;
+	u32 *qpc;
 
 	mlx5_fpga_dbg(conn->fdev, "Modifying QP %u to INIT\n", conn->qp.mqp.qpn);
 
-	qpc = kzalloc(MLX5_ST_SZ_BYTES(qpc), GFP_KERNEL);
-	if (!qpc) {
-		err = -ENOMEM;
-		goto out;
-	}
+	qpc = MLX5_ADDR_OF(rst2init_qp_in, in, qpc);
 
 	MLX5_SET(qpc, qpc, st, MLX5_QP_ST_RC);
 	MLX5_SET(qpc, qpc, pm_state, MLX5_QP_PM_MIGRATED);
@@ -691,32 +690,22 @@ static inline int mlx5_fpga_conn_init_qp(struct mlx5_fpga_conn *conn)
 	MLX5_SET(qpc, qpc, cqn_rcv, conn->cq.mcq.cqn);
 	MLX5_SET64(qpc, qpc, dbr_addr, conn->qp.wq_ctrl.db.dma);
 
-	err = mlx5_core_qp_modify(mdev, MLX5_CMD_OP_RST2INIT_QP, 0, qpc,
-				  &conn->qp.mqp);
-	if (err) {
-		mlx5_fpga_warn(fdev, "qp_modify RST2INIT failed: %d\n", err);
-		goto out;
-	}
+	MLX5_SET(rst2init_qp_in, in, opcode, MLX5_CMD_OP_RST2INIT_QP);
+	MLX5_SET(rst2init_qp_in, in, qpn, conn->qp.mqp.qpn);
 
-out:
-	kfree(qpc);
-	return err;
+	return mlx5_cmd_exec_in(mdev, rst2init_qp, in);
 }
 
-static inline int mlx5_fpga_conn_rtr_qp(struct mlx5_fpga_conn *conn)
+static int mlx5_fpga_conn_rtr_qp(struct mlx5_fpga_conn *conn)
 {
+	u32 in[MLX5_ST_SZ_DW(init2rtr_qp_in)] = {};
 	struct mlx5_fpga_device *fdev = conn->fdev;
 	struct mlx5_core_dev *mdev = fdev->mdev;
-	u32 *qpc = NULL;
-	int err;
+	u32 *qpc;
 
 	mlx5_fpga_dbg(conn->fdev, "QP RTR\n");
 
-	qpc = kzalloc(MLX5_ST_SZ_BYTES(qpc), GFP_KERNEL);
-	if (!qpc) {
-		err = -ENOMEM;
-		goto out;
-	}
+	qpc = MLX5_ADDR_OF(init2rtr_qp_in, in, qpc);
 
 	MLX5_SET(qpc, qpc, mtu, MLX5_QPC_MTU_1K_BYTES);
 	MLX5_SET(qpc, qpc, log_msg_max, (u8)MLX5_CAP_GEN(mdev, log_max_msg));
@@ -736,33 +725,22 @@ static inline int mlx5_fpga_conn_rtr_qp(struct mlx5_fpga_conn *conn)
 	       MLX5_ADDR_OF(fpga_qpc, conn->fpga_qpc, fpga_ip),
 	       MLX5_FLD_SZ_BYTES(qpc, primary_address_path.rgid_rip));
 
-	err = mlx5_core_qp_modify(mdev, MLX5_CMD_OP_INIT2RTR_QP, 0, qpc,
-				  &conn->qp.mqp);
-	if (err) {
-		mlx5_fpga_warn(fdev, "qp_modify RST2INIT failed: %d\n", err);
-		goto out;
-	}
+	MLX5_SET(init2rtr_qp_in, in, opcode, MLX5_CMD_OP_INIT2RTR_QP);
+	MLX5_SET(init2rtr_qp_in, in, qpn, conn->qp.mqp.qpn);
 
-out:
-	kfree(qpc);
-	return err;
+	return mlx5_cmd_exec_in(mdev, init2rtr_qp, in);
 }
 
-static inline int mlx5_fpga_conn_rts_qp(struct mlx5_fpga_conn *conn)
+static int mlx5_fpga_conn_rts_qp(struct mlx5_fpga_conn *conn)
 {
 	struct mlx5_fpga_device *fdev = conn->fdev;
+	u32 in[MLX5_ST_SZ_DW(rtr2rts_qp_in)] = {};
 	struct mlx5_core_dev *mdev = fdev->mdev;
-	u32 *qpc = NULL;
-	u32 opt_mask;
-	int err;
+	u32 *qpc;
 
 	mlx5_fpga_dbg(conn->fdev, "QP RTS\n");
 
-	qpc = kzalloc(MLX5_ST_SZ_BYTES(qpc), GFP_KERNEL);
-	if (!qpc) {
-		err = -ENOMEM;
-		goto out;
-	}
+	qpc = MLX5_ADDR_OF(rtr2rts_qp_in, in, qpc);
 
 	MLX5_SET(qpc, qpc, log_ack_req_freq, 8);
 	MLX5_SET(qpc, qpc, min_rnr_nak, 0x12);
@@ -772,17 +750,11 @@ static inline int mlx5_fpga_conn_rts_qp(struct mlx5_fpga_conn *conn)
 	MLX5_SET(qpc, qpc, retry_count, 7);
 	MLX5_SET(qpc, qpc, rnr_retry, 7); /* Infinite retry if RNR NACK */
 
-	opt_mask = MLX5_QP_OPTPAR_RNR_TIMEOUT;
-	err = mlx5_core_qp_modify(mdev, MLX5_CMD_OP_RTR2RTS_QP, opt_mask, qpc,
-				  &conn->qp.mqp);
-	if (err) {
-		mlx5_fpga_warn(fdev, "qp_modify RST2INIT failed: %d\n", err);
-		goto out;
-	}
+	MLX5_SET(rtr2rts_qp_in, in, opcode, MLX5_CMD_OP_RTR2RTS_QP);
+	MLX5_SET(rtr2rts_qp_in, in, qpn, conn->qp.mqp.qpn);
+	MLX5_SET(rtr2rts_qp_in, in, opt_param_mask, MLX5_QP_OPTPAR_RNR_TIMEOUT);
 
-out:
-	kfree(qpc);
-	return err;
+	return mlx5_cmd_exec_in(mdev, rtr2rts_qp, in);
 }
 
 static int mlx5_fpga_conn_connect(struct mlx5_fpga_conn *conn)
