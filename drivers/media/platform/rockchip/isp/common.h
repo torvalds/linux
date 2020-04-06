@@ -138,10 +138,25 @@ static inline int rkisp_alloc_buffer(struct device *dev,
 {
 	int ret = 0;
 
+	if (!buf->size) {
+		ret = -EINVAL;
+		goto err;
+	}
+
 	buf->vaddr = dma_alloc_coherent(dev, buf->size,
 					&buf->dma_addr, GFP_KERNEL);
-	if (!buf->vaddr)
+	if (!buf->vaddr) {
 		ret = -ENOMEM;
+		goto err;
+	}
+
+	if (rkisp_debug)
+		dev_info(dev, "%s buf:0x%x~0x%x size:%d\n", __func__,
+			 (u32)buf->dma_addr, (u32)buf->dma_addr + buf->size, buf->size);
+
+	return ret;
+err:
+	dev_err(dev, "%s failed ret:%d\n", __func__, ret);
 	return ret;
 }
 
@@ -149,6 +164,9 @@ static inline void rkisp_free_buffer(struct device *dev,
 				     struct rkisp_dummy_buffer *buf)
 {
 	if (buf && buf->vaddr && buf->size) {
+		if (rkisp_debug)
+			dev_info(dev, "%s buf:0x%x~0x%x\n", __func__,
+				 (u32)buf->dma_addr, (u32)buf->dma_addr + buf->size);
 		dma_free_coherent(dev, buf->size,
 				  buf->vaddr, buf->dma_addr);
 		buf->size = 0;

@@ -79,7 +79,7 @@ static int mpfbc_s_rx_buffer(struct v4l2_subdev *sd,
 
 	buf->dbuf = dbuf;
 	buf->mem_priv = ops->attach_dmabuf(dev->dev, dbuf,
-				*size, DMA_FROM_DEVICE);
+				*size, DMA_BIDIRECTIONAL);
 	if (IS_ERR(buf->mem_priv)) {
 		ret = PTR_ERR(buf->mem_priv);
 		goto err;
@@ -166,19 +166,16 @@ static int mpfbc_stop(struct rkisp_mpfbc_device *mpfbc_dev)
 	writel(SW_MPFBC_YUV_MODE(1),
 		base + ISP_MPFBC_BASE);
 	hdr_stop_dmatx(dev);
-	if (!dev->dmarx_dev.trigger) {
-		ret = wait_event_timeout(mpfbc_dev->done,
-					 !mpfbc_dev->en,
-					 msecs_to_jiffies(1000));
-		if (!ret)
-			v4l2_warn(&mpfbc_dev->sd,
-				  "waiting on event return error %d\n", ret);
-	}
+	ret = wait_event_timeout(mpfbc_dev->done,
+				 !mpfbc_dev->en,
+				 msecs_to_jiffies(1000));
+	if (!ret)
+		v4l2_warn(&mpfbc_dev->sd,
+			  "waiting on event return error %d\n", ret);
 	mpfbc_dev->stopping = false;
 	isp_clear_bits(base + MI_IMSC, MI_MPFBC_FRAME);
 	mpfbc_dev->en = false;
 	mpfbc_free_dma_buf(mpfbc_dev);
-	hdr_destroy_buf(dev);
 	return 0;
 }
 
@@ -229,6 +226,7 @@ pipe_stream_off:
 	dev->pipe.set_stream(&dev->pipe, false);
 stop_mpfbc:
 	mpfbc_stop(mpfbc_dev);
+	hdr_destroy_buf(dev);
 close_pipe:
 	dev->pipe.close(&dev->pipe);
 	return ret;
@@ -243,6 +241,7 @@ static int mpfbc_stop_stream(struct v4l2_subdev *sd)
 	media_pipeline_stop(&sd->entity);
 	dev->pipe.set_stream(&dev->pipe, false);
 	dev->pipe.close(&dev->pipe);
+	hdr_destroy_buf(dev);
 	return 0;
 }
 
