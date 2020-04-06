@@ -290,6 +290,34 @@ int vmbus_send_tl_connect_request(const guid_t *shv_guest_servie_id,
 EXPORT_SYMBOL_GPL(vmbus_send_tl_connect_request);
 
 /*
+ * Set/change the vCPU (@target_vp) the channel (@child_relid) will interrupt.
+ *
+ * CHANNELMSG_MODIFYCHANNEL messages are aynchronous.  Also, Hyper-V does not
+ * ACK such messages.  IOW we can't know when the host will stop interrupting
+ * the "old" vCPU and start interrupting the "new" vCPU for the given channel.
+ *
+ * The CHANNELMSG_MODIFYCHANNEL message type is supported since VMBus version
+ * VERSION_WIN10_V4_1.
+ */
+int vmbus_send_modifychannel(u32 child_relid, u32 target_vp)
+{
+	struct vmbus_channel_modifychannel conn_msg;
+	int ret;
+
+	memset(&conn_msg, 0, sizeof(conn_msg));
+	conn_msg.header.msgtype = CHANNELMSG_MODIFYCHANNEL;
+	conn_msg.child_relid = child_relid;
+	conn_msg.target_vp = target_vp;
+
+	ret = vmbus_post_msg(&conn_msg, sizeof(conn_msg), true);
+
+	trace_vmbus_send_modifychannel(&conn_msg, ret);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(vmbus_send_modifychannel);
+
+/*
  * create_gpadl_header - Creates a gpadl for the specified buffer
  */
 static int create_gpadl_header(void *kbuffer, u32 size,

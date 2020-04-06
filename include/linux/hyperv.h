@@ -425,7 +425,7 @@ enum vmbus_channel_message_type {
 	CHANNELMSG_19				= 19,
 	CHANNELMSG_20				= 20,
 	CHANNELMSG_TL_CONNECT_REQUEST		= 21,
-	CHANNELMSG_22				= 22,
+	CHANNELMSG_MODIFYCHANNEL		= 22,
 	CHANNELMSG_TL_CONNECT_RESULT		= 23,
 	CHANNELMSG_COUNT
 };
@@ -618,6 +618,13 @@ struct vmbus_channel_tl_connect_request {
 	struct vmbus_channel_message_header header;
 	guid_t guest_endpoint_id;
 	guid_t host_service_id;
+} __packed;
+
+/* Modify Channel parameters, cf. vmbus_send_modifychannel() */
+struct vmbus_channel_modifychannel {
+	struct vmbus_channel_message_header header;
+	u32 child_relid;
+	u32 target_vp;
 } __packed;
 
 struct vmbus_channel_version_response {
@@ -1505,6 +1512,7 @@ extern __u32 vmbus_proto_version;
 
 int vmbus_send_tl_connect_request(const guid_t *shv_guest_servie_id,
 				  const guid_t *shv_host_servie_id);
+int vmbus_send_modifychannel(u32 child_relid, u32 target_vp);
 void vmbus_set_event(struct vmbus_channel *channel);
 
 /* Get the start of the ring buffer. */
