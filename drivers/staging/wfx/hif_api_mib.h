@@ -149,9 +149,6 @@ struct hif_mib_rx_filter {
 	u8    reserved4[3];
 } __packed;
 
-#define HIF_API_OUI_SIZE                                3
-#define HIF_API_MATCH_DATA_SIZE                         3
-
 struct hif_ie_table_entry {
 	u8    ie_id;
 	u8    has_changed:1;
@@ -159,8 +156,8 @@ struct hif_ie_table_entry {
 	u8    has_appeared:1;
 	u8    reserved:1;
 	u8    num_match_data:4;
-	u8    oui[HIF_API_OUI_SIZE];
-	u8    match_data[HIF_API_MATCH_DATA_SIZE];
+	u8    oui[3];
+	u8    match_data[3];
 } __packed;
 
 struct hif_mib_bcn_filter_table {
@@ -273,14 +270,12 @@ enum hif_tmplt {
 	HIF_TMPLT_NA                               = 0x7
 };
 
-#define HIF_API_MAX_TEMPLATE_FRAME_SIZE                              700
-
 struct hif_mib_template_frame {
 	u8    frame_type;
 	u8    init_rate:7;
 	u8    mode:1;
 	u16   frame_length;
-	u8    frame[HIF_API_MAX_TEMPLATE_FRAME_SIZE];
+	u8    frame[700];
 } __packed;
 
 struct hif_mib_beacon_wake_up_period {

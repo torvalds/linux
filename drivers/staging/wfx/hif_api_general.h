@@ -135,16 +135,11 @@ struct hif_otp_phy_info {
 	u8    otp_phy_ver:2;
 } __packed;
 
-#define API_OPN_SIZE                                    14
-#define API_UID_SIZE                                    8
-#define API_DISABLED_CHANNEL_LIST_SIZE                  2
-#define API_FIRMWARE_LABEL_SIZE                         128
-
 struct hif_ind_startup {
 	u32   status;
 	u16   hardware_id;
-	u8    opn[API_OPN_SIZE];
-	u8    uid[API_UID_SIZE];
+	u8    opn[14];
+	u8    uid[8];
 	u16   num_inp_ch_bufs;
 	u16   size_inp_ch_buf;
 	u8    num_links_ap;
@@ -157,11 +152,11 @@ struct hif_ind_startup {
 	u8    firmware_minor;
 	u8    firmware_major;
 	u8    firmware_type;
-	u8    disabled_channel_list[API_DISABLED_CHANNEL_LIST_SIZE];
+	u8    disabled_channel_list[2];
 	struct hif_otp_regul_sel_mode_info regul_sel_mode_info;
 	struct hif_otp_phy_info otp_phy_info;
 	u32   supported_rate_mask;
-	u8    firmware_label[API_FIRMWARE_LABEL_SIZE];
+	u8    firmware_label[128];
 } __packed;
 
 struct hif_ind_wakeup {
@@ -229,10 +224,8 @@ struct hif_ind_generic {
 } __packed;
 
 
-#define HIF_EXCEPTION_DATA_SIZE            124
-
 struct hif_ind_exception {
-	u8    data[HIF_EXCEPTION_DATA_SIZE];
+	u8    data[124];
 } __packed;
 
 
@@ -302,13 +295,13 @@ struct hif_cnf_set_sl_mac_key {
 	u32   status;
 } __packed;
 
-#define API_HOST_PUB_KEY_SIZE                           32
-#define API_HOST_PUB_KEY_MAC_SIZE                       64
-
 enum hif_sl_session_key_alg {
 	HIF_SL_CURVE25519                                = 0x01,
 	HIF_SL_KDF                                       = 0x02
 };
+
+#define API_HOST_PUB_KEY_SIZE                           32
+#define API_HOST_PUB_KEY_MAC_SIZE                       64
 
 struct hif_req_sl_exchange_pub_keys {
 	u8    algorithm:2;
@@ -331,10 +324,8 @@ struct hif_ind_sl_exchange_pub_keys {
 	u8    ncp_pub_key_mac[API_NCP_PUB_KEY_MAC_SIZE];
 } __packed;
 
-#define API_ENCR_BMP_SIZE        32
-
 struct hif_req_sl_configure {
-	u8    encr_bmp[API_ENCR_BMP_SIZE];
+	u8    encr_bmp[32];
 	u8    disable_session_key_protection:1;
 	u8    reserved1:7;
 	u8    reserved2[3];
