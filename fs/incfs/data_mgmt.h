@@ -31,10 +31,13 @@ struct read_log_record {
 } __packed;
 
 struct read_log_state {
-	/* Next slot in rl_ring_buf to write to. */
-	u32 next_index;
+	/* Log buffer generation id, incremented on configuration changes */
+	u32 generation_id : 8;
 
-	/* Current number of writer pass over rl_ring_buf */
+	/* Next slot in rl_ring_buf to write into. */
+	u32 next_index : 24;
+
+	/* Current number of writer passes over rl_ring_buf */
 	u32 current_pass_no;
 };
 
@@ -42,11 +45,21 @@ struct read_log_state {
 struct read_log {
 	struct read_log_record *rl_ring_buf;
 
+	int rl_size;
+
 	struct read_log_state rl_state;
 
-	spinlock_t rl_writer_lock;
+	/*
+	 * A lock for _all_ accesses to the struct, to protect against remounts.
+	 * Taken for writing when resizing the buffer.
+	 */
+	rwlock_t rl_access_lock;
 
-	int rl_size;
+	/*
+	 * A lock to protect the actual logging - adding a new record.
+	 * Note: ALWAYS taken after and under the |rl_access_lock|.
+	 */
+	spinlock_t rl_logging_lock;
 
 	/*
 	 * A queue of waiters who want to be notified about reads.

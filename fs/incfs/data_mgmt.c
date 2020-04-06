@@ -34,7 +34,8 @@ struct mount_info *incfs_alloc_mount_info(struct super_block *sb,
 	mutex_init(&mi->mi_pending_reads_mutex);
 	init_waitqueue_head(&mi->mi_pending_reads_notif_wq);
 	init_waitqueue_head(&mi->mi_log.ml_notif_wq);
-	spin_lock_init(&mi->mi_log.rl_writer_lock);
+	rwlock_init(&mi->mi_log.rl_access_lock);
+	spin_lock_init(&mi->mi_log.rl_logging_lock);
 	INIT_LIST_HEAD(&mi->mi_reads_list_head);
 
 	error = incfs_realloc_mount_info(mi, options);
@@ -51,20 +52,38 @@ err:
 int incfs_realloc_mount_info(struct mount_info *mi,
 			     struct mount_options *options)
 {
-	kfree(mi->mi_log.rl_ring_buf);
-	mi->mi_log.rl_ring_buf = NULL;
-	mi->mi_log.rl_size = 0;
+	void *new_buffer = NULL;
+	size_t new_buffer_size = 0;
 
-	mi->mi_options = *options;
-	if (options->read_log_pages != 0) {
-		size_t buf_size = PAGE_SIZE * options->read_log_pages;
+	if (options->read_log_pages != mi->mi_options.read_log_pages) {
+		struct read_log_state log_state;
+		/*
+		 * Even though having two buffers allocated at once isn't
+		 * usually good, allocating a multipage buffer under a spinlock
+		 * is even worse, so let's optimize for the shorter lock
+		 * duration. It's not end of the world if we fail to increase
+		 * the buffer size anyway.
+		 */
+		if (options->read_log_pages > 0) {
+			new_buffer_size = PAGE_SIZE * options->read_log_pages;
+			new_buffer = kzalloc(new_buffer_size, GFP_NOFS);
+			if (!new_buffer)
+				return -ENOMEM;
+		}
 
-		mi->mi_log.rl_size = buf_size / sizeof(*mi->mi_log.rl_ring_buf);
-		mi->mi_log.rl_ring_buf = kzalloc(buf_size, GFP_NOFS);
-		if (!mi->mi_log.rl_ring_buf)
-			return -ENOMEM;
+		write_lock(&mi->mi_log.rl_access_lock);
+		kfree(mi->mi_log.rl_ring_buf);
+		WRITE_ONCE(mi->mi_log.rl_ring_buf, new_buffer);
+		WRITE_ONCE(mi->mi_log.rl_size,
+			   new_buffer_size / sizeof(*mi->mi_log.rl_ring_buf));
+		log_state = READ_ONCE(mi->mi_log.rl_state);
+		log_state.generation_id++;
+		log_state.next_index = log_state.current_pass_no = 0;
+		WRITE_ONCE(mi->mi_log.rl_state, log_state);
+		write_unlock(&mi->mi_log.rl_access_lock);
 	}
 
+	mi->mi_options = *options;
 	return 0;
 }
 
@@ -233,6 +252,7 @@ static void log_block_read(struct mount_info *mi, incfs_uuid_t *id,
 	struct read_log *log = &mi->mi_log;
 	struct read_log_state state;
 	s64 now_us = ktime_to_us(ktime_get());
+	int rl_size;
 	struct read_log_record record = {
 		.file_id = *id,
 		.block_index = block_index,
@@ -240,20 +260,23 @@ static void log_block_read(struct mount_info *mi, incfs_uuid_t *id,
 		.timestamp_us = now_us
 	};
 
-	if (log->rl_size == 0)
-		return;
-
-	spin_lock(&log->rl_writer_lock);
-	state = READ_ONCE(log->rl_state);
-	log->rl_ring_buf[state.next_index] = record;
-	if (++state.next_index == log->rl_size) {
-		state.next_index = 0;
-		++state.current_pass_no;
+	read_lock(&log->rl_access_lock);
+	rl_size = READ_ONCE(log->rl_size);
+	if (rl_size != 0) {
+		spin_lock(&log->rl_logging_lock);
+		state = READ_ONCE(log->rl_state);
+		log->rl_ring_buf[state.next_index] = record;
+		if (++state.next_index == rl_size) {
+			state.next_index = 0;
+			++state.current_pass_no;
+		}
+		WRITE_ONCE(log->rl_state, state);
+		spin_unlock(&log->rl_logging_lock);
 	}
-	WRITE_ONCE(log->rl_state, state);
-	spin_unlock(&log->rl_writer_lock);
+	read_unlock(&log->rl_access_lock);
 
-	wake_up_all(&log->ml_notif_wq);
+	if (rl_size != 0)
+		wake_up_all(&log->ml_notif_wq);
 }
 
 static int validate_hash_tree(struct file *bf, struct data_file *df,
@@ -1171,9 +1194,11 @@ struct read_log_state incfs_get_log_state(struct mount_info *mi)
 	struct read_log *log = &mi->mi_log;
 	struct read_log_state result;
 
-	spin_lock(&log->rl_writer_lock);
+	read_lock(&log->rl_access_lock);
+	spin_lock(&log->rl_logging_lock);
 	result = READ_ONCE(log->rl_state);
-	spin_unlock(&log->rl_writer_lock);
+	spin_unlock(&log->rl_logging_lock);
+	read_unlock(&log->rl_access_lock);
 	return result;
 }
 
@@ -1186,10 +1211,21 @@ int incfs_get_uncollected_logs_count(struct mount_info *mi,
 				     struct read_log_state state)
 {
 	struct read_log *log = &mi->mi_log;
+	struct read_log_state rl_state;
+	int rl_size;
+	u64 count;
 
-	u64 count = calc_record_count(&log->rl_state, log->rl_size) -
-		    calc_record_count(&state, log->rl_size);
-	return min_t(int, count, log->rl_size);
+	read_lock(&log->rl_access_lock);
+	rl_size = READ_ONCE(log->rl_size);
+	spin_lock(&log->rl_logging_lock);
+	rl_state = READ_ONCE(log->rl_state);
+	spin_unlock(&log->rl_logging_lock);
+	read_unlock(&log->rl_access_lock);
+
+	count = calc_record_count(&rl_state, rl_size);
+	if (rl_state.generation_id == state.generation_id)
+		count -= calc_record_count(&state, rl_size);
+	return min_t(int, count, rl_size);
 }
 
 static void fill_pending_read_from_log_record(
@@ -1209,17 +1245,35 @@ int incfs_collect_logged_reads(struct mount_info *mi,
 			       int reads_size)
 {
 	struct read_log *log = &mi->mi_log;
-	struct read_log_state live_state = incfs_get_log_state(mi);
-	u64 read_count = calc_record_count(reader_state, log->rl_size);
-	u64 written_count = calc_record_count(&live_state, log->rl_size);
+	struct read_log_state live_state;
 	int dst_idx;
+	int rl_size;
+	int result = 0;
+	u64 read_count;
+	u64 written_count;
 
-	if (reader_state->next_index >= log->rl_size ||
-	    read_count > written_count)
-		return -ERANGE;
+	read_lock(&log->rl_access_lock);
 
-	if (read_count == written_count)
-		return 0;
+	rl_size = READ_ONCE(log->rl_size);
+	spin_lock(&log->rl_logging_lock);
+	live_state = READ_ONCE(log->rl_state);
+	spin_unlock(&log->rl_logging_lock);
+
+	if (reader_state->generation_id != live_state.generation_id) {
+		reader_state->generation_id = live_state.generation_id;
+		reader_state->current_pass_no = reader_state->next_index = 0;
+	}
+
+	read_count = calc_record_count(reader_state, rl_size);
+	written_count = calc_record_count(&live_state, rl_size);
+	if (read_count == written_count) {
+		result = 0;
+		goto out;
+	}
+	if (reader_state->next_index >= rl_size) {
+		result = -ERANGE;
+		goto out;
+	}
 
 	if (read_count > written_count) {
 		/* This reader is somehow ahead of the writer. */
@@ -1227,16 +1281,17 @@ int incfs_collect_logged_reads(struct mount_info *mi,
 		*reader_state = live_state;
 	}
 
-	if (written_count - read_count > log->rl_size) {
+	if (written_count - read_count > rl_size) {
 		/*
 		 * Reading pointer is too far behind,
 		 * start from the record following the write pointer.
 		 */
-		pr_debug("incfs: read pointer is behind, moving: %u/%u -> %u/%u / %u\n",
+		pr_debug(
+			"incfs: read pointer is behind, moving: %u/%u -> %u/%u / %u\n",
 			(u32)reader_state->next_index,
 			(u32)reader_state->current_pass_no,
 			(u32)live_state.next_index,
-			(u32)live_state.current_pass_no - 1, (u32)log->rl_size);
+			(u32)live_state.current_pass_no - 1, (u32)rl_size);
 
 		*reader_state = (struct read_log_state){
 			.next_index = live_state.next_index,
@@ -1252,15 +1307,19 @@ int incfs_collect_logged_reads(struct mount_info *mi,
 		fill_pending_read_from_log_record(
 			&reads[dst_idx],
 			&log->rl_ring_buf[reader_state->next_index],
-			reader_state, log->rl_size);
+			reader_state, rl_size);
 
 		reader_state->next_index++;
-		if (reader_state->next_index == log->rl_size) {
+		if (reader_state->next_index == rl_size) {
 			reader_state->next_index = 0;
 			reader_state->current_pass_no++;
 		}
 	}
-	return dst_idx;
+	result = dst_idx;
+
+out:
+	read_unlock(&log->rl_access_lock);
+	return result;
 }
 
 bool incfs_equal_ranges(struct mem_range lhs, struct mem_range rhs)
