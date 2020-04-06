@@ -949,13 +949,33 @@ void bch2_btree_update_done(struct btree_update *as)
 }
 
 struct btree_update *
-bch2_btree_update_start(struct bch_fs *c, enum btree_id id,
+bch2_btree_update_start(struct btree_trans *trans, enum btree_id id,
 			unsigned nr_nodes, unsigned flags,
 			struct closure *cl)
 {
+	struct bch_fs *c = trans->c;
+	struct journal_preres journal_preres = { 0 };
 	struct btree_reserve *reserve;
 	struct btree_update *as;
 	int ret;
+
+	ret = bch2_journal_preres_get(&c->journal, &journal_preres,
+				      BTREE_UPDATE_JOURNAL_RES,
+				      JOURNAL_RES_GET_NONBLOCK);
+	if (ret == -EAGAIN) {
+		bch2_trans_unlock(trans);
+
+		ret = bch2_journal_preres_get(&c->journal, &journal_preres,
+					      BTREE_UPDATE_JOURNAL_RES,
+					      JOURNAL_RES_GET_NONBLOCK);
+		if (ret)
+			return ERR_PTR(ret);
+
+		if (!bch2_trans_relock(trans)) {
+			bch2_journal_preres_put(&c->journal, &journal_preres);
+			return ERR_PTR(-EINTR);
+		}
+	}
 
 	reserve = bch2_btree_reserve_get(c, nr_nodes, flags, cl);
 	if (IS_ERR(reserve))
@@ -969,17 +989,9 @@ bch2_btree_update_start(struct bch_fs *c, enum btree_id id,
 	as->btree_id	= id;
 	as->reserve	= reserve;
 	INIT_LIST_HEAD(&as->write_blocked_list);
+	as->journal_preres = journal_preres;
 
 	bch2_keylist_init(&as->parent_keys, as->inline_keys);
-
-	ret = bch2_journal_preres_get(&c->journal, &as->journal_preres,
-				      ARRAY_SIZE(as->journal_entries), 0);
-	if (ret) {
-		bch2_btree_reserve_put(c, reserve);
-		closure_debug_destroy(&as->cl);
-		mempool_free(as, &c->btree_interior_update_pool);
-		return ERR_PTR(ret);
-	}
 
 	mutex_lock(&c->btree_interior_update_lock);
 	list_add_tail(&as->list, &c->btree_interior_update_list);
@@ -1551,7 +1563,7 @@ int bch2_btree_split_leaf(struct bch_fs *c, struct btree_iter *iter,
 		goto out;
 	}
 
-	as = bch2_btree_update_start(c, iter->btree_id,
+	as = bch2_btree_update_start(trans, iter->btree_id,
 		btree_update_reserve_required(c, b), flags,
 		!(flags & BTREE_INSERT_NOUNLOCK) ? &cl : NULL);
 	if (IS_ERR(as)) {
@@ -1663,7 +1675,7 @@ retry:
 		goto err_unlock;
 	}
 
-	as = bch2_btree_update_start(c, iter->btree_id,
+	as = bch2_btree_update_start(trans, iter->btree_id,
 			 btree_update_reserve_required(c, parent) + 1,
 			 BTREE_INSERT_NOFAIL|
 			 BTREE_INSERT_USE_RESERVE,
@@ -1776,7 +1788,7 @@ static int __btree_node_rewrite(struct bch_fs *c, struct btree_iter *iter,
 	struct btree *n, *parent = btree_node_parent(iter, b);
 	struct btree_update *as;
 
-	as = bch2_btree_update_start(c, iter->btree_id,
+	as = bch2_btree_update_start(iter->trans, iter->btree_id,
 		(parent
 		 ? btree_update_reserve_required(c, parent)
 		 : 0) + 1,
@@ -2043,7 +2055,7 @@ int bch2_btree_node_update_key(struct bch_fs *c, struct btree_iter *iter,
 		new_hash = bch2_btree_node_mem_alloc(c);
 	}
 
-	as = bch2_btree_update_start(c, iter->btree_id,
+	as = bch2_btree_update_start(iter->trans, iter->btree_id,
 		parent ? btree_update_reserve_required(c, parent) : 0,
 		BTREE_INSERT_NOFAIL|
 		BTREE_INSERT_USE_RESERVE|

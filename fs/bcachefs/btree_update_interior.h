@@ -32,6 +32,9 @@ struct pending_btree_node_free {
 	__BKEY_PADDED(key, BKEY_BTREE_PTR_VAL_U64s_MAX);
 };
 
+#define BTREE_UPDATE_JOURNAL_RES		\
+	((BKEY_BTREE_PTR_U64s_MAX + 1) * (BTREE_MAX_DEPTH - 1) * 2)
+
 /*
  * Tracks an in progress split/rewrite of a btree node and the update to the
  * parent node:
@@ -105,8 +108,7 @@ struct btree_update {
 	unsigned			nr_new_nodes;
 
 	unsigned			journal_u64s;
-	u64				journal_entries[
-		(BKEY_BTREE_PTR_U64s_MAX + 1) * (BTREE_MAX_DEPTH - 1) * 2];
+	u64				journal_entries[BTREE_UPDATE_JOURNAL_RES];
 
 	/* Only here to reduce stack usage on recursive splits: */
 	struct keylist			parent_keys;
@@ -132,7 +134,7 @@ struct btree *__bch2_btree_node_alloc_replacement(struct btree_update *,
 
 void bch2_btree_update_done(struct btree_update *);
 struct btree_update *
-bch2_btree_update_start(struct bch_fs *, enum btree_id, unsigned,
+bch2_btree_update_start(struct btree_trans *, enum btree_id, unsigned,
 			unsigned, struct closure *);
 
 void bch2_btree_interior_update_will_free_node(struct btree_update *,

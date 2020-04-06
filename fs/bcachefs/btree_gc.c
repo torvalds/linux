@@ -935,7 +935,7 @@ static void bch2_coalesce_nodes(struct bch_fs *c, struct btree_iter *iter,
 		return;
 	}
 
-	as = bch2_btree_update_start(c, iter->btree_id,
+	as = bch2_btree_update_start(iter->trans, iter->btree_id,
 			btree_update_reserve_required(c, parent) + nr_old_nodes,
 			BTREE_INSERT_NOFAIL|
 			BTREE_INSERT_USE_RESERVE,
