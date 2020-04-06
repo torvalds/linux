@@ -161,7 +161,7 @@ struct hif_ie_table_entry {
 } __packed;
 
 struct hif_mib_bcn_filter_table {
-	u32   num_of_info_elmts;
+	__le32 num_of_info_elmts;
 	struct hif_ie_table_entry ie_table[];
 } __packed;
 
@@ -172,68 +172,68 @@ enum hif_beacon_filter {
 };
 
 struct hif_mib_bcn_filter_enable {
-	u32   enable;
-	u32   bcn_count;
+	__le32 enable;
+	__le32 bcn_count;
 } __packed;
 
 struct hif_mib_extended_count_table {
-	u32   count_plcp_errors;
-	u32   count_fcs_errors;
-	u32   count_tx_packets;
-	u32   count_rx_packets;
-	u32   count_rx_packet_errors;
-	u32   count_rx_decryption_failures;
-	u32   count_rx_mic_failures;
-	u32   count_rx_no_key_failures;
-	u32   count_tx_multicast_frames;
-	u32   count_tx_frames_success;
-	u32   count_tx_frame_failures;
-	u32   count_tx_frames_retried;
-	u32   count_tx_frames_multi_retried;
-	u32   count_rx_frame_duplicates;
-	u32   count_rts_success;
-	u32   count_rts_failures;
-	u32   count_ack_failures;
-	u32   count_rx_multicast_frames;
-	u32   count_rx_frames_success;
-	u32   count_rx_cmacicv_errors;
-	u32   count_rx_cmac_replays;
-	u32   count_rx_mgmt_ccmp_replays;
-	u32   count_rx_bipmic_errors;
-	u32   count_rx_beacon;
-	u32   count_miss_beacon;
-	u32   reserved[15];
+	__le32 count_plcp_errors;
+	__le32 count_fcs_errors;
+	__le32 count_tx_packets;
+	__le32 count_rx_packets;
+	__le32 count_rx_packet_errors;
+	__le32 count_rx_decryption_failures;
+	__le32 count_rx_mic_failures;
+	__le32 count_rx_no_key_failures;
+	__le32 count_tx_multicast_frames;
+	__le32 count_tx_frames_success;
+	__le32 count_tx_frame_failures;
+	__le32 count_tx_frames_retried;
+	__le32 count_tx_frames_multi_retried;
+	__le32 count_rx_frame_duplicates;
+	__le32 count_rts_success;
+	__le32 count_rts_failures;
+	__le32 count_ack_failures;
+	__le32 count_rx_multicast_frames;
+	__le32 count_rx_frames_success;
+	__le32 count_rx_cmacicv_errors;
+	__le32 count_rx_cmac_replays;
+	__le32 count_rx_mgmt_ccmp_replays;
+	__le32 count_rx_bipmic_errors;
+	__le32 count_rx_beacon;
+	__le32 count_miss_beacon;
+	__le32 reserved[15];
 } __packed;
 
 struct hif_mib_count_table {
-	u32   count_plcp_errors;
-	u32   count_fcs_errors;
-	u32   count_tx_packets;
-	u32   count_rx_packets;
-	u32   count_rx_packet_errors;
-	u32   count_rx_decryption_failures;
-	u32   count_rx_mic_failures;
-	u32   count_rx_no_key_failures;
-	u32   count_tx_multicast_frames;
-	u32   count_tx_frames_success;
-	u32   count_tx_frame_failures;
-	u32   count_tx_frames_retried;
-	u32   count_tx_frames_multi_retried;
-	u32   count_rx_frame_duplicates;
-	u32   count_rts_success;
-	u32   count_rts_failures;
-	u32   count_ack_failures;
-	u32   count_rx_multicast_frames;
-	u32   count_rx_frames_success;
-	u32   count_rx_cmacicv_errors;
-	u32   count_rx_cmac_replays;
-	u32   count_rx_mgmt_ccmp_replays;
-	u32   count_rx_bipmic_errors;
+	__le32 count_plcp_errors;
+	__le32 count_fcs_errors;
+	__le32 count_tx_packets;
+	__le32 count_rx_packets;
+	__le32 count_rx_packet_errors;
+	__le32 count_rx_decryption_failures;
+	__le32 count_rx_mic_failures;
+	__le32 count_rx_no_key_failures;
+	__le32 count_tx_multicast_frames;
+	__le32 count_tx_frames_success;
+	__le32 count_tx_frame_failures;
+	__le32 count_tx_frames_retried;
+	__le32 count_tx_frames_multi_retried;
+	__le32 count_rx_frame_duplicates;
+	__le32 count_rts_success;
+	__le32 count_rts_failures;
+	__le32 count_ack_failures;
+	__le32 count_rx_multicast_frames;
+	__le32 count_rx_frames_success;
+	__le32 count_rx_cmacicv_errors;
+	__le32 count_rx_cmac_replays;
+	__le32 count_rx_mgmt_ccmp_replays;
+	__le32 count_rx_bipmic_errors;
 } __packed;
 
 struct hif_mib_mac_address {
 	u8    mac_addr[ETH_ALEN];
-	u16   reserved;
+	__le16 reserved;
 } __packed;
 
 struct hif_mib_wep_default_key_id {
@@ -242,15 +242,15 @@ struct hif_mib_wep_default_key_id {
 } __packed;
 
 struct hif_mib_dot11_rts_threshold {
-	u32   threshold;
+	__le32 threshold;
 } __packed;
 
 struct hif_mib_slot_time {
-	u32   slot_time;
+	__le32 slot_time;
 } __packed;
 
 struct hif_mib_current_tx_power_level {
-	s32   power_level;
+	__le32 power_level; // signed value
 } __packed;
 
 struct hif_mib_non_erp_protection {
@@ -274,7 +274,7 @@ struct hif_mib_template_frame {
 	u8    frame_type;
 	u8    init_rate:7;
 	u8    mode:1;
-	u16   frame_length;
+	__le16 frame_length;
 	u8    frame[700];
 } __packed;
 
@@ -328,7 +328,7 @@ struct hif_mib_set_association_mode {
 	u8    greenfield:1;
 	u8    reserved3:7;
 	u8    mpdu_start_spacing;
-	u32   basic_rate_set;
+	__le32 basic_rate_set;
 } __packed;
 
 struct hif_mib_set_uapsd_information {
@@ -342,9 +342,9 @@ struct hif_mib_set_uapsd_information {
 	u8    deliv_video:1;
 	u8    deliv_voice:1;
 	u8    reserved2:4;
-	u16   min_auto_trigger_interval;
-	u16   max_auto_trigger_interval;
-	u16   auto_trigger_step;
+	__le16 min_auto_trigger_interval;
+	__le16 max_auto_trigger_interval;
+	__le16 auto_trigger_step;
 } __packed;
 
 struct hif_mib_tx_rate_retry_policy {
@@ -384,7 +384,7 @@ struct hif_mib_set_ht_protection {
 } __packed;
 
 struct hif_mib_keep_alive_period {
-	u16   keep_alive_period;
+	__le16 keep_alive_period;
 	u8    reserved[2];
 } __packed;
 

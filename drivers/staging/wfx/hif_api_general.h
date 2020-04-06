@@ -23,7 +23,7 @@
 #define HIF_COUNTER_MAX                    7
 
 struct hif_msg {
-	u16    len;
+	__le16 len;
 	u8     id;
 	u8     reserved:1;
 	u8     interface:2;
@@ -136,12 +136,12 @@ struct hif_otp_phy_info {
 } __packed;
 
 struct hif_ind_startup {
-	u32   status;
-	u16   hardware_id;
+	__le32 status;
+	__le16 hardware_id;
 	u8    opn[14];
 	u8    uid[8];
-	u16   num_inp_ch_bufs;
-	u16   size_inp_ch_buf;
+	__le16 num_inp_ch_bufs;
+	__le16 size_inp_ch_buf;
 	u8    num_links_ap;
 	u8    num_interfaces;
 	u8    mac_addr[2][ETH_ALEN];
@@ -155,7 +155,7 @@ struct hif_ind_startup {
 	u8    disabled_channel_list[2];
 	struct hif_otp_regul_sel_mode_info regul_sel_mode_info;
 	struct hif_otp_phy_info otp_phy_info;
-	u32   supported_rate_mask;
+	__le32 supported_rate_mask;
 	u8    firmware_label[128];
 } __packed;
 
@@ -163,12 +163,12 @@ struct hif_ind_wakeup {
 } __packed;
 
 struct hif_req_configuration {
-	u16   length;
+	__le16 length;
 	u8    pds_data[];
 } __packed;
 
 struct hif_cnf_configuration {
-	u32   status;
+	__le32 status;
 } __packed;
 
 enum hif_gpio_mode {
@@ -187,8 +187,8 @@ struct hif_req_control_gpio {
 } __packed;
 
 struct hif_cnf_control_gpio {
-	u32 status;
-	u32 value;
+	__le32 status;
+	__le32 value;
 } __packed;
 
 enum hif_generic_indication_type {
@@ -198,17 +198,17 @@ enum hif_generic_indication_type {
 };
 
 struct hif_rx_stats {
-	u32   nb_rx_frame;
-	u32   nb_crc_frame;
-	u32   per_total;
-	u32   throughput;
-	u32   nb_rx_by_rate[API_RATE_NUM_ENTRIES];
-	u16   per[API_RATE_NUM_ENTRIES];
-	s16    snr[API_RATE_NUM_ENTRIES];
-	s16    rssi[API_RATE_NUM_ENTRIES];
-	s16    cfo[API_RATE_NUM_ENTRIES];
-	u32   date;
-	u32   pwr_clk_freq;
+	__le32 nb_rx_frame;
+	__le32 nb_crc_frame;
+	__le32 per_total;
+	__le32 throughput;
+	__le32 nb_rx_by_rate[API_RATE_NUM_ENTRIES];
+	__le16 per[API_RATE_NUM_ENTRIES];
+	__le16 snr[API_RATE_NUM_ENTRIES];  // signed value
+	__le16 rssi[API_RATE_NUM_ENTRIES]; // signed value
+	__le16 cfo[API_RATE_NUM_ENTRIES];  // signed value
+	__le32 date;
+	__le32 pwr_clk_freq;
 	u8    is_ext_pwr_clk;
 	s8     current_temp;
 } __packed;
@@ -219,7 +219,7 @@ union hif_indication_data {
 };
 
 struct hif_ind_generic {
-	u32 indication_type;
+	__le32 indication_type;
 	union hif_indication_data indication_data;
 } __packed;
 
@@ -244,7 +244,7 @@ enum hif_error {
 };
 
 struct hif_ind_error {
-	u32   type;
+	__le32 type;
 	u8    data[];
 } __packed;
 
@@ -269,7 +269,7 @@ struct hif_sl_msg_hdr {
 
 struct hif_sl_msg {
 	struct hif_sl_msg_hdr hdr;
-	u16        len;
+	__le16 len;
 	u8         payload[];
 } __packed;
 
@@ -292,7 +292,7 @@ struct hif_req_set_sl_mac_key {
 } __packed;
 
 struct hif_cnf_set_sl_mac_key {
-	u32   status;
+	__le32 status;
 } __packed;
 
 enum hif_sl_session_key_alg {
@@ -312,14 +312,14 @@ struct hif_req_sl_exchange_pub_keys {
 } __packed;
 
 struct hif_cnf_sl_exchange_pub_keys {
-	u32   status;
+	__le32 status;
 } __packed;
 
 #define API_NCP_PUB_KEY_SIZE                            32
 #define API_NCP_PUB_KEY_MAC_SIZE                        64
 
 struct hif_ind_sl_exchange_pub_keys {
-	u32   status;
+	__le32 status;
 	u8    ncp_pub_key[API_NCP_PUB_KEY_SIZE];
 	u8    ncp_pub_key_mac[API_NCP_PUB_KEY_MAC_SIZE];
 } __packed;
@@ -332,7 +332,7 @@ struct hif_req_sl_configure {
 } __packed;
 
 struct hif_cnf_sl_configure {
-	u32 status;
+	__le32 status;
 } __packed;
 
 #endif

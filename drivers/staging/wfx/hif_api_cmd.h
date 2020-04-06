@@ -94,25 +94,25 @@ struct hif_req_reset {
 } __packed;
 
 struct hif_req_read_mib {
-	u16   mib_id;
-	u16   reserved;
+	__le16 mib_id;
+	__le16 reserved;
 } __packed;
 
 struct hif_cnf_read_mib {
-	u32   status;
-	u16   mib_id;
-	u16   length;
+	__le32 status;
+	__le16 mib_id;
+	__le16 length;
 	u8    mib_data[];
 } __packed;
 
 struct hif_req_write_mib {
-	u16   mib_id;
-	u16   length;
+	__le16 mib_id;
+	__le16 length;
 	u8    mib_data[];
 } __packed;
 
 struct hif_cnf_write_mib {
-	u32   status;
+	__le32 status;
 } __packed;
 
 struct hif_ie_flags {
@@ -131,12 +131,12 @@ struct hif_ie_tlv {
 
 struct hif_req_update_ie {
 	struct hif_ie_flags ie_flags;
-	u16   num_ies;
+	__le16 num_ies;
 	struct hif_ie_tlv ie[];
 } __packed;
 
 struct hif_cnf_update_ie {
-	u32   status;
+	__le32 status;
 } __packed;
 
 struct hif_scan_type {
@@ -153,13 +153,13 @@ struct hif_scan_flags {
 } __packed;
 
 struct hif_auto_scan_param {
-	u16   interval;
+	__le16 interval;
 	u8    reserved;
 	s8     rssi_thr;
 } __packed;
 
 struct hif_ssid_def {
-	u32   ssid_length;
+	__le32 ssid_length;
 	u8    ssid[HIF_API_SSID_SIZE];
 } __packed;
 
@@ -176,19 +176,19 @@ struct hif_req_start_scan_alt {
 	u8    probe_delay;
 	u8    num_of_ssids;
 	u8    num_of_channels;
-	u32   min_channel_time;
-	u32   max_channel_time;
-	s32    tx_power_level;
+	__le32 min_channel_time;
+	__le32 max_channel_time;
+	__le32 tx_power_level; // signed value
 	struct hif_ssid_def ssid_def[HIF_API_MAX_NB_SSIDS];
 	u8    channel_list[];
 } __packed;
 
 struct hif_cnf_start_scan {
-	u32   status;
+	__le32 status;
 } __packed;
 
 struct hif_cnf_stop_scan {
-	u32   status;
+	__le32 status;
 } __packed;
 
 enum hif_pm_mode_status {
@@ -198,10 +198,10 @@ enum hif_pm_mode_status {
 };
 
 struct hif_ind_scan_cmpl {
-	u32   status;
+	__le32 status;
 	u8    pm_mode;
 	u8    num_channels_completed;
-	u16   reserved;
+	__le16 reserved;
 } __packed;
 
 enum hif_queue_id {
@@ -254,13 +254,13 @@ struct hif_ht_tx_parameters {
 } __packed;
 
 struct hif_req_tx {
-	u32   packet_id;
+	__le32 packet_id;
 	u8    max_tx_rate;
 	struct hif_queue queue_id;
 	struct hif_data_flags data_flags;
 	struct hif_tx_flags tx_flags;
-	u32   reserved;
-	u32   expire_time;
+	__le32 reserved;
+	__le32 expire_time;
 	struct hif_ht_tx_parameters ht_tx_parameters;
 	u8    frame[];
 } __packed;
@@ -282,17 +282,17 @@ struct hif_tx_result_flags {
 } __packed;
 
 struct hif_cnf_tx {
-	u32   status;
-	u32   packet_id;
+	__le32 status;
+	__le32 packet_id;
 	u8    txed_rate;
 	u8    ack_failures;
 	struct hif_tx_result_flags tx_result_flags;
-	u32   media_delay;
-	u32   tx_queue_delay;
+	__le32 media_delay;
+	__le32 tx_queue_delay;
 } __packed;
 
 struct hif_cnf_multi_transmit {
-	u32   num_tx_confs;
+	__le32 num_tx_confs;
 	struct hif_cnf_tx   tx_conf_payload[];
 } __packed;
 
@@ -331,8 +331,8 @@ struct hif_rx_flags {
 } __packed;
 
 struct hif_ind_rx {
-	u32   status;
-	u16   channel_number;
+	__le32 status;
+	__le16 channel_number;
 	u8    rxed_rate;
 	u8    rcpi_rssi;
 	struct hif_rx_flags rx_flags;
@@ -345,15 +345,15 @@ struct hif_req_edca_queue_params {
 	u8    reserved1;
 	u8    aifsn;
 	u8    reserved2;
-	u16   cw_min;
-	u16   cw_max;
-	u16   tx_op_limit;
-	u16   allowed_medium_time;
-	u32   reserved3;
+	__le16 cw_min;
+	__le16 cw_max;
+	__le16 tx_op_limit;
+	__le16 allowed_medium_time;
+	__le32 reserved3;
 } __packed;
 
 struct hif_cnf_edca_queue_params {
-	u32   status;
+	__le32 status;
 } __packed;
 
 struct hif_join_flags {
@@ -367,26 +367,26 @@ struct hif_req_join {
 	u8    infrastructure_bss_mode:1;
 	u8    reserved1:7;
 	u8    band;
-	u16   channel_number;
+	__le16 channel_number;
 	u8    bssid[ETH_ALEN];
-	u16   atim_window;
+	__le16 atim_window;
 	u8    short_preamble:1;
 	u8    reserved2:7;
 	u8    probe_for_join;
 	u8    reserved3;
 	struct hif_join_flags join_flags;
-	u32   ssid_length;
+	__le32 ssid_length;
 	u8    ssid[HIF_API_SSID_SIZE];
-	u32   beacon_interval;
-	u32   basic_rate_set;
+	__le32 beacon_interval;
+	__le32 basic_rate_set;
 } __packed;
 
 struct hif_cnf_join {
-	u32   status;
+	__le32 status;
 } __packed;
 
 struct hif_ind_join_complete {
-	u32   status;
+	__le32 status;
 } __packed;
 
 struct hif_bss_flags {
@@ -397,12 +397,12 @@ struct hif_bss_flags {
 struct hif_req_set_bss_params {
 	struct hif_bss_flags bss_flags;
 	u8    beacon_lost_count;
-	u16   aid;
-	u32   operational_rate_set;
+	__le16 aid;
+	__le32 operational_rate_set;
 } __packed;
 
 struct hif_cnf_set_bss_params {
-	u32   status;
+	__le32 status;
 } __packed;
 
 struct hif_pm_mode {
@@ -419,11 +419,11 @@ struct hif_req_set_pm_mode {
 } __packed;
 
 struct hif_cnf_set_pm_mode {
-	u32   status;
+	__le32 status;
 } __packed;
 
 struct hif_ind_set_pm_mode_cmpl {
-	u32   status;
+	__le32 status;
 	u8    pm_mode;
 	u8    reserved[3];
 } __packed;
@@ -432,20 +432,20 @@ struct hif_ind_set_pm_mode_cmpl {
 struct hif_req_start {
 	u8    mode;
 	u8    band;
-	u16   channel_number;
-	u32   reserved1;
-	u32   beacon_interval;
+	__le16 channel_number;
+	__le32 reserved1;
+	__le32 beacon_interval;
 	u8    dtim_period;
 	u8    short_preamble:1;
 	u8    reserved2:7;
 	u8    reserved3;
 	u8    ssid_length;
 	u8    ssid[HIF_API_SSID_SIZE];
-	u32   basic_rate_set;
+	__le32 basic_rate_set;
 } __packed;
 
 struct hif_cnf_start {
-	u32   status;
+	__le32 status;
 } __packed;
 
 enum hif_beacon {
@@ -459,7 +459,7 @@ struct hif_req_beacon_transmit {
 } __packed;
 
 struct hif_cnf_beacon_transmit {
-	u32   status;
+	__le32 status;
 } __packed;
 
 #define HIF_LINK_ID_MAX            14
@@ -483,7 +483,7 @@ struct hif_req_map_link {
 } __packed;
 
 struct hif_cnf_map_link {
-	u32   status;
+	__le32 status;
 } __packed;
 
 struct hif_suspend_resume_flags {
@@ -496,7 +496,7 @@ struct hif_suspend_resume_flags {
 
 struct hif_ind_suspend_resume_tx {
 	struct hif_suspend_resume_flags suspend_resume_flags;
-	u16   peer_sta_set;
+	__le16 peer_sta_set;
 } __packed;
 
 
@@ -612,7 +612,7 @@ struct hif_req_add_key {
 } __packed;
 
 struct hif_cnf_add_key {
-	u32   status;
+	__le32 status;
 } __packed;
 
 struct hif_req_remove_key {
@@ -621,7 +621,7 @@ struct hif_req_remove_key {
 } __packed;
 
 struct hif_cnf_remove_key {
-	u32   status;
+	__le32 status;
 } __packed;
 
 enum hif_event_ind {
@@ -642,12 +642,12 @@ enum hif_ps_mode_error {
 
 union hif_event_data {
 	u8    rcpi_rssi;
-	u32   ps_mode_error;
-	u32   peer_sta_set;
+	__le32 ps_mode_error;
+	__le32 peer_sta_set;
 };
 
 struct hif_ind_event {
-	u32   event_id;
+	__le32 event_id;
 	union hif_event_data event_data;
 } __packed;
 
