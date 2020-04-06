@@ -68,8 +68,13 @@ enum {
 #define IMX_MEDIA_EOF_TIMEOUT       1000
 
 struct imx_media_pixfmt {
+	/* the in-memory FourCC pixel format */
 	u32     fourcc;
-	u32     codes[4];
+	/*
+	 * the set of equivalent media bus codes for the fourcc.
+	 * NOTE! codes pointer is NULL for in-memory-only formats.
+	 */
+	const u32 *codes;
 	int     bpp;     /* total bpp */
 	/* cycles per pixel for generic (bayer) formats for the parallel bus */
 	int	cycles;
