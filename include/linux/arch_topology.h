@@ -30,15 +30,6 @@ static inline unsigned long topology_get_freq_scale(int cpu)
 	return per_cpu(freq_scale, cpu);
 }
 
-DECLARE_PER_CPU(unsigned long, max_freq_scale);
-
-struct sched_domain;
-static inline
-unsigned long topology_get_max_freq_scale(struct sched_domain *sd, int cpu)
-{
-	return per_cpu(max_freq_scale, cpu);
-}
-
 bool arch_freq_counters_available(struct cpumask *cpus);
 
 DECLARE_PER_CPU(unsigned long, thermal_pressure);
