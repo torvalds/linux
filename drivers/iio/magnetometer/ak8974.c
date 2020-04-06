@@ -49,6 +49,7 @@
 #define AK8974_WHOAMI_VALUE_AMI306 0x46
 #define AK8974_WHOAMI_VALUE_AMI305 0x47
 #define AK8974_WHOAMI_VALUE_AK8974 0x48
+#define AK8974_WHOAMI_VALUE_HSCDTD008A 0x49
 
 #define AK8974_DATA_X		0x10
 #define AK8974_DATA_Y		0x12
@@ -139,6 +140,12 @@
 #define AK8974_INT_CTRL_POL	BIT(3) /* 0 = active low; 1 = active high */
 #define AK8974_INT_CTRL_PULSE	BIT(1) /* 0 = latched; 1 = pulse (50 usec) */
 #define AK8974_INT_CTRL_RESDEF	(AK8974_INT_CTRL_XYZEN | AK8974_INT_CTRL_POL)
+
+/* HSCDTD008A-specific control register */
+#define HSCDTD008A_CTRL4	0x1E
+#define HSCDTD008A_CTRL4_MMD	BIT(7)	/* must be set to 1 */
+#define HSCDTD008A_CTRL4_RANGE	BIT(4)	/* 0 = 14-bit output; 1 = 15-bit output */
+#define HSCDTD008A_CTRL4_RESDEF	(HSCDTD008A_CTRL4_MMD | HSCDTD008A_CTRL4_RANGE)
 
 /* The AMI305 has elaborate FW version and serial number registers */
 #define AMI305_VER		0xE8
@@ -241,10 +248,17 @@ static int ak8974_reset(struct ak8974 *ak8974)
 	ret = regmap_write(ak8974->map, AK8974_CTRL3, AK8974_CTRL3_RESDEF);
 	if (ret)
 		return ret;
-	ret = regmap_write(ak8974->map, AK8974_INT_CTRL,
-			   AK8974_INT_CTRL_RESDEF);
-	if (ret)
-		return ret;
+	if (ak8974->variant != AK8974_WHOAMI_VALUE_HSCDTD008A) {
+		ret = regmap_write(ak8974->map, AK8974_INT_CTRL,
+				   AK8974_INT_CTRL_RESDEF);
+		if (ret)
+			return ret;
+	} else {
+		ret = regmap_write(ak8974->map, HSCDTD008A_CTRL4,
+				   HSCDTD008A_CTRL4_RESDEF);
+		if (ret)
+			return ret;
+	}
 
 	/* After reset, power off is default state */
 	return ak8974_set_power(ak8974, AK8974_PWR_OFF);
@@ -267,6 +281,8 @@ static int ak8974_configure(struct ak8974 *ak8974)
 		if (ret)
 			return ret;
 	}
+	if (ak8974->variant == AK8974_WHOAMI_VALUE_HSCDTD008A)
+		return 0;
 	ret = regmap_write(ak8974->map, AK8974_INT_CTRL, AK8974_INT_CTRL_POL);
 	if (ret)
 		return ret;
@@ -495,6 +511,10 @@ static int ak8974_detect(struct ak8974 *ak8974)
 		name = "ak8974";
 		dev_info(&ak8974->i2c->dev, "detected AK8974\n");
 		break;
+	case AK8974_WHOAMI_VALUE_HSCDTD008A:
+		name = "hscdtd008a";
+		dev_info(&ak8974->i2c->dev, "detected hscdtd008a\n");
+		break;
 	default:
 		dev_err(&ak8974->i2c->dev, "unsupported device (%02x) ",
 			whoami);
@@ -674,18 +694,18 @@ static bool ak8974_writeable_reg(struct device *dev, unsigned int reg)
 	case AK8974_INT_CTRL:
 	case AK8974_INT_THRES:
 	case AK8974_INT_THRES + 1:
+		return true;
 	case AK8974_PRESET:
 	case AK8974_PRESET + 1:
-		return true;
+		return ak8974->variant != AK8974_WHOAMI_VALUE_HSCDTD008A;
 	case AK8974_OFFSET_X:
 	case AK8974_OFFSET_X + 1:
 	case AK8974_OFFSET_Y:
 	case AK8974_OFFSET_Y + 1:
 	case AK8974_OFFSET_Z:
 	case AK8974_OFFSET_Z + 1:
-		if (ak8974->variant == AK8974_WHOAMI_VALUE_AK8974)
-			return true;
-		return false;
+		return ak8974->variant == AK8974_WHOAMI_VALUE_AK8974 ||
+		       ak8974->variant == AK8974_WHOAMI_VALUE_HSCDTD008A;
 	case AMI305_OFFSET_X:
 	case AMI305_OFFSET_X + 1:
 	case AMI305_OFFSET_Y:
@@ -931,12 +951,14 @@ static const struct i2c_device_id ak8974_id[] = {
 	{"ami305", 0 },
 	{"ami306", 0 },
 	{"ak8974", 0 },
+	{"hscdtd008a", 0 },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, ak8974_id);
 
 static const struct of_device_id ak8974_of_match[] = {
 	{ .compatible = "asahi-kasei,ak8974", },
+	{ .compatible = "alps,hscdtd008a", },
 	{}
 };
 MODULE_DEVICE_TABLE(of, ak8974_of_match);
