@@ -6,6 +6,7 @@
  * Copyright (c) 2010, ST-Ericsson
  */
 #include <net/mac80211.h>
+#include <linux/etherdevice.h>
 
 #include "data_tx.h"
 #include "wfx.h"
