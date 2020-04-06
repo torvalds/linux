@@ -469,6 +469,15 @@ struct iommu_table_group *pnv_try_setup_npu_table_group(struct pnv_ioda_pe *pe)
 			compound_group->pgsizes = pe->table_group.pgsizes;
 	}
 
+       /*
+	* I'm not sure this is strictly required, but it's probably a good idea
+	* since the table_group for the PE is going to be attached to the
+	* compound table group. If we leave the PE's iommu group active then
+	* we might have the same table_group being modifiable via two sepeate
+	* iommu groups.
+	*/
+	iommu_group_put(pe->table_group.group);
+
 	pnv_comp_attach_table_group(npucomp, pe);
 
 	return compound_group;

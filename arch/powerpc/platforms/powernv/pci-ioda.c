@@ -1619,10 +1619,6 @@ static void pnv_ioda_setup_vf_PE(struct pci_dev *pdev, u16 num_vfs)
 		}
 
 		pnv_pci_ioda2_setup_dma_pe(phb, pe);
-#ifdef CONFIG_IOMMU_API
-		iommu_register_group(&pe->table_group,
-				pe->phb->hose->global_number, pe->pe_number);
-#endif
 	}
 }
 
@@ -2661,9 +2657,6 @@ static void pnv_pci_ioda_setup_iommu_api(void)
 					continue;
 
 				table_group = &pe->table_group;
-				iommu_register_group(&pe->table_group,
-						pe->phb->hose->global_number,
-						pe->pe_number);
 			}
 			pnv_ioda_setup_bus_iommu_group(pe, table_group,
 					pe->pbus);
@@ -2748,13 +2741,16 @@ static void pnv_pci_ioda2_setup_dma_pe(struct pnv_phb *phb,
 			IOMMU_TABLE_GROUP_MAX_TABLES;
 	pe->table_group.max_levels = POWERNV_IOMMU_MAX_LEVELS;
 	pe->table_group.pgsizes = pnv_ioda_parse_tce_sizes(phb);
-#ifdef CONFIG_IOMMU_API
-	pe->table_group.ops = &pnv_pci_ioda2_ops;
-#endif
 
 	rc = pnv_pci_ioda2_setup_default_config(pe);
 	if (rc)
 		return;
+
+#ifdef CONFIG_IOMMU_API
+	pe->table_group.ops = &pnv_pci_ioda2_ops;
+	iommu_register_group(&pe->table_group, phb->hose->global_number,
+			     pe->pe_number);
+#endif
 
 	if (pe->flags & (PNV_IODA_PE_BUS | PNV_IODA_PE_BUS_ALL))
 		pnv_ioda_setup_bus_dma(pe, pe->pbus);
