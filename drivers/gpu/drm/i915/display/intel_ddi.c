@@ -2635,8 +2635,9 @@ static void tgl_ddi_vswing_sequence(struct intel_encoder *encoder,
 		tgl_dkl_phy_ddi_vswing_sequence(encoder, link_clock, level);
 }
 
-static u32 translate_signal_level(int signal_levels)
+static u32 translate_signal_level(struct intel_dp *intel_dp, int signal_levels)
 {
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(index_to_dp_signal_levels); i++) {
@@ -2644,8 +2645,9 @@ static u32 translate_signal_level(int signal_levels)
 			return i;
 	}
 
-	WARN(1, "Unsupported voltage swing/pre-emphasis level: 0x%x\n",
-	     signal_levels);
+	drm_WARN(&i915->drm, 1,
+		 "Unsupported voltage swing/pre-emphasis level: 0x%x\n",
+		 signal_levels);
 
 	return 0;
 }
@@ -2656,7 +2658,7 @@ static u32 intel_ddi_dp_level(struct intel_dp *intel_dp)
 	int signal_levels = train_set & (DP_TRAIN_VOLTAGE_SWING_MASK |
 					 DP_TRAIN_PRE_EMPHASIS_MASK);
 
-	return translate_signal_level(signal_levels);
+	return translate_signal_level(intel_dp, signal_levels);
 }
 
 u32 bxt_signal_levels(struct intel_dp *intel_dp)
@@ -3743,7 +3745,7 @@ static void intel_enable_ddi(struct intel_atomic_state *state,
 			     const struct intel_crtc_state *crtc_state,
 			     const struct drm_connector_state *conn_state)
 {
-	WARN_ON(crtc_state->has_pch_encoder);
+	drm_WARN_ON(state->base.dev, crtc_state->has_pch_encoder);
 
 	intel_ddi_enable_transcoder_func(encoder, crtc_state);
 
@@ -3856,7 +3858,7 @@ intel_ddi_update_prepare(struct intel_atomic_state *state,
 		crtc ? intel_atomic_get_new_crtc_state(state, crtc) : NULL;
 	int required_lanes = crtc_state ? crtc_state->lane_count : 1;
 
-	WARN_ON(crtc && crtc->active);
+	drm_WARN_ON(state->base.dev, crtc && crtc->active);
 
 	intel_tc_port_get_link(enc_to_dig_port(encoder),
 		               required_lanes);
