@@ -218,7 +218,7 @@ struct rkisp1_resizer {
 	struct media_pad pads[RKISP1_ISP_PAD_MAX];
 	struct v4l2_subdev_pad_config pad_cfg[RKISP1_ISP_PAD_MAX];
 	const struct rkisp1_rsz_config *config;
-	enum v4l2_pixel_encoding fmt_type;
+	enum v4l2_pixel_encoding pixel_enc;
 	struct mutex ops_lock;
 };
 
@@ -271,7 +271,7 @@ struct rkisp1_device {
  */
 struct rkisp1_isp_mbus_info {
 	u32 mbus_code;
-	enum v4l2_pixel_encoding fmt_type;
+	enum v4l2_pixel_encoding pixel_enc;
 	u32 mipi_dt;
 	u32 yuv_seq;
 	u8 bus_width;
