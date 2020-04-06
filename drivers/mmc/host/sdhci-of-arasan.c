@@ -88,6 +88,17 @@ struct sdhci_arasan_soc_ctl_map {
 };
 
 /**
+ * struct sdhci_arasan_clk_ops - Clock Operations for Arasan SD controller
+ *
+ * @sdcardclk_ops:	The output clock related operations
+ * @sampleclk_ops:	The sample clock related operations
+ */
+struct sdhci_arasan_clk_ops {
+	const struct clk_ops *sdcardclk_ops;
+	const struct clk_ops *sampleclk_ops;
+};
+
+/**
  * struct sdhci_arasan_clk_data
  * @sdcardclk_hw:	Struct for the clock we might provide to a PHY.
  * @sdcardclk:		Pointer to normal 'struct clock' for sdcardclk_hw.
@@ -120,6 +131,7 @@ struct sdhci_arasan_zynqmp_clk_data {
  * @phy:		Pointer to the generic phy
  * @is_phy_on:		True if the PHY is on; false if not.
  * @clk_data:		Struct for the Arasan Controller Clock Data.
+ * @clk_ops:		Struct for the Arasan Controller Clock Operations.
  * @soc_ctl_base:	Pointer to regmap for syscon for soc_ctl registers.
  * @soc_ctl_map:	Map to get offsets into soc_ctl registers.
  */
@@ -131,6 +143,7 @@ struct sdhci_arasan_data {
 
 	bool		has_cqe;
 	struct sdhci_arasan_clk_data clk_data;
+	const struct sdhci_arasan_clk_ops *clk_ops;
 
 	struct regmap	*soc_ctl_base;
 	const struct sdhci_arasan_soc_ctl_map *soc_ctl_map;
@@ -146,6 +159,7 @@ struct sdhci_arasan_data {
 struct sdhci_arasan_of_data {
 	const struct sdhci_arasan_soc_ctl_map *soc_ctl_map;
 	const struct sdhci_pltfm_data *pdata;
+	const struct sdhci_arasan_clk_ops *clk_ops;
 };
 
 static const struct sdhci_arasan_soc_ctl_map rk3399_soc_ctl_map = {
@@ -1080,23 +1094,32 @@ static const struct sdhci_pltfm_data sdhci_arasan_pdata = {
 			SDHCI_QUIRK2_STOP_WITH_TC,
 };
 
+static const struct sdhci_arasan_clk_ops arasan_clk_ops = {
+	.sdcardclk_ops = &arasan_sdcardclk_ops,
+	.sampleclk_ops = &arasan_sampleclk_ops,
+};
+
 static struct sdhci_arasan_of_data sdhci_arasan_generic_data = {
 	.pdata = &sdhci_arasan_pdata,
+	.clk_ops = &arasan_clk_ops,
 };
 
 static struct sdhci_arasan_of_data sdhci_arasan_rk3399_data = {
 	.soc_ctl_map = &rk3399_soc_ctl_map,
 	.pdata = &sdhci_arasan_cqe_pdata,
+	.clk_ops = &arasan_clk_ops,
 };
 
 static struct sdhci_arasan_of_data intel_lgm_emmc_data = {
 	.soc_ctl_map = &intel_lgm_emmc_soc_ctl_map,
 	.pdata = &sdhci_arasan_cqe_pdata,
+	.clk_ops = &arasan_clk_ops,
 };
 
 static struct sdhci_arasan_of_data intel_lgm_sdxc_data = {
 	.soc_ctl_map = &intel_lgm_sdxc_soc_ctl_map,
 	.pdata = &sdhci_arasan_cqe_pdata,
+	.clk_ops = &arasan_clk_ops,
 };
 
 static const struct sdhci_pltfm_data sdhci_arasan_zynqmp_pdata = {
@@ -1106,12 +1129,24 @@ static const struct sdhci_pltfm_data sdhci_arasan_zynqmp_pdata = {
 			SDHCI_QUIRK2_STOP_WITH_TC,
 };
 
+static const struct sdhci_arasan_clk_ops zynqmp_clk_ops = {
+	.sdcardclk_ops = &zynqmp_sdcardclk_ops,
+	.sampleclk_ops = &zynqmp_sampleclk_ops,
+};
+
 static struct sdhci_arasan_of_data sdhci_arasan_zynqmp_data = {
 	.pdata = &sdhci_arasan_zynqmp_pdata,
+	.clk_ops = &zynqmp_clk_ops,
+};
+
+static const struct sdhci_arasan_clk_ops versal_clk_ops = {
+	.sdcardclk_ops = &versal_sdcardclk_ops,
+	.sampleclk_ops = &versal_sampleclk_ops,
 };
 
 static struct sdhci_arasan_of_data sdhci_arasan_versal_data = {
 	.pdata = &sdhci_arasan_zynqmp_pdata,
+	.clk_ops = &versal_clk_ops,
 };
 
 static const struct of_device_id sdhci_arasan_of_match[] = {
@@ -1187,12 +1222,7 @@ sdhci_arasan_register_sdcardclk(struct sdhci_arasan_data *sdhci_arasan,
 	sdcardclk_init.parent_names = &parent_clk_name;
 	sdcardclk_init.num_parents = 1;
 	sdcardclk_init.flags = CLK_GET_RATE_NOCACHE;
-	if (of_device_is_compatible(np, "xlnx,zynqmp-8.9a"))
-		sdcardclk_init.ops = &zynqmp_sdcardclk_ops;
-	else if (of_device_is_compatible(np, "xlnx,versal-8.9a"))
-		sdcardclk_init.ops = &versal_sdcardclk_ops;
-	else
-		sdcardclk_init.ops = &arasan_sdcardclk_ops;
+	sdcardclk_init.ops = sdhci_arasan->clk_ops->sdcardclk_ops;
 
 	clk_data->sdcardclk_hw.init = &sdcardclk_init;
 	clk_data->sdcardclk =
@@ -1241,12 +1271,7 @@ sdhci_arasan_register_sampleclk(struct sdhci_arasan_data *sdhci_arasan,
 	sampleclk_init.parent_names = &parent_clk_name;
 	sampleclk_init.num_parents = 1;
 	sampleclk_init.flags = CLK_GET_RATE_NOCACHE;
-	if (of_device_is_compatible(np, "xlnx,zynqmp-8.9a"))
-		sampleclk_init.ops = &zynqmp_sampleclk_ops;
-	else if (of_device_is_compatible(np, "xlnx,versal-8.9a"))
-		sampleclk_init.ops = &versal_sampleclk_ops;
-	else
-		sampleclk_init.ops = &arasan_sampleclk_ops;
+	sampleclk_init.ops = sdhci_arasan->clk_ops->sampleclk_ops;
 
 	clk_data->sampleclk_hw.init = &sampleclk_init;
 	clk_data->sampleclk =
@@ -1394,6 +1419,7 @@ static int sdhci_arasan_probe(struct platform_device *pdev)
 	sdhci_arasan->host = host;
 
 	sdhci_arasan->soc_ctl_map = data->soc_ctl_map;
+	sdhci_arasan->clk_ops = data->clk_ops;
 
 	node = of_parse_phandle(pdev->dev.of_node, "arasan,soc-ctl-syscon", 0);
 	if (node) {
