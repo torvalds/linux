@@ -427,7 +427,7 @@ static void pnv_comp_attach_table_group(struct npu_comp *npucomp,
 
 struct iommu_table_group *pnv_try_setup_npu_table_group(struct pnv_ioda_pe *pe)
 {
-	struct iommu_table_group *table_group;
+	struct iommu_table_group *compound_group;
 	struct npu_comp *npucomp;
 	struct pci_dev *gpdev = NULL;
 	struct pci_controller *hose;
@@ -446,36 +446,32 @@ struct iommu_table_group *pnv_try_setup_npu_table_group(struct pnv_ioda_pe *pe)
 	hose = pci_bus_to_host(npdev->bus);
 
 	if (hose->npu) {
-		table_group = &hose->npu->npucomp.table_group;
-
-		if (!table_group->group) {
-			table_group->ops = &pnv_npu_peers_ops;
-			iommu_register_group(table_group,
-					hose->global_number,
-					pe->pe_number);
-		}
+		/* P9 case: compound group is per-NPU (all gpus, all links) */
+		npucomp = &hose->npu->npucomp;
 	} else {
-		/* Create a group for 1 GPU and attached NPUs for POWER8 */
-		pe->npucomp = kzalloc(sizeof(*pe->npucomp), GFP_KERNEL);
-		table_group = &pe->npucomp->table_group;
-		table_group->ops = &pnv_npu_peers_ops;
-		iommu_register_group(table_group, hose->global_number,
-				pe->pe_number);
+		/* P8 case: Compound group is per-GPU (1 gpu, 2 links) */
+		npucomp = pe->npucomp = kzalloc(sizeof(*npucomp), GFP_KERNEL);
 	}
 
-	/* Steal capabilities from a GPU PE */
-	table_group->max_dynamic_windows_supported =
-		pe->table_group.max_dynamic_windows_supported;
-	table_group->tce32_start = pe->table_group.tce32_start;
-	table_group->tce32_size = pe->table_group.tce32_size;
-	table_group->max_levels = pe->table_group.max_levels;
-	if (!table_group->pgsizes)
-		table_group->pgsizes = pe->table_group.pgsizes;
+	compound_group = &npucomp->table_group;
+	if (!compound_group->group) {
+		compound_group->ops = &pnv_npu_peers_ops;
+		iommu_register_group(compound_group, hose->global_number,
+				pe->pe_number);
 
-	npucomp = container_of(table_group, struct npu_comp, table_group);
+		/* Steal capabilities from a GPU PE */
+		compound_group->max_dynamic_windows_supported =
+			pe->table_group.max_dynamic_windows_supported;
+		compound_group->tce32_start = pe->table_group.tce32_start;
+		compound_group->tce32_size = pe->table_group.tce32_size;
+		compound_group->max_levels = pe->table_group.max_levels;
+		if (!compound_group->pgsizes)
+			compound_group->pgsizes = pe->table_group.pgsizes;
+	}
+
 	pnv_comp_attach_table_group(npucomp, pe);
 
-	return table_group;
+	return compound_group;
 }
 
 struct iommu_table_group *pnv_npu_compound_attach(struct pnv_ioda_pe *pe)
