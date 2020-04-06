@@ -850,7 +850,8 @@ static int prp_enum_mbus_code(struct v4l2_subdev *sd,
 	if (code->pad >= PRPENCVF_NUM_PADS)
 		return -EINVAL;
 
-	return imx_media_enum_ipu_format(&code->code, code->index, CS_SEL_ANY);
+	return imx_media_enum_ipu_format(&code->code, code->index,
+					 CS_SEL_YUV_RGB);
 }
 
 static int prp_get_fmt(struct v4l2_subdev *sd,
@@ -885,12 +886,12 @@ static void prp_try_fmt(struct prp_priv *priv,
 {
 	struct v4l2_mbus_framefmt *infmt;
 
-	*cc = imx_media_find_ipu_format(sdformat->format.code, CS_SEL_ANY);
+	*cc = imx_media_find_ipu_format(sdformat->format.code, CS_SEL_YUV_RGB);
 	if (!*cc) {
 		u32 code;
 
-		imx_media_enum_ipu_format(&code, 0, CS_SEL_ANY);
-		*cc = imx_media_find_ipu_format(code, CS_SEL_ANY);
+		imx_media_enum_ipu_format(&code, 0, CS_SEL_YUV_RGB);
+		*cc = imx_media_find_ipu_format(code, CS_SEL_YUV_RGB);
 		sdformat->format.code = (*cc)->codes[0];
 	}
 
