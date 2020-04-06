@@ -16,8 +16,6 @@
 #include "traces.h"
 #include "hif_tx_mib.h"
 
-#define WFX_INVALID_RATE_ID    15
-
 static int wfx_get_hw_rate(struct wfx_dev *wdev,
 			   const struct ieee80211_tx_rate *rate)
 {
@@ -117,7 +115,7 @@ static int wfx_tx_policy_get(struct wfx_vif *wvif,
 	if (list_empty(&cache->free)) {
 		WARN(1, "unable to get a valid Tx policy");
 		spin_unlock_bh(&cache->lock);
-		return WFX_INVALID_RATE_ID;
+		return HIF_TX_RETRY_POLICY_INVALID;
 	}
 	idx = wfx_tx_policy_find(cache, &wanted);
 	if (idx >= 0) {
@@ -146,7 +144,7 @@ static void wfx_tx_policy_put(struct wfx_vif *wvif, int idx)
 	int usage, locked;
 	struct tx_policy_cache *cache = &wvif->tx_policy_cache;
 
-	if (idx == WFX_INVALID_RATE_ID)
+	if (idx == HIF_TX_RETRY_POLICY_INVALID)
 		return;
 	spin_lock_bh(&cache->lock);
 	locked = list_empty(&cache->free);
@@ -164,11 +162,11 @@ static int wfx_tx_policy_upload(struct wfx_vif *wvif)
 
 	do {
 		spin_lock_bh(&wvif->tx_policy_cache.lock);
-		for (i = 0; i < HIF_MIB_NUM_TX_RATE_RETRY_POLICIES; ++i)
+		for (i = 0; i < HIF_TX_RETRY_POLICY_MAX; ++i)
 			if (!policies[i].uploaded &&
 			    memzcmp(policies[i].rates, sizeof(policies[i].rates)))
 				break;
-		if (i < HIF_MIB_NUM_TX_RATE_RETRY_POLICIES) {
+		if (i < HIF_TX_RETRY_POLICY_MAX) {
 			policies[i].uploaded = true;
 			memcpy(tmp_rates, policies[i].rates, sizeof(tmp_rates));
 			spin_unlock_bh(&wvif->tx_policy_cache.lock);
@@ -176,7 +174,7 @@ static int wfx_tx_policy_upload(struct wfx_vif *wvif)
 		} else {
 			spin_unlock_bh(&wvif->tx_policy_cache.lock);
 		}
-	} while (i < HIF_MIB_NUM_TX_RATE_RETRY_POLICIES);
+	} while (i < HIF_TX_RETRY_POLICY_MAX);
 	return 0;
 }
 
@@ -200,7 +198,7 @@ void wfx_tx_policy_init(struct wfx_vif *wvif)
 	INIT_LIST_HEAD(&cache->used);
 	INIT_LIST_HEAD(&cache->free);
 
-	for (i = 0; i < HIF_MIB_NUM_TX_RATE_RETRY_POLICIES; ++i)
+	for (i = 0; i < HIF_TX_RETRY_POLICY_MAX; ++i)
 		list_add(&cache->cache[i].link, &cache->free);
 }
 
@@ -308,7 +306,7 @@ static u8 wfx_tx_get_rate_id(struct wfx_vif *wvif,
 
 	rate_id = wfx_tx_policy_get(wvif,
 				    tx_info->driver_rates, &tx_policy_renew);
-	if (rate_id == WFX_INVALID_RATE_ID)
+	if (rate_id == HIF_TX_RETRY_POLICY_INVALID)
 		dev_warn(wvif->wdev->dev, "unable to get a valid Tx policy");
 
 	if (tx_policy_renew) {

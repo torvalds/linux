@@ -500,7 +500,8 @@ struct hif_mib_tx_rate_retry_policy {
 	u8    rates[12];
 } __packed;
 
-#define HIF_MIB_NUM_TX_RATE_RETRY_POLICIES    15
+#define HIF_TX_RETRY_POLICY_MAX        15
+#define HIF_TX_RETRY_POLICY_INVALID    HIF_TX_RETRY_POLICY_MAX
 
 struct hif_mib_set_tx_rate_retry_policy {
 	u8    num_tx_rate_policies;
