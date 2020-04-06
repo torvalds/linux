@@ -469,6 +469,12 @@ struct iommu_table_group *pnv_try_setup_npu_table_group(struct pnv_ioda_pe *pe)
 			compound_group->pgsizes = pe->table_group.pgsizes;
 	}
 
+	/*
+	 * The gpu would have been added to the iommu group that's created
+	 * for the PE. Pull it out now.
+	 */
+	iommu_del_device(&gpdev->dev);
+
        /*
 	* I'm not sure this is strictly required, but it's probably a good idea
 	* since the table_group for the PE is going to be attached to the
@@ -478,7 +484,9 @@ struct iommu_table_group *pnv_try_setup_npu_table_group(struct pnv_ioda_pe *pe)
 	*/
 	iommu_group_put(pe->table_group.group);
 
+	/* now put the GPU into the compound group */
 	pnv_comp_attach_table_group(npucomp, pe);
+	iommu_add_device(compound_group, &gpdev->dev);
 
 	return compound_group;
 }
