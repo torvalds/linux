@@ -195,6 +195,7 @@ int i915_request_await_active(struct i915_request *rq,
 			      unsigned int flags);
 #define I915_ACTIVE_AWAIT_EXCL BIT(0)
 #define I915_ACTIVE_AWAIT_ACTIVE BIT(1)
+#define I915_ACTIVE_AWAIT_BARRIER BIT(2)
 
 int i915_active_acquire(struct i915_active *ref);
 bool i915_active_acquire_if_busy(struct i915_active *ref);

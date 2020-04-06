@@ -542,35 +542,88 @@ static int __await_active(struct i915_active_fence *active,
 	return 0;
 }
 
+struct wait_barrier {
+	struct wait_queue_entry base;
+	struct i915_active *ref;
+};
+
+static int
+barrier_wake(wait_queue_entry_t *wq, unsigned int mode, int flags, void *key)
+{
+	struct wait_barrier *wb = container_of(wq, typeof(*wb), base);
+
+	if (i915_active_is_idle(wb->ref)) {
+		list_del(&wq->entry);
+		i915_sw_fence_complete(wq->private);
+		kfree(wq);
+	}
+
+	return 0;
+}
+
+static int __await_barrier(struct i915_active *ref, struct i915_sw_fence *fence)
+{
+	struct wait_barrier *wb;
+
+	wb = kmalloc(sizeof(*wb), GFP_KERNEL);
+	if (unlikely(!wb))
+		return -ENOMEM;
+
+	GEM_BUG_ON(i915_active_is_idle(ref));
+	if (!i915_sw_fence_await(fence)) {
+		kfree(wb);
+		return -EINVAL;
+	}
+
+	wb->base.flags = 0;
+	wb->base.func = barrier_wake;
+	wb->base.private = fence;
+	wb->ref = ref;
+
+	add_wait_queue(__var_waitqueue(ref), &wb->base);
+	return 0;
+}
+
 static int await_active(struct i915_active *ref,
 			unsigned int flags,
 			int (*fn)(void *arg, struct dma_fence *fence),
-			void *arg)
+			void *arg, struct i915_sw_fence *barrier)
 {
 	int err = 0;
+
+	if (!i915_active_acquire_if_busy(ref))
+		return 0;
 
 	if (flags & I915_ACTIVE_AWAIT_EXCL &&
 	    rcu_access_pointer(ref->excl.fence)) {
 		err = __await_active(&ref->excl, fn, arg);
 		if (err)
-			return err;
+			goto out;
 	}
 
-	if (flags & I915_ACTIVE_AWAIT_ACTIVE &&
-	    i915_active_acquire_if_busy(ref)) {
+	if (flags & I915_ACTIVE_AWAIT_ACTIVE) {
 		struct active_node *it, *n;
 
 		rbtree_postorder_for_each_entry_safe(it, n, &ref->tree, node) {
 			err = __await_active(&it->base, fn, arg);
 			if (err)
-				break;
+				goto out;
 		}
-		i915_active_release(ref);
-		if (err)
-			return err;
 	}
 
-	return 0;
+	if (flags & I915_ACTIVE_AWAIT_BARRIER) {
+		err = flush_lazy_signals(ref);
+		if (err)
+			goto out;
+
+		err = __await_barrier(ref, barrier);
+		if (err)
+			goto out;
+	}
+
+out:
+	i915_active_release(ref);
+	return err;
 }
 
 static int rq_await_fence(void *arg, struct dma_fence *fence)
@@ -582,7 +635,7 @@ int i915_request_await_active(struct i915_request *rq,
 			      struct i915_active *ref,
 			      unsigned int flags)
 {
-	return await_active(ref, flags, rq_await_fence, rq);
+	return await_active(ref, flags, rq_await_fence, rq, &rq->submit);
 }
 
 static int sw_await_fence(void *arg, struct dma_fence *fence)
@@ -595,7 +648,7 @@ int i915_sw_fence_await_active(struct i915_sw_fence *fence,
 			       struct i915_active *ref,
 			       unsigned int flags)
 {
-	return await_active(ref, flags, sw_await_fence, fence);
+	return await_active(ref, flags, sw_await_fence, fence, fence);
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)
