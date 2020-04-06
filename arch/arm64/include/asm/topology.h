@@ -28,9 +28,6 @@ void topology_scale_freq_tick(void);
 /* Replace task scheduler's default frequency-invariant accounting */
 #define arch_scale_freq_capacity topology_get_freq_scale
 
-/* Replace task scheduler's default max-frequency-invariant accounting */
-#define arch_scale_max_freq_capacity topology_get_max_freq_scale
-
 /* Replace task scheduler's default cpu-invariant accounting */
 #define arch_scale_cpu_capacity topology_get_cpu_scale
 
