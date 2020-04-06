@@ -256,9 +256,10 @@ int hv_synic_cleanup(unsigned int cpu)
 
 	/*
 	 * Search for channels which are bound to the CPU we're about to
-	 * cleanup. In case we find one and vmbus is still connected we need to
-	 * fail, this will effectively prevent CPU offlining. There is no way
-	 * we can re-bind channels to different CPUs for now.
+	 * cleanup.  In case we find one and vmbus is still connected, we
+	 * fail; this will effectively prevent CPU offlining.
+	 *
+	 * TODO: Re-bind the channels to different CPUs.
 	 */
 	mutex_lock(&vmbus_connection.channel_mutex);
 	list_for_each_entry(channel, &vmbus_connection.chn_list, listentry) {

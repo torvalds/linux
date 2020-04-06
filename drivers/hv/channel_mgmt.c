@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/completion.h>
 #include <linux/delay.h>
+#include <linux/cpu.h>
 #include <linux/hyperv.h>
 #include <asm/mshyperv.h>
 
@@ -466,12 +467,7 @@ static void vmbus_add_channel_work(struct work_struct *work)
 		container_of(work, struct vmbus_channel, add_channel_work);
 	struct vmbus_channel *primary_channel = newchannel->primary_channel;
 	unsigned long flags;
-	u16 dev_type;
 	int ret;
-
-	dev_type = hv_get_dev_type(newchannel);
-
-	init_vp_index(newchannel, dev_type);
 
 	/*
 	 * This state is used to indicate a successful open
@@ -504,7 +500,7 @@ static void vmbus_add_channel_work(struct work_struct *work)
 	if (!newchannel->device_obj)
 		goto err_deq_chan;
 
-	newchannel->device_obj->device_id = dev_type;
+	newchannel->device_obj->device_id = hv_get_dev_type(newchannel);
 	/*
 	 * Add the new device to the bus. This will kick off device-driver
 	 * binding which eventually invokes the device driver's AddDevice()
@@ -559,6 +555,25 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 	struct workqueue_struct *wq;
 	unsigned long flags;
 	bool fnew = true;
+
+	/*
+	 * Initialize the target_CPU before inserting the channel in
+	 * the chn_list and sc_list lists, within the channel_mutex
+	 * critical section:
+	 *
+	 * CPU1				CPU2
+	 *
+	 * [vmbus_process_offer()]	[hv_syninc_cleanup()]
+	 *
+	 * STORE target_cpu		LOCK channel_mutex
+	 * LOCK channel_mutex		SEARCH chn_list
+	 * INSERT chn_list		LOAD target_cpu
+	 * UNLOCK channel_mutex		UNLOCK channel_mutex
+	 *
+	 * Forbids: CPU2's SEARCH from seeing CPU1's INSERT &&
+	 * 		CPU2's LOAD from *not* seing CPU1's STORE
+	 */
+	init_vp_index(newchannel, hv_get_dev_type(newchannel));
 
 	mutex_lock(&vmbus_connection.channel_mutex);
 
@@ -656,7 +671,7 @@ static DEFINE_SPINLOCK(bind_channel_to_cpu_lock);
  * channel interrupt load by binding a channel to VCPU.
  *
  * For pre-win8 hosts or non-performance critical channels we assign the
- * first CPU in the first NUMA node.
+ * VMBUS_CONNECT_CPU.
  *
  * Starting with win8, performance critical channels will be distributed
  * evenly among all the available NUMA nodes.  Once the node is assigned,
@@ -675,16 +690,21 @@ static void init_vp_index(struct vmbus_channel *channel, u16 dev_type)
 	    !alloc_cpumask_var(&available_mask, GFP_KERNEL)) {
 		/*
 		 * Prior to win8, all channel interrupts are
-		 * delivered on cpu 0.
+		 * delivered on VMBUS_CONNECT_CPU.
 		 * Also if the channel is not a performance critical
-		 * channel, bind it to cpu 0.
-		 * In case alloc_cpumask_var() fails, bind it to cpu 0.
+		 * channel, bind it to VMBUS_CONNECT_CPU.
+		 * In case alloc_cpumask_var() fails, bind it to
+		 * VMBUS_CONNECT_CPU.
 		 */
-		channel->numa_node = 0;
-		channel->target_cpu = 0;
-		channel->target_vp = hv_cpu_number_to_vp_number(0);
+		channel->numa_node = cpu_to_node(VMBUS_CONNECT_CPU);
+		channel->target_cpu = VMBUS_CONNECT_CPU;
+		channel->target_vp =
+			hv_cpu_number_to_vp_number(VMBUS_CONNECT_CPU);
 		return;
 	}
+
+	/* No CPUs can come up or down during this. */
+	cpus_read_lock();
 
 	/*
 	 * Serializes the accesses to the global variable next_numa_node_id.
@@ -723,6 +743,7 @@ static void init_vp_index(struct vmbus_channel *channel, u16 dev_type)
 	channel->target_vp = hv_cpu_number_to_vp_number(target_cpu);
 
 	spin_unlock(&bind_channel_to_cpu_lock);
+	cpus_read_unlock();
 
 	free_cpumask_var(available_mask);
 }
