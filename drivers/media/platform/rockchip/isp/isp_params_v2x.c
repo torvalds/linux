@@ -3992,36 +3992,17 @@ static void rkisp_clear_first_param_v2x(struct rkisp_isp_params_vdev *params_vde
 	params_vdev->isp2x_params.module_en_update = 0;
 }
 
-static int rkisp_get_isp_fmt(struct rkisp_isp_params_vdev *params_vdev,
-			     struct v4l2_subdev_format *fmt)
-{
-	struct rkisp_device *dev = params_vdev->dev;
-	int ret;
-
-	/* get isp in format */
-	fmt->pad = RKISP_ISP_PAD_SINK;
-	fmt->which = V4L2_SUBDEV_FORMAT_ACTIVE;
-	ret =  v4l2_subdev_call(&dev->isp_sdev.sd, pad, get_fmt, NULL, fmt);
-	return ret;
-}
-
 static void
 rkisp_get_param_size_v2x(struct rkisp_isp_params_vdev *params_vdev,
 			 unsigned int sizes[])
 {
 	struct rkisp_device *dev = params_vdev->dev;
 	struct rkisp_isp_params_val_v2x *priv_val;
-	struct v4l2_subdev_format fmt;
 	u32 width, height;
 	int i, ret;
 
-	ret = rkisp_get_isp_fmt(params_vdev, &fmt);
-	if (ret) {
-		dev_err(dev->dev, "get format fail\n");
-		return;
-	}
-	width = (fmt.format.width + 15) / 16 + 1;
-	height = (fmt.format.height + 7) / 8 + 1;
+	width = (dev->isp_sdev.in_crop.width + 15) / 16 + 1;
+	height = (dev->isp_sdev.in_crop.height + 7) / 8 + 1;
 
 	sizes[0] = sizeof(struct isp2x_isp_params_cfg) + 2 * width * height;
 

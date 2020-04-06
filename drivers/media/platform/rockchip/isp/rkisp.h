@@ -94,7 +94,7 @@ enum rkisp_isp_pad {
  * struct rkisp_isp_subdev - ISP sub-device
  *
  * See Cropping regions of ISP in rkisp.c for details
- * @in_frm: input size, don't have to be equal to sensor size
+ * @in_frm: input size, equal to sensor size
  * @in_fmt: intput format
  * @in_crop: crop for sink pad
  * @out_fmt: output format
@@ -142,6 +142,9 @@ void rkisp_isp_isr(unsigned int isp_mis, unsigned int isp3a_mis,
 		   struct rkisp_device *dev);
 
 irqreturn_t rkisp_vs_isr_handler(int irq, void *ctx);
+
+int rkisp_align_sensor_resolution(struct rkisp_device *dev,
+				  struct v4l2_rect *crop, bool user);
 
 struct media_pad *rkisp_media_entity_remote_pad(struct media_pad *pad);
 

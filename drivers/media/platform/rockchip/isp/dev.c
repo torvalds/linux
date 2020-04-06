@@ -324,63 +324,38 @@ static int _set_pipeline_default_fmt(struct rkisp_device *dev)
 	struct v4l2_subdev *isp;
 	struct v4l2_subdev_format fmt;
 	struct v4l2_subdev_selection sel;
-	struct v4l2_subdev_pad_config cfg;
-	u32 width, height;
-	u32 ori_width, ori_height, ori_code;
+	u32 width, height, code;
 
 	isp = &dev->isp_sdev.sd;
 
 	fmt = dev->active_sensor->fmt[0];
+	code = fmt.format.code;
+	fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+	fmt.pad = RKISP_ISP_PAD_SINK;
+	/* isp input format information from sensor */
+	v4l2_subdev_call(isp, pad, set_fmt, NULL, &fmt);
 
-	if (dev->isp_ver == ISP_V12) {
-		fmt.format.width  = clamp_t(u32, fmt.format.width,
-					CIF_ISP_INPUT_W_MIN,
-					CIF_ISP_INPUT_W_MAX_V12);
-		fmt.format.height = clamp_t(u32, fmt.format.height,
-					CIF_ISP_INPUT_H_MIN,
-					CIF_ISP_INPUT_H_MAX_V12);
-	} else if (dev->isp_ver == ISP_V13) {
-		fmt.format.width  = clamp_t(u32, fmt.format.width,
-					CIF_ISP_INPUT_W_MIN,
-					CIF_ISP_INPUT_W_MAX_V13);
-		fmt.format.height = clamp_t(u32, fmt.format.height,
-					CIF_ISP_INPUT_H_MIN,
-					CIF_ISP_INPUT_H_MAX_V13);
-	} else {
-		fmt.format.width  = clamp_t(u32, fmt.format.width,
-					CIF_ISP_INPUT_W_MIN,
-					CIF_ISP_INPUT_W_MAX);
-		fmt.format.height = clamp_t(u32, fmt.format.height,
-					CIF_ISP_INPUT_H_MIN,
-					CIF_ISP_INPUT_H_MAX);
-	}
+	rkisp_align_sensor_resolution(dev, &sel.r, false);
+	width = sel.r.width;
+	height = sel.r.height;
+	sel.target = V4L2_SEL_TGT_CROP;
+	sel.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+	sel.pad = RKISP_ISP_PAD_SINK;
+	/* image resolution processed by isp */
+	v4l2_subdev_call(isp, pad, set_selection, NULL, &sel);
+
+	/* change fmt&size for RKISP_ISP_PAD_SOURCE_PATH */
+	if ((code & RKISP_MEDIA_BUS_FMT_MASK) == RKISP_MEDIA_BUS_FMT_BAYER)
+		fmt.format.code = MEDIA_BUS_FMT_YUYV8_2X8;
 
 	sel.r.left = 0;
 	sel.r.top = 0;
-	width = fmt.format.width;
-	height = fmt.format.height;
-	sel.r.width = fmt.format.width;
-	sel.r.height = fmt.format.height;
-	sel.target = V4L2_SEL_TGT_CROP;
-	sel.which = V4L2_SUBDEV_FORMAT_ACTIVE;
-	fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
-	memset(&cfg, 0, sizeof(cfg));
-
-	/* change fmt&size for RKISP_ISP_PAD_SINK */
-	fmt.pad = RKISP_ISP_PAD_SINK;
-	sel.pad = RKISP_ISP_PAD_SINK;
-	v4l2_subdev_call(isp, pad, set_fmt, &cfg, &fmt);
-	v4l2_subdev_call(isp, pad, set_selection, &cfg, &sel);
-
-	/* change fmt&size for RKISP_ISP_PAD_SOURCE_PATH */
-	if ((fmt.format.code & RKISP_MEDIA_BUS_FMT_MASK) ==
-	    RKISP_MEDIA_BUS_FMT_BAYER)
-		fmt.format.code = MEDIA_BUS_FMT_YUYV8_2X8;
-
+	fmt.format.width = width;
+	fmt.format.height = height;
 	fmt.pad = RKISP_ISP_PAD_SOURCE_PATH;
 	sel.pad = RKISP_ISP_PAD_SOURCE_PATH;
-	v4l2_subdev_call(isp, pad, set_fmt, &cfg, &fmt);
-	v4l2_subdev_call(isp, pad, set_selection, &cfg, &sel);
+	v4l2_subdev_call(isp, pad, set_fmt, NULL, &fmt);
+	v4l2_subdev_call(isp, pad, set_selection, NULL, &sel);
 
 	/* change fmt&size of MP/SP */
 	rkisp_set_stream_def_fmt(dev, RKISP_STREAM_MP,
@@ -392,27 +367,24 @@ static int _set_pipeline_default_fmt(struct rkisp_device *dev)
 	     dev->isp_ver == ISP_V13 ||
 	     dev->isp_ver == ISP_V20) &&
 	    dev->active_sensor->mbus.type == V4L2_MBUS_CSI2) {
-		ori_width = dev->active_sensor->fmt[1].format.width;
-		ori_height = dev->active_sensor->fmt[1].format.height;
-		ori_code = dev->active_sensor->fmt[1].format.code;
+		width = dev->active_sensor->fmt[1].format.width;
+		height = dev->active_sensor->fmt[1].format.height;
+		code = dev->active_sensor->fmt[1].format.code;
 		rkisp_set_stream_def_fmt(dev, RKISP_STREAM_DMATX0,
-			ori_width, ori_height,
-			rkisp_mbus_pixelcode_to_v4l2(ori_code));
+			width, height, rkisp_mbus_pixelcode_to_v4l2(code));
 	}
 	if (dev->isp_ver == ISP_V20 &&
 	    dev->active_sensor->mbus.type == V4L2_MBUS_CSI2) {
-		ori_width = dev->active_sensor->fmt[2].format.width;
-		ori_height = dev->active_sensor->fmt[2].format.height;
-		ori_code = dev->active_sensor->fmt[2].format.code;
+		width = dev->active_sensor->fmt[2].format.width;
+		height = dev->active_sensor->fmt[2].format.height;
+		code = dev->active_sensor->fmt[2].format.code;
 		rkisp_set_stream_def_fmt(dev, RKISP_STREAM_DMATX1,
-			ori_width, ori_height,
-			rkisp_mbus_pixelcode_to_v4l2(ori_code));
-		ori_width = dev->active_sensor->fmt[3].format.width;
-		ori_height = dev->active_sensor->fmt[3].format.height;
-		ori_code = dev->active_sensor->fmt[3].format.code;
+			width, height, rkisp_mbus_pixelcode_to_v4l2(code));
+		width = dev->active_sensor->fmt[3].format.width;
+		height = dev->active_sensor->fmt[3].format.height;
+		code = dev->active_sensor->fmt[3].format.code;
 		rkisp_set_stream_def_fmt(dev, RKISP_STREAM_DMATX2,
-			ori_width, ori_height,
-			rkisp_mbus_pixelcode_to_v4l2(ori_code));
+			width, height, rkisp_mbus_pixelcode_to_v4l2(code));
 	}
 	return 0;
 }

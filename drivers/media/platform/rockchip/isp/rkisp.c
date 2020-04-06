@@ -63,17 +63,17 @@
  * Cropping regions of ISP
  *
  * +---------------------------------------------------------+
- * | Sensor image                                            |
+ * | Sensor image/ISP in_frm                                 |
  * | +---------------------------------------------------+   |
  * | | ISP_ACQ (for black level)                         |   |
- * | | in_frm                                            |   |
+ * | | in_crop                                           |   |
  * | | +--------------------------------------------+    |   |
- * | | |    ISP_OUT                                 |    |   |
- * | | |    in_crop                                 |    |   |
- * | | |    +---------------------------------+     |    |   |
- * | | |    |   ISP_IS                        |     |    |   |
- * | | |    |   rkisp_isp_subdev: out_crop    |     |    |   |
- * | | |    +---------------------------------+     |    |   |
+ * | | |    ISP_IS                                  |    |   |
+ * | | |    rkisp_isp_subdev: out_crop              |    |   |
+ * | | |                                            |    |   |
+ * | | |                                            |    |   |
+ * | | |                                            |    |   |
+ * | | |                                            |    |   |
  * | | +--------------------------------------------+    |   |
  * | +---------------------------------------------------+   |
  * +---------------------------------------------------------+
@@ -162,6 +162,127 @@ static struct rkisp_sensor_info *sd_to_sensor(struct rkisp_device *dev,
 			return &dev->sensors[i];
 
 	return NULL;
+}
+
+int rkisp_align_sensor_resolution(struct rkisp_device *dev,
+				  struct v4l2_rect *crop, bool user)
+{
+	struct v4l2_subdev *sensor = NULL;
+	struct v4l2_subdev_selection sel;
+	u32 code = dev->isp_sdev.in_frm.code;
+	u32 src_w = dev->isp_sdev.in_frm.width;
+	u32 src_h = dev->isp_sdev.in_frm.height;
+	u32 dest_w, dest_h, w, h;
+	int ret = 0;
+
+	if (!crop)
+		return -EINVAL;
+
+	if (dev->isp_ver == ISP_V12) {
+		w = clamp_t(u32, src_w,
+			    CIF_ISP_INPUT_W_MIN,
+			    CIF_ISP_INPUT_W_MAX_V12);
+		h = clamp_t(u32, src_h,
+			    CIF_ISP_INPUT_H_MIN,
+			    CIF_ISP_INPUT_H_MAX_V12);
+	} else if (dev->isp_ver == ISP_V13) {
+		w = clamp_t(u32, src_w,
+			    CIF_ISP_INPUT_W_MIN,
+			    CIF_ISP_INPUT_W_MAX_V13);
+		h = clamp_t(u32, src_h,
+			    CIF_ISP_INPUT_H_MIN,
+			    CIF_ISP_INPUT_H_MAX_V13);
+	} else {
+		w  = clamp_t(u32, src_w,
+			     CIF_ISP_INPUT_W_MIN,
+			     CIF_ISP_INPUT_W_MAX);
+		h = clamp_t(u32, src_h,
+			    CIF_ISP_INPUT_H_MIN,
+			    CIF_ISP_INPUT_H_MAX);
+	}
+
+	if (dev->active_sensor)
+		sensor = dev->active_sensor->sd;
+	if (sensor) {
+		/* crop info from sensor */
+		sel.pad = 0;
+		sel.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+		sel.target = V4L2_SEL_TGT_CROP;
+		/* crop by sensor, isp don't input crop */
+		ret = v4l2_subdev_call(sensor, pad, get_selection, NULL, &sel);
+		if (!ret && !user) {
+			crop->left = 0;
+			crop->top = 0;
+			crop->width = clamp_t(u32, sel.r.width,
+				CIF_ISP_INPUT_W_MIN, w);
+			crop->height = clamp_t(u32, sel.r.height,
+				CIF_ISP_INPUT_H_MIN, h);
+			return 0;
+		}
+
+		if (ret) {
+			sel.target = V4L2_SEL_TGT_CROP_BOUNDS;
+			/* only crop bounds, want to isp to do input crop */
+			ret = v4l2_subdev_call(sensor, pad, get_selection, NULL, &sel);
+			if (!ret) {
+				crop->left = ALIGN(sel.r.left, 2);
+				crop->width = ALIGN(sel.r.width, 2);
+
+				crop->left = clamp_t(u32, crop->left, 0, w);
+				crop->top = clamp_t(u32, sel.r.top, 0, h);
+				crop->width = clamp_t(u32, crop->width,
+					CIF_ISP_INPUT_W_MIN, w - crop->left);
+				crop->height = clamp_t(u32, sel.r.height,
+					CIF_ISP_INPUT_H_MIN, h - crop->top);
+				return 0;
+			}
+		}
+	}
+
+	/* crop from user */
+	if (user) {
+		crop->left = clamp_t(u32, crop->left, 0, w);
+		crop->top = clamp_t(u32, crop->top, 0, h);
+		crop->width = clamp_t(u32, crop->width,
+				CIF_ISP_INPUT_W_MIN, w - crop->left);
+		crop->height = clamp_t(u32, crop->height,
+				CIF_ISP_INPUT_H_MIN, h - crop->top);
+		if ((code & RKISP_MEDIA_BUS_FMT_MASK) == RKISP_MEDIA_BUS_FMT_BAYER &&
+		    (ALIGN_DOWN(crop->width, 16) != crop->width ||
+		     ALIGN_DOWN(crop->height, 8) != crop->height))
+			v4l2_warn(&dev->v4l2_dev,
+				  "Note: bayer raw need width 16 align, height 8 align!\n"
+				  "suggest (%d,%d)/%dx%d, specical requirements, Ignore!\n",
+				  ALIGN_DOWN(crop->left, 4), crop->top,
+				  ALIGN_DOWN(crop->width, 16), ALIGN_DOWN(crop->height, 8));
+		return 0;
+	}
+
+	/* yuv format */
+	if ((code & RKISP_MEDIA_BUS_FMT_MASK) != RKISP_MEDIA_BUS_FMT_BAYER) {
+		crop->left = 0;
+		crop->top = 0;
+		crop->width = min_t(u32, src_w, CIF_ISP_INPUT_W_MAX);
+		crop->height = min_t(u32, src_h, CIF_ISP_INPUT_H_MAX);
+		return 0;
+	}
+
+	/* bayer raw processed by isp need:
+	 * width 16 align
+	 * height 8 align
+	 * width and height no exceeding the max limit
+	 */
+	dest_w = ALIGN_DOWN(w, 16);
+	dest_h = ALIGN_DOWN(h, 8);
+
+	/* try to center of crop
+	 *4 align to no change bayer raw format
+	 */
+	crop->left = ALIGN_DOWN((src_w - dest_w) >> 1, 4);
+	crop->top = (src_h - dest_h) >> 1;
+	crop->width = dest_w;
+	crop->height = dest_h;
+	return 0;
 }
 
 struct media_pad *rkisp_media_entity_remote_pad(struct media_pad *pad)
@@ -386,7 +507,6 @@ static int rkisp_config_isp(struct rkisp_device *dev)
 {
 	struct ispsd_in_fmt *in_fmt;
 	struct ispsd_out_fmt *out_fmt;
-	struct v4l2_mbus_framefmt *in_frm;
 	struct v4l2_rect *in_crop;
 	struct rkisp_sensor_info *sensor;
 	void __iomem *base = dev->base_addr;
@@ -397,7 +517,6 @@ static int rkisp_config_isp(struct rkisp_device *dev)
 	u32 acq_prop = 0;
 
 	sensor = dev->active_sensor;
-	in_frm = &dev->isp_sdev.in_frm;
 	in_fmt = &dev->isp_sdev.in_fmt;
 	out_fmt = &dev->isp_sdev.out_fmt;
 	in_crop = &dev->isp_sdev.in_crop;
@@ -482,20 +601,20 @@ static int rkisp_config_isp(struct rkisp_device *dev)
 	writel(0, base + CIF_ISP_ACQ_NR_FRAMES);
 
 	/* Acquisition Size */
-	writel(0, base + CIF_ISP_ACQ_H_OFFS);
-	writel(0, base + CIF_ISP_ACQ_V_OFFS);
-	writel(acq_mult * in_frm->width, base + CIF_ISP_ACQ_H_SIZE);
+	writel(acq_mult * in_crop->left, base + CIF_ISP_ACQ_H_OFFS);
+	writel(in_crop->top, base + CIF_ISP_ACQ_V_OFFS);
+	writel(acq_mult * in_crop->width, base + CIF_ISP_ACQ_H_SIZE);
 
-	/* ISP Out Area */
-	writel(in_crop->left, base + CIF_ISP_OUT_H_OFFS);
-	writel(in_crop->top, base + CIF_ISP_OUT_V_OFFS);
+	/* ISP Out Area differ with ACQ is only FIFO, so don't crop in this */
+	writel(0, base + CIF_ISP_OUT_H_OFFS);
+	writel(0, base + CIF_ISP_OUT_V_OFFS);
 	writel(in_crop->width, base + CIF_ISP_OUT_H_SIZE);
 
 	if (dev->cap_dev.stream[RKISP_STREAM_SP].interlaced) {
-		writel(in_frm->height / 2, base + CIF_ISP_ACQ_V_SIZE);
+		writel(in_crop->height / 2, base + CIF_ISP_ACQ_V_SIZE);
 		writel(in_crop->height / 2, base + CIF_ISP_OUT_V_SIZE);
 	} else {
-		writel(in_frm->height, base + CIF_ISP_ACQ_V_SIZE);
+		writel(in_crop->height, base + CIF_ISP_ACQ_V_SIZE);
 		writel(in_crop->height, base + CIF_ISP_OUT_V_SIZE);
 	}
 
@@ -1103,17 +1222,21 @@ static int rkisp_isp_sd_get_fmt(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_pad_config *cfg,
 				 struct v4l2_subdev_format *fmt)
 {
-	struct v4l2_mbus_framefmt *mf = &fmt->format;
+	struct v4l2_mbus_framefmt *mf;
 	struct rkisp_isp_subdev *isp_sd = sd_to_isp_sd(sd);
+
+	if (!fmt)
+		goto err;
 
 	if (fmt->pad != RKISP_ISP_PAD_SINK &&
 	    fmt->pad != RKISP_ISP_PAD_SOURCE_PATH)
 		return -EINVAL;
 
+	mf = &fmt->format;
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
+		if (!cfg)
+			goto err;
 		mf = v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
-		fmt->format = *mf;
-		return 0;
 	}
 
 	if (fmt->pad == RKISP_ISP_PAD_SINK) {
@@ -1129,64 +1252,8 @@ static int rkisp_isp_sd_get_fmt(struct v4l2_subdev *sd,
 	mf->field = V4L2_FIELD_NONE;
 
 	return 0;
-}
-
-static void rkisp_isp_sd_try_fmt(struct v4l2_subdev *sd,
-				  unsigned int pad,
-				  struct v4l2_mbus_framefmt *fmt)
-{
-	struct rkisp_device *isp_dev = sd_to_isp_dev(sd);
-	struct rkisp_isp_subdev *isp_sd = &isp_dev->isp_sdev;
-	const struct ispsd_in_fmt *in_fmt;
-	const struct ispsd_out_fmt *out_fmt;
-
-	switch (pad) {
-	case RKISP_ISP_PAD_SINK:
-		in_fmt = find_in_fmt(fmt->code);
-		if (in_fmt)
-			fmt->code = in_fmt->mbus_code;
-		else
-			fmt->code = MEDIA_BUS_FMT_SRGGB10_1X10;
-
-		if (isp_dev->isp_ver == ISP_V12) {
-			fmt->width  = clamp_t(u32, fmt->width,
-				      CIF_ISP_INPUT_W_MIN,
-				      CIF_ISP_INPUT_W_MAX_V12);
-			fmt->height = clamp_t(u32, fmt->height,
-				      CIF_ISP_INPUT_H_MIN,
-				      CIF_ISP_INPUT_H_MAX_V12);
-		} else if (isp_dev->isp_ver == ISP_V13) {
-			fmt->width  = clamp_t(u32, fmt->width,
-				      CIF_ISP_INPUT_W_MIN,
-				      CIF_ISP_INPUT_W_MAX_V13);
-			fmt->height = clamp_t(u32, fmt->height,
-				      CIF_ISP_INPUT_H_MIN,
-				      CIF_ISP_INPUT_H_MAX_V13);
-		} else {
-			fmt->width  = clamp_t(u32, fmt->width,
-				      CIF_ISP_INPUT_W_MIN,
-				      CIF_ISP_INPUT_W_MAX);
-			fmt->height = clamp_t(u32, fmt->height,
-				      CIF_ISP_INPUT_H_MIN,
-				      CIF_ISP_INPUT_H_MAX);
-		}
-		break;
-	case RKISP_ISP_PAD_SOURCE_PATH:
-		out_fmt = find_out_fmt(fmt->code);
-		if (out_fmt)
-			fmt->code = out_fmt->mbus_code;
-		else
-			fmt->code = MEDIA_BUS_FMT_YUYV8_2X8;
-		/* window size is set in s_selection */
-		fmt->width  = isp_sd->out_crop.width;
-		fmt->height = isp_sd->out_crop.height;
-		/* full range by default */
-		if (!fmt->quantization)
-			fmt->quantization = V4L2_QUANTIZATION_FULL_RANGE;
-		break;
-	}
-
-	fmt->field = V4L2_FIELD_NONE;
+err:
+	return -EINVAL;
 }
 
 static int rkisp_isp_sd_set_fmt(struct v4l2_subdev *sd,
@@ -1195,32 +1262,46 @@ static int rkisp_isp_sd_set_fmt(struct v4l2_subdev *sd,
 {
 	struct rkisp_device *isp_dev = sd_to_isp_dev(sd);
 	struct rkisp_isp_subdev *isp_sd = &isp_dev->isp_sdev;
-	struct v4l2_mbus_framefmt *mf = &fmt->format;
+	struct v4l2_mbus_framefmt *mf;
+
+	if (!fmt)
+		goto err;
 
 	if (fmt->pad != RKISP_ISP_PAD_SINK &&
 	    fmt->pad != RKISP_ISP_PAD_SOURCE_PATH)
-		return -EINVAL;
+		goto err;
 
-	rkisp_isp_sd_try_fmt(sd, fmt->pad, mf);
-
+	mf = &fmt->format;
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
+		if (!cfg)
+			goto err;
 		mf = v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
-		fmt->format = *mf;
-		return 0;
 	}
 
 	if (fmt->pad == RKISP_ISP_PAD_SINK) {
 		const struct ispsd_in_fmt *in_fmt;
 
 		in_fmt = find_in_fmt(mf->code);
+		if (!in_fmt ||
+		    mf->width < CIF_ISP_INPUT_W_MIN ||
+		    mf->height < CIF_ISP_INPUT_H_MIN)
+			goto err;
+
 		isp_sd->in_fmt = *in_fmt;
 		isp_sd->in_frm = *mf;
 	} else if (fmt->pad == RKISP_ISP_PAD_SOURCE_PATH) {
 		const struct ispsd_out_fmt *out_fmt;
 
-		/* Ignore width/height */
 		out_fmt = find_out_fmt(mf->code);
+		if (!out_fmt)
+			goto err;
 		isp_sd->out_fmt = *out_fmt;
+		/* window size is set in s_selection */
+		mf->width  = isp_sd->out_crop.width;
+		mf->height = isp_sd->out_crop.height;
+		/* full range by default */
+		if (!mf->quantization)
+			mf->quantization = V4L2_QUANTIZATION_FULL_RANGE;
 		/*
 		 * It is quantization for output,
 		 * isp use bt601 limit-range in internal
@@ -1228,118 +1309,148 @@ static int rkisp_isp_sd_set_fmt(struct v4l2_subdev *sd,
 		isp_sd->quantization = mf->quantization;
 	}
 
+	mf->field = V4L2_FIELD_NONE;
 	return 0;
+err:
+	return -EINVAL;
 }
 
 static void rkisp_isp_sd_try_crop(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
-				  struct v4l2_subdev_selection *sel)
+				  struct v4l2_rect *crop,
+				  u32 pad)
 {
 	struct rkisp_isp_subdev *isp_sd = sd_to_isp_sd(sd);
-	struct v4l2_mbus_framefmt in_frm = isp_sd->in_frm;
+	struct rkisp_device *dev = sd_to_isp_dev(sd);
 	struct v4l2_rect in_crop = isp_sd->in_crop;
-	struct v4l2_rect *input = &sel->r;
 
-	if (sel->which == V4L2_SUBDEV_FORMAT_TRY) {
-		in_frm = *v4l2_subdev_get_try_format(sd, cfg, RKISP_ISP_PAD_SINK);
-		in_crop = *v4l2_subdev_get_try_crop(sd, cfg, RKISP_ISP_PAD_SINK);
-	}
+	crop->left = ALIGN(crop->left, 2);
+	crop->width = ALIGN(crop->width, 2);
 
-	input->left = ALIGN(input->left, 2);
-	input->width = ALIGN(input->width, 2);
-
-	if (sel->pad == RKISP_ISP_PAD_SINK) {
-		input->left = clamp_t(u32, input->left, 0, in_frm.width);
-		input->top = clamp_t(u32, input->top, 0, in_frm.height);
-		input->width = clamp_t(u32, input->width, CIF_ISP_INPUT_W_MIN,
-				in_frm.width - input->left);
-		input->height = clamp_t(u32, input->height,
-				CIF_ISP_INPUT_H_MIN,
-				in_frm.height - input->top);
-	} else if (sel->pad == RKISP_ISP_PAD_SOURCE_PATH) {
-		input->left = clamp_t(u32, input->left, 0, in_crop.width);
-		input->top = clamp_t(u32, input->top, 0, in_crop.height);
-		input->width = clamp_t(u32, input->width, CIF_ISP_OUTPUT_W_MIN,
-				in_crop.width - input->left);
-		input->height = clamp_t(u32, input->height, CIF_ISP_OUTPUT_H_MIN,
-				in_crop.height - input->top);
+	if (pad == RKISP_ISP_PAD_SINK) {
+		/* update sensor info if sensor link be changed */
+		rkisp_update_sensor_info(dev);
+		rkisp_align_sensor_resolution(dev, crop, true);
+	} else if (pad == RKISP_ISP_PAD_SOURCE_PATH) {
+		crop->left = clamp_t(u32, crop->left, 0, in_crop.width);
+		crop->top = clamp_t(u32, crop->top, 0, in_crop.height);
+		crop->width = clamp_t(u32, crop->width, CIF_ISP_OUTPUT_W_MIN,
+				in_crop.width - crop->left);
+		crop->height = clamp_t(u32, crop->height, CIF_ISP_OUTPUT_H_MIN,
+				in_crop.height - crop->top);
 	}
 }
 
 static int rkisp_isp_sd_get_selection(struct v4l2_subdev *sd,
-				       struct v4l2_subdev_pad_config *cfg,
-				       struct v4l2_subdev_selection *sel)
-{
-	struct rkisp_isp_subdev *isp_sd = sd_to_isp_sd(sd);
-
-	if (sel->pad != RKISP_ISP_PAD_SOURCE_PATH &&
-	    sel->pad != RKISP_ISP_PAD_SINK)
-		return -EINVAL;
-
-	if (sel->which == V4L2_SUBDEV_FORMAT_TRY) {
-		struct v4l2_rect *try_sel;
-
-		try_sel = v4l2_subdev_get_try_crop(sd, cfg, sel->pad);
-		sel->r = *try_sel;
-		return 0;
-	}
-
-	switch (sel->target) {
-	case V4L2_SEL_TGT_CROP_BOUNDS:
-		if (sel->pad == RKISP_ISP_PAD_SINK) {
-			sel->r.height = isp_sd->in_frm.height;
-			sel->r.width = isp_sd->in_frm.width;
-			sel->r.left = 0;
-			sel->r.top = 0;
-		} else {
-			sel->r = isp_sd->in_crop;
-		}
-		break;
-	case V4L2_SEL_TGT_CROP:
-		if (sel->pad == RKISP_ISP_PAD_SINK)
-			sel->r = isp_sd->in_crop;
-		else
-			sel->r = isp_sd->out_crop;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static int rkisp_isp_sd_set_selection(struct v4l2_subdev *sd,
-				       struct v4l2_subdev_pad_config *cfg,
-				       struct v4l2_subdev_selection *sel)
+				      struct v4l2_subdev_pad_config *cfg,
+				      struct v4l2_subdev_selection *sel)
 {
 	struct rkisp_isp_subdev *isp_sd = sd_to_isp_sd(sd);
 	struct rkisp_device *dev = sd_to_isp_dev(sd);
+	struct v4l2_rect *crop;
+	u32 max_w, max_h;
 
+	if (!sel)
+		goto err;
 	if (sel->pad != RKISP_ISP_PAD_SOURCE_PATH &&
 	    sel->pad != RKISP_ISP_PAD_SINK)
-		return -EINVAL;
+		goto err;
+
+	crop = &sel->r;
+	if (sel->which == V4L2_SUBDEV_FORMAT_TRY) {
+		if (!cfg)
+			goto err;
+		crop = v4l2_subdev_get_try_crop(sd, cfg, sel->pad);
+	}
+
+	*crop = isp_sd->in_crop;
+	switch (sel->target) {
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+		crop->left = 0;
+		crop->top = 0;
+		if (sel->pad == RKISP_ISP_PAD_SINK) {
+			if (dev->isp_ver == ISP_V12) {
+				max_w = CIF_ISP_INPUT_W_MAX_V12;
+				max_h = CIF_ISP_INPUT_H_MAX_V12;
+			} else if (dev->isp_ver == ISP_V13) {
+				max_w = CIF_ISP_INPUT_W_MAX_V13;
+				max_h = CIF_ISP_INPUT_H_MAX_V13;
+			} else {
+				max_w = CIF_ISP_INPUT_W_MAX;
+				max_h = CIF_ISP_INPUT_H_MAX;
+			}
+			crop->width = min_t(u32, isp_sd->in_frm.width, max_w);
+			crop->height = min_t(u32, isp_sd->in_frm.height, max_h);
+		}
+		break;
+	case V4L2_SEL_TGT_CROP:
+		if (sel->pad == RKISP_ISP_PAD_SOURCE_PATH)
+			*crop = isp_sd->out_crop;
+		break;
+	default:
+		goto err;
+	}
+
+	return 0;
+err:
+	return -EINVAL;
+}
+
+static int rkisp_isp_sd_set_selection(struct v4l2_subdev *sd,
+				      struct v4l2_subdev_pad_config *cfg,
+				      struct v4l2_subdev_selection *sel)
+{
+	struct rkisp_isp_subdev *isp_sd = sd_to_isp_sd(sd);
+	struct rkisp_device *dev = sd_to_isp_dev(sd);
+	struct v4l2_rect *crop;
+
+	if (!sel)
+		goto err;
+	if (sel->pad != RKISP_ISP_PAD_SOURCE_PATH &&
+	    sel->pad != RKISP_ISP_PAD_SINK)
+		goto err;
 	if (sel->target != V4L2_SEL_TGT_CROP)
-		return -EINVAL;
+		goto err;
+
+	crop = &sel->r;
+	if (sel->which == V4L2_SUBDEV_FORMAT_TRY) {
+		if (!cfg)
+			goto err;
+		crop = v4l2_subdev_get_try_crop(sd, cfg, sel->pad);
+	}
+
+	rkisp_isp_sd_try_crop(sd, crop, sel->pad);
 
 	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
 		 "%s: pad: %d sel(%d,%d)/%dx%d\n", __func__, sel->pad,
-		 sel->r.left, sel->r.top, sel->r.width, sel->r.height);
-	rkisp_isp_sd_try_crop(sd, cfg, sel);
+		 crop->left, crop->top, crop->width, crop->height);
 
-	if (sel->which == V4L2_SUBDEV_FORMAT_TRY) {
-		struct v4l2_rect *try_sel;
-
-		try_sel = v4l2_subdev_get_try_crop(sd, cfg, sel->pad);
-		sel->r = *try_sel;
-		return 0;
+	if (sel->pad == RKISP_ISP_PAD_SINK) {
+		isp_sd->in_crop = *crop;
+		/* ISP20 don't have out crop */
+		if (dev->isp_ver == ISP_V20) {
+			isp_sd->out_crop = *crop;
+			isp_sd->out_crop.left = 0;
+			isp_sd->out_crop.top = 0;
+		}
+	} else {
+		if (dev->isp_ver == ISP_V20)
+			*crop = isp_sd->out_crop;
+		isp_sd->out_crop = *crop;
 	}
 
-	if (sel->pad == RKISP_ISP_PAD_SINK)
-		isp_sd->in_crop = sel->r;
-	else
-		isp_sd->out_crop = sel->r;
-
+	/* change fmt&size of MP/SP */
+	rkisp_set_stream_def_fmt(dev, RKISP_STREAM_MP,
+				 isp_sd->out_crop.width,
+				 isp_sd->out_crop.height,
+				 V4L2_PIX_FMT_YUYV);
+	if (dev->isp_ver != ISP_V10_1)
+		rkisp_set_stream_def_fmt(dev, RKISP_STREAM_SP,
+					 isp_sd->out_crop.width,
+					 isp_sd->out_crop.height,
+					 V4L2_PIX_FMT_YUYV);
 	return 0;
+err:
+	return -EINVAL;
 }
 
 static void rkisp_isp_read_add_fifo_data(struct rkisp_device *dev)
