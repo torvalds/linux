@@ -161,44 +161,54 @@ int mlx5i_init_underlay_qp(struct mlx5e_priv *priv)
 	struct mlx5_core_dev *mdev = priv->mdev;
 	struct mlx5i_priv *ipriv = priv->ppriv;
 	struct mlx5_core_qp *qp = &ipriv->qp;
-	struct mlx5_qp_context *context;
 	int ret;
 
-	/* QP states */
-	context = kzalloc(sizeof(*context), GFP_KERNEL);
-	if (!context)
-		return -ENOMEM;
+	{
+		u32 in[MLX5_ST_SZ_DW(rst2init_qp_in)] = {};
+		u32 *qpc;
 
-	context->flags = cpu_to_be32(MLX5_QP_PM_MIGRATED << 11);
-	context->pri_path.port = 1;
-	context->pri_path.pkey_index = cpu_to_be16(ipriv->pkey_index);
-	context->qkey = cpu_to_be32(IB_DEFAULT_Q_KEY);
+		qpc = MLX5_ADDR_OF(rst2init_qp_in, in, qpc);
 
-	ret = mlx5_core_qp_modify(mdev, MLX5_CMD_OP_RST2INIT_QP, 0, context, qp);
-	if (ret) {
-		mlx5_core_err(mdev, "Failed to modify qp RST2INIT, err: %d\n", ret);
-		goto err_qp_modify_to_err;
+		MLX5_SET(qpc, qpc, pm_state, MLX5_QP_PM_MIGRATED);
+		MLX5_SET(qpc, qpc, primary_address_path.pkey_index,
+			 ipriv->pkey_index);
+		MLX5_SET(qpc, qpc, primary_address_path.vhca_port_num, 1);
+		MLX5_SET(qpc, qpc, q_key, IB_DEFAULT_Q_KEY);
+
+		MLX5_SET(rst2init_qp_in, in, opcode, MLX5_CMD_OP_RST2INIT_QP);
+		MLX5_SET(rst2init_qp_in, in, qpn, qp->qpn);
+		ret = mlx5_cmd_exec_in(mdev, rst2init_qp, in);
+		if (ret)
+			goto err_qp_modify_to_err;
 	}
-	memset(context, 0, sizeof(*context));
+	{
+		u32 in[MLX5_ST_SZ_DW(init2rtr_qp_in)] = {};
 
-	ret = mlx5_core_qp_modify(mdev, MLX5_CMD_OP_INIT2RTR_QP, 0, context, qp);
-	if (ret) {
-		mlx5_core_err(mdev, "Failed to modify qp INIT2RTR, err: %d\n", ret);
-		goto err_qp_modify_to_err;
+		MLX5_SET(init2rtr_qp_in, in, opcode, MLX5_CMD_OP_INIT2RTR_QP);
+		MLX5_SET(init2rtr_qp_in, in, qpn, qp->qpn);
+		ret = mlx5_cmd_exec_in(mdev, init2rtr_qp, in);
+		if (ret)
+			goto err_qp_modify_to_err;
 	}
+	{
+		u32 in[MLX5_ST_SZ_DW(rtr2rts_qp_in)] = {};
 
-	ret = mlx5_core_qp_modify(mdev, MLX5_CMD_OP_RTR2RTS_QP, 0, context, qp);
-	if (ret) {
-		mlx5_core_err(mdev, "Failed to modify qp RTR2RTS, err: %d\n", ret);
-		goto err_qp_modify_to_err;
+		MLX5_SET(rtr2rts_qp_in, in, opcode, MLX5_CMD_OP_RTR2RTS_QP);
+		MLX5_SET(rtr2rts_qp_in, in, qpn, qp->qpn);
+		ret = mlx5_cmd_exec_in(mdev, rtr2rts_qp, in);
+		if (ret)
+			goto err_qp_modify_to_err;
 	}
-
-	kfree(context);
 	return 0;
 
 err_qp_modify_to_err:
-	mlx5_core_qp_modify(mdev, MLX5_CMD_OP_2ERR_QP, 0, &context, qp);
-	kfree(context);
+	{
+		u32 in[MLX5_ST_SZ_DW(qp_2err_in)] = {};
+
+		MLX5_SET(qp_2err_in, in, opcode, MLX5_CMD_OP_2ERR_QP);
+		MLX5_SET(qp_2err_in, in, qpn, qp->qpn);
+		mlx5_cmd_exec_in(mdev, qp_2err, in);
+	}
 	return ret;
 }
 
@@ -206,13 +216,11 @@ void mlx5i_uninit_underlay_qp(struct mlx5e_priv *priv)
 {
 	struct mlx5i_priv *ipriv = priv->ppriv;
 	struct mlx5_core_dev *mdev = priv->mdev;
-	struct mlx5_qp_context context;
-	int err;
+	u32 in[MLX5_ST_SZ_DW(qp_2rst_in)] = {};
 
-	err = mlx5_core_qp_modify(mdev, MLX5_CMD_OP_2RST_QP, 0, &context,
-				  &ipriv->qp);
-	if (err)
-		mlx5_core_err(mdev, "Failed to modify qp 2RST, err: %d\n", err);
+	MLX5_SET(qp_2rst_in, in, opcode, MLX5_CMD_OP_2RST_QP);
+	MLX5_SET(qp_2rst_in, in, qpn, ipriv->qp.qpn);
+	mlx5_cmd_exec_in(mdev, qp_2rst, in);
 }
 
 #define MLX5_QP_ENHANCED_ULP_STATELESS_MODE 2
