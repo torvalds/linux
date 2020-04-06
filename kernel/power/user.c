@@ -196,6 +196,34 @@ unlock:
 	return res;
 }
 
+static int snapshot_set_swap_area(struct snapshot_data *data,
+		void __user *argp)
+{
+	struct resume_swap_area swap_area;
+	sector_t offset;
+	dev_t swdev;
+
+	if (swsusp_swap_in_use())
+		return -EPERM;
+	if (copy_from_user(&swap_area, argp, sizeof(swap_area)))
+		return -EFAULT;
+
+	/*
+	 * User space encodes device types as two-byte values,
+	 * so we need to recode them
+	 */
+	swdev = new_decode_dev(swap_area.dev);
+	if (!swdev) {
+		data->swap = -1;
+		return -EINVAL;
+	}
+	offset = swap_area.offset;
+	data->swap = swap_type_of(swdev, offset, NULL);
+	if (data->swap < 0)
+		return -ENODEV;
+	return 0;
+}
+
 static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 							unsigned long arg)
 {
@@ -351,34 +379,7 @@ static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 		break;
 
 	case SNAPSHOT_SET_SWAP_AREA:
-		if (swsusp_swap_in_use()) {
-			error = -EPERM;
-		} else {
-			struct resume_swap_area swap_area;
-			dev_t swdev;
-
-			error = copy_from_user(&swap_area, (void __user *)arg,
-					sizeof(struct resume_swap_area));
-			if (error) {
-				error = -EFAULT;
-				break;
-			}
-
-			/*
-			 * User space encodes device types as two-byte values,
-			 * so we need to recode them
-			 */
-			swdev = new_decode_dev(swap_area.dev);
-			if (swdev) {
-				offset = swap_area.offset;
-				data->swap = swap_type_of(swdev, offset, NULL);
-				if (data->swap < 0)
-					error = -ENODEV;
-			} else {
-				data->swap = -1;
-				error = -EINVAL;
-			}
-		}
+		error = snapshot_set_swap_area(data, (void __user *)arg);
 		break;
 
 	default:
