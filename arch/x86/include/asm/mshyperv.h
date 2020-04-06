@@ -338,7 +338,7 @@ static inline int cpumask_to_vpset(struct hv_vpset *vpset,
 
 void __init hyperv_init(void);
 void hyperv_setup_mmu_ops(void);
-void hyperv_report_panic(struct pt_regs *regs, long err);
+void hyperv_report_panic(struct pt_regs *regs, long err, bool in_die);
 void hyperv_report_panic_msg(phys_addr_t pa, size_t size);
 bool hv_is_hyperv_initialized(void);
 void hyperv_cleanup(void);
