@@ -402,7 +402,7 @@ int imx_media_init_mbus_fmt(struct v4l2_mbus_framefmt *mbus,
 	mbus->field = field;
 	if (code == 0)
 		imx_media_enum_mbus_format(&code, 0, CS_SEL_YUV);
-	lcc = imx_media_find_mbus_format(code, CS_SEL_YUV_RGB);
+	lcc = imx_media_find_mbus_format(code, CS_SEL_ANY);
 	if (!lcc) {
 		lcc = imx_media_find_ipu_format(code, CS_SEL_YUV_RGB);
 		if (!lcc)
