@@ -609,6 +609,12 @@ void vmbus_reset_channel_cb(struct vmbus_channel *channel)
 	 * the former is accessing channel->inbound.ring_buffer, the latter
 	 * could be freeing the ring_buffer pages, so here we must stop it
 	 * first.
+	 *
+	 * vmbus_chan_sched() might call the netvsc driver callback function
+	 * that ends up scheduling NAPI work that accesses the ring buffer.
+	 * At this point, we have to ensure that any such work is completed
+	 * and that the channel ring buffer is no longer being accessed, cf.
+	 * the calls to napi_disable() in netvsc_device_remove().
 	 */
 	tasklet_disable(&channel->callback_event);
 
