@@ -47,7 +47,7 @@ struct drm_ctx_list {
 /** \name Context bitmap support */
 /*@{*/
 
-/**
+/*
  * Free a handle from the context bitmap.
  *
  * \param dev DRM device.
@@ -68,7 +68,7 @@ void drm_legacy_ctxbitmap_free(struct drm_device * dev, int ctx_handle)
 	mutex_unlock(&dev->struct_mutex);
 }
 
-/**
+/*
  * Context bitmap allocation.
  *
  * \param dev DRM device.
@@ -88,7 +88,7 @@ static int drm_legacy_ctxbitmap_next(struct drm_device * dev)
 	return ret;
 }
 
-/**
+/*
  * Context bitmap initialization.
  *
  * \param dev DRM device.
@@ -104,7 +104,7 @@ void drm_legacy_ctxbitmap_init(struct drm_device * dev)
 	idr_init(&dev->ctx_idr);
 }
 
-/**
+/*
  * Context bitmap cleanup.
  *
  * \param dev DRM device.
@@ -163,7 +163,7 @@ void drm_legacy_ctxbitmap_flush(struct drm_device *dev, struct drm_file *file)
 /** \name Per Context SAREA Support */
 /*@{*/
 
-/**
+/*
  * Get per-context SAREA.
  *
  * \param inode device inode.
@@ -211,7 +211,7 @@ int drm_legacy_getsareactx(struct drm_device *dev, void *data,
 	return 0;
 }
 
-/**
+/*
  * Set per-context SAREA.
  *
  * \param inode device inode.
@@ -263,7 +263,7 @@ int drm_legacy_setsareactx(struct drm_device *dev, void *data,
 /** \name The actual DRM context handling routines */
 /*@{*/
 
-/**
+/*
  * Switch context.
  *
  * \param dev DRM device.
@@ -290,7 +290,7 @@ static int drm_context_switch(struct drm_device * dev, int old, int new)
 	return 0;
 }
 
-/**
+/*
  * Complete context switch.
  *
  * \param dev DRM device.
@@ -318,7 +318,7 @@ static int drm_context_switch_complete(struct drm_device *dev,
 	return 0;
 }
 
-/**
+/*
  * Reserve contexts.
  *
  * \param inode device inode.
@@ -351,7 +351,7 @@ int drm_legacy_resctx(struct drm_device *dev, void *data,
 	return 0;
 }
 
-/**
+/*
  * Add context.
  *
  * \param inode device inode.
@@ -404,7 +404,7 @@ int drm_legacy_addctx(struct drm_device *dev, void *data,
 	return 0;
 }
 
-/**
+/*
  * Get context.
  *
  * \param inode device inode.
@@ -428,7 +428,7 @@ int drm_legacy_getctx(struct drm_device *dev, void *data,
 	return 0;
 }
 
-/**
+/*
  * Switch context.
  *
  * \param inode device inode.
@@ -452,7 +452,7 @@ int drm_legacy_switchctx(struct drm_device *dev, void *data,
 	return drm_context_switch(dev, dev->last_context, ctx->handle);
 }
 
-/**
+/*
  * New context.
  *
  * \param inode device inode.
@@ -478,7 +478,7 @@ int drm_legacy_newctx(struct drm_device *dev, void *data,
 	return 0;
 }
 
-/**
+/*
  * Remove context.
  *
  * \param inode device inode.

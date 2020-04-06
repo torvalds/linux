@@ -45,6 +45,7 @@
 #include <linux/export.h>
 #include <linux/interval_tree_generic.h>
 #include <linux/seq_file.h>
+#include <linux/sched/signal.h>
 #include <linux/slab.h>
 #include <linux/stacktrace.h>
 
@@ -366,6 +367,11 @@ next_hole(struct drm_mm *mm,
 	  struct drm_mm_node *node,
 	  enum drm_mm_insert_mode mode)
 {
+	/* Searching is slow; check if we ran out of time/patience */
+	cond_resched();
+	if (fatal_signal_pending(current))
+		return NULL;
+
 	switch (mode) {
 	default:
 	case DRM_MM_INSERT_BEST:
@@ -399,10 +405,10 @@ next_hole(struct drm_mm *mm,
  */
 int drm_mm_reserve_node(struct drm_mm *mm, struct drm_mm_node *node)
 {
-	u64 end = node->start + node->size;
 	struct drm_mm_node *hole;
 	u64 hole_start, hole_end;
 	u64 adj_start, adj_end;
+	u64 end;
 
 	end = node->start + node->size;
 	if (unlikely(end <= node->start))
@@ -557,7 +563,7 @@ int drm_mm_insert_node_in_range(struct drm_mm * const mm,
 		return 0;
 	}
 
-	return -ENOSPC;
+	return signal_pending(current) ? -ERESTARTSYS : -ENOSPC;
 }
 EXPORT_SYMBOL(drm_mm_insert_node_in_range);
 

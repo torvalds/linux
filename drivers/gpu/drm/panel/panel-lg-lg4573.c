@@ -197,7 +197,7 @@ static int lg4573_enable(struct drm_panel *panel)
 }
 
 static const struct drm_display_mode default_mode = {
-	.clock = 27000,
+	.clock = 28341,
 	.hdisplay = 480,
 	.hsync_start = 480 + 10,
 	.hsync_end = 480 + 10 + 59,

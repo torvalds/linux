@@ -6,7 +6,7 @@ config SYNC_FILE
 	default n
 	select DMA_SHARED_BUFFER
 	---help---
-	  The Sync File Framework adds explicit syncronization via
+	  The Sync File Framework adds explicit synchronization via
 	  userspace. It enables send/receive 'struct dma_fence' objects to/from
 	  userspace via Sync File fds for synchronization between drivers via
 	  userspace components. It has been ported from Android.
@@ -38,6 +38,16 @@ config UDMABUF
 	help
 	  A driver to let userspace turn memfd regions into dma-bufs.
 	  Qemu can use this to create host dmabufs for guest framebuffers.
+
+config DMABUF_MOVE_NOTIFY
+	bool "Move notify between drivers (EXPERIMENTAL)"
+	default n
+	help
+	  Don''t pin buffers if the dynamic DMA-buf interface is available on both the
+	  exporter as well as the importer. This fixes a security problem where
+	  userspace is able to pin unrestricted amounts of memory through DMA-buf.
+	  But marked experimental because we don''t jet have a consistent execution
+	  context and memory management between drivers.
 
 config DMABUF_SELFTESTS
 	tristate "Selftests for the dma-buf interfaces"

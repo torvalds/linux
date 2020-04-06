@@ -49,15 +49,17 @@
 
 unsigned long intel_gvt_get_device_type(struct intel_gvt *gvt)
 {
-	if (IS_BROADWELL(gvt->dev_priv))
+	struct drm_i915_private *i915 = gvt->gt->i915;
+
+	if (IS_BROADWELL(i915))
 		return D_BDW;
-	else if (IS_SKYLAKE(gvt->dev_priv))
+	else if (IS_SKYLAKE(i915))
 		return D_SKL;
-	else if (IS_KABYLAKE(gvt->dev_priv))
+	else if (IS_KABYLAKE(i915))
 		return D_KBL;
-	else if (IS_BROXTON(gvt->dev_priv))
+	else if (IS_BROXTON(i915))
 		return D_BXT;
-	else if (IS_COFFEELAKE(gvt->dev_priv))
+	else if (IS_COFFEELAKE(i915))
 		return D_CFL;
 
 	return 0;
@@ -142,25 +144,25 @@ static int new_mmio_info(struct intel_gvt *gvt,
 }
 
 /**
- * intel_gvt_render_mmio_to_ring_id - convert a mmio offset into ring id
+ * intel_gvt_render_mmio_to_engine - convert a mmio offset into the engine
  * @gvt: a GVT device
  * @offset: register offset
  *
  * Returns:
- * Ring ID on success, negative error code if failed.
+ * The engine containing the offset within its mmio page.
  */
-int intel_gvt_render_mmio_to_ring_id(struct intel_gvt *gvt,
-		unsigned int offset)
+const struct intel_engine_cs *
+intel_gvt_render_mmio_to_engine(struct intel_gvt *gvt, unsigned int offset)
 {
-	enum intel_engine_id id;
 	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
 
 	offset &= ~GENMASK(11, 0);
-	for_each_engine(engine, gvt->dev_priv, id) {
+	for_each_engine(engine, gvt->gt, id)
 		if (engine->mmio_base == offset)
-			return id;
-	}
-	return -ENODEV;
+			return engine;
+
+	return NULL;
 }
 
 #define offset_to_fence_num(offset) \
@@ -217,7 +219,7 @@ static int gamw_echo_dev_rw_ia_write(struct intel_vgpu *vgpu,
 {
 	u32 ips = (*(u32 *)p_data) & GAMW_ECO_ENABLE_64K_IPS_FIELD;
 
-	if (INTEL_GEN(vgpu->gvt->dev_priv) <= 10) {
+	if (INTEL_GEN(vgpu->gvt->gt->i915) <= 10) {
 		if (ips == GAMW_ECO_ENABLE_64K_IPS_FIELD)
 			gvt_dbg_core("vgpu%d: ips enabled\n", vgpu->id);
 		else if (!ips)
@@ -253,7 +255,7 @@ static int fence_mmio_read(struct intel_vgpu *vgpu, unsigned int off,
 static int fence_mmio_write(struct intel_vgpu *vgpu, unsigned int off,
 		void *p_data, unsigned int bytes)
 {
-	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
+	struct intel_gvt *gvt = vgpu->gvt;
 	unsigned int fence_num = offset_to_fence_num(off);
 	int ret;
 
@@ -262,10 +264,10 @@ static int fence_mmio_write(struct intel_vgpu *vgpu, unsigned int off,
 		return ret;
 	write_vreg(vgpu, off, p_data, bytes);
 
-	mmio_hw_access_pre(dev_priv);
+	mmio_hw_access_pre(gvt->gt);
 	intel_vgpu_write_fence(vgpu, fence_num,
 			vgpu_vreg64(vgpu, fence_num_to_offset(fence_num)));
-	mmio_hw_access_post(dev_priv);
+	mmio_hw_access_post(gvt->gt);
 	return 0;
 }
 
@@ -283,7 +285,7 @@ static int mul_force_wake_write(struct intel_vgpu *vgpu,
 	old = vgpu_vreg(vgpu, offset);
 	new = CALC_MODE_MASK_REG(old, *(u32 *)p_data);
 
-	if (INTEL_GEN(vgpu->gvt->dev_priv)  >=  9) {
+	if (INTEL_GEN(vgpu->gvt->gt->i915)  >=  9) {
 		switch (offset) {
 		case FORCEWAKE_RENDER_GEN9_REG:
 			ack_reg_offset = FORCEWAKE_ACK_RENDER_GEN9_REG;
@@ -345,7 +347,7 @@ static int gdrst_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 			gvt_dbg_mmio("vgpu%d: request GUC Reset\n", vgpu->id);
 			vgpu_vreg_t(vgpu, GUC_STATUS) |= GS_MIA_IN_RESET;
 		}
-		engine_mask &= INTEL_INFO(vgpu->gvt->dev_priv)->engine_mask;
+		engine_mask &= INTEL_INFO(vgpu->gvt->gt->i915)->engine_mask;
 	}
 
 	/* vgpu_lock already hold by emulate mmio r/w */
@@ -492,7 +494,7 @@ static i915_reg_t force_nonpriv_white_list[] = {
 };
 
 /* a simple bsearch */
-static inline bool in_whitelist(unsigned int reg)
+static inline bool in_whitelist(u32 reg)
 {
 	int left = 0, right = ARRAY_SIZE(force_nonpriv_white_list);
 	i915_reg_t *array = force_nonpriv_white_list;
@@ -514,26 +516,21 @@ static int force_nonpriv_write(struct intel_vgpu *vgpu,
 	unsigned int offset, void *p_data, unsigned int bytes)
 {
 	u32 reg_nonpriv = (*(u32 *)p_data) & REG_GENMASK(25, 2);
-	int ring_id = intel_gvt_render_mmio_to_ring_id(vgpu->gvt, offset);
-	u32 ring_base;
-	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
-	int ret = -EINVAL;
+	const struct intel_engine_cs *engine =
+		intel_gvt_render_mmio_to_engine(vgpu->gvt, offset);
 
-	if ((bytes != 4) || ((offset & (bytes - 1)) != 0) || ring_id < 0) {
-		gvt_err("vgpu(%d) ring %d Invalid FORCE_NONPRIV offset %x(%dB)\n",
-			vgpu->id, ring_id, offset, bytes);
-		return ret;
+	if (bytes != 4 || !IS_ALIGNED(offset, bytes) || !engine) {
+		gvt_err("vgpu(%d) Invalid FORCE_NONPRIV offset %x(%dB)\n",
+			vgpu->id, offset, bytes);
+		return -EINVAL;
 	}
 
-	ring_base = dev_priv->engine[ring_id]->mmio_base;
-
-	if (in_whitelist(reg_nonpriv) ||
-		reg_nonpriv == i915_mmio_reg_offset(RING_NOPID(ring_base))) {
-		ret = intel_vgpu_default_mmio_write(vgpu, offset, p_data,
-			bytes);
-	} else
+	if (!in_whitelist(reg_nonpriv) &&
+	    reg_nonpriv != i915_mmio_reg_offset(RING_NOPID(engine->mmio_base))) {
 		gvt_err("vgpu(%d) Invalid FORCE_NONPRIV write %x at offset %x\n",
-			vgpu->id, *(u32 *)p_data, offset);
+			vgpu->id, reg_nonpriv, offset);
+	} else
+		intel_vgpu_default_mmio_write(vgpu, offset, p_data, bytes);
 
 	return 0;
 }
@@ -756,7 +753,7 @@ static int south_chicken2_mmio_write(struct intel_vgpu *vgpu,
 static int pri_surf_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 		void *p_data, unsigned int bytes)
 {
-	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
+	struct drm_i915_private *dev_priv = vgpu->gvt->gt->i915;
 	u32 pipe = DSPSURF_TO_PIPE(offset);
 	int event = SKL_FLIP_EVENT(pipe, PLANE_PRIMARY);
 
@@ -797,7 +794,7 @@ static int reg50080_mmio_write(struct intel_vgpu *vgpu,
 			       unsigned int offset, void *p_data,
 			       unsigned int bytes)
 {
-	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
+	struct drm_i915_private *dev_priv = vgpu->gvt->gt->i915;
 	enum pipe pipe = REG_50080_TO_PIPE(offset);
 	enum plane_id plane = REG_50080_TO_PLANE(offset);
 	int event = SKL_FLIP_EVENT(pipe, plane);
@@ -821,7 +818,7 @@ static int reg50080_mmio_write(struct intel_vgpu *vgpu,
 static int trigger_aux_channel_interrupt(struct intel_vgpu *vgpu,
 		unsigned int reg)
 {
-	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
+	struct drm_i915_private *dev_priv = vgpu->gvt->gt->i915;
 	enum intel_gvt_event_type event;
 
 	if (reg == i915_mmio_reg_offset(DP_AUX_CH_CTL(AUX_CH_A)))
@@ -836,7 +833,7 @@ static int trigger_aux_channel_interrupt(struct intel_vgpu *vgpu,
 		 reg == i915_mmio_reg_offset(DP_AUX_CH_CTL(AUX_CH_D)))
 		event = AUX_CHANNEL_D;
 	else {
-		WARN_ON(true);
+		drm_WARN_ON(&dev_priv->drm, true);
 		return -EINVAL;
 	}
 
@@ -924,11 +921,11 @@ static int dp_aux_ch_ctl_mmio_write(struct intel_vgpu *vgpu,
 	write_vreg(vgpu, offset, p_data, bytes);
 	data = vgpu_vreg(vgpu, offset);
 
-	if ((INTEL_GEN(vgpu->gvt->dev_priv) >= 9)
+	if ((INTEL_GEN(vgpu->gvt->gt->i915) >= 9)
 		&& offset != _REG_SKL_DP_AUX_CH_CTL(port_index)) {
 		/* SKL DPB/C/D aux ctl register changed */
 		return 0;
-	} else if (IS_BROADWELL(vgpu->gvt->dev_priv) &&
+	} else if (IS_BROADWELL(vgpu->gvt->gt->i915) &&
 		   offset != _REG_HSW_DP_AUX_CH_CTL(port_index)) {
 		/* write to the data registers */
 		return 0;
@@ -1244,8 +1241,7 @@ static int handle_g2v_notification(struct intel_vgpu *vgpu, int notification)
 
 static int send_display_ready_uevent(struct intel_vgpu *vgpu, int ready)
 {
-	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
-	struct kobject *kobj = &dev_priv->drm.primary->kdev->kobj;
+	struct kobject *kobj = &vgpu->gvt->gt->i915->drm.primary->kdev->kobj;
 	char *env[3] = {NULL, NULL, NULL};
 	char vmid_str[20];
 	char display_ready_str[20];
@@ -1306,13 +1302,15 @@ static int pvinfo_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 static int pf_write(struct intel_vgpu *vgpu,
 		unsigned int offset, void *p_data, unsigned int bytes)
 {
+	struct drm_i915_private *i915 = vgpu->gvt->gt->i915;
 	u32 val = *(u32 *)p_data;
 
 	if ((offset == _PS_1A_CTRL || offset == _PS_2A_CTRL ||
 	   offset == _PS_1B_CTRL || offset == _PS_2B_CTRL ||
 	   offset == _PS_1C_CTRL) && (val & PS_PLANE_SEL_MASK) != 0) {
-		WARN_ONCE(true, "VM(%d): guest is trying to scaling a plane\n",
-			  vgpu->id);
+		drm_WARN_ONCE(&i915->drm, true,
+			      "VM(%d): guest is trying to scaling a plane\n",
+			      vgpu->id);
 		return 0;
 	}
 
@@ -1360,13 +1358,15 @@ static int fpga_dbg_mmio_write(struct intel_vgpu *vgpu,
 static int dma_ctrl_write(struct intel_vgpu *vgpu, unsigned int offset,
 		void *p_data, unsigned int bytes)
 {
+	struct drm_i915_private *i915 = vgpu->gvt->gt->i915;
 	u32 mode;
 
 	write_vreg(vgpu, offset, p_data, bytes);
 	mode = vgpu_vreg(vgpu, offset);
 
 	if (GFX_MODE_BIT_SET_IN_MASK(mode, START_DMA)) {
-		WARN_ONCE(1, "VM(%d): iGVT-g doesn't support GuC\n",
+		drm_WARN_ONCE(&i915->drm, 1,
+				"VM(%d): iGVT-g doesn't support GuC\n",
 				vgpu->id);
 		return 0;
 	}
@@ -1377,10 +1377,12 @@ static int dma_ctrl_write(struct intel_vgpu *vgpu, unsigned int offset,
 static int gen9_trtte_write(struct intel_vgpu *vgpu, unsigned int offset,
 		void *p_data, unsigned int bytes)
 {
+	struct drm_i915_private *i915 = vgpu->gvt->gt->i915;
 	u32 trtte = *(u32 *)p_data;
 
 	if ((trtte & 1) && (trtte & (1 << 1)) == 0) {
-		WARN(1, "VM(%d): Use physical address for TRTT!\n",
+		drm_WARN(&i915->drm, 1,
+				"VM(%d): Use physical address for TRTT!\n",
 				vgpu->id);
 		return -EINVAL;
 	}
@@ -1427,9 +1429,9 @@ static int mailbox_write(struct intel_vgpu *vgpu, unsigned int offset,
 
 	switch (cmd) {
 	case GEN9_PCODE_READ_MEM_LATENCY:
-		if (IS_SKYLAKE(vgpu->gvt->dev_priv)
-			 || IS_KABYLAKE(vgpu->gvt->dev_priv)
-			 || IS_COFFEELAKE(vgpu->gvt->dev_priv)) {
+		if (IS_SKYLAKE(vgpu->gvt->gt->i915) ||
+		    IS_KABYLAKE(vgpu->gvt->gt->i915) ||
+		    IS_COFFEELAKE(vgpu->gvt->gt->i915)) {
 			/**
 			 * "Read memory latency" command on gen9.
 			 * Below memory latency values are read
@@ -1439,7 +1441,7 @@ static int mailbox_write(struct intel_vgpu *vgpu, unsigned int offset,
 				*data0 = 0x1e1a1100;
 			else
 				*data0 = 0x61514b3d;
-		} else if (IS_BROXTON(vgpu->gvt->dev_priv)) {
+		} else if (IS_BROXTON(vgpu->gvt->gt->i915)) {
 			/**
 			 * "Read memory latency" command on gen9.
 			 * Below memory latency values are read
@@ -1452,9 +1454,9 @@ static int mailbox_write(struct intel_vgpu *vgpu, unsigned int offset,
 		}
 		break;
 	case SKL_PCODE_CDCLK_CONTROL:
-		if (IS_SKYLAKE(vgpu->gvt->dev_priv)
-			 || IS_KABYLAKE(vgpu->gvt->dev_priv)
-			 || IS_COFFEELAKE(vgpu->gvt->dev_priv))
+		if (IS_SKYLAKE(vgpu->gvt->gt->i915) ||
+		    IS_KABYLAKE(vgpu->gvt->gt->i915) ||
+		    IS_COFFEELAKE(vgpu->gvt->gt->i915))
 			*data0 = SKL_CDCLK_READY_FOR_CHANGE;
 		break;
 	case GEN6_PCODE_READ_RC6VIDS:
@@ -1478,24 +1480,26 @@ static int hws_pga_write(struct intel_vgpu *vgpu, unsigned int offset,
 		void *p_data, unsigned int bytes)
 {
 	u32 value = *(u32 *)p_data;
-	int ring_id = intel_gvt_render_mmio_to_ring_id(vgpu->gvt, offset);
+	const struct intel_engine_cs *engine =
+		intel_gvt_render_mmio_to_engine(vgpu->gvt, offset);
 
 	if (!intel_gvt_ggtt_validate_range(vgpu, value, I915_GTT_PAGE_SIZE)) {
 		gvt_vgpu_err("write invalid HWSP address, reg:0x%x, value:0x%x\n",
 			      offset, value);
 		return -EINVAL;
 	}
+
 	/*
 	 * Need to emulate all the HWSP register write to ensure host can
 	 * update the VM CSB status correctly. Here listed registers can
 	 * support BDW, SKL or other platforms with same HWSP registers.
 	 */
-	if (unlikely(ring_id < 0 || ring_id >= I915_NUM_ENGINES)) {
+	if (unlikely(!engine)) {
 		gvt_vgpu_err("access unknown hardware status page register:0x%x\n",
 			     offset);
 		return -EINVAL;
 	}
-	vgpu->hws_pga[ring_id] = value;
+	vgpu->hws_pga[engine->id] = value;
 	gvt_dbg_mmio("VM(%d) write: 0x%x to HWSP: 0x%x\n",
 		     vgpu->id, value, offset);
 
@@ -1507,7 +1511,7 @@ static int skl_power_well_ctl_write(struct intel_vgpu *vgpu,
 {
 	u32 v = *(u32 *)p_data;
 
-	if (IS_BROXTON(vgpu->gvt->dev_priv))
+	if (IS_BROXTON(vgpu->gvt->gt->i915))
 		v &= (1 << 31) | (1 << 29);
 	else
 		v &= (1 << 31) | (1 << 29) | (1 << 9) |
@@ -1654,26 +1658,24 @@ static int mmio_read_from_hw(struct intel_vgpu *vgpu,
 		unsigned int offset, void *p_data, unsigned int bytes)
 {
 	struct intel_gvt *gvt = vgpu->gvt;
-	struct drm_i915_private *dev_priv = gvt->dev_priv;
-	int ring_id;
-	u32 ring_base;
+	const struct intel_engine_cs *engine =
+		intel_gvt_render_mmio_to_engine(gvt, offset);
 
-	ring_id = intel_gvt_render_mmio_to_ring_id(gvt, offset);
 	/**
 	 * Read HW reg in following case
 	 * a. the offset isn't a ring mmio
 	 * b. the offset's ring is running on hw.
 	 * c. the offset is ring time stamp mmio
 	 */
-	if (ring_id >= 0)
-		ring_base = dev_priv->engine[ring_id]->mmio_base;
 
-	if (ring_id < 0 || vgpu  == gvt->scheduler.engine_owner[ring_id] ||
-	    offset == i915_mmio_reg_offset(RING_TIMESTAMP(ring_base)) ||
-	    offset == i915_mmio_reg_offset(RING_TIMESTAMP_UDW(ring_base))) {
-		mmio_hw_access_pre(dev_priv);
-		vgpu_vreg(vgpu, offset) = I915_READ(_MMIO(offset));
-		mmio_hw_access_post(dev_priv);
+	if (!engine ||
+	    vgpu == gvt->scheduler.engine_owner[engine->id] ||
+	    offset == i915_mmio_reg_offset(RING_TIMESTAMP(engine->mmio_base)) ||
+	    offset == i915_mmio_reg_offset(RING_TIMESTAMP_UDW(engine->mmio_base))) {
+		mmio_hw_access_pre(gvt->gt);
+		vgpu_vreg(vgpu, offset) =
+			intel_uncore_read(gvt->gt->uncore, _MMIO(offset));
+		mmio_hw_access_post(gvt->gt);
 	}
 
 	return intel_vgpu_default_mmio_read(vgpu, offset, p_data, bytes);
@@ -1682,22 +1684,23 @@ static int mmio_read_from_hw(struct intel_vgpu *vgpu,
 static int elsp_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 		void *p_data, unsigned int bytes)
 {
-	int ring_id = intel_gvt_render_mmio_to_ring_id(vgpu->gvt, offset);
+	struct drm_i915_private *i915 = vgpu->gvt->gt->i915;
+	const struct intel_engine_cs *engine = intel_gvt_render_mmio_to_engine(vgpu->gvt, offset);
 	struct intel_vgpu_execlist *execlist;
 	u32 data = *(u32 *)p_data;
 	int ret = 0;
 
-	if (WARN_ON(ring_id < 0 || ring_id >= I915_NUM_ENGINES))
+	if (drm_WARN_ON(&i915->drm, !engine))
 		return -EINVAL;
 
-	execlist = &vgpu->submission.execlist[ring_id];
+	execlist = &vgpu->submission.execlist[engine->id];
 
 	execlist->elsp_dwords.data[3 - execlist->elsp_dwords.index] = data;
 	if (execlist->elsp_dwords.index == 3) {
-		ret = intel_vgpu_submit_execlist(vgpu, ring_id);
+		ret = intel_vgpu_submit_execlist(vgpu, engine);
 		if(ret)
-			gvt_vgpu_err("fail submit workload on ring %d\n",
-				ring_id);
+			gvt_vgpu_err("fail submit workload on ring %s\n",
+				     engine->name);
 	}
 
 	++execlist->elsp_dwords.index;
@@ -1709,12 +1712,13 @@ static int ring_mode_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 		void *p_data, unsigned int bytes)
 {
 	u32 data = *(u32 *)p_data;
-	int ring_id = intel_gvt_render_mmio_to_ring_id(vgpu->gvt, offset);
+	const struct intel_engine_cs *engine =
+		intel_gvt_render_mmio_to_engine(vgpu->gvt, offset);
 	bool enable_execlist;
 	int ret;
 
 	(*(u32 *)p_data) &= ~_MASKED_BIT_ENABLE(1);
-	if (IS_COFFEELAKE(vgpu->gvt->dev_priv))
+	if (IS_COFFEELAKE(vgpu->gvt->gt->i915))
 		(*(u32 *)p_data) &= ~_MASKED_BIT_ENABLE(2);
 	write_vreg(vgpu, offset, p_data, bytes);
 
@@ -1723,7 +1727,7 @@ static int ring_mode_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 		return 0;
 	}
 
-	if (IS_COFFEELAKE(vgpu->gvt->dev_priv) &&
+	if (IS_COFFEELAKE(vgpu->gvt->gt->i915) &&
 	    data & _MASKED_BIT_ENABLE(2)) {
 		enter_failsafe_mode(vgpu, GVT_FAILSAFE_UNSUPPORTED_GUEST);
 		return 0;
@@ -1743,16 +1747,16 @@ static int ring_mode_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 			|| (data & _MASKED_BIT_DISABLE(GFX_RUN_LIST_ENABLE))) {
 		enable_execlist = !!(data & GFX_RUN_LIST_ENABLE);
 
-		gvt_dbg_core("EXECLIST %s on ring %d\n",
-				(enable_execlist ? "enabling" : "disabling"),
-				ring_id);
+		gvt_dbg_core("EXECLIST %s on ring %s\n",
+			     (enable_execlist ? "enabling" : "disabling"),
+			     engine->name);
 
 		if (!enable_execlist)
 			return 0;
 
 		ret = intel_vgpu_select_submission_ops(vgpu,
-			       BIT(ring_id),
-			       INTEL_VGPU_EXECLIST_SUBMISSION);
+						       engine->mask,
+						       INTEL_VGPU_EXECLIST_SUBMISSION);
 		if (ret)
 			return ret;
 
@@ -1876,7 +1880,7 @@ static int csfe_chicken1_mmio_write(struct intel_vgpu *vgpu,
 
 static int init_generic_mmio_info(struct intel_gvt *gvt)
 {
-	struct drm_i915_private *dev_priv = gvt->dev_priv;
+	struct drm_i915_private *dev_priv = gvt->gt->i915;
 	int ret;
 
 	MMIO_RING_DFH(RING_IMR, D_ALL, F_CMD_ACCESS, NULL,
@@ -2415,9 +2419,9 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_F(_MMIO(0x7144c), 0xc, 0, 0, 0, D_PRE_SKL, NULL, NULL);
 	MMIO_F(_MMIO(0x7244c), 0xc, 0, 0, 0, D_PRE_SKL, NULL, NULL);
 
-	MMIO_D(PIPE_WM_LINETIME(PIPE_A), D_ALL);
-	MMIO_D(PIPE_WM_LINETIME(PIPE_B), D_ALL);
-	MMIO_D(PIPE_WM_LINETIME(PIPE_C), D_ALL);
+	MMIO_D(WM_LINETIME(PIPE_A), D_ALL);
+	MMIO_D(WM_LINETIME(PIPE_B), D_ALL);
+	MMIO_D(WM_LINETIME(PIPE_C), D_ALL);
 	MMIO_D(SPLL_CTL, D_ALL);
 	MMIO_D(_MMIO(_WRPLL_CTL1), D_ALL);
 	MMIO_D(_MMIO(_WRPLL_CTL2), D_ALL);
@@ -2693,7 +2697,7 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 
 static int init_bdw_mmio_info(struct intel_gvt *gvt)
 {
-	struct drm_i915_private *dev_priv = gvt->dev_priv;
+	struct drm_i915_private *dev_priv = gvt->gt->i915;
 	int ret;
 
 	MMIO_DH(GEN8_GT_IMR(0), D_BDW_PLUS, NULL, intel_vgpu_reg_imr_handler);
@@ -2882,7 +2886,7 @@ static int init_bdw_mmio_info(struct intel_gvt *gvt)
 
 static int init_skl_mmio_info(struct intel_gvt *gvt)
 {
-	struct drm_i915_private *dev_priv = gvt->dev_priv;
+	struct drm_i915_private *dev_priv = gvt->gt->i915;
 	int ret;
 
 	MMIO_DH(FORCEWAKE_RENDER_GEN9, D_SKL_PLUS, NULL, mul_force_wake_write);
@@ -2902,7 +2906,7 @@ static int init_skl_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(HSW_PWR_WELL_CTL1, D_SKL_PLUS);
 	MMIO_DH(HSW_PWR_WELL_CTL2, D_SKL_PLUS, NULL, skl_power_well_ctl_write);
 
-	MMIO_DH(DBUF_CTL, D_SKL_PLUS, NULL, gen9_dbuf_ctl_mmio_write);
+	MMIO_DH(DBUF_CTL_S(0), D_SKL_PLUS, NULL, gen9_dbuf_ctl_mmio_write);
 
 	MMIO_D(GEN9_PG_ENABLE, D_SKL_PLUS);
 	MMIO_D(GEN9_MEDIA_PG_IDLE_HYSTERESIS, D_SKL_PLUS);
@@ -3131,7 +3135,7 @@ static int init_skl_mmio_info(struct intel_gvt *gvt)
 
 static int init_bxt_mmio_info(struct intel_gvt *gvt)
 {
-	struct drm_i915_private *dev_priv = gvt->dev_priv;
+	struct drm_i915_private *dev_priv = gvt->gt->i915;
 	int ret;
 
 	MMIO_F(_MMIO(0x80000), 0x3000, 0, 0, 0, D_BXT, NULL, NULL);
@@ -3367,7 +3371,7 @@ static struct gvt_mmio_block mmio_blocks[] = {
 int intel_gvt_setup_mmio_info(struct intel_gvt *gvt)
 {
 	struct intel_gvt_device_info *info = &gvt->device_info;
-	struct drm_i915_private *dev_priv = gvt->dev_priv;
+	struct drm_i915_private *i915 = gvt->gt->i915;
 	int size = info->mmio_size / 4 * sizeof(*gvt->mmio.mmio_attribute);
 	int ret;
 
@@ -3379,20 +3383,20 @@ int intel_gvt_setup_mmio_info(struct intel_gvt *gvt)
 	if (ret)
 		goto err;
 
-	if (IS_BROADWELL(dev_priv)) {
+	if (IS_BROADWELL(i915)) {
 		ret = init_bdw_mmio_info(gvt);
 		if (ret)
 			goto err;
-	} else if (IS_SKYLAKE(dev_priv)
-		|| IS_KABYLAKE(dev_priv)
-		|| IS_COFFEELAKE(dev_priv)) {
+	} else if (IS_SKYLAKE(i915) ||
+		   IS_KABYLAKE(i915) ||
+		   IS_COFFEELAKE(i915)) {
 		ret = init_bdw_mmio_info(gvt);
 		if (ret)
 			goto err;
 		ret = init_skl_mmio_info(gvt);
 		if (ret)
 			goto err;
-	} else if (IS_BROXTON(dev_priv)) {
+	} else if (IS_BROXTON(i915)) {
 		ret = init_bdw_mmio_info(gvt);
 		if (ret)
 			goto err;
@@ -3541,13 +3545,14 @@ bool intel_gvt_in_force_nonpriv_whitelist(struct intel_gvt *gvt,
 int intel_vgpu_mmio_reg_rw(struct intel_vgpu *vgpu, unsigned int offset,
 			   void *pdata, unsigned int bytes, bool is_read)
 {
+	struct drm_i915_private *i915 = vgpu->gvt->gt->i915;
 	struct intel_gvt *gvt = vgpu->gvt;
 	struct intel_gvt_mmio_info *mmio_info;
 	struct gvt_mmio_block *mmio_block;
 	gvt_mmio_func func;
 	int ret;
 
-	if (WARN_ON(bytes > 8))
+	if (drm_WARN_ON(&i915->drm, bytes > 8))
 		return -EINVAL;
 
 	/*

@@ -924,7 +924,7 @@ static void a6xx_gmu_memory_free(struct a6xx_gmu *gmu, struct a6xx_gmu_bo *bo)
 	if (IS_ERR_OR_NULL(bo))
 		return;
 
-	dma_free_attrs(gmu->dev, bo->size, bo->virt, bo->iova, bo->attrs);
+	dma_free_wc(gmu->dev, bo->size, bo->virt, bo->iova);
 	kfree(bo);
 }
 
@@ -940,8 +940,7 @@ static struct a6xx_gmu_bo *a6xx_gmu_memory_alloc(struct a6xx_gmu *gmu,
 	bo->size = PAGE_ALIGN(size);
 	bo->attrs = DMA_ATTR_WRITE_COMBINE;
 
-	bo->virt = dma_alloc_attrs(gmu->dev, bo->size, &bo->iova, GFP_KERNEL,
-		bo->attrs);
+	bo->virt = dma_alloc_wc(gmu->dev, bo->size, &bo->iova, GFP_KERNEL);
 
 	if (!bo->virt) {
 		kfree(bo);
@@ -1230,6 +1229,11 @@ int a6xx_gmu_init(struct a6xx_gpu *a6xx_gpu, struct device_node *node)
 
 	/* Pass force_dma false to require the DT to set the dma region */
 	ret = of_dma_configure(gmu->dev, node, false);
+	if (ret)
+		return ret;
+
+	/* Set the mask after the of_dma_configure() */
+	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(31));
 	if (ret)
 		return ret;
 

@@ -35,6 +35,9 @@ bool dcn20_set_shaper_3dlut(
 void dcn20_program_front_end_for_ctx(
 		struct dc *dc,
 		struct dc_state *context);
+void dcn20_post_unlock_program_front_end(
+		struct dc *dc,
+		struct dc_state *context);
 void dcn20_update_plane_addr(const struct dc *dc, struct pipe_ctx *pipe_ctx);
 void dcn20_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx);
 bool dcn20_set_input_transfer_func(struct dc *dc, struct pipe_ctx *pipe_ctx,
@@ -58,10 +61,6 @@ void dcn20_pipe_control_lock(
 	struct dc *dc,
 	struct pipe_ctx *pipe,
 	bool lock);
-void dcn20_pipe_control_lock_global(
-		struct dc *dc,
-		struct pipe_ctx *pipe,
-		bool lock);
 void dcn20_prepare_bandwidth(
 		struct dc *dc,
 		struct dc_state *context);

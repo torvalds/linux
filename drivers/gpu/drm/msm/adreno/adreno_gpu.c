@@ -673,7 +673,7 @@ static char *adreno_gpu_ascii85_encode(u32 *src, size_t len)
 		return NULL;
 
 	for (i = 0; i < l; i++)
-		buf_itr += snprintf(buf + buf_itr, buffer_size - buf_itr, "%s",
+		buf_itr += scnprintf(buf + buf_itr, buffer_size - buf_itr, "%s",
 				ascii85_encode(src[i], out));
 
 	return buf;

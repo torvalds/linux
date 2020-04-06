@@ -570,7 +570,7 @@ static const struct dc_plane_cap plane_cap = {
 
 static const struct dc_debug_options debug_defaults_drv = {
 		.sanity_checks = true,
-		.disable_dmcu = true,
+		.disable_dmcu = false,
 		.force_abm_enable = false,
 		.timing_trace = false,
 		.clock_trace = true,
@@ -598,7 +598,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 };
 
 static const struct dc_debug_options debug_defaults_diags = {
-		.disable_dmcu = true,
+		.disable_dmcu = false,
 		.force_abm_enable = false,
 		.timing_trace = true,
 		.clock_trace = true,
@@ -1233,7 +1233,7 @@ static enum dc_status dcn10_validate_global(struct dc *dc, struct dc_state *cont
 	return DC_OK;
 }
 
-static enum dc_status dcn10_get_default_swizzle_mode(struct dc_plane_state *plane_state)
+static enum dc_status dcn10_patch_unknown_plane_state(struct dc_plane_state *plane_state)
 {
 	enum dc_status result = DC_OK;
 
@@ -1295,7 +1295,7 @@ static const struct resource_funcs dcn10_res_pool_funcs = {
 	.validate_plane = dcn10_validate_plane,
 	.validate_global = dcn10_validate_global,
 	.add_stream_to_ctx = dcn10_add_stream_to_ctx,
-	.get_default_swizzle_mode = dcn10_get_default_swizzle_mode,
+	.patch_unknown_plane_state = dcn10_patch_unknown_plane_state,
 	.find_first_free_match_stream_enc_for_link = dcn10_find_first_free_match_stream_enc_for_link
 };
 

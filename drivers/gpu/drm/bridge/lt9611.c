@@ -832,12 +832,18 @@ static struct mipi_dsi_device *lt9611_attach_dsi(struct lt9611 *lt9611,
 	return dsi;
 }
 
-static int lt9611_bridge_attach(struct drm_bridge *bridge)
+static int lt9611_bridge_attach(struct drm_bridge *bridge,
+				enum drm_bridge_attach_flags flags)
 {
 	struct lt9611 *lt9611 = bridge_to_lt9611(bridge);
 	int ret;
 
 	dev_dbg(lt9611->dev, "bridge attach\n");
+
+	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR) {
+		DRM_ERROR("Fix bridge driver to make connector optional!");
+		return -EINVAL;
+	}
 
 	ret = drm_connector_init(bridge->dev, &lt9611->connector,
 				 &lt9611_bridge_connector_funcs,

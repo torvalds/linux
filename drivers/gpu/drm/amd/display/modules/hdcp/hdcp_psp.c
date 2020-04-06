@@ -44,83 +44,77 @@ static void hdcp2_message_init(struct mod_hdcp *hdcp,
 	in->process.msg3_desc.msg_id = TA_HDCP_HDCP2_MSG_ID__NULL_MESSAGE;
 	in->process.msg3_desc.msg_size = 0;
 }
-enum mod_hdcp_status mod_hdcp_remove_display_topology(struct mod_hdcp *hdcp)
-{
-
-	struct psp_context *psp = hdcp->config.psp.handle;
-	struct ta_dtm_shared_memory *dtm_cmd;
-	struct mod_hdcp_display *display = NULL;
-	uint8_t i;
+enum mod_hdcp_status mod_hdcp_remove_display_from_topology(
+		struct mod_hdcp *hdcp, uint8_t index)
+ {
+ 	struct psp_context *psp = hdcp->config.psp.handle;
+ 	struct ta_dtm_shared_memory *dtm_cmd;
+	struct mod_hdcp_display *display =
+			get_active_display_at_index(hdcp, index);
 
 	dtm_cmd = (struct ta_dtm_shared_memory *)psp->dtm_context.dtm_shared_buf;
 
-	for (i = 0; i < MAX_NUM_OF_DISPLAYS; i++) {
-		if (is_display_added(&(hdcp->connection.displays[i]))) {
+	if (!display || !is_display_active(display))
+		return MOD_HDCP_STATUS_DISPLAY_NOT_FOUND;
 
-			memset(dtm_cmd, 0, sizeof(struct ta_dtm_shared_memory));
+	memset(dtm_cmd, 0, sizeof(struct ta_dtm_shared_memory));
 
-			display = &hdcp->connection.displays[i];
+	dtm_cmd->cmd_id = TA_DTM_COMMAND__TOPOLOGY_UPDATE_V2;
+	dtm_cmd->dtm_in_message.topology_update_v2.display_handle = display->index;
+	dtm_cmd->dtm_in_message.topology_update_v2.is_active = 0;
+	dtm_cmd->dtm_status = TA_DTM_STATUS__GENERIC_FAILURE;
 
-			dtm_cmd->cmd_id = TA_DTM_COMMAND__TOPOLOGY_UPDATE_V2;
-			dtm_cmd->dtm_in_message.topology_update_v2.display_handle = display->index;
-			dtm_cmd->dtm_in_message.topology_update_v2.is_active = 0;
-			dtm_cmd->dtm_status = TA_DTM_STATUS__GENERIC_FAILURE;
+	psp_dtm_invoke(psp, dtm_cmd->cmd_id);
 
-			psp_dtm_invoke(psp, dtm_cmd->cmd_id);
+	if (dtm_cmd->dtm_status != TA_DTM_STATUS__SUCCESS)
+		return MOD_HDCP_STATUS_UPDATE_TOPOLOGY_FAILURE;
 
-			if (dtm_cmd->dtm_status != TA_DTM_STATUS__SUCCESS)
-				return MOD_HDCP_STATUS_UPDATE_TOPOLOGY_FAILURE;
+	display->state = MOD_HDCP_DISPLAY_ACTIVE;
+	HDCP_TOP_REMOVE_DISPLAY_TRACE(hdcp, display->index);
+ 
+ 	return MOD_HDCP_STATUS_SUCCESS;
+ }
 
-			display->state = MOD_HDCP_DISPLAY_ACTIVE;
-			HDCP_TOP_REMOVE_DISPLAY_TRACE(hdcp, display->index);
-		}
-	}
-
-	return MOD_HDCP_STATUS_SUCCESS;
-}
-
-enum mod_hdcp_status mod_hdcp_add_display_topology(struct mod_hdcp *hdcp)
+enum mod_hdcp_status mod_hdcp_add_display_to_topology(
+		struct mod_hdcp *hdcp, struct mod_hdcp_display *display)
 {
 	struct psp_context *psp = hdcp->config.psp.handle;
 	struct ta_dtm_shared_memory *dtm_cmd;
-	struct mod_hdcp_display *display = NULL;
 	struct mod_hdcp_link *link = &hdcp->connection.link;
-	uint8_t i;
 
 	if (!psp->dtm_context.dtm_initialized) {
 		DRM_ERROR("Failed to add display topology, DTM TA is not initialized.");
+		display->state = MOD_HDCP_DISPLAY_INACTIVE;
 		return MOD_HDCP_STATUS_FAILURE;
 	}
 
 	dtm_cmd = (struct ta_dtm_shared_memory *)psp->dtm_context.dtm_shared_buf;
 
-	for (i = 0; i < MAX_NUM_OF_DISPLAYS; i++) {
-		if (hdcp->connection.displays[i].state == MOD_HDCP_DISPLAY_ACTIVE) {
-			display = &hdcp->connection.displays[i];
+	memset(dtm_cmd, 0, sizeof(struct ta_dtm_shared_memory));
 
-			memset(dtm_cmd, 0, sizeof(struct ta_dtm_shared_memory));
+	dtm_cmd->cmd_id = TA_DTM_COMMAND__TOPOLOGY_UPDATE_V2;
+	dtm_cmd->dtm_in_message.topology_update_v2.display_handle = display->index;
+	dtm_cmd->dtm_in_message.topology_update_v2.is_active = 1;
+	dtm_cmd->dtm_in_message.topology_update_v2.controller = display->controller;
+	dtm_cmd->dtm_in_message.topology_update_v2.ddc_line = link->ddc_line;
+	dtm_cmd->dtm_in_message.topology_update_v2.dig_be = link->dig_be;
+	dtm_cmd->dtm_in_message.topology_update_v2.dig_fe = display->dig_fe;
+	if (is_dp_hdcp(hdcp))
+		dtm_cmd->dtm_in_message.topology_update_v2.is_assr = link->dp.assr_supported;
 
-			dtm_cmd->cmd_id = TA_DTM_COMMAND__TOPOLOGY_UPDATE_V2;
-			dtm_cmd->dtm_in_message.topology_update_v2.display_handle = display->index;
-			dtm_cmd->dtm_in_message.topology_update_v2.is_active = 1;
-			dtm_cmd->dtm_in_message.topology_update_v2.controller = display->controller;
-			dtm_cmd->dtm_in_message.topology_update_v2.ddc_line = link->ddc_line;
-			dtm_cmd->dtm_in_message.topology_update_v2.dig_be = link->dig_be;
-			dtm_cmd->dtm_in_message.topology_update_v2.dig_fe = display->dig_fe;
-			dtm_cmd->dtm_in_message.topology_update_v2.dp_mst_vcid = display->vc_id;
-			dtm_cmd->dtm_in_message.topology_update_v2.max_hdcp_supported_version =
-				TA_DTM_HDCP_VERSION_MAX_SUPPORTED__2_2;
-			dtm_cmd->dtm_status = TA_DTM_STATUS__GENERIC_FAILURE;
+	dtm_cmd->dtm_in_message.topology_update_v2.dp_mst_vcid = display->vc_id;
+	dtm_cmd->dtm_in_message.topology_update_v2.max_hdcp_supported_version =
+			TA_DTM_HDCP_VERSION_MAX_SUPPORTED__2_2;
+	dtm_cmd->dtm_status = TA_DTM_STATUS__GENERIC_FAILURE;
 
-			psp_dtm_invoke(psp, dtm_cmd->cmd_id);
+	psp_dtm_invoke(psp, dtm_cmd->cmd_id);
 
-			if (dtm_cmd->dtm_status != TA_DTM_STATUS__SUCCESS)
-				return MOD_HDCP_STATUS_UPDATE_TOPOLOGY_FAILURE;
-
-			display->state = MOD_HDCP_DISPLAY_ACTIVE_AND_ADDED;
-			HDCP_TOP_ADD_DISPLAY_TRACE(hdcp, display->index);
-		}
+	if (dtm_cmd->dtm_status != TA_DTM_STATUS__SUCCESS) {
+		display->state = MOD_HDCP_DISPLAY_INACTIVE;
+		return MOD_HDCP_STATUS_UPDATE_TOPOLOGY_FAILURE;
 	}
+
+	HDCP_TOP_ADD_DISPLAY_TRACE(hdcp, display->index);
 
 	return MOD_HDCP_STATUS_SUCCESS;
 }
@@ -129,7 +123,7 @@ enum mod_hdcp_status mod_hdcp_hdcp1_create_session(struct mod_hdcp *hdcp)
 {
 
 	struct psp_context *psp = hdcp->config.psp.handle;
-	struct mod_hdcp_display *display = get_first_added_display(hdcp);
+	struct mod_hdcp_display *display = get_first_active_display(hdcp);
 	struct ta_hdcp_shared_memory *hdcp_cmd;
 
 	if (!psp->hdcp_context.hdcp_initialized) {
@@ -164,6 +158,7 @@ enum mod_hdcp_status mod_hdcp_hdcp1_destroy_session(struct mod_hdcp *hdcp)
 
 	struct psp_context *psp = hdcp->config.psp.handle;
 	struct ta_hdcp_shared_memory *hdcp_cmd;
+	uint8_t i = 0;
 
 	hdcp_cmd = (struct ta_hdcp_shared_memory *)psp->hdcp_context.hdcp_shared_buf;
 	memset(hdcp_cmd, 0, sizeof(struct ta_hdcp_shared_memory));
@@ -177,6 +172,14 @@ enum mod_hdcp_status mod_hdcp_hdcp1_destroy_session(struct mod_hdcp *hdcp)
 		return MOD_HDCP_STATUS_HDCP1_DESTROY_SESSION_FAILURE;
 
 	HDCP_TOP_HDCP1_DESTROY_SESSION_TRACE(hdcp);
+	for (i = 0; i < MAX_NUM_OF_DISPLAYS; i++)
+		if (is_display_encryption_enabled(
+				&hdcp->displays[i])) {
+			hdcp->displays[i].state =
+								MOD_HDCP_DISPLAY_ACTIVE;
+			HDCP_HDCP1_DISABLED_TRACE(hdcp,
+					hdcp->displays[i].index);
+		}
 
 	return MOD_HDCP_STATUS_SUCCESS;
 }
@@ -210,6 +213,10 @@ enum mod_hdcp_status mod_hdcp_hdcp1_validate_rx(struct mod_hdcp *hdcp)
 	} else if (hdcp_cmd->out_msg.hdcp1_first_part_authentication.authentication_status ==
 		   TA_HDCP_AUTHENTICATION_STATUS__HDCP1_AUTHENTICATED) {
 		hdcp->connection.is_repeater = 0;
+	} else if (hdcp_cmd->out_msg.hdcp1_first_part_authentication.authentication_status ==
+		   TA_HDCP_AUTHENTICATION_STATUS__HDCP1_KSV_REVOKED) {
+		hdcp->connection.is_hdcp1_revoked = 1;
+		return MOD_HDCP_STATUS_HDCP1_BKSV_REVOKED;
 	} else
 		return MOD_HDCP_STATUS_HDCP1_VALIDATE_RX_FAILURE;
 
@@ -221,7 +228,7 @@ enum mod_hdcp_status mod_hdcp_hdcp1_enable_encryption(struct mod_hdcp *hdcp)
 {
 	struct psp_context *psp = hdcp->config.psp.handle;
 	struct ta_hdcp_shared_memory *hdcp_cmd;
-	struct mod_hdcp_display *display = get_first_added_display(hdcp);
+	struct mod_hdcp_display *display = get_first_active_display(hdcp);
 
 	hdcp_cmd = (struct ta_hdcp_shared_memory *)psp->hdcp_context.hdcp_shared_buf;
 	memset(hdcp_cmd, 0, sizeof(struct ta_hdcp_shared_memory));
@@ -245,6 +252,7 @@ enum mod_hdcp_status mod_hdcp_hdcp1_validate_ksvlist_vp(struct mod_hdcp *hdcp)
 {
 	struct psp_context *psp = hdcp->config.psp.handle;
 	struct ta_hdcp_shared_memory *hdcp_cmd;
+	enum mod_hdcp_status status = MOD_HDCP_STATUS_SUCCESS;
 
 	hdcp_cmd = (struct ta_hdcp_shared_memory *)psp->hdcp_context.hdcp_shared_buf;
 	memset(hdcp_cmd, 0, sizeof(struct ta_hdcp_shared_memory));
@@ -264,10 +272,19 @@ enum mod_hdcp_status mod_hdcp_hdcp1_validate_ksvlist_vp(struct mod_hdcp *hdcp)
 
 	psp_hdcp_invoke(psp, hdcp_cmd->cmd_id);
 
-	if (hdcp_cmd->hdcp_status != TA_HDCP_STATUS__SUCCESS)
-		return MOD_HDCP_STATUS_HDCP1_VALIDATE_KSV_LIST_FAILURE;
+	if (hdcp_cmd->hdcp_status == TA_HDCP_STATUS__SUCCESS &&
+	    hdcp_cmd->out_msg.hdcp1_second_part_authentication.authentication_status ==
+		    TA_HDCP_AUTHENTICATION_STATUS__HDCP1_AUTHENTICATED) {
+		status = MOD_HDCP_STATUS_SUCCESS;
+	} else if (hdcp_cmd->out_msg.hdcp1_second_part_authentication.authentication_status ==
+		   TA_HDCP_AUTHENTICATION_STATUS__HDCP1_KSV_REVOKED) {
+		hdcp->connection.is_hdcp1_revoked = 1;
+		status = MOD_HDCP_STATUS_HDCP1_KSV_LIST_REVOKED;
+	} else {
+		status = MOD_HDCP_STATUS_HDCP1_VALIDATE_KSV_LIST_FAILURE;
+	}
 
-	return MOD_HDCP_STATUS_SUCCESS;
+	return status;
 }
 
 enum mod_hdcp_status mod_hdcp_hdcp1_enable_dp_stream_encryption(struct mod_hdcp *hdcp)
@@ -281,14 +298,13 @@ enum mod_hdcp_status mod_hdcp_hdcp1_enable_dp_stream_encryption(struct mod_hdcp 
 
 	for (i = 0; i < MAX_NUM_OF_DISPLAYS; i++) {
 
-		if (hdcp->connection.displays[i].state != MOD_HDCP_DISPLAY_ACTIVE_AND_ADDED ||
-		    hdcp->connection.displays[i].adjust.disable)
+		if (hdcp->displays[i].adjust.disable)
 			continue;
 
 		memset(hdcp_cmd, 0, sizeof(struct ta_hdcp_shared_memory));
 
 		hdcp_cmd->in_msg.hdcp1_enable_dp_stream_encryption.session_handle = hdcp->auth.id;
-		hdcp_cmd->in_msg.hdcp1_enable_dp_stream_encryption.display_handle = hdcp->connection.displays[i].index;
+		hdcp_cmd->in_msg.hdcp1_enable_dp_stream_encryption.display_handle = hdcp->displays[i].index;
 		hdcp_cmd->cmd_id = TA_HDCP_COMMAND__HDCP1_ENABLE_DP_STREAM_ENCRYPTION;
 
 		psp_hdcp_invoke(psp, hdcp_cmd->cmd_id);
@@ -296,8 +312,8 @@ enum mod_hdcp_status mod_hdcp_hdcp1_enable_dp_stream_encryption(struct mod_hdcp 
 		if (hdcp_cmd->hdcp_status != TA_HDCP_STATUS__SUCCESS)
 			return MOD_HDCP_STATUS_HDCP1_ENABLE_STREAM_ENCRYPTION_FAILURE;
 
-		hdcp->connection.displays[i].state = MOD_HDCP_DISPLAY_ENCRYPTION_ENABLED;
-		HDCP_HDCP1_ENABLED_TRACE(hdcp, hdcp->connection.displays[i].index);
+		hdcp->displays[i].state = MOD_HDCP_DISPLAY_ENCRYPTION_ENABLED;
+		HDCP_HDCP1_ENABLED_TRACE(hdcp, hdcp->displays[i].index);
 	}
 
 	return MOD_HDCP_STATUS_SUCCESS;
@@ -344,7 +360,7 @@ enum mod_hdcp_status mod_hdcp_hdcp2_create_session(struct mod_hdcp *hdcp)
 {
 	struct psp_context *psp = hdcp->config.psp.handle;
 	struct ta_hdcp_shared_memory *hdcp_cmd;
-	struct mod_hdcp_display *display = get_first_added_display(hdcp);
+	struct mod_hdcp_display *display = get_first_active_display(hdcp);
 
 	if (!psp->hdcp_context.hdcp_initialized) {
 		DRM_ERROR("Failed to create hdcp session, HDCP TA is not initialized");
@@ -385,6 +401,7 @@ enum mod_hdcp_status mod_hdcp_hdcp2_destroy_session(struct mod_hdcp *hdcp)
 {
 	struct psp_context *psp = hdcp->config.psp.handle;
 	struct ta_hdcp_shared_memory *hdcp_cmd;
+	uint8_t i = 0;
 
 	hdcp_cmd = (struct ta_hdcp_shared_memory *)psp->hdcp_context.hdcp_shared_buf;
 	memset(hdcp_cmd, 0, sizeof(struct ta_hdcp_shared_memory));
@@ -398,6 +415,14 @@ enum mod_hdcp_status mod_hdcp_hdcp2_destroy_session(struct mod_hdcp *hdcp)
 		return MOD_HDCP_STATUS_HDCP2_DESTROY_SESSION_FAILURE;
 
 	HDCP_TOP_HDCP2_DESTROY_SESSION_TRACE(hdcp);
+	for (i = 0; i < MAX_NUM_OF_DISPLAYS; i++)
+		if (is_display_encryption_enabled(
+				&hdcp->displays[i])) {
+			hdcp->displays[i].state =
+								MOD_HDCP_DISPLAY_ACTIVE;
+			HDCP_HDCP2_DISABLED_TRACE(hdcp,
+					hdcp->displays[i].index);
+		}
 
 	return MOD_HDCP_STATUS_SUCCESS;
 }
@@ -473,9 +498,12 @@ enum mod_hdcp_status mod_hdcp_hdcp2_validate_ake_cert(struct mod_hdcp *hdcp)
 		hdcp->connection.is_km_stored = msg_out->process.is_km_stored ? 1 : 0;
 		hdcp->connection.is_repeater = msg_out->process.is_repeater ? 1 : 0;
 		return MOD_HDCP_STATUS_SUCCESS;
+	} else if (msg_out->process.msg1_status == TA_HDCP2_MSG_AUTHENTICATION_STATUS__RECEIVERID_REVOKED) {
+		hdcp->connection.is_hdcp2_revoked = 1;
+		return MOD_HDCP_STATUS_HDCP2_AKE_CERT_REVOKED;
 	}
 
-	return MOD_HDCP_STATUS_FAILURE;
+	return MOD_HDCP_STATUS_HDCP2_VALIDATE_AKE_CERT_FAILURE;
 }
 
 enum mod_hdcp_status mod_hdcp_hdcp2_validate_h_prime(struct mod_hdcp *hdcp)
@@ -630,20 +658,15 @@ enum mod_hdcp_status mod_hdcp_hdcp2_enable_encryption(struct mod_hdcp *hdcp)
 {
 	struct psp_context *psp = hdcp->config.psp.handle;
 	struct ta_hdcp_shared_memory *hdcp_cmd;
-	struct ta_hdcp_cmd_hdcp2_process_prepare_authentication_message_input_v2 *msg_in;
-	struct mod_hdcp_display *display = get_first_added_display(hdcp);
+	struct mod_hdcp_display *display = get_first_active_display(hdcp);
 
 	hdcp_cmd = (struct ta_hdcp_shared_memory *)psp->hdcp_context.hdcp_shared_buf;
 	memset(hdcp_cmd, 0, sizeof(struct ta_hdcp_shared_memory));
 
-	msg_in = &hdcp_cmd->in_msg.hdcp2_prepare_process_authentication_message_v2;
-
-	hdcp2_message_init(hdcp, msg_in);
-
 	if (!display)
 		return MOD_HDCP_STATUS_DISPLAY_NOT_FOUND;
 
-	hdcp_cmd->in_msg.hdcp1_enable_encryption.session_handle = hdcp->auth.id;
+	hdcp_cmd->in_msg.hdcp2_set_encryption.session_handle = hdcp->auth.id;
 
 	hdcp_cmd->cmd_id = TA_HDCP_COMMAND__HDCP2_SET_ENCRYPTION;
 	psp_hdcp_invoke(psp, hdcp_cmd->cmd_id);
@@ -695,6 +718,9 @@ enum mod_hdcp_status mod_hdcp_hdcp2_validate_rx_id_list(struct mod_hdcp *hdcp)
 		hdcp->connection.is_km_stored = msg_out->process.is_km_stored ? 1 : 0;
 		hdcp->connection.is_repeater = msg_out->process.is_repeater ? 1 : 0;
 		return MOD_HDCP_STATUS_SUCCESS;
+	} else if (msg_out->process.msg1_status == TA_HDCP2_MSG_AUTHENTICATION_STATUS__RECEIVERID_REVOKED) {
+		hdcp->connection.is_hdcp2_revoked = 1;
+		return MOD_HDCP_STATUS_HDCP2_RX_ID_LIST_REVOKED;
 	}
 
 
@@ -717,10 +743,9 @@ enum mod_hdcp_status mod_hdcp_hdcp2_enable_dp_stream_encryption(struct mod_hdcp 
 
 
 	for (i = 0; i < MAX_NUM_OF_DISPLAYS; i++) {
-		if (hdcp->connection.displays[i].state != MOD_HDCP_DISPLAY_ACTIVE_AND_ADDED ||
-		    hdcp->connection.displays[i].adjust.disable)
+		if (hdcp->displays[i].adjust.disable)
 			continue;
-		hdcp_cmd->in_msg.hdcp2_enable_dp_stream_encryption.display_handle = hdcp->connection.displays[i].index;
+		hdcp_cmd->in_msg.hdcp2_enable_dp_stream_encryption.display_handle = hdcp->displays[i].index;
 		hdcp_cmd->in_msg.hdcp2_enable_dp_stream_encryption.session_handle = hdcp->auth.id;
 
 		hdcp_cmd->cmd_id = TA_HDCP_COMMAND__HDCP2_ENABLE_DP_STREAM_ENCRYPTION;
@@ -729,8 +754,8 @@ enum mod_hdcp_status mod_hdcp_hdcp2_enable_dp_stream_encryption(struct mod_hdcp 
 		if (hdcp_cmd->hdcp_status != TA_HDCP_STATUS__SUCCESS)
 			break;
 
-		hdcp->connection.displays[i].state = MOD_HDCP_DISPLAY_ENCRYPTION_ENABLED;
-		HDCP_HDCP2_ENABLED_TRACE(hdcp, hdcp->connection.displays[i].index);
+		hdcp->displays[i].state = MOD_HDCP_DISPLAY_ENCRYPTION_ENABLED;
+		HDCP_HDCP2_ENABLED_TRACE(hdcp, hdcp->displays[i].index);
 	}
 
 	return (hdcp_cmd->hdcp_status == TA_HDCP_STATUS__SUCCESS) ? MOD_HDCP_STATUS_SUCCESS

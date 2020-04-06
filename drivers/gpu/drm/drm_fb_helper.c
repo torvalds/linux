@@ -250,17 +250,7 @@ int drm_fb_helper_restore_fbdev_mode_unlocked(struct drm_fb_helper *fb_helper)
 		return 0;
 
 	mutex_lock(&fb_helper->lock);
-	/*
-	 * TODO:
-	 * We should bail out here if there is a master by dropping _force.
-	 * Currently these igt tests fail if we do that:
-	 * - kms_fbcon_fbt@psr
-	 * - kms_fbcon_fbt@psr-suspend
-	 *
-	 * So first these tests need to be fixed so they drop master or don't
-	 * have an fd open.
-	 */
-	ret = drm_client_modeset_commit_force(&fb_helper->client);
+	ret = drm_client_modeset_commit(&fb_helper->client);
 
 	do_delayed = fb_helper->delayed_hotplug;
 	if (do_delayed)
@@ -294,7 +284,7 @@ static bool drm_fb_helper_force_kernel_mode(void)
 			continue;
 
 		mutex_lock(&helper->lock);
-		ret = drm_client_modeset_commit_force(&helper->client);
+		ret = drm_client_modeset_commit_locked(&helper->client);
 		if (ret)
 			error = true;
 		mutex_unlock(&helper->lock);
@@ -460,7 +450,6 @@ EXPORT_SYMBOL(drm_fb_helper_prepare);
  * drm_fb_helper_init - initialize a &struct drm_fb_helper
  * @dev: drm device
  * @fb_helper: driver-allocated fbdev helper structure to initialize
- * @max_conn_count: max connector count (not used)
  *
  * This allocates the structures for the fbdev helper with the given limits.
  * Note that this won't yet touch the hardware (through the driver interfaces)
@@ -473,8 +462,7 @@ EXPORT_SYMBOL(drm_fb_helper_prepare);
  * Zero if everything went ok, nonzero otherwise.
  */
 int drm_fb_helper_init(struct drm_device *dev,
-		       struct drm_fb_helper *fb_helper,
-		       int max_conn_count)
+		       struct drm_fb_helper *fb_helper)
 {
 	int ret;
 
@@ -1357,7 +1345,7 @@ static int pan_display_atomic(struct fb_var_screeninfo *var,
 
 	pan_set(fb_helper, var->xoffset, var->yoffset);
 
-	ret = drm_client_modeset_commit_force(&fb_helper->client);
+	ret = drm_client_modeset_commit_locked(&fb_helper->client);
 	if (!ret) {
 		info->var.xoffset = var->xoffset;
 		info->var.yoffset = var->yoffset;
@@ -2135,7 +2123,7 @@ static int drm_fbdev_client_hotplug(struct drm_client_dev *client)
 
 	drm_fb_helper_prepare(dev, fb_helper, &drm_fb_helper_generic_funcs);
 
-	ret = drm_fb_helper_init(dev, fb_helper, 0);
+	ret = drm_fb_helper_init(dev, fb_helper);
 	if (ret)
 		goto err;
 
