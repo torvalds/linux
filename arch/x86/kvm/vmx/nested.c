@@ -3645,7 +3645,8 @@ static int vmx_check_nested_events(struct kvm_vcpu *vcpu)
 	 * Clear the MTF state. If a higher priority VM-exit is delivered first,
 	 * this state is discarded.
 	 */
-	vmx->nested.mtf_pending = false;
+	if (!block_nested_events)
+		vmx->nested.mtf_pending = false;
 
 	if (lapic_in_kernel(vcpu) &&
 		test_bit(KVM_APIC_INIT, &apic->pending_events)) {
