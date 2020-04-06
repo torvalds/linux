@@ -547,7 +547,7 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 	struct vnt_tx_fifo_head *tx_buffer_head;
 	struct vnt_usb_send_context *tx_context;
 	unsigned long flags;
-	u16 tx_bytes, tx_header_size, tx_body_size, current_rate, duration_id;
+	u16 tx_bytes, tx_header_size, tx_body_size, duration_id;
 	u8 pkt_type;
 	bool need_rts = false;
 	bool need_mic = false;
@@ -556,14 +556,7 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 
 	rate = ieee80211_get_tx_rate(priv->hw, info);
 
-	current_rate = rate->hw_value;
-	if (priv->current_rate != current_rate &&
-	    !(priv->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL)) {
-		priv->current_rate = current_rate;
-		vnt_schedule_command(priv, WLAN_CMD_SETPOWER);
-	}
-
-	if (current_rate > RATE_11M) {
+	if (rate->hw_value > RATE_11M) {
 		if (info->band == NL80211_BAND_5GHZ) {
 			pkt_type = PK_TYPE_11A;
 		} else {
@@ -593,7 +586,7 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 	tx_context->pkt_type = pkt_type;
 	tx_context->need_ack = false;
 	tx_context->frame_len = skb->len + 4;
-	tx_context->tx_rate = current_rate;
+	tx_context->tx_rate =  rate->hw_value;
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -666,7 +659,7 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 		tx_context->frame_len += tx_key->icv_len;
 	}
 
-	tx_buffer_head->current_rate = cpu_to_le16(current_rate);
+	tx_buffer_head->current_rate = cpu_to_le16(rate->hw_value);
 
 	duration_id = vnt_generate_tx_parameter(tx_context, tx_buffer, &mic_hdr,
 						need_mic, need_rts);
