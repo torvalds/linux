@@ -52,13 +52,6 @@ enum rkisp1_stream_id {
 	RKISP1_SELFPATH,
 };
 
-enum rkisp1_fmt_pix_type {
-	RKISP1_FMT_YUV,
-	RKISP1_FMT_RGB,
-	RKISP1_FMT_BAYER,
-	RKISP1_FMT_JPEG,
-};
-
 enum rkisp1_fmt_raw_pat_type {
 	RKISP1_RAW_RGGB = 0,
 	RKISP1_RAW_GRBG,
@@ -225,7 +218,7 @@ struct rkisp1_resizer {
 	struct media_pad pads[RKISP1_ISP_PAD_MAX];
 	struct v4l2_subdev_pad_config pad_cfg[RKISP1_ISP_PAD_MAX];
 	const struct rkisp1_rsz_config *config;
-	enum rkisp1_fmt_pix_type fmt_type;
+	enum v4l2_pixel_encoding fmt_type;
 	struct mutex ops_lock;
 };
 
@@ -278,7 +271,7 @@ struct rkisp1_device {
  */
 struct rkisp1_isp_mbus_info {
 	u32 mbus_code;
-	enum rkisp1_fmt_pix_type fmt_type;
+	enum v4l2_pixel_encoding fmt_type;
 	u32 mipi_dt;
 	u32 yuv_seq;
 	u8 bus_width;
