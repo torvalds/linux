@@ -3702,7 +3702,8 @@ static bool drm_dp_get_one_sb_msg(struct drm_dp_mst_topology_mgr *mgr, bool up,
 	int basereg = up ? DP_SIDEBAND_MSG_UP_REQ_BASE :
 			   DP_SIDEBAND_MSG_DOWN_REP_BASE;
 
-	*mstb = NULL;
+	if (!up)
+		*mstb = NULL;
 	*seqno = -1;
 
 	len = min(mgr->max_dpcd_transaction_bytes, 16);
