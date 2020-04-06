@@ -882,9 +882,19 @@ static int mipidphy_get_set_fmt(struct v4l2_subdev *sd,
 	return v4l2_subdev_call(sensor, pad, get_fmt, NULL, fmt);
 }
 
+static int mipidphy_get_selection(struct v4l2_subdev *sd,
+				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_selection *sel)
+{
+	struct v4l2_subdev *sensor = get_remote_sensor(sd);
+
+	return v4l2_subdev_call(sensor, pad, get_selection, NULL, sel);
+}
+
 static const struct v4l2_subdev_pad_ops mipidphy_subdev_pad_ops = {
 	.set_fmt = mipidphy_get_set_fmt,
 	.get_fmt = mipidphy_get_set_fmt,
+	.get_selection = mipidphy_get_selection,
 };
 
 static const struct v4l2_subdev_core_ops mipidphy_core_ops = {
