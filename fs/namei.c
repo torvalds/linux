@@ -610,7 +610,7 @@ static bool __legitimize_path(struct path *path, unsigned seq, unsigned mseq)
 static inline bool legitimize_path(struct nameidata *nd,
 			    struct path *path, unsigned seq)
 {
-	return __legitimize_path(path, nd->m_seq, seq);
+	return __legitimize_path(path, seq, nd->m_seq);
 }
 
 static bool legitimize_links(struct nameidata *nd)
