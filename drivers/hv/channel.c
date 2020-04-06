@@ -594,15 +594,10 @@ post_msg_err:
 }
 EXPORT_SYMBOL_GPL(vmbus_teardown_gpadl);
 
-static void reset_channel_cb(void *arg)
-{
-	struct vmbus_channel *channel = arg;
-
-	channel->onchannel_callback = NULL;
-}
-
 void vmbus_reset_channel_cb(struct vmbus_channel *channel)
 {
+	unsigned long flags;
+
 	/*
 	 * vmbus_on_event(), running in the per-channel tasklet, can race
 	 * with vmbus_close_internal() in the case of SMP guest, e.g., when
@@ -618,17 +613,12 @@ void vmbus_reset_channel_cb(struct vmbus_channel *channel)
 	 */
 	tasklet_disable(&channel->callback_event);
 
-	channel->sc_creation_callback = NULL;
+	/* See the inline comments in vmbus_chan_sched(). */
+	spin_lock_irqsave(&channel->sched_lock, flags);
+	channel->onchannel_callback = NULL;
+	spin_unlock_irqrestore(&channel->sched_lock, flags);
 
-	/* Stop the callback asap */
-	if (channel->target_cpu != get_cpu()) {
-		put_cpu();
-		smp_call_function_single(channel->target_cpu, reset_channel_cb,
-					 channel, true);
-	} else {
-		reset_channel_cb(channel);
-		put_cpu();
-	}
+	channel->sc_creation_callback = NULL;
 
 	/* Re-enable tasklet for use on re-open */
 	tasklet_enable(&channel->callback_event);

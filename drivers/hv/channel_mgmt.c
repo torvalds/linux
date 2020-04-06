@@ -315,6 +315,7 @@ static struct vmbus_channel *alloc_channel(void)
 	if (!channel)
 		return NULL;
 
+	spin_lock_init(&channel->sched_lock);
 	spin_lock_init(&channel->lock);
 	init_completion(&channel->rescind_event);
 
