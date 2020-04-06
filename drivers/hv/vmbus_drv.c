@@ -1777,6 +1777,10 @@ static ssize_t target_cpu_store(struct vmbus_channel *channel,
 	 * in on a CPU that is different from the channel target_cpu value.
 	 */
 
+	if (channel->change_target_cpu_callback)
+		(*channel->change_target_cpu_callback)(channel,
+				channel->target_cpu, target_cpu);
+
 	channel->target_cpu = target_cpu;
 	channel->target_vp = hv_cpu_number_to_vp_number(target_cpu);
 	channel->numa_node = cpu_to_node(target_cpu);

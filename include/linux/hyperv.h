@@ -773,6 +773,9 @@ struct vmbus_channel {
 	void (*onchannel_callback)(void *context);
 	void *channel_callback_context;
 
+	void (*change_target_cpu_callback)(struct vmbus_channel *channel,
+			u32 old, u32 new);
+
 	/*
 	 * Synchronize channel scheduling and channel removal; see the inline
 	 * comments in vmbus_chan_sched() and vmbus_reset_channel_cb().
