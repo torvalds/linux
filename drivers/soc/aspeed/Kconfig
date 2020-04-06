@@ -36,6 +36,14 @@ config ASPEED_SSP
 	help
 	  Driver for loading secondary-service-processor binary
 
+config ASPEED_MCTP
+	tristate "Aspeed ast2600 MCTP Controller support"
+	depends on REGMAP && MFD_SYSCON
+	help
+	  Enable support for ast2600 MCTP Controller.
+	  The MCTP controller allows the BMC to communicate with devices on
+	  the host PCIe network.
+
 config ASPEED_UART_ROUTING
 	tristate "ASPEED uart routing control"
 	select REGMAP
