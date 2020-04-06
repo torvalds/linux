@@ -15,6 +15,7 @@
 
 #include <asm/debugfs.h>
 #include <asm/powernv.h>
+#include <asm/ppc-pci.h>
 #include <asm/opal.h>
 
 #include "pci.h"
@@ -425,7 +426,8 @@ static void pnv_comp_attach_table_group(struct npu_comp *npucomp,
 	++npucomp->pe_num;
 }
 
-struct iommu_table_group *pnv_try_setup_npu_table_group(struct pnv_ioda_pe *pe)
+static struct iommu_table_group *
+	pnv_try_setup_npu_table_group(struct pnv_ioda_pe *pe)
 {
 	struct iommu_table_group *compound_group;
 	struct npu_comp *npucomp;
@@ -491,7 +493,7 @@ struct iommu_table_group *pnv_try_setup_npu_table_group(struct pnv_ioda_pe *pe)
 	return compound_group;
 }
 
-struct iommu_table_group *pnv_npu_compound_attach(struct pnv_ioda_pe *pe)
+static struct iommu_table_group *pnv_npu_compound_attach(struct pnv_ioda_pe *pe)
 {
 	struct iommu_table_group *table_group;
 	struct npu_comp *npucomp;
@@ -533,6 +535,54 @@ struct iommu_table_group *pnv_npu_compound_attach(struct pnv_ioda_pe *pe)
 	}
 
 	return table_group;
+}
+
+void pnv_pci_npu_setup_iommu_groups(void)
+{
+	struct pci_controller *hose;
+	struct pnv_phb *phb;
+	struct pnv_ioda_pe *pe;
+
+	/*
+	 * For non-nvlink devices the IOMMU group is registered when the PE is
+	 * configured and devices are added to the group when the per-device
+	 * DMA setup is run. That's done in hose->ops.dma_dev_setup() which is
+	 * only initialise for "normal" IODA PHBs.
+	 *
+	 * For NVLink devices we need to ensure the NVLinks and the GPU end up
+	 * in the same IOMMU group, so that's handled here.
+	 */
+	list_for_each_entry(hose, &hose_list, list_node) {
+		phb = hose->private_data;
+
+		if (phb->type == PNV_PHB_IODA2)
+			list_for_each_entry(pe, &phb->ioda.pe_list, list)
+				pnv_try_setup_npu_table_group(pe);
+	}
+
+	/*
+	 * Now we have all PHBs discovered, time to add NPU devices to
+	 * the corresponding IOMMU groups.
+	 */
+	list_for_each_entry(hose, &hose_list, list_node) {
+		unsigned long  pgsizes;
+
+		phb = hose->private_data;
+
+		if (phb->type != PNV_PHB_NPU_NVLINK)
+			continue;
+
+		pgsizes = pnv_ioda_parse_tce_sizes(phb);
+		list_for_each_entry(pe, &phb->ioda.pe_list, list) {
+			/*
+			 * IODA2 bridges get this set up from
+			 * pci_controller_ops::setup_bridge but NPU bridges
+			 * do not have this hook defined so we do it here.
+			 */
+			pe->table_group.pgsizes = pgsizes;
+			pnv_npu_compound_attach(pe);
+		}
+	}
 }
 #endif /* CONFIG_IOMMU_API */
 
