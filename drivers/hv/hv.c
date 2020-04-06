@@ -250,6 +250,13 @@ int hv_synic_cleanup(unsigned int cpu)
 	unsigned long flags;
 
 	/*
+	 * Hyper-V does not provide a way to change the connect CPU once
+	 * it is set; we must prevent the connect CPU from going offline.
+	 */
+	if (cpu == VMBUS_CONNECT_CPU)
+		return -EBUSY;
+
+	/*
 	 * Search for channels which are bound to the CPU we're about to
 	 * cleanup. In case we find one and vmbus is still connected we need to
 	 * fail, this will effectively prevent CPU offlining. There is no way
