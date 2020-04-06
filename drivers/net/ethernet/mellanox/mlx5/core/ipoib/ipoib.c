@@ -160,7 +160,6 @@ int mlx5i_init_underlay_qp(struct mlx5e_priv *priv)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
 	struct mlx5i_priv *ipriv = priv->ppriv;
-	struct mlx5_core_qp *qp = &ipriv->qp;
 	int ret;
 
 	{
@@ -176,7 +175,7 @@ int mlx5i_init_underlay_qp(struct mlx5e_priv *priv)
 		MLX5_SET(qpc, qpc, q_key, IB_DEFAULT_Q_KEY);
 
 		MLX5_SET(rst2init_qp_in, in, opcode, MLX5_CMD_OP_RST2INIT_QP);
-		MLX5_SET(rst2init_qp_in, in, qpn, qp->qpn);
+		MLX5_SET(rst2init_qp_in, in, qpn, ipriv->qpn);
 		ret = mlx5_cmd_exec_in(mdev, rst2init_qp, in);
 		if (ret)
 			goto err_qp_modify_to_err;
@@ -185,7 +184,7 @@ int mlx5i_init_underlay_qp(struct mlx5e_priv *priv)
 		u32 in[MLX5_ST_SZ_DW(init2rtr_qp_in)] = {};
 
 		MLX5_SET(init2rtr_qp_in, in, opcode, MLX5_CMD_OP_INIT2RTR_QP);
-		MLX5_SET(init2rtr_qp_in, in, qpn, qp->qpn);
+		MLX5_SET(init2rtr_qp_in, in, qpn, ipriv->qpn);
 		ret = mlx5_cmd_exec_in(mdev, init2rtr_qp, in);
 		if (ret)
 			goto err_qp_modify_to_err;
@@ -194,7 +193,7 @@ int mlx5i_init_underlay_qp(struct mlx5e_priv *priv)
 		u32 in[MLX5_ST_SZ_DW(rtr2rts_qp_in)] = {};
 
 		MLX5_SET(rtr2rts_qp_in, in, opcode, MLX5_CMD_OP_RTR2RTS_QP);
-		MLX5_SET(rtr2rts_qp_in, in, qpn, qp->qpn);
+		MLX5_SET(rtr2rts_qp_in, in, qpn, ipriv->qpn);
 		ret = mlx5_cmd_exec_in(mdev, rtr2rts_qp, in);
 		if (ret)
 			goto err_qp_modify_to_err;
@@ -206,7 +205,7 @@ err_qp_modify_to_err:
 		u32 in[MLX5_ST_SZ_DW(qp_2err_in)] = {};
 
 		MLX5_SET(qp_2err_in, in, opcode, MLX5_CMD_OP_2ERR_QP);
-		MLX5_SET(qp_2err_in, in, qpn, qp->qpn);
+		MLX5_SET(qp_2err_in, in, qpn, ipriv->qpn);
 		mlx5_cmd_exec_in(mdev, qp_2err, in);
 	}
 	return ret;
@@ -219,16 +218,17 @@ void mlx5i_uninit_underlay_qp(struct mlx5e_priv *priv)
 	u32 in[MLX5_ST_SZ_DW(qp_2rst_in)] = {};
 
 	MLX5_SET(qp_2rst_in, in, opcode, MLX5_CMD_OP_2RST_QP);
-	MLX5_SET(qp_2rst_in, in, qpn, ipriv->qp.qpn);
+	MLX5_SET(qp_2rst_in, in, qpn, ipriv->qpn);
 	mlx5_cmd_exec_in(mdev, qp_2rst, in);
 }
 
 #define MLX5_QP_ENHANCED_ULP_STATELESS_MODE 2
 
-int mlx5i_create_underlay_qp(struct mlx5_core_dev *mdev, struct mlx5_core_qp *qp)
+int mlx5i_create_underlay_qp(struct mlx5e_priv *priv)
 {
 	u32 out[MLX5_ST_SZ_DW(create_qp_out)] = {};
 	u32 in[MLX5_ST_SZ_DW(create_qp_in)] = {};
+	struct mlx5i_priv *ipriv = priv->ppriv;
 	void *addr_path;
 	int ret = 0;
 	void *qpc;
@@ -244,21 +244,21 @@ int mlx5i_create_underlay_qp(struct mlx5_core_dev *mdev, struct mlx5_core_qp *qp
 	MLX5_SET(ads, addr_path, grh, 1);
 
 	MLX5_SET(create_qp_in, in, opcode, MLX5_CMD_OP_CREATE_QP);
-	ret = mlx5_cmd_exec_inout(mdev, create_qp, in, out);
+	ret = mlx5_cmd_exec_inout(priv->mdev, create_qp, in, out);
 	if (ret)
 		return ret;
 
-	qp->qpn = MLX5_GET(create_qp_out, out, qpn);
+	ipriv->qpn = MLX5_GET(create_qp_out, out, qpn);
 
 	return 0;
 }
 
-void mlx5i_destroy_underlay_qp(struct mlx5_core_dev *mdev, struct mlx5_core_qp *qp)
+void mlx5i_destroy_underlay_qp(struct mlx5_core_dev *mdev, u32 qpn)
 {
 	u32 in[MLX5_ST_SZ_DW(destroy_qp_in)] = {};
 
 	MLX5_SET(destroy_qp_in, in, opcode, MLX5_CMD_OP_DESTROY_QP);
-	MLX5_SET(destroy_qp_in, in, qpn, qp->qpn);
+	MLX5_SET(destroy_qp_in, in, qpn, qpn);
 	mlx5_cmd_exec_in(mdev, destroy_qp, in);
 }
 
@@ -279,13 +279,13 @@ static int mlx5i_init_tx(struct mlx5e_priv *priv)
 	struct mlx5i_priv *ipriv = priv->ppriv;
 	int err;
 
-	err = mlx5i_create_underlay_qp(priv->mdev, &ipriv->qp);
+	err = mlx5i_create_underlay_qp(priv);
 	if (err) {
 		mlx5_core_warn(priv->mdev, "create underlay QP failed, %d\n", err);
 		return err;
 	}
 
-	err = mlx5i_create_tis(priv->mdev, ipriv->qp.qpn, &priv->tisn[0][0]);
+	err = mlx5i_create_tis(priv->mdev, ipriv->qpn, &priv->tisn[0][0]);
 	if (err) {
 		mlx5_core_warn(priv->mdev, "create tis failed, %d\n", err);
 		goto err_destroy_underlay_qp;
@@ -294,7 +294,7 @@ static int mlx5i_init_tx(struct mlx5e_priv *priv)
 	return 0;
 
 err_destroy_underlay_qp:
-	mlx5i_destroy_underlay_qp(priv->mdev, &ipriv->qp);
+	mlx5i_destroy_underlay_qp(priv->mdev, ipriv->qpn);
 	return err;
 }
 
@@ -303,7 +303,7 @@ static void mlx5i_cleanup_tx(struct mlx5e_priv *priv)
 	struct mlx5i_priv *ipriv = priv->ppriv;
 
 	mlx5e_destroy_tis(priv->mdev, priv->tisn[0][0]);
-	mlx5i_destroy_underlay_qp(priv->mdev, &ipriv->qp);
+	mlx5i_destroy_underlay_qp(priv->mdev, ipriv->qpn);
 }
 
 static int mlx5i_create_flow_steering(struct mlx5e_priv *priv)
@@ -506,12 +506,12 @@ int mlx5i_dev_init(struct net_device *dev)
 	struct mlx5i_priv    *ipriv  = priv->ppriv;
 
 	/* Set dev address using underlay QP */
-	dev->dev_addr[1] = (ipriv->qp.qpn >> 16) & 0xff;
-	dev->dev_addr[2] = (ipriv->qp.qpn >>  8) & 0xff;
-	dev->dev_addr[3] = (ipriv->qp.qpn) & 0xff;
+	dev->dev_addr[1] = (ipriv->qpn >> 16) & 0xff;
+	dev->dev_addr[2] = (ipriv->qpn >>  8) & 0xff;
+	dev->dev_addr[3] = (ipriv->qpn) & 0xff;
 
 	/* Add QPN to net-device mapping to HT */
-	mlx5i_pkey_add_qpn(dev ,ipriv->qp.qpn);
+	mlx5i_pkey_add_qpn(dev, ipriv->qpn);
 
 	return 0;
 }
@@ -538,7 +538,7 @@ void mlx5i_dev_cleanup(struct net_device *dev)
 	mlx5i_uninit_underlay_qp(priv);
 
 	/* Delete QPN to net-device mapping from HT */
-	mlx5i_pkey_del_qpn(dev, ipriv->qp.qpn);
+	mlx5i_pkey_del_qpn(dev, ipriv->qpn);
 }
 
 static int mlx5i_open(struct net_device *netdev)
@@ -558,7 +558,7 @@ static int mlx5i_open(struct net_device *netdev)
 		goto err_clear_state_opened_flag;
 	}
 
-	err = mlx5_fs_add_rx_underlay_qpn(mdev, ipriv->qp.qpn);
+	err = mlx5_fs_add_rx_underlay_qpn(mdev, ipriv->qpn);
 	if (err) {
 		mlx5_core_warn(mdev, "attach underlay qp to ft failed, %d\n", err);
 		goto err_reset_qp;
@@ -575,7 +575,7 @@ static int mlx5i_open(struct net_device *netdev)
 	return 0;
 
 err_remove_fs_underlay_qp:
-	mlx5_fs_remove_rx_underlay_qpn(mdev, ipriv->qp.qpn);
+	mlx5_fs_remove_rx_underlay_qpn(mdev, ipriv->qpn);
 err_reset_qp:
 	mlx5i_uninit_underlay_qp(epriv);
 err_clear_state_opened_flag:
@@ -601,7 +601,7 @@ static int mlx5i_close(struct net_device *netdev)
 	clear_bit(MLX5E_STATE_OPENED, &epriv->state);
 
 	netif_carrier_off(epriv->netdev);
-	mlx5_fs_remove_rx_underlay_qpn(mdev, ipriv->qp.qpn);
+	mlx5_fs_remove_rx_underlay_qpn(mdev, ipriv->qpn);
 	mlx5e_deactivate_priv_channels(epriv);
 	mlx5e_close_channels(&epriv->channels);
 	mlx5i_uninit_underlay_qp(epriv);
@@ -620,11 +620,12 @@ static int mlx5i_attach_mcast(struct net_device *netdev, struct ib_device *hca,
 	struct mlx5i_priv    *ipriv = epriv->ppriv;
 	int err;
 
-	mlx5_core_dbg(mdev, "attaching QPN 0x%x, MGID %pI6\n", ipriv->qp.qpn, gid->raw);
-	err = mlx5_core_attach_mcg(mdev, gid, ipriv->qp.qpn);
+	mlx5_core_dbg(mdev, "attaching QPN 0x%x, MGID %pI6\n", ipriv->qpn,
+		      gid->raw);
+	err = mlx5_core_attach_mcg(mdev, gid, ipriv->qpn);
 	if (err)
 		mlx5_core_warn(mdev, "failed attaching QPN 0x%x, MGID %pI6\n",
-			       ipriv->qp.qpn, gid->raw);
+			       ipriv->qpn, gid->raw);
 
 	if (set_qkey) {
 		mlx5_core_dbg(mdev, "%s setting qkey 0x%x\n",
@@ -643,12 +644,13 @@ static int mlx5i_detach_mcast(struct net_device *netdev, struct ib_device *hca,
 	struct mlx5i_priv    *ipriv = epriv->ppriv;
 	int err;
 
-	mlx5_core_dbg(mdev, "detaching QPN 0x%x, MGID %pI6\n", ipriv->qp.qpn, gid->raw);
+	mlx5_core_dbg(mdev, "detaching QPN 0x%x, MGID %pI6\n", ipriv->qpn,
+		      gid->raw);
 
-	err = mlx5_core_detach_mcg(mdev, gid, ipriv->qp.qpn);
+	err = mlx5_core_detach_mcg(mdev, gid, ipriv->qpn);
 	if (err)
 		mlx5_core_dbg(mdev, "failed detaching QPN 0x%x, MGID %pI6\n",
-			      ipriv->qp.qpn, gid->raw);
+			      ipriv->qpn, gid->raw);
 
 	return err;
 }

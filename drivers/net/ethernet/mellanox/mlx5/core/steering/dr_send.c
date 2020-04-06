@@ -178,7 +178,7 @@ static struct mlx5dr_qp *dr_create_rc_qp(struct mlx5_core_dev *mdev,
 
 	MLX5_SET(create_qp_in, in, opcode, MLX5_CMD_OP_CREATE_QP);
 	err = mlx5_cmd_exec(mdev, in, inlen, out, sizeof(out));
-	dr_qp->mqp.qpn = MLX5_GET(create_qp_out, out, qpn);
+	dr_qp->qpn = MLX5_GET(create_qp_out, out, qpn);
 	kfree(in);
 	if (err)
 		goto err_in;
@@ -199,10 +199,9 @@ static void dr_destroy_qp(struct mlx5_core_dev *mdev,
 			  struct mlx5dr_qp *dr_qp)
 {
 	u32 in[MLX5_ST_SZ_DW(destroy_qp_in)] = {};
-	struct mlx5_core_qp *qp = &dr_qp->mqp;
 
 	MLX5_SET(destroy_qp_in, in, opcode, MLX5_CMD_OP_DESTROY_QP);
-	MLX5_SET(destroy_qp_in, in, qpn, qp->qpn);
+	MLX5_SET(destroy_qp_in, in, qpn, dr_qp->qpn);
 	mlx5_cmd_exec_in(mdev, destroy_qp, in);
 
 	kfree(dr_qp->sq.wqe_head);
@@ -242,7 +241,7 @@ static void dr_rdma_segments(struct mlx5dr_qp *dr_qp, u64 remote_addr,
 		MLX5_WQE_CTRL_CQ_UPDATE : 0;
 	wq_ctrl->opmod_idx_opcode = cpu_to_be32(((dr_qp->sq.pc & 0xffff) << 8) |
 						opcode);
-	wq_ctrl->qpn_ds = cpu_to_be32(size | dr_qp->mqp.qpn << 8);
+	wq_ctrl->qpn_ds = cpu_to_be32(size | dr_qp->qpn << 8);
 	wq_raddr = (void *)(wq_ctrl + 1);
 	wq_raddr->raddr = cpu_to_be64(remote_addr);
 	wq_raddr->rkey = cpu_to_be32(rkey);
@@ -586,7 +585,7 @@ static int dr_modify_qp_rst2init(struct mlx5_core_dev *mdev,
 	MLX5_SET(qpc, qpc, rwe, 1);
 
 	MLX5_SET(rst2init_qp_in, in, opcode, MLX5_CMD_OP_RST2INIT_QP);
-	MLX5_SET(rst2init_qp_in, in, qpn, dr_qp->mqp.qpn);
+	MLX5_SET(rst2init_qp_in, in, qpn, dr_qp->qpn);
 
 	return mlx5_cmd_exec_in(mdev, rst2init_qp, in);
 }
@@ -600,13 +599,13 @@ static int dr_cmd_modify_qp_rtr2rts(struct mlx5_core_dev *mdev,
 
 	qpc  = MLX5_ADDR_OF(rtr2rts_qp_in, in, qpc);
 
-	MLX5_SET(rtr2rts_qp_in, in, qpn, dr_qp->mqp.qpn);
+	MLX5_SET(rtr2rts_qp_in, in, qpn, dr_qp->qpn);
 
 	MLX5_SET(qpc, qpc, retry_count, attr->retry_cnt);
 	MLX5_SET(qpc, qpc, rnr_retry, attr->rnr_retry);
 
 	MLX5_SET(rtr2rts_qp_in, in, opcode, MLX5_CMD_OP_RTR2RTS_QP);
-	MLX5_SET(rtr2rts_qp_in, in, qpn, dr_qp->mqp.qpn);
+	MLX5_SET(rtr2rts_qp_in, in, qpn, dr_qp->qpn);
 
 	return mlx5_cmd_exec_in(mdev, rtr2rts_qp, in);
 }
@@ -620,7 +619,7 @@ static int dr_cmd_modify_qp_init2rtr(struct mlx5_core_dev *mdev,
 
 	qpc = MLX5_ADDR_OF(init2rtr_qp_in, in, qpc);
 
-	MLX5_SET(init2rtr_qp_in, in, qpn, dr_qp->mqp.qpn);
+	MLX5_SET(init2rtr_qp_in, in, qpn, dr_qp->qpn);
 
 	MLX5_SET(qpc, qpc, mtu, attr->mtu);
 	MLX5_SET(qpc, qpc, log_msg_max, DR_CHUNK_SIZE_MAX - 1);
@@ -640,7 +639,7 @@ static int dr_cmd_modify_qp_init2rtr(struct mlx5_core_dev *mdev,
 	MLX5_SET(qpc, qpc, min_rnr_nak, 1);
 
 	MLX5_SET(init2rtr_qp_in, in, opcode, MLX5_CMD_OP_INIT2RTR_QP);
-	MLX5_SET(init2rtr_qp_in, in, qpn, dr_qp->mqp.qpn);
+	MLX5_SET(init2rtr_qp_in, in, qpn, dr_qp->qpn);
 
 	return mlx5_cmd_exec_in(mdev, init2rtr_qp, in);
 }
@@ -668,7 +667,7 @@ static int dr_prepare_qp_to_rts(struct mlx5dr_domain *dmn)
 		return ret;
 
 	rtr_attr.mtu		= mtu;
-	rtr_attr.qp_num		= dr_qp->mqp.qpn;
+	rtr_attr.qp_num		= dr_qp->qpn;
 	rtr_attr.min_rnr_timer	= 12;
 	rtr_attr.port_num	= port;
 	rtr_attr.sgid_index	= gid_index;

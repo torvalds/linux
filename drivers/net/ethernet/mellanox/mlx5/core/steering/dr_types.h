@@ -990,7 +990,7 @@ struct mlx5dr_qp {
 	struct mlx5_wq_qp wq;
 	struct mlx5_uars_page *uar;
 	struct mlx5_wq_ctrl wq_ctrl;
-	struct mlx5_core_qp mqp;
+	u32 qpn;
 	struct {
 		unsigned int pc;
 		unsigned int cc;

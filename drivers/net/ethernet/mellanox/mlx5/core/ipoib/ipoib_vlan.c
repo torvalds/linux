@@ -204,13 +204,13 @@ static int mlx5i_pkey_open(struct net_device *netdev)
 		goto err_release_lock;
 	}
 
-	err = mlx5_fs_add_rx_underlay_qpn(mdev, ipriv->qp.qpn);
+	err = mlx5_fs_add_rx_underlay_qpn(mdev, ipriv->qpn);
 	if (err) {
 		mlx5_core_warn(mdev, "attach child underlay qp to ft failed, %d\n", err);
 		goto err_unint_underlay_qp;
 	}
 
-	err = mlx5i_create_tis(mdev, ipriv->qp.qpn, &epriv->tisn[0][0]);
+	err = mlx5i_create_tis(mdev, ipriv->qpn, &epriv->tisn[0][0]);
 	if (err) {
 		mlx5_core_warn(mdev, "create child tis failed, %d\n", err);
 		goto err_remove_rx_uderlay_qp;
@@ -230,7 +230,7 @@ static int mlx5i_pkey_open(struct net_device *netdev)
 err_clear_state_opened_flag:
 	mlx5e_destroy_tis(mdev, epriv->tisn[0][0]);
 err_remove_rx_uderlay_qp:
-	mlx5_fs_remove_rx_underlay_qpn(mdev, ipriv->qp.qpn);
+	mlx5_fs_remove_rx_underlay_qpn(mdev, ipriv->qpn);
 err_unint_underlay_qp:
 	mlx5i_uninit_underlay_qp(epriv);
 err_release_lock:
@@ -253,7 +253,7 @@ static int mlx5i_pkey_close(struct net_device *netdev)
 	clear_bit(MLX5E_STATE_OPENED, &priv->state);
 
 	netif_carrier_off(priv->netdev);
-	mlx5_fs_remove_rx_underlay_qpn(mdev, ipriv->qp.qpn);
+	mlx5_fs_remove_rx_underlay_qpn(mdev, ipriv->qpn);
 	mlx5i_uninit_underlay_qp(priv);
 	mlx5e_deactivate_priv_channels(priv);
 	mlx5e_close_channels(&priv->channels);
@@ -307,23 +307,20 @@ static void mlx5i_pkey_cleanup(struct mlx5e_priv *priv)
 
 static int mlx5i_pkey_init_tx(struct mlx5e_priv *priv)
 {
-	struct mlx5i_priv *ipriv = priv->ppriv;
 	int err;
 
-	err = mlx5i_create_underlay_qp(priv->mdev, &ipriv->qp);
-	if (err) {
+	err = mlx5i_create_underlay_qp(priv);
+	if (err)
 		mlx5_core_warn(priv->mdev, "create child underlay QP failed, %d\n", err);
-		return err;
-	}
 
-	return 0;
+	return err;
 }
 
 static void mlx5i_pkey_cleanup_tx(struct mlx5e_priv *priv)
 {
 	struct mlx5i_priv *ipriv = priv->ppriv;
 
-	mlx5i_destroy_underlay_qp(priv->mdev, &ipriv->qp);
+	mlx5i_destroy_underlay_qp(priv->mdev, ipriv->qpn);
 }
 
 static int mlx5i_pkey_init_rx(struct mlx5e_priv *priv)
