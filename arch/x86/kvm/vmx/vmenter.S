@@ -58,12 +58,8 @@ SYM_FUNC_START(vmx_vmenter)
 	ret
 4:	ud2
 
-	.pushsection .fixup, "ax"
-5:	jmp 3b
-	.popsection
-
-	_ASM_EXTABLE(1b, 5b)
-	_ASM_EXTABLE(2b, 5b)
+	_ASM_EXTABLE(1b, 3b)
+	_ASM_EXTABLE(2b, 3b)
 
 SYM_FUNC_END(vmx_vmenter)
 
