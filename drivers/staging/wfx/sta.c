@@ -148,7 +148,7 @@ void wfx_update_filtering(struct wfx_vif *wvif)
 	int bf_enable;
 	int bf_count;
 	int n_filter_ies;
-	struct hif_ie_table_entry filter_ies[] = {
+	const struct hif_ie_table_entry filter_ies[] = {
 		{
 			.ie_id        = WLAN_EID_VENDOR_SPECIFIC,
 			.has_changed  = 1,

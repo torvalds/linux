@@ -102,8 +102,8 @@ int hif_set_rx_filter(struct wfx_vif *wvif,
 			     &val, sizeof(val));
 }
 
-int hif_set_beacon_filter_table(struct wfx_vif *wvif,
-				int tbl_len, struct hif_ie_table_entry *tbl)
+int hif_set_beacon_filter_table(struct wfx_vif *wvif, int tbl_len,
+				const struct hif_ie_table_entry *tbl)
 {
 	int ret;
 	struct hif_mib_bcn_filter_table *val;

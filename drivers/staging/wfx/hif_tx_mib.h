@@ -25,8 +25,8 @@ int hif_get_counters_table(struct wfx_dev *wdev,
 int hif_set_macaddr(struct wfx_vif *wvif, u8 *mac);
 int hif_set_rx_filter(struct wfx_vif *wvif,
 		      bool filter_bssid, bool fwd_probe_req);
-int hif_set_beacon_filter_table(struct wfx_vif *wvif,
-				int tbl_len, struct hif_ie_table_entry *tbl);
+int hif_set_beacon_filter_table(struct wfx_vif *wvif, int tbl_len,
+				const struct hif_ie_table_entry *tbl);
 int hif_beacon_filter_control(struct wfx_vif *wvif,
 			      int enable, int beacon_count);
 int hif_set_operational_mode(struct wfx_dev *wdev, enum hif_op_power_mode mode);
