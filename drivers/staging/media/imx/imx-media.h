@@ -170,9 +170,20 @@ int imx_media_enum_format(u32 *fourcc, u32 index, enum imx_pixfmt_sel sel);
 const struct imx_media_pixfmt *
 imx_media_find_mbus_format(u32 code, enum imx_pixfmt_sel sel);
 int imx_media_enum_mbus_format(u32 *code, u32 index, enum imx_pixfmt_sel sel);
-const struct imx_media_pixfmt *
-imx_media_find_ipu_format(u32 code, enum imx_pixfmt_sel sel);
-int imx_media_enum_ipu_format(u32 *code, u32 index, enum imx_pixfmt_sel sel);
+
+static inline const struct imx_media_pixfmt *
+imx_media_find_ipu_format(u32 code, enum imx_pixfmt_sel fmt_sel)
+{
+	return imx_media_find_mbus_format(code, fmt_sel | PIXFMT_SEL_IPU);
+}
+
+static inline int imx_media_enum_ipu_format(u32 *code, u32 index,
+					    enum imx_pixfmt_sel fmt_sel)
+{
+	return imx_media_enum_mbus_format(code, index,
+					  fmt_sel | PIXFMT_SEL_IPU);
+}
+
 int imx_media_init_mbus_fmt(struct v4l2_mbus_framefmt *mbus,
 			    u32 width, u32 height, u32 code, u32 field,
 			    const struct imx_media_pixfmt **cc);
