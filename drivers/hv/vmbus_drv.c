@@ -1060,6 +1060,12 @@ void vmbus_on_msg_dpc(unsigned long data)
 		goto msg_handled;
 	}
 
+	if (msg->header.payload_size > HV_MESSAGE_PAYLOAD_BYTE_COUNT) {
+		WARN_ONCE(1, "payload size is too large (%d)\n",
+			  msg->header.payload_size);
+		goto msg_handled;
+	}
+
 	entry = &channel_message_table[hdr->msgtype];
 
 	if (!entry->message_handler)
@@ -1071,7 +1077,8 @@ void vmbus_on_msg_dpc(unsigned long data)
 			return;
 
 		INIT_WORK(&ctx->work, vmbus_onmessage_work);
-		memcpy(&ctx->msg, msg, sizeof(*msg));
+		memcpy(&ctx->msg, msg, sizeof(msg->header) +
+		       msg->header.payload_size);
 
 		/*
 		 * The host can generate a rescind message while we
