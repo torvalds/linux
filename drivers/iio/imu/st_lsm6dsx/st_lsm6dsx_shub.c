@@ -28,7 +28,6 @@
 #include <linux/iio/sysfs.h>
 #include <linux/bitfield.h>
 
-#include <linux/iio/common/st_sensors.h>
 #include "st_lsm6dsx.h"
 
 #define ST_LSM6DSX_SLV_ADDR(n, base)		((base) + (n) * 3)
@@ -93,7 +92,7 @@ static const struct st_lsm6dsx_ext_dev_settings st_lsm6dsx_ext_dev_table[] = {
 	{
 		.i2c_addr = { 0x1e },
 		.wai = {
-			.addr = ST_SENSORS_DEFAULT_WAI_ADDRESS,
+			.addr = 0x0f,
 			.val = 0x3d,
 		},
 		.id = ST_LSM6DSX_ID_MAGN,
