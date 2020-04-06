@@ -1195,7 +1195,7 @@ static void gen11_dsi_enable(struct intel_atomic_state *state,
 {
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 
-	WARN_ON(crtc_state->has_pch_encoder);
+	drm_WARN_ON(state->base.dev, crtc_state->has_pch_encoder);
 
 	/* step6d: enable dsi transcoder */
 	gen11_dsi_enable_transcoder(encoder);
