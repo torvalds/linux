@@ -83,6 +83,7 @@ enum imx_pixfmt_sel {
 	PIXFMT_SEL_YUV   = BIT(0), /* select YUV formats */
 	PIXFMT_SEL_RGB   = BIT(1), /* select RGB formats */
 	PIXFMT_SEL_BAYER = BIT(2), /* select BAYER formats */
+	PIXFMT_SEL_IPU   = BIT(3), /* select IPU-internal formats */
 	PIXFMT_SEL_YUV_RGB = PIXFMT_SEL_YUV | PIXFMT_SEL_RGB,
 	PIXFMT_SEL_ANY = PIXFMT_SEL_YUV | PIXFMT_SEL_RGB | PIXFMT_SEL_BAYER,
 };
