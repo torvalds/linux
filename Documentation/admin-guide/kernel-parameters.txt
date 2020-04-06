@@ -3720,6 +3720,9 @@
 			Override pmtimer IOPort with a hex value.
 			e.g. pmtmr=0x508
 
+	pm_debug_messages	[SUSPEND,KNL]
+			Enable suspend/resume debug messages during boot up.
+
 	pnp.debug=1	[PNP]
 			Enable PNP debug messages (depends on the
 			CONFIG_PNP_DEBUG_MESSAGES option).  Change at run-time
