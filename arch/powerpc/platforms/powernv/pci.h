@@ -244,4 +244,6 @@ extern void pnv_pci_setup_iommu_table(struct iommu_table *tbl,
 		void *tce_mem, u64 tce_size,
 		u64 dma_offset, unsigned int page_shift);
 
+extern unsigned long pnv_ioda_parse_tce_sizes(struct pnv_phb *phb);
+
 #endif /* __POWERNV_PCI_H */
