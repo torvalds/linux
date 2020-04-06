@@ -1622,7 +1622,6 @@ static void pnv_ioda_setup_vf_PE(struct pci_dev *pdev, u16 num_vfs)
 #ifdef CONFIG_IOMMU_API
 		iommu_register_group(&pe->table_group,
 				pe->phb->hose->global_number, pe->pe_number);
-		pnv_ioda_setup_bus_iommu_group(pe, &pe->table_group, NULL);
 #endif
 	}
 }
