@@ -253,8 +253,10 @@ static int mt7615_set_channel(struct mt7615_phy *phy)
 	mt7615_init_dfs_state(phy);
 	mt76_set_channel(phy->mt76);
 
-	if (is_mt7615(&dev->mt76) && dev->flash_eeprom)
+	if (is_mt7615(&dev->mt76) && dev->flash_eeprom) {
 		mt7615_mcu_apply_rx_dcoc(phy);
+		mt7615_mcu_apply_tx_dpd(phy);
+	}
 
 	ret = mt7615_mcu_set_chan_info(phy, MCU_EXT_CMD_CHANNEL_SWITCH);
 	if (ret)
