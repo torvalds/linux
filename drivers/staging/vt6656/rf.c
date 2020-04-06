@@ -537,42 +537,6 @@ int vnt_rf_write_embedded(struct vnt_private *priv, u32 data)
 	return true;
 }
 
-/* Set Tx power by rate and channel number */
-int vnt_rf_setpower(struct vnt_private *priv, u32 rate, u32 channel)
-{
-	u8 power = priv->cck_pwr;
-
-	if (channel == 0)
-		return -EINVAL;
-
-	switch (rate) {
-	case RATE_1M:
-	case RATE_2M:
-	case RATE_5M:
-	case RATE_11M:
-		channel--;
-
-		if (channel < sizeof(priv->cck_pwr_tbl))
-			power = priv->cck_pwr_tbl[channel];
-		break;
-	case RATE_6M:
-	case RATE_9M:
-	case RATE_12M:
-	case RATE_18M:
-	case RATE_24M:
-	case RATE_36M:
-	case RATE_48M:
-	case RATE_54M:
-		if (channel > CB_MAX_CHANNEL_24G)
-			power = priv->ofdm_a_pwr_tbl[channel - 15];
-		else
-			power = priv->ofdm_pwr_tbl[channel - 1];
-		break;
-	}
-
-	return vnt_rf_set_txpower(priv, power, rate);
-}
-
 static u8 vnt_rf_addpower(struct vnt_private *priv)
 {
 	s32 rssi = -priv->current_rssi;
@@ -600,7 +564,8 @@ static u8 vnt_rf_addpower(struct vnt_private *priv)
 }
 
 /* Set Tx power by power level and rate */
-int vnt_rf_set_txpower(struct vnt_private *priv, u8 power, u32 rate)
+static int vnt_rf_set_txpower(struct vnt_private *priv, u8 power,
+			      struct ieee80211_channel *ch)
 {
 	u32 power_setting = 0;
 	int ret = true;
@@ -620,7 +585,7 @@ int vnt_rf_set_txpower(struct vnt_private *priv, u8 power, u32 rate)
 
 		ret &= vnt_rf_write_embedded(priv, power_setting);
 
-		if (rate <= RATE_11M)
+		if (ch->flags & IEEE80211_CHAN_NO_OFDM)
 			ret &= vnt_rf_write_embedded(priv, 0x0001b400);
 		else
 			ret &= vnt_rf_write_embedded(priv, 0x0005a400);
@@ -630,7 +595,7 @@ int vnt_rf_set_txpower(struct vnt_private *priv, u8 power, u32 rate)
 
 		ret &= vnt_rf_write_embedded(priv, power_setting);
 
-		if (rate <= RATE_11M) {
+		if (ch->flags & IEEE80211_CHAN_NO_OFDM) {
 			ret &= vnt_rf_write_embedded(priv, 0x040c1400);
 			ret &= vnt_rf_write_embedded(priv, 0x00299b00);
 		} else {
@@ -640,7 +605,7 @@ int vnt_rf_set_txpower(struct vnt_private *priv, u8 power, u32 rate)
 		break;
 
 	case RF_AIROHA7230:
-		if (rate <= RATE_11M)
+		if (ch->flags & IEEE80211_CHAN_NO_OFDM)
 			ret &= vnt_rf_write_embedded(priv, 0x111bb900);
 		else
 			ret &= vnt_rf_write_embedded(priv, 0x221bb900);
@@ -670,8 +635,8 @@ int vnt_rf_set_txpower(struct vnt_private *priv, u8 power, u32 rate)
 		if (power >= VT3226_PWR_IDX_LEN)
 			return false;
 
-		if (rate <= RATE_11M) {
-			u16 hw_value = priv->hw->conf.chandef.chan->hw_value;
+		if (ch->flags & IEEE80211_CHAN_NO_OFDM) {
+			u16 hw_value = ch->hw_value;
 
 			power_setting = ((0x3f - power) << 20) | (0xe07 << 8);
 
@@ -714,6 +679,36 @@ int vnt_rf_set_txpower(struct vnt_private *priv, u8 power, u32 rate)
 		break;
 	}
 	return ret;
+}
+
+/* Set Tx power by channel number type */
+int vnt_rf_setpower(struct vnt_private *priv,
+		    struct ieee80211_channel *ch)
+{
+	u16 channel;
+	u8 power = priv->cck_pwr;
+
+	if (!ch)
+		return -EINVAL;
+
+	/* set channel number to array number */
+	channel = ch->hw_value - 1;
+
+	if (ch->flags & IEEE80211_CHAN_NO_OFDM) {
+		if (channel < ARRAY_SIZE(priv->cck_pwr_tbl))
+			power = priv->cck_pwr_tbl[channel];
+	} else if (ch->band == NL80211_BAND_5GHZ) {
+		/* remove 14 channels to array size */
+		channel -= 14;
+
+		if (channel < ARRAY_SIZE(priv->ofdm_a_pwr_tbl))
+			power = priv->ofdm_a_pwr_tbl[channel];
+	} else {
+		if (channel < ARRAY_SIZE(priv->ofdm_pwr_tbl))
+			power = priv->ofdm_pwr_tbl[channel];
+	}
+
+	return vnt_rf_set_txpower(priv, power, ch);
 }
 
 /* Convert rssi to dbm */
