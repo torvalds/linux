@@ -59,6 +59,8 @@ patternProperties:
     description: Allwinner Technology Co., Ltd.
   "^alphascale,.*":
     description: AlphaScale Integrated Circuits Systems, Inc.
+  "^alps,.*":
+    description: Alps Electric Co., Ltd.
   "^altr,.*":
     description: Altera Corp.
   "^amarula,.*":
