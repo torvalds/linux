@@ -1234,12 +1234,12 @@ static int csi_enum_mbus_code(struct v4l2_subdev *sd,
 	mutex_lock(&priv->lock);
 
 	infmt = __csi_get_fmt(priv, cfg, CSI_SINK_PAD, code->which);
-	incc = imx_media_find_mbus_format(infmt->code, CS_SEL_ANY);
+	incc = imx_media_find_mbus_format(infmt->code, PIXFMT_SEL_ANY);
 
 	switch (code->pad) {
 	case CSI_SINK_PAD:
 		ret = imx_media_enum_mbus_format(&code->code, code->index,
-						 CS_SEL_ANY);
+						 PIXFMT_SEL_ANY);
 		break;
 	case CSI_SRC_PAD_DIRECT:
 	case CSI_SRC_PAD_IDMAC:
@@ -1256,11 +1256,13 @@ static int csi_enum_mbus_code(struct v4l2_subdev *sd,
 			}
 			code->code = infmt->code;
 		} else {
-			u32 cs_sel = (incc->cs == IPUV3_COLORSPACE_YUV) ?
-				CS_SEL_YUV : CS_SEL_RGB;
+			enum imx_pixfmt_sel fmt_sel =
+				(incc->cs == IPUV3_COLORSPACE_YUV) ?
+				PIXFMT_SEL_YUV : PIXFMT_SEL_RGB;
+
 			ret = imx_media_enum_ipu_format(&code->code,
 							code->index,
-							cs_sel);
+							fmt_sel);
 		}
 		break;
 	default:
@@ -1433,7 +1435,7 @@ static void csi_try_fmt(struct csi_priv *priv,
 	switch (sdformat->pad) {
 	case CSI_SRC_PAD_DIRECT:
 	case CSI_SRC_PAD_IDMAC:
-		incc = imx_media_find_mbus_format(infmt->code, CS_SEL_ANY);
+		incc = imx_media_find_mbus_format(infmt->code, PIXFMT_SEL_ANY);
 
 		sdformat->format.width = compose->width;
 		sdformat->format.height = compose->height;
@@ -1442,14 +1444,15 @@ static void csi_try_fmt(struct csi_priv *priv,
 			sdformat->format.code = infmt->code;
 			*cc = incc;
 		} else {
-			u32 cs_sel = (incc->cs == IPUV3_COLORSPACE_YUV) ?
-				CS_SEL_YUV : CS_SEL_RGB;
+			enum imx_pixfmt_sel fmt_sel =
+				(incc->cs == IPUV3_COLORSPACE_YUV) ?
+				PIXFMT_SEL_YUV : PIXFMT_SEL_RGB;
 
 			*cc = imx_media_find_ipu_format(sdformat->format.code,
-							cs_sel);
+							fmt_sel);
 			if (!*cc) {
-				imx_media_enum_ipu_format(&code, 0, cs_sel);
-				*cc = imx_media_find_ipu_format(code, cs_sel);
+				imx_media_enum_ipu_format(&code, 0, fmt_sel);
+				*cc = imx_media_find_ipu_format(code, fmt_sel);
 				sdformat->format.code = (*cc)->codes[0];
 			}
 		}
@@ -1469,10 +1472,12 @@ static void csi_try_fmt(struct csi_priv *priv,
 				      MIN_H, MAX_H, H_ALIGN, S_ALIGN);
 
 		*cc = imx_media_find_mbus_format(sdformat->format.code,
-						 CS_SEL_ANY);
+						 PIXFMT_SEL_ANY);
 		if (!*cc) {
-			imx_media_enum_mbus_format(&code, 0, CS_SEL_YUV_RGB);
-			*cc = imx_media_find_mbus_format(code, CS_SEL_YUV_RGB);
+			imx_media_enum_mbus_format(&code, 0,
+						   PIXFMT_SEL_YUV_RGB);
+			*cc = imx_media_find_mbus_format(code,
+							 PIXFMT_SEL_YUV_RGB);
 			sdformat->format.code = (*cc)->codes[0];
 		}
 
@@ -1758,7 +1763,7 @@ static int csi_registered(struct v4l2_subdev *sd)
 	for (i = 0; i < CSI_NUM_PADS; i++) {
 		code = 0;
 		if (i != CSI_SINK_PAD)
-			imx_media_enum_ipu_format(&code, 0, CS_SEL_YUV);
+			imx_media_enum_ipu_format(&code, 0, PIXFMT_SEL_YUV);
 
 		/* set a default mbus format  */
 		ret = imx_media_init_mbus_fmt(&priv->format_mbus[i],
