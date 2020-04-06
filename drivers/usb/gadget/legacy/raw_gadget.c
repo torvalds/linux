@@ -392,9 +392,8 @@ static int raw_ioctl_init(struct raw_dev *dev, unsigned long value)
 	char *udc_device_name;
 	unsigned long flags;
 
-	ret = copy_from_user(&arg, (void __user *)value, sizeof(arg));
-	if (ret)
-		return ret;
+	if (copy_from_user(&arg, (void __user *)value, sizeof(arg)))
+		return -EFAULT;
 
 	switch (arg.speed) {
 	case USB_SPEED_UNKNOWN:
@@ -501,15 +500,13 @@ out_unlock:
 
 static int raw_ioctl_event_fetch(struct raw_dev *dev, unsigned long value)
 {
-	int ret = 0;
 	struct usb_raw_event arg;
 	unsigned long flags;
 	struct usb_raw_event *event;
 	uint32_t length;
 
-	ret = copy_from_user(&arg, (void __user *)value, sizeof(arg));
-	if (ret)
-		return ret;
+	if (copy_from_user(&arg, (void __user *)value, sizeof(arg)))
+		return -EFAULT;
 
 	spin_lock_irqsave(&dev->lock, flags);
 	if (dev->state != STATE_DEV_RUNNING) {
@@ -530,20 +527,19 @@ static int raw_ioctl_event_fetch(struct raw_dev *dev, unsigned long value)
 		return -EINTR;
 	}
 	length = min(arg.length, event->length);
-	ret = copy_to_user((void __user *)value, event,
-				sizeof(*event) + length);
-	return ret;
+	if (copy_to_user((void __user *)value, event, sizeof(*event) + length))
+		return -EFAULT;
+
+	return 0;
 }
 
 static void *raw_alloc_io_data(struct usb_raw_ep_io *io, void __user *ptr,
 				bool get_from_user)
 {
-	int ret;
 	void *data;
 
-	ret = copy_from_user(io, ptr, sizeof(*io));
-	if (ret)
-		return ERR_PTR(ret);
+	if (copy_from_user(io, ptr, sizeof(*io)))
+		return ERR_PTR(-EFAULT);
 	if (io->ep >= USB_RAW_MAX_ENDPOINTS)
 		return ERR_PTR(-EINVAL);
 	if (!usb_raw_io_flags_valid(io->flags))
@@ -658,12 +654,13 @@ static int raw_ioctl_ep0_read(struct raw_dev *dev, unsigned long value)
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 	ret = raw_process_ep0_io(dev, &io, data, false);
-	if (ret < 0) {
-		kfree(data);
-		return ret;
-	}
+	if (ret)
+		goto free;
+
 	length = min(io.length, (unsigned int)ret);
-	ret = copy_to_user((void __user *)(value + sizeof(io)), data, length);
+	if (copy_to_user((void __user *)(value + sizeof(io)), data, length))
+		ret = -EFAULT;
+free:
 	kfree(data);
 	return ret;
 }
@@ -952,12 +949,13 @@ static int raw_ioctl_ep_read(struct raw_dev *dev, unsigned long value)
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 	ret = raw_process_ep_io(dev, &io, data, false);
-	if (ret < 0) {
-		kfree(data);
-		return ret;
-	}
+	if (ret)
+		goto free;
+
 	length = min(io.length, (unsigned int)ret);
-	ret = copy_to_user((void __user *)(value + sizeof(io)), data, length);
+	if (copy_to_user((void __user *)(value + sizeof(io)), data, length))
+		ret = -EFAULT;
+free:
 	kfree(data);
 	return ret;
 }
