@@ -896,7 +896,7 @@ static int renoir_read_sensor(struct smu_context *smu,
 static bool renoir_is_dpm_running(struct smu_context *smu)
 {
 	/*
-	 * Util now, the pmfw hasn't exported the interface of SMU
+	 * Until now, the pmfw hasn't exported the interface of SMU
 	 * feature mask to APU SKU so just force on all the feature
 	 * at early initial stage.
 	 */
