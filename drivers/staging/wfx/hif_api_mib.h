@@ -270,12 +270,14 @@ enum hif_tmplt {
 	HIF_TMPLT_NA     = 0x7
 };
 
+#define HIF_API_MAX_TEMPLATE_FRAME_SIZE 700
+
 struct hif_mib_template_frame {
 	u8     frame_type;
 	u8     init_rate:7;
 	u8     mode:1;
 	__le16 frame_length;
-	u8     frame[700];
+	u8     frame[];
 } __packed;
 
 struct hif_mib_beacon_wake_up_period {
