@@ -346,29 +346,6 @@ static const struct sdhci_ops sdhci_arasan_ops = {
 	.set_power = sdhci_set_power_and_bus_voltage,
 };
 
-static const struct sdhci_pltfm_data sdhci_arasan_pdata = {
-	.ops = &sdhci_arasan_ops,
-	.quirks = SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN,
-	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN |
-			SDHCI_QUIRK2_CLOCK_DIV_ZERO_BROKEN |
-			SDHCI_QUIRK2_STOP_WITH_TC,
-};
-
-static struct sdhci_arasan_of_data sdhci_arasan_generic_data = {
-	.pdata = &sdhci_arasan_pdata,
-};
-
-static const struct sdhci_pltfm_data sdhci_arasan_zynqmp_pdata = {
-	.ops = &sdhci_arasan_ops,
-	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN |
-			SDHCI_QUIRK2_CLOCK_DIV_ZERO_BROKEN |
-			SDHCI_QUIRK2_STOP_WITH_TC,
-};
-
-static struct sdhci_arasan_of_data sdhci_arasan_zynqmp_data = {
-	.pdata = &sdhci_arasan_zynqmp_pdata,
-};
-
 static u32 sdhci_arasan_cqhci_irq(struct sdhci_host *host, u32 intmask)
 {
 	int cmd_error = 0;
@@ -423,21 +400,6 @@ static const struct sdhci_pltfm_data sdhci_arasan_cqe_pdata = {
 	.quirks = SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN,
 	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN |
 			SDHCI_QUIRK2_CLOCK_DIV_ZERO_BROKEN,
-};
-
-static struct sdhci_arasan_of_data sdhci_arasan_rk3399_data = {
-	.soc_ctl_map = &rk3399_soc_ctl_map,
-	.pdata = &sdhci_arasan_cqe_pdata,
-};
-
-static struct sdhci_arasan_of_data intel_lgm_emmc_data = {
-	.soc_ctl_map = &intel_lgm_emmc_soc_ctl_map,
-	.pdata = &sdhci_arasan_cqe_pdata,
-};
-
-static struct sdhci_arasan_of_data intel_lgm_sdxc_data = {
-	.soc_ctl_map = &intel_lgm_sdxc_soc_ctl_map,
-	.pdata = &sdhci_arasan_cqe_pdata,
 };
 
 #ifdef CONFIG_PM_SLEEP
@@ -534,45 +496,6 @@ static int sdhci_arasan_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(sdhci_arasan_dev_pm_ops, sdhci_arasan_suspend,
 			 sdhci_arasan_resume);
-
-static const struct of_device_id sdhci_arasan_of_match[] = {
-	/* SoC-specific compatible strings w/ soc_ctl_map */
-	{
-		.compatible = "rockchip,rk3399-sdhci-5.1",
-		.data = &sdhci_arasan_rk3399_data,
-	},
-	{
-		.compatible = "intel,lgm-sdhci-5.1-emmc",
-		.data = &intel_lgm_emmc_data,
-	},
-	{
-		.compatible = "intel,lgm-sdhci-5.1-sdxc",
-		.data = &intel_lgm_sdxc_data,
-	},
-	/* Generic compatible below here */
-	{
-		.compatible = "arasan,sdhci-8.9a",
-		.data = &sdhci_arasan_generic_data,
-	},
-	{
-		.compatible = "arasan,sdhci-5.1",
-		.data = &sdhci_arasan_generic_data,
-	},
-	{
-		.compatible = "arasan,sdhci-4.9a",
-		.data = &sdhci_arasan_generic_data,
-	},
-	{
-		.compatible = "xlnx,zynqmp-8.9a",
-		.data = &sdhci_arasan_zynqmp_data,
-	},
-	{
-		.compatible = "xlnx,versal-8.9a",
-		.data = &sdhci_arasan_zynqmp_data,
-	},
-	{ /* sentinel */ }
-};
-MODULE_DEVICE_TABLE(of, sdhci_arasan_of_match);
 
 /**
  * sdhci_arasan_sdcardclk_recalc_rate - Return the card clock rate
@@ -1148,6 +1071,87 @@ static void arasan_dt_parse_clk_phases(struct device *dev,
 	arasan_dt_read_clk_phase(dev, clk_data, MMC_TIMING_MMC_HS400,
 				 "clk-phase-mmc-hs400");
 }
+
+static const struct sdhci_pltfm_data sdhci_arasan_pdata = {
+	.ops = &sdhci_arasan_ops,
+	.quirks = SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN,
+	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN |
+			SDHCI_QUIRK2_CLOCK_DIV_ZERO_BROKEN |
+			SDHCI_QUIRK2_STOP_WITH_TC,
+};
+
+static struct sdhci_arasan_of_data sdhci_arasan_generic_data = {
+	.pdata = &sdhci_arasan_pdata,
+};
+
+static struct sdhci_arasan_of_data sdhci_arasan_rk3399_data = {
+	.soc_ctl_map = &rk3399_soc_ctl_map,
+	.pdata = &sdhci_arasan_cqe_pdata,
+};
+
+static struct sdhci_arasan_of_data intel_lgm_emmc_data = {
+	.soc_ctl_map = &intel_lgm_emmc_soc_ctl_map,
+	.pdata = &sdhci_arasan_cqe_pdata,
+};
+
+static struct sdhci_arasan_of_data intel_lgm_sdxc_data = {
+	.soc_ctl_map = &intel_lgm_sdxc_soc_ctl_map,
+	.pdata = &sdhci_arasan_cqe_pdata,
+};
+
+static const struct sdhci_pltfm_data sdhci_arasan_zynqmp_pdata = {
+	.ops = &sdhci_arasan_ops,
+	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN |
+			SDHCI_QUIRK2_CLOCK_DIV_ZERO_BROKEN |
+			SDHCI_QUIRK2_STOP_WITH_TC,
+};
+
+static struct sdhci_arasan_of_data sdhci_arasan_zynqmp_data = {
+	.pdata = &sdhci_arasan_zynqmp_pdata,
+};
+
+static struct sdhci_arasan_of_data sdhci_arasan_versal_data = {
+	.pdata = &sdhci_arasan_zynqmp_pdata,
+};
+
+static const struct of_device_id sdhci_arasan_of_match[] = {
+	/* SoC-specific compatible strings w/ soc_ctl_map */
+	{
+		.compatible = "rockchip,rk3399-sdhci-5.1",
+		.data = &sdhci_arasan_rk3399_data,
+	},
+	{
+		.compatible = "intel,lgm-sdhci-5.1-emmc",
+		.data = &intel_lgm_emmc_data,
+	},
+	{
+		.compatible = "intel,lgm-sdhci-5.1-sdxc",
+		.data = &intel_lgm_sdxc_data,
+	},
+	/* Generic compatible below here */
+	{
+		.compatible = "arasan,sdhci-8.9a",
+		.data = &sdhci_arasan_generic_data,
+	},
+	{
+		.compatible = "arasan,sdhci-5.1",
+		.data = &sdhci_arasan_generic_data,
+	},
+	{
+		.compatible = "arasan,sdhci-4.9a",
+		.data = &sdhci_arasan_generic_data,
+	},
+	{
+		.compatible = "xlnx,zynqmp-8.9a",
+		.data = &sdhci_arasan_zynqmp_data,
+	},
+	{
+		.compatible = "xlnx,versal-8.9a",
+		.data = &sdhci_arasan_versal_data,
+	},
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, sdhci_arasan_of_match);
 
 /**
  * sdhci_arasan_register_sdcardclk - Register the sdcardclk for a PHY to use
