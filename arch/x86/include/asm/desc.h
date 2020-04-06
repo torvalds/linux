@@ -214,7 +214,7 @@ static inline void native_load_gdt(const struct desc_ptr *dtr)
 	asm volatile("lgdt %0"::"m" (*dtr));
 }
 
-static inline void native_load_idt(const struct desc_ptr *dtr)
+static __always_inline void native_load_idt(const struct desc_ptr *dtr)
 {
 	asm volatile("lidt %0"::"m" (*dtr));
 }
@@ -392,7 +392,7 @@ extern unsigned long system_vectors[];
 
 #ifdef CONFIG_X86_64
 DECLARE_PER_CPU(u32, debug_idt_ctr);
-static inline bool is_debug_idt_enabled(void)
+static __always_inline bool is_debug_idt_enabled(void)
 {
 	if (this_cpu_read(debug_idt_ctr))
 		return true;
@@ -400,7 +400,7 @@ static inline bool is_debug_idt_enabled(void)
 	return false;
 }
 
-static inline void load_debug_idt(void)
+static __always_inline void load_debug_idt(void)
 {
 	load_idt((const struct desc_ptr *)&debug_idt_descr);
 }
@@ -422,7 +422,7 @@ static inline void load_debug_idt(void)
  * that doesn't need to disable interrupts, as nothing should be
  * bothering the CPU then.
  */
-static inline void load_current_idt(void)
+static __always_inline void load_current_idt(void)
 {
 	if (is_debug_idt_enabled())
 		load_debug_idt();

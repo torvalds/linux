@@ -303,7 +303,7 @@ NOKPROBE_SYMBOL(unknown_nmi_error);
 static DEFINE_PER_CPU(bool, swallow_nmi);
 static DEFINE_PER_CPU(unsigned long, last_nmi_rip);
 
-static void default_do_nmi(struct pt_regs *regs)
+static noinstr void default_do_nmi(struct pt_regs *regs)
 {
 	unsigned char reason = 0;
 	int handled;
@@ -329,6 +329,8 @@ static void default_do_nmi(struct pt_regs *regs)
 
 	__this_cpu_write(last_nmi_rip, regs->ip);
 
+	instrumentation_begin();
+
 	handled = nmi_handle(NMI_LOCAL, regs);
 	__this_cpu_add(nmi_stats.normal, handled);
 	if (handled) {
@@ -342,7 +344,7 @@ static void default_do_nmi(struct pt_regs *regs)
 		 */
 		if (handled > 1)
 			__this_cpu_write(swallow_nmi, true);
-		return;
+		goto out;
 	}
 
 	/*
@@ -374,7 +376,7 @@ static void default_do_nmi(struct pt_regs *regs)
 #endif
 		__this_cpu_add(nmi_stats.external, 1);
 		raw_spin_unlock(&nmi_reason_lock);
-		return;
+		goto out;
 	}
 	raw_spin_unlock(&nmi_reason_lock);
 
@@ -412,8 +414,10 @@ static void default_do_nmi(struct pt_regs *regs)
 		__this_cpu_add(nmi_stats.swallow, 1);
 	else
 		unknown_nmi_error(reason, regs);
+
+out:
+	instrumentation_end();
 }
-NOKPROBE_SYMBOL(default_do_nmi);
 
 /*
  * NMIs can page fault or hit breakpoints which will cause it to lose
@@ -485,7 +489,7 @@ static DEFINE_PER_CPU(unsigned long, nmi_cr2);
  */
 static DEFINE_PER_CPU(int, update_debug_stack);
 
-static bool notrace is_debug_stack(unsigned long addr)
+static noinstr bool is_debug_stack(unsigned long addr)
 {
 	struct cea_exception_stacks *cs = __this_cpu_read(cea_exception_stacks);
 	unsigned long top = CEA_ESTACK_TOP(cs, DB);
@@ -500,7 +504,6 @@ static bool notrace is_debug_stack(unsigned long addr)
 	 */
 	return addr >= bot && addr < top;
 }
-NOKPROBE_SYMBOL(is_debug_stack);
 #endif
 
 DEFINE_IDTENTRY_NMI(exc_nmi)
