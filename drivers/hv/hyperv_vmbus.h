@@ -317,6 +317,7 @@ struct vmbus_channel_message_table_entry {
 	enum vmbus_channel_message_type message_type;
 	enum vmbus_message_handler_type handler_type;
 	void (*message_handler)(struct vmbus_channel_message_header *msg);
+	u32 min_payload_len;
 };
 
 extern const struct vmbus_channel_message_table_entry
