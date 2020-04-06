@@ -95,12 +95,12 @@ static int hub_master_link_enable(struct fsi_master *master, int link,
 					&reg, 4);
 
 	rc = fsi_device_write(hub->upstream, FSI_MSENP0 + (4 * idx), &reg, 4);
+	if (rc)
+		return rc;
 
 	mdelay(FSI_LINK_ENABLE_SETUP_TIME);
 
-	fsi_device_read(hub->upstream, FSI_MENP0 + (4 * idx), &reg, 4);
-
-	return rc;
+	return 0;
 }
 
 static void hub_master_release(struct device *dev)

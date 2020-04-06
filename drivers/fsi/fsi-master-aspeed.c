@@ -306,7 +306,7 @@ static int aspeed_master_link_enable(struct fsi_master *master, int link,
 {
 	struct fsi_master_aspeed *aspeed = to_fsi_master_aspeed(master);
 	int idx, bit, ret;
-	__be32 reg, result;
+	__be32 reg;
 
 	idx = link / 32;
 	bit = link % 32;
@@ -322,15 +322,6 @@ static int aspeed_master_link_enable(struct fsi_master *master, int link,
 		return ret;
 
 	mdelay(FSI_LINK_ENABLE_SETUP_TIME);
-
-	ret = opb_readl(aspeed, ctrl_base + FSI_MENP0 + (4 * idx), &result);
-	if (ret)
-		return ret;
-
-	if (result != reg) {
-		dev_err(aspeed->dev, "%s failed: %08x\n", __func__, result);
-		return -EIO;
-	}
 
 	return 0;
 }
