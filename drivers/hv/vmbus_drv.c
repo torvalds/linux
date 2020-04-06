@@ -1101,8 +1101,9 @@ void vmbus_on_msg_dpc(unsigned long data)
 		/*
 		 * The host can generate a rescind message while we
 		 * may still be handling the original offer. We deal with
-		 * this condition by ensuring the processing is done on the
-		 * same CPU.
+		 * this condition by relying on the synchronization provided
+		 * by offer_in_progress and by channel_mutex.  See also the
+		 * inline comments in vmbus_onoffer_rescind().
 		 */
 		switch (hdr->msgtype) {
 		case CHANNELMSG_RESCIND_CHANNELOFFER:
@@ -1124,16 +1125,34 @@ void vmbus_on_msg_dpc(unsigned long data)
 			 * work queue: the RESCIND handler can not start to
 			 * run before the OFFER handler finishes.
 			 */
-			schedule_work_on(VMBUS_CONNECT_CPU,
-					 &ctx->work);
+			schedule_work(&ctx->work);
 			break;
 
 		case CHANNELMSG_OFFERCHANNEL:
+			/*
+			 * The host sends the offer message of a given channel
+			 * before sending the rescind message of the same
+			 * channel.  These messages are sent to the guest's
+			 * connect CPU; the guest then starts processing them
+			 * in the tasklet handler on this CPU:
+			 *
+			 * VMBUS_CONNECT_CPU
+			 *
+			 * [vmbus_on_msg_dpc()]
+			 * atomic_inc()  // CHANNELMSG_OFFERCHANNEL
+			 * queue_work()
+			 * ...
+			 * [vmbus_on_msg_dpc()]
+			 * schedule_work()  // CHANNELMSG_RESCIND_CHANNELOFFER
+			 *
+			 * We rely on the memory-ordering properties of the
+			 * queue_work() and schedule_work() primitives, which
+			 * guarantee that the atomic increment will be visible
+			 * to the CPUs which will execute the offer & rescind
+			 * works by the time these works will start execution.
+			 */
 			atomic_inc(&vmbus_connection.offer_in_progress);
-			queue_work_on(VMBUS_CONNECT_CPU,
-				      vmbus_connection.work_queue,
-				      &ctx->work);
-			break;
+			fallthrough;
 
 		default:
 			queue_work(vmbus_connection.work_queue, &ctx->work);
@@ -1178,9 +1197,7 @@ static void vmbus_force_channel_rescinded(struct vmbus_channel *channel)
 
 	INIT_WORK(&ctx->work, vmbus_onmessage_work);
 
-	queue_work_on(VMBUS_CONNECT_CPU,
-		      vmbus_connection.work_queue,
-		      &ctx->work);
+	queue_work(vmbus_connection.work_queue, &ctx->work);
 }
 #endif /* CONFIG_PM_SLEEP */
 

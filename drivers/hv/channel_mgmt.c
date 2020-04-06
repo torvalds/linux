@@ -1028,11 +1028,22 @@ static void vmbus_onoffer_rescind(struct vmbus_channel_message_header *hdr)
 	 * offer comes in first and then the rescind.
 	 * Since we process these events in work elements,
 	 * and with preemption, we may end up processing
-	 * the events out of order. Given that we handle these
-	 * work elements on the same CPU, this is possible only
-	 * in the case of preemption. In any case wait here
-	 * until the offer processing has moved beyond the
-	 * point where the channel is discoverable.
+	 * the events out of order.  We rely on the synchronization
+	 * provided by offer_in_progress and by channel_mutex for
+	 * ordering these events:
+	 *
+	 * { Initially: offer_in_progress = 1 }
+	 *
+	 * CPU1				CPU2
+	 *
+	 * [vmbus_process_offer()]	[vmbus_onoffer_rescind()]
+	 *
+	 * LOCK channel_mutex		WAIT_ON offer_in_progress == 0
+	 * DECREMENT offer_in_progress	LOCK channel_mutex
+	 * INSERT chn_list		SEARCH chn_list
+	 * UNLOCK channel_mutex		UNLOCK channel_mutex
+	 *
+	 * Forbids: CPU2's SEARCH from *not* seeing CPU1's INSERT
 	 */
 
 	while (atomic_read(&vmbus_connection.offer_in_progress) != 0) {
