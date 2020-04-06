@@ -319,7 +319,6 @@ static struct vmbus_channel *alloc_channel(void)
 	init_completion(&channel->rescind_event);
 
 	INIT_LIST_HEAD(&channel->sc_list);
-	INIT_LIST_HEAD(&channel->percpu_list);
 
 	tasklet_init(&channel->callback_event,
 		     vmbus_on_event, (unsigned long)channel);
@@ -340,22 +339,48 @@ static void free_channel(struct vmbus_channel *channel)
 	kobject_put(&channel->kobj);
 }
 
-static void percpu_channel_enq(void *arg)
+void vmbus_channel_map_relid(struct vmbus_channel *channel)
 {
-	struct vmbus_channel *channel = arg;
-	struct hv_per_cpu_context *hv_cpu
-		= this_cpu_ptr(hv_context.cpu_context);
-
-	list_add_tail_rcu(&channel->percpu_list, &hv_cpu->chan_list);
+	if (WARN_ON(channel->offermsg.child_relid >= MAX_CHANNEL_RELIDS))
+		return;
+	/*
+	 * The mapping of the channel's relid is visible from the CPUs that
+	 * execute vmbus_chan_sched() by the time that vmbus_chan_sched() will
+	 * execute:
+	 *
+	 *  (a) In the "normal (i.e., not resuming from hibernation)" path,
+	 *      the full barrier in smp_store_mb() guarantees that the store
+	 *      is propagated to all CPUs before the add_channel_work work
+	 *      is queued.  In turn, add_channel_work is queued before the
+	 *      channel's ring buffer is allocated/initialized and the
+	 *      OPENCHANNEL message for the channel is sent in vmbus_open().
+	 *      Hyper-V won't start sending the interrupts for the channel
+	 *      before the OPENCHANNEL message is acked.  The memory barrier
+	 *      in vmbus_chan_sched() -> sync_test_and_clear_bit() ensures
+	 *      that vmbus_chan_sched() must find the channel's relid in
+	 *      recv_int_page before retrieving the channel pointer from the
+	 *      array of channels.
+	 *
+	 *  (b) In the "resuming from hibernation" path, the smp_store_mb()
+	 *      guarantees that the store is propagated to all CPUs before
+	 *      the VMBus connection is marked as ready for the resume event
+	 *      (cf. check_ready_for_resume_event()).  The interrupt handler
+	 *      of the VMBus driver and vmbus_chan_sched() can not run before
+	 *      vmbus_bus_resume() has completed execution (cf. resume_noirq).
+	 */
+	smp_store_mb(
+		vmbus_connection.channels[channel->offermsg.child_relid],
+		channel);
 }
 
-static void percpu_channel_deq(void *arg)
+void vmbus_channel_unmap_relid(struct vmbus_channel *channel)
 {
-	struct vmbus_channel *channel = arg;
-
-	list_del_rcu(&channel->percpu_list);
+	if (WARN_ON(channel->offermsg.child_relid >= MAX_CHANNEL_RELIDS))
+		return;
+	WRITE_ONCE(
+		vmbus_connection.channels[channel->offermsg.child_relid],
+		NULL);
 }
-
 
 static void vmbus_release_relid(u32 relid)
 {
@@ -376,17 +401,25 @@ void hv_process_channel_removal(struct vmbus_channel *channel)
 	struct vmbus_channel *primary_channel;
 	unsigned long flags;
 
-	BUG_ON(!mutex_is_locked(&vmbus_connection.channel_mutex));
+	lockdep_assert_held(&vmbus_connection.channel_mutex);
 	BUG_ON(!channel->rescind);
 
-	if (channel->target_cpu != get_cpu()) {
-		put_cpu();
-		smp_call_function_single(channel->target_cpu,
-					 percpu_channel_deq, channel, true);
-	} else {
-		percpu_channel_deq(channel);
-		put_cpu();
-	}
+	/*
+	 * hv_process_channel_removal() could find INVALID_RELID only for
+	 * hv_sock channels.  See the inline comments in vmbus_onoffer().
+	 */
+	WARN_ON(channel->offermsg.child_relid == INVALID_RELID &&
+		!is_hvsock_channel(channel));
+
+	/*
+	 * Upon suspend, an in-use hv_sock channel is removed from the array of
+	 * channels and the relid is invalidated.  After hibernation, when the
+	 * user-space appplication destroys the channel, it's unnecessary and
+	 * unsafe to remove the channel from the array of channels.  See also
+	 * the inline comments before the call of vmbus_release_relid() below.
+	 */
+	if (channel->offermsg.child_relid != INVALID_RELID)
+		vmbus_channel_unmap_relid(channel);
 
 	if (channel->primary_channel == NULL) {
 		list_del(&channel->listentry);
@@ -446,16 +479,6 @@ static void vmbus_add_channel_work(struct work_struct *work)
 	dev_type = hv_get_dev_type(newchannel);
 
 	init_vp_index(newchannel, dev_type);
-
-	if (newchannel->target_cpu != get_cpu()) {
-		put_cpu();
-		smp_call_function_single(newchannel->target_cpu,
-					 percpu_channel_enq,
-					 newchannel, true);
-	} else {
-		percpu_channel_enq(newchannel);
-		put_cpu();
-	}
 
 	/*
 	 * This state is used to indicate a successful open
@@ -523,17 +546,10 @@ err_deq_chan:
 		spin_unlock_irqrestore(&primary_channel->lock, flags);
 	}
 
-	mutex_unlock(&vmbus_connection.channel_mutex);
+	/* vmbus_process_offer() has mapped the channel. */
+	vmbus_channel_unmap_relid(newchannel);
 
-	if (newchannel->target_cpu != get_cpu()) {
-		put_cpu();
-		smp_call_function_single(newchannel->target_cpu,
-					 percpu_channel_deq,
-					 newchannel, true);
-	} else {
-		percpu_channel_deq(newchannel);
-		put_cpu();
-	}
+	mutex_unlock(&vmbus_connection.channel_mutex);
 
 	vmbus_release_relid(newchannel->offermsg.child_relid);
 
@@ -598,6 +614,8 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 		list_add_tail(&newchannel->sc_list, &channel->sc_list);
 		spin_unlock_irqrestore(&channel->lock, flags);
 	}
+
+	vmbus_channel_map_relid(newchannel);
 
 	mutex_unlock(&vmbus_connection.channel_mutex);
 
@@ -940,8 +958,6 @@ static void vmbus_onoffer(struct vmbus_channel_message_header *hdr)
 	oldchannel = find_primary_channel_by_offer(offer);
 
 	if (oldchannel != NULL) {
-		atomic_dec(&vmbus_connection.offer_in_progress);
-
 		/*
 		 * We're resuming from hibernation: all the sub-channel and
 		 * hv_sock channels we had before the hibernation should have
@@ -949,36 +965,65 @@ static void vmbus_onoffer(struct vmbus_channel_message_header *hdr)
 		 * primary channel that we had before the hibernation.
 		 */
 
+		/*
+		 * { Initially: channel relid = INVALID_RELID,
+		 *		channels[valid_relid] = NULL }
+		 *
+		 * CPU1					CPU2
+		 *
+		 * [vmbus_onoffer()]			[vmbus_device_release()]
+		 *
+		 * LOCK channel_mutex			LOCK channel_mutex
+		 * STORE channel relid = valid_relid	LOAD r1 = channel relid
+		 * MAP_RELID channel			if (r1 != INVALID_RELID)
+		 * UNLOCK channel_mutex			  UNMAP_RELID channel
+		 *					UNLOCK channel_mutex
+		 *
+		 * Forbids: r1 == valid_relid &&
+		 * 		channels[valid_relid] == channel
+		 *
+		 * Note.  r1 can be INVALID_RELID only for an hv_sock channel.
+		 * None of the hv_sock channels which were present before the
+		 * suspend are re-offered upon the resume.  See the WARN_ON()
+		 * in hv_process_channel_removal().
+		 */
+		mutex_lock(&vmbus_connection.channel_mutex);
+
+		atomic_dec(&vmbus_connection.offer_in_progress);
+
 		WARN_ON(oldchannel->offermsg.child_relid != INVALID_RELID);
 		/* Fix up the relid. */
 		oldchannel->offermsg.child_relid = offer->child_relid;
 
 		offer_sz = sizeof(*offer);
-		if (memcmp(offer, &oldchannel->offermsg, offer_sz) == 0) {
-			check_ready_for_resume_event();
-			return;
+		if (memcmp(offer, &oldchannel->offermsg, offer_sz) != 0) {
+			/*
+			 * This is not an error, since the host can also change
+			 * the other field(s) of the offer, e.g. on WS RS5
+			 * (Build 17763), the offer->connection_id of the
+			 * Mellanox VF vmbus device can change when the host
+			 * reoffers the device upon resume.
+			 */
+			pr_debug("vmbus offer changed: relid=%d\n",
+				 offer->child_relid);
+
+			print_hex_dump_debug("Old vmbus offer: ",
+					     DUMP_PREFIX_OFFSET, 16, 4,
+					     &oldchannel->offermsg, offer_sz,
+					     false);
+			print_hex_dump_debug("New vmbus offer: ",
+					     DUMP_PREFIX_OFFSET, 16, 4,
+					     offer, offer_sz, false);
+
+			/* Fix up the old channel. */
+			vmbus_setup_channel_state(oldchannel, offer);
 		}
 
-		/*
-		 * This is not an error, since the host can also change the
-		 * other field(s) of the offer, e.g. on WS RS5 (Build 17763),
-		 * the offer->connection_id of the Mellanox VF vmbus device
-		 * can change when the host reoffers the device upon resume.
-		 */
-		pr_debug("vmbus offer changed: relid=%d\n",
-			 offer->child_relid);
-
-		print_hex_dump_debug("Old vmbus offer: ", DUMP_PREFIX_OFFSET,
-				     16, 4, &oldchannel->offermsg, offer_sz,
-				     false);
-		print_hex_dump_debug("New vmbus offer: ", DUMP_PREFIX_OFFSET,
-				     16, 4, offer, offer_sz, false);
-
-		/* Fix up the old channel. */
-		vmbus_setup_channel_state(oldchannel, offer);
-
+		/* Add the channel back to the array of channels. */
+		vmbus_channel_map_relid(oldchannel);
 		check_ready_for_resume_event();
 
+		mutex_unlock(&vmbus_connection.channel_mutex);
 		return;
 	}
 
@@ -1036,14 +1081,14 @@ static void vmbus_onoffer_rescind(struct vmbus_channel_message_header *hdr)
 	 *
 	 * CPU1				CPU2
 	 *
-	 * [vmbus_process_offer()]	[vmbus_onoffer_rescind()]
+	 * [vmbus_onoffer()]		[vmbus_onoffer_rescind()]
 	 *
 	 * LOCK channel_mutex		WAIT_ON offer_in_progress == 0
 	 * DECREMENT offer_in_progress	LOCK channel_mutex
-	 * INSERT chn_list		SEARCH chn_list
+	 * STORE channels[]		LOAD channels[]
 	 * UNLOCK channel_mutex		UNLOCK channel_mutex
 	 *
-	 * Forbids: CPU2's SEARCH from *not* seeing CPU1's INSERT
+	 * Forbids: CPU2's LOAD from *not* seeing CPU1's STORE
 	 */
 
 	while (atomic_read(&vmbus_connection.offer_in_progress) != 0) {

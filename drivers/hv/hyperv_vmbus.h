@@ -132,12 +132,6 @@ struct hv_per_cpu_context {
 	 * basis.
 	 */
 	struct tasklet_struct msg_dpc;
-
-	/*
-	 * To optimize the mapping of relid to channel, maintain
-	 * per-cpu list of the channels based on their CPU affinity.
-	 */
-	struct list_head chan_list;
 };
 
 struct hv_context {
@@ -202,6 +196,8 @@ int hv_ringbuffer_read(struct vmbus_channel *channel,
 /* TODO: Need to make this configurable */
 #define MAX_NUM_CHANNELS_SUPPORTED	256
 
+#define MAX_CHANNEL_RELIDS					\
+	max(MAX_NUM_CHANNELS_SUPPORTED, HV_EVENT_FLAGS_COUNT)
 
 enum vmbus_connect_state {
 	DISCONNECTED,
@@ -250,6 +246,9 @@ struct vmbus_connection {
 	/* List of channels */
 	struct list_head chn_list;
 	struct mutex channel_mutex;
+
+	/* Array of channels */
+	struct vmbus_channel **channels;
 
 	/*
 	 * An offer message is handled first on the work_queue, and then
@@ -337,6 +336,9 @@ int vmbus_add_channel_kobj(struct hv_device *device_obj,
 			   struct vmbus_channel *channel);
 
 void vmbus_remove_channel_attr_group(struct vmbus_channel *channel);
+
+void vmbus_channel_map_relid(struct vmbus_channel *channel);
+void vmbus_channel_unmap_relid(struct vmbus_channel *channel);
 
 struct vmbus_channel *relid2channel(u32 relid);
 

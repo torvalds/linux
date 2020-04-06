@@ -854,11 +854,6 @@ struct vmbus_channel {
 	 * Support per-channel state for use by vmbus drivers.
 	 */
 	void *per_channel_state;
-	/*
-	 * To support per-cpu lookup mapping of relid to channel,
-	 * link up channels based on their CPU affinity.
-	 */
-	struct list_head percpu_list;
 
 	/*
 	 * Defer freeing channel until after all cpu's have
