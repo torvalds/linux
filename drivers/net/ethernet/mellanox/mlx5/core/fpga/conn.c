@@ -362,23 +362,6 @@ static void mlx5_fpga_conn_arm_cq(struct mlx5_fpga_conn *conn)
 		    conn->fdev->conn_res.uar->map, conn->cq.wq.cc);
 }
 
-static void mlx5_fpga_conn_cq_event(struct mlx5_core_cq *mcq,
-				    enum mlx5_event event)
-{
-	struct mlx5_fpga_conn *conn;
-
-	conn = container_of(mcq, struct mlx5_fpga_conn, cq.mcq);
-	mlx5_fpga_warn(conn->fdev, "CQ event %u on CQ #%u\n", event, mcq->cqn);
-}
-
-static void mlx5_fpga_conn_event(struct mlx5_core_qp *mqp, int event)
-{
-	struct mlx5_fpga_conn *conn;
-
-	conn = container_of(mqp, struct mlx5_fpga_conn, qp.mqp);
-	mlx5_fpga_warn(conn->fdev, "QP event %u on QP #%u\n", event, mqp->qpn);
-}
-
 static inline void mlx5_fpga_conn_cqes(struct mlx5_fpga_conn *conn,
 				       unsigned int budget)
 {
@@ -493,7 +476,6 @@ static int mlx5_fpga_conn_create_cq(struct mlx5_fpga_conn *conn, int cq_size)
 	*conn->cq.mcq.arm_db    = 0;
 	conn->cq.mcq.vector     = 0;
 	conn->cq.mcq.comp       = mlx5_fpga_conn_cq_complete;
-	conn->cq.mcq.event      = mlx5_fpga_conn_cq_event;
 	conn->cq.mcq.irqn       = irqn;
 	conn->cq.mcq.uar        = fdev->conn_res.uar;
 	tasklet_init(&conn->cq.tasklet, mlx5_fpga_conn_cq_tasklet,
@@ -607,7 +589,6 @@ static int mlx5_fpga_conn_create_qp(struct mlx5_fpga_conn *conn,
 		goto err_sq_bufs;
 
 	conn->qp.mqp.qpn = MLX5_GET(create_qp_out, out, qpn);
-	conn->qp.mqp.event = mlx5_fpga_conn_event;
 	mlx5_fpga_dbg(fdev, "Created QP #0x%x\n", conn->qp.mqp.qpn);
 
 	goto out;
