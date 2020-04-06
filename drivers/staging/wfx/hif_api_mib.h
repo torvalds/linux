@@ -63,8 +63,6 @@ enum hif_mib_ids {
 	HIF_MIB_ID_BEACON_STATS                    = 0x2056,
 };
 
-#define HIF_OP_POWER_MODE_MASK                     0xf
-
 enum hif_op_power_mode {
 	HIF_OP_POWER_MODE_ACTIVE                   = 0x0,
 	HIF_OP_POWER_MODE_DOZE                     = 0x1,
@@ -78,76 +76,10 @@ struct hif_mib_gl_operational_power_mode {
 	u8    reserved2[3];
 } __packed;
 
-struct hif_mib_gl_block_ack_info {
-	u8    rx_buffer_size;
-	u8    rx_max_num_agreements;
-	u8    tx_buffer_size;
-	u8    tx_max_num_agreements;
-} __packed;
-
 struct hif_mib_gl_set_multi_msg {
 	u8    enable_multi_tx_conf:1;
 	u8    reserved1:7;
 	u8    reserved2[3];
-} __packed;
-
-enum hif_cca_thr_mode {
-	HIF_CCA_THR_MODE_RELATIVE = 0x0,
-	HIF_CCA_THR_MODE_ABSOLUTE = 0x1
-};
-
-struct hif_mib_gl_cca_config {
-	u8  cca_thr_mode;
-	u8  reserved[3];
-} __packed;
-
-#define MAX_NUMBER_DATA_FILTERS             0xA
-
-#define MAX_NUMBER_IPV4_ADDR_CONDITIONS     0x4
-#define MAX_NUMBER_IPV6_ADDR_CONDITIONS     0x4
-#define MAX_NUMBER_MAC_ADDR_CONDITIONS      0x4
-#define MAX_NUMBER_UC_MC_BC_CONDITIONS      0x4
-#define MAX_NUMBER_ETHER_TYPE_CONDITIONS    0x4
-#define MAX_NUMBER_PORT_CONDITIONS          0x4
-#define MAX_NUMBER_MAGIC_CONDITIONS         0x4
-#define MAX_NUMBER_ARP_CONDITIONS           0x2
-#define MAX_NUMBER_NS_CONDITIONS            0x2
-
-struct hif_mib_ethertype_data_frame_condition {
-	u8    condition_idx;
-	u8    reserved;
-	u16   ether_type;
-} __packed;
-
-enum hif_udp_tcp_protocol {
-	HIF_PROTOCOL_UDP                       = 0x0,
-	HIF_PROTOCOL_TCP                       = 0x1,
-	HIF_PROTOCOL_BOTH_UDP_TCP              = 0x2
-};
-
-enum hif_which_port {
-	HIF_PORT_DST                           = 0x0,
-	HIF_PORT_SRC                           = 0x1,
-	HIF_PORT_SRC_OR_DST                    = 0x2
-};
-
-struct hif_mib_ports_data_frame_condition {
-	u8    condition_idx;
-	u8    protocol;
-	u8    which_port;
-	u8    reserved1;
-	u16   port_number;
-	u8    reserved2[2];
-} __packed;
-
-#define HIF_API_MAGIC_PATTERN_SIZE                 32
-
-struct hif_mib_magic_data_frame_condition {
-	u8    condition_idx;
-	u8    offset;
-	u8    magic_pattern_length;
-	u8    reserved;
-	u8    magic_pattern[HIF_API_MAGIC_PATTERN_SIZE];
 } __packed;
 
 enum hif_mac_addr_type {
@@ -160,25 +92,6 @@ struct hif_mib_mac_addr_data_frame_condition {
 	u8    condition_idx;
 	u8    address_type;
 	u8    mac_address[ETH_ALEN];
-} __packed;
-
-enum hif_ip_addr_mode {
-	HIF_IP_ADDR_SRC                            = 0x0,
-	HIF_IP_ADDR_DST                            = 0x1
-};
-
-struct hif_mib_ipv4_addr_data_frame_condition {
-	u8    condition_idx;
-	u8    address_mode;
-	u8    reserved[2];
-	u8    i_pv4_address[HIF_API_IPV4_ADDRESS_SIZE];
-} __packed;
-
-struct hif_mib_ipv6_addr_data_frame_condition {
-	u8    condition_idx;
-	u8    address_mode;
-	u8    reserved[2];
-	u8    i_pv6_address[HIF_API_IPV6_ADDRESS_SIZE];
 } __packed;
 
 #define HIF_FILTER_UNICAST   0x1
@@ -226,13 +139,6 @@ struct hif_mib_arp_ip_addr_table {
 	u8    ipv4_address[HIF_API_IPV4_ADDRESS_SIZE];
 } __packed;
 
-struct hif_mib_ns_ip_addr_table {
-	u8    condition_idx;
-	u8    ns_enable;
-	u8    reserved[2];
-	u8    ipv6_address[HIF_API_IPV6_ADDRESS_SIZE];
-} __packed;
-
 struct hif_mib_rx_filter {
 	u8    reserved1:1;
 	u8    bssid_filter:1;
@@ -271,23 +177,6 @@ enum hif_beacon_filter {
 struct hif_mib_bcn_filter_enable {
 	u32   enable;
 	u32   bcn_count;
-} __packed;
-
-struct hif_mib_group_seq_counter {
-	u32   bits4716;
-	u16   bits1500;
-	u16   reserved;
-} __packed;
-
-struct hif_mib_tsf_counter {
-	u32   tsf_counterlo;
-	u32   tsf_counterhi;
-} __packed;
-
-struct hif_mib_stats_table {
-	s16    latest_snr;
-	u8    latest_rcpi;
-	s8     latest_rssi;
 } __packed;
 
 struct hif_mib_extended_count_table {
@@ -345,27 +234,9 @@ struct hif_mib_count_table {
 	u32   count_rx_bipmic_errors;
 } __packed;
 
-struct hif_mib_max_tx_power_level {
-	s32       max_tx_power_level_rf_port1;
-	s32       max_tx_power_level_rf_port2;
-} __packed;
-
-struct hif_mib_beacon_stats {
-	s32     latest_tbtt_diff;
-	u32    reserved[4];
-} __packed;
-
 struct hif_mib_mac_address {
 	u8    mac_addr[ETH_ALEN];
 	u16   reserved;
-} __packed;
-
-struct hif_mib_dot11_max_transmit_msdu_lifetime {
-	u32   max_life_time;
-} __packed;
-
-struct hif_mib_dot11_max_receive_lifetime {
-	u32   max_life_time;
 } __packed;
 
 struct hif_mib_wep_default_key_id {
@@ -438,12 +309,6 @@ struct hif_mib_block_ack_policy {
 	u8    reserved1;
 	u8    block_ack_rx_tid_policy;
 	u8    block_ack_rx_max_buffer_size;
-} __packed;
-
-struct hif_mib_override_int_rate {
-	u8    internal_tx_rate;
-	u8    non_erp_internal_tx_rate;
-	u8    reserved[2];
 } __packed;
 
 enum hif_mpdu_start_spacing {
@@ -526,26 +391,6 @@ struct hif_mib_set_ht_protection {
 struct hif_mib_keep_alive_period {
 	u16   keep_alive_period;
 	u8    reserved[2];
-} __packed;
-
-struct hif_mib_arp_keep_alive_period {
-	u16   arp_keep_alive_period;
-	u8    encr_type;
-	u8    reserved;
-	u8    sender_ipv4_address[HIF_API_IPV4_ADDRESS_SIZE];
-	u8    target_ipv4_address[HIF_API_IPV4_ADDRESS_SIZE];
-} __packed;
-
-struct hif_mib_inactivity_timer {
-	u8    min_active_time;
-	u8    max_active_time;
-	u16   reserved;
-} __packed;
-
-struct hif_mib_interface_protection {
-	u8   use_cts_prot:1;
-	u8   reserved1:7;
-	u8   reserved2[3];
 } __packed;
 
 #endif

@@ -191,12 +191,6 @@ struct hif_req_control_gpio {
 	u8 gpio_mode;
 } __packed;
 
-enum hif_gpio_error {
-	HIF_GPIO_ERROR_0                            = 0x0,
-	HIF_GPIO_ERROR_1                            = 0x1,
-	HIF_GPIO_ERROR_2                            = 0x2
-};
-
 struct hif_cnf_control_gpio {
 	u32 status;
 	u32 value;
@@ -347,90 +341,6 @@ struct hif_req_sl_configure {
 } __packed;
 
 struct hif_cnf_sl_configure {
-	u32 status;
-} __packed;
-
-struct hif_req_prevent_rollback {
-	u32   magic_word;
-} __packed;
-
-struct hif_cnf_prevent_rollback {
-	u32    status;
-} __packed;
-
-enum hif_pta_mode {
-	PTA_1W_WLAN_MASTER = 0,
-	PTA_1W_COEX_MASTER = 1,
-	PTA_2W             = 2,
-	PTA_3W             = 3,
-	PTA_4W             = 4
-};
-
-enum hif_signal_level {
-	SIGNAL_LOW  = 0,
-	SIGNAL_HIGH = 1
-};
-
-enum hif_coex_type {
-	COEX_TYPE_GENERIC = 0,
-	COEX_TYPE_BLE     = 1
-};
-
-enum hif_grant_state {
-	NO_GRANT = 0,
-	GRANT    = 1
-};
-
-struct hif_req_pta_settings {
-	u8 pta_mode;
-	u8 request_signal_active_level;
-	u8 priority_signal_active_level;
-	u8 freq_signal_active_level;
-	u8 grant_signal_active_level;
-	u8 coex_type;
-	u8 default_grant_state;
-	u8 simultaneous_rx_accesses;
-	u8 priority_sampling_time;
-	u8 tx_rx_sampling_time;
-	u8 freq_sampling_time;
-	u8 grant_valid_time;
-	u8 fem_control_time;
-	u8 first_slot_time;
-	u16 periodic_tx_rx_sampling_time;
-	u16 coex_quota;
-	u16 wlan_quota;
-} __packed;
-
-struct hif_cnf_pta_settings {
-	u32 status;
-} __packed;
-
-enum hif_pta_priority {
-	HIF_PTA_PRIORITY_COEX_MAXIMIZED = 0x00000562,
-	HIF_PTA_PRIORITY_COEX_HIGH      = 0x00000462,
-	HIF_PTA_PRIORITY_BALANCED       = 0x00001461,
-	HIF_PTA_PRIORITY_WLAN_HIGH      = 0x00001851,
-	HIF_PTA_PRIORITY_WLAN_MAXIMIZED = 0x00001A51
-};
-
-struct hif_req_pta_priority {
-	u32 priority;
-} __packed;
-
-struct hif_cnf_pta_priority {
-	u32 status;
-} __packed;
-
-enum hif_pta_state {
-	PTA_OFF = 0,
-	PTA_ON  = 1
-};
-
-struct hif_req_pta_state {
-	u32 pta_state;
-} __packed;
-
-struct hif_cnf_pta_state {
 	u32 status;
 } __packed;
 

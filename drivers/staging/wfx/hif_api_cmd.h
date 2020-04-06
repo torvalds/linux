@@ -10,8 +10,6 @@
 
 #include "hif_api_general.h"
 
-#define HIF_NUM_AC                             4
-
 #define HIF_API_SSID_SIZE                      API_SSID_SIZE
 
 enum hif_requests_ids {
@@ -167,22 +165,6 @@ struct hif_ssid_def {
 
 #define HIF_API_MAX_NB_SSIDS                           2
 #define HIF_API_MAX_NB_CHANNELS                       14
-
-struct hif_req_start_scan {
-	u8    band;
-	struct hif_scan_type scan_type;
-	struct hif_scan_flags scan_flags;
-	u8    max_transmit_rate;
-	struct hif_auto_scan_param auto_scan_param;
-	u8    num_of_probe_requests;
-	u8    probe_delay;
-	u8    num_of_ssids;
-	u8    num_of_channels;
-	u32   min_channel_time;
-	u32   max_channel_time;
-	s32    tx_power_level;
-	u8    ssid_and_channel_lists[];
-} __packed;
 
 struct hif_req_start_scan_alt {
 	u8    band;
