@@ -310,7 +310,7 @@ int hif_join(struct wfx_vif *wvif, const struct ieee80211_bss_conf *conf,
 	body->basic_rate_set =
 		cpu_to_le32(wfx_rate_mask_to_hw(wvif->wdev, conf->basic_rates));
 	memcpy(body->bssid, conf->bssid, sizeof(body->bssid));
-	if (!conf->ibss_joined && ssid) {
+	if (ssid) {
 		body->ssid_length = cpu_to_le32(ssidlen);
 		memcpy(body->ssid, ssid, ssidlen);
 	}
