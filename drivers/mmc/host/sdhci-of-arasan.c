@@ -354,7 +354,7 @@ static const struct sdhci_pltfm_data sdhci_arasan_pdata = {
 			SDHCI_QUIRK2_STOP_WITH_TC,
 };
 
-static struct sdhci_arasan_of_data sdhci_arasan_data = {
+static struct sdhci_arasan_of_data sdhci_arasan_generic_data = {
 	.pdata = &sdhci_arasan_pdata,
 };
 
@@ -552,15 +552,15 @@ static const struct of_device_id sdhci_arasan_of_match[] = {
 	/* Generic compatible below here */
 	{
 		.compatible = "arasan,sdhci-8.9a",
-		.data = &sdhci_arasan_data,
+		.data = &sdhci_arasan_generic_data,
 	},
 	{
 		.compatible = "arasan,sdhci-5.1",
-		.data = &sdhci_arasan_data,
+		.data = &sdhci_arasan_generic_data,
 	},
 	{
 		.compatible = "arasan,sdhci-4.9a",
-		.data = &sdhci_arasan_data,
+		.data = &sdhci_arasan_generic_data,
 	},
 	{
 		.compatible = "xlnx,zynqmp-8.9a",
