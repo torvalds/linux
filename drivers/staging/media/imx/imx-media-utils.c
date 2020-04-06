@@ -207,7 +207,7 @@ static const struct imx_media_pixfmt pixel_formats[] = {
  * @fmt_sel: Allow entries only with the given selection criteria.
  */
 const struct imx_media_pixfmt *
-imx_media_find_format(u32 fourcc, enum imx_pixfmt_sel fmt_sel)
+imx_media_find_pixel_format(u32 fourcc, enum imx_pixfmt_sel fmt_sel)
 {
 	bool sel_ipu = fmt_sel & PIXFMT_SEL_IPU;
 	unsigned int i;
@@ -231,7 +231,7 @@ imx_media_find_format(u32 fourcc, enum imx_pixfmt_sel fmt_sel)
 
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(imx_media_find_format);
+EXPORT_SYMBOL_GPL(imx_media_find_pixel_format);
 
 /*
  * Search in the pixel_formats[] array for an entry with the given media
@@ -284,8 +284,8 @@ EXPORT_SYMBOL_GPL(imx_media_find_mbus_format);
  * @fmt_sel: Include in the enumeration entries with the given selection
  *           criteria.
  */
-int imx_media_enum_format(u32 *fourcc, u32 index,
-			  enum imx_pixfmt_sel fmt_sel)
+int imx_media_enum_pixel_formats(u32 *fourcc, u32 index,
+				 enum imx_pixfmt_sel fmt_sel)
 {
 	bool sel_ipu = fmt_sel & PIXFMT_SEL_IPU;
 	unsigned int i;
@@ -316,7 +316,7 @@ int imx_media_enum_format(u32 *fourcc, u32 index,
 
 	return -EINVAL;
 }
-EXPORT_SYMBOL_GPL(imx_media_enum_format);
+EXPORT_SYMBOL_GPL(imx_media_enum_pixel_formats);
 
 /*
  * Enumerate entries in the pixel_formats[] array that match the
@@ -329,8 +329,8 @@ EXPORT_SYMBOL_GPL(imx_media_enum_format);
  * @fmt_sel: Include in the enumeration entries with the given selection
  *           criteria.
  */
-int imx_media_enum_mbus_format(u32 *code, u32 index,
-			       enum imx_pixfmt_sel fmt_sel)
+int imx_media_enum_mbus_formats(u32 *code, u32 index,
+				enum imx_pixfmt_sel fmt_sel)
 {
 	bool sel_ipu = fmt_sel & PIXFMT_SEL_IPU;
 	unsigned int i;
@@ -364,7 +364,7 @@ int imx_media_enum_mbus_format(u32 *code, u32 index,
 
 	return -EINVAL;
 }
-EXPORT_SYMBOL_GPL(imx_media_enum_mbus_format);
+EXPORT_SYMBOL_GPL(imx_media_enum_mbus_formats);
 
 int imx_media_init_mbus_fmt(struct v4l2_mbus_framefmt *mbus,
 			    u32 width, u32 height, u32 code, u32 field,
@@ -375,8 +375,10 @@ int imx_media_init_mbus_fmt(struct v4l2_mbus_framefmt *mbus,
 	mbus->width = width;
 	mbus->height = height;
 	mbus->field = field;
+
 	if (code == 0)
-		imx_media_enum_mbus_format(&code, 0, PIXFMT_SEL_YUV);
+		imx_media_enum_mbus_formats(&code, 0, PIXFMT_SEL_YUV);
+
 	lcc = imx_media_find_mbus_format(code, PIXFMT_SEL_ANY);
 	if (!lcc) {
 		lcc = imx_media_find_ipu_format(code, PIXFMT_SEL_YUV_RGB);
@@ -518,7 +520,7 @@ int imx_media_mbus_fmt_to_pix_fmt(struct v4l2_pix_format *pix,
 	if (cc->ipufmt && cc->cs == IPUV3_COLORSPACE_YUV) {
 		u32 code;
 
-		imx_media_enum_mbus_format(&code, 0, PIXFMT_SEL_YUV);
+		imx_media_enum_mbus_formats(&code, 0, PIXFMT_SEL_YUV);
 		cc = imx_media_find_mbus_format(code, PIXFMT_SEL_YUV);
 	}
 
@@ -570,7 +572,8 @@ int imx_media_ipu_image_to_mbus_fmt(struct v4l2_mbus_framefmt *mbus,
 {
 	const struct imx_media_pixfmt *fmt;
 
-	fmt = imx_media_find_format(image->pix.pixelformat, PIXFMT_SEL_ANY);
+	fmt = imx_media_find_pixel_format(image->pix.pixelformat,
+					  PIXFMT_SEL_ANY);
 	if (!fmt || !fmt->codes || !fmt->codes[0])
 		return -EINVAL;
 
