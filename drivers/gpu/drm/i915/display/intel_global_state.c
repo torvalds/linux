@@ -64,7 +64,7 @@ static void assert_global_state_read_locked(struct intel_atomic_state *state)
 			return;
 	}
 
-	WARN(1, "Global state not read locked\n");
+	drm_WARN(&dev_priv->drm, 1, "Global state not read locked\n");
 }
 
 struct intel_global_state *
@@ -148,7 +148,7 @@ void intel_atomic_swap_global_state(struct intel_atomic_state *state)
 
 	for_each_oldnew_global_obj_in_state(state, obj, old_obj_state,
 					    new_obj_state, i) {
-		WARN_ON(obj->state != old_obj_state);
+		drm_WARN_ON(&dev_priv->drm, obj->state != old_obj_state);
 
 		/*
 		 * If the new state wasn't modified (and properly
