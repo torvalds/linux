@@ -689,11 +689,6 @@ union hv_connection_id {
 	} u;
 };
 
-enum hv_numa_policy {
-	HV_BALANCED = 0,
-	HV_LOCALIZED,
-};
-
 enum vmbus_device_type {
 	HV_IDE = 0,
 	HV_SCSI,
@@ -808,10 +803,6 @@ struct vmbus_channel {
 	u32 target_vp;
 	/* The corresponding CPUID in the guest */
 	u32 target_cpu;
-	/*
-	 * State to manage the CPU affiliation of channels.
-	 */
-	struct cpumask alloced_cpus_in_node;
 	int numa_node;
 	/*
 	 * Support for sub-channels. For high performance devices,
@@ -898,18 +889,6 @@ struct vmbus_channel {
 	 */
 	bool low_latency;
 
-	/*
-	 * NUMA distribution policy:
-	 * We support two policies:
-	 * 1) Balanced: Here all performance critical channels are
-	 *    distributed evenly amongst all the NUMA nodes.
-	 *    This policy will be the default policy.
-	 * 2) Localized: All channels of a given instance of a
-	 *    performance critical service will be assigned CPUs
-	 *    within a selected NUMA node.
-	 */
-	enum hv_numa_policy affinity_policy;
-
 	bool probe_done;
 
 	/*
@@ -963,12 +942,6 @@ static inline bool is_hvsock_channel(const struct vmbus_channel *c)
 static inline bool is_sub_channel(const struct vmbus_channel *c)
 {
 	return c->offermsg.offer.sub_channel_index != 0;
-}
-
-static inline void set_channel_affinity_state(struct vmbus_channel *c,
-					      enum hv_numa_policy policy)
-{
-	c->affinity_policy = policy;
 }
 
 static inline void set_channel_read_mode(struct vmbus_channel *c,
