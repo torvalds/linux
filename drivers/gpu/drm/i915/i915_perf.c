@@ -1948,7 +1948,7 @@ emit_oa_config(struct i915_perf_stream *stream,
 	if (!IS_ERR_OR_NULL(active)) {
 		/* After all individual context modifications */
 		err = i915_request_await_active(rq, active,
-						I915_ACTIVE_AWAIT_ALL);
+						I915_ACTIVE_AWAIT_ACTIVE);
 		if (err)
 			goto err_add_request;
 
