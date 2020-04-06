@@ -1773,9 +1773,11 @@ mt7615_mac_update_mib_stats(struct mt7615_phy *phy)
 
 	val = mt76_get_field(dev, MT_MIB_SDR14(ext_phy),
 			     MT_MIB_AMPDU_MPDU_COUNT);
-	val2 = mt76_get_field(dev, MT_MIB_SDR15(ext_phy),
-			      MT_MIB_AMPDU_ACK_COUNT);
-	mib->aggr_per = 1000 * (val - val2) / val;
+	if (val) {
+		val2 = mt76_get_field(dev, MT_MIB_SDR15(ext_phy),
+				      MT_MIB_AMPDU_ACK_COUNT);
+		mib->aggr_per = 1000 * (val - val2) / val;
+	}
 
 	aggr = ext_phy ? ARRAY_SIZE(dev->mt76.aggr_stats) / 2 : 0;
 	for (i = 0; i < 4; i++) {
