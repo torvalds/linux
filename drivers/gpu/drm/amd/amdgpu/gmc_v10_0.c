@@ -170,6 +170,9 @@ static int gmc_v10_0_process_interrupt(struct amdgpu_device *adev,
 			dev_err(adev->dev,
 				"GCVM_L2_PROTECTION_FAULT_STATUS:0x%08X\n",
 				status);
+			dev_err(adev->dev, "\t Faulty UTCL2 client ID: 0x%lx\n",
+				REG_GET_FIELD(status,
+				GCVM_L2_PROTECTION_FAULT_STATUS, CID));
 			dev_err(adev->dev, "\t MORE_FAULTS: 0x%lx\n",
 				REG_GET_FIELD(status,
 				GCVM_L2_PROTECTION_FAULT_STATUS, MORE_FAULTS));
