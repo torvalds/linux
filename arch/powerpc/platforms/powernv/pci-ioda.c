@@ -1550,11 +1550,6 @@ void pnv_pci_sriov_disable(struct pci_dev *pdev)
 
 static void pnv_pci_ioda2_setup_dma_pe(struct pnv_phb *phb,
 				       struct pnv_ioda_pe *pe);
-#ifdef CONFIG_IOMMU_API
-static void pnv_ioda_setup_bus_iommu_group(struct pnv_ioda_pe *pe,
-		struct iommu_table_group *table_group, struct pci_bus *bus);
-
-#endif
 static void pnv_ioda_setup_vf_PE(struct pci_dev *pdev, u16 num_vfs)
 {
 	struct pci_bus        *bus;
@@ -2589,33 +2584,6 @@ static struct iommu_table_group_ops pnv_pci_ioda2_ops = {
 	.take_ownership = pnv_ioda2_take_ownership,
 	.release_ownership = pnv_ioda2_release_ownership,
 };
-
-static void pnv_ioda_setup_bus_iommu_group_add_devices(struct pnv_ioda_pe *pe,
-		struct iommu_table_group *table_group,
-		struct pci_bus *bus)
-{
-	struct pci_dev *dev;
-
-	list_for_each_entry(dev, &bus->devices, bus_list) {
-		iommu_add_device(table_group, &dev->dev);
-
-		if ((pe->flags & PNV_IODA_PE_BUS_ALL) && dev->subordinate)
-			pnv_ioda_setup_bus_iommu_group_add_devices(pe,
-					table_group, dev->subordinate);
-	}
-}
-
-static void pnv_ioda_setup_bus_iommu_group(struct pnv_ioda_pe *pe,
-		struct iommu_table_group *table_group, struct pci_bus *bus)
-{
-
-	if (pe->flags & PNV_IODA_PE_DEV)
-		iommu_add_device(table_group, &pe->pdev->dev);
-
-	if ((pe->flags & (PNV_IODA_PE_BUS | PNV_IODA_PE_BUS_ALL)) || bus)
-		pnv_ioda_setup_bus_iommu_group_add_devices(pe, table_group,
-				bus);
-}
 
 static unsigned long pnv_ioda_parse_tce_sizes(struct pnv_phb *phb);
 
