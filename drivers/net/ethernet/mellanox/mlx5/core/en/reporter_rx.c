@@ -563,7 +563,7 @@ static const struct devlink_health_reporter_ops mlx5_rx_reporter_ops = {
 
 #define MLX5E_REPORTER_RX_GRACEFUL_PERIOD 500
 
-int mlx5e_reporter_rx_create(struct mlx5e_priv *priv)
+void mlx5e_reporter_rx_create(struct mlx5e_priv *priv)
 {
 	struct devlink *devlink = priv_to_devlink(priv->mdev);
 	struct devlink_health_reporter *reporter;
@@ -575,10 +575,9 @@ int mlx5e_reporter_rx_create(struct mlx5e_priv *priv)
 	if (IS_ERR(reporter)) {
 		netdev_warn(priv->netdev, "Failed to create rx reporter, err = %ld\n",
 			    PTR_ERR(reporter));
-		return PTR_ERR(reporter);
+		return;
 	}
 	priv->rx_reporter = reporter;
-	return 0;
 }
 
 void mlx5e_reporter_rx_destroy(struct mlx5e_priv *priv)
