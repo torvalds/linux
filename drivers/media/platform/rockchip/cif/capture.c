@@ -1446,10 +1446,6 @@ static int rkcif_init_vb2_queue(struct vb2_queue *q,
 				struct rkcif_stream *stream,
 				enum v4l2_buf_type buf_type)
 {
-	struct rkcif_vdev_node *node;
-
-	node = queue_to_node(q);
-
 	q->type = buf_type;
 	q->io_modes = VB2_MMAP | VB2_DMABUF;
 	q->drv_priv = stream;
@@ -1458,7 +1454,8 @@ static int rkcif_init_vb2_queue(struct vb2_queue *q,
 	q->buf_struct_size = sizeof(struct rkcif_buffer);
 	q->min_buffers_needed = CIF_REQ_BUFS_MIN;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
-	q->lock = &node->vlock;
+	q->lock = &stream->vnode.vlock;
+	q->dev = stream->cifdev->dev;
 
 	return vb2_queue_init(q);
 }
