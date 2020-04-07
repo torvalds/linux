@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* MCP23S08 SPI/I2C GPIO driver */
 
+#include <linux/bitops.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/mutex.h>
@@ -940,13 +941,14 @@ static int mcp23s08_spi_regmap_init(struct mcp23s08 *mcp, struct device *dev,
 static int mcp23s08_probe(struct spi_device *spi)
 {
 	struct device *dev = &spi->dev;
+	unsigned long spi_present_mask;
 	const void *match;
+	int chips;
+	u32 v;
 	unsigned			addr;
-	int				chips = 0;
 	struct mcp23s08_driver_data	*data;
 	int				status, type;
 	unsigned			ngpio = 0;
-	u32				spi_present_mask;
 
 	match = device_get_match_data(dev);
 	if (match)
@@ -954,29 +956,22 @@ static int mcp23s08_probe(struct spi_device *spi)
 	else
 		type = spi_get_device_id(spi)->driver_data;
 
-	status = device_property_read_u32(&spi->dev,
-			"microchip,spi-present-mask", &spi_present_mask);
+	status = device_property_read_u32(dev, "microchip,spi-present-mask", &v);
 	if (status) {
-		status = device_property_read_u32(&spi->dev,
-				"mcp,spi-present-mask", &spi_present_mask);
+		status = device_property_read_u32(dev, "mcp,spi-present-mask", &v);
 		if (status) {
 			dev_err(&spi->dev, "missing spi-present-mask");
 			return status;
 		}
 	}
+	spi_present_mask = v;
 
-	if (!spi_present_mask || spi_present_mask > 0xff) {
+	if (!spi_present_mask || spi_present_mask >= BIT(MCP_MAX_DEV_PER_CS)) {
 		dev_err(&spi->dev, "invalid spi-present-mask");
 		return -ENODEV;
 	}
 
-	for (addr = 0; addr < MCP_MAX_DEV_PER_CS; addr++) {
-		if (spi_present_mask & BIT(addr))
-			chips++;
-	}
-
-	if (!chips)
-		return -ENODEV;
+	chips = hweight_long(spi_present_mask);
 
 	data = devm_kzalloc(&spi->dev,
 			    struct_size(data, chip, chips), GFP_KERNEL);
@@ -985,11 +980,8 @@ static int mcp23s08_probe(struct spi_device *spi)
 
 	spi_set_drvdata(spi, data);
 
-	for (addr = 0; addr < MCP_MAX_DEV_PER_CS; addr++) {
-		if (!(spi_present_mask & BIT(addr)))
-			continue;
-		chips--;
-		data->mcp[addr] = &data->chip[chips];
+	for_each_set_bit(addr, &spi_present_mask, MCP_MAX_DEV_PER_CS) {
+		data->mcp[addr] = &data->chip[--chips];
 		data->mcp[addr]->irq = spi->irq;
 
 		status = mcp23s08_spi_regmap_init(data->mcp[addr], dev, addr, type);
