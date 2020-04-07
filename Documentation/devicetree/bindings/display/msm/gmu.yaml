@@ -72,16 +72,9 @@ properties:
        - const: gx
 
   iommus:
-    $ref: /schemas/types.yaml#/definitions/phandle-array
-    description:
-       Phandle to a IOMMU device and stream ID. Refer to ../../iommu/iommu.txt
-       for more information.
+    maxItems: 1
 
-  operating-points-v2:
-    $ref: /schemas/types.yaml#/definitions/phandle
-    description:
-      Phandle to the OPP table for the available GMU frequencies. Refer to
-      ../../opp/opp.txt for more information.
+  operating-points-v2: true
 
   dma-ranges:
     $ref: /schemas/types.yaml#/definitions/uint32-array
