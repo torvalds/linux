@@ -699,16 +699,10 @@ static int load_elf_binary(struct linux_binprm *bprm)
 	unsigned long reloc_func_desc __maybe_unused = 0;
 	int executable_stack = EXSTACK_DEFAULT;
 	struct elfhdr *elf_ex = (struct elfhdr *)bprm->buf;
-	struct elfhdr *interp_elf_ex;
+	struct elfhdr *interp_elf_ex = NULL;
 	struct arch_elf_state arch_state = INIT_ARCH_ELF_STATE;
 	struct mm_struct *mm;
 	struct pt_regs *regs;
-
-	interp_elf_ex = kmalloc(sizeof(*interp_elf_ex), GFP_KERNEL);
-	if (!interp_elf_ex) {
-		retval = -ENOMEM;
-		goto out_ret;
-	}
 
 	retval = -ENOEXEC;
 	/* First of all, some simple consistency checks */
@@ -768,6 +762,12 @@ static int load_elf_binary(struct linux_binprm *bprm)
 		 * regardless of the interpreter's permissions.
 		 */
 		would_dump(bprm, interpreter);
+
+		interp_elf_ex = kmalloc(sizeof(*interp_elf_ex), GFP_KERNEL);
+		if (!interp_elf_ex) {
+			retval = -ENOMEM;
+			goto out_free_ph;
+		}
 
 		/* Get the exec headers */
 		retval = elf_read(interpreter, interp_elf_ex,
@@ -1074,6 +1074,8 @@ out_free_interp:
 
 		allow_write_access(interpreter);
 		fput(interpreter);
+
+		kfree(interp_elf_ex);
 	} else {
 		elf_entry = e_entry;
 		if (BAD_ADDR(elf_entry)) {
@@ -1152,12 +1154,11 @@ out_free_interp:
 	start_thread(regs, elf_entry, bprm->p);
 	retval = 0;
 out:
-	kfree(interp_elf_ex);
-out_ret:
 	return retval;
 
 	/* error cleanup */
 out_free_dentry:
+	kfree(interp_elf_ex);
 	kfree(interp_elf_phdata);
 	allow_write_access(interpreter);
 	if (interpreter)
