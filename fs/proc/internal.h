@@ -61,6 +61,7 @@ struct proc_dir_entry {
 	struct rb_node subdir_node;
 	char *name;
 	umode_t mode;
+	u8 flags;
 	u8 namelen;
 	char inline_name[];
 } __randomize_layout;
@@ -72,6 +73,11 @@ struct proc_dir_entry {
 	sizeof(struct proc_dir_entry) < 512 ? 512 :	\
 	0)
 #define SIZEOF_PDE_INLINE_NAME (SIZEOF_PDE - sizeof(struct proc_dir_entry))
+
+static inline bool pde_is_permanent(const struct proc_dir_entry *pde)
+{
+	return pde->flags & PROC_ENTRY_PERMANENT;
+}
 
 extern struct kmem_cache *proc_dir_entry_cache;
 void pde_free(struct proc_dir_entry *pde);

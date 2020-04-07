@@ -885,6 +885,7 @@ static int sysvipc_proc_release(struct inode *inode, struct file *file)
 }
 
 static const struct proc_ops sysvipc_proc_ops = {
+	.proc_flags	= PROC_ENTRY_PERMANENT,
 	.proc_open	= sysvipc_proc_open,
 	.proc_read	= seq_read,
 	.proc_lseek	= seq_lseek,
