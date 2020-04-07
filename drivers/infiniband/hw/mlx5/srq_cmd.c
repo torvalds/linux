@@ -5,7 +5,6 @@
 
 #include <linux/kernel.h>
 #include <linux/mlx5/driver.h>
-#include <linux/mlx5/cmd.h>
 #include "mlx5_ib.h"
 #include "srq.h"
 

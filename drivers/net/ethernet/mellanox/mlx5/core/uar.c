@@ -34,7 +34,6 @@
 #include <linux/module.h>
 #include <linux/io-mapping.h>
 #include <linux/mlx5/driver.h>
-#include <linux/mlx5/cmd.h>
 #include "mlx5_core.h"
 
 int mlx5_cmd_alloc_uar(struct mlx5_core_dev *dev, u32 *uarn)

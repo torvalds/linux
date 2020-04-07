@@ -31,7 +31,6 @@
  */
 
 #include <linux/mlx5/driver.h>
-#include <linux/mlx5/cmd.h>
 #include <linux/mlx5/eswitch.h>
 #include <linux/module.h>
 #include "mlx5_core.h"

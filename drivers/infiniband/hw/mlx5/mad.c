@@ -30,7 +30,6 @@
  * SOFTWARE.
  */
 
-#include <linux/mlx5/cmd.h>
 #include <linux/mlx5/vport.h>
 #include <rdma/ib_mad.h>
 #include <rdma/ib_smi.h>

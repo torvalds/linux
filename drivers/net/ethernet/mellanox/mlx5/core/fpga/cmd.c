@@ -31,7 +31,6 @@
  */
 
 #include <linux/etherdevice.h>
-#include <linux/mlx5/cmd.h>
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/device.h>
 

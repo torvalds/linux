@@ -33,7 +33,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mlx5/driver.h>
-#include <linux/mlx5/cmd.h>
 #include <rdma/ib_verbs.h>
 #include "mlx5_core.h"
 
