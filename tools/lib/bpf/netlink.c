@@ -321,7 +321,7 @@ int bpf_get_link_xdp_info(int ifindex, struct xdp_link_info *info,
 
 static __u32 get_xdp_id(struct xdp_link_info *info, __u32 flags)
 {
-	if (info->attach_mode != XDP_ATTACHED_MULTI)
+	if (info->attach_mode != XDP_ATTACHED_MULTI && !flags)
 		return info->prog_id;
 	if (flags & XDP_FLAGS_DRV_MODE)
 		return info->drv_prog_id;
