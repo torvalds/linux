@@ -756,6 +756,7 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
+	media_device_init(&cif_dev->media_dev);
 	ret = media_device_register(&cif_dev->media_dev);
 	if (ret < 0) {
 		v4l2_err(v4l2_dev, "Failed to register media device: %d\n",
