@@ -101,9 +101,6 @@ int exynos_drm_gem_dumb_create(struct drm_file *file_priv,
 			       struct drm_device *dev,
 			       struct drm_mode_create_dumb *args);
 
-/* page fault handler and mmap fault address(virtual) to physical memory. */
-vm_fault_t exynos_drm_gem_fault(struct vm_fault *vmf);
-
 /* set vm_flags and we can change the vm attribute to other one at here. */
 int exynos_drm_gem_mmap(struct file *filp, struct vm_area_struct *vma);
 

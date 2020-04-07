@@ -381,26 +381,6 @@ int exynos_drm_gem_dumb_create(struct drm_file *file_priv,
 	return 0;
 }
 
-vm_fault_t exynos_drm_gem_fault(struct vm_fault *vmf)
-{
-	struct vm_area_struct *vma = vmf->vma;
-	struct drm_gem_object *obj = vma->vm_private_data;
-	struct exynos_drm_gem *exynos_gem = to_exynos_gem(obj);
-	unsigned long pfn;
-	pgoff_t page_offset;
-
-	page_offset = (vmf->address - vma->vm_start) >> PAGE_SHIFT;
-
-	if (page_offset >= (exynos_gem->size >> PAGE_SHIFT)) {
-		DRM_ERROR("invalid page offset\n");
-		return VM_FAULT_SIGBUS;
-	}
-
-	pfn = page_to_pfn(exynos_gem->pages[page_offset]);
-	return vmf_insert_mixed(vma, vmf->address,
-			__pfn_to_pfn_t(pfn, PFN_DEV));
-}
-
 static int exynos_drm_gem_mmap_obj(struct drm_gem_object *obj,
 				   struct vm_area_struct *vma)
 {
