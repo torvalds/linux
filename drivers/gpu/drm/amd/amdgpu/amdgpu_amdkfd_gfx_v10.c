@@ -543,8 +543,8 @@ static int kgd_hqd_destroy(struct kgd_dev *kgd, void *mqd,
 	uint32_t temp;
 	struct v10_compute_mqd *m = get_mqd(mqd);
 
-	if (amdgpu_sriov_vf(adev) && adev->in_gpu_reset)
-		return 0;
+	if (adev->in_gpu_reset)
+		return -EIO;
 
 #if 0
 	unsigned long flags;
