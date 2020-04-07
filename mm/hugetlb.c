@@ -2010,6 +2010,7 @@ struct page *alloc_huge_page_vma(struct hstate *h, struct vm_area_struct *vma,
  * of size 'delta'.
  */
 static int gather_surplus_pages(struct hstate *h, int delta)
+	__must_hold(&hugetlb_lock)
 {
 	struct list_head surplus_list;
 	struct page *page, *tmp;
