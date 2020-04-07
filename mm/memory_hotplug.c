@@ -71,7 +71,6 @@ bool memhp_auto_online;
 #else
 bool memhp_auto_online = true;
 #endif
-EXPORT_SYMBOL_GPL(memhp_auto_online);
 
 static int __init setup_memhp_default_state(char *str)
 {
