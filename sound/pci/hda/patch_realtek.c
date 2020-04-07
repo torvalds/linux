@@ -86,6 +86,14 @@ struct alc_spec {
 
 	unsigned int gpio_mute_led_mask;
 	unsigned int gpio_mic_led_mask;
+	unsigned int mute_led_coef_idx;
+	unsigned int mute_led_coefbit_mask;
+	unsigned int mute_led_coefbit_on;
+	unsigned int mute_led_coefbit_off;
+	unsigned int mic_led_coef_idx;
+	unsigned int mic_led_coefbit_mask;
+	unsigned int mic_led_coefbit_on;
+	unsigned int mic_led_coefbit_off;
 
 	hda_nid_t headset_mic_pin;
 	hda_nid_t headphone_mic_pin;
@@ -4178,6 +4186,73 @@ static void alc280_fixup_hp_gpio4(struct hda_codec *codec,
 	}
 }
 
+/* update mute-LED according to the speaker mute state via COEF bit */
+static void alc_fixup_mute_led_coefbit_hook(void *private_data, int enabled)
+{
+	struct hda_codec *codec = private_data;
+	struct alc_spec *spec = codec->spec;
+
+	if (spec->mute_led_polarity)
+		enabled = !enabled;
+
+	/* temporarily power up/down for setting COEF bit */
+	enabled ? alc_update_coef_idx(codec, spec->mute_led_coef_idx,
+		spec->mute_led_coefbit_mask, spec->mute_led_coefbit_off) :
+		  alc_update_coef_idx(codec, spec->mute_led_coef_idx,
+		spec->mute_led_coefbit_mask, spec->mute_led_coefbit_on);
+}
+
+static void alc285_fixup_hp_mute_led_coefbit(struct hda_codec *codec,
+					  const struct hda_fixup *fix,
+					  int action)
+{
+	struct alc_spec *spec = codec->spec;
+
+	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
+		spec->mute_led_polarity = 0;
+		spec->mute_led_coef_idx = 0x0b;
+		spec->mute_led_coefbit_mask = 1<<3;
+		spec->mute_led_coefbit_on = 1<<3;
+		spec->mute_led_coefbit_off = 0;
+		spec->gen.vmaster_mute.hook = alc_fixup_mute_led_coefbit_hook;
+		spec->gen.vmaster_mute_enum = 1;
+	}
+}
+
+/* turn on/off mic-mute LED per capture hook by coef bit */
+static void alc_hp_cap_micmute_update(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+
+	if (spec->gen.micmute_led.led_value)
+		alc_update_coef_idx(codec, spec->mic_led_coef_idx,
+			spec->mic_led_coefbit_mask, spec->mic_led_coefbit_on);
+	else
+		alc_update_coef_idx(codec, spec->mic_led_coef_idx,
+			spec->mic_led_coefbit_mask, spec->mic_led_coefbit_off);
+}
+
+static void alc285_fixup_hp_coef_micmute_led(struct hda_codec *codec,
+				const struct hda_fixup *fix, int action)
+{
+	struct alc_spec *spec = codec->spec;
+
+	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
+		spec->mic_led_coef_idx = 0x19;
+		spec->mic_led_coefbit_mask = 1<<13;
+		spec->mic_led_coefbit_on = 1<<13;
+		spec->mic_led_coefbit_off = 0;
+		snd_hda_gen_add_micmute_led(codec, alc_hp_cap_micmute_update);
+	}
+}
+
+static void alc285_fixup_hp_mute_led(struct hda_codec *codec,
+				const struct hda_fixup *fix, int action)
+{
+	alc285_fixup_hp_mute_led_coefbit(codec, fix, action);
+	alc285_fixup_hp_coef_micmute_led(codec, fix, action);
+}
+
 #if IS_REACHABLE(CONFIG_INPUT)
 static void gpio2_mic_hotkey_event(struct hda_codec *codec,
 				   struct hda_jack_callback *event)
@@ -5964,6 +6039,7 @@ enum {
 	ALC285_FIXUP_THINKPAD_HEADSET_JACK,
 	ALC294_FIXUP_ASUS_HPE,
 	ALC285_FIXUP_HP_GPIO_LED,
+	ALC285_FIXUP_HP_MUTE_LED,
 };
 
 static const struct hda_fixup alc269_fixups[] = {
@@ -7089,6 +7165,10 @@ static const struct hda_fixup alc269_fixups[] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = alc285_fixup_hp_gpio_led,
 	},
+	[ALC285_FIXUP_HP_MUTE_LED] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = alc285_fixup_hp_mute_led,
+	},
 };
 
 static const struct snd_pci_quirk alc269_fixup_tbl[] = {
@@ -7234,6 +7314,7 @@ static const struct snd_pci_quirk alc269_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x103c, 0x8497, "HP Envy x360", ALC269_FIXUP_HP_MUTE_LED_MIC3),
 	SND_PCI_QUIRK(0x103c, 0x84e7, "HP Pavilion 15", ALC269_FIXUP_HP_MUTE_LED_MIC3),
 	SND_PCI_QUIRK(0x103c, 0x8736, "HP", ALC285_FIXUP_HP_GPIO_LED),
+	SND_PCI_QUIRK(0x103c, 0x877a, "HP", ALC285_FIXUP_HP_MUTE_LED),
 	SND_PCI_QUIRK(0x1043, 0x103e, "ASUS X540SA", ALC256_FIXUP_ASUS_MIC),
 	SND_PCI_QUIRK(0x1043, 0x103f, "ASUS TX300", ALC282_FIXUP_ASUS_TX300),
 	SND_PCI_QUIRK(0x1043, 0x106d, "Asus K53BE", ALC269_FIXUP_LIMIT_INT_MIC_BOOST),
