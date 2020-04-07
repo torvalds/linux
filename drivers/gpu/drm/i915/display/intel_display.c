@@ -3342,6 +3342,8 @@ int skl_format_to_fourcc(int format, bool rgb_order, bool alpha)
 		return DRM_FORMAT_RGB565;
 	case PLANE_CTL_FORMAT_NV12:
 		return DRM_FORMAT_NV12;
+	case PLANE_CTL_FORMAT_XYUV:
+		return DRM_FORMAT_XYUV8888;
 	case PLANE_CTL_FORMAT_P010:
 		return DRM_FORMAT_P010;
 	case PLANE_CTL_FORMAT_P012:
@@ -4586,6 +4588,8 @@ static u32 skl_plane_ctl_format(u32 pixel_format)
 	case DRM_FORMAT_XRGB16161616F:
 	case DRM_FORMAT_ARGB16161616F:
 		return PLANE_CTL_FORMAT_XRGB_16161616F;
+	case DRM_FORMAT_XYUV8888:
+		return PLANE_CTL_FORMAT_XYUV;
 	case DRM_FORMAT_YUYV:
 		return PLANE_CTL_FORMAT_YUV422 | PLANE_CTL_YUV422_YUYV;
 	case DRM_FORMAT_YVYU:
@@ -6175,6 +6179,7 @@ static int skl_update_scaler_plane(struct intel_crtc_state *crtc_state,
 	case DRM_FORMAT_UYVY:
 	case DRM_FORMAT_VYUY:
 	case DRM_FORMAT_NV12:
+	case DRM_FORMAT_XYUV8888:
 	case DRM_FORMAT_P010:
 	case DRM_FORMAT_P012:
 	case DRM_FORMAT_P016:
