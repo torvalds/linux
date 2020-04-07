@@ -4,6 +4,7 @@
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/mutex.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/gpio/driver.h>
 #include <linux/i2c.h>
@@ -11,7 +12,6 @@
 #include <linux/slab.h>
 #include <asm/byteorder.h>
 #include <linux/interrupt.h>
-#include <linux/of_device.h>
 #include <linux/regmap.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinconf.h>
@@ -20,12 +20,12 @@
 /*
  * MCP types supported by driver
  */
-#define MCP_TYPE_S08	0
-#define MCP_TYPE_S17	1
-#define MCP_TYPE_008	2
-#define MCP_TYPE_017	3
-#define MCP_TYPE_S18    4
-#define MCP_TYPE_018    5
+#define MCP_TYPE_S08	1
+#define MCP_TYPE_S17	2
+#define MCP_TYPE_008	3
+#define MCP_TYPE_017	4
+#define MCP_TYPE_S18	5
+#define MCP_TYPE_018	6
 
 /* Registers are all 8 bits wide.
  *
@@ -757,7 +757,6 @@ static const struct i2c_device_id mcp230xx_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, mcp230xx_id);
 
-#ifdef CONFIG_OF
 static const struct of_device_id mcp23s08_i2c_of_match[] = {
 	{
 		.compatible = "microchip,mcp23008",
@@ -783,12 +782,11 @@ static const struct of_device_id mcp23s08_i2c_of_match[] = {
 	{ },
 };
 MODULE_DEVICE_TABLE(of, mcp23s08_i2c_of_match);
-#endif /* CONFIG_OF */
 
 static struct i2c_driver mcp230xx_driver = {
 	.driver = {
 		.name	= "mcp230xx",
-		.of_match_table = of_match_ptr(mcp23s08_i2c_of_match),
+		.of_match_table = mcp23s08_i2c_of_match,
 	},
 	.probe		= mcp230xx_probe,
 	.id_table	= mcp230xx_id,
@@ -942,17 +940,17 @@ static int mcp23s08_spi_regmap_init(struct mcp23s08 *mcp, struct device *dev,
 static int mcp23s08_probe(struct spi_device *spi)
 {
 	struct device *dev = &spi->dev;
+	const void *match;
 	unsigned			addr;
 	int				chips = 0;
 	struct mcp23s08_driver_data	*data;
 	int				status, type;
 	unsigned			ngpio = 0;
-	const struct			of_device_id *match;
 	u32				spi_present_mask;
 
-	match = of_match_device(of_match_ptr(mcp23s08_spi_of_match), &spi->dev);
+	match = device_get_match_data(dev);
 	if (match)
-		type = (int)(uintptr_t)match->data;
+		type = (int)(uintptr_t)match;
 	else
 		type = spi_get_device_id(spi)->driver_data;
 
@@ -1022,7 +1020,6 @@ static const struct spi_device_id mcp23s08_ids[] = {
 };
 MODULE_DEVICE_TABLE(spi, mcp23s08_ids);
 
-#ifdef CONFIG_OF
 static const struct of_device_id mcp23s08_spi_of_match[] = {
 	{
 		.compatible = "microchip,mcp23s08",
@@ -1048,14 +1045,13 @@ static const struct of_device_id mcp23s08_spi_of_match[] = {
 	{ },
 };
 MODULE_DEVICE_TABLE(of, mcp23s08_spi_of_match);
-#endif
 
 static struct spi_driver mcp23s08_driver = {
 	.probe		= mcp23s08_probe,
 	.id_table	= mcp23s08_ids,
 	.driver = {
 		.name	= "mcp23s08",
-		.of_match_table = of_match_ptr(mcp23s08_spi_of_match),
+		.of_match_table = mcp23s08_spi_of_match,
 	},
 };
 
