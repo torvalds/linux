@@ -1711,6 +1711,9 @@ int __iio_device_register(struct iio_dev *indio_dev, struct module *this_mod)
 {
 	int ret;
 
+	if (!indio_dev->info)
+		return -EINVAL;
+
 	indio_dev->driver_module = this_mod;
 	/* If the calling driver did not initialize of_node, do it here */
 	if (!indio_dev->dev.of_node && indio_dev->dev.parent)
@@ -1722,9 +1725,6 @@ int __iio_device_register(struct iio_dev *indio_dev, struct module *this_mod)
 	ret = iio_check_unique_scan_index(indio_dev);
 	if (ret < 0)
 		return ret;
-
-	if (!indio_dev->info)
-		return -EINVAL;
 
 	/* configure elements for the chrdev */
 	indio_dev->dev.devt = MKDEV(MAJOR(iio_devt), indio_dev->id);
