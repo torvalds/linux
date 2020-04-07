@@ -294,7 +294,7 @@ void mhi_create_devices(struct mhi_controller *mhi_cntrl)
 		    !(mhi_chan->ee_mask & BIT(mhi_cntrl->ee)))
 			continue;
 		mhi_dev = mhi_alloc_device(mhi_cntrl);
-		if (!mhi_dev)
+		if (IS_ERR(mhi_dev))
 			return;
 
 		mhi_dev->dev_type = MHI_DEVICE_XFER;
