@@ -1501,13 +1501,12 @@ static int eb_relocate_vma(struct i915_execbuffer *eb, struct eb_vma *ev)
 {
 #define N_RELOC(x) ((x) / sizeof(struct drm_i915_gem_relocation_entry))
 	struct drm_i915_gem_relocation_entry stack[N_RELOC(512)];
-	struct drm_i915_gem_relocation_entry __user *urelocs;
 	const struct drm_i915_gem_exec_object2 *entry = ev->exec;
-	unsigned int remain;
+	struct drm_i915_gem_relocation_entry __user *urelocs =
+		u64_to_user_ptr(entry->relocs_ptr);
+	unsigned long remain = entry->relocation_count;
 
-	urelocs = u64_to_user_ptr(entry->relocs_ptr);
-	remain = entry->relocation_count;
-	if (unlikely((unsigned long)remain > N_RELOC(ULONG_MAX)))
+	if (unlikely(remain > N_RELOC(ULONG_MAX)))
 		return -EINVAL;
 
 	/*
@@ -1515,13 +1514,13 @@ static int eb_relocate_vma(struct i915_execbuffer *eb, struct eb_vma *ev)
 	 * to read. However, if the array is not writable the user loses
 	 * the updated relocation values.
 	 */
-	if (unlikely(!access_ok(urelocs, remain*sizeof(*urelocs))))
+	if (unlikely(!access_ok(urelocs, remain * sizeof(*urelocs))))
 		return -EFAULT;
 
 	do {
 		struct drm_i915_gem_relocation_entry *r = stack;
 		unsigned int count =
-			min_t(unsigned int, remain, ARRAY_SIZE(stack));
+			min_t(unsigned long, remain, ARRAY_SIZE(stack));
 		unsigned int copied;
 
 		/*
