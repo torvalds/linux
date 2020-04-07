@@ -1518,9 +1518,6 @@ static int do_move_pages_to_node(struct mm_struct *mm,
 {
 	int err;
 
-	if (list_empty(pagelist))
-		return 0;
-
 	err = migrate_pages(pagelist, alloc_new_node_page, NULL, node,
 			MIGRATE_SYNC, MR_SYSCALL);
 	if (err)
@@ -1607,6 +1604,9 @@ static int move_pages_and_store_status(struct mm_struct *mm, int node,
 		int start, int i, unsigned long nr_pages)
 {
 	int err;
+
+	if (list_empty(pagelist))
+		return 0;
 
 	err = do_move_pages_to_node(mm, pagelist, node);
 	if (err) {
@@ -1705,9 +1705,6 @@ static int do_pages_move(struct mm_struct *mm, nodemask_t task_nodes,
 		current_node = NUMA_NO_NODE;
 	}
 out_flush:
-	if (list_empty(&pagelist))
-		return err;
-
 	/* Make sure we do not overwrite the existing error */
 	err1 = move_pages_and_store_status(mm, current_node, &pagelist,
 				status, start, i, nr_pages);
