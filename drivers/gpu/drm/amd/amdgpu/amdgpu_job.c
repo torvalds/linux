@@ -33,6 +33,7 @@ static void amdgpu_job_timedout(struct drm_sched_job *s_job)
 	struct amdgpu_ring *ring = to_amdgpu_ring(s_job->sched);
 	struct amdgpu_job *job = to_amdgpu_job(s_job);
 	struct amdgpu_task_info ti;
+	struct amdgpu_device *adev = ring->adev;
 
 	memset(&ti, 0, sizeof(struct amdgpu_task_info));
 
@@ -49,10 +50,13 @@ static void amdgpu_job_timedout(struct drm_sched_job *s_job)
 	DRM_ERROR("Process information: process %s pid %d thread %s pid %d\n",
 		  ti.process_name, ti.tgid, ti.task_name, ti.pid);
 
-	if (amdgpu_device_should_recover_gpu(ring->adev))
+	if (amdgpu_device_should_recover_gpu(ring->adev)) {
 		amdgpu_device_gpu_recover(ring->adev, job);
-	else
+	} else {
 		drm_sched_suspend_timeout(&ring->sched);
+		if (amdgpu_sriov_vf(adev))
+			adev->virt.tdr_debug = true;
+	}
 }
 
 int amdgpu_job_alloc(struct amdgpu_device *adev, unsigned num_ibs,
