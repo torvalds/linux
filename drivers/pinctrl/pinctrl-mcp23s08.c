@@ -8,7 +8,6 @@
 #include <linux/gpio/driver.h>
 #include <linux/i2c.h>
 #include <linux/spi/spi.h>
-#include <linux/spi/mcp23s08.h>
 #include <linux/slab.h>
 #include <asm/byteorder.h>
 #include <linux/interrupt.h>
@@ -914,15 +913,8 @@ MODULE_DEVICE_TABLE(of, mcp23s08_i2c_of_match);
 static int mcp230xx_probe(struct i2c_client *client,
 				    const struct i2c_device_id *id)
 {
-	struct mcp23s08_platform_data *pdata, local_pdata;
 	struct mcp23s08 *mcp;
 	int status;
-
-	pdata = dev_get_platdata(&client->dev);
-	if (!pdata) {
-		pdata = &local_pdata;
-		pdata->base = -1;
-	}
 
 	mcp = devm_kzalloc(&client->dev, sizeof(*mcp), GFP_KERNEL);
 	if (!mcp)
@@ -937,7 +929,7 @@ static int mcp230xx_probe(struct i2c_client *client,
 	mcp->irq_chip.irq_bus_sync_unlock = mcp23s08_irq_bus_unlock;
 
 	status = mcp23s08_probe_one(mcp, &client->dev, client, client->addr,
-				    id->driver_data, pdata->base, 0);
+				    id->driver_data, -1, 0);
 	if (status)
 		return status;
 
@@ -986,13 +978,13 @@ static void mcp23s08_i2c_exit(void) { }
 
 static int mcp23s08_probe(struct spi_device *spi)
 {
-	struct mcp23s08_platform_data	*pdata, local_pdata;
 	unsigned			addr;
 	int				chips = 0;
 	struct mcp23s08_driver_data	*data;
 	int				status, type;
 	unsigned			ngpio = 0;
 	const struct			of_device_id *match;
+	u32				spi_present_mask;
 
 	match = of_match_device(of_match_ptr(mcp23s08_spi_of_match), &spi->dev);
 	if (match)
@@ -1000,32 +992,24 @@ static int mcp23s08_probe(struct spi_device *spi)
 	else
 		type = spi_get_device_id(spi)->driver_data;
 
-	pdata = dev_get_platdata(&spi->dev);
-	if (!pdata) {
-		pdata = &local_pdata;
-		pdata->base = -1;
-
+	status = device_property_read_u32(&spi->dev,
+			"microchip,spi-present-mask", &spi_present_mask);
+	if (status) {
 		status = device_property_read_u32(&spi->dev,
-			"microchip,spi-present-mask", &pdata->spi_present_mask);
+				"mcp,spi-present-mask", &spi_present_mask);
 		if (status) {
-			status = device_property_read_u32(&spi->dev,
-				"mcp,spi-present-mask",
-				&pdata->spi_present_mask);
-
-			if (status) {
-				dev_err(&spi->dev, "missing spi-present-mask");
-				return -ENODEV;
-			}
+			dev_err(&spi->dev, "missing spi-present-mask");
+			return -ENODEV;
 		}
 	}
 
-	if (!pdata->spi_present_mask || pdata->spi_present_mask > 0xff) {
+	if (!spi_present_mask || spi_present_mask > 0xff) {
 		dev_err(&spi->dev, "invalid spi-present-mask");
 		return -ENODEV;
 	}
 
 	for (addr = 0; addr < MCP_MAX_DEV_PER_CS; addr++) {
-		if (pdata->spi_present_mask & BIT(addr))
+		if (spi_present_mask & BIT(addr))
 			chips++;
 	}
 
@@ -1040,7 +1024,7 @@ static int mcp23s08_probe(struct spi_device *spi)
 	spi_set_drvdata(spi, data);
 
 	for (addr = 0; addr < MCP_MAX_DEV_PER_CS; addr++) {
-		if (!(pdata->spi_present_mask & BIT(addr)))
+		if (!(spi_present_mask & BIT(addr)))
 			continue;
 		chips--;
 		data->mcp[addr] = &data->chip[chips];
@@ -1054,12 +1038,10 @@ static int mcp23s08_probe(struct spi_device *spi)
 			mcp23s08_irq_bus_unlock;
 		status = mcp23s08_probe_one(data->mcp[addr], &spi->dev, spi,
 					    0x40 | (addr << 1), type,
-					    pdata->base, addr);
+					    -1, addr);
 		if (status < 0)
 			return status;
 
-		if (pdata->base != -1)
-			pdata->base += data->mcp[addr]->chip.ngpio;
 		ngpio += data->mcp[addr]->chip.ngpio;
 	}
 	data->ngpio = ngpio;
