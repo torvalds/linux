@@ -609,33 +609,11 @@ static void bch2_btree_update_free(struct btree_update *as)
 	mutex_unlock(&c->btree_interior_update_lock);
 }
 
-static void btree_update_nodes_reachable(struct btree_update *as, u64 seq)
-{
-	struct bch_fs *c = as->c;
-
-	while (as->nr_new_nodes) {
-		struct btree *b = as->new_nodes[--as->nr_new_nodes];
-
-		BUG_ON(b->will_make_reachable != (unsigned long) as);
-		b->will_make_reachable = 0;
-
-		/*
-		 * b->will_make_reachable prevented it from being written, so
-		 * write it now if it needs to be written:
-		 */
-		btree_node_lock_type(c, b, SIX_LOCK_read);
-		bch2_btree_node_write_cond(c, b, btree_node_need_write(b));
-		six_unlock_read(&b->c.lock);
-	}
-
-	while (as->nr_pending)
-		bch2_btree_node_free_ondisk(c, &as->pending[--as->nr_pending],
-					    seq);
-}
-
 static void btree_update_nodes_written(struct closure *cl)
 {
 	struct btree_update *as = container_of(cl, struct btree_update, cl);
+	struct btree *new_nodes[BTREE_MAX_DEPTH * 2 + GC_MERGE_NODES];
+	unsigned nr_new_nodes;
 	struct journal_res res = { 0 };
 	struct bch_fs *c = as->c;
 	struct btree *b;
@@ -650,6 +628,7 @@ static void btree_update_nodes_written(struct closure *cl)
 	mutex_lock(&c->btree_interior_update_lock);
 	as->nodes_written = true;
 again:
+	nr_new_nodes = 0;
 	as = list_first_entry_or_null(&c->btree_interior_updates_unwritten,
 				      struct btree_update, unwritten_list);
 	if (!as || !as->nodes_written) {
@@ -738,8 +717,23 @@ free_update:
 		six_unlock_intent(&b->c.lock);
 	}
 
-	if (!ret)
-		btree_update_nodes_reachable(as, res.seq);
+	if (!ret) {
+		nr_new_nodes = as->nr_new_nodes;
+		memcpy(new_nodes,
+		       as->new_nodes,
+		       as->nr_new_nodes * sizeof(struct btree *));
+
+		while (as->nr_new_nodes) {
+			struct btree *b = as->new_nodes[--as->nr_new_nodes];
+
+			BUG_ON(b->will_make_reachable != (unsigned long) as);
+			b->will_make_reachable = 0;
+		}
+
+		while (as->nr_pending)
+			bch2_btree_node_free_ondisk(c,
+				&as->pending[--as->nr_pending], res.seq);
+	}
 
 	__bch2_btree_update_free(as);
 	/*
@@ -747,6 +741,20 @@ free_update:
 	 * nodes to be writeable:
 	 */
 	closure_wake_up(&c->btree_interior_update_wait);
+
+	/*
+	 * Can't take btree node locks while holding btree_interior_update_lock:
+	 * */
+	mutex_unlock(&c->btree_interior_update_lock);
+
+	while (nr_new_nodes) {
+		struct btree *b = new_nodes[--nr_new_nodes];
+		btree_node_lock_type(c, b, SIX_LOCK_read);
+		bch2_btree_node_write_cond(c, b, btree_node_need_write(b));
+		six_unlock_read(&b->c.lock);
+	}
+
+	mutex_lock(&c->btree_interior_update_lock);
 	goto again;
 }
 
@@ -963,11 +971,13 @@ bch2_btree_update_start(struct btree_trans *trans, enum btree_id id,
 				      BTREE_UPDATE_JOURNAL_RES,
 				      JOURNAL_RES_GET_NONBLOCK);
 	if (ret == -EAGAIN) {
+		if (flags & BTREE_INSERT_NOUNLOCK)
+			return ERR_PTR(-EINTR);
+
 		bch2_trans_unlock(trans);
 
 		ret = bch2_journal_preres_get(&c->journal, &journal_preres,
-					      BTREE_UPDATE_JOURNAL_RES,
-					      JOURNAL_RES_GET_NONBLOCK);
+					      BTREE_UPDATE_JOURNAL_RES, 0);
 		if (ret)
 			return ERR_PTR(ret);
 
@@ -978,8 +988,10 @@ bch2_btree_update_start(struct btree_trans *trans, enum btree_id id,
 	}
 
 	reserve = bch2_btree_reserve_get(c, nr_nodes, flags, cl);
-	if (IS_ERR(reserve))
+	if (IS_ERR(reserve)) {
+		bch2_journal_preres_put(&c->journal, &journal_preres);
 		return ERR_CAST(reserve);
+	}
 
 	as = mempool_alloc(&c->btree_interior_update_pool, GFP_NOIO);
 	memset(as, 0, sizeof(*as));
@@ -1677,6 +1689,7 @@ retry:
 
 	as = bch2_btree_update_start(trans, iter->btree_id,
 			 btree_update_reserve_required(c, parent) + 1,
+			 flags|
 			 BTREE_INSERT_NOFAIL|
 			 BTREE_INSERT_USE_RESERVE,
 			 !(flags & BTREE_INSERT_NOUNLOCK) ? &cl : NULL);
