@@ -581,7 +581,7 @@ static int mcp23s08_irqchip_setup(struct mcp23s08 *mcp)
 
 static int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 			      unsigned int addr, unsigned int type,
-			      unsigned int base, int cs)
+			      unsigned int base)
 {
 	int status, ret;
 	bool mirror = false;
@@ -741,7 +741,7 @@ static int mcp230xx_probe(struct i2c_client *client,
 
 	mcp->pinctrl_desc.name = "mcp23xxx-pinctrl";
 
-	status = mcp23s08_probe_one(mcp, dev, client->addr, type, -1, 0);
+	status = mcp23s08_probe_one(mcp, dev, client->addr, type, -1);
 	if (status)
 		return status;
 
@@ -1009,7 +1009,7 @@ static int mcp23s08_probe(struct spi_device *spi)
 		if (!data->mcp[addr]->pinctrl_desc.name)
 			return -ENOMEM;
 
-		status = mcp23s08_probe_one(data->mcp[addr], dev, 0x40 | (addr << 1), type, -1, addr);
+		status = mcp23s08_probe_one(data->mcp[addr], dev, 0x40 | (addr << 1), type, -1);
 		if (status < 0)
 			return status;
 
