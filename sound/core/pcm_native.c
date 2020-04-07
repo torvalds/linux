@@ -1322,7 +1322,6 @@ static int snd_pcm_pre_start(struct snd_pcm_substream *substream,
 	if (runtime->status->state != SNDRV_PCM_STATE_PREPARED)
 		return -EBADFD;
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK &&
-	    !substream->hw_no_buffer &&
 	    !snd_pcm_playback_data(substream))
 		return -EPIPE;
 	runtime->trigger_tstamp_latched = false;
