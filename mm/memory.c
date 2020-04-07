@@ -1952,7 +1952,7 @@ static inline int remap_p4d_range(struct mm_struct *mm, pgd_t *pgd,
  * @vma: user vma to map to
  * @addr: target user address to start at
  * @pfn: page frame number of kernel physical memory address
- * @size: size of map area
+ * @size: size of mapping area
  * @prot: page protection flags for this mapping
  *
  * Note: this is only safe if the mm semaphore is held when called.
