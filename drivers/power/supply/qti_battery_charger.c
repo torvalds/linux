@@ -364,10 +364,9 @@ int qti_battery_charger_get_prop(const char *name,
 }
 EXPORT_SYMBOL(qti_battery_charger_get_prop);
 
-static bool validate_message(void *data, size_t len)
+static bool validate_message(struct battery_charger_resp_msg *resp_msg,
+				size_t len)
 {
-	struct battery_charger_resp_msg *resp_msg = data;
-
 	if (len != sizeof(*resp_msg)) {
 		pr_err("Incorrect response length %zu for opcode %#x\n", len,
 			resp_msg->hdr.opcode);
@@ -389,7 +388,6 @@ static void handle_message(struct battery_chg_dev *bcdev, void *data,
 {
 	struct battery_charger_resp_msg *resp_msg = data;
 	struct battery_model_resp_msg *model_resp_msg = data;
-	u32 prop_id = resp_msg->property_id, val = resp_msg->value;
 	struct psy_state *pst;
 	bool ack_set = false;
 
@@ -405,24 +403,27 @@ static void handle_message(struct battery_chg_dev *bcdev, void *data,
 		}
 
 		/* Other response should be of same type as they've u32 value */
-		if (validate_message(data, len) && prop_id < pst->prop_count) {
-			pst->prop[prop_id] = val;
+		if (validate_message(resp_msg, len) &&
+		    resp_msg->property_id < pst->prop_count) {
+			pst->prop[resp_msg->property_id] = resp_msg->value;
 			ack_set = true;
 		}
 
 		break;
 	case BC_USB_STATUS_GET:
 		pst = &bcdev->psy_list[PSY_TYPE_USB];
-		if (validate_message(data, len) && prop_id < pst->prop_count) {
-			pst->prop[prop_id] = val;
+		if (validate_message(resp_msg, len) &&
+		    resp_msg->property_id < pst->prop_count) {
+			pst->prop[resp_msg->property_id] = resp_msg->value;
 			ack_set = true;
 		}
 
 		break;
 	case BC_WLS_STATUS_GET:
 		pst = &bcdev->psy_list[PSY_TYPE_WLS];
-		if (validate_message(data, len) && prop_id < pst->prop_count) {
-			pst->prop[prop_id] = val;
+		if (validate_message(resp_msg, len) &&
+		    resp_msg->property_id < pst->prop_count) {
+			pst->prop[resp_msg->property_id] = resp_msg->value;
 			ack_set = true;
 		}
 
