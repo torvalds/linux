@@ -46,7 +46,7 @@
 
 struct ib_pkey_cache {
 	int             table_len;
-	u16             table[0];
+	u16             table[];
 };
 
 struct ib_update_work {
@@ -971,6 +971,23 @@ done:
 	return res;
 }
 EXPORT_SYMBOL(rdma_query_gid);
+
+/**
+ * rdma_read_gid_hw_context - Read the HW GID context from GID attribute
+ * @attr:		Potinter to the GID attribute
+ *
+ * rdma_read_gid_hw_context() reads the drivers GID HW context corresponding
+ * to the SGID attr. Callers are required to already be holding the reference
+ * to an existing GID entry.
+ *
+ * Returns the HW GID context
+ *
+ */
+void *rdma_read_gid_hw_context(const struct ib_gid_attr *attr)
+{
+	return container_of(attr, struct ib_gid_table_entry, attr)->context;
+}
+EXPORT_SYMBOL(rdma_read_gid_hw_context);
 
 /**
  * rdma_find_gid - Returns SGID attributes if the matching GID is found.

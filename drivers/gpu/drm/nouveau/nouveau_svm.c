@@ -367,7 +367,6 @@ static const u64
 nouveau_svm_pfn_flags[HMM_PFN_FLAG_MAX] = {
 	[HMM_PFN_VALID         ] = NVIF_VMM_PFNMAP_V0_V,
 	[HMM_PFN_WRITE         ] = NVIF_VMM_PFNMAP_V0_W,
-	[HMM_PFN_DEVICE_PRIVATE] = NVIF_VMM_PFNMAP_V0_VRAM,
 };
 
 static const u64
@@ -541,7 +540,7 @@ static int nouveau_range_fault(struct nouveau_svmm *svmm,
 		range.default_flags = 0;
 		range.pfn_flags_mask = -1UL;
 		down_read(&mm->mmap_sem);
-		ret = hmm_range_fault(&range, 0);
+		ret = hmm_range_fault(&range);
 		up_read(&mm->mmap_sem);
 		if (ret <= 0) {
 			if (ret == 0 || ret == -EBUSY)

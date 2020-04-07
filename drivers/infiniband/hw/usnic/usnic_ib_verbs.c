@@ -504,7 +504,7 @@ struct ib_qp *usnic_ib_create_qp(struct ib_pd *pd,
 	if (init_attr->qp_type != IB_QPT_UD) {
 		usnic_err("%s asked to make a non-UD QP: %d\n",
 			  dev_name(&us_ibdev->ib_dev.dev), init_attr->qp_type);
-		return ERR_PTR(-EINVAL);
+		return ERR_PTR(-EOPNOTSUPP);
 	}
 
 	trans_spec = cmd.spec;

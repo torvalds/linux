@@ -770,7 +770,6 @@ struct amdgpu_ttm_tt {
 static const uint64_t hmm_range_flags[HMM_PFN_FLAG_MAX] = {
 	(1 << 0), /* HMM_PFN_VALID */
 	(1 << 1), /* HMM_PFN_WRITE */
-	0 /* HMM_PFN_DEVICE_PRIVATE */
 };
 
 static const uint64_t hmm_range_values[HMM_PFN_VALUE_MAX] = {
@@ -851,7 +850,7 @@ retry:
 	range->notifier_seq = mmu_interval_read_begin(&bo->notifier);
 
 	down_read(&mm->mmap_sem);
-	r = hmm_range_fault(range, 0);
+	r = hmm_range_fault(range);
 	up_read(&mm->mmap_sem);
 	if (unlikely(r <= 0)) {
 		/*

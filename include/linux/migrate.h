@@ -196,6 +196,14 @@ struct migrate_vma {
 	unsigned long		npages;
 	unsigned long		start;
 	unsigned long		end;
+
+	/*
+	 * Set to the owner value also stored in page->pgmap->owner for
+	 * migrating out of device private memory.  If set only device
+	 * private pages with this owner are migrated.  If not set
+	 * device private pages are not migrated at all.
+	 */
+	void			*src_owner;
 };
 
 int migrate_vma_setup(struct migrate_vma *args);

@@ -213,23 +213,6 @@ enum mlx5_port_status {
 	MLX5_PORT_DOWN      = 2,
 };
 
-struct mlx5_bfreg_info {
-	u32		       *sys_pages;
-	int			num_low_latency_bfregs;
-	unsigned int	       *count;
-
-	/*
-	 * protect bfreg allocation data structs
-	 */
-	struct mutex		lock;
-	u32			ver;
-	bool			lib_uar_4k;
-	u32			num_sys_pages;
-	u32			num_static_sys_pages;
-	u32			total_num_bfregs;
-	u32			num_dyn_bfregs;
-};
-
 struct mlx5_cmd_first {
 	__be32		data[4];
 };
