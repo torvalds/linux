@@ -214,7 +214,7 @@ unsigned int vnt_get_frame_time(u8 preamble_type, u8 pkt_type,
 {
 	unsigned int frame_time;
 	unsigned int preamble;
-	unsigned int rate = 0;
+	unsigned int rate;
 
 	if (tx_rate > RATE_54M)
 		return 0;
