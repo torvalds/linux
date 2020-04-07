@@ -208,7 +208,7 @@ static int memory_subsys_online(struct device *dev)
 	 * attribute and need to set the online_type.
 	 */
 	if (mem->online_type < 0)
-		mem->online_type = MMOP_ONLINE_KEEP;
+		mem->online_type = MMOP_ONLINE;
 
 	ret = memory_block_change_state(mem, MEM_ONLINE, MEM_OFFLINE);
 
@@ -243,7 +243,7 @@ static ssize_t state_store(struct device *dev, struct device_attribute *attr,
 	else if (sysfs_streq(buf, "online_movable"))
 		online_type = MMOP_ONLINE_MOVABLE;
 	else if (sysfs_streq(buf, "online"))
-		online_type = MMOP_ONLINE_KEEP;
+		online_type = MMOP_ONLINE;
 	else if (sysfs_streq(buf, "offline"))
 		online_type = MMOP_OFFLINE;
 	else {
@@ -254,7 +254,7 @@ static ssize_t state_store(struct device *dev, struct device_attribute *attr,
 	switch (online_type) {
 	case MMOP_ONLINE_KERNEL:
 	case MMOP_ONLINE_MOVABLE:
-	case MMOP_ONLINE_KEEP:
+	case MMOP_ONLINE:
 		/* mem->online_type is protected by device_hotplug_lock */
 		mem->online_type = online_type;
 		ret = device_online(&mem->dev);
@@ -334,7 +334,8 @@ static ssize_t valid_zones_show(struct device *dev,
 	}
 
 	nid = mem->nid;
-	default_zone = zone_for_pfn_range(MMOP_ONLINE_KEEP, nid, start_pfn, nr_pages);
+	default_zone = zone_for_pfn_range(MMOP_ONLINE, nid, start_pfn,
+					  nr_pages);
 	strcat(buf, default_zone->name);
 
 	print_allowed_zone(buf, nid, start_pfn, nr_pages, MMOP_ONLINE_KERNEL,
