@@ -485,7 +485,6 @@ static int mcp23s08_irq_set_type(struct irq_data *data, unsigned int type)
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(data);
 	struct mcp23s08 *mcp = gpiochip_get_data(gc);
 	unsigned int pos = data->hwirq;
-	int status = 0;
 
 	if ((type & IRQ_TYPE_EDGE_BOTH) == IRQ_TYPE_EDGE_BOTH) {
 		mcp_set_bit(mcp, MCP_INTCON, pos, false);
@@ -508,7 +507,7 @@ static int mcp23s08_irq_set_type(struct irq_data *data, unsigned int type)
 	} else
 		return -EINVAL;
 
-	return status;
+	return 0;
 }
 
 static void mcp23s08_irq_bus_lock(struct irq_data *data)
@@ -964,7 +963,7 @@ static int mcp23s08_probe(struct spi_device *spi)
 				"mcp,spi-present-mask", &spi_present_mask);
 		if (status) {
 			dev_err(&spi->dev, "missing spi-present-mask");
-			return -ENODEV;
+			return status;
 		}
 	}
 
