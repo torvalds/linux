@@ -237,6 +237,17 @@ config COMPACTION
 	  linux-mm@kvack.org.
 
 #
+# support for free page reporting
+config PAGE_REPORTING
+	bool "Free page reporting"
+	def_bool n
+	help
+	  Free page reporting allows for the incremental acquisition of
+	  free pages from the buddy allocator for the purpose of reporting
+	  those pages to another entity, such as a hypervisor, so that the
+	  memory can be freed within the host for other uses.
+
+#
 # support for page migration
 #
 config MIGRATION
