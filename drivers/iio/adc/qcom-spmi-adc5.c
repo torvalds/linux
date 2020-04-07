@@ -75,9 +75,10 @@
  * samples and measurements queued across different VADC peripherals.
  * Set the timeout to a max of 100ms.
  */
-#define ADC5_CONV_TIME_MIN_US			263
-#define ADC5_CONV_TIME_MAX_US			264
-#define ADC5_CONV_TIME_RETRY			400
+#define ADC5_POLL_DELAY_MIN_US			10000
+#define ADC5_POLL_DELAY_MAX_US			10001
+#define ADC5_CONV_TIME_RETRY_POLL		40
+#define ADC5_CONV_TIME_RETRY			30
 #define ADC5_CONV_TIMEOUT			msecs_to_jiffies(100)
 
 /* Digital version >= 5.3 supports hw_settle_2 */
@@ -195,11 +196,16 @@ static int adc5_read_voltage_data(struct adc5_chip *adc, u16 *data)
 	return 0;
 }
 
-static int adc5_poll_wait_eoc(struct adc5_chip *adc)
+static int adc5_poll_wait_eoc(struct adc5_chip *adc, bool poll_only)
 {
 	unsigned int count, retry = ADC5_CONV_TIME_RETRY;
 	u8 status1;
 	int ret;
+
+	if (poll_only)
+		retry = ADC5_CONV_TIME_RETRY_POLL;
+	else
+		retry = ADC5_CONV_TIME_RETRY;
 
 	for (count = 0; count < retry; count++) {
 		ret = adc5_read(adc, ADC5_USR_STATUS1, &status1,
@@ -211,7 +217,7 @@ static int adc5_poll_wait_eoc(struct adc5_chip *adc)
 		if (status1 == ADC5_USR_STATUS1_EOC)
 			return 0;
 
-		usleep_range(ADC5_CONV_TIME_MIN_US, ADC5_CONV_TIME_MAX_US);
+		usleep_range(ADC5_POLL_DELAY_MIN_US, ADC5_POLL_DELAY_MAX_US);
 	}
 
 	return -ETIMEDOUT;
@@ -327,7 +333,7 @@ static int adc5_do_conversion(struct adc5_chip *adc,
 	}
 
 	if (adc->poll_eoc) {
-		ret = adc5_poll_wait_eoc(adc);
+		ret = adc5_poll_wait_eoc(adc, true);
 		if (ret) {
 			dev_err(adc->dev, "EOC bit not set\n");
 			goto unlock;
@@ -337,7 +343,7 @@ static int adc5_do_conversion(struct adc5_chip *adc,
 							ADC5_CONV_TIMEOUT);
 		if (!ret) {
 			dev_dbg(adc->dev, "Did not get completion timeout.\n");
-			ret = adc5_poll_wait_eoc(adc);
+			ret = adc5_poll_wait_eoc(adc, false);
 			if (ret) {
 				dev_err(adc->dev, "EOC bit not set\n");
 				goto unlock;
@@ -541,14 +547,32 @@ static const struct adc5_channels adc5_chans_pmic[ADC5_MAX_CHANNEL] = {
 					SCALE_HW_CALIB_DEFAULT)
 	[ADC5_XO_THERM_100K_PU]	= ADC5_CHAN_TEMP("xo_therm", 0,
 					SCALE_HW_CALIB_XOTHERM)
+	[ADC5_BAT_THERM_100K_PU]	= ADC5_CHAN_TEMP("bat_therm_100k_pu", 0,
+					SCALE_HW_CALIB_BATT_THERM_100K)
+	[ADC5_BAT_THERM_30K_PU]	= ADC5_CHAN_TEMP("bat_therm_30k_pu", 0,
+					SCALE_HW_CALIB_BATT_THERM_30K)
+	[ADC5_BAT_THERM_400K_PU]	= ADC5_CHAN_TEMP("bat_therm_400k_pu", 0,
+					SCALE_HW_CALIB_BATT_THERM_400K)
+	[ADC5_BAT_ID_100K_PU]	= ADC5_CHAN_TEMP("bat_id", 0,
+					SCALE_HW_CALIB_DEFAULT)
 	[ADC5_AMUX_THM1_100K_PU] = ADC5_CHAN_TEMP("amux_thm1_100k_pu", 0,
 					SCALE_HW_CALIB_THERM_100K_PULLUP)
 	[ADC5_AMUX_THM2_100K_PU] = ADC5_CHAN_TEMP("amux_thm2_100k_pu", 0,
 					SCALE_HW_CALIB_THERM_100K_PULLUP)
 	[ADC5_AMUX_THM3_100K_PU] = ADC5_CHAN_TEMP("amux_thm3_100k_pu", 0,
 					SCALE_HW_CALIB_THERM_100K_PULLUP)
+	[ADC5_AMUX_THM4_100K_PU] = ADC5_CHAN_TEMP("amux_thm4_100k_pu", 0,
+					SCALE_HW_CALIB_THERM_100K_PULLUP)
 	[ADC5_AMUX_THM2]	= ADC5_CHAN_TEMP("amux_thm2", 0,
 					SCALE_HW_CALIB_PM5_SMB_TEMP)
+	[ADC5_GPIO1_100K_PU]	= ADC5_CHAN_TEMP("gpio1_100k_pu", 0,
+					SCALE_HW_CALIB_THERM_100K_PULLUP)
+	[ADC5_GPIO2_100K_PU]	= ADC5_CHAN_TEMP("gpio2_100k_pu", 0,
+					SCALE_HW_CALIB_THERM_100K_PULLUP)
+	[ADC5_GPIO3_100K_PU]	= ADC5_CHAN_TEMP("gpio3_100k_pu", 0,
+					SCALE_HW_CALIB_THERM_100K_PULLUP)
+	[ADC5_GPIO4_100K_PU]	= ADC5_CHAN_TEMP("gpio4_100k_pu", 0,
+					SCALE_HW_CALIB_THERM_100K_PULLUP)
 };
 
 static const struct adc5_channels adc7_chans_pmic[ADC5_MAX_CHANNEL] = {

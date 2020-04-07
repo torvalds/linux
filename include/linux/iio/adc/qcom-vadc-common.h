@@ -44,6 +44,8 @@
 #define PMIC5_CHG_TEMP_SCALE_FACTOR		377500
 #define PMIC5_SMB_TEMP_CONSTANT			419400
 #define PMIC5_SMB_TEMP_SCALE_FACTOR		356
+#define PMIC5_SMB1398_TEMP_CONSTANT		268235
+#define PMIC5_SMB1398_TEMP_SCALE_FACTOR		340
 
 #define PMI_CHG_SCALE_1				-138890
 #define PMI_CHG_SCALE_2				391750000000LL
@@ -99,12 +101,23 @@ struct vadc_linear_graph {
  *	lookup table for PMIC7. The hardware applies offset/slope to adc code.
  * SCALE_HW_CALIB_PMIC_THERM: Returns result in milli degree's Centigrade.
  *	The hardware applies offset/slope to adc code.
- * SCALE_HW_CALIB_PMIC_THERM: Returns result in milli degree's Centigrade.
+ * SCALE_HW_CALIB_PMIC_THERM_PM7: Returns result in milli degree's Centigrade.
  *	The hardware applies offset/slope to adc code. This is for PMIC7.
  * SCALE_HW_CALIB_PM5_CHG_TEMP: Returns result in millidegrees for PMIC5
  *	charger temperature.
  * SCALE_HW_CALIB_PM5_SMB_TEMP: Returns result in millidegrees for PMIC5
  *	SMB1390 temperature.
+ * SCALE_HW_CALIB_BATT_THERM_100K: Returns battery thermistor voltage in
+ *	decidegC using 100k pullup. The hardware applies offset/slope to adc
+ *	code.
+ * SCALE_HW_CALIB_BATT_THERM_30K: Returns battery thermistor voltage in
+ *	decidegC using 30k pullup. The hardware applies offset/slope to adc
+ *	code.
+ * SCALE_HW_CALIB_BATT_THERM_400K: Returns battery thermistor voltage in
+ *	decidegC using 400k pullup. The hardware applies offset/slope to adc
+ *	code.
+ * SCALE_HW_CALIB_PM5_SMB1398_TEMP: Returns result in millidegrees for PMIC5
+ *	SMB1398 temperature.
  */
 enum vadc_scale_fn_type {
 	SCALE_DEFAULT = 0,
@@ -115,11 +128,16 @@ enum vadc_scale_fn_type {
 	SCALE_HW_CALIB_DEFAULT,
 	SCALE_HW_CALIB_THERM_100K_PULLUP,
 	SCALE_HW_CALIB_XOTHERM,
-	SCALE_HW_CALIB_THERM_100K_PU_PM7,
 	SCALE_HW_CALIB_PMIC_THERM,
-	SCALE_HW_CALIB_PMIC_THERM_PM7,
+	SCALE_HW_CALIB_CUR,
 	SCALE_HW_CALIB_PM5_CHG_TEMP,
 	SCALE_HW_CALIB_PM5_SMB_TEMP,
+	SCALE_HW_CALIB_BATT_THERM_100K,
+	SCALE_HW_CALIB_BATT_THERM_30K,
+	SCALE_HW_CALIB_BATT_THERM_400K,
+	SCALE_HW_CALIB_PM5_SMB1398_TEMP,
+	SCALE_HW_CALIB_THERM_100K_PU_PM7,
+	SCALE_HW_CALIB_PMIC_THERM_PM7,
 	SCALE_HW_CALIB_INVALID,
 };
 
