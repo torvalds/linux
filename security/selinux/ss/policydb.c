@@ -352,6 +352,13 @@ static int range_tr_destroy(void *key, void *datum, void *p)
 	return 0;
 }
 
+static int role_tr_destroy(void *key, void *datum, void *p)
+{
+	kfree(key);
+	kfree(datum);
+	return 0;
+}
+
 static void ocontext_destroy(struct ocontext *c, int i)
 {
 	if (!c)
@@ -456,6 +463,30 @@ static int rangetr_cmp(struct hashtab *h, const void *k1, const void *k2)
 	v = key1->target_class - key2->target_class;
 
 	return v;
+}
+
+static u32 role_trans_hash(struct hashtab *h, const void *k)
+{
+	const struct role_trans_key *key = k;
+
+	return (key->role + (key->type << 3) + (key->tclass << 5)) &
+		(h->size - 1);
+}
+
+static int role_trans_cmp(struct hashtab *h, const void *k1, const void *k2)
+{
+	const struct role_trans_key *key1 = k1, *key2 = k2;
+	int v;
+
+	v = key1->role - key2->role;
+	if (v)
+		return v;
+
+	v = key1->type - key2->type;
+	if (v)
+		return v;
+
+	return key1->tclass - key2->tclass;
 }
 
 /*
@@ -728,7 +759,6 @@ void policydb_destroy(struct policydb *p)
 	struct genfs *g, *gtmp;
 	int i;
 	struct role_allow *ra, *lra = NULL;
-	struct role_trans *tr, *ltr = NULL;
 
 	for (i = 0; i < SYM_NUM; i++) {
 		cond_resched();
@@ -775,12 +805,8 @@ void policydb_destroy(struct policydb *p)
 
 	cond_policydb_destroy(p);
 
-	for (tr = p->role_tr; tr; tr = tr->next) {
-		cond_resched();
-		kfree(ltr);
-		ltr = tr;
-	}
-	kfree(ltr);
+	hashtab_map(p->role_tr, role_tr_destroy, NULL);
+	hashtab_destroy(p->role_tr);
 
 	for (ra = p->role_allow; ra; ra = ra->next) {
 		cond_resched();
@@ -2251,7 +2277,8 @@ out:
 int policydb_read(struct policydb *p, void *fp)
 {
 	struct role_allow *ra, *lra;
-	struct role_trans *tr, *ltr;
+	struct role_trans_key *rtk = NULL;
+	struct role_trans_datum *rtd = NULL;
 	int i, j, rc;
 	__le32 buf[4];
 	u32 len, nprim, nel;
@@ -2416,39 +2443,50 @@ int policydb_read(struct policydb *p, void *fp)
 	if (rc)
 		goto bad;
 	nel = le32_to_cpu(buf[0]);
-	ltr = NULL;
+
+	p->role_tr = hashtab_create(role_trans_hash, role_trans_cmp, nel);
+	if (!p->role_tr)
+		goto bad;
 	for (i = 0; i < nel; i++) {
 		rc = -ENOMEM;
-		tr = kzalloc(sizeof(*tr), GFP_KERNEL);
-		if (!tr)
+		rtk = kmalloc(sizeof(*rtk), GFP_KERNEL);
+		if (!rtk)
 			goto bad;
-		if (ltr)
-			ltr->next = tr;
-		else
-			p->role_tr = tr;
+
+		rc = -ENOMEM;
+		rtd = kmalloc(sizeof(*rtd), GFP_KERNEL);
+		if (!rtd)
+			goto bad;
+
 		rc = next_entry(buf, fp, sizeof(u32)*3);
 		if (rc)
 			goto bad;
 
 		rc = -EINVAL;
-		tr->role = le32_to_cpu(buf[0]);
-		tr->type = le32_to_cpu(buf[1]);
-		tr->new_role = le32_to_cpu(buf[2]);
+		rtk->role = le32_to_cpu(buf[0]);
+		rtk->type = le32_to_cpu(buf[1]);
+		rtd->new_role = le32_to_cpu(buf[2]);
 		if (p->policyvers >= POLICYDB_VERSION_ROLETRANS) {
 			rc = next_entry(buf, fp, sizeof(u32));
 			if (rc)
 				goto bad;
-			tr->tclass = le32_to_cpu(buf[0]);
+			rtk->tclass = le32_to_cpu(buf[0]);
 		} else
-			tr->tclass = p->process_class;
+			rtk->tclass = p->process_class;
 
 		rc = -EINVAL;
-		if (!policydb_role_isvalid(p, tr->role) ||
-		    !policydb_type_isvalid(p, tr->type) ||
-		    !policydb_class_isvalid(p, tr->tclass) ||
-		    !policydb_role_isvalid(p, tr->new_role))
+		if (!policydb_role_isvalid(p, rtk->role) ||
+		    !policydb_type_isvalid(p, rtk->type) ||
+		    !policydb_class_isvalid(p, rtk->tclass) ||
+		    !policydb_role_isvalid(p, rtd->new_role))
 			goto bad;
-		ltr = tr;
+
+		rc = hashtab_insert(p->role_tr, rtk, rtd);
+		if (rc)
+			goto bad;
+
+		rtk = NULL;
+		rtd = NULL;
 	}
 
 	rc = next_entry(buf, fp, sizeof(u32));
@@ -2536,6 +2574,8 @@ int policydb_read(struct policydb *p, void *fp)
 out:
 	return rc;
 bad:
+	kfree(rtk);
+	kfree(rtd);
 	policydb_destroy(p);
 	goto out;
 }
@@ -2653,37 +2693,43 @@ static int cat_write(void *vkey, void *datum, void *ptr)
 	return 0;
 }
 
-static int role_trans_write(struct policydb *p, void *fp)
+static int role_trans_write_one(void *key, void *datum, void *ptr)
 {
-	struct role_trans *r = p->role_tr;
-	struct role_trans *tr;
+	struct role_trans_key *rtk = key;
+	struct role_trans_datum *rtd = datum;
+	struct policy_data *pd = ptr;
+	void *fp = pd->fp;
+	struct policydb *p = pd->p;
 	__le32 buf[3];
-	size_t nel;
 	int rc;
 
-	nel = 0;
-	for (tr = r; tr; tr = tr->next)
-		nel++;
-	buf[0] = cpu_to_le32(nel);
+	buf[0] = cpu_to_le32(rtk->role);
+	buf[1] = cpu_to_le32(rtk->type);
+	buf[2] = cpu_to_le32(rtd->new_role);
+	rc = put_entry(buf, sizeof(u32), 3, fp);
+	if (rc)
+		return rc;
+	if (p->policyvers >= POLICYDB_VERSION_ROLETRANS) {
+		buf[0] = cpu_to_le32(rtk->tclass);
+		rc = put_entry(buf, sizeof(u32), 1, fp);
+		if (rc)
+			return rc;
+	}
+	return 0;
+}
+
+static int role_trans_write(struct policydb *p, void *fp)
+{
+	struct policy_data pd = { .p = p, .fp = fp };
+	__le32 buf[1];
+	int rc;
+
+	buf[0] = cpu_to_le32(p->role_tr->nel);
 	rc = put_entry(buf, sizeof(u32), 1, fp);
 	if (rc)
 		return rc;
-	for (tr = r; tr; tr = tr->next) {
-		buf[0] = cpu_to_le32(tr->role);
-		buf[1] = cpu_to_le32(tr->type);
-		buf[2] = cpu_to_le32(tr->new_role);
-		rc = put_entry(buf, sizeof(u32), 3, fp);
-		if (rc)
-			return rc;
-		if (p->policyvers >= POLICYDB_VERSION_ROLETRANS) {
-			buf[0] = cpu_to_le32(tr->tclass);
-			rc = put_entry(buf, sizeof(u32), 1, fp);
-			if (rc)
-				return rc;
-		}
-	}
 
-	return 0;
+	return hashtab_map(p->role_tr, role_trans_write_one, &pd);
 }
 
 static int role_allow_write(struct role_allow *r, void *fp)

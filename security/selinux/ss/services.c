@@ -1731,7 +1731,6 @@ static int security_compute_sid(struct selinux_state *state,
 	struct class_datum *cladatum = NULL;
 	struct context *scontext, *tcontext, newcontext;
 	struct sidtab_entry *sentry, *tentry;
-	struct role_trans *roletr = NULL;
 	struct avtab_key avkey;
 	struct avtab_datum *avdatum;
 	struct avtab_node *node;
@@ -1864,16 +1863,16 @@ static int security_compute_sid(struct selinux_state *state,
 	/* Check for class-specific changes. */
 	if (specified & AVTAB_TRANSITION) {
 		/* Look for a role transition rule. */
-		for (roletr = policydb->role_tr; roletr;
-		     roletr = roletr->next) {
-			if ((roletr->role == scontext->role) &&
-			    (roletr->type == tcontext->type) &&
-			    (roletr->tclass == tclass)) {
-				/* Use the role transition rule. */
-				newcontext.role = roletr->new_role;
-				break;
-			}
-		}
+		struct role_trans_datum *rtd;
+		struct role_trans_key rtk = {
+			.role = scontext->role,
+			.type = tcontext->type,
+			.tclass = tclass,
+		};
+
+		rtd = hashtab_search(policydb->role_tr, &rtk);
+		if (rtd)
+			newcontext.role = rtd->new_role;
 	}
 
 	/* Set the MLS attributes.
