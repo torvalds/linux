@@ -142,7 +142,7 @@ good_area:
 				goto bad_area;
 			}
 		} else {
-			if (!vma_is_accessible(vma))
+			if (unlikely(!vma_is_accessible(vma)))
 				goto bad_area;
 		}
 	}

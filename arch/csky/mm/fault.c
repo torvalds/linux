@@ -141,7 +141,7 @@ good_area:
 		if (!(vma->vm_flags & VM_WRITE))
 			goto bad_area;
 	} else {
-		if (!vma_is_accessible(vma))
+		if (unlikely(!vma_is_accessible(vma)))
 			goto bad_area;
 	}
 
