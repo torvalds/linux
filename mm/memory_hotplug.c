@@ -74,10 +74,10 @@ int memhp_default_online_type = MMOP_ONLINE;
 
 static int __init setup_memhp_default_state(char *str)
 {
-	if (!strcmp(str, "online"))
-		memhp_default_online_type = MMOP_ONLINE;
-	else if (!strcmp(str, "offline"))
-		memhp_default_online_type = MMOP_OFFLINE;
+	const int online_type = memhp_online_type_from_str(str);
+
+	if (online_type >= 0)
+		memhp_default_online_type = online_type;
 
 	return 1;
 }
