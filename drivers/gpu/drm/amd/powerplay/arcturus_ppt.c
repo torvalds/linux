@@ -2226,11 +2226,7 @@ static const struct i2c_algorithm arcturus_i2c_eeprom_i2c_algo = {
 static int arcturus_i2c_eeprom_control_init(struct i2c_adapter *control)
 {
 	struct amdgpu_device *adev = to_amdgpu_device(control);
-	struct smu_context *smu = &adev->smu;
 	int res;
-
-	if (!smu->pm_enabled)
-		return -EOPNOTSUPP;
 
 	control->owner = THIS_MODULE;
 	control->class = I2C_CLASS_SPD;
@@ -2247,12 +2243,6 @@ static int arcturus_i2c_eeprom_control_init(struct i2c_adapter *control)
 
 static void arcturus_i2c_eeprom_control_fini(struct i2c_adapter *control)
 {
-	struct amdgpu_device *adev = to_amdgpu_device(control);
-	struct smu_context *smu = &adev->smu;
-
-	if (!smu->pm_enabled)
-		return;
-
 	i2c_del_adapter(control);
 }
 

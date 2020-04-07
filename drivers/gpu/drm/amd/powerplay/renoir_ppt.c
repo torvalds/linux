@@ -847,7 +847,7 @@ static int renoir_get_power_profile_mode(struct smu_context *smu,
 	uint32_t i, size = 0;
 	int16_t workload_type = 0;
 
-	if (!smu->pm_enabled || !buf)
+	if (!buf)
 		return -EINVAL;
 
 	for (i = 0; i <= PP_SMC_POWER_PROFILE_CUSTOM; i++) {

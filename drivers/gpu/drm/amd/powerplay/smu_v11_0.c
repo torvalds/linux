@@ -481,8 +481,6 @@ int smu_v11_0_init_power(struct smu_context *smu)
 {
 	struct smu_power_context *smu_power = &smu->smu_power;
 
-	if (!smu->pm_enabled)
-		return 0;
 	if (smu_power->power_context || smu_power->power_context_size != 0)
 		return -EINVAL;
 
@@ -499,8 +497,6 @@ int smu_v11_0_fini_power(struct smu_context *smu)
 {
 	struct smu_power_context *smu_power = &smu->smu_power;
 
-	if (!smu->pm_enabled)
-		return 0;
 	if (!smu_power->power_context || smu_power->power_context_size == 0)
 		return -EINVAL;
 
@@ -785,8 +781,6 @@ int smu_v11_0_set_min_dcef_deep_sleep(struct smu_context *smu)
 {
 	struct smu_table_context *table_context = &smu->smu_table;
 
-	if (!smu->pm_enabled)
-		return 0;
 	if (!table_context)
 		return -EINVAL;
 
@@ -836,9 +830,6 @@ int smu_v11_0_set_tool_table_location(struct smu_context *smu)
 int smu_v11_0_init_display_count(struct smu_context *smu, uint32_t count)
 {
 	int ret = 0;
-
-	if (!smu->pm_enabled)
-		return ret;
 
 	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_NumOfDisplays, count, NULL);
 	return ret;
@@ -934,8 +925,6 @@ int smu_v11_0_notify_display_change(struct smu_context *smu)
 {
 	int ret = 0;
 
-	if (!smu->pm_enabled)
-		return ret;
 	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT) &&
 	    smu->adev->gmc.vram_type == AMDGPU_VRAM_TYPE_HBM)
 		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetUclkFastSwitch, 1, NULL);
@@ -949,9 +938,6 @@ smu_v11_0_get_max_sustainable_clock(struct smu_context *smu, uint32_t *clock,
 {
 	int ret = 0;
 	int clk_id;
-
-	if (!smu->pm_enabled)
-		return ret;
 
 	if ((smu_msg_get_index(smu, SMU_MSG_GetDcModeMaxDpmFreq) < 0) ||
 	    (smu_msg_get_index(smu, SMU_MSG_GetMaxDpmFreq) < 0))
@@ -1207,9 +1193,6 @@ int smu_v11_0_start_thermal_control(struct smu_context *smu)
 	struct smu_temperature_range range;
 	struct amdgpu_device *adev = smu->adev;
 
-	if (!smu->pm_enabled)
-		return ret;
-
 	memcpy(&range, &smu11_thermal_policy[0], sizeof(struct smu_temperature_range));
 
 	ret = smu_get_thermal_temperature_range(smu, &range);
@@ -1322,9 +1305,6 @@ smu_v11_0_display_clock_voltage_request(struct smu_context *smu,
 	int ret = 0;
 	enum smu_clk_type clk_select = 0;
 	uint32_t clk_freq = clock_req->clock_freq_in_khz / 1000;
-
-	if (!smu->pm_enabled)
-		return -EINVAL;
 
 	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_DCEFCLK_BIT) ||
 		smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT)) {
