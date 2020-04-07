@@ -128,7 +128,7 @@ static int terminate_request(struct cros_ec_device *ec_dev)
 	spi_message_init(&msg);
 	memset(&trans, 0, sizeof(trans));
 	trans.delay.value = ec_spi->end_of_msg_delay;
-	trans.delay.unit = SPI_DELAY_UNIT_NSECS;
+	trans.delay.unit = SPI_DELAY_UNIT_USECS;
 	spi_message_add_tail(&trans, &msg);
 
 	ret = spi_sync_locked(ec_spi->spi, &msg);
