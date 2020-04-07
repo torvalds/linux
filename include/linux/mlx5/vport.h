@@ -127,8 +127,7 @@ int mlx5_query_vport_down_stats(struct mlx5_core_dev *mdev, u16 vport,
 				u8 other_vport, u64 *rx_discard_vport_down,
 				u64 *tx_discard_vport_down);
 int mlx5_core_query_vport_counter(struct mlx5_core_dev *dev, u8 other_vport,
-				  int vf, u8 port_num, void *out,
-				  size_t out_sz);
+				  int vf, u8 port_num, void *out);
 int mlx5_core_modify_hca_vport_context(struct mlx5_core_dev *dev,
 				       u8 other_vport, u8 port_num,
 				       int vf,
