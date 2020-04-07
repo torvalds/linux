@@ -10,6 +10,7 @@
  */
 
 #include <linux/gpio/driver.h>
+#include <linux/module.h>
 #include <dt-bindings/pinctrl/mt65xx.h>
 #include "pinctrl-paris.h"
 
@@ -633,6 +634,7 @@ ssize_t mtk_pctrl_show_one_pin(struct mtk_pinctrl *hw,
 
 	return len;
 }
+EXPORT_SYMBOL_GPL(mtk_pctrl_show_one_pin);
 
 #define PIN_DBG_BUF_SZ 96
 static void mtk_pctrl_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
@@ -1021,6 +1023,7 @@ int mtk_paris_pinctrl_probe(struct platform_device *pdev,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mtk_paris_pinctrl_probe);
 
 static int mtk_paris_pinctrl_suspend(struct device *device)
 {
@@ -1040,3 +1043,6 @@ const struct dev_pm_ops mtk_paris_pinctrl_pm_ops = {
 	.suspend_noirq = mtk_paris_pinctrl_suspend,
 	.resume_noirq = mtk_paris_pinctrl_resume,
 };
+
+MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("MediaTek Pinctrl Common Driver V2 Paris");
