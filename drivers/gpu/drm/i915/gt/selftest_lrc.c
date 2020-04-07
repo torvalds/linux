@@ -1073,7 +1073,6 @@ static int live_timeslice_rewind(void *arg)
 			       engine->name);
 			goto err;
 		}
-		GEM_BUG_ON(!timer_pending(&engine->execlists.timer));
 
 		/* ELSP[] = { { A:rq1, A:rq2 }, { B:rq1 } } */
 		if (i915_request_is_active(rq[A2])) { /* semaphore yielded! */
