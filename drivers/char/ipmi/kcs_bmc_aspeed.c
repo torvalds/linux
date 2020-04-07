@@ -271,7 +271,7 @@ static struct kcs_bmc *aspeed_kcs_probe_of_v1(struct platform_device *pdev)
 	kcs->ioreg = ast_kcs_bmc_ioregs[channel - 1];
 	aspeed_kcs_set_address(kcs, slave);
 
-	return 0;
+	return kcs;
 }
 
 static int aspeed_kcs_calculate_channel(const struct kcs_ioreg *regs)
