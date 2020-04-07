@@ -151,7 +151,6 @@ static int exfat_show_options(struct seq_file *m, struct dentry *root)
 		seq_puts(m, ",iocharset=utf8");
 	else if (sbi->nls_io)
 		seq_printf(m, ",iocharset=%s", sbi->nls_io->charset);
-	seq_printf(m, ",bps=%ld", sb->s_blocksize);
 	if (opts->errors == EXFAT_ERRORS_CONT)
 		seq_puts(m, ",errors=continue");
 	else if (opts->errors == EXFAT_ERRORS_PANIC)
