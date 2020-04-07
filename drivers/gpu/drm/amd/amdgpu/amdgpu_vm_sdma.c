@@ -92,8 +92,8 @@ static int amdgpu_vm_sdma_commit(struct amdgpu_vm_update_params *p,
 {
 	struct amdgpu_ib *ib = p->job->ibs;
 	struct drm_sched_entity *entity;
-	struct dma_fence *f, *tmp;
 	struct amdgpu_ring *ring;
+	struct dma_fence *f;
 	int r;
 
 	entity = p->immediate ? &p->vm->immediate : &p->vm->delayed;
@@ -106,13 +106,13 @@ static int amdgpu_vm_sdma_commit(struct amdgpu_vm_update_params *p,
 	if (r)
 		goto error;
 
-	if (p->immediate) {
-		tmp = dma_fence_get(f);
-		swap(p->vm->last_immediate, f);
+	if (p->unlocked) {
+		struct dma_fence *tmp = dma_fence_get(f);
+
+		swap(p->vm->last_unlocked, f);
 		dma_fence_put(tmp);
 	} else {
-		dma_resv_add_shared_fence(p->vm->root.base.bo->tbo.base.resv,
-					  f);
+		amdgpu_bo_fence(p->vm->root.base.bo, f, true);
 	}
 
 	if (fence && !p->immediate)

@@ -211,6 +211,11 @@ struct amdgpu_vm_update_params {
 	bool immediate;
 
 	/**
+	 * @unlocked: true if the root BO is not locked
+	 */
+	bool unlocked;
+
+	/**
 	 * @pages_addr:
 	 *
 	 * DMA addresses to use for mapping
@@ -277,8 +282,8 @@ struct amdgpu_vm {
 	struct drm_sched_entity	immediate;
 	struct drm_sched_entity	delayed;
 
-	/* Last submission to the scheduler entities */
-	struct dma_fence	*last_immediate;
+	/* Last unlocked submission to the scheduler entities */
+	struct dma_fence	*last_unlocked;
 
 	unsigned int		pasid;
 	/* dedicated to vm */
