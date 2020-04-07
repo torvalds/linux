@@ -1004,6 +1004,10 @@ void __pagevec_lru_add(struct pagevec *pvec)
  * ascending indexes.  There may be holes in the indices due to
  * not-present entries.
  *
+ * Only one subpage of a Transparent Huge Page is returned in one call:
+ * allowing truncate_inode_pages_range() to evict the whole THP without
+ * cycling through a pagevec of extra references.
+ *
  * pagevec_lookup_entries() returns the number of entries which were
  * found.
  */
