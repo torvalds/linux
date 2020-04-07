@@ -562,6 +562,7 @@
 		interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		rockchip,grf = <&pmugrf>;
 		clocks = <&pmucru CLK_I2C2>, <&pmucru PCLK_I2C2>;
 		clock-names = "i2c", "pclk";
 		pinctrl-names = "default";
