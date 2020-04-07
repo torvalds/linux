@@ -376,7 +376,6 @@ static ssize_t svc_rdma_encode_write_segment(__be32 *src,
 
 	xdr_decode_rdma_segment(src, &handle, &length, &offset);
 
-	*p++ = cpu_to_be32(handle);
 	if (*remaining < length) {
 		/* segment only partly filled */
 		length = *remaining;
@@ -385,8 +384,7 @@ static ssize_t svc_rdma_encode_write_segment(__be32 *src,
 		/* entire segment was consumed */
 		*remaining -= length;
 	}
-	*p++ = cpu_to_be32(length);
-	xdr_encode_hyper(p, offset);
+	xdr_encode_rdma_segment(p, handle, length, offset);
 
 	trace_svcrdma_encode_wseg(handle, length, offset);
 	return len;

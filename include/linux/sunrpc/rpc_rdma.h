@@ -125,6 +125,43 @@ rpcrdma_decode_buffer_size(u8 val)
 }
 
 /**
+ * xdr_encode_rdma_segment - Encode contents of an RDMA segment
+ * @p: Pointer into a send buffer
+ * @handle: The RDMA handle to encode
+ * @length: The RDMA length to encode
+ * @offset: The RDMA offset to encode
+ *
+ * Return value:
+ *   Pointer to the XDR position that follows the encoded RDMA segment
+ */
+static inline __be32 *xdr_encode_rdma_segment(__be32 *p, u32 handle,
+					      u32 length, u64 offset)
+{
+	*p++ = cpu_to_be32(handle);
+	*p++ = cpu_to_be32(length);
+	return xdr_encode_hyper(p, offset);
+}
+
+/**
+ * xdr_encode_read_segment - Encode contents of a Read segment
+ * @p: Pointer into a send buffer
+ * @position: The position to encode
+ * @handle: The RDMA handle to encode
+ * @length: The RDMA length to encode
+ * @offset: The RDMA offset to encode
+ *
+ * Return value:
+ *   Pointer to the XDR position that follows the encoded Read segment
+ */
+static inline __be32 *xdr_encode_read_segment(__be32 *p, u32 position,
+					      u32 handle, u32 length,
+					      u64 offset)
+{
+	*p++ = cpu_to_be32(position);
+	return xdr_encode_rdma_segment(p, handle, length, offset);
+}
+
+/**
  * xdr_decode_rdma_segment - Decode contents of an RDMA segment
  * @p: Pointer to the undecoded RDMA segment
  * @handle: Upon return, the RDMA handle
