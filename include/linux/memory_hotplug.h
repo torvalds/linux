@@ -47,9 +47,13 @@ enum {
 
 /* Types for control the zone type of onlined and offlined memory */
 enum {
-	MMOP_OFFLINE = -1,
-	MMOP_ONLINE_KEEP,
+	/* Offline the memory. */
+	MMOP_OFFLINE = 0,
+	/* Online the memory. Zone depends, see default_zone_for_pfn(). */
+	MMOP_ONLINE,
+	/* Online the memory to ZONE_NORMAL. */
 	MMOP_ONLINE_KERNEL,
+	/* Online the memory to ZONE_MOVABLE. */
 	MMOP_ONLINE_MOVABLE,
 };
 
@@ -113,7 +117,10 @@ extern int arch_add_memory(int nid, u64 start, u64 size,
 			struct mhp_restrictions *restrictions);
 extern u64 max_mem_size;
 
-extern bool memhp_auto_online;
+extern int memhp_online_type_from_str(const char *str);
+
+/* Default online_type (MMOP_*) when new memory blocks are added. */
+extern int memhp_default_online_type;
 /* If movable_node boot option specified */
 extern bool movable_node_enabled;
 static inline bool movable_node_is_enabled(void)
