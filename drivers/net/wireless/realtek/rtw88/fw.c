@@ -2,6 +2,8 @@
 /* Copyright(c) 2018-2019  Realtek Corporation
  */
 
+#include <linux/iopoll.h>
+
 #include "main.h"
 #include "coex.h"
 #include "fw.h"
@@ -193,8 +195,8 @@ static void rtw_fw_send_h2c_command(struct rtw_dev *rtwdev,
 	u8 box;
 	u8 box_state;
 	u32 box_reg, box_ex_reg;
-	u32 h2c_wait;
 	int idx;
+	int ret;
 
 	rtw_dbg(rtwdev, RTW_DBG_FW,
 		"send H2C content %02x%02x%02x%02x %02x%02x%02x%02x\n",
@@ -226,12 +228,11 @@ static void rtw_fw_send_h2c_command(struct rtw_dev *rtwdev,
 		goto out;
 	}
 
-	h2c_wait = 20;
-	do {
-		box_state = rtw_read8(rtwdev, REG_HMETFR);
-	} while ((box_state >> box) & 0x1 && --h2c_wait > 0);
+	ret = read_poll_timeout(rtw_read8, box_state,
+				!((box_state >> box) & 0x1), 100, 3000, false,
+				rtwdev, REG_HMETFR);
 
-	if (!h2c_wait) {
+	if (ret) {
 		rtw_err(rtwdev, "failed to send h2c command\n");
 		goto out;
 	}
