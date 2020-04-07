@@ -701,8 +701,7 @@ called when the processing of the structure is finished. The
 :c:member:`bi_private` field is used to store useful data that can be accessed
 in the function pointed by :c:member:`bi_end_io`.
 
-The :c:member:`bi_opf` field specifies the type of operation. Use the
-:c:member:`bio_set_op_attrs` to initialize the type of operation.
+The :c:member:`bi_opf` field specifies the type of operation.
 
 .. code-block:: c
 
@@ -710,7 +709,7 @@ The :c:member:`bi_opf` field specifies the type of operation. Use the
    //...
    bio->bi_disk = bdev->bd_disk;
    bio->bi_iter.bi_sector = sector;
-   bio_set_op_attrs(bio, REQ_OP_READ, 0);
+   bio->bi_opf = REQ_OP_READ;
    bio_add_page(bio, page, size, offset);
    //...
 
@@ -1036,8 +1035,8 @@ first sector of the disk. To wait, call the :c:func:`submit_bio_wait` function.
           This value must be used to initialize the field
           :c:member:`bi_iter.bi_sector` of the :c:type:`struct bio`.
 
-          For the read operation, use the macros :c:macro:`REQ_OP_READ` and
-          :c:macro:`bio_set_op_attrs`.
+          For the read operation, use the :c:macro:`REQ_OP_READ` macro to
+          initialize the :c:member:`bi_opf` field of the :c:type:`struct bio`.
 
 After finishing the operation, display the first 3 bytes of data read by
 :c:type:`struct bio` structure. Use the format ``"% 02x"`` for :c:func:`printk`
@@ -1090,8 +1089,8 @@ the buffer associated to the :c:type:`struct bio` structure with the message
 :c:type:`struct bio` structure.
 
 .. hint:: You need to update the type of the operation associated to the
-          :c:type:`struct bio` structure using the
-          :c:macro:`bio_set_op_attrs` macrodefinition.
+          :c:type:`struct bio` structure by setting the :c:member:`bi_opf` field
+          accordingly.
 
 For testing, run the :file:`test-relay-disk` script using the command:
 

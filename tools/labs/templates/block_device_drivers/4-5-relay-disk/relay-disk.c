@@ -35,7 +35,7 @@ static void send_test_bio(struct block_device *bdev, int dir)
 	/* TODO 4/3: fill bio (bdev, sector, direction) */
 	bio->bi_disk = bdev->bd_disk;
 	bio->bi_iter.bi_sector = 0;
-	bio_set_op_attrs(bio, dir, 0);
+	bio->bi_opf = dir;
 
 	page = alloc_page(GFP_NOIO);
 	bio_add_page(bio, page, KERNEL_SECTOR_SIZE, 0);
