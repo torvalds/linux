@@ -267,10 +267,6 @@ static int memory_subsys_offline(struct device *dev)
 	if (mem->state == MEM_OFFLINE)
 		return 0;
 
-	/* Can't offline block with non-present sections */
-	if (mem->section_count != sections_per_block)
-		return -EINVAL;
-
 	return memory_block_change_state(mem, MEM_OFFLINE, MEM_ONLINE);
 }
 
@@ -627,7 +623,7 @@ static int init_memory_block(struct memory_block **memory,
 
 static int add_memory_block(unsigned long base_section_nr)
 {
-	int ret, section_count = 0;
+	int section_count = 0;
 	struct memory_block *mem;
 	unsigned long nr;
 
@@ -638,12 +634,8 @@ static int add_memory_block(unsigned long base_section_nr)
 
 	if (section_count == 0)
 		return 0;
-	ret = init_memory_block(&mem, base_memory_block_id(base_section_nr),
-				MEM_ONLINE);
-	if (ret)
-		return ret;
-	mem->section_count = section_count;
-	return 0;
+	return init_memory_block(&mem, base_memory_block_id(base_section_nr),
+				 MEM_ONLINE);
 }
 
 static void unregister_memory(struct memory_block *memory)
@@ -679,7 +671,6 @@ int create_memory_block_devices(unsigned long start, unsigned long size)
 		ret = init_memory_block(&mem, block_id, MEM_OFFLINE);
 		if (ret)
 			break;
-		mem->section_count = sections_per_block;
 	}
 	if (ret) {
 		end_block_id = block_id;
@@ -688,7 +679,6 @@ int create_memory_block_devices(unsigned long start, unsigned long size)
 			mem = find_memory_block_by_id(block_id);
 			if (WARN_ON_ONCE(!mem))
 				continue;
-			mem->section_count = 0;
 			unregister_memory(mem);
 		}
 	}
@@ -717,7 +707,6 @@ void remove_memory_block_devices(unsigned long start, unsigned long size)
 		mem = find_memory_block_by_id(block_id);
 		if (WARN_ON_ONCE(!mem))
 			continue;
-		mem->section_count = 0;
 		unregister_memory_block_under_nodes(mem);
 		unregister_memory(mem);
 	}
