@@ -4227,6 +4227,21 @@ void dp_set_fec_enable(struct dc_link *link, bool enable)
 void dpcd_set_source_specific_data(struct dc_link *link)
 {
 	const uint32_t post_oui_delay = 30; // 30ms
+	uint8_t dspc = 0;
+	enum dc_status ret = DC_ERROR_UNEXPECTED;
+
+	ret = core_link_read_dpcd(link, DP_DOWN_STREAM_PORT_COUNT, &dspc,
+				  sizeof(dspc));
+
+	if (ret != DC_OK) {
+		DC_LOG_ERROR("Error in DP aux read transaction,"
+			     " not writing source specific data\n");
+		return;
+	}
+
+	/* Return if OUI unsupported */
+	if (!(dspc & DP_OUI_SUPPORT))
+		return;
 
 	if (!link->dc->vendor_signature.is_valid) {
 		struct dpcd_amd_signature amd_signature;
