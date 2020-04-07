@@ -172,15 +172,22 @@ config PINCTRL_GEMINI
 	select GENERIC_PINCONF
 	select MFD_SYSCON
 
+config PINCTRL_MCP23S08_I2C
+	tristate
+	select REGMAP_I2C
+
+config PINCTRL_MCP23S08_SPI
+	tristate
+	select REGMAP_SPI
+
 config PINCTRL_MCP23S08
 	tristate "Microchip MCP23xxx I/O expander"
 	depends on SPI_MASTER || I2C
-	depends on I2C || I2C=n
 	select GPIOLIB
 	select GPIOLIB_IRQCHIP
-	select REGMAP_I2C if I2C
-	select REGMAP_SPI if SPI_MASTER
 	select GENERIC_PINCONF
+	select PINCTRL_MCP23S08_I2C if I2C
+	select PINCTRL_MCP23S08_SPI if SPI_MASTER
 	help
 	  SPI/I2C driver for Microchip MCP23S08 / MCP23S17 / MCP23S18 /
 	  MCP23008 / MCP23017 / MCP23018 I/O expanders.

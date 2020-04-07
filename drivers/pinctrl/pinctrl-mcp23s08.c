@@ -7,9 +7,8 @@
 #include <linux/mutex.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
+#include <linux/export.h>
 #include <linux/gpio/driver.h>
-#include <linux/i2c.h>
-#include <linux/spi/spi.h>
 #include <linux/slab.h>
 #include <asm/byteorder.h>
 #include <linux/interrupt.h>
@@ -18,15 +17,7 @@
 #include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinconf-generic.h>
 
-/*
- * MCP types supported by driver
- */
-#define MCP_TYPE_S08	1
-#define MCP_TYPE_S17	2
-#define MCP_TYPE_008	3
-#define MCP_TYPE_017	4
-#define MCP_TYPE_S18	5
-#define MCP_TYPE_018	6
+#include "pinctrl-mcp23s08.h"
 
 /* Registers are all 8 bits wide.
  *
@@ -50,31 +41,6 @@
 #define MCP_INTCAP	0x08
 #define MCP_GPIO	0x09
 #define MCP_OLAT	0x0a
-
-struct mcp23s08;
-
-struct mcp23s08 {
-	u8			addr;
-	bool			irq_active_high;
-	bool			reg_shift;
-
-	u16			irq_rise;
-	u16			irq_fall;
-	int			irq;
-	bool			irq_controller;
-	int			cached_gpio;
-	/* lock protects regmap access with bypass/cache flags */
-	struct mutex		lock;
-
-	struct gpio_chip	chip;
-	struct irq_chip		irq_chip;
-
-	struct regmap		*regmap;
-	struct device		*dev;
-
-	struct pinctrl_dev	*pctldev;
-	struct pinctrl_desc	pinctrl_desc;
-};
 
 static const struct reg_default mcp23x08_defaults[] = {
 	{.reg = MCP_IODIR,		.def = 0xff},
@@ -107,7 +73,7 @@ static const struct regmap_access_table mcp23x08_precious_table = {
 	.n_yes_ranges = 1,
 };
 
-static const struct regmap_config mcp23x08_regmap = {
+const struct regmap_config mcp23x08_regmap = {
 	.reg_bits = 8,
 	.val_bits = 8,
 
@@ -119,6 +85,7 @@ static const struct regmap_config mcp23x08_regmap = {
 	.cache_type = REGCACHE_FLAT,
 	.max_register = MCP_OLAT,
 };
+EXPORT_SYMBOL_GPL(mcp23x08_regmap);
 
 static const struct reg_default mcp23x16_defaults[] = {
 	{.reg = MCP_IODIR << 1,		.def = 0xffff},
@@ -151,7 +118,7 @@ static const struct regmap_access_table mcp23x16_precious_table = {
 	.n_yes_ranges = 1,
 };
 
-static const struct regmap_config mcp23x17_regmap = {
+const struct regmap_config mcp23x17_regmap = {
 	.reg_bits = 8,
 	.val_bits = 16,
 
@@ -164,6 +131,7 @@ static const struct regmap_config mcp23x17_regmap = {
 	.cache_type = REGCACHE_FLAT,
 	.val_format_endian = REGMAP_ENDIAN_LITTLE,
 };
+EXPORT_SYMBOL_GPL(mcp23x17_regmap);
 
 static int mcp_read(struct mcp23s08 *mcp, unsigned int reg, unsigned int *val)
 {
@@ -579,9 +547,8 @@ static int mcp23s08_irqchip_setup(struct mcp23s08 *mcp)
 
 /*----------------------------------------------------------------------*/
 
-static int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
-			      unsigned int addr, unsigned int type,
-			      unsigned int base)
+int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
+		       unsigned int addr, unsigned int type, unsigned int base)
 {
 	int status, ret;
 	bool mirror = false;
@@ -690,411 +657,4 @@ fail:
 		dev_dbg(dev, "can't setup chip %d, --> %d\n", addr, ret);
 	return ret;
 }
-
-/*----------------------------------------------------------------------*/
-
-#if IS_ENABLED(CONFIG_I2C)
-
-static int mcp230xx_probe(struct i2c_client *client,
-				    const struct i2c_device_id *id)
-{
-	struct device *dev = &client->dev;
-	unsigned int type = id->driver_data;
-	struct mcp23s08 *mcp;
-	int status;
-
-	mcp = devm_kzalloc(&client->dev, sizeof(*mcp), GFP_KERNEL);
-	if (!mcp)
-		return -ENOMEM;
-
-	mcp->irq = client->irq;
-
-	switch (type) {
-	case MCP_TYPE_008:
-		mcp->regmap = devm_regmap_init_i2c(client, &mcp23x08_regmap);
-		mcp->reg_shift = 0;
-		mcp->chip.ngpio = 8;
-		mcp->chip.label = "mcp23008";
-		break;
-
-	case MCP_TYPE_017:
-		mcp->regmap = devm_regmap_init_i2c(client, &mcp23x17_regmap);
-		mcp->reg_shift = 1;
-		mcp->chip.ngpio = 16;
-		mcp->chip.label = "mcp23017";
-		break;
-
-	case MCP_TYPE_018:
-		mcp->regmap = devm_regmap_init_i2c(client, &mcp23x17_regmap);
-		mcp->reg_shift = 1;
-		mcp->chip.ngpio = 16;
-		mcp->chip.label = "mcp23018";
-		break;
-
-	default:
-		dev_err(dev, "invalid device type (%d)\n", type);
-		return -EINVAL;
-	}
-
-	if (IS_ERR(mcp->regmap))
-		return PTR_ERR(mcp->regmap);
-
-	mcp->pinctrl_desc.name = "mcp23xxx-pinctrl";
-
-	status = mcp23s08_probe_one(mcp, dev, client->addr, type, -1);
-	if (status)
-		return status;
-
-	i2c_set_clientdata(client, mcp);
-
-	return 0;
-}
-
-static const struct i2c_device_id mcp230xx_id[] = {
-	{ "mcp23008", MCP_TYPE_008 },
-	{ "mcp23017", MCP_TYPE_017 },
-	{ "mcp23018", MCP_TYPE_018 },
-	{ },
-};
-MODULE_DEVICE_TABLE(i2c, mcp230xx_id);
-
-static const struct of_device_id mcp23s08_i2c_of_match[] = {
-	{
-		.compatible = "microchip,mcp23008",
-		.data = (void *) MCP_TYPE_008,
-	},
-	{
-		.compatible = "microchip,mcp23017",
-		.data = (void *) MCP_TYPE_017,
-	},
-	{
-		.compatible = "microchip,mcp23018",
-		.data = (void *) MCP_TYPE_018,
-	},
-/* NOTE: The use of the mcp prefix is deprecated and will be removed. */
-	{
-		.compatible = "mcp,mcp23008",
-		.data = (void *) MCP_TYPE_008,
-	},
-	{
-		.compatible = "mcp,mcp23017",
-		.data = (void *) MCP_TYPE_017,
-	},
-	{ },
-};
-MODULE_DEVICE_TABLE(of, mcp23s08_i2c_of_match);
-
-static struct i2c_driver mcp230xx_driver = {
-	.driver = {
-		.name	= "mcp230xx",
-		.of_match_table = mcp23s08_i2c_of_match,
-	},
-	.probe		= mcp230xx_probe,
-	.id_table	= mcp230xx_id,
-};
-
-static int __init mcp23s08_i2c_init(void)
-{
-	return i2c_add_driver(&mcp230xx_driver);
-}
-
-static void mcp23s08_i2c_exit(void)
-{
-	i2c_del_driver(&mcp230xx_driver);
-}
-
-#else
-
-static int __init mcp23s08_i2c_init(void) { return 0; }
-static void mcp23s08_i2c_exit(void) { }
-
-#endif /* CONFIG_I2C */
-
-/*----------------------------------------------------------------------*/
-
-#ifdef CONFIG_SPI_MASTER
-
-#define MCP_MAX_DEV_PER_CS	8
-
-static int mcp23sxx_spi_write(void *context, const void *data, size_t count)
-{
-	struct mcp23s08 *mcp = context;
-	struct spi_device *spi = to_spi_device(mcp->dev);
-	struct spi_message m;
-	struct spi_transfer t[2] = { { .tx_buf = &mcp->addr, .len = 1, },
-				     { .tx_buf = data, .len = count, }, };
-
-	spi_message_init(&m);
-	spi_message_add_tail(&t[0], &m);
-	spi_message_add_tail(&t[1], &m);
-
-	return spi_sync(spi, &m);
-}
-
-static int mcp23sxx_spi_gather_write(void *context,
-				const void *reg, size_t reg_size,
-				const void *val, size_t val_size)
-{
-	struct mcp23s08 *mcp = context;
-	struct spi_device *spi = to_spi_device(mcp->dev);
-	struct spi_message m;
-	struct spi_transfer t[3] = { { .tx_buf = &mcp->addr, .len = 1, },
-				     { .tx_buf = reg, .len = reg_size, },
-				     { .tx_buf = val, .len = val_size, }, };
-
-	spi_message_init(&m);
-	spi_message_add_tail(&t[0], &m);
-	spi_message_add_tail(&t[1], &m);
-	spi_message_add_tail(&t[2], &m);
-
-	return spi_sync(spi, &m);
-}
-
-static int mcp23sxx_spi_read(void *context, const void *reg, size_t reg_size,
-				void *val, size_t val_size)
-{
-	struct mcp23s08 *mcp = context;
-	struct spi_device *spi = to_spi_device(mcp->dev);
-	u8 tx[2];
-
-	if (reg_size != 1)
-		return -EINVAL;
-
-	tx[0] = mcp->addr | 0x01;
-	tx[1] = *((u8 *) reg);
-
-	return spi_write_then_read(spi, tx, sizeof(tx), val, val_size);
-}
-
-static const struct regmap_bus mcp23sxx_spi_regmap = {
-	.write = mcp23sxx_spi_write,
-	.gather_write = mcp23sxx_spi_gather_write,
-	.read = mcp23sxx_spi_read,
-};
-
-/* A given spi_device can represent up to eight mcp23sxx chips
- * sharing the same chipselect but using different addresses
- * (e.g. chips #0 and #3 might be populated, but not #1 or $2).
- * Driver data holds all the per-chip data.
- */
-struct mcp23s08_driver_data {
-	unsigned		ngpio;
-	struct mcp23s08		*mcp[8];
-	struct mcp23s08		chip[];
-};
-
-static int mcp23s08_spi_regmap_init(struct mcp23s08 *mcp, struct device *dev,
-				    unsigned int addr, unsigned int type)
-{
-	const struct regmap_config *config;
-	struct regmap_config *copy;
-	const char *name;
-
-	switch (type) {
-	case MCP_TYPE_S08:
-		mcp->reg_shift = 0;
-		mcp->chip.ngpio = 8;
-		mcp->chip.label = devm_kasprintf(dev, GFP_KERNEL, "mcp23s08.%d",
-						 addr);
-
-		config = &mcp23x08_regmap;
-		name = devm_kasprintf(dev, GFP_KERNEL, "%d", addr);
-		break;
-
-	case MCP_TYPE_S17:
-		mcp->reg_shift = 1;
-		mcp->chip.ngpio = 16;
-		mcp->chip.label = devm_kasprintf(dev, GFP_KERNEL, "mcp23s17.%d",
-						 addr);
-
-		config = &mcp23x17_regmap;
-		name = devm_kasprintf(dev, GFP_KERNEL, "%d", addr);
-		break;
-
-	case MCP_TYPE_S18:
-		mcp->reg_shift = 1;
-		mcp->chip.ngpio = 16;
-		mcp->chip.label = "mcp23s18";
-
-		config = &mcp23x17_regmap;
-		name = config->name;
-		break;
-
-	default:
-		dev_err(dev, "invalid device type (%d)\n", type);
-		return -EINVAL;
-	}
-
-	copy = devm_kmemdup(dev, &config, sizeof(config), GFP_KERNEL);
-	if (!copy)
-		return -ENOMEM;
-
-	copy->name = name;
-
-	mcp->regmap = devm_regmap_init(dev, &mcp23sxx_spi_regmap, mcp, copy);
-	if (IS_ERR(mcp->regmap))
-		return PTR_ERR(mcp->regmap);
-
-	return 0;
-}
-
-static int mcp23s08_probe(struct spi_device *spi)
-{
-	struct device *dev = &spi->dev;
-	unsigned long spi_present_mask;
-	const void *match;
-	int chips;
-	u32 v;
-	unsigned			addr;
-	struct mcp23s08_driver_data	*data;
-	int				status, type;
-	unsigned			ngpio = 0;
-
-	match = device_get_match_data(dev);
-	if (match)
-		type = (int)(uintptr_t)match;
-	else
-		type = spi_get_device_id(spi)->driver_data;
-
-	status = device_property_read_u32(dev, "microchip,spi-present-mask", &v);
-	if (status) {
-		status = device_property_read_u32(dev, "mcp,spi-present-mask", &v);
-		if (status) {
-			dev_err(&spi->dev, "missing spi-present-mask");
-			return status;
-		}
-	}
-	spi_present_mask = v;
-
-	if (!spi_present_mask || spi_present_mask >= BIT(MCP_MAX_DEV_PER_CS)) {
-		dev_err(&spi->dev, "invalid spi-present-mask");
-		return -ENODEV;
-	}
-
-	chips = hweight_long(spi_present_mask);
-
-	data = devm_kzalloc(&spi->dev,
-			    struct_size(data, chip, chips), GFP_KERNEL);
-	if (!data)
-		return -ENOMEM;
-
-	spi_set_drvdata(spi, data);
-
-	for_each_set_bit(addr, &spi_present_mask, MCP_MAX_DEV_PER_CS) {
-		data->mcp[addr] = &data->chip[--chips];
-		data->mcp[addr]->irq = spi->irq;
-
-		status = mcp23s08_spi_regmap_init(data->mcp[addr], dev, addr, type);
-		if (status)
-			return status;
-
-		data->mcp[addr]->pinctrl_desc.name = devm_kasprintf(dev, GFP_KERNEL,
-				"mcp23xxx-pinctrl.%d", addr);
-		if (!data->mcp[addr]->pinctrl_desc.name)
-			return -ENOMEM;
-
-		status = mcp23s08_probe_one(data->mcp[addr], dev, 0x40 | (addr << 1), type, -1);
-		if (status < 0)
-			return status;
-
-		ngpio += data->mcp[addr]->chip.ngpio;
-	}
-	data->ngpio = ngpio;
-
-	return 0;
-}
-
-static const struct spi_device_id mcp23s08_ids[] = {
-	{ "mcp23s08", MCP_TYPE_S08 },
-	{ "mcp23s17", MCP_TYPE_S17 },
-	{ "mcp23s18", MCP_TYPE_S18 },
-	{ },
-};
-MODULE_DEVICE_TABLE(spi, mcp23s08_ids);
-
-static const struct of_device_id mcp23s08_spi_of_match[] = {
-	{
-		.compatible = "microchip,mcp23s08",
-		.data = (void *) MCP_TYPE_S08,
-	},
-	{
-		.compatible = "microchip,mcp23s17",
-		.data = (void *) MCP_TYPE_S17,
-	},
-	{
-		.compatible = "microchip,mcp23s18",
-		.data = (void *) MCP_TYPE_S18,
-	},
-/* NOTE: The use of the mcp prefix is deprecated and will be removed. */
-	{
-		.compatible = "mcp,mcp23s08",
-		.data = (void *) MCP_TYPE_S08,
-	},
-	{
-		.compatible = "mcp,mcp23s17",
-		.data = (void *) MCP_TYPE_S17,
-	},
-	{ },
-};
-MODULE_DEVICE_TABLE(of, mcp23s08_spi_of_match);
-
-static struct spi_driver mcp23s08_driver = {
-	.probe		= mcp23s08_probe,
-	.id_table	= mcp23s08_ids,
-	.driver = {
-		.name	= "mcp23s08",
-		.of_match_table = mcp23s08_spi_of_match,
-	},
-};
-
-static int __init mcp23s08_spi_init(void)
-{
-	return spi_register_driver(&mcp23s08_driver);
-}
-
-static void mcp23s08_spi_exit(void)
-{
-	spi_unregister_driver(&mcp23s08_driver);
-}
-
-#else
-
-static int __init mcp23s08_spi_init(void) { return 0; }
-static void mcp23s08_spi_exit(void) { }
-
-#endif /* CONFIG_SPI_MASTER */
-
-/*----------------------------------------------------------------------*/
-
-static int __init mcp23s08_init(void)
-{
-	int ret;
-
-	ret = mcp23s08_spi_init();
-	if (ret)
-		goto spi_fail;
-
-	ret = mcp23s08_i2c_init();
-	if (ret)
-		goto i2c_fail;
-
-	return 0;
-
- i2c_fail:
-	mcp23s08_spi_exit();
- spi_fail:
-	return ret;
-}
-/* register after spi/i2c postcore initcall and before
- * subsys initcalls that may rely on these GPIOs
- */
-subsys_initcall(mcp23s08_init);
-
-static void __exit mcp23s08_exit(void)
-{
-	mcp23s08_spi_exit();
-	mcp23s08_i2c_exit();
-}
-module_exit(mcp23s08_exit);
-
-MODULE_LICENSE("GPL");
+EXPORT_SYMBOL_GPL(mcp23s08_probe_one);
