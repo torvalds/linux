@@ -350,6 +350,16 @@
 #define RST_PROTECT_DIS			BIT(1)
 #define GLB_SOFT_RST_ALL		BIT(0)
 
+/* ISPP_CLKGATE */
+#define GATE_DIS_GLOBAL_RAM_CLK		BIT(7)
+#define GATE_DIS_SWS			BIT(6)
+#define GATE_DIS_FEC			BIT(5)
+#define GATE_DIS_SCL			BTI(4)
+#define GATE_DIS_SHP			BIT(3)
+#define GATE_DIS_NR			BIT(2)
+#define GATE_DIS_TNR			BIT(1)
+#define GATE_DIS_GLB			BIT(0)
+
 /* INT_MASK INT_RAW_STA INT_STA INT_SET INT_CLR */
 #define INT_FRAME(stream) \
 	((stream)->config->frame_end_id)

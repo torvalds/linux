@@ -880,9 +880,6 @@ static void stop_mb(struct rkispp_stream *stream)
 		break;
 	case ISPP_MODULE_NR:
 	case ISPP_MODULE_SHP:
-		rkispp_clear_bits(base + RKISPP_NR_UVNR_CTRL_PARA, SW_NR_EN);
-		rkispp_set_bits(base + RKISPP_SHARP_CORE_CTRL,
-				SW_SHP_DMA_DIS | SW_SHP_EN, SW_SHP_DMA_DIS);
 		break;
 	default:
 		rkispp_clear_bits(base + RKISPP_FEC_CORE_CTRL, SW_FEC_EN);
@@ -902,8 +899,10 @@ static int is_stopped_mb(struct rkispp_stream *stream)
 		break;
 	case ISPP_MODULE_NR:
 	case ISPP_MODULE_SHP:
-		en = SW_SHP_EN;
-		val = readl(base + RKISPP_SHARP_CORE_CTRL);
+		/* close dma write immediately */
+		rkispp_set_bits(base + RKISPP_SHARP_CORE_CTRL,
+				SW_SHP_DMA_DIS, SW_SHP_DMA_DIS);
+		val = false;
 		break;
 	default:
 		en = SW_FEC_EN_SHD;
@@ -1171,9 +1170,12 @@ static void rkispp_stream_stop(struct rkispp_stream *stream)
 			wait = true;
 	}
 	if (dev->inp == INP_ISP &&
-	    atomic_read(&dev->stream_vdev.refcnt) == 1)
+	    atomic_read(&dev->stream_vdev.refcnt) == 1) {
 		v4l2_subdev_call(&dev->ispp_sdev.sd,
 				 video, s_stream, false);
+		rkispp_clear_bits(dev->base_addr + RKISPP_CTRL_QUICK,
+				  GLB_QUICK_EN);
+	}
 	if (wait) {
 		ret = wait_event_timeout(stream->done,
 					 !stream->streaming,
@@ -1219,6 +1221,9 @@ static void rkispp_stop_streaming(struct vb2_queue *queue)
 
 	v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
 		 "%s id:%d\n", __func__, stream->id);
+
+	if (!stream->streaming)
+		return;
 
 	rkispp_stream_stop(stream);
 	destroy_buf_queue(stream, VB2_BUF_STATE_ERROR);

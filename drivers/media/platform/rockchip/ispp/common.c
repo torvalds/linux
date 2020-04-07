@@ -62,6 +62,9 @@ int rkispp_allow_buffer(struct rkispp_device *dev,
 	buf->mem_priv = mem_priv;
 	buf->dma_addr = *((dma_addr_t *)ops->cookie(mem_priv));
 	buf->vaddr = ops->vaddr(mem_priv);
+	v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
+		 "%s buf:0x%x~0x%x size:%d\n", __func__,
+		 (u32)buf->dma_addr, (u32)buf->dma_addr + buf->size, buf->size);
 	return ret;
 err:
 	dev_err(dev->dev, "%s failed ret:%d\n", __func__, ret);
@@ -74,6 +77,9 @@ void rkispp_free_buffer(struct rkispp_device *dev,
 	const struct vb2_mem_ops *ops = &vb2_dma_contig_memops;
 
 	if (buf && buf->mem_priv) {
+		v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
+			 "%s buf:0x%x~0x%x\n", __func__,
+			 (u32)buf->dma_addr, (u32)buf->dma_addr + buf->size);
 		ops->put(buf->mem_priv);
 		buf->size = 0;
 		buf->vaddr = NULL;
