@@ -461,7 +461,7 @@ The first step in working with the file system is to register and unregister it.
 The steps you need to take are described in the section :ref:`RegisterUnregisterSection`. Use the ``"myfs"`` string for the file system name.
 
 .. note::
-  Within the file system structure, use the ``myfs_mount`` function present in the code skeleton to fill the superblock (done when mounting). In ``myfs_mount`` call the function specific to a file system without disk support (TODO). As an argument for the specific mount function, use the function of type ``fill_super`` defined in the code skeleton.
+  Within the file system structure, use the ``myfs_mount`` function present in the code skeleton to fill the superblock (done when mounting). In ``myfs_mount`` call the function specific to a file system without disk support. As an argument for the specific mount function, use the function of type ``fill_super`` defined in the code skeleton. You can review the :ref:`FunctionsMountKillSBSection` section.
 
   To destroy the superblock (done at unmounting) use ``kill_litter_super``, also a function specific to a file system without disk support. The function is already implemented, you need to fill it in the :c:type:`struct file_system_type` structure.
 
@@ -524,7 +524,7 @@ Typically, this function is used to create and initialize all inodes; In this ex
 
 The :c:type:`inode` is allocated inside the ``myfs_get_inode`` function (local variable ``inode``, allocated using the :c:func:`new_inode` function call).
 
-To successfully complete mounting the file system, you will need to fill the ``myfs_get_inode`` function. Follow directions marked with ``TODO 3``. A starting point is the :c:func:`ramfs_get_inode` function.
+To successfully complete mounting the file system, you will need to fill the ``myfs_get_inode`` function. Follow directions marked with ``TODO 3``. A starting point is the `ramfs_get_inode <https://elixir.bootlin.com/linux/latest/source/fs/ramfs/inode.c#L63>`_ function.
 
 .. note::
 
@@ -640,7 +640,7 @@ To register and register the file system, you will need to fill the ``minfs_fs_t
 .. note::
 
   In the file system structure, for mount, use the ``minfs_mount`` function from in the code skeleton.
-  In this function, call the function to mount a file system with disk support (see :ref:`FunctionsMountKillSBSection` use :c:func:`mount_bdev`).
+  In this function, call the function to mount a file system with disk support (See the :ref:`FunctionsMountKillSBSection` section. Use :c:func:`mount_bdev`).
   Choose the most suitable function for destroying the superblock (done at unmount); keep in mind that it is a file system with disk support. Use the :c:func:`kill_block_super` function.
 
   Initialize the ``fs_flags`` field of the :c:type:`minfs_fs_type` structure with the appropriate value for a file system with disk support. See the section :ref:`RegisterUnregisterSection`.
@@ -683,7 +683,7 @@ The operation fails because the root inode is not initialized.
 
 To be able to mount the file system, you will need to fill the superblock (i.e a structure with type :c:type:`struct super_block`) within the ``minfs_fill_super`` function; it is the ``s`` argument of the function.
 The structure of operations on the superblock is already defined: ``minfs_ops``.
-Follow the directions marked with ``TODO 2``. You can also follow the implementation of the ``minix_fill_super`` function.
+Follow the directions marked with ``TODO 2``. You can also follow the implementation of the `minix_fill_super <https://elixir.bootlin.com/linux/latest/source/fs/minix/inode.c#L153>`_ function.
 
 .. note::
 
@@ -745,7 +745,7 @@ Make ``minfs_iget`` read the root minfs inode from the disk (:c:type:`struct min
 In the ``minfs_fill_super`` function, replace the ``myfs_get_inode`` call with the ``minfs_iget`` function call.
 
 .. note::
-  To implement the ``minfs_iget`` function, follow the implementation of :c:func:`V1_minix_iget`.
+  To implement the ``minfs_iget`` function, follow the implementation of `V1_minix_iget <https://elixir.bootlin.com/linux/v4.15/source/fs/minix/inode.c#L460>`_.
   To read a block, use the :c:func:`sb_bread` function.
   Cast the read data (the ``b_data`` field of the :c:type:`struct structure_head` structure) to the minfs inode from the disk (:c:type:`struct minfs_inode`).
 
