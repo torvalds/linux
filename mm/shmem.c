@@ -1472,9 +1472,6 @@ static struct page *shmem_alloc_hugepage(gfp_t gfp,
 	pgoff_t hindex;
 	struct page *page;
 
-	if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGE_PAGECACHE))
-		return NULL;
-
 	hindex = round_down(index, HPAGE_PMD_NR);
 	if (xa_find(&mapping->i_pages, &hindex, hindex + HPAGE_PMD_NR - 1,
 								XA_PRESENT))
@@ -1486,6 +1483,8 @@ static struct page *shmem_alloc_hugepage(gfp_t gfp,
 	shmem_pseudo_vma_destroy(&pvma);
 	if (page)
 		prep_transhuge_page(page);
+	else
+		count_vm_event(THP_FILE_FALLBACK);
 	return page;
 }
 
@@ -1871,8 +1870,11 @@ alloc_nohuge:
 
 	error = mem_cgroup_try_charge_delay(page, charge_mm, gfp, &memcg,
 					    PageTransHuge(page));
-	if (error)
+	if (error) {
+		if (PageTransHuge(page))
+			count_vm_event(THP_FILE_FALLBACK);
 		goto unacct;
+	}
 	error = shmem_add_to_page_cache(page, mapping, hindex,
 					NULL, gfp & GFP_RECLAIM_MASK);
 	if (error) {

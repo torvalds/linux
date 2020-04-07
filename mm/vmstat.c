@@ -1259,6 +1259,7 @@ const char * const vmstat_text[] = {
 	"thp_collapse_alloc",
 	"thp_collapse_alloc_failed",
 	"thp_file_alloc",
+	"thp_file_fallback",
 	"thp_file_mapped",
 	"thp_split_page",
 	"thp_split_page_failed",

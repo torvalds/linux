@@ -319,6 +319,10 @@ thp_file_alloc
 	is incremented every time a file huge page is successfully
 	allocated.
 
+thp_file_fallback
+	is incremented if a file huge page is attempted to be allocated
+	but fails and instead falls back to using small pages.
+
 thp_file_mapped
 	is incremented every time a file huge page is mapped into
 	user address space.
