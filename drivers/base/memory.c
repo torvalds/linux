@@ -27,6 +27,24 @@
 
 #define MEMORY_CLASS_NAME	"memory"
 
+static const char *const online_type_to_str[] = {
+	[MMOP_OFFLINE] = "offline",
+	[MMOP_ONLINE] = "online",
+	[MMOP_ONLINE_KERNEL] = "online_kernel",
+	[MMOP_ONLINE_MOVABLE] = "online_movable",
+};
+
+static int memhp_online_type_from_str(const char *str)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(online_type_to_str); i++) {
+		if (sysfs_streq(str, online_type_to_str[i]))
+			return i;
+	}
+	return -EINVAL;
+}
+
 #define to_memory_block(dev) container_of(dev, struct memory_block, dev)
 
 static int sections_per_block;
@@ -228,25 +246,16 @@ static int memory_subsys_offline(struct device *dev)
 static ssize_t state_store(struct device *dev, struct device_attribute *attr,
 			   const char *buf, size_t count)
 {
+	const int online_type = memhp_online_type_from_str(buf);
 	struct memory_block *mem = to_memory_block(dev);
-	int ret, online_type;
+	int ret;
+
+	if (online_type < 0)
+		return -EINVAL;
 
 	ret = lock_device_hotplug_sysfs();
 	if (ret)
 		return ret;
-
-	if (sysfs_streq(buf, "online_kernel"))
-		online_type = MMOP_ONLINE_KERNEL;
-	else if (sysfs_streq(buf, "online_movable"))
-		online_type = MMOP_ONLINE_MOVABLE;
-	else if (sysfs_streq(buf, "online"))
-		online_type = MMOP_ONLINE;
-	else if (sysfs_streq(buf, "offline"))
-		online_type = MMOP_OFFLINE;
-	else {
-		ret = -EINVAL;
-		goto err;
-	}
 
 	switch (online_type) {
 	case MMOP_ONLINE_KERNEL:
@@ -263,7 +272,6 @@ static ssize_t state_store(struct device *dev, struct device_attribute *attr,
 		ret = -EINVAL; /* should never happen */
 	}
 
-err:
 	unlock_device_hotplug();
 
 	if (ret < 0)
