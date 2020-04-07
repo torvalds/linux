@@ -316,9 +316,9 @@
 		i2c0_xfer: i2c0-xfer {
 			rockchip,pins =
 				/* i2c0_scl */
-				<0 RK_PB4 1 &pcfg_pull_none_smt>,
+				<0 RK_PB4 1 &pcfg_pull_none_drv_level_0_smt>,
 				/* i2c0_sda */
-				<0 RK_PB5 1 &pcfg_pull_none_smt>;
+				<0 RK_PB5 1 &pcfg_pull_none_drv_level_0_smt>;
 		};
 	};
 	i2c1 {
@@ -326,9 +326,9 @@
 		i2c1_xfer: i2c1-xfer {
 			rockchip,pins =
 				/* i2c1_scl */
-				<1 RK_PD3 1 &pcfg_pull_none_smt>,
+				<1 RK_PD3 1 &pcfg_pull_none_drv_level_0_smt>,
 				/* i2c1_sda */
-				<1 RK_PD2 1 &pcfg_pull_none_smt>;
+				<1 RK_PD2 1 &pcfg_pull_none_drv_level_0_smt>;
 		};
 	};
 	i2c2 {
@@ -336,9 +336,9 @@
 		i2c2_xfer: i2c2-xfer {
 			rockchip,pins =
 				/* i2c2_scl */
-				<0 RK_PC2 1 &pcfg_pull_none_smt>,
+				<0 RK_PC2 1 &pcfg_pull_none_drv_level_0_smt>,
 				/* i2c2_sda */
-				<0 RK_PC3 1 &pcfg_pull_none_smt>;
+				<0 RK_PC3 1 &pcfg_pull_none_drv_level_0_smt>;
 		};
 	};
 	i2c3 {
@@ -346,25 +346,25 @@
 		i2c3m0_xfer: i2c3m0-xfer {
 			rockchip,pins =
 				/* i2c3_scl_m0 */
-				<3 RK_PA4 5 &pcfg_pull_none_smt>,
+				<3 RK_PA4 5 &pcfg_pull_none_drv_level_0_smt>,
 				/* i2c3_sda_m0 */
-				<3 RK_PA5 5 &pcfg_pull_none_smt>;
+				<3 RK_PA5 5 &pcfg_pull_none_drv_level_0_smt>;
 		};
 		/omit-if-no-ref/
 		i2c3m1_xfer: i2c3m1-xfer {
 			rockchip,pins =
 				/* i2c3_scl_m1 */
-				<2 RK_PD4 7 &pcfg_pull_none_smt>,
+				<2 RK_PD4 7 &pcfg_pull_none_drv_level_0_smt>,
 				/* i2c3_sda_m1 */
-				<2 RK_PD5 7 &pcfg_pull_none_smt>;
+				<2 RK_PD5 7 &pcfg_pull_none_drv_level_0_smt>;
 		};
 		/omit-if-no-ref/
 		i2c3m2_xfer: i2c3m2-xfer {
 			rockchip,pins =
 				/* i2c3_scl_m2 */
-				<1 RK_PD6 3 &pcfg_pull_none_smt>,
+				<1 RK_PD6 3 &pcfg_pull_none_drv_level_0_smt>,
 				/* i2c3_sda_m2 */
-				<1 RK_PD7 3 &pcfg_pull_none_smt>;
+				<1 RK_PD7 3 &pcfg_pull_none_drv_level_0_smt>;
 		};
 	};
 	i2c4 {
@@ -372,17 +372,17 @@
 		i2c4m0_xfer: i2c4m0-xfer {
 			rockchip,pins =
 				/* i2c4_scl_m0 */
-				<3 RK_PA0 7 &pcfg_pull_none_smt>,
+				<3 RK_PA0 7 &pcfg_pull_none_drv_level_0_smt>,
 				/* i2c4_sda_m0 */
-				<3 RK_PA1 7 &pcfg_pull_none_smt>;
+				<3 RK_PA1 7 &pcfg_pull_none_drv_level_0_smt>;
 		};
 		/omit-if-no-ref/
 		i2c4m1_xfer: i2c4m1-xfer {
 			rockchip,pins =
 				/* i2c4_scl_m1 */
-				<4 RK_PA0 4 &pcfg_pull_none_smt>,
+				<4 RK_PA0 4 &pcfg_pull_none_drv_level_0_smt>,
 				/* i2c4_sda_m1 */
-				<4 RK_PA1 4 &pcfg_pull_none_smt>;
+				<4 RK_PA1 4 &pcfg_pull_none_drv_level_0_smt>;
 		};
 	};
 	i2c5 {
@@ -390,25 +390,25 @@
 		i2c5m0_xfer: i2c5m0-xfer {
 			rockchip,pins =
 				/* i2c5_scl_m0 */
-				<2 RK_PA5 7 &pcfg_pull_none_smt>,
+				<2 RK_PA5 7 &pcfg_pull_none_drv_level_0_smt>,
 				/* i2c5_sda_m0 */
-				<2 RK_PB3 7 &pcfg_pull_none_smt>;
+				<2 RK_PB3 7 &pcfg_pull_none_drv_level_0_smt>;
 		};
 		/omit-if-no-ref/
 		i2c5m1_xfer: i2c5m1-xfer {
 			rockchip,pins =
 				/* i2c5_scl_m1 */
-				<3 RK_PB0 5 &pcfg_pull_none_smt>,
+				<3 RK_PB0 5 &pcfg_pull_none_drv_level_0_smt>,
 				/* i2c5_sda_m1 */
-				<3 RK_PB1 5 &pcfg_pull_none_smt>;
+				<3 RK_PB1 5 &pcfg_pull_none_drv_level_0_smt>;
 		};
 		/omit-if-no-ref/
 		i2c5m2_xfer: i2c5m2-xfer {
 			rockchip,pins =
 				/* i2c5_scl_m2 */
-				<1 RK_PD0 4 &pcfg_pull_none_smt>,
+				<1 RK_PD0 4 &pcfg_pull_none_drv_level_0_smt>,
 				/* i2c5_sda_m2 */
-				<1 RK_PD1 4 &pcfg_pull_none_smt>;
+				<1 RK_PD1 4 &pcfg_pull_none_drv_level_0_smt>;
 		};
 	};
 	i2s0 {

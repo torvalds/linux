@@ -326,6 +326,13 @@
 	};
 
 	/omit-if-no-ref/
+	pcfg_pull_none_drv_level_0_smt: pcfg-pull-none-drv-level-0-smt {
+		bias-disable;
+		drive-strength = <0>;
+		input-schmitt-enable;
+	};
+
+	/omit-if-no-ref/
 	pcfg_output_high: pcfg-output-high {
 		output-high;
 	};
