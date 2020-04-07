@@ -588,9 +588,8 @@ static void smc_ib_add_dev(struct ib_device *ibdev)
 /* callback function for ib_unregister_client() */
 static void smc_ib_remove_dev(struct ib_device *ibdev, void *client_data)
 {
-	struct smc_ib_device *smcibdev;
+	struct smc_ib_device *smcibdev = client_data;
 
-	smcibdev = ib_get_client_data(ibdev, &smc_ib_client);
 	if (!smcibdev || smcibdev->ibdev != ibdev)
 		return;
 	ib_set_client_data(ibdev, &smc_ib_client, NULL);

@@ -135,13 +135,10 @@ static bool srpt_set_ch_state(struct srpt_rdma_ch *ch, enum rdma_ch_state new)
 static void srpt_event_handler(struct ib_event_handler *handler,
 			       struct ib_event *event)
 {
-	struct srpt_device *sdev;
+	struct srpt_device *sdev =
+		container_of(handler, struct srpt_device, event_handler);
 	struct srpt_port *sport;
 	u8 port_num;
-
-	sdev = ib_get_client_data(event->device, &srpt_client);
-	if (!sdev || sdev->device != event->device)
-		return;
 
 	pr_debug("ASYNC event= %d on device= %s\n", event->event,
 		 dev_name(&sdev->device->dev));

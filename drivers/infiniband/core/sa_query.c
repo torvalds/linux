@@ -1412,16 +1412,12 @@ void ib_sa_pack_path(struct sa_path_rec *rec, void *attribute)
 EXPORT_SYMBOL(ib_sa_pack_path);
 
 static bool ib_sa_opa_pathrecord_support(struct ib_sa_client *client,
-					 struct ib_device *device,
+					 struct ib_sa_device *sa_dev,
 					 u8 port_num)
 {
-	struct ib_sa_device *sa_dev = ib_get_client_data(device, &sa_client);
 	struct ib_sa_port *port;
 	unsigned long flags;
 	bool ret = false;
-
-	if (!sa_dev)
-		return ret;
 
 	port = &sa_dev->port[port_num - sa_dev->start_port];
 	spin_lock_irqsave(&port->classport_lock, flags);
@@ -1450,8 +1446,8 @@ enum opa_pr_supported {
  * query is possible.
  */
 static int opa_pr_query_possible(struct ib_sa_client *client,
-				 struct ib_device *device,
-				 u8 port_num,
+				 struct ib_sa_device *sa_dev,
+				 struct ib_device *device, u8 port_num,
 				 struct sa_path_rec *rec)
 {
 	struct ib_port_attr port_attr;
@@ -1459,7 +1455,7 @@ static int opa_pr_query_possible(struct ib_sa_client *client,
 	if (ib_query_port(device, port_num, &port_attr))
 		return PR_NOT_SUPPORTED;
 
-	if (ib_sa_opa_pathrecord_support(client, device, port_num))
+	if (ib_sa_opa_pathrecord_support(client, sa_dev, port_num))
 		return PR_OPA_SUPPORTED;
 
 	if (port_attr.lid >= be16_to_cpu(IB_MULTICAST_LID_BASE))
@@ -1574,7 +1570,8 @@ int ib_sa_path_rec_get(struct ib_sa_client *client,
 
 	query->sa_query.port     = port;
 	if (rec->rec_type == SA_PATH_REC_TYPE_OPA) {
-		status = opa_pr_query_possible(client, device, port_num, rec);
+		status = opa_pr_query_possible(client, sa_dev, device, port_num,
+					       rec);
 		if (status == PR_NOT_SUPPORTED) {
 			ret = -EINVAL;
 			goto err1;
