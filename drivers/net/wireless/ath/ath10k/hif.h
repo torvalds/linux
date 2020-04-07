@@ -56,6 +56,8 @@ struct ath10k_hif_ops {
 
 	int (*swap_mailbox)(struct ath10k *ar);
 
+	int (*get_htt_tx_complete)(struct ath10k *ar);
+
 	int (*map_service_to_pipe)(struct ath10k *ar, u16 service_id,
 				   u8 *ul_pipe, u8 *dl_pipe);
 
@@ -141,6 +143,13 @@ static inline int ath10k_hif_swap_mailbox(struct ath10k *ar)
 {
 	if (ar->hif.ops->swap_mailbox)
 		return ar->hif.ops->swap_mailbox(ar);
+	return 0;
+}
+
+static inline int ath10k_hif_get_htt_tx_complete(struct ath10k *ar)
+{
+	if (ar->hif.ops->get_htt_tx_complete)
+		return ar->hif.ops->get_htt_tx_complete(ar);
 	return 0;
 }
 
