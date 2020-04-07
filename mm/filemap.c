@@ -1386,7 +1386,7 @@ EXPORT_SYMBOL_GPL(__lock_page_killable);
 int __lock_page_or_retry(struct page *page, struct mm_struct *mm,
 			 unsigned int flags)
 {
-	if (flags & FAULT_FLAG_ALLOW_RETRY) {
+	if (fault_flag_allow_retry_first(flags)) {
 		/*
 		 * CAUTION! In this case, mmap_sem is not released
 		 * even though return 0.
@@ -1536,7 +1536,6 @@ out:
 
 	return page;
 }
-EXPORT_SYMBOL(find_get_entry);
 
 /**
  * find_lock_entry - locate, pin and lock a page cache entry
@@ -1575,42 +1574,39 @@ repeat:
 EXPORT_SYMBOL(find_lock_entry);
 
 /**
- * pagecache_get_page - find and get a page reference
- * @mapping: the address_space to search
- * @offset: the page index
- * @fgp_flags: PCG flags
- * @gfp_mask: gfp mask to use for the page cache data page allocation
+ * pagecache_get_page - Find and get a reference to a page.
+ * @mapping: The address_space to search.
+ * @index: The page index.
+ * @fgp_flags: %FGP flags modify how the page is returned.
+ * @gfp_mask: Memory allocation flags to use if %FGP_CREAT is specified.
  *
- * Looks up the page cache slot at @mapping & @offset.
+ * Looks up the page cache entry at @mapping & @index.
  *
- * PCG flags modify how the page is returned.
+ * @fgp_flags can be zero or more of these flags:
  *
- * @fgp_flags can be:
+ * * %FGP_ACCESSED - The page will be marked accessed.
+ * * %FGP_LOCK - The page is returned locked.
+ * * %FGP_CREAT - If no page is present then a new page is allocated using
+ *   @gfp_mask and added to the page cache and the VM's LRU list.
+ *   The page is returned locked and with an increased refcount.
+ * * %FGP_FOR_MMAP - The caller wants to do its own locking dance if the
+ *   page is already in cache.  If the page was allocated, unlock it before
+ *   returning so the caller can do the same dance.
  *
- * - FGP_ACCESSED: the page will be marked accessed
- * - FGP_LOCK: Page is return locked
- * - FGP_CREAT: If page is not present then a new page is allocated using
- *   @gfp_mask and added to the page cache and the VM's LRU
- *   list. The page is returned locked and with an increased
- *   refcount.
- * - FGP_FOR_MMAP: Similar to FGP_CREAT, only we want to allow the caller to do
- *   its own locking dance if the page is already in cache, or unlock the page
- *   before returning if we had to add the page to pagecache.
- *
- * If FGP_LOCK or FGP_CREAT are specified then the function may sleep even
- * if the GFP flags specified for FGP_CREAT are atomic.
+ * If %FGP_LOCK or %FGP_CREAT are specified then the function may sleep even
+ * if the %GFP flags specified for %FGP_CREAT are atomic.
  *
  * If there is a page cache page, it is returned with an increased refcount.
  *
- * Return: the found page or %NULL otherwise.
+ * Return: The found page or %NULL otherwise.
  */
-struct page *pagecache_get_page(struct address_space *mapping, pgoff_t offset,
-	int fgp_flags, gfp_t gfp_mask)
+struct page *pagecache_get_page(struct address_space *mapping, pgoff_t index,
+		int fgp_flags, gfp_t gfp_mask)
 {
 	struct page *page;
 
 repeat:
-	page = find_get_entry(mapping, offset);
+	page = find_get_entry(mapping, index);
 	if (xa_is_value(page))
 		page = NULL;
 	if (!page)
@@ -1632,7 +1628,7 @@ repeat:
 			put_page(page);
 			goto repeat;
 		}
-		VM_BUG_ON_PAGE(page->index != offset, page);
+		VM_BUG_ON_PAGE(page->index != index, page);
 	}
 
 	if (fgp_flags & FGP_ACCESSED)
@@ -1657,7 +1653,7 @@ no_page:
 		if (fgp_flags & FGP_ACCESSED)
 			__SetPageReferenced(page);
 
-		err = add_to_page_cache_lru(page, mapping, offset, gfp_mask);
+		err = add_to_page_cache_lru(page, mapping, index, gfp_mask);
 		if (unlikely(err)) {
 			put_page(page);
 			page = NULL;
@@ -1962,8 +1958,7 @@ EXPORT_SYMBOL(find_get_pages_range_tag);
  *
  * It is going insane. Fix it by quickly scaling down the readahead size.
  */
-static void shrink_readahead_size_eio(struct file *filp,
-					struct file_ra_state *ra)
+static void shrink_readahead_size_eio(struct file_ra_state *ra)
 {
 	ra->ra_pages /= 4;
 }
@@ -2188,7 +2183,7 @@ readpage:
 					goto find_page;
 				}
 				unlock_page(page);
-				shrink_readahead_size_eio(filp, ra);
+				shrink_readahead_size_eio(ra);
 				error = -EIO;
 				goto readpage_error;
 			}
@@ -2416,7 +2411,7 @@ static struct file *do_async_mmap_readahead(struct vm_fault *vmf,
 	pgoff_t offset = vmf->pgoff;
 
 	/* If we don't want any read-ahead, don't bother */
-	if (vmf->vma->vm_flags & VM_RAND_READ)
+	if (vmf->vma->vm_flags & VM_RAND_READ || !ra->ra_pages)
 		return fpin;
 	if (ra->mmap_miss > 0)
 		ra->mmap_miss--;
@@ -2491,7 +2486,7 @@ retry_find:
 		if (!page) {
 			if (fpin)
 				goto out_retry;
-			return vmf_error(-ENOMEM);
+			return VM_FAULT_OOM;
 		}
 	}
 
@@ -2560,7 +2555,7 @@ page_not_uptodate:
 		goto retry_find;
 
 	/* Things didn't work out. Return zero to tell the mm layer so. */
-	shrink_readahead_size_eio(file, ra);
+	shrink_readahead_size_eio(ra);
 	return VM_FAULT_SIGBUS;
 
 out_retry:
@@ -2823,6 +2818,14 @@ filler:
 		unlock_page(page);
 		goto out;
 	}
+
+	/*
+	 * A previous I/O error may have been due to temporary
+	 * failures.
+	 * Clear page error before actual read, PG_error will be
+	 * set again if read page fails.
+	 */
+	ClearPageError(page);
 	goto filler;
 
 out:

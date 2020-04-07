@@ -47,8 +47,7 @@ xlog_dealloc_log(
 
 /* local state machine functions */
 STATIC void xlog_state_done_syncing(
-	struct xlog_in_core	*iclog,
-	bool			aborted);
+	struct xlog_in_core	*iclog);
 STATIC int
 xlog_state_get_iclog_space(
 	struct xlog		*log,
@@ -62,11 +61,6 @@ xlog_state_switch_iclogs(
 	struct xlog		*log,
 	struct xlog_in_core	*iclog,
 	int			eventual_size);
-STATIC void
-xlog_state_want_sync(
-	struct xlog		*log,
-	struct xlog_in_core	*iclog);
-
 STATIC void
 xlog_grant_push_ail(
 	struct xlog		*log,
@@ -597,26 +591,21 @@ xlog_state_release_iclog(
 	return 0;
 }
 
-int
+void
 xfs_log_release_iclog(
-	struct xfs_mount        *mp,
 	struct xlog_in_core	*iclog)
 {
-	struct xlog		*log = mp->m_log;
-	bool			sync;
-
-	if (iclog->ic_state == XLOG_STATE_IOERROR) {
-		xfs_force_shutdown(mp, SHUTDOWN_LOG_IO_ERROR);
-		return -EIO;
-	}
+	struct xlog		*log = iclog->ic_log;
+	bool			sync = false;
 
 	if (atomic_dec_and_lock(&iclog->ic_refcnt, &log->l_icloglock)) {
-		sync = __xlog_state_release_iclog(log, iclog);
+		if (iclog->ic_state != XLOG_STATE_IOERROR)
+			sync = __xlog_state_release_iclog(log, iclog);
 		spin_unlock(&log->l_icloglock);
-		if (sync)
-			xlog_sync(log, iclog);
 	}
-	return 0;
+
+	if (sync)
+		xlog_sync(log, iclog);
 }
 
 /*
@@ -855,6 +844,31 @@ xfs_log_mount_cancel(
 }
 
 /*
+ * Wait for the iclog to be written disk, or return an error if the log has been
+ * shut down.
+ */
+static int
+xlog_wait_on_iclog(
+	struct xlog_in_core	*iclog)
+		__releases(iclog->ic_log->l_icloglock)
+{
+	struct xlog		*log = iclog->ic_log;
+
+	if (!XLOG_FORCED_SHUTDOWN(log) &&
+	    iclog->ic_state != XLOG_STATE_ACTIVE &&
+	    iclog->ic_state != XLOG_STATE_DIRTY) {
+		XFS_STATS_INC(log->l_mp, xs_log_force_sleep);
+		xlog_wait(&iclog->ic_force_wait, &log->l_icloglock);
+	} else {
+		spin_unlock(&log->l_icloglock);
+	}
+
+	if (XLOG_FORCED_SHUTDOWN(log))
+		return -EIO;
+	return 0;
+}
+
+/*
  * Final log writes as part of unmount.
  *
  * Mark the filesystem clean as unmount happens.  Note that during relocation
@@ -919,26 +933,31 @@ out_err:
 	spin_lock(&log->l_icloglock);
 	iclog = log->l_iclog;
 	atomic_inc(&iclog->ic_refcnt);
-	xlog_state_want_sync(log, iclog);
+	if (iclog->ic_state == XLOG_STATE_ACTIVE)
+		xlog_state_switch_iclogs(log, iclog, 0);
+	else
+		ASSERT(iclog->ic_state == XLOG_STATE_WANT_SYNC ||
+		       iclog->ic_state == XLOG_STATE_IOERROR);
 	error = xlog_state_release_iclog(log, iclog);
-	switch (iclog->ic_state) {
-	default:
-		if (!XLOG_FORCED_SHUTDOWN(log)) {
-			xlog_wait(&iclog->ic_force_wait, &log->l_icloglock);
-			break;
-		}
-		/* fall through */
-	case XLOG_STATE_ACTIVE:
-	case XLOG_STATE_DIRTY:
-		spin_unlock(&log->l_icloglock);
-		break;
-	}
+	xlog_wait_on_iclog(iclog);
 
 	if (tic) {
 		trace_xfs_log_umount_write(log, tic);
 		xlog_ungrant_log_space(log, tic);
 		xfs_log_ticket_put(tic);
 	}
+}
+
+static void
+xfs_log_unmount_verify_iclog(
+	struct xlog		*log)
+{
+	struct xlog_in_core	*iclog = log->l_iclog;
+
+	do {
+		ASSERT(iclog->ic_state == XLOG_STATE_ACTIVE);
+		ASSERT(iclog->ic_offset == 0);
+	} while ((iclog = iclog->ic_next) != log->l_iclog);
 }
 
 /*
@@ -948,16 +967,11 @@ out_err:
  * currently architecture converted and "Unmount" is a bit foo.
  * As far as I know, there weren't any dependencies on the old behaviour.
  */
-
-static int
-xfs_log_unmount_write(xfs_mount_t *mp)
+static void
+xfs_log_unmount_write(
+	struct xfs_mount	*mp)
 {
-	struct xlog	 *log = mp->m_log;
-	xlog_in_core_t	 *iclog;
-#ifdef DEBUG
-	xlog_in_core_t	 *first_iclog;
-#endif
-	int		 error;
+	struct xlog		*log = mp->m_log;
 
 	/*
 	 * Don't write out unmount record on norecovery mounts or ro devices.
@@ -966,57 +980,16 @@ xfs_log_unmount_write(xfs_mount_t *mp)
 	if (mp->m_flags & XFS_MOUNT_NORECOVERY ||
 	    xfs_readonly_buftarg(log->l_targ)) {
 		ASSERT(mp->m_flags & XFS_MOUNT_RDONLY);
-		return 0;
+		return;
 	}
 
-	error = xfs_log_force(mp, XFS_LOG_SYNC);
-	ASSERT(error || !(XLOG_FORCED_SHUTDOWN(log)));
+	xfs_log_force(mp, XFS_LOG_SYNC);
 
-#ifdef DEBUG
-	first_iclog = iclog = log->l_iclog;
-	do {
-		if (iclog->ic_state != XLOG_STATE_IOERROR) {
-			ASSERT(iclog->ic_state == XLOG_STATE_ACTIVE);
-			ASSERT(iclog->ic_offset == 0);
-		}
-		iclog = iclog->ic_next;
-	} while (iclog != first_iclog);
-#endif
-	if (! (XLOG_FORCED_SHUTDOWN(log))) {
-		xfs_log_write_unmount_record(mp);
-	} else {
-		/*
-		 * We're already in forced_shutdown mode, couldn't
-		 * even attempt to write out the unmount transaction.
-		 *
-		 * Go through the motions of sync'ing and releasing
-		 * the iclog, even though no I/O will actually happen,
-		 * we need to wait for other log I/Os that may already
-		 * be in progress.  Do this as a separate section of
-		 * code so we'll know if we ever get stuck here that
-		 * we're in this odd situation of trying to unmount
-		 * a file system that went into forced_shutdown as
-		 * the result of an unmount..
-		 */
-		spin_lock(&log->l_icloglock);
-		iclog = log->l_iclog;
-		atomic_inc(&iclog->ic_refcnt);
-		xlog_state_want_sync(log, iclog);
-		error =  xlog_state_release_iclog(log, iclog);
-		switch (iclog->ic_state) {
-		case XLOG_STATE_ACTIVE:
-		case XLOG_STATE_DIRTY:
-		case XLOG_STATE_IOERROR:
-			spin_unlock(&log->l_icloglock);
-			break;
-		default:
-			xlog_wait(&iclog->ic_force_wait, &log->l_icloglock);
-			break;
-		}
-	}
-
-	return error;
-}	/* xfs_log_unmount_write */
+	if (XLOG_FORCED_SHUTDOWN(log))
+		return;
+	xfs_log_unmount_verify_iclog(log);
+	xfs_log_write_unmount_record(mp);
+}
 
 /*
  * Empty the log for unmount/freeze.
@@ -1279,7 +1252,6 @@ xlog_ioend_work(
 	struct xlog_in_core     *iclog =
 		container_of(work, struct xlog_in_core, ic_end_io_work);
 	struct xlog		*log = iclog->ic_log;
-	bool			aborted = false;
 	int			error;
 
 	error = blk_status_to_errno(iclog->ic_bio.bi_status);
@@ -1295,17 +1267,9 @@ xlog_ioend_work(
 	if (XFS_TEST_ERROR(error, log->l_mp, XFS_ERRTAG_IODONE_IOERR)) {
 		xfs_alert(log->l_mp, "log I/O error %d", error);
 		xfs_force_shutdown(log->l_mp, SHUTDOWN_LOG_IO_ERROR);
-		/*
-		 * This flag will be propagated to the trans-committed
-		 * callback routines to let them know that the log-commit
-		 * didn't succeed.
-		 */
-		aborted = true;
-	} else if (iclog->ic_state == XLOG_STATE_IOERROR) {
-		aborted = true;
 	}
 
-	xlog_state_done_syncing(iclog, aborted);
+	xlog_state_done_syncing(iclog);
 	bio_uninit(&iclog->ic_bio);
 
 	/*
@@ -1739,7 +1703,7 @@ xlog_bio_end_io(
 		   &iclog->ic_end_io_work);
 }
 
-static void
+static int
 xlog_map_iclog_data(
 	struct bio		*bio,
 	void			*data,
@@ -1750,11 +1714,14 @@ xlog_map_iclog_data(
 		unsigned int	off = offset_in_page(data);
 		size_t		len = min_t(size_t, count, PAGE_SIZE - off);
 
-		WARN_ON_ONCE(bio_add_page(bio, page, len, off) != len);
+		if (bio_add_page(bio, page, len, off) != len)
+			return -EIO;
 
 		data += len;
 		count -= len;
 	} while (count);
+
+	return 0;
 }
 
 STATIC void
@@ -1784,7 +1751,7 @@ xlog_write_iclog(
 		 * the buffer manually, the code needs to be kept in sync
 		 * with the I/O completion path.
 		 */
-		xlog_state_done_syncing(iclog, true);
+		xlog_state_done_syncing(iclog);
 		up(&iclog->ic_sema);
 		return;
 	}
@@ -1798,7 +1765,10 @@ xlog_write_iclog(
 	if (need_flush)
 		iclog->ic_bio.bi_opf |= REQ_PREFLUSH;
 
-	xlog_map_iclog_data(&iclog->ic_bio, iclog->ic_data, count);
+	if (xlog_map_iclog_data(&iclog->ic_bio, iclog->ic_data, count)) {
+		xfs_force_shutdown(log->l_mp, SHUTDOWN_LOG_IO_ERROR);
+		return;
+	}
 	if (is_vmalloc_addr(iclog->ic_data))
 		flush_kernel_vmap_range(iclog->ic_data, count);
 
@@ -2328,7 +2298,11 @@ xlog_write_copy_finish(
 		*record_cnt = 0;
 		*data_cnt = 0;
 
-		xlog_state_want_sync(log, iclog);
+		if (iclog->ic_state == XLOG_STATE_ACTIVE)
+			xlog_state_switch_iclogs(log, iclog, 0);
+		else
+			ASSERT(iclog->ic_state == XLOG_STATE_WANT_SYNC ||
+			       iclog->ic_state == XLOG_STATE_IOERROR);
 		if (!commit_iclog)
 			goto release_iclog;
 		spin_unlock(&log->l_icloglock);
@@ -2575,111 +2549,106 @@ next_lv:
  *****************************************************************************
  */
 
+static void
+xlog_state_activate_iclog(
+	struct xlog_in_core	*iclog,
+	int			*iclogs_changed)
+{
+	ASSERT(list_empty_careful(&iclog->ic_callbacks));
+
+	/*
+	 * If the number of ops in this iclog indicate it just contains the
+	 * dummy transaction, we can change state into IDLE (the second time
+	 * around). Otherwise we should change the state into NEED a dummy.
+	 * We don't need to cover the dummy.
+	 */
+	if (*iclogs_changed == 0 &&
+	    iclog->ic_header.h_num_logops == cpu_to_be32(XLOG_COVER_OPS)) {
+		*iclogs_changed = 1;
+	} else {
+		/*
+		 * We have two dirty iclogs so start over.  This could also be
+		 * num of ops indicating this is not the dummy going out.
+		 */
+		*iclogs_changed = 2;
+	}
+
+	iclog->ic_state	= XLOG_STATE_ACTIVE;
+	iclog->ic_offset = 0;
+	iclog->ic_header.h_num_logops = 0;
+	memset(iclog->ic_header.h_cycle_data, 0,
+		sizeof(iclog->ic_header.h_cycle_data));
+	iclog->ic_header.h_lsn = 0;
+}
+
 /*
- * An iclog has just finished IO completion processing, so we need to update
- * the iclog state and propagate that up into the overall log state. Hence we
- * prepare the iclog for cleaning, and then clean all the pending dirty iclogs
- * starting from the head, and then wake up any threads that are waiting for the
- * iclog to be marked clean.
- *
- * The ordering of marking iclogs ACTIVE must be maintained, so an iclog
- * doesn't become ACTIVE beyond one that is SYNCING.  This is also required to
- * maintain the notion that we use a ordered wait queue to hold off would be
- * writers to the log when every iclog is trying to sync to disk.
- *
- * Caller must hold the icloglock before calling us.
- *
- * State Change: !IOERROR -> DIRTY -> ACTIVE
+ * Loop through all iclogs and mark all iclogs currently marked DIRTY as
+ * ACTIVE after iclog I/O has completed.
  */
+static void
+xlog_state_activate_iclogs(
+	struct xlog		*log,
+	int			*iclogs_changed)
+{
+	struct xlog_in_core	*iclog = log->l_iclog;
+
+	do {
+		if (iclog->ic_state == XLOG_STATE_DIRTY)
+			xlog_state_activate_iclog(iclog, iclogs_changed);
+		/*
+		 * The ordering of marking iclogs ACTIVE must be maintained, so
+		 * an iclog doesn't become ACTIVE beyond one that is SYNCING.
+		 */
+		else if (iclog->ic_state != XLOG_STATE_ACTIVE)
+			break;
+	} while ((iclog = iclog->ic_next) != log->l_iclog);
+}
+
+static int
+xlog_covered_state(
+	int			prev_state,
+	int			iclogs_changed)
+{
+	/*
+	 * We usually go to NEED. But we go to NEED2 if the changed indicates we
+	 * are done writing the dummy record.  If we are done with the second
+	 * dummy recored (DONE2), then we go to IDLE.
+	 */
+	switch (prev_state) {
+	case XLOG_STATE_COVER_IDLE:
+	case XLOG_STATE_COVER_NEED:
+	case XLOG_STATE_COVER_NEED2:
+		break;
+	case XLOG_STATE_COVER_DONE:
+		if (iclogs_changed == 1)
+			return XLOG_STATE_COVER_NEED2;
+		break;
+	case XLOG_STATE_COVER_DONE2:
+		if (iclogs_changed == 1)
+			return XLOG_STATE_COVER_IDLE;
+		break;
+	default:
+		ASSERT(0);
+	}
+
+	return XLOG_STATE_COVER_NEED;
+}
+
 STATIC void
 xlog_state_clean_iclog(
 	struct xlog		*log,
 	struct xlog_in_core	*dirty_iclog)
 {
-	struct xlog_in_core	*iclog;
-	int			changed = 0;
+	int			iclogs_changed = 0;
 
-	/* Prepare the completed iclog. */
-	if (dirty_iclog->ic_state != XLOG_STATE_IOERROR)
-		dirty_iclog->ic_state = XLOG_STATE_DIRTY;
+	dirty_iclog->ic_state = XLOG_STATE_DIRTY;
 
-	/* Walk all the iclogs to update the ordered active state. */
-	iclog = log->l_iclog;
-	do {
-		if (iclog->ic_state == XLOG_STATE_DIRTY) {
-			iclog->ic_state	= XLOG_STATE_ACTIVE;
-			iclog->ic_offset       = 0;
-			ASSERT(list_empty_careful(&iclog->ic_callbacks));
-			/*
-			 * If the number of ops in this iclog indicate it just
-			 * contains the dummy transaction, we can
-			 * change state into IDLE (the second time around).
-			 * Otherwise we should change the state into
-			 * NEED a dummy.
-			 * We don't need to cover the dummy.
-			 */
-			if (!changed &&
-			   (be32_to_cpu(iclog->ic_header.h_num_logops) ==
-			   		XLOG_COVER_OPS)) {
-				changed = 1;
-			} else {
-				/*
-				 * We have two dirty iclogs so start over
-				 * This could also be num of ops indicates
-				 * this is not the dummy going out.
-				 */
-				changed = 2;
-			}
-			iclog->ic_header.h_num_logops = 0;
-			memset(iclog->ic_header.h_cycle_data, 0,
-			      sizeof(iclog->ic_header.h_cycle_data));
-			iclog->ic_header.h_lsn = 0;
-		} else if (iclog->ic_state == XLOG_STATE_ACTIVE)
-			/* do nothing */;
-		else
-			break;	/* stop cleaning */
-		iclog = iclog->ic_next;
-	} while (iclog != log->l_iclog);
-
-
-	/*
-	 * Wake up threads waiting in xfs_log_force() for the dirty iclog
-	 * to be cleaned.
-	 */
+	xlog_state_activate_iclogs(log, &iclogs_changed);
 	wake_up_all(&dirty_iclog->ic_force_wait);
 
-	/*
-	 * Change state for the dummy log recording.
-	 * We usually go to NEED. But we go to NEED2 if the changed indicates
-	 * we are done writing the dummy record.
-	 * If we are done with the second dummy recored (DONE2), then
-	 * we go to IDLE.
-	 */
-	if (changed) {
-		switch (log->l_covered_state) {
-		case XLOG_STATE_COVER_IDLE:
-		case XLOG_STATE_COVER_NEED:
-		case XLOG_STATE_COVER_NEED2:
-			log->l_covered_state = XLOG_STATE_COVER_NEED;
-			break;
-
-		case XLOG_STATE_COVER_DONE:
-			if (changed == 1)
-				log->l_covered_state = XLOG_STATE_COVER_NEED2;
-			else
-				log->l_covered_state = XLOG_STATE_COVER_NEED;
-			break;
-
-		case XLOG_STATE_COVER_DONE2:
-			if (changed == 1)
-				log->l_covered_state = XLOG_STATE_COVER_IDLE;
-			else
-				log->l_covered_state = XLOG_STATE_COVER_NEED;
-			break;
-
-		default:
-			ASSERT(0);
-		}
+	if (iclogs_changed) {
+		log->l_covered_state = xlog_covered_state(log->l_covered_state,
+				iclogs_changed);
 	}
 }
 
@@ -2808,8 +2777,7 @@ xlog_state_iodone_process_iclog(
 static void
 xlog_state_do_iclog_callbacks(
 	struct xlog		*log,
-	struct xlog_in_core	*iclog,
-	bool			aborted)
+	struct xlog_in_core	*iclog)
 		__releases(&log->l_icloglock)
 		__acquires(&log->l_icloglock)
 {
@@ -2821,7 +2789,7 @@ xlog_state_do_iclog_callbacks(
 		list_splice_init(&iclog->ic_callbacks, &tmp);
 
 		spin_unlock(&iclog->ic_callback_lock);
-		xlog_cil_process_committed(&tmp, aborted);
+		xlog_cil_process_committed(&tmp);
 		spin_lock(&iclog->ic_callback_lock);
 	}
 
@@ -2836,8 +2804,7 @@ xlog_state_do_iclog_callbacks(
 
 STATIC void
 xlog_state_do_callback(
-	struct xlog		*log,
-	bool			aborted)
+	struct xlog		*log)
 {
 	struct xlog_in_core	*iclog;
 	struct xlog_in_core	*first_iclog;
@@ -2878,9 +2845,11 @@ xlog_state_do_callback(
 			 * we'll have to run at least one more complete loop.
 			 */
 			cycled_icloglock = true;
-			xlog_state_do_iclog_callbacks(log, iclog, aborted);
-
-			xlog_state_clean_iclog(log, iclog);
+			xlog_state_do_iclog_callbacks(log, iclog);
+			if (XLOG_FORCED_SHUTDOWN(log))
+				wake_up_all(&iclog->ic_force_wait);
+			else
+				xlog_state_clean_iclog(log, iclog);
 			iclog = iclog->ic_next;
 		} while (first_iclog != iclog);
 
@@ -2916,25 +2885,22 @@ xlog_state_do_callback(
  */
 STATIC void
 xlog_state_done_syncing(
-	struct xlog_in_core	*iclog,
-	bool			aborted)
+	struct xlog_in_core	*iclog)
 {
 	struct xlog		*log = iclog->ic_log;
 
 	spin_lock(&log->l_icloglock);
-
 	ASSERT(atomic_read(&iclog->ic_refcnt) == 0);
 
 	/*
 	 * If we got an error, either on the first buffer, or in the case of
-	 * split log writes, on the second, we mark ALL iclogs STATE_IOERROR,
-	 * and none should ever be attempted to be written to disk
-	 * again.
+	 * split log writes, on the second, we shut down the file system and
+	 * no iclogs should ever be attempted to be written to disk again.
 	 */
-	if (iclog->ic_state == XLOG_STATE_SYNCING)
+	if (!XLOG_FORCED_SHUTDOWN(log)) {
+		ASSERT(iclog->ic_state == XLOG_STATE_SYNCING);
 		iclog->ic_state = XLOG_STATE_DONE_SYNC;
-	else
-		ASSERT(iclog->ic_state == XLOG_STATE_IOERROR);
+	}
 
 	/*
 	 * Someone could be sleeping prior to writing out the next
@@ -2943,9 +2909,8 @@ xlog_state_done_syncing(
 	 */
 	wake_up_all(&iclog->ic_write_wait);
 	spin_unlock(&log->l_icloglock);
-	xlog_state_do_callback(log, aborted);	/* also cleans log */
-}	/* xlog_state_done_syncing */
-
+	xlog_state_do_callback(log);	/* also cleans log */
+}
 
 /*
  * If the head of the in-core log ring is not (ACTIVE or DIRTY), then we must
@@ -3152,11 +3117,12 @@ xlog_ungrant_log_space(
 }
 
 /*
- * This routine will mark the current iclog in the ring as WANT_SYNC
- * and move the current iclog pointer to the next iclog in the ring.
- * When this routine is called from xlog_state_get_iclog_space(), the
- * exact size of the iclog has not yet been determined.  All we know is
- * that every data block.  We have run out of space in this log record.
+ * Mark the current iclog in the ring as WANT_SYNC and move the current iclog
+ * pointer to the next iclog in the ring.
+ *
+ * When called from xlog_state_get_iclog_space(), the exact size of the iclog
+ * has not yet been determined, all we know is that we have run out of space in
+ * the current iclog.
  */
 STATIC void
 xlog_state_switch_iclogs(
@@ -3165,6 +3131,8 @@ xlog_state_switch_iclogs(
 	int			eventual_size)
 {
 	ASSERT(iclog->ic_state == XLOG_STATE_ACTIVE);
+	assert_spin_locked(&log->l_icloglock);
+
 	if (!eventual_size)
 		eventual_size = iclog->ic_offset;
 	iclog->ic_state = XLOG_STATE_WANT_SYNC;
@@ -3259,9 +3227,6 @@ xfs_log_force(
 		 * previous iclog and go to sleep.
 		 */
 		iclog = iclog->ic_prev;
-		if (iclog->ic_state == XLOG_STATE_ACTIVE ||
-		    iclog->ic_state == XLOG_STATE_DIRTY)
-			goto out_unlock;
 	} else if (iclog->ic_state == XLOG_STATE_ACTIVE) {
 		if (atomic_read(&iclog->ic_refcnt) == 0) {
 			/*
@@ -3277,8 +3242,7 @@ xfs_log_force(
 			if (xlog_state_release_iclog(log, iclog))
 				goto out_error;
 
-			if (be64_to_cpu(iclog->ic_header.h_lsn) != lsn ||
-			    iclog->ic_state == XLOG_STATE_DIRTY)
+			if (be64_to_cpu(iclog->ic_header.h_lsn) != lsn)
 				goto out_unlock;
 		} else {
 			/*
@@ -3298,17 +3262,8 @@ xfs_log_force(
 		;
 	}
 
-	if (!(flags & XFS_LOG_SYNC))
-		goto out_unlock;
-
-	if (iclog->ic_state == XLOG_STATE_IOERROR)
-		goto out_error;
-	XFS_STATS_INC(mp, xs_log_force_sleep);
-	xlog_wait(&iclog->ic_force_wait, &log->l_icloglock);
-	if (iclog->ic_state == XLOG_STATE_IOERROR)
-		return -EIO;
-	return 0;
-
+	if (flags & XFS_LOG_SYNC)
+		return xlog_wait_on_iclog(iclog);
 out_unlock:
 	spin_unlock(&log->l_icloglock);
 	return 0;
@@ -3338,9 +3293,6 @@ __xfs_log_force_lsn(
 		if (iclog == log->l_iclog)
 			goto out_unlock;
 	}
-
-	if (iclog->ic_state == XLOG_STATE_DIRTY)
-		goto out_unlock;
 
 	if (iclog->ic_state == XLOG_STATE_ACTIVE) {
 		/*
@@ -3375,20 +3327,8 @@ __xfs_log_force_lsn(
 			*log_flushed = 1;
 	}
 
-	if (!(flags & XFS_LOG_SYNC) ||
-	    (iclog->ic_state == XLOG_STATE_ACTIVE ||
-	     iclog->ic_state == XLOG_STATE_DIRTY))
-		goto out_unlock;
-
-	if (iclog->ic_state == XLOG_STATE_IOERROR)
-		goto out_error;
-
-	XFS_STATS_INC(mp, xs_log_force_sleep);
-	xlog_wait(&iclog->ic_force_wait, &log->l_icloglock);
-	if (iclog->ic_state == XLOG_STATE_IOERROR)
-		return -EIO;
-	return 0;
-
+	if (flags & XFS_LOG_SYNC)
+		return xlog_wait_on_iclog(iclog);
 out_unlock:
 	spin_unlock(&log->l_icloglock);
 	return 0;
@@ -3433,26 +3373,6 @@ xfs_log_force_lsn(
 		ret = __xfs_log_force_lsn(mp, lsn, flags, log_flushed, true);
 	return ret;
 }
-
-/*
- * Called when we want to mark the current iclog as being ready to sync to
- * disk.
- */
-STATIC void
-xlog_state_want_sync(
-	struct xlog		*log,
-	struct xlog_in_core	*iclog)
-{
-	assert_spin_locked(&log->l_icloglock);
-
-	if (iclog->ic_state == XLOG_STATE_ACTIVE) {
-		xlog_state_switch_iclogs(log, iclog, 0);
-	} else {
-		ASSERT(iclog->ic_state == XLOG_STATE_WANT_SYNC ||
-		       iclog->ic_state == XLOG_STATE_IOERROR);
-	}
-}
-
 
 /*****************************************************************************
  *
@@ -3937,7 +3857,7 @@ xfs_log_force_umount(
 	spin_lock(&log->l_cilp->xc_push_lock);
 	wake_up_all(&log->l_cilp->xc_commit_wait);
 	spin_unlock(&log->l_cilp->xc_push_lock);
-	xlog_state_do_callback(log, true);
+	xlog_state_do_callback(log);
 
 	/* return non-zero if log IOERROR transition had already happened */
 	return retval;

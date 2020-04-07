@@ -53,9 +53,10 @@ struct sof_ipc_comp {
 	uint32_t id;
 	enum sof_comp_type type;
 	uint32_t pipeline_id;
+	uint32_t core;
 
 	/* reserved for future use */
-	uint32_t reserved[2];
+	uint32_t reserved[1];
 } __packed;
 
 /*

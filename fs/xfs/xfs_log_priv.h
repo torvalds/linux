@@ -402,7 +402,8 @@ struct xlog {
 #define XLOG_BUF_CANCEL_BUCKET(log, blkno) \
 	((log)->l_buf_cancel_table + ((uint64_t)blkno % XLOG_BC_TABLE_SIZE))
 
-#define XLOG_FORCED_SHUTDOWN(log)	((log)->l_flags & XLOG_IO_ERROR)
+#define XLOG_FORCED_SHUTDOWN(log) \
+	(unlikely((log)->l_flags & XLOG_IO_ERROR))
 
 /* common routines */
 extern int
@@ -523,12 +524,6 @@ xlog_cil_force(struct xlog *log)
 {
 	xlog_cil_force_lsn(log, log->l_cilp->xc_current_sequence);
 }
-
-/*
- * Unmount record type is used as a pseudo transaction type for the ticket.
- * It's value must be outside the range of XFS_TRANS_* values.
- */
-#define XLOG_UNMOUNT_REC_TYPE	(-1U)
 
 /*
  * Wrapper function for waiting on a wait queue serialised against wakeups

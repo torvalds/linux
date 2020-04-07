@@ -306,6 +306,11 @@ xfs_trans_alloc(
  *
  * Note the zero-length reservation; this transaction MUST be cancelled
  * without any dirty data.
+ *
+ * Callers should obtain freeze protection to avoid two conflicts with fs
+ * freezing: (1) having active transactions trip the m_active_trans ASSERTs;
+ * and (2) grabbing buffers at the same time that freeze is trying to drain
+ * the buffer LRU list.
  */
 int
 xfs_trans_alloc_empty(
@@ -450,7 +455,7 @@ xfs_trans_apply_sb_deltas(
 	int		whole = 0;
 
 	bp = xfs_trans_getsb(tp, tp->t_mountp);
-	sbp = XFS_BUF_TO_SBP(bp);
+	sbp = bp->b_addr;
 
 	/*
 	 * Check that superblock mods match the mods made to AGF counters.

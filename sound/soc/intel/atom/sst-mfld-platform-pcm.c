@@ -649,7 +649,7 @@ static snd_pcm_uframes_t sst_soc_pointer(struct snd_soc_component *component,
 static int sst_soc_pcm_new(struct snd_soc_component *component,
 			   struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_dai *dai = rtd->cpu_dai;
+	struct snd_soc_dai *dai = asoc_rtd_to_cpu(rtd, 0);
 	struct snd_pcm *pcm = rtd->pcm;
 
 	if (dai->driver->playback.channels_min ||
@@ -741,7 +741,7 @@ static int sst_soc_prepare(struct device *dev)
 
 	/* set the SSPs to idle */
 	for_each_card_rtds(drv->soc_card, rtd) {
-		struct snd_soc_dai *dai = rtd->cpu_dai;
+		struct snd_soc_dai *dai = asoc_rtd_to_cpu(rtd, 0);
 
 		if (dai->active) {
 			send_ssp_cmd(dai, dai->name, 0);
@@ -762,7 +762,7 @@ static void sst_soc_complete(struct device *dev)
 
 	/* restart SSPs */
 	for_each_card_rtds(drv->soc_card, rtd) {
-		struct snd_soc_dai *dai = rtd->cpu_dai;
+		struct snd_soc_dai *dai = asoc_rtd_to_cpu(rtd, 0);
 
 		if (dai->active) {
 			sst_handle_vb_timer(dai, true);

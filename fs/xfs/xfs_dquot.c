@@ -829,9 +829,9 @@ xfs_qm_id_for_quotatype(
 {
 	switch (type) {
 	case XFS_DQ_USER:
-		return ip->i_d.di_uid;
+		return i_uid_read(VFS_I(ip));
 	case XFS_DQ_GROUP:
-		return ip->i_d.di_gid;
+		return i_gid_read(VFS_I(ip));
 	case XFS_DQ_PROJ:
 		return ip->i_d.di_projid;
 	}
