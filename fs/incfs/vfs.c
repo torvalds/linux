@@ -858,7 +858,7 @@ static struct mem_range incfs_copy_signature_info_from_user(u8 __user *original,
 	if (size > INCFS_MAX_SIGNATURE_SIZE)
 		return range(ERR_PTR(-EFAULT), 0);
 
-	result = kzalloc(size, GFP_NOFS);
+	result = kzalloc(size, GFP_NOFS | __GFP_COMP);
 	if (!result)
 		return range(ERR_PTR(-ENOMEM), 0);
 
@@ -1296,7 +1296,8 @@ static long ioctl_fill_blocks(struct file *f, void __user *arg)
 		return -EFAULT;
 
 	usr_fill_block_array = u64_to_user_ptr(fill_blocks.fill_blocks);
-	data_buf = (u8 *)__get_free_pages(GFP_NOFS, get_order(data_buf_size));
+	data_buf = (u8 *)__get_free_pages(GFP_NOFS | __GFP_COMP,
+					  get_order(data_buf_size));
 	if (!data_buf)
 		return -ENOMEM;
 
@@ -1411,7 +1412,7 @@ static long ioctl_read_file_signature(struct file *f, void __user *arg)
 	if (sig_buf_size > INCFS_MAX_SIGNATURE_SIZE)
 		return -E2BIG;
 
-	sig_buffer = kzalloc(sig_buf_size, GFP_NOFS);
+	sig_buffer = kzalloc(sig_buf_size, GFP_NOFS | __GFP_COMP);
 	if (!sig_buffer)
 		return -ENOMEM;
 
