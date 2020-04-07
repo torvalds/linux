@@ -1317,7 +1317,7 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
 			list_add_tail(&page->lru, &source);
 			if (!__PageMovable(page))
 				inc_node_page_state(page, NR_ISOLATED_ANON +
-						    page_is_file_cache(page));
+						    page_is_file_lru(page));
 
 		} else {
 			pr_warn("failed to isolate pfn %lx\n", pfn);

@@ -1677,7 +1677,7 @@ check_again:
 					list_add_tail(&head->lru, &cma_page_list);
 					mod_node_page_state(page_pgdat(head),
 							    NR_ISOLATED_ANON +
-							    page_is_file_cache(head),
+							    page_is_file_lru(head),
 							    hpage_nr_pages(head));
 				}
 			}

@@ -323,7 +323,7 @@ TRACE_EVENT(mm_vmscan_writepage,
 	TP_fast_assign(
 		__entry->pfn = page_to_pfn(page);
 		__entry->reclaim_flags = trace_reclaim_flags(
-						page_is_file_cache(page));
+						page_is_file_lru(page));
 	),
 
 	TP_printk("page=%p pfn=%lu flags=%s",

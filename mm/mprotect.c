@@ -98,7 +98,7 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 				 * it cannot move them all from MIGRATE_ASYNC
 				 * context.
 				 */
-				if (page_is_file_cache(page) && PageDirty(page))
+				if (page_is_file_lru(page) && PageDirty(page))
 					continue;
 
 				/*
