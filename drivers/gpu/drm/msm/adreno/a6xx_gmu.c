@@ -938,7 +938,6 @@ static struct a6xx_gmu_bo *a6xx_gmu_memory_alloc(struct a6xx_gmu *gmu,
 		return ERR_PTR(-ENOMEM);
 
 	bo->size = PAGE_ALIGN(size);
-	bo->attrs = DMA_ATTR_WRITE_COMBINE;
 
 	bo->virt = dma_alloc_wc(gmu->dev, bo->size, &bo->iova, GFP_KERNEL);
 
