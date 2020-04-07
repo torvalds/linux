@@ -888,50 +888,38 @@ struct mcp23s08_driver_data {
 static int mcp23s08_spi_regmap_init(struct mcp23s08 *mcp, struct device *dev,
 				    unsigned int addr, unsigned int type)
 {
-	struct regmap_config *one_regmap_config = NULL;
+	const struct regmap_config *config;
+	struct regmap_config *copy;
+	const char *name;
 
 	switch (type) {
 	case MCP_TYPE_S08:
-	case MCP_TYPE_S17:
-		switch (type) {
-		case MCP_TYPE_S08:
-			one_regmap_config =
-				devm_kmemdup(dev, &mcp23x08_regmap,
-					sizeof(struct regmap_config), GFP_KERNEL);
-			mcp->reg_shift = 0;
-			mcp->chip.ngpio = 8;
-			mcp->chip.label = devm_kasprintf(dev, GFP_KERNEL,
-					"mcp23s08.%d", addr);
-			break;
-		case MCP_TYPE_S17:
-			one_regmap_config =
-				devm_kmemdup(dev, &mcp23x17_regmap,
-					sizeof(struct regmap_config), GFP_KERNEL);
-			mcp->reg_shift = 1;
-			mcp->chip.ngpio = 16;
-			mcp->chip.label = devm_kasprintf(dev, GFP_KERNEL,
-					"mcp23s17.%d", addr);
-			break;
-		}
-		if (!one_regmap_config)
-			return -ENOMEM;
+		mcp->reg_shift = 0;
+		mcp->chip.ngpio = 8;
+		mcp->chip.label = devm_kasprintf(dev, GFP_KERNEL, "mcp23s08.%d",
+						 addr);
 
-		one_regmap_config->name = devm_kasprintf(dev, GFP_KERNEL, "%d", addr);
-		mcp->regmap = devm_regmap_init(dev, &mcp23sxx_spi_regmap, mcp,
-					       one_regmap_config);
+		config = &mcp23x08_regmap;
+		name = devm_kasprintf(dev, GFP_KERNEL, "%d", addr);
+		break;
+
+	case MCP_TYPE_S17:
+		mcp->reg_shift = 1;
+		mcp->chip.ngpio = 16;
+		mcp->chip.label = devm_kasprintf(dev, GFP_KERNEL, "mcp23s17.%d",
+						 addr);
+
+		config = &mcp23x17_regmap;
+		name = devm_kasprintf(dev, GFP_KERNEL, "%d", addr);
 		break;
 
 	case MCP_TYPE_S18:
-		one_regmap_config =
-			devm_kmemdup(dev, &mcp23x17_regmap,
-				sizeof(struct regmap_config), GFP_KERNEL);
-		if (!one_regmap_config)
-			return -ENOMEM;
-		mcp->regmap = devm_regmap_init(dev, &mcp23sxx_spi_regmap, mcp,
-					       one_regmap_config);
 		mcp->reg_shift = 1;
 		mcp->chip.ngpio = 16;
 		mcp->chip.label = "mcp23s18";
+
+		config = &mcp23x17_regmap;
+		name = config->name;
 		break;
 
 	default:
@@ -939,6 +927,13 @@ static int mcp23s08_spi_regmap_init(struct mcp23s08 *mcp, struct device *dev,
 		return -EINVAL;
 	}
 
+	copy = devm_kmemdup(dev, &config, sizeof(config), GFP_KERNEL);
+	if (!copy)
+		return -ENOMEM;
+
+	copy->name = name;
+
+	mcp->regmap = devm_regmap_init(dev, &mcp23sxx_spi_regmap, mcp, copy);
 	if (IS_ERR(mcp->regmap))
 		return PTR_ERR(mcp->regmap);
 
