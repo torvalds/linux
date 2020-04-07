@@ -1214,6 +1214,8 @@ static void gfx_v9_0_check_fw_write_wait(struct amdgpu_device *adev)
 			adev->gfx.mec_fw_write_wait = true;
 		break;
 	default:
+		adev->gfx.me_fw_write_wait = true;
+		adev->gfx.mec_fw_write_wait = true;
 		break;
 	}
 }
