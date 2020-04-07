@@ -466,7 +466,7 @@ static unsigned long *get_map(struct kmem_cache *s, struct page *page)
 	return object_map;
 }
 
-static void put_map(unsigned long *map)
+static void put_map(unsigned long *map) __releases(&object_map_lock)
 {
 	VM_BUG_ON(map != object_map);
 	lockdep_assert_held(&object_map_lock);
