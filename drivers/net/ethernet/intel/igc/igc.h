@@ -26,7 +26,7 @@ void igc_set_ethtool_ops(struct net_device *);
 #define MAX_Q_VECTORS			8
 #define MAX_STD_JUMBO_FRAME_SIZE	9216
 
-#define MAX_ETYPE_FILTER		4
+#define MAX_ETYPE_FILTER		8
 #define IGC_RETA_SIZE			128
 
 struct igc_tx_queue_stats {
