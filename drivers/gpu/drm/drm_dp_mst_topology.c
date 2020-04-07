@@ -4295,6 +4295,7 @@ int drm_dp_atomic_release_vcpi_slots(struct drm_atomic_state *state,
 	if (pos->vcpi) {
 		drm_dp_mst_put_port_malloc(port);
 		pos->vcpi = 0;
+		pos->pbn = 0;
 	}
 
 	return 0;
