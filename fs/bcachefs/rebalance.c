@@ -204,17 +204,21 @@ static int bch2_rebalance_thread(void *arg)
 			prev_run_time;
 
 		if (w.dev_most_full_percent < 20 && throttle > 0) {
-			r->state = REBALANCE_THROTTLED;
 			r->throttled_until_iotime = io_start +
 				div_u64(w.dev_most_full_capacity *
 					(20 - w.dev_most_full_percent),
 					50);
-			r->throttled_until_cputime = start + throttle;
 
-			bch2_kthread_io_clock_wait(clock,
-				r->throttled_until_iotime,
-				throttle);
-			continue;
+			if (atomic_long_read(&clock->now) + clock->max_slop <
+			    r->throttled_until_iotime) {
+				r->throttled_until_cputime = start + throttle;
+				r->state = REBALANCE_THROTTLED;
+
+				bch2_kthread_io_clock_wait(clock,
+					r->throttled_until_iotime,
+					throttle);
+				continue;
+			}
 		}
 
 		/* minimum 1 mb/sec: */
