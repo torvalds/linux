@@ -210,7 +210,7 @@ static int rpl_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 	struct dst_entry *orig_dst = skb_dst(skb);
 	struct dst_entry *dst = NULL;
 	struct rpl_lwt *rlwt;
-	int err = -EINVAL;
+	int err;
 
 	rlwt = rpl_lwt_lwtunnel(orig_dst->lwtstate);
 
