@@ -2366,6 +2366,99 @@ void igc_del_vlan_prio_filter(struct igc_adapter *adapter, int prio)
 		   prio);
 }
 
+static int igc_get_avail_etype_filter_slot(struct igc_adapter *adapter)
+{
+	struct igc_hw *hw = &adapter->hw;
+	int i;
+
+	for (i = 0; i < MAX_ETYPE_FILTER; i++) {
+		u32 etqf = rd32(IGC_ETQF(i));
+
+		if (!(etqf & IGC_ETQF_FILTER_ENABLE))
+			return i;
+	}
+
+	return -1;
+}
+
+/**
+ * igc_add_etype_filter() - Add ethertype filter
+ * @adapter: Pointer to adapter where the filter should be added
+ * @etype: Ethertype value
+ * @queue: If non-negative, queue assignment feature is enabled and frames
+ *         matching the filter are enqueued onto 'queue'. Otherwise, queue
+ *         assignment is disabled.
+ *
+ * Return: 0 in case of success, negative errno code otherwise.
+ */
+int igc_add_etype_filter(struct igc_adapter *adapter, u16 etype, int queue)
+{
+	struct igc_hw *hw = &adapter->hw;
+	int index;
+	u32 etqf;
+
+	index = igc_get_avail_etype_filter_slot(adapter);
+	if (index < 0)
+		return -ENOSPC;
+
+	etqf = rd32(IGC_ETQF(index));
+
+	etqf &= ~IGC_ETQF_ETYPE_MASK;
+	etqf |= etype;
+
+	if (queue >= 0) {
+		etqf &= ~IGC_ETQF_QUEUE_MASK;
+		etqf |= (queue << IGC_ETQF_QUEUE_SHIFT);
+		etqf |= IGC_ETQF_QUEUE_ENABLE;
+	}
+
+	etqf |= IGC_ETQF_FILTER_ENABLE;
+
+	wr32(IGC_ETQF(index), etqf);
+
+	netdev_dbg(adapter->netdev, "Add ethertype filter: etype %04x queue %d\n",
+		   etype, queue);
+	return 0;
+}
+
+static int igc_find_etype_filter(struct igc_adapter *adapter, u16 etype)
+{
+	struct igc_hw *hw = &adapter->hw;
+	int i;
+
+	for (i = 0; i < MAX_ETYPE_FILTER; i++) {
+		u32 etqf = rd32(IGC_ETQF(i));
+
+		if ((etqf & IGC_ETQF_ETYPE_MASK) == etype)
+			return i;
+	}
+
+	return -1;
+}
+
+/**
+ * igc_del_etype_filter() - Delete ethertype filter
+ * @adapter: Pointer to adapter where the filter should be deleted from
+ * @etype: Ethertype value
+ *
+ * Return: 0 in case of success, negative errno code otherwise.
+ */
+int igc_del_etype_filter(struct igc_adapter *adapter, u16 etype)
+{
+	struct igc_hw *hw = &adapter->hw;
+	int index;
+
+	index = igc_find_etype_filter(adapter, etype);
+	if (index < 0)
+		return -ENOENT;
+
+	wr32(IGC_ETQF(index), 0);
+
+	netdev_dbg(adapter->netdev, "Delete ethertype filter: etype %04x\n",
+		   etype);
+	return 0;
+}
+
 static int igc_uc_sync(struct net_device *netdev, const unsigned char *addr)
 {
 	struct igc_adapter *adapter = netdev_priv(netdev);

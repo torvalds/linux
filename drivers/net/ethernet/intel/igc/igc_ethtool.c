@@ -1183,46 +1183,6 @@ static int igc_set_rss_hash_opt(struct igc_adapter *adapter,
 	return 0;
 }
 
-static int igc_rxnfc_write_etype_filter(struct igc_adapter *adapter,
-					struct igc_nfc_filter *input)
-{
-	struct igc_hw *hw = &adapter->hw;
-	u8 i;
-	u32 etqf;
-	u16 etype;
-
-	/* find an empty etype filter register */
-	for (i = 0; i < MAX_ETYPE_FILTER; ++i) {
-		if (!adapter->etype_bitmap[i])
-			break;
-	}
-	if (i == MAX_ETYPE_FILTER) {
-		netdev_err(adapter->netdev,
-			   "ethtool -N: etype filters are all used\n");
-		return -EINVAL;
-	}
-
-	adapter->etype_bitmap[i] = true;
-
-	etqf = rd32(IGC_ETQF(i));
-	etype = ntohs(input->filter.etype & ETHER_TYPE_FULL_MASK);
-
-	etqf |= IGC_ETQF_FILTER_ENABLE;
-	etqf &= ~IGC_ETQF_ETYPE_MASK;
-	etqf |= (etype & IGC_ETQF_ETYPE_MASK);
-
-	etqf &= ~IGC_ETQF_QUEUE_MASK;
-	etqf |= ((input->action << IGC_ETQF_QUEUE_SHIFT)
-		& IGC_ETQF_QUEUE_MASK);
-	etqf |= IGC_ETQF_QUEUE_ENABLE;
-
-	wr32(IGC_ETQF(i), etqf);
-
-	input->etype_reg_index = i;
-
-	return 0;
-}
-
 int igc_add_filter(struct igc_adapter *adapter, struct igc_nfc_filter *input)
 {
 	struct igc_hw *hw = &adapter->hw;
@@ -1236,7 +1196,9 @@ int igc_add_filter(struct igc_adapter *adapter, struct igc_nfc_filter *input)
 	}
 
 	if (input->filter.match_flags & IGC_FILTER_FLAG_ETHER_TYPE) {
-		err = igc_rxnfc_write_etype_filter(adapter, input);
+		u16 etype = ntohs(input->filter.etype);
+
+		err = igc_add_etype_filter(adapter, etype, input->action);
 		if (err)
 			return err;
 	}
@@ -1267,26 +1229,13 @@ int igc_add_filter(struct igc_adapter *adapter, struct igc_nfc_filter *input)
 	return 0;
 }
 
-static void igc_clear_etype_filter_regs(struct igc_adapter *adapter,
-					u16 reg_index)
-{
-	struct igc_hw *hw = &adapter->hw;
-	u32 etqf = rd32(IGC_ETQF(reg_index));
-
-	etqf &= ~IGC_ETQF_QUEUE_ENABLE;
-	etqf &= ~IGC_ETQF_QUEUE_MASK;
-	etqf &= ~IGC_ETQF_FILTER_ENABLE;
-
-	wr32(IGC_ETQF(reg_index), etqf);
-
-	adapter->etype_bitmap[reg_index] = false;
-}
-
 int igc_erase_filter(struct igc_adapter *adapter, struct igc_nfc_filter *input)
 {
-	if (input->filter.match_flags & IGC_FILTER_FLAG_ETHER_TYPE)
-		igc_clear_etype_filter_regs(adapter,
-					    input->etype_reg_index);
+	if (input->filter.match_flags & IGC_FILTER_FLAG_ETHER_TYPE) {
+		u16 etype = ntohs(input->filter.etype);
+
+		igc_del_etype_filter(adapter, etype);
+	}
 
 	if (input->filter.match_flags & IGC_FILTER_FLAG_VLAN_TCI) {
 		int prio = (ntohs(input->filter.vlan_tci) & VLAN_PRIO_MASK) >>

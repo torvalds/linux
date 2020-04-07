@@ -189,7 +189,6 @@ struct igc_adapter {
 
 	/* lock for RX network flow classification filter */
 	spinlock_t nfc_lock;
-	bool etype_bitmap[MAX_ETYPE_FILTER];
 
 	struct igc_mac_addr *mac_table;
 
@@ -238,6 +237,8 @@ int igc_del_mac_filter(struct igc_adapter *adapter, const u8 *addr,
 int igc_add_vlan_prio_filter(struct igc_adapter *adapter, int prio,
 			     int queue);
 void igc_del_vlan_prio_filter(struct igc_adapter *adapter, int prio);
+int igc_add_etype_filter(struct igc_adapter *adapter, u16 etype, int queue);
+int igc_del_etype_filter(struct igc_adapter *adapter, u16 etype);
 void igc_update_stats(struct igc_adapter *adapter);
 
 /* igc_dump declarations */
@@ -466,7 +467,6 @@ struct igc_nfc_filter {
 	struct hlist_node nfc_node;
 	struct igc_nfc_input filter;
 	unsigned long cookie;
-	u16 etype_reg_index;
 	u16 sw_idx;
 	u16 action;
 };
