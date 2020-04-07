@@ -933,7 +933,7 @@ static bool page_mkclean_one(struct page *page, struct vm_area_struct *vma,
 			set_pte_at(vma->vm_mm, address, pte, entry);
 			ret = 1;
 		} else {
-#ifdef CONFIG_TRANSPARENT_HUGE_PAGECACHE
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
 			pmd_t *pmd = pvmw.pmd;
 			pmd_t entry;
 

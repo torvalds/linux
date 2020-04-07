@@ -414,8 +414,6 @@ static bool hugepage_vma_check(struct vm_area_struct *vma,
 	    (IS_ENABLED(CONFIG_READ_ONLY_THP_FOR_FS) &&
 	     vma->vm_file &&
 	     (vm_flags & VM_DENYWRITE))) {
-		if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGE_PAGECACHE))
-			return false;
 		return IS_ALIGNED((vma->vm_start >> PAGE_SHIFT) - vma->vm_pgoff,
 				HPAGE_PMD_NR);
 	}
@@ -1258,7 +1256,7 @@ static void collect_mm_slot(struct mm_slot *mm_slot)
 	}
 }
 
-#if defined(CONFIG_SHMEM) && defined(CONFIG_TRANSPARENT_HUGE_PAGECACHE)
+#ifdef CONFIG_SHMEM
 /*
  * Notify khugepaged that given addr of the mm is pte-mapped THP. Then
  * khugepaged should try to collapse the page table.
@@ -1973,6 +1971,8 @@ skip:
 		if (khugepaged_scan.address < hstart)
 			khugepaged_scan.address = hstart;
 		VM_BUG_ON(khugepaged_scan.address & ~HPAGE_PMD_MASK);
+		if (shmem_file(vma->vm_file) && !shmem_huge_enabled(vma))
+			goto skip;
 
 		while (khugepaged_scan.address < hend) {
 			int ret;
@@ -1984,14 +1984,10 @@ skip:
 				  khugepaged_scan.address + HPAGE_PMD_SIZE >
 				  hend);
 			if (IS_ENABLED(CONFIG_SHMEM) && vma->vm_file) {
-				struct file *file;
+				struct file *file = get_file(vma->vm_file);
 				pgoff_t pgoff = linear_page_index(vma,
 						khugepaged_scan.address);
 
-				if (shmem_file(vma->vm_file)
-				    && !shmem_huge_enabled(vma))
-					goto skip;
-				file = get_file(vma->vm_file);
 				up_read(&mm->mmap_sem);
 				ret = 1;
 				khugepaged_scan_file(mm, file, pgoff, hpage);
