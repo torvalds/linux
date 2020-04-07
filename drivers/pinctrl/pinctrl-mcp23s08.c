@@ -669,7 +669,14 @@ static int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 
 	mcp->dev = dev;
 	mcp->addr = addr;
+
 	mcp->irq_active_high = false;
+	mcp->irq_chip.name = dev_name(dev);
+	mcp->irq_chip.irq_mask = mcp23s08_irq_mask;
+	mcp->irq_chip.irq_unmask = mcp23s08_irq_unmask;
+	mcp->irq_chip.irq_set_type = mcp23s08_irq_set_type;
+	mcp->irq_chip.irq_bus_lock = mcp23s08_irq_bus_lock;
+	mcp->irq_chip.irq_bus_sync_unlock = mcp23s08_irq_bus_unlock;
 
 	mcp->chip.direction_input = mcp23s08_direction_input;
 	mcp->chip.get = mcp23s08_get;
@@ -921,12 +928,6 @@ static int mcp230xx_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	mcp->irq = client->irq;
-	mcp->irq_chip.name = dev_name(&client->dev);
-	mcp->irq_chip.irq_mask = mcp23s08_irq_mask;
-	mcp->irq_chip.irq_unmask = mcp23s08_irq_unmask;
-	mcp->irq_chip.irq_set_type = mcp23s08_irq_set_type;
-	mcp->irq_chip.irq_bus_lock = mcp23s08_irq_bus_lock;
-	mcp->irq_chip.irq_bus_sync_unlock = mcp23s08_irq_bus_unlock;
 
 	status = mcp23s08_probe_one(mcp, &client->dev, client, client->addr,
 				    id->driver_data, -1, 0);
@@ -1029,13 +1030,6 @@ static int mcp23s08_probe(struct spi_device *spi)
 		chips--;
 		data->mcp[addr] = &data->chip[chips];
 		data->mcp[addr]->irq = spi->irq;
-		data->mcp[addr]->irq_chip.name = dev_name(&spi->dev);
-		data->mcp[addr]->irq_chip.irq_mask = mcp23s08_irq_mask;
-		data->mcp[addr]->irq_chip.irq_unmask = mcp23s08_irq_unmask;
-		data->mcp[addr]->irq_chip.irq_set_type = mcp23s08_irq_set_type;
-		data->mcp[addr]->irq_chip.irq_bus_lock = mcp23s08_irq_bus_lock;
-		data->mcp[addr]->irq_chip.irq_bus_sync_unlock =
-			mcp23s08_irq_bus_unlock;
 		status = mcp23s08_probe_one(data->mcp[addr], &spi->dev, spi,
 					    0x40 | (addr << 1), type,
 					    -1, addr);
