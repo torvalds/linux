@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Red Hat Inc.
+ * Copyright 2020 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -18,47 +18,39 @@
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
- *
- * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
-
+#include <nvif/timer.h>
 #include <nvif/device.h>
 
-u64
-nvif_device_time(struct nvif_device *device)
+s64
+nvif_timer_wait_test(struct nvif_timer_wait *wait)
 {
-	if (!device->user.func) {
-		struct nv_device_time_v0 args = {};
-		int ret = nvif_object_mthd(&device->object, NV_DEVICE_V0_TIME,
-					   &args, sizeof(args));
-		WARN_ON_ONCE(ret != 0);
-		return args.time;
+	u64 time = nvif_device_time(wait->device);
+
+	if (wait->reads == 0) {
+		wait->time0 = time;
+		wait->time1 = time;
 	}
 
-	return device->user.func->time(&device->user);
+	if (wait->time1 == time) {
+		if (WARN_ON(wait->reads++ == 16))
+			return -ETIMEDOUT;
+	} else {
+		wait->time1 = time;
+		wait->reads = 1;
+	}
+
+	if (wait->time1 - wait->time0 > wait->limit)
+		return -ETIMEDOUT;
+
+	return wait->time1 - wait->time0;
 }
 
 void
-nvif_device_fini(struct nvif_device *device)
+nvif_timer_wait_init(struct nvif_device *device, u64 nsec,
+		     struct nvif_timer_wait *wait)
 {
-	nvif_user_fini(device);
-	kfree(device->runlist);
-	device->runlist = NULL;
-	nvif_object_fini(&device->object);
-}
-
-int
-nvif_device_init(struct nvif_object *parent, u32 handle, s32 oclass,
-		 void *data, u32 size, struct nvif_device *device)
-{
-	int ret = nvif_object_init(parent, handle, oclass, data, size,
-				   &device->object);
-	device->runlist = NULL;
-	device->user.func = NULL;
-	if (ret == 0) {
-		device->info.version = 0;
-		ret = nvif_object_mthd(&device->object, NV_DEVICE_V0_INFO,
-				       &device->info, sizeof(device->info));
-	}
-	return ret;
+	wait->device = device;
+	wait->limit = nsec;
+	wait->reads = 0;
 }

@@ -164,6 +164,7 @@ struct decode_info {
 #define OP_STATE_BASE_ADDRESS                   OP_3D_MEDIA(0x0, 0x1, 0x01)
 #define OP_STATE_SIP                            OP_3D_MEDIA(0x0, 0x1, 0x02)
 #define OP_3D_MEDIA_0_1_4			OP_3D_MEDIA(0x0, 0x1, 0x04)
+#define OP_SWTESS_BASE_ADDRESS			OP_3D_MEDIA(0x0, 0x1, 0x03)
 
 #define OP_3DSTATE_VF_STATISTICS_GM45           OP_3D_MEDIA(0x1, 0x0, 0x0B)
 
@@ -967,18 +968,6 @@ static int cmd_handler_lri(struct parser_exec_state *s)
 {
 	int i, ret = 0;
 	int cmd_len = cmd_length(s);
-	u32 valid_len = CMD_LEN(1);
-
-	/*
-	 * Official intel docs are somewhat sloppy , check the definition of
-	 * MI_LOAD_REGISTER_IMM.
-	 */
-	#define MAX_VALID_LEN 127
-	if ((cmd_len < valid_len) || (cmd_len > MAX_VALID_LEN)) {
-		gvt_err("len is not valid:  len=%u  valid_len=%u\n",
-			cmd_len, valid_len);
-		return -EFAULT;
-	}
 
 	for (i = 1; i < cmd_len; i += 2) {
 		if (IS_BROADWELL(s->engine->i915) && s->engine->id != RCS0) {
@@ -2484,6 +2473,9 @@ static const struct cmd_info cmd_info[] = {
 
 	{"OP_3D_MEDIA_0_1_4", OP_3D_MEDIA_0_1_4, F_LEN_VAR, R_RCS, D_ALL,
 		ADDR_FIX_1(1), 8, NULL},
+
+	{"OP_SWTESS_BASE_ADDRESS", OP_SWTESS_BASE_ADDRESS,
+		F_LEN_VAR, R_RCS, D_ALL, ADDR_FIX_2(1, 2), 3, NULL},
 
 	{"3DSTATE_VS", OP_3DSTATE_VS, F_LEN_VAR, R_RCS, D_ALL, 0, 8, NULL},
 

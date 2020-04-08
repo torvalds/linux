@@ -45,6 +45,7 @@
 #include <nvif/cl5070.h>
 #include <nvif/cl507d.h>
 #include <nvif/event.h>
+#include <nvif/timer.h>
 
 #include "nouveau_drv.h"
 #include "nouveau_dma.h"

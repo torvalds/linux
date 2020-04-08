@@ -22,10 +22,11 @@
  * Authors: AMD
  *
  */
+
+#include "dc_features.h"
+
 #ifndef __DISPLAY_MODE_STRUCTS_H__
 #define __DISPLAY_MODE_STRUCTS_H__
-
-#define MAX_CLOCK_LIMIT_STATES 9
 
 typedef struct _vcs_dpi_voltage_scaling_st voltage_scaling_st;
 typedef struct _vcs_dpi_soc_bounding_box_st soc_bounding_box_st;
@@ -68,7 +69,7 @@ struct _vcs_dpi_voltage_scaling_st {
 };
 
 struct _vcs_dpi_soc_bounding_box_st {
-	struct _vcs_dpi_voltage_scaling_st clock_limits[MAX_CLOCK_LIMIT_STATES];
+	struct _vcs_dpi_voltage_scaling_st clock_limits[DC__VOLTAGE_STATES];
 	unsigned int num_states;
 	double sr_exit_time_us;
 	double sr_enter_plus_exit_time_us;
