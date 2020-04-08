@@ -5,7 +5,7 @@
  * "rs2" extension for the v2m motherboard
  */
 / {
-	smb@8000000 {
+	bus@8000000 {
 		motherboard {
 			arm,v2m-memory-map = "rs2";
 

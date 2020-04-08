@@ -164,7 +164,7 @@ Required properties:
 - compatible: should be:
               "fsl,imx8qxp-sc-key"
               followed by "fsl,imx-sc-key";
-- linux,keycodes: See Documentation/devicetree/bindings/input/keys.txt
+- linux,keycodes: See Documentation/devicetree/bindings/input/input.yaml
 
 Example (imx8qxp):
 -------------

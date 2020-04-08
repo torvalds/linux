@@ -14,6 +14,8 @@ BEGIN {
 	printf("\n")
 
 	vernum = "[0-9]+([.]?[0-9]+)+"
+	libc = "libc[.]so[.][0-9]+$"
+	libcpp = "(libg|stdc)[+]+[.]so[.][0-9]+$"
 
 	printversion("GNU C", version("gcc -dumpversion"))
 	printversion("GNU Make", version("make --version"))
@@ -35,26 +37,14 @@ BEGIN {
 	printversion("Bison", version("bison --version"))
 	printversion("Flex", version("flex --version"))
 
-	while (getline <"/proc/self/maps" > 0) {
-		if (/libc.*\.so$/) {
-			n = split($0, procmaps, "/")
-			if (match(procmaps[n], vernum)) {
-				ver = substr(procmaps[n], RSTART, RLENGTH)
-				printversion("Linux C Library", ver)
-				break
-			}
-		}
+	while ("ldconfig -p 2>/dev/null" | getline > 0) {
+		if ($NF ~ libc && !seen[ver = version("readlink " $NF)]++)
+			printversion("Linux C Library", ver)
+		else if ($NF ~ libcpp && !seen[ver = version("readlink " $NF)]++)
+			printversion("Linux C++ Library", ver)
 	}
 
 	printversion("Dynamic linker (ldd)", version("ldd --version"))
-
-	while ("ldconfig -p 2>/dev/null" | getline > 0) {
-		if (/(libg|stdc)[+]+\.so/) {
-			libcpp = $NF
-			break
-		}
-	}
-	printversion("Linux C++ Library", version("readlink " libcpp))
 	printversion("Procps", version("ps --version"))
 	printversion("Net-tools", version("ifconfig --version"))
 	printversion("Kbd", version("loadkeys -V"))

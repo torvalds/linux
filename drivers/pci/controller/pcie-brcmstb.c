@@ -824,8 +824,8 @@ static int brcm_pcie_setup(struct brcm_pcie *pcie)
 	cls = FIELD_GET(PCI_EXP_LNKSTA_CLS, lnksta);
 	nlw = FIELD_GET(PCI_EXP_LNKSTA_NLW, lnksta);
 	dev_info(dev, "link up, %s x%u %s\n",
-		 PCIE_SPEED2STR(cls + PCI_SPEED_133MHz_PCIX_533),
-		 nlw, ssc_good ? "(SSC)" : "(!SSC)");
+		 pci_speed_string(pcie_link_speed[cls]), nlw,
+		 ssc_good ? "(SSC)" : "(!SSC)");
 
 	/* PCIe->SCB endian mode for BAR */
 	tmp = readl(base + PCIE_RC_CFG_VENDOR_VENDOR_SPECIFIC_REG1);

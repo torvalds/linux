@@ -74,6 +74,8 @@ required:
   - trig-gpios
   - echo-gpios
 
+additionalProperties: false
+
 examples:
   - |
     #include <dt-bindings/gpio/gpio.h>

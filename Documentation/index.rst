@@ -134,6 +134,7 @@ needed).
    scsi/index
    misc-devices/index
    scheduler/index
+   mhi/index
 
 Architecture-agnostic documentation
 -----------------------------------

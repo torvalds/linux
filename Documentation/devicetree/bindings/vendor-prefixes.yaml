@@ -141,6 +141,8 @@ patternProperties:
     description: Shenzhen AZW Technology Co., Ltd.
   "^bananapi,.*":
     description: BIPAI KEJI LIMITED
+  "^beacon,.*":
+    description: Compass Electronics Group, LLC
   "^bhf,.*":
     description: Beckhoff Automation GmbH & Co. KG
   "^bitmain,.*":
@@ -235,6 +237,8 @@ patternProperties:
     description: DataImage, Inc.
   "^davicom,.*":
     description: DAVICOM Semiconductor, Inc.
+  "^dell,.*":
+    description: Dell Inc.
   "^delta,.*":
     description: Delta Electronics, Inc.
   "^denx,.*":
@@ -289,6 +293,8 @@ patternProperties:
     description: Elan Microelectronic Corp.
   "^elgin,.*":
     description: Elgin S/A.
+  "^elida,.*":
+    description: Shenzhen Elida Technology Co., Ltd.
   "^embest,.*":
     description: Shenzhen Embest Technology Co., Ltd.
   "^emlid,.*":
@@ -301,6 +307,8 @@ patternProperties:
     description: emtrion GmbH
   "^endless,.*":
     description: Endless Mobile, Inc.
+  "^ene,.*":
+    description: ENE Technology, Inc.
   "^energymicro,.*":
     description: Silicon Laboratories (formerly Energy Micro AS)
   "^engicam,.*":
@@ -479,6 +487,8 @@ patternProperties:
     description: Intersil
   "^issi,.*":
     description: Integrated Silicon Solutions Inc.
+  "^ite,.*":
+    description: ITE Tech, Inc.
   "^itead,.*":
     description: ITEAD Intelligent Systems Co.Ltd
   "^iwave,.*":
@@ -555,6 +565,8 @@ patternProperties:
     description: LinkSprite Technologies, Inc.
   "^linksys,.*":
     description: Belkin International, Inc. (Linksys)
+  "^linutronix,.*":
+    description: Linutronix GmbH
   "^linux,.*":
     description: Linux-specific binding
   "^linx,.*":
@@ -641,6 +653,9 @@ patternProperties:
     description: Monolithic Power Systems Inc.
   "^mqmaker,.*":
     description: mqmaker Inc.
+  "^mrvl,.*":
+    description: Marvell Technology Group Ltd.
+    deprecated: true
   "^mscc,.*":
     description: Microsemi Corporation
   "^msi,.*":
@@ -741,6 +756,8 @@ patternProperties:
     description: OmniVision Technologies
   "^oxsemi,.*":
     description: Oxford Semiconductor, Ltd.
+  "^ozzmaker,.*":
+    description: OzzMaker
   "^panasonic,.*":
     description: Panasonic Corporation
   "^parade,.*":
@@ -775,6 +792,8 @@ patternProperties:
     description: Broadcom Corporation (formerly PLX Technology)
   "^pni,.*":
     description: PNI Sensor Corporation
+  "^pocketbook,.*":
+    description: PocketBook International SA
   "^polaroid,.*":
     description: Polaroid Corporation
   "^portwell,.*":
@@ -873,6 +892,8 @@ patternProperties:
     description: Small Form Factor Committee
   "^sgd,.*":
     description: Solomon Goldentek Display Corporation
+  "^sgmicro,.*":
+    description: SG Micro Corp
   "^sgx,.*":
     description: SGX Sensortech
   "^sharp,.*":
@@ -996,6 +1017,8 @@ patternProperties:
   "^toppoly,.*":
     description: TPO (deprecated, use tpo)
     deprecated: true
+  "^topwise,.*":
+    description: Topwise Communication Co., Ltd.
   "^toradex,.*":
     description: Toradex AG
   "^toshiba,.*":
@@ -1066,6 +1089,8 @@ patternProperties:
     description: Vision Optical Technology Co., Ltd.
   "^vxt,.*":
     description: VXT Ltd
+  "^waveshare,.*":
+    description: Waveshare Electronics
   "^wd,.*":
     description: Western Digital Corp.
   "^wetek,.*":
@@ -1092,6 +1117,8 @@ patternProperties:
     description: X-Powers
   "^xes,.*":
     description: Extreme Engineering Solutions (X-ES)
+  "^xiaomi,.*":
+    description: Xiaomi Technology Co., Ltd.
   "^xillybus,.*":
     description: Xillybus Ltd.
   "^xinpeng,.*":

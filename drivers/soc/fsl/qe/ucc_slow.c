@@ -72,7 +72,7 @@ EXPORT_SYMBOL(ucc_slow_restart_tx);
 
 void ucc_slow_enable(struct ucc_slow_private * uccs, enum comm_dir mode)
 {
-	struct ucc_slow *us_regs;
+	struct ucc_slow __iomem *us_regs;
 	u32 gumr_l;
 
 	us_regs = uccs->us_regs;
@@ -93,7 +93,7 @@ EXPORT_SYMBOL(ucc_slow_enable);
 
 void ucc_slow_disable(struct ucc_slow_private * uccs, enum comm_dir mode)
 {
-	struct ucc_slow *us_regs;
+	struct ucc_slow __iomem *us_regs;
 	u32 gumr_l;
 
 	us_regs = uccs->us_regs;
@@ -122,7 +122,7 @@ int ucc_slow_init(struct ucc_slow_info * us_info, struct ucc_slow_private ** ucc
 	u32 i;
 	struct ucc_slow __iomem *us_regs;
 	u32 gumr;
-	struct qe_bd *bd;
+	struct qe_bd __iomem *bd;
 	u32 id;
 	u32 command;
 	int ret = 0;
@@ -168,16 +168,9 @@ int ucc_slow_init(struct ucc_slow_info * us_info, struct ucc_slow_private ** ucc
 		return -ENOMEM;
 	}
 
-	uccs->saved_uccm = 0;
-	uccs->p_rx_frame = 0;
 	us_regs = uccs->us_regs;
-	uccs->p_ucce = (u16 *) & (us_regs->ucce);
-	uccs->p_uccm = (u16 *) & (us_regs->uccm);
-#ifdef STATISTICS
-	uccs->rx_frames = 0;
-	uccs->tx_frames = 0;
-	uccs->rx_discarded = 0;
-#endif				/* STATISTICS */
+	uccs->p_ucce = &us_regs->ucce;
+	uccs->p_uccm = &us_regs->uccm;
 
 	/* Get PRAM base */
 	uccs->us_pram_offset =
@@ -231,24 +224,24 @@ int ucc_slow_init(struct ucc_slow_info * us_info, struct ucc_slow_private ** ucc
 		/* clear bd buffer */
 		qe_iowrite32be(0, &bd->buf);
 		/* set bd status and length */
-		qe_iowrite32be(0, (u32 *)bd);
+		qe_iowrite32be(0, (u32 __iomem *)bd);
 		bd++;
 	}
 	/* for last BD set Wrap bit */
 	qe_iowrite32be(0, &bd->buf);
-	qe_iowrite32be(cpu_to_be32(T_W), (u32 *)bd);
+	qe_iowrite32be(T_W, (u32 __iomem *)bd);
 
 	/* Init Rx bds */
 	bd = uccs->rx_bd = qe_muram_addr(uccs->rx_base_offset);
 	for (i = 0; i < us_info->rx_bd_ring_len - 1; i++) {
 		/* set bd status and length */
-		qe_iowrite32be(0, (u32 *)bd);
+		qe_iowrite32be(0, (u32 __iomem *)bd);
 		/* clear bd buffer */
 		qe_iowrite32be(0, &bd->buf);
 		bd++;
 	}
 	/* for last BD set Wrap bit */
-	qe_iowrite32be(cpu_to_be32(R_W), (u32 *)bd);
+	qe_iowrite32be(R_W, (u32 __iomem *)bd);
 	qe_iowrite32be(0, &bd->buf);
 
 	/* Set GUMR (For more details see the hardware spec.). */
@@ -273,8 +266,8 @@ int ucc_slow_init(struct ucc_slow_info * us_info, struct ucc_slow_private ** ucc
 	qe_iowrite32be(gumr, &us_regs->gumr_h);
 
 	/* gumr_l */
-	gumr = us_info->tdcr | us_info->rdcr | us_info->tenc | us_info->renc |
-		us_info->diag | us_info->mode;
+	gumr = (u32)us_info->tdcr | (u32)us_info->rdcr | (u32)us_info->tenc |
+	       (u32)us_info->renc | (u32)us_info->diag | (u32)us_info->mode;
 	if (us_info->tci)
 		gumr |= UCC_SLOW_GUMR_L_TCI;
 	if (us_info->rinv)
@@ -289,8 +282,8 @@ int ucc_slow_init(struct ucc_slow_info * us_info, struct ucc_slow_private ** ucc
 
 	/* if the data is in cachable memory, the 'global' */
 	/* in the function code should be set. */
-	uccs->us_pram->tbmr = UCC_BMR_BO_BE;
-	uccs->us_pram->rbmr = UCC_BMR_BO_BE;
+	qe_iowrite8(UCC_BMR_BO_BE, &uccs->us_pram->tbmr);
+	qe_iowrite8(UCC_BMR_BO_BE, &uccs->us_pram->rbmr);
 
 	/* rbase, tbase are offsets from MURAM base */
 	qe_iowrite16be(uccs->rx_base_offset, &uccs->us_pram->rbase);

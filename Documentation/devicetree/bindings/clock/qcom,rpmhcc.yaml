@@ -35,6 +35,8 @@ required:
   - compatible
   - '#clock-cells'
 
+additionalProperties: false
+
 examples:
   # Example for GCC for SDM845: The below node should be defined inside
   # &apps_rsc node.

@@ -20,8 +20,6 @@ int rpmh_write_async(const struct device *dev, enum rpmh_state state,
 int rpmh_write_batch(const struct device *dev, enum rpmh_state state,
 		     const struct tcs_cmd *cmd, u32 *n);
 
-int rpmh_flush(const struct device *dev);
-
 int rpmh_invalidate(const struct device *dev);
 
 #else
@@ -38,9 +36,6 @@ static inline int rpmh_write_async(const struct device *dev,
 static inline int rpmh_write_batch(const struct device *dev,
 				   enum rpmh_state state,
 				   const struct tcs_cmd *cmd, u32 *n)
-{ return -ENODEV; }
-
-static inline int rpmh_flush(const struct device *dev)
 { return -ENODEV; }
 
 static inline int rpmh_invalidate(const struct device *dev)

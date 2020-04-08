@@ -209,15 +209,8 @@ int xenbus_grant_ring(struct xenbus_device *dev, void *vaddr,
 		      unsigned int nr_pages, grant_ref_t *grefs);
 int xenbus_map_ring_valloc(struct xenbus_device *dev, grant_ref_t *gnt_refs,
 			   unsigned int nr_grefs, void **vaddr);
-int xenbus_map_ring(struct xenbus_device *dev,
-		    grant_ref_t *gnt_refs, unsigned int nr_grefs,
-		    grant_handle_t *handles, unsigned long *vaddrs,
-		    bool *leaked);
 
 int xenbus_unmap_ring_vfree(struct xenbus_device *dev, void *vaddr);
-int xenbus_unmap_ring(struct xenbus_device *dev,
-		      grant_handle_t *handles, unsigned int nr_handles,
-		      unsigned long *vaddrs);
 
 int xenbus_alloc_evtchn(struct xenbus_device *dev, int *port);
 int xenbus_free_evtchn(struct xenbus_device *dev, int port);
