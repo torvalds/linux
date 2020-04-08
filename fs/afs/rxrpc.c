@@ -540,6 +540,8 @@ static void afs_deliver_to_call(struct afs_call *call)
 
 		ret = call->type->deliver(call);
 		state = READ_ONCE(call->state);
+		if (ret == 0 && call->unmarshalling_error)
+			ret = -EBADMSG;
 		switch (ret) {
 		case 0:
 			afs_queue_call_work(call);
@@ -963,5 +965,7 @@ noinline int afs_protocol_error(struct afs_call *call, int error,
 				enum afs_eproto_cause cause)
 {
 	trace_afs_protocol_error(call, error, cause);
+	if (call)
+		call->unmarshalling_error = true;
 	return error;
 }
