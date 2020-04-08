@@ -88,6 +88,9 @@ static void dc_link_destruct(struct dc_link *link)
 	if (link->ddc)
 		dal_ddc_service_destroy(&link->ddc);
 
+	if (link->panel)
+		link->panel->funcs->destroy(&link->panel);
+
 	if (link->link_enc)
 		link->link_enc->funcs->destroy(&link->link_enc);
 
