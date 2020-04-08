@@ -3465,6 +3465,8 @@ static void pnv_ioda_release_pe(struct pnv_ioda_pe *pe)
 	struct pnv_phb *phb = pe->phb;
 	struct pnv_ioda_pe *slave, *tmp;
 
+	pe_info(pe, "Releasing PE\n");
+
 	mutex_lock(&phb->ioda.pe_list_mutex);
 	list_del(&pe->list);
 	mutex_unlock(&phb->ioda.pe_list_mutex);
