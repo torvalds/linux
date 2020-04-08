@@ -532,8 +532,6 @@
   __memset_io
   memstart_addr
   memzero_explicit
-  __might_fault
-  __might_sleep
   misc_deregister
   misc_register
   mod_delayed_work_on
@@ -2191,7 +2189,6 @@
   ip_compute_csum
   ipv6_ext_hdr
   ipv6_skip_exthdr
-  ___might_sleep
   netdev_rx_handler_register
   netdev_rx_handler_unregister
   netif_schedule_queue
