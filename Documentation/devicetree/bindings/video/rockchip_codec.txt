@@ -7,6 +7,7 @@ Required properties:
 		"rockchip,avs-plus-decoder",
 		"rockchip,vpu-decoder-v2",
 		"rockchip,vpu-decoder-px30",
+		"rockchip,vpu-decoder-rk3288",
 		"rockchip,vpu-decoder-rk3368",
 		"rockchip,hevc-decoder",
 		"rockchip,hevc-decoder-px30",
