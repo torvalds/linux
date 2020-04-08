@@ -239,8 +239,7 @@ cht_int33fe_register_max17047(struct device *dev, struct cht_int33fe_data *data)
 	i2c_for_each_dev(&max17047, cht_int33fe_check_for_max17047);
 	if (max17047) {
 		/* Pre-existing i2c-client for the max17047, add device-props */
-		fwnode->secondary = ERR_PTR(-ENODEV);
-		max17047->dev.fwnode->secondary = fwnode;
+		set_secondary_fwnode(&max17047->dev, fwnode);
 		/* And re-probe to get the new device-props applied. */
 		ret = device_reprobe(&max17047->dev);
 		if (ret)
