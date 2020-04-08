@@ -96,25 +96,14 @@ static inline bool pagefault_disabled(void);
 	likely(!__range_not_ok(addr, size, user_addr_max()));		\
 })
 
-/*
- * These are the main single-value transfer routines.  They automatically
- * use the right size if we just have the right pointer type.
- *
- * This gets kind of ugly. We want to return _two_ values in "get_user()"
- * and yet we don't want to do any pointers, because that is too much
- * of a performance impact. Thus we have a few rather ugly macros here,
- * and hide all the ugliness from the user.
- *
- * The "__xxx" versions of the user access functions are versions that
- * do not verify the address space, that must have been done previously
- * with a separate "access_ok()" call (this is used when we do multiple
- * accesses to the same area of user memory).
- */
-
 extern int __get_user_1(void);
 extern int __get_user_2(void);
 extern int __get_user_4(void);
 extern int __get_user_8(void);
+extern int __get_user_nocheck_1(void);
+extern int __get_user_nocheck_2(void);
+extern int __get_user_nocheck_4(void);
+extern int __get_user_nocheck_8(void);
 extern int __get_user_bad(void);
 
 #define __uaccess_begin() stac()
@@ -138,6 +127,37 @@ extern int __get_user_bad(void);
 #define __typefits(x,type,not) \
 	__builtin_choose_expr(sizeof(x)<=sizeof(type),(unsigned type)0,not)
 
+/*
+ * This is used for both get_user() and __get_user() to expand to
+ * the proper special function call that has odd calling conventions
+ * due to returning both a value and an error, and that depends on
+ * the size of the pointer passed in.
+ *
+ * Careful: we have to cast the result to the type of the pointer
+ * for sign reasons.
+ *
+ * The use of _ASM_DX as the register specifier is a bit of a
+ * simplification, as gcc only cares about it as the starting point
+ * and not size: for a 64-bit value it will use %ecx:%edx on 32 bits
+ * (%ecx being the next register in gcc's x86 register sequence), and
+ * %rdx on 64 bits.
+ *
+ * Clang/LLVM cares about the size of the register, but still wants
+ * the base register for something that ends up being a pair.
+ */
+#define do_get_user_call(fn,x,ptr)					\
+({									\
+	int __ret_gu;							\
+	register __inttype(*(ptr)) __val_gu asm("%"_ASM_DX);		\
+	__chk_user_ptr(ptr);						\
+	asm volatile("call __" #fn "_%P4"				\
+		     : "=a" (__ret_gu), "=r" (__val_gu),		\
+			ASM_CALL_CONSTRAINT				\
+		     : "0" (ptr), "i" (sizeof(*(ptr))));		\
+	(x) = (__force __typeof__(*(ptr))) __val_gu;			\
+	__builtin_expect(__ret_gu, 0);					\
+})
+
 /**
  * get_user - Get a simple variable from user space.
  * @x:   Variable to store result.
@@ -156,32 +176,30 @@ extern int __get_user_bad(void);
  * Return: zero on success, or -EFAULT on error.
  * On error, the variable @x is set to zero.
  */
-/*
- * Careful: we have to cast the result to the type of the pointer
- * for sign reasons.
+#define get_user(x,ptr) ({ might_fault(); do_get_user_call(get_user,x,ptr); })
+
+/**
+ * __get_user - Get a simple variable from user space, with less checking.
+ * @x:   Variable to store result.
+ * @ptr: Source address, in user space.
  *
- * The use of _ASM_DX as the register specifier is a bit of a
- * simplification, as gcc only cares about it as the starting point
- * and not size: for a 64-bit value it will use %ecx:%edx on 32 bits
- * (%ecx being the next register in gcc's x86 register sequence), and
- * %rdx on 64 bits.
+ * Context: User context only. This function may sleep if pagefaults are
+ *          enabled.
  *
- * Clang/LLVM cares about the size of the register, but still wants
- * the base register for something that ends up being a pair.
+ * This macro copies a single simple variable from user space to kernel
+ * space.  It supports simple types like char and int, but not larger
+ * data types like structures or arrays.
+ *
+ * @ptr must have pointer-to-simple-variable type, and the result of
+ * dereferencing @ptr must be assignable to @x without a cast.
+ *
+ * Caller must check the pointer with access_ok() before calling this
+ * function.
+ *
+ * Return: zero on success, or -EFAULT on error.
+ * On error, the variable @x is set to zero.
  */
-#define get_user(x, ptr)						\
-({									\
-	int __ret_gu;							\
-	register __inttype(*(ptr)) __val_gu asm("%"_ASM_DX);		\
-	__chk_user_ptr(ptr);						\
-	might_fault();							\
-	asm volatile("call __get_user_%P4"				\
-		     : "=a" (__ret_gu), "=r" (__val_gu),		\
-			ASM_CALL_CONSTRAINT				\
-		     : "0" (ptr), "i" (sizeof(*(ptr))));		\
-	(x) = (__force __typeof__(*(ptr))) __val_gu;			\
-	__builtin_expect(__ret_gu, 0);					\
-})
+#define __get_user(x,ptr) do_get_user_call(get_user_nocheck,x,ptr)
 
 #define __put_user_x(size, x, ptr, __ret_pu)			\
 	asm volatile("call __put_user_" #size : "=a" (__ret_pu)	\
@@ -367,19 +385,6 @@ __pu_label:							\
 	__builtin_expect(__pu_err, 0);				\
 })
 
-#define __get_user_nocheck(x, ptr, size)				\
-({									\
-	int __gu_err;							\
-	__inttype(*(ptr)) __gu_val;					\
-	__typeof__(ptr) __gu_ptr = (ptr);				\
-	__typeof__(size) __gu_size = (size);				\
-	__uaccess_begin_nospec();					\
-	__get_user_size(__gu_val, __gu_ptr, __gu_size, __gu_err);	\
-	__uaccess_end();						\
-	(x) = (__force __typeof__(*(ptr)))__gu_val;			\
-	__builtin_expect(__gu_err, 0);					\
-})
-
 /* FIXME: this hack is definitely wrong -AK */
 struct __large_struct { unsigned long buf[100]; };
 #define __m(x) (*(struct __large_struct __user *)(x))
@@ -395,31 +400,6 @@ struct __large_struct { unsigned long buf[100]; };
 		_ASM_EXTABLE_UA(1b, %l2)				\
 		: : ltype(x), "m" (__m(addr))				\
 		: : label)
-
-/**
- * __get_user - Get a simple variable from user space, with less checking.
- * @x:   Variable to store result.
- * @ptr: Source address, in user space.
- *
- * Context: User context only. This function may sleep if pagefaults are
- *          enabled.
- *
- * This macro copies a single simple variable from user space to kernel
- * space.  It supports simple types like char and int, but not larger
- * data types like structures or arrays.
- *
- * @ptr must have pointer-to-simple-variable type, and the result of
- * dereferencing @ptr must be assignable to @x without a cast.
- *
- * Caller must check the pointer with access_ok() before calling this
- * function.
- *
- * Return: zero on success, or -EFAULT on error.
- * On error, the variable @x is set to zero.
- */
-
-#define __get_user(x, ptr)						\
-	__get_user_nocheck((x), (ptr), sizeof(*(ptr)))
 
 /**
  * __put_user - Write a simple value into user space, with less checking.
