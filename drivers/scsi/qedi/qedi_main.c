@@ -1360,7 +1360,7 @@ static int qedi_request_msix_irq(struct qedi_ctx *qedi)
 	u16 idx;
 
 	cpu = cpumask_first(cpu_online_mask);
-	for (i = 0; i < MIN_NUM_CPUS_MSIX(qedi); i++) {
+	for (i = 0; i < qedi->int_info.msix_cnt; i++) {
 		idx = i * qedi->dev_info.common.num_hwfns +
 			  qedi_ops->common->get_affin_hwfn_idx(qedi->cdev);
 
