@@ -617,6 +617,20 @@ static int vdpu_probe_width(struct mpp_dev *mpp,
 	return width;
 }
 
+static int vdpu_3288_get_freq(struct mpp_dev *mpp,
+			      struct mpp_task *mpp_task)
+{
+	struct vdpu_task *task = to_vdpu_task(mpp_task);
+	u32 width = vdpu_probe_width(mpp, mpp_task);
+
+	if (width > 2560)
+		task->aclk_freq = 600;
+	else
+		task->aclk_freq = 300;
+
+	return 0;
+}
+
 static int vdpu_3368_get_freq(struct mpp_dev *mpp,
 			      struct mpp_task *mpp_task)
 {
@@ -739,6 +753,16 @@ static struct mpp_hw_ops vdpu_v1_hw_ops = {
 	.reset = vdpu_reset,
 };
 
+static struct mpp_hw_ops vdpu_3288_hw_ops = {
+	.init = vdpu_init,
+	.power_on = vdpu_power_on,
+	.power_off = vdpu_power_off,
+	.get_freq = vdpu_3288_get_freq,
+	.set_freq = vdpu_set_freq,
+	.reduce_freq = vdpu_reduce_freq,
+	.reset = vdpu_reset,
+};
+
 static struct mpp_hw_ops vdpu_3368_hw_ops = {
 	.init = vdpu_init,
 	.power_on = vdpu_power_on,
@@ -768,6 +792,14 @@ static const struct mpp_dev_var vdpu_v1_data = {
 	.dev_ops = &vdpu_v1_dev_ops,
 };
 
+static const struct mpp_dev_var vdpu_3288_data = {
+	.device_type = MPP_DEVICE_VDPU1,
+	.hw_info = &vdpu_v1_hw_info,
+	.trans_info = vdpu_v1_trans,
+	.hw_ops = &vdpu_3288_hw_ops,
+	.dev_ops = &vdpu_v1_dev_ops,
+};
+
 static const struct mpp_dev_var vdpu_3368_data = {
 	.device_type = MPP_DEVICE_VDPU1,
 	.hw_info = &vdpu_v1_hw_info,
@@ -788,6 +820,10 @@ static const struct of_device_id mpp_vdpu1_dt_match[] = {
 	{
 		.compatible = "rockchip,vpu-decoder-v1",
 		.data = &vdpu_v1_data,
+	},
+	{
+		.compatible = "rockchip,vpu-decoder-rk3288",
+		.data = &vdpu_3288_data,
 	},
 	{
 		.compatible = "rockchip,vpu-decoder-rk3368",
