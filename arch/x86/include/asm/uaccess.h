@@ -201,11 +201,6 @@ extern int __get_user_bad(void);
  */
 #define __get_user(x,ptr) do_get_user_call(get_user_nocheck,x,ptr)
 
-#define __put_user_x(size, x, ptr, __ret_pu)			\
-	asm volatile("call __put_user_" #size : "=a" (__ret_pu)	\
-		     : "0" ((typeof(*(ptr)))(x)), "c" (ptr) : "ebx")
-
-
 
 #ifdef CONFIG_X86_32
 #define __put_user_goto_u64(x, addr, label)			\
@@ -217,25 +212,41 @@ extern int __get_user_bad(void);
 		     : : "A" (x), "r" (addr)			\
 		     : : label)
 
-#define __put_user_x8(x, ptr, __ret_pu)				\
-	asm volatile("call __put_user_8" : "=a" (__ret_pu)	\
-		     : "A" ((typeof(*(ptr)))(x)), "c" (ptr) : "ebx")
 #else
 #define __put_user_goto_u64(x, ptr, label) \
 	__put_user_goto(x, ptr, "q", "er", label)
-#define __put_user_x8(x, ptr, __ret_pu) __put_user_x(8, x, ptr, __ret_pu)
 #endif
 
 extern void __put_user_bad(void);
 
 /*
  * Strange magic calling convention: pointer in %ecx,
- * value in %eax(:%edx), return value in %eax. clobbers %rbx
+ * value in %eax(:%edx), return value in %ecx. clobbers %rbx
  */
 extern void __put_user_1(void);
 extern void __put_user_2(void);
 extern void __put_user_4(void);
 extern void __put_user_8(void);
+extern void __put_user_nocheck_1(void);
+extern void __put_user_nocheck_2(void);
+extern void __put_user_nocheck_4(void);
+extern void __put_user_nocheck_8(void);
+
+#define do_put_user_call(fn,x,ptr)					\
+({									\
+	int __ret_pu;							\
+	register __typeof__(*(ptr)) __val_pu asm("%"_ASM_AX);		\
+	__chk_user_ptr(ptr);						\
+	__val_pu = (x);							\
+	asm volatile("call __" #fn "_%P[size]"				\
+		     : "=c" (__ret_pu),					\
+			ASM_CALL_CONSTRAINT				\
+		     : "0" (ptr),					\
+		       "r" (__val_pu),					\
+		       [size] "i" (sizeof(*(ptr)))			\
+		     :"ebx");						\
+	__builtin_expect(__ret_pu, 0);					\
+})
 
 /**
  * put_user - Write a simple value into user space.
@@ -254,32 +265,29 @@ extern void __put_user_8(void);
  *
  * Return: zero on success, or -EFAULT on error.
  */
-#define put_user(x, ptr)					\
-({								\
-	int __ret_pu;						\
-	__typeof__(*(ptr)) __pu_val;				\
-	__chk_user_ptr(ptr);					\
-	might_fault();						\
-	__pu_val = x;						\
-	switch (sizeof(*(ptr))) {				\
-	case 1:							\
-		__put_user_x(1, __pu_val, ptr, __ret_pu);	\
-		break;						\
-	case 2:							\
-		__put_user_x(2, __pu_val, ptr, __ret_pu);	\
-		break;						\
-	case 4:							\
-		__put_user_x(4, __pu_val, ptr, __ret_pu);	\
-		break;						\
-	case 8:							\
-		__put_user_x8(__pu_val, ptr, __ret_pu);		\
-		break;						\
-	default:						\
-		__put_user_x(X, __pu_val, ptr, __ret_pu);	\
-		break;						\
-	}							\
-	__builtin_expect(__ret_pu, 0);				\
-})
+#define put_user(x, ptr) ({ might_fault(); do_put_user_call(put_user,x,ptr); })
+
+/**
+ * __put_user - Write a simple value into user space, with less checking.
+ * @x:   Value to copy to user space.
+ * @ptr: Destination address, in user space.
+ *
+ * Context: User context only. This function may sleep if pagefaults are
+ *          enabled.
+ *
+ * This macro copies a single simple value from kernel space to user
+ * space.  It supports simple types like char and int, but not larger
+ * data types like structures or arrays.
+ *
+ * @ptr must have pointer-to-simple-variable type, and @x must be assignable
+ * to the result of dereferencing @ptr.
+ *
+ * Caller must check the pointer with access_ok() before calling this
+ * function.
+ *
+ * Return: zero on success, or -EFAULT on error.
+ */
+#define __put_user(x, ptr) do_put_user_call(put_user_nocheck,x,ptr)
 
 #define __put_user_size(x, ptr, size, label)				\
 do {									\
@@ -370,21 +378,6 @@ do {									\
 		     : [umem] "m" (__m(addr)),				\
 		       [efault] "i" (-EFAULT), "0" (err))
 
-#define __put_user_nocheck(x, ptr, size)			\
-({								\
-	__label__ __pu_label;					\
-	int __pu_err = -EFAULT;					\
-	__typeof__(*(ptr)) __pu_val = (x);			\
-	__typeof__(ptr) __pu_ptr = (ptr);			\
-	__typeof__(size) __pu_size = (size);			\
-	__uaccess_begin();					\
-	__put_user_size(__pu_val, __pu_ptr, __pu_size, __pu_label);	\
-	__pu_err = 0;						\
-__pu_label:							\
-	__uaccess_end();					\
-	__builtin_expect(__pu_err, 0);				\
-})
-
 /* FIXME: this hack is definitely wrong -AK */
 struct __large_struct { unsigned long buf[100]; };
 #define __m(x) (*(struct __large_struct __user *)(x))
@@ -400,30 +393,6 @@ struct __large_struct { unsigned long buf[100]; };
 		_ASM_EXTABLE_UA(1b, %l2)				\
 		: : ltype(x), "m" (__m(addr))				\
 		: : label)
-
-/**
- * __put_user - Write a simple value into user space, with less checking.
- * @x:   Value to copy to user space.
- * @ptr: Destination address, in user space.
- *
- * Context: User context only. This function may sleep if pagefaults are
- *          enabled.
- *
- * This macro copies a single simple value from kernel space to user
- * space.  It supports simple types like char and int, but not larger
- * data types like structures or arrays.
- *
- * @ptr must have pointer-to-simple-variable type, and @x must be assignable
- * to the result of dereferencing @ptr.
- *
- * Caller must check the pointer with access_ok() before calling this
- * function.
- *
- * Return: zero on success, or -EFAULT on error.
- */
-
-#define __put_user(x, ptr)						\
-	__put_user_nocheck((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)))
 
 extern unsigned long
 copy_from_user_nmi(void *to, const void __user *from, unsigned long n);
