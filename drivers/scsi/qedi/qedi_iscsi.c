@@ -836,6 +836,11 @@ qedi_ep_connect(struct Scsi_Host *shost, struct sockaddr *dst_addr,
 		return ERR_PTR(ret);
 	}
 
+	if (atomic_read(&qedi->link_state) != QEDI_LINK_UP) {
+		QEDI_WARN(&qedi->dbg_ctx, "qedi link down\n");
+		return ERR_PTR(-ENXIO);
+	}
+
 	ep = iscsi_create_endpoint(sizeof(struct qedi_endpoint));
 	if (!ep) {
 		QEDI_ERR(&qedi->dbg_ctx, "endpoint create fail\n");
@@ -868,12 +873,6 @@ qedi_ep_connect(struct Scsi_Host *shost, struct sockaddr *dst_addr,
 			  qedi_ep->dst_addr, qedi_ep->dst_port);
 	} else {
 		QEDI_ERR(&qedi->dbg_ctx, "Invalid endpoint\n");
-	}
-
-	if (atomic_read(&qedi->link_state) != QEDI_LINK_UP) {
-		QEDI_WARN(&qedi->dbg_ctx, "qedi link down\n");
-		ret = -ENXIO;
-		goto ep_conn_exit;
 	}
 
 	ret = qedi_alloc_sq(qedi, qedi_ep);
