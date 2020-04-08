@@ -422,7 +422,7 @@ static int renesas_sdhi_prepare_hs400_tuning(struct mmc_host *mmc, struct mmc_io
 	return 0;
 }
 
-#define SH_MOBILE_SDHI_MAX_TAP 3
+#define SH_MOBILE_SDHI_MIN_TAP_ROW 3
 
 static int renesas_sdhi_select_tuning(struct tmio_mmc_host *host)
 {
@@ -446,9 +446,9 @@ static int renesas_sdhi_select_tuning(struct tmio_mmc_host *host)
 	}
 
 	/*
-	 * Find the longest consecutive run of successful probes.  If that
-	 * is more than SH_MOBILE_SDHI_MAX_TAP probes long then use the
-	 * center index as the tap.
+	 * Find the longest consecutive run of successful probes. If that
+	 * is at least SH_MOBILE_SDHI_MIN_TAP_ROW probes long then use the
+	 * center index as the tap, otherwise bail out.
 	 */
 	bitmap_for_each_set_region(priv->taps, rs, re, 0, taps_size) {
 		if (re - rs > tap_cnt) {
@@ -458,7 +458,7 @@ static int renesas_sdhi_select_tuning(struct tmio_mmc_host *host)
 		}
 	}
 
-	if (tap_cnt >= SH_MOBILE_SDHI_MAX_TAP)
+	if (tap_cnt >= SH_MOBILE_SDHI_MIN_TAP_ROW)
 		priv->tap_set = (tap_start + tap_end) / 2 % priv->tap_num;
 	else
 		return -EIO;
