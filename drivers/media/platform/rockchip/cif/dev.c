@@ -86,41 +86,6 @@ static int __cif_pipeline_prepare(struct rkcif_pipeline *p,
 	return 0;
 }
 
-static int __subdev_set_power(struct v4l2_subdev *sd, int on)
-{
-	int ret;
-
-	if (!sd)
-		return -ENXIO;
-
-	ret = v4l2_subdev_call(sd, core, s_power, on);
-
-	return ret != -ENOIOCTLCMD ? ret : 0;
-}
-
-static int __cif_pipeline_s_power(struct rkcif_pipeline *p, bool on)
-{
-	int i, ret;
-
-	if (on) {
-		for (i = p->num_subdevs - 1; i >= 0; --i) {
-			ret = __subdev_set_power(p->subdevs[i], true);
-			if (ret < 0 && ret != -ENXIO)
-				goto err_power_off;
-		}
-	} else {
-		for (i = 0; i < p->num_subdevs; ++i)
-			__subdev_set_power(p->subdevs[i], false);
-	}
-
-	return 0;
-
-err_power_off:
-	for (++i; i < p->num_subdevs; ++i)
-		__subdev_set_power(p->subdevs[i], false);
-	return ret;
-}
-
 static int __cif_pipeline_s_cif_clk(struct rkcif_pipeline *p)
 {
 	return 0;
@@ -148,22 +113,14 @@ static int rkcif_pipeline_open(struct rkcif_pipeline *p,
 	if (ret < 0)
 		return ret;
 
-	ret = __cif_pipeline_s_power(p, 1);
-	if (ret < 0)
-		return ret;
-
 	return 0;
 }
 
 static int rkcif_pipeline_close(struct rkcif_pipeline *p)
 {
-	int ret;
+	atomic_dec_return(&p->power_cnt);
 
-	if (atomic_dec_return(&p->power_cnt) > 0)
-		return 0;
-	ret = __cif_pipeline_s_power(p, 0);
-
-	return ret == -ENXIO ? 0 : ret;
+	return 0;
 }
 
 /*

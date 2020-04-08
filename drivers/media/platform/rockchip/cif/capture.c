@@ -563,7 +563,7 @@ static void rkcif_assign_new_buffer_oneframe(struct rkcif_stream *stream,
 				buffer = stream->curr_buf;
 			}
 
-			if (stream->frame_phase == CIF_CSI_FRAME1_READY ) {
+			if (stream->frame_phase == CIF_CSI_FRAME1_READY) {
 				stream->next_buf = list_first_entry(&stream->buf_head,
 								    struct rkcif_buffer, queue);
 				list_del(&stream->next_buf->queue);
@@ -1094,7 +1094,7 @@ static void rkcif_stop_streaming(struct vb2_queue *queue)
 	if (ret < 0)
 		v4l2_err(v4l2_dev, "pipeline close failed error:%d\n",
 			 ret);
-	/* rkcif_soft_reset(dev, false); */
+	/*rkcif_soft_reset(dev, false);*/
 	pm_runtime_put(dev->dev);
 }
 
@@ -1376,6 +1376,7 @@ static int rkcif_start_streaming(struct vb2_queue *queue, unsigned int count)
 	struct rkcif_vdev_node *node = &stream->vnode;
 	struct rkcif_device *dev = stream->cifdev;
 	struct v4l2_device *v4l2_dev = &dev->v4l2_dev;
+	struct rkcif_sensor_info *sensor_info = dev->active_sensor;
 	/* struct v4l2_subdev *sd; */
 	int ret;
 
@@ -1420,6 +1421,18 @@ static int rkcif_start_streaming(struct vb2_queue *queue, unsigned int count)
 		goto destroy_buf;
 	}
 
+	/*
+	 * start sub-devices
+	 * When use bt601, the sampling edge of cif is random,
+	 * can be rising or fallling after powering on cif.
+	 * To keep the coherence of edge, open sensor in advance.
+	 */
+	if (sensor_info->mbus.type == V4L2_MBUS_PARALLEL) {
+		ret = dev->pipe.set_stream(&dev->pipe, true);
+		if (ret < 0)
+			goto runtime_put;
+	}
+
 	if (dev->chip_id == CHIP_RK1808_CIF) {
 		if (dev->active_sensor->mbus.type == V4L2_MBUS_CSI2)
 			ret = rkcif_csi_stream_start(stream);
@@ -1431,10 +1444,12 @@ static int rkcif_start_streaming(struct vb2_queue *queue, unsigned int count)
 
 	if (ret < 0)
 		goto runtime_put;
-	/* start sub-devices */
-	ret = dev->pipe.set_stream(&dev->pipe, true);
-	if (ret < 0)
-		goto stop_stream;
+
+	if (sensor_info->mbus.type != V4L2_MBUS_PARALLEL) {
+		ret = dev->pipe.set_stream(&dev->pipe, true);
+		if (ret < 0)
+			goto stop_stream;
+	}
 
 	ret = media_pipeline_start(&node->vdev.entity, &dev->pipe.pipe);
 	if (ret < 0) {
@@ -1645,7 +1660,14 @@ static int rkcif_fh_open(struct file *filp)
 		rkcif_soft_reset(cifdev, true);
 	}
 
-	return v4l2_fh_open(filp);
+	ret = v4l2_fh_open(filp);
+	if (!ret) {
+		ret = v4l2_pipeline_pm_use(&vnode->vdev.entity, 1);
+		if (ret < 0)
+			vb2_fop_release(filp);
+	}
+
+	return ret;
 }
 
 static int rkcif_fh_release(struct file *filp)
@@ -1657,6 +1679,12 @@ static int rkcif_fh_release(struct file *filp)
 	int ret = 0;
 
 	ret = vb2_fop_release(filp);
+	if (!ret) {
+		ret = v4l2_pipeline_pm_use(&vnode->vdev.entity, 0);
+		if (ret < 0)
+			v4l2_err(&cifdev->v4l2_dev,
+				 "set pipeline power failed %d\n", ret);
+	}
 
 	mutex_lock(&cifdev->stream_lock);
 	if (!atomic_dec_return(&cifdev->fh_cnt))
