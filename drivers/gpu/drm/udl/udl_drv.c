@@ -97,14 +97,10 @@ static int udl_usb_probe(struct usb_interface *interface,
 
 	DRM_INFO("Initialized udl on minor %d\n", udl->drm.primary->index);
 
-	r = drm_fbdev_generic_setup(&udl->drm, 0);
-	if (r)
-		goto err_drm_dev_unregister;
+	drm_fbdev_generic_setup(&udl->drm, 0);
 
 	return 0;
 
-err_drm_dev_unregister:
-	drm_dev_unregister(&udl->drm);
 err_free:
 	drm_dev_put(&udl->drm);
 	return r;
