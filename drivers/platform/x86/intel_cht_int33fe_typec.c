@@ -40,16 +40,13 @@ static int cht_int33fe_check_for_max17047(struct device *dev, void *data)
 {
 	struct i2c_client **max17047 = data;
 	struct acpi_device *adev;
-	const char *hid;
 
 	adev = ACPI_COMPANION(dev);
 	if (!adev)
 		return 0;
 
-	hid = acpi_device_hid(adev);
-
 	/* The MAX17047 ACPI node doesn't have an UID, so we don't check that */
-	if (strcmp(hid, "MAX17047"))
+	if (!acpi_dev_hid_uid_match(adev, "MAX17047", NULL))
 		return 0;
 
 	*max17047 = to_i2c_client(dev);
