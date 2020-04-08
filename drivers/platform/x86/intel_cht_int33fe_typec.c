@@ -21,20 +21,12 @@
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/usb/pd.h>
 
 #include "intel_cht_int33fe_common.h"
-
-enum {
-	INT33FE_NODE_FUSB302,
-	INT33FE_NODE_MAX17047,
-	INT33FE_NODE_PI3USB30532,
-	INT33FE_NODE_DISPLAYPORT,
-	INT33FE_NODE_USB_CONNECTOR,
-	INT33FE_NODE_MAX,
-};
 
 /*
  * Grrr I severly dislike buggy BIOS-es. At least one BIOS enumerates
@@ -66,9 +58,14 @@ static int cht_int33fe_check_for_max17047(struct device *dev, void *data)
 
 static const char * const max17047_suppliers[] = { "bq24190-charger" };
 
-static const struct property_entry max17047_props[] = {
+static const struct property_entry max17047_properties[] = {
 	PROPERTY_ENTRY_STRING_ARRAY("supplied-from", max17047_suppliers),
 	{ }
+};
+
+static const struct software_node max17047_node = {
+	.name = "max17047",
+	.properties = max17047_properties,
 };
 
 /*
@@ -80,10 +77,15 @@ static struct software_node_ref_args fusb302_mux_refs[] = {
 	{ .node = NULL },
 };
 
-static const struct property_entry fusb302_props[] = {
+static const struct property_entry fusb302_properties[] = {
 	PROPERTY_ENTRY_STRING("linux,extcon-name", "cht_wcove_pwrsrc"),
 	PROPERTY_ENTRY_REF_ARRAY("usb-role-switch", fusb302_mux_refs),
 	{ }
+};
+
+static const struct software_node fusb302_node = {
+	.name = "fusb302",
+	.properties = fusb302_properties,
 };
 
 #define PDO_FIXED_FLAGS \
@@ -98,31 +100,40 @@ static const u32 snk_pdo[] = {
 	PDO_VAR(5000, 12000, 3000),
 };
 
-static const struct software_node nodes[];
+static const struct software_node pi3usb30532_node = {
+	.name = "pi3usb30532",
+};
 
-static const struct property_entry usb_connector_props[] = {
+static const struct software_node displayport_node = {
+	.name = "displayport",
+};
+
+static const struct property_entry usb_connector_properties[] = {
 	PROPERTY_ENTRY_STRING("data-role", "dual"),
 	PROPERTY_ENTRY_STRING("power-role", "dual"),
 	PROPERTY_ENTRY_STRING("try-power-role", "sink"),
 	PROPERTY_ENTRY_U32_ARRAY("source-pdos", src_pdo),
 	PROPERTY_ENTRY_U32_ARRAY("sink-pdos", snk_pdo),
 	PROPERTY_ENTRY_U32("op-sink-microwatt", 2500000),
-	PROPERTY_ENTRY_REF("orientation-switch",
-			   &nodes[INT33FE_NODE_PI3USB30532]),
-	PROPERTY_ENTRY_REF("mode-switch",
-			   &nodes[INT33FE_NODE_PI3USB30532]),
-	PROPERTY_ENTRY_REF("displayport",
-			   &nodes[INT33FE_NODE_DISPLAYPORT]),
+	PROPERTY_ENTRY_REF("orientation-switch", &pi3usb30532_node),
+	PROPERTY_ENTRY_REF("mode-switch", &pi3usb30532_node),
+	PROPERTY_ENTRY_REF("displayport", &displayport_node),
 	{ }
 };
 
-static const struct software_node nodes[] = {
-	{ "fusb302", NULL, fusb302_props },
-	{ "max17047", NULL, max17047_props },
-	{ "pi3usb30532" },
-	{ "displayport" },
-	{ "connector", &nodes[0], usb_connector_props },
-	{ }
+static const struct software_node usb_connector_node = {
+	.name = "connector",
+	.parent = &fusb302_node,
+	.properties = usb_connector_properties,
+};
+
+static const struct software_node *node_group[] = {
+	&fusb302_node,
+	&max17047_node,
+	&pi3usb30532_node,
+	&displayport_node,
+	&usb_connector_node,
+	NULL
 };
 
 static int cht_int33fe_setup_dp(struct cht_int33fe_data *data)
@@ -130,7 +141,7 @@ static int cht_int33fe_setup_dp(struct cht_int33fe_data *data)
 	struct fwnode_handle *fwnode;
 	struct pci_dev *pdev;
 
-	fwnode = software_node_fwnode(&nodes[INT33FE_NODE_DISPLAYPORT]);
+	fwnode = software_node_fwnode(&displayport_node);
 	if (!fwnode)
 		return -ENODEV;
 
@@ -155,11 +166,10 @@ static int cht_int33fe_setup_dp(struct cht_int33fe_data *data)
 
 static void cht_int33fe_remove_nodes(struct cht_int33fe_data *data)
 {
-	software_node_unregister_nodes(nodes);
+	software_node_unregister_node_group(node_group);
 
 	if (fusb302_mux_refs[0].node) {
-		fwnode_handle_put(
-			software_node_fwnode(fusb302_mux_refs[0].node));
+		fwnode_handle_put(software_node_fwnode(fusb302_mux_refs[0].node));
 		fusb302_mux_refs[0].node = NULL;
 	}
 
@@ -192,7 +202,7 @@ static int cht_int33fe_add_nodes(struct cht_int33fe_data *data)
 	 */
 	fusb302_mux_refs[0].node = mux_ref_node;
 
-	ret = software_node_register_nodes(nodes);
+	ret = software_node_register_node_group(node_group);
 	if (ret)
 		return ret;
 
@@ -222,7 +232,7 @@ cht_int33fe_register_max17047(struct device *dev, struct cht_int33fe_data *data)
 	struct fwnode_handle *fwnode;
 	int ret;
 
-	fwnode = software_node_fwnode(&nodes[INT33FE_NODE_MAX17047]);
+	fwnode = software_node_fwnode(&max17047_node);
 	if (!fwnode)
 		return -ENODEV;
 
@@ -294,7 +304,7 @@ int cht_int33fe_typec_probe(struct cht_int33fe_data *data)
 	if (ret)
 		goto out_remove_nodes;
 
-	fwnode = software_node_fwnode(&nodes[INT33FE_NODE_FUSB302]);
+	fwnode = software_node_fwnode(&fusb302_node);
 	if (!fwnode) {
 		ret = -ENODEV;
 		goto out_unregister_max17047;
@@ -312,7 +322,7 @@ int cht_int33fe_typec_probe(struct cht_int33fe_data *data)
 		goto out_unregister_max17047;
 	}
 
-	fwnode = software_node_fwnode(&nodes[INT33FE_NODE_PI3USB30532]);
+	fwnode = software_node_fwnode(&pi3usb30532_node);
 	if (!fwnode) {
 		ret = -ENODEV;
 		goto out_unregister_fusb302;
