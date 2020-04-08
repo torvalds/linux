@@ -1419,7 +1419,7 @@
 	};
 
 	vdpu: vdpu@ff9a0400 {
-		compatible = "rockchip,vpu-decoder-v1";
+		compatible = "rockchip,vpu-decoder-rk3288", "rockchip,vpu-decoder-v1";
 		reg = <0x0 0xff9a0400 0x0 0x400>;
 		interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "irq_dec";
