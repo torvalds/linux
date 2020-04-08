@@ -88,6 +88,7 @@ static int xdr_decode_AFSFetchStatus(const __be32 **_bp,
 
 	if (abort_code != 0 && inline_error) {
 		status->abort_code = abort_code;
+		scb->have_error = true;
 		goto good;
 	}
 
