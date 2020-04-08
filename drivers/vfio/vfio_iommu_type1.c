@@ -2345,10 +2345,10 @@ static int vfio_iommu_type1_dma_rw_chunk(struct vfio_iommu *iommu,
 	vaddr = dma->vaddr + offset;
 
 	if (write)
-		*copied = __copy_to_user((void __user *)vaddr, data,
+		*copied = copy_to_user((void __user *)vaddr, data,
 					 count) ? 0 : count;
 	else
-		*copied = __copy_from_user(data, (void __user *)vaddr,
+		*copied = copy_from_user(data, (void __user *)vaddr,
 					   count) ? 0 : count;
 	if (kthread)
 		unuse_mm(mm);
