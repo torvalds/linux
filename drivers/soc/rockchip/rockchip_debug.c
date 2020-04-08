@@ -82,6 +82,9 @@ int rockchip_debug_dump_pcsr(struct fiq_debugger_output *output)
 		/* Unlock EDLSR.SLK so that EDPCSRhi gets populated */
 		writel(EDLAR_UNLOCK, base + EDLAR);
 
+		output->printf(output,
+				"CPU%d online:%d\n", i, cpu_online(i));
+
 		/* Try to read a bunch of times if CPU is actually running */
 		for (j = 0; j < NUM_CPU_SAMPLES &&
 			    printed < NUM_SAMPLES_TO_PRINT; j++) {
@@ -96,12 +99,13 @@ int rockchip_debug_dump_pcsr(struct fiq_debugger_output *output)
 
 			if (pc != prev_pc) {
 				output->printf(output,
-					       "CPU%d online:%d PC: <%ph> %pS\n",
-					       i, cpu_online(i), pc, pc);
+					       "\tPC: <0x%px> %pS\n", pc, pc);
 				printed++;
 			}
 			prev_pc = pc;
 		}
+
+		output->printf(output, "\n");
 		i++;
 		prev_pc = NULL;
 		printed = 0;
@@ -132,6 +136,8 @@ static int rockchip_panic_notify(struct notifier_block *nb, unsigned long event,
 		/* Unlock EDLSR.SLK so that EDPCSRhi gets populated */
 		writel(EDLAR_UNLOCK, base + EDLAR);
 
+		pr_err("CPU%d online:%d\n", i, cpu_online(i));
+
 		/* Try to read a bunch of times if CPU is actually running */
 		for (j = 0; j < NUM_CPU_SAMPLES &&
 			    printed < NUM_SAMPLES_TO_PRINT; j++) {
@@ -145,12 +151,13 @@ static int rockchip_panic_notify(struct notifier_block *nb, unsigned long event,
 			pc = (void *)(dbgpcsr & ~1);
 
 			if (pc != prev_pc) {
-				pr_err("CPU%d online:%d PC: <%ph> %pS\n",
-				       i, cpu_online(i), pc, pc);
+				pr_err("\tPC: <0x%px> %pS\n", pc, pc);
 				printed++;
 			}
 			prev_pc = pc;
 		}
+
+		pr_err("\n");
 		i++;
 		prev_pc = NULL;
 		printed = 0;
