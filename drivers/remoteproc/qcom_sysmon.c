@@ -453,16 +453,41 @@ static int sysmon_prepare(struct rproc_subdev *subdev)
 	return 0;
 }
 
+/**
+ * sysmon_start() - start callback for the sysmon remoteproc subdevice
+ * @subdev:	instance of the sysmon subdevice
+ *
+ * Inform all the listners of sysmon notifications that the rproc associated
+ * to @subdev has booted up. The rproc that booted up also needs to know
+ * which rprocs are already up and running, so send start notifications
+ * on behalf of all the online rprocs.
+ */
 static int sysmon_start(struct rproc_subdev *subdev)
 {
 	struct qcom_sysmon *sysmon = container_of(subdev, struct qcom_sysmon,
 						  subdev);
+	struct qcom_sysmon *target;
 	struct sysmon_event event = {
 		.subsys_name = sysmon->name,
 		.ssr_event = SSCTL_SSR_EVENT_AFTER_POWERUP
 	};
 
 	blocking_notifier_call_chain(&sysmon_notifiers, 0, (void *)&event);
+
+	mutex_lock(&sysmon_lock);
+	list_for_each_entry(target, &sysmon_list, node) {
+		if (target == sysmon ||
+		    target->rproc->state != RPROC_RUNNING)
+			continue;
+
+		event.subsys_name = target->name;
+
+		if (sysmon->ssctl_version == 2)
+			ssctl_send_event(sysmon, &event);
+		else if (sysmon->ept)
+			sysmon_send_event(sysmon, &event);
+	}
+	mutex_unlock(&sysmon_lock);
 
 	return 0;
 }
