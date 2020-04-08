@@ -390,10 +390,9 @@ static int tilcdc_init(struct drm_driver *ddrv, struct device *dev)
 	ret = drm_dev_register(ddev, 0);
 	if (ret)
 		goto init_failed;
+	priv->is_registered = true;
 
 	drm_fbdev_generic_setup(ddev, bpp);
-
-	priv->is_registered = true;
 	return 0;
 
 init_failed:
