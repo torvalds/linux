@@ -2170,6 +2170,8 @@ static const struct drm_client_funcs drm_fbdev_client_funcs = {
  *
  * This function sets up generic fbdev emulation for drivers that supports
  * dumb buffers with a virtual address and that can be mmap'ed.
+ * drm_fbdev_generic_setup() shall be called after the DRM driver registered
+ * the new DRM device with drm_dev_register().
  *
  * Restore, hotplug events and teardown are all taken care of. Drivers that do
  * suspend/resume need to call drm_fb_helper_set_suspend_unlocked() themselves.
@@ -2186,29 +2188,30 @@ static const struct drm_client_funcs drm_fbdev_client_funcs = {
  * Setup will be retried on the next hotplug event.
  *
  * The fbdev is destroyed by drm_dev_unregister().
- *
- * Returns:
- * Zero on success or negative error code on failure.
  */
-int drm_fbdev_generic_setup(struct drm_device *dev, unsigned int preferred_bpp)
+void drm_fbdev_generic_setup(struct drm_device *dev,
+			     unsigned int preferred_bpp)
 {
 	struct drm_fb_helper *fb_helper;
 	int ret;
 
-	WARN(dev->fb_helper, "fb_helper is already set!\n");
+	drm_WARN(dev, !dev->registered, "Device has not been registered.\n");
+	drm_WARN(dev, dev->fb_helper, "fb_helper is already set!\n");
 
 	if (!drm_fbdev_emulation)
-		return 0;
+		return;
 
 	fb_helper = kzalloc(sizeof(*fb_helper), GFP_KERNEL);
-	if (!fb_helper)
-		return -ENOMEM;
+	if (!fb_helper) {
+		drm_err(dev, "Failed to allocate fb_helper\n");
+		return;
+	}
 
 	ret = drm_client_init(dev, &fb_helper->client, "fbdev", &drm_fbdev_client_funcs);
 	if (ret) {
 		kfree(fb_helper);
 		drm_err(dev, "Failed to register client: %d\n", ret);
-		return ret;
+		return;
 	}
 
 	if (!preferred_bpp)
@@ -2222,8 +2225,6 @@ int drm_fbdev_generic_setup(struct drm_device *dev, unsigned int preferred_bpp)
 		drm_dbg_kms(dev, "client hotplug ret=%d\n", ret);
 
 	drm_client_register(&fb_helper->client);
-
-	return 0;
 }
 EXPORT_SYMBOL(drm_fbdev_generic_setup);
 
