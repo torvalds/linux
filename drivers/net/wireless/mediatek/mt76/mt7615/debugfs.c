@@ -129,16 +129,18 @@ mt7615_ampdu_stat_read_phy(struct mt7615_phy *phy,
 			   struct seq_file *file)
 {
 	struct mt7615_dev *dev = file->private;
+	u32 reg = is_mt7663(&dev->mt76) ? MT_MIB_ARNG(0) : MT_AGG_ASRCR0;
 	bool ext_phy = phy != &dev->phy;
 	int bound[7], i, range;
 
 	if (!phy)
 		return;
 
-	range = mt76_rr(dev, MT_AGG_ASRCR0);
+	range = mt76_rr(dev, reg);
 	for (i = 0; i < 4; i++)
 		bound[i] = MT_AGG_ASRCR_RANGE(range, i) + 1;
-	range = mt76_rr(dev, MT_AGG_ASRCR1);
+
+	range = mt76_rr(dev, reg + 4);
 	for (i = 0; i < 3; i++)
 		bound[i + 4] = MT_AGG_ASRCR_RANGE(range, i) + 1;
 

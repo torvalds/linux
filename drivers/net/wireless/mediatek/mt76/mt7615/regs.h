@@ -384,6 +384,9 @@ enum mt7615_reg_base {
 #define MT_WF_MIB_BASE			(dev->reg_map[MT_MIB_BASE])
 #define MT_WF_MIB(_band, ofs)		(MT_WF_MIB_BASE + (ofs) + (_band) * 0x200)
 
+#define MT_WF_MIB_SCR0			MT_WF_MIB(0, 0)
+#define MT_MIB_SCR0_AGG_CNT_RANGE_EN	BIT(21)
+
 #define MT_MIB_M0_MISC_CR(_band)	MT_WF_MIB(_band, 0x00c)
 
 #define MT_MIB_SDR3(_band)		MT_WF_MIB(_band, 0x014)
@@ -413,6 +416,8 @@ enum mt7615_reg_base {
 #define MT_MIB_MB_SDR1(_band, n)	MT_WF_MIB(_band, 0x104 + ((n) << 4))
 #define MT_MIB_BA_MISS_COUNT_MASK	GENMASK(15, 0)
 #define MT_MIB_ACK_FAIL_COUNT_MASK	GENMASK(31, 16)
+
+#define MT_MIB_ARNG(n)			MT_WF_MIB(0, 0x4b8 + ((n) << 2))
 
 #define MT_TX_AGG_CNT(_band, n)		MT_WF_MIB(_band, 0xa8 + ((n) << 2))
 
