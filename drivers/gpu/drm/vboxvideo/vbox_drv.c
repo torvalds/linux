@@ -78,13 +78,11 @@ static int vbox_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret)
 		goto err_mode_fini;
 
-	ret = drm_fbdev_generic_setup(&vbox->ddev, 32);
-	if (ret)
-		goto err_irq_fini;
-
 	ret = drm_dev_register(&vbox->ddev, 0);
 	if (ret)
 		goto err_irq_fini;
+
+	drm_fbdev_generic_setup(&vbox->ddev, 32);
 
 	return 0;
 
