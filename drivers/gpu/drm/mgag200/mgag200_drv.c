@@ -77,6 +77,8 @@ static int mga_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret)
 		goto err_mgag200_driver_unload;
 
+	drm_fbdev_generic_setup(dev, 0);
+
 	return 0;
 
 err_mgag200_driver_unload:

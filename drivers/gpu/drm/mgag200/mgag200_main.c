@@ -181,10 +181,6 @@ int mgag200_driver_load(struct drm_device *dev, unsigned long flags)
 		dev_warn(&dev->pdev->dev,
 			"Could not initialize cursors. Not doing hardware cursors.\n");
 
-	r = drm_fbdev_generic_setup(mdev->dev, 0);
-	if (r)
-		goto err_modeset;
-
 	return 0;
 
 err_modeset:
