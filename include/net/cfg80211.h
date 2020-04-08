@@ -905,6 +905,8 @@ struct survey_info {
  *	protocol frames.
  * @control_port_over_nl80211: TRUE if userspace expects to exchange control
  *	port frames over NL80211 instead of the network interface.
+ * @control_port_no_preauth: disables pre-auth rx over the nl80211 control
+ *	port for mac80211
  * @wep_keys: static WEP keys, if not NULL points to an array of
  *	CFG80211_MAX_WEP_KEYS WEP keys
  * @wep_tx_key: key index (0..3) of the default TX static WEP key
@@ -1222,6 +1224,7 @@ struct sta_txpwr {
  * @he_capa: HE capabilities of station
  * @he_capa_len: the length of the HE capabilities
  * @airtime_weight: airtime scheduler weight for this station
+ * @txpwr: transmit power for an associated station
  */
 struct station_parameters {
 	const u8 *supported_rates;
@@ -4666,6 +4669,9 @@ struct wiphy_iftype_akm_suites {
  * @txq_memory_limit: configuration internal TX queue memory limit
  * @txq_quantum: configuration of internal TX queue scheduler quantum
  *
+ * @tx_queue_len: allow setting transmit queue len for drivers not using
+ *	wake_tx_queue
+ *
  * @support_mbssid: can HW support association with nontransmitted AP
  * @support_only_he_mbssid: don't parse MBSSID elements if it is not
  *	HE AP, in order to avoid compatibility issues.
@@ -4681,6 +4687,10 @@ struct wiphy_iftype_akm_suites {
  *	supported by the driver for each peer
  * @tid_config_support.max_retry: maximum supported retry count for
  *	long/short retry configuration
+ *
+ * @max_data_retry_count: maximum supported per TID retry count for
+ *	configuration through the %NL80211_TID_CONFIG_ATTR_RETRY_SHORT and
+ *	%NL80211_TID_CONFIG_ATTR_RETRY_LONG attributes
  */
 struct wiphy {
 	/* assign these fields before you register the wiphy */
