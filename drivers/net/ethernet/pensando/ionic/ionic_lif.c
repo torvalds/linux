@@ -2127,6 +2127,8 @@ static void ionic_lif_handle_fw_up(struct ionic_lif *lif)
 	if (lif->registered)
 		ionic_lif_set_netdev_info(lif);
 
+	ionic_rx_filter_replay(lif);
+
 	if (netif_running(lif->netdev)) {
 		err = ionic_txrx_alloc(lif);
 		if (err)
@@ -2206,9 +2208,9 @@ static void ionic_lif_deinit(struct ionic_lif *lif)
 	if (!test_bit(IONIC_LIF_F_FW_RESET, lif->state)) {
 		cancel_work_sync(&lif->deferred.work);
 		cancel_work_sync(&lif->tx_timeout_work);
+		ionic_rx_filters_deinit(lif);
 	}
 
-	ionic_rx_filters_deinit(lif);
 	if (lif->netdev->features & NETIF_F_RXHASH)
 		ionic_lif_rss_deinit(lif);
 
@@ -2421,9 +2423,11 @@ static int ionic_lif_init(struct ionic_lif *lif)
 	if (err)
 		goto err_out_notifyq_deinit;
 
-	err = ionic_rx_filters_init(lif);
-	if (err)
-		goto err_out_notifyq_deinit;
+	if (!test_bit(IONIC_LIF_F_FW_RESET, lif->state)) {
+		err = ionic_rx_filters_init(lif);
+		if (err)
+			goto err_out_notifyq_deinit;
+	}
 
 	err = ionic_station_set(lif);
 	if (err)
