@@ -6,14 +6,14 @@
  *
  * Some Intel Cherry Trail based device which ship with Windows 10, have
  * this weird INT33FE ACPI device with a CRS table with 4 I2cSerialBusV2
- * resources, for 4 different chips attached to various i2c busses:
- * 1. The Whiskey Cove pmic, which is also described by the INT34D3 ACPI device
+ * resources, for 4 different chips attached to various I²C buses:
+ * 1. The Whiskey Cove PMIC, which is also described by the INT34D3 ACPI device
  * 2. Maxim MAX17047 Fuel Gauge Controller
  * 3. FUSB302 USB Type-C Controller
  * 4. PI3USB30532 USB switch
  *
  * So this driver is a stub / pseudo driver whose only purpose is to
- * instantiate i2c-clients for chips 2 - 4, so that standard i2c drivers
+ * instantiate I²C clients for chips 2 - 4, so that standard I²C drivers
  * for these chips can bind to the them.
  */
 
@@ -29,11 +29,11 @@
 #include "intel_cht_int33fe_common.h"
 
 /*
- * Grrr I severly dislike buggy BIOS-es. At least one BIOS enumerates
+ * Grrr, I severely dislike buggy BIOS-es. At least one BIOS enumerates
  * the max17047 both through the INT33FE ACPI device (it is right there
  * in the resources table) as well as through a separate MAX17047 device.
  *
- * These helpers are used to work around this by checking if an i2c-client
+ * These helpers are used to work around this by checking if an I²C client
  * for the max17047 has already been registered.
  */
 static int cht_int33fe_check_for_max17047(struct device *dev, void *data)
@@ -235,9 +235,9 @@ cht_int33fe_register_max17047(struct device *dev, struct cht_int33fe_data *data)
 
 	i2c_for_each_dev(&max17047, cht_int33fe_check_for_max17047);
 	if (max17047) {
-		/* Pre-existing i2c-client for the max17047, add device-props */
+		/* Pre-existing I²C client for the max17047, add device properties */
 		set_secondary_fwnode(&max17047->dev, fwnode);
-		/* And re-probe to get the new device-props applied. */
+		/* And re-probe to get the new device properties applied */
 		ret = device_reprobe(&max17047->dev);
 		if (ret)
 			dev_warn(dev, "Reprobing max17047 error: %d\n", ret);
@@ -272,7 +272,7 @@ int cht_int33fe_typec_probe(struct cht_int33fe_data *data)
 	 *    must be registered before the fusb302 is instantiated, otherwise
 	 *    it will end up with a dummy-regulator.
 	 * Note "cht_wc_usb_typec_vbus" comes from the regulator_init_data
-	 * which is defined in i2c-cht-wc.c from where the bq24292i i2c-client
+	 * which is defined in i2c-cht-wc.c from where the bq24292i I²C client
 	 * gets instantiated. We use regulator_get_optional here so that we
 	 * don't end up getting a dummy-regulator ourselves.
 	 */
@@ -283,7 +283,7 @@ int cht_int33fe_typec_probe(struct cht_int33fe_data *data)
 	}
 	regulator_put(regulator);
 
-	/* The FUSB302 uses the irq at index 1 and is the only irq user */
+	/* The FUSB302 uses the IRQ at index 1 and is the only IRQ user */
 	fusb302_irq = acpi_dev_gpio_irq_get(ACPI_COMPANION(dev), 1);
 	if (fusb302_irq < 0) {
 		if (fusb302_irq != -EPROBE_DEFER)
@@ -295,7 +295,7 @@ int cht_int33fe_typec_probe(struct cht_int33fe_data *data)
 	if (ret)
 		return ret;
 
-	/* Work around BIOS bug, see comment on cht_int33fe_check_for_max17047 */
+	/* Work around BIOS bug, see comment on cht_int33fe_check_for_max17047() */
 	ret = cht_int33fe_register_max17047(dev, data);
 	if (ret)
 		goto out_remove_nodes;
