@@ -468,7 +468,6 @@ static inline pteval_t pte_flags(pte_t pte)
 }
 
 extern uint16_t __cachemode2pte_tbl[_PAGE_CACHE_MODE_NUM];
-extern uint8_t __pte2cachemode_tbl[8];
 
 #define __pte2cm_idx(cb)				\
 	((((cb) >> (_PAGE_BIT_PAT - 2)) & 4) |		\
@@ -488,15 +487,6 @@ static inline unsigned long cachemode2protval(enum page_cache_mode pcm)
 static inline pgprot_t cachemode2pgprot(enum page_cache_mode pcm)
 {
 	return __pgprot(cachemode2protval(pcm));
-}
-static inline enum page_cache_mode pgprot2cachemode(pgprot_t pgprot)
-{
-	unsigned long masked;
-
-	masked = pgprot_val(pgprot) & _PAGE_CACHE_MASK;
-	if (likely(masked == 0))
-		return 0;
-	return __pte2cachemode_tbl[__pte2cm_idx(masked)];
 }
 static inline pgprot_t pgprot_4k_2_large(pgprot_t pgprot)
 {
