@@ -478,12 +478,18 @@ int dpaa2_io_service_enqueue_multiple_desc_fq(struct dpaa2_io *d,
 				const struct dpaa2_fd *fd,
 				int nb)
 {
-	int i;
-	struct qbman_eq_desc ed[32];
+	struct qbman_eq_desc *ed;
+	int i, ret;
+
+	ed = kcalloc(sizeof(struct qbman_eq_desc), 32, GFP_KERNEL);
+	if (!ed)
+		return -ENOMEM;
 
 	d = service_select(d);
-	if (!d)
-		return -ENODEV;
+	if (!d) {
+		ret = -ENODEV;
+		goto out;
+	}
 
 	for (i = 0; i < nb; i++) {
 		qbman_eq_desc_clear(&ed[i]);
@@ -491,7 +497,10 @@ int dpaa2_io_service_enqueue_multiple_desc_fq(struct dpaa2_io *d,
 		qbman_eq_desc_set_fq(&ed[i], fqid[i]);
 	}
 
-	return qbman_swp_enqueue_multiple_desc(d->swp, &ed[0], fd, nb);
+	ret = qbman_swp_enqueue_multiple_desc(d->swp, &ed[0], fd, nb);
+out:
+	kfree(ed);
+	return ret;
 }
 EXPORT_SYMBOL(dpaa2_io_service_enqueue_multiple_desc_fq);
 
