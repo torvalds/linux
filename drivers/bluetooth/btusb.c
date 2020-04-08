@@ -1622,6 +1622,9 @@ static struct usb_host_interface *btusb_find_altsetting(struct btusb_data *data,
 
 	BT_DBG("Looking for Alt no :%d", alt);
 
+	if (!intf)
+		return NULL;
+
 	for (i = 0; i < intf->num_altsetting; i++) {
 		if (intf->altsetting[i].desc.bAlternateSetting == alt)
 			return &intf->altsetting[i];
