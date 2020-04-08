@@ -514,51 +514,69 @@ static void rkcif_assign_new_buffer_oneframe(struct rkcif_stream *stream,
 	void __iomem *base = dev->base_addr;
 	u32 frm_addr_y, frm_addr_uv;
 
-	/* Set up an empty buffer for the next frame */
 	spin_lock(&stream->vbq_lock);
-	if (!list_empty(&stream->buf_head)) {
-		if (stream->frame_phase == CIF_CSI_FRAME0_READY ||
-		    stat == RKCIF_YUV_ADDR_STATE_INIT) {
-			stream->curr_buf = list_first_entry(&stream->buf_head,
-						struct rkcif_buffer, queue);
-			list_del(&stream->curr_buf->queue);
-			buffer = stream->curr_buf;
-		}
-		if (stream->frame_phase == CIF_CSI_FRAME1_READY ||
-		    stat == RKCIF_YUV_ADDR_STATE_INIT) {
-			stream->next_buf = list_first_entry(&stream->buf_head,
-						struct rkcif_buffer, queue);
-			list_del(&stream->next_buf->queue);
-			buffer = stream->next_buf;
-		}
-	} else {
-		if (stream->frame_phase == CIF_CSI_FRAME0_READY)
-			stream->curr_buf = NULL;
-		if (stream->frame_phase == CIF_CSI_FRAME1_READY)
-			stream->next_buf = NULL;
-		buffer = NULL;
-	}
-	spin_unlock(&stream->vbq_lock);
-
 	if (stat == RKCIF_YUV_ADDR_STATE_INIT) {
-		if (stream->curr_buf && stream->next_buf) {
+		if (!stream->curr_buf) {
+			if (!list_empty(&stream->buf_head)) {
+				stream->curr_buf = list_first_entry(&stream->buf_head,
+								    struct rkcif_buffer,
+								    queue);
+				list_del(&stream->curr_buf->queue);
+			}
+		}
+
+		if (stream->curr_buf) {
 			write_cif_reg(base, CIF_FRM0_ADDR_Y,
 				      stream->curr_buf->buff_addr[RKCIF_PLANE_Y]);
 			write_cif_reg(base, CIF_FRM0_ADDR_UV,
 				      stream->curr_buf->buff_addr[RKCIF_PLANE_CBCR]);
+		} else {
+			write_cif_reg(base, CIF_FRM0_ADDR_Y,
+				      dummy_buf->dma_addr);
+			write_cif_reg(base, CIF_FRM0_ADDR_UV,
+				      dummy_buf->dma_addr);
+		}
+
+		if (!stream->next_buf) {
+			if (!list_empty(&stream->buf_head)) {
+				stream->next_buf = list_first_entry(&stream->buf_head,
+								    struct rkcif_buffer, queue);
+				list_del(&stream->next_buf->queue);
+			}
+		}
+
+		if (stream->next_buf) {
 			write_cif_reg(base, CIF_FRM1_ADDR_Y,
 				      stream->next_buf->buff_addr[RKCIF_PLANE_Y]);
 			write_cif_reg(base, CIF_FRM1_ADDR_UV,
 				      stream->next_buf->buff_addr[RKCIF_PLANE_CBCR]);
 		} else {
-			v4l2_dbg(1, rkcif_debug, &dev->v4l2_dev, "Drop to dummy buf\n");
-			write_cif_reg(base, CIF_FRM0_ADDR_Y, dummy_buf->dma_addr);
-			write_cif_reg(base, CIF_FRM0_ADDR_UV, dummy_buf->dma_addr);
 			write_cif_reg(base, CIF_FRM1_ADDR_Y, dummy_buf->dma_addr);
 			write_cif_reg(base, CIF_FRM1_ADDR_UV, dummy_buf->dma_addr);
 		}
+	} else if (stat == RKCIF_YUV_ADDR_STATE_UPDATE) {
+		if (!list_empty(&stream->buf_head)) {
+			if (stream->frame_phase == CIF_CSI_FRAME0_READY) {
+				stream->curr_buf = list_first_entry(&stream->buf_head,
+								    struct rkcif_buffer, queue);
+				list_del(&stream->curr_buf->queue);
+				buffer = stream->curr_buf;
+			}
 
-	} else {
+			if (stream->frame_phase == CIF_CSI_FRAME1_READY ) {
+				stream->next_buf = list_first_entry(&stream->buf_head,
+								    struct rkcif_buffer, queue);
+				list_del(&stream->next_buf->queue);
+				buffer = stream->next_buf;
+			}
+		} else {
+			if (stream->frame_phase == CIF_CSI_FRAME0_READY)
+				stream->curr_buf = NULL;
+			if (stream->frame_phase == CIF_CSI_FRAME1_READY)
+				stream->next_buf = NULL;
+			buffer = NULL;
+		}
+
 		if (stream->frame_phase == CIF_CSI_FRAME0_READY) {
 			frm_addr_y = CIF_FRM0_ADDR_Y;
 			frm_addr_uv = CIF_FRM0_ADDR_UV;
@@ -581,6 +599,7 @@ static void rkcif_assign_new_buffer_oneframe(struct rkcif_stream *stream,
 				 "frame Drop to dummy buf\n");
 		}
 	}
+	spin_unlock(&stream->vbq_lock);
 }
 
 static void rkcif_assign_new_buffer_pingpong(struct rkcif_stream *stream,
@@ -591,31 +610,6 @@ static void rkcif_assign_new_buffer_pingpong(struct rkcif_stream *stream,
 	struct rkcif_buffer *buffer = NULL;
 	void __iomem *base = dev->base_addr;
 	u32 frm_addr_y, frm_addr_uv;
-
-	/* Set up an empty buffer for the next frame */
-	spin_lock(&stream->vbq_lock);
-	if (!list_empty(&stream->buf_head)) {
-		if (stream->frame_phase == CIF_CSI_FRAME0_READY || init) {
-			stream->curr_buf = list_first_entry(&stream->buf_head,
-						struct rkcif_buffer, queue);
-			list_del(&stream->curr_buf->queue);
-			buffer = stream->curr_buf;
-		}
-		if (stream->frame_phase == CIF_CSI_FRAME1_READY || init) {
-			stream->next_buf = list_first_entry(&stream->buf_head,
-						struct rkcif_buffer, queue);
-			list_del(&stream->next_buf->queue);
-			buffer = stream->next_buf;
-		}
-	} else {
-		if (stream->frame_phase & CIF_CSI_FRAME0_READY)
-			stream->curr_buf = NULL;
-		if (stream->frame_phase & CIF_CSI_FRAME1_READY)
-			stream->next_buf = NULL;
-
-		buffer = NULL;
-	}
-	spin_unlock(&stream->vbq_lock);
 
 	if (init) {
 		u32 frm0_addr_y, frm0_addr_uv;
@@ -633,49 +627,94 @@ static void rkcif_assign_new_buffer_pingpong(struct rkcif_stream *stream,
 			frm1_addr_uv = CIF_FRM1_ADDR_UV;
 		}
 
-		if (stream->curr_buf && stream->next_buf) {
+		spin_lock(&stream->vbq_lock);
+		if (!stream->curr_buf) {
+			if (!list_empty(&stream->buf_head)) {
+				stream->curr_buf = list_first_entry(&stream->buf_head,
+								    struct rkcif_buffer,
+								    queue);
+				list_del(&stream->curr_buf->queue);
+			}
+		}
+
+		if (stream->curr_buf) {
 			write_cif_reg(base, frm0_addr_y,
 				      stream->curr_buf->buff_addr[RKCIF_PLANE_Y]);
 			write_cif_reg(base, frm0_addr_uv,
 				      stream->curr_buf->buff_addr[RKCIF_PLANE_CBCR]);
+		} else {
+			write_cif_reg(base, frm0_addr_y, dummy_buf->dma_addr);
+			write_cif_reg(base, frm0_addr_uv, dummy_buf->dma_addr);
+		}
+
+		if (!stream->next_buf) {
+			if (!list_empty(&stream->buf_head)) {
+				stream->next_buf = list_first_entry(&stream->buf_head,
+								    struct rkcif_buffer, queue);
+				list_del(&stream->next_buf->queue);
+			}
+		}
+
+		if (stream->next_buf) {
 			write_cif_reg(base, frm1_addr_y,
 				      stream->next_buf->buff_addr[RKCIF_PLANE_Y]);
 			write_cif_reg(base, frm1_addr_uv,
 				      stream->next_buf->buff_addr[RKCIF_PLANE_CBCR]);
 		} else {
-			v4l2_dbg(1, rkcif_debug, &dev->v4l2_dev, "Drop to dummy buf\n");
-			write_cif_reg(base, frm0_addr_y, dummy_buf->dma_addr);
-			write_cif_reg(base, frm0_addr_uv, dummy_buf->dma_addr);
 			write_cif_reg(base, frm1_addr_y, dummy_buf->dma_addr);
 			write_cif_reg(base, frm1_addr_uv, dummy_buf->dma_addr);
 		}
-
-		return;
-	}
-
-	if (dev->active_sensor->mbus.type == V4L2_MBUS_CSI2) {
-		frm_addr_y = stream->frame_phase & CIF_CSI_FRAME1_READY ?
-			(CIF_CSI_FRM1_ADDR_Y_ID0 + 0x20 * csi_ch) :
-			(CIF_CSI_FRM0_ADDR_Y_ID0 + 0x20 * csi_ch);
-		frm_addr_uv = stream->frame_phase & CIF_CSI_FRAME1_READY ?
-			(CIF_CSI_FRM1_ADDR_UV_ID0 + 0x20 * csi_ch) :
-			(CIF_CSI_FRM0_ADDR_UV_ID0 + 0x20 * csi_ch);
+		spin_unlock(&stream->vbq_lock);
 	} else {
-		frm_addr_y = stream->frame_phase & CIF_CSI_FRAME1_READY ?
-			CIF_FRM1_ADDR_Y : CIF_FRM0_ADDR_Y;
-		frm_addr_uv = stream->frame_phase & CIF_CSI_FRAME1_READY ?
-			CIF_FRM1_ADDR_UV : CIF_FRM0_ADDR_UV;
-	}
+		if (dev->active_sensor->mbus.type == V4L2_MBUS_CSI2) {
+			frm_addr_y = stream->frame_phase & CIF_CSI_FRAME1_READY ?
+				     (CIF_CSI_FRM1_ADDR_Y_ID0 + 0x20 * csi_ch) :
+				     (CIF_CSI_FRM0_ADDR_Y_ID0 + 0x20 * csi_ch);
+			frm_addr_uv = stream->frame_phase & CIF_CSI_FRAME1_READY ?
+				      (CIF_CSI_FRM1_ADDR_UV_ID0 + 0x20 * csi_ch) :
+				      (CIF_CSI_FRM0_ADDR_UV_ID0 + 0x20 * csi_ch);
+		} else {
+			frm_addr_y = stream->frame_phase & CIF_CSI_FRAME1_READY ?
+				     CIF_FRM1_ADDR_Y : CIF_FRM0_ADDR_Y;
+			frm_addr_uv = stream->frame_phase & CIF_CSI_FRAME1_READY ?
+				      CIF_FRM1_ADDR_UV : CIF_FRM0_ADDR_UV;
+		}
 
-	if (buffer) {
-		write_cif_reg(base, frm_addr_y,
-			      buffer->buff_addr[RKCIF_PLANE_Y]);
-		write_cif_reg(base, frm_addr_uv,
-			      buffer->buff_addr[RKCIF_PLANE_CBCR]);
-	} else {
-		v4l2_dbg(1, rkcif_debug, &dev->v4l2_dev, "Drop to dummy buf\n");
-		write_cif_reg(base, frm_addr_y, dummy_buf->dma_addr);
-		write_cif_reg(base, frm_addr_uv, dummy_buf->dma_addr);
+		spin_lock(&stream->vbq_lock);
+		if (!list_empty(&stream->buf_head)) {
+			if (stream->frame_phase == CIF_CSI_FRAME0_READY) {
+				stream->curr_buf = list_first_entry(&stream->buf_head,
+								    struct rkcif_buffer, queue);
+				list_del(&stream->curr_buf->queue);
+				buffer = stream->curr_buf;
+			}
+
+			if (stream->frame_phase == CIF_CSI_FRAME1_READY) {
+				stream->next_buf = list_first_entry(&stream->buf_head,
+								    struct rkcif_buffer, queue);
+				list_del(&stream->next_buf->queue);
+				buffer = stream->next_buf;
+			}
+		} else {
+			if (stream->frame_phase == CIF_CSI_FRAME0_READY)
+				stream->curr_buf = NULL;
+			if (stream->frame_phase == CIF_CSI_FRAME1_READY)
+				stream->next_buf = NULL;
+			buffer = NULL;
+		}
+		spin_unlock(&stream->vbq_lock);
+
+		if (buffer) {
+			write_cif_reg(base, frm_addr_y,
+				      buffer->buff_addr[RKCIF_PLANE_Y]);
+			write_cif_reg(base, frm_addr_uv,
+				      buffer->buff_addr[RKCIF_PLANE_CBCR]);
+		} else {
+			write_cif_reg(base, frm_addr_y, dummy_buf->dma_addr);
+			write_cif_reg(base, frm_addr_uv, dummy_buf->dma_addr);
+			v4l2_dbg(1, rkcif_debug, &dev->v4l2_dev,
+				 "frame Drop to dummy buf\n");
+		}
 	}
 }
 
@@ -1389,9 +1428,9 @@ static int rkcif_start_streaming(struct vb2_queue *queue, unsigned int count)
 	} else {
 		ret = rkcif_stream_start(stream);
 	}
+
 	if (ret < 0)
 		goto runtime_put;
-
 	/* start sub-devices */
 	ret = dev->pipe.set_stream(&dev->pipe, true);
 	if (ret < 0)
@@ -1605,6 +1644,7 @@ static int rkcif_fh_open(struct file *filp)
 	} else {
 		rkcif_soft_reset(cifdev, true);
 	}
+
 	return v4l2_fh_open(filp);
 }
 
@@ -1617,6 +1657,7 @@ static int rkcif_fh_release(struct file *filp)
 	int ret = 0;
 
 	ret = vb2_fop_release(filp);
+
 	mutex_lock(&cifdev->stream_lock);
 	if (!atomic_dec_return(&cifdev->fh_cnt))
 		rkcif_soft_reset(cifdev, true);
