@@ -2341,24 +2341,30 @@ static int ionic_station_set(struct ionic_lif *lif)
 	err = ionic_adminq_post_wait(lif, &ctx);
 	if (err)
 		return err;
-
+	netdev_dbg(lif->netdev, "found initial MAC addr %pM\n",
+		   ctx.comp.lif_getattr.mac);
 	if (is_zero_ether_addr(ctx.comp.lif_getattr.mac))
 		return 0;
 
-	memcpy(addr.sa_data, ctx.comp.lif_getattr.mac, netdev->addr_len);
-	addr.sa_family = AF_INET;
-	err = eth_prepare_mac_addr_change(netdev, &addr);
-	if (err) {
-		netdev_warn(lif->netdev, "ignoring bad MAC addr from NIC %pM - err %d\n",
-			    addr.sa_data, err);
-		return 0;
+	if (!ether_addr_equal(ctx.comp.lif_getattr.mac, netdev->dev_addr)) {
+		memcpy(addr.sa_data, ctx.comp.lif_getattr.mac, netdev->addr_len);
+		addr.sa_family = AF_INET;
+		err = eth_prepare_mac_addr_change(netdev, &addr);
+		if (err) {
+			netdev_warn(lif->netdev, "ignoring bad MAC addr from NIC %pM - err %d\n",
+				    addr.sa_data, err);
+			return 0;
+		}
+
+		if (!is_zero_ether_addr(netdev->dev_addr)) {
+			netdev_dbg(lif->netdev, "deleting station MAC addr %pM\n",
+				   netdev->dev_addr);
+			ionic_lif_addr(lif, netdev->dev_addr, false);
+		}
+
+		eth_commit_mac_addr_change(netdev, &addr);
 	}
 
-	netdev_dbg(lif->netdev, "deleting station MAC addr %pM\n",
-		   netdev->dev_addr);
-	ionic_lif_addr(lif, netdev->dev_addr, false);
-
-	eth_commit_mac_addr_change(netdev, &addr);
 	netdev_dbg(lif->netdev, "adding station MAC addr %pM\n",
 		   netdev->dev_addr);
 	ionic_lif_addr(lif, netdev->dev_addr, true);
