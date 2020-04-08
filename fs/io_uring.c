@@ -2931,7 +2931,7 @@ static int io_openat_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 	if (sqe->ioprio || sqe->buf_index)
 		return -EINVAL;
-	if (sqe->flags & IOSQE_FIXED_FILE)
+	if (req->flags & REQ_F_FIXED_FILE)
 		return -EBADF;
 	if (req->flags & REQ_F_NEED_CLEANUP)
 		return 0;
@@ -2964,7 +2964,7 @@ static int io_openat2_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 	if (sqe->ioprio || sqe->buf_index)
 		return -EINVAL;
-	if (sqe->flags & IOSQE_FIXED_FILE)
+	if (req->flags & REQ_F_FIXED_FILE)
 		return -EBADF;
 	if (req->flags & REQ_F_NEED_CLEANUP)
 		return 0;
@@ -3318,7 +3318,7 @@ static int io_statx_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 	if (sqe->ioprio || sqe->buf_index)
 		return -EINVAL;
-	if (sqe->flags & IOSQE_FIXED_FILE)
+	if (req->flags & REQ_F_FIXED_FILE)
 		return -EBADF;
 	if (req->flags & REQ_F_NEED_CLEANUP)
 		return 0;
@@ -3395,7 +3395,7 @@ static int io_close_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	if (sqe->ioprio || sqe->off || sqe->addr || sqe->len ||
 	    sqe->rw_flags || sqe->buf_index)
 		return -EINVAL;
-	if (sqe->flags & IOSQE_FIXED_FILE)
+	if (req->flags & REQ_F_FIXED_FILE)
 		return -EBADF;
 
 	req->close.fd = READ_ONCE(sqe->fd);
@@ -5366,14 +5366,9 @@ static int io_file_get(struct io_submit_state *state, struct io_kiocb *req,
 }
 
 static int io_req_set_file(struct io_submit_state *state, struct io_kiocb *req,
-			   const struct io_uring_sqe *sqe)
+			   int fd, unsigned int flags)
 {
-	unsigned flags;
-	int fd;
 	bool fixed;
-
-	flags = READ_ONCE(sqe->flags);
-	fd = READ_ONCE(sqe->fd);
 
 	if (!io_req_needs_file(req, fd))
 		return 0;
@@ -5616,7 +5611,7 @@ static bool io_submit_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 {
 	struct io_ring_ctx *ctx = req->ctx;
 	unsigned int sqe_flags;
-	int ret, id;
+	int ret, id, fd;
 
 	sqe_flags = READ_ONCE(sqe->flags);
 
@@ -5647,7 +5642,8 @@ static bool io_submit_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 					IOSQE_ASYNC | IOSQE_FIXED_FILE |
 					IOSQE_BUFFER_SELECT);
 
-	ret = io_req_set_file(state, req, sqe);
+	fd = READ_ONCE(sqe->fd);
+	ret = io_req_set_file(state, req, fd, sqe_flags);
 	if (unlikely(ret)) {
 err_req:
 		io_cqring_add_event(req, ret);
