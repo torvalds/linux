@@ -145,10 +145,19 @@ static void mt7615_init_work(struct work_struct *work)
 	mt7615_mcu_del_wtbl_all(dev);
 
 	if (!mt7615_firmware_offload(dev)) {
+		struct wiphy *wiphy = mt76_hw(dev)->wiphy;
+
 		dev->ops->hw_scan = NULL;
 		dev->ops->cancel_hw_scan = NULL;
 		dev->ops->sched_scan_start = NULL;
 		dev->ops->sched_scan_stop = NULL;
+
+		wiphy->max_sched_scan_plan_interval = 0;
+		wiphy->max_sched_scan_ie_len = 0;
+		wiphy->max_scan_ie_len = IEEE80211_MAX_DATA_LEN;
+		wiphy->max_sched_scan_ssids = 0;
+		wiphy->max_match_sets = 0;
+		wiphy->max_sched_scan_reqs = 0;
 	}
 }
 
