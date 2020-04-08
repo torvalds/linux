@@ -427,15 +427,10 @@ static int renesas_sdhi_prepare_hs400_tuning(struct mmc_host *mmc, struct mmc_io
 static int renesas_sdhi_select_tuning(struct tmio_mmc_host *host)
 {
 	struct renesas_sdhi *priv = host_to_priv(host);
-	unsigned long tap_cnt;  /* counter of tuning success */
-	unsigned long tap_start;/* start position of tuning success */
-	unsigned long tap_end;  /* end position of tuning success */
-	unsigned long ntap;     /* temporary counter of tuning success */
-	unsigned long i;
+	unsigned int tap_start = 0, tap_end = 0, tap_cnt = 0, rs, re, i;
+	unsigned int taps_size = priv->tap_num * 2;
 
 	priv->doing_tune = false;
-
-	/* Clear SCC_RVSREQ */
 	sd_scc_write32(host, priv, SH_MOBILE_SDHI_SCC_RVSREQ, 0);
 
 	/*
@@ -443,7 +438,7 @@ static int renesas_sdhi_select_tuning(struct tmio_mmc_host *host)
 	 * result requiring the tap to be good in both runs before
 	 * considering it for tuning selection.
 	 */
-	for (i = 0; i < priv->tap_num * 2; i++) {
+	for (i = 0; i < taps_size; i++) {
 		int offset = priv->tap_num * (i < priv->tap_num ? 1 : -1);
 
 		if (!test_bit(i, priv->taps))
@@ -455,27 +450,12 @@ static int renesas_sdhi_select_tuning(struct tmio_mmc_host *host)
 	 * is more than SH_MOBILE_SDHI_MAX_TAP probes long then use the
 	 * center index as the tap.
 	 */
-	tap_cnt = 0;
-	ntap = 0;
-	tap_start = 0;
-	tap_end = 0;
-	for (i = 0; i < priv->tap_num * 2; i++) {
-		if (test_bit(i, priv->taps)) {
-			ntap++;
-		} else {
-			if (ntap > tap_cnt) {
-				tap_start = i - ntap;
-				tap_end = i - 1;
-				tap_cnt = ntap;
-			}
-			ntap = 0;
+	bitmap_for_each_set_region(priv->taps, rs, re, 0, taps_size) {
+		if (re - rs > tap_cnt) {
+			tap_end = re;
+			tap_start = rs;
+			tap_cnt = tap_end - tap_start;
 		}
-	}
-
-	if (ntap > tap_cnt) {
-		tap_start = i - ntap;
-		tap_end = i - 1;
-		tap_cnt = ntap;
 	}
 
 	if (tap_cnt >= SH_MOBILE_SDHI_MAX_TAP)
