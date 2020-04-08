@@ -20,6 +20,8 @@ Required properties:
 - clocks: Must contain an entry for each entry in clock-names.
   See ../../clocks/clock-bindings.txt for details.
 - clock-names: Should be "core_l", "core_b", "gpu", "ddr" and "pmu".
+
+Optional properties:
 - resets: Must contain an entry for each entry in reset-names.
   See ../../reset/reset.txt for details.
 - reset-names: Should be "core_l", "core_b", "gpu", "ddr" and "pmu".
