@@ -447,7 +447,6 @@ static inline void drm_fb_helper_output_poll_changed(struct drm_device *dev)
 static inline void
 drm_fbdev_generic_setup(struct drm_device *dev, unsigned int preferred_bpp)
 {
-	return 0;
 }
 
 #endif
