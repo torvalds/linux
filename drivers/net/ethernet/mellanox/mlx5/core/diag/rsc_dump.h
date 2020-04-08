@@ -4,40 +4,9 @@
 #ifndef __MLX5_RSC_DUMP_H
 #define __MLX5_RSC_DUMP_H
 
+#include <linux/mlx5/rsc_dump.h>
 #include <linux/mlx5/driver.h>
 #include "mlx5_core.h"
-
-enum mlx5_sgmt_type {
-	MLX5_SGMT_TYPE_HW_CQPC,
-	MLX5_SGMT_TYPE_HW_SQPC,
-	MLX5_SGMT_TYPE_HW_RQPC,
-	MLX5_SGMT_TYPE_FULL_SRQC,
-	MLX5_SGMT_TYPE_FULL_CQC,
-	MLX5_SGMT_TYPE_FULL_EQC,
-	MLX5_SGMT_TYPE_FULL_QPC,
-	MLX5_SGMT_TYPE_SND_BUFF,
-	MLX5_SGMT_TYPE_RCV_BUFF,
-	MLX5_SGMT_TYPE_SRQ_BUFF,
-	MLX5_SGMT_TYPE_CQ_BUFF,
-	MLX5_SGMT_TYPE_EQ_BUFF,
-	MLX5_SGMT_TYPE_SX_SLICE,
-	MLX5_SGMT_TYPE_SX_SLICE_ALL,
-	MLX5_SGMT_TYPE_RDB,
-	MLX5_SGMT_TYPE_RX_SLICE_ALL,
-	MLX5_SGMT_TYPE_MENU,
-	MLX5_SGMT_TYPE_TERMINATE,
-
-	MLX5_SGMT_TYPE_NUM, /* Keep last */
-};
-
-struct mlx5_rsc_key {
-	enum mlx5_sgmt_type rsc;
-	int index1;
-	int index2;
-	int num_of_obj1;
-	int num_of_obj2;
-	int size;
-};
 
 #define MLX5_RSC_DUMP_ALL 0xFFFF
 struct mlx5_rsc_dump_cmd;
