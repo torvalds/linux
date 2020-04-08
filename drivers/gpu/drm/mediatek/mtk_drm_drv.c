@@ -347,9 +347,7 @@ static int mtk_drm_bind(struct device *dev)
 	if (ret < 0)
 		goto err_deinit;
 
-	ret = drm_fbdev_generic_setup(drm, 32);
-	if (ret)
-		DRM_ERROR("Failed to initialize fbdev: %d\n", ret);
+	drm_fbdev_generic_setup(drm, 32);
 
 	return 0;
 
