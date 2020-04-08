@@ -1281,6 +1281,7 @@ enum compress_algorithm_type {
 	COMPRESS_LZO,
 	COMPRESS_LZ4,
 	COMPRESS_ZSTD,
+	COMPRESS_LZORLE,
 	COMPRESS_MAX,
 };
 

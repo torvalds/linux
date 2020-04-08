@@ -154,7 +154,8 @@ TRACE_DEFINE_ENUM(CP_PAUSE);
 	__print_symbolic(type,						\
 		{ COMPRESS_LZO,		"LZO" },			\
 		{ COMPRESS_LZ4,		"LZ4" },			\
-		{ COMPRESS_ZSTD,	"ZSTD" })
+		{ COMPRESS_ZSTD,	"ZSTD" },			\
+		{ COMPRESS_LZORLE,	"LZO-RLE" })
 
 struct f2fs_sb_info;
 struct f2fs_io_info;

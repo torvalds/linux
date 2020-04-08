@@ -442,6 +442,31 @@ static const struct f2fs_compress_ops f2fs_zstd_ops = {
 };
 #endif
 
+#ifdef CONFIG_F2FS_FS_LZO
+#ifdef CONFIG_F2FS_FS_LZORLE
+static int lzorle_compress_pages(struct compress_ctx *cc)
+{
+	int ret;
+
+	ret = lzorle1x_1_compress(cc->rbuf, cc->rlen, cc->cbuf->cdata,
+					&cc->clen, cc->private);
+	if (ret != LZO_E_OK) {
+		printk_ratelimited("%sF2FS-fs (%s): lzo-rle compress failed, ret:%d\n",
+				KERN_ERR, F2FS_I_SB(cc->inode)->sb->s_id, ret);
+		return -EIO;
+	}
+	return 0;
+}
+
+static const struct f2fs_compress_ops f2fs_lzorle_ops = {
+	.init_compress_ctx	= lzo_init_compress_ctx,
+	.destroy_compress_ctx	= lzo_destroy_compress_ctx,
+	.compress_pages		= lzorle_compress_pages,
+	.decompress_pages	= lzo_decompress_pages,
+};
+#endif
+#endif
+
 static const struct f2fs_compress_ops *f2fs_cops[COMPRESS_MAX] = {
 #ifdef CONFIG_F2FS_FS_LZO
 	&f2fs_lzo_ops,
@@ -455,6 +480,11 @@ static const struct f2fs_compress_ops *f2fs_cops[COMPRESS_MAX] = {
 #endif
 #ifdef CONFIG_F2FS_FS_ZSTD
 	&f2fs_zstd_ops,
+#else
+	NULL,
+#endif
+#if defined(CONFIG_F2FS_FS_LZO) && defined(CONFIG_F2FS_FS_LZORLE)
+	&f2fs_lzorle_ops,
 #else
 	NULL,
 #endif
