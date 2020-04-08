@@ -17,7 +17,26 @@ struct ath11k_peer *ath11k_peer_find(struct ath11k_base *ab, int vdev_id,
 	list_for_each_entry(peer, &ab->peers, list) {
 		if (peer->vdev_id != vdev_id)
 			continue;
-		if (memcmp(peer->addr, addr, ETH_ALEN))
+		if (!ether_addr_equal(peer->addr, addr))
+			continue;
+
+		return peer;
+	}
+
+	return NULL;
+}
+
+static struct ath11k_peer *ath11k_peer_find_by_pdev_idx(struct ath11k_base *ab,
+							u8 pdev_idx, const u8 *addr)
+{
+	struct ath11k_peer *peer;
+
+	lockdep_assert_held(&ab->base_lock);
+
+	list_for_each_entry(peer, &ab->peers, list) {
+		if (peer->pdev_idx != pdev_idx)
+			continue;
+		if (!ether_addr_equal(peer->addr, addr))
 			continue;
 
 		return peer;
@@ -34,7 +53,7 @@ struct ath11k_peer *ath11k_peer_find_by_addr(struct ath11k_base *ab,
 	lockdep_assert_held(&ab->base_lock);
 
 	list_for_each_entry(peer, &ab->peers, list) {
-		if (memcmp(peer->addr, addr, ETH_ALEN))
+		if (!ether_addr_equal(peer->addr, addr))
 			continue;
 
 		return peer;
@@ -200,6 +219,17 @@ int ath11k_peer_create(struct ath11k *ar, struct ath11k_vif *arvif,
 		return -ENOBUFS;
 	}
 
+	spin_lock_bh(&ar->ab->base_lock);
+	peer = ath11k_peer_find_by_pdev_idx(ar->ab, ar->pdev_idx, param->peer_addr);
+	if (peer) {
+		spin_unlock_bh(&ar->ab->base_lock);
+		ath11k_info(ar->ab,
+			    "ignoring the peer %pM creation on same pdev idx %d\n",
+			    param->peer_addr, ar->pdev_idx);
+		return -EINVAL;
+	}
+	spin_unlock_bh(&ar->ab->base_lock);
+
 	ret = ath11k_wmi_send_peer_create_cmd(ar, param);
 	if (ret) {
 		ath11k_warn(ar->ab,
@@ -225,6 +255,7 @@ int ath11k_peer_create(struct ath11k *ar, struct ath11k_vif *arvif,
 		return -ENOENT;
 	}
 
+	peer->pdev_idx = ar->pdev_idx;
 	peer->sta = sta;
 	arvif->ast_hash = peer->ast_hash;
 
