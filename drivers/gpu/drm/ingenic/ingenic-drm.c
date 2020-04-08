@@ -781,9 +781,7 @@ static int ingenic_drm_probe(struct platform_device *pdev)
 		goto err_devclk_disable;
 	}
 
-	ret = drm_fbdev_generic_setup(drm, 32);
-	if (ret)
-		dev_warn(dev, "Unable to start fbdev emulation: %i", ret);
+	drm_fbdev_generic_setup(drm, 32);
 
 	return 0;
 
