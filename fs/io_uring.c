@@ -5781,8 +5781,7 @@ static void io_commit_sqring(struct io_ring_ctx *ctx)
  * used, it's important that those reads are done through READ_ONCE() to
  * prevent a re-load down the line.
  */
-static bool io_get_sqring(struct io_ring_ctx *ctx, struct io_kiocb *req,
-			  const struct io_uring_sqe **sqe_ptr)
+static const struct io_uring_sqe *io_get_sqe(struct io_ring_ctx *ctx)
 {
 	u32 *sq_array = ctx->sq_array;
 	unsigned head;
@@ -5796,25 +5795,18 @@ static bool io_get_sqring(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	 *    though the application is the one updating it.
 	 */
 	head = READ_ONCE(sq_array[ctx->cached_sq_head & ctx->sq_mask]);
-	if (likely(head < ctx->sq_entries)) {
-		/*
-		 * All io need record the previous position, if LINK vs DARIN,
-		 * it can be used to mark the position of the first IO in the
-		 * link list.
-		 */
-		req->sequence = ctx->cached_sq_head;
-		*sqe_ptr = &ctx->sq_sqes[head];
-		req->opcode = READ_ONCE((*sqe_ptr)->opcode);
-		req->user_data = READ_ONCE((*sqe_ptr)->user_data);
-		ctx->cached_sq_head++;
-		return true;
-	}
+	if (likely(head < ctx->sq_entries))
+		return &ctx->sq_sqes[head];
 
 	/* drop invalid entries */
-	ctx->cached_sq_head++;
 	ctx->cached_sq_dropped++;
 	WRITE_ONCE(ctx->rings->sq_dropped, ctx->cached_sq_dropped);
-	return false;
+	return NULL;
+}
+
+static inline void io_consume_sqe(struct io_ring_ctx *ctx)
+{
+	ctx->cached_sq_head++;
 }
 
 static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr,
@@ -5858,10 +5850,22 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr,
 				submitted = -EAGAIN;
 			break;
 		}
-		if (!io_get_sqring(ctx, req, &sqe)) {
+		sqe = io_get_sqe(ctx);
+		if (!sqe) {
 			__io_req_do_free(req);
+			io_consume_sqe(ctx);
 			break;
 		}
+
+		/*
+		 * All io need record the previous position, if LINK vs DARIN,
+		 * it can be used to mark the position of the first IO in the
+		 * link list.
+		 */
+		req->sequence = ctx->cached_sq_head;
+		req->opcode = READ_ONCE(sqe->opcode);
+		req->user_data = READ_ONCE(sqe->user_data);
+		io_consume_sqe(ctx);
 
 		/* will complete beyond this point, count as submitted */
 		submitted++;
