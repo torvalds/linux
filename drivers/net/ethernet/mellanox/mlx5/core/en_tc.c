@@ -2900,10 +2900,12 @@ void dealloc_mod_hdr_actions(struct mlx5e_tc_mod_hdr_acts *mod_hdr_acts)
 
 static const struct pedit_headers zero_masks = {};
 
-static int parse_tc_pedit_action(struct mlx5e_priv *priv,
-				 const struct flow_action_entry *act, int namespace,
-				 struct pedit_headers_action *hdrs,
-				 struct netlink_ext_ack *extack)
+static int
+parse_pedit_to_modify_hdr(struct mlx5e_priv *priv,
+			  const struct flow_action_entry *act, int namespace,
+			  struct mlx5e_tc_flow_parse_attr *parse_attr,
+			  struct pedit_headers_action *hdrs,
+			  struct netlink_ext_ack *extack)
 {
 	u8 cmd = (act->id == FLOW_ACTION_MANGLE) ? 0 : 1;
 	int err = -EOPNOTSUPP;
@@ -2937,6 +2939,46 @@ static int parse_tc_pedit_action(struct mlx5e_priv *priv,
 	return 0;
 out_err:
 	return err;
+}
+
+static int
+parse_pedit_to_reformat(struct mlx5e_priv *priv,
+			const struct flow_action_entry *act,
+			struct mlx5e_tc_flow_parse_attr *parse_attr,
+			struct netlink_ext_ack *extack)
+{
+	u32 mask, val, offset;
+	u32 *p;
+
+	if (act->id != FLOW_ACTION_MANGLE)
+		return -EOPNOTSUPP;
+
+	if (act->mangle.htype != FLOW_ACT_MANGLE_HDR_TYPE_ETH) {
+		NL_SET_ERR_MSG_MOD(extack, "Only Ethernet modification is supported");
+		return -EOPNOTSUPP;
+	}
+
+	mask = ~act->mangle.mask;
+	val = act->mangle.val;
+	offset = act->mangle.offset;
+	p = (u32 *)&parse_attr->eth;
+	*(p + (offset >> 2)) |= (val & mask);
+
+	return 0;
+}
+
+static int parse_tc_pedit_action(struct mlx5e_priv *priv,
+				 const struct flow_action_entry *act, int namespace,
+				 struct mlx5e_tc_flow_parse_attr *parse_attr,
+				 struct pedit_headers_action *hdrs,
+				 struct mlx5e_tc_flow *flow,
+				 struct netlink_ext_ack *extack)
+{
+	if (flow && flow_flag_test(flow, L3_TO_L2_DECAP))
+		return parse_pedit_to_reformat(priv, act, parse_attr, extack);
+
+	return parse_pedit_to_modify_hdr(priv, act, namespace,
+					 parse_attr, hdrs, extack);
 }
 
 static int alloc_tc_pedit_action(struct mlx5e_priv *priv, int namespace,
@@ -3197,7 +3239,7 @@ static int add_vlan_rewrite_action(struct mlx5e_priv *priv, int namespace,
 		return -EOPNOTSUPP;
 	}
 
-	err = parse_tc_pedit_action(priv, &pedit_act, namespace, hdrs, NULL);
+	err = parse_tc_pedit_action(priv, &pedit_act, namespace, parse_attr, hdrs, NULL, extack);
 	*action |= MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
 
 	return err;
@@ -3263,7 +3305,7 @@ static int parse_tc_nic_actions(struct mlx5e_priv *priv,
 		case FLOW_ACTION_MANGLE:
 		case FLOW_ACTION_ADD:
 			err = parse_tc_pedit_action(priv, act, MLX5_FLOW_NAMESPACE_KERNEL,
-						    hdrs, extack);
+						    parse_attr, hdrs, NULL, extack);
 			if (err)
 				return err;
 
@@ -3932,16 +3974,15 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 			break;
 		case FLOW_ACTION_MANGLE:
 		case FLOW_ACTION_ADD:
-			if (flow_flag_test(flow, L3_TO_L2_DECAP))
-				return -EOPNOTSUPP;
-
 			err = parse_tc_pedit_action(priv, act, MLX5_FLOW_NAMESPACE_FDB,
-						    hdrs, extack);
+						    parse_attr, hdrs, flow, extack);
 			if (err)
 				return err;
 
-			action |= MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
-			attr->split_count = attr->out_count;
+			if (!flow_flag_test(flow, L3_TO_L2_DECAP)) {
+				action |= MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
+				attr->split_count = attr->out_count;
+			}
 			break;
 		case FLOW_ACTION_CSUM:
 			if (csum_offload_supported(priv, action,
