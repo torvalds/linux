@@ -1326,8 +1326,11 @@ retry:
 		 * start trying again otherwise it can loop forever.
 		 */
 
-		if (fatal_signal_pending(current))
+		if (fatal_signal_pending(current)) {
+			if (!pages_done)
+				pages_done = -EINTR;
 			break;
+		}
 
 		ret = down_read_killable(&mm->mmap_sem);
 		if (ret) {
