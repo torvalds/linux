@@ -325,7 +325,7 @@ static int nt39016_remove(struct spi_device *spi)
 }
 
 static const struct drm_display_mode kd035g6_display_modes[] = {
-	{
+	{	/* 60 Hz */
 		.clock = 6000,
 		.hdisplay = 320,
 		.hsync_start = 320 + 10,
@@ -336,6 +336,19 @@ static const struct drm_display_mode kd035g6_display_modes[] = {
 		.vsync_end = 240 + 5 + 1,
 		.vtotal = 240 + 5 + 1 + 4,
 		.vrefresh = 60,
+		.flags = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
+	},
+	{	/* 50 Hz */
+		.clock = 5400,
+		.hdisplay = 320,
+		.hsync_start = 320 + 42,
+		.hsync_end = 320 + 42 + 50,
+		.htotal = 320 + 42 + 50 + 20,
+		.vdisplay = 240,
+		.vsync_start = 240 + 5,
+		.vsync_end = 240 + 5 + 1,
+		.vtotal = 240 + 5 + 1 + 4,
+		.vrefresh = 50,
 		.flags = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
 	},
 };
