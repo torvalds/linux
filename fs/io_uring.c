@@ -2957,6 +2957,8 @@ static int io_openat_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	req->open.how.mode = READ_ONCE(sqe->len);
 	fname = u64_to_user_ptr(READ_ONCE(sqe->addr));
 	req->open.how.flags = READ_ONCE(sqe->open_flags);
+	if (force_o_largefile())
+		req->open.how.flags |= O_LARGEFILE;
 
 	req->open.filename = getname(fname);
 	if (IS_ERR(req->open.filename)) {
