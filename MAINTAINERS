@@ -5356,7 +5356,7 @@ DRM DRIVER FOR OLIMEX LCD-OLINUXINO PANELS
 M:	Stefan Mavrodiev <stefan@olimex.com>
 S:	Maintained
 F:	drivers/gpu/drm/panel/panel-olimex-lcd-olinuxino.c
-F:	Documentation/devicetree/bindings/display/panel/olimex,lcd-olinuxino.txt
+F:	Documentation/devicetree/bindings/display/panel/olimex,lcd-olinuxino.yaml
 
 DRM DRIVER FOR PERVASIVE DISPLAYS REPAPER PANELS
 M:	Noralf Trønnes <noralf@tronnes.org>
