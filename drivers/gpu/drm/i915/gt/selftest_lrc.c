@@ -2655,7 +2655,7 @@ static int create_gang(struct intel_engine_cs *engine,
 	if (IS_ERR(rq))
 		goto err_obj;
 
-	rq->batch = vma;
+	rq->batch = i915_vma_get(vma);
 	i915_request_get(rq);
 
 	i915_vma_lock(vma);
@@ -2679,6 +2679,7 @@ static int create_gang(struct intel_engine_cs *engine,
 	return 0;
 
 err_rq:
+	i915_vma_put(rq->batch);
 	i915_request_put(rq);
 err_obj:
 	i915_gem_object_put(obj);
@@ -2775,6 +2776,7 @@ static int live_preempt_gang(void *arg)
 				err = -ETIME;
 			}
 
+			i915_vma_put(rq->batch);
 			i915_request_put(rq);
 			rq = n;
 		}
