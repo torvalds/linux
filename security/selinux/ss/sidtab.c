@@ -276,8 +276,7 @@ int sidtab_context_to_sid(struct sidtab *s, struct context *context,
 	if (*sid)
 		goto out_unlock;
 
-	/* read entries only after reading count */
-	count = smp_load_acquire(&s->count);
+	count = s->count;
 	convert = s->convert;
 
 	/* bail out if we already reached max entries */
