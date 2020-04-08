@@ -50,10 +50,8 @@
 #define SMK_RECEIVING	1
 #define SMK_SENDING	2
 
-#ifdef SMACK_IPV6_PORT_LABELING
-DEFINE_MUTEX(smack_ipv6_lock);
+static DEFINE_MUTEX(smack_ipv6_lock);
 static LIST_HEAD(smk_ipv6_port_list);
-#endif
 static struct kmem_cache *smack_inode_cache;
 struct kmem_cache *smack_rule_cache;
 int smack_enabled;
@@ -2320,7 +2318,6 @@ static struct smack_known *smack_ipv4host_label(struct sockaddr_in *sip)
 	return NULL;
 }
 
-#if IS_ENABLED(CONFIG_IPV6)
 /*
  * smk_ipv6_localhost - Check for local ipv6 host address
  * @sip: the address
@@ -2388,7 +2385,6 @@ static struct smack_known *smack_ipv6host_label(struct sockaddr_in6 *sip)
 
 	return NULL;
 }
-#endif /* CONFIG_IPV6 */
 
 /**
  * smack_netlabel - Set the secattr on a socket
@@ -2477,7 +2473,6 @@ static int smack_netlabel_send(struct sock *sk, struct sockaddr_in *sap)
 	return smack_netlabel(sk, sk_lbl);
 }
 
-#if IS_ENABLED(CONFIG_IPV6)
 /**
  * smk_ipv6_check - check Smack access
  * @subject: subject Smack label
@@ -2510,7 +2505,6 @@ static int smk_ipv6_check(struct smack_known *subject,
 	rc = smk_bu_note("IPv6 check", subject, object, MAY_WRITE, rc);
 	return rc;
 }
-#endif /* CONFIG_IPV6 */
 
 #ifdef SMACK_IPV6_PORT_LABELING
 /**
@@ -2599,6 +2593,7 @@ static void smk_ipv6_port_label(struct socket *sock, struct sockaddr *address)
 	mutex_unlock(&smack_ipv6_lock);
 	return;
 }
+#endif
 
 /**
  * smk_ipv6_port_check - check Smack port access
@@ -2661,7 +2656,6 @@ static int smk_ipv6_port_check(struct sock *sk, struct sockaddr_in6 *address,
 
 	return smk_ipv6_check(skp, object, address, act);
 }
-#endif /* SMACK_IPV6_PORT_LABELING */
 
 /**
  * smack_inode_setsecurity - set smack xattrs
@@ -2836,24 +2830,21 @@ static int smack_socket_connect(struct socket *sock, struct sockaddr *sap,
 		return 0;
 	if (IS_ENABLED(CONFIG_IPV6) && sap->sa_family == AF_INET6) {
 		struct sockaddr_in6 *sip = (struct sockaddr_in6 *)sap;
-#ifdef SMACK_IPV6_SECMARK_LABELING
-		struct smack_known *rsp;
-#endif
+		struct smack_known *rsp = NULL;
 
 		if (addrlen < SIN6_LEN_RFC2133)
 			return 0;
-#ifdef SMACK_IPV6_SECMARK_LABELING
-		rsp = smack_ipv6host_label(sip);
+		if (__is_defined(SMACK_IPV6_SECMARK_LABELING))
+			rsp = smack_ipv6host_label(sip);
 		if (rsp != NULL) {
 			struct socket_smack *ssp = sock->sk->sk_security;
 
 			rc = smk_ipv6_check(ssp->smk_out, rsp, sip,
 					    SMK_CONNECTING);
 		}
-#endif
-#ifdef SMACK_IPV6_PORT_LABELING
-		rc = smk_ipv6_port_check(sock->sk, sip, SMK_CONNECTING);
-#endif
+		if (__is_defined(SMACK_IPV6_PORT_LABELING))
+			rc = smk_ipv6_port_check(sock->sk, sip, SMK_CONNECTING);
+
 		return rc;
 	}
 	if (sap->sa_family != AF_INET || addrlen < sizeof(struct sockaddr_in))
