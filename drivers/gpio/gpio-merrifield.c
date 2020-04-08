@@ -443,8 +443,8 @@ static int mrfld_gpio_probe(struct pci_dev *pdev, const struct pci_device_id *id
 
 	base = pcim_iomap_table(pdev)[1];
 
-	irq_base = readl(base);
-	gpio_base = readl(sizeof(u32) + base);
+	irq_base = readl(base + 0 * sizeof(u32));
+	gpio_base = readl(base + 1 * sizeof(u32));
 
 	/* Release the IO mapping, since we already get the info from BAR1 */
 	pcim_iounmap_regions(pdev, BIT(1));
