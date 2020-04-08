@@ -1354,14 +1354,6 @@ static inline void io_put_file(struct io_kiocb *req, struct file *file,
 		fput(file);
 }
 
-static void __io_req_do_free(struct io_kiocb *req)
-{
-	if (likely(!io_is_fallback_req(req)))
-		kmem_cache_free(req_cachep, req);
-	else
-		clear_bit_unlock(0, (unsigned long *) req->ctx->fallback_req);
-}
-
 static void __io_req_aux_free(struct io_kiocb *req)
 {
 	if (req->flags & REQ_F_NEED_CLEANUP)
@@ -1392,7 +1384,10 @@ static void __io_free_req(struct io_kiocb *req)
 	}
 
 	percpu_ref_put(&req->ctx->refs);
-	__io_req_do_free(req);
+	if (likely(!io_is_fallback_req(req)))
+		kmem_cache_free(req_cachep, req);
+	else
+		clear_bit_unlock(0, (unsigned long *) req->ctx->fallback_req);
 }
 
 struct req_batch {
@@ -5844,16 +5839,15 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr,
 		struct io_kiocb *req;
 		int err;
 
+		sqe = io_get_sqe(ctx);
+		if (unlikely(!sqe)) {
+			io_consume_sqe(ctx);
+			break;
+		}
 		req = io_get_req(ctx, statep);
 		if (unlikely(!req)) {
 			if (!submitted)
 				submitted = -EAGAIN;
-			break;
-		}
-		sqe = io_get_sqe(ctx);
-		if (!sqe) {
-			__io_req_do_free(req);
-			io_consume_sqe(ctx);
 			break;
 		}
 
