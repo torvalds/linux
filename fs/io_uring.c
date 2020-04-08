@@ -2493,8 +2493,9 @@ static void io_req_map_rw(struct io_kiocb *req, ssize_t io_size,
 	req->io->rw.iov = iovec;
 	if (!req->io->rw.iov) {
 		req->io->rw.iov = req->io->rw.fast_iov;
-		memcpy(req->io->rw.iov, fast_iov,
-			sizeof(struct iovec) * iter->nr_segs);
+		if (req->io->rw.iov != fast_iov)
+			memcpy(req->io->rw.iov, fast_iov,
+			       sizeof(struct iovec) * iter->nr_segs);
 	} else {
 		req->flags |= REQ_F_NEED_CLEANUP;
 	}
