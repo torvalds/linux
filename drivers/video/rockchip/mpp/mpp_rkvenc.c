@@ -267,9 +267,8 @@ static int rkvenc_extract_task_msg(struct rkvenc_task *task,
 			       req, sizeof(*req));
 		} break;
 		case MPP_CMD_SET_REG_ADDR_OFFSET: {
-			int off = off_inf->cnt * sizeof(off_inf->elem[0]);
-
-			ret = mpp_check_req(req, off, sizeof(off_inf->elem),
+			ret = mpp_check_req(req, req->offset,
+					    sizeof(off_inf->elem),
 					    0, sizeof(off_inf->elem));
 			if (ret)
 				return ret;
