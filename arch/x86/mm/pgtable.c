@@ -706,11 +706,9 @@ int pud_set_huge(pud_t *pud, phys_addr_t addr, pgprot_t prot)
 	if (pud_present(*pud) && !pud_huge(*pud))
 		return 0;
 
-	prot = pgprot_4k_2_large(prot);
-
 	set_pte((pte_t *)pud, pfn_pte(
 		(u64)addr >> PAGE_SHIFT,
-		__pgprot(pgprot_val(prot) | _PAGE_PSE)));
+		__pgprot(protval_4k_2_large(pgprot_val(prot)) | _PAGE_PSE)));
 
 	return 1;
 }
@@ -738,11 +736,9 @@ int pmd_set_huge(pmd_t *pmd, phys_addr_t addr, pgprot_t prot)
 	if (pmd_present(*pmd) && !pmd_huge(*pmd))
 		return 0;
 
-	prot = pgprot_4k_2_large(prot);
-
 	set_pte((pte_t *)pmd, pfn_pte(
 		(u64)addr >> PAGE_SHIFT,
-		__pgprot(pgprot_val(prot) | _PAGE_PSE)));
+		__pgprot(protval_4k_2_large(pgprot_val(prot)) | _PAGE_PSE)));
 
 	return 1;
 }

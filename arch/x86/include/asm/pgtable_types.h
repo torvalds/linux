@@ -488,24 +488,24 @@ static inline pgprot_t cachemode2pgprot(enum page_cache_mode pcm)
 {
 	return __pgprot(cachemode2protval(pcm));
 }
+static inline unsigned long protval_4k_2_large(unsigned long val)
+{
+	return (val & ~(_PAGE_PAT | _PAGE_PAT_LARGE)) |
+		((val & _PAGE_PAT) << (_PAGE_BIT_PAT_LARGE - _PAGE_BIT_PAT));
+}
 static inline pgprot_t pgprot_4k_2_large(pgprot_t pgprot)
 {
-	pgprotval_t val = pgprot_val(pgprot);
-	pgprot_t new;
-
-	pgprot_val(new) = (val & ~(_PAGE_PAT | _PAGE_PAT_LARGE)) |
-		((val & _PAGE_PAT) << (_PAGE_BIT_PAT_LARGE - _PAGE_BIT_PAT));
-	return new;
+	return __pgprot(protval_4k_2_large(pgprot_val(pgprot)));
+}
+static inline unsigned long protval_large_2_4k(unsigned long val)
+{
+	return (val & ~(_PAGE_PAT | _PAGE_PAT_LARGE)) |
+		((val & _PAGE_PAT_LARGE) >>
+		 (_PAGE_BIT_PAT_LARGE - _PAGE_BIT_PAT));
 }
 static inline pgprot_t pgprot_large_2_4k(pgprot_t pgprot)
 {
-	pgprotval_t val = pgprot_val(pgprot);
-	pgprot_t new;
-
-	pgprot_val(new) = (val & ~(_PAGE_PAT | _PAGE_PAT_LARGE)) |
-			  ((val & _PAGE_PAT_LARGE) >>
-			   (_PAGE_BIT_PAT_LARGE - _PAGE_BIT_PAT));
-	return new;
+	return __pgprot(protval_large_2_4k(pgprot_val(pgprot)));
 }
 
 
