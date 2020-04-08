@@ -101,9 +101,6 @@ static void rds_destroy_mr(struct rds_mr *mr)
 	rdsdebug("RDS: destroy mr key is %x refcnt %u\n",
 		 mr->r_key, kref_read(&mr->r_kref));
 
-	if (test_and_set_bit(RDS_MR_DEAD, &mr->r_state))
-		return;
-
 	spin_lock_irqsave(&rs->rs_rdma_lock, flags);
 	if (!RB_EMPTY_NODE(&mr->r_rb_node))
 		rb_erase(&mr->r_rb_node, &rs->rs_rdma_keys);
@@ -142,7 +139,6 @@ void rds_rdma_drop_keys(struct rds_sock *rs)
 		rb_erase(&mr->r_rb_node, &rs->rs_rdma_keys);
 		RB_CLEAR_NODE(&mr->r_rb_node);
 		spin_unlock_irqrestore(&rs->rs_rdma_lock, flags);
-		rds_destroy_mr(mr);
 		kref_put(&mr->r_kref, __rds_put_mr_final);
 		spin_lock_irqsave(&rs->rs_rdma_lock, flags);
 	}
@@ -436,12 +432,6 @@ int rds_free_mr(struct rds_sock *rs, char __user *optval, int optlen)
 	if (!mr)
 		return -EINVAL;
 
-	/*
-	 * call rds_destroy_mr() ourselves so that we're sure it's done by the time
-	 * we return.  If we let rds_mr_put() do it it might not happen until
-	 * someone else drops their ref.
-	 */
-	rds_destroy_mr(mr);
 	kref_put(&mr->r_kref, __rds_put_mr_final);
 	return 0;
 }
@@ -466,6 +456,14 @@ void rds_rdma_unuse(struct rds_sock *rs, u32 r_key, int force)
 		return;
 	}
 
+	/* Get a reference so that the MR won't go away before calling
+	 * sync_mr() below.
+	 */
+	kref_get(&mr->r_kref);
+
+	/* If it is going to be freed, remove it from the tree now so
+	 * that no other thread can find it and free it.
+	 */
 	if (mr->r_use_once || force) {
 		rb_erase(&mr->r_rb_node, &rs->rs_rdma_keys);
 		RB_CLEAR_NODE(&mr->r_rb_node);
@@ -479,12 +477,13 @@ void rds_rdma_unuse(struct rds_sock *rs, u32 r_key, int force)
 	if (mr->r_trans->sync_mr)
 		mr->r_trans->sync_mr(mr->r_trans_private, DMA_FROM_DEVICE);
 
+	/* Release the reference held above. */
+	kref_put(&mr->r_kref, __rds_put_mr_final);
+
 	/* If the MR was marked as invalidate, this will
 	 * trigger an async flush. */
-	if (zot_me) {
-		rds_destroy_mr(mr);
+	if (zot_me)
 		kref_put(&mr->r_kref, __rds_put_mr_final);
-	}
 }
 
 void rds_rdma_free_op(struct rm_rdma_op *ro)
