@@ -65,15 +65,6 @@ static void f2fs_set_compressed_page(struct page *page,
 	page->mapping = inode->i_mapping;
 }
 
-static void f2fs_put_compressed_page(struct page *page)
-{
-	set_page_private(page, (unsigned long)NULL);
-	ClearPagePrivate(page);
-	page->mapping = NULL;
-	unlock_page(page);
-	put_page(page);
-}
-
 static void f2fs_drop_rpages(struct compress_ctx *cc, int len, bool unlock)
 {
 	int i;
@@ -476,15 +467,45 @@ bool f2fs_is_compress_backend_ready(struct inode *inode)
 	return f2fs_cops[F2FS_I(inode)->i_compress_algorithm];
 }
 
-static struct page *f2fs_grab_page(void)
+static mempool_t *compress_page_pool = NULL;
+static int num_compress_pages = 512;
+module_param(num_compress_pages, uint, 0444);
+MODULE_PARM_DESC(num_compress_pages,
+		"Number of intermediate compress pages to preallocate");
+
+int f2fs_init_compress_mempool(void)
+{
+	compress_page_pool = mempool_create_page_pool(num_compress_pages, 0);
+	if (!compress_page_pool)
+		return -ENOMEM;
+
+	return 0;
+}
+
+void f2fs_destroy_compress_mempool(void)
+{
+	mempool_destroy(compress_page_pool);
+}
+
+static struct page *f2fs_compress_alloc_page(void)
 {
 	struct page *page;
 
-	page = alloc_page(GFP_NOFS);
-	if (!page)
-		return NULL;
+	page = mempool_alloc(compress_page_pool, GFP_NOFS);
 	lock_page(page);
+
 	return page;
+}
+
+static void f2fs_compress_free_page(struct page *page)
+{
+	if (!page)
+		return;
+	set_page_private(page, (unsigned long)NULL);
+	ClearPagePrivate(page);
+	page->mapping = NULL;
+	unlock_page(page);
+	mempool_free(page, compress_page_pool);
 }
 
 static int f2fs_compress_pages(struct compress_ctx *cc)
@@ -516,7 +537,7 @@ static int f2fs_compress_pages(struct compress_ctx *cc)
 	}
 
 	for (i = 0; i < cc->nr_cpages; i++) {
-		cc->cpages[i] = f2fs_grab_page();
+		cc->cpages[i] = f2fs_compress_alloc_page();
 		if (!cc->cpages[i]) {
 			ret = -ENOMEM;
 			goto out_free_cpages;
@@ -561,7 +582,7 @@ static int f2fs_compress_pages(struct compress_ctx *cc)
 	vunmap(cc->rbuf);
 
 	for (i = nr_cpages; i < cc->nr_cpages; i++) {
-		f2fs_put_compressed_page(cc->cpages[i]);
+		f2fs_compress_free_page(cc->cpages[i]);
 		cc->cpages[i] = NULL;
 	}
 
@@ -581,7 +602,7 @@ out_vunmap_rbuf:
 out_free_cpages:
 	for (i = 0; i < cc->nr_cpages; i++) {
 		if (cc->cpages[i])
-			f2fs_put_compressed_page(cc->cpages[i]);
+			f2fs_compress_free_page(cc->cpages[i]);
 	}
 	kfree(cc->cpages);
 	cc->cpages = NULL;
@@ -1183,7 +1204,7 @@ void f2fs_compress_write_end_io(struct bio *bio, struct page *page)
 	if (unlikely(bio->bi_status))
 		mapping_set_error(cic->inode->i_mapping, -EIO);
 
-	f2fs_put_compressed_page(page);
+	f2fs_compress_free_page(page);
 
 	dec_page_count(sbi, F2FS_WB_DATA);
 
@@ -1344,7 +1365,7 @@ struct decompress_io_ctx *f2fs_alloc_dic(struct compress_ctx *cc)
 	for (i = 0; i < dic->nr_cpages; i++) {
 		struct page *page;
 
-		page = f2fs_grab_page();
+		page = f2fs_compress_alloc_page();
 		if (!page)
 			goto out_free;
 
@@ -1364,7 +1385,7 @@ struct decompress_io_ctx *f2fs_alloc_dic(struct compress_ctx *cc)
 			continue;
 		}
 
-		dic->tpages[i] = f2fs_grab_page();
+		dic->tpages[i] = f2fs_compress_alloc_page();
 		if (!dic->tpages[i])
 			goto out_free;
 	}
@@ -1386,8 +1407,7 @@ void f2fs_free_dic(struct decompress_io_ctx *dic)
 				continue;
 			if (!dic->tpages[i])
 				continue;
-			unlock_page(dic->tpages[i]);
-			put_page(dic->tpages[i]);
+			f2fs_compress_free_page(dic->tpages[i]);
 		}
 		kfree(dic->tpages);
 	}
@@ -1396,7 +1416,7 @@ void f2fs_free_dic(struct decompress_io_ctx *dic)
 		for (i = 0; i < dic->nr_cpages; i++) {
 			if (!dic->cpages[i])
 				continue;
-			f2fs_put_compressed_page(dic->cpages[i]);
+			f2fs_compress_free_page(dic->cpages[i]);
 		}
 		kfree(dic->cpages);
 	}
