@@ -1892,7 +1892,6 @@ static int afs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	if (afs_begin_vnode_operation(&fc, orig_dvnode, key, true)) {
 		afs_dataversion_t orig_data_version;
 		afs_dataversion_t new_data_version;
-		struct afs_status_cb *new_scb = &scb[1];
 
 		orig_data_version = orig_dvnode->status.data_version + 1;
 
@@ -1904,7 +1903,6 @@ static int afs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			new_data_version = new_dvnode->status.data_version + 1;
 		} else {
 			new_data_version = orig_data_version;
-			new_scb = &scb[0];
 		}
 
 		while (afs_select_fileserver(&fc)) {
@@ -1912,7 +1910,7 @@ static int afs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			fc.cb_break_2 = afs_calc_vnode_cb_break(new_dvnode);
 			afs_fs_rename(&fc, old_dentry->d_name.name,
 				      new_dvnode, new_dentry->d_name.name,
-				      &scb[0], new_scb);
+				      &scb[0], &scb[1]);
 		}
 
 		afs_vnode_commit_status(&fc, orig_dvnode, fc.cb_break,
@@ -1957,13 +1955,8 @@ static int afs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		 * Note that if we ever implement RENAME_EXCHANGE, we'll have
 		 * to update both dentries with opposing dir versions.
 		 */
-		if (new_dvnode != orig_dvnode) {
-			afs_update_dentry_version(&fc, old_dentry, &scb[1]);
-			afs_update_dentry_version(&fc, new_dentry, &scb[1]);
-		} else {
-			afs_update_dentry_version(&fc, old_dentry, &scb[0]);
-			afs_update_dentry_version(&fc, new_dentry, &scb[0]);
-		}
+		afs_update_dentry_version(&fc, old_dentry, &scb[1]);
+		afs_update_dentry_version(&fc, new_dentry, &scb[1]);
 		d_move(old_dentry, new_dentry);
 		goto error_tmp;
 	}

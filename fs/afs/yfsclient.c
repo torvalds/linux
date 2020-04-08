@@ -1157,11 +1157,9 @@ static int yfs_deliver_fs_rename(struct afs_call *call)
 	ret = xdr_decode_YFSFetchStatus(&bp, call, call->out_dir_scb);
 	if (ret < 0)
 		return ret;
-	if (call->out_dir_scb != call->out_scb) {
-		ret = xdr_decode_YFSFetchStatus(&bp, call, call->out_scb);
-		if (ret < 0)
-			return ret;
-	}
+	ret = xdr_decode_YFSFetchStatus(&bp, call, call->out_scb);
+	if (ret < 0)
+		return ret;
 
 	xdr_decode_YFSVolSync(&bp, call->out_volsync);
 	_leave(" = 0 [done]");

@@ -986,16 +986,16 @@ static int afs_deliver_fs_rename(struct afs_call *call)
 	if (ret < 0)
 		return ret;
 
-	/* unmarshall the reply once we've received all of it */
+	/* If the two dirs are the same, we have two copies of the same status
+	 * report, so we just decode it twice.
+	 */
 	bp = call->buffer;
 	ret = xdr_decode_AFSFetchStatus(&bp, call, call->out_dir_scb);
 	if (ret < 0)
 		return ret;
-	if (call->out_dir_scb != call->out_scb) {
-		ret = xdr_decode_AFSFetchStatus(&bp, call, call->out_scb);
-		if (ret < 0)
-			return ret;
-	}
+	ret = xdr_decode_AFSFetchStatus(&bp, call, call->out_scb);
+	if (ret < 0)
+		return ret;
 	xdr_decode_AFSVolSync(&bp, call->out_volsync);
 
 	_leave(" = 0 [done]");
