@@ -187,6 +187,7 @@ struct streams_ops {
  * rkisp use shadowsock registers, so it need two buffer at a time
  * @curr_buf: the buffer used for current frame
  * @next_buf: the buffer used for next frame
+ * @linked: stream link to isp
  * @done: wait frame end event queue
  * @burst: burst length for Y and CB/CR
  * @sequence: damtx video frame sequence
@@ -209,6 +210,7 @@ struct rkisp_stream {
 	bool streaming;
 	bool stopping;
 	bool frame_end;
+	bool linked;
 	wait_queue_head_t done;
 	unsigned int burst;
 	atomic_t sequence;

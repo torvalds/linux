@@ -68,6 +68,7 @@ static int rkisp_csi_link_setup(struct media_entity *entity,
 {
 	struct v4l2_subdev *sd = media_entity_to_v4l2_subdev(entity);
 	struct rkisp_csi_device *csi;
+	struct rkisp_stream *stream = NULL;
 	int ret = 0;
 	u8 id;
 
@@ -77,6 +78,8 @@ static int rkisp_csi_link_setup(struct media_entity *entity,
 	csi = v4l2_get_subdevdata(sd);
 	if (local->flags & MEDIA_PAD_FL_SOURCE) {
 		id = local->index - 1;
+		if (id && id < RKISP_STREAM_DMATX3)
+			stream = &csi->ispdev->cap_dev.stream[id + 1];
 		if (flags & MEDIA_LNK_FL_ENABLED) {
 			if (csi->sink[id].linked) {
 				ret = -EBUSY;
@@ -88,7 +91,10 @@ static int rkisp_csi_link_setup(struct media_entity *entity,
 			csi->sink[id].linked = false;
 			csi->sink[id].index = 0;
 		}
+		if (stream)
+			stream->linked = csi->sink[id].linked;
 	}
+
 	return 0;
 out:
 	v4l2_err(sd, "pad%d is already linked\n", local->index);

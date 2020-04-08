@@ -185,8 +185,13 @@ static int mpfbc_start_stream(struct v4l2_subdev *sd)
 	struct rkisp_device *dev = mpfbc_dev->ispdev;
 	int ret;
 
-	if (WARN_ON(mpfbc_dev->en) ||
-	    !dev->isp_inp)
+	if (!mpfbc_dev->linked || !dev->isp_inp) {
+		v4l2_err(&dev->v4l2_dev,
+			 "mpfbc no linked or isp inval input\n");
+		return -EINVAL;
+	}
+
+	if (WARN_ON(mpfbc_dev->en))
 		return -EBUSY;
 
 	if (dev->isp_inp & INP_CSI ||
@@ -354,10 +359,11 @@ int rkisp_register_mpfbc_subdev(struct rkisp_device *dev,
 	}
 
 	/* mpfbc links */
+	mpfbc_dev->linked = true;
 	source = &dev->isp_sdev.sd.entity;
 	sink = &sd->entity;
 	ret = media_create_pad_link(source, RKISP_ISP_PAD_SOURCE_PATH,
-				    sink, 0, MEDIA_LNK_FL_ENABLED);
+				    sink, 0, mpfbc_dev->linked);
 
 	init_waitqueue_head(&mpfbc_dev->done);
 	return ret;

@@ -28,6 +28,7 @@ struct rkisp_mpfbc_device {
 	u8 pingpong;
 	u8 stopping;
 	u8 en;
+	bool linked;
 };
 
 int rkisp_register_mpfbc_subdev(struct rkisp_device *dev,

@@ -523,6 +523,9 @@ static void dmarx_stop_streaming(struct vb2_queue *queue)
 {
 	struct rkisp_stream *stream = queue->drv_priv;
 
+	if (!stream->streaming)
+		return;
+
 	dmarx_stop(stream);
 	destroy_buf_queue(stream, VB2_BUF_STATE_ERROR);
 }
@@ -534,6 +537,11 @@ static int dmarx_start_streaming(struct vb2_queue *queue,
 	struct rkisp_device *dev = stream->ispdev;
 	struct v4l2_device *v4l2_dev = &dev->v4l2_dev;
 	int ret = -1;
+
+	if (!stream->linked) {
+		v4l2_err(v4l2_dev, "link stream first\n");
+		return -EINVAL;
+	}
 
 	if (WARN_ON(stream->streaming))
 		return -EBUSY;
@@ -872,6 +880,7 @@ static int dmarx_init(struct rkisp_device *dev, u32 id)
 	stream->id = id;
 	stream->ispdev = dev;
 	vdev = &stream->vnode.vdev;
+	stream->linked = false;
 
 	switch (id) {
 	case RKISP_STREAM_DMARX:
@@ -910,7 +919,7 @@ static int dmarx_init(struct rkisp_device *dev, u32 id)
 	source = &vdev->entity;
 	sink = &dev->isp_sdev.sd.entity;
 	return media_create_pad_link(source, 0, sink,
-				     RKISP_ISP_PAD_SINK, 0);
+		RKISP_ISP_PAD_SINK, stream->linked);
 }
 
 u32 rkisp_dmarx_get_frame_id(struct rkisp_device *dev)

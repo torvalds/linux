@@ -37,7 +37,7 @@ enum hdr_op_mode {
 };
 
 enum rkisp_csi_pad {
-	CSI_SINK,
+	CSI_SINK = 0,
 	CSI_SRC_CH0,
 	CSI_SRC_CH1,
 	CSI_SRC_CH2,

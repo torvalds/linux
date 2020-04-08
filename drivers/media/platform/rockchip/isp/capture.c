@@ -2045,6 +2045,9 @@ static void rkisp_stop_streaming(struct vb2_queue *queue)
 	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
 		 "%s %d\n", __func__, stream->id);
 
+	if (!stream->streaming)
+		return;
+
 	rkisp_stream_stop(stream);
 	if (stream->id == RKISP_STREAM_MP ||
 	    stream->id == RKISP_STREAM_SP) {
@@ -2115,6 +2118,11 @@ rkisp_start_streaming(struct vb2_queue *queue, unsigned int count)
 
 	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
 		 "%s %d\n", __func__, stream->id);
+
+	if (!stream->linked) {
+		v4l2_err(v4l2_dev, "link stream first\n");
+		return -EINVAL;
+	}
 
 	if (WARN_ON(stream->streaming))
 		return -EBUSY;
@@ -2727,25 +2735,14 @@ static int rkisp_register_stream_vdev(struct rkisp_stream *stream)
 
 	source = &dev->csi_dev.sd.entity;
 	switch (stream->id) {
-	case RKISP_STREAM_DMATX0:
-		pad = CSI_SRC_CH1;
-		dev->csi_dev.sink[1].linked = true;
-		dev->csi_dev.sink[1].index = BIT(1);
-		break;
-	case RKISP_STREAM_DMATX1:
-		pad = CSI_SRC_CH2;
-		dev->csi_dev.sink[2].linked = true;
-		dev->csi_dev.sink[2].index = BIT(2);
-		break;
-	case RKISP_STREAM_DMATX2:
-		pad = CSI_SRC_CH3;
-		dev->csi_dev.sink[3].linked = true;
-		dev->csi_dev.sink[3].index = BIT(3);
-		break;
-	case RKISP_STREAM_DMATX3:
-		pad = CSI_SRC_CH4;
-		dev->csi_dev.sink[4].linked = true;
-		dev->csi_dev.sink[4].index = BIT(4);
+	case RKISP_STREAM_DMATX0://CSI_SRC_CH1
+	case RKISP_STREAM_DMATX1://CSI_SRC_CH2
+	case RKISP_STREAM_DMATX2://CSI_SRC_CH3
+	case RKISP_STREAM_DMATX3://CSI_SRC_CH4
+		pad = stream->id;
+		stream->linked = true;
+		dev->csi_dev.sink[pad - 1].linked = true;
+		dev->csi_dev.sink[pad - 1].index = BIT(pad - 1);
 		break;
 	default:
 		source = &dev->isp_sdev.sd.entity;
@@ -2753,7 +2750,7 @@ static int rkisp_register_stream_vdev(struct rkisp_stream *stream)
 	}
 	sink = &vdev->entity;
 	ret = media_create_pad_link(source, pad,
-		sink, 0, MEDIA_LNK_FL_ENABLED);
+		sink, 0, stream->linked);
 	if (ret < 0)
 		goto unreg;
 	return 0;
@@ -2778,6 +2775,11 @@ static int rkisp_stream_init(struct rkisp_device *dev, u32 id)
 	INIT_LIST_HEAD(&stream->buf_queue);
 	init_waitqueue_head(&stream->done);
 	spin_lock_init(&stream->vbq_lock);
+
+	/* isp2 disable MP/SP, enable MPFBC default */
+	if ((id == RKISP_STREAM_SP || id == RKISP_STREAM_MP) &&
+	    dev->isp_ver == ISP_V20)
+		stream->linked = false;
 
 	switch (id) {
 	case RKISP_STREAM_SP:
