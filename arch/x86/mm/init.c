@@ -71,6 +71,12 @@ uint8_t __pte2cachemode_tbl[8] = {
 };
 EXPORT_SYMBOL(__pte2cachemode_tbl);
 
+/* Check that the write-protect PAT entry is set for write-protect */
+bool x86_has_pat_wp(void)
+{
+	return __pte2cachemode_tbl[_PAGE_CACHE_MODE_WP] == _PAGE_CACHE_MODE_WP;
+}
+
 static unsigned long __initdata pgt_buf_start;
 static unsigned long __initdata pgt_buf_end;
 static unsigned long __initdata pgt_buf_top;
