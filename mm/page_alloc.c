@@ -1513,9 +1513,15 @@ static void free_one_page(struct zone *zone,
 }
 
 static void __meminit __init_single_page(struct page *page, unsigned long pfn,
-				unsigned long zone, int nid)
+				unsigned long zone, int nid,
+				bool zero_page_struct __maybe_unused)
 {
+#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
+	if (zero_page_struct)
+		mm_zero_struct_page(page);
+#else
 	mm_zero_struct_page(page);
+#endif
 	set_page_links(page, zone, nid, pfn);
 	init_page_count(page);
 	page_mapcount_reset(page);
@@ -1548,7 +1554,7 @@ static void __meminit init_reserved_page(unsigned long pfn)
 		if (pfn >= zone->zone_start_pfn && pfn < zone_end_pfn(zone))
 			break;
 	}
-	__init_single_page(pfn_to_page(pfn), pfn, zid, nid);
+	__init_single_page(pfn_to_page(pfn), pfn, zid, nid, true);
 }
 #else
 static inline void init_reserved_page(unsigned long pfn)
@@ -1862,7 +1868,7 @@ static unsigned long  __init deferred_init_pages(struct zone *zone,
 		} else {
 			page++;
 		}
-		__init_single_page(page, pfn, zid, nid);
+		__init_single_page(page, pfn, zid, nid, true);
 		nr_pages++;
 	}
 	return (nr_pages);
@@ -6212,6 +6218,11 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
 	}
 #endif
 
+#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
+	/* Zero all page struct in advance */
+	memset(pfn_to_page(start_pfn), 0, sizeof(struct page) * size);
+#endif
+
 	for (pfn = start_pfn; pfn < end_pfn; ) {
 		/*
 		 * There can be holes in boot-time mem_map[]s handed to this
@@ -6225,7 +6236,7 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
 		}
 
 		page = pfn_to_page(pfn);
-		__init_single_page(page, pfn, zone, nid);
+		__init_single_page(page, pfn, zone, nid, false);
 		if (context == MEMINIT_HOTPLUG)
 			__SetPageReserved(page);
 
@@ -6271,7 +6282,7 @@ void __ref memmap_init_zone_device(struct zone *zone,
 	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
 		struct page *page = pfn_to_page(pfn);
 
-		__init_single_page(page, pfn, zone_idx, nid);
+		__init_single_page(page, pfn, zone_idx, nid, true);
 
 		/*
 		 * Mark page reserved as it will need to wait for onlining
@@ -6356,7 +6367,7 @@ static u64 __meminit init_unavailable_range(unsigned long spfn,
 				+ pageblock_nr_pages - 1;
 			continue;
 		}
-		__init_single_page(pfn_to_page(pfn), pfn, zone, node);
+		__init_single_page(pfn_to_page(pfn), pfn, zone, node, true);
 		__SetPageReserved(pfn_to_page(pfn));
 		pgcnt++;
 	}
