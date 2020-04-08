@@ -307,11 +307,7 @@ static int hibmc_load(struct drm_device *dev)
 	/* reset all the states of crtc/plane/encoder/connector */
 	drm_mode_config_reset(dev);
 
-	ret = drm_fbdev_generic_setup(dev, dev->mode_config.preferred_depth);
-	if (ret) {
-		DRM_ERROR("failed to initialize fbdev: %d\n", ret);
-		goto err;
-	}
+	drm_fbdev_generic_setup(dev, dev->mode_config.preferred_depth);
 
 	return 0;
 
