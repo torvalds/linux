@@ -33,6 +33,18 @@
 #include "amdgpu.h"
 #include "kfd_priv.h"
 
+enum svm_work_list_ops {
+	SVM_OP_NULL,
+	SVM_OP_UNMAP_RANGE,
+	SVM_OP_UPDATE_RANGE_NOTIFIER,
+	SVM_OP_ADD_RANGE
+};
+
+struct svm_work_list_item {
+	enum svm_work_list_ops op;
+	struct mm_struct *mm;
+};
+
 /**
  * struct svm_range - shared virtual memory range
  *
@@ -54,6 +66,9 @@
  * @actual_loc: the actual location, 0 for CPU, or GPU id
  * @granularity:migration granularity, log2 num pages
  * @notifier:   register mmu interval notifier
+ * @work_item:  deferred work item information
+ * @deferred_list: list header used to add range to deferred list
+ * @child_list: list header for split ranges which are not added to svms yet
  * @bitmap_access: index bitmap of GPUs which can access the range
  * @bitmap_aip: index bitmap of GPUs which can access the range in place
  *
@@ -79,6 +94,9 @@ struct svm_range {
 	uint32_t			actual_loc;
 	uint8_t				granularity;
 	struct mmu_interval_notifier	notifier;
+	struct svm_work_list_item	work_item;
+	struct list_head		deferred_list;
+	struct list_head		child_list;
 	DECLARE_BITMAP(bitmap_access, MAX_GPU_INSTANCE);
 	DECLARE_BITMAP(bitmap_aip, MAX_GPU_INSTANCE);
 };
