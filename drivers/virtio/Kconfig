@@ -43,6 +43,19 @@ config VIRTIO_PCI_LEGACY
 
 	  If unsure, say Y.
 
+config VIRTIO_VDPA
+	tristate "vDPA driver for virtio devices"
+	select VDPA
+	select VIRTIO
+	help
+	  This driver provides support for virtio based paravirtual
+	  device driver over vDPA bus. For this to be useful, you need
+	  an appropriate vDPA device implementation that operates on a
+	  physical device to allow the datapath of virtio to be
+	  offloaded to hardware.
+
+	  If unsure, say M.
+
 config VIRTIO_PMEM
 	tristate "Support for virtio pmem driver"
 	depends on VIRTIO

@@ -17870,10 +17870,12 @@ L:	virtualization@lists.linux-foundation.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/virtio/
 F:	drivers/virtio/
+F:	drivers/vdpa/
 F:	tools/virtio/
 F:	drivers/net/virtio_net.c
 F:	drivers/block/virtio_blk.c
 F:	include/linux/virtio*.h
+F:	include/linux/vdpa.h
 F:	include/uapi/linux/virtio_*.h
 F:	drivers/crypto/virtio/
 F:	mm/balloon_compaction.c
@@ -17941,6 +17943,7 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mst/vhost.git
 S:	Maintained
 F:	drivers/vhost/
 F:	include/uapi/linux/vhost.h
+F:	include/linux/vhost_iotlb.h
 
 VIRTIO INPUT DRIVER
 M:	Gerd Hoffmann <kraxel@redhat.com>
