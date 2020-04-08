@@ -933,10 +933,8 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 			goto eirq;
 	}
 
-	dev_info(&pdev->dev, "%s base at 0x%08lx max clock rate %u MHz\n",
-		 mmc_hostname(host->mmc), (unsigned long)
-		 (platform_get_resource(pdev, IORESOURCE_MEM, 0)->start),
-		 host->mmc->f_max / 1000000);
+	dev_info(&pdev->dev, "%s base at %pa, max clock rate %u MHz\n",
+		 mmc_hostname(host->mmc), &res->start, host->mmc->f_max / 1000000);
 
 	return ret;
 
