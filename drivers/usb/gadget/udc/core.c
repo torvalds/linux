@@ -507,6 +507,22 @@ out:
 EXPORT_SYMBOL_GPL(usb_gadget_wakeup);
 
 /**
+ * usb_gsi_ep_op - performs operation on GSI accelerated EP based on EP op code
+ *
+ * Operations such as EP configuration, TRB allocation, StartXfer etc.
+ * See gsi_ep_op for more details.
+ */
+int usb_gsi_ep_op(struct usb_ep *ep,
+		struct usb_gsi_request *req, enum gsi_ep_op op)
+{
+	if (ep && ep->ops && ep->ops->gsi_ep_op)
+		return ep->ops->gsi_ep_op(ep, req, op);
+
+	return -EOPNOTSUPP;
+}
+EXPORT_SYMBOL_GPL(usb_gsi_ep_op);
+
+/**
  * usb_gadget_func_wakeup - send a function remote wakeup up notification
  * to the host connected to this gadget
  * @gadget: controller used to wake up the host
