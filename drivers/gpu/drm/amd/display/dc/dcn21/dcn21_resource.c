@@ -61,7 +61,7 @@
 #include "dcn21_hubbub.h"
 #include "dcn10/dcn10_resource.h"
 #include "dce110/dce110_resource.h"
-#include "dce/dce_panel.h"
+#include "dce/dce_panel_cntl.h"
 
 #include "dcn20/dcn20_dwb.h"
 #include "dcn20/dcn20_mmhubbub.h"
@@ -1607,16 +1607,16 @@ static const struct dcn10_link_enc_registers link_enc_regs[] = {
 	link_regs(4, E),
 };
 
-static const struct dce_panel_registers panel_regs[] = {
-	{ DCN_PANEL_REG_LIST() }
+static const struct dce_panel_cntl_registers panel_cntl_regs[] = {
+	{ DCN_PANEL_CNTL_REG_LIST() }
 };
 
-static const struct dce_panel_shift panel_shift = {
-	DCE_PANEL_MASK_SH_LIST(__SHIFT)
+static const struct dce_panel_cntl_shift panel_cntl_shift = {
+	DCE_PANEL_CNTL_MASK_SH_LIST(__SHIFT)
 };
 
-static const struct dce_panel_mask panel_mask = {
-	DCE_PANEL_MASK_SH_LIST(_MASK)
+static const struct dce_panel_cntl_mask panel_cntl_mask = {
+	DCE_PANEL_CNTL_MASK_SH_LIST(_MASK)
 };
 
 #define aux_regs(id)\
@@ -1705,21 +1705,21 @@ static struct link_encoder *dcn21_link_encoder_create(
 	return &enc21->enc10.base;
 }
 
-static struct panel *dcn21_panel_create(const struct panel_init_data *init_data)
+static struct panel_cntl *dcn21_panel_cntl_create(const struct panel_cntl_init_data *init_data)
 {
-	struct dce_panel *panel =
-		kzalloc(sizeof(struct dce_panel), GFP_KERNEL);
+	struct dce_panel_cntl *panel_cntl =
+		kzalloc(sizeof(struct dce_panel_cntl), GFP_KERNEL);
 
-	if (!panel)
+	if (!panel_cntl)
 		return NULL;
 
-	dce_panel_construct(panel,
+	dce_panel_cntl_construct(panel_cntl,
 			init_data,
-			&panel_regs[init_data->inst],
-			&panel_shift,
-			&panel_mask);
+			&panel_cntl_regs[init_data->inst],
+			&panel_cntl_shift,
+			&panel_cntl_mask);
 
-	return &panel->base;
+	return &panel_cntl->base;
 }
 
 #define CTX ctx
@@ -1766,7 +1766,7 @@ enum dc_status dcn21_patch_unknown_plane_state(struct dc_plane_state *plane_stat
 static struct resource_funcs dcn21_res_pool_funcs = {
 	.destroy = dcn21_destroy_resource_pool,
 	.link_enc_create = dcn21_link_encoder_create,
-	.panel_create = dcn21_panel_create,
+	.panel_cntl_create = dcn21_panel_cntl_create,
 	.validate_bandwidth = dcn21_validate_bandwidth,
 	.populate_dml_pipes = dcn21_populate_dml_pipes_from_context,
 	.add_stream_to_ctx = dcn20_add_stream_to_ctx,

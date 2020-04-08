@@ -26,33 +26,33 @@
 #include "reg_helper.h"
 #include "core_types.h"
 #include "dc_dmub_srv.h"
-#include "panel.h"
-#include "dce_panel.h"
+#include "panel_cntl.h"
+#include "dce_panel_cntl.h"
 
-#define TO_DCE_PANEL(panel)\
-	container_of(panel, struct dce_panel, base)
+#define TO_DCE_PANEL_CNTL(panel_cntl)\
+	container_of(panel_cntl, struct dce_panel_cntl, base)
 
 #define CTX \
-	dce_panel->base.ctx
+	dce_panel_cntl->base.ctx
 
 #define DC_LOGGER \
-	dce_panel->base.ctx->logger
+	dce_panel_cntl->base.ctx->logger
 
 #define REG(reg)\
-	dce_panel->regs->reg
+	dce_panel_cntl->regs->reg
 
 #undef FN
 #define FN(reg_name, field_name) \
-	dce_panel->shift->field_name, dce_panel->mask->field_name
+	dce_panel_cntl->shift->field_name, dce_panel_cntl->mask->field_name
 
-void dce_panel_hw_init(struct panel *panel)
+void dce_panel_cntl_hw_init(struct panel_cntl *panel_cntl)
 {
 
 }
 
-bool dce_is_panel_backlight_on(struct panel *panel)
+bool dce_is_panel_backlight_on(struct panel_cntl *panel_cntl)
 {
-	struct dce_panel *dce_panel = TO_DCE_PANEL(panel);
+	struct dce_panel_cntl *dce_panel_cntl = TO_DCE_PANEL_CNTL(panel_cntl);
 	uint32_t value;
 
 	REG_GET(PWRSEQ_CNTL, BLON, &value);
@@ -60,9 +60,9 @@ bool dce_is_panel_backlight_on(struct panel *panel)
 	return value;
 }
 
-bool dce_is_panel_powered_on(struct panel *panel)
+bool dce_is_panel_powered_on(struct panel_cntl *panel_cntl)
 {
-	struct dce_panel *dce_panel = TO_DCE_PANEL(panel);
+	struct dce_panel_cntl *dce_panel_cntl = TO_DCE_PANEL_CNTL(panel_cntl);
 	uint32_t pwr_seq_state, dig_on, dig_on_ovrd;
 
 	REG_GET(PWRSEQ_STATE, PWRSEQ_TARGET_STATE_R, &pwr_seq_state);
@@ -72,34 +72,34 @@ bool dce_is_panel_powered_on(struct panel *panel)
 	return (pwr_seq_state == 1) || (dig_on == 1 && dig_on_ovrd == 1);
 }
 
-static void dce_panel_destroy(struct panel **panel)
+static void dce_panel_cntl_destroy(struct panel_cntl **panel_cntl)
 {
-	struct dce_panel *dce_panel = TO_DCE_PANEL(*panel);
+	struct dce_panel_cntl *dce_panel_cntl = TO_DCE_PANEL_CNTL(*panel_cntl);
 
-	kfree(dce_panel);
-	*panel = NULL;
+	kfree(dce_panel_cntl);
+	*panel_cntl = NULL;
 }
 
-static const struct panel_funcs dce_link_panel_funcs = {
-	.destroy = dce_panel_destroy,
-	.hw_init = dce_panel_hw_init,
+static const struct panel_cntl_funcs dce_link_panel_cntl_funcs = {
+	.destroy = dce_panel_cntl_destroy,
+	.hw_init = dce_panel_cntl_hw_init,
 	.is_panel_backlight_on = dce_is_panel_backlight_on,
 	.is_panel_powered_on = dce_is_panel_powered_on,
 
 };
 
-void dce_panel_construct(
-	struct dce_panel *dce_panel,
-	const struct panel_init_data *init_data,
-	const struct dce_panel_registers *regs,
-	const struct dce_panel_shift *shift,
-	const struct dce_panel_mask *mask)
+void dce_panel_cntl_construct(
+	struct dce_panel_cntl *dce_panel_cntl,
+	const struct panel_cntl_init_data *init_data,
+	const struct dce_panel_cntl_registers *regs,
+	const struct dce_panel_cntl_shift *shift,
+	const struct dce_panel_cntl_mask *mask)
 {
-	dce_panel->regs = regs;
-	dce_panel->shift = shift;
-	dce_panel->mask = mask;
+	dce_panel_cntl->regs = regs;
+	dce_panel_cntl->shift = shift;
+	dce_panel_cntl->mask = mask;
 
-	dce_panel->base.funcs = &dce_link_panel_funcs;
-	dce_panel->base.ctx = init_data->ctx;
-	dce_panel->base.inst = init_data->inst;
+	dce_panel_cntl->base.funcs = &dce_link_panel_cntl_funcs;
+	dce_panel_cntl->base.ctx = init_data->ctx;
+	dce_panel_cntl->base.inst = init_data->inst;
 }

@@ -47,7 +47,7 @@
 #include "hw/clk_mgr.h"
 #include "dce/dmub_psr.h"
 #include "dmub/inc/dmub_cmd_dal.h"
-#include "inc/hw/panel.h"
+#include "inc/hw/panel_cntl.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -88,8 +88,8 @@ static void dc_link_destruct(struct dc_link *link)
 	if (link->ddc)
 		dal_ddc_service_destroy(&link->ddc);
 
-	if (link->panel)
-		link->panel->funcs->destroy(&link->panel);
+	if (link->panel_cntl)
+		link->panel_cntl->funcs->destroy(&link->panel_cntl);
 
 	if (link->link_enc)
 		link->link_enc->funcs->destroy(&link->link_enc);
@@ -1359,7 +1359,7 @@ static bool dc_link_construct(struct dc_link *link,
 	struct ddc_service_init_data ddc_service_init_data = { { 0 } };
 	struct dc_context *dc_ctx = init_params->ctx;
 	struct encoder_init_data enc_init_data = { 0 };
-	struct panel_init_data panel_init_data = { 0 };
+	struct panel_cntl_init_data panel_cntl_init_data = { 0 };
 	struct integrated_info info = {{{ 0 }}};
 	struct dc_bios *bios = init_params->dc->ctx->dc_bios;
 	const struct dc_vbios_funcs *bp_funcs = bios->funcs;
@@ -1461,18 +1461,18 @@ static bool dc_link_construct(struct dc_link *link,
 		dal_ddc_get_line(dal_ddc_service_get_ddc_pin(link->ddc));
 
 
-	if (link->dc->res_pool->funcs->panel_create &&
+	if (link->dc->res_pool->funcs->panel_cntl_create &&
 		(link->link_id.id == CONNECTOR_ID_EDP ||
 			link->link_id.id == CONNECTOR_ID_LVDS)) {
-		panel_init_data.ctx = dc_ctx;
-		panel_init_data.inst = 0;
-		link->panel =
-			link->dc->res_pool->funcs->panel_create(
-								&panel_init_data);
+		panel_cntl_init_data.ctx = dc_ctx;
+		panel_cntl_init_data.inst = 0;
+		link->panel_cntl =
+			link->dc->res_pool->funcs->panel_cntl_create(
+								&panel_cntl_init_data);
 
-		if (link->panel == NULL) {
-			DC_ERROR("Failed to create link panel!\n");
-			goto panel_create_fail;
+		if (link->panel_cntl == NULL) {
+			DC_ERROR("Failed to create link panel_cntl!\n");
+			goto panel_cntl_create_fail;
 		}
 	}
 
@@ -1558,9 +1558,9 @@ static bool dc_link_construct(struct dc_link *link,
 device_tag_fail:
 	link->link_enc->funcs->destroy(&link->link_enc);
 link_enc_create_fail:
-	if (link->panel != NULL)
-		link->panel->funcs->destroy(&link->panel);
-panel_create_fail:
+	if (link->panel_cntl != NULL)
+		link->panel_cntl->funcs->destroy(&link->panel_cntl);
+panel_cntl_create_fail:
 	dal_ddc_service_destroy(&link->ddc);
 ddc_create_fail:
 create_fail:

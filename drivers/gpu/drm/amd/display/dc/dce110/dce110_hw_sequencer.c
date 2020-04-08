@@ -53,7 +53,7 @@
 #include "abm.h"
 #include "audio.h"
 #include "reg_helper.h"
-#include "panel.h"
+#include "panel_cntl.h"
 
 /* include DCE11 register header files */
 #include "dce/dce_11_0_d.h"
@@ -796,10 +796,11 @@ void dce110_edp_power_control(
 		return;
 	}
 
-	if (link->panel)
+	if (link->panel_cntl)
 		return;
 
-	if (power_up != link->panel->funcs->is_panel_powered_on(link->panel)) {
+	if (power_up !=
+		link->panel_cntl->funcs->is_panel_powered_on(link->panel_cntl)) {
 		/* Send VBIOS command to prompt eDP panel power */
 		if (power_up) {
 			unsigned long long current_ts = dm_get_timestamp(ctx);
@@ -878,7 +879,8 @@ void dce110_edp_backlight_control(
 		return;
 	}
 
-	if (enable && link->panel && link->panel->funcs->is_panel_backlight_on(link->panel)) {
+	if (enable && link->panel_cntl &&
+		link->panel_cntl->funcs->is_panel_backlight_on(link->panel_cntl)) {
 		DC_LOG_HW_RESUME_S3(
 				"%s: panel already powered up. Do nothing.\n",
 				__func__);

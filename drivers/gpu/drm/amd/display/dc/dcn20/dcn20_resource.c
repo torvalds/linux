@@ -61,7 +61,7 @@
 #include "dcn20_dccg.h"
 #include "dcn20_vmid.h"
 #include "dc_link_ddc.h"
-#include "dce/dce_panel.h"
+#include "dce/dce_panel_cntl.h"
 
 #include "navi10_ip_offset.h"
 
@@ -688,16 +688,16 @@ static const struct dcn10_link_enc_mask le_mask = {
 	DPCS_DCN2_MASK_SH_LIST(_MASK)
 };
 
-static const struct dce_panel_registers panel_regs[] = {
-	{ DCN_PANEL_REG_LIST() }
+static const struct dce_panel_cntl_registers panel_cntl_regs[] = {
+	{ DCN_PANEL_CNTL_REG_LIST() }
 };
 
-static const struct dce_panel_shift panel_shift = {
-	DCE_PANEL_MASK_SH_LIST(__SHIFT)
+static const struct dce_panel_cntl_shift panel_cntl_shift = {
+	DCE_PANEL_CNTL_MASK_SH_LIST(__SHIFT)
 };
 
-static const struct dce_panel_mask panel_mask = {
-	DCE_PANEL_MASK_SH_LIST(_MASK)
+static const struct dce_panel_cntl_mask panel_cntl_mask = {
+	DCE_PANEL_CNTL_MASK_SH_LIST(_MASK)
 };
 
 #define ipp_regs(id)\
@@ -1302,21 +1302,21 @@ struct link_encoder *dcn20_link_encoder_create(
 	return &enc20->enc10.base;
 }
 
-static struct panel *dcn20_panel_create(const struct panel_init_data *init_data)
+static struct panel_cntl *dcn20_panel_cntl_create(const struct panel_cntl_init_data *init_data)
 {
-	struct dce_panel *panel =
-		kzalloc(sizeof(struct dce_panel), GFP_KERNEL);
+	struct dce_panel_cntl *panel_cntl =
+		kzalloc(sizeof(struct dce_panel_cntl), GFP_KERNEL);
 
-	if (!panel)
+	if (!panel_cntl)
 		return NULL;
 
-	dce_panel_construct(panel,
+	dce_panel_cntl_construct(panel_cntl,
 			init_data,
-			&panel_regs[init_data->inst],
-			&panel_shift,
-			&panel_mask);
+			&panel_cntl_regs[init_data->inst],
+			&panel_cntl_shift,
+			&panel_cntl_mask);
 
-	return &panel->base;
+	return &panel_cntl->base;
 }
 
 struct clock_source *dcn20_clock_source_create(
@@ -3219,7 +3219,7 @@ enum dc_status dcn20_patch_unknown_plane_state(struct dc_plane_state *plane_stat
 static struct resource_funcs dcn20_res_pool_funcs = {
 	.destroy = dcn20_destroy_resource_pool,
 	.link_enc_create = dcn20_link_encoder_create,
-	.panel_create = dcn20_panel_create,
+	.panel_cntl_create = dcn20_panel_cntl_create,
 	.validate_bandwidth = dcn20_validate_bandwidth,
 	.acquire_idle_pipe_for_layer = dcn20_acquire_idle_pipe_for_layer,
 	.add_stream_to_ctx = dcn20_add_stream_to_ctx,

@@ -50,7 +50,7 @@
 #include "dce/dce_hwseq.h"
 #include "dce80/dce80_hw_sequencer.h"
 #include "dce100/dce100_resource.h"
-#include "dce/dce_panel.h"
+#include "dce/dce_panel_cntl.h"
 
 #include "reg_helper.h"
 
@@ -267,16 +267,16 @@ static const struct dce_stream_encoder_mask se_mask = {
 		SE_COMMON_MASK_SH_LIST_DCE80_100(_MASK)
 };
 
-static const struct dce_panel_registers panel_regs[] = {
-	{ DCE_PANEL_REG_LIST() }
+static const struct dce_panel_cntl_registers panel_cntl_regs[] = {
+	{ DCE_PANEL_CNTL_REG_LIST() }
 };
 
-static const struct dce_panel_shift panel_shift = {
-	DCE_PANEL_MASK_SH_LIST(__SHIFT)
+static const struct dce_panel_cntl_shift panel_cntl_shift = {
+	DCE_PANEL_CNTL_MASK_SH_LIST(__SHIFT)
 };
 
-static const struct dce_panel_mask panel_mask = {
-	DCE_PANEL_MASK_SH_LIST(_MASK)
+static const struct dce_panel_cntl_mask panel_cntl_mask = {
+	DCE_PANEL_CNTL_MASK_SH_LIST(_MASK)
 };
 
 #define opp_regs(id)\
@@ -741,21 +741,21 @@ struct link_encoder *dce80_link_encoder_create(
 	return &enc110->base;
 }
 
-static struct panel *dce80_panel_create(const struct panel_init_data *init_data)
+static struct panel_cntl *dce80_panel_cntl_create(const struct panel_cntl_init_data *init_data)
 {
-	struct dce_panel *panel =
-		kzalloc(sizeof(struct dce_panel), GFP_KERNEL);
+	struct dce_panel_cntl *panel_cntl =
+		kzalloc(sizeof(struct dce_panel_cntl), GFP_KERNEL);
 
-	if (!panel)
+	if (!panel_cntl)
 		return NULL;
 
-	dce_panel_construct(panel,
+	dce_panel_cntl_construct(panel_cntl,
 			init_data,
-			&panel_regs[init_data->inst],
-			&panel_shift,
-			&panel_mask);
+			&panel_cntl_regs[init_data->inst],
+			&panel_cntl_shift,
+			&panel_cntl_mask);
 
-	return &panel->base;
+	return &panel_cntl->base;
 }
 
 struct clock_source *dce80_clock_source_create(
@@ -939,7 +939,7 @@ static void dce80_destroy_resource_pool(struct resource_pool **pool)
 static const struct resource_funcs dce80_res_pool_funcs = {
 	.destroy = dce80_destroy_resource_pool,
 	.link_enc_create = dce80_link_encoder_create,
-	.panel_create = dce80_panel_create,
+	.panel_cntl_create = dce80_panel_cntl_create,
 	.validate_bandwidth = dce80_validate_bandwidth,
 	.validate_plane = dce100_validate_plane,
 	.add_stream_to_ctx = dce100_add_stream_to_ctx,

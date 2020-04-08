@@ -21,33 +21,33 @@
  *
  */
 /*
- * panel.h
+ * panel_cntl.h
  *
  *  Created on: Oct 6, 2015
  *      Author: yonsun
  */
 
-#ifndef DC_PANEL_H_
-#define DC_PANEL_H_
+#ifndef DC_PANEL_CNTL_H_
+#define DC_PANEL_CNTL_H_
 
 #include "dc_types.h"
 
-struct panel_funcs {
-	void (*destroy)(struct panel **panel);
-	void (*hw_init)(struct panel *panel);
-	bool (*is_panel_backlight_on)(struct panel *panel);
-	bool (*is_panel_powered_on)(struct panel *panel);
+struct panel_cntl_funcs {
+	void (*destroy)(struct panel_cntl **panel_cntl);
+	void (*hw_init)(struct panel_cntl *panel_cntl);
+	bool (*is_panel_backlight_on)(struct panel_cntl *panel_cntl);
+	bool (*is_panel_powered_on)(struct panel_cntl *panel_cntl);
 };
 
-struct panel_init_data {
+struct panel_cntl_init_data {
 	struct dc_context *ctx;
 	uint32_t inst;
 };
 
-struct panel {
-	const struct panel_funcs *funcs;
+struct panel_cntl {
+	const struct panel_cntl_funcs *funcs;
 	struct dc_context *ctx;
 	uint32_t inst;
 };
 
-#endif /* DC_PANEL_H_ */
+#endif /* DC_PANEL_CNTL_H_ */
