@@ -277,14 +277,14 @@ static int kirin_drm_bind(struct device *dev)
 	if (ret)
 		goto err_kms_cleanup;
 
-	drm_fbdev_generic_setup(drm_dev, 32);
-
 	/* connectors should be registered after drm device register */
 	if (driver_data->register_connects) {
 		ret = kirin_drm_connectors_register(drm_dev);
 		if (ret)
 			goto err_drm_dev_unregister;
 	}
+
+	drm_fbdev_generic_setup(drm_dev, 32);
 
 	return 0;
 
