@@ -28,6 +28,10 @@
 #include "qedi_gbl.h"
 #include "qedi_iscsi.h"
 
+static uint qedi_qed_debug;
+module_param(qedi_qed_debug, uint, 0644);
+MODULE_PARM_DESC(qedi_qed_debug, " QED debug level 0 (default)");
+
 static uint qedi_fw_debug;
 module_param(qedi_fw_debug, uint, 0644);
 MODULE_PARM_DESC(qedi_fw_debug, " Firmware debug level 0(default) to 3");
@@ -2422,7 +2426,6 @@ static int __qedi_probe(struct pci_dev *pdev, int mode)
 {
 	struct qedi_ctx *qedi;
 	struct qed_ll2_params params;
-	u32 dp_module = 0;
 	u8 dp_level = 0;
 	bool is_vf = false;
 	char host_buf[16];
@@ -2445,7 +2448,7 @@ static int __qedi_probe(struct pci_dev *pdev, int mode)
 
 	memset(&qed_params, 0, sizeof(qed_params));
 	qed_params.protocol = QED_PROTOCOL_ISCSI;
-	qed_params.dp_module = dp_module;
+	qed_params.dp_module = qedi_qed_debug;
 	qed_params.dp_level = dp_level;
 	qed_params.is_vf = is_vf;
 	qedi->cdev = qedi_ops->common->probe(pdev, &qed_params);
