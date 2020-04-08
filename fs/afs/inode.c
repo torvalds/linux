@@ -130,7 +130,7 @@ static int afs_inode_init_from_status(struct afs_vnode *vnode, struct key *key,
 	default:
 		dump_vnode(vnode, parent_vnode);
 		write_sequnlock(&vnode->cb_lock);
-		return afs_protocol_error(NULL, -EBADMSG, afs_eproto_file_type);
+		return afs_protocol_error(NULL, afs_eproto_file_type);
 	}
 
 	afs_set_i_size(vnode, status->size);
@@ -179,7 +179,7 @@ static void afs_apply_status(struct afs_fs_cursor *fc,
 			vnode->fid.vnode,
 			vnode->fid.unique,
 			status->type, vnode->status.type);
-		afs_protocol_error(NULL, -EBADMSG, afs_eproto_bad_status);
+		afs_protocol_error(NULL, afs_eproto_bad_status);
 		return;
 	}
 

@@ -994,24 +994,22 @@ TRACE_EVENT(afs_edit_dir,
 	    );
 
 TRACE_EVENT(afs_protocol_error,
-	    TP_PROTO(struct afs_call *call, int error, enum afs_eproto_cause cause),
+	    TP_PROTO(struct afs_call *call, enum afs_eproto_cause cause),
 
-	    TP_ARGS(call, error, cause),
+	    TP_ARGS(call, cause),
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,		call		)
-		    __field(int,			error		)
 		    __field(enum afs_eproto_cause,	cause		)
 			     ),
 
 	    TP_fast_assign(
 		    __entry->call = call ? call->debug_id : 0;
-		    __entry->error = error;
 		    __entry->cause = cause;
 			   ),
 
-	    TP_printk("c=%08x r=%d %s",
-		      __entry->call, __entry->error,
+	    TP_printk("c=%08x %s",
+		      __entry->call,
 		      __print_symbolic(__entry->cause, afs_eproto_causes))
 	    );
 
