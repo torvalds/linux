@@ -28,15 +28,24 @@ config WIFI_GENERATE_RANDOM_MAC_ADDR
 	help
 	  Wifi generate random mac address and save to vendor storage for cob chip
 
+menuconfig BCMDHD
+	bool "Broadcom Wireless Device Driver Support"
+	default y
+
+if BCMDHD
 source "drivers/net/wireless/rockchip_wlan/rkwifi/Kconfig"
-source "drivers/net/wireless/rockchip_wlan/cywdhd/Kconfig"
+endif
 
 menuconfig RTL_WIRELESS_SOLUTION
-    bool "Realtek Wireless Device Driver Support"
-    default y
+	bool "Realtek Wireless Device Driver Support"
+	default n
 
+if RTL_WIRELESS_SOLUTION
 source "drivers/net/wireless/rockchip_wlan/rtl8723cs/Kconfig"
 source "drivers/net/wireless/rockchip_wlan/rtl8822bs/Kconfig"
+endif
+
 source "drivers/net/wireless/rockchip_wlan/mvl88w8977/Kconfig"
+source "drivers/net/wireless/rockchip_wlan/cywdhd/Kconfig"
 
 endif # WL_ROCKCHIP

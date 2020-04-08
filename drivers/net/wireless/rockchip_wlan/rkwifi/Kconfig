@@ -1,9 +1,12 @@
 # SPDX-License-Identifier: GPL-2.0
+choice
+	prompt "Select driver version for ap6xxx chips"
+
 config AP6XXX
-	tristate "ap6xxx wireless sdio cards support"
+	tristate "stable version (wifi5)"
 	#depends on MMC && WLAN_80211
-    select CFG80211
-    select MAC80211
+	select CFG80211
+	select MAC80211
 	---help---
 	  This module adds support for wireless adapters based on
 	  Broadcom ap6xxx chipset.
@@ -13,3 +16,19 @@ config AP6XXX
 	  If you choose to build a module, it'll be called dhd. Say M if
 	  unsure.
 
+config AP6XXX_WIFI6
+	tristate "support wifi6(80211ax)"
+	#depends on MMC && WLAN_80211
+	select CFG80211
+	select MAC80211
+	---help---
+	  This driver supports wifi6 for ap6xxx chipset.
+
+	  This driver uses the kernel's wireless extensions subsystem.
+
+	  If you choose to build a module, it'll be called dhd. Say M if
+	  unsure.
+if AP6XXX_WIFI6
+source "drivers/net/wireless/rockchip_wlan/rkwifi/bcmdhd_wifi6/Kconfig"
+endif
+endchoice
