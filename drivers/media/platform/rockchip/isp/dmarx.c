@@ -938,10 +938,11 @@ int rkisp_register_dmarx_vdev(struct rkisp_device *dev)
 	memset(dmarx_dev, 0, sizeof(*dmarx_dev));
 	dmarx_dev->ispdev = dev;
 
+#ifdef RKISP_DMAREAD_EN
 	ret = dmarx_init(dev, RKISP_STREAM_DMARX);
 	if (ret < 0)
 		goto err;
-
+#endif
 	if (dev->isp_ver == ISP_V20) {
 		ret = dmarx_init(dev, RKISP_STREAM_RAWRD0);
 		if (ret < 0)
@@ -960,8 +961,10 @@ err_free_dmarx1:
 err_free_dmarx0:
 	rkisp_unregister_dmarx_video(&dmarx_dev->stream[RKISP_STREAM_RAWRD0]);
 err_free_dmarx:
+#ifdef RKISP_DMAREAD_EN
 	rkisp_unregister_dmarx_video(&dmarx_dev->stream[RKISP_STREAM_DMARX]);
 err:
+#endif
 	return ret;
 }
 
@@ -970,8 +973,10 @@ void rkisp_unregister_dmarx_vdev(struct rkisp_device *dev)
 	struct rkisp_dmarx_device *dmarx_dev = &dev->dmarx_dev;
 	struct rkisp_stream *stream;
 
+#ifdef RKISP_DMAREAD_EN
 	stream = &dmarx_dev->stream[RKISP_STREAM_DMARX];
 	rkisp_unregister_dmarx_video(stream);
+#endif
 
 	if (dev->isp_ver == ISP_V20) {
 		stream = &dmarx_dev->stream[RKISP_STREAM_RAWRD0];
