@@ -185,6 +185,8 @@ patternProperties:
     description: CDTech(H.K.) Electronics Limited
   "^ceva,.*":
     description: Ceva, Inc.
+  "^checkpoint,.*":
+    description: Check Point Software Technologies Ltd.
   "^chipidea,.*":
     description: Chipidea, Inc
   "^chipone,.*":
