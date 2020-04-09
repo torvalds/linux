@@ -3480,6 +3480,9 @@ static void gfx_v10_0_check_fw_write_wait(struct amdgpu_device *adev)
 		    (adev->gfx.mec_feature_version >= 27))
 			adev->gfx.cp_fw_write_wait = true;
 		break;
+	case CHIP_SIENNA_CICHLID:
+		adev->gfx.cp_fw_write_wait = true;
+		break;
 	default:
 		break;
 	}

@@ -350,6 +350,24 @@ static void gmc_v10_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 	/* flush hdp cache */
 	adev->nbio.funcs->hdp_flush(adev, NULL);
 
+	/* For SRIOV run time, driver shouldn't access the register through MMIO
+	 * Directly use kiq to do the vm invalidation instead
+	 */
+	if (adev->gfx.kiq.ring.sched.ready &&
+	    (amdgpu_sriov_runtime(adev) || !amdgpu_sriov_vf(adev)) &&
+	    !adev->in_gpu_reset) {
+
+		struct amdgpu_vmhub *hub = &adev->vmhub[vmhub];
+		const unsigned eng = 17;
+		u32 inv_req = gmc_v10_0_get_invalidate_req(vmid, flush_type);
+		u32 req = hub->vm_inv_eng0_req + eng;
+		u32 ack = hub->vm_inv_eng0_ack + eng;
+
+		amdgpu_virt_kiq_reg_write_reg_wait(adev, req, ack, inv_req,
+				1 << vmid);
+		return;
+	}
+
 	mutex_lock(&adev->mman.gtt_window_lock);
 
 	if (vmhub == AMDGPU_MMHUB_0) {
