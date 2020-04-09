@@ -352,6 +352,7 @@ struct nvme_ns_head {
 	struct nvme_ns_ids	ids;
 	struct list_head	entry;
 	struct kref		ref;
+	bool			shared;
 	int			instance;
 #ifdef CONFIG_NVME_MULTIPATH
 	struct gendisk		*disk;

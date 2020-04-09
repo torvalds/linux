@@ -3496,8 +3496,9 @@ static int nvme_init_ns_head(struct nvme_ns *ns, unsigned nsid,
 			ret = PTR_ERR(head);
 			goto out_unlock;
 		}
+		head->shared = is_shared;
 	} else {
-		if (!is_shared) {
+		if (!is_shared || !head->shared) {
 			dev_err(ctrl->device,
 				"Duplicate unshared namespace %d\n",
 					nsid);
