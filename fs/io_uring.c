@@ -608,6 +608,7 @@ struct io_kiocb {
 	};
 
 	struct io_async_ctx		*io;
+	int				cflags;
 	bool				needs_fixed_file;
 	u8				opcode;
 
@@ -638,7 +639,6 @@ struct io_kiocb {
 			struct callback_head	task_work;
 			struct hlist_node	hash_node;
 			struct async_poll	*apoll;
-			int			cflags;
 		};
 		struct io_wq_work	work;
 	};
