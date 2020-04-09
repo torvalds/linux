@@ -2215,10 +2215,13 @@ static int grow_stripes(struct r5conf *conf, int num)
 }
 
 /**
- * scribble_len - return the required size of the scribble region
+ * scribble_alloc - allocate percpu scribble buffer for required size
+ *		    of the scribble region
+ * @percpu - from for_each_present_cpu() of the caller
  * @num - total number of disks in the array
+ * @cnt - scribble objs count for required size of the scribble region
  *
- * The size must be enough to contain:
+ * The scribble buffer size must be enough to contain:
  * 1/ a struct page pointer for each device in the array +2
  * 2/ room to convert each entry in (1) to its corresponding dma
  *    (dma_map_page()) or page (page_address()) address.
