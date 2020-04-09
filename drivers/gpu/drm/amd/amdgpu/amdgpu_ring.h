@@ -223,6 +223,7 @@ struct amdgpu_ring {
 	unsigned		vm_inv_eng;
 	struct dma_fence	*vmid_wait;
 	bool			has_compute_vm_bug;
+	bool			no_scheduler;
 
 	atomic_t		num_jobs[DRM_SCHED_PRIORITY_MAX];
 	struct mutex		priority_mutex;

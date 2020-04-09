@@ -261,7 +261,8 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 	mutex_init(&ring->priority_mutex);
 
 	if (ring->funcs->type >= AMDGPU_RING_TYPE_GFX &&
-	    ring->funcs->type <= AMDGPU_RING_TYPE_VCN_JPEG) {
+	    ring->funcs->type <= AMDGPU_RING_TYPE_VCN_JPEG &&
+	    !ring->no_scheduler) {
 		hw_ip = ring->funcs->type;
 		num_sched = &adev->gpu_sched[hw_ip][hw_prio].num_scheds;
 		adev->gpu_sched[hw_ip][hw_prio].sched[(*num_sched)++] =
