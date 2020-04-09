@@ -524,6 +524,21 @@ config SND_SOC_INTEL_SOF_DA7219_MAX98373_MACH
 
 endif ## SND_SOC_SOF_JASPERLAKE
 
+if SND_SOC_SOF_ELKHARTLAKE
+
+config SND_SOC_INTEL_EHL_RT5660_MACH
+	tristate "EHL with RT5660 in I2S mode"
+	depends on I2C && ACPI
+	depends on MFD_INTEL_LPSS || COMPILE_TEST
+	depends on SND_HDA_CODEC_HDMI
+	select SND_SOC_RT5660
+	select SND_SOC_DMIC
+	help
+	  This adds support for ASoC machine driver for Elkhart Lake
+	  platform with RT5660 I2S audio codec.
+
+endif ## SND_SOC_SOF_ELKHARTLAKE
+
 if SND_SOC_SOF_INTEL_SOUNDWIRE
 
 config SND_SOC_INTEL_SOUNDWIRE_SOF_MACH
