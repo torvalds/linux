@@ -9,6 +9,7 @@
 #include <dt-bindings/sensor-dev.h>
 #include "rk3399-vop-clk-set.dtsi"
 #include <dt-bindings/input/input.h>
+#include "dt-bindings/usb/pd.h"
 
 / {
 	compatible = "rockchip,rk3399-evb-ind", "rockchip,rk3399";
@@ -258,6 +259,16 @@
 		regulator-max-microvolt = <5000000>;
 	};
 
+	vbus_typec: vbus-typec-regulator {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio1 18 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&vcc5v0_typec0_en>;
+		regulator-name = "vbus_typec";
+		vin-supply = <&vcc5v0_sys>;
+	};
+
 	vcc_phy: vcc-phy-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_phy";
@@ -301,7 +312,6 @@
 
 &cdn_dp {
 	status = "okay";
-	extcon = <&fusb0>;
 	phys = <&tcphy0_dp>;
 };
 
@@ -834,14 +844,52 @@
 		layout = <8>;
 	};
 
-	fusb0: fusb30x@22 {
-		compatible = "fairchild,fusb302";
+	usbc0: fusb302@22 {
+		compatible = "fcs,fusb302";
 		reg = <0x22>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <RK_PA2 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&fusb0_int>;
-		int-n-gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;
-		vbus-5v-gpios = <&gpio1 18 GPIO_ACTIVE_HIGH>;
+		pinctrl-0 = <&usbc0_int>;
+		vbus-supply = <&vbus_typec>;
 		status = "okay";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				usbc0_role_sw: endpoint@0 {
+					remote-endpoint = <&dwc3_0_role_switch>;
+				};
+			};
+		};
+
+		usb_con: connector {
+			compatible = "usb-c-connector";
+			label = "USB-C";
+			data-role = "dual";
+			power-role = "dual";
+			try-power-role = "sink";
+			op-sink-microwatt = <1000000>;
+			sink-pdos =
+				<PDO_FIXED(5000, 2500, PDO_FIXED_USB_COMM)>;
+			source-pdos =
+				<PDO_FIXED(5000, 1500, PDO_FIXED_USB_COMM)>;
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					usbc0_orien_sw: endpoint {
+						remote-endpoint = <&tcphy0_orientation_switch>;
+					};
+				};
+			};
+		};
 	};
 
 	sensor@0d {
@@ -860,7 +908,6 @@
 	bq25700: bq25700@6b {//6a
 		compatible = "ti,bq25703";
 		reg = <0x6b>;
-		extcon = <&fusb0>;
 
 		interrupt-parent = <&gpio0>;
 		interrupts = <5 IRQ_TYPE_LEVEL_LOW>;
@@ -1169,8 +1216,17 @@
 };
 
 &tcphy0 {
-	extcon = <&fusb0>;
 	status = "okay";
+
+	orientation-switch;
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		tcphy0_orientation_switch: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&usbc0_orien_sw>;
+		};
+	};
 };
 
 &tcphy1 {
@@ -1197,7 +1253,6 @@
 
 &u2phy0 {
 	status = "okay";
-	extcon = <&fusb0>;
 
 	u2phy0_otg: otg-port {
 		status = "okay";
@@ -1231,7 +1286,15 @@
 
 &usbdrd_dwc3_0 {
 	status = "okay";
-	extcon = <&fusb0>;
+	usb-role-switch;
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		dwc3_0_role_switch: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&usbc0_role_sw>;
+		};
+	};
 };
 
 &usbdrd_dwc3_1 {
@@ -1324,13 +1387,6 @@
 		};
 	};
 
-	fusb30x {
-		fusb0_int: fusb0-int {
-			rockchip,pins = <1 RK_PA2 RK_FUNC_GPIO &pcfg_pull_up>,
-					<1 RK_PC2 RK_FUNC_GPIO &pcfg_pull_up>;
-		};
-	};
-
 	mpu6500 {
 		mpu6500_irq_gpio: mpu6500-irq-gpio {
 			rockchip,pins = <1 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
@@ -1411,6 +1467,17 @@
 		host_vbus_drv: host-vbus-drv {
 			rockchip,pins =
 				<0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	usb-typec {
+		usbc0_int: usbc0-int {
+			rockchip,pins = <1 RK_PA2 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		vcc5v0_typec0_en: vcc5v0-typec0-en {
+			rockchip,pins =
+				<1 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
