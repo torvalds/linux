@@ -235,6 +235,7 @@ struct mt7615_dev {
 
 	u16 chainmask;
 
+	struct ieee80211_ops *ops;
 	const struct mt7615_mcu_ops *mcu_ops;
 	struct regmap *infracfg;
 	const u32 *reg_map;

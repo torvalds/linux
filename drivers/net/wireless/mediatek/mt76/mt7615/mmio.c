@@ -139,11 +139,16 @@ int mt7615_mmio_probe(struct device *pdev, void __iomem *mem_base,
 		.sta_remove = mt7615_mac_sta_remove,
 		.update_survey = mt7615_update_channel,
 	};
+	struct ieee80211_ops *ops;
 	struct mt7615_dev *dev;
 	struct mt76_dev *mdev;
 	int ret;
 
-	mdev = mt76_alloc_device(pdev, sizeof(*dev), &mt7615_ops, &drv_ops);
+	ops = devm_kmemdup(pdev, &mt7615_ops, sizeof(mt7615_ops), GFP_KERNEL);
+	if (!ops)
+		return -ENOMEM;
+
+	mdev = mt76_alloc_device(pdev, sizeof(*dev), ops, &drv_ops);
 	if (!mdev)
 		return -ENOMEM;
 
@@ -151,6 +156,7 @@ int mt7615_mmio_probe(struct device *pdev, void __iomem *mem_base,
 	mt76_mmio_init(&dev->mt76, mem_base);
 
 	dev->reg_map = map;
+	dev->ops = ops;
 	mdev->rev = (mt76_rr(dev, MT_HW_CHIPID) << 16) |
 		    (mt76_rr(dev, MT_HW_REV) & 0xff);
 	dev_dbg(mdev->dev, "ASIC revision: %04x\n", mdev->rev);
