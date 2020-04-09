@@ -36,7 +36,6 @@
  */
 SYM_FUNC_START(__svm_vcpu_run)
 	push %_ASM_BP
-	mov  %_ASM_SP, %_ASM_BP
 #ifdef CONFIG_X86_64
 	push %r15
 	push %r14
