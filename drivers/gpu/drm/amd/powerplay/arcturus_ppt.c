@@ -794,7 +794,20 @@ static int arcturus_force_clk_levels(struct smu_context *smu,
 	struct arcturus_dpm_table *dpm_table;
 	struct arcturus_single_dpm_table *single_dpm_table;
 	uint32_t soft_min_level, soft_max_level;
+	uint32_t smu_version;
 	int ret = 0;
+
+	ret = smu_get_smc_version(smu, NULL, &smu_version);
+	if (ret) {
+		pr_err("Failed to get smu version!\n");
+		return ret;
+	}
+
+	if (smu_version >= 0x361200) {
+		pr_err("Forcing clock level is not supported with "
+		       "54.18 and onwards SMU firmwares\n");
+		return -EOPNOTSUPP;
+	}
 
 	soft_min_level = mask ? (ffs(mask) - 1) : 0;
 	soft_max_level = mask ? (fls(mask) - 1) : 0;
@@ -1510,6 +1523,38 @@ static int arcturus_set_power_profile_mode(struct smu_context *smu,
 	smu->power_profile_mode = profile_mode;
 
 	return 0;
+}
+
+static int arcturus_set_performance_level(struct smu_context *smu,
+					  enum amd_dpm_forced_level level)
+{
+	uint32_t smu_version;
+	int ret;
+
+	ret = smu_get_smc_version(smu, NULL, &smu_version);
+	if (ret) {
+		pr_err("Failed to get smu version!\n");
+		return ret;
+	}
+
+	switch (level) {
+	case AMD_DPM_FORCED_LEVEL_HIGH:
+	case AMD_DPM_FORCED_LEVEL_LOW:
+	case AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD:
+	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK:
+	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK:
+	case AMD_DPM_FORCED_LEVEL_PROFILE_PEAK:
+		if (smu_version >= 0x361200) {
+			pr_err("Forcing clock level is not supported with "
+			       "54.18 and onwards SMU firmwares\n");
+			return -EOPNOTSUPP;
+		}
+		break;
+	default:
+		break;
+	}
+
+	return smu_v11_0_set_performance_level(smu, level);
 }
 
 static void arcturus_dump_pptable(struct smu_context *smu)
@@ -2285,7 +2330,7 @@ static const struct pptable_funcs arcturus_ppt_funcs = {
 	.get_profiling_clk_mask = arcturus_get_profiling_clk_mask,
 	.get_power_profile_mode = arcturus_get_power_profile_mode,
 	.set_power_profile_mode = arcturus_set_power_profile_mode,
-	.set_performance_level = smu_v11_0_set_performance_level,
+	.set_performance_level = arcturus_set_performance_level,
 	/* debug (internal used) */
 	.dump_pptable = arcturus_dump_pptable,
 	.get_power_limit = arcturus_get_power_limit,

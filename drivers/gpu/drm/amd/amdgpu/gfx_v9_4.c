@@ -710,14 +710,16 @@ static int gfx_v9_4_query_utc_edc_status(struct amdgpu_device *adev,
 
 		sec_count = REG_GET_FIELD(data, VML2_MEM_ECC_CNTL, SEC_COUNT);
 		if (sec_count) {
-			DRM_INFO("Instance[%d]: SubBlock %s, SEC %d\n", i,
+			dev_info(adev->dev,
+				 "Instance[%d]: SubBlock %s, SEC %d\n", i,
 				 vml2_mems[i], sec_count);
 			err_data->ce_count += sec_count;
 		}
 
 		ded_count = REG_GET_FIELD(data, VML2_MEM_ECC_CNTL, DED_COUNT);
 		if (ded_count) {
-			DRM_INFO("Instance[%d]: SubBlock %s, DED %d\n", i,
+			dev_info(adev->dev,
+				 "Instance[%d]: SubBlock %s, DED %d\n", i,
 				 vml2_mems[i], ded_count);
 			err_data->ue_count += ded_count;
 		}

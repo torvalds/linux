@@ -3021,11 +3021,49 @@ void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)
 	int x_pos = pos_cpy.x;
 	int y_pos = pos_cpy.y;
 
-	// translate cursor from stream space to plane space
+	/**
+	 * DC cursor is stream space, HW cursor is plane space and drawn
+	 * as part of the framebuffer.
+	 *
+	 * Cursor position can't be negative, but hotspot can be used to
+	 * shift cursor out of the plane bounds. Hotspot must be smaller
+	 * than the cursor size.
+	 */
+
+	/**
+	 * Translate cursor from stream space to plane space.
+	 *
+	 * If the cursor is scaled then we need to scale the position
+	 * to be in the approximately correct place. We can't do anything
+	 * about the actual size being incorrect, that's a limitation of
+	 * the hardware.
+	 */
 	x_pos = (x_pos - x_plane) * pipe_ctx->plane_state->src_rect.width /
 			pipe_ctx->plane_state->dst_rect.width;
 	y_pos = (y_pos - y_plane) * pipe_ctx->plane_state->src_rect.height /
 			pipe_ctx->plane_state->dst_rect.height;
+
+	/**
+	 * If the cursor's source viewport is clipped then we need to
+	 * translate the cursor to appear in the correct position on
+	 * the screen.
+	 *
+	 * This translation isn't affected by scaling so it needs to be
+	 * done *after* we adjust the position for the scale factor.
+	 *
+	 * This is only done by opt-in for now since there are still
+	 * some usecases like tiled display that might enable the
+	 * cursor on both streams while expecting dc to clip it.
+	 */
+	if (pos_cpy.translate_by_source) {
+		x_pos += pipe_ctx->plane_state->src_rect.x;
+		y_pos += pipe_ctx->plane_state->src_rect.y;
+	}
+
+	/**
+	 * If the position is negative then we need to add to the hotspot
+	 * to shift the cursor outside the plane.
+	 */
 
 	if (x_pos < 0) {
 		pos_cpy.x_hotspot -= x_pos;
