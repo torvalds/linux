@@ -44,19 +44,17 @@ then
 fi
 echo ' ---' `date`: Starting build
 echo ' ---' Kconfig fragment at: $config_template >> $resdir/log
-touch $resdir/ConfigFragment.input $resdir/ConfigFragment
+touch $resdir/ConfigFragment.input
 if test -r "$config_dir/CFcommon"
 then
 	echo " --- $config_dir/CFcommon" >> $resdir/ConfigFragment.input
 	cat < $config_dir/CFcommon >> $resdir/ConfigFragment.input
 	config_override.sh $config_dir/CFcommon $config_template > $T/Kc1
-	grep '#CHECK#' $config_dir/CFcommon >> $resdir/ConfigFragment
 else
 	cp $config_template $T/Kc1
 fi
 echo " --- $config_template" >> $resdir/ConfigFragment.input
 cat $config_template >> $resdir/ConfigFragment.input
-grep '#CHECK#' $config_template >> $resdir/ConfigFragment
 if test -n "$TORTURE_KCONFIG_ARG"
 then
 	echo $TORTURE_KCONFIG_ARG | tr -s " " "\012" > $T/cmdline
@@ -67,7 +65,7 @@ then
 else
 	cp $T/Kc1 $T/Kc2
 fi
-cat $T/Kc2 >> $resdir/ConfigFragment
+cat $T/Kc2 > $resdir/ConfigFragment
 
 base_resdir=`echo $resdir | sed -e 's/\.[0-9]\+$//'`
 if test "$base_resdir" != "$resdir" -a -f $base_resdir/bzImage -a -f $base_resdir/vmlinux
