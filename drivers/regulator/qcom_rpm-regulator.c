@@ -604,16 +604,6 @@ static const struct qcom_rpm_reg pm8921_smps = {
 	.supports_force_mode_bypass = false,
 };
 
-static const struct qcom_rpm_reg pm8921_ftsmps = {
-	.desc.linear_ranges = ftsmps_ranges,
-	.desc.n_linear_ranges = ARRAY_SIZE(ftsmps_ranges),
-	.desc.n_voltages = 101,
-	.desc.ops = &uV_ops,
-	.parts = &rpm8960_smps_parts,
-	.supports_force_mode_auto = true,
-	.supports_force_mode_bypass = false,
-};
-
 static const struct qcom_rpm_reg pm8921_ncp = {
 	.desc.linear_ranges = ncp_ranges,
 	.desc.n_linear_ranges = ARRAY_SIZE(ncp_ranges),
