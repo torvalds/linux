@@ -30,16 +30,6 @@ static inline int fsnotify_dirent(struct inode *dir, struct dentry *dentry,
 			&dentry->d_name, 0);
 }
 
-/* Notify this dentry's parent about a child's events. */
-static inline int fsnotify_parent(const struct path *path,
-				  struct dentry *dentry, __u32 mask)
-{
-	if (!dentry)
-		dentry = path->dentry;
-
-	return __fsnotify_parent(path, dentry, mask);
-}
-
 /*
  * Simple wrapper to consolidate calls fsnotify_parent()/fsnotify() when
  * an event is on a path.
@@ -47,7 +37,7 @@ static inline int fsnotify_parent(const struct path *path,
 static inline int fsnotify_path(struct inode *inode, const struct path *path,
 				__u32 mask)
 {
-	int ret = fsnotify_parent(path, NULL, mask);
+	int ret = fsnotify_parent(path->dentry, mask, path, FSNOTIFY_EVENT_PATH);
 
 	if (ret)
 		return ret;
@@ -273,7 +263,7 @@ static inline void fsnotify_open(struct file *file)
 
 	if (path->dentry->d_op && path->dentry->d_op->d_canonical_path) {
 		path->dentry->d_op->d_canonical_path(path, &lower_path);
-		fsnotify_parent(&lower_path, NULL, mask);
+		fsnotify_parent(lower_path.dentry, mask, &lower_path, FSNOTIFY_EVENT_PATH);
 		fsnotify(lower_path.dentry->d_inode, mask, &lower_path, FSNOTIFY_EVENT_PATH, NULL, 0);
 		path_put(&lower_path);
 	}
@@ -308,7 +298,7 @@ static inline void fsnotify_xattr(struct dentry *dentry)
 	if (S_ISDIR(inode->i_mode))
 		mask |= FS_ISDIR;
 
-	fsnotify_parent(NULL, dentry, mask);
+	fsnotify_parent(dentry, mask, inode, FSNOTIFY_EVENT_INODE);
 	fsnotify(inode, mask, inode, FSNOTIFY_EVENT_INODE, NULL, 0);
 }
 
@@ -343,7 +333,7 @@ static inline void fsnotify_change(struct dentry *dentry, unsigned int ia_valid)
 		if (S_ISDIR(inode->i_mode))
 			mask |= FS_ISDIR;
 
-		fsnotify_parent(NULL, dentry, mask);
+		fsnotify_parent(dentry, mask, inode, FSNOTIFY_EVENT_INODE);
 		fsnotify(inode, mask, inode, FSNOTIFY_EVENT_INODE, NULL, 0);
 	}
 }
