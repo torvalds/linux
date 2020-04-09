@@ -470,6 +470,7 @@ static int ovl_parse_opt(char *opt, struct ovl_config *config)
 	char *p;
 	int err;
 	bool metacopy_opt = false, redirect_opt = false;
+	bool nfs_export_opt = false, index_opt = false;
 
 	config->redirect_mode = kstrdup(ovl_redirect_mode_def(), GFP_KERNEL);
 	if (!config->redirect_mode)
@@ -519,18 +520,22 @@ static int ovl_parse_opt(char *opt, struct ovl_config *config)
 
 		case OPT_INDEX_ON:
 			config->index = true;
+			index_opt = true;
 			break;
 
 		case OPT_INDEX_OFF:
 			config->index = false;
+			index_opt = true;
 			break;
 
 		case OPT_NFS_EXPORT_ON:
 			config->nfs_export = true;
+			nfs_export_opt = true;
 			break;
 
 		case OPT_NFS_EXPORT_OFF:
 			config->nfs_export = false;
+			nfs_export_opt = true;
 			break;
 
 		case OPT_XINO_ON:
@@ -552,6 +557,7 @@ static int ovl_parse_opt(char *opt, struct ovl_config *config)
 
 		case OPT_METACOPY_OFF:
 			config->metacopy = false;
+			metacopy_opt = true;
 			break;
 
 		default:
@@ -598,6 +604,48 @@ static int ovl_parse_opt(char *opt, struct ovl_config *config)
 		} else {
 			/* Automatically enable redirect otherwise. */
 			config->redirect_follow = config->redirect_dir = true;
+		}
+	}
+
+	/* Resolve nfs_export -> index dependency */
+	if (config->nfs_export && !config->index) {
+		if (nfs_export_opt && index_opt) {
+			pr_err("conflicting options: nfs_export=on,index=off\n");
+			return -EINVAL;
+		}
+		if (index_opt) {
+			/*
+			 * There was an explicit index=off that resulted
+			 * in this conflict.
+			 */
+			pr_info("disabling nfs_export due to index=off\n");
+			config->nfs_export = false;
+		} else {
+			/* Automatically enable index otherwise. */
+			config->index = true;
+		}
+	}
+
+	/* Resolve nfs_export -> !metacopy dependency */
+	if (config->nfs_export && config->metacopy) {
+		if (nfs_export_opt && metacopy_opt) {
+			pr_err("conflicting options: nfs_export=on,metacopy=on\n");
+			return -EINVAL;
+		}
+		if (metacopy_opt) {
+			/*
+			 * There was an explicit metacopy=on that resulted
+			 * in this conflict.
+			 */
+			pr_info("disabling nfs_export due to metacopy=on\n");
+			config->nfs_export = false;
+		} else {
+			/*
+			 * There was an explicit nfs_export=on that resulted
+			 * in this conflict.
+			 */
+			pr_info("disabling metacopy due to nfs_export=on\n");
+			config->metacopy = false;
 		}
 	}
 
