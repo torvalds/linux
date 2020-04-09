@@ -2,7 +2,7 @@
 
 menu "Clock driver for ARM Reference designs"
 	depends on ARCH_INTEGRATOR || ARCH_REALVIEW || \
-		ARCH_VERSATILE || ARCH_VEXPRESS || ARCH_ZYNQ || COMPILE_TEST
+		ARCH_VERSATILE || ARCH_VEXPRESS || COMPILE_TEST
 
 config ICST
 	bool "Clock driver for ARM Reference designs ICST"
