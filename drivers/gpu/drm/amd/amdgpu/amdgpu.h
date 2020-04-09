@@ -34,6 +34,12 @@
 
 #define pr_fmt(fmt) "amdgpu: " fmt
 
+#ifdef dev_fmt
+#undef dev_fmt
+#endif
+
+#define dev_fmt(fmt) "amdgpu: " fmt
+
 #include "amdgpu_ctx.h"
 
 #include <linux/atomic.h>
