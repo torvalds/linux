@@ -1006,6 +1006,10 @@ static int hda_generic_machine_select(struct snd_sof_dev *sdev)
 			if (!tplg_filename)
 				return -EINVAL;
 
+			dev_info(bus->dev,
+				 "DMICs detected in NHLT tables: %d\n",
+				 dmic_num);
+
 			pdata->machine = hda_mach;
 			pdata->tplg_filename = tplg_filename;
 		}
