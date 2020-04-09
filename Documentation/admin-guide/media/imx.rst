@@ -590,30 +590,29 @@ The OV5640 module connects to MIPI connector J5 (sorry I don't have the
 compatible module part number or URL).
 
 The following example configures a direct conversion pipeline to capture
-from the OV5640, transmitting on MIPI CSI-2 virtual channel 1. $sensorfmt
-can be any format supported by the OV5640. $sensordim is the frame
-dimension part of $sensorfmt (minus the mbus pixel code). $outputfmt can
-be any format supported by the ipu1_ic_prpenc entity at its output pad:
+from the OV5640, transmitting on MIPI CSI-2 virtual channel 0. It also
+shows colorspace conversion and scaling at IC output.
 
 .. code-block:: none
 
    # Setup links
    media-ctl -l "'ov5640 1-003c':0 -> 'imx6-mipi-csi2':0[1]"
-   media-ctl -l "'imx6-mipi-csi2':2 -> 'ipu1_csi1':0[1]"
-   media-ctl -l "'ipu1_csi1':1 -> 'ipu1_ic_prp':0[1]"
+   media-ctl -l "'imx6-mipi-csi2':1 -> 'ipu1_csi0_mux':0[1]"
+   media-ctl -l "'ipu1_csi0_mux':2 -> 'ipu1_csi0':0[1]"
+   media-ctl -l "'ipu1_csi0':1 -> 'ipu1_ic_prp':0[1]"
    media-ctl -l "'ipu1_ic_prp':1 -> 'ipu1_ic_prpenc':0[1]"
    media-ctl -l "'ipu1_ic_prpenc':1 -> 'ipu1_ic_prpenc capture':0[1]"
    # Configure pads
-   media-ctl -V "'ov5640 1-003c':0 [fmt:$sensorfmt field:none]"
-   media-ctl -V "'imx6-mipi-csi2':2 [fmt:$sensorfmt field:none]"
-   media-ctl -V "'ipu1_csi1':1 [fmt:AYUV32/$sensordim field:none]"
-   media-ctl -V "'ipu1_ic_prp':1 [fmt:AYUV32/$sensordim field:none]"
-   media-ctl -V "'ipu1_ic_prpenc':1 [fmt:$outputfmt field:none]"
+   media-ctl -V "'ov5640 1-003c':0 [fmt:UYVY2X8/640x480]"
+   media-ctl -V "'imx6-mipi-csi2':1 [fmt:UYVY2X8/640x480]"
+   media-ctl -V "'ipu1_csi0_mux':2 [fmt:UYVY2X8/640x480]"
+   media-ctl -V "'ipu1_csi0':1 [fmt:AYUV32/640x480]"
+   media-ctl -V "'ipu1_ic_prp':1 [fmt:AYUV32/640x480]"
+   media-ctl -V "'ipu1_ic_prpenc':1 [fmt:ARGB8888_1X32/800x600]"
+   # Set a format at the capture interface
+   v4l2-ctl -d /dev/video1 --set-fmt-video=pixelformat=RGB3
 
-Streaming can then begin on "ipu1_ic_prpenc capture" node. The v4l2-ctl
-tool can be used to select any supported YUV or RGB pixelformat on the
-capture device node.
-
+Streaming can then begin on "ipu1_ic_prpenc capture" node.
 
 Known Issues
 ------------
