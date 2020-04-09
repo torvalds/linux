@@ -589,6 +589,26 @@ CSI-2 OV5640 has been tested, so the OV5642 node is currently disabled.
 The OV5640 module connects to MIPI connector J5 (sorry I don't have the
 compatible module part number or URL).
 
+The following example configures unprocessed video capture pipeline to
+capture from the OV5640, transmitting on MIPI CSI-2 virtual channel 0:
+
+.. code-block:: none
+
+   # Setup links
+   media-ctl -l "'ov5640 1-003c':0 -> 'imx6-mipi-csi2':0[1]"
+   media-ctl -l "'imx6-mipi-csi2':1 -> 'ipu1_csi0_mux':0[1]"
+   media-ctl -l "'ipu1_csi0_mux':2 -> 'ipu1_csi0':0[1]"
+   media-ctl -l "'ipu1_csi0':2 -> 'ipu1_csi0 capture':0[1]"
+   # Configure pads
+   media-ctl -V "'ov5640 1-003c':0 [fmt:UYVY2X8/640x480]"
+   media-ctl -V "'imx6-mipi-csi2':1 [fmt:UYVY2X8/640x480]"
+   media-ctl -V "'ipu1_csi0_mux':0 [fmt:UYVY2X8/640x480]"
+   media-ctl -V "'ipu1_csi0':0 [fmt:AYUV32/640x480]"
+
+Streaming can then begin on "ipu1_csi0 capture" node. The v4l2-ctl
+tool can be used to select any supported pixelformat on the capture
+device node.
+
 The following example configures a direct conversion pipeline to capture
 from the OV5640, transmitting on MIPI CSI-2 virtual channel 0. It also
 shows colorspace conversion and scaling at IC output.
