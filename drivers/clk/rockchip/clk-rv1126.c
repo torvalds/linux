@@ -518,9 +518,9 @@ static struct rockchip_clk_branch rv1126_clk_branches[] __initdata = {
 			RV1126_CLKGATE_CON(6), 14, GFLAGS),
 	GATE(PCLK_MAILBOX, "pclk_mailbox", "pclk_pdbus", 0,
 			RV1126_CLKGATE_CON(7), 10, GFLAGS),
-	GATE(0, "aclk_sysram", "hclk_pdbus", 0,
+	GATE(0, "aclk_sysram", "hclk_pdbus", CLK_IGNORE_UNUSED,
 			RV1126_CLKGATE_CON(3), 9, GFLAGS),
-	GATE(0, "pclk_intmux", "pclk_pdbus", 0,
+	GATE(0, "pclk_intmux", "pclk_pdbus", CLK_IGNORE_UNUSED,
 			RV1126_CLKGATE_CON(7), 14, GFLAGS),
 
 	COMPOSITE(CLK_SCR1, "clk_scr1", mux_gpll_cpll_p, 0,
