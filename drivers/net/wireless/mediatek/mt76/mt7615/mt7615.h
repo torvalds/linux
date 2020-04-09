@@ -229,6 +229,8 @@ struct mt7615_dev {
 		struct mt76_phy mphy;
 	};
 
+	struct tasklet_struct irq_tasklet;
+
 	struct mt7615_phy phy;
 	u32 vif_mask;
 	u32 omac_mask;
@@ -404,12 +406,9 @@ static inline bool is_mt7663(struct mt76_dev *dev)
 
 static inline void mt7615_irq_enable(struct mt7615_dev *dev, u32 mask)
 {
-	mt76_set_irq_mask(&dev->mt76, MT_INT_MASK_CSR, 0, mask);
-}
+	mt76_set_irq_mask(&dev->mt76, 0, 0, mask);
 
-static inline void mt7615_irq_disable(struct mt7615_dev *dev, u32 mask)
-{
-	mt76_set_irq_mask(&dev->mt76, MT_INT_MASK_CSR, mask, 0);
+	tasklet_schedule(&dev->irq_tasklet);
 }
 
 static inline bool mt7615_firmware_offload(struct mt7615_dev *dev)

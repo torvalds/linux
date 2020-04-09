@@ -561,5 +561,7 @@ void mt7615_unregister_device(struct mt7615_dev *dev)
 	spin_unlock_bh(&dev->token_lock);
 	idr_destroy(&dev->token);
 
+	tasklet_disable(&dev->irq_tasklet);
+
 	mt76_free_device(&dev->mt76);
 }

@@ -80,30 +80,42 @@ mt7615_rx_poll_complete(struct mt76_dev *mdev, enum mt76_rxq_id q)
 static irqreturn_t mt7615_irq_handler(int irq, void *dev_instance)
 {
 	struct mt7615_dev *dev = dev_instance;
-	u32 intr;
 
-	intr = mt76_rr(dev, MT_INT_SOURCE_CSR);
-	mt76_wr(dev, MT_INT_SOURCE_CSR, intr);
+	mt76_wr(dev, MT_INT_MASK_CSR, 0);
 
 	if (!test_bit(MT76_STATE_INITIALIZED, &dev->mphy.state))
 		return IRQ_NONE;
 
-	trace_dev_irq(&dev->mt76, intr, dev->mt76.mmio.irqmask);
+	tasklet_schedule(&dev->irq_tasklet);
 
+	return IRQ_HANDLED;
+}
+
+static void mt7615_irq_tasklet(unsigned long data)
+{
+	struct mt7615_dev *dev = (struct mt7615_dev *)data;
+	u32 intr, mask = 0;
+
+	mt76_wr(dev, MT_INT_MASK_CSR, 0);
+
+	intr = mt76_rr(dev, MT_INT_SOURCE_CSR);
+	mt76_wr(dev, MT_INT_SOURCE_CSR, intr);
+
+	trace_dev_irq(&dev->mt76, intr, dev->mt76.mmio.irqmask);
 	intr &= dev->mt76.mmio.irqmask;
 
 	if (intr & MT_INT_TX_DONE_ALL) {
-		mt7615_irq_disable(dev, MT_INT_TX_DONE_ALL);
+		mask |= MT_INT_TX_DONE_ALL;
 		napi_schedule(&dev->mt76.tx_napi);
 	}
 
 	if (intr & MT_INT_RX_DONE(0)) {
-		mt7615_irq_disable(dev, MT_INT_RX_DONE(0));
+		mask |= MT_INT_RX_DONE(0);
 		napi_schedule(&dev->mt76.napi[0]);
 	}
 
 	if (intr & MT_INT_RX_DONE(1)) {
-		mt7615_irq_disable(dev, MT_INT_RX_DONE(1));
+		mask |= MT_INT_RX_DONE(1);
 		napi_schedule(&dev->mt76.napi[1]);
 	}
 
@@ -117,7 +129,7 @@ static irqreturn_t mt7615_irq_handler(int irq, void *dev_instance)
 		}
 	}
 
-	return IRQ_HANDLED;
+	mt76_set_irq_mask(&dev->mt76, MT_INT_MASK_CSR, mask, 0);
 }
 
 int mt7615_mmio_probe(struct device *pdev, void __iomem *mem_base,
@@ -154,6 +166,7 @@ int mt7615_mmio_probe(struct device *pdev, void __iomem *mem_base,
 
 	dev = container_of(mdev, struct mt7615_dev, mt76);
 	mt76_mmio_init(&dev->mt76, mem_base);
+	tasklet_init(&dev->irq_tasklet, mt7615_irq_tasklet, (unsigned long)dev);
 
 	dev->reg_map = map;
 	dev->ops = ops;
