@@ -61,8 +61,7 @@ extern const struct pci_ecam_ops al_pcie_ops;	/* Amazon Annapurna Labs PCIe */
 
 #if IS_ENABLED(CONFIG_PCI_HOST_COMMON)
 /* for DT-based PCI controllers that support ECAM */
-int pci_host_common_probe(struct platform_device *pdev,
-			  const struct pci_ecam_ops *ops);
+int pci_host_common_probe(struct platform_device *pdev);
 int pci_host_common_remove(struct platform_device *pdev);
 #endif
 #endif

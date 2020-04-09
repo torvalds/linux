@@ -451,14 +451,12 @@ static const struct pci_ecam_ops pci_thunder_pem_ops = {
 };
 
 static const struct of_device_id thunder_pem_of_match[] = {
-	{ .compatible = "cavium,pci-host-thunder-pem" },
+	{
+		.compatible = "cavium,pci-host-thunder-pem",
+		.data = &pci_thunder_pem_ops,
+	},
 	{ },
 };
-
-static int thunder_pem_probe(struct platform_device *pdev)
-{
-	return pci_host_common_probe(pdev, &pci_thunder_pem_ops);
-}
 
 static struct platform_driver thunder_pem_driver = {
 	.driver = {
@@ -466,7 +464,7 @@ static struct platform_driver thunder_pem_driver = {
 		.of_match_table = thunder_pem_of_match,
 		.suppress_bind_attrs = true,
 	},
-	.probe = thunder_pem_probe,
+	.probe = pci_host_common_probe,
 };
 builtin_platform_driver(thunder_pem_driver);
 

@@ -10,6 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
+#include <linux/of_device.h>
 #include <linux/of_pci.h>
 #include <linux/pci-ecam.h>
 #include <linux/platform_device.h>
@@ -55,14 +56,18 @@ err_out:
 	return ERR_PTR(err);
 }
 
-int pci_host_common_probe(struct platform_device *pdev,
-			  const struct pci_ecam_ops *ops)
+int pci_host_common_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct pci_host_bridge *bridge;
 	struct pci_config_window *cfg;
 	struct list_head resources;
+	const struct pci_ecam_ops *ops;
 	int ret;
+
+	ops = of_device_get_match_data(&pdev->dev);
+	if (!ops)
+		return -ENODEV;
 
 	bridge = devm_pci_alloc_host_bridge(dev, 0);
 	if (!bridge)
