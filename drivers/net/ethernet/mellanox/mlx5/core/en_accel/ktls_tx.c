@@ -134,14 +134,14 @@ post_static_params(struct mlx5e_txqsq *sq,
 		   struct mlx5e_ktls_offload_context_tx *priv_tx,
 		   bool fence)
 {
+	u16 pi, num_wqebbs = MLX5E_KTLS_STATIC_WQEBBS;
 	struct mlx5e_umr_wqe *umr_wqe;
-	u16 pi;
 
-	pi = mlx5_wq_cyc_ctr2ix(&sq->wq, sq->pc);
+	pi = mlx5e_txqsq_get_next_pi(sq, num_wqebbs);
 	umr_wqe = MLX5E_TLS_FETCH_UMR_WQE(sq, pi);
 	build_static_params(umr_wqe, sq->pc, sq->sqn, priv_tx, fence);
-	tx_fill_wi(sq, pi, MLX5E_KTLS_STATIC_WQEBBS, 0, NULL);
-	sq->pc += MLX5E_KTLS_STATIC_WQEBBS;
+	tx_fill_wi(sq, pi, num_wqebbs, 0, NULL);
+	sq->pc += num_wqebbs;
 }
 
 static void
@@ -149,14 +149,14 @@ post_progress_params(struct mlx5e_txqsq *sq,
 		     struct mlx5e_ktls_offload_context_tx *priv_tx,
 		     bool fence)
 {
+	u16 pi, num_wqebbs = MLX5E_KTLS_PROGRESS_WQEBBS;
 	struct mlx5e_tx_wqe *wqe;
-	u16 pi;
 
-	pi = mlx5_wq_cyc_ctr2ix(&sq->wq, sq->pc);
+	pi = mlx5e_txqsq_get_next_pi(sq, num_wqebbs);
 	wqe = MLX5E_TLS_FETCH_PROGRESS_WQE(sq, pi);
 	build_progress_params(wqe, sq->pc, sq->sqn, priv_tx, fence);
-	tx_fill_wi(sq, pi, MLX5E_KTLS_PROGRESS_WQEBBS, 0, NULL);
-	sq->pc += MLX5E_KTLS_PROGRESS_WQEBBS;
+	tx_fill_wi(sq, pi, num_wqebbs, 0, NULL);
+	sq->pc += num_wqebbs;
 }
 
 static void
@@ -165,8 +165,6 @@ mlx5e_ktls_tx_post_param_wqes(struct mlx5e_txqsq *sq,
 			      bool skip_static_post, bool fence_first_post)
 {
 	bool progress_fence = skip_static_post || !fence_first_post;
-
-	mlx5e_txqsq_get_next_pi(sq, MLX5E_KTLS_STATIC_WQEBBS + MLX5E_KTLS_PROGRESS_WQEBBS);
 
 	if (!skip_static_post)
 		post_static_params(sq, priv_tx, fence_first_post);
