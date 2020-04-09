@@ -301,12 +301,7 @@ static int dw_mci_rockchip_init(struct dw_mci *host)
 				    "rockchip,rk3288-dw-mshc"))
 		host->bus_hz /= RK3288_CLKGEN_DIV;
 
-	if (of_device_is_compatible(host->dev->of_node,
-				    "rockchip,rk3308-dw-mshc"))
-		host->need_xfer_timer = true;
-	else
-		host->need_xfer_timer = false;
-
+	host->need_xfer_timer = true;
 	return 0;
 }
 
