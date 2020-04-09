@@ -272,6 +272,7 @@ tx_post_resync_dump(struct mlx5e_txqsq *sq, skb_frag_t *frag, u32 tisn, bool fir
 	int fsz;
 	u16 pi;
 
+	BUILD_BUG_ON(MLX5E_KTLS_DUMP_WQEBBS != 1);
 	pi = mlx5_wq_cyc_ctr2ix(&sq->wq, sq->pc);
 	wqe = MLX5E_TLS_FETCH_DUMP_WQE(sq, pi);
 
@@ -340,7 +341,6 @@ mlx5e_ktls_tx_handle_ooo(struct mlx5e_ktls_offload_context_tx *priv_tx,
 	struct mlx5e_sq_stats *stats = sq->stats;
 	enum mlx5e_ktls_sync_retval ret;
 	struct tx_sync_info info = {};
-	u8 num_wqebbs;
 	int i = 0;
 
 	ret = tx_sync_info_get(priv_tx, seq, datalen, &info);
@@ -368,9 +368,6 @@ mlx5e_ktls_tx_handle_ooo(struct mlx5e_ktls_offload_context_tx *priv_tx,
 		tx_post_fence_nop(sq);
 		return MLX5E_KTLS_SYNC_DONE;
 	}
-
-	num_wqebbs = mlx5e_ktls_dumps_num_wqebbs(sq, info.nr_frags, info.sync_len);
-	mlx5e_txqsq_get_next_pi(sq, num_wqebbs);
 
 	for (; i < info.nr_frags; i++) {
 		unsigned int orig_fsz, frag_offset = 0, n = 0;
