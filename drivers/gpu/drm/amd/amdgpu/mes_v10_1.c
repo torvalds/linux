@@ -846,6 +846,7 @@ static int mes_v10_1_ring_init(struct amdgpu_device *adev)
 	ring->use_doorbell = true;
 	ring->doorbell_index = adev->doorbell_index.mes_ring << 1;
 	ring->eop_gpu_addr = adev->mes.eop_gpu_addr;
+	ring->no_scheduler = true;
 	sprintf(ring->name, "mes_%d.%d.%d", ring->me, ring->pipe, ring->queue);
 
 	r = amdgpu_ring_init(adev, ring, 1024, NULL, 0, AMDGPU_RING_PRIO_DEFAULT);
