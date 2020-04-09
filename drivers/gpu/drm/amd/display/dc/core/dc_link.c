@@ -2465,9 +2465,28 @@ enum dc_status dc_link_validate_mode_timing(
 	return DC_OK;
 }
 
+static struct abm *get_abm_from_stream_res(const struct dc_link *link)
+{
+	int i;
+	struct dc *dc = link->ctx->dc;
+	struct abm *abm = NULL;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		struct pipe_ctx pipe_ctx = dc->current_state->res_ctx.pipe_ctx[i];
+		struct dc_stream_state *stream = pipe_ctx.stream;
+
+		if (stream && stream->link == link) {
+			abm = pipe_ctx.stream_res.abm;
+			break;
+		}
+	}
+	return abm;
+}
+
 int dc_link_get_backlight_level(const struct dc_link *link)
 {
-	struct abm *abm = link->ctx->dc->res_pool->abm;
+
+	struct abm *abm = get_abm_from_stream_res(link);
 
 	if (abm == NULL || abm->funcs->get_current_backlight == NULL)
 		return DC_ERROR_UNEXPECTED;
@@ -2477,7 +2496,7 @@ int dc_link_get_backlight_level(const struct dc_link *link)
 
 int dc_link_get_target_backlight_pwm(const struct dc_link *link)
 {
-	struct abm *abm = link->ctx->dc->res_pool->abm;
+	struct abm *abm = get_abm_from_stream_res(link);
 
 	if (abm == NULL || abm->funcs->get_target_backlight == NULL)
 		return DC_ERROR_UNEXPECTED;
@@ -2490,7 +2509,7 @@ bool dc_link_set_backlight_level(const struct dc_link *link,
 		uint32_t frame_ramp)
 {
 	struct dc  *dc = link->ctx->dc;
-	struct abm *abm = dc->res_pool->abm;
+	struct abm *abm = get_abm_from_stream_res(link);
 	struct dmcu *dmcu = dc->res_pool->dmcu;
 	unsigned int controller_id = 0;
 	bool fw_set_brightness = true;
@@ -2541,20 +2560,8 @@ bool dc_link_set_backlight_level(const struct dc_link *link,
 
 bool dc_link_set_abm_disable(const struct dc_link *link)
 {
-	struct dc  *dc = link->ctx->dc;
-	struct abm *abm = NULL;
+	struct abm *abm = get_abm_from_stream_res(link);
 	bool success = false;
-	int i;
-
-	for (i = 0; i < MAX_PIPES; i++) {
-		struct pipe_ctx pipe_ctx = dc->current_state->res_ctx.pipe_ctx[i];
-		struct dc_stream_state *stream = pipe_ctx.stream;
-
-		if (stream && stream->link == link) {
-			abm = pipe_ctx.stream_res.abm;
-			break;
-		}
-	}
 
 	if (abm)
 		success = abm->funcs->set_abm_immediate_disable(abm);
