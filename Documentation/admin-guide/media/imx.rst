@@ -609,6 +609,28 @@ Streaming can then begin on "ipu1_csi0 capture" node. The v4l2-ctl
 tool can be used to select any supported pixelformat on the capture
 device node.
 
+To determine what is the /dev/video node correspondent to
+"ipu1_csi0 capture":
+
+.. code-block:: none
+
+   media-ctl -e "ipu1_csi0 capture"
+   /dev/video0
+
+/dev/video0 is the streaming element in this case.
+
+Starting the streaming via v4l2-ctl:
+
+.. code-block:: none
+
+   v4l2-ctl --stream-mmap -d /dev/video0
+
+Starting the streaming via Gstreamer and sending the content to the display:
+
+.. code-block:: none
+
+   gst-launch-1.0 v4l2src device=/dev/video0 ! kmssink
+
 The following example configures a direct conversion pipeline to capture
 from the OV5640, transmitting on MIPI CSI-2 virtual channel 0. It also
 shows colorspace conversion and scaling at IC output.
@@ -633,6 +655,29 @@ shows colorspace conversion and scaling at IC output.
    v4l2-ctl -d /dev/video1 --set-fmt-video=pixelformat=RGB3
 
 Streaming can then begin on "ipu1_ic_prpenc capture" node.
+
+To determine what is the /dev/video node correspondent to
+"ipu1_ic_prpenc capture":
+
+.. code-block:: none
+
+   media-ctl -e "ipu1_ic_prpenc capture"
+   /dev/video1
+
+
+/dev/video1 is the streaming element in this case.
+
+Starting the streaming via v4l2-ctl:
+
+.. code-block:: none
+
+   v4l2-ctl --stream-mmap -d /dev/video1
+
+Starting the streaming via Gstreamer and sending the content to the display:
+
+.. code-block:: none
+
+   gst-launch-1.0 v4l2src device=/dev/video1 ! kmssink
 
 Known Issues
 ------------
