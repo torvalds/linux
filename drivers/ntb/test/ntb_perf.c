@@ -1010,8 +1010,8 @@ static void perf_clear_test(struct perf_thread *pthr)
 				   pthr->perf->test_peer->dma_dst_addr,
 				   pthr->perf->test_peer->outbuf_size,
 				   DMA_FROM_DEVICE, 0);
-	if (pthr->dma_chan)
-		dma_release_channel(pthr->dma_chan);
+
+	dma_release_channel(pthr->dma_chan);
 
 no_dma_notify:
 	atomic_dec(&perf->tsync);
