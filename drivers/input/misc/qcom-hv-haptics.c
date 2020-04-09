@@ -192,11 +192,14 @@
 #define CHAR_MSG_HEADER				16
 #define CHAR_BRAKE_MODE				24
 #define HW_BRAKE_CYCLES				5
+#define F_LRA_VARIATION_HZ			5
 
 #define MAX_FIFO_SAMPLES(chip)		\
 	((chip)->ptn_revision == HAP_PTN_V1 ? 104 : 640)
 #define FIFO_EMPTY_THRESHOLD(chip)	\
 	((chip)->ptn_revision == HAP_PTN_V1 ? 48 : 280)
+#define is_between(val, min, max)	\
+	(((min) <= (max)) && ((min) <= (val)) && ((val) <= (max)))
 
 enum drv_sig_shape {
 	WF_SQUARE,
@@ -239,7 +242,7 @@ enum s_period {
 	T_RESERVED,
 	/* F_xKHZ definitions are for FIFO only */
 	F_8KHZ,
-	F_16HKZ,
+	F_16KHZ,
 	F_24KHZ,
 	F_32KHZ,
 	F_44P1KHZ,
@@ -366,12 +369,20 @@ struct haptics_hw_config {
 	bool			is_erm;
 };
 
+struct custom_fifo_data {
+	u32	idx;
+	u32	length;
+	u32	play_rate_hz;
+	u8	*data;
+};
+
 struct haptics_chip {
 	struct device			*dev;
 	struct regmap			*regmap;
 	struct input_dev		*input_dev;
 	struct haptics_hw_config	config;
 	struct haptics_effect		*effects;
+	struct haptics_effect		*custom_effect;
 	struct haptics_play_info	play;
 	struct dentry			*debugfs_dir;
 	struct regulator_dev		*swr_slave_rdev;
@@ -599,7 +610,7 @@ static int get_fifo_play_length_us(struct fifo_cfg *fifo, u32 t_lra_us)
 	case F_8KHZ:
 		length_us = 1000 * fifo->num_s / 8;
 		break;
-	case F_16HKZ:
+	case F_16KHZ:
 		length_us = 1000 * fifo->num_s / 16;
 		break;
 	case F_24KHZ:
@@ -1110,6 +1121,143 @@ static int haptics_load_predefined_effect(struct haptics_chip *chip,
 	return 0;
 }
 
+static int haptics_init_custom_effect(struct haptics_chip *chip)
+{
+	chip->custom_effect = devm_kzalloc(chip->dev,
+			sizeof(*chip->custom_effect), GFP_KERNEL);
+	if (!chip->custom_effect)
+		return -ENOMEM;
+
+	chip->custom_effect->fifo = devm_kzalloc(chip->dev,
+			sizeof(*chip->custom_effect->fifo), GFP_KERNEL);
+	if (!chip->custom_effect->fifo)
+		return -ENOMEM;
+
+	/* custom effect will be played in FIFO mode without brake */
+	chip->custom_effect->pattern = NULL;
+	chip->custom_effect->brake = NULL;
+	chip->custom_effect->id = UINT_MAX;
+	chip->custom_effect->vmax_mv = chip->config.vmax_mv;
+	chip->custom_effect->t_lra_us = chip->config.t_lra_us;
+	chip->custom_effect->src = FIFO;
+	chip->custom_effect->auto_res_disable = false;
+
+	return 0;
+}
+
+static int haptics_convert_sample_period(struct haptics_chip *chip,
+						u32 play_rate_hz)
+{
+	enum s_period period;
+	u32 f_lra, f_lra_min, f_lra_max;
+
+	if (chip->config.t_lra_us == 0)
+		return -EINVAL;
+
+	f_lra = USEC_PER_SEC / chip->config.t_lra_us;
+	if (f_lra == 0 || f_lra < F_LRA_VARIATION_HZ)
+		return -EINVAL;
+
+	f_lra_min = f_lra - F_LRA_VARIATION_HZ;
+	f_lra_max = f_lra + F_LRA_VARIATION_HZ;
+
+	if (play_rate_hz == 8000)
+		period = F_8KHZ;
+	else if (play_rate_hz == 16000)
+		period = F_16KHZ;
+	else if (play_rate_hz == 24000)
+		period = F_24KHZ;
+	else if (play_rate_hz == 32000)
+		period = F_32KHZ;
+	else if (play_rate_hz == 44100)
+		period = F_44P1KHZ;
+	else if (play_rate_hz == 48000)
+		period = F_48KHZ;
+	else if (is_between(play_rate_hz, f_lra_min, f_lra_max))
+		period = T_LRA;
+	else if (is_between(play_rate_hz / 2, f_lra_min, f_lra_max))
+		period = T_LRA_DIV_2;
+	else if (is_between(play_rate_hz / 4, f_lra_min, f_lra_max))
+		period = T_LRA_DIV_4;
+	else if (is_between(play_rate_hz / 8, f_lra_min, f_lra_max))
+		period = T_LRA_DIV_8;
+	else if (is_between(play_rate_hz * 2, f_lra_min, f_lra_max))
+		period = T_LRA_X_2;
+	else if (is_between(play_rate_hz * 4, f_lra_min, f_lra_max))
+		period = T_LRA_X_4;
+	else if (is_between(play_rate_hz * 8, f_lra_min, f_lra_max))
+		period = T_LRA_X_8;
+	else
+		return -EINVAL;
+
+	return period;
+}
+
+static int haptics_load_custom_effect(struct haptics_chip *chip,
+			s16 __user *data, u32 length, s16 magnitude)
+{
+	struct haptics_play_info *play = &chip->play;
+	struct custom_fifo_data custom_data = {};
+	struct fifo_cfg *fifo;
+	int rc;
+
+	if (!chip->custom_effect || !chip->custom_effect->fifo)
+		return -ENOMEM;
+
+	fifo = chip->custom_effect->fifo;
+	if (copy_from_user(&custom_data, data, sizeof(custom_data)))
+		return -EFAULT;
+
+	dev_dbg(chip->dev, "custom data length %d with play-rate %d Hz\n",
+			custom_data.length, custom_data.play_rate_hz);
+	rc = haptics_convert_sample_period(chip, custom_data.play_rate_hz);
+	if (rc < 0) {
+		dev_err(chip->dev, "Can't support play rate: %d Hz\n",
+				custom_data.play_rate_hz);
+		return rc;
+	}
+
+	fifo->period_per_s = rc;
+	/*
+	 * Before allocating samples buffer, free the old sample
+	 * buffer first if it's not been freed.
+	 */
+	kfree(fifo->samples);
+	fifo->samples = kcalloc(custom_data.length, sizeof(u8), GFP_KERNEL);
+	if (!fifo->samples)
+		return -ENOMEM;
+
+	if (copy_from_user(fifo->samples,
+				(u8 __user *)custom_data.data,
+				custom_data.length)) {
+		rc = -EFAULT;
+		goto cleanup;
+	}
+
+	dev_dbg(chip->dev, "Copy custom FIFO samples successfully\n");
+	fifo->num_s = custom_data.length;
+	fifo->play_length_us = get_fifo_play_length_us(fifo,
+			chip->custom_effect->t_lra_us);
+
+	play->effect = chip->custom_effect;
+	play->brake = NULL;
+	play->vmax_mv = (magnitude * chip->custom_effect->vmax_mv) / 0x7fff;
+	rc = haptics_set_vmax_mv(chip, play->vmax_mv);
+	if (rc < 0)
+		goto cleanup;
+
+	play->pattern_src = FIFO;
+	rc = haptics_set_fifo(chip, play->effect->fifo);
+	if (rc < 0)
+		goto cleanup;
+
+	return 0;
+cleanup:
+	kfree(fifo->samples);
+	fifo->samples = NULL;
+	return rc;
+}
+
 static u32 get_play_length_us(struct haptics_play_info *play)
 {
 	struct haptics_effect *effect = play->effect;
@@ -1127,21 +1275,66 @@ static u32 get_play_length_us(struct haptics_play_info *play)
 	return length_us;
 }
 
+static int haptics_load_periodic_effect(struct haptics_chip *chip,
+			s16 __user *data, u32 length, s16 magnitude)
+{
+	struct haptics_play_info *play = &chip->play;
+	s16 custom_data[CUSTOM_DATA_LEN] = { 0 };
+	int rc, i;
+
+	if (chip->effects_count == 0)
+		return -EINVAL;
+
+	if (copy_from_user(custom_data, data, sizeof(custom_data)))
+		return -EFAULT;
+
+	for (i = 0; i < chip->effects_count; i++)
+		if (chip->effects[i].id == custom_data[CUSTOM_DATA_EFFECT_IDX])
+			break;
+
+	if (i == chip->effects_count) {
+		dev_err(chip->dev, "effect%d is not supported!\n",
+				custom_data[CUSTOM_DATA_EFFECT_IDX]);
+		return -EINVAL;
+	}
+
+	play->vmax_mv = (magnitude * chip->effects[i].vmax_mv) / 0x7fff;
+
+	dev_dbg(chip->dev, "upload effect %d, vmax_mv=%d\n",
+			chip->effects[i].id, play->vmax_mv);
+	rc = haptics_load_predefined_effect(chip, i);
+	if (rc < 0) {
+		dev_err(chip->dev, "Play predefined effect%d failed, rc=%d\n",
+				chip->effects[i].id, rc);
+		return rc;
+	}
+
+	play->length_us = get_play_length_us(play);
+	custom_data[CUSTOM_DATA_TIMEOUT_SEC_IDX] =
+		play->length_us / USEC_PER_SEC;
+	custom_data[CUSTOM_DATA_TIMEOUT_MSEC_IDX] =
+		(play->length_us % USEC_PER_SEC) / USEC_PER_MSEC;
+
+	if (copy_to_user(data, custom_data, length))
+		return -EFAULT;
+
+	return 0;
+}
+
 static int haptics_upload_effect(struct input_dev *dev,
 		struct ff_effect *effect, struct ff_effect *old)
 {
 	struct haptics_chip *chip = input_get_drvdata(dev);
 	struct haptics_hw_config *config = &chip->config;
 	struct haptics_play_info *play = &chip->play;
-	s16 level, data[CUSTOM_DATA_LEN];
-	int rc = 0, tmp, i;
+	s16 level;
+	int rc = 0;
 
 	switch (effect->type) {
 	case FF_CONSTANT:
 		play->length_us = effect->replay.length * USEC_PER_MSEC;
 		level = effect->u.constant.level;
-		tmp = level * config->vmax_mv;
-		play->vmax_mv = tmp / 0x7fff;
+		play->vmax_mv = (level * config->vmax_mv) / 0x7fff;
 		dev_dbg(chip->dev, "upload constant effect, length = %dus, vmax_mv = %d\n",
 				play->length_us, play->vmax_mv);
 		haptics_set_direct_play(chip);
@@ -1150,53 +1343,38 @@ static int haptics_upload_effect(struct input_dev *dev,
 					rc);
 			return rc;
 		}
+
 		break;
-
 	case FF_PERIODIC:
-		if (chip->effects_count == 0)
-			return -EINVAL;
-
 		if (effect->u.periodic.waveform != FF_CUSTOM) {
 			dev_err(chip->dev, "Only support custom waveforms\n");
 			return -EINVAL;
 		}
 
-		if (copy_from_user(data, effect->u.periodic.custom_data,
-					sizeof(data)))
-			return -EFAULT;
-
-		for (i = 0; i < chip->effects_count; i++)
-			if (chip->effects[i].id == data[CUSTOM_DATA_EFFECT_IDX])
-				break;
-
-		if (i == chip->effects_count) {
-			dev_err(chip->dev, "effect%d is not supported!\n",
-					data[CUSTOM_DATA_EFFECT_IDX]);
-			return -EINVAL;
+		if (effect->u.periodic.custom_len ==
+				sizeof(struct custom_fifo_data)) {
+			rc = haptics_load_custom_effect(chip,
+					effect->u.periodic.custom_data,
+					effect->u.periodic.custom_len,
+					effect->u.periodic.magnitude);
+			if (rc < 0) {
+				dev_err(chip->dev, "Upload custom FIFO data failed\n",
+						rc);
+				return rc;
+			}
+		} else if (effect->u.periodic.custom_len ==
+				sizeof(s16) * CUSTOM_DATA_LEN) {
+			rc = haptics_load_periodic_effect(chip,
+					effect->u.periodic.custom_data,
+					effect->u.periodic.custom_len,
+					effect->u.periodic.magnitude);
+			if (rc < 0) {
+				dev_err(chip->dev, "Upload periodic effect failed\n",
+						rc);
+				return rc;
+			}
 		}
 
-		level = effect->u.periodic.magnitude;
-		tmp = level * chip->effects[i].vmax_mv;
-		play->vmax_mv = tmp / 0x7fff;
-
-		dev_dbg(chip->dev, "upload effect %d, vmax_mv=%d\n",
-				chip->effects[i].id, play->vmax_mv);
-		rc = haptics_load_predefined_effect(chip, i);
-		if (rc < 0) {
-			dev_err(chip->dev, "Play predefined effect%d failed, rc=%d\n",
-					chip->effects[i].id, rc);
-			return rc;
-		}
-
-		play->length_us = get_play_length_us(play);
-		data[CUSTOM_DATA_TIMEOUT_SEC_IDX] =
-			play->length_us / USEC_PER_SEC;
-		data[CUSTOM_DATA_TIMEOUT_MSEC_IDX] =
-			(play->length_us % USEC_PER_SEC) / USEC_PER_MSEC;
-
-		if (copy_to_user(effect->u.periodic.custom_data, data,
-					sizeof(s16) * CUSTOM_DATA_LEN))
-			return -EFAULT;
 		break;
 	default:
 		dev_err(chip->dev, "%d effect is not supported\n",
@@ -1263,6 +1441,10 @@ static int haptics_erase(struct input_dev *dev, int effect_id)
 			return rc;
 
 		atomic_set(&play->fifo_status.is_busy, 0);
+
+		/* free custom_effect FIFO samples buffer after stopping play */
+		kfree(chip->custom_effect->fifo->samples);
+		chip->custom_effect->fifo->samples = NULL;
 
 		/* restore FIFO play rate back to T_LRA */
 		rc = haptics_set_fifo_playrate(chip, T_LRA);
@@ -1408,6 +1590,10 @@ static irqreturn_t fifo_empty_irq_handler(int irq, void *data)
 			return IRQ_HANDLED;
 
 		haptics_fifo_empty_irq_config(chip, false);
+
+		/* free custom_effect FIFO samples after playing is done */
+		kfree(chip->custom_effect->fifo->samples);
+		chip->custom_effect->fifo->samples = NULL;
 
 		atomic_set(&chip->play.fifo_status.written_done, 0);
 		atomic_set(&chip->play.fifo_status.is_busy, 0);
@@ -2646,6 +2832,12 @@ static int haptics_probe(struct platform_device *pdev)
 	rc = haptics_parse_dt(chip);
 	if (rc < 0) {
 		dev_err(chip->dev, "Parse device-tree failed, rc = %d\n", rc);
+		return rc;
+	}
+
+	rc = haptics_init_custom_effect(chip);
+	if (rc < 0) {
+		dev_err(chip->dev, "Init custom effect failed, rc=%d\n", rc);
 		return rc;
 	}
 
