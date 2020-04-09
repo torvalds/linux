@@ -113,6 +113,8 @@ static char hda_soc_components[30];
 #define IDISP_ROUTE_COUNT	(IDISP_DAI_COUNT * 2)
 #define IDISP_CODEC_MASK	0x4
 
+#define HDA_CODEC_AUTOSUSPEND_DELAY_MS 1000
+
 static int skl_hda_fill_card_info(struct snd_soc_acpi_mach_params *mach_params)
 {
 	struct snd_soc_card *card = &hda_soc_card;
@@ -168,6 +170,27 @@ static int skl_hda_fill_card_info(struct snd_soc_acpi_mach_params *mach_params)
 	return 0;
 }
 
+static void skl_set_hda_codec_autosuspend_delay(struct snd_soc_card *card)
+{
+	struct snd_soc_pcm_runtime *rtd =
+		list_first_entry(&card->rtd_list,
+				 struct snd_soc_pcm_runtime, list);
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct hdac_hda_priv *hda_pvt;
+
+	if (!codec_dai)
+		return;
+
+	/*
+	 * all codecs are on the same bus, so it's sufficient
+	 * to lookup the first runtime and its codec, and set
+	 * power save defaults for all codecs on the bus
+	 */
+	hda_pvt = snd_soc_component_get_drvdata(codec_dai->component);
+	snd_hda_set_power_save(hda_pvt->codec.bus,
+			       HDA_CODEC_AUTOSUSPEND_DELAY_MS);
+}
+
 static int skl_hda_audio_probe(struct platform_device *pdev)
 {
 	struct snd_soc_acpi_mach *mach;
@@ -206,7 +229,11 @@ static int skl_hda_audio_probe(struct platform_device *pdev)
 		hda_soc_card.components = hda_soc_components;
 	}
 
-	return devm_snd_soc_register_card(&pdev->dev, &hda_soc_card);
+	ret = devm_snd_soc_register_card(&pdev->dev, &hda_soc_card);
+	if (!ret)
+		skl_set_hda_codec_autosuspend_delay(&hda_soc_card);
+
+	return ret;
 }
 
 static struct platform_driver skl_hda_audio = {
