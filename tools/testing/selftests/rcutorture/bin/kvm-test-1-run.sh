@@ -45,6 +45,24 @@ fi
 echo ' ---' `date`: Starting build
 echo ' ---' Kconfig fragment at: $config_template >> $resdir/log
 touch $resdir/ConfigFragment.input
+
+# Combine additional Kconfig options into an existing set such that newer
+# options win.  The first argument is the Kconfig source ID, the second
+# the source file within $T, the third the destination file within $T,
+# and the fourth and final the list of additional Kconfig options.
+config_override_param () {
+	if test -n "$4"
+	then
+		echo $4 | sed -e 's/^ *//' -e 's/ *$//' | tr -s " " "\012" > $T/Kconfig_args
+		echo " --- $1" >> $resdir/ConfigFragment.input
+		cat $T/Kconfig_args >> $resdir/ConfigFragment.input
+		config_override.sh $T/$2 $T/Kconfig_args > $T/$3
+		# Note that "#CHECK#" is not permitted on commandline.
+	else
+		cp $T/$2 $T/$3
+	fi
+}
+
 if test -r "$config_dir/CFcommon"
 then
 	echo " --- $config_dir/CFcommon" >> $resdir/ConfigFragment.input
@@ -55,17 +73,8 @@ else
 fi
 echo " --- $config_template" >> $resdir/ConfigFragment.input
 cat $config_template >> $resdir/ConfigFragment.input
-if test -n "$TORTURE_KCONFIG_ARG"
-then
-	echo $TORTURE_KCONFIG_ARG | tr -s " " "\012" > $T/cmdline
-	echo " --- --kconfig argument" >> $resdir/ConfigFragment.input
-	cat $T/cmdline >> $resdir/ConfigFragment.input
-	config_override.sh $T/Kc1 $T/cmdline > $T/Kc2
-	# Note that "#CHECK#" is not permitted on commandline.
-else
-	cp $T/Kc1 $T/Kc2
-fi
-cat $T/Kc2 > $resdir/ConfigFragment
+config_override_param "--kconfig argument" Kc1 Kc2 "$TORTURE_KCONFIG_ARG"
+cp $T/Kc2 $resdir/ConfigFragment
 
 base_resdir=`echo $resdir | sed -e 's/\.[0-9]\+$//'`
 if test "$base_resdir" != "$resdir" -a -f $base_resdir/bzImage -a -f $base_resdir/vmlinux
