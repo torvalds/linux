@@ -1936,7 +1936,6 @@ static int nvme_revalidate_disk(struct gendisk *disk)
 		goto free_id;
 	}
 
-	__nvme_revalidate_disk(disk, id);
 	ret = nvme_report_ns_ids(ctrl, ns->head->ns_id, id, &ids);
 	if (ret)
 		goto free_id;
@@ -1945,8 +1944,10 @@ static int nvme_revalidate_disk(struct gendisk *disk)
 		dev_err(ctrl->device,
 			"identifiers changed for nsid %d\n", ns->head->ns_id);
 		ret = -ENODEV;
+		goto free_id;
 	}
 
+	__nvme_revalidate_disk(disk, id);
 free_id:
 	kfree(id);
 out:
