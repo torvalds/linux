@@ -1231,6 +1231,8 @@ struct amdgpu_gfxoff_quirk {
 static const struct amdgpu_gfxoff_quirk amdgpu_gfxoff_quirk_list[] = {
 	/* https://bugzilla.kernel.org/show_bug.cgi?id=204689 */
 	{ 0x1002, 0x15dd, 0x1002, 0x15dd, 0xc8 },
+	/* https://bugzilla.kernel.org/show_bug.cgi?id=207171 */
+	{ 0x1002, 0x15dd, 0x103c, 0x83e7, 0xd3 },
 	{ 0, 0, 0, 0, 0 },
 };
 
