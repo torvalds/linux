@@ -2,7 +2,7 @@
 # Copyright 2019 Analog Devices Inc.
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/bindings/hwmon/adi,axi-fan-control.yaml#
+$id: http://devicetree.org/schemas/hwmon/adi,axi-fan-control.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Analog Devices AXI FAN Control Device Tree Bindings
