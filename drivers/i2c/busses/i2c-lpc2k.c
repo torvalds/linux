@@ -346,7 +346,6 @@ static const struct i2c_algorithm i2c_lpc2k_algorithm = {
 static int i2c_lpc2k_probe(struct platform_device *pdev)
 {
 	struct lpc2k_i2c *i2c;
-	struct resource *res;
 	u32 bus_clk_rate;
 	u32 scl_high;
 	u32 clkrate;
@@ -356,8 +355,7 @@ static int i2c_lpc2k_probe(struct platform_device *pdev)
 	if (!i2c)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	i2c->base = devm_ioremap_resource(&pdev->dev, res);
+	i2c->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(i2c->base))
 		return PTR_ERR(i2c->base);
 
