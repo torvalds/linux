@@ -1154,35 +1154,27 @@ int qdio_shutdown(struct ccw_device *cdev, int how)
 
 	/* cleanup subchannel */
 	spin_lock_irq(get_ccwdev_lock(cdev));
-
+	qdio_set_state(irq_ptr, QDIO_IRQ_STATE_CLEANUP);
 	if (how & QDIO_FLAG_CLEANUP_USING_CLEAR)
 		rc = ccw_device_clear(cdev, QDIO_DOING_CLEANUP);
 	else
 		/* default behaviour is halt */
 		rc = ccw_device_halt(cdev, QDIO_DOING_CLEANUP);
+	spin_unlock_irq(get_ccwdev_lock(cdev));
 	if (rc) {
 		DBF_ERROR("%4x SHUTD ERR", irq_ptr->schid.sch_no);
 		DBF_ERROR("rc:%4d", rc);
 		goto no_cleanup;
 	}
 
-	qdio_set_state(irq_ptr, QDIO_IRQ_STATE_CLEANUP);
-	spin_unlock_irq(get_ccwdev_lock(cdev));
 	wait_event_interruptible_timeout(cdev->private->wait_q,
 		irq_ptr->state == QDIO_IRQ_STATE_INACTIVE ||
 		irq_ptr->state == QDIO_IRQ_STATE_ERR,
 		10 * HZ);
-	spin_lock_irq(get_ccwdev_lock(cdev));
 
 no_cleanup:
 	qdio_shutdown_thinint(irq_ptr);
-
-	/* restore interrupt handler */
-	if ((void *)cdev->handler == (void *)qdio_int_handler) {
-		cdev->handler = irq_ptr->orig_handler;
-		cdev->private->intparm = 0;
-	}
-	spin_unlock_irq(get_ccwdev_lock(cdev));
+	qdio_shutdown_irq(irq_ptr);
 
 	qdio_set_state(irq_ptr, QDIO_IRQ_STATE_INACTIVE);
 	mutex_unlock(&irq_ptr->setup_mutex);
@@ -1352,8 +1344,8 @@ int qdio_establish(struct ccw_device *cdev,
 
 	rc = qdio_establish_thinint(irq_ptr);
 	if (rc) {
+		qdio_shutdown_irq(irq_ptr);
 		mutex_unlock(&irq_ptr->setup_mutex);
-		qdio_shutdown(cdev, QDIO_FLAG_CLEANUP_USING_CLEAR);
 		return rc;
 	}
 
@@ -1371,8 +1363,8 @@ int qdio_establish(struct ccw_device *cdev,
 	if (rc) {
 		DBF_ERROR("%4x est IO ERR", irq_ptr->schid.sch_no);
 		DBF_ERROR("rc:%4x", rc);
+		qdio_shutdown_irq(irq_ptr);
 		mutex_unlock(&irq_ptr->setup_mutex);
-		qdio_shutdown(cdev, QDIO_FLAG_CLEANUP_USING_CLEAR);
 		return rc;
 	}
 
