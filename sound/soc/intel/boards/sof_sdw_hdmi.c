@@ -90,7 +90,7 @@ int sof_sdw_hdmi_card_late_probe(struct snd_soc_card *card)
 	return hdac_hdmi_jack_port_init(component, &card->dapm);
 }
 #else
-int hdmi_card_late_probe(struct snd_soc_card *card)
+int sof_sdw_hdmi_card_late_probe(struct snd_soc_card *card)
 {
 	return 0;
 }
