@@ -1255,7 +1255,7 @@ static int create_raw_packet_qp_tis(struct mlx5_ib_dev *dev,
 				    struct mlx5_ib_sq *sq, u32 tdn,
 				    struct ib_pd *pd)
 {
-	u32 in[MLX5_ST_SZ_DW(create_tis_in)] = {0};
+	u32 in[MLX5_ST_SZ_DW(create_tis_in)] = {};
 	void *tisc = MLX5_ADDR_OF(create_tis_in, in, ctx);
 
 	MLX5_SET(create_tis_in, in, uid, to_mpd(pd)->uid);
@@ -1263,7 +1263,7 @@ static int create_raw_packet_qp_tis(struct mlx5_ib_dev *dev,
 	if (qp->flags & MLX5_IB_QP_UNDERLAY)
 		MLX5_SET(tisc, tisc, underlay_qpn, qp->underlay_qpn);
 
-	return mlx5_core_create_tis(dev->mdev, in, sizeof(in), &sq->tisn);
+	return mlx5_core_create_tis(dev->mdev, in, &sq->tisn);
 }
 
 static void destroy_raw_packet_qp_tis(struct mlx5_ib_dev *dev,
@@ -1460,9 +1460,8 @@ static void destroy_raw_packet_qp_tir(struct mlx5_ib_dev *dev,
 
 static int create_raw_packet_qp_tir(struct mlx5_ib_dev *dev,
 				    struct mlx5_ib_rq *rq, u32 tdn,
-				    u32 *qp_flags_en,
-				    struct ib_pd *pd,
-				    u32 *out, int outlen)
+				    u32 *qp_flags_en, struct ib_pd *pd,
+				    u32 *out)
 {
 	u8 lb_flag = 0;
 	u32 *in;
@@ -1495,9 +1494,8 @@ static int create_raw_packet_qp_tir(struct mlx5_ib_dev *dev,
 	}
 
 	MLX5_SET(tirc, tirc, self_lb_block, lb_flag);
-
-	err = mlx5_core_create_tir_out(dev->mdev, in, inlen, out, outlen);
-
+	MLX5_SET(create_tir_in, in, opcode, MLX5_CMD_OP_CREATE_TIR);
+	err = mlx5_cmd_exec_inout(dev->mdev, create_tir, in, out);
 	rq->tirn = MLX5_GET(create_tir_out, out, tirn);
 	if (!err && MLX5_GET(tirc, tirc, self_lb_block)) {
 		err = mlx5_ib_enable_lb(dev, false, true);
@@ -1557,9 +1555,8 @@ static int create_raw_packet_qp(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 		if (err)
 			goto err_destroy_sq;
 
-		err = create_raw_packet_qp_tir(
-			dev, rq, tdn, &qp->flags_en, pd, out,
-			MLX5_ST_SZ_BYTES(create_tir_out));
+		err = create_raw_packet_qp_tir(dev, rq, tdn, &qp->flags_en, pd,
+					       out);
 		if (err)
 			goto err_destroy_rq;
 
@@ -1854,7 +1851,8 @@ static int create_rss_raw_qp_tir(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 	MLX5_SET(rx_hash_field_select, hfso, selected_fields, selected_fields);
 
 create_tir:
-	err = mlx5_core_create_tir_out(dev->mdev, in, inlen, out, outlen);
+	MLX5_SET(create_tir_in, in, opcode, MLX5_CMD_OP_CREATE_TIR);
+	err = mlx5_cmd_exec_inout(dev->mdev, create_tir, in, out);
 
 	qp->rss_qp.tirn = MLX5_GET(create_tir_out, out, tirn);
 	if (!err && MLX5_GET(tirc, tirc, self_lb_block)) {
@@ -2933,7 +2931,7 @@ static int modify_raw_packet_eth_prio(struct mlx5_core_dev *dev,
 	tisc = MLX5_ADDR_OF(modify_tis_in, in, ctx);
 	MLX5_SET(tisc, tisc, prio, ((sl & 0x7) << 1));
 
-	err = mlx5_core_modify_tis(dev, sq->tisn, in, inlen);
+	err = mlx5_core_modify_tis(dev, sq->tisn, in);
 
 	kvfree(in);
 
@@ -2960,7 +2958,7 @@ static int modify_raw_packet_tx_affinity(struct mlx5_core_dev *dev,
 	tisc = MLX5_ADDR_OF(modify_tis_in, in, ctx);
 	MLX5_SET(tisc, tisc, lag_tx_port_affinity, tx_affinity);
 
-	err = mlx5_core_modify_tis(dev, sq->tisn, in, inlen);
+	err = mlx5_core_modify_tis(dev, sq->tisn, in);
 
 	kvfree(in);
 
@@ -3240,7 +3238,7 @@ static int modify_raw_packet_qp_rq(
 				"RAW PACKET QP counters are not supported on current FW\n");
 	}
 
-	err = mlx5_core_modify_rq(dev->mdev, rq->base.mqp.qpn, in, inlen);
+	err = mlx5_core_modify_rq(dev->mdev, rq->base.mqp.qpn, in);
 	if (err)
 		goto out;
 
@@ -3303,7 +3301,7 @@ static int modify_raw_packet_qp_sq(
 		MLX5_SET(sqc, sqc, packet_pacing_rate_limit_index, rl_index);
 	}
 
-	err = mlx5_core_modify_sq(dev, sq->base.mqp.qpn, in, inlen);
+	err = mlx5_core_modify_sq(dev, sq->base.mqp.qpn, in);
 	if (err) {
 		/* Remove new rate from table if failed */
 		if (new_rate_added)
@@ -6444,7 +6442,7 @@ int mlx5_ib_modify_wq(struct ib_wq *wq, struct ib_wq_attr *wq_attr,
 				"Receive WQ counters are not supported on current FW\n");
 	}
 
-	err = mlx5_core_modify_rq(dev->mdev, rwq->core_qp.qpn, in, inlen);
+	err = mlx5_core_modify_rq(dev->mdev, rwq->core_qp.qpn, in);
 	if (!err)
 		rwq->ibwq.state = (wq_state == MLX5_RQC_STATE_ERR) ? IB_WQS_ERR : wq_state;
 

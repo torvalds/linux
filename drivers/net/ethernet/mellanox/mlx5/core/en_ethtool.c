@@ -1204,7 +1204,7 @@ int mlx5e_set_rxfh(struct net_device *dev, const u32 *indir,
 	}
 
 	if (hash_changed)
-		mlx5e_modify_tirs_hash(priv, in, inlen);
+		mlx5e_modify_tirs_hash(priv, in);
 
 	mutex_unlock(&priv->state_lock);
 

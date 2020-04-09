@@ -721,7 +721,7 @@ int mlx5e_modify_rq_state(struct mlx5e_rq *rq, int curr_state, int next_state)
 	MLX5_SET(modify_rq_in, in, rq_state, curr_state);
 	MLX5_SET(rqc, rqc, state, next_state);
 
-	err = mlx5_core_modify_rq(mdev, rq->rqn, in, inlen);
+	err = mlx5_core_modify_rq(mdev, rq->rqn, in);
 
 	kvfree(in);
 
@@ -752,7 +752,7 @@ static int mlx5e_modify_rq_scatter_fcs(struct mlx5e_rq *rq, bool enable)
 	MLX5_SET(rqc, rqc, scatter_fcs, enable);
 	MLX5_SET(rqc, rqc, state, MLX5_RQC_STATE_RDY);
 
-	err = mlx5_core_modify_rq(mdev, rq->rqn, in, inlen);
+	err = mlx5_core_modify_rq(mdev, rq->rqn, in);
 
 	kvfree(in);
 
@@ -781,7 +781,7 @@ static int mlx5e_modify_rq_vsd(struct mlx5e_rq *rq, bool vsd)
 	MLX5_SET(rqc, rqc, vsd, vsd);
 	MLX5_SET(rqc, rqc, state, MLX5_RQC_STATE_RDY);
 
-	err = mlx5_core_modify_rq(mdev, rq->rqn, in, inlen);
+	err = mlx5_core_modify_rq(mdev, rq->rqn, in);
 
 	kvfree(in);
 
@@ -1259,7 +1259,7 @@ int mlx5e_modify_sq(struct mlx5_core_dev *mdev, u32 sqn,
 		MLX5_SET(sqc,  sqc, packet_pacing_rate_limit_index, p->rl_index);
 	}
 
-	err = mlx5_core_modify_sq(mdev, sqn, in, inlen);
+	err = mlx5_core_modify_sq(mdev, sqn, in);
 
 	kvfree(in);
 
@@ -2698,7 +2698,7 @@ static void mlx5e_update_rx_hash_fields(struct mlx5e_tirc_config *ttconfig,
 	ttconfig->rx_hash_fields = rx_hash_fields;
 }
 
-void mlx5e_modify_tirs_hash(struct mlx5e_priv *priv, void *in, int inlen)
+void mlx5e_modify_tirs_hash(struct mlx5e_priv *priv, void *in)
 {
 	void *tirc = MLX5_ADDR_OF(modify_tir_in, in, ctx);
 	struct mlx5e_rss_params *rss = &priv->rss_params;
@@ -2714,7 +2714,7 @@ void mlx5e_modify_tirs_hash(struct mlx5e_priv *priv, void *in, int inlen)
 		mlx5e_update_rx_hash_fields(&ttconfig, tt,
 					    rss->rx_hash_fields[tt]);
 		mlx5e_build_indir_tir_ctx_hash(rss, &ttconfig, tirc, false);
-		mlx5_core_modify_tir(mdev, priv->indir_tir[tt].tirn, in, inlen);
+		mlx5_core_modify_tir(mdev, priv->indir_tir[tt].tirn, in);
 	}
 
 	if (!mlx5e_tunnel_inner_ft_supported(priv->mdev))
@@ -2725,8 +2725,7 @@ void mlx5e_modify_tirs_hash(struct mlx5e_priv *priv, void *in, int inlen)
 		mlx5e_update_rx_hash_fields(&ttconfig, tt,
 					    rss->rx_hash_fields[tt]);
 		mlx5e_build_indir_tir_ctx_hash(rss, &ttconfig, tirc, true);
-		mlx5_core_modify_tir(mdev, priv->inner_indir_tir[tt].tirn, in,
-				     inlen);
+		mlx5_core_modify_tir(mdev, priv->inner_indir_tir[tt].tirn, in);
 	}
 }
 
@@ -2752,15 +2751,13 @@ static int mlx5e_modify_tirs_lro(struct mlx5e_priv *priv)
 	mlx5e_build_tir_ctx_lro(&priv->channels.params, tirc);
 
 	for (tt = 0; tt < MLX5E_NUM_INDIR_TIRS; tt++) {
-		err = mlx5_core_modify_tir(mdev, priv->indir_tir[tt].tirn, in,
-					   inlen);
+		err = mlx5_core_modify_tir(mdev, priv->indir_tir[tt].tirn, in);
 		if (err)
 			goto free_in;
 	}
 
 	for (ix = 0; ix < priv->max_nch; ix++) {
-		err = mlx5_core_modify_tir(mdev, priv->direct_tir[ix].tirn,
-					   in, inlen);
+		err = mlx5_core_modify_tir(mdev, priv->direct_tir[ix].tirn, in);
 		if (err)
 			goto free_in;
 	}
@@ -3214,7 +3211,7 @@ int mlx5e_create_tis(struct mlx5_core_dev *mdev, void *in, u32 *tisn)
 	if (mlx5_lag_is_lacp_owner(mdev))
 		MLX5_SET(tisc, tisc, strict_lag_tx_port_affinity, 1);
 
-	return mlx5_core_create_tis(mdev, in, MLX5_ST_SZ_BYTES(create_tis_in), tisn);
+	return mlx5_core_create_tis(mdev, in, tisn);
 }
 
 void mlx5e_destroy_tis(struct mlx5_core_dev *mdev, u32 tisn)
@@ -3332,7 +3329,7 @@ int mlx5e_create_indirect_tirs(struct mlx5e_priv *priv, bool inner_ttc)
 		tir = &priv->indir_tir[tt];
 		tirc = MLX5_ADDR_OF(create_tir_in, in, ctx);
 		mlx5e_build_indir_tir_ctx(priv, tt, tirc);
-		err = mlx5e_create_tir(priv->mdev, tir, in, inlen);
+		err = mlx5e_create_tir(priv->mdev, tir, in);
 		if (err) {
 			mlx5_core_warn(priv->mdev, "create indirect tirs failed, %d\n", err);
 			goto err_destroy_inner_tirs;
@@ -3347,7 +3344,7 @@ int mlx5e_create_indirect_tirs(struct mlx5e_priv *priv, bool inner_ttc)
 		tir = &priv->inner_indir_tir[i];
 		tirc = MLX5_ADDR_OF(create_tir_in, in, ctx);
 		mlx5e_build_inner_indir_tir_ctx(priv, i, tirc);
-		err = mlx5e_create_tir(priv->mdev, tir, in, inlen);
+		err = mlx5e_create_tir(priv->mdev, tir, in);
 		if (err) {
 			mlx5_core_warn(priv->mdev, "create inner indirect tirs failed, %d\n", err);
 			goto err_destroy_inner_tirs;
@@ -3390,7 +3387,7 @@ int mlx5e_create_direct_tirs(struct mlx5e_priv *priv, struct mlx5e_tir *tirs)
 		tir = &tirs[ix];
 		tirc = MLX5_ADDR_OF(create_tir_in, in, ctx);
 		mlx5e_build_direct_tir_ctx(priv, tir->rqt.rqtn, tirc);
-		err = mlx5e_create_tir(priv->mdev, tir, in, inlen);
+		err = mlx5e_create_tir(priv->mdev, tir, in);
 		if (unlikely(err))
 			goto err_destroy_ch_tirs;
 	}

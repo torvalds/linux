@@ -568,7 +568,7 @@ struct mlx5_core_dev *mlx5e_hairpin_get_mdev(struct net *net, int ifindex)
 
 static int mlx5e_hairpin_create_transport(struct mlx5e_hairpin *hp)
 {
-	u32 in[MLX5_ST_SZ_DW(create_tir_in)] = {0};
+	u32 in[MLX5_ST_SZ_DW(create_tir_in)] = {};
 	void *tirc;
 	int err;
 
@@ -582,7 +582,7 @@ static int mlx5e_hairpin_create_transport(struct mlx5e_hairpin *hp)
 	MLX5_SET(tirc, tirc, inline_rqn, hp->pair->rqn[0]);
 	MLX5_SET(tirc, tirc, transport_domain, hp->tdn);
 
-	err = mlx5_core_create_tir(hp->func_mdev, in, MLX5_ST_SZ_BYTES(create_tir_in), &hp->tirn);
+	err = mlx5_core_create_tir(hp->func_mdev, in, &hp->tirn);
 	if (err)
 		goto create_tir_err;
 
@@ -666,7 +666,7 @@ static int mlx5e_hairpin_create_indirect_tirs(struct mlx5e_hairpin *hp)
 		mlx5e_build_indir_tir_ctx_hash(&priv->rss_params, &ttconfig, tirc, false);
 
 		err = mlx5_core_create_tir(hp->func_mdev, in,
-					   MLX5_ST_SZ_BYTES(create_tir_in), &hp->indir_tirn[tt]);
+					   &hp->indir_tirn[tt]);
 		if (err) {
 			mlx5_core_warn(hp->func_mdev, "create indirect tirs failed, %d\n", err);
 			goto err_destroy_tirs;
