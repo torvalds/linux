@@ -436,66 +436,6 @@ vm_fault_t ttm_bo_vm_fault(struct vm_fault *vmf)
 }
 EXPORT_SYMBOL(ttm_bo_vm_fault);
 
-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-/**
- * ttm_pgprot_is_wrprotecting - Is a page protection value write-protecting?
- * @prot: The page protection value
- *
- * Return: true if @prot is write-protecting. false otherwise.
- */
-static bool ttm_pgprot_is_wrprotecting(pgprot_t prot)
-{
-	/*
-	 * This is meant to say "pgprot_wrprotect(prot) == prot" in a generic
-	 * way. Unfortunately there is no generic pgprot_wrprotect.
-	 */
-	return pte_val(pte_wrprotect(__pte(pgprot_val(prot)))) ==
-		pgprot_val(prot);
-}
-
-static vm_fault_t ttm_bo_vm_huge_fault(struct vm_fault *vmf,
-				       enum page_entry_size pe_size)
-{
-	struct vm_area_struct *vma = vmf->vma;
-	pgprot_t prot;
-	struct ttm_buffer_object *bo = vma->vm_private_data;
-	vm_fault_t ret;
-	pgoff_t fault_page_size = 0;
-	bool write = vmf->flags & FAULT_FLAG_WRITE;
-
-	switch (pe_size) {
-	case PE_SIZE_PMD:
-		fault_page_size = HPAGE_PMD_SIZE >> PAGE_SHIFT;
-		break;
-#ifdef CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
-	case PE_SIZE_PUD:
-		fault_page_size = HPAGE_PUD_SIZE >> PAGE_SHIFT;
-		break;
-#endif
-	default:
-		WARN_ON_ONCE(1);
-		return VM_FAULT_FALLBACK;
-	}
-
-	/* Fallback on write dirty-tracking or COW */
-	if (write && ttm_pgprot_is_wrprotecting(vma->vm_page_prot))
-		return VM_FAULT_FALLBACK;
-
-	ret = ttm_bo_vm_reserve(bo, vmf);
-	if (ret)
-		return ret;
-
-	prot = vm_get_page_prot(vma->vm_flags);
-	ret = ttm_bo_vm_fault_reserved(vmf, prot, 1, fault_page_size);
-	if (ret == VM_FAULT_RETRY && !(vmf->flags & FAULT_FLAG_RETRY_NOWAIT))
-		return ret;
-
-	dma_resv_unlock(bo->base.resv);
-
-	return ret;
-}
-#endif
-
 void ttm_bo_vm_open(struct vm_area_struct *vma)
 {
 	struct ttm_buffer_object *bo = vma->vm_private_data;
@@ -598,9 +538,6 @@ static const struct vm_operations_struct ttm_bo_vm_ops = {
 	.open = ttm_bo_vm_open,
 	.close = ttm_bo_vm_close,
 	.access = ttm_bo_vm_access,
-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-	.huge_fault = ttm_bo_vm_huge_fault,
-#endif
 };
 
 static struct ttm_buffer_object *ttm_bo_vm_lookup(struct ttm_bo_device *bdev,
