@@ -19,7 +19,7 @@ static void gen_pci_unmap_cfg(void *ptr)
 }
 
 static struct pci_config_window *gen_pci_init(struct device *dev,
-		struct list_head *resources, struct pci_ecam_ops *ops)
+		struct list_head *resources, const struct pci_ecam_ops *ops)
 {
 	int err;
 	struct resource cfgres;
@@ -55,7 +55,7 @@ err_out:
 }
 
 int pci_host_common_probe(struct platform_device *pdev,
-			  struct pci_ecam_ops *ops)
+			  const struct pci_ecam_ops *ops)
 {
 	struct device *dev = &pdev->dev;
 	struct pci_host_bridge *bridge;
@@ -82,7 +82,7 @@ int pci_host_common_probe(struct platform_device *pdev,
 	bridge->dev.parent = dev;
 	bridge->sysdata = cfg;
 	bridge->busnr = cfg->busr.start;
-	bridge->ops = &ops->pci_ops;
+	bridge->ops = (struct pci_ops *)&ops->pci_ops;
 	bridge->map_irq = of_irq_parse_and_map_pci;
 	bridge->swizzle_irq = pci_common_swizzle;
 
