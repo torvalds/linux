@@ -903,6 +903,7 @@ static int is_stopped_mb(struct rkispp_stream *stream)
 		rkispp_set_bits(base + RKISPP_SHARP_CORE_CTRL,
 				SW_SHP_DMA_DIS, SW_SHP_DMA_DIS);
 		val = false;
+		en = false;
 		break;
 	default:
 		en = SW_FEC_EN_SHD;
@@ -925,6 +926,8 @@ static int limit_check_mb(struct rkispp_stream *stream)
 			 "output %dx%d should euqal to input %dx%d\n",
 			 stream->out_fmt.width, stream->out_fmt.height,
 			 sdev->out_fmt.width, sdev->out_fmt.height);
+		stream->out_fmt.width = 0;
+		stream->out_fmt.height = 0;
 		return -EINVAL;
 	}
 
@@ -1006,6 +1009,8 @@ static int limit_check_scl(struct rkispp_stream *stream)
 			 stream->id - STREAM_S0,
 			 stream->out_fmt.width, stream->out_fmt.height,
 			 max_width, max_ratio, min_ratio);
+		stream->out_fmt.width = 0;
+		stream->out_fmt.height = 0;
 	}
 
 	return ret;
@@ -1045,6 +1050,8 @@ static int rkispp_queue_setup(struct vb2_queue *queue,
 	u32 i;
 
 	pixm = &stream->out_fmt;
+	if (!pixm->width || !pixm->height)
+		return -EINVAL;
 	cap_fmt = &stream->out_cap_fmt;
 	*num_planes = cap_fmt->mplanes;
 
@@ -1422,9 +1429,9 @@ static int rkispp_set_fmt(struct rkispp_stream *stream,
 		stream->out_cap_fmt = *fmt;
 		stream->out_fmt = *pixm;
 
-		if (stream->id == STREAM_II) {
-			sdev->in_fmt.format.width = pixm->width;
-			sdev->in_fmt.format.height = pixm->height;
+		if (stream->id == STREAM_II && stream->linked) {
+			sdev->in_fmt.width = pixm->width;
+			sdev->in_fmt.height = pixm->height;
 			sdev->out_fmt.width = pixm->width;
 			sdev->out_fmt.height = pixm->height;
 		}
@@ -1442,6 +1449,8 @@ static int rkispp_set_fmt(struct rkispp_stream *stream,
 			 "ispp input max:%dx%d min:%dx%d\n",
 			 RKISPP_MIN_WIDTH, RKISPP_MIN_HEIGHT,
 			 RKISPP_MAX_WIDTH, RKISPP_MAX_HEIGHT);
+		stream->out_fmt.width = 0;
+		stream->out_fmt.height = 0;
 		return -EINVAL;
 	}
 

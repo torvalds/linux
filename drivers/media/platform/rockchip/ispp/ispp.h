@@ -29,7 +29,7 @@ struct rkispp_subdev {
 	struct v4l2_subdev sd;
 	struct v4l2_subdev *remote_sd;
 	struct media_pad pads[RKISPP_PAD_MAX];
-	struct v4l2_subdev_format in_fmt;
+	struct v4l2_mbus_framefmt in_fmt;
 	struct isppsd_fmt out_fmt;
 	atomic_t frm_sync_seq;
 };

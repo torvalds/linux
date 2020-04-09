@@ -37,9 +37,8 @@ static inline size_t get_input_size(struct rkispp_params_vdev *params_vdev)
 {
 	struct rkispp_device *dev = params_vdev->dev;
 	struct rkispp_subdev *isp_sdev = &dev->ispp_sdev;
-	struct v4l2_mbus_framefmt *frmfmt = &isp_sdev->in_fmt.format;
 
-	return frmfmt->width * frmfmt->height;
+	return isp_sdev->out_fmt.width * isp_sdev->out_fmt.height;
 }
 
 static void tnr_config(struct rkispp_params_vdev *params_vdev,
