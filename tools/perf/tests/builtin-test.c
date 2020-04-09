@@ -73,6 +73,10 @@ static struct test generic_tests[] = {
 		.func = test__pmu,
 	},
 	{
+		.desc = "PMU events",
+		.func = test__pmu_events,
+	},
+	{
 		.desc = "DSO data read",
 		.func = test__dso_data,
 	},

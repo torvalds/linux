@@ -2323,11 +2323,8 @@ static int __init ingenic_gpio_probe(struct ingenic_pinctrl *jzpc,
 	jzgc->gc.direction_input = ingenic_gpio_direction_input;
 	jzgc->gc.direction_output = ingenic_gpio_direction_output;
 	jzgc->gc.get_direction = ingenic_gpio_get_direction;
-
-	if (of_property_read_bool(node, "gpio-ranges")) {
-		jzgc->gc.request = gpiochip_generic_request;
-		jzgc->gc.free = gpiochip_generic_free;
-	}
+	jzgc->gc.request = gpiochip_generic_request;
+	jzgc->gc.free = gpiochip_generic_free;
 
 	jzgc->irq = irq_of_parse_and_map(node, 0);
 	if (!jzgc->irq)

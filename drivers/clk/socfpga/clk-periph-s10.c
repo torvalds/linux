@@ -73,26 +73,27 @@ static const struct clk_ops peri_cnt_clk_ops = {
 	.get_parent = clk_periclk_get_parent,
 };
 
-struct clk *s10_register_periph(const char *name, const char *parent_name,
-				const char * const *parent_names,
-				u8 num_parents, unsigned long flags,
-				void __iomem *reg, unsigned long offset)
+struct clk *s10_register_periph(const struct stratix10_perip_c_clock *clks,
+				void __iomem *reg)
 {
 	struct clk *clk;
 	struct socfpga_periph_clk *periph_clk;
 	struct clk_init_data init;
+	const char *name = clks->name;
+	const char *parent_name = clks->parent_name;
+	const char * const *parent_names = clks->parent_names;
 
 	periph_clk = kzalloc(sizeof(*periph_clk), GFP_KERNEL);
 	if (WARN_ON(!periph_clk))
 		return NULL;
 
-	periph_clk->hw.reg = reg + offset;
+	periph_clk->hw.reg = reg + clks->offset;
 
 	init.name = name;
 	init.ops = &peri_c_clk_ops;
-	init.flags = flags;
+	init.flags = clks->flags;
 
-	init.num_parents = num_parents;
+	init.num_parents = clks->num_parents;
 	init.parent_names = parent_names ? parent_names : &parent_name;
 
 	periph_clk->hw.hw.init = &init;
@@ -105,38 +106,37 @@ struct clk *s10_register_periph(const char *name, const char *parent_name,
 	return clk;
 }
 
-struct clk *s10_register_cnt_periph(const char *name, const char *parent_name,
-				    const char * const *parent_names,
-				    u8 num_parents, unsigned long flags,
-				    void __iomem *regbase, unsigned long offset,
-				    u8 fixed_divider, unsigned long bypass_reg,
-				    unsigned long bypass_shift)
+struct clk *s10_register_cnt_periph(const struct stratix10_perip_cnt_clock *clks,
+				    void __iomem *regbase)
 {
 	struct clk *clk;
 	struct socfpga_periph_clk *periph_clk;
 	struct clk_init_data init;
+	const char *name = clks->name;
+	const char *parent_name = clks->parent_name;
+	const char * const *parent_names = clks->parent_names;
 
 	periph_clk = kzalloc(sizeof(*periph_clk), GFP_KERNEL);
 	if (WARN_ON(!periph_clk))
 		return NULL;
 
-	if (offset)
-		periph_clk->hw.reg = regbase + offset;
+	if (clks->offset)
+		periph_clk->hw.reg = regbase + clks->offset;
 	else
 		periph_clk->hw.reg = NULL;
 
-	if (bypass_reg)
-		periph_clk->bypass_reg = regbase + bypass_reg;
+	if (clks->bypass_reg)
+		periph_clk->bypass_reg = regbase + clks->bypass_reg;
 	else
 		periph_clk->bypass_reg = NULL;
-	periph_clk->bypass_shift = bypass_shift;
-	periph_clk->fixed_div = fixed_divider;
+	periph_clk->bypass_shift = clks->bypass_shift;
+	periph_clk->fixed_div = clks->fixed_divider;
 
 	init.name = name;
 	init.ops = &peri_cnt_clk_ops;
-	init.flags = flags;
+	init.flags = clks->flags;
 
-	init.num_parents = num_parents;
+	init.num_parents = clks->num_parents;
 	init.parent_names = parent_names ? parent_names : &parent_name;
 
 	periph_clk->hw.hw.init = &init;

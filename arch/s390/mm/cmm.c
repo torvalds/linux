@@ -19,7 +19,6 @@
 #include <linux/swap.h>
 #include <linux/kthread.h>
 #include <linux/oom.h>
-#include <linux/suspend.h>
 #include <linux/uaccess.h>
 
 #include <asm/pgalloc.h>
@@ -49,7 +48,6 @@ static volatile long cmm_pages_target;
 static volatile long cmm_timed_pages_target;
 static long cmm_timeout_pages;
 static long cmm_timeout_seconds;
-static int cmm_suspended;
 
 static struct cmm_page_array *cmm_page_list;
 static struct cmm_page_array *cmm_timed_page_list;
@@ -151,9 +149,9 @@ static int cmm_thread(void *dummy)
 
 	while (1) {
 		rc = wait_event_interruptible(cmm_thread_wait,
-			(!cmm_suspended && (cmm_pages != cmm_pages_target ||
-			 cmm_timed_pages != cmm_timed_pages_target)) ||
-			 kthread_should_stop());
+			cmm_pages != cmm_pages_target ||
+			cmm_timed_pages != cmm_timed_pages_target ||
+			kthread_should_stop());
 		if (kthread_should_stop() || rc == -ERESTARTSYS) {
 			cmm_pages_target = cmm_pages;
 			cmm_timed_pages_target = cmm_timed_pages;
@@ -390,38 +388,6 @@ static void cmm_smsg_target(const char *from, char *msg)
 
 static struct ctl_table_header *cmm_sysctl_header;
 
-static int cmm_suspend(void)
-{
-	cmm_suspended = 1;
-	cmm_free_pages(cmm_pages, &cmm_pages, &cmm_page_list);
-	cmm_free_pages(cmm_timed_pages, &cmm_timed_pages, &cmm_timed_page_list);
-	return 0;
-}
-
-static int cmm_resume(void)
-{
-	cmm_suspended = 0;
-	cmm_kick_thread();
-	return 0;
-}
-
-static int cmm_power_event(struct notifier_block *this,
-			   unsigned long event, void *ptr)
-{
-	switch (event) {
-	case PM_POST_HIBERNATION:
-		return cmm_resume();
-	case PM_HIBERNATION_PREPARE:
-		return cmm_suspend();
-	default:
-		return NOTIFY_DONE;
-	}
-}
-
-static struct notifier_block cmm_power_notifier = {
-	.notifier_call = cmm_power_event,
-};
-
 static int __init cmm_init(void)
 {
 	int rc = -ENOMEM;
@@ -446,16 +412,11 @@ static int __init cmm_init(void)
 	rc = register_oom_notifier(&cmm_oom_nb);
 	if (rc < 0)
 		goto out_oom_notify;
-	rc = register_pm_notifier(&cmm_power_notifier);
-	if (rc)
-		goto out_pm;
 	cmm_thread_ptr = kthread_run(cmm_thread, NULL, "cmmthread");
 	if (!IS_ERR(cmm_thread_ptr))
 		return 0;
 
 	rc = PTR_ERR(cmm_thread_ptr);
-	unregister_pm_notifier(&cmm_power_notifier);
-out_pm:
 	unregister_oom_notifier(&cmm_oom_nb);
 out_oom_notify:
 #ifdef CONFIG_CMM_IUCV
@@ -475,7 +436,6 @@ static void __exit cmm_exit(void)
 #ifdef CONFIG_CMM_IUCV
 	smsg_unregister_callback(SMSG_PREFIX, cmm_smsg_target);
 #endif
-	unregister_pm_notifier(&cmm_power_notifier);
 	unregister_oom_notifier(&cmm_oom_nb);
 	kthread_stop(cmm_thread_ptr);
 	del_timer_sync(&cmm_timer);

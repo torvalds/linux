@@ -1262,7 +1262,7 @@ static int recovery_check(struct device *dev, void *data)
 		sch = to_subchannel(cdev->dev.parent);
 		if ((sch->schib.pmcw.pam & sch->opm) == sch->vpm)
 			break;
-		/* fall through */
+		fallthrough;
 	case DEV_STATE_DISCONNECTED:
 		CIO_MSG_EVENT(3, "recovery: trigger 0.%x.%04x\n",
 			      cdev->private->dev_id.ssid,
@@ -2091,7 +2091,7 @@ static void ccw_device_todo(struct work_struct *work)
 	case CDEV_TODO_UNREG_EVAL:
 		if (!sch_is_pseudo_sch(sch))
 			css_schedule_eval(sch->schid);
-		/* fall-through */
+		fallthrough;
 	case CDEV_TODO_UNREG:
 		if (sch_is_pseudo_sch(sch))
 			ccw_device_unregister(cdev);

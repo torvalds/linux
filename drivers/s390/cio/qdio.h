@@ -250,7 +250,6 @@ struct qdio_q {
 	/* upper-layer program handler */
 	qdio_handler_t (*handler);
 
-	struct dentry *debugfs_q;
 	struct qdio_irq *irq_ptr;
 	struct sl *sl;
 	/*
@@ -266,7 +265,6 @@ struct qdio_irq {
 	struct ccw_device *cdev;
 	struct list_head entry;		/* list of thinint devices */
 	struct dentry *debugfs_dev;
-	struct dentry *debugfs_perf;
 
 	unsigned long int_parm;
 	struct subchannel_id schid;
@@ -391,12 +389,9 @@ void qdio_setup_ssqd_info(struct qdio_irq *irq_ptr);
 int qdio_setup_get_ssqd(struct qdio_irq *irq_ptr,
 			struct subchannel_id *schid,
 			struct qdio_ssqd_desc *data);
-int qdio_setup_irq(struct qdio_initialize *init_data);
-void qdio_print_subchannel_info(struct qdio_irq *irq_ptr,
-				struct ccw_device *cdev);
+int qdio_setup_irq(struct qdio_irq *irq_ptr, struct qdio_initialize *init_data);
+void qdio_print_subchannel_info(struct qdio_irq *irq_ptr);
 void qdio_release_memory(struct qdio_irq *irq_ptr);
-int qdio_setup_create_sysfs(struct ccw_device *cdev);
-void qdio_setup_destroy_sysfs(struct ccw_device *cdev);
 int qdio_setup_init(void);
 void qdio_setup_exit(void);
 int qdio_enable_async_operation(struct qdio_output_q *q);

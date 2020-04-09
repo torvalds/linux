@@ -1877,7 +1877,7 @@ static int gss_wrap_req_priv(struct rpc_cred *cred, struct gss_cl_ctx *ctx,
 	else
 		iov = snd_buf->head;
 	p = iov->iov_base + iov->iov_len;
-	pad = 3 - ((snd_buf->len - offset - 1) & 3);
+	pad = xdr_pad_size(snd_buf->len - offset);
 	memset(p, 0, pad);
 	iov->iov_len += pad;
 	snd_buf->len += pad;

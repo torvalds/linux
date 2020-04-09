@@ -449,10 +449,10 @@ static void setup_qib(struct qdio_irq *irq_ptr,
 	memcpy(irq_ptr->qib.ebcnam, init_data->adapter_name, 8);
 }
 
-int qdio_setup_irq(struct qdio_initialize *init_data)
+int qdio_setup_irq(struct qdio_irq *irq_ptr, struct qdio_initialize *init_data)
 {
+	struct ccw_device *cdev = irq_ptr->cdev;
 	struct ciw *ciw;
-	struct qdio_irq *irq_ptr = init_data->cdev->private->qdio_data;
 
 	memset(&irq_ptr->qib, 0, sizeof(irq_ptr->qib));
 	memset(&irq_ptr->siga_flag, 0, sizeof(irq_ptr->siga_flag));
@@ -460,8 +460,9 @@ int qdio_setup_irq(struct qdio_initialize *init_data)
 	memset(&irq_ptr->ssqd_desc, 0, sizeof(irq_ptr->ssqd_desc));
 	memset(&irq_ptr->perf_stat, 0, sizeof(irq_ptr->perf_stat));
 
-	irq_ptr->debugfs_dev = irq_ptr->debugfs_perf = NULL;
-	irq_ptr->sch_token = irq_ptr->state = irq_ptr->perf_stat_enabled = 0;
+	irq_ptr->debugfs_dev = NULL;
+	irq_ptr->sch_token = irq_ptr->perf_stat_enabled = 0;
+	irq_ptr->state = QDIO_IRQ_STATE_INACTIVE;
 
 	/* wipes qib.ac, required by ar7063 */
 	memset(irq_ptr->qdr, 0, sizeof(struct qdr));
@@ -469,9 +470,8 @@ int qdio_setup_irq(struct qdio_initialize *init_data)
 	irq_ptr->int_parm = init_data->int_parm;
 	irq_ptr->nr_input_qs = init_data->no_input_qs;
 	irq_ptr->nr_output_qs = init_data->no_output_qs;
-	irq_ptr->cdev = init_data->cdev;
 	irq_ptr->scan_threshold = init_data->scan_threshold;
-	ccw_device_get_schid(irq_ptr->cdev, &irq_ptr->schid);
+	ccw_device_get_schid(cdev, &irq_ptr->schid);
 	setup_queues(irq_ptr, init_data);
 
 	if (init_data->irq_poll) {
@@ -494,14 +494,14 @@ int qdio_setup_irq(struct qdio_initialize *init_data)
 	/* qdr, qib, sls, slsbs, slibs, sbales are filled now */
 
 	/* get qdio commands */
-	ciw = ccw_device_get_ciw(init_data->cdev, CIW_TYPE_EQUEUE);
+	ciw = ccw_device_get_ciw(cdev, CIW_TYPE_EQUEUE);
 	if (!ciw) {
 		DBF_ERROR("%4x NO EQ", irq_ptr->schid.sch_no);
 		return -EINVAL;
 	}
 	irq_ptr->equeue = *ciw;
 
-	ciw = ccw_device_get_ciw(init_data->cdev, CIW_TYPE_AQUEUE);
+	ciw = ccw_device_get_ciw(cdev, CIW_TYPE_AQUEUE);
 	if (!ciw) {
 		DBF_ERROR("%4x NO AQ", irq_ptr->schid.sch_no);
 		return -EINVAL;
@@ -509,21 +509,20 @@ int qdio_setup_irq(struct qdio_initialize *init_data)
 	irq_ptr->aqueue = *ciw;
 
 	/* set new interrupt handler */
-	spin_lock_irq(get_ccwdev_lock(irq_ptr->cdev));
-	irq_ptr->orig_handler = init_data->cdev->handler;
-	init_data->cdev->handler = qdio_int_handler;
-	spin_unlock_irq(get_ccwdev_lock(irq_ptr->cdev));
+	spin_lock_irq(get_ccwdev_lock(cdev));
+	irq_ptr->orig_handler = cdev->handler;
+	cdev->handler = qdio_int_handler;
+	spin_unlock_irq(get_ccwdev_lock(cdev));
 	return 0;
 }
 
-void qdio_print_subchannel_info(struct qdio_irq *irq_ptr,
-				struct ccw_device *cdev)
+void qdio_print_subchannel_info(struct qdio_irq *irq_ptr)
 {
 	char s[80];
 
 	snprintf(s, 80, "qdio: %s %s on SC %x using "
 		 "AI:%d QEBSM:%d PRI:%d TDD:%d SIGA:%s%s%s%s%s\n",
-		 dev_name(&cdev->dev),
+		 dev_name(&irq_ptr->cdev->dev),
 		 (irq_ptr->qib.qfmt == QDIO_QETH_QFMT) ? "OSA" :
 			((irq_ptr->qib.qfmt == QDIO_ZFCP_QFMT) ? "ZFCP" : "HS"),
 		 irq_ptr->schid.sch_no,

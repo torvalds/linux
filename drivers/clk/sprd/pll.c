@@ -87,11 +87,12 @@ static u32 pll_get_ibias(u64 rate, const u64 *table)
 {
 	u32 i, num = table[0];
 
-	for (i = 1; i < num + 1; i++)
-		if (rate <= table[i])
+	/* table[0] indicates the number of items in this table */
+	for (i = 0; i < num; i++)
+		if (rate <= table[i + 1])
 			break;
 
-	return (i == num + 1) ? num : i;
+	return i == num ? num - 1 : i;
 }
 
 static unsigned long _sprd_pll_recalc_rate(const struct sprd_pll *pll,
