@@ -10,6 +10,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/of_pci.h>
 #include <linux/pci-ecam.h>
@@ -76,6 +77,7 @@ static const struct of_device_id gen_pci_of_match[] = {
 
 	{ },
 };
+MODULE_DEVICE_TABLE(of, gen_pci_of_match);
 
 static int gen_pci_probe(struct platform_device *pdev)
 {
@@ -92,9 +94,10 @@ static struct platform_driver gen_pci_driver = {
 	.driver = {
 		.name = "pci-host-generic",
 		.of_match_table = gen_pci_of_match,
-		.suppress_bind_attrs = true,
 	},
 	.probe = gen_pci_probe,
 	.remove = pci_host_common_remove,
 };
-builtin_platform_driver(gen_pci_driver);
+module_platform_driver(gen_pci_driver);
+
+MODULE_LICENSE("GPL v2");

@@ -101,6 +101,7 @@ err_exit:
 	pci_ecam_free(cfg);
 	return ERR_PTR(err);
 }
+EXPORT_SYMBOL_GPL(pci_ecam_create);
 
 void pci_ecam_free(struct pci_config_window *cfg)
 {
@@ -121,6 +122,7 @@ void pci_ecam_free(struct pci_config_window *cfg)
 		release_resource(&cfg->res);
 	kfree(cfg);
 }
+EXPORT_SYMBOL_GPL(pci_ecam_free);
 
 /*
  * Function to implement the pci_ops ->map_bus method
@@ -143,6 +145,7 @@ void __iomem *pci_ecam_map_bus(struct pci_bus *bus, unsigned int devfn,
 		base = cfg->win + (busn << cfg->ops->bus_shift);
 	return base + (devfn << devfn_shift) + where;
 }
+EXPORT_SYMBOL_GPL(pci_ecam_map_bus);
 
 /* ECAM ops */
 const struct pci_ecam_ops pci_generic_ecam_ops = {
@@ -153,6 +156,7 @@ const struct pci_ecam_ops pci_generic_ecam_ops = {
 		.write		= pci_generic_config_write,
 	}
 };
+EXPORT_SYMBOL_GPL(pci_generic_ecam_ops);
 
 #if defined(CONFIG_ACPI) && defined(CONFIG_PCI_QUIRKS)
 /* ECAM ops for 32-bit access only (non-compliant) */
