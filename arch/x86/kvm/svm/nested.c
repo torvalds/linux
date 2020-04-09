@@ -207,6 +207,10 @@ static bool nested_vmcb_checks(struct vmcb *vmcb)
 	if ((vmcb->save.efer & EFER_SVME) == 0)
 		return false;
 
+	if (((vmcb->save.cr0 & X86_CR0_CD) == 0) &&
+	    (vmcb->save.cr0 & X86_CR0_NW))
+		return false;
+
 	if ((vmcb->control.intercept & (1ULL << INTERCEPT_VMRUN)) == 0)
 		return false;
 
