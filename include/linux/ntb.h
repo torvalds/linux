@@ -478,7 +478,7 @@ void ntb_unregister_client(struct ntb_client *client);
 int ntb_register_device(struct ntb_dev *ntb);
 
 /**
- * ntb_register_device() - unregister a ntb device
+ * ntb_unregister_device() - unregister a ntb device
  * @ntb:	NTB device context.
  *
  * The device will be removed from the list of ntb devices.  If the ntb device
