@@ -47,7 +47,7 @@ required:
 
 examples:
   - |
-    fpga_axi: fpga-axi@0 {
+    fpga_axi: fpga-axi {
             #address-cells = <0x2>;
             #size-cells = <0x1>;
 
