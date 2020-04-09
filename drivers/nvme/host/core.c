@@ -3489,8 +3489,7 @@ static int nvme_init_ns_head(struct nvme_ns *ns, unsigned nsid,
 		goto out;
 
 	mutex_lock(&ctrl->subsys->lock);
-	if (is_shared)
-		head = nvme_find_ns_head(ctrl->subsys, nsid);
+	head = nvme_find_ns_head(ctrl->subsys, nsid);
 	if (!head) {
 		head = nvme_alloc_ns_head(ctrl, nsid, &ids);
 		if (IS_ERR(head)) {
@@ -3498,6 +3497,14 @@ static int nvme_init_ns_head(struct nvme_ns *ns, unsigned nsid,
 			goto out_unlock;
 		}
 	} else {
+		if (!is_shared) {
+			dev_err(ctrl->device,
+				"Duplicate unshared namespace %d\n",
+					nsid);
+			ret = -EINVAL;
+			nvme_put_ns_head(head);
+			goto out_unlock;
+		}
 		if (!nvme_ns_ids_equal(&head->ids, &ids)) {
 			dev_err(ctrl->device,
 				"IDs don't match for shared namespace %d\n",
