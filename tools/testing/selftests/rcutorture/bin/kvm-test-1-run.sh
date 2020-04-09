@@ -67,12 +67,11 @@ if test -r "$config_dir/CFcommon"
 then
 	echo " --- $config_dir/CFcommon" >> $resdir/ConfigFragment.input
 	cat < $config_dir/CFcommon >> $resdir/ConfigFragment.input
-	config_override.sh $config_dir/CFcommon $config_template > $T/Kc1
+	cp $config_dir/CFcommon $T/Kc0
 else
-	cp $config_template $T/Kc1
+	echo > $T/Kc0
 fi
-echo " --- $config_template" >> $resdir/ConfigFragment.input
-cat $config_template >> $resdir/ConfigFragment.input
+config_override_param "$config_template" Kc0 Kc1 "`cat $config_template 2> /dev/null`"
 config_override_param "--kcsan options" Kc1 Kc2 "$TORTURE_KCONFIG_KCSAN_ARG"
 config_override_param "--kconfig argument" Kc2 Kc3 "$TORTURE_KCONFIG_ARG"
 cp $T/Kc3 $resdir/ConfigFragment
