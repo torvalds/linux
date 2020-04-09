@@ -4358,27 +4358,6 @@ capture:
 	}
 }
 
-static void dapm_connect_dai_link_widgets(struct snd_soc_card *card,
-					  struct snd_soc_pcm_runtime *rtd)
-{
-	struct snd_soc_dai *codec_dai;
-	int i;
-
-	if (rtd->num_cpus == 1) {
-		for_each_rtd_codec_dais(rtd, i, codec_dai)
-			dapm_connect_dai_pair(card, rtd, codec_dai,
-					      rtd->cpu_dais[0]);
-	} else if (rtd->num_codecs == rtd->num_cpus) {
-		for_each_rtd_codec_dais(rtd, i, codec_dai)
-			dapm_connect_dai_pair(card, rtd, codec_dai,
-					      rtd->cpu_dais[i]);
-	} else {
-		dev_err(card->dev,
-			"N cpus to M codecs link is not supported yet\n");
-	}
-
-}
-
 static void soc_dapm_dai_stream_event(struct snd_soc_dai *dai, int stream,
 	int event)
 {
@@ -4419,6 +4398,8 @@ static void soc_dapm_dai_stream_event(struct snd_soc_dai *dai, int stream,
 void snd_soc_dapm_connect_dai_link_widgets(struct snd_soc_card *card)
 {
 	struct snd_soc_pcm_runtime *rtd;
+	struct snd_soc_dai *codec_dai;
+	int i;
 
 	/* for each BE DAI link... */
 	for_each_card_rtds(card, rtd)  {
@@ -4429,7 +4410,18 @@ void snd_soc_dapm_connect_dai_link_widgets(struct snd_soc_card *card)
 		if (rtd->dai_link->dynamic)
 			continue;
 
-		dapm_connect_dai_link_widgets(card, rtd);
+		if (rtd->num_cpus == 1) {
+			for_each_rtd_codec_dais(rtd, i, codec_dai)
+				dapm_connect_dai_pair(card, rtd, codec_dai,
+						      rtd->cpu_dais[0]);
+		} else if (rtd->num_codecs == rtd->num_cpus) {
+			for_each_rtd_codec_dais(rtd, i, codec_dai)
+				dapm_connect_dai_pair(card, rtd, codec_dai,
+						      rtd->cpu_dais[i]);
+		} else {
+			dev_err(card->dev,
+				"N cpus to M codecs link is not supported yet\n");
+		}
 	}
 }
 
