@@ -228,13 +228,13 @@ void mddev_create_serial_pool(struct mddev *mddev, struct md_rdev *rdev,
 		goto abort;
 
 	if (mddev->serial_info_pool == NULL) {
-		unsigned int noio_flag;
-
-		noio_flag = memalloc_noio_save();
+		/*
+		 * already in memalloc noio context by
+		 * mddev_suspend()
+		 */
 		mddev->serial_info_pool =
 			mempool_create_kmalloc_pool(NR_SERIAL_INFOS,
 						sizeof(struct serial_info));
-		memalloc_noio_restore(noio_flag);
 		if (!mddev->serial_info_pool) {
 			rdevs_uninit_serial(mddev);
 			pr_err("can't alloc memory pool for serialization\n");
