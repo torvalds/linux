@@ -895,7 +895,7 @@
 		#iommu-cells = <1>;
 	};
 
-	external-memory-controller@7001b000 {
+	emc: external-memory-controller@7001b000 {
 		compatible = "nvidia,tegra210-emc";
 		reg = <0x0 0x7001b000 0x0 0x1000>,
 		      <0x0 0x7001e000 0x0 0x1000>,
@@ -904,6 +904,7 @@
 		clock-names = "emc";
 		interrupts = <GIC_SPI 78 IRQ_TYPE_LEVEL_HIGH>;
 		nvidia,memory-controller = <&mc>;
+		#cooling-cells = <2>;
 	};
 
 	sata@70020000 {
@@ -1561,6 +1562,18 @@
 				<&soctherm TEGRA124_SOCTHERM_SENSOR_MEM>;
 
 			trips {
+				dram_nominal: mem-nominal-trip {
+					temperature = <50000>;
+					hysteresis = <1000>;
+					type = "passive";
+				};
+
+				dram_throttle: mem-throttle-trip {
+					temperature = <70000>;
+					hysteresis = <1000>;
+					type = "active";
+				};
+
 				mem-shutdown-trip {
 					temperature = <103000>;
 					hysteresis = <0>;
@@ -1569,10 +1582,15 @@
 			};
 
 			cooling-maps {
-				/*
-				 * There are currently no cooling maps,
-				 * because there are no cooling devices.
-				 */
+				dram-passive {
+					cooling-device = <&emc 0 0>;
+					trip = <&dram_nominal>;
+				};
+
+				dram-active {
+					cooling-device = <&emc 1 1>;
+					trip = <&dram_throttle>;
+				};
 			};
 		};
 
