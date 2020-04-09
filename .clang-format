@@ -482,7 +482,7 @@ KeepEmptyLinesAtTheStartOfBlocks: false
 MacroBlockBegin: ''
 MacroBlockEnd: ''
 MaxEmptyLinesToKeep: 1
-NamespaceIndentation: Inner
+NamespaceIndentation: None
 #ObjCBinPackProtocolList: Auto # Unknown to clang-format-5.0
 ObjCBlockIndentWidth: 8
 ObjCSpaceAfterProperty: true
