@@ -1358,7 +1358,7 @@ int msm_csid_register_entity(struct csid_device *csid,
 	pads[MSM_CSID_PAD_SINK].flags = MEDIA_PAD_FL_SINK;
 	pads[MSM_CSID_PAD_SRC].flags = MEDIA_PAD_FL_SOURCE;
 
-	sd->entity.function = MEDIA_ENT_F_IO_V4L;
+	sd->entity.function = MEDIA_ENT_F_PROC_VIDEO_PIXEL_FORMATTER;
 	sd->entity.ops = &csid_media_ops;
 	ret = media_entity_pads_init(&sd->entity, MSM_CSID_PADS_NUM, pads);
 	if (ret < 0) {
