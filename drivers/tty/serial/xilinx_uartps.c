@@ -1233,9 +1233,7 @@ static void cdns_uart_console_write(struct console *co, const char *s,
 	writel(ctrl, port->membase + CDNS_UART_CR);
 
 	uart_console_write(port, s, count, cdns_uart_console_putchar);
-	while ((readl(port->membase + CDNS_UART_SR) &
-			(CDNS_UART_SR_TXEMPTY | CDNS_UART_SR_TACTIVE)) !=
-			CDNS_UART_SR_TXEMPTY)
+	while (cdns_uart_tx_empty(port) != TIOCSER_TEMT)
 		cpu_relax();
 
 	/* restore interrupt state */
