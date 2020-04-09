@@ -1909,13 +1909,6 @@ static void __nvme_revalidate_disk(struct gendisk *disk, struct nvme_id_ns *id)
 	if (ns->head->disk) {
 		nvme_update_disk_info(ns->head->disk, ns, id);
 		blk_queue_stack_limits(ns->head->disk->queue, ns->queue);
-		if (bdi_cap_stable_pages_required(ns->queue->backing_dev_info)) {
-			struct backing_dev_info *info =
-				ns->head->disk->queue->backing_dev_info;
-
-                        info->capabilities |= BDI_CAP_STABLE_WRITES;
-		}
-
 		revalidate_disk(ns->head->disk);
 	}
 #endif
