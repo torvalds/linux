@@ -303,6 +303,7 @@ struct tb_regs_port_header {
 #define PORT_CS_18_TCM				BIT(9)
 #define PORT_CS_19				0x13
 #define PORT_CS_19_PC				BIT(3)
+#define PORT_CS_19_PID				BIT(4)
 
 /* Display Port adapter registers */
 #define ADP_DP_CS_0				0x00
@@ -417,7 +418,9 @@ struct tb_regs_hop {
 
 #define TB_LC_SX_CTRL			0x96
 #define TB_LC_SX_CTRL_L1C		BIT(16)
+#define TB_LC_SX_CTRL_L1D		BIT(17)
 #define TB_LC_SX_CTRL_L2C		BIT(20)
+#define TB_LC_SX_CTRL_L2D		BIT(21)
 #define TB_LC_SX_CTRL_UPSTREAM		BIT(30)
 #define TB_LC_SX_CTRL_SLP		BIT(31)
 

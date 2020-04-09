@@ -140,6 +140,21 @@ static void tb_discover_tunnels(struct tb_switch *sw)
 	}
 }
 
+static int tb_port_configure_xdomain(struct tb_port *port)
+{
+	if (tb_switch_is_usb4(port->sw))
+		return usb4_port_configure_xdomain(port);
+	return tb_lc_configure_xdomain(port);
+}
+
+static void tb_port_unconfigure_xdomain(struct tb_port *port)
+{
+	if (tb_switch_is_usb4(port->sw))
+		usb4_port_unconfigure_xdomain(port);
+	else
+		tb_lc_unconfigure_xdomain(port);
+}
+
 static void tb_scan_xdomain(struct tb_port *port)
 {
 	struct tb_switch *sw = port->sw;
@@ -158,6 +173,7 @@ static void tb_scan_xdomain(struct tb_port *port)
 			      NULL);
 	if (xd) {
 		tb_port_at(route, sw)->xdomain = xd;
+		tb_port_configure_xdomain(port);
 		tb_xdomain_add(xd);
 	}
 }
@@ -566,6 +582,7 @@ static void tb_scan_port(struct tb_port *port)
 	 */
 	if (port->xdomain) {
 		tb_xdomain_remove(port->xdomain);
+		tb_port_unconfigure_xdomain(port);
 		port->xdomain = NULL;
 	}
 
@@ -1047,6 +1064,7 @@ static void tb_handle_hotplug(struct work_struct *work)
 	struct tb_cm *tcm = tb_priv(tb);
 	struct tb_switch *sw;
 	struct tb_port *port;
+
 	mutex_lock(&tb->lock);
 	if (!tcm->hotplug_active)
 		goto out; /* during init, suspend or shutdown */
@@ -1103,6 +1121,7 @@ static void tb_handle_hotplug(struct work_struct *work)
 			port->xdomain = NULL;
 			__tb_disconnect_xdomain_paths(tb, xd);
 			tb_xdomain_put(xd);
+			tb_port_unconfigure_xdomain(port);
 		} else if (tb_port_is_dpout(port) || tb_port_is_dpin(port)) {
 			tb_dp_resource_unavailable(tb, port);
 		} else {
@@ -1269,13 +1288,17 @@ static void tb_restore_children(struct tb_switch *sw)
 		tb_sw_warn(sw, "failed to restore TMU configuration\n");
 
 	tb_switch_for_each_port(sw, port) {
-		if (!tb_port_has_remote(port))
+		if (!tb_port_has_remote(port) && !port->xdomain)
 			continue;
 
-		tb_switch_lane_bonding_enable(port->remote->sw);
-		tb_switch_configure_link(port->remote->sw);
+		if (port->remote) {
+			tb_switch_lane_bonding_enable(port->remote->sw);
+			tb_switch_configure_link(port->remote->sw);
 
-		tb_restore_children(port->remote->sw);
+			tb_restore_children(port->remote->sw);
+		} else if (port->xdomain) {
+			tb_port_configure_xdomain(port);
+		}
 	}
 }
 
@@ -1321,6 +1344,7 @@ static int tb_free_unplugged_xdomains(struct tb_switch *sw)
 		if (port->xdomain && port->xdomain->is_unplugged) {
 			tb_retimer_remove_all(port);
 			tb_xdomain_remove(port->xdomain);
+			tb_port_unconfigure_xdomain(port);
 			port->xdomain = NULL;
 			ret++;
 		} else if (port->remote) {

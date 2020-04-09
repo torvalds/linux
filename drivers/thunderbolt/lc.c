@@ -104,6 +104,60 @@ void tb_lc_unconfigure_port(struct tb_port *port)
 	tb_lc_set_port_configured(port, false);
 }
 
+static int tb_lc_set_xdomain_configured(struct tb_port *port, bool configure)
+{
+	struct tb_switch *sw = port->sw;
+	u32 ctrl, lane;
+	int cap, ret;
+
+	if (sw->generation < 2)
+		return 0;
+
+	cap = find_port_lc_cap(port);
+	if (cap < 0)
+		return cap;
+
+	ret = tb_sw_read(sw, &ctrl, TB_CFG_SWITCH, cap + TB_LC_SX_CTRL, 1);
+	if (ret)
+		return ret;
+
+	/* Resolve correct lane */
+	if (port->port % 2)
+		lane = TB_LC_SX_CTRL_L1D;
+	else
+		lane = TB_LC_SX_CTRL_L2D;
+
+	if (configure)
+		ctrl |= lane;
+	else
+		ctrl &= ~lane;
+
+	return tb_sw_write(sw, &ctrl, TB_CFG_SWITCH, cap + TB_LC_SX_CTRL, 1);
+}
+
+/**
+ * tb_lc_configure_xdomain() - Inform LC that the link is XDomain
+ * @port: Switch downstream port connected to another host
+ *
+ * Sets the lane configured for XDomain accordingly so that the LC knows
+ * about this. Returns %0 in success and negative errno in failure.
+ */
+int tb_lc_configure_xdomain(struct tb_port *port)
+{
+	return tb_lc_set_xdomain_configured(port, true);
+}
+
+/**
+ * tb_lc_unconfigure_xdomain() - Unconfigure XDomain from port
+ * @port: Switch downstream port that was connected to another host
+ *
+ * Unsets the lane XDomain configuration.
+ */
+void tb_lc_unconfigure_xdomain(struct tb_port *port)
+{
+	tb_lc_set_xdomain_configured(port, false);
+}
+
 /**
  * tb_lc_set_sleep() - Inform LC that the switch is going to sleep
  * @sw: Switch to set sleep

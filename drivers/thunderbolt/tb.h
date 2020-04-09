@@ -848,6 +848,8 @@ int tb_drom_read_uid_only(struct tb_switch *sw, u64 *uid);
 int tb_lc_read_uuid(struct tb_switch *sw, u32 *uuid);
 int tb_lc_configure_port(struct tb_port *port);
 void tb_lc_unconfigure_port(struct tb_port *port);
+int tb_lc_configure_xdomain(struct tb_port *port);
+void tb_lc_unconfigure_xdomain(struct tb_port *port);
 int tb_lc_set_sleep(struct tb_switch *sw);
 bool tb_lc_lane_bonding_possible(struct tb_switch *sw);
 bool tb_lc_dp_sink_query(struct tb_switch *sw, struct tb_port *in);
@@ -921,6 +923,8 @@ struct tb_port *usb4_switch_map_usb3_down(struct tb_switch *sw,
 int usb4_port_unlock(struct tb_port *port);
 int usb4_port_configure(struct tb_port *port);
 void usb4_port_unconfigure(struct tb_port *port);
+int usb4_port_configure_xdomain(struct tb_port *port);
+void usb4_port_unconfigure_xdomain(struct tb_port *port);
 int usb4_port_enumerate_retimers(struct tb_port *port);
 
 int usb4_port_retimer_read(struct tb_port *port, u8 index, u8 reg, void *buf,

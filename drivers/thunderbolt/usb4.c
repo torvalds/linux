@@ -785,6 +785,51 @@ void usb4_port_unconfigure(struct tb_port *port)
 	usb4_port_set_configured(port, false);
 }
 
+static int usb4_set_xdomain_configured(struct tb_port *port, bool configured)
+{
+	int ret;
+	u32 val;
+
+	if (!port->cap_usb4)
+		return -EINVAL;
+
+	ret = tb_port_read(port, &val, TB_CFG_PORT,
+			   port->cap_usb4 + PORT_CS_19, 1);
+	if (ret)
+		return ret;
+
+	if (configured)
+		val |= PORT_CS_19_PID;
+	else
+		val &= ~PORT_CS_19_PID;
+
+	return tb_port_write(port, &val, TB_CFG_PORT,
+			     port->cap_usb4 + PORT_CS_19, 1);
+}
+
+/**
+ * usb4_port_configure_xdomain() - Configure port for XDomain
+ * @port: USB4 port connected to another host
+ *
+ * Marks the USB4 port as being connected to another host. Returns %0 in
+ * success and negative errno in failure.
+ */
+int usb4_port_configure_xdomain(struct tb_port *port)
+{
+	return usb4_set_xdomain_configured(port, true);
+}
+
+/**
+ * usb4_port_unconfigure_xdomain() - Unconfigure port for XDomain
+ * @port: USB4 port that was connected to another host
+ *
+ * Clears USB4 port from being marked as XDomain.
+ */
+void usb4_port_unconfigure_xdomain(struct tb_port *port)
+{
+	usb4_set_xdomain_configured(port, false);
+}
+
 static int usb4_port_wait_for_bit(struct tb_port *port, u32 offset, u32 bit,
 				  u32 value, int timeout_msec)
 {
