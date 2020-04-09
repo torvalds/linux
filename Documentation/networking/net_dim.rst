@@ -168,3 +168,9 @@ usage is not complete but it should make the outline of the usage clear.
 	INIT_WORK(&my_entity->dim.work, my_driver_do_dim_work);
 	...
   }
+
+Dynamic Interrupt Moderation (DIM) library API
+==============================================
+
+.. kernel-doc:: include/linux/dim.h
+    :internal:
