@@ -5,7 +5,6 @@ menuconfig ARCH_CLPS711X
 	select AUTO_ZRELADDR
 	select TIMER_OF
 	select CLPS711X_TIMER
-	select COMMON_CLK
 	select CPU_ARM720T
 	select GENERIC_CLOCKEVENTS
 	select GPIOLIB
