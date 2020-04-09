@@ -788,7 +788,7 @@ static int ath11k_ahb_ext_irq_config(struct ath11k_base *ab)
 			irq = platform_get_irq_byname(ab->pdev,
 						      irq_name[irq_idx]);
 			ab->irq_num[irq_idx] = irq;
-			irq_set_status_flags(irq, IRQ_NOAUTOEN);
+			irq_set_status_flags(irq, IRQ_NOAUTOEN | IRQ_DISABLE_UNLAZY);
 			ret = request_irq(irq, ath11k_ahb_ext_interrupt_handler,
 					  IRQF_TRIGGER_RISING,
 					  irq_name[irq_idx], irq_grp);
