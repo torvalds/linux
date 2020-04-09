@@ -435,7 +435,7 @@ static u64 vdpasim_get_vq_state(struct vdpa_device *vdpa, u16 idx)
 	return vrh->last_avail_idx;
 }
 
-static u16 vdpasim_get_vq_align(struct vdpa_device *vdpa)
+static u32 vdpasim_get_vq_align(struct vdpa_device *vdpa)
 {
 	return VDPASIM_QUEUE_ALIGN;
 }

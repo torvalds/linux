@@ -226,7 +226,7 @@ static u32 ifcvf_vdpa_get_vendor_id(struct vdpa_device *vdpa_dev)
 	return IFCVF_SUBSYS_VENDOR_ID;
 }
 
-static u16 ifcvf_vdpa_get_vq_align(struct vdpa_device *vdpa_dev)
+static u32 ifcvf_vdpa_get_vq_align(struct vdpa_device *vdpa_dev)
 {
 	return IFCVF_QUEUE_ALIGNMENT;
 }
