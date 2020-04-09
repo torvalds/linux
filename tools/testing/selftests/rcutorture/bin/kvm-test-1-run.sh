@@ -46,35 +46,29 @@ echo ' ---' `date`: Starting build
 echo ' ---' Kconfig fragment at: $config_template >> $resdir/log
 touch $resdir/ConfigFragment.input
 
-# Combine additional Kconfig options into an existing set such that newer
-# options win.  The first argument is the Kconfig source ID, the second
-# the source file within $T, the third the destination file within $T,
-# and the fourth and final the list of additional Kconfig options.
+# Combine additional Kconfig options into an existing set such that
+# newer options win.  The first argument is the Kconfig source ID, the
+# second the to-be-updated file within $T, and the third and final the
+# list of additional Kconfig options.  Note that a $2.tmp file is
+# created when doing the update.
 config_override_param () {
-	if test -n "$4"
+	if test -n "$3"
 	then
-		echo $4 | sed -e 's/^ *//' -e 's/ *$//' | tr -s " " "\012" > $T/Kconfig_args
+		echo $3 | sed -e 's/^ *//' -e 's/ *$//' | tr -s " " "\012" > $T/Kconfig_args
 		echo " --- $1" >> $resdir/ConfigFragment.input
 		cat $T/Kconfig_args >> $resdir/ConfigFragment.input
-		config_override.sh $T/$2 $T/Kconfig_args > $T/$3
+		config_override.sh $T/$2 $T/Kconfig_args > $T/$2.tmp
+		mv $T/$2.tmp $T/$2
 		# Note that "#CHECK#" is not permitted on commandline.
-	else
-		cp $T/$2 $T/$3
 	fi
 }
 
-if test -r "$config_dir/CFcommon"
-then
-	echo " --- $config_dir/CFcommon" >> $resdir/ConfigFragment.input
-	cat < $config_dir/CFcommon >> $resdir/ConfigFragment.input
-	cp $config_dir/CFcommon $T/Kc0
-else
-	echo > $T/Kc0
-fi
-config_override_param "$config_template" Kc0 Kc1 "`cat $config_template 2> /dev/null`"
-config_override_param "--kcsan options" Kc1 Kc2 "$TORTURE_KCONFIG_KCSAN_ARG"
-config_override_param "--kconfig argument" Kc2 Kc3 "$TORTURE_KCONFIG_ARG"
-cp $T/Kc3 $resdir/ConfigFragment
+echo > $T/KcList
+config_override_param "$config_dir/CFcommon" KcList "`cat $config_dir/CFcommon 2> /dev/null`"
+config_override_param "$config_template" KcList "`cat $config_template 2> /dev/null`"
+config_override_param "--kcsan options" KcList "$TORTURE_KCONFIG_KCSAN_ARG"
+config_override_param "--kconfig argument" KcList "$TORTURE_KCONFIG_ARG"
+cp $T/KcList $resdir/ConfigFragment
 
 base_resdir=`echo $resdir | sed -e 's/\.[0-9]\+$//'`
 if test "$base_resdir" != "$resdir" -a -f $base_resdir/bzImage -a -f $base_resdir/vmlinux
@@ -87,7 +81,7 @@ then
 	ln -s $base_resdir/.config $resdir  # for kvm-recheck.sh
 	# Arch-independent indicator
 	touch $resdir/builtkernel
-elif kvm-build.sh $T/Kc3 $resdir
+elif kvm-build.sh $T/KcList $resdir
 then
 	# Had to build a kernel for this test.
 	QEMU="`identify_qemu vmlinux`"
