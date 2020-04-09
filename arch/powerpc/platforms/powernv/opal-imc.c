@@ -268,14 +268,7 @@ static int opal_imc_counters_probe(struct platform_device *pdev)
 			domain = IMC_DOMAIN_THREAD;
 			break;
 		case IMC_TYPE_TRACE:
-			/*
-			 * FIXME. Using trace_imc events to monitor application
-			 * or KVM thread performance can cause a checkstop
-			 * (system crash).
-			 * Disable it for now.
-			 */
-			pr_info_once("IMC: disabling trace_imc PMU\n");
-			domain = -1;
+			domain = IMC_DOMAIN_TRACE;
 			break;
 		default:
 			pr_warn("IMC Unknown Device type \n");
