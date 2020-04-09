@@ -472,6 +472,7 @@ echo
 echo
 echo " --- `date` Test summary:"
 echo Results directory: $resdir/$ds
+kcsan-collapse.sh $resdir/$ds
 kvm-recheck.sh $resdir/$ds
 ___EOF___
 
