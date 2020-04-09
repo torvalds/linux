@@ -586,8 +586,8 @@ module. The OV5642 connects to i2c bus 1 and the OV5640 to i2c bus 2.
 The device tree for SabreSD includes OF graphs for both the parallel
 OV5642 and the MIPI CSI-2 OV5640, but as of this writing only the MIPI
 CSI-2 OV5640 has been tested, so the OV5642 node is currently disabled.
-The OV5640 module connects to MIPI connector J5 (sorry I don't have the
-compatible module part number or URL).
+The OV5640 module connects to MIPI connector J5. The NXP part number
+for the OV5640 module that connects to the SabreSD board is H120729.
 
 The following example configures unprocessed video capture pipeline to
 capture from the OV5640, transmitting on MIPI CSI-2 virtual channel 0:
