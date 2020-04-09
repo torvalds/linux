@@ -1230,7 +1230,7 @@ static int rkisp_isp_sd_get_fmt(struct v4l2_subdev *sd,
 
 	if (fmt->pad != RKISP_ISP_PAD_SINK &&
 	    fmt->pad != RKISP_ISP_PAD_SOURCE_PATH)
-		return -EINVAL;
+		goto err;
 
 	mf = &fmt->format;
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
@@ -1431,6 +1431,7 @@ static int rkisp_isp_sd_set_selection(struct v4l2_subdev *sd,
 			isp_sd->out_crop = *crop;
 			isp_sd->out_crop.left = 0;
 			isp_sd->out_crop.top = 0;
+			dev->mpfbc_dev.crop = isp_sd->out_crop;
 		}
 	} else {
 		if (dev->isp_ver == ISP_V20)

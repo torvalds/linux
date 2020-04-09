@@ -20,13 +20,111 @@ static int mpfbc_get_set_fmt(struct v4l2_subdev *sd,
 {
 	struct rkisp_mpfbc_device *mpfbc_dev = v4l2_get_subdevdata(sd);
 	struct rkisp_device *dev = mpfbc_dev->ispdev;
-	int ret;
+
+	if (!fmt)
+		return -EINVAL;
 
 	/* get isp out format */
 	fmt->pad = RKISP_ISP_PAD_SOURCE_PATH;
-	ret =  v4l2_subdev_call(&dev->isp_sdev.sd, pad, get_fmt, NULL, fmt);
-	mpfbc_dev->fmt = *fmt;
-	return ret;
+	fmt->which = V4L2_SUBDEV_FORMAT_ACTIVE;
+	return v4l2_subdev_call(&dev->isp_sdev.sd, pad, get_fmt, NULL, fmt);
+}
+
+static int mpfbc_set_selection(struct v4l2_subdev *sd,
+			       struct v4l2_subdev_pad_config *cfg,
+			       struct v4l2_subdev_selection *sel)
+{
+	struct rkisp_mpfbc_device *mpfbc_dev = v4l2_get_subdevdata(sd);
+	struct rkisp_isp_subdev *isp_sd = &mpfbc_dev->ispdev->isp_sdev;
+	u32 src_w = isp_sd->out_crop.width;
+	u32 src_h = isp_sd->out_crop.height;
+	struct v4l2_rect *crop;
+
+	if (!sel)
+		return -EINVAL;
+	if (sel->target != V4L2_SEL_TGT_CROP)
+		return -EINVAL;
+
+	crop = &sel->r;
+	crop->left = clamp_t(u32, crop->left, 0, src_w);
+	crop->top = clamp_t(u32, crop->top, 0, src_h);
+	crop->width = clamp_t(u32, crop->width,
+		CIF_ISP_OUTPUT_W_MIN, src_w - crop->left);
+	crop->height = clamp_t(u32, crop->height,
+		CIF_ISP_OUTPUT_H_MIN, src_h - crop->top);
+
+	mpfbc_dev->crop = *crop;
+	return 0;
+}
+
+static int mpfbc_get_selection(struct v4l2_subdev *sd,
+			       struct v4l2_subdev_pad_config *cfg,
+			       struct v4l2_subdev_selection *sel)
+{
+	struct rkisp_mpfbc_device *mpfbc_dev = v4l2_get_subdevdata(sd);
+	struct rkisp_isp_subdev *isp_sd = &mpfbc_dev->ispdev->isp_sdev;
+	struct v4l2_rect *crop;
+
+	if (!sel)
+		return -EINVAL;
+
+	crop = &sel->r;
+	switch (sel->target) {
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+		*crop = isp_sd->out_crop;
+		break;
+	case V4L2_SEL_TGT_CROP:
+		*crop = mpfbc_dev->crop;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static void mpfbc_crop_on(struct rkisp_mpfbc_device *mpfbc_dev)
+{
+	struct rkisp_device *dev = mpfbc_dev->ispdev;
+	void __iomem *base = dev->base_addr;
+	u32 src_w = dev->isp_sdev.out_crop.width;
+	u32 src_h = dev->isp_sdev.out_crop.height;
+	u32 dest_w = mpfbc_dev->crop.width;
+	u32 dest_h = mpfbc_dev->crop.height;
+	u32 left = mpfbc_dev->crop.left;
+	u32 top = mpfbc_dev->crop.top;
+	u32 ctrl;
+
+	if (src_w == dest_w && src_h == dest_h)
+		return;
+
+	writel(left, base + CIF_DUAL_CROP_M_H_OFFS);
+	writel(top, base + CIF_DUAL_CROP_M_V_OFFS);
+	writel(dest_w, base + CIF_DUAL_CROP_M_H_SIZE);
+	writel(dest_h, base + CIF_DUAL_CROP_M_V_SIZE);
+	ctrl = readl(base + CIF_DUAL_CROP_CTRL);
+	ctrl |= CIF_DUAL_CROP_MP_MODE_YUV | CIF_DUAL_CROP_CFG_UPD;
+	writel(ctrl, base + CIF_DUAL_CROP_CTRL);
+}
+
+static void mpfbc_crop_off(struct rkisp_mpfbc_device *mpfbc_dev)
+{
+	struct rkisp_device *dev = mpfbc_dev->ispdev;
+	void __iomem *base = dev->base_addr;
+	u32 src_w = dev->isp_sdev.out_crop.width;
+	u32 src_h = dev->isp_sdev.out_crop.height;
+	u32 dest_w = mpfbc_dev->crop.width;
+	u32 dest_h = mpfbc_dev->crop.height;
+	u32 ctrl;
+
+	if (src_w == dest_w && src_h == dest_h)
+		return;
+
+	ctrl = readl(base + CIF_DUAL_CROP_CTRL);
+	ctrl &= ~(CIF_DUAL_CROP_MP_MODE_YUV |
+		  CIF_DUAL_CROP_MP_MODE_RAW);
+	ctrl |= CIF_DUAL_CROP_GEN_CFG_UPD;
+	writel(ctrl, base + CIF_DUAL_CROP_CTRL);
 }
 
 static void free_dma_buf(struct rkisp_dma_buf *buf)
@@ -63,8 +161,8 @@ static int mpfbc_s_rx_buffer(struct v4l2_subdev *sd,
 	const struct vb2_mem_ops *ops = &vb2_dma_contig_memops;
 	struct rkisp_dma_buf *buf;
 	dma_addr_t dma_addr;
-	u32 w = ALIGN(mpfbc_dev->fmt.format.width, 16);
-	u32 h = ALIGN(mpfbc_dev->fmt.format.height, 16);
+	u32 w = ALIGN(mpfbc_dev->crop.width, 16);
+	u32 h = ALIGN(mpfbc_dev->crop.height, 16);
 	u32 sizes = (w * h >> 4) + w * h * 2;
 	int ret = 0;
 
@@ -140,8 +238,9 @@ static int mpfbc_start(struct rkisp_mpfbc_device *mpfbc_dev)
 {
 	struct rkisp_device *dev = mpfbc_dev->ispdev;
 	void __iomem *base = dev->base_addr;
-	u32 h = ALIGN(mpfbc_dev->fmt.format.height, 16);
+	u32 h = ALIGN(mpfbc_dev->crop.height, 16);
 
+	mpfbc_crop_on(mpfbc_dev);
 	writel(mpfbc_dev->pingpong << 4 | SW_MPFBC_YUV_MODE(1) |
 		SW_MPFBC_MAINISP_MODE | SW_MPFBC_EN,
 		base + ISP_MPFBC_BASE);
@@ -172,10 +271,10 @@ static int mpfbc_stop(struct rkisp_mpfbc_device *mpfbc_dev)
 	if (!ret)
 		v4l2_warn(&mpfbc_dev->sd,
 			  "waiting on event return error %d\n", ret);
+	mpfbc_crop_off(mpfbc_dev);
 	mpfbc_dev->stopping = false;
 	isp_clear_bits(base + MI_IMSC, MI_MPFBC_FRAME);
 	mpfbc_dev->en = false;
-	mpfbc_free_dma_buf(mpfbc_dev);
 	return 0;
 }
 
@@ -237,6 +336,12 @@ close_pipe:
 	return ret;
 }
 
+static void mpfbc_destroy_buf(struct rkisp_device *dev)
+{
+	mpfbc_free_dma_buf(&dev->mpfbc_dev);
+	hdr_destroy_buf(dev);
+}
+
 static int mpfbc_stop_stream(struct v4l2_subdev *sd)
 {
 	struct rkisp_mpfbc_device *mpfbc_dev = v4l2_get_subdevdata(sd);
@@ -246,7 +351,7 @@ static int mpfbc_stop_stream(struct v4l2_subdev *sd)
 	media_pipeline_stop(&sd->entity);
 	dev->pipe.set_stream(&dev->pipe, false);
 	dev->pipe.close(&dev->pipe);
-	hdr_destroy_buf(dev);
+	mpfbc_destroy_buf(dev);
 	return 0;
 }
 
@@ -307,6 +412,8 @@ void rkisp_mpfbc_isr(u32 mis_val, struct rkisp_device *dev)
 static const struct v4l2_subdev_pad_ops mpfbc_pad_ops = {
 	.set_fmt = mpfbc_get_set_fmt,
 	.get_fmt = mpfbc_get_set_fmt,
+	.get_selection = mpfbc_get_selection,
+	.set_selection = mpfbc_set_selection,
 };
 
 static const struct v4l2_subdev_video_ops mpfbc_video_ops = {
@@ -357,7 +464,7 @@ int rkisp_register_mpfbc_subdev(struct rkisp_device *dev,
 		v4l2_err(v4l2_dev, "Failed to register mpfbc subdev\n");
 		goto free_media;
 	}
-
+	mpfbc_dev->crop = dev->isp_sdev.out_crop;
 	/* mpfbc links */
 	mpfbc_dev->linked = true;
 	source = &dev->isp_sdev.sd.entity;

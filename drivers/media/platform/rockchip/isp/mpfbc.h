@@ -18,7 +18,7 @@ struct rkisp_dma_buf {
 struct rkisp_mpfbc_device {
 	struct rkisp_device *ispdev;
 	struct v4l2_subdev sd;
-	struct v4l2_subdev_format fmt;
+	struct v4l2_rect crop;
 	struct media_pad pad;
 	wait_queue_head_t done;
 	struct rkisp_dma_buf *pic_cur;
