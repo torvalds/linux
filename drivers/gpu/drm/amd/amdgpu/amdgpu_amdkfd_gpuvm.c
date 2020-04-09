@@ -362,13 +362,13 @@ static int vm_validate_pt_pd_bos(struct amdgpu_vm *vm)
 	ret = amdgpu_vm_validate_pt_bos(adev, vm, amdgpu_amdkfd_validate,
 					&param);
 	if (ret) {
-		pr_err("amdgpu: failed to validate PT BOs\n");
+		pr_err("failed to validate PT BOs\n");
 		return ret;
 	}
 
 	ret = amdgpu_amdkfd_validate(&param, pd);
 	if (ret) {
-		pr_err("amdgpu: failed to validate PD\n");
+		pr_err("failed to validate PD\n");
 		return ret;
 	}
 
@@ -377,7 +377,7 @@ static int vm_validate_pt_pd_bos(struct amdgpu_vm *vm)
 	if (vm->use_cpu_for_update) {
 		ret = amdgpu_bo_kmap(pd, NULL);
 		if (ret) {
-			pr_err("amdgpu: failed to kmap PD, ret=%d\n", ret);
+			pr_err("failed to kmap PD, ret=%d\n", ret);
 			return ret;
 		}
 	}
