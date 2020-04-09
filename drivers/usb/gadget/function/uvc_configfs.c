@@ -1448,7 +1448,7 @@ static void uvcg_format_set_indices(struct config_group *fmt)
 	list_for_each_entry(ci, &fmt->cg_children, ci_entry) {
 		struct uvcg_frame *frm;
 
-		if (ci->ci_type != &uvcg_frame_type1 ||
+		if (ci->ci_type != &uvcg_frame_type1 &&
 		    ci->ci_type != &uvcg_frame_type2)
 			continue;
 
