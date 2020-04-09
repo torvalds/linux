@@ -460,12 +460,10 @@ enum {
 #define HCI_LE_SLAVE_FEATURES		0x08
 #define HCI_LE_PING			0x10
 #define HCI_LE_DATA_LEN_EXT		0x20
-#define HCI_LE_PHY_2M			0x01
-#define HCI_LE_PHY_CODED		0x08
-#define HCI_LE_EXT_ADV			0x10
 #define HCI_LE_EXT_SCAN_POLICY		0x80
 #define HCI_LE_PHY_2M			0x01
 #define HCI_LE_PHY_CODED		0x08
+#define HCI_LE_EXT_ADV			0x10
 #define HCI_LE_CHAN_SEL_ALG2		0x40
 #define HCI_LE_CIS_MASTER		0x10
 #define HCI_LE_CIS_SLAVE		0x20
