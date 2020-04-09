@@ -9670,6 +9670,7 @@ F:	drivers/acpi/nfit/*
 F:	include/linux/nd.h
 F:	include/linux/libnvdimm.h
 F:	include/uapi/linux/ndctl.h
+F:	tools/testing/nvdimm/
 
 LICENSES and SPDX stuff
 M:	Thomas Gleixner <tglx@linutronix.de>
