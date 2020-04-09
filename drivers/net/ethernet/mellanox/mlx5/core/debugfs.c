@@ -333,7 +333,7 @@ static u64 cq_read_field(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
 	if (!out)
 		return param;
 
-	err = mlx5_core_query_cq(dev, cq, out, outlen);
+	err = mlx5_core_query_cq(dev, cq, out);
 	if (err) {
 		mlx5_core_warn(dev, "failed to query cq\n");
 		goto out;
