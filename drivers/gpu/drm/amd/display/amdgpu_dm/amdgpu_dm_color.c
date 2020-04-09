@@ -416,10 +416,9 @@ int amdgpu_dm_update_crtc_color_mgmt(struct dm_crtc_state *crtc)
  * Returns 0 on success.
  */
 int amdgpu_dm_update_plane_color_mgmt(struct dm_crtc_state *crtc,
-				      struct dm_plane_state *plane)
+				      struct dc_plane_state *dc_plane_state)
 {
 	const struct drm_color_lut *degamma_lut;
-	struct dc_plane_state *dc_plane_state = plane->dc_state;
 	enum dc_transfer_func_predefined tf = TRANSFER_FUNCTION_SRGB;
 	uint32_t degamma_size;
 	int r;
