@@ -86,6 +86,8 @@ static const struct snd_soc_dapm_widget widgets[] = {
 	SND_SOC_DAPM_SUPPLY("Platform Clock", SND_SOC_NOPM, 0, 0,
 			    platform_clock_control, SND_SOC_DAPM_POST_PMD |
 			    SND_SOC_DAPM_PRE_PMU),
+
+	SND_SOC_DAPM_MIC("SoC DMIC", NULL),
 };
 
 static const struct snd_soc_dapm_route audio_map[] = {
@@ -99,6 +101,9 @@ static const struct snd_soc_dapm_route audio_map[] = {
 
 	{ "Left Spk", NULL, "Left BE_OUT" },
 	{ "Right Spk", NULL, "Right BE_OUT" },
+
+	/* digital mics */
+	{"DMic", NULL, "SoC DMIC"},
 };
 
 /* For MAX98360A amp */
@@ -111,6 +116,8 @@ static const struct snd_soc_dapm_widget max98360a_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("Platform Clock", SND_SOC_NOPM, 0, 0,
 			    platform_clock_control, SND_SOC_DAPM_POST_PMD |
 			    SND_SOC_DAPM_PRE_PMU),
+
+	SND_SOC_DAPM_MIC("SoC DMIC", NULL),
 };
 
 static const struct snd_soc_dapm_route max98360a_map[] = {
@@ -123,6 +130,9 @@ static const struct snd_soc_dapm_route max98360a_map[] = {
 	{ "Headset Mic", NULL, "Platform Clock" },
 
 	{"Spk", NULL, "Speaker"},
+
+	/* digital mics */
+	{"DMic", NULL, "SoC DMIC"},
 };
 
 static struct snd_soc_jack headset;
