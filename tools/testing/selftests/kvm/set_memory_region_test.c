@@ -18,6 +18,7 @@
 
 #define VCPU_ID 0
 
+#ifdef __x86_64__
 /*
  * Somewhat arbitrary location and slot, intended to not overlap anything.  The
  * location and size are specifically 2mb sized/aligned so that the initial
@@ -301,7 +302,6 @@ static void test_zero_memory_regions(void)
 
 	TEST_ASSERT(!ioctl(vm_get_fd(vm), KVM_SET_NR_MMU_PAGES, 64),
 		    "KVM_SET_NR_MMU_PAGES failed, errno = %d\n", errno);
-
 	vcpu_run(vm, VCPU_ID);
 
 	run = vcpu_state(vm, VCPU_ID);
@@ -310,14 +310,22 @@ static void test_zero_memory_regions(void)
 
 	kvm_vm_free(vm);
 }
+#endif /* __x86_64__ */
 
 int main(int argc, char *argv[])
 {
+#ifdef __x86_64__
 	int i, loops;
+#endif
 
 	/* Tell stdout not to buffer its content */
 	setbuf(stdout, NULL);
 
+#ifdef __x86_64__
+	/*
+	 * FIXME: the zero-memslot test fails on aarch64 and s390x because
+	 * KVM_RUN fails with ENOEXEC or EFAULT.
+	 */
 	test_zero_memory_regions();
 
 	if (argc > 1)
@@ -332,6 +340,7 @@ int main(int argc, char *argv[])
 	pr_info("Testing DELETE of in-use region, %d loops\n", loops);
 	for (i = 0; i < loops; i++)
 		test_delete_memory_region();
+#endif
 
 	return 0;
 }

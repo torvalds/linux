@@ -6,7 +6,6 @@
 /x86_64/hyperv_cpuid
 /x86_64/mmio_warning_test
 /x86_64/platform_info_test
-/x86_64/set_memory_region_test
 /x86_64/set_sregs_test
 /x86_64/smm_test
 /x86_64/state_test
@@ -21,4 +20,5 @@
 /demand_paging_test
 /dirty_log_test
 /kvm_create_max_vcpus
+/set_memory_region_test
 /steal_time
