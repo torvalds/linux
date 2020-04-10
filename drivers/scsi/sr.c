@@ -550,10 +550,12 @@ out:
 static void sr_block_release(struct gendisk *disk, fmode_t mode)
 {
 	struct scsi_cd *cd = scsi_cd(disk);
+
 	mutex_lock(&cd->lock);
 	cdrom_release(&cd->cdi, mode);
-	scsi_cd_put(cd);
 	mutex_unlock(&cd->lock);
+
+	scsi_cd_put(cd);
 }
 
 static int sr_block_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,

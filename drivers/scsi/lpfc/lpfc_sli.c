@@ -230,25 +230,16 @@ lpfc_sli4_wq_put(struct lpfc_queue *q, union lpfc_wqe128 *wqe)
  * This routine will update the HBA index of a queue to reflect consumption of
  * Work Queue Entries by the HBA. When the HBA indicates that it has consumed
  * an entry the host calls this function to update the queue's internal
- * pointers. This routine returns the number of entries that were consumed by
- * the HBA.
+ * pointers.
  **/
-static uint32_t
+static void
 lpfc_sli4_wq_release(struct lpfc_queue *q, uint32_t index)
 {
-	uint32_t released = 0;
-
 	/* sanity check on queue memory */
 	if (unlikely(!q))
-		return 0;
+		return;
 
-	if (q->hba_index == index)
-		return 0;
-	do {
-		q->hba_index = ((q->hba_index + 1) % q->entry_count);
-		released++;
-	} while (q->hba_index != index);
-	return released;
+	q->hba_index = index;
 }
 
 /**
@@ -2511,6 +2502,8 @@ lpfc_sli_def_mbox_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	    !pmb->u.mb.mbxStatus) {
 		rpi = pmb->u.mb.un.varWords[0];
 		vpi = pmb->u.mb.un.varRegLogin.vpi;
+		if (phba->sli_rev == LPFC_SLI_REV4)
+			vpi -= phba->sli4_hba.max_cfg_param.vpi_base;
 		lpfc_unreg_login(phba, vpi, rpi, pmb);
 		pmb->vport = vport;
 		pmb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
@@ -4044,6 +4037,11 @@ lpfc_sli_flush_io_rings(struct lpfc_hba *phba)
 	struct lpfc_iocbq *piocb, *next_iocb;
 
 	spin_lock_irq(&phba->hbalock);
+	if (phba->hba_flag & HBA_IOQ_FLUSH ||
+	    !phba->sli4_hba.hdwq) {
+		spin_unlock_irq(&phba->hbalock);
+		return;
+	}
 	/* Indicate the I/O queues are flushed */
 	phba->hba_flag |= HBA_IOQ_FLUSH;
 	spin_unlock_irq(&phba->hbalock);
@@ -5034,23 +5032,6 @@ lpfc_sli_config_port(struct lpfc_hba *phba, int sli_mode)
 
 		} else
 			phba->max_vpi = 0;
-		phba->fips_level = 0;
-		phba->fips_spec_rev = 0;
-		if (pmb->u.mb.un.varCfgPort.gdss) {
-			phba->sli3_options |= LPFC_SLI3_DSS_ENABLED;
-			phba->fips_level = pmb->u.mb.un.varCfgPort.fips_level;
-			phba->fips_spec_rev = pmb->u.mb.un.varCfgPort.fips_rev;
-			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
-					"2850 Security Crypto Active. FIPS x%d "
-					"(Spec Rev: x%d)",
-					phba->fips_level, phba->fips_spec_rev);
-		}
-		if (pmb->u.mb.un.varCfgPort.sec_err) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-					"2856 Config Port Security Crypto "
-					"Error: x%x ",
-					pmb->u.mb.un.varCfgPort.sec_err);
-		}
 		if (pmb->u.mb.un.varCfgPort.gerbm)
 			phba->sli3_options |= LPFC_SLI3_HBQ_ENABLED;
 		if (pmb->u.mb.un.varCfgPort.gcrp)
@@ -14442,12 +14423,10 @@ static inline void lpfc_sli4_add_to_poll_list(struct lpfc_queue *eq)
 {
 	struct lpfc_hba *phba = eq->phba;
 
-	if (list_empty(&phba->poll_list)) {
-		timer_setup(&phba->cpuhp_poll_timer, lpfc_sli4_poll_hbtimer, 0);
-		/* kickstart slowpath processing for this eq */
+	/* kickstart slowpath processing if needed */
+	if (list_empty(&phba->poll_list))
 		mod_timer(&phba->cpuhp_poll_timer,
 			  jiffies + msecs_to_jiffies(LPFC_POLL_HB));
-	}
 
 	list_add_rcu(&eq->_poll_list, &phba->poll_list);
 	synchronize_rcu();

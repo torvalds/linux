@@ -404,9 +404,7 @@ void lpfc_free_sysfs_attr(struct lpfc_vport *);
 extern struct device_attribute *lpfc_hba_attrs[];
 extern struct device_attribute *lpfc_vport_attrs[];
 extern struct scsi_host_template lpfc_template;
-extern struct scsi_host_template lpfc_template_no_hr;
 extern struct scsi_host_template lpfc_template_nvme;
-extern struct scsi_host_template lpfc_vport_template;
 extern struct fc_function_template lpfc_transport_functions;
 extern struct fc_function_template lpfc_vport_transport_functions;
 
@@ -590,6 +588,7 @@ struct lpfc_io_buf *lpfc_get_io_buf(struct lpfc_hba *phba,
 				int);
 void lpfc_release_io_buf(struct lpfc_hba *phba, struct lpfc_io_buf *ncmd,
 			 struct lpfc_sli4_hdw_queue *qp);
+void lpfc_io_ktime(struct lpfc_hba *phba, struct lpfc_io_buf *ncmd);
 void lpfc_nvme_cmd_template(void);
 void lpfc_nvmet_cmd_template(void);
 void lpfc_nvme_cancel_iocb(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn);
