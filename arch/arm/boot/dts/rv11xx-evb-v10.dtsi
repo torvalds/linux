@@ -84,6 +84,7 @@
 	};
 
 	pdm_mic_array: pdm-mic_array {
+		status = "disabled";
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "rockchip,pdm-mic-array";
 		simple-audio-card,cpu {
@@ -796,7 +797,7 @@
 };
 
 &pdm {
-	status = "okay";
+	status = "disabled";
 	#sound-dai-cells = <0>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pdmm0_clk
