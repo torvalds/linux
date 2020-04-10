@@ -74,56 +74,64 @@ static struct flash_info spi_flash_tbl[] = {
 static int snor_write_en(void)
 {
 	int ret;
-	union SFCCMD_DATA     sfcmd;
+	struct rk_sfc_op op;
 
-	sfcmd.d32 = 0;
-	sfcmd.b.cmd = CMD_WRITE_EN;
+	op.sfcmd.d32 = 0;
+	op.sfcmd.b.cmd = CMD_WRITE_EN;
 
-	ret = sfc_request(sfcmd.d32, 0, 0, NULL);
+	op.sfctrl.d32 = 0;
+
+	ret = sfc_request(&op, 0, NULL, 0);
 
 	return ret;
 }
 
 int snor_reset_device(void)
 {
-	int ret;
-	union SFCCMD_DATA sfcmd;
+	struct rk_sfc_op op;
 
-	sfcmd.d32 = 0;
-	sfcmd.b.cmd = CMD_ENABLE_RESER;
-	sfc_request(sfcmd.d32, 0, 0, NULL);
+	op.sfcmd.d32 = 0;
+	op.sfcmd.b.cmd = CMD_ENABLE_RESER;
 
-	sfcmd.d32 = 0;
-	sfcmd.b.cmd = CMD_RESET_DEVICE;
-	ret = sfc_request(sfcmd.d32, 0, 0, NULL);
+	op.sfctrl.d32 = 0;
+	sfc_request(&op, 0, NULL, 0);
+
+	op.sfcmd.d32 = 0;
+	op.sfcmd.b.cmd = CMD_RESET_DEVICE;
+
+	op.sfctrl.d32 = 0;
+	sfc_request(&op, 0, NULL, 0);
 	/* tRST=30us , delay 1ms here */
-	mdelay(1);
-	return ret;
+	sfc_delay(1000);
+
+	return SFC_OK;
 }
 
 static int snor_enter_4byte_mode(void)
 {
 	int ret;
-	union SFCCMD_DATA sfcmd;
+	struct rk_sfc_op op;
 
-	sfcmd.d32 = 0;
-	sfcmd.b.cmd = CMD_ENTER_4BYTE_MODE;
+	op.sfcmd.d32 = 0;
+	op.sfcmd.b.cmd = CMD_ENTER_4BYTE_MODE;
 
-	ret = sfc_request(sfcmd.d32, 0, 0, NULL);
+	op.sfctrl.d32 = 0;
+
+	ret = sfc_request(&op, 0, NULL, 0);
 	return ret;
 }
 
 static int snor_read_status(u32 reg_index, u8 *status)
 {
 	int ret;
-	union SFCCMD_DATA sfcmd;
+	struct rk_sfc_op op;
 	u8 read_stat_cmd[] = {CMD_READ_STATUS,
 				CMD_READ_STATUS2, CMD_READ_STATUS3};
-	sfcmd.d32 = 0;
-	sfcmd.b.cmd = read_stat_cmd[reg_index];
-	sfcmd.b.datasize = 1;
+	op.sfcmd.d32 = 0;
+	op.sfcmd.b.cmd = read_stat_cmd[reg_index];
 
-	ret = sfc_request(sfcmd.d32, 0, 0, status);
+	op.sfctrl.d32 = 0;
+	ret = sfc_request(&op, 0, status, 1);
 
 	return ret;
 }
@@ -131,16 +139,17 @@ static int snor_read_status(u32 reg_index, u8 *status)
 static int snor_wait_busy(int timeout)
 {
 	int ret;
-	union SFCCMD_DATA sfcmd;
+	struct rk_sfc_op op;
 	int i;
 	u32 status;
 
-	sfcmd.d32 = 0;
-	sfcmd.b.cmd = CMD_READ_STATUS;
-	sfcmd.b.datasize = 1;
+	op.sfcmd.d32 = 0;
+	op.sfcmd.b.cmd = CMD_READ_STATUS;
+
+	op.sfctrl.d32 = 0;
 
 	for (i = 0; i < timeout; i++) {
-		ret = sfc_request(sfcmd.d32, 0, 0, &status);
+		ret = sfc_request(&op, 0, &status, 1);
 		if (ret != SFC_OK)
 			return ret;
 
@@ -157,7 +166,7 @@ static int snor_wait_busy(int timeout)
 static int snor_write_status2(u32 reg_index, u8 status)
 {
 	int ret;
-	union SFCCMD_DATA sfcmd;
+	struct rk_sfc_op op;
 	u8 status2[2];
 	u8 read_index;
 
@@ -169,12 +178,13 @@ static int snor_write_status2(u32 reg_index, u8 status)
 
 	snor_write_en();
 
-	sfcmd.d32 = 0;
-	sfcmd.b.cmd = CMD_WRITE_STATUS;
-	sfcmd.b.datasize = 2;
-	sfcmd.b.rw = SFC_WRITE;
+	op.sfcmd.d32 = 0;
+	op.sfcmd.b.cmd = CMD_WRITE_STATUS;
+	op.sfcmd.b.rw = SFC_WRITE;
 
-	ret = sfc_request(sfcmd.d32, 0, 0, &status2[0]);
+	op.sfctrl.d32 = 0;
+
+	ret = sfc_request(&op, 0, &status2[0], 2);
 	if (ret != SFC_OK)
 		return ret;
 
@@ -186,7 +196,7 @@ static int snor_write_status2(u32 reg_index, u8 status)
 static int snor_write_status1(u32 reg_index, u8 status)
 {
 	int ret;
-	union SFCCMD_DATA sfcmd;
+	struct rk_sfc_op op;
 	u8 status2[2];
 	u8 read_index;
 
@@ -198,12 +208,13 @@ static int snor_write_status1(u32 reg_index, u8 status)
 
 	snor_write_en();
 
-	sfcmd.d32 = 0;
-	sfcmd.b.cmd = CMD_WRITE_STATUS;
-	sfcmd.b.datasize = 2;
-	sfcmd.b.rw = SFC_WRITE;
+	op.sfcmd.d32 = 0;
+	op.sfcmd.b.cmd = CMD_WRITE_STATUS;
+	op.sfcmd.b.rw = SFC_WRITE;
 
-	ret = sfc_request(sfcmd.d32, 0, 0, &status2[0]);
+	op.sfctrl.d32 = 0;
+
+	ret = sfc_request(&op, 0, &status2[0], 2);
 	if (ret != SFC_OK)
 		return ret;
 
@@ -215,16 +226,17 @@ static int snor_write_status1(u32 reg_index, u8 status)
 static int snor_write_status(u32 reg_index, u8 status)
 {
 	int ret;
-	union SFCCMD_DATA sfcmd;
+	struct rk_sfc_op op;
 	u8 write_stat_cmd[] = {CMD_WRITE_STATUS,
 			       CMD_WRITE_STATUS2, CMD_WRITE_STATUS3};
 	snor_write_en();
-	sfcmd.d32 = 0;
-	sfcmd.b.cmd = write_stat_cmd[reg_index];
-	sfcmd.b.datasize = 1;
-	sfcmd.b.rw = SFC_WRITE;
+	op.sfcmd.d32 = 0;
+	op.sfcmd.b.cmd = write_stat_cmd[reg_index];
+	op.sfcmd.b.rw = SFC_WRITE;
 
-	ret = sfc_request(sfcmd.d32, 0, 0, &status);
+	op.sfctrl.d32 = 0;
+
+	ret = sfc_request(&op, 0, &status, 1);
 	if (ret != SFC_OK)
 		return ret;
 
@@ -238,28 +250,32 @@ int snor_erase(struct SFNOR_DEV *p_dev,
 	       enum NOR_ERASE_TYPE erase_type)
 {
 	int ret;
-	union SFCCMD_DATA sfcmd;
+	struct rk_sfc_op op;
 	int timeout[] = {400, 2000, 40000};   /* ms */
+
+	rkflash_print_dio("%s %x %x\n", __func__, addr, erase_type);
 
 	if (erase_type > ERASE_CHIP)
 		return SFC_PARAM_ERR;
 
-	sfcmd.d32 = 0;
+	op.sfcmd.d32 = 0;
 	if (erase_type == ERASE_BLOCK64K)
-		sfcmd.b.cmd = p_dev->blk_erase_cmd;
+		op.sfcmd.b.cmd = p_dev->blk_erase_cmd;
 	else if (erase_type == ERASE_SECTOR)
-		sfcmd.b.cmd = p_dev->sec_erase_cmd;
+		op.sfcmd.b.cmd = p_dev->sec_erase_cmd;
 	else
-		sfcmd.b.cmd = CMD_CHIP_ERASE;
+		op.sfcmd.b.cmd = CMD_CHIP_ERASE;
 
-	sfcmd.b.addrbits = (erase_type != ERASE_CHIP) ?
+	op.sfcmd.b.addrbits = (erase_type != ERASE_CHIP) ?
 				SFC_ADDR_24BITS : SFC_ADDR_0BITS;
 	if (p_dev->addr_mode == ADDR_MODE_4BYTE && erase_type != ERASE_CHIP)
-		sfcmd.b.addrbits = SFC_ADDR_32BITS;
+		op.sfcmd.b.addrbits = SFC_ADDR_32BITS;
+
+	op.sfctrl.d32 = 0;
 
 	snor_write_en();
 
-	ret = sfc_request(sfcmd.d32, 0, addr, NULL);
+	ret = sfc_request(&op, addr, NULL, 0);
 	if (ret != SFC_OK)
 		return ret;
 
@@ -273,27 +289,27 @@ int snor_prog_page(struct SFNOR_DEV *p_dev,
 		   u32 size)
 {
 	int ret;
-	union SFCCMD_DATA sfcmd;
-	union SFCCTRL_DATA sfctrl;
+	struct rk_sfc_op op;
 
-	sfcmd.d32 = 0;
-	sfcmd.b.cmd = p_dev->prog_cmd;
-	sfcmd.b.addrbits = SFC_ADDR_24BITS;
-	sfcmd.b.datasize = size;
-	sfcmd.b.rw = SFC_WRITE;
+	rkflash_print_dio("%s %x %x\n", __func__, addr, *(u32 *)(p_data));
 
-	sfctrl.d32 = 0;
-	sfctrl.b.datalines = p_dev->prog_lines;
-	sfctrl.b.enbledma = 0;
+	op.sfcmd.d32 = 0;
+	op.sfcmd.b.cmd = p_dev->prog_cmd;
+	op.sfcmd.b.addrbits = SFC_ADDR_24BITS;
+	op.sfcmd.b.rw = SFC_WRITE;
+
+	op.sfctrl.d32 = 0;
+	op.sfctrl.b.datalines = p_dev->prog_lines;
+	op.sfctrl.b.enbledma = 0;
 	if (p_dev->prog_cmd == CMD_PAGE_PROG_A4)
-		sfctrl.b.addrlines = SFC_4BITS_LINE;
+		op.sfctrl.b.addrlines = SFC_4BITS_LINE;
 
 	if (p_dev->addr_mode == ADDR_MODE_4BYTE)
-		sfcmd.b.addrbits = SFC_ADDR_32BITS;
+		op.sfcmd.b.addrbits = SFC_ADDR_32BITS;
 
 	snor_write_en();
 
-	ret = sfc_request(sfcmd.d32, sfctrl.d32, addr, p_data);
+	ret = sfc_request(&op, addr, p_data, size);
 	if (ret != SFC_OK)
 		return ret;
 
@@ -330,28 +346,18 @@ static int snor_enable_QE(struct SFNOR_DEV *p_dev)
 	int bit_offset;
 	u8 status;
 
-	if (p_dev->manufacturer == MID_GIGADEV ||
-	    p_dev->manufacturer == MID_WINBOND ||
-	    p_dev->manufacturer == MID_XTX ||
-	    p_dev->manufacturer == MID_MACRONIX ||
-	    p_dev->manufacturer == MID_PUYA ||
-	    p_dev->manufacturer == MID_XMC ||
-	    p_dev->manufacturer == MID_DOSILICON ||
-	    p_dev->manufacturer == MID_ZBIT) {
-		reg_index = p_dev->QE_bits >> 3;
-		bit_offset = p_dev->QE_bits & 0x7;
-		ret = snor_read_status(reg_index, &status);
-		if (ret != SFC_OK)
-			return ret;
+	reg_index = p_dev->QE_bits >> 3;
+	bit_offset = p_dev->QE_bits & 0x7;
+	ret = snor_read_status(reg_index, &status);
+	if (ret != SFC_OK)
+		return ret;
 
-		if (status & (1 << bit_offset))   /* is QE bit set */
-			return SFC_OK;
+	if (status & (1 << bit_offset))   /* is QE bit set */
+		return SFC_OK;
 
-		status |= (1 << bit_offset);
-		return p_dev->write_status(reg_index, status);
-	}
+	status |= (1 << bit_offset);
 
-	return ret;
+	return p_dev->write_status(reg_index, status);
 }
 
 int snor_disable_QE(struct SFNOR_DEV *p_dev)
@@ -361,28 +367,18 @@ int snor_disable_QE(struct SFNOR_DEV *p_dev)
 	int bit_offset;
 	u8 status;
 
-	if (p_dev->manufacturer == MID_GIGADEV ||
-	    p_dev->manufacturer == MID_WINBOND ||
-	    p_dev->manufacturer == MID_XTX ||
-	    p_dev->manufacturer == MID_MACRONIX ||
-	    p_dev->manufacturer == MID_PUYA ||
-	    p_dev->manufacturer == MID_XMC ||
-	    p_dev->manufacturer == MID_DOSILICON ||
-	    p_dev->manufacturer == MID_ZBIT) {
-		reg_index = p_dev->QE_bits >> 3;
-		bit_offset = p_dev->QE_bits & 0x7;
-		ret = snor_read_status(reg_index, &status);
-		if (ret != SFC_OK)
-			return ret;
+	reg_index = p_dev->QE_bits >> 3;
+	bit_offset = p_dev->QE_bits & 0x7;
+	ret = snor_read_status(reg_index, &status);
+	if (ret != SFC_OK)
+		return ret;
 
-		if (!(status & (1 << bit_offset)))
-			return SFC_OK;
+	if (!(status & (1 << bit_offset)))
+		return SFC_OK;
 
-		status &= ~(1 << bit_offset);
-		return p_dev->write_status(reg_index, status);
-	}
+	status &= ~(1 << bit_offset);
 
-	return ret;
+	return p_dev->write_status(reg_index, status);
 }
 
 int snor_read_data(struct SFNOR_DEV *p_dev,
@@ -391,35 +387,34 @@ int snor_read_data(struct SFNOR_DEV *p_dev,
 		   u32 size)
 {
 	int ret;
-	union SFCCMD_DATA sfcmd;
-	union SFCCTRL_DATA sfctrl;
+	struct rk_sfc_op op;
 
-	sfcmd.d32 = 0;
-	sfcmd.b.cmd = p_dev->read_cmd;
-	sfcmd.b.datasize = size;
-	sfcmd.b.addrbits = SFC_ADDR_24BITS;
+	op.sfcmd.d32 = 0;
+	op.sfcmd.b.cmd = p_dev->read_cmd;
+	op.sfcmd.b.addrbits = SFC_ADDR_24BITS;
 
-	sfctrl.d32 = 0;
-	sfctrl.b.datalines = p_dev->read_lines;
+	op.sfctrl.d32 = 0;
+	op.sfctrl.b.datalines = p_dev->read_lines;
 	if (!(size & 0x3) && size >= 4)
-		sfctrl.b.enbledma = 0;
+		op.sfctrl.b.enbledma = 0;
 
 	if (p_dev->read_cmd == CMD_FAST_READ_X1 ||
 	    p_dev->read_cmd == CMD_FAST_READ_X4 ||
 	    p_dev->read_cmd == CMD_FAST_READ_X2 ||
 	    p_dev->read_cmd == CMD_FAST_4READ_X4) {
-		sfcmd.b.dummybits = 8;
+		op.sfcmd.b.dummybits = 8;
 	} else if (p_dev->read_cmd == CMD_FAST_READ_A4) {
-		sfcmd.b.addrbits = SFC_ADDR_32BITS;
+		op.sfcmd.b.addrbits = SFC_ADDR_32BITS;
 		addr = (addr << 8) | 0xFF;	/* Set M[7:0] = 0xFF */
-		sfcmd.b.dummybits = 4;
-		sfctrl.b.addrlines = SFC_4BITS_LINE;
+		op.sfcmd.b.dummybits = 4;
+		op.sfctrl.b.addrlines = SFC_4BITS_LINE;
 	}
 
 	if (p_dev->addr_mode == ADDR_MODE_4BYTE)
-		sfcmd.b.addrbits = SFC_ADDR_32BITS;
+		op.sfcmd.b.addrbits = SFC_ADDR_32BITS;
 
-	ret = sfc_request(sfcmd.d32, sfctrl.d32, addr, p_data);
+	ret = sfc_request(&op, addr, p_data, size);
+	rkflash_print_dio("%s %x %x\n", __func__, addr, *(u32 *)(p_data));
 
 	return ret;
 }
@@ -429,6 +424,8 @@ int snor_read(struct SFNOR_DEV *p_dev, u32 sec, u32 n_sec, void *p_data)
 	int ret = SFC_OK;
 	u32 addr, size, len;
 	u8 *p_buf =  (u8 *)p_data;
+
+	rkflash_print_dio("%s %x %x\n", __func__, sec, n_sec);
 
 	if ((sec + n_sec) > p_dev->capacity)
 		return SFC_PARAM_ERR;
@@ -461,6 +458,8 @@ int snor_write(struct SFNOR_DEV *p_dev, u32 sec, u32 n_sec, void *p_data)
 	u32 len, blk_size, offset;
 	u8 *p_buf =  (u8 *)p_data;
 	u32 total_sec = n_sec;
+
+	rkflash_print_dio("%s %x %x\n", __func__, sec, n_sec);
 
 	if ((sec + n_sec) > p_dev->capacity)
 		return SFC_PARAM_ERR;
@@ -502,13 +501,14 @@ out:
 int snor_read_id(u8 *data)
 {
 	int ret;
-	union SFCCMD_DATA     sfcmd;
+	struct rk_sfc_op op;
 
-	sfcmd.d32 = 0;
-	sfcmd.b.cmd = CMD_READ_JEDECID;
-	sfcmd.b.datasize = 3;
+	op.sfcmd.d32 = 0;
+	op.sfcmd.b.cmd = CMD_READ_JEDECID;
 
-	ret = sfc_request(sfcmd.d32, 0, 0, data);
+	op.sfctrl.d32 = 0;
+
+	ret = sfc_request(&op, 0, data, 3);
 
 	return ret;
 }
@@ -516,15 +516,16 @@ int snor_read_id(u8 *data)
 static int snor_read_parameter(u32 addr, u8 *data)
 {
 	int ret;
-	union SFCCMD_DATA     sfcmd;
+	struct rk_sfc_op op;
 
-	sfcmd.d32 = 0;
-	sfcmd.b.cmd = CMD_READ_PARAMETER;
-	sfcmd.b.datasize = 1;
-	sfcmd.b.addrbits = SFC_ADDR_24BITS;
-	sfcmd.b.dummybits = 8;
+	op.sfcmd.d32 = 0;
+	op.sfcmd.b.cmd = CMD_READ_PARAMETER;
+	op.sfcmd.b.addrbits = SFC_ADDR_24BITS;
+	op.sfcmd.b.dummybits = 8;
 
-	ret = sfc_request(sfcmd.d32, 0, addr, data);
+	op.sfctrl.d32 = 0;
+
+	ret = sfc_request(&op, addr, data, 1);
 
 	return ret;
 }
@@ -566,13 +567,13 @@ static void *snor_flash_info_adjust(struct flash_info *spi_flash_info)
 int snor_init(struct SFNOR_DEV *p_dev)
 {
 	struct flash_info *g_spi_flash_info;
-	u32 i;
+	u32 i, ret;
 	u8 id_byte[5];
 
 	if (!p_dev)
 		return SFC_PARAM_ERR;
 
-	memset(p_dev, 0, sizeof(struct SFNOR_DEV));
+	memset((void *)p_dev, 0, sizeof(struct SFNOR_DEV));
 	snor_read_id(id_byte);
 	rkflash_print_error("sfc nor id: %x %x %x\n",
 			    id_byte[0], id_byte[1], id_byte[2]);
@@ -605,7 +606,10 @@ int snor_init(struct SFNOR_DEV *p_dev)
 		else if (i == 2)
 			p_dev->write_status = snor_write_status2;
 		if (g_spi_flash_info->feature & FEA_4BIT_READ) {
-			if (snor_enable_QE(p_dev) == SFC_OK) {
+			ret = SFC_OK;
+			if (g_spi_flash_info->QE_bits)
+				ret = snor_enable_QE(p_dev);
+			if (ret == SFC_OK) {
 				p_dev->read_lines = DATA_LINES_X4;
 				p_dev->read_cmd = g_spi_flash_info->read_cmd_4;
 			}
@@ -622,7 +626,7 @@ int snor_init(struct SFNOR_DEV *p_dev)
 		if ((g_spi_flash_info->feature & FEA_4BYTE_ADDR_MODE))
 			snor_enter_4byte_mode();
 	} else {
-		p_dev->capacity = 1 << id_byte[2] >> 3;
+		p_dev->capacity = 1 << (id_byte[2] - 9);
 		p_dev->QE_bits = 0;
 		p_dev->blk_size = NOR_SECS_BLK;
 		p_dev->page_size = NOR_SECS_PAGE;

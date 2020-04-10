@@ -30,7 +30,7 @@ static struct nand_info spi_nand_tbl[] = {
 	/* IS37SML01G1 */
 	{0xC821, 4, 64, 1, 1024, 0x13, 0x10, 0x03, 0x02, 0x6B, 0x32, 0xD8, 0x00, 18, 1, 0xFF, 0xFF, {8, 12, 0xff, 0xff}, &sfc_nand_ecc_status_sp1},
 	/* W25N01GV */
-	{0xEFAA, 4, 64, 1, 1024, 0x13, 0x10, 0x03, 0x02, 0x6B, 0x32, 0xD8, 0x4C, 18, 1, 0xFF, 0xFF, {4, 20, 0xff, 0xff}, &sfc_nand_ecc_status_sp1},
+	{0xEFAA, 4, 64, 1, 1024, 0x13, 0x10, 0x03, 0x02, 0x6B, 0x32, 0xD8, 0x4C, 18, 1, 0xFF, 0xFF, {4, 20, 36, 0xff}, &sfc_nand_ecc_status_sp1},
 	/* HYF2GQ4UAACAE */
 	{0xC952, 4, 64, 1, 2048, 0x13, 0x10, 0x03, 0x02, 0x6B, 0x32, 0xD8, 0x4C, 19, 14, 0xB0, 0, {4, 36, 0xff, 0xff}, NULL},
 	/* HYF2GQ4UDACAE */
@@ -104,43 +104,49 @@ static struct nand_info *sfc_nand_get_info(u8 *nand_id)
 static int sfc_nand_write_en(void)
 {
 	int ret;
-	union SFCCMD_DATA sfcmd;
+	struct rk_sfc_op op;
 
-	sfcmd.d32 = 0;
-	sfcmd.b.cmd = CMD_WRITE_EN;
-	ret = sfc_request(sfcmd.d32, 0, 0, NULL);
+	op.sfcmd.d32 = 0;
+	op.sfcmd.b.cmd = CMD_WRITE_EN;
+
+	op.sfctrl.d32 = 0;
+
+	ret = sfc_request(&op, 0, NULL, 0);
 	return ret;
 }
 
 static int sfc_nand_rw_preset(void)
 {
 	int ret;
-	union SFCCTRL_DATA sfctrl;
-	union SFCCMD_DATA sfcmd;
+	struct rk_sfc_op op;
 	u8 status = 0xFF;
 
-	sfcmd.d32 = 0;
-	sfcmd.b.cmd = 0;
-	sfcmd.b.datasize = 1;
-	sfcmd.b.rw = SFC_WRITE;
+	op.sfcmd.d32 = 0;
+	op.sfcmd.b.cmd = 0;
+	op.sfcmd.b.rw = SFC_WRITE;
 
-	sfctrl.b.datalines = 2;
-	ret = sfc_request(sfcmd.d32, sfctrl.d32, 0, &status);
+	op.sfctrl.d32 = 0;
+	op.sfctrl.b.datalines = 2;
+
+	ret = sfc_request(&op, 0, &status, 1);
 	return ret;
 }
 
 static int sfc_nand_read_feature(u8 addr, u8 *data)
 {
 	int ret;
-	union SFCCMD_DATA sfcmd;
+	struct rk_sfc_op op;
 
-	sfcmd.d32 = 0;
-	sfcmd.b.cmd = 0x0F;
-	sfcmd.b.datasize = 1;
-	sfcmd.b.addrbits = SFC_ADDR_XBITS;
+	op.sfcmd.d32 = 0;
+	op.sfcmd.b.cmd = 0x0F;
+	op.sfcmd.b.addrbits = SFC_ADDR_XBITS;
+
+	op.sfctrl.d32 = 0;
+	op.sfctrl.b.addrbits = 8;
+
 	*data = 0;
 
-	ret = sfc_request(sfcmd.d32, 0x8 << 16, addr, data);
+	ret = sfc_request(&op, addr, data, 1);
 	if (ret != SFC_OK)
 		return ret;
 	return SFC_OK;
@@ -149,17 +155,19 @@ static int sfc_nand_read_feature(u8 addr, u8 *data)
 static int sfc_nand_write_feature(u32 addr, u8 status)
 {
 	int ret;
-	union SFCCMD_DATA sfcmd;
+	struct rk_sfc_op op;
 
 	sfc_nand_write_en();
 
-	sfcmd.d32 = 0;
-	sfcmd.b.cmd = 0x1F;
-	sfcmd.b.datasize = 1;
-	sfcmd.b.addrbits = SFC_ADDR_XBITS;
-	sfcmd.b.rw = SFC_WRITE;
+	op.sfcmd.d32 = 0;
+	op.sfcmd.b.cmd = 0x1F;
+	op.sfcmd.b.addrbits = SFC_ADDR_XBITS;
+	op.sfcmd.b.rw = SFC_WRITE;
 
-	ret = sfc_request(sfcmd.d32, 0x8 << 16, addr, &status);
+	op.sfctrl.d32 = 0;
+	op.sfctrl.b.addrbits = 8;
+
+	ret = sfc_request(&op, addr, &status, 1);
 	if (ret != SFC_OK)
 		return ret;
 	return ret;
@@ -195,7 +203,7 @@ static int sfc_nand_wait_busy(u8 *data, int timeout)
  */
 static u32 sfc_nand_ecc_status(void)
 {
-	int ret;
+	u32 ret;
 	u32 i;
 	u8 ecc;
 	u8 status;
@@ -215,7 +223,7 @@ static u32 sfc_nand_ecc_status(void)
 	if (ecc <= 1)
 		ret = SFC_NAND_ECC_OK;
 	else if (ecc == 2)
-		ret = SFC_NAND_ECC_ERROR;
+		ret = (u32)SFC_NAND_ECC_ERROR;
 	else
 		ret = SFC_NAND_ECC_REFRESH;
 
@@ -233,7 +241,7 @@ static u32 sfc_nand_ecc_status(void)
  */
 u32 sfc_nand_ecc_status_sp1(void)
 {
-	int ret;
+	u32 ret;
 	u32 i;
 	u8 ecc;
 	u8 status;
@@ -255,7 +263,7 @@ u32 sfc_nand_ecc_status_sp1(void)
 	else if (ecc == 1)
 		ret = SFC_NAND_ECC_REFRESH;
 	else
-		ret = SFC_NAND_ECC_ERROR;
+		ret = (u32)SFC_NAND_ECC_ERROR;
 
 	return ret;
 }
@@ -272,7 +280,7 @@ u32 sfc_nand_ecc_status_sp1(void)
  */
 u32 sfc_nand_ecc_status_sp2(void)
 {
-	int ret;
+	u32 ret;
 	u32 i;
 	u8 ecc;
 	u8 status, status1;
@@ -297,7 +305,7 @@ u32 sfc_nand_ecc_status_sp2(void)
 	else if (ecc == 7)
 		ret = SFC_NAND_ECC_REFRESH;
 	else
-		ret = SFC_NAND_ECC_ERROR;
+		ret = (u32)SFC_NAND_ECC_ERROR;
 
 	return ret;
 }
@@ -315,7 +323,7 @@ u32 sfc_nand_ecc_status_sp2(void)
  */
 u32 sfc_nand_ecc_status_sp3(void)
 {
-	int ret;
+	u32 ret;
 	u32 i;
 	u8 ecc;
 	u8 status, status1;
@@ -340,7 +348,7 @@ u32 sfc_nand_ecc_status_sp3(void)
 	else if (ecc == 7 || ecc >= 12)
 		ret = SFC_NAND_ECC_REFRESH;
 	else
-		ret = SFC_NAND_ECC_ERROR;
+		ret = (u32)SFC_NAND_ECC_ERROR;
 
 	return ret;
 }
@@ -359,7 +367,7 @@ u32 sfc_nand_ecc_status_sp3(void)
  */
 u32 sfc_nand_ecc_status_sp4(void)
 {
-	int ret;
+	u32 ret;
 	u32 i;
 	u8 ecc;
 	u8 status;
@@ -380,7 +388,7 @@ u32 sfc_nand_ecc_status_sp4(void)
 	else if (ecc == 7 || ecc == 12)
 		ret = SFC_NAND_ECC_REFRESH;
 	else
-		ret = SFC_NAND_ECC_ERROR;
+		ret = (u32)SFC_NAND_ECC_ERROR;
 
 	return ret;
 }
@@ -399,7 +407,7 @@ u32 sfc_nand_ecc_status_sp4(void)
  */
 u32 sfc_nand_ecc_status_sp5(void)
 {
-	int ret;
+	u32 ret;
 	u32 i;
 	u8 ecc;
 	u8 status;
@@ -420,7 +428,7 @@ u32 sfc_nand_ecc_status_sp5(void)
 	else if (ecc == 4)
 		ret = SFC_NAND_ECC_REFRESH;
 	else
-		ret = SFC_NAND_ECC_ERROR;
+		ret = (u32)SFC_NAND_ECC_ERROR;
 
 	return ret;
 }
@@ -428,16 +436,19 @@ u32 sfc_nand_ecc_status_sp5(void)
 u32 sfc_nand_erase_block(u8 cs, u32 addr)
 {
 	int ret;
-	union SFCCMD_DATA sfcmd;
+	struct rk_sfc_op op;
 	u8 status;
 
 	rkflash_print_dio("%s %x\n", __func__, addr);
-	sfcmd.d32 = 0;
-	sfcmd.b.cmd = p_nand_info->block_erase_cmd;
-	sfcmd.b.addrbits = SFC_ADDR_24BITS;
-	sfcmd.b.rw = SFC_WRITE;
+	op.sfcmd.d32 = 0;
+	op.sfcmd.b.cmd = p_nand_info->block_erase_cmd;
+	op.sfcmd.b.addrbits = SFC_ADDR_24BITS;
+	op.sfcmd.b.rw = SFC_WRITE;
+
+	op.sfctrl.d32 = 0;
+
 	sfc_nand_write_en();
-	ret = sfc_request(sfcmd.d32, 0, addr, NULL);
+	ret = sfc_request(&op, addr, NULL, 0);
 	if (ret != SFC_OK)
 		return ret;
 	ret = sfc_nand_wait_busy(&status, 1000 * 1000);
@@ -451,10 +462,9 @@ static u32 sfc_nand_prog_page_raw(u8 cs, u32 addr, u32 *p_page_buf)
 {
 	int ret;
 	u32 plane;
-	union SFCCMD_DATA sfcmd;
-	union SFCCTRL_DATA sfctrl;
+	struct rk_sfc_op op;
 	u8 status;
-	u32 sec_per_page = p_nand_info->sec_per_page;
+	u32 page_size = SFC_NAND_SECTOR_FULL_SIZE * p_nand_info->sec_per_page;
 
 	rkflash_print_dio("%s %x %x\n", __func__, addr, p_page_buf[0]);
 	sfc_nand_write_en();
@@ -463,24 +473,24 @@ static u32 sfc_nand_prog_page_raw(u8 cs, u32 addr, u32 *p_page_buf)
 	    sfc_get_version() < SFC_VER_3)
 		sfc_nand_rw_preset();
 
-	sfcmd.d32 = 0;
-	sfcmd.b.cmd = sfc_nand_dev.page_prog_cmd;
-	sfcmd.b.addrbits = SFC_ADDR_XBITS;
-	sfcmd.b.datasize = SFC_NAND_SECTOR_FULL_SIZE * sec_per_page;
-	sfcmd.b.rw = SFC_WRITE;
+	op.sfcmd.d32 = 0;
+	op.sfcmd.b.cmd = sfc_nand_dev.page_prog_cmd;
+	op.sfcmd.b.addrbits = SFC_ADDR_XBITS;
+	op.sfcmd.b.rw = SFC_WRITE;
 
-	sfctrl.d32 = 0;
-	sfctrl.b.datalines = sfc_nand_dev.prog_lines;
-	sfctrl.b.addrbits = 16;
+	op.sfctrl.d32 = 0;
+	op.sfctrl.b.datalines = sfc_nand_dev.prog_lines;
+	op.sfctrl.b.addrbits = 16;
 	plane = p_nand_info->plane_per_die == 2 ? ((addr >> 6) & 0x1) << 12 : 0;
-	sfc_request(sfcmd.d32, sfctrl.d32, plane, p_page_buf);
+	sfc_request(&op, plane, p_page_buf, page_size);
 
-	sfcmd.d32 = 0;
-	sfcmd.b.cmd = p_nand_info->page_prog_cmd;
-	sfcmd.b.addrbits = SFC_ADDR_24BITS;
-	sfcmd.b.datasize = 0;
-	sfcmd.b.rw = SFC_WRITE;
-	ret = sfc_request(sfcmd.d32, 0, addr, p_page_buf);
+	op.sfcmd.d32 = 0;
+	op.sfcmd.b.cmd = p_nand_info->page_prog_cmd;
+	op.sfcmd.b.addrbits = SFC_ADDR_24BITS;
+	op.sfcmd.b.rw = SFC_WRITE;
+
+	op.sfctrl.d32 = 0;
+	ret = sfc_request(&op, addr, p_page_buf, 0);
 	if (ret != SFC_OK)
 		return ret;
 	ret = sfc_nand_wait_busy(&status, 1000 * 1000);
@@ -514,37 +524,39 @@ static u32 sfc_nand_read_page_raw(u8 cs, u32 addr, u32 *p_page_buf)
 {
 	int ret;
 	u32 plane;
-	union SFCCMD_DATA sfcmd;
-	union SFCCTRL_DATA sfctrl;
+	struct rk_sfc_op op;
 	u32 ecc_result;
-	u32 sec_per_page = p_nand_info->sec_per_page;
+	u32 page_size = SFC_NAND_SECTOR_FULL_SIZE * p_nand_info->sec_per_page;
+	u8 status;
 
-	sfcmd.d32 = 0;
-	sfcmd.b.cmd = p_nand_info->page_read_cmd;
-	sfcmd.b.datasize = 0;
-	sfcmd.b.rw = SFC_WRITE;
-	sfcmd.b.addrbits = SFC_ADDR_24BITS;
-	sfc_request(sfcmd.d32, 0, addr, p_page_buf);
+	op.sfcmd.d32 = 0;
+	op.sfcmd.b.cmd = p_nand_info->page_read_cmd;
+	op.sfcmd.b.rw = SFC_WRITE;
+	op.sfcmd.b.addrbits = SFC_ADDR_24BITS;
 
-	if (p_nand_info->ecc_status)
-		ecc_result = p_nand_info->ecc_status();
-	else
-		ecc_result = sfc_nand_ecc_status();
+	op.sfctrl.d32 = 0;
 
+	sfc_request(&op, addr, p_page_buf, 0);
 	if (sfc_nand_dev.read_lines == DATA_LINES_X4 &&
 	    p_nand_info->feature & FEA_SOFT_QOP_BIT &&
 	    sfc_get_version() < SFC_VER_3)
 		sfc_nand_rw_preset();
 
-	sfcmd.d32 = 0;
-	sfcmd.b.cmd = sfc_nand_dev.page_read_cmd;
-	sfcmd.b.datasize = SFC_NAND_SECTOR_FULL_SIZE * sec_per_page;
-	sfcmd.b.addrbits = SFC_ADDR_24BITS;
-	sfctrl.d32 = 0;
-	sfctrl.b.datalines = sfc_nand_dev.read_lines;
+	sfc_nand_wait_busy(&status, 1000 * 1000);
+	if (p_nand_info->ecc_status)
+		ecc_result = p_nand_info->ecc_status();
+	else
+		ecc_result = sfc_nand_ecc_status();
+
+	op.sfcmd.d32 = 0;
+	op.sfcmd.b.cmd = sfc_nand_dev.page_read_cmd;
+	op.sfcmd.b.addrbits = SFC_ADDR_24BITS;
+
+	op.sfctrl.d32 = 0;
+	op.sfctrl.b.datalines = sfc_nand_dev.read_lines;
 
 	plane = p_nand_info->plane_per_die == 2 ? ((addr >> 6) & 0x1) << 12 : 0;
-	ret = sfc_request(sfcmd.d32, sfctrl.d32, plane << 8, p_page_buf);
+	ret = sfc_request(&op, plane << 8, p_page_buf, page_size);
 	rkflash_print_dio("%s %x %x\n", __func__, addr, p_page_buf[0]);
 
 	if (ret != SFC_OK)
@@ -555,7 +567,7 @@ static u32 sfc_nand_read_page_raw(u8 cs, u32 addr, u32 *p_page_buf)
 
 u32 sfc_nand_read_page(u8 cs, u32 addr, u32 *p_data, u32 *p_spare)
 {
-	int ret;
+	u32 ret;
 	u32 sec_per_page = p_nand_info->sec_per_page;
 	u32 data_size = sec_per_page * SFC_NAND_SECTOR_SIZE;
 	struct nand_mega_area *meta = &p_nand_info->meta;
@@ -614,14 +626,16 @@ u32 sfc_nand_mark_bad_block(u8 cs, u32 addr)
 int sfc_nand_read_id(u8 *data)
 {
 	int ret;
-	union SFCCMD_DATA sfcmd;
+	struct rk_sfc_op op;
 
-	sfcmd.d32 = 0;
-	sfcmd.b.cmd = CMD_READ_JEDECID;
-	sfcmd.b.datasize = 3;
-	sfcmd.b.addrbits = SFC_ADDR_XBITS;
+	op.sfcmd.d32 = 0;
+	op.sfcmd.b.cmd = CMD_READ_JEDECID;
+	op.sfcmd.b.addrbits = SFC_ADDR_XBITS;
 
-	ret = sfc_request(sfcmd.d32, 0x8 << 16, 0, data);
+	op.sfctrl.d32 = 0;
+	op.sfctrl.b.addrbits = 8;
+
+	ret = sfc_request(&op, 0, data, 3);
 
 	return ret;
 }
@@ -723,11 +737,11 @@ u32 sfc_nand_init(void)
 	rkflash_print_error("sfc_nand id: %x %x %x\n",
 			    id_byte[0], id_byte[1], id_byte[2]);
 	if (id_byte[0] == 0xFF || id_byte[0] == 0x00)
-		return FTL_NO_FLASH;
+		return (u32)FTL_NO_FLASH;
 
 	p_nand_info = sfc_nand_get_info(id_byte);
 	if (!p_nand_info)
-		return FTL_UNSUPPORTED_FLASH;
+		return (u32)FTL_UNSUPPORTED_FLASH;
 
 	sfc_nand_dev.manufacturer = id_byte[0];
 	sfc_nand_dev.mem_type = id_byte[1];

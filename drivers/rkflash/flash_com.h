@@ -18,7 +18,7 @@
 #define NAND_IDB_START    64 /* 32 KB*/
 #define NAND_IDB_SIZE    512 /* 256 KB*/
 #define NAND_IDB_END    (NAND_IDB_START + NAND_IDB_SIZE - 1)
-#define DEFAULT_IDB_RESERVED_BLOCK 16
+#define DEFAULT_IDB_RESERVED_BLOCK	8
 
 #define FULL_SLC			0
 #define SLC				1
