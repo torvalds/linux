@@ -625,6 +625,7 @@ static int stm32_rproc_probe(struct platform_device *pdev)
 	if (!rproc)
 		return -ENOMEM;
 
+	rproc_coredump_set_elf_info(rproc, ELFCLASS32, EM_NONE);
 	rproc->has_iommu = false;
 	ddata = rproc->priv;
 	ddata->workqueue = create_workqueue(dev_name(dev));
