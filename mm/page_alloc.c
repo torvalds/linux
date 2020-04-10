@@ -103,8 +103,8 @@ struct pcpu_drain {
 	struct zone *zone;
 	struct work_struct work;
 };
-DEFINE_MUTEX(pcpu_drain_mutex);
-DEFINE_PER_CPU(struct pcpu_drain, pcpu_drain);
+static DEFINE_MUTEX(pcpu_drain_mutex);
+static DEFINE_PER_CPU(struct pcpu_drain, pcpu_drain);
 
 #ifdef CONFIG_GCC_PLUGIN_LATENT_ENTROPY
 volatile unsigned long latent_entropy __latent_entropy;
