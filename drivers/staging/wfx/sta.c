@@ -413,7 +413,6 @@ static void wfx_do_unjoin(struct wfx_vif *wvif)
 
 	/* Unjoin is a reset. */
 	wfx_tx_lock_flush(wvif->wdev);
-	hif_keep_alive_period(wvif, 0);
 	hif_reset(wvif, false);
 	wfx_tx_policy_init(wvif);
 	hif_set_macaddr(wvif, wvif->vif->addr);
