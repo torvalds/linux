@@ -586,9 +586,7 @@ static void bpf_map_mmap_open(struct vm_area_struct *vma)
 {
 	struct bpf_map *map = vma->vm_file->private_data;
 
-	bpf_map_inc_with_uref(map);
-
-	if (vma->vm_flags & VM_WRITE) {
+	if (vma->vm_flags & VM_MAYWRITE) {
 		mutex_lock(&map->freeze_mutex);
 		map->writecnt++;
 		mutex_unlock(&map->freeze_mutex);
@@ -600,13 +598,11 @@ static void bpf_map_mmap_close(struct vm_area_struct *vma)
 {
 	struct bpf_map *map = vma->vm_file->private_data;
 
-	if (vma->vm_flags & VM_WRITE) {
+	if (vma->vm_flags & VM_MAYWRITE) {
 		mutex_lock(&map->freeze_mutex);
 		map->writecnt--;
 		mutex_unlock(&map->freeze_mutex);
 	}
-
-	bpf_map_put_with_uref(map);
 }
 
 static const struct vm_operations_struct bpf_map_default_vmops = {
@@ -635,14 +631,16 @@ static int bpf_map_mmap(struct file *filp, struct vm_area_struct *vma)
 	/* set default open/close callbacks */
 	vma->vm_ops = &bpf_map_default_vmops;
 	vma->vm_private_data = map;
+	vma->vm_flags &= ~VM_MAYEXEC;
+	if (!(vma->vm_flags & VM_WRITE))
+		/* disallow re-mapping with PROT_WRITE */
+		vma->vm_flags &= ~VM_MAYWRITE;
 
 	err = map->ops->map_mmap(map, vma);
 	if (err)
 		goto out;
 
-	bpf_map_inc_with_uref(map);
-
-	if (vma->vm_flags & VM_WRITE)
+	if (vma->vm_flags & VM_MAYWRITE)
 		map->writecnt++;
 out:
 	mutex_unlock(&map->freeze_mutex);
