@@ -89,6 +89,7 @@
 #define MPTCP_DATA_READY	0
 #define MPTCP_SEND_SPACE	1
 #define MPTCP_WORK_RTX		2
+#define MPTCP_WORK_EOF		3
 
 static inline __be32 mptcp_option(u8 subopt, u8 len, u8 nib, u8 field)
 {
@@ -339,6 +340,7 @@ void mptcp_finish_connect(struct sock *sk);
 void mptcp_data_ready(struct sock *sk, struct sock *ssk);
 bool mptcp_finish_join(struct sock *sk);
 void mptcp_data_acked(struct sock *sk);
+void mptcp_subflow_eof(struct sock *sk);
 
 int mptcp_token_new_request(struct request_sock *req);
 void mptcp_token_destroy_request(u32 token);
