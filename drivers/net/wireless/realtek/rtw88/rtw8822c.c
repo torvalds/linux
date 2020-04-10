@@ -1890,6 +1890,40 @@ static void rtw8822c_set_tx_power_index(struct rtw_dev *rtwdev)
 	}
 }
 
+static int rtw8822c_set_antenna(struct rtw_dev *rtwdev,
+				u32 antenna_tx,
+				u32 antenna_rx)
+{
+	struct rtw_hal *hal = &rtwdev->hal;
+
+	switch (antenna_tx) {
+	case BB_PATH_A:
+	case BB_PATH_B:
+	case BB_PATH_AB:
+		break;
+	default:
+		rtw_info(rtwdev, "unsupport tx path 0x%x\n", antenna_tx);
+		return -EINVAL;
+	}
+
+	/* path B only is not available for RX */
+	switch (antenna_rx) {
+	case BB_PATH_A:
+	case BB_PATH_AB:
+		break;
+	default:
+		rtw_info(rtwdev, "unsupport rx path 0x%x\n", antenna_rx);
+		return -EINVAL;
+	}
+
+	hal->antenna_tx = antenna_tx;
+	hal->antenna_rx = antenna_rx;
+
+	rtw8822c_config_trx_mode(rtwdev, antenna_tx, antenna_rx, false);
+
+	return 0;
+}
+
 static void rtw8822c_cfg_ldo25(struct rtw_dev *rtwdev, bool enable)
 {
 	u8 ldo_pwr;
@@ -3794,6 +3828,7 @@ static struct rtw_chip_ops rtw8822c_ops = {
 	.read_rf		= rtw_phy_read_rf,
 	.write_rf		= rtw_phy_write_rf_reg_mix,
 	.set_tx_power_index	= rtw8822c_set_tx_power_index,
+	.set_antenna		= rtw8822c_set_antenna,
 	.cfg_ldo25		= rtw8822c_cfg_ldo25,
 	.false_alarm_statistics	= rtw8822c_false_alarm_statistics,
 	.dpk_track		= rtw8822c_dpk_track,
