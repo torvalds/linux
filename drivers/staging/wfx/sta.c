@@ -575,40 +575,6 @@ int wfx_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	return 0;
 }
 
-static int wfx_start_ap(struct wfx_vif *wvif)
-{
-	int ret;
-
-	wvif->beacon_int = wvif->vif->bss_conf.beacon_int;
-	ret = hif_start(wvif, &wvif->vif->bss_conf, wvif->channel);
-	if (ret)
-		return ret;
-	ret = wfx_upload_keys(wvif);
-	if (ret)
-		return ret;
-	if (wvif_count(wvif->wdev) <= 1)
-		hif_set_block_ack_policy(wvif, 0xFF, 0xFF);
-	wvif->state = WFX_STATE_AP;
-	wfx_update_filtering(wvif);
-	return 0;
-}
-
-static int wfx_update_beaconing(struct wfx_vif *wvif)
-{
-	if (wvif->vif->type != NL80211_IFTYPE_AP)
-		return 0;
-	if (wvif->state == WFX_STATE_AP &&
-	    wvif->beacon_int == wvif->vif->bss_conf.beacon_int)
-		return 0;
-	wfx_tx_lock_flush(wvif->wdev);
-	hif_reset(wvif, false);
-	wfx_tx_policy_init(wvif);
-	wvif->state = WFX_STATE_PASSIVE;
-	wfx_start_ap(wvif);
-	wfx_tx_unlock(wvif->wdev);
-	return 0;
-}
-
 static int wfx_upload_ap_templates(struct wfx_vif *wvif)
 {
 	struct sk_buff *skb;
@@ -632,6 +598,30 @@ static int wfx_upload_ap_templates(struct wfx_vif *wvif)
 			       API_RATE_INDEX_B_1MBPS);
 	dev_kfree_skb(skb);
 	return 0;
+}
+
+int wfx_start_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
+{
+	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
+
+	hif_start(wvif, &vif->bss_conf, wvif->channel);
+	wfx_upload_keys(wvif);
+	if (wvif_count(wvif->wdev) <= 1)
+		hif_set_block_ack_policy(wvif, 0xFF, 0xFF);
+	wvif->state = WFX_STATE_AP;
+	wfx_update_filtering(wvif);
+	wfx_upload_ap_templates(wvif);
+	wfx_fwd_probe_req(wvif, false);
+	return 0;
+}
+
+void wfx_stop_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
+{
+	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
+
+	hif_reset(wvif, false);
+	wfx_tx_policy_init(wvif);
+	wvif->state = WFX_STATE_PASSIVE;
 }
 
 static void wfx_join_finalize(struct wfx_vif *wvif,
@@ -709,16 +699,9 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw,
 		}
 	}
 
-	if (changed & BSS_CHANGED_BEACON ||
-	    changed & BSS_CHANGED_AP_PROBE_RESP ||
-	    changed & BSS_CHANGED_BSSID ||
-	    changed & BSS_CHANGED_SSID ||
-	    changed & BSS_CHANGED_IBSS) {
-		wvif->beacon_int = info->beacon_int;
-		wfx_update_beaconing(wvif);
+	if (changed & BSS_CHANGED_AP_PROBE_RESP ||
+	    changed & BSS_CHANGED_BEACON)
 		wfx_upload_ap_templates(wvif);
-		wfx_fwd_probe_req(wvif, false);
-	}
 
 	if (changed & BSS_CHANGED_BEACON_ENABLED &&
 	    wvif->state != WFX_STATE_IBSS)
@@ -742,8 +725,6 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw,
 		if (changed & BSS_CHANGED_BEACON_INT) {
 			if (info->ibss_joined)
 				do_join = true;
-			else if (wvif->state == WFX_STATE_AP)
-				wfx_update_beaconing(wvif);
 		}
 
 		if (changed & BSS_CHANGED_BSSID)
