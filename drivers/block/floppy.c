@@ -668,15 +668,11 @@ static struct output_log {
 
 static int output_log_pos;
 
-#define current_reqD -1
 #define MAXTIMEOUT -2
 
 static void __reschedule_timeout(int drive, const char *message)
 {
 	unsigned long delay;
-
-	if (drive == current_reqD)
-		drive = current_drive;
 
 	if (drive < 0 || drive >= N_DRIVE) {
 		delay = 20UL * HZ;
@@ -1960,7 +1956,7 @@ static void floppy_ready(void)
 
 static void floppy_start(void)
 {
-	reschedule_timeout(current_reqD, "floppy start");
+	reschedule_timeout(current_drive, "floppy start");
 
 	scandrives();
 	debug_dcl(drive_params[current_drive].flags,
@@ -2874,7 +2870,7 @@ do_request:
 	}
 	drive = (long)current_req->rq_disk->private_data;
 	set_fdc(drive);
-	reschedule_timeout(current_reqD, "redo fd request");
+	reschedule_timeout(current_drive, "redo fd request");
 
 	set_floppy(drive);
 	raw_cmd = &default_raw_cmd;
