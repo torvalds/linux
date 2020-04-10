@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
+#include <sys/mman.h>
 
 #include <linux/compiler.h>
 
@@ -18,14 +19,18 @@
 
 #define VCPU_ID 0
 
+/*
+ * s390x needs at least 1MB alignment, and the x86_64 MOVE/DELETE tests need a
+ * 2MB sized and aligned region so that the initial region corresponds to
+ * exactly one large page.
+ */
+#define MEM_REGION_SIZE		0x200000
+
 #ifdef __x86_64__
 /*
- * Somewhat arbitrary location and slot, intended to not overlap anything.  The
- * location and size are specifically 2mb sized/aligned so that the initial
- * region corresponds to exactly one large page.
+ * Somewhat arbitrary location and slot, intended to not overlap anything.
  */
 #define MEM_REGION_GPA		0xc0000000
-#define MEM_REGION_SIZE		0x200000
 #define MEM_REGION_SLOT		10
 
 static const uint64_t MMIO_VAL = 0xbeefull;
@@ -312,6 +317,54 @@ static void test_zero_memory_regions(void)
 }
 #endif /* __x86_64__ */
 
+/*
+ * Test it can be added memory slots up to KVM_CAP_NR_MEMSLOTS, then any
+ * tentative to add further slots should fail.
+ */
+static void test_add_max_memory_regions(void)
+{
+	int ret;
+	struct kvm_vm *vm;
+	uint32_t max_mem_slots;
+	uint32_t slot;
+	uint64_t guest_addr = 0x0;
+	uint64_t mem_reg_npages;
+	void *mem;
+
+	max_mem_slots = kvm_check_cap(KVM_CAP_NR_MEMSLOTS);
+	TEST_ASSERT(max_mem_slots > 0,
+		    "KVM_CAP_NR_MEMSLOTS should be greater than 0");
+	pr_info("Allowed number of memory slots: %i\n", max_mem_slots);
+
+	vm = vm_create(VM_MODE_DEFAULT, 0, O_RDWR);
+
+	mem_reg_npages = vm_calc_num_guest_pages(VM_MODE_DEFAULT, MEM_REGION_SIZE);
+
+	/* Check it can be added memory slots up to the maximum allowed */
+	pr_info("Adding slots 0..%i, each memory region with %dK size\n",
+		(max_mem_slots - 1), MEM_REGION_SIZE >> 10);
+	for (slot = 0; slot < max_mem_slots; slot++) {
+		vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS,
+					    guest_addr, slot, mem_reg_npages,
+					    0);
+		guest_addr += MEM_REGION_SIZE;
+	}
+
+	/* Check it cannot be added memory slots beyond the limit */
+	mem = mmap(NULL, MEM_REGION_SIZE, PROT_READ | PROT_WRITE,
+		   MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	TEST_ASSERT(mem != MAP_FAILED, "Failed to mmap() host");
+
+	ret = ioctl(vm_get_fd(vm), KVM_SET_USER_MEMORY_REGION,
+		    &(struct kvm_userspace_memory_region) {slot, 0, guest_addr,
+		    MEM_REGION_SIZE, (uint64_t) mem});
+	TEST_ASSERT(ret == -1 && errno == EINVAL,
+		    "Adding one more memory slot should fail with EINVAL");
+
+	munmap(mem, MEM_REGION_SIZE);
+	kvm_vm_free(vm);
+}
+
 int main(int argc, char *argv[])
 {
 #ifdef __x86_64__
@@ -327,7 +380,11 @@ int main(int argc, char *argv[])
 	 * KVM_RUN fails with ENOEXEC or EFAULT.
 	 */
 	test_zero_memory_regions();
+#endif
 
+	test_add_max_memory_regions();
+
+#ifdef __x86_64__
 	if (argc > 1)
 		loops = atoi(argv[1]);
 	else
