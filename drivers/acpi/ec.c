@@ -1589,8 +1589,8 @@ static int acpi_ec_add(struct acpi_device *device)
 	strcpy(acpi_device_name(device), ACPI_EC_DEVICE_NAME);
 	strcpy(acpi_device_class(device), ACPI_EC_CLASS);
 
-	if ((boot_ec && boot_ec->handle == device->handle) ||
-	    !strcmp(acpi_device_hid(device), ACPI_ECDT_HID)) {
+	if (boot_ec && (boot_ec->handle == device->handle ||
+	    !strcmp(acpi_device_hid(device), ACPI_ECDT_HID))) {
 		/* Fast path: this device corresponds to the boot EC. */
 		ec = boot_ec;
 	} else {
