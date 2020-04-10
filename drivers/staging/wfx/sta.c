@@ -725,8 +725,7 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw,
 		hif_keep_alive_period(wvif, info->max_idle_period *
 					    USEC_PER_TU / USEC_PER_MSEC);
 
-	if (changed & BSS_CHANGED_ASSOC ||
-	    changed & BSS_CHANGED_ERP_CTS_PROT ||
+	if (changed & BSS_CHANGED_ERP_CTS_PROT ||
 	    changed & BSS_CHANGED_ERP_PREAMBLE) {
 		u8 erp_ie[3] = { WLAN_EID_ERP_INFO, 1, 0 };
 
@@ -739,10 +738,10 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw,
 			hif_update_ie_beacon(wvif, erp_ie, sizeof(erp_ie));
 	}
 
-	if (changed & BSS_CHANGED_ASSOC || changed & BSS_CHANGED_ERP_SLOT)
+	if (changed & BSS_CHANGED_ERP_SLOT)
 		hif_slot_time(wvif, info->use_short_slot ? 9 : 20);
 
-	if (changed & BSS_CHANGED_ASSOC || changed & BSS_CHANGED_CQM)
+	if (changed & BSS_CHANGED_CQM)
 		hif_set_rcpi_rssi_threshold(wvif, info->cqm_rssi_thold,
 					    info->cqm_rssi_hyst);
 
