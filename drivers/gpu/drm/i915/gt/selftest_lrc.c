@@ -1252,6 +1252,7 @@ static int live_timeslice_queue(void *arg)
 		} while (READ_ONCE(engine->execlists.pending[0]));
 
 		if (!READ_ONCE(engine->execlists.timer.expires) &&
+		    execlists_active(&engine->execlists) == rq &&
 		    !i915_request_completed(rq)) {
 			struct drm_printer p =
 				drm_info_printer(gt->i915->drm.dev);
