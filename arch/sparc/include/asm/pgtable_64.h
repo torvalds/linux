@@ -907,11 +907,11 @@ static inline unsigned long pud_pfn(pud_t pud)
 	 (((address) >> PMD_SHIFT) & (PTRS_PER_PMD-1)))
 
 /* Find an entry in the third-level page table.. */
-#define pte_index(dir, address)	\
-	((pte_t *) __pmd_page(*(dir)) + \
-	 ((address >> PAGE_SHIFT) & (PTRS_PER_PTE - 1)))
-#define pte_offset_kernel		pte_index
-#define pte_offset_map			pte_index
+#define pte_index(address)			\
+	 ((address >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
+#define pte_offset_kernel(dir, address)	\
+	((pte_t *) __pmd_page(*(dir)) + pte_index(address))
+#define pte_offset_map(dir, address)	pte_offset_kernel((dir), (address))
 #define pte_unmap(pte)			do { } while (0)
 
 /* We cannot include <linux/mm_types.h> at this point yet: */
