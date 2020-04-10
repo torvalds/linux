@@ -286,7 +286,7 @@ struct rkisp_isp_params_v2x_ops {
 	void (*rawhst3_enable)(struct rkisp_isp_params_vdev *params_vdev,
 			       bool en);
 	void (*hdrmge_config)(struct rkisp_isp_params_vdev *params_vdev,
-			      const struct isp2x_hdrmge_cfg *arg);
+			      const struct isp2x_hdrmge_cfg *arg, enum rkisp_params_type type);
 	void (*hdrmge_enable)(struct rkisp_isp_params_vdev *params_vdev,
 			      bool en);
 	void (*rawnr_config)(struct rkisp_isp_params_vdev *params_vdev,
@@ -294,7 +294,7 @@ struct rkisp_isp_params_v2x_ops {
 	void (*rawnr_enable)(struct rkisp_isp_params_vdev *params_vdev,
 			     bool en);
 	void (*hdrtmo_config)(struct rkisp_isp_params_vdev *params_vdev,
-			      const struct isp2x_hdrtmo_cfg *arg);
+			      const struct isp2x_hdrtmo_cfg *arg, enum rkisp_params_type type);
 	void (*hdrtmo_enable)(struct rkisp_isp_params_vdev *params_vdev,
 			      bool en);
 	void (*gic_config)(struct rkisp_isp_params_vdev *params_vdev,

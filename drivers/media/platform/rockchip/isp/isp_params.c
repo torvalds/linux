@@ -178,6 +178,12 @@ static void rkisp_params_vb2_stop_streaming(struct vb2_queue *vq)
 		buf = NULL;
 	}
 
+	if (params_vdev->cur_buf) {
+		buf = params_vdev->cur_buf;
+		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
+		params_vdev->cur_buf = NULL;
+	}
+
 	/* clean module params */
 	params_vdev->ops->clear_first_param(params_vdev);
 }
@@ -189,6 +195,7 @@ rkisp_params_vb2_start_streaming(struct vb2_queue *queue, unsigned int count)
 	unsigned long flags;
 
 	params_vdev->hdrtmo_en = false;
+	params_vdev->cur_buf = NULL;
 	spin_lock_irqsave(&params_vdev->config_lock, flags);
 	params_vdev->streamon = true;
 	spin_unlock_irqrestore(&params_vdev->config_lock, flags);
@@ -282,6 +289,14 @@ static void rkisp_uninit_params_vdev(struct rkisp_isp_params_vdev *params_vdev)
 		rkisp_uninit_params_vdev_v2x(params_vdev);
 }
 
+void rkisp_params_cfg(struct rkisp_isp_params_vdev *params_vdev,
+		      u32 frame_id, u32 rdbk_times)
+{
+	if (params_vdev->ops->param_cfg)
+		params_vdev->ops->param_cfg(params_vdev, frame_id,
+					    rdbk_times, RKISP_PARAMS_IMD);
+}
+
 void rkisp_params_isr(struct rkisp_isp_params_vdev *params_vdev,
 		      u32 isp_mis)
 {
@@ -289,14 +304,14 @@ void rkisp_params_isr(struct rkisp_isp_params_vdev *params_vdev,
 }
 
 /* Not called when the camera active, thus not isr protection. */
-void rkisp_params_configure_isp(struct rkisp_isp_params_vdev *params_vdev,
-				struct ispsd_in_fmt *in_fmt,
-				enum v4l2_quantization quantization)
+void rkisp_params_first_cfg(struct rkisp_isp_params_vdev *params_vdev,
+			    struct ispsd_in_fmt *in_fmt,
+			    enum v4l2_quantization quantization)
 {
 	params_vdev->quantization = quantization;
 	params_vdev->raw_type = in_fmt->bayer_pat;
 	params_vdev->in_mbus_code = in_fmt->mbus_code;
-	params_vdev->ops->config_isp(params_vdev);
+	params_vdev->ops->first_cfg(params_vdev);
 }
 
 /* Not called when the camera active, thus not isr protection. */

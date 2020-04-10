@@ -626,8 +626,8 @@ static int rkisp_config_isp(struct rkisp_device *dev)
 	if (out_fmt->fmt_type == FMT_BAYER)
 		rkisp_params_disable_isp(&dev->params_vdev);
 	else
-		rkisp_params_configure_isp(&dev->params_vdev, in_fmt,
-					   dev->isp_sdev.quantization);
+		rkisp_params_first_cfg(&dev->params_vdev, in_fmt,
+				       dev->isp_sdev.quantization);
 
 	return 0;
 }

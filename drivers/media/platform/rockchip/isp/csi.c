@@ -436,6 +436,8 @@ void rkisp_trigger_read_back(struct rkisp_csi_device *csi, u8 dma2frm)
 {
 	struct rkisp_device *dev = csi->ispdev;
 	void __iomem *addr = dev->base_addr + CSI2RX_CTRL0;
+	struct rkisp_isp_params_vdev *params_vdev = &dev->params_vdev;
+	u32 cur_frame_id = rkisp_dmarx_get_frame_id(dev);
 
 	if (dma2frm > 2)
 		dma2frm = 2;
@@ -451,6 +453,10 @@ void rkisp_trigger_read_back(struct rkisp_csi_device *csi, u8 dma2frm)
 	default://other no support readback
 		return;
 	}
+
+	/* configure hdr params in rdbk mode */
+	rkisp_params_cfg(params_vdev, cur_frame_id, dma2frm + 1);
+
 	/* not using isp V_START irq to generate sof event */
 	csi->filt_state[CSI_F_VS] = dma2frm + 1;
 	writel(SW_CSI2RX_EN | SW_DMA_2FRM_MODE(dma2frm) | readl(addr), addr);

@@ -1382,6 +1382,7 @@ struct isp2x_isp_params_cfg {
 	u64 module_ens;
 	u64 module_cfg_update;
 
+	u32 frame_id;
 	struct isp2x_isp_meas_cfg meas;
 	struct isp2x_isp_other_cfg others;	// must be last item
 } __attribute__ ((packed));

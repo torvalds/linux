@@ -8,15 +8,22 @@
 #include <linux/rk-preisp.h>
 #include "common.h"
 
+enum rkisp_params_type {
+	RKISP_PARAMS_ALL,
+	RKISP_PARAMS_IMD,
+	RKISP_PARAMS_SHD,
+};
+
 struct rkisp_isp_params_vdev;
 struct rkisp_isp_params_ops {
 	void (*save_first_param)(struct rkisp_isp_params_vdev *params_vdev, void *param);
 	void (*clear_first_param)(struct rkisp_isp_params_vdev *params_vdev);
 	void (*get_param_size)(struct rkisp_isp_params_vdev *params_vdev, unsigned int sizes[]);
-	void (*config_isp)(struct rkisp_isp_params_vdev *params_vdev);
+	void (*first_cfg)(struct rkisp_isp_params_vdev *params_vdev);
 	void (*disable_isp)(struct rkisp_isp_params_vdev *params_vdev);
-	void (*isr_hdl)(struct rkisp_isp_params_vdev *params_vdev,
-			u32 isp_mis);
+	void (*isr_hdl)(struct rkisp_isp_params_vdev *params_vdev, u32 isp_mis);
+	void (*param_cfg)(struct rkisp_isp_params_vdev *params_vdev, u32 frame_id,
+			  u32 rdbk_times, enum rkisp_params_type type);
 };
 
 /*
@@ -50,12 +57,15 @@ struct rkisp_isp_params_vdev {
 	void *priv_ops;
 	void *priv_cfg;
 	void *priv_val;
+
+	struct rkisp_buffer *cur_buf;
+	u32 rdbk_times;
 };
 
 /* config params before ISP streaming */
-void rkisp_params_configure_isp(struct rkisp_isp_params_vdev *params_vdev,
-				struct ispsd_in_fmt *in_fmt,
-				enum v4l2_quantization quantization);
+void rkisp_params_first_cfg(struct rkisp_isp_params_vdev *params_vdev,
+			    struct ispsd_in_fmt *in_fmt,
+			    enum v4l2_quantization quantization);
 void rkisp_params_disable_isp(struct rkisp_isp_params_vdev *params_vdev);
 
 int rkisp_register_params_vdev(struct rkisp_isp_params_vdev *params_vdev,
@@ -65,5 +75,8 @@ int rkisp_register_params_vdev(struct rkisp_isp_params_vdev *params_vdev,
 void rkisp_unregister_params_vdev(struct rkisp_isp_params_vdev *params_vdev);
 
 void rkisp_params_isr(struct rkisp_isp_params_vdev *params_vdev, u32 isp_mis);
+
+void rkisp_params_cfg(struct rkisp_isp_params_vdev *params_vdev,
+		      u32 frame_id, u32 rdbk_times);
 
 #endif /* _RKISP_ISP_PARAM_H */

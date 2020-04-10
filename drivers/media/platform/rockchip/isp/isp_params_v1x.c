@@ -2181,7 +2181,7 @@ static const struct cifisp_afc_config afc_params_default_config = {
 };
 
 /* Not called when the camera active, thus not isr protection. */
-static void rkisp1_params_configure_isp_v1x(struct rkisp_isp_params_vdev *params_vdev)
+static void rkisp1_params_first_cfg_v1x(struct rkisp_isp_params_vdev *params_vdev)
 {
 	struct rkisp_isp_params_v1x_ops *ops =
 		(struct rkisp_isp_params_v1x_ops *)params_vdev->priv_ops;
@@ -2349,7 +2349,7 @@ static struct rkisp_isp_params_ops rkisp_isp_params_ops_tbl = {
 	.save_first_param = rkisp1_save_first_param_v1x,
 	.clear_first_param = rkisp1_clear_first_param_v1x,
 	.get_param_size = rkisp1_get_param_size_v1x,
-	.config_isp = rkisp1_params_configure_isp_v1x,
+	.first_cfg = rkisp1_params_first_cfg_v1x,
 	.disable_isp = rkisp1_params_disable_isp_v1x,
 	.isr_hdl = rkisp1_params_isr_v1x,
 };
