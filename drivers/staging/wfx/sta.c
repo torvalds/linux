@@ -646,7 +646,7 @@ static void wfx_join_finalize(struct wfx_vif *wvif,
 
 	if (!info->ibss_joined) {
 		wvif->state = WFX_STATE_STA;
-		hif_keep_alive_period(wvif, 30 /* sec */);
+		hif_keep_alive_period(wvif, 0);
 		hif_set_bss_params(wvif, &wvif->bss_params);
 		hif_set_beacon_wakeup_period(wvif, info->dtim_period,
 					     info->dtim_period);
@@ -727,6 +727,10 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw,
 			dev_warn(wdev->dev, "%s: misunderstood change: ASSOC\n",
 				 __func__);
 	}
+
+	if (changed & BSS_CHANGED_KEEP_ALIVE)
+		hif_keep_alive_period(wvif, info->max_idle_period *
+					    USEC_PER_TU / USEC_PER_MSEC);
 
 	if (changed & BSS_CHANGED_ASSOC ||
 	    changed & BSS_CHANGED_ERP_CTS_PROT ||
