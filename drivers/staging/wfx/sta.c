@@ -570,11 +570,6 @@ static int wfx_upload_ap_templates(struct wfx_vif *wvif)
 {
 	struct sk_buff *skb;
 
-	if (wvif->vif->type == NL80211_IFTYPE_STATION ||
-	    wvif->vif->type == NL80211_IFTYPE_MONITOR ||
-	    wvif->vif->type == NL80211_IFTYPE_UNSPECIFIED)
-		return 0;
-
 	skb = ieee80211_beacon_get(wvif->wdev->hw, wvif->vif);
 	if (!skb)
 		return -ENOMEM;
