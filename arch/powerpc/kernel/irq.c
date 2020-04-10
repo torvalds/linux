@@ -527,6 +527,19 @@ void irq_set_pending_from_srr1(unsigned long srr1)
 		return;
 	}
 
+	if (reason == PACA_IRQ_DBELL) {
+		/*
+		 * When doorbell triggers a system reset wakeup, the message
+		 * is not cleared, so if the doorbell interrupt is replayed
+		 * and the IPI handled, the doorbell interrupt would still
+		 * fire when EE is enabled.
+		 *
+		 * To avoid taking the superfluous doorbell interrupt,
+		 * execute a msgclr here before the interrupt is replayed.
+		 */
+		ppc_msgclr(PPC_DBELL_MSGTYPE);
+	}
+
 	/*
 	 * The 0 index (SRR1[42:45]=b0000) must always evaluate to 0,
 	 * so this can be called unconditionally with the SRR1 wake

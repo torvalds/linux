@@ -3121,22 +3121,3 @@ handle_dabr_fault:
 	li	r5,SIGSEGV
 	bl	bad_page_fault
 	b	interrupt_return
-
-/*
- * When doorbell is triggered from system reset wakeup, the message is
- * not cleared, so it would fire again when EE is enabled.
- *
- * When coming from local_irq_enable, there may be the same problem if
- * we were hard disabled.
- *
- * Execute msgclr to clear pending exceptions before handling it.
- */
-h_doorbell_common_msgclr:
-	LOAD_REG_IMMEDIATE(r3, PPC_DBELL_MSGTYPE << (63-36))
-	PPC_MSGCLR(3)
-	b 	h_doorbell_common_virt
-
-doorbell_super_common_msgclr:
-	LOAD_REG_IMMEDIATE(r3, PPC_DBELL_MSGTYPE << (63-36))
-	PPC_MSGCLRP(3)
-	b 	doorbell_super_common_virt

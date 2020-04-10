@@ -686,6 +686,17 @@ static int mce_handle_error(struct pt_regs *regs, struct rtas_error_log *errp)
 #endif
 
 out:
+	/*
+	 * Enable translation as we will be accessing per-cpu variables
+	 * in save_mce_event() which may fall outside RMO region, also
+	 * leave it enabled because subsequently we will be queuing work
+	 * to workqueues where again per-cpu variables accessed, besides
+	 * fwnmi_release_errinfo() crashes when called in realmode on
+	 * pseries.
+	 * Note: All the realmode handling like flushing SLB entries for
+	 *       SLB multihit is done by now.
+	 */
+	mtmsr(mfmsr() | MSR_IR | MSR_DR);
 	save_mce_event(regs, disposition == RTAS_DISP_FULLY_RECOVERED,
 			&mce_err, regs->nip, eaddr, paddr);
 
