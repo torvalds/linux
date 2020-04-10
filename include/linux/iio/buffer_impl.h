@@ -94,12 +94,6 @@ struct iio_buffer {
 	unsigned int watermark;
 
 	/* private: */
-	/*
-	 * @scan_el_attrs: Control of scan elements if that scan mode
-	 * control method is used.
-	 */
-	struct attribute_group *scan_el_attrs;
-
 	/* @scan_timestamp: Does the scan mode include a timestamp. */
 	bool scan_timestamp;
 

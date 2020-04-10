@@ -1283,11 +1283,6 @@ int iio_buffer_alloc_sysfs_and_mask(struct iio_dev *indio_dev)
 
 	indio_dev->groups[indio_dev->groupcounter++] = &buffer->buffer_group;
 
-	if (buffer->scan_el_attrs != NULL) {
-		attr = buffer->scan_el_attrs->attrs;
-		while (*attr++ != NULL)
-			attrcount_orig++;
-	}
 	attrcount = attrcount_orig;
 	INIT_LIST_HEAD(&buffer->scan_el_dev_attr_list);
 	channels = indio_dev->channels;
@@ -1325,9 +1320,6 @@ int iio_buffer_alloc_sysfs_and_mask(struct iio_dev *indio_dev)
 		ret = -ENOMEM;
 		goto error_free_scan_mask;
 	}
-	if (buffer->scan_el_attrs)
-		memcpy(buffer->scan_el_group.attrs, buffer->scan_el_attrs,
-		       sizeof(buffer->scan_el_group.attrs[0])*attrcount_orig);
 	attrn = attrcount_orig;
 
 	list_for_each_entry(p, &buffer->scan_el_dev_attr_list, l)
