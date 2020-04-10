@@ -83,6 +83,13 @@ struct SFNAND_DEV {
 	u8 page_prog_cmd;
 };
 
+struct nand_mega_area {
+	u8 off0;
+	u8 off1;
+	u8 off2;
+	u8 off3;
+};
+
 struct nand_info {
 	u32 id;
 
@@ -106,8 +113,7 @@ struct nand_info {
 	u8 QE_address;
 	u8 QE_bits;
 
-	u8 spare_offs_1;
-	u8 spare_offs_2;
+	struct nand_mega_area meta;
 	u32 (*ecc_status)(void);
 };
 
