@@ -998,8 +998,9 @@ static bool rtw8822b_check_rf_path(u8 antenna)
 	}
 }
 
-static void rtw8822b_set_antenna(struct rtw_dev *rtwdev, u8 antenna_tx,
-				 u8 antenna_rx)
+static int rtw8822b_set_antenna(struct rtw_dev *rtwdev,
+				u32 antenna_tx,
+				u32 antenna_rx)
 {
 	struct rtw_hal *hal = &rtwdev->hal;
 
@@ -1007,16 +1008,21 @@ static void rtw8822b_set_antenna(struct rtw_dev *rtwdev, u8 antenna_tx,
 		antenna_tx, antenna_rx);
 
 	if (!rtw8822b_check_rf_path(antenna_tx)) {
-		rtw_info(rtwdev, "unsupport tx path, set to default path ab\n");
-		antenna_tx = BB_PATH_AB;
+		rtw_info(rtwdev, "unsupport tx path 0x%x\n", antenna_tx);
+		return -EINVAL;
 	}
+
 	if (!rtw8822b_check_rf_path(antenna_rx)) {
-		rtw_info(rtwdev, "unsupport rx path, set to default path ab\n");
-		antenna_rx = BB_PATH_AB;
+		rtw_info(rtwdev, "unsupport rx path 0x%x\n", antenna_rx);
+		return -EINVAL;
 	}
+
 	hal->antenna_tx = antenna_tx;
 	hal->antenna_rx = antenna_rx;
+
 	rtw8822b_config_trx_mode(rtwdev, antenna_tx, antenna_rx, false);
+
+	return 0;
 }
 
 static void rtw8822b_cfg_ldo25(struct rtw_dev *rtwdev, bool enable)
