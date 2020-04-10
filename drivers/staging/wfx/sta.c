@@ -648,6 +648,22 @@ static void wfx_join_finalize(struct wfx_vif *wvif,
 	}
 }
 
+int wfx_join_ibss(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
+{
+	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
+
+	wfx_upload_ap_templates(wvif);
+	wfx_do_join(wvif);
+	return 0;
+}
+
+void wfx_leave_ibss(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
+{
+	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
+
+	wfx_do_unjoin(wvif);
+}
+
 void wfx_enable_beacon(struct wfx_vif *wvif, bool enable)
 {
 	// Driver has Content After DTIM Beacon in queue. Driver is waiting for
@@ -688,8 +704,7 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_BASIC_RATES ||
 	    changed & BSS_CHANGED_BEACON_INT ||
 	    changed & BSS_CHANGED_BSSID) {
-		if (vif->type == NL80211_IFTYPE_STATION ||
-		    vif->type == NL80211_IFTYPE_ADHOC)
+		if (vif->type == NL80211_IFTYPE_STATION)
 			wfx_do_join(wvif);
 	}
 

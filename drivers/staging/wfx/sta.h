@@ -56,6 +56,8 @@ int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
 void wfx_remove_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
 int wfx_start_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
 void wfx_stop_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
+int wfx_join_ibss(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
+void wfx_leave_ibss(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
 int wfx_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		u16 queue, const struct ieee80211_tx_queue_params *params);
 void wfx_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
