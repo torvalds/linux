@@ -8,6 +8,9 @@
 
 #include "sfc.h"
 
+#define SFC_MAX_IOSIZE_VER3		(1024 * 8)
+#define SFC_MAX_IOSIZE_VER4		(0xFFFFFFFF)
+
 static void __iomem *g_sfc_reg;
 
 static void sfc_reset(void)
@@ -27,11 +30,21 @@ u16 sfc_get_version(void)
 	return  (u32)(readl(g_sfc_reg + SFC_VER) & 0xffff);
 }
 
+u32 sfc_get_max_iosize(void)
+{
+	if (sfc_get_version() >= SFC_VER_4)
+		return SFC_MAX_IOSIZE_VER4;
+	else
+		return SFC_MAX_IOSIZE_VER3;
+}
+
 int sfc_init(void __iomem *reg_addr)
 {
 	g_sfc_reg = reg_addr;
 	sfc_reset();
 	writel(0, g_sfc_reg + SFC_CTRL);
+	if (sfc_get_version() >= SFC_VER_4)
+		writel(1, g_sfc_reg + SFC_LEN_CTRL);
 
 	return SFC_OK;
 }
@@ -67,6 +80,10 @@ int sfc_request(struct rk_sfc_op *op, u32 addr, void *data, u32 size)
 	/* shift in the data at negedge sclk_out */
 	op->sfctrl.d32 |= 0x2;
 	cmd.b.datasize = size;
+	if (sfc_get_version() >= SFC_VER_4)
+		writel(size, g_sfc_reg + SFC_LEN_EXT);
+	else
+		cmd.b.datasize = size;
 
 	writel(op->sfctrl.d32, g_sfc_reg + SFC_CTRL);
 	writel(cmd.d32, g_sfc_reg + SFC_CMD);
@@ -87,12 +104,11 @@ int sfc_request(struct rk_sfc_op *op, u32 addr, void *data, u32 size)
 		writel((u32)dma_addr, g_sfc_reg + SFC_DMA_ADDR);
 		writel(SFC_DMA_START, g_sfc_reg + SFC_DMA_TRIGGER);
 
-		timeout = size * 10;
 		rksfc_wait_for_irq_completed();
-		while (!((readl(g_sfc_reg + SFC_RAWISR) & DMA_INT)) &&
+		timeout = size * 10;
+		while ((readl(g_sfc_reg + SFC_SR) & SFC_BUSY) &&
 		       (timeout-- > 0))
 			sfc_delay(1);
-		writel(0xFFFFFFFF, g_sfc_reg + SFC_ICLR);
 		if (timeout <= 0)
 			ret = SFC_WAIT_TIMEOUT;
 		direction = (cmd.b.rw == SFC_WRITE) ? 1 : 0;

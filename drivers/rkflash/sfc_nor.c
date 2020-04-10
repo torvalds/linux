@@ -300,7 +300,7 @@ int snor_prog_page(struct SFNOR_DEV *p_dev,
 
 	op.sfctrl.d32 = 0;
 	op.sfctrl.b.datalines = p_dev->prog_lines;
-	op.sfctrl.b.enbledma = 0;
+	op.sfctrl.b.enbledma = 1;
 	if (p_dev->prog_cmd == CMD_PAGE_PROG_A4)
 		op.sfctrl.b.addrlines = SFC_4BITS_LINE;
 
@@ -396,7 +396,7 @@ int snor_read_data(struct SFNOR_DEV *p_dev,
 	op.sfctrl.d32 = 0;
 	op.sfctrl.b.datalines = p_dev->read_lines;
 	if (!(size & 0x3) && size >= 4)
-		op.sfctrl.b.enbledma = 0;
+		op.sfctrl.b.enbledma = 1;
 
 	if (p_dev->read_cmd == CMD_FAST_READ_X1 ||
 	    p_dev->read_cmd == CMD_FAST_READ_X4 ||
@@ -433,7 +433,7 @@ int snor_read(struct SFNOR_DEV *p_dev, u32 sec, u32 n_sec, void *p_data)
 	addr = sec << 9;
 	size = n_sec << 9;
 	while (size) {
-		len = size < SFC_MAX_IOSIZE ? size : SFC_MAX_IOSIZE;
+		len = size < p_dev->max_iosize ? size : p_dev->max_iosize;
 		ret = snor_read_data(p_dev, addr, p_buf, len);
 		if (ret != SFC_OK) {
 			rkflash_print_error("snor_read_data %x ret= %x\n",
@@ -574,6 +574,7 @@ int snor_init(struct SFNOR_DEV *p_dev)
 		return SFC_PARAM_ERR;
 
 	memset((void *)p_dev, 0, sizeof(struct SFNOR_DEV));
+	p_dev->max_iosize = sfc_get_max_iosize();
 	snor_read_id(id_byte);
 	rkflash_print_error("sfc nor id: %x %x %x\n",
 			    id_byte[0], id_byte[1], id_byte[2]);

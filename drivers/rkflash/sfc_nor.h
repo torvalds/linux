@@ -10,7 +10,7 @@
 #define NOR_PAGE_SIZE		256
 #define NOR_BLOCK_SIZE		(64 * 1024)
 #define NOR_SECS_BLK		(NOR_BLOCK_SIZE / 512)
-#define NOR_SECS_PAGE		4
+#define NOR_SECS_PAGE		8
 
 #define FEA_READ_STATUE_MASK	(0x3 << 0)
 #define FEA_STATUE_MODE1	0
@@ -110,6 +110,7 @@ struct SFNOR_DEV {
 	enum SFC_DATA_LINES prog_lines;
 
 	SNOR_WRITE_STATUS write_status;
+	u32 max_iosize;
 };
 
 struct flash_info {

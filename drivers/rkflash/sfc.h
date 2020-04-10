@@ -5,9 +5,9 @@
 #ifndef _SFC_H
 #define _SFC_H
 
-#define SFC_VER_3		0x3 /* ver 3, else ver 1 */
+#define SFC_VER_3		0x3
+#define SFC_VER_4		0x4
 
-#define SFC_MAX_IOSIZE		(1024 * 8)    /* 8K byte */
 #define SFC_EN_INT		(0)         /* enable interrupt */
 #define SFC_EN_DMA		(1)         /* enable dma */
 #define SFC_FIFO_DEPTH		(0x10)      /* 16 words */
@@ -191,6 +191,7 @@ int sfc_init(void __iomem *reg_addr);
 int sfc_request(struct rk_sfc_op *op, u32 addr, void *data, u32 size);
 u16 sfc_get_version(void);
 void sfc_clean_irq(void);
+u32 sfc_get_max_iosize(void);
 void sfc_handle_irq(void);
 unsigned long rksfc_dma_map_single(unsigned long ptr, int size, int dir);
 void rksfc_dma_unmap_single(unsigned long ptr, int size, int dir);
