@@ -29,6 +29,9 @@
 
 static const uint64_t MMIO_VAL = 0xbeefull;
 
+extern const uint64_t final_rip_start;
+extern const uint64_t final_rip_end;
+
 static sem_t vcpu_ready;
 
 static inline uint64_t guest_spin_on_val(uint64_t spin_val)
@@ -203,6 +206,89 @@ static void test_move_memory_region(void)
 	kvm_vm_free(vm);
 }
 
+static void guest_code_delete_memory_region(void)
+{
+	uint64_t val;
+
+	GUEST_SYNC(0);
+
+	/* Spin until the memory region is deleted. */
+	val = guest_spin_on_val(0);
+	GUEST_ASSERT_1(val == MMIO_VAL, val);
+
+	/* Spin until the memory region is recreated. */
+	val = guest_spin_on_val(MMIO_VAL);
+	GUEST_ASSERT_1(val == 0, val);
+
+	/* Spin until the memory region is deleted. */
+	val = guest_spin_on_val(0);
+	GUEST_ASSERT_1(val == MMIO_VAL, val);
+
+	asm("1:\n\t"
+	    ".pushsection .rodata\n\t"
+	    ".global final_rip_start\n\t"
+	    "final_rip_start: .quad 1b\n\t"
+	    ".popsection");
+
+	/* Spin indefinitely (until the code memslot is deleted). */
+	guest_spin_on_val(MMIO_VAL);
+
+	asm("1:\n\t"
+	    ".pushsection .rodata\n\t"
+	    ".global final_rip_end\n\t"
+	    "final_rip_end: .quad 1b\n\t"
+	    ".popsection");
+
+	GUEST_ASSERT_1(0, 0);
+}
+
+static void test_delete_memory_region(void)
+{
+	pthread_t vcpu_thread;
+	struct kvm_regs regs;
+	struct kvm_run *run;
+	struct kvm_vm *vm;
+
+	vm = spawn_vm(&vcpu_thread, guest_code_delete_memory_region);
+
+	/* Delete the memory region, the guest should not die. */
+	vm_mem_region_delete(vm, MEM_REGION_SLOT);
+	wait_for_vcpu();
+
+	/* Recreate the memory region.  The guest should see "0". */
+	vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS_THP,
+				    MEM_REGION_GPA, MEM_REGION_SLOT,
+				    MEM_REGION_SIZE / getpagesize(), 0);
+	wait_for_vcpu();
+
+	/* Delete the region again so that there's only one memslot left. */
+	vm_mem_region_delete(vm, MEM_REGION_SLOT);
+	wait_for_vcpu();
+
+	/*
+	 * Delete the primary memslot.  This should cause an emulation error or
+	 * shutdown due to the page tables getting nuked.
+	 */
+	vm_mem_region_delete(vm, 0);
+
+	pthread_join(vcpu_thread, NULL);
+
+	run = vcpu_state(vm, VCPU_ID);
+
+	TEST_ASSERT(run->exit_reason == KVM_EXIT_SHUTDOWN ||
+		    run->exit_reason == KVM_EXIT_INTERNAL_ERROR,
+		    "Unexpected exit reason = %d", run->exit_reason);
+
+	vcpu_regs_get(vm, VCPU_ID, &regs);
+
+	TEST_ASSERT(regs.rip >= final_rip_start &&
+		    regs.rip < final_rip_end,
+		    "Bad rip, expected 0x%lx - 0x%lx, got 0x%llx\n",
+		    final_rip_start, final_rip_end, regs.rip);
+
+	kvm_vm_free(vm);
+}
+
 int main(int argc, char *argv[])
 {
 	int i, loops;
@@ -215,8 +301,13 @@ int main(int argc, char *argv[])
 	else
 		loops = 10;
 
+	pr_info("Testing MOVE of in-use region, %d loops\n", loops);
 	for (i = 0; i < loops; i++)
 		test_move_memory_region();
+
+	pr_info("Testing DELETE of in-use region, %d loops\n", loops);
+	for (i = 0; i < loops; i++)
+		test_delete_memory_region();
 
 	return 0;
 }
