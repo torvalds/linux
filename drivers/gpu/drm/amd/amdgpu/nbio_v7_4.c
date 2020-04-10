@@ -323,14 +323,20 @@ static void nbio_v7_4_handle_ras_controller_intr_no_bifring(struct amdgpu_device
 		obj->err_data.ce_count += err_data.ce_count;
 
 		if (err_data.ce_count)
-			DRM_INFO("%ld correctable errors detected in %s block\n",
-				obj->err_data.ce_count, adev->nbio.ras_if->name);
+			dev_info(adev->dev, "%ld correctable hardware "
+					"errors detected in %s block, "
+					"no user action is needed.\n",
+					obj->err_data.ce_count,
+					adev->nbio.ras_if->name);
 
 		if (err_data.ue_count)
-			DRM_INFO("%ld uncorrectable errors detected in %s block\n",
-				obj->err_data.ue_count, adev->nbio.ras_if->name);
+			dev_info(adev->dev, "%ld uncorrectable hardware "
+					"errors detected in %s block\n",
+					obj->err_data.ue_count,
+					adev->nbio.ras_if->name);
 
-		DRM_WARN("RAS controller interrupt triggered by NBIF error\n");
+		dev_info(adev->dev, "RAS controller interrupt triggered "
+					"by NBIF error\n");
 
 		/* ras_controller_int is dedicated for nbif ras error,
 		 * not the global interrupt for sync flood
