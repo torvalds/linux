@@ -493,8 +493,6 @@ static void wfx_do_join(struct wfx_vif *wvif)
 	}
 	rcu_read_unlock();
 
-	wfx_tx_flush(wvif->wdev);
-
 	if (wvif_count(wvif->wdev) <= 1)
 		hif_set_block_ack_policy(wvif, 0xFF, 0xFF);
 
