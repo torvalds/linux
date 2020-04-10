@@ -415,7 +415,6 @@ static void wfx_do_unjoin(struct wfx_vif *wvif)
 	wfx_tx_lock_flush(wvif->wdev);
 	hif_reset(wvif, false);
 	wfx_tx_policy_init(wvif);
-	hif_set_macaddr(wvif, wvif->vif->addr);
 	if (wvif_count(wvif->wdev) <= 1)
 		hif_set_block_ack_policy(wvif, 0xFF, 0xFF);
 	wfx_free_event_queue(wvif);
