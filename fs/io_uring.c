@@ -326,6 +326,8 @@ struct io_ring_ctx {
 		spinlock_t		inflight_lock;
 		struct list_head	inflight_list;
 	} ____cacheline_aligned_in_smp;
+
+	struct work_struct		exit_work;
 };
 
 /*
@@ -7271,6 +7273,18 @@ static int io_remove_personalities(int id, void *p, void *data)
 	return 0;
 }
 
+static void io_ring_exit_work(struct work_struct *work)
+{
+	struct io_ring_ctx *ctx;
+
+	ctx = container_of(work, struct io_ring_ctx, exit_work);
+	if (ctx->rings)
+		io_cqring_overflow_flush(ctx, true);
+
+	wait_for_completion(&ctx->completions[0]);
+	io_ring_ctx_free(ctx);
+}
+
 static void io_ring_ctx_wait_and_kill(struct io_ring_ctx *ctx)
 {
 	mutex_lock(&ctx->uring_lock);
@@ -7298,8 +7312,8 @@ static void io_ring_ctx_wait_and_kill(struct io_ring_ctx *ctx)
 	if (ctx->rings)
 		io_cqring_overflow_flush(ctx, true);
 	idr_for_each(&ctx->personality_idr, io_remove_personalities, ctx);
-	wait_for_completion(&ctx->completions[0]);
-	io_ring_ctx_free(ctx);
+	INIT_WORK(&ctx->exit_work, io_ring_exit_work);
+	queue_work(system_wq, &ctx->exit_work);
 }
 
 static int io_uring_release(struct inode *inode, struct file *file)
