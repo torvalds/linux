@@ -166,13 +166,13 @@ static void afs_destroy_volume(struct afs_net *net, struct afs_volume *volume)
 /*
  * Drop a reference on a volume record.
  */
-void afs_put_volume(struct afs_cell *cell, struct afs_volume *volume)
+void afs_put_volume(struct afs_net *net, struct afs_volume *volume)
 {
 	if (volume) {
 		_enter("%s", volume->name);
 
 		if (atomic_dec_and_test(&volume->usage))
-			afs_destroy_volume(cell->net, volume);
+			afs_destroy_volume(net, volume);
 	}
 }
 
@@ -280,7 +280,7 @@ error:
 /*
  * Make sure the volume record is up to date.
  */
-int afs_check_volume_status(struct afs_volume *volume, struct afs_operation *fc)
+int afs_check_volume_status(struct afs_volume *volume, struct afs_operation *op)
 {
 	int ret, retries = 0;
 
@@ -298,7 +298,7 @@ retry:
 update:
 	if (!test_and_set_bit_lock(AFS_VOLUME_UPDATING, &volume->flags)) {
 		clear_bit(AFS_VOLUME_NEEDS_UPDATE, &volume->flags);
-		ret = afs_update_volume_status(volume, fc->key);
+		ret = afs_update_volume_status(volume, op->key);
 		if (ret < 0)
 			set_bit(AFS_VOLUME_NEEDS_UPDATE, &volume->flags);
 		clear_bit_unlock(AFS_VOLUME_WAIT, &volume->flags);
@@ -315,8 +315,8 @@ wait:
 	}
 
 	ret = wait_on_bit(&volume->flags, AFS_VOLUME_WAIT,
-			  (fc->flags & AFS_OPERATION_INTR) ?
-			  TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE);
+			  (op->flags & AFS_OPERATION_UNINTR) ?
+			  TASK_UNINTERRUPTIBLE : TASK_INTERRUPTIBLE);
 	if (ret == -ERESTARTSYS) {
 		_leave(" = %d", ret);
 		return ret;

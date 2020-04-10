@@ -424,10 +424,7 @@ static void __afs_put_server(struct afs_net *net, struct afs_server *server)
 	afs_dec_servers_outstanding(net);
 }
 
-/*
- * destroy a dead server
- */
-static void afs_destroy_server(struct afs_net *net, struct afs_server *server)
+static void afs_give_up_callbacks(struct afs_net *net, struct afs_server *server)
 {
 	struct afs_addr_list *alist = rcu_access_pointer(server->addresses);
 	struct afs_addr_cursor ac = {
@@ -436,8 +433,16 @@ static void afs_destroy_server(struct afs_net *net, struct afs_server *server)
 		.error	= 0,
 	};
 
+	afs_fs_give_up_all_callbacks(net, server, &ac, NULL);
+}
+
+/*
+ * destroy a dead server
+ */
+static void afs_destroy_server(struct afs_net *net, struct afs_server *server)
+{
 	if (test_bit(AFS_SERVER_FL_MAY_HAVE_CB, &server->flags))
-		afs_fs_give_up_all_callbacks(net, server, &ac, NULL);
+		afs_give_up_callbacks(net, server);
 
 	afs_put_server(net, server, afs_server_trace_destroy);
 }
@@ -571,7 +576,8 @@ void afs_purge_servers(struct afs_net *net)
 /*
  * Get an update for a server's address list.
  */
-static noinline bool afs_update_server_record(struct afs_operation *fc, struct afs_server *server)
+static noinline bool afs_update_server_record(struct afs_operation *op,
+					      struct afs_server *server)
 {
 	struct afs_addr_list *alist, *discard;
 
@@ -580,18 +586,17 @@ static noinline bool afs_update_server_record(struct afs_operation *fc, struct a
 	trace_afs_server(server, atomic_read(&server->ref), atomic_read(&server->active),
 			 afs_server_trace_update);
 
-	alist = afs_vl_lookup_addrs(fc->vnode->volume->cell, fc->key,
-				    &server->uuid);
+	alist = afs_vl_lookup_addrs(op->volume->cell, op->key, &server->uuid);
 	if (IS_ERR(alist)) {
 		if ((PTR_ERR(alist) == -ERESTARTSYS ||
 		     PTR_ERR(alist) == -EINTR) &&
-		    !(fc->flags & AFS_OPERATION_INTR) &&
+		    (op->flags & AFS_OPERATION_UNINTR) &&
 		    server->addresses) {
 			_leave(" = t [intr]");
 			return true;
 		}
-		fc->error = PTR_ERR(alist);
-		_leave(" = f [%d]", fc->error);
+		op->error = PTR_ERR(alist);
+		_leave(" = f [%d]", op->error);
 		return false;
 	}
 
@@ -613,7 +618,7 @@ static noinline bool afs_update_server_record(struct afs_operation *fc, struct a
 /*
  * See if a server's address list needs updating.
  */
-bool afs_check_server_record(struct afs_operation *fc, struct afs_server *server)
+bool afs_check_server_record(struct afs_operation *op, struct afs_server *server)
 {
 	bool success;
 	int ret, retries = 0;
@@ -633,7 +638,7 @@ retry:
 update:
 	if (!test_and_set_bit_lock(AFS_SERVER_FL_UPDATING, &server->flags)) {
 		clear_bit(AFS_SERVER_FL_NEEDS_UPDATE, &server->flags);
-		success = afs_update_server_record(fc, server);
+		success = afs_update_server_record(op, server);
 		clear_bit_unlock(AFS_SERVER_FL_UPDATING, &server->flags);
 		wake_up_bit(&server->flags, AFS_SERVER_FL_UPDATING);
 		_leave(" = %d", success);
@@ -642,10 +647,10 @@ update:
 
 wait:
 	ret = wait_on_bit(&server->flags, AFS_SERVER_FL_UPDATING,
-			  (fc->flags & AFS_OPERATION_INTR) ?
-			  TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE);
+			  (op->flags & AFS_OPERATION_UNINTR) ?
+			  TASK_UNINTERRUPTIBLE : TASK_INTERRUPTIBLE);
 	if (ret == -ERESTARTSYS) {
-		fc->error = ret;
+		op->error = ret;
 		_leave(" = f [intr]");
 		return false;
 	}

@@ -18,6 +18,7 @@ kafs-y := \
 	file.o \
 	flock.o \
 	fsclient.o \
+	fs_operation.o \
 	fs_probe.o \
 	inode.o \
 	main.o \

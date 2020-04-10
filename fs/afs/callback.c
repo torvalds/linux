@@ -46,7 +46,6 @@ static struct afs_cb_interest *afs_create_interest(struct afs_server *server,
 
 	refcount_set(&new->usage, 1);
 	new->sb = vnode->vfs_inode.i_sb;
-	new->vid = vnode->volume->vid;
 	new->server = afs_get_server(server, afs_server_trace_get_new_cbi);
 	INIT_HLIST_NODE(&new->cb_vlink);
 
@@ -286,7 +285,6 @@ static void afs_break_one_callback(struct afs_server *server,
 				   struct afs_vol_interest *vi)
 {
 	struct afs_cb_interest *cbi;
-	struct afs_iget_data data;
 	struct afs_vnode *vnode;
 	struct inode *inode;
 
@@ -305,15 +303,12 @@ static void afs_break_one_callback(struct afs_server *server,
 					   afs_cb_break_for_volume_callback, false);
 			write_unlock(&volume->cb_v_break_lock);
 		} else {
-			data.volume = NULL;
-			data.fid = *fid;
-
 			/* See if we can find a matching inode - even an I_NEW
 			 * inode needs to be marked as it can have its callback
 			 * broken before we finish setting up the local inode.
 			 */
 			inode = find_inode_rcu(cbi->sb, fid->vnode,
-					       afs_iget5_test, &data);
+					       afs_ilookup5_test_by_fid, fid);
 			if (inode) {
 				vnode = AFS_FS_I(inode);
 				afs_break_callback(vnode, afs_cb_break_for_callback);

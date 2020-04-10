@@ -642,7 +642,7 @@ TRACE_EVENT(afs_make_fs_calli,
 
 TRACE_EVENT(afs_make_fs_call1,
 	    TP_PROTO(struct afs_call *call, const struct afs_fid *fid,
-		     const char *name),
+		     const struct qstr *name),
 
 	    TP_ARGS(call, fid, name),
 
@@ -654,8 +654,7 @@ TRACE_EVENT(afs_make_fs_call1,
 			     ),
 
 	    TP_fast_assign(
-		    int __len = strlen(name);
-		    __len = min(__len, 23);
+		    unsigned int __len = min_t(unsigned int, name->len, 23);
 		    __entry->call = call->debug_id;
 		    __entry->op = call->operation_ID;
 		    if (fid) {
@@ -665,7 +664,7 @@ TRACE_EVENT(afs_make_fs_call1,
 			    __entry->fid.vnode = 0;
 			    __entry->fid.unique = 0;
 		    }
-		    memcpy(__entry->name, name, __len);
+		    memcpy(__entry->name, name->name, __len);
 		    __entry->name[__len] = 0;
 			   ),
 
@@ -680,7 +679,7 @@ TRACE_EVENT(afs_make_fs_call1,
 
 TRACE_EVENT(afs_make_fs_call2,
 	    TP_PROTO(struct afs_call *call, const struct afs_fid *fid,
-		     const char *name, const char *name2),
+		     const struct qstr *name, const struct qstr *name2),
 
 	    TP_ARGS(call, fid, name, name2),
 
@@ -693,10 +692,8 @@ TRACE_EVENT(afs_make_fs_call2,
 			     ),
 
 	    TP_fast_assign(
-		    int __len = strlen(name);
-		    int __len2 = strlen(name2);
-		    __len = min(__len, 23);
-		    __len2 = min(__len2, 23);
+		    unsigned int __len = min_t(unsigned int, name->len, 23);
+		    unsigned int __len2 = min_t(unsigned int, name2->len, 23);
 		    __entry->call = call->debug_id;
 		    __entry->op = call->operation_ID;
 		    if (fid) {
@@ -706,9 +703,9 @@ TRACE_EVENT(afs_make_fs_call2,
 			    __entry->fid.vnode = 0;
 			    __entry->fid.unique = 0;
 		    }
-		    memcpy(__entry->name, name, __len);
+		    memcpy(__entry->name, name->name, __len);
 		    __entry->name[__len] = 0;
-		    memcpy(__entry->name2, name2, __len2);
+		    memcpy(__entry->name2, name2->name, __len2);
 		    __entry->name2[__len2] = 0;
 			   ),
 
