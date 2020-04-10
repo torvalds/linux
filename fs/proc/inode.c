@@ -202,6 +202,7 @@ static void unuse_pde(struct proc_dir_entry *pde)
 
 /* pde is locked on entry, unlocked on exit */
 static void close_pdeo(struct proc_dir_entry *pde, struct pde_opener *pdeo)
+	__releases(&pde->pde_unload_lock)
 {
 	/*
 	 * close() (proc_reg_release()) can't delete an entry and proceed:
@@ -258,112 +259,190 @@ void proc_entry_rundown(struct proc_dir_entry *de)
 	spin_unlock(&de->pde_unload_lock);
 }
 
+static loff_t pde_lseek(struct proc_dir_entry *pde, struct file *file, loff_t offset, int whence)
+{
+	typeof_member(struct proc_ops, proc_lseek) lseek;
+
+	lseek = pde->proc_ops->proc_lseek;
+	if (!lseek)
+		lseek = default_llseek;
+	return lseek(file, offset, whence);
+}
+
 static loff_t proc_reg_llseek(struct file *file, loff_t offset, int whence)
 {
 	struct proc_dir_entry *pde = PDE(file_inode(file));
 	loff_t rv = -EINVAL;
-	if (use_pde(pde)) {
-		typeof_member(struct proc_ops, proc_lseek) lseek;
 
-		lseek = pde->proc_ops->proc_lseek;
-		if (!lseek)
-			lseek = default_llseek;
-		rv = lseek(file, offset, whence);
+	if (pde_is_permanent(pde)) {
+		return pde_lseek(pde, file, offset, whence);
+	} else if (use_pde(pde)) {
+		rv = pde_lseek(pde, file, offset, whence);
 		unuse_pde(pde);
 	}
 	return rv;
+}
+
+static ssize_t pde_read(struct proc_dir_entry *pde, struct file *file, char __user *buf, size_t count, loff_t *ppos)
+{
+	typeof_member(struct proc_ops, proc_read) read;
+
+	read = pde->proc_ops->proc_read;
+	if (read)
+		return read(file, buf, count, ppos);
+	return -EIO;
 }
 
 static ssize_t proc_reg_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 {
 	struct proc_dir_entry *pde = PDE(file_inode(file));
 	ssize_t rv = -EIO;
-	if (use_pde(pde)) {
-		typeof_member(struct proc_ops, proc_read) read;
 
-		read = pde->proc_ops->proc_read;
-		if (read)
-			rv = read(file, buf, count, ppos);
+	if (pde_is_permanent(pde)) {
+		return pde_read(pde, file, buf, count, ppos);
+	} else if (use_pde(pde)) {
+		rv = pde_read(pde, file, buf, count, ppos);
 		unuse_pde(pde);
 	}
 	return rv;
+}
+
+static ssize_t pde_write(struct proc_dir_entry *pde, struct file *file, const char __user *buf, size_t count, loff_t *ppos)
+{
+	typeof_member(struct proc_ops, proc_write) write;
+
+	write = pde->proc_ops->proc_write;
+	if (write)
+		return write(file, buf, count, ppos);
+	return -EIO;
 }
 
 static ssize_t proc_reg_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 {
 	struct proc_dir_entry *pde = PDE(file_inode(file));
 	ssize_t rv = -EIO;
-	if (use_pde(pde)) {
-		typeof_member(struct proc_ops, proc_write) write;
 
-		write = pde->proc_ops->proc_write;
-		if (write)
-			rv = write(file, buf, count, ppos);
+	if (pde_is_permanent(pde)) {
+		return pde_write(pde, file, buf, count, ppos);
+	} else if (use_pde(pde)) {
+		rv = pde_write(pde, file, buf, count, ppos);
 		unuse_pde(pde);
 	}
 	return rv;
+}
+
+static __poll_t pde_poll(struct proc_dir_entry *pde, struct file *file, struct poll_table_struct *pts)
+{
+	typeof_member(struct proc_ops, proc_poll) poll;
+
+	poll = pde->proc_ops->proc_poll;
+	if (poll)
+		return poll(file, pts);
+	return DEFAULT_POLLMASK;
 }
 
 static __poll_t proc_reg_poll(struct file *file, struct poll_table_struct *pts)
 {
 	struct proc_dir_entry *pde = PDE(file_inode(file));
 	__poll_t rv = DEFAULT_POLLMASK;
-	if (use_pde(pde)) {
-		typeof_member(struct proc_ops, proc_poll) poll;
 
-		poll = pde->proc_ops->proc_poll;
-		if (poll)
-			rv = poll(file, pts);
+	if (pde_is_permanent(pde)) {
+		return pde_poll(pde, file, pts);
+	} else if (use_pde(pde)) {
+		rv = pde_poll(pde, file, pts);
 		unuse_pde(pde);
 	}
 	return rv;
+}
+
+static long pde_ioctl(struct proc_dir_entry *pde, struct file *file, unsigned int cmd, unsigned long arg)
+{
+	typeof_member(struct proc_ops, proc_ioctl) ioctl;
+
+	ioctl = pde->proc_ops->proc_ioctl;
+	if (ioctl)
+		return ioctl(file, cmd, arg);
+	return -ENOTTY;
 }
 
 static long proc_reg_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct proc_dir_entry *pde = PDE(file_inode(file));
 	long rv = -ENOTTY;
-	if (use_pde(pde)) {
-		typeof_member(struct proc_ops, proc_ioctl) ioctl;
 
-		ioctl = pde->proc_ops->proc_ioctl;
-		if (ioctl)
-			rv = ioctl(file, cmd, arg);
+	if (pde_is_permanent(pde)) {
+		return pde_ioctl(pde, file, cmd, arg);
+	} else if (use_pde(pde)) {
+		rv = pde_ioctl(pde, file, cmd, arg);
 		unuse_pde(pde);
 	}
 	return rv;
 }
 
 #ifdef CONFIG_COMPAT
+static long pde_compat_ioctl(struct proc_dir_entry *pde, struct file *file, unsigned int cmd, unsigned long arg)
+{
+	typeof_member(struct proc_ops, proc_compat_ioctl) compat_ioctl;
+
+	compat_ioctl = pde->proc_ops->proc_compat_ioctl;
+	if (compat_ioctl)
+		return compat_ioctl(file, cmd, arg);
+	return -ENOTTY;
+}
+
 static long proc_reg_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct proc_dir_entry *pde = PDE(file_inode(file));
 	long rv = -ENOTTY;
-	if (use_pde(pde)) {
-		typeof_member(struct proc_ops, proc_compat_ioctl) compat_ioctl;
-
-		compat_ioctl = pde->proc_ops->proc_compat_ioctl;
-		if (compat_ioctl)
-			rv = compat_ioctl(file, cmd, arg);
+	if (pde_is_permanent(pde)) {
+		return pde_compat_ioctl(pde, file, cmd, arg);
+	} else if (use_pde(pde)) {
+		rv = pde_compat_ioctl(pde, file, cmd, arg);
 		unuse_pde(pde);
 	}
 	return rv;
 }
 #endif
 
+static int pde_mmap(struct proc_dir_entry *pde, struct file *file, struct vm_area_struct *vma)
+{
+	typeof_member(struct proc_ops, proc_mmap) mmap;
+
+	mmap = pde->proc_ops->proc_mmap;
+	if (mmap)
+		return mmap(file, vma);
+	return -EIO;
+}
+
 static int proc_reg_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct proc_dir_entry *pde = PDE(file_inode(file));
 	int rv = -EIO;
-	if (use_pde(pde)) {
-		typeof_member(struct proc_ops, proc_mmap) mmap;
 
-		mmap = pde->proc_ops->proc_mmap;
-		if (mmap)
-			rv = mmap(file, vma);
+	if (pde_is_permanent(pde)) {
+		return pde_mmap(pde, file, vma);
+	} else if (use_pde(pde)) {
+		rv = pde_mmap(pde, file, vma);
 		unuse_pde(pde);
 	}
 	return rv;
+}
+
+static unsigned long
+pde_get_unmapped_area(struct proc_dir_entry *pde, struct file *file, unsigned long orig_addr,
+			   unsigned long len, unsigned long pgoff,
+			   unsigned long flags)
+{
+	typeof_member(struct proc_ops, proc_get_unmapped_area) get_area;
+
+	get_area = pde->proc_ops->proc_get_unmapped_area;
+#ifdef CONFIG_MMU
+	if (!get_area)
+		get_area = current->mm->get_unmapped_area;
+#endif
+	if (get_area)
+		return get_area(file, orig_addr, len, pgoff, flags);
+	return orig_addr;
 }
 
 static unsigned long
@@ -374,19 +453,10 @@ proc_reg_get_unmapped_area(struct file *file, unsigned long orig_addr,
 	struct proc_dir_entry *pde = PDE(file_inode(file));
 	unsigned long rv = -EIO;
 
-	if (use_pde(pde)) {
-		typeof_member(struct proc_ops, proc_get_unmapped_area) get_area;
-
-		get_area = pde->proc_ops->proc_get_unmapped_area;
-#ifdef CONFIG_MMU
-		if (!get_area)
-			get_area = current->mm->get_unmapped_area;
-#endif
-
-		if (get_area)
-			rv = get_area(file, orig_addr, len, pgoff, flags);
-		else
-			rv = orig_addr;
+	if (pde_is_permanent(pde)) {
+		return pde_get_unmapped_area(pde, file, orig_addr, len, pgoff, flags);
+	} else if (use_pde(pde)) {
+		rv = pde_get_unmapped_area(pde, file, orig_addr, len, pgoff, flags);
 		unuse_pde(pde);
 	}
 	return rv;
@@ -399,6 +469,13 @@ static int proc_reg_open(struct inode *inode, struct file *file)
 	typeof_member(struct proc_ops, proc_open) open;
 	typeof_member(struct proc_ops, proc_release) release;
 	struct pde_opener *pdeo;
+
+	if (pde_is_permanent(pde)) {
+		open = pde->proc_ops->proc_open;
+		if (open)
+			rv = open(inode, file);
+		return rv;
+	}
 
 	/*
 	 * Ensure that
@@ -449,6 +526,17 @@ static int proc_reg_release(struct inode *inode, struct file *file)
 {
 	struct proc_dir_entry *pde = PDE(inode);
 	struct pde_opener *pdeo;
+
+	if (pde_is_permanent(pde)) {
+		typeof_member(struct proc_ops, proc_release) release;
+
+		release = pde->proc_ops->proc_release;
+		if (release) {
+			return release(inode, file);
+		}
+		return 0;
+	}
+
 	spin_lock(&pde->pde_unload_lock);
 	list_for_each_entry(pdeo, &pde->pde_openers, lh) {
 		if (pdeo->file == file) {

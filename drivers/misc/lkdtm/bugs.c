@@ -226,7 +226,7 @@ void lkdtm_ARRAY_BOUNDS(void)
 {
 	struct array_bounds_flex_array *not_checked;
 	struct array_bounds *checked;
-	int i;
+	volatile int i;
 
 	not_checked = kmalloc(sizeof(*not_checked) * 2, GFP_KERNEL);
 	checked = kmalloc(sizeof(*checked) * 2, GFP_KERNEL);

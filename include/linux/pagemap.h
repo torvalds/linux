@@ -341,9 +341,7 @@ static inline struct page *find_subpage(struct page *head, pgoff_t index)
 	if (PageHuge(head))
 		return head;
 
-	VM_BUG_ON_PAGE(PageTail(head), head);
-
-	return head + (index & (compound_nr(head) - 1));
+	return head + (index & (hpage_nr_pages(head) - 1));
 }
 
 struct page *find_get_entry(struct address_space *mapping, pgoff_t offset);

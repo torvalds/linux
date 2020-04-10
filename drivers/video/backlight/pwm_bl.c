@@ -7,7 +7,6 @@
 
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
-#include <linux/gpio.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -258,8 +257,6 @@ static int pwm_backlight_parse_dt(struct device *dev,
 			     &data->post_pwm_on_delay);
 	of_property_read_u32(node, "pwm-off-delay-ms", &data->pwm_off_delay);
 
-	data->enable_gpio = -EINVAL;
-
 	/*
 	 * Determine the number of brightness levels, if this property is not
 	 * set a default table of brightness levels will be used.
@@ -500,22 +497,6 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 	if (IS_ERR(pb->enable_gpio)) {
 		ret = PTR_ERR(pb->enable_gpio);
 		goto err_alloc;
-	}
-
-	/*
-	 * Compatibility fallback for drivers still using the integer GPIO
-	 * platform data. Must go away soon.
-	 */
-	if (!pb->enable_gpio && gpio_is_valid(data->enable_gpio)) {
-		ret = devm_gpio_request_one(&pdev->dev, data->enable_gpio,
-					    GPIOF_OUT_INIT_HIGH, "enable");
-		if (ret < 0) {
-			dev_err(&pdev->dev, "failed to request GPIO#%d: %d\n",
-				data->enable_gpio, ret);
-			goto err_alloc;
-		}
-
-		pb->enable_gpio = gpio_to_desc(data->enable_gpio);
 	}
 
 	/*

@@ -734,6 +734,7 @@ void mod_freesync_build_vrr_params(struct mod_freesync *mod_freesync,
 {
 	struct core_freesync *core_freesync = NULL;
 	unsigned long long nominal_field_rate_in_uhz = 0;
+	unsigned long long rounded_nominal_in_uhz = 0;
 	unsigned int refresh_range = 0;
 	unsigned long long min_refresh_in_uhz = 0;
 	unsigned long long max_refresh_in_uhz = 0;
@@ -750,17 +751,20 @@ void mod_freesync_build_vrr_params(struct mod_freesync *mod_freesync,
 	min_refresh_in_uhz = in_config->min_refresh_in_uhz;
 	max_refresh_in_uhz = in_config->max_refresh_in_uhz;
 
-	// Don't allow min > max
-	if (min_refresh_in_uhz > max_refresh_in_uhz)
-		min_refresh_in_uhz = max_refresh_in_uhz;
-
 	// Full range may be larger than current video timing, so cap at nominal
 	if (max_refresh_in_uhz > nominal_field_rate_in_uhz)
 		max_refresh_in_uhz = nominal_field_rate_in_uhz;
 
 	// Full range may be larger than current video timing, so cap at nominal
-	if (min_refresh_in_uhz > nominal_field_rate_in_uhz)
-		min_refresh_in_uhz = nominal_field_rate_in_uhz;
+	if (min_refresh_in_uhz > max_refresh_in_uhz)
+		min_refresh_in_uhz = max_refresh_in_uhz;
+
+	// If a monitor reports exactly max refresh of 2x of min, enforce it on nominal
+	rounded_nominal_in_uhz =
+			div_u64(nominal_field_rate_in_uhz + 50000, 100000) * 100000;
+	if (in_config->max_refresh_in_uhz == (2 * in_config->min_refresh_in_uhz) &&
+		in_config->max_refresh_in_uhz == rounded_nominal_in_uhz)
+		min_refresh_in_uhz = div_u64(nominal_field_rate_in_uhz, 2);
 
 	if (!vrr_settings_require_update(core_freesync,
 			in_config, (unsigned int)min_refresh_in_uhz, (unsigned int)max_refresh_in_uhz,
@@ -792,11 +796,6 @@ void mod_freesync_build_vrr_params(struct mod_freesync *mod_freesync,
 		refresh_range = in_out_vrr->max_refresh_in_uhz -
 				in_out_vrr->min_refresh_in_uhz;
 
-		in_out_vrr->btr.margin_in_us = in_out_vrr->max_duration_in_us -
-				2 * in_out_vrr->min_duration_in_us;
-		if (in_out_vrr->btr.margin_in_us > BTR_MAX_MARGIN)
-			in_out_vrr->btr.margin_in_us = BTR_MAX_MARGIN;
-
 		in_out_vrr->supported = true;
 	}
 
@@ -804,9 +803,14 @@ void mod_freesync_build_vrr_params(struct mod_freesync *mod_freesync,
 
 	in_out_vrr->btr.btr_enabled = in_config->btr;
 
-	if (in_out_vrr->max_refresh_in_uhz <
-			2 * in_out_vrr->min_refresh_in_uhz)
+	if (in_out_vrr->max_refresh_in_uhz < (2 * in_out_vrr->min_refresh_in_uhz))
 		in_out_vrr->btr.btr_enabled = false;
+	else {
+		in_out_vrr->btr.margin_in_us = in_out_vrr->max_duration_in_us -
+				2 * in_out_vrr->min_duration_in_us;
+		if (in_out_vrr->btr.margin_in_us > BTR_MAX_MARGIN)
+			in_out_vrr->btr.margin_in_us = BTR_MAX_MARGIN;
+	}
 
 	in_out_vrr->btr.btr_active = false;
 	in_out_vrr->btr.inserted_duration_in_us = 0;
@@ -1008,8 +1012,8 @@ unsigned long long mod_freesync_calc_nominal_field_rate(
 	unsigned int total = stream->timing.h_total * stream->timing.v_total;
 
 	/* Calculate nominal field rate for stream, rounded up to nearest integer */
-	nominal_field_rate_in_uhz = stream->timing.pix_clk_100hz / 10;
-	nominal_field_rate_in_uhz *= 1000ULL * 1000ULL * 1000ULL;
+	nominal_field_rate_in_uhz = stream->timing.pix_clk_100hz;
+	nominal_field_rate_in_uhz *= 100000000ULL;
 
 	nominal_field_rate_in_uhz =	div_u64(nominal_field_rate_in_uhz, total);
 

@@ -361,7 +361,6 @@ static int panel_dpi_probe(struct device *dev,
 	struct panel_desc *desc;
 	unsigned int bus_flags;
 	struct videomode vm;
-	const char *mapping;
 	int ret;
 
 	np = dev->of_node;
@@ -385,16 +384,6 @@ static int panel_dpi_probe(struct device *dev,
 
 	of_property_read_u32(np, "width-mm", &desc->size.width);
 	of_property_read_u32(np, "height-mm", &desc->size.height);
-
-	of_property_read_string(np, "data-mapping", &mapping);
-	if (!strcmp(mapping, "rgb24"))
-		desc->bus_format = MEDIA_BUS_FMT_RGB888_1X24;
-	else if (!strcmp(mapping, "rgb565"))
-		desc->bus_format = MEDIA_BUS_FMT_RGB565_1X16;
-	else if (!strcmp(mapping, "bgr666"))
-		desc->bus_format = MEDIA_BUS_FMT_RGB666_1X18;
-	else if (!strcmp(mapping, "lvds666"))
-		desc->bus_format = MEDIA_BUS_FMT_RGB666_1X24_CPADHI;
 
 	/* Extract bus_flags from display_timing */
 	bus_flags = 0;

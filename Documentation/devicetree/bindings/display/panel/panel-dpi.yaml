@@ -21,15 +21,6 @@ properties:
       - {}
       - const: panel-dpi
 
-  data-mapping:
-    enum:
-      - rgb24
-      - rgb565
-      - bgr666
-    description: |
-      Describes the media format, how the display panel is connected
-      to the display interface.
-
   backlight: true
   enable-gpios: true
   height-mm: true
@@ -52,7 +43,6 @@ examples:
         compatible = "osddisplays,osd057T0559-34ts", "panel-dpi";
         label = "osddisplay";
         power-supply = <&vcc_supply>;
-        data-mapping = "rgb565";
         backlight = <&backlight>;
 
         port {
