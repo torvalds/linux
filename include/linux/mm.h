@@ -1927,6 +1927,18 @@ static inline void sync_mm_rss(struct mm_struct *mm)
 }
 #endif
 
+#ifndef CONFIG_ARCH_HAS_PTE_SPECIAL
+static inline int pte_special(pte_t pte)
+{
+	return 0;
+}
+
+static inline pte_t pte_mkspecial(pte_t pte)
+{
+	return pte;
+}
+#endif
+
 #ifndef CONFIG_ARCH_HAS_PTE_DEVMAP
 static inline int pte_devmap(pte_t pte)
 {
