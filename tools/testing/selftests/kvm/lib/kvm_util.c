@@ -433,34 +433,38 @@ void kvm_vm_release(struct kvm_vm *vmp)
 		"  vmp->kvm_fd: %i rc: %i errno: %i", vmp->kvm_fd, ret, errno);
 }
 
+static void __vm_mem_region_delete(struct kvm_vm *vm,
+				   struct userspace_mem_region *region)
+{
+	int ret;
+
+	list_del(&region->list);
+
+	region->region.memory_size = 0;
+	ret = ioctl(vm->fd, KVM_SET_USER_MEMORY_REGION, &region->region);
+	TEST_ASSERT(ret == 0, "KVM_SET_USER_MEMORY_REGION IOCTL failed, "
+		    "rc: %i errno: %i", ret, errno);
+
+	sparsebit_free(&region->unused_phy_pages);
+	ret = munmap(region->mmap_start, region->mmap_size);
+	TEST_ASSERT(ret == 0, "munmap failed, rc: %i errno: %i", ret, errno);
+
+	free(region);
+}
+
 /*
  * Destroys and frees the VM pointed to by vmp.
  */
 void kvm_vm_free(struct kvm_vm *vmp)
 {
 	struct userspace_mem_region *region, *tmp;
-	int ret;
 
 	if (vmp == NULL)
 		return;
 
 	/* Free userspace_mem_regions. */
-	list_for_each_entry_safe(region, tmp, &vmp->userspace_mem_regions, list) {
-		list_del(&region->list);
-
-		region->region.memory_size = 0;
-		ret = ioctl(vmp->fd, KVM_SET_USER_MEMORY_REGION,
-			&region->region);
-		TEST_ASSERT(ret == 0, "KVM_SET_USER_MEMORY_REGION IOCTL failed, "
-			"rc: %i errno: %i", ret, errno);
-
-		sparsebit_free(&region->unused_phy_pages);
-		ret = munmap(region->mmap_start, region->mmap_size);
-		TEST_ASSERT(ret == 0, "munmap failed, rc: %i errno: %i",
-			    ret, errno);
-
-		free(region);
-	}
+	list_for_each_entry_safe(region, tmp, &vmp->userspace_mem_regions, list)
+		__vm_mem_region_delete(vmp, region);
 
 	/* Free sparsebit arrays. */
 	sparsebit_free(&vmp->vpages_valid);
@@ -773,6 +777,24 @@ void vm_mem_region_move(struct kvm_vm *vm, uint32_t slot, uint64_t new_gpa)
 	TEST_ASSERT(!ret, "KVM_SET_USER_MEMORY_REGION failed\n"
 		    "ret: %i errno: %i slot: %u new_gpa: 0x%lx",
 		    ret, errno, slot, new_gpa);
+}
+
+/*
+ * VM Memory Region Delete
+ *
+ * Input Args:
+ *   vm - Virtual Machine
+ *   slot - Slot of the memory region to delete
+ *
+ * Output Args: None
+ *
+ * Return: None
+ *
+ * Delete a memory region.
+ */
+void vm_mem_region_delete(struct kvm_vm *vm, uint32_t slot)
+{
+	__vm_mem_region_delete(vm, memslot2region(vm, slot));
 }
 
 /*
