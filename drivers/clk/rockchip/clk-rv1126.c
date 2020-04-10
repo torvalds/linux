@@ -772,7 +772,7 @@ static struct rockchip_clk_branch rv1126_clk_branches[] __initdata = {
 	COMPOSITE(MCLK_I2S1_DIV, "mclk_i2s1_div", mux_cpll_gpll_p, 0,
 			RV1126_CLKSEL_CON(31), 7, 1, MFLAGS, 0, 7, DFLAGS,
 			RV1126_CLKGATE_CON(10), 1, GFLAGS),
-	COMPOSITE_FRACMUX(MCLK_I2S1_FRACDIV, "mclk_i2s1_fracdiv", "mclk_i2s1_div", 0,
+	COMPOSITE_FRACMUX(MCLK_I2S1_FRACDIV, "mclk_i2s1_fracdiv", "mclk_i2s1_div", CLK_SET_RATE_PARENT,
 			RV1126_CLKSEL_CON(32), 0,
 			RV1126_CLKGATE_CON(10), 2, GFLAGS,
 			&rv1126_i2s1_fracmux, RV1126_FRAC_MAX_PRATE),
