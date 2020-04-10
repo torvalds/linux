@@ -860,7 +860,10 @@ static inline unsigned long pmd_index(unsigned long address)
  *
  * this function returns the index of the entry in the pte page which would
  * control the given virtual address
+ *
+ * Also define macro so we can test if pte_index is defined for arch.
  */
+#define pte_index pte_index
 static inline unsigned long pte_index(unsigned long address)
 {
 	return (address >> PAGE_SHIFT) & (PTRS_PER_PTE - 1);
