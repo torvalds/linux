@@ -4723,10 +4723,10 @@ amdgpu_dm_connector_atomic_duplicate_state(struct drm_connector *connector)
 static int
 amdgpu_dm_connector_late_register(struct drm_connector *connector)
 {
+#if defined(CONFIG_DEBUG_FS)
 	struct amdgpu_dm_connector *amdgpu_dm_connector =
 		to_amdgpu_dm_connector(connector);
 
-#if defined(CONFIG_DEBUG_FS)
 	connector_debugfs_init(amdgpu_dm_connector);
 #endif
 
@@ -5929,7 +5929,8 @@ void amdgpu_dm_connector_init_helper(struct amdgpu_display_manager *dm,
 				adev->mode_info.underscan_vborder_property,
 				0);
 
-	drm_connector_attach_max_bpc_property(&aconnector->base, 8, 16);
+	if (!aconnector->mst_port)
+		drm_connector_attach_max_bpc_property(&aconnector->base, 8, 16);
 
 	/* This defaults to the max in the range, but we want 8bpc for non-edp. */
 	aconnector->base.state->max_bpc = (connector_type == DRM_MODE_CONNECTOR_eDP) ? 16 : 8;
@@ -5948,8 +5949,9 @@ void amdgpu_dm_connector_init_helper(struct amdgpu_display_manager *dm,
 			&aconnector->base.base,
 			dm->ddev->mode_config.hdr_output_metadata_property, 0);
 
-		drm_connector_attach_vrr_capable_property(
-			&aconnector->base);
+		if (!aconnector->mst_port)
+			drm_connector_attach_vrr_capable_property(&aconnector->base);
+
 #ifdef CONFIG_DRM_AMD_DC_HDCP
 		if (adev->dm.hdcp_workqueue)
 			drm_connector_attach_content_protection_property(&aconnector->base, true);
@@ -6272,12 +6274,6 @@ static int get_cursor_position(struct drm_plane *plane, struct drm_crtc *crtc,
 	    y <= -amdgpu_crtc->max_cursor_height)
 		return 0;
 
-	if (crtc->primary->state) {
-		/* avivo cursor are offset into the total surface */
-		x += crtc->primary->state->src_x >> 16;
-		y += crtc->primary->state->src_y >> 16;
-	}
-
 	if (x < 0) {
 		xorigin = min(-x, amdgpu_crtc->max_cursor_width - 1);
 		x = 0;
@@ -6287,6 +6283,7 @@ static int get_cursor_position(struct drm_plane *plane, struct drm_crtc *crtc,
 		y = 0;
 	}
 	position->enable = true;
+	position->translate_by_source = true;
 	position->x = x;
 	position->y = y;
 	position->x_hotspot = xorigin;

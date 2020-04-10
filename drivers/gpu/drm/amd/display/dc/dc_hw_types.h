@@ -385,6 +385,8 @@ struct dc_cursor_position {
 	 */
 	bool enable;
 
+	/* Translate cursor x/y by the source rectangle for each plane. */
+	bool translate_by_source;
 };
 
 struct dc_cursor_mi_param {

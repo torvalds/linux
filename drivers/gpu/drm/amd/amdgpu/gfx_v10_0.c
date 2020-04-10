@@ -279,7 +279,7 @@ static const struct soc15_reg_golden golden_settings_gc_10_1_2_nv12[] =
 
 #define DEFAULT_SH_MEM_CONFIG \
 	((SH_MEM_ADDRESS_MODE_64 << SH_MEM_CONFIG__ADDRESS_MODE__SHIFT) | \
-	 (SH_MEM_ALIGNMENT_MODE_UNALIGNED << SH_MEM_CONFIG__ALIGNMENT_MODE__SHIFT) | \
+	 (SH_MEM_ALIGNMENT_MODE_DWORD << SH_MEM_CONFIG__ALIGNMENT_MODE__SHIFT) | \
 	 (SH_MEM_RETRY_MODE_ALL << SH_MEM_CONFIG__RETRY_MODE__SHIFT) | \
 	 (3 << SH_MEM_CONFIG__INITIAL_INST_PREFETCH__SHIFT))
 
@@ -4104,6 +4104,12 @@ static void gfx_v10_0_update_medium_grain_clock_gating(struct amdgpu_device *ade
 
 	/* It is disabled by HW by default */
 	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_GFX_MGCG)) {
+		/* 0 - Disable some blocks' MGCG */
+		WREG32_SOC15(GC, 0, mmGRBM_GFX_INDEX, 0xe0000000);
+		WREG32_SOC15(GC, 0, mmCGTT_WD_CLK_CTRL, 0xff000000);
+		WREG32_SOC15(GC, 0, mmCGTT_VGT_CLK_CTRL, 0xff000000);
+		WREG32_SOC15(GC, 0, mmCGTT_IA_CLK_CTRL, 0xff000000);
+
 		/* 1 - RLC_CGTT_MGCG_OVERRIDE */
 		def = data = RREG32_SOC15(GC, 0, mmRLC_CGTT_MGCG_OVERRIDE);
 		data &= ~(RLC_CGTT_MGCG_OVERRIDE__GRBM_CGTT_SCLK_OVERRIDE_MASK |
@@ -4143,19 +4149,20 @@ static void gfx_v10_0_update_medium_grain_clock_gating(struct amdgpu_device *ade
 		if (def != data)
 			WREG32_SOC15(GC, 0, mmRLC_CGTT_MGCG_OVERRIDE, data);
 
-		/* 2 - disable MGLS in RLC */
+		/* 2 - disable MGLS in CP */
+		data = RREG32_SOC15(GC, 0, mmCP_MEM_SLP_CNTL);
+		if (data & CP_MEM_SLP_CNTL__CP_MEM_LS_EN_MASK) {
+			data &= ~CP_MEM_SLP_CNTL__CP_MEM_LS_EN_MASK;
+			WREG32_SOC15(GC, 0, mmCP_MEM_SLP_CNTL, data);
+		}
+
+		/* 3 - disable MGLS in RLC */
 		data = RREG32_SOC15(GC, 0, mmRLC_MEM_SLP_CNTL);
 		if (data & RLC_MEM_SLP_CNTL__RLC_MEM_LS_EN_MASK) {
 			data &= ~RLC_MEM_SLP_CNTL__RLC_MEM_LS_EN_MASK;
 			WREG32_SOC15(GC, 0, mmRLC_MEM_SLP_CNTL, data);
 		}
 
-		/* 3 - disable MGLS in CP */
-		data = RREG32_SOC15(GC, 0, mmCP_MEM_SLP_CNTL);
-		if (data & CP_MEM_SLP_CNTL__CP_MEM_LS_EN_MASK) {
-			data &= ~CP_MEM_SLP_CNTL__CP_MEM_LS_EN_MASK;
-			WREG32_SOC15(GC, 0, mmCP_MEM_SLP_CNTL, data);
-		}
 	}
 }
 
@@ -4266,7 +4273,7 @@ static int gfx_v10_0_update_gfx_clock_gating(struct amdgpu_device *adev,
 		/* ===  CGCG /CGLS for GFX 3D Only === */
 		gfx_v10_0_update_3d_clock_gating(adev, enable);
 		/* ===  MGCG + MGLS === */
-		gfx_v10_0_update_medium_grain_clock_gating(adev, enable);
+		/* gfx_v10_0_update_medium_grain_clock_gating(adev, enable); */
 	}
 
 	if (adev->cg_flags &
