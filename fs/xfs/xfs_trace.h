@@ -1001,8 +1001,6 @@ DECLARE_EVENT_CLASS(xfs_loggrant_class,
 DEFINE_EVENT(xfs_loggrant_class, name, \
 	TP_PROTO(struct xlog *log, struct xlog_ticket *tic), \
 	TP_ARGS(log, tic))
-DEFINE_LOGGRANT_EVENT(xfs_log_done_nonperm);
-DEFINE_LOGGRANT_EVENT(xfs_log_done_perm);
 DEFINE_LOGGRANT_EVENT(xfs_log_umount_write);
 DEFINE_LOGGRANT_EVENT(xfs_log_grant_sleep);
 DEFINE_LOGGRANT_EVENT(xfs_log_grant_wake);
@@ -1011,12 +1009,13 @@ DEFINE_LOGGRANT_EVENT(xfs_log_reserve);
 DEFINE_LOGGRANT_EVENT(xfs_log_reserve_exit);
 DEFINE_LOGGRANT_EVENT(xfs_log_regrant);
 DEFINE_LOGGRANT_EVENT(xfs_log_regrant_exit);
-DEFINE_LOGGRANT_EVENT(xfs_log_regrant_reserve_enter);
-DEFINE_LOGGRANT_EVENT(xfs_log_regrant_reserve_exit);
-DEFINE_LOGGRANT_EVENT(xfs_log_regrant_reserve_sub);
-DEFINE_LOGGRANT_EVENT(xfs_log_ungrant_enter);
-DEFINE_LOGGRANT_EVENT(xfs_log_ungrant_exit);
-DEFINE_LOGGRANT_EVENT(xfs_log_ungrant_sub);
+DEFINE_LOGGRANT_EVENT(xfs_log_ticket_regrant);
+DEFINE_LOGGRANT_EVENT(xfs_log_ticket_regrant_exit);
+DEFINE_LOGGRANT_EVENT(xfs_log_ticket_regrant_sub);
+DEFINE_LOGGRANT_EVENT(xfs_log_ticket_ungrant);
+DEFINE_LOGGRANT_EVENT(xfs_log_ticket_ungrant_sub);
+DEFINE_LOGGRANT_EVENT(xfs_log_ticket_ungrant_exit);
+DEFINE_LOGGRANT_EVENT(xfs_log_cil_wait);
 
 DECLARE_EVENT_CLASS(xfs_log_item_class,
 	TP_PROTO(struct xfs_log_item *lip),
