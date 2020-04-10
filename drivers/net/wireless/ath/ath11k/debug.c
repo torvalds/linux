@@ -803,6 +803,9 @@ static const struct file_operations fops_soc_rx_stats = {
 
 int ath11k_debug_pdev_create(struct ath11k_base *ab)
 {
+	if (test_bit(ATH11K_FLAG_REGISTERED, &ab->dev_flags))
+		return 0;
+
 	ab->debugfs_soc = debugfs_create_dir(ab->hw_params.name, ab->debugfs_ath11k);
 
 	if (IS_ERR_OR_NULL(ab->debugfs_soc)) {

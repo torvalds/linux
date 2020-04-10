@@ -5891,6 +5891,9 @@ int ath11k_mac_register(struct ath11k_base *ab)
 	int i;
 	int ret;
 
+	if (test_bit(ATH11K_FLAG_REGISTERED, &ab->dev_flags))
+		return 0;
+
 	for (i = 0; i < ab->num_radios; i++) {
 		pdev = &ab->pdevs[i];
 		ar = pdev->ar;
