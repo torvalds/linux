@@ -851,31 +851,42 @@ static void reset_fdc_info(int fdc, int mode)
 			drive_state[drive].track = NEED_2_RECAL;
 }
 
-/* selects the fdc and drive, and enables the fdc's input/dma. */
+/*
+ * selects the fdc and drive, and enables the fdc's input/dma.
+ * Both current_drive and current_fdc are changed to match the new drive.
+ */
 static void set_fdc(int drive)
 {
-	unsigned int new_fdc = current_fdc;
+	unsigned int fdc;
 
-	if (drive >= 0 && drive < N_DRIVE) {
-		new_fdc = FDC(drive);
-		current_drive = drive;
+	if (drive < 0 || drive >= N_DRIVE) {
+		pr_info("bad drive value %d\n", drive);
+		return;
 	}
-	if (new_fdc >= N_FDC) {
+
+	fdc = FDC(drive);
+	if (fdc >= N_FDC) {
 		pr_info("bad fdc value\n");
 		return;
 	}
-	current_fdc = new_fdc;
-	set_dor(current_fdc, ~0, 8);
+
+	set_dor(fdc, ~0, 8);
 #if N_FDC > 1
-	set_dor(1 - current_fdc, ~8, 0);
+	set_dor(1 - fdc, ~8, 0);
 #endif
-	if (fdc_state[current_fdc].rawcmd == 2)
-		reset_fdc_info(current_fdc, 1);
-	if (fdc_inb(current_fdc, FD_STATUS) != STATUS_READY)
-		fdc_state[current_fdc].reset = 1;
+	if (fdc_state[fdc].rawcmd == 2)
+		reset_fdc_info(fdc, 1);
+	if (fdc_inb(fdc, FD_STATUS) != STATUS_READY)
+		fdc_state[fdc].reset = 1;
+
+	current_drive = drive;
+	current_fdc = fdc;
 }
 
-/* locks the driver */
+/*
+ * locks the driver.
+ * Both current_drive and current_fdc are changed to match the new drive.
+ */
 static int lock_fdc(int drive)
 {
 	if (WARN(atomic_read(&usage_count) == 0,
@@ -3000,6 +3011,10 @@ static const struct cont_t reset_cont = {
 	.done		= generic_done
 };
 
+/*
+ * Resets the FDC connected to drive <drive>.
+ * Both current_drive and current_fdc are changed to match the new drive.
+ */
 static int user_reset_fdc(int drive, int arg, bool interruptible)
 {
 	int ret;
