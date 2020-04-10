@@ -509,6 +509,7 @@ static void wfx_do_join(struct wfx_vif *wvif)
 		hif_set_block_ack_policy(wvif, 0xFF, 0xFF);
 
 	wfx_set_mfp(wvif, bss);
+	cfg80211_put_bss(wvif->wdev->hw->wiphy, bss);
 
 	ret = hif_join(wvif, conf, wvif->channel, ssid, ssidlen);
 	if (ret) {
@@ -538,8 +539,6 @@ static void wfx_do_join(struct wfx_vif *wvif)
 	wfx_update_filtering(wvif);
 
 	mutex_unlock(&wvif->wdev->conf_mutex);
-	if (bss)
-		cfg80211_put_bss(wvif->wdev->hw->wiphy, bss);
 }
 
 static void wfx_unjoin_work(struct work_struct *work)
