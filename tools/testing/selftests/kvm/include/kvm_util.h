@@ -313,11 +313,26 @@ uint64_t get_ucall(struct kvm_vm *vm, uint32_t vcpu_id, struct ucall *uc);
 
 #define GUEST_SYNC(stage)	ucall(UCALL_SYNC, 2, "hello", stage)
 #define GUEST_DONE()		ucall(UCALL_DONE, 0)
-#define GUEST_ASSERT(_condition) do {			\
-	if (!(_condition))				\
-		ucall(UCALL_ABORT, 2,			\
-			"Failed guest assert: "		\
-			#_condition, __LINE__);		\
+#define __GUEST_ASSERT(_condition, _nargs, _args...) do {	\
+	if (!(_condition))					\
+		ucall(UCALL_ABORT, 2 + _nargs,			\
+			"Failed guest assert: "			\
+			#_condition, __LINE__, _args);		\
 } while (0)
+
+#define GUEST_ASSERT(_condition) \
+	__GUEST_ASSERT((_condition), 0, 0)
+
+#define GUEST_ASSERT_1(_condition, arg1) \
+	__GUEST_ASSERT((_condition), 1, (arg1))
+
+#define GUEST_ASSERT_2(_condition, arg1, arg2) \
+	__GUEST_ASSERT((_condition), 2, (arg1), (arg2))
+
+#define GUEST_ASSERT_3(_condition, arg1, arg2, arg3) \
+	__GUEST_ASSERT((_condition), 3, (arg1), (arg2), (arg3))
+
+#define GUEST_ASSERT_4(_condition, arg1, arg2, arg3, arg4) \
+	__GUEST_ASSERT((_condition), 4, (arg1), (arg2), (arg3), (arg4))
 
 #endif /* SELFTEST_KVM_UTIL_H */
