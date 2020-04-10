@@ -484,7 +484,7 @@ static void wfx_do_join(struct wfx_vif *wvif)
 		wvif->beacon_int = 1;
 
 	rcu_read_lock(); // protect ssidie
-	if (!conf->ibss_joined)
+	if (bss)
 		ssidie = ieee80211_bss_get_ie(bss, WLAN_EID_SSID);
 	if (ssidie) {
 		ssidlen = ssidie[1];
