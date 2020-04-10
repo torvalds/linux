@@ -102,7 +102,7 @@ static int qi_lb60_ooblayout_free(struct mtd_info *mtd, int section,
 	return 0;
 }
 
-const struct mtd_ooblayout_ops qi_lb60_ooblayout_ops = {
+static const struct mtd_ooblayout_ops qi_lb60_ooblayout_ops = {
 	.ecc = qi_lb60_ooblayout_ecc,
 	.free = qi_lb60_ooblayout_free,
 };
