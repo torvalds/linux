@@ -289,12 +289,36 @@ static void test_delete_memory_region(void)
 	kvm_vm_free(vm);
 }
 
+static void test_zero_memory_regions(void)
+{
+	struct kvm_run *run;
+	struct kvm_vm *vm;
+
+	pr_info("Testing KVM_RUN with zero added memory regions\n");
+
+	vm = vm_create(VM_MODE_DEFAULT, 0, O_RDWR);
+	vm_vcpu_add(vm, VCPU_ID);
+
+	TEST_ASSERT(!ioctl(vm_get_fd(vm), KVM_SET_NR_MMU_PAGES, 64),
+		    "KVM_SET_NR_MMU_PAGES failed, errno = %d\n", errno);
+
+	vcpu_run(vm, VCPU_ID);
+
+	run = vcpu_state(vm, VCPU_ID);
+	TEST_ASSERT(run->exit_reason == KVM_EXIT_INTERNAL_ERROR,
+		    "Unexpected exit_reason = %u\n", run->exit_reason);
+
+	kvm_vm_free(vm);
+}
+
 int main(int argc, char *argv[])
 {
 	int i, loops;
 
 	/* Tell stdout not to buffer its content */
 	setbuf(stdout, NULL);
+
+	test_zero_memory_regions();
 
 	if (argc > 1)
 		loops = atoi(argv[1]);
