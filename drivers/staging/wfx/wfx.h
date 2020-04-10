@@ -99,7 +99,6 @@ struct wfx_vif {
 	struct work_struct	bss_params_work;
 
 	int			join_complete_status;
-	struct work_struct	unjoin_work;
 
 	/* avoid some operations in parallel with scan */
 	struct mutex		scan_lock;

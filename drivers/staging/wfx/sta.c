@@ -354,14 +354,12 @@ static void wfx_event_handler_work(struct work_struct *work)
 	list_for_each_entry(event, &list, link) {
 		switch (event->evt.event_id) {
 		case HIF_EVENT_IND_BSSLOST:
-			cancel_work_sync(&wvif->unjoin_work);
 			mutex_lock(&wvif->scan_lock);
 			wfx_cqm_bssloss_sm(wvif, 1, 0, 0);
 			mutex_unlock(&wvif->scan_lock);
 			break;
 		case HIF_EVENT_IND_BSSREGAINED:
 			wfx_cqm_bssloss_sm(wvif, 0, 0, 0);
-			cancel_work_sync(&wvif->unjoin_work);
 			break;
 		case HIF_EVENT_IND_RCPI_RSSI:
 			wfx_event_report_rssi(wvif,
@@ -401,21 +399,20 @@ static void wfx_bss_params_work(struct work_struct *work)
 	mutex_unlock(&wvif->wdev->conf_mutex);
 }
 
+// Call it with wdev->conf_mutex locked
 static void wfx_do_unjoin(struct wfx_vif *wvif)
 {
-	mutex_lock(&wvif->wdev->conf_mutex);
-
 	if (!wvif->state)
-		goto done;
+		return;
 
 	if (wvif->state == WFX_STATE_AP)
-		goto done;
+		return;
 
 	cancel_work_sync(&wvif->update_filtering_work);
 	wvif->state = WFX_STATE_PASSIVE;
 
 	/* Unjoin is a reset. */
-	wfx_tx_flush(wvif->wdev);
+	wfx_tx_lock_flush(wvif->wdev);
 	hif_keep_alive_period(wvif, 0);
 	hif_reset(wvif, false);
 	wfx_tx_policy_init(wvif);
@@ -430,9 +427,7 @@ static void wfx_do_unjoin(struct wfx_vif *wvif)
 	wvif->disable_beacon_filter = false;
 	wfx_update_filtering(wvif);
 	memset(&wvif->bss_params, 0, sizeof(wvif->bss_params));
-
-done:
-	mutex_unlock(&wvif->wdev->conf_mutex);
+	wfx_tx_unlock(wvif->wdev);
 }
 
 static void wfx_set_mfp(struct wfx_vif *wvif,
@@ -476,6 +471,7 @@ static void wfx_do_join(struct wfx_vif *wvif)
 	int ssidlen = 0;
 
 	wfx_tx_lock_flush(wvif->wdev);
+	mutex_lock(&wvif->wdev->conf_mutex);
 
 	if (wvif->state)
 		wfx_do_unjoin(wvif);
@@ -484,11 +480,10 @@ static void wfx_do_join(struct wfx_vif *wvif)
 			       conf->bssid, NULL, 0,
 			       IEEE80211_BSS_TYPE_ANY, IEEE80211_PRIVACY_ANY);
 	if (!bss && !conf->ibss_joined) {
+		mutex_unlock(&wvif->wdev->conf_mutex);
 		wfx_tx_unlock(wvif->wdev);
 		return;
 	}
-
-	mutex_lock(&wvif->wdev->conf_mutex);
 
 	/* Sanity check beacon interval */
 	if (!wvif->beacon_int)
@@ -515,16 +510,13 @@ static void wfx_do_join(struct wfx_vif *wvif)
 	if (ret) {
 		ieee80211_connection_loss(wvif->vif);
 		wvif->join_complete_status = -1;
-		/* Tx lock still held, unjoin will clear it. */
-		if (!schedule_work(&wvif->unjoin_work))
-			wfx_tx_unlock(wvif->wdev);
+		wfx_do_unjoin(wvif);
 	} else {
 		wvif->join_complete_status = 0;
 		if (wvif->vif->type == NL80211_IFTYPE_ADHOC)
 			wvif->state = WFX_STATE_IBSS;
 		else
 			wvif->state = WFX_STATE_PRE_STA;
-		wfx_tx_unlock(wvif->wdev);
 
 		/* Upload keys */
 		wfx_upload_keys(wvif);
@@ -535,18 +527,10 @@ static void wfx_do_join(struct wfx_vif *wvif)
 		 * receives at least one
 		 */
 		wvif->disable_beacon_filter = true;
+		wfx_update_filtering(wvif);
 	}
-	wfx_update_filtering(wvif);
-
-	mutex_unlock(&wvif->wdev->conf_mutex);
-}
-
-static void wfx_unjoin_work(struct work_struct *work)
-{
-	struct wfx_vif *wvif = container_of(work, struct wfx_vif, unjoin_work);
-
-	wfx_do_unjoin(wvif);
 	wfx_tx_unlock(wvif->wdev);
+	mutex_unlock(&wvif->wdev->conf_mutex);
 }
 
 int wfx_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
@@ -672,7 +656,6 @@ static void wfx_join_finalize(struct wfx_vif *wvif,
 		hif_dual_cts_protection(wvif, false);
 
 	wfx_cqm_bssloss_sm(wvif, 0, 0, 0);
-	cancel_work_sync(&wvif->unjoin_work);
 
 	wvif->bss_params.beacon_lost_count = 20;
 	wvif->bss_params.aid = info->aid;
@@ -754,10 +737,7 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changed & BSS_CHANGED_ASSOC && !info->assoc &&
 	    (wvif->state == WFX_STATE_STA || wvif->state == WFX_STATE_IBSS)) {
-		/* Shedule unjoin work */
-		wfx_tx_lock(wdev);
-		if (!schedule_work(&wvif->unjoin_work))
-			wfx_tx_unlock(wdev);
+		wfx_do_unjoin(wvif);
 	} else {
 		if (changed & BSS_CHANGED_BEACON_INT) {
 			if (info->ibss_joined)
@@ -999,7 +979,6 @@ int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	complete(&wvif->set_pm_mode_complete);
 	INIT_WORK(&wvif->update_filtering_work, wfx_update_filtering_work);
 	INIT_WORK(&wvif->bss_params_work, wfx_bss_params_work);
-	INIT_WORK(&wvif->unjoin_work, wfx_unjoin_work);
 	INIT_WORK(&wvif->tx_policy_upload_work, wfx_tx_policy_upload_work);
 
 	mutex_init(&wvif->scan_lock);
@@ -1039,9 +1018,7 @@ void wfx_remove_interface(struct ieee80211_hw *hw,
 	case WFX_STATE_PRE_STA:
 	case WFX_STATE_STA:
 	case WFX_STATE_IBSS:
-		wfx_tx_lock_flush(wdev);
-		if (!schedule_work(&wvif->unjoin_work))
-			wfx_tx_unlock(wdev);
+		wfx_do_unjoin(wvif);
 		break;
 	case WFX_STATE_AP:
 		/* reset.link_id = 0; */
@@ -1057,7 +1034,6 @@ void wfx_remove_interface(struct ieee80211_hw *hw,
 	hif_set_macaddr(wvif, NULL);
 
 	wfx_cqm_bssloss_sm(wvif, 0, 0, 0);
-	cancel_work_sync(&wvif->unjoin_work);
 	wfx_free_event_queue(wvif);
 
 	wdev->vif[wvif->id] = NULL;
