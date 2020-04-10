@@ -471,16 +471,11 @@ static void wfx_do_join(struct wfx_vif *wvif)
 	int ssidlen = 0;
 
 	wfx_tx_lock_flush(wvif->wdev);
-	mutex_lock(&wvif->wdev->conf_mutex);
-
-	if (wvif->state)
-		wfx_do_unjoin(wvif);
 
 	bss = cfg80211_get_bss(wvif->wdev->hw->wiphy, wvif->channel,
 			       conf->bssid, NULL, 0,
 			       IEEE80211_BSS_TYPE_ANY, IEEE80211_PRIVACY_ANY);
 	if (!bss && !conf->ibss_joined) {
-		mutex_unlock(&wvif->wdev->conf_mutex);
 		wfx_tx_unlock(wvif->wdev);
 		return;
 	}
@@ -530,7 +525,6 @@ static void wfx_do_join(struct wfx_vif *wvif)
 		wfx_update_filtering(wvif);
 	}
 	wfx_tx_unlock(wvif->wdev);
-	mutex_unlock(&wvif->wdev->conf_mutex);
 }
 
 int wfx_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
@@ -653,6 +647,7 @@ static void wfx_join_finalize(struct wfx_vif *wvif,
 	hif_set_association_mode(wvif, info);
 
 	if (!info->ibss_joined) {
+		wvif->state = WFX_STATE_STA;
 		hif_keep_alive_period(wvif, 30 /* sec */);
 		hif_set_bss_params(wvif, &wvif->bss_params);
 		hif_set_beacon_wakeup_period(wvif, info->dtim_period,
@@ -681,7 +676,6 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw,
 {
 	struct wfx_dev *wdev = hw->priv;
 	struct wfx_vif *wvif = (struct wfx_vif *) vif->drv_priv;
-	bool do_join = false;
 	int i;
 
 	mutex_lock(&wdev->conf_mutex);
@@ -697,6 +691,14 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw,
 				arp_addr = NULL;
 			hif_set_arp_ipv4_filter(wvif, i, arp_addr);
 		}
+	}
+
+	if (changed & BSS_CHANGED_BASIC_RATES ||
+	    changed & BSS_CHANGED_BEACON_INT ||
+	    changed & BSS_CHANGED_BSSID) {
+		if (vif->type == NL80211_IFTYPE_STATION ||
+		    vif->type == NL80211_IFTYPE_ADHOC)
+			wfx_do_join(wvif);
 	}
 
 	if (changed & BSS_CHANGED_AP_PROBE_RESP ||
@@ -718,41 +720,14 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw,
 		wfx_tx_unlock(wdev);
 	}
 
-	if (changed & BSS_CHANGED_ASSOC && !info->assoc &&
-	    (wvif->state == WFX_STATE_STA || wvif->state == WFX_STATE_IBSS)) {
-		wfx_do_unjoin(wvif);
-	} else {
-		if (changed & BSS_CHANGED_BEACON_INT) {
-			if (info->ibss_joined)
-				do_join = true;
-		}
-
-		if (changed & BSS_CHANGED_BSSID)
-			do_join = true;
-
-		if (changed & BSS_CHANGED_ASSOC ||
-		    changed & BSS_CHANGED_BSSID ||
-		    changed & BSS_CHANGED_IBSS ||
-		    changed & BSS_CHANGED_BASIC_RATES ||
-		    changed & BSS_CHANGED_HT) {
-			if (info->assoc) {
-				if (wvif->state < WFX_STATE_PRE_STA) {
-					ieee80211_connection_loss(vif);
-					mutex_unlock(&wdev->conf_mutex);
-					return;
-				} else if (wvif->state == WFX_STATE_PRE_STA) {
-					wvif->state = WFX_STATE_STA;
-				}
-			} else {
-				do_join = true;
-			}
-
-			if (info->assoc || info->ibss_joined)
-				wfx_join_finalize(wvif, info);
-			else
-				memset(&wvif->bss_params, 0,
-				       sizeof(wvif->bss_params));
-		}
+	if (changed & BSS_CHANGED_ASSOC) {
+		if (info->assoc || info->ibss_joined)
+			wfx_join_finalize(wvif, info);
+		else if (!info->assoc && vif->type == NL80211_IFTYPE_STATION)
+			wfx_do_unjoin(wvif);
+		else
+			dev_warn(wdev->dev, "%s: misunderstood change: ASSOC\n",
+				 __func__);
 	}
 
 	if (changed & BSS_CHANGED_ASSOC ||
@@ -783,9 +758,6 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw,
 		wfx_update_pm(wvif);
 
 	mutex_unlock(&wdev->conf_mutex);
-
-	if (do_join)
-		wfx_do_join(wvif);
 }
 
 static int wfx_update_tim(struct wfx_vif *wvif)
