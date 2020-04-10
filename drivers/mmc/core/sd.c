@@ -376,11 +376,11 @@ int mmc_sd_switch_hs(struct mmc_card *card)
 	if (!status)
 		return -ENOMEM;
 
-	err = mmc_sd_switch(card, 1, 0, 1, status);
+	err = mmc_sd_switch(card, 1, 0, HIGH_SPEED_BUS_SPEED, status);
 	if (err)
 		goto out;
 
-	if ((status[16] & 0xF) != 1) {
+	if ((status[16] & 0xF) != HIGH_SPEED_BUS_SPEED) {
 		pr_warn("%s: Problem switching card into high-speed mode!\n",
 			mmc_hostname(card->host));
 		err = 0;
