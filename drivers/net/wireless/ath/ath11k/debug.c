@@ -698,6 +698,8 @@ static ssize_t ath11k_write_extd_rx_stats(struct file *file,
 		tlv_filter = ath11k_mac_mon_status_filter_default;
 	}
 
+	ar->debug.rx_filter = tlv_filter.rx_filter;
+
 	ring_id = ar->dp.rx_mon_status_refill_ring.refill_buf_ring.ring_id;
 	ret = ath11k_dp_tx_htt_rx_filter_setup(ar->ab, ring_id, ar->dp.mac_id,
 					       HAL_RXDMA_MONITOR_STATUS,

@@ -188,6 +188,11 @@ static inline int ath11k_debug_is_extd_rx_stats_enabled(struct ath11k *ar)
 	return ar->debug.extd_rx_stats;
 }
 
+static inline int ath11k_debug_rx_filter(struct ath11k *ar)
+{
+	return ar->debug.rx_filter;
+}
+
 void ath11k_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			    struct ieee80211_sta *sta, struct dentry *dir);
 void
@@ -267,6 +272,11 @@ static inline bool ath11k_debug_is_pktlog_rx_stats_enabled(struct ath11k *ar)
 static inline bool ath11k_debug_is_pktlog_peer_valid(struct ath11k *ar, u8 *addr)
 {
 	return false;
+}
+
+static inline int ath11k_debug_rx_filter(struct ath11k *ar)
+{
+	return 0;
 }
 
 static inline void
