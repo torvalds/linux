@@ -4657,16 +4657,15 @@ static int __init do_floppy_init(void)
 	config_types();
 
 	for (i = 0; i < N_FDC; i++) {
-		current_fdc = i;
-		memset(&fdc_state[current_fdc], 0, sizeof(*fdc_state));
-		fdc_state[current_fdc].dtr = -1;
-		fdc_state[current_fdc].dor = 0x4;
+		memset(&fdc_state[i], 0, sizeof(*fdc_state));
+		fdc_state[i].dtr = -1;
+		fdc_state[i].dor = 0x4;
 #if defined(__sparc__) || defined(__mc68000__)
 	/*sparcs/sun3x don't have a DOR reset which we can fall back on to */
 #ifdef __mc68000__
 		if (MACH_IS_SUN3X)
 #endif
-			fdc_state[current_fdc].version = FDC_82072A;
+			fdc_state[i].version = FDC_82072A;
 #endif
 	}
 
@@ -4708,30 +4707,29 @@ static int __init do_floppy_init(void)
 	msleep(10);
 
 	for (i = 0; i < N_FDC; i++) {
-		current_fdc = i;
-		fdc_state[current_fdc].driver_version = FD_DRIVER_VERSION;
+		fdc_state[i].driver_version = FD_DRIVER_VERSION;
 		for (unit = 0; unit < 4; unit++)
-			fdc_state[current_fdc].track[unit] = 0;
-		if (fdc_state[current_fdc].address == -1)
+			fdc_state[i].track[unit] = 0;
+		if (fdc_state[i].address == -1)
 			continue;
-		fdc_state[current_fdc].rawcmd = 2;
-		if (user_reset_fdc(-1, FD_RESET_ALWAYS, false)) {
+		fdc_state[i].rawcmd = 2;
+		if (user_reset_fdc(REVDRIVE(i, 0), FD_RESET_ALWAYS, false)) {
 			/* free ioports reserved by floppy_grab_irq_and_dma() */
-			floppy_release_regions(current_fdc);
-			fdc_state[current_fdc].address = -1;
-			fdc_state[current_fdc].version = FDC_NONE;
+			floppy_release_regions(i);
+			fdc_state[i].address = -1;
+			fdc_state[i].version = FDC_NONE;
 			continue;
 		}
 		/* Try to determine the floppy controller type */
-		fdc_state[current_fdc].version = get_fdc_version(current_fdc);
-		if (fdc_state[current_fdc].version == FDC_NONE) {
+		fdc_state[i].version = get_fdc_version(i);
+		if (fdc_state[i].version == FDC_NONE) {
 			/* free ioports reserved by floppy_grab_irq_and_dma() */
-			floppy_release_regions(current_fdc);
-			fdc_state[current_fdc].address = -1;
+			floppy_release_regions(i);
+			fdc_state[i].address = -1;
 			continue;
 		}
 		if (can_use_virtual_dma == 2 &&
-		    fdc_state[current_fdc].version < FDC_82072A)
+		    fdc_state[i].version < FDC_82072A)
 			can_use_virtual_dma = 0;
 
 		have_no_fdc = 0;
@@ -4739,7 +4737,7 @@ static int __init do_floppy_init(void)
 		 * properly, so force a reset for the standard FDC clones,
 		 * to avoid interrupt garbage.
 		 */
-		user_reset_fdc(-1, FD_RESET_ALWAYS, false);
+		user_reset_fdc(REVDRIVE(i, 0), FD_RESET_ALWAYS, false);
 	}
 	current_fdc = 0;
 	cancel_delayed_work(&fd_timeout);
