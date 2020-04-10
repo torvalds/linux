@@ -604,7 +604,6 @@ int wfx_start_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
 
-	hif_start(wvif, &vif->bss_conf, wvif->channel);
 	wfx_upload_keys(wvif);
 	if (wvif_count(wvif->wdev) <= 1)
 		hif_set_block_ack_policy(wvif, 0xFF, 0xFF);
@@ -612,6 +611,7 @@ int wfx_start_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	wfx_update_filtering(wvif);
 	wfx_upload_ap_templates(wvif);
 	wfx_fwd_probe_req(wvif, false);
+	hif_start(wvif, &vif->bss_conf, wvif->channel);
 	return 0;
 }
 
