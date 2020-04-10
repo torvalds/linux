@@ -697,8 +697,7 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw,
 	    changed & BSS_CHANGED_BEACON)
 		wfx_upload_ap_templates(wvif);
 
-	if (changed & BSS_CHANGED_BEACON_ENABLED &&
-	    wvif->state != WFX_STATE_IBSS)
+	if (changed & BSS_CHANGED_BEACON_ENABLED)
 		wfx_enable_beacon(wvif, info->enable_beacon);
 
 	if (changed & BSS_CHANGED_BEACON_INFO)
