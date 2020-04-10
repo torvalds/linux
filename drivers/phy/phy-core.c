@@ -1063,7 +1063,11 @@ static int __init phy_core_init(void)
 
 	return 0;
 }
+#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
+subsys_initcall(phy_core_init);
+#else
 module_init(phy_core_init);
+#endif
 
 static void __exit phy_core_exit(void)
 {
