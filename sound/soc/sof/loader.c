@@ -597,7 +597,7 @@ int snd_sof_run_firmware(struct snd_sof_dev *sdev)
 	}
 
 	if (sdev->fw_state == SOF_FW_BOOT_COMPLETE)
-		dev_info(sdev->dev, "firmware boot complete\n");
+		dev_dbg(sdev->dev, "firmware boot complete\n");
 	else
 		return -EIO; /* FW boots but fw_ready op failed */
 

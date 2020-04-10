@@ -50,6 +50,8 @@ static int sst_fill_and_send_cmd_unlocked(struct sst_data *drv,
 {
 	int ret = 0;
 
+	WARN_ON(!mutex_is_locked(&drv->lock));
+
 	ret = sst_fill_byte_control(drv, ipc_msg,
 				block, task_id, pipe_id, len, cmd_data);
 	if (ret < 0)
@@ -966,7 +968,9 @@ static int sst_set_be_modules(struct snd_soc_dapm_widget *w,
 	dev_dbg(c->dev, "Enter: widget=%s\n", w->name);
 
 	if (SND_SOC_DAPM_EVENT_ON(event)) {
+		mutex_lock(&drv->lock);
 		ret = sst_send_slot_map(drv);
+		mutex_unlock(&drv->lock);
 		if (ret)
 			return ret;
 		ret = sst_send_pipe_module_params(w, k);
