@@ -478,10 +478,6 @@ static void wfx_do_join(struct wfx_vif *wvif)
 		return;
 	}
 
-	/* Sanity check beacon interval */
-	if (!wvif->beacon_int)
-		wvif->beacon_int = 1;
-
 	rcu_read_lock(); // protect ssidie
 	if (bss)
 		ssidie = ieee80211_bss_get_ie(bss, WLAN_EID_SSID);
@@ -611,7 +607,6 @@ static void wfx_join_finalize(struct wfx_vif *wvif,
 {
 	struct ieee80211_sta *sta = NULL;
 
-	wvif->beacon_int = info->beacon_int;
 	rcu_read_lock(); // protect sta
 	if (info->bssid && !info->ibss_joined)
 		sta = ieee80211_find_sta(wvif->vif, info->bssid);

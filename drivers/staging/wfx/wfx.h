@@ -88,7 +88,6 @@ struct wfx_vif {
 
 	struct work_struct	update_tim_work;
 
-	int			beacon_int;
 	bool			filter_bssid;
 	bool			fwd_probe_req;
 	bool			disable_beacon_filter;
