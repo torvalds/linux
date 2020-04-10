@@ -110,8 +110,6 @@ enum vm_event_item { PGPGIN, PGPGOUT, PGPGOUTCLEAN, PSWPIN, PSWPOUT,
 		SWAP_RA,
 		SWAP_RA_HIT,
 #endif
-		SPECULATIVE_PGFAULT_ANON,	/* Speculative page fault field */
-		SPECULATIVE_PGFAULT_FILE,	/* Speculative page fault field */
 		NR_VM_EVENT_ITEMS
 };
 
