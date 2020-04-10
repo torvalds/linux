@@ -852,9 +852,7 @@ void do_secure_storage_access(struct pt_regs *regs)
 			BUG();
 		break;
 	case VDSO_FAULT:
-		/* fallthrough */
 	case GMAP_FAULT:
-		/* fallthrough */
 	default:
 		do_fault_error(regs, VM_READ | VM_WRITE, VM_FAULT_BADMAP);
 		WARN_ON_ONCE(1);

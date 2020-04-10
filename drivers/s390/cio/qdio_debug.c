@@ -58,25 +58,11 @@ static void qdio_clear_dbf_list(void)
 	mutex_unlock(&qdio_dbf_list_mutex);
 }
 
-int qdio_allocate_dbf(struct qdio_initialize *init_data,
-		       struct qdio_irq *irq_ptr)
+int qdio_allocate_dbf(struct qdio_irq *irq_ptr)
 {
 	char text[QDIO_DBF_NAME_LEN];
 	struct qdio_dbf_entry *new_entry;
 
-	DBF_EVENT("qfmt:%1d", init_data->q_format);
-	DBF_HEX(init_data->adapter_name, 8);
-	DBF_EVENT("qpff%4x", init_data->qib_param_field_format);
-	DBF_HEX(&init_data->qib_param_field, sizeof(void *));
-	DBF_HEX(&init_data->input_slib_elements, sizeof(void *));
-	DBF_HEX(&init_data->output_slib_elements, sizeof(void *));
-	DBF_EVENT("niq:%1d noq:%1d", init_data->no_input_qs,
-		  init_data->no_output_qs);
-	DBF_HEX(&init_data->input_handler, sizeof(void *));
-	DBF_HEX(&init_data->output_handler, sizeof(void *));
-	DBF_HEX(&init_data->int_parm, sizeof(long));
-	DBF_HEX(&init_data->input_sbal_addr_array, sizeof(void *));
-	DBF_HEX(&init_data->output_sbal_addr_array, sizeof(void *));
 	DBF_EVENT("irq:%8lx", (unsigned long)irq_ptr);
 
 	/* allocate trace view for the interface */

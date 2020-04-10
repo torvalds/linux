@@ -181,11 +181,12 @@ struct qeth_vnicc_info {
 /*****************************************************************************/
 /* QDIO queue and buffer handling                                            */
 /*****************************************************************************/
-#define QETH_MAX_QUEUES 4
+#define QETH_MAX_OUT_QUEUES	4
 #define QETH_IQD_MIN_TXQ	2	/* One for ucast, one for mcast. */
 #define QETH_IQD_MCAST_TXQ	0
 #define QETH_IQD_MIN_UCAST_TXQ	1
 
+#define QETH_MAX_IN_QUEUES	2
 #define QETH_RX_COPYBREAK      (PAGE_SIZE >> 1)
 #define QETH_IN_BUF_SIZE_DEFAULT 65536
 #define QETH_IN_BUF_COUNT_DEFAULT 64
@@ -539,7 +540,7 @@ struct qeth_qdio_info {
 
 	/* output */
 	int no_out_queues;
-	struct qeth_qdio_out_q *out_qs[QETH_MAX_QUEUES];
+	struct qeth_qdio_out_q *out_qs[QETH_MAX_OUT_QUEUES];
 	struct qdio_outbuf_state *out_bufstates;
 
 	/* priority queueing */
