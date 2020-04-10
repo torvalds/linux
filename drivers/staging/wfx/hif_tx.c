@@ -296,6 +296,7 @@ int hif_join(struct wfx_vif *wvif, const struct ieee80211_bss_conf *conf,
 	struct hif_msg *hif;
 	struct hif_req_join *body = wfx_alloc_hif(sizeof(*body), &hif);
 
+	WARN_ON(!conf->beacon_int);
 	WARN_ON(!conf->basic_rates);
 	WARN_ON(sizeof(body->ssid) < ssidlen);
 	WARN(!conf->ibss_joined && !ssidlen, "joining an unknown BSS");
@@ -430,6 +431,7 @@ int hif_start(struct wfx_vif *wvif, const struct ieee80211_bss_conf *conf,
 	struct hif_msg *hif;
 	struct hif_req_start *body = wfx_alloc_hif(sizeof(*body), &hif);
 
+	WARN_ON(!conf->beacon_int);
 	body->dtim_period = conf->dtim_period;
 	body->short_preamble = conf->use_short_preamble;
 	body->channel_number = cpu_to_le16(channel->hw_value);
