@@ -725,18 +725,8 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw,
 		hif_keep_alive_period(wvif, info->max_idle_period *
 					    USEC_PER_TU / USEC_PER_MSEC);
 
-	if (changed & BSS_CHANGED_ERP_CTS_PROT ||
-	    changed & BSS_CHANGED_ERP_PREAMBLE) {
-		u8 erp_ie[3] = { WLAN_EID_ERP_INFO, 1, 0 };
-
+	if (changed & BSS_CHANGED_ERP_CTS_PROT)
 		hif_erp_use_protection(wvif, info->use_cts_prot);
-		if (info->use_cts_prot)
-			erp_ie[2] |= WLAN_ERP_USE_PROTECTION;
-		if (info->use_short_preamble)
-			erp_ie[2] |= WLAN_ERP_BARKER_PREAMBLE;
-		if (wvif->vif->type != NL80211_IFTYPE_STATION)
-			hif_update_ie_beacon(wvif, erp_ie, sizeof(erp_ie));
-	}
 
 	if (changed & BSS_CHANGED_ERP_SLOT)
 		hif_slot_time(wvif, info->use_short_slot ? 9 : 20);
