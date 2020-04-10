@@ -518,6 +518,7 @@ struct rproc {
 	struct list_head dump_segments;
 	int nb_vdev;
 	u8 elf_class;
+	u16 elf_machine;
 };
 
 /**
@@ -622,6 +623,7 @@ int rproc_coredump_add_custom_segment(struct rproc *rproc,
 						     struct rproc_dump_segment *segment,
 						     void *dest),
 				      void *priv);
+int rproc_coredump_set_elf_info(struct rproc *rproc, u8 class, u16 machine);
 
 static inline struct rproc_vdev *vdev_to_rvdev(struct virtio_device *vdev)
 {
