@@ -1094,7 +1094,7 @@ static void rkcif_stop_streaming(struct vb2_queue *queue)
 	if (ret < 0)
 		v4l2_err(v4l2_dev, "pipeline close failed error:%d\n",
 			 ret);
-	/*rkcif_soft_reset(dev, false);*/
+	rkcif_soft_reset(dev, false);
 	pm_runtime_put(dev->dev);
 }
 
