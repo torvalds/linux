@@ -416,12 +416,11 @@ static void wfx_do_unjoin(struct wfx_vif *wvif)
 	hif_reset(wvif, false);
 	wfx_tx_policy_init(wvif);
 	hif_set_macaddr(wvif, wvif->vif->addr);
+	if (wvif_count(wvif->wdev) <= 1)
+		hif_set_block_ack_policy(wvif, 0xFF, 0xFF);
 	wfx_free_event_queue(wvif);
 	cancel_work_sync(&wvif->event_handler_work);
 	wfx_cqm_bssloss_sm(wvif, 0, 0, 0);
-
-	/* Disable Block ACKs */
-	hif_set_block_ack_policy(wvif, 0, 0);
 
 	wvif->disable_beacon_filter = false;
 	wfx_update_filtering(wvif);
@@ -491,9 +490,6 @@ static void wfx_do_join(struct wfx_vif *wvif)
 		memcpy(ssid, &ssidie[2], ssidie[1]);
 	}
 	rcu_read_unlock();
-
-	if (wvif_count(wvif->wdev) <= 1)
-		hif_set_block_ack_policy(wvif, 0xFF, 0xFF);
 
 	wfx_set_mfp(wvif, bss);
 	cfg80211_put_bss(wvif->wdev->hw->wiphy, bss);
@@ -591,8 +587,6 @@ int wfx_start_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
 
 	wfx_upload_keys(wvif);
-	if (wvif_count(wvif->wdev) <= 1)
-		hif_set_block_ack_policy(wvif, 0xFF, 0xFF);
 	wvif->state = WFX_STATE_AP;
 	wfx_update_filtering(wvif);
 	wfx_upload_ap_templates(wvif);
@@ -607,6 +601,8 @@ void wfx_stop_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 	hif_reset(wvif, false);
 	wfx_tx_policy_init(wvif);
+	if (wvif_count(wvif->wdev) <= 1)
+		hif_set_block_ack_policy(wvif, 0xFF, 0xFF);
 	wvif->state = WFX_STATE_PASSIVE;
 }
 
