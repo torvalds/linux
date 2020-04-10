@@ -242,6 +242,7 @@ void wfx_configure_filter(struct ieee80211_hw *hw,
 
 	*total_flags &= FIF_OTHER_BSS | FIF_FCSFAIL | FIF_PROBE_REQ;
 
+	mutex_lock(&wdev->conf_mutex);
 	while ((wvif = wvif_iterate(wdev, wvif)) != NULL) {
 		mutex_lock(&wvif->scan_lock);
 		wvif->filter_bssid = (*total_flags &
@@ -251,6 +252,7 @@ void wfx_configure_filter(struct ieee80211_hw *hw,
 		wfx_update_filtering(wvif);
 		mutex_unlock(&wvif->scan_lock);
 	}
+	mutex_unlock(&wdev->conf_mutex);
 }
 
 static int wfx_update_pm(struct wfx_vif *wvif)
