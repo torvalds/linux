@@ -469,7 +469,6 @@ programming is the FPGA based bridge of fpga_region1.
 				reg = <0x10040 0x20>;
 				clocks = <0x2>;
 				altr,ngpio = <0x4>;
-				resetvalue = <0x0>;
 				#gpio-cells = <0x2>;
 				gpio-controller;
 			};
