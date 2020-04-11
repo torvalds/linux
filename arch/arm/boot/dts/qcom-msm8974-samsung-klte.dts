@@ -2,6 +2,7 @@
 #include "qcom-msm8974pro.dtsi"
 #include "qcom-pm8841.dtsi"
 #include "qcom-pm8941.dtsi"
+#include "qcom-pma8084.dtsi"
 
 / {
 	model = "Samsung Galaxy S5";
@@ -13,6 +14,189 @@
 
 	chosen {
 		stdout-path = "serial0:115200n8";
+	};
+
+	smd {
+		rpm {
+			rpm_requests {
+				pma8084-regulators {
+					compatible = "qcom,rpm-pma8084-regulators";
+					status = "okay";
+
+					pma8084_s1: s1 {
+						regulator-min-microvolt = <675000>;
+						regulator-max-microvolt = <1050000>;
+					};
+
+					pma8084_s2: s2 {
+						regulator-min-microvolt = <500000>;
+						regulator-max-microvolt = <1050000>;
+					};
+
+					pma8084_s3: s3 {
+						regulator-min-microvolt = <1300000>;
+						regulator-max-microvolt = <1300000>;
+					};
+
+					pma8084_s4: s4 {
+						regulator-min-microvolt = <1800000>;
+						regulator-max-microvolt = <1800000>;
+					};
+
+					pma8084_s5: s5 {
+						regulator-min-microvolt = <2150000>;
+						regulator-max-microvolt = <2150000>;
+					};
+
+					pma8084_s6: s6 {
+						regulator-min-microvolt = <1050000>;
+						regulator-max-microvolt = <1050000>;
+					};
+
+					pma8084_l1: l1 {
+						regulator-min-microvolt = <1225000>;
+						regulator-max-microvolt = <1225000>;
+					};
+
+					pma8084_l2: l2 {
+						regulator-min-microvolt = <1200000>;
+						regulator-max-microvolt = <1200000>;
+					};
+
+					pma8084_l3: l3 {
+						regulator-min-microvolt = <1050000>;
+						regulator-max-microvolt = <1200000>;
+					};
+
+					pma8084_l4: l4 {
+						regulator-min-microvolt = <1200000>;
+						regulator-max-microvolt = <1225000>;
+					};
+
+					pma8084_l5: l5 {
+						regulator-min-microvolt = <1800000>;
+						regulator-max-microvolt = <1800000>;
+					};
+
+					pma8084_l6: l6 {
+						regulator-min-microvolt = <1800000>;
+						regulator-max-microvolt = <1800000>;
+					};
+
+					pma8084_l7: l7 {
+						regulator-min-microvolt = <1800000>;
+						regulator-max-microvolt = <1800000>;
+					};
+
+					pma8084_l8: l8 {
+						regulator-min-microvolt = <1800000>;
+						regulator-max-microvolt = <1800000>;
+					};
+
+					pma8084_l9: l9 {
+						regulator-min-microvolt = <1800000>;
+						regulator-max-microvolt = <2950000>;
+					};
+
+					pma8084_l10: l10 {
+						regulator-min-microvolt = <1800000>;
+						regulator-max-microvolt = <2950000>;
+					};
+
+					pma8084_l11: l11 {
+						regulator-min-microvolt = <1300000>;
+						regulator-max-microvolt = <1300000>;
+					};
+
+					pma8084_l12: l12 {
+						regulator-min-microvolt = <1800000>;
+						regulator-max-microvolt = <1800000>;
+					};
+
+					pma8084_l13: l13 {
+						regulator-min-microvolt = <1800000>;
+						regulator-max-microvolt = <2950000>;
+					};
+
+					pma8084_l14: l14 {
+						regulator-min-microvolt = <1800000>;
+						regulator-max-microvolt = <1800000>;
+					};
+
+					pma8084_l15: l15 {
+						regulator-min-microvolt = <2050000>;
+						regulator-max-microvolt = <2050000>;
+					};
+
+					pma8084_l16: l16 {
+						regulator-min-microvolt = <2700000>;
+						regulator-max-microvolt = <2700000>;
+					};
+
+					pma8084_l17: l17 {
+						regulator-min-microvolt = <2850000>;
+						regulator-max-microvolt = <2850000>;
+					};
+
+					pma8084_l18: l18 {
+						regulator-min-microvolt = <2850000>;
+						regulator-max-microvolt = <2850000>;
+					};
+
+					pma8084_l19: l19 {
+						regulator-min-microvolt = <2900000>;
+						regulator-max-microvolt = <3300000>;
+					};
+
+					pma8084_l20: l20 {
+						regulator-min-microvolt = <2950000>;
+						regulator-max-microvolt = <2950000>;
+					};
+
+					pma8084_l21: l21 {
+						regulator-min-microvolt = <2950000>;
+						regulator-max-microvolt = <2950000>;
+					};
+
+					pma8084_l22: l22 {
+						regulator-min-microvolt = <3000000>;
+						regulator-max-microvolt = <3300000>;
+					};
+
+					pma8084_l23: l23 {
+						regulator-min-microvolt = <3000000>;
+						regulator-max-microvolt = <3000000>;
+					};
+
+					pma8084_l24: l24 {
+						regulator-min-microvolt = <3075000>;
+						regulator-max-microvolt = <3075000>;
+					};
+
+					pma8084_l25: l25 {
+						regulator-min-microvolt = <2100000>;
+						regulator-max-microvolt = <2100000>;
+					};
+
+					pma8084_l26: l26 {
+						regulator-min-microvolt = <1800000>;
+						regulator-max-microvolt = <2050000>;
+					};
+
+					pma8084_l27: l27 {
+						regulator-min-microvolt = <1000000>;
+						regulator-max-microvolt = <1225000>;
+					};
+
+					pma8084_lvs1: lvs1 {};
+					pma8084_lvs2: lvs2 {};
+					pma8084_lvs3: lvs3 {};
+					pma8084_lvs4: lvs4 {};
+
+					pma8084_5vs1: 5vs1 {};
+				};
+			};
+		};
 	};
 };
 
