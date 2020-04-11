@@ -727,7 +727,7 @@ L:	linux-alpha@vger.kernel.org
 F:	arch/alpha/
 
 ALPS PS/2 TOUCHPAD DRIVER
-R:	Pali Rohár <pali.rohar@gmail.com>
+R:	Pali Rohár <pali@kernel.org>
 F:	drivers/input/mouse/alps.*
 
 ALTERA I2C CONTROLLER DRIVER
@@ -4774,23 +4774,23 @@ F:	drivers/net/fddi/defza.*
 
 DELL LAPTOP DRIVER
 M:	Matthew Garrett <mjg59@srcf.ucam.org>
-M:	Pali Rohár <pali.rohar@gmail.com>
+M:	Pali Rohár <pali@kernel.org>
 L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 F:	drivers/platform/x86/dell-laptop.c
 
 DELL LAPTOP FREEFALL DRIVER
-M:	Pali Rohár <pali.rohar@gmail.com>
+M:	Pali Rohár <pali@kernel.org>
 S:	Maintained
 F:	drivers/platform/x86/dell-smo8800.c
 
 DELL LAPTOP RBTN DRIVER
-M:	Pali Rohár <pali.rohar@gmail.com>
+M:	Pali Rohár <pali@kernel.org>
 S:	Maintained
 F:	drivers/platform/x86/dell-rbtn.*
 
 DELL LAPTOP SMM DRIVER
-M:	Pali Rohár <pali.rohar@gmail.com>
+M:	Pali Rohár <pali@kernel.org>
 S:	Maintained
 F:	drivers/hwmon/dell-smm-hwmon.c
 F:	include/uapi/linux/i8k.h
@@ -4802,7 +4802,7 @@ S:	Maintained
 F:	drivers/platform/x86/dell_rbu.c
 
 DELL SMBIOS DRIVER
-M:	Pali Rohár <pali.rohar@gmail.com>
+M:	Pali Rohár <pali@kernel.org>
 M:	Mario Limonciello <mario.limonciello@dell.com>
 L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
@@ -4835,7 +4835,7 @@ F:	drivers/platform/x86/dell-wmi-descriptor.c
 
 DELL WMI NOTIFICATIONS DRIVER
 M:	Matthew Garrett <mjg59@srcf.ucam.org>
-M:	Pali Rohár <pali.rohar@gmail.com>
+M:	Pali Rohár <pali@kernel.org>
 S:	Maintained
 F:	drivers/platform/x86/dell-wmi.c
 
@@ -11950,7 +11950,7 @@ F:	drivers/media/i2c/et8ek8
 F:	drivers/media/i2c/ad5820.c
 
 NOKIA N900 POWER SUPPLY DRIVERS
-R:	Pali Rohár <pali.rohar@gmail.com>
+R:	Pali Rohár <pali@kernel.org>
 F:	include/linux/power/bq2415x_charger.h
 F:	include/linux/power/bq27xxx_battery.h
 F:	drivers/power/supply/bq2415x_charger.c
