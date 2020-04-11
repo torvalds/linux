@@ -508,6 +508,7 @@ enum {
 	REQ_F_FORCE_ASYNC_BIT	= IOSQE_ASYNC_BIT,
 	REQ_F_BUFFER_SELECT_BIT	= IOSQE_BUFFER_SELECT_BIT,
 
+	REQ_F_LINK_HEAD_BIT,
 	REQ_F_LINK_NEXT_BIT,
 	REQ_F_FAIL_LINK_BIT,
 	REQ_F_INFLIGHT_BIT,
@@ -543,6 +544,8 @@ enum {
 	/* IOSQE_BUFFER_SELECT */
 	REQ_F_BUFFER_SELECT	= BIT(REQ_F_BUFFER_SELECT_BIT),
 
+	/* head of a link */
+	REQ_F_LINK_HEAD		= BIT(REQ_F_LINK_HEAD_BIT),
 	/* already grabbed next link */
 	REQ_F_LINK_NEXT		= BIT(REQ_F_LINK_NEXT_BIT),
 	/* fail rest of links */
@@ -1437,7 +1440,7 @@ static bool io_link_cancel_timeout(struct io_kiocb *req)
 	if (ret != -1) {
 		io_cqring_fill_event(req, -ECANCELED);
 		io_commit_cqring(ctx);
-		req->flags &= ~REQ_F_LINK;
+		req->flags &= ~REQ_F_LINK_HEAD;
 		io_put_req(req);
 		return true;
 	}
@@ -1473,7 +1476,7 @@ static void io_req_link_next(struct io_kiocb *req, struct io_kiocb **nxtptr)
 
 		list_del_init(&req->link_list);
 		if (!list_empty(&nxt->link_list))
-			nxt->flags |= REQ_F_LINK;
+			nxt->flags |= REQ_F_LINK_HEAD;
 		*nxtptr = nxt;
 		break;
 	}
@@ -1484,7 +1487,7 @@ static void io_req_link_next(struct io_kiocb *req, struct io_kiocb **nxtptr)
 }
 
 /*
- * Called if REQ_F_LINK is set, and we fail the head request
+ * Called if REQ_F_LINK_HEAD is set, and we fail the head request
  */
 static void io_fail_links(struct io_kiocb *req)
 {
@@ -1517,7 +1520,7 @@ static void io_fail_links(struct io_kiocb *req)
 
 static void io_req_find_next(struct io_kiocb *req, struct io_kiocb **nxt)
 {
-	if (likely(!(req->flags & REQ_F_LINK)))
+	if (likely(!(req->flags & REQ_F_LINK_HEAD)))
 		return;
 
 	/*
@@ -1669,7 +1672,7 @@ static inline unsigned int io_sqring_entries(struct io_ring_ctx *ctx)
 
 static inline bool io_req_multi_free(struct req_batch *rb, struct io_kiocb *req)
 {
-	if ((req->flags & REQ_F_LINK) || io_is_fallback_req(req))
+	if ((req->flags & REQ_F_LINK_HEAD) || io_is_fallback_req(req))
 		return false;
 
 	if (!(req->flags & REQ_F_FIXED_FILE) || req->io)
@@ -2562,7 +2565,7 @@ static int io_read(struct io_kiocb *req, bool force_nonblock)
 
 	req->result = 0;
 	io_size = ret;
-	if (req->flags & REQ_F_LINK)
+	if (req->flags & REQ_F_LINK_HEAD)
 		req->result = io_size;
 
 	/*
@@ -2653,7 +2656,7 @@ static int io_write(struct io_kiocb *req, bool force_nonblock)
 
 	req->result = 0;
 	io_size = ret;
-	if (req->flags & REQ_F_LINK)
+	if (req->flags & REQ_F_LINK_HEAD)
 		req->result = io_size;
 
 	/*
@@ -5476,7 +5479,7 @@ static struct io_kiocb *io_prep_linked_timeout(struct io_kiocb *req)
 {
 	struct io_kiocb *nxt;
 
-	if (!(req->flags & REQ_F_LINK))
+	if (!(req->flags & REQ_F_LINK_HEAD))
 		return NULL;
 	/* for polled retry, if flag is set, we already went through here */
 	if (req->flags & REQ_F_POLLED)
@@ -5636,7 +5639,7 @@ static int io_submit_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 	/* same numerical values with corresponding REQ_F_*, safe to copy */
 	req->flags |= sqe_flags & (IOSQE_IO_DRAIN | IOSQE_IO_HARDLINK |
 					IOSQE_ASYNC | IOSQE_FIXED_FILE |
-					IOSQE_BUFFER_SELECT);
+					IOSQE_BUFFER_SELECT | IOSQE_IO_LINK);
 
 	fd = READ_ONCE(sqe->fd);
 	ret = io_req_set_file(state, req, fd, sqe_flags);
@@ -5687,7 +5690,7 @@ static int io_submit_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 			req->ctx->drain_next = 0;
 		}
 		if (sqe_flags & (IOSQE_IO_LINK|IOSQE_IO_HARDLINK)) {
-			req->flags |= REQ_F_LINK;
+			req->flags |= REQ_F_LINK_HEAD;
 			INIT_LIST_HEAD(&req->link_list);
 
 			if (io_alloc_async_ctx(req))
