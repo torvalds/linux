@@ -1660,7 +1660,7 @@ int otx_cpt_crypto_init(struct pci_dev *pdev, struct module *mod,
 	case OTX_CPT_SE_TYPES:
 		count = atomic_read(&se_devices.count);
 		if (count >= CPT_MAX_VF_NUM) {
-			dev_err(&pdev->dev, "No space to add a new device");
+			dev_err(&pdev->dev, "No space to add a new device\n");
 			ret = -ENOSPC;
 			goto err;
 		}
@@ -1687,7 +1687,7 @@ int otx_cpt_crypto_init(struct pci_dev *pdev, struct module *mod,
 	case OTX_CPT_AE_TYPES:
 		count = atomic_read(&ae_devices.count);
 		if (count >= CPT_MAX_VF_NUM) {
-			dev_err(&pdev->dev, "No space to a add new device");
+			dev_err(&pdev->dev, "No space to a add new device\n");
 			ret = -ENOSPC;
 			goto err;
 		}
@@ -1728,7 +1728,7 @@ void otx_cpt_crypto_exit(struct pci_dev *pdev, struct module *mod,
 		}
 
 	if (!dev_found) {
-		dev_err(&pdev->dev, "%s device not found", __func__);
+		dev_err(&pdev->dev, "%s device not found\n", __func__);
 		goto exit;
 	}
 
