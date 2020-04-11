@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "qcom-msm8974pro.dtsi"
-#include "qcom-pm8841.dtsi"
-#include "qcom-pm8941.dtsi"
 #include "qcom-pma8084.dtsi"
 
 / {
@@ -198,6 +196,8 @@
 			};
 		};
 	};
+
+	/delete-node/ vreg-boost;
 };
 
 &soc {
