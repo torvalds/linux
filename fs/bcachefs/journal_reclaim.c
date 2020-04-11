@@ -322,13 +322,11 @@ void bch2_journal_pin_drop(struct journal *j,
 	spin_unlock(&j->lock);
 }
 
-void __bch2_journal_pin_add(struct journal *j, u64 seq,
+static void bch2_journal_pin_add_locked(struct journal *j, u64 seq,
 			    struct journal_entry_pin *pin,
 			    journal_pin_flush_fn flush_fn)
 {
 	struct journal_entry_pin_list *pin_list = journal_seq_pin(j, seq);
-
-	spin_lock(&j->lock);
 
 	__journal_pin_drop(j, pin);
 
@@ -339,7 +337,14 @@ void __bch2_journal_pin_add(struct journal *j, u64 seq,
 	pin->flush	= flush_fn;
 
 	list_add(&pin->list, flush_fn ? &pin_list->list : &pin_list->flushed);
+}
 
+void __bch2_journal_pin_add(struct journal *j, u64 seq,
+			    struct journal_entry_pin *pin,
+			    journal_pin_flush_fn flush_fn)
+{
+	spin_lock(&j->lock);
+	bch2_journal_pin_add_locked(j, seq, pin, flush_fn);
 	spin_unlock(&j->lock);
 
 	/*
@@ -354,9 +359,13 @@ void bch2_journal_pin_copy(struct journal *j,
 			   struct journal_entry_pin *src,
 			   journal_pin_flush_fn flush_fn)
 {
+	spin_lock(&j->lock);
+
 	if (journal_pin_active(src) &&
 	    (!journal_pin_active(dst) || src->seq < dst->seq))
-		__bch2_journal_pin_add(j, src->seq, dst, flush_fn);
+		bch2_journal_pin_add_locked(j, src->seq, dst, flush_fn);
+
+	spin_unlock(&j->lock);
 }
 
 /**
