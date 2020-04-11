@@ -537,7 +537,7 @@ static void pwm_apply_state_debug(struct pwm_device *pwm,
 
 	if (!state->enabled && s2.enabled && s2.duty_cycle > 0)
 		dev_warn(chip->dev,
-			 "requested disabled, but yielded enabled with duty > 0");
+			 "requested disabled, but yielded enabled with duty > 0\n");
 
 	/* reapply the state that the driver reported being configured. */
 	err = chip->ops->apply(chip, pwm, &s1);
