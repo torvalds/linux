@@ -5607,44 +5607,11 @@ static inline void io_queue_link_head(struct io_kiocb *req)
 		io_queue_sqe(req, NULL);
 }
 
-#define SQE_VALID_FLAGS	(IOSQE_FIXED_FILE|IOSQE_IO_DRAIN|IOSQE_IO_LINK|	\
-				IOSQE_IO_HARDLINK | IOSQE_ASYNC | \
-				IOSQE_BUFFER_SELECT)
-
 static int io_submit_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 			  struct io_submit_state *state, struct io_kiocb **link)
 {
 	struct io_ring_ctx *ctx = req->ctx;
-	unsigned int sqe_flags;
-	int ret, id, fd;
-
-	sqe_flags = READ_ONCE(sqe->flags);
-
-	/* enforce forwards compatibility on users */
-	if (unlikely(sqe_flags & ~SQE_VALID_FLAGS))
-		return -EINVAL;
-
-	if ((sqe_flags & IOSQE_BUFFER_SELECT) &&
-	    !io_op_defs[req->opcode].buffer_select)
-		return -EOPNOTSUPP;
-
-	id = READ_ONCE(sqe->personality);
-	if (id) {
-		req->work.creds = idr_find(&ctx->personality_idr, id);
-		if (unlikely(!req->work.creds))
-			return -EINVAL;
-		get_cred(req->work.creds);
-	}
-
-	/* same numerical values with corresponding REQ_F_*, safe to copy */
-	req->flags |= sqe_flags & (IOSQE_IO_DRAIN | IOSQE_IO_HARDLINK |
-					IOSQE_ASYNC | IOSQE_FIXED_FILE |
-					IOSQE_BUFFER_SELECT | IOSQE_IO_LINK);
-
-	fd = READ_ONCE(sqe->fd);
-	ret = io_req_set_file(state, req, fd, sqe_flags);
-	if (unlikely(ret))
-		return ret;
+	int ret;
 
 	/*
 	 * If we already have a head request, queue this one for async
@@ -5663,7 +5630,7 @@ static int io_submit_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 		 * next after the link request. The last one is done via
 		 * drain_next flag to persist the effect across calls.
 		 */
-		if (sqe_flags & IOSQE_IO_DRAIN) {
+		if (req->flags & REQ_F_IO_DRAIN) {
 			head->flags |= REQ_F_IO_DRAIN;
 			ctx->drain_next = 1;
 		}
@@ -5680,16 +5647,16 @@ static int io_submit_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 		list_add_tail(&req->link_list, &head->link_list);
 
 		/* last request of a link, enqueue the link */
-		if (!(sqe_flags & (IOSQE_IO_LINK|IOSQE_IO_HARDLINK))) {
+		if (!(req->flags & (REQ_F_LINK | REQ_F_HARDLINK))) {
 			io_queue_link_head(head);
 			*link = NULL;
 		}
 	} else {
 		if (unlikely(ctx->drain_next)) {
 			req->flags |= REQ_F_IO_DRAIN;
-			req->ctx->drain_next = 0;
+			ctx->drain_next = 0;
 		}
-		if (sqe_flags & (IOSQE_IO_LINK|IOSQE_IO_HARDLINK)) {
+		if (req->flags & (REQ_F_LINK | REQ_F_HARDLINK)) {
 			req->flags |= REQ_F_LINK_HEAD;
 			INIT_LIST_HEAD(&req->link_list);
 
@@ -5779,9 +5746,17 @@ static inline void io_consume_sqe(struct io_ring_ctx *ctx)
 	ctx->cached_sq_head++;
 }
 
-static void io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
-			const struct io_uring_sqe *sqe)
+#define SQE_VALID_FLAGS	(IOSQE_FIXED_FILE|IOSQE_IO_DRAIN|IOSQE_IO_LINK|	\
+				IOSQE_IO_HARDLINK | IOSQE_ASYNC | \
+				IOSQE_BUFFER_SELECT)
+
+static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
+		       const struct io_uring_sqe *sqe,
+		       struct io_submit_state *state, bool async)
 {
+	unsigned int sqe_flags;
+	int id, fd;
+
 	/*
 	 * All io need record the previous position, if LINK vs DARIN,
 	 * it can be used to mark the position of the first IO in the
@@ -5798,7 +5773,42 @@ static void io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	refcount_set(&req->refs, 2);
 	req->task = NULL;
 	req->result = 0;
+	req->needs_fixed_file = async;
 	INIT_IO_WORK(&req->work, io_wq_submit_work);
+
+	if (unlikely(req->opcode >= IORING_OP_LAST))
+		return -EINVAL;
+
+	if (io_op_defs[req->opcode].needs_mm && !current->mm) {
+		if (unlikely(!mmget_not_zero(ctx->sqo_mm)))
+			return -EFAULT;
+		use_mm(ctx->sqo_mm);
+	}
+
+	sqe_flags = READ_ONCE(sqe->flags);
+	/* enforce forwards compatibility on users */
+	if (unlikely(sqe_flags & ~SQE_VALID_FLAGS))
+		return -EINVAL;
+
+	if ((sqe_flags & IOSQE_BUFFER_SELECT) &&
+	    !io_op_defs[req->opcode].buffer_select)
+		return -EOPNOTSUPP;
+
+	id = READ_ONCE(sqe->personality);
+	if (id) {
+		req->work.creds = idr_find(&ctx->personality_idr, id);
+		if (unlikely(!req->work.creds))
+			return -EINVAL;
+		get_cred(req->work.creds);
+	}
+
+	/* same numerical values with corresponding REQ_F_*, safe to copy */
+	req->flags |= sqe_flags & (IOSQE_IO_DRAIN | IOSQE_IO_HARDLINK |
+					IOSQE_ASYNC | IOSQE_FIXED_FILE |
+					IOSQE_BUFFER_SELECT | IOSQE_IO_LINK);
+
+	fd = READ_ONCE(sqe->fd);
+	return io_req_set_file(state, req, fd, sqe_flags);
 }
 
 static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr,
@@ -5846,28 +5856,18 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr,
 			break;
 		}
 
-		io_init_req(ctx, req, sqe);
+		err = io_init_req(ctx, req, sqe, statep, async);
 		io_consume_sqe(ctx);
 		/* will complete beyond this point, count as submitted */
 		submitted++;
 
-		if (unlikely(req->opcode >= IORING_OP_LAST)) {
-			err = -EINVAL;
+		if (unlikely(err)) {
 fail_req:
 			io_cqring_add_event(req, err);
 			io_double_put_req(req);
 			break;
 		}
 
-		if (io_op_defs[req->opcode].needs_mm && !current->mm) {
-			if (unlikely(!mmget_not_zero(ctx->sqo_mm))) {
-				err = -EFAULT;
-				goto fail_req;
-			}
-			use_mm(ctx->sqo_mm);
-		}
-
-		req->needs_fixed_file = async;
 		trace_io_uring_submit_sqe(ctx, req->opcode, req->user_data,
 						true, async);
 		err = io_submit_sqe(req, sqe, statep, &link);
