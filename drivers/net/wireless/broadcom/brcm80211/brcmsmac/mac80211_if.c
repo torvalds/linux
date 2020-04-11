@@ -1431,6 +1431,7 @@ int brcms_up(struct brcms_info *wl)
  * precondition: perimeter lock has been acquired
  */
 void brcms_down(struct brcms_info *wl)
+	__must_hold(&wl->lock)
 {
 	uint callbacks, ret_val = 0;
 
