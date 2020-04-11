@@ -5608,7 +5608,7 @@ static inline void io_queue_link_head(struct io_kiocb *req)
 				IOSQE_IO_HARDLINK | IOSQE_ASYNC | \
 				IOSQE_BUFFER_SELECT)
 
-static bool io_submit_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
+static int io_submit_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 			  struct io_submit_state *state, struct io_kiocb **link)
 {
 	struct io_ring_ctx *ctx = req->ctx;
@@ -5618,24 +5618,18 @@ static bool io_submit_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 	sqe_flags = READ_ONCE(sqe->flags);
 
 	/* enforce forwards compatibility on users */
-	if (unlikely(sqe_flags & ~SQE_VALID_FLAGS)) {
-		ret = -EINVAL;
-		goto err_req;
-	}
+	if (unlikely(sqe_flags & ~SQE_VALID_FLAGS))
+		return -EINVAL;
 
 	if ((sqe_flags & IOSQE_BUFFER_SELECT) &&
-	    !io_op_defs[req->opcode].buffer_select) {
-		ret = -EOPNOTSUPP;
-		goto err_req;
-	}
+	    !io_op_defs[req->opcode].buffer_select)
+		return -EOPNOTSUPP;
 
 	id = READ_ONCE(sqe->personality);
 	if (id) {
 		req->work.creds = idr_find(&ctx->personality_idr, id);
-		if (unlikely(!req->work.creds)) {
-			ret = -EINVAL;
-			goto err_req;
-		}
+		if (unlikely(!req->work.creds))
+			return -EINVAL;
 		get_cred(req->work.creds);
 	}
 
@@ -5646,12 +5640,8 @@ static bool io_submit_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 
 	fd = READ_ONCE(sqe->fd);
 	ret = io_req_set_file(state, req, fd, sqe_flags);
-	if (unlikely(ret)) {
-err_req:
-		io_cqring_add_event(req, ret);
-		io_double_put_req(req);
-		return false;
-	}
+	if (unlikely(ret))
+		return ret;
 
 	/*
 	 * If we already have a head request, queue this one for async
@@ -5674,16 +5664,14 @@ err_req:
 			head->flags |= REQ_F_IO_DRAIN;
 			ctx->drain_next = 1;
 		}
-		if (io_alloc_async_ctx(req)) {
-			ret = -EAGAIN;
-			goto err_req;
-		}
+		if (io_alloc_async_ctx(req))
+			return -EAGAIN;
 
 		ret = io_req_defer_prep(req, sqe);
 		if (ret) {
 			/* fail even hard links since we don't submit */
 			head->flags |= REQ_F_FAIL_LINK;
-			goto err_req;
+			return ret;
 		}
 		trace_io_uring_link(ctx, req, head);
 		list_add_tail(&req->link_list, &head->link_list);
@@ -5702,10 +5690,9 @@ err_req:
 			req->flags |= REQ_F_LINK;
 			INIT_LIST_HEAD(&req->link_list);
 
-			if (io_alloc_async_ctx(req)) {
-				ret = -EAGAIN;
-				goto err_req;
-			}
+			if (io_alloc_async_ctx(req))
+				return -EAGAIN;
+
 			ret = io_req_defer_prep(req, sqe);
 			if (ret)
 				req->flags |= REQ_F_FAIL_LINK;
@@ -5715,7 +5702,7 @@ err_req:
 		}
 	}
 
-	return true;
+	return 0;
 }
 
 /*
@@ -5880,8 +5867,9 @@ fail_req:
 		req->needs_fixed_file = async;
 		trace_io_uring_submit_sqe(ctx, req->opcode, req->user_data,
 						true, async);
-		if (!io_submit_sqe(req, sqe, statep, &link))
-			break;
+		err = io_submit_sqe(req, sqe, statep, &link);
+		if (err)
+			goto fail_req;
 	}
 
 	if (unlikely(submitted != nr)) {
