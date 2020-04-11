@@ -29,6 +29,11 @@ void igc_set_ethtool_ops(struct net_device *);
 #define MAX_ETYPE_FILTER		8
 #define IGC_RETA_SIZE			128
 
+enum igc_mac_filter_type {
+	IGC_MAC_FILTER_TYPE_DST = 0,
+	IGC_MAC_FILTER_TYPE_SRC
+};
+
 struct igc_tx_queue_stats {
 	u64 packets;
 	u64 bytes;
@@ -228,9 +233,11 @@ void igc_write_rss_indir_tbl(struct igc_adapter *adapter);
 bool igc_has_link(struct igc_adapter *adapter);
 void igc_reset(struct igc_adapter *adapter);
 int igc_set_spd_dplx(struct igc_adapter *adapter, u32 spd, u8 dplx);
-int igc_add_mac_filter(struct igc_adapter *adapter, const u8 *addr,
-		       const s8 queue);
-int igc_del_mac_filter(struct igc_adapter *adapter, const u8 *addr);
+int igc_add_mac_filter(struct igc_adapter *adapter,
+		       enum igc_mac_filter_type type, const u8 *addr,
+		       int queue);
+int igc_del_mac_filter(struct igc_adapter *adapter,
+		       enum igc_mac_filter_type type, const u8 *addr);
 int igc_add_vlan_prio_filter(struct igc_adapter *adapter, int prio,
 			     int queue);
 void igc_del_vlan_prio_filter(struct igc_adapter *adapter, int prio);

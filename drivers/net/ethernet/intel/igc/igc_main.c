@@ -766,12 +766,14 @@ static void igc_setup_tctl(struct igc_adapter *adapter)
  * igc_set_mac_filter_hw() - Set MAC address filter in hardware
  * @adapter: Pointer to adapter where the filter should be set
  * @index: Filter index
- * @addr: Destination MAC address
+ * @type: MAC address filter type (source or destination)
+ * @addr: MAC address
  * @queue: If non-negative, queue assignment feature is enabled and frames
  *         matching the filter are enqueued onto 'queue'. Otherwise, queue
  *         assignment is disabled.
  */
 static void igc_set_mac_filter_hw(struct igc_adapter *adapter, int index,
+				  enum igc_mac_filter_type type,
 				  const u8 *addr, int queue)
 {
 	struct net_device *dev = adapter->netdev;
@@ -783,6 +785,11 @@ static void igc_set_mac_filter_hw(struct igc_adapter *adapter, int index,
 
 	ral = le32_to_cpup((__le32 *)(addr));
 	rah = le16_to_cpup((__le16 *)(addr + 4));
+
+	if (type == IGC_MAC_FILTER_TYPE_SRC) {
+		rah &= ~IGC_RAH_ASEL_MASK;
+		rah |= IGC_RAH_ASEL_SRC_ADDR;
+	}
 
 	if (queue >= 0) {
 		rah &= ~IGC_RAH_QSEL_MASK;
@@ -825,7 +832,7 @@ static void igc_set_default_mac_filter(struct igc_adapter *adapter)
 
 	netdev_dbg(dev, "Set default MAC address filter: address %pM", addr);
 
-	igc_set_mac_filter_hw(adapter, 0, addr, -1);
+	igc_set_mac_filter_hw(adapter, 0, IGC_MAC_FILTER_TYPE_DST, addr, -1);
 }
 
 /**
@@ -2179,7 +2186,8 @@ static void igc_nfc_filter_restore(struct igc_adapter *adapter)
 	spin_unlock(&adapter->nfc_lock);
 }
 
-static int igc_find_mac_filter(struct igc_adapter *adapter, const u8 *addr)
+static int igc_find_mac_filter(struct igc_adapter *adapter,
+			       enum igc_mac_filter_type type, const u8 *addr)
 {
 	struct igc_hw *hw = &adapter->hw;
 	int max_entries = hw->mac.rar_entry_count;
@@ -2191,6 +2199,8 @@ static int igc_find_mac_filter(struct igc_adapter *adapter, const u8 *addr)
 		rah = rd32(IGC_RAH(i));
 
 		if (!(rah & IGC_RAH_AV))
+			continue;
+		if (!!(rah & IGC_RAH_ASEL_SRC_ADDR) != type)
 			continue;
 		if ((rah & IGC_RAH_RAH_MASK) !=
 		    le16_to_cpup((__le16 *)(addr + 4)))
@@ -2224,6 +2234,7 @@ static int igc_get_avail_mac_filter_slot(struct igc_adapter *adapter)
 /**
  * igc_add_mac_filter() - Add MAC address filter
  * @adapter: Pointer to adapter where the filter should be added
+ * @type: MAC address filter type (source or destination)
  * @addr: MAC address
  * @queue: If non-negative, queue assignment feature is enabled and frames
  *         matching the filter are enqueued onto 'queue'. Otherwise, queue
@@ -2231,8 +2242,9 @@ static int igc_get_avail_mac_filter_slot(struct igc_adapter *adapter)
  *
  * Return: 0 in case of success, negative errno code otherwise.
  */
-int igc_add_mac_filter(struct igc_adapter *adapter, const u8 *addr,
-		       const s8 queue)
+int igc_add_mac_filter(struct igc_adapter *adapter,
+		       enum igc_mac_filter_type type, const u8 *addr,
+		       int queue)
 {
 	struct net_device *dev = adapter->netdev;
 	int index;
@@ -2240,7 +2252,7 @@ int igc_add_mac_filter(struct igc_adapter *adapter, const u8 *addr,
 	if (!is_valid_ether_addr(addr))
 		return -EINVAL;
 
-	index = igc_find_mac_filter(adapter, addr);
+	index = igc_find_mac_filter(adapter, type, addr);
 	if (index >= 0)
 		goto update_filter;
 
@@ -2248,22 +2260,25 @@ int igc_add_mac_filter(struct igc_adapter *adapter, const u8 *addr,
 	if (index < 0)
 		return -ENOSPC;
 
-	netdev_dbg(dev, "Add MAC address filter: index %d address %pM queue %d",
-		   index, addr, queue);
+	netdev_dbg(dev, "Add MAC address filter: index %d type %s address %pM queue %d\n",
+		   index, type == IGC_MAC_FILTER_TYPE_DST ? "dst" : "src",
+		   addr, queue);
 
 update_filter:
-	igc_set_mac_filter_hw(adapter, index, addr, queue);
+	igc_set_mac_filter_hw(adapter, index, type, addr, queue);
 	return 0;
 }
 
 /**
  * igc_del_mac_filter() - Delete MAC address filter
  * @adapter: Pointer to adapter where the filter should be deleted from
+ * @type: MAC address filter type (source or destination)
  * @addr: MAC address
  *
  * Return: 0 in case of success, negative errno code otherwise.
  */
-int igc_del_mac_filter(struct igc_adapter *adapter, const u8 *addr)
+int igc_del_mac_filter(struct igc_adapter *adapter,
+		       enum igc_mac_filter_type type, const u8 *addr)
 {
 	struct net_device *dev = adapter->netdev;
 	int index;
@@ -2271,7 +2286,7 @@ int igc_del_mac_filter(struct igc_adapter *adapter, const u8 *addr)
 	if (!is_valid_ether_addr(addr))
 		return -EINVAL;
 
-	index = igc_find_mac_filter(adapter, addr);
+	index = igc_find_mac_filter(adapter, type, addr);
 	if (index < 0)
 		return -ENOENT;
 
@@ -2282,10 +2297,12 @@ int igc_del_mac_filter(struct igc_adapter *adapter, const u8 *addr)
 		 */
 		netdev_dbg(dev, "Disable default MAC filter queue assignment");
 
-		igc_set_mac_filter_hw(adapter, 0, addr, -1);
+		igc_set_mac_filter_hw(adapter, 0, type, addr, -1);
 	} else {
-		netdev_dbg(dev, "Delete MAC address filter: index %d address %pM",
-			   index, addr);
+		netdev_dbg(dev, "Delete MAC address filter: index %d type %s address %pM\n",
+			   index,
+			   type == IGC_MAC_FILTER_TYPE_DST ? "dst" : "src",
+			   addr);
 
 		igc_clear_mac_filter_hw(adapter, index);
 	}
@@ -2442,14 +2459,14 @@ static int igc_uc_sync(struct net_device *netdev, const unsigned char *addr)
 {
 	struct igc_adapter *adapter = netdev_priv(netdev);
 
-	return igc_add_mac_filter(adapter, addr, -1);
+	return igc_add_mac_filter(adapter, IGC_MAC_FILTER_TYPE_DST, addr, -1);
 }
 
 static int igc_uc_unsync(struct net_device *netdev, const unsigned char *addr)
 {
 	struct igc_adapter *adapter = netdev_priv(netdev);
 
-	return igc_del_mac_filter(adapter, addr);
+	return igc_del_mac_filter(adapter, IGC_MAC_FILTER_TYPE_DST, addr);
 }
 
 /**
