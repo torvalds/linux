@@ -231,9 +231,8 @@ bool igc_has_link(struct igc_adapter *adapter);
 void igc_reset(struct igc_adapter *adapter);
 int igc_set_spd_dplx(struct igc_adapter *adapter, u32 spd, u8 dplx);
 int igc_add_mac_filter(struct igc_adapter *adapter, const u8 *addr,
-		       const s8 queue, const u8 flags);
-int igc_del_mac_filter(struct igc_adapter *adapter, const u8 *addr,
-		       const u8 flags);
+		       const s8 queue);
+int igc_del_mac_filter(struct igc_adapter *adapter, const u8 *addr);
 int igc_add_vlan_prio_filter(struct igc_adapter *adapter, int prio,
 			     int queue);
 void igc_del_vlan_prio_filter(struct igc_adapter *adapter, int prio);
@@ -479,7 +478,6 @@ struct igc_mac_addr {
 
 #define IGC_MAC_STATE_DEFAULT		0x1
 #define IGC_MAC_STATE_IN_USE		0x2
-#define IGC_MAC_STATE_SRC_ADDR		0x4
 
 #define IGC_MAX_RXNFC_FILTERS		16
 

@@ -2184,8 +2184,7 @@ static void igc_nfc_filter_restore(struct igc_adapter *adapter)
 	spin_unlock(&adapter->nfc_lock);
 }
 
-static int igc_find_mac_filter(struct igc_adapter *adapter, const u8 *addr,
-			       u8 flags)
+static int igc_find_mac_filter(struct igc_adapter *adapter, const u8 *addr)
 {
 	int max_entries = adapter->hw.mac.rar_entry_count;
 	struct igc_mac_addr *entry;
@@ -2197,9 +2196,6 @@ static int igc_find_mac_filter(struct igc_adapter *adapter, const u8 *addr,
 		if (!(entry->state & IGC_MAC_STATE_IN_USE))
 			continue;
 		if (!ether_addr_equal(addr, entry->addr))
-			continue;
-		if ((entry->state & IGC_MAC_STATE_SRC_ADDR) !=
-		    (flags & IGC_MAC_STATE_SRC_ADDR))
 			continue;
 
 		return i;
@@ -2231,23 +2227,19 @@ static int igc_get_avail_mac_filter_slot(struct igc_adapter *adapter)
  * @queue: If non-negative, queue assignment feature is enabled and frames
  *         matching the filter are enqueued onto 'queue'. Otherwise, queue
  *         assignment is disabled.
- * @flags: Set IGC_MAC_STATE_SRC_ADDR bit to indicate @address is a source
- *         address
  *
  * Return: 0 in case of success, negative errno code otherwise.
  */
 int igc_add_mac_filter(struct igc_adapter *adapter, const u8 *addr,
-		       const s8 queue, const u8 flags)
+		       const s8 queue)
 {
 	struct net_device *dev = adapter->netdev;
 	int index;
 
 	if (!is_valid_ether_addr(addr))
 		return -EINVAL;
-	if (flags & IGC_MAC_STATE_SRC_ADDR)
-		return -ENOTSUPP;
 
-	index = igc_find_mac_filter(adapter, addr, flags);
+	index = igc_find_mac_filter(adapter, addr);
 	if (index >= 0)
 		goto update_queue_assignment;
 
@@ -2259,7 +2251,7 @@ int igc_add_mac_filter(struct igc_adapter *adapter, const u8 *addr,
 		   index, addr, queue);
 
 	ether_addr_copy(adapter->mac_table[index].addr, addr);
-	adapter->mac_table[index].state |= IGC_MAC_STATE_IN_USE | flags;
+	adapter->mac_table[index].state |= IGC_MAC_STATE_IN_USE;
 update_queue_assignment:
 	adapter->mac_table[index].queue = queue;
 
@@ -2271,13 +2263,10 @@ update_queue_assignment:
  * igc_del_mac_filter() - Delete MAC address filter
  * @adapter: Pointer to adapter where the filter should be deleted from
  * @addr: MAC address
- * @flags: Set IGC_MAC_STATE_SRC_ADDR bit to indicate @address is a source
- *         address
  *
  * Return: 0 in case of success, negative errno code otherwise.
  */
-int igc_del_mac_filter(struct igc_adapter *adapter, const u8 *addr,
-		       const u8 flags)
+int igc_del_mac_filter(struct igc_adapter *adapter, const u8 *addr)
 {
 	struct net_device *dev = adapter->netdev;
 	struct igc_mac_addr *entry;
@@ -2286,7 +2275,7 @@ int igc_del_mac_filter(struct igc_adapter *adapter, const u8 *addr,
 	if (!is_valid_ether_addr(addr))
 		return -EINVAL;
 
-	index = igc_find_mac_filter(adapter, addr, flags);
+	index = igc_find_mac_filter(adapter, addr);
 	if (index < 0)
 		return -ENOENT;
 
@@ -2463,14 +2452,14 @@ static int igc_uc_sync(struct net_device *netdev, const unsigned char *addr)
 {
 	struct igc_adapter *adapter = netdev_priv(netdev);
 
-	return igc_add_mac_filter(adapter, addr, -1, 0);
+	return igc_add_mac_filter(adapter, addr, -1);
 }
 
 static int igc_uc_unsync(struct net_device *netdev, const unsigned char *addr)
 {
 	struct igc_adapter *adapter = netdev_priv(netdev);
 
-	return igc_del_mac_filter(adapter, addr, 0);
+	return igc_del_mac_filter(adapter, addr);
 }
 
 /**
