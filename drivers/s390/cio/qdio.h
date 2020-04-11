@@ -374,7 +374,6 @@ int tiqdio_allocate_memory(void);
 void tiqdio_free_memory(void);
 int tiqdio_register_thinints(void);
 void tiqdio_unregister_thinints(void);
-void clear_nonshared_ind(struct qdio_irq *);
 int test_nonshared_ind(struct qdio_irq *);
 
 /* prototypes for setup */

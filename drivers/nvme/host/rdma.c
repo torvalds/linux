@@ -1342,7 +1342,7 @@ static int nvme_rdma_post_send(struct nvme_rdma_queue *queue,
 	int ret;
 
 	sge->addr   = qe->dma;
-	sge->length = sizeof(struct nvme_command),
+	sge->length = sizeof(struct nvme_command);
 	sge->lkey   = queue->device->pd->local_dma_lkey;
 
 	wr.next       = NULL;

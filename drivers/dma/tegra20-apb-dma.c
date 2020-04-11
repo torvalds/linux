@@ -1493,7 +1493,6 @@ static int tegra_dma_probe(struct platform_device *pdev)
 		irq = platform_get_irq(pdev, i);
 		if (irq < 0) {
 			ret = irq;
-			dev_err(&pdev->dev, "No irq resource for chan %d\n", i);
 			goto err_pm_disable;
 		}
 

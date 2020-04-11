@@ -1220,27 +1220,21 @@ EXPORT_SYMBOL_GPL(qdio_free);
 
 /**
  * qdio_allocate - allocate qdio queues and associated data
- * @init_data: initialization data
+ * @cdev: associated ccw device
+ * @no_input_qs: allocate this number of Input Queues
+ * @no_output_qs: allocate this number of Output Queues
  */
-int qdio_allocate(struct qdio_initialize *init_data)
+int qdio_allocate(struct ccw_device *cdev, unsigned int no_input_qs,
+		  unsigned int no_output_qs)
 {
-	struct ccw_device *cdev = init_data->cdev;
 	struct subchannel_id schid;
 	struct qdio_irq *irq_ptr;
 
 	ccw_device_get_schid(cdev, &schid);
 	DBF_EVENT("qallocate:%4x", schid.sch_no);
 
-	if ((init_data->no_input_qs && !init_data->input_handler) ||
-	    (init_data->no_output_qs && !init_data->output_handler))
-		return -EINVAL;
-
-	if ((init_data->no_input_qs > QDIO_MAX_QUEUES_PER_IRQ) ||
-	    (init_data->no_output_qs > QDIO_MAX_QUEUES_PER_IRQ))
-		return -EINVAL;
-
-	if ((!init_data->input_sbal_addr_array) ||
-	    (!init_data->output_sbal_addr_array))
+	if (no_input_qs > QDIO_MAX_QUEUES_PER_IRQ ||
+	    no_output_qs > QDIO_MAX_QUEUES_PER_IRQ)
 		return -EINVAL;
 
 	/* irq_ptr must be in GFP_DMA since it contains ccw1.cda */
@@ -1250,8 +1244,11 @@ int qdio_allocate(struct qdio_initialize *init_data)
 
 	irq_ptr->cdev = cdev;
 	mutex_init(&irq_ptr->setup_mutex);
-	if (qdio_allocate_dbf(init_data, irq_ptr))
+	if (qdio_allocate_dbf(irq_ptr))
 		goto out_rel;
+
+	DBF_DEV_EVENT(DBF_ERR, irq_ptr, "alloc niq:%1u noq:%1u", no_input_qs,
+		      no_output_qs);
 
 	/*
 	 * Allocate a page for the chsc calls in qdio_establish.
@@ -1268,8 +1265,7 @@ int qdio_allocate(struct qdio_initialize *init_data)
 	if (!irq_ptr->qdr)
 		goto out_rel;
 
-	if (qdio_allocate_qs(irq_ptr, init_data->no_input_qs,
-			     init_data->no_output_qs))
+	if (qdio_allocate_qs(irq_ptr, no_input_qs, no_output_qs))
 		goto out_rel;
 
 	INIT_LIST_HEAD(&irq_ptr->entry);
@@ -1305,13 +1301,33 @@ static void qdio_detect_hsicq(struct qdio_irq *irq_ptr)
 	DBF_EVENT("use_cq:%d", use_cq);
 }
 
+static void qdio_trace_init_data(struct qdio_irq *irq,
+				 struct qdio_initialize *data)
+{
+	DBF_DEV_EVENT(DBF_ERR, irq, "qfmt:%1u", data->q_format);
+	DBF_DEV_HEX(irq, data->adapter_name, 8, DBF_ERR);
+	DBF_DEV_EVENT(DBF_ERR, irq, "qpff%4x", data->qib_param_field_format);
+	DBF_DEV_HEX(irq, &data->qib_param_field, sizeof(void *), DBF_ERR);
+	DBF_DEV_HEX(irq, &data->input_slib_elements, sizeof(void *), DBF_ERR);
+	DBF_DEV_HEX(irq, &data->output_slib_elements, sizeof(void *), DBF_ERR);
+	DBF_DEV_EVENT(DBF_ERR, irq, "niq:%1u noq:%1u", data->no_input_qs,
+		      data->no_output_qs);
+	DBF_DEV_HEX(irq, &data->input_handler, sizeof(void *), DBF_ERR);
+	DBF_DEV_HEX(irq, &data->output_handler, sizeof(void *), DBF_ERR);
+	DBF_DEV_HEX(irq, &data->int_parm, sizeof(long), DBF_ERR);
+	DBF_DEV_HEX(irq, &data->input_sbal_addr_array, sizeof(void *), DBF_ERR);
+	DBF_DEV_HEX(irq, &data->output_sbal_addr_array, sizeof(void *),
+		    DBF_ERR);
+}
+
 /**
  * qdio_establish - establish queues on a qdio subchannel
+ * @cdev: associated ccw device
  * @init_data: initialization data
  */
-int qdio_establish(struct qdio_initialize *init_data)
+int qdio_establish(struct ccw_device *cdev,
+		   struct qdio_initialize *init_data)
 {
-	struct ccw_device *cdev = init_data->cdev;
 	struct qdio_irq *irq_ptr = cdev->private->qdio_data;
 	struct subchannel_id schid;
 	int rc;
@@ -1322,7 +1338,16 @@ int qdio_establish(struct qdio_initialize *init_data)
 	if (!irq_ptr)
 		return -ENODEV;
 
+	if ((init_data->no_input_qs && !init_data->input_handler) ||
+	    (init_data->no_output_qs && !init_data->output_handler))
+		return -EINVAL;
+
+	if (!init_data->input_sbal_addr_array ||
+	    !init_data->output_sbal_addr_array)
+		return -EINVAL;
+
 	mutex_lock(&irq_ptr->setup_mutex);
+	qdio_trace_init_data(irq_ptr, init_data);
 	qdio_setup_irq(irq_ptr, init_data);
 
 	rc = qdio_establish_thinint(irq_ptr);
@@ -1617,8 +1642,6 @@ int qdio_start_irq(struct ccw_device *cdev)
 
 	if (!irq_ptr)
 		return -ENODEV;
-
-	clear_nonshared_ind(irq_ptr);
 
 	for_each_input_queue(irq_ptr, q, i)
 		qdio_stop_polling(q);

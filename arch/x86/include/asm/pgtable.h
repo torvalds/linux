@@ -860,7 +860,10 @@ static inline unsigned long pmd_index(unsigned long address)
  *
  * this function returns the index of the entry in the pte page which would
  * control the given virtual address
+ *
+ * Also define macro so we can test if pte_index is defined for arch.
  */
+#define pte_index pte_index
 static inline unsigned long pte_index(unsigned long address)
 {
 	return (address >> PAGE_SHIFT) & (PTRS_PER_PTE - 1);
@@ -1077,6 +1080,9 @@ static inline void __meminit init_trampoline_default(void)
 }
 
 void __init poking_init(void);
+
+unsigned long init_memory_mapping(unsigned long start,
+				  unsigned long end, pgprot_t prot);
 
 # ifdef CONFIG_RANDOMIZE_MEMORY
 void __meminit init_trampoline(void);
