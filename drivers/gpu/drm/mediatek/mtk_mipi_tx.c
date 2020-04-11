@@ -125,6 +125,20 @@ static int mtk_mipi_tx_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	ret = of_property_read_u32(dev->of_node, "drive-strength-microamp",
+				   &mipi_tx->mipitx_drive);
+	/* If can't get the "mipi_tx->mipitx_drive", set it default 0x8 */
+	if (ret < 0)
+		mipi_tx->mipitx_drive = 4600;
+
+	/* check the mipitx_drive valid */
+	if (mipi_tx->mipitx_drive > 6000 || mipi_tx->mipitx_drive < 3000) {
+		dev_warn(dev, "drive-strength-microamp is invalid %d, not in 3000 ~ 6000\n",
+			 mipi_tx->mipitx_drive);
+		mipi_tx->mipitx_drive = clamp_val(mipi_tx->mipitx_drive, 3000,
+						  6000);
+	}
+
 	ref_clk_name = __clk_get_name(ref_clk);
 
 	ret = of_property_read_string(dev->of_node, "clock-output-names",
