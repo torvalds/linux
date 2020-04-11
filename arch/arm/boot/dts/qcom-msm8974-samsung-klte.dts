@@ -152,6 +152,9 @@
 					pma8084_l20: l20 {
 						regulator-min-microvolt = <2950000>;
 						regulator-max-microvolt = <2950000>;
+
+						regulator-allow-set-load;
+						regulator-system-load = <200000>;
 					};
 
 					pma8084_l21: l21 {
@@ -239,6 +242,35 @@
 			linux,code = <KEY_VOLUMEUP>;
 			debounce-interval = <15>;
 		};
+	};
+
+	pinctrl@fd510000 {
+		sdhc1_pin_a: sdhc1-pin-active {
+			clk {
+				pins = "sdc1_clk";
+				drive-strength = <4>;
+				bias-disable;
+			};
+
+			cmd-data {
+				pins = "sdc1_cmd", "sdc1_data";
+				drive-strength = <4>;
+				bias-pull-up;
+			};
+		};
+	};
+
+	sdhci@f9824900 {
+		status = "ok";
+
+		vmmc-supply = <&pma8084_l20>;
+		vqmmc-supply = <&pma8084_s4>;
+
+		bus-width = <8>;
+		non-removable;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&sdhc1_pin_a>;
 	};
 };
 
