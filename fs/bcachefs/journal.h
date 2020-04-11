@@ -346,7 +346,9 @@ static inline int bch2_journal_res_get(struct journal *j, struct journal_res *re
 		return ret;
 out:
 	if (!(flags & JOURNAL_RES_GET_CHECK)) {
-		lock_acquire_shared(&j->res_map, 0, 0, NULL, _THIS_IP_);
+		lock_acquire_shared(&j->res_map, 0,
+				    (flags & JOURNAL_RES_GET_NONBLOCK) != 0,
+				    NULL, _THIS_IP_);
 		EBUG_ON(!res->ref);
 	}
 	return 0;
