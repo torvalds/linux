@@ -432,7 +432,7 @@ int vnt_set_antenna_mode(struct vnt_private *priv, u8 antenna_mode)
 
 int vnt_vt3184_init(struct vnt_private *priv)
 {
-	int ret = 0;
+	int ret;
 	u16 length;
 	u8 *addr;
 	u8 data;
