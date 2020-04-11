@@ -190,8 +190,6 @@ struct igc_adapter {
 	/* lock for RX network flow classification filter */
 	spinlock_t nfc_lock;
 
-	struct igc_mac_addr *mac_table;
-
 	u8 rss_indir_tbl[IGC_RETA_SIZE];
 
 	unsigned long link_check_timeout;
@@ -469,15 +467,6 @@ struct igc_nfc_filter {
 	u16 sw_idx;
 	u16 action;
 };
-
-struct igc_mac_addr {
-	u8 addr[ETH_ALEN];
-	s8 queue;
-	u8 state; /* bitmask */
-};
-
-#define IGC_MAC_STATE_DEFAULT		0x1
-#define IGC_MAC_STATE_IN_USE		0x2
 
 #define IGC_MAX_RXNFC_FILTERS		16
 
