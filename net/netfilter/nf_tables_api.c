@@ -3291,7 +3291,7 @@ static const struct nft_set_type *nft_set_types[] = {
 	&nft_set_rhash_type,
 	&nft_set_bitmap_type,
 	&nft_set_rbtree_type,
-#if defined(CONFIG_X86_64) && defined(CONFIG_AS_AVX2)
+#if defined(CONFIG_X86_64) && !defined(CONFIG_UML)
 	&nft_set_pipapo_avx2_type,
 #endif
 	&nft_set_pipapo_type,
