@@ -499,6 +499,23 @@ TRACE_EVENT(copygc,
 		__entry->buckets_moved, __entry->buckets_not_moved)
 );
 
+TRACE_EVENT(transaction_restart_ip,
+	TP_PROTO(unsigned long caller, unsigned long ip),
+	TP_ARGS(caller, ip),
+
+	TP_STRUCT__entry(
+		__field(unsigned long,		caller	)
+		__field(unsigned long,		ip	)
+	),
+
+	TP_fast_assign(
+		__entry->caller	= caller;
+		__entry->ip	= ip;
+	),
+
+	TP_printk("%pF %pF", (void *) __entry->caller, (void *) __entry->ip)
+);
+
 DECLARE_EVENT_CLASS(transaction_restart,
 	TP_PROTO(unsigned long ip),
 	TP_ARGS(ip),

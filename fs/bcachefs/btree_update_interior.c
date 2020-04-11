@@ -1555,8 +1555,10 @@ int bch2_btree_split_leaf(struct bch_fs *c, struct btree_iter *iter,
 	/* Hack, because gc and splitting nodes doesn't mix yet: */
 	if (!(flags & BTREE_INSERT_GC_LOCK_HELD) &&
 	    !down_read_trylock(&c->gc_lock)) {
-		if (flags & BTREE_INSERT_NOUNLOCK)
+		if (flags & BTREE_INSERT_NOUNLOCK) {
+			trace_transaction_restart_ip(trans->ip, _THIS_IP_);
 			return -EINTR;
+		}
 
 		bch2_trans_unlock(trans);
 		down_read(&c->gc_lock);
@@ -1584,6 +1586,8 @@ int bch2_btree_split_leaf(struct bch_fs *c, struct btree_iter *iter,
 			BUG_ON(flags & BTREE_INSERT_NOUNLOCK);
 			bch2_trans_unlock(trans);
 			ret = -EINTR;
+
+			trace_transaction_restart_ip(trans->ip, _THIS_IP_);
 		}
 		goto out;
 	}
