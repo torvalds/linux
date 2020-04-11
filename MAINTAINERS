@@ -738,7 +738,6 @@ F:	drivers/i2c/busses/i2c-altera.c
 
 ALTERA MAILBOX DRIVER
 M:	Ley Foon Tan <ley.foon.tan@intel.com>
-L:	nios2-dev@lists.rocketboards.org (moderated for non-subscribers)
 S:	Maintained
 F:	drivers/mailbox/mailbox-altera.c
 
@@ -766,14 +765,12 @@ F:	include/dt-bindings/reset/altr,rst-mgr-a10sr.h
 ALTERA TRIPLE SPEED ETHERNET DRIVER
 M:	Thor Thayer <thor.thayer@linux.intel.com>
 L:	netdev@vger.kernel.org
-L:	nios2-dev@lists.rocketboards.org (moderated for non-subscribers)
 S:	Maintained
 F:	drivers/net/ethernet/altera/
 
 ALTERA UART/JTAG UART SERIAL DRIVERS
 M:	Tobias Klauser <tklauser@distanz.ch>
 L:	linux-serial@vger.kernel.org
-L:	nios2-dev@lists.rocketboards.org (moderated for non-subscribers)
 S:	Maintained
 F:	drivers/tty/serial/altera_uart.c
 F:	drivers/tty/serial/altera_jtaguart.c
@@ -11925,7 +11922,6 @@ F:	drivers/scsi/nsp32*
 
 NIOS2 ARCHITECTURE
 M:	Ley Foon Tan <ley.foon.tan@intel.com>
-L:	nios2-dev@lists.rocketboards.org (moderated for non-subscribers)
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lftan/nios2.git
 S:	Maintained
 F:	arch/nios2/
