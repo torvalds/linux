@@ -94,7 +94,7 @@ static inline unsigned btree_blocks(struct bch_fs *c)
 	return c->opts.btree_node_size >> c->block_bits;
 }
 
-#define BTREE_SPLIT_THRESHOLD(c)		(btree_max_u64s(c) * 3 / 4)
+#define BTREE_SPLIT_THRESHOLD(c)		(btree_max_u64s(c) * 2 / 3)
 
 #define BTREE_FOREGROUND_MERGE_THRESHOLD(c)	(btree_max_u64s(c) * 1 / 3)
 #define BTREE_FOREGROUND_MERGE_HYSTERESIS(c)			\
