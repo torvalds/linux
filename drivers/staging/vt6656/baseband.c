@@ -446,23 +446,15 @@ int vnt_vt3184_init(struct vnt_private *priv)
 
 	dev_dbg(&priv->usb->dev, "RF Type %d\n", priv->rf_type);
 
-	if (priv->rf_type == RF_AL2230 ||
-	    priv->rf_type == RF_AL2230S) {
+	if ((priv->rf_type == RF_AL2230) ||
+	    (priv->rf_type == RF_AL2230S) ||
+	    (priv->rf_type == RF_AIROHA7230)) {
 		priv->bb_rx_conf = vnt_vt3184_al2230[10];
 		length = sizeof(vnt_vt3184_al2230);
 		addr = vnt_vt3184_al2230;
 
-		priv->bb_vga[0] = 0x1C;
-		priv->bb_vga[1] = 0x10;
-		priv->bb_vga[2] = 0x0;
-		priv->bb_vga[3] = 0x0;
-
-	} else if (priv->rf_type == RF_AIROHA7230) {
-		priv->bb_rx_conf = vnt_vt3184_al2230[10];
-		length = sizeof(vnt_vt3184_al2230);
-		addr = vnt_vt3184_al2230;
-
-		addr[0xd7] = 0x06;
+		if (priv->rf_type == RF_AIROHA7230)
+			addr[0xd7] = 0x06;
 
 		priv->bb_vga[0] = 0x1c;
 		priv->bb_vga[1] = 0x10;
@@ -470,22 +462,8 @@ int vnt_vt3184_init(struct vnt_private *priv)
 		priv->bb_vga[3] = 0x0;
 
 	} else if ((priv->rf_type == RF_VT3226) ||
-			(priv->rf_type == RF_VT3226D0)) {
-		priv->bb_rx_conf = vnt_vt3184_vt3226d0[10];
-		length = sizeof(vnt_vt3184_vt3226d0);
-		addr = vnt_vt3184_vt3226d0;
-
-		priv->bb_vga[0] = 0x20;
-		priv->bb_vga[1] = 0x10;
-		priv->bb_vga[2] = 0x0;
-		priv->bb_vga[3] = 0x0;
-
-		/* Fix VT3226 DFC system timing issue */
-		ret = vnt_mac_reg_bits_on(priv, MAC_REG_SOFTPWRCTL2,
-					  SOFTPWRCTL_RFLEOPT);
-		if (ret)
-			goto end;
-	} else if (priv->rf_type == RF_VT3342A0) {
+		   (priv->rf_type == RF_VT3226D0) ||
+		   (priv->rf_type == RF_VT3342A0)) {
 		priv->bb_rx_conf = vnt_vt3184_vt3226d0[10];
 		length = sizeof(vnt_vt3184_vt3226d0);
 		addr = vnt_vt3184_vt3226d0;
@@ -515,19 +493,13 @@ int vnt_vt3184_init(struct vnt_private *priv)
 	if (ret)
 		goto end;
 
-	if (priv->rf_type == RF_VT3226 ||
-	    priv->rf_type == RF_VT3342A0) {
-		ret = vnt_control_out_u8(priv, MESSAGE_REQUEST_MACREG,
-					 MAC_REG_ITRTMSET, 0x23);
-		if (ret)
-			goto end;
+	if ((priv->rf_type == RF_VT3226) ||
+	    (priv->rf_type == RF_VT3342A0) ||
+	    (priv->rf_type == RF_VT3226D0)) {
+		data = (priv->rf_type == RF_VT3226D0) ? 0x11 : 0x23;
 
-		ret = vnt_mac_reg_bits_on(priv, MAC_REG_PAPEDELAY, BIT(0));
-		if (ret)
-			goto end;
-	} else if (priv->rf_type == RF_VT3226D0) {
 		ret = vnt_control_out_u8(priv, MESSAGE_REQUEST_MACREG,
-					 MAC_REG_ITRTMSET, 0x11);
+					 MAC_REG_ITRTMSET, data);
 		if (ret)
 			goto end;
 
