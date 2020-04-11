@@ -261,6 +261,7 @@ int imgu_queue_buffers(struct imgu_device *imgu, bool initial, unsigned int pipe
 
 			ivb = list_first_entry(&imgu_pipe->nodes[node].buffers,
 					       struct imgu_vb2_buffer, list);
+			list_del(&ivb->list);
 			vb = &ivb->vbb.vb2_buf;
 			r = imgu_css_set_parameters(&imgu->css, pipe,
 						    vb2_plane_vaddr(vb, 0));
@@ -274,7 +275,6 @@ int imgu_queue_buffers(struct imgu_device *imgu, bool initial, unsigned int pipe
 			vb2_buffer_done(vb, VB2_BUF_STATE_DONE);
 			dev_dbg(&imgu->pci_dev->dev,
 				"queue user parameters %d to css.", vb->index);
-			list_del(&ivb->list);
 		} else if (imgu_pipe->queue_enabled[node]) {
 			struct imgu_css_buffer *buf =
 				imgu_queue_getbuf(imgu, node, pipe);
