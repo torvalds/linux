@@ -421,10 +421,12 @@ void nf_flow_table_offload_del_cb(struct nf_flowtable *flow_table,
 
 	down_write(&flow_table->flow_block_lock);
 	block_cb = flow_block_cb_lookup(block, cb, cb_priv);
-	if (block_cb)
+	if (block_cb) {
 		list_del(&block_cb->list);
-	else
+		flow_block_cb_free(block_cb);
+	} else {
 		WARN_ON(true);
+	}
 	up_write(&flow_table->flow_block_lock);
 }
 EXPORT_SYMBOL_GPL(nf_flow_table_offload_del_cb);
