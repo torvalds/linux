@@ -394,9 +394,14 @@ static void rkisp1_rsz_config(struct rkisp1_resizer *rsz,
 	 * but also to change the scale for YUV formats,
 	 * (4:2:2 -> 4:2:0 for example). So the width/height of the CbCr
 	 * streams should be set according to the pixel format in the capture.
+	 * The resizer always gets the input as YUV422. If the capture format
+	 * is RGB then the memory input should be YUV422 so we don't change the
+	 * default hdiv, vdiv in that case.
 	 */
-	hdiv = cap->pix.info->hdiv;
-	vdiv = cap->pix.info->vdiv;
+	if (v4l2_is_format_yuv(cap->pix.info)) {
+		hdiv = cap->pix.info->hdiv;
+		vdiv = cap->pix.info->vdiv;
+	}
 
 	src_c.width = src_y.width / hdiv;
 	src_c.height = src_y.height / vdiv;
