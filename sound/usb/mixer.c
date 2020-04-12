@@ -1771,10 +1771,14 @@ static void get_connector_control_name(struct usb_mixer_interface *mixer,
 
 /* Build a mixer control for a UAC connector control (jack-detect) */
 static void build_connector_control(struct usb_mixer_interface *mixer,
+				    const struct usbmix_name_map *imap,
 				    struct usb_audio_term *term, bool is_input)
 {
 	struct snd_kcontrol *kctl;
 	struct usb_mixer_elem_info *cval;
+
+	if (check_ignored_ctl(find_map(imap, term->id, 0)))
+		return;
 
 	cval = kzalloc(sizeof(*cval), GFP_KERNEL);
 	if (!cval)
@@ -2111,7 +2115,7 @@ static int parse_audio_input_terminal(struct mixer_build *state, int unitid,
 	/* Check for jack detection. */
 	if ((iterm.type & 0xff00) != 0x0100 &&
 	    uac_v2v3_control_is_readable(bmctls, control))
-		build_connector_control(state->mixer, &iterm, true);
+		build_connector_control(state->mixer, state->map, &iterm, true);
 
 	return 0;
 }
@@ -3072,13 +3076,13 @@ static int snd_usb_mixer_controls_badd(struct usb_mixer_interface *mixer,
 		memset(&iterm, 0, sizeof(iterm));
 		iterm.id = UAC3_BADD_IT_ID4;
 		iterm.type = UAC_BIDIR_TERMINAL_HEADSET;
-		build_connector_control(mixer, &iterm, true);
+		build_connector_control(mixer, map->map, &iterm, true);
 
 		/* Output Term - Insertion control */
 		memset(&oterm, 0, sizeof(oterm));
 		oterm.id = UAC3_BADD_OT_ID3;
 		oterm.type = UAC_BIDIR_TERMINAL_HEADSET;
-		build_connector_control(mixer, &oterm, false);
+		build_connector_control(mixer, map->map, &oterm, false);
 	}
 
 	return 0;
@@ -3153,8 +3157,8 @@ static int snd_usb_mixer_controls(struct usb_mixer_interface *mixer)
 			if ((state.oterm.type & 0xff00) != 0x0100 &&
 			    uac_v2v3_control_is_readable(le16_to_cpu(desc->bmControls),
 							 UAC2_TE_CONNECTOR)) {
-				build_connector_control(state.mixer, &state.oterm,
-							false);
+				build_connector_control(state.mixer, state.map,
+							&state.oterm, false);
 			}
 		} else {  /* UAC_VERSION_3 */
 			struct uac3_output_terminal_descriptor *desc = p;
@@ -3179,8 +3183,8 @@ static int snd_usb_mixer_controls(struct usb_mixer_interface *mixer)
 			if ((state.oterm.type & 0xff00) != 0x0100 &&
 			    uac_v2v3_control_is_readable(le32_to_cpu(desc->bmControls),
 							 UAC3_TE_INSERTION)) {
-				build_connector_control(state.mixer, &state.oterm,
-							false);
+				build_connector_control(state.mixer, state.map,
+							&state.oterm, false);
 			}
 		}
 	}
