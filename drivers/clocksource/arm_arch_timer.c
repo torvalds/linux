@@ -52,6 +52,8 @@
 #define CNTFRQ		0x10
 #define CNTP_TVAL	0x28
 #define CNTP_CTL	0x2c
+#define CNTCVAL_LO	0x30
+#define CNTCVAL_HI	0x34
 #define CNTV_TVAL	0x38
 #define CNTV_CTL	0x3c
 
@@ -956,6 +958,24 @@ bool arch_timer_evtstrm_available(void)
 	 */
 	return cpumask_test_cpu(raw_smp_processor_id(), &evtstrm_available);
 }
+
+void arch_timer_mem_get_cval(u32 *lo, u32 *hi)
+{
+	u32 ctrl;
+
+	*lo = *hi = ~0U;
+
+	if (!arch_counter_base)
+		return;
+
+	ctrl = readl_relaxed(arch_counter_base + CNTV_CTL);
+
+	if (ctrl & ARCH_TIMER_CTRL_ENABLE) {
+		*lo = readl_relaxed(arch_counter_base + CNTCVAL_LO);
+		*hi = readl_relaxed(arch_counter_base + CNTCVAL_HI);
+	}
+}
+EXPORT_SYMBOL_GPL(arch_timer_mem_get_cval);
 
 static u64 arch_counter_get_cntvct_mem(void)
 {

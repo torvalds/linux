@@ -140,7 +140,7 @@ struct clk *clk_register_aux(const char *aux_name, const char *gate_name,
 		u8 rtbl_cnt, spinlock_t *lock, struct clk **gate_clk)
 {
 	struct clk_aux *aux;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	struct clk *clk;
 
 	if (!aux_name || !parent_name || !reg || !rtbl || !rtbl_cnt) {

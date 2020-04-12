@@ -88,7 +88,7 @@ static void __init h8s2678_pll_clk_setup(struct device_node *node)
 	const char *clk_name = node->name;
 	const char *parent_name;
 	struct pll_clock *pll_clock;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	int ret;
 
 	num_parents = of_clk_get_parent_count(node);

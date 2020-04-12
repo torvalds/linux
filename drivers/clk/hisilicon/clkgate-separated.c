@@ -102,7 +102,7 @@ struct clk *hisi_register_clkgate_sep(struct device *dev, const char *name,
 {
 	struct clkgate_separated *sclk;
 	struct clk *clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 
 	sclk = kzalloc(sizeof(*sclk), GFP_KERNEL);
 	if (!sclk)

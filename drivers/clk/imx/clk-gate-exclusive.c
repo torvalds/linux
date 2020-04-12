@@ -64,7 +64,7 @@ struct clk *imx_clk_gate_exclusive(const char *name, const char *parent,
 	struct clk_gate_exclusive *exgate;
 	struct clk_gate *gate;
 	struct clk *clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 
 	if (exclusive_mask == 0)
 		return ERR_PTR(-EINVAL);

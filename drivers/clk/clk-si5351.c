@@ -1370,7 +1370,7 @@ static int si5351_i2c_probe(struct i2c_client *client,
 	enum si5351_variant variant = (enum si5351_variant)id->driver_data;
 	struct si5351_platform_data *pdata;
 	struct si5351_driver_data *drvdata;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	const char *parent_names[4];
 	u8 num_parents, num_clocks;
 	int ret, n;

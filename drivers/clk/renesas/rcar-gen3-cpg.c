@@ -170,7 +170,7 @@ static struct clk * __init cpg_z_clk_register(const char *name,
 					      void __iomem *reg,
 					      unsigned long mask)
 {
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	struct cpg_z_clk *zclk;
 	struct clk *clk;
 
@@ -357,7 +357,7 @@ static struct clk * __init cpg_sd_clk_register(const struct cpg_core_clk *core,
 	void __iomem *base, const char *parent_name,
 	struct raw_notifier_head *notifiers)
 {
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	struct sd_clock *clock;
 	struct clk *clk;
 	unsigned int i;

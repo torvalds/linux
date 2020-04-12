@@ -703,7 +703,7 @@ static int vc5_probe(struct i2c_client *client,
 		     const struct i2c_device_id *id)
 {
 	struct vc5_driver_data *vc5;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	const char *parent_names[2];
 	unsigned int n, idx = 0;
 	int ret;

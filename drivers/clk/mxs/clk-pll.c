@@ -90,7 +90,7 @@ struct clk *mxs_clk_pll(const char *name, const char *parent_name,
 {
 	struct clk_pll *pll;
 	struct clk *clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 
 	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
 	if (!pll)

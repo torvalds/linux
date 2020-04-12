@@ -54,6 +54,16 @@ config REGULATOR_USERSPACE_CONSUMER
 
 	  If unsure, say no.
 
+config REGULATOR_PROXY_CONSUMER
+	bool "Boot time regulator proxy consumer support"
+	help
+	  This driver provides support for boot time regulator proxy requests.
+	  It can enforce a specified voltage range, set a minimum current,
+	  and/or keep a regulator enabled.  It is needed in circumstances where
+	  reducing one or more of these three quantities will cause hardware to
+	  stop working if performed before the driver managing the hardware has
+	  probed.
+
 config REGULATOR_88PG86X
 	tristate "Marvell 88PG86X voltage regulators"
 	depends on I2C

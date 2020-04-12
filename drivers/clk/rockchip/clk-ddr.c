@@ -105,7 +105,7 @@ struct clk *rockchip_clk_register_ddrclk(const char *name, int flags,
 					 spinlock_t *lock)
 {
 	struct rockchip_ddrclk *ddrclk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	struct clk *clk;
 
 	ddrclk = kzalloc(sizeof(*ddrclk), GFP_KERNEL);

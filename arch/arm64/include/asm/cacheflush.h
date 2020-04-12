@@ -41,6 +41,10 @@
  *	the implementation assumes non-aliasing VIPT D-cache and (aliasing)
  *	VIPT I-cache.
  *
+ *	flush_cache_all()
+ *
+ *		Unconditionally clean and invalidate the entire cache.
+ *
  *	flush_cache_mm(mm)
  *
  *		Clean and invalidate all user space cache entries
@@ -72,6 +76,7 @@
  *		- kaddr  - page address
  *		- size   - region size
  */
+extern void flush_cache_all(void);
 extern void __flush_icache_range(unsigned long start, unsigned long end);
 extern int  invalidate_icache_range(unsigned long start, unsigned long end);
 extern void __flush_dcache_area(void *addr, size_t len);

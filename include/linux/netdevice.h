@@ -2949,6 +2949,7 @@ extern int netdev_flow_limit_table_len;
  */
 struct softnet_data {
 	struct list_head	poll_list;
+	struct napi_struct	*current_napi;
 	struct sk_buff_head	process_queue;
 
 	/* stats */
@@ -3551,6 +3552,7 @@ struct sk_buff *napi_get_frags(struct napi_struct *napi);
 gro_result_t napi_gro_frags(struct napi_struct *napi);
 struct packet_offload *gro_find_receive_by_type(__be16 type);
 struct packet_offload *gro_find_complete_by_type(__be16 type);
+extern struct napi_struct *get_current_napi_context(void);
 
 static inline void napi_free_frags(struct napi_struct *napi)
 {

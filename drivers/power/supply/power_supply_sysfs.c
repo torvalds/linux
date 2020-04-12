@@ -613,7 +613,7 @@ int power_supply_uevent(struct device *dev, struct kobj_uevent_env *env)
 
 		if (!attr->attr.name) {
 			dev_info(dev, "%s:%d FAKE attr.name=NULL skip\n",
-				__FILE__, __LINE__, __func__);
+				__FILE__, __LINE__);
 			continue;
 		}
 

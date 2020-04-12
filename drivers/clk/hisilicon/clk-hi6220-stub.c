@@ -197,7 +197,7 @@ static const struct clk_ops hi6220_stub_clk_ops = {
 static int hi6220_stub_clk_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	struct hi6220_stub_clk *stub_clk;
 	struct clk *clk;
 	struct device_node *np = pdev->dev.of_node;

@@ -149,6 +149,7 @@ struct devfreq {
 	struct list_head node;
 
 	struct mutex lock;
+	struct mutex event_lock;
 	struct device dev;
 	struct devfreq_dev_profile *profile;
 	const struct devfreq_governor *governor;
@@ -174,6 +175,7 @@ struct devfreq {
 	unsigned long last_stat_updated;
 
 	struct srcu_notifier_head transition_notifier_list;
+	bool dev_suspended;
 };
 
 struct devfreq_freqs {

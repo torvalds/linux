@@ -604,7 +604,7 @@ static struct clk * __init clkgen_pll_register(const char *parent_name,
 {
 	struct clkgen_pll *pll;
 	struct clk *clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 
 	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
 	if (!pll)

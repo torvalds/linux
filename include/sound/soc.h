@@ -380,6 +380,10 @@
 #define SND_SOC_COMP_ORDER_LATE		1
 #define SND_SOC_COMP_ORDER_LAST		2
 
+/* DAI Link Host Mode Support */
+#define SND_SOC_DAI_LINK_NO_HOST		0x1
+#define SND_SOC_DAI_LINK_OPT_HOST		0x2
+
 /*
  * Bias levels
  *
@@ -739,6 +743,7 @@ struct snd_soc_pcm_stream {
 	unsigned int channels_min;	/* min channels */
 	unsigned int channels_max;	/* max channels */
 	unsigned int sig_bits;		/* number of bits of content */
+	const char *aif_name;		/* DAPM AIF widget name */
 };
 
 /* SoC audio ops */
@@ -801,6 +806,16 @@ struct snd_soc_component_driver {
 	int (*stream_event)(struct snd_soc_component *, int event);
 	int (*set_bias_level)(struct snd_soc_component *component,
 			      enum snd_soc_bias_level level);
+
+	/*
+	 * For platform-caused delay reporting, where the thread blocks waiting
+	 * for the delay amount to be determined.  Defining this will cause the
+	 * ASoC core to skip calling the delay callbacks for all components in
+	 * the runtime.
+	 * Optional.
+	 */
+	snd_pcm_sframes_t (*delay_blk)(struct snd_pcm_substream *substream,
+			struct snd_soc_dai *dai);
 
 	const struct snd_pcm_ops *ops;
 	const struct snd_compr_ops *compr_ops;
@@ -975,6 +990,15 @@ struct snd_soc_dai_link {
 
 	/* This DAI link can route to other DAI links at runtime (Frontend)*/
 	unsigned int dynamic:1;
+
+	/* This DAI link can be reconfigured at runtime (Backend) */
+	unsigned int dynamic_be:1;
+
+	/*
+	 * This DAI can support no host IO (no pcm data is
+	 * copied to from host)
+	 */
+	unsigned int no_host_mode:2;
 
 	/* DPCM capture and Playback support */
 	unsigned int dpcm_capture:1;
@@ -1340,6 +1364,8 @@ int snd_soc_component_update_bits_async(struct snd_soc_component *component,
 void snd_soc_component_async_complete(struct snd_soc_component *component);
 int snd_soc_component_test_bits(struct snd_soc_component *component,
 	unsigned int reg, unsigned int mask, unsigned int value);
+struct snd_soc_component *soc_find_component(
+	const struct device_node *of_node, const char *name);
 
 /* component wide operations */
 int snd_soc_component_set_sysclk(struct snd_soc_component *component,

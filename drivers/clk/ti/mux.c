@@ -105,7 +105,7 @@ static struct clk *_register_mux(struct device *dev, const char *name,
 {
 	struct clk_omap_mux *mux;
 	struct clk *clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 
 	/* allocate the mux */
 	mux = kzalloc(sizeof(*mux), GFP_KERNEL);

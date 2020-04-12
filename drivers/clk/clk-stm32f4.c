@@ -396,7 +396,7 @@ static struct clk *clk_register_apb_mul(struct device *dev, const char *name,
 					unsigned long flags, u8 bit_idx)
 {
 	struct clk_apb_mul *am;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	struct clk *clk;
 
 	am = kzalloc(sizeof(*am), GFP_KERNEL);
@@ -678,7 +678,7 @@ static struct clk_hw *clk_register_pll_div(const char *name,
 {
 	struct stm32f4_pll_div *pll_div;
 	struct clk_hw *hw;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	int ret;
 
 	/* allocate the divider */

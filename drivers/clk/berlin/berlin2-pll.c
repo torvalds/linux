@@ -78,7 +78,7 @@ berlin2_pll_register(const struct berlin2_pll_map *map,
 		     void __iomem *base, const char *name,
 		     const char *parent_name, unsigned long flags)
 {
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	struct berlin2_pll *pll;
 
 	pll = kzalloc(sizeof(*pll), GFP_KERNEL);

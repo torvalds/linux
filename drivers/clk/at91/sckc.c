@@ -121,7 +121,7 @@ at91_clk_register_slow_osc(void __iomem *sckcr,
 {
 	struct clk_slow_osc *osc;
 	struct clk_hw *hw;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	int ret;
 
 	if (!sckcr || !name || !parent_name)
@@ -240,7 +240,7 @@ at91_clk_register_slow_rc_osc(void __iomem *sckcr,
 {
 	struct clk_slow_rc_osc *osc;
 	struct clk_hw *hw;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	int ret;
 
 	if (!sckcr || !name)
@@ -344,7 +344,7 @@ at91_clk_register_sam9x5_slow(void __iomem *sckcr,
 {
 	struct clk_sam9x5_slow *slowck;
 	struct clk_hw *hw;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	int ret;
 
 	if (!sckcr || !name || !parent_names || !num_parents)
@@ -478,7 +478,7 @@ static void __init of_sama5d4_sckc_setup(struct device_node *np)
 	void __iomem *regbase = of_iomap(np, 0);
 	struct clk_hw *hw;
 	struct clk_sama5d4_slow_osc *osc;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	const char *xtal_name;
 	const char *parent_names[2] = { "slow_rc_osc", "slow_osc" };
 	bool bypass;

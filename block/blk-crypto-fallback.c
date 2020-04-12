@@ -487,21 +487,13 @@ out:
 	return false;
 }
 
-/**
- * blk_crypto_start_using_mode() - Start using a crypto algorithm on a device
- * @mode_num: the blk_crypto_mode we want to allocate ciphers for.
- * @data_unit_size: the data unit size that will be used
- * @q: the request queue for the device
- *
- * Upper layers must call this function to ensure that a the crypto API fallback
- * has transforms for this algorithm, if they become necessary.
- *
- * Return: 0 on success and -err on error.
+/*
+ * Prepare blk-crypto-fallback for the specified crypto mode.
+ * Returns -ENOPKG if the needed crypto API support is missing.
  */
-int blk_crypto_start_using_mode(enum blk_crypto_mode_num mode_num,
-				unsigned int data_unit_size,
-				struct request_queue *q)
+int blk_crypto_fallback_start_using_mode(enum blk_crypto_mode_num mode_num)
 {
+	const char *cipher_str = blk_crypto_modes[mode_num].cipher_str;
 	struct blk_crypto_keyslot *slotp;
 	unsigned int i;
 	int err = 0;
@@ -514,25 +506,20 @@ int blk_crypto_start_using_mode(enum blk_crypto_mode_num mode_num,
 	if (likely(smp_load_acquire(&tfms_inited[mode_num])))
 		return 0;
 
-	/*
-	 * If the keyslot manager of the request queue supports this
-	 * crypto mode, then we don't need to allocate this mode.
-	 */
-	if (keyslot_manager_crypto_mode_supported(q->ksm, mode_num,
-						  data_unit_size))
-		return 0;
-
 	mutex_lock(&tfms_init_lock);
 	if (likely(tfms_inited[mode_num]))
 		goto out;
 
 	for (i = 0; i < blk_crypto_num_keyslots; i++) {
 		slotp = &blk_crypto_keyslots[i];
-		slotp->tfms[mode_num] = crypto_alloc_skcipher(
-					blk_crypto_modes[mode_num].cipher_str,
-					0, 0);
+		slotp->tfms[mode_num] = crypto_alloc_skcipher(cipher_str, 0, 0);
 		if (IS_ERR(slotp->tfms[mode_num])) {
 			err = PTR_ERR(slotp->tfms[mode_num]);
+			if (err == -ENOENT) {
+				pr_warn_once("Missing crypto API support for \"%s\"\n",
+					     cipher_str);
+				err = -ENOPKG;
+			}
 			slotp->tfms[mode_num] = NULL;
 			goto out_free_tfms;
 		}
@@ -558,7 +545,6 @@ out:
 	mutex_unlock(&tfms_init_lock);
 	return err;
 }
-EXPORT_SYMBOL_GPL(blk_crypto_start_using_mode);
 
 int blk_crypto_fallback_evict_key(const struct blk_crypto_key *key)
 {
@@ -614,9 +600,11 @@ int __init blk_crypto_fallback_init(void)
 		crypto_mode_supported[i] = 0xFFFFFFFF;
 	crypto_mode_supported[BLK_ENCRYPTION_MODE_INVALID] = 0;
 
-	blk_crypto_ksm = keyslot_manager_create(NULL, blk_crypto_num_keyslots,
-						&blk_crypto_ksm_ll_ops,
-						crypto_mode_supported, NULL);
+	blk_crypto_ksm = keyslot_manager_create(
+				NULL, blk_crypto_num_keyslots,
+				&blk_crypto_ksm_ll_ops,
+				BLK_CRYPTO_FEATURE_STANDARD_KEYS,
+				crypto_mode_supported, NULL);
 	if (!blk_crypto_ksm)
 		return -ENOMEM;
 

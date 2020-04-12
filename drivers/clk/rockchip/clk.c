@@ -272,7 +272,7 @@ static struct clk *rockchip_clk_register_frac_branch(
 
 	if (child) {
 		struct clk_mux *frac_mux = &frac->mux;
-		struct clk_init_data init;
+		struct clk_init_data init = {};
 		struct clk *mux_clk;
 		int ret;
 

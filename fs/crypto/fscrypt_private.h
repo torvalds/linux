@@ -326,7 +326,8 @@ extern void fscrypt_destroy_hkdf(struct fscrypt_hkdf *hkdf);
 
 /* inline_crypt.c */
 #ifdef CONFIG_FS_ENCRYPTION_INLINE_CRYPT
-extern void fscrypt_select_encryption_impl(struct fscrypt_info *ci);
+extern int fscrypt_select_encryption_impl(struct fscrypt_info *ci,
+					  bool is_hw_wrapped_key);
 
 static inline bool
 fscrypt_using_inline_encryption(const struct fscrypt_info *ci)
@@ -370,8 +371,10 @@ fscrypt_is_key_prepared(struct fscrypt_prepared_key *prep_key,
 
 #else /* CONFIG_FS_ENCRYPTION_INLINE_CRYPT */
 
-static inline void fscrypt_select_encryption_impl(struct fscrypt_info *ci)
+static inline int fscrypt_select_encryption_impl(struct fscrypt_info *ci,
+						 bool is_hw_wrapped_key)
 {
+	return 0;
 }
 
 static inline bool fscrypt_using_inline_encryption(

@@ -226,7 +226,7 @@ struct ftrace_likely_data {
 #define __section(S)		__attribute__((__section__(#S)))
 
 
-#ifdef CONFIG_ENABLE_MUST_CHECK
+#if defined(CONFIG_ENABLE_MUST_CHECK) && !defined(__GENKSYMS__)
 #define __must_check		__attribute__((warn_unused_result))
 #else
 #define __must_check

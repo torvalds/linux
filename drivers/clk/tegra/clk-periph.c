@@ -144,7 +144,7 @@ static struct clk *_tegra_clk_register_periph(const char *name,
 			unsigned long flags)
 {
 	struct clk *clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	const struct tegra_clk_periph_regs *bank;
 	bool div = !(periph->gate.flags & TEGRA_PERIPH_NO_DIV);
 

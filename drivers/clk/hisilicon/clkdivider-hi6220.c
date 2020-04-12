@@ -107,7 +107,7 @@ struct clk *hi6220_register_clkdiv(struct device *dev, const char *name,
 {
 	struct hi6220_clk_divider *div;
 	struct clk *clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	struct clk_div_table *table;
 	u32 max_div, min_div;
 	int i;

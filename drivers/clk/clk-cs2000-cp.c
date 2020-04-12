@@ -418,7 +418,7 @@ static int cs2000_clk_register(struct cs2000_priv *priv)
 {
 	struct device *dev = priv_to_dev(priv);
 	struct device_node *np = dev->of_node;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	const char *name = np->name;
 	static const char *parent_names[CLK_MAX];
 	int ch = 0; /* it uses ch0 only at this point */

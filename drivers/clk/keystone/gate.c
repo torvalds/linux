@@ -168,7 +168,7 @@ static struct clk *clk_register_psc(struct device *dev,
 			struct clk_psc_data *psc_data,
 			spinlock_t *lock)
 {
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	struct clk_psc *psc;
 	struct clk *clk;
 

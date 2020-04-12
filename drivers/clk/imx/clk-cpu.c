@@ -81,7 +81,7 @@ struct clk *imx_clk_cpu(const char *name, const char *parent_name,
 {
 	struct clk_cpu *cpu;
 	struct clk *clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 
 	cpu = kzalloc(sizeof(*cpu), GFP_KERNEL);
 	if (!cpu)

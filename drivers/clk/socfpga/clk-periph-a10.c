@@ -75,7 +75,7 @@ static __init void __socfpga_periph_init(struct device_node *node,
 	struct socfpga_periph_clk *periph_clk;
 	const char *clk_name = node->name;
 	const char *parent_name[SOCFPGA_MAX_PARENTS];
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	int rc;
 	u32 fixed_div;
 	u32 div_reg[3];

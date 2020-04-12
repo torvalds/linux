@@ -128,7 +128,7 @@ at91_clk_register_master(struct regmap *regmap,
 		const struct clk_master_characteristics *characteristics)
 {
 	struct clk_master *master;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	struct clk_hw *hw;
 	int ret;
 

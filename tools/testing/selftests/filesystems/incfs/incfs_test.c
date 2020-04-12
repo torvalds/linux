@@ -1930,7 +1930,8 @@ failure:
 	return TEST_FAILURE;
 }
 
-static int validate_logs(char *mount_dir, int log_fd, struct test_file *file)
+static int validate_logs(char *mount_dir, int log_fd, struct test_file *file,
+			 bool no_rlog)
 {
 	uint8_t data[INCFS_DATA_FILE_BLOCK_SIZE];
 	struct incfs_pending_read_info prs[100] = {};
@@ -1957,7 +1958,19 @@ static int validate_logs(char *mount_dir, int log_fd, struct test_file *file)
 			goto failure;
 	}
 
-	read_count = wait_for_pending_reads(log_fd, 0, prs, prs_size);
+	read_count =
+		wait_for_pending_reads(log_fd, no_rlog ? 10 : 0, prs, prs_size);
+	if (no_rlog) {
+		if (read_count == 0)
+			goto success;
+		if (read_count < 0)
+			ksft_print_msg("Error reading logged reads %s.\n",
+				       strerror(-read_count));
+		else
+			ksft_print_msg("Somehow read empty logs.\n");
+		goto failure;
+	}
+
 	if (read_count < 0) {
 		ksft_print_msg("Error reading logged reads %s.\n",
 			       strerror(-read_count));
@@ -2001,6 +2014,8 @@ static int validate_logs(char *mount_dir, int log_fd, struct test_file *file)
 			goto failure;
 		}
 	}
+
+success:
 	close(fd);
 	return TEST_SUCCESS;
 
@@ -2014,14 +2029,14 @@ static int read_log_test(char *mount_dir)
 	struct test_files_set test = get_test_files_set();
 	const int file_num = test.files_count;
 	int i = 0;
-	int cmd_fd = -1, log_fd = -1;
+	int cmd_fd = -1, log_fd = -1, drop_caches = -1;
 	char *backing_dir;
 
 	backing_dir = create_backing_dir(mount_dir);
 	if (!backing_dir)
 		goto failure;
 
-	if (mount_fs_opt(mount_dir, backing_dir, "readahead=0") != 0)
+	if (mount_fs_opt(mount_dir, backing_dir, "readahead=0", false) != 0)
 		goto failure;
 
 	cmd_fd = open_commands_file(mount_dir);
@@ -2029,7 +2044,7 @@ static int read_log_test(char *mount_dir)
 		goto failure;
 
 	log_fd = open_log_file(mount_dir);
-	if (cmd_fd < 0)
+	if (log_fd < 0)
 		ksft_print_msg("Can't open log file.\n");
 
 	/* Write data. */
@@ -2048,7 +2063,7 @@ static int read_log_test(char *mount_dir)
 	for (i = 0; i < file_num; i++) {
 		struct test_file *file = &test.files[i];
 
-		if (validate_logs(mount_dir, log_fd, file))
+		if (validate_logs(mount_dir, log_fd, file, false))
 			goto failure;
 	}
 
@@ -2061,7 +2076,7 @@ static int read_log_test(char *mount_dir)
 		goto failure;
 	}
 
-	if (mount_fs_opt(mount_dir, backing_dir, "readahead=0") != 0)
+	if (mount_fs_opt(mount_dir, backing_dir, "readahead=0", false) != 0)
 		goto failure;
 
 	cmd_fd = open_commands_file(mount_dir);
@@ -2069,19 +2084,68 @@ static int read_log_test(char *mount_dir)
 		goto failure;
 
 	log_fd = open_log_file(mount_dir);
-	if (cmd_fd < 0)
+	if (log_fd < 0)
 		ksft_print_msg("Can't open log file.\n");
 
 	/* Validate data again */
 	for (i = 0; i < file_num; i++) {
 		struct test_file *file = &test.files[i];
 
-		if (validate_logs(mount_dir, log_fd, file))
+		if (validate_logs(mount_dir, log_fd, file, false))
+			goto failure;
+	}
+
+	/*
+	 * Unmount and mount again with no read log to make sure poll
+	 * doesn't crash
+	 */
+	close(cmd_fd);
+	close(log_fd);
+	if (umount(mount_dir) != 0) {
+		print_error("Can't unmout FS");
+		goto failure;
+	}
+
+	if (mount_fs_opt(mount_dir, backing_dir, "readahead=0,rlog_pages=0",
+			 false) != 0)
+		goto failure;
+
+	log_fd = open_log_file(mount_dir);
+	if (log_fd < 0)
+		ksft_print_msg("Can't open log file.\n");
+
+	/* Validate data again - note should fail this time */
+	for (i = 0; i < file_num; i++) {
+		struct test_file *file = &test.files[i];
+
+		if (validate_logs(mount_dir, log_fd, file, true))
+			goto failure;
+	}
+
+	/*
+	 * Remount and check that logs start working again
+	 */
+	drop_caches = open("/proc/sys/vm/drop_caches", O_WRONLY);
+	if (drop_caches == -1)
+		goto failure;
+	i = write(drop_caches, "3", 1);
+	close(drop_caches);
+	if (i != 1)
+		goto failure;
+
+	if (mount_fs_opt(mount_dir, backing_dir, "readahead=0,rlog_pages=4",
+			 true) != 0)
+		goto failure;
+
+	/* Validate data again */
+	for (i = 0; i < file_num; i++) {
+		struct test_file *file = &test.files[i];
+
+		if (validate_logs(mount_dir, log_fd, file, false))
 			goto failure;
 	}
 
 	/* Final unmount */
-	close(cmd_fd);
 	close(log_fd);
 	free(backing_dir);
 	if (umount(mount_dir) != 0) {
@@ -2148,11 +2212,28 @@ static int validate_ranges(const char *mount_dir, struct test_file *file)
 	int error = TEST_SUCCESS;
 	int i;
 	int range_cnt;
+	int cmd_fd = -1;
+	struct incfs_permit_fill permit_fill;
 
 	fd = open(filename, O_RDONLY);
 	free(filename);
 	if (fd <= 0)
 		return TEST_FAILURE;
+
+	error = ioctl(fd, INCFS_IOC_GET_FILLED_BLOCKS, &fba);
+	if (error != -1 || errno != EPERM) {
+		ksft_print_msg("INCFS_IOC_GET_FILLED_BLOCKS not blocked\n");
+		error = -EPERM;
+		goto out;
+	}
+
+	cmd_fd = open_commands_file(mount_dir);
+	permit_fill.file_descriptor = fd;
+	if (ioctl(cmd_fd, INCFS_IOC_PERMIT_FILL, &permit_fill)) {
+		print_error("INCFS_IOC_PERMIT_FILL failed");
+		return -EPERM;
+		goto out;
+	}
 
 	error = ioctl(fd, INCFS_IOC_GET_FILLED_BLOCKS, &fba);
 	if (error && errno != ERANGE)
@@ -2167,6 +2248,11 @@ static int validate_ranges(const char *mount_dir, struct test_file *file)
 	}
 
 	if (fba.total_blocks_out != block_cnt) {
+		error = -EINVAL;
+		goto out;
+	}
+
+	if (fba.data_blocks_out != block_cnt) {
 		error = -EINVAL;
 		goto out;
 	}
@@ -2241,6 +2327,7 @@ static int validate_ranges(const char *mount_dir, struct test_file *file)
 
 out:
 	close(fd);
+	close(cmd_fd);
 	return error;
 }
 
@@ -2256,7 +2343,7 @@ static int get_blocks_test(char *mount_dir)
 	if (!backing_dir)
 		goto failure;
 
-	if (mount_fs_opt(mount_dir, backing_dir, "readahead=0") != 0)
+	if (mount_fs_opt(mount_dir, backing_dir, "readahead=0", false) != 0)
 		goto failure;
 
 	cmd_fd = open_commands_file(mount_dir);
@@ -2351,6 +2438,7 @@ failure:
 
 static int validate_hash_ranges(const char *mount_dir, struct test_file *file)
 {
+	int block_cnt = 1 + (file->size - 1) / INCFS_DATA_FILE_BLOCK_SIZE;
 	char *filename = concat_file_name(mount_dir, file->name);
 	int fd;
 	struct incfs_filled_range ranges[128];
@@ -2361,6 +2449,8 @@ static int validate_hash_ranges(const char *mount_dir, struct test_file *file)
 	int error = TEST_SUCCESS;
 	int file_blocks = (file->size + INCFS_DATA_FILE_BLOCK_SIZE - 1) /
 			  INCFS_DATA_FILE_BLOCK_SIZE;
+	int cmd_fd = -1;
+	struct incfs_permit_fill permit_fill;
 
 	if (file->size <= 4096 / 32 * 4096)
 		return 0;
@@ -2371,8 +2461,33 @@ static int validate_hash_ranges(const char *mount_dir, struct test_file *file)
 		return TEST_FAILURE;
 
 	error = ioctl(fd, INCFS_IOC_GET_FILLED_BLOCKS, &fba);
+	if (error != -1 || errno != EPERM) {
+		ksft_print_msg("INCFS_IOC_GET_FILLED_BLOCKS not blocked\n");
+		error = -EPERM;
+		goto out;
+	}
+
+	cmd_fd = open_commands_file(mount_dir);
+	permit_fill.file_descriptor = fd;
+	if (ioctl(cmd_fd, INCFS_IOC_PERMIT_FILL, &permit_fill)) {
+		print_error("INCFS_IOC_PERMIT_FILL failed");
+		return -EPERM;
+		goto out;
+	}
+
+	error = ioctl(fd, INCFS_IOC_GET_FILLED_BLOCKS, &fba);
 	if (error)
 		goto out;
+
+	if (fba.total_blocks_out <= block_cnt) {
+		error = -EINVAL;
+		goto out;
+	}
+
+	if (fba.data_blocks_out != block_cnt) {
+		error = -EINVAL;
+		goto out;
+	}
 
 	if (fba.range_buffer_size_out != sizeof(struct incfs_filled_range)) {
 		error = -EINVAL;
@@ -2386,6 +2501,7 @@ static int validate_hash_ranges(const char *mount_dir, struct test_file *file)
 	}
 
 out:
+	close(cmd_fd);
 	close(fd);
 	return error;
 }
@@ -2402,7 +2518,7 @@ static int get_hash_blocks_test(char *mount_dir)
 	if (!backing_dir)
 		goto failure;
 
-	if (mount_fs_opt(mount_dir, backing_dir, "readahead=0") != 0)
+	if (mount_fs_opt(mount_dir, backing_dir, "readahead=0", false) != 0)
 		goto failure;
 
 	cmd_fd = open_commands_file(mount_dir);

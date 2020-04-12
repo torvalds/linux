@@ -20,6 +20,11 @@ int blk_crypto_init_key(struct blk_crypto_key *blk_key,
 			enum blk_crypto_mode_num crypto_mode,
 			unsigned int data_unit_size);
 
+int blk_crypto_start_using_mode(enum blk_crypto_mode_num crypto_mode,
+				unsigned int data_unit_size,
+				bool is_hw_wrapped_key,
+				struct request_queue *q);
+
 int blk_crypto_evict_key(struct request_queue *q,
 			 const struct blk_crypto_key *key);
 
@@ -39,21 +44,9 @@ static inline bool blk_crypto_endio(struct bio *bio)
 
 #ifdef CONFIG_BLK_INLINE_ENCRYPTION_FALLBACK
 
-int blk_crypto_start_using_mode(enum blk_crypto_mode_num mode_num,
-				unsigned int data_unit_size,
-				struct request_queue *q);
-
 int blk_crypto_fallback_init(void);
 
 #else /* CONFIG_BLK_INLINE_ENCRYPTION_FALLBACK */
-
-static inline int
-blk_crypto_start_using_mode(enum blk_crypto_mode_num mode_num,
-			    unsigned int data_unit_size,
-			    struct request_queue *q)
-{
-	return 0;
-}
 
 static inline int blk_crypto_fallback_init(void)
 {

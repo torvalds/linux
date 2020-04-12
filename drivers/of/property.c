@@ -1212,6 +1212,7 @@ struct supplier_bindings {
 					  const char *prop_name, int index);
 };
 
+DEFINE_SIMPLE_PROP(qcom_wrapper_core, "qcom,wrapper-core", NULL)
 DEFINE_SIMPLE_PROP(clocks, "clocks", "#clock-cells")
 DEFINE_SIMPLE_PROP(interconnects, "interconnects", "#interconnect-cells")
 DEFINE_SIMPLE_PROP(iommus, "iommus", "#iommu-cells")
@@ -1240,6 +1241,7 @@ static struct device_node *parse_iommu_maps(struct device_node *np,
 
 static const struct supplier_bindings of_supplier_bindings[] = {
 	{ .parse_prop = parse_msm_bus_name, },
+	{ .parse_prop = parse_qcom_wrapper_core, },
 	{ .parse_prop = parse_qcom_any, },
 	{ .parse_prop = parse_clocks, },
 	{ .parse_prop = parse_interconnects, },

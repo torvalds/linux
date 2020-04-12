@@ -1145,6 +1145,7 @@ struct regmap_irq_chip {
 	unsigned int wake_base;
 	unsigned int type_base;
 	unsigned int irq_reg_stride;
+	unsigned int clear_ack;
 	bool mask_writeonly:1;
 	bool init_ack_masked:1;
 	bool mask_invert:1;

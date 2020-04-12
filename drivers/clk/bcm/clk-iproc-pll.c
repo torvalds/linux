@@ -732,7 +732,7 @@ void iproc_pll_clk_setup(struct device_node *node,
 	int i, ret;
 	struct iproc_pll *pll;
 	struct iproc_clk *iclk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	const char *parent_name;
 	struct iproc_clk *iclk_array;
 	struct clk_hw_onecell_data *clk_data;

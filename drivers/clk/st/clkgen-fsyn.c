@@ -390,7 +390,7 @@ static struct clk * __init st_clk_register_quadfs_pll(
 {
 	struct st_clk_quadfs_pll *pll;
 	struct clk *clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 
 	/*
 	 * Sanity check required pointers.
@@ -829,7 +829,7 @@ static struct clk * __init st_clk_register_quadfs_fsynth(
 {
 	struct st_clk_quadfs_fsynth *fs;
 	struct clk *clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 
 	/*
 	 * Sanity check required pointers, note that nsdiv3 is optional.

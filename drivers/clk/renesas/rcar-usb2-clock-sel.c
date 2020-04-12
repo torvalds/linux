@@ -121,7 +121,7 @@ static int rcar_usb2_clock_sel_probe(struct platform_device *pdev)
 	struct usb2_clock_sel_priv *priv;
 	struct resource *res;
 	struct clk *clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)

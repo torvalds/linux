@@ -1780,6 +1780,7 @@ bool __init_memblock memblock_overlaps_memory(phys_addr_t base,
 
 	return memblock_overlaps_region(&memblock.memory, base, size);
 }
+EXPORT_SYMBOL_GPL(memblock_overlaps_memory);
 
 /**
  * memblock_is_region_reserved - check if a region intersects reserved memory
