@@ -516,6 +516,20 @@ xfs_destroy_mount_workqueues(
 	destroy_workqueue(mp->m_buf_workqueue);
 }
 
+static void
+xfs_flush_inodes_worker(
+	struct work_struct	*work)
+{
+	struct xfs_mount	*mp = container_of(work, struct xfs_mount,
+						   m_flush_inodes_work);
+	struct super_block	*sb = mp->m_super;
+
+	if (down_read_trylock(&sb->s_umount)) {
+		sync_inodes_sb(sb);
+		up_read(&sb->s_umount);
+	}
+}
+
 /*
  * Flush all dirty data to disk. Must not be called while holding an XFS_ILOCK
  * or a page lock. We use sync_inodes_sb() here to ensure we block while waiting
@@ -526,15 +540,15 @@ void
 xfs_flush_inodes(
 	struct xfs_mount	*mp)
 {
-	struct super_block	*sb = mp->m_super;
-
-	if (!__ratelimit(&mp->m_flush_inodes_ratelimit))
+	/*
+	 * If flush_work() returns true then that means we waited for a flush
+	 * which was already in progress.  Don't bother running another scan.
+	 */
+	if (flush_work(&mp->m_flush_inodes_work))
 		return;
 
-	if (down_read_trylock(&sb->s_umount)) {
-		sync_inodes_sb(sb);
-		up_read(&sb->s_umount);
-	}
+	queue_work(mp->m_sync_workqueue, &mp->m_flush_inodes_work);
+	flush_work(&mp->m_flush_inodes_work);
 }
 
 /* Catch misguided souls that try to use this interface on XFS */
@@ -1369,17 +1383,6 @@ xfs_fc_fill_super(
 	if (error)
 		goto out_free_names;
 
-	/*
-	 * Cap the number of invocations of xfs_flush_inodes to 16 for every
-	 * quarter of a second.  The magic numbers here were determined by
-	 * observation neither to cause stalls in writeback when there are a
-	 * lot of IO threads and the fs is near ENOSPC, nor cause any fstest
-	 * regressions.  YMMV.
-	 */
-	ratelimit_state_init(&mp->m_flush_inodes_ratelimit, HZ / 4, 16);
-	ratelimit_set_flags(&mp->m_flush_inodes_ratelimit,
-			RATELIMIT_MSG_ON_RELEASE);
-
 	error = xfs_init_mount_workqueues(mp);
 	if (error)
 		goto out_close_devices;
@@ -1752,6 +1755,7 @@ static int xfs_init_fs_context(
 	spin_lock_init(&mp->m_perag_lock);
 	mutex_init(&mp->m_growlock);
 	atomic_set(&mp->m_active_trans, 0);
+	INIT_WORK(&mp->m_flush_inodes_work, xfs_flush_inodes_worker);
 	INIT_DELAYED_WORK(&mp->m_reclaim_work, xfs_reclaim_worker);
 	INIT_DELAYED_WORK(&mp->m_eofblocks_work, xfs_eofblocks_worker);
 	INIT_DELAYED_WORK(&mp->m_cowblocks_work, xfs_cowblocks_worker);
