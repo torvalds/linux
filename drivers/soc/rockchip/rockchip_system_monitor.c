@@ -1393,6 +1393,7 @@ static int rockchip_monitor_reboot_notifier(struct notifier_block *nb,
 					     unsigned long action, void *ptr)
 {
 	rockchip_set_system_status(SYS_STATUS_REBOOT);
+	cancel_delayed_work_sync(&system_monitor->thermal_work);
 
 	return NOTIFY_OK;
 }
