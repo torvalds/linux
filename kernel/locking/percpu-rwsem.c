@@ -118,14 +118,15 @@ static int percpu_rwsem_wake_function(struct wait_queue_entry *wq_entry,
 				      unsigned int mode, int wake_flags,
 				      void *key)
 {
-	struct task_struct *p = get_task_struct(wq_entry->private);
 	bool reader = wq_entry->flags & WQ_FLAG_CUSTOM;
 	struct percpu_rw_semaphore *sem = key;
+	struct task_struct *p;
 
 	/* concurrent against percpu_down_write(), can get stolen */
 	if (!__percpu_rwsem_trylock(sem, reader))
 		return 1;
 
+	p = get_task_struct(wq_entry->private);
 	list_del_init(&wq_entry->entry);
 	smp_store_release(&wq_entry->private, NULL);
 
