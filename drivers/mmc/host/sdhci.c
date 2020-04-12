@@ -48,8 +48,6 @@
 static unsigned int debug_quirks = 0;
 static unsigned int debug_quirks2;
 
-static void sdhci_finish_data(struct sdhci_host *);
-
 static void sdhci_enable_preset_value(struct sdhci_host *host, bool enable);
 
 static void sdhci_send_command(struct sdhci_host *host, struct mmc_command *cmd);
