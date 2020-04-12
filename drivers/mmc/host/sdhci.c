@@ -1659,6 +1659,17 @@ static void sdhci_send_command(struct sdhci_host *host, struct mmc_command *cmd)
 	sdhci_writew(host, SDHCI_MAKE_CMD(cmd->opcode, flags), SDHCI_COMMAND);
 }
 
+static bool sdhci_present_error(struct sdhci_host *host,
+				struct mmc_command *cmd, bool present)
+{
+	if (!present || host->flags & SDHCI_DEVICE_DEAD) {
+		cmd->error = -ENOMEDIUM;
+		return true;
+	}
+
+	return false;
+}
+
 static void sdhci_read_rsp_136(struct sdhci_host *host, struct mmc_command *cmd)
 {
 	int i, reg;
@@ -2048,11 +2059,10 @@ EXPORT_SYMBOL_GPL(sdhci_set_power_and_bus_voltage);
 
 void sdhci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 {
-	struct sdhci_host *host;
-	int present;
+	struct sdhci_host *host = mmc_priv(mmc);
+	struct mmc_command *cmd;
 	unsigned long flags;
-
-	host = mmc_priv(mmc);
+	bool present;
 
 	/* Firstly check card presence */
 	present = mmc->ops->get_cd(mmc);
@@ -2061,16 +2071,19 @@ void sdhci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 	sdhci_led_activate(host);
 
-	if (!present || host->flags & SDHCI_DEVICE_DEAD) {
-		mrq->cmd->error = -ENOMEDIUM;
-		sdhci_finish_mrq(host, mrq);
-	} else {
-		if (sdhci_manual_cmd23(host, mrq))
-			sdhci_send_command(host, mrq->sbc);
-		else
-			sdhci_send_command(host, mrq->cmd);
-	}
+	if (sdhci_present_error(host, mrq->cmd, present))
+		goto out_finish;
 
+	cmd = sdhci_manual_cmd23(host, mrq) ? mrq->sbc : mrq->cmd;
+
+	sdhci_send_command(host, cmd);
+
+	spin_unlock_irqrestore(&host->lock, flags);
+
+	return;
+
+out_finish:
+	sdhci_finish_mrq(host, mrq);
 	spin_unlock_irqrestore(&host->lock, flags);
 }
 EXPORT_SYMBOL_GPL(sdhci_request);
