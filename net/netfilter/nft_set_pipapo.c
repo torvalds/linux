@@ -2201,7 +2201,7 @@ const struct nft_set_type nft_set_pipapo_type = {
 	},
 };
 
-#if defined(CONFIG_X86_64) && defined(CONFIG_AS_AVX2)
+#if defined(CONFIG_X86_64) && !defined(CONFIG_UML)
 const struct nft_set_type nft_set_pipapo_avx2_type = {
 	.features	= NFT_SET_INTERVAL | NFT_SET_MAP | NFT_SET_OBJECT |
 			  NFT_SET_TIMEOUT,
