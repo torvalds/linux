@@ -6,6 +6,7 @@
 #define pr_fmt(fmt) "%s " fmt, KBUILD_MODNAME
 
 #include <linux/atomic.h>
+#include <linux/cpu_pm.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -30,7 +31,12 @@
 #define RSC_DRV_TCS_OFFSET		672
 #define RSC_DRV_CMD_OFFSET		20
 
-/* DRV Configuration Information Register */
+/* DRV HW Solver Configuration Information Register */
+#define DRV_SOLVER_CONFIG		0x04
+#define DRV_HW_SOLVER_MASK		1
+#define DRV_HW_SOLVER_SHIFT		24
+
+/* DRV TCS Configuration Information Register */
 #define DRV_PRNT_CHLD_CONFIG		0x0C
 #define DRV_NUM_TCS_MASK		0x3F
 #define DRV_NUM_TCS_SHIFT		6
@@ -521,8 +527,85 @@ int rpmh_rsc_write_ctrl_data(struct rsc_drv *drv, const struct tcs_request *msg)
 	return tcs_ctrl_write(drv, msg);
 }
 
+/**
+ * rpmh_rsc_ctrlr_is_busy() - Check if any of the AMCs are busy.
+ *
+ * @drv: The controller
+ *
+ * Checks if any of the AMCs are busy in handling ACTIVE sets.
+ * This is called from the last cpu powering down before flushing
+ * SLEEP and WAKE sets. If AMCs are busy, controller can not enter
+ * power collapse, so deny from the last cpu's pm notification.
+ *
+ * Return:
+ * * False		- AMCs are idle
+ * * True		- AMCs are busy
+ */
+static bool rpmh_rsc_ctrlr_is_busy(struct rsc_drv *drv)
+{
+	int m;
+	struct tcs_group *tcs = get_tcs_of_type(drv, ACTIVE_TCS);
+
+	/*
+	 * If we made an active request on a RSC that does not have a
+	 * dedicated TCS for active state use, then re-purposed wake TCSes
+	 * should be checked for not busy, because we used wake TCSes for
+	 * active requests in this case.
+	 *
+	 * Since this is called from the last cpu, need not take drv or tcs
+	 * lock before checking tcs_is_free().
+	 */
+	if (!tcs->num_tcs)
+		tcs = get_tcs_of_type(drv, WAKE_TCS);
+
+	for (m = tcs->offset; m < tcs->offset + tcs->num_tcs; m++) {
+		if (!tcs_is_free(drv, m))
+			return true;
+	}
+
+	return false;
+}
+
+static int rpmh_rsc_cpu_pm_callback(struct notifier_block *nfb,
+				    unsigned long action, void *v)
+{
+	struct rsc_drv *drv = container_of(nfb, struct rsc_drv, rsc_pm);
+	int ret = NOTIFY_OK;
+
+	spin_lock(&drv->pm_lock);
+
+	switch (action) {
+	case CPU_PM_ENTER:
+		cpumask_set_cpu(smp_processor_id(), &drv->cpus_entered_pm);
+
+		if (!cpumask_equal(&drv->cpus_entered_pm, cpu_online_mask))
+			goto exit;
+		break;
+	case CPU_PM_ENTER_FAILED:
+	case CPU_PM_EXIT:
+		cpumask_clear_cpu(smp_processor_id(), &drv->cpus_entered_pm);
+		goto exit;
+	}
+
+	ret = rpmh_rsc_ctrlr_is_busy(drv);
+	if (ret) {
+		ret = NOTIFY_BAD;
+		goto exit;
+	}
+
+	ret = rpmh_flush(&drv->client);
+	if (ret)
+		ret = NOTIFY_BAD;
+	else
+		ret = NOTIFY_OK;
+
+exit:
+	spin_unlock(&drv->pm_lock);
+	return ret;
+}
+
 static int rpmh_probe_tcs_config(struct platform_device *pdev,
-				 struct rsc_drv *drv)
+				 struct rsc_drv *drv, void __iomem *base)
 {
 	struct tcs_type_config {
 		u32 type;
@@ -532,15 +615,6 @@ static int rpmh_probe_tcs_config(struct platform_device *pdev,
 	u32 config, max_tcs, ncpt, offset;
 	int i, ret, n, st = 0;
 	struct tcs_group *tcs;
-	struct resource *res;
-	void __iomem *base;
-	char drv_id[10] = {0};
-
-	snprintf(drv_id, ARRAY_SIZE(drv_id), "drv-%d", drv->id);
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, drv_id);
-	base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(base))
-		return PTR_ERR(base);
 
 	ret = of_property_read_u32(dn, "qcom,tcs-offset", &offset);
 	if (ret)
@@ -620,7 +694,11 @@ static int rpmh_rsc_probe(struct platform_device *pdev)
 {
 	struct device_node *dn = pdev->dev.of_node;
 	struct rsc_drv *drv;
+	struct resource *res;
+	char drv_id[10] = {0};
 	int ret, irq;
+	u32 solver_config;
+	void __iomem *base;
 
 	/*
 	 * Even though RPMh doesn't directly use cmd-db, all of its children
@@ -646,7 +724,13 @@ static int rpmh_rsc_probe(struct platform_device *pdev)
 	if (!drv->name)
 		drv->name = dev_name(&pdev->dev);
 
-	ret = rpmh_probe_tcs_config(pdev, drv);
+	snprintf(drv_id, ARRAY_SIZE(drv_id), "drv-%d", drv->id);
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, drv_id);
+	base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(base))
+		return PTR_ERR(base);
+
+	ret = rpmh_probe_tcs_config(pdev, drv, base);
 	if (ret)
 		return ret;
 
@@ -662,6 +746,20 @@ static int rpmh_rsc_probe(struct platform_device *pdev)
 			       drv->name, drv);
 	if (ret)
 		return ret;
+
+	/*
+	 * CPU PM notification are not required for controllers that support
+	 * 'HW solver' mode where they can be in autonomous mode executing low
+	 * power mode to power down.
+	 */
+	solver_config = readl_relaxed(base + DRV_SOLVER_CONFIG);
+	solver_config &= DRV_HW_SOLVER_MASK << DRV_HW_SOLVER_SHIFT;
+	solver_config = solver_config >> DRV_HW_SOLVER_SHIFT;
+	if (!solver_config) {
+		drv->rsc_pm.notifier_call = rpmh_rsc_cpu_pm_callback;
+		spin_lock_init(&drv->pm_lock);
+		cpu_pm_register_notifier(&drv->rsc_pm);
+	}
 
 	/* Enable the active TCS to send requests immediately */
 	write_tcs_reg(drv, RSC_DRV_IRQ_ENABLE, 0, drv->tcs[ACTIVE_TCS].mask);

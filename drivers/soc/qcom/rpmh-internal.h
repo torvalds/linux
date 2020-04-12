@@ -84,23 +84,32 @@ struct rpmh_ctrlr {
  * struct rsc_drv: the Direct Resource Voter (DRV) of the
  * Resource State Coordinator controller (RSC)
  *
- * @name:       controller identifier
- * @tcs_base:   start address of the TCS registers in this controller
- * @id:         instance id in the controller (Direct Resource Voter)
- * @num_tcs:    number of TCSes in this DRV
- * @tcs:        TCS groups
- * @tcs_in_use: s/w state of the TCS
- * @lock:       synchronize state of the controller
- * @client:     handle to the DRV's client.
+ * @name:               Controller identifier
+ * @tcs_base:           Start address of the TCS registers in this controller
+ * @id:                 Instance id in the controller (Direct Resource Voter)
+ * @num_tcs:            Number of TCSes in this DRV
+ * @rsc_pm:             CPU PM notifier for controller
+ *                      Used when solver mode is not present
+ * @cpus_entered_pm:    CPU mask for cpus in idle power collapse
+ *                      Used when solver mode is not present
+ * @tcs:                TCS groups
+ * @tcs_in_use:         S/W state of the TCS
+ * @lock:               Synchronize state of the controller
+ * @pm_lock:            Synchronize during PM notifications
+ *                      Used when solver mode is not present
+ * @client:             Handle to the DRV's client.
  */
 struct rsc_drv {
 	const char *name;
 	void __iomem *tcs_base;
 	int id;
 	int num_tcs;
+	struct notifier_block rsc_pm;
+	struct cpumask cpus_entered_pm;
 	struct tcs_group tcs[TCS_TYPE_NR];
 	DECLARE_BITMAP(tcs_in_use, MAX_TCS_NR);
 	spinlock_t lock;
+	spinlock_t pm_lock;
 	struct rpmh_ctrlr client;
 };
 
