@@ -4181,6 +4181,7 @@ static void io_async_task_func(struct callback_head *cb)
 	struct io_kiocb *req = container_of(cb, struct io_kiocb, task_work);
 	struct async_poll *apoll = req->apoll;
 	struct io_ring_ctx *ctx = req->ctx;
+	bool canceled;
 
 	trace_io_uring_task_run(req->ctx, req->opcode, req->user_data);
 
@@ -4192,7 +4193,21 @@ static void io_async_task_func(struct callback_head *cb)
 	if (hash_hashed(&req->hash_node))
 		hash_del(&req->hash_node);
 
+	canceled = READ_ONCE(apoll->poll.canceled);
+	if (canceled) {
+		io_cqring_fill_event(req, -ECANCELED);
+		io_commit_cqring(ctx);
+	}
+
 	spin_unlock_irq(&ctx->completion_lock);
+
+	if (canceled) {
+		kfree(apoll);
+		io_cqring_ev_posted(ctx);
+		req_set_fail_links(req);
+		io_put_req(req);
+		return;
+	}
 
 	/* restore ->work in case we need to retry again */
 	memcpy(&req->work, &apoll->work, sizeof(req->work));
