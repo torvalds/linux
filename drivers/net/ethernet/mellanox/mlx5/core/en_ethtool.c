@@ -665,11 +665,12 @@ static const u32 pplm_fec_2_ethtool_linkmodes[] = {
 static int get_fec_supported_advertised(struct mlx5_core_dev *dev,
 					struct ethtool_link_ksettings *link_ksettings)
 {
-	u_long active_fec = 0;
+	unsigned long active_fec_long;
+	u32 active_fec;
 	u32 bitn;
 	int err;
 
-	err = mlx5e_get_fec_mode(dev, (u32 *)&active_fec, NULL);
+	err = mlx5e_get_fec_mode(dev, &active_fec, NULL);
 	if (err)
 		return (err == -EOPNOTSUPP) ? 0 : err;
 
@@ -682,10 +683,11 @@ static int get_fec_supported_advertised(struct mlx5_core_dev *dev,
 	MLX5E_ADVERTISE_SUPPORTED_FEC(MLX5E_FEC_LLRS_272_257_1,
 				      ETHTOOL_LINK_MODE_FEC_LLRS_BIT);
 
+	active_fec_long = active_fec;
 	/* active fec is a bit set, find out which bit is set and
 	 * advertise the corresponding ethtool bit
 	 */
-	bitn = find_first_bit(&active_fec, sizeof(u32) * BITS_PER_BYTE);
+	bitn = find_first_bit(&active_fec_long, sizeof(active_fec_long) * BITS_PER_BYTE);
 	if (bitn < ARRAY_SIZE(pplm_fec_2_ethtool_linkmodes))
 		__set_bit(pplm_fec_2_ethtool_linkmodes[bitn],
 			  link_ksettings->link_modes.advertising);
@@ -1517,8 +1519,8 @@ static int mlx5e_get_fecparam(struct net_device *netdev,
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 	struct mlx5_core_dev *mdev = priv->mdev;
-	u16 fec_configured = 0;
-	u32 fec_active = 0;
+	u16 fec_configured;
+	u32 fec_active;
 	int err;
 
 	err = mlx5e_get_fec_mode(mdev, &fec_active, &fec_configured);
@@ -1526,14 +1528,14 @@ static int mlx5e_get_fecparam(struct net_device *netdev,
 	if (err)
 		return err;
 
-	fecparam->active_fec = pplm2ethtool_fec((u_long)fec_active,
-						sizeof(u32) * BITS_PER_BYTE);
+	fecparam->active_fec = pplm2ethtool_fec((unsigned long)fec_active,
+						sizeof(unsigned long) * BITS_PER_BYTE);
 
 	if (!fecparam->active_fec)
 		return -EOPNOTSUPP;
 
-	fecparam->fec = pplm2ethtool_fec((u_long)fec_configured,
-					 sizeof(u16) * BITS_PER_BYTE);
+	fecparam->fec = pplm2ethtool_fec((unsigned long)fec_configured,
+					 sizeof(unsigned long) * BITS_PER_BYTE);
 
 	return 0;
 }
