@@ -622,6 +622,11 @@ static int mt7621_pcie_init_virtual_bridges(struct mt7621_pcie *pcie)
 	if (pcie_link_status == 0)
 		return -1;
 
+	/*
+	 * Assign device numbers from zero to the enabled ports,
+	 * then assigning remaining device numbers to any disabled
+	 * ports.
+	 */
 	n = 0;
 	for (i = 0; i < PCIE_P2P_CNT; i++)
 		if (pcie_link_status & BIT(i))
