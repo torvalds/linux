@@ -83,6 +83,8 @@ struct adis_data {
  * @trig: IIO trigger object data
  * @data: ADIS chip variant specific data
  * @burst: ADIS burst transfer information
+ * @burst_extra_len: Burst extra length. Should only be used by devices that can
+ *		     dynamically change their burst mode length.
  * @state_lock: Lock used by the device to protect state
  * @msg: SPI message object
  * @xfer: SPI transfer objects to be used for a @msg
@@ -98,7 +100,7 @@ struct adis {
 
 	const struct adis_data	*data;
 	struct adis_burst	*burst;
-
+	unsigned int		burst_extra_len;
 	/**
 	 * The state_lock is meant to be used during operations that require
 	 * a sequence of SPI R/W in order to protect the SPI transfer
@@ -502,11 +504,14 @@ int adis_single_conversion(struct iio_dev *indio_dev,
  * @en			burst mode enabled
  * @reg_cmd		register command that triggers burst
  * @extra_len		extra length to account in the SPI RX buffer
+ * @burst_max_len	holds the maximum burst size when the device supports
+ *			more than one burst mode with different sizes
  */
 struct adis_burst {
 	bool		en;
 	unsigned int	reg_cmd;
-	unsigned int	extra_len;
+	const u32	extra_len;
+	const u32	burst_max_len;
 };
 
 int
