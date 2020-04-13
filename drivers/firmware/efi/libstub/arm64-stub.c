@@ -52,7 +52,7 @@ efi_status_t handle_kernel_image(unsigned long *image_addr,
 {
 	efi_status_t status;
 	unsigned long kernel_size, kernel_memsize = 0;
-	u64 phys_seed = 0;
+	u32 phys_seed = 0;
 
 	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE)) {
 		if (!nokaslr()) {
@@ -74,36 +74,15 @@ efi_status_t handle_kernel_image(unsigned long *image_addr,
 
 	kernel_size = _edata - _text;
 	kernel_memsize = kernel_size + (_end - _edata);
+	*reserve_size = kernel_memsize + TEXT_OFFSET % min_kimg_align;
 
 	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE) && phys_seed != 0) {
-		/*
-		 * Produce a displacement in the interval [0, MIN_KIMG_ALIGN)
-		 * that doesn't violate this kernel's de-facto alignment
-		 * constraints.
-		 */
-		u32 mask = (MIN_KIMG_ALIGN - 1) & ~(EFI_KIMG_ALIGN - 1);
-		u32 offset = (phys_seed >> 32) & mask;
-
-		/*
-		 * With CONFIG_RANDOMIZE_TEXT_OFFSET=y, TEXT_OFFSET may not
-		 * be a multiple of EFI_KIMG_ALIGN, and we must ensure that
-		 * we preserve the misalignment of 'offset' relative to
-		 * EFI_KIMG_ALIGN so that statically allocated objects whose
-		 * alignment exceeds PAGE_SIZE appear correctly aligned in
-		 * memory.
-		 */
-		offset |= TEXT_OFFSET % EFI_KIMG_ALIGN;
-
 		/*
 		 * If KASLR is enabled, and we have some randomness available,
 		 * locate the kernel at a randomized offset in physical memory.
 		 */
-		*reserve_size = kernel_memsize + offset;
-		status = efi_random_alloc(*reserve_size,
-					  MIN_KIMG_ALIGN, reserve_addr,
-					  (u32)phys_seed);
-
-		*image_addr = *reserve_addr + offset;
+		status = efi_random_alloc(*reserve_size, min_kimg_align,
+					  reserve_addr, phys_seed);
 	} else {
 		status = EFI_OUT_OF_RESOURCES;
 	}
@@ -119,7 +98,6 @@ efi_status_t handle_kernel_image(unsigned long *image_addr,
 			return EFI_SUCCESS;
 		}
 
-		*reserve_size = kernel_memsize + TEXT_OFFSET % min_kimg_align;
 		status = efi_low_alloc(*reserve_size,
 				       min_kimg_align, reserve_addr);
 
@@ -128,9 +106,9 @@ efi_status_t handle_kernel_image(unsigned long *image_addr,
 			*reserve_size = 0;
 			return status;
 		}
-		*image_addr = *reserve_addr + TEXT_OFFSET % min_kimg_align;
 	}
 
+	*image_addr = *reserve_addr + TEXT_OFFSET % min_kimg_align;
 	memcpy((void *)*image_addr, _text, kernel_size);
 
 	return EFI_SUCCESS;
