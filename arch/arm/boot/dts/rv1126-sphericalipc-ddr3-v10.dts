@@ -383,10 +383,8 @@
 		pwdn-gpios = <&gpio1 RK_PD4 GPIO_ACTIVE_HIGH>;
 		rockchip,camera-module-index = <1>;
 		rockchip,camera-module-facing = "front";
-		rockchip,camera-module-name = "default";
-		rockchip,camera-module-lens-name = "default";
-		/* NO_HDR:0 HDR_X2:5 HDR_X3:6 */
-		rockchip,camera-hdr-mode = <5>;
+		rockchip,camera-module-name = "JSD3425-C1";
+		rockchip,camera-module-lens-name = "4IR";
 		port {
 			ucam_out0: endpoint {
 				remote-endpoint = <&mipi_in_ucam0>;
