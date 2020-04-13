@@ -1209,14 +1209,14 @@ static enum hrtimer_restart iocg_waitq_timer_fn(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
-static bool iocg_kick_delay(struct ioc_gq *iocg, struct ioc_now *now, u64 cost)
+static bool iocg_kick_delay(struct ioc_gq *iocg, struct ioc_now *now)
 {
 	struct ioc *ioc = iocg->ioc;
 	struct blkcg_gq *blkg = iocg_to_blkg(iocg);
 	u64 vtime = atomic64_read(&iocg->vtime);
 	u64 vmargin = ioc->margin_us * now->vrate;
 	u64 margin_ns = ioc->margin_us * NSEC_PER_USEC;
-	u64 expires, oexpires;
+	u64 delta_ns, expires, oexpires;
 	u32 hw_inuse;
 
 	/* debt-adjust vtime */
@@ -1233,15 +1233,10 @@ static bool iocg_kick_delay(struct ioc_gq *iocg, struct ioc_now *now, u64 cost)
 		return false;
 
 	/* use delay */
-	if (cost) {
-		u64 cost_ns = DIV64_U64_ROUND_UP(cost * NSEC_PER_USEC,
-						 now->vrate);
-		blkcg_add_delay(blkg, now->now_ns, cost_ns);
-	}
-	blkcg_use_delay(blkg);
-
-	expires = now->now_ns + DIV64_U64_ROUND_UP(vtime - now->vnow,
-						   now->vrate) * NSEC_PER_USEC;
+	delta_ns = DIV64_U64_ROUND_UP(vtime - now->vnow,
+				      now->vrate) * NSEC_PER_USEC;
+	blkcg_set_delay(blkg, delta_ns);
+	expires = now->now_ns + delta_ns;
 
 	/* if already active and close enough, don't bother */
 	oexpires = ktime_to_ns(hrtimer_get_softexpires(&iocg->delay_timer));
@@ -1260,7 +1255,7 @@ static enum hrtimer_restart iocg_delay_timer_fn(struct hrtimer *timer)
 	struct ioc_now now;
 
 	ioc_now(iocg->ioc, &now);
-	iocg_kick_delay(iocg, &now, 0);
+	iocg_kick_delay(iocg, &now);
 
 	return HRTIMER_NORESTART;
 }
@@ -1378,7 +1373,7 @@ static void ioc_timer_fn(struct timer_list *timer)
 		    atomic64_read(&iocg->abs_vdebt)) {
 			/* might be oversleeping vtime / hweight changes, kick */
 			iocg_kick_waitq(iocg, &now);
-			iocg_kick_delay(iocg, &now, 0);
+			iocg_kick_delay(iocg, &now);
 		} else if (iocg_is_idle(iocg)) {
 			/* no waiter and idle, deactivate */
 			iocg->last_inuse = iocg->inuse;
@@ -1737,7 +1732,7 @@ static void ioc_rqos_throttle(struct rq_qos *rqos, struct bio *bio)
 	 */
 	if (bio_issue_as_root_blkg(bio) || fatal_signal_pending(current)) {
 		atomic64_add(abs_cost, &iocg->abs_vdebt);
-		if (iocg_kick_delay(iocg, &now, cost))
+		if (iocg_kick_delay(iocg, &now))
 			blkcg_schedule_throttle(rqos->q,
 					(bio->bi_opf & REQ_SWAP) == REQ_SWAP);
 		return;
