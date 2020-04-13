@@ -358,6 +358,107 @@ static int sienna_cichlid_check_powerplay_table(struct smu_context *smu)
 
 static int sienna_cichlid_append_powerplay_table(struct smu_context *smu)
 {
+	struct smu_table_context *table_context = &smu->smu_table;
+	PPTable_t *smc_pptable = table_context->driver_pptable;
+	struct atom_smc_dpm_info_v4_9 *smc_dpm_table;
+	int index, ret;
+	int i;
+
+	index = get_index_into_master_table(atom_master_list_of_data_tables_v2_1,
+					    smc_dpm_info);
+
+	ret = smu_get_atom_data_table(smu, index, NULL, NULL, NULL,
+				      (uint8_t **)&smc_dpm_table);
+	if (ret)
+		return ret;
+
+	memcpy(smc_pptable->I2cControllers, smc_dpm_table->I2cControllers,
+	       sizeof(I2cControllerConfig_t) * NUM_I2C_CONTROLLERS);
+
+	/* SVI2 Board Parameters */
+	smc_pptable->VddGfxVrMapping = smc_dpm_table->VddGfxVrMapping;
+	smc_pptable->VddSocVrMapping = smc_dpm_table->VddSocVrMapping;
+	smc_pptable->VddMem0VrMapping = smc_dpm_table->VddMem0VrMapping;
+	smc_pptable->VddMem1VrMapping = smc_dpm_table->VddMem1VrMapping;
+	smc_pptable->GfxUlvPhaseSheddingMask = smc_dpm_table->GfxUlvPhaseSheddingMask;
+	smc_pptable->SocUlvPhaseSheddingMask = smc_dpm_table->SocUlvPhaseSheddingMask;
+	smc_pptable->VddciUlvPhaseSheddingMask = smc_dpm_table->VddciUlvPhaseSheddingMask;
+	smc_pptable->MvddUlvPhaseSheddingMask = smc_dpm_table->MvddUlvPhaseSheddingMask;
+
+	/* Telemetry Settings */
+	smc_pptable->GfxMaxCurrent = smc_dpm_table->GfxMaxCurrent;
+	smc_pptable->GfxOffset = smc_dpm_table->GfxOffset;
+	smc_pptable->Padding_TelemetryGfx = smc_dpm_table->Padding_TelemetryGfx;
+	smc_pptable->SocMaxCurrent = smc_dpm_table->SocMaxCurrent;
+	smc_pptable->SocOffset = smc_dpm_table->SocOffset;
+	smc_pptable->Padding_TelemetrySoc = smc_dpm_table->Padding_TelemetrySoc;
+	smc_pptable->Mem0MaxCurrent = smc_dpm_table->Mem0MaxCurrent;
+	smc_pptable->Mem0Offset = smc_dpm_table->Mem0Offset;
+	smc_pptable->Padding_TelemetryMem0 = smc_dpm_table->Padding_TelemetryMem0;
+	smc_pptable->Mem1MaxCurrent = smc_dpm_table->Mem1MaxCurrent;
+	smc_pptable->Mem1Offset = smc_dpm_table->Mem1Offset;
+	smc_pptable->Padding_TelemetryMem1 = smc_dpm_table->Padding_TelemetryMem1;
+	smc_pptable->MvddRatio = smc_dpm_table->MvddRatio;
+
+	/* GPIO Settings */
+	smc_pptable->AcDcGpio = smc_dpm_table->AcDcGpio;
+	smc_pptable->AcDcPolarity = smc_dpm_table->AcDcPolarity;
+	smc_pptable->VR0HotGpio = smc_dpm_table->VR0HotGpio;
+	smc_pptable->VR0HotPolarity = smc_dpm_table->VR0HotPolarity;
+	smc_pptable->VR1HotGpio = smc_dpm_table->VR1HotGpio;
+	smc_pptable->VR1HotPolarity = smc_dpm_table->VR1HotPolarity;
+	smc_pptable->GthrGpio = smc_dpm_table->GthrGpio;
+	smc_pptable->GthrPolarity = smc_dpm_table->GthrPolarity;
+
+	/* LED Display Settings */
+	smc_pptable->LedPin0 = smc_dpm_table->LedPin0;
+	smc_pptable->LedPin1 = smc_dpm_table->LedPin1;
+	smc_pptable->LedPin2 = smc_dpm_table->LedPin2;
+	smc_pptable->LedEnableMask = smc_dpm_table->LedEnableMask;
+	smc_pptable->LedPcie = smc_dpm_table->LedPcie;
+	smc_pptable->LedError = smc_dpm_table->LedError;
+	smc_pptable->LedSpare1[0] = smc_dpm_table->LedSpare1[0];
+	smc_pptable->LedSpare1[1] = smc_dpm_table->LedSpare1[1];
+
+	/* GFXCLK PLL Spread Spectrum */
+	smc_pptable->PllGfxclkSpreadEnabled = smc_dpm_table->PllGfxclkSpreadEnabled;
+	smc_pptable->PllGfxclkSpreadPercent = smc_dpm_table->PllGfxclkSpreadPercent;
+	smc_pptable->PllGfxclkSpreadFreq = smc_dpm_table->PllGfxclkSpreadFreq;
+
+	/* GFXCLK DFLL Spread Spectrum */
+	smc_pptable->DfllGfxclkSpreadEnabled = smc_dpm_table->DfllGfxclkSpreadEnabled;
+	smc_pptable->DfllGfxclkSpreadPercent = smc_dpm_table->DfllGfxclkSpreadPercent;
+	smc_pptable->DfllGfxclkSpreadFreq = smc_dpm_table->DfllGfxclkSpreadFreq;
+
+	/* UCLK Spread Spectrum */
+	smc_pptable->UclkSpreadEnabled = smc_dpm_table->UclkSpreadEnabled;
+	smc_pptable->UclkSpreadPercent = smc_dpm_table->UclkSpreadPercent;
+	smc_pptable->UclkSpreadFreq = smc_dpm_table->UclkSpreadFreq;
+
+	/* FCLK Spred Spectrum */
+	smc_pptable->FclkSpreadEnabled = smc_dpm_table->FclkSpreadEnabled;
+	smc_pptable->FclkSpreadPercent = smc_dpm_table->FclkSpreadPercent;
+	smc_pptable->FclkSpreadFreq = smc_dpm_table->FclkSpreadFreq;
+
+	/* Memory Config */
+	smc_pptable->MemoryChannelEnabled = smc_dpm_table->MemoryChannelEnabled;
+	smc_pptable->DramBitWidth = smc_dpm_table->DramBitWidth;
+	smc_pptable->PaddingMem1[0] = smc_dpm_table->PaddingMem1[0];
+	smc_pptable->PaddingMem1[1] = smc_dpm_table->PaddingMem1[1];
+	smc_pptable->PaddingMem1[2] = smc_dpm_table->PaddingMem1[2];
+
+	/* Total board power */
+	smc_pptable->TotalBoardPower = smc_dpm_table->TotalBoardPower;
+	smc_pptable->BoardPowerPadding = smc_dpm_table->BoardPowerPadding;
+
+	/* XGMI Training */
+	for (i = 0; i < NUM_XGMI_PSTATE_LEVELS; i++) {
+		smc_pptable->XgmiLinkSpeed[i] = smc_dpm_table->XgmiLinkSpeed[i];
+		smc_pptable->XgmiLinkWidth[i] = smc_dpm_table->XgmiLinkWidth[i];
+		smc_pptable->XgmiFclkFreq[i] = smc_dpm_table->XgmiFclkFreq[i];
+		smc_pptable->XgmiSocVoltage[i] = smc_dpm_table->XgmiSocVoltage[i];
+	}
+
 	return 0;
 }
 
