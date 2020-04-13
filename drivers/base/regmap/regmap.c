@@ -827,6 +827,7 @@ struct regmap *__regmap_init(struct device *dev,
 	} else if (!bus->read || !bus->write) {
 		map->reg_read = _regmap_bus_reg_read;
 		map->reg_write = _regmap_bus_reg_write;
+		map->reg_update_bits = bus->reg_update_bits;
 
 		map->defer_caching = false;
 		goto skip_format_initialization;
