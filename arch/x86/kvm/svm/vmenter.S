@@ -3,6 +3,7 @@
 #include <asm/asm.h>
 #include <asm/bitsperlong.h>
 #include <asm/kvm_vcpu_regs.h>
+#include <asm/nospec-branch.h>
 
 #define WORD_SIZE (BITS_PER_LONG / 8)
 
@@ -78,6 +79,7 @@ SYM_FUNC_START(__svm_vcpu_run)
 	pop %_ASM_AX
 
 	/* Enter guest mode */
+	sti
 1:	vmload %_ASM_AX
 	jmp 3f
 2:	cmpb $0, kvm_rebooting
@@ -99,6 +101,13 @@ SYM_FUNC_START(__svm_vcpu_run)
 	ud2
 	_ASM_EXTABLE(5b, 6b)
 7:
+	cli
+
+#ifdef CONFIG_RETPOLINE
+	/* IMPORTANT: Stuff the RSB immediately after VM-Exit, before RET! */
+	FILL_RETURN_BUFFER %_ASM_AX, RSB_CLEAR_LOOPS, X86_FEATURE_RETPOLINE
+#endif
+
 	/* "POP" @regs to RAX. */
 	pop %_ASM_AX
 
