@@ -512,63 +512,57 @@ static int set_user_sq_size(struct hns_roce_dev *hr_dev,
 
 static int split_wqe_buf_region(struct hns_roce_dev *hr_dev,
 				struct hns_roce_qp *hr_qp,
-				struct hns_roce_buf_region *regions,
-				int region_max, int page_shift)
+				struct hns_roce_buf_attr *buf_attr)
 {
-	int page_size = 1 << page_shift;
 	bool is_extend_sge;
-	int region_cnt = 0;
 	int buf_size;
-	int buf_cnt;
+	int idx = 0;
 
-	if (hr_qp->buff_size < 1 || region_max < 1)
-		return region_cnt;
+	if (hr_qp->buff_size < 1)
+		return -EINVAL;
+
+	buf_attr->page_shift = PAGE_ADDR_SHIFT + hr_dev->caps.mtt_buf_pg_sz;
+	buf_attr->fixed_page = true;
+	buf_attr->region_count = 0;
 
 	if (hr_qp->sge.sge_cnt > 0)
 		is_extend_sge = true;
 	else
 		is_extend_sge = false;
 
-	/* sq region */
+	/* SQ WQE */
 	if (is_extend_sge)
 		buf_size = hr_qp->sge.offset - hr_qp->sq.offset;
 	else
 		buf_size = hr_qp->rq.offset - hr_qp->sq.offset;
 
-	if (buf_size > 0 && region_cnt < region_max) {
-		buf_cnt = DIV_ROUND_UP(buf_size, page_size);
-		hns_roce_init_buf_region(&regions[region_cnt],
-					 hr_dev->caps.wqe_sq_hop_num,
-					 hr_qp->sq.offset / page_size,
-					 buf_cnt);
-		region_cnt++;
+	if (buf_size > 0 && idx < ARRAY_SIZE(buf_attr->region)) {
+		buf_attr->region[idx].size = buf_size;
+		buf_attr->region[idx].hopnum = hr_dev->caps.wqe_sq_hop_num;
+		idx++;
 	}
 
-	/* sge region */
-	if (is_extend_sge) {
-		buf_size = hr_qp->rq.offset - hr_qp->sge.offset;
-		if (buf_size > 0 && region_cnt < region_max) {
-			buf_cnt = DIV_ROUND_UP(buf_size, page_size);
-			hns_roce_init_buf_region(&regions[region_cnt],
-						 hr_dev->caps.wqe_sge_hop_num,
-						 hr_qp->sge.offset / page_size,
-						 buf_cnt);
-			region_cnt++;
-		}
+	/* extend SGE in SQ WQE */
+	buf_size = hr_qp->rq.offset - hr_qp->sge.offset;
+	if (buf_size > 0 && is_extend_sge &&
+	    idx < ARRAY_SIZE(buf_attr->region)) {
+		buf_attr->region[idx].size = buf_size;
+		buf_attr->region[idx].hopnum =
+					hr_dev->caps.wqe_sge_hop_num;
+		idx++;
 	}
 
-	/* rq region */
+	/* RQ WQE */
 	buf_size = hr_qp->buff_size - hr_qp->rq.offset;
-	if (buf_size > 0) {
-		buf_cnt = DIV_ROUND_UP(buf_size, page_size);
-		hns_roce_init_buf_region(&regions[region_cnt],
-					 hr_dev->caps.wqe_rq_hop_num,
-					 hr_qp->rq.offset / page_size,
-					 buf_cnt);
-		region_cnt++;
+	if (buf_size > 0 && idx < ARRAY_SIZE(buf_attr->region)) {
+		buf_attr->region[idx].size = buf_size;
+		buf_attr->region[idx].hopnum = hr_dev->caps.wqe_rq_hop_num;
+		idx++;
 	}
 
-	return region_cnt;
+	buf_attr->region_count = idx;
+
+	return 0;
 }
 
 static int set_extend_sge_param(struct hns_roce_dev *hr_dev,
@@ -731,72 +725,12 @@ static void free_rq_inline_buf(struct hns_roce_qp *hr_qp)
 	kfree(hr_qp->rq_inl_buf.wqe_list);
 }
 
-static int map_wqe_buf(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp,
-		       u32 page_shift, bool is_user)
-{
-/* WQE buffer include 3 parts: SQ, extend SGE and RQ. */
-#define HNS_ROCE_WQE_REGION_MAX	 3
-	struct hns_roce_buf_region regions[HNS_ROCE_WQE_REGION_MAX] = {};
-	dma_addr_t *buf_list[HNS_ROCE_WQE_REGION_MAX] = {};
-	struct ib_device *ibdev = &hr_dev->ib_dev;
-	struct hns_roce_buf_region *r;
-	int region_count;
-	int buf_count;
-	int ret;
-	int i;
-
-	region_count = split_wqe_buf_region(hr_dev, hr_qp, regions,
-					    ARRAY_SIZE(regions), page_shift);
-
-	/* alloc a tmp list to store WQE buffers address */
-	ret = hns_roce_alloc_buf_list(regions, buf_list, region_count);
-	if (ret) {
-		ibdev_err(ibdev, "Failed to alloc WQE buffer list\n");
-		return ret;
-	}
-
-	for (i = 0; i < region_count; i++) {
-		r = &regions[i];
-		if (is_user)
-			buf_count = hns_roce_get_umem_bufs(hr_dev, buf_list[i],
-					r->count, r->offset, hr_qp->umem,
-					page_shift);
-		else
-			buf_count = hns_roce_get_kmem_bufs(hr_dev, buf_list[i],
-					r->count, r->offset, &hr_qp->hr_buf);
-
-		if (buf_count != r->count) {
-			ibdev_err(ibdev, "Failed to get %s WQE buf, expect %d = %d.\n",
-				  is_user ? "user" : "kernel",
-				  r->count, buf_count);
-			ret = -ENOBUFS;
-			goto done;
-		}
-	}
-
-	hr_qp->wqe_bt_pg_shift = hr_dev->caps.mtt_ba_pg_sz;
-	hns_roce_mtr_init(&hr_qp->mtr, PAGE_SHIFT + hr_qp->wqe_bt_pg_shift,
-			  page_shift);
-	ret = hns_roce_mtr_attach(hr_dev, &hr_qp->mtr, buf_list, regions,
-				  region_count);
-	if (ret)
-		ibdev_err(ibdev, "Failed to attach WQE's mtr\n");
-
-	goto done;
-
-	hns_roce_mtr_cleanup(hr_dev, &hr_qp->mtr);
-done:
-	hns_roce_free_buf_list(buf_list, region_count);
-
-	return ret;
-}
-
 static int alloc_qp_buf(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp,
 			struct ib_qp_init_attr *init_attr,
 			struct ib_udata *udata, unsigned long addr)
 {
-	u32 page_shift = PAGE_SHIFT + hr_dev->caps.mtt_buf_pg_sz;
 	struct ib_device *ibdev = &hr_dev->ib_dev;
+	struct hns_roce_buf_attr buf_attr = {};
 	bool is_rq_buf_inline;
 	int ret;
 
@@ -810,54 +744,30 @@ static int alloc_qp_buf(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp,
 		}
 	}
 
-	if (udata) {
-		hr_qp->umem = ib_umem_get(ibdev, addr, hr_qp->buff_size, 0);
-		if (IS_ERR(hr_qp->umem)) {
-			ret = PTR_ERR(hr_qp->umem);
-			goto err_inline;
-		}
-	} else {
-		ret = hns_roce_buf_alloc(hr_dev, hr_qp->buff_size,
-					 (1 << page_shift) * 2,
-					 &hr_qp->hr_buf, page_shift);
-		if (ret)
-			goto err_inline;
+	ret = split_wqe_buf_region(hr_dev, hr_qp, &buf_attr);
+	if (ret) {
+		ibdev_err(ibdev, "Failed to split WQE buf, ret %d\n", ret);
+		goto err_inline;
+	}
+	ret = hns_roce_mtr_create(hr_dev, &hr_qp->mtr, &buf_attr,
+				  PAGE_ADDR_SHIFT + hr_dev->caps.mtt_ba_pg_sz,
+				  udata, addr);
+	if (ret) {
+		ibdev_err(ibdev, "Failed to create WQE mtr, ret %d\n", ret);
+		goto err_inline;
 	}
 
-	ret = map_wqe_buf(hr_dev, hr_qp, page_shift, udata);
-	if (ret)
-		goto err_alloc;
-
 	return 0;
-
 err_inline:
 	if (is_rq_buf_inline)
 		free_rq_inline_buf(hr_qp);
-
-err_alloc:
-	if (udata) {
-		ib_umem_release(hr_qp->umem);
-		hr_qp->umem = NULL;
-	} else {
-		hns_roce_buf_free(hr_dev, &hr_qp->hr_buf);
-	}
-
-	ibdev_err(ibdev, "Failed to alloc WQE buffer, ret %d.\n", ret);
 
 	return ret;
 }
 
 static void free_qp_buf(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp)
 {
-	hns_roce_mtr_cleanup(hr_dev, &hr_qp->mtr);
-	if (hr_qp->umem) {
-		ib_umem_release(hr_qp->umem);
-		hr_qp->umem = NULL;
-	}
-
-	if (hr_qp->hr_buf.npages > 0)
-		hns_roce_buf_free(hr_dev, &hr_qp->hr_buf);
-
+	hns_roce_mtr_destroy(hr_dev, &hr_qp->mtr);
 	if ((hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RQ_INLINE) &&
 	     hr_qp->rq.wqe_cnt)
 		free_rq_inline_buf(hr_qp);
@@ -1431,10 +1341,9 @@ void hns_roce_unlock_cqs(struct hns_roce_cq *send_cq,
 	}
 }
 
-static void *get_wqe(struct hns_roce_qp *hr_qp, int offset)
+static inline void *get_wqe(struct hns_roce_qp *hr_qp, int offset)
 {
-
-	return hns_roce_buf_offset(&hr_qp->hr_buf, offset);
+	return hns_roce_buf_offset(hr_qp->mtr.kmem, offset);
 }
 
 void *hns_roce_get_recv_wqe(struct hns_roce_qp *hr_qp, int n)
@@ -1449,8 +1358,7 @@ void *hns_roce_get_send_wqe(struct hns_roce_qp *hr_qp, int n)
 
 void *hns_roce_get_extend_sge(struct hns_roce_qp *hr_qp, int n)
 {
-	return hns_roce_buf_offset(&hr_qp->hr_buf, hr_qp->sge.offset +
-					(n << hr_qp->sge.sge_shift));
+	return get_wqe(hr_qp, hr_qp->sge.offset + (n << hr_qp->sge.sge_shift));
 }
 
 bool hns_roce_wq_overflow(struct hns_roce_wq *hr_wq, int nreq,

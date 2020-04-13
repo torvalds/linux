@@ -164,7 +164,7 @@ static void set_extend_sge(struct hns_roce_qp *qp, const struct ib_send_wr *wr,
 		num_in_wqe = HNS_ROCE_V2_UC_RC_SGE_NUM_IN_WQE;
 	extend_sge_num = valid_num_sge - num_in_wqe;
 	sg = wr->sg_list + num_in_wqe;
-	shift = qp->hr_buf.page_shift;
+	shift = qp->mtr.hem_cfg.buf_pg_shift;
 
 	/*
 	 * Check whether wr->num_sge sges are in the same page. If not, we
@@ -3757,7 +3757,7 @@ static int modify_qp_init_to_rtr(struct ib_qp *ibqp,
 	int port;
 
 	/* Search qp buf's mtts */
-	page_size = 1 << (hr_dev->caps.mtt_buf_pg_sz + PAGE_SHIFT);
+	page_size = 1 << hr_qp->mtr.hem_cfg.buf_pg_shift;
 	count = hns_roce_mtr_find(hr_dev, &hr_qp->mtr,
 				  hr_qp->rq.offset / page_size, mtts,
 				  MTT_MIN_COUNT, &wqe_sge_ba);
@@ -3831,7 +3831,7 @@ static int modify_qp_init_to_rtr(struct ib_qp *ibqp,
 	roce_set_field(context->byte_16_buf_ba_pg_sz,
 		       V2_QPC_BYTE_16_WQE_SGE_BA_PG_SZ_M,
 		       V2_QPC_BYTE_16_WQE_SGE_BA_PG_SZ_S,
-		       hr_qp->wqe_bt_pg_shift + PG_SHIFT_OFFSET);
+		       to_hr_hw_page_shift(hr_qp->mtr.hem_cfg.ba_pg_shift));
 	roce_set_field(qpc_mask->byte_16_buf_ba_pg_sz,
 		       V2_QPC_BYTE_16_WQE_SGE_BA_PG_SZ_M,
 		       V2_QPC_BYTE_16_WQE_SGE_BA_PG_SZ_S, 0);
@@ -3839,29 +3839,29 @@ static int modify_qp_init_to_rtr(struct ib_qp *ibqp,
 	roce_set_field(context->byte_16_buf_ba_pg_sz,
 		       V2_QPC_BYTE_16_WQE_SGE_BUF_PG_SZ_M,
 		       V2_QPC_BYTE_16_WQE_SGE_BUF_PG_SZ_S,
-		       hr_dev->caps.mtt_buf_pg_sz + PG_SHIFT_OFFSET);
+		       to_hr_hw_page_shift(hr_qp->mtr.hem_cfg.buf_pg_shift));
 	roce_set_field(qpc_mask->byte_16_buf_ba_pg_sz,
 		       V2_QPC_BYTE_16_WQE_SGE_BUF_PG_SZ_M,
 		       V2_QPC_BYTE_16_WQE_SGE_BUF_PG_SZ_S, 0);
 
-	context->rq_cur_blk_addr = cpu_to_le32(mtts[0] >> PAGE_ADDR_SHIFT);
+	context->rq_cur_blk_addr = cpu_to_le32(to_hr_hw_page_addr(mtts[0]));
 	qpc_mask->rq_cur_blk_addr = 0;
 
 	roce_set_field(context->byte_92_srq_info,
 		       V2_QPC_BYTE_92_RQ_CUR_BLK_ADDR_M,
 		       V2_QPC_BYTE_92_RQ_CUR_BLK_ADDR_S,
-		       mtts[0] >> (32 + PAGE_ADDR_SHIFT));
+		       upper_32_bits(to_hr_hw_page_addr(mtts[0])));
 	roce_set_field(qpc_mask->byte_92_srq_info,
 		       V2_QPC_BYTE_92_RQ_CUR_BLK_ADDR_M,
 		       V2_QPC_BYTE_92_RQ_CUR_BLK_ADDR_S, 0);
 
-	context->rq_nxt_blk_addr = cpu_to_le32(mtts[1] >> PAGE_ADDR_SHIFT);
+	context->rq_nxt_blk_addr = cpu_to_le32(to_hr_hw_page_addr(mtts[1]));
 	qpc_mask->rq_nxt_blk_addr = 0;
 
 	roce_set_field(context->byte_104_rq_sge,
 		       V2_QPC_BYTE_104_RQ_NXT_BLK_ADDR_M,
 		       V2_QPC_BYTE_104_RQ_NXT_BLK_ADDR_S,
-		       mtts[1] >> (32 + PAGE_ADDR_SHIFT));
+		       upper_32_bits(to_hr_hw_page_addr(mtts[1])));
 	roce_set_field(qpc_mask->byte_104_rq_sge,
 		       V2_QPC_BYTE_104_RQ_NXT_BLK_ADDR_M,
 		       V2_QPC_BYTE_104_RQ_NXT_BLK_ADDR_S, 0);
@@ -3995,18 +3995,18 @@ static int modify_qp_rtr_to_rts(struct ib_qp *ibqp,
 	/* Search qp buf's mtts */
 	count = hns_roce_mtr_find(hr_dev, &hr_qp->mtr, 0, &sq_cur_blk, 1, NULL);
 	if (count < 1) {
-		ibdev_err(ibdev, "failed to find buf pa of QP(0x%lx)\n",
+		ibdev_err(ibdev, "failed to find QP(0x%lx) SQ buf\n",
 			  hr_qp->qpn);
 		return -EINVAL;
 	}
 
 	if (hr_qp->sge.offset) {
-		page_size = 1 << (hr_dev->caps.mtt_buf_pg_sz + PAGE_SHIFT);
+		page_size = 1 << hr_qp->mtr.hem_cfg.buf_pg_shift;
 		count = hns_roce_mtr_find(hr_dev, &hr_qp->mtr,
 					  hr_qp->sge.offset / page_size,
 					  &sge_cur_blk, 1, NULL);
 		if (count < 1) {
-			ibdev_err(ibdev, "failed to find sge pa of QP(0x%lx)\n",
+			ibdev_err(ibdev, "failed to find QP(0x%lx) SGE buf\n",
 				  hr_qp->qpn);
 			return -EINVAL;
 		}
@@ -4024,11 +4024,11 @@ static int modify_qp_rtr_to_rts(struct ib_qp *ibqp,
 	 * we should set all bits of the relevant fields in context mask to
 	 * 0 at the same time, else set them to 0x1.
 	 */
-	context->sq_cur_blk_addr = cpu_to_le32(sq_cur_blk >> PAGE_ADDR_SHIFT);
+	context->sq_cur_blk_addr = cpu_to_le32(to_hr_hw_page_addr(sq_cur_blk));
 	roce_set_field(context->byte_168_irrl_idx,
 		       V2_QPC_BYTE_168_SQ_CUR_BLK_ADDR_M,
 		       V2_QPC_BYTE_168_SQ_CUR_BLK_ADDR_S,
-		       sq_cur_blk >> (32 + PAGE_ADDR_SHIFT));
+		       upper_32_bits(to_hr_hw_page_addr(sq_cur_blk)));
 	qpc_mask->sq_cur_blk_addr = 0;
 	roce_set_field(qpc_mask->byte_168_irrl_idx,
 		       V2_QPC_BYTE_168_SQ_CUR_BLK_ADDR_M,
@@ -4036,26 +4036,24 @@ static int modify_qp_rtr_to_rts(struct ib_qp *ibqp,
 
 	context->sq_cur_sge_blk_addr = ((ibqp->qp_type == IB_QPT_GSI) ||
 		       hr_qp->sq.max_gs > HNS_ROCE_V2_UC_RC_SGE_NUM_IN_WQE) ?
-		       cpu_to_le32(sge_cur_blk >>
-		       PAGE_ADDR_SHIFT) : 0;
+		       cpu_to_le32(to_hr_hw_page_addr(sge_cur_blk)) : 0;
 	roce_set_field(context->byte_184_irrl_idx,
 		       V2_QPC_BYTE_184_SQ_CUR_SGE_BLK_ADDR_M,
 		       V2_QPC_BYTE_184_SQ_CUR_SGE_BLK_ADDR_S,
 		       ((ibqp->qp_type == IB_QPT_GSI) || hr_qp->sq.max_gs >
 		       HNS_ROCE_V2_UC_RC_SGE_NUM_IN_WQE) ?
-		       (sge_cur_blk >>
-		       (32 + PAGE_ADDR_SHIFT)) : 0);
+		       upper_32_bits(to_hr_hw_page_addr(sge_cur_blk)) : 0);
 	qpc_mask->sq_cur_sge_blk_addr = 0;
 	roce_set_field(qpc_mask->byte_184_irrl_idx,
 		       V2_QPC_BYTE_184_SQ_CUR_SGE_BLK_ADDR_M,
 		       V2_QPC_BYTE_184_SQ_CUR_SGE_BLK_ADDR_S, 0);
 
 	context->rx_sq_cur_blk_addr =
-		cpu_to_le32(sq_cur_blk >> PAGE_ADDR_SHIFT);
+		cpu_to_le32(to_hr_hw_page_addr(sq_cur_blk));
 	roce_set_field(context->byte_232_irrl_sge,
 		       V2_QPC_BYTE_232_RX_SQ_CUR_BLK_ADDR_M,
 		       V2_QPC_BYTE_232_RX_SQ_CUR_BLK_ADDR_S,
-		       sq_cur_blk >> (32 + PAGE_ADDR_SHIFT));
+		       upper_32_bits(to_hr_hw_page_addr(sq_cur_blk)));
 	qpc_mask->rx_sq_cur_blk_addr = 0;
 	roce_set_field(qpc_mask->byte_232_irrl_sge,
 		       V2_QPC_BYTE_232_RX_SQ_CUR_BLK_ADDR_M,

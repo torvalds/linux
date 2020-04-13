@@ -681,7 +681,6 @@ struct hns_roce_work {
 
 struct hns_roce_qp {
 	struct ib_qp		ibqp;
-	struct hns_roce_buf	hr_buf;
 	struct hns_roce_wq	rq;
 	struct hns_roce_db	rdb;
 	struct hns_roce_db	sdb;
@@ -691,10 +690,7 @@ struct hns_roce_qp {
 	u32			sq_signal_bits;
 	struct hns_roce_wq	sq;
 
-	struct ib_umem		*umem;
-	struct hns_roce_mtt	mtt;
 	struct hns_roce_mtr	mtr;
-	int                     wqe_bt_pg_shift;
 
 	u32			buff_size;
 	struct mutex		mutex;
