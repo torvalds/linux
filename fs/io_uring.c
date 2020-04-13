@@ -4392,7 +4392,7 @@ static void io_poll_remove_all(struct io_ring_ctx *ctx)
 {
 	struct hlist_node *tmp;
 	struct io_kiocb *req;
-	int i;
+	int posted = 0, i;
 
 	spin_lock_irq(&ctx->completion_lock);
 	for (i = 0; i < (1U << ctx->cancel_hash_bits); i++) {
@@ -4400,11 +4400,12 @@ static void io_poll_remove_all(struct io_ring_ctx *ctx)
 
 		list = &ctx->cancel_hash[i];
 		hlist_for_each_entry_safe(req, tmp, list, hash_node)
-			io_poll_remove_one(req);
+			posted += io_poll_remove_one(req);
 	}
 	spin_unlock_irq(&ctx->completion_lock);
 
-	io_cqring_ev_posted(ctx);
+	if (posted)
+		io_cqring_ev_posted(ctx);
 }
 
 static int io_poll_cancel(struct io_ring_ctx *ctx, __u64 sqe_addr)
