@@ -162,6 +162,8 @@ struct os04a10 {
 	const char		*module_facing;
 	const char		*module_name;
 	const char		*len_name;
+	bool has_init_exp;
+	struct preisp_hdrae_exp_s init_hdrae_exp;
 };
 
 #define to_os04a10(sd) container_of(sd, struct os04a10, subdev)
@@ -444,8 +446,8 @@ static const struct regval os04a10_linear10bit_2688x1520_regs[] = {
 	{0x380b, 0xf0},
 	{0x380c, 0x02},
 	{0x380d, 0xdc},
-	{0x380e, 0x0c},
-	{0x380f, 0xb0},
+	{0x380e, 0x06},
+	{0x380f, 0x58},
 	{0x381c, 0x00},
 	{0x3820, 0x02},
 	{0x3833, 0x40},
@@ -475,6 +477,75 @@ static const struct regval os04a10_linear10bit_2688x1520_regs[] = {
 	{0x5783, 0x3c},
 	{0x5788, 0x18},
 	{0x5789, 0x3c},
+	{REG_NULL, 0x00},
+};
+
+static const struct regval os04a10_linear12bit_2688x1520_regs[] = {
+	{0x0305, 0x6c},
+	{0x0308, 0x05},
+	{0x0317, 0x0a},
+	{0x0325, 0xd8},
+	{0x032e, 0x02},
+	{0x3605, 0xff},
+	{0x3606, 0x01},
+	{0x362d, 0x09},
+	{0x3662, 0x00},
+	{0x3667, 0xd4},
+	{0x3671, 0x08},
+	{0x3703, 0x28},
+	{0x3706, 0xf0},
+	{0x370a, 0x03},
+	{0x370b, 0x15},
+	{0x3719, 0x24},
+	{0x371b, 0x1f},
+	{0x3756, 0xe7},
+	{0x3757, 0xe7},
+	{0x376c, 0x00},
+	{0x37cc, 0x15},
+	{0x37d1, 0xf0},
+	{0x37d2, 0x03},
+	{0x37d3, 0x15},
+	{0x37d4, 0x01},
+	{0x37d5, 0x00},
+	{0x37d6, 0x03},
+	{0x37d7, 0x15},
+	{0x3801, 0x00},
+	{0x3803, 0x00},
+	{0x3805, 0x8f},
+	{0x3807, 0xff},
+	{0x3809, 0x80},
+	{0x380b, 0xf0},
+	{0x380c, 0x05},
+	{0x380d, 0xc4},
+	{0x380e, 0x09},
+	{0x380f, 0x84},
+	{0x381c, 0x00},
+	{0x3820, 0x02},
+	{0x3833, 0x40},
+	{0x384c, 0x05},
+	{0x384d, 0xc4},
+	{0x3c5a, 0xe5},
+	{0x4001, 0x2f},
+	{0x4005, 0x80},
+	{0x400a, 0x03},
+	{0x400b, 0x27},
+	{0x402f, 0x80},
+	{0x4031, 0x80},
+	{0x4032, 0x9f},
+	{0x4288, 0xcf},
+	{0x430b, 0xff},
+	{0x430c, 0xff},
+	{0x4507, 0x02},
+	{0x480e, 0x00},
+	{0x4813, 0x00},
+	{0x4837, 0x0c},
+	{0x484b, 0x27},
+	{0x5000, 0x1f},
+	{0x5001, 0x0d},
+	{0x5782, 0x60},
+	{0x5783, 0xf0},
+	{0x5788, 0x60},
+	{0x5789, 0xf0},
 	{REG_NULL, 0x00},
 };
 
@@ -707,6 +778,21 @@ static const struct regval os04a10_hdr12bit_2560x1440_regs[] = {
  */
 static const struct os04a10_mode supported_modes[] = {
 	{
+		.bus_fmt = MEDIA_BUS_FMT_SBGGR12_1X12,
+		.width = 2688,
+		.height = 1520,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 300372,
+		},
+		.exp_def = 0x0240,
+		.hts_def = 0x05c4 * 2,
+		.vts_def = 0x0984,
+		.reg_list = os04a10_linear12bit_2688x1520_regs,
+		.hdr_mode = NO_HDR,
+		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
+	},
+	{
 		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
 		.width = 2688,
 		.height = 1520,
@@ -722,26 +808,6 @@ static const struct os04a10_mode supported_modes[] = {
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
 	},
 	{
-		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
-		.width = 2688,
-		.height = 1520,
-		.max_fps = {
-			.numerator = 10000,
-			/* .denominator = 302834 * 2, */
-			.denominator = 151417,
-		},
-		.exp_def = 0x0240,
-		.hts_def = 0x02dc * 4,
-		/* .vts_def = 0x0658, */
-		.vts_def = 0x0cb0,
-		.reg_list = os04a10_hdr10bit_2688x1520_regs,
-		.hdr_mode = HDR_X2,
-		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_1,
-		.vc[PAD1] = V4L2_MBUS_CSI2_CHANNEL_0,//L->csi wr0
-		.vc[PAD2] = V4L2_MBUS_CSI2_CHANNEL_1,
-		.vc[PAD3] = V4L2_MBUS_CSI2_CHANNEL_1,//M->csi wr2
-	},
-	{
 		.bus_fmt = MEDIA_BUS_FMT_SBGGR12_1X12,
 		.width = 2688,
 		.height = 1520,
@@ -754,6 +820,26 @@ static const struct os04a10_mode supported_modes[] = {
 		.hts_def = 0x05c4 * 2,
 		.vts_def = 0x0658,
 		.reg_list = os04a10_hdr12bit_2688x1520_regs,
+		.hdr_mode = HDR_X2,
+		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_1,
+		.vc[PAD1] = V4L2_MBUS_CSI2_CHANNEL_0,//L->csi wr0
+		.vc[PAD2] = V4L2_MBUS_CSI2_CHANNEL_1,
+		.vc[PAD3] = V4L2_MBUS_CSI2_CHANNEL_1,//M->csi wr2
+	},
+	{
+		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
+		.width = 2688,
+		.height = 1520,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 302834,
+			/*.denominator = 151417,*/
+		},
+		.exp_def = 0x0240,
+		.hts_def = 0x02dc * 4,
+		.vts_def = 0x0658,
+		/*.vts_def = 0x0cb0,*/
+		.reg_list = os04a10_hdr10bit_2688x1520_regs,
 		.hdr_mode = HDR_X2,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_1,
 		.vc[PAD1] = V4L2_MBUS_CSI2_CHANNEL_0,//L->csi wr0
@@ -890,7 +976,8 @@ os04a10_find_best_fit(struct os04a10 *os04a10, struct v4l2_subdev_format *fmt)
 
 	for (i = 0; i < os04a10->cfg_num; i++) {
 		dist = os04a10_get_reso_dist(&supported_modes[i], framefmt);
-		if (cur_best_fit_dist == -1 || dist < cur_best_fit_dist) {
+		if ((cur_best_fit_dist == -1 || dist <= cur_best_fit_dist) &&
+			(supported_modes[i].bus_fmt == framefmt->code)) {
 			cur_best_fit_dist = dist;
 			cur_best_fit = i;
 		}
@@ -933,8 +1020,13 @@ static int os04a10_set_fmt(struct v4l2_subdev *sd,
 					 OS04A10_VTS_MAX - mode->height,
 					 1, vblank_def);
 		if (mode->hdr_mode == NO_HDR) {
-			dst_link_freq = link_freq_menu_items[0];
-			dst_pixel_rate = PIXEL_RATE_WITH_360M;
+			if (mode->bus_fmt == MEDIA_BUS_FMT_SBGGR10_1X10) {
+				dst_link_freq = link_freq_menu_items[0];
+				dst_pixel_rate = PIXEL_RATE_WITH_360M;
+			} else {
+				dst_link_freq = link_freq_menu_items[1];
+				dst_pixel_rate = PIXEL_RATE_WITH_648M;
+			}
 		} else if (mode->hdr_mode == HDR_X2) {
 			if (mode->width == 2560 && mode->height == 1440) {
 				dst_link_freq = link_freq_menu_items[1];
@@ -1089,6 +1181,12 @@ static int os04a10_set_hdrae(struct os04a10 *os04a10,
 	u32 l_a_gain, m_a_gain, s_a_gain;
 	int ret = 0;
 
+	if (!os04a10->has_init_exp && !os04a10->streaming) {
+		os04a10->init_hdrae_exp = *ae;
+		os04a10->has_init_exp = true;
+		dev_info(&os04a10->client->dev, "os04a10 don't stream, record exp for hdr!\n");
+		return ret;
+	}
 	l_exp_time = ae->long_exp_reg;
 	m_exp_time = ae->middle_exp_reg;
 	s_exp_time = ae->short_exp_reg;
@@ -1282,17 +1380,27 @@ static int __os04a10_start_stream(struct os04a10 *os04a10)
 	if (ret)
 		return ret;
 	/* In case these controls are set before streaming */
-	mutex_unlock(&os04a10->mutex);
-	ret = v4l2_ctrl_handler_setup(&os04a10->ctrl_handler);
-	mutex_lock(&os04a10->mutex);
-	if (ret)
-		return ret;
+	if (os04a10->has_init_exp && os04a10->cur_mode->hdr_mode != NO_HDR) {
+		ret = os04a10_ioctl(&os04a10->subdev, PREISP_CMD_SET_HDRAE_EXP, &os04a10->init_hdrae_exp);
+		if (ret) {
+			dev_err(&os04a10->client->dev,
+				"init exp fail in hdr mode\n");
+			return ret;
+		}
+	} else {
+		mutex_unlock(&os04a10->mutex);
+		ret = v4l2_ctrl_handler_setup(&os04a10->ctrl_handler);
+		mutex_lock(&os04a10->mutex);
+		if (ret)
+			return ret;
+	}
 	return os04a10_write_reg(os04a10->client, OS04A10_REG_CTRL_MODE,
 		OS04A10_REG_VALUE_08BIT, OS04A10_MODE_STREAMING);
 }
 
 static int __os04a10_stop_stream(struct os04a10 *os04a10)
 {
+	os04a10->has_init_exp = false;
 	return os04a10_write_reg(os04a10->client, OS04A10_REG_CTRL_MODE,
 		OS04A10_REG_VALUE_08BIT, OS04A10_MODE_SW_STANDBY);
 }
@@ -1673,6 +1781,7 @@ static int os04a10_initialize_controls(struct os04a10 *os04a10)
 	}
 
 	os04a10->subdev.ctrl_handler = handler;
+	os04a10->has_init_exp = false;
 
 	return 0;
 
