@@ -246,7 +246,7 @@ cifs_posix_to_fattr(struct cifs_fattr *fattr, struct smb2_posix_info *info,
 	 */
 	fattr->cf_mode = le32_to_cpu(info->Mode) & ~S_IFMT;
 
-	cifs_dbg(VFS, "XXX dev %d, reparse %d, mode %o",
+	cifs_dbg(FYI, "posix fattr: dev %d, reparse %d, mode %o",
 		 le32_to_cpu(info->DeviceId),
 		 le32_to_cpu(info->ReparseTag),
 		 le32_to_cpu(info->Mode));

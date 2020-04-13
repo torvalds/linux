@@ -501,6 +501,7 @@ pnfs_alloc_ds_commits_list(struct list_head *list,
 		rcu_read_lock();
 		pnfs_put_commit_array(array, cinfo->inode);
 	}
+	rcu_read_unlock();
 	return ret;
 }
 

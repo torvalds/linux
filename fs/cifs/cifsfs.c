@@ -1208,6 +1208,10 @@ static ssize_t cifs_copy_file_range(struct file *src_file, loff_t off,
 {
 	unsigned int xid = get_xid();
 	ssize_t rc;
+	struct cifsFileInfo *cfile = dst_file->private_data;
+
+	if (cfile->swapfile)
+		return -EOPNOTSUPP;
 
 	rc = cifs_file_copychunk_range(xid, src_file, off, dst_file, destoff,
 					len, flags);

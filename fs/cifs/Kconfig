@@ -202,7 +202,7 @@ config CIFS_SMB_DIRECT
 	help
 	  Enables SMB Direct support for SMB 3.0, 3.02 and 3.1.1.
 	  SMB Direct allows transferring SMB packets over RDMA. If unsure,
-	  say N.
+	  say Y.
 
 config CIFS_FSCACHE
 	bool "Provide CIFS client caching support"

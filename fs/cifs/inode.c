@@ -2026,6 +2026,10 @@ cifs_revalidate_mapping(struct inode *inode)
 	int rc;
 	unsigned long *flags = &CIFS_I(inode)->flags;
 
+	/* swapfiles are not supposed to be shared */
+	if (IS_SWAPFILE(inode))
+		return 0;
+
 	rc = wait_on_bit_lock_action(flags, CIFS_INO_LOCK, cifs_wait_bit_killable,
 				     TASK_KILLABLE);
 	if (rc)
