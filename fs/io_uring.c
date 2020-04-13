@@ -2763,7 +2763,7 @@ static bool io_splice_punt(struct file *file)
 		return false;
 	if (!io_file_supports_async(file))
 		return true;
-	return !(file->f_mode & O_NONBLOCK);
+	return !(file->f_flags & O_NONBLOCK);
 }
 
 static int io_splice(struct io_kiocb *req, bool force_nonblock)
