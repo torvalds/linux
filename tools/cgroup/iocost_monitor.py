@@ -28,7 +28,8 @@ parser.add_argument('devname', metavar='DEV',
 parser.add_argument('--cgroup', action='append', metavar='REGEX',
                     help='Regex for target cgroups, ')
 parser.add_argument('--interval', '-i', metavar='SECONDS', type=float, default=1,
-                    help='Monitoring interval in seconds')
+                    help='Monitoring interval in seconds (0 exits immediately '
+                    'after checking requirements)')
 parser.add_argument('--json', action='store_true',
                     help='Output in json')
 args = parser.parse_args()
@@ -242,6 +243,9 @@ for i, ptr in radix_tree_for_each(blkcg_root.blkg_tree.address_of_()):
 
 if ioc is None:
     err(f'Could not find ioc for {devname}');
+
+if interval == 0:
+    sys.exit(0)
 
 # Keep printing
 while True:
