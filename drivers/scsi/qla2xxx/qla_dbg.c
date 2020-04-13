@@ -778,16 +778,16 @@ qla2300_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 	if (rval == QLA_SUCCESS) {
 		dmp_reg = &reg->flash_address;
-		for (cnt = 0; cnt < sizeof(fw->pbiu_reg) / 2; cnt++, dmp_reg++)
+		for (cnt = 0; cnt < ARRAY_SIZE(fw->pbiu_reg); cnt++, dmp_reg++)
 			fw->pbiu_reg[cnt] = htons(RD_REG_WORD(dmp_reg));
 
 		dmp_reg = &reg->u.isp2300.req_q_in;
-		for (cnt = 0; cnt < sizeof(fw->risc_host_reg) / 2;
+		for (cnt = 0; cnt < ARRAY_SIZE(fw->risc_host_reg);
 		    cnt++, dmp_reg++)
 			fw->risc_host_reg[cnt] = htons(RD_REG_WORD(dmp_reg));
 
 		dmp_reg = &reg->u.isp2300.mailbox0;
-		for (cnt = 0; cnt < sizeof(fw->mailbox_reg) / 2;
+		for (cnt = 0; cnt < ARRAY_SIZE(fw->mailbox_reg);
 		    cnt++, dmp_reg++)
 			fw->mailbox_reg[cnt] = htons(RD_REG_WORD(dmp_reg));
 
@@ -799,7 +799,7 @@ qla2300_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 		WRT_REG_WORD(&reg->ctrl_status, 0x00);
 		dmp_reg = &reg->risc_hw;
-		for (cnt = 0; cnt < sizeof(fw->risc_hdw_reg) / 2;
+		for (cnt = 0; cnt < ARRAY_SIZE(fw->risc_hdw_reg);
 		    cnt++, dmp_reg++)
 			fw->risc_hdw_reg[cnt] = htons(RD_REG_WORD(dmp_reg));
 
@@ -860,12 +860,12 @@ qla2300_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	/* Get RISC SRAM. */
 	if (rval == QLA_SUCCESS)
 		rval = qla2xxx_dump_ram(ha, 0x800, fw->risc_ram,
-		    sizeof(fw->risc_ram) / 2, &nxt);
+					ARRAY_SIZE(fw->risc_ram), &nxt);
 
 	/* Get stack SRAM. */
 	if (rval == QLA_SUCCESS)
 		rval = qla2xxx_dump_ram(ha, 0x10000, fw->stack_ram,
-		    sizeof(fw->stack_ram) / 2, &nxt);
+					ARRAY_SIZE(fw->stack_ram), &nxt);
 
 	/* Get data SRAM. */
 	if (rval == QLA_SUCCESS)
@@ -944,7 +944,7 @@ qla2100_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	}
 	if (rval == QLA_SUCCESS) {
 		dmp_reg = &reg->flash_address;
-		for (cnt = 0; cnt < sizeof(fw->pbiu_reg) / 2; cnt++, dmp_reg++)
+		for (cnt = 0; cnt < ARRAY_SIZE(fw->pbiu_reg); cnt++, dmp_reg++)
 			fw->pbiu_reg[cnt] = htons(RD_REG_WORD(dmp_reg));
 
 		dmp_reg = &reg->u.isp2100.mailbox0;
@@ -956,12 +956,12 @@ qla2100_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 		}
 
 		dmp_reg = &reg->u.isp2100.unused_2[0];
-		for (cnt = 0; cnt < sizeof(fw->dma_reg) / 2; cnt++, dmp_reg++)
+		for (cnt = 0; cnt < ARRAY_SIZE(fw->dma_reg); cnt++, dmp_reg++)
 			fw->dma_reg[cnt] = htons(RD_REG_WORD(dmp_reg));
 
 		WRT_REG_WORD(&reg->ctrl_status, 0x00);
 		dmp_reg = &reg->risc_hw;
-		for (cnt = 0; cnt < sizeof(fw->risc_hdw_reg) / 2; cnt++, dmp_reg++)
+		for (cnt = 0; cnt < ARRAY_SIZE(fw->risc_hdw_reg); cnt++, dmp_reg++)
 			fw->risc_hdw_reg[cnt] = htons(RD_REG_WORD(dmp_reg));
 
 		WRT_REG_WORD(&reg->pcr, 0x2000);
@@ -1041,7 +1041,7 @@ qla2100_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
  		WRT_MAILBOX_REG(ha, reg, 0, MBC_READ_RAM_WORD);
 		clear_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags);
 	}
-	for (cnt = 0; cnt < sizeof(fw->risc_ram) / 2 && rval == QLA_SUCCESS;
+	for (cnt = 0; cnt < ARRAY_SIZE(fw->risc_ram) && rval == QLA_SUCCESS;
 	    cnt++, risc_address++) {
  		WRT_MAILBOX_REG(ha, reg, 1, risc_address);
 		WRT_REG_WORD(&reg->hccr, HCCR_SET_HOST_INT);
@@ -1145,7 +1145,7 @@ qla24xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 	/* Host interface registers. */
 	dmp_reg = &reg->flash_addr;
-	for (cnt = 0; cnt < sizeof(fw->host_reg) / 4; cnt++, dmp_reg++)
+	for (cnt = 0; cnt < ARRAY_SIZE(fw->host_reg); cnt++, dmp_reg++)
 		fw->host_reg[cnt] = htonl(RD_REG_DWORD(dmp_reg));
 
 	/* Disable interrupts. */
@@ -1178,7 +1178,7 @@ qla24xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 	/* Mailbox registers. */
 	mbx_reg = &reg->mailbox0;
-	for (cnt = 0; cnt < sizeof(fw->mailbox_reg) / 2; cnt++, mbx_reg++)
+	for (cnt = 0; cnt < ARRAY_SIZE(fw->mailbox_reg); cnt++, mbx_reg++)
 		fw->mailbox_reg[cnt] = htons(RD_REG_WORD(mbx_reg));
 
 	/* Transfer sequence registers. */
@@ -1421,7 +1421,7 @@ qla25xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 	/* Host interface registers. */
 	dmp_reg = &reg->flash_addr;
-	for (cnt = 0; cnt < sizeof(fw->host_reg) / 4; cnt++, dmp_reg++)
+	for (cnt = 0; cnt < ARRAY_SIZE(fw->host_reg); cnt++, dmp_reg++)
 		fw->host_reg[cnt] = htonl(RD_REG_DWORD(dmp_reg));
 
 	/* Disable interrupts. */
@@ -1470,7 +1470,7 @@ qla25xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 	/* Mailbox registers. */
 	mbx_reg = &reg->mailbox0;
-	for (cnt = 0; cnt < sizeof(fw->mailbox_reg) / 2; cnt++, mbx_reg++)
+	for (cnt = 0; cnt < ARRAY_SIZE(fw->mailbox_reg); cnt++, mbx_reg++)
 		fw->mailbox_reg[cnt] = htons(RD_REG_WORD(mbx_reg));
 
 	/* Transfer sequence registers. */
@@ -1745,7 +1745,7 @@ qla81xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 	/* Host interface registers. */
 	dmp_reg = &reg->flash_addr;
-	for (cnt = 0; cnt < sizeof(fw->host_reg) / 4; cnt++, dmp_reg++)
+	for (cnt = 0; cnt < ARRAY_SIZE(fw->host_reg); cnt++, dmp_reg++)
 		fw->host_reg[cnt] = htonl(RD_REG_DWORD(dmp_reg));
 
 	/* Disable interrupts. */
@@ -1794,7 +1794,7 @@ qla81xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 	/* Mailbox registers. */
 	mbx_reg = &reg->mailbox0;
-	for (cnt = 0; cnt < sizeof(fw->mailbox_reg) / 2; cnt++, mbx_reg++)
+	for (cnt = 0; cnt < ARRAY_SIZE(fw->mailbox_reg); cnt++, mbx_reg++)
 		fw->mailbox_reg[cnt] = htons(RD_REG_WORD(mbx_reg));
 
 	/* Transfer sequence registers. */
@@ -2093,7 +2093,7 @@ qla83xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 	/* Host interface registers. */
 	dmp_reg = &reg->flash_addr;
-	for (cnt = 0; cnt < sizeof(fw->host_reg) / 4; cnt++, dmp_reg++)
+	for (cnt = 0; cnt < ARRAY_SIZE(fw->host_reg); cnt++, dmp_reg++)
 		fw->host_reg[cnt] = htonl(RD_REG_DWORD(dmp_reg));
 
 	/* Disable interrupts. */
@@ -2142,7 +2142,7 @@ qla83xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 	/* Mailbox registers. */
 	mbx_reg = &reg->mailbox0;
-	for (cnt = 0; cnt < sizeof(fw->mailbox_reg) / 2; cnt++, mbx_reg++)
+	for (cnt = 0; cnt < ARRAY_SIZE(fw->mailbox_reg); cnt++, mbx_reg++)
 		fw->mailbox_reg[cnt] = htons(RD_REG_WORD(mbx_reg));
 
 	/* Transfer sequence registers. */
