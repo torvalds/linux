@@ -17,6 +17,10 @@
 	model = "Microchip SAMA5D27 WLSOM1";
 	compatible = "microchip,sama5d27-wlsom1", "atmel,sama5d27", "atmel,sama5d2", "atmel,sama5";
 
+	aliases {
+		i2c0 = &i2c0;
+	};
+
 	clocks {
 		slow_xtal {
 			clock-frequency = <32768>;
