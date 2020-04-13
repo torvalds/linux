@@ -869,6 +869,7 @@
 					<&cru ACLK_CRYPTO>, <&cru HCLK_CRYPTO>;
 		assigned-clock-rates = <150000000>, <150000000>,
 					<200000000>, <100000000>;
+		power-domains = <&power RV1126_PD_CRYPTO>;
 		resets = <&cru SRST_CRYPTO_CORE>;
 		reset-names = "reset";
 		status = "disabled";
