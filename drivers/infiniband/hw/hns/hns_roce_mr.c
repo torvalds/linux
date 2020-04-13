@@ -900,13 +900,9 @@ int hns_roce_buf_write_mtt(struct hns_roce_dev *hr_dev,
 	if (!page_list)
 		return -ENOMEM;
 
-	for (i = 0; i < buf->npages; ++i) {
-		if (buf->nbufs == 1)
-			page_list[i] = buf->direct.map + (i << buf->page_shift);
-		else
-			page_list[i] = buf->page_list[i].map;
+	for (i = 0; i < buf->npages; ++i)
+		page_list[i] = hns_roce_buf_page(buf, i);
 
-	}
 	ret = hns_roce_write_mtt(hr_dev, mtt, 0, buf->npages, page_list);
 
 	kfree(page_list);

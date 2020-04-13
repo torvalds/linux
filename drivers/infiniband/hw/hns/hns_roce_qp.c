@@ -839,7 +839,7 @@ err_alloc:
 		ib_umem_release(hr_qp->umem);
 		hr_qp->umem = NULL;
 	} else {
-		hns_roce_buf_free(hr_dev, hr_qp->buff_size, &hr_qp->hr_buf);
+		hns_roce_buf_free(hr_dev, &hr_qp->hr_buf);
 	}
 
 	ibdev_err(ibdev, "Failed to alloc WQE buffer, ret %d.\n", ret);
@@ -855,8 +855,8 @@ static void free_qp_buf(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp)
 		hr_qp->umem = NULL;
 	}
 
-	if (hr_qp->hr_buf.nbufs > 0)
-		hns_roce_buf_free(hr_dev, hr_qp->buff_size, &hr_qp->hr_buf);
+	if (hr_qp->hr_buf.npages > 0)
+		hns_roce_buf_free(hr_dev, &hr_qp->hr_buf);
 
 	if ((hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RQ_INLINE) &&
 	     hr_qp->rq.wqe_cnt)

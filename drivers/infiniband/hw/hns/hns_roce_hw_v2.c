@@ -4989,24 +4989,14 @@ static void set_eq_cons_index_v2(struct hns_roce_eq *eq)
 	hns_roce_write64(hr_dev, doorbell, eq->doorbell);
 }
 
-static inline void *get_eqe_buf(struct hns_roce_eq *eq, unsigned long offset)
-{
-	u32 buf_chk_sz;
-
-	buf_chk_sz = 1 << (eq->eqe_buf_pg_sz + PAGE_SHIFT);
-	if (eq->buf.nbufs == 1)
-		return eq->buf.direct.buf + offset % buf_chk_sz;
-	else
-		return eq->buf.page_list[offset / buf_chk_sz].buf +
-		       offset % buf_chk_sz;
-}
-
 static struct hns_roce_aeqe *next_aeqe_sw_v2(struct hns_roce_eq *eq)
 {
 	struct hns_roce_aeqe *aeqe;
 
-	aeqe = get_eqe_buf(eq, (eq->cons_index & (eq->entries - 1)) *
-			   HNS_ROCE_AEQ_ENTRY_SIZE);
+	aeqe = hns_roce_buf_offset(&eq->buf,
+				   (eq->cons_index & (eq->entries - 1)) *
+				   HNS_ROCE_AEQ_ENTRY_SIZE);
+
 	return (roce_get_bit(aeqe->asyn, HNS_ROCE_V2_AEQ_AEQE_OWNER_S) ^
 		!!(eq->cons_index & eq->entries)) ? aeqe : NULL;
 }
@@ -5103,8 +5093,9 @@ static struct hns_roce_ceqe *next_ceqe_sw_v2(struct hns_roce_eq *eq)
 {
 	struct hns_roce_ceqe *ceqe;
 
-	ceqe = get_eqe_buf(eq, (eq->cons_index & (eq->entries - 1)) *
-			   HNS_ROCE_CEQ_ENTRY_SIZE);
+	ceqe = hns_roce_buf_offset(&eq->buf,
+				   (eq->cons_index & (eq->entries - 1)) *
+				   HNS_ROCE_CEQ_ENTRY_SIZE);
 	return (!!(roce_get_bit(ceqe->comp, HNS_ROCE_V2_CEQ_CEQE_OWNER_S))) ^
 		(!!(eq->cons_index & eq->entries)) ? ceqe : NULL;
 }
@@ -5265,7 +5256,7 @@ static void free_eq_buf(struct hns_roce_dev *hr_dev, struct hns_roce_eq *eq)
 {
 	if (!eq->hop_num || eq->hop_num == HNS_ROCE_HOP_NUM_0)
 		hns_roce_mtr_cleanup(hr_dev, &eq->mtr);
-	hns_roce_buf_free(hr_dev, eq->buf.size, &eq->buf);
+	hns_roce_buf_free(hr_dev, &eq->buf);
 }
 
 static void hns_roce_config_eqc(struct hns_roce_dev *hr_dev,
@@ -5290,7 +5281,8 @@ static void hns_roce_config_eqc(struct hns_roce_dev *hr_dev,
 	eq->eqe_buf_pg_sz = hr_dev->caps.eqe_buf_pg_sz;
 	eq->shift = ilog2((unsigned int)eq->entries);
 
-	/* if not muti-hop, eqe buffer only use one trunk */
+	/* if not multi-hop, eqe buffer only use one trunk */
+	eq->eqe_buf_pg_sz = eq->buf.page_shift - PAGE_ADDR_SHIFT;
 	if (!eq->hop_num || eq->hop_num == HNS_ROCE_HOP_NUM_0) {
 		eq->eqe_ba = eq->buf.direct.map;
 		eq->cur_eqe_ba = eq->eqe_ba;
@@ -5432,7 +5424,7 @@ static int map_eq_buf(struct hns_roce_dev *hr_dev, struct hns_roce_eq *eq,
 		goto done;
 	}
 
-	hns_roce_mtr_init(&eq->mtr, PAGE_SHIFT + hr_dev->caps.eqe_ba_pg_sz,
+	hns_roce_mtr_init(&eq->mtr, PAGE_ADDR_SHIFT + hr_dev->caps.eqe_ba_pg_sz,
 			  page_shift);
 	ret = hns_roce_mtr_attach(hr_dev, &eq->mtr, &buf_list, &region, 1);
 	if (ret)
@@ -5454,23 +5446,24 @@ static int alloc_eq_buf(struct hns_roce_dev *hr_dev, struct hns_roce_eq *eq)
 	u32 page_shift;
 	u32 mhop_num;
 	u32 max_size;
+	u32 buf_size;
 	int ret;
 
-	page_shift = PAGE_SHIFT + hr_dev->caps.eqe_buf_pg_sz;
+	page_shift = PAGE_ADDR_SHIFT + hr_dev->caps.eqe_buf_pg_sz;
 	mhop_num = hr_dev->caps.eqe_hop_num;
 	if (!mhop_num) {
 		max_size = 1 << page_shift;
-		buf->size = max_size;
+		buf_size = max_size;
 	} else if (mhop_num == HNS_ROCE_HOP_NUM_0) {
 		max_size = eq->entries * eq->eqe_size;
-		buf->size = max_size;
+		buf_size = max_size;
 	} else {
 		max_size = 1 << page_shift;
-		buf->size = PAGE_ALIGN(eq->entries * eq->eqe_size);
+		buf_size = round_up(eq->entries * eq->eqe_size, max_size);
 		is_mhop = true;
 	}
 
-	ret = hns_roce_buf_alloc(hr_dev, buf->size, max_size, buf, page_shift);
+	ret = hns_roce_buf_alloc(hr_dev, buf_size, max_size, buf, page_shift);
 	if (ret) {
 		dev_err(hr_dev->dev, "alloc eq buf error\n");
 		return ret;
@@ -5486,7 +5479,7 @@ static int alloc_eq_buf(struct hns_roce_dev *hr_dev, struct hns_roce_eq *eq)
 
 	return 0;
 err_alloc:
-	hns_roce_buf_free(hr_dev, buf->size, buf);
+	hns_roce_buf_free(hr_dev, buf);
 	return ret;
 }
 

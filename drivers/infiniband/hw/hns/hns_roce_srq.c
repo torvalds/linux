@@ -180,7 +180,8 @@ static int create_user_srq(struct hns_roce_srq *srq, struct ib_udata *udata,
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(srq->ibsrq.device);
 	struct hns_roce_ib_create_srq  ucmd;
-	struct hns_roce_buf *buf;
+	int page_shift;
+	int page_count;
 	int ret;
 
 	if (ib_copy_from_udata(&ucmd, udata, sizeof(ucmd)))
@@ -191,12 +192,11 @@ static int create_user_srq(struct hns_roce_srq *srq, struct ib_udata *udata,
 	if (IS_ERR(srq->umem))
 		return PTR_ERR(srq->umem);
 
-	buf = &srq->buf;
-	buf->npages = (ib_umem_page_count(srq->umem) +
-		       (1 << hr_dev->caps.srqwqe_buf_pg_sz) - 1) /
+	page_count = (ib_umem_page_count(srq->umem) +
+		      (1 << hr_dev->caps.srqwqe_buf_pg_sz) - 1) /
 		      (1 << hr_dev->caps.srqwqe_buf_pg_sz);
-	buf->page_shift = PAGE_SHIFT + hr_dev->caps.srqwqe_buf_pg_sz;
-	ret = hns_roce_mtt_init(hr_dev, buf->npages, buf->page_shift,
+	page_shift = PAGE_SHIFT + hr_dev->caps.srqwqe_buf_pg_sz;
+	ret = hns_roce_mtt_init(hr_dev, page_count, page_shift,
 				&srq->mtt);
 	if (ret)
 		goto err_user_buf;
@@ -214,11 +214,10 @@ static int create_user_srq(struct hns_roce_srq *srq, struct ib_udata *udata,
 		goto err_user_srq_mtt;
 	}
 
-	buf = &srq->idx_que.idx_buf;
-	buf->npages = DIV_ROUND_UP(ib_umem_page_count(srq->idx_que.umem),
-				   1 << hr_dev->caps.idx_buf_pg_sz);
-	buf->page_shift = PAGE_SHIFT + hr_dev->caps.idx_buf_pg_sz;
-	ret = hns_roce_mtt_init(hr_dev, buf->npages, buf->page_shift,
+	page_count = DIV_ROUND_UP(ib_umem_page_count(srq->idx_que.umem),
+				  1 << hr_dev->caps.idx_buf_pg_sz);
+	page_shift = PAGE_SHIFT + hr_dev->caps.idx_buf_pg_sz;
+	ret = hns_roce_mtt_init(hr_dev, page_count, page_shift,
 				&srq->idx_que.mtt);
 	if (ret) {
 		dev_err(hr_dev->dev, "hns_roce_mtt_init error for idx que\n");
@@ -325,15 +324,14 @@ err_kernel_idx_buf:
 	hns_roce_mtt_cleanup(hr_dev, &srq->idx_que.mtt);
 
 err_kernel_create_idx:
-	hns_roce_buf_free(hr_dev, srq->idx_que.buf_size,
-			  &srq->idx_que.idx_buf);
+	hns_roce_buf_free(hr_dev, &srq->idx_que.idx_buf);
 	kfree(srq->idx_que.bitmap);
 
 err_kernel_srq_mtt:
 	hns_roce_mtt_cleanup(hr_dev, &srq->mtt);
 
 err_kernel_buf:
-	hns_roce_buf_free(hr_dev, srq_buf_size, &srq->buf);
+	hns_roce_buf_free(hr_dev, &srq->buf);
 
 	return ret;
 }
@@ -348,14 +346,14 @@ static void destroy_user_srq(struct hns_roce_dev *hr_dev,
 }
 
 static void destroy_kernel_srq(struct hns_roce_dev *hr_dev,
-			       struct hns_roce_srq *srq, int srq_buf_size)
+			       struct hns_roce_srq *srq)
 {
 	kvfree(srq->wrid);
 	hns_roce_mtt_cleanup(hr_dev, &srq->idx_que.mtt);
-	hns_roce_buf_free(hr_dev, srq->idx_que.buf_size, &srq->idx_que.idx_buf);
+	hns_roce_buf_free(hr_dev, &srq->idx_que.idx_buf);
 	kfree(srq->idx_que.bitmap);
 	hns_roce_mtt_cleanup(hr_dev, &srq->mtt);
-	hns_roce_buf_free(hr_dev, srq_buf_size, &srq->buf);
+	hns_roce_buf_free(hr_dev, &srq->buf);
 }
 
 int hns_roce_create_srq(struct ib_srq *ib_srq,
@@ -437,7 +435,7 @@ err_wrid:
 	if (udata)
 		destroy_user_srq(hr_dev, srq);
 	else
-		destroy_kernel_srq(hr_dev, srq, srq_buf_size);
+		destroy_kernel_srq(hr_dev, srq);
 
 err_srq:
 	return ret;
@@ -455,8 +453,7 @@ void hns_roce_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata)
 		hns_roce_mtt_cleanup(hr_dev, &srq->idx_que.mtt);
 	} else {
 		kvfree(srq->wrid);
-		hns_roce_buf_free(hr_dev, srq->wqe_cnt << srq->wqe_shift,
-				  &srq->buf);
+		hns_roce_buf_free(hr_dev, &srq->buf);
 	}
 	ib_umem_release(srq->idx_que.umem);
 	ib_umem_release(srq->umem);

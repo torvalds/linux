@@ -157,13 +157,12 @@ static int get_cq_umem(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq,
 		       struct hns_roce_ib_create_cq ucmd,
 		       struct ib_udata *udata)
 {
-	struct hns_roce_buf *buf = &hr_cq->buf;
 	struct hns_roce_mtt *mtt = &hr_cq->mtt;
 	struct ib_umem **umem = &hr_cq->umem;
 	u32 npages;
 	int ret;
 
-	*umem = ib_umem_get(&hr_dev->ib_dev, ucmd.buf_addr, buf->size,
+	*umem = ib_umem_get(&hr_dev->ib_dev, ucmd.buf_addr, hr_cq->buf_size,
 			    IB_ACCESS_LOCAL_WRITE);
 	if (IS_ERR(*umem))
 		return PTR_ERR(*umem);
@@ -175,7 +174,7 @@ static int get_cq_umem(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq,
 
 	npages = DIV_ROUND_UP(ib_umem_page_count(*umem),
 			      1 << hr_dev->caps.cqe_buf_pg_sz);
-	ret = hns_roce_mtt_init(hr_dev, npages, buf->page_shift, mtt);
+	ret = hns_roce_mtt_init(hr_dev, npages, hr_cq->page_shift, mtt);
 	if (ret)
 		goto err_buf;
 
@@ -199,8 +198,9 @@ static int alloc_cq_buf(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq)
 	struct hns_roce_mtt *mtt = &hr_cq->mtt;
 	int ret;
 
-	ret = hns_roce_buf_alloc(hr_dev, buf->size, (1 << buf->page_shift) * 2,
-				 buf, buf->page_shift);
+	ret = hns_roce_buf_alloc(hr_dev, hr_cq->buf_size,
+				 (1 << hr_cq->page_shift) * 2,
+				 buf, hr_cq->page_shift);
 	if (ret)
 		goto out;
 
@@ -223,7 +223,7 @@ err_mtt:
 	hns_roce_mtt_cleanup(hr_dev, mtt);
 
 err_buf:
-	hns_roce_buf_free(hr_dev, buf->size, buf);
+	hns_roce_buf_free(hr_dev, buf);
 
 out:
 	return ret;
@@ -231,7 +231,7 @@ out:
 
 static void free_cq_buf(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq)
 {
-	hns_roce_buf_free(hr_dev, hr_cq->buf.size, &hr_cq->buf);
+	hns_roce_buf_free(hr_dev, &hr_cq->buf);
 }
 
 static int create_user_cq(struct hns_roce_dev *hr_dev,
@@ -367,8 +367,8 @@ int hns_roce_create_cq(struct ib_cq *ib_cq, const struct ib_cq_init_attr *attr,
 	hr_cq->ib_cq.cqe = cq_entries - 1; /* used as cqe index */
 	hr_cq->cq_depth = cq_entries;
 	hr_cq->vector = vector;
-	hr_cq->buf.size = hr_cq->cq_depth * hr_dev->caps.cq_entry_sz;
-	hr_cq->buf.page_shift = PAGE_SHIFT + hr_dev->caps.cqe_buf_pg_sz;
+	hr_cq->buf_size = hr_cq->cq_depth * hr_dev->caps.cq_entry_sz;
+	hr_cq->page_shift = PAGE_SHIFT + hr_dev->caps.cqe_buf_pg_sz;
 	spin_lock_init(&hr_cq->lock);
 	INIT_LIST_HEAD(&hr_cq->sq_list);
 	INIT_LIST_HEAD(&hr_cq->rq_list);

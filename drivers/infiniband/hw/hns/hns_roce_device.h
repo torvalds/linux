@@ -468,7 +468,6 @@ struct hns_roce_buf_list {
 struct hns_roce_buf {
 	struct hns_roce_buf_list	direct;
 	struct hns_roce_buf_list	*page_list;
-	int				nbufs;
 	u32				npages;
 	u32				size;
 	int				page_shift;
@@ -510,6 +509,8 @@ struct hns_roce_cq {
 	u8				db_en;
 	spinlock_t			lock;
 	struct ib_umem			*umem;
+	u32				buf_size;
+	int				page_shift;
 	u32				cq_depth;
 	u32				cons_index;
 	u32				*set_ci_db;
@@ -549,6 +550,8 @@ struct hns_roce_srq {
 	struct hns_roce_buf	buf;
 	u64		       *wrid;
 	struct ib_umem	       *umem;
+	u32			buf_size;
+	int			page_shift;
 	struct hns_roce_mtt	mtt;
 	struct hns_roce_idx_que idx_que;
 	spinlock_t		lock;
@@ -1124,15 +1127,29 @@ static inline struct hns_roce_qp
 	return xa_load(&hr_dev->qp_table_xa, qpn & (hr_dev->caps.num_qps - 1));
 }
 
+static inline bool hns_roce_buf_is_direct(struct hns_roce_buf *buf)
+{
+	if (buf->page_list)
+		return false;
+
+	return true;
+}
+
 static inline void *hns_roce_buf_offset(struct hns_roce_buf *buf, int offset)
 {
-	u32 page_size = 1 << buf->page_shift;
+	if (hns_roce_buf_is_direct(buf))
+		return (char *)(buf->direct.buf) + (offset & (buf->size - 1));
 
-	if (buf->nbufs == 1)
-		return (char *)(buf->direct.buf) + offset;
+	return (char *)(buf->page_list[offset >> buf->page_shift].buf) +
+	       (offset & ((1 << buf->page_shift) - 1));
+}
+
+static inline dma_addr_t hns_roce_buf_page(struct hns_roce_buf *buf, int idx)
+{
+	if (hns_roce_buf_is_direct(buf))
+		return buf->direct.map + ((dma_addr_t)idx << buf->page_shift);
 	else
-		return (char *)(buf->page_list[offset >> buf->page_shift].buf) +
-		       (offset & (page_size - 1));
+		return buf->page_list[idx].map;
 }
 
 static inline u64 to_hr_hw_page_addr(u64 addr)
@@ -1240,8 +1257,7 @@ struct ib_mw *hns_roce_alloc_mw(struct ib_pd *pd, enum ib_mw_type,
 				struct ib_udata *udata);
 int hns_roce_dealloc_mw(struct ib_mw *ibmw);
 
-void hns_roce_buf_free(struct hns_roce_dev *hr_dev, u32 size,
-		       struct hns_roce_buf *buf);
+void hns_roce_buf_free(struct hns_roce_dev *hr_dev, struct hns_roce_buf *buf);
 int hns_roce_buf_alloc(struct hns_roce_dev *hr_dev, u32 size, u32 max_direct,
 		       struct hns_roce_buf *buf, u32 page_shift);
 

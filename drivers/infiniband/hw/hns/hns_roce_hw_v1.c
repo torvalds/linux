@@ -3666,7 +3666,7 @@ static void hns_roce_v1_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 	ib_umem_release(hr_cq->umem);
 	if (!udata) {
 		/* Free the buff of stored cq */
-		hns_roce_buf_free(hr_dev, hr_cq->buf.size, &hr_cq->buf);
+		hns_roce_buf_free(hr_dev, &hr_cq->buf);
 	}
 }
 
