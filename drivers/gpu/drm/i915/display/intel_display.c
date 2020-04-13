@@ -525,7 +525,7 @@ skl_wa_827(struct drm_i915_private *dev_priv, enum pipe pipe, bool enable)
 		               intel_de_read(dev_priv, CLKGATE_DIS_PSL(pipe)) & ~(DUPS1_GATING_DIS | DUPS2_GATING_DIS));
 }
 
-/* Wa_2006604312:icl */
+/* Wa_2006604312:icl,ehl */
 static void
 icl_wa_scalerclkgating(struct drm_i915_private *dev_priv, enum pipe pipe,
 		       bool enable)
@@ -6438,8 +6438,8 @@ static bool needs_scalerclk_wa(const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
 
-	/* Wa_2006604312:icl */
-	if (crtc_state->scaler_state.scaler_users > 0 && IS_ICELAKE(dev_priv))
+	/* Wa_2006604312:icl,ehl */
+	if (crtc_state->scaler_state.scaler_users > 0 && IS_GEN(dev_priv, 11))
 		return true;
 
 	return false;
@@ -6509,7 +6509,7 @@ static void intel_pre_plane_update(struct intel_atomic_state *state,
 	    needs_nv12_wa(new_crtc_state))
 		skl_wa_827(dev_priv, pipe, true);
 
-	/* Wa_2006604312:icl */
+	/* Wa_2006604312:icl,ehl */
 	if (!needs_scalerclk_wa(old_crtc_state) &&
 	    needs_scalerclk_wa(new_crtc_state))
 		icl_wa_scalerclkgating(dev_priv, pipe, true);
