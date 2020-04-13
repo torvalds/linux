@@ -4,17 +4,18 @@ config HAVE_ARCH_KCSAN
 	bool
 
 menuconfig KCSAN
-	bool "KCSAN: dynamic race detector"
+	bool "KCSAN: dynamic data race detector"
 	depends on HAVE_ARCH_KCSAN && DEBUG_KERNEL && !KASAN
 	select STACKTRACE
 	help
-	  The Kernel Concurrency Sanitizer (KCSAN) is a dynamic race detector,
-	  which relies on compile-time instrumentation, and uses a
-	  watchpoint-based sampling approach to detect races.
+	  The Kernel Concurrency Sanitizer (KCSAN) is a dynamic
+	  data-race detector that relies on compile-time instrumentation.
+	  KCSAN uses a watchpoint-based sampling approach to detect races.
 
-	  KCSAN's primary purpose is to detect data races. KCSAN can also be
-	  used to check properties, with the help of provided assertions, of
-	  concurrent code where bugs do not manifest as data races.
+	  While KCSAN's primary purpose is to detect data races, it
+	  also provides assertions to check data access constraints.
+	  These assertions can expose bugs that do not manifest as
+	  data races.
 
 	  See <file:Documentation/dev-tools/kcsan.rst> for more details.
 
