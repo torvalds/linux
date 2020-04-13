@@ -2,6 +2,7 @@
 /* Copyright(c) 2017 - 2019 Pensando Systems, Inc */
 
 #include <linux/netdevice.h>
+#include <linux/dynamic_debug.h>
 #include <linux/etherdevice.h>
 
 #include "ionic.h"
