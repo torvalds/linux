@@ -967,7 +967,7 @@ grow_dev_page(struct block_device *bdev, sector_t block,
 	struct page *page;
 	struct buffer_head *bh;
 	sector_t end_block;
-	int ret = 0;		/* Will call free_more_memory() */
+	int ret = 0;
 	gfp_t gfp_mask;
 
 	gfp_mask = mapping_gfp_constraint(inode->i_mapping, ~__GFP_FS) | gfp;
