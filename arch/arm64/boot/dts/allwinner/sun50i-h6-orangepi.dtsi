@@ -251,7 +251,12 @@
 };
 
 &usb2otg {
-	dr_mode = "otg";
+	/*
+	 * OrangePi Lite 2 and One Plus, where this DT is used, don't
+	 * have a controllable VBUS even though they do have an ID pin.
+	 * Using it as anything but a USB host is unsafe.
+	 */
+	dr_mode = "host";
 	status = "okay";
 };
 
