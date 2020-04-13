@@ -341,13 +341,11 @@ struct dma_chan {
  * @chan: driver channel device
  * @device: sysfs device
  * @dev_id: parent dma_device dev_id
- * @idr_ref: reference count to gate release of dma_device dev_id
  */
 struct dma_chan_dev {
 	struct dma_chan *chan;
 	struct device device;
 	int dev_id;
-	atomic_t *idr_ref;
 };
 
 /**
@@ -835,6 +833,8 @@ struct dma_device {
 	int dev_id;
 	struct device *dev;
 	struct module *owner;
+	struct ida chan_ida;
+	struct mutex chan_mutex;	/* to protect chan_ida */
 
 	u32 src_addr_widths;
 	u32 dst_addr_widths;
