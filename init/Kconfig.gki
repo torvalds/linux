@@ -89,10 +89,11 @@ config GKI_HIDDEN_SOC_PM_CONFIGS
 
 config GKI_HIDDEN_VIDEOBUF2_CONFIGS
 	bool "Hidden v4l2 configs for GKI"
+	select V4L2_MEM2MEM_DEV if VIDEO_V4L2
 	select VIDEOBUF2_CORE if VIDEO_V4L2
 	select VIDEOBUF2_V4L2 if VIDEO_V4L2
-	select VIDEOBUF2_MEMOPS if VIDEO_V4L2
 	select VIDEOBUF2_VMALLOC if VIDEO_V4L2
+	select VIDEOBUF2_MEMOPS if VIDEO_V4L2
 	help
 	  Dummy config option used to enable all the hidden v4l2 media module.
 
