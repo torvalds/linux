@@ -299,6 +299,8 @@ static inline bool is_virtual_machine(void)
 	((adev)->virt.gim_feature & AMDGIM_FEATURE_PP_ONE_VF)
 #define amdgpu_sriov_is_debug(adev) \
 	((!adev->in_gpu_reset) && adev->virt.tdr_debug)
+#define amdgpu_sriov_is_normal(adev) \
+	((!adev->in_gpu_reset) && (!adev->virt.tdr_debug))
 
 bool amdgpu_virt_mmio_blocked(struct amdgpu_device *adev);
 void amdgpu_virt_init_setting(struct amdgpu_device *adev);

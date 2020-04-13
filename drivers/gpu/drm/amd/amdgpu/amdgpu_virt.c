@@ -335,17 +335,23 @@ void amdgpu_detect_virtualization(struct amdgpu_device *adev)
 	}
 }
 
-bool amdgpu_virt_can_access_debugfs(struct amdgpu_device *adev)
+bool amdgpu_virt_access_debugfs_is_mmio(struct amdgpu_device *adev)
 {
 	return amdgpu_sriov_is_debug(adev) ? true : false;
 }
 
+bool amdgpu_virt_access_debugfs_is_kiq(struct amdgpu_device *adev)
+{
+	return amdgpu_sriov_is_normal(adev) ? true : false;
+}
+
 int amdgpu_virt_enable_access_debugfs(struct amdgpu_device *adev)
 {
-	if (!amdgpu_sriov_vf(adev))
+	if (!amdgpu_sriov_vf(adev) ||
+	    amdgpu_virt_access_debugfs_is_kiq(adev))
 		return 0;
 
-	if (amdgpu_virt_can_access_debugfs(adev))
+	if (amdgpu_virt_access_debugfs_is_mmio(adev))
 		adev->virt.caps &= ~AMDGPU_SRIOV_CAPS_RUNTIME;
 	else
 		return -EPERM;
