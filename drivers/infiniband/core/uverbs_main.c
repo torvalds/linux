@@ -820,6 +820,10 @@ void uverbs_user_mmap_disassociate(struct ib_uverbs_file *ufile)
 			ret = mmget_not_zero(mm);
 			if (!ret) {
 				list_del_init(&priv->list);
+				if (priv->entry) {
+					rdma_user_mmap_entry_put(priv->entry);
+					priv->entry = NULL;
+				}
 				mm = NULL;
 				continue;
 			}
