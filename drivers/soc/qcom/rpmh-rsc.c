@@ -634,7 +634,7 @@ done_write:
 }
 
 /**
- * rpmh_rsc_send_data() - Validate the incoming message + write to TCS block.
+ * rpmh_rsc_send_data() - Write / trigger active-only message.
  * @drv: The controller.
  * @msg: The data to be sent.
  *
@@ -658,12 +658,6 @@ done_write:
 int rpmh_rsc_send_data(struct rsc_drv *drv, const struct tcs_request *msg)
 {
 	int ret;
-
-	if (!msg || !msg->cmds || !msg->num_cmds ||
-	    msg->num_cmds > MAX_RPMH_PAYLOAD) {
-		WARN_ON(1);
-		return -EINVAL;
-	}
 
 	do {
 		ret = tcs_write(drv, msg);
@@ -734,16 +728,6 @@ int rpmh_rsc_write_ctrl_data(struct rsc_drv *drv, const struct tcs_request *msg)
 	int tcs_id = 0, cmd_id = 0;
 	unsigned long flags;
 	int ret;
-
-	if (!msg || !msg->cmds || !msg->num_cmds ||
-	    msg->num_cmds > MAX_RPMH_PAYLOAD) {
-		pr_err("Payload error\n");
-		return -EINVAL;
-	}
-
-	/* Data sent to this API will not be sent immediately */
-	if (msg->state == RPMH_ACTIVE_ONLY_STATE)
-		return -EINVAL;
 
 	tcs = get_tcs_for_msg(drv, msg);
 	if (IS_ERR(tcs))
