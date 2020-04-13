@@ -222,7 +222,7 @@
 		reg = <0x13420000 0xC0
 		       0x13420300 0x20>;
 
-		#dma-cells = <1>;
+		#dma-cells = <2>;
 
 		clocks = <&cgu JZ4770_CLK_DMA>;
 		interrupt-parent = <&intc>;
@@ -237,7 +237,7 @@
 		reg = <0x13420100 0xC0
 		       0x13420400 0x20>;
 
-		#dma-cells = <1>;
+		#dma-cells = <2>;
 
 		clocks = <&cgu JZ4770_CLK_DMA>;
 		interrupt-parent = <&intc>;
