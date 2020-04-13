@@ -794,17 +794,11 @@ struct hns_roce_eq {
 	int				over_ignore;
 	int				coalesce;
 	int				arm_st;
-	u64				eqe_ba;
-	int				eqe_ba_pg_sz;
-	int				eqe_buf_pg_sz;
 	int				hop_num;
 	struct hns_roce_mtr		mtr;
-	struct hns_roce_buf		buf;
 	int				eq_max_cnt;
 	int				eq_period;
 	int				shift;
-	dma_addr_t			cur_eqe_ba;
-	dma_addr_t			nxt_eqe_ba;
 	int				event_type;
 	int				sub_type;
 };
