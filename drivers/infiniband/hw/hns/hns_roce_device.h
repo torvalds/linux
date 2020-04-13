@@ -503,14 +503,10 @@ struct hns_roce_db {
 
 struct hns_roce_cq {
 	struct ib_cq			ib_cq;
-	struct hns_roce_buf		buf;
-	struct hns_roce_mtt		mtt;
+	struct hns_roce_mtr		mtr;
 	struct hns_roce_db		db;
 	u8				db_en;
 	spinlock_t			lock;
-	struct ib_umem			*umem;
-	u32				buf_size;
-	int				page_shift;
 	u32				cq_depth;
 	u32				cons_index;
 	u32				*set_ci_db;
@@ -1294,8 +1290,6 @@ int hns_roce_create_cq(struct ib_cq *ib_cq, const struct ib_cq_init_attr *attr,
 		       struct ib_udata *udata);
 
 void hns_roce_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata);
-void hns_roce_free_cqc(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq);
-
 int hns_roce_db_map_user(struct hns_roce_ucontext *context,
 			 struct ib_udata *udata, unsigned long virt,
 			 struct hns_roce_db *db);

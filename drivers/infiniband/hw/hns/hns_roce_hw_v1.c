@@ -1972,7 +1972,8 @@ static int hns_roce_v1_write_mtpt(void *mb_buf, struct hns_roce_mr *mr,
 
 static void *get_cqe(struct hns_roce_cq *hr_cq, int n)
 {
-	return hns_roce_buf_offset(&hr_cq->buf, n * HNS_ROCE_V1_CQE_ENTRY_SIZE);
+	return hns_roce_buf_offset(hr_cq->mtr.kmem,
+				   n * HNS_ROCE_V1_CQE_ENTRY_SIZE);
 }
 
 static void *get_sw_cqe(struct hns_roce_cq *hr_cq, int n)
@@ -3644,8 +3645,6 @@ static void hns_roce_v1_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 	u32 cqe_cnt_cur;
 	int wait_time = 0;
 
-	hns_roce_free_cqc(hr_dev, hr_cq);
-
 	/*
 	 * Before freeing cq buffer, we need to ensure that the outstanding CQE
 	 * have been written by checking the CQE counter.
@@ -3667,14 +3666,6 @@ static void hns_roce_v1_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 			break;
 		}
 		wait_time++;
-	}
-
-	hns_roce_mtt_cleanup(hr_dev, &hr_cq->mtt);
-
-	ib_umem_release(hr_cq->umem);
-	if (!udata) {
-		/* Free the buff of stored cq */
-		hns_roce_buf_free(hr_dev, &hr_cq->buf);
 	}
 }
 
