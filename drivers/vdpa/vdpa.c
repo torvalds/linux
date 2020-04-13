@@ -116,7 +116,7 @@ EXPORT_SYMBOL_GPL(__vdpa_alloc_device);
 
 /**
  * vdpa_register_device - register a vDPA device
- * Callers must have a succeed call of vdpa_init_device() before.
+ * Callers must have a succeed call of vdpa_alloc_device() before.
  * @vdev: the vdpa device to be registered to vDPA bus
  *
  * Returns an error when fail to add to vDPA bus
