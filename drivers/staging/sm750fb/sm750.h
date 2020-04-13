@@ -59,16 +59,19 @@ struct lynx_accel {
 
 	int (*de_wait)(void);/* see if hardware ready to work */
 
-	int (*de_fillrect)(struct lynx_accel *, u32, u32, u32, u32,
-						u32, u32, u32, u32, u32);
+	int (*de_fillrect)(struct lynx_accel *,
+			   u32, u32, u32, u32,
+			   u32, u32, u32, u32, u32);
 
-	int (*de_copyarea)(struct lynx_accel *, u32, u32, u32, u32,
-						u32, u32, u32, u32,
-						u32, u32, u32, u32);
+	int (*de_copyarea)(struct lynx_accel *,
+			   u32, u32, u32, u32,
+			   u32, u32, u32, u32,
+			   u32, u32, u32, u32);
 
-	int (*de_imageblit)(struct lynx_accel *, const char *, u32, u32, u32, u32,
-							       u32, u32, u32, u32,
-							       u32, u32, u32, u32);
+	int (*de_imageblit)(struct lynx_accel *, const char *,
+			    u32, u32, u32, u32,
+			    u32, u32, u32, u32,
+			    u32, u32, u32, u32);
 
 };
 
