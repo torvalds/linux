@@ -152,10 +152,48 @@ static int psp_v13_0_bootloader_load_sysdrv(struct psp_context *psp)
 	return ret;
 }
 
+static int psp_v13_0_bootloader_load_sos(struct psp_context *psp)
+{
+	int ret;
+	unsigned int psp_gfxdrv_command_reg = 0;
+	struct amdgpu_device *adev = psp->adev;
+
+	/* Check sOS sign of life register to confirm sys driver and sOS
+	 * are already been loaded.
+	 */
+	if (psp_v13_0_is_sos_alive(psp))
+		return 0;
+
+	ret = psp_v13_0_wait_for_bootloader(psp);
+	if (ret)
+		return ret;
+
+	memset(psp->fw_pri_buf, 0, PSP_1_MEG);
+
+	/* Copy Secure OS binary to PSP memory */
+	memcpy(psp->fw_pri_buf, psp->sos_start_addr, psp->sos_bin_size);
+
+	/* Provide the PSP secure OS to bootloader */
+	WREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_36,
+	       (uint32_t)(psp->fw_pri_mc_addr >> 20));
+	psp_gfxdrv_command_reg = PSP_BL__LOAD_SOSDRV;
+	WREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_35,
+	       psp_gfxdrv_command_reg);
+
+	/* there might be handshake issue with hardware which needs delay */
+	mdelay(20);
+	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, regMP0_SMN_C2PMSG_81),
+			   RREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_81),
+			   0, true);
+
+	return ret;
+}
+
 static const struct psp_funcs psp_v13_0_funcs = {
 	.init_microcode = psp_v13_0_init_microcode,
 	.bootloader_load_kdb = psp_v13_0_bootloader_load_kdb,
 	.bootloader_load_sysdrv = psp_v13_0_bootloader_load_sysdrv,
+	.bootloader_load_sos = psp_v13_0_bootloader_load_sos,
 };
 
 void psp_v13_0_set_psp_funcs(struct psp_context *psp)
