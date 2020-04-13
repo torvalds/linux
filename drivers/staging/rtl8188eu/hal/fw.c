@@ -146,7 +146,7 @@ int rtl88eu_download_fw(struct adapter *adapt)
 	struct dvobj_priv *dvobj = adapter_to_dvobj(adapt);
 	struct device *device = dvobj_to_dev(dvobj);
 	const struct firmware *fw;
-	const char fw_name[] = "rtlwifi/rtl8188eufw.bin";
+	static const char fw_name[] = "rtlwifi/rtl8188eufw.bin";
 	struct rtl92c_firmware_header *pfwheader = NULL;
 	u8 *download_data, *fw_data;
 	size_t download_size;
