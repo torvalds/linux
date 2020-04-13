@@ -48,6 +48,7 @@
   cdev_add
   cdev_del
   cdev_init
+  __cfi_slowpath
   __check_object_size
   __class_create
   class_destroy
@@ -108,22 +109,6 @@
   crypto_destroy_tfm
   crypto_shash_setkey
   _ctype
-  debugfs_attr_read
-  debugfs_attr_write
-  debugfs_create_atomic_t
-  debugfs_create_bool
-  debugfs_create_dir
-  debugfs_create_file
-  debugfs_create_file_unsafe
-  debugfs_create_u16
-  debugfs_create_u32
-  debugfs_create_u64
-  debugfs_create_u8
-  debugfs_create_x32
-  debugfs_create_x8
-  debugfs_print_regs32
-  debugfs_remove
-  debugfs_remove_recursive
   delayed_work_timer_fn
   del_timer
   del_timer_sync
@@ -258,8 +243,6 @@
   drm_panel_notifier_unregister
   dst_release
   dummy_dma_ops
-  __dynamic_dev_dbg
-  __dynamic_pr_debug
   enable_irq
   ether_setup
   eth_type_trans
@@ -291,7 +274,6 @@
   freezing_slow_path
   fwnode_property_read_u32_array
   gcd
-  generic_file_llseek
   generic_handle_irq
   geni_abort_m_cmd
   geni_cancel_m_cmd
@@ -470,12 +452,9 @@
   kstrtoint
   kstrtoll
   kstrtos8
-  kstrtos8_from_user
   kstrtou16
   kstrtou8
-  kstrtou8_from_user
   kstrtouint
-  kstrtouint_from_user
   kstrtoull
   kthread_cancel_work_sync
   kthread_create_on_node
@@ -486,7 +465,6 @@
   kthread_stop
   kthread_worker_fn
   ktime_get
-  ktime_get_coarse_real_ts64
   ktime_get_real_ts64
   ktime_get_with_offset
   kvfree
@@ -542,7 +520,6 @@
   module_put
   __msecs_to_jiffies
   msleep
-  msleep_interruptible
   __mutex_init
   mutex_lock
   mutex_lock_interruptible
@@ -572,7 +549,6 @@
   nla_put
   __nlmsg_put
   no_llseek
-  nonseekable_open
   nr_cpu_ids
   ns_capable
   ns_to_timespec
@@ -817,8 +793,6 @@
   rtc_time64_to_tm
   rtc_tm_to_time64
   rtc_valid_tm
-  rt_mutex_lock
-  rt_mutex_unlock
   rtnl_is_locked
   rtnl_unlock
   saved_command_line
@@ -834,11 +808,9 @@
   seq_lseek
   seq_open
   seq_printf
-  seq_putc
   seq_puts
   seq_read
   seq_release
-  seq_write
   set_normalized_timespec
   set_user_nice
   sg_alloc_table
@@ -848,15 +820,7 @@
   sg_next
   __sg_page_iter_next
   __sg_page_iter_start
-  simple_attr_open
-  simple_attr_read
-  simple_attr_release
-  simple_attr_write
-  simple_open
   simple_read_from_buffer
-  simple_write_to_buffer
-  single_open
-  single_release
   sk_alloc
   skb_add_rx_frag
   skb_clone
@@ -1007,7 +971,6 @@
   typec_set_pwr_role
   typec_unregister_partner
   __udelay
-  uncached_logk
   __unregister_chrdev
   unregister_chrdev_region
   unregister_inet6addr_notifier
@@ -1035,7 +998,6 @@
   usb_free_all_descriptors
   usb_function_register
   usb_function_unregister
-  usb_func_wakeup
   usb_gadget_wakeup
   usb_get_dr_mode
   usb_interface_id
@@ -1125,7 +1087,6 @@
   iommu_group_remove_device
   iommu_group_set_iommudata
   iommu_put_dma_cookie
-  kstrtoull_from_user
   of_dma_is_coherent
   of_n_addr_cells
   of_n_size_cells
@@ -1206,13 +1167,13 @@
   __request_region
 
 # required by citadel-spi.ko
+  nonseekable_open
   spi_bus_lock
   spi_bus_unlock
   spi_sync_locked
 
 # required by clk-qcom.ko
   clk_aggregate_rate
-  clk_debug_print_hw
   __clk_determine_rate
   clk_fixed_rate_ops
   clk_hw_get_flags
@@ -1385,7 +1346,9 @@
   of_find_i2c_device_by_node
 
 # required by ftm5.ko
+  ktime_get_coarse_real_ts64
   proc_create
+  seq_write
 
 # required by google-battery.ko
   simple_strtoull
@@ -1437,7 +1400,6 @@
   i2c_put_dma_safe_msg_buf
 
 # required by ion-alloc.ko
-  dentry_path
   dma_buf_export
   dma_get_device_base
   dma_get_size
@@ -1452,6 +1414,7 @@
   add_wait_queue
   alloc_etherdev_mqs
   eth_mac_addr
+  kstrtos8_from_user
   pci_clear_master
   pci_disable_device
   pci_enable_device
@@ -1471,7 +1434,7 @@
 # required by lpm-stats.ko
   kobject_get
   module_ktype
-  on_each_cpu
+  simple_write_to_buffer
 
 # required by machine_dlkm.ko
   devm_snd_soc_register_card
@@ -1538,7 +1501,6 @@
   bpf_trace_run10
   _cleanup_srcu_struct
   __clk_get_name
-  debugfs_lookup
   devfreq_cooling_unregister
   device_show_int
   device_store_int
@@ -1566,7 +1528,6 @@
   __ll_sc_atomic_or
   mmap_min_addr
   mmput
-  noop_llseek
   of_devfreq_cooling_register
   plist_del
   rb_last
@@ -1592,6 +1553,8 @@
   raw_notifier_call_chain
   raw_notifier_chain_register
   raw_notifier_chain_unregister
+  rt_mutex_lock
+  rt_mutex_unlock
 
 # required by msm_drm.ko
   adjust_managed_page_count
@@ -1599,7 +1562,6 @@
   bpf_trace_run12
   __clk_get_hw
   clk_get_parent
-  debugfs_create_size_t
   device_create_with_groups
   devm_clk_bulk_get
   devm_of_pwm_get
@@ -1863,7 +1825,6 @@
   shmem_truncate_range
   strreplace
   timespec64_to_jiffies
-  tracing_off
   unmap_kernel_range
   unmap_mapping_range
   vm_get_page_prot
@@ -1873,15 +1834,10 @@
 # required by msm_ext_display.ko
   devm_extcon_dev_unregister
 
-# required by msm_gsi.ko
-  kstrtoint_from_user
-
 # required by msm_icnss.ko
   dmam_alloc_coherent
 
 # required by msm_ipc_logging.ko
-  debugfs_file_get
-  debugfs_file_put
   _raw_read_lock_irq
   _raw_read_unlock_irq
   _raw_write_lock_irqsave
@@ -1900,7 +1856,6 @@
 
 # required by msm_pm.ko
   arm_cpuidle_suspend
-  clock_debug_print_enabled
   cpu_do_idle
   cpuidle_dev
   cpuidle_register_device
@@ -1913,10 +1868,8 @@
   param_get_bool
   param_get_uint
   pending_ipi
-  pm_gpio_debug_mask
   pm_qos_request_for_cpu
   pm_qos_request_for_cpumask
-  regulator_debug_print_enabled
   s2idle_set_ops
   set_update_ipi_history_callback
   suspend_set_ops
@@ -1933,10 +1886,6 @@
   crypto_unregister_rngs
   hwrng_register
   hwrng_unregister
-
-# required by msm_rtb.ko
-  arch_timer_read_counter
-  set_uncached_logk_func
 
 # required by msm_scm.ko
   __arm_smccc_smc
@@ -1969,7 +1918,6 @@
   irq_chip_set_wake_parent
   irq_create_fwspec_mapping
   irq_domain_free_irqs_top
-  msm_gpio_dump_builtin_cb
   of_irq_domain_map
   register_restart_handler
   unregister_restart_handler
@@ -2179,7 +2127,6 @@
   csum_tcpudp_nofold
   __dev_get_by_index
   dev_queue_xmit
-  __dynamic_netdev_dbg
   genl_register_family
   genl_unregister_family
   get_current_napi_context
@@ -2206,6 +2153,7 @@
 
 # required by rndis.ko
   dev_get_stats
+  print_hex_dump_bytes
 
 # required by roles.ko
   class_find_device
@@ -2450,7 +2398,6 @@
   spmi_controller_remove
 
 # required by st21nfc.ko
-  desc_to_gpio
   device_set_wakeup_capable
 
 # required by subsystem-restart.ko
@@ -2480,7 +2427,6 @@
   typec_set_vconn_role
   typec_unregister_altmode
   typec_unregister_port
-  usb_debug_root
 
 # required by tps-regulator.ko
   gpiod_export
@@ -2489,7 +2435,6 @@
   regulator_map_voltage_ascend
 
 # required by ufs_qcom.ko
-  ufsdbg_pr_buf_to_std
   ufshcd_dme_get_attr
   ufshcd_dme_set_attr
   ufshcd_get_local_unipro_ver
@@ -2550,7 +2495,6 @@
   crypto_alloc_skcipher
   crypto_shash_final
   crypto_shash_update
-  default_llseek
   deregister_cld_cmd_cb
   dev_alloc_name
   dump_stack
@@ -2561,6 +2505,7 @@
   ieee80211_hdrlen
   irq_set_affinity_hint
   mac_pton
+  msleep_interruptible
   netif_tx_stop_all_queues
   netlink_broadcast
   __netlink_kernel_create
@@ -2587,9 +2532,10 @@
   rtnl_lock
   save_stack_trace_tsk
   schedule_timeout_interruptible
-  seq_hex_dump
   seq_vprintf
   set_cpus_allowed_ptr
+  single_open
+  single_release
   skip_spaces
   strchrnul
   unregister_netevent_notifier
@@ -2635,10 +2581,10 @@
 
 # required by usb_f_gsi.ko
   dev_get_by_name
-  kstrtou16_from_user
   usb_composite_setup_continue
   usb_ep_autoconfig_by_name
   usb_func_ep_queue
+  usb_func_wakeup
   usb_gsi_ep_op
 
 # required by usb_f_mtp.ko
