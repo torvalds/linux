@@ -605,7 +605,7 @@ static void mt7621_pcie_enable_ports(struct mt7621_pcie *pcie)
 static int mt7621_pcie_init_virtual_bridges(struct mt7621_pcie *pcie)
 {
 	u32 pcie_link_status = 0;
-	u32 n;
+	u32 n = 0;
 	int i = 0;
 	u32 p2p_br_devnum[PCIE_P2P_CNT];
 	int irqs[PCIE_P2P_CNT];
@@ -627,7 +627,6 @@ static int mt7621_pcie_init_virtual_bridges(struct mt7621_pcie *pcie)
 	 * then assigning remaining device numbers to any disabled
 	 * ports.
 	 */
-	n = 0;
 	for (i = 0; i < PCIE_P2P_CNT; i++)
 		if (pcie_link_status & BIT(i))
 			p2p_br_devnum[i] = n++;
