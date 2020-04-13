@@ -440,7 +440,6 @@ static int send_single(struct rpmh_ctrlr *ctrlr, enum rpmh_state state,
  *
  * Return:
  * * 0          - Success
- * * -EAGAIN    - Retry again
  * * Error code - Otherwise
  */
 int rpmh_flush(struct rpmh_ctrlr *ctrlr)
@@ -456,9 +455,7 @@ int rpmh_flush(struct rpmh_ctrlr *ctrlr)
 	}
 
 	/* Invalidate the TCSes first to avoid stale data */
-	ret = rpmh_rsc_invalidate(ctrlr_to_drv(ctrlr));
-	if (ret)
-		return ret;
+	rpmh_rsc_invalidate(ctrlr_to_drv(ctrlr));
 
 	/* First flush the cached batch requests */
 	ret = flush_batch(ctrlr);

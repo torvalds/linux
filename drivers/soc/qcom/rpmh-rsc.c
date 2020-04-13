@@ -199,50 +199,38 @@ static bool tcs_is_free(struct rsc_drv *drv, int tcs_id)
  * This will clear the "slots" variable of the given tcs_group and also
  * tell the hardware to forget about all entries.
  *
- * Return: 0 if no problem, or -EAGAIN if the caller should try again in a
- *         bit. Caller should make sure to enable interrupts between tries.
+ * The caller must ensure that no other RPMH actions are happening when this
+ * function is called, since otherwise the device may immediately become
+ * used again even before this function exits.
  */
-static int tcs_invalidate(struct rsc_drv *drv, int type)
+static void tcs_invalidate(struct rsc_drv *drv, int type)
 {
 	int m;
 	struct tcs_group *tcs = &drv->tcs[type];
 
-	spin_lock(&tcs->lock);
-	if (bitmap_empty(tcs->slots, MAX_TCS_SLOTS)) {
-		spin_unlock(&tcs->lock);
-		return 0;
-	}
+	/* Caller ensures nobody else is running so no lock */
+	if (bitmap_empty(tcs->slots, MAX_TCS_SLOTS))
+		return;
 
 	for (m = tcs->offset; m < tcs->offset + tcs->num_tcs; m++) {
-		if (!tcs_is_free(drv, m)) {
-			spin_unlock(&tcs->lock);
-			return -EAGAIN;
-		}
 		write_tcs_reg_sync(drv, RSC_DRV_CMD_ENABLE, m, 0);
 		write_tcs_reg_sync(drv, RSC_DRV_CMD_WAIT_FOR_CMPL, m, 0);
 	}
 	bitmap_zero(tcs->slots, MAX_TCS_SLOTS);
-	spin_unlock(&tcs->lock);
-
-	return 0;
 }
 
 /**
  * rpmh_rsc_invalidate() - Invalidate sleep and wake TCSes.
  * @drv: The RSC controller.
  *
- * Return: 0 if no problem, or -EAGAIN if the caller should try again in a
- *         bit. Caller should make sure to enable interrupts between tries.
+ * The caller must ensure that no other RPMH actions are happening when this
+ * function is called, since otherwise the device may immediately become
+ * used again even before this function exits.
  */
-int rpmh_rsc_invalidate(struct rsc_drv *drv)
+void rpmh_rsc_invalidate(struct rsc_drv *drv)
 {
-	int ret;
-
-	ret = tcs_invalidate(drv, SLEEP_TCS);
-	if (!ret)
-		ret = tcs_invalidate(drv, WAKE_TCS);
-
-	return ret;
+	tcs_invalidate(drv, SLEEP_TCS);
+	tcs_invalidate(drv, WAKE_TCS);
 }
 
 /**
