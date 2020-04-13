@@ -24,11 +24,11 @@ int mt76x02_mcu_msg_send(struct mt76_dev *mdev, int cmd, const void *data,
 	if (!skb)
 		return -ENOMEM;
 
-	mutex_lock(&mdev->mmio.mcu.mutex);
+	mutex_lock(&mdev->mcu.mutex);
 
-	seq = ++mdev->mmio.mcu.msg_seq & 0xf;
+	seq = ++mdev->mcu.msg_seq & 0xf;
 	if (!seq)
-		seq = ++mdev->mmio.mcu.msg_seq & 0xf;
+		seq = ++mdev->mcu.msg_seq & 0xf;
 
 	tx_info = MT_MCU_MSG_TYPE_CMD |
 		  FIELD_PREP(MT_MCU_MSG_CMD_TYPE, cmd) |
@@ -65,7 +65,7 @@ int mt76x02_mcu_msg_send(struct mt76_dev *mdev, int cmd, const void *data,
 	}
 
 out:
-	mutex_unlock(&mdev->mmio.mcu.mutex);
+	mutex_unlock(&mdev->mcu.mutex);
 
 	return ret;
 }
@@ -141,7 +141,7 @@ int mt76x02_mcu_cleanup(struct mt76x02_dev *dev)
 	mt76_wr(dev, MT_MCU_INT_LEVEL, 1);
 	usleep_range(20000, 30000);
 
-	while ((skb = skb_dequeue(&dev->mt76.mmio.mcu.res_q)) != NULL)
+	while ((skb = skb_dequeue(&dev->mt76.mcu.res_q)) != NULL)
 		dev_kfree_skb(skb);
 
 	return 0;

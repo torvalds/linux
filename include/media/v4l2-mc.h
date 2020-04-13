@@ -86,23 +86,30 @@ int v4l_vb2q_enable_media_source(struct vb2_queue *q);
 
 
 /**
- * v4l2_pipeline_pm_use - Update the use count of an entity
- * @entity: The entity
- * @use: Use (1) or stop using (0) the entity
+ * v4l2_pipeline_pm_get - Increase the use count of a pipeline
+ * @entity: The root entity of a pipeline
  *
- * Update the use count of all entities in the pipeline and power entities on or
- * off accordingly.
+ * Update the use count of all entities in the pipeline and power entities on.
  *
- * This function is intended to be called in video node open (use ==
- * 1) and release (use == 0). It uses struct media_entity.use_count to
- * track the power status. The use of this function should be paired
- * with v4l2_pipeline_link_notify().
+ * This function is intended to be called in video node open. It uses
+ * struct media_entity.use_count to track the power status. The use
+ * of this function should be paired with v4l2_pipeline_link_notify().
  *
- * Return 0 on success or a negative error code on failure. Powering entities
- * off is assumed to never fail. No failure can occur when the use parameter is
- * set to 0.
+ * Return 0 on success or a negative error code on failure.
  */
-int v4l2_pipeline_pm_use(struct media_entity *entity, int use);
+int v4l2_pipeline_pm_get(struct media_entity *entity);
+
+/**
+ * v4l2_pipeline_pm_put - Decrease the use count of a pipeline
+ * @entity: The root entity of a pipeline
+ *
+ * Update the use count of all entities in the pipeline and power entities off.
+ *
+ * This function is intended to be called in video node release. It uses
+ * struct media_entity.use_count to track the power status. The use
+ * of this function should be paired with v4l2_pipeline_link_notify().
+ */
+void v4l2_pipeline_pm_put(struct media_entity *entity);
 
 
 /**
@@ -114,7 +121,7 @@ int v4l2_pipeline_pm_use(struct media_entity *entity, int use);
  * React to link management on powered pipelines by updating the use count of
  * all entities in the source and sink sides of the link. Entities are powered
  * on or off accordingly. The use of this function should be paired
- * with v4l2_pipeline_pm_use().
+ * with v4l2_pipeline_pm_{get,put}().
  *
  * Return 0 on success or a negative error code on failure. Powering entities
  * off is assumed to never fail. This function will not fail for disconnection
@@ -144,10 +151,13 @@ static inline int v4l_vb2q_enable_media_source(struct vb2_queue *q)
 	return 0;
 }
 
-static inline int v4l2_pipeline_pm_use(struct media_entity *entity, int use)
+static inline int v4l2_pipeline_pm_get(struct media_entity *entity)
 {
 	return 0;
 }
+
+static inline void v4l2_pipeline_pm_put(struct media_entity *entity)
+{}
 
 static inline int v4l2_pipeline_link_notify(struct media_link *link, u32 flags,
 					    unsigned int notification)

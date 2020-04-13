@@ -90,7 +90,7 @@ struct cipherkeytoken {
 	u16 kmf1;     /* key management field 1 */
 	u16 kmf2;     /* key management field 2 */
 	u16 kmf3;     /* key management field 3 */
-	u8  vdata[0]; /* variable part data follows */
+	u8  vdata[]; /* variable part data follows */
 } __packed;
 
 /* Some defines for the CCA AES cipherkeytoken kmf1 field */

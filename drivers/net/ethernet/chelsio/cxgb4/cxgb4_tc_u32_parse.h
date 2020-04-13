@@ -289,6 +289,6 @@ struct cxgb4_link {
 
 struct cxgb4_tc_u32_table {
 	unsigned int size;          /* number of entries in table */
-	struct cxgb4_link table[0]; /* Jump table */
+	struct cxgb4_link table[]; /* Jump table */
 };
 #endif /* __CXGB4_TC_U32_PARSE_H */

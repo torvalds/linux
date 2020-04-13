@@ -7,7 +7,7 @@ config MFD_CROS_EC
 	tristate "Platform support for Chrome hardware (transitional)"
 	select CHROME_PLATFORMS
 	select CROS_EC
-	select CONFIG_MFD_CROS_EC_DEV
+	select MFD_CROS_EC_DEV
 	depends on X86 || ARM || ARM64 || COMPILE_TEST
 	help
 	  This is a transitional Kconfig option and will be removed after
@@ -214,6 +214,17 @@ config CROS_EC_SYSFS
 	  To compile this driver as a module, choose M here: the
 	  module will be called cros_ec_sysfs.
 
+config CROS_EC_TYPEC
+	tristate "ChromeOS EC Type-C Connector Control"
+	depends on MFD_CROS_EC_DEV && TYPEC
+	default MFD_CROS_EC_DEV
+	help
+	  If you say Y here, you get support for accessing Type C connector
+	  information from the Chrome OS EC.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called cros_ec_typec.
+
 config CROS_USBPD_LOGGER
 	tristate "Logging driver for USB PD charger"
 	depends on CHARGER_CROS_USBPD
@@ -225,6 +236,20 @@ config CROS_USBPD_LOGGER
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called cros_usbpd_logger.
+
+config CROS_USBPD_NOTIFY
+	tristate "ChromeOS Type-C power delivery event notifier"
+	depends on MFD_CROS_EC_DEV
+	default MFD_CROS_EC_DEV
+	help
+	  If you say Y here, you get support for Type-C PD event notifications
+	  from the ChromeOS EC. On ACPI platorms this driver will bind to the
+	  GOOG0003 ACPI device, and on platforms which don't have this device it
+	  will get initialized on ECs which support the feature
+	  EC_FEATURE_USB_PD.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cros_usbpd_notify.
 
 source "drivers/platform/chrome/wilco_ec/Kconfig"
 

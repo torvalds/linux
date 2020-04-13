@@ -74,6 +74,8 @@ required:
   - '#reset-cells'
   - '#power-domain-cells'
 
+additionalProperties: false
+
 examples:
   # Example for GCC for MSM8960:
   - |

@@ -32,7 +32,7 @@
 	do {							\
 		(regs)->result = 0;				\
 		(regs)->nip = __ip;				\
-		(regs)->gpr[1] = current_stack_pointer();	\
+		(regs)->gpr[1] = current_stack_frame();		\
 		asm volatile("mfmsr %0" : "=r" ((regs)->msr));	\
 	} while (0)
 

@@ -151,32 +151,38 @@ TRACE_EVENT(kvm_fast_mmio,
  * Tracepoint for cpuid.
  */
 TRACE_EVENT(kvm_cpuid,
-	TP_PROTO(unsigned int function, unsigned long rax, unsigned long rbx,
-		 unsigned long rcx, unsigned long rdx, bool found),
-	TP_ARGS(function, rax, rbx, rcx, rdx, found),
+	TP_PROTO(unsigned int function, unsigned int index, unsigned long rax,
+		 unsigned long rbx, unsigned long rcx, unsigned long rdx,
+		 bool found, bool used_max_basic),
+	TP_ARGS(function, index, rax, rbx, rcx, rdx, found, used_max_basic),
 
 	TP_STRUCT__entry(
 		__field(	unsigned int,	function	)
+		__field(	unsigned int,	index		)
 		__field(	unsigned long,	rax		)
 		__field(	unsigned long,	rbx		)
 		__field(	unsigned long,	rcx		)
 		__field(	unsigned long,	rdx		)
 		__field(	bool,		found		)
+		__field(	bool,		used_max_basic	)
 	),
 
 	TP_fast_assign(
 		__entry->function	= function;
+		__entry->index		= index;
 		__entry->rax		= rax;
 		__entry->rbx		= rbx;
 		__entry->rcx		= rcx;
 		__entry->rdx		= rdx;
 		__entry->found		= found;
+		__entry->used_max_basic	= used_max_basic;
 	),
 
-	TP_printk("func %x rax %lx rbx %lx rcx %lx rdx %lx, cpuid entry %s",
-		  __entry->function, __entry->rax,
+	TP_printk("func %x idx %x rax %lx rbx %lx rcx %lx rdx %lx, cpuid entry %s%s",
+		  __entry->function, __entry->index, __entry->rax,
 		  __entry->rbx, __entry->rcx, __entry->rdx,
-		  __entry->found ? "found" : "not found")
+		  __entry->found ? "found" : "not found",
+		  __entry->used_max_basic ? ", used max basic" : "")
 );
 
 #define AREG(x) { APIC_##x, "APIC_" #x }
@@ -240,7 +246,7 @@ TRACE_EVENT(kvm_exit,
 		__entry->guest_rip	= kvm_rip_read(vcpu);
 		__entry->isa            = isa;
 		__entry->vcpu_id        = vcpu->vcpu_id;
-		kvm_x86_ops->get_exit_info(vcpu, &__entry->info1,
+		kvm_x86_ops.get_exit_info(vcpu, &__entry->info1,
 					   &__entry->info2);
 	),
 
@@ -744,14 +750,14 @@ TRACE_EVENT(kvm_emulate_insn,
 		),
 
 	TP_fast_assign(
-		__entry->csbase = kvm_x86_ops->get_segment_base(vcpu, VCPU_SREG_CS);
-		__entry->len = vcpu->arch.emulate_ctxt.fetch.ptr
-			       - vcpu->arch.emulate_ctxt.fetch.data;
-		__entry->rip = vcpu->arch.emulate_ctxt._eip - __entry->len;
+		__entry->csbase = kvm_x86_ops.get_segment_base(vcpu, VCPU_SREG_CS);
+		__entry->len = vcpu->arch.emulate_ctxt->fetch.ptr
+			       - vcpu->arch.emulate_ctxt->fetch.data;
+		__entry->rip = vcpu->arch.emulate_ctxt->_eip - __entry->len;
 		memcpy(__entry->insn,
-		       vcpu->arch.emulate_ctxt.fetch.data,
+		       vcpu->arch.emulate_ctxt->fetch.data,
 		       15);
-		__entry->flags = kei_decode_mode(vcpu->arch.emulate_ctxt.mode);
+		__entry->flags = kei_decode_mode(vcpu->arch.emulate_ctxt->mode);
 		__entry->failed = failed;
 		),
 
@@ -815,8 +821,8 @@ TRACE_EVENT(kvm_write_tsc_offset,
 #ifdef CONFIG_X86_64
 
 #define host_clocks					\
-	{VCLOCK_NONE, "none"},				\
-	{VCLOCK_TSC,  "tsc"}				\
+	{VDSO_CLOCKMODE_NONE, "none"},			\
+	{VDSO_CLOCKMODE_TSC,  "tsc"}			\
 
 TRACE_EVENT(kvm_update_master_clock,
 	TP_PROTO(bool use_master_clock, unsigned int host_clock, bool offset_matched),
@@ -1365,6 +1371,24 @@ TRACE_EVENT(kvm_avic_unaccelerated_access,
 		  __entry->ft ? "trap" : "fault",
 		  __entry->rw ? "write" : "read",
 		  __entry->vec)
+);
+
+TRACE_EVENT(kvm_avic_ga_log,
+	    TP_PROTO(u32 vmid, u32 vcpuid),
+	    TP_ARGS(vmid, vcpuid),
+
+	TP_STRUCT__entry(
+		__field(u32, vmid)
+		__field(u32, vcpuid)
+	),
+
+	TP_fast_assign(
+		__entry->vmid = vmid;
+		__entry->vcpuid = vcpuid;
+	),
+
+	TP_printk("vmid=%u, vcpuid=%u",
+		  __entry->vmid, __entry->vcpuid)
 );
 
 TRACE_EVENT(kvm_hv_timer_state,

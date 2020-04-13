@@ -58,12 +58,11 @@ static int mmio_offset_compare(void *priv,
 static inline int mmio_diff_handler(struct intel_gvt *gvt,
 				    u32 offset, void *data)
 {
-	struct drm_i915_private *i915 = gvt->dev_priv;
 	struct mmio_diff_param *param = data;
 	struct diff_mmio *node;
 	u32 preg, vreg;
 
-	preg = intel_uncore_read_notrace(&i915->uncore, _MMIO(offset));
+	preg = intel_uncore_read_notrace(gvt->gt->uncore, _MMIO(offset));
 	vreg = vgpu_vreg(param->vgpu, offset);
 
 	if (preg != vreg) {
@@ -98,10 +97,10 @@ static int vgpu_mmio_diff_show(struct seq_file *s, void *unused)
 	mutex_lock(&gvt->lock);
 	spin_lock_bh(&gvt->scheduler.mmio_context_lock);
 
-	mmio_hw_access_pre(gvt->dev_priv);
+	mmio_hw_access_pre(gvt->gt);
 	/* Recognize all the diff mmios to list. */
 	intel_gvt_for_each_tracked_mmio(gvt, mmio_diff_handler, &param);
-	mmio_hw_access_post(gvt->dev_priv);
+	mmio_hw_access_post(gvt->gt);
 
 	spin_unlock_bh(&gvt->scheduler.mmio_context_lock);
 	mutex_unlock(&gvt->lock);
@@ -128,6 +127,7 @@ static int
 vgpu_scan_nonprivbb_get(void *data, u64 *val)
 {
 	struct intel_vgpu *vgpu = (struct intel_vgpu *)data;
+
 	*val = vgpu->scan_nonprivbb;
 	return 0;
 }
@@ -142,42 +142,7 @@ static int
 vgpu_scan_nonprivbb_set(void *data, u64 val)
 {
 	struct intel_vgpu *vgpu = (struct intel_vgpu *)data;
-	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
-	enum intel_engine_id id;
-	char buf[128], *s;
-	int len;
 
-	val &= (1 << I915_NUM_ENGINES) - 1;
-
-	if (vgpu->scan_nonprivbb == val)
-		return 0;
-
-	if (!val)
-		goto done;
-
-	len = sprintf(buf,
-		"gvt: vgpu %d turns on non-privileged batch buffers scanning on Engines:",
-		vgpu->id);
-
-	s = buf + len;
-
-	for (id = 0; id < I915_NUM_ENGINES; id++) {
-		struct intel_engine_cs *engine;
-
-		engine = dev_priv->engine[id];
-		if (engine && (val & (1 << id))) {
-			len = snprintf(s, 4, "%d, ", engine->id);
-			s += len;
-		} else
-			val &=  ~(1 << id);
-	}
-
-	if (val)
-		sprintf(s, "low performance expected.");
-
-	pr_warn("%s\n", buf);
-
-done:
 	vgpu->scan_nonprivbb = val;
 	return 0;
 }
@@ -220,7 +185,7 @@ void intel_gvt_debugfs_remove_vgpu(struct intel_vgpu *vgpu)
  */
 void intel_gvt_debugfs_init(struct intel_gvt *gvt)
 {
-	struct drm_minor *minor = gvt->dev_priv->drm.primary;
+	struct drm_minor *minor = gvt->gt->i915->drm.primary;
 
 	gvt->debugfs_root = debugfs_create_dir("gvt", minor->debugfs_root);
 

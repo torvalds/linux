@@ -95,10 +95,6 @@ struct hif_req_reset {
 	struct hif_reset_flags reset_flags;
 } __packed;
 
-struct hif_cnf_reset {
-	u32   status;
-} __packed;
-
 struct hif_req_read_mib {
 	u16   mib_id;
 	u16   reserved;

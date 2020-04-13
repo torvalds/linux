@@ -108,7 +108,7 @@
 	};
 
 	idle-states {
-		entry-method = "arm,psci";
+		entry-method = "psci";
 		CORE_PD: core-pd {
 			compatible = "arm,idle-state";
 			entry-latency-us = <4000>;

@@ -60,9 +60,9 @@
 };
 
 &dss {
-	reg = <0x58000000 0x80>,
-	      <0x58004054 0x4>,
-	      <0x58004300 0x20>;
+	reg = <0 0x80>,
+	      <0x4054 0x4>,
+	      <0x4300 0x20>;
 	reg-names = "dss", "pll1_clkctrl", "pll1";
 
 	clocks = <&dss_clkctrl DRA7_DSS_DSS_CORE_CLKCTRL 8>,

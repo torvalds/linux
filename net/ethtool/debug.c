@@ -102,13 +102,16 @@ int ethnl_set_debug(struct sk_buff *skb, struct genl_info *info)
 			  info->extack);
 	if (ret < 0)
 		return ret;
-	ret = ethnl_parse_header(&req_info, tb[ETHTOOL_A_DEBUG_HEADER],
-				 genl_info_net(info), info->extack, true);
+	ret = ethnl_parse_header_dev_get(&req_info,
+					 tb[ETHTOOL_A_DEBUG_HEADER],
+					 genl_info_net(info), info->extack,
+					 true);
 	if (ret < 0)
 		return ret;
 	dev = req_info.dev;
+	ret = -EOPNOTSUPP;
 	if (!dev->ethtool_ops->get_msglevel || !dev->ethtool_ops->set_msglevel)
-		return -EOPNOTSUPP;
+		goto out_dev;
 
 	rtnl_lock();
 	ret = ethnl_ops_begin(dev);
@@ -129,6 +132,7 @@ out_ops:
 	ethnl_ops_complete(dev);
 out_rtnl:
 	rtnl_unlock();
+out_dev:
 	dev_put(dev);
 	return ret;
 }

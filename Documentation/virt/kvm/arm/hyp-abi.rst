@@ -11,6 +11,11 @@ hypervisor when running as a guest (under Xen, KVM or any other
 hypervisor), or any hypervisor-specific interaction when the kernel is
 used as a host.
 
+Note: KVM/arm has been removed from the kernel. The API described
+here is still valid though, as it allows the kernel to kexec when
+booted at HYP. It can also be used by a hypervisor other than KVM
+if necessary.
+
 On arm and arm64 (without VHE), the kernel doesn't run in hypervisor
 mode, but still needs to interact with it, allowing a built-in
 hypervisor to be either installed or torn down.

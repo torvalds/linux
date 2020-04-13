@@ -36,6 +36,12 @@ properties:
 
       - items:
         - enum:
+          - allwinner,sun7i-a20-tcon0
+          - allwinner,sun7i-a20-tcon1
+        - const: allwinner,sun7i-a20-tcon
+
+      - items:
+        - enum:
             - allwinner,sun50i-a64-tcon-lcd
         - const: allwinner,sun8i-a83t-tcon-lcd
 

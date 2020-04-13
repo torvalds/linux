@@ -6,7 +6,7 @@
  * Copyright (C) 2009		Tejun Heo <tj@kernel.org>
  *
  * Copyright (C) 2017		Facebook Inc.
- * Copyright (C) 2017		Dennis Zhou <dennisszhou@gmail.com>
+ * Copyright (C) 2017		Dennis Zhou <dennis@kernel.org>
  *
  * The percpu allocator handles both static and dynamic areas.  Percpu
  * areas are allocated in chunks which are divided into units.  There is

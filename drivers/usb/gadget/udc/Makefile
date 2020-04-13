@@ -42,3 +42,4 @@ obj-$(CONFIG_USB_GADGET_XILINX)	+= udc-xilinx.o
 obj-$(CONFIG_USB_SNP_UDC_PLAT) += snps_udc_plat.o
 obj-$(CONFIG_USB_ASPEED_VHUB)	+= aspeed-vhub/
 obj-$(CONFIG_USB_BDC_UDC)	+= bdc/
+obj-$(CONFIG_USB_MAX3420_UDC)	+= max3420_udc.o

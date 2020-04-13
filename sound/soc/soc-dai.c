@@ -295,8 +295,12 @@ int snd_soc_dai_startup(struct snd_soc_dai *dai,
 {
 	int ret = 0;
 
-	if (dai->driver->ops->startup)
+	if (!dai->started[substream->stream] &&
+	    dai->driver->ops->startup)
 		ret = dai->driver->ops->startup(substream, dai);
+
+	if (ret == 0)
+		dai->started[substream->stream] = 1;
 
 	return ret;
 }
@@ -304,8 +308,11 @@ int snd_soc_dai_startup(struct snd_soc_dai *dai,
 void snd_soc_dai_shutdown(struct snd_soc_dai *dai,
 			 struct snd_pcm_substream *substream)
 {
-	if (dai->driver->ops->shutdown)
+	if (dai->started[substream->stream] &&
+	    dai->driver->ops->shutdown)
 		dai->driver->ops->shutdown(substream, dai);
+
+	dai->started[substream->stream] = 0;
 }
 
 int snd_soc_dai_prepare(struct snd_soc_dai *dai,
@@ -383,12 +390,7 @@ int snd_soc_dai_compress_new(struct snd_soc_dai *dai,
  */
 bool snd_soc_dai_stream_valid(struct snd_soc_dai *dai, int dir)
 {
-	struct snd_soc_pcm_stream *stream;
-
-	if (dir == SNDRV_PCM_STREAM_PLAYBACK)
-		stream = &dai->driver->playback;
-	else
-		stream = &dai->driver->capture;
+	struct snd_soc_pcm_stream *stream = snd_soc_dai_get_pcm_stream(dai, dir);
 
 	/* If the codec specifies any channels at all, it supports the stream */
 	return stream->channels_min;

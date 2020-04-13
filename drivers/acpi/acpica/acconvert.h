@@ -65,9 +65,7 @@ void cg_write_aml_comment(union acpi_parse_object *op);
 /*
  * cvparser
  */
-void
-cv_init_file_tree(struct acpi_table_header *table,
-		  u8 *aml_start, u32 aml_length);
+void cv_init_file_tree(struct acpi_table_header *table, FILE * root_file);
 
 void cv_clear_op_comments(union acpi_parse_object *op);
 

@@ -43,7 +43,7 @@ void intel_uc_fw_change_status(struct intel_uc_fw *uc_fw,
  * features.
  */
 #define INTEL_UC_FIRMWARE_DEFS(fw_def, guc_def, huc_def) \
-	fw_def(TIGERLAKE,   0, guc_def(tgl, 35, 2, 0), huc_def(tgl,  7, 0, 3)) \
+	fw_def(TIGERLAKE,   0, guc_def(tgl, 35, 2, 0), huc_def(tgl,  7, 0, 12)) \
 	fw_def(ELKHARTLAKE, 0, guc_def(ehl, 33, 0, 4), huc_def(ehl,  9, 0, 0)) \
 	fw_def(ICELAKE,     0, guc_def(icl, 33, 0, 0), huc_def(icl,  9, 0, 0)) \
 	fw_def(COFFEELAKE,  5, guc_def(cml, 33, 0, 0), huc_def(cml,  4, 0, 0)) \
@@ -279,7 +279,7 @@ int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw)
 
 	err = i915_inject_probe_error(i915, -ENXIO);
 	if (err)
-		return err;
+		goto fail;
 
 	__force_fw_fetch_failures(uc_fw, -EINVAL);
 	__force_fw_fetch_failures(uc_fw, -ESTALE);
@@ -501,7 +501,7 @@ int intel_uc_fw_upload(struct intel_uc_fw *uc_fw, u32 dst_offset, u32 dma_flags)
 	if (err)
 		return err;
 
-	if (!intel_uc_fw_is_available(uc_fw))
+	if (!intel_uc_fw_is_loadable(uc_fw))
 		return -ENOEXEC;
 
 	/* Call custom loader */
@@ -544,7 +544,10 @@ int intel_uc_fw_init(struct intel_uc_fw *uc_fw)
 
 void intel_uc_fw_fini(struct intel_uc_fw *uc_fw)
 {
-	intel_uc_fw_cleanup_fetch(uc_fw);
+	if (i915_gem_object_has_pinned_pages(uc_fw->obj))
+		i915_gem_object_unpin_pages(uc_fw->obj);
+
+	intel_uc_fw_change_status(uc_fw, INTEL_UC_FIRMWARE_AVAILABLE);
 }
 
 /**

@@ -20,6 +20,7 @@ properties:
       - qcom,sc7180-rpmh-clk
       - qcom,sdm845-rpmh-clk
       - qcom,sm8150-rpmh-clk
+      - qcom,sm8250-rpmh-clk
 
   clocks:
     maxItems: 1
@@ -34,6 +35,8 @@ properties:
 required:
   - compatible
   - '#clock-cells'
+
+additionalProperties: false
 
 examples:
   # Example for GCC for SDM845: The below node should be defined inside

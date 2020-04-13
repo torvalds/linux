@@ -54,13 +54,20 @@ properties:
 
   # Display Timings
   panel-timing:
-    type: object
     description:
       Most display panels are restricted to a single resolution and
       require specific display timings. The panel-timing subnode expresses those
-      timings as specified in the timing subnode section of the display timing
-      bindings defined in
-      Documentation/devicetree/bindings/display/panel/display-timing.txt.
+      timings.
+    allOf:
+      - $ref: panel-timing.yaml#
+
+  display-timings:
+    description:
+      Some display panels supports several resolutions with different timing.
+      The display-timings bindings supports specifying several timings and
+      optional specify which is the native mode.
+    allOf:
+      - $ref: display-timings.yaml#
 
   # Connectivity
   port:

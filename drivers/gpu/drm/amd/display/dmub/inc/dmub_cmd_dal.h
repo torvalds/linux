@@ -32,7 +32,7 @@
  */
 
 enum dmub_cmd_psr_type {
-	DMUB_CMD__PSR_SETUP		= 0,
+	DMUB_CMD__PSR_SET_VERSION	= 0,
 	DMUB_CMD__PSR_COPY_SETTINGS	= 1,
 	DMUB_CMD__PSR_ENABLE		= 2,
 	DMUB_CMD__PSR_DISABLE		= 3,
@@ -42,7 +42,16 @@ enum dmub_cmd_psr_type {
 enum psr_version {
 	PSR_VERSION_1			= 0x10, // PSR Version 1
 	PSR_VERSION_2			= 0x20, // PSR Version 2, includes selective update
-	PSR_VERSION_2_Y_COORD		= 0x21, // PSR Version 2, includes Y-coordinate support for SU
+	PSR_VERSION_2_1			= 0x21, // PSR Version 2, includes Y-coordinate support for SU
+};
+
+enum dmub_cmd_abm_type {
+	DMUB_CMD__ABM_INIT_CONFIG	= 0,
+	DMUB_CMD__ABM_SET_PIPE		= 1,
+	DMUB_CMD__ABM_SET_BACKLIGHT	= 2,
+	DMUB_CMD__ABM_SET_LEVEL		= 3,
+	DMUB_CMD__ABM_SET_AMBIENT_LEVEL	= 4,
+	DMUB_CMD__ABM_SET_PWM_FRAC	= 5,
 };
 
 #endif /* _DMUB_CMD_DAL_H_ */

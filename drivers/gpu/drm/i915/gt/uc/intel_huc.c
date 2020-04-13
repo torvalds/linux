@@ -121,19 +121,20 @@ int intel_huc_init(struct intel_huc *huc)
 	if (err)
 		goto out_fini;
 
+	intel_uc_fw_change_status(&huc->fw, INTEL_UC_FIRMWARE_LOADABLE);
+
 	return 0;
 
 out_fini:
 	intel_uc_fw_fini(&huc->fw);
 out:
-	intel_uc_fw_cleanup_fetch(&huc->fw);
-	DRM_DEV_DEBUG_DRIVER(i915->drm.dev, "failed with %d\n", err);
+	i915_probe_error(i915, "failed with %d\n", err);
 	return err;
 }
 
 void intel_huc_fini(struct intel_huc *huc)
 {
-	if (!intel_uc_fw_is_available(&huc->fw))
+	if (!intel_uc_fw_is_loadable(&huc->fw))
 		return;
 
 	intel_huc_rsa_data_destroy(huc);

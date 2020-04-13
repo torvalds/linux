@@ -38,7 +38,7 @@ Bank: 3 (A, B and C)
   0xffffffff 0x7fff3ccf  /* pioB */
   0xffffffff 0x007fffff  /* pioC */
 
-For each peripheral/bank we will descibe in a u32 if a pin can be
+For each peripheral/bank we will describe in a u32 if a pin can be
 configured in it by putting 1 to the pin bit (1 << pin)
 
 Let's take the pioA on peripheral B

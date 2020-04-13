@@ -32,4 +32,6 @@ int gfx_v9_4_query_ras_error_count(struct amdgpu_device *adev,
 int gfx_v9_4_ras_error_inject(struct amdgpu_device *adev,
 				     void *inject_if);
 
+void gfx_v9_4_reset_ras_error_count(struct amdgpu_device *adev);
+
 #endif /* __GFX_V9_4_H__ */

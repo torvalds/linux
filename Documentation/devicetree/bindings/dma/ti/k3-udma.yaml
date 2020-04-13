@@ -45,7 +45,8 @@ allOf:
 
 properties:
   "#dma-cells":
-    const: 1
+    minimum: 1
+    maximum: 2
     description: |
       The cell is the PSI-L  thread ID of the remote (to UDMAP) end.
       Valid ranges for thread ID depends on the data movement direction:
@@ -54,6 +55,8 @@ properties:
 
       Please refer to the device documentation for the PSI-L thread map and also
       the PSI-L peripheral chapter for the correct thread ID.
+
+      When #dma-cells is 2, the second parameter is the channel ATYPE.
 
   compatible:
     enum:
@@ -130,6 +133,20 @@ required:
   - ti,sci-rm-range-tchan
   - ti,sci-rm-range-rchan
   - ti,sci-rm-range-rflow
+
+if:
+  properties:
+    "#dma-cells":
+      const: 2
+then:
+  properties:
+    ti,udma-atype:
+      description: ATYPE value which should be used by non slave channels
+      allOf:
+        - $ref: /schemas/types.yaml#/definitions/uint32
+
+  required:
+    - ti,udma-atype
 
 examples:
   - |+

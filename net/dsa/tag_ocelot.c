@@ -153,7 +153,8 @@ static struct sk_buff *ocelot_xmit(struct sk_buff *skb,
 
 	memset(injection, 0, OCELOT_TAG_LEN);
 
-	src = dsa_upstream_port(ds, port);
+	/* Set the source port as the CPU port module and not the NPI port */
+	src = ocelot->num_phys_ports;
 	dest = BIT(port);
 	bypass = true;
 	qos_class = skb->priority;

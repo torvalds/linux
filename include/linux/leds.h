@@ -25,6 +25,7 @@ struct device_node;
  * LED Core
  */
 
+/* This is obsolete/useless. We now support variable maximum brightness. */
 enum led_brightness {
 	LED_OFF		= 0,
 	LED_ON		= 1,

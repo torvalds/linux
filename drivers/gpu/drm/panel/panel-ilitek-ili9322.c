@@ -540,7 +540,7 @@ static int ili9322_enable(struct drm_panel *panel)
 
 /* Serial RGB modes */
 static const struct drm_display_mode srgb_320x240_mode = {
-	.clock = 2453500,
+	.clock = 24535,
 	.hdisplay = 320,
 	.hsync_start = 320 + 359,
 	.hsync_end = 320 + 359 + 1,
@@ -554,7 +554,7 @@ static const struct drm_display_mode srgb_320x240_mode = {
 };
 
 static const struct drm_display_mode srgb_360x240_mode = {
-	.clock = 2700000,
+	.clock = 27000,
 	.hdisplay = 360,
 	.hsync_start = 360 + 35,
 	.hsync_end = 360 + 35 + 1,
@@ -569,7 +569,7 @@ static const struct drm_display_mode srgb_360x240_mode = {
 
 /* This is the only mode listed for parallel RGB in the datasheet */
 static const struct drm_display_mode prgb_320x240_mode = {
-	.clock = 6400000,
+	.clock = 64000,
 	.hdisplay = 320,
 	.hsync_start = 320 + 38,
 	.hsync_end = 320 + 38 + 1,
@@ -584,7 +584,7 @@ static const struct drm_display_mode prgb_320x240_mode = {
 
 /* YUV modes */
 static const struct drm_display_mode yuv_640x320_mode = {
-	.clock = 2454000,
+	.clock = 24540,
 	.hdisplay = 640,
 	.hsync_start = 640 + 252,
 	.hsync_end = 640 + 252 + 1,
@@ -598,7 +598,7 @@ static const struct drm_display_mode yuv_640x320_mode = {
 };
 
 static const struct drm_display_mode yuv_720x360_mode = {
-	.clock = 2700000,
+	.clock = 27000,
 	.hdisplay = 720,
 	.hsync_start = 720 + 252,
 	.hsync_end = 720 + 252 + 1,
@@ -613,7 +613,7 @@ static const struct drm_display_mode yuv_720x360_mode = {
 
 /* BT.656 VGA mode, 640x480 */
 static const struct drm_display_mode itu_r_bt_656_640_mode = {
-	.clock = 2454000,
+	.clock = 24540,
 	.hdisplay = 640,
 	.hsync_start = 640 + 3,
 	.hsync_end = 640 + 3 + 1,
@@ -628,7 +628,7 @@ static const struct drm_display_mode itu_r_bt_656_640_mode = {
 
 /* BT.656 D1 mode 720x480 */
 static const struct drm_display_mode itu_r_bt_656_720_mode = {
-	.clock = 2700000,
+	.clock = 27000,
 	.hdisplay = 720,
 	.hsync_start = 720 + 3,
 	.hsync_end = 720 + 3 + 1,

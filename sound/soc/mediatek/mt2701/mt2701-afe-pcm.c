@@ -497,7 +497,7 @@ static int mt2701_memif_fs(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	int fs;
 
-	if (rtd->cpu_dai->id != MT2701_MEMIF_ULBT)
+	if (asoc_rtd_to_cpu(rtd, 0)->id != MT2701_MEMIF_ULBT)
 		fs = mt2701_afe_i2s_fs(rate);
 	else
 		fs = (rate == 16000 ? 1 : 0);

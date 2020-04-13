@@ -252,7 +252,7 @@ static int vc4_dpi_init_bridge(struct vc4_dpi *dpi)
 		bridge = drm_panel_bridge_add_typed(panel,
 						    DRM_MODE_CONNECTOR_DPI);
 
-	return drm_bridge_attach(dpi->encoder, bridge, NULL);
+	return drm_bridge_attach(dpi->encoder, bridge, NULL, 0);
 }
 
 static int vc4_dpi_bind(struct device *dev, struct device *master, void *data)

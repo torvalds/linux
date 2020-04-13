@@ -327,7 +327,7 @@ void rvt_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 	if (cq->ip)
 		kref_put(&cq->ip->ref, rvt_release_mmap_info);
 	else
-		vfree(cq->queue);
+		vfree(cq->kqueue);
 }
 
 /**

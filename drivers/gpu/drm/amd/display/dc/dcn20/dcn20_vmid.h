@@ -34,13 +34,6 @@
 #define BASE(seg) \
 	BASE_INNER(seg)
 
-#define SRI(reg_name, block, id)\
-	.reg_name = BASE(mm ## block ## id ## _ ## reg_name ## _BASE_IDX) + \
-					mm ## block ## id ## _ ## reg_name
-
-#define SF(reg_name, field_name, post_fix)\
-	.field_name = reg_name ## __ ## field_name ## post_fix
-
 #define DCN20_VMID_REG_LIST(id)\
 	SRI(CNTL, DCN_VM_CONTEXT, id),\
 	SRI(PAGE_TABLE_BASE_ADDR_HI32, DCN_VM_CONTEXT, id),\

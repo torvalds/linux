@@ -160,6 +160,8 @@ struct rt1308_sdw_priv {
 	struct sdw_bus_params params;
 	bool hw_init;
 	bool first_hw_init;
+	int rx_mask;
+	int slots;
 };
 
 struct sdw_stream_data {

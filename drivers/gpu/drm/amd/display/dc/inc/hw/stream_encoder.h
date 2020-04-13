@@ -103,6 +103,7 @@ struct stream_encoder {
 	struct dc_context *ctx;
 	struct dc_bios *bp;
 	enum engine_id id;
+	uint32_t stream_enc_inst;
 };
 
 struct enc_state {

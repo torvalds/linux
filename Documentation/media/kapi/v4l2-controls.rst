@@ -291,8 +291,8 @@ and QUERYMENU. And G/S_CTRL as well as G/TRY/S_EXT_CTRLS are automatically suppo
    In practice the basic usage as described above is sufficient for most drivers.
 
 
-Inheriting Controls
--------------------
+Inheriting Sub-device Controls
+------------------------------
 
 When a sub-device is registered with a V4L2 driver by calling
 v4l2_device_register_subdev() and the ctrl_handler fields of both v4l2_subdev
@@ -757,8 +757,8 @@ attempting to find another control from the same handler will deadlock.
 It is recommended not to use this function from inside the control ops.
 
 
-Inheriting Controls
--------------------
+Preventing Controls inheritance
+-------------------------------
 
 When one control handler is added to another using v4l2_ctrl_add_handler, then
 by default all controls from one are merged to the other. But a subdev might

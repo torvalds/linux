@@ -20,6 +20,7 @@
 #include <linux/spinlock.h>
 #include <linux/msi.h>
 
+#include <asm/debugfs.h>
 #include <asm/prom.h>
 #include <asm/io.h>
 #include <asm/smp.h>
@@ -67,13 +68,6 @@ static u32 xive_ipi_irq;
 
 /* Xive state for each CPU */
 static DEFINE_PER_CPU(struct xive_cpu *, xive_cpu);
-
-/*
- * A "disabled" interrupt should never fire, to catch problems
- * we set its logical number to this
- */
-#define XIVE_BAD_IRQ		0x7fffffff
-#define XIVE_MAX_IRQ		(XIVE_BAD_IRQ - 1)
 
 /* An invalid CPU target */
 #define XIVE_INVALID_TARGET	(-1)
@@ -265,10 +259,14 @@ notrace void xmon_xive_do_dump(int cpu)
 
 int xmon_xive_get_irq_config(u32 hw_irq, struct irq_data *d)
 {
+	struct irq_chip *chip = irq_data_get_irq_chip(d);
 	int rc;
 	u32 target;
 	u8 prio;
 	u32 lirq;
+
+	if (!is_xive_irq(chip))
+		return -EINVAL;
 
 	rc = xive_ops->get_irq_config(hw_irq, &target, &prio, &lirq);
 	if (rc) {
@@ -283,7 +281,10 @@ int xmon_xive_get_irq_config(u32 hw_irq, struct irq_data *d)
 		struct xive_irq_data *xd = irq_data_get_irq_handler_data(d);
 		u64 val = xive_esb_read(xd, XIVE_ESB_GET);
 
-		xmon_printf("PQ=%c%c",
+		xmon_printf("flags=%c%c%c PQ=%c%c",
+			    xd->flags & XIVE_IRQ_FLAG_STORE_EOI ? 'S' : ' ',
+			    xd->flags & XIVE_IRQ_FLAG_LSI ? 'L' : ' ',
+			    xd->flags & XIVE_IRQ_FLAG_H_INT_ESB ? 'H' : ' ',
 			    val & XIVE_ESB_VAL_P ? 'P' : '-',
 			    val & XIVE_ESB_VAL_Q ? 'Q' : '-');
 	}
@@ -1150,7 +1151,7 @@ static int xive_setup_cpu_ipi(unsigned int cpu)
 	xc = per_cpu(xive_cpu, cpu);
 
 	/* Check if we are already setup */
-	if (xc->hw_ipi != 0)
+	if (xc->hw_ipi != XIVE_BAD_IRQ)
 		return 0;
 
 	/* Grab an IPI from the backend, this will populate xc->hw_ipi */
@@ -1187,7 +1188,7 @@ static void xive_cleanup_cpu_ipi(unsigned int cpu, struct xive_cpu *xc)
 	/* Disable the IPI and free the IRQ data */
 
 	/* Already cleaned up ? */
-	if (xc->hw_ipi == 0)
+	if (xc->hw_ipi == XIVE_BAD_IRQ)
 		return;
 
 	/* Mask the IPI */
@@ -1343,6 +1344,7 @@ static int xive_prepare_cpu(unsigned int cpu)
 		if (np)
 			xc->chip_id = of_get_ibm_chip_id(np);
 		of_node_put(np);
+		xc->hw_ipi = XIVE_BAD_IRQ;
 
 		per_cpu(xive_cpu, cpu) = xc;
 	}
@@ -1554,3 +1556,107 @@ static int __init xive_off(char *arg)
 	return 0;
 }
 __setup("xive=off", xive_off);
+
+void xive_debug_show_cpu(struct seq_file *m, int cpu)
+{
+	struct xive_cpu *xc = per_cpu(xive_cpu, cpu);
+
+	seq_printf(m, "CPU %d:", cpu);
+	if (xc) {
+		seq_printf(m, "pp=%02x CPPR=%02x ", xc->pending_prio, xc->cppr);
+
+#ifdef CONFIG_SMP
+		{
+			u64 val = xive_esb_read(&xc->ipi_data, XIVE_ESB_GET);
+
+			seq_printf(m, "IPI=0x%08x PQ=%c%c ", xc->hw_ipi,
+				   val & XIVE_ESB_VAL_P ? 'P' : '-',
+				   val & XIVE_ESB_VAL_Q ? 'Q' : '-');
+		}
+#endif
+		{
+			struct xive_q *q = &xc->queue[xive_irq_priority];
+			u32 i0, i1, idx;
+
+			if (q->qpage) {
+				idx = q->idx;
+				i0 = be32_to_cpup(q->qpage + idx);
+				idx = (idx + 1) & q->msk;
+				i1 = be32_to_cpup(q->qpage + idx);
+				seq_printf(m, "EQ idx=%d T=%d %08x %08x ...",
+					   q->idx, q->toggle, i0, i1);
+			}
+		}
+	}
+	seq_puts(m, "\n");
+}
+
+void xive_debug_show_irq(struct seq_file *m, u32 hw_irq, struct irq_data *d)
+{
+	struct irq_chip *chip = irq_data_get_irq_chip(d);
+	int rc;
+	u32 target;
+	u8 prio;
+	u32 lirq;
+
+	if (!is_xive_irq(chip))
+		return;
+
+	rc = xive_ops->get_irq_config(hw_irq, &target, &prio, &lirq);
+	if (rc) {
+		seq_printf(m, "IRQ 0x%08x : no config rc=%d\n", hw_irq, rc);
+		return;
+	}
+
+	seq_printf(m, "IRQ 0x%08x : target=0x%x prio=%02x lirq=0x%x ",
+		   hw_irq, target, prio, lirq);
+
+	if (d) {
+		struct xive_irq_data *xd = irq_data_get_irq_handler_data(d);
+		u64 val = xive_esb_read(xd, XIVE_ESB_GET);
+
+		seq_printf(m, "flags=%c%c%c PQ=%c%c",
+			   xd->flags & XIVE_IRQ_FLAG_STORE_EOI ? 'S' : ' ',
+			   xd->flags & XIVE_IRQ_FLAG_LSI ? 'L' : ' ',
+			   xd->flags & XIVE_IRQ_FLAG_H_INT_ESB ? 'H' : ' ',
+			   val & XIVE_ESB_VAL_P ? 'P' : '-',
+			   val & XIVE_ESB_VAL_Q ? 'Q' : '-');
+	}
+	seq_puts(m, "\n");
+}
+
+static int xive_core_debug_show(struct seq_file *m, void *private)
+{
+	unsigned int i;
+	struct irq_desc *desc;
+	int cpu;
+
+	if (xive_ops->debug_show)
+		xive_ops->debug_show(m, private);
+
+	for_each_possible_cpu(cpu)
+		xive_debug_show_cpu(m, cpu);
+
+	for_each_irq_desc(i, desc) {
+		struct irq_data *d = irq_desc_get_irq_data(desc);
+		unsigned int hw_irq;
+
+		if (!d)
+			continue;
+
+		hw_irq = (unsigned int)irqd_to_hwirq(d);
+
+		/* IPIs are special (HW number 0) */
+		if (hw_irq)
+			xive_debug_show_irq(m, hw_irq, d);
+	}
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(xive_core_debug);
+
+int xive_core_debug_init(void)
+{
+	debugfs_create_file("xive", 0400, powerpc_debugfs_root,
+			    NULL, &xive_core_debug_fops);
+	return 0;
+}

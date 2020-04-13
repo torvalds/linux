@@ -47,6 +47,7 @@
 		#size-cells = <0>;
 		cpu@0 {
 			compatible = "arm,cortex-a8";
+			enable-method = "ti,am3352";
 			device_type = "cpu";
 			reg = <0>;
 
@@ -56,6 +57,17 @@
 			clock-names = "cpu";
 
 			clock-latency = <300000>; /* From omap-cpufreq driver */
+			cpu-idle-states = <&mpu_gate>;
+		};
+
+		idle-states {
+			mpu_gate: mpu_gate {
+				compatible = "arm,idle-state";
+				entry-latency-us = <40>;
+				exit-latency-us = <90>;
+				min-residency-us = <300>;
+				ti,idle-wkup-m3;
+			};
 		};
 	};
 
@@ -193,45 +205,100 @@
 			reg = <0x48200000 0x1000>;
 		};
 
-		edma: edma@49000000 {
-			compatible = "ti,edma3-tpcc";
-			ti,hwmods = "tpcc";
-			reg =	<0x49000000 0x10000>;
-			reg-names = "edma3_cc";
-			interrupts = <12 13 14>;
-			interrupt-names = "edma3_ccint", "edma3_mperr",
-					  "edma3_ccerrint";
-			dma-requests = <64>;
-			#dma-cells = <2>;
+		target-module@49000000 {
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0x49000000 0x4>;
+			reg-names = "rev";
+			clocks = <&l3_clkctrl AM3_L3_TPCC_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x49000000 0x10000>;
 
-			ti,tptcs = <&edma_tptc0 7>, <&edma_tptc1 5>,
-				   <&edma_tptc2 0>;
+			edma: dma@0 {
+				compatible = "ti,edma3-tpcc";
+				reg = <0 0x10000>;
+				reg-names = "edma3_cc";
+				interrupts = <12 13 14>;
+				interrupt-names = "edma3_ccint", "edma3_mperr",
+						  "edma3_ccerrint";
+				dma-requests = <64>;
+				#dma-cells = <2>;
 
-			ti,edma-memcpy-channels = <20 21>;
+				ti,tptcs = <&edma_tptc0 7>, <&edma_tptc1 5>,
+					   <&edma_tptc2 0>;
+
+				ti,edma-memcpy-channels = <20 21>;
+			};
 		};
 
-		edma_tptc0: tptc@49800000 {
-			compatible = "ti,edma3-tptc";
-			ti,hwmods = "tptc0";
-			reg =	<0x49800000 0x100000>;
-			interrupts = <112>;
-			interrupt-names = "edma3_tcerrint";
+		target-module@49800000 {
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0x49800000 0x4>,
+			      <0x49800010 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-mask = <SYSC_OMAP4_SOFTRESET>;
+			ti,sysc-midle = <SYSC_IDLE_FORCE>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_SMART>;
+			clocks = <&l3_clkctrl AM3_L3_TPTC0_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x49800000 0x100000>;
+
+			edma_tptc0: dma@0 {
+				compatible = "ti,edma3-tptc";
+				reg = <0 0x100000>;
+				interrupts = <112>;
+				interrupt-names = "edma3_tcerrint";
+			};
 		};
 
-		edma_tptc1: tptc@49900000 {
-			compatible = "ti,edma3-tptc";
-			ti,hwmods = "tptc1";
-			reg =	<0x49900000 0x100000>;
-			interrupts = <113>;
-			interrupt-names = "edma3_tcerrint";
+		target-module@49900000 {
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0x49900000 0x4>,
+			      <0x49900010 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-mask = <SYSC_OMAP4_SOFTRESET>;
+			ti,sysc-midle = <SYSC_IDLE_FORCE>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_SMART>;
+			clocks = <&l3_clkctrl AM3_L3_TPTC1_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x49900000 0x100000>;
+
+			edma_tptc1: dma@0 {
+				compatible = "ti,edma3-tptc";
+				reg = <0 0x100000>;
+				interrupts = <113>;
+				interrupt-names = "edma3_tcerrint";
+			};
 		};
 
-		edma_tptc2: tptc@49a00000 {
-			compatible = "ti,edma3-tptc";
-			ti,hwmods = "tptc2";
-			reg =	<0x49a00000 0x100000>;
-			interrupts = <114>;
-			interrupt-names = "edma3_tcerrint";
+		target-module@49a00000 {
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0x49a00000 0x4>,
+			      <0x49a00010 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-mask = <SYSC_OMAP4_SOFTRESET>;
+			ti,sysc-midle = <SYSC_IDLE_FORCE>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_SMART>;
+			clocks = <&l3_clkctrl AM3_L3_TPTC2_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x49a00000 0x100000>;
+
+			edma_tptc2: dma@0 {
+				compatible = "ti,edma3-tptc";
+				reg = <0 0x100000>;
+				interrupts = <114>;
+				interrupt-names = "edma3_tcerrint";
+			};
 		};
 
 		target-module@47810000 {

@@ -49,7 +49,7 @@ struct seq_tab {
 	unsigned int rows;        /* # of entries */
 	unsigned char width;      /* size in bytes of each entry */
 	unsigned char skip_first; /* whether the first line is a header */
-	char data[0];             /* the table data */
+	char data[];             /* the table data */
 };
 
 static inline unsigned int hex2val(char c)

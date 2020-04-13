@@ -201,8 +201,7 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 			       mgmt->bssid, cbss->bssid);
 
 	/* In case the signal is invalid update the status */
-	signal_valid = abs(channel->center_freq - cbss->channel->center_freq)
-		<= local->hw.wiphy->max_adj_channel_rssi_comp;
+	signal_valid = channel == cbss->channel;
 	if (!signal_valid)
 		rx_status->flag |= RX_FLAG_NO_SIGNAL_VAL;
 

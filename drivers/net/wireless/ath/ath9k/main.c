@@ -1196,6 +1196,9 @@ static void ath9k_tpc_vif_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 {
 	int *power = data;
 
+	if (vif->bss_conf.txpower == INT_MIN)
+		return;
+
 	if (*power < vif->bss_conf.txpower)
 		*power = vif->bss_conf.txpower;
 }
@@ -1456,6 +1459,9 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 		ctx->offchannel = !!(conf->flags & IEEE80211_CONF_OFFCHANNEL);
 		ath_chanctx_set_channel(sc, ctx, &hw->conf.chandef);
 	}
+
+	if (changed & IEEE80211_CONF_CHANGE_POWER)
+		ath9k_set_txpower(sc, NULL);
 
 	mutex_unlock(&sc->mutex);
 	ath9k_ps_restore(sc);

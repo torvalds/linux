@@ -60,21 +60,12 @@ struct stratix10_gate_clock {
 	u8			fixed_div;
 };
 
-struct clk *s10_register_pll(const char *, const char *const *, u8,
-			     unsigned long, void __iomem *, unsigned long);
-
-struct clk *s10_register_periph(const char *, const char *,
-				const char * const *, u8, unsigned long,
-				void __iomem *, unsigned long);
-struct clk *s10_register_cnt_periph(const char *, const char *,
-				    const char * const *, u8,
-				    unsigned long, void __iomem *,
-				    unsigned long, u8, unsigned long,
-				    unsigned long);
-struct clk *s10_register_gate(const char *, const char *,
-			      const char * const *, u8,
-			      unsigned long, void __iomem *,
-			      unsigned long, unsigned long,
-			      unsigned long, unsigned long, u8,
-			      unsigned long, u8, u8);
+struct clk *s10_register_pll(const struct stratix10_pll_clock *,
+			     void __iomem *);
+struct clk *s10_register_periph(const struct stratix10_perip_c_clock *,
+				void __iomem *);
+struct clk *s10_register_cnt_periph(const struct stratix10_perip_cnt_clock *,
+				    void __iomem *);
+struct clk *s10_register_gate(const struct stratix10_gate_clock *,
+			      void __iomem *);
 #endif	/* __STRATIX10_CLK_H */

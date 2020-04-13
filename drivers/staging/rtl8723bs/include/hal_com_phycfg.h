@@ -177,7 +177,7 @@ u8 		Channel,
 	bool		*bIn24G
 	);
 
-s8 phy_get_tx_pwr_lmt (struct adapter *adapter, u32 RegPwrTblSel,
+s8 phy_get_tx_pwr_lmt(struct adapter *adapter, u32 RegPwrTblSel,
 			enum BAND_TYPE Band, enum CHANNEL_WIDTH Bandwidth,
 u8 		RfPath,
 u8 		DataRate,

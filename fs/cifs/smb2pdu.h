@@ -91,6 +91,7 @@
 
 #define SMB2_PROTO_NUMBER cpu_to_le32(0x424d53fe)
 #define SMB2_TRANSFORM_PROTO_NUM cpu_to_le32(0x424d53fd)
+#define SMB2_COMPRESSION_TRANSFORM_ID cpu_to_le32(0x424d53fc)
 
 /*
  * SMB2 Header Definition
@@ -119,6 +120,9 @@ struct smb2_sync_hdr {
 	__u8   Signature[16];
 } __packed;
 
+/* The total header size for SMB2 read and write */
+#define SMB2_READWRITE_PDU_HEADER_SIZE (48 + sizeof(struct smb2_sync_hdr))
+
 struct smb2_sync_pdu {
 	struct smb2_sync_hdr sync_hdr;
 	__le16 StructureSize2; /* size of wct area (varies, request specific) */
@@ -127,14 +131,31 @@ struct smb2_sync_pdu {
 #define SMB3_AES128CCM_NONCE 11
 #define SMB3_AES128GCM_NONCE 12
 
+/* Transform flags (for 3.0 dialect this flag indicates CCM */
+#define TRANSFORM_FLAG_ENCRYPTED	0x0001
 struct smb2_transform_hdr {
 	__le32 ProtocolId;	/* 0xFD 'S' 'M' 'B' */
 	__u8   Signature[16];
 	__u8   Nonce[16];
 	__le32 OriginalMessageSize;
 	__u16  Reserved1;
-	__le16 Flags; /* EncryptionAlgorithm */
+	__le16 Flags; /* EncryptionAlgorithm for 3.0, enc enabled for 3.1.1 */
 	__u64  SessionId;
+} __packed;
+
+/* See MS-SMB2 2.2.42.1 */
+struct compression_playload_header {
+	__le16	AlgorithmId;
+	__le16	Reserved;
+	__le32	Length;
+} __packed;
+
+/* See MS-SMB2 2.2.42.2 */
+struct compression_pattern_payload_v1 {
+	__le16	Pattern;
+	__le16	Reserved1;
+	__le16	Reserved2;
+	__le32	Repetitions;
 } __packed;
 
 /*
@@ -182,7 +203,7 @@ struct smb2_symlink_err_rsp {
 	__le16 PrintNameOffset;
 	__le16 PrintNameLength;
 	__le32 Flags;
-	__u8  PathBuffer[0];
+	__u8  PathBuffer[];
 } __packed;
 
 /* SMB 3.1.1 and later dialects. See MS-SMB2 section 2.2.2.1 */
@@ -191,6 +212,10 @@ struct smb2_error_context_rsp {
 	__le32 ErrorId;
 	__u8  ErrorContextData; /* ErrorDataLength long array */
 } __packed;
+
+/* ErrorId values */
+#define SMB2_ERROR_ID_DEFAULT		0x00000000
+#define SMB2_ERROR_ID_SHARE_REDIRECT	cpu_to_le32(0x72645253)	/* "rdRS" */
 
 /* Defines for Type field below (see MS-SMB2 2.2.2.2.2.1) */
 #define MOVE_DST_IPADDR_V4	cpu_to_le32(0x00000001)
@@ -210,7 +235,7 @@ struct share_redirect_error_context_rsp {
 	__le16 Flags;
 	__le16 TargetType;
 	__le32 IPAddrCount;
-	struct move_dst_ipaddr IpAddrMoveList[0];
+	struct move_dst_ipaddr IpAddrMoveList[];
 	/* __u8 ResourceName[] */ /* Name of share as counted Unicode string */
 } __packed;
 
@@ -307,11 +332,17 @@ struct smb2_encryption_neg_context {
 #define SMB3_COMPRESS_LZNT1	cpu_to_le16(0x0001)
 #define SMB3_COMPRESS_LZ77	cpu_to_le16(0x0002)
 #define SMB3_COMPRESS_LZ77_HUFF	cpu_to_le16(0x0003)
+/* Pattern scanning algorithm See MS-SMB2 3.1.4.4.1 */
+#define SMB3_COMPRESS_PATTERN	cpu_to_le16(0x0004)
+
+/* Compression Flags */
+#define SMB2_COMPRESSION_CAPABILITIES_FLAG_NONE		cpu_to_le32(0x00000000)
+#define SMB2_COMPRESSION_CAPABILITIES_FLAG_CHAINED	cpu_to_le32(0x00000001)
 
 struct smb2_compression_capabilities_context {
 	__le16	ContextType; /* 3 */
 	__le16  DataLength;
-	__u32	Reserved;
+	__u32	Flags;
 	__le16	CompressionAlgorithmCount;
 	__u16	Padding;
 	__u32	Reserved1;
@@ -326,7 +357,7 @@ struct smb2_netname_neg_context {
 	__le16	ContextType; /* 0x100 */
 	__le16	DataLength;
 	__le32	Reserved;
-	__le16	NetName[0]; /* hostname of target converted to UCS-2 */
+	__le16	NetName[]; /* hostname of target converted to UCS-2 */
 } __packed;
 
 #define POSIX_CTXT_DATA_LEN	16
@@ -406,7 +437,7 @@ struct smb2_logoff_rsp {
 struct smb2_tree_connect_req {
 	struct smb2_sync_hdr sync_hdr;
 	__le16 StructureSize;	/* Must be 9 */
-	__le16 Reserved; /* Flags in SMB3.1.1 */
+	__le16 Flags; /* Reserved MBZ for dialects prior to SMB3.1.1 */
 	__le16 PathOffset;
 	__le16 PathLength;
 	__u8   Buffer[1];	/* variable length */
@@ -421,13 +452,13 @@ struct tree_connect_contexts {
 	__le16 ContextType;
 	__le16 DataLength;
 	__le32 Reserved;
-	__u8   Data[0];
+	__u8   Data[];
 } __packed;
 
 /* Remoted identity tree connect context structures - see MS-SMB2 2.2.9.2.1 */
 struct smb3_blob_data {
 	__le16 BlobSize;
-	__u8   BlobData[0];
+	__u8   BlobData[];
 } __packed;
 
 /* Valid values for Attr */
@@ -477,14 +508,14 @@ struct remoted_identity_tcon_context {
 	__le16 DeviceGroups; /* offset to SID_ARRAY_DATA struct */
 	__le16 UserClaims; /* offset to BLOB_DATA struct */
 	__le16 DeviceClaims; /* offset to BLOB_DATA struct */
-	__u8   TicketInfo[0]; /* variable length buf - remoted identity data */
+	__u8   TicketInfo[]; /* variable length buf - remoted identity data */
 } __packed;
 
 struct smb2_tree_connect_req_extension {
 	__le32 TreeConnectContextOffset;
 	__le16 TreeConnectContextCount;
 	__u8  Reserved[10];
-	__u8  PathName[0]; /* variable sized array */
+	__u8  PathName[]; /* variable sized array */
 	/* followed by array of TreeConnectContexts */
 } __packed;
 
@@ -633,7 +664,7 @@ struct smb2_tree_disconnect_rsp {
 			| FILE_WRITE_EA_LE | FILE_WRITE_ATTRIBUTES_LE)
 #define FILE_EXEC_RIGHTS_LE (FILE_EXECUTE_LE)
 
-/* Impersonation Levels */
+/* Impersonation Levels. See MS-WPO section 9.7 and MSDN-IMPERS */
 #define IL_ANONYMOUS		cpu_to_le32(0x00000000)
 #define IL_IDENTIFICATION	cpu_to_le32(0x00000001)
 #define IL_IMPERSONATION	cpu_to_le32(0x00000002)
@@ -689,7 +720,7 @@ struct smb2_create_req {
 	__le16 NameLength;
 	__le32 CreateContextsOffset;
 	__le32 CreateContextsLength;
-	__u8   Buffer[0];
+	__u8   Buffer[];
 } __packed;
 
 /*
@@ -727,7 +758,7 @@ struct create_context {
 	__le16 Reserved;
 	__le16 DataOffset;
 	__le32 DataLength;
-	__u8 Buffer[0];
+	__u8 Buffer[];
 } __packed;
 
 #define SMB2_LEASE_READ_CACHING_HE	0x01
@@ -739,7 +770,7 @@ struct create_context {
 #define SMB2_LEASE_HANDLE_CACHING	cpu_to_le32(0x02)
 #define SMB2_LEASE_WRITE_CACHING	cpu_to_le32(0x04)
 
-#define SMB2_LEASE_FLAG_BREAK_IN_PROGRESS cpu_to_le32(0x02)
+#define SMB2_LEASE_FLAG_BREAK_IN_PROGRESS cpu_to_le32(0x00000002)
 #define SMB2_LEASE_FLAG_PARENT_LEASE_KEY_SET cpu_to_le32(0x00000004)
 
 #define SMB2_LEASE_KEY_SIZE 16
@@ -869,7 +900,7 @@ struct crt_sd_ctxt {
 struct resume_key_req {
 	char ResumeKey[COPY_CHUNK_RES_KEY_SIZE];
 	__le32	ContextLength;	/* MBZ */
-	char	Context[0];	/* ignored, Windows sets to 4 bytes of zero */
+	char	Context[];	/* ignored, Windows sets to 4 bytes of zero */
 } __packed;
 
 /* this goes in the ioctl buffer when doing a copychunk request */
@@ -931,7 +962,7 @@ struct reparse_data_buffer {
 	__le32	ReparseTag;
 	__le16	ReparseDataLength;
 	__u16	Reserved;
-	__u8	DataBuffer[0]; /* Variable Length */
+	__u8	DataBuffer[]; /* Variable Length */
 } __packed;
 
 struct reparse_guid_data_buffer {
@@ -939,7 +970,7 @@ struct reparse_guid_data_buffer {
 	__le16	ReparseDataLength;
 	__u16	Reserved;
 	__u8	ReparseGuid[16];
-	__u8	DataBuffer[0]; /* Variable Length */
+	__u8	DataBuffer[]; /* Variable Length */
 } __packed;
 
 struct reparse_mount_point_data_buffer {
@@ -950,7 +981,7 @@ struct reparse_mount_point_data_buffer {
 	__le16	SubstituteNameLength;
 	__le16	PrintNameOffset;
 	__le16	PrintNameLength;
-	__u8	PathBuffer[0]; /* Variable Length */
+	__u8	PathBuffer[]; /* Variable Length */
 } __packed;
 
 #define SYMLINK_FLAG_RELATIVE 0x00000001
@@ -964,7 +995,7 @@ struct reparse_symlink_data_buffer {
 	__le16	PrintNameOffset;
 	__le16	PrintNameLength;
 	__le32	Flags;
-	__u8	PathBuffer[0]; /* Variable Length */
+	__u8	PathBuffer[]; /* Variable Length */
 } __packed;
 
 /* See MS-FSCC 2.1.2.6 and cifspdu.h for struct reparse_posix_data */
@@ -1066,7 +1097,7 @@ struct smb2_ioctl_req {
 	__le32 MaxOutputResponse;
 	__le32 Flags;
 	__u32  Reserved2;
-	__u8   Buffer[0];
+	__u8   Buffer[];
 } __packed;
 
 struct smb2_ioctl_rsp {
@@ -1180,7 +1211,7 @@ struct smb2_write_req {
 	__le64 Offset;
 	__u64  PersistentFileId; /* opaque endianness */
 	__u64  VolatileFileId; /* opaque endianness */
-	__le32 Channel; /* Reserved MBZ */
+	__le32 Channel; /* MBZ unless SMB3.02 or later */
 	__le32 RemainingBytes;
 	__le16 WriteChannelInfoOffset;
 	__le16 WriteChannelInfoLength;
@@ -1469,7 +1500,7 @@ struct smb3_fs_vol_info {
 	__le32	VolumeLabelLength; /* includes trailing null */
 	__u8	SupportsObjects; /* True if eg like NTFS, supports objects */
 	__u8	Reserved;
-	__u8	VolumeLabel[0]; /* variable len */
+	__u8	VolumeLabel[]; /* variable len */
 } __packed;
 
 /* partial list of QUERY INFO levels */
@@ -1531,7 +1562,7 @@ struct smb2_file_rename_info { /* encoding of request for level 10 */
 	__u8   Reserved[7];
 	__u64  RootDirectory;  /* MBZ for network operations (why says spec?) */
 	__le32 FileNameLength;
-	char   FileName[0];     /* New name to be assigned */
+	char   FileName[];     /* New name to be assigned */
 } __packed; /* level 10 Set */
 
 struct smb2_file_link_info { /* encoding of request for level 11 */
@@ -1540,7 +1571,7 @@ struct smb2_file_link_info { /* encoding of request for level 11 */
 	__u8   Reserved[7];
 	__u64  RootDirectory;  /* MBZ for network operations (why says spec?) */
 	__le32 FileNameLength;
-	char   FileName[0];     /* Name to be assigned to new link */
+	char   FileName[];     /* Name to be assigned to new link */
 } __packed; /* level 11 Set */
 
 struct smb2_file_full_ea_info { /* encoding of response for level 15 */
@@ -1548,7 +1579,7 @@ struct smb2_file_full_ea_info { /* encoding of response for level 15 */
 	__u8   flags;
 	__u8   ea_name_length;
 	__le16 ea_value_length;
-	char   ea_data[0]; /* \0 terminated name plus value */
+	char   ea_data[]; /* \0 terminated name plus value */
 } __packed; /* level 15 Set */
 
 /*
@@ -1604,11 +1635,56 @@ struct smb2_file_id_information {
 extern char smb2_padding[7];
 
 /* equivalent of the contents of SMB3.1.1 POSIX open context response */
-struct smb_posix_info {
-	__le32 nlink;
-	__le32 reparse_tag;
-	__le32 mode;
-	kuid_t	uid;
-	kuid_t	gid;
+struct create_posix_rsp {
+	u32 nlink;
+	u32 reparse_tag;
+	u32 mode;
+	struct cifs_sid owner; /* var-sized on the wire */
+	struct cifs_sid group; /* var-sized on the wire */
+} __packed;
+
+/*
+ * SMB2-only POSIX info level
+ *
+ * See posix_info_sid_size(), posix_info_extra_size() and
+ * posix_info_parse() to help with the handling of this struct.
+ */
+struct smb2_posix_info {
+	__le32 NextEntryOffset;
+	__u32 Ignored;
+	__le64 CreationTime;
+	__le64 LastAccessTime;
+	__le64 LastWriteTime;
+	__le64 ChangeTime;
+	__le64 EndOfFile;
+	__le64 AllocationSize;
+	__le32 DosAttributes;
+	__le64 Inode;
+	__le32 DeviceId;
+	__le32 Zero;
+	/* beginning of POSIX Create Context Response */
+	__le32 HardLinks;
+	__le32 ReparseTag;
+	__le32 Mode;
+	/*
+	 * var sized owner SID
+	 * var sized group SID
+	 * le32 filenamelength
+	 * u8  filename[]
+	 */
+} __packed;
+
+/*
+ * Parsed version of the above struct. Allows direct access to the
+ * variable length fields
+ */
+struct smb2_posix_info_parsed {
+	const struct smb2_posix_info *base;
+	size_t size;
+	struct cifs_sid owner;
+	struct cifs_sid group;
+	int name_len;
+	const u8 *name;
 };
+
 #endif				/* _SMB2PDU_H */

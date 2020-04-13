@@ -105,8 +105,8 @@ and this variation will modulate the cooling effect.
        idle  <-------------->
                 running
 
-      <----------------------------->
-              duty cycle 33%
+      <--------------------->
+          duty cycle 33%
 
 
      ^

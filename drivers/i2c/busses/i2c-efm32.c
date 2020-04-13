@@ -388,7 +388,7 @@ static int efm32_i2c_probe(struct platform_device *pdev)
 	if (!ret) {
 		dev_dbg(&pdev->dev, "using frequency %u\n", frequency);
 	} else {
-		frequency = 100000;
+		frequency = I2C_MAX_STANDARD_MODE_FREQ;
 		dev_info(&pdev->dev, "defaulting to 100 kHz\n");
 	}
 	ddata->frequency = frequency;

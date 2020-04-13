@@ -75,7 +75,7 @@ enum port_type {
 };
 
 /* driver compile-time configuration */
-#define	PM8001_MAX_CCB		 512	/* max ccbs supported */
+#define	PM8001_MAX_CCB		 256	/* max ccbs supported */
 #define PM8001_MPI_QUEUE         1024   /* maximum mpi queue entries */
 #define	PM8001_MAX_INB_NUM	 1
 #define	PM8001_MAX_OUTB_NUM	 1
@@ -99,7 +99,8 @@ enum port_type {
 #define OB			(CI + PM8001_MAX_SPCV_INB_NUM)
 #define PI			(OB + PM8001_MAX_SPCV_OUTB_NUM)
 #define USI_MAX_MEMCNT		(PI + PM8001_MAX_SPCV_OUTB_NUM)
-#define PM8001_MAX_DMA_SG	SG_ALL
+#define	CONFIG_SCSI_PM8001_MAX_DMA_SG	528
+#define PM8001_MAX_DMA_SG	CONFIG_SCSI_PM8001_MAX_DMA_SG
 enum memory_region_num {
 	AAP1 = 0x0, /* application acceleration processor */
 	IOP,	    /* IO processor */

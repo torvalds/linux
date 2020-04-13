@@ -32,6 +32,7 @@
 #include <linux/of_mdio.h>
 #include <linux/of_net.h>
 #include <linux/of_platform.h>
+#include <linux/phylink.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
 #include <linux/clk.h>
@@ -314,6 +315,8 @@ struct ag71xx {
 	dma_addr_t stop_desc_dma;
 
 	phy_interface_t phy_if_mode;
+	struct phylink *phylink;
+	struct phylink_config phylink_config;
 
 	struct delayed_work restart_work;
 	struct timer_list oom_timer;
@@ -845,24 +848,91 @@ static void ag71xx_hw_start(struct ag71xx *ag)
 	netif_wake_queue(ag->ndev);
 }
 
-static void ag71xx_link_adjust(struct ag71xx *ag, bool update)
+static void ag71xx_mac_config(struct phylink_config *config, unsigned int mode,
+			      const struct phylink_link_state *state)
 {
-	struct phy_device *phydev = ag->ndev->phydev;
-	u32 cfg2;
-	u32 ifctl;
-	u32 fifo5;
+	struct ag71xx *ag = netdev_priv(to_net_dev(config->dev));
 
-	if (!phydev->link && update) {
-		ag71xx_hw_stop(ag);
+	if (phylink_autoneg_inband(mode))
 		return;
-	}
 
 	if (!ag71xx_is(ag, AR7100) && !ag71xx_is(ag, AR9130))
 		ag71xx_fast_reset(ag);
 
+	if (ag->tx_ring.desc_split) {
+		ag->fifodata[2] &= 0xffff;
+		ag->fifodata[2] |= ((2048 - ag->tx_ring.desc_split) / 4) << 16;
+	}
+
+	ag71xx_wr(ag, AG71XX_REG_FIFO_CFG3, ag->fifodata[2]);
+}
+
+static void ag71xx_mac_validate(struct phylink_config *config,
+			    unsigned long *supported,
+			    struct phylink_link_state *state)
+{
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
+
+	if (state->interface != PHY_INTERFACE_MODE_NA &&
+	    state->interface != PHY_INTERFACE_MODE_GMII &&
+	    state->interface != PHY_INTERFACE_MODE_MII) {
+		bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
+		return;
+	}
+
+	phylink_set(mask, MII);
+
+	phylink_set(mask, Autoneg);
+	phylink_set(mask, 10baseT_Half);
+	phylink_set(mask, 10baseT_Full);
+	phylink_set(mask, 100baseT_Half);
+	phylink_set(mask, 100baseT_Full);
+
+	if (state->interface == PHY_INTERFACE_MODE_NA ||
+	    state->interface == PHY_INTERFACE_MODE_GMII) {
+		phylink_set(mask, 1000baseT_Full);
+		phylink_set(mask, 1000baseX_Full);
+	}
+
+	bitmap_and(supported, supported, mask,
+		   __ETHTOOL_LINK_MODE_MASK_NBITS);
+	bitmap_and(state->advertising, state->advertising, mask,
+		   __ETHTOOL_LINK_MODE_MASK_NBITS);
+}
+
+static void ag71xx_mac_pcs_get_state(struct phylink_config *config,
+				     struct phylink_link_state *state)
+{
+	state->link = 0;
+}
+
+static void ag71xx_mac_an_restart(struct phylink_config *config)
+{
+	/* Not Supported */
+}
+
+static void ag71xx_mac_link_down(struct phylink_config *config,
+				 unsigned int mode, phy_interface_t interface)
+{
+	struct ag71xx *ag = netdev_priv(to_net_dev(config->dev));
+
+	ag71xx_hw_stop(ag);
+}
+
+static void ag71xx_mac_link_up(struct phylink_config *config,
+			       struct phy_device *phy,
+			       unsigned int mode, phy_interface_t interface,
+			       int speed, int duplex,
+			       bool tx_pause, bool rx_pause)
+{
+	struct ag71xx *ag = netdev_priv(to_net_dev(config->dev));
+	u32 cfg2;
+	u32 ifctl;
+	u32 fifo5;
+
 	cfg2 = ag71xx_rr(ag, AG71XX_REG_MAC_CFG2);
 	cfg2 &= ~(MAC_CFG2_IF_1000 | MAC_CFG2_IF_10_100 | MAC_CFG2_FDX);
-	cfg2 |= (phydev->duplex) ? MAC_CFG2_FDX : 0;
+	cfg2 |= duplex ? MAC_CFG2_FDX : 0;
 
 	ifctl = ag71xx_rr(ag, AG71XX_REG_MAC_IFCTL);
 	ifctl &= ~(MAC_IFCTL_SPEED);
@@ -870,7 +940,7 @@ static void ag71xx_link_adjust(struct ag71xx *ag, bool update)
 	fifo5 = ag71xx_rr(ag, AG71XX_REG_FIFO_CFG5);
 	fifo5 &= ~FIFO_CFG5_BM;
 
-	switch (phydev->speed) {
+	switch (speed) {
 	case SPEED_1000:
 		cfg2 |= MAC_CFG2_IF_1000;
 		fifo5 |= FIFO_CFG5_BM;
@@ -883,72 +953,38 @@ static void ag71xx_link_adjust(struct ag71xx *ag, bool update)
 		cfg2 |= MAC_CFG2_IF_10_100;
 		break;
 	default:
-		WARN(1, "not supported speed %i\n", phydev->speed);
 		return;
 	}
-
-	if (ag->tx_ring.desc_split) {
-		ag->fifodata[2] &= 0xffff;
-		ag->fifodata[2] |= ((2048 - ag->tx_ring.desc_split) / 4) << 16;
-	}
-
-	ag71xx_wr(ag, AG71XX_REG_FIFO_CFG3, ag->fifodata[2]);
 
 	ag71xx_wr(ag, AG71XX_REG_MAC_CFG2, cfg2);
 	ag71xx_wr(ag, AG71XX_REG_FIFO_CFG5, fifo5);
 	ag71xx_wr(ag, AG71XX_REG_MAC_IFCTL, ifctl);
 
 	ag71xx_hw_start(ag);
-
-	if (update)
-		phy_print_status(phydev);
 }
 
-static void ag71xx_phy_link_adjust(struct net_device *ndev)
+static const struct phylink_mac_ops ag71xx_phylink_mac_ops = {
+	.validate = ag71xx_mac_validate,
+	.mac_pcs_get_state = ag71xx_mac_pcs_get_state,
+	.mac_an_restart = ag71xx_mac_an_restart,
+	.mac_config = ag71xx_mac_config,
+	.mac_link_down = ag71xx_mac_link_down,
+	.mac_link_up = ag71xx_mac_link_up,
+};
+
+static int ag71xx_phylink_setup(struct ag71xx *ag)
 {
-	struct ag71xx *ag = netdev_priv(ndev);
+	struct phylink *phylink;
 
-	ag71xx_link_adjust(ag, true);
-}
+	ag->phylink_config.dev = &ag->ndev->dev;
+	ag->phylink_config.type = PHYLINK_NETDEV;
 
-static int ag71xx_phy_connect(struct ag71xx *ag)
-{
-	struct device_node *np = ag->pdev->dev.of_node;
-	struct net_device *ndev = ag->ndev;
-	struct device_node *phy_node;
-	struct phy_device *phydev;
-	int ret;
+	phylink = phylink_create(&ag->phylink_config, ag->pdev->dev.fwnode,
+				 ag->phy_if_mode, &ag71xx_phylink_mac_ops);
+	if (IS_ERR(phylink))
+		return PTR_ERR(phylink);
 
-	if (of_phy_is_fixed_link(np)) {
-		ret = of_phy_register_fixed_link(np);
-		if (ret < 0) {
-			netif_err(ag, probe, ndev, "Failed to register fixed PHY link: %d\n",
-				  ret);
-			return ret;
-		}
-
-		phy_node = of_node_get(np);
-	} else {
-		phy_node = of_parse_phandle(np, "phy-handle", 0);
-	}
-
-	if (!phy_node) {
-		netif_err(ag, probe, ndev, "Could not find valid phy node\n");
-		return -ENODEV;
-	}
-
-	phydev = of_phy_connect(ag->ndev, phy_node, ag71xx_phy_link_adjust,
-				0, ag->phy_if_mode);
-
-	of_node_put(phy_node);
-
-	if (!phydev) {
-		netif_err(ag, probe, ndev, "Could not connect to PHY device\n");
-		return -ENODEV;
-	}
-
-	phy_attached_info(phydev);
-
+	ag->phylink = phylink;
 	return 0;
 }
 
@@ -1239,6 +1275,13 @@ static int ag71xx_open(struct net_device *ndev)
 	unsigned int max_frame_len;
 	int ret;
 
+	ret = phylink_of_phy_connect(ag->phylink, ag->pdev->dev.of_node, 0);
+	if (ret) {
+		netif_err(ag, link, ndev, "phylink_of_phy_connect filed with err: %i\n",
+			  ret);
+		goto err;
+	}
+
 	max_frame_len = ag71xx_max_frame_len(ndev->mtu);
 	ag->rx_buf_size =
 		SKB_DATA_ALIGN(max_frame_len + NET_SKB_PAD + NET_IP_ALIGN);
@@ -1251,11 +1294,7 @@ static int ag71xx_open(struct net_device *ndev)
 	if (ret)
 		goto err;
 
-	ret = ag71xx_phy_connect(ag);
-	if (ret)
-		goto err;
-
-	phy_start(ndev->phydev);
+	phylink_start(ag->phylink);
 
 	return 0;
 
@@ -1268,8 +1307,8 @@ static int ag71xx_stop(struct net_device *ndev)
 {
 	struct ag71xx *ag = netdev_priv(ndev);
 
-	phy_stop(ndev->phydev);
-	phy_disconnect(ndev->phydev);
+	phylink_stop(ag->phylink);
+	phylink_disconnect_phy(ag->phylink);
 	ag71xx_hw_disable(ag);
 
 	return 0;
@@ -1414,13 +1453,14 @@ static void ag71xx_restart_work_func(struct work_struct *work)
 {
 	struct ag71xx *ag = container_of(work, struct ag71xx,
 					 restart_work.work);
-	struct net_device *ndev = ag->ndev;
 
 	rtnl_lock();
 	ag71xx_hw_disable(ag);
 	ag71xx_hw_enable(ag);
-	if (ndev->phydev->link)
-		ag71xx_link_adjust(ag, false);
+
+	phylink_stop(ag->phylink);
+	phylink_start(ag->phylink);
+
 	rtnl_unlock();
 }
 
@@ -1758,6 +1798,12 @@ static int ag71xx_probe(struct platform_device *pdev)
 		goto err_put_clk;
 
 	platform_set_drvdata(pdev, ndev);
+
+	err = ag71xx_phylink_setup(ag);
+	if (err) {
+		netif_err(ag, probe, ndev, "failed to setup phylink (%d)\n", err);
+		goto err_mdio_remove;
+	}
 
 	err = register_netdev(ndev);
 	if (err) {

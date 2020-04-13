@@ -734,10 +734,10 @@ References
 ==========
 
 .. [1] Kristen Accardi, *Balancing Power and Performance in the Linux Kernel*,
-       http://events.linuxfoundation.org/sites/events/files/slides/LinuxConEurope_2015.pdf
+       https://events.static.linuxfound.org/sites/events/files/slides/LinuxConEurope_2015.pdf
 
 .. [2] *Intel® 64 and IA-32 Architectures Software Developer’s Manual Volume 3: System Programming Guide*,
-       http://www.intel.com/content/www/us/en/architecture-and-technology/64-ia-32-architectures-software-developer-system-programming-manual-325384.html
+       https://www.intel.com/content/www/us/en/architecture-and-technology/64-ia-32-architectures-software-developer-system-programming-manual-325384.html
 
 .. [3] *Advanced Configuration and Power Interface Specification*,
        https://uefi.org/sites/default/files/resources/ACPI_6_3_final_Jan30.pdf

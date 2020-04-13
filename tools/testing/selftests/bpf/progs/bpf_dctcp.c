@@ -6,13 +6,23 @@
  * the kernel BPF logic.
  */
 
+#include <stddef.h>
 #include <linux/bpf.h>
 #include <linux/types.h>
 #include <bpf/bpf_helpers.h>
-#include "bpf_trace_helpers.h"
+#include <bpf/bpf_tracing.h>
 #include "bpf_tcp_helpers.h"
 
 char _license[] SEC("license") = "GPL";
+
+int stg_result = 0;
+
+struct {
+	__uint(type, BPF_MAP_TYPE_SK_STORAGE);
+	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__type(key, int);
+	__type(value, int);
+} sk_stg_map SEC(".maps");
 
 #define DCTCP_MAX_ALPHA	1024U
 
@@ -43,12 +53,18 @@ void BPF_PROG(dctcp_init, struct sock *sk)
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
 	struct dctcp *ca = inet_csk_ca(sk);
+	int *stg;
 
 	ca->prior_rcv_nxt = tp->rcv_nxt;
 	ca->dctcp_alpha = min(dctcp_alpha_on_init, DCTCP_MAX_ALPHA);
 	ca->loss_cwnd = 0;
 	ca->ce_state = 0;
 
+	stg = bpf_sk_storage_get(&sk_stg_map, (void *)tp, NULL, 0);
+	if (stg) {
+		stg_result = *stg;
+		bpf_sk_storage_delete(&sk_stg_map, (void *)tp);
+	}
 	dctcp_reset(tp, ca);
 }
 

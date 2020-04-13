@@ -45,34 +45,185 @@ unsigned long mm_cachebits;
 EXPORT_SYMBOL(mm_cachebits);
 #endif
 
+
+/*
+ * Motorola 680x0 user's manual recommends using uncached memory for address
+ * translation tables.
+ *
+ * Seeing how the MMU can be external on (some of) these chips, that seems like
+ * a very important recommendation to follow. Provide some helpers to combat
+ * 'variation' amongst the users of this.
+ */
+
+void mmu_page_ctor(void *page)
+{
+	__flush_page_to_ram(page);
+	flush_tlb_kernel_page(page);
+	nocache_page(page);
+}
+
+void mmu_page_dtor(void *page)
+{
+	cache_page(page);
+}
+
+/* ++andreas: {get,free}_pointer_table rewritten to use unused fields from
+   struct page instead of separately kmalloced struct.  Stolen from
+   arch/sparc/mm/srmmu.c ... */
+
+typedef struct list_head ptable_desc;
+
+static struct list_head ptable_list[2] = {
+	LIST_HEAD_INIT(ptable_list[0]),
+	LIST_HEAD_INIT(ptable_list[1]),
+};
+
+#define PD_PTABLE(page) ((ptable_desc *)&(virt_to_page(page)->lru))
+#define PD_PAGE(ptable) (list_entry(ptable, struct page, lru))
+#define PD_MARKBITS(dp) (*(unsigned int *)&PD_PAGE(dp)->index)
+
+static const int ptable_shift[2] = {
+	7+2, /* PGD, PMD */
+	6+2, /* PTE */
+};
+
+#define ptable_size(type) (1U << ptable_shift[type])
+#define ptable_mask(type) ((1U << (PAGE_SIZE / ptable_size(type))) - 1)
+
+void __init init_pointer_table(void *table, int type)
+{
+	ptable_desc *dp;
+	unsigned long ptable = (unsigned long)table;
+	unsigned long page = ptable & PAGE_MASK;
+	unsigned int mask = 1U << ((ptable - page)/ptable_size(type));
+
+	dp = PD_PTABLE(page);
+	if (!(PD_MARKBITS(dp) & mask)) {
+		PD_MARKBITS(dp) = ptable_mask(type);
+		list_add(dp, &ptable_list[type]);
+	}
+
+	PD_MARKBITS(dp) &= ~mask;
+	pr_debug("init_pointer_table: %lx, %x\n", ptable, PD_MARKBITS(dp));
+
+	/* unreserve the page so it's possible to free that page */
+	__ClearPageReserved(PD_PAGE(dp));
+	init_page_count(PD_PAGE(dp));
+
+	return;
+}
+
+void *get_pointer_table(int type)
+{
+	ptable_desc *dp = ptable_list[type].next;
+	unsigned int mask = list_empty(&ptable_list[type]) ? 0 : PD_MARKBITS(dp);
+	unsigned int tmp, off;
+
+	/*
+	 * For a pointer table for a user process address space, a
+	 * table is taken from a page allocated for the purpose.  Each
+	 * page can hold 8 pointer tables.  The page is remapped in
+	 * virtual address space to be noncacheable.
+	 */
+	if (mask == 0) {
+		void *page;
+		ptable_desc *new;
+
+		if (!(page = (void *)get_zeroed_page(GFP_KERNEL)))
+			return NULL;
+
+		if (type == TABLE_PTE) {
+			/*
+			 * m68k doesn't have SPLIT_PTE_PTLOCKS for not having
+			 * SMP.
+			 */
+			pgtable_pte_page_ctor(virt_to_page(page));
+		}
+
+		mmu_page_ctor(page);
+
+		new = PD_PTABLE(page);
+		PD_MARKBITS(new) = ptable_mask(type) - 1;
+		list_add_tail(new, dp);
+
+		return (pmd_t *)page;
+	}
+
+	for (tmp = 1, off = 0; (mask & tmp) == 0; tmp <<= 1, off += ptable_size(type))
+		;
+	PD_MARKBITS(dp) = mask & ~tmp;
+	if (!PD_MARKBITS(dp)) {
+		/* move to end of list */
+		list_move_tail(dp, &ptable_list[type]);
+	}
+	return page_address(PD_PAGE(dp)) + off;
+}
+
+int free_pointer_table(void *table, int type)
+{
+	ptable_desc *dp;
+	unsigned long ptable = (unsigned long)table;
+	unsigned long page = ptable & PAGE_MASK;
+	unsigned int mask = 1U << ((ptable - page)/ptable_size(type));
+
+	dp = PD_PTABLE(page);
+	if (PD_MARKBITS (dp) & mask)
+		panic ("table already free!");
+
+	PD_MARKBITS (dp) |= mask;
+
+	if (PD_MARKBITS(dp) == ptable_mask(type)) {
+		/* all tables in page are free, free page */
+		list_del(dp);
+		mmu_page_dtor((void *)page);
+		if (type == TABLE_PTE)
+			pgtable_pte_page_dtor(virt_to_page(page));
+		free_page (page);
+		return 1;
+	} else if (ptable_list[type].next != dp) {
+		/*
+		 * move this descriptor to the front of the list, since
+		 * it has one or more free tables.
+		 */
+		list_move(dp, &ptable_list[type]);
+	}
+	return 0;
+}
+
 /* size of memory already mapped in head.S */
 extern __initdata unsigned long m68k_init_mapped_size;
 
 extern unsigned long availmem;
 
+static pte_t *last_pte_table __initdata = NULL;
+
 static pte_t * __init kernel_page_table(void)
 {
-	pte_t *ptablep;
+	pte_t *pte_table = last_pte_table;
 
-	ptablep = (pte_t *)memblock_alloc_low(PAGE_SIZE, PAGE_SIZE);
-	if (!ptablep)
-		panic("%s: Failed to allocate %lu bytes align=%lx\n",
-		      __func__, PAGE_SIZE, PAGE_SIZE);
+	if (((unsigned long)last_pte_table & ~PAGE_MASK) == 0) {
+		pte_table = (pte_t *)memblock_alloc_low(PAGE_SIZE, PAGE_SIZE);
+		if (!pte_table) {
+			panic("%s: Failed to allocate %lu bytes align=%lx\n",
+					__func__, PAGE_SIZE, PAGE_SIZE);
+		}
 
-	clear_page(ptablep);
-	__flush_page_to_ram(ptablep);
-	flush_tlb_kernel_page(ptablep);
-	nocache_page(ptablep);
+		clear_page(pte_table);
+		mmu_page_ctor(pte_table);
 
-	return ptablep;
+		last_pte_table = pte_table;
+	}
+
+	last_pte_table += PTRS_PER_PTE;
+
+	return pte_table;
 }
 
-static pmd_t *last_pgtable __initdata = NULL;
-pmd_t *zero_pgtable __initdata = NULL;
+static pmd_t *last_pmd_table __initdata = NULL;
 
 static pmd_t * __init kernel_ptr_table(void)
 {
-	if (!last_pgtable) {
+	if (!last_pmd_table) {
 		unsigned long pmd, last;
 		int i;
 
@@ -91,33 +242,29 @@ static pmd_t * __init kernel_ptr_table(void)
 				last = pmd;
 		}
 
-		last_pgtable = (pmd_t *)last;
+		last_pmd_table = (pmd_t *)last;
 #ifdef DEBUG
-		printk("kernel_ptr_init: %p\n", last_pgtable);
+		printk("kernel_ptr_init: %p\n", last_pmd_table);
 #endif
 	}
 
-	last_pgtable += PTRS_PER_PMD;
-	if (((unsigned long)last_pgtable & ~PAGE_MASK) == 0) {
-		last_pgtable = (pmd_t *)memblock_alloc_low(PAGE_SIZE,
+	last_pmd_table += PTRS_PER_PMD;
+	if (((unsigned long)last_pmd_table & ~PAGE_MASK) == 0) {
+		last_pmd_table = (pmd_t *)memblock_alloc_low(PAGE_SIZE,
 							   PAGE_SIZE);
-		if (!last_pgtable)
+		if (!last_pmd_table)
 			panic("%s: Failed to allocate %lu bytes align=%lx\n",
 			      __func__, PAGE_SIZE, PAGE_SIZE);
 
-		clear_page(last_pgtable);
-		__flush_page_to_ram(last_pgtable);
-		flush_tlb_kernel_page(last_pgtable);
-		nocache_page(last_pgtable);
+		clear_page(last_pmd_table);
+		mmu_page_ctor(last_pmd_table);
 	}
 
-	return last_pgtable;
+	return last_pmd_table;
 }
 
 static void __init map_node(int node)
 {
-#define PTRTREESIZE (256*1024)
-#define ROOTTREESIZE (32*1024*1024)
 	unsigned long physaddr, virtaddr, size;
 	pgd_t *pgd_dir;
 	p4d_t *p4d_dir;
@@ -135,21 +282,21 @@ static void __init map_node(int node)
 
 	while (size > 0) {
 #ifdef DEBUG
-		if (!(virtaddr & (PTRTREESIZE-1)))
+		if (!(virtaddr & (PMD_SIZE-1)))
 			printk ("\npa=%#lx va=%#lx ", physaddr & PAGE_MASK,
 				virtaddr);
 #endif
 		pgd_dir = pgd_offset_k(virtaddr);
 		if (virtaddr && CPU_IS_020_OR_030) {
-			if (!(virtaddr & (ROOTTREESIZE-1)) &&
-			    size >= ROOTTREESIZE) {
+			if (!(virtaddr & (PGDIR_SIZE-1)) &&
+			    size >= PGDIR_SIZE) {
 #ifdef DEBUG
 				printk ("[very early term]");
 #endif
 				pgd_val(*pgd_dir) = physaddr;
-				size -= ROOTTREESIZE;
-				virtaddr += ROOTTREESIZE;
-				physaddr += ROOTTREESIZE;
+				size -= PGDIR_SIZE;
+				virtaddr += PGDIR_SIZE;
+				physaddr += PGDIR_SIZE;
 				continue;
 			}
 		}
@@ -169,24 +316,23 @@ static void __init map_node(int node)
 #ifdef DEBUG
 				printk ("[early term]");
 #endif
-				pmd_dir->pmd[(virtaddr/PTRTREESIZE) & 15] = physaddr;
-				physaddr += PTRTREESIZE;
+				pmd_val(*pmd_dir) = physaddr;
+				physaddr += PMD_SIZE;
 			} else {
 				int i;
 #ifdef DEBUG
 				printk ("[zero map]");
 #endif
-				zero_pgtable = kernel_ptr_table();
-				pte_dir = (pte_t *)zero_pgtable;
-				pmd_dir->pmd[0] = virt_to_phys(pte_dir) |
-					_PAGE_TABLE | _PAGE_ACCESSED;
+				pte_dir = kernel_page_table();
+				pmd_set(pmd_dir, pte_dir);
+
 				pte_val(*pte_dir++) = 0;
 				physaddr += PAGE_SIZE;
-				for (i = 1; i < 64; physaddr += PAGE_SIZE, i++)
+				for (i = 1; i < PTRS_PER_PTE; physaddr += PAGE_SIZE, i++)
 					pte_val(*pte_dir++) = physaddr;
 			}
-			size -= PTRTREESIZE;
-			virtaddr += PTRTREESIZE;
+			size -= PMD_SIZE;
+			virtaddr += PMD_SIZE;
 		} else {
 			if (!pmd_present(*pmd_dir)) {
 #ifdef DEBUG

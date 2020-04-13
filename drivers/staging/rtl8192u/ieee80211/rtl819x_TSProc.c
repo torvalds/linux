@@ -380,7 +380,7 @@ bool GetTs(
 				}
 
 				IEEE80211_DEBUG(IEEE80211_DL_TS, "to init current TS, UP:%d, Dir:%d, addr:%pM\n", UP, Dir, Addr);
-				// Prepare TS Info releated field
+				// Prepare TS Info related field
 				pTSInfo->uc_traffic_type = 0;		// Traffic type: WMM is reserved in this field
 				pTSInfo->uc_tsid = UP;			// TSID
 				pTSInfo->uc_direction = Dir;		// Direction: if there is DirectLink, this need additional consideration.

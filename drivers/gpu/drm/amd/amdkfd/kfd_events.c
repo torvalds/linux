@@ -187,7 +187,7 @@ static int create_signal_event(struct file *devkfd,
 	if (p->signal_mapped_size &&
 	    p->signal_event_count == p->signal_mapped_size / 8) {
 		if (!p->signal_event_limit_reached) {
-			pr_warn("Signal event wasn't created because limit was reached\n");
+			pr_debug("Signal event wasn't created because limit was reached\n");
 			p->signal_event_limit_reached = true;
 		}
 		return -ENOSPC;

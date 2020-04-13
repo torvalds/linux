@@ -230,7 +230,7 @@ u64 arch_irq_stat(void)
  * SMP cross-CPU interrupts have their own specific
  * handlers).
  */
-__visible unsigned int __irq_entry do_IRQ(struct pt_regs *regs)
+__visible void __irq_entry do_IRQ(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 	struct irq_desc * desc;
@@ -263,7 +263,6 @@ __visible unsigned int __irq_entry do_IRQ(struct pt_regs *regs)
 	exiting_irq();
 
 	set_irq_regs(old_regs);
-	return 1;
 }
 
 #ifdef CONFIG_X86_LOCAL_APIC

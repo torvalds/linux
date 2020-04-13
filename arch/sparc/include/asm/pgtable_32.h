@@ -223,11 +223,6 @@ static inline int pte_young(pte_t pte)
 	return pte_val(pte) & SRMMU_REF;
 }
 
-static inline int pte_special(pte_t pte)
-{
-	return 0;
-}
-
 static inline pte_t pte_wrprotect(pte_t pte)
 {
 	return __pte(pte_val(pte) & ~SRMMU_WRITE);
@@ -257,8 +252,6 @@ static inline pte_t pte_mkyoung(pte_t pte)
 {
 	return __pte(pte_val(pte) | SRMMU_REF);
 }
-
-#define pte_mkspecial(pte)    (pte)
 
 #define pfn_pte(pfn, prot)		mk_pte(pfn_to_page(pfn), prot)
 

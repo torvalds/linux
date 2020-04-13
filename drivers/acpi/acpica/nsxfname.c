@@ -516,7 +516,7 @@ acpi_status acpi_install_method(u8 *buffer)
 
 	method_flags = *parser_state.aml++;
 	aml_start = parser_state.aml;
-	aml_length = ACPI_PTR_DIFF(parser_state.pkg_end, aml_start);
+	aml_length = (u32)ACPI_PTR_DIFF(parser_state.pkg_end, aml_start);
 
 	/*
 	 * Allocate resources up-front. We don't want to have to delete a new

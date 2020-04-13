@@ -143,6 +143,7 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0 0 0 0xc0000000>;
+		dma-ranges = <0x80000000 0x0 0x80000000 0x80000000>;
 		ti,hwmods = "l3_main_1", "l3_main_2", "l3_main_3";
 		reg = <0 0x44000000 0 0x2000>,
 		      <0 0x44800000 0 0x3000>,
@@ -292,78 +293,185 @@
 			 */
 		};
 
-		dss: dss@58000000 {
-			compatible = "ti,omap5-dss";
-			reg = <0x58000000 0x80>;
-			status = "disabled";
-			ti,hwmods = "dss_core";
-			clocks = <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 8>;
-			clock-names = "fck";
+		target-module@58000000 {
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x58000000 4>,
+			      <0x58000014 4>;
+			reg-names = "rev", "syss";
+			ti,syss-mask = <1>;
+			clocks = <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 0>,
+				 <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 9>,
+				 <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 10>,
+				 <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 11>;
+			clock-names = "fck", "hdmi_clk", "sys_clk", "tv_clk";
 			#address-cells = <1>;
 			#size-cells = <1>;
-			ranges;
+			ranges = <0 0x58000000 0x1000000>;
 
-			dispc@58001000 {
-				compatible = "ti,omap5-dispc";
-				reg = <0x58001000 0x1000>;
-				interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
-				ti,hwmods = "dss_dispc";
+			dss: dss@0 {
+				compatible = "ti,omap5-dss";
+				reg = <0 0x80>;
+				status = "disabled";
 				clocks = <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 8>;
 				clock-names = "fck";
-			};
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0 0x1000000>;
 
-			rfbi: encoder@58002000  {
-				compatible = "ti,omap5-rfbi";
-				reg = <0x58002000 0x100>;
-				status = "disabled";
-				ti,hwmods = "dss_rfbi";
-				clocks = <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 8>, <&l3_iclk_div>;
-				clock-names = "fck", "ick";
-			};
+				target-module@1000 {
+					compatible = "ti,sysc-omap2", "ti,sysc";
+					reg = <0x1000 0x4>,
+					      <0x1010 0x4>,
+					      <0x1014 0x4>;
+					reg-names = "rev", "sysc", "syss";
+					ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+							<SYSC_IDLE_NO>,
+							<SYSC_IDLE_SMART>;
+					ti,sysc-midle = <SYSC_IDLE_FORCE>,
+							<SYSC_IDLE_NO>,
+							<SYSC_IDLE_SMART>;
+					ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
+							 SYSC_OMAP2_ENAWAKEUP |
+							 SYSC_OMAP2_SOFTRESET |
+							 SYSC_OMAP2_AUTOIDLE)>;
+					ti,syss-mask = <1>;
+					clocks = <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 8>;
+					clock-names = "fck";
+					#address-cells = <1>;
+					#size-cells = <1>;
+					ranges = <0 0x1000 0x1000>;
 
-			dsi1: encoder@58004000 {
-				compatible = "ti,omap5-dsi";
-				reg = <0x58004000 0x200>,
-				      <0x58004200 0x40>,
-				      <0x58004300 0x40>;
-				reg-names = "proto", "phy", "pll";
-				interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
-				status = "disabled";
-				ti,hwmods = "dss_dsi1";
-				clocks = <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 8>,
-					 <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 10>;
-				clock-names = "fck", "sys_clk";
-			};
+					dispc@0 {
+						compatible = "ti,omap5-dispc";
+						reg = <0 0x1000>;
+						interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
+						clocks = <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 8>;
+						clock-names = "fck";
+					};
+				};
 
-			dsi2: encoder@58005000 {
-				compatible = "ti,omap5-dsi";
-				reg = <0x58009000 0x200>,
-				      <0x58009200 0x40>,
-				      <0x58009300 0x40>;
-				reg-names = "proto", "phy", "pll";
-				interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
-				status = "disabled";
-				ti,hwmods = "dss_dsi2";
-				clocks = <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 8>,
-					 <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 10>;
-				clock-names = "fck", "sys_clk";
-			};
+				target-module@2000 {
+					compatible = "ti,sysc-omap2", "ti,sysc";
+					reg = <0x2000 0x4>,
+					      <0x2010 0x4>,
+					      <0x2014 0x4>;
+					reg-names = "rev", "sysc", "syss";
+					ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+							<SYSC_IDLE_NO>,
+							<SYSC_IDLE_SMART>;
+					ti,sysc-mask = <(SYSC_OMAP2_SOFTRESET |
+							 SYSC_OMAP2_AUTOIDLE)>;
+					ti,syss-mask = <1>;
+					clocks = <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 8>;
+					clock-names = "fck";
+					#address-cells = <1>;
+					#size-cells = <1>;
+					ranges = <0 0x2000 0x1000>;
 
-			hdmi: encoder@58060000 {
-				compatible = "ti,omap5-hdmi";
-				reg = <0x58040000 0x200>,
-				      <0x58040200 0x80>,
-				      <0x58040300 0x80>,
-				      <0x58060000 0x19000>;
-				reg-names = "wp", "pll", "phy", "core";
-				interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
-				status = "disabled";
-				ti,hwmods = "dss_hdmi";
-				clocks = <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 9>,
-					 <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 10>;
-				clock-names = "fck", "sys_clk";
-				dmas = <&sdma 76>;
-				dma-names = "audio_tx";
+					rfbi: encoder@0  {
+						compatible = "ti,omap5-rfbi";
+						reg = <0 0x100>;
+						status = "disabled";
+						clocks = <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 8>, <&l3_iclk_div>;
+						clock-names = "fck", "ick";
+					};
+				};
+
+				target-module@5000 {
+					compatible = "ti,sysc-omap2", "ti,sysc";
+					reg = <0x5000 0x4>,
+					      <0x5010 0x4>,
+					      <0x5014 0x4>;
+					reg-names = "rev", "sysc", "syss";
+					ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+							<SYSC_IDLE_NO>,
+							<SYSC_IDLE_SMART>;
+					ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
+							 SYSC_OMAP2_ENAWAKEUP |
+							 SYSC_OMAP2_SOFTRESET |
+							 SYSC_OMAP2_AUTOIDLE)>;
+					ti,syss-mask = <1>;
+					#address-cells = <1>;
+					#size-cells = <1>;
+					ranges = <0 0x5000 0x1000>;
+
+					dsi1: encoder@0 {
+						compatible = "ti,omap5-dsi";
+						reg = <0 0x200>,
+						      <0x200 0x40>,
+						      <0x300 0x40>;
+						reg-names = "proto", "phy", "pll";
+						interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
+						status = "disabled";
+						clocks = <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 8>;
+						clock-names = "fck";
+					};
+				};
+
+				target-module@9000 {
+					compatible = "ti,sysc-omap2", "ti,sysc";
+					reg = <0x9000 0x4>,
+					      <0x9010 0x4>,
+					      <0x9014 0x4>;
+					reg-names = "rev", "sysc", "syss";
+					ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+							<SYSC_IDLE_NO>,
+							<SYSC_IDLE_SMART>;
+					ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
+							 SYSC_OMAP2_ENAWAKEUP |
+							 SYSC_OMAP2_SOFTRESET |
+							 SYSC_OMAP2_AUTOIDLE)>;
+					ti,syss-mask = <1>;
+					#address-cells = <1>;
+					#size-cells = <1>;
+					ranges = <0 0x9000 0x1000>;
+
+					dsi2: encoder@0 {
+						compatible = "ti,omap5-dsi";
+						reg = <0 0x200>,
+						      <0x200 0x40>,
+						      <0x300 0x40>;
+						reg-names = "proto", "phy", "pll";
+						interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
+						status = "disabled";
+						clocks = <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 8>;
+						clock-names = "fck";
+					};
+				};
+
+				target-module@40000 {
+					compatible = "ti,sysc-omap4", "ti,sysc";
+					reg = <0x40000 0x4>,
+					      <0x40010 0x4>;
+					reg-names = "rev", "sysc";
+					ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+							<SYSC_IDLE_NO>,
+							<SYSC_IDLE_SMART>,
+							<SYSC_IDLE_SMART_WKUP>;
+					ti,sysc-mask = <(SYSC_OMAP4_SOFTRESET)>;
+					clocks = <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 9>,
+						 <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 8>;
+					clock-names = "fck", "dss_clk";
+					#address-cells = <1>;
+					#size-cells = <1>;
+					ranges = <0 0x40000 0x40000>;
+
+					hdmi: encoder@0 {
+						compatible = "ti,omap5-hdmi";
+						reg = <0 0x200>,
+						      <0x200 0x80>,
+						      <0x300 0x80>,
+						      <0x20000 0x19000>;
+						reg-names = "wp", "pll", "phy", "core";
+						interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
+						status = "disabled";
+						clocks = <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 9>,
+							 <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 10>;
+						clock-names = "fck", "sys_clk";
+						dmas = <&sdma 76>;
+						dma-names = "audio_tx";
+					};
+				};
 			};
 		};
 

@@ -67,10 +67,10 @@
 
 /* STANDARD MODE frequency */
 #define SYNQUACER_I2C_CLK_MASTER_STD(rate)			\
-	DIV_ROUND_UP(DIV_ROUND_UP((rate), 100000) - 2, 2)
+	DIV_ROUND_UP(DIV_ROUND_UP((rate), I2C_MAX_STANDARD_MODE_FREQ) - 2, 2)
 /* FAST MODE frequency */
 #define SYNQUACER_I2C_CLK_MASTER_FAST(rate)			\
-	DIV_ROUND_UP((DIV_ROUND_UP((rate), 400000) - 2) * 2, 3)
+	DIV_ROUND_UP((DIV_ROUND_UP((rate), I2C_MAX_FAST_MODE_FREQ) - 2) * 2, 3)
 
 /* (clkrate <= 18000000) */
 /* calculate the value of CS bits in CCR register on standard mode */
@@ -602,7 +602,7 @@ static int synquacer_i2c_probe(struct platform_device *pdev)
 	i2c->adapter.nr = pdev->id;
 	init_completion(&i2c->completion);
 
-	if (bus_speed < 400000)
+	if (bus_speed < I2C_MAX_FAST_MODE_FREQ)
 		i2c->speed_khz = SYNQUACER_I2C_SPEED_SM;
 	else
 		i2c->speed_khz = SYNQUACER_I2C_SPEED_FM;

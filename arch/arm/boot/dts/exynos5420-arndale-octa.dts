@@ -584,6 +584,7 @@
 				regulator-name = "PVDD_G3DS_1V0";
 				regulator-min-microvolt = <800000>;
 				regulator-max-microvolt = <1100000>;
+				regulator-always-on;
 
 				regulator-state-mem {
 					regulator-on-in-suspend;
@@ -697,6 +698,7 @@
 				regulator-name = "PVDD_G3D_1V0";
 				regulator-min-microvolt = <800000>;
 				regulator-max-microvolt = <1400000>;
+				regulator-always-on;
 
 				regulator-state-mem {
 					regulator-off-in-suspend;

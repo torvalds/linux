@@ -17,6 +17,7 @@
 #define CTX_RING_CTL			(0x0a + 1)
 #define CTX_BB_STATE			(0x10 + 1)
 #define CTX_BB_PER_CTX_PTR		(0x18 + 1)
+#define CTX_TIMESTAMP			(0x22 + 1)
 #define CTX_PDP3_UDW			(0x24 + 1)
 #define CTX_PDP3_LDW			(0x26 + 1)
 #define CTX_PDP2_UDW			(0x28 + 1)

@@ -150,7 +150,6 @@ static int smartq_bl_init(struct device *dev)
 static struct platform_pwm_backlight_data smartq_backlight_data = {
 	.max_brightness	= 1000,
 	.dft_brightness	= 600,
-	.enable_gpio	= -1,
 	.init		= smartq_bl_init,
 };
 

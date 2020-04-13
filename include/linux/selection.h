@@ -11,8 +11,8 @@
 #include <linux/tiocl.h>
 #include <linux/vt_buffer.h>
 
-extern struct vc_data *sel_cons;
 struct tty_struct;
+struct vc_data;
 
 extern void clear_selection(void);
 extern int set_selection_user(const struct tiocl_selection __user *sel,
@@ -23,6 +23,8 @@ extern int paste_selection(struct tty_struct *tty);
 extern int sel_loadlut(char __user *p);
 extern int mouse_reporting(void);
 extern void mouse_report(struct tty_struct * tty, int butt, int mrx, int mry);
+
+bool vc_is_sel(struct vc_data *vc);
 
 extern int console_blanked;
 

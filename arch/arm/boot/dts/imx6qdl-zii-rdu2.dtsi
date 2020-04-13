@@ -216,6 +216,13 @@
 	};
 };
 
+&clks {
+	assigned-clocks = <&clks IMX6QDL_CLK_LDB_DI0_SEL>,
+	                  <&clks IMX6QDL_CLK_LDB_DI1_SEL>;
+	assigned-clock-parents = <&clks IMX6QDL_CLK_PLL5_VIDEO_DIV>,
+	                         <&clks IMX6QDL_CLK_PLL5_VIDEO_DIV>;
+};
+
 &cpu0 {
 	fsl,soc-operating-points = <
 		/* ARM kHz  SOC-PU uV */

@@ -139,11 +139,17 @@ Overview
 .. kernel-doc:: drivers/gpu/drm/drm_bridge.c
    :doc: overview
 
-Default bridge callback sequence
---------------------------------
+Bridge Operations
+-----------------
 
 .. kernel-doc:: drivers/gpu/drm/drm_bridge.c
-   :doc: bridge callbacks
+   :doc: bridge operations
+
+Bridge Connector Helper
+-----------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_bridge_connector.c
+   :doc: overview
 
 
 Bridge Helper Reference
@@ -153,6 +159,12 @@ Bridge Helper Reference
    :internal:
 
 .. kernel-doc:: drivers/gpu/drm/drm_bridge.c
+   :export:
+
+Bridge Connector Helper Reference
+---------------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_bridge_connector.c
    :export:
 
 Panel-Bridge Helper Reference

@@ -47,8 +47,7 @@ enum mod_hdcp_status mod_hdcp_hdcp2_transition(struct mod_hdcp *hdcp,
 		}
 		break;
 	case H2_A1_SEND_AKE_INIT:
-		if (input->add_topology != PASS ||
-				input->create_session != PASS ||
+		if (input->create_session != PASS ||
 				input->ake_init_prepare != PASS) {
 			/* out of sync with psp state */
 			adjust->hdcp2.disable = 1;
@@ -389,8 +388,7 @@ enum mod_hdcp_status mod_hdcp_hdcp2_dp_transition(struct mod_hdcp *hdcp,
 		}
 		break;
 	case D2_A1_SEND_AKE_INIT:
-		if (input->add_topology != PASS ||
-				input->create_session != PASS ||
+		if (input->create_session != PASS ||
 				input->ake_init_prepare != PASS) {
 			/* out of sync with psp state */
 			adjust->hdcp2.disable = 1;

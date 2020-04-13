@@ -27,8 +27,8 @@ struct tcf_skbedit {
 };
 #define to_skbedit(a) ((struct tcf_skbedit *)a)
 
-/* Return true iff action is mark */
-static inline bool is_tcf_skbedit_mark(const struct tc_action *a)
+/* Return true iff action is the one identified by FLAG. */
+static inline bool is_tcf_skbedit_with_flag(const struct tc_action *a, u32 flag)
 {
 #ifdef CONFIG_NET_CLS_ACT
 	u32 flags;
@@ -37,10 +37,16 @@ static inline bool is_tcf_skbedit_mark(const struct tc_action *a)
 		rcu_read_lock();
 		flags = rcu_dereference(to_skbedit(a)->params)->flags;
 		rcu_read_unlock();
-		return flags == SKBEDIT_F_MARK;
+		return flags == flag;
 	}
 #endif
 	return false;
+}
+
+/* Return true iff action is mark */
+static inline bool is_tcf_skbedit_mark(const struct tc_action *a)
+{
+	return is_tcf_skbedit_with_flag(a, SKBEDIT_F_MARK);
 }
 
 static inline u32 tcf_skbedit_mark(const struct tc_action *a)
@@ -57,17 +63,7 @@ static inline u32 tcf_skbedit_mark(const struct tc_action *a)
 /* Return true iff action is ptype */
 static inline bool is_tcf_skbedit_ptype(const struct tc_action *a)
 {
-#ifdef CONFIG_NET_CLS_ACT
-	u32 flags;
-
-	if (a->ops && a->ops->id == TCA_ID_SKBEDIT) {
-		rcu_read_lock();
-		flags = rcu_dereference(to_skbedit(a)->params)->flags;
-		rcu_read_unlock();
-		return flags == SKBEDIT_F_PTYPE;
-	}
-#endif
-	return false;
+	return is_tcf_skbedit_with_flag(a, SKBEDIT_F_PTYPE);
 }
 
 static inline u32 tcf_skbedit_ptype(const struct tc_action *a)
@@ -79,6 +75,23 @@ static inline u32 tcf_skbedit_ptype(const struct tc_action *a)
 	rcu_read_unlock();
 
 	return ptype;
+}
+
+/* Return true iff action is priority */
+static inline bool is_tcf_skbedit_priority(const struct tc_action *a)
+{
+	return is_tcf_skbedit_with_flag(a, SKBEDIT_F_PRIORITY);
+}
+
+static inline u32 tcf_skbedit_priority(const struct tc_action *a)
+{
+	u32 priority;
+
+	rcu_read_lock();
+	priority = rcu_dereference(to_skbedit(a)->params)->priority;
+	rcu_read_unlock();
+
+	return priority;
 }
 
 #endif /* __NET_TC_SKBEDIT_H */

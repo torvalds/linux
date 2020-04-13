@@ -83,12 +83,6 @@ static struct irq_chip ar7_sec_irq_type = {
 	.irq_ack = ar7_ack_sec_irq,
 };
 
-static struct irqaction ar7_cascade_action = {
-	.handler = no_action,
-	.name = "AR7 cascade interrupt",
-	.flags = IRQF_NO_THREAD,
-};
-
 static void __init ar7_irq_init(int base)
 {
 	int i;
@@ -116,8 +110,14 @@ static void __init ar7_irq_init(int base)
 						 handle_level_irq);
 	}
 
-	setup_irq(2, &ar7_cascade_action);
-	setup_irq(ar7_irq_base, &ar7_cascade_action);
+	if (request_irq(2, no_action, IRQF_NO_THREAD, "AR7 cascade interrupt",
+			NULL))
+		pr_err("Failed to request irq 2 (AR7 cascade interrupt)\n");
+	if (request_irq(ar7_irq_base, no_action, IRQF_NO_THREAD,
+			"AR7 cascade interrupt", NULL)) {
+		pr_err("Failed to request irq %d (AR7 cascade interrupt)\n",
+		       ar7_irq_base);
+	}
 	set_c0_status(IE_IRQ0);
 }
 

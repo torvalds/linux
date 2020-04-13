@@ -90,18 +90,6 @@ static irqreturn_t ip6_action(int cpl, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static struct irqaction ip6_irqaction = {
-	.handler = ip6_action,
-	.name = "cascade",
-	.flags = IRQF_SHARED | IRQF_NO_THREAD,
-};
-
-static struct irqaction cascade_irqaction = {
-	.handler = no_action,
-	.name = "cascade",
-	.flags = IRQF_NO_THREAD | IRQF_NO_SUSPEND,
-};
-
 void __init mach_init_irq(void)
 {
 	/* init all controller
@@ -120,7 +108,11 @@ void __init mach_init_irq(void)
 	bonito_irq_init();
 
 	/* setup north bridge irq (bonito) */
-	setup_irq(LOONGSON_NORTH_BRIDGE_IRQ, &ip6_irqaction);
+	if (request_irq(LOONGSON_NORTH_BRIDGE_IRQ, ip6_action,
+			IRQF_SHARED | IRQF_NO_THREAD, "cascade", ip6_action))
+		pr_err("Failed to register north bridge cascade interrupt\n");
 	/* setup source bridge irq (i8259) */
-	setup_irq(LOONGSON_SOUTH_BRIDGE_IRQ, &cascade_irqaction);
+	if (request_irq(LOONGSON_SOUTH_BRIDGE_IRQ, no_action,
+			IRQF_NO_THREAD | IRQF_NO_SUSPEND, "cascade", NULL))
+		pr_err("Failed to register south bridge cascade interrupt\n");
 }

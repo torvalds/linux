@@ -273,6 +273,7 @@ struct bcmgenet_mib_counters {
 #define  RBUF_FLTR_LEN_SHIFT		8
 
 #define TBUF_CTRL			0x00
+#define  TBUF_64B_EN			(1 << 0)
 #define TBUF_BP_MC			0x0C
 #define TBUF_ENERGY_CTRL		0x14
 #define  TBUF_EEE_EN			(1 << 0)
@@ -662,8 +663,6 @@ struct bcmgenet_priv {
 	unsigned int irq0_stat;
 
 	/* HW descriptors/checksum variables */
-	bool desc_64b_en;
-	bool desc_rxchk_en;
 	bool crc_fwd_en;
 
 	u32 dma_max_burst_length;

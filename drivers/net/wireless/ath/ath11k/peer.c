@@ -228,6 +228,9 @@ int ath11k_peer_create(struct ath11k *ar, struct ath11k_vif *arvif,
 	peer->sta = sta;
 	arvif->ast_hash = peer->ast_hash;
 
+	peer->sec_type = HAL_ENCRYPT_TYPE_OPEN;
+	peer->sec_type_grp = HAL_ENCRYPT_TYPE_OPEN;
+
 	ar->num_peers++;
 
 	spin_unlock_bh(&ar->ab->base_lock);

@@ -432,7 +432,7 @@ static int ip_tun_set_opts(struct nlattr *attr, struct ip_tunnel_info *info,
 	return ip_tun_parse_opts(attr, info, extack);
 }
 
-static int ip_tun_build_state(struct nlattr *attr,
+static int ip_tun_build_state(struct net *net, struct nlattr *attr,
 			      unsigned int family, const void *cfg,
 			      struct lwtunnel_state **ts,
 			      struct netlink_ext_ack *extack)
@@ -719,7 +719,7 @@ static const struct nla_policy ip6_tun_policy[LWTUNNEL_IP6_MAX + 1] = {
 	[LWTUNNEL_IP6_OPTS]		= { .type = NLA_NESTED },
 };
 
-static int ip6_tun_build_state(struct nlattr *attr,
+static int ip6_tun_build_state(struct net *net, struct nlattr *attr,
 			       unsigned int family, const void *cfg,
 			       struct lwtunnel_state **ts,
 			       struct netlink_ext_ack *extack)

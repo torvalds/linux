@@ -106,14 +106,12 @@ struct vimc_ent_device {
 /**
  * struct vimc_device - main device for vimc driver
  *
- * @pdev	pointer to the platform device
  * @pipe_cfg	pointer to the vimc pipeline configuration structure
  * @ent_devs	array of vimc_ent_device pointers
  * @mdev	the associated media_device parent
  * @v4l2_dev	Internal v4l2 parent device
  */
 struct vimc_device {
-	struct platform_device pdev;
 	const struct vimc_pipeline_config *pipe_cfg;
 	struct vimc_ent_device **ent_devs;
 	struct media_device mdev;
@@ -127,16 +125,18 @@ struct vimc_device {
  * @name			entity name
  * @ved				pointer to vimc_ent_device (a node in the
  *					topology)
- * @add				subdev add hook - initializes and registers
- *					subdev called from vimc-core
- * @rm				subdev rm hook - unregisters and frees
- *					subdev called from vimc-core
+ * @add				initializes and registers
+ *					vim entity - called from vimc-core
+ * @unregister			unregisters vimc entity - called from vimc-core
+ * @release			releases vimc entity - called from the v4l2_dev
+ *					release callback
  */
 struct vimc_ent_config {
 	const char *name;
 	struct vimc_ent_device *(*add)(struct vimc_device *vimc,
 				       const char *vcfg_name);
-	void (*rm)(struct vimc_device *vimc, struct vimc_ent_device *ved);
+	void (*unregister)(struct vimc_ent_device *ved);
+	void (*release)(struct vimc_ent_device *ved);
 };
 
 /**
@@ -147,22 +147,23 @@ struct vimc_ent_config {
  */
 bool vimc_is_source(struct media_entity *ent);
 
-/* prototypes for vimc_ent_config add and rm hooks */
+/* prototypes for vimc_ent_config hooks */
 struct vimc_ent_device *vimc_cap_add(struct vimc_device *vimc,
 				     const char *vcfg_name);
-void vimc_cap_rm(struct vimc_device *vimc, struct vimc_ent_device *ved);
+void vimc_cap_unregister(struct vimc_ent_device *ved);
+void vimc_cap_release(struct vimc_ent_device *ved);
 
 struct vimc_ent_device *vimc_deb_add(struct vimc_device *vimc,
 				     const char *vcfg_name);
-void vimc_deb_rm(struct vimc_device *vimc, struct vimc_ent_device *ved);
+void vimc_deb_release(struct vimc_ent_device *ved);
 
 struct vimc_ent_device *vimc_sca_add(struct vimc_device *vimc,
 				     const char *vcfg_name);
-void vimc_sca_rm(struct vimc_device *vimc, struct vimc_ent_device *ved);
+void vimc_sca_release(struct vimc_ent_device *ved);
 
 struct vimc_ent_device *vimc_sen_add(struct vimc_device *vimc,
 				     const char *vcfg_name);
-void vimc_sen_rm(struct vimc_device *vimc, struct vimc_ent_device *ved);
+void vimc_sen_release(struct vimc_ent_device *ved);
 
 /**
  * vimc_pix_map_by_index - get vimc_pix_map struct by its index
@@ -197,7 +198,6 @@ const struct vimc_pix_map *vimc_pix_map_by_pixelformat(u32 pixelformat);
  * @num_pads:	number of pads to initialize
  * @pads:	the array of pads of the entity, the caller should set the
 		flags of the pads
- * @sd_int_ops:	pointer to &struct v4l2_subdev_internal_ops
  * @sd_ops:	pointer to &struct v4l2_subdev_ops.
  *
  * Helper function initialize and register the struct vimc_ent_device and struct
@@ -210,7 +210,6 @@ int vimc_ent_sd_register(struct vimc_ent_device *ved,
 			 u32 function,
 			 u16 num_pads,
 			 struct media_pad *pads,
-			 const struct v4l2_subdev_internal_ops *sd_int_ops,
 			 const struct v4l2_subdev_ops *sd_ops);
 
 /**

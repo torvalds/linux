@@ -29,8 +29,6 @@ xfs_qm_log_quotaoff(
 	int			error;
 	struct xfs_qoff_logitem	*qoffi;
 
-	*qoffstartp = NULL;
-
 	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_qm_quotaoff, 0, 0, 0, &tp);
 	if (error)
 		goto out;
@@ -62,7 +60,7 @@ out:
 STATIC int
 xfs_qm_log_quotaoff_end(
 	struct xfs_mount	*mp,
-	struct xfs_qoff_logitem	*startqoff,
+	struct xfs_qoff_logitem	**startqoff,
 	uint			flags)
 {
 	struct xfs_trans	*tp;
@@ -73,9 +71,10 @@ xfs_qm_log_quotaoff_end(
 	if (error)
 		return error;
 
-	qoffi = xfs_trans_get_qoff_item(tp, startqoff,
+	qoffi = xfs_trans_get_qoff_item(tp, *startqoff,
 					flags & XFS_ALL_QUOTA_ACCT);
 	xfs_trans_log_quotaoff_item(tp, qoffi);
+	*startqoff = NULL;
 
 	/*
 	 * We have to make sure that the transaction is secure on disk before we
@@ -103,7 +102,7 @@ xfs_qm_scall_quotaoff(
 	uint			dqtype;
 	int			error;
 	uint			inactivate_flags;
-	struct xfs_qoff_logitem	*qoffstart;
+	struct xfs_qoff_logitem	*qoffstart = NULL;
 
 	/*
 	 * No file system can have quotas enabled on disk but not in core.
@@ -228,7 +227,7 @@ xfs_qm_scall_quotaoff(
 	 * So, we have QUOTAOFF start and end logitems; the start
 	 * logitem won't get overwritten until the end logitem appears...
 	 */
-	error = xfs_qm_log_quotaoff_end(mp, qoffstart, flags);
+	error = xfs_qm_log_quotaoff_end(mp, &qoffstart, flags);
 	if (error) {
 		/* We're screwed now. Shutdown is the only option. */
 		xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
@@ -261,6 +260,8 @@ xfs_qm_scall_quotaoff(
 	}
 
 out_unlock:
+	if (error && qoffstart)
+		xfs_qm_qoff_logitem_relse(qoffstart);
 	mutex_unlock(&q->qi_quotaofflock);
 	return error;
 }

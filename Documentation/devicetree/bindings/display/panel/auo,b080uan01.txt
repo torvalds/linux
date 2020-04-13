@@ -1,7 +1,0 @@
-AU Optronics Corporation 8.0" WUXGA TFT LCD panel
-
-Required properties:
-- compatible: should be "auo,b101ean01"
-
-This binding is compatible with the simple-panel binding, which is specified
-in simple-panel.txt in this directory.

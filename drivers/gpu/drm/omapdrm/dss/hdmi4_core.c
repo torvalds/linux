@@ -32,7 +32,7 @@ static inline void __iomem *hdmi_av_base(struct hdmi_core_data *core)
 	return core->base + HDMI_CORE_AV;
 }
 
-static int hdmi_core_ddc_init(struct hdmi_core_data *core)
+int hdmi4_core_ddc_init(struct hdmi_core_data *core)
 {
 	void __iomem *base = core->base;
 
@@ -74,13 +74,11 @@ static int hdmi_core_ddc_init(struct hdmi_core_data *core)
 	return 0;
 }
 
-static int hdmi_core_ddc_edid(struct hdmi_core_data *core,
-		u8 *pedid, int ext)
+int hdmi4_core_ddc_read(void *data, u8 *buf, unsigned int block, size_t len)
 {
+	struct hdmi_core_data *core = data;
 	void __iomem *base = core->base;
 	u32 i;
-	char checksum;
-	u32 offset = 0;
 
 	/* HDMI_CORE_DDC_STATUS_IN_PROG */
 	if (hdmi_wait_for_bit_change(base, HDMI_CORE_DDC_STATUS,
@@ -89,24 +87,21 @@ static int hdmi_core_ddc_edid(struct hdmi_core_data *core,
 		return -ETIMEDOUT;
 	}
 
-	if (ext % 2 != 0)
-		offset = 0x80;
-
 	/* Load Segment Address Register */
-	REG_FLD_MOD(base, HDMI_CORE_DDC_SEGM, ext / 2, 7, 0);
+	REG_FLD_MOD(base, HDMI_CORE_DDC_SEGM, block / 2, 7, 0);
 
 	/* Load Slave Address Register */
 	REG_FLD_MOD(base, HDMI_CORE_DDC_ADDR, 0xA0 >> 1, 7, 1);
 
 	/* Load Offset Address Register */
-	REG_FLD_MOD(base, HDMI_CORE_DDC_OFFSET, offset, 7, 0);
+	REG_FLD_MOD(base, HDMI_CORE_DDC_OFFSET, block % 2 ? 0x80 : 0, 7, 0);
 
 	/* Load Byte Count */
-	REG_FLD_MOD(base, HDMI_CORE_DDC_COUNT1, 0x80, 7, 0);
+	REG_FLD_MOD(base, HDMI_CORE_DDC_COUNT1, len, 7, 0);
 	REG_FLD_MOD(base, HDMI_CORE_DDC_COUNT2, 0x0, 1, 0);
 
 	/* Set DDC_CMD */
-	if (ext)
+	if (block)
 		REG_FLD_MOD(base, HDMI_CORE_DDC_CMD, 0x4, 3, 0);
 	else
 		REG_FLD_MOD(base, HDMI_CORE_DDC_CMD, 0x2, 3, 0);
@@ -122,7 +117,7 @@ static int hdmi_core_ddc_edid(struct hdmi_core_data *core,
 		return -EIO;
 	}
 
-	for (i = 0; i < 0x80; ++i) {
+	for (i = 0; i < len; ++i) {
 		int t;
 
 		/* IN_PROG */
@@ -141,46 +136,10 @@ static int hdmi_core_ddc_edid(struct hdmi_core_data *core,
 			udelay(1);
 		}
 
-		pedid[i] = REG_GET(base, HDMI_CORE_DDC_DATA, 7, 0);
-	}
-
-	checksum = 0;
-	for (i = 0; i < 0x80; ++i)
-		checksum += pedid[i];
-
-	if (checksum != 0) {
-		DSSERR("E-EDID checksum failed!!\n");
-		return -EIO;
+		buf[i] = REG_GET(base, HDMI_CORE_DDC_DATA, 7, 0);
 	}
 
 	return 0;
-}
-
-int hdmi4_read_edid(struct hdmi_core_data *core, u8 *edid, int len)
-{
-	int r, l;
-
-	if (len < 128)
-		return -EINVAL;
-
-	r = hdmi_core_ddc_init(core);
-	if (r)
-		return r;
-
-	r = hdmi_core_ddc_edid(core, edid, 0);
-	if (r)
-		return r;
-
-	l = 128;
-
-	if (len >= 128 * 2 && edid[0x7e] > 0) {
-		r = hdmi_core_ddc_edid(core, edid + 0x80, 1);
-		if (r)
-			return r;
-		l += 128;
-	}
-
-	return l;
 }
 
 static void hdmi_core_init(struct hdmi_core_video_config *video_cfg)

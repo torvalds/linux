@@ -167,13 +167,13 @@ examples:
     led-controller {
         compatible = "gpio-leds";
 
-        led0 {
+        led-0 {
             function = LED_FUNCTION_STATUS;
             linux,default-trigger = "heartbeat";
             gpios = <&gpio0 0 GPIO_ACTIVE_HIGH>;
         };
 
-        led1 {
+        led-1 {
             function = LED_FUNCTION_USB;
             gpios = <&gpio0 1 GPIO_ACTIVE_HIGH>;
             trigger-sources = <&ohci_port1>, <&ehci_port1>;

@@ -458,7 +458,6 @@ static void ath11k_ahb_ext_grp_disable(struct ath11k_ext_irq_grp *irq_grp)
 
 static void __ath11k_ahb_ext_irq_disable(struct ath11k_base *ab)
 {
-	struct sk_buff *skb;
 	int i;
 
 	for (i = 0; i < ATH11K_EXT_IRQ_GRP_NUM_MAX; i++) {
@@ -468,9 +467,6 @@ static void __ath11k_ahb_ext_irq_disable(struct ath11k_base *ab)
 
 		napi_synchronize(&irq_grp->napi);
 		napi_disable(&irq_grp->napi);
-
-		while ((skb = __skb_dequeue(&irq_grp->pending_q)))
-			dev_kfree_skb_any(skb);
 	}
 }
 
@@ -681,6 +677,9 @@ static irqreturn_t ath11k_ahb_ce_interrupt_handler(int irq, void *arg)
 {
 	struct ath11k_ce_pipe *ce_pipe = arg;
 
+	/* last interrupt received for this CE */
+	ce_pipe->timestamp = jiffies;
+
 	ath11k_ahb_ce_irq_disable(ce_pipe->ab, ce_pipe->pipe_num);
 
 	tasklet_schedule(&ce_pipe->intr_tq);
@@ -712,6 +711,9 @@ static irqreturn_t ath11k_ahb_ext_interrupt_handler(int irq, void *arg)
 {
 	struct ath11k_ext_irq_grp *irq_grp = arg;
 
+	/* last interrupt received for this group */
+	irq_grp->timestamp = jiffies;
+
 	ath11k_ahb_ext_grp_disable(irq_grp);
 
 	napi_schedule(&irq_grp->napi);
@@ -734,7 +736,6 @@ static int ath11k_ahb_ext_irq_config(struct ath11k_base *ab)
 		init_dummy_netdev(&irq_grp->napi_ndev);
 		netif_napi_add(&irq_grp->napi_ndev, &irq_grp->napi,
 			       ath11k_ahb_ext_grp_napi_poll, NAPI_POLL_WEIGHT);
-		__skb_queue_head_init(&irq_grp->pending_q);
 
 		for (j = 0; j < ATH11K_EXT_IRQ_NUM_MAX; j++) {
 			if (ath11k_tx_ring_mask[i] & BIT(j)) {

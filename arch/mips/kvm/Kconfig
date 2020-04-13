@@ -72,6 +72,4 @@ config KVM_MIPS_DEBUG_COP0_COUNTERS
 
 	  If unsure, say N.
 
-source "drivers/vhost/Kconfig"
-
 endif # VIRTUALIZATION

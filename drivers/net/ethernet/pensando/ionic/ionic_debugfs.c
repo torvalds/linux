@@ -228,7 +228,13 @@ DEFINE_SHOW_ATTRIBUTE(netdev);
 
 void ionic_debugfs_add_lif(struct ionic_lif *lif)
 {
-	lif->dentry = debugfs_create_dir(lif->name, lif->ionic->dentry);
+	struct dentry *lif_dentry;
+
+	lif_dentry = debugfs_create_dir(lif->name, lif->ionic->dentry);
+	if (IS_ERR_OR_NULL(lif_dentry))
+		return;
+	lif->dentry = lif_dentry;
+
 	debugfs_create_file("netdev", 0400, lif->dentry,
 			    lif->netdev, &netdev_fops);
 }

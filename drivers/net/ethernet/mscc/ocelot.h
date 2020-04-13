@@ -28,16 +28,6 @@
 #include "ocelot_tc.h"
 #include "ocelot_ptp.h"
 
-#define PGID_AGGR    64
-#define PGID_SRC     80
-
-/* Reserved PGIDs */
-#define PGID_CPU     (PGID_AGGR - 5)
-#define PGID_UC      (PGID_AGGR - 4)
-#define PGID_MC      (PGID_AGGR - 3)
-#define PGID_MCIPV4  (PGID_AGGR - 2)
-#define PGID_MCIPV6  (PGID_AGGR - 1)
-
 #define OCELOT_BUFFER_CELL_SZ 60
 
 #define OCELOT_STATS_CHECK_DELAY (2 * HZ)

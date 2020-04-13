@@ -56,6 +56,7 @@ struct amdgpu_sdma_ras_funcs {
 	void (*ras_fini)(struct amdgpu_device *adev);
 	int (*query_ras_error_count)(struct amdgpu_device *adev,
 			uint32_t instance, void *ras_error_status);
+	void (*reset_ras_error_count)(struct amdgpu_device *adev);
 };
 
 struct amdgpu_sdma {

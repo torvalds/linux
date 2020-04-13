@@ -88,13 +88,9 @@ const struct dsa_device_ops *dsa_tag_driver_get(int tag_protocol)
 {
 	struct dsa_tag_driver *dsa_tag_driver;
 	const struct dsa_device_ops *ops;
-	char module_name[128];
 	bool found = false;
 
-	snprintf(module_name, 127, "%s%d", DSA_TAG_DRIVER_ALIAS,
-		 tag_protocol);
-
-	request_module(module_name);
+	request_module("%s%d", DSA_TAG_DRIVER_ALIAS, tag_protocol);
 
 	mutex_lock(&dsa_tag_drivers_lock);
 	list_for_each_entry(dsa_tag_driver, &dsa_tag_drivers_list, list) {

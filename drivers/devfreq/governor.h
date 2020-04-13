@@ -18,7 +18,7 @@
 /* Devfreq events */
 #define DEVFREQ_GOV_START			0x1
 #define DEVFREQ_GOV_STOP			0x2
-#define DEVFREQ_GOV_INTERVAL			0x3
+#define DEVFREQ_GOV_UPDATE_INTERVAL		0x3
 #define DEVFREQ_GOV_SUSPEND			0x4
 #define DEVFREQ_GOV_RESUME			0x5
 
@@ -30,7 +30,7 @@
  * @node:		list node - contains registered devfreq governors
  * @name:		Governor's name
  * @immutable:		Immutable flag for governor. If the value is 1,
- *			this govenror is never changeable to other governor.
+ *			this governor is never changeable to other governor.
  * @interrupt_driven:	Devfreq core won't schedule polling work for this
  *			governor if value is set to 1.
  * @get_target_freq:	Returns desired operating frequency for the device.
@@ -57,17 +57,16 @@ struct devfreq_governor {
 				unsigned int event, void *data);
 };
 
-extern void devfreq_monitor_start(struct devfreq *devfreq);
-extern void devfreq_monitor_stop(struct devfreq *devfreq);
-extern void devfreq_monitor_suspend(struct devfreq *devfreq);
-extern void devfreq_monitor_resume(struct devfreq *devfreq);
-extern void devfreq_interval_update(struct devfreq *devfreq,
-					unsigned int *delay);
+void devfreq_monitor_start(struct devfreq *devfreq);
+void devfreq_monitor_stop(struct devfreq *devfreq);
+void devfreq_monitor_suspend(struct devfreq *devfreq);
+void devfreq_monitor_resume(struct devfreq *devfreq);
+void devfreq_update_interval(struct devfreq *devfreq, unsigned int *delay);
 
-extern int devfreq_add_governor(struct devfreq_governor *governor);
-extern int devfreq_remove_governor(struct devfreq_governor *governor);
+int devfreq_add_governor(struct devfreq_governor *governor);
+int devfreq_remove_governor(struct devfreq_governor *governor);
 
-extern int devfreq_update_status(struct devfreq *devfreq, unsigned long freq);
+int devfreq_update_status(struct devfreq *devfreq, unsigned long freq);
 
 static inline int devfreq_update_stats(struct devfreq *df)
 {

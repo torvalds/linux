@@ -11,6 +11,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mux/consumer.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/types.h>
@@ -57,8 +58,10 @@ static const struct hyperbus_ops am654_hbmc_ops = {
 
 static int am654_hbmc_probe(struct platform_device *pdev)
 {
+	struct device_node *np = pdev->dev.of_node;
 	struct device *dev = &pdev->dev;
 	struct am654_hbmc_priv *priv;
+	struct resource res;
 	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -66,6 +69,10 @@ static int am654_hbmc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, priv);
+
+	ret = of_address_to_resource(np, 0, &res);
+	if (ret)
+		return ret;
 
 	if (of_property_read_bool(dev->of_node, "mux-controls")) {
 		struct mux_control *control = devm_mux_control_get(dev, NULL);
@@ -87,6 +94,11 @@ static int am654_hbmc_probe(struct platform_device *pdev)
 		pm_runtime_put_noidle(dev);
 		goto disable_pm;
 	}
+
+	priv->hbdev.map.size = resource_size(&res);
+	priv->hbdev.map.virt = devm_ioremap_resource(dev, &res);
+	if (IS_ERR(priv->hbdev.map.virt))
+		return PTR_ERR(priv->hbdev.map.virt);
 
 	priv->ctlr.dev = dev;
 	priv->ctlr.ops = &am654_hbmc_ops;

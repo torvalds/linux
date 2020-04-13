@@ -1802,7 +1802,7 @@ static int mccic_notify_bound(struct v4l2_async_notifier *notifier,
 	cam->vdev.lock = &cam->s_mutex;
 	cam->vdev.queue = &cam->vb_queue;
 	video_set_drvdata(&cam->vdev, cam);
-	ret = video_register_device(&cam->vdev, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(&cam->vdev, VFL_TYPE_VIDEO, -1);
 	if (ret) {
 		cam->sensor = NULL;
 		goto out;

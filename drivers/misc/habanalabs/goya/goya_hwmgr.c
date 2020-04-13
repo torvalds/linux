@@ -298,8 +298,8 @@ static ssize_t pm_mng_profile_store(struct device *dev,
 		/* Make sure we are in LOW PLL when changing modes */
 		if (hdev->pm_mng_profile == PM_MANUAL) {
 			hdev->curr_pll_profile = PLL_HIGH;
-			hl_device_set_frequency(hdev, PLL_LOW);
 			hdev->pm_mng_profile = PM_AUTO;
+			hl_device_set_frequency(hdev, PLL_LOW);
 		}
 	} else if (strncmp("manual", buf, strlen("manual")) == 0) {
 		if (hdev->pm_mng_profile == PM_AUTO) {

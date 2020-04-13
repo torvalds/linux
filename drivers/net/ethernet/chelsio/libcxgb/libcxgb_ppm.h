@@ -122,7 +122,7 @@ struct cxgbi_ppm_pool {
 	unsigned int base;		/* base index */
 	unsigned int next;		/* next possible free index */
 	spinlock_t lock;		/* ppm pool lock */
-	unsigned long bmap[0];
+	unsigned long bmap[];
 } ____cacheline_aligned_in_smp;
 
 struct cxgbi_ppm {
@@ -145,7 +145,7 @@ struct cxgbi_ppm {
 	unsigned int next;
 	unsigned int max_index_in_edram;
 	unsigned long *ppod_bmap;
-	struct cxgbi_ppod_data ppod_data[0];
+	struct cxgbi_ppod_data ppod_data[];
 };
 
 #define DDP_THRESHOLD		512

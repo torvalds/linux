@@ -8,7 +8,7 @@
 #include <net/inet_ecn.h>
 #include <net/pkt_sched.h>
 
-#define MAX_PROB	U64_MAX
+#define MAX_PROB	(U64_MAX >> BITS_PER_BYTE)
 #define DTIME_INVALID	U64_MAX
 #define QUEUE_THRESHOLD	16384
 #define DQCOUNT_INVALID	-1
@@ -38,16 +38,15 @@ struct pie_params {
 
 /**
  * struct pie_vars - contains pie variables
- * @qdelay:			current queue delay
- * @qdelay_old:			queue delay in previous qdelay calculation
- * @burst_time:			burst time allowance
- * @dq_tstamp:			timestamp at which dq rate was last calculated
- * @prob:			drop probability
- * @accu_prob:			accumulated drop probability
- * @dq_count:			number of bytes dequeued in a measurement cycle
- * @avg_dq_rate:		calculated average dq rate
- * @qlen_old:			queue length during previous qdelay calculation
- * @accu_prob_overflows:	number of times accu_prob overflows
+ * @qdelay:		current queue delay
+ * @qdelay_old:		queue delay in previous qdelay calculation
+ * @burst_time:		burst time allowance
+ * @dq_tstamp:		timestamp at which dq rate was last calculated
+ * @prob:		drop probability
+ * @accu_prob:		accumulated drop probability
+ * @dq_count:		number of bytes dequeued in a measurement cycle
+ * @avg_dq_rate:	calculated average dq rate
+ * @backlog_old:	queue backlog during previous qdelay calculation
  */
 struct pie_vars {
 	psched_time_t qdelay;
@@ -58,8 +57,7 @@ struct pie_vars {
 	u64 accu_prob;
 	u64 dq_count;
 	u32 avg_dq_rate;
-	u32 qlen_old;
-	u8 accu_prob_overflows;
+	u32 backlog_old;
 };
 
 /**
@@ -107,7 +105,6 @@ static inline void pie_vars_init(struct pie_vars *vars)
 	vars->accu_prob = 0;
 	vars->dq_count = DQCOUNT_INVALID;
 	vars->avg_dq_rate = 0;
-	vars->accu_prob_overflows = 0;
 }
 
 static inline struct pie_skb_cb *get_pie_cb(const struct sk_buff *skb)
@@ -127,12 +124,12 @@ static inline void pie_set_enqueue_time(struct sk_buff *skb)
 }
 
 bool pie_drop_early(struct Qdisc *sch, struct pie_params *params,
-		    struct pie_vars *vars, u32 qlen, u32 packet_size);
+		    struct pie_vars *vars, u32 backlog, u32 packet_size);
 
 void pie_process_dequeue(struct sk_buff *skb, struct pie_params *params,
-			 struct pie_vars *vars, u32 qlen);
+			 struct pie_vars *vars, u32 backlog);
 
 void pie_calculate_probability(struct pie_params *params, struct pie_vars *vars,
-			       u32 qlen);
+			       u32 backlog);
 
 #endif

@@ -33,6 +33,7 @@
 #include "asm/bug.h"
 #include "bpf-event.h"
 #include <internal/lib.h> // page_size
+#include "cgroup.h"
 
 #include <linux/ctype.h>
 #include <symbol/kallsyms.h>
@@ -652,6 +653,22 @@ int machine__process_namespaces_event(struct machine *machine __maybe_unused,
 	thread__put(thread);
 
 	return err;
+}
+
+int machine__process_cgroup_event(struct machine *machine,
+				  union perf_event *event,
+				  struct perf_sample *sample __maybe_unused)
+{
+	struct cgroup *cgrp;
+
+	if (dump_trace)
+		perf_event__fprintf_cgroup(event, stdout);
+
+	cgrp = cgroup__findnew(machine->env, event->cgroup.id, event->cgroup.path);
+	if (cgrp == NULL)
+		return -ENOMEM;
+
+	return 0;
 }
 
 int machine__process_lost_event(struct machine *machine __maybe_unused,
@@ -1878,6 +1895,8 @@ int machine__process_event(struct machine *machine, union perf_event *event,
 		ret = machine__process_mmap_event(machine, event, sample); break;
 	case PERF_RECORD_NAMESPACES:
 		ret = machine__process_namespaces_event(machine, event, sample); break;
+	case PERF_RECORD_CGROUP:
+		ret = machine__process_cgroup_event(machine, event, sample); break;
 	case PERF_RECORD_MMAP2:
 		ret = machine__process_mmap2_event(machine, event, sample); break;
 	case PERF_RECORD_FORK:
@@ -2081,15 +2100,16 @@ struct branch_info *sample__resolve_bstack(struct perf_sample *sample,
 {
 	unsigned int i;
 	const struct branch_stack *bs = sample->branch_stack;
+	struct branch_entry *entries = perf_sample__branch_entries(sample);
 	struct branch_info *bi = calloc(bs->nr, sizeof(struct branch_info));
 
 	if (!bi)
 		return NULL;
 
 	for (i = 0; i < bs->nr; i++) {
-		ip__resolve_ams(al->thread, &bi[i].to, bs->entries[i].to);
-		ip__resolve_ams(al->thread, &bi[i].from, bs->entries[i].from);
-		bi[i].flags = bs->entries[i].flags;
+		ip__resolve_ams(al->thread, &bi[i].to, entries[i].to);
+		ip__resolve_ams(al->thread, &bi[i].from, entries[i].from);
+		bi[i].flags = entries[i].flags;
 	}
 	return bi;
 }
@@ -2185,6 +2205,7 @@ static int resolve_lbr_callchain_sample(struct thread *thread,
 	/* LBR only affects the user callchain */
 	if (i != chain_nr) {
 		struct branch_stack *lbr_stack = sample->branch_stack;
+		struct branch_entry *entries = perf_sample__branch_entries(sample);
 		int lbr_nr = lbr_stack->nr, j, k;
 		bool branch;
 		struct branch_flags *flags;
@@ -2210,31 +2231,29 @@ static int resolve_lbr_callchain_sample(struct thread *thread,
 					ip = chain->ips[j];
 				else if (j > i + 1) {
 					k = j - i - 2;
-					ip = lbr_stack->entries[k].from;
+					ip = entries[k].from;
 					branch = true;
-					flags = &lbr_stack->entries[k].flags;
+					flags = &entries[k].flags;
 				} else {
-					ip = lbr_stack->entries[0].to;
+					ip = entries[0].to;
 					branch = true;
-					flags = &lbr_stack->entries[0].flags;
-					branch_from =
-						lbr_stack->entries[0].from;
+					flags = &entries[0].flags;
+					branch_from = entries[0].from;
 				}
 			} else {
 				if (j < lbr_nr) {
 					k = lbr_nr - j - 1;
-					ip = lbr_stack->entries[k].from;
+					ip = entries[k].from;
 					branch = true;
-					flags = &lbr_stack->entries[k].flags;
+					flags = &entries[k].flags;
 				}
 				else if (j > lbr_nr)
 					ip = chain->ips[i + 1 - (j - lbr_nr)];
 				else {
-					ip = lbr_stack->entries[0].to;
+					ip = entries[0].to;
 					branch = true;
-					flags = &lbr_stack->entries[0].flags;
-					branch_from =
-						lbr_stack->entries[0].from;
+					flags = &entries[0].flags;
+					branch_from = entries[0].from;
 				}
 			}
 
@@ -2281,6 +2300,7 @@ static int thread__resolve_callchain_sample(struct thread *thread,
 					    int max_stack)
 {
 	struct branch_stack *branch = sample->branch_stack;
+	struct branch_entry *entries = perf_sample__branch_entries(sample);
 	struct ip_callchain *chain = sample->callchain;
 	int chain_nr = 0;
 	u8 cpumode = PERF_RECORD_MISC_USER;
@@ -2328,7 +2348,7 @@ static int thread__resolve_callchain_sample(struct thread *thread,
 
 		for (i = 0; i < nr; i++) {
 			if (callchain_param.order == ORDER_CALLEE) {
-				be[i] = branch->entries[i];
+				be[i] = entries[i];
 
 				if (chain == NULL)
 					continue;
@@ -2347,7 +2367,7 @@ static int thread__resolve_callchain_sample(struct thread *thread,
 				    be[i].from >= chain->ips[first_call] - 8)
 					first_call++;
 			} else
-				be[i] = branch->entries[branch->nr - i - 1];
+				be[i] = entries[branch->nr - i - 1];
 		}
 
 		memset(iter, 0, sizeof(struct iterations) * nr);

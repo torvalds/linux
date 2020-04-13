@@ -685,10 +685,70 @@ reset_nic:
 	return rc ? rc : rc2;
 }
 
-int efx_ef10_sriov_set_vf_spoofchk(struct efx_nic *efx, int vf_i,
-				   bool spoofchk)
+static int efx_ef10_sriov_set_privilege_mask(struct efx_nic *efx, int vf_i,
+					     u32 mask, u32 value)
 {
-	return spoofchk ? -EOPNOTSUPP : 0;
+	MCDI_DECLARE_BUF(pm_outbuf, MC_CMD_PRIVILEGE_MASK_OUT_LEN);
+	MCDI_DECLARE_BUF(pm_inbuf, MC_CMD_PRIVILEGE_MASK_IN_LEN);
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+	u32 old_mask, new_mask;
+	size_t outlen;
+	int rc;
+
+	EFX_WARN_ON_PARANOID((value & ~mask) != 0);
+
+	/* Get privilege mask */
+	MCDI_POPULATE_DWORD_2(pm_inbuf, PRIVILEGE_MASK_IN_FUNCTION,
+			      PRIVILEGE_MASK_IN_FUNCTION_PF, nic_data->pf_index,
+			      PRIVILEGE_MASK_IN_FUNCTION_VF, vf_i);
+
+	rc = efx_mcdi_rpc(efx, MC_CMD_PRIVILEGE_MASK,
+			  pm_inbuf, sizeof(pm_inbuf),
+			  pm_outbuf, sizeof(pm_outbuf), &outlen);
+
+	if (rc != 0)
+		return rc;
+	if (outlen != MC_CMD_PRIVILEGE_MASK_OUT_LEN)
+		return -EIO;
+
+	old_mask = MCDI_DWORD(pm_outbuf, PRIVILEGE_MASK_OUT_OLD_MASK);
+
+	new_mask = old_mask & ~mask;
+	new_mask |= value;
+
+	if (new_mask == old_mask)
+		return 0;
+
+	new_mask |= MC_CMD_PRIVILEGE_MASK_IN_DO_CHANGE;
+
+	/* Set privilege mask */
+	MCDI_SET_DWORD(pm_inbuf, PRIVILEGE_MASK_IN_NEW_MASK, new_mask);
+
+	rc = efx_mcdi_rpc(efx, MC_CMD_PRIVILEGE_MASK,
+			  pm_inbuf, sizeof(pm_inbuf),
+			  pm_outbuf, sizeof(pm_outbuf), &outlen);
+
+	if (rc != 0)
+		return rc;
+	if (outlen != MC_CMD_PRIVILEGE_MASK_OUT_LEN)
+		return -EIO;
+
+	return 0;
+}
+
+int efx_ef10_sriov_set_vf_spoofchk(struct efx_nic *efx, int vf_i, bool spoofchk)
+{
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+
+	/* Can't enable spoofchk if firmware doesn't support it. */
+	if (!(nic_data->datapath_caps &
+	      BIT(MC_CMD_GET_CAPABILITIES_OUT_TX_MAC_SECURITY_FILTERING_LBN)) &&
+	    spoofchk)
+		return -EOPNOTSUPP;
+
+	return efx_ef10_sriov_set_privilege_mask(efx, vf_i,
+		MC_CMD_PRIVILEGE_MASK_IN_GRP_MAC_SPOOFING_TX,
+		spoofchk ? 0 : MC_CMD_PRIVILEGE_MASK_IN_GRP_MAC_SPOOFING_TX);
 }
 
 int efx_ef10_sriov_set_vf_link_state(struct efx_nic *efx, int vf_i,

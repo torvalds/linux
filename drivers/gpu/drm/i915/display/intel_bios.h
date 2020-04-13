@@ -32,8 +32,6 @@
 
 #include <linux/types.h>
 
-#include <drm/i915_drm.h>
-
 struct drm_i915_private;
 struct intel_crtc_state;
 struct intel_encoder;
@@ -247,5 +245,16 @@ enum aux_ch intel_bios_port_aux_ch(struct drm_i915_private *dev_priv, enum port 
 bool intel_bios_get_dsc_params(struct intel_encoder *encoder,
 			       struct intel_crtc_state *crtc_state,
 			       int dsc_max_bpc);
+int intel_bios_max_tmds_clock(struct intel_encoder *encoder);
+int intel_bios_hdmi_level_shift(struct intel_encoder *encoder);
+int intel_bios_dp_boost_level(struct intel_encoder *encoder);
+int intel_bios_hdmi_boost_level(struct intel_encoder *encoder);
+int intel_bios_dp_max_link_rate(struct intel_encoder *encoder);
+int intel_bios_alternate_ddc_pin(struct intel_encoder *encoder);
+bool intel_bios_port_supports_dvi(struct drm_i915_private *i915, enum port port);
+bool intel_bios_port_supports_hdmi(struct drm_i915_private *i915, enum port port);
+bool intel_bios_port_supports_dp(struct drm_i915_private *i915, enum port port);
+bool intel_bios_port_supports_typec_usb(struct drm_i915_private *i915, enum port port);
+bool intel_bios_port_supports_tbt(struct drm_i915_private *i915, enum port port);
 
 #endif /* _INTEL_BIOS_H_ */

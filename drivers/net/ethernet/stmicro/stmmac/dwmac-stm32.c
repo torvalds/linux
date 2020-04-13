@@ -304,7 +304,7 @@ static int stm32mp1_parse_data(struct stm32_dwmac *dwmac,
 	/*  Get ETH_CLK clocks */
 	dwmac->clk_eth_ck = devm_clk_get(dev, "eth-ck");
 	if (IS_ERR(dwmac->clk_eth_ck)) {
-		dev_warn(dev, "No phy clock provided...\n");
+		dev_info(dev, "No phy clock provided...\n");
 		dwmac->clk_eth_ck = NULL;
 	}
 
@@ -324,7 +324,7 @@ static int stm32mp1_parse_data(struct stm32_dwmac *dwmac,
 	/* Get IRQ information early to have an ability to ask for deferred
 	 * probe if needed before we went too far with resource allocation.
 	 */
-	dwmac->irq_pwr_wakeup = platform_get_irq_byname(pdev,
+	dwmac->irq_pwr_wakeup = platform_get_irq_byname_optional(pdev,
 							"stm32_pwr_wakeup");
 	if (dwmac->irq_pwr_wakeup == -EPROBE_DEFER)
 		return -EPROBE_DEFER;

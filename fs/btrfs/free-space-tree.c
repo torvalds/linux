@@ -1251,9 +1251,7 @@ int btrfs_clear_free_space_tree(struct btrfs_fs_info *fs_info)
 	btrfs_free_tree_block(trans, free_space_root, free_space_root->node,
 			      0, 1);
 
-	free_extent_buffer(free_space_root->node);
-	free_extent_buffer(free_space_root->commit_root);
-	kfree(free_space_root);
+	btrfs_put_root(free_space_root);
 
 	return btrfs_commit_transaction(trans);
 

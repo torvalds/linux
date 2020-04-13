@@ -42,6 +42,7 @@
 #define DRV_NAME			"intel_xhci_usb_sw"
 
 struct intel_xhci_usb_data {
+	struct device *dev;
 	struct usb_role_switch *role_sw;
 	void __iomem *base;
 	bool enable_sw_switch;
@@ -51,9 +52,10 @@ static const struct software_node intel_xhci_usb_node = {
 	"intel-xhci-usb-sw",
 };
 
-static int intel_xhci_usb_set_role(struct device *dev, enum usb_role role)
+static int intel_xhci_usb_set_role(struct usb_role_switch *sw,
+				   enum usb_role role)
 {
-	struct intel_xhci_usb_data *data = dev_get_drvdata(dev);
+	struct intel_xhci_usb_data *data = usb_role_switch_get_drvdata(sw);
 	unsigned long timeout;
 	acpi_status status;
 	u32 glk, val;
@@ -66,11 +68,11 @@ static int intel_xhci_usb_set_role(struct device *dev, enum usb_role role)
 	 */
 	status = acpi_acquire_global_lock(ACPI_WAIT_FOREVER, &glk);
 	if (ACPI_FAILURE(status) && status != AE_NOT_CONFIGURED) {
-		dev_err(dev, "Error could not acquire lock\n");
+		dev_err(data->dev, "Error could not acquire lock\n");
 		return -EIO;
 	}
 
-	pm_runtime_get_sync(dev);
+	pm_runtime_get_sync(data->dev);
 
 	/*
 	 * Set idpin value as requested.
@@ -112,7 +114,7 @@ static int intel_xhci_usb_set_role(struct device *dev, enum usb_role role)
 	do {
 		val = readl(data->base + DUAL_ROLE_CFG1);
 		if (!!(val & HOST_MODE) == (role == USB_ROLE_HOST)) {
-			pm_runtime_put(dev);
+			pm_runtime_put(data->dev);
 			return 0;
 		}
 
@@ -120,21 +122,21 @@ static int intel_xhci_usb_set_role(struct device *dev, enum usb_role role)
 		usleep_range(5000, 10000);
 	} while (time_before(jiffies, timeout));
 
-	pm_runtime_put(dev);
+	pm_runtime_put(data->dev);
 
-	dev_warn(dev, "Timeout waiting for role-switch\n");
+	dev_warn(data->dev, "Timeout waiting for role-switch\n");
 	return -ETIMEDOUT;
 }
 
-static enum usb_role intel_xhci_usb_get_role(struct device *dev)
+static enum usb_role intel_xhci_usb_get_role(struct usb_role_switch *sw)
 {
-	struct intel_xhci_usb_data *data = dev_get_drvdata(dev);
+	struct intel_xhci_usb_data *data = usb_role_switch_get_drvdata(sw);
 	enum usb_role role;
 	u32 val;
 
-	pm_runtime_get_sync(dev);
+	pm_runtime_get_sync(data->dev);
 	val = readl(data->base + DUAL_ROLE_CFG0);
-	pm_runtime_put(dev);
+	pm_runtime_put(data->dev);
 
 	if (!(val & SW_IDPIN))
 		role = USB_ROLE_HOST;
@@ -175,7 +177,9 @@ static int intel_xhci_usb_probe(struct platform_device *pdev)
 	sw_desc.get = intel_xhci_usb_get_role,
 	sw_desc.allow_userspace_control = true,
 	sw_desc.fwnode = software_node_fwnode(&intel_xhci_usb_node);
+	sw_desc.driver_data = data;
 
+	data->dev = dev;
 	data->enable_sw_switch = !device_property_read_bool(dev,
 						"sw_switch_disable");
 

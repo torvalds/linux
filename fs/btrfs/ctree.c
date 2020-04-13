@@ -31,8 +31,8 @@ static void del_ptr(struct btrfs_root *root, struct btrfs_path *path,
 
 static const struct btrfs_csums {
 	u16		size;
-	const char	*name;
-	const char	*driver;
+	const char	name[10];
+	const char	driver[12];
 } btrfs_csums[] = {
 	[BTRFS_CSUM_TYPE_CRC32] = { .size = 4, .name = "crc32c" },
 	[BTRFS_CSUM_TYPE_XXHASH] = { .size = 8, .name = "xxhash64" },
@@ -63,7 +63,8 @@ const char *btrfs_super_csum_name(u16 csum_type)
 const char *btrfs_super_csum_driver(u16 csum_type)
 {
 	/* csum type is validated at mount time */
-	return btrfs_csums[csum_type].driver ?:
+	return btrfs_csums[csum_type].driver[0] ?
+		btrfs_csums[csum_type].driver :
 		btrfs_csums[csum_type].name;
 }
 
@@ -139,44 +140,6 @@ struct extent_buffer *btrfs_root_node(struct btrfs_root *root)
 		}
 		rcu_read_unlock();
 		synchronize_rcu();
-	}
-	return eb;
-}
-
-/* loop around taking references on and locking the root node of the
- * tree until you end up with a lock on the root.  A locked buffer
- * is returned, with a reference held.
- */
-struct extent_buffer *btrfs_lock_root_node(struct btrfs_root *root)
-{
-	struct extent_buffer *eb;
-
-	while (1) {
-		eb = btrfs_root_node(root);
-		btrfs_tree_lock(eb);
-		if (eb == root->node)
-			break;
-		btrfs_tree_unlock(eb);
-		free_extent_buffer(eb);
-	}
-	return eb;
-}
-
-/* loop around taking references on and locking the root node of the
- * tree until you end up with a lock on the root.  A locked buffer
- * is returned, with a reference held.
- */
-struct extent_buffer *btrfs_read_lock_root_node(struct btrfs_root *root)
-{
-	struct extent_buffer *eb;
-
-	while (1) {
-		eb = btrfs_root_node(root);
-		btrfs_tree_read_lock(eb);
-		if (eb == root->node)
-			break;
-		btrfs_tree_read_unlock(eb);
-		free_extent_buffer(eb);
 	}
 	return eb;
 }
@@ -341,7 +304,6 @@ void btrfs_put_tree_mod_seq(struct btrfs_fs_info *fs_info,
 	struct rb_root *tm_root;
 	struct rb_node *node;
 	struct rb_node *next;
-	struct seq_list *cur_elem;
 	struct tree_mod_elem *tm;
 	u64 min_seq = (u64)-1;
 	u64 seq_putting = elem->seq;
@@ -353,18 +315,20 @@ void btrfs_put_tree_mod_seq(struct btrfs_fs_info *fs_info,
 	list_del(&elem->list);
 	elem->seq = 0;
 
-	list_for_each_entry(cur_elem, &fs_info->tree_mod_seq_list, list) {
-		if (cur_elem->seq < min_seq) {
-			if (seq_putting > cur_elem->seq) {
-				/*
-				 * blocker with lower sequence number exists, we
-				 * cannot remove anything from the log
-				 */
-				write_unlock(&fs_info->tree_mod_log_lock);
-				return;
-			}
-			min_seq = cur_elem->seq;
+	if (!list_empty(&fs_info->tree_mod_seq_list)) {
+		struct seq_list *first;
+
+		first = list_first_entry(&fs_info->tree_mod_seq_list,
+					 struct seq_list, list);
+		if (seq_putting > first->seq) {
+			/*
+			 * Blocker with lower sequence number exists, we
+			 * cannot remove anything from the log.
+			 */
+			write_unlock(&fs_info->tree_mod_log_lock);
+			return;
 		}
+		min_seq = first->seq;
 	}
 
 	/*
@@ -962,9 +926,7 @@ static noinline int update_ref_for_cow(struct btrfs_trans_handle *trans,
 		if (new_flags != 0) {
 			int level = btrfs_header_level(buf);
 
-			ret = btrfs_set_disk_extent_flags(trans,
-							  buf->start,
-							  buf->len,
+			ret = btrfs_set_disk_extent_flags(trans, buf,
 							  new_flags, level, 0);
 			if (ret)
 				return ret;

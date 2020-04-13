@@ -5,6 +5,7 @@
 #ifndef _LINUX_PROC_FS_H
 #define _LINUX_PROC_FS_H
 
+#include <linux/compiler.h>
 #include <linux/types.h>
 #include <linux/fs.h>
 
@@ -12,7 +13,21 @@ struct proc_dir_entry;
 struct seq_file;
 struct seq_operations;
 
+enum {
+	/*
+	 * All /proc entries using this ->proc_ops instance are never removed.
+	 *
+	 * If in doubt, ignore this flag.
+	 */
+#ifdef MODULE
+	PROC_ENTRY_PERMANENT = 0U,
+#else
+	PROC_ENTRY_PERMANENT = 1U << 0,
+#endif
+};
+
 struct proc_ops {
+	unsigned int proc_flags;
 	int	(*proc_open)(struct inode *, struct file *);
 	ssize_t	(*proc_read)(struct file *, char __user *, size_t, loff_t *);
 	ssize_t	(*proc_write)(struct file *, const char __user *, size_t, loff_t *);
@@ -25,14 +40,14 @@ struct proc_ops {
 #endif
 	int	(*proc_mmap)(struct file *, struct vm_area_struct *);
 	unsigned long (*proc_get_unmapped_area)(struct file *, unsigned long, unsigned long, unsigned long, unsigned long);
-};
+} __randomize_layout;
 
 #ifdef CONFIG_PROC_FS
 
 typedef int (*proc_write_t)(struct file *, char *, size_t);
 
 extern void proc_root_init(void);
-extern void proc_flush_task(struct task_struct *);
+extern void proc_flush_pid(struct pid *);
 
 extern struct proc_dir_entry *proc_symlink(const char *,
 		struct proc_dir_entry *, const char *);
@@ -105,7 +120,7 @@ static inline void proc_root_init(void)
 {
 }
 
-static inline void proc_flush_task(struct task_struct *task)
+static inline void proc_flush_pid(struct pid *pid)
 {
 }
 

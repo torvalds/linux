@@ -85,7 +85,8 @@ static u32 max_current[][5] = {
 	[max20743] = { 18900, 24100, 29200, 34100 },
 };
 
-static int max20730_read_word_data(struct i2c_client *client, int page, int reg)
+static int max20730_read_word_data(struct i2c_client *client, int page,
+				   int phase, int reg)
 {
 	const struct pmbus_driver_info *info = pmbus_get_driver_info(client);
 	const struct max20730_data *data = to_max20730_data(info);

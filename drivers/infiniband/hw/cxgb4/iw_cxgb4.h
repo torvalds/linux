@@ -707,7 +707,7 @@ struct mpa_message {
 	u8 flags;
 	u8 revision;
 	__be16 private_data_size;
-	u8 private_data[0];
+	u8 private_data[];
 };
 
 struct mpa_v2_conn_params {
@@ -719,7 +719,7 @@ struct terminate_message {
 	u8 layer_etype;
 	u8 ecode;
 	__be16 hdrct_rsvd;
-	u8 len_hdrs[0];
+	u8 len_hdrs[];
 };
 
 #define TERM_MAX_LENGTH (sizeof(struct terminate_message) + 2 + 18 + 28)

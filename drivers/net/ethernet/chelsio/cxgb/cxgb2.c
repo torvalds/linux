@@ -429,7 +429,6 @@ static void get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 	struct adapter *adapter = dev->ml_priv;
 
 	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 	strlcpy(info->bus_info, pci_name(adapter->pdev),
 		sizeof(info->bus_info));
 }
@@ -794,6 +793,9 @@ static int get_eeprom(struct net_device *dev, struct ethtool_eeprom *e,
 }
 
 static const struct ethtool_ops t1_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_RX_USECS |
+				     ETHTOOL_COALESCE_USE_ADAPTIVE_RX |
+				     ETHTOOL_COALESCE_RATE_SAMPLE_INTERVAL,
 	.get_drvinfo       = get_drvinfo,
 	.get_msglevel      = get_msglevel,
 	.set_msglevel      = set_msglevel,
@@ -983,8 +985,6 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	const struct board_info *bi;
 	struct adapter *adapter = NULL;
 	struct port_info *pi;
-
-	pr_info_once("%s - version %s\n", DRV_DESCRIPTION, DRV_VERSION);
 
 	err = pci_enable_device(pdev);
 	if (err)

@@ -98,6 +98,7 @@ struct ionic_deferred_work {
 	union {
 		unsigned int rx_mode;
 		u8 addr[ETH_ALEN];
+		u8 fw_status;
 	};
 };
 
@@ -121,14 +122,15 @@ struct ionic_lif_sw_stats {
 };
 
 enum ionic_lif_state_flags {
-	IONIC_LIF_INITED,
-	IONIC_LIF_SW_DEBUG_STATS,
-	IONIC_LIF_UP,
-	IONIC_LIF_LINK_CHECK_REQUESTED,
-	IONIC_LIF_QUEUE_RESET,
+	IONIC_LIF_F_INITED,
+	IONIC_LIF_F_SW_DEBUG_STATS,
+	IONIC_LIF_F_UP,
+	IONIC_LIF_F_LINK_CHECK_REQUESTED,
+	IONIC_LIF_F_QUEUE_RESET,
+	IONIC_LIF_F_FW_RESET,
 
 	/* leave this as last */
-	IONIC_LIF_STATE_SIZE
+	IONIC_LIF_F_STATE_SIZE
 };
 
 #define IONIC_LIF_NAME_MAX_SZ		32
@@ -136,7 +138,7 @@ struct ionic_lif {
 	char name[IONIC_LIF_NAME_MAX_SZ];
 	struct list_head list;
 	struct net_device *netdev;
-	DECLARE_BITMAP(state, IONIC_LIF_STATE_SIZE);
+	DECLARE_BITMAP(state, IONIC_LIF_F_STATE_SIZE);
 	struct ionic *ionic;
 	bool registered;
 	unsigned int index;
@@ -179,7 +181,6 @@ struct ionic_lif {
 	u32 rx_coalesce_usecs;		/* what the user asked for */
 	u32 rx_coalesce_hw;		/* what the hw is using */
 
-	u32 flags;
 	struct work_struct tx_timeout_work;
 };
 
@@ -225,6 +226,9 @@ static inline u32 ionic_coal_hw_to_usec(struct ionic *ionic, u32 units)
 	return (units * div) / mult;
 }
 
+void ionic_link_status_check_request(struct ionic_lif *lif);
+void ionic_lif_deferred_enqueue(struct ionic_deferred *def,
+				struct ionic_deferred_work *work);
 int ionic_lifs_alloc(struct ionic *ionic);
 void ionic_lifs_free(struct ionic *ionic);
 void ionic_lifs_deinit(struct ionic *ionic);

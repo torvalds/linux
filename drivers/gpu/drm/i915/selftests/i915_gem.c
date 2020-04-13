@@ -98,7 +98,7 @@ static void pm_suspend(struct drm_i915_private *i915)
 	intel_wakeref_t wakeref;
 
 	with_intel_runtime_pm(&i915->runtime_pm, wakeref) {
-		i915_gem_suspend_gtt_mappings(i915);
+		i915_ggtt_suspend(&i915->ggtt);
 		i915_gem_suspend_late(i915);
 	}
 }
@@ -108,7 +108,7 @@ static void pm_hibernate(struct drm_i915_private *i915)
 	intel_wakeref_t wakeref;
 
 	with_intel_runtime_pm(&i915->runtime_pm, wakeref) {
-		i915_gem_suspend_gtt_mappings(i915);
+		i915_ggtt_suspend(&i915->ggtt);
 
 		i915_gem_freeze(i915);
 		i915_gem_freeze_late(i915);
@@ -124,7 +124,7 @@ static void pm_resume(struct drm_i915_private *i915)
 	 * that runtime-pm just works.
 	 */
 	with_intel_runtime_pm(&i915->runtime_pm, wakeref) {
-		i915_gem_restore_gtt_mappings(i915);
+		i915_ggtt_resume(&i915->ggtt);
 		i915_gem_restore_fences(&i915->ggtt);
 
 		i915_gem_resume(i915);

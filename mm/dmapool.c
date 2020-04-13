@@ -144,9 +144,7 @@ struct dma_pool *dma_pool_create(const char *name, struct device *dev,
 	else if (size < 4)
 		size = 4;
 
-	if ((size % align) != 0)
-		size = ALIGN(size, align);
-
+	size = ALIGN(size, align);
 	allocation = max_t(size_t, size, PAGE_SIZE);
 
 	if (!boundary)

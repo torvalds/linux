@@ -134,11 +134,16 @@
 /* MAC and PHY tx_config_Reg[15:0] for SGMII in-band auto-negotiation.*/
 #define ADVERTISE_SGMII		0x0001	/* MAC can do SGMII            */
 #define LPA_SGMII		0x0001	/* PHY can do SGMII            */
+#define LPA_SGMII_SPD_MASK	0x0c00	/* SGMII speed mask            */
+#define LPA_SGMII_FULL_DUPLEX	0x1000	/* SGMII full duplex           */
 #define LPA_SGMII_DPX_SPD_MASK	0x1C00	/* SGMII duplex and speed bits */
+#define LPA_SGMII_10		0x0000	/* 10Mbps                      */
 #define LPA_SGMII_10HALF	0x0000	/* Can do 10mbps half-duplex   */
 #define LPA_SGMII_10FULL	0x1000	/* Can do 10mbps full-duplex   */
+#define LPA_SGMII_100		0x0400	/* 100Mbps                     */
 #define LPA_SGMII_100HALF	0x0400	/* Can do 100mbps half-duplex  */
 #define LPA_SGMII_100FULL	0x1400	/* Can do 100mbps full-duplex  */
+#define LPA_SGMII_1000		0x0800	/* 1000Mbps                    */
 #define LPA_SGMII_1000HALF	0x0800	/* Can do 1000mbps half-duplex */
 #define LPA_SGMII_1000FULL	0x1800	/* Can do 1000mbps full-duplex */
 #define LPA_SGMII_LINK		0x8000	/* PHY link with copper-side partner */

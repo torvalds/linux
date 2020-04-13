@@ -143,14 +143,12 @@ void __fsnotify_update_child_dentry_flags(struct inode *inode)
 }
 
 /* Notify this dentry's parent about a child's events. */
-int __fsnotify_parent(const struct path *path, struct dentry *dentry, __u32 mask)
+int fsnotify_parent(struct dentry *dentry, __u32 mask, const void *data,
+		    int data_type)
 {
 	struct dentry *parent;
 	struct inode *p_inode;
 	int ret = 0;
-
-	if (!dentry)
-		dentry = path->dentry;
 
 	if (!(dentry->d_flags & DCACHE_FSNOTIFY_PARENT_WATCHED))
 		return 0;
@@ -168,12 +166,7 @@ int __fsnotify_parent(const struct path *path, struct dentry *dentry, __u32 mask
 		mask |= FS_EVENT_ON_CHILD;
 
 		take_dentry_name_snapshot(&name, dentry);
-		if (path)
-			ret = fsnotify(p_inode, mask, path, FSNOTIFY_EVENT_PATH,
-				       &name.name, 0);
-		else
-			ret = fsnotify(p_inode, mask, dentry->d_inode, FSNOTIFY_EVENT_INODE,
-				       &name.name, 0);
+		ret = fsnotify(p_inode, mask, data, data_type, &name.name, 0);
 		release_dentry_name_snapshot(&name);
 	}
 
@@ -181,7 +174,7 @@ int __fsnotify_parent(const struct path *path, struct dentry *dentry, __u32 mask
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(__fsnotify_parent);
+EXPORT_SYMBOL_GPL(fsnotify_parent);
 
 static int send_to_group(struct inode *to_tell,
 			 __u32 mask, const void *data,
@@ -318,6 +311,7 @@ static void fsnotify_iter_next(struct fsnotify_iter_info *iter_info)
 int fsnotify(struct inode *to_tell, __u32 mask, const void *data, int data_is,
 	     const struct qstr *file_name, u32 cookie)
 {
+	const struct path *path = fsnotify_data_path(data, data_is);
 	struct fsnotify_iter_info iter_info = {};
 	struct super_block *sb = to_tell->i_sb;
 	struct mount *mnt = NULL;
@@ -325,8 +319,8 @@ int fsnotify(struct inode *to_tell, __u32 mask, const void *data, int data_is,
 	int ret = 0;
 	__u32 test_mask = (mask & ALL_FSNOTIFY_EVENTS);
 
-	if (data_is == FSNOTIFY_EVENT_PATH) {
-		mnt = real_mount(((const struct path *)data)->mnt);
+	if (path) {
+		mnt = real_mount(path->mnt);
 		mnt_or_sb_mask |= mnt->mnt_fsnotify_mask;
 	}
 	/* An event "on child" is not intended for a mount/sb mark */
@@ -389,7 +383,7 @@ static __init int fsnotify_init(void)
 {
 	int ret;
 
-	BUILD_BUG_ON(HWEIGHT32(ALL_FSNOTIFY_BITS) != 25);
+	BUILD_BUG_ON(HWEIGHT32(ALL_FSNOTIFY_BITS) != 26);
 
 	ret = init_srcu_struct(&fsnotify_mark_srcu);
 	if (ret)

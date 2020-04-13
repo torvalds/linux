@@ -12,12 +12,29 @@
 
 static struct kmem_cache *hashtab_node_cachep;
 
+/*
+ * Here we simply round the number of elements up to the nearest power of two.
+ * I tried also other options like rouding down or rounding to the closest
+ * power of two (up or down based on which is closer), but I was unable to
+ * find any significant difference in lookup/insert performance that would
+ * justify switching to a different (less intuitive) formula. It could be that
+ * a different formula is actually more optimal, but any future changes here
+ * should be supported with performance/memory usage data.
+ *
+ * The total memory used by the htable arrays (only) with Fedora policy loaded
+ * is approximately 163 KB at the time of writing.
+ */
+static u32 hashtab_compute_size(u32 nel)
+{
+	return nel == 0 ? 0 : roundup_pow_of_two(nel);
+}
+
 struct hashtab *hashtab_create(u32 (*hash_value)(struct hashtab *h, const void *key),
 			       int (*keycmp)(struct hashtab *h, const void *key1, const void *key2),
-			       u32 size)
+			       u32 nel_hint)
 {
 	struct hashtab *p;
-	u32 i;
+	u32 i, size = hashtab_compute_size(nel_hint);
 
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (!p)
@@ -27,6 +44,9 @@ struct hashtab *hashtab_create(u32 (*hash_value)(struct hashtab *h, const void *
 	p->nel = 0;
 	p->hash_value = hash_value;
 	p->keycmp = keycmp;
+	if (!size)
+		return p;
+
 	p->htable = kmalloc_array(size, sizeof(*p->htable), GFP_KERNEL);
 	if (!p->htable) {
 		kfree(p);
@@ -46,7 +66,7 @@ int hashtab_insert(struct hashtab *h, void *key, void *datum)
 
 	cond_resched();
 
-	if (!h || h->nel == HASHTAB_MAX_NODES)
+	if (!h || !h->size || h->nel == HASHTAB_MAX_NODES)
 		return -EINVAL;
 
 	hvalue = h->hash_value(h, key);
@@ -82,7 +102,7 @@ void *hashtab_search(struct hashtab *h, const void *key)
 	u32 hvalue;
 	struct hashtab_node *cur;
 
-	if (!h)
+	if (!h || !h->size)
 		return NULL;
 
 	hvalue = h->hash_value(h, key);

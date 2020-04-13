@@ -85,11 +85,42 @@ static const struct thermal_zone_of_device_ops tsens_of_ops = {
 	.set_trips = tsens_set_trips,
 };
 
+static int tsens_register_irq(struct tsens_priv *priv, char *irqname,
+			      irq_handler_t thread_fn)
+{
+	struct platform_device *pdev;
+	int ret, irq;
+
+	pdev = of_find_device_by_node(priv->dev->of_node);
+	if (!pdev)
+		return -ENODEV;
+
+	irq = platform_get_irq_byname(pdev, irqname);
+	if (irq < 0) {
+		ret = irq;
+		/* For old DTs with no IRQ defined */
+		if (irq == -ENXIO)
+			ret = 0;
+	} else {
+		ret = devm_request_threaded_irq(&pdev->dev, irq,
+						NULL, thread_fn,
+						IRQF_ONESHOT,
+						dev_name(&pdev->dev), priv);
+		if (ret)
+			dev_err(&pdev->dev, "%s: failed to get irq\n",
+				__func__);
+		else
+			enable_irq_wake(irq);
+	}
+
+	put_device(&pdev->dev);
+	return ret;
+}
+
 static int tsens_register(struct tsens_priv *priv)
 {
-	int i, ret, irq;
+	int i, ret;
 	struct thermal_zone_device *tzd;
-	struct platform_device *pdev;
 
 	for (i = 0;  i < priv->num_sensors; i++) {
 		priv->sensor[i].priv = priv;
@@ -103,32 +134,14 @@ static int tsens_register(struct tsens_priv *priv)
 			priv->ops->enable(priv, i);
 	}
 
-	pdev = of_find_device_by_node(priv->dev->of_node);
-	if (!pdev)
-		return -ENODEV;
+	ret = tsens_register_irq(priv, "uplow", tsens_irq_thread);
+	if (ret < 0)
+		return ret;
 
-	irq = platform_get_irq_byname(pdev, "uplow");
-	if (irq < 0) {
-		ret = irq;
-		/* For old DTs with no IRQ defined */
-		if (irq == -ENXIO)
-			ret = 0;
-		goto err_put_device;
-	}
+	if (priv->feat->crit_int)
+		ret = tsens_register_irq(priv, "critical",
+					 tsens_critical_irq_thread);
 
-	ret = devm_request_threaded_irq(&pdev->dev, irq,
-					NULL, tsens_irq_thread,
-					IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
-					dev_name(&pdev->dev), priv);
-	if (ret) {
-		dev_err(&pdev->dev, "%s: failed to get irq\n", __func__);
-		goto err_put_device;
-	}
-
-	enable_irq_wake(irq);
-
-err_put_device:
-	put_device(&pdev->dev);
 	return ret;
 }
 

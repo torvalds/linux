@@ -67,21 +67,11 @@ void arch_dma_prep_coherent(struct page *page, size_t size)
 	flush_dcache_range(start, start + size);
 }
 
-void *uncached_kernel_address(void *ptr)
+void *arch_dma_set_uncached(void *ptr, size_t size)
 {
 	unsigned long addr = (unsigned long)ptr;
 
 	addr |= CONFIG_NIOS2_IO_REGION_BASE;
-
-	return (void *)ptr;
-}
-
-void *cached_kernel_address(void *ptr)
-{
-	unsigned long addr = (unsigned long)ptr;
-
-	addr &= ~CONFIG_NIOS2_IO_REGION_BASE;
-	addr |= CONFIG_NIOS2_KERNEL_REGION_BASE;
 
 	return (void *)ptr;
 }

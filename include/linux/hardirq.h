@@ -37,7 +37,7 @@ extern void rcu_nmi_exit(void);
 	do {						\
 		account_irq_enter_time(current);	\
 		preempt_count_add(HARDIRQ_OFFSET);	\
-		trace_hardirq_enter();			\
+		lockdep_hardirq_enter();		\
 	} while (0)
 
 /*
@@ -50,7 +50,7 @@ extern void irq_enter(void);
  */
 #define __irq_exit()					\
 	do {						\
-		trace_hardirq_exit();			\
+		lockdep_hardirq_exit();			\
 		account_irq_exit_time(current);		\
 		preempt_count_sub(HARDIRQ_OFFSET);	\
 	} while (0)
@@ -74,12 +74,12 @@ extern void irq_exit(void);
 		BUG_ON(in_nmi());				\
 		preempt_count_add(NMI_OFFSET + HARDIRQ_OFFSET);	\
 		rcu_nmi_enter();				\
-		trace_hardirq_enter();				\
+		lockdep_hardirq_enter();			\
 	} while (0)
 
 #define nmi_exit()						\
 	do {							\
-		trace_hardirq_exit();				\
+		lockdep_hardirq_exit();				\
 		rcu_nmi_exit();					\
 		BUG_ON(!in_nmi());				\
 		preempt_count_sub(NMI_OFFSET + HARDIRQ_OFFSET);	\

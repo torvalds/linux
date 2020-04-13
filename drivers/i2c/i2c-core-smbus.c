@@ -666,7 +666,7 @@ s32 i2c_smbus_read_i2c_block_data_or_emulated(const struct i2c_client *client,
 EXPORT_SYMBOL(i2c_smbus_read_i2c_block_data_or_emulated);
 
 /**
- * i2c_setup_smbus_alert - Setup SMBus alert support
+ * i2c_new_smbus_alert_device - get ara client for SMBus alert support
  * @adapter: the target adapter
  * @setup: setup data for the SMBus alert handler
  * Context: can sleep
@@ -676,31 +676,25 @@ EXPORT_SYMBOL(i2c_smbus_read_i2c_block_data_or_emulated);
  * Handling can be done either through our IRQ handler, or by the
  * adapter (from its handler, periodic polling, or whatever).
  *
- * NOTE that if we manage the IRQ, we *MUST* know if it's level or
- * edge triggered in order to hand it to the workqueue correctly.
- * If triggering the alert seems to wedge the system, you probably
- * should have said it's level triggered.
- *
  * This returns the ara client, which should be saved for later use with
- * i2c_handle_smbus_alert() and ultimately i2c_unregister_device(); or NULL
- * to indicate an error.
+ * i2c_handle_smbus_alert() and ultimately i2c_unregister_device(); or an
+ * ERRPTR to indicate an error.
  */
-struct i2c_client *i2c_setup_smbus_alert(struct i2c_adapter *adapter,
-					 struct i2c_smbus_alert_setup *setup)
+struct i2c_client *i2c_new_smbus_alert_device(struct i2c_adapter *adapter,
+					      struct i2c_smbus_alert_setup *setup)
 {
 	struct i2c_board_info ara_board_info = {
 		I2C_BOARD_INFO("smbus_alert", 0x0c),
 		.platform_data = setup,
 	};
 
-	return i2c_new_device(adapter, &ara_board_info);
+	return i2c_new_client_device(adapter, &ara_board_info);
 }
-EXPORT_SYMBOL_GPL(i2c_setup_smbus_alert);
+EXPORT_SYMBOL_GPL(i2c_new_smbus_alert_device);
 
 #if IS_ENABLED(CONFIG_I2C_SMBUS) && IS_ENABLED(CONFIG_OF)
 int of_i2c_setup_smbus_alert(struct i2c_adapter *adapter)
 {
-	struct i2c_client *client;
 	int irq;
 
 	irq = of_property_match_string(adapter->dev.of_node, "interrupt-names",
@@ -710,11 +704,7 @@ int of_i2c_setup_smbus_alert(struct i2c_adapter *adapter)
 	else if (irq < 0)
 		return irq;
 
-	client = i2c_setup_smbus_alert(adapter, NULL);
-	if (!client)
-		return -ENODEV;
-
-	return 0;
+	return PTR_ERR_OR_ZERO(i2c_new_smbus_alert_device(adapter, NULL));
 }
 EXPORT_SYMBOL_GPL(of_i2c_setup_smbus_alert);
 #endif

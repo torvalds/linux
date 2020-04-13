@@ -1129,17 +1129,30 @@ static const struct file_operations umad_sm_fops = {
 	.llseek	 = no_llseek,
 };
 
+static struct ib_umad_port *get_port(struct ib_device *ibdev,
+				     struct ib_umad_device *umad_dev,
+				     unsigned int port)
+{
+	if (!umad_dev)
+		return ERR_PTR(-EOPNOTSUPP);
+	if (!rdma_is_port_valid(ibdev, port))
+		return ERR_PTR(-EINVAL);
+	if (!rdma_cap_ib_mad(ibdev, port))
+		return ERR_PTR(-EOPNOTSUPP);
+
+	return &umad_dev->ports[port - rdma_start_port(ibdev)];
+}
+
 static int ib_umad_get_nl_info(struct ib_device *ibdev, void *client_data,
 			       struct ib_client_nl_info *res)
 {
-	struct ib_umad_device *umad_dev = client_data;
+	struct ib_umad_port *port = get_port(ibdev, client_data, res->port);
 
-	if (!rdma_is_port_valid(ibdev, res->port))
-		return -EINVAL;
+	if (IS_ERR(port))
+		return PTR_ERR(port);
 
 	res->abi = IB_USER_MAD_ABI_VERSION;
-	res->cdev = &umad_dev->ports[res->port - rdma_start_port(ibdev)].dev;
-
+	res->cdev = &port->dev;
 	return 0;
 }
 
@@ -1154,15 +1167,13 @@ MODULE_ALIAS_RDMA_CLIENT("umad");
 static int ib_issm_get_nl_info(struct ib_device *ibdev, void *client_data,
 			       struct ib_client_nl_info *res)
 {
-	struct ib_umad_device *umad_dev =
-		ib_get_client_data(ibdev, &umad_client);
+	struct ib_umad_port *port = get_port(ibdev, client_data, res->port);
 
-	if (!rdma_is_port_valid(ibdev, res->port))
-		return -EINVAL;
+	if (IS_ERR(port))
+		return PTR_ERR(port);
 
 	res->abi = IB_USER_MAD_ABI_VERSION;
-	res->cdev = &umad_dev->ports[res->port - rdma_start_port(ibdev)].sm_dev;
-
+	res->cdev = &port->sm_dev;
 	return 0;
 }
 

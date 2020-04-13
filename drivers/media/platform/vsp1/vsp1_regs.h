@@ -706,7 +706,7 @@
 #define VI6_HGT_HUE_AREA_LOWER_SHIFT	16
 #define VI6_HGT_HUE_AREA_UPPER_SHIFT	0
 #define VI6_HGT_LB_TH			0x3424
-#define VI6_HGT_LBn_H(n)		(0x3438 + (n) * 8)
+#define VI6_HGT_LBn_H(n)		(0x3428 + (n) * 8)
 #define VI6_HGT_LBn_V(n)		(0x342c + (n) * 8)
 #define VI6_HGT_HISTO(m, n)		(0x3450 + (m) * 128 + (n) * 4)
 #define VI6_HGT_MAXMIN			0x3750

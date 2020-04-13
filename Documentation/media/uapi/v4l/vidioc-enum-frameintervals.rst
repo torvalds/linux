@@ -138,35 +138,30 @@ application should zero out all members except for the *IN* fields.
 
     * - __u32
       - ``index``
-      -
       - IN: Index of the given frame interval in the enumeration.
     * - __u32
       - ``pixel_format``
-      -
       - IN: Pixel format for which the frame intervals are enumerated.
     * - __u32
       - ``width``
-      -
       - IN: Frame width for which the frame intervals are enumerated.
     * - __u32
       - ``height``
-      -
       - IN: Frame height for which the frame intervals are enumerated.
     * - __u32
       - ``type``
-      -
       - OUT: Frame interval type the device supports.
-    * - union
-      -
-      -
+    * - union {
+      - (anonymous)
       - OUT: Frame interval with the given index.
-    * -
-      - struct :c:type:`v4l2_fract`
+    * - struct :c:type:`v4l2_fract`
       - ``discrete``
       - Frame interval [s].
-    * -
-      - struct :c:type:`v4l2_frmival_stepwise`
+    * - struct :c:type:`v4l2_frmival_stepwise`
       - ``stepwise``
+      -
+    * - }
+      -
       -
     * - __u32
       - ``reserved[2]``

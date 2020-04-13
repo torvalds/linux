@@ -52,6 +52,7 @@
 
 /* Default and maximum inline threshold sizes */
 enum {
+	RPCRDMA_PULLUP_THRESH = RPCRDMA_V1_DEF_INLINE_SIZE >> 1,
 	RPCRDMA_DEF_INLINE_THRESH = 4096,
 	RPCRDMA_MAX_INLINE_THRESH = 65536
 };
@@ -132,11 +133,16 @@ struct svc_rdma_recv_ctxt {
 	struct ib_sge		rc_recv_sge;
 	void			*rc_recv_buf;
 	struct xdr_buf		rc_arg;
+	struct xdr_stream	rc_stream;
 	bool			rc_temp;
 	u32			rc_byte_len;
 	unsigned int		rc_page_count;
 	unsigned int		rc_hdr_count;
 	u32			rc_inv_rkey;
+	__be32			*rc_write_list;
+	__be32			*rc_reply_chunk;
+	unsigned int		rc_read_payload_offset;
+	unsigned int		rc_read_payload_length;
 	struct page		*rc_pages[RPCSVC_MAXPAGES];
 };
 
@@ -144,6 +150,8 @@ struct svc_rdma_send_ctxt {
 	struct list_head	sc_list;
 	struct ib_send_wr	sc_send_wr;
 	struct ib_cqe		sc_cqe;
+	struct xdr_buf		sc_hdrbuf;
+	struct xdr_stream	sc_stream;
 	void			*sc_xprt_buf;
 	int			sc_page_count;
 	int			sc_cur_sge_no;
@@ -170,9 +178,11 @@ extern int svc_rdma_recv_read_chunk(struct svcxprt_rdma *rdma,
 				    struct svc_rqst *rqstp,
 				    struct svc_rdma_recv_ctxt *head, __be32 *p);
 extern int svc_rdma_send_write_chunk(struct svcxprt_rdma *rdma,
-				     __be32 *wr_ch, struct xdr_buf *xdr);
+				     __be32 *wr_ch, struct xdr_buf *xdr,
+				     unsigned int offset,
+				     unsigned long length);
 extern int svc_rdma_send_reply_chunk(struct svcxprt_rdma *rdma,
-				     __be32 *rp_ch, bool writelist,
+				     const struct svc_rdma_recv_ctxt *rctxt,
 				     struct xdr_buf *xdr);
 
 /* svc_rdma_sendto.c */
@@ -182,13 +192,13 @@ extern struct svc_rdma_send_ctxt *
 extern void svc_rdma_send_ctxt_put(struct svcxprt_rdma *rdma,
 				   struct svc_rdma_send_ctxt *ctxt);
 extern int svc_rdma_send(struct svcxprt_rdma *rdma, struct ib_send_wr *wr);
-extern void svc_rdma_sync_reply_hdr(struct svcxprt_rdma *rdma,
-				    struct svc_rdma_send_ctxt *ctxt,
-				    unsigned int len);
 extern int svc_rdma_map_reply_msg(struct svcxprt_rdma *rdma,
-				  struct svc_rdma_send_ctxt *ctxt,
-				  struct xdr_buf *xdr, __be32 *wr_lst);
+				  struct svc_rdma_send_ctxt *sctxt,
+				  const struct svc_rdma_recv_ctxt *rctxt,
+				  struct xdr_buf *xdr);
 extern int svc_rdma_sendto(struct svc_rqst *);
+extern int svc_rdma_read_payload(struct svc_rqst *rqstp, unsigned int offset,
+				 unsigned int length);
 
 /* svc_rdma_transport.c */
 extern int svc_rdma_create_listen(struct svc_serv *, int, struct sockaddr *);

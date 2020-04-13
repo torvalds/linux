@@ -111,6 +111,13 @@ struct dpu_kms {
 
 	struct dpu_core_perf perf;
 
+	/*
+	 * Global private object state, Do not access directly, use
+	 * dpu_kms_global_get_state()
+	 */
+	struct drm_modeset_lock global_state_lock;
+	struct drm_private_obj global_state;
+
 	struct dpu_rm rm;
 	bool rm_init;
 
@@ -138,6 +145,25 @@ struct vsync_info {
 };
 
 #define to_dpu_kms(x) container_of(x, struct dpu_kms, base)
+
+#define to_dpu_global_state(x) container_of(x, struct dpu_global_state, base)
+
+/* Global private object state for tracking resources that are shared across
+ * multiple kms objects (planes/crtcs/etc).
+ */
+struct dpu_global_state {
+	struct drm_private_state base;
+
+	uint32_t pingpong_to_enc_id[PINGPONG_MAX - PINGPONG_0];
+	uint32_t mixer_to_enc_id[LM_MAX - LM_0];
+	uint32_t ctl_to_enc_id[CTL_MAX - CTL_0];
+	uint32_t intf_to_enc_id[INTF_MAX - INTF_0];
+};
+
+struct dpu_global_state
+	*dpu_kms_get_existing_global_state(struct dpu_kms *dpu_kms);
+struct dpu_global_state
+	*__must_check dpu_kms_get_global_state(struct drm_atomic_state *s);
 
 /**
  * Debugfs functions - extra helper functions for debugfs support

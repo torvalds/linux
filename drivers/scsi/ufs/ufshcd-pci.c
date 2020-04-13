@@ -44,7 +44,7 @@ static int ufs_intel_disable_lcc(struct ufs_hba *hba)
 
 	ufshcd_dme_get(hba, attr, &lcc_enable);
 	if (lcc_enable)
-		ufshcd_dme_set(hba, attr, 0);
+		ufshcd_disable_host_tx_lcc(hba);
 
 	return 0;
 }

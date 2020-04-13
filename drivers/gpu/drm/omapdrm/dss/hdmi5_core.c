@@ -23,7 +23,7 @@
 
 #include "hdmi5_core.h"
 
-static void hdmi_core_ddc_init(struct hdmi_core_data *core)
+void hdmi5_core_ddc_init(struct hdmi_core_data *core)
 {
 	void __iomem *base = core->base;
 	const unsigned long long iclk = 266000000;	/* DSS L3 ICLK */
@@ -102,7 +102,7 @@ static void hdmi_core_ddc_init(struct hdmi_core_data *core)
 	REG_FLD_MOD(base, HDMI_CORE_I2CM_INT, 0x0, 2, 2);
 }
 
-static void hdmi_core_ddc_uninit(struct hdmi_core_data *core)
+void hdmi5_core_ddc_uninit(struct hdmi_core_data *core)
 {
 	void __iomem *base = core->base;
 
@@ -112,14 +112,14 @@ static void hdmi_core_ddc_uninit(struct hdmi_core_data *core)
 	REG_FLD_MOD(base, HDMI_CORE_I2CM_INT, 0x1, 2, 2);
 }
 
-static int hdmi_core_ddc_edid(struct hdmi_core_data *core, u8 *pedid, u8 ext)
+int hdmi5_core_ddc_read(void *data, u8 *buf, unsigned int block, size_t len)
 {
+	struct hdmi_core_data *core = data;
 	void __iomem *base = core->base;
 	u8 cur_addr;
-	char checksum = 0;
 	const int retries = 1000;
-	u8 seg_ptr = ext / 2;
-	u8 edidbase = ((ext % 2) * 0x80);
+	u8 seg_ptr = block / 2;
+	u8 edidbase = ((block % 2) * EDID_LENGTH);
 
 	REG_FLD_MOD(base, HDMI_CORE_I2CM_SEGPTR, seg_ptr, 7, 0);
 
@@ -127,7 +127,7 @@ static int hdmi_core_ddc_edid(struct hdmi_core_data *core, u8 *pedid, u8 ext)
 	 * TODO: We use polling here, although we probably should use proper
 	 * interrupts.
 	 */
-	for (cur_addr = 0; cur_addr < 128; ++cur_addr) {
+	for (cur_addr = 0; cur_addr < len; ++cur_addr) {
 		int i;
 
 		/* clear ERROR and DONE */
@@ -164,43 +164,11 @@ static int hdmi_core_ddc_edid(struct hdmi_core_data *core, u8 *pedid, u8 ext)
 			return -EIO;
 		}
 
-		pedid[cur_addr] = REG_GET(base, HDMI_CORE_I2CM_DATAI, 7, 0);
-		checksum += pedid[cur_addr];
+		buf[cur_addr] = REG_GET(base, HDMI_CORE_I2CM_DATAI, 7, 0);
 	}
 
 	return 0;
 
-}
-
-int hdmi5_read_edid(struct hdmi_core_data *core, u8 *edid, int len)
-{
-	int r, n, i;
-	int max_ext_blocks = (len / 128) - 1;
-
-	if (len < 128)
-		return -EINVAL;
-
-	hdmi_core_ddc_init(core);
-
-	r = hdmi_core_ddc_edid(core, edid, 0);
-	if (r)
-		goto out;
-
-	n = edid[0x7e];
-
-	if (n > max_ext_blocks)
-		n = max_ext_blocks;
-
-	for (i = 1; i <= n; i++) {
-		r = hdmi_core_ddc_edid(core, edid + i * EDID_LENGTH, i);
-		if (r)
-			goto out;
-	}
-
-out:
-	hdmi_core_ddc_uninit(core);
-
-	return r ? r : len;
 }
 
 void hdmi5_core_dump(struct hdmi_core_data *core, struct seq_file *s)

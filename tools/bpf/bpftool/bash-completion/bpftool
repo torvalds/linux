@@ -337,6 +337,7 @@ _bpftool()
 
             local PROG_TYPE='id pinned tag name'
             local MAP_TYPE='id pinned name'
+            local METRIC_TYPE='cycles instructions l1d_loads llc_misses'
             case $command in
                 show|list)
                     [[ $prev != "$command" ]] && return 0
@@ -388,7 +389,7 @@ _bpftool()
                                     _bpftool_get_prog_ids
                                     ;;
                                 name)
-                                    _bpftool_get_map_names
+                                    _bpftool_get_prog_names
                                     ;;
                                 pinned)
                                     _filedir
@@ -469,7 +470,8 @@ _bpftool()
                                 cgroup/recvmsg4 cgroup/recvmsg6 \
                                 cgroup/post_bind4 cgroup/post_bind6 \
                                 cgroup/sysctl cgroup/getsockopt \
-                                cgroup/setsockopt" -- \
+                                cgroup/setsockopt struct_ops \
+                                fentry fexit freplace" -- \
                                                    "$cur" ) )
                             return 0
                             ;;
@@ -497,14 +499,60 @@ _bpftool()
                 tracelog)
                     return 0
                     ;;
+                profile)
+                    case $cword in
+                        3)
+                            COMPREPLY=( $( compgen -W "$PROG_TYPE" -- "$cur" ) )
+                            return 0
+                            ;;
+                        4)
+                            case $prev in
+                                id)
+                                    _bpftool_get_prog_ids
+                                    ;;
+                                name)
+                                    _bpftool_get_prog_names
+                                    ;;
+                                pinned)
+                                    _filedir
+                                    ;;
+                            esac
+                            return 0
+                            ;;
+                        5)
+                            COMPREPLY=( $( compgen -W "$METRIC_TYPE duration" -- "$cur" ) )
+                            return 0
+                            ;;
+                        6)
+                            case $prev in
+                                duration)
+                                    return 0
+                                    ;;
+                                *)
+                                    COMPREPLY=( $( compgen -W "$METRIC_TYPE" -- "$cur" ) )
+                                    return 0
+                                    ;;
+                            esac
+                            return 0
+                            ;;
+                        *)
+                            COMPREPLY=( $( compgen -W "$METRIC_TYPE" -- "$cur" ) )
+                            return 0
+                            ;;
+                    esac
+                    ;;
                 run)
-                    if [[ ${#words[@]} -lt 5 ]]; then
-                        _filedir
+                    if [[ ${#words[@]} -eq 4 ]]; then
+                        COMPREPLY=( $( compgen -W "$PROG_TYPE" -- "$cur" ) )
                         return 0
                     fi
                     case $prev in
                         id)
                             _bpftool_get_prog_ids
+                            return 0
+                            ;;
+                        name)
+                            _bpftool_get_prog_names
                             return 0
                             ;;
                         data_in|data_out|ctx_in|ctx_out)
@@ -524,7 +572,35 @@ _bpftool()
                 *)
                     [[ $prev == $object ]] && \
                         COMPREPLY=( $( compgen -W 'dump help pin attach detach \
-                            load loadall show list tracelog run' -- "$cur" ) )
+                            load loadall show list tracelog run profile' -- "$cur" ) )
+                    ;;
+            esac
+            ;;
+        struct_ops)
+            local STRUCT_OPS_TYPE='id name'
+            case $command in
+                show|list|dump|unregister)
+                    case $prev in
+                        $command)
+                            COMPREPLY=( $( compgen -W "$STRUCT_OPS_TYPE" -- "$cur" ) )
+                            ;;
+                        id)
+                            _bpftool_get_map_ids_for_type struct_ops
+                            ;;
+                        name)
+                            _bpftool_get_map_names_for_type struct_ops
+                            ;;
+                    esac
+                    return 0
+                    ;;
+                register)
+                    _filedir
+                    return 0
+                    ;;
+                *)
+                    [[ $prev == $object ]] && \
+                        COMPREPLY=( $( compgen -W 'register unregister show list dump help' \
+                            -- "$cur" ) )
                     ;;
             esac
             ;;
@@ -712,11 +788,17 @@ _bpftool()
                     esac
                     ;;
                 pin)
-                    if [[ $prev == "$command" ]]; then
-                        COMPREPLY=( $( compgen -W "$PROG_TYPE" -- "$cur" ) )
-                    else
-                        _filedir
-                    fi
+                    case $prev in
+                        $command)
+                            COMPREPLY=( $( compgen -W "$MAP_TYPE" -- "$cur" ) )
+                            ;;
+                        id)
+                            _bpftool_get_map_ids
+                            ;;
+                        name)
+                            _bpftool_get_map_names
+                            ;;
+                    esac
                     return 0
                     ;;
                 event_pipe)
@@ -843,7 +925,7 @@ _bpftool()
             case $command in
                 skeleton)
                     _filedir
-		    ;;
+                    ;;
                 *)
                     [[ $prev == $object ]] && \
                         COMPREPLY=( $( compgen -W 'skeleton help' -- "$cur" ) )
@@ -943,6 +1025,9 @@ _bpftool()
                                 id)
                                     _bpftool_get_prog_ids
                                     ;;
+                                name)
+                                    _bpftool_get_prog_names
+                                    ;;
                                 pinned)
                                     _filedir
                                     ;;
@@ -983,11 +1068,12 @@ _bpftool()
                 probe)
                     [[ $prev == "prefix" ]] && return 0
                     if _bpftool_search_list 'macros'; then
-                        COMPREPLY+=( $( compgen -W 'prefix' -- "$cur" ) )
+                        _bpftool_once_attr 'prefix'
                     else
                         COMPREPLY+=( $( compgen -W 'macros' -- "$cur" ) )
                     fi
                     _bpftool_one_of_list 'kernel dev'
+                    _bpftool_once_attr 'full'
                     return 0
                     ;;
                 *)

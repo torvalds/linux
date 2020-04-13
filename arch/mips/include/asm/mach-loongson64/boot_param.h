@@ -2,6 +2,8 @@
 #ifndef __ASM_MACH_LOONGSON64_BOOT_PARAM_H_
 #define __ASM_MACH_LOONGSON64_BOOT_PARAM_H_
 
+#include <linux/types.h>
+
 #define SYSTEM_RAM_LOW		1
 #define SYSTEM_RAM_HIGH		2
 #define SYSTEM_RAM_RESERVED	3

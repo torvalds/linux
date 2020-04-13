@@ -21,7 +21,7 @@ static inline char *offstr(struct section *sec, unsigned long offset)
 	char *name, *str;
 	unsigned long name_off;
 
-	func = find_containing_func(sec, offset);
+	func = find_func_containing(sec, offset);
 	if (func) {
 		name = func->name;
 		name_off = offset - func->offset;

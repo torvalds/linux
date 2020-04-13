@@ -230,8 +230,8 @@ enum st_lsm6dsx_ext_sensor_id {
  * @i2c_addr: I2c slave address list.
  * @wai: Wai address info.
  * @id: external sensor id.
- * @odr: Output data rate of the sensor [Hz].
- * @gain: Configured sensor sensitivity.
+ * @odr_table: Output data rate of the sensor [Hz].
+ * @fs_table: Configured sensor sensitivity table depending on full scale.
  * @temp_comp: Temperature compensation register info (addr + mask).
  * @pwr_table: Power on register info (addr + mask).
  * @off_canc: Offset cancellation register info (addr + mask).

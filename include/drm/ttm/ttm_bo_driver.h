@@ -210,8 +210,6 @@ struct ttm_mem_type_manager {
  * struct ttm_bo_driver
  *
  * @create_ttm_backend_entry: Callback to create a struct ttm_backend.
- * @invalidate_caches: Callback to invalidate read caches when a buffer object
- * has been evicted.
  * @init_mem_type: Callback to initialize a struct ttm_mem_type_manager
  * structure.
  * @evict_flags: Callback to obtain placement flags when a buffer is evicted.
@@ -256,19 +254,6 @@ struct ttm_bo_driver {
 	 */
 	void (*ttm_tt_unpopulate)(struct ttm_tt *ttm);
 
-	/**
-	 * struct ttm_bo_driver member invalidate_caches
-	 *
-	 * @bdev: the buffer object device.
-	 * @flags: new placement of the rebound buffer object.
-	 *
-	 * A previosly evicted buffer has been rebound in a
-	 * potentially new location. Tell the driver that it might
-	 * consider invalidating read (texture) caches on the next command
-	 * submission as a consequence.
-	 */
-
-	int (*invalidate_caches)(struct ttm_bo_device *bdev, uint32_t flags);
 	int (*init_mem_type)(struct ttm_bo_device *bdev, uint32_t type,
 			     struct ttm_mem_type_manager *man);
 

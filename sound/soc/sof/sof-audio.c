@@ -11,7 +11,40 @@
 #include "sof-audio.h"
 #include "ops.h"
 
-bool snd_sof_dsp_d0i3_on_suspend(struct snd_sof_dev *sdev)
+/*
+ * helper to determine if there are only D0i3 compatible
+ * streams active
+ */
+bool snd_sof_dsp_only_d0i3_compatible_stream_active(struct snd_sof_dev *sdev)
+{
+	struct snd_pcm_substream *substream;
+	struct snd_sof_pcm *spcm;
+	bool d0i3_compatible_active = false;
+	int dir;
+
+	list_for_each_entry(spcm, &sdev->pcm_list, list) {
+		for_each_pcm_streams(dir) {
+			substream = spcm->stream[dir].substream;
+			if (!substream || !substream->runtime)
+				continue;
+
+			/*
+			 * substream->runtime being not NULL indicates that
+			 * that the stream is open. No need to check the
+			 * stream state.
+			 */
+			if (!spcm->stream[dir].d0i3_compatible)
+				return false;
+
+			d0i3_compatible_active = true;
+		}
+	}
+
+	return d0i3_compatible_active;
+}
+EXPORT_SYMBOL(snd_sof_dsp_only_d0i3_compatible_stream_active);
+
+bool snd_sof_stream_suspend_ignored(struct snd_sof_dev *sdev)
 {
 	struct snd_sof_pcm *spcm;
 
@@ -38,7 +71,14 @@ int sof_set_hw_params_upon_resume(struct device *dev)
 	 * have been suspended.
 	 */
 	list_for_each_entry(spcm, &sdev->pcm_list, list) {
-		for (dir = 0; dir <= SNDRV_PCM_STREAM_CAPTURE; dir++) {
+		for_each_pcm_streams(dir) {
+			/*
+			 * do not reset hw_params upon resume for streams that
+			 * were kept running during suspend
+			 */
+			if (spcm->stream[dir].suspend_ignored)
+				continue;
+
 			substream = spcm->stream[dir].substream;
 			if (!substream || !substream->runtime)
 				continue;
@@ -279,16 +319,11 @@ struct snd_sof_pcm *snd_sof_find_spcm_comp(struct snd_soc_component *scomp,
 	int dir;
 
 	list_for_each_entry(spcm, &sdev->pcm_list, list) {
-		dir = SNDRV_PCM_STREAM_PLAYBACK;
-		if (spcm->stream[dir].comp_id == comp_id) {
-			*direction = dir;
-			return spcm;
-		}
-
-		dir = SNDRV_PCM_STREAM_CAPTURE;
-		if (spcm->stream[dir].comp_id == comp_id) {
-			*direction = dir;
-			return spcm;
+		for_each_pcm_streams(dir) {
+			if (spcm->stream[dir].comp_id == comp_id) {
+				*direction = dir;
+				return spcm;
+			}
 		}
 	}
 

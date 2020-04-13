@@ -39,8 +39,8 @@ static bool vgpu_has_pending_workload(struct intel_vgpu *vgpu)
 	enum intel_engine_id i;
 	struct intel_engine_cs *engine;
 
-	for_each_engine(engine, vgpu->gvt->dev_priv, i) {
-		if (!list_empty(workload_q_head(vgpu, i)))
+	for_each_engine(engine, vgpu->gvt->gt, i) {
+		if (!list_empty(workload_q_head(vgpu, engine)))
 			return true;
 	}
 
@@ -152,8 +152,8 @@ static void try_to_schedule_next_vgpu(struct intel_gvt *gvt)
 	scheduler->need_reschedule = true;
 
 	/* still have uncompleted workload? */
-	for_each_engine(engine, gvt->dev_priv, i) {
-		if (scheduler->current_workload[i])
+	for_each_engine(engine, gvt->gt, i) {
+		if (scheduler->current_workload[engine->id])
 			return;
 	}
 
@@ -169,8 +169,8 @@ static void try_to_schedule_next_vgpu(struct intel_gvt *gvt)
 	scheduler->need_reschedule = false;
 
 	/* wake up workload dispatch thread */
-	for_each_engine(engine, gvt->dev_priv, i)
-		wake_up(&scheduler->waitq[i]);
+	for_each_engine(engine, gvt->gt, i)
+		wake_up(&scheduler->waitq[engine->id]);
 }
 
 static struct intel_vgpu *find_busy_vgpu(struct gvt_sched_data *sched_data)
@@ -444,9 +444,10 @@ void intel_vgpu_stop_schedule(struct intel_vgpu *vgpu)
 {
 	struct intel_gvt_workload_scheduler *scheduler =
 		&vgpu->gvt->scheduler;
-	int ring_id;
 	struct vgpu_sched_data *vgpu_data = vgpu->sched_data;
-	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
+	struct drm_i915_private *dev_priv = vgpu->gvt->gt->i915;
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
 
 	if (!vgpu_data->active)
 		return;
@@ -467,10 +468,10 @@ void intel_vgpu_stop_schedule(struct intel_vgpu *vgpu)
 
 	intel_runtime_pm_get(&dev_priv->runtime_pm);
 	spin_lock_bh(&scheduler->mmio_context_lock);
-	for (ring_id = 0; ring_id < I915_NUM_ENGINES; ring_id++) {
-		if (scheduler->engine_owner[ring_id] == vgpu) {
-			intel_gvt_switch_mmio(vgpu, NULL, ring_id);
-			scheduler->engine_owner[ring_id] = NULL;
+	for_each_engine(engine, vgpu->gvt->gt, id) {
+		if (scheduler->engine_owner[engine->id] == vgpu) {
+			intel_gvt_switch_mmio(vgpu, NULL, engine);
+			scheduler->engine_owner[engine->id] = NULL;
 		}
 	}
 	spin_unlock_bh(&scheduler->mmio_context_lock);

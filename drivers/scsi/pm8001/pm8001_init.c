@@ -95,7 +95,7 @@ static struct scsi_host_template pm8001_sht = {
 	.bios_param		= sas_bios_param,
 	.can_queue		= 1,
 	.this_id		= -1,
-	.sg_tablesize		= SG_ALL,
+	.sg_tablesize		= PM8001_MAX_DMA_SG,
 	.max_sectors		= SCSI_DEFAULT_MAX_SECTORS,
 	.eh_device_reset_handler = sas_eh_device_reset_handler,
 	.eh_target_reset_handler = sas_eh_target_reset_handler,
@@ -250,6 +250,9 @@ static irqreturn_t pm8001_interrupt_handler_intx(int irq, void *dev_id)
 #endif
 	return ret;
 }
+
+static u32 pm8001_setup_irq(struct pm8001_hba_info *pm8001_ha);
+static u32 pm8001_request_irq(struct pm8001_hba_info *pm8001_ha);
 
 /**
  * pm8001_alloc - initiate our hba structure and 6 DMAs area.
@@ -483,6 +486,7 @@ static struct pm8001_hba_info *pm8001_pci_alloc(struct pci_dev *pdev,
 	pm8001_ha->shost = shost;
 	pm8001_ha->id = pm8001_id++;
 	pm8001_ha->logging_level = logging_level;
+	pm8001_ha->non_fatal_count = 0;
 	if (link_rate >= 1 && link_rate <= 15)
 		pm8001_ha->link_rate = (link_rate << 8);
 	else {
@@ -635,22 +639,22 @@ static void pm8001_init_sas_add(struct pm8001_hba_info *pm8001_ha)
 	if (pm8001_ha->chip_id == chip_8001) {
 		if (deviceid == 0x8081 || deviceid == 0x0042) {
 			payload.minor_function = 4;
-			payload.length = 4096;
+			payload.rd_length = 4096;
 		} else {
 			payload.minor_function = 0;
-			payload.length = 128;
+			payload.rd_length = 128;
 		}
 	} else if ((pm8001_ha->chip_id == chip_8070 ||
 			pm8001_ha->chip_id == chip_8072) &&
 			pm8001_ha->pdev->subsystem_vendor == PCI_VENDOR_ID_ATTO) {
 		payload.minor_function = 4;
-		payload.length = 4096;
+		payload.rd_length = 4096;
 	} else {
 		payload.minor_function = 1;
-		payload.length = 4096;
+		payload.rd_length = 4096;
 	}
 	payload.offset = 0;
-	payload.func_specific = kzalloc(payload.length, GFP_KERNEL);
+	payload.func_specific = kzalloc(payload.rd_length, GFP_KERNEL);
 	if (!payload.func_specific) {
 		PM8001_INIT_DBG(pm8001_ha, pm8001_printk("mem alloc fail\n"));
 		return;
@@ -720,7 +724,7 @@ static int pm8001_get_phy_settings_info(struct pm8001_hba_info *pm8001_ha)
 	/* SAS ADDRESS read from flash / EEPROM */
 	payload.minor_function = 6;
 	payload.offset = 0;
-	payload.length = 4096;
+	payload.rd_length = 4096;
 	payload.func_specific = kzalloc(4096, GFP_KERNEL);
 	if (!payload.func_specific)
 		return -ENOMEM;
@@ -893,9 +897,7 @@ static int pm8001_configure_phy_settings(struct pm8001_hba_info *pm8001_ha)
  */
 static u32 pm8001_setup_msix(struct pm8001_hba_info *pm8001_ha)
 {
-	u32 i = 0, j = 0;
 	u32 number_of_intr;
-	int flag = 0;
 	int rc;
 
 	/* SPCv controllers supports 64 msi-x */
@@ -903,11 +905,11 @@ static u32 pm8001_setup_msix(struct pm8001_hba_info *pm8001_ha)
 		number_of_intr = 1;
 	} else {
 		number_of_intr = PM8001_MAX_MSIX_VEC;
-		flag &= ~IRQF_SHARED;
 	}
 
 	rc = pci_alloc_irq_vectors(pm8001_ha->pdev, number_of_intr,
 			number_of_intr, PCI_IRQ_MSIX);
+	number_of_intr = rc;
 	if (rc < 0)
 		return rc;
 	pm8001_ha->number_of_intr = number_of_intr;
@@ -915,8 +917,22 @@ static u32 pm8001_setup_msix(struct pm8001_hba_info *pm8001_ha)
 	PM8001_INIT_DBG(pm8001_ha, pm8001_printk(
 		"pci_alloc_irq_vectors request ret:%d no of intr %d\n",
 				rc, pm8001_ha->number_of_intr));
+	return 0;
+}
 
-	for (i = 0; i < number_of_intr; i++) {
+static u32 pm8001_request_msix(struct pm8001_hba_info *pm8001_ha)
+{
+	u32 i = 0, j = 0;
+	int flag = 0, rc = 0;
+
+	if (pm8001_ha->chip_id != chip_8001)
+		flag &= ~IRQF_SHARED;
+
+	PM8001_INIT_DBG(pm8001_ha,
+		pm8001_printk("pci_enable_msix request number of intr %d\n",
+		pm8001_ha->number_of_intr));
+
+	for (i = 0; i < pm8001_ha->number_of_intr; i++) {
 		snprintf(pm8001_ha->intr_drvname[i],
 			sizeof(pm8001_ha->intr_drvname[0]),
 			"%s-%d", pm8001_ha->name, i);
@@ -941,6 +957,21 @@ static u32 pm8001_setup_msix(struct pm8001_hba_info *pm8001_ha)
 }
 #endif
 
+static u32 pm8001_setup_irq(struct pm8001_hba_info *pm8001_ha)
+{
+	struct pci_dev *pdev;
+
+	pdev = pm8001_ha->pdev;
+
+#ifdef PM8001_USE_MSIX
+	if (pci_find_capability(pdev, PCI_CAP_ID_MSIX))
+		return pm8001_setup_msix(pm8001_ha);
+	PM8001_INIT_DBG(pm8001_ha,
+		pm8001_printk("MSIX not supported!!!\n"));
+#endif
+	return 0;
+}
+
 /**
  * pm8001_request_irq - register interrupt
  * @chip_info: our ha struct.
@@ -954,7 +985,7 @@ static u32 pm8001_request_irq(struct pm8001_hba_info *pm8001_ha)
 
 #ifdef PM8001_USE_MSIX
 	if (pdev->msix_cap && pci_msi_enabled())
-		return pm8001_setup_msix(pm8001_ha);
+		return pm8001_request_msix(pm8001_ha);
 	else {
 		PM8001_INIT_DBG(pm8001_ha,
 			pm8001_printk("MSIX not supported!!!\n"));
@@ -989,6 +1020,7 @@ static int pm8001_pci_probe(struct pci_dev *pdev,
 	struct pm8001_hba_info *pm8001_ha;
 	struct Scsi_Host *shost = NULL;
 	const struct pm8001_chip_info *chip;
+	struct sas_ha_struct *sha;
 
 	dev_printk(KERN_INFO, &pdev->dev,
 		"pm80xx: driver version %s\n", DRV_VERSION);
@@ -1017,12 +1049,12 @@ static int pm8001_pci_probe(struct pci_dev *pdev,
 		goto err_out_regions;
 	}
 	chip = &pm8001_chips[ent->driver_data];
-	SHOST_TO_SAS_HA(shost) =
-		kzalloc(sizeof(struct sas_ha_struct), GFP_KERNEL);
-	if (!SHOST_TO_SAS_HA(shost)) {
+	sha = kzalloc(sizeof(struct sas_ha_struct), GFP_KERNEL);
+	if (!sha) {
 		rc = -ENOMEM;
 		goto err_out_free_host;
 	}
+	SHOST_TO_SAS_HA(shost) = sha;
 
 	rc = pm8001_prep_sas_ha_init(shost, chip);
 	if (rc) {
@@ -1036,7 +1068,14 @@ static int pm8001_pci_probe(struct pci_dev *pdev,
 		rc = -ENOMEM;
 		goto err_out_free;
 	}
-	list_add_tail(&pm8001_ha->list, &hba_list);
+	/* Setup Interrupt */
+	rc = pm8001_setup_irq(pm8001_ha);
+	if (rc)	{
+		PM8001_FAIL_DBG(pm8001_ha, pm8001_printk(
+			"pm8001_setup_irq failed [ret: %d]\n", rc));
+		goto err_out_shost;
+	}
+
 	PM8001_CHIP_DISP->chip_soft_rst(pm8001_ha);
 	rc = PM8001_CHIP_DISP->chip_init(pm8001_ha);
 	if (rc) {
@@ -1048,6 +1087,7 @@ static int pm8001_pci_probe(struct pci_dev *pdev,
 	rc = scsi_add_host(shost, &pdev->dev);
 	if (rc)
 		goto err_out_ha_free;
+	/* Request Interrupt */
 	rc = pm8001_request_irq(pm8001_ha);
 	if (rc)	{
 		PM8001_FAIL_DBG(pm8001_ha, pm8001_printk(
@@ -1070,8 +1110,12 @@ static int pm8001_pci_probe(struct pci_dev *pdev,
 
 	pm8001_post_sas_ha_init(shost, chip);
 	rc = sas_register_ha(SHOST_TO_SAS_HA(shost));
-	if (rc)
+	if (rc) {
+		PM8001_FAIL_DBG(pm8001_ha, pm8001_printk(
+			"sas_register_ha failed [ret: %d]\n", rc));
 		goto err_out_shost;
+	}
+	list_add_tail(&pm8001_ha->list, &hba_list);
 	scsi_scan_host(pm8001_ha->shost);
 	pm8001_ha->flags = PM8001F_RUN_TIME;
 	return 0;
@@ -1081,7 +1125,7 @@ err_out_shost:
 err_out_ha_free:
 	pm8001_free(pm8001_ha);
 err_out_free:
-	kfree(SHOST_TO_SAS_HA(shost));
+	kfree(sha);
 err_out_free_host:
 	scsi_host_put(shost);
 err_out_regions:

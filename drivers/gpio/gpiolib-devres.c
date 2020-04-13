@@ -478,3 +478,49 @@ void devm_gpio_free(struct device *dev, unsigned int gpio)
 		&gpio));
 }
 EXPORT_SYMBOL_GPL(devm_gpio_free);
+
+static void devm_gpio_chip_release(struct device *dev, void *res)
+{
+	struct gpio_chip *gc = *(struct gpio_chip **)res;
+
+	gpiochip_remove(gc);
+}
+
+/**
+ * devm_gpiochip_add_data() - Resource managed gpiochip_add_data()
+ * @dev: pointer to the device that gpio_chip belongs to.
+ * @gc: the GPIO chip to register
+ * @data: driver-private data associated with this chip
+ *
+ * Context: potentially before irqs will work
+ *
+ * The gpio chip automatically be released when the device is unbound.
+ *
+ * Returns:
+ * A negative errno if the chip can't be registered, such as because the
+ * gc->base is invalid or already associated with a different chip.
+ * Otherwise it returns zero as a success code.
+ */
+int devm_gpiochip_add_data(struct device *dev, struct gpio_chip *gc,
+			   void *data)
+{
+	struct gpio_chip **ptr;
+	int ret;
+
+	ptr = devres_alloc(devm_gpio_chip_release, sizeof(*ptr),
+			     GFP_KERNEL);
+	if (!ptr)
+		return -ENOMEM;
+
+	ret = gpiochip_add_data(gc, data);
+	if (ret < 0) {
+		devres_free(ptr);
+		return ret;
+	}
+
+	*ptr = gc;
+	devres_add(dev, ptr);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(devm_gpiochip_add_data);

@@ -128,7 +128,10 @@ tlbop_end 1
 ENTRY(csky_systemcall)
 	SAVE_ALL TRAP0_SIZE
 	zero_fp
-
+#ifdef CONFIG_RSEQ_DEBUG
+	mov	a0, sp
+	jbsr	rseq_syscall
+#endif
 	psrset  ee, ie
 
 	lrw     r11, __NR_syscalls
@@ -218,10 +221,17 @@ ret_from_exception:
 	andn	r9, r10
 
 	ldw	r12, (r9, TINFO_FLAGS)
-	andi	r12, (_TIF_SIGPENDING | _TIF_NOTIFY_RESUME | _TIF_NEED_RESCHED)
+	andi	r12, (_TIF_SIGPENDING | _TIF_NOTIFY_RESUME | _TIF_NEED_RESCHED | _TIF_UPROBE)
 	cmpnei	r12, 0
 	bt	exit_work
 1:
+#ifdef CONFIG_TRACE_IRQFLAGS
+	ld	r10, (sp, LSAVE_PSR)
+	btsti	r10, 6
+	bf	2f
+	jbsr	trace_hardirqs_on
+2:
+#endif
 	RESTORE_ALL
 
 exit_work:
@@ -276,6 +286,10 @@ ENTRY(csky_irq)
 	SAVE_ALL 0
 	zero_fp
 	psrset	ee
+
+#ifdef CONFIG_TRACE_IRQFLAGS
+	jbsr	trace_hardirqs_off
+#endif
 
 #ifdef CONFIG_PREEMPTION
 	mov	r9, sp			/* Get current stack  pointer */

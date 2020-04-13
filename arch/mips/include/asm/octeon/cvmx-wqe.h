@@ -547,7 +547,7 @@ union cvmx_wqe_word1 {
  *
  * must be 8-byte aligned
  */
-typedef struct {
+struct cvmx_wqe {
 
     /*****************************************************************
      * WORD 0
@@ -593,9 +593,9 @@ typedef struct {
      *
      */
 
-} CVMX_CACHE_LINE_ALIGNED cvmx_wqe_t;
+} CVMX_CACHE_LINE_ALIGNED;
 
-static inline int cvmx_wqe_get_port(cvmx_wqe_t *work)
+static inline int cvmx_wqe_get_port(struct cvmx_wqe *work)
 {
 	int port;
 
@@ -607,7 +607,7 @@ static inline int cvmx_wqe_get_port(cvmx_wqe_t *work)
 	return port;
 }
 
-static inline void cvmx_wqe_set_port(cvmx_wqe_t *work, int port)
+static inline void cvmx_wqe_set_port(struct cvmx_wqe *work, int port)
 {
 	if (octeon_has_feature(OCTEON_FEATURE_CN68XX_WQE))
 		work->word2.s_cn68xx.port = port;
@@ -615,7 +615,7 @@ static inline void cvmx_wqe_set_port(cvmx_wqe_t *work, int port)
 		work->word1.cn38xx.ipprt = port;
 }
 
-static inline int cvmx_wqe_get_grp(cvmx_wqe_t *work)
+static inline int cvmx_wqe_get_grp(struct cvmx_wqe *work)
 {
 	int grp;
 
@@ -627,7 +627,7 @@ static inline int cvmx_wqe_get_grp(cvmx_wqe_t *work)
 	return grp;
 }
 
-static inline void cvmx_wqe_set_grp(cvmx_wqe_t *work, int grp)
+static inline void cvmx_wqe_set_grp(struct cvmx_wqe *work, int grp)
 {
 	if (octeon_has_feature(OCTEON_FEATURE_CN68XX_WQE))
 		work->word1.cn68xx.grp = grp;
@@ -635,7 +635,7 @@ static inline void cvmx_wqe_set_grp(cvmx_wqe_t *work, int grp)
 		work->word1.cn38xx.grp = grp;
 }
 
-static inline int cvmx_wqe_get_qos(cvmx_wqe_t *work)
+static inline int cvmx_wqe_get_qos(struct cvmx_wqe *work)
 {
 	int qos;
 
@@ -647,7 +647,7 @@ static inline int cvmx_wqe_get_qos(cvmx_wqe_t *work)
 	return qos;
 }
 
-static inline void cvmx_wqe_set_qos(cvmx_wqe_t *work, int qos)
+static inline void cvmx_wqe_set_qos(struct cvmx_wqe *work, int qos)
 {
 	if (octeon_has_feature(OCTEON_FEATURE_CN68XX_WQE))
 		work->word1.cn68xx.qos = qos;

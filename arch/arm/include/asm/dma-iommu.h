@@ -33,7 +33,5 @@ int arm_iommu_attach_device(struct device *dev,
 					struct dma_iommu_mapping *mapping);
 void arm_iommu_detach_device(struct device *dev);
 
-int arm_dma_supported(struct device *dev, u64 mask);
-
 #endif /* __KERNEL__ */
 #endif

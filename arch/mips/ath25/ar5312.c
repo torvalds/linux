@@ -68,11 +68,6 @@ static irqreturn_t ar5312_ahb_err_handler(int cpl, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static struct irqaction ar5312_ahb_err_interrupt  = {
-	.handler = ar5312_ahb_err_handler,
-	.name    = "ar5312-ahb-error",
-};
-
 static void ar5312_misc_irq_handler(struct irq_desc *desc)
 {
 	u32 pending = ar5312_rst_reg_read(AR5312_ISR) &
@@ -154,7 +149,9 @@ void __init ar5312_arch_init_irq(void)
 		panic("Failed to add IRQ domain");
 
 	irq = irq_create_mapping(domain, AR5312_MISC_IRQ_AHB_PROC);
-	setup_irq(irq, &ar5312_ahb_err_interrupt);
+	if (request_irq(irq, ar5312_ahb_err_handler, 0, "ar5312-ahb-error",
+			NULL))
+		pr_err("Failed to register ar5312-ahb-error interrupt\n");
 
 	irq_set_chained_handler_and_data(AR5312_IRQ_MISC,
 					 ar5312_misc_irq_handler, domain);

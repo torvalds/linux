@@ -81,6 +81,17 @@ struct kunit_resource {
 
 struct kunit;
 
+/* Size of log associated with test. */
+#define KUNIT_LOG_SIZE	512
+
+/*
+ * TAP specifies subtest stream indentation of 4 spaces, 8 spaces for a
+ * sub-subtest.  See the "Subtests" section in
+ * https://node-tap.org/tap-protocol/
+ */
+#define KUNIT_SUBTEST_INDENT		"    "
+#define KUNIT_SUBSUBTEST_INDENT		"        "
+
 /**
  * struct kunit_case - represents an individual test case.
  *
@@ -123,7 +134,13 @@ struct kunit_case {
 
 	/* private: internal use only. */
 	bool success;
+	char *log;
 };
+
+static inline char *kunit_status_to_string(bool status)
+{
+	return status ? "ok" : "not ok";
+}
 
 /**
  * KUNIT_CASE - A helper for creating a &struct kunit_case
@@ -157,6 +174,10 @@ struct kunit_suite {
 	int (*init)(struct kunit *test);
 	void (*exit)(struct kunit *test);
 	struct kunit_case *test_cases;
+
+	/* private - internal use only */
+	struct dentry *debugfs;
+	char *log;
 };
 
 /**
@@ -175,6 +196,7 @@ struct kunit {
 
 	/* private: internal use only. */
 	const char *name; /* Read only after initialization! */
+	char *log; /* Points at case log after initialization */
 	struct kunit_try_catch try_catch;
 	/*
 	 * success starts as true, and may only be set to false during a
@@ -193,9 +215,18 @@ struct kunit {
 	struct list_head resources; /* Protected by lock. */
 };
 
-void kunit_init_test(struct kunit *test, const char *name);
+void kunit_init_test(struct kunit *test, const char *name, char *log);
 
 int kunit_run_tests(struct kunit_suite *suite);
+
+size_t kunit_suite_num_test_cases(struct kunit_suite *suite);
+
+unsigned int kunit_test_case_num(struct kunit_suite *suite,
+				 struct kunit_case *test_case);
+
+int __kunit_test_suites_init(struct kunit_suite **suites);
+
+void __kunit_test_suites_exit(struct kunit_suite **suites);
 
 /**
  * kunit_test_suites() - used to register one or more &struct kunit_suite
@@ -226,19 +257,21 @@ int kunit_run_tests(struct kunit_suite *suite);
 	static struct kunit_suite *suites[] = { __VA_ARGS__, NULL};	\
 	static int kunit_test_suites_init(void)				\
 	{								\
-		unsigned int i;						\
-		for (i = 0; suites[i] != NULL; i++)			\
-			kunit_run_tests(suites[i]);			\
-		return 0;						\
+		return __kunit_test_suites_init(suites);		\
 	}								\
 	late_initcall(kunit_test_suites_init);				\
 	static void __exit kunit_test_suites_exit(void)			\
 	{								\
-		return;							\
+		return __kunit_test_suites_exit(suites);		\
 	}								\
 	module_exit(kunit_test_suites_exit)
 
 #define kunit_test_suite(suite)	kunit_test_suites(&suite)
+
+#define kunit_suite_for_each_test_case(suite, test_case)		\
+	for (test_case = suite->test_cases; test_case->run_case; test_case++)
+
+bool kunit_suite_has_succeeded(struct kunit_suite *suite);
 
 /*
  * Like kunit_alloc_resource() below, but returns the struct kunit_resource
@@ -356,8 +389,22 @@ static inline void *kunit_kzalloc(struct kunit *test, size_t size, gfp_t gfp)
 
 void kunit_cleanup(struct kunit *test);
 
-#define kunit_printk(lvl, test, fmt, ...) \
-	printk(lvl "\t# %s: " fmt, (test)->name, ##__VA_ARGS__)
+void kunit_log_append(char *log, const char *fmt, ...);
+
+/*
+ * printk and log to per-test or per-suite log buffer.  Logging only done
+ * if CONFIG_KUNIT_DEBUGFS is 'y'; if it is 'n', no log is allocated/used.
+ */
+#define kunit_log(lvl, test_or_suite, fmt, ...)				\
+	do {								\
+		printk(lvl fmt, ##__VA_ARGS__);				\
+		kunit_log_append((test_or_suite)->log,	fmt "\n",	\
+				 ##__VA_ARGS__);			\
+	} while (0)
+
+#define kunit_printk(lvl, test, fmt, ...)				\
+	kunit_log(lvl, test, KUNIT_SUBTEST_INDENT "# %s: " fmt,		\
+		  (test)->name,	##__VA_ARGS__)
 
 /**
  * kunit_info() - Prints an INFO level message associated with @test.

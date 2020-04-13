@@ -36,7 +36,7 @@ enum hl_device_status hl_device_status(struct hl_device *hdev)
 		status = HL_DEVICE_STATUS_OPERATIONAL;
 
 	return status;
-};
+}
 
 static void hpriv_release(struct kref *ref)
 {

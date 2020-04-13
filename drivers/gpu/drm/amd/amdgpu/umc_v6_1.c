@@ -186,6 +186,10 @@ static void umc_v6_1_query_ras_error_count(struct amdgpu_device *adev,
 	if (rsmu_umc_index_state)
 		umc_v6_1_disable_umc_index_mode(adev);
 
+	if ((adev->asic_type == CHIP_ARCTURUS) &&
+		amdgpu_dpm_set_df_cstate(adev, DF_CSTATE_DISALLOW))
+		DRM_WARN("Fail to disable DF-Cstate.\n");
+
 	LOOP_UMC_INST_AND_CH(umc_inst, ch_inst) {
 		umc_reg_offset = get_umc_6_reg_offset(adev,
 						      umc_inst,
@@ -198,6 +202,10 @@ static void umc_v6_1_query_ras_error_count(struct amdgpu_device *adev,
 							  umc_reg_offset,
 							  &(err_data->ue_count));
 	}
+
+	if ((adev->asic_type == CHIP_ARCTURUS) &&
+		amdgpu_dpm_set_df_cstate(adev, DF_CSTATE_ALLOW))
+		DRM_WARN("Fail to enable DF-Cstate\n");
 
 	if (rsmu_umc_index_state)
 		umc_v6_1_enable_umc_index_mode(adev);
@@ -228,7 +236,11 @@ static void umc_v6_1_query_error_address(struct amdgpu_device *adev,
 			SOC15_REG_OFFSET(UMC, 0, mmMCA_UMC_UMC0_MCUMC_ADDRT0);
 	}
 
-	/* skip error address process if -ENOMEM */
+	mc_umc_status = RREG64_PCIE((mc_umc_status_addr + umc_reg_offset) * 4);
+
+	if (mc_umc_status == 0)
+		return;
+
 	if (!err_data->err_addr) {
 		/* clear umc status */
 		WREG64_PCIE((mc_umc_status_addr + umc_reg_offset) * 4, 0x0ULL);
@@ -236,7 +248,6 @@ static void umc_v6_1_query_error_address(struct amdgpu_device *adev,
 	}
 
 	err_rec = &err_data->err_addr[err_data->err_addr_cnt];
-	mc_umc_status = RREG64_PCIE((mc_umc_status_addr + umc_reg_offset) * 4);
 
 	/* calculate error address if ue/ce error is detected */
 	if (REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, Val) == 1 &&
@@ -288,6 +299,10 @@ static void umc_v6_1_query_ras_error_address(struct amdgpu_device *adev,
 	if (rsmu_umc_index_state)
 		umc_v6_1_disable_umc_index_mode(adev);
 
+	if ((adev->asic_type == CHIP_ARCTURUS) &&
+		amdgpu_dpm_set_df_cstate(adev, DF_CSTATE_DISALLOW))
+		DRM_WARN("Fail to disable DF-Cstate.\n");
+
 	LOOP_UMC_INST_AND_CH(umc_inst, ch_inst) {
 		umc_reg_offset = get_umc_6_reg_offset(adev,
 						      umc_inst,
@@ -299,6 +314,10 @@ static void umc_v6_1_query_ras_error_address(struct amdgpu_device *adev,
 					     ch_inst,
 					     umc_inst);
 	}
+
+	if ((adev->asic_type == CHIP_ARCTURUS) &&
+		amdgpu_dpm_set_df_cstate(adev, DF_CSTATE_ALLOW))
+		DRM_WARN("Fail to enable DF-Cstate\n");
 
 	if (rsmu_umc_index_state)
 		umc_v6_1_enable_umc_index_mode(adev);

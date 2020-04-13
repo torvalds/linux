@@ -97,7 +97,7 @@ struct drm_bridge *msm_edp_bridge_init(struct msm_edp *edp)
 	bridge = &edp_bridge->base;
 	bridge->funcs = &edp_bridge_funcs;
 
-	ret = drm_bridge_attach(edp->encoder, bridge, NULL);
+	ret = drm_bridge_attach(edp->encoder, bridge, NULL, 0);
 	if (ret)
 		goto fail;
 

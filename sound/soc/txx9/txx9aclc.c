@@ -269,7 +269,7 @@ static int txx9aclc_pcm_new(struct snd_soc_component *component,
 			    struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_card *card = rtd->card->snd_card;
-	struct snd_soc_dai *dai = rtd->cpu_dai;
+	struct snd_soc_dai *dai = asoc_rtd_to_cpu(rtd, 0);
 	struct snd_pcm *pcm = rtd->pcm;
 	struct platform_device *pdev = to_platform_device(component->dev);
 	struct txx9aclc_soc_device *dev;

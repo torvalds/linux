@@ -86,7 +86,12 @@ struct td028ttec1_panel {
 
 #define to_td028ttec1_device(p) container_of(p, struct td028ttec1_panel, panel)
 
-static int jbt_ret_write_0(struct td028ttec1_panel *lcd, u8 reg, int *err)
+/*
+ * noinline_for_stack so we don't get multiple copies of tx_buf
+ * on the stack in case of gcc-plugin-structleak
+ */
+static int noinline_for_stack
+jbt_ret_write_0(struct td028ttec1_panel *lcd, u8 reg, int *err)
 {
 	struct spi_device *spi = lcd->spi;
 	u16 tx_buf = JBT_COMMAND | reg;
@@ -105,8 +110,9 @@ static int jbt_ret_write_0(struct td028ttec1_panel *lcd, u8 reg, int *err)
 	return ret;
 }
 
-static int jbt_reg_write_1(struct td028ttec1_panel *lcd,
-			   u8 reg, u8 data, int *err)
+static int noinline_for_stack
+jbt_reg_write_1(struct td028ttec1_panel *lcd,
+		u8 reg, u8 data, int *err)
 {
 	struct spi_device *spi = lcd->spi;
 	u16 tx_buf[2];
@@ -128,8 +134,9 @@ static int jbt_reg_write_1(struct td028ttec1_panel *lcd,
 	return ret;
 }
 
-static int jbt_reg_write_2(struct td028ttec1_panel *lcd,
-			   u8 reg, u16 data, int *err)
+static int noinline_for_stack
+jbt_reg_write_2(struct td028ttec1_panel *lcd,
+		u8 reg, u16 data, int *err)
 {
 	struct spi_device *spi = lcd->spi;
 	u16 tx_buf[3];

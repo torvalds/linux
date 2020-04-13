@@ -1,0 +1,37 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config VDPA
+	tristate
+	help
+	  Enable this module to support vDPA device that uses a
+	  datapath which complies with virtio specifications with
+	  vendor specific control path.
+
+menuconfig VDPA_MENU
+	bool "VDPA drivers"
+	default n
+
+if VDPA_MENU
+
+config VDPA_SIM
+	tristate "vDPA device simulator"
+	depends on RUNTIME_TESTING_MENU
+	select VDPA
+	select VHOST_RING
+	default n
+	help
+	  vDPA networking device simulator which loop TX traffic back
+	  to RX. This device is used for testing, prototyping and
+	  development of vDPA.
+
+config IFCVF
+	tristate "Intel IFC VF VDPA driver"
+	depends on PCI_MSI
+	select VDPA
+	default n
+	help
+	  This kernel module can drive Intel IFC VF NIC to offload
+	  virtio dataplane traffic to hardware.
+	  To compile this driver as a module, choose M here: the module will
+	  be called ifcvf.
+
+endif # VDPA_MENU

@@ -33,9 +33,12 @@
 #define CFFPS_INPUT_HISTORY_CMD			0xD6
 #define CFFPS_INPUT_HISTORY_SIZE		100
 
+#define CFFPS_CCIN_REVISION			GENMASK(7, 0)
+#define  CFFPS_CCIN_REVISION_LEGACY		 0xde
 #define CFFPS_CCIN_VERSION			GENMASK(15, 8)
 #define CFFPS_CCIN_VERSION_1			 0x2b
 #define CFFPS_CCIN_VERSION_2			 0x2e
+#define CFFPS_CCIN_VERSION_3			 0x51
 
 /* STATUS_MFR_SPECIFIC bits */
 #define CFFPS_MFR_FAN_FAULT			BIT(0)
@@ -148,7 +151,7 @@ static ssize_t ibm_cffps_debugfs_read(struct file *file, char __user *buf,
 	struct ibm_cffps *psu = to_psu(idxp, idx);
 	char data[I2C_SMBUS_BLOCK_MAX + 2] = { 0 };
 
-	pmbus_set_page(psu->client, 0);
+	pmbus_set_page(psu->client, 0, 0xff);
 
 	switch (idx) {
 	case CFFPS_DEBUGFS_INPUT_HISTORY:
@@ -247,7 +250,7 @@ static ssize_t ibm_cffps_debugfs_write(struct file *file,
 
 	switch (idx) {
 	case CFFPS_DEBUGFS_ON_OFF_CONFIG:
-		pmbus_set_page(psu->client, 0);
+		pmbus_set_page(psu->client, 0, 0xff);
 
 		rc = simple_write_to_buffer(&data, 1, ppos, buf, count);
 		if (rc <= 0)
@@ -325,13 +328,13 @@ static int ibm_cffps_read_byte_data(struct i2c_client *client, int page,
 }
 
 static int ibm_cffps_read_word_data(struct i2c_client *client, int page,
-				    int reg)
+				    int phase, int reg)
 {
 	int rc, mfr;
 
 	switch (reg) {
 	case PMBUS_STATUS_WORD:
-		rc = pmbus_read_word_data(client, page, reg);
+		rc = pmbus_read_word_data(client, page, phase, reg);
 		if (rc < 0)
 			return rc;
 
@@ -348,7 +351,8 @@ static int ibm_cffps_read_word_data(struct i2c_client *client, int page,
 			rc |= PB_STATUS_OFF;
 		break;
 	case PMBUS_VIRT_READ_VMON:
-		rc = pmbus_read_word_data(client, page, CFFPS_12VCS_VOUT_CMD);
+		rc = pmbus_read_word_data(client, page, phase,
+					  CFFPS_12VCS_VOUT_CMD);
 		break;
 	default:
 		rc = -ENODATA;
@@ -379,7 +383,7 @@ static int ibm_cffps_led_brightness_set(struct led_classdev *led_cdev,
 	dev_dbg(&psu->client->dev, "LED brightness set: %d. Command: %d.\n",
 		brightness, next_led_state);
 
-	pmbus_set_page(psu->client, 0);
+	pmbus_set_page(psu->client, 0, 0xff);
 
 	rc = i2c_smbus_write_byte_data(psu->client, CFFPS_SYS_CONFIG_CMD,
 				       next_led_state);
@@ -401,7 +405,7 @@ static int ibm_cffps_led_blink_set(struct led_classdev *led_cdev,
 
 	dev_dbg(&psu->client->dev, "LED blink set.\n");
 
-	pmbus_set_page(psu->client, 0);
+	pmbus_set_page(psu->client, 0, 0xff);
 
 	rc = i2c_smbus_write_byte_data(psu->client, CFFPS_SYS_CONFIG_CMD,
 				       CFFPS_LED_BLINK);
@@ -485,11 +489,14 @@ static int ibm_cffps_probe(struct i2c_client *client,
 		vs = (enum versions)id->driver_data;
 
 	if (vs == cffps_unknown) {
+		u16 ccin_revision = 0;
 		u16 ccin_version = CFFPS_CCIN_VERSION_1;
 		int ccin = i2c_smbus_read_word_swapped(client, CFFPS_CCIN_CMD);
 
-		if (ccin > 0)
+		if (ccin > 0) {
+			ccin_revision = FIELD_GET(CFFPS_CCIN_REVISION, ccin);
 			ccin_version = FIELD_GET(CFFPS_CCIN_VERSION, ccin);
+		}
 
 		switch (ccin_version) {
 		default:
@@ -498,6 +505,12 @@ static int ibm_cffps_probe(struct i2c_client *client,
 			break;
 		case CFFPS_CCIN_VERSION_2:
 			vs = cffps2;
+			break;
+		case CFFPS_CCIN_VERSION_3:
+			if (ccin_revision == CFFPS_CCIN_REVISION_LEGACY)
+				vs = cffps1;
+			else
+				vs = cffps2;
 			break;
 		}
 

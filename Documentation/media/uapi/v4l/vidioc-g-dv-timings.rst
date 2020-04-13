@@ -179,22 +179,20 @@ EBUSY
 .. flat-table:: struct v4l2_dv_timings
     :header-rows:  0
     :stub-columns: 0
-    :widths:       1 1 2 1
+    :widths:       1 1 2
 
     * - __u32
       - ``type``
-      -
       - Type of DV timings as listed in :ref:`dv-timing-types`.
-    * - union
-      -
-      -
-    * -
-      - struct :c:type:`v4l2_bt_timings`
+    * - union {
+      - (anonymous)
+    * - struct :c:type:`v4l2_bt_timings`
       - ``bt``
       - Timings defined by BT.656/1120 specifications
-    * -
-      - __u32
+    * - __u32
       - ``reserved``\ [32]
+      -
+    * - }
       -
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|

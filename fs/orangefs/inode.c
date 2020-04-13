@@ -259,46 +259,19 @@ static int orangefs_readpage(struct file *file, struct page *page)
 	pgoff_t index; /* which page */
 	struct page *next_page;
 	char *kaddr;
-	struct orangefs_read_options *ro = file->private_data;
 	loff_t read_size;
-	loff_t roundedup;
 	int buffer_index = -1; /* orangefs shared memory slot */
 	int slot_index;   /* index into slot */
 	int remaining;
 
 	/*
-	 * If they set some miniscule size for "count" in read(2)
-	 * (for example) then let's try to read a page, or the whole file
-	 * if it is smaller than a page. Once "count" goes over a page
-	 * then lets round up to the highest page size multiple that is
-	 * less than or equal to "count" and do that much orangefs IO and
-	 * try to fill as many pages as we can from it.
-	 *
-	 * "count" should be represented in ro->blksiz.
-	 *
-	 * inode->i_size = file size.
+	 * Get up to this many bytes from Orangefs at a time and try
+	 * to fill them into the page cache at once. Tests with dd made
+	 * this seem like a reasonable static number, if there was
+	 * interest perhaps this number could be made setable through
+	 * sysfs...
 	 */
-	if (ro) {
-		if (ro->blksiz < PAGE_SIZE) {
-			if (inode->i_size < PAGE_SIZE)
-				read_size = inode->i_size;
-			else
-				read_size = PAGE_SIZE;
-		} else {
-			roundedup = ((PAGE_SIZE - 1) & ro->blksiz) ?
-				((ro->blksiz + PAGE_SIZE) & ~(PAGE_SIZE -1)) :
-				ro->blksiz;
-			if (roundedup > inode->i_size)
-				read_size = inode->i_size;
-			else
-				read_size = roundedup;
-
-		}
-	} else {
-		read_size = PAGE_SIZE;
-	}
-	if (!read_size)
-		read_size = PAGE_SIZE;
+	read_size = 524288;
 
 	if (PageDirty(page))
 		orangefs_launder_page(page);

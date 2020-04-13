@@ -15,12 +15,12 @@ normally be unsharable, specifically:
 * visorinput - keyboard and mouse
 
 These drivers conform to the standard Linux bus/device model described
-within Documentation/driver-api/driver-model/, and utilize a driver named visorbus to
-present the virtual busses involved. Drivers in the 'visor*' driver set are
-commonly referred to as "guest drivers" or "client drivers".  All drivers
-except visorbus expose a device of a specific usable class to the Linux guest
-environment (e.g., block, network, or input), and are collectively referred
-to as "function drivers".
+within Documentation/driver-api/driver-model/, and utilize a driver named
+visorbus to present the virtual busses involved. Drivers in the 'visor*'
+driver set are commonly referred to as "guest drivers" or "client drivers".
+All drivers except visorbus expose a device of a specific usable class to the
+Linux guest environment (e.g., block, network, or input), and are collectively
+referred to as "function drivers".
 
 The back-end for each device is owned and managed by a small,
 single-purpose service partition in the s-Par firmware, which communicates

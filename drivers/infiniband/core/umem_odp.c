@@ -275,8 +275,8 @@ void ib_umem_odp_release(struct ib_umem_odp *umem_odp)
 		mmu_interval_notifier_remove(&umem_odp->notifier);
 		kvfree(umem_odp->dma_list);
 		kvfree(umem_odp->page_list);
-		put_pid(umem_odp->tgid);
 	}
+	put_pid(umem_odp->tgid);
 	kfree(umem_odp);
 }
 EXPORT_SYMBOL(ib_umem_odp_release);

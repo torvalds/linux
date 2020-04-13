@@ -592,7 +592,7 @@ int cca_sec2protkey(u16 cardnr, u16 domain,
 				u8  pad2[1];
 				u8  vptype;
 				u8  vp[32];  /* verification pattern */
-			} keyblock;
+			} ckb;
 		} lv3;
 	} __packed * prepparm;
 
@@ -650,15 +650,16 @@ int cca_sec2protkey(u16 cardnr, u16 domain,
 	prepparm = (struct uskrepparm *) prepcblk->rpl_parmb;
 
 	/* check the returned keyblock */
-	if (prepparm->lv3.keyblock.version != 0x01) {
-		DEBUG_ERR("%s reply param keyblock version mismatch 0x%02x != 0x01\n",
-			  __func__, (int) prepparm->lv3.keyblock.version);
+	if (prepparm->lv3.ckb.version != 0x01 &&
+	    prepparm->lv3.ckb.version != 0x02) {
+		DEBUG_ERR("%s reply param keyblock version mismatch 0x%02x\n",
+			  __func__, (int) prepparm->lv3.ckb.version);
 		rc = -EIO;
 		goto out;
 	}
 
 	/* copy the tanslated protected key */
-	switch (prepparm->lv3.keyblock.len) {
+	switch (prepparm->lv3.ckb.len) {
 	case 16+32:
 		/* AES 128 protected key */
 		if (protkeytype)
@@ -676,13 +677,13 @@ int cca_sec2protkey(u16 cardnr, u16 domain,
 		break;
 	default:
 		DEBUG_ERR("%s unknown/unsupported keylen %d\n",
-			  __func__, prepparm->lv3.keyblock.len);
+			  __func__, prepparm->lv3.ckb.len);
 		rc = -EIO;
 		goto out;
 	}
-	memcpy(protkey, prepparm->lv3.keyblock.key, prepparm->lv3.keyblock.len);
+	memcpy(protkey, prepparm->lv3.ckb.key, prepparm->lv3.ckb.len);
 	if (protkeylen)
-		*protkeylen = prepparm->lv3.keyblock.len;
+		*protkeylen = prepparm->lv3.ckb.len;
 
 out:
 	free_cprbmem(mem, PARMBSIZE, 0);
@@ -1260,10 +1261,10 @@ int cca_cipher2protkey(u16 cardnr, u16 domain, const u8 *ckey,
 	prepparm = (struct aurepparm *) prepcblk->rpl_parmb;
 
 	/* check the returned keyblock */
-	if (prepparm->vud.ckb.version != 0x01) {
-		DEBUG_ERR(
-			"%s reply param keyblock version mismatch 0x%02x != 0x01\n",
-			__func__, (int) prepparm->vud.ckb.version);
+	if (prepparm->vud.ckb.version != 0x01 &&
+	    prepparm->vud.ckb.version != 0x02) {
+		DEBUG_ERR("%s reply param keyblock version mismatch 0x%02x\n",
+			  __func__, (int) prepparm->vud.ckb.version);
 		rc = -EIO;
 		goto out;
 	}
@@ -1568,9 +1569,9 @@ static int findcard(u64 mkvp, u16 *pcardnr, u16 *pdomain,
 		return -EINVAL;
 
 	/* fetch status of all crypto cards */
-	device_status = kmalloc_array(MAX_ZDEV_ENTRIES_EXT,
-				      sizeof(struct zcrypt_device_status_ext),
-				      GFP_KERNEL);
+	device_status = kvmalloc_array(MAX_ZDEV_ENTRIES_EXT,
+				       sizeof(struct zcrypt_device_status_ext),
+				       GFP_KERNEL);
 	if (!device_status)
 		return -ENOMEM;
 	zcrypt_device_status_mask_ext(device_status);
@@ -1640,7 +1641,7 @@ static int findcard(u64 mkvp, u16 *pcardnr, u16 *pdomain,
 	} else
 		rc = -ENODEV;
 
-	kfree(device_status);
+	kvfree(device_status);
 	return rc;
 }
 

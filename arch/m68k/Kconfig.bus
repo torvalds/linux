@@ -66,6 +66,6 @@ endif
 if !MMU
 
 config ISA_DMA_API
-        def_bool !M5272
+	def_bool !M5272
 
 endif

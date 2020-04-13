@@ -167,11 +167,6 @@ static inline int pte_newprot(pte_t pte)
 	return(pte_present(pte) && (pte_get_bits(pte, _PAGE_NEWPROT)));
 }
 
-static inline int pte_special(pte_t pte)
-{
-	return 0;
-}
-
 /*
  * =================================
  * Flags setting section.
@@ -244,11 +239,6 @@ static inline pte_t pte_mkuptodate(pte_t pte)
 static inline pte_t pte_mknewpage(pte_t pte)
 {
 	pte_set_bits(pte, _PAGE_NEWPAGE);
-	return(pte);
-}
-
-static inline pte_t pte_mkspecial(pte_t pte)
-{
 	return(pte);
 }
 

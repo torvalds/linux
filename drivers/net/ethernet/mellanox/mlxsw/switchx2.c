@@ -180,7 +180,7 @@ static int mlxsw_sx_port_oper_status_get(struct mlxsw_sx_port *mlxsw_sx_port,
 	if (err)
 		return err;
 	oper_status = mlxsw_reg_paos_oper_status_get(paos_pl);
-	*p_is_up = oper_status == MLXSW_PORT_ADMIN_STATUS_UP ? true : false;
+	*p_is_up = oper_status == MLXSW_PORT_ADMIN_STATUS_UP;
 	return 0;
 }
 

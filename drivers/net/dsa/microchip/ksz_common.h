@@ -80,8 +80,7 @@ struct ksz_device {
 	struct vlan_table *vlan_cache;
 
 	struct ksz_port *ports;
-	struct timer_list mib_read_timer;
-	struct work_struct mib_read;
+	struct delayed_work mib_read;
 	unsigned long mib_read_interval;
 	u16 br_member;
 	u16 member;

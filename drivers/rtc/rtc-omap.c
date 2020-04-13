@@ -9,7 +9,6 @@
  * Copyright (C) 2014 Johan Hovold <johan@kernel.org>
  */
 
-#include <dt-bindings/gpio/gpio.h>
 #include <linux/bcd.h>
 #include <linux/clk.h>
 #include <linux/delay.h>

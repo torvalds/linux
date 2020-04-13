@@ -235,3 +235,22 @@ LIBBPF_0.0.7 {
 		btf__align_of;
 		libbpf_find_kernel_btf;
 } LIBBPF_0.0.6;
+
+LIBBPF_0.0.8 {
+	global:
+		bpf_link__fd;
+		bpf_link__open;
+		bpf_link__pin;
+		bpf_link__pin_path;
+		bpf_link__unpin;
+		bpf_link__update_program;
+		bpf_link_create;
+		bpf_link_update;
+		bpf_map__set_initial_value;
+		bpf_program__attach_cgroup;
+		bpf_program__attach_lsm;
+		bpf_program__is_lsm;
+		bpf_program__set_attach_target;
+		bpf_program__set_lsm;
+		bpf_set_link_xdp_fd_opts;
+} LIBBPF_0.0.7;

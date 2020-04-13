@@ -126,13 +126,6 @@ void typec_altmode_put_plug(struct typec_altmode *plug);
 struct typec_altmode *typec_match_altmode(struct typec_altmode **altmodes,
 					  size_t n, u16 svid, u8 mode);
 
-struct typec_altmode *
-typec_altmode_register_notifier(struct device *dev, u16 svid, u8 mode,
-				struct notifier_block *nb);
-
-void typec_altmode_unregister_notifier(struct typec_altmode *adev,
-				       struct notifier_block *nb);
-
 /**
  * typec_altmode_get_orientation - Get cable plug orientation
  * altmode: Handle to the alternate mode

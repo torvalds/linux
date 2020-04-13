@@ -590,7 +590,7 @@ struct type86x_reply {
 	struct CPRBX cprbx;
 	unsigned char pad[4];	/* 4 byte function code/rules block ? */
 	unsigned short length;
-	char text[0];
+	char text[];
 } __packed;
 
 struct type86_ep11_reply {
@@ -801,7 +801,7 @@ static int convert_response_ica(struct zcrypt_queue *zq,
 		if (msg->cprbx.cprb_ver_id == 0x02)
 			return convert_type86_ica(zq, reply,
 						  outputdata, outputdatalength);
-		/* fall through - wrong cprb version is an unknown response */
+		fallthrough;	/* wrong cprb version is an unknown response */
 	default: /* Unknown response type, this should NEVER EVER happen */
 		zq->online = 0;
 		pr_err("Cryptographic device %02x.%04x failed and was set offline\n",
@@ -834,7 +834,7 @@ static int convert_response_xcrb(struct zcrypt_queue *zq,
 		}
 		if (msg->cprbx.cprb_ver_id == 0x02)
 			return convert_type86_xcrb(zq, reply, xcRB);
-		/* fall through - wrong cprb version is an unknown response */
+		fallthrough;	/* wrong cprb version is an unknown response */
 	default: /* Unknown response type, this should NEVER EVER happen */
 		xcRB->status = 0x0008044DL; /* HDD_InvalidParm */
 		zq->online = 0;
@@ -864,7 +864,7 @@ static int convert_response_ep11_xcrb(struct zcrypt_queue *zq,
 			return convert_error(zq, reply);
 		if (msg->cprbx.cprb_ver_id == 0x04)
 			return convert_type86_ep11_xcrb(zq, reply, xcRB);
-		/* fall through - wrong cprb version is an unknown resp */
+		fallthrough;	/* wrong cprb version is an unknown resp */
 	default: /* Unknown response type, this should NEVER EVER happen */
 		zq->online = 0;
 		pr_err("Cryptographic device %02x.%04x failed and was set offline\n",
@@ -894,7 +894,7 @@ static int convert_response_rng(struct zcrypt_queue *zq,
 			return -EINVAL;
 		if (msg->cprbx.cprb_ver_id == 0x02)
 			return convert_type86_rng(zq, reply, data);
-		/* fall through - wrong cprb version is an unknown response */
+		fallthrough;	/* wrong cprb version is an unknown response */
 	default: /* Unknown response type, this should NEVER EVER happen */
 		zq->online = 0;
 		pr_err("Cryptographic device %02x.%04x failed and was set offline\n",

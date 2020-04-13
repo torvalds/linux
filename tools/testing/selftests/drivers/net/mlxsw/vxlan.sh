@@ -9,6 +9,7 @@ lib_dir=$(dirname $0)/../../../net/forwarding
 ALL_TESTS="sanitization_test offload_indication_test \
 	sanitization_vlan_aware_test offload_indication_vlan_aware_test"
 NUM_NETIFS=2
+: ${TIMEOUT:=20000} # ms
 source $lib_dir/lib.sh
 
 setup_prepare()
@@ -470,8 +471,8 @@ offload_indication_fdb_flood_test()
 
 	bridge fdb append 00:00:00:00:00:00 dev vxlan0 self dst 198.51.100.2
 
-	bridge fdb show brport vxlan0 | grep 00:00:00:00:00:00 \
-		| grep -q offload
+	busywait "$TIMEOUT" wait_for_offload grep_bridge_fdb 00:00:00:00:00:00 \
+		bridge fdb show brport vxlan0
 	check_err $?
 
 	bridge fdb del 00:00:00:00:00:00 dev vxlan0 self
@@ -486,11 +487,11 @@ offload_indication_fdb_bridge_test()
 	bridge fdb add de:ad:be:ef:13:37 dev vxlan0 self master static \
 		dst 198.51.100.2
 
-	bridge fdb show brport vxlan0 | grep de:ad:be:ef:13:37 | grep self \
-		| grep -q offload
+	busywait "$TIMEOUT" wait_for_offload grep_bridge_fdb \
+		de:ad:be:ef:13:37 self bridge fdb show brport vxlan0
 	check_err $?
-	bridge fdb show brport vxlan0 | grep de:ad:be:ef:13:37 | grep -v self \
-		| grep -q offload
+	busywait "$TIMEOUT" wait_for_offload grep_bridge_fdb \
+		de:ad:be:ef:13:37 self -v bridge fdb show brport vxlan0
 	check_err $?
 
 	log_test "vxlan entry offload indication - initial state"
@@ -500,9 +501,9 @@ offload_indication_fdb_bridge_test()
 	RET=0
 
 	bridge fdb del de:ad:be:ef:13:37 dev vxlan0 master
-	bridge fdb show brport vxlan0 | grep de:ad:be:ef:13:37 | grep self \
-		| grep -q offload
-	check_fail $?
+	busywait "$TIMEOUT" not wait_for_offload grep_bridge_fdb \
+		de:ad:be:ef:13:37 self bridge fdb show brport vxlan0
+	check_err $?
 
 	log_test "vxlan entry offload indication - after removal from bridge"
 
@@ -511,11 +512,11 @@ offload_indication_fdb_bridge_test()
 	RET=0
 
 	bridge fdb add de:ad:be:ef:13:37 dev vxlan0 master static
-	bridge fdb show brport vxlan0 | grep de:ad:be:ef:13:37 | grep self \
-		| grep -q offload
+	busywait "$TIMEOUT" wait_for_offload grep_bridge_fdb \
+		de:ad:be:ef:13:37 self bridge fdb show brport vxlan0
 	check_err $?
-	bridge fdb show brport vxlan0 | grep de:ad:be:ef:13:37 | grep -v self \
-		| grep -q offload
+	busywait "$TIMEOUT" wait_for_offload grep_bridge_fdb \
+		de:ad:be:ef:13:37 self -v bridge fdb show brport vxlan0
 	check_err $?
 
 	log_test "vxlan entry offload indication - after re-add to bridge"
@@ -525,9 +526,9 @@ offload_indication_fdb_bridge_test()
 	RET=0
 
 	bridge fdb del de:ad:be:ef:13:37 dev vxlan0 self
-	bridge fdb show brport vxlan0 | grep de:ad:be:ef:13:37 | grep -v self \
-		| grep -q offload
-	check_fail $?
+	busywait "$TIMEOUT" not wait_for_offload grep_bridge_fdb \
+		de:ad:be:ef:13:37 self -v bridge fdb show brport vxlan0
+	check_err $?
 
 	log_test "vxlan entry offload indication - after removal from vxlan"
 
@@ -536,11 +537,11 @@ offload_indication_fdb_bridge_test()
 	RET=0
 
 	bridge fdb add de:ad:be:ef:13:37 dev vxlan0 self dst 198.51.100.2
-	bridge fdb show brport vxlan0 | grep de:ad:be:ef:13:37 | grep self \
-		| grep -q offload
+	busywait "$TIMEOUT" wait_for_offload grep_bridge_fdb \
+		de:ad:be:ef:13:37 self bridge fdb show brport vxlan0
 	check_err $?
-	bridge fdb show brport vxlan0 | grep de:ad:be:ef:13:37 | grep -v self \
-		| grep -q offload
+	busywait "$TIMEOUT" wait_for_offload grep_bridge_fdb \
+		de:ad:be:ef:13:37 self -v bridge fdb show brport vxlan0
 	check_err $?
 
 	log_test "vxlan entry offload indication - after re-add to vxlan"
@@ -558,27 +559,32 @@ offload_indication_decap_route_test()
 {
 	RET=0
 
-	ip route show table local | grep 198.51.100.1 | grep -q offload
+	busywait "$TIMEOUT" wait_for_offload \
+		ip route show table local 198.51.100.1
 	check_err $?
 
 	ip link set dev vxlan0 down
-	ip route show table local | grep 198.51.100.1 | grep -q offload
+	busywait "$TIMEOUT" wait_for_offload \
+		ip route show table local 198.51.100.1
 	check_err $?
 
 	ip link set dev vxlan1 down
-	ip route show table local | grep 198.51.100.1 | grep -q offload
-	check_fail $?
+	busywait "$TIMEOUT" not wait_for_offload \
+		ip route show table local 198.51.100.1
+	check_err $?
 
 	log_test "vxlan decap route - vxlan device down"
 
 	RET=0
 
 	ip link set dev vxlan1 up
-	ip route show table local | grep 198.51.100.1 | grep -q offload
+	busywait "$TIMEOUT" wait_for_offload \
+		ip route show table local 198.51.100.1
 	check_err $?
 
 	ip link set dev vxlan0 up
-	ip route show table local | grep 198.51.100.1 | grep -q offload
+	busywait "$TIMEOUT" wait_for_offload \
+		ip route show table local 198.51.100.1
 	check_err $?
 
 	log_test "vxlan decap route - vxlan device up"
@@ -586,11 +592,13 @@ offload_indication_decap_route_test()
 	RET=0
 
 	ip address delete 198.51.100.1/32 dev lo
-	ip route show table local | grep 198.51.100.1 | grep -q offload
-	check_fail $?
+	busywait "$TIMEOUT" not wait_for_offload \
+		ip route show table local 198.51.100.1
+	check_err $?
 
 	ip address add 198.51.100.1/32 dev lo
-	ip route show table local | grep 198.51.100.1 | grep -q offload
+	busywait "$TIMEOUT" wait_for_offload \
+		ip route show table local 198.51.100.1
 	check_err $?
 
 	log_test "vxlan decap route - add local route"
@@ -598,16 +606,19 @@ offload_indication_decap_route_test()
 	RET=0
 
 	ip link set dev $swp1 nomaster
-	ip route show table local | grep 198.51.100.1 | grep -q offload
+	busywait "$TIMEOUT" wait_for_offload \
+		ip route show table local 198.51.100.1
 	check_err $?
 
 	ip link set dev $swp2 nomaster
-	ip route show table local | grep 198.51.100.1 | grep -q offload
-	check_fail $?
+	busywait "$TIMEOUT" not wait_for_offload \
+		ip route show table local 198.51.100.1
+	check_err $?
 
 	ip link set dev $swp1 master br0
 	ip link set dev $swp2 master br1
-	ip route show table local | grep 198.51.100.1 | grep -q offload
+	busywait "$TIMEOUT" wait_for_offload \
+		ip route show table local 198.51.100.1
 	check_err $?
 
 	log_test "vxlan decap route - local ports enslavement"
@@ -615,12 +626,14 @@ offload_indication_decap_route_test()
 	RET=0
 
 	ip link del dev br0
-	ip route show table local | grep 198.51.100.1 | grep -q offload
+	busywait "$TIMEOUT" wait_for_offload \
+		ip route show table local 198.51.100.1
 	check_err $?
 
 	ip link del dev br1
-	ip route show table local | grep 198.51.100.1 | grep -q offload
-	check_fail $?
+	busywait "$TIMEOUT" not wait_for_offload \
+		ip route show table local 198.51.100.1
+	check_err $?
 
 	log_test "vxlan decap route - bridge device deletion"
 
@@ -632,16 +645,19 @@ offload_indication_decap_route_test()
 	ip link set dev $swp2 master br1
 	ip link set dev vxlan0 master br0
 	ip link set dev vxlan1 master br1
-	ip route show table local | grep 198.51.100.1 | grep -q offload
+	busywait "$TIMEOUT" wait_for_offload \
+		ip route show table local 198.51.100.1
 	check_err $?
 
 	ip link del dev vxlan0
-	ip route show table local | grep 198.51.100.1 | grep -q offload
+	busywait "$TIMEOUT" wait_for_offload \
+		ip route show table local 198.51.100.1
 	check_err $?
 
 	ip link del dev vxlan1
-	ip route show table local | grep 198.51.100.1 | grep -q offload
-	check_fail $?
+	busywait "$TIMEOUT" not wait_for_offload \
+		ip route show table local 198.51.100.1
+	check_err $?
 
 	log_test "vxlan decap route - vxlan device deletion"
 
@@ -656,12 +672,15 @@ check_fdb_offloaded()
 	local mac=00:11:22:33:44:55
 	local zmac=00:00:00:00:00:00
 
-	bridge fdb show dev vxlan0 | grep $mac | grep self | grep -q offload
+	busywait "$TIMEOUT" wait_for_offload grep_bridge_fdb $mac self \
+		bridge fdb show dev vxlan0
 	check_err $?
-	bridge fdb show dev vxlan0 | grep $mac | grep master | grep -q offload
+	busywait "$TIMEOUT" wait_for_offload grep_bridge_fdb $mac master \
+		bridge fdb show dev vxlan0
 	check_err $?
 
-	bridge fdb show dev vxlan0 | grep $zmac | grep self | grep -q offload
+	busywait "$TIMEOUT" wait_for_offload grep_bridge_fdb $zmac self \
+		bridge fdb show dev vxlan0
 	check_err $?
 }
 
@@ -672,13 +691,15 @@ check_vxlan_fdb_not_offloaded()
 
 	bridge fdb show dev vxlan0 | grep $mac | grep -q self
 	check_err $?
-	bridge fdb show dev vxlan0 | grep $mac | grep self | grep -q offload
-	check_fail $?
+	busywait "$TIMEOUT" not wait_for_offload grep_bridge_fdb $mac self \
+		bridge fdb show dev vxlan0
+	check_err $?
 
 	bridge fdb show dev vxlan0 | grep $zmac | grep -q self
 	check_err $?
-	bridge fdb show dev vxlan0 | grep $zmac | grep self | grep -q offload
-	check_fail $?
+	busywait "$TIMEOUT" not wait_for_offload grep_bridge_fdb $zmac self \
+		bridge fdb show dev vxlan0
+	check_err $?
 }
 
 check_bridge_fdb_not_offloaded()
@@ -688,8 +709,9 @@ check_bridge_fdb_not_offloaded()
 
 	bridge fdb show dev vxlan0 | grep $mac | grep -q master
 	check_err $?
-	bridge fdb show dev vxlan0 | grep $mac | grep master | grep -q offload
-	check_fail $?
+	busywait "$TIMEOUT" not wait_for_offload grep_bridge_fdb $mac master \
+		bridge fdb show dev vxlan0
+	check_err $?
 }
 
 __offload_indication_join_vxlan_first()
@@ -771,12 +793,14 @@ __offload_indication_join_vxlan_last()
 
 	ip link set dev $swp1 master br0
 
-	bridge fdb show dev vxlan0 | grep $zmac | grep self | grep -q offload
-	check_fail $?
+	busywait "$TIMEOUT" not wait_for_offload grep_bridge_fdb $zmac self \
+		bridge fdb show dev vxlan0
+	check_err $?
 
 	ip link set dev vxlan0 master br0
 
-	bridge fdb show dev vxlan0 | grep $zmac | grep self | grep -q offload
+	busywait "$TIMEOUT" wait_for_offload grep_bridge_fdb $zmac self \
+		bridge fdb show dev vxlan0
 	check_err $?
 
 	log_test "offload indication - attach vxlan last"
@@ -854,20 +878,26 @@ sanitization_vlan_aware_test()
 	bridge vlan del vid 10 dev vxlan20
 	bridge vlan add vid 20 dev vxlan20 pvid untagged
 
-	# Test that offloading of an unsupported tunnel fails when it is
-	# triggered by addition of VLAN to a local port
-	RET=0
+	# Test that when two VXLAN tunnels with conflicting configurations
+	# (i.e., different TTL) are enslaved to the same VLAN-aware bridge,
+	# then the enslavement of a port to the bridge is denied.
 
-	# TOS must be set to inherit
-	ip link set dev vxlan10 type vxlan tos 42
+	# Use the offload indication of the local route to ensure the VXLAN
+	# configuration was correctly rollbacked.
+	ip address add 198.51.100.1/32 dev lo
 
-	ip link set dev $swp1 master br0
-	bridge vlan add vid 10 dev $swp1 &> /dev/null
+	ip link set dev vxlan10 type vxlan ttl 10
+	ip link set dev $swp1 master br0 &> /dev/null
 	check_fail $?
 
-	log_test "vlan-aware - failed vlan addition to a local port"
+	busywait "$TIMEOUT" not wait_for_offload \
+		ip route show table local 198.51.100.1
+	check_err $?
 
-	ip link set dev vxlan10 type vxlan tos inherit
+	log_test "vlan-aware - failed enslavement to bridge due to conflict"
+
+	ip link set dev vxlan10 type vxlan ttl 20
+	ip address del 198.51.100.1/32 dev lo
 
 	ip link del dev vxlan20
 	ip link del dev vxlan10
@@ -924,11 +954,11 @@ offload_indication_vlan_aware_fdb_test()
 	bridge fdb add de:ad:be:ef:13:37 dev vxlan10 self master static \
 		dst 198.51.100.2 vlan 10
 
-	bridge fdb show brport vxlan10 | grep de:ad:be:ef:13:37 | grep self \
-		| grep -q offload
+	busywait "$TIMEOUT" wait_for_offload grep_bridge_fdb \
+		de:ad:be:ef:13:37 self bridge fdb show brport vxlan10
 	check_err $?
-	bridge fdb show brport vxlan10 | grep de:ad:be:ef:13:37 | grep -v self \
-		| grep -q offload
+	busywait "$TIMEOUT" wait_for_offload grep_bridge_fdb \
+		de:ad:be:ef:13:37 self -v bridge fdb show brport vxlan10
 	check_err $?
 
 	log_test "vxlan entry offload indication - initial state"
@@ -938,9 +968,9 @@ offload_indication_vlan_aware_fdb_test()
 	RET=0
 
 	bridge fdb del de:ad:be:ef:13:37 dev vxlan10 master vlan 10
-	bridge fdb show brport vxlan10 | grep de:ad:be:ef:13:37 | grep self \
-		| grep -q offload
-	check_fail $?
+	busywait "$TIMEOUT" not wait_for_offload grep_bridge_fdb \
+		de:ad:be:ef:13:37 self bridge fdb show brport vxlan10
+	check_err $?
 
 	log_test "vxlan entry offload indication - after removal from bridge"
 
@@ -949,11 +979,11 @@ offload_indication_vlan_aware_fdb_test()
 	RET=0
 
 	bridge fdb add de:ad:be:ef:13:37 dev vxlan10 master static vlan 10
-	bridge fdb show brport vxlan10 | grep de:ad:be:ef:13:37 | grep self \
-		| grep -q offload
+	busywait "$TIMEOUT" wait_for_offload grep_bridge_fdb \
+		de:ad:be:ef:13:37 self bridge fdb show brport vxlan10
 	check_err $?
-	bridge fdb show brport vxlan10 | grep de:ad:be:ef:13:37 | grep -v self \
-		| grep -q offload
+	busywait "$TIMEOUT" wait_for_offload grep_bridge_fdb \
+		de:ad:be:ef:13:37 self -v bridge fdb show brport vxlan10
 	check_err $?
 
 	log_test "vxlan entry offload indication - after re-add to bridge"
@@ -963,9 +993,9 @@ offload_indication_vlan_aware_fdb_test()
 	RET=0
 
 	bridge fdb del de:ad:be:ef:13:37 dev vxlan10 self
-	bridge fdb show brport vxlan10 | grep de:ad:be:ef:13:37 | grep -v self \
-		| grep -q offload
-	check_fail $?
+	busywait "$TIMEOUT" not wait_for_offload grep_bridge_fdb \
+		de:ad:be:ef:13:37 self -v bridge fdb show brport vxlan10
+	check_err $?
 
 	log_test "vxlan entry offload indication - after removal from vxlan"
 
@@ -974,11 +1004,11 @@ offload_indication_vlan_aware_fdb_test()
 	RET=0
 
 	bridge fdb add de:ad:be:ef:13:37 dev vxlan10 self dst 198.51.100.2
-	bridge fdb show brport vxlan10 | grep de:ad:be:ef:13:37 | grep self \
-		| grep -q offload
+	busywait "$TIMEOUT" wait_for_offload grep_bridge_fdb \
+		de:ad:be:ef:13:37 self bridge fdb show brport vxlan10
 	check_err $?
-	bridge fdb show brport vxlan10 | grep de:ad:be:ef:13:37 | grep -v self \
-		| grep -q offload
+	busywait "$TIMEOUT" wait_for_offload grep_bridge_fdb \
+		de:ad:be:ef:13:37 self -v bridge fdb show brport vxlan10
 	check_err $?
 
 	log_test "vxlan entry offload indication - after re-add to vxlan"
@@ -990,28 +1020,31 @@ offload_indication_vlan_aware_decap_route_test()
 {
 	RET=0
 
-	ip route show table local | grep 198.51.100.1 | grep -q offload
+	busywait "$TIMEOUT" wait_for_offload \
+		ip route show table local 198.51.100.1
 	check_err $?
 
 	# Toggle PVID flag on one VxLAN device and make sure route is still
 	# marked as offloaded
 	bridge vlan add vid 10 dev vxlan10 untagged
 
-	ip route show table local | grep 198.51.100.1 | grep -q offload
+	busywait "$TIMEOUT" wait_for_offload \
+		ip route show table local 198.51.100.1
 	check_err $?
 
 	# Toggle PVID flag on second VxLAN device and make sure route is no
 	# longer marked as offloaded
 	bridge vlan add vid 20 dev vxlan20 untagged
 
-	ip route show table local | grep 198.51.100.1 | grep -q offload
-	check_fail $?
+	busywait "$TIMEOUT" not wait_for_offload \
+		ip route show table local 198.51.100.1
+	check_err $?
 
 	# Toggle PVID flag back and make sure route is marked as offloaded
 	bridge vlan add vid 10 dev vxlan10 pvid untagged
 	bridge vlan add vid 20 dev vxlan20 pvid untagged
 
-	ip route show table local | grep 198.51.100.1 | grep -q offload
+	busywait "$TIMEOUT" wait_for_offload ip route show table local 198.51.100.1
 	check_err $?
 
 	log_test "vxlan decap route - vni map/unmap"
@@ -1064,35 +1097,33 @@ offload_indication_vlan_aware_l3vni_test()
 	ip link set dev vxlan0 master br0
 	bridge vlan add dev vxlan0 vid 10 pvid untagged
 
-	# No local port or router port is member in the VLAN, so tunnel should
-	# not be offloaded
-	bridge fdb show brport vxlan0 | grep $zmac | grep self \
-		| grep -q offload
-	check_fail $? "vxlan tunnel offloaded when should not"
+	busywait "$TIMEOUT" wait_for_offload grep_bridge_fdb $zmac self \
+		bridge fdb show brport vxlan0
+	check_err $? "vxlan tunnel not offloaded when should"
 
 	# Configure a VLAN interface and make sure tunnel is offloaded
 	ip link add link br0 name br10 up type vlan id 10
 	sysctl_set net.ipv6.conf.br10.disable_ipv6 0
 	ip -6 address add 2001:db8:1::1/64 dev br10
-	bridge fdb show brport vxlan0 | grep $zmac | grep self \
-		| grep -q offload
+	busywait "$TIMEOUT" wait_for_offload grep_bridge_fdb $zmac self \
+		bridge fdb show brport vxlan0
 	check_err $? "vxlan tunnel not offloaded when should"
 
 	# Unlink the VXLAN device, make sure tunnel is no longer offloaded,
 	# then add it back to the bridge and make sure it is offloaded
 	ip link set dev vxlan0 nomaster
-	bridge fdb show brport vxlan0 | grep $zmac | grep self \
-		| grep -q offload
-	check_fail $? "vxlan tunnel offloaded after unlinked from bridge"
+	busywait "$TIMEOUT" not wait_for_offload grep_bridge_fdb $zmac self \
+		bridge fdb show brport vxlan0
+	check_err $? "vxlan tunnel offloaded after unlinked from bridge"
 
 	ip link set dev vxlan0 master br0
-	bridge fdb show brport vxlan0 | grep $zmac | grep self \
-		| grep -q offload
-	check_fail $? "vxlan tunnel offloaded despite no matching vid"
+	busywait "$TIMEOUT" not wait_for_offload grep_bridge_fdb $zmac self \
+		bridge fdb show brport vxlan0
+	check_err $? "vxlan tunnel offloaded despite no matching vid"
 
 	bridge vlan add dev vxlan0 vid 10 pvid untagged
-	bridge fdb show brport vxlan0 | grep $zmac | grep self \
-		| grep -q offload
+	busywait "$TIMEOUT" wait_for_offload grep_bridge_fdb $zmac self \
+		bridge fdb show brport vxlan0
 	check_err $? "vxlan tunnel not offloaded after adding vid"
 
 	log_test "vxlan - l3 vni"

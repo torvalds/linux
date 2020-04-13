@@ -88,6 +88,9 @@ config SECURITY_SELINUX_CHECKREQPROT_VALUE
 	  'checkreqprot=' boot parameter.  It may also be changed at runtime
 	  via /sys/fs/selinux/checkreqprot if authorized by policy.
 
+	  WARNING: this option is deprecated and will be removed in a future
+	  kernel release.
+
 	  If you are unsure how to answer this question, answer 0.
 
 config SECURITY_SELINUX_SIDTAB_HASH_BITS

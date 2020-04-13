@@ -3546,6 +3546,8 @@ static void igc_reset_task(struct work_struct *work)
 
 	adapter = container_of(work, struct igc_adapter, reset_task);
 
+	igc_rings_dump(adapter);
+	igc_regs_dump(adapter);
 	netdev_err(adapter->netdev, "Reset adapter\n");
 	igc_reinit_locked(adapter);
 }
@@ -4029,6 +4031,9 @@ static void igc_watchdog_task(struct work_struct *work)
 		}
 	}
 	if (link) {
+		/* Cancel scheduled suspend requests. */
+		pm_runtime_resume(netdev->dev.parent);
+
 		if (!netif_carrier_ok(netdev)) {
 			u32 ctrl;
 
@@ -4114,6 +4119,8 @@ no_wait:
 					return;
 				}
 			}
+			pm_schedule_suspend(netdev->dev.parent,
+					    MSEC_PER_SEC * 5);
 
 		/* also check for alternate media here */
 		} else if (!netif_carrier_ok(netdev) &&
@@ -4337,6 +4344,7 @@ request_done:
 static int __igc_open(struct net_device *netdev, bool resuming)
 {
 	struct igc_adapter *adapter = netdev_priv(netdev);
+	struct pci_dev *pdev = adapter->pdev;
 	struct igc_hw *hw = &adapter->hw;
 	int err = 0;
 	int i = 0;
@@ -4347,6 +4355,9 @@ static int __igc_open(struct net_device *netdev, bool resuming)
 		WARN_ON(resuming);
 		return -EBUSY;
 	}
+
+	if (!resuming)
+		pm_runtime_get_sync(&pdev->dev);
 
 	netif_carrier_off(netdev);
 
@@ -4386,6 +4397,9 @@ static int __igc_open(struct net_device *netdev, bool resuming)
 	rd32(IGC_ICR);
 	igc_irq_enable(adapter);
 
+	if (!resuming)
+		pm_runtime_put(&pdev->dev);
+
 	netif_tx_start_all_queues(netdev);
 
 	/* start the watchdog. */
@@ -4404,6 +4418,8 @@ err_setup_rx:
 	igc_free_all_tx_resources(adapter);
 err_setup_tx:
 	igc_reset(adapter);
+	if (!resuming)
+		pm_runtime_put(&pdev->dev);
 
 	return err;
 }
@@ -4428,8 +4444,12 @@ static int igc_open(struct net_device *netdev)
 static int __igc_close(struct net_device *netdev, bool suspending)
 {
 	struct igc_adapter *adapter = netdev_priv(netdev);
+	struct pci_dev *pdev = adapter->pdev;
 
 	WARN_ON(test_bit(__IGC_RESETTING, &adapter->state));
+
+	if (!suspending)
+		pm_runtime_get_sync(&pdev->dev);
 
 	igc_down(adapter);
 
@@ -4439,6 +4459,9 @@ static int __igc_close(struct net_device *netdev, bool suspending)
 
 	igc_free_all_tx_resources(adapter);
 	igc_free_all_rx_resources(adapter);
+
+	if (!suspending)
+		pm_runtime_put_sync(&pdev->dev);
 
 	return 0;
 }
@@ -4766,6 +4789,16 @@ static int igc_probe(struct pci_dev *pdev,
 	hw->fc.requested_mode = igc_fc_default;
 	hw->fc.current_mode = igc_fc_default;
 
+	/* By default, support wake on port A */
+	adapter->flags |= IGC_FLAG_WOL_SUPPORTED;
+
+	/* initialize the wol settings based on the eeprom settings */
+	if (adapter->flags & IGC_FLAG_WOL_SUPPORTED)
+		adapter->wol |= IGC_WUFC_MAG;
+
+	device_set_wakeup_enable(&adapter->pdev->dev,
+				 adapter->flags & IGC_FLAG_WOL_SUPPORTED);
+
 	/* reset the hardware with the new settings */
 	igc_reset(adapter);
 
@@ -4791,6 +4824,10 @@ static int igc_probe(struct pci_dev *pdev,
 	/* print pcie link status and MAC address */
 	pcie_print_link_status(pdev);
 	netdev_info(netdev, "MAC: %pM\n", netdev->dev_addr);
+
+	dev_pm_set_driver_flags(&pdev->dev, DPM_FLAG_NEVER_SKIP);
+
+	pm_runtime_put_noidle(&pdev->dev);
 
 	return 0;
 
@@ -4825,6 +4862,8 @@ static void igc_remove(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct igc_adapter *adapter = netdev_priv(netdev);
+
+	pm_runtime_get_noresume(&pdev->dev);
 
 	igc_ptp_stop(adapter);
 
@@ -4869,6 +4908,8 @@ static int __igc_shutdown(struct pci_dev *pdev, bool *enable_wake,
 
 	if (netif_running(netdev))
 		__igc_close(netdev, true);
+
+	igc_ptp_suspend(adapter);
 
 	igc_clear_interrupt_scheme(adapter);
 	rtnl_unlock();
@@ -5045,6 +5086,108 @@ static void igc_shutdown(struct pci_dev *pdev)
 	}
 }
 
+/**
+ *  igc_io_error_detected - called when PCI error is detected
+ *  @pdev: Pointer to PCI device
+ *  @state: The current PCI connection state
+ *
+ *  This function is called after a PCI bus error affecting
+ *  this device has been detected.
+ **/
+static pci_ers_result_t igc_io_error_detected(struct pci_dev *pdev,
+					      pci_channel_state_t state)
+{
+	struct net_device *netdev = pci_get_drvdata(pdev);
+	struct igc_adapter *adapter = netdev_priv(netdev);
+
+	netif_device_detach(netdev);
+
+	if (state == pci_channel_io_perm_failure)
+		return PCI_ERS_RESULT_DISCONNECT;
+
+	if (netif_running(netdev))
+		igc_down(adapter);
+	pci_disable_device(pdev);
+
+	/* Request a slot reset. */
+	return PCI_ERS_RESULT_NEED_RESET;
+}
+
+/**
+ *  igc_io_slot_reset - called after the PCI bus has been reset.
+ *  @pdev: Pointer to PCI device
+ *
+ *  Restart the card from scratch, as if from a cold-boot. Implementation
+ *  resembles the first-half of the igc_resume routine.
+ **/
+static pci_ers_result_t igc_io_slot_reset(struct pci_dev *pdev)
+{
+	struct net_device *netdev = pci_get_drvdata(pdev);
+	struct igc_adapter *adapter = netdev_priv(netdev);
+	struct igc_hw *hw = &adapter->hw;
+	pci_ers_result_t result;
+
+	if (pci_enable_device_mem(pdev)) {
+		dev_err(&pdev->dev,
+			"Could not re-enable PCI device after reset.\n");
+		result = PCI_ERS_RESULT_DISCONNECT;
+	} else {
+		pci_set_master(pdev);
+		pci_restore_state(pdev);
+		pci_save_state(pdev);
+
+		pci_enable_wake(pdev, PCI_D3hot, 0);
+		pci_enable_wake(pdev, PCI_D3cold, 0);
+
+		/* In case of PCI error, adapter loses its HW address
+		 * so we should re-assign it here.
+		 */
+		hw->hw_addr = adapter->io_addr;
+
+		igc_reset(adapter);
+		wr32(IGC_WUS, ~0);
+		result = PCI_ERS_RESULT_RECOVERED;
+	}
+
+	return result;
+}
+
+/**
+ *  igc_io_resume - called when traffic can start to flow again.
+ *  @pdev: Pointer to PCI device
+ *
+ *  This callback is called when the error recovery driver tells us that
+ *  its OK to resume normal operation. Implementation resembles the
+ *  second-half of the igc_resume routine.
+ */
+static void igc_io_resume(struct pci_dev *pdev)
+{
+	struct net_device *netdev = pci_get_drvdata(pdev);
+	struct igc_adapter *adapter = netdev_priv(netdev);
+
+	rtnl_lock();
+	if (netif_running(netdev)) {
+		if (igc_open(netdev)) {
+			dev_err(&pdev->dev, "igc_open failed after reset\n");
+			return;
+		}
+	}
+
+	netif_device_attach(netdev);
+
+	/* let the f/w know that the h/w is now under the control of the
+	 * driver.
+	 */
+	igc_get_hw_control(adapter);
+	rtnl_unlock();
+}
+
+static const struct pci_error_handlers igc_err_handler = {
+	.error_detected = igc_io_error_detected,
+	.slot_reset = igc_io_slot_reset,
+	.resume = igc_io_resume,
+};
+
 #ifdef CONFIG_PM
 static const struct dev_pm_ops igc_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(igc_suspend, igc_resume)
@@ -5062,6 +5205,7 @@ static struct pci_driver igc_driver = {
 	.driver.pm = &igc_pm_ops,
 #endif
 	.shutdown = igc_shutdown,
+	.err_handler = &igc_err_handler,
 };
 
 /**

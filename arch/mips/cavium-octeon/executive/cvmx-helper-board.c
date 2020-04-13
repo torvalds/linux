@@ -207,9 +207,9 @@ int cvmx_helper_board_get_mii_address(int ipd_port)
  * Returns The ports link status. If the link isn't fully resolved, this must
  *	   return zero.
  */
-cvmx_helper_link_info_t __cvmx_helper_board_link_get(int ipd_port)
+union cvmx_helper_link_info __cvmx_helper_board_link_get(int ipd_port)
 {
-	cvmx_helper_link_info_t result;
+	union cvmx_helper_link_info result;
 
 	WARN(!octeon_is_simulation(),
 	     "Using deprecated link status - please update your DT");

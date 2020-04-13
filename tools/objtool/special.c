@@ -118,7 +118,7 @@ static int get_alt_entry(struct elf *elf, struct special_entry *entry,
 		}
 	}
 
-	orig_rela = find_rela_by_dest(sec, offset + entry->orig);
+	orig_rela = find_rela_by_dest(elf, sec, offset + entry->orig);
 	if (!orig_rela) {
 		WARN_FUNC("can't find orig rela", sec, offset + entry->orig);
 		return -1;
@@ -133,7 +133,7 @@ static int get_alt_entry(struct elf *elf, struct special_entry *entry,
 	alt->orig_off = orig_rela->addend;
 
 	if (!entry->group || alt->new_len) {
-		new_rela = find_rela_by_dest(sec, offset + entry->new);
+		new_rela = find_rela_by_dest(elf, sec, offset + entry->new);
 		if (!new_rela) {
 			WARN_FUNC("can't find new rela",
 				  sec, offset + entry->new);

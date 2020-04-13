@@ -1542,24 +1542,7 @@ static int qlcnic_set_intr_coalesce(struct net_device *netdev,
 	if (ethcoal->rx_coalesce_usecs > 0xffff ||
 	    ethcoal->rx_max_coalesced_frames > 0xffff ||
 	    ethcoal->tx_coalesce_usecs > 0xffff ||
-	    ethcoal->tx_max_coalesced_frames > 0xffff ||
-	    ethcoal->rx_coalesce_usecs_irq ||
-	    ethcoal->rx_max_coalesced_frames_irq ||
-	    ethcoal->tx_coalesce_usecs_irq ||
-	    ethcoal->tx_max_coalesced_frames_irq ||
-	    ethcoal->stats_block_coalesce_usecs ||
-	    ethcoal->use_adaptive_rx_coalesce ||
-	    ethcoal->use_adaptive_tx_coalesce ||
-	    ethcoal->pkt_rate_low ||
-	    ethcoal->rx_coalesce_usecs_low ||
-	    ethcoal->rx_max_coalesced_frames_low ||
-	    ethcoal->tx_coalesce_usecs_low ||
-	    ethcoal->tx_max_coalesced_frames_low ||
-	    ethcoal->pkt_rate_high ||
-	    ethcoal->rx_coalesce_usecs_high ||
-	    ethcoal->rx_max_coalesced_frames_high ||
-	    ethcoal->tx_coalesce_usecs_high ||
-	    ethcoal->tx_max_coalesced_frames_high)
+	    ethcoal->tx_max_coalesced_frames > 0xffff)
 		return -EINVAL;
 
 	err = qlcnic_config_intr_coalesce(adapter, ethcoal);
@@ -1834,6 +1817,8 @@ qlcnic_set_dump(struct net_device *netdev, struct ethtool_dump *val)
 }
 
 const struct ethtool_ops qlcnic_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
+				     ETHTOOL_COALESCE_MAX_FRAMES,
 	.get_drvinfo = qlcnic_get_drvinfo,
 	.get_regs_len = qlcnic_get_regs_len,
 	.get_regs = qlcnic_get_regs,
@@ -1865,6 +1850,8 @@ const struct ethtool_ops qlcnic_ethtool_ops = {
 };
 
 const struct ethtool_ops qlcnic_sriov_vf_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
+				     ETHTOOL_COALESCE_MAX_FRAMES,
 	.get_drvinfo		= qlcnic_get_drvinfo,
 	.get_regs_len		= qlcnic_get_regs_len,
 	.get_regs		= qlcnic_get_regs,

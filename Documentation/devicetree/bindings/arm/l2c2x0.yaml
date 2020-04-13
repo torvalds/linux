@@ -29,27 +29,30 @@ allOf:
 
 properties:
   compatible:
-    enum:
-      - arm,pl310-cache
-      - arm,l220-cache
-      - arm,l210-cache
-        # DEPRECATED by "brcm,bcm11351-a2-pl310-cache"
-      - bcm,bcm11351-a2-pl310-cache
-        # For Broadcom bcm11351 chipset where an
-        # offset needs to be added to the address before passing down to the L2
-        # cache controller
-      - brcm,bcm11351-a2-pl310-cache
-        # Marvell Controller designed to be
-        # compatible with the ARM one, with system cache mode (meaning
-        # maintenance operations on L1 are broadcasted to the L2 and L2
-        # performs the same operation).
-      - marvell,aurora-system-cache
-        # Marvell Controller designed to be
-        # compatible with the ARM one with outer cache mode.
-      - marvell,aurora-outer-cache
-        # Marvell Tauros3 cache controller, compatible
-        # with arm,pl310-cache controller.
-      - marvell,tauros3-cache
+    oneOf:
+      - enum:
+          - arm,pl310-cache
+          - arm,l220-cache
+          - arm,l210-cache
+            # DEPRECATED by "brcm,bcm11351-a2-pl310-cache"
+          - bcm,bcm11351-a2-pl310-cache
+            # For Broadcom bcm11351 chipset where an
+            # offset needs to be added to the address before passing down to the L2
+            # cache controller
+          - brcm,bcm11351-a2-pl310-cache
+            # Marvell Controller designed to be
+            # compatible with the ARM one, with system cache mode (meaning
+            # maintenance operations on L1 are broadcasted to the L2 and L2
+            # performs the same operation).
+          - marvell,aurora-system-cache
+            # Marvell Controller designed to be
+            # compatible with the ARM one with outer cache mode.
+          - marvell,aurora-outer-cache
+      - items:
+           # Marvell Tauros3 cache controller, compatible
+           # with arm,pl310-cache controller.
+          - const: marvell,tauros3-cache
+          - const: arm,pl310-cache
 
   cache-level:
     const: 2

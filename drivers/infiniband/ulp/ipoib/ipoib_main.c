@@ -52,10 +52,6 @@
 #include <linux/inetdevice.h>
 #include <rdma/ib_cache.h>
 
-#define DRV_VERSION "1.0.0"
-
-const char ipoib_driver_version[] = DRV_VERSION;
-
 MODULE_AUTHOR("Roland Dreier");
 MODULE_DESCRIPTION("IP-over-InfiniBand net driver");
 MODULE_LICENSE("Dual BSD/GPL");

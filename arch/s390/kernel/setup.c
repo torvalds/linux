@@ -73,6 +73,7 @@
 #include <asm/nospec-branch.h>
 #include <asm/mem_detect.h>
 #include <asm/uv.h>
+#include <asm/asm-offsets.h>
 #include "entry.h"
 
 /*
@@ -91,10 +92,6 @@ unsigned long elf_hwcap __read_mostly = 0;
 char elf_platform[ELF_PLATFORM_SIZE];
 
 unsigned long int_hwcap = 0;
-
-#ifdef CONFIG_PROTECTED_VIRTUALIZATION_GUEST
-int __bootdata_preserved(prot_virt_guest);
-#endif
 
 int __bootdata(noexec_disabled);
 int __bootdata(memory_end_set);
@@ -450,6 +447,8 @@ static void __init setup_lowcore_dat_off(void)
 	lc->spinlock_index = 0;
 	arch_spin_lock_setup(0);
 	lc->br_r1_trampoline = 0x07f1;	/* br %r1 */
+	lc->return_lpswe = gen_lpswe(__LC_RETURN_PSW);
+	lc->return_mcck_lpswe = gen_lpswe(__LC_RETURN_MCCK_PSW);
 
 	set_prefix((u32)(unsigned long) lc);
 	lowcore_ptr[0] = lc;
@@ -563,6 +562,9 @@ static void __init setup_memory_end(void)
 		else
 			vmax = _REGION1_SIZE; /* 4-level kernel page table */
 	}
+
+	if (is_prot_virt_host())
+		adjust_to_uv_max(&vmax);
 
 	/* module area is at the end of the kernel address space. */
 	MODULES_END = vmax;
@@ -790,6 +792,7 @@ static void __init memblock_add_mem_detect_info(void)
 		memblock_physmem_add(start, end - start);
 	}
 	memblock_set_bottom_up(false);
+	memblock_set_node(0, ULONG_MAX, &memblock.memory, 0);
 	memblock_dump_all();
 }
 
@@ -1138,6 +1141,8 @@ void __init setup_arch(char **cmdline_p)
 	 */
 	memblock_trim_memory(1UL << (MAX_ORDER - 1 + PAGE_SHIFT));
 
+	if (is_prot_virt_host())
+		setup_uv();
 	setup_memory_end();
 	setup_memory();
 	dma_contiguous_reserve(memory_end);

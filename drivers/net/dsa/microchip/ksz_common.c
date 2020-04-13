@@ -67,7 +67,7 @@ static void port_r_cnt(struct ksz_device *dev, int port)
 static void ksz_mib_read_work(struct work_struct *work)
 {
 	struct ksz_device *dev = container_of(work, struct ksz_device,
-					      mib_read);
+					      mib_read.work);
 	struct ksz_port_mib *mib;
 	struct ksz_port *p;
 	int i;
@@ -93,32 +93,24 @@ static void ksz_mib_read_work(struct work_struct *work)
 		p->read = false;
 		mutex_unlock(&mib->cnt_mutex);
 	}
-}
 
-static void mib_monitor(struct timer_list *t)
-{
-	struct ksz_device *dev = from_timer(dev, t, mib_read_timer);
-
-	mod_timer(&dev->mib_read_timer, jiffies + dev->mib_read_interval);
-	schedule_work(&dev->mib_read);
+	schedule_delayed_work(&dev->mib_read, dev->mib_read_interval);
 }
 
 void ksz_init_mib_timer(struct ksz_device *dev)
 {
 	int i;
 
+	INIT_DELAYED_WORK(&dev->mib_read, ksz_mib_read_work);
+
 	/* Read MIB counters every 30 seconds to avoid overflow. */
 	dev->mib_read_interval = msecs_to_jiffies(30000);
-
-	INIT_WORK(&dev->mib_read, ksz_mib_read_work);
-	timer_setup(&dev->mib_read_timer, mib_monitor, 0);
 
 	for (i = 0; i < dev->mib_port_cnt; i++)
 		dev->dev_ops->port_init_cnt(dev, i);
 
 	/* Start the timer 2 seconds later. */
-	dev->mib_read_timer.expires = jiffies + msecs_to_jiffies(2000);
-	add_timer(&dev->mib_read_timer);
+	schedule_delayed_work(&dev->mib_read, msecs_to_jiffies(2000));
 }
 EXPORT_SYMBOL_GPL(ksz_init_mib_timer);
 
@@ -152,7 +144,7 @@ void ksz_adjust_link(struct dsa_switch *ds, int port,
 	/* Read all MIB counters when the link is going down. */
 	if (!phydev->link) {
 		p->read = true;
-		schedule_work(&dev->mib_read);
+		schedule_delayed_work(&dev->mib_read, 0);
 	}
 	mutex_lock(&dev->dev_mutex);
 	if (!phydev->link)
@@ -477,10 +469,8 @@ EXPORT_SYMBOL(ksz_switch_register);
 void ksz_switch_remove(struct ksz_device *dev)
 {
 	/* timer started */
-	if (dev->mib_read_timer.expires) {
-		del_timer_sync(&dev->mib_read_timer);
-		flush_work(&dev->mib_read);
-	}
+	if (dev->mib_read_interval)
+		cancel_delayed_work_sync(&dev->mib_read);
 
 	dev->dev_ops->exit(dev);
 	dsa_unregister_switch(dev->ds);

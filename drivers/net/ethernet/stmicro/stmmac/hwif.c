@@ -23,6 +23,18 @@ static u32 stmmac_get_id(struct stmmac_priv *priv, u32 id_reg)
 	return reg & GENMASK(7, 0);
 }
 
+static u32 stmmac_get_dev_id(struct stmmac_priv *priv, u32 id_reg)
+{
+	u32 reg = readl(priv->ioaddr + id_reg);
+
+	if (!reg) {
+		dev_info(priv->device, "Version ID not available\n");
+		return 0x0;
+	}
+
+	return (reg & GENMASK(15, 8)) >> 8;
+}
+
 static void stmmac_dwmac_mode_quirk(struct stmmac_priv *priv)
 {
 	struct mac_device_info *mac = priv->hw;
@@ -69,11 +81,18 @@ static int stmmac_dwmac4_quirks(struct stmmac_priv *priv)
 	return 0;
 }
 
+static int stmmac_dwxlgmac_quirks(struct stmmac_priv *priv)
+{
+	priv->hw->xlgmac = true;
+	return 0;
+}
+
 static const struct stmmac_hwif_entry {
 	bool gmac;
 	bool gmac4;
 	bool xgmac;
 	u32 min_id;
+	u32 dev_id;
 	const struct stmmac_regs_off regs;
 	const void *desc;
 	const void *dma;
@@ -199,6 +218,7 @@ static const struct stmmac_hwif_entry {
 		.gmac4 = false,
 		.xgmac = true,
 		.min_id = DWXGMAC_CORE_2_10,
+		.dev_id = DWXGMAC_ID,
 		.regs = {
 			.ptp_off = PTP_XGMAC_OFFSET,
 			.mmc_off = MMC_XGMAC_OFFSET,
@@ -212,6 +232,25 @@ static const struct stmmac_hwif_entry {
 		.mmc = &dwxgmac_mmc_ops,
 		.setup = dwxgmac2_setup,
 		.quirks = NULL,
+	}, {
+		.gmac = false,
+		.gmac4 = false,
+		.xgmac = true,
+		.min_id = DWXLGMAC_CORE_2_00,
+		.dev_id = DWXLGMAC_ID,
+		.regs = {
+			.ptp_off = PTP_XGMAC_OFFSET,
+			.mmc_off = MMC_XGMAC_OFFSET,
+		},
+		.desc = &dwxgmac210_desc_ops,
+		.dma = &dwxgmac210_dma_ops,
+		.mac = &dwxlgmac2_ops,
+		.hwtimestamp = &stmmac_ptp,
+		.mode = NULL,
+		.tc = &dwmac510_tc_ops,
+		.mmc = &dwxgmac_mmc_ops,
+		.setup = dwxlgmac2_setup,
+		.quirks = stmmac_dwxlgmac_quirks,
 	},
 };
 
@@ -223,13 +262,15 @@ int stmmac_hwif_init(struct stmmac_priv *priv)
 	const struct stmmac_hwif_entry *entry;
 	struct mac_device_info *mac;
 	bool needs_setup = true;
+	u32 id, dev_id = 0;
 	int i, ret;
-	u32 id;
 
 	if (needs_gmac) {
 		id = stmmac_get_id(priv, GMAC_VERSION);
 	} else if (needs_gmac4 || needs_xgmac) {
 		id = stmmac_get_id(priv, GMAC4_VERSION);
+		if (needs_xgmac)
+			dev_id = stmmac_get_dev_id(priv, GMAC4_VERSION);
 	} else {
 		id = 0;
 	}
@@ -266,6 +307,8 @@ int stmmac_hwif_init(struct stmmac_priv *priv)
 			continue;
 		/* Use synopsys_id var because some setups can override this */
 		if (priv->synopsys_id < entry->min_id)
+			continue;
+		if (needs_xgmac && (dev_id ^ entry->dev_id))
 			continue;
 
 		/* Only use generic HW helpers if needed */

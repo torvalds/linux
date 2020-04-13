@@ -42,4 +42,8 @@ source "drivers/staging/media/phy-rockchip-dphy-rx0/Kconfig"
 
 source "drivers/staging/media/rkisp1/Kconfig"
 
+if MEDIA_ANALOG_TV_SUPPORT
+source "drivers/staging/media/usbvision/Kconfig"
+endif
+
 endif

@@ -1391,6 +1391,14 @@ void mini_qdisc_pair_swap(struct mini_Qdisc_pair *miniqp,
 }
 EXPORT_SYMBOL(mini_qdisc_pair_swap);
 
+void mini_qdisc_pair_block_init(struct mini_Qdisc_pair *miniqp,
+				struct tcf_block *block)
+{
+	miniqp->miniq1.block = block;
+	miniqp->miniq2.block = block;
+}
+EXPORT_SYMBOL(mini_qdisc_pair_block_init);
+
 void mini_qdisc_pair_init(struct mini_Qdisc_pair *miniqp, struct Qdisc *qdisc,
 			  struct mini_Qdisc __rcu **p_miniq)
 {

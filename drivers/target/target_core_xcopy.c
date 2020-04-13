@@ -134,7 +134,7 @@ static int target_xcopy_parse_tiddesc_e4(struct se_cmd *se_cmd, struct xcopy_op 
 	 * Assigned designator
 	 */
 	desig_len = desc[7];
-	if (desig_len != 16) {
+	if (desig_len != XCOPY_NAA_IEEE_REGEX_LEN) {
 		pr_err("XCOPY 0xe4: invalid desig_len: %d\n", (int)desig_len);
 		return -EINVAL;
 	}
@@ -315,11 +315,6 @@ static int target_xcopy_parse_segdesc_02(struct se_cmd *se_cmd, struct xcopy_op 
 		xop->nolb, (unsigned long long)xop->src_lba,
 		(unsigned long long)xop->dst_lba);
 
-	if (dc != 0) {
-		xop->dbl = get_unaligned_be24(&desc[29]);
-
-		pr_debug("XCOPY seg desc 0x02: DC=1 w/ dbl: %u\n", xop->dbl);
-	}
 	return 0;
 }
 
@@ -415,7 +410,8 @@ static void xcopy_pt_release_cmd(struct se_cmd *se_cmd)
 	struct xcopy_pt_cmd *xpt_cmd = container_of(se_cmd,
 				struct xcopy_pt_cmd, se_cmd);
 
-	kfree(xpt_cmd);
+	/* xpt_cmd is on the stack, nothing to free here */
+	pr_debug("xpt_cmd done: %p\n", xpt_cmd);
 }
 
 static int xcopy_pt_check_stop_free(struct se_cmd *se_cmd)
@@ -504,7 +500,6 @@ void target_xcopy_release_pt(void)
  * @cdb:	 SCSI CDB to be copied into @xpt_cmd.
  * @remote_port: If false, use the LUN through which the XCOPY command has
  *		 been received. If true, use @se_dev->xcopy_lun.
- * @alloc_mem:	 Whether or not to allocate an SGL list.
  *
  * Set up a SCSI command (READ or WRITE) that will be used to execute an
  * XCOPY command.
@@ -514,12 +509,9 @@ static int target_xcopy_setup_pt_cmd(
 	struct xcopy_op *xop,
 	struct se_device *se_dev,
 	unsigned char *cdb,
-	bool remote_port,
-	bool alloc_mem)
+	bool remote_port)
 {
 	struct se_cmd *cmd = &xpt_cmd->se_cmd;
-	sense_reason_t sense_rc;
-	int ret = 0, rc;
 
 	/*
 	 * Setup LUN+port to honor reservations based upon xop->op_origin for
@@ -535,46 +527,17 @@ static int target_xcopy_setup_pt_cmd(
 	cmd->se_cmd_flags |= SCF_SE_LUN_CMD;
 
 	cmd->tag = 0;
-	sense_rc = target_setup_cmd_from_cdb(cmd, cdb);
-	if (sense_rc) {
-		ret = -EINVAL;
-		goto out;
-	}
+	if (target_setup_cmd_from_cdb(cmd, cdb))
+		return -EINVAL;
 
-	if (alloc_mem) {
-		rc = target_alloc_sgl(&cmd->t_data_sg, &cmd->t_data_nents,
-				      cmd->data_length, false, false);
-		if (rc < 0) {
-			ret = rc;
-			goto out;
-		}
-		/*
-		 * Set this bit so that transport_free_pages() allows the
-		 * caller to release SGLs + physical memory allocated by
-		 * transport_generic_get_mem()..
-		 */
-		cmd->se_cmd_flags |= SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC;
-	} else {
-		/*
-		 * Here the previously allocated SGLs for the internal READ
-		 * are mapped zero-copy to the internal WRITE.
-		 */
-		sense_rc = transport_generic_map_mem_to_cmd(cmd,
-					xop->xop_data_sg, xop->xop_data_nents,
-					NULL, 0);
-		if (sense_rc) {
-			ret = -EINVAL;
-			goto out;
-		}
+	if (transport_generic_map_mem_to_cmd(cmd, xop->xop_data_sg,
+					xop->xop_data_nents, NULL, 0))
+		return -EINVAL;
 
-		pr_debug("Setup PASSTHROUGH_NOALLOC t_data_sg: %p t_data_nents:"
-			 " %u\n", cmd->t_data_sg, cmd->t_data_nents);
-	}
+	pr_debug("Setup PASSTHROUGH_NOALLOC t_data_sg: %p t_data_nents:"
+		 " %u\n", cmd->t_data_sg, cmd->t_data_nents);
 
 	return 0;
-
-out:
-	return ret;
 }
 
 static int target_xcopy_issue_pt_cmd(struct xcopy_pt_cmd *xpt_cmd)
@@ -604,20 +567,15 @@ static int target_xcopy_read_source(
 	sector_t src_lba,
 	u32 src_sectors)
 {
-	struct xcopy_pt_cmd *xpt_cmd;
-	struct se_cmd *se_cmd;
+	struct xcopy_pt_cmd xpt_cmd;
+	struct se_cmd *se_cmd = &xpt_cmd.se_cmd;
 	u32 length = (src_sectors * src_dev->dev_attrib.block_size);
 	int rc;
 	unsigned char cdb[16];
 	bool remote_port = (xop->op_origin == XCOL_DEST_RECV_OP);
 
-	xpt_cmd = kzalloc(sizeof(struct xcopy_pt_cmd), GFP_KERNEL);
-	if (!xpt_cmd) {
-		pr_err("Unable to allocate xcopy_pt_cmd\n");
-		return -ENOMEM;
-	}
-	init_completion(&xpt_cmd->xpt_passthrough_sem);
-	se_cmd = &xpt_cmd->se_cmd;
+	memset(&xpt_cmd, 0, sizeof(xpt_cmd));
+	init_completion(&xpt_cmd.xpt_passthrough_sem);
 
 	memset(&cdb[0], 0, 16);
 	cdb[0] = READ_16;
@@ -627,36 +585,24 @@ static int target_xcopy_read_source(
 		(unsigned long long)src_lba, src_sectors, length);
 
 	transport_init_se_cmd(se_cmd, &xcopy_pt_tfo, &xcopy_pt_sess, length,
-			      DMA_FROM_DEVICE, 0, &xpt_cmd->sense_buffer[0]);
-	xop->src_pt_cmd = xpt_cmd;
+			      DMA_FROM_DEVICE, 0, &xpt_cmd.sense_buffer[0]);
 
-	rc = target_xcopy_setup_pt_cmd(xpt_cmd, xop, src_dev, &cdb[0],
-				remote_port, true);
+	rc = target_xcopy_setup_pt_cmd(&xpt_cmd, xop, src_dev, &cdb[0],
+				remote_port);
 	if (rc < 0) {
-		ec_cmd->scsi_status = xpt_cmd->se_cmd.scsi_status;
-		transport_generic_free_cmd(se_cmd, 0);
-		return rc;
+		ec_cmd->scsi_status = se_cmd->scsi_status;
+		goto out;
 	}
 
-	xop->xop_data_sg = se_cmd->t_data_sg;
-	xop->xop_data_nents = se_cmd->t_data_nents;
 	pr_debug("XCOPY-READ: Saved xop->xop_data_sg: %p, num: %u for READ"
 		" memory\n", xop->xop_data_sg, xop->xop_data_nents);
 
-	rc = target_xcopy_issue_pt_cmd(xpt_cmd);
-	if (rc < 0) {
-		ec_cmd->scsi_status = xpt_cmd->se_cmd.scsi_status;
-		transport_generic_free_cmd(se_cmd, 0);
-		return rc;
-	}
-	/*
-	 * Clear off the allocated t_data_sg, that has been saved for
-	 * zero-copy WRITE submission reuse in struct xcopy_op..
-	 */
-	se_cmd->t_data_sg = NULL;
-	se_cmd->t_data_nents = 0;
-
-	return 0;
+	rc = target_xcopy_issue_pt_cmd(&xpt_cmd);
+	if (rc < 0)
+		ec_cmd->scsi_status = se_cmd->scsi_status;
+out:
+	transport_generic_free_cmd(se_cmd, 0);
+	return rc;
 }
 
 static int target_xcopy_write_destination(
@@ -666,20 +612,15 @@ static int target_xcopy_write_destination(
 	sector_t dst_lba,
 	u32 dst_sectors)
 {
-	struct xcopy_pt_cmd *xpt_cmd;
-	struct se_cmd *se_cmd;
+	struct xcopy_pt_cmd xpt_cmd;
+	struct se_cmd *se_cmd = &xpt_cmd.se_cmd;
 	u32 length = (dst_sectors * dst_dev->dev_attrib.block_size);
 	int rc;
 	unsigned char cdb[16];
 	bool remote_port = (xop->op_origin == XCOL_SOURCE_RECV_OP);
 
-	xpt_cmd = kzalloc(sizeof(struct xcopy_pt_cmd), GFP_KERNEL);
-	if (!xpt_cmd) {
-		pr_err("Unable to allocate xcopy_pt_cmd\n");
-		return -ENOMEM;
-	}
-	init_completion(&xpt_cmd->xpt_passthrough_sem);
-	se_cmd = &xpt_cmd->se_cmd;
+	memset(&xpt_cmd, 0, sizeof(xpt_cmd));
+	init_completion(&xpt_cmd.xpt_passthrough_sem);
 
 	memset(&cdb[0], 0, 16);
 	cdb[0] = WRITE_16;
@@ -689,36 +630,21 @@ static int target_xcopy_write_destination(
 		(unsigned long long)dst_lba, dst_sectors, length);
 
 	transport_init_se_cmd(se_cmd, &xcopy_pt_tfo, &xcopy_pt_sess, length,
-			      DMA_TO_DEVICE, 0, &xpt_cmd->sense_buffer[0]);
-	xop->dst_pt_cmd = xpt_cmd;
+			      DMA_TO_DEVICE, 0, &xpt_cmd.sense_buffer[0]);
 
-	rc = target_xcopy_setup_pt_cmd(xpt_cmd, xop, dst_dev, &cdb[0],
-				remote_port, false);
+	rc = target_xcopy_setup_pt_cmd(&xpt_cmd, xop, dst_dev, &cdb[0],
+				remote_port);
 	if (rc < 0) {
-		struct se_cmd *src_cmd = &xop->src_pt_cmd->se_cmd;
-		ec_cmd->scsi_status = xpt_cmd->se_cmd.scsi_status;
-		/*
-		 * If the failure happened before the t_mem_list hand-off in
-		 * target_xcopy_setup_pt_cmd(), Reset memory + clear flag so that
-		 * core releases this memory on error during X-COPY WRITE I/O.
-		 */
-		src_cmd->se_cmd_flags &= ~SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC;
-		src_cmd->t_data_sg = xop->xop_data_sg;
-		src_cmd->t_data_nents = xop->xop_data_nents;
-
-		transport_generic_free_cmd(se_cmd, 0);
-		return rc;
+		ec_cmd->scsi_status = se_cmd->scsi_status;
+		goto out;
 	}
 
-	rc = target_xcopy_issue_pt_cmd(xpt_cmd);
-	if (rc < 0) {
-		ec_cmd->scsi_status = xpt_cmd->se_cmd.scsi_status;
-		se_cmd->se_cmd_flags &= ~SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC;
-		transport_generic_free_cmd(se_cmd, 0);
-		return rc;
-	}
-
-	return 0;
+	rc = target_xcopy_issue_pt_cmd(&xpt_cmd);
+	if (rc < 0)
+		ec_cmd->scsi_status = se_cmd->scsi_status;
+out:
+	transport_generic_free_cmd(se_cmd, 0);
+	return rc;
 }
 
 static void target_xcopy_do_work(struct work_struct *work)
@@ -729,7 +655,7 @@ static void target_xcopy_do_work(struct work_struct *work)
 	sector_t src_lba, dst_lba, end_lba;
 	unsigned int max_sectors;
 	int rc = 0;
-	unsigned short nolb, cur_nolb, max_nolb, copied_nolb = 0;
+	unsigned short nolb, max_nolb, copied_nolb = 0;
 
 	if (target_parse_xcopy_cmd(xop) != TCM_NO_SENSE)
 		goto err_free;
@@ -759,7 +685,23 @@ static void target_xcopy_do_work(struct work_struct *work)
 			(unsigned long long)src_lba, (unsigned long long)dst_lba);
 
 	while (src_lba < end_lba) {
-		cur_nolb = min(nolb, max_nolb);
+		unsigned short cur_nolb = min(nolb, max_nolb);
+		u32 cur_bytes = cur_nolb * src_dev->dev_attrib.block_size;
+
+		if (cur_bytes != xop->xop_data_bytes) {
+			/*
+			 * (Re)allocate a buffer large enough to hold the XCOPY
+			 * I/O size, which can be reused each read / write loop.
+			 */
+			target_free_sgl(xop->xop_data_sg, xop->xop_data_nents);
+			rc = target_alloc_sgl(&xop->xop_data_sg,
+					      &xop->xop_data_nents,
+					      cur_bytes,
+					      false, false);
+			if (rc < 0)
+				goto out;
+			xop->xop_data_bytes = cur_bytes;
+		}
 
 		pr_debug("target_xcopy_do_work: Calling read src_dev: %p src_lba: %llu,"
 			" cur_nolb: %hu\n", src_dev, (unsigned long long)src_lba, cur_nolb);
@@ -777,10 +719,8 @@ static void target_xcopy_do_work(struct work_struct *work)
 
 		rc = target_xcopy_write_destination(ec_cmd, xop, dst_dev,
 						dst_lba, cur_nolb);
-		if (rc < 0) {
-			transport_generic_free_cmd(&xop->src_pt_cmd->se_cmd, 0);
+		if (rc < 0)
 			goto out;
-		}
 
 		dst_lba += cur_nolb;
 		pr_debug("target_xcopy_do_work: Incremented WRITE dst_lba to %llu\n",
@@ -788,14 +728,10 @@ static void target_xcopy_do_work(struct work_struct *work)
 
 		copied_nolb += cur_nolb;
 		nolb -= cur_nolb;
-
-		transport_generic_free_cmd(&xop->src_pt_cmd->se_cmd, 0);
-		xop->dst_pt_cmd->se_cmd.se_cmd_flags &= ~SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC;
-
-		transport_generic_free_cmd(&xop->dst_pt_cmd->se_cmd, 0);
 	}
 
 	xcopy_pt_undepend_remotedev(xop);
+	target_free_sgl(xop->xop_data_sg, xop->xop_data_nents);
 	kfree(xop);
 
 	pr_debug("target_xcopy_do_work: Final src_lba: %llu, dst_lba: %llu\n",
@@ -809,6 +745,7 @@ static void target_xcopy_do_work(struct work_struct *work)
 
 out:
 	xcopy_pt_undepend_remotedev(xop);
+	target_free_sgl(xop->xop_data_sg, xop->xop_data_nents);
 
 err_free:
 	kfree(xop);

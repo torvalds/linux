@@ -224,6 +224,7 @@ static int stat_open(struct inode *inode, struct file *file)
 }
 
 static const struct proc_ops stat_proc_ops = {
+	.proc_flags	= PROC_ENTRY_PERMANENT,
 	.proc_open	= stat_open,
 	.proc_read	= seq_read,
 	.proc_lseek	= seq_lseek,

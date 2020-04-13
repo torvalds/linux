@@ -175,7 +175,7 @@ NOKPROBE_SYMBOL(el0_pc);
 static void notrace el0_sp(struct pt_regs *regs, unsigned long esr)
 {
 	user_exit_irqoff();
-	local_daif_restore(DAIF_PROCCTX_NOIRQ);
+	local_daif_restore(DAIF_PROCCTX);
 	do_sp_pc_abort(regs->sp, esr, regs);
 }
 NOKPROBE_SYMBOL(el0_sp);

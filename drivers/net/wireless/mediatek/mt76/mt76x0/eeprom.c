@@ -109,7 +109,7 @@ static void mt76x0_set_freq_offset(struct mt76x02_dev *dev)
 
 void mt76x0_read_rx_gain(struct mt76x02_dev *dev)
 {
-	struct ieee80211_channel *chan = dev->mt76.chandef.chan;
+	struct ieee80211_channel *chan = dev->mphy.chandef.chan;
 	struct mt76x02_rx_freq_cal *caldata = &dev->cal.rx;
 	s8 val, lna_5g[3], lna_2g;
 	u16 rssi_offset;
@@ -129,7 +129,7 @@ void mt76x0_read_rx_gain(struct mt76x02_dev *dev)
 
 static s8 mt76x0_get_delta(struct mt76x02_dev *dev)
 {
-	struct cfg80211_chan_def *chandef = &dev->mt76.chandef;
+	struct cfg80211_chan_def *chandef = &dev->mphy.chandef;
 	u8 val;
 
 	if (chandef->width == NL80211_CHAN_WIDTH_80) {

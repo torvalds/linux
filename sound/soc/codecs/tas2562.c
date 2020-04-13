@@ -26,6 +26,24 @@
 #define TAS2562_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE |\
 			 SNDRV_PCM_FORMAT_S32_LE)
 
+/* DVC equation involves floating point math
+ * round(10^(volume in dB/20)*2^30)
+ * so create a lookup table for 2dB step
+ */
+static const unsigned int float_vol_db_lookup[] = {
+0x00000d43, 0x000010b2, 0x00001505, 0x00001a67, 0x00002151,
+0x000029f1, 0x000034cd, 0x00004279, 0x000053af, 0x0000695b,
+0x0000695b, 0x0000a6fa, 0x0000d236, 0x000108a4, 0x00014d2a,
+0x0001a36e, 0x00021008, 0x000298c0, 0x000344df, 0x00041d8f,
+0x00052e5a, 0x000685c8, 0x00083621, 0x000a566d, 0x000d03a7,
+0x0010624d, 0x0014a050, 0x0019f786, 0x0020b0bc, 0x0029279d,
+0x0033cf8d, 0x004139d3, 0x00521d50, 0x00676044, 0x0082248a,
+0x00a3d70a, 0x00ce4328, 0x0103ab3d, 0x0146e75d, 0x019b8c27,
+0x02061b89, 0x028c423f, 0x03352529, 0x0409c2b0, 0x05156d68,
+0x080e9f96, 0x0a24b062, 0x0cc509ab, 0x10137987, 0x143d1362,
+0x197a967f, 0x2013739e, 0x28619ae9, 0x32d64617, 0x40000000
+};
+
 struct tas2562_data {
 	struct snd_soc_component *component;
 	struct gpio_desc *sdz_gpio;
@@ -34,6 +52,12 @@ struct tas2562_data {
 	struct i2c_client *client;
 	int v_sense_slot;
 	int i_sense_slot;
+	int volume_lvl;
+};
+
+enum tas256x_model {
+	TAS2562,
+	TAS2563,
 };
 
 static int tas2562_set_bias_level(struct snd_soc_component *component,
@@ -383,20 +407,80 @@ static int tas2562_dac_event(struct snd_soc_dapm_widget *w,
 	struct snd_soc_component *component =
 					snd_soc_dapm_to_component(w->dapm);
 	struct tas2562_data *tas2562 = snd_soc_component_get_drvdata(component);
+	int ret;
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		dev_info(tas2562->dev, "SND_SOC_DAPM_POST_PMU\n");
+		ret = snd_soc_component_update_bits(component,
+			TAS2562_PWR_CTRL,
+			TAS2562_MODE_MASK,
+			TAS2562_MUTE);
+		if (ret)
+			goto end;
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
-		dev_info(tas2562->dev, "SND_SOC_DAPM_PRE_PMD\n");
+		ret = snd_soc_component_update_bits(component,
+			TAS2562_PWR_CTRL,
+			TAS2562_MODE_MASK,
+			TAS2562_SHUTDOWN);
+		if (ret)
+			goto end;
 		break;
 	default:
-		break;
+		dev_err(tas2562->dev, "Not supported evevt\n");
+		return -EINVAL;
 	}
+
+end:
+	if (ret < 0)
+		return ret;
 
 	return 0;
 }
+
+static int tas2562_volume_control_get(struct snd_kcontrol *kcontrol,
+				      struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct tas2562_data *tas2562 = snd_soc_component_get_drvdata(component);
+
+	ucontrol->value.integer.value[0] = tas2562->volume_lvl;
+	return 0;
+}
+
+static int tas2562_volume_control_put(struct snd_kcontrol *kcontrol,
+				      struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct tas2562_data *tas2562 = snd_soc_component_get_drvdata(component);
+	int ret;
+	u32 reg_val;
+
+	reg_val = float_vol_db_lookup[ucontrol->value.integer.value[0]/2];
+	ret = snd_soc_component_write(component, TAS2562_DVC_CFG4,
+				      (reg_val & 0xff));
+	if (ret)
+		return ret;
+	ret = snd_soc_component_write(component, TAS2562_DVC_CFG3,
+				      ((reg_val >> 8) & 0xff));
+	if (ret)
+		return ret;
+	ret = snd_soc_component_write(component, TAS2562_DVC_CFG2,
+				      ((reg_val >> 16) & 0xff));
+	if (ret)
+		return ret;
+	ret = snd_soc_component_write(component, TAS2562_DVC_CFG1,
+				      ((reg_val >> 24) & 0xff));
+	if (ret)
+		return ret;
+
+	tas2562->volume_lvl = ucontrol->value.integer.value[0];
+
+	return ret;
+}
+
+/* Digital Volume Control. From 0 dB to -110 dB in 1 dB steps */
+static const DECLARE_TLV_DB_SCALE(dvc_tlv, -11000, 100, 0);
 
 static DECLARE_TLV_DB_SCALE(tas2562_dac_tlv, 850, 50, 0);
 
@@ -409,14 +493,24 @@ static const struct snd_kcontrol_new vsense_switch =
 			1, 1);
 
 static const struct snd_kcontrol_new tas2562_snd_controls[] = {
-	SOC_SINGLE_TLV("Amp Gain Volume", TAS2562_PB_CFG1, 0, 0x1c, 0,
+	SOC_SINGLE_TLV("Amp Gain Volume", TAS2562_PB_CFG1, 1, 0x1c, 0,
 		       tas2562_dac_tlv),
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Digital Volume Control",
+		.index = 0,
+		.tlv.p = dvc_tlv,
+		.access = SNDRV_CTL_ELEM_ACCESS_TLV_READ | SNDRV_CTL_ELEM_ACCESS_READWRITE,
+		.info = snd_soc_info_volsw,
+		.get = tas2562_volume_control_get,
+		.put = tas2562_volume_control_put,
+		.private_value = SOC_SINGLE_VALUE(TAS2562_DVC_CFG1, 0, 110, 0, 0) ,
+	},
 };
 
 static const struct snd_soc_dapm_widget tas2562_dapm_widgets[] = {
 	SND_SOC_DAPM_AIF_IN("ASI1", "ASI1 Playback", 0, SND_SOC_NOPM, 0, 0),
 	SND_SOC_DAPM_MUX("ASI1 Sel", SND_SOC_NOPM, 0, 0, &tas2562_asi1_mux),
-	SND_SOC_DAPM_AIF_IN("DAC IN", "Playback", 0, SND_SOC_NOPM, 0, 0),
 	SND_SOC_DAPM_DAC_E("DAC", NULL, SND_SOC_NOPM, 0, 0, tas2562_dac_event,
 			   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 	SND_SOC_DAPM_SWITCH("ISENSE", TAS2562_PWR_CTRL, 3, 1, &isense_switch),
@@ -431,7 +525,7 @@ static const struct snd_soc_dapm_route tas2562_audio_map[] = {
 	{"ASI1 Sel", "Left", "ASI1"},
 	{"ASI1 Sel", "Right", "ASI1"},
 	{"ASI1 Sel", "LeftRightDiv2", "ASI1"},
-	{ "DAC", NULL, "DAC IN" },
+	{ "DAC", NULL, "ASI1 Sel" },
 	{ "OUT", NULL, "DAC" },
 	{"ISENSE", "Switch", "IMON"},
 	{"VSENSE", "Switch", "VMON"},
@@ -472,6 +566,13 @@ static struct snd_soc_dai_driver tas2562_dai[] = {
 			.rates      = SNDRV_PCM_RATE_8000_192000,
 			.formats    = TAS2562_FORMATS,
 		},
+		.capture = {
+			.stream_name    = "ASI1 Capture",
+			.channels_min   = 0,
+			.channels_max   = 2,
+			.rates		= SNDRV_PCM_RATE_8000_192000,
+			.formats	= TAS2562_FORMATS,
+		},
 		.ops = &tas2562_speaker_dai_ops,
 	},
 };
@@ -495,6 +596,10 @@ static const struct reg_default tas2562_reg_defaults[] = {
 	{ TAS2562_PB_CFG1, 0x20 },
 	{ TAS2562_TDM_CFG0, 0x09 },
 	{ TAS2562_TDM_CFG1, 0x02 },
+	{ TAS2562_DVC_CFG1, 0x40 },
+	{ TAS2562_DVC_CFG2, 0x40 },
+	{ TAS2562_DVC_CFG3, 0x00 },
+	{ TAS2562_DVC_CFG4, 0x00 },
 };
 
 static const struct regmap_config tas2562_regmap_config = {
@@ -564,13 +669,15 @@ static int tas2562_probe(struct i2c_client *client,
 }
 
 static const struct i2c_device_id tas2562_id[] = {
-	{ "tas2562", 0 },
+	{ "tas2562", TAS2562 },
+	{ "tas2563", TAS2563 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tas2562_id);
 
 static const struct of_device_id tas2562_of_match[] = {
 	{ .compatible = "ti,tas2562", },
+	{ .compatible = "ti,tas2563", },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, tas2562_of_match);

@@ -856,7 +856,7 @@ show_vpd_##_page(struct file *filp, struct kobject *kobj,	\
 		 struct bin_attribute *bin_attr,			\
 		 char *buf, loff_t off, size_t count)			\
 {									\
-	struct device *dev = container_of(kobj, struct device, kobj);	\
+	struct device *dev = kobj_to_dev(kobj);				\
 	struct scsi_device *sdev = to_scsi_device(dev);			\
 	struct scsi_vpd *vpd_page;					\
 	int ret = -EINVAL;						\
@@ -884,7 +884,7 @@ static ssize_t show_inquiry(struct file *filep, struct kobject *kobj,
 			    struct bin_attribute *bin_attr,
 			    char *buf, loff_t off, size_t count)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct scsi_device *sdev = to_scsi_device(dev);
 
 	if (!sdev->inquiry)
@@ -1045,14 +1045,14 @@ sdev_show_blacklist(struct device *dev, struct device_attribute *attr,
 			name = sdev_bflags_name[i];
 
 		if (name)
-			len += snprintf(buf + len, PAGE_SIZE - len,
-					"%s%s", len ? " " : "", name);
+			len += scnprintf(buf + len, PAGE_SIZE - len,
+					 "%s%s", len ? " " : "", name);
 		else
-			len += snprintf(buf + len, PAGE_SIZE - len,
-					"%sINVALID_BIT(%d)", len ? " " : "", i);
+			len += scnprintf(buf + len, PAGE_SIZE - len,
+					 "%sINVALID_BIT(%d)", len ? " " : "", i);
 	}
 	if (len)
-		len += snprintf(buf + len, PAGE_SIZE - len, "\n");
+		len += scnprintf(buf + len, PAGE_SIZE - len, "\n");
 	return len;
 }
 static DEVICE_ATTR(blacklist, S_IRUGO, sdev_show_blacklist, NULL);
@@ -1181,7 +1181,7 @@ static DEVICE_ATTR(queue_ramp_up_period, S_IRUGO | S_IWUSR,
 static umode_t scsi_sdev_attr_is_visible(struct kobject *kobj,
 					 struct attribute *attr, int i)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct scsi_device *sdev = to_scsi_device(dev);
 
 
@@ -1207,7 +1207,7 @@ static umode_t scsi_sdev_attr_is_visible(struct kobject *kobj,
 static umode_t scsi_sdev_bin_attr_is_visible(struct kobject *kobj,
 					     struct bin_attribute *attr, int i)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct scsi_device *sdev = to_scsi_device(dev);
 
 

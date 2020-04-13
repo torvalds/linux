@@ -22,12 +22,10 @@
 #include "wep.h"
 
 
-int ieee80211_wep_init(struct ieee80211_local *local)
+void ieee80211_wep_init(struct ieee80211_local *local)
 {
 	/* start WEP IV from a random value */
 	get_random_bytes(&local->wep_iv, IEEE80211_WEP_IV_LEN);
-
-	return 0;
 }
 
 static inline bool ieee80211_wep_weak_iv(u32 iv, int keylen)

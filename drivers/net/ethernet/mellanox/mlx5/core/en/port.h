@@ -60,15 +60,17 @@ int mlx5e_port_set_pbmc(struct mlx5_core_dev *mdev, void *in);
 int mlx5e_port_query_priority2buffer(struct mlx5_core_dev *mdev, u8 *buffer);
 int mlx5e_port_set_priority2buffer(struct mlx5_core_dev *mdev, u8 *buffer);
 
-int mlx5e_get_fec_caps(struct mlx5_core_dev *dev, u8 *fec_caps);
+bool mlx5e_fec_in_caps(struct mlx5_core_dev *dev, int fec_policy);
 int mlx5e_get_fec_mode(struct mlx5_core_dev *dev, u32 *fec_mode_active,
-		       u8 *fec_configured_mode);
-int mlx5e_set_fec_mode(struct mlx5_core_dev *dev, u8 fec_policy);
+		       u16 *fec_configured_mode);
+int mlx5e_set_fec_mode(struct mlx5_core_dev *dev, u16 fec_policy);
 
 enum {
 	MLX5E_FEC_NOFEC,
 	MLX5E_FEC_FIRECODE,
 	MLX5E_FEC_RS_528_514,
+	MLX5E_FEC_RS_544_514 = 7,
+	MLX5E_FEC_LLRS_272_257_1 = 9,
 };
 
 #endif

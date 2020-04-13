@@ -123,11 +123,18 @@ properties:
       - arm,cortex-a12
       - arm,cortex-a15
       - arm,cortex-a17
+      - arm,cortex-a32
+      - arm,cortex-a34
+      - arm,cortex-a35
       - arm,cortex-a53
       - arm,cortex-a55
       - arm,cortex-a57
+      - arm,cortex-a65
       - arm,cortex-a72
       - arm,cortex-a73
+      - arm,cortex-a75
+      - arm,cortex-a76
+      - arm,cortex-a77
       - arm,cortex-m0
       - arm,cortex-m0+
       - arm,cortex-m1
@@ -136,6 +143,8 @@ properties:
       - arm,cortex-r4
       - arm,cortex-r5
       - arm,cortex-r7
+      - arm,neoverse-e1
+      - arm,neoverse-n1
       - brcm,brahma-b15
       - brcm,brahma-b53
       - brcm,vulcan
@@ -155,6 +164,8 @@ properties:
       - nvidia,tegra194-carmel
       - qcom,krait
       - qcom,kryo
+      - qcom,kryo260
+      - qcom,kryo280
       - qcom,kryo385
       - qcom,kryo485
       - qcom,scorpion
@@ -201,6 +212,8 @@ properties:
               - rockchip,rk3066-smp
               - socionext,milbeaut-m10v-smp
               - ste,dbx500-smp
+              - ti,am3352
+              - ti,am4372
 
   cpu-release-addr:
     $ref: '/schemas/types.yaml#/definitions/uint64'
@@ -286,6 +299,39 @@ properties:
       property value of "rockchip,rk3066-smp"
       While optional, it is the preferred way to get access to
       the cpu-core power-domains.
+
+  secondary-boot-reg:
+    $ref: '/schemas/types.yaml#/definitions/uint32'
+    description: |
+      Required for systems that have an "enable-method" property value of
+      "brcm,bcm11351-cpu-method", "brcm,bcm23550" or "brcm,bcm-nsp-smp".
+
+      This includes the following SoCs: |
+      BCM11130, BCM11140, BCM11351, BCM28145, BCM28155, BCM21664, BCM23550
+      BCM58522, BCM58525, BCM58535, BCM58622, BCM58623, BCM58625, BCM88312
+
+      The secondary-boot-reg property is a u32 value that specifies the
+      physical address of the register used to request the ROM holding pen
+      code release a secondary CPU. The value written to the register is
+      formed by encoding the target CPU id into the low bits of the
+      physical start address it should jump to.
+
+if:
+  # If the enable-method property contains one of those values
+  properties:
+    enable-method:
+      contains:
+        enum:
+          - brcm,bcm11351-cpu-method
+          - brcm,bcm23550
+          - brcm,bcm-nsp-smp
+  # and if enable-method is present
+  required:
+    - enable-method
+
+then:
+   required:
+     - secondary-boot-reg
 
 required:
   - device_type

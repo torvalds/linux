@@ -41,7 +41,7 @@ ENTRY(arm64_relocate_new_kernel)
 	cmp	x0, #CurrentEL_EL2
 	b.ne	1f
 	mrs	x0, sctlr_el2
-	ldr	x1, =SCTLR_ELx_FLAGS
+	mov_q	x1, SCTLR_ELx_FLAGS
 	bic	x0, x0, x1
 	pre_disable_mmu_workaround
 	msr	sctlr_el2, x0
@@ -112,8 +112,6 @@ ENTRY(arm64_relocate_new_kernel)
 	br	x17
 
 ENDPROC(arm64_relocate_new_kernel)
-
-.ltorg
 
 .align 3	/* To keep the 64-bit values below naturally aligned. */
 

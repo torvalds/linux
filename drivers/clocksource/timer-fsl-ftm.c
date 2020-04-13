@@ -176,13 +176,6 @@ static struct clock_event_device ftm_clockevent = {
 	.rating			= 300,
 };
 
-static struct irqaction ftm_timer_irq = {
-	.name		= "Freescale ftm timer",
-	.flags		= IRQF_TIMER | IRQF_IRQPOLL,
-	.handler	= ftm_evt_interrupt,
-	.dev_id		= &ftm_clockevent,
-};
-
 static int __init ftm_clockevent_init(unsigned long freq, int irq)
 {
 	int err;
@@ -192,7 +185,8 @@ static int __init ftm_clockevent_init(unsigned long freq, int irq)
 
 	ftm_reset_counter(priv->clkevt_base);
 
-	err = setup_irq(irq, &ftm_timer_irq);
+	err = request_irq(irq, ftm_evt_interrupt, IRQF_TIMER | IRQF_IRQPOLL,
+			  "Freescale ftm timer", &ftm_clockevent);
 	if (err) {
 		pr_err("ftm: setup irq failed: %d\n", err);
 		return err;

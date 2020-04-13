@@ -49,3 +49,6 @@ required:
   - compatible
   - "#address-cells"
   - "#size-cells"
+additionalProperties: false
+
+...

@@ -49,6 +49,7 @@ enum {
 	MLX5_QP_FLAG_TIR_ALLOW_SELF_LB_MC = 1 << 7,
 	MLX5_QP_FLAG_ALLOW_SCATTER_CQE	= 1 << 8,
 	MLX5_QP_FLAG_PACKET_BASED_CREDIT_MODE	= 1 << 9,
+	MLX5_QP_FLAG_UAR_PAGE_INDEX = 1 << 10,
 };
 
 enum {
@@ -78,6 +79,7 @@ struct mlx5_ib_alloc_ucontext_req {
 
 enum mlx5_lib_caps {
 	MLX5_LIB_CAP_4K_UAR	= (__u64)1 << 0,
+	MLX5_LIB_CAP_DYN_UAR	= (__u64)1 << 1,
 };
 
 enum mlx5_ib_alloc_uctx_v2_flags {
@@ -266,6 +268,7 @@ struct mlx5_ib_query_device_resp {
 
 enum mlx5_ib_create_cq_flags {
 	MLX5_IB_CREATE_CQ_FLAGS_CQE_128B_PAD	= 1 << 0,
+	MLX5_IB_CREATE_CQ_FLAGS_UAR_PAGE_INDEX  = 1 << 1,
 };
 
 struct mlx5_ib_create_cq {
@@ -275,6 +278,9 @@ struct mlx5_ib_create_cq {
 	__u8    cqe_comp_en;
 	__u8    cqe_comp_res_format;
 	__u16	flags;
+	__u16	uar_page_index;
+	__u16	reserved0;
+	__u32	reserved1;
 };
 
 struct mlx5_ib_create_cq_resp {

@@ -99,6 +99,11 @@ void lima_mmu_fini(struct lima_ip *ip)
 
 }
 
+void lima_mmu_flush_tlb(struct lima_ip *ip)
+{
+	mmu_write(LIMA_MMU_COMMAND, LIMA_MMU_COMMAND_ZAP_CACHE);
+}
+
 void lima_mmu_switch_vm(struct lima_ip *ip, struct lima_vm *vm)
 {
 	struct lima_device *dev = ip->dev;

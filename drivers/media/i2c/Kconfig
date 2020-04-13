@@ -238,6 +238,7 @@ config VIDEO_ADV7604
 	tristate "Analog Devices ADV7604 decoder"
 	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
 	depends on GPIOLIB || COMPILE_TEST
+	select REGMAP_I2C
 	select HDMI
 	select V4L2_FWNODE
 	help
@@ -379,6 +380,7 @@ config VIDEO_TVP5150
 	tristate "Texas Instruments TVP5150 video decoder"
 	depends on VIDEO_V4L2 && I2C
 	select V4L2_FWNODE
+	select REGMAP_I2C
 	help
 	  Support for the Texas Instruments TVP5150 video decoder.
 
@@ -584,12 +586,24 @@ config VIDEO_IMX214
 	tristate "Sony IMX214 sensor support"
 	depends on GPIOLIB && I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
 	depends on V4L2_FWNODE
+	select REGMAP_I2C
 	help
 	  This is a Video4Linux2 sensor driver for the Sony
 	  IMX214 camera.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called imx214.
+
+config VIDEO_IMX219
+	tristate "Sony IMX219 sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the Sony
+	  IMX219 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called imx219.
 
 config VIDEO_IMX258
 	tristate "Sony IMX258 sensor support"
@@ -612,6 +626,7 @@ config VIDEO_IMX274
 config VIDEO_IMX290
 	tristate "Sony IMX290 sensor support"
 	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	select REGMAP_I2C
 	select V4L2_FWNODE
 	help
 	  This is a Video4Linux2 sensor driver for the Sony
@@ -804,6 +819,7 @@ config VIDEO_OV7670
 config VIDEO_OV7740
 	tristate "OmniVision OV7740 sensor support"
 	depends on I2C && VIDEO_V4L2
+	select REGMAP_I2C
 	help
 	  This is a Video4Linux2 sensor driver for the OmniVision
 	  OV7740 VGA camera sensor.

@@ -9,7 +9,7 @@
 #include <linux/of.h>
 #include <linux/clk.h>
 #include <linux/irq.h>
-#include <linux/clk-provider.h>
+#include <linux/of_clk.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/extcon.h>

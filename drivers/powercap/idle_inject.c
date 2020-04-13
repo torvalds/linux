@@ -67,7 +67,7 @@ struct idle_inject_device {
 	struct hrtimer timer;
 	unsigned int idle_duration_us;
 	unsigned int run_duration_us;
-	unsigned long int cpumask[0];
+	unsigned long cpumask[];
 };
 
 static DEFINE_PER_CPU(struct idle_inject_thread, idle_inject_thread);

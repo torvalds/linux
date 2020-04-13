@@ -507,6 +507,28 @@ static void rt1308_sdw_shutdown(struct snd_pcm_substream *substream,
 	kfree(stream);
 }
 
+static int rt1308_sdw_set_tdm_slot(struct snd_soc_dai *dai,
+				   unsigned int tx_mask,
+				   unsigned int rx_mask,
+				   int slots, int slot_width)
+{
+	struct snd_soc_component *component = dai->component;
+	struct rt1308_sdw_priv *rt1308 =
+		snd_soc_component_get_drvdata(component);
+
+	if (tx_mask)
+		return -EINVAL;
+
+	if (slots > 2)
+		return -EINVAL;
+
+	rt1308->rx_mask = rx_mask;
+	rt1308->slots = slots;
+	/* slot_width is not used since it's irrelevant for SoundWire */
+
+	return 0;
+}
+
 static int rt1308_sdw_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params, struct snd_soc_dai *dai)
 {
@@ -517,7 +539,7 @@ static int rt1308_sdw_hw_params(struct snd_pcm_substream *substream,
 	struct sdw_port_config port_config;
 	enum sdw_data_direction direction;
 	struct sdw_stream_data *stream;
-	int retval, port, num_channels;
+	int retval, port, num_channels, ch_mask;
 
 	dev_dbg(dai->dev, "%s %s", __func__, dai->name);
 	stream = snd_soc_dai_get_dma_data(dai, substream);
@@ -537,13 +559,20 @@ static int rt1308_sdw_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
+	if (rt1308->slots) {
+		num_channels = rt1308->slots;
+		ch_mask = rt1308->rx_mask;
+	} else {
+		num_channels = params_channels(params);
+		ch_mask = (1 << num_channels) - 1;
+	}
+
 	stream_config.frame_rate = params_rate(params);
-	stream_config.ch_count = params_channels(params);
+	stream_config.ch_count = num_channels;
 	stream_config.bps = snd_pcm_format_width(params_format(params));
 	stream_config.direction = direction;
 
-	num_channels = params_channels(params);
-	port_config.ch_mask = (1 << (num_channels)) - 1;
+	port_config.ch_mask = ch_mask;
 	port_config.num = port;
 
 	retval = sdw_stream_add_slave(rt1308->sdw_slave, &stream_config,
@@ -597,6 +626,7 @@ static const struct snd_soc_dai_ops rt1308_aif_dai_ops = {
 	.hw_free	= rt1308_sdw_pcm_hw_free,
 	.set_sdw_stream	= rt1308_set_sdw_stream,
 	.shutdown	= rt1308_sdw_shutdown,
+	.set_tdm_slot	= rt1308_sdw_set_tdm_slot,
 };
 
 #define RT1308_STEREO_RATES SNDRV_PCM_RATE_48000

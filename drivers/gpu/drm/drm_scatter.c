@@ -99,6 +99,9 @@ int drm_legacy_sg_alloc(struct drm_device *dev, void *data,
 	if (!drm_core_check_feature(dev, DRIVER_SG))
 		return -EOPNOTSUPP;
 
+	if (request->size > SIZE_MAX - PAGE_SIZE)
+		return -EINVAL;
+
 	if (dev->sg)
 		return -EINVAL;
 

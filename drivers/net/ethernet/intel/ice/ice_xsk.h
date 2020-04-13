@@ -24,7 +24,7 @@ ice_xsk_umem_setup(struct ice_vsi __always_unused *vsi,
 		   struct xdp_umem __always_unused *umem,
 		   u16 __always_unused qid)
 {
-	return -ENOTSUPP;
+	return -EOPNOTSUPP;
 }
 
 static inline void
@@ -63,7 +63,7 @@ static inline int
 ice_xsk_wakeup(struct net_device __always_unused *netdev,
 	       u32 __always_unused queue_id, u32 __always_unused flags)
 {
-	return -ENOTSUPP;
+	return -EOPNOTSUPP;
 }
 
 #define ice_xsk_clean_rx_ring(rx_ring) do {} while (0)

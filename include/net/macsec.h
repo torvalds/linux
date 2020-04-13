@@ -11,18 +11,48 @@
 #include <uapi/linux/if_link.h>
 #include <uapi/linux/if_macsec.h>
 
-typedef u64 __bitwise sci_t;
+#define MACSEC_DEFAULT_PN_LEN 4
+#define MACSEC_XPN_PN_LEN 8
 
+#define MACSEC_SALT_LEN 12
 #define MACSEC_NUM_AN 4 /* 2 bits for the association number */
+
+typedef u64 __bitwise sci_t;
+typedef u32 __bitwise ssci_t;
+
+typedef union salt {
+	struct {
+		u32 ssci;
+		u64 pn;
+	} __packed;
+	u8 bytes[MACSEC_SALT_LEN];
+} __packed salt_t;
+
+typedef union pn {
+	struct {
+#if defined(__LITTLE_ENDIAN_BITFIELD)
+		u32 lower;
+		u32 upper;
+#elif defined(__BIG_ENDIAN_BITFIELD)
+		u32 upper;
+		u32 lower;
+#else
+#error	"Please fix <asm/byteorder.h>"
+#endif
+	};
+	u64 full64;
+} pn_t;
 
 /**
  * struct macsec_key - SA key
  * @id: user-provided key identifier
  * @tfm: crypto struct, key storage
+ * @salt: salt used to generate IV in XPN cipher suites
  */
 struct macsec_key {
 	u8 id[MACSEC_KEYID_LEN];
 	struct crypto_aead *tfm;
+	salt_t salt;
 };
 
 struct macsec_rx_sc_stats {
@@ -58,18 +88,34 @@ struct macsec_tx_sc_stats {
 	__u64 OutOctetsEncrypted;
 };
 
+struct macsec_dev_stats {
+	__u64 OutPktsUntagged;
+	__u64 InPktsUntagged;
+	__u64 OutPktsTooLong;
+	__u64 InPktsNoTag;
+	__u64 InPktsBadTag;
+	__u64 InPktsUnknownSCI;
+	__u64 InPktsNoSCI;
+	__u64 InPktsOverrun;
+};
+
 /**
  * struct macsec_rx_sa - receive secure association
  * @active:
  * @next_pn: packet number expected for the next packet
  * @lock: protects next_pn manipulations
  * @key: key structure
+ * @ssci: short secure channel identifier
  * @stats: per-SA stats
  */
 struct macsec_rx_sa {
 	struct macsec_key key;
+	ssci_t ssci;
 	spinlock_t lock;
-	u32 next_pn;
+	union {
+		pn_t next_pn_halves;
+		u64 next_pn;
+	};
 	refcount_t refcnt;
 	bool active;
 	struct macsec_rx_sa_stats __percpu *stats;
@@ -110,12 +156,17 @@ struct macsec_rx_sc {
  * @next_pn: packet number to use for the next packet
  * @lock: protects next_pn manipulations
  * @key: key structure
+ * @ssci: short secure channel identifier
  * @stats: per-SA stats
  */
 struct macsec_tx_sa {
 	struct macsec_key key;
+	ssci_t ssci;
 	spinlock_t lock;
-	u32 next_pn;
+	union {
+		pn_t next_pn_halves;
+		u64 next_pn;
+	};
 	refcount_t refcnt;
 	bool active;
 	struct macsec_tx_sa_stats __percpu *stats;
@@ -152,6 +203,7 @@ struct macsec_tx_sc {
  * @key_len: length of keys used by the cipher suite
  * @icv_len: length of ICV used by the cipher suite
  * @validate_frames: validation mode
+ * @xpn: enable XPN for this SecY
  * @operational: MAC_Operational flag
  * @protect_frames: enable protection for this SecY
  * @replay_protect: enable packet number checks on receive
@@ -166,6 +218,7 @@ struct macsec_secy {
 	u16 key_len;
 	u16 icv_len;
 	enum macsec_validation_type validate_frames;
+	bool xpn;
 	bool operational;
 	bool protect_frames;
 	bool replay_protect;
@@ -178,7 +231,10 @@ struct macsec_secy {
  * struct macsec_context - MACsec context for hardware offloading
  */
 struct macsec_context {
-	struct phy_device *phydev;
+	union {
+		struct net_device *netdev;
+		struct phy_device *phydev;
+	};
 	enum macsec_offload offload;
 
 	struct macsec_secy *secy;
@@ -191,6 +247,13 @@ struct macsec_context {
 			struct macsec_tx_sa *tx_sa;
 		};
 	} sa;
+	union {
+		struct macsec_tx_sc_stats *tx_sc_stats;
+		struct macsec_tx_sa_stats *tx_sa_stats;
+		struct macsec_rx_sc_stats *rx_sc_stats;
+		struct macsec_rx_sa_stats *rx_sa_stats;
+		struct macsec_dev_stats  *dev_stats;
+	} stats;
 
 	u8 prepare:1;
 };
@@ -217,6 +280,12 @@ struct macsec_ops {
 	int (*mdo_add_txsa)(struct macsec_context *ctx);
 	int (*mdo_upd_txsa)(struct macsec_context *ctx);
 	int (*mdo_del_txsa)(struct macsec_context *ctx);
+	/* Statistics */
+	int (*mdo_get_dev_stats)(struct macsec_context *ctx);
+	int (*mdo_get_tx_sc_stats)(struct macsec_context *ctx);
+	int (*mdo_get_tx_sa_stats)(struct macsec_context *ctx);
+	int (*mdo_get_rx_sc_stats)(struct macsec_context *ctx);
+	int (*mdo_get_rx_sa_stats)(struct macsec_context *ctx);
 };
 
 void macsec_pn_wrapped(struct macsec_secy *secy, struct macsec_tx_sa *tx_sa);

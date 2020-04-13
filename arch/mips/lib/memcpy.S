@@ -598,6 +598,7 @@ SEXC(1)
 	 nop
 	.endm
 
+#ifndef CONFIG_HAVE_PLAT_MEMCPY
 	.align	5
 LEAF(memmove)
 EXPORT_SYMBOL(memmove)
@@ -664,6 +665,8 @@ FEXPORT(__copy_user)
 EXPORT_SYMBOL(__copy_user)
 	/* Legacy Mode, user <-> user */
 	__BUILD_COPY_USER LEGACY_MODE USEROP USEROP
+
+#endif
 
 #ifdef CONFIG_EVA
 

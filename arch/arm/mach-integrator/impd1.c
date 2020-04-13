@@ -410,13 +410,10 @@ static int __ref impd1_probe(struct lm_device *dev)
 			 * 5 = Key lower right
 			 */
 			/* We need the two MMCI GPIO entries */
-			lookup->table[0].chip_label = chipname;
-			lookup->table[0].chip_hwnum = 3;
-			lookup->table[0].con_id = "wp";
-			lookup->table[1].chip_label = chipname;
-			lookup->table[1].chip_hwnum = 4;
-			lookup->table[1].con_id = "cd";
-			lookup->table[1].flags = GPIO_ACTIVE_LOW;
+			lookup->table[0] = (struct gpiod_lookup)
+				GPIO_LOOKUP(chipname, 3, "wp", 0);
+			lookup->table[1] = (struct gpiod_lookup)
+				GPIO_LOOKUP(chipname, 4, "cd", GPIO_ACTIVE_LOW);
 			gpiod_add_lookup_table(lookup);
 		}
 

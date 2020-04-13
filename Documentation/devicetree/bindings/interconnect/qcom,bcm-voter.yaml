@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/interconnect/qcom,bcm-voter.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm BCM-Voter Interconnect
+
+maintainers:
+  - Georgi Djakov <georgi.djakov@linaro.org>
+
+description: |
+  The Bus Clock Manager (BCM) is a dedicated hardware accelerator that manages
+  shared system resources by aggregating requests from multiple Resource State
+  Coordinators (RSC). Interconnect providers are able to vote for aggregated
+  thresholds values from consumers by communicating through their respective
+  RSCs.
+
+properties:
+  compatible:
+    enum:
+      - qcom,bcm-voter
+
+required:
+  - compatible
+
+additionalProperties: false
+
+examples:
+  # Example 1: apps bcm_voter on SDM845 SoC should be defined inside &apps_rsc node
+  # as defined in Documentation/devicetree/bindings/soc/qcom/rpmh-rsc.txt
+  - |
+
+    apps_bcm_voter: bcm_voter {
+        compatible = "qcom,bcm-voter";
+    };
+
+  # Example 2: disp bcm_voter on SDM845 should be defined inside &disp_rsc node
+  # as defined in Documentation/devicetree/bindings/soc/qcom/rpmh-rsc.txt
+  - |
+
+    disp_bcm_voter: bcm_voter {
+        compatible = "qcom,bcm-voter";
+    };
+...

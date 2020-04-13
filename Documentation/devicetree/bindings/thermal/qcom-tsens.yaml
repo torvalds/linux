@@ -38,14 +38,26 @@ properties:
           - enum:
               - qcom,msm8996-tsens
               - qcom,msm8998-tsens
+              - qcom,sc7180-tsens
               - qcom,sdm845-tsens
           - const: qcom,tsens-v2
 
   reg:
-    maxItems: 2
     items:
       - description: TM registers
       - description: SROT registers
+
+  interrupts:
+    minItems: 1
+    items:
+      - description: Combined interrupt if upper or lower threshold crossed
+      - description: Interrupt if critical threshold crossed
+
+  interrupt-names:
+    minItems: 1
+    items:
+      - const: uplow
+      - const: critical
 
   nvmem-cells:
     minItems: 1
@@ -53,13 +65,12 @@ properties:
     description:
       Reference to an nvmem node for the calibration data
 
-  nvmem-cells-names:
+  nvmem-cell-names:
     minItems: 1
     maxItems: 2
     items:
-      - enum:
-        - caldata
-        - calsel
+      - const: calib
+      - const: calib_sel
 
   "#qcom,sensors":
     allOf:
@@ -90,22 +101,16 @@ allOf:
     then:
       properties:
         interrupts:
-          items:
-            - description: Combined interrupt if upper or lower threshold crossed
+          maxItems: 1
         interrupt-names:
-          items:
-            - const: uplow
+          maxItems: 1
 
     else:
       properties:
         interrupts:
-          items:
-            - description: Combined interrupt if upper or lower threshold crossed
-            - description: Interrupt if critical threshold crossed
+          minItems: 2
         interrupt-names:
-          items:
-            - const: uplow
-            - const: critical
+          minItems: 2
 
 required:
   - compatible
@@ -114,6 +119,8 @@ required:
   - interrupts
   - interrupt-names
   - "#thermal-sensor-cells"
+
+additionalProperties: false
 
 examples:
   - |
@@ -125,7 +132,7 @@ examples:
                  <0x4a8000 0x1000>; /* SROT */
 
            nvmem-cells = <&tsens_caldata>, <&tsens_calsel>;
-           nvmem-cell-names = "caldata", "calsel";
+           nvmem-cell-names = "calib", "calib_sel";
 
            interrupts = <GIC_SPI 184 IRQ_TYPE_LEVEL_HIGH>;
            interrupt-names = "uplow";

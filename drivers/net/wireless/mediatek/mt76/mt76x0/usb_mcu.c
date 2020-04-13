@@ -168,7 +168,7 @@ int mt76x0u_mcu_init(struct mt76x02_dev *dev)
 	if (ret < 0)
 		return ret;
 
-	set_bit(MT76_STATE_MCU_RUNNING, &dev->mt76.state);
+	set_bit(MT76_STATE_MCU_RUNNING, &dev->mphy.state);
 
 	return 0;
 }

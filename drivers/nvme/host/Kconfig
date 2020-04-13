@@ -32,8 +32,6 @@ config NVME_HWMON
 	  a hardware monitoring device will be created for each NVMe drive
 	  in the system.
 
-	  If unsure, say N.
-
 config NVME_FABRICS
 	tristate
 

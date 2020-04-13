@@ -76,7 +76,7 @@ struct pm_irq_chip {
 	unsigned int		num_masters;
 	const struct pm_irq_data *pm_irq_data;
 	/* MUST BE AT THE END OF THIS STRUCT */
-	u8			config[0];
+	u8			config[];
 };
 
 static int pm8xxx_read_block_irq(struct pm_irq_chip *chip, unsigned int bp,

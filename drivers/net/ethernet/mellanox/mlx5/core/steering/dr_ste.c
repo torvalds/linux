@@ -728,7 +728,7 @@ int mlx5dr_ste_build_pre_check(struct mlx5dr_domain *dmn,
 {
 	if (!value && (match_criteria & DR_MATCHER_CRITERIA_MISC)) {
 		if (mask->misc.source_port && mask->misc.source_port != 0xffff) {
-			mlx5dr_dbg(dmn, "Partial mask source_port is not supported\n");
+			mlx5dr_err(dmn, "Partial mask source_port is not supported\n");
 			return -EINVAL;
 		}
 	}

@@ -176,7 +176,6 @@ static struct pwm_lookup mioa701_pwm_lookup[] = {
 static struct platform_pwm_backlight_data mioa701_backlight_data = {
 	.max_brightness	= 100,
 	.dft_brightness	= 50,
-	.enable_gpio	= -1,
 };
 
 /*

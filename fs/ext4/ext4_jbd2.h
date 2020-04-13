@@ -512,6 +512,9 @@ static inline int ext4_should_dioread_nolock(struct inode *inode)
 		return 0;
 	if (ext4_should_journal_data(inode))
 		return 0;
+	/* temporary fix to prevent generic/422 test failures */
+	if (!test_opt(inode->i_sb, DELALLOC))
+		return 0;
 	return 1;
 }
 

@@ -73,6 +73,8 @@ required:
   - gpio-controller
   - "#gpio-cells"
 
+additionalProperties: false
+
 examples:
   - |
     #include <dt-bindings/interrupt-controller/irq.h>

@@ -184,4 +184,12 @@ config USB_ULPI_VIEWPORT
 	  Provides read/write operations to the ULPI phy register set for
 	  controllers with a viewport register (e.g. Chipidea/ARC controllers).
 
+config JZ4770_PHY
+	tristate "Ingenic JZ4770 Transceiver Driver"
+	depends on MIPS || COMPILE_TEST
+	select USB_PHY
+	help
+	  This driver provides PHY support for the USB controller found
+	  on the JZ4770 SoC from Ingenic.
+
 endmenu

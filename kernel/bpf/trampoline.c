@@ -5,6 +5,8 @@
 #include <linux/filter.h>
 #include <linux/ftrace.h>
 #include <linux/rbtree_latch.h>
+#include <linux/perf_event.h>
+#include <linux/btf.h>
 
 /* dummy _ops. The verifier will operate on target program's ops. */
 const struct bpf_verifier_ops bpf_extension_verifier_ops = {
@@ -17,12 +19,11 @@ const struct bpf_prog_ops bpf_extension_prog_ops = {
 #define TRAMPOLINE_TABLE_SIZE (1 << TRAMPOLINE_HASH_BITS)
 
 static struct hlist_head trampoline_table[TRAMPOLINE_TABLE_SIZE];
-static struct latch_tree_root image_tree __cacheline_aligned;
 
-/* serializes access to trampoline_table and image_tree */
+/* serializes access to trampoline_table */
 static DEFINE_MUTEX(trampoline_mutex);
 
-static void *bpf_jit_alloc_exec_page(void)
+void *bpf_jit_alloc_exec_page(void)
 {
 	void *image;
 
@@ -38,62 +39,28 @@ static void *bpf_jit_alloc_exec_page(void)
 	return image;
 }
 
-static __always_inline bool image_tree_less(struct latch_tree_node *a,
-				      struct latch_tree_node *b)
+void bpf_image_ksym_add(void *data, struct bpf_ksym *ksym)
 {
-	struct bpf_image *ia = container_of(a, struct bpf_image, tnode);
-	struct bpf_image *ib = container_of(b, struct bpf_image, tnode);
-
-	return ia < ib;
+	ksym->start = (unsigned long) data;
+	ksym->end = ksym->start + PAGE_SIZE;
+	bpf_ksym_add(ksym);
+	perf_event_ksymbol(PERF_RECORD_KSYMBOL_TYPE_BPF, ksym->start,
+			   PAGE_SIZE, false, ksym->name);
 }
 
-static __always_inline int image_tree_comp(void *addr, struct latch_tree_node *n)
+void bpf_image_ksym_del(struct bpf_ksym *ksym)
 {
-	void *image = container_of(n, struct bpf_image, tnode);
-
-	if (addr < image)
-		return -1;
-	if (addr >= image + PAGE_SIZE)
-		return 1;
-
-	return 0;
+	bpf_ksym_del(ksym);
+	perf_event_ksymbol(PERF_RECORD_KSYMBOL_TYPE_BPF, ksym->start,
+			   PAGE_SIZE, true, ksym->name);
 }
 
-static const struct latch_tree_ops image_tree_ops = {
-	.less	= image_tree_less,
-	.comp	= image_tree_comp,
-};
-
-static void *__bpf_image_alloc(bool lock)
+static void bpf_trampoline_ksym_add(struct bpf_trampoline *tr)
 {
-	struct bpf_image *image;
+	struct bpf_ksym *ksym = &tr->ksym;
 
-	image = bpf_jit_alloc_exec_page();
-	if (!image)
-		return NULL;
-
-	if (lock)
-		mutex_lock(&trampoline_mutex);
-	latch_tree_insert(&image->tnode, &image_tree, &image_tree_ops);
-	if (lock)
-		mutex_unlock(&trampoline_mutex);
-	return image->data;
-}
-
-void *bpf_image_alloc(void)
-{
-	return __bpf_image_alloc(true);
-}
-
-bool is_bpf_image_address(unsigned long addr)
-{
-	bool ret;
-
-	rcu_read_lock();
-	ret = latch_tree_find((void *) addr, &image_tree, &image_tree_ops) != NULL;
-	rcu_read_unlock();
-
-	return ret;
+	snprintf(ksym->name, KSYM_NAME_LEN, "bpf_trampoline_%llu", tr->key);
+	bpf_image_ksym_add(tr->image, ksym);
 }
 
 struct bpf_trampoline *bpf_trampoline_lookup(u64 key)
@@ -116,7 +83,7 @@ struct bpf_trampoline *bpf_trampoline_lookup(u64 key)
 		goto out;
 
 	/* is_root was checked earlier. No need for bpf_jit_charge_modmem() */
-	image = __bpf_image_alloc(false);
+	image = bpf_jit_alloc_exec_page();
 	if (!image) {
 		kfree(tr);
 		tr = NULL;
@@ -131,6 +98,8 @@ struct bpf_trampoline *bpf_trampoline_lookup(u64 key)
 	for (i = 0; i < BPF_TRAMP_MAX; i++)
 		INIT_HLIST_HEAD(&tr->progs_hlist[i]);
 	tr->image = image;
+	INIT_LIST_HEAD_RCU(&tr->ksym.lnode);
+	bpf_trampoline_ksym_add(tr);
 out:
 	mutex_unlock(&trampoline_mutex);
 	return tr;
@@ -190,40 +159,50 @@ static int register_fentry(struct bpf_trampoline *tr, void *new_addr)
 	return ret;
 }
 
-/* Each call __bpf_prog_enter + call bpf_func + call __bpf_prog_exit is ~50
- * bytes on x86.  Pick a number to fit into BPF_IMAGE_SIZE / 2
- */
-#define BPF_MAX_TRAMP_PROGS 40
+static struct bpf_tramp_progs *
+bpf_trampoline_get_progs(const struct bpf_trampoline *tr, int *total)
+{
+	const struct bpf_prog_aux *aux;
+	struct bpf_tramp_progs *tprogs;
+	struct bpf_prog **progs;
+	int kind;
+
+	*total = 0;
+	tprogs = kcalloc(BPF_TRAMP_MAX, sizeof(*tprogs), GFP_KERNEL);
+	if (!tprogs)
+		return ERR_PTR(-ENOMEM);
+
+	for (kind = 0; kind < BPF_TRAMP_MAX; kind++) {
+		tprogs[kind].nr_progs = tr->progs_cnt[kind];
+		*total += tr->progs_cnt[kind];
+		progs = tprogs[kind].progs;
+
+		hlist_for_each_entry(aux, &tr->progs_hlist[kind], tramp_hlist)
+			*progs++ = aux->prog;
+	}
+	return tprogs;
+}
 
 static int bpf_trampoline_update(struct bpf_trampoline *tr)
 {
-	void *old_image = tr->image + ((tr->selector + 1) & 1) * BPF_IMAGE_SIZE/2;
-	void *new_image = tr->image + (tr->selector & 1) * BPF_IMAGE_SIZE/2;
-	struct bpf_prog *progs_to_run[BPF_MAX_TRAMP_PROGS];
-	int fentry_cnt = tr->progs_cnt[BPF_TRAMP_FENTRY];
-	int fexit_cnt = tr->progs_cnt[BPF_TRAMP_FEXIT];
-	struct bpf_prog **progs, **fentry, **fexit;
+	void *old_image = tr->image + ((tr->selector + 1) & 1) * PAGE_SIZE/2;
+	void *new_image = tr->image + (tr->selector & 1) * PAGE_SIZE/2;
+	struct bpf_tramp_progs *tprogs;
 	u32 flags = BPF_TRAMP_F_RESTORE_REGS;
-	struct bpf_prog_aux *aux;
-	int err;
+	int err, total;
 
-	if (fentry_cnt + fexit_cnt == 0) {
+	tprogs = bpf_trampoline_get_progs(tr, &total);
+	if (IS_ERR(tprogs))
+		return PTR_ERR(tprogs);
+
+	if (total == 0) {
 		err = unregister_fentry(tr, old_image);
 		tr->selector = 0;
 		goto out;
 	}
 
-	/* populate fentry progs */
-	fentry = progs = progs_to_run;
-	hlist_for_each_entry(aux, &tr->progs_hlist[BPF_TRAMP_FENTRY], tramp_hlist)
-		*progs++ = aux->prog;
-
-	/* populate fexit progs */
-	fexit = progs;
-	hlist_for_each_entry(aux, &tr->progs_hlist[BPF_TRAMP_FEXIT], tramp_hlist)
-		*progs++ = aux->prog;
-
-	if (fexit_cnt)
+	if (tprogs[BPF_TRAMP_FEXIT].nr_progs ||
+	    tprogs[BPF_TRAMP_MODIFY_RETURN].nr_progs)
 		flags = BPF_TRAMP_F_CALL_ORIG | BPF_TRAMP_F_SKIP_FRAME;
 
 	/* Though the second half of trampoline page is unused a task could be
@@ -232,12 +211,11 @@ static int bpf_trampoline_update(struct bpf_trampoline *tr)
 	 * preempted task. Hence wait for tasks to voluntarily schedule or go
 	 * to userspace.
 	 */
+
 	synchronize_rcu_tasks();
 
-	err = arch_prepare_bpf_trampoline(new_image, new_image + BPF_IMAGE_SIZE / 2,
-					  &tr->func.model, flags,
-					  fentry, fentry_cnt,
-					  fexit, fexit_cnt,
+	err = arch_prepare_bpf_trampoline(new_image, new_image + PAGE_SIZE / 2,
+					  &tr->func.model, flags, tprogs,
 					  tr->func.addr);
 	if (err < 0)
 		goto out;
@@ -252,16 +230,27 @@ static int bpf_trampoline_update(struct bpf_trampoline *tr)
 		goto out;
 	tr->selector++;
 out:
+	kfree(tprogs);
 	return err;
 }
 
-static enum bpf_tramp_prog_type bpf_attach_type_to_tramp(enum bpf_attach_type t)
+static enum bpf_tramp_prog_type bpf_attach_type_to_tramp(struct bpf_prog *prog)
 {
-	switch (t) {
+	switch (prog->expected_attach_type) {
 	case BPF_TRACE_FENTRY:
 		return BPF_TRAMP_FENTRY;
+	case BPF_MODIFY_RETURN:
+		return BPF_TRAMP_MODIFY_RETURN;
 	case BPF_TRACE_FEXIT:
 		return BPF_TRAMP_FEXIT;
+	case BPF_LSM_MAC:
+		if (!prog->aux->attach_func_proto->type)
+			/* The function returns void, we cannot modify its
+			 * return value.
+			 */
+			return BPF_TRAMP_FEXIT;
+		else
+			return BPF_TRAMP_MODIFY_RETURN;
 	default:
 		return BPF_TRAMP_REPLACE;
 	}
@@ -275,7 +264,7 @@ int bpf_trampoline_link_prog(struct bpf_prog *prog)
 	int cnt;
 
 	tr = prog->aux->trampoline;
-	kind = bpf_attach_type_to_tramp(prog->expected_attach_type);
+	kind = bpf_attach_type_to_tramp(prog);
 	mutex_lock(&tr->mutex);
 	if (tr->extension_prog) {
 		/* cannot attach fentry/fexit if extension prog is attached.
@@ -325,7 +314,7 @@ int bpf_trampoline_unlink_prog(struct bpf_prog *prog)
 	int err;
 
 	tr = prog->aux->trampoline;
-	kind = bpf_attach_type_to_tramp(prog->expected_attach_type);
+	kind = bpf_attach_type_to_tramp(prog);
 	mutex_lock(&tr->mutex);
 	if (kind == BPF_TRAMP_REPLACE) {
 		WARN_ON_ONCE(!tr->extension_prog);
@@ -344,8 +333,6 @@ out:
 
 void bpf_trampoline_put(struct bpf_trampoline *tr)
 {
-	struct bpf_image *image;
-
 	if (!tr)
 		return;
 	mutex_lock(&trampoline_mutex);
@@ -356,35 +343,37 @@ void bpf_trampoline_put(struct bpf_trampoline *tr)
 		goto out;
 	if (WARN_ON_ONCE(!hlist_empty(&tr->progs_hlist[BPF_TRAMP_FEXIT])))
 		goto out;
-	image = container_of(tr->image, struct bpf_image, data);
-	latch_tree_erase(&image->tnode, &image_tree, &image_tree_ops);
+	bpf_image_ksym_del(&tr->ksym);
 	/* wait for tasks to get out of trampoline before freeing it */
 	synchronize_rcu_tasks();
-	bpf_jit_free_exec(image);
+	bpf_jit_free_exec(tr->image);
 	hlist_del(&tr->hlist);
 	kfree(tr);
 out:
 	mutex_unlock(&trampoline_mutex);
 }
 
-/* The logic is similar to BPF_PROG_RUN, but with explicit rcu and preempt that
- * are needed for trampoline. The macro is split into
+/* The logic is similar to BPF_PROG_RUN, but with an explicit
+ * rcu_read_lock() and migrate_disable() which are required
+ * for the trampoline. The macro is split into
  * call _bpf_prog_enter
  * call prog->bpf_func
  * call __bpf_prog_exit
  */
 u64 notrace __bpf_prog_enter(void)
+	__acquires(RCU)
 {
 	u64 start = 0;
 
 	rcu_read_lock();
-	preempt_disable();
+	migrate_disable();
 	if (static_branch_unlikely(&bpf_stats_enabled_key))
 		start = sched_clock();
 	return start;
 }
 
 void notrace __bpf_prog_exit(struct bpf_prog *prog, u64 start)
+	__releases(RCU)
 {
 	struct bpf_prog_stats *stats;
 
@@ -401,15 +390,14 @@ void notrace __bpf_prog_exit(struct bpf_prog *prog, u64 start)
 		stats->nsecs += sched_clock() - start;
 		u64_stats_update_end(&stats->syncp);
 	}
-	preempt_enable();
+	migrate_enable();
 	rcu_read_unlock();
 }
 
 int __weak
 arch_prepare_bpf_trampoline(void *image, void *image_end,
 			    const struct btf_func_model *m, u32 flags,
-			    struct bpf_prog **fentry_progs, int fentry_cnt,
-			    struct bpf_prog **fexit_progs, int fexit_cnt,
+			    struct bpf_tramp_progs *tprogs,
 			    void *orig_call)
 {
 	return -ENOTSUPP;

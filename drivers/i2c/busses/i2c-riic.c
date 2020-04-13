@@ -287,10 +287,10 @@ static int riic_init_hw(struct riic_dev *riic, struct i2c_timings *t)
 
 	pm_runtime_get_sync(riic->adapter.dev.parent);
 
-	if (t->bus_freq_hz > 400000) {
+	if (t->bus_freq_hz > I2C_MAX_FAST_MODE_FREQ) {
 		dev_err(&riic->adapter.dev,
-			"unsupported bus speed (%dHz). 400000 max\n",
-			t->bus_freq_hz);
+			"unsupported bus speed (%dHz). %d max\n",
+			t->bus_freq_hz, I2C_MAX_FAST_MODE_FREQ);
 		ret = -EINVAL;
 		goto out;
 	}

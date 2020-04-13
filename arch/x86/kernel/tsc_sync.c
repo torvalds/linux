@@ -295,7 +295,7 @@ static cycles_t check_tsc_warp(unsigned int timeout)
  * But as the TSC is per-logical CPU and can potentially be modified wrongly
  * by the bios, TSC sync test for smaller duration should be able
  * to catch such errors. Also this will catch the condition where all the
- * cores in the socket doesn't get reset at the same time.
+ * cores in the socket don't get reset at the same time.
  */
 static inline unsigned int loop_timeout(int cpu)
 {

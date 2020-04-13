@@ -60,6 +60,21 @@ static const struct strset_info info_template[] = {
 		.count		= WOL_MODE_COUNT,
 		.strings	= wol_mode_names,
 	},
+	[ETH_SS_SOF_TIMESTAMPING] = {
+		.per_dev	= false,
+		.count		= __SOF_TIMESTAMPING_CNT,
+		.strings	= sof_timestamping_names,
+	},
+	[ETH_SS_TS_TX_TYPES] = {
+		.per_dev	= false,
+		.count		= __HWTSTAMP_TX_CNT,
+		.strings	= ts_tx_type_names,
+	},
+	[ETH_SS_TS_RX_FILTERS] = {
+		.per_dev	= false,
+		.count		= __HWTSTAMP_FILTER_CNT,
+		.strings	= ts_rx_filter_names,
+	},
 };
 
 struct strset_req_info {

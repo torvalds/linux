@@ -1,0 +1,102 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/socionext/socionext,uniphier-system-cache.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: UniPhier outer cache controller
+
+description: |
+  UniPhier ARM 32-bit SoCs are integrated with a full-custom outer cache
+  controller system. All of them have a level 2 cache controller, and some
+  have a level 3 cache controller as well.
+
+maintainers:
+  - Masahiro Yamada <yamada.masahiro@socionext.com>
+
+properties:
+  compatible:
+    const: socionext,uniphier-system-cache
+
+  reg:
+    description: |
+      should contain 3 regions: control register, revision register,
+      operation register, in this order.
+    minItems: 3
+    maxItems: 3
+
+  interrupts:
+    description: |
+      Interrupts can be used to notify the completion of cache operations.
+      The number of interrupts should match to the number of CPU cores.
+      The specified interrupts correspond to CPU0, CPU1, ... in this order.
+      minItems: 1
+      maxItems: 4
+
+  cache-unified: true
+
+  cache-size: true
+
+  cache-sets: true
+
+  cache-line-size: true
+
+  cache-level:
+    minimum: 2
+    maximum: 3
+
+  next-level-cache: true
+
+allOf:
+  - $ref: /schemas/cache-controller.yaml#
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - cache-unified
+  - cache-size
+  - cache-sets
+  - cache-line-size
+  - cache-level
+
+examples:
+  - |
+    // System with L2.
+    cache-controller@500c0000 {
+        compatible = "socionext,uniphier-system-cache";
+        reg = <0x500c0000 0x2000>, <0x503c0100 0x4>, <0x506c0000 0x400>;
+        interrupts = <0 174 4>, <0 175 4>, <0 190 4>, <0 191 4>;
+        cache-unified;
+        cache-size = <0x140000>;
+        cache-sets = <512>;
+        cache-line-size = <128>;
+        cache-level = <2>;
+    };
+  - |
+    // System with L2 and L3.
+    //   L2 should specify the next level cache by 'next-level-cache'.
+    l2: cache-controller@500c0000 {
+        compatible = "socionext,uniphier-system-cache";
+        reg = <0x500c0000 0x2000>, <0x503c0100 0x8>, <0x506c0000 0x400>;
+        interrupts = <0 190 4>, <0 191 4>;
+        cache-unified;
+        cache-size = <0x200000>;
+        cache-sets = <512>;
+        cache-line-size = <128>;
+        cache-level = <2>;
+        next-level-cache = <&l3>;
+    };
+
+    l3: cache-controller@500c8000 {
+        compatible = "socionext,uniphier-system-cache";
+        reg = <0x500c8000 0x2000>, <0x503c8100 0x8>, <0x506c8000 0x400>;
+        interrupts = <0 174 4>, <0 175 4>;
+        cache-unified;
+        cache-size = <0x200000>;
+        cache-sets = <512>;
+        cache-line-size = <256>;
+        cache-level = <3>;
+    };

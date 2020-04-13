@@ -1175,6 +1175,7 @@ static int cpsw_set_channels(struct net_device *ndev,
 }
 
 static const struct ethtool_ops cpsw_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_RX_USECS,
 	.get_drvinfo		= cpsw_get_drvinfo,
 	.get_msglevel		= cpsw_get_msglevel,
 	.set_msglevel		= cpsw_set_msglevel,

@@ -45,6 +45,7 @@
 		#size-cells = <0>;
 		cpu: cpu@0 {
 			compatible = "arm,cortex-a9";
+			enable-method = "ti,am4372";
 			device_type = "cpu";
 			reg = <0>;
 
@@ -54,6 +55,17 @@
 			operating-points-v2 = <&cpu0_opp_table>;
 
 			clock-latency = <300000>; /* From omap-cpufreq driver */
+			cpu-idle-states = <&mpu_gate>;
+		};
+
+		idle-states {
+			mpu_gate: mpu_gate {
+				compatible = "arm,idle-state";
+				entry-latency-us = <40>;
+				exit-latency-us = <100>;
+				min-residency-us = <300>;
+				local-timer-stop;
+			};
 		};
 	};
 
@@ -185,47 +197,102 @@
 				&pm_sram_data>;
 		};
 
-		edma: edma@49000000 {
-			compatible = "ti,edma3-tpcc";
-			ti,hwmods = "tpcc";
-			reg =	<0x49000000 0x10000>;
-			reg-names = "edma3_cc";
-			interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "edma3_ccint", "edma3_mperr",
-					  "edma3_ccerrint";
-			dma-requests = <64>;
-			#dma-cells = <2>;
+		target-module@49000000 {
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0x49000000 0x4>;
+			reg-names = "rev";
+			clocks = <&l3_clkctrl AM4_L3_TPCC_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x49000000 0x10000>;
 
-			ti,tptcs = <&edma_tptc0 7>, <&edma_tptc1 5>,
-				   <&edma_tptc2 0>;
+			edma: dma@0 {
+				compatible = "ti,edma3-tpcc";
+				reg = <0 0x10000>;
+				reg-names = "edma3_cc";
+				interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "edma3_ccint", "edma3_mperr",
+						  "edma3_ccerrint";
+				dma-requests = <64>;
+				#dma-cells = <2>;
 
-			ti,edma-memcpy-channels = <58 59>;
+				ti,tptcs = <&edma_tptc0 7>, <&edma_tptc1 5>,
+					   <&edma_tptc2 0>;
+
+				ti,edma-memcpy-channels = <58 59>;
+			};
 		};
 
-		edma_tptc0: tptc@49800000 {
-			compatible = "ti,edma3-tptc";
-			ti,hwmods = "tptc0";
-			reg =	<0x49800000 0x100000>;
-			interrupts = <GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "edma3_tcerrint";
+		target-module@49800000 {
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0x49800000 0x4>,
+			      <0x49800010 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-mask = <SYSC_OMAP4_SOFTRESET>;
+			ti,sysc-midle = <SYSC_IDLE_FORCE>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_SMART>;
+			clocks = <&l3_clkctrl AM4_L3_TPTC0_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x49800000 0x100000>;
+
+			edma_tptc0: dma@0 {
+				compatible = "ti,edma3-tptc";
+				reg = <0 0x100000>;
+				interrupts = <GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "edma3_tcerrint";
+			};
 		};
 
-		edma_tptc1: tptc@49900000 {
-			compatible = "ti,edma3-tptc";
-			ti,hwmods = "tptc1";
-			reg =	<0x49900000 0x100000>;
-			interrupts = <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "edma3_tcerrint";
+		target-module@49900000 {
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0x49900000 0x4>,
+			      <0x49900010 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-mask = <SYSC_OMAP4_SOFTRESET>;
+			ti,sysc-midle = <SYSC_IDLE_FORCE>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_SMART>;
+			clocks = <&l3_clkctrl AM4_L3_TPTC1_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x49900000 0x100000>;
+
+			edma_tptc1: dma@0 {
+				compatible = "ti,edma3-tptc";
+				reg = <0 0x100000>;
+				interrupts = <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "edma3_tcerrint";
+			};
 		};
 
-		edma_tptc2: tptc@49a00000 {
-			compatible = "ti,edma3-tptc";
-			ti,hwmods = "tptc2";
-			reg =	<0x49a00000 0x100000>;
-			interrupts = <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "edma3_tcerrint";
+		target-module@49a00000 {
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0x49a00000 0x4>,
+			      <0x49a00010 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-mask = <SYSC_OMAP4_SOFTRESET>;
+			ti,sysc-midle = <SYSC_IDLE_FORCE>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_SMART>;
+			clocks = <&l3_clkctrl AM4_L3_TPTC2_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x49a00000 0x100000>;
+
+			edma_tptc2: dma@0 {
+				compatible = "ti,edma3-tptc";
+				reg = <0 0x100000>;
+				interrupts = <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "edma3_tcerrint";
+			};
 		};
 
 		target-module@47810000 {
@@ -344,6 +411,28 @@
 			};
 		};
 
+		pruss_tm: target-module@54400000 {
+			compatible = "ti,sysc-pruss", "ti,sysc";
+			reg = <0x54426000 0x4>,
+			      <0x54426004 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-mask = <(SYSC_PRUSS_STANDBY_INIT |
+					 SYSC_PRUSS_SUB_MWAIT)>;
+			ti,sysc-midle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			clocks = <&pruss_ocp_clkctrl AM4_PRUSS_OCP_PRUSS_CLKCTRL 0>;
+			clock-names = "fck";
+			resets = <&prm_per 1>;
+			reset-names = "rstctrl";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x54400000 0x80000>;
+		};
+
 		gpmc: gpmc@50000000 {
 			compatible = "ti,am3352-gpmc";
 			ti,hwmods = "gpmc";
@@ -391,38 +480,6 @@
 				#size-cells = <0>;
 				interrupts = <0 138 0x4>;
 				num-cs = <4>;
-			};
-		};
-
-		dss: dss@4832a000 {
-			compatible = "ti,omap3-dss";
-			reg = <0x4832a000 0x200>;
-			status = "disabled";
-			ti,hwmods = "dss_core";
-			clocks = <&disp_clk>;
-			clock-names = "fck";
-			#address-cells = <1>;
-			#size-cells = <1>;
-			ranges;
-
-			dispc: dispc@4832a400 {
-				compatible = "ti,omap3-dispc";
-				reg = <0x4832a400 0x400>;
-				interrupts = <GIC_SPI 127 IRQ_TYPE_LEVEL_HIGH>;
-				ti,hwmods = "dss_dispc";
-				clocks = <&disp_clk>;
-				clock-names = "fck";
-
-				max-memory-bandwidth = <230000000>;
-			};
-
-			rfbi: rfbi@4832a800 {
-				compatible = "ti,omap3-rfbi";
-				reg = <0x4832a800 0x100>;
-				ti,hwmods = "dss_rfbi";
-				clocks = <&disp_clk>;
-				clock-names = "fck";
-				status = "disabled";
 			};
 		};
 

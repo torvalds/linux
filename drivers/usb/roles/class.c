@@ -48,7 +48,7 @@ int usb_role_switch_set_role(struct usb_role_switch *sw, enum usb_role role)
 
 	mutex_lock(&sw->lock);
 
-	ret = sw->set(sw->dev.parent, role);
+	ret = sw->set(sw, role);
 	if (!ret)
 		sw->role = role;
 
@@ -75,7 +75,7 @@ enum usb_role usb_role_switch_get_role(struct usb_role_switch *sw)
 	mutex_lock(&sw->lock);
 
 	if (sw->get)
-		role = sw->get(sw->dev.parent);
+		role = sw->get(sw);
 	else
 		role = sw->role;
 
@@ -199,7 +199,7 @@ EXPORT_SYMBOL_GPL(usb_role_switch_find_by_fwnode);
 static umode_t
 usb_role_switch_is_visible(struct kobject *kobj, struct attribute *attr, int n)
 {
-	struct device *dev = container_of(kobj, typeof(*dev), kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct usb_role_switch *sw = to_role_switch(dev);
 
 	if (sw->allow_userspace_control)
@@ -329,7 +329,9 @@ usb_role_switch_register(struct device *parent,
 	sw->dev.fwnode = desc->fwnode;
 	sw->dev.class = role_class;
 	sw->dev.type = &usb_role_dev_type;
-	dev_set_name(&sw->dev, "%s-role-switch", dev_name(parent));
+	dev_set_drvdata(&sw->dev, desc->driver_data);
+	dev_set_name(&sw->dev, "%s-role-switch",
+		     desc->name ? desc->name : dev_name(parent));
 
 	ret = device_register(&sw->dev);
 	if (ret) {
@@ -355,6 +357,27 @@ void usb_role_switch_unregister(struct usb_role_switch *sw)
 		device_unregister(&sw->dev);
 }
 EXPORT_SYMBOL_GPL(usb_role_switch_unregister);
+
+/**
+ * usb_role_switch_set_drvdata - Assign private data pointer to a switch
+ * @sw: USB Role Switch
+ * @data: Private data pointer
+ */
+void usb_role_switch_set_drvdata(struct usb_role_switch *sw, void *data)
+{
+	dev_set_drvdata(&sw->dev, data);
+}
+EXPORT_SYMBOL_GPL(usb_role_switch_set_drvdata);
+
+/**
+ * usb_role_switch_get_drvdata - Get the private data pointer of a switch
+ * @sw: USB Role Switch
+ */
+void *usb_role_switch_get_drvdata(struct usb_role_switch *sw)
+{
+	return dev_get_drvdata(&sw->dev);
+}
+EXPORT_SYMBOL_GPL(usb_role_switch_get_drvdata);
 
 static int __init usb_roles_init(void)
 {

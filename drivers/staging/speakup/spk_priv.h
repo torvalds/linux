@@ -11,12 +11,10 @@
 #ifndef _SPEAKUP_PRIVATE_H
 #define _SPEAKUP_PRIVATE_H
 
+#include <linux/printk.h>
+
 #include "spk_types.h"
 #include "spk_priv_keyinfo.h"
-
-#ifndef pr_warn
-#define pr_warn(fmt, arg...) printk(KERN_WARNING fmt, ##arg)
-#endif
 
 #define V_LAST_VAR { MAXVARS }
 #define SPACE 0x20

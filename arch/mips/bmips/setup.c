@@ -10,11 +10,11 @@
 #include <linux/init.h>
 #include <linux/bitops.h>
 #include <linux/memblock.h>
-#include <linux/clk-provider.h>
 #include <linux/ioport.h>
 #include <linux/kernel.h>
 #include <linux/io.h>
 #include <linux/of.h>
+#include <linux/of_clk.h>
 #include <linux/of_fdt.h>
 #include <linux/of_platform.h>
 #include <linux/libfdt.h>

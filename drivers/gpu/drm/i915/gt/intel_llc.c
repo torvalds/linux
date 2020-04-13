@@ -50,6 +50,9 @@ static bool get_ia_constants(struct intel_llc *llc,
 	struct drm_i915_private *i915 = llc_to_gt(llc)->i915;
 	struct intel_rps *rps = &llc_to_gt(llc)->rps;
 
+	if (!HAS_LLC(i915) || IS_DGFX(i915))
+		return false;
+
 	if (rps->max_freq <= rps->min_freq)
 		return false;
 
@@ -147,8 +150,7 @@ static void gen6_update_ring_freq(struct intel_llc *llc)
 
 void intel_llc_enable(struct intel_llc *llc)
 {
-	if (HAS_LLC(llc_to_gt(llc)->i915))
-		gen6_update_ring_freq(llc);
+	gen6_update_ring_freq(llc);
 }
 
 void intel_llc_disable(struct intel_llc *llc)

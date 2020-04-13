@@ -93,7 +93,7 @@ extern int cvmx_helper_board_get_mii_address(int ipd_port);
  * Returns The ports link status. If the link isn't fully resolved, this must
  *	   return zero.
  */
-extern cvmx_helper_link_info_t __cvmx_helper_board_link_get(int ipd_port);
+extern union cvmx_helper_link_info __cvmx_helper_board_link_get(int ipd_port);
 
 /**
  * This function is called by cvmx_helper_interface_probe() after it

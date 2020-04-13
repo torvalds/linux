@@ -50,6 +50,7 @@ enum dmub_cmd_type {
 	DMUB_CMD__REG_REG_WAIT = 4,
 	DMUB_CMD__PLAT_54186_WA = 5,
 	DMUB_CMD__PSR = 64,
+	DMUB_CMD__ABM = 66,
 	DMUB_CMD__VBIOS = 128,
 };
 
@@ -216,7 +217,6 @@ struct dmub_rb_cmd_dpphy_init {
 
 struct dmub_cmd_psr_copy_settings_data {
 	uint16_t psr_level;
-	uint8_t hubp_inst;
 	uint8_t dpp_inst;
 	uint8_t mpcc_inst;
 	uint8_t opp_inst;
@@ -225,17 +225,8 @@ struct dmub_cmd_psr_copy_settings_data {
 	uint8_t digbe_inst;
 	uint8_t dpphy_inst;
 	uint8_t aux_inst;
-	uint8_t hyst_frames;
-	uint8_t hyst_lines;
-	uint8_t phy_num;
-	uint8_t phy_type;
-	uint8_t aux_repeat;
 	uint8_t smu_optimizations_en;
-	uint8_t skip_wait_for_pll_lock;
 	uint8_t frame_delay;
-	uint8_t smu_phy_id;
-	uint8_t num_of_controllers;
-	uint8_t link_rate;
 	uint8_t frame_cap_ind;
 };
 
@@ -257,13 +248,59 @@ struct dmub_rb_cmd_psr_enable {
 	struct dmub_cmd_header header;
 };
 
-struct dmub_cmd_psr_setup_data {
+struct dmub_cmd_psr_set_version_data {
 	enum psr_version version; // PSR version 1 or 2
 };
 
-struct dmub_rb_cmd_psr_setup {
+struct dmub_rb_cmd_psr_set_version {
 	struct dmub_cmd_header header;
-	struct dmub_cmd_psr_setup_data psr_setup_data;
+	struct dmub_cmd_psr_set_version_data psr_set_version_data;
+};
+
+struct dmub_cmd_abm_set_pipe_data {
+	uint32_t ramping_boundary;
+	uint32_t otg_inst;
+};
+
+struct dmub_rb_cmd_abm_set_pipe {
+	struct dmub_cmd_header header;
+	struct dmub_cmd_abm_set_pipe_data abm_set_pipe_data;
+};
+
+struct dmub_cmd_abm_set_backlight_data {
+	uint32_t frame_ramp;
+};
+
+struct dmub_rb_cmd_abm_set_backlight {
+	struct dmub_cmd_header header;
+	struct dmub_cmd_abm_set_backlight_data abm_set_backlight_data;
+};
+
+struct dmub_cmd_abm_set_level_data {
+	uint32_t level;
+};
+
+struct dmub_rb_cmd_abm_set_level {
+	struct dmub_cmd_header header;
+	struct dmub_cmd_abm_set_level_data abm_set_level_data;
+};
+
+struct dmub_cmd_abm_set_ambient_level_data {
+	uint32_t ambient_lux;
+};
+
+struct dmub_rb_cmd_abm_set_ambient_level {
+	struct dmub_cmd_header header;
+	struct dmub_cmd_abm_set_ambient_level_data abm_set_ambient_level_data;
+};
+
+struct dmub_cmd_abm_set_pwm_frac_data {
+	uint32_t fractional_pwm;
+};
+
+struct dmub_rb_cmd_abm_set_pwm_frac {
+	struct dmub_cmd_header header;
+	struct dmub_cmd_abm_set_pwm_frac_data abm_set_pwm_frac_data;
 };
 
 union dmub_rb_cmd {
@@ -277,11 +314,16 @@ union dmub_rb_cmd {
 	struct dmub_rb_cmd_enable_disp_power_gating enable_disp_power_gating;
 	struct dmub_rb_cmd_dpphy_init dpphy_init;
 	struct dmub_rb_cmd_dig1_transmitter_control dig1_transmitter_control;
-	struct dmub_rb_cmd_psr_enable psr_enable;
+	struct dmub_rb_cmd_psr_set_version psr_set_version;
 	struct dmub_rb_cmd_psr_copy_settings psr_copy_settings;
+	struct dmub_rb_cmd_psr_enable psr_enable;
 	struct dmub_rb_cmd_psr_set_level psr_set_level;
 	struct dmub_rb_cmd_PLAT_54186_wa PLAT_54186_wa;
-	struct dmub_rb_cmd_psr_setup psr_setup;
+	struct dmub_rb_cmd_abm_set_pipe abm_set_pipe;
+	struct dmub_rb_cmd_abm_set_backlight abm_set_backlight;
+	struct dmub_rb_cmd_abm_set_level abm_set_level;
+	struct dmub_rb_cmd_abm_set_ambient_level abm_set_ambient_level;
+	struct dmub_rb_cmd_abm_set_pwm_frac abm_set_pwm_frac;
 };
 
 #pragma pack(pop)

@@ -801,7 +801,7 @@ static void wilc_hif_pack_sta_param(u8 *cur_byte, const u8 *mac,
 
 	if (params->ht_capa) {
 		*cur_byte++ = true;
-		memcpy(cur_byte, &params->ht_capa,
+		memcpy(cur_byte, params->ht_capa,
 		       sizeof(struct ieee80211_ht_cap));
 	} else {
 		*cur_byte++ = false;
@@ -861,9 +861,8 @@ static int wilc_handle_roc_expired(struct wilc_vif *vif, u64 cookie)
 	struct wid wid;
 	int result;
 	struct host_if_drv *hif_drv = vif->hif_drv;
-	struct wilc_priv *priv = wdev_priv(vif->ndev->ieee80211_ptr);
 
-	if (priv->p2p_listen_state) {
+	if (vif->priv.p2p_listen_state) {
 		remain_on_chan_flag = false;
 		wid.id = WID_REMAIN_ON_CHAN;
 		wid.type = WID_STR;

@@ -1245,7 +1245,7 @@ static int imgu_v4l2_node_setup(struct imgu_device *imgu, unsigned int pipe,
 	vdev->queue = &node->vbq;
 	vdev->vfl_dir = node->output ? VFL_DIR_TX : VFL_DIR_RX;
 	video_set_drvdata(vdev, imgu);
-	r = video_register_device(vdev, VFL_TYPE_GRABBER, -1);
+	r = video_register_device(vdev, VFL_TYPE_VIDEO, -1);
 	if (r) {
 		dev_err(dev, "failed to register video device (%d)", r);
 		media_entity_cleanup(&vdev->entity);

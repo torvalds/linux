@@ -308,7 +308,7 @@ bool hubbub1_verify_allow_pstate_change_high(
 
 void hubbub1_wm_change_req_wa(struct hubbub *hubbub);
 
-void hubbub1_program_watermarks(
+bool hubbub1_program_watermarks(
 		struct hubbub *hubbub,
 		struct dcn_watermark_set *watermarks,
 		unsigned int refclk_mhz,
@@ -331,17 +331,17 @@ void hubbub1_construct(struct hubbub *hubbub,
 	const struct dcn_hubbub_shift *hubbub_shift,
 	const struct dcn_hubbub_mask *hubbub_mask);
 
-void hubbub1_program_urgent_watermarks(
+bool hubbub1_program_urgent_watermarks(
 		struct hubbub *hubbub,
 		struct dcn_watermark_set *watermarks,
 		unsigned int refclk_mhz,
 		bool safe_to_lower);
-void hubbub1_program_stutter_watermarks(
+bool hubbub1_program_stutter_watermarks(
 		struct hubbub *hubbub,
 		struct dcn_watermark_set *watermarks,
 		unsigned int refclk_mhz,
 		bool safe_to_lower);
-void hubbub1_program_pstate_watermarks(
+bool hubbub1_program_pstate_watermarks(
 		struct hubbub *hubbub,
 		struct dcn_watermark_set *watermarks,
 		unsigned int refclk_mhz,

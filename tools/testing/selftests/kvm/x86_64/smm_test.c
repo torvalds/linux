@@ -117,7 +117,7 @@ int main(int argc, char *argv[])
 		vcpu_alloc_vmx(vm, &vmx_pages_gva);
 		vcpu_args_set(vm, VCPU_ID, 1, vmx_pages_gva);
 	} else {
-		printf("will skip SMM test with VMX enabled\n");
+		pr_info("will skip SMM test with VMX enabled\n");
 		vcpu_args_set(vm, VCPU_ID, 1, 0);
 	}
 

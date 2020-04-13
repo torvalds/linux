@@ -7,6 +7,7 @@
 #define SJA1105_SIZE_HL1_AREA		(0x10 * 4)
 #define SJA1105_SIZE_HL2_AREA		(0x4 * 4)
 #define SJA1105_SIZE_QLEVEL_AREA	(0x8 * 4) /* 0x4 to 0xB */
+#define SJA1105_SIZE_ETHER_AREA		(0x17 * 4)
 
 struct sja1105_port_status_mac {
 	u64 n_runt;
@@ -63,10 +64,37 @@ struct sja1105_port_status_hl2 {
 	u64 qlevel[8];     /* Only for P/Q/R/S */
 };
 
+struct sja1105_port_status_ether {
+	u64 n_drops_nolearn;
+	u64 n_drops_noroute;
+	u64 n_drops_ill_dtag;
+	u64 n_drops_dtag;
+	u64 n_drops_sotag;
+	u64 n_drops_sitag;
+	u64 n_drops_utag;
+	u64 n_tx_bytes_1024_2047;
+	u64 n_tx_bytes_512_1023;
+	u64 n_tx_bytes_256_511;
+	u64 n_tx_bytes_128_255;
+	u64 n_tx_bytes_65_127;
+	u64 n_tx_bytes_64;
+	u64 n_tx_mcast;
+	u64 n_tx_bcast;
+	u64 n_rx_bytes_1024_2047;
+	u64 n_rx_bytes_512_1023;
+	u64 n_rx_bytes_256_511;
+	u64 n_rx_bytes_128_255;
+	u64 n_rx_bytes_65_127;
+	u64 n_rx_bytes_64;
+	u64 n_rx_mcast;
+	u64 n_rx_bcast;
+};
+
 struct sja1105_port_status {
 	struct sja1105_port_status_mac mac;
 	struct sja1105_port_status_hl1 hl1;
 	struct sja1105_port_status_hl2 hl2;
+	struct sja1105_port_status_ether ether;
 };
 
 static void
@@ -158,6 +186,58 @@ sja1105pqrs_port_status_qlevel_unpack(void *buf,
 	}
 }
 
+static void
+sja1105pqrs_port_status_ether_unpack(void *buf,
+				     struct sja1105_port_status_ether *status)
+{
+	/* Make pointer arithmetic work on 4 bytes */
+	u32 *p = buf;
+
+	sja1105_unpack(p + 0x16, &status->n_drops_nolearn,      31, 0, 4);
+	sja1105_unpack(p + 0x15, &status->n_drops_noroute,      31, 0, 4);
+	sja1105_unpack(p + 0x14, &status->n_drops_ill_dtag,     31, 0, 4);
+	sja1105_unpack(p + 0x13, &status->n_drops_dtag,         31, 0, 4);
+	sja1105_unpack(p + 0x12, &status->n_drops_sotag,        31, 0, 4);
+	sja1105_unpack(p + 0x11, &status->n_drops_sitag,        31, 0, 4);
+	sja1105_unpack(p + 0x10, &status->n_drops_utag,         31, 0, 4);
+	sja1105_unpack(p + 0x0F, &status->n_tx_bytes_1024_2047, 31, 0, 4);
+	sja1105_unpack(p + 0x0E, &status->n_tx_bytes_512_1023,  31, 0, 4);
+	sja1105_unpack(p + 0x0D, &status->n_tx_bytes_256_511,   31, 0, 4);
+	sja1105_unpack(p + 0x0C, &status->n_tx_bytes_128_255,   31, 0, 4);
+	sja1105_unpack(p + 0x0B, &status->n_tx_bytes_65_127,    31, 0, 4);
+	sja1105_unpack(p + 0x0A, &status->n_tx_bytes_64,        31, 0, 4);
+	sja1105_unpack(p + 0x09, &status->n_tx_mcast,           31, 0, 4);
+	sja1105_unpack(p + 0x08, &status->n_tx_bcast,           31, 0, 4);
+	sja1105_unpack(p + 0x07, &status->n_rx_bytes_1024_2047, 31, 0, 4);
+	sja1105_unpack(p + 0x06, &status->n_rx_bytes_512_1023,  31, 0, 4);
+	sja1105_unpack(p + 0x05, &status->n_rx_bytes_256_511,   31, 0, 4);
+	sja1105_unpack(p + 0x04, &status->n_rx_bytes_128_255,   31, 0, 4);
+	sja1105_unpack(p + 0x03, &status->n_rx_bytes_65_127,    31, 0, 4);
+	sja1105_unpack(p + 0x02, &status->n_rx_bytes_64,        31, 0, 4);
+	sja1105_unpack(p + 0x01, &status->n_rx_mcast,           31, 0, 4);
+	sja1105_unpack(p + 0x00, &status->n_rx_bcast,           31, 0, 4);
+}
+
+static int
+sja1105pqrs_port_status_get_ether(struct sja1105_private *priv,
+				  struct sja1105_port_status_ether *ether,
+				  int port)
+{
+	const struct sja1105_regs *regs = priv->info->regs;
+	u8 packed_buf[SJA1105_SIZE_ETHER_AREA] = {0};
+	int rc;
+
+	/* Ethernet statistics area */
+	rc = sja1105_xfer_buf(priv, SPI_READ, regs->ether_stats[port],
+			      packed_buf, SJA1105_SIZE_ETHER_AREA);
+	if (rc < 0)
+		return rc;
+
+	sja1105pqrs_port_status_ether_unpack(packed_buf, ether);
+
+	return 0;
+}
+
 static int sja1105_port_status_get_mac(struct sja1105_private *priv,
 				       struct sja1105_port_status_mac *status,
 				       int port)
@@ -241,7 +321,11 @@ static int sja1105_port_status_get(struct sja1105_private *priv,
 	if (rc < 0)
 		return rc;
 
-	return 0;
+	if (priv->info->device_id == SJA1105E_DEVICE_ID ||
+	    priv->info->device_id == SJA1105T_DEVICE_ID)
+		return 0;
+
+	return sja1105pqrs_port_status_get_ether(priv, &status->ether, port);
 }
 
 static char sja1105_port_stats[][ETH_GSTRING_LEN] = {
@@ -308,6 +392,30 @@ static char sja1105pqrs_extra_port_stats[][ETH_GSTRING_LEN] = {
 	"qlevel_5",
 	"qlevel_6",
 	"qlevel_7",
+	/* Ether Stats */
+	"n_drops_nolearn",
+	"n_drops_noroute",
+	"n_drops_ill_dtag",
+	"n_drops_dtag",
+	"n_drops_sotag",
+	"n_drops_sitag",
+	"n_drops_utag",
+	"n_tx_bytes_1024_2047",
+	"n_tx_bytes_512_1023",
+	"n_tx_bytes_256_511",
+	"n_tx_bytes_128_255",
+	"n_tx_bytes_65_127",
+	"n_tx_bytes_64",
+	"n_tx_mcast",
+	"n_tx_bcast",
+	"n_rx_bytes_1024_2047",
+	"n_rx_bytes_512_1023",
+	"n_rx_bytes_256_511",
+	"n_rx_bytes_128_255",
+	"n_rx_bytes_65_127",
+	"n_rx_bytes_64",
+	"n_rx_mcast",
+	"n_rx_bcast",
 };
 
 void sja1105_get_ethtool_stats(struct dsa_switch *ds, int port, u64 *data)
@@ -376,6 +484,29 @@ void sja1105_get_ethtool_stats(struct dsa_switch *ds, int port, u64 *data)
 		data[k++] = status.hl2.qlevel_hwm[i];
 		data[k++] = status.hl2.qlevel[i];
 	}
+	data[k++] = status.ether.n_drops_nolearn;
+	data[k++] = status.ether.n_drops_noroute;
+	data[k++] = status.ether.n_drops_ill_dtag;
+	data[k++] = status.ether.n_drops_dtag;
+	data[k++] = status.ether.n_drops_sotag;
+	data[k++] = status.ether.n_drops_sitag;
+	data[k++] = status.ether.n_drops_utag;
+	data[k++] = status.ether.n_tx_bytes_1024_2047;
+	data[k++] = status.ether.n_tx_bytes_512_1023;
+	data[k++] = status.ether.n_tx_bytes_256_511;
+	data[k++] = status.ether.n_tx_bytes_128_255;
+	data[k++] = status.ether.n_tx_bytes_65_127;
+	data[k++] = status.ether.n_tx_bytes_64;
+	data[k++] = status.ether.n_tx_mcast;
+	data[k++] = status.ether.n_tx_bcast;
+	data[k++] = status.ether.n_rx_bytes_1024_2047;
+	data[k++] = status.ether.n_rx_bytes_512_1023;
+	data[k++] = status.ether.n_rx_bytes_256_511;
+	data[k++] = status.ether.n_rx_bytes_128_255;
+	data[k++] = status.ether.n_rx_bytes_65_127;
+	data[k++] = status.ether.n_rx_bytes_64;
+	data[k++] = status.ether.n_rx_mcast;
+	data[k++] = status.ether.n_rx_bcast;
 }
 
 void sja1105_get_strings(struct dsa_switch *ds, int port,

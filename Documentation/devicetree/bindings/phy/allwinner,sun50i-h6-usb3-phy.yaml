@@ -34,6 +34,8 @@ required:
   - resets
   - "#phy-cells"
 
+additionalProperties: false
+
 examples:
   - |
     #include <dt-bindings/clock/sun50i-h6-ccu.h>

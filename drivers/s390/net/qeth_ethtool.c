@@ -39,6 +39,8 @@ static const struct qeth_stats txq_stats[] = {
 	QETH_TXQ_STAT("TSO bytes", tso_bytes),
 	QETH_TXQ_STAT("Packing mode switches", packing_mode_switch),
 	QETH_TXQ_STAT("Queue stopped", stopped),
+	QETH_TXQ_STAT("Doorbell", doorbell),
+	QETH_TXQ_STAT("IRQ for frames", coal_frames),
 	QETH_TXQ_STAT("Completion yield", completion_yield),
 	QETH_TXQ_STAT("Completion timer", completion_timer),
 };
@@ -108,6 +110,38 @@ static void qeth_get_ethtool_stats(struct net_device *dev,
 				   txq_stats, TXQ_STATS_LEN);
 }
 
+static void __qeth_set_coalesce(struct net_device *dev,
+				struct qeth_qdio_out_q *queue,
+				struct ethtool_coalesce *coal)
+{
+	WRITE_ONCE(queue->coalesce_usecs, coal->tx_coalesce_usecs);
+	WRITE_ONCE(queue->max_coalesced_frames, coal->tx_max_coalesced_frames);
+
+	if (coal->tx_coalesce_usecs &&
+	    netif_running(dev) &&
+	    !qeth_out_queue_is_empty(queue))
+		qeth_tx_arm_timer(queue, coal->tx_coalesce_usecs);
+}
+
+static int qeth_set_coalesce(struct net_device *dev,
+			     struct ethtool_coalesce *coal)
+{
+	struct qeth_card *card = dev->ml_priv;
+	struct qeth_qdio_out_q *queue;
+	unsigned int i;
+
+	if (!IS_IQD(card))
+		return -EOPNOTSUPP;
+
+	if (!coal->tx_coalesce_usecs && !coal->tx_max_coalesced_frames)
+		return -EINVAL;
+
+	qeth_for_each_output_queue(card, queue, i)
+		__qeth_set_coalesce(dev, queue, coal);
+
+	return 0;
+}
+
 static void qeth_get_ringparam(struct net_device *dev,
 			       struct ethtool_ringparam *param)
 {
@@ -153,7 +187,6 @@ static void qeth_get_drvinfo(struct net_device *dev,
 
 	strlcpy(info->driver, IS_LAYER2(card) ? "qeth_l2" : "qeth_l3",
 		sizeof(info->driver));
-	strlcpy(info->version, "1.0", sizeof(info->version));
 	strlcpy(info->fw_version, card->info.mcl_level,
 		sizeof(info->fw_version));
 	snprintf(info->bus_info, sizeof(info->bus_info), "%s/%s/%s",
@@ -173,6 +206,112 @@ static void qeth_get_channels(struct net_device *dev,
 	channels->tx_count = dev->real_num_tx_queues;
 	channels->other_count = 0;
 	channels->combined_count = 0;
+}
+
+static int qeth_set_channels(struct net_device *dev,
+			     struct ethtool_channels *channels)
+{
+	struct qeth_card *card = dev->ml_priv;
+
+	if (channels->rx_count == 0 || channels->tx_count == 0)
+		return -EINVAL;
+	if (channels->tx_count > card->qdio.no_out_queues)
+		return -EINVAL;
+
+	if (IS_IQD(card)) {
+		if (channels->tx_count < QETH_IQD_MIN_TXQ)
+			return -EINVAL;
+
+		/* Reject downgrade while running. It could push displaced
+		 * ucast flows onto txq0, which is reserved for mcast.
+		 */
+		if (netif_running(dev) &&
+		    channels->tx_count < dev->real_num_tx_queues)
+			return -EPERM;
+	} else {
+		/* OSA still uses the legacy prio-queue mechanism: */
+		if (!IS_VM_NIC(card))
+			return -EOPNOTSUPP;
+	}
+
+	return qeth_set_real_num_tx_queues(card, channels->tx_count);
+}
+
+static int qeth_get_ts_info(struct net_device *dev,
+			    struct ethtool_ts_info *info)
+{
+	struct qeth_card *card = dev->ml_priv;
+
+	if (!IS_IQD(card))
+		return -EOPNOTSUPP;
+
+	return ethtool_op_get_ts_info(dev, info);
+}
+
+static int qeth_get_tunable(struct net_device *dev,
+			    const struct ethtool_tunable *tuna, void *data)
+{
+	struct qeth_priv *priv = netdev_priv(dev);
+
+	switch (tuna->id) {
+	case ETHTOOL_RX_COPYBREAK:
+		*(u32 *)data = priv->rx_copybreak;
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int qeth_set_tunable(struct net_device *dev,
+			    const struct ethtool_tunable *tuna,
+			    const void *data)
+{
+	struct qeth_priv *priv = netdev_priv(dev);
+
+	switch (tuna->id) {
+	case ETHTOOL_RX_COPYBREAK:
+		WRITE_ONCE(priv->rx_copybreak, *(u32 *)data);
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int qeth_get_per_queue_coalesce(struct net_device *dev, u32 __queue,
+				       struct ethtool_coalesce *coal)
+{
+	struct qeth_card *card = dev->ml_priv;
+	struct qeth_qdio_out_q *queue;
+
+	if (!IS_IQD(card))
+		return -EOPNOTSUPP;
+
+	if (__queue >= card->qdio.no_out_queues)
+		return -EINVAL;
+
+	queue = card->qdio.out_qs[__queue];
+
+	coal->tx_coalesce_usecs = queue->coalesce_usecs;
+	coal->tx_max_coalesced_frames = queue->max_coalesced_frames;
+	return 0;
+}
+
+static int qeth_set_per_queue_coalesce(struct net_device *dev, u32 queue,
+				       struct ethtool_coalesce *coal)
+{
+	struct qeth_card *card = dev->ml_priv;
+
+	if (!IS_IQD(card))
+		return -EOPNOTSUPP;
+
+	if (queue >= card->qdio.no_out_queues)
+		return -EINVAL;
+
+	if (!coal->tx_coalesce_usecs && !coal->tx_max_coalesced_frames)
+		return -EINVAL;
+
+	__qeth_set_coalesce(dev, card->qdio.out_qs[queue], coal);
+	return 0;
 }
 
 /* Helper function to fill 'advertising' and 'supported' which are the same. */
@@ -374,13 +513,22 @@ static int qeth_get_link_ksettings(struct net_device *netdev,
 }
 
 const struct ethtool_ops qeth_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_TX_USECS |
+				     ETHTOOL_COALESCE_TX_MAX_FRAMES,
 	.get_link = ethtool_op_get_link,
+	.set_coalesce = qeth_set_coalesce,
 	.get_ringparam = qeth_get_ringparam,
 	.get_strings = qeth_get_strings,
 	.get_ethtool_stats = qeth_get_ethtool_stats,
 	.get_sset_count = qeth_get_sset_count,
 	.get_drvinfo = qeth_get_drvinfo,
 	.get_channels = qeth_get_channels,
+	.set_channels = qeth_set_channels,
+	.get_ts_info = qeth_get_ts_info,
+	.get_tunable = qeth_get_tunable,
+	.set_tunable = qeth_set_tunable,
+	.get_per_queue_coalesce = qeth_get_per_queue_coalesce,
+	.set_per_queue_coalesce = qeth_set_per_queue_coalesce,
 	.get_link_ksettings = qeth_get_link_ksettings,
 };
 

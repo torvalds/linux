@@ -78,6 +78,16 @@ config MLX5_ESWITCH
 	        Legacy SRIOV mode (L2 mac vlan steering based).
 	        Switchdev mode (eswitch offloads).
 
+config MLX5_TC_CT
+	bool "MLX5 TC connection tracking offload support"
+	depends on MLX5_CORE_EN && NET_SWITCHDEV && NF_FLOW_TABLE && NET_ACT_CT && NET_TC_SKB_EXT
+	default y
+	help
+	  Say Y here if you want to support offloading connection tracking rules
+	  via tc ct action.
+
+	  If unsure, set to Y
+
 config MLX5_CORE_EN_DCB
 	bool "Data Center Bridging (DCB) Support"
 	default y

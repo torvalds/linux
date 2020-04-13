@@ -7,28 +7,6 @@ menu "Character devices"
 
 source "drivers/tty/Kconfig"
 
-config DEVMEM
-	bool "/dev/mem virtual device support"
-	default y
-	help
-	  Say Y here if you want to support the /dev/mem device.
-	  The /dev/mem device is used to access areas of physical
-	  memory.
-	  When in doubt, say "Y".
-
-config DEVKMEM
-	bool "/dev/kmem virtual device support"
-	# On arm64, VMALLOC_START < PAGE_OFFSET, which confuses kmem read/write
-	depends on !ARM64
-	help
-	  Say Y here if you want to support the /dev/kmem device. The
-	  /dev/kmem device is rarely used, but can be used for certain
-	  kind of kernel debugging operations.
-	  When in doubt, say "N".
-
-source "drivers/tty/serial/Kconfig"
-source "drivers/tty/serdev/Kconfig"
-
 config TTY_PRINTK
 	tristate "TTY driver to output user messages via printk"
 	depends on EXPERT && TTY
@@ -112,8 +90,6 @@ config PPDEV
 	  module will be called ppdev.
 
 	  If unsure, say N.
-
-source "drivers/tty/hvc/Kconfig"
 
 config VIRTIO_CONSOLE
 	tristate "Virtio console"
@@ -219,89 +195,6 @@ config NWFLASH
 	  If you're not sure, say N.
 
 source "drivers/char/hw_random/Kconfig"
-
-config NVRAM
-	tristate "/dev/nvram support"
-	depends on X86 || HAVE_ARCH_NVRAM_OPS
-	default M68K || PPC
-	---help---
-	  If you say Y here and create a character special file /dev/nvram
-	  with major number 10 and minor number 144 using mknod ("man mknod"),
-	  you get read and write access to the non-volatile memory.
-
-	  /dev/nvram may be used to view settings in NVRAM or to change them
-	  (with some utility). It could also be used to frequently
-	  save a few bits of very important data that may not be lost over
-	  power-off and for which writing to disk is too insecure. Note
-	  however that most NVRAM space in a PC belongs to the BIOS and you
-	  should NEVER idly tamper with it. See Ralf Brown's interrupt list
-	  for a guide to the use of CMOS bytes by your BIOS.
-
-	  This memory is conventionally called "NVRAM" on PowerPC machines,
-	  "CMOS RAM" on PCs, "NVRAM" on Ataris and "PRAM" on Macintoshes.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called nvram.
-
-#
-# These legacy RTC drivers just cause too many conflicts with the generic
-# RTC framework ... let's not even try to coexist any more.
-#
-if RTC_LIB=n
-
-config RTC
-	tristate "Enhanced Real Time Clock Support (legacy PC RTC driver)"
-	depends on ALPHA
-	---help---
-	  If you say Y here and create a character special file /dev/rtc with
-	  major number 10 and minor number 135 using mknod ("man mknod"), you
-	  will get access to the real time clock (or hardware clock) built
-	  into your computer.
-
-	  Every PC has such a clock built in. It can be used to generate
-	  signals from as low as 1Hz up to 8192Hz, and can also be used
-	  as a 24 hour alarm. It reports status information via the file
-	  /proc/driver/rtc and its behaviour is set by various ioctls on
-	  /dev/rtc.
-
-	  If you run Linux on a multiprocessor machine and said Y to
-	  "Symmetric Multi Processing" above, you should say Y here to read
-	  and set the RTC in an SMP compatible fashion.
-
-	  If you think you have a use for such a device (such as periodic data
-	  sampling), then say Y here, and read <file:Documentation/admin-guide/rtc.rst>
-	  for details.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called rtc.
-
-config JS_RTC
-	tristate "Enhanced Real Time Clock Support"
-	depends on SPARC32 && PCI
-	---help---
-	  If you say Y here and create a character special file /dev/rtc with
-	  major number 10 and minor number 135 using mknod ("man mknod"), you
-	  will get access to the real time clock (or hardware clock) built
-	  into your computer.
-
-	  Every PC has such a clock built in. It can be used to generate
-	  signals from as low as 1Hz up to 8192Hz, and can also be used
-	  as a 24 hour alarm. It reports status information via the file
-	  /proc/driver/rtc and its behaviour is set by various ioctls on
-	  /dev/rtc.
-
-	  If you think you have a use for such a device (such as periodic data
-	  sampling), then say Y here, and read <file:Documentation/admin-guide/rtc.rst>
-	  for details.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called js-rtc.
-
-config EFI_RTC
-	bool "EFI Real Time Clock Services"
-	depends on IA64
-
-endif # RTC_LIB
 
 config DTLK
 	tristate "Double Talk PC internal speech card support"
@@ -431,6 +324,48 @@ config NSC_GPIO
 	  pc8736x_gpio drivers.  If those drivers are built as
 	  modules, this one will be too, named nsc_gpio
 
+config DEVMEM
+	bool "/dev/mem virtual device support"
+	default y
+	help
+	  Say Y here if you want to support the /dev/mem device.
+	  The /dev/mem device is used to access areas of physical
+	  memory.
+	  When in doubt, say "Y".
+
+config DEVKMEM
+	bool "/dev/kmem virtual device support"
+	# On arm64, VMALLOC_START < PAGE_OFFSET, which confuses kmem read/write
+	depends on !ARM64
+	help
+	  Say Y here if you want to support the /dev/kmem device. The
+	  /dev/kmem device is rarely used, but can be used for certain
+	  kind of kernel debugging operations.
+	  When in doubt, say "N".
+
+config NVRAM
+	tristate "/dev/nvram support"
+	depends on X86 || HAVE_ARCH_NVRAM_OPS
+	default M68K || PPC
+	---help---
+	  If you say Y here and create a character special file /dev/nvram
+	  with major number 10 and minor number 144 using mknod ("man mknod"),
+	  you get read and write access to the non-volatile memory.
+
+	  /dev/nvram may be used to view settings in NVRAM or to change them
+	  (with some utility). It could also be used to frequently
+	  save a few bits of very important data that may not be lost over
+	  power-off and for which writing to disk is too insecure. Note
+	  however that most NVRAM space in a PC belongs to the BIOS and you
+	  should NEVER idly tamper with it. See Ralf Brown's interrupt list
+	  for a guide to the use of CMOS bytes by your BIOS.
+
+	  This memory is conventionally called "NVRAM" on PowerPC machines,
+	  "CMOS RAM" on PCs, "NVRAM" on Ataris and "PRAM" on Macintoshes.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called nvram.
+
 config RAW_DRIVER
 	tristate "RAW driver (/dev/raw/rawN)"
 	depends on BLOCK
@@ -451,6 +386,14 @@ config MAX_RAW_DEVS
 	  The maximum number of RAW devices that are supported.
 	  Default is 256. Increase this number in case you need lots of
 	  raw devices.
+
+config DEVPORT
+	bool "/dev/port character device"
+	depends on ISA || PCI
+	default y
+	help
+	  Say Y here if you want to support the /dev/port device. The /dev/port
+	  device is similar to /dev/mem, but for I/O ports.
 
 config HPET
 	bool "HPET - High Precision Event Timer" if (X86 || IA64)
@@ -511,14 +454,6 @@ config TELCLOCK
 	  /sys/devices/platform/telco_clock, with a number of files for
 	  controlling the behavior of this hardware.
 
-config DEVPORT
-	bool "/dev/port character device"
-	depends on ISA || PCI
-	default y
-	help
-	  Say Y here if you want to support the /dev/port device. The /dev/port
-	  device is similar to /dev/mem, but for I/O ports.
-
 source "drivers/s390/char/Kconfig"
 
 source "drivers/char/xillybus/Kconfig"
@@ -539,7 +474,7 @@ endmenu
 
 config RANDOM_TRUST_CPU
 	bool "Trust the CPU manufacturer to initialize Linux's CRNG"
-	depends on X86 || S390 || PPC
+	depends on ARCH_RANDOM
 	default n
 	help
 	Assume that CPU manufacturer (e.g., Intel or AMD for RDSEED or

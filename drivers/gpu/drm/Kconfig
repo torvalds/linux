@@ -54,9 +54,6 @@ config DRM_DEBUG_MM
 
 	  If in doubt, say "N".
 
-config DRM_EXPORT_FOR_TESTS
-	bool
-
 config DRM_DEBUG_SELFTEST
 	tristate "kselftests for DRM"
 	depends on DRM
@@ -389,6 +386,8 @@ source "drivers/gpu/drm/aspeed/Kconfig"
 
 source "drivers/gpu/drm/mcde/Kconfig"
 
+source "drivers/gpu/drm/tidss/Kconfig"
+
 # Keep legacy drivers last
 
 menuconfig DRM_LEGACY
@@ -467,6 +466,9 @@ config DRM_SAVAGE
 	  chipset. If M is selected the module will be called savage.
 
 endif # DRM_LEGACY
+
+config DRM_EXPORT_FOR_TESTS
+	bool
 
 # Separate option because drm_panel_orientation_quirks.c is shared with fbdev
 config DRM_PANEL_ORIENTATION_QUIRKS

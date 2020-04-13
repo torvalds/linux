@@ -110,6 +110,18 @@ struct mipi_dbi_dev {
 	unsigned int rotation;
 
 	/**
+	 * @left_offset: Horizontal offset of the display relative to the
+	 *               controller's driver array
+	 */
+	unsigned int left_offset;
+
+	/**
+	 * @top_offset: Vertical offset of the display relative to the
+	 *              controller's driver array
+	 */
+	unsigned int top_offset;
+
+	/**
 	 * @backlight: backlight device (optional)
 	 */
 	struct backlight_device *backlight;

@@ -28,6 +28,7 @@ void xfs_qm_dquot_logitem_init(struct xfs_dquot *dqp);
 struct xfs_qoff_logitem	*xfs_qm_qoff_logitem_init(struct xfs_mount *mp,
 		struct xfs_qoff_logitem *start,
 		uint flags);
+void xfs_qm_qoff_logitem_relse(struct xfs_qoff_logitem *);
 struct xfs_qoff_logitem	*xfs_trans_get_qoff_item(struct xfs_trans *tp,
 		struct xfs_qoff_logitem *startqoff,
 		uint flags);

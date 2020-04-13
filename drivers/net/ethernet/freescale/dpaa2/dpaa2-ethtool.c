@@ -79,6 +79,16 @@ static void dpaa2_eth_get_drvinfo(struct net_device *net_dev,
 		sizeof(drvinfo->bus_info));
 }
 
+static int dpaa2_eth_nway_reset(struct net_device *net_dev)
+{
+	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
+
+	if (priv->mac)
+		return phylink_ethtool_nway_reset(priv->mac->phylink);
+
+	return -EOPNOTSUPP;
+}
+
 static int
 dpaa2_eth_get_link_ksettings(struct net_device *net_dev,
 			     struct ethtool_link_ksettings *link_settings)
@@ -761,6 +771,7 @@ static int dpaa2_eth_get_ts_info(struct net_device *dev,
 
 const struct ethtool_ops dpaa2_ethtool_ops = {
 	.get_drvinfo = dpaa2_eth_get_drvinfo,
+	.nway_reset = dpaa2_eth_nway_reset,
 	.get_link = ethtool_op_get_link,
 	.get_link_ksettings = dpaa2_eth_get_link_ksettings,
 	.set_link_ksettings = dpaa2_eth_set_link_ksettings,

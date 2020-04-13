@@ -151,16 +151,15 @@ static int uac_clock_selector_set_val(struct snd_usb_audio *chip, int selector_i
 	return ret;
 }
 
-/*
- * Assume the clock is valid if clock source supports only one single sample
- * rate, the terminal is connected directly to it (there is no clock selector)
- * and clock type is internal. This is to deal with some Denon DJ controllers
- * that always reports that clock is invalid.
- */
 static bool uac_clock_source_is_valid_quirk(struct snd_usb_audio *chip,
 					    struct audioformat *fmt,
 					    int source_id)
 {
+	bool ret = false;
+	int count;
+	unsigned char data;
+	struct usb_device *dev = chip->dev;
+
 	if (fmt->protocol == UAC_VERSION_2) {
 		struct uac_clock_source_descriptor *cs_desc =
 			snd_usb_find_clock_source(chip->ctrl_intf, source_id);
@@ -168,13 +167,51 @@ static bool uac_clock_source_is_valid_quirk(struct snd_usb_audio *chip,
 		if (!cs_desc)
 			return false;
 
-		return (fmt->nr_rates == 1 &&
-			(fmt->clock & 0xff) == cs_desc->bClockID &&
-			(cs_desc->bmAttributes & 0x3) !=
-				UAC_CLOCK_SOURCE_TYPE_EXT);
+		/*
+		 * Assume the clock is valid if clock source supports only one
+		 * single sample rate, the terminal is connected directly to it
+		 * (there is no clock selector) and clock type is internal.
+		 * This is to deal with some Denon DJ controllers that always
+		 * reports that clock is invalid.
+		 */
+		if (fmt->nr_rates == 1 &&
+		    (fmt->clock & 0xff) == cs_desc->bClockID &&
+		    (cs_desc->bmAttributes & 0x3) !=
+				UAC_CLOCK_SOURCE_TYPE_EXT)
+			return true;
 	}
 
-	return false;
+	/*
+	 * MOTU MicroBook IIc
+	 * Sample rate changes takes more than 2 seconds for this device. Clock
+	 * validity request returns false during that period.
+	 */
+	if (chip->usb_id == USB_ID(0x07fd, 0x0004)) {
+		count = 0;
+
+		while ((!ret) && (count < 50)) {
+			int err;
+
+			msleep(100);
+
+			err = snd_usb_ctl_msg(dev, usb_rcvctrlpipe(dev, 0), UAC2_CS_CUR,
+					      USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_DIR_IN,
+					      UAC2_CS_CONTROL_CLOCK_VALID << 8,
+					      snd_usb_ctrl_intf(chip) | (source_id << 8),
+					      &data, sizeof(data));
+			if (err < 0) {
+				dev_warn(&dev->dev,
+					 "%s(): cannot get clock validity for id %d\n",
+					   __func__, source_id);
+				return false;
+			}
+
+			ret = !!data;
+			count++;
+		}
+	}
+
+	return ret;
 }
 
 static bool uac_clock_source_is_valid(struct snd_usb_audio *chip,

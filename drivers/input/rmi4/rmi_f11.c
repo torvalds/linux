@@ -1203,8 +1203,8 @@ static int rmi_f11_initialize(struct rmi_function *fn)
 	 * If distance threshold values are set, switch to reduced reporting
 	 * mode so they actually get used by the controller.
 	 */
-	if (ctrl->ctrl0_11[RMI_F11_DELTA_X_THRESHOLD] ||
-	    ctrl->ctrl0_11[RMI_F11_DELTA_Y_THRESHOLD]) {
+	if (sensor->axis_align.delta_x_threshold ||
+	    sensor->axis_align.delta_y_threshold) {
 		ctrl->ctrl0_11[0] &= ~RMI_F11_REPORT_MODE_MASK;
 		ctrl->ctrl0_11[0] |= RMI_F11_REPORT_MODE_REDUCED;
 	}

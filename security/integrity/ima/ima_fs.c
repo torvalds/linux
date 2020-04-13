@@ -12,8 +12,6 @@
  *	current measurement list and IMA statistics
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/fcntl.h>
 #include <linux/slab.h>
 #include <linux/init.h>

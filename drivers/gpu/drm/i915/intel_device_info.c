@@ -23,7 +23,9 @@
  */
 
 #include <drm/drm_print.h>
+#include <drm/i915_pciids.h>
 
+#include "display/intel_cdclk.h"
 #include "intel_device_info.h"
 #include "i915_drv.h"
 
@@ -132,6 +134,7 @@ void intel_device_info_print_runtime(const struct intel_runtime_info *info,
 {
 	sseu_dump(&info->sseu, p);
 
+	drm_printf(p, "rawclk rate: %u kHz\n", info->rawclk_freq);
 	drm_printf(p, "CS timestamp frequency: %u kHz\n",
 		   info->cs_timestamp_frequency_khz);
 }
@@ -743,7 +746,7 @@ static u32 read_timestamp_frequency(struct drm_i915_private *dev_priv)
 		 *      hclks." (through the “Clocking Configuration”
 		 *      (“CLKCFG”) MCHBAR register)
 		 */
-		return dev_priv->rawclk_freq / 16;
+		return RUNTIME_INFO(dev_priv)->rawclk_freq / 16;
 	} else if (INTEL_GEN(dev_priv) <= 8) {
 		/* PRMs say:
 		 *
@@ -974,10 +977,11 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 		    sfuse_strap & SFUSE_STRAP_DISPLAY_DISABLED ||
 		    (HAS_PCH_CPT(dev_priv) &&
 		     !(sfuse_strap & SFUSE_STRAP_FUSE_LOCK))) {
-			DRM_INFO("Display fused off, disabling\n");
+			drm_info(&dev_priv->drm,
+				 "Display fused off, disabling\n");
 			info->pipe_mask = 0;
 		} else if (fuse_strap & IVB_PIPE_C_DISABLE) {
-			DRM_INFO("PipeC fused off\n");
+			drm_info(&dev_priv->drm, "PipeC fused off\n");
 			info->pipe_mask &= ~BIT(PIPE_C);
 		}
 	} else if (HAS_DISPLAY(dev_priv) && INTEL_GEN(dev_priv) >= 9) {
@@ -1000,8 +1004,9 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 		 * in the mask.
 		 */
 		if (enabled_mask == 0 || !is_power_of_2(enabled_mask + 1))
-			DRM_ERROR("invalid pipe fuse configuration: enabled_mask=0x%x\n",
-				  enabled_mask);
+			drm_err(&dev_priv->drm,
+				"invalid pipe fuse configuration: enabled_mask=0x%x\n",
+				enabled_mask);
 		else
 			info->pipe_mask = enabled_mask;
 
@@ -1036,12 +1041,26 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 		gen12_sseu_info_init(dev_priv);
 
 	if (IS_GEN(dev_priv, 6) && intel_vtd_active()) {
-		DRM_INFO("Disabling ppGTT for VT-d support\n");
+		drm_info(&dev_priv->drm,
+			 "Disabling ppGTT for VT-d support\n");
 		info->ppgtt_type = INTEL_PPGTT_NONE;
 	}
 
+	runtime->rawclk_freq = intel_read_rawclk(dev_priv);
+	drm_dbg(&dev_priv->drm, "rawclk rate: %d kHz\n", runtime->rawclk_freq);
+
 	/* Initialize command stream timestamp frequency */
-	runtime->cs_timestamp_frequency_khz = read_timestamp_frequency(dev_priv);
+	runtime->cs_timestamp_frequency_khz =
+		read_timestamp_frequency(dev_priv);
+	if (runtime->cs_timestamp_frequency_khz) {
+		runtime->cs_timestamp_period_ns =
+			div_u64(1e6, runtime->cs_timestamp_frequency_khz);
+		drm_dbg(&dev_priv->drm,
+			"CS timestamp wraparound in %lldms\n",
+			div_u64(mul_u32_u32(runtime->cs_timestamp_period_ns,
+					    S32_MAX),
+				USEC_PER_SEC));
+	}
 }
 
 void intel_driver_caps_print(const struct intel_driver_caps *caps,
@@ -1084,7 +1103,7 @@ void intel_device_info_init_mmio(struct drm_i915_private *dev_priv)
 
 		if (!(BIT(i) & vdbox_mask)) {
 			info->engine_mask &= ~BIT(_VCS(i));
-			DRM_DEBUG_DRIVER("vcs%u fused off\n", i);
+			drm_dbg(&dev_priv->drm, "vcs%u fused off\n", i);
 			continue;
 		}
 
@@ -1096,8 +1115,8 @@ void intel_device_info_init_mmio(struct drm_i915_private *dev_priv)
 		if (INTEL_GEN(dev_priv) >= 12 || logical_vdbox++ % 2 == 0)
 			RUNTIME_INFO(dev_priv)->vdbox_sfc_access |= BIT(i);
 	}
-	DRM_DEBUG_DRIVER("vdbox enable: %04x, instances: %04lx\n",
-			 vdbox_mask, VDBOX_MASK(dev_priv));
+	drm_dbg(&dev_priv->drm, "vdbox enable: %04x, instances: %04lx\n",
+		vdbox_mask, VDBOX_MASK(dev_priv));
 	GEM_BUG_ON(vdbox_mask != VDBOX_MASK(dev_priv));
 
 	for (i = 0; i < I915_MAX_VECS; i++) {
@@ -1108,10 +1127,10 @@ void intel_device_info_init_mmio(struct drm_i915_private *dev_priv)
 
 		if (!(BIT(i) & vebox_mask)) {
 			info->engine_mask &= ~BIT(_VECS(i));
-			DRM_DEBUG_DRIVER("vecs%u fused off\n", i);
+			drm_dbg(&dev_priv->drm, "vecs%u fused off\n", i);
 		}
 	}
-	DRM_DEBUG_DRIVER("vebox enable: %04x, instances: %04lx\n",
-			 vebox_mask, VEBOX_MASK(dev_priv));
+	drm_dbg(&dev_priv->drm, "vebox enable: %04x, instances: %04lx\n",
+		vebox_mask, VEBOX_MASK(dev_priv));
 	GEM_BUG_ON(vebox_mask != VEBOX_MASK(dev_priv));
 }

@@ -343,6 +343,12 @@ struct aq_fw_ops {
 
 	int (*get_eee_rate)(struct aq_hw_s *self, u32 *rate,
 			    u32 *supported_rates);
+
+	u32 (*get_link_capabilities)(struct aq_hw_s *self);
+
+	int (*send_macsec_req)(struct aq_hw_s *self,
+			       struct macsec_msg_fw_request *msg,
+			       struct macsec_msg_fw_response *resp);
 };
 
 #endif /* AQ_HW_H */

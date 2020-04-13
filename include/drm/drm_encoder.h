@@ -174,7 +174,8 @@ struct drm_encoder {
 	struct drm_crtc *crtc;
 
 	/**
-	 * @bridge_chain: Bridges attached to this encoder.
+	 * @bridge_chain: Bridges attached to this encoder. Drivers shall not
+	 * access this field directly.
 	 */
 	struct list_head bridge_chain;
 

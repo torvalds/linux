@@ -11,7 +11,7 @@ struct mlxfw_mfa2_tlv {
 	u8 version;
 	u8 type;
 	__be16 len;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 static inline const struct mlxfw_mfa2_tlv *

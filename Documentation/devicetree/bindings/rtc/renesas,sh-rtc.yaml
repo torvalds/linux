@@ -51,6 +51,8 @@ required:
   - clocks
   - clock-names
 
+additionalProperties: false
+
 examples:
   - |
     #include <dt-bindings/clock/r7s72100-clock.h>

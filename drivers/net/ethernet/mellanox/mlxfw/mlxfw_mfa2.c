@@ -496,7 +496,7 @@ mlxfw_mfa2_file_component_tlv_get(const struct mlxfw_mfa2_file *mfa2_file,
 
 struct mlxfw_mfa2_comp_data {
 	struct mlxfw_mfa2_component comp;
-	u8 buff[0];
+	u8 buff[];
 };
 
 static const struct mlxfw_mfa2_tlv_component_descriptor *

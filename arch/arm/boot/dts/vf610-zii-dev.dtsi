@@ -84,6 +84,14 @@
 		regulator-boot-on;
 		gpio = <&gpio0 6 0>;
 	};
+
+	supply-voltage-monitor {
+		compatible = "iio-hwmon";
+		io-channels = <&adc0 8>, /* VCC_1V5 */
+			      <&adc0 9>, /* VCC_1V8 */
+			      <&adc1 8>, /* VCC_1V0 */
+			      <&adc1 9>; /* VCC_1V2 */
+	};
 };
 
 &adc0 {

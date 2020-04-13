@@ -311,6 +311,7 @@ int main(int argc, char **argv)
 	regression4_test();
 	iteration_test(0, 10 + 90 * long_run);
 	iteration_test(7, 10 + 90 * long_run);
+	iteration_test2(10 + 90 * long_run);
 	single_thread_tests(long_run);
 
 	/* Free any remaining preallocated nodes */

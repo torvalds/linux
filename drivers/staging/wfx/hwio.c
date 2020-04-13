@@ -142,7 +142,7 @@ static int indirect_read(struct wfx_dev *wdev, int reg, u32 addr, void *buf,
 			goto err;
 		if (!(cfg & prefetch))
 			break;
-		udelay(200);
+		usleep_range(200, 250);
 	}
 	if (i == 20) {
 		ret = -ETIMEDOUT;

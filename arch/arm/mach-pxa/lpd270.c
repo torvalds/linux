@@ -277,7 +277,6 @@ static struct pwm_lookup lpd270_pwm_lookup[] = {
 static struct platform_pwm_backlight_data lpd270_backlight_data = {
 	.max_brightness	= 1,
 	.dft_brightness	= 1,
-	.enable_gpio	= -1,
 };
 
 static struct platform_device lpd270_backlight_device = {

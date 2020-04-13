@@ -790,6 +790,20 @@ static int dpaa2_qdma_remove(struct fsl_mc_device *ls_dev)
 	return 0;
 }
 
+static void dpaa2_qdma_shutdown(struct fsl_mc_device *ls_dev)
+{
+	struct dpaa2_qdma_priv *priv;
+	struct device *dev;
+
+	dev = &ls_dev->dev;
+	priv = dev_get_drvdata(dev);
+
+	dpdmai_disable(priv->mc_io, 0, ls_dev->mc_handle);
+	dpaa2_dpdmai_dpio_unbind(priv);
+	dpdmai_close(priv->mc_io, 0, ls_dev->mc_handle);
+	dpdmai_destroy(priv->mc_io, 0, ls_dev->mc_handle);
+}
+
 static const struct fsl_mc_device_id dpaa2_qdma_id_table[] = {
 	{
 		.vendor = FSL_MC_VENDOR_FREESCALE,
@@ -805,6 +819,7 @@ static struct fsl_mc_driver dpaa2_qdma_driver = {
 	},
 	.probe          = dpaa2_qdma_probe,
 	.remove		= dpaa2_qdma_remove,
+	.shutdown	= dpaa2_qdma_shutdown,
 	.match_id_table	= dpaa2_qdma_id_table
 };
 

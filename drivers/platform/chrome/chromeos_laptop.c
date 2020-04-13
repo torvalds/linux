@@ -103,7 +103,7 @@ chromes_laptop_instantiate_i2c_device(struct i2c_adapter *adapter,
 			pr_debug("%d-%02x is probed at %02x\n",
 				 adapter->nr, info->addr, dummy->addr);
 			i2c_unregister_device(dummy);
-			client = i2c_new_device(adapter, info);
+			client = i2c_new_client_device(adapter, info);
 		}
 	}
 

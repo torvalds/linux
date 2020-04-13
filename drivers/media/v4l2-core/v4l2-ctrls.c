@@ -4296,10 +4296,17 @@ void v4l2_ctrl_request_complete(struct media_request *req,
 			continue;
 
 		v4l2_ctrl_lock(ctrl);
-		if (ref->req)
+		if (ref->req) {
 			ptr_to_ptr(ctrl, ref->req->p_req, ref->p_req);
-		else
+		} else {
 			ptr_to_ptr(ctrl, ctrl->p_cur, ref->p_req);
+			/*
+			 * Set ref->req to ensure that when userspace wants to
+			 * obtain the controls of this request it will take
+			 * this value and not the current value of the control.
+			 */
+			ref->req = ref;
+		}
 		v4l2_ctrl_unlock(ctrl);
 	}
 

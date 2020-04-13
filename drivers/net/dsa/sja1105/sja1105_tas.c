@@ -28,33 +28,6 @@ static s64 sja1105_delta_to_ns(s64 delta)
 	return delta * 200;
 }
 
-/* Calculate the first base_time in the future that satisfies this
- * relationship:
- *
- * future_base_time = base_time + N x cycle_time >= now, or
- *
- *      now - base_time
- * N >= ---------------
- *         cycle_time
- *
- * Because N is an integer, the ceiling value of the above "a / b" ratio
- * is in fact precisely the floor value of "(a + b - 1) / b", which is
- * easier to calculate only having integer division tools.
- */
-static s64 future_base_time(s64 base_time, s64 cycle_time, s64 now)
-{
-	s64 a, b, n;
-
-	if (base_time >= now)
-		return base_time;
-
-	a = now - base_time;
-	b = cycle_time;
-	n = div_s64(a + b - 1, b);
-
-	return base_time + n * cycle_time;
-}
-
 static int sja1105_tas_set_runtime_params(struct sja1105_private *priv)
 {
 	struct sja1105_tas_data *tas_data = &priv->tas_data;

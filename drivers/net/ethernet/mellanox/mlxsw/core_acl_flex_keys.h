@@ -69,42 +69,10 @@ struct mlxsw_afk_element_info {
 	MLXSW_AFK_ELEMENT_INFO(MLXSW_AFK_ELEMENT_TYPE_BUF,			\
 			       _element, _offset, 0, _size)
 
-/* For the purpose of the driver, define an internal storage scratchpad
- * that will be used to store key/mask values. For each defined element type
- * define an internal storage geometry.
- */
-static const struct mlxsw_afk_element_info mlxsw_afk_element_infos[] = {
-	MLXSW_AFK_ELEMENT_INFO_U32(SRC_SYS_PORT, 0x00, 16, 16),
-	MLXSW_AFK_ELEMENT_INFO_BUF(DMAC_32_47, 0x04, 2),
-	MLXSW_AFK_ELEMENT_INFO_BUF(DMAC_0_31, 0x06, 4),
-	MLXSW_AFK_ELEMENT_INFO_BUF(SMAC_32_47, 0x0A, 2),
-	MLXSW_AFK_ELEMENT_INFO_BUF(SMAC_0_31, 0x0C, 4),
-	MLXSW_AFK_ELEMENT_INFO_U32(ETHERTYPE, 0x00, 0, 16),
-	MLXSW_AFK_ELEMENT_INFO_U32(IP_PROTO, 0x10, 0, 8),
-	MLXSW_AFK_ELEMENT_INFO_U32(VID, 0x10, 8, 12),
-	MLXSW_AFK_ELEMENT_INFO_U32(PCP, 0x10, 20, 3),
-	MLXSW_AFK_ELEMENT_INFO_U32(TCP_FLAGS, 0x10, 23, 9),
-	MLXSW_AFK_ELEMENT_INFO_U32(DST_L4_PORT, 0x14, 0, 16),
-	MLXSW_AFK_ELEMENT_INFO_U32(SRC_L4_PORT, 0x14, 16, 16),
-	MLXSW_AFK_ELEMENT_INFO_U32(IP_TTL_, 0x18, 0, 8),
-	MLXSW_AFK_ELEMENT_INFO_U32(IP_ECN, 0x18, 9, 2),
-	MLXSW_AFK_ELEMENT_INFO_U32(IP_DSCP, 0x18, 11, 6),
-	MLXSW_AFK_ELEMENT_INFO_U32(VIRT_ROUTER_8_10, 0x18, 17, 3),
-	MLXSW_AFK_ELEMENT_INFO_U32(VIRT_ROUTER_0_7, 0x18, 20, 8),
-	MLXSW_AFK_ELEMENT_INFO_BUF(SRC_IP_96_127, 0x20, 4),
-	MLXSW_AFK_ELEMENT_INFO_BUF(SRC_IP_64_95, 0x24, 4),
-	MLXSW_AFK_ELEMENT_INFO_BUF(SRC_IP_32_63, 0x28, 4),
-	MLXSW_AFK_ELEMENT_INFO_BUF(SRC_IP_0_31, 0x2C, 4),
-	MLXSW_AFK_ELEMENT_INFO_BUF(DST_IP_96_127, 0x30, 4),
-	MLXSW_AFK_ELEMENT_INFO_BUF(DST_IP_64_95, 0x34, 4),
-	MLXSW_AFK_ELEMENT_INFO_BUF(DST_IP_32_63, 0x38, 4),
-	MLXSW_AFK_ELEMENT_INFO_BUF(DST_IP_0_31, 0x3C, 4),
-};
-
 #define MLXSW_AFK_ELEMENT_STORAGE_SIZE 0x40
 
 struct mlxsw_afk_element_inst { /* element instance in actual block */
-	const struct mlxsw_afk_element_info *info;
+	enum mlxsw_afk_element element;
 	enum mlxsw_afk_element_type type;
 	struct mlxsw_item item; /* element geometry in block */
 	int u32_key_diff; /* in case value needs to be adjusted before write
@@ -116,7 +84,7 @@ struct mlxsw_afk_element_inst { /* element instance in actual block */
 #define MLXSW_AFK_ELEMENT_INST(_type, _element, _offset,			\
 			       _shift, _size, _u32_key_diff, _avoid_size_check)	\
 	{									\
-		.info = &mlxsw_afk_element_infos[MLXSW_AFK_ELEMENT_##_element],	\
+		.element = MLXSW_AFK_ELEMENT_##_element,			\
 		.type = _type,							\
 		.item = {							\
 			.offset = _offset,					\

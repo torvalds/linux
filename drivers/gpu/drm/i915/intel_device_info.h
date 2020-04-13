@@ -180,6 +180,7 @@ struct intel_device_info {
 	} display;
 
 	u16 ddb_size; /* in blocks */
+	u8 num_supported_dbuf_slices; /* number of DBuf slices */
 
 	/* Register offsets for the various display pipes and transcoders */
 	int pipe_offsets[I915_MAX_TRANSCODERS];
@@ -215,7 +216,10 @@ struct intel_runtime_info {
 	/* Slice/subslice/EU info */
 	struct sseu_dev_info sseu;
 
+	u32 rawclk_freq;
+
 	u32 cs_timestamp_frequency_khz;
+	u32 cs_timestamp_period_ns;
 
 	/* Media engine access to SFC per instance */
 	u8 vdbox_sfc_access;

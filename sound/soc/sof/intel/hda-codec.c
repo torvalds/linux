@@ -113,8 +113,14 @@ static int hda_codec_probe(struct snd_sof_dev *sdev, int address,
 	if (ret < 0)
 		return ret;
 
-	if ((resp & 0xFFFF0000) == IDISP_VID_INTEL)
+	if ((resp & 0xFFFF0000) == IDISP_VID_INTEL) {
+		if (!hdev->bus->audio_component) {
+			dev_dbg(sdev->dev,
+				"iDisp hw present but no driver\n");
+			return -ENOENT;
+		}
 		hda_priv->need_display_power = true;
+	}
 
 	/*
 	 * if common HDMI codec driver is not used, codec load
@@ -202,6 +208,9 @@ int hda_codec_i915_exit(struct snd_sof_dev *sdev)
 {
 	struct hdac_bus *bus = sof_to_bus(sdev);
 	int ret;
+
+	if (!bus->audio_component)
+		return 0;
 
 	/* power down unconditionally */
 	snd_hdac_display_power(bus, HDA_CODEC_IDX_CONTROLLER, false);

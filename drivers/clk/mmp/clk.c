@@ -176,6 +176,37 @@ void mmp_register_div_clks(struct mmp_clk_unit *unit,
 	}
 }
 
+void mmp_register_pll_clks(struct mmp_clk_unit *unit,
+			struct mmp_param_pll_clk *clks,
+			void __iomem *base, int size)
+{
+	struct clk *clk;
+	int i;
+
+	for (i = 0; i < size; i++) {
+		void __iomem *reg = NULL;
+
+		if (clks[i].offset)
+			reg = base + clks[i].offset;
+
+		clk = mmp_clk_register_pll(clks[i].name,
+					clks[i].default_rate,
+					base + clks[i].enable_offset,
+					clks[i].enable,
+					reg, clks[i].shift,
+					clks[i].input_rate,
+					base + clks[i].postdiv_offset,
+					clks[i].postdiv_shift);
+		if (IS_ERR(clk)) {
+			pr_err("%s: failed to register clock %s\n",
+			       __func__, clks[i].name);
+			continue;
+		}
+		if (clks[i].id)
+			unit->clk_table[clks[i].id] = clk;
+	}
+}
+
 void mmp_clk_add(struct mmp_clk_unit *unit, unsigned int id,
 			struct clk *clk)
 {

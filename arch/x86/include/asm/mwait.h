@@ -23,6 +23,8 @@
 #define MWAITX_MAX_LOOPS		((u32)-1)
 #define MWAITX_DISABLE_CSTATES		0xf0
 
+u32 get_umwait_control_msr(void);
+
 static inline void __monitor(const void *eax, unsigned long ecx,
 			     unsigned long edx)
 {

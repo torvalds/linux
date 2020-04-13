@@ -28,7 +28,6 @@ struct pm860x_rtc_info {
 
 	int			irq;
 	int			vrtc;
-	int			(*sync)(unsigned int ticks);
 };
 
 #define REG_VRTC_MEAS1		0x7D
@@ -76,33 +75,6 @@ static int pm860x_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 	return 0;
 }
 
-/*
- * Calculate the next alarm time given the requested alarm time mask
- * and the current time.
- */
-static void rtc_next_alarm_time(struct rtc_time *next, struct rtc_time *now,
-				struct rtc_time *alrm)
-{
-	unsigned long next_time;
-	unsigned long now_time;
-
-	next->tm_year = now->tm_year;
-	next->tm_mon = now->tm_mon;
-	next->tm_mday = now->tm_mday;
-	next->tm_hour = alrm->tm_hour;
-	next->tm_min = alrm->tm_min;
-	next->tm_sec = alrm->tm_sec;
-
-	rtc_tm_to_time(now, &now_time);
-	rtc_tm_to_time(next, &next_time);
-
-	if (next_time < now_time) {
-		/* Advance one day */
-		next_time += 60 * 60 * 24;
-		rtc_time_to_tm(next_time, next);
-	}
-}
-
 static int pm860x_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
 	struct pm860x_rtc_info *info = dev_get_drvdata(dev);
@@ -123,7 +95,7 @@ static int pm860x_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	dev_dbg(info->dev, "get base:0x%lx, RO count:0x%lx, ticks:0x%lx\n",
 		base, data, ticks);
 
-	rtc_time_to_tm(ticks, tm);
+	rtc_time64_to_tm(ticks, tm);
 
 	return 0;
 }
@@ -140,7 +112,7 @@ static int pm860x_rtc_set_time(struct device *dev, struct rtc_time *tm)
 			1900 + tm->tm_year);
 		return -EINVAL;
 	}
-	rtc_tm_to_time(tm, &ticks);
+	ticks = rtc_tm_to_time64(tm);
 
 	/* load 32-bit read-only counter */
 	pm860x_bulk_read(info->i2c, PM8607_RTC_COUNTER1, 4, buf);
@@ -155,8 +127,6 @@ static int pm860x_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	pm860x_page_reg_write(info->i2c, REG2_DATA, (base >> 8) & 0xFF);
 	pm860x_page_reg_write(info->i2c, REG3_DATA, base & 0xFF);
 
-	if (info->sync)
-		info->sync(ticks);
 	return 0;
 }
 
@@ -180,7 +150,7 @@ static int pm860x_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	dev_dbg(info->dev, "get base:0x%lx, RO count:0x%lx, ticks:0x%lx\n",
 		base, data, ticks);
 
-	rtc_time_to_tm(ticks, &alrm->time);
+	rtc_time64_to_tm(ticks, &alrm->time);
 	ret = pm860x_reg_read(info->i2c, PM8607_RTC1);
 	alrm->enabled = (ret & ALARM_EN) ? 1 : 0;
 	alrm->pending = (ret & (ALARM | ALARM_WAKEUP)) ? 1 : 0;
@@ -190,7 +160,6 @@ static int pm860x_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 static int pm860x_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
 	struct pm860x_rtc_info *info = dev_get_drvdata(dev);
-	struct rtc_time now_tm, alarm_tm;
 	unsigned long ticks, base, data;
 	unsigned char buf[8];
 	int mask;
@@ -203,18 +172,7 @@ static int pm860x_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	base = ((unsigned long)buf[1] << 24) | (buf[3] << 16) |
 		(buf[5] << 8) | buf[7];
 
-	/* load 32-bit read-only counter */
-	pm860x_bulk_read(info->i2c, PM8607_RTC_COUNTER1, 4, buf);
-	data = ((unsigned long)buf[3] << 24) | (buf[2] << 16) |
-		(buf[1] << 8) | buf[0];
-	ticks = base + data;
-	dev_dbg(info->dev, "get base:0x%lx, RO count:0x%lx, ticks:0x%lx\n",
-		base, data, ticks);
-
-	rtc_time_to_tm(ticks, &now_tm);
-	rtc_next_alarm_time(&alarm_tm, &now_tm, &alrm->time);
-	/* get new ticks for alarm in 24 hours */
-	rtc_tm_to_time(&alarm_tm, &ticks);
+	ticks = rtc_tm_to_time64(&alrm->time);
 	data = ticks - base;
 
 	buf[0] = data & 0xff;
@@ -309,19 +267,14 @@ static int pm860x_rtc_dt_init(struct platform_device *pdev,
 	return 0;
 }
 #else
-#define pm860x_rtc_dt_init(x, y)	(-1)
+#define pm860x_rtc_dt_init(x, y)	do { } while (0)
 #endif
 
 static int pm860x_rtc_probe(struct platform_device *pdev)
 {
 	struct pm860x_chip *chip = dev_get_drvdata(pdev->dev.parent);
-	struct pm860x_rtc_pdata *pdata = NULL;
 	struct pm860x_rtc_info *info;
-	struct rtc_time tm;
-	unsigned long ticks = 0;
 	int ret;
-
-	pdata = dev_get_platdata(&pdev->dev);
 
 	info = devm_kzalloc(&pdev->dev, sizeof(struct pm860x_rtc_info),
 			    GFP_KERNEL);
@@ -335,6 +288,10 @@ static int pm860x_rtc_probe(struct platform_device *pdev)
 	info->i2c = (chip->id == CHIP_PM8607) ? chip->client : chip->companion;
 	info->dev = &pdev->dev;
 	dev_set_drvdata(&pdev->dev, info);
+
+	info->rtc_dev = devm_rtc_allocate_device(&pdev->dev);
+	if (IS_ERR(info->rtc_dev))
+		return PTR_ERR(info->rtc_dev);
 
 	ret = devm_request_threaded_irq(&pdev->dev, info->irq, NULL,
 					rtc_update_handler, IRQF_ONESHOT, "rtc",
@@ -351,39 +308,14 @@ static int pm860x_rtc_probe(struct platform_device *pdev)
 	pm860x_page_reg_write(info->i2c, REG2_ADDR, REG2_DATA);
 	pm860x_page_reg_write(info->i2c, REG3_ADDR, REG3_DATA);
 
-	ret = pm860x_rtc_read_time(&pdev->dev, &tm);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Failed to read initial time.\n");
-		return ret;
-	}
-	if ((tm.tm_year < 70) || (tm.tm_year > 138)) {
-		tm.tm_year = 70;
-		tm.tm_mon = 0;
-		tm.tm_mday = 1;
-		tm.tm_hour = 0;
-		tm.tm_min = 0;
-		tm.tm_sec = 0;
-		ret = pm860x_rtc_set_time(&pdev->dev, &tm);
-		if (ret < 0) {
-			dev_err(&pdev->dev, "Failed to set initial time.\n");
-			return ret;
-		}
-	}
-	rtc_tm_to_time(&tm, &ticks);
-	if (pm860x_rtc_dt_init(pdev, info)) {
-		if (pdata && pdata->sync) {
-			pdata->sync(ticks);
-			info->sync = pdata->sync;
-		}
-	}
+	pm860x_rtc_dt_init(pdev, info);
 
-	info->rtc_dev = devm_rtc_device_register(&pdev->dev, "88pm860x-rtc",
-					    &pm860x_rtc_ops, THIS_MODULE);
-	ret = PTR_ERR(info->rtc_dev);
-	if (IS_ERR(info->rtc_dev)) {
-		dev_err(&pdev->dev, "Failed to register RTC device: %d\n", ret);
+	info->rtc_dev->ops = &pm860x_rtc_ops;
+	info->rtc_dev->range_max = U32_MAX;
+
+	ret = rtc_register_device(info->rtc_dev);
+	if (ret)
 		return ret;
-	}
 
 	/*
 	 * enable internal XO instead of internal 3.25MHz clock since it can
@@ -393,12 +325,6 @@ static int pm860x_rtc_probe(struct platform_device *pdev)
 
 #ifdef VRTC_CALIBRATION
 	/* <00> -- 2.7V, <01> -- 2.9V, <10> -- 3.1V, <11> -- 3.3V */
-	if (pm860x_rtc_dt_init(pdev, info)) {
-		if (pdata && pdata->vrtc)
-			info->vrtc = pdata->vrtc & 0x3;
-		else
-			info->vrtc = 1;
-	}
 	pm860x_set_bits(info->i2c, PM8607_MEAS_EN2, MEAS2_VRTC, MEAS2_VRTC);
 
 	/* calibrate VRTC */

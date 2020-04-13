@@ -362,6 +362,13 @@ config HID_GFRM
 	---help---
 	Support for Google Fiber TV Box remote controls
 
+config HID_GLORIOUS
+	tristate "Glorious PC Gaming Race mice"
+	depends on HID
+	help
+	  Support for Glorious PC Gaming Race mice such as
+	  the Glorious Model O, O- and D.
+
 config HID_HOLTEK
 	tristate "Holtek HID devices"
 	depends on USB_HID
@@ -1039,7 +1046,7 @@ config HID_U2FZERO
 
 	  U2F Zero only supports blinking its LED, so this driver doesn't
 	  allow setting the brightness to anything but 1, which will
-	  trigger a single blink and immediately reset to back 0.
+	  trigger a single blink and immediately reset back to 0.
 
 config HID_WACOM
 	tristate "Wacom Intuos/Graphire tablet support (USB)"
@@ -1144,6 +1151,16 @@ config HID_ALPS
 	Support for Alps I2C HID touchpads and StickPointer.
 	Say Y here if you have a Alps touchpads over i2c-hid or usbhid
 	and want support for its special functionalities.
+
+config HID_MCP2221
+	tristate "Microchip MCP2221 HID USB-to-I2C/SMbus host support"
+	depends on USB_HID && I2C
+	---help---
+	Provides I2C and SMBUS host adapter functionality over USB-HID
+	through MCP2221 device.
+
+	To compile this driver as a module, choose M here: the module
+	will be called hid-mcp2221.ko.
 
 endmenu
 

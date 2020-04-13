@@ -13,7 +13,7 @@
 #include "hsr_main.h"
 
 int hsr_add_port(struct hsr_priv *hsr, struct net_device *dev,
-		 enum hsr_port_type pt);
+		 enum hsr_port_type pt, struct netlink_ext_ack *extack);
 void hsr_del_port(struct hsr_port *port);
 bool hsr_port_exists(const struct net_device *dev);
 

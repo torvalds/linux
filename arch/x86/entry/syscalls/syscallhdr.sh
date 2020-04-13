@@ -15,14 +15,21 @@ grep -E "^[0-9A-Fa-fXx]+[[:space:]]+${my_abis}" "$in" | sort -n | (
     echo "#define ${fileguard} 1"
     echo ""
 
+    max=0
     while read nr abi name entry ; do
 	if [ -z "$offset" ]; then
 	    echo "#define __NR_${prefix}${name} $nr"
 	else
 	    echo "#define __NR_${prefix}${name} ($offset + $nr)"
         fi
+
+	max=$nr
     done
 
+    echo ""
+    echo "#ifdef __KERNEL__"
+    echo "#define __NR_${prefix}syscall_max $max"
+    echo "#endif"
     echo ""
     echo "#endif /* ${fileguard} */"
 ) > "$out"

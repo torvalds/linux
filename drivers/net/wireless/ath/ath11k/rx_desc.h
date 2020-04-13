@@ -342,7 +342,7 @@ struct rx_attention {
 #define RX_MPDU_START_INFO0_PROTO_VER_ERR	BIT(12)
 #define RX_MPDU_START_INFO0_AST_LOOKUP_VALID	BIT(13)
 
-#define RX_MPDU_START_INFO1_MPDU_CTRL_VALID	BIT(0)
+#define RX_MPDU_START_INFO1_MPDU_FCTRL_VALID	BIT(0)
 #define RX_MPDU_START_INFO1_MPDU_DUR_VALID	BIT(1)
 #define RX_MPDU_START_INFO1_MAC_ADDR1_VALID	BIT(2)
 #define RX_MPDU_START_INFO1_MAC_ADDR2_VALID	BIT(3)
@@ -1208,5 +1208,13 @@ struct hal_rx_desc {
 	u8 hdr_status[HAL_RX_DESC_HDR_STATUS_LEN];
 	u8 msdu_payload[0];
 } __packed;
+
+#define HAL_RX_RU_ALLOC_TYPE_MAX 6
+#define RU_26  1
+#define RU_52  2
+#define RU_106 4
+#define RU_242 9
+#define RU_484 18
+#define RU_996 37
 
 #endif /* ATH11K_RX_DESC_H */

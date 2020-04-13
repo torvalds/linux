@@ -57,9 +57,11 @@
 
 #define VMW_BINDING_RT_BIT     0
 #define VMW_BINDING_PS_BIT     1
-#define VMW_BINDING_SO_BIT     2
+#define VMW_BINDING_SO_T_BIT   2
 #define VMW_BINDING_VB_BIT     3
-#define VMW_BINDING_NUM_BITS   4
+#define VMW_BINDING_UAV_BIT    4
+#define VMW_BINDING_CS_UAV_BIT 5
+#define VMW_BINDING_NUM_BITS   6
 
 #define VMW_BINDING_PS_SR_BIT  0
 
@@ -75,6 +77,8 @@
  * @vertex_buffers: Vertex buffer bindings.
  * @index_buffer: Index buffer binding.
  * @per_shader: Per shader-type bindings.
+ * @ua_views: UAV bindings.
+ * @so_state: StreamOutput bindings.
  * @dirty: Bitmap tracking per binding-type changes that have not yet
  * been emitted to the device.
  * @dirty_vb: Bitmap tracking individual vertex buffer binding changes that
@@ -95,10 +99,12 @@ struct vmw_ctx_binding_state {
 	struct vmw_ctx_bindinfo_view render_targets[SVGA3D_RT_MAX];
 	struct vmw_ctx_bindinfo_tex texture_units[SVGA3D_NUM_TEXTURE_UNITS];
 	struct vmw_ctx_bindinfo_view ds_view;
-	struct vmw_ctx_bindinfo_so so_targets[SVGA3D_DX_MAX_SOTARGETS];
+	struct vmw_ctx_bindinfo_so_target so_targets[SVGA3D_DX_MAX_SOTARGETS];
 	struct vmw_ctx_bindinfo_vb vertex_buffers[SVGA3D_DX_MAX_VERTEXBUFFERS];
 	struct vmw_ctx_bindinfo_ib index_buffer;
-	struct vmw_dx_shader_bindings per_shader[SVGA3D_NUM_SHADERTYPE_DX10];
+	struct vmw_dx_shader_bindings per_shader[SVGA3D_NUM_SHADERTYPE];
+	struct vmw_ctx_bindinfo_uav ua_views[VMW_MAX_UAV_BIND_TYPE];
+	struct vmw_ctx_bindinfo_so so_state;
 
 	unsigned long dirty;
 	DECLARE_BITMAP(dirty_vb, SVGA3D_DX_MAX_VERTEXBUFFERS);
@@ -115,12 +121,16 @@ static int vmw_binding_scrub_texture(struct vmw_ctx_bindinfo *bi, bool rebind);
 static int vmw_binding_scrub_cb(struct vmw_ctx_bindinfo *bi, bool rebind);
 static int vmw_binding_scrub_dx_rt(struct vmw_ctx_bindinfo *bi, bool rebind);
 static int vmw_binding_scrub_sr(struct vmw_ctx_bindinfo *bi, bool rebind);
-static int vmw_binding_scrub_so(struct vmw_ctx_bindinfo *bi, bool rebind);
+static int vmw_binding_scrub_so_target(struct vmw_ctx_bindinfo *bi, bool rebind);
 static int vmw_binding_emit_dirty(struct vmw_ctx_binding_state *cbs);
 static int vmw_binding_scrub_dx_shader(struct vmw_ctx_bindinfo *bi,
 				       bool rebind);
 static int vmw_binding_scrub_ib(struct vmw_ctx_bindinfo *bi, bool rebind);
 static int vmw_binding_scrub_vb(struct vmw_ctx_bindinfo *bi, bool rebind);
+static int vmw_binding_scrub_uav(struct vmw_ctx_bindinfo *bi, bool rebind);
+static int vmw_binding_scrub_cs_uav(struct vmw_ctx_bindinfo *bi, bool rebind);
+static int vmw_binding_scrub_so(struct vmw_ctx_bindinfo *bi, bool rebind);
+
 static void vmw_binding_build_asserts(void) __attribute__ ((unused));
 
 typedef int (*vmw_scrub_func)(struct vmw_ctx_bindinfo *, bool);
@@ -151,6 +161,9 @@ static const size_t vmw_binding_shader_offsets[] = {
 	offsetof(struct vmw_ctx_binding_state, per_shader[0].shader),
 	offsetof(struct vmw_ctx_binding_state, per_shader[1].shader),
 	offsetof(struct vmw_ctx_binding_state, per_shader[2].shader),
+	offsetof(struct vmw_ctx_binding_state, per_shader[3].shader),
+	offsetof(struct vmw_ctx_binding_state, per_shader[4].shader),
+	offsetof(struct vmw_ctx_binding_state, per_shader[5].shader),
 };
 static const size_t vmw_binding_rt_offsets[] = {
 	offsetof(struct vmw_ctx_binding_state, render_targets),
@@ -162,6 +175,9 @@ static const size_t vmw_binding_cb_offsets[] = {
 	offsetof(struct vmw_ctx_binding_state, per_shader[0].const_buffers),
 	offsetof(struct vmw_ctx_binding_state, per_shader[1].const_buffers),
 	offsetof(struct vmw_ctx_binding_state, per_shader[2].const_buffers),
+	offsetof(struct vmw_ctx_binding_state, per_shader[3].const_buffers),
+	offsetof(struct vmw_ctx_binding_state, per_shader[4].const_buffers),
+	offsetof(struct vmw_ctx_binding_state, per_shader[5].const_buffers),
 };
 static const size_t vmw_binding_dx_ds_offsets[] = {
 	offsetof(struct vmw_ctx_binding_state, ds_view),
@@ -170,8 +186,11 @@ static const size_t vmw_binding_sr_offsets[] = {
 	offsetof(struct vmw_ctx_binding_state, per_shader[0].shader_res),
 	offsetof(struct vmw_ctx_binding_state, per_shader[1].shader_res),
 	offsetof(struct vmw_ctx_binding_state, per_shader[2].shader_res),
+	offsetof(struct vmw_ctx_binding_state, per_shader[3].shader_res),
+	offsetof(struct vmw_ctx_binding_state, per_shader[4].shader_res),
+	offsetof(struct vmw_ctx_binding_state, per_shader[5].shader_res),
 };
-static const size_t vmw_binding_so_offsets[] = {
+static const size_t vmw_binding_so_target_offsets[] = {
 	offsetof(struct vmw_ctx_binding_state, so_targets),
 };
 static const size_t vmw_binding_vb_offsets[] = {
@@ -179,6 +198,15 @@ static const size_t vmw_binding_vb_offsets[] = {
 };
 static const size_t vmw_binding_ib_offsets[] = {
 	offsetof(struct vmw_ctx_binding_state, index_buffer),
+};
+static const size_t vmw_binding_uav_offsets[] = {
+	offsetof(struct vmw_ctx_binding_state, ua_views[0].views),
+};
+static const size_t vmw_binding_cs_uav_offsets[] = {
+	offsetof(struct vmw_ctx_binding_state, ua_views[1].views),
+};
+static const size_t vmw_binding_so_offsets[] = {
+	offsetof(struct vmw_ctx_binding_state, so_state),
 };
 
 static const struct vmw_binding_info vmw_binding_infos[] = {
@@ -214,10 +242,10 @@ static const struct vmw_binding_info vmw_binding_infos[] = {
 		.size = sizeof(struct vmw_ctx_bindinfo_view),
 		.offsets = vmw_binding_dx_ds_offsets,
 		.scrub_func = vmw_binding_scrub_dx_rt},
-	[vmw_ctx_binding_so] = {
-		.size = sizeof(struct vmw_ctx_bindinfo_so),
-		.offsets = vmw_binding_so_offsets,
-		.scrub_func = vmw_binding_scrub_so},
+	[vmw_ctx_binding_so_target] = {
+		.size = sizeof(struct vmw_ctx_bindinfo_so_target),
+		.offsets = vmw_binding_so_target_offsets,
+		.scrub_func = vmw_binding_scrub_so_target},
 	[vmw_ctx_binding_vb] = {
 		.size = sizeof(struct vmw_ctx_bindinfo_vb),
 		.offsets = vmw_binding_vb_offsets,
@@ -226,6 +254,18 @@ static const struct vmw_binding_info vmw_binding_infos[] = {
 		.size = sizeof(struct vmw_ctx_bindinfo_ib),
 		.offsets = vmw_binding_ib_offsets,
 		.scrub_func = vmw_binding_scrub_ib},
+	[vmw_ctx_binding_uav] = {
+		.size = sizeof(struct vmw_ctx_bindinfo_view),
+		.offsets = vmw_binding_uav_offsets,
+		.scrub_func = vmw_binding_scrub_uav},
+	[vmw_ctx_binding_cs_uav] = {
+		.size = sizeof(struct vmw_ctx_bindinfo_view),
+		.offsets = vmw_binding_cs_uav_offsets,
+		.scrub_func = vmw_binding_scrub_cs_uav},
+	[vmw_ctx_binding_so] = {
+		.size = sizeof(struct vmw_ctx_bindinfo_so),
+		.offsets = vmw_binding_so_offsets,
+		.scrub_func = vmw_binding_scrub_so},
 };
 
 /**
@@ -309,6 +349,18 @@ void vmw_binding_add(struct vmw_ctx_binding_state *cbs,
 	loc->scrubbed = false;
 	list_add(&loc->ctx_list, &cbs->list);
 	INIT_LIST_HEAD(&loc->res_list);
+}
+
+/**
+ * vmw_binding_add_uav_index - Add UAV index for tracking.
+ * @cbs: Pointer to the context binding state tracker.
+ * @slot: UAV type to which bind this index.
+ * @index: The splice index to track.
+ */
+void vmw_binding_add_uav_index(struct vmw_ctx_binding_state *cbs, uint32 slot,
+			       uint32 index)
+{
+	cbs->ua_views[slot].index = index;
 }
 
 /**
@@ -450,6 +502,10 @@ void vmw_binding_state_commit(struct vmw_ctx_binding_state *to,
 		vmw_binding_transfer(to, from, entry);
 		vmw_binding_drop(entry);
 	}
+
+	/* Also transfer uav splice indices */
+	to->ua_views[0].index = from->ua_views[0].index;
+	to->ua_views[1].index = from->ua_views[1].index;
 }
 
 /**
@@ -828,8 +884,8 @@ static void vmw_collect_so_targets(struct vmw_ctx_binding_state *cbs,
 				   const struct vmw_ctx_bindinfo *bi,
 				   u32 max_num)
 {
-	const struct vmw_ctx_bindinfo_so *biso =
-		container_of(bi, struct vmw_ctx_bindinfo_so, bi);
+	const struct vmw_ctx_bindinfo_so_target *biso =
+		container_of(bi, struct vmw_ctx_bindinfo_so_target, bi);
 	unsigned long i;
 	SVGA3dSoTarget *so_buffer = (SVGA3dSoTarget *) cbs->bind_cmd_buffer;
 
@@ -854,11 +910,11 @@ static void vmw_collect_so_targets(struct vmw_ctx_binding_state *cbs,
 }
 
 /**
- * vmw_binding_emit_set_so - Issue delayed streamout binding commands
+ * vmw_emit_set_so_target - Issue delayed streamout binding commands
  *
  * @cbs: Pointer to the context's struct vmw_ctx_binding_state
  */
-static int vmw_emit_set_so(struct vmw_ctx_binding_state *cbs)
+static int vmw_emit_set_so_target(struct vmw_ctx_binding_state *cbs)
 {
 	const struct vmw_ctx_bindinfo *loc = &cbs->so_targets[0].bi;
 	struct {
@@ -1005,6 +1061,66 @@ static int vmw_emit_set_vb(struct vmw_ctx_binding_state *cbs)
 	return 0;
 }
 
+static int vmw_emit_set_uav(struct vmw_ctx_binding_state *cbs)
+{
+	const struct vmw_ctx_bindinfo *loc = &cbs->ua_views[0].views[0].bi;
+	struct {
+		SVGA3dCmdHeader header;
+		SVGA3dCmdDXSetUAViews body;
+	} *cmd;
+	size_t cmd_size, view_id_size;
+	const struct vmw_resource *ctx = vmw_cbs_context(cbs);
+
+	vmw_collect_view_ids(cbs, loc, SVGA3D_MAX_UAVIEWS);
+	view_id_size = cbs->bind_cmd_count*sizeof(uint32);
+	cmd_size = sizeof(*cmd) + view_id_size;
+	cmd = VMW_FIFO_RESERVE_DX(ctx->dev_priv, cmd_size, ctx->id);
+	if (!cmd)
+		return -ENOMEM;
+
+	cmd->header.id = SVGA_3D_CMD_DX_SET_UA_VIEWS;
+	cmd->header.size = sizeof(cmd->body) + view_id_size;
+
+	/* Splice index is specified user-space   */
+	cmd->body.uavSpliceIndex = cbs->ua_views[0].index;
+
+	memcpy(&cmd[1], cbs->bind_cmd_buffer, view_id_size);
+
+	vmw_fifo_commit(ctx->dev_priv, cmd_size);
+
+	return 0;
+}
+
+static int vmw_emit_set_cs_uav(struct vmw_ctx_binding_state *cbs)
+{
+	const struct vmw_ctx_bindinfo *loc = &cbs->ua_views[1].views[0].bi;
+	struct {
+		SVGA3dCmdHeader header;
+		SVGA3dCmdDXSetCSUAViews body;
+	} *cmd;
+	size_t cmd_size, view_id_size;
+	const struct vmw_resource *ctx = vmw_cbs_context(cbs);
+
+	vmw_collect_view_ids(cbs, loc, SVGA3D_MAX_UAVIEWS);
+	view_id_size = cbs->bind_cmd_count*sizeof(uint32);
+	cmd_size = sizeof(*cmd) + view_id_size;
+	cmd = VMW_FIFO_RESERVE_DX(ctx->dev_priv, cmd_size, ctx->id);
+	if (!cmd)
+		return -ENOMEM;
+
+	cmd->header.id = SVGA_3D_CMD_DX_SET_CS_UA_VIEWS;
+	cmd->header.size = sizeof(cmd->body) + view_id_size;
+
+	/* Start index is specified user-space */
+	cmd->body.startIndex = cbs->ua_views[1].index;
+
+	memcpy(&cmd[1], cbs->bind_cmd_buffer, view_id_size);
+
+	vmw_fifo_commit(ctx->dev_priv, cmd_size);
+
+	return 0;
+}
+
 /**
  * vmw_binding_emit_dirty - Issue delayed binding commands
  *
@@ -1030,11 +1146,17 @@ static int vmw_binding_emit_dirty(struct vmw_ctx_binding_state *cbs)
 		case VMW_BINDING_PS_BIT:
 			ret = vmw_binding_emit_dirty_ps(cbs);
 			break;
-		case VMW_BINDING_SO_BIT:
-			ret = vmw_emit_set_so(cbs);
+		case VMW_BINDING_SO_T_BIT:
+			ret = vmw_emit_set_so_target(cbs);
 			break;
 		case VMW_BINDING_VB_BIT:
 			ret = vmw_emit_set_vb(cbs);
+			break;
+		case VMW_BINDING_UAV_BIT:
+			ret = vmw_emit_set_uav(cbs);
+			break;
+		case VMW_BINDING_CS_UAV_BIT:
+			ret = vmw_emit_set_cs_uav(cbs);
 			break;
 		default:
 			BUG();
@@ -1089,18 +1211,18 @@ static int vmw_binding_scrub_dx_rt(struct vmw_ctx_bindinfo *bi, bool rebind)
 }
 
 /**
- * vmw_binding_scrub_so - Schedule a dx streamoutput buffer binding
+ * vmw_binding_scrub_so_target - Schedule a dx streamoutput buffer binding
  * scrub from a context
  *
  * @bi: single binding information.
  * @rebind: Whether to issue a bind instead of scrub command.
  */
-static int vmw_binding_scrub_so(struct vmw_ctx_bindinfo *bi, bool rebind)
+static int vmw_binding_scrub_so_target(struct vmw_ctx_bindinfo *bi, bool rebind)
 {
 	struct vmw_ctx_binding_state *cbs =
 		vmw_context_binding_state(bi->ctx);
 
-	__set_bit(VMW_BINDING_SO_BIT, &cbs->dirty);
+	__set_bit(VMW_BINDING_SO_T_BIT, &cbs->dirty);
 
 	return 0;
 }
@@ -1157,6 +1279,49 @@ static int vmw_binding_scrub_ib(struct vmw_ctx_bindinfo *bi, bool rebind)
 		cmd->body.offset = 0;
 	}
 
+	vmw_fifo_commit(dev_priv, sizeof(*cmd));
+
+	return 0;
+}
+
+static int vmw_binding_scrub_uav(struct vmw_ctx_bindinfo *bi, bool rebind)
+{
+	struct vmw_ctx_binding_state *cbs = vmw_context_binding_state(bi->ctx);
+
+	__set_bit(VMW_BINDING_UAV_BIT, &cbs->dirty);
+	return 0;
+}
+
+static int vmw_binding_scrub_cs_uav(struct vmw_ctx_bindinfo *bi, bool rebind)
+{
+	struct vmw_ctx_binding_state *cbs = vmw_context_binding_state(bi->ctx);
+
+	__set_bit(VMW_BINDING_CS_UAV_BIT, &cbs->dirty);
+	return 0;
+}
+
+/**
+ * vmw_binding_scrub_so - Scrub a streamoutput binding from context.
+ * @bi: Single binding information.
+ * @rebind: Whether to issue a bind instead of scrub command.
+ */
+static int vmw_binding_scrub_so(struct vmw_ctx_bindinfo *bi, bool rebind)
+{
+	struct vmw_ctx_bindinfo_so *binding =
+		container_of(bi, typeof(*binding), bi);
+	struct vmw_private *dev_priv = bi->ctx->dev_priv;
+	struct {
+		SVGA3dCmdHeader header;
+		SVGA3dCmdDXSetStreamOutput body;
+	} *cmd;
+
+	cmd = VMW_FIFO_RESERVE_DX(dev_priv, sizeof(*cmd), bi->ctx->id);
+	if (!cmd)
+		return -ENOMEM;
+
+	cmd->header.id = SVGA_3D_CMD_DX_SET_STREAMOUTPUT;
+	cmd->header.size = sizeof(cmd->body);
+	cmd->body.soid = rebind ? bi->res->id : SVGA3D_INVALID_ID;
 	vmw_fifo_commit(dev_priv, sizeof(*cmd));
 
 	return 0;
@@ -1248,8 +1413,8 @@ void vmw_binding_state_reset(struct vmw_ctx_binding_state *cbs)
  * Each time a resource is put on the validation list as the result of a
  * context binding referencing it, we need to determine whether that resource
  * will be dirtied (written to by the GPU) as a result of the corresponding
- * GPU operation. Currently rendertarget-, depth-stencil-, and
- * stream-output-target bindings are capable of dirtying its resource.
+ * GPU operation. Currently rendertarget-, depth-stencil-, stream-output-target
+ * and unordered access view bindings are capable of dirtying its resource.
  *
  * Return: Whether the binding type dirties the resource its binding points to.
  */
@@ -1259,11 +1424,13 @@ u32 vmw_binding_dirtying(enum vmw_ctx_binding_type binding_type)
 		[vmw_ctx_binding_rt] = VMW_RES_DIRTY_SET,
 		[vmw_ctx_binding_dx_rt] = VMW_RES_DIRTY_SET,
 		[vmw_ctx_binding_ds] = VMW_RES_DIRTY_SET,
-		[vmw_ctx_binding_so] = VMW_RES_DIRTY_SET,
+		[vmw_ctx_binding_so_target] = VMW_RES_DIRTY_SET,
+		[vmw_ctx_binding_uav] = VMW_RES_DIRTY_SET,
+		[vmw_ctx_binding_cs_uav] = VMW_RES_DIRTY_SET,
 	};
 
 	/* Review this function as new bindings are added. */
-	BUILD_BUG_ON(vmw_ctx_binding_max != 11);
+	BUILD_BUG_ON(vmw_ctx_binding_max != 14);
 	return is_binding_dirtying[binding_type];
 }
 

@@ -4,6 +4,7 @@
 #include <linux/ptrace.h>
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
+#include <bpf/bpf_tracing.h>
 
 int kprobe_res = 0;
 int kretprobe_res = 0;
@@ -18,7 +19,7 @@ int handle_kprobe(struct pt_regs *ctx)
 }
 
 SEC("kretprobe/sys_nanosleep")
-int handle_kretprobe(struct pt_regs *ctx)
+int BPF_KRETPROBE(handle_kretprobe)
 {
 	kretprobe_res = 2;
 	return 0;

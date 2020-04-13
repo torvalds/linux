@@ -13,6 +13,7 @@
 #include <linux/console.h>
 #include <linux/sysrq.h>
 #include <linux/delay.h>
+#include <linux/gpio/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
@@ -28,6 +29,8 @@
 #include <asm/div64.h>
 
 #include <asm/mach-ath79/ar933x_uart.h>
+
+#include "serial_mctrl_gpio.h"
 
 #define DRIVER_NAME "ar933x-uart"
 
@@ -47,6 +50,8 @@ struct ar933x_uart_port {
 	unsigned int		min_baud;
 	unsigned int		max_baud;
 	struct clk		*clk;
+	struct mctrl_gpios	*gpios;
+	struct gpio_desc	*rts_gpiod;
 };
 
 static inline unsigned int ar933x_uart_read(struct ar933x_uart_port *up,
@@ -100,6 +105,18 @@ static inline void ar933x_uart_stop_tx_interrupt(struct ar933x_uart_port *up)
 	ar933x_uart_write(up, AR933X_UART_INT_EN_REG, up->ier);
 }
 
+static inline void ar933x_uart_start_rx_interrupt(struct ar933x_uart_port *up)
+{
+	up->ier |= AR933X_UART_INT_RX_VALID;
+	ar933x_uart_write(up, AR933X_UART_INT_EN_REG, up->ier);
+}
+
+static inline void ar933x_uart_stop_rx_interrupt(struct ar933x_uart_port *up)
+{
+	up->ier &= ~AR933X_UART_INT_RX_VALID;
+	ar933x_uart_write(up, AR933X_UART_INT_EN_REG, up->ier);
+}
+
 static inline void ar933x_uart_putc(struct ar933x_uart_port *up, int ch)
 {
 	unsigned int rdata;
@@ -125,11 +142,21 @@ static unsigned int ar933x_uart_tx_empty(struct uart_port *port)
 
 static unsigned int ar933x_uart_get_mctrl(struct uart_port *port)
 {
-	return TIOCM_CAR;
+	struct ar933x_uart_port *up =
+		container_of(port, struct ar933x_uart_port, port);
+	int ret = TIOCM_CTS | TIOCM_DSR | TIOCM_CAR;
+
+	mctrl_gpio_get(up->gpios, &ret);
+
+	return ret;
 }
 
 static void ar933x_uart_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
+	struct ar933x_uart_port *up =
+		container_of(port, struct ar933x_uart_port, port);
+
+	mctrl_gpio_set(up->gpios, mctrl);
 }
 
 static void ar933x_uart_start_tx(struct uart_port *port)
@@ -138,6 +165,37 @@ static void ar933x_uart_start_tx(struct uart_port *port)
 		container_of(port, struct ar933x_uart_port, port);
 
 	ar933x_uart_start_tx_interrupt(up);
+}
+
+static void ar933x_uart_wait_tx_complete(struct ar933x_uart_port *up)
+{
+	unsigned int status;
+	unsigned int timeout = 60000;
+
+	/* Wait up to 60ms for the character(s) to be sent. */
+	do {
+		status = ar933x_uart_read(up, AR933X_UART_CS_REG);
+		if (--timeout == 0)
+			break;
+		udelay(1);
+	} while (status & AR933X_UART_CS_TX_BUSY);
+
+	if (timeout == 0)
+		dev_err(up->port.dev, "waiting for TX timed out\n");
+}
+
+static void ar933x_uart_rx_flush(struct ar933x_uart_port *up)
+{
+	unsigned int status;
+
+	/* clear RX_VALID interrupt */
+	ar933x_uart_write(up, AR933X_UART_INT_REG, AR933X_UART_INT_RX_VALID);
+
+	/* remove characters from the RX FIFO */
+	do {
+		ar933x_uart_write(up, AR933X_UART_DATA_REG, AR933X_UART_DATA_RX_CSR);
+		status = ar933x_uart_read(up, AR933X_UART_DATA_REG);
+	} while (status & AR933X_UART_DATA_RX_CSR);
 }
 
 static void ar933x_uart_stop_tx(struct uart_port *port)
@@ -153,8 +211,7 @@ static void ar933x_uart_stop_rx(struct uart_port *port)
 	struct ar933x_uart_port *up =
 		container_of(port, struct ar933x_uart_port, port);
 
-	up->ier &= ~AR933X_UART_INT_RX_VALID;
-	ar933x_uart_write(up, AR933X_UART_INT_EN_REG, up->ier);
+	ar933x_uart_stop_rx_interrupt(up);
 }
 
 static void ar933x_uart_break_ctl(struct uart_port *port, int break_state)
@@ -336,10 +393,19 @@ static void ar933x_uart_rx_chars(struct ar933x_uart_port *up)
 static void ar933x_uart_tx_chars(struct ar933x_uart_port *up)
 {
 	struct circ_buf *xmit = &up->port.state->xmit;
+	struct serial_rs485 *rs485conf = &up->port.rs485;
 	int count;
+	bool half_duplex_send = false;
 
 	if (uart_tx_stopped(&up->port))
 		return;
+
+	if ((rs485conf->flags & SER_RS485_ENABLED) &&
+	    (up->port.x_char || !uart_circ_empty(xmit))) {
+		ar933x_uart_stop_rx_interrupt(up);
+		gpiod_set_value(up->rts_gpiod, !!(rs485conf->flags & SER_RS485_RTS_ON_SEND));
+		half_duplex_send = true;
+	}
 
 	count = up->port.fifosize;
 	do {
@@ -368,8 +434,14 @@ static void ar933x_uart_tx_chars(struct ar933x_uart_port *up)
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
 		uart_write_wakeup(&up->port);
 
-	if (!uart_circ_empty(xmit))
+	if (!uart_circ_empty(xmit)) {
 		ar933x_uart_start_tx_interrupt(up);
+	} else if (half_duplex_send) {
+		ar933x_uart_wait_tx_complete(up);
+		ar933x_uart_rx_flush(up);
+		ar933x_uart_start_rx_interrupt(up);
+		gpiod_set_value(up->rts_gpiod, !!(rs485conf->flags & SER_RS485_RTS_AFTER_SEND));
+	}
 }
 
 static irqreturn_t ar933x_uart_interrupt(int irq, void *dev_id)
@@ -427,8 +499,7 @@ static int ar933x_uart_startup(struct uart_port *port)
 		AR933X_UART_CS_TX_READY_ORIDE | AR933X_UART_CS_RX_READY_ORIDE);
 
 	/* Enable RX interrupts */
-	up->ier = AR933X_UART_INT_RX_VALID;
-	ar933x_uart_write(up, AR933X_UART_INT_EN_REG, up->ier);
+	ar933x_uart_start_rx_interrupt(up);
 
 	spin_unlock_irqrestore(&up->port.lock, flags);
 
@@ -510,6 +581,21 @@ static const struct uart_ops ar933x_uart_ops = {
 	.config_port	= ar933x_uart_config_port,
 	.verify_port	= ar933x_uart_verify_port,
 };
+
+static int ar933x_config_rs485(struct uart_port *port,
+				struct serial_rs485 *rs485conf)
+{
+	struct ar933x_uart_port *up =
+		container_of(port, struct ar933x_uart_port, port);
+
+	if ((rs485conf->flags & SER_RS485_ENABLED) &&
+	    !up->rts_gpiod) {
+		dev_err(port->dev, "RS485 needs rts-gpio\n");
+		return 1;
+	}
+	port->rs485 = *rs485conf;
+	return 0;
+}
 
 #ifdef CONFIG_SERIAL_AR933X_CONSOLE
 static struct ar933x_uart_port *
@@ -680,6 +766,8 @@ static int ar933x_uart_probe(struct platform_device *pdev)
 		goto err_disable_clk;
 	}
 
+	uart_get_rs485_mode(&pdev->dev, &port->rs485);
+
 	port->mapbase = mem_res->start;
 	port->line = id;
 	port->irq = irq_res->start;
@@ -690,12 +778,25 @@ static int ar933x_uart_probe(struct platform_device *pdev)
 	port->regshift = 2;
 	port->fifosize = AR933X_UART_FIFO_SIZE;
 	port->ops = &ar933x_uart_ops;
+	port->rs485_config = ar933x_config_rs485;
 
 	baud = ar933x_uart_get_baud(port->uartclk, AR933X_UART_MAX_SCALE, 1);
 	up->min_baud = max_t(unsigned int, baud, AR933X_UART_MIN_BAUD);
 
 	baud = ar933x_uart_get_baud(port->uartclk, 0, AR933X_UART_MAX_STEP);
 	up->max_baud = min_t(unsigned int, baud, AR933X_UART_MAX_BAUD);
+
+	up->gpios = mctrl_gpio_init(port, 0);
+	if (IS_ERR(up->gpios) && PTR_ERR(up->gpios) != -ENOSYS)
+		return PTR_ERR(up->gpios);
+
+	up->rts_gpiod = mctrl_gpio_to_gpiod(up->gpios, UART_GPIO_RTS);
+
+	if ((port->rs485.flags & SER_RS485_ENABLED) &&
+	    !up->rts_gpiod) {
+		dev_err(&pdev->dev, "lacking rts-gpio, disabling RS485\n");
+		port->rs485.flags &= ~SER_RS485_ENABLED;
+	}
 
 #ifdef CONFIG_SERIAL_AR933X_CONSOLE
 	ar933x_console_ports[up->port.line] = up;

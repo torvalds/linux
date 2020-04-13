@@ -43,7 +43,7 @@ unsigned long acpi_get_wakeup_address(void)
  *
  * Wrapper around acpi_enter_sleep_state() to be called by assmebly.
  */
-acpi_status asmlinkage __visible x86_acpi_enter_sleep_state(u8 state)
+asmlinkage acpi_status __visible x86_acpi_enter_sleep_state(u8 state)
 {
 	return acpi_enter_sleep_state(state);
 }

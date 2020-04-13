@@ -202,14 +202,14 @@ ACPI_EXPORT_SYMBOL_INIT(acpi_reallocate_root_table)
  *
  * PARAMETERS:  signature           - ACPI signature of needed table
  *              instance            - Which instance (for SSDTs)
- *              out_table_header    - The pointer to the table header to fill
+ *              out_table_header    - The pointer to the where the table header
+ *                                    is returned
  *
- * RETURN:      Status and pointer to mapped table header
+ * RETURN:      Status and a copy of the table header
  *
- * DESCRIPTION: Finds an ACPI table header.
- *
- * NOTE:        Caller is responsible in unmapping the header with
- *              acpi_os_unmap_memory
+ * DESCRIPTION: Finds and returns an ACPI table header. Caller provides the
+ *              memory where a copy of the header is to be returned
+ *              (fixed length).
  *
  ******************************************************************************/
 acpi_status

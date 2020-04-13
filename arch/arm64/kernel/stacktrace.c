@@ -14,6 +14,7 @@
 #include <linux/stacktrace.h>
 
 #include <asm/irq.h>
+#include <asm/pointer_auth.h>
 #include <asm/stack_pointer.h>
 #include <asm/stacktrace.h>
 
@@ -86,7 +87,7 @@ int notrace unwind_frame(struct task_struct *tsk, struct stackframe *frame)
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	if (tsk->ret_stack &&
-			(frame->pc == (unsigned long)return_to_handler)) {
+		(ptrauth_strip_insn_pac(frame->pc) == (unsigned long)return_to_handler)) {
 		struct ftrace_ret_stack *ret_stack;
 		/*
 		 * This is a case where function graph tracer has
@@ -100,6 +101,8 @@ int notrace unwind_frame(struct task_struct *tsk, struct stackframe *frame)
 		frame->pc = ret_stack->ret;
 	}
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
+
+	frame->pc = ptrauth_strip_insn_pac(frame->pc);
 
 	/*
 	 * Frames created upon entry from EL0 have NULL FP and PC values, so

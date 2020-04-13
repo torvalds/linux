@@ -78,7 +78,7 @@ int __init init_r4k_clocksource(void)
 	 * by the VDSO (HWREna is configured by configure_hwrena()).
 	 */
 	if (cpu_has_mips_r2_r6 && rdhwr_count_usable())
-		clocksource_mips.archdata.vdso_clock_mode = VDSO_CLOCK_R4K;
+		clocksource_mips.vdso_clock_mode = VDSO_CLOCKMODE_R4K;
 
 	clocksource_register_hz(&clocksource_mips, mips_hpt_frequency);
 

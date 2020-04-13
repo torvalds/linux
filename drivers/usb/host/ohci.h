@@ -337,7 +337,7 @@ typedef struct urb_priv {
 	u16			length;		// # tds in this request
 	u16			td_cnt;		// tds already serviced
 	struct list_head	pending;
-	struct td		*td [0];	// all TDs in this request
+	struct td		*td[];		// all TDs in this request
 
 } urb_priv_t;
 
@@ -435,7 +435,7 @@ struct ohci_hcd {
 	struct dentry		*debug_dir;
 
 	/* platform-specific data -- must come last */
-	unsigned long           priv[0] __aligned(sizeof(s64));
+	unsigned long           priv[] __aligned(sizeof(s64));
 
 };
 

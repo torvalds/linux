@@ -237,3 +237,24 @@ void snd_device_free_all(struct snd_card *card)
 	list_for_each_entry_safe_reverse(dev, next, &card->devices, list)
 		__snd_device_free(dev);
 }
+
+/**
+ * snd_device_get_state - Get the current state of the given device
+ * @card: the card instance
+ * @device_data: the data pointer to release
+ *
+ * Returns the current state of the given device object.  For the valid
+ * device, either @SNDRV_DEV_BUILD, @SNDRV_DEV_REGISTERED or
+ * @SNDRV_DEV_DISCONNECTED is returned.
+ * Or for a non-existing device, -1 is returned as an error.
+ */
+int snd_device_get_state(struct snd_card *card, void *device_data)
+{
+	struct snd_device *dev;
+
+	dev = look_for_dev(card, device_data);
+	if (dev)
+		return dev->state;
+	return -1;
+}
+EXPORT_SYMBOL_GPL(snd_device_get_state);

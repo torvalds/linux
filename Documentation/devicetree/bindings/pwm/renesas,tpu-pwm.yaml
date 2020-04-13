@@ -19,6 +19,10 @@ properties:
           - renesas,tpu-r8a7744   # RZ/G1N
           - renesas,tpu-r8a7745   # RZ/G1E
           - renesas,tpu-r8a7790   # R-Car H2
+          - renesas,tpu-r8a7791   # R-Car M2-W
+          - renesas,tpu-r8a7792   # R-Car V2H
+          - renesas,tpu-r8a7793   # R-Car M2-N
+          - renesas,tpu-r8a7794   # R-Car E2
           - renesas,tpu-r8a7795   # R-Car H3
           - renesas,tpu-r8a7796   # R-Car M3-W
           - renesas,tpu-r8a77965  # R-Car M3-N

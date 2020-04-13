@@ -34,9 +34,12 @@ required:
   - compatible
   - reg
 
+additionalProperties: false
+
 examples:
   - |
     npe@c8006000 {
          compatible = "intel,ixp4xx-network-processing-engine";
          reg = <0xc8006000 0x1000>, <0xc8007000 0x1000>, <0xc8008000 0x1000>;
     };
+...

@@ -533,7 +533,7 @@ struct mei_device {
 #endif /* CONFIG_DEBUG_FS */
 
 	const struct mei_hw_ops *ops;
-	char hw[0] __aligned(sizeof(void *));
+	char hw[] __aligned(sizeof(void *));
 };
 
 static inline unsigned long mei_secs_to_jiffies(unsigned long sec)

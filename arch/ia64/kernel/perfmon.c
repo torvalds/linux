@@ -57,6 +57,8 @@
 #include <linux/uaccess.h>
 #include <asm/delay.h>
 
+#include "irq.h"
+
 #ifdef CONFIG_PERFMON
 /*
  * perfmon context state
@@ -6313,11 +6315,6 @@ pfm_flush_pmds(struct task_struct *task, pfm_context_t *ctx)
 	}
 }
 
-static struct irqaction perfmon_irqaction = {
-	.handler = pfm_interrupt_handler,
-	.name    = "perfmon"
-};
-
 static void
 pfm_alt_save_pmu_state(void *data)
 {
@@ -6591,7 +6588,8 @@ pfm_init_percpu (void)
 	pfm_unfreeze_pmu();
 
 	if (first_time) {
-		register_percpu_irq(IA64_PERFMON_VECTOR, &perfmon_irqaction);
+		register_percpu_irq(IA64_PERFMON_VECTOR, pfm_interrupt_handler,
+				    0, "perfmon");
 		first_time=0;
 	}
 

@@ -880,7 +880,7 @@ static int vpfe_enum_fmt_vid_cap(struct file *file, void  *priv,
 	/* Fill in the information about format */
 	pix_fmt = vpfe_lookup_pix_format(pix);
 	if (pix_fmt) {
-		fmt->pixelformat = fmt->pixelformat;
+		fmt->pixelformat = pix_fmt->pixelformat;
 		return 0;
 	}
 	return -EINVAL;
@@ -1780,7 +1780,7 @@ static int vpfe_probe(struct platform_device *pdev)
 		"video_dev=%p\n", &vpfe_dev->video_dev);
 	vpfe_dev->fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	ret = video_register_device(&vpfe_dev->video_dev,
-				    VFL_TYPE_GRABBER, -1);
+				    VFL_TYPE_VIDEO, -1);
 
 	if (ret) {
 		v4l2_err(pdev->dev.driver,

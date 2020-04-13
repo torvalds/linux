@@ -19,10 +19,11 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alex Hung");
 
 static const struct acpi_device_id intel_hid_ids[] = {
-	{"INT1051", 0},
 	{"INT33D5", 0},
+	{"INTC1051", 0},
 	{"", 0},
 };
+MODULE_DEVICE_TABLE(acpi, intel_hid_ids);
 
 /* In theory, these are HID usages. */
 static const struct key_entry intel_hid_keymap[] = {
@@ -541,7 +542,6 @@ static struct platform_driver intel_hid_pl_driver = {
 	.probe = intel_hid_probe,
 	.remove = intel_hid_remove,
 };
-MODULE_DEVICE_TABLE(acpi, intel_hid_ids);
 
 /*
  * Unfortunately, some laptops provide a _HID="INT33D5" device with

@@ -747,7 +747,19 @@ static void mmhub_v1_0_query_ras_error_count(struct amdgpu_device *adev,
 	err_data->ue_count += ded_count;
 }
 
+static void mmhub_v1_0_reset_ras_error_count(struct amdgpu_device *adev)
+{
+	uint32_t i;
+
+	/* read back edc counter registers to reset the counters to 0 */
+	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__MMHUB)) {
+		for (i = 0; i < ARRAY_SIZE(mmhub_v1_0_edc_cnt_regs); i++)
+			RREG32(SOC15_REG_ENTRY_OFFSET(mmhub_v1_0_edc_cnt_regs[i]));
+	}
+}
+
 const struct amdgpu_mmhub_funcs mmhub_v1_0_funcs = {
 	.ras_late_init = amdgpu_mmhub_ras_late_init,
 	.query_ras_error_count = mmhub_v1_0_query_ras_error_count,
+	.reset_ras_error_count = mmhub_v1_0_reset_ras_error_count,
 };

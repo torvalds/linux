@@ -40,7 +40,6 @@ arch_futex_atomic_op_inuser(int op, int oparg, int *oval, u32 __user *uaddr)
 	u32 tmp;
 
 	_futex_spin_lock_irqsave(uaddr, &flags);
-	pagefault_disable();
 
 	ret = -EFAULT;
 	if (unlikely(get_user(oldval, uaddr) != 0))
@@ -73,7 +72,6 @@ arch_futex_atomic_op_inuser(int op, int oparg, int *oval, u32 __user *uaddr)
 		ret = -EFAULT;
 
 out_pagefault_enable:
-	pagefault_enable();
 	_futex_spin_unlock_irqrestore(uaddr, &flags);
 
 	if (!ret)

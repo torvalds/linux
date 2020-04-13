@@ -508,7 +508,7 @@ int panfrost_job_init(struct panfrost_device *pfdev)
 		return -ENODEV;
 
 	ret = devm_request_irq(pfdev->dev, irq, panfrost_job_irq_handler,
-			       IRQF_SHARED, "job", pfdev);
+			       IRQF_SHARED, KBUILD_MODNAME "-job", pfdev);
 	if (ret) {
 		dev_err(pfdev->dev, "failed to request job irq");
 		return ret;

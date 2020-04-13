@@ -34,18 +34,6 @@ properties:
           - adi,adt7461
             # +/-1C TDM Extended Temp Range I.C
           - adt7461
-            # +/-1C TDM Extended Temp Range I.C
-          - adi,adt7473
-            # +/-1C TDM Extended Temp Range I.C
-          - adi,adt7475
-            # +/-1C TDM Extended Temp Range I.C
-          - adi,adt7476
-            # +/-1C TDM Extended Temp Range I.C
-          - adi,adt7490
-            # Three-Axis Digital Accelerometer
-          - adi,adxl345
-            # Three-Axis Digital Accelerometer (backward-compatibility value "adi,adxl345" must be listed too)
-          - adi,adxl346
             # AMS iAQ-Core VOC Sensor
           - ams,iaq-core
             # i2c serial eeprom  (24cxx)
@@ -350,6 +338,8 @@ properties:
           - ti,ads7830
             # Temperature Monitoring and Fan Control
           - ti,amc6821
+            # Temperature sensor with 2-wire interface
+          - ti,lm73
             # Temperature sensor with integrated fan control
           - ti,lm96000
             # I2C Touch-Screen Controller
@@ -372,5 +362,7 @@ properties:
 required:
   - compatible
   - reg
+
+additionalProperties: false
 
 ...

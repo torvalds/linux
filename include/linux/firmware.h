@@ -44,6 +44,8 @@ int request_firmware(const struct firmware **fw, const char *name,
 		     struct device *device);
 int firmware_request_nowarn(const struct firmware **fw, const char *name,
 			    struct device *device);
+int firmware_request_platform(const struct firmware **fw, const char *name,
+			      struct device *device);
 int request_firmware_nowait(
 	struct module *module, bool uevent,
 	const char *name, struct device *device, gfp_t gfp, void *context,
@@ -65,6 +67,13 @@ static inline int request_firmware(const struct firmware **fw,
 static inline int firmware_request_nowarn(const struct firmware **fw,
 					  const char *name,
 					  struct device *device)
+{
+	return -EINVAL;
+}
+
+static inline int firmware_request_platform(const struct firmware **fw,
+					    const char *name,
+					    struct device *device)
 {
 	return -EINVAL;
 }

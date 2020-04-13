@@ -71,6 +71,21 @@ found:
 	return (unsigned long)buf;
 }
 
+static void synthesize_clac(kprobe_opcode_t *addr)
+{
+	/*
+	 * Can't be static_cpu_has() due to how objtool treats this feature bit.
+	 * This isn't a fast path anyway.
+	 */
+	if (!boot_cpu_has(X86_FEATURE_SMAP))
+		return;
+
+	/* Replace the NOP3 with CLAC */
+	addr[0] = 0x0f;
+	addr[1] = 0x01;
+	addr[2] = 0xca;
+}
+
 /* Insert a move instruction which sets a pointer to eax/rdi (1st arg). */
 static void synthesize_set_arg1(kprobe_opcode_t *addr, unsigned long val)
 {
@@ -92,6 +107,9 @@ asm (
 			/* We don't bother saving the ss register */
 			"	pushq %rsp\n"
 			"	pushfq\n"
+			".global optprobe_template_clac\n"
+			"optprobe_template_clac:\n"
+			ASM_NOP3
 			SAVE_REGS_STRING
 			"	movq %rsp, %rsi\n"
 			".global optprobe_template_val\n"
@@ -111,6 +129,9 @@ asm (
 #else /* CONFIG_X86_32 */
 			"	pushl %esp\n"
 			"	pushfl\n"
+			".global optprobe_template_clac\n"
+			"optprobe_template_clac:\n"
+			ASM_NOP3
 			SAVE_REGS_STRING
 			"	movl %esp, %edx\n"
 			".global optprobe_template_val\n"
@@ -134,6 +155,8 @@ asm (
 void optprobe_template_func(void);
 STACK_FRAME_NON_STANDARD(optprobe_template_func);
 
+#define TMPL_CLAC_IDX \
+	((long)optprobe_template_clac - (long)optprobe_template_entry)
 #define TMPL_MOVE_IDX \
 	((long)optprobe_template_val - (long)optprobe_template_entry)
 #define TMPL_CALL_IDX \
@@ -388,6 +411,8 @@ int arch_prepare_optimized_kprobe(struct optimized_kprobe *op,
 		goto err;
 	op->optinsn.size = ret;
 	len = TMPL_END_IDX + op->optinsn.size;
+
+	synthesize_clac(buf + TMPL_CLAC_IDX);
 
 	/* Set probe information */
 	synthesize_set_arg1(buf + TMPL_MOVE_IDX, (unsigned long)op);

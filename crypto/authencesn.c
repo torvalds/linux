@@ -458,7 +458,7 @@ static int crypto_authenc_esn_create(struct crypto_template *tmpl,
 	inst->alg.encrypt = crypto_authenc_esn_encrypt;
 	inst->alg.decrypt = crypto_authenc_esn_decrypt;
 
-	inst->free = crypto_authenc_esn_free,
+	inst->free = crypto_authenc_esn_free;
 
 	err = aead_register_instance(tmpl, inst);
 	if (err) {

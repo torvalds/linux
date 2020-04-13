@@ -169,7 +169,7 @@ typedef union {
 /**
  * Structure of the first packet output command word.
  */
-typedef union {
+union cvmx_pko_command_word0 {
 	uint64_t u64;
 	struct {
 #ifdef __BIG_ENDIAN_BITFIELD
@@ -261,7 +261,7 @@ typedef union {
 	        uint64_t size1:2;
 #endif
 	} s;
-} cvmx_pko_command_word0_t;
+};
 
 /* CSR typedefs have been moved to cvmx-csr-*.h */
 
@@ -394,7 +394,7 @@ static inline void cvmx_pko_send_packet_prepare(uint64_t port, uint64_t queue,
 		    CVMX_TAG_SW_BITS_INTERNAL << CVMX_TAG_SW_SHIFT |
 		    CVMX_TAG_SUBGROUP_PKO << CVMX_TAG_SUBGROUP_SHIFT |
 		    (CVMX_TAG_SUBGROUP_MASK & queue);
-		cvmx_pow_tag_sw_full((cvmx_wqe_t *) cvmx_phys_to_ptr(0x80), tag,
+		cvmx_pow_tag_sw_full((struct cvmx_wqe *) cvmx_phys_to_ptr(0x80), tag,
 				     CVMX_POW_TAG_TYPE_ATOMIC, 0);
 	}
 }
@@ -419,7 +419,7 @@ static inline void cvmx_pko_send_packet_prepare(uint64_t port, uint64_t queue,
 static inline cvmx_pko_status_t cvmx_pko_send_packet_finish(
 	uint64_t port,
 	uint64_t queue,
-	cvmx_pko_command_word0_t pko_command,
+	union cvmx_pko_command_word0 pko_command,
 	union cvmx_buf_ptr packet,
 	cvmx_pko_lock_t use_locking)
 {
@@ -462,7 +462,7 @@ static inline cvmx_pko_status_t cvmx_pko_send_packet_finish(
 static inline cvmx_pko_status_t cvmx_pko_send_packet_finish3(
 	uint64_t port,
 	uint64_t queue,
-	cvmx_pko_command_word0_t pko_command,
+	union cvmx_pko_command_word0 pko_command,
 	union cvmx_buf_ptr packet,
 	uint64_t addr,
 	cvmx_pko_lock_t use_locking)

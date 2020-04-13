@@ -69,7 +69,7 @@ static inline int clockid_to_fd(const clockid_t clk)
 struct cpu_timer {
 	struct timerqueue_node	node;
 	struct timerqueue_head	*head;
-	struct task_struct	*task;
+	struct pid		*pid;
 	struct list_head	elist;
 	int			firing;
 };

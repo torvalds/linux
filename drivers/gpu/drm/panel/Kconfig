@@ -29,6 +29,15 @@ config DRM_PANEL_BOE_HIMAX8279D
 	  24 bit RGB per pixel. It provides a MIPI DSI interface to
 	  the host and has a built-in LED backlight.
 
+config DRM_PANEL_BOE_TV101WUM_NL6
+	tristate "BOE TV101WUM and AUO KD101N80 45NA 1200x1920 panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to support for BOE TV101WUM and AUO KD101N80
+	  45NA WUXGA PANEL DSI Video Mode panel
+
 config DRM_PANEL_LVDS
 	tristate "Generic LVDS panel driver"
 	depends on OF
@@ -49,6 +58,25 @@ config DRM_PANEL_SIMPLE
 	  a GPIO to be powered up. Optionally a backlight can be attached so
 	  that it can be automatically turned off when the panel goes into a
 	  low power state.
+
+config DRM_PANEL_ELIDA_KD35T133
+	tristate "Elida KD35T133 panel driver"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for the Elida
+	  KD35T133 controller for 320x480 LCD panels with MIPI-DSI
+	  system interfaces.
+
+config DRM_PANEL_FEIXIN_K101_IM2BA02
+	tristate "Feixin K101 IM2BA02 panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for the Feixin K101 IM2BA02
+	  4-lane 800x1280 MIPI DSI panel.
 
 config DRM_PANEL_FEIYANG_FY07024DI26A30D
 	tristate "Feiyang FY07024DI26A30-D MIPI-DSI LCD panel"
@@ -148,6 +176,16 @@ config DRM_PANEL_NEC_NL8048HL11
 	  Say Y here if you want to enable support for the NEC NL8048HL11 RGB
 	  panel (found on the Zoom2/3/3630 SDP boards). To compile this driver
 	  as a module, choose M here.
+
+config DRM_PANEL_NOVATEK_NT35510
+	tristate "Novatek NT35510 RGB panel driver"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for the panels built
+	  around the Novatek NT35510 display controller, such as some
+	  Hydis panels.
 
 config DRM_PANEL_NOVATEK_NT39016
 	tristate "Novatek NT39016 RGB/SPI panel"
@@ -274,6 +312,12 @@ config DRM_PANEL_SAMSUNG_S6E63M0
 	help
 	  Say Y here if you want to enable support for Samsung S6E63M0
 	  AMOLED LCD panel.
+
+config DRM_PANEL_SAMSUNG_S6E88A0_AMS452EF01
+	tristate "Samsung AMS452EF01 panel with S6E88A0 DSI video mode controller"
+	depends on OF
+	select DRM_MIPI_DSI
+	select VIDEOMODE_HELPERS
 
 config DRM_PANEL_SAMSUNG_S6E8AA0
 	tristate "Samsung S6E8AA0 DSI video mode panel"

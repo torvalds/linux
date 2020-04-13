@@ -33,6 +33,7 @@
 #include <linux/atomic.h>
 #include <linux/cgroup.h>
 #include <linux/slab.h>
+#include <linux/sched/task.h>
 
 #define PIDS_MAX (PID_MAX_LIMIT + 1ULL)
 #define PIDS_MAX_STR "max"
@@ -214,13 +215,16 @@ static void pids_cancel_attach(struct cgroup_taskset *tset)
  * task_css_check(true) in pids_can_fork() and pids_cancel_fork() relies
  * on cgroup_threadgroup_change_begin() held by the copy_process().
  */
-static int pids_can_fork(struct task_struct *task)
+static int pids_can_fork(struct task_struct *task, struct css_set *cset)
 {
 	struct cgroup_subsys_state *css;
 	struct pids_cgroup *pids;
 	int err;
 
-	css = task_css_check(current, pids_cgrp_id, true);
+	if (cset)
+		css = cset->subsys[pids_cgrp_id];
+	else
+		css = task_css_check(current, pids_cgrp_id, true);
 	pids = css_pids(css);
 	err = pids_try_charge(pids, 1);
 	if (err) {
@@ -235,12 +239,15 @@ static int pids_can_fork(struct task_struct *task)
 	return err;
 }
 
-static void pids_cancel_fork(struct task_struct *task)
+static void pids_cancel_fork(struct task_struct *task, struct css_set *cset)
 {
 	struct cgroup_subsys_state *css;
 	struct pids_cgroup *pids;
 
-	css = task_css_check(current, pids_cgrp_id, true);
+	if (cset)
+		css = cset->subsys[pids_cgrp_id];
+	else
+		css = task_css_check(current, pids_cgrp_id, true);
 	pids = css_pids(css);
 	pids_uncharge(pids, 1);
 }

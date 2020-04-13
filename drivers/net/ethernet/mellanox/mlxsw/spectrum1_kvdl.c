@@ -60,7 +60,7 @@ static const struct mlxsw_sp1_kvdl_part_info mlxsw_sp1_kvdl_parts_info[] = {
 
 struct mlxsw_sp1_kvdl_part {
 	struct mlxsw_sp1_kvdl_part_info info;
-	unsigned long usage[0];	/* Entries */
+	unsigned long usage[];	/* Entries */
 };
 
 struct mlxsw_sp1_kvdl {

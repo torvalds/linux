@@ -1327,7 +1327,7 @@ static int rtm_to_nh_config(struct net *net, struct sk_buff *skb,
 	case AF_UNSPEC:
 		if (tb[NHA_GROUP])
 			break;
-		/* fallthrough */
+		fallthrough;
 	default:
 		NL_SET_ERR_MSG(extack, "Invalid address family");
 		goto out;

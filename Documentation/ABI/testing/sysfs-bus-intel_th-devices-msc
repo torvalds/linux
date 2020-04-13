@@ -40,3 +40,11 @@ Description:	(RW) Trigger window switch for the MSC's buffer, in
 		triggering a window switch for the buffer. Returns an error in any
 		other operating mode or attempts to write something other than "1".
 
+What:		/sys/bus/intel_th/devices/<intel_th_id>-msc<msc-id>/stop_on_full
+Date:		March 2020
+KernelVersion:	5.7
+Contact:	Alexander Shishkin <alexander.shishkin@linux.intel.com>
+Description:	(RW) Configure whether trace stops when the last available window
+		becomes full (1/y/Y) or wraps around and continues until the next
+		window becomes available again (0/n/N).
+

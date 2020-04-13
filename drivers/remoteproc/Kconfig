@@ -35,7 +35,7 @@ config MTK_SCP
 
 config OMAP_REMOTEPROC
 	tristate "OMAP remoteproc support"
-	depends on ARCH_OMAP4 || SOC_OMAP5
+	depends on ARCH_OMAP4 || SOC_OMAP5 || SOC_DRA7XX
 	depends on OMAP_IOMMU
 	select MAILBOX
 	select OMAP2PLUS_MBOX
@@ -51,6 +51,18 @@ config OMAP_REMOTEPROC
 
 	  It's safe to say N here if you're not interested in multimedia
 	  offloading or just want a bare minimum kernel.
+
+config OMAP_REMOTEPROC_WATCHDOG
+	bool "OMAP remoteproc watchdog timer"
+	depends on OMAP_REMOTEPROC
+	default n
+	help
+	  Say Y here to enable watchdog timer for remote processors.
+
+	  This option controls the watchdog functionality for the remote
+	  processors in OMAP. Dedicated OMAP DMTimers are used by the remote
+	  processors and triggers the timer interrupt upon a watchdog
+	  detection.
 
 config WKUP_M3_RPROC
 	tristate "AMx3xx Wakeup M3 remoteproc support"
@@ -128,6 +140,7 @@ config QCOM_Q6V5_MSS
 	select MFD_SYSCON
 	select QCOM_MDT_LOADER
 	select QCOM_Q6V5_COMMON
+	select QCOM_Q6V5_IPA_NOTIFY
 	select QCOM_RPROC_COMMON
 	select QCOM_SCM
 	help
@@ -166,6 +179,9 @@ config QCOM_Q6V5_WCSS
 	help
 	  Say y here to support the Qualcomm Peripheral Image Loader for the
 	  Hexagon V5 based WCSS remote processors.
+
+config QCOM_Q6V5_IPA_NOTIFY
+	tristate
 
 config QCOM_SYSMON
 	tristate "Qualcomm sysmon driver"

@@ -11,6 +11,8 @@
  * Schematic available at http://espressobin.net/wp-content/uploads/2017/08/ESPRESSObin_V5_Schematics.pdf
  */
 
+/dts-v1/;
+
 #include "armada-3720-espressobin.dtsi"
 
 / {

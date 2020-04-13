@@ -27,7 +27,6 @@
 #include <asm/tlb.h>
 #include <asm/desc.h>
 #include <asm/mmu_context.h>
-#include <asm/syscalls.h>
 #include <asm/pgtable_areas.h>
 
 /* This is a multiple of PAGE_SIZE. */

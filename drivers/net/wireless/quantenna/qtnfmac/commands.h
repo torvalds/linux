@@ -59,8 +59,8 @@ int qtnf_cmd_send_updown_intf(struct qtnf_vif *vif,
 			      bool up);
 int qtnf_cmd_reg_notify(struct qtnf_wmac *mac, struct regulatory_request *req,
 			bool slave_radar, bool dfs_offload);
-int qtnf_cmd_get_chan_stats(struct qtnf_wmac *mac, u16 channel,
-			    struct qtnf_chan_stats *stats);
+int qtnf_cmd_get_chan_stats(struct qtnf_wmac *mac, u32 chan_freq,
+			    struct survey_info *survey);
 int qtnf_cmd_send_chan_switch(struct qtnf_vif *vif,
 			      struct cfg80211_csa_settings *params);
 int qtnf_cmd_get_channel(struct qtnf_vif *vif, struct cfg80211_chan_def *chdef);
@@ -76,5 +76,7 @@ int qtnf_cmd_set_tx_power(const struct qtnf_vif *vif,
 int qtnf_cmd_send_wowlan_set(const struct qtnf_vif *vif,
 			     const struct cfg80211_wowlan *wowl);
 int qtnf_cmd_netdev_changeupper(const struct qtnf_vif *vif, int br_domain);
+int qtnf_cmd_send_update_owe(struct qtnf_vif *vif,
+			     struct cfg80211_update_owe_info *owe);
 
 #endif /* QLINK_COMMANDS_H_ */

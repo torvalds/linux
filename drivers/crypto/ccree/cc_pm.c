@@ -15,29 +15,25 @@
 #define POWER_DOWN_ENABLE 0x01
 #define POWER_DOWN_DISABLE 0x00
 
-const struct dev_pm_ops ccree_pm = {
-	SET_RUNTIME_PM_OPS(cc_pm_suspend, cc_pm_resume, NULL)
-};
-
-int cc_pm_suspend(struct device *dev)
+static int cc_pm_suspend(struct device *dev)
 {
 	struct cc_drvdata *drvdata = dev_get_drvdata(dev);
 
 	dev_dbg(dev, "set HOST_POWER_DOWN_EN\n");
 	fini_cc_regs(drvdata);
 	cc_iowrite(drvdata, CC_REG(HOST_POWER_DOWN_EN), POWER_DOWN_ENABLE);
-	cc_clk_off(drvdata);
+	clk_disable_unprepare(drvdata->clk);
 	return 0;
 }
 
-int cc_pm_resume(struct device *dev)
+static int cc_pm_resume(struct device *dev)
 {
 	int rc;
 	struct cc_drvdata *drvdata = dev_get_drvdata(dev);
 
 	dev_dbg(dev, "unset HOST_POWER_DOWN_EN\n");
 	/* Enables the device source clk */
-	rc = cc_clk_on(drvdata);
+	rc = clk_prepare_enable(drvdata->clk);
 	if (rc) {
 		dev_err(dev, "failed getting clock back on. We're toast.\n");
 		return rc;
@@ -62,53 +58,19 @@ int cc_pm_resume(struct device *dev)
 	return 0;
 }
 
+const struct dev_pm_ops ccree_pm = {
+	SET_RUNTIME_PM_OPS(cc_pm_suspend, cc_pm_resume, NULL)
+};
+
 int cc_pm_get(struct device *dev)
 {
-	int rc = 0;
-	struct cc_drvdata *drvdata = dev_get_drvdata(dev);
-
-	if (drvdata->pm_on)
-		rc = pm_runtime_get_sync(dev);
+	int rc = pm_runtime_get_sync(dev);
 
 	return (rc == 1 ? 0 : rc);
 }
 
 void cc_pm_put_suspend(struct device *dev)
 {
-	struct cc_drvdata *drvdata = dev_get_drvdata(dev);
-
-	if (drvdata->pm_on) {
-		pm_runtime_mark_last_busy(dev);
-		pm_runtime_put_autosuspend(dev);
-	}
-}
-
-bool cc_pm_is_dev_suspended(struct device *dev)
-{
-	/* check device state using runtime api */
-	return pm_runtime_suspended(dev);
-}
-
-int cc_pm_init(struct cc_drvdata *drvdata)
-{
-	struct device *dev = drvdata_to_dev(drvdata);
-
-	/* must be before the enabling to avoid redundant suspending */
-	pm_runtime_set_autosuspend_delay(dev, CC_SUSPEND_TIMEOUT);
-	pm_runtime_use_autosuspend(dev);
-	/* set us as active - note we won't do PM ops until cc_pm_go()! */
-	return pm_runtime_set_active(dev);
-}
-
-/* enable the PM module*/
-void cc_pm_go(struct cc_drvdata *drvdata)
-{
-	pm_runtime_enable(drvdata_to_dev(drvdata));
-	drvdata->pm_on = true;
-}
-
-void cc_pm_fini(struct cc_drvdata *drvdata)
-{
-	pm_runtime_disable(drvdata_to_dev(drvdata));
-	drvdata->pm_on = false;
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
 }

@@ -282,9 +282,15 @@ static const struct tegra_pwm_soc tegra186_pwm_soc = {
 	.max_frequency = 102000000UL,
 };
 
+static const struct tegra_pwm_soc tegra194_pwm_soc = {
+	.num_channels = 1,
+	.max_frequency = 408000000UL,
+};
+
 static const struct of_device_id tegra_pwm_of_match[] = {
 	{ .compatible = "nvidia,tegra20-pwm", .data = &tegra20_pwm_soc },
 	{ .compatible = "nvidia,tegra186-pwm", .data = &tegra186_pwm_soc },
+	{ .compatible = "nvidia,tegra194-pwm", .data = &tegra194_pwm_soc },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, tegra_pwm_of_match);

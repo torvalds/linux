@@ -130,7 +130,7 @@ enum {
 struct mvumi_hotplug_event {
 	u16 size;
 	u8 dummy[2];
-	u8 bitmap[0];
+	u8 bitmap[];
 };
 
 struct mvumi_driver_event {
@@ -290,7 +290,7 @@ struct mvumi_rsp_frame {
 
 struct mvumi_ob_data {
 	struct list_head list;
-	unsigned char data[0];
+	unsigned char data[];
 };
 
 struct version_info {

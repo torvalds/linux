@@ -49,7 +49,7 @@
 struct hci_lpm_pkt {
 	__u8 opcode;
 	__u8 dlen;
-	__u8 data[0];
+	__u8 data[];
 } __packed;
 
 struct intel_device {

@@ -62,11 +62,11 @@
 	SRI(DP_DPHY_FAST_TRAINING, DP, id), \
 	SRI(DP_SEC_CNTL1, DP, id), \
 	SRI(DP_DPHY_BS_SR_SWAP_CNTL, DP, id), \
-	SRI(DP_DPHY_INTERNAL_CTRL, DP, id), \
 	SRI(DP_DPHY_HBR2_PATTERN_CONTROL, DP, id)
 
 
 #define LE_DCN10_REG_LIST(id)\
+	SRI(DP_DPHY_INTERNAL_CTRL, DP, id), \
 	LE_DCN_COMMON_REG_LIST(id)
 
 struct dcn10_link_enc_aux_registers {

@@ -118,7 +118,7 @@ struct loopback_cable {
 struct loopback_setup {
 	unsigned int notify: 1;
 	unsigned int rate_shift;
-	unsigned int format;
+	snd_pcm_format_t format;
 	unsigned int rate;
 	unsigned int channels;
 	struct snd_ctl_elem_id active_id;
@@ -1432,7 +1432,7 @@ static int loopback_format_info(struct snd_kcontrol *kcontrol,
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	uinfo->count = 1;
 	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = SNDRV_PCM_FORMAT_LAST;
+	uinfo->value.integer.max = (__force int)SNDRV_PCM_FORMAT_LAST;
 	uinfo->value.integer.step = 1;
 	return 0;
 }                                  
@@ -1443,7 +1443,7 @@ static int loopback_format_get(struct snd_kcontrol *kcontrol,
 	struct loopback *loopback = snd_kcontrol_chip(kcontrol);
 	
 	ucontrol->value.integer.value[0] =
-		loopback->setup[kcontrol->id.subdevice]
+		(__force int)loopback->setup[kcontrol->id.subdevice]
 			       [kcontrol->id.device].format;
 	return 0;
 }

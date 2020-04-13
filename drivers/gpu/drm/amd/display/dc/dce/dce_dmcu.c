@@ -378,6 +378,11 @@ static bool dcn10_dmcu_init(struct dmcu *dmcu)
 	struct dce_dmcu *dmcu_dce = TO_DCE_DMCU(dmcu);
 	const struct dc_config *config = &dmcu->ctx->dc->config;
 	bool status = false;
+	struct dc_context *ctx = dmcu->ctx;
+	unsigned int i;
+	//  5 4 3 2 1 0
+	//  F E D C B A - bit 0 is A, bit 5 is F
+	unsigned int tx_interrupt_mask = 0;
 
 	PERF_TRACE();
 	/*  Definition of DC_DMCU_SCRATCH
@@ -386,6 +391,15 @@ static bool dcn10_dmcu_init(struct dmcu *dmcu)
 	 *  2 : Firmware already initialized
 	 */
 	dmcu->dmcu_state = REG_READ(DC_DMCU_SCRATCH);
+
+	for (i = 0; i < ctx->dc->link_count; i++) {
+		if (ctx->dc->links[i]->link_enc->features.flags.bits.DP_IS_USB_C) {
+			if (ctx->dc->links[i]->link_enc->transmitter >= TRANSMITTER_UNIPHY_A &&
+					ctx->dc->links[i]->link_enc->transmitter <= TRANSMITTER_UNIPHY_F) {
+				tx_interrupt_mask |= 1 << ctx->dc->links[i]->link_enc->transmitter;
+			}
+		}
+	}
 
 	switch (dmcu->dmcu_state) {
 	case DMCU_UNLOADED:
@@ -400,6 +414,8 @@ static bool dcn10_dmcu_init(struct dmcu *dmcu)
 
 		/* Set backlight ramping stepsize */
 		REG_WRITE(MASTER_COMM_DATA_REG2, abm_gain_stepsize);
+
+		REG_WRITE(MASTER_COMM_DATA_REG3, tx_interrupt_mask);
 
 		/* Set command to initialize microcontroller */
 		REG_UPDATE(MASTER_COMM_CMD_REG, MASTER_COMM_CMD_REG_BYTE0,

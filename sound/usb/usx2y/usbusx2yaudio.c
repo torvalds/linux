@@ -906,11 +906,12 @@ static const struct snd_pcm_ops snd_usX2Y_pcm_ops =
  */
 static void usX2Y_audio_stream_free(struct snd_usX2Y_substream **usX2Y_substream)
 {
-	kfree(usX2Y_substream[SNDRV_PCM_STREAM_PLAYBACK]);
-	usX2Y_substream[SNDRV_PCM_STREAM_PLAYBACK] = NULL;
+	int stream;
 
-	kfree(usX2Y_substream[SNDRV_PCM_STREAM_CAPTURE]);
-	usX2Y_substream[SNDRV_PCM_STREAM_CAPTURE] = NULL;
+	for_each_pcm_streams(stream) {
+		kfree(usX2Y_substream[stream]);
+		usX2Y_substream[stream] = NULL;
+	}
 }
 
 static void snd_usX2Y_pcm_private_free(struct snd_pcm *pcm)

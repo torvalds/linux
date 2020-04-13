@@ -10,6 +10,7 @@
 	cpus {
 		cpu1: cpu@1 {
 			compatible = "arm,cortex-a7";
+			clock-frequency = <650000000>;
 			device_type = "cpu";
 			reg = <1>;
 		};

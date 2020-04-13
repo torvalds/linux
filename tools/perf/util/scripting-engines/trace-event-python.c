@@ -464,6 +464,7 @@ static PyObject *python_process_brstack(struct perf_sample *sample,
 					struct thread *thread)
 {
 	struct branch_stack *br = sample->branch_stack;
+	struct branch_entry *entries = perf_sample__branch_entries(sample);
 	PyObject *pylist;
 	u64 i;
 
@@ -484,28 +485,28 @@ static PyObject *python_process_brstack(struct perf_sample *sample,
 			Py_FatalError("couldn't create Python dictionary");
 
 		pydict_set_item_string_decref(pyelem, "from",
-		    PyLong_FromUnsignedLongLong(br->entries[i].from));
+		    PyLong_FromUnsignedLongLong(entries[i].from));
 		pydict_set_item_string_decref(pyelem, "to",
-		    PyLong_FromUnsignedLongLong(br->entries[i].to));
+		    PyLong_FromUnsignedLongLong(entries[i].to));
 		pydict_set_item_string_decref(pyelem, "mispred",
-		    PyBool_FromLong(br->entries[i].flags.mispred));
+		    PyBool_FromLong(entries[i].flags.mispred));
 		pydict_set_item_string_decref(pyelem, "predicted",
-		    PyBool_FromLong(br->entries[i].flags.predicted));
+		    PyBool_FromLong(entries[i].flags.predicted));
 		pydict_set_item_string_decref(pyelem, "in_tx",
-		    PyBool_FromLong(br->entries[i].flags.in_tx));
+		    PyBool_FromLong(entries[i].flags.in_tx));
 		pydict_set_item_string_decref(pyelem, "abort",
-		    PyBool_FromLong(br->entries[i].flags.abort));
+		    PyBool_FromLong(entries[i].flags.abort));
 		pydict_set_item_string_decref(pyelem, "cycles",
-		    PyLong_FromUnsignedLongLong(br->entries[i].flags.cycles));
+		    PyLong_FromUnsignedLongLong(entries[i].flags.cycles));
 
 		thread__find_map_fb(thread, sample->cpumode,
-				    br->entries[i].from, &al);
+				    entries[i].from, &al);
 		dsoname = get_dsoname(al.map);
 		pydict_set_item_string_decref(pyelem, "from_dsoname",
 					      _PyUnicode_FromString(dsoname));
 
 		thread__find_map_fb(thread, sample->cpumode,
-				    br->entries[i].to, &al);
+				    entries[i].to, &al);
 		dsoname = get_dsoname(al.map);
 		pydict_set_item_string_decref(pyelem, "to_dsoname",
 					      _PyUnicode_FromString(dsoname));
@@ -561,6 +562,7 @@ static PyObject *python_process_brstacksym(struct perf_sample *sample,
 					   struct thread *thread)
 {
 	struct branch_stack *br = sample->branch_stack;
+	struct branch_entry *entries = perf_sample__branch_entries(sample);
 	PyObject *pylist;
 	u64 i;
 	char bf[512];
@@ -581,22 +583,22 @@ static PyObject *python_process_brstacksym(struct perf_sample *sample,
 			Py_FatalError("couldn't create Python dictionary");
 
 		thread__find_symbol_fb(thread, sample->cpumode,
-				       br->entries[i].from, &al);
+				       entries[i].from, &al);
 		get_symoff(al.sym, &al, true, bf, sizeof(bf));
 		pydict_set_item_string_decref(pyelem, "from",
 					      _PyUnicode_FromString(bf));
 
 		thread__find_symbol_fb(thread, sample->cpumode,
-				       br->entries[i].to, &al);
+				       entries[i].to, &al);
 		get_symoff(al.sym, &al, true, bf, sizeof(bf));
 		pydict_set_item_string_decref(pyelem, "to",
 					      _PyUnicode_FromString(bf));
 
-		get_br_mspred(&br->entries[i].flags, bf, sizeof(bf));
+		get_br_mspred(&entries[i].flags, bf, sizeof(bf));
 		pydict_set_item_string_decref(pyelem, "pred",
 					      _PyUnicode_FromString(bf));
 
-		if (br->entries[i].flags.in_tx) {
+		if (entries[i].flags.in_tx) {
 			pydict_set_item_string_decref(pyelem, "in_tx",
 					      _PyUnicode_FromString("X"));
 		} else {
@@ -604,7 +606,7 @@ static PyObject *python_process_brstacksym(struct perf_sample *sample,
 					      _PyUnicode_FromString("-"));
 		}
 
-		if (br->entries[i].flags.abort) {
+		if (entries[i].flags.abort) {
 			pydict_set_item_string_decref(pyelem, "abort",
 					      _PyUnicode_FromString("A"));
 		} else {
@@ -691,6 +693,9 @@ static int regs_map(struct regs_dump *regs, uint64_t mask, char *bf, int size)
 	int printed = 0;
 
 	bf[0] = 0;
+
+	if (!regs || !regs->regs)
+		return 0;
 
 	for_each_set_bit(r, (unsigned long *) &mask, sizeof(mask) * 8) {
 		u64 val = regs->regs[i++];

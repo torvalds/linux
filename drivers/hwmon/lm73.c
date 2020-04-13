@@ -262,10 +262,20 @@ static int lm73_detect(struct i2c_client *new_client,
 	return 0;
 }
 
+static const struct of_device_id lm73_of_match[] = {
+	{
+		.compatible = "ti,lm73",
+	},
+	{ },
+};
+
+MODULE_DEVICE_TABLE(of, lm73_of_match);
+
 static struct i2c_driver lm73_driver = {
 	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name	= "lm73",
+		.of_match_table = lm73_of_match,
 	},
 	.probe		= lm73_probe,
 	.id_table	= lm73_ids,

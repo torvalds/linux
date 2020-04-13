@@ -63,7 +63,7 @@ struct rxe_queue_buf {
 	__u32			pad_2[31];
 	__u32			consumer_index;
 	__u32			pad_3[31];
-	__u8			data[0];
+	__u8			data[];
 };
 
 struct rxe_queue {

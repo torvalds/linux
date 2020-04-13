@@ -80,9 +80,6 @@ config HIBERNATION
 
 	  For more information take a look at <file:Documentation/power/swsusp.rst>.
 
-config ARCH_SAVE_PAGE_KEYS
-	bool
-
 config PM_STD_PARTITION
 	string "Default resume partition"
 	depends on HIBERNATION

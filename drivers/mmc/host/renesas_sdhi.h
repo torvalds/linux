@@ -57,6 +57,12 @@ struct renesas_sdhi {
 	void __iomem *scc_ctl;
 	u32 scc_tappos;
 	u32 scc_tappos_hs400;
+	bool doing_tune;
+
+	/* Tuning values: 1 for success, 0 for failure */
+	DECLARE_BITMAP(taps, BITS_PER_LONG);
+	unsigned int tap_num;
+	unsigned long tap_set;
 };
 
 #define host_to_priv(host) \

@@ -321,7 +321,7 @@ EXPORT_SYMBOL_GPL(v4l_vb2q_enable_media_source);
  * use_count field stores the total number of users of all video device nodes
  * in the pipeline.
  *
- * The v4l2_pipeline_pm_use() function must be called in the open() and
+ * The v4l2_pipeline_pm_{get, put}() functions must be called in the open() and
  * close() handlers of video device nodes. It increments or decrements the use
  * count of all subdev entities in the pipeline.
  *
@@ -423,7 +423,7 @@ static int pipeline_pm_power(struct media_entity *entity, int change,
 	return ret;
 }
 
-int v4l2_pipeline_pm_use(struct media_entity *entity, int use)
+static int v4l2_pipeline_pm_use(struct media_entity *entity, unsigned int use)
 {
 	struct media_device *mdev = entity->graph_obj.mdev;
 	int change = use ? 1 : -1;
@@ -444,7 +444,19 @@ int v4l2_pipeline_pm_use(struct media_entity *entity, int use)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(v4l2_pipeline_pm_use);
+
+int v4l2_pipeline_pm_get(struct media_entity *entity)
+{
+	return v4l2_pipeline_pm_use(entity, 1);
+}
+EXPORT_SYMBOL_GPL(v4l2_pipeline_pm_get);
+
+void v4l2_pipeline_pm_put(struct media_entity *entity)
+{
+	/* Powering off entities shouldn't fail. */
+	WARN_ON(v4l2_pipeline_pm_use(entity, 0));
+}
+EXPORT_SYMBOL_GPL(v4l2_pipeline_pm_put);
 
 int v4l2_pipeline_link_notify(struct media_link *link, u32 flags,
 			      unsigned int notification)

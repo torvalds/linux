@@ -124,7 +124,7 @@ struct resource_funcs {
 				struct dc *dc,
 				struct dc_state *new_ctx,
 				struct dc_stream_state *stream);
-	enum dc_status (*get_default_swizzle_mode)(
+	enum dc_status (*patch_unknown_plane_state)(
 			struct dc_plane_state *plane_state);
 
 	struct stream_encoder *(*find_first_free_match_stream_enc_for_link)(

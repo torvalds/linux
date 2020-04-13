@@ -88,11 +88,11 @@ static int ef4_init_lm87(struct ef4_nic *efx, const struct i2c_board_info *info,
 			 const u8 *reg_values)
 {
 	struct falcon_board *board = falcon_board(efx);
-	struct i2c_client *client = i2c_new_device(&board->i2c_adap, info);
+	struct i2c_client *client = i2c_new_client_device(&board->i2c_adap, info);
 	int rc;
 
-	if (!client)
-		return -EIO;
+	if (IS_ERR(client))
+		return PTR_ERR(client);
 
 	/* Read-to-clear alarm/interrupt status */
 	i2c_smbus_read_byte_data(client, LM87_REG_ALARMS1);

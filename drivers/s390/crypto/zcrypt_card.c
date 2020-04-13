@@ -41,7 +41,7 @@ static ssize_t type_show(struct device *dev,
 {
 	struct zcrypt_card *zc = to_ap_card(dev)->private;
 
-	return snprintf(buf, PAGE_SIZE, "%s\n", zc->type_string);
+	return scnprintf(buf, PAGE_SIZE, "%s\n", zc->type_string);
 }
 
 static DEVICE_ATTR_RO(type);
@@ -52,7 +52,7 @@ static ssize_t online_show(struct device *dev,
 {
 	struct zcrypt_card *zc = to_ap_card(dev)->private;
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", zc->online);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", zc->online);
 }
 
 static ssize_t online_store(struct device *dev,
@@ -86,7 +86,7 @@ static ssize_t load_show(struct device *dev,
 {
 	struct zcrypt_card *zc = to_ap_card(dev)->private;
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", atomic_read(&zc->load));
+	return scnprintf(buf, PAGE_SIZE, "%d\n", atomic_read(&zc->load));
 }
 
 static DEVICE_ATTR_RO(load);

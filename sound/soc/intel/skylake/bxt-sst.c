@@ -17,7 +17,6 @@
 #include "skl.h"
 
 #define BXT_BASEFW_TIMEOUT	3000
-#define BXT_INIT_TIMEOUT	300
 #define BXT_ROM_INIT_TIMEOUT	70
 #define BXT_IPC_PURGE_FW	0x01004000
 
@@ -37,8 +36,6 @@
 
 /* Delay before scheduling D0i3 entry */
 #define BXT_D0I3_DELAY 5000
-
-#define BXT_FW_ROM_INIT_RETRY 3
 
 static unsigned int bxt_get_errorcode(struct sst_dsp *ctx)
 {

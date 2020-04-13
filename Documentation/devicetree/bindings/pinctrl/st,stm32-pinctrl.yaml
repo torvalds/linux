@@ -194,6 +194,8 @@ required:
   - ranges
   - pins-are-numbered
 
+additionalProperties: false
+
 examples:
   - |
     #include <dt-bindings/pinctrl/stm32-pinfunc.h>

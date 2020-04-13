@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/bpf.h>
+#include <bpf/bpf_tracing.h>
 #include <bpf/bpf_helpers.h>
-#include "bpf_trace_helpers.h"
+
+char _license[] SEC("license") = "GPL";
 
 struct net_device {
 	/* Structure does not need to contain all entries,
@@ -27,16 +29,38 @@ struct xdp_buff {
 	struct xdp_rxq_info *rxq;
 } __attribute__((preserve_access_index));
 
+struct meta {
+	int ifindex;
+	int pkt_len;
+};
+
+struct {
+	__uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
+	__uint(key_size, sizeof(int));
+	__uint(value_size, sizeof(int));
+} perf_buf_map SEC(".maps");
+
 __u64 test_result_fentry = 0;
-SEC("fentry/_xdp_tx_iptunnel")
+SEC("fentry/FUNC")
 int BPF_PROG(trace_on_entry, struct xdp_buff *xdp)
 {
+	struct meta meta;
+	void *data_end = (void *)(long)xdp->data_end;
+	void *data = (void *)(long)xdp->data;
+
+	meta.ifindex = xdp->rxq->dev->ifindex;
+	meta.pkt_len = data_end - data;
+	bpf_xdp_output(xdp, &perf_buf_map,
+		       ((__u64) meta.pkt_len << 32) |
+		       BPF_F_CURRENT_CPU,
+		       &meta, sizeof(meta));
+
 	test_result_fentry = xdp->rxq->dev->ifindex;
 	return 0;
 }
 
 __u64 test_result_fexit = 0;
-SEC("fexit/_xdp_tx_iptunnel")
+SEC("fexit/FUNC")
 int BPF_PROG(trace_on_exit, struct xdp_buff *xdp, int ret)
 {
 	test_result_fexit = ret;

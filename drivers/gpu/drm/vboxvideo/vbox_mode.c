@@ -18,7 +18,6 @@
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_probe_helper.h>
-#include <drm/drm_vblank.h>
 
 #include "hgsmi_channels.h"
 #include "vbox_drv.h"
@@ -226,17 +225,6 @@ static void vbox_crtc_atomic_disable(struct drm_crtc *crtc,
 static void vbox_crtc_atomic_flush(struct drm_crtc *crtc,
 				   struct drm_crtc_state *old_crtc_state)
 {
-	struct drm_pending_vblank_event *event;
-	unsigned long flags;
-
-	if (crtc->state && crtc->state->event) {
-		event = crtc->state->event;
-		crtc->state->event = NULL;
-
-		spin_lock_irqsave(&crtc->dev->event_lock, flags);
-		drm_crtc_send_vblank_event(crtc, event);
-		spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
-	}
 }
 
 static const struct drm_crtc_helper_funcs vbox_crtc_helper_funcs = {
@@ -838,6 +826,7 @@ static int vbox_connector_init(struct drm_device *dev,
 
 static const struct drm_mode_config_funcs vbox_mode_funcs = {
 	.fb_create = drm_gem_fb_create_with_dirty,
+	.mode_valid = drm_vram_helper_mode_valid,
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };

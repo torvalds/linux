@@ -694,7 +694,7 @@ out:
  * ice_flow_set_fld_ext - specifies locations of field from entry's input buffer
  * @seg: packet segment the field being set belongs to
  * @fld: field to be set
- * @type: type of the field
+ * @field_type: type of the field
  * @val_loc: if not ICE_FLOW_FLD_OFF_INVAL, location of the value to match from
  *           entry's input buffer
  * @mask_loc: if not ICE_FLOW_FLD_OFF_INVAL, location of mask value from entry's
@@ -715,16 +715,16 @@ out:
  */
 static void
 ice_flow_set_fld_ext(struct ice_flow_seg_info *seg, enum ice_flow_field fld,
-		     enum ice_flow_fld_match_type type, u16 val_loc,
+		     enum ice_flow_fld_match_type field_type, u16 val_loc,
 		     u16 mask_loc, u16 last_loc)
 {
 	u64 bit = BIT_ULL(fld);
 
 	seg->match |= bit;
-	if (type == ICE_FLOW_FLD_TYPE_RANGE)
+	if (field_type == ICE_FLOW_FLD_TYPE_RANGE)
 		seg->range |= bit;
 
-	seg->fields[fld].type = type;
+	seg->fields[fld].type = field_type;
 	seg->fields[fld].src.val = val_loc;
 	seg->fields[fld].src.mask = mask_loc;
 	seg->fields[fld].src.last = last_loc;

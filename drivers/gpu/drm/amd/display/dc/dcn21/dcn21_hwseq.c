@@ -112,3 +112,25 @@ void dcn21_optimize_pwr_state(
 			true);
 }
 
+/* If user hotplug a HDMI monitor while in monitor off,
+ * OS will do a mode set (with output timing) but keep output off.
+ * In this case DAL will ask vbios to power up the pll in the PHY.
+ * If user unplug the monitor (while we are on monitor off) or
+ * system attempt to enter modern standby (which we will disable PLL),
+ * PHY will hang on the next mode set attempt.
+ * if enable PLL follow by disable PLL (without executing lane enable/disable),
+ * RDPCS_PHY_DP_MPLLB_STATE remains 1,
+ * which indicate that PLL disable attempt actually didn’t go through.
+ * As a workaround, insert PHY lane enable/disable before PLL disable.
+ */
+void dcn21_PLAT_58856_wa(struct dc_state *context, struct pipe_ctx *pipe_ctx)
+{
+	if (!pipe_ctx->stream->dpms_off)
+		return;
+
+	pipe_ctx->stream->dpms_off = false;
+	core_link_enable_stream(context, pipe_ctx);
+	core_link_disable_stream(pipe_ctx);
+	pipe_ctx->stream->dpms_off = true;
+}
+

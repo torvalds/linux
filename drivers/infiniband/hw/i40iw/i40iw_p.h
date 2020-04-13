@@ -105,6 +105,7 @@ enum i40iw_status_code i40iw_sc_static_hmc_pages_allocated(struct i40iw_sc_cqp *
 							   bool poll_registers);
 
 enum i40iw_status_code i40iw_config_fpm_values(struct i40iw_sc_dev *dev, u32 qp_count);
+enum i40iw_status_code i40iw_get_rdma_features(struct i40iw_sc_dev *dev);
 
 void free_sd_mem(struct i40iw_sc_dev *dev);
 

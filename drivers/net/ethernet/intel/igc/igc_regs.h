@@ -17,6 +17,11 @@
 /* Internal Packet Buffer Size Registers */
 #define IGC_RXPBS		0x02404  /* Rx Packet Buffer Size - RW */
 #define IGC_TXPBS		0x03404  /* Tx Packet Buffer Size - RW */
+#define IGC_TDFH		0x03410  /* Tx Data FIFO Head - RW */
+#define IGC_TDFT		0x03418  /* Tx Data FIFO Tail - RW */
+#define IGC_TDFHS		0x03420  /* Tx Data FIFO Head Saved - RW */
+#define IGC_TDFTS		0x03428  /* Tx Data FIFO Tail Saved - RW */
+#define IGC_TDFPC		0x03430  /* Tx Data FIFO Packet Count - RW */
 
 /* NVM  Register Descriptions */
 #define IGC_EERD		0x12014  /* EEprom mode read - RW */

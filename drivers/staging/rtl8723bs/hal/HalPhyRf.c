@@ -92,7 +92,7 @@ void ODM_TXPowerTrackingCallback_ThermalMeter(struct adapter *Adapter)
 	u8 *deltaSwingTableIdx_TUP_B;
 	u8 *deltaSwingTableIdx_TDOWN_B;
 
-	/* 4 2. Initilization (7 steps in total) */
+	/* 4 2. Initialization (7 steps in total) */
 
 	ConfigureTxpowerTrack(pDM_Odm, &c);
 
@@ -213,7 +213,7 @@ void ODM_TXPowerTrackingCallback_ThermalMeter(struct adapter *Adapter)
 
 	/* 3 7. If necessary, move the index of swing table to adjust Tx power. */
 	if (delta > 0 && pDM_Odm->RFCalibrateInfo.TxPowerTrackControl) {
-		/* delta" here is used to record the absolute value of differrence. */
+		/* delta" here is used to record the absolute value of difference. */
 		delta =
 			ThermalValue > pHalData->EEPROMThermalMeter ?
 			(ThermalValue - pHalData->EEPROMThermalMeter) :

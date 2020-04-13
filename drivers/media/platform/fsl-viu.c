@@ -1486,7 +1486,7 @@ static int viu_of_probe(struct platform_device *op)
 
 	mutex_lock(&viu_dev->lock);
 
-	ret = video_register_device(viu_dev->vdev, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(viu_dev->vdev, VFL_TYPE_VIDEO, -1);
 	if (ret < 0) {
 		video_device_release(viu_dev->vdev);
 		goto err_unlock;

@@ -15,11 +15,20 @@
  * Hardware interface for generic Intel audio DSP HDA IP
  */
 
+#include <linux/module.h>
 #include <sound/hdaudio_ext.h>
 #include <sound/hda_register.h>
+#include "../sof-audio.h"
 #include "../ops.h"
 #include "hda.h"
 #include "hda-ipc.h"
+
+static bool hda_enable_trace_D0I3_S0;
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG)
+module_param_named(enable_trace_D0I3_S0, hda_enable_trace_D0I3_S0, bool, 0444);
+MODULE_PARM_DESC(enable_trace_D0I3_S0,
+		 "SOF HDA enable trace when the DSP is in D0I3 in S0");
+#endif
 
 /*
  * DSP Core control.
@@ -334,17 +343,15 @@ static int hda_dsp_send_pm_gate_ipc(struct snd_sof_dev *sdev, u32 flags)
 	pm_gate.flags = flags;
 
 	/* send pm_gate ipc to dsp */
-	return sof_ipc_tx_message(sdev->ipc, pm_gate.hdr.cmd, &pm_gate,
-				  sizeof(pm_gate), &reply, sizeof(reply));
+	return sof_ipc_tx_message_no_pm(sdev->ipc, pm_gate.hdr.cmd,
+					&pm_gate, sizeof(pm_gate), &reply,
+					sizeof(reply));
 }
 
-int hda_dsp_set_power_state(struct snd_sof_dev *sdev,
-			    enum sof_d0_substate d0_substate)
+static int hda_dsp_update_d0i3c_register(struct snd_sof_dev *sdev, u8 value)
 {
 	struct hdac_bus *bus = sof_to_bus(sdev);
-	u32 flags;
 	int ret;
-	u8 value;
 
 	/* Write to D0I3C after Command-In-Progress bit is cleared */
 	ret = hda_dsp_wait_d0i3c_done(sdev);
@@ -354,7 +361,6 @@ int hda_dsp_set_power_state(struct snd_sof_dev *sdev,
 	}
 
 	/* Update D0I3C register */
-	value = d0_substate == SOF_DSP_D0I3 ? SOF_HDA_VS_D0I3C_I3 : 0;
 	snd_hdac_chip_updateb(bus, VS_D0I3C, SOF_HDA_VS_D0I3C_I3, value);
 
 	/* Wait for cmd in progress to be cleared before exiting the function */
@@ -367,19 +373,217 @@ int hda_dsp_set_power_state(struct snd_sof_dev *sdev,
 	dev_vdbg(bus->dev, "D0I3C updated, register = 0x%x\n",
 		 snd_hdac_chip_readb(bus, VS_D0I3C));
 
-	if (d0_substate == SOF_DSP_D0I0)
-		flags = HDA_PM_PPG;/* prevent power gating in D0 */
-	else
-		flags = HDA_PM_NO_DMA_TRACE;/* disable DMA trace in D0I3*/
+	return 0;
+}
 
-	/* sending pm_gate IPC */
-	ret = hda_dsp_send_pm_gate_ipc(sdev, flags);
+static int hda_dsp_set_D0_state(struct snd_sof_dev *sdev,
+				const struct sof_dsp_power_state *target_state)
+{
+	u32 flags = 0;
+	int ret;
+	u8 value = 0;
+
+	/*
+	 * Sanity check for illegal state transitions
+	 * The only allowed transitions are:
+	 * 1. D3 -> D0I0
+	 * 2. D0I0 -> D0I3
+	 * 3. D0I3 -> D0I0
+	 */
+	switch (sdev->dsp_power_state.state) {
+	case SOF_DSP_PM_D0:
+		/* Follow the sequence below for D0 substate transitions */
+		break;
+	case SOF_DSP_PM_D3:
+		/* Follow regular flow for D3 -> D0 transition */
+		return 0;
+	default:
+		dev_err(sdev->dev, "error: transition from %d to %d not allowed\n",
+			sdev->dsp_power_state.state, target_state->state);
+		return -EINVAL;
+	}
+
+	/* Set flags and register value for D0 target substate */
+	if (target_state->substate == SOF_HDA_DSP_PM_D0I3) {
+		value = SOF_HDA_VS_D0I3C_I3;
+
+		/*
+		 * Trace DMA is disabled by default when the DSP enters D0I3.
+		 * But it can be kept enabled when the DSP enters D0I3 while the
+		 * system is in S0 for debug.
+		 */
+		if (hda_enable_trace_D0I3_S0 &&
+		    sdev->system_suspend_target != SOF_SUSPEND_NONE)
+			flags = HDA_PM_NO_DMA_TRACE;
+	} else {
+		/* prevent power gating in D0I0 */
+		flags = HDA_PM_PPG;
+	}
+
+	/* update D0I3C register */
+	ret = hda_dsp_update_d0i3c_register(sdev, value);
 	if (ret < 0)
+		return ret;
+
+	/*
+	 * Notify the DSP of the state change.
+	 * If this IPC fails, revert the D0I3C register update in order
+	 * to prevent partial state change.
+	 */
+	ret = hda_dsp_send_pm_gate_ipc(sdev, flags);
+	if (ret < 0) {
 		dev_err(sdev->dev,
 			"error: PM_GATE ipc error %d\n", ret);
+		goto revert;
+	}
+
+	return ret;
+
+revert:
+	/* fallback to the previous register value */
+	value = value ? 0 : SOF_HDA_VS_D0I3C_I3;
+
+	/*
+	 * This can fail but return the IPC error to signal that
+	 * the state change failed.
+	 */
+	hda_dsp_update_d0i3c_register(sdev, value);
 
 	return ret;
 }
+
+/* helper to log DSP state */
+static void hda_dsp_state_log(struct snd_sof_dev *sdev)
+{
+	switch (sdev->dsp_power_state.state) {
+	case SOF_DSP_PM_D0:
+		switch (sdev->dsp_power_state.substate) {
+		case SOF_HDA_DSP_PM_D0I0:
+			dev_dbg(sdev->dev, "Current DSP power state: D0I0\n");
+			break;
+		case SOF_HDA_DSP_PM_D0I3:
+			dev_dbg(sdev->dev, "Current DSP power state: D0I3\n");
+			break;
+		default:
+			dev_dbg(sdev->dev, "Unknown DSP D0 substate: %d\n",
+				sdev->dsp_power_state.substate);
+			break;
+		}
+		break;
+	case SOF_DSP_PM_D1:
+		dev_dbg(sdev->dev, "Current DSP power state: D1\n");
+		break;
+	case SOF_DSP_PM_D2:
+		dev_dbg(sdev->dev, "Current DSP power state: D2\n");
+		break;
+	case SOF_DSP_PM_D3_HOT:
+		dev_dbg(sdev->dev, "Current DSP power state: D3_HOT\n");
+		break;
+	case SOF_DSP_PM_D3:
+		dev_dbg(sdev->dev, "Current DSP power state: D3\n");
+		break;
+	case SOF_DSP_PM_D3_COLD:
+		dev_dbg(sdev->dev, "Current DSP power state: D3_COLD\n");
+		break;
+	default:
+		dev_dbg(sdev->dev, "Unknown DSP power state: %d\n",
+			sdev->dsp_power_state.state);
+		break;
+	}
+}
+
+/*
+ * All DSP power state transitions are initiated by the driver.
+ * If the requested state change fails, the error is simply returned.
+ * Further state transitions are attempted only when the set_power_save() op
+ * is called again either because of a new IPC sent to the DSP or
+ * during system suspend/resume.
+ */
+int hda_dsp_set_power_state(struct snd_sof_dev *sdev,
+			    const struct sof_dsp_power_state *target_state)
+{
+	int ret = 0;
+
+	/*
+	 * When the DSP is already in D0I3 and the target state is D0I3,
+	 * it could be the case that the DSP is in D0I3 during S0
+	 * and the system is suspending to S0Ix. Therefore,
+	 * hda_dsp_set_D0_state() must be called to disable trace DMA
+	 * by sending the PM_GATE IPC to the FW.
+	 */
+	if (target_state->substate == SOF_HDA_DSP_PM_D0I3 &&
+	    sdev->system_suspend_target == SOF_SUSPEND_S0IX)
+		goto set_state;
+
+	/*
+	 * For all other cases, return without doing anything if
+	 * the DSP is already in the target state.
+	 */
+	if (target_state->state == sdev->dsp_power_state.state &&
+	    target_state->substate == sdev->dsp_power_state.substate)
+		return 0;
+
+set_state:
+	switch (target_state->state) {
+	case SOF_DSP_PM_D0:
+		ret = hda_dsp_set_D0_state(sdev, target_state);
+		break;
+	case SOF_DSP_PM_D3:
+		/* The only allowed transition is: D0I0 -> D3 */
+		if (sdev->dsp_power_state.state == SOF_DSP_PM_D0 &&
+		    sdev->dsp_power_state.substate == SOF_HDA_DSP_PM_D0I0)
+			break;
+
+		dev_err(sdev->dev,
+			"error: transition from %d to %d not allowed\n",
+			sdev->dsp_power_state.state, target_state->state);
+		return -EINVAL;
+	default:
+		dev_err(sdev->dev, "error: target state unsupported %d\n",
+			target_state->state);
+		return -EINVAL;
+	}
+	if (ret < 0) {
+		dev_err(sdev->dev,
+			"failed to set requested target DSP state %d substate %d\n",
+			target_state->state, target_state->substate);
+		return ret;
+	}
+
+	sdev->dsp_power_state = *target_state;
+	hda_dsp_state_log(sdev);
+	return ret;
+}
+
+/*
+ * Audio DSP states may transform as below:-
+ *
+ *                                         Opportunistic D0I3 in S0
+ *     Runtime    +---------------------+  Delayed D0i3 work timeout
+ *     suspend    |                     +--------------------+
+ *   +------------+       D0I0(active)  |                    |
+ *   |            |                     <---------------+    |
+ *   |   +-------->                     |    New IPC	|    |
+ *   |   |Runtime +--^--+---------^--+--+ (via mailbox)	|    |
+ *   |   |resume     |  |         |  |			|    |
+ *   |   |           |  |         |  |			|    |
+ *   |   |     System|  |         |  |			|    |
+ *   |   |     resume|  | S3/S0IX |  |                  |    |
+ *   |   |	     |  | suspend |  | S0IX             |    |
+ *   |   |           |  |         |  |suspend           |    |
+ *   |   |           |  |         |  |                  |    |
+ *   |   |           |  |         |  |                  |    |
+ * +-v---+-----------+--v-------+ |  |           +------+----v----+
+ * |                            | |  +----------->                |
+ * |       D3 (suspended)       | |              |      D0I3      |
+ * |                            | +--------------+                |
+ * |                            |  System resume |                |
+ * +----------------------------+		 +----------------+
+ *
+ * S0IX suspend: The DSP is in D0I3 if any D0I3-compatible streams
+ *		 ignored the suspend trigger. Otherwise the DSP
+ *		 is in D3.
+ */
 
 static int hda_suspend(struct snd_sof_dev *sdev, bool runtime_suspend)
 {
@@ -389,6 +593,8 @@ static int hda_suspend(struct snd_sof_dev *sdev, bool runtime_suspend)
 	struct hdac_bus *bus = sof_to_bus(sdev);
 #endif
 	int ret;
+
+	hda_sdw_int_enable(sdev, false);
 
 	/* disable IPC interrupts */
 	hda_dsp_ipc_int_disable(sdev);
@@ -486,9 +692,23 @@ int hda_dsp_resume(struct snd_sof_dev *sdev)
 {
 	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	struct pci_dev *pci = to_pci_dev(sdev->dev);
+	const struct sof_dsp_power_state target_state = {
+		.state = SOF_DSP_PM_D0,
+		.substate = SOF_HDA_DSP_PM_D0I0,
+	};
+	int ret;
 
-	if (sdev->s0_suspend) {
+	/* resume from D0I3 */
+	if (sdev->dsp_power_state.state == SOF_DSP_PM_D0) {
 		hda_codec_i915_display_power(sdev, true);
+
+		/* Set DSP power state */
+		ret = snd_sof_dsp_set_power_state(sdev, &target_state);
+		if (ret < 0) {
+			dev_err(sdev->dev, "error: setting dsp state %d substate %d\n",
+				target_state.state, target_state.substate);
+			return ret;
+		}
 
 		/* restore L1SEN bit */
 		if (hda->l1_support_changed)
@@ -503,13 +723,26 @@ int hda_dsp_resume(struct snd_sof_dev *sdev)
 	}
 
 	/* init hda controller. DSP cores will be powered up during fw boot */
-	return hda_resume(sdev, false);
+	ret = hda_resume(sdev, false);
+	if (ret < 0)
+		return ret;
+
+	return snd_sof_dsp_set_power_state(sdev, &target_state);
 }
 
 int hda_dsp_runtime_resume(struct snd_sof_dev *sdev)
 {
+	const struct sof_dsp_power_state target_state = {
+		.state = SOF_DSP_PM_D0,
+	};
+	int ret;
+
 	/* init hda controller. DSP cores will be powered up during fw boot */
-	return hda_resume(sdev, true);
+	ret = hda_resume(sdev, true);
+	if (ret < 0)
+		return ret;
+
+	return snd_sof_dsp_set_power_state(sdev, &target_state);
 }
 
 int hda_dsp_runtime_idle(struct snd_sof_dev *sdev)
@@ -527,20 +760,46 @@ int hda_dsp_runtime_idle(struct snd_sof_dev *sdev)
 
 int hda_dsp_runtime_suspend(struct snd_sof_dev *sdev)
 {
+	const struct sof_dsp_power_state target_state = {
+		.state = SOF_DSP_PM_D3,
+	};
+	int ret;
+
 	/* stop hda controller and power dsp off */
-	return hda_suspend(sdev, true);
+	ret = hda_suspend(sdev, true);
+	if (ret < 0)
+		return ret;
+
+	return snd_sof_dsp_set_power_state(sdev, &target_state);
 }
 
-int hda_dsp_suspend(struct snd_sof_dev *sdev)
+int hda_dsp_suspend(struct snd_sof_dev *sdev, u32 target_state)
 {
 	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	struct hdac_bus *bus = sof_to_bus(sdev);
 	struct pci_dev *pci = to_pci_dev(sdev->dev);
+	const struct sof_dsp_power_state target_dsp_state = {
+		.state = target_state,
+		.substate = target_state == SOF_DSP_PM_D0 ?
+				SOF_HDA_DSP_PM_D0I3 : 0,
+	};
 	int ret;
 
-	if (sdev->s0_suspend) {
+	/* cancel any attempt for DSP D0I3 */
+	cancel_delayed_work_sync(&hda->d0i3_work);
+
+	if (target_state == SOF_DSP_PM_D0) {
 		/* we can't keep a wakeref to display driver at suspend */
 		hda_codec_i915_display_power(sdev, false);
+
+		/* Set DSP power state */
+		ret = snd_sof_dsp_set_power_state(sdev, &target_dsp_state);
+		if (ret < 0) {
+			dev_err(sdev->dev, "error: setting dsp state %d substate %d\n",
+				target_dsp_state.state,
+				target_dsp_state.substate);
+			return ret;
+		}
 
 		/* enable L1SEN to make sure the system can enter S0Ix */
 		hda->l1_support_changed =
@@ -562,7 +821,7 @@ int hda_dsp_suspend(struct snd_sof_dev *sdev)
 		return ret;
 	}
 
-	return 0;
+	return snd_sof_dsp_set_power_state(sdev, &target_dsp_state);
 }
 
 int hda_dsp_set_hw_params_upon_resume(struct snd_sof_dev *sdev)
@@ -588,7 +847,7 @@ int hda_dsp_set_hw_params_upon_resume(struct snd_sof_dev *sdev)
 		 */
 		if (stream->link_substream) {
 			rtd = snd_pcm_substream_chip(stream->link_substream);
-			name = rtd->codec_dai->component->name;
+			name = asoc_rtd_to_codec(rtd, 0)->component->name;
 			link = snd_hdac_ext_bus_get_link(bus, name);
 			if (!link)
 				return -EINVAL;
@@ -605,4 +864,34 @@ int hda_dsp_set_hw_params_upon_resume(struct snd_sof_dev *sdev)
 	}
 #endif
 	return 0;
+}
+
+void hda_dsp_d0i3_work(struct work_struct *work)
+{
+	struct sof_intel_hda_dev *hdev = container_of(work,
+						      struct sof_intel_hda_dev,
+						      d0i3_work.work);
+	struct hdac_bus *bus = &hdev->hbus.core;
+	struct snd_sof_dev *sdev = dev_get_drvdata(bus->dev);
+	struct sof_dsp_power_state target_state;
+	int ret;
+
+	target_state.state = SOF_DSP_PM_D0;
+
+	/* DSP can enter D0I3 iff only D0I3-compatible streams are active */
+	if (snd_sof_dsp_only_d0i3_compatible_stream_active(sdev))
+		target_state.substate = SOF_HDA_DSP_PM_D0I3;
+	else
+		target_state.substate = SOF_HDA_DSP_PM_D0I0;
+
+	/* remain in D0I0 */
+	if (target_state.substate == SOF_HDA_DSP_PM_D0I0)
+		return;
+
+	/* This can fail but error cannot be propagated */
+	ret = snd_sof_dsp_set_power_state(sdev, &target_state);
+	if (ret < 0)
+		dev_err_ratelimited(sdev->dev,
+				    "error: failed to set DSP state %d substate %d\n",
+				    target_state.state, target_state.substate);
 }

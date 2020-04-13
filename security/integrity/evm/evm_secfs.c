@@ -10,8 +10,6 @@
  *	- Get the key and enable EVM
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/audit.h>
 #include <linux/uaccess.h>
 #include <linux/init.h>

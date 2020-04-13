@@ -44,6 +44,11 @@ struct drm_client_funcs {
 	 * returns zero gets the privilege to restore and no more clients are
 	 * called. This callback is not called after @unregister has been called.
 	 *
+	 * Note that the core does not guarantee exclusion against concurrent
+	 * drm_open(). Clients need to ensure this themselves, for example by
+	 * using drm_master_internal_acquire() and
+	 * drm_master_internal_release().
+	 *
 	 * This callback is optional.
 	 */
 	int (*restore)(struct drm_client_dev *client);
@@ -156,7 +161,7 @@ int drm_client_modeset_create(struct drm_client_dev *client);
 void drm_client_modeset_free(struct drm_client_dev *client);
 int drm_client_modeset_probe(struct drm_client_dev *client, unsigned int width, unsigned int height);
 bool drm_client_rotation(struct drm_mode_set *modeset, unsigned int *rotation);
-int drm_client_modeset_commit_force(struct drm_client_dev *client);
+int drm_client_modeset_commit_locked(struct drm_client_dev *client);
 int drm_client_modeset_commit(struct drm_client_dev *client);
 int drm_client_modeset_dpms(struct drm_client_dev *client, int mode);
 

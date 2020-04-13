@@ -645,3 +645,8 @@
 &usb2 {
 	status = "okay";
 };
+
+&watchdog {
+	status = "okay";
+};
+

@@ -100,23 +100,23 @@ instructions.
 .. flat-table:: struct v4l2_dbg_match
     :header-rows:  0
     :stub-columns: 0
-    :widths:       1 1 1 2
+    :widths:       1 1 2
 
     * - __u32
       - ``type``
       - See :ref:`chip-match-types` for a list of possible types.
-    * - union
+    * - union {
       - (anonymous)
-    * -
-      - __u32
+    * - __u32
       - ``addr``
       - Match a chip by this number, interpreted according to the ``type``
 	field.
-    * -
-      - char
+    * - char
       - ``name[32]``
       - Match a chip by this name, interpreted according to the ``type``
 	field. Currently unused.
+    * - }
+      -
 
 
 

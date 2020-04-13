@@ -10,6 +10,8 @@
 #include <asm/mmu_context.h>
 #include <linux/build_bug.h>
 
+extern unsigned long efi_fw_vendor, efi_config_table;
+
 /*
  * We map the EFI regions needed for runtime services non-contiguously,
  * with preserved alignment on virtual addresses starting from -4G down
@@ -33,8 +35,6 @@ static inline bool efi_have_uv1_memmap(void)
 
 #define EFI32_LOADER_SIGNATURE	"EL32"
 #define EFI64_LOADER_SIGNATURE	"EL64"
-
-#define MAX_CMDLINE_ADDRESS	UINT_MAX
 
 #define ARCH_EFI_IRQ_FLAGS_MASK	X86_EFLAGS_IF
 
@@ -180,7 +180,6 @@ extern void __init efi_uv1_memmap_phys_epilog(pgd_t *save_pgd);
 
 struct efi_setup_data {
 	u64 fw_vendor;
-	u64 runtime;
 	u64 tables;
 	u64 smbios;
 	u64 reserved[8];
@@ -219,7 +218,8 @@ extern void efi_thunk_runtime_setup(void);
 efi_status_t efi_set_virtual_address_map(unsigned long memory_map_size,
 					 unsigned long descriptor_size,
 					 u32 descriptor_version,
-					 efi_memory_desc_t *virtual_map);
+					 efi_memory_desc_t *virtual_map,
+					 unsigned long systab_phys);
 
 /* arch specific definitions used by the stub code */
 
@@ -270,6 +270,11 @@ static inline void *efi64_zero_upper(void *p)
 	return p;
 }
 
+static inline u32 efi64_convert_status(efi_status_t status)
+{
+	return (u32)(status | (u64)status >> 32);
+}
+
 #define __efi64_argmap_free_pages(addr, size)				\
 	((addr), 0, (size))
 
@@ -285,10 +290,20 @@ static inline void *efi64_zero_upper(void *p)
 #define __efi64_argmap_locate_protocol(protocol, reg, interface)	\
 	((protocol), (reg), efi64_zero_upper(interface))
 
+#define __efi64_argmap_locate_device_path(protocol, path, handle)	\
+	((protocol), (path), efi64_zero_upper(handle))
+
+#define __efi64_argmap_exit(handle, status, size, data)			\
+	((handle), efi64_convert_status(status), (size), (data))
+
 /* PCI I/O */
 #define __efi64_argmap_get_location(protocol, seg, bus, dev, func)	\
 	((protocol), efi64_zero_upper(seg), efi64_zero_upper(bus),	\
 	 efi64_zero_upper(dev), efi64_zero_upper(func))
+
+/* LoadFile */
+#define __efi64_argmap_load_file(protocol, path, policy, bufsize, buf)	\
+	((protocol), (path), (policy), efi64_zero_upper(bufsize), (buf))
 
 /*
  * The macros below handle the plumbing for the argument mapping. To add a

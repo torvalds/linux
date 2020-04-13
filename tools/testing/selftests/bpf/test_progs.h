@@ -71,6 +71,7 @@ struct test_env {
 	FILE *stderr;
 	char *log_buf;
 	size_t log_cnt;
+	int nr_cpus;
 
 	int succ_cnt; /* successful tests */
 	int sub_succ_cnt; /* successful sub-tests */
@@ -109,10 +110,10 @@ extern struct ipv6_packet pkt_v6;
 	int __save_errno = errno;					\
 	if (__ret) {							\
 		test__fail();						\
-		printf("%s:FAIL:%s ", __func__, tag);			\
-		printf(format);						\
+		fprintf(stdout, "%s:FAIL:%s ", __func__, tag);		\
+		fprintf(stdout, ##format);				\
 	} else {							\
-		printf("%s:PASS:%s %d nsec\n",				\
+		fprintf(stdout, "%s:PASS:%s %d nsec\n",			\
 		       __func__, tag, duration);			\
 	}								\
 	errno = __save_errno;						\
@@ -124,7 +125,7 @@ extern struct ipv6_packet pkt_v6;
 	int __save_errno = errno;					\
 	if (__ret) {							\
 		test__fail();						\
-		printf("%s:FAIL:%d\n", __func__, __LINE__);		\
+		fprintf(stdout, "%s:FAIL:%d\n", __func__, __LINE__);	\
 	}								\
 	errno = __save_errno;						\
 	__ret;								\

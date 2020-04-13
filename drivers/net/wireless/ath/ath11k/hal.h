@@ -96,6 +96,8 @@ struct ath11k_base;
 
 /* REO2SW(x) R0 ring configuration address */
 #define HAL_REO1_GEN_ENABLE			0x00000000
+#define HAL_REO1_DEST_RING_CTRL_IX_0		0x00000004
+#define HAL_REO1_DEST_RING_CTRL_IX_1		0x00000008
 #define HAL_REO1_DEST_RING_CTRL_IX_2		0x0000000c
 #define HAL_REO1_DEST_RING_CTRL_IX_3		0x00000010
 #define HAL_REO1_RING_BASE_LSB			0x0000029c
@@ -529,6 +531,8 @@ struct hal_srng {
 	 */
 	u32 hwreg_base[HAL_SRNG_NUM_REG_GRP];
 
+	u64 timestamp;
+
 	/* Source or Destination ring */
 	enum hal_srng_dir ring_dir;
 
@@ -554,6 +558,9 @@ struct hal_srng {
 
 			/* max transfer size */
 			u16 max_buffer_length;
+
+			/* head pointer at access end */
+			u32 last_hp;
 		} dst_ring;
 
 		struct {
@@ -577,6 +584,9 @@ struct hal_srng {
 
 			/* Low threshold - in number of ring entries */
 			u32 low_threshold;
+
+			/* tail pointer at access end */
+			u32 last_tp;
 		} src_ring;
 	} u;
 };
@@ -717,6 +727,14 @@ enum hal_ce_desc {
 	HAL_CE_DESC_DST_STATUS,
 };
 
+#define HAL_HASH_ROUTING_RING_TCL 0
+#define HAL_HASH_ROUTING_RING_SW1 1
+#define HAL_HASH_ROUTING_RING_SW2 2
+#define HAL_HASH_ROUTING_RING_SW3 3
+#define HAL_HASH_ROUTING_RING_SW4 4
+#define HAL_HASH_ROUTING_RING_REL 5
+#define HAL_HASH_ROUTING_RING_FW  6
+
 struct hal_reo_status_header {
 	u16 cmd_num;
 	enum hal_reo_cmd_status cmd_status;
@@ -847,10 +865,10 @@ struct ath11k_hal {
 
 u32 ath11k_hal_reo_qdesc_size(u32 ba_window_size, u8 tid);
 void ath11k_hal_reo_qdesc_setup(void *vaddr, int tid, u32 ba_window_size,
-				u32 start_seqtype);
+				u32 start_seq, enum hal_pn_type type);
 void ath11k_hal_reo_init_cmd_ring(struct ath11k_base *ab,
 				  struct hal_srng *srng);
-void ath11k_hal_reo_hw_setup(struct ath11k_base *ab);
+void ath11k_hal_reo_hw_setup(struct ath11k_base *ab, u32 ring_hash_map);
 void ath11k_hal_setup_link_idle_list(struct ath11k_base *ab,
 				     struct hal_wbm_idle_scatter_list *sbuf,
 				     u32 nsbufs, u32 tot_link_desc,
@@ -893,5 +911,6 @@ int ath11k_hal_srng_setup(struct ath11k_base *ab, enum hal_ring_type type,
 			  struct hal_srng_params *params);
 int ath11k_hal_srng_init(struct ath11k_base *ath11k);
 void ath11k_hal_srng_deinit(struct ath11k_base *ath11k);
+void ath11k_hal_dump_srng_stats(struct ath11k_base *ab);
 
 #endif

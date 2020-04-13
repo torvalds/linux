@@ -796,6 +796,11 @@ static void rtl8168g_disable_aldps(struct phy_device *phydev)
 	phy_modify_paged(phydev, 0x0a43, 0x10, BIT(2), 0);
 }
 
+static void rtl8168g_enable_gphy_10m(struct phy_device *phydev)
+{
+	phy_modify_paged(phydev, 0x0a44, 0x11, 0, BIT(11));
+}
+
 static void rtl8168g_phy_adjust_10m_aldps(struct phy_device *phydev)
 {
 	phy_modify_paged(phydev, 0x0bcc, 0x14, BIT(8), 0);
@@ -904,8 +909,7 @@ static void rtl8168h_1_hw_phy_config(struct rtl8169_private *tp,
 	r8168g_phy_param(phydev, 0x0811, 0x0000, 0x0800);
 	phy_modify_paged(phydev, 0x0a42, 0x16, 0x0000, 0x0002);
 
-	/* enable GPHY 10M */
-	phy_modify_paged(phydev, 0x0a44, 0x11, 0, BIT(11));
+	rtl8168g_enable_gphy_10m(phydev);
 
 	/* SAR ADC performance */
 	phy_modify_paged(phydev, 0x0bca, 0x17, BIT(12) | BIT(13), BIT(14));
@@ -940,8 +944,7 @@ static void rtl8168h_2_hw_phy_config(struct rtl8169_private *tp,
 	r8168g_phy_param(phydev, 0x0811, 0x0000, 0x0800);
 	phy_modify_paged(phydev, 0x0a42, 0x16, 0x0000, 0x0002);
 
-	/* enable GPHY 10M */
-	phy_modify_paged(phydev, 0x0a44, 0x11, 0, BIT(11));
+	rtl8168g_enable_gphy_10m(phydev);
 
 	ioffset = rtl8168h_2_get_adc_bias_ioffset(tp);
 	if (ioffset != 0xffff)
@@ -1063,8 +1066,7 @@ static void rtl8117_hw_phy_config(struct rtl8169_private *tp,
 
 	r8168g_phy_param(phydev, 0x8011, 0x0000, 0x0800);
 
-	/* enable GPHY 10M */
-	phy_modify_paged(phydev, 0x0a44, 0x11, 0, BIT(11));
+	rtl8168g_enable_gphy_10m(phydev);
 
 	r8168g_phy_param(phydev, 0x8016, 0x0000, 0x0400);
 
@@ -1171,7 +1173,7 @@ static void rtl8125_1_hw_phy_config(struct rtl8169_private *tp,
 	phy_write_paged(phydev, 0xbc3, 0x12, 0x5555);
 	phy_modify_paged(phydev, 0xbf0, 0x15, 0x0e00, 0x0a00);
 	phy_modify_paged(phydev, 0xa5c, 0x10, 0x0400, 0x0000);
-	phy_modify_paged(phydev, 0xa44, 0x11, 0x0000, 0x0800);
+	rtl8168g_enable_gphy_10m(phydev);
 
 	rtl8125_config_eee_phy(phydev);
 }
@@ -1236,7 +1238,7 @@ static void rtl8125_2_hw_phy_config(struct rtl8169_private *tp,
 	phy_modify_paged(phydev, 0xa5d, 0x12, 0x0000, 0x0020);
 	phy_modify_paged(phydev, 0xad4, 0x17, 0x0010, 0x0000);
 	phy_modify_paged(phydev, 0xa86, 0x15, 0x0001, 0x0000);
-	phy_modify_paged(phydev, 0xa44, 0x11, 0x0000, 0x0800);
+	rtl8168g_enable_gphy_10m(phydev);
 
 	rtl8125_config_eee_phy(phydev);
 }

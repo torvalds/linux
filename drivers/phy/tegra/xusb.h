@@ -12,6 +12,7 @@
 #include <linux/workqueue.h>
 
 #include <linux/usb/otg.h>
+#include <linux/usb/role.h>
 
 /* legacy entry points for backwards-compatibility */
 int tegra_xusb_padctl_legacy_probe(struct platform_device *pdev);
@@ -266,8 +267,17 @@ struct tegra_xusb_port {
 	struct list_head list;
 	struct device dev;
 
+	struct usb_role_switch *usb_role_sw;
+	struct work_struct usb_phy_work;
+	struct usb_phy usb_phy;
+
 	const struct tegra_xusb_port_ops *ops;
 };
+
+static inline struct tegra_xusb_port *to_tegra_xusb_port(struct device *dev)
+{
+	return container_of(dev, struct tegra_xusb_port, dev);
+}
 
 struct tegra_xusb_lane_map {
 	unsigned int port;
@@ -303,6 +313,8 @@ to_usb2_port(struct tegra_xusb_port *port)
 struct tegra_xusb_usb2_port *
 tegra_xusb_find_usb2_port(struct tegra_xusb_padctl *padctl,
 			  unsigned int index);
+void tegra_xusb_usb2_port_release(struct tegra_xusb_port *port);
+void tegra_xusb_usb2_port_remove(struct tegra_xusb_port *port);
 
 struct tegra_xusb_ulpi_port {
 	struct tegra_xusb_port base;
@@ -317,6 +329,8 @@ to_ulpi_port(struct tegra_xusb_port *port)
 	return container_of(port, struct tegra_xusb_ulpi_port, base);
 }
 
+void tegra_xusb_ulpi_port_release(struct tegra_xusb_port *port);
+
 struct tegra_xusb_hsic_port {
 	struct tegra_xusb_port base;
 };
@@ -327,12 +341,15 @@ to_hsic_port(struct tegra_xusb_port *port)
 	return container_of(port, struct tegra_xusb_hsic_port, base);
 }
 
+void tegra_xusb_hsic_port_release(struct tegra_xusb_port *port);
+
 struct tegra_xusb_usb3_port {
 	struct tegra_xusb_port base;
 	struct regulator *supply;
 	bool context_saved;
 	unsigned int port;
 	bool internal;
+	bool disable_gen2;
 
 	u32 tap1;
 	u32 amp;
@@ -349,8 +366,12 @@ to_usb3_port(struct tegra_xusb_port *port)
 struct tegra_xusb_usb3_port *
 tegra_xusb_find_usb3_port(struct tegra_xusb_padctl *padctl,
 			  unsigned int index);
+void tegra_xusb_usb3_port_release(struct tegra_xusb_port *port);
+void tegra_xusb_usb3_port_remove(struct tegra_xusb_port *port);
 
 struct tegra_xusb_port_ops {
+	void (*release)(struct tegra_xusb_port *port);
+	void (*remove)(struct tegra_xusb_port *port);
 	int (*enable)(struct tegra_xusb_port *port);
 	void (*disable)(struct tegra_xusb_port *port);
 	struct tegra_xusb_lane *(*map)(struct tegra_xusb_port *port);
@@ -392,6 +413,7 @@ struct tegra_xusb_padctl_soc {
 
 	const char * const *supply_names;
 	unsigned int num_supplies;
+	bool supports_gen2;
 	bool need_fake_usb3_port;
 };
 
@@ -447,6 +469,9 @@ extern const struct tegra_xusb_padctl_soc tegra210_xusb_padctl_soc;
 #endif
 #if defined(CONFIG_ARCH_TEGRA_186_SOC)
 extern const struct tegra_xusb_padctl_soc tegra186_xusb_padctl_soc;
+#endif
+#if defined(CONFIG_ARCH_TEGRA_194_SOC)
+extern const struct tegra_xusb_padctl_soc tegra194_xusb_padctl_soc;
 #endif
 
 #endif /* __PHY_TEGRA_XUSB_H */

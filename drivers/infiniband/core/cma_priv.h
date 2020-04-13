@@ -66,7 +66,7 @@ struct rdma_id_private {
 	struct mutex		qp_mutex;
 
 	struct completion	comp;
-	atomic_t		refcount;
+	refcount_t refcount;
 	struct mutex		handler_mutex;
 
 	int			backlog;
@@ -111,8 +111,8 @@ static inline void cma_configfs_exit(void)
 }
 #endif
 
-void cma_ref_dev(struct cma_device *dev);
-void cma_deref_dev(struct cma_device *dev);
+void cma_dev_get(struct cma_device *dev);
+void cma_dev_put(struct cma_device *dev);
 typedef bool (*cma_device_filter)(struct ib_device *, void *);
 struct cma_device *cma_enum_devices_by_ibdev(cma_device_filter filter,
 					     void *cookie);

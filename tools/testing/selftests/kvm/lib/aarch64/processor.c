@@ -130,7 +130,7 @@ void _virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
 		ptep = addr_gpa2hva(vm, pte_addr(vm, *ptep)) + pte_index(vm, vaddr) * 8;
 		break;
 	default:
-		TEST_ASSERT(false, "Page table levels must be 2, 3, or 4");
+		TEST_FAIL("Page table levels must be 2, 3, or 4");
 	}
 
 	*ptep = paddr | 3;
@@ -173,20 +173,19 @@ vm_paddr_t addr_gva2gpa(struct kvm_vm *vm, vm_vaddr_t gva)
 			goto unmapped_gva;
 		break;
 	default:
-		TEST_ASSERT(false, "Page table levels must be 2, 3, or 4");
+		TEST_FAIL("Page table levels must be 2, 3, or 4");
 	}
 
 	return pte_addr(vm, *ptep) + (gva & (vm->page_size - 1));
 
 unmapped_gva:
-	TEST_ASSERT(false, "No mapping for vm virtual address, "
-		    "gva: 0x%lx", gva);
+	TEST_FAIL("No mapping for vm virtual address, gva: 0x%lx", gva);
 	exit(1);
 }
 
 static void pte_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent, uint64_t page, int level)
 {
-#ifdef DEBUG_VM
+#ifdef DEBUG
 	static const char * const type[] = { "", "pud", "pmd", "pte" };
 	uint64_t pte, *ptep;
 
@@ -197,7 +196,7 @@ static void pte_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent, uint64_t p
 		ptep = addr_gpa2hva(vm, pte);
 		if (!*ptep)
 			continue;
-		printf("%*s%s: %lx: %lx at %p\n", indent, "", type[level], pte, *ptep, ptep);
+		fprintf(stream, "%*s%s: %lx: %lx at %p\n", indent, "", type[level], pte, *ptep, ptep);
 		pte_dump(stream, vm, indent + 1, pte_addr(vm, *ptep), level + 1);
 	}
 #endif
@@ -215,7 +214,7 @@ void virt_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent)
 		ptep = addr_gpa2hva(vm, pgd);
 		if (!*ptep)
 			continue;
-		printf("%*spgd: %lx: %lx at %p\n", indent, "", pgd, *ptep, ptep);
+		fprintf(stream, "%*spgd: %lx: %lx at %p\n", indent, "", pgd, *ptep, ptep);
 		pte_dump(stream, vm, indent + 1, pte_addr(vm, *ptep), level);
 	}
 }
@@ -262,11 +261,11 @@ void aarch64_vcpu_setup(struct kvm_vm *vm, int vcpuid, struct kvm_vcpu_init *ini
 
 	switch (vm->mode) {
 	case VM_MODE_P52V48_4K:
-		TEST_ASSERT(false, "AArch64 does not support 4K sized pages "
-				   "with 52-bit physical address ranges");
+		TEST_FAIL("AArch64 does not support 4K sized pages "
+			  "with 52-bit physical address ranges");
 	case VM_MODE_PXXV48_4K:
-		TEST_ASSERT(false, "AArch64 does not support 4K sized pages "
-				   "with ANY-bit physical address ranges");
+		TEST_FAIL("AArch64 does not support 4K sized pages "
+			  "with ANY-bit physical address ranges");
 	case VM_MODE_P52V48_64K:
 		tcr_el1 |= 1ul << 14; /* TG0 = 64KB */
 		tcr_el1 |= 6ul << 32; /* IPS = 52 bits */
@@ -288,7 +287,7 @@ void aarch64_vcpu_setup(struct kvm_vm *vm, int vcpuid, struct kvm_vcpu_init *ini
 		tcr_el1 |= 2ul << 32; /* IPS = 40 bits */
 		break;
 	default:
-		TEST_ASSERT(false, "Unknown guest mode, mode: 0x%x", vm->mode);
+		TEST_FAIL("Unknown guest mode, mode: 0x%x", vm->mode);
 	}
 
 	sctlr_el1 |= (1 << 0) | (1 << 2) | (1 << 12) /* M | C | I */;
@@ -332,4 +331,22 @@ void aarch64_vcpu_add_default(struct kvm_vm *vm, uint32_t vcpuid,
 void vm_vcpu_add_default(struct kvm_vm *vm, uint32_t vcpuid, void *guest_code)
 {
 	aarch64_vcpu_add_default(vm, vcpuid, NULL, guest_code);
+}
+
+void vcpu_args_set(struct kvm_vm *vm, uint32_t vcpuid, unsigned int num, ...)
+{
+	va_list ap;
+	int i;
+
+	TEST_ASSERT(num >= 1 && num <= 8, "Unsupported number of args,\n"
+		    "  num: %u\n", num);
+
+	va_start(ap, num);
+
+	for (i = 0; i < num; i++) {
+		set_reg(vm, vcpuid, ARM64_CORE_REG(regs.regs[i]),
+			va_arg(ap, uint64_t));
+	}
+
+	va_end(ap);
 }

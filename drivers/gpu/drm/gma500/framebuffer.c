@@ -513,13 +513,9 @@ int psb_fbdev_init(struct drm_device *dev)
 
 	drm_fb_helper_prepare(dev, fb_helper, &psb_fb_helper_funcs);
 
-	ret = drm_fb_helper_init(dev, fb_helper, INTELFB_CONN_LIMIT);
+	ret = drm_fb_helper_init(dev, fb_helper);
 	if (ret)
 		goto free;
-
-	ret = drm_fb_helper_single_add_all_connectors(fb_helper);
-	if (ret)
-		goto fini;
 
 	/* disable all the possible outputs/crtcs before entering KMS mode */
 	drm_helper_disable_unused_functions(dev);

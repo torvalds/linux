@@ -183,7 +183,7 @@ igt_spinner_create_request(struct igt_spinner *spin,
 
 cancel_rq:
 	if (err) {
-		i915_request_skip(rq, err);
+		i915_request_set_error_once(rq, err);
 		i915_request_add(rq);
 	}
 unpin_hws:

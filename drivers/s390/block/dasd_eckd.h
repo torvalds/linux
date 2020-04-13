@@ -220,7 +220,7 @@ struct LRE_eckd_data {
 	__u8 imbedded_count;
 	__u8 extended_operation;
 	__u16 extended_parameter_length;
-	__u8 extended_parameter[0];
+	__u8 extended_parameter[];
 } __attribute__ ((packed));
 
 /* Prefix data for format 0x00 and 0x01 */

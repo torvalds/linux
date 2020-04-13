@@ -11,7 +11,7 @@
 /*     H2C CMD DEFINITION    ------------------------------------------------ */
 /*  */
 
-enum h2c_cmd_8723B{
+enum h2c_cmd_8723B {
 	/* Common Class: 000 */
 	H2C_8723B_RSVD_PAGE = 0x00,
 	H2C_8723B_MEDIA_STATUS_RPT = 0x01,

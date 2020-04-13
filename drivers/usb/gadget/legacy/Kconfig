@@ -13,32 +13,28 @@
 # With help from a special transceiver and a "Mini-AB" jack, systems with
 # both kinds of controller can also support "USB On-the-Go" (CONFIG_USB_OTG).
 #
+# A Linux "Gadget Driver" talks to the USB Peripheral Controller
+# driver through the abstract "gadget" API.  Some other operating
+# systems call these "client" drivers, of which "class drivers"
+# are a subset (implementing a USB device class specification).
+# A gadget driver implements one or more USB functions using
+# the peripheral hardware.
+#
+# Gadget drivers are hardware-neutral, or "platform independent",
+# except that they sometimes must understand quirks or limitations
+# of the particular controllers they work with.  For example, when
+# a controller doesn't support alternate configurations or provide
+# enough of the right types of endpoints, the gadget driver might
+# not be able work with that controller, or might need to implement
+# a less common variant of a device class protocol.
+#
+# The available choices each represent a single precomposed USB
+# gadget configuration. In the device model, each option contains
+# both the device instantiation as a child for a USB gadget
+# controller, and the relevant drivers for each function declared
+# by the device.
 
-choice
-	tristate "USB Gadget precomposed configurations"
-	default USB_ETH
-	optional
-	help
-	  A Linux "Gadget Driver" talks to the USB Peripheral Controller
-	  driver through the abstract "gadget" API.  Some other operating
-	  systems call these "client" drivers, of which "class drivers"
-	  are a subset (implementing a USB device class specification).
-	  A gadget driver implements one or more USB functions using
-	  the peripheral hardware.
-
-	  Gadget drivers are hardware-neutral, or "platform independent",
-	  except that they sometimes must understand quirks or limitations
-	  of the particular controllers they work with.  For example, when
-	  a controller doesn't support alternate configurations or provide
-	  enough of the right types of endpoints, the gadget driver might
-	  not be able work with that controller, or might need to implement
-	  a less common variant of a device class protocol.
-
-	  The available choices each represent a single precomposed USB
-	  gadget configuration. In the device model, each option contains
-	  both the device instantiation as a child for a USB gadget
-	  controller, and the relevant drivers for each function declared
-	  by the device.
+menu "USB Gadget precomposed configurations"
 
 config USB_ZERO
 	tristate "Gadget Zero (DEVELOPMENT)"
@@ -516,4 +512,15 @@ config USB_G_WEBCAM
 	  Say "y" to link the driver statically, or "m" to build a
 	  dynamically linked module called "g_webcam".
 
-endchoice
+config USB_RAW_GADGET
+	tristate "USB Raw Gadget"
+	help
+	  USB Raw Gadget is a kernel module that provides a userspace interface
+	  for the USB Gadget subsystem. Essentially it allows to emulate USB
+	  devices from userspace. See Documentation/usb/raw-gadget.rst for
+	  details.
+
+	  Say "y" to link the driver statically, or "m" to build a
+	  dynamically linked module called "raw_gadget".
+
+endmenu

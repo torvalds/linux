@@ -106,6 +106,15 @@ static char adapter_stats_strings[][ETH_GSTRING_LEN] = {
 	"db_empty               ",
 	"write_coal_success     ",
 	"write_coal_fail        ",
+#ifdef CONFIG_CHELSIO_TLS_DEVICE
+	"tx_tls_encrypted_packets",
+	"tx_tls_encrypted_bytes  ",
+	"tx_tls_ctx              ",
+	"tx_tls_ooo              ",
+	"tx_tls_skip_no_sync_data",
+	"tx_tls_drop_no_sync_data",
+	"tx_tls_drop_bypass_req  ",
+#endif
 };
 
 static char loopback_stats_strings[][ETH_GSTRING_LEN] = {
@@ -170,15 +179,11 @@ static void get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 	u32 exprom_vers;
 
 	strlcpy(info->driver, cxgb4_driver_name, sizeof(info->driver));
-	strlcpy(info->version, cxgb4_driver_version,
-		sizeof(info->version));
 	strlcpy(info->bus_info, pci_name(adapter->pdev),
 		sizeof(info->bus_info));
 	info->regdump_len = get_regs_len(dev);
 
-	if (!adapter->params.fw_vers)
-		strcpy(info->fw_version, "N/A");
-	else
+	if (adapter->params.fw_vers)
 		snprintf(info->fw_version, sizeof(info->fw_version),
 			 "%u.%u.%u.%u, TP %u.%u.%u.%u",
 			 FW_HDR_FW_VER_MAJOR_G(adapter->params.fw_vers),
@@ -236,6 +241,15 @@ struct adapter_stats {
 	u64 db_empty;
 	u64 wc_success;
 	u64 wc_fail;
+#ifdef CONFIG_CHELSIO_TLS_DEVICE
+	u64 tx_tls_encrypted_packets;
+	u64 tx_tls_encrypted_bytes;
+	u64 tx_tls_ctx;
+	u64 tx_tls_ooo;
+	u64 tx_tls_skip_no_sync_data;
+	u64 tx_tls_drop_no_sync_data;
+	u64 tx_tls_drop_bypass_req;
+#endif
 };
 
 static void collect_sge_port_stats(const struct adapter *adap,
@@ -1580,6 +1594,10 @@ static int cxgb4_set_priv_flags(struct net_device *netdev, u32 flags)
 }
 
 static const struct ethtool_ops cxgb_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
+				     ETHTOOL_COALESCE_RX_MAX_FRAMES |
+				     ETHTOOL_COALESCE_TX_USECS_IRQ |
+				     ETHTOOL_COALESCE_USE_ADAPTIVE_RX,
 	.get_link_ksettings = get_link_ksettings,
 	.set_link_ksettings = set_link_ksettings,
 	.get_fecparam      = get_fecparam,

@@ -579,14 +579,10 @@ static long mce_handle_ue_error(struct pt_regs *regs,
 				struct mce_error_info *mce_err)
 {
 	long handled = 0;
-	const struct exception_table_entry *entry;
 
-	entry = search_kernel_exception_table(regs->nip);
-	if (entry) {
-		mce_err->ignore_event = true;
-		regs->nip = extable_fixup(entry);
+	mce_common_process_ue(regs, mce_err);
+	if (mce_err->ignore_event)
 		return 1;
-	}
 
 	/*
 	 * On specific SCOM read via MMIO we may get a machine check

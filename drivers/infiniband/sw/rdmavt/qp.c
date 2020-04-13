@@ -1220,7 +1220,7 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 
 	default:
 		/* Don't support raw QPs */
-		return ERR_PTR(-EINVAL);
+		return ERR_PTR(-EOPNOTSUPP);
 	}
 
 	init_attr->cap.max_inline_data = 0;

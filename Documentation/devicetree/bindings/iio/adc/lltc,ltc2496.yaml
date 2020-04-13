@@ -32,6 +32,8 @@ required:
   - vref-supply
   - reg
 
+additionalProperties: false
+
 examples:
   - |
     spi {

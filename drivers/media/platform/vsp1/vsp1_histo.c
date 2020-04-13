@@ -551,7 +551,7 @@ int vsp1_histogram_init(struct vsp1_device *vsp1, struct vsp1_histogram *histo,
 	histo->video.fops = &histo_v4l2_fops;
 	snprintf(histo->video.name, sizeof(histo->video.name),
 		 "%s histo", histo->entity.subdev.name);
-	histo->video.vfl_type = VFL_TYPE_GRABBER;
+	histo->video.vfl_type = VFL_TYPE_VIDEO;
 	histo->video.release = video_device_release_empty;
 	histo->video.ioctl_ops = &histo_v4l2_ioctl_ops;
 	histo->video.device_caps = V4L2_CAP_META_CAPTURE | V4L2_CAP_STREAMING;
@@ -576,7 +576,7 @@ int vsp1_histogram_init(struct vsp1_device *vsp1, struct vsp1_histogram *histo,
 
 	/* ... and register the video device. */
 	histo->video.queue = &histo->queue;
-	ret = video_register_device(&histo->video, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(&histo->video, VFL_TYPE_VIDEO, -1);
 	if (ret < 0) {
 		dev_err(vsp1->dev, "failed to register video device\n");
 		goto error;

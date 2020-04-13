@@ -156,6 +156,11 @@ static int byt_serial_setup(struct lpss8250 *lpss, struct uart_port *port)
 	return 0;
 }
 
+static int ehl_serial_setup(struct lpss8250 *lpss, struct uart_port *port)
+{
+	return 0;
+}
+
 #ifdef CONFIG_SERIAL_8250_DMA
 static const struct dw_dma_platform_data qrk_serial_dma_pdata = {
 	.nr_channels = 2,
@@ -356,6 +361,7 @@ static const struct lpss8250_board byt_board = {
 static const struct lpss8250_board ehl_board = {
 	.freq = 200000000,
 	.base_baud = 12500000,
+	.setup = ehl_serial_setup,
 };
 
 static const struct lpss8250_board qrk_board = {

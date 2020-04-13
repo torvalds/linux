@@ -432,6 +432,54 @@ struct dp_sink_hw_fw_revision {
 	uint8_t ieee_fw_rev[2];
 };
 
+struct dpcd_vendor_signature {
+	bool is_valid;
+
+	union dpcd_ieee_vendor_signature {
+		struct {
+			uint8_t ieee_oui[3];/*24-bit IEEE OUI*/
+			uint8_t ieee_device_id[6];/*usually 6-byte ASCII name*/
+			uint8_t ieee_hw_rev;
+			uint8_t ieee_fw_rev[2];
+		};
+		uint8_t raw[12];
+	} data;
+};
+
+struct dpcd_amd_signature {
+	uint8_t AMD_IEEE_TxSignature_byte1;
+	uint8_t AMD_IEEE_TxSignature_byte2;
+	uint8_t AMD_IEEE_TxSignature_byte3;
+	uint8_t device_id_byte1;
+	uint8_t device_id_byte2;
+	uint8_t zero[4];
+	uint8_t dce_version;
+	uint8_t dal_version_byte1;
+	uint8_t dal_version_byte2;
+};
+
+struct dpcd_source_backlight_set {
+	struct  {
+		uint8_t byte0;
+		uint8_t byte1;
+		uint8_t byte2;
+		uint8_t byte3;
+	} backlight_level_millinits;
+
+	struct  {
+		uint8_t byte0;
+		uint8_t byte1;
+	} backlight_transition_time_ms;
+};
+
+union dpcd_source_backlight_get {
+	struct {
+		uint32_t backlight_millinits_peak; /* 326h */
+		uint32_t backlight_millinits_avg; /* 32Ah */
+	} bytes;
+	uint8_t raw[8];
+};
+
 /*DPCD register of DP receiver capability field bits-*/
 union edp_configuration_cap {
 	struct {

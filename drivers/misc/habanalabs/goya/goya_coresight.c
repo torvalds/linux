@@ -364,8 +364,8 @@ static int goya_etr_validate_address(struct hl_device *hdev, u64 addr,
 	u64 range_start, range_end;
 
 	if (hdev->mmu_enable) {
-		range_start = prop->va_space_dram_start_address;
-		range_end = prop->va_space_dram_end_address;
+		range_start = prop->dmmu.start_addr;
+		range_end = prop->dmmu.end_addr;
 	} else {
 		range_start = prop->dram_user_base_address;
 		range_end = prop->dram_end_address;

@@ -45,14 +45,16 @@ Program types
    prog_cgroup_sockopt
    prog_cgroup_sysctl
    prog_flow_dissector
+   bpf_lsm
 
 
-Testing BPF
-===========
+Testing and debugging BPF
+=========================
 
 .. toctree::
    :maxdepth: 1
 
+   drgn
    s390
 
 

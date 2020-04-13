@@ -34,6 +34,7 @@ static const struct hw_sequencer_funcs dcn21_funcs = {
 	.apply_ctx_to_hw = dce110_apply_ctx_to_hw,
 	.apply_ctx_for_surface = NULL,
 	.program_front_end_for_ctx = dcn20_program_front_end_for_ctx,
+	.post_unlock_program_front_end = dcn20_post_unlock_program_front_end,
 	.update_plane_addr = dcn20_update_plane_addr,
 	.update_dchub = dcn10_update_dchub,
 	.update_pending_status = dcn10_update_pending_status,
@@ -51,7 +52,7 @@ static const struct hw_sequencer_funcs dcn21_funcs = {
 	.disable_audio_stream = dce110_disable_audio_stream,
 	.disable_plane = dcn20_disable_plane,
 	.pipe_control_lock = dcn20_pipe_control_lock,
-	.pipe_control_lock_global = dcn20_pipe_control_lock_global,
+	.interdependent_update_lock = dcn10_lock_all_pipes,
 	.prepare_bandwidth = dcn20_prepare_bandwidth,
 	.optimize_bandwidth = dcn20_optimize_bandwidth,
 	.update_bandwidth = dcn20_update_bandwidth,
@@ -104,6 +105,8 @@ static const struct hwseq_private_funcs dcn21_private_funcs = {
 	.reset_hw_ctx_wrap = dcn20_reset_hw_ctx_wrap,
 	.enable_stream_timing = dcn20_enable_stream_timing,
 	.edp_backlight_control = dce110_edp_backlight_control,
+	.is_panel_backlight_on = dce110_is_panel_backlight_on,
+	.is_panel_powered_on = dce110_is_panel_powered_on,
 	.disable_stream_gating = dcn20_disable_stream_gating,
 	.enable_stream_gating = dcn20_enable_stream_gating,
 	.setup_vupdate_interrupt = dcn20_setup_vupdate_interrupt,
@@ -127,6 +130,7 @@ static const struct hwseq_private_funcs dcn21_private_funcs = {
 	.dccg_init = dcn20_dccg_init,
 	.set_blend_lut = dcn20_set_blend_lut,
 	.set_shaper_3dlut = dcn20_set_shaper_3dlut,
+	.PLAT_58856_wa = dcn21_PLAT_58856_wa,
 };
 
 void dcn21_hw_sequencer_construct(struct dc *dc)

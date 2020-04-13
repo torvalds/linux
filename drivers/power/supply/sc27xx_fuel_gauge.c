@@ -614,6 +614,17 @@ static int sc27xx_fgu_get_property(struct power_supply *psy,
 		val->intval = data->total_cap * 1000;
 		break;
 
+	case POWER_SUPPLY_PROP_CHARGE_NOW:
+		ret = sc27xx_fgu_get_clbcnt(data, &value);
+		if (ret)
+			goto error;
+
+		value = DIV_ROUND_CLOSEST(value * 10,
+					  36 * SC27XX_FGU_SAMPLE_HZ);
+		val->intval = sc27xx_fgu_adc_to_current(data, value);
+
+		break;
+
 	default:
 		ret = -EINVAL;
 		break;
@@ -682,6 +693,7 @@ static enum power_supply_property sc27xx_fgu_props[] = {
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE,
 	POWER_SUPPLY_PROP_ENERGY_FULL_DESIGN,
 	POWER_SUPPLY_PROP_CALIBRATE,
+	POWER_SUPPLY_PROP_CHARGE_NOW
 };
 
 static const struct power_supply_desc sc27xx_fgu_desc = {

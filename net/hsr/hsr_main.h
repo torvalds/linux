@@ -166,7 +166,6 @@ struct hsr_priv {
 	unsigned char		sup_multicast_addr[ETH_ALEN];
 #ifdef	CONFIG_DEBUG_FS
 	struct dentry *node_tbl_root;
-	struct dentry *node_tbl_file;
 #endif
 };
 

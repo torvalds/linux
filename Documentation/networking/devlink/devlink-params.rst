@@ -41,6 +41,8 @@ In order for ``driverinit`` parameters to take effect, the driver must
 support reloading via the ``devlink-reload`` command. This command will
 request a reload of the device driver.
 
+.. _devlink_params_generic:
+
 Generic configuration parameters
 ================================
 The following is a list of generic configuration parameters that drivers may

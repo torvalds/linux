@@ -1099,8 +1099,9 @@ rpc_task_set_rpc_message(struct rpc_task *task, const struct rpc_message *msg)
 		task->tk_msg.rpc_proc = msg->rpc_proc;
 		task->tk_msg.rpc_argp = msg->rpc_argp;
 		task->tk_msg.rpc_resp = msg->rpc_resp;
-		if (msg->rpc_cred != NULL)
-			task->tk_msg.rpc_cred = get_cred(msg->rpc_cred);
+		task->tk_msg.rpc_cred = msg->rpc_cred;
+		if (!(task->tk_flags & RPC_TASK_CRED_NOREF))
+			get_cred(task->tk_msg.rpc_cred);
 	}
 }
 
@@ -1125,6 +1126,9 @@ struct rpc_task *rpc_run_task(const struct rpc_task_setup *task_setup_data)
 	struct rpc_task *task;
 
 	task = rpc_new_task(task_setup_data);
+
+	if (!RPC_IS_ASYNC(task))
+		task->tk_flags |= RPC_TASK_CRED_NOREF;
 
 	rpc_task_set_client(task, task_setup_data->rpc_client);
 	rpc_task_set_rpc_message(task, task_setup_data->rpc_message);
@@ -2509,6 +2513,7 @@ call_decode(struct rpc_task *task)
 		goto out;
 
 	req->rq_rcv_buf.len = req->rq_private_buf.len;
+	trace_xprt_recvfrom(&req->rq_rcv_buf);
 
 	/* Check that the softirq receive buffer is valid */
 	WARN_ON(memcmp(&req->rq_rcv_buf, &req->rq_private_buf,

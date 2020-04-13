@@ -27,8 +27,6 @@
 #include "power.h"
 
 
-#define SNAPSHOT_MINOR	231
-
 static struct snapshot_data {
 	struct snapshot_handle handle;
 	int swap;
@@ -198,6 +196,50 @@ unlock:
 	return res;
 }
 
+struct compat_resume_swap_area {
+	compat_loff_t offset;
+	u32 dev;
+} __packed;
+
+static int snapshot_set_swap_area(struct snapshot_data *data,
+		void __user *argp)
+{
+	sector_t offset;
+	dev_t swdev;
+
+	if (swsusp_swap_in_use())
+		return -EPERM;
+
+	if (in_compat_syscall()) {
+		struct compat_resume_swap_area swap_area;
+
+		if (copy_from_user(&swap_area, argp, sizeof(swap_area)))
+			return -EFAULT;
+		swdev = new_decode_dev(swap_area.dev);
+		offset = swap_area.offset;
+	} else {
+		struct resume_swap_area swap_area;
+
+		if (copy_from_user(&swap_area, argp, sizeof(swap_area)))
+			return -EFAULT;
+		swdev = new_decode_dev(swap_area.dev);
+		offset = swap_area.offset;
+	}
+
+	/*
+	 * User space encodes device types as two-byte values,
+	 * so we need to recode them
+	 */
+	if (!swdev) {
+		data->swap = -1;
+		return -EINVAL;
+	}
+	data->swap = swap_type_of(swdev, offset, NULL);
+	if (data->swap < 0)
+		return -ENODEV;
+	return 0;
+}
+
 static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 							unsigned long arg)
 {
@@ -353,34 +395,7 @@ static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 		break;
 
 	case SNAPSHOT_SET_SWAP_AREA:
-		if (swsusp_swap_in_use()) {
-			error = -EPERM;
-		} else {
-			struct resume_swap_area swap_area;
-			dev_t swdev;
-
-			error = copy_from_user(&swap_area, (void __user *)arg,
-					sizeof(struct resume_swap_area));
-			if (error) {
-				error = -EFAULT;
-				break;
-			}
-
-			/*
-			 * User space encodes device types as two-byte values,
-			 * so we need to recode them
-			 */
-			swdev = new_decode_dev(swap_area.dev);
-			if (swdev) {
-				offset = swap_area.offset;
-				data->swap = swap_type_of(swdev, offset, NULL);
-				if (data->swap < 0)
-					error = -ENODEV;
-			} else {
-				data->swap = -1;
-				error = -EINVAL;
-			}
-		}
+		error = snapshot_set_swap_area(data, (void __user *)arg);
 		break;
 
 	default:
@@ -395,12 +410,6 @@ static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 }
 
 #ifdef CONFIG_COMPAT
-
-struct compat_resume_swap_area {
-	compat_loff_t offset;
-	u32 dev;
-} __packed;
-
 static long
 snapshot_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
@@ -409,49 +418,15 @@ snapshot_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	switch (cmd) {
 	case SNAPSHOT_GET_IMAGE_SIZE:
 	case SNAPSHOT_AVAIL_SWAP_SIZE:
-	case SNAPSHOT_ALLOC_SWAP_PAGE: {
-		compat_loff_t __user *uoffset = compat_ptr(arg);
-		loff_t offset;
-		mm_segment_t old_fs;
-		int err;
-
-		old_fs = get_fs();
-		set_fs(KERNEL_DS);
-		err = snapshot_ioctl(file, cmd, (unsigned long) &offset);
-		set_fs(old_fs);
-		if (!err && put_user(offset, uoffset))
-			err = -EFAULT;
-		return err;
-	}
-
+	case SNAPSHOT_ALLOC_SWAP_PAGE:
 	case SNAPSHOT_CREATE_IMAGE:
+	case SNAPSHOT_SET_SWAP_AREA:
 		return snapshot_ioctl(file, cmd,
 				      (unsigned long) compat_ptr(arg));
-
-	case SNAPSHOT_SET_SWAP_AREA: {
-		struct compat_resume_swap_area __user *u_swap_area =
-			compat_ptr(arg);
-		struct resume_swap_area swap_area;
-		mm_segment_t old_fs;
-		int err;
-
-		err = get_user(swap_area.offset, &u_swap_area->offset);
-		err |= get_user(swap_area.dev, &u_swap_area->dev);
-		if (err)
-			return -EFAULT;
-		old_fs = get_fs();
-		set_fs(KERNEL_DS);
-		err = snapshot_ioctl(file, SNAPSHOT_SET_SWAP_AREA,
-				     (unsigned long) &swap_area);
-		set_fs(old_fs);
-		return err;
-	}
-
 	default:
 		return snapshot_ioctl(file, cmd, arg);
 	}
 }
-
 #endif /* CONFIG_COMPAT */
 
 static const struct file_operations snapshot_fops = {

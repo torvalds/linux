@@ -46,7 +46,6 @@ struct hpre_debug {
 
 struct hpre {
 	struct hisi_qm qm;
-	struct list_head list;
 	struct hpre_debug debug;
 	u32 num_vfs;
 	unsigned long status;
@@ -76,7 +75,7 @@ struct hpre_sqe {
 	__le32 rsvd1[_HPRE_SQE_ALIGN_EXT];
 };
 
-struct hpre *hpre_find_device(int node);
+struct hisi_qp *hpre_create_qp(void);
 int hpre_algs_register(void);
 void hpre_algs_unregister(void);
 

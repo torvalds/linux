@@ -320,7 +320,8 @@ nfp_flower_stats_rate_limiter(struct nfp_app *app, struct net_device *netdev,
 	spin_unlock_bh(&fl_priv->qos_stats_lock);
 
 	flow_stats_update(&flow->stats, diff_bytes, diff_pkts,
-			  repr_priv->qos_table.last_update);
+			  repr_priv->qos_table.last_update,
+			  FLOW_ACTION_HW_STATS_DELAYED);
 	return 0;
 }
 

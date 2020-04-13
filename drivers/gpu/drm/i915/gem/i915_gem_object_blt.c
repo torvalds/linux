@@ -186,7 +186,7 @@ int i915_gem_object_fill_blt(struct drm_i915_gem_object *obj,
 					0);
 out_request:
 	if (unlikely(err))
-		i915_request_skip(rq, err);
+		i915_request_set_error_once(rq, err);
 
 	i915_request_add(rq);
 out_batch:
@@ -194,6 +194,17 @@ out_batch:
 out_unpin:
 	i915_vma_unpin(vma);
 	return err;
+}
+
+/* Wa_1209644611:icl,ehl */
+static bool wa_1209644611_applies(struct drm_i915_private *i915, u32 size)
+{
+	u32 height = size >> PAGE_SHIFT;
+
+	if (!IS_GEN(i915, 11))
+		return false;
+
+	return height % 4 == 3 && height <= 8;
 }
 
 struct i915_vma *intel_emit_vma_copy_blt(struct intel_context *ce,
@@ -237,7 +248,8 @@ struct i915_vma *intel_emit_vma_copy_blt(struct intel_context *ce,
 		size = min_t(u64, rem, block_size);
 		GEM_BUG_ON(size >> PAGE_SHIFT > S16_MAX);
 
-		if (INTEL_GEN(i915) >= 9) {
+		if (INTEL_GEN(i915) >= 9 &&
+		    !wa_1209644611_applies(i915, size)) {
 			*cmd++ = GEN9_XY_FAST_COPY_BLT_CMD | (10 - 2);
 			*cmd++ = BLT_DEPTH_32 | PAGE_SIZE;
 			*cmd++ = 0;
@@ -385,7 +397,7 @@ out_unlock:
 	drm_gem_unlock_reservations(objs, ARRAY_SIZE(objs), &acquire);
 out_request:
 	if (unlikely(err))
-		i915_request_skip(rq, err);
+		i915_request_set_error_once(rq, err);
 
 	i915_request_add(rq);
 out_batch:

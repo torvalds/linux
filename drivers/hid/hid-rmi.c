@@ -217,7 +217,6 @@ static int rmi_hid_read_block(struct rmi_transport_dev *xport, u16 addr,
 		ret = rmi_write_report(hdev, data->writeReport,
 						data->output_report_size);
 		if (ret != data->output_report_size) {
-			clear_bit(RMI_READ_REQUEST_PENDING, &data->flags);
 			dev_err(&hdev->dev,
 				"failed to write request output report (%d)\n",
 				ret);

@@ -26,6 +26,8 @@ required:
   - compatible
   - enable-gpios
 
+additionalProperties: false
+
 examples:
   - |
     #include <dt-bindings/gpio/gpio.h>

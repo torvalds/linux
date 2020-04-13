@@ -500,6 +500,15 @@ config SERIAL_8250_PXA
 	  applicable to both devicetree and legacy boards, and early console is
 	  part of its support.
 
+config SERIAL_8250_TEGRA
+	tristate "8250 support for Tegra serial ports"
+	default SERIAL_8250
+	depends on SERIAL_8250
+	depends on ARCH_TEGRA || COMPILE_TEST
+	help
+	  Select this option if you have machine with an NVIDIA Tegra SoC and
+	  wish to enable 8250 serial driver for the Tegra serial interfaces.
+
 config SERIAL_OF_PLATFORM
 	tristate "Devicetree based probing for 8250 ports"
 	depends on SERIAL_8250 && OF

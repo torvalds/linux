@@ -397,10 +397,16 @@ static int ti_sysc_shutdown_module(struct device *dev,
 	return omap_hwmod_shutdown(cookie->data);
 }
 
+static bool ti_sysc_soc_type_gp(void)
+{
+	return omap_type() == OMAP2_DEVICE_TYPE_GP;
+}
+
 static struct of_dev_auxdata omap_auxdata_lookup[];
 
 static struct ti_sysc_platform_data ti_sysc_pdata = {
 	.auxdata = omap_auxdata_lookup,
+	.soc_type_gp = ti_sysc_soc_type_gp,
 	.init_clockdomain = ti_sysc_clkdm_init,
 	.clkdm_deny_idle = ti_sysc_clkdm_deny_idle,
 	.clkdm_allow_idle = ti_sysc_clkdm_allow_idle,

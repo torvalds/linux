@@ -563,17 +563,6 @@ mt7530_mib_reset(struct dsa_switch *ds)
 	mt7530_write(priv, MT7530_MIB_CCR, CCR_MIB_ACTIVATE);
 }
 
-static void
-mt7530_port_set_status(struct mt7530_priv *priv, int port, int enable)
-{
-	u32 mask = PMCR_TX_EN | PMCR_RX_EN;
-
-	if (enable)
-		mt7530_set(priv, MT7530_PMCR_P(port), mask);
-	else
-		mt7530_clear(priv, MT7530_PMCR_P(port), mask);
-}
-
 static int mt7530_phy_read(struct dsa_switch *ds, int port, int regnum)
 {
 	struct mt7530_priv *priv = ds->priv;
@@ -750,7 +739,7 @@ mt7530_port_enable(struct dsa_switch *ds, int port,
 	priv->ports[port].enable = true;
 	mt7530_rmw(priv, MT7530_PCR_P(port), PCR_MATRIX_MASK,
 		   priv->ports[port].pm);
-	mt7530_port_set_status(priv, port, 0);
+	mt7530_clear(priv, MT7530_PMCR_P(port), PMCR_LINK_SETTINGS_MASK);
 
 	mutex_unlock(&priv->reg_mutex);
 
@@ -773,7 +762,7 @@ mt7530_port_disable(struct dsa_switch *ds, int port)
 	priv->ports[port].enable = false;
 	mt7530_rmw(priv, MT7530_PCR_P(port), PCR_MATRIX_MASK,
 		   PCR_MATRIX_CLR);
-	mt7530_port_set_status(priv, port, 0);
+	mt7530_clear(priv, MT7530_PMCR_P(port), PMCR_LINK_SETTINGS_MASK);
 
 	mutex_unlock(&priv->reg_mutex);
 }
@@ -1222,6 +1211,64 @@ mt7530_port_vlan_del(struct dsa_switch *ds, int port,
 	return 0;
 }
 
+static int mt7530_port_mirror_add(struct dsa_switch *ds, int port,
+				  struct dsa_mall_mirror_tc_entry *mirror,
+				  bool ingress)
+{
+	struct mt7530_priv *priv = ds->priv;
+	u32 val;
+
+	/* Check for existent entry */
+	if ((ingress ? priv->mirror_rx : priv->mirror_tx) & BIT(port))
+		return -EEXIST;
+
+	val = mt7530_read(priv, MT7530_MFC);
+
+	/* MT7530 only supports one monitor port */
+	if (val & MIRROR_EN && MIRROR_PORT(val) != mirror->to_local_port)
+		return -EEXIST;
+
+	val |= MIRROR_EN;
+	val &= ~MIRROR_MASK;
+	val |= mirror->to_local_port;
+	mt7530_write(priv, MT7530_MFC, val);
+
+	val = mt7530_read(priv, MT7530_PCR_P(port));
+	if (ingress) {
+		val |= PORT_RX_MIR;
+		priv->mirror_rx |= BIT(port);
+	} else {
+		val |= PORT_TX_MIR;
+		priv->mirror_tx |= BIT(port);
+	}
+	mt7530_write(priv, MT7530_PCR_P(port), val);
+
+	return 0;
+}
+
+static void mt7530_port_mirror_del(struct dsa_switch *ds, int port,
+				   struct dsa_mall_mirror_tc_entry *mirror)
+{
+	struct mt7530_priv *priv = ds->priv;
+	u32 val;
+
+	val = mt7530_read(priv, MT7530_PCR_P(port));
+	if (mirror->ingress) {
+		val &= ~PORT_RX_MIR;
+		priv->mirror_rx &= ~BIT(port);
+	} else {
+		val &= ~PORT_TX_MIR;
+		priv->mirror_tx &= ~BIT(port);
+	}
+	mt7530_write(priv, MT7530_PCR_P(port), val);
+
+	if (!priv->mirror_rx && !priv->mirror_tx) {
+		val = mt7530_read(priv, MT7530_MFC);
+		val &= ~MIRROR_EN;
+		mt7530_write(priv, MT7530_MFC, val);
+	}
+}
+
 static enum dsa_tag_protocol
 mtk_get_tag_protocol(struct dsa_switch *ds, int port,
 		     enum dsa_tag_protocol mp)
@@ -1356,6 +1403,9 @@ mt7530_setup(struct dsa_switch *ds)
 				continue;
 
 			phy_node = of_parse_phandle(mac_np, "phy-handle", 0);
+			if (!phy_node)
+				continue;
+
 			if (phy_node->parent == priv->dev->of_node->parent) {
 				ret = of_get_phy_mode(mac_np, &interface);
 				if (ret && ret != -ENODEV)
@@ -1441,30 +1491,13 @@ static void mt7530_phylink_mac_config(struct dsa_switch *ds, int port,
 
 	mcr_cur = mt7530_read(priv, MT7530_PMCR_P(port));
 	mcr_new = mcr_cur;
-	mcr_new &= ~(PMCR_FORCE_SPEED_1000 | PMCR_FORCE_SPEED_100 |
-		     PMCR_FORCE_FDX | PMCR_TX_FC_EN | PMCR_RX_FC_EN);
+	mcr_new &= ~PMCR_LINK_SETTINGS_MASK;
 	mcr_new |= PMCR_IFG_XMIT(1) | PMCR_MAC_MODE | PMCR_BACKOFF_EN |
-		   PMCR_BACKPR_EN | PMCR_FORCE_MODE | PMCR_FORCE_LNK;
+		   PMCR_BACKPR_EN | PMCR_FORCE_MODE;
 
 	/* Are we connected to external phy */
 	if (port == 5 && dsa_is_user_port(ds, 5))
 		mcr_new |= PMCR_EXT_PHY;
-
-	switch (state->speed) {
-	case SPEED_1000:
-		mcr_new |= PMCR_FORCE_SPEED_1000;
-		break;
-	case SPEED_100:
-		mcr_new |= PMCR_FORCE_SPEED_100;
-		break;
-	}
-	if (state->duplex == DUPLEX_FULL) {
-		mcr_new |= PMCR_FORCE_FDX;
-		if (state->pause & MLO_PAUSE_TX)
-			mcr_new |= PMCR_TX_FC_EN;
-		if (state->pause & MLO_PAUSE_RX)
-			mcr_new |= PMCR_RX_FC_EN;
-	}
 
 	if (mcr_new != mcr_cur)
 		mt7530_write(priv, MT7530_PMCR_P(port), mcr_new);
@@ -1476,17 +1509,38 @@ static void mt7530_phylink_mac_link_down(struct dsa_switch *ds, int port,
 {
 	struct mt7530_priv *priv = ds->priv;
 
-	mt7530_port_set_status(priv, port, 0);
+	mt7530_clear(priv, MT7530_PMCR_P(port), PMCR_LINK_SETTINGS_MASK);
 }
 
 static void mt7530_phylink_mac_link_up(struct dsa_switch *ds, int port,
 				       unsigned int mode,
 				       phy_interface_t interface,
-				       struct phy_device *phydev)
+				       struct phy_device *phydev,
+				       int speed, int duplex,
+				       bool tx_pause, bool rx_pause)
 {
 	struct mt7530_priv *priv = ds->priv;
+	u32 mcr;
 
-	mt7530_port_set_status(priv, port, 1);
+	mcr = PMCR_RX_EN | PMCR_TX_EN | PMCR_FORCE_LNK;
+
+	switch (speed) {
+	case SPEED_1000:
+		mcr |= PMCR_FORCE_SPEED_1000;
+		break;
+	case SPEED_100:
+		mcr |= PMCR_FORCE_SPEED_100;
+		break;
+	}
+	if (duplex == DUPLEX_FULL) {
+		mcr |= PMCR_FORCE_FDX;
+		if (tx_pause)
+			mcr |= PMCR_TX_FC_EN;
+		if (rx_pause)
+			mcr |= PMCR_RX_FC_EN;
+	}
+
+	mt7530_set(priv, MT7530_PMCR_P(port), mcr);
 }
 
 static void mt7530_phylink_validate(struct dsa_switch *ds, int port,
@@ -1611,6 +1665,8 @@ static const struct dsa_switch_ops mt7530_switch_ops = {
 	.port_vlan_prepare	= mt7530_port_vlan_prepare,
 	.port_vlan_add		= mt7530_port_vlan_add,
 	.port_vlan_del		= mt7530_port_vlan_del,
+	.port_mirror_add	= mt7530_port_mirror_add,
+	.port_mirror_del	= mt7530_port_mirror_del,
 	.phylink_validate	= mt7530_phylink_validate,
 	.phylink_mac_link_state = mt7530_phylink_mac_link_state,
 	.phylink_mac_config	= mt7530_phylink_mac_config,

@@ -212,7 +212,7 @@ void test_vmx_nested_state(struct kvm_vm *vm)
 	test_nested_state(vm, state);
 	vcpu_nested_state_get(vm, VCPU_ID, state);
 	TEST_ASSERT(state->size >= sizeof(*state) && state->size <= state_sz,
-		    "Size must be between %d and %d.  The size returned was %d.",
+		    "Size must be between %ld and %d.  The size returned was %d.",
 		    sizeof(*state), state_sz, state->size);
 	TEST_ASSERT(state->hdr.vmx.vmxon_pa == -1ull, "vmxon_pa must be -1ull.");
 	TEST_ASSERT(state->hdr.vmx.vmcs12_pa == -1ull, "vmcs_pa must be -1ull.");
@@ -228,7 +228,7 @@ int main(int argc, char *argv[])
 	have_evmcs = kvm_check_cap(KVM_CAP_HYPERV_ENLIGHTENED_VMCS);
 
 	if (!kvm_check_cap(KVM_CAP_NESTED_STATE)) {
-		printf("KVM_CAP_NESTED_STATE not available, skipping test\n");
+		print_skip("KVM_CAP_NESTED_STATE not available");
 		exit(KSFT_SKIP);
 	}
 

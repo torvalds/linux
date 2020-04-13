@@ -12,11 +12,6 @@
 #include <linux/iio/iio.h>
 #include <linux/regulator/consumer.h>
 
-#define LTC2632_DAC_CHANNELS                    2
-
-#define LTC2632_ADDR_DAC0                       0x0
-#define LTC2632_ADDR_DAC1                       0x1
-
 #define LTC2632_CMD_WRITE_INPUT_N               0x0
 #define LTC2632_CMD_UPDATE_DAC_N                0x1
 #define LTC2632_CMD_WRITE_INPUT_N_UPDATE_ALL    0x2
@@ -33,6 +28,7 @@
  */
 struct ltc2632_chip_info {
 	const struct iio_chan_spec *channels;
+	const size_t num_channels;
 	const int vref_mv;
 };
 
@@ -57,6 +53,12 @@ enum ltc2632_supported_device_ids {
 	ID_LTC2632H12,
 	ID_LTC2632H10,
 	ID_LTC2632H8,
+	ID_LTC2636L12,
+	ID_LTC2636L10,
+	ID_LTC2636L8,
+	ID_LTC2636H12,
+	ID_LTC2636H10,
+	ID_LTC2636H8,
 };
 
 static int ltc2632_spi_write(struct spi_device *spi,
@@ -190,39 +192,77 @@ static const struct iio_chan_spec_ext_info ltc2632_ext_info[] = {
 	const struct iio_chan_spec _name ## _channels[] = { \
 		LTC2632_CHANNEL(0, _bits), \
 		LTC2632_CHANNEL(1, _bits), \
+		LTC2632_CHANNEL(2, _bits), \
+		LTC2632_CHANNEL(3, _bits), \
+		LTC2632_CHANNEL(4, _bits), \
+		LTC2632_CHANNEL(5, _bits), \
+		LTC2632_CHANNEL(6, _bits), \
+		LTC2632_CHANNEL(7, _bits), \
 	}
 
-static DECLARE_LTC2632_CHANNELS(ltc2632l12, 12);
-static DECLARE_LTC2632_CHANNELS(ltc2632l10, 10);
-static DECLARE_LTC2632_CHANNELS(ltc2632l8, 8);
-
-static DECLARE_LTC2632_CHANNELS(ltc2632h12, 12);
-static DECLARE_LTC2632_CHANNELS(ltc2632h10, 10);
-static DECLARE_LTC2632_CHANNELS(ltc2632h8, 8);
+static DECLARE_LTC2632_CHANNELS(ltc2632x12, 12);
+static DECLARE_LTC2632_CHANNELS(ltc2632x10, 10);
+static DECLARE_LTC2632_CHANNELS(ltc2632x8, 8);
 
 static const struct ltc2632_chip_info ltc2632_chip_info_tbl[] = {
 	[ID_LTC2632L12] = {
-		.channels	= ltc2632l12_channels,
+		.channels	= ltc2632x12_channels,
+		.num_channels	= 2,
 		.vref_mv	= 2500,
 	},
 	[ID_LTC2632L10] = {
-		.channels	= ltc2632l10_channels,
+		.channels	= ltc2632x10_channels,
+		.num_channels	= 2,
 		.vref_mv	= 2500,
 	},
 	[ID_LTC2632L8] =  {
-		.channels	= ltc2632l8_channels,
+		.channels	= ltc2632x8_channels,
+		.num_channels	= 2,
 		.vref_mv	= 2500,
 	},
 	[ID_LTC2632H12] = {
-		.channels	= ltc2632h12_channels,
+		.channels	= ltc2632x12_channels,
+		.num_channels	= 2,
 		.vref_mv	= 4096,
 	},
 	[ID_LTC2632H10] = {
-		.channels	= ltc2632h10_channels,
+		.channels	= ltc2632x10_channels,
+		.num_channels	= 2,
 		.vref_mv	= 4096,
 	},
 	[ID_LTC2632H8] =  {
-		.channels	= ltc2632h8_channels,
+		.channels	= ltc2632x8_channels,
+		.num_channels	= 2,
+		.vref_mv	= 4096,
+	},
+	[ID_LTC2636L12] = {
+		.channels	= ltc2632x12_channels,
+		.num_channels	= 8,
+		.vref_mv	= 2500,
+	},
+	[ID_LTC2636L10] = {
+		.channels	= ltc2632x10_channels,
+		.num_channels	= 8,
+		.vref_mv	= 2500,
+	},
+	[ID_LTC2636L8] =  {
+		.channels	= ltc2632x8_channels,
+		.num_channels	= 8,
+		.vref_mv	= 2500,
+	},
+	[ID_LTC2636H12] = {
+		.channels	= ltc2632x12_channels,
+		.num_channels	= 8,
+		.vref_mv	= 4096,
+	},
+	[ID_LTC2636H10] = {
+		.channels	= ltc2632x10_channels,
+		.num_channels	= 8,
+		.vref_mv	= 4096,
+	},
+	[ID_LTC2636H8] =  {
+		.channels	= ltc2632x8_channels,
+		.num_channels	= 8,
 		.vref_mv	= 4096,
 	},
 };
@@ -291,7 +331,7 @@ static int ltc2632_probe(struct spi_device *spi)
 	indio_dev->info = &ltc2632_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = chip_info->channels;
-	indio_dev->num_channels = LTC2632_DAC_CHANNELS;
+	indio_dev->num_channels = chip_info->num_channels;
 
 	return iio_device_register(indio_dev);
 }
@@ -316,6 +356,12 @@ static const struct spi_device_id ltc2632_id[] = {
 	{ "ltc2632-h12", (kernel_ulong_t)&ltc2632_chip_info_tbl[ID_LTC2632H12] },
 	{ "ltc2632-h10", (kernel_ulong_t)&ltc2632_chip_info_tbl[ID_LTC2632H10] },
 	{ "ltc2632-h8", (kernel_ulong_t)&ltc2632_chip_info_tbl[ID_LTC2632H8] },
+	{ "ltc2636-l12", (kernel_ulong_t)&ltc2632_chip_info_tbl[ID_LTC2636L12] },
+	{ "ltc2636-l10", (kernel_ulong_t)&ltc2632_chip_info_tbl[ID_LTC2636L10] },
+	{ "ltc2636-l8", (kernel_ulong_t)&ltc2632_chip_info_tbl[ID_LTC2636L8] },
+	{ "ltc2636-h12", (kernel_ulong_t)&ltc2632_chip_info_tbl[ID_LTC2636H12] },
+	{ "ltc2636-h10", (kernel_ulong_t)&ltc2632_chip_info_tbl[ID_LTC2636H10] },
+	{ "ltc2636-h8", (kernel_ulong_t)&ltc2632_chip_info_tbl[ID_LTC2636H8] },
 	{}
 };
 MODULE_DEVICE_TABLE(spi, ltc2632_id);
@@ -339,6 +385,24 @@ static const struct of_device_id ltc2632_of_match[] = {
 	}, {
 		.compatible = "lltc,ltc2632-h8",
 		.data = &ltc2632_chip_info_tbl[ID_LTC2632H8]
+	}, {
+		.compatible = "lltc,ltc2636-l12",
+		.data = &ltc2632_chip_info_tbl[ID_LTC2636L12]
+	}, {
+		.compatible = "lltc,ltc2636-l10",
+		.data = &ltc2632_chip_info_tbl[ID_LTC2636L10]
+	}, {
+		.compatible = "lltc,ltc2636-l8",
+		.data = &ltc2632_chip_info_tbl[ID_LTC2636L8]
+	}, {
+		.compatible = "lltc,ltc2636-h12",
+		.data = &ltc2632_chip_info_tbl[ID_LTC2636H12]
+	}, {
+		.compatible = "lltc,ltc2636-h10",
+		.data = &ltc2632_chip_info_tbl[ID_LTC2636H10]
+	}, {
+		.compatible = "lltc,ltc2636-h8",
+		.data = &ltc2632_chip_info_tbl[ID_LTC2636H8]
 	},
 	{}
 };

@@ -858,25 +858,25 @@ static int bcm_iproc_i2c_cfg_speed(struct bcm_iproc_i2c_dev *iproc_i2c)
 	if (ret < 0) {
 		dev_info(iproc_i2c->device,
 			"unable to interpret clock-frequency DT property\n");
-		bus_speed = 100000;
+		bus_speed = I2C_MAX_STANDARD_MODE_FREQ;
 	}
 
-	if (bus_speed < 100000) {
+	if (bus_speed < I2C_MAX_STANDARD_MODE_FREQ) {
 		dev_err(iproc_i2c->device, "%d Hz bus speed not supported\n",
 			bus_speed);
 		dev_err(iproc_i2c->device,
 			"valid speeds are 100khz and 400khz\n");
 		return -EINVAL;
-	} else if (bus_speed < 400000) {
-		bus_speed = 100000;
+	} else if (bus_speed < I2C_MAX_FAST_MODE_FREQ) {
+		bus_speed = I2C_MAX_STANDARD_MODE_FREQ;
 	} else {
-		bus_speed = 400000;
+		bus_speed = I2C_MAX_FAST_MODE_FREQ;
 	}
 
 	iproc_i2c->bus_speed = bus_speed;
 	val = iproc_i2c_rd_reg(iproc_i2c, TIM_CFG_OFFSET);
 	val &= ~BIT(TIM_CFG_MODE_400_SHIFT);
-	val |= (bus_speed == 400000) << TIM_CFG_MODE_400_SHIFT;
+	val |= (bus_speed == I2C_MAX_FAST_MODE_FREQ) << TIM_CFG_MODE_400_SHIFT;
 	iproc_i2c_wr_reg(iproc_i2c, TIM_CFG_OFFSET, val);
 
 	dev_info(iproc_i2c->device, "bus set to %u Hz\n", bus_speed);
@@ -1029,7 +1029,7 @@ static int bcm_iproc_i2c_resume(struct device *dev)
 	/* configure to the desired bus speed */
 	val = iproc_i2c_rd_reg(iproc_i2c, TIM_CFG_OFFSET);
 	val &= ~BIT(TIM_CFG_MODE_400_SHIFT);
-	val |= (iproc_i2c->bus_speed == 400000) << TIM_CFG_MODE_400_SHIFT;
+	val |= (iproc_i2c->bus_speed == I2C_MAX_FAST_MODE_FREQ) << TIM_CFG_MODE_400_SHIFT;
 	iproc_i2c_wr_reg(iproc_i2c, TIM_CFG_OFFSET, val);
 
 	bcm_iproc_i2c_enable_disable(iproc_i2c, true);

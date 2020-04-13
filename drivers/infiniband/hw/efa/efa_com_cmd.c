@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
 /*
- * Copyright 2018-2019 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2020 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #include "efa_com.h"
@@ -161,8 +161,9 @@ int efa_com_create_cq(struct efa_com_dev *edev,
 	int err;
 
 	create_cmd.aq_common_desc.opcode = EFA_ADMIN_CREATE_CQ;
-	create_cmd.cq_caps_2 = (params->entry_size_in_bytes / 4) &
-				EFA_ADMIN_CREATE_CQ_CMD_CQ_ENTRY_SIZE_WORDS_MASK;
+	EFA_SET(&create_cmd.cq_caps_2,
+		EFA_ADMIN_CREATE_CQ_CMD_CQ_ENTRY_SIZE_WORDS,
+		params->entry_size_in_bytes / 4);
 	create_cmd.cq_depth = params->cq_depth;
 	create_cmd.num_sub_cqs = params->num_sub_cqs;
 	create_cmd.uar = params->uarn;
@@ -227,8 +228,8 @@ int efa_com_register_mr(struct efa_com_dev *edev,
 	mr_cmd.aq_common_desc.opcode = EFA_ADMIN_REG_MR;
 	mr_cmd.pd = params->pd;
 	mr_cmd.mr_length = params->mr_length_in_bytes;
-	mr_cmd.flags |= params->page_shift &
-		EFA_ADMIN_REG_MR_CMD_PHYS_PAGE_SIZE_SHIFT_MASK;
+	EFA_SET(&mr_cmd.flags, EFA_ADMIN_REG_MR_CMD_PHYS_PAGE_SIZE_SHIFT,
+		params->page_shift);
 	mr_cmd.iova = params->iova;
 	mr_cmd.permissions = params->permissions;
 
@@ -242,11 +243,11 @@ int efa_com_register_mr(struct efa_com_dev *edev,
 			params->pbl.pbl.address.mem_addr_low;
 		mr_cmd.pbl.pbl.address.mem_addr_high =
 			params->pbl.pbl.address.mem_addr_high;
-		mr_cmd.aq_common_desc.flags |=
-			EFA_ADMIN_AQ_COMMON_DESC_CTRL_DATA_MASK;
+		EFA_SET(&mr_cmd.aq_common_desc.flags,
+			EFA_ADMIN_AQ_COMMON_DESC_CTRL_DATA, 1);
 		if (params->indirect)
-			mr_cmd.aq_common_desc.flags |=
-				EFA_ADMIN_AQ_COMMON_DESC_CTRL_DATA_INDIRECT_MASK;
+			EFA_SET(&mr_cmd.aq_common_desc.flags,
+				EFA_ADMIN_AQ_COMMON_DESC_CTRL_DATA_INDIRECT, 1);
 	}
 
 	err = efa_com_cmd_exec(aq,
@@ -386,9 +387,8 @@ static int efa_com_get_feature_ex(struct efa_com_dev *edev,
 	get_cmd.aq_common_descriptor.opcode = EFA_ADMIN_GET_FEATURE;
 
 	if (control_buff_size)
-		get_cmd.aq_common_descriptor.flags =
-			EFA_ADMIN_AQ_COMMON_DESC_CTRL_DATA_INDIRECT_MASK;
-
+		EFA_SET(&get_cmd.aq_common_descriptor.flags,
+			EFA_ADMIN_AQ_COMMON_DESC_CTRL_DATA_INDIRECT, 1);
 
 	efa_com_set_dma_addr(control_buf_dma_addr,
 			     &get_cmd.control_buffer.address.mem_addr_high,
@@ -538,8 +538,9 @@ static int efa_com_set_feature_ex(struct efa_com_dev *edev,
 
 	set_cmd->aq_common_descriptor.opcode = EFA_ADMIN_SET_FEATURE;
 	if (control_buff_size) {
-		set_cmd->aq_common_descriptor.flags =
-			EFA_ADMIN_AQ_COMMON_DESC_CTRL_DATA_INDIRECT_MASK;
+		set_cmd->aq_common_descriptor.flags = 0;
+		EFA_SET(&set_cmd->aq_common_descriptor.flags,
+			EFA_ADMIN_AQ_COMMON_DESC_CTRL_DATA_INDIRECT, 1);
 		efa_com_set_dma_addr(control_buf_dma_addr,
 				     &set_cmd->control_buffer.address.mem_addr_high,
 				     &set_cmd->control_buffer.address.mem_addr_low);

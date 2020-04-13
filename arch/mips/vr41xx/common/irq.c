@@ -17,12 +17,6 @@ typedef struct irq_cascade {
 
 static irq_cascade_t irq_cascade[NR_IRQS] __cacheline_aligned;
 
-static struct irqaction cascade_irqaction = {
-	.handler	= no_action,
-	.name		= "cascade",
-	.flags		= IRQF_NO_THREAD,
-};
-
 int cascade_irq(unsigned int irq, int (*get_irq)(unsigned int))
 {
 	int retval = 0;
@@ -36,7 +30,8 @@ int cascade_irq(unsigned int irq, int (*get_irq)(unsigned int))
 	irq_cascade[irq].get_irq = get_irq;
 
 	if (get_irq != NULL) {
-		retval = setup_irq(irq, &cascade_irqaction);
+		retval = request_irq(irq, no_action, IRQF_NO_THREAD,
+				     "cascade", NULL);
 		if (retval < 0)
 			irq_cascade[irq].get_irq = NULL;
 	}

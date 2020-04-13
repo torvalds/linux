@@ -185,6 +185,7 @@ static size_t tcf_action_shared_attrs_size(const struct tc_action *act)
 	return  nla_total_size(0) /* action number nested */
 		+ nla_total_size(IFNAMSIZ) /* TCA_ACT_KIND */
 		+ cookie_len /* TCA_ACT_COOKIE */
+		+ nla_total_size(sizeof(struct nla_bitfield32)) /* TCA_ACT_HW_STATS */
 		+ nla_total_size(0) /* TCA_ACT_STATS nested */
 		+ nla_total_size(sizeof(struct nla_bitfield32)) /* TCA_ACT_FLAGS */
 		/* TCA_STATS_BASIC */
@@ -788,13 +789,20 @@ tcf_action_dump_1(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
 	}
 	rcu_read_unlock();
 
-	if (a->tcfa_flags) {
-		struct nla_bitfield32 flags = { a->tcfa_flags,
-						a->tcfa_flags, };
+	if (a->hw_stats != TCA_ACT_HW_STATS_ANY &&
+	    nla_put_bitfield32(skb, TCA_ACT_HW_STATS,
+			       a->hw_stats, TCA_ACT_HW_STATS_ANY))
+		goto nla_put_failure;
 
-		if (nla_put(skb, TCA_ACT_FLAGS, sizeof(flags), &flags))
-			goto nla_put_failure;
-	}
+	if (a->used_hw_stats_valid &&
+	    nla_put_bitfield32(skb, TCA_ACT_USED_HW_STATS,
+			       a->used_hw_stats, TCA_ACT_HW_STATS_ANY))
+		goto nla_put_failure;
+
+	if (a->tcfa_flags &&
+	    nla_put_bitfield32(skb, TCA_ACT_FLAGS,
+			       a->tcfa_flags, a->tcfa_flags))
+		goto nla_put_failure;
 
 	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
 	if (nest == NULL)
@@ -854,7 +862,23 @@ static struct tc_cookie *nla_memdup_cookie(struct nlattr **tb)
 	return c;
 }
 
+static u8 tcf_action_hw_stats_get(struct nlattr *hw_stats_attr)
+{
+	struct nla_bitfield32 hw_stats_bf;
+
+	/* If the user did not pass the attr, that means he does
+	 * not care about the type. Return "any" in that case
+	 * which is setting on all supported types.
+	 */
+	if (!hw_stats_attr)
+		return TCA_ACT_HW_STATS_ANY;
+	hw_stats_bf = nla_get_bitfield32(hw_stats_attr);
+	return hw_stats_bf.value;
+}
+
 static const u32 tca_act_flags_allowed = TCA_ACT_FLAGS_NO_PERCPU_STATS;
+static const u32 tca_act_hw_stats_allowed = TCA_ACT_HW_STATS_ANY;
+
 static const struct nla_policy tcf_action_policy[TCA_ACT_MAX + 1] = {
 	[TCA_ACT_KIND]		= { .type = NLA_STRING },
 	[TCA_ACT_INDEX]		= { .type = NLA_U32 },
@@ -863,6 +887,8 @@ static const struct nla_policy tcf_action_policy[TCA_ACT_MAX + 1] = {
 	[TCA_ACT_OPTIONS]	= { .type = NLA_NESTED },
 	[TCA_ACT_FLAGS]		= { .type = NLA_BITFIELD32,
 				    .validation_data = &tca_act_flags_allowed },
+	[TCA_ACT_HW_STATS]	= { .type = NLA_BITFIELD32,
+				    .validation_data = &tca_act_hw_stats_allowed },
 };
 
 struct tc_action *tcf_action_init_1(struct net *net, struct tcf_proto *tp,
@@ -872,6 +898,7 @@ struct tc_action *tcf_action_init_1(struct net *net, struct tcf_proto *tp,
 				    struct netlink_ext_ack *extack)
 {
 	struct nla_bitfield32 flags = { 0, 0 };
+	u8 hw_stats = TCA_ACT_HW_STATS_ANY;
 	struct tc_action *a;
 	struct tc_action_ops *a_o;
 	struct tc_cookie *cookie = NULL;
@@ -903,6 +930,7 @@ struct tc_action *tcf_action_init_1(struct net *net, struct tcf_proto *tp,
 				goto err_out;
 			}
 		}
+		hw_stats = tcf_action_hw_stats_get(tb[TCA_ACT_HW_STATS]);
 		if (tb[TCA_ACT_FLAGS])
 			flags = nla_get_bitfield32(tb[TCA_ACT_FLAGS]);
 	} else {
@@ -952,6 +980,9 @@ struct tc_action *tcf_action_init_1(struct net *net, struct tcf_proto *tp,
 
 	if (!name && tb[TCA_ACT_COOKIE])
 		tcf_set_action_cookie(&a->act_cookie, cookie);
+
+	if (!name)
+		a->hw_stats = hw_stats;
 
 	/* module count goes up only when brand new policy is created
 	 * if it exists and is only bound to in a_o->init() then

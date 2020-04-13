@@ -271,7 +271,7 @@ void kernel_stack_overflow(struct pt_regs *regs)
 }
 NOKPROBE_SYMBOL(kernel_stack_overflow);
 
-static void test_monitor_call(void)
+static void __init test_monitor_call(void)
 {
 	int val = 1;
 

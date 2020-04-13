@@ -74,8 +74,19 @@ enum qeth_card_types {
 #define IS_IQD(card)	((card)->info.type == QETH_CARD_TYPE_IQD)
 #define IS_OSD(card)	((card)->info.type == QETH_CARD_TYPE_OSD)
 #define IS_OSM(card)	((card)->info.type == QETH_CARD_TYPE_OSM)
+
+#ifdef CONFIG_QETH_OSN
 #define IS_OSN(card)	((card)->info.type == QETH_CARD_TYPE_OSN)
+#else
+#define IS_OSN(card)	false
+#endif
+
+#ifdef CONFIG_QETH_OSX
 #define IS_OSX(card)	((card)->info.type == QETH_CARD_TYPE_OSX)
+#else
+#define IS_OSX(card)	false
+#endif
+
 #define IS_VM_NIC(card)	((card)->info.is_vm_nic)
 
 #define QETH_MPC_DIFINFO_LEN_INDICATES_LINK_TYPE 0x18
@@ -93,10 +104,6 @@ enum qeth_link_types {
 	QETH_LINK_TYPE_LANE         = 0x88,
 };
 
-/*
- * Routing stuff
- */
-#define RESET_ROUTING_FLAG 0x10 /* indicate that routing type shall be set */
 enum qeth_routing_types {
 	/* TODO: set to bit flag used in IPA Command */
 	NO_ROUTER		= 0,
@@ -427,7 +434,6 @@ struct qeth_ipacmd_setassparms {
 		struct qeth_arp_cache_entry arp_entry;
 		struct qeth_arp_query_data query_arp;
 		struct qeth_tso_start_data tso;
-		__u8 ip[16];
 	} data;
 } __attribute__ ((packed));
 
@@ -550,8 +556,9 @@ struct qeth_ipacmd_setadpparms {
 
 /* CREATE_ADDR IPA Command:    ***********************************************/
 struct qeth_create_destroy_address {
-	__u8 unique_id[8];
-} __attribute__ ((packed));
+	u8 mac_addr[ETH_ALEN];
+	u16 uid;
+};
 
 /* SET DIAGNOSTIC ASSIST IPA Command:	 *************************************/
 

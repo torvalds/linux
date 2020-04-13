@@ -139,7 +139,7 @@ static enum vc4_scaling_mode vc4_get_scaling_mode(u32 src, u32 dst)
 
 static bool plane_enabled(struct drm_plane_state *state)
 {
-	return state->fb && state->crtc;
+	return state->fb && !WARN_ON(!state->crtc);
 }
 
 static struct drm_plane_state *vc4_plane_duplicate_state(struct drm_plane *plane)

@@ -212,12 +212,14 @@ static void efx_mcdi_send_request(struct efx_nic *efx, unsigned cmd,
 		 * progress on a NIC at any one time.  So no need for locking.
 		 */
 		for (i = 0; i < hdr_len / 4 && bytes < PAGE_SIZE; i++)
-			bytes += snprintf(buf + bytes, PAGE_SIZE - bytes,
-					  " %08x", le32_to_cpu(hdr[i].u32[0]));
+			bytes += scnprintf(buf + bytes, PAGE_SIZE - bytes,
+					   " %08x",
+					   le32_to_cpu(hdr[i].u32[0]));
 
 		for (i = 0; i < inlen / 4 && bytes < PAGE_SIZE; i++)
-			bytes += snprintf(buf + bytes, PAGE_SIZE - bytes,
-					  " %08x", le32_to_cpu(inbuf[i].u32[0]));
+			bytes += scnprintf(buf + bytes, PAGE_SIZE - bytes,
+					   " %08x",
+					   le32_to_cpu(inbuf[i].u32[0]));
 
 		netif_info(efx, hw, efx->net_dev, "MCDI RPC REQ:%s\n", buf);
 	}
@@ -302,15 +304,15 @@ static void efx_mcdi_read_response_header(struct efx_nic *efx)
 		 */
 		for (i = 0; i < hdr_len && bytes < PAGE_SIZE; i++) {
 			efx->type->mcdi_read_response(efx, &hdr, (i * 4), 4);
-			bytes += snprintf(buf + bytes, PAGE_SIZE - bytes,
-					  " %08x", le32_to_cpu(hdr.u32[0]));
+			bytes += scnprintf(buf + bytes, PAGE_SIZE - bytes,
+					   " %08x", le32_to_cpu(hdr.u32[0]));
 		}
 
 		for (i = 0; i < data_len && bytes < PAGE_SIZE; i++) {
 			efx->type->mcdi_read_response(efx, &hdr,
 					mcdi->resp_hdr_len + (i * 4), 4);
-			bytes += snprintf(buf + bytes, PAGE_SIZE - bytes,
-					  " %08x", le32_to_cpu(hdr.u32[0]));
+			bytes += scnprintf(buf + bytes, PAGE_SIZE - bytes,
+					   " %08x", le32_to_cpu(hdr.u32[0]));
 		}
 
 		netif_info(efx, hw, efx->net_dev, "MCDI RPC RESP:%s\n", buf);
@@ -1417,9 +1419,11 @@ void efx_mcdi_print_fwver(struct efx_nic *efx, char *buf, size_t len)
 	}
 
 	ver_words = (__le16 *)MCDI_PTR(outbuf, GET_VERSION_OUT_VERSION);
-	offset = snprintf(buf, len, "%u.%u.%u.%u",
-			  le16_to_cpu(ver_words[0]), le16_to_cpu(ver_words[1]),
-			  le16_to_cpu(ver_words[2]), le16_to_cpu(ver_words[3]));
+	offset = scnprintf(buf, len, "%u.%u.%u.%u",
+			   le16_to_cpu(ver_words[0]),
+			   le16_to_cpu(ver_words[1]),
+			   le16_to_cpu(ver_words[2]),
+			   le16_to_cpu(ver_words[3]));
 
 	/* EF10 may have multiple datapath firmware variants within a
 	 * single version.  Report which variants are running.
@@ -1427,9 +1431,9 @@ void efx_mcdi_print_fwver(struct efx_nic *efx, char *buf, size_t len)
 	if (efx_nic_rev(efx) >= EFX_REV_HUNT_A0) {
 		struct efx_ef10_nic_data *nic_data = efx->nic_data;
 
-		offset += snprintf(buf + offset, len - offset, " rx%x tx%x",
-				   nic_data->rx_dpcpu_fw_id,
-				   nic_data->tx_dpcpu_fw_id);
+		offset += scnprintf(buf + offset, len - offset, " rx%x tx%x",
+				    nic_data->rx_dpcpu_fw_id,
+				    nic_data->tx_dpcpu_fw_id);
 
 		/* It's theoretically possible for the string to exceed 31
 		 * characters, though in practice the first three version

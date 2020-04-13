@@ -102,13 +102,13 @@ config S390
 	select ARCH_INLINE_WRITE_UNLOCK_IRQ
 	select ARCH_INLINE_WRITE_UNLOCK_IRQRESTORE
 	select ARCH_KEEP_MEMBLOCK
-	select ARCH_SAVE_PAGE_KEYS if HIBERNATION
 	select ARCH_STACKWALK
 	select ARCH_SUPPORTS_ATOMIC_RMW
 	select ARCH_SUPPORTS_NUMA_BALANCING
 	select ARCH_USE_BUILTIN_BSWAP
 	select ARCH_USE_CMPXCHG_LOCKREF
 	select ARCH_WANTS_DYNAMIC_TASK_STRUCT
+	select ARCH_WANT_DEFAULT_BPF_JIT
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select BUILDTIME_TABLE_SORT
 	select CLONE_BACKWARDS2
@@ -195,6 +195,7 @@ config S390
 	select ARCH_HAS_FORCE_DMA_UNENCRYPTED
 	select SWIOTLB
 	select GENERIC_ALLOCATOR
+	imply IMA_SECURE_AND_OR_TRUSTED_BOOT
 
 
 config SCHED_OMIT_FRAME_POINTER
@@ -450,14 +451,6 @@ config NR_CPUS
 config HOTPLUG_CPU
 	def_bool y
 
-# Some NUMA nodes have memory ranges that span
-# other nodes.	Even though a pfn is valid and
-# between a node's start and end pfns, it may not
-# reside on that node.	See memmap_init_zone()
-# for details. <- They meant memory holes!
-config NODES_SPAN_OTHER_NODES
-	def_bool NUMA
-
 config NUMA
 	bool "NUMA support"
 	depends on SCHED_TOPOLOGY
@@ -467,58 +460,9 @@ config NUMA
 
 	  This option adds NUMA support to the kernel.
 
-	  An operation mode can be selected by appending
-	  numa=<method> to the kernel command line.
-
-	  The default behaviour is identical to appending numa=plain to
-	  the command line. This will create just one node with all
-	  available memory and all CPUs in it.
-
 config NODES_SHIFT
-	int "Maximum NUMA nodes (as a power of 2)"
-	range 1 10
-	depends on NUMA
-	default "4"
-	help
-	  Specify the maximum number of NUMA nodes available on the target
-	  system. Increases memory reserved to accommodate various tables.
-
-menu "Select NUMA modes"
-	depends on NUMA
-
-config NUMA_EMU
-	bool "NUMA emulation"
-	default y
-	help
-	  Numa emulation mode will split the available system memory into
-	  equal chunks which then are distributed over the configured number
-	  of nodes in a round-robin manner.
-
-	  The number of fake nodes is limited by the number of available memory
-	  chunks (i.e. memory size / fake size) and the number of supported
-	  nodes in the kernel.
-
-	  The CPUs are assigned to the nodes in a way that partially respects
-	  the original machine topology (if supported by the machine).
-	  Fair distribution of the CPUs is not guaranteed.
-
-config EMU_SIZE
-	hex "NUMA emulation memory chunk size"
-	default 0x10000000
-	range 0x400000 0x100000000
-	depends on NUMA_EMU
-	help
-	  Select the default size by which the memory is chopped and then
-	  assigned to emulated NUMA nodes.
-
-	  This can be overridden by specifying
-
-	  emu_size=<n>
-
-	  on the kernel command line where also suffixes K, M, G, and T are
-	  supported.
-
-endmenu
+	int
+	default "1"
 
 config SCHED_SMT
 	def_bool n
@@ -866,15 +810,6 @@ config SECCOMP
 
 	  If unsure, say Y.
 
-menu "Power Management"
-
-config ARCH_HIBERNATION_POSSIBLE
-	def_bool y
-
-source "kernel/power/Kconfig"
-
-endmenu
-
 config CCW
 	def_bool y
 
@@ -1009,7 +944,6 @@ config S390_GUEST
 	select TTY
 	select VIRTUALIZATION
 	select VIRTIO
-	select VIRTIO_CONSOLE
 	help
 	  Enabling this option adds support for virtio based paravirtual device
 	  drivers on s390.

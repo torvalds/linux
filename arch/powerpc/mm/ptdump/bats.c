@@ -164,10 +164,8 @@ static const struct file_operations bats_fops = {
 
 static int __init bats_init(void)
 {
-	struct dentry *debugfs_file;
-
-	debugfs_file = debugfs_create_file("block_address_translation", 0400,
-					   powerpc_debugfs_root, NULL, &bats_fops);
-	return debugfs_file ? 0 : -ENOMEM;
+	debugfs_create_file("block_address_translation", 0400,
+			    powerpc_debugfs_root, NULL, &bats_fops);
+	return 0;
 }
 device_initcall(bats_init);

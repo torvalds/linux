@@ -88,7 +88,7 @@ int of_read_drc_info_cell(struct property **prop, const __be32 **curval,
 		return -EINVAL;
 
 	/* Should now know end of current entry */
-	(*curval) = (void *)p2;
+	(*curval) = (void *)(++p2);
 	data->last_drc_index = data->drc_index_start +
 		((data->num_sequential_elems - 1) * data->sequential_inc);
 

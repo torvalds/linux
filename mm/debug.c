@@ -44,8 +44,10 @@ const struct trace_print_flags vmaflag_names[] = {
 
 void __dump_page(struct page *page, const char *reason)
 {
+	struct page *head = compound_head(page);
 	struct address_space *mapping;
 	bool page_poisoned = PagePoisoned(page);
+	bool compound = PageCompound(page);
 	/*
 	 * Accessing the pageblock without the zone lock. It could change to
 	 * "isolate" again in the meantime, but since we are just dumping the
@@ -66,25 +68,43 @@ void __dump_page(struct page *page, const char *reason)
 		goto hex_only;
 	}
 
-	mapping = page_mapping(page);
+	if (page < head || (page >= head + MAX_ORDER_NR_PAGES)) {
+		/* Corrupt page, cannot call page_mapping */
+		mapping = page->mapping;
+		head = page;
+		compound = false;
+	} else {
+		mapping = page_mapping(page);
+	}
 
 	/*
 	 * Avoid VM_BUG_ON() in page_mapcount().
 	 * page->_mapcount space in struct page is used by sl[aou]b pages to
 	 * encode own info.
 	 */
-	mapcount = PageSlab(page) ? 0 : page_mapcount(page);
+	mapcount = PageSlab(head) ? 0 : page_mapcount(page);
 
-	if (PageCompound(page))
-		pr_warn("page:%px refcount:%d mapcount:%d mapping:%px "
-			"index:%#lx compound_mapcount: %d\n",
-			page, page_ref_count(page), mapcount,
-			page->mapping, page_to_pgoff(page),
-			compound_mapcount(page));
+	if (compound)
+		if (hpage_pincount_available(page)) {
+			pr_warn("page:%px refcount:%d mapcount:%d mapping:%p "
+				"index:%#lx head:%px order:%u "
+				"compound_mapcount:%d compound_pincount:%d\n",
+				page, page_ref_count(head), mapcount,
+				mapping, page_to_pgoff(page), head,
+				compound_order(head), compound_mapcount(page),
+				compound_pincount(page));
+		} else {
+			pr_warn("page:%px refcount:%d mapcount:%d mapping:%p "
+				"index:%#lx head:%px order:%u "
+				"compound_mapcount:%d\n",
+				page, page_ref_count(head), mapcount,
+				mapping, page_to_pgoff(page), head,
+				compound_order(head), compound_mapcount(page));
+		}
 	else
-		pr_warn("page:%px refcount:%d mapcount:%d mapping:%px index:%#lx\n",
+		pr_warn("page:%px refcount:%d mapcount:%d mapping:%p index:%#lx\n",
 			page, page_ref_count(page), mapcount,
-			page->mapping, page_to_pgoff(page));
+			mapping, page_to_pgoff(page));
 	if (PageKsm(page))
 		type = "ksm ";
 	else if (PageAnon(page))
@@ -105,6 +125,10 @@ void __dump_page(struct page *page, const char *reason)
 hex_only:
 	print_hex_dump(KERN_WARNING, "raw: ", DUMP_PREFIX_NONE, 32,
 			sizeof(unsigned long), page,
+			sizeof(struct page), false);
+	if (head != page)
+		print_hex_dump(KERN_WARNING, "head: ", DUMP_PREFIX_NONE, 32,
+			sizeof(unsigned long), head,
 			sizeof(struct page), false);
 
 	if (reason)

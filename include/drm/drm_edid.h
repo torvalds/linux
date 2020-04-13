@@ -91,6 +91,11 @@ struct detailed_data_string {
 	u8 str[13];
 } __attribute__((packed));
 
+#define DRM_EDID_DEFAULT_GTF_SUPPORT_FLAG   0x00
+#define DRM_EDID_RANGE_LIMITS_ONLY_FLAG     0x01
+#define DRM_EDID_SECONDARY_GTF_SUPPORT_FLAG 0x02
+#define DRM_EDID_CVT_SUPPORT_FLAG           0x04
+
 struct detailed_data_monitor_range {
 	u8 min_vfreq;
 	u8 max_vfreq;

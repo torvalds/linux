@@ -178,10 +178,10 @@ struct ucc_fast_info {
 struct ucc_fast_private {
 	struct ucc_fast_info *uf_info;
 	struct ucc_fast __iomem *uf_regs; /* a pointer to the UCC regs. */
-	u32 __iomem *p_ucce;	/* a pointer to the event register in memory. */
-	u32 __iomem *p_uccm;	/* a pointer to the mask register in memory. */
+	__be32 __iomem *p_ucce;	/* a pointer to the event register in memory. */
+	__be32 __iomem *p_uccm;	/* a pointer to the mask register in memory. */
 #ifdef CONFIG_UGETH_TX_ON_DEMAND
-	u16 __iomem *p_utodr;	/* pointer to the transmit on demand register */
+	__be16 __iomem *p_utodr;/* pointer to the transmit on demand register */
 #endif
 	int enabled_tx;		/* Whether channel is enabled for Tx (ENT) */
 	int enabled_rx;		/* Whether channel is enabled for Rx (ENR) */

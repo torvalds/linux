@@ -183,7 +183,7 @@ static int ice_qp_dis(struct ice_vsi *vsi, u16 q_idx)
 		if (err)
 			return err;
 	}
-	err = ice_vsi_ctrl_rx_ring(vsi, false, q_idx);
+	err = ice_vsi_ctrl_one_rx_ring(vsi, false, q_idx, true);
 	if (err)
 		return err;
 
@@ -243,7 +243,7 @@ static int ice_qp_ena(struct ice_vsi *vsi, u16 q_idx)
 
 	ice_qvec_cfg_msix(vsi, q_vector);
 
-	err = ice_vsi_ctrl_rx_ring(vsi, true, q_idx);
+	err = ice_vsi_ctrl_one_rx_ring(vsi, true, q_idx, true);
 	if (err)
 		goto free_buf;
 
@@ -457,7 +457,7 @@ int ice_xsk_umem_setup(struct ice_vsi *vsi, struct xdp_umem *umem, u16 qid)
 	if (if_running) {
 		ret = ice_qp_dis(vsi, qid);
 		if (ret) {
-			netdev_err(vsi->netdev, "ice_qp_dis error = %d", ret);
+			netdev_err(vsi->netdev, "ice_qp_dis error = %d\n", ret);
 			goto xsk_umem_if_up;
 		}
 	}
@@ -471,11 +471,11 @@ xsk_umem_if_up:
 		if (!ret && umem_present)
 			napi_schedule(&vsi->xdp_rings[qid]->q_vector->napi);
 		else if (ret)
-			netdev_err(vsi->netdev, "ice_qp_ena error = %d", ret);
+			netdev_err(vsi->netdev, "ice_qp_ena error = %d\n", ret);
 	}
 
 	if (umem_failure) {
-		netdev_err(vsi->netdev, "Could not %sable UMEM, error = %d",
+		netdev_err(vsi->netdev, "Could not %sable UMEM, error = %d\n",
 			   umem_present ? "en" : "dis", umem_failure);
 		return umem_failure;
 	}
@@ -609,7 +609,7 @@ ice_alloc_buf_slow_zc(struct ice_ring *rx_ring, struct ice_rx_buf *rx_buf)
  */
 static bool
 ice_alloc_rx_bufs_zc(struct ice_ring *rx_ring, int count,
-		     bool alloc(struct ice_ring *, struct ice_rx_buf *))
+		     bool (*alloc)(struct ice_ring *, struct ice_rx_buf *))
 {
 	union ice_32b_rx_flex_desc *rx_desc;
 	u16 ntu = rx_ring->next_to_use;
@@ -816,10 +816,10 @@ ice_run_xdp_zc(struct ice_ring *rx_ring, struct xdp_buff *xdp)
 		break;
 	default:
 		bpf_warn_invalid_xdp_action(act);
-		/* fallthrough -- not supported action */
+		fallthrough;
 	case XDP_ABORTED:
 		trace_xdp_exception(rx_ring->netdev, xdp_prog, act);
-		/* fallthrough -- handle aborts by dropping frame */
+		fallthrough;
 	case XDP_DROP:
 		result = ICE_XDP_CONSUMED;
 		break;
@@ -841,8 +841,8 @@ int ice_clean_rx_irq_zc(struct ice_ring *rx_ring, int budget)
 	unsigned int total_rx_bytes = 0, total_rx_packets = 0;
 	u16 cleaned_count = ICE_DESC_UNUSED(rx_ring);
 	unsigned int xdp_xmit = 0;
+	bool failure = false;
 	struct xdp_buff xdp;
-	bool failure = 0;
 
 	xdp.rxq = &rx_ring->xdp_rxq;
 
@@ -937,6 +937,15 @@ int ice_clean_rx_irq_zc(struct ice_ring *rx_ring, int budget)
 	ice_finalize_xdp_rx(rx_ring, xdp_xmit);
 	ice_update_rx_ring_stats(rx_ring, total_rx_packets, total_rx_bytes);
 
+	if (xsk_umem_uses_need_wakeup(rx_ring->xsk_umem)) {
+		if (failure || rx_ring->next_to_clean == rx_ring->next_to_use)
+			xsk_set_rx_need_wakeup(rx_ring->xsk_umem);
+		else
+			xsk_clear_rx_need_wakeup(rx_ring->xsk_umem);
+
+		return (int)total_rx_packets;
+	}
+
 	return failure ? budget : (int)total_rx_packets;
 }
 
@@ -988,6 +997,8 @@ static bool ice_xmit_zc(struct ice_ring *xdp_ring, int budget)
 	if (tx_desc) {
 		ice_xdp_ring_update_tail(xdp_ring);
 		xsk_umem_consume_tx_done(xdp_ring->xsk_umem);
+		if (xsk_umem_uses_need_wakeup(xdp_ring->xsk_umem))
+			xsk_clear_tx_need_wakeup(xdp_ring->xsk_umem);
 	}
 
 	return budget > 0 && work_done;
@@ -1062,6 +1073,13 @@ bool ice_clean_tx_irq_zc(struct ice_ring *xdp_ring, int budget)
 
 	if (xsk_frames)
 		xsk_umem_complete_tx(xdp_ring->xsk_umem, xsk_frames);
+
+	if (xsk_umem_uses_need_wakeup(xdp_ring->xsk_umem)) {
+		if (xdp_ring->next_to_clean == xdp_ring->next_to_use)
+			xsk_set_tx_need_wakeup(xdp_ring->xsk_umem);
+		else
+			xsk_clear_tx_need_wakeup(xdp_ring->xsk_umem);
+	}
 
 	ice_update_tx_ring_stats(xdp_ring, total_packets, total_bytes);
 	xmit_done = ice_xmit_zc(xdp_ring, ICE_DFLT_IRQ_WORK);

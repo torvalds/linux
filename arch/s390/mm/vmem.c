@@ -415,6 +415,10 @@ void __init vmem_map_init(void)
 		     SET_MEMORY_RO | SET_MEMORY_X);
 	__set_memory(__stext_dma, (__etext_dma - __stext_dma) >> PAGE_SHIFT,
 		     SET_MEMORY_RO | SET_MEMORY_X);
+
+	/* we need lowcore executable for our LPSWE instructions */
+	set_memory_x(0, 1);
+
 	pr_info("Write protected kernel read-only data: %luk\n",
 		(unsigned long)(__end_rodata - _stext) >> 10);
 }

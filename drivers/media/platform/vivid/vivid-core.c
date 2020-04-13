@@ -407,7 +407,7 @@ static int vidioc_log_status(struct file *file, void *fh)
 	struct video_device *vdev = video_devdata(file);
 
 	v4l2_ctrl_log_status(file, fh);
-	if (vdev->vfl_dir == VFL_DIR_RX && vdev->vfl_type == VFL_TYPE_GRABBER)
+	if (vdev->vfl_dir == VFL_DIR_RX && vdev->vfl_type == VFL_TYPE_VIDEO)
 		tpg_log_status(&dev->tpg);
 	return 0;
 }
@@ -1525,7 +1525,7 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		}
 #endif
 
-		ret = video_register_device(vfd, VFL_TYPE_GRABBER, vid_cap_nr[inst]);
+		ret = video_register_device(vfd, VFL_TYPE_VIDEO, vid_cap_nr[inst]);
 		if (ret < 0)
 			goto unreg_dev;
 		v4l2_info(&dev->v4l2_dev, "V4L2 capture device registered as %s\n",
@@ -1571,14 +1571,14 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 			}
 			v4l2_info(&dev->v4l2_dev, "CEC adapter %s registered for HDMI output %d\n",
 				  dev_name(&dev->cec_tx_adap[i]->devnode.dev), i);
-			if (i <= out_type_counter[HDMI])
-				cec_s_phys_addr(dev->cec_tx_adap[i], i << 12, false);
+			if (i < out_type_counter[HDMI])
+				cec_s_phys_addr(dev->cec_tx_adap[i], (i + 1) << 12, false);
 			else
 				cec_s_phys_addr(dev->cec_tx_adap[i], 0x1000, false);
 		}
 #endif
 
-		ret = video_register_device(vfd, VFL_TYPE_GRABBER, vid_out_nr[inst]);
+		ret = video_register_device(vfd, VFL_TYPE_VIDEO, vid_out_nr[inst]);
 		if (ret < 0)
 			goto unreg_dev;
 		v4l2_info(&dev->v4l2_dev, "V4L2 output device registered as %s\n",
@@ -1734,7 +1734,7 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		if (ret)
 			goto unreg_dev;
 #endif
-		ret = video_register_device(vfd, VFL_TYPE_GRABBER,
+		ret = video_register_device(vfd, VFL_TYPE_VIDEO,
 					    meta_cap_nr[inst]);
 		if (ret < 0)
 			goto unreg_dev;
@@ -1764,7 +1764,7 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		if (ret)
 			goto unreg_dev;
 #endif
-		ret = video_register_device(vfd, VFL_TYPE_GRABBER,
+		ret = video_register_device(vfd, VFL_TYPE_VIDEO,
 					    meta_out_nr[inst]);
 		if (ret < 0)
 			goto unreg_dev;

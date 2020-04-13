@@ -143,7 +143,6 @@ Single-planar format structure
       - Flags set by the application or driver, see :ref:`format-flags`.
     * - union {
       - (anonymous)
-      -
     * - __u32
       - ``ycbcr_enc``
       - Y'CbCr encoding, from enum :c:type:`v4l2_ycbcr_encoding`.
@@ -157,7 +156,6 @@ Single-planar format structure
 	the driver for capture streams and by the application for output
 	streams, see :ref:`colorspaces`.
     * - }
-      -
       -
     * - __u32
       - ``quantization``

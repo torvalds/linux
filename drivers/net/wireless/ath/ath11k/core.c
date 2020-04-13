@@ -392,11 +392,19 @@ static int ath11k_core_pdev_create(struct ath11k_base *ab)
 		goto err_mac_unregister;
 	}
 
+	ret = ath11k_thermal_register(ab);
+	if (ret) {
+		ath11k_err(ab, "could not register thermal device: %d\n",
+			   ret);
+		goto err_dp_pdev_free;
+	}
+
 	return 0;
 
+err_dp_pdev_free:
+	ath11k_dp_pdev_free(ab);
 err_mac_unregister:
 	ath11k_mac_unregister(ab);
-
 err_pdev_debug:
 	ath11k_debug_pdev_destroy(ab);
 
@@ -405,6 +413,7 @@ err_pdev_debug:
 
 static void ath11k_core_pdev_destroy(struct ath11k_base *ab)
 {
+	ath11k_thermal_unregister(ab);
 	ath11k_mac_unregister(ab);
 	ath11k_ahb_ext_irq_disable(ab);
 	ath11k_dp_pdev_free(ab);
@@ -569,6 +578,7 @@ static int ath11k_core_reconfigure_on_crash(struct ath11k_base *ab)
 	int ret;
 
 	mutex_lock(&ab->core_lock);
+	ath11k_thermal_unregister(ab);
 	ath11k_ahb_ext_irq_disable(ab);
 	ath11k_dp_pdev_free(ab);
 	ath11k_ahb_stop(ab);
@@ -607,6 +617,7 @@ void ath11k_core_halt(struct ath11k *ar)
 	lockdep_assert_held(&ar->conf_mutex);
 
 	ar->num_created_vdevs = 0;
+	ar->allocated_vdev_map = 0;
 
 	ath11k_mac_scan_finish(ar);
 	ath11k_mac_peer_cleanup_all(ar);
@@ -644,6 +655,7 @@ static void ath11k_core_restart(struct work_struct *work)
 		complete(&ar->install_key_done);
 		complete(&ar->vdev_setup_done);
 		complete(&ar->bss_survey_done);
+		complete(&ar->thermal.wmi_sync);
 
 		wake_up(&ar->dp.tx_empty_waitq);
 		idr_for_each(&ar->txmgmt_idr,

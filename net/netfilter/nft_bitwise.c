@@ -93,7 +93,7 @@ static const struct nla_policy nft_bitwise_policy[NFTA_BITWISE_MAX + 1] = {
 static int nft_bitwise_init_bool(struct nft_bitwise *priv,
 				 const struct nlattr *const tb[])
 {
-	struct nft_data_desc d1, d2;
+	struct nft_data_desc mask, xor;
 	int err;
 
 	if (tb[NFTA_BITWISE_DATA])
@@ -103,29 +103,29 @@ static int nft_bitwise_init_bool(struct nft_bitwise *priv,
 	    !tb[NFTA_BITWISE_XOR])
 		return -EINVAL;
 
-	err = nft_data_init(NULL, &priv->mask, sizeof(priv->mask), &d1,
+	err = nft_data_init(NULL, &priv->mask, sizeof(priv->mask), &mask,
 			    tb[NFTA_BITWISE_MASK]);
 	if (err < 0)
 		return err;
-	if (d1.type != NFT_DATA_VALUE || d1.len != priv->len) {
+	if (mask.type != NFT_DATA_VALUE || mask.len != priv->len) {
 		err = -EINVAL;
 		goto err1;
 	}
 
-	err = nft_data_init(NULL, &priv->xor, sizeof(priv->xor), &d2,
+	err = nft_data_init(NULL, &priv->xor, sizeof(priv->xor), &xor,
 			    tb[NFTA_BITWISE_XOR]);
 	if (err < 0)
 		goto err1;
-	if (d2.type != NFT_DATA_VALUE || d2.len != priv->len) {
+	if (xor.type != NFT_DATA_VALUE || xor.len != priv->len) {
 		err = -EINVAL;
 		goto err2;
 	}
 
 	return 0;
 err2:
-	nft_data_release(&priv->xor, d2.type);
+	nft_data_release(&priv->xor, xor.type);
 err1:
-	nft_data_release(&priv->mask, d1.type);
+	nft_data_release(&priv->mask, mask.type);
 	return err;
 }
 

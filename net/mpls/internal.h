@@ -98,7 +98,7 @@ struct mpls_nh { /* next hop label forwarding entry */
 	u8			nh_via_table;
 	u8			nh_reserved1;
 
-	u32			nh_label[0];
+	u32			nh_label[];
 };
 
 /* offset of via from beginning of mpls_nh */
@@ -154,7 +154,7 @@ struct mpls_route { /* next hop label forwarding entry */
 	u8			rt_nh_size;
 	u8			rt_via_offset;
 	u8			rt_reserved1;
-	struct mpls_nh		rt_nh[0];
+	struct mpls_nh		rt_nh[];
 };
 
 #define for_nexthops(rt) {						\

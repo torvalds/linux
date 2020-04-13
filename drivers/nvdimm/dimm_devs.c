@@ -32,7 +32,7 @@ int nvdimm_check_config_data(struct device *dev)
 
 	if (!nvdimm->cmd_mask ||
 	    !test_bit(ND_CMD_GET_CONFIG_DATA, &nvdimm->cmd_mask)) {
-		if (test_bit(NDD_ALIASING, &nvdimm->flags))
+		if (test_bit(NDD_LABELING, &nvdimm->flags))
 			return -ENXIO;
 		else
 			return -ENOTTY;
@@ -173,11 +173,11 @@ int nvdimm_set_config_data(struct nvdimm_drvdata *ndd, size_t offset,
 	return rc;
 }
 
-void nvdimm_set_aliasing(struct device *dev)
+void nvdimm_set_labeling(struct device *dev)
 {
 	struct nvdimm *nvdimm = to_nvdimm(dev);
 
-	set_bit(NDD_ALIASING, &nvdimm->flags);
+	set_bit(NDD_LABELING, &nvdimm->flags);
 }
 
 void nvdimm_set_locked(struct device *dev)
@@ -312,8 +312,9 @@ static ssize_t flags_show(struct device *dev,
 {
 	struct nvdimm *nvdimm = to_nvdimm(dev);
 
-	return sprintf(buf, "%s%s\n",
+	return sprintf(buf, "%s%s%s\n",
 			test_bit(NDD_ALIASING, &nvdimm->flags) ? "alias " : "",
+			test_bit(NDD_LABELING, &nvdimm->flags) ? "label " : "",
 			test_bit(NDD_LOCKED, &nvdimm->flags) ? "lock " : "");
 }
 static DEVICE_ATTR_RO(flags);
@@ -562,6 +563,21 @@ int nvdimm_security_freeze(struct nvdimm *nvdimm)
 	return rc;
 }
 
+static unsigned long dpa_align(struct nd_region *nd_region)
+{
+	struct device *dev = &nd_region->dev;
+
+	if (dev_WARN_ONCE(dev, !is_nvdimm_bus_locked(dev),
+				"bus lock required for capacity provision\n"))
+		return 0;
+	if (dev_WARN_ONCE(dev, !nd_region->ndr_mappings || nd_region->align
+				% nd_region->ndr_mappings,
+				"invalid region align %#lx mappings: %d\n",
+				nd_region->align, nd_region->ndr_mappings))
+		return 0;
+	return nd_region->align / nd_region->ndr_mappings;
+}
+
 int alias_dpa_busy(struct device *dev, void *data)
 {
 	resource_size_t map_end, blk_start, new;
@@ -570,6 +586,7 @@ int alias_dpa_busy(struct device *dev, void *data)
 	struct nd_region *nd_region;
 	struct nvdimm_drvdata *ndd;
 	struct resource *res;
+	unsigned long align;
 	int i;
 
 	if (!is_memory(dev))
@@ -607,13 +624,21 @@ int alias_dpa_busy(struct device *dev, void *data)
 	 * Find the free dpa from the end of the last pmem allocation to
 	 * the end of the interleave-set mapping.
 	 */
+	align = dpa_align(nd_region);
+	if (!align)
+		return 0;
+
 	for_each_dpa_resource(ndd, res) {
+		resource_size_t start, end;
+
 		if (strncmp(res->name, "pmem", 4) != 0)
 			continue;
-		if ((res->start >= blk_start && res->start < map_end)
-				|| (res->end >= blk_start
-					&& res->end <= map_end)) {
-			new = max(blk_start, min(map_end + 1, res->end + 1));
+
+		start = ALIGN_DOWN(res->start, align);
+		end = ALIGN(res->end + 1, align) - 1;
+		if ((start >= blk_start && start < map_end)
+				|| (end >= blk_start && end <= map_end)) {
+			new = max(blk_start, min(map_end, end) + 1);
 			if (new != blk_start) {
 				blk_start = new;
 				goto retry;
@@ -653,6 +678,7 @@ resource_size_t nd_blk_available_dpa(struct nd_region *nd_region)
 		.res = NULL,
 	};
 	struct resource *res;
+	unsigned long align;
 
 	if (!ndd)
 		return 0;
@@ -660,10 +686,20 @@ resource_size_t nd_blk_available_dpa(struct nd_region *nd_region)
 	device_for_each_child(&nvdimm_bus->dev, &info, alias_dpa_busy);
 
 	/* now account for busy blk allocations in unaliased dpa */
+	align = dpa_align(nd_region);
+	if (!align)
+		return 0;
 	for_each_dpa_resource(ndd, res) {
+		resource_size_t start, end, size;
+
 		if (strncmp(res->name, "blk", 3) != 0)
 			continue;
-		info.available -= resource_size(res);
+		start = ALIGN_DOWN(res->start, align);
+		end = ALIGN(res->end + 1, align) - 1;
+		size = end - start + 1;
+		if (size >= info.available)
+			return 0;
+		info.available -= size;
 	}
 
 	return info.available;
@@ -682,19 +718,31 @@ resource_size_t nd_pmem_max_contiguous_dpa(struct nd_region *nd_region,
 	struct nvdimm_bus *nvdimm_bus;
 	resource_size_t max = 0;
 	struct resource *res;
+	unsigned long align;
 
 	/* if a dimm is disabled the available capacity is zero */
 	if (!ndd)
+		return 0;
+
+	align = dpa_align(nd_region);
+	if (!align)
 		return 0;
 
 	nvdimm_bus = walk_to_nvdimm_bus(ndd->dev);
 	if (__reserve_free_pmem(&nd_region->dev, nd_mapping->nvdimm))
 		return 0;
 	for_each_dpa_resource(ndd, res) {
+		resource_size_t start, end;
+
 		if (strcmp(res->name, "pmem-reserve") != 0)
 			continue;
-		if (resource_size(res) > max)
-			max = resource_size(res);
+		/* trim free space relative to current alignment setting */
+		start = ALIGN(res->start, align);
+		end = ALIGN_DOWN(res->end + 1, align) - 1;
+		if (end < start)
+			continue;
+		if (end - start + 1 > max)
+			max = end - start + 1;
 	}
 	release_free_pmem(nvdimm_bus, nd_mapping);
 	return max;
@@ -722,24 +770,33 @@ resource_size_t nd_pmem_available_dpa(struct nd_region *nd_region,
 	struct nvdimm_drvdata *ndd = to_ndd(nd_mapping);
 	struct resource *res;
 	const char *reason;
+	unsigned long align;
 
 	if (!ndd)
+		return 0;
+
+	align = dpa_align(nd_region);
+	if (!align)
 		return 0;
 
 	map_start = nd_mapping->start;
 	map_end = map_start + nd_mapping->size - 1;
 	blk_start = max(map_start, map_end + 1 - *overlap);
 	for_each_dpa_resource(ndd, res) {
-		if (res->start >= map_start && res->start < map_end) {
+		resource_size_t start, end;
+
+		start = ALIGN_DOWN(res->start, align);
+		end = ALIGN(res->end + 1, align) - 1;
+		if (start >= map_start && start < map_end) {
 			if (strncmp(res->name, "blk", 3) == 0)
 				blk_start = min(blk_start,
-						max(map_start, res->start));
-			else if (res->end > map_end) {
+						max(map_start, start));
+			else if (end > map_end) {
 				reason = "misaligned to iset";
 				goto err;
 			} else
-				busy += resource_size(res);
-		} else if (res->end >= map_start && res->end <= map_end) {
+				busy += end - start + 1;
+		} else if (end >= map_start && end <= map_end) {
 			if (strncmp(res->name, "blk", 3) == 0) {
 				/*
 				 * If a BLK allocation overlaps the start of
@@ -748,8 +805,8 @@ resource_size_t nd_pmem_available_dpa(struct nd_region *nd_region,
 				 */
 				blk_start = map_start;
 			} else
-				busy += resource_size(res);
-		} else if (map_start > res->start && map_start < res->end) {
+				busy += end - start + 1;
+		} else if (map_start > start && map_start < end) {
 			/* total eclipse of the mapping */
 			busy += nd_mapping->size;
 			blk_start = map_start;
@@ -759,7 +816,7 @@ resource_size_t nd_pmem_available_dpa(struct nd_region *nd_region,
 	*overlap = map_end + 1 - blk_start;
 	available = blk_start - map_start;
 	if (busy < available)
-		return available - busy;
+		return ALIGN_DOWN(available - busy, align);
 	return 0;
 
  err:

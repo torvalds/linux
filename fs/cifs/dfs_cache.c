@@ -1260,6 +1260,44 @@ void dfs_cache_del_vol(const char *fullpath)
 	kref_put(&vi->refcnt, vol_release);
 }
 
+/**
+ * dfs_cache_get_tgt_share - parse a DFS target
+ *
+ * @it: DFS target iterator.
+ * @share: tree name.
+ * @share_len: length of tree name.
+ * @prefix: prefix path.
+ * @prefix_len: length of prefix path.
+ *
+ * Return zero if target was parsed correctly, otherwise non-zero.
+ */
+int dfs_cache_get_tgt_share(const struct dfs_cache_tgt_iterator *it,
+			    const char **share, size_t *share_len,
+			    const char **prefix, size_t *prefix_len)
+{
+	char *s, sep;
+
+	if (!it || !share || !share_len || !prefix || !prefix_len)
+		return -EINVAL;
+
+	sep = it->it_name[0];
+	if (sep != '\\' && sep != '/')
+		return -EINVAL;
+
+	s = strchr(it->it_name + 1, sep);
+	if (!s)
+		return -EINVAL;
+
+	s = strchrnul(s + 1, sep);
+
+	*share = it->it_name;
+	*share_len = s - it->it_name;
+	*prefix = *s ? s + 1 : s;
+	*prefix_len = &it->it_name[strlen(it->it_name)] - *prefix;
+
+	return 0;
+}
+
 /* Get all tcons that are within a DFS namespace and can be refreshed */
 static void get_tcons(struct TCP_Server_Info *server, struct list_head *head)
 {

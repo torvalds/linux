@@ -248,7 +248,7 @@ int rsxx_setup_dev(struct rsxx_cardinfo *card)
 		return -ENOMEM;
 	}
 
-	card->queue = blk_alloc_queue(GFP_KERNEL);
+	card->queue = blk_alloc_queue(rsxx_make_request, NUMA_NO_NODE);
 	if (!card->queue) {
 		dev_err(CARD_TO_DEV(card), "Failed queue alloc\n");
 		unregister_blkdev(card->major, DRIVER_NAME);
@@ -269,7 +269,6 @@ int rsxx_setup_dev(struct rsxx_cardinfo *card)
 		blk_queue_logical_block_size(card->queue, blk_size);
 	}
 
-	blk_queue_make_request(card->queue, rsxx_make_request);
 	blk_queue_max_hw_sectors(card->queue, blkdev_max_hw_sectors);
 	blk_queue_physical_block_size(card->queue, RSXX_HW_BLK_SIZE);
 

@@ -13,6 +13,8 @@
 #include <linux/types.h>
 #include <linux/err.h>
 
+struct gpio_desc;
+
 /**
  * DOC: bandgap driver data structure
  * ==================================
@@ -199,7 +201,7 @@ struct ti_bandgap {
 	struct clk			*div_clk;
 	spinlock_t			lock; /* shields this struct */
 	int				irq;
-	int				tshut_gpio;
+	struct gpio_desc		*tshut_gpiod;
 	u32				clk_rate;
 };
 

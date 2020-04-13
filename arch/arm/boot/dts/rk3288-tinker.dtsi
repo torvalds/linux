@@ -276,6 +276,7 @@
 			};
 
 			vccio_sd: LDO_REG5 {
+				regulator-always-on;
 				regulator-boot-on;
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <3300000>;

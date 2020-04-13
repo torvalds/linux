@@ -8,8 +8,6 @@
 
 #include <linux/types.h>
 
-#include <drm/i915_drm.h>
-
 #include "i915_reg.h"
 
 enum pipe;

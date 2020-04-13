@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 libbpf_version.h
 libbpf.pc
 FEATURE-DUMP.libbpf

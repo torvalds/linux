@@ -6,22 +6,25 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
-#include <fcntl.h>
-#include <poll.h>
-#include <sys/ioctl.h>
 #include <linux/perf_event.h>
 #include <linux/bpf.h>
 #include <signal.h>
-#include <assert.h>
 #include <errno.h>
 #include <sys/resource.h>
+#include <bpf/bpf.h>
 #include <bpf/libbpf.h>
-#include "bpf_load.h"
 #include "perf-sys.h"
 #include "trace_helpers.h"
 
+#define __must_check
+#include <linux/err.h>
+
 #define SAMPLE_FREQ 50
 
+static int pid;
+/* counts, stackmap */
+static int map_fd[2];
+struct bpf_program *prog;
 static bool sys_read_seen, sys_write_seen;
 
 static void print_ksym(__u64 addr)
@@ -91,10 +94,10 @@ static void print_stack(struct key_t *key, __u64 count)
 	}
 }
 
-static void int_exit(int sig)
+static void err_exit(int err)
 {
-	kill(0, SIGKILL);
-	exit(0);
+	kill(pid, SIGKILL);
+	exit(err);
 }
 
 static void print_stacks(void)
@@ -102,7 +105,7 @@ static void print_stacks(void)
 	struct key_t key = {}, next_key;
 	__u64 value;
 	__u32 stackid = 0, next_id;
-	int fd = map_fd[0], stack_map = map_fd[1];
+	int error = 1, fd = map_fd[0], stack_map = map_fd[1];
 
 	sys_read_seen = sys_write_seen = false;
 	while (bpf_map_get_next_key(fd, &key, &next_key) == 0) {
@@ -114,7 +117,7 @@ static void print_stacks(void)
 	printf("\n");
 	if (!sys_read_seen || !sys_write_seen) {
 		printf("BUG kernel stack doesn't contain sys_read() and sys_write()\n");
-		int_exit(0);
+		err_exit(error);
 	}
 
 	/* clear stack map */
@@ -136,43 +139,52 @@ static inline int generate_load(void)
 
 static void test_perf_event_all_cpu(struct perf_event_attr *attr)
 {
-	int nr_cpus = sysconf(_SC_NPROCESSORS_CONF);
-	int *pmu_fd = malloc(nr_cpus * sizeof(int));
-	int i, error = 0;
+	int nr_cpus = sysconf(_SC_NPROCESSORS_ONLN);
+	struct bpf_link **links = calloc(nr_cpus, sizeof(struct bpf_link *));
+	int i, pmu_fd, error = 1;
+
+	if (!links) {
+		printf("malloc of links failed\n");
+		goto err;
+	}
 
 	/* system wide perf event, no need to inherit */
 	attr->inherit = 0;
 
 	/* open perf_event on all cpus */
 	for (i = 0; i < nr_cpus; i++) {
-		pmu_fd[i] = sys_perf_event_open(attr, -1, i, -1, 0);
-		if (pmu_fd[i] < 0) {
+		pmu_fd = sys_perf_event_open(attr, -1, i, -1, 0);
+		if (pmu_fd < 0) {
 			printf("sys_perf_event_open failed\n");
-			error = 1;
 			goto all_cpu_err;
 		}
-		assert(ioctl(pmu_fd[i], PERF_EVENT_IOC_SET_BPF, prog_fd[0]) == 0);
-		assert(ioctl(pmu_fd[i], PERF_EVENT_IOC_ENABLE) == 0);
+		links[i] = bpf_program__attach_perf_event(prog, pmu_fd);
+		if (IS_ERR(links[i])) {
+			printf("bpf_program__attach_perf_event failed\n");
+			links[i] = NULL;
+			close(pmu_fd);
+			goto all_cpu_err;
+		}
 	}
 
-	if (generate_load() < 0) {
-		error = 1;
+	if (generate_load() < 0)
 		goto all_cpu_err;
-	}
+
 	print_stacks();
+	error = 0;
 all_cpu_err:
-	for (i--; i >= 0; i--) {
-		ioctl(pmu_fd[i], PERF_EVENT_IOC_DISABLE);
-		close(pmu_fd[i]);
-	}
-	free(pmu_fd);
+	for (i--; i >= 0; i--)
+		bpf_link__destroy(links[i]);
+err:
+	free(links);
 	if (error)
-		int_exit(0);
+		err_exit(error);
 }
 
 static void test_perf_event_task(struct perf_event_attr *attr)
 {
-	int pmu_fd, error = 0;
+	struct bpf_link *link = NULL;
+	int pmu_fd, error = 1;
 
 	/* per task perf event, enable inherit so the "dd ..." command can be traced properly.
 	 * Enabling inherit will cause bpf_perf_prog_read_time helper failure.
@@ -183,21 +195,25 @@ static void test_perf_event_task(struct perf_event_attr *attr)
 	pmu_fd = sys_perf_event_open(attr, 0, -1, -1, 0);
 	if (pmu_fd < 0) {
 		printf("sys_perf_event_open failed\n");
-		int_exit(0);
-	}
-	assert(ioctl(pmu_fd, PERF_EVENT_IOC_SET_BPF, prog_fd[0]) == 0);
-	assert(ioctl(pmu_fd, PERF_EVENT_IOC_ENABLE) == 0);
-
-	if (generate_load() < 0) {
-		error = 1;
 		goto err;
 	}
+	link = bpf_program__attach_perf_event(prog, pmu_fd);
+	if (IS_ERR(link)) {
+		printf("bpf_program__attach_perf_event failed\n");
+		link = NULL;
+		close(pmu_fd);
+		goto err;
+	}
+
+	if (generate_load() < 0)
+		goto err;
+
 	print_stacks();
+	error = 0;
 err:
-	ioctl(pmu_fd, PERF_EVENT_IOC_DISABLE);
-	close(pmu_fd);
+	bpf_link__destroy(link);
 	if (error)
-		int_exit(0);
+		err_exit(error);
 }
 
 static void test_bpf_perf_event(void)
@@ -282,29 +298,60 @@ static void test_bpf_perf_event(void)
 int main(int argc, char **argv)
 {
 	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
+	struct bpf_object *obj = NULL;
 	char filename[256];
+	int error = 1;
 
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
 	setrlimit(RLIMIT_MEMLOCK, &r);
 
-	signal(SIGINT, int_exit);
-	signal(SIGTERM, int_exit);
+	signal(SIGINT, err_exit);
+	signal(SIGTERM, err_exit);
 
 	if (load_kallsyms()) {
 		printf("failed to process /proc/kallsyms\n");
-		return 1;
+		goto cleanup;
 	}
 
-	if (load_bpf_file(filename)) {
-		printf("%s", bpf_log_buf);
-		return 2;
+	obj = bpf_object__open_file(filename, NULL);
+	if (IS_ERR(obj)) {
+		printf("opening BPF object file failed\n");
+		obj = NULL;
+		goto cleanup;
 	}
 
-	if (fork() == 0) {
+	prog = bpf_object__find_program_by_name(obj, "bpf_prog1");
+	if (!prog) {
+		printf("finding a prog in obj file failed\n");
+		goto cleanup;
+	}
+
+	/* load BPF program */
+	if (bpf_object__load(obj)) {
+		printf("loading BPF object file failed\n");
+		goto cleanup;
+	}
+
+	map_fd[0] = bpf_object__find_map_fd_by_name(obj, "counts");
+	map_fd[1] = bpf_object__find_map_fd_by_name(obj, "stackmap");
+	if (map_fd[0] < 0 || map_fd[1] < 0) {
+		printf("finding a counts/stackmap map in obj file failed\n");
+		goto cleanup;
+	}
+
+	pid = fork();
+	if (pid == 0) {
 		read_trace_pipe();
 		return 0;
+	} else if (pid == -1) {
+		printf("couldn't spawn process\n");
+		goto cleanup;
 	}
+
 	test_bpf_perf_event();
-	int_exit(0);
-	return 0;
+	error = 0;
+
+cleanup:
+	bpf_object__close(obj);
+	err_exit(error);
 }

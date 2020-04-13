@@ -111,10 +111,6 @@ int drm_irq_install(struct drm_device *dev, int irq)
 	if (irq == 0)
 		return -EINVAL;
 
-	/* Driver must have been initialized */
-	if (!dev->dev_private)
-		return -EINVAL;
-
 	if (dev->irq_enabled)
 		return -EBUSY;
 	dev->irq_enabled = true;

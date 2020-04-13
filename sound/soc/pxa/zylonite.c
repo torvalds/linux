@@ -66,7 +66,7 @@ static const struct snd_soc_dapm_route audio_map[] = {
 static int zylonite_wm9713_init(struct snd_soc_pcm_runtime *rtd)
 {
 	if (clk_pout)
-		snd_soc_dai_set_pll(rtd->codec_dai, 0, 0,
+		snd_soc_dai_set_pll(asoc_rtd_to_codec(rtd, 0), 0, 0,
 				    clk_get_rate(pout), 0);
 
 	return 0;
@@ -76,8 +76,8 @@ static int zylonite_voice_hw_params(struct snd_pcm_substream *substream,
 				    struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
+	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
 	unsigned int wm9713_div = 0;
 	int ret = 0;
 	int rate = params_rate(params);

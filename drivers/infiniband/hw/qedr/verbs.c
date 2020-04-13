@@ -1186,7 +1186,7 @@ static int qedr_check_qp_attrs(struct ib_pd *ibpd, struct qedr_dev *dev,
 		DP_DEBUG(dev, QEDR_MSG_QP,
 			 "create qp: unsupported qp type=0x%x requested\n",
 			 attrs->qp_type);
-		return -EINVAL;
+		return -EOPNOTSUPP;
 	}
 
 	if (attrs->cap.max_send_wr > qattr->max_sqe) {

@@ -701,11 +701,26 @@ sub check_needs()
 		} else {
 			my $rec_activate = "$virtenv_dir/bin/activate";
 			my $virtualenv = findprog("virtualenv-3");
+			my $rec_python3 = "";
 			$virtualenv = findprog("virtualenv-3.5") if (!$virtualenv);
 			$virtualenv = findprog("virtualenv") if (!$virtualenv);
 			$virtualenv = "virtualenv" if (!$virtualenv);
 
-			printf "\t$virtualenv $virtenv_dir\n";
+			my $rel = "";
+			if (index($system_release, "Ubuntu") != -1) {
+				$rel = $1 if ($system_release =~ /Ubuntu\s+(\d+)[.]/);
+				if ($rel && $rel >= 16) {
+					$rec_python3 = " -p python3";
+				}
+			}
+			if (index($system_release, "Debian") != -1) {
+				$rel = $1 if ($system_release =~ /Debian\s+(\d+)/);
+				if ($rel && $rel >= 7) {
+					$rec_python3 = " -p python3";
+				}
+			}
+
+			printf "\t$virtualenv$rec_python3 $virtenv_dir\n";
 			printf "\t. $rec_activate\n";
 			printf "\tpip install -r $requirement_file\n";
 			deactivate_help();

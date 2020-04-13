@@ -125,24 +125,18 @@ static irqreturn_t r4030_timer_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static struct irqaction r4030_timer_irqaction = {
-	.handler	= r4030_timer_interrupt,
-	.flags		= IRQF_TIMER,
-	.name		= "R4030 timer",
-};
-
 void __init plat_time_init(void)
 {
 	struct clock_event_device *cd = &r4030_clockevent;
-	struct irqaction *action = &r4030_timer_irqaction;
 	unsigned int cpu = smp_processor_id();
 
 	BUG_ON(HZ != 100);
 
 	cd->cpumask		= cpumask_of(cpu);
 	clockevents_register_device(cd);
-	action->dev_id = cd;
-	setup_irq(JAZZ_TIMER_IRQ, action);
+	if (request_irq(JAZZ_TIMER_IRQ, r4030_timer_interrupt, IRQF_TIMER,
+			"R4030 timer", cd))
+		pr_err("Failed to register R4030 timer interrupt\n");
 
 	/*
 	 * Set clock to 100Hz.

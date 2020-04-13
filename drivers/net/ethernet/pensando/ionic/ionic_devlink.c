@@ -77,6 +77,10 @@ int ionic_devlink_register(struct ionic *ionic)
 		return err;
 	}
 
+	/* don't register the mgmt_nic as a port */
+	if (ionic->is_mgmt_nic)
+		return 0;
+
 	devlink_port_attrs_set(&ionic->dl_port, DEVLINK_PORT_FLAVOUR_PHYSICAL,
 			       0, false, 0, NULL, 0);
 	err = devlink_port_register(dl, &ionic->dl_port, 0);
@@ -93,6 +97,7 @@ void ionic_devlink_unregister(struct ionic *ionic)
 {
 	struct devlink *dl = priv_to_devlink(ionic);
 
-	devlink_port_unregister(&ionic->dl_port);
+	if (ionic->dl_port.registered)
+		devlink_port_unregister(&ionic->dl_port);
 	devlink_unregister(dl);
 }

@@ -21,6 +21,8 @@ properties:
       - goodix,gt911
       - goodix,gt9110
       - goodix,gt912
+      - goodix,gt9147
+      - goodix,gt917s
       - goodix,gt927
       - goodix,gt9271
       - goodix,gt928

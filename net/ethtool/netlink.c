@@ -18,7 +18,7 @@ static const struct nla_policy ethnl_header_policy[ETHTOOL_A_HEADER_MAX + 1] = {
 };
 
 /**
- * ethnl_parse_header() - parse request header
+ * ethnl_parse_header_dev_get() - parse request header
  * @req_info:    structure to put results into
  * @header:      nest attribute with request header
  * @net:         request netns
@@ -33,13 +33,14 @@ static const struct nla_policy ethnl_header_policy[ETHTOOL_A_HEADER_MAX + 1] = {
  *
  * Return: 0 on success or negative error code
  */
-int ethnl_parse_header(struct ethnl_req_info *req_info,
-		       const struct nlattr *header, struct net *net,
-		       struct netlink_ext_ack *extack, bool require_dev)
+int ethnl_parse_header_dev_get(struct ethnl_req_info *req_info,
+			       const struct nlattr *header, struct net *net,
+			       struct netlink_ext_ack *extack, bool require_dev)
 {
 	struct nlattr *tb[ETHTOOL_A_HEADER_MAX + 1];
 	const struct nlattr *devname_attr;
 	struct net_device *dev = NULL;
+	u32 flags = 0;
 	int ret;
 
 	if (!header) {
@@ -50,8 +51,17 @@ int ethnl_parse_header(struct ethnl_req_info *req_info,
 			       ethnl_header_policy, extack);
 	if (ret < 0)
 		return ret;
-	devname_attr = tb[ETHTOOL_A_HEADER_DEV_NAME];
+	if (tb[ETHTOOL_A_HEADER_FLAGS]) {
+		flags = nla_get_u32(tb[ETHTOOL_A_HEADER_FLAGS]);
+		if (flags & ~ETHTOOL_FLAG_ALL) {
+			NL_SET_ERR_MSG_ATTR(extack, tb[ETHTOOL_A_HEADER_FLAGS],
+					    "unrecognized request flags");
+			nl_set_extack_cookie_u32(extack, ETHTOOL_FLAG_ALL);
+			return -EOPNOTSUPP;
+		}
+	}
 
+	devname_attr = tb[ETHTOOL_A_HEADER_DEV_NAME];
 	if (tb[ETHTOOL_A_HEADER_DEV_INDEX]) {
 		u32 ifindex = nla_get_u32(tb[ETHTOOL_A_HEADER_DEV_INDEX]);
 
@@ -90,9 +100,7 @@ int ethnl_parse_header(struct ethnl_req_info *req_info,
 	}
 
 	req_info->dev = dev;
-	if (tb[ETHTOOL_A_HEADER_FLAGS])
-		req_info->flags = nla_get_u32(tb[ETHTOOL_A_HEADER_FLAGS]);
-
+	req_info->flags = flags;
 	return 0;
 }
 
@@ -215,6 +223,14 @@ ethnl_default_requests[__ETHTOOL_MSG_USER_CNT] = {
 	[ETHTOOL_MSG_LINKSTATE_GET]	= &ethnl_linkstate_request_ops,
 	[ETHTOOL_MSG_DEBUG_GET]		= &ethnl_debug_request_ops,
 	[ETHTOOL_MSG_WOL_GET]		= &ethnl_wol_request_ops,
+	[ETHTOOL_MSG_FEATURES_GET]	= &ethnl_features_request_ops,
+	[ETHTOOL_MSG_PRIVFLAGS_GET]	= &ethnl_privflags_request_ops,
+	[ETHTOOL_MSG_RINGS_GET]		= &ethnl_rings_request_ops,
+	[ETHTOOL_MSG_CHANNELS_GET]	= &ethnl_channels_request_ops,
+	[ETHTOOL_MSG_COALESCE_GET]	= &ethnl_coalesce_request_ops,
+	[ETHTOOL_MSG_PAUSE_GET]		= &ethnl_pause_request_ops,
+	[ETHTOOL_MSG_EEE_GET]		= &ethnl_eee_request_ops,
+	[ETHTOOL_MSG_TSINFO_GET]	= &ethnl_tsinfo_request_ops,
 };
 
 static struct ethnl_dump_ctx *ethnl_dump_context(struct netlink_callback *cb)
@@ -253,8 +269,8 @@ static int ethnl_default_parse(struct ethnl_req_info *req_info,
 			  request_ops->request_policy, extack);
 	if (ret < 0)
 		goto out;
-	ret = ethnl_parse_header(req_info, tb[request_ops->hdr_attr], net,
-				 extack, require_dev);
+	ret = ethnl_parse_header_dev_get(req_info, tb[request_ops->hdr_attr],
+					 net, extack, require_dev);
 	if (ret < 0)
 		goto out;
 
@@ -527,6 +543,13 @@ ethnl_default_notify_ops[ETHTOOL_MSG_KERNEL_MAX + 1] = {
 	[ETHTOOL_MSG_LINKMODES_NTF]	= &ethnl_linkmodes_request_ops,
 	[ETHTOOL_MSG_DEBUG_NTF]		= &ethnl_debug_request_ops,
 	[ETHTOOL_MSG_WOL_NTF]		= &ethnl_wol_request_ops,
+	[ETHTOOL_MSG_FEATURES_NTF]	= &ethnl_features_request_ops,
+	[ETHTOOL_MSG_PRIVFLAGS_NTF]	= &ethnl_privflags_request_ops,
+	[ETHTOOL_MSG_RINGS_NTF]		= &ethnl_rings_request_ops,
+	[ETHTOOL_MSG_CHANNELS_NTF]	= &ethnl_channels_request_ops,
+	[ETHTOOL_MSG_COALESCE_NTF]	= &ethnl_coalesce_request_ops,
+	[ETHTOOL_MSG_PAUSE_NTF]		= &ethnl_pause_request_ops,
+	[ETHTOOL_MSG_EEE_NTF]		= &ethnl_eee_request_ops,
 };
 
 /* default notification handler */
@@ -612,6 +635,13 @@ static const ethnl_notify_handler_t ethnl_notify_handlers[] = {
 	[ETHTOOL_MSG_LINKMODES_NTF]	= ethnl_default_notify,
 	[ETHTOOL_MSG_DEBUG_NTF]		= ethnl_default_notify,
 	[ETHTOOL_MSG_WOL_NTF]		= ethnl_default_notify,
+	[ETHTOOL_MSG_FEATURES_NTF]	= ethnl_default_notify,
+	[ETHTOOL_MSG_PRIVFLAGS_NTF]	= ethnl_default_notify,
+	[ETHTOOL_MSG_RINGS_NTF]		= ethnl_default_notify,
+	[ETHTOOL_MSG_CHANNELS_NTF]	= ethnl_default_notify,
+	[ETHTOOL_MSG_COALESCE_NTF]	= ethnl_default_notify,
+	[ETHTOOL_MSG_PAUSE_NTF]		= ethnl_default_notify,
+	[ETHTOOL_MSG_EEE_NTF]		= ethnl_default_notify,
 };
 
 void ethtool_notify(struct net_device *dev, unsigned int cmd, const void *data)
@@ -628,6 +658,29 @@ void ethtool_notify(struct net_device *dev, unsigned int cmd, const void *data)
 			  cmd, netdev_name(dev));
 }
 EXPORT_SYMBOL(ethtool_notify);
+
+static void ethnl_notify_features(struct netdev_notifier_info *info)
+{
+	struct net_device *dev = netdev_notifier_info_to_dev(info);
+
+	ethtool_notify(dev, ETHTOOL_MSG_FEATURES_NTF, NULL);
+}
+
+static int ethnl_netdev_event(struct notifier_block *this, unsigned long event,
+			      void *ptr)
+{
+	switch (event) {
+	case NETDEV_FEAT_CHANGE:
+		ethnl_notify_features(ptr);
+		break;
+	}
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block ethnl_netdev_notifier = {
+	.notifier_call = ethnl_netdev_event,
+};
 
 /* genetlink setup */
 
@@ -695,6 +748,97 @@ static const struct genl_ops ethtool_genl_ops[] = {
 		.flags	= GENL_UNS_ADMIN_PERM,
 		.doit	= ethnl_set_wol,
 	},
+	{
+		.cmd	= ETHTOOL_MSG_FEATURES_GET,
+		.doit	= ethnl_default_doit,
+		.start	= ethnl_default_start,
+		.dumpit	= ethnl_default_dumpit,
+		.done	= ethnl_default_done,
+	},
+	{
+		.cmd	= ETHTOOL_MSG_FEATURES_SET,
+		.flags	= GENL_UNS_ADMIN_PERM,
+		.doit	= ethnl_set_features,
+	},
+	{
+		.cmd	= ETHTOOL_MSG_PRIVFLAGS_GET,
+		.doit	= ethnl_default_doit,
+		.start	= ethnl_default_start,
+		.dumpit	= ethnl_default_dumpit,
+		.done	= ethnl_default_done,
+	},
+	{
+		.cmd	= ETHTOOL_MSG_PRIVFLAGS_SET,
+		.flags	= GENL_UNS_ADMIN_PERM,
+		.doit	= ethnl_set_privflags,
+	},
+	{
+		.cmd	= ETHTOOL_MSG_RINGS_GET,
+		.doit	= ethnl_default_doit,
+		.start	= ethnl_default_start,
+		.dumpit	= ethnl_default_dumpit,
+		.done	= ethnl_default_done,
+	},
+	{
+		.cmd	= ETHTOOL_MSG_RINGS_SET,
+		.flags	= GENL_UNS_ADMIN_PERM,
+		.doit	= ethnl_set_rings,
+	},
+	{
+		.cmd	= ETHTOOL_MSG_CHANNELS_GET,
+		.doit	= ethnl_default_doit,
+		.start	= ethnl_default_start,
+		.dumpit	= ethnl_default_dumpit,
+		.done	= ethnl_default_done,
+	},
+	{
+		.cmd	= ETHTOOL_MSG_CHANNELS_SET,
+		.flags	= GENL_UNS_ADMIN_PERM,
+		.doit	= ethnl_set_channels,
+	},
+	{
+		.cmd	= ETHTOOL_MSG_COALESCE_GET,
+		.doit	= ethnl_default_doit,
+		.start	= ethnl_default_start,
+		.dumpit	= ethnl_default_dumpit,
+		.done	= ethnl_default_done,
+	},
+	{
+		.cmd	= ETHTOOL_MSG_COALESCE_SET,
+		.flags	= GENL_UNS_ADMIN_PERM,
+		.doit	= ethnl_set_coalesce,
+	},
+	{
+		.cmd	= ETHTOOL_MSG_PAUSE_GET,
+		.doit	= ethnl_default_doit,
+		.start	= ethnl_default_start,
+		.dumpit	= ethnl_default_dumpit,
+		.done	= ethnl_default_done,
+	},
+	{
+		.cmd	= ETHTOOL_MSG_PAUSE_SET,
+		.flags	= GENL_UNS_ADMIN_PERM,
+		.doit	= ethnl_set_pause,
+	},
+	{
+		.cmd	= ETHTOOL_MSG_EEE_GET,
+		.doit	= ethnl_default_doit,
+		.start	= ethnl_default_start,
+		.dumpit	= ethnl_default_dumpit,
+		.done	= ethnl_default_done,
+	},
+	{
+		.cmd	= ETHTOOL_MSG_EEE_SET,
+		.flags	= GENL_UNS_ADMIN_PERM,
+		.doit	= ethnl_set_eee,
+	},
+	{
+		.cmd	= ETHTOOL_MSG_TSINFO_GET,
+		.doit	= ethnl_default_doit,
+		.start	= ethnl_default_start,
+		.dumpit	= ethnl_default_dumpit,
+		.done	= ethnl_default_done,
+	},
 };
 
 static const struct genl_multicast_group ethtool_nl_mcgrps[] = {
@@ -723,7 +867,9 @@ static int __init ethnl_init(void)
 		return ret;
 	ethnl_ok = true;
 
-	return 0;
+	ret = register_netdevice_notifier(&ethnl_netdev_notifier);
+	WARN(ret < 0, "ethtool: net device notifier registration failed");
+	return ret;
 }
 
 subsys_initcall(ethnl_init);

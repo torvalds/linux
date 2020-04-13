@@ -263,7 +263,7 @@ Overlay contains:
 			gpio@10040 {
 				compatible = "altr,pio-1.0";
 				reg = <0x10040 0x20>;
-				altr,gpio-bank-width = <4>;
+				altr,ngpio = <4>;
 				#gpio-cells = <2>;
 				clocks = <2>;
 				gpio-controller;
@@ -468,8 +468,7 @@ programming is the FPGA based bridge of fpga_region1.
 				compatible = "altr,pio-1.0";
 				reg = <0x10040 0x20>;
 				clocks = <0x2>;
-				altr,gpio-bank-width = <0x4>;
-				resetvalue = <0x0>;
+				altr,ngpio = <0x4>;
 				#gpio-cells = <0x2>;
 				gpio-controller;
 			};

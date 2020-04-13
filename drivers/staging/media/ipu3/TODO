@@ -13,8 +13,6 @@ staging directory.
 - Elaborate the functionality of different selection rectangles in driver
   documentation. This may require driver changes as well.
 
-- More detailed documentation on calculating BDS, GCD etc. sizes needed.
-
 - Document different operation modes, and which buffer queues are relevant
   in each mode. To process an image, which queues require a buffer an in
   which ones is it optional?

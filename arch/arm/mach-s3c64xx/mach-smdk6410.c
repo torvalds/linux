@@ -623,7 +623,7 @@ static struct pwm_lookup smdk6410_pwm_lookup[] = {
 };
 
 static struct platform_pwm_backlight_data smdk6410_bl_data = {
-	.enable_gpio = -1,
+	/* Intentionally blank */
 };
 
 static struct dwc2_hsotg_plat smdk6410_hsotg_pdata;

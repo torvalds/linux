@@ -19,7 +19,8 @@ In 'cpu' nodes:
 
 In 'operating-points-v2' table:
 - compatible: Should be
-	- 'operating-points-v2-kryo-cpu' for apq8096 and msm8996.
+	- 'operating-points-v2-kryo-cpu' for apq8096, msm8996, msm8974,
+					     apq8064, ipq8064, msm8960 and ipq8074.
 
 Optional properties:
 --------------------

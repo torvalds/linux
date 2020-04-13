@@ -645,6 +645,7 @@ config MMC_SDHCI_SPRD
 	depends on ARCH_SPRD
 	depends on MMC_SDHCI_PLTFM
 	select MMC_SDHCI_IO_ACCESSORS
+	select MMC_HSQ
 	help
 	  This selects the SDIO Host Controller in Spreadtrum
 	  SoCs, this driver supports R11(IP version: R11P0).
@@ -946,6 +947,17 @@ config MMC_CQHCI
 	  This controller supports eMMC devices with command queue support.
 
 	  If you have a controller with this interface, say Y or M here.
+
+	  If unsure, say N.
+
+config MMC_HSQ
+	tristate "MMC Host Software Queue support"
+	help
+	  This selects the MMC Host Software Queue support. This may increase
+	  performance, if the host controller and its driver supports it.
+
+	  If you have a controller/driver supporting this interface, say Y or M
+	  here.
 
 	  If unsure, say N.
 

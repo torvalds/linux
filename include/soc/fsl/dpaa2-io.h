@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause) */
 /*
  * Copyright 2014-2016 Freescale Semiconductor Inc.
- * Copyright NXP
+ * Copyright 2017-2019 NXP
  *
  */
 #ifndef __FSL_DPAA2_IO_H
@@ -109,6 +109,10 @@ int dpaa2_io_service_pull_channel(struct dpaa2_io *d, u32 channelid,
 
 int dpaa2_io_service_enqueue_fq(struct dpaa2_io *d, u32 fqid,
 				const struct dpaa2_fd *fd);
+int dpaa2_io_service_enqueue_multiple_fq(struct dpaa2_io *d, u32 fqid,
+				const struct dpaa2_fd *fd, int number_of_frame);
+int dpaa2_io_service_enqueue_multiple_desc_fq(struct dpaa2_io *d, u32 *fqid,
+				const struct dpaa2_fd *fd, int number_of_frame);
 int dpaa2_io_service_enqueue_qd(struct dpaa2_io *d, u32 qdid, u8 prio,
 				u16 qdbin, const struct dpaa2_fd *fd);
 int dpaa2_io_service_release(struct dpaa2_io *d, u16 bpid,

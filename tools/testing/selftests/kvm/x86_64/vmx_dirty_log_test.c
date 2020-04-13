@@ -21,7 +21,7 @@
 
 /* The memory slot index to track dirty pages */
 #define TEST_MEM_SLOT_INDEX		1
-#define TEST_MEM_SIZE			3
+#define TEST_MEM_PAGES			3
 
 /* L1 guest test virtual memory offset */
 #define GUEST_TEST_MEM			0xc0000000
@@ -91,15 +91,14 @@ int main(int argc, char *argv[])
 	vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS,
 				    GUEST_TEST_MEM,
 				    TEST_MEM_SLOT_INDEX,
-				    TEST_MEM_SIZE,
+				    TEST_MEM_PAGES,
 				    KVM_MEM_LOG_DIRTY_PAGES);
 
 	/*
 	 * Add an identity map for GVA range [0xc0000000, 0xc0002000).  This
 	 * affects both L1 and L2.  However...
 	 */
-	virt_map(vm, GUEST_TEST_MEM, GUEST_TEST_MEM,
-		 TEST_MEM_SIZE * 4096, 0);
+	virt_map(vm, GUEST_TEST_MEM, GUEST_TEST_MEM, TEST_MEM_PAGES, 0);
 
 	/*
 	 * ... pages in the L2 GPA range [0xc0001000, 0xc0003000) will map to
@@ -113,11 +112,11 @@ int main(int argc, char *argv[])
 	nested_map(vmx, vm, NESTED_TEST_MEM1, GUEST_TEST_MEM, 4096, 0);
 	nested_map(vmx, vm, NESTED_TEST_MEM2, GUEST_TEST_MEM, 4096, 0);
 
-	bmap = bitmap_alloc(TEST_MEM_SIZE);
+	bmap = bitmap_alloc(TEST_MEM_PAGES);
 	host_test_mem = addr_gpa2hva(vm, GUEST_TEST_MEM);
 
 	while (!done) {
-		memset(host_test_mem, 0xaa, TEST_MEM_SIZE * 4096);
+		memset(host_test_mem, 0xaa, TEST_MEM_PAGES * 4096);
 		_vcpu_run(vm, VCPU_ID);
 		TEST_ASSERT(run->exit_reason == KVM_EXIT_IO,
 			    "Unexpected exit reason: %u (%s),\n",
@@ -126,8 +125,8 @@ int main(int argc, char *argv[])
 
 		switch (get_ucall(vm, VCPU_ID, &uc)) {
 		case UCALL_ABORT:
-			TEST_ASSERT(false, "%s at %s:%d", (const char *)uc.args[0],
-				    __FILE__, uc.args[1]);
+			TEST_FAIL("%s at %s:%ld", (const char *)uc.args[0],
+			       	  __FILE__, uc.args[1]);
 			/* NOT REACHED */
 		case UCALL_SYNC:
 			/*
@@ -152,7 +151,7 @@ int main(int argc, char *argv[])
 			done = true;
 			break;
 		default:
-			TEST_ASSERT(false, "Unknown ucall 0x%x.", uc.cmd);
+			TEST_FAIL("Unknown ucall %lu", uc.cmd);
 		}
 	}
 }

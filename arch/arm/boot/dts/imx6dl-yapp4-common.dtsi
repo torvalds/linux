@@ -562,6 +562,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usbh1>;
 	vbus-supply = <&reg_usb_h1_vbus>;
+	over-current-active-low;
 	status = "disabled";
 };
 
@@ -569,6 +570,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usbotg>;
 	vbus-supply = <&reg_usb_otg_vbus>;
+	over-current-active-low;
 	srp-disable;
 	hnp-disable;
 	adp-disable;

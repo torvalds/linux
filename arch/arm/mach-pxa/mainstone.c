@@ -256,7 +256,6 @@ static struct pwm_lookup mainstone_pwm_lookup[] = {
 static struct platform_pwm_backlight_data mainstone_backlight_data = {
 	.max_brightness	= 1023,
 	.dft_brightness	= 1023,
-	.enable_gpio	= -1,
 };
 
 static struct platform_device mainstone_backlight_device = {

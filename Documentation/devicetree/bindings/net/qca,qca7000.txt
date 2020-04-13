@@ -68,7 +68,7 @@ Required properties:
 Optional properties:
 - local-mac-address : see ./ethernet.txt
 - current-speed     : current baud rate of QCA7000 which defaults to 115200
-		      if absent, see also ../serial/slave-device.txt
+		      if absent, see also ../serial/serial.yaml
 
 UART Example:
 

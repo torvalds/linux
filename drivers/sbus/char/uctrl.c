@@ -23,8 +23,6 @@
 #include <asm/io.h>
 #include <asm/pgtable.h>
 
-#define UCTRL_MINOR	174
-
 #define DEBUG 1
 #ifdef DEBUG
 #define dprintk(x) printk x

@@ -73,6 +73,8 @@
 #include "qla_def.h"
 
 #include <linux/delay.h>
+#define CREATE_TRACE_POINTS
+#include <trace/events/qla.h>
 
 static uint32_t ql_dbg_offset = 0x800;
 
@@ -2537,14 +2539,29 @@ ql_dbg(uint level, scsi_qla_host_t *vha, uint id, const char *fmt, ...)
 {
 	va_list va;
 	struct va_format vaf;
-
-	if (!ql_mask_match(level))
-		return;
+	char pbuf[64];
 
 	va_start(va, fmt);
 
 	vaf.fmt = fmt;
 	vaf.va = &va;
+
+	if (!ql_mask_match(level)) {
+		if (vha != NULL) {
+			const struct pci_dev *pdev = vha->hw->pdev;
+			/* <module-name> <msg-id>:<host> Message */
+			snprintf(pbuf, sizeof(pbuf), "%s [%s]-%04x:%ld: ",
+			    QL_MSGHDR, dev_name(&(pdev->dev)), id,
+			    vha->host_no);
+		} else {
+			snprintf(pbuf, sizeof(pbuf), "%s [%s]-%04x: : ",
+			    QL_MSGHDR, "0000:00:00.0", id);
+		}
+		pbuf[sizeof(pbuf) - 1] = 0;
+		trace_ql_dbg_log(pbuf, &vaf);
+		va_end(va);
+		return;
+	}
 
 	if (vha != NULL) {
 		const struct pci_dev *pdev = vha->hw->pdev;

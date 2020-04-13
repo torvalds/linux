@@ -11,3 +11,14 @@ config MT7615E
 	  MU-MIMO up to 4 users/group and 160MHz channels.
 
 	  To compile this driver as a module, choose M here.
+
+config MT7622_WMAC
+	bool "MT7622 (SoC) WMAC support"
+	depends on MT7615E
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	select REGMAP
+	default y
+	help
+	  This adds support for the built-in WMAC on MT7622 SoC devices
+	  which has the same feature set as a MT7615, but limited to
+	  2.4 GHz only.

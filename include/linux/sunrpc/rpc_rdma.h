@@ -58,7 +58,8 @@ enum {
 enum {
 	rpcrdma_fixed_maxsz	= 4,
 	rpcrdma_segment_maxsz	= 4,
-	rpcrdma_readchunk_maxsz	= 2 + rpcrdma_segment_maxsz,
+	rpcrdma_readseg_maxsz	= 1 + rpcrdma_segment_maxsz,
+	rpcrdma_readchunk_maxsz	= 1 + rpcrdma_readseg_maxsz,
 };
 
 /*

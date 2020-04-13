@@ -1,0 +1,88 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/spi/qcom,spi-qcom-qspi.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: Qualcomm Quad Serial Peripheral Interface (QSPI)
+
+maintainers:
+ - Mukesh Savaliya <msavaliy@codeaurora.org>
+ - Akash Asthana <akashast@codeaurora.org>
+
+description:
+ The QSPI controller allows SPI protocol communication in single, dual, or quad
+ wire transmission modes for read/write access to slaves such as NOR flash.
+
+allOf:
+  - $ref: /spi/spi-controller.yaml#
+
+properties:
+  compatible:
+    items:
+      - const: qcom,sdm845-qspi
+      - const: qcom,qspi-v1
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clock-names:
+    items:
+      - const: iface
+      - const: core
+
+  clocks:
+    items:
+      - description: AHB clock
+      - description: QSPI core clock
+
+  interconnects:
+    minItems: 1
+    maxItems: 2
+
+  interconnect-names:
+    items:
+      - const: qspi-config
+      - const: qspi-memory
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clock-names
+  - clocks
+
+examples:
+  - |
+    #include <dt-bindings/clock/qcom,gcc-sdm845.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    soc: soc@0 {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        qspi: spi@88df000 {
+            compatible = "qcom,sdm845-qspi", "qcom,qspi-v1";
+            reg = <0 0x88df000 0 0x600>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+            interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>;
+            clock-names = "iface", "core";
+            clocks = <&gcc GCC_QSPI_CNOC_PERIPH_AHB_CLK>,
+                         <&gcc GCC_QSPI_CORE_CLK>;
+
+            flash@0 {
+                compatible = "jedec,spi-nor";
+                reg = <0>;
+                spi-max-frequency = <25000000>;
+                spi-tx-bus-width = <2>;
+                spi-rx-bus-width = <2>;
+            };
+
+        };
+    };
+...

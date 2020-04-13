@@ -82,7 +82,7 @@ struct cudbg_ulprx_la {
 struct cudbg_tp_la {
 	u32 size;
 	u32 mode;
-	u8 data[0];
+	u8 data[];
 };
 
 static const char * const cudbg_region[] = {
@@ -134,7 +134,7 @@ struct cudbg_meminfo {
 
 struct cudbg_cim_pif_la {
 	int size;
-	u8 data[0];
+	u8 data[];
 };
 
 struct cudbg_clk_info {
@@ -339,13 +339,13 @@ struct cudbg_qdesc_entry {
 	u32 qid;
 	u32 desc_size;
 	u32 num_desc;
-	u8 data[0]; /* Must be last */
+	u8 data[]; /* Must be last */
 };
 
 struct cudbg_qdesc_info {
 	u32 qdesc_entry_size;
 	u32 num_queues;
-	u8 data[0]; /* Must be last */
+	u8 data[]; /* Must be last */
 };
 
 #define IREG_NUM_ELEM 4

@@ -9,8 +9,6 @@
  *      Library of supported template fields.
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include "ima_template_lib.h"
 
 static bool ima_template_hash_algo_allowed(u8 algo)

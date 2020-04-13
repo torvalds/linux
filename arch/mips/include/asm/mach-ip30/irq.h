@@ -76,7 +76,7 @@ extern void __init ip30_install_ipi(void);
  */
 #define IP30_POWER_IRQ		HEART_L2_INT_POWER_BTN
 
-#include_next <irq.h>
+#include <asm/mach-generic/irq.h>
 
 #define IP30_HEART_L0_IRQ	(MIPS_CPU_IRQ_BASE + 2)
 #define IP30_HEART_L1_IRQ	(MIPS_CPU_IRQ_BASE + 3)

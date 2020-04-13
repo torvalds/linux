@@ -128,6 +128,10 @@ since we already have a valid pointer that we own a refcount for.  The
 put needs no lock because nothing tries to get the data without
 already holding a pointer.
 
+In the above example, kref_put() will be called 2 times in both success
+and error paths. This is necessary because the reference count got
+incremented 2 times by kref_init() and kref_get().
+
 Note that the "before" in rule 1 is very important.  You should never
 do something like::
 

@@ -1623,7 +1623,7 @@ struct wsm_p2p_device_info {
 	u8 local_devname[D11_MAX_SSID_LEN];
 	u8 reserved2[3];
 	u8 num_secdev_supported;
-	struct wsm_p2p_device_type secdevs[0];
+	struct wsm_p2p_device_type secdevs[];
 } __packed;
 
 /* 4.36 SetWCDMABand - WO */

@@ -8,6 +8,10 @@ Required properties:
 Optional properties:
 - fsl,dte-mode : Indicate the uart works in DTE mode. The uart works
                   in DCE mode by default.
+- fsl,inverted-tx , fsl,inverted-rx : Indicate that the hardware attached
+  to the peripheral inverts the signal transmitted or received,
+  respectively, and that the peripheral should invert its output/input
+  using the INVT/INVR registers.
 - rs485-rts-delay, rs485-rts-active-low, rs485-rx-during-tx,
   linux,rs485-enabled-at-boot-time: see rs485.txt. Note that for RS485
   you must enable either the "uart-has-rtscts" or the "rts-gpios"
@@ -15,7 +19,7 @@ Optional properties:
   the transceiver is actually CTS_B, not RTS_B. CTS_B is always output,
   and RTS_B is input, regardless of dte-mode.
 
-Please check Documentation/devicetree/bindings/serial/serial.txt
+Please check Documentation/devicetree/bindings/serial/serial.yaml
 for the complete list of generic properties.
 
 Note: Each uart controller should have an alias correctly numbered

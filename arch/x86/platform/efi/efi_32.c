@@ -66,14 +66,16 @@ void __init efi_map_region(efi_memory_desc_t *md)
 void __init efi_map_region_fixed(efi_memory_desc_t *md) {}
 void __init parse_efi_setup(u64 phys_addr, u32 data_len) {}
 
-efi_status_t efi_call_svam(efi_set_virtual_address_map_t *__efiapi *,
-			   u32, u32, u32, void *);
+efi_status_t efi_call_svam(efi_runtime_services_t * const *,
+			   u32, u32, u32, void *, u32);
 
 efi_status_t __init efi_set_virtual_address_map(unsigned long memory_map_size,
 						unsigned long descriptor_size,
 						u32 descriptor_version,
-						efi_memory_desc_t *virtual_map)
+						efi_memory_desc_t *virtual_map,
+						unsigned long systab_phys)
 {
+	const efi_system_table_t *systab = (efi_system_table_t *)systab_phys;
 	struct desc_ptr gdt_descr;
 	efi_status_t status;
 	unsigned long flags;
@@ -90,9 +92,10 @@ efi_status_t __init efi_set_virtual_address_map(unsigned long memory_map_size,
 
 	/* Disable interrupts around EFI calls: */
 	local_irq_save(flags);
-	status = efi_call_svam(&efi.systab->runtime->set_virtual_address_map,
+	status = efi_call_svam(&systab->runtime,
 			       memory_map_size, descriptor_size,
-			       descriptor_version, virtual_map);
+			       descriptor_version, virtual_map,
+			       __pa(&efi.runtime));
 	local_irq_restore(flags);
 
 	load_fixmap_gdt(0);

@@ -9,6 +9,7 @@
 #include "rk3288.dtsi"
 
 / {
+	model = "Netxeon R89";
 	compatible = "netxeon,r89", "rockchip,rk3288";
 
 	memory@0 {

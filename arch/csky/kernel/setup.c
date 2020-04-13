@@ -24,26 +24,9 @@ struct screen_info screen_info = {
 };
 #endif
 
-phys_addr_t __init_memblock memblock_end_of_REG0(void)
-{
-	return (memblock.memory.regions[0].base +
-		memblock.memory.regions[0].size);
-}
-
-phys_addr_t __init_memblock memblock_start_of_REG1(void)
-{
-	return memblock.memory.regions[1].base;
-}
-
-size_t __init_memblock memblock_size_of_REG1(void)
-{
-	return memblock.memory.regions[1].size;
-}
-
 static void __init csky_memblock_init(void)
 {
 	unsigned long zone_size[MAX_NR_ZONES];
-	unsigned long zhole_size[MAX_NR_ZONES];
 	signed long size;
 
 	memblock_reserve(__pa(_stext), _end - _stext);
@@ -54,54 +37,36 @@ static void __init csky_memblock_init(void)
 	memblock_dump_all();
 
 	memset(zone_size, 0, sizeof(zone_size));
-	memset(zhole_size, 0, sizeof(zhole_size));
 
 	min_low_pfn = PFN_UP(memblock_start_of_DRAM());
-	max_pfn	    = PFN_DOWN(memblock_end_of_DRAM());
-
-	max_low_pfn = PFN_UP(memblock_end_of_REG0());
-	if (max_low_pfn == 0)
-		max_low_pfn = max_pfn;
+	max_low_pfn = max_pfn = PFN_DOWN(memblock_end_of_DRAM());
 
 	size = max_pfn - min_low_pfn;
 
-	if (memblock.memory.cnt > 1) {
-		zone_size[ZONE_NORMAL]  =
-			PFN_DOWN(memblock_start_of_REG1()) - min_low_pfn;
-		zhole_size[ZONE_NORMAL] =
-			PFN_DOWN(memblock_start_of_REG1()) - max_low_pfn;
+	if (size <= PFN_DOWN(SSEG_SIZE - PHYS_OFFSET_OFFSET))
+		zone_size[ZONE_NORMAL] = size;
+	else if (size < PFN_DOWN(LOWMEM_LIMIT - PHYS_OFFSET_OFFSET)) {
+		zone_size[ZONE_NORMAL] =
+				PFN_DOWN(SSEG_SIZE - PHYS_OFFSET_OFFSET);
+		max_low_pfn = min_low_pfn + zone_size[ZONE_NORMAL];
 	} else {
-		if (size <= PFN_DOWN(LOWMEM_LIMIT - PHYS_OFFSET_OFFSET))
-			zone_size[ZONE_NORMAL] = max_pfn - min_low_pfn;
-		else {
-			zone_size[ZONE_NORMAL] =
+		zone_size[ZONE_NORMAL] =
 				PFN_DOWN(LOWMEM_LIMIT - PHYS_OFFSET_OFFSET);
-			max_low_pfn = min_low_pfn + zone_size[ZONE_NORMAL];
-		}
+		max_low_pfn = min_low_pfn + zone_size[ZONE_NORMAL];
+		write_mmu_msa1(read_mmu_msa0() + SSEG_SIZE);
 	}
 
 #ifdef CONFIG_HIGHMEM
-	size = 0;
-	if (memblock.memory.cnt > 1) {
-		size = PFN_DOWN(memblock_size_of_REG1());
-		highstart_pfn = PFN_DOWN(memblock_start_of_REG1());
-	} else {
-		size = max_pfn - min_low_pfn -
-			PFN_DOWN(LOWMEM_LIMIT - PHYS_OFFSET_OFFSET);
-		highstart_pfn =  min_low_pfn +
-			PFN_DOWN(LOWMEM_LIMIT - PHYS_OFFSET_OFFSET);
-	}
+	zone_size[ZONE_HIGHMEM] = max_pfn - max_low_pfn;
 
-	if (size > 0)
-		zone_size[ZONE_HIGHMEM] = size;
-
-	highend_pfn = max_pfn;
+	highstart_pfn = max_low_pfn;
+	highend_pfn   = max_pfn;
 #endif
 	memblock_set_current_limit(PFN_PHYS(max_low_pfn));
 
 	dma_contiguous_reserve(0);
 
-	free_area_init_node(0, zone_size, min_low_pfn, zhole_size);
+	free_area_init_node(0, zone_size, min_low_pfn, NULL);
 }
 
 void __init setup_arch(char **cmdline_p)

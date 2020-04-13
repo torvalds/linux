@@ -287,9 +287,8 @@ static int efx_tx_tso_fallback(struct efx_tx_queue *tx_queue,
 		return PTR_ERR(segments);
 
 	dev_consume_skb_any(skb);
-	skb = segments;
 
-	skb_list_walk_safe(skb, skb, next) {
+	skb_list_walk_safe(segments, skb, next) {
 		skb_mark_not_on_list(skb);
 		efx_enqueue_skb(tx_queue, skb);
 	}

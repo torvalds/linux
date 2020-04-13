@@ -21,6 +21,8 @@ properties:
 required:
   - compatible
 
+additionalProperties: false
+
 examples:
   - |
     clkmgr@ffd04000 {

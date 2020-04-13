@@ -36,6 +36,7 @@ struct qedi_endpoint;
  */
 #define QEDI_MODE_NORMAL	0
 #define QEDI_MODE_RECOVERY	1
+#define QEDI_MODE_SHUTDOWN	2
 
 #define ISCSI_WQE_SET_PTU_INVALIDATE	1
 #define QEDI_MAX_ISCSI_TASK		4096
@@ -278,6 +279,7 @@ struct qedi_ctx {
 #define QEDI_IOTHREAD_WAKE	2
 #define QEDI_IN_RECOVERY	5
 #define QEDI_IN_OFFLINE		6
+#define QEDI_IN_SHUTDOWN	7
 
 	u8 mac[ETH_ALEN];
 	u32 src_ip[4];
@@ -331,6 +333,7 @@ struct qedi_ctx {
 	u16 ll2_mtu;
 
 	struct workqueue_struct *dpc_wq;
+	struct delayed_work recovery_work;
 
 	spinlock_t task_idx_lock;	/* To protect gbl context */
 	s32 last_tidx_alloc;

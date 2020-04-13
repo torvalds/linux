@@ -1566,7 +1566,7 @@ static int qede_selftest_transmit_traffic(struct qede_dev *edev,
 
 static int qede_selftest_receive_traffic(struct qede_dev *edev)
 {
-	u16 hw_comp_cons, sw_comp_cons, sw_rx_index, len;
+	u16 sw_rx_index, len;
 	struct eth_fast_path_rx_reg_cqe *fp_cqe;
 	struct qede_rx_queue *rxq = NULL;
 	struct sw_rx_data *sw_rx_data;
@@ -1595,17 +1595,6 @@ static int qede_selftest_receive_traffic(struct qede_dev *edev)
 			usleep_range(100, 200);
 			continue;
 		}
-
-		hw_comp_cons = le16_to_cpu(*rxq->hw_cons_ptr);
-		sw_comp_cons = qed_chain_get_cons_idx(&rxq->rx_comp_ring);
-
-		/* Memory barrier to prevent the CPU from doing speculative
-		 * reads of CQE/BD before reading hw_comp_cons. If the CQE is
-		 * read before it is written by FW, then FW writes CQE and SB,
-		 * and then the CPU reads the hw_comp_cons, it will use an old
-		 * CQE.
-		 */
-		rmb();
 
 		/* Get the CQE from the completion ring */
 		cqe = (union eth_rx_cqe *)qed_chain_consume(&rxq->rx_comp_ring);
@@ -2087,6 +2076,7 @@ err:
 }
 
 static const struct ethtool_ops qede_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS,
 	.get_link_ksettings = qede_get_link_ksettings,
 	.set_link_ksettings = qede_set_link_ksettings,
 	.get_drvinfo = qede_get_drvinfo,
@@ -2133,6 +2123,7 @@ static const struct ethtool_ops qede_ethtool_ops = {
 };
 
 static const struct ethtool_ops qede_vf_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS,
 	.get_link_ksettings = qede_get_link_ksettings,
 	.get_drvinfo = qede_get_drvinfo,
 	.get_msglevel = qede_get_msglevel,

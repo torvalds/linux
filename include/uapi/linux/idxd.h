@@ -83,21 +83,6 @@ enum dsa_completion_status {
 #define DSA_COMP_STATUS_MASK		0x7f
 #define DSA_COMP_STATUS_WRITE		0x80
 
-struct dsa_batch_desc {
-	uint32_t	pasid:20;
-	uint32_t	rsvd:11;
-	uint32_t	priv:1;
-	uint32_t	flags:24;
-	uint32_t	opcode:8;
-	uint64_t	completion_addr;
-	uint64_t	desc_list_addr;
-	uint64_t	rsvd1;
-	uint32_t	desc_count;
-	uint16_t	interrupt_handle;
-	uint16_t	rsvd2;
-	uint8_t		rsvd3[24];
-} __attribute__((packed));
-
 struct dsa_hw_desc {
 	uint32_t	pasid:20;
 	uint32_t	rsvd:11;
@@ -109,6 +94,7 @@ struct dsa_hw_desc {
 		uint64_t	src_addr;
 		uint64_t	rdback_addr;
 		uint64_t	pattern;
+		uint64_t	desc_list_addr;
 	};
 	union {
 		uint64_t	dst_addr;
@@ -116,7 +102,10 @@ struct dsa_hw_desc {
 		uint64_t	src2_addr;
 		uint64_t	comp_pattern;
 	};
-	uint32_t	xfer_size;
+	union {
+		uint32_t	xfer_size;
+		uint32_t	desc_count;
+	};
 	uint16_t	int_handle;
 	uint16_t	rsvd1;
 	union {

@@ -10,6 +10,6 @@
 
 #define NR_IRQS 256
 
-#include_next <irq.h>
+#include <asm/mach-generic/irq.h>
 
 #endif /* __ASM_MACH_EMMA2RH_IRQ_H */

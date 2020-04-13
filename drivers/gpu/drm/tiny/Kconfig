@@ -47,6 +47,20 @@ config TINYDRM_ILI9341
 
 	  If M is selected the module will be called ili9341.
 
+config TINYDRM_ILI9486
+	tristate "DRM support for ILI9486 display panels"
+	depends on DRM && SPI
+	select DRM_KMS_HELPER
+	select DRM_KMS_CMA_HELPER
+	select DRM_MIPI_DBI
+	select BACKLIGHT_CLASS_DEVICE
+	help
+	  DRM driver for the following Ilitek ILI9486 panels:
+	  * PISCREEN 3.5" 320x480 TFT (Ozzmaker 3.5")
+	  * RPILCD 3.5" 320x480 TFT (Waveshare 3.5")
+
+	  If M is selected the module will be called ili9486.
+
 config TINYDRM_MI0283QT
 	tristate "DRM support for MI0283QT"
 	depends on DRM && SPI
@@ -85,14 +99,16 @@ config TINYDRM_ST7586
 	  If M is selected the module will be called st7586.
 
 config TINYDRM_ST7735R
-	tristate "DRM support for Sitronix ST7735R display panels"
+	tristate "DRM support for Sitronix ST7715R/ST7735R display panels"
 	depends on DRM && SPI
 	select DRM_KMS_HELPER
 	select DRM_KMS_CMA_HELPER
 	select DRM_MIPI_DBI
 	select BACKLIGHT_CLASS_DEVICE
 	help
-	  DRM driver Sitronix ST7735R with one of the following LCDs:
-	  * JD-T18003-T01 1.8" 128x160 TFT
+	  DRM driver for Sitronix ST7715R/ST7735R with one of the following
+	  LCDs:
+	  * Jianda JD-T18003-T01 1.8" 128x160 TFT
+	  * Okaya RH128128T 1.44" 128x128 TFT
 
 	  If M is selected the module will be called st7735r.

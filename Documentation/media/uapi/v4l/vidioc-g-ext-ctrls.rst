@@ -136,15 +136,13 @@ still cause this situation.
 .. flat-table:: struct v4l2_ext_control
     :header-rows:  0
     :stub-columns: 0
-    :widths:       1 1 1 2
+    :widths:       1 1 2
 
     * - __u32
       - ``id``
-      -
       - Identifies the control, set by the application.
     * - __u32
       - ``size``
-      -
       - The total size in bytes of the payload of this control. This is
 	normally 0, but for pointer controls this should be set to the
 	size of the memory containing the payload, or that will receive
@@ -161,55 +159,48 @@ still cause this situation.
 	   *length* of the string may well be much smaller.
     * - __u32
       - ``reserved2``\ [1]
-      -
       - Reserved for future extensions. Drivers and applications must set
 	the array to zero.
-    * - union
+    * - union {
       - (anonymous)
-    * -
-      - __s32
+    * - __s32
       - ``value``
       - New value or current value. Valid if this control is not of type
 	``V4L2_CTRL_TYPE_INTEGER64`` and ``V4L2_CTRL_FLAG_HAS_PAYLOAD`` is
 	not set.
-    * -
-      - __s64
+    * - __s64
       - ``value64``
       - New value or current value. Valid if this control is of type
 	``V4L2_CTRL_TYPE_INTEGER64`` and ``V4L2_CTRL_FLAG_HAS_PAYLOAD`` is
 	not set.
-    * -
-      - char *
+    * - char *
       - ``string``
       - A pointer to a string. Valid if this control is of type
 	``V4L2_CTRL_TYPE_STRING``.
-    * -
-      - __u8 *
+    * - __u8 *
       - ``p_u8``
       - A pointer to a matrix control of unsigned 8-bit values. Valid if
 	this control is of type ``V4L2_CTRL_TYPE_U8``.
-    * -
-      - __u16 *
+    * - __u16 *
       - ``p_u16``
       - A pointer to a matrix control of unsigned 16-bit values. Valid if
 	this control is of type ``V4L2_CTRL_TYPE_U16``.
-    * -
-      - __u32 *
+    * - __u32 *
       - ``p_u32``
       - A pointer to a matrix control of unsigned 32-bit values. Valid if
 	this control is of type ``V4L2_CTRL_TYPE_U32``.
-    * -
-      - :c:type:`v4l2_area` *
+    * - :c:type:`v4l2_area` *
       - ``p_area``
       - A pointer to a struct :c:type:`v4l2_area`. Valid if this control is
         of type ``V4L2_CTRL_TYPE_AREA``.
-    * -
-      - void *
+    * - void *
       - ``ptr``
       - A pointer to a compound type which can be an N-dimensional array
 	and/or a compound type (the control's type is >=
 	``V4L2_CTRL_COMPOUND_TYPES``). Valid if
 	``V4L2_CTRL_FLAG_HAS_PAYLOAD`` is set for this control.
+    * - }
+      -
 
 
 .. tabularcolumns:: |p{4.0cm}|p{2.2cm}|p{2.1cm}|p{8.2cm}|
@@ -221,12 +212,11 @@ still cause this situation.
 .. flat-table:: struct v4l2_ext_controls
     :header-rows:  0
     :stub-columns: 0
-    :widths:       1 1 2 1
+    :widths:       1 1 2
 
-    * - union
+    * - union {
       - (anonymous)
-    * -
-      - __u32
+    * - __u32
       - ``ctrl_class``
       - The control class to which all controls belong, see
 	:ref:`ctrl-class`. Drivers that use a kernel framework for
@@ -235,8 +225,7 @@ still cause this situation.
 	support this can be tested by setting ``ctrl_class`` to 0 and
 	calling :ref:`VIDIOC_TRY_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` with a ``count`` of 0. If that
 	succeeds, then the driver supports this feature.
-    * -
-      - __u32
+    * - __u32
       - ``which``
       - Which value of the control to get/set/try.
 	``V4L2_CTRL_WHICH_CUR_VAL`` will return the current value of the
@@ -261,6 +250,8 @@ still cause this situation.
 	by setting ctrl_class to ``V4L2_CTRL_WHICH_CUR_VAL`` and calling
 	VIDIOC_TRY_EXT_CTRLS with a count of 0. If that fails, then the
 	driver does not support ``V4L2_CTRL_WHICH_CUR_VAL``.
+    * - }
+      -
     * - __u32
       - ``count``
       - The number of controls in the controls array. May also be zero.

@@ -15,8 +15,6 @@
 #include "regs-v5.h"
 #include "sha.h"
 
-#define QCE_SECTOR_SIZE		512
-
 static inline u32 qce_read(struct qce_device *qce, u32 offset)
 {
 	return readl(qce->base + offset);

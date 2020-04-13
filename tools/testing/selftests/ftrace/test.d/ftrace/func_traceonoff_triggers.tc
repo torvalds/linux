@@ -41,7 +41,7 @@ fi
 
 echo '** ENABLE EVENTS'
 
-echo 1 > events/enable
+echo 1 > events/sched/enable
 
 echo '** ENABLE TRACING'
 enable_tracing

@@ -26,7 +26,6 @@
 #include <linux/nodemask.h>
 #include <linux/node.h>
 #include <asm/sysinfo.h>
-#include <asm/numa.h>
 
 #define PTF_HORIZONTAL	(0UL)
 #define PTF_VERTICAL	(1UL)
@@ -63,8 +62,6 @@ static struct mask_info drawer_info;
 struct cpu_topology_s390 cpu_topology[NR_CPUS];
 EXPORT_SYMBOL_GPL(cpu_topology);
 
-cpumask_t cpus_with_topology;
-
 static cpumask_t cpu_group_map(struct mask_info *info, unsigned int cpu)
 {
 	cpumask_t mask;
@@ -86,11 +83,12 @@ static cpumask_t cpu_group_map(struct mask_info *info, unsigned int cpu)
 		cpumask_copy(&mask, cpu_present_mask);
 		break;
 	default:
-		/* fallthrough */
+		fallthrough;
 	case TOPOLOGY_MODE_SINGLE:
 		cpumask_copy(&mask, cpumask_of(cpu));
 		break;
 	}
+	cpumask_and(&mask, &mask, cpu_online_mask);
 	return mask;
 }
 
@@ -106,6 +104,7 @@ static cpumask_t cpu_thread_map(unsigned int cpu)
 	for (i = 0; i <= smp_cpu_mtid; i++)
 		if (cpu_present(cpu + i))
 			cpumask_set_cpu(cpu + i, &mask);
+	cpumask_and(&mask, &mask, cpu_online_mask);
 	return mask;
 }
 
@@ -138,7 +137,6 @@ static void add_cpus_to_mask(struct topology_core *tl_core,
 			cpumask_set_cpu(lcpu + i, &drawer->mask);
 			cpumask_set_cpu(lcpu + i, &book->mask);
 			cpumask_set_cpu(lcpu + i, &socket->mask);
-			cpumask_set_cpu(lcpu + i, &cpus_with_topology);
 			smp_cpu_set_polarization(lcpu + i, tl_core->pp);
 		}
 	}
@@ -245,10 +243,10 @@ int topology_set_cpu_management(int fc)
 	return rc;
 }
 
-static void update_cpu_masks(void)
+void update_cpu_masks(void)
 {
-	struct cpu_topology_s390 *topo;
-	int cpu, id;
+	struct cpu_topology_s390 *topo, *topo_package, *topo_sibling;
+	int cpu, sibling, pkg_first, smt_first, id;
 
 	for_each_possible_cpu(cpu) {
 		topo = &cpu_topology[cpu];
@@ -256,6 +254,7 @@ static void update_cpu_masks(void)
 		topo->core_mask = cpu_group_map(&socket_info, cpu);
 		topo->book_mask = cpu_group_map(&book_info, cpu);
 		topo->drawer_mask = cpu_group_map(&drawer_info, cpu);
+		topo->booted_cores = 0;
 		if (topology_mode != TOPOLOGY_MODE_HW) {
 			id = topology_mode == TOPOLOGY_MODE_PACKAGE ? 0 : cpu;
 			topo->thread_id = cpu;
@@ -263,11 +262,23 @@ static void update_cpu_masks(void)
 			topo->socket_id = id;
 			topo->book_id = id;
 			topo->drawer_id = id;
-			if (cpu_present(cpu))
-				cpumask_set_cpu(cpu, &cpus_with_topology);
 		}
 	}
-	numa_update_cpu_topology();
+	for_each_online_cpu(cpu) {
+		topo = &cpu_topology[cpu];
+		pkg_first = cpumask_first(&topo->core_mask);
+		topo_package = &cpu_topology[pkg_first];
+		if (cpu == pkg_first) {
+			for_each_cpu(sibling, &topo->core_mask) {
+				topo_sibling = &cpu_topology[sibling];
+				smt_first = cpumask_first(&topo_sibling->thread_mask);
+				if (sibling == smt_first)
+					topo_package->booted_cores++;
+			}
+		} else {
+			topo->booted_cores = topo_package->booted_cores;
+		}
+	}
 }
 
 void store_topology(struct sysinfo_15_1_x *info)
@@ -289,7 +300,6 @@ static int __arch_update_cpu_topology(void)
 	int rc = 0;
 
 	mutex_lock(&smp_cpu_state_mutex);
-	cpumask_clear(&cpus_with_topology);
 	if (MACHINE_HAS_TOPOLOGY) {
 		rc = 1;
 		store_topology(info);

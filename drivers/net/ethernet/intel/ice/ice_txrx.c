@@ -453,10 +453,10 @@ ice_run_xdp(struct ice_ring *rx_ring, struct xdp_buff *xdp,
 		break;
 	default:
 		bpf_warn_invalid_xdp_action(act);
-		/* fallthrough -- not supported action */
+		fallthrough;
 	case XDP_ABORTED:
 		trace_xdp_exception(rx_ring->netdev, xdp_prog, act);
-		/* fallthrough -- handle aborts by dropping frame */
+		fallthrough;
 	case XDP_DROP:
 		result = ICE_XDP_CONSUMED;
 		break;
@@ -1188,7 +1188,6 @@ ice_adjust_itr_by_size_and_speed(struct ice_port_info *port_info,
 				    avg_pkt_size + 640);
 		break;
 	case ICE_AQ_LINK_SPEED_10GB:
-		/* fall through */
 	default:
 		itr += DIV_ROUND_UP(170 * (avg_pkt_size + 24),
 				    avg_pkt_size + 640);

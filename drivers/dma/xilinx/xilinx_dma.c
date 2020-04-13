@@ -125,7 +125,9 @@
 #define XILINX_VDMA_ENABLE_VERTICAL_FLIP	BIT(0)
 
 /* HW specific definitions */
-#define XILINX_DMA_MAX_CHANS_PER_DEVICE	0x20
+#define XILINX_MCDMA_MAX_CHANS_PER_DEVICE	0x20
+#define XILINX_DMA_MAX_CHANS_PER_DEVICE		0x2
+#define XILINX_CDMA_MAX_CHANS_PER_DEVICE	0x1
 
 #define XILINX_DMA_DMAXR_ALL_IRQ_MASK	\
 		(XILINX_DMA_DMASR_FRM_CNT_IRQ | \
@@ -468,6 +470,7 @@ struct xilinx_dma_config {
 			struct clk **tx_clk, struct clk **txs_clk,
 			struct clk **rx_clk, struct clk **rxs_clk);
 	irqreturn_t (*irq_handler)(int irq, void *data);
+	const int max_channels;
 };
 
 /**
@@ -485,16 +488,15 @@ struct xilinx_dma_config {
  * @txs_clk: DMA mm2s stream clock
  * @rx_clk: DMA s2mm clock
  * @rxs_clk: DMA s2mm stream clock
- * @nr_channels: Number of channels DMA device supports
- * @chan_id: DMA channel identifier
+ * @s2mm_chan_id: DMA s2mm channel identifier
+ * @mm2s_chan_id: DMA mm2s channel identifier
  * @max_buffer_len: Max buffer length
- * @s2mm_index: S2MM channel index
  */
 struct xilinx_dma_device {
 	void __iomem *regs;
 	struct device *dev;
 	struct dma_device common;
-	struct xilinx_dma_chan *chan[XILINX_DMA_MAX_CHANS_PER_DEVICE];
+	struct xilinx_dma_chan *chan[XILINX_MCDMA_MAX_CHANS_PER_DEVICE];
 	u32 flush_on_fsync;
 	bool ext_addr;
 	struct platform_device  *pdev;
@@ -504,10 +506,9 @@ struct xilinx_dma_device {
 	struct clk *txs_clk;
 	struct clk *rx_clk;
 	struct clk *rxs_clk;
-	u32 nr_channels;
-	u32 chan_id;
+	u32 s2mm_chan_id;
+	u32 mm2s_chan_id;
 	u32 max_buffer_len;
-	u32 s2mm_index;
 };
 
 /* Macros */
@@ -1745,7 +1746,7 @@ static irqreturn_t xilinx_mcdma_irq_handler(int irq, void *data)
 		return IRQ_NONE;
 
 	if (chan->direction == DMA_DEV_TO_MEM)
-		chan_offset = chan->xdev->s2mm_index;
+		chan_offset = chan->xdev->dma_config->max_channels / 2;
 
 	chan_offset = chan_offset + (chan_id - 1);
 	chan = chan->xdev->chan[chan_offset];
@@ -2404,16 +2405,17 @@ static int xilinx_dma_terminate_all(struct dma_chan *dchan)
 	u32 reg;
 	int err;
 
-	if (chan->cyclic)
-		xilinx_dma_chan_reset(chan);
-
-	err = chan->stop_transfer(chan);
-	if (err) {
-		dev_err(chan->dev, "Cannot stop channel %p: %x\n",
-			chan, dma_ctrl_read(chan, XILINX_DMA_REG_DMASR));
-		chan->err = true;
+	if (!chan->cyclic) {
+		err = chan->stop_transfer(chan);
+		if (err) {
+			dev_err(chan->dev, "Cannot stop channel %p: %x\n",
+				chan, dma_ctrl_read(chan,
+				XILINX_DMA_REG_DMASR));
+			chan->err = true;
+		}
 	}
 
+	xilinx_dma_chan_reset(chan);
 	/* Remove and free all of the descriptors in the lists */
 	xilinx_dma_free_descriptors(chan);
 	chan->idle = true;
@@ -2730,12 +2732,11 @@ static void xdma_disable_allclks(struct xilinx_dma_device *xdev)
  *
  * @xdev: Driver specific device structure
  * @node: Device node
- * @chan_id: DMA Channel id
  *
  * Return: '0' on success and failure value on error
  */
 static int xilinx_dma_chan_probe(struct xilinx_dma_device *xdev,
-				  struct device_node *node, int chan_id)
+				  struct device_node *node)
 {
 	struct xilinx_dma_chan *chan;
 	bool has_dre = false;
@@ -2787,8 +2788,8 @@ static int xilinx_dma_chan_probe(struct xilinx_dma_device *xdev,
 	    of_device_is_compatible(node, "xlnx,axi-dma-mm2s-channel") ||
 	    of_device_is_compatible(node, "xlnx,axi-cdma-channel")) {
 		chan->direction = DMA_MEM_TO_DEV;
-		chan->id = chan_id;
-		chan->tdest = chan_id;
+		chan->id = xdev->mm2s_chan_id++;
+		chan->tdest = chan->id;
 
 		chan->ctrl_offset = XILINX_DMA_MM2S_CTRL_OFFSET;
 		if (xdev->dma_config->dmatype == XDMA_TYPE_VDMA) {
@@ -2804,9 +2805,8 @@ static int xilinx_dma_chan_probe(struct xilinx_dma_device *xdev,
 		   of_device_is_compatible(node,
 					   "xlnx,axi-dma-s2mm-channel")) {
 		chan->direction = DMA_DEV_TO_MEM;
-		chan->id = chan_id;
-		xdev->s2mm_index = xdev->nr_channels;
-		chan->tdest = chan_id - xdev->nr_channels;
+		chan->id = xdev->s2mm_chan_id++;
+		chan->tdest = chan->id - xdev->dma_config->max_channels / 2;
 		chan->has_vflip = of_property_read_bool(node,
 					"xlnx,enable-vert-flip");
 		if (chan->has_vflip) {
@@ -2908,9 +2908,7 @@ static int xilinx_dma_child_probe(struct xilinx_dma_device *xdev,
 		dev_warn(xdev->dev, "missing dma-channels property\n");
 
 	for (i = 0; i < nr_channels; i++)
-		xilinx_dma_chan_probe(xdev, node, xdev->chan_id++);
-
-	xdev->nr_channels += nr_channels;
+		xilinx_dma_chan_probe(xdev, node);
 
 	return 0;
 }
@@ -2928,7 +2926,7 @@ static struct dma_chan *of_dma_xilinx_xlate(struct of_phandle_args *dma_spec,
 	struct xilinx_dma_device *xdev = ofdma->of_dma_data;
 	int chan_id = dma_spec->args[0];
 
-	if (chan_id >= xdev->nr_channels || !xdev->chan[chan_id])
+	if (chan_id >= xdev->dma_config->max_channels || !xdev->chan[chan_id])
 		return NULL;
 
 	return dma_get_slave_channel(&xdev->chan[chan_id]->common);
@@ -2938,23 +2936,27 @@ static const struct xilinx_dma_config axidma_config = {
 	.dmatype = XDMA_TYPE_AXIDMA,
 	.clk_init = axidma_clk_init,
 	.irq_handler = xilinx_dma_irq_handler,
+	.max_channels = XILINX_DMA_MAX_CHANS_PER_DEVICE,
 };
 
 static const struct xilinx_dma_config aximcdma_config = {
 	.dmatype = XDMA_TYPE_AXIMCDMA,
 	.clk_init = axidma_clk_init,
 	.irq_handler = xilinx_mcdma_irq_handler,
+	.max_channels = XILINX_MCDMA_MAX_CHANS_PER_DEVICE,
 };
 static const struct xilinx_dma_config axicdma_config = {
 	.dmatype = XDMA_TYPE_CDMA,
 	.clk_init = axicdma_clk_init,
 	.irq_handler = xilinx_dma_irq_handler,
+	.max_channels = XILINX_CDMA_MAX_CHANS_PER_DEVICE,
 };
 
 static const struct xilinx_dma_config axivdma_config = {
 	.dmatype = XDMA_TYPE_VDMA,
 	.clk_init = axivdma_clk_init,
 	.irq_handler = xilinx_dma_irq_handler,
+	.max_channels = XILINX_DMA_MAX_CHANS_PER_DEVICE,
 };
 
 static const struct of_device_id xilinx_dma_of_ids[] = {
@@ -3011,6 +3013,7 @@ static int xilinx_dma_probe(struct platform_device *pdev)
 
 	/* Retrieve the DMA engine properties from the device tree */
 	xdev->max_buffer_len = GENMASK(XILINX_DMA_MAX_TRANS_LEN_MAX - 1, 0);
+	xdev->s2mm_chan_id = xdev->dma_config->max_channels / 2;
 
 	if (xdev->dma_config->dmatype == XDMA_TYPE_AXIDMA ||
 	    xdev->dma_config->dmatype == XDMA_TYPE_AXIMCDMA) {
@@ -3104,7 +3107,7 @@ static int xilinx_dma_probe(struct platform_device *pdev)
 	}
 
 	if (xdev->dma_config->dmatype == XDMA_TYPE_VDMA) {
-		for (i = 0; i < xdev->nr_channels; i++)
+		for (i = 0; i < xdev->dma_config->max_channels; i++)
 			if (xdev->chan[i])
 				xdev->chan[i]->num_frms = num_frames;
 	}
@@ -3134,7 +3137,7 @@ static int xilinx_dma_probe(struct platform_device *pdev)
 disable_clks:
 	xdma_disable_allclks(xdev);
 error:
-	for (i = 0; i < xdev->nr_channels; i++)
+	for (i = 0; i < xdev->dma_config->max_channels; i++)
 		if (xdev->chan[i])
 			xilinx_dma_chan_remove(xdev->chan[i]);
 
@@ -3156,7 +3159,7 @@ static int xilinx_dma_remove(struct platform_device *pdev)
 
 	dma_async_device_unregister(&xdev->common);
 
-	for (i = 0; i < xdev->nr_channels; i++)
+	for (i = 0; i < xdev->dma_config->max_channels; i++)
 		if (xdev->chan[i])
 			xilinx_dma_chan_remove(xdev->chan[i]);
 

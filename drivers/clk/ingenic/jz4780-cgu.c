@@ -9,14 +9,16 @@
 #include <linux/clk-provider.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/of.h>
+
 #include <dt-bindings/clock/jz4780-cgu.h>
 #include "cgu.h"
 #include "pm.h"
 
 /* CGU register offsets */
 #define CGU_REG_CLOCKCONTROL	0x00
-#define CGU_REG_PLLCONTROL	0x0c
+#define CGU_REG_LCR			0x04
 #define CGU_REG_APLL		0x10
 #define CGU_REG_MPLL		0x14
 #define CGU_REG_EPLL		0x18
@@ -46,8 +48,8 @@
 #define CGU_REG_CLOCKSTATUS	0xd4
 
 /* bits within the OPCR register */
-#define OPCR_SPENDN0		(1 << 7)
-#define OPCR_SPENDN1		(1 << 6)
+#define OPCR_SPENDN0		BIT(7)
+#define OPCR_SPENDN1		BIT(6)
 
 /* bits within the USBPCR register */
 #define USBPCR_USB_MODE		BIT(31)
@@ -87,6 +89,13 @@
 #define USBVBFIL_IDDIGFIL_SHIFT	16
 #define USBVBFIL_IDDIGFIL_MASK	(0xffff << USBVBFIL_IDDIGFIL_SHIFT)
 #define USBVBFIL_USBVBFIL_MASK	(0xffff)
+
+/* bits within the LCR register */
+#define LCR_PD_SCPU			BIT(31)
+#define LCR_SCPUS			BIT(27)
+
+/* bits within the CLKGR1 register */
+#define CLKGR1_CORE1		BIT(15)
 
 static struct ingenic_cgu *cgu;
 
@@ -203,6 +212,42 @@ static const struct clk_ops jz4780_otg_phy_ops = {
 	.recalc_rate = jz4780_otg_phy_recalc_rate,
 	.round_rate = jz4780_otg_phy_round_rate,
 	.set_rate = jz4780_otg_phy_set_rate,
+};
+
+static int jz4780_core1_enable(struct clk_hw *hw)
+{
+	struct ingenic_clk *ingenic_clk = to_ingenic_clk(hw);
+	struct ingenic_cgu *cgu = ingenic_clk->cgu;
+	const unsigned int timeout = 5000;
+	unsigned long flags;
+	int retval;
+	u32 lcr, clkgr1;
+
+	spin_lock_irqsave(&cgu->lock, flags);
+
+	lcr = readl(cgu->base + CGU_REG_LCR);
+	lcr &= ~LCR_PD_SCPU;
+	writel(lcr, cgu->base + CGU_REG_LCR);
+
+	clkgr1 = readl(cgu->base + CGU_REG_CLKGR1);
+	clkgr1 &= ~CLKGR1_CORE1;
+	writel(clkgr1, cgu->base + CGU_REG_CLKGR1);
+
+	spin_unlock_irqrestore(&cgu->lock, flags);
+
+	/* wait for the CPU to be powered up */
+	retval = readl_poll_timeout(cgu->base + CGU_REG_LCR, lcr,
+				 !(lcr & LCR_SCPUS), 10, timeout);
+	if (retval == -ETIMEDOUT) {
+		pr_err("%s: Wait for power up core1 timeout\n", __func__);
+		return retval;
+	}
+
+	return 0;
+}
+
+static const struct clk_ops jz4780_core1_ops = {
+	.enable = jz4780_core1_enable,
 };
 
 static const s8 pll_od_encoding[16] = {
@@ -699,9 +744,9 @@ static const struct ingenic_cgu_clk_info jz4780_cgu_clocks[] = {
 	},
 
 	[JZ4780_CLK_CORE1] = {
-		"core1", CGU_CLK_GATE,
+		"core1", CGU_CLK_CUSTOM,
 		.parents = { JZ4780_CLK_CPU, -1, -1, -1 },
-		.gate = { CGU_REG_CLKGR1, 15 },
+		.custom = { &jz4780_core1_ops },
 	},
 
 };

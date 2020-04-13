@@ -288,7 +288,7 @@ struct ef4_rx_buffer {
 struct ef4_rx_page_state {
 	dma_addr_t dma_addr;
 
-	unsigned int __pad[0] ____cacheline_aligned;
+	unsigned int __pad[] ____cacheline_aligned;
 };
 
 /**

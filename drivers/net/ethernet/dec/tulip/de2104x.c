@@ -30,7 +30,6 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #define DRV_NAME		"de2104x"
-#define DRV_VERSION		"0.7"
 #define DRV_RELDATE		"Mar 17, 2004"
 
 #include <linux/module.h>
@@ -52,14 +51,9 @@
 #include <linux/uaccess.h>
 #include <asm/unaligned.h>
 
-/* These identify the driver base version and may not be removed. */
-static char version[] =
-"PCI Ethernet driver v" DRV_VERSION " (" DRV_RELDATE ")";
-
 MODULE_AUTHOR("Jeff Garzik <jgarzik@pobox.com>");
 MODULE_DESCRIPTION("Intel/Digital 21040/1 series PCI Ethernet driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_VERSION);
 
 static int debug = -1;
 module_param (debug, int, 0);
@@ -1603,7 +1597,6 @@ static void de_get_drvinfo (struct net_device *dev,struct ethtool_drvinfo *info)
 	struct de_private *de = netdev_priv(dev);
 
 	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 	strlcpy(info->bus_info, pci_name(de->pdev), sizeof(info->bus_info));
 }
 
@@ -1980,11 +1973,6 @@ static int de_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	board_idx++;
 
-#ifndef MODULE
-	if (board_idx == 0)
-		pr_info("%s\n", version);
-#endif
-
 	/* allocate a new ethernet device structure, and fill in defaults */
 	dev = alloc_etherdev(sizeof(struct de_private));
 	if (!dev)
@@ -2196,9 +2184,6 @@ static struct pci_driver de_driver = {
 
 static int __init de_init (void)
 {
-#ifdef MODULE
-	pr_info("%s\n", version);
-#endif
 	return pci_register_driver(&de_driver);
 }
 

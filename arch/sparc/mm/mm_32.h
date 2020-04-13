@@ -20,6 +20,3 @@ void __init srmmu_paging_init(void);
 
 /* iommu.c */
 void ld_mmu_iommu(void);
-
-/* io-unit.c */
-void ld_mmu_iounit(void);

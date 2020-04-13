@@ -259,6 +259,7 @@ int usb4_switch_setup(struct tb_switch *sw)
 /**
  * usb4_switch_read_uid() - Read UID from USB4 router
  * @sw: USB4 router
+ * @uid: UID is stored here
  *
  * Reads 64-bit UID from USB4 router config space.
  */
@@ -296,6 +297,9 @@ static int usb4_switch_drom_read_block(struct tb_switch *sw,
 /**
  * usb4_switch_drom_read() - Read arbitrary bytes from USB4 router DROM
  * @sw: USB4 router
+ * @address: Byte address inside DROM to start reading
+ * @buf: Buffer where the DROM content is stored
+ * @size: Number of bytes to read from DROM
  *
  * Uses USB4 router operations to read router DROM. For devices this
  * should always work but for hosts it may return %-EOPNOTSUPP in which

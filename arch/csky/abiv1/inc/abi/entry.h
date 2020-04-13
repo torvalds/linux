@@ -172,10 +172,7 @@
 	addi	r6, 0xe
 	cpwcr	r6, cpcr30
 
-	lsri	r6, 28
-	addi	r6, 2
-	lsli	r6, 28
-	addi	r6, 0xe
+	movi	r6, 0
 	cpwcr	r6, cpcr31
 .endm
 

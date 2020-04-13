@@ -57,7 +57,7 @@ void save_stack_trace(struct stack_trace *trace)
 {
 	unsigned long sp;
 
-	sp = current_stack_pointer();
+	sp = current_stack_frame();
 
 	save_context_stack(trace, sp, current, 1);
 }
@@ -71,7 +71,7 @@ void save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
 		return;
 
 	if (tsk == current)
-		sp = current_stack_pointer();
+		sp = current_stack_frame();
 	else
 		sp = tsk->thread.ksp;
 
@@ -131,7 +131,7 @@ static int __save_stack_trace_tsk_reliable(struct task_struct *tsk,
 	}
 
 	if (tsk == current)
-		sp = current_stack_pointer();
+		sp = current_stack_frame();
 	else
 		sp = tsk->thread.ksp;
 

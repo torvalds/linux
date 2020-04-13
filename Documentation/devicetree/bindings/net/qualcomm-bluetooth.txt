@@ -31,6 +31,7 @@ Optional properties for compatible string qcom,wcn399x-bt:
 
  - max-speed: see Documentation/devicetree/bindings/serial/slave-device.txt
  - firmware-name: specify the name of nvm firmware to load
+ - clocks: clock provided to the controller
 
 Examples:
 
@@ -57,5 +58,6 @@ serial@898000 {
 		vddch0-supply = <&vreg_l25a_3p3>;
 		max-speed = <3200000>;
 		firmware-name = "crnv21.bin";
+		clocks = <&rpmhcc RPMH_RF_CLK2>;
 	};
 };

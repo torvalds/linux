@@ -800,7 +800,7 @@
 		      <0x00000008 0x80000000 0x1 0x80000000>;
 	};
 
-	smb@8000000 {
+	bus@8000000 {
 		compatible = "simple-bus";
 		#address-cells = <2>;
 		#size-cells = <1>;

@@ -189,7 +189,6 @@ static int fq_pie_qdisc_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 out:
 	q->stats.dropped++;
 	sel_flow->vars.accu_prob = 0;
-	sel_flow->vars.accu_prob_overflows = 0;
 	__qdisc_drop(skb, to_free);
 	qdisc_qstats_drop(sch);
 	return NET_XMIT_CN;

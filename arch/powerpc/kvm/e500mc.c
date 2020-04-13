@@ -376,7 +376,6 @@ static struct kvmppc_ops kvm_ops_e500mc = {
 	.vcpu_put    = kvmppc_core_vcpu_put_e500mc,
 	.vcpu_create = kvmppc_core_vcpu_create_e500mc,
 	.vcpu_free   = kvmppc_core_vcpu_free_e500mc,
-	.mmu_destroy  = kvmppc_mmu_destroy_e500,
 	.init_vm = kvmppc_core_init_vm_e500mc,
 	.destroy_vm = kvmppc_core_destroy_vm_e500mc,
 	.emulate_op = kvmppc_core_emulate_op_e500,

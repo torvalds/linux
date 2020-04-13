@@ -20,7 +20,6 @@ config ARCH_BCM_IPROC
 	select GPIOLIB
 	select ARM_AMBA
 	select PINCTRL
-	select PCI_DOMAINS_GENERIC if PCI
 	help
 	  This enables support for systems based on Broadcom IPROC architected SoCs.
 	  The IPROC complex contains one or more ARM CPUs along with common
@@ -54,7 +53,6 @@ config ARCH_BCM_NSP
 	select ARM_ERRATA_754322
 	select ARM_ERRATA_775420
 	select ARM_ERRATA_764369 if SMP
-	select HAVE_SMP
 	select THERMAL
 	select THERMAL_OF
 	help
@@ -73,7 +71,6 @@ config ARCH_BCM_5301X
 	select ARM_ERRATA_754322
 	select ARM_ERRATA_775420
 	select ARM_ERRATA_764369 if SMP
-	select HAVE_SMP
 
 	help
 	  Support for Broadcom BCM470X and BCM5301X SoCs with ARM CPU cores.
@@ -109,7 +106,6 @@ config ARCH_BCM_281XX
 	bool "Broadcom BCM281XX SoC family"
 	depends on ARCH_MULTI_V7
 	select ARCH_BCM_MOBILE
-	select HAVE_SMP
 	help
 	  Enable support for the BCM281XX family, which includes
 	  BCM11130, BCM11140, BCM11351, BCM28145 and BCM28155
@@ -119,7 +115,6 @@ config ARCH_BCM_21664
 	bool "Broadcom BCM21664 SoC family"
 	depends on ARCH_MULTI_V7
 	select ARCH_BCM_MOBILE
-	select HAVE_SMP
 	help
 	  Enable support for the BCM21664 family, which includes
 	  BCM21663 and BCM21664 variants.
@@ -128,7 +123,6 @@ config ARCH_BCM_23550
 	bool "Broadcom BCM23550 SoC"
 	depends on ARCH_MULTI_V7
 	select ARCH_BCM_MOBILE
-	select HAVE_SMP
 	help
 	  Enable support for the BCM23550.
 
@@ -165,7 +159,6 @@ config ARCH_BCM2835
 	select ZONE_DMA if ARCH_MULTI_V7
 	select ARM_TIMER_SP804
 	select HAVE_ARM_ARCH_TIMER if ARCH_MULTI_V7
-	select TIMER_OF
 	select BCM2835_TIMER
 	select PINCTRL
 	select PINCTRL_BCM2835
@@ -201,7 +194,6 @@ config ARCH_BCM_63XX
 	select HAVE_ARM_ARCH_TIMER
 	select HAVE_ARM_TWD if SMP
 	select HAVE_ARM_SCU if SMP
-	select HAVE_SMP
 	help
 	  This enables support for systems based on Broadcom DSL SoCs.
 	  It currently supports the 'BCM63XX' ARM-based family, which includes

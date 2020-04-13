@@ -89,7 +89,8 @@ struct sock *netlink_init(int unit,
 	return sock;
 }
 
-int netlink_send(struct sock *sock, int group, u16 type, void *msg, int len)
+int netlink_send(struct sock *sock, int group, u16 type, void *msg, int len,
+		 struct net_device *dev)
 {
 	static u32 seq;
 	struct sk_buff *skb = NULL;
@@ -118,8 +119,8 @@ int netlink_send(struct sock *sock, int group, u16 type, void *msg, int len)
 		return len;
 
 	if (ret != -ESRCH)
-		pr_err("nl broadcast g=%d, t=%d, l=%d, r=%d\n",
-		       group, type, len, ret);
+		netdev_err(dev, "nl broadcast g=%d, t=%d, l=%d, r=%d\n",
+			   group, type, len, ret);
 	else if (netlink_has_listeners(sock, group + 1))
 		return -EAGAIN;
 

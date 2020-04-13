@@ -452,7 +452,7 @@ static int core_voltage_post_transition(struct powernow_k8_data *data,
 
 static const struct x86_cpu_id powernow_k8_ids[] = {
 	/* IO based frequency switching */
-	{ X86_VENDOR_AMD, 0xf },
+	X86_MATCH_VENDOR_FAM(AMD, 0xf, NULL),
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, powernow_k8_ids);

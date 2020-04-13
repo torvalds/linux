@@ -11,7 +11,7 @@
 static inline int
 mt76x02_get_rssi_gain_thresh(struct mt76x02_dev *dev)
 {
-	switch (dev->mt76.chandef.width) {
+	switch (dev->mphy.chandef.width) {
 	case NL80211_CHAN_WIDTH_80:
 		return -62;
 	case NL80211_CHAN_WIDTH_40:
@@ -24,7 +24,7 @@ mt76x02_get_rssi_gain_thresh(struct mt76x02_dev *dev)
 static inline int
 mt76x02_get_low_rssi_gain_thresh(struct mt76x02_dev *dev)
 {
-	switch (dev->mt76.chandef.width) {
+	switch (dev->mphy.chandef.width) {
 	case NL80211_CHAN_WIDTH_80:
 		return -76;
 	case NL80211_CHAN_WIDTH_40:

@@ -16,8 +16,20 @@
 
 int mt76_wcid_alloc(unsigned long *mask, int size);
 
+static inline bool
+mt76_wcid_mask_test(unsigned long *mask, int idx)
+{
+	return mask[idx / BITS_PER_LONG] & BIT(idx % BITS_PER_LONG);
+}
+
 static inline void
-mt76_wcid_free(unsigned long *mask, int idx)
+mt76_wcid_mask_set(unsigned long *mask, int idx)
+{
+	mask[idx / BITS_PER_LONG] |= BIT(idx % BITS_PER_LONG);
+}
+
+static inline void
+mt76_wcid_mask_clear(unsigned long *mask, int idx)
 {
 	mask[idx / BITS_PER_LONG] &= ~BIT(idx % BITS_PER_LONG);
 }

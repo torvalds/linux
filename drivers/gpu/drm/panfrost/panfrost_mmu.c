@@ -640,9 +640,11 @@ int panfrost_mmu_init(struct panfrost_device *pfdev)
 	if (irq <= 0)
 		return -ENODEV;
 
-	err = devm_request_threaded_irq(pfdev->dev, irq, panfrost_mmu_irq_handler,
+	err = devm_request_threaded_irq(pfdev->dev, irq,
+					panfrost_mmu_irq_handler,
 					panfrost_mmu_irq_handler_thread,
-					IRQF_SHARED, "mmu", pfdev);
+					IRQF_SHARED, KBUILD_MODNAME "-mmu",
+					pfdev);
 
 	if (err) {
 		dev_err(pfdev->dev, "failed to request mmu irq");

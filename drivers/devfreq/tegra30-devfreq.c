@@ -734,7 +734,7 @@ static int tegra_governor_event_handler(struct devfreq *devfreq,
 		devfreq_monitor_stop(devfreq);
 		break;
 
-	case DEVFREQ_GOV_INTERVAL:
+	case DEVFREQ_GOV_UPDATE_INTERVAL:
 		/*
 		 * ACTMON hardware supports up to 256 milliseconds for the
 		 * sampling period.
@@ -745,7 +745,7 @@ static int tegra_governor_event_handler(struct devfreq *devfreq,
 		}
 
 		tegra_actmon_pause(tegra);
-		devfreq_interval_update(devfreq, new_delay);
+		devfreq_update_interval(devfreq, new_delay);
 		ret = tegra_actmon_resume(tegra);
 		break;
 

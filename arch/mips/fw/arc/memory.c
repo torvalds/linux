@@ -117,7 +117,7 @@ static int __init prom_memtype_classify(union linux_memtypes type)
 	return memtype_classify_arc(type);
 }
 
-void __init prom_meminit(void)
+void __weak __init prom_meminit(void)
 {
 	struct linux_mdesc *p;
 
@@ -162,7 +162,7 @@ void __weak __init prom_cleanup(void)
 {
 }
 
-void __init prom_free_prom_memory(void)
+void __weak __init prom_free_prom_memory(void)
 {
 	int i;
 

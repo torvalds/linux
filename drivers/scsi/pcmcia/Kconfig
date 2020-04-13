@@ -36,7 +36,7 @@ config PCMCIA_NINJA_SCSI
 	help
 	  If you intend to attach this type of PCMCIA SCSI host adapter to
 	  your computer, say Y here and read
-	  <file:Documentation/scsi/NinjaSCSI.txt>.
+	  <file:Documentation/scsi/NinjaSCSI.rst>.
 
 	  Supported cards:
 

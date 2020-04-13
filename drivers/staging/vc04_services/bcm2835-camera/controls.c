@@ -85,7 +85,6 @@ struct bm2835_mmal_v4l2_ctrl {
 	const s64 *imenu; /* integer menu array */
 	u32 mmal_id; /* mmal parameter id */
 	bm2835_mmal_v4l2_ctrl_cb *setter;
-	bool ignore_errors;
 };
 
 struct v4l2_to_mmal_effects_setting {
@@ -912,8 +911,6 @@ static int bm2835_mmal_s_ctrl(struct v4l2_ctrl *ctrl)
 	if (ret)
 		pr_warn("ctrl id:%d/MMAL param %08X- returned ret %d\n",
 			ctrl->id, mmal_ctrl->mmal_id, ret);
-	if (mmal_ctrl->ignore_errors)
-		ret = 0;
 	return ret;
 }
 
@@ -923,239 +920,340 @@ static const struct v4l2_ctrl_ops bm2835_mmal_ctrl_ops = {
 
 static const struct bm2835_mmal_v4l2_ctrl v4l2_ctrls[V4L2_CTRL_COUNT] = {
 	{
-		V4L2_CID_SATURATION, MMAL_CONTROL_TYPE_STD,
-		-100, 100, 0, 1, NULL,
-		MMAL_PARAMETER_SATURATION,
-		ctrl_set_rational,
-		false
+		.id = V4L2_CID_SATURATION,
+		.type = MMAL_CONTROL_TYPE_STD,
+		.min = -100,
+		.max = 100,
+		.def = 0,
+		.step = 1,
+		.imenu = NULL,
+		.mmal_id = MMAL_PARAMETER_SATURATION,
+		.setter = ctrl_set_rational,
 	},
 	{
-		V4L2_CID_SHARPNESS, MMAL_CONTROL_TYPE_STD,
-		-100, 100, 0, 1, NULL,
-		MMAL_PARAMETER_SHARPNESS,
-		ctrl_set_rational,
-		false
+		.id = V4L2_CID_SHARPNESS,
+		.type = MMAL_CONTROL_TYPE_STD,
+		.min = -100,
+		.max = 100,
+		.def = 0,
+		.step = 1,
+		.imenu = NULL,
+		.mmal_id = MMAL_PARAMETER_SHARPNESS,
+		.setter = ctrl_set_rational,
 	},
 	{
-		V4L2_CID_CONTRAST, MMAL_CONTROL_TYPE_STD,
-		-100, 100, 0, 1, NULL,
-		MMAL_PARAMETER_CONTRAST,
-		ctrl_set_rational,
-		false
+		.id = V4L2_CID_CONTRAST,
+		.type = MMAL_CONTROL_TYPE_STD,
+		.min = -100,
+		.max = 100,
+		.def = 0,
+		.step = 1,
+		.imenu = NULL,
+		.mmal_id = MMAL_PARAMETER_CONTRAST,
+		.setter = ctrl_set_rational,
 	},
 	{
-		V4L2_CID_BRIGHTNESS, MMAL_CONTROL_TYPE_STD,
-		0, 100, 50, 1, NULL,
-		MMAL_PARAMETER_BRIGHTNESS,
-		ctrl_set_rational,
-		false
+		.id = V4L2_CID_BRIGHTNESS,
+		.type = MMAL_CONTROL_TYPE_STD,
+		.min = 0,
+		.max = 100,
+		.def = 50,
+		.step = 1,
+		.imenu = NULL,
+		.mmal_id = MMAL_PARAMETER_BRIGHTNESS,
+		.setter = ctrl_set_rational,
 	},
 	{
-		V4L2_CID_ISO_SENSITIVITY, MMAL_CONTROL_TYPE_INT_MENU,
-		0, ARRAY_SIZE(iso_qmenu) - 1, 0, 1, iso_qmenu,
-		MMAL_PARAMETER_ISO,
-		ctrl_set_iso,
-		false
+		.id = V4L2_CID_ISO_SENSITIVITY,
+		.type = MMAL_CONTROL_TYPE_INT_MENU,
+		.min = 0,
+		.max = ARRAY_SIZE(iso_qmenu) - 1,
+		.def = 0,
+		.step = 1,
+		.imenu = iso_qmenu,
+		.mmal_id = MMAL_PARAMETER_ISO,
+		.setter = ctrl_set_iso,
 	},
 	{
-		V4L2_CID_ISO_SENSITIVITY_AUTO, MMAL_CONTROL_TYPE_STD_MENU,
-		0, V4L2_ISO_SENSITIVITY_AUTO, V4L2_ISO_SENSITIVITY_AUTO, 1,
-		NULL, MMAL_PARAMETER_ISO,
-		ctrl_set_iso,
-		false
+		.id = V4L2_CID_ISO_SENSITIVITY_AUTO,
+		.type = MMAL_CONTROL_TYPE_STD_MENU,
+		.min = 0,
+		.max = V4L2_ISO_SENSITIVITY_AUTO,
+		.def = V4L2_ISO_SENSITIVITY_AUTO,
+		.step = 1,
+		.imenu = NULL,
+		.mmal_id = MMAL_PARAMETER_ISO,
+		.setter = ctrl_set_iso,
 	},
 	{
-		V4L2_CID_IMAGE_STABILIZATION, MMAL_CONTROL_TYPE_STD,
-		0, 1, 0, 1, NULL,
-		MMAL_PARAMETER_VIDEO_STABILISATION,
-		ctrl_set_value,
-		false
+		.id = V4L2_CID_IMAGE_STABILIZATION,
+		.type = MMAL_CONTROL_TYPE_STD,
+		.min = 0,
+		.max = 1,
+		.def = 0,
+		.step = 1,
+		.imenu = NULL,
+		.mmal_id = MMAL_PARAMETER_VIDEO_STABILISATION,
+		.setter = ctrl_set_value,
 	},
 	{
-		V4L2_CID_EXPOSURE_AUTO, MMAL_CONTROL_TYPE_STD_MENU,
-		~0x03, V4L2_EXPOSURE_APERTURE_PRIORITY, V4L2_EXPOSURE_AUTO, 0,
-		NULL, MMAL_PARAMETER_EXPOSURE_MODE,
-		ctrl_set_exposure,
-		false
+		.id = V4L2_CID_EXPOSURE_AUTO,
+		.type = MMAL_CONTROL_TYPE_STD_MENU,
+		.min = ~0x03,
+		.max = V4L2_EXPOSURE_APERTURE_PRIORITY,
+		.def = V4L2_EXPOSURE_AUTO,
+		.step = 0,
+		.imenu = NULL,
+		.mmal_id = MMAL_PARAMETER_EXPOSURE_MODE,
+		.setter = ctrl_set_exposure,
 	},
 	{
-		V4L2_CID_EXPOSURE_ABSOLUTE, MMAL_CONTROL_TYPE_STD,
+		.id = V4L2_CID_EXPOSURE_ABSOLUTE,
+		.type = MMAL_CONTROL_TYPE_STD,
 		/* Units of 100usecs */
-		1, 1 * 1000 * 10, 100 * 10, 1, NULL,
-		MMAL_PARAMETER_SHUTTER_SPEED,
-		ctrl_set_exposure,
-		false
+		.min = 1,
+		.max = 1 * 1000 * 10,
+		.def = 100 * 10,
+		.step = 1,
+		.imenu = NULL,
+		.mmal_id = MMAL_PARAMETER_SHUTTER_SPEED,
+		.setter = ctrl_set_exposure,
 	},
 	{
-		V4L2_CID_AUTO_EXPOSURE_BIAS, MMAL_CONTROL_TYPE_INT_MENU,
-		0, ARRAY_SIZE(ev_bias_qmenu) - 1,
-		(ARRAY_SIZE(ev_bias_qmenu) + 1) / 2 - 1, 0, ev_bias_qmenu,
-		MMAL_PARAMETER_EXPOSURE_COMP,
-		ctrl_set_value_ev,
-		false
+		.id = V4L2_CID_AUTO_EXPOSURE_BIAS,
+		.type = MMAL_CONTROL_TYPE_INT_MENU,
+		.min = 0,
+		.max = ARRAY_SIZE(ev_bias_qmenu) - 1,
+		.def = (ARRAY_SIZE(ev_bias_qmenu) + 1) / 2 - 1,
+		.step = 0,
+		.imenu = ev_bias_qmenu,
+		.mmal_id = MMAL_PARAMETER_EXPOSURE_COMP,
+		.setter = ctrl_set_value_ev,
 	},
 	{
-		V4L2_CID_EXPOSURE_AUTO_PRIORITY, MMAL_CONTROL_TYPE_STD,
-		0, 1,
-		0, 1, NULL,
-		0,	/* Dummy MMAL ID as it gets mapped into FPS range*/
-		ctrl_set_exposure,
-		false
+		.id = V4L2_CID_EXPOSURE_AUTO_PRIORITY,
+		.type = MMAL_CONTROL_TYPE_STD,
+		.min = 0,
+		.max = 1,
+		.def = 0,
+		.step = 1,
+		.imenu = NULL,
+		/* Dummy MMAL ID as it gets mapped into FPS range */
+		.mmal_id = 0,
+		.setter = ctrl_set_exposure,
 	},
 	{
-		V4L2_CID_EXPOSURE_METERING,
-		MMAL_CONTROL_TYPE_STD_MENU,
-		~0x7, V4L2_EXPOSURE_METERING_SPOT,
-		V4L2_EXPOSURE_METERING_AVERAGE, 0, NULL,
-		MMAL_PARAMETER_EXP_METERING_MODE,
-		ctrl_set_metering_mode,
-		false
+		.id = V4L2_CID_EXPOSURE_METERING,
+		.type = MMAL_CONTROL_TYPE_STD_MENU,
+		.min = ~0x7,
+		.max = V4L2_EXPOSURE_METERING_SPOT,
+		.def = V4L2_EXPOSURE_METERING_AVERAGE,
+		.step = 0,
+		.imenu = NULL,
+		.mmal_id = MMAL_PARAMETER_EXP_METERING_MODE,
+		.setter = ctrl_set_metering_mode,
 	},
 	{
-		V4L2_CID_AUTO_N_PRESET_WHITE_BALANCE,
-		MMAL_CONTROL_TYPE_STD_MENU,
-		~0x3ff, V4L2_WHITE_BALANCE_SHADE, V4L2_WHITE_BALANCE_AUTO, 0,
-		NULL,
-		MMAL_PARAMETER_AWB_MODE,
-		ctrl_set_awb_mode,
-		false
+		.id = V4L2_CID_AUTO_N_PRESET_WHITE_BALANCE,
+		.type = MMAL_CONTROL_TYPE_STD_MENU,
+		.min = ~0x3ff,
+		.max = V4L2_WHITE_BALANCE_SHADE,
+		.def = V4L2_WHITE_BALANCE_AUTO,
+		.step = 0,
+		.imenu = NULL,
+		.mmal_id = MMAL_PARAMETER_AWB_MODE,
+		.setter = ctrl_set_awb_mode,
 	},
 	{
-		V4L2_CID_RED_BALANCE, MMAL_CONTROL_TYPE_STD,
-		1, 7999, 1000, 1, NULL,
-		MMAL_PARAMETER_CUSTOM_AWB_GAINS,
-		ctrl_set_awb_gains,
-		false
+		.id = V4L2_CID_RED_BALANCE,
+		.type = MMAL_CONTROL_TYPE_STD,
+		.min = 1,
+		.max = 7999,
+		.def = 1000,
+		.step = 1,
+		.imenu = NULL,
+		.mmal_id = MMAL_PARAMETER_CUSTOM_AWB_GAINS,
+		.setter = ctrl_set_awb_gains,
 	},
 	{
-		V4L2_CID_BLUE_BALANCE, MMAL_CONTROL_TYPE_STD,
-		1, 7999, 1000, 1, NULL,
-		MMAL_PARAMETER_CUSTOM_AWB_GAINS,
-		ctrl_set_awb_gains,
-		false
+		.id = V4L2_CID_BLUE_BALANCE,
+		.type = MMAL_CONTROL_TYPE_STD,
+		.min = 1,
+		.max = 7999,
+		.def = 1000,
+		.step = 1,
+		.imenu = NULL,
+		.mmal_id = MMAL_PARAMETER_CUSTOM_AWB_GAINS,
+		.setter = ctrl_set_awb_gains,
 	},
 	{
-		V4L2_CID_COLORFX, MMAL_CONTROL_TYPE_STD_MENU,
-		0, V4L2_COLORFX_SET_CBCR, V4L2_COLORFX_NONE, 0, NULL,
-		MMAL_PARAMETER_IMAGE_EFFECT,
-		ctrl_set_image_effect,
-		false
+		.id = V4L2_CID_COLORFX,
+		.type = MMAL_CONTROL_TYPE_STD_MENU,
+		.min = 0,
+		.max = V4L2_COLORFX_SET_CBCR,
+		.def = V4L2_COLORFX_NONE,
+		.step = 0,
+		.imenu = NULL,
+		.mmal_id = MMAL_PARAMETER_IMAGE_EFFECT,
+		.setter = ctrl_set_image_effect,
 	},
 	{
-		V4L2_CID_COLORFX_CBCR, MMAL_CONTROL_TYPE_STD,
-		0, 0xffff, 0x8080, 1, NULL,
-		MMAL_PARAMETER_COLOUR_EFFECT,
-		ctrl_set_colfx,
-		false
+		.id = V4L2_CID_COLORFX_CBCR,
+		.type = MMAL_CONTROL_TYPE_STD,
+		.min = 0,
+		.max = 0xffff,
+		.def = 0x8080,
+		.step = 1,
+		.imenu = NULL,
+		.mmal_id = MMAL_PARAMETER_COLOUR_EFFECT,
+		.setter = ctrl_set_colfx,
 	},
 	{
-		V4L2_CID_ROTATE, MMAL_CONTROL_TYPE_STD,
-		0, 360, 0, 90, NULL,
-		MMAL_PARAMETER_ROTATION,
-		ctrl_set_rotate,
-		false
+		.id = V4L2_CID_ROTATE,
+		.type = MMAL_CONTROL_TYPE_STD,
+		.min = 0,
+		.max = 360,
+		.def = 0,
+		.step = 90,
+		.imenu = NULL,
+		.mmal_id = MMAL_PARAMETER_ROTATION,
+		.setter = ctrl_set_rotate,
 	},
 	{
-		V4L2_CID_HFLIP, MMAL_CONTROL_TYPE_STD,
-		0, 1, 0, 1, NULL,
-		MMAL_PARAMETER_MIRROR,
-		ctrl_set_flip,
-		false
+		.id = V4L2_CID_HFLIP,
+		.type = MMAL_CONTROL_TYPE_STD,
+		.min = 0,
+		.max = 1,
+		.def = 0,
+		.step = 1,
+		.imenu = NULL,
+		.mmal_id = MMAL_PARAMETER_MIRROR,
+		.setter = ctrl_set_flip,
 	},
 	{
-		V4L2_CID_VFLIP, MMAL_CONTROL_TYPE_STD,
-		0, 1, 0, 1, NULL,
-		MMAL_PARAMETER_MIRROR,
-		ctrl_set_flip,
-		false
+		.id = V4L2_CID_VFLIP,
+		.type = MMAL_CONTROL_TYPE_STD,
+		.min = 0,
+		.max = 1,
+		.def = 0,
+		.step = 1,
+		.imenu = NULL,
+		.mmal_id = MMAL_PARAMETER_MIRROR,
+		.setter = ctrl_set_flip,
 	},
 	{
-		V4L2_CID_MPEG_VIDEO_BITRATE_MODE, MMAL_CONTROL_TYPE_STD_MENU,
-		0, V4L2_MPEG_VIDEO_BITRATE_MODE_CBR,
-		0, 0, NULL,
-		MMAL_PARAMETER_RATECONTROL,
-		ctrl_set_bitrate_mode,
-		false
+		.id = V4L2_CID_MPEG_VIDEO_BITRATE_MODE,
+		.type = MMAL_CONTROL_TYPE_STD_MENU,
+		.min = 0,
+		.max = V4L2_MPEG_VIDEO_BITRATE_MODE_CBR,
+		.def = 0,
+		.step = 0,
+		.imenu = NULL,
+		.mmal_id = MMAL_PARAMETER_RATECONTROL,
+		.setter = ctrl_set_bitrate_mode,
 	},
 	{
-		V4L2_CID_MPEG_VIDEO_BITRATE, MMAL_CONTROL_TYPE_STD,
-		25 * 1000, 25 * 1000 * 1000, 10 * 1000 * 1000, 25 * 1000, NULL,
-		MMAL_PARAMETER_VIDEO_BIT_RATE,
-		ctrl_set_bitrate,
-		false
+		.id = V4L2_CID_MPEG_VIDEO_BITRATE,
+		.type = MMAL_CONTROL_TYPE_STD,
+		.min = 25 * 1000,
+		.max = 25 * 1000 * 1000,
+		.def = 10 * 1000 * 1000,
+		.step = 25 * 1000,
+		.imenu = NULL,
+		.mmal_id = MMAL_PARAMETER_VIDEO_BIT_RATE,
+		.setter = ctrl_set_bitrate,
 	},
 	{
-		V4L2_CID_JPEG_COMPRESSION_QUALITY, MMAL_CONTROL_TYPE_STD,
-		1, 100,
-		30, 1, NULL,
-		MMAL_PARAMETER_JPEG_Q_FACTOR,
-		ctrl_set_image_encode_output,
-		false
+		.id = V4L2_CID_JPEG_COMPRESSION_QUALITY,
+		.type = MMAL_CONTROL_TYPE_STD,
+		.min = 1,
+		.max = 100,
+		.def = 30,
+		.step = 1,
+		.imenu = NULL,
+		.mmal_id = MMAL_PARAMETER_JPEG_Q_FACTOR,
+		.setter = ctrl_set_image_encode_output,
 	},
 	{
-		V4L2_CID_POWER_LINE_FREQUENCY, MMAL_CONTROL_TYPE_STD_MENU,
-		0, V4L2_CID_POWER_LINE_FREQUENCY_AUTO,
-		1, 1, NULL,
-		MMAL_PARAMETER_FLICKER_AVOID,
-		ctrl_set_flicker_avoidance,
-		false
+		.id = V4L2_CID_POWER_LINE_FREQUENCY,
+		.type = MMAL_CONTROL_TYPE_STD_MENU,
+		.min = 0,
+		.max = V4L2_CID_POWER_LINE_FREQUENCY_AUTO,
+		.def = 1,
+		.step = 1,
+		.imenu = NULL,
+		.mmal_id = MMAL_PARAMETER_FLICKER_AVOID,
+		.setter = ctrl_set_flicker_avoidance,
 	},
 	{
-		V4L2_CID_MPEG_VIDEO_REPEAT_SEQ_HEADER, MMAL_CONTROL_TYPE_STD,
-		0, 1,
-		0, 1, NULL,
-		MMAL_PARAMETER_VIDEO_ENCODE_INLINE_HEADER,
-		ctrl_set_video_encode_param_output,
-		false
+		.id = V4L2_CID_MPEG_VIDEO_REPEAT_SEQ_HEADER,
+		.type = MMAL_CONTROL_TYPE_STD,
+		.min = 0,
+		.max = 1,
+		.def = 0,
+		.step = 1,
+		.imenu = NULL,
+		.mmal_id = MMAL_PARAMETER_VIDEO_ENCODE_INLINE_HEADER,
+		.setter = ctrl_set_video_encode_param_output,
 	},
 	{
-		V4L2_CID_MPEG_VIDEO_H264_PROFILE,
-		MMAL_CONTROL_TYPE_STD_MENU,
-		~(BIT(V4L2_MPEG_VIDEO_H264_PROFILE_BASELINE) |
-		  BIT(V4L2_MPEG_VIDEO_H264_PROFILE_CONSTRAINED_BASELINE) |
-		  BIT(V4L2_MPEG_VIDEO_H264_PROFILE_MAIN) |
-		  BIT(V4L2_MPEG_VIDEO_H264_PROFILE_HIGH)),
-		V4L2_MPEG_VIDEO_H264_PROFILE_HIGH,
-		V4L2_MPEG_VIDEO_H264_PROFILE_HIGH, 1, NULL,
-		MMAL_PARAMETER_PROFILE,
-		ctrl_set_video_encode_profile_level,
-		false
+		.id = V4L2_CID_MPEG_VIDEO_H264_PROFILE,
+		.type = MMAL_CONTROL_TYPE_STD_MENU,
+		.min = ~(BIT(V4L2_MPEG_VIDEO_H264_PROFILE_BASELINE) |
+			 BIT(V4L2_MPEG_VIDEO_H264_PROFILE_CONSTRAINED_BASELINE) |
+			 BIT(V4L2_MPEG_VIDEO_H264_PROFILE_MAIN) |
+			 BIT(V4L2_MPEG_VIDEO_H264_PROFILE_HIGH)),
+		.max = V4L2_MPEG_VIDEO_H264_PROFILE_HIGH,
+		.def = V4L2_MPEG_VIDEO_H264_PROFILE_HIGH,
+		.step = 1,
+		.imenu = NULL,
+		.mmal_id = MMAL_PARAMETER_PROFILE,
+		.setter = ctrl_set_video_encode_profile_level,
 	},
 	{
-		V4L2_CID_MPEG_VIDEO_H264_LEVEL, MMAL_CONTROL_TYPE_STD_MENU,
-		~(BIT(V4L2_MPEG_VIDEO_H264_LEVEL_1_0) |
-		  BIT(V4L2_MPEG_VIDEO_H264_LEVEL_1B) |
-		  BIT(V4L2_MPEG_VIDEO_H264_LEVEL_1_1) |
-		  BIT(V4L2_MPEG_VIDEO_H264_LEVEL_1_2) |
-		  BIT(V4L2_MPEG_VIDEO_H264_LEVEL_1_3) |
-		  BIT(V4L2_MPEG_VIDEO_H264_LEVEL_2_0) |
-		  BIT(V4L2_MPEG_VIDEO_H264_LEVEL_2_1) |
-		  BIT(V4L2_MPEG_VIDEO_H264_LEVEL_2_2) |
-		  BIT(V4L2_MPEG_VIDEO_H264_LEVEL_3_0) |
-		  BIT(V4L2_MPEG_VIDEO_H264_LEVEL_3_1) |
-		  BIT(V4L2_MPEG_VIDEO_H264_LEVEL_3_2) |
-		  BIT(V4L2_MPEG_VIDEO_H264_LEVEL_4_0)),
-		V4L2_MPEG_VIDEO_H264_LEVEL_4_0,
-		V4L2_MPEG_VIDEO_H264_LEVEL_4_0, 1, NULL,
-		MMAL_PARAMETER_PROFILE,
-		ctrl_set_video_encode_profile_level,
-		false
+		.id = V4L2_CID_MPEG_VIDEO_H264_LEVEL,
+		.type = MMAL_CONTROL_TYPE_STD_MENU,
+		.min = ~(BIT(V4L2_MPEG_VIDEO_H264_LEVEL_1_0) |
+			 BIT(V4L2_MPEG_VIDEO_H264_LEVEL_1B) |
+			 BIT(V4L2_MPEG_VIDEO_H264_LEVEL_1_1) |
+			 BIT(V4L2_MPEG_VIDEO_H264_LEVEL_1_2) |
+			 BIT(V4L2_MPEG_VIDEO_H264_LEVEL_1_3) |
+			 BIT(V4L2_MPEG_VIDEO_H264_LEVEL_2_0) |
+			 BIT(V4L2_MPEG_VIDEO_H264_LEVEL_2_1) |
+			 BIT(V4L2_MPEG_VIDEO_H264_LEVEL_2_2) |
+			 BIT(V4L2_MPEG_VIDEO_H264_LEVEL_3_0) |
+			 BIT(V4L2_MPEG_VIDEO_H264_LEVEL_3_1) |
+			 BIT(V4L2_MPEG_VIDEO_H264_LEVEL_3_2) |
+			 BIT(V4L2_MPEG_VIDEO_H264_LEVEL_4_0)),
+		.max = V4L2_MPEG_VIDEO_H264_LEVEL_4_0,
+		.def = V4L2_MPEG_VIDEO_H264_LEVEL_4_0,
+		.step = 1,
+		.imenu = NULL,
+		.mmal_id = MMAL_PARAMETER_PROFILE,
+		.setter = ctrl_set_video_encode_profile_level,
 	},
 	{
-		V4L2_CID_SCENE_MODE, MMAL_CONTROL_TYPE_STD_MENU,
-		-1,	/* Min (mask) is computed at runtime */
-		V4L2_SCENE_MODE_TEXT,
-		V4L2_SCENE_MODE_NONE, 1, NULL,
-		MMAL_PARAMETER_PROFILE,
-		ctrl_set_scene_mode,
-		false
+		.id = V4L2_CID_SCENE_MODE,
+		.type = MMAL_CONTROL_TYPE_STD_MENU,
+		/* mask is computed at runtime */
+		.min = -1,
+		.max = V4L2_SCENE_MODE_TEXT,
+		.def = V4L2_SCENE_MODE_NONE,
+		.step = 1,
+		.imenu = NULL,
+		.mmal_id = MMAL_PARAMETER_PROFILE,
+		.setter = ctrl_set_scene_mode,
 	},
 	{
-		V4L2_CID_MPEG_VIDEO_H264_I_PERIOD, MMAL_CONTROL_TYPE_STD,
-		0, 0x7FFFFFFF, 60, 1, NULL,
-		MMAL_PARAMETER_INTRAPERIOD,
-		ctrl_set_video_encode_param_output,
-		false
+		.id = V4L2_CID_MPEG_VIDEO_H264_I_PERIOD,
+		.type = MMAL_CONTROL_TYPE_STD,
+		.min = 0,
+		.max = 0x7FFFFFFF,
+		.def = 60,
+		.step = 1,
+		.imenu = NULL,
+		.mmal_id = MMAL_PARAMETER_INTRAPERIOD,
+		.setter = ctrl_set_video_encode_param_output,
 	},
 };
 
@@ -1168,7 +1266,7 @@ int bm2835_mmal_set_all_camera_controls(struct bm2835_mmal_dev *dev)
 		if ((dev->ctrls[c]) && (v4l2_ctrls[c].setter)) {
 			ret = v4l2_ctrls[c].setter(dev, dev->ctrls[c],
 						   &v4l2_ctrls[c]);
-			if (!v4l2_ctrls[c].ignore_errors && ret) {
+			if (ret) {
 				v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev,
 					 "Failed when setting default values for ctrl %d\n",
 					 c);

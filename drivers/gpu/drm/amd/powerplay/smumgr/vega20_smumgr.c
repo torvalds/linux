@@ -33,6 +33,8 @@
 #include "smu7_smumgr.h"
 #include "vega20_hwmgr.h"
 
+#include "smu_v11_0_i2c.h"
+
 /* MP Apertures */
 #define MP0_Public			0x03800000
 #define MP0_SRAM			0x03900000
@@ -406,6 +408,7 @@ static int vega20_smu_init(struct pp_hwmgr *hwmgr)
 	struct vega20_smumgr *priv;
 	unsigned long tools_size = 0x19000;
 	int ret = 0;
+	struct amdgpu_device *adev = hwmgr->adev;
 
 	struct cgs_firmware_info info = {0};
 
@@ -505,6 +508,10 @@ static int vega20_smu_init(struct pp_hwmgr *hwmgr)
 	priv->smu_tables.entry[TABLE_ACTIVITY_MONITOR_COEFF].version = 0x01;
 	priv->smu_tables.entry[TABLE_ACTIVITY_MONITOR_COEFF].size = sizeof(DpmActivityMonitorCoeffInt_t);
 
+	ret = smu_v11_0_i2c_eeprom_control_init(&adev->pm.smu_i2c);
+	if (ret)
+		goto err4;
+
 	return 0;
 
 err4:
@@ -537,6 +544,9 @@ static int vega20_smu_fini(struct pp_hwmgr *hwmgr)
 {
 	struct vega20_smumgr *priv =
 			(struct vega20_smumgr *)(hwmgr->smu_backend);
+	struct amdgpu_device *adev = hwmgr->adev;
+
+	smu_v11_0_i2c_eeprom_control_fini(&adev->pm.smu_i2c);
 
 	if (priv) {
 		amdgpu_bo_free_kernel(&priv->smu_tables.entry[TABLE_PPTABLE].handle,
@@ -560,6 +570,7 @@ static int vega20_smu_fini(struct pp_hwmgr *hwmgr)
 		kfree(hwmgr->smu_backend);
 		hwmgr->smu_backend = NULL;
 	}
+
 	return 0;
 }
 

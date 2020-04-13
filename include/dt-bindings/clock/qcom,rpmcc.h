@@ -37,6 +37,10 @@
 #define RPM_XO_A0				27
 #define RPM_XO_A1				28
 #define RPM_XO_A2				29
+#define RPM_NSS_FABRIC_0_CLK			30
+#define RPM_NSS_FABRIC_0_A_CLK			31
+#define RPM_NSS_FABRIC_1_CLK			32
+#define RPM_NSS_FABRIC_1_A_CLK			33
 
 /* SMD RPM clocks */
 #define RPM_SMD_XO_CLK_SRC				0

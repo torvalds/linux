@@ -318,14 +318,14 @@ static struct tda10023_config anysee_tda10023_tda18212_config = {
 	.deltaf = 0xba02,
 };
 
-static struct tda18212_config anysee_tda18212_config = {
+static const struct tda18212_config anysee_tda18212_config = {
 	.if_dvbt_6 = 4150,
 	.if_dvbt_7 = 4150,
 	.if_dvbt_8 = 4150,
 	.if_dvbc = 5000,
 };
 
-static struct tda18212_config anysee_tda18212_config2 = {
+static const struct tda18212_config anysee_tda18212_config2 = {
 	.if_dvbt_6 = 3550,
 	.if_dvbt_7 = 3700,
 	.if_dvbt_8 = 4150,

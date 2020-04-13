@@ -656,7 +656,7 @@ bool dm_clone_is_range_hydrated(struct dm_clone_metadata *cmd,
 	return (bit >= (start + nr_regions));
 }
 
-unsigned long dm_clone_nr_of_hydrated_regions(struct dm_clone_metadata *cmd)
+unsigned int dm_clone_nr_of_hydrated_regions(struct dm_clone_metadata *cmd)
 {
 	return bitmap_weight(cmd->region_map, cmd->nr_regions);
 }
@@ -850,6 +850,12 @@ int dm_clone_set_region_hydrated(struct dm_clone_metadata *cmd, unsigned long re
 	struct dirty_map *dmap;
 	unsigned long word, flags;
 
+	if (unlikely(region_nr >= cmd->nr_regions)) {
+		DMERR("Region %lu out of range (total number of regions %lu)",
+		      region_nr, cmd->nr_regions);
+		return -ERANGE;
+	}
+
 	word = region_nr / BITS_PER_LONG;
 
 	spin_lock_irqsave(&cmd->bitmap_lock, flags);
@@ -878,6 +884,13 @@ int dm_clone_cond_set_range(struct dm_clone_metadata *cmd, unsigned long start,
 	int r = 0;
 	struct dirty_map *dmap;
 	unsigned long word, region_nr;
+
+	if (unlikely(start >= cmd->nr_regions || (start + nr_regions) < start ||
+		     (start + nr_regions) > cmd->nr_regions)) {
+		DMERR("Invalid region range: start %lu, nr_regions %lu (total number of regions %lu)",
+		      start, nr_regions, cmd->nr_regions);
+		return -ERANGE;
+	}
 
 	spin_lock_irq(&cmd->bitmap_lock);
 

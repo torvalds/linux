@@ -1316,7 +1316,7 @@ static int hva_register_device(struct hva_dev *hva)
 	snprintf(vdev->name, sizeof(vdev->name), "%s%lx", HVA_NAME,
 		 hva->ip_version);
 
-	ret = video_register_device(vdev, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(vdev, VFL_TYPE_VIDEO, -1);
 	if (ret) {
 		dev_err(dev, "%s failed to register video device\n",
 			HVA_PREFIX);

@@ -14,6 +14,10 @@ struct cpufreq_policy;
 struct cpufreq_dt_platform_data {
 	bool have_governor_per_policy;
 
+	unsigned int	(*get_intermediate)(struct cpufreq_policy *policy,
+					    unsigned int index);
+	int		(*target_intermediate)(struct cpufreq_policy *policy,
+					       unsigned int index);
 	int (*suspend)(struct cpufreq_policy *policy);
 	int (*resume)(struct cpufreq_policy *policy);
 };

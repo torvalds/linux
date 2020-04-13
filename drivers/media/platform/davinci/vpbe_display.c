@@ -1339,7 +1339,7 @@ static int register_device(struct vpbe_layer *vpbe_display_layer,
 
 	vpbe_display_layer->video_dev.queue = &vpbe_display_layer->buffer_queue;
 	err = video_register_device(&vpbe_display_layer->video_dev,
-				    VFL_TYPE_GRABBER,
+				    VFL_TYPE_VIDEO,
 				    -1);
 	if (err)
 		return -ENODEV;

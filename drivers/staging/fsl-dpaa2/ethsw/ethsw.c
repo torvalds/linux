@@ -1492,7 +1492,8 @@ static void ethsw_unregister_notifier(struct device *dev)
 	err = unregister_switchdev_blocking_notifier(nb);
 	if (err)
 		dev_err(dev,
-			"Failed to unregister switchdev blocking notifier (%d)\n", err);
+			"Failed to unregister switchdev blocking notifier (%d)\n",
+			err);
 
 	err = unregister_switchdev_notifier(&ethsw->port_switchdev_nb);
 	if (err)

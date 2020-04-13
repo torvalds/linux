@@ -114,18 +114,18 @@ examples:
         domain-idle-states = <&DOMAIN_PWR_DN>;
     };
 
-    DOMAIN_RET: state@0 {
-        compatible = "domain-idle-state";
-        reg = <0x0 0x0>;
-        entry-latency-us = <1000>;
-        exit-latency-us = <2000>;
-        min-residency-us = <10000>;
-    };
+    domain-idle-states {
+        DOMAIN_RET: domain-retention {
+            compatible = "domain-idle-state";
+            entry-latency-us = <1000>;
+            exit-latency-us = <2000>;
+            min-residency-us = <10000>;
+        };
 
-    DOMAIN_PWR_DN: state@1 {
-        compatible = "domain-idle-state";
-        reg = <0x1 0x0>;
-        entry-latency-us = <5000>;
-        exit-latency-us = <8000>;
-        min-residency-us = <7000>;
+        DOMAIN_PWR_DN: domain-pwr-dn {
+            compatible = "domain-idle-state";
+            entry-latency-us = <5000>;
+            exit-latency-us = <8000>;
+            min-residency-us = <7000>;
+        };
     };

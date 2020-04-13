@@ -267,6 +267,14 @@
 					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
+				mmc0_sck_cfg: mmc0-sck-cfg@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX23_PAD_SSP1_SCK__SSP1_SCK
+					>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
+				};
+
 				mmc1_4bit_pins_a: mmc1-4bit@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
@@ -422,7 +430,7 @@
 				clocks = <&clks 16>;
 			};
 
-			dcp@80028000 {
+			dcp: crypto@80028000 {
 				compatible = "fsl,imx23-dcp";
 				reg = <0x80028000 0x2000>;
 				interrupts = <53 54>;

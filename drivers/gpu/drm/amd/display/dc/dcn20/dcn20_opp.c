@@ -45,7 +45,8 @@ void opp2_set_disp_pattern_generator(
 		enum dc_color_depth color_depth,
 		const struct tg_color *solid_color,
 		int width,
-		int height)
+		int height,
+		int offset)
 {
 	struct dcn20_opp *oppn20 = TO_DCN20_OPP(opp);
 	enum test_pattern_color_format bit_depth;
@@ -91,6 +92,11 @@ void opp2_set_disp_pattern_generator(
 	REG_SET_2(DPG_DIMENSIONS, 0,
 		DPG_ACTIVE_WIDTH, width,
 		DPG_ACTIVE_HEIGHT, height);
+
+	/* set DPG offset */
+	REG_SET_2(DPG_OFFSET_SEGMENT, 0,
+		DPG_X_OFFSET, offset,
+		DPG_SEGMENT_WIDTH, 0);
 
 	switch (test_pattern) {
 	case CONTROLLER_DP_TEST_PATTERN_COLORSQUARES:

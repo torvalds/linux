@@ -2,9 +2,10 @@
 #ifndef __LINUX_GPIO_CONSUMER_H
 #define __LINUX_GPIO_CONSUMER_H
 
+#include <linux/bits.h>
 #include <linux/bug.h>
+#include <linux/compiler_types.h>
 #include <linux/err.h>
-#include <linux/kernel.h>
 
 struct device;
 
@@ -156,6 +157,7 @@ int gpiod_set_raw_array_value_cansleep(unsigned int array_size,
 				       struct gpio_array *array_info,
 				       unsigned long *value_bitmap);
 
+int gpiod_set_config(struct gpio_desc *desc, unsigned long config);
 int gpiod_set_debounce(struct gpio_desc *desc, unsigned debounce);
 int gpiod_set_transitory(struct gpio_desc *desc, bool transitory);
 void gpiod_toggle_active_low(struct gpio_desc *desc);
@@ -188,6 +190,8 @@ struct gpio_desc *devm_fwnode_gpiod_get_index(struct device *dev,
 					      const char *label);
 
 #else /* CONFIG_GPIOLIB */
+
+#include <linux/kernel.h>
 
 static inline int gpiod_count(struct device *dev, const char *con_id)
 {
@@ -468,6 +472,13 @@ static inline int gpiod_set_raw_array_value_cansleep(unsigned int array_size,
 	/* GPIO can never have been requested */
 	WARN_ON(desc_array);
 	return 0;
+}
+
+static inline int gpiod_set_config(struct gpio_desc *desc, unsigned long config)
+{
+	/* GPIO can never have been requested */
+	WARN_ON(desc);
+	return -ENOSYS;
 }
 
 static inline int gpiod_set_debounce(struct gpio_desc *desc, unsigned debounce)

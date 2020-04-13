@@ -18,6 +18,7 @@
 #include <linux/extable.h>
 #include <linux/uaccess.h>
 #include <linux/perf_event.h>
+#include <linux/kprobes.h>
 
 #include <asm/hardirq.h>
 #include <asm/mmu_context.h>
@@ -52,6 +53,9 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long write,
 	int si_code;
 	int fault;
 	unsigned long address = mmu_meh & PAGE_MASK;
+
+	if (kprobe_page_fault(regs, tsk->thread.trap_no))
+		return;
 
 	si_code = SEGV_MAPERR;
 
@@ -137,7 +141,7 @@ good_area:
 		if (!(vma->vm_flags & VM_WRITE))
 			goto bad_area;
 	} else {
-		if (!(vma->vm_flags & (VM_READ | VM_WRITE | VM_EXEC)))
+		if (unlikely(!vma_is_accessible(vma)))
 			goto bad_area;
 	}
 
@@ -179,11 +183,14 @@ bad_area:
 bad_area_nosemaphore:
 	/* User mode accesses just cause a SIGSEGV */
 	if (user_mode(regs)) {
+		tsk->thread.trap_no = (regs->sr >> 16) & 0xff;
 		force_sig_fault(SIGSEGV, si_code, (void __user *)address);
 		return;
 	}
 
 no_context:
+	tsk->thread.trap_no = (regs->sr >> 16) & 0xff;
+
 	/* Are we prepared to handle this kernel fault? */
 	if (fixup_exception(regs))
 		return;
@@ -198,6 +205,8 @@ no_context:
 	die_if_kernel("Oops", regs, write);
 
 out_of_memory:
+	tsk->thread.trap_no = (regs->sr >> 16) & 0xff;
+
 	/*
 	 * We ran out of memory, call the OOM killer, and return the userspace
 	 * (which will retry the fault, or kill us if we got oom-killed).
@@ -206,6 +215,8 @@ out_of_memory:
 	return;
 
 do_sigbus:
+	tsk->thread.trap_no = (regs->sr >> 16) & 0xff;
+
 	up_read(&mm->mmap_sem);
 
 	/* Kernel mode? Handle exceptions or die */

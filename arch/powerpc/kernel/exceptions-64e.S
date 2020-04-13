@@ -24,6 +24,7 @@
 #include <asm/kvm_asm.h>
 #include <asm/kvm_booke_hv_asm.h>
 #include <asm/feature-fixups.h>
+#include <asm/context_tracking.h>
 
 /* XXX This will ultimately add space for a special exception save
  *     structure used to save things like SRR0/SRR1, SPRGs, MAS, etc...
@@ -1003,38 +1004,6 @@ masked_interrupt_book3e_0x2c0:
 	masked_interrupt_book3e PACA_IRQ_DBELL 0
 
 /*
- * Called from arch_local_irq_enable when an interrupt needs
- * to be resent. r3 contains either 0x500,0x900,0x260 or 0x280
- * to indicate the kind of interrupt. MSR:EE is already off.
- * We generate a stackframe like if a real interrupt had happened.
- *
- * Note: While MSR:EE is off, we need to make sure that _MSR
- * in the generated frame has EE set to 1 or the exception
- * handler will not properly re-enable them.
- */
-_GLOBAL(__replay_interrupt)
-	/* We are going to jump to the exception common code which
-	 * will retrieve various register values from the PACA which
-	 * we don't give a damn about.
-	 */
-	mflr	r10
-	mfmsr	r11
-	mfcr	r4
-	mtspr	SPRN_SPRG_GEN_SCRATCH,r13;
-	std	r1,PACA_EXGEN+EX_R1(r13);
-	stw	r4,PACA_EXGEN+EX_CR(r13);
-	ori	r11,r11,MSR_EE
-	subi	r1,r1,INT_FRAME_SIZE;
-	cmpwi	cr0,r3,0x500
-	beq	exc_0x500_common
-	cmpwi	cr0,r3,0x900
-	beq	exc_0x900_common
-	cmpwi	cr0,r3,0x280
-	beq	exc_0x280_common
-	blr
-
-
-/*
  * This is called from 0x300 and 0x400 handlers after the prologs with
  * r14 and r15 containing the fault address and error code, with the
  * original values stashed away in the PACA
@@ -1073,17 +1042,161 @@ alignment_more:
 	bl	alignment_exception
 	b	ret_from_except
 
-/*
- * We branch here from entry_64.S for the last stage of the exception
- * return code path. MSR:EE is expected to be off at that point
- */
-_GLOBAL(exception_return_book3e)
-	b	1f
+	.align	7
+_GLOBAL(ret_from_except)
+	ld	r11,_TRAP(r1)
+	andi.	r0,r11,1
+	bne	ret_from_except_lite
+	REST_NVGPRS(r1)
+
+_GLOBAL(ret_from_except_lite)
+	/*
+	 * Disable interrupts so that current_thread_info()->flags
+	 * can't change between when we test it and when we return
+	 * from the interrupt.
+	 */
+	wrteei	0
+
+	ld	r9, PACA_THREAD_INFO(r13)
+	ld	r3,_MSR(r1)
+	ld	r10,PACACURRENT(r13)
+	ld	r4,TI_FLAGS(r9)
+	andi.	r3,r3,MSR_PR
+	beq	resume_kernel
+	lwz	r3,(THREAD+THREAD_DBCR0)(r10)
+
+	/* Check current_thread_info()->flags */
+	andi.	r0,r4,_TIF_USER_WORK_MASK
+	bne	1f
+	/*
+	 * Check to see if the dbcr0 register is set up to debug.
+	 * Use the internal debug mode bit to do this.
+	 */
+	andis.	r0,r3,DBCR0_IDM@h
+	beq	restore
+	mfmsr	r0
+	rlwinm	r0,r0,0,~MSR_DE	/* Clear MSR.DE */
+	mtmsr	r0
+	mtspr	SPRN_DBCR0,r3
+	li	r10, -1
+	mtspr	SPRN_DBSR,r10
+	b	restore
+1:	andi.	r0,r4,_TIF_NEED_RESCHED
+	beq	2f
+	bl	restore_interrupts
+	SCHEDULE_USER
+	b	ret_from_except_lite
+2:
+	bl	save_nvgprs
+	/*
+	 * Use a non volatile GPR to save and restore our thread_info flags
+	 * across the call to restore_interrupts.
+	 */
+	mr	r30,r4
+	bl	restore_interrupts
+	mr	r4,r30
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+	bl	do_notify_resume
+	b	ret_from_except
+
+resume_kernel:
+	/* check current_thread_info, _TIF_EMULATE_STACK_STORE */
+	andis.	r8,r4,_TIF_EMULATE_STACK_STORE@h
+	beq+	1f
+
+	addi	r8,r1,INT_FRAME_SIZE	/* Get the kprobed function entry */
+
+	ld	r3,GPR1(r1)
+	subi	r3,r3,INT_FRAME_SIZE	/* dst: Allocate a trampoline exception frame */
+	mr	r4,r1			/* src:  current exception frame */
+	mr	r1,r3			/* Reroute the trampoline frame to r1 */
+
+	/* Copy from the original to the trampoline. */
+	li	r5,INT_FRAME_SIZE/8	/* size: INT_FRAME_SIZE */
+	li	r6,0			/* start offset: 0 */
+	mtctr	r5
+2:	ldx	r0,r6,r4
+	stdx	r0,r6,r3
+	addi	r6,r6,8
+	bdnz	2b
+
+	/* Do real store operation to complete stdu */
+	ld	r5,GPR1(r1)
+	std	r8,0(r5)
+
+	/* Clear _TIF_EMULATE_STACK_STORE flag */
+	lis	r11,_TIF_EMULATE_STACK_STORE@h
+	addi	r5,r9,TI_FLAGS
+0:	ldarx	r4,0,r5
+	andc	r4,r4,r11
+	stdcx.	r4,0,r5
+	bne-	0b
+1:
+
+#ifdef CONFIG_PREEMPT
+	/* Check if we need to preempt */
+	andi.	r0,r4,_TIF_NEED_RESCHED
+	beq+	restore
+	/* Check that preempt_count() == 0 and interrupts are enabled */
+	lwz	r8,TI_PREEMPT(r9)
+	cmpwi	cr0,r8,0
+	bne	restore
+	ld	r0,SOFTE(r1)
+	andi.	r0,r0,IRQS_DISABLED
+	bne	restore
+
+	/*
+	 * Here we are preempting the current task. We want to make
+	 * sure we are soft-disabled first and reconcile irq state.
+	 */
+	RECONCILE_IRQ_STATE(r3,r4)
+	bl	preempt_schedule_irq
+
+	/*
+	 * arch_local_irq_restore() from preempt_schedule_irq above may
+	 * enable hard interrupt but we really should disable interrupts
+	 * when we return from the interrupt, and so that we don't get
+	 * interrupted after loading SRR0/1.
+	 */
+	wrteei	0
+#endif /* CONFIG_PREEMPT */
+
+restore:
+	/*
+	 * This is the main kernel exit path. First we check if we
+	 * are about to re-enable interrupts
+	 */
+	ld	r5,SOFTE(r1)
+	lbz	r6,PACAIRQSOFTMASK(r13)
+	andi.	r5,r5,IRQS_DISABLED
+	bne	.Lrestore_irq_off
+
+	/* We are enabling, were we already enabled ? Yes, just return */
+	andi.	r6,r6,IRQS_DISABLED
+	beq	cr0,fast_exception_return
+
+	/*
+	 * We are about to soft-enable interrupts (we are hard disabled
+	 * at this point). We check if there's anything that needs to
+	 * be replayed first.
+	 */
+	lbz	r0,PACAIRQHAPPENED(r13)
+	cmpwi	cr0,r0,0
+	bne-	.Lrestore_check_irq_replay
+
+	/*
+	 * Get here when nothing happened while soft-disabled, just
+	 * soft-enable and move-on. We will hard-enable as a side
+	 * effect of rfi
+	 */
+.Lrestore_no_replay:
+	TRACE_ENABLE_INTS
+	li	r0,IRQS_ENABLED
+	stb	r0,PACAIRQSOFTMASK(r13);
 
 /* This is the return from load_up_fpu fast path which could do with
  * less GPR restores in fact, but for now we have a single return path
  */
-	.globl fast_exception_return
 fast_exception_return:
 	wrteei	0
 1:	mr	r0,r13
@@ -1123,6 +1236,102 @@ fast_exception_return:
 	ld	r11,PACA_EXGEN+EX_R11(r13)
 	mfspr	r13,SPRN_SPRG_GEN_SCRATCH
 	rfi
+
+	/*
+	 * We are returning to a context with interrupts soft disabled.
+	 *
+	 * However, we may also about to hard enable, so we need to
+	 * make sure that in this case, we also clear PACA_IRQ_HARD_DIS
+	 * or that bit can get out of sync and bad things will happen
+	 */
+.Lrestore_irq_off:
+	ld	r3,_MSR(r1)
+	lbz	r7,PACAIRQHAPPENED(r13)
+	andi.	r0,r3,MSR_EE
+	beq	1f
+	rlwinm	r7,r7,0,~PACA_IRQ_HARD_DIS
+	stb	r7,PACAIRQHAPPENED(r13)
+1:
+#if defined(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG) && defined(CONFIG_BUG)
+	/* The interrupt should not have soft enabled. */
+	lbz	r7,PACAIRQSOFTMASK(r13)
+1:	tdeqi	r7,IRQS_ENABLED
+	EMIT_BUG_ENTRY 1b,__FILE__,__LINE__,BUGFLAG_WARNING
+#endif
+	b	fast_exception_return
+
+	/*
+	 * Something did happen, check if a re-emit is needed
+	 * (this also clears paca->irq_happened)
+	 */
+.Lrestore_check_irq_replay:
+	/* XXX: We could implement a fast path here where we check
+	 * for irq_happened being just 0x01, in which case we can
+	 * clear it and return. That means that we would potentially
+	 * miss a decrementer having wrapped all the way around.
+	 *
+	 * Still, this might be useful for things like hash_page
+	 */
+	bl	__check_irq_replay
+	cmpwi	cr0,r3,0
+	beq	.Lrestore_no_replay
+
+	/*
+	 * We need to re-emit an interrupt. We do so by re-using our
+	 * existing exception frame. We first change the trap value,
+	 * but we need to ensure we preserve the low nibble of it
+	 */
+	ld	r4,_TRAP(r1)
+	clrldi	r4,r4,60
+	or	r4,r4,r3
+	std	r4,_TRAP(r1)
+
+	/*
+	 * PACA_IRQ_HARD_DIS won't always be set here, so set it now
+	 * to reconcile the IRQ state. Tracing is already accounted for.
+	 */
+	lbz	r4,PACAIRQHAPPENED(r13)
+	ori	r4,r4,PACA_IRQ_HARD_DIS
+	stb	r4,PACAIRQHAPPENED(r13)
+
+	/*
+	 * Then find the right handler and call it. Interrupts are
+	 * still soft-disabled and we keep them that way.
+	*/
+	cmpwi	cr0,r3,0x500
+	bne	1f
+	addi	r3,r1,STACK_FRAME_OVERHEAD;
+	bl	do_IRQ
+	b	ret_from_except
+1:	cmpwi	cr0,r3,0xf00
+	bne	1f
+	addi	r3,r1,STACK_FRAME_OVERHEAD;
+	bl	performance_monitor_exception
+	b	ret_from_except
+1:	cmpwi	cr0,r3,0xe60
+	bne	1f
+	addi	r3,r1,STACK_FRAME_OVERHEAD;
+	bl	handle_hmi_exception
+	b	ret_from_except
+1:	cmpwi	cr0,r3,0x900
+	bne	1f
+	addi	r3,r1,STACK_FRAME_OVERHEAD;
+	bl	timer_interrupt
+	b	ret_from_except
+#ifdef CONFIG_PPC_DOORBELL
+1:
+	cmpwi	cr0,r3,0x280
+	bne	1f
+	addi	r3,r1,STACK_FRAME_OVERHEAD;
+	bl	doorbell_exception
+#endif /* CONFIG_PPC_DOORBELL */
+1:	b	ret_from_except /* What else to do here ? */
+
+_ASM_NOKPROBE_SYMBOL(ret_from_except);
+_ASM_NOKPROBE_SYMBOL(ret_from_except_lite);
+_ASM_NOKPROBE_SYMBOL(resume_kernel);
+_ASM_NOKPROBE_SYMBOL(restore);
+_ASM_NOKPROBE_SYMBOL(fast_exception_return);
 
 /*
  * Trampolines used when spotting a bad kernel stack pointer in

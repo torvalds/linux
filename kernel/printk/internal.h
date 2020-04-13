@@ -23,6 +23,9 @@ __printf(1, 0) int vprintk_func(const char *fmt, va_list args);
 void __printk_safe_enter(void);
 void __printk_safe_exit(void);
 
+void printk_safe_init(void);
+bool printk_percpu_data_ready(void);
+
 #define printk_safe_enter_irqsave(flags)	\
 	do {					\
 		local_irq_save(flags);		\
@@ -64,4 +67,6 @@ __printf(1, 0) int vprintk_func(const char *fmt, va_list args) { return 0; }
 #define printk_safe_enter_irq() local_irq_disable()
 #define printk_safe_exit_irq() local_irq_enable()
 
+static inline void printk_safe_init(void) { }
+static inline bool printk_percpu_data_ready(void) { return false; }
 #endif /* CONFIG_PRINTK */

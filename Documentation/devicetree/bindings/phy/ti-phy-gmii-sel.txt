@@ -40,6 +40,7 @@ Required properties:
 			  "ti,dra7xx-phy-gmii-sel" for dra7xx/am57xx platform
 			  "ti,am43xx-phy-gmii-sel" for am43xx platform
 			  "ti,dm814-phy-gmii-sel" for dm814x platform
+			  "ti,am654-phy-gmii-sel" for AM654x/J721E platform
 - reg			: Address and length of the register set for the device
 - #phy-cells		: must be 2.
 			  cell 1 - CPSW port number (starting from 1)

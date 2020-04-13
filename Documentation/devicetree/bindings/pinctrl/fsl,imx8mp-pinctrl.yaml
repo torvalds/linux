@@ -30,8 +30,6 @@ patternProperties:
 
     properties:
       fsl,pins:
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32-array
         description:
           each entry consists of 6 integers and represents the mux and config
           setting for one pin. The first 5 integers <mux_reg conf_reg input_reg
@@ -39,6 +37,22 @@ patternProperties:
           be found in <arch/arm64/boot/dts/freescale/imx8mp-pinfunc.h>. The last
           integer CONFIG is the pad setting value like pull-up on this pin. Please
           refer to i.MX8M Plus Reference Manual for detailed CONFIG settings.
+        allOf:
+          - $ref: /schemas/types.yaml#/definitions/uint32-matrix
+          - items:
+              items:
+                - description: |
+                    "mux_reg" indicates the offset of mux register.
+                - description: |
+                    "conf_reg" indicates the offset of pad configuration register.
+                - description: |
+                    "input_reg" indicates the offset of select input register.
+                - description: |
+                    "mux_val" indicates the mux value to be applied.
+                - description: |
+                    "input_val" indicates the select input value to be applied.
+                - description: |
+                    "pad_setting" indicates the pad configuration value to be applied.
 
     required:
       - fsl,pins
@@ -59,10 +73,9 @@ examples:
         reg = <0x30330000 0x10000>;
 
         pinctrl_uart2: uart2grp {
-            fsl,pins = <
-                0x228 0x488 0x5F0 0x0 0x6	0x49
-                0x228 0x488 0x000 0x0 0x0	0x49
-            >;
+            fsl,pins =
+                <0x228 0x488 0x5F0 0x0 0x6	0x49>,
+                <0x228 0x488 0x000 0x0 0x0	0x49>;
         };
     };
 

@@ -585,18 +585,9 @@ enum {
 
 #define MT_LED_STATUS_0(_n)		MT_LED_PHYS(0x10 + ((_n) * 8))
 #define MT_LED_STATUS_1(_n)		MT_LED_PHYS(0x14 + ((_n) * 8))
-#define MT_LED_STATUS_OFF_MASK		GENMASK(31, 24)
-#define MT_LED_STATUS_OFF(_v)		(((_v) << \
-					  __ffs(MT_LED_STATUS_OFF_MASK)) & \
-					 MT_LED_STATUS_OFF_MASK)
-#define MT_LED_STATUS_ON_MASK		GENMASK(23, 16)
-#define MT_LED_STATUS_ON(_v)		(((_v) << \
-					  __ffs(MT_LED_STATUS_ON_MASK)) & \
-					 MT_LED_STATUS_ON_MASK)
-#define MT_LED_STATUS_DURATION_MASK	GENMASK(15, 0)
-#define MT_LED_STATUS_DURATION(_v)	(((_v) << \
-					  __ffs(MT_LED_STATUS_DURATION_MASK)) &\
-					 MT_LED_STATUS_DURATION_MASK)
+#define MT_LED_STATUS_OFF		GENMASK(31, 24)
+#define MT_LED_STATUS_ON		GENMASK(23, 16)
+#define MT_LED_STATUS_DURATION		GENMASK(15, 0)
 
 #define MT_CLIENT_BASE_PHYS_ADDR	0x800c0000
 

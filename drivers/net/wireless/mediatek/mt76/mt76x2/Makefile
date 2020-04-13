@@ -13,5 +13,3 @@ mt76x2e-y := \
 mt76x2u-y := \
 	usb.o usb_init.o usb_main.o usb_mac.o usb_mcu.o \
 	usb_phy.o
-
-CFLAGS_pci_trace.o := -I$(src)

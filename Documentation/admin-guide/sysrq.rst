@@ -48,9 +48,10 @@ always allowed (by a user with admin privileges).
 How do I use the magic SysRq key?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-On x86   - You press the key combo :kbd:`ALT-SysRq-<command key>`.
+On x86
+	You press the key combo :kbd:`ALT-SysRq-<command key>`.
 
-.. note::
+	.. note::
 	   Some
            keyboards may not have a key labeled 'SysRq'. The 'SysRq' key is
            also known as the 'Print Screen' key. Also some keyboards cannot
@@ -58,14 +59,15 @@ On x86   - You press the key combo :kbd:`ALT-SysRq-<command key>`.
 	   have better luck with press :kbd:`Alt`, press :kbd:`SysRq`,
 	   release :kbd:`SysRq`, press :kbd:`<command key>`, release everything.
 
-On SPARC - You press :kbd:`ALT-STOP-<command key>`, I believe.
+On SPARC
+	You press :kbd:`ALT-STOP-<command key>`, I believe.
 
 On the serial console (PC style standard serial ports only)
         You send a ``BREAK``, then within 5 seconds a command key. Sending
         ``BREAK`` twice is interpreted as a normal BREAK.
 
 On PowerPC
-	Press :kbd:`ALT - Print Screen` (or :kbd:`F13`) - :kbd:`<command key>`,
+	Press :kbd:`ALT - Print Screen` (or :kbd:`F13`) - :kbd:`<command key>`.
         :kbd:`Print Screen` (or :kbd:`F13`) - :kbd:`<command key>` may suffice.
 
 On other
@@ -73,7 +75,7 @@ On other
         let me know so I can add them to this section.
 
 On all
-	write a character to /proc/sysrq-trigger.  e.g.::
+	Write a character to /proc/sysrq-trigger.  e.g.::
 
 		echo t > /proc/sysrq-trigger
 
@@ -282,7 +284,7 @@ Just ask them on the linux-kernel mailing list:
 Credits
 ~~~~~~~
 
-Written by Mydraal <vulpyne@vulpyne.net>
-Updated by Adam Sulmicki <adam@cfar.umd.edu>
-Updated by Jeremy M. Dolan <jmd@turbogeek.org> 2001/01/28 10:15:59
-Added to by Crutcher Dunnavant <crutcher+kernel@datastacks.com>
+- Written by Mydraal <vulpyne@vulpyne.net>
+- Updated by Adam Sulmicki <adam@cfar.umd.edu>
+- Updated by Jeremy M. Dolan <jmd@turbogeek.org> 2001/01/28 10:15:59
+- Added to by Crutcher Dunnavant <crutcher+kernel@datastacks.com>

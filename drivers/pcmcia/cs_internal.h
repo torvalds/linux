@@ -40,7 +40,7 @@ struct cis_cache_entry {
 	unsigned int		addr;
 	unsigned int		len;
 	unsigned int		attr;
-	unsigned char		cache[0];
+	unsigned char		cache[];
 };
 
 struct pccard_resource_ops {

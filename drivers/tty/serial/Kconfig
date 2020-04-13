@@ -3,8 +3,6 @@
 # Serial device configuration
 #
 
-if TTY
-
 menu "Serial drivers"
 	depends on HAS_IOMEM
 
@@ -260,15 +258,6 @@ config SERIAL_SAMSUNG_UARTS
 	help
 	  Select the number of available UART ports for the Samsung S3C
 	  serial driver
-	
-config SERIAL_SAMSUNG_DEBUG
-	bool "Samsung SoC serial debug"
-	depends on SERIAL_SAMSUNG && DEBUG_LL
-	help
-	  Add support for debugging the serial driver. Since this is
-	  generally being used as a console, we use our own output
-	  routines that go via the low-level debug printascii()
-	  function.
 
 config SERIAL_SAMSUNG_CONSOLE
 	bool "Support for console on Samsung SoC serial port"
@@ -1111,7 +1100,7 @@ config SERIAL_SC16IS7XX_SPI
 	help
 	  Enable SC16IS7xx driver on SPI bus,
 	  If required say y, and say n to spi if not required,
-	  This is additional support to exsisting driver.
+	  This is additional support to existing driver.
 	  You must select at least one bus for the driver to be built.
 
 config SERIAL_TIMBERDALE
@@ -1279,6 +1268,7 @@ config SERIAL_AR933X
 	tristate "AR933X serial port support"
 	depends on HAVE_CLK && ATH79
 	select SERIAL_CORE
+	select SERIAL_MCTRL_GPIO if GPIOLIB
 	help
 	  If you have an Atheros AR933X SOC based board and want to use the
 	  built-in UART of the SoC, say Y to this option.
@@ -1452,8 +1442,8 @@ config SERIAL_MEN_Z135
 
 config SERIAL_SPRD
 	tristate "Support for Spreadtrum serial"
-	depends on ARCH_SPRD
 	select SERIAL_CORE
+	depends on COMMON_CLK
 	help
 	  This enables the driver for the Spreadtrum's serial.
 
@@ -1576,5 +1566,3 @@ endmenu
 
 config SERIAL_MCTRL_GPIO
 	tristate
-
-endif # TTY

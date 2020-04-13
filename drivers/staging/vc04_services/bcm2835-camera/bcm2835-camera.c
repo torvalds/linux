@@ -1776,7 +1776,7 @@ static int bm2835_mmal_init_device(struct bm2835_mmal_dev *dev,
 	video_set_drvdata(vfd, dev);
 
 	ret = video_register_device(vfd,
-				    VFL_TYPE_GRABBER,
+				    VFL_TYPE_VIDEO,
 				    video_nr[dev->camera_num]);
 	if (ret < 0)
 		return ret;

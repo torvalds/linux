@@ -37,8 +37,6 @@
 #define DRIVER_NAME	"envctrl"
 #define PFX		DRIVER_NAME ": "
 
-#define ENVCTRL_MINOR	162
-
 #define PCF8584_ADDRESS	0x55
 
 #define CONTROL_PIN	0x80

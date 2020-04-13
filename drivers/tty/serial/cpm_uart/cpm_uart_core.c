@@ -30,8 +30,7 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
-#include <linux/gpio.h>
-#include <linux/of_gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/clk.h>
 
 #include <asm/io.h>
@@ -88,11 +87,11 @@ static void cpm_uart_set_mctrl(struct uart_port *port, unsigned int mctrl)
 	struct uart_cpm_port *pinfo =
 		container_of(port, struct uart_cpm_port, port);
 
-	if (pinfo->gpios[GPIO_RTS] >= 0)
-		gpio_set_value(pinfo->gpios[GPIO_RTS], !(mctrl & TIOCM_RTS));
+	if (pinfo->gpios[GPIO_RTS])
+		gpiod_set_value(pinfo->gpios[GPIO_RTS], !(mctrl & TIOCM_RTS));
 
-	if (pinfo->gpios[GPIO_DTR] >= 0)
-		gpio_set_value(pinfo->gpios[GPIO_DTR], !(mctrl & TIOCM_DTR));
+	if (pinfo->gpios[GPIO_DTR])
+		gpiod_set_value(pinfo->gpios[GPIO_DTR], !(mctrl & TIOCM_DTR));
 }
 
 static unsigned int cpm_uart_get_mctrl(struct uart_port *port)
@@ -101,23 +100,23 @@ static unsigned int cpm_uart_get_mctrl(struct uart_port *port)
 		container_of(port, struct uart_cpm_port, port);
 	unsigned int mctrl = TIOCM_CTS | TIOCM_DSR | TIOCM_CAR;
 
-	if (pinfo->gpios[GPIO_CTS] >= 0) {
-		if (gpio_get_value(pinfo->gpios[GPIO_CTS]))
+	if (pinfo->gpios[GPIO_CTS]) {
+		if (gpiod_get_value(pinfo->gpios[GPIO_CTS]))
 			mctrl &= ~TIOCM_CTS;
 	}
 
-	if (pinfo->gpios[GPIO_DSR] >= 0) {
-		if (gpio_get_value(pinfo->gpios[GPIO_DSR]))
+	if (pinfo->gpios[GPIO_DSR]) {
+		if (gpiod_get_value(pinfo->gpios[GPIO_DSR]))
 			mctrl &= ~TIOCM_DSR;
 	}
 
-	if (pinfo->gpios[GPIO_DCD] >= 0) {
-		if (gpio_get_value(pinfo->gpios[GPIO_DCD]))
+	if (pinfo->gpios[GPIO_DCD]) {
+		if (gpiod_get_value(pinfo->gpios[GPIO_DCD]))
 			mctrl &= ~TIOCM_CAR;
 	}
 
-	if (pinfo->gpios[GPIO_RI] >= 0) {
-		if (!gpio_get_value(pinfo->gpios[GPIO_RI]))
+	if (pinfo->gpios[GPIO_RI]) {
+		if (!gpiod_get_value(pinfo->gpios[GPIO_RI]))
 			mctrl |= TIOCM_RNG;
 	}
 
@@ -1139,6 +1138,7 @@ static int cpm_uart_init_port(struct device_node *np,
 {
 	const u32 *data;
 	void __iomem *mem, *pram;
+	struct device *dev = pinfo->port.dev;
 	int len;
 	int ret;
 	int i;
@@ -1211,29 +1211,23 @@ static int cpm_uart_init_port(struct device_node *np,
 	}
 
 	for (i = 0; i < NUM_GPIOS; i++) {
-		int gpio;
+		struct gpio_desc *gpiod;
 
-		pinfo->gpios[i] = -1;
+		pinfo->gpios[i] = NULL;
 
-		gpio = of_get_gpio(np, i);
+		gpiod = devm_gpiod_get_index(dev, NULL, i, GPIOD_ASIS);
 
-		if (gpio_is_valid(gpio)) {
-			ret = gpio_request(gpio, "cpm_uart");
-			if (ret) {
-				pr_err("can't request gpio #%d: %d\n", i, ret);
-				continue;
-			}
+		if (gpiod) {
 			if (i == GPIO_RTS || i == GPIO_DTR)
-				ret = gpio_direction_output(gpio, 0);
+				ret = gpiod_direction_output(gpiod, 0);
 			else
-				ret = gpio_direction_input(gpio);
+				ret = gpiod_direction_input(gpiod);
 			if (ret) {
 				pr_err("can't set direction for gpio #%d: %d\n",
 					i, ret);
-				gpio_free(gpio);
 				continue;
 			}
-			pinfo->gpios[i] = gpio;
+			pinfo->gpios[i] = gpiod;
 		}
 	}
 

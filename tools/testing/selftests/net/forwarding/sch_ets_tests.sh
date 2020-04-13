@@ -2,7 +2,7 @@
 
 # Global interface:
 #  $put -- port under test (e.g. $swp2)
-#  get_stats($band) -- A function to collect stats for band
+#  collect_stats($streams...) -- A function to get stats for individual streams
 #  ets_start_traffic($band) -- Start traffic for this band
 #  ets_change_qdisc($op, $dev, $nstrict, $quanta...) -- Add or change qdisc
 
@@ -94,15 +94,11 @@ __ets_dwrr_test()
 
 	sleep 10
 
-	t0=($(for stream in ${streams[@]}; do
-		  get_stats $stream
-	      done))
+	t0=($(collect_stats "${streams[@]}"))
 
 	sleep 10
 
-	t1=($(for stream in ${streams[@]}; do
-		  get_stats $stream
-	      done))
+	t1=($(collect_stats "${streams[@]}"))
 	d=($(for ((i = 0; i < ${#streams[@]}; i++)); do
 		 echo $((${t1[$i]} - ${t0[$i]}))
 	     done))

@@ -42,6 +42,10 @@ int igc_del_mac_steering_filter(struct igc_adapter *adapter,
 				const u8 *addr, u8 queue, u8 flags);
 void igc_update_stats(struct igc_adapter *adapter);
 
+/* igc_dump declarations */
+void igc_rings_dump(struct igc_adapter *adapter);
+void igc_regs_dump(struct igc_adapter *adapter);
+
 extern char igc_driver_name[];
 extern char igc_driver_version[];
 
@@ -53,10 +57,13 @@ extern char igc_driver_version[];
 
 /* Interrupt defines */
 #define IGC_START_ITR			648 /* ~6000 ints/sec */
+
+/* Flags definitions */
 #define IGC_FLAG_HAS_MSI		BIT(0)
 #define IGC_FLAG_QUEUE_PAIRS		BIT(3)
 #define IGC_FLAG_DMAC			BIT(4)
 #define IGC_FLAG_PTP			BIT(8)
+#define IGC_FLAG_WOL_SUPPORTED		BIT(8)
 #define IGC_FLAG_NEED_LINK_UPDATE	BIT(9)
 #define IGC_FLAG_MEDIA_RESET		BIT(10)
 #define IGC_FLAG_MAS_ENABLE		BIT(12)
@@ -108,7 +115,7 @@ extern char igc_driver_version[];
 #define IGC_RX_HDR_LEN			IGC_RXBUFFER_256
 
 /* Transmit and receive latency (for PTP timestamps) */
-/* FIXME: These values were estimated using the ones that i210 has as
+/* FIXME: These values were estimated using the ones that i225 has as
  * basis, they seem to provide good numbers with ptp4l/phc2sys, but we
  * need to confirm them.
  */
@@ -319,7 +326,7 @@ struct igc_q_vector {
 	struct net_device poll_dev;
 
 	/* for dynamic allocation of rings associated with this q_vector */
-	struct igc_ring ring[0] ____cacheline_internodealigned_in_smp;
+	struct igc_ring ring[] ____cacheline_internodealigned_in_smp;
 };
 
 #define MAX_ETYPE_FILTER		(4 - 1)
@@ -552,6 +559,7 @@ int igc_erase_filter(struct igc_adapter *adapter,
 
 void igc_ptp_init(struct igc_adapter *adapter);
 void igc_ptp_reset(struct igc_adapter *adapter);
+void igc_ptp_suspend(struct igc_adapter *adapter);
 void igc_ptp_stop(struct igc_adapter *adapter);
 void igc_ptp_rx_rgtstamp(struct igc_q_vector *q_vector, struct sk_buff *skb);
 void igc_ptp_rx_pktstamp(struct igc_q_vector *q_vector, void *va,

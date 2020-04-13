@@ -7,6 +7,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/gpio/consumer.h>
 #include <linux/mutex.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
@@ -346,8 +347,8 @@ static int adis_self_test(struct adis *adis)
 	int ret;
 	const struct adis_timeout *timeouts = adis->data->timeouts;
 
-	ret = __adis_write_reg_16(adis, adis->data->msc_ctrl_reg,
-			adis->data->self_test_mask);
+	ret = __adis_write_reg_16(adis, adis->data->self_test_reg,
+				  adis->data->self_test_mask);
 	if (ret) {
 		dev_err(&adis->spi->dev, "Failed to initiate self test: %d\n",
 			ret);
@@ -359,42 +360,71 @@ static int adis_self_test(struct adis *adis)
 	ret = __adis_check_status(adis);
 
 	if (adis->data->self_test_no_autoclear)
-		__adis_write_reg_16(adis, adis->data->msc_ctrl_reg, 0x00);
+		__adis_write_reg_16(adis, adis->data->self_test_reg, 0x00);
 
 	return ret;
 }
 
 /**
- * adis_inital_startup() - Performs device self-test
+ * __adis_initial_startup() - Device initial setup
  * @adis: The adis device
+ *
+ * The function performs a HW reset via a reset pin that should be specified
+ * via GPIOLIB. If no pin is configured a SW reset will be performed.
+ * The RST pin for the ADIS devices should be configured as ACTIVE_LOW.
+ *
+ * After the self-test operation is performed, the function will also check
+ * that the product ID is as expected. This assumes that drivers providing
+ * 'prod_id_reg' will also provide the 'prod_id'.
  *
  * Returns 0 if the device is operational, a negative error code otherwise.
  *
  * This function should be called early on in the device initialization sequence
  * to ensure that the device is in a sane and known state and that it is usable.
  */
-int adis_initial_startup(struct adis *adis)
+int __adis_initial_startup(struct adis *adis)
 {
+	const struct adis_timeout *timeouts = adis->data->timeouts;
+	struct gpio_desc *gpio;
+	uint16_t prod_id;
 	int ret;
 
-	mutex_lock(&adis->state_lock);
+	/* check if the device has rst pin low */
+	gpio = devm_gpiod_get_optional(&adis->spi->dev, "reset", GPIOD_ASIS);
+	if (IS_ERR(gpio))
+		return PTR_ERR(gpio);
 
-	ret = adis_self_test(adis);
-	if (ret) {
-		dev_err(&adis->spi->dev, "Self-test failed, trying reset.\n");
-		__adis_reset(adis);
-		ret = adis_self_test(adis);
-		if (ret) {
-			dev_err(&adis->spi->dev, "Second self-test failed, giving up.\n");
-			goto out_unlock;
-		}
+	if (gpio) {
+		gpiod_set_value_cansleep(gpio, 1);
+		msleep(10);
+		/* bring device out of reset */
+		gpiod_set_value_cansleep(gpio, 0);
+		msleep(timeouts->reset_ms);
+	} else {
+		ret = __adis_reset(adis);
+		if (ret)
+			return ret;
 	}
 
-out_unlock:
-	mutex_unlock(&adis->state_lock);
-	return ret;
+	ret = adis_self_test(adis);
+	if (ret)
+		return ret;
+
+	if (!adis->data->prod_id_reg)
+		return 0;
+
+	ret = adis_read_reg_16(adis, adis->data->prod_id_reg, &prod_id);
+	if (ret)
+		return ret;
+
+	if (prod_id != adis->data->prod_id)
+		dev_warn(&adis->spi->dev,
+			 "Device ID(%u) and product ID(%u) do not match.",
+			 adis->data->prod_id, prod_id);
+
+	return 0;
 }
-EXPORT_SYMBOL_GPL(adis_initial_startup);
+EXPORT_SYMBOL_GPL(__adis_initial_startup);
 
 /**
  * adis_single_conversion() - Performs a single sample conversion

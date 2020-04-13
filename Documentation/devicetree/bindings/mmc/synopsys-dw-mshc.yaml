@@ -62,7 +62,7 @@ examples:
       cap-mmc-highspeed;
       cap-sd-highspeed;
       card-detect-delay = <200>;
-      clock-freq-min-max = <400000 200000000>;
+      max-frequency = <200000000>;
       clock-frequency = <400000000>;
       data-addr = <0x200>;
       fifo-depth = <0x80>;

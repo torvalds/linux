@@ -153,14 +153,6 @@ void emma2rh_gpio_irq_init(void)
 					      handle_edge_irq, "edge");
 }
 
-static struct irqaction irq_cascade = {
-	   .handler = no_action,
-	   .flags = IRQF_NO_THREAD,
-	   .name = "cascade",
-	   .dev_id = NULL,
-	   .next = NULL,
-};
-
 /*
  * the first level int-handler will jump here if it is a emma2rh irq
  */
@@ -236,6 +228,7 @@ void emma2rh_irq_dispatch(void)
 void __init arch_init_irq(void)
 {
 	u32 reg;
+	int irq;
 
 	/* by default, interrupts are disabled. */
 	emma2rh_out32(EMMA2RH_BHIF_INT_EN_0, 0);
@@ -272,9 +265,15 @@ void __init arch_init_irq(void)
 	mips_cpu_irq_init();
 
 	/* setup cascade interrupts */
-	setup_irq(EMMA2RH_IRQ_BASE + EMMA2RH_SW_CASCADE, &irq_cascade);
-	setup_irq(EMMA2RH_IRQ_BASE + EMMA2RH_GPIO_CASCADE, &irq_cascade);
-	setup_irq(MIPS_CPU_IRQ_BASE + 2, &irq_cascade);
+	irq = EMMA2RH_IRQ_BASE + EMMA2RH_SW_CASCADE;
+	if (request_irq(irq, no_action, IRQF_NO_THREAD, "cascade", NULL))
+		pr_err("Failed to request irq %d (cascade)\n", irq);
+	irq = EMMA2RH_IRQ_BASE + EMMA2RH_GPIO_CASCADE;
+	if (request_irq(irq, no_action, IRQF_NO_THREAD, "cascade", NULL))
+		pr_err("Failed to request irq %d (cascade)\n", irq);
+	irq = MIPS_CPU_IRQ_BASE + 2;
+	if (request_irq(irq, no_action, IRQF_NO_THREAD, "cascade", NULL))
+		pr_err("Failed to request irq %d (cascade)\n", irq);
 }
 
 asmlinkage void plat_irq_dispatch(void)

@@ -220,8 +220,7 @@ static void hsdma_dump_reg(struct mtk_hsdam_engine *hsdma)
 			mtk_hsdma_read(hsdma, HSDMA_REG_RX_CRX),
 			mtk_hsdma_read(hsdma, HSDMA_REG_RX_DRX));
 
-	dev_dbg(hsdma->ddev.dev, "info %08x, glo %08x, delay %08x, "
-			"intr_stat %08x, intr_mask %08x\n",
+	dev_dbg(hsdma->ddev.dev, "info %08x, glo %08x, delay %08x, intr_stat %08x, intr_mask %08x\n",
 			mtk_hsdma_read(hsdma, HSDMA_REG_INFO),
 			mtk_hsdma_read(hsdma, HSDMA_REG_GLO_CFG),
 			mtk_hsdma_read(hsdma, HSDMA_REG_DELAY_INT),

@@ -55,6 +55,78 @@ static void test_stream_connection_reset(const struct test_opts *opts)
 	close(fd);
 }
 
+static void test_stream_bind_only_client(const struct test_opts *opts)
+{
+	union {
+		struct sockaddr sa;
+		struct sockaddr_vm svm;
+	} addr = {
+		.svm = {
+			.svm_family = AF_VSOCK,
+			.svm_port = 1234,
+			.svm_cid = opts->peer_cid,
+		},
+	};
+	int ret;
+	int fd;
+
+	/* Wait for the server to be ready */
+	control_expectln("BIND");
+
+	fd = socket(AF_VSOCK, SOCK_STREAM, 0);
+
+	timeout_begin(TIMEOUT);
+	do {
+		ret = connect(fd, &addr.sa, sizeof(addr.svm));
+		timeout_check("connect");
+	} while (ret < 0 && errno == EINTR);
+	timeout_end();
+
+	if (ret != -1) {
+		fprintf(stderr, "expected connect(2) failure, got %d\n", ret);
+		exit(EXIT_FAILURE);
+	}
+	if (errno != ECONNRESET) {
+		fprintf(stderr, "unexpected connect(2) errno %d\n", errno);
+		exit(EXIT_FAILURE);
+	}
+
+	/* Notify the server that the client has finished */
+	control_writeln("DONE");
+
+	close(fd);
+}
+
+static void test_stream_bind_only_server(const struct test_opts *opts)
+{
+	union {
+		struct sockaddr sa;
+		struct sockaddr_vm svm;
+	} addr = {
+		.svm = {
+			.svm_family = AF_VSOCK,
+			.svm_port = 1234,
+			.svm_cid = VMADDR_CID_ANY,
+		},
+	};
+	int fd;
+
+	fd = socket(AF_VSOCK, SOCK_STREAM, 0);
+
+	if (bind(fd, &addr.sa, sizeof(addr.svm)) < 0) {
+		perror("bind");
+		exit(EXIT_FAILURE);
+	}
+
+	/* Notify the client that the server is ready */
+	control_writeln("BIND");
+
+	/* Wait for the client to finish */
+	control_expectln("DONE");
+
+	close(fd);
+}
+
 static void test_stream_client_close_client(const struct test_opts *opts)
 {
 	int fd;
@@ -211,6 +283,11 @@ static struct test_case test_cases[] = {
 	{
 		.name = "SOCK_STREAM connection reset",
 		.run_client = test_stream_connection_reset,
+	},
+	{
+		.name = "SOCK_STREAM bind only",
+		.run_client = test_stream_bind_only_client,
+		.run_server = test_stream_bind_only_server,
 	},
 	{
 		.name = "SOCK_STREAM client close",

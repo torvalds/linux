@@ -15,7 +15,7 @@ int proc_get_drv_version(char *page, char **start,
 {
 	int len = 0;
 
-	len += snprintf(page + len, count - len, "%s\n", DRIVERVERSION);
+	len += scnprintf(page + len, count - len, "%s\n", DRIVERVERSION);
 
 	*eof = 1;
 	return len;
@@ -86,16 +86,16 @@ int proc_get_read_reg(char *page, char **start,
 
 	switch (proc_get_read_len) {
 	case 1:
-		len += snprintf(page + len, count - len, "usb_read8(0x%x)=0x%x\n", proc_get_read_addr, usb_read8(padapter, proc_get_read_addr));
+		len += scnprintf(page + len, count - len, "usb_read8(0x%x)=0x%x\n", proc_get_read_addr, usb_read8(padapter, proc_get_read_addr));
 		break;
 	case 2:
-		len += snprintf(page + len, count - len, "usb_read16(0x%x)=0x%x\n", proc_get_read_addr, usb_read16(padapter, proc_get_read_addr));
+		len += scnprintf(page + len, count - len, "usb_read16(0x%x)=0x%x\n", proc_get_read_addr, usb_read16(padapter, proc_get_read_addr));
 		break;
 	case 4:
-		len += snprintf(page + len, count - len, "usb_read32(0x%x)=0x%x\n", proc_get_read_addr, usb_read32(padapter, proc_get_read_addr));
+		len += scnprintf(page + len, count - len, "usb_read32(0x%x)=0x%x\n", proc_get_read_addr, usb_read32(padapter, proc_get_read_addr));
 		break;
 	default:
-		len += snprintf(page + len, count - len, "error read length=%d\n", proc_get_read_len);
+		len += scnprintf(page + len, count - len, "error read length=%d\n", proc_get_read_len);
 		break;
 	}
 
@@ -138,7 +138,7 @@ int proc_get_adapter_state(char *page, char **start,
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 	int len = 0;
 
-	len += snprintf(page + len, count - len, "bSurpriseRemoved=%d, bDriverStopped=%d\n",
+	len += scnprintf(page + len, count - len, "bSurpriseRemoved=%d, bDriverStopped=%d\n",
 						padapter->bSurpriseRemoved, padapter->bDriverStopped);
 
 	*eof = 1;
@@ -170,11 +170,11 @@ int proc_get_best_channel(char *page, char **start,
 		}
 
 		/*  debug */
-		len += snprintf(page + len, count - len, "The rx cnt of channel %3d = %d\n",
+		len += scnprintf(page + len, count - len, "The rx cnt of channel %3d = %d\n",
 					pmlmeext->channel_set[i].ChannelNum, pmlmeext->channel_set[i].rx_count);
 	}
 
-	len += snprintf(page + len, count - len, "best_channel_24G = %d\n", best_channel_24G);
+	len += scnprintf(page + len, count - len, "best_channel_24G = %d\n", best_channel_24G);
 
 	*eof = 1;
 	return len;

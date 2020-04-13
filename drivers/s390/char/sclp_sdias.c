@@ -214,7 +214,7 @@ int sclp_sdias_copy(void *dest, int start_blk, int nr_blks)
 		break;
 	case SDIAS_EVSTATE_NO_DATA:
 		TRACE("no data\n");
-		/* fall through */
+		fallthrough;
 	default:
 		pr_err("Error from SCLP while copying hsa. Event status = %x\n",
 		       sdias_evbuf.event_status);

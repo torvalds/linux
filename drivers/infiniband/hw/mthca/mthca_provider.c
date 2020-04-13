@@ -561,7 +561,7 @@ static struct ib_qp *mthca_create_qp(struct ib_pd *pd,
 	}
 	default:
 		/* Don't support raw QPs */
-		return ERR_PTR(-ENOSYS);
+		return ERR_PTR(-EOPNOTSUPP);
 	}
 
 	if (err) {

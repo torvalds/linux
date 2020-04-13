@@ -216,7 +216,7 @@ int intel_gt_resume(struct intel_gt *gt)
 		intel_engine_pm_get(engine);
 
 		engine->serial++; /* kernel context lost */
-		err = engine->resume(engine);
+		err = intel_engine_resume(engine);
 
 		intel_engine_pm_put(engine);
 		if (err) {

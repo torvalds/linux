@@ -86,7 +86,7 @@ static enum usb_port_connect_type usb_acpi_get_connect_type(acpi_handle handle,
 {
 	enum usb_port_connect_type connect_type = USB_PORT_CONNECT_TYPE_UNKNOWN;
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
-	union acpi_object *upc;
+	union acpi_object *upc = NULL;
 	acpi_status status;
 
 	/*
@@ -98,11 +98,12 @@ static enum usb_port_connect_type usb_acpi_get_connect_type(acpi_handle handle,
 	 * no connectable, the port would be not used.
 	 */
 	status = acpi_evaluate_object(handle, "_UPC", NULL, &buffer);
-	upc = buffer.pointer;
-	if (!upc || (upc->type != ACPI_TYPE_PACKAGE)
-		|| upc->package.count != 4) {
+	if (ACPI_FAILURE(status))
 		goto out;
-	}
+
+	upc = buffer.pointer;
+	if (!upc || (upc->type != ACPI_TYPE_PACKAGE) || upc->package.count != 4)
+		goto out;
 
 	if (upc->package.elements[0].integer.value)
 		if (pld->user_visible)
@@ -186,7 +187,7 @@ usb_acpi_find_companion_for_port(struct usb_port *port_dev)
 
 	handle = adev->handle;
 	status = acpi_get_physical_device_location(handle, &pld);
-	if (!ACPI_FAILURE(status) && pld) {
+	if (ACPI_SUCCESS(status) && pld) {
 		port_dev->location = USB_ACPI_LOCATION_VALID
 			| pld->group_token << 8 | pld->group_position;
 		port_dev->connect_type = usb_acpi_get_connect_type(handle, pld);

@@ -62,9 +62,6 @@ static inline int __must_check PTR_ERR_OR_ZERO(__force const void *ptr)
 		return 0;
 }
 
-/* Deprecated */
-#define PTR_RET(p) PTR_ERR_OR_ZERO(p)
-
 #endif
 
 #endif /* _LINUX_ERR_H */

@@ -423,7 +423,7 @@ hantro_get_dst_buf(struct hantro_ctx *ctx)
 static inline bool
 hantro_needs_postproc(struct hantro_ctx *ctx, const struct hantro_fmt *fmt)
 {
-	return fmt->fourcc != V4L2_PIX_FMT_NV12;
+	return !hantro_is_encoder_ctx(ctx) && fmt->fourcc != V4L2_PIX_FMT_NV12;
 }
 
 static inline dma_addr_t

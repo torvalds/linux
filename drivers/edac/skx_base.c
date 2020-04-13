@@ -158,7 +158,7 @@ fail:
 }
 
 static const struct x86_cpu_id skx_cpuids[] = {
-	{ X86_VENDOR_INTEL, 6, INTEL_FAM6_SKYLAKE_X, 0, 0 },
+	X86_MATCH_INTEL_FAM6_MODEL(SKYLAKE_X,	NULL),
 	{ }
 };
 MODULE_DEVICE_TABLE(x86cpu, skx_cpuids);

@@ -112,7 +112,7 @@ __queue_and_release_pm(struct i915_request *rq,
 {
 	struct intel_gt_timelines *timelines = &engine->gt->timelines;
 
-	ENGINE_TRACE(engine, "\n");
+	ENGINE_TRACE(engine, "parking\n");
 
 	/*
 	 * We have to serialise all potential retirement paths with our
@@ -249,7 +249,7 @@ static int __engine_park(struct intel_wakeref *wf)
 	if (!switch_to_kernel_context(engine))
 		return -EBUSY;
 
-	ENGINE_TRACE(engine, "\n");
+	ENGINE_TRACE(engine, "parked\n");
 
 	call_idle_barriers(engine); /* cleanup after wedging */
 

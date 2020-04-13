@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __UM_PROCESSOR_H
 #define __UM_PROCESSOR_H
+#include <linux/time-internal.h>
 
 /* include faultinfo structure */
 #include <sysdep/faultinfo.h>
@@ -21,12 +22,19 @@
 #include <asm/user.h>
 
 /* REP NOP (PAUSE) is a good thing to insert into busy-wait loops. */
-static inline void rep_nop(void)
+static __always_inline void rep_nop(void)
 {
 	__asm__ __volatile__("rep;nop": : :"memory");
 }
 
-#define cpu_relax()		rep_nop()
+static __always_inline void cpu_relax(void)
+{
+	if (time_travel_mode == TT_MODE_INFCPU ||
+	    time_travel_mode == TT_MODE_EXTERNAL)
+		time_travel_ndelay(1);
+	else
+		rep_nop();
+}
 
 #define task_pt_regs(t) (&(t)->thread.regs)
 

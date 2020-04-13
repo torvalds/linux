@@ -41,6 +41,9 @@ properties:
   "#clock-cells":
     const: 0
 
+  clock-output-names:
+    const: bd71828-32k-out
+
   rohm,charger-sense-resistor-ohms:
     minimum: 10000000
     maximum: 50000000
@@ -73,6 +76,8 @@ required:
   - regulators
   - gpio-controller
   - "#gpio-cells"
+
+additionalProperties: false
 
 examples:
   - |

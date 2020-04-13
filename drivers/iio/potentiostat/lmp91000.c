@@ -275,11 +275,20 @@ static int lmp91000_buffer_cb(const void *val, void *private)
 static const struct iio_trigger_ops lmp91000_trigger_ops = {
 };
 
-static int lmp91000_buffer_preenable(struct iio_dev *indio_dev)
+static int lmp91000_buffer_postenable(struct iio_dev *indio_dev)
 {
 	struct lmp91000_data *data = iio_priv(indio_dev);
+	int err;
 
-	return iio_channel_start_all_cb(data->cb_buffer);
+	err = iio_triggered_buffer_postenable(indio_dev);
+	if (err)
+		return err;
+
+	err = iio_channel_start_all_cb(data->cb_buffer);
+	if (err)
+		iio_triggered_buffer_predisable(indio_dev);
+
+	return err;
 }
 
 static int lmp91000_buffer_predisable(struct iio_dev *indio_dev)
@@ -288,12 +297,11 @@ static int lmp91000_buffer_predisable(struct iio_dev *indio_dev)
 
 	iio_channel_stop_all_cb(data->cb_buffer);
 
-	return 0;
+	return iio_triggered_buffer_predisable(indio_dev);
 }
 
 static const struct iio_buffer_setup_ops lmp91000_buffer_setup_ops = {
-	.preenable = lmp91000_buffer_preenable,
-	.postenable = iio_triggered_buffer_postenable,
+	.postenable = lmp91000_buffer_postenable,
 	.predisable = lmp91000_buffer_predisable,
 };
 

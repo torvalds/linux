@@ -53,4 +53,9 @@
 			cache-sets = <512>;
 		};
 	};
+
+	thermal-zones {
+		/delete-node/ ap-thermal-cpu2;
+		/delete-node/ ap-thermal-cpu3;
+	};
 };

@@ -56,7 +56,7 @@ struct mlx5i_priv {
 	u32    qkey;
 	u16    pkey_index;
 	struct mlx5i_pkey_qpn_ht *qpn_htbl;
-	char  *mlx5e_priv[0];
+	char  *mlx5e_priv[];
 };
 
 int mlx5i_create_tis(struct mlx5_core_dev *mdev, u32 underlay_qpn, u32 *tisn);
@@ -107,7 +107,7 @@ struct mlx5i_tx_wqe {
 	struct mlx5_wqe_datagram_seg datagram;
 	struct mlx5_wqe_eth_pad      pad;
 	struct mlx5_wqe_eth_seg      eth;
-	struct mlx5_wqe_data_seg     data[0];
+	struct mlx5_wqe_data_seg     data[];
 };
 
 static inline void mlx5i_sq_fetch_wqe(struct mlx5e_txqsq *sq,

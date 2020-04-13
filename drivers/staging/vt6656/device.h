@@ -16,6 +16,7 @@
 #ifndef __DEVICE_H__
 #define __DEVICE_H__
 
+#include <linux/bits.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -129,12 +130,12 @@
 #define EEP_OFS_OFDMA_PWR_TBL	0x50
 
 /* Bits in EEP_OFS_ANTENNA */
-#define EEP_ANTENNA_MAIN	0x1
-#define EEP_ANTENNA_AUX		0x2
-#define EEP_ANTINV		0x4
+#define EEP_ANTENNA_MAIN	BIT(0)
+#define EEP_ANTENNA_AUX		BIT(1)
+#define EEP_ANTINV		BIT(2)
 
 /* Bits in EEP_OFS_RADIOCTL */
-#define EEP_RADIOCTL_ENABLE	0x80
+#define EEP_RADIOCTL_ENABLE	BIT(7)
 
 /* control commands */
 #define MESSAGE_TYPE_READ		0x1
@@ -227,7 +228,6 @@ struct vnt_rcb {
 	void *priv;
 	struct urb *urb;
 	struct sk_buff *skb;
-	int in_use;
 };
 
 /* used to track bulk out irps */
@@ -244,7 +244,6 @@ struct vnt_usb_send_context {
 	u8 pkt_no;
 	u8 pkt_type;
 	u8 need_ack;
-	u8 fb_option;
 	bool in_use;
 	unsigned char data[MAX_TOTAL_SIZE_WITH_ALL_HEADERS];
 };
@@ -254,16 +253,6 @@ struct vnt_usb_send_context {
  */
 struct vnt_interrupt_buffer {
 	u8 *data_buf;
-	bool in_use;
-};
-
-/*++ NDIS related */
-
-enum {
-	STATUS_SUCCESS = 0,
-	STATUS_FAILURE,
-	STATUS_RESOURCES,
-	STATUS_PENDING,
 };
 
 /* flags for options */

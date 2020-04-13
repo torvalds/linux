@@ -6,7 +6,6 @@
 #include <linux/ptrace.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
-#include "bpf_trace_helpers.h"
 
 struct task_struct;
 
@@ -17,11 +16,9 @@ int BPF_KPROBE(prog1, struct task_struct *tsk, const char *buf, bool exec)
 }
 
 SEC("kretprobe/__set_task_comm")
-int BPF_KRETPROBE(prog2,
-		  struct task_struct *tsk, const char *buf, bool exec,
-		  int ret)
+int BPF_KRETPROBE(prog2, int ret)
 {
-	return !PT_REGS_PARM1(ctx) && ret;
+	return ret;
 }
 
 SEC("raw_tp/task_rename")

@@ -63,6 +63,10 @@
 #define OV5675_TEST_PATTERN_ENABLE	BIT(7)
 #define OV5675_TEST_PATTERN_BAR_SHIFT	2
 
+/* Flip Mirror Controls from sensor */
+#define OV5675_REG_FORMAT1		0x3820
+#define OV5675_REG_FORMAT2		0x373d
+
 #define to_ov5675(_sd)			container_of(_sd, struct ov5675, sd)
 
 enum {
@@ -314,21 +318,21 @@ static const struct ov5675_reg mode_1296x972_regs[] = {
 	{0x3800, 0x00},
 	{0x3801, 0x00},
 	{0x3802, 0x00},
-	{0x3803, 0xf4},
+	{0x3803, 0x00},
 	{0x3804, 0x0a},
 	{0x3805, 0x3f},
-	{0x3806, 0x06},
-	{0x3807, 0xb3},
+	{0x3806, 0x07},
+	{0x3807, 0xb7},
 	{0x3808, 0x05},
-	{0x3809, 0x00},
-	{0x380a, 0x02},
-	{0x380b, 0xd0},
+	{0x3809, 0x10},
+	{0x380a, 0x03},
+	{0x380b, 0xcc},
 	{0x380c, 0x02},
 	{0x380d, 0xee},
 	{0x380e, 0x07},
-	{0x380f, 0xe4},
-	{0x3811, 0x10},
-	{0x3813, 0x09},
+	{0x380f, 0xd0},
+	{0x3811, 0x08},
+	{0x3813, 0x0d},
 	{0x3814, 0x03},
 	{0x3815, 0x01},
 	{0x3816, 0x03},
@@ -604,6 +608,53 @@ static int ov5675_test_pattern(struct ov5675 *ov5675, u32 pattern)
 				OV5675_REG_VALUE_08BIT, pattern);
 }
 
+/*
+ * OV5675 supports keeping the pixel order by mirror and flip function
+ * The Bayer order isn't affected by the flip controls
+ */
+static int ov5675_set_ctrl_hflip(struct ov5675 *ov5675, u32 ctrl_val)
+{
+	int ret;
+	u32 val;
+
+	ret = ov5675_read_reg(ov5675, OV5675_REG_FORMAT1,
+			      OV5675_REG_VALUE_08BIT, &val);
+	if (ret)
+		return ret;
+
+	return ov5675_write_reg(ov5675, OV5675_REG_FORMAT1,
+				OV5675_REG_VALUE_08BIT,
+				ctrl_val ? val & ~BIT(3) : val);
+}
+
+static int ov5675_set_ctrl_vflip(struct ov5675 *ov5675, u8 ctrl_val)
+{
+	int ret;
+	u32 val;
+
+	ret = ov5675_read_reg(ov5675, OV5675_REG_FORMAT1,
+			      OV5675_REG_VALUE_08BIT, &val);
+	if (ret)
+		return ret;
+
+	ret = ov5675_write_reg(ov5675, OV5675_REG_FORMAT1,
+			       OV5675_REG_VALUE_08BIT,
+			       ctrl_val ? val | BIT(4) | BIT(5)  : val);
+
+	if (ret)
+		return ret;
+
+	ret = ov5675_read_reg(ov5675, OV5675_REG_FORMAT2,
+			      OV5675_REG_VALUE_08BIT, &val);
+
+	if (ret)
+		return ret;
+
+	return ov5675_write_reg(ov5675, OV5675_REG_FORMAT2,
+				OV5675_REG_VALUE_08BIT,
+				ctrl_val ? val | BIT(1) : val);
+}
+
 static int ov5675_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct ov5675 *ov5675 = container_of(ctrl->handler,
@@ -652,6 +703,14 @@ static int ov5675_set_ctrl(struct v4l2_ctrl *ctrl)
 
 	case V4L2_CID_TEST_PATTERN:
 		ret = ov5675_test_pattern(ov5675, ctrl->val);
+		break;
+
+	case V4L2_CID_HFLIP:
+		ov5675_set_ctrl_hflip(ov5675, ctrl->val);
+		break;
+
+	case V4L2_CID_VFLIP:
+		ov5675_set_ctrl_vflip(ov5675, ctrl->val);
 		break;
 
 	default:
@@ -722,6 +781,11 @@ static int ov5675_init_controls(struct ov5675 *ov5675)
 				     V4L2_CID_TEST_PATTERN,
 				     ARRAY_SIZE(ov5675_test_pattern_menu) - 1,
 				     0, 0, ov5675_test_pattern_menu);
+	v4l2_ctrl_new_std(ctrl_hdlr, &ov5675_ctrl_ops,
+			  V4L2_CID_HFLIP, 0, 1, 1, 0);
+	v4l2_ctrl_new_std(ctrl_hdlr, &ov5675_ctrl_ops,
+			  V4L2_CID_VFLIP, 0, 1, 1, 0);
+
 	if (ctrl_hdlr->error)
 		return ctrl_hdlr->error;
 

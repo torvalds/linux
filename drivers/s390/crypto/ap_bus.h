@@ -91,7 +91,6 @@ enum ap_state {
 	AP_STATE_IDLE,
 	AP_STATE_WORKING,
 	AP_STATE_QUEUE_FULL,
-	AP_STATE_SUSPEND_WAIT,
 	AP_STATE_REMOVE,	/* about to be removed from driver */
 	AP_STATE_UNBOUND,	/* momentary not bound to a driver */
 	AP_STATE_BORKED,	/* broken */
@@ -136,8 +135,6 @@ struct ap_driver {
 
 	int (*probe)(struct ap_device *);
 	void (*remove)(struct ap_device *);
-	void (*suspend)(struct ap_device *);
-	void (*resume)(struct ap_device *);
 };
 
 #define to_ap_drv(x) container_of((x), struct ap_driver, driver)
@@ -259,8 +256,6 @@ void ap_queue_init_reply(struct ap_queue *aq, struct ap_message *ap_msg);
 struct ap_queue *ap_queue_create(ap_qid_t qid, int device_type);
 void ap_queue_prepare_remove(struct ap_queue *aq);
 void ap_queue_remove(struct ap_queue *aq);
-void ap_queue_suspend(struct ap_device *ap_dev);
-void ap_queue_resume(struct ap_device *ap_dev);
 void ap_queue_init_state(struct ap_queue *aq);
 
 struct ap_card *ap_card_create(int id, int queue_depth, int raw_device_type,

@@ -42,7 +42,7 @@ child node of the serial node with UART.
 
 Please refer to the following documents for generic properties:
 
-	Documentation/devicetree/bindings/serial/slave-device.txt
+	Documentation/devicetree/bindings/serial/serial.yaml
 
 Required properties:
 

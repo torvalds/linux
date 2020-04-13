@@ -115,6 +115,8 @@ required:
   - clocks
   - clock-names
 
+additionalProperties: false
+
 allOf:
   - if:
       properties:

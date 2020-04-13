@@ -11,7 +11,6 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <signal.h>
-#include <time.h>
 
 #include "log.h"
 #include "timens.h"

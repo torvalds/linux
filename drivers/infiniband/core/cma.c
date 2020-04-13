@@ -199,7 +199,7 @@ struct cma_device {
 	struct list_head	list;
 	struct ib_device	*device;
 	struct completion	comp;
-	atomic_t		refcount;
+	refcount_t refcount;
 	struct list_head	id_list;
 	enum ib_gid_type	*default_gid_type;
 	u8			*default_roce_tos;
@@ -247,9 +247,15 @@ enum {
 	CMA_OPTION_AFONLY,
 };
 
-void cma_ref_dev(struct cma_device *cma_dev)
+void cma_dev_get(struct cma_device *cma_dev)
 {
-	atomic_inc(&cma_dev->refcount);
+	refcount_inc(&cma_dev->refcount);
+}
+
+void cma_dev_put(struct cma_device *cma_dev)
+{
+	if (refcount_dec_and_test(&cma_dev->refcount))
+		complete(&cma_dev->comp);
 }
 
 struct cma_device *cma_enum_devices_by_ibdev(cma_device_filter	filter,
@@ -267,7 +273,7 @@ struct cma_device *cma_enum_devices_by_ibdev(cma_device_filter	filter,
 		}
 
 	if (found_cma_dev)
-		cma_ref_dev(found_cma_dev);
+		cma_dev_get(found_cma_dev);
 	mutex_unlock(&lock);
 	return found_cma_dev;
 }
@@ -463,7 +469,7 @@ static int cma_igmp_send(struct net_device *ndev, union ib_gid *mgid, bool join)
 static void _cma_attach_to_dev(struct rdma_id_private *id_priv,
 			       struct cma_device *cma_dev)
 {
-	cma_ref_dev(cma_dev);
+	cma_dev_get(cma_dev);
 	id_priv->cma_dev = cma_dev;
 	id_priv->id.device = cma_dev->device;
 	id_priv->id.route.addr.dev_addr.transport =
@@ -484,12 +490,6 @@ static void cma_attach_to_dev(struct rdma_id_private *id_priv,
 					  rdma_start_port(cma_dev->device)];
 }
 
-void cma_deref_dev(struct cma_device *cma_dev)
-{
-	if (atomic_dec_and_test(&cma_dev->refcount))
-		complete(&cma_dev->comp);
-}
-
 static inline void release_mc(struct kref *kref)
 {
 	struct cma_multicast *mc = container_of(kref, struct cma_multicast, mcref);
@@ -502,7 +502,7 @@ static void cma_release_dev(struct rdma_id_private *id_priv)
 {
 	mutex_lock(&lock);
 	list_del(&id_priv->list);
-	cma_deref_dev(id_priv->cma_dev);
+	cma_dev_put(id_priv->cma_dev);
 	id_priv->cma_dev = NULL;
 	mutex_unlock(&lock);
 }
@@ -728,8 +728,8 @@ static int cma_iw_acquire_dev(struct rdma_id_private *id_priv,
 	struct cma_device *cma_dev;
 	enum ib_gid_type gid_type;
 	int ret = -ENODEV;
+	unsigned int port;
 	union ib_gid gid;
-	u8 port;
 
 	if (dev_addr->dev_type != ARPHRD_INFINIBAND &&
 	    id_priv->id.ps == RDMA_PS_IPOIB)
@@ -753,7 +753,7 @@ static int cma_iw_acquire_dev(struct rdma_id_private *id_priv,
 	}
 
 	list_for_each_entry(cma_dev, &dev_list, list) {
-		for (port = 1; port <= cma_dev->device->phys_port_cnt; ++port) {
+		rdma_for_each_port (cma_dev->device, port) {
 			if (listen_id_priv->cma_dev == cma_dev &&
 			    listen_id_priv->id.port_num == port)
 				continue;
@@ -786,8 +786,8 @@ static int cma_resolve_ib_dev(struct rdma_id_private *id_priv)
 	struct cma_device *cma_dev, *cur_dev;
 	struct sockaddr_ib *addr;
 	union ib_gid gid, sgid, *dgid;
+	unsigned int p;
 	u16 pkey, index;
-	u8 p;
 	enum ib_port_state port_state;
 	int i;
 
@@ -798,7 +798,7 @@ static int cma_resolve_ib_dev(struct rdma_id_private *id_priv)
 
 	mutex_lock(&lock);
 	list_for_each_entry(cur_dev, &dev_list, list) {
-		for (p = 1; p <= cur_dev->device->phys_port_cnt; ++p) {
+		rdma_for_each_port (cur_dev->device, p) {
 			if (!rdma_cap_af_ib(cur_dev->device, p))
 				continue;
 
@@ -840,9 +840,14 @@ found:
 	return 0;
 }
 
-static void cma_deref_id(struct rdma_id_private *id_priv)
+static void cma_id_get(struct rdma_id_private *id_priv)
 {
-	if (atomic_dec_and_test(&id_priv->refcount))
+	refcount_inc(&id_priv->refcount);
+}
+
+static void cma_id_put(struct rdma_id_private *id_priv)
+{
+	if (refcount_dec_and_test(&id_priv->refcount))
 		complete(&id_priv->comp);
 }
 
@@ -870,7 +875,7 @@ struct rdma_cm_id *__rdma_create_id(struct net *net,
 	spin_lock_init(&id_priv->lock);
 	mutex_init(&id_priv->qp_mutex);
 	init_completion(&id_priv->comp);
-	atomic_set(&id_priv->refcount, 1);
+	refcount_set(&id_priv->refcount, 1);
 	mutex_init(&id_priv->handler_mutex);
 	INIT_LIST_HEAD(&id_priv->listen_list);
 	INIT_LIST_HEAD(&id_priv->mc_list);
@@ -1846,11 +1851,11 @@ void rdma_destroy_id(struct rdma_cm_id *id)
 	}
 
 	cma_release_port(id_priv);
-	cma_deref_id(id_priv);
+	cma_id_put(id_priv);
 	wait_for_completion(&id_priv->comp);
 
 	if (id_priv->internal_id)
-		cma_deref_id(id_priv->id.context);
+		cma_id_put(id_priv->id.context);
 
 	kfree(id_priv->id.route.path_rec);
 
@@ -2187,7 +2192,7 @@ static int cma_ib_req_handler(struct ib_cm_id *cm_id,
 	 * Protect against the user destroying conn_id from another thread
 	 * until we're done accessing it.
 	 */
-	atomic_inc(&conn_id->refcount);
+	cma_id_get(conn_id);
 	ret = cma_cm_event_handler(conn_id, &event);
 	if (ret)
 		goto err3;
@@ -2204,13 +2209,13 @@ static int cma_ib_req_handler(struct ib_cm_id *cm_id,
 	mutex_unlock(&lock);
 	mutex_unlock(&conn_id->handler_mutex);
 	mutex_unlock(&listen_id->handler_mutex);
-	cma_deref_id(conn_id);
+	cma_id_put(conn_id);
 	if (net_dev)
 		dev_put(net_dev);
 	return 0;
 
 err3:
-	cma_deref_id(conn_id);
+	cma_id_put(conn_id);
 	/* Destroy the CM ID by returning a non-zero value. */
 	conn_id->cm_id.ib = NULL;
 err2:
@@ -2391,7 +2396,7 @@ static int iw_conn_req_handler(struct iw_cm_id *cm_id,
 	 * Protect against the user destroying conn_id from another thread
 	 * until we're done accessing it.
 	 */
-	atomic_inc(&conn_id->refcount);
+	cma_id_get(conn_id);
 	ret = cma_cm_event_handler(conn_id, &event);
 	if (ret) {
 		/* User wants to destroy the CM ID */
@@ -2399,13 +2404,13 @@ static int iw_conn_req_handler(struct iw_cm_id *cm_id,
 		cma_exch(conn_id, RDMA_CM_DESTROYING);
 		mutex_unlock(&conn_id->handler_mutex);
 		mutex_unlock(&listen_id->handler_mutex);
-		cma_deref_id(conn_id);
+		cma_id_put(conn_id);
 		rdma_destroy_id(&conn_id->id);
 		return ret;
 	}
 
 	mutex_unlock(&conn_id->handler_mutex);
-	cma_deref_id(conn_id);
+	cma_id_put(conn_id);
 
 out:
 	mutex_unlock(&listen_id->handler_mutex);
@@ -2492,7 +2497,7 @@ static void cma_listen_on_dev(struct rdma_id_private *id_priv,
 
 	_cma_attach_to_dev(dev_id_priv, cma_dev);
 	list_add_tail(&dev_id_priv->listen_list, &id_priv->listen_list);
-	atomic_inc(&id_priv->refcount);
+	cma_id_get(id_priv);
 	dev_id_priv->internal_id = 1;
 	dev_id_priv->afonly = id_priv->afonly;
 	dev_id_priv->tos_set = id_priv->tos_set;
@@ -2647,7 +2652,7 @@ static void cma_work_handler(struct work_struct *_work)
 	}
 out:
 	mutex_unlock(&id_priv->handler_mutex);
-	cma_deref_id(id_priv);
+	cma_id_put(id_priv);
 	if (destroy)
 		rdma_destroy_id(&id_priv->id);
 	kfree(work);
@@ -2671,7 +2676,7 @@ static void cma_ndev_work_handler(struct work_struct *_work)
 
 out:
 	mutex_unlock(&id_priv->handler_mutex);
-	cma_deref_id(id_priv);
+	cma_id_put(id_priv);
 	if (destroy)
 		rdma_destroy_id(&id_priv->id);
 	kfree(work);
@@ -2687,14 +2692,19 @@ static void cma_init_resolve_route_work(struct cma_work *work,
 	work->event.event = RDMA_CM_EVENT_ROUTE_RESOLVED;
 }
 
-static void cma_init_resolve_addr_work(struct cma_work *work,
-				       struct rdma_id_private *id_priv)
+static void enqueue_resolve_addr_work(struct cma_work *work,
+				      struct rdma_id_private *id_priv)
 {
+	/* Balances with cma_id_put() in cma_work_handler */
+	cma_id_get(id_priv);
+
 	work->id = id_priv;
 	INIT_WORK(&work->work, cma_work_handler);
 	work->old_state = RDMA_CM_ADDR_QUERY;
 	work->new_state = RDMA_CM_ADDR_RESOLVED;
 	work->event.event = RDMA_CM_EVENT_ADDR_RESOLVED;
+
+	queue_work(cma_wq, &work->work);
 }
 
 static int cma_resolve_ib_route(struct rdma_id_private *id_priv,
@@ -2968,6 +2978,7 @@ static int cma_resolve_iboe_route(struct rdma_id_private *id_priv)
 err2:
 	kfree(route->path_rec);
 	route->path_rec = NULL;
+	route->num_paths = 0;
 err1:
 	kfree(work);
 	return ret;
@@ -2982,7 +2993,7 @@ int rdma_resolve_route(struct rdma_cm_id *id, unsigned long timeout_ms)
 	if (!cma_comp_exch(id_priv, RDMA_CM_ADDR_RESOLVED, RDMA_CM_ROUTE_QUERY))
 		return -EINVAL;
 
-	atomic_inc(&id_priv->refcount);
+	cma_id_get(id_priv);
 	if (rdma_cap_ib_sa(id->device, id->port_num))
 		ret = cma_resolve_ib_route(id_priv, timeout_ms);
 	else if (rdma_protocol_roce(id->device, id->port_num))
@@ -2998,7 +3009,7 @@ int rdma_resolve_route(struct rdma_cm_id *id, unsigned long timeout_ms)
 	return 0;
 err:
 	cma_comp_exch(id_priv, RDMA_CM_ROUTE_QUERY, RDMA_CM_ADDR_RESOLVED);
-	cma_deref_id(id_priv);
+	cma_id_put(id_priv);
 	return ret;
 }
 EXPORT_SYMBOL(rdma_resolve_route);
@@ -3025,9 +3036,9 @@ static int cma_bind_loopback(struct rdma_id_private *id_priv)
 	struct cma_device *cma_dev, *cur_dev;
 	union ib_gid gid;
 	enum ib_port_state port_state;
+	unsigned int p;
 	u16 pkey;
 	int ret;
-	u8 p;
 
 	cma_dev = NULL;
 	mutex_lock(&lock);
@@ -3039,7 +3050,7 @@ static int cma_bind_loopback(struct rdma_id_private *id_priv)
 		if (!cma_dev)
 			cma_dev = cur_dev;
 
-		for (p = 1; p <= cur_dev->device->phys_port_cnt; ++p) {
+		rdma_for_each_port (cur_dev->device, p) {
 			if (!ib_get_cached_port_state(cur_dev->device, p, &port_state) &&
 			    port_state == IB_PORT_ACTIVE) {
 				cma_dev = cur_dev;
@@ -3148,9 +3159,7 @@ static int cma_resolve_loopback(struct rdma_id_private *id_priv)
 	rdma_addr_get_sgid(&id_priv->id.route.addr.dev_addr, &gid);
 	rdma_addr_set_dgid(&id_priv->id.route.addr.dev_addr, &gid);
 
-	atomic_inc(&id_priv->refcount);
-	cma_init_resolve_addr_work(work, id_priv);
-	queue_work(cma_wq, &work->work);
+	enqueue_resolve_addr_work(work, id_priv);
 	return 0;
 err:
 	kfree(work);
@@ -3175,9 +3184,7 @@ static int cma_resolve_ib_addr(struct rdma_id_private *id_priv)
 	rdma_addr_set_dgid(&id_priv->id.route.addr.dev_addr, (union ib_gid *)
 		&(((struct sockaddr_ib *) &id_priv->id.route.addr.dst_addr)->sib_addr));
 
-	atomic_inc(&id_priv->refcount);
-	cma_init_resolve_addr_work(work, id_priv);
-	queue_work(cma_wq, &work->work);
+	enqueue_resolve_addr_work(work, id_priv);
 	return 0;
 err:
 	kfree(work);
@@ -4588,7 +4595,7 @@ static int cma_netdev_change(struct net_device *ndev, struct rdma_id_private *id
 		INIT_WORK(&work->work, cma_ndev_work_handler);
 		work->id = id_priv;
 		work->event.event = RDMA_CM_EVENT_ADDR_CHANGE;
-		atomic_inc(&id_priv->refcount);
+		cma_id_get(id_priv);
 		queue_work(cma_wq, &work->work);
 	}
 
@@ -4663,7 +4670,7 @@ static void cma_add_one(struct ib_device *device)
 	}
 
 	init_completion(&cma_dev->comp);
-	atomic_set(&cma_dev->refcount, 1);
+	refcount_set(&cma_dev->refcount, 1);
 	INIT_LIST_HEAD(&cma_dev->id_list);
 	ib_set_client_data(device, &cma_client, cma_dev);
 
@@ -4722,11 +4729,11 @@ static void cma_process_remove(struct cma_device *cma_dev)
 
 		list_del(&id_priv->listen_list);
 		list_del_init(&id_priv->list);
-		atomic_inc(&id_priv->refcount);
+		cma_id_get(id_priv);
 		mutex_unlock(&lock);
 
 		ret = id_priv->internal_id ? 1 : cma_remove_id_dev(id_priv);
-		cma_deref_id(id_priv);
+		cma_id_put(id_priv);
 		if (ret)
 			rdma_destroy_id(&id_priv->id);
 
@@ -4734,7 +4741,7 @@ static void cma_process_remove(struct cma_device *cma_dev)
 	}
 	mutex_unlock(&lock);
 
-	cma_deref_dev(cma_dev);
+	cma_dev_put(cma_dev);
 	wait_for_completion(&cma_dev->comp);
 }
 
@@ -4789,6 +4796,19 @@ static struct pernet_operations cma_pernet_operations = {
 static int __init cma_init(void)
 {
 	int ret;
+
+	/*
+	 * There is a rare lock ordering dependency in cma_netdev_callback()
+	 * that only happens when bonding is enabled. Teach lockdep that rtnl
+	 * must never be nested under lock so it can find these without having
+	 * to test with bonding.
+	 */
+	if (IS_ENABLED(CONFIG_LOCKDEP)) {
+		rtnl_lock();
+		mutex_lock(&lock);
+		mutex_unlock(&lock);
+		rtnl_unlock();
+	}
 
 	cma_wq = alloc_ordered_workqueue("rdma_cm", WQ_MEM_RECLAIM);
 	if (!cma_wq)

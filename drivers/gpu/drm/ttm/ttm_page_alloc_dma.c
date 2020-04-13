@@ -604,7 +604,7 @@ static struct dma_pool *ttm_dma_pool_init(struct device *dev, gfp_t flags,
 	p = pool->name;
 	for (i = 0; i < ARRAY_SIZE(t); i++) {
 		if (type & t[i]) {
-			p += snprintf(p, sizeof(pool->name) - (p - pool->name),
+			p += scnprintf(p, sizeof(pool->name) - (p - pool->name),
 				      "%s", n[i]);
 		}
 	}

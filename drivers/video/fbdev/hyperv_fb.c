@@ -594,8 +594,8 @@ static int synthvid_get_supported_resolution(struct hv_device *hdev)
 	t = wait_for_completion_timeout(&par->wait, VSP_TIMEOUT);
 	if (!t) {
 		pr_err("Time out on waiting resolution response\n");
-			ret = -ETIMEDOUT;
-			goto out;
+		ret = -ETIMEDOUT;
+		goto out;
 	}
 
 	if (msg->resolution_resp.resolution_count == 0) {

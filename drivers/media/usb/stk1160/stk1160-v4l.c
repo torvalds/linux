@@ -830,7 +830,7 @@ int stk1160_video_register(struct stk1160 *dev)
 			dev->norm);
 
 	video_set_drvdata(&dev->vdev, dev);
-	rc = video_register_device(&dev->vdev, VFL_TYPE_GRABBER, -1);
+	rc = video_register_device(&dev->vdev, VFL_TYPE_VIDEO, -1);
 	if (rc < 0) {
 		stk1160_err("video_register_device failed (%d)\n", rc);
 		return rc;

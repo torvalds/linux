@@ -44,6 +44,8 @@ required:
   - reset-names
   - "#phy-cells"
 
+additionalProperties: false
+
 examples:
   - |
     phy@46000 {

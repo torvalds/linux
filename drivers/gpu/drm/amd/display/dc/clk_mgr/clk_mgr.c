@@ -63,6 +63,25 @@ int clk_mgr_helper_get_active_display_cnt(
 	return display_count;
 }
 
+int clk_mgr_helper_get_active_plane_cnt(
+		struct dc *dc,
+		struct dc_state *context)
+{
+	int i, total_plane_count;
+
+	total_plane_count = 0;
+	for (i = 0; i < context->stream_count; i++) {
+		const struct dc_stream_status stream_status = context->stream_status[i];
+
+		/*
+		 * Sum up plane_count for all streams ( active and virtual ).
+		 */
+		total_plane_count += stream_status.plane_count;
+	}
+
+	return total_plane_count;
+}
+
 void clk_mgr_exit_optimized_pwr_state(const struct dc *dc, struct clk_mgr *clk_mgr)
 {
 	struct dc_link *edp_link = get_edp_link(dc);
@@ -134,13 +153,6 @@ struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *p
 
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	case FAMILY_RV:
-		if (ASICREV_IS_DALI(asic_id.hw_internal_rev) ||
-				ASICREV_IS_POLLOCK(asic_id.hw_internal_rev)) {
-			/* TEMP: this check has to come before ASICREV_IS_RENOIR */
-			/* which also incorrectly returns true for Dali/Pollock*/
-			rv2_clk_mgr_construct(ctx, clk_mgr, pp_smu);
-			break;
-		}
 		if (ASICREV_IS_RENOIR(asic_id.hw_internal_rev)) {
 			rn_clk_mgr_construct(ctx, clk_mgr, pp_smu, dccg);
 			break;

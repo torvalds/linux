@@ -239,6 +239,11 @@ config EFI_DISABLE_PCI_DMA
 
 endmenu
 
+config EFI_EMBEDDED_FIRMWARE
+	bool
+	depends on EFI
+	select CRYPTO_LIB_SHA256
+
 config UEFI_CPER
 	bool
 

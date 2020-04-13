@@ -169,15 +169,13 @@ static int configure_kgdboc(void)
 	if (!p)
 		goto noconfig;
 
-	cons = console_drivers;
-	while (cons) {
+	for_each_console(cons) {
 		int idx;
 		if (cons->device && cons->device(cons, &idx) == p &&
 		    idx == tty_line) {
 			kgdboc_io_ops.is_console = 1;
 			break;
 		}
-		cons = cons->next;
 	}
 
 	kgdb_tty_driver = p;

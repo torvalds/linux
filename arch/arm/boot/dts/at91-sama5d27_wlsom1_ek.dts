@@ -186,6 +186,11 @@
 		pinmux = <PIN_PA10__GPIO>;
 		bias-disable;
 	};
+
+	pinctrl_usba_vbus: usba_vbus {
+		pinmux = <PIN_PA16__GPIO>;
+		bias-disable;
+	};
 };
 
 &pwm0 {
@@ -245,6 +250,13 @@
 	pinctrl-0 = <&pinctrl_uart3_default>;
 	atmel,use-dma-rx;
 	atmel,use-dma-tx;
+	status = "okay";
+};
+
+&usb0 {
+	atmel,vbus-gpio = <&pioA PIN_PA16 GPIO_ACTIVE_HIGH>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usba_vbus>;
 	status = "okay";
 };
 

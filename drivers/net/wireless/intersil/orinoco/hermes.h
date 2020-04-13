@@ -341,7 +341,7 @@ struct agere_ext_scan_info {
 	__le64	timestamp;
 	__le16	beacon_interval;
 	__le16	capabilities;
-	u8	data[0];
+	u8	data[];
 } __packed;
 
 #define HERMES_LINKSTATUS_NOT_CONNECTED   (0x0000)

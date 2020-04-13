@@ -235,7 +235,6 @@ def plot_duration_cpu():
     output_png = 'all_cpu_durations.png'
     g_plot = common_all_gnuplot_settings(output_png)
 #   autoscale this one, no set y range
-    g_plot('set ytics 0, 500')
     g_plot('set ylabel "Timer Duration (MilliSeconds)"')
     g_plot('set title "{} : cpu durations : {:%F %H:%M}"'.format(testname, datetime.now()))
 

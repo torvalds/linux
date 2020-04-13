@@ -125,6 +125,6 @@ void test_btf_dump() {
 		if (!test__start_subtest(t->name))
 			continue;
 
-		 test_btf_dump_case(i, &btf_dump_test_cases[i]);
+		test_btf_dump_case(i, &btf_dump_test_cases[i]);
 	}
 }

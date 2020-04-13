@@ -211,10 +211,21 @@ void i915_sw_fence_complete(struct i915_sw_fence *fence)
 	__i915_sw_fence_complete(fence, NULL);
 }
 
-void i915_sw_fence_await(struct i915_sw_fence *fence)
+bool i915_sw_fence_await(struct i915_sw_fence *fence)
 {
-	debug_fence_assert(fence);
-	WARN_ON(atomic_inc_return(&fence->pending) <= 1);
+	int pending;
+
+	/*
+	 * It is only safe to add a new await to the fence while it has
+	 * not yet been signaled (i.e. there are still existing signalers).
+	 */
+	pending = atomic_read(&fence->pending);
+	do {
+		if (pending < 1)
+			return false;
+	} while (!atomic_try_cmpxchg(&fence->pending, &pending, pending + 1));
+
+	return true;
 }
 
 void __i915_sw_fence_init(struct i915_sw_fence *fence,

@@ -195,10 +195,10 @@ static int clk_sscg_pll2_find_setup(struct clk_sscg_pll_setup *setup,
 					uint64_t ref)
 {
 
-	int ret = -EINVAL;
+	int ret;
 
 	if (ref < PLL_STAGE1_MIN_FREQ || ref > PLL_STAGE1_MAX_FREQ)
-		return ret;
+		return -EINVAL;
 
 	temp_setup->vco1 = ref;
 
@@ -254,10 +254,10 @@ static int clk_sscg_pll1_find_setup(struct clk_sscg_pll_setup *setup,
 					uint64_t ref)
 {
 
-	int ret = -EINVAL;
+	int ret;
 
 	if (ref < PLL_REF_MIN_FREQ || ref > PLL_REF_MAX_FREQ)
-		return ret;
+		return -EINVAL;
 
 	temp_setup->ref = ref;
 
@@ -428,7 +428,7 @@ static int __clk_sscg_pll_determine_rate(struct clk_hw *hw,
 	struct clk_sscg_pll_setup *setup = &pll->setup;
 	struct clk_hw *parent_hw = NULL;
 	int bypass_parent_index;
-	int ret = -EINVAL;
+	int ret;
 
 	req->max_rate = max;
 	req->min_rate = min;
@@ -467,10 +467,10 @@ static int clk_sscg_pll_determine_rate(struct clk_hw *hw,
 	uint64_t rate = req->rate;
 	uint64_t min = req->min_rate;
 	uint64_t max = req->max_rate;
-	int ret = -EINVAL;
+	int ret;
 
 	if (rate < PLL_OUT_MIN_FREQ || rate > PLL_OUT_MAX_FREQ)
-		return ret;
+		return -EINVAL;
 
 	ret = __clk_sscg_pll_determine_rate(hw, req, req->rate, req->rate,
 						rate, PLL_BYPASS2);

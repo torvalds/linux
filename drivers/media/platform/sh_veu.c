@@ -1160,7 +1160,7 @@ static int sh_veu_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_resume(&pdev->dev);
 
-	ret = video_register_device(vdev, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(vdev, VFL_TYPE_VIDEO, -1);
 	pm_runtime_suspend(&pdev->dev);
 	if (ret < 0)
 		goto evidreg;

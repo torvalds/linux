@@ -69,33 +69,29 @@ union holding separate parameters for input and output devices.
 .. flat-table:: struct v4l2_streamparm
     :header-rows:  0
     :stub-columns: 0
-    :widths:       1 1 1 2
+    :widths:       1 1 2
 
     * - __u32
       - ``type``
-      -
       - The buffer (stream) type, same as struct
 	:c:type:`v4l2_format` ``type``, set by the
 	application. See :c:type:`v4l2_buf_type`.
-    * - union
+    * - union {
       - ``parm``
-      -
-      -
-    * -
-      - struct :c:type:`v4l2_captureparm`
+    * - struct :c:type:`v4l2_captureparm`
       - ``capture``
       - Parameters for capture devices, used when ``type`` is
 	``V4L2_BUF_TYPE_VIDEO_CAPTURE`` or
 	``V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE``.
-    * -
-      - struct :c:type:`v4l2_outputparm`
+    * - struct :c:type:`v4l2_outputparm`
       - ``output``
       - Parameters for output devices, used when ``type`` is
 	``V4L2_BUF_TYPE_VIDEO_OUTPUT`` or ``V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE``.
-    * -
-      - __u8
+    * - __u8
       - ``raw_data``\ [200]
       - A place holder for future extensions.
+    * - }
+      -
 
 
 

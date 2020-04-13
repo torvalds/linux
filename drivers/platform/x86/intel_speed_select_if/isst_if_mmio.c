@@ -126,7 +126,7 @@ static void isst_if_remove(struct pci_dev *pdev)
 	struct isst_if_device *punit_dev;
 
 	punit_dev = pci_get_drvdata(pdev);
-	isst_if_cdev_unregister(ISST_IF_DEV_MBOX);
+	isst_if_cdev_unregister(ISST_IF_DEV_MMIO);
 	mutex_destroy(&punit_dev->mutex);
 }
 

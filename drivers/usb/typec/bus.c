@@ -30,17 +30,10 @@ static int typec_altmode_set_state(struct typec_altmode *adev,
 {
 	bool is_port = is_typec_port(adev->dev.parent);
 	struct altmode *port_altmode;
-	int ret;
 
 	port_altmode = is_port ? to_altmode(adev) : to_altmode(adev)->partner;
 
-	ret = typec_altmode_set_mux(port_altmode, conf, data);
-	if (ret)
-		return ret;
-
-	blocking_notifier_call_chain(&port_altmode->nh, conf, NULL);
-
-	return 0;
+	return typec_altmode_set_mux(port_altmode, conf, data);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -81,9 +74,6 @@ int typec_altmode_notify(struct typec_altmode *adev,
 	ret = typec_altmode_set_mux(is_port ? altmode : partner, conf, data);
 	if (ret)
 		return ret;
-
-	blocking_notifier_call_chain(is_port ? &altmode->nh : &partner->nh,
-				     conf, data);
 
 	if (partner->adev.ops && partner->adev.ops->notify)
 		return partner->adev.ops->notify(&partner->adev, conf, data);

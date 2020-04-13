@@ -177,7 +177,9 @@ atomatically||automatically
 atomicly||atomically
 atempt||attempt
 attachement||attachment
+attatch||attach
 attched||attached
+attemp||attempt
 attemps||attempts
 attemping||attempting
 attepmpt||attempt
@@ -235,11 +237,13 @@ brievely||briefly
 brigde||bridge
 broadcase||broadcast
 broadcat||broadcast
+bufer||buffer
 bufufer||buffer
 cacluated||calculated
 caculate||calculate
 caculation||calculation
 cadidate||candidate
+cahces||caches
 calender||calendar
 calescing||coalescing
 calle||called
@@ -338,7 +342,6 @@ conditon||condition
 condtion||condition
 conected||connected
 conector||connector
-connecetd||connected
 configration||configuration
 configuartion||configuration
 configuation||configuration
@@ -349,7 +352,9 @@ configuretion||configuration
 configutation||configuration
 conider||consider
 conjuction||conjunction
+connecetd||connected
 connectinos||connections
+connetor||connector
 connnection||connection
 connnections||connections
 consistancy||consistency
@@ -469,6 +474,7 @@ difinition||definition
 digial||digital
 dimention||dimension
 dimesions||dimensions
+disgest||digest
 dispalying||displaying
 diplay||display
 directon||direction
@@ -553,6 +559,7 @@ etsablishment||establishment
 etsbalishment||establishment
 excecutable||executable
 exceded||exceeded
+exceeed||exceed
 excellant||excellent
 execeeded||exceeded
 execeeds||exceeds
@@ -742,6 +749,7 @@ initialzing||initializing
 initilization||initialization
 initilize||initialize
 initliaze||initialize
+initilized||initialized
 inofficial||unofficial
 inrerface||interface
 insititute||institute
@@ -802,6 +810,7 @@ irrelevent||irrelevant
 isnt||isn't
 isssue||issue
 issus||issues
+iteraions||iterations
 iternations||iterations
 itertation||iteration
 itslef||itself
@@ -828,6 +837,7 @@ libary||library
 librairies||libraries
 libraris||libraries
 licenceing||licencing
+limted||limited
 logaritmic||logarithmic
 loggging||logging
 loggin||login
@@ -924,6 +934,7 @@ nerver||never
 nescessary||necessary
 nessessary||necessary
 noticable||noticeable
+notication||notification
 notications||notifications
 notifcations||notifications
 notifed||notified
@@ -1007,6 +1018,7 @@ pendantic||pedantic
 peprocessor||preprocessor
 perfoming||performing
 perfomring||performing
+periperal||peripheral
 peripherial||peripheral
 permissons||permissions
 peroid||period
@@ -1043,6 +1055,7 @@ prefferably||preferably
 premption||preemption
 prepaired||prepared
 preperation||preparation
+preprare||prepare
 pressre||pressure
 primative||primitive
 princliple||principle
@@ -1064,6 +1077,7 @@ processsed||processed
 processsing||processing
 procteted||protected
 prodecure||procedure
+progamming||programming
 progams||programs
 progess||progress
 programers||programmers
@@ -1151,12 +1165,14 @@ replys||replies
 reponse||response
 representaion||representation
 reqeust||request
+reqister||register
 requestied||requested
 requiere||require
 requirment||requirement
 requred||required
 requried||required
 requst||request
+requsted||requested
 reregisteration||reregistration
 reseting||resetting
 reseved||reserved
@@ -1227,10 +1243,12 @@ seqeuncer||sequencer
 seqeuencer||sequencer
 sequece||sequence
 sequencial||sequential
+serivce||service
 serveral||several
 servive||service
 setts||sets
 settting||setting
+shapshot||snapshot
 shotdown||shutdown
 shoud||should
 shouldnt||shouldn't
@@ -1328,6 +1346,7 @@ swithcing||switching
 swithed||switched
 swithing||switching
 swtich||switch
+syfs||sysfs
 symetric||symmetric
 synax||syntax
 synchonized||synchronized

@@ -5,6 +5,7 @@
 #include <linux/kvm_host.h>
 #include <asm/pvclock.h>
 #include "kvm_cache_regs.h"
+#include "kvm_emulate.h"
 
 #define KVM_DEFAULT_PLE_GAP		128
 #define KVM_VMX_DEFAULT_PLE_WINDOW	4096
@@ -96,7 +97,7 @@ static inline bool is_64_bit_mode(struct kvm_vcpu *vcpu)
 
 	if (!is_long_mode(vcpu))
 		return false;
-	kvm_x86_ops->get_cs_db_l_bits(vcpu, &cs_db, &cs_l);
+	kvm_x86_ops.get_cs_db_l_bits(vcpu, &cs_db, &cs_l);
 	return cs_l;
 }
 
@@ -149,11 +150,6 @@ static inline u8 vcpu_virt_addr_bits(struct kvm_vcpu *vcpu)
 	return kvm_read_cr4_bits(vcpu, X86_CR4_LA57) ? 57 : 48;
 }
 
-static inline u8 ctxt_virt_addr_bits(struct x86_emulate_ctxt *ctxt)
-{
-	return (ctxt->ops->get_cr(ctxt, 4) & X86_CR4_LA57) ? 57 : 48;
-}
-
 static inline u64 get_canonical(u64 la, u8 vaddr_bits)
 {
 	return ((int64_t)la << (64 - vaddr_bits)) >> (64 - vaddr_bits);
@@ -162,12 +158,6 @@ static inline u64 get_canonical(u64 la, u8 vaddr_bits)
 static inline bool is_noncanonical_address(u64 la, struct kvm_vcpu *vcpu)
 {
 	return get_canonical(la, vcpu_virt_addr_bits(vcpu)) != la;
-}
-
-static inline bool emul_is_noncanonical_address(u64 la,
-						struct x86_emulate_ctxt *ctxt)
-{
-	return get_canonical(la, ctxt_virt_addr_bits(ctxt)) != la;
 }
 
 static inline void vcpu_cache_mmio_info(struct kvm_vcpu *vcpu,
@@ -247,7 +237,7 @@ static inline bool kvm_check_has_quirk(struct kvm *kvm, u64 quirk)
 
 static inline bool kvm_vcpu_latch_init(struct kvm_vcpu *vcpu)
 {
-	return is_smm(vcpu) || kvm_x86_ops->apic_init_signal_blocked(vcpu);
+	return is_smm(vcpu) || kvm_x86_ops.apic_init_signal_blocked(vcpu);
 }
 
 void kvm_set_pending_timer(struct kvm_vcpu *vcpu);
@@ -280,13 +270,15 @@ int x86_emulate_instruction(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
 			    int emulation_type, void *insn, int insn_len);
 enum exit_fastpath_completion handle_fastpath_set_msr_irqoff(struct kvm_vcpu *vcpu);
 
-#define KVM_SUPPORTED_XCR0     (XFEATURE_MASK_FP | XFEATURE_MASK_SSE \
-				| XFEATURE_MASK_YMM | XFEATURE_MASK_BNDREGS \
-				| XFEATURE_MASK_BNDCSR | XFEATURE_MASK_AVX512 \
-				| XFEATURE_MASK_PKRU)
 extern u64 host_xcr0;
+extern u64 supported_xcr0;
+extern u64 supported_xss;
 
-extern u64 kvm_supported_xcr0(void);
+static inline bool kvm_mpx_supported(void)
+{
+	return (supported_xcr0 & (XFEATURE_MASK_BNDREGS | XFEATURE_MASK_BNDCSR))
+		== (XFEATURE_MASK_BNDREGS | XFEATURE_MASK_BNDCSR);
+}
 
 extern unsigned int min_timer_period_us;
 

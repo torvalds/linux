@@ -870,7 +870,7 @@ bailout:
 static void
 qla27xx_time_stamp(struct qla27xx_fwdt_template *tmp)
 {
-	tmp->capture_timestamp = jiffies;
+	tmp->capture_timestamp = cpu_to_le32(jiffies);
 }
 
 static void
@@ -882,9 +882,10 @@ qla27xx_driver_info(struct qla27xx_fwdt_template *tmp)
 			    "%hhu.%hhu.%hhu.%hhu.%hhu.%hhu",
 			    v+0, v+1, v+2, v+3, v+4, v+5) != 6);
 
-	tmp->driver_info[0] = v[3] << 24 | v[2] << 16 | v[1] << 8 | v[0];
-	tmp->driver_info[1] = v[5] << 8 | v[4];
-	tmp->driver_info[2] = 0x12345678;
+	tmp->driver_info[0] = cpu_to_le32(
+		v[3] << 24 | v[2] << 16 | v[1] << 8 | v[0]);
+	tmp->driver_info[1] = cpu_to_le32(v[5] << 8 | v[4]);
+	tmp->driver_info[2] = __constant_cpu_to_le32(0x12345678);
 }
 
 static void
@@ -894,10 +895,10 @@ qla27xx_firmware_info(struct scsi_qla_host *vha,
 	tmp->firmware_version[0] = vha->hw->fw_major_version;
 	tmp->firmware_version[1] = vha->hw->fw_minor_version;
 	tmp->firmware_version[2] = vha->hw->fw_subminor_version;
-	tmp->firmware_version[3] =
-	    vha->hw->fw_attributes_h << 16 | vha->hw->fw_attributes;
-	tmp->firmware_version[4] =
-	    vha->hw->fw_attributes_ext[1] << 16 | vha->hw->fw_attributes_ext[0];
+	tmp->firmware_version[3] = cpu_to_le32(
+		vha->hw->fw_attributes_h << 16 | vha->hw->fw_attributes);
+	tmp->firmware_version[4] = cpu_to_le32(
+	  vha->hw->fw_attributes_ext[1] << 16 | vha->hw->fw_attributes_ext[0]);
 }
 
 static void

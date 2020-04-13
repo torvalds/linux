@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2019 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2020 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.  *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -671,8 +671,10 @@ lpfc_get_scsi_buf_s4(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
 	lpfc_cmd->prot_data_type = 0;
 #endif
 	tmp = lpfc_get_cmd_rsp_buf_per_hdwq(phba, lpfc_cmd);
-	if (!tmp)
+	if (!tmp) {
+		lpfc_release_io_buf(phba, lpfc_cmd, lpfc_cmd->hdwq);
 		return NULL;
+	}
 
 	lpfc_cmd->fcp_cmnd = tmp->fcp_cmnd;
 	lpfc_cmd->fcp_rsp = tmp->fcp_rsp;
@@ -3803,9 +3805,6 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	struct Scsi_Host *shost;
 	int idx;
 	uint32_t logit = LOG_FCP;
-#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
-	int cpu;
-#endif
 
 	/* Guard against abort handler being called at same time */
 	spin_lock(&lpfc_cmd->buf_lock);
@@ -3824,11 +3823,8 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 		phba->sli4_hba.hdwq[idx].scsi_cstat.io_cmpls++;
 
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
-	if (unlikely(phba->cpucheck_on & LPFC_CHECK_SCSI_IO)) {
-		cpu = raw_smp_processor_id();
-		if (cpu < LPFC_CHECK_CPU_CNT && phba->sli4_hba.hdwq)
-			phba->sli4_hba.hdwq[idx].cpucheck_cmpl_io[cpu]++;
-	}
+	if (unlikely(phba->hdwqstat_on & LPFC_CHECK_SCSI_IO))
+		this_cpu_inc(phba->sli4_hba.c_stat->cmpl_io);
 #endif
 	shost = cmd->device->host;
 
@@ -4029,6 +4025,14 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	lpfc_cmd->pCmd = NULL;
 	spin_unlock(&lpfc_cmd->buf_lock);
 
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+	if (lpfc_cmd->ts_cmd_start) {
+		lpfc_cmd->ts_isr_cmpl = pIocbIn->isr_timestamp;
+		lpfc_cmd->ts_data_io = ktime_get_ns();
+		phba->ktime_last_cmd = lpfc_cmd->ts_data_io;
+		lpfc_io_ktime(phba, lpfc_cmd);
+	}
+#endif
 	/* The sdev is not guaranteed to be valid post scsi_done upcall. */
 	cmd->scsi_done(cmd);
 
@@ -4502,7 +4506,10 @@ lpfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 	struct fc_rport *rport = starget_to_rport(scsi_target(cmnd->device));
 	int err, idx;
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
-	int cpu;
+	uint64_t start = 0L;
+
+	if (phba->ktime_on)
+		start = ktime_get_ns();
 #endif
 
 	rdata = lpfc_rport_data_from_scsi_device(cmnd->device);
@@ -4624,17 +4631,20 @@ lpfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 	lpfc_scsi_prep_cmnd(vport, lpfc_cmd, ndlp);
 
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
-	if (unlikely(phba->cpucheck_on & LPFC_CHECK_SCSI_IO)) {
-		cpu = raw_smp_processor_id();
-		if (cpu < LPFC_CHECK_CPU_CNT) {
-			struct lpfc_sli4_hdw_queue *hdwq =
-					&phba->sli4_hba.hdwq[lpfc_cmd->hdwq_no];
-			hdwq->cpucheck_xmt_io[cpu]++;
-		}
-	}
+	if (unlikely(phba->hdwqstat_on & LPFC_CHECK_SCSI_IO))
+		this_cpu_inc(phba->sli4_hba.c_stat->xmt_io);
 #endif
 	err = lpfc_sli_issue_iocb(phba, LPFC_FCP_RING,
 				  &lpfc_cmd->cur_iocbq, SLI_IOCB_RET_IOCB);
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+	if (start) {
+		lpfc_cmd->ts_cmd_start = start;
+		lpfc_cmd->ts_last_cmd = phba->ktime_last_cmd;
+		lpfc_cmd->ts_cmd_wqput = ktime_get_ns();
+	} else {
+		lpfc_cmd->ts_cmd_start = 0;
+	}
+#endif
 	if (err) {
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_FCP,
 				 "3376 FCP could not issue IOCB err %x"
@@ -6021,31 +6031,6 @@ struct scsi_host_template lpfc_template_nvme = {
 	.track_queue_depth	= 0,
 };
 
-struct scsi_host_template lpfc_template_no_hr = {
-	.module			= THIS_MODULE,
-	.name			= LPFC_DRIVER_NAME,
-	.proc_name		= LPFC_DRIVER_NAME,
-	.info			= lpfc_info,
-	.queuecommand		= lpfc_queuecommand,
-	.eh_timed_out		= fc_eh_timed_out,
-	.eh_abort_handler	= lpfc_abort_handler,
-	.eh_device_reset_handler = lpfc_device_reset_handler,
-	.eh_target_reset_handler = lpfc_target_reset_handler,
-	.eh_bus_reset_handler	= lpfc_bus_reset_handler,
-	.slave_alloc		= lpfc_slave_alloc,
-	.slave_configure	= lpfc_slave_configure,
-	.slave_destroy		= lpfc_slave_destroy,
-	.scan_finished		= lpfc_scan_finished,
-	.this_id		= -1,
-	.sg_tablesize		= LPFC_DEFAULT_SG_SEG_CNT,
-	.cmd_per_lun		= LPFC_CMD_PER_LUN,
-	.shost_attrs		= lpfc_hba_attrs,
-	.max_sectors		= 0xFFFFFFFF,
-	.vendor_id		= LPFC_NL_VENDOR_ID,
-	.change_queue_depth	= scsi_change_queue_depth,
-	.track_queue_depth	= 1,
-};
-
 struct scsi_host_template lpfc_template = {
 	.module			= THIS_MODULE,
 	.name			= LPFC_DRIVER_NAME,
@@ -6068,29 +6053,6 @@ struct scsi_host_template lpfc_template = {
 	.shost_attrs		= lpfc_hba_attrs,
 	.max_sectors		= 0xFFFF,
 	.vendor_id		= LPFC_NL_VENDOR_ID,
-	.change_queue_depth	= scsi_change_queue_depth,
-	.track_queue_depth	= 1,
-};
-
-struct scsi_host_template lpfc_vport_template = {
-	.module			= THIS_MODULE,
-	.name			= LPFC_DRIVER_NAME,
-	.proc_name		= LPFC_DRIVER_NAME,
-	.info			= lpfc_info,
-	.queuecommand		= lpfc_queuecommand,
-	.eh_timed_out		= fc_eh_timed_out,
-	.eh_abort_handler	= lpfc_abort_handler,
-	.eh_device_reset_handler = lpfc_device_reset_handler,
-	.eh_target_reset_handler = lpfc_target_reset_handler,
-	.slave_alloc		= lpfc_slave_alloc,
-	.slave_configure	= lpfc_slave_configure,
-	.slave_destroy		= lpfc_slave_destroy,
-	.scan_finished		= lpfc_scan_finished,
-	.this_id		= -1,
-	.sg_tablesize		= LPFC_DEFAULT_SG_SEG_CNT,
-	.cmd_per_lun		= LPFC_CMD_PER_LUN,
-	.shost_attrs		= lpfc_vport_attrs,
-	.max_sectors		= 0xFFFF,
 	.change_queue_depth	= scsi_change_queue_depth,
 	.track_queue_depth	= 1,
 };

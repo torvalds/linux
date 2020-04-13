@@ -459,7 +459,7 @@ static int ath10k_ahb_resource_init(struct ath10k *ar)
 	ar_ahb->mem_len = resource_size(res);
 
 	ar_ahb->gcc_mem = ioremap(ATH10K_GCC_REG_BASE,
-					  ATH10K_GCC_REG_SIZE);
+				  ATH10K_GCC_REG_SIZE);
 	if (!ar_ahb->gcc_mem) {
 		ath10k_err(ar, "gcc mem ioremap error\n");
 		ret = -ENOMEM;
@@ -467,7 +467,7 @@ static int ath10k_ahb_resource_init(struct ath10k *ar)
 	}
 
 	ar_ahb->tcsr_mem = ioremap(ATH10K_TCSR_REG_BASE,
-					   ATH10K_TCSR_REG_SIZE);
+				   ATH10K_TCSR_REG_SIZE);
 	if (!ar_ahb->tcsr_mem) {
 		ath10k_err(ar, "tcsr mem ioremap error\n");
 		ret = -ENOMEM;

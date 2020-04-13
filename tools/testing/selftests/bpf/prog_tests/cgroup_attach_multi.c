@@ -6,7 +6,7 @@
 
 #define PING_CMD	"ping -q -c1 -w1 127.0.0.1 > /dev/null"
 
-char bpf_log_buf[BPF_LOG_BUF_SIZE];
+static char bpf_log_buf[BPF_LOG_BUF_SIZE];
 
 static int map_fd = -1;
 

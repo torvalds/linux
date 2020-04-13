@@ -79,13 +79,13 @@ struct ib_mad_private {
 	struct ib_mad_private_header header;
 	size_t mad_size;
 	struct ib_grh grh;
-	u8 mad[0];
+	u8 mad[];
 } __packed;
 
 struct ib_rmpp_segment {
 	struct list_head list;
 	u32 num;
-	u8 data[0];
+	u8 data[];
 };
 
 struct ib_mad_agent_private {

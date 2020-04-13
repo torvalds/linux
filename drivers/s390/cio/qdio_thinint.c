@@ -82,36 +82,16 @@ void tiqdio_remove_device(struct qdio_irq *irq_ptr)
 	INIT_LIST_HEAD(&irq_ptr->entry);
 }
 
-static inline int has_multiple_inq_on_dsci(struct qdio_irq *irq_ptr)
-{
-	return irq_ptr->nr_input_qs > 1;
-}
-
 static inline int references_shared_dsci(struct qdio_irq *irq_ptr)
 {
 	return irq_ptr->dsci == &q_indicators[TIQDIO_SHARED_IND].ind;
-}
-
-static inline int shared_ind(struct qdio_irq *irq_ptr)
-{
-	return references_shared_dsci(irq_ptr) ||
-		has_multiple_inq_on_dsci(irq_ptr);
-}
-
-void clear_nonshared_ind(struct qdio_irq *irq_ptr)
-{
-	if (!is_thinint_irq(irq_ptr))
-		return;
-	if (shared_ind(irq_ptr))
-		return;
-	xchg(irq_ptr->dsci, 0);
 }
 
 int test_nonshared_ind(struct qdio_irq *irq_ptr)
 {
 	if (!is_thinint_irq(irq_ptr))
 		return 0;
-	if (shared_ind(irq_ptr))
+	if (references_shared_dsci(irq_ptr))
 		return 0;
 	if (*irq_ptr->dsci)
 		return 1;
@@ -131,32 +111,24 @@ static inline void tiqdio_call_inq_handlers(struct qdio_irq *irq)
 	struct qdio_q *q;
 	int i;
 
-	if (!references_shared_dsci(irq) &&
-	    has_multiple_inq_on_dsci(irq))
+	if (!references_shared_dsci(irq))
 		xchg(irq->dsci, 0);
 
+	if (irq->irq_poll) {
+		if (!test_and_set_bit(QDIO_IRQ_DISABLED, &irq->poll_state))
+			irq->irq_poll(irq->cdev, irq->int_parm);
+		else
+			QDIO_PERF_STAT_INC(irq, int_discarded);
+
+		return;
+	}
+
 	for_each_input_queue(irq, q, i) {
-		if (q->u.in.queue_start_poll) {
-			/* skip if polling is enabled or already in work */
-			if (test_and_set_bit(QDIO_QUEUE_IRQS_DISABLED,
-					     &q->u.in.queue_irq_state)) {
-				QDIO_PERF_STAT_INC(irq, int_discarded);
-				continue;
-			}
-
-			/* avoid dsci clear here, done after processing */
-			q->u.in.queue_start_poll(irq->cdev, q->nr,
-						 irq->int_parm);
-		} else {
-			if (!shared_ind(irq))
-				xchg(irq->dsci, 0);
-
-			/*
-			 * Call inbound processing but not directly
-			 * since that could starve other thinint queues.
-			 */
-			tasklet_schedule(&q->tasklet);
-		}
+		/*
+		 * Call inbound processing but not directly
+		 * since that could starve other thinint queues.
+		 */
+		tasklet_schedule(&q->tasklet);
 	}
 }
 
@@ -211,7 +183,7 @@ static int set_subchannel_ind(struct qdio_irq *irq_ptr, int reset)
 	}
 
 	rc = chsc_sadc(irq_ptr->schid, scssc, summary_indicator_addr,
-		       subchannel_indicator_addr);
+		       subchannel_indicator_addr, tiqdio_airq.isc);
 	if (rc) {
 		DBF_ERROR("%4x SSI r:%4x", irq_ptr->schid.sch_no,
 			  scssc->response.code);

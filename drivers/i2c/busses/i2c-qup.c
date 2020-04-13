@@ -136,13 +136,8 @@
  */
 #define TOUT_MIN			2
 
-/* I2C Frequency Modes */
-#define I2C_STANDARD_FREQ		100000
-#define I2C_FAST_MODE_FREQ		400000
-#define I2C_FAST_MODE_PLUS_FREQ		1000000
-
 /* Default values. Use these if FW query fails */
-#define DEFAULT_CLK_FREQ I2C_STANDARD_FREQ
+#define DEFAULT_CLK_FREQ I2C_MAX_STANDARD_MODE_FREQ
 #define DEFAULT_SRC_CLK 20000000
 
 /*
@@ -1756,7 +1751,7 @@ static int qup_i2c_probe(struct platform_device *pdev)
 
 nodma:
 	/* We support frequencies up to FAST Mode Plus (1MHz) */
-	if (!clk_freq || clk_freq > I2C_FAST_MODE_PLUS_FREQ) {
+	if (!clk_freq || clk_freq > I2C_MAX_FAST_MODE_PLUS_FREQ) {
 		dev_err(qup->dev, "clock frequency not supported %d\n",
 			clk_freq);
 		return -EINVAL;
@@ -1861,7 +1856,7 @@ nodma:
 	qup->in_fifo_sz = qup->in_blk_sz * (2 << size);
 
 	hs_div = 3;
-	if (clk_freq <= I2C_STANDARD_FREQ) {
+	if (clk_freq <= I2C_MAX_STANDARD_MODE_FREQ) {
 		fs_div = ((src_clk_freq / clk_freq) / 2) - 3;
 		qup->clk_ctl = (hs_div << 8) | (fs_div & 0xff);
 	} else {

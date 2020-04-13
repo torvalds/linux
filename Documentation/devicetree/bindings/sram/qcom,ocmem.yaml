@@ -43,6 +43,9 @@ properties:
   '#size-cells':
     const: 1
 
+  ranges:
+    maxItems: 1
+
 required:
   - compatible
   - reg
@@ -51,9 +54,12 @@ required:
   - clock-names
   - '#address-cells'
   - '#size-cells'
+  - ranges
+
+additionalProperties: false
 
 patternProperties:
-  "^.+-sram$":
+  "-sram@[0-9a-f]+$":
     type: object
     description: A region of reserved memory.
 
@@ -61,12 +67,8 @@ patternProperties:
       reg:
         maxItems: 1
 
-      ranges:
-        maxItems: 1
-
     required:
       - reg
-      - ranges
 
 examples:
   - |
@@ -88,9 +90,9 @@ examples:
 
         #address-cells = <1>;
         #size-cells = <1>;
+        ranges = <0 0xfec00000 0x100000>;
 
         gmu-sram@0 {
                 reg = <0x0 0x100000>;
-                ranges = <0 0 0xfec00000 0x100000>;
         };
       };

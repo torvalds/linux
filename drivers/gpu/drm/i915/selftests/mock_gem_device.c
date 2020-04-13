@@ -144,7 +144,6 @@ struct drm_i915_private *mock_gem_device(void)
 		goto put_device;
 	}
 	i915->drm.pdev = pdev;
-	i915->drm.dev_private = i915;
 
 	intel_runtime_pm_init_early(&i915->runtime_pm);
 

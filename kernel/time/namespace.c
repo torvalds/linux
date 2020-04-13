@@ -8,6 +8,7 @@
 #include <linux/user_namespace.h>
 #include <linux/sched/signal.h>
 #include <linux/sched/task.h>
+#include <linux/clocksource.h>
 #include <linux/seq_file.h>
 #include <linux/proc_ns.h>
 #include <linux/export.h>
@@ -172,8 +173,8 @@ static struct timens_offset offset_from_ts(struct timespec64 off)
  * for vdso_data->clock_mode is a non-issue. The task is spin waiting for the
  * update to finish and for 'seq' to become even anyway.
  *
- * Timens page has vdso_data->clock_mode set to VCLOCK_TIMENS which enforces
- * the time namespace handling path.
+ * Timens page has vdso_data->clock_mode set to VDSO_CLOCKMODE_TIMENS which
+ * enforces the time namespace handling path.
  */
 static void timens_setup_vdso_data(struct vdso_data *vdata,
 				   struct time_namespace *ns)
@@ -183,7 +184,7 @@ static void timens_setup_vdso_data(struct vdso_data *vdata,
 	struct timens_offset boottime = offset_from_ts(ns->offsets.boottime);
 
 	vdata->seq			= 1;
-	vdata->clock_mode		= VCLOCK_TIMENS;
+	vdata->clock_mode		= VDSO_CLOCKMODE_TIMENS;
 	offset[CLOCK_MONOTONIC]		= monotonic;
 	offset[CLOCK_MONOTONIC_RAW]	= monotonic;
 	offset[CLOCK_MONOTONIC_COARSE]	= monotonic;
@@ -446,6 +447,7 @@ const struct proc_ns_operations timens_operations = {
 
 const struct proc_ns_operations timens_for_children_operations = {
 	.name		= "time_for_children",
+	.real_ns_name	= "time",
 	.type		= CLONE_NEWTIME,
 	.get		= timens_for_children_get,
 	.put		= timens_put,

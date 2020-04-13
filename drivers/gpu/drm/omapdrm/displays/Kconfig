@@ -1,28 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 menu "OMAPDRM External Display Device Drivers"
 
-config DRM_OMAP_ENCODER_OPA362
-	tristate "OPA362 external analog amplifier"
-	help
-	  Driver for OPA362 external analog TV amplifier controlled
-	  through a GPIO.
-
-config DRM_OMAP_ENCODER_TPD12S015
-	tristate "TPD12S015 HDMI ESD protection and level shifter"
-	help
-	  Driver for TPD12S015, which offers HDMI ESD protection and level
-	  shifting.
-
-config DRM_OMAP_CONNECTOR_HDMI
-	tristate "HDMI Connector"
-	help
-	  Driver for a generic HDMI connector.
-
-config DRM_OMAP_CONNECTOR_ANALOG_TV
-	tristate "Analog TV Connector"
-	help
-	  Driver for a generic analog TV connector.
-
 config DRM_OMAP_PANEL_DSI_CM
 	tristate "Generic DSI Command Mode Panel"
 	depends on BACKLIGHT_CLASS_DEVICE

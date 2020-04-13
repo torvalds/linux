@@ -13,6 +13,9 @@
 #
 # Authors: Paul E. McKenney <paulmck@linux.ibm.com>
 
+T=/tmp/kvm-recheck.sh.$$
+trap 'rm -f $T' 0 2
+
 PATH=`pwd`/tools/testing/selftests/rcutorture/bin:$PATH; export PATH
 . functions.sh
 for rd in "$@"
@@ -68,4 +71,16 @@ do
 		fi
 	done
 done
-EDITOR=echo kvm-find-errors.sh "${@: -1}" > /dev/null 2>&1
+EDITOR=echo kvm-find-errors.sh "${@: -1}" > $T 2>&1
+ret=$?
+builderrors="`tr ' ' '\012' < $T | grep -c '/Make.out.diags'`"
+if test "$builderrors" -gt 0
+then
+	echo $builderrors runs with build errors.
+fi
+runerrors="`tr ' ' '\012' < $T | grep -c '/console.log.diags'`"
+if test "$runerrors" -gt 0
+then
+	echo $runerrors runs with runtime errors.
+fi
+exit $ret

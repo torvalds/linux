@@ -87,6 +87,155 @@ __setup("smt-snooze-delay=", setup_smt_snooze_delay);
 
 #endif /* CONFIG_PPC64 */
 
+#define __SYSFS_SPRSETUP_READ_WRITE(NAME, ADDRESS, EXTRA) \
+static void read_##NAME(void *val) \
+{ \
+	*(unsigned long *)val = mfspr(ADDRESS);	\
+} \
+static void write_##NAME(void *val) \
+{ \
+	EXTRA; \
+	mtspr(ADDRESS, *(unsigned long *)val);	\
+}
+
+#define __SYSFS_SPRSETUP_SHOW_STORE(NAME) \
+static ssize_t show_##NAME(struct device *dev, \
+			struct device_attribute *attr, \
+			char *buf) \
+{ \
+	struct cpu *cpu = container_of(dev, struct cpu, dev); \
+	unsigned long val; \
+	smp_call_function_single(cpu->dev.id, read_##NAME, &val, 1);	\
+	return sprintf(buf, "%lx\n", val); \
+} \
+static ssize_t __used \
+	store_##NAME(struct device *dev, struct device_attribute *attr, \
+			const char *buf, size_t count) \
+{ \
+	struct cpu *cpu = container_of(dev, struct cpu, dev); \
+	unsigned long val; \
+	int ret = sscanf(buf, "%lx", &val); \
+	if (ret != 1) \
+		return -EINVAL; \
+	smp_call_function_single(cpu->dev.id, write_##NAME, &val, 1); \
+	return count; \
+}
+
+#define SYSFS_PMCSETUP(NAME, ADDRESS) \
+	__SYSFS_SPRSETUP_READ_WRITE(NAME, ADDRESS, ppc_enable_pmcs()) \
+	__SYSFS_SPRSETUP_SHOW_STORE(NAME)
+#define SYSFS_SPRSETUP(NAME, ADDRESS) \
+	__SYSFS_SPRSETUP_READ_WRITE(NAME, ADDRESS, ) \
+	__SYSFS_SPRSETUP_SHOW_STORE(NAME)
+
+#define SYSFS_SPRSETUP_SHOW_STORE(NAME) \
+	__SYSFS_SPRSETUP_SHOW_STORE(NAME)
+
+#ifdef CONFIG_PPC64
+
+/*
+ * This is the system wide DSCR register default value. Any
+ * change to this default value through the sysfs interface
+ * will update all per cpu DSCR default values across the
+ * system stored in their respective PACA structures.
+ */
+static unsigned long dscr_default;
+
+/**
+ * read_dscr() - Fetch the cpu specific DSCR default
+ * @val:	Returned cpu specific DSCR default value
+ *
+ * This function returns the per cpu DSCR default value
+ * for any cpu which is contained in it's PACA structure.
+ */
+static void read_dscr(void *val)
+{
+	*(unsigned long *)val = get_paca()->dscr_default;
+}
+
+
+/**
+ * write_dscr() - Update the cpu specific DSCR default
+ * @val:	New cpu specific DSCR default value to update
+ *
+ * This function updates the per cpu DSCR default value
+ * for any cpu which is contained in it's PACA structure.
+ */
+static void write_dscr(void *val)
+{
+	get_paca()->dscr_default = *(unsigned long *)val;
+	if (!current->thread.dscr_inherit) {
+		current->thread.dscr = *(unsigned long *)val;
+		mtspr(SPRN_DSCR, *(unsigned long *)val);
+	}
+}
+
+SYSFS_SPRSETUP_SHOW_STORE(dscr);
+static DEVICE_ATTR(dscr, 0600, show_dscr, store_dscr);
+
+static void add_write_permission_dev_attr(struct device_attribute *attr)
+{
+	attr->attr.mode |= 0200;
+}
+
+/**
+ * show_dscr_default() - Fetch the system wide DSCR default
+ * @dev:	Device structure
+ * @attr:	Device attribute structure
+ * @buf:	Interface buffer
+ *
+ * This function returns the system wide DSCR default value.
+ */
+static ssize_t show_dscr_default(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%lx\n", dscr_default);
+}
+
+/**
+ * store_dscr_default() - Update the system wide DSCR default
+ * @dev:	Device structure
+ * @attr:	Device attribute structure
+ * @buf:	Interface buffer
+ * @count:	Size of the update
+ *
+ * This function updates the system wide DSCR default value.
+ */
+static ssize_t __used store_dscr_default(struct device *dev,
+		struct device_attribute *attr, const char *buf,
+		size_t count)
+{
+	unsigned long val;
+	int ret = 0;
+
+	ret = sscanf(buf, "%lx", &val);
+	if (ret != 1)
+		return -EINVAL;
+	dscr_default = val;
+
+	on_each_cpu(write_dscr, &val, 1);
+
+	return count;
+}
+
+static DEVICE_ATTR(dscr_default, 0600,
+		show_dscr_default, store_dscr_default);
+
+static void sysfs_create_dscr_default(void)
+{
+	if (cpu_has_feature(CPU_FTR_DSCR)) {
+		int err = 0;
+		int cpu;
+
+		dscr_default = spr_default_dscr;
+		for_each_possible_cpu(cpu)
+			paca_ptrs[cpu]->dscr_default = dscr_default;
+
+		err = device_create_file(cpu_subsys.dev_root, &dev_attr_dscr_default);
+	}
+}
+#endif /* CONFIG_PPC64 */
+
 #ifdef CONFIG_PPC_FSL_BOOK3E
 #define MAX_BIT				63
 
@@ -407,84 +556,35 @@ void ppc_enable_pmcs(void)
 }
 EXPORT_SYMBOL(ppc_enable_pmcs);
 
-#define __SYSFS_SPRSETUP_READ_WRITE(NAME, ADDRESS, EXTRA) \
-static void read_##NAME(void *val) \
-{ \
-	*(unsigned long *)val = mfspr(ADDRESS);	\
-} \
-static void write_##NAME(void *val) \
-{ \
-	EXTRA; \
-	mtspr(ADDRESS, *(unsigned long *)val);	\
-}
 
-#define __SYSFS_SPRSETUP_SHOW_STORE(NAME) \
-static ssize_t show_##NAME(struct device *dev, \
-			struct device_attribute *attr, \
-			char *buf) \
-{ \
-	struct cpu *cpu = container_of(dev, struct cpu, dev); \
-	unsigned long val; \
-	smp_call_function_single(cpu->dev.id, read_##NAME, &val, 1);	\
-	return sprintf(buf, "%lx\n", val); \
-} \
-static ssize_t __used \
-	store_##NAME(struct device *dev, struct device_attribute *attr, \
-			const char *buf, size_t count) \
-{ \
-	struct cpu *cpu = container_of(dev, struct cpu, dev); \
-	unsigned long val; \
-	int ret = sscanf(buf, "%lx", &val); \
-	if (ret != 1) \
-		return -EINVAL; \
-	smp_call_function_single(cpu->dev.id, write_##NAME, &val, 1); \
-	return count; \
-}
-
-#define SYSFS_PMCSETUP(NAME, ADDRESS) \
-	__SYSFS_SPRSETUP_READ_WRITE(NAME, ADDRESS, ppc_enable_pmcs()) \
-	__SYSFS_SPRSETUP_SHOW_STORE(NAME)
-#define SYSFS_SPRSETUP(NAME, ADDRESS) \
-	__SYSFS_SPRSETUP_READ_WRITE(NAME, ADDRESS, ) \
-	__SYSFS_SPRSETUP_SHOW_STORE(NAME)
-
-#define SYSFS_SPRSETUP_SHOW_STORE(NAME) \
-	__SYSFS_SPRSETUP_SHOW_STORE(NAME)
 
 /* Let's define all possible registers, we'll only hook up the ones
  * that are implemented on the current processor
  */
 
-#if defined(CONFIG_PPC64)
+#ifdef CONFIG_PMU_SYSFS
+#if defined(CONFIG_PPC64) || defined(CONFIG_PPC_BOOK3S_32)
 #define HAS_PPC_PMC_CLASSIC	1
 #define HAS_PPC_PMC_IBM		1
-#define HAS_PPC_PMC_PA6T	1
-#elif defined(CONFIG_PPC_BOOK3S_32)
-#define HAS_PPC_PMC_CLASSIC	1
-#define HAS_PPC_PMC_IBM		1
-#define HAS_PPC_PMC_G4		1
-#endif
-
-
-#ifdef HAS_PPC_PMC_CLASSIC
-SYSFS_PMCSETUP(mmcr0, SPRN_MMCR0);
-SYSFS_PMCSETUP(mmcr1, SPRN_MMCR1);
-SYSFS_PMCSETUP(pmc1, SPRN_PMC1);
-SYSFS_PMCSETUP(pmc2, SPRN_PMC2);
-SYSFS_PMCSETUP(pmc3, SPRN_PMC3);
-SYSFS_PMCSETUP(pmc4, SPRN_PMC4);
-SYSFS_PMCSETUP(pmc5, SPRN_PMC5);
-SYSFS_PMCSETUP(pmc6, SPRN_PMC6);
-
-#ifdef HAS_PPC_PMC_G4
-SYSFS_PMCSETUP(mmcr2, SPRN_MMCR2);
 #endif
 
 #ifdef CONFIG_PPC64
-SYSFS_PMCSETUP(pmc7, SPRN_PMC7);
-SYSFS_PMCSETUP(pmc8, SPRN_PMC8);
+#define HAS_PPC_PMC_PA6T	1
+#define HAS_PPC_PMC56          1
+#endif
 
-SYSFS_PMCSETUP(mmcra, SPRN_MMCRA);
+#ifdef CONFIG_PPC_BOOK3S_32
+#define HAS_PPC_PMC_G4		1
+#endif
+#endif /* CONFIG_PMU_SYSFS */
+
+#if defined(CONFIG_PPC64) && defined(CONFIG_DEBUG_MISC)
+#define HAS_PPC_PA6T
+#endif
+/*
+ * SPRs which are not related to PMU.
+ */
+#ifdef CONFIG_PPC64
 SYSFS_SPRSETUP(purr, SPRN_PURR);
 SYSFS_SPRSETUP(spurr, SPRN_SPURR);
 SYSFS_SPRSETUP(pir, SPRN_PIR);
@@ -495,115 +595,38 @@ SYSFS_SPRSETUP(tscr, SPRN_TSCR);
   enable write when needed with a separate function.
   Lets be conservative and default to pseries.
 */
-static DEVICE_ATTR(mmcra, 0600, show_mmcra, store_mmcra);
 static DEVICE_ATTR(spurr, 0400, show_spurr, NULL);
 static DEVICE_ATTR(purr, 0400, show_purr, store_purr);
 static DEVICE_ATTR(pir, 0400, show_pir, NULL);
 static DEVICE_ATTR(tscr, 0600, show_tscr, store_tscr);
-
-/*
- * This is the system wide DSCR register default value. Any
- * change to this default value through the sysfs interface
- * will update all per cpu DSCR default values across the
- * system stored in their respective PACA structures.
- */
-static unsigned long dscr_default;
-
-/**
- * read_dscr() - Fetch the cpu specific DSCR default
- * @val:	Returned cpu specific DSCR default value
- *
- * This function returns the per cpu DSCR default value
- * for any cpu which is contained in it's PACA structure.
- */
-static void read_dscr(void *val)
-{
-	*(unsigned long *)val = get_paca()->dscr_default;
-}
-
-
-/**
- * write_dscr() - Update the cpu specific DSCR default
- * @val:	New cpu specific DSCR default value to update
- *
- * This function updates the per cpu DSCR default value
- * for any cpu which is contained in it's PACA structure.
- */
-static void write_dscr(void *val)
-{
-	get_paca()->dscr_default = *(unsigned long *)val;
-	if (!current->thread.dscr_inherit) {
-		current->thread.dscr = *(unsigned long *)val;
-		mtspr(SPRN_DSCR, *(unsigned long *)val);
-	}
-}
-
-SYSFS_SPRSETUP_SHOW_STORE(dscr);
-static DEVICE_ATTR(dscr, 0600, show_dscr, store_dscr);
-
-static void add_write_permission_dev_attr(struct device_attribute *attr)
-{
-	attr->attr.mode |= 0200;
-}
-
-/**
- * show_dscr_default() - Fetch the system wide DSCR default
- * @dev:	Device structure
- * @attr:	Device attribute structure
- * @buf:	Interface buffer
- *
- * This function returns the system wide DSCR default value.
- */
-static ssize_t show_dscr_default(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	return sprintf(buf, "%lx\n", dscr_default);
-}
-
-/**
- * store_dscr_default() - Update the system wide DSCR default
- * @dev:	Device structure
- * @attr:	Device attribute structure
- * @buf:	Interface buffer
- * @count:	Size of the update
- *
- * This function updates the system wide DSCR default value.
- */
-static ssize_t __used store_dscr_default(struct device *dev,
-		struct device_attribute *attr, const char *buf,
-		size_t count)
-{
-	unsigned long val;
-	int ret = 0;
-	
-	ret = sscanf(buf, "%lx", &val);
-	if (ret != 1)
-		return -EINVAL;
-	dscr_default = val;
-
-	on_each_cpu(write_dscr, &val, 1);
-
-	return count;
-}
-
-static DEVICE_ATTR(dscr_default, 0600,
-		show_dscr_default, store_dscr_default);
-
-static void sysfs_create_dscr_default(void)
-{
-	if (cpu_has_feature(CPU_FTR_DSCR)) {
-		int err = 0;
-		int cpu;
-
-		dscr_default = spr_default_dscr;
-		for_each_possible_cpu(cpu)
-			paca_ptrs[cpu]->dscr_default = dscr_default;
-
-		err = device_create_file(cpu_subsys.dev_root, &dev_attr_dscr_default);
-	}
-}
-
 #endif /* CONFIG_PPC64 */
+
+#ifdef HAS_PPC_PMC_CLASSIC
+SYSFS_PMCSETUP(mmcr0, SPRN_MMCR0);
+SYSFS_PMCSETUP(mmcr1, SPRN_MMCR1);
+SYSFS_PMCSETUP(pmc1, SPRN_PMC1);
+SYSFS_PMCSETUP(pmc2, SPRN_PMC2);
+SYSFS_PMCSETUP(pmc3, SPRN_PMC3);
+SYSFS_PMCSETUP(pmc4, SPRN_PMC4);
+SYSFS_PMCSETUP(pmc5, SPRN_PMC5);
+SYSFS_PMCSETUP(pmc6, SPRN_PMC6);
+#endif
+
+#ifdef HAS_PPC_PMC_G4
+SYSFS_PMCSETUP(mmcr2, SPRN_MMCR2);
+#endif
+
+#ifdef HAS_PPC_PMC56
+SYSFS_PMCSETUP(pmc7, SPRN_PMC7);
+SYSFS_PMCSETUP(pmc8, SPRN_PMC8);
+
+SYSFS_PMCSETUP(mmcra, SPRN_MMCRA);
+
+static DEVICE_ATTR(mmcra, 0600, show_mmcra, store_mmcra);
+#endif /* HAS_PPC_PMC56 */
+
+
+
 
 #ifdef HAS_PPC_PMC_PA6T
 SYSFS_PMCSETUP(pa6t_pmc0, SPRN_PA6T_PMC0);
@@ -612,7 +635,9 @@ SYSFS_PMCSETUP(pa6t_pmc2, SPRN_PA6T_PMC2);
 SYSFS_PMCSETUP(pa6t_pmc3, SPRN_PA6T_PMC3);
 SYSFS_PMCSETUP(pa6t_pmc4, SPRN_PA6T_PMC4);
 SYSFS_PMCSETUP(pa6t_pmc5, SPRN_PA6T_PMC5);
-#ifdef CONFIG_DEBUG_MISC
+#endif
+
+#ifdef HAS_PPC_PA6T
 SYSFS_SPRSETUP(hid0, SPRN_HID0);
 SYSFS_SPRSETUP(hid1, SPRN_HID1);
 SYSFS_SPRSETUP(hid4, SPRN_HID4);
@@ -641,15 +666,14 @@ SYSFS_SPRSETUP(tsr0, SPRN_PA6T_TSR0);
 SYSFS_SPRSETUP(tsr1, SPRN_PA6T_TSR1);
 SYSFS_SPRSETUP(tsr2, SPRN_PA6T_TSR2);
 SYSFS_SPRSETUP(tsr3, SPRN_PA6T_TSR3);
-#endif /* CONFIG_DEBUG_MISC */
-#endif /* HAS_PPC_PMC_PA6T */
+#endif /* HAS_PPC_PA6T */
 
 #ifdef HAS_PPC_PMC_IBM
 static struct device_attribute ibm_common_attrs[] = {
 	__ATTR(mmcr0, 0600, show_mmcr0, store_mmcr0),
 	__ATTR(mmcr1, 0600, show_mmcr1, store_mmcr1),
 };
-#endif /* HAS_PPC_PMC_G4 */
+#endif /* HAS_PPC_PMC_IBM */
 
 #ifdef HAS_PPC_PMC_G4
 static struct device_attribute g4_common_attrs[] = {
@@ -659,6 +683,7 @@ static struct device_attribute g4_common_attrs[] = {
 };
 #endif /* HAS_PPC_PMC_G4 */
 
+#ifdef HAS_PPC_PMC_CLASSIC
 static struct device_attribute classic_pmc_attrs[] = {
 	__ATTR(pmc1, 0600, show_pmc1, store_pmc1),
 	__ATTR(pmc2, 0600, show_pmc2, store_pmc2),
@@ -666,14 +691,16 @@ static struct device_attribute classic_pmc_attrs[] = {
 	__ATTR(pmc4, 0600, show_pmc4, store_pmc4),
 	__ATTR(pmc5, 0600, show_pmc5, store_pmc5),
 	__ATTR(pmc6, 0600, show_pmc6, store_pmc6),
-#ifdef CONFIG_PPC64
+#ifdef HAS_PPC_PMC56
 	__ATTR(pmc7, 0600, show_pmc7, store_pmc7),
 	__ATTR(pmc8, 0600, show_pmc8, store_pmc8),
 #endif
 };
+#endif
 
-#ifdef HAS_PPC_PMC_PA6T
+#if defined(HAS_PPC_PMC_PA6T) || defined(HAS_PPC_PA6T)
 static struct device_attribute pa6t_attrs[] = {
+#ifdef HAS_PPC_PMC_PA6T
 	__ATTR(mmcr0, 0600, show_mmcr0, store_mmcr0),
 	__ATTR(mmcr1, 0600, show_mmcr1, store_mmcr1),
 	__ATTR(pmc0, 0600, show_pa6t_pmc0, store_pa6t_pmc0),
@@ -682,7 +709,8 @@ static struct device_attribute pa6t_attrs[] = {
 	__ATTR(pmc3, 0600, show_pa6t_pmc3, store_pa6t_pmc3),
 	__ATTR(pmc4, 0600, show_pa6t_pmc4, store_pa6t_pmc4),
 	__ATTR(pmc5, 0600, show_pa6t_pmc5, store_pa6t_pmc5),
-#ifdef CONFIG_DEBUG_MISC
+#endif
+#ifdef HAS_PPC_PA6T
 	__ATTR(hid0, 0600, show_hid0, store_hid0),
 	__ATTR(hid1, 0600, show_hid1, store_hid1),
 	__ATTR(hid4, 0600, show_hid4, store_hid4),
@@ -711,10 +739,9 @@ static struct device_attribute pa6t_attrs[] = {
 	__ATTR(tsr1, 0600, show_tsr1, store_tsr1),
 	__ATTR(tsr2, 0600, show_tsr2, store_tsr2),
 	__ATTR(tsr3, 0600, show_tsr3, store_tsr3),
-#endif /* CONFIG_DEBUG_MISC */
+#endif /* HAS_PPC_PA6T */
 };
-#endif /* HAS_PPC_PMC_PA6T */
-#endif /* HAS_PPC_PMC_CLASSIC */
+#endif
 
 #ifdef CONFIG_PPC_SVM
 static ssize_t show_svm(struct device *dev, struct device_attribute *attr, char *buf)
@@ -765,14 +792,14 @@ static int register_cpu_online(unsigned int cpu)
 		pmc_attrs = classic_pmc_attrs;
 		break;
 #endif /* HAS_PPC_PMC_G4 */
-#ifdef HAS_PPC_PMC_PA6T
+#if defined(HAS_PPC_PMC_PA6T) || defined(HAS_PPC_PA6T)
 	case PPC_PMC_PA6T:
 		/* PA Semi starts counting at PMC0 */
 		attrs = pa6t_attrs;
 		nattrs = sizeof(pa6t_attrs) / sizeof(struct device_attribute);
 		pmc_attrs = NULL;
 		break;
-#endif /* HAS_PPC_PMC_PA6T */
+#endif
 	default:
 		attrs = NULL;
 		nattrs = 0;
@@ -787,8 +814,10 @@ static int register_cpu_online(unsigned int cpu)
 			device_create_file(s, &pmc_attrs[i]);
 
 #ifdef CONFIG_PPC64
+#ifdef	CONFIG_PMU_SYSFS
 	if (cpu_has_feature(CPU_FTR_MMCRA))
 		device_create_file(s, &dev_attr_mmcra);
+#endif /* CONFIG_PMU_SYSFS */
 
 	if (cpu_has_feature(CPU_FTR_PURR)) {
 		if (!firmware_has_feature(FW_FEATURE_LPAR))
@@ -854,14 +883,14 @@ static int unregister_cpu_online(unsigned int cpu)
 		pmc_attrs = classic_pmc_attrs;
 		break;
 #endif /* HAS_PPC_PMC_G4 */
-#ifdef HAS_PPC_PMC_PA6T
+#if defined(HAS_PPC_PMC_PA6T) || defined(HAS_PPC_PA6T)
 	case PPC_PMC_PA6T:
 		/* PA Semi starts counting at PMC0 */
 		attrs = pa6t_attrs;
 		nattrs = sizeof(pa6t_attrs) / sizeof(struct device_attribute);
 		pmc_attrs = NULL;
 		break;
-#endif /* HAS_PPC_PMC_PA6T */
+#endif
 	default:
 		attrs = NULL;
 		nattrs = 0;
@@ -876,8 +905,10 @@ static int unregister_cpu_online(unsigned int cpu)
 			device_remove_file(s, &pmc_attrs[i]);
 
 #ifdef CONFIG_PPC64
+#ifdef CONFIG_PMU_SYSFS
 	if (cpu_has_feature(CPU_FTR_MMCRA))
 		device_remove_file(s, &dev_attr_mmcra);
+#endif /* CONFIG_PMU_SYSFS */
 
 	if (cpu_has_feature(CPU_FTR_PURR))
 		device_remove_file(s, &dev_attr_purr);

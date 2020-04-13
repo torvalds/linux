@@ -9,4 +9,13 @@ config TYPEC_MUX_PI3USB30532
 	  Say Y or M if your system has a Pericom PI3USB30532 Type-C cross
 	  switch / mux chip found on some devices with a Type-C port.
 
+config TYPEC_MUX_INTEL_PMC
+	tristate "Intel PMC mux control"
+	depends on INTEL_PMC_IPC
+	select USB_ROLE_SWITCH
+	help
+	  Driver for USB muxes controlled by Intel PMC FW. Intel PMC FW can
+	  control the USB role switch and also the multiplexer/demultiplexer
+	  switches used with USB Type-C Alternate Modes.
+
 endmenu

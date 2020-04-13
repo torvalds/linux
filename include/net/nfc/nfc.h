@@ -146,7 +146,7 @@ struct nfc_evt_transaction {
 	u32 aid_len;
 	u8 aid[NFC_MAX_AID_LENGTH];
 	u8 params_len;
-	u8 params[0];
+	u8 params[];
 } __packed;
 
 struct nfc_genl_data {

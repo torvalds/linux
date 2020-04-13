@@ -52,6 +52,8 @@ required:
   - interrupts
   - reg
 
+additionalProperties: false
+
 examples:
   - |
     // In this example, the IP contains two local timers, using separate

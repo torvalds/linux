@@ -38,6 +38,7 @@ struct cxgb4_tc_mqprio {
 
 int cxgb4_setup_tc_mqprio(struct net_device *dev,
 			  struct tc_mqprio_qopt_offload *mqprio);
+void cxgb4_mqprio_stop_offload(struct adapter *adap);
 int cxgb4_init_tc_mqprio(struct adapter *adap);
 void cxgb4_cleanup_tc_mqprio(struct adapter *adap);
 #endif /* __CXGB4_TC_MQPRIO_H__ */

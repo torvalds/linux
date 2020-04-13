@@ -11,6 +11,8 @@
  * Schematic available at http://wiki.espressobin.net/tiki-download_file.php?fileId=200
  */
 
+/dts-v1/;
+
 #include "armada-3720-espressobin.dtsi"
 
 / {

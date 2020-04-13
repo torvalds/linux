@@ -2,6 +2,7 @@
 /* Copyright (c) 2017-2018 Mellanox Technologies. All rights reserved */
 
 #include <linux/kernel.h>
+#include <linux/mutex.h>
 #include <net/devlink.h>
 
 #include "spectrum.h"
@@ -210,7 +211,7 @@ mlxsw_sp_dpipe_table_erif_entries_dump(void *priv, bool counters_enabled,
 		return err;
 
 	rif_count = MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_RIFS);
-	rtnl_lock();
+	mutex_lock(&mlxsw_sp->router->lock);
 	i = 0;
 start_again:
 	err = devlink_dpipe_entry_ctx_prepare(dump_ctx);
@@ -241,14 +242,14 @@ start_again:
 	devlink_dpipe_entry_ctx_close(dump_ctx);
 	if (i != rif_count)
 		goto start_again;
-	rtnl_unlock();
+	mutex_unlock(&mlxsw_sp->router->lock);
 
 	devlink_dpipe_entry_clear(&entry);
 	return 0;
 err_entry_append:
 err_entry_get:
 err_ctx_prepare:
-	rtnl_unlock();
+	mutex_unlock(&mlxsw_sp->router->lock);
 	devlink_dpipe_entry_clear(&entry);
 	return err;
 }
@@ -258,7 +259,7 @@ static int mlxsw_sp_dpipe_table_erif_counters_update(void *priv, bool enable)
 	struct mlxsw_sp *mlxsw_sp = priv;
 	int i;
 
-	rtnl_lock();
+	mutex_lock(&mlxsw_sp->router->lock);
 	for (i = 0; i < MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_RIFS); i++) {
 		struct mlxsw_sp_rif *rif = mlxsw_sp_rif_by_index(mlxsw_sp, i);
 
@@ -271,7 +272,7 @@ static int mlxsw_sp_dpipe_table_erif_counters_update(void *priv, bool enable)
 			mlxsw_sp_rif_counter_free(mlxsw_sp, rif,
 						  MLXSW_SP_RIF_COUNTER_EGRESS);
 	}
-	rtnl_unlock();
+	mutex_unlock(&mlxsw_sp->router->lock);
 	return 0;
 }
 
@@ -546,7 +547,7 @@ mlxsw_sp_dpipe_table_host_entries_get(struct mlxsw_sp *mlxsw_sp,
 	int i, j;
 	int err;
 
-	rtnl_lock();
+	mutex_lock(&mlxsw_sp->router->lock);
 	i = 0;
 	rif_count = MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_RIFS);
 start_again:
@@ -602,12 +603,12 @@ out:
 	if (i != rif_count)
 		goto start_again;
 
-	rtnl_unlock();
+	mutex_unlock(&mlxsw_sp->router->lock);
 	return 0;
 
 err_ctx_prepare:
 err_entry_append:
-	rtnl_unlock();
+	mutex_unlock(&mlxsw_sp->router->lock);
 	return err;
 }
 
@@ -662,7 +663,7 @@ mlxsw_sp_dpipe_table_host_counters_update(struct mlxsw_sp *mlxsw_sp,
 {
 	int i;
 
-	rtnl_lock();
+	mutex_lock(&mlxsw_sp->router->lock);
 	for (i = 0; i < MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_RIFS); i++) {
 		struct mlxsw_sp_rif *rif = mlxsw_sp_rif_by_index(mlxsw_sp, i);
 		struct mlxsw_sp_neigh_entry *neigh_entry;
@@ -684,7 +685,7 @@ mlxsw_sp_dpipe_table_host_counters_update(struct mlxsw_sp *mlxsw_sp,
 							    enable);
 		}
 	}
-	rtnl_unlock();
+	mutex_unlock(&mlxsw_sp->router->lock);
 }
 
 static int mlxsw_sp_dpipe_table_host4_counters_update(void *priv, bool enable)
@@ -701,7 +702,7 @@ mlxsw_sp_dpipe_table_host_size_get(struct mlxsw_sp *mlxsw_sp, int type)
 	u64 size = 0;
 	int i;
 
-	rtnl_lock();
+	mutex_lock(&mlxsw_sp->router->lock);
 	for (i = 0; i < MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_RIFS); i++) {
 		struct mlxsw_sp_rif *rif = mlxsw_sp_rif_by_index(mlxsw_sp, i);
 		struct mlxsw_sp_neigh_entry *neigh_entry;
@@ -721,7 +722,7 @@ mlxsw_sp_dpipe_table_host_size_get(struct mlxsw_sp *mlxsw_sp, int type)
 			size++;
 		}
 	}
-	rtnl_unlock();
+	mutex_unlock(&mlxsw_sp->router->lock);
 
 	return size;
 }
@@ -1093,7 +1094,7 @@ mlxsw_sp_dpipe_table_adj_entries_get(struct mlxsw_sp *mlxsw_sp,
 	int j;
 	int err;
 
-	rtnl_lock();
+	mutex_lock(&mlxsw_sp->router->lock);
 	nh_count_max = mlxsw_sp_dpipe_table_adj_size(mlxsw_sp);
 start_again:
 	err = devlink_dpipe_entry_ctx_prepare(dump_ctx);
@@ -1130,13 +1131,13 @@ skip:
 	devlink_dpipe_entry_ctx_close(dump_ctx);
 	if (nh_count != nh_count_max)
 		goto start_again;
-	rtnl_unlock();
+	mutex_unlock(&mlxsw_sp->router->lock);
 
 	return 0;
 
 err_ctx_prepare:
 err_entry_append:
-	rtnl_unlock();
+	mutex_unlock(&mlxsw_sp->router->lock);
 	return err;
 }
 
@@ -1206,9 +1207,9 @@ mlxsw_sp_dpipe_table_adj_size_get(void *priv)
 	struct mlxsw_sp *mlxsw_sp = priv;
 	u64 size;
 
-	rtnl_lock();
+	mutex_lock(&mlxsw_sp->router->lock);
 	size = mlxsw_sp_dpipe_table_adj_size(mlxsw_sp);
-	rtnl_unlock();
+	mutex_unlock(&mlxsw_sp->router->lock);
 
 	return size;
 }

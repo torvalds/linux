@@ -494,26 +494,14 @@ static const struct v4l2_ctrl_ops vimc_deb_ctrl_ops = {
 	.s_ctrl = vimc_deb_s_ctrl,
 };
 
-static void vimc_deb_release(struct v4l2_subdev *sd)
+void vimc_deb_release(struct vimc_ent_device *ved)
 {
 	struct vimc_deb_device *vdeb =
-				container_of(sd, struct vimc_deb_device, sd);
+		container_of(ved, struct vimc_deb_device, ved);
 
 	v4l2_ctrl_handler_free(&vdeb->hdl);
 	media_entity_cleanup(vdeb->ved.ent);
 	kfree(vdeb);
-}
-
-static const struct v4l2_subdev_internal_ops vimc_deb_int_ops = {
-	.release = vimc_deb_release,
-};
-
-void vimc_deb_rm(struct vimc_device *vimc, struct vimc_ent_device *ved)
-{
-	struct vimc_deb_device *vdeb;
-
-	vdeb = container_of(ved, struct vimc_deb_device, ved);
-	v4l2_device_unregister_subdev(&vdeb->sd);
 }
 
 static const struct v4l2_ctrl_config vimc_deb_ctrl_class = {
@@ -563,13 +551,12 @@ struct vimc_ent_device *vimc_deb_add(struct vimc_device *vimc,
 	ret = vimc_ent_sd_register(&vdeb->ved, &vdeb->sd, v4l2_dev,
 				   vcfg_name,
 				   MEDIA_ENT_F_PROC_VIDEO_PIXEL_ENC_CONV, 2,
-				   vdeb->pads,
-				   &vimc_deb_int_ops, &vimc_deb_ops);
+				   vdeb->pads, &vimc_deb_ops);
 	if (ret)
 		goto err_free_hdl;
 
 	vdeb->ved.process_frame = vimc_deb_process_frame;
-	vdeb->ved.dev = &vimc->pdev.dev;
+	vdeb->ved.dev = vimc->mdev.dev;
 	vdeb->mean_win_size = vimc_deb_ctrl_mean_win_size.def;
 
 	/* Initialize the frame format */

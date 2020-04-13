@@ -226,7 +226,8 @@ static int adm1275_write_pmon_config(const struct adm1275_data *data,
 	return ret;
 }
 
-static int adm1275_read_word_data(struct i2c_client *client, int page, int reg)
+static int adm1275_read_word_data(struct i2c_client *client, int page,
+				  int phase, int reg)
 {
 	const struct pmbus_driver_info *info = pmbus_get_driver_info(client);
 	const struct adm1275_data *data = to_adm1275_data(info);
@@ -239,58 +240,68 @@ static int adm1275_read_word_data(struct i2c_client *client, int page, int reg)
 	case PMBUS_IOUT_UC_FAULT_LIMIT:
 		if (!data->have_uc_fault)
 			return -ENXIO;
-		ret = pmbus_read_word_data(client, 0, ADM1275_IOUT_WARN2_LIMIT);
+		ret = pmbus_read_word_data(client, 0, 0xff,
+					   ADM1275_IOUT_WARN2_LIMIT);
 		break;
 	case PMBUS_IOUT_OC_FAULT_LIMIT:
 		if (!data->have_oc_fault)
 			return -ENXIO;
-		ret = pmbus_read_word_data(client, 0, ADM1275_IOUT_WARN2_LIMIT);
+		ret = pmbus_read_word_data(client, 0, 0xff,
+					   ADM1275_IOUT_WARN2_LIMIT);
 		break;
 	case PMBUS_VOUT_OV_WARN_LIMIT:
 		if (data->have_vout)
 			return -ENODATA;
-		ret = pmbus_read_word_data(client, 0,
+		ret = pmbus_read_word_data(client, 0, 0xff,
 					   ADM1075_VAUX_OV_WARN_LIMIT);
 		break;
 	case PMBUS_VOUT_UV_WARN_LIMIT:
 		if (data->have_vout)
 			return -ENODATA;
-		ret = pmbus_read_word_data(client, 0,
+		ret = pmbus_read_word_data(client, 0, 0xff,
 					   ADM1075_VAUX_UV_WARN_LIMIT);
 		break;
 	case PMBUS_READ_VOUT:
 		if (data->have_vout)
 			return -ENODATA;
-		ret = pmbus_read_word_data(client, 0, ADM1075_READ_VAUX);
+		ret = pmbus_read_word_data(client, 0, 0xff,
+					   ADM1075_READ_VAUX);
 		break;
 	case PMBUS_VIRT_READ_IOUT_MIN:
 		if (!data->have_iout_min)
 			return -ENXIO;
-		ret = pmbus_read_word_data(client, 0, ADM1293_IOUT_MIN);
+		ret = pmbus_read_word_data(client, 0, 0xff,
+					   ADM1293_IOUT_MIN);
 		break;
 	case PMBUS_VIRT_READ_IOUT_MAX:
-		ret = pmbus_read_word_data(client, 0, ADM1275_PEAK_IOUT);
+		ret = pmbus_read_word_data(client, 0, 0xff,
+					   ADM1275_PEAK_IOUT);
 		break;
 	case PMBUS_VIRT_READ_VOUT_MAX:
-		ret = pmbus_read_word_data(client, 0, ADM1275_PEAK_VOUT);
+		ret = pmbus_read_word_data(client, 0, 0xff,
+					   ADM1275_PEAK_VOUT);
 		break;
 	case PMBUS_VIRT_READ_VIN_MAX:
-		ret = pmbus_read_word_data(client, 0, ADM1275_PEAK_VIN);
+		ret = pmbus_read_word_data(client, 0, 0xff,
+					   ADM1275_PEAK_VIN);
 		break;
 	case PMBUS_VIRT_READ_PIN_MIN:
 		if (!data->have_pin_min)
 			return -ENXIO;
-		ret = pmbus_read_word_data(client, 0, ADM1293_PIN_MIN);
+		ret = pmbus_read_word_data(client, 0, 0xff,
+					   ADM1293_PIN_MIN);
 		break;
 	case PMBUS_VIRT_READ_PIN_MAX:
 		if (!data->have_pin_max)
 			return -ENXIO;
-		ret = pmbus_read_word_data(client, 0, ADM1276_PEAK_PIN);
+		ret = pmbus_read_word_data(client, 0, 0xff,
+					   ADM1276_PEAK_PIN);
 		break;
 	case PMBUS_VIRT_READ_TEMP_MAX:
 		if (!data->have_temp_max)
 			return -ENXIO;
-		ret = pmbus_read_word_data(client, 0, ADM1278_PEAK_TEMP);
+		ret = pmbus_read_word_data(client, 0, 0xff,
+					   ADM1278_PEAK_TEMP);
 		break;
 	case PMBUS_VIRT_RESET_IOUT_HISTORY:
 	case PMBUS_VIRT_RESET_VOUT_HISTORY:

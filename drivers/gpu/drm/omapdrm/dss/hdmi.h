@@ -14,6 +14,7 @@
 #include <linux/hdmi.h>
 #include <sound/omap-hdmi-audio.h>
 #include <media/cec.h>
+#include <drm/drm_bridge.h>
 
 #include "omapdss.h"
 #include "dss.h"
@@ -364,6 +365,7 @@ struct omap_hdmi {
 	bool core_enabled;
 
 	struct omap_dss_device output;
+	struct drm_bridge bridge;
 
 	struct platform_device *audio_pdev;
 	void (*audio_abort_cb)(struct device *dev);
@@ -378,6 +380,6 @@ struct omap_hdmi {
 	bool display_enabled;
 };
 
-#define dssdev_to_hdmi(dssdev) container_of(dssdev, struct omap_hdmi, output)
+#define drm_bridge_to_hdmi(b) container_of(b, struct omap_hdmi, bridge)
 
 #endif

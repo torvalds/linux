@@ -70,8 +70,7 @@ static int rkisp1_stats_querycap(struct file *file,
 
 	strscpy(cap->driver, RKISP1_DRIVER_NAME, sizeof(cap->driver));
 	strscpy(cap->card, vdev->name, sizeof(cap->card));
-	strscpy(cap->bus_info, "platform: " RKISP1_DRIVER_NAME,
-		sizeof(cap->bus_info));
+	strscpy(cap->bus_info, RKISP1_BUS_INFO, sizeof(cap->bus_info));
 
 	return 0;
 }
@@ -487,7 +486,7 @@ int rkisp1_stats_register(struct rkisp1_stats *stats,
 	if (ret)
 		goto err_release_queue;
 
-	ret = video_register_device(vdev, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(vdev, VFL_TYPE_VIDEO, -1);
 	if (ret) {
 		dev_err(&vdev->dev,
 			"failed to register %s, ret=%d\n", vdev->name, ret);

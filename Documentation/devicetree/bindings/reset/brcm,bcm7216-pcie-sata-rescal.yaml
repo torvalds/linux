@@ -28,6 +28,8 @@ required:
   - reg
   - "#reset-cells"
 
+additionalProperties: false
+
 examples:
   - |
     reset-controller@8b2c800 {

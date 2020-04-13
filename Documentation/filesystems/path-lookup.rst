@@ -404,11 +404,8 @@ that is the "next" component in the pathname.
 ``int last_type``
 ~~~~~~~~~~~~~~~~~
 
-This is one of ``LAST_NORM``, ``LAST_ROOT``, ``LAST_DOT``, ``LAST_DOTDOT``, or
-``LAST_BIND``.  The ``last`` field is only valid if the type is
-``LAST_NORM``.  ``LAST_BIND`` is used when following a symlink and no
-components of the symlink have been processed yet.  Others should be
-fairly self-explanatory.
+This is one of ``LAST_NORM``, ``LAST_ROOT``, ``LAST_DOT`` or ``LAST_DOTDOT``.
+The ``last`` field is only valid if the type is ``LAST_NORM``.
 
 ``struct path root``
 ~~~~~~~~~~~~~~~~~~~~

@@ -54,11 +54,16 @@ SYM_FUNC_START(__efi64_thunk)
 	 * Switch to gdt with 32-bit segments. This is the firmware GDT
 	 * that was installed when the kernel started executing. This
 	 * pointer was saved at the EFI stub entry point in head_64.S.
+	 *
+	 * Pass the saved DS selector to the 32-bit code, and use far return to
+	 * restore the saved CS selector.
 	 */
 	leaq	efi32_boot_gdt(%rip), %rax
 	lgdt	(%rax)
 
-	pushq	$__KERNEL_CS
+	movzwl	efi32_boot_ds(%rip), %edx
+	movzwq	efi32_boot_cs(%rip), %rax
+	pushq	%rax
 	leaq	efi_enter32(%rip), %rax
 	pushq	%rax
 	lretq
@@ -73,6 +78,10 @@ SYM_FUNC_START(__efi64_thunk)
 	movl	%ebx, %es
 	pop	%rbx
 	movl	%ebx, %ds
+	/* Clear out 32-bit selector from FS and GS */
+	xorl	%ebx, %ebx
+	movl	%ebx, %fs
+	movl	%ebx, %gs
 
 	/*
 	 * Convert 32-bit status code into 64-bit.
@@ -92,10 +101,12 @@ SYM_FUNC_END(__efi64_thunk)
  * The stack should represent the 32-bit calling convention.
  */
 SYM_FUNC_START_LOCAL(efi_enter32)
-	movl	$__KERNEL_DS, %eax
-	movl	%eax, %ds
-	movl	%eax, %es
-	movl	%eax, %ss
+	/* Load firmware selector into data and stack segment registers */
+	movl	%edx, %ds
+	movl	%edx, %es
+	movl	%edx, %fs
+	movl	%edx, %gs
+	movl	%edx, %ss
 
 	/* Reload pgtables */
 	movl	%cr3, %eax
@@ -156,6 +167,14 @@ SYM_DATA_START(efi32_boot_gdt)
 	.word	0
 	.quad	0
 SYM_DATA_END(efi32_boot_gdt)
+
+SYM_DATA_START(efi32_boot_cs)
+	.word	0
+SYM_DATA_END(efi32_boot_cs)
+
+SYM_DATA_START(efi32_boot_ds)
+	.word	0
+SYM_DATA_END(efi32_boot_ds)
 
 SYM_DATA_START(efi_gdt64)
 	.word	efi_gdt64_end - efi_gdt64

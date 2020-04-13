@@ -27,7 +27,6 @@
 #define get_current_vpe()   \
 	((read_c0_tcbind() >> TCBIND_CURVPE_SHIFT) & TCBIND_CURVPE)
 
-static struct irqaction timer_vpe1;
 static int tim_installed;
 
 void __init plat_time_init(void)
@@ -77,10 +76,13 @@ void __init plat_time_init(void)
 
 unsigned int get_c0_compare_int(void)
 {
+	unsigned long flags = IRQF_PERCPU | IRQF_TIMER | IRQF_SHARED;
+
 	/* MIPS_MT modes may want timer for second VPE */
 	if ((get_current_vpe()) && !tim_installed) {
-		memcpy(&timer_vpe1, &c0_compare_irqaction, sizeof(timer_vpe1));
-		setup_irq(MSP_INT_VPE1_TIMER, &timer_vpe1);
+		if (request_irq(MSP_INT_VPE1_TIMER, c0_compare_interrupt, flags,
+				"timer", c0_compare_interrupt))
+			pr_err("Failed to register timer interrupt\n");
 		tim_installed++;
 	}
 

@@ -3,6 +3,7 @@ config STMMAC_ETH
 	tristate "STMicroelectronics Multi-Gigabit Ethernet driver"
 	depends on HAS_IOMEM && HAS_DMA
 	select MII
+	select MDIO_XPCS
 	select PAGE_POOL
 	select PHYLINK
 	select CRC32
@@ -196,6 +197,15 @@ config DWMAC_SUN8I
 	  stmmac device driver. This driver is used for H3/A83T/A64
 	  EMAC ethernet controller.
 endif
+
+config DWMAC_INTEL
+	tristate "Intel GMAC support"
+	default X86
+	depends on X86 && STMMAC_ETH && PCI
+	depends on COMMON_CLK
+	---help---
+	  This selects the Intel platform specific bus support for the
+	  stmmac driver. This driver is used for Intel Quark/EHL/TGL.
 
 config STMMAC_PCI
 	tristate "STMMAC PCI bus support"

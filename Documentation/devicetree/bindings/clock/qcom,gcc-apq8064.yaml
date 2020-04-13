@@ -68,6 +68,8 @@ required:
   - nvmem-cell-names
   - '#thermal-sensor-cells'
 
+additionalProperties: false
+
 examples:
   - |
     clock-controller@900000 {

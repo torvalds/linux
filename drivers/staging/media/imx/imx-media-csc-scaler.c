@@ -849,7 +849,7 @@ int imx_media_csc_scaler_device_register(struct imx_media_video_dev *vdev)
 
 	vfd->v4l2_dev = &priv->md->v4l2_dev;
 
-	ret = video_register_device(vfd, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(vfd, VFL_TYPE_VIDEO, -1);
 	if (ret) {
 		v4l2_err(vfd->v4l2_dev, "Failed to register video device\n");
 		return ret;

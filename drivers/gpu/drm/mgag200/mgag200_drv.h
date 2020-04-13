@@ -95,7 +95,6 @@
 #define MATROX_DPMS_CLEARED (-1)
 
 #define to_mga_crtc(x) container_of(x, struct mga_crtc, base)
-#define to_mga_encoder(x) container_of(x, struct mga_encoder, base)
 #define to_mga_connector(x) container_of(x, struct mga_connector, base)
 
 struct mga_crtc {
@@ -109,12 +108,6 @@ struct mga_mode_info {
 	bool mode_config_initialized;
 	struct mga_crtc *crtc;
 };
-
-struct mga_encoder {
-	struct drm_encoder base;
-	int last_dpms;
-};
-
 
 struct mga_i2c_chan {
 	struct i2c_adapter adapter;
@@ -185,6 +178,8 @@ struct mga_device {
 
 	/* SE model number stored in reg 0x1e24 */
 	u32 unique_rev_id;
+
+	struct drm_encoder encoder;
 };
 
 static inline enum mga_type

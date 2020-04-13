@@ -10,4 +10,10 @@ vhost_vsock-y := vsock.o
 
 obj-$(CONFIG_VHOST_RING) += vringh.o
 
+obj-$(CONFIG_VHOST_VDPA) += vhost_vdpa.o
+vhost_vdpa-y := vdpa.o
+
 obj-$(CONFIG_VHOST)	+= vhost.o
+
+obj-$(CONFIG_VHOST_IOTLB) += vhost_iotlb.o
+vhost_iotlb-y := iotlb.o

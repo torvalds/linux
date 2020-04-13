@@ -431,50 +431,39 @@ static void rtw_wow_fw_media_status(struct rtw_dev *rtwdev, bool connect)
 	rtw_iterate_stas_atomic(rtwdev, rtw_wow_fw_media_status_iter, &data);
 }
 
-static void rtw_wow_config_pno_rsvd_page(struct rtw_dev *rtwdev)
+static void rtw_wow_config_pno_rsvd_page(struct rtw_dev *rtwdev,
+					 struct rtw_vif *rtwvif)
 {
-	struct rtw_wow_param *rtw_wow = &rtwdev->wow;
-	struct rtw_pno_request *rtw_pno_req = &rtw_wow->pno_req;
-	struct cfg80211_ssid *ssid;
-	int i;
-
-	for (i = 0 ; i < rtw_pno_req->match_set_cnt; i++) {
-		ssid = &rtw_pno_req->match_sets[i].ssid;
-		rtw_add_rsvd_page_probe_req(rtwdev, ssid);
-	}
-	rtw_add_rsvd_page_probe_req(rtwdev, NULL);
-	rtw_add_rsvd_page(rtwdev, RSVD_NLO_INFO, false);
-	rtw_add_rsvd_page(rtwdev, RSVD_CH_INFO, true);
+	rtw_add_rsvd_page_pno(rtwdev, rtwvif);
 }
 
-static void rtw_wow_config_linked_rsvd_page(struct rtw_dev *rtwdev)
+static void rtw_wow_config_linked_rsvd_page(struct rtw_dev *rtwdev,
+					   struct rtw_vif *rtwvif)
 {
-	rtw_add_rsvd_page(rtwdev, RSVD_PS_POLL, true);
-	rtw_add_rsvd_page(rtwdev, RSVD_QOS_NULL, true);
-	rtw_add_rsvd_page(rtwdev, RSVD_NULL, true);
-	rtw_add_rsvd_page(rtwdev, RSVD_LPS_PG_DPK, true);
-	rtw_add_rsvd_page(rtwdev, RSVD_LPS_PG_INFO, true);
+	rtw_add_rsvd_page_sta(rtwdev, rtwvif);
 }
 
-static void rtw_wow_config_rsvd_page(struct rtw_dev *rtwdev)
+static void rtw_wow_config_rsvd_page(struct rtw_dev *rtwdev,
+				     struct rtw_vif *rtwvif)
 {
-	rtw_reset_rsvd_page(rtwdev);
+	rtw_remove_rsvd_page(rtwdev, rtwvif);
 
 	if (rtw_wow_mgd_linked(rtwdev)) {
-		rtw_wow_config_linked_rsvd_page(rtwdev);
+		rtw_wow_config_linked_rsvd_page(rtwdev, rtwvif);
 	} else if (test_bit(RTW_FLAG_WOWLAN, rtwdev->flags) &&
 		   rtw_wow_no_link(rtwdev)) {
-		rtw_wow_config_pno_rsvd_page(rtwdev);
+		rtw_wow_config_pno_rsvd_page(rtwdev, rtwvif);
 	}
 }
 
 static int rtw_wow_dl_fw_rsvd_page(struct rtw_dev *rtwdev)
 {
 	struct ieee80211_vif *wow_vif = rtwdev->wow.wow_vif;
+	struct rtw_vif *rtwvif = (struct rtw_vif *)wow_vif->drv_priv;
 
-	rtw_wow_config_rsvd_page(rtwdev);
+	rtw_wow_config_rsvd_page(rtwdev, rtwvif);
 
-	return rtw_fw_download_rsvd_page(rtwdev, wow_vif);
+	return rtw_fw_download_rsvd_page(rtwdev);
 }
 
 static int rtw_wow_swap_fw(struct rtw_dev *rtwdev, enum rtw_fw_type type)

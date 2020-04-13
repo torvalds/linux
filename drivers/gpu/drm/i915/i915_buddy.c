@@ -312,7 +312,8 @@ i915_buddy_alloc(struct i915_buddy_mm *mm, unsigned int order)
 	return block;
 
 out_free:
-	__i915_buddy_free(mm, block);
+	if (i != order)
+		__i915_buddy_free(mm, block);
 	return ERR_PTR(err);
 }
 

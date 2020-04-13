@@ -4,6 +4,7 @@
  *
  * Copyright (c) 2009, Jouni Malinen <j@w1.fi>
  * Copyright (c) 2015		Intel Deutschland GmbH
+ * Copyright (C) 2019 Intel Corporation
  */
 
 #include <linux/kernel.h>
@@ -470,7 +471,7 @@ void cfg80211_mlme_unreg_wk(struct work_struct *wk)
 
 int cfg80211_mlme_register_mgmt(struct wireless_dev *wdev, u32 snd_portid,
 				u16 frame_type, const u8 *match_data,
-				int match_len)
+				int match_len, struct netlink_ext_ack *extack)
 {
 	struct wiphy *wiphy = wdev->wiphy;
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
@@ -481,15 +482,38 @@ int cfg80211_mlme_register_mgmt(struct wireless_dev *wdev, u32 snd_portid,
 	if (!wdev->wiphy->mgmt_stypes)
 		return -EOPNOTSUPP;
 
-	if ((frame_type & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_MGMT)
+	if ((frame_type & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_MGMT) {
+		NL_SET_ERR_MSG(extack, "frame type not management");
 		return -EINVAL;
+	}
 
-	if (frame_type & ~(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE))
+	if (frame_type & ~(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) {
+		NL_SET_ERR_MSG(extack, "Invalid frame type");
 		return -EINVAL;
+	}
 
 	mgmt_type = (frame_type & IEEE80211_FCTL_STYPE) >> 4;
-	if (!(wdev->wiphy->mgmt_stypes[wdev->iftype].rx & BIT(mgmt_type)))
+	if (!(wdev->wiphy->mgmt_stypes[wdev->iftype].rx & BIT(mgmt_type))) {
+		NL_SET_ERR_MSG(extack,
+			       "Registration to specific type not supported");
 		return -EINVAL;
+	}
+
+	/*
+	 * To support Pre Association Security Negotiation (PASN), registration
+	 * for authentication frames should be supported. However, as some
+	 * versions of the user space daemons wrongly register to all types of
+	 * authentication frames (which might result in unexpected behavior)
+	 * allow such registration if the request is for a specific
+	 * authentication algorithm number.
+	 */
+	if (wdev->iftype == NL80211_IFTYPE_STATION &&
+	    (frame_type & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_AUTH &&
+	    !(match_data && match_len >= 2)) {
+		NL_SET_ERR_MSG(extack,
+			       "Authentication algorithm number required");
+		return -EINVAL;
+	}
 
 	nreg = kzalloc(sizeof(*reg) + match_len, GFP_KERNEL);
 	if (!nreg)
@@ -504,6 +528,7 @@ int cfg80211_mlme_register_mgmt(struct wireless_dev *wdev, u32 snd_portid,
 			continue;
 
 		if (memcmp(reg->match, match_data, mlen) == 0) {
+			NL_SET_ERR_MSG(extack, "Match already configured");
 			err = -EALREADY;
 			break;
 		}

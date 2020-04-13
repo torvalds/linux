@@ -1,13 +1,17 @@
-/s390x/sync_regs_test
+# SPDX-License-Identifier: GPL-2.0-only
 /s390x/memop
+/s390x/resets
+/s390x/sync_regs_test
 /x86_64/cr4_cpuid_sync_test
 /x86_64/evmcs_test
 /x86_64/hyperv_cpuid
 /x86_64/mmio_warning_test
 /x86_64/platform_info_test
+/x86_64/set_memory_region_test
 /x86_64/set_sregs_test
 /x86_64/smm_test
 /x86_64/state_test
+/x86_64/svm_vmcall_test
 /x86_64/sync_regs_test
 /x86_64/vmx_close_while_nested_test
 /x86_64/vmx_dirty_log_test
@@ -15,5 +19,7 @@
 /x86_64/vmx_tsc_adjust_test
 /x86_64/xss_msr_test
 /clear_dirty_log_test
+/demand_paging_test
 /dirty_log_test
 /kvm_create_max_vcpus
+/steal_time

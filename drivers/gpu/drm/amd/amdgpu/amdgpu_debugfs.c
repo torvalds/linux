@@ -31,6 +31,9 @@
 #include <drm/drm_debugfs.h>
 
 #include "amdgpu.h"
+#include "amdgpu_pm.h"
+#include "amdgpu_dm_debugfs.h"
+#include "amdgpu_ras.h"
 
 /**
  * amdgpu_debugfs_add_files - Add simple debugfs entries
@@ -176,7 +179,7 @@ static int  amdgpu_debugfs_process_reg_op(bool read, struct file *f,
 		} else {
 			r = get_user(value, (uint32_t *)buf);
 			if (!r)
-				WREG32(*pos >> 2, value);
+				amdgpu_mm_wreg_mmio_rlc(adev, *pos >> 2, value, 0);
 		}
 		if (r) {
 			result = r;
@@ -840,6 +843,55 @@ err:
 	return result;
 }
 
+/**
+ * amdgpu_debugfs_regs_gfxoff_write - Enable/disable GFXOFF
+ *
+ * @f: open file handle
+ * @buf: User buffer to write data from
+ * @size: Number of bytes to write
+ * @pos:  Offset to seek to
+ *
+ * Write a 32-bit zero to disable or a 32-bit non-zero to enable
+ */
+static ssize_t amdgpu_debugfs_gfxoff_write(struct file *f, const char __user *buf,
+					 size_t size, loff_t *pos)
+{
+	struct amdgpu_device *adev = file_inode(f)->i_private;
+	ssize_t result = 0;
+	int r;
+
+	if (size & 0x3 || *pos & 0x3)
+		return -EINVAL;
+
+	r = pm_runtime_get_sync(adev->ddev->dev);
+	if (r < 0)
+		return r;
+
+	while (size) {
+		uint32_t value;
+
+		r = get_user(value, (uint32_t *)buf);
+		if (r) {
+			pm_runtime_mark_last_busy(adev->ddev->dev);
+			pm_runtime_put_autosuspend(adev->ddev->dev);
+			return r;
+		}
+
+		amdgpu_gfx_off_ctrl(adev, value ? true : false);
+
+		result += 4;
+		buf += 4;
+		*pos += 4;
+		size -= 4;
+	}
+
+	pm_runtime_mark_last_busy(adev->ddev->dev);
+	pm_runtime_put_autosuspend(adev->ddev->dev);
+
+	return result;
+}
+
+
 static const struct file_operations amdgpu_debugfs_regs_fops = {
 	.owner = THIS_MODULE,
 	.read = amdgpu_debugfs_regs_read,
@@ -888,6 +940,11 @@ static const struct file_operations amdgpu_debugfs_gpr_fops = {
 	.llseek = default_llseek
 };
 
+static const struct file_operations amdgpu_debugfs_gfxoff_fops = {
+	.owner = THIS_MODULE,
+	.write = amdgpu_debugfs_gfxoff_write,
+};
+
 static const struct file_operations *debugfs_regs[] = {
 	&amdgpu_debugfs_regs_fops,
 	&amdgpu_debugfs_regs_didt_fops,
@@ -897,6 +954,7 @@ static const struct file_operations *debugfs_regs[] = {
 	&amdgpu_debugfs_sensors_fops,
 	&amdgpu_debugfs_wave_fops,
 	&amdgpu_debugfs_gpr_fops,
+	&amdgpu_debugfs_gfxoff_fops,
 };
 
 static const char *debugfs_regs_names[] = {
@@ -908,6 +966,7 @@ static const char *debugfs_regs_names[] = {
 	"amdgpu_sensors",
 	"amdgpu_wave",
 	"amdgpu_gpr",
+	"amdgpu_gfxoff",
 };
 
 /**
@@ -932,18 +991,6 @@ int amdgpu_debugfs_regs_init(struct amdgpu_device *adev)
 	}
 
 	return 0;
-}
-
-void amdgpu_debugfs_regs_cleanup(struct amdgpu_device *adev)
-{
-	unsigned i;
-
-	for (i = 0; i < ARRAY_SIZE(debugfs_regs); i++) {
-		if (adev->debugfs_regs[i]) {
-			debugfs_remove(adev->debugfs_regs[i]);
-			adev->debugfs_regs[i] = NULL;
-		}
-	}
 }
 
 static int amdgpu_debugfs_test_ib(struct seq_file *m, void *data)
@@ -1211,11 +1258,47 @@ failure:
 	return 0;
 }
 
+static int amdgpu_debugfs_sclk_set(void *data, u64 val)
+{
+	int ret = 0;
+	uint32_t max_freq, min_freq;
+	struct amdgpu_device *adev = (struct amdgpu_device *)data;
+
+	if (amdgpu_sriov_vf(adev) && !amdgpu_sriov_is_pp_one_vf(adev))
+		return -EINVAL;
+
+	ret = pm_runtime_get_sync(adev->ddev->dev);
+	if (ret < 0)
+		return ret;
+
+	if (is_support_sw_smu(adev)) {
+		ret = smu_get_dpm_freq_range(&adev->smu, SMU_SCLK, &min_freq, &max_freq, true);
+		if (ret || val > max_freq || val < min_freq)
+			return -EINVAL;
+		ret = smu_set_soft_freq_range(&adev->smu, SMU_SCLK, (uint32_t)val, (uint32_t)val, true);
+	} else {
+		return 0;
+	}
+
+	pm_runtime_mark_last_busy(adev->ddev->dev);
+	pm_runtime_put_autosuspend(adev->ddev->dev);
+
+	if (ret)
+		return -EINVAL;
+
+	return 0;
+}
+
 DEFINE_SIMPLE_ATTRIBUTE(fops_ib_preempt, NULL,
 			amdgpu_debugfs_ib_preempt, "%llu\n");
 
+DEFINE_SIMPLE_ATTRIBUTE(fops_sclk_set, NULL,
+			amdgpu_debugfs_sclk_set, "%llu\n");
+
 int amdgpu_debugfs_init(struct amdgpu_device *adev)
 {
+	int r, i;
+
 	adev->debugfs_preempt =
 		debugfs_create_file("amdgpu_preempt_ib", 0600,
 				    adev->ddev->primary->debugfs_root, adev,
@@ -1225,13 +1308,69 @@ int amdgpu_debugfs_init(struct amdgpu_device *adev)
 		return -EIO;
 	}
 
+	adev->smu.debugfs_sclk =
+		debugfs_create_file("amdgpu_force_sclk", 0200,
+				    adev->ddev->primary->debugfs_root, adev,
+				    &fops_sclk_set);
+	if (!(adev->smu.debugfs_sclk)) {
+		DRM_ERROR("unable to create amdgpu_set_sclk debugsfs file\n");
+		return -EIO;
+	}
+
+	/* Register debugfs entries for amdgpu_ttm */
+	r = amdgpu_ttm_debugfs_init(adev);
+	if (r) {
+		DRM_ERROR("Failed to init debugfs\n");
+		return r;
+	}
+
+	r = amdgpu_debugfs_pm_init(adev);
+	if (r) {
+		DRM_ERROR("Failed to register debugfs file for dpm!\n");
+		return r;
+	}
+
+	if (amdgpu_debugfs_sa_init(adev)) {
+		dev_err(adev->dev, "failed to register debugfs file for SA\n");
+	}
+
+	if (amdgpu_debugfs_fence_init(adev))
+		dev_err(adev->dev, "fence debugfs file creation failed\n");
+
+	r = amdgpu_debugfs_gem_init(adev);
+	if (r)
+		DRM_ERROR("registering gem debugfs failed (%d).\n", r);
+
+	r = amdgpu_debugfs_regs_init(adev);
+	if (r)
+		DRM_ERROR("registering register debugfs failed (%d).\n", r);
+
+	r = amdgpu_debugfs_firmware_init(adev);
+	if (r)
+		DRM_ERROR("registering firmware debugfs failed (%d).\n", r);
+
+#if defined(CONFIG_DRM_AMD_DC)
+	if (amdgpu_device_has_dc_support(adev)) {
+		if (dtn_debugfs_init(adev))
+			DRM_ERROR("amdgpu: failed initialize dtn debugfs support.\n");
+	}
+#endif
+
+	for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
+		struct amdgpu_ring *ring = adev->rings[i];
+
+		if (!ring)
+			continue;
+
+		if (amdgpu_debugfs_ring_init(adev, ring)) {
+			DRM_ERROR("Failed to register debugfs file for rings !\n");
+		}
+	}
+
+	amdgpu_ras_debugfs_create_all(adev);
+
 	return amdgpu_debugfs_add_files(adev, amdgpu_debugfs_list,
 					ARRAY_SIZE(amdgpu_debugfs_list));
-}
-
-void amdgpu_debugfs_preempt_cleanup(struct amdgpu_device *adev)
-{
-	debugfs_remove(adev->debugfs_preempt);
 }
 
 #else
@@ -1239,10 +1378,8 @@ int amdgpu_debugfs_init(struct amdgpu_device *adev)
 {
 	return 0;
 }
-void amdgpu_debugfs_preempt_cleanup(struct amdgpu_device *adev) { }
 int amdgpu_debugfs_regs_init(struct amdgpu_device *adev)
 {
 	return 0;
 }
-void amdgpu_debugfs_regs_cleanup(struct amdgpu_device *adev) { }
 #endif

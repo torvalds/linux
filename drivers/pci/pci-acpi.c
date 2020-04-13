@@ -439,7 +439,7 @@ enum hpx_type3_dev_type {
 static u16 hpx3_device_type(struct pci_dev *dev)
 {
 	u16 pcie_type = pci_pcie_type(dev);
-	const int pcie_to_hpx3_type[] = {
+	static const int pcie_to_hpx3_type[] = {
 		[PCI_EXP_TYPE_ENDPOINT]    = HPX_TYPE_ENDPOINT,
 		[PCI_EXP_TYPE_LEG_END]     = HPX_TYPE_LEG_END,
 		[PCI_EXP_TYPE_RC_END]      = HPX_TYPE_RC_END,
@@ -1241,6 +1241,7 @@ static void pci_acpi_setup(struct device *dev)
 
 	pci_acpi_optimize_delay(pci_dev, adev->handle);
 	pci_acpi_set_untrusted(pci_dev);
+	pci_acpi_add_edr_notifier(pci_dev);
 
 	pci_acpi_add_pm_notifier(adev, pci_dev);
 	if (!adev->wakeup.flags.valid)
@@ -1268,6 +1269,7 @@ static void pci_acpi_cleanup(struct device *dev)
 	if (!adev)
 		return;
 
+	pci_acpi_remove_edr_notifier(pci_dev);
 	pci_acpi_remove_pm_notifier(adev);
 	if (adev->wakeup.flags.valid) {
 		acpi_device_power_remove_dependent(adev, dev);

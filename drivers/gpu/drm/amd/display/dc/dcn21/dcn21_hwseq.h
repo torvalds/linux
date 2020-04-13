@@ -44,4 +44,7 @@ void dcn21_optimize_pwr_state(
 		const struct dc *dc,
 		struct dc_state *context);
 
+void dcn21_PLAT_58856_wa(struct dc_state *context,
+		struct pipe_ctx *pipe_ctx);
+
 #endif /* __DC_HWSS_DCN21_H__ */

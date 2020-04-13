@@ -270,6 +270,36 @@ cache_sync_done:
 extern pgd_t swapper_pg_dir[];
 
 /*
+ * Platform specific pte_special() and pte_mkspecial() definitions
+ * are required only when ARCH_HAS_PTE_SPECIAL is enabled.
+ */
+#if defined(CONFIG_ARCH_HAS_PTE_SPECIAL)
+#if defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_CPU_MIPS32)
+static inline int pte_special(pte_t pte)
+{
+	return pte.pte_low & _PAGE_SPECIAL;
+}
+
+static inline pte_t pte_mkspecial(pte_t pte)
+{
+	pte.pte_low |= _PAGE_SPECIAL;
+	return pte;
+}
+#else
+static inline int pte_special(pte_t pte)
+{
+	return pte_val(pte) & _PAGE_SPECIAL;
+}
+
+static inline pte_t pte_mkspecial(pte_t pte)
+{
+	pte_val(pte) |= _PAGE_SPECIAL;
+	return pte;
+}
+#endif
+#endif /* CONFIG_ARCH_HAS_PTE_SPECIAL */
+
+/*
  * The following only work if pte_present() is true.
  * Undefined behaviour if not..
  */
@@ -277,7 +307,6 @@ extern pgd_t swapper_pg_dir[];
 static inline int pte_write(pte_t pte)	{ return pte.pte_low & _PAGE_WRITE; }
 static inline int pte_dirty(pte_t pte)	{ return pte.pte_low & _PAGE_MODIFIED; }
 static inline int pte_young(pte_t pte)	{ return pte.pte_low & _PAGE_ACCESSED; }
-static inline int pte_special(pte_t pte) { return pte.pte_low & _PAGE_SPECIAL; }
 
 static inline pte_t pte_wrprotect(pte_t pte)
 {
@@ -338,17 +367,10 @@ static inline pte_t pte_mkyoung(pte_t pte)
 	}
 	return pte;
 }
-
-static inline pte_t pte_mkspecial(pte_t pte)
-{
-	pte.pte_low |= _PAGE_SPECIAL;
-	return pte;
-}
 #else
 static inline int pte_write(pte_t pte)	{ return pte_val(pte) & _PAGE_WRITE; }
 static inline int pte_dirty(pte_t pte)	{ return pte_val(pte) & _PAGE_MODIFIED; }
 static inline int pte_young(pte_t pte)	{ return pte_val(pte) & _PAGE_ACCESSED; }
-static inline int pte_special(pte_t pte) { return pte_val(pte) & _PAGE_SPECIAL; }
 
 static inline pte_t pte_wrprotect(pte_t pte)
 {
@@ -389,12 +411,6 @@ static inline pte_t pte_mkyoung(pte_t pte)
 	pte_val(pte) |= _PAGE_ACCESSED;
 	if (!(pte_val(pte) & _PAGE_NO_READ))
 		pte_val(pte) |= _PAGE_SILENT_READ;
-	return pte;
-}
-
-static inline pte_t pte_mkspecial(pte_t pte)
-{
-	pte_val(pte) |= _PAGE_SPECIAL;
 	return pte;
 }
 

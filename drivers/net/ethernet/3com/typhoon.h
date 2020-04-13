@@ -366,7 +366,7 @@ struct resp_desc {
 		memset(_ptr, 0, sizeof(struct cmd_desc));		\
 		_ptr->flags = TYPHOON_CMD_DESC | TYPHOON_DESC_VALID;	\
 		_ptr->cmd = command;					\
-	} while(0)
+	} while (0)
 
 /* We set seqNo to 1 if we're expecting a response from this command */
 #define INIT_COMMAND_WITH_RESPONSE(x, command)				\
@@ -376,7 +376,7 @@ struct resp_desc {
 		_ptr->flags |= TYPHOON_DESC_VALID; 			\
 		_ptr->cmd = command;					\
 		_ptr->seqNo = 1;					\
-	} while(0)
+	} while (0)
 
 /* TYPHOON_CMD_SET_RX_FILTER filter bits (cmd.parm1)
  */

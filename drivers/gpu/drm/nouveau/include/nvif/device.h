@@ -23,27 +23,6 @@ int  nvif_device_init(struct nvif_object *, u32 handle, s32 oclass, void *, u32,
 void nvif_device_fini(struct nvif_device *);
 u64  nvif_device_time(struct nvif_device *);
 
-/* Delay based on GPU time (ie. PTIMER).
- *
- * Will return -ETIMEDOUT unless the loop was terminated with 'break',
- * where it will return the number of nanoseconds taken instead.
- */
-#define nvif_nsec(d,n,cond...) ({                                              \
-	struct nvif_device *_device = (d);                                     \
-	u64 _nsecs = (n), _time0 = nvif_device_time(_device);                  \
-	s64 _taken = 0;                                                        \
-                                                                               \
-	do {                                                                   \
-		cond                                                           \
-	} while (_taken = nvif_device_time(_device) - _time0, _taken < _nsecs);\
-                                                                               \
-	if (_taken >= _nsecs)                                                  \
-		_taken = -ETIMEDOUT;                                           \
-	_taken;                                                                \
-})
-#define nvif_usec(d,u,cond...) nvif_nsec((d), (u) * 1000, ##cond)
-#define nvif_msec(d,m,cond...) nvif_usec((d), (m) * 1000, ##cond)
-
 /*XXX*/
 #include <subdev/bios.h>
 #include <subdev/fb.h>

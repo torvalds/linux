@@ -8,6 +8,7 @@ nvif-y += nvif/fifo.o
 nvif-y += nvif/mem.o
 nvif-y += nvif/mmu.o
 nvif-y += nvif/notify.o
+nvif-y += nvif/timer.o
 nvif-y += nvif/vmm.o
 
 # Usermode classes

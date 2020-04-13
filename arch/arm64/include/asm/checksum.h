@@ -5,7 +5,12 @@
 #ifndef __ASM_CHECKSUM_H
 #define __ASM_CHECKSUM_H
 
-#include <linux/types.h>
+#include <linux/in6.h>
+
+#define _HAVE_ARCH_IPV6_CSUM
+__sum16 csum_ipv6_magic(const struct in6_addr *saddr,
+			const struct in6_addr *daddr,
+			__u32 len, __u8 proto, __wsum sum);
 
 static inline __sum16 csum_fold(__wsum csum)
 {

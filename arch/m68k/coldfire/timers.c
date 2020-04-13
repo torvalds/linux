@@ -82,14 +82,6 @@ static irqreturn_t mcftmr_tick(int irq, void *dummy)
 
 /***************************************************************************/
 
-static struct irqaction mcftmr_timer_irq = {
-	.name	 = "timer",
-	.flags	 = IRQF_TIMER,
-	.handler = mcftmr_tick,
-};
-
-/***************************************************************************/
-
 static u64 mcftmr_read_clk(struct clocksource *cs)
 {
 	unsigned long flags;
@@ -118,6 +110,8 @@ static struct clocksource mcftmr_clk = {
 
 void hw_timer_init(irq_handler_t handler)
 {
+	int r;
+
 	__raw_writew(MCFTIMER_TMR_DISABLE, TA(MCFTIMER_TMR));
 	mcftmr_cycles_per_jiffy = FREQ / HZ;
 	/*
@@ -134,7 +128,11 @@ void hw_timer_init(irq_handler_t handler)
 
 	timer_interrupt = handler;
 	init_timer_irq();
-	setup_irq(MCF_IRQ_TIMER, &mcftmr_timer_irq);
+	r = request_irq(MCF_IRQ_TIMER, mcftmr_tick, IRQF_TIMER, "timer", NULL);
+	if (r) {
+		pr_err("Failed to request irq %d (timer): %pe\n", MCF_IRQ_TIMER,
+		       ERR_PTR(r));
+	}
 
 #ifdef CONFIG_HIGHPROFILE
 	coldfire_profile_init();
@@ -170,14 +168,10 @@ irqreturn_t coldfire_profile_tick(int irq, void *dummy)
 
 /***************************************************************************/
 
-static struct irqaction coldfire_profile_irq = {
-	.name	 = "profile timer",
-	.flags	 = IRQF_TIMER,
-	.handler = coldfire_profile_tick,
-};
-
 void coldfire_profile_init(void)
 {
+	int ret;
+
 	printk(KERN_INFO "PROFILE: lodging TIMER2 @ %dHz as profile timer\n",
 	       PROFILEHZ);
 
@@ -188,7 +182,12 @@ void coldfire_profile_init(void)
 	__raw_writew(MCFTIMER_TMR_ENORI | MCFTIMER_TMR_CLK16 |
 		MCFTIMER_TMR_RESTART | MCFTIMER_TMR_ENABLE, PA(MCFTIMER_TMR));
 
-	setup_irq(MCF_IRQ_PROFILER, &coldfire_profile_irq);
+	ret = request_irq(MCF_IRQ_PROFILER, coldfire_profile_tick, IRQF_TIMER,
+			  "profile timer", NULL);
+	if (ret) {
+		pr_err("Failed to request irq %d (profile timer): %pe\n",
+		       MCF_IRQ_PROFILER, ERR_PTR(ret));
+	}
 }
 
 /***************************************************************************/

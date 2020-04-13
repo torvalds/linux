@@ -386,8 +386,8 @@ kp_spi_transfer_one_message(struct spi_master *master, struct spi_message *m)
 			}
 		}
 
-		if (transfer->delay_usecs)
-			udelay(transfer->delay_usecs);
+		if (transfer->delay.value)
+			ndelay(spi_delay_to_ns(&transfer->delay, transfer));
 	}
 
 	/* de-assert chip select to end the sequence */

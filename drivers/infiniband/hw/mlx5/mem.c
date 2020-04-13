@@ -316,7 +316,7 @@ int mlx5_ib_test_wc(struct mlx5_ib_dev *dev)
 	if (!dev->mdev->roce.roce_en &&
 	    port_type_cap == MLX5_CAP_PORT_TYPE_ETH) {
 		if (mlx5_core_is_pf(dev->mdev))
-			dev->wc_support = true;
+			dev->wc_support = arch_can_pci_mmap_wc();
 		return 0;
 	}
 

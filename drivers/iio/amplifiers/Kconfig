@@ -22,4 +22,14 @@ config AD8366
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad8366.
 
+config HMC425
+	tristate "Analog Devices HMC425A and similar GPIO Gain Amplifiers"
+	depends on GPIOLIB
+	help
+	  Say yes here to build support for Analog Devices HMC425A and similar
+	  gain amplifiers or step attenuators.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called hmc425a.
+
 endmenu

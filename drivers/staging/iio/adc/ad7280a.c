@@ -824,6 +824,10 @@ out:
 	return IRQ_HANDLED;
 }
 
+/* Note: No need to fix checkpatch warning that reads:
+ *	CHECK: spaces preferred around that '-' (ctx:VxV)
+ * The function argument is stringified and doesn't need a fix
+ */
 static IIO_DEVICE_ATTR_NAMED(in_thresh_low_value,
 			     in_voltage-voltage_thresh_low_value,
 			     0644,

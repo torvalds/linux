@@ -1223,7 +1223,7 @@ static int cxusb_medion_g_tuner(struct file *file, void *fh,
 	if (tuner->index != 0)
 		return -EINVAL;
 
-	if (vdev->vfl_type == VFL_TYPE_GRABBER)
+	if (vdev->vfl_type == VFL_TYPE_VIDEO)
 		tuner->type = V4L2_TUNER_ANALOG_TV;
 	else
 		tuner->type = V4L2_TUNER_RADIO;
@@ -1259,7 +1259,7 @@ static int cxusb_medion_g_tuner(struct file *file, void *fh,
 	if (ret != 0)
 		return ret;
 
-	if (vdev->vfl_type == VFL_TYPE_GRABBER)
+	if (vdev->vfl_type == VFL_TYPE_VIDEO)
 		strscpy(tuner->name, "TV tuner", sizeof(tuner->name));
 	else
 		strscpy(tuner->name, "Radio tuner", sizeof(tuner->name));
@@ -1292,7 +1292,7 @@ static int cxusb_medion_s_tuner(struct file *file, void *fh,
 	 * make sure that cx25840 is in a correct TV / radio mode,
 	 * since calls above may have changed it for tuner / IF demod
 	 */
-	if (vdev->vfl_type == VFL_TYPE_GRABBER)
+	if (vdev->vfl_type == VFL_TYPE_VIDEO)
 		v4l2_subdev_call(cxdev->cx25840, video, s_std, cxdev->norm);
 	else
 		v4l2_subdev_call(cxdev->cx25840, tuner, s_radio);
@@ -1335,7 +1335,7 @@ static int cxusb_medion_s_frequency(struct file *file, void *fh,
 	 * make sure that cx25840 is in a correct TV / radio mode,
 	 * since calls above may have changed it for tuner / IF demod
 	 */
-	if (vdev->vfl_type == VFL_TYPE_GRABBER)
+	if (vdev->vfl_type == VFL_TYPE_VIDEO)
 		v4l2_subdev_call(cxdev->cx25840, video, s_std, cxdev->norm);
 	else
 		v4l2_subdev_call(cxdev->cx25840, tuner, s_radio);
@@ -1564,7 +1564,7 @@ static int cxusb_videoradio_release(struct file *f)
 
 	cxusb_vprintk(dvbdev, OPS, "got release\n");
 
-	if (vdev->vfl_type == VFL_TYPE_GRABBER)
+	if (vdev->vfl_type == VFL_TYPE_VIDEO)
 		ret = vb2_fop_release(f);
 	else
 		ret = v4l2_fh_release(f);
@@ -1663,7 +1663,7 @@ static int cxusb_medion_register_analog_video(struct dvb_usb_device *dvbdev)
 	cxdev->videodev->lock = &cxdev->dev_lock;
 	video_set_drvdata(cxdev->videodev, dvbdev);
 
-	ret = video_register_device(cxdev->videodev, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(cxdev->videodev, VFL_TYPE_VIDEO, -1);
 	if (ret) {
 		dev_err(&dvbdev->udev->dev,
 			"video device register failed, ret = %d\n", ret);

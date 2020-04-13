@@ -97,7 +97,8 @@ static const struct mtd_ooblayout_ops pn26g0xa_ooblayout = {
 
 
 static const struct spinand_info paragon_spinand_table[] = {
-	SPINAND_INFO("PN26G01A", 0xe1,
+	SPINAND_INFO("PN26G01A",
+		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_DUMMY, 0xe1),
 		     NAND_MEMORG(1, 2048, 128, 64, 1024, 21, 1, 1, 1),
 		     NAND_ECCREQ(8, 512),
 		     SPINAND_INFO_OP_VARIANTS(&read_cache_variants,
@@ -106,7 +107,8 @@ static const struct spinand_info paragon_spinand_table[] = {
 		     0,
 		     SPINAND_ECCINFO(&pn26g0xa_ooblayout,
 				     pn26g0xa_ecc_get_status)),
-	SPINAND_INFO("PN26G02A", 0xe2,
+	SPINAND_INFO("PN26G02A",
+		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_DUMMY, 0xe2),
 		     NAND_MEMORG(1, 2048, 128, 64, 2048, 41, 1, 1, 1),
 		     NAND_ECCREQ(8, 512),
 		     SPINAND_INFO_OP_VARIANTS(&read_cache_variants,
@@ -117,31 +119,13 @@ static const struct spinand_info paragon_spinand_table[] = {
 				     pn26g0xa_ecc_get_status)),
 };
 
-static int paragon_spinand_detect(struct spinand_device *spinand)
-{
-	u8 *id = spinand->id.data;
-	int ret;
-
-	/* Read ID returns [0][MID][DID] */
-
-	if (id[1] != SPINAND_MFR_PARAGON)
-		return 0;
-
-	ret = spinand_match_and_init(spinand, paragon_spinand_table,
-				     ARRAY_SIZE(paragon_spinand_table),
-				     id[2]);
-	if (ret)
-		return ret;
-
-	return 1;
-}
-
 static const struct spinand_manufacturer_ops paragon_spinand_manuf_ops = {
-	.detect = paragon_spinand_detect,
 };
 
 const struct spinand_manufacturer paragon_spinand_manufacturer = {
 	.id = SPINAND_MFR_PARAGON,
 	.name = "Paragon",
+	.chips = paragon_spinand_table,
+	.nchips = ARRAY_SIZE(paragon_spinand_table),
 	.ops = &paragon_spinand_manuf_ops,
 };

@@ -10,6 +10,9 @@
 
 #include "inv_mpu_iio.h"
 
+/* Magnetometer maximum frequency */
+#define INV_MPU_MAGN_FREQ_HZ_MAX	50
+
 int inv_mpu_magn_probe(struct inv_mpu6050_state *st);
 
 /**
@@ -31,6 +34,6 @@ int inv_mpu_magn_set_rate(const struct inv_mpu6050_state *st, int fifo_rate);
 
 int inv_mpu_magn_set_orient(struct inv_mpu6050_state *st);
 
-int inv_mpu_magn_read(const struct inv_mpu6050_state *st, int axis, int *val);
+int inv_mpu_magn_read(struct inv_mpu6050_state *st, int axis, int *val);
 
 #endif		/* INV_MPU_MAGN_H_ */

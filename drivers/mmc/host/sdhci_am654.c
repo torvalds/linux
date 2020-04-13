@@ -81,7 +81,8 @@ static struct regmap_config sdhci_am654_regmap_config = {
 
 struct sdhci_am654_data {
 	struct regmap *base;
-	int otap_del_sel;
+	bool legacy_otapdly;
+	int otap_del_sel[11];
 	int trm_icp;
 	int drv_strength;
 	bool dll_on;
@@ -98,13 +99,100 @@ struct sdhci_am654_driver_data {
 #define DLL_PRESENT	(1 << 3)
 };
 
-static void sdhci_am654_set_clock(struct sdhci_host *host, unsigned int clock)
+struct timing_data {
+	const char *binding;
+	u32 capability;
+};
+
+static const struct timing_data td[] = {
+	[MMC_TIMING_LEGACY] = {"ti,otap-del-sel-legacy", 0},
+	[MMC_TIMING_MMC_HS] = {"ti,otap-del-sel-mmc-hs", MMC_CAP_MMC_HIGHSPEED},
+	[MMC_TIMING_SD_HS]  = {"ti,otap-del-sel-sd-hs", MMC_CAP_SD_HIGHSPEED},
+	[MMC_TIMING_UHS_SDR12] = {"ti,otap-del-sel-sdr12", MMC_CAP_UHS_SDR12},
+	[MMC_TIMING_UHS_SDR25] = {"ti,otap-del-sel-sdr25", MMC_CAP_UHS_SDR25},
+	[MMC_TIMING_UHS_SDR50] = {"ti,otap-del-sel-sdr50", MMC_CAP_UHS_SDR50},
+	[MMC_TIMING_UHS_SDR104] = {"ti,otap-del-sel-sdr104",
+				   MMC_CAP_UHS_SDR104},
+	[MMC_TIMING_UHS_DDR50] = {"ti,otap-del-sel-ddr50", MMC_CAP_UHS_DDR50},
+	[MMC_TIMING_MMC_DDR52] = {"ti,otap-del-sel-ddr52", MMC_CAP_DDR},
+	[MMC_TIMING_MMC_HS200] = {"ti,otap-del-sel-hs200", MMC_CAP2_HS200},
+	[MMC_TIMING_MMC_HS400] = {"ti,otap-del-sel-hs400", MMC_CAP2_HS400},
+};
+
+static void sdhci_am654_setup_dll(struct sdhci_host *host, unsigned int clock)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct sdhci_am654_data *sdhci_am654 = sdhci_pltfm_priv(pltfm_host);
 	int sel50, sel100, freqsel;
 	u32 mask, val;
 	int ret;
+
+	if (sdhci_am654->flags & FREQSEL_2_BIT) {
+		switch (clock) {
+		case 200000000:
+			sel50 = 0;
+			sel100 = 0;
+			break;
+		case 100000000:
+			sel50 = 0;
+			sel100 = 1;
+			break;
+		default:
+			sel50 = 1;
+			sel100 = 0;
+		}
+
+		/* Configure PHY DLL frequency */
+		mask = SEL50_MASK | SEL100_MASK;
+		val = (sel50 << SEL50_SHIFT) | (sel100 << SEL100_SHIFT);
+		regmap_update_bits(sdhci_am654->base, PHY_CTRL5, mask, val);
+
+	} else {
+		switch (clock) {
+		case 200000000:
+			freqsel = 0x0;
+			break;
+		default:
+			freqsel = 0x4;
+		}
+
+		regmap_update_bits(sdhci_am654->base, PHY_CTRL5, FREQSEL_MASK,
+				   freqsel << FREQSEL_SHIFT);
+	}
+	/* Configure DLL TRIM */
+	mask = DLL_TRIM_ICP_MASK;
+	val = sdhci_am654->trm_icp << DLL_TRIM_ICP_SHIFT;
+
+	/* Configure DLL driver strength */
+	mask |= DR_TY_MASK;
+	val |= sdhci_am654->drv_strength << DR_TY_SHIFT;
+	regmap_update_bits(sdhci_am654->base, PHY_CTRL1, mask, val);
+
+	/* Enable DLL */
+	regmap_update_bits(sdhci_am654->base, PHY_CTRL1, ENDLL_MASK,
+			   0x1 << ENDLL_SHIFT);
+	/*
+	 * Poll for DLL ready. Use a one second timeout.
+	 * Works in all experiments done so far
+	 */
+	ret = regmap_read_poll_timeout(sdhci_am654->base, PHY_STAT1, val,
+				       val & DLLRDY_MASK, 1000, 1000000);
+	if (ret) {
+		dev_err(mmc_dev(host->mmc), "DLL failed to relock\n");
+		return;
+	}
+
+	sdhci_am654->dll_on = true;
+}
+
+static void sdhci_am654_set_clock(struct sdhci_host *host, unsigned int clock)
+{
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct sdhci_am654_data *sdhci_am654 = sdhci_pltfm_priv(pltfm_host);
+	unsigned char timing = host->mmc->ios.timing;
+	u32 otap_del_sel;
+	u32 otap_del_ena;
+	u32 mask, val;
 
 	if (sdhci_am654->dll_on) {
 		regmap_update_bits(sdhci_am654->base, PHY_CTRL1, ENDLL_MASK, 0);
@@ -116,80 +204,31 @@ static void sdhci_am654_set_clock(struct sdhci_host *host, unsigned int clock)
 
 	if (clock > CLOCK_TOO_SLOW_HZ) {
 		/* Setup DLL Output TAP delay */
+		if (sdhci_am654->legacy_otapdly)
+			otap_del_sel = sdhci_am654->otap_del_sel[0];
+		else
+			otap_del_sel = sdhci_am654->otap_del_sel[timing];
+
+		otap_del_ena = (timing > MMC_TIMING_UHS_SDR25) ? 1 : 0;
+
 		mask = OTAPDLYENA_MASK | OTAPDLYSEL_MASK;
-		val = (1 << OTAPDLYENA_SHIFT) |
-		      (sdhci_am654->otap_del_sel << OTAPDLYSEL_SHIFT);
-		regmap_update_bits(sdhci_am654->base, PHY_CTRL4, mask, val);
+		val = (otap_del_ena << OTAPDLYENA_SHIFT) |
+		      (otap_del_sel << OTAPDLYSEL_SHIFT);
+
 		/* Write to STRBSEL for HS400 speed mode */
-		if (host->mmc->ios.timing == MMC_TIMING_MMC_HS400) {
+		if (timing == MMC_TIMING_MMC_HS400) {
 			if (sdhci_am654->flags & STRBSEL_4_BIT)
-				mask = STRBSEL_4BIT_MASK;
+				mask |= STRBSEL_4BIT_MASK;
 			else
-				mask = STRBSEL_8BIT_MASK;
+				mask |= STRBSEL_8BIT_MASK;
 
-			regmap_update_bits(sdhci_am654->base, PHY_CTRL4, mask,
-					   sdhci_am654->strb_sel <<
-					   STRBSEL_SHIFT);
+			val |= sdhci_am654->strb_sel << STRBSEL_SHIFT;
 		}
 
-		if (sdhci_am654->flags & FREQSEL_2_BIT) {
-			switch (clock) {
-			case 200000000:
-				sel50 = 0;
-				sel100 = 0;
-				break;
-			case 100000000:
-				sel50 = 0;
-				sel100 = 1;
-				break;
-			default:
-				sel50 = 1;
-				sel100 = 0;
-			}
+		regmap_update_bits(sdhci_am654->base, PHY_CTRL4, mask, val);
 
-			/* Configure PHY DLL frequency */
-			mask = SEL50_MASK | SEL100_MASK;
-			val = (sel50 << SEL50_SHIFT) | (sel100 << SEL100_SHIFT);
-			regmap_update_bits(sdhci_am654->base, PHY_CTRL5, mask,
-					   val);
-		} else {
-			switch (clock) {
-			case 200000000:
-				freqsel = 0x0;
-				break;
-			default:
-				freqsel = 0x4;
-			}
-
-			regmap_update_bits(sdhci_am654->base, PHY_CTRL5,
-					   FREQSEL_MASK,
-					   freqsel << FREQSEL_SHIFT);
-		}
-
-		/* Configure DLL TRIM */
-		mask = DLL_TRIM_ICP_MASK;
-		val = sdhci_am654->trm_icp << DLL_TRIM_ICP_SHIFT;
-
-		/* Configure DLL driver strength */
-		mask |= DR_TY_MASK;
-		val |= sdhci_am654->drv_strength << DR_TY_SHIFT;
-		regmap_update_bits(sdhci_am654->base, PHY_CTRL1, mask, val);
-		/* Enable DLL */
-		regmap_update_bits(sdhci_am654->base, PHY_CTRL1, ENDLL_MASK,
-				   0x1 << ENDLL_SHIFT);
-		/*
-		 * Poll for DLL ready. Use a one second timeout.
-		 * Works in all experiments done so far
-		 */
-		ret = regmap_read_poll_timeout(sdhci_am654->base, PHY_STAT1,
-					       val, val & DLLRDY_MASK, 1000,
-					       1000000);
-		if (ret) {
-			dev_err(mmc_dev(host->mmc), "DLL failed to relock\n");
-			return;
-		}
-
-		sdhci_am654->dll_on = true;
+		if (timing > MMC_TIMING_UHS_SDR25)
+			sdhci_am654_setup_dll(host, clock);
 	}
 }
 
@@ -198,25 +237,22 @@ static void sdhci_j721e_4bit_set_clock(struct sdhci_host *host,
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct sdhci_am654_data *sdhci_am654 = sdhci_pltfm_priv(pltfm_host);
-	int val, mask;
+	unsigned char timing = host->mmc->ios.timing;
+	u32 otap_del_sel;
+	u32 mask, val;
+
+	/* Setup DLL Output TAP delay */
+	if (sdhci_am654->legacy_otapdly)
+		otap_del_sel = sdhci_am654->otap_del_sel[0];
+	else
+		otap_del_sel = sdhci_am654->otap_del_sel[timing];
 
 	mask = OTAPDLYENA_MASK | OTAPDLYSEL_MASK;
-	val = (1 << OTAPDLYENA_SHIFT) |
-	      (sdhci_am654->otap_del_sel << OTAPDLYSEL_SHIFT);
+	val = (0x1 << OTAPDLYENA_SHIFT) |
+	      (otap_del_sel << OTAPDLYSEL_SHIFT);
 	regmap_update_bits(sdhci_am654->base, PHY_CTRL4, mask, val);
 
 	sdhci_set_clock(host, clock);
-}
-
-static void sdhci_am654_set_power(struct sdhci_host *host, unsigned char mode,
-				  unsigned short vdd)
-{
-	if (!IS_ERR(host->mmc->supply.vmmc)) {
-		struct mmc_host *mmc = host->mmc;
-
-		mmc_regulator_set_ocr(mmc, mmc->supply.vmmc, vdd);
-	}
-	sdhci_set_power_noreg(host, mode, vdd);
 }
 
 static void sdhci_am654_write_b(struct sdhci_host *host, u8 val, int reg)
@@ -274,7 +310,7 @@ static struct sdhci_ops sdhci_am654_ops = {
 	.get_timeout_clock = sdhci_pltfm_clk_get_max_clock,
 	.set_uhs_signaling = sdhci_set_uhs_signaling,
 	.set_bus_width = sdhci_set_bus_width,
-	.set_power = sdhci_am654_set_power,
+	.set_power = sdhci_set_power_and_bus_voltage,
 	.set_clock = sdhci_am654_set_clock,
 	.write_b = sdhci_am654_write_b,
 	.irq = sdhci_am654_cqhci_irq,
@@ -297,7 +333,7 @@ static struct sdhci_ops sdhci_j721e_8bit_ops = {
 	.get_timeout_clock = sdhci_pltfm_clk_get_max_clock,
 	.set_uhs_signaling = sdhci_set_uhs_signaling,
 	.set_bus_width = sdhci_set_bus_width,
-	.set_power = sdhci_am654_set_power,
+	.set_power = sdhci_set_power_and_bus_voltage,
 	.set_clock = sdhci_am654_set_clock,
 	.write_b = sdhci_am654_write_b,
 	.irq = sdhci_am654_cqhci_irq,
@@ -320,7 +356,7 @@ static struct sdhci_ops sdhci_j721e_4bit_ops = {
 	.get_timeout_clock = sdhci_pltfm_clk_get_max_clock,
 	.set_uhs_signaling = sdhci_set_uhs_signaling,
 	.set_bus_width = sdhci_set_bus_width,
-	.set_power = sdhci_am654_set_power,
+	.set_power = sdhci_set_power_and_bus_voltage,
 	.set_clock = sdhci_j721e_4bit_set_clock,
 	.write_b = sdhci_am654_write_b,
 	.irq = sdhci_am654_cqhci_irq,
@@ -371,6 +407,55 @@ static int sdhci_am654_cqe_add_host(struct sdhci_host *host)
 	return ret;
 }
 
+static int sdhci_am654_get_otap_delay(struct sdhci_host *host,
+				      struct sdhci_am654_data *sdhci_am654)
+{
+	struct device *dev = mmc_dev(host->mmc);
+	int i;
+	int ret;
+
+	ret = device_property_read_u32(dev, td[MMC_TIMING_LEGACY].binding,
+				 &sdhci_am654->otap_del_sel[MMC_TIMING_LEGACY]);
+	if (ret) {
+		/*
+		 * ti,otap-del-sel-legacy is mandatory, look for old binding
+		 * if not found.
+		 */
+		ret = device_property_read_u32(dev, "ti,otap-del-sel",
+					       &sdhci_am654->otap_del_sel[0]);
+		if (ret) {
+			dev_err(dev, "Couldn't find otap-del-sel\n");
+
+			return ret;
+		}
+
+		dev_info(dev, "Using legacy binding ti,otap-del-sel\n");
+		sdhci_am654->legacy_otapdly = true;
+
+		return 0;
+	}
+
+	for (i = MMC_TIMING_MMC_HS; i <= MMC_TIMING_MMC_HS400; i++) {
+
+		ret = device_property_read_u32(dev, td[i].binding,
+					       &sdhci_am654->otap_del_sel[i]);
+		if (ret) {
+			dev_dbg(dev, "Couldn't find %s\n",
+				td[i].binding);
+			/*
+			 * Remove the corresponding capability
+			 * if an otap-del-sel value is not found
+			 */
+			if (i <= MMC_TIMING_MMC_DDR52)
+				host->mmc->caps &= ~td[i].capability;
+			else
+				host->mmc->caps2 &= ~td[i].capability;
+		}
+	}
+
+	return 0;
+}
+
 static int sdhci_am654_init(struct sdhci_host *host)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
@@ -419,6 +504,10 @@ static int sdhci_am654_init(struct sdhci_host *host)
 	if (ret)
 		goto err_cleanup_host;
 
+	ret = sdhci_am654_get_otap_delay(host, sdhci_am654);
+	if (ret)
+		goto err_cleanup_host;
+
 	ret = __sdhci_add_host(host);
 	if (ret)
 		goto err_cleanup_host;
@@ -436,11 +525,6 @@ static int sdhci_am654_get_of_property(struct platform_device *pdev,
 	struct device *dev = &pdev->dev;
 	int drv_strength;
 	int ret;
-
-	ret = device_property_read_u32(dev, "ti,otap-del-sel",
-				       &sdhci_am654->otap_del_sel);
-	if (ret)
-		return ret;
 
 	if (sdhci_am654->flags & DLL_PRESENT) {
 		ret = device_property_read_u32(dev, "ti,trm-icp",

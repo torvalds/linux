@@ -616,7 +616,7 @@ static int enable_bars(struct nfp6000_pcie *nfp, u16 interface)
 	if (bar->iomem) {
 		int pf;
 
-		msg += snprintf(msg, end - msg,	"0.0: General/MSI-X SRAM, ");
+		msg += scnprintf(msg, end - msg, "0.0: General/MSI-X SRAM, ");
 		atomic_inc(&bar->refcnt);
 		bars_free--;
 
@@ -661,7 +661,7 @@ static int enable_bars(struct nfp6000_pcie *nfp, u16 interface)
 
 	/* Configure, and lock, BAR0.1 for PCIe XPB (MSI-X PBA) */
 	bar = &nfp->bar[1];
-	msg += snprintf(msg, end - msg, "0.1: PCIe XPB/MSI-X PBA, ");
+	msg += scnprintf(msg, end - msg, "0.1: PCIe XPB/MSI-X PBA, ");
 	atomic_inc(&bar->refcnt);
 	bars_free--;
 
@@ -680,8 +680,8 @@ static int enable_bars(struct nfp6000_pcie *nfp, u16 interface)
 		bar->iomem = ioremap(nfp_bar_resource_start(bar),
 					     nfp_bar_resource_len(bar));
 		if (bar->iomem) {
-			msg += snprintf(msg, end - msg,
-					"0.%d: Explicit%d, ", 4 + i, i);
+			msg += scnprintf(msg, end - msg,
+					 "0.%d: Explicit%d, ", 4 + i, i);
 			atomic_inc(&bar->refcnt);
 			bars_free--;
 
@@ -1247,19 +1247,16 @@ static void nfp6000_free(struct nfp_cpp *cpp)
 static int nfp6000_read_serial(struct device *dev, u8 *serial)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
-	int pos;
-	u32 reg;
+	u64 dsn;
 
-	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_DSN);
-	if (!pos) {
+	dsn = pci_get_dsn(pdev);
+	if (!dsn) {
 		dev_err(dev, "can't find PCIe Serial Number Capability\n");
 		return -EINVAL;
 	}
 
-	pci_read_config_dword(pdev, pos + 4, &reg);
-	put_unaligned_be16(reg >> 16, serial + 4);
-	pci_read_config_dword(pdev, pos + 8, &reg);
-	put_unaligned_be32(reg, serial);
+	put_unaligned_be32((u32)(dsn >> 32), serial);
+	put_unaligned_be16((u16)(dsn >> 16), serial + 4);
 
 	return 0;
 }
@@ -1267,18 +1264,15 @@ static int nfp6000_read_serial(struct device *dev, u8 *serial)
 static int nfp6000_get_interface(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
-	int pos;
-	u32 reg;
+	u64 dsn;
 
-	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_DSN);
-	if (!pos) {
+	dsn = pci_get_dsn(pdev);
+	if (!dsn) {
 		dev_err(dev, "can't find PCIe Serial Number Capability\n");
 		return -EINVAL;
 	}
 
-	pci_read_config_dword(pdev, pos + 4, &reg);
-
-	return reg & 0xffff;
+	return dsn & 0xffff;
 }
 
 static const struct nfp_cpp_operations nfp6000_pcie_ops = {

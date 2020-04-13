@@ -151,7 +151,7 @@ struct at76_command {
 	u8 cmd;
 	u8 reserved;
 	__le16 size;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 /* Length of Atmel-specific Rx header before 802.11 frame */

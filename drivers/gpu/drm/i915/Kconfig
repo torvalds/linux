@@ -42,16 +42,9 @@ config DRM_I915
 
 	  If "M" is selected, the module will be called i915.
 
-config DRM_I915_ALPHA_SUPPORT
-	bool "Enable alpha quality support for new Intel hardware by default"
-	depends on DRM_I915
-	help
-	  This option is deprecated. Use DRM_I915_FORCE_PROBE option instead.
-
 config DRM_I915_FORCE_PROBE
 	string "Force probe driver for selected new Intel hardware"
 	depends on DRM_I915
-	default "*" if DRM_I915_ALPHA_SUPPORT
 	help
 	  This is the default value for the i915.force_probe module
 	  parameter. Using the module parameter overrides this option.

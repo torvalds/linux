@@ -1247,7 +1247,7 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 	 * pins.
 	 */
 	for (i = 0; i < 4; i++) {
-		int irq = platform_get_irq(pdev, i);
+		int irq = platform_get_irq_optional(pdev, i);
 
 		if (irq < 0)
 			continue;

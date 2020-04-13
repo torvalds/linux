@@ -24,6 +24,8 @@
 
 #include <nouveau_bo.h>
 
+#include <nvif/timer.h>
+
 static void
 ovly827e_image_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {

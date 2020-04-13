@@ -7,6 +7,49 @@
 #include "spectrum.h"
 #include "reg.h"
 
+struct mlxsw_sp_router_nve_decap {
+	u32 ul_tb_id;
+	u32 tunnel_index;
+	enum mlxsw_sp_l3proto ul_proto;
+	union mlxsw_sp_l3addr ul_sip;
+	u8 valid:1;
+};
+
+struct mlxsw_sp_router {
+	struct mlxsw_sp *mlxsw_sp;
+	struct mlxsw_sp_rif **rifs;
+	struct mlxsw_sp_vr *vrs;
+	struct rhashtable neigh_ht;
+	struct rhashtable nexthop_group_ht;
+	struct rhashtable nexthop_ht;
+	struct list_head nexthop_list;
+	struct {
+		/* One tree for each protocol: IPv4 and IPv6 */
+		struct mlxsw_sp_lpm_tree *proto_trees[2];
+		struct mlxsw_sp_lpm_tree *trees;
+		unsigned int tree_count;
+	} lpm;
+	struct {
+		struct delayed_work dw;
+		unsigned long interval;	/* ms */
+	} neighs_update;
+	struct delayed_work nexthop_probe_dw;
+#define MLXSW_SP_UNRESOLVED_NH_PROBE_INTERVAL 5000 /* ms */
+	struct list_head nexthop_neighs_list;
+	struct list_head ipip_list;
+	bool aborted;
+	struct notifier_block fib_nb;
+	struct notifier_block netevent_nb;
+	struct notifier_block inetaddr_nb;
+	struct notifier_block inet6addr_nb;
+	const struct mlxsw_sp_rif_ops **rif_ops_arr;
+	const struct mlxsw_sp_ipip_ops **ipip_ops_arr;
+	u32 adj_discard_index;
+	bool adj_discard_index_valid;
+	struct mlxsw_sp_router_nve_decap nve_decap_config;
+	struct mutex lock; /* Protects shared router resources */
+};
+
 struct mlxsw_sp_rif_ipip_lb;
 struct mlxsw_sp_rif_ipip_lb_config {
 	enum mlxsw_reg_ritr_loopback_ipip_type lb_ipipt;

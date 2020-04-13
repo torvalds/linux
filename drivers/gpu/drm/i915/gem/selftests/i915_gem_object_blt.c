@@ -210,6 +210,7 @@ static int igt_fill_blt_thread(void *arg)
 	struct intel_context *ce;
 	unsigned int prio;
 	IGT_TIMEOUT(end);
+	u64 total, max;
 	int err;
 
 	ctx = thread->ctx;
@@ -225,27 +226,32 @@ static int igt_fill_blt_thread(void *arg)
 	ce = i915_gem_context_get_engine(ctx, BCS0);
 	GEM_BUG_ON(IS_ERR(ce));
 
+	/*
+	 * If we have a tiny shared address space, like for the GGTT
+	 * then we can't be too greedy.
+	 */
+	max = ce->vm->total;
+	if (i915_is_ggtt(ce->vm) || thread->ctx)
+		max = div_u64(max, thread->n_cpus);
+	max >>= 4;
+
+	total = PAGE_SIZE;
 	do {
-		const u32 max_block_size = S16_MAX * PAGE_SIZE;
+		/* Aim to keep the runtime under reasonable bounds! */
+		const u32 max_phys_size = SZ_64K;
 		u32 val = prandom_u32_state(prng);
-		u64 total = ce->vm->total;
 		u32 phys_sz;
 		u32 sz;
 		u32 *vaddr;
 		u32 i;
 
-		/*
-		 * If we have a tiny shared address space, like for the GGTT
-		 * then we can't be too greedy.
-		 */
-		if (i915_is_ggtt(ce->vm))
-			total = div64_u64(total, thread->n_cpus);
-
-		sz = min_t(u64, total >> 4, prandom_u32_state(prng));
-		phys_sz = sz % (max_block_size + 1);
+		total = min(total, max);
+		sz = i915_prandom_u32_max_state(total, prng) + 1;
+		phys_sz = sz % max_phys_size + 1;
 
 		sz = round_up(sz, PAGE_SIZE);
 		phys_sz = round_up(phys_sz, PAGE_SIZE);
+		phys_sz = min(phys_sz, sz);
 
 		pr_debug("%s with phys_sz= %x, sz=%x, val=%x\n", __func__,
 			 phys_sz, sz, val);
@@ -276,13 +282,14 @@ static int igt_fill_blt_thread(void *arg)
 		if (err)
 			goto err_unpin;
 
-		i915_gem_object_lock(obj);
-		err = i915_gem_object_set_to_cpu_domain(obj, false);
-		i915_gem_object_unlock(obj);
+		err = i915_gem_object_wait(obj, 0, MAX_SCHEDULE_TIMEOUT);
 		if (err)
 			goto err_unpin;
 
-		for (i = 0; i < huge_gem_object_phys_size(obj) / sizeof(u32); ++i) {
+		for (i = 0; i < huge_gem_object_phys_size(obj) / sizeof(u32); i += 17) {
+			if (!(obj->cache_coherent & I915_BO_CACHE_COHERENT_FOR_READ))
+				drm_clflush_virt_range(&vaddr[i], sizeof(vaddr[i]));
+
 			if (vaddr[i] != val) {
 				pr_err("vaddr[%u]=%x, expected=%x\n", i,
 				       vaddr[i], val);
@@ -293,6 +300,8 @@ static int igt_fill_blt_thread(void *arg)
 
 		i915_gem_object_unpin_map(obj);
 		i915_gem_object_put(obj);
+
+		total <<= 1;
 	} while (!time_after(jiffies, end));
 
 	goto err_flush;
@@ -319,6 +328,7 @@ static int igt_copy_blt_thread(void *arg)
 	struct intel_context *ce;
 	unsigned int prio;
 	IGT_TIMEOUT(end);
+	u64 total, max;
 	int err;
 
 	ctx = thread->ctx;
@@ -334,23 +344,32 @@ static int igt_copy_blt_thread(void *arg)
 	ce = i915_gem_context_get_engine(ctx, BCS0);
 	GEM_BUG_ON(IS_ERR(ce));
 
+	/*
+	 * If we have a tiny shared address space, like for the GGTT
+	 * then we can't be too greedy.
+	 */
+	max = ce->vm->total;
+	if (i915_is_ggtt(ce->vm) || thread->ctx)
+		max = div_u64(max, thread->n_cpus);
+	max >>= 4;
+
+	total = PAGE_SIZE;
 	do {
-		const u32 max_block_size = S16_MAX * PAGE_SIZE;
+		/* Aim to keep the runtime under reasonable bounds! */
+		const u32 max_phys_size = SZ_64K;
 		u32 val = prandom_u32_state(prng);
-		u64 total = ce->vm->total;
 		u32 phys_sz;
 		u32 sz;
 		u32 *vaddr;
 		u32 i;
 
-		if (i915_is_ggtt(ce->vm))
-			total = div64_u64(total, thread->n_cpus);
-
-		sz = min_t(u64, total >> 4, prandom_u32_state(prng));
-		phys_sz = sz % (max_block_size + 1);
+		total = min(total, max);
+		sz = i915_prandom_u32_max_state(total, prng) + 1;
+		phys_sz = sz % max_phys_size + 1;
 
 		sz = round_up(sz, PAGE_SIZE);
 		phys_sz = round_up(phys_sz, PAGE_SIZE);
+		phys_sz = min(phys_sz, sz);
 
 		pr_debug("%s with phys_sz= %x, sz=%x, val=%x\n", __func__,
 			 phys_sz, sz, val);
@@ -397,13 +416,14 @@ static int igt_copy_blt_thread(void *arg)
 		if (err)
 			goto err_unpin;
 
-		i915_gem_object_lock(dst);
-		err = i915_gem_object_set_to_cpu_domain(dst, false);
-		i915_gem_object_unlock(dst);
+		err = i915_gem_object_wait(dst, 0, MAX_SCHEDULE_TIMEOUT);
 		if (err)
 			goto err_unpin;
 
-		for (i = 0; i < huge_gem_object_phys_size(dst) / sizeof(u32); ++i) {
+		for (i = 0; i < huge_gem_object_phys_size(dst) / sizeof(u32); i += 17) {
+			if (!(dst->cache_coherent & I915_BO_CACHE_COHERENT_FOR_READ))
+				drm_clflush_virt_range(&vaddr[i], sizeof(vaddr[i]));
+
 			if (vaddr[i] != val) {
 				pr_err("vaddr[%u]=%x, expected=%x\n", i,
 				       vaddr[i], val);
@@ -416,6 +436,8 @@ static int igt_copy_blt_thread(void *arg)
 
 		i915_gem_object_put(src);
 		i915_gem_object_put(dst);
+
+		total <<= 1;
 	} while (!time_after(jiffies, end));
 
 	goto err_flush;

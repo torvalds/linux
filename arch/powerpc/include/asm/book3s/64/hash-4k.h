@@ -156,6 +156,12 @@ extern pmd_t hash__pmdp_huge_get_and_clear(struct mm_struct *mm,
 extern int hash__has_transparent_hugepage(void);
 #endif
 
+static inline pmd_t hash__pmd_mkdevmap(pmd_t pmd)
+{
+	BUG();
+	return pmd;
+}
+
 #endif /* !__ASSEMBLY__ */
 
 #endif /* _ASM_POWERPC_BOOK3S_64_HASH_4K_H */

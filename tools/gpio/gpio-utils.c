@@ -17,7 +17,7 @@
 #include <linux/gpio.h>
 #include "gpio-utils.h"
 
-#define COMSUMER "gpio-utils"
+#define CONSUMER "gpio-utils"
 
 /**
  * doc: Operation of gpio
@@ -209,7 +209,7 @@ int gpiotools_gets(const char *device_name, unsigned int *lines,
 
 	ret = gpiotools_request_linehandle(device_name, lines, nlines,
 					   GPIOHANDLE_REQUEST_INPUT, data,
-					   COMSUMER);
+					   CONSUMER);
 	if (ret < 0)
 		return ret;
 
@@ -259,7 +259,7 @@ int gpiotools_sets(const char *device_name, unsigned int *lines,
 
 	ret = gpiotools_request_linehandle(device_name, lines, nlines,
 					   GPIOHANDLE_REQUEST_OUTPUT, data,
-					   COMSUMER);
+					   CONSUMER);
 	if (ret < 0)
 		return ret;
 

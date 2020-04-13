@@ -151,5 +151,5 @@ int fsl_dcu_create_outputs(struct fsl_dcu_drm_device *fsl_dev)
 		return fsl_dcu_attach_panel(fsl_dev, panel);
 	}
 
-	return drm_bridge_attach(&fsl_dev->encoder, bridge, NULL);
+	return drm_bridge_attach(&fsl_dev->encoder, bridge, NULL, 0);
 }

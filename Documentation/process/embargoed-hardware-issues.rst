@@ -246,7 +246,8 @@ an involved disclosed party. The current ambassadors list:
   ============= ========================================================
   ARM           Grant Likely <grant.likely@arm.com>
   AMD		Tom Lendacky <tom.lendacky@amd.com>
-  IBM
+  IBM Z         Christian Borntraeger <borntraeger@de.ibm.com>
+  IBM Power     Anton Blanchard <anton@linux.ibm.com>
   Intel		Tony Luck <tony.luck@intel.com>
   Qualcomm	Trilok Soni <tsoni@codeaurora.org>
 

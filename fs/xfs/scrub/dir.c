@@ -155,6 +155,9 @@ xchk_dir_actor(
 	xname.type = XFS_DIR3_FT_UNKNOWN;
 
 	error = xfs_dir_lookup(sdc->sc->tp, ip, &xname, &lookup_ino, NULL);
+	/* ENOENT means the hash lookup failed and the dir is corrupt */
+	if (error == -ENOENT)
+		error = -EFSCORRUPTED;
 	if (!xchk_fblock_process_error(sdc->sc, XFS_DATA_FORK, offset,
 			&error))
 		goto out;
@@ -500,7 +503,7 @@ xchk_directory_leaf1_bestfree(
 	/* Read the free space block. */
 	error = xfs_dir3_leaf_read(sc->tp, sc->ip, lblk, &bp);
 	if (!xchk_fblock_process_error(sc, XFS_DATA_FORK, lblk, &error))
-		goto out;
+		return error;
 	xchk_buffer_recheck(sc, bp);
 
 	leaf = bp->b_addr;
@@ -565,9 +568,10 @@ xchk_directory_leaf1_bestfree(
 		xchk_directory_check_freesp(sc, lblk, dbp, best);
 		xfs_trans_brelse(sc->tp, dbp);
 		if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
-			goto out;
+			break;
 	}
 out:
+	xfs_trans_brelse(sc->tp, bp);
 	return error;
 }
 
@@ -589,7 +593,7 @@ xchk_directory_free_bestfree(
 	/* Read the free space block */
 	error = xfs_dir2_free_read(sc->tp, sc->ip, lblk, &bp);
 	if (!xchk_fblock_process_error(sc, XFS_DATA_FORK, lblk, &error))
-		goto out;
+		return error;
 	xchk_buffer_recheck(sc, bp);
 
 	if (xfs_sb_version_hascrc(&sc->mp->m_sb)) {
@@ -612,7 +616,7 @@ xchk_directory_free_bestfree(
 				0, &dbp);
 		if (!xchk_fblock_process_error(sc, XFS_DATA_FORK, lblk,
 				&error))
-			break;
+			goto out;
 		xchk_directory_check_freesp(sc, lblk, dbp, best);
 		xfs_trans_brelse(sc->tp, dbp);
 	}
@@ -620,6 +624,7 @@ xchk_directory_free_bestfree(
 	if (freehdr.nused + stale != freehdr.nvalid)
 		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
 out:
+	xfs_trans_brelse(sc->tp, bp);
 	return error;
 }
 

@@ -37,6 +37,7 @@ typedef s8  int8;
 
 typedef uint64 PA;
 typedef uint32 PPN;
+typedef uint32 PPN32;
 typedef uint64 PPN64;
 
 typedef bool Bool;

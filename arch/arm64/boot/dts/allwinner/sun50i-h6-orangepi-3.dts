@@ -32,6 +32,13 @@
 		};
 	};
 
+	ext_osc32k: ext_osc32k_clk {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <32768>;
+		clock-output-names = "ext_osc32k";
+	};
+
 	leds {
 		compatible = "gpio-leds";
 
@@ -142,6 +149,15 @@
 		interrupts = <1 0 IRQ_TYPE_LEVEL_LOW>; /* PM0 */
 		interrupt-names = "host-wake";
 	};
+};
+
+&mmc2 {
+	vmmc-supply = <&reg_cldo1>;
+	vqmmc-supply = <&reg_bldo2>;
+	cap-mmc-hw-reset;
+	non-removable;
+	bus-width = <8>;
+	status = "okay";
 };
 
 &ohci0 {
@@ -274,6 +290,10 @@
 
 &r_ir {
 	status = "okay";
+};
+
+&rtc {
+	clocks = <&ext_osc32k>;
 };
 
 &uart0 {

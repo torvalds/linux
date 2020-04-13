@@ -54,6 +54,7 @@ int hibmc_dumb_create(struct drm_file *file, struct drm_device *dev,
 }
 
 const struct drm_mode_config_funcs hibmc_mode_funcs = {
+	.mode_valid = drm_vram_helper_mode_valid,
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
 	.fb_create = drm_gem_fb_create,

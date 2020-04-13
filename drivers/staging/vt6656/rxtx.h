@@ -73,31 +73,10 @@ struct vnt_tx_datahead_g {
 	struct ieee80211_hdr hdr;
 } __packed;
 
-struct vnt_tx_datahead_g_fb {
-	struct vnt_phy_field b;
-	struct vnt_phy_field a;
-	__le16 duration_b;
-	__le16 duration_a;
-	__le16 duration_a_f0;
-	__le16 duration_a_f1;
-	__le16 time_stamp_off_b;
-	__le16 time_stamp_off_a;
-	struct ieee80211_hdr hdr;
-} __packed;
-
 struct vnt_tx_datahead_ab {
 	struct vnt_phy_field ab;
 	__le16 duration;
 	__le16 time_stamp_off;
-	struct ieee80211_hdr hdr;
-} __packed;
-
-struct vnt_tx_datahead_a_fb {
-	struct vnt_phy_field a;
-	__le16 duration;
-	__le16 time_stamp_off;
-	__le16 duration_f0;
-	__le16 duration_f1;
 	struct ieee80211_hdr hdr;
 } __packed;
 
@@ -113,37 +92,12 @@ struct vnt_rts_g {
 	struct vnt_tx_datahead_g data_head;
 } __packed;
 
-struct vnt_rts_g_fb {
-	struct vnt_phy_field b;
-	struct vnt_phy_field a;
-	__le16 duration_ba;
-	__le16 duration_aa;
-	__le16 duration_bb;
-	u16 wReserved;
-	__le16 rts_duration_ba_f0;
-	__le16 rts_duration_aa_f0;
-	__le16 rts_duration_ba_f1;
-	__le16 rts_duration_aa_f1;
-	struct ieee80211_rts data;
-	struct vnt_tx_datahead_g_fb data_head;
-} __packed;
-
 struct vnt_rts_ab {
 	struct vnt_phy_field ab;
 	__le16 duration;
 	u16 wReserved;
 	struct ieee80211_rts data;
 	struct vnt_tx_datahead_ab data_head;
-} __packed;
-
-struct vnt_rts_a_fb {
-	struct vnt_phy_field a;
-	__le16 duration;
-	u16 wReserved;
-	__le16 rts_duration_f0;
-	__le16 rts_duration_f1;
-	struct ieee80211_rts data;
-	struct vnt_tx_datahead_a_fb data_head;
 } __packed;
 
 /* CTS buffer header */
@@ -156,29 +110,14 @@ struct vnt_cts {
 	struct vnt_tx_datahead_g data_head;
 } __packed;
 
-struct vnt_cts_fb {
-	struct vnt_phy_field b;
-	__le16 duration_ba;
-	u16 wReserved;
-	__le16 cts_duration_ba_f0;
-	__le16 cts_duration_ba_f1;
-	struct ieee80211_cts data;
-	u16 reserved2;
-	struct vnt_tx_datahead_g_fb data_head;
-} __packed;
-
 union vnt_tx_data_head {
 	/* rts g */
 	struct vnt_rts_g rts_g;
-	struct vnt_rts_g_fb rts_g_fb;
 	/* rts a/b */
 	struct vnt_rts_ab rts_ab;
-	struct vnt_rts_a_fb rts_a_fb;
 	/* cts g */
 	struct vnt_cts cts_g;
-	struct vnt_cts_fb cts_g_fb;
 	/* no rts/cts */
-	struct vnt_tx_datahead_a_fb data_head_a_fb;
 	struct vnt_tx_datahead_ab data_head_ab;
 };
 

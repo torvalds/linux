@@ -192,7 +192,7 @@ MODULE_DEVICE_TABLE(ieee1394, snd_dg00x_id_table);
 static struct fw_driver dg00x_driver = {
 	.driver = {
 		.owner = THIS_MODULE,
-		.name = "snd-firewire-digi00x",
+		.name = KBUILD_MODNAME,
 		.bus = &fw_bus_type,
 	},
 	.probe    = snd_dg00x_probe,

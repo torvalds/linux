@@ -724,7 +724,7 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 	int max_scale = win->phy->scl ? FRAC_16_16(8, 1) :
 					DRM_PLANE_HELPER_NO_SCALING;
 
-	if (!crtc || !fb)
+	if (!crtc || WARN_ON(!fb))
 		return 0;
 
 	crtc_state = drm_atomic_get_existing_crtc_state(state->state, crtc);

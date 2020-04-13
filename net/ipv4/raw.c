@@ -1034,6 +1034,7 @@ static struct sock *raw_get_idx(struct seq_file *seq, loff_t pos)
 }
 
 void *raw_seq_start(struct seq_file *seq, loff_t *pos)
+	__acquires(&h->lock)
 {
 	struct raw_hashinfo *h = PDE_DATA(file_inode(seq->file));
 
@@ -1056,6 +1057,7 @@ void *raw_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 EXPORT_SYMBOL_GPL(raw_seq_next);
 
 void raw_seq_stop(struct seq_file *seq, void *v)
+	__releases(&h->lock)
 {
 	struct raw_hashinfo *h = PDE_DATA(file_inode(seq->file));
 

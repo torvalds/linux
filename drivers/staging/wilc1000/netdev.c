@@ -46,29 +46,21 @@ static irqreturn_t isr_bh_routine(int irq, void *userdata)
 
 static int init_irq(struct net_device *dev)
 {
-	int ret = 0;
 	struct wilc_vif *vif = netdev_priv(dev);
 	struct wilc *wl = vif->wilc;
-
-	ret = gpiod_direction_input(wl->gpio_irq);
-	if (ret) {
-		netdev_err(dev, "could not obtain gpio for WILC_INTR\n");
-		return ret;
-	}
-
-	wl->dev_irq_num = gpiod_to_irq(wl->gpio_irq);
+	int ret;
 
 	ret = request_threaded_irq(wl->dev_irq_num, isr_uh_routine,
 				   isr_bh_routine,
 				   IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 				   "WILC_IRQ", dev);
-	if (ret < 0)
-		netdev_err(dev, "Failed to request IRQ\n");
-	else
-		netdev_dbg(dev, "IRQ request succeeded IRQ-NUM= %d\n",
-			   wl->dev_irq_num);
+	if (ret) {
+		netdev_err(dev, "Failed to request IRQ [%d]\n", ret);
+		return ret;
+	}
+	netdev_dbg(dev, "IRQ request succeeded IRQ-NUM= %d\n", wl->dev_irq_num);
 
-	return ret;
+	return 0;
 }
 
 static void deinit_irq(struct net_device *dev)
@@ -501,7 +493,7 @@ static int wilc_wlan_initialize(struct net_device *dev, struct wilc_vif *vif)
 		if (ret)
 			goto fail_wilc_wlan;
 
-		if (wl->gpio_irq && init_irq(dev)) {
+		if (wl->dev_irq_num && init_irq(dev)) {
 			ret = -EIO;
 			goto fail_threads;
 		}
@@ -577,7 +569,6 @@ static int wilc_mac_open(struct net_device *ndev)
 {
 	struct wilc_vif *vif = netdev_priv(ndev);
 	struct wilc *wl = vif->wilc;
-	struct wilc_priv *priv = wdev_priv(vif->ndev->ieee80211_ptr);
 	unsigned char mac_add[ETH_ALEN] = {0};
 	int ret = 0;
 
@@ -621,7 +612,6 @@ static int wilc_mac_open(struct net_device *ndev)
 				 vif->frame_reg[1].reg);
 	netif_wake_queue(ndev);
 	wl->open_ifcs++;
-	priv->p2p.local_random = 0x01;
 	vif->mac_opened = 1;
 	return 0;
 }
@@ -804,8 +794,10 @@ void wilc_wfi_mgmt_rx(struct wilc *wilc, u8 *buff, u32 size)
 		u16 type = le16_to_cpup((__le16 *)buff);
 
 		if (vif->priv.p2p_listen_state &&
-		    ((type == vif->frame_reg[0].type && vif->frame_reg[0].reg) ||
-		     (type == vif->frame_reg[1].type && vif->frame_reg[1].reg)))
+		    ((type == vif->frame_reg[0].type &&
+		      vif->frame_reg[0].reg) ||
+		     (type == vif->frame_reg[1].type &&
+		      vif->frame_reg[1].reg)))
 			wilc_wfi_p2p_rx(vif, buff, size);
 
 		if (vif->monitor_flag)

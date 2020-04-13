@@ -1229,7 +1229,7 @@ int mtk_mdp_register_m2m_device(struct mtk_mdp_dev *mdp)
 		goto err_m2m_init;
 	}
 
-	ret = video_register_device(mdp->vdev, VFL_TYPE_GRABBER, 2);
+	ret = video_register_device(mdp->vdev, VFL_TYPE_VIDEO, 2);
 	if (ret) {
 		dev_err(dev, "failed to register video device\n");
 		goto err_vdev_register;

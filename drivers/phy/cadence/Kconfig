@@ -3,13 +3,13 @@
 # Phy drivers for Cadence PHYs
 #
 
-config PHY_CADENCE_DP
-	tristate "Cadence MHDP DisplayPort PHY driver"
+config PHY_CADENCE_TORRENT
+	tristate "Cadence Torrent PHY driver"
 	depends on OF
 	depends on HAS_IOMEM
 	select GENERIC_PHY
 	help
-	  Support for Cadence MHDP DisplayPort PHY.
+	  Support for Cadence Torrent PHY.
 
 config PHY_CADENCE_DPHY
 	tristate "Cadence D-PHY Support"

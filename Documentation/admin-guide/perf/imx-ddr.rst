@@ -43,7 +43,8 @@ value 1 for supported.
 
   AXI_ID and AXI_MASKING are mapped on DPCR1 register in performance counter.
   When non-masked bits are matching corresponding AXI_ID bits then counter is
-  incremented. Perf counter is incremented if
+  incremented. Perf counter is incremented if::
+
         AxID && AXI_MASKING == AXI_ID && AXI_MASKING
 
   This filter doesn't support filter different AXI ID for axid-read and axid-write

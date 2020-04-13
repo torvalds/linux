@@ -12,33 +12,26 @@
 
 #include "efistub.h"
 
-/*
- * Some firmware implementations have problems reading files in one go.
- * A read chunk size of 1MB seems to work for most platforms.
- *
- * Unfortunately, reading files in chunks triggers *other* bugs on some
- * platforms, so we provide a way to disable this workaround, which can
- * be done by passing "efi=nochunk" on the EFI boot stub command line.
- *
- * If you experience issues with initrd images being corrupt it's worth
- * trying efi=nochunk, but chunking is enabled by default because there
- * are far more machines that require the workaround than those that
- * break with it enabled.
- */
-#define EFI_READ_CHUNK_SIZE	(1024 * 1024)
-
-static unsigned long efi_chunk_size = EFI_READ_CHUNK_SIZE;
-
+static bool __efistub_global efi_nochunk;
 static bool __efistub_global efi_nokaslr;
+static bool __efistub_global efi_noinitrd;
 static bool __efistub_global efi_quiet;
 static bool __efistub_global efi_novamap;
 static bool __efistub_global efi_nosoftreserve;
 static bool __efistub_global efi_disable_pci_dma =
 					IS_ENABLED(CONFIG_EFI_DISABLE_PCI_DMA);
 
+bool __pure nochunk(void)
+{
+	return efi_nochunk;
+}
 bool __pure nokaslr(void)
 {
 	return efi_nokaslr;
+}
+bool __pure noinitrd(void)
+{
+	return efi_noinitrd;
 }
 bool __pure is_quiet(void)
 {
@@ -52,13 +45,6 @@ bool __pure __efi_soft_reserve_enabled(void)
 {
 	return !efi_nosoftreserve;
 }
-
-#define EFI_MMAP_NR_SLACK_SLOTS	8
-
-struct file_info {
-	efi_file_handle_t *handle;
-	u64 size;
-};
 
 void efi_printk(char *str)
 {
@@ -77,369 +63,6 @@ void efi_printk(char *str)
 	}
 }
 
-static inline bool mmap_has_headroom(unsigned long buff_size,
-				     unsigned long map_size,
-				     unsigned long desc_size)
-{
-	unsigned long slack = buff_size - map_size;
-
-	return slack / desc_size >= EFI_MMAP_NR_SLACK_SLOTS;
-}
-
-efi_status_t efi_get_memory_map(struct efi_boot_memmap *map)
-{
-	efi_memory_desc_t *m = NULL;
-	efi_status_t status;
-	unsigned long key;
-	u32 desc_version;
-
-	*map->desc_size =	sizeof(*m);
-	*map->map_size =	*map->desc_size * 32;
-	*map->buff_size =	*map->map_size;
-again:
-	status = efi_bs_call(allocate_pool, EFI_LOADER_DATA,
-			     *map->map_size, (void **)&m);
-	if (status != EFI_SUCCESS)
-		goto fail;
-
-	*map->desc_size = 0;
-	key = 0;
-	status = efi_bs_call(get_memory_map, map->map_size, m,
-			     &key, map->desc_size, &desc_version);
-	if (status == EFI_BUFFER_TOO_SMALL ||
-	    !mmap_has_headroom(*map->buff_size, *map->map_size,
-			       *map->desc_size)) {
-		efi_bs_call(free_pool, m);
-		/*
-		 * Make sure there is some entries of headroom so that the
-		 * buffer can be reused for a new map after allocations are
-		 * no longer permitted.  Its unlikely that the map will grow to
-		 * exceed this headroom once we are ready to trigger
-		 * ExitBootServices()
-		 */
-		*map->map_size += *map->desc_size * EFI_MMAP_NR_SLACK_SLOTS;
-		*map->buff_size = *map->map_size;
-		goto again;
-	}
-
-	if (status != EFI_SUCCESS)
-		efi_bs_call(free_pool, m);
-
-	if (map->key_ptr && status == EFI_SUCCESS)
-		*map->key_ptr = key;
-	if (map->desc_ver && status == EFI_SUCCESS)
-		*map->desc_ver = desc_version;
-
-fail:
-	*map->map = m;
-	return status;
-}
-
-
-unsigned long get_dram_base(void)
-{
-	efi_status_t status;
-	unsigned long map_size, buff_size;
-	unsigned long membase  = EFI_ERROR;
-	struct efi_memory_map map;
-	efi_memory_desc_t *md;
-	struct efi_boot_memmap boot_map;
-
-	boot_map.map =		(efi_memory_desc_t **)&map.map;
-	boot_map.map_size =	&map_size;
-	boot_map.desc_size =	&map.desc_size;
-	boot_map.desc_ver =	NULL;
-	boot_map.key_ptr =	NULL;
-	boot_map.buff_size =	&buff_size;
-
-	status = efi_get_memory_map(&boot_map);
-	if (status != EFI_SUCCESS)
-		return membase;
-
-	map.map_end = map.map + map_size;
-
-	for_each_efi_memory_desc_in_map(&map, md) {
-		if (md->attribute & EFI_MEMORY_WB) {
-			if (membase > md->phys_addr)
-				membase = md->phys_addr;
-		}
-	}
-
-	efi_bs_call(free_pool, map.map);
-
-	return membase;
-}
-
-/*
- * Allocate at the highest possible address that is not above 'max'.
- */
-efi_status_t efi_high_alloc(unsigned long size, unsigned long align,
-			    unsigned long *addr, unsigned long max)
-{
-	unsigned long map_size, desc_size, buff_size;
-	efi_memory_desc_t *map;
-	efi_status_t status;
-	unsigned long nr_pages;
-	u64 max_addr = 0;
-	int i;
-	struct efi_boot_memmap boot_map;
-
-	boot_map.map =		&map;
-	boot_map.map_size =	&map_size;
-	boot_map.desc_size =	&desc_size;
-	boot_map.desc_ver =	NULL;
-	boot_map.key_ptr =	NULL;
-	boot_map.buff_size =	&buff_size;
-
-	status = efi_get_memory_map(&boot_map);
-	if (status != EFI_SUCCESS)
-		goto fail;
-
-	/*
-	 * Enforce minimum alignment that EFI or Linux requires when
-	 * requesting a specific address.  We are doing page-based (or
-	 * larger) allocations, and both the address and size must meet
-	 * alignment constraints.
-	 */
-	if (align < EFI_ALLOC_ALIGN)
-		align = EFI_ALLOC_ALIGN;
-
-	size = round_up(size, EFI_ALLOC_ALIGN);
-	nr_pages = size / EFI_PAGE_SIZE;
-again:
-	for (i = 0; i < map_size / desc_size; i++) {
-		efi_memory_desc_t *desc;
-		unsigned long m = (unsigned long)map;
-		u64 start, end;
-
-		desc = efi_early_memdesc_ptr(m, desc_size, i);
-		if (desc->type != EFI_CONVENTIONAL_MEMORY)
-			continue;
-
-		if (efi_soft_reserve_enabled() &&
-		    (desc->attribute & EFI_MEMORY_SP))
-			continue;
-
-		if (desc->num_pages < nr_pages)
-			continue;
-
-		start = desc->phys_addr;
-		end = start + desc->num_pages * EFI_PAGE_SIZE;
-
-		if (end > max)
-			end = max;
-
-		if ((start + size) > end)
-			continue;
-
-		if (round_down(end - size, align) < start)
-			continue;
-
-		start = round_down(end - size, align);
-
-		/*
-		 * Don't allocate at 0x0. It will confuse code that
-		 * checks pointers against NULL.
-		 */
-		if (start == 0x0)
-			continue;
-
-		if (start > max_addr)
-			max_addr = start;
-	}
-
-	if (!max_addr)
-		status = EFI_NOT_FOUND;
-	else {
-		status = efi_bs_call(allocate_pages, EFI_ALLOCATE_ADDRESS,
-				     EFI_LOADER_DATA, nr_pages, &max_addr);
-		if (status != EFI_SUCCESS) {
-			max = max_addr;
-			max_addr = 0;
-			goto again;
-		}
-
-		*addr = max_addr;
-	}
-
-	efi_bs_call(free_pool, map);
-fail:
-	return status;
-}
-
-/*
- * Allocate at the lowest possible address that is not below 'min'.
- */
-efi_status_t efi_low_alloc_above(unsigned long size, unsigned long align,
-				 unsigned long *addr, unsigned long min)
-{
-	unsigned long map_size, desc_size, buff_size;
-	efi_memory_desc_t *map;
-	efi_status_t status;
-	unsigned long nr_pages;
-	int i;
-	struct efi_boot_memmap boot_map;
-
-	boot_map.map =		&map;
-	boot_map.map_size =	&map_size;
-	boot_map.desc_size =	&desc_size;
-	boot_map.desc_ver =	NULL;
-	boot_map.key_ptr =	NULL;
-	boot_map.buff_size =	&buff_size;
-
-	status = efi_get_memory_map(&boot_map);
-	if (status != EFI_SUCCESS)
-		goto fail;
-
-	/*
-	 * Enforce minimum alignment that EFI or Linux requires when
-	 * requesting a specific address.  We are doing page-based (or
-	 * larger) allocations, and both the address and size must meet
-	 * alignment constraints.
-	 */
-	if (align < EFI_ALLOC_ALIGN)
-		align = EFI_ALLOC_ALIGN;
-
-	size = round_up(size, EFI_ALLOC_ALIGN);
-	nr_pages = size / EFI_PAGE_SIZE;
-	for (i = 0; i < map_size / desc_size; i++) {
-		efi_memory_desc_t *desc;
-		unsigned long m = (unsigned long)map;
-		u64 start, end;
-
-		desc = efi_early_memdesc_ptr(m, desc_size, i);
-
-		if (desc->type != EFI_CONVENTIONAL_MEMORY)
-			continue;
-
-		if (efi_soft_reserve_enabled() &&
-		    (desc->attribute & EFI_MEMORY_SP))
-			continue;
-
-		if (desc->num_pages < nr_pages)
-			continue;
-
-		start = desc->phys_addr;
-		end = start + desc->num_pages * EFI_PAGE_SIZE;
-
-		if (start < min)
-			start = min;
-
-		start = round_up(start, align);
-		if ((start + size) > end)
-			continue;
-
-		status = efi_bs_call(allocate_pages, EFI_ALLOCATE_ADDRESS,
-				     EFI_LOADER_DATA, nr_pages, &start);
-		if (status == EFI_SUCCESS) {
-			*addr = start;
-			break;
-		}
-	}
-
-	if (i == map_size / desc_size)
-		status = EFI_NOT_FOUND;
-
-	efi_bs_call(free_pool, map);
-fail:
-	return status;
-}
-
-void efi_free(unsigned long size, unsigned long addr)
-{
-	unsigned long nr_pages;
-
-	if (!size)
-		return;
-
-	nr_pages = round_up(size, EFI_ALLOC_ALIGN) / EFI_PAGE_SIZE;
-	efi_bs_call(free_pages, addr, nr_pages);
-}
-
-static efi_status_t efi_file_size(void *__fh, efi_char16_t *filename_16,
-				  void **handle, u64 *file_sz)
-{
-	efi_file_handle_t *h, *fh = __fh;
-	efi_file_info_t *info;
-	efi_status_t status;
-	efi_guid_t info_guid = EFI_FILE_INFO_ID;
-	unsigned long info_sz;
-
-	status = fh->open(fh, &h, filename_16, EFI_FILE_MODE_READ, 0);
-	if (status != EFI_SUCCESS) {
-		efi_printk("Failed to open file: ");
-		efi_char16_printk(filename_16);
-		efi_printk("\n");
-		return status;
-	}
-
-	*handle = h;
-
-	info_sz = 0;
-	status = h->get_info(h, &info_guid, &info_sz, NULL);
-	if (status != EFI_BUFFER_TOO_SMALL) {
-		efi_printk("Failed to get file info size\n");
-		return status;
-	}
-
-grow:
-	status = efi_bs_call(allocate_pool, EFI_LOADER_DATA, info_sz,
-			     (void **)&info);
-	if (status != EFI_SUCCESS) {
-		efi_printk("Failed to alloc mem for file info\n");
-		return status;
-	}
-
-	status = h->get_info(h, &info_guid, &info_sz, info);
-	if (status == EFI_BUFFER_TOO_SMALL) {
-		efi_bs_call(free_pool, info);
-		goto grow;
-	}
-
-	*file_sz = info->file_size;
-	efi_bs_call(free_pool, info);
-
-	if (status != EFI_SUCCESS)
-		efi_printk("Failed to get initrd info\n");
-
-	return status;
-}
-
-static efi_status_t efi_file_read(efi_file_handle_t *handle,
-				  unsigned long *size, void *addr)
-{
-	return handle->read(handle, size, addr);
-}
-
-static efi_status_t efi_file_close(efi_file_handle_t *handle)
-{
-	return handle->close(handle);
-}
-
-static efi_status_t efi_open_volume(efi_loaded_image_t *image,
-				    efi_file_handle_t **__fh)
-{
-	efi_file_io_interface_t *io;
-	efi_file_handle_t *fh;
-	efi_guid_t fs_proto = EFI_FILE_SYSTEM_GUID;
-	efi_status_t status;
-	efi_handle_t handle = image->device_handle;
-
-	status = efi_bs_call(handle_protocol, handle, &fs_proto, (void **)&io);
-	if (status != EFI_SUCCESS) {
-		efi_printk("Failed to handle fs_proto\n");
-		return status;
-	}
-
-	status = io->open_volume(io, &fh);
-	if (status != EFI_SUCCESS)
-		efi_printk("Failed to open volume\n");
-	else
-		*__fh = fh;
-
-	return status;
-}
-
 /*
  * Parse the ASCII string 'cmdline' for EFI options, denoted by the efi=
  * option, e.g. efi=nochunk.
@@ -450,316 +73,42 @@ static efi_status_t efi_open_volume(efi_loaded_image_t *image,
  */
 efi_status_t efi_parse_options(char const *cmdline)
 {
-	char *str;
-
-	str = strstr(cmdline, "nokaslr");
-	if (str == cmdline || (str && str > cmdline && *(str - 1) == ' '))
-		efi_nokaslr = true;
-
-	str = strstr(cmdline, "quiet");
-	if (str == cmdline || (str && str > cmdline && *(str - 1) == ' '))
-		efi_quiet = true;
-
-	/*
-	 * If no EFI parameters were specified on the cmdline we've got
-	 * nothing to do.
-	 */
-	str = strstr(cmdline, "efi=");
-	if (!str)
-		return EFI_SUCCESS;
-
-	/* Skip ahead to first argument */
-	str += strlen("efi=");
-
-	/*
-	 * Remember, because efi= is also used by the kernel we need to
-	 * skip over arguments we don't understand.
-	 */
-	while (*str && *str != ' ') {
-		if (!strncmp(str, "nochunk", 7)) {
-			str += strlen("nochunk");
-			efi_chunk_size = -1UL;
-		}
-
-		if (!strncmp(str, "novamap", 7)) {
-			str += strlen("novamap");
-			efi_novamap = true;
-		}
-
-		if (IS_ENABLED(CONFIG_EFI_SOFT_RESERVE) &&
-		    !strncmp(str, "nosoftreserve", 7)) {
-			str += strlen("nosoftreserve");
-			efi_nosoftreserve = true;
-		}
-
-		if (!strncmp(str, "disable_early_pci_dma", 21)) {
-			str += strlen("disable_early_pci_dma");
-			efi_disable_pci_dma = true;
-		}
-
-		if (!strncmp(str, "no_disable_early_pci_dma", 24)) {
-			str += strlen("no_disable_early_pci_dma");
-			efi_disable_pci_dma = false;
-		}
-
-		/* Group words together, delimited by "," */
-		while (*str && *str != ' ' && *str != ',')
-			str++;
-
-		if (*str == ',')
-			str++;
-	}
-
-	return EFI_SUCCESS;
-}
-
-/*
- * Check the cmdline for a LILO-style file= arguments.
- *
- * We only support loading a file from the same filesystem as
- * the kernel image.
- */
-efi_status_t handle_cmdline_files(efi_loaded_image_t *image,
-				  char *cmd_line, char *option_string,
-				  unsigned long max_addr,
-				  unsigned long *load_addr,
-				  unsigned long *load_size)
-{
-	struct file_info *files;
-	unsigned long file_addr;
-	u64 file_size_total;
-	efi_file_handle_t *fh = NULL;
+	size_t len = strlen(cmdline) + 1;
 	efi_status_t status;
-	int nr_files;
-	char *str;
-	int i, j, k;
+	char *str, *buf;
 
-	file_addr = 0;
-	file_size_total = 0;
-
-	str = cmd_line;
-
-	j = 0;			/* See close_handles */
-
-	if (!load_addr || !load_size)
-		return EFI_INVALID_PARAMETER;
-
-	*load_addr = 0;
-	*load_size = 0;
-
-	if (!str || !*str)
-		return EFI_SUCCESS;
-
-	for (nr_files = 0; *str; nr_files++) {
-		str = strstr(str, option_string);
-		if (!str)
-			break;
-
-		str += strlen(option_string);
-
-		/* Skip any leading slashes */
-		while (*str == '/' || *str == '\\')
-			str++;
-
-		while (*str && *str != ' ' && *str != '\n')
-			str++;
-	}
-
-	if (!nr_files)
-		return EFI_SUCCESS;
-
-	status = efi_bs_call(allocate_pool, EFI_LOADER_DATA,
-			     nr_files * sizeof(*files), (void **)&files);
-	if (status != EFI_SUCCESS) {
-		pr_efi_err("Failed to alloc mem for file handle list\n");
-		goto fail;
-	}
-
-	str = cmd_line;
-	for (i = 0; i < nr_files; i++) {
-		struct file_info *file;
-		efi_char16_t filename_16[256];
-		efi_char16_t *p;
-
-		str = strstr(str, option_string);
-		if (!str)
-			break;
-
-		str += strlen(option_string);
-
-		file = &files[i];
-		p = filename_16;
-
-		/* Skip any leading slashes */
-		while (*str == '/' || *str == '\\')
-			str++;
-
-		while (*str && *str != ' ' && *str != '\n') {
-			if ((u8 *)p >= (u8 *)filename_16 + sizeof(filename_16))
-				break;
-
-			if (*str == '/') {
-				*p++ = '\\';
-				str++;
-			} else {
-				*p++ = *str++;
-			}
-		}
-
-		*p = '\0';
-
-		/* Only open the volume once. */
-		if (!i) {
-			status = efi_open_volume(image, &fh);
-			if (status != EFI_SUCCESS)
-				goto free_files;
-		}
-
-		status = efi_file_size(fh, filename_16, (void **)&file->handle,
-				       &file->size);
-		if (status != EFI_SUCCESS)
-			goto close_handles;
-
-		file_size_total += file->size;
-	}
-
-	if (file_size_total) {
-		unsigned long addr;
-
-		/*
-		 * Multiple files need to be at consecutive addresses in memory,
-		 * so allocate enough memory for all the files.  This is used
-		 * for loading multiple files.
-		 */
-		status = efi_high_alloc(file_size_total, 0x1000, &file_addr,
-					max_addr);
-		if (status != EFI_SUCCESS) {
-			pr_efi_err("Failed to alloc highmem for files\n");
-			goto close_handles;
-		}
-
-		/* We've run out of free low memory. */
-		if (file_addr > max_addr) {
-			pr_efi_err("We've run out of free low memory\n");
-			status = EFI_INVALID_PARAMETER;
-			goto free_file_total;
-		}
-
-		addr = file_addr;
-		for (j = 0; j < nr_files; j++) {
-			unsigned long size;
-
-			size = files[j].size;
-			while (size) {
-				unsigned long chunksize;
-
-				if (IS_ENABLED(CONFIG_X86) && size > efi_chunk_size)
-					chunksize = efi_chunk_size;
-				else
-					chunksize = size;
-
-				status = efi_file_read(files[j].handle,
-						       &chunksize,
-						       (void *)addr);
-				if (status != EFI_SUCCESS) {
-					pr_efi_err("Failed to read file\n");
-					goto free_file_total;
-				}
-				addr += chunksize;
-				size -= chunksize;
-			}
-
-			efi_file_close(files[j].handle);
-		}
-
-	}
-
-	efi_bs_call(free_pool, files);
-
-	*load_addr = file_addr;
-	*load_size = file_size_total;
-
-	return status;
-
-free_file_total:
-	efi_free(file_size_total, file_addr);
-
-close_handles:
-	for (k = j; k < i; k++)
-		efi_file_close(files[k].handle);
-free_files:
-	efi_bs_call(free_pool, files);
-fail:
-	*load_addr = 0;
-	*load_size = 0;
-
-	return status;
-}
-/*
- * Relocate a kernel image, either compressed or uncompressed.
- * In the ARM64 case, all kernel images are currently
- * uncompressed, and as such when we relocate it we need to
- * allocate additional space for the BSS segment. Any low
- * memory that this function should avoid needs to be
- * unavailable in the EFI memory map, as if the preferred
- * address is not available the lowest available address will
- * be used.
- */
-efi_status_t efi_relocate_kernel(unsigned long *image_addr,
-				 unsigned long image_size,
-				 unsigned long alloc_size,
-				 unsigned long preferred_addr,
-				 unsigned long alignment,
-				 unsigned long min_addr)
-{
-	unsigned long cur_image_addr;
-	unsigned long new_addr = 0;
-	efi_status_t status;
-	unsigned long nr_pages;
-	efi_physical_addr_t efi_addr = preferred_addr;
-
-	if (!image_addr || !image_size || !alloc_size)
-		return EFI_INVALID_PARAMETER;
-	if (alloc_size < image_size)
-		return EFI_INVALID_PARAMETER;
-
-	cur_image_addr = *image_addr;
-
-	/*
-	 * The EFI firmware loader could have placed the kernel image
-	 * anywhere in memory, but the kernel has restrictions on the
-	 * max physical address it can run at.  Some architectures
-	 * also have a prefered address, so first try to relocate
-	 * to the preferred address.  If that fails, allocate as low
-	 * as possible while respecting the required alignment.
-	 */
-	nr_pages = round_up(alloc_size, EFI_ALLOC_ALIGN) / EFI_PAGE_SIZE;
-	status = efi_bs_call(allocate_pages, EFI_ALLOCATE_ADDRESS,
-			     EFI_LOADER_DATA, nr_pages, &efi_addr);
-	new_addr = efi_addr;
-	/*
-	 * If preferred address allocation failed allocate as low as
-	 * possible.
-	 */
-	if (status != EFI_SUCCESS) {
-		status = efi_low_alloc_above(alloc_size, alignment, &new_addr,
-					     min_addr);
-	}
-	if (status != EFI_SUCCESS) {
-		pr_efi_err("Failed to allocate usable memory for kernel.\n");
+	status = efi_bs_call(allocate_pool, EFI_LOADER_DATA, len, (void **)&buf);
+	if (status != EFI_SUCCESS)
 		return status;
+
+	str = skip_spaces(memcpy(buf, cmdline, len));
+
+	while (*str) {
+		char *param, *val;
+
+		str = next_arg(str, &param, &val);
+
+		if (!strcmp(param, "nokaslr")) {
+			efi_nokaslr = true;
+		} else if (!strcmp(param, "quiet")) {
+			efi_quiet = true;
+		} else if (!strcmp(param, "noinitrd")) {
+			efi_noinitrd = true;
+		} else if (!strcmp(param, "efi") && val) {
+			efi_nochunk = parse_option_str(val, "nochunk");
+			efi_novamap = parse_option_str(val, "novamap");
+
+			efi_nosoftreserve = IS_ENABLED(CONFIG_EFI_SOFT_RESERVE) &&
+					    parse_option_str(val, "nosoftreserve");
+
+			if (parse_option_str(val, "disable_early_pci_dma"))
+				efi_disable_pci_dma = true;
+			if (parse_option_str(val, "no_disable_early_pci_dma"))
+				efi_disable_pci_dma = false;
+		}
 	}
-
-	/*
-	 * We know source/dest won't overlap since both memory ranges
-	 * have been allocated by UEFI, so we can safely use memcpy.
-	 */
-	memcpy((void *)new_addr, (void *)cur_image_addr, image_size);
-
-	/* Return the new address of the relocated image. */
-	*image_addr = new_addr;
-
-	return status;
+	efi_bs_call(free_pool, buf);
+	return EFI_SUCCESS;
 }
 
 /*
@@ -811,23 +160,19 @@ static u8 *efi_utf16_to_utf8(u8 *dst, const u16 *src, int n)
 	return dst;
 }
 
-#ifndef MAX_CMDLINE_ADDRESS
-#define MAX_CMDLINE_ADDRESS	ULONG_MAX
-#endif
-
 /*
  * Convert the unicode UEFI command line to ASCII to pass to kernel.
  * Size of memory allocated return in *cmd_line_len.
  * Returns NULL on error.
  */
 char *efi_convert_cmdline(efi_loaded_image_t *image,
-			  int *cmd_line_len)
+			  int *cmd_line_len, unsigned long max_addr)
 {
 	const u16 *s2;
 	u8 *s1 = NULL;
 	unsigned long cmdline_addr = 0;
-	int load_options_chars = image->load_options_size / 2; /* UTF-16 */
-	const u16 *options = image->load_options;
+	int load_options_chars = efi_table_attr(image, load_options_size) / 2;
+	const u16 *options = efi_table_attr(image, load_options);
 	int options_bytes = 0;  /* UTF-8 bytes */
 	int options_chars = 0;  /* UTF-16 chars */
 	efi_status_t status;
@@ -849,8 +194,7 @@ char *efi_convert_cmdline(efi_loaded_image_t *image,
 
 	options_bytes++;	/* NUL termination */
 
-	status = efi_high_alloc(options_bytes, 0, &cmdline_addr,
-				MAX_CMDLINE_ADDRESS);
+	status = efi_allocate_pages(options_bytes, &cmdline_addr, max_addr);
 	if (status != EFI_SUCCESS)
 		return NULL;
 
@@ -961,4 +305,90 @@ void efi_char16_printk(efi_char16_t *str)
 {
 	efi_call_proto(efi_table_attr(efi_system_table(), con_out),
 		       output_string, str);
+}
+
+/*
+ * The LINUX_EFI_INITRD_MEDIA_GUID vendor media device path below provides a way
+ * for the firmware or bootloader to expose the initrd data directly to the stub
+ * via the trivial LoadFile2 protocol, which is defined in the UEFI spec, and is
+ * very easy to implement. It is a simple Linux initrd specific conduit between
+ * kernel and firmware, allowing us to put the EFI stub (being part of the
+ * kernel) in charge of where and when to load the initrd, while leaving it up
+ * to the firmware to decide whether it needs to expose its filesystem hierarchy
+ * via EFI protocols.
+ */
+static const struct {
+	struct efi_vendor_dev_path	vendor;
+	struct efi_generic_dev_path	end;
+} __packed initrd_dev_path = {
+	{
+		{
+			EFI_DEV_MEDIA,
+			EFI_DEV_MEDIA_VENDOR,
+			sizeof(struct efi_vendor_dev_path),
+		},
+		LINUX_EFI_INITRD_MEDIA_GUID
+	}, {
+		EFI_DEV_END_PATH,
+		EFI_DEV_END_ENTIRE,
+		sizeof(struct efi_generic_dev_path)
+	}
+};
+
+/**
+ * efi_load_initrd_dev_path - load the initrd from the Linux initrd device path
+ * @load_addr:	pointer to store the address where the initrd was loaded
+ * @load_size:	pointer to store the size of the loaded initrd
+ * @max:	upper limit for the initrd memory allocation
+ * @return:	%EFI_SUCCESS if the initrd was loaded successfully, in which
+ *		case @load_addr and @load_size are assigned accordingly
+ *		%EFI_NOT_FOUND if no LoadFile2 protocol exists on the initrd
+ *		device path
+ *		%EFI_INVALID_PARAMETER if load_addr == NULL or load_size == NULL
+ *		%EFI_OUT_OF_RESOURCES if memory allocation failed
+ *		%EFI_LOAD_ERROR in all other cases
+ */
+efi_status_t efi_load_initrd_dev_path(unsigned long *load_addr,
+				      unsigned long *load_size,
+				      unsigned long max)
+{
+	efi_guid_t lf2_proto_guid = EFI_LOAD_FILE2_PROTOCOL_GUID;
+	efi_device_path_protocol_t *dp;
+	efi_load_file2_protocol_t *lf2;
+	unsigned long initrd_addr;
+	unsigned long initrd_size;
+	efi_handle_t handle;
+	efi_status_t status;
+
+	if (!load_addr || !load_size)
+		return EFI_INVALID_PARAMETER;
+
+	dp = (efi_device_path_protocol_t *)&initrd_dev_path;
+	status = efi_bs_call(locate_device_path, &lf2_proto_guid, &dp, &handle);
+	if (status != EFI_SUCCESS)
+		return status;
+
+	status = efi_bs_call(handle_protocol, handle, &lf2_proto_guid,
+			     (void **)&lf2);
+	if (status != EFI_SUCCESS)
+		return status;
+
+	status = efi_call_proto(lf2, load_file, dp, false, &initrd_size, NULL);
+	if (status != EFI_BUFFER_TOO_SMALL)
+		return EFI_LOAD_ERROR;
+
+	status = efi_allocate_pages(initrd_size, &initrd_addr, max);
+	if (status != EFI_SUCCESS)
+		return status;
+
+	status = efi_call_proto(lf2, load_file, dp, false, &initrd_size,
+				(void *)initrd_addr);
+	if (status != EFI_SUCCESS) {
+		efi_free(initrd_size, initrd_addr);
+		return EFI_LOAD_ERROR;
+	}
+
+	*load_addr = initrd_addr;
+	*load_size = initrd_size;
+	return EFI_SUCCESS;
 }

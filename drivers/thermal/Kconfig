@@ -1,17 +1,18 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
-# Generic thermal sysfs drivers configuration
+# Generic thermal drivers configuration
 #
 
 menuconfig THERMAL
-	bool "Generic Thermal sysfs driver"
+	bool "Thermal drivers"
 	help
-	  Generic Thermal Sysfs driver offers a generic mechanism for
+	  Thermal drivers offer a generic mechanism for
 	  thermal management. Usually it's made up of one or more thermal
-	  zone and cooling device.
+	  zones and cooling devices.
 	  Each thermal zone contains its own temperature, trip points,
-	  cooling devices.
-	  All platforms with ACPI thermal support can use this driver.
+	  and cooling devices.
+	  All platforms with ACPI or Open Firmware thermal support can use
+	  this driver.
 	  If you want this support, you should say Y here.
 
 if THERMAL
@@ -251,6 +252,27 @@ config IMX_THERMAL
 	  cpufreq is used as the cooling device to throttle CPUs when the
 	  passive trip is crossed.
 
+config IMX_SC_THERMAL
+	tristate "Temperature sensor driver for NXP i.MX SoCs with System Controller"
+	depends on IMX_SCU
+	depends on OF
+	help
+	  Support for Temperature Monitor (TEMPMON) found on NXP i.MX SoCs with
+	  system controller inside, Linux kernel has to communicate with system
+	  controller via MU (message unit) IPC to get temperature from thermal
+	  sensor. It supports one critical trip point and one
+	  passive trip point for each thermal sensor.
+
+config IMX8MM_THERMAL
+	tristate "Temperature sensor driver for Freescale i.MX8MM SoC"
+	depends on ARCH_MXC || COMPILE_TEST
+	depends on OF
+	help
+	  Support for Thermal Monitoring Unit (TMU) found on Freescale i.MX8MM SoC.
+	  It supports one critical trip point and one passive trip point. The
+	  cpufreq is used as the cooling device to throttle CPUs when the passive
+	  trip is crossed.
+
 config MAX77620_THERMAL
 	tristate "Temperature sensor driver for Maxim MAX77620 PMIC"
 	depends on MFD_MAX77620
@@ -265,6 +287,7 @@ config QORIQ_THERMAL
 	tristate "QorIQ Thermal Monitoring Unit"
 	depends on THERMAL_OF
 	depends on HAS_IOMEM
+	select REGMAP_MMIO
 	help
 	  Support for Thermal Monitoring Unit (TMU) found on QorIQ platforms.
 	  It supports one critical trip point and one passive trip point. The
@@ -460,4 +483,11 @@ config UNIPHIER_THERMAL
 	  Enable this to plug in UniPhier on-chip PVT thermal driver into the
 	  thermal framework. The driver supports CPU thermal zone temperature
 	  reporting and a couple of trip points.
+
+config SPRD_THERMAL
+	tristate "Temperature sensor on Spreadtrum SoCs"
+	depends on ARCH_SPRD || COMPILE_TEST
+	help
+	  Support for the Spreadtrum thermal sensor driver in the Linux thermal
+	  framework.
 endif

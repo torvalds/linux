@@ -602,6 +602,11 @@ int smb2_parse_query_directory(struct cifs_tcon *tcon, struct kvec *rsp_iov,
 			       int resp_buftype,
 			       struct cifs_search_info *srch_inf);
 
+struct super_block *cifs_get_tcp_super(struct TCP_Server_Info *server);
+void cifs_put_tcp_super(struct super_block *sb);
+int update_super_prepath(struct cifs_tcon *tcon, const char *prefix,
+			 size_t prefix_len);
+
 #ifdef CONFIG_CIFS_DFS_UPCALL
 static inline int get_dfs_path(const unsigned int xid, struct cifs_ses *ses,
 			       const char *old_path,

@@ -61,16 +61,14 @@ int main(int argc, char *argv[])
 
 		switch (get_ucall(vm, VCPU_ID, &uc)) {
 		case UCALL_ABORT:
-			TEST_ASSERT(false, "%s",
-				    (const char *)uc.args[0]);
+			TEST_FAIL("%s", (const char *)uc.args[0]);
 			/* NOT REACHED */
 		case UCALL_SYNC:
 			break;
 		case UCALL_DONE:
 			goto done;
 		default:
-			TEST_ASSERT(false,
-				    "Unknown ucall 0x%x.", uc.cmd);
+			TEST_FAIL("Unknown ucall 0x%lx.", uc.cmd);
 		}
 	}
 done:

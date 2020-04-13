@@ -685,9 +685,9 @@
 		};
 
 		sdcc1: sdcc@7804000 {
-			compatible = "qcom,sdhci-msm-v5";
+			compatible = "qcom,qcs404-sdhci", "qcom,sdhci-msm-v5";
 			reg = <0x07804000 0x1000>, <0x7805000 0x1000>;
-			reg-names = "hc_mem", "cmdq_mem";
+			reg-names = "hc", "cqhci";
 
 			interrupts = <GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 138 IRQ_TYPE_LEVEL_HIGH>;

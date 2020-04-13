@@ -25,8 +25,8 @@
 #ifndef __DC_DWBC_H__
 #define __DC_DWBC_H__
 
+#include "dal_types.h"
 #include "dc_hw_types.h"
-
 
 #define DWB_SW_V2	1
 #define DWB_MCIF_BUF_COUNT 4
@@ -34,7 +34,6 @@
 /* forward declaration of mcif_wb struct */
 struct mcif_wb;
 
-enum dce_version;
 
 enum dwb_sw_version {
 	dwb_ver_1_0 = 1,

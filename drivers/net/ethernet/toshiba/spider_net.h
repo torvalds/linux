@@ -470,7 +470,7 @@ struct spider_net_card {
 	struct spider_net_extra_stats spider_stats;
 
 	/* Must be last item in struct */
-	struct spider_net_descr darray[0];
+	struct spider_net_descr darray[];
 };
 
 #endif

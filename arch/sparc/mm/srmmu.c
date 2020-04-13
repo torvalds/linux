@@ -1865,9 +1865,7 @@ void __init load_mmu(void)
 		&smp_cachetlb_ops;
 #endif
 
-	if (sparc_cpu_model == sun4d)
-		ld_mmu_iounit();
-	else
+	if (sparc_cpu_model != sun4d)
 		ld_mmu_iommu();
 #ifdef CONFIG_SMP
 	if (sparc_cpu_model == sun4d)

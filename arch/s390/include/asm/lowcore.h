@@ -141,7 +141,9 @@ struct lowcore {
 
 	/* br %r1 trampoline */
 	__u16	br_r1_trampoline;		/* 0x0400 */
-	__u8	pad_0x0402[0x0e00-0x0402];	/* 0x0402 */
+	__u32	return_lpswe;			/* 0x0402 */
+	__u32	return_mcck_lpswe;		/* 0x0406 */
+	__u8	pad_0x040a[0x0e00-0x040a];	/* 0x040a */
 
 	/*
 	 * 0xe00 contains the address of the IPL Parameter Information

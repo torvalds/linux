@@ -6,7 +6,12 @@
  */
 
 #include "check.h"
-#include "sgi.h"
+
+#define SGI_LABEL_MAGIC 0x0be5a941
+
+enum {
+	LINUX_RAID_PARTITION = 0xfd,	/* autodetect RAID partition */
+};
 
 struct sgi_disklabel {
 	__be32 magic_mushroom;		/* Big fat spliff... */

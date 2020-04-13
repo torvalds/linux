@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <sound/hdaudio_ext.h>
 #include <sound/hda_register.h>
+#include <sound/hda_component.h>
 #include "../ops.h"
 #include "hda.h"
 
@@ -64,14 +65,31 @@ int hda_dsp_ctrl_get_caps(struct snd_sof_dev *sdev)
 	struct hdac_bus *bus = sof_to_bus(sdev);
 	u32 cap, offset, feature;
 	int count = 0;
+	int ret;
+
+	/*
+	 * On some devices, one reset cycle is necessary before reading
+	 * capabilities
+	 */
+	ret = hda_dsp_ctrl_link_reset(sdev, true);
+	if (ret < 0)
+		return ret;
+	ret = hda_dsp_ctrl_link_reset(sdev, false);
+	if (ret < 0)
+		return ret;
 
 	offset = snd_sof_dsp_read(sdev, HDA_DSP_HDA_BAR, SOF_HDA_LLCH);
 
 	do {
-		cap = snd_sof_dsp_read(sdev, HDA_DSP_HDA_BAR, offset);
-
 		dev_dbg(sdev->dev, "checking for capabilities at offset 0x%x\n",
 			offset & SOF_HDA_CAP_NEXT_MASK);
+
+		cap = snd_sof_dsp_read(sdev, HDA_DSP_HDA_BAR, offset);
+
+		if (cap == -1) {
+			dev_dbg(bus->dev, "Invalid capability reg read\n");
+			break;
+		}
 
 		feature = (cap & SOF_HDA_CAP_ID_MASK) >> SOF_HDA_CAP_ID_OFF;
 
@@ -105,8 +123,8 @@ int hda_dsp_ctrl_get_caps(struct snd_sof_dev *sdev)
 			bus->mlcap = bus->remap_addr + offset;
 			break;
 		default:
-			dev_vdbg(sdev->dev, "found capability %d at 0x%x\n",
-				 feature, offset);
+			dev_dbg(sdev->dev, "found capability %d at 0x%x\n",
+				feature, offset);
 			break;
 		}
 
@@ -176,6 +194,9 @@ int hda_dsp_ctrl_init_chip(struct snd_sof_dev *sdev, bool full_reset)
 	if (bus->chip_init)
 		return 0;
 
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
+	snd_hdac_set_codec_wakeup(bus, true);
+#endif
 	hda_dsp_ctrl_misc_clock_gating(sdev, false);
 
 	if (full_reset) {
@@ -183,7 +204,7 @@ int hda_dsp_ctrl_init_chip(struct snd_sof_dev *sdev, bool full_reset)
 		ret = hda_dsp_ctrl_link_reset(sdev, true);
 		if (ret < 0) {
 			dev_err(sdev->dev, "error: failed to reset HDA controller\n");
-			return ret;
+			goto err;
 		}
 
 		usleep_range(500, 1000);
@@ -192,7 +213,7 @@ int hda_dsp_ctrl_init_chip(struct snd_sof_dev *sdev, bool full_reset)
 		ret = hda_dsp_ctrl_link_reset(sdev, false);
 		if (ret < 0) {
 			dev_err(sdev->dev, "error: failed to exit HDA controller reset\n");
-			return ret;
+			goto err;
 		}
 
 		usleep_range(1000, 1200);
@@ -202,7 +223,8 @@ int hda_dsp_ctrl_init_chip(struct snd_sof_dev *sdev, bool full_reset)
 	/* check to see if controller is ready */
 	if (!snd_hdac_chip_readb(bus, GCTL)) {
 		dev_dbg(bus->dev, "controller not ready!\n");
-		return -EBUSY;
+		ret = -EBUSY;
+		goto err;
 	}
 
 	/* Accept unsolicited responses */
@@ -268,7 +290,11 @@ int hda_dsp_ctrl_init_chip(struct snd_sof_dev *sdev, bool full_reset)
 
 	bus->chip_init = true;
 
+err:
 	hda_dsp_ctrl_misc_clock_gating(sdev, true);
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
+	snd_hdac_set_codec_wakeup(bus, false);
+#endif
 
 	return ret;
 }

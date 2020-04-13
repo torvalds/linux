@@ -32,6 +32,8 @@ properties:
   '#size-cells':
     const: 1
 
+  ranges: true
+
   clock-frequency:
     description: The frequency of the main counter, in Hz. Should be present
       only where necessary to work around broken firmware which does not configure
@@ -92,6 +94,8 @@ required:
   - reg
   - '#address-cells'
   - '#size-cells'
+
+additionalProperties: false
 
 examples:
   - |

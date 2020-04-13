@@ -371,7 +371,6 @@ static struct snd_soc_dai_driver zx_tdm_dai = {
 
 static int zx_tdm_probe(struct platform_device *pdev)
 {
-	struct device *dev = &pdev->dev;
 	struct of_phandle_args out_args;
 	unsigned int dma_reg_offset;
 	struct zx_tdm_info *zx_tdm;
@@ -384,7 +383,7 @@ static int zx_tdm_probe(struct platform_device *pdev)
 	if (!zx_tdm)
 		return -ENOMEM;
 
-	zx_tdm->dev = dev;
+	zx_tdm->dev = &pdev->dev;
 
 	zx_tdm->dai_wclk = devm_clk_get(&pdev->dev, "wclk");
 	if (IS_ERR(zx_tdm->dai_wclk)) {

@@ -11,6 +11,6 @@ TEST_GEN_PROGS += test_freezer
 
 include ../lib.mk
 
-$(OUTPUT)/test_memcontrol: cgroup_util.c
-$(OUTPUT)/test_core: cgroup_util.c
-$(OUTPUT)/test_freezer: cgroup_util.c
+$(OUTPUT)/test_memcontrol: cgroup_util.c ../clone3/clone3_selftests.h
+$(OUTPUT)/test_core: cgroup_util.c ../clone3/clone3_selftests.h
+$(OUTPUT)/test_freezer: cgroup_util.c ../clone3/clone3_selftests.h

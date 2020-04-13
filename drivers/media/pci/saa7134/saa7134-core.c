@@ -1214,7 +1214,7 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 	if (saa7134_no_overlay <= 0)
 		dev->video_dev->device_caps |= V4L2_CAP_VIDEO_OVERLAY;
 
-	err = video_register_device(dev->video_dev,VFL_TYPE_GRABBER,
+	err = video_register_device(dev->video_dev,VFL_TYPE_VIDEO,
 				    video_nr[dev->nr]);
 	if (err < 0) {
 		pr_info("%s: can't register video device\n",

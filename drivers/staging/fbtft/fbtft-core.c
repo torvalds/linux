@@ -1186,7 +1186,9 @@ static struct fbtft_platform_data *fbtft_properties_read(struct device *dev)
 	if (device_property_present(dev, "led-gpios"))
 		pdata->display.backlight = 1;
 	if (device_property_present(dev, "init"))
-		pdata->display.fbtftops.init_display = fbtft_init_display_from_property;
+		pdata->display.fbtftops.init_display =
+			fbtft_init_display_from_property;
+
 	pdata->display.fbtftops.request_gpios = fbtft_request_gpios;
 
 	return pdata;

@@ -132,13 +132,13 @@
 				 <&scg1 IMX7ULP_CLK_NIC1_BUS_DIV>;
 			clock-names = "aclk", "ipg";
 
-			sec_jr0: jr0@1000 {
+			sec_jr0: jr@1000 {
 				compatible = "fsl,sec-v4.0-job-ring";
 				reg = <0x1000 0x1000>;
 				interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
-			sec_jr1: jr1@2000 {
+			sec_jr1: jr@2000 {
 				compatible = "fsl,sec-v4.0-job-ring";
 				reg = <0x2000 0x1000>;
 				interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;

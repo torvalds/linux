@@ -958,6 +958,7 @@ ENTRY(_switch_to)
 	nop
 
 ENTRY(_reset)
+	VM_OFF
 	brai	0; /* Jump to reset vector */
 
 	/* These are compiled and loaded into high memory, then

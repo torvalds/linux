@@ -38,6 +38,8 @@ struct vdso_data *arch_get_vdso_data(void *vvar_page)
 }
 #undef EMIT_VVAR
 
+unsigned int vclocks_used __read_mostly;
+
 #if defined(CONFIG_X86_64)
 unsigned int __read_mostly vdso64_enabled = 1;
 #endif
@@ -219,7 +221,7 @@ static vm_fault_t vvar_fault(const struct vm_special_mapping *sm,
 	} else if (sym_offset == image->sym_pvclock_page) {
 		struct pvclock_vsyscall_time_info *pvti =
 			pvclock_get_pvti_cpu0_va();
-		if (pvti && vclock_was_used(VCLOCK_PVCLOCK)) {
+		if (pvti && vclock_was_used(VDSO_CLOCKMODE_PVCLOCK)) {
 			return vmf_insert_pfn_prot(vma, vmf->address,
 					__pa(pvti) >> PAGE_SHIFT,
 					pgprot_decrypted(vma->vm_page_prot));
@@ -227,7 +229,7 @@ static vm_fault_t vvar_fault(const struct vm_special_mapping *sm,
 	} else if (sym_offset == image->sym_hvclock_page) {
 		struct ms_hyperv_tsc_page *tsc_pg = hv_get_tsc_page();
 
-		if (tsc_pg && vclock_was_used(VCLOCK_HVCLOCK))
+		if (tsc_pg && vclock_was_used(VDSO_CLOCKMODE_HVCLOCK))
 			return vmf_insert_pfn(vma, vmf->address,
 					virt_to_phys(tsc_pg) >> PAGE_SHIFT);
 	} else if (sym_offset == image->sym_timens_page) {
@@ -445,6 +447,8 @@ __setup("vdso=", vdso_setup);
 
 static int __init init_vdso(void)
 {
+	BUILD_BUG_ON(VDSO_CLOCKMODE_MAX >= 32);
+
 	init_vdso_image(&vdso_image_64);
 
 #ifdef CONFIG_X86_X32_ABI

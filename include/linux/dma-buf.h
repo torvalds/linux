@@ -43,18 +43,6 @@ struct dma_buf_ops {
 	bool cache_sgt_mapping;
 
 	/**
-	 * @dynamic_mapping:
-	 *
-	 * If true the framework makes sure that the map/unmap_dma_buf
-	 * callbacks are always called with the dma_resv object locked.
-	 *
-	 * If false the framework makes sure that the map/unmap_dma_buf
-	 * callbacks are always called without the dma_resv object locked.
-	 * Mutual exclusive with @cache_sgt_mapping.
-	 */
-	bool dynamic_mapping;
-
-	/**
 	 * @attach:
 	 *
 	 * This is called from dma_buf_attach() to make sure that a given
@@ -94,13 +82,42 @@ struct dma_buf_ops {
 	void (*detach)(struct dma_buf *, struct dma_buf_attachment *);
 
 	/**
+	 * @pin:
+	 *
+	 * This is called by dma_buf_pin and lets the exporter know that the
+	 * DMA-buf can't be moved any more.
+	 *
+	 * This is called with the dmabuf->resv object locked and is mutual
+	 * exclusive with @cache_sgt_mapping.
+	 *
+	 * This callback is optional and should only be used in limited use
+	 * cases like scanout and not for temporary pin operations.
+	 *
+	 * Returns:
+	 *
+	 * 0 on success, negative error code on failure.
+	 */
+	int (*pin)(struct dma_buf_attachment *attach);
+
+	/**
+	 * @unpin:
+	 *
+	 * This is called by dma_buf_unpin and lets the exporter know that the
+	 * DMA-buf can be moved again.
+	 *
+	 * This is called with the dmabuf->resv object locked and is mutual
+	 * exclusive with @cache_sgt_mapping.
+	 *
+	 * This callback is optional.
+	 */
+	void (*unpin)(struct dma_buf_attachment *attach);
+
+	/**
 	 * @map_dma_buf:
 	 *
 	 * This is called by dma_buf_map_attachment() and is used to map a
 	 * shared &dma_buf into device address space, and it is mandatory. It
-	 * can only be called if @attach has been called successfully. This
-	 * essentially pins the DMA buffer into place, and it cannot be moved
-	 * any more
+	 * can only be called if @attach has been called successfully.
 	 *
 	 * This call may sleep, e.g. when the backing storage first needs to be
 	 * allocated, or moved to a location suitable for all currently attached
@@ -141,9 +158,8 @@ struct dma_buf_ops {
 	 *
 	 * This is called by dma_buf_unmap_attachment() and should unmap and
 	 * release the &sg_table allocated in @map_dma_buf, and it is mandatory.
-	 * It should also unpin the backing storage if this is the last mapping
-	 * of the DMA buffer, it the exporter supports backing storage
-	 * migration.
+	 * For static dma_buf handling this might also unpins the backing
+	 * storage if this is the last mapping of the DMA buffer.
 	 */
 	void (*unmap_dma_buf)(struct dma_buf_attachment *,
 			      struct sg_table *,
@@ -312,6 +328,34 @@ struct dma_buf {
 };
 
 /**
+ * struct dma_buf_attach_ops - importer operations for an attachment
+ * @move_notify: [optional] notification that the DMA-buf is moving
+ *
+ * Attachment operations implemented by the importer.
+ */
+struct dma_buf_attach_ops {
+	/**
+	 * @move_notify
+	 *
+	 * If this callback is provided the framework can avoid pinning the
+	 * backing store while mappings exists.
+	 *
+	 * This callback is called with the lock of the reservation object
+	 * associated with the dma_buf held and the mapping function must be
+	 * called with this lock held as well. This makes sure that no mapping
+	 * is created concurrently with an ongoing move operation.
+	 *
+	 * Mappings stay valid and are not directly affected by this callback.
+	 * But the DMA-buf can now be in a different physical location, so all
+	 * mappings should be destroyed and re-created as soon as possible.
+	 *
+	 * New mappings can be created after this callback returns, and will
+	 * point to the new location of the DMA-buf.
+	 */
+	void (*move_notify)(struct dma_buf_attachment *attach);
+};
+
+/**
  * struct dma_buf_attachment - holds device-buffer attachment data
  * @dmabuf: buffer for this attachment.
  * @dev: device attached to the buffer.
@@ -319,8 +363,9 @@ struct dma_buf {
  * @sgt: cached mapping.
  * @dir: direction of cached mapping.
  * @priv: exporter specific attachment data.
- * @dynamic_mapping: true if dma_buf_map/unmap_attachment() is called with the
- * dma_resv lock held.
+ * @importer_ops: importer operations for this attachment, if provided
+ * dma_buf_map/unmap_attachment() must be called with the dma_resv lock held.
+ * @importer_priv: importer specific attachment data.
  *
  * This structure holds the attachment information between the dma_buf buffer
  * and its user device(s). The list contains one attachment struct per device
@@ -337,7 +382,8 @@ struct dma_buf_attachment {
 	struct list_head node;
 	struct sg_table *sgt;
 	enum dma_data_direction dir;
-	bool dynamic_mapping;
+	const struct dma_buf_attach_ops *importer_ops;
+	void *importer_priv;
 	void *priv;
 };
 
@@ -399,7 +445,7 @@ static inline void get_dma_buf(struct dma_buf *dmabuf)
  */
 static inline bool dma_buf_is_dynamic(struct dma_buf *dmabuf)
 {
-	return dmabuf->ops->dynamic_mapping;
+	return !!dmabuf->ops->pin;
 }
 
 /**
@@ -413,16 +459,19 @@ static inline bool dma_buf_is_dynamic(struct dma_buf *dmabuf)
 static inline bool
 dma_buf_attachment_is_dynamic(struct dma_buf_attachment *attach)
 {
-	return attach->dynamic_mapping;
+	return !!attach->importer_ops;
 }
 
 struct dma_buf_attachment *dma_buf_attach(struct dma_buf *dmabuf,
 					  struct device *dev);
 struct dma_buf_attachment *
 dma_buf_dynamic_attach(struct dma_buf *dmabuf, struct device *dev,
-		       bool dynamic_mapping);
+		       const struct dma_buf_attach_ops *importer_ops,
+		       void *importer_priv);
 void dma_buf_detach(struct dma_buf *dmabuf,
 		    struct dma_buf_attachment *attach);
+int dma_buf_pin(struct dma_buf_attachment *attach);
+void dma_buf_unpin(struct dma_buf_attachment *attach);
 
 struct dma_buf *dma_buf_export(const struct dma_buf_export_info *exp_info);
 

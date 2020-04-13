@@ -14,12 +14,10 @@
 #include "security.h"
 
 int security_get_bools(struct selinux_state *state,
-		       int *len, char ***names, int **values);
+		       u32 *len, char ***names, int **values);
 
-int security_set_bools(struct selinux_state *state,
-		       int len, int *values);
+int security_set_bools(struct selinux_state *state, u32 len, int *values);
 
-int security_get_bool_value(struct selinux_state *state,
-			    int index);
+int security_get_bool_value(struct selinux_state *state, u32 index);
 
 #endif

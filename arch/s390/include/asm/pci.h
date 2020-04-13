@@ -5,6 +5,7 @@
 #include <linux/pci.h>
 #include <linux/mutex.h>
 #include <linux/iommu.h>
+#include <linux/pci_hotplug.h>
 #include <asm-generic/pci.h>
 #include <asm/pci_clp.h>
 #include <asm/pci_debug.h>
@@ -25,6 +26,7 @@ int pci_proc_domain(struct pci_bus *);
 
 #define ZPCI_NR_DMA_SPACES		1
 #define ZPCI_NR_DEVICES			CONFIG_PCI_NR_FUNCTIONS
+#define ZPCI_DOMAIN_BITMAP_SIZE		(1 << 16)
 
 /* PCI Function Controls */
 #define ZPCI_FC_FN_ENABLED		0x80
@@ -96,6 +98,7 @@ struct s390_domain;
 struct zpci_dev {
 	struct pci_bus	*bus;
 	struct list_head entry;		/* list of all zpci_devices, needed for hotplug, etc. */
+	struct hotplug_slot hotplug_slot;
 
 	enum zpci_state state;
 	u32		fid;		/* function ID, used by sclp */
@@ -185,6 +188,9 @@ int clp_add_pci_device(u32, u32, int);
 int clp_enable_fh(struct zpci_dev *, u8);
 int clp_disable_fh(struct zpci_dev *);
 int clp_get_state(u32 fid, enum zpci_state *state);
+
+/* UID */
+void update_uid_checking(bool new);
 
 /* IOMMU Interface */
 int zpci_init_iommu(struct zpci_dev *zdev);

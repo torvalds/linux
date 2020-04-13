@@ -363,6 +363,10 @@ static int dt_cpufreq_probe(struct platform_device *pdev)
 		dt_cpufreq_driver.resume = data->resume;
 		if (data->suspend)
 			dt_cpufreq_driver.suspend = data->suspend;
+		if (data->get_intermediate) {
+			dt_cpufreq_driver.target_intermediate = data->target_intermediate;
+			dt_cpufreq_driver.get_intermediate = data->get_intermediate;
+		}
 	}
 
 	ret = cpufreq_register_driver(&dt_cpufreq_driver);

@@ -877,23 +877,32 @@ void ath11k_hal_srng_access_end(struct ath11k_base *ab, struct hal_srng *srng)
 		/* For LMAC rings, ring pointer updates are done through FW and
 		 * hence written to a shared memory location that is read by FW
 		 */
-		if (srng->ring_dir == HAL_SRNG_DIR_SRC)
+		if (srng->ring_dir == HAL_SRNG_DIR_SRC) {
+			srng->u.src_ring.last_tp =
+				*(volatile u32 *)srng->u.src_ring.tp_addr;
 			*srng->u.src_ring.hp_addr = srng->u.src_ring.hp;
-		else
+		} else {
+			srng->u.dst_ring.last_hp = *srng->u.dst_ring.hp_addr;
 			*srng->u.dst_ring.tp_addr = srng->u.dst_ring.tp;
+		}
 	} else {
 		if (srng->ring_dir == HAL_SRNG_DIR_SRC) {
+			srng->u.src_ring.last_tp =
+				*(volatile u32 *)srng->u.src_ring.tp_addr;
 			ath11k_ahb_write32(ab,
 					   (unsigned long)srng->u.src_ring.hp_addr -
 					   (unsigned long)ab->mem,
 					   srng->u.src_ring.hp);
 		} else {
+			srng->u.dst_ring.last_hp = *srng->u.dst_ring.hp_addr;
 			ath11k_ahb_write32(ab,
 					   (unsigned long)srng->u.dst_ring.tp_addr -
 					   (unsigned long)ab->mem,
 					   srng->u.dst_ring.tp);
 		}
 	}
+
+	srng->timestamp = jiffies;
 }
 
 void ath11k_hal_setup_link_idle_list(struct ath11k_base *ab,
@@ -1017,6 +1026,7 @@ int ath11k_hal_srng_setup(struct ath11k_base *ab, enum hal_ring_type type,
 				params->intr_batch_cntr_thres_entries;
 	srng->intr_timer_thres_us = params->intr_timer_thres_us;
 	srng->flags = params->flags;
+	srng->initialized = 1;
 	spin_lock_init(&srng->lock);
 
 	for (i = 0; i < HAL_SRNG_NUM_REG_GRP; i++) {
@@ -1121,4 +1131,56 @@ void ath11k_hal_srng_deinit(struct ath11k_base *ab)
 {
 	ath11k_hal_free_cont_rdp(ab);
 	ath11k_hal_free_cont_wrp(ab);
+}
+
+void ath11k_hal_dump_srng_stats(struct ath11k_base *ab)
+{
+	struct hal_srng *srng;
+	struct ath11k_ext_irq_grp *irq_grp;
+	struct ath11k_ce_pipe *ce_pipe;
+	int i;
+
+	ath11k_err(ab, "Last interrupt received for each CE:\n");
+	for (i = 0; i < CE_COUNT; i++) {
+		ce_pipe = &ab->ce.ce_pipe[i];
+
+		if (ath11k_ce_get_attr_flags(i) & CE_ATTR_DIS_INTR)
+			continue;
+
+		ath11k_err(ab, "CE_id %d pipe_num %d %ums before\n",
+			   i, ce_pipe->pipe_num,
+			   jiffies_to_msecs(jiffies - ce_pipe->timestamp));
+	}
+
+	ath11k_err(ab, "\nLast interrupt received for each group:\n");
+	for (i = 0; i < ATH11K_EXT_IRQ_GRP_NUM_MAX; i++) {
+		irq_grp = &ab->ext_irq_grp[i];
+		ath11k_err(ab, "group_id %d %ums before\n",
+			   irq_grp->grp_id,
+			   jiffies_to_msecs(jiffies - irq_grp->timestamp));
+	}
+
+	for (i = 0; i < HAL_SRNG_RING_ID_MAX; i++) {
+		srng = &ab->hal.srng_list[i];
+
+		if (!srng->initialized)
+			continue;
+
+		if (srng->ring_dir == HAL_SRNG_DIR_SRC)
+			ath11k_err(ab,
+				   "src srng id %u hp %u, reap_hp %u, cur tp %u, cached tp %u last tp %u napi processed before %ums\n",
+				   srng->ring_id, srng->u.src_ring.hp,
+				   srng->u.src_ring.reap_hp,
+				   *srng->u.src_ring.tp_addr, srng->u.src_ring.cached_tp,
+				   srng->u.src_ring.last_tp,
+				   jiffies_to_msecs(jiffies - srng->timestamp));
+		else if (srng->ring_dir == HAL_SRNG_DIR_DST)
+			ath11k_err(ab,
+				   "dst srng id %u tp %u, cur hp %u, cached hp %u last hp %u napi processed before %ums\n",
+				   srng->ring_id, srng->u.dst_ring.tp,
+				   *srng->u.dst_ring.hp_addr,
+				   srng->u.dst_ring.cached_hp,
+				   srng->u.dst_ring.last_hp,
+				   jiffies_to_msecs(jiffies - srng->timestamp));
+	}
 }

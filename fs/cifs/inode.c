@@ -1835,6 +1835,8 @@ cifs_do_rename(const unsigned int xid, struct dentry *from_dentry,
 		CIFSSMBClose(xid, tcon, fid.netfid);
 	}
 do_rename_exit:
+	if (rc == 0)
+		d_move(from_dentry, to_dentry);
 	cifs_put_tlink(tlink);
 	return rc;
 }
@@ -2024,6 +2026,10 @@ cifs_revalidate_mapping(struct inode *inode)
 	int rc;
 	unsigned long *flags = &CIFS_I(inode)->flags;
 
+	/* swapfiles are not supposed to be shared */
+	if (IS_SWAPFILE(inode))
+		return 0;
+
 	rc = wait_on_bit_lock_action(flags, CIFS_INO_LOCK, cifs_wait_bit_killable,
 				     TASK_KILLABLE);
 	if (rc)
@@ -2148,8 +2154,9 @@ int cifs_getattr(const struct path *path, struct kstat *stat,
 	 * We need to be sure that all dirty pages are written and the server
 	 * has actual ctime, mtime and file length.
 	 */
-	if (!CIFS_CACHE_READ(CIFS_I(inode)) && inode->i_mapping &&
-	    inode->i_mapping->nrpages != 0) {
+	if ((request_mask & (STATX_CTIME | STATX_MTIME | STATX_SIZE)) &&
+	    !CIFS_CACHE_READ(CIFS_I(inode)) &&
+	    inode->i_mapping && inode->i_mapping->nrpages != 0) {
 		rc = filemap_fdatawait(inode->i_mapping);
 		if (rc) {
 			mapping_set_error(inode->i_mapping, rc);
@@ -2157,9 +2164,20 @@ int cifs_getattr(const struct path *path, struct kstat *stat,
 		}
 	}
 
-	rc = cifs_revalidate_dentry_attr(dentry);
-	if (rc)
-		return rc;
+	if ((flags & AT_STATX_SYNC_TYPE) == AT_STATX_FORCE_SYNC)
+		CIFS_I(inode)->time = 0; /* force revalidate */
+
+	/*
+	 * If the caller doesn't require syncing, only sync if
+	 * necessary (e.g. due to earlier truncate or setattr
+	 * invalidating the cached metadata)
+	 */
+	if (((flags & AT_STATX_SYNC_TYPE) != AT_STATX_DONT_SYNC) ||
+	    (CIFS_I(inode)->time == 0)) {
+		rc = cifs_revalidate_dentry_attr(dentry);
+		if (rc)
+			return rc;
+	}
 
 	generic_fillattr(inode, stat);
 	stat->blksize = cifs_sb->bsize;
@@ -2516,25 +2534,26 @@ cifs_setattr_nounix(struct dentry *direntry, struct iattr *attrs)
 
 	/*
 	 * Attempt to flush data before changing attributes. We need to do
-	 * this for ATTR_SIZE and ATTR_MTIME for sure, and if we change the
-	 * ownership or mode then we may also need to do this. Here, we take
-	 * the safe way out and just do the flush on all setattr requests. If
-	 * the flush returns error, store it to report later and continue.
+	 * this for ATTR_SIZE and ATTR_MTIME.  If the flush of the data
+	 * returns error, store it to report later and continue.
 	 *
 	 * BB: This should be smarter. Why bother flushing pages that
 	 * will be truncated anyway? Also, should we error out here if
-	 * the flush returns error?
+	 * the flush returns error? Do we need to check for ATTR_MTIME_SET flag?
 	 */
-	rc = filemap_write_and_wait(inode->i_mapping);
-	if (is_interrupt_error(rc)) {
-		rc = -ERESTARTSYS;
-		goto cifs_setattr_exit;
+	if (attrs->ia_valid & (ATTR_MTIME | ATTR_SIZE | ATTR_CTIME)) {
+		rc = filemap_write_and_wait(inode->i_mapping);
+		if (is_interrupt_error(rc)) {
+			rc = -ERESTARTSYS;
+			goto cifs_setattr_exit;
+		}
+		mapping_set_error(inode->i_mapping, rc);
 	}
 
-	mapping_set_error(inode->i_mapping, rc);
 	rc = 0;
 
-	if (attrs->ia_valid & ATTR_MTIME) {
+	if ((attrs->ia_valid & ATTR_MTIME) &&
+	    !(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NOSSYNC)) {
 		rc = cifs_get_writable_file(cifsInode, FIND_WR_ANY, &wfile);
 		if (!rc) {
 			tcon = tlink_tcon(wfile->tlink);

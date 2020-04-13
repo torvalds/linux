@@ -113,7 +113,7 @@ mt7603_dma_sched_init(struct mt7603_dev *dev)
 static void
 mt7603_phy_init(struct mt7603_dev *dev)
 {
-	int rx_chains = dev->mt76.antenna_mask;
+	int rx_chains = dev->mphy.antenna_mask;
 	int tx_chains = hweight8(rx_chains) - 1;
 
 	mt76_rmw(dev, MT_WF_RMAC_RMCR,
@@ -284,7 +284,7 @@ mt7603_init_hardware(struct mt7603_dev *dev)
 	mt76_wr(dev, MT_WPDMA_GLO_CFG, 0x52000850);
 	mt7603_mac_dma_start(dev);
 	dev->rxfilter = mt76_rr(dev, MT_WF_RFCR);
-	set_bit(MT76_STATE_INITIALIZED, &dev->mt76.state);
+	set_bit(MT76_STATE_INITIALIZED, &dev->mphy.state);
 
 	for (i = 0; i < MT7603_WTBL_SIZE; i++) {
 		mt76_wr(dev, MT_PSE_RTA, MT_PSE_RTA_BUSY | MT_PSE_RTA_WRITE |
@@ -363,9 +363,9 @@ static void mt7603_led_set_config(struct mt76_dev *mt76, u8 delay_on,
 					      mt76);
 	u32 val, addr;
 
-	val = MT_LED_STATUS_DURATION(0xffff) |
-	      MT_LED_STATUS_OFF(delay_off) |
-	      MT_LED_STATUS_ON(delay_on);
+	val = FIELD_PREP(MT_LED_STATUS_DURATION, 0xffff) |
+	      FIELD_PREP(MT_LED_STATUS_OFF, delay_off) |
+	      FIELD_PREP(MT_LED_STATUS_ON, delay_on);
 
 	addr = mt7603_reg_map(dev, MT_LED_STATUS_0(mt76->led_pin));
 	mt76_wr(dev, addr, val);
@@ -493,12 +493,12 @@ mt7603_init_txpower(struct mt7603_dev *dev,
 	target_power += max_offset;
 
 	dev->tx_power_limit = target_power;
-	dev->mt76.txpower_cur = target_power;
+	dev->mphy.txpower_cur = target_power;
 
 	target_power = DIV_ROUND_UP(target_power, 2);
 
 	/* add 3 dBm for 2SS devices (combined output) */
-	if (dev->mt76.antenna_mask & BIT(1))
+	if (dev->mphy.antenna_mask & BIT(1))
 		target_power += 3;
 
 	for (i = 0; i < sband->n_channels; i++) {
@@ -535,11 +535,13 @@ int mt7603_register_device(struct mt7603_dev *dev)
 		     (unsigned long)dev);
 
 	/* Check for 7688, which only has 1SS */
-	dev->mt76.antenna_mask = 3;
+	dev->mphy.antenna_mask = 3;
 	if (mt76_rr(dev, MT_EFUSE_BASE + 0x64) & BIT(4))
-		dev->mt76.antenna_mask = 1;
+		dev->mphy.antenna_mask = 1;
 
 	dev->slottime = 9;
+	dev->sensitivity_limit = 28;
+	dev->dynamic_sensitivity = true;
 
 	ret = mt7603_init_hardware(dev);
 	if (ret)
@@ -557,6 +559,7 @@ int mt7603_register_device(struct mt7603_dev *dev)
 	wiphy->n_iface_combinations = ARRAY_SIZE(if_comb);
 
 	ieee80211_hw_set(hw, TX_STATUS_NO_AMPDU_LEN);
+	ieee80211_hw_set(hw, HOST_BROADCAST_PS_BUFFERING);
 
 	/* init led callbacks */
 	if (IS_ENABLED(CONFIG_MT76_LEDS)) {
@@ -564,7 +567,6 @@ int mt7603_register_device(struct mt7603_dev *dev)
 		dev->mt76.led_cdev.blink_set = mt7603_led_set_blink;
 	}
 
-	wiphy->flags |= WIPHY_FLAG_HAS_CHANNEL_SWITCH;
 	wiphy->reg_notifier = mt7603_regd_notifier;
 
 	ret = mt76_register_device(&dev->mt76, true, mt7603_rates,
@@ -573,7 +575,7 @@ int mt7603_register_device(struct mt7603_dev *dev)
 		return ret;
 
 	mt7603_init_debugfs(dev);
-	mt7603_init_txpower(dev, &dev->mt76.sband_2g.sband);
+	mt7603_init_txpower(dev, &dev->mphy.sband_2g.sband);
 
 	return 0;
 }

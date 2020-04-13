@@ -300,7 +300,7 @@ static int mtk_i2c_probe(struct platform_device *pdev)
 
 	if (of_property_read_u32(pdev->dev.of_node, "clock-frequency",
 				 &i2c->bus_freq))
-		i2c->bus_freq = 100000;
+		i2c->bus_freq = I2C_MAX_STANDARD_MODE_FREQ;
 
 	if (i2c->bus_freq == 0) {
 		dev_warn(i2c->dev, "clock-frequency 0 not supported\n");

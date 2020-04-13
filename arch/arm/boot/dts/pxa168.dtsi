@@ -55,27 +55,30 @@
 				interrupts = <13>;
 			};
 
-			uart1: uart@d4017000 {
-				compatible = "mrvl,mmp-uart";
+			uart1: serial@d4017000 {
+				compatible = "mrvl,mmp-uart", "intel,xscale-uart";
 				reg = <0xd4017000 0x1000>;
+				reg-shift = <2>;
 				interrupts = <27>;
 				clocks = <&soc_clocks PXA168_CLK_UART0>;
 				resets = <&soc_clocks PXA168_CLK_UART0>;
 				status = "disabled";
 			};
 
-			uart2: uart@d4018000 {
-				compatible = "mrvl,mmp-uart";
+			uart2: serial@d4018000 {
+				compatible = "mrvl,mmp-uart", "intel,xscale-uart";
 				reg = <0xd4018000 0x1000>;
+				reg-shift = <2>;
 				interrupts = <28>;
 				clocks = <&soc_clocks PXA168_CLK_UART1>;
 				resets = <&soc_clocks PXA168_CLK_UART1>;
 				status = "disabled";
 			};
 
-			uart3: uart@d4026000 {
-				compatible = "mrvl,mmp-uart";
+			uart3: serial@d4026000 {
+				compatible = "mrvl,mmp-uart", "intel,xscale-uart";
 				reg = <0xd4026000 0x1000>;
+				reg-shift = <2>;
 				interrupts = <29>;
 				clocks = <&soc_clocks PXA168_CLK_UART2>;
 				resets = <&soc_clocks PXA168_CLK_UART2>;

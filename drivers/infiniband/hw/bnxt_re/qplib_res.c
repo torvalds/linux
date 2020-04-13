@@ -44,6 +44,7 @@
 #include <linux/inetdevice.h>
 #include <linux/dma-mapping.h>
 #include <linux/if_vlan.h>
+#include <linux/vmalloc.h>
 #include "roce_hsi.h"
 #include "qplib_res.h"
 #include "qplib_sp.h"
@@ -55,9 +56,10 @@ static int bnxt_qplib_alloc_stats_ctx(struct pci_dev *pdev,
 				      struct bnxt_qplib_stats *stats);
 
 /* PBL */
-static void __free_pbl(struct pci_dev *pdev, struct bnxt_qplib_pbl *pbl,
+static void __free_pbl(struct bnxt_qplib_res *res, struct bnxt_qplib_pbl *pbl,
 		       bool is_umem)
 {
+	struct pci_dev *pdev = res->pdev;
 	int i;
 
 	if (!is_umem) {
@@ -74,35 +76,56 @@ static void __free_pbl(struct pci_dev *pdev, struct bnxt_qplib_pbl *pbl,
 			pbl->pg_arr[i] = NULL;
 		}
 	}
-	kfree(pbl->pg_arr);
+	vfree(pbl->pg_arr);
 	pbl->pg_arr = NULL;
-	kfree(pbl->pg_map_arr);
+	vfree(pbl->pg_map_arr);
 	pbl->pg_map_arr = NULL;
 	pbl->pg_count = 0;
 	pbl->pg_size = 0;
 }
 
-static int __alloc_pbl(struct pci_dev *pdev, struct bnxt_qplib_pbl *pbl,
-		       struct scatterlist *sghead, u32 pages,
-		       u32 nmaps, u32 pg_size)
+static void bnxt_qplib_fill_user_dma_pages(struct bnxt_qplib_pbl *pbl,
+					   struct bnxt_qplib_sg_info *sginfo)
 {
+	struct scatterlist *sghead = sginfo->sghead;
 	struct sg_dma_page_iter sg_iter;
+	int i = 0;
+
+	for_each_sg_dma_page(sghead, &sg_iter, sginfo->nmap, 0) {
+		pbl->pg_map_arr[i] = sg_page_iter_dma_address(&sg_iter);
+		pbl->pg_arr[i] = NULL;
+		pbl->pg_count++;
+		i++;
+	}
+}
+
+static int __alloc_pbl(struct bnxt_qplib_res *res,
+		       struct bnxt_qplib_pbl *pbl,
+		       struct bnxt_qplib_sg_info *sginfo)
+{
+	struct pci_dev *pdev = res->pdev;
+	struct scatterlist *sghead;
 	bool is_umem = false;
+	u32 pages;
 	int i;
 
+	if (sginfo->nopte)
+		return 0;
+	pages = sginfo->npages;
+	sghead = sginfo->sghead;
 	/* page ptr arrays */
-	pbl->pg_arr = kcalloc(pages, sizeof(void *), GFP_KERNEL);
+	pbl->pg_arr = vmalloc(pages * sizeof(void *));
 	if (!pbl->pg_arr)
 		return -ENOMEM;
 
-	pbl->pg_map_arr = kcalloc(pages, sizeof(dma_addr_t), GFP_KERNEL);
+	pbl->pg_map_arr = vmalloc(pages * sizeof(dma_addr_t));
 	if (!pbl->pg_map_arr) {
-		kfree(pbl->pg_arr);
+		vfree(pbl->pg_arr);
 		pbl->pg_arr = NULL;
 		return -ENOMEM;
 	}
 	pbl->pg_count = 0;
-	pbl->pg_size = pg_size;
+	pbl->pg_size = sginfo->pgsize;
 
 	if (!sghead) {
 		for (i = 0; i < pages; i++) {
@@ -115,25 +138,19 @@ static int __alloc_pbl(struct pci_dev *pdev, struct bnxt_qplib_pbl *pbl,
 			pbl->pg_count++;
 		}
 	} else {
-		i = 0;
 		is_umem = true;
-		for_each_sg_dma_page(sghead, &sg_iter, nmaps, 0) {
-			pbl->pg_map_arr[i] = sg_page_iter_dma_address(&sg_iter);
-			pbl->pg_arr[i] = NULL;
-			pbl->pg_count++;
-			i++;
-		}
+		bnxt_qplib_fill_user_dma_pages(pbl, sginfo);
 	}
 
 	return 0;
-
 fail:
-	__free_pbl(pdev, pbl, is_umem);
+	__free_pbl(res, pbl, is_umem);
 	return -ENOMEM;
 }
 
 /* HWQ */
-void bnxt_qplib_free_hwq(struct pci_dev *pdev, struct bnxt_qplib_hwq *hwq)
+void bnxt_qplib_free_hwq(struct bnxt_qplib_res *res,
+			 struct bnxt_qplib_hwq *hwq)
 {
 	int i;
 
@@ -144,9 +161,9 @@ void bnxt_qplib_free_hwq(struct pci_dev *pdev, struct bnxt_qplib_hwq *hwq)
 
 	for (i = 0; i < hwq->level + 1; i++) {
 		if (i == hwq->level)
-			__free_pbl(pdev, &hwq->pbl[i], hwq->is_user);
+			__free_pbl(res, &hwq->pbl[i], hwq->is_user);
 		else
-			__free_pbl(pdev, &hwq->pbl[i], false);
+			__free_pbl(res, &hwq->pbl[i], false);
 	}
 
 	hwq->level = PBL_LVL_MAX;
@@ -158,79 +175,113 @@ void bnxt_qplib_free_hwq(struct pci_dev *pdev, struct bnxt_qplib_hwq *hwq)
 }
 
 /* All HWQs are power of 2 in size */
-int bnxt_qplib_alloc_init_hwq(struct pci_dev *pdev, struct bnxt_qplib_hwq *hwq,
-			      struct bnxt_qplib_sg_info *sg_info,
-			      u32 *elements, u32 element_size, u32 aux,
-			      u32 pg_size, enum bnxt_qplib_hwq_type hwq_type)
+
+int bnxt_qplib_alloc_init_hwq(struct bnxt_qplib_hwq *hwq,
+			      struct bnxt_qplib_hwq_attr *hwq_attr)
 {
-	u32 pages, maps, slots, size, aux_pages = 0, aux_size = 0;
+	u32 npages, aux_slots, pg_size, aux_pages = 0, aux_size = 0;
+	struct bnxt_qplib_sg_info sginfo = {};
+	u32 depth, stride, npbl, npde;
 	dma_addr_t *src_phys_ptr, **dst_virt_ptr;
 	struct scatterlist *sghead = NULL;
-	int i, rc;
+	struct bnxt_qplib_res *res;
+	struct pci_dev *pdev;
+	int i, rc, lvl;
 
+	res = hwq_attr->res;
+	pdev = res->pdev;
+	sghead = hwq_attr->sginfo->sghead;
+	pg_size = hwq_attr->sginfo->pgsize;
 	hwq->level = PBL_LVL_MAX;
 
-	slots = roundup_pow_of_two(*elements);
-	if (aux) {
-		aux_size = roundup_pow_of_two(aux);
-		aux_pages = (slots * aux_size) / pg_size;
-		if ((slots * aux_size) % pg_size)
+	depth = roundup_pow_of_two(hwq_attr->depth);
+	stride = roundup_pow_of_two(hwq_attr->stride);
+	if (hwq_attr->aux_depth) {
+		aux_slots = hwq_attr->aux_depth;
+		aux_size = roundup_pow_of_two(hwq_attr->aux_stride);
+		aux_pages = (aux_slots * aux_size) / pg_size;
+		if ((aux_slots * aux_size) % pg_size)
 			aux_pages++;
 	}
-	size = roundup_pow_of_two(element_size);
-
-	if (sg_info)
-		sghead = sg_info->sglist;
 
 	if (!sghead) {
 		hwq->is_user = false;
-		pages = (slots * size) / pg_size + aux_pages;
-		if ((slots * size) % pg_size)
-			pages++;
-		if (!pages)
+		npages = (depth * stride) / pg_size + aux_pages;
+		if ((depth * stride) % pg_size)
+			npages++;
+		if (!npages)
 			return -EINVAL;
-		maps = 0;
+		hwq_attr->sginfo->npages = npages;
 	} else {
 		hwq->is_user = true;
-		pages = sg_info->npages;
-		maps = sg_info->nmap;
+		npages = hwq_attr->sginfo->npages;
+		npages = (npages * PAGE_SIZE) /
+			  BIT_ULL(hwq_attr->sginfo->pgshft);
+		if ((hwq_attr->sginfo->npages * PAGE_SIZE) %
+		     BIT_ULL(hwq_attr->sginfo->pgshft))
+			if (!npages)
+				npages++;
 	}
 
-	/* Alloc the 1st memory block; can be a PDL/PTL/PBL */
-	if (sghead && (pages == MAX_PBL_LVL_0_PGS))
-		rc = __alloc_pbl(pdev, &hwq->pbl[PBL_LVL_0], sghead,
-				 pages, maps, pg_size);
-	else
-		rc = __alloc_pbl(pdev, &hwq->pbl[PBL_LVL_0], NULL,
-				 1, 0, pg_size);
-	if (rc)
-		goto fail;
+	if (npages == MAX_PBL_LVL_0_PGS) {
+		/* This request is Level 0, map PTE */
+		rc = __alloc_pbl(res, &hwq->pbl[PBL_LVL_0], hwq_attr->sginfo);
+		if (rc)
+			goto fail;
+		hwq->level = PBL_LVL_0;
+	}
 
-	hwq->level = PBL_LVL_0;
-
-	if (pages > MAX_PBL_LVL_0_PGS) {
-		if (pages > MAX_PBL_LVL_1_PGS) {
+	if (npages > MAX_PBL_LVL_0_PGS) {
+		if (npages > MAX_PBL_LVL_1_PGS) {
+			u32 flag = (hwq_attr->type == HWQ_TYPE_L2_CMPL) ?
+				    0 : PTU_PTE_VALID;
 			/* 2 levels of indirection */
-			rc = __alloc_pbl(pdev, &hwq->pbl[PBL_LVL_1], NULL,
-					 MAX_PBL_LVL_1_PGS_FOR_LVL_2,
-					 0, pg_size);
+			npbl = npages >> MAX_PBL_LVL_1_PGS_SHIFT;
+			if (npages % BIT(MAX_PBL_LVL_1_PGS_SHIFT))
+				npbl++;
+			npde = npbl >> MAX_PDL_LVL_SHIFT;
+			if (npbl % BIT(MAX_PDL_LVL_SHIFT))
+				npde++;
+			/* Alloc PDE pages */
+			sginfo.pgsize = npde * pg_size;
+			sginfo.npages = 1;
+			rc = __alloc_pbl(res, &hwq->pbl[PBL_LVL_0], &sginfo);
+
+			/* Alloc PBL pages */
+			sginfo.npages = npbl;
+			sginfo.pgsize = PAGE_SIZE;
+			rc = __alloc_pbl(res, &hwq->pbl[PBL_LVL_1], &sginfo);
 			if (rc)
 				goto fail;
-			/* Fill in lvl0 PBL */
+			/* Fill PDL with PBL page pointers */
 			dst_virt_ptr =
 				(dma_addr_t **)hwq->pbl[PBL_LVL_0].pg_arr;
 			src_phys_ptr = hwq->pbl[PBL_LVL_1].pg_map_arr;
-			for (i = 0; i < hwq->pbl[PBL_LVL_1].pg_count; i++)
-				dst_virt_ptr[PTR_PG(i)][PTR_IDX(i)] =
-					src_phys_ptr[i] | PTU_PDE_VALID;
-			hwq->level = PBL_LVL_1;
-
-			rc = __alloc_pbl(pdev, &hwq->pbl[PBL_LVL_2], sghead,
-					 pages, maps, pg_size);
+			if (hwq_attr->type == HWQ_TYPE_MR) {
+			/* For MR it is expected that we supply only 1 contigous
+			 * page i.e only 1 entry in the PDL that will contain
+			 * all the PBLs for the user supplied memory region
+			 */
+				for (i = 0; i < hwq->pbl[PBL_LVL_1].pg_count;
+				     i++)
+					dst_virt_ptr[0][i] = src_phys_ptr[i] |
+						flag;
+			} else {
+				for (i = 0; i < hwq->pbl[PBL_LVL_1].pg_count;
+				     i++)
+					dst_virt_ptr[PTR_PG(i)][PTR_IDX(i)] =
+						src_phys_ptr[i] |
+						PTU_PDE_VALID;
+			}
+			/* Alloc or init PTEs */
+			rc = __alloc_pbl(res, &hwq->pbl[PBL_LVL_2],
+					 hwq_attr->sginfo);
 			if (rc)
 				goto fail;
-
-			/* Fill in lvl1 PBL */
+			hwq->level = PBL_LVL_2;
+			if (hwq_attr->sginfo->nopte)
+				goto done;
+			/* Fill PBLs with PTE pointers */
 			dst_virt_ptr =
 				(dma_addr_t **)hwq->pbl[PBL_LVL_1].pg_arr;
 			src_phys_ptr = hwq->pbl[PBL_LVL_2].pg_map_arr;
@@ -238,7 +289,7 @@ int bnxt_qplib_alloc_init_hwq(struct pci_dev *pdev, struct bnxt_qplib_hwq *hwq,
 				dst_virt_ptr[PTR_PG(i)][PTR_IDX(i)] =
 					src_phys_ptr[i] | PTU_PTE_VALID;
 			}
-			if (hwq_type == HWQ_TYPE_QUEUE) {
+			if (hwq_attr->type == HWQ_TYPE_QUEUE) {
 				/* Find the last pg of the size */
 				i = hwq->pbl[PBL_LVL_2].pg_count;
 				dst_virt_ptr[PTR_PG(i - 1)][PTR_IDX(i - 1)] |=
@@ -248,25 +299,36 @@ int bnxt_qplib_alloc_init_hwq(struct pci_dev *pdev, struct bnxt_qplib_hwq *hwq,
 						    [PTR_IDX(i - 2)] |=
 						    PTU_PTE_NEXT_TO_LAST;
 			}
-			hwq->level = PBL_LVL_2;
-		} else {
-			u32 flag = hwq_type == HWQ_TYPE_L2_CMPL ? 0 :
-						PTU_PTE_VALID;
+		} else { /* pages < 512 npbl = 1, npde = 0 */
+			u32 flag = (hwq_attr->type == HWQ_TYPE_L2_CMPL) ?
+				    0 : PTU_PTE_VALID;
 
 			/* 1 level of indirection */
-			rc = __alloc_pbl(pdev, &hwq->pbl[PBL_LVL_1], sghead,
-					 pages, maps, pg_size);
+			npbl = npages >> MAX_PBL_LVL_1_PGS_SHIFT;
+			if (npages % BIT(MAX_PBL_LVL_1_PGS_SHIFT))
+				npbl++;
+			sginfo.npages = npbl;
+			sginfo.pgsize = PAGE_SIZE;
+			/* Alloc PBL page */
+			rc = __alloc_pbl(res, &hwq->pbl[PBL_LVL_0], &sginfo);
 			if (rc)
 				goto fail;
-			/* Fill in lvl0 PBL */
+			/* Alloc or init  PTEs */
+			rc = __alloc_pbl(res, &hwq->pbl[PBL_LVL_1],
+					 hwq_attr->sginfo);
+			if (rc)
+				goto fail;
+			hwq->level = PBL_LVL_1;
+			if (hwq_attr->sginfo->nopte)
+				goto done;
+			/* Fill PBL with PTE pointers */
 			dst_virt_ptr =
 				(dma_addr_t **)hwq->pbl[PBL_LVL_0].pg_arr;
 			src_phys_ptr = hwq->pbl[PBL_LVL_1].pg_map_arr;
-			for (i = 0; i < hwq->pbl[PBL_LVL_1].pg_count; i++) {
+			for (i = 0; i < hwq->pbl[PBL_LVL_1].pg_count; i++)
 				dst_virt_ptr[PTR_PG(i)][PTR_IDX(i)] =
 					src_phys_ptr[i] | flag;
-			}
-			if (hwq_type == HWQ_TYPE_QUEUE) {
+			if (hwq_attr->type == HWQ_TYPE_QUEUE) {
 				/* Find the last pg of the size */
 				i = hwq->pbl[PBL_LVL_1].pg_count;
 				dst_virt_ptr[PTR_PG(i - 1)][PTR_IDX(i - 1)] |=
@@ -276,42 +338,141 @@ int bnxt_qplib_alloc_init_hwq(struct pci_dev *pdev, struct bnxt_qplib_hwq *hwq,
 						    [PTR_IDX(i - 2)] |=
 						    PTU_PTE_NEXT_TO_LAST;
 			}
-			hwq->level = PBL_LVL_1;
 		}
 	}
-	hwq->pdev = pdev;
-	spin_lock_init(&hwq->lock);
+done:
 	hwq->prod = 0;
 	hwq->cons = 0;
-	*elements = hwq->max_elements = slots;
-	hwq->element_size = size;
-
+	hwq->pdev = pdev;
+	hwq->depth = hwq_attr->depth;
+	hwq->max_elements = depth;
+	hwq->element_size = stride;
 	/* For direct access to the elements */
-	hwq->pbl_ptr = hwq->pbl[hwq->level].pg_arr;
-	hwq->pbl_dma_ptr = hwq->pbl[hwq->level].pg_map_arr;
+	lvl = hwq->level;
+	if (hwq_attr->sginfo->nopte && hwq->level)
+		lvl = hwq->level - 1;
+	hwq->pbl_ptr = hwq->pbl[lvl].pg_arr;
+	hwq->pbl_dma_ptr = hwq->pbl[lvl].pg_map_arr;
+	spin_lock_init(&hwq->lock);
 
 	return 0;
-
 fail:
-	bnxt_qplib_free_hwq(pdev, hwq);
+	bnxt_qplib_free_hwq(res, hwq);
 	return -ENOMEM;
 }
 
 /* Context Tables */
-void bnxt_qplib_free_ctx(struct pci_dev *pdev,
+void bnxt_qplib_free_ctx(struct bnxt_qplib_res *res,
 			 struct bnxt_qplib_ctx *ctx)
 {
 	int i;
 
-	bnxt_qplib_free_hwq(pdev, &ctx->qpc_tbl);
-	bnxt_qplib_free_hwq(pdev, &ctx->mrw_tbl);
-	bnxt_qplib_free_hwq(pdev, &ctx->srqc_tbl);
-	bnxt_qplib_free_hwq(pdev, &ctx->cq_tbl);
-	bnxt_qplib_free_hwq(pdev, &ctx->tim_tbl);
+	bnxt_qplib_free_hwq(res, &ctx->qpc_tbl);
+	bnxt_qplib_free_hwq(res, &ctx->mrw_tbl);
+	bnxt_qplib_free_hwq(res, &ctx->srqc_tbl);
+	bnxt_qplib_free_hwq(res, &ctx->cq_tbl);
+	bnxt_qplib_free_hwq(res, &ctx->tim_tbl);
 	for (i = 0; i < MAX_TQM_ALLOC_REQ; i++)
-		bnxt_qplib_free_hwq(pdev, &ctx->tqm_tbl[i]);
-	bnxt_qplib_free_hwq(pdev, &ctx->tqm_pde);
-	bnxt_qplib_free_stats_ctx(pdev, &ctx->stats);
+		bnxt_qplib_free_hwq(res, &ctx->tqm_ctx.qtbl[i]);
+	/* restore original pde level before destroy */
+	ctx->tqm_ctx.pde.level = ctx->tqm_ctx.pde_level;
+	bnxt_qplib_free_hwq(res, &ctx->tqm_ctx.pde);
+	bnxt_qplib_free_stats_ctx(res->pdev, &ctx->stats);
+}
+
+static int bnxt_qplib_alloc_tqm_rings(struct bnxt_qplib_res *res,
+				      struct bnxt_qplib_ctx *ctx)
+{
+	struct bnxt_qplib_hwq_attr hwq_attr = {};
+	struct bnxt_qplib_sg_info sginfo = {};
+	struct bnxt_qplib_tqm_ctx *tqmctx;
+	int rc = 0;
+	int i;
+
+	tqmctx = &ctx->tqm_ctx;
+
+	sginfo.pgsize = PAGE_SIZE;
+	sginfo.pgshft = PAGE_SHIFT;
+	hwq_attr.sginfo = &sginfo;
+	hwq_attr.res = res;
+	hwq_attr.type = HWQ_TYPE_CTX;
+	hwq_attr.depth = 512;
+	hwq_attr.stride = sizeof(u64);
+	/* Alloc pdl buffer */
+	rc = bnxt_qplib_alloc_init_hwq(&tqmctx->pde, &hwq_attr);
+	if (rc)
+		goto out;
+	/* Save original pdl level */
+	tqmctx->pde_level = tqmctx->pde.level;
+
+	hwq_attr.stride = 1;
+	for (i = 0; i < MAX_TQM_ALLOC_REQ; i++) {
+		if (!tqmctx->qcount[i])
+			continue;
+		hwq_attr.depth = ctx->qpc_count * tqmctx->qcount[i];
+		rc = bnxt_qplib_alloc_init_hwq(&tqmctx->qtbl[i], &hwq_attr);
+		if (rc)
+			goto out;
+	}
+out:
+	return rc;
+}
+
+static void bnxt_qplib_map_tqm_pgtbl(struct bnxt_qplib_tqm_ctx *ctx)
+{
+	struct bnxt_qplib_hwq *tbl;
+	dma_addr_t *dma_ptr;
+	__le64 **pbl_ptr, *ptr;
+	int i, j, k;
+	int fnz_idx = -1;
+	int pg_count;
+
+	pbl_ptr = (__le64 **)ctx->pde.pbl_ptr;
+
+	for (i = 0, j = 0; i < MAX_TQM_ALLOC_REQ;
+	     i++, j += MAX_TQM_ALLOC_BLK_SIZE) {
+		tbl = &ctx->qtbl[i];
+		if (!tbl->max_elements)
+			continue;
+		if (fnz_idx == -1)
+			fnz_idx = i; /* first non-zero index */
+		switch (tbl->level) {
+		case PBL_LVL_2:
+			pg_count = tbl->pbl[PBL_LVL_1].pg_count;
+			for (k = 0; k < pg_count; k++) {
+				ptr = &pbl_ptr[PTR_PG(j + k)][PTR_IDX(j + k)];
+				dma_ptr = &tbl->pbl[PBL_LVL_1].pg_map_arr[k];
+				*ptr = cpu_to_le64(*dma_ptr | PTU_PTE_VALID);
+			}
+			break;
+		case PBL_LVL_1:
+		case PBL_LVL_0:
+		default:
+			ptr = &pbl_ptr[PTR_PG(j)][PTR_IDX(j)];
+			*ptr = cpu_to_le64(tbl->pbl[PBL_LVL_0].pg_map_arr[0] |
+					   PTU_PTE_VALID);
+			break;
+		}
+	}
+	if (fnz_idx == -1)
+		fnz_idx = 0;
+	/* update pde level as per page table programming */
+	ctx->pde.level = (ctx->qtbl[fnz_idx].level == PBL_LVL_2) ? PBL_LVL_2 :
+			  ctx->qtbl[fnz_idx].level + 1;
+}
+
+static int bnxt_qplib_setup_tqm_rings(struct bnxt_qplib_res *res,
+				      struct bnxt_qplib_ctx *ctx)
+{
+	int rc = 0;
+
+	rc = bnxt_qplib_alloc_tqm_rings(res, ctx);
+	if (rc)
+		goto fail;
+
+	bnxt_qplib_map_tqm_pgtbl(&ctx->tqm_ctx);
+fail:
+	return rc;
 }
 
 /*
@@ -335,120 +496,72 @@ void bnxt_qplib_free_ctx(struct pci_dev *pdev,
  * Returns:
  *     0 if success, else -ERRORS
  */
-int bnxt_qplib_alloc_ctx(struct pci_dev *pdev,
+int bnxt_qplib_alloc_ctx(struct bnxt_qplib_res *res,
 			 struct bnxt_qplib_ctx *ctx,
 			 bool virt_fn, bool is_p5)
 {
-	int i, j, k, rc = 0;
-	int fnz_idx = -1;
-	__le64 **pbl_ptr;
+	struct bnxt_qplib_hwq_attr hwq_attr = {};
+	struct bnxt_qplib_sg_info sginfo = {};
+	int rc = 0;
 
 	if (virt_fn || is_p5)
 		goto stats_alloc;
 
 	/* QPC Tables */
-	ctx->qpc_tbl.max_elements = ctx->qpc_count;
-	rc = bnxt_qplib_alloc_init_hwq(pdev, &ctx->qpc_tbl, NULL,
-				       &ctx->qpc_tbl.max_elements,
-				       BNXT_QPLIB_MAX_QP_CTX_ENTRY_SIZE, 0,
-				       PAGE_SIZE, HWQ_TYPE_CTX);
+	sginfo.pgsize = PAGE_SIZE;
+	sginfo.pgshft = PAGE_SHIFT;
+	hwq_attr.sginfo = &sginfo;
+
+	hwq_attr.res = res;
+	hwq_attr.depth = ctx->qpc_count;
+	hwq_attr.stride = BNXT_QPLIB_MAX_QP_CTX_ENTRY_SIZE;
+	hwq_attr.type = HWQ_TYPE_CTX;
+	rc = bnxt_qplib_alloc_init_hwq(&ctx->qpc_tbl, &hwq_attr);
 	if (rc)
 		goto fail;
 
 	/* MRW Tables */
-	ctx->mrw_tbl.max_elements = ctx->mrw_count;
-	rc = bnxt_qplib_alloc_init_hwq(pdev, &ctx->mrw_tbl, NULL,
-				       &ctx->mrw_tbl.max_elements,
-				       BNXT_QPLIB_MAX_MRW_CTX_ENTRY_SIZE, 0,
-				       PAGE_SIZE, HWQ_TYPE_CTX);
+	hwq_attr.depth = ctx->mrw_count;
+	hwq_attr.stride = BNXT_QPLIB_MAX_MRW_CTX_ENTRY_SIZE;
+	rc = bnxt_qplib_alloc_init_hwq(&ctx->mrw_tbl, &hwq_attr);
 	if (rc)
 		goto fail;
 
 	/* SRQ Tables */
-	ctx->srqc_tbl.max_elements = ctx->srqc_count;
-	rc = bnxt_qplib_alloc_init_hwq(pdev, &ctx->srqc_tbl, NULL,
-				       &ctx->srqc_tbl.max_elements,
-				       BNXT_QPLIB_MAX_SRQ_CTX_ENTRY_SIZE, 0,
-				       PAGE_SIZE, HWQ_TYPE_CTX);
+	hwq_attr.depth = ctx->srqc_count;
+	hwq_attr.stride = BNXT_QPLIB_MAX_SRQ_CTX_ENTRY_SIZE;
+	rc = bnxt_qplib_alloc_init_hwq(&ctx->srqc_tbl, &hwq_attr);
 	if (rc)
 		goto fail;
 
 	/* CQ Tables */
-	ctx->cq_tbl.max_elements = ctx->cq_count;
-	rc = bnxt_qplib_alloc_init_hwq(pdev, &ctx->cq_tbl, NULL,
-				       &ctx->cq_tbl.max_elements,
-				       BNXT_QPLIB_MAX_CQ_CTX_ENTRY_SIZE, 0,
-				       PAGE_SIZE, HWQ_TYPE_CTX);
+	hwq_attr.depth = ctx->cq_count;
+	hwq_attr.stride = BNXT_QPLIB_MAX_CQ_CTX_ENTRY_SIZE;
+	rc = bnxt_qplib_alloc_init_hwq(&ctx->cq_tbl, &hwq_attr);
 	if (rc)
 		goto fail;
 
 	/* TQM Buffer */
-	ctx->tqm_pde.max_elements = 512;
-	rc = bnxt_qplib_alloc_init_hwq(pdev, &ctx->tqm_pde, NULL,
-				       &ctx->tqm_pde.max_elements, sizeof(u64),
-				       0, PAGE_SIZE, HWQ_TYPE_CTX);
+	rc = bnxt_qplib_setup_tqm_rings(res, ctx);
 	if (rc)
 		goto fail;
-
-	for (i = 0; i < MAX_TQM_ALLOC_REQ; i++) {
-		if (!ctx->tqm_count[i])
-			continue;
-		ctx->tqm_tbl[i].max_elements = ctx->qpc_count *
-					       ctx->tqm_count[i];
-		rc = bnxt_qplib_alloc_init_hwq(pdev, &ctx->tqm_tbl[i], NULL,
-					       &ctx->tqm_tbl[i].max_elements, 1,
-					       0, PAGE_SIZE, HWQ_TYPE_CTX);
-		if (rc)
-			goto fail;
-	}
-	pbl_ptr = (__le64 **)ctx->tqm_pde.pbl_ptr;
-	for (i = 0, j = 0; i < MAX_TQM_ALLOC_REQ;
-	     i++, j += MAX_TQM_ALLOC_BLK_SIZE) {
-		if (!ctx->tqm_tbl[i].max_elements)
-			continue;
-		if (fnz_idx == -1)
-			fnz_idx = i;
-		switch (ctx->tqm_tbl[i].level) {
-		case PBL_LVL_2:
-			for (k = 0; k < ctx->tqm_tbl[i].pbl[PBL_LVL_1].pg_count;
-			     k++)
-				pbl_ptr[PTR_PG(j + k)][PTR_IDX(j + k)] =
-				  cpu_to_le64(
-				    ctx->tqm_tbl[i].pbl[PBL_LVL_1].pg_map_arr[k]
-				    | PTU_PTE_VALID);
-			break;
-		case PBL_LVL_1:
-		case PBL_LVL_0:
-		default:
-			pbl_ptr[PTR_PG(j)][PTR_IDX(j)] = cpu_to_le64(
-				ctx->tqm_tbl[i].pbl[PBL_LVL_0].pg_map_arr[0] |
-				PTU_PTE_VALID);
-			break;
-		}
-	}
-	if (fnz_idx == -1)
-		fnz_idx = 0;
-	ctx->tqm_pde_level = ctx->tqm_tbl[fnz_idx].level == PBL_LVL_2 ?
-			     PBL_LVL_2 : ctx->tqm_tbl[fnz_idx].level + 1;
-
 	/* TIM Buffer */
 	ctx->tim_tbl.max_elements = ctx->qpc_count * 16;
-	rc = bnxt_qplib_alloc_init_hwq(pdev, &ctx->tim_tbl, NULL,
-				       &ctx->tim_tbl.max_elements, 1,
-				       0, PAGE_SIZE, HWQ_TYPE_CTX);
+	hwq_attr.depth = ctx->qpc_count * 16;
+	hwq_attr.stride = 1;
+	rc = bnxt_qplib_alloc_init_hwq(&ctx->tim_tbl, &hwq_attr);
 	if (rc)
 		goto fail;
-
 stats_alloc:
 	/* Stats */
-	rc = bnxt_qplib_alloc_stats_ctx(pdev, &ctx->stats);
+	rc = bnxt_qplib_alloc_stats_ctx(res->pdev, &ctx->stats);
 	if (rc)
 		goto fail;
 
 	return 0;
 
 fail:
-	bnxt_qplib_free_ctx(pdev, ctx);
+	bnxt_qplib_free_ctx(res, ctx);
 	return rc;
 }
 
@@ -808,9 +921,6 @@ void bnxt_qplib_free_res(struct bnxt_qplib_res *res)
 	bnxt_qplib_free_sgid_tbl(res, &res->sgid_tbl);
 	bnxt_qplib_free_pd_tbl(&res->pd_tbl);
 	bnxt_qplib_free_dpi_tbl(res, &res->dpi_tbl);
-
-	res->netdev = NULL;
-	res->pdev = NULL;
 }
 
 int bnxt_qplib_alloc_res(struct bnxt_qplib_res *res, struct pci_dev *pdev,

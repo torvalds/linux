@@ -9,6 +9,7 @@
 #ifndef _ASM_S390_GMAP_H
 #define _ASM_S390_GMAP_H
 
+#include <linux/radix-tree.h>
 #include <linux/refcount.h>
 
 /* Generic bits for GMAP notification on DAT table entry changes. */
@@ -31,6 +32,7 @@
  * @table: pointer to the page directory
  * @asce: address space control element for gmap page table
  * @pfault_enabled: defines if pfaults are applicable for the guest
+ * @guest_handle: protected virtual machine handle for the ultravisor
  * @host_to_rmap: radix tree with gmap_rmap lists
  * @children: list of shadow gmap structures
  * @pt_list: list of all page tables used in the shadow guest address space
@@ -54,6 +56,8 @@ struct gmap {
 	unsigned long asce_end;
 	void *private;
 	bool pfault_enabled;
+	/* only set for protected virtual machines */
+	unsigned long guest_handle;
 	/* Additional data for shadow guest address spaces */
 	struct radix_tree_root host_to_rmap;
 	struct list_head children;
@@ -144,4 +148,6 @@ int gmap_mprotect_notify(struct gmap *, unsigned long start,
 
 void gmap_sync_dirty_log_pmd(struct gmap *gmap, unsigned long dirty_bitmap[4],
 			     unsigned long gaddr, unsigned long vmaddr);
+int gmap_mark_unmergeable(void);
+void s390_reset_acc(struct mm_struct *mm);
 #endif /* _ASM_S390_GMAP_H */

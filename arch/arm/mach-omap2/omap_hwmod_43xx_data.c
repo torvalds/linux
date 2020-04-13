@@ -156,75 +156,6 @@ static struct omap_hwmod am43xx_usb_otg_ss1_hwmod = {
 	},
 };
 
-/* dss */
-
-static struct omap_hwmod am43xx_dss_core_hwmod = {
-	.name		= "dss_core",
-	.class		= &omap2_dss_hwmod_class,
-	.clkdm_name	= "dss_clkdm",
-	.main_clk	= "disp_clk",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = AM43XX_CM_PER_DSS_CLKCTRL_OFFSET,
-			.modulemode   = MODULEMODE_SWCTRL,
-		},
-	},
-};
-
-/* dispc */
-
-static struct omap_dss_dispc_dev_attr am43xx_dss_dispc_dev_attr = {
-	.manager_count		= 1,
-	.has_framedonetv_irq	= 0
-};
-
-static struct omap_hwmod_class_sysconfig am43xx_dispc_sysc = {
-	.rev_offs	= 0x0000,
-	.sysc_offs	= 0x0010,
-	.syss_offs	= 0x0014,
-	.sysc_flags	= (SYSC_HAS_AUTOIDLE | SYSC_HAS_SOFTRESET |
-			   SYSC_HAS_ENAWAKEUP | SYSC_HAS_SIDLEMODE |
-			   SYSC_HAS_CLOCKACTIVITY | SYSC_HAS_MIDLEMODE),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
-			   MSTANDBY_FORCE | MSTANDBY_NO | MSTANDBY_SMART),
-	.sysc_fields	= &omap_hwmod_sysc_type1,
-};
-
-static struct omap_hwmod_class am43xx_dispc_hwmod_class = {
-	.name	= "dispc",
-	.sysc	= &am43xx_dispc_sysc,
-};
-
-static struct omap_hwmod am43xx_dss_dispc_hwmod = {
-	.name		= "dss_dispc",
-	.class		= &am43xx_dispc_hwmod_class,
-	.clkdm_name	= "dss_clkdm",
-	.main_clk	= "disp_clk",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = AM43XX_CM_PER_DSS_CLKCTRL_OFFSET,
-		},
-	},
-	.dev_attr	= &am43xx_dss_dispc_dev_attr,
-	.parent_hwmod	= &am43xx_dss_core_hwmod,
-};
-
-/* rfbi */
-
-static struct omap_hwmod am43xx_dss_rfbi_hwmod = {
-	.name		= "dss_rfbi",
-	.class		= &omap2_rfbi_hwmod_class,
-	.clkdm_name	= "dss_clkdm",
-	.main_clk	= "disp_clk",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = AM43XX_CM_PER_DSS_CLKCTRL_OFFSET,
-		},
-	},
-	.parent_hwmod	= &am43xx_dss_core_hwmod,
-};
-
-
 /* Interfaces */
 static struct omap_hwmod_ocp_if am43xx_l3_main__emif = {
 	.master		= &am33xx_l3_main_hwmod,
@@ -252,13 +183,6 @@ static struct omap_hwmod_ocp_if am43xx_l4_wkup__wkup_m3 = {
 	.slave		= &am43xx_wkup_m3_hwmod,
 	.clk		= "sys_clkin_ck",
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-static struct omap_hwmod_ocp_if am43xx_l3_main__pruss = {
-	.master		= &am33xx_l3_main_hwmod,
-	.slave		= &am33xx_pruss_hwmod,
-	.clk		= "dpll_core_m4_ck",
-	.user		= OCP_USER_MPU,
 };
 
 static struct omap_hwmod_ocp_if am43xx_l4_wkup__smartreflex0 = {
@@ -310,37 +234,8 @@ static struct omap_hwmod_ocp_if am43xx_l3_s__usbotgss1 = {
 	.user           = OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-static struct omap_hwmod_ocp_if am43xx_dss__l3_main = {
-	.master		= &am43xx_dss_core_hwmod,
-	.slave		= &am33xx_l3_main_hwmod,
-	.clk		= "l3_gclk",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-static struct omap_hwmod_ocp_if am43xx_l4_ls__dss = {
-	.master		= &am33xx_l4_ls_hwmod,
-	.slave		= &am43xx_dss_core_hwmod,
-	.clk		= "l4ls_gclk",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-static struct omap_hwmod_ocp_if am43xx_l4_ls__dss_dispc = {
-	.master		= &am33xx_l4_ls_hwmod,
-	.slave		= &am43xx_dss_dispc_hwmod,
-	.clk		= "l4ls_gclk",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-static struct omap_hwmod_ocp_if am43xx_l4_ls__dss_rfbi = {
-	.master		= &am33xx_l4_ls_hwmod,
-	.slave		= &am43xx_dss_rfbi_hwmod,
-	.clk		= "l4ls_gclk",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 static struct omap_hwmod_ocp_if *am43xx_hwmod_ocp_ifs[] __initdata = {
 	&am33xx_l4_wkup__synctimer,
-	&am43xx_l3_main__pruss,
 	&am33xx_mpu__l3_main,
 	&am33xx_mpu__prcm,
 	&am33xx_l3_s__l4_ls,
@@ -351,7 +246,6 @@ static struct omap_hwmod_ocp_if *am43xx_hwmod_ocp_ifs[] __initdata = {
 	&am33xx_l3_main__gfx,
 	&am33xx_l3_s__l3_main,
 	&am43xx_l3_main__emif,
-	&am33xx_pruss__l3_main,
 	&am43xx_wkup_m3__l4_wkup,
 	&am33xx_gfx__l3_main,
 	&am43xx_l4_wkup__wkup_m3,
@@ -360,18 +254,10 @@ static struct omap_hwmod_ocp_if *am43xx_hwmod_ocp_ifs[] __initdata = {
 	&am43xx_l4_wkup__smartreflex1,
 	&am43xx_l4_wkup__timer1,
 	&am33xx_l4_ls__timer2,
-	&am33xx_l3_main__tpcc,
 	&am33xx_l3_s__gpmc,
-	&am33xx_l3_main__tptc0,
-	&am33xx_l3_main__tptc1,
-	&am33xx_l3_main__tptc2,
 	&am33xx_l3_main__ocmc,
 	&am43xx_l3_s__usbotgss0,
 	&am43xx_l3_s__usbotgss1,
-	&am43xx_dss__l3_main,
-	&am43xx_l4_ls__dss,
-	&am43xx_l4_ls__dss_dispc,
-	&am43xx_l4_ls__dss_rfbi,
 	NULL,
 };
 

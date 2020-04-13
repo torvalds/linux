@@ -201,5 +201,6 @@ config DA8XX_MSTPRI
 	  peripherals.
 
 source "drivers/bus/fsl-mc/Kconfig"
+source "drivers/bus/mhi/Kconfig"
 
 endmenu

@@ -18,9 +18,8 @@
  *
  * Quantization luma table values are written to registers
  * VEPU_swreg_0-VEPU_swreg_15, and chroma table values to
- * VEPU_swreg_16-VEPU_swreg_31.
- *
- * JPEG zigzag order is expected on the quantization tables.
+ * VEPU_swreg_16-VEPU_swreg_31. A special order is needed, neither
+ * zigzag, nor linear.
  */
 
 #include <asm/unaligned.h>
@@ -98,12 +97,23 @@ rk3399_vpu_jpeg_enc_set_qtable(struct hantro_dev *vpu,
 			       unsigned char *chroma_qtable)
 {
 	u32 reg, i;
+	__be32 *luma_qtable_p;
+	__be32 *chroma_qtable_p;
+
+	luma_qtable_p = (__be32 *)luma_qtable;
+	chroma_qtable_p = (__be32 *)chroma_qtable;
+
+	/*
+	 * Quantization table registers must be written in contiguous blocks.
+	 * DO NOT collapse the below two "for" loops into one.
+	 */
+	for (i = 0; i < VEPU_JPEG_QUANT_TABLE_COUNT; i++) {
+		reg = get_unaligned_be32(&luma_qtable_p[i]);
+		vepu_write_relaxed(vpu, reg, VEPU_REG_JPEG_LUMA_QUAT(i));
+	}
 
 	for (i = 0; i < VEPU_JPEG_QUANT_TABLE_COUNT; i++) {
-		reg = get_unaligned_be32(&luma_qtable[i]);
-		vepu_write_relaxed(vpu, reg, VEPU_REG_JPEG_LUMA_QUAT(i));
-
-		reg = get_unaligned_be32(&chroma_qtable[i]);
+		reg = get_unaligned_be32(&chroma_qtable_p[i]);
 		vepu_write_relaxed(vpu, reg, VEPU_REG_JPEG_CHROMA_QUAT(i));
 	}
 }
@@ -134,8 +144,8 @@ void rk3399_vpu_jpeg_enc_run(struct hantro_ctx *ctx)
 	rk3399_vpu_set_src_img_ctrl(vpu, ctx);
 	rk3399_vpu_jpeg_enc_set_buffers(vpu, ctx, &src_buf->vb2_buf);
 	rk3399_vpu_jpeg_enc_set_qtable(vpu,
-				       hantro_jpeg_get_qtable(&jpeg_ctx, 0),
-				       hantro_jpeg_get_qtable(&jpeg_ctx, 1));
+				       hantro_jpeg_get_qtable(0),
+				       hantro_jpeg_get_qtable(1));
 
 	reg = VEPU_REG_OUTPUT_SWAP32
 		| VEPU_REG_OUTPUT_SWAP16

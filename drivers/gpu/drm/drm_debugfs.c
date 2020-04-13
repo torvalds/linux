@@ -182,8 +182,7 @@ int drm_debugfs_create_files(const struct drm_info_list *files, int count,
 	for (i = 0; i < count; i++) {
 		u32 features = files[i].driver_features;
 
-		if (features != 0 &&
-		    (dev->driver->driver_features & features) != features)
+		if (features && !drm_core_check_all_features(dev, features))
 			continue;
 
 		tmp = kmalloc(sizeof(struct drm_info_node), GFP_KERNEL);

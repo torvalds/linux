@@ -130,37 +130,36 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_HPTE_TABLE)
 
 .macro SYSCALL_ENTRY trapno
 	mfspr	r12,SPRN_SPRG_THREAD
+	mfspr	r9, SPRN_SRR1
 #ifdef CONFIG_VMAP_STACK
-	mfspr	r9, SPRN_SRR0
-	mfspr	r11, SPRN_SRR1
-	stw	r9, SRR0(r12)
-	stw	r11, SRR1(r12)
+	mfspr	r11, SPRN_SRR0
+	mtctr	r11
 #endif
-	mfcr	r10
+	andi.	r11, r9, MSR_PR
 	lwz	r11,TASK_STACK-THREAD(r12)
-	rlwinm	r10,r10,0,4,2	/* Clear SO bit in CR */
+	beq-	99f
 	addi	r11, r11, THREAD_SIZE - INT_FRAME_SIZE
 #ifdef CONFIG_VMAP_STACK
-	li	r9, MSR_KERNEL & ~(MSR_IR | MSR_RI) /* can take DTLB miss */
-	mtmsr	r9
+	li	r10, MSR_KERNEL & ~(MSR_IR | MSR_RI) /* can take DTLB miss */
+	mtmsr	r10
 	isync
 #endif
 	tovirt_vmstack r12, r12
 	tophys_novmstack r11, r11
-	mflr	r9
-	stw	r10,_CCR(r11)		/* save registers */
-	stw	r9, _LINK(r11)
+	mflr	r10
+	stw	r10, _LINK(r11)
 #ifdef CONFIG_VMAP_STACK
-	lwz	r10, SRR0(r12)
-	lwz	r9, SRR1(r12)
+	mfctr	r10
 #else
 	mfspr	r10,SPRN_SRR0
-	mfspr	r9,SPRN_SRR1
 #endif
 	stw	r1,GPR1(r11)
 	stw	r1,0(r11)
 	tovirt_novmstack r1, r11	/* set new kernel sp */
 	stw	r10,_NIP(r11)
+	mfcr	r10
+	rlwinm	r10,r10,0,4,2	/* Clear SO bit in CR */
+	stw	r10,_CCR(r11)		/* save registers */
 #ifdef CONFIG_40x
 	rlwinm	r9,r9,0,14,12		/* clear MSR_WE (necessary?) */
 #else
@@ -228,6 +227,7 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_HPTE_TABLE)
 	mtspr	SPRN_SRR0,r11
 	SYNC
 	RFI				/* jump to handler, enable MMU */
+99:	b	ret_from_kernel_syscall
 .endm
 
 .macro save_dar_dsisr_on_stack reg1, reg2, sp

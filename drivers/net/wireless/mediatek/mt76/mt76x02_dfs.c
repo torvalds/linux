@@ -307,8 +307,8 @@ static bool mt76x02_dfs_check_hw_pulse(struct mt76x02_dev *dev,
 		       pulse->period <= 100100);
 		break;
 	case NL80211_DFS_JP:
-		if (dev->mt76.chandef.chan->center_freq >= 5250 &&
-		    dev->mt76.chandef.chan->center_freq <= 5350) {
+		if (dev->mphy.chandef.chan->center_freq >= 5250 &&
+		    dev->mphy.chandef.chan->center_freq <= 5350) {
 			/* JPW53 */
 			if (pulse->w1 <= 130)
 				ret = (pulse->period >= 28360 &&
@@ -616,7 +616,7 @@ static void mt76x02_dfs_tasklet(unsigned long arg)
 	u32 engine_mask;
 	int i;
 
-	if (test_bit(MT76_SCANNING, &dev->mt76.state))
+	if (test_bit(MT76_SCANNING, &dev->mphy.state))
 		goto out;
 
 	if (time_is_before_jiffies(dfs_pd->last_sw_check +
@@ -702,7 +702,7 @@ static void mt76x02_dfs_set_bbp_params(struct mt76x02_dev *dev)
 	u8 i, shift;
 	u32 data;
 
-	switch (dev->mt76.chandef.width) {
+	switch (dev->mphy.chandef.width) {
 	case NL80211_CHAN_WIDTH_40:
 		shift = MT_DFS_NUM_ENGINES;
 		break;
@@ -722,8 +722,8 @@ static void mt76x02_dfs_set_bbp_params(struct mt76x02_dev *dev)
 		radar_specs = &etsi_radar_specs[shift];
 		break;
 	case NL80211_DFS_JP:
-		if (dev->mt76.chandef.chan->center_freq >= 5250 &&
-		    dev->mt76.chandef.chan->center_freq <= 5350)
+		if (dev->mphy.chandef.chan->center_freq >= 5250 &&
+		    dev->mphy.chandef.chan->center_freq <= 5350)
 			radar_specs = &jp_w53_radar_specs[shift];
 		else
 			radar_specs = &jp_w56_radar_specs[shift];
@@ -822,7 +822,7 @@ EXPORT_SYMBOL_GPL(mt76x02_phy_dfs_adjust_agc);
 
 void mt76x02_dfs_init_params(struct mt76x02_dev *dev)
 {
-	struct cfg80211_chan_def *chandef = &dev->mt76.chandef;
+	struct cfg80211_chan_def *chandef = &dev->mphy.chandef;
 
 	if ((chandef->chan->flags & IEEE80211_CHAN_RADAR) &&
 	    dev->mt76.region != NL80211_DFS_UNSET) {

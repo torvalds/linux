@@ -48,7 +48,7 @@ struct acx424akp {
 };
 
 static const struct drm_display_mode sony_acx424akp_vid_mode = {
-	.clock = 330000,
+	.clock = 27234,
 	.hdisplay = 480,
 	.hsync_start = 480 + 15,
 	.hsync_end = 480 + 15 + 0,
@@ -68,7 +68,7 @@ static const struct drm_display_mode sony_acx424akp_vid_mode = {
  * command mode using the maximum HS frequency.
  */
 static const struct drm_display_mode sony_acx424akp_cmd_mode = {
-	.clock = 420160,
+	.clock = 35478,
 	.hdisplay = 480,
 	.hsync_start = 480 + 154,
 	.hsync_end = 480 + 154 + 16,

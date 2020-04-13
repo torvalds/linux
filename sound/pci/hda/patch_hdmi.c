@@ -154,7 +154,6 @@ struct hdmi_spec {
 	struct hda_multi_out multiout;
 	struct hda_pcm_stream pcm_playback;
 
-	bool use_jack_detect; /* jack detection enabled */
 	bool use_acomp_notifier; /* use eld_notify callback for hotplug */
 	bool acomp_registered; /* audio component registered in this driver */
 	struct drm_audio_component_audio_ops drm_audio_ops;
@@ -753,7 +752,7 @@ static void hdmi_setup_audio_infoframe(struct hda_codec *codec,
  * Unsolicited events
  */
 
-static bool hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll);
+static void hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll);
 
 static void check_presence_and_report(struct hda_codec *codec, hda_nid_t nid,
 				      int dev_id)
@@ -764,8 +763,7 @@ static void check_presence_and_report(struct hda_codec *codec, hda_nid_t nid,
 	if (pin_idx < 0)
 		return;
 	mutex_lock(&spec->pcm_lock);
-	if (hdmi_present_sense(get_pin(spec, pin_idx), 1))
-		snd_hda_jack_report_sync(codec);
+	hdmi_present_sense(get_pin(spec, pin_idx), 1);
 	mutex_unlock(&spec->pcm_lock);
 }
 
@@ -779,21 +777,9 @@ static void jack_callback(struct hda_codec *codec,
 	check_presence_and_report(codec, jack->nid, jack->dev_id);
 }
 
-static void hdmi_intrinsic_event(struct hda_codec *codec, unsigned int res)
+static void hdmi_intrinsic_event(struct hda_codec *codec, unsigned int res,
+				 struct hda_jack_tbl *jack)
 {
-	int tag = res >> AC_UNSOL_RES_TAG_SHIFT;
-	struct hda_jack_tbl *jack;
-
-	if (codec->dp_mst) {
-		int dev_entry =
-			(res & AC_UNSOL_RES_DE) >> AC_UNSOL_RES_DE_SHIFT;
-
-		jack = snd_hda_jack_tbl_get_from_tag(codec, tag, dev_entry);
-	} else {
-		jack = snd_hda_jack_tbl_get_from_tag(codec, tag, 0);
-	}
-	if (!jack)
-		return;
 	jack->jack_dirty = 1;
 
 	codec_dbg(codec,
@@ -853,7 +839,7 @@ static void hdmi_unsol_event(struct hda_codec *codec, unsigned int res)
 	}
 
 	if (subtag == 0)
-		hdmi_intrinsic_event(codec, res);
+		hdmi_intrinsic_event(codec, res, jack);
 	else
 		hdmi_non_intrinsic_event(codec, res);
 }
@@ -1480,21 +1466,60 @@ static void hdmi_pcm_reset_pin(struct hdmi_spec *spec,
 	per_pin->channels = 0;
 }
 
+static struct snd_jack *pin_idx_to_pcm_jack(struct hda_codec *codec,
+					    struct hdmi_spec_per_pin *per_pin)
+{
+	struct hdmi_spec *spec = codec->spec;
+
+	if (per_pin->pcm_idx >= 0)
+		return spec->pcm_rec[per_pin->pcm_idx].jack;
+	else
+		return NULL;
+}
+
 /* update per_pin ELD from the given new ELD;
  * setup info frame and notification accordingly
+ * also notify ELD kctl and report jack status changes
  */
-static bool update_eld(struct hda_codec *codec,
+static void update_eld(struct hda_codec *codec,
 		       struct hdmi_spec_per_pin *per_pin,
-		       struct hdmi_eld *eld)
+		       struct hdmi_eld *eld,
+		       int repoll)
 {
 	struct hdmi_eld *pin_eld = &per_pin->sink_eld;
 	struct hdmi_spec *spec = codec->spec;
+	struct snd_jack *pcm_jack;
 	bool old_eld_valid = pin_eld->eld_valid;
 	bool eld_changed;
 	int pcm_idx;
 
+	if (eld->eld_valid) {
+		if (eld->eld_size <= 0 ||
+		    snd_hdmi_parse_eld(codec, &eld->info, eld->eld_buffer,
+				       eld->eld_size) < 0) {
+			eld->eld_valid = false;
+			if (repoll) {
+				schedule_delayed_work(&per_pin->work,
+						      msecs_to_jiffies(300));
+				return;
+			}
+		}
+	}
+
+	if (!eld->eld_valid || eld->eld_size <= 0) {
+		eld->eld_valid = false;
+		eld->eld_size = 0;
+	}
+
 	/* for monitor disconnection, save pcm_idx firstly */
 	pcm_idx = per_pin->pcm_idx;
+
+	/*
+	 * pcm_idx >=0 before update_eld() means it is in monitor
+	 * disconnected event. Jack must be fetched before update_eld().
+	 */
+	pcm_jack = pin_idx_to_pcm_jack(codec, per_pin);
+
 	if (spec->dyn_pcm_assign) {
 		if (eld->eld_valid) {
 			hdmi_attach_hda_pcm(spec, per_pin);
@@ -1509,6 +1534,8 @@ static bool update_eld(struct hda_codec *codec,
 	 */
 	if (pcm_idx == -1)
 		pcm_idx = per_pin->pcm_idx;
+	if (!pcm_jack)
+		pcm_jack = pin_idx_to_pcm_jack(codec, per_pin);
 
 	if (eld->eld_valid)
 		snd_hdmi_show_eld(codec, &eld->info);
@@ -1547,42 +1574,17 @@ static bool update_eld(struct hda_codec *codec,
 			       SNDRV_CTL_EVENT_MASK_VALUE |
 			       SNDRV_CTL_EVENT_MASK_INFO,
 			       &get_hdmi_pcm(spec, pcm_idx)->eld_ctl->id);
-	return eld_changed;
+
+	if (eld_changed && pcm_jack)
+		snd_jack_report(pcm_jack,
+				(eld->monitor_present && eld->eld_valid) ?
+				SND_JACK_AVOUT : 0);
 }
 
-static struct snd_jack *pin_idx_to_pcm_jack(struct hda_codec *codec,
-					    struct hdmi_spec_per_pin *per_pin)
-{
-	struct hdmi_spec *spec = codec->spec;
-	struct snd_jack *jack = NULL;
-	struct hda_jack_tbl *jack_tbl;
-
-	/* if !dyn_pcm_assign, get jack from hda_jack_tbl
-	 * in !dyn_pcm_assign case, spec->pcm_rec[].jack is not
-	 * NULL even after snd_hda_jack_tbl_clear() is called to
-	 * free snd_jack. This may cause access invalid memory
-	 * when calling snd_jack_report
-	 */
-	if (per_pin->pcm_idx >= 0 && spec->dyn_pcm_assign) {
-		jack = spec->pcm_rec[per_pin->pcm_idx].jack;
-	} else if (!spec->dyn_pcm_assign) {
-		/*
-		 * jack tbl doesn't support DP MST
-		 * DP MST will use dyn_pcm_assign,
-		 * so DP MST will never come here
-		 */
-		jack_tbl = snd_hda_jack_tbl_get_mst(codec, per_pin->pin_nid,
-						    per_pin->dev_id);
-		if (jack_tbl)
-			jack = jack_tbl->jack;
-	}
-	return jack;
-}
 /* update ELD and jack state via HD-audio verbs */
-static bool hdmi_present_sense_via_verbs(struct hdmi_spec_per_pin *per_pin,
+static void hdmi_present_sense_via_verbs(struct hdmi_spec_per_pin *per_pin,
 					 int repoll)
 {
-	struct hda_jack_tbl *jack;
 	struct hda_codec *codec = per_pin->codec;
 	struct hdmi_spec *spec = codec->spec;
 	struct hdmi_eld *eld = &spec->temp_eld;
@@ -1597,9 +1599,11 @@ static bool hdmi_present_sense_via_verbs(struct hdmi_spec_per_pin *per_pin,
 	 * the unsolicited response to avoid custom WARs.
 	 */
 	int present;
-	bool ret;
-	bool do_repoll = false;
-	struct snd_jack *pcm_jack = NULL;
+	int ret;
+
+	ret = snd_hda_power_up_pm(codec);
+	if (ret < 0 && pm_runtime_suspended(hda_codec_dev(codec)))
+		goto out;
 
 	present = snd_hda_jack_pin_sense(codec, pin_nid, dev_id);
 
@@ -1618,62 +1622,12 @@ static bool hdmi_present_sense_via_verbs(struct hdmi_spec_per_pin *per_pin,
 		if (spec->ops.pin_get_eld(codec, pin_nid, dev_id,
 					  eld->eld_buffer, &eld->eld_size) < 0)
 			eld->eld_valid = false;
-		else {
-			if (snd_hdmi_parse_eld(codec, &eld->info, eld->eld_buffer,
-						    eld->eld_size) < 0)
-				eld->eld_valid = false;
-		}
-		if (!eld->eld_valid && repoll)
-			do_repoll = true;
 	}
 
-	if (do_repoll) {
-		schedule_delayed_work(&per_pin->work, msecs_to_jiffies(300));
-	} else {
-		/*
-		 * pcm_idx >=0 before update_eld() means it is in monitor
-		 * disconnected event. Jack must be fetched before
-		 * update_eld().
-		 */
-		pcm_jack = pin_idx_to_pcm_jack(codec, per_pin);
-		update_eld(codec, per_pin, eld);
-		if (!pcm_jack)
-			pcm_jack = pin_idx_to_pcm_jack(codec, per_pin);
-	}
-
-	ret = !repoll || !eld->monitor_present || eld->eld_valid;
-
-	jack = snd_hda_jack_tbl_get_mst(codec, pin_nid, per_pin->dev_id);
-	if (jack) {
-		jack->block_report = !ret;
-		jack->pin_sense = (eld->monitor_present && eld->eld_valid) ?
-			AC_PINSENSE_PRESENCE : 0;
-
-		if (spec->dyn_pcm_assign && pcm_jack && !do_repoll) {
-			int state = 0;
-
-			if (jack->pin_sense & AC_PINSENSE_PRESENCE)
-				state = SND_JACK_AVOUT;
-			snd_jack_report(pcm_jack, state);
-		}
-
-		/*
-		 * snd_hda_jack_pin_sense() call at the beginning of this
-		 * function, updates jack->pins_sense and clears
-		 * jack->jack_dirty, therefore snd_hda_jack_report_sync() will
-		 * not override the jack->pin_sense.
-		 *
-		 * snd_hda_jack_report_sync() is superfluous for dyn_pcm_assign
-		 * case. The jack->pin_sense update was already performed, and
-		 * hda_jack->jack is NULL for dyn_pcm_assign.
-		 *
-		 * Don't call snd_hda_jack_report_sync() for
-		 * dyn_pcm_assign.
-		 */
-		ret = ret && !spec->dyn_pcm_assign;
-	}
+	update_eld(codec, per_pin, eld, repoll);
 	mutex_unlock(&per_pin->lock);
-	return ret;
+ out:
+	snd_hda_power_down_pm(codec);
 }
 
 /* update ELD and jack state via audio component */
@@ -1682,64 +1636,25 @@ static void sync_eld_via_acomp(struct hda_codec *codec,
 {
 	struct hdmi_spec *spec = codec->spec;
 	struct hdmi_eld *eld = &spec->temp_eld;
-	struct snd_jack *jack = NULL;
-	bool changed;
-	int size;
 
 	mutex_lock(&per_pin->lock);
 	eld->monitor_present = false;
-	size = snd_hdac_acomp_get_eld(&codec->core, per_pin->pin_nid,
+	eld->eld_size = snd_hdac_acomp_get_eld(&codec->core, per_pin->pin_nid,
 				      per_pin->dev_id, &eld->monitor_present,
 				      eld->eld_buffer, ELD_MAX_SIZE);
-	if (size > 0) {
-		size = min(size, ELD_MAX_SIZE);
-		if (snd_hdmi_parse_eld(codec, &eld->info,
-				       eld->eld_buffer, size) < 0)
-			size = -EINVAL;
-	}
-
-	if (size > 0) {
-		eld->eld_valid = true;
-		eld->eld_size = size;
-	} else {
-		eld->eld_valid = false;
-		eld->eld_size = 0;
-	}
-
-	/* pcm_idx >=0 before update_eld() means it is in monitor
-	 * disconnected event. Jack must be fetched before update_eld()
-	 */
-	jack = pin_idx_to_pcm_jack(codec, per_pin);
-	changed = update_eld(codec, per_pin, eld);
-	if (jack == NULL)
-		jack = pin_idx_to_pcm_jack(codec, per_pin);
-	if (changed && jack)
-		snd_jack_report(jack,
-				(eld->monitor_present && eld->eld_valid) ?
-				SND_JACK_AVOUT : 0);
+	eld->eld_valid = (eld->eld_size > 0);
+	update_eld(codec, per_pin, eld, 0);
 	mutex_unlock(&per_pin->lock);
 }
 
-static bool hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll)
+static void hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll)
 {
 	struct hda_codec *codec = per_pin->codec;
-	int ret;
 
-	/* no temporary power up/down needed for component notifier */
-	if (!codec_has_acomp(codec)) {
-		ret = snd_hda_power_up_pm(codec);
-		if (ret < 0 && pm_runtime_suspended(hda_codec_dev(codec))) {
-			snd_hda_power_down_pm(codec);
-			return false;
-		}
-		ret = hdmi_present_sense_via_verbs(per_pin, repoll);
-		snd_hda_power_down_pm(codec);
-	} else {
+	if (!codec_has_acomp(codec))
+		hdmi_present_sense_via_verbs(per_pin, repoll);
+	else
 		sync_eld_via_acomp(codec, per_pin);
-		ret = false; /* don't call snd_hda_jack_report_sync() */
-	}
-
-	return ret;
 }
 
 static void hdmi_repoll_eld(struct work_struct *work)
@@ -1759,8 +1674,7 @@ static void hdmi_repoll_eld(struct work_struct *work)
 		per_pin->repoll_count = 0;
 
 	mutex_lock(&spec->pcm_lock);
-	if (hdmi_present_sense(per_pin, per_pin->repoll_count))
-		snd_hda_jack_report_sync(per_pin->codec);
+	hdmi_present_sense(per_pin, per_pin->repoll_count);
 	mutex_unlock(&spec->pcm_lock);
 }
 
@@ -2206,15 +2120,23 @@ static void free_hdmi_jack_priv(struct snd_jack *jack)
 	pcm->jack = NULL;
 }
 
-static int add_hdmi_jack_kctl(struct hda_codec *codec,
-			       struct hdmi_spec *spec,
-			       int pcm_idx,
-			       const char *name)
+static int generic_hdmi_build_jack(struct hda_codec *codec, int pcm_idx)
 {
+	char hdmi_str[32] = "HDMI/DP";
+	struct hdmi_spec *spec = codec->spec;
+	struct hdmi_spec_per_pin *per_pin = get_pin(spec, pcm_idx);
 	struct snd_jack *jack;
+	int pcmdev = get_pcm_rec(spec, pcm_idx)->device;
 	int err;
 
-	err = snd_jack_new(codec->card, name, SND_JACK_AVOUT, &jack,
+	if (pcmdev > 0)
+		sprintf(hdmi_str + strlen(hdmi_str), ",pcm=%d", pcmdev);
+	if (!spec->dyn_pcm_assign &&
+	    !is_jack_detectable(codec, per_pin->pin_nid))
+		strncat(hdmi_str, " Phantom",
+			sizeof(hdmi_str) - strlen(hdmi_str) - 1);
+
+	err = snd_jack_new(codec->card, hdmi_str, SND_JACK_AVOUT, &jack,
 			   true, false);
 	if (err < 0)
 		return err;
@@ -2222,48 +2144,6 @@ static int add_hdmi_jack_kctl(struct hda_codec *codec,
 	spec->pcm_rec[pcm_idx].jack = jack;
 	jack->private_data = &spec->pcm_rec[pcm_idx];
 	jack->private_free = free_hdmi_jack_priv;
-	return 0;
-}
-
-static int generic_hdmi_build_jack(struct hda_codec *codec, int pcm_idx)
-{
-	char hdmi_str[32] = "HDMI/DP";
-	struct hdmi_spec *spec = codec->spec;
-	struct hdmi_spec_per_pin *per_pin;
-	struct hda_jack_tbl *jack;
-	int pcmdev = get_pcm_rec(spec, pcm_idx)->device;
-	bool phantom_jack;
-	int ret;
-
-	if (pcmdev > 0)
-		sprintf(hdmi_str + strlen(hdmi_str), ",pcm=%d", pcmdev);
-
-	if (spec->dyn_pcm_assign)
-		return add_hdmi_jack_kctl(codec, spec, pcm_idx, hdmi_str);
-
-	/* for !dyn_pcm_assign, we still use hda_jack for compatibility */
-	/* if !dyn_pcm_assign, it must be non-MST mode.
-	 * This means pcms and pins are statically mapped.
-	 * And pcm_idx is pin_idx.
-	 */
-	per_pin = get_pin(spec, pcm_idx);
-	phantom_jack = !is_jack_detectable(codec, per_pin->pin_nid);
-	if (phantom_jack)
-		strncat(hdmi_str, " Phantom",
-			sizeof(hdmi_str) - strlen(hdmi_str) - 1);
-	ret = snd_hda_jack_add_kctl_mst(codec, per_pin->pin_nid,
-					per_pin->dev_id, hdmi_str, phantom_jack,
-					0, NULL);
-	if (ret < 0)
-		return ret;
-	jack = snd_hda_jack_tbl_get_mst(codec, per_pin->pin_nid,
-					per_pin->dev_id);
-	if (jack == NULL)
-		return 0;
-	/* assign jack->jack to pcm_rec[].jack to
-	 * align with dyn_pcm_assign mode
-	 */
-	spec->pcm_rec[pcm_idx].jack = jack->jack;
 	return 0;
 }
 
@@ -2355,7 +2235,6 @@ static int generic_hdmi_init(struct hda_codec *codec)
 	int pin_idx;
 
 	mutex_lock(&spec->bind_lock);
-	spec->use_jack_detect = !codec->jackpoll_interval;
 	for (pin_idx = 0; pin_idx < spec->num_pins; pin_idx++) {
 		struct hdmi_spec_per_pin *per_pin = get_pin(spec, pin_idx);
 		hda_nid_t pin_nid = per_pin->pin_nid;
@@ -2365,12 +2244,8 @@ static int generic_hdmi_init(struct hda_codec *codec)
 		hdmi_init_pin(codec, pin_nid);
 		if (codec_has_acomp(codec))
 			continue;
-		if (spec->use_jack_detect)
-			snd_hda_jack_detect_enable(codec, pin_nid, dev_id);
-		else
-			snd_hda_jack_detect_enable_callback_mst(codec, pin_nid,
-								dev_id,
-								jack_callback);
+		snd_hda_jack_detect_enable_callback_mst(codec, pin_nid, dev_id,
+							jack_callback);
 	}
 	mutex_unlock(&spec->bind_lock);
 	return 0;
@@ -2532,12 +2407,6 @@ static void reprogram_jack_detect(struct hda_codec *codec, hda_nid_t nid,
 		unsigned int val = use_acomp ? 0 : (AC_USRSP_EN | tbl->tag);
 		snd_hda_codec_write_cache(codec, nid, 0,
 					  AC_VERB_SET_UNSOLICITED_ENABLE, val);
-	} else {
-		/* if no jack entry was defined beforehand, create a new one
-		 * at need (i.e. only when notifier is cleared)
-		 */
-		if (!use_acomp)
-			snd_hda_jack_detect_enable(codec, nid, dev_id);
 	}
 }
 
@@ -2553,13 +2422,11 @@ static void generic_acomp_notifier_set(struct drm_audio_component *acomp,
 	spec->use_acomp_notifier = use_acomp;
 	spec->codec->relaxed_resume = use_acomp;
 	/* reprogram each jack detection logic depending on the notifier */
-	if (spec->use_jack_detect) {
-		for (i = 0; i < spec->num_pins; i++)
-			reprogram_jack_detect(spec->codec,
-					      get_pin(spec, i)->pin_nid,
-					      get_pin(spec, i)->dev_id,
-					      use_acomp);
-	}
+	for (i = 0; i < spec->num_pins; i++)
+		reprogram_jack_detect(spec->codec,
+				      get_pin(spec, i)->pin_nid,
+				      get_pin(spec, i)->dev_id,
+				      use_acomp);
 	mutex_unlock(&spec->bind_lock);
 }
 

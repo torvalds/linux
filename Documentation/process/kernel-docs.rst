@@ -313,7 +313,7 @@ On-line docs
       :URL: http://www.linuxjournal.com/article.php?sid=2391
       :Date: 1997
       :Keywords: RAID, MD driver.
-      :Description: Linux Journal Kernel Korner article. Here is its
+      :Description: Linux Journal Kernel Korner article.
       :Abstract: *A description of the implementation of the RAID-1,
         RAID-4 and RAID-5 personalities of the MD device driver in the
         Linux kernel, providing users with high performance and reliable,
@@ -338,7 +338,7 @@ On-line docs
       :Date: 1996
       :Keywords: device driver, module, loading/unloading modules,
         allocating resources.
-      :Description: Linux Journal Kernel Korner article. Here is its
+      :Description: Linux Journal Kernel Korner article.
       :Abstract: *This is the first of a series of four articles
         co-authored by Alessandro Rubini and Georg Zezchwitz which present
         a practical approach to writing Linux device drivers as kernel
@@ -354,7 +354,7 @@ On-line docs
       :Keywords: character driver, init_module, clean_up module,
         autodetection, mayor number, minor number, file operations,
         open(), close().
-      :Description: Linux Journal Kernel Korner article. Here is its
+      :Description: Linux Journal Kernel Korner article.
       :Abstract: *This article, the second of four, introduces part of
         the actual code to create custom module implementing a character
         device driver. It describes the code for module initialization and
@@ -367,7 +367,7 @@ On-line docs
       :Date: 1996
       :Keywords: read(), write(), select(), ioctl(), blocking/non
         blocking mode, interrupt handler.
-      :Description: Linux Journal Kernel Korner article. Here is its
+      :Description: Linux Journal Kernel Korner article.
       :Abstract: *This article, the third of four on writing character
         device drivers, introduces concepts of reading, writing, and using
         ioctl-calls*.
@@ -378,7 +378,7 @@ On-line docs
       :URL: http://www.linuxjournal.com/article.php?sid=1222
       :Date: 1996
       :Keywords: interrupts, irqs, DMA, bottom halves, task queues.
-      :Description: Linux Journal Kernel Korner article. Here is its
+      :Description: Linux Journal Kernel Korner article.
       :Abstract: *This is the fourth in a series of articles about
         writing character device drivers as loadable kernel modules. This
         month, we further investigate the field of interrupt handling.

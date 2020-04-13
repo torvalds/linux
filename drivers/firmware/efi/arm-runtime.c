@@ -25,8 +25,6 @@
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
 
-extern u64 efi_system_table;
-
 #if defined(CONFIG_PTDUMP_DEBUGFS) && defined(CONFIG_ARM64)
 #include <asm/ptdump.h>
 
@@ -54,13 +52,11 @@ device_initcall(ptdump_init);
 static bool __init efi_virtmap_init(void)
 {
 	efi_memory_desc_t *md;
-	bool systab_found;
 
 	efi_mm.pgd = pgd_alloc(&efi_mm);
 	mm_init_cpumask(&efi_mm);
 	init_new_context(NULL, &efi_mm);
 
-	systab_found = false;
 	for_each_efi_memory_desc(md) {
 		phys_addr_t phys = md->phys_addr;
 		int ret;
@@ -76,20 +72,6 @@ static bool __init efi_virtmap_init(void)
 				&phys, ret);
 			return false;
 		}
-		/*
-		 * If this entry covers the address of the UEFI system table,
-		 * calculate and record its virtual address.
-		 */
-		if (efi_system_table >= phys &&
-		    efi_system_table < phys + (md->num_pages * EFI_PAGE_SIZE)) {
-			efi.systab = (void *)(unsigned long)(efi_system_table -
-							     phys + md->virt_addr);
-			systab_found = true;
-		}
-	}
-	if (!systab_found) {
-		pr_err("No virtual mapping found for the UEFI System Table\n");
-		return false;
 	}
 
 	if (efi_memattr_apply_permissions(&efi_mm, efi_set_mapping_permissions))

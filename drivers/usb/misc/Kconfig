@@ -137,6 +137,16 @@ config USB_APPLEDISPLAY
 	  Say Y here if you want to control the backlight of Apple Cinema
 	  Displays over USB. This driver provides a sysfs interface.
 
+config APPLE_MFI_FASTCHARGE
+	tristate "Fast charge control for iOS devices"
+	select POWER_SUPPLY
+	help
+	  Say Y here if you want to control whether iOS devices will
+	  fast charge from the USB interface, as implemented in "MFi"
+	  chargers.
+
+	  It is safe to say M here.
+
 source "drivers/usb/misc/sisusbvga/Kconfig"
 
 config USB_LD

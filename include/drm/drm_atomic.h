@@ -670,6 +670,9 @@ __drm_atomic_get_current_plane_state(struct drm_atomic_state *state,
 }
 
 int __must_check
+drm_atomic_add_encoder_bridges(struct drm_atomic_state *state,
+			       struct drm_encoder *encoder);
+int __must_check
 drm_atomic_add_affected_connectors(struct drm_atomic_state *state,
 				   struct drm_crtc *crtc);
 int __must_check
@@ -991,5 +994,78 @@ drm_atomic_crtc_effectively_active(const struct drm_crtc_state *state)
 {
 	return state->active || state->self_refresh_active;
 }
+
+/**
+ * struct drm_bus_cfg - bus configuration
+ *
+ * This structure stores the configuration of a physical bus between two
+ * components in an output pipeline, usually between two bridges, an encoder
+ * and a bridge, or a bridge and a connector.
+ *
+ * The bus configuration is stored in &drm_bridge_state separately for the
+ * input and output buses, as seen from the point of view of each bridge. The
+ * bus configuration of a bridge output is usually identical to the
+ * configuration of the next bridge's input, but may differ if the signals are
+ * modified between the two bridges, for instance by an inverter on the board.
+ * The input and output configurations of a bridge may differ if the bridge
+ * modifies the signals internally, for instance by performing format
+ * conversion, or modifying signals polarities.
+ */
+struct drm_bus_cfg {
+	/**
+	 * @format: format used on this bus (one of the MEDIA_BUS_FMT_* format)
+	 *
+	 * This field should not be directly modified by drivers
+	 * (drm_atomic_bridge_chain_select_bus_fmts() takes care of the bus
+	 * format negotiation).
+	 */
+	u32 format;
+
+	/**
+	 * @flags: DRM_BUS_* flags used on this bus
+	 */
+	u32 flags;
+};
+
+/**
+ * struct drm_bridge_state - Atomic bridge state object
+ */
+struct drm_bridge_state {
+	/**
+	 * @base: inherit from &drm_private_state
+	 */
+	struct drm_private_state base;
+
+	/**
+	 * @bridge: the bridge this state refers to
+	 */
+	struct drm_bridge *bridge;
+
+	/**
+	 * @input_bus_cfg: input bus configuration
+	 */
+	struct drm_bus_cfg input_bus_cfg;
+
+	/**
+	 * @output_bus_cfg: input bus configuration
+	 */
+	struct drm_bus_cfg output_bus_cfg;
+};
+
+static inline struct drm_bridge_state *
+drm_priv_to_bridge_state(struct drm_private_state *priv)
+{
+	return container_of(priv, struct drm_bridge_state, base);
+}
+
+struct drm_bridge_state *
+drm_atomic_get_bridge_state(struct drm_atomic_state *state,
+			    struct drm_bridge *bridge);
+struct drm_bridge_state *
+drm_atomic_get_old_bridge_state(struct drm_atomic_state *state,
+				struct drm_bridge *bridge);
+struct drm_bridge_state *
+drm_atomic_get_new_bridge_state(struct drm_atomic_state *state,
+				struct drm_bridge *bridge);
 
 #endif /* DRM_ATOMIC_H_ */

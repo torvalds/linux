@@ -486,12 +486,9 @@ static int lme2510_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 	static u8 obuf[64], ibuf[64];
 	int i, read, read_o;
 	u16 len;
-	u8 gate = st->i2c_gate;
+	u8 gate;
 
 	mutex_lock(&d->i2c_mutex);
-
-	if (gate == 0)
-		gate = 5;
 
 	for (i = 0; i < num; i++) {
 		read_o = msg[i].flags & I2C_M_RD;

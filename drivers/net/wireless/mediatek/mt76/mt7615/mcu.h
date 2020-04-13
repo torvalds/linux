@@ -23,6 +23,57 @@ struct mt7615_mcu_txd {
 	u32 reserved[5];
 } __packed __aligned(4);
 
+/**
+ * struct mt7615_uni_txd - mcu command descriptor for firmware v3
+ * @txd: hardware descriptor
+ * @len: total length not including txd
+ * @cid: command identifier
+ * @pkt_type: must be 0xa0 (cmd packet by long format)
+ * @frag_n: fragment number
+ * @seq: sequence number
+ * @checksum: 0 mean there is no checksum
+ * @s2d_index: index for command source and destination
+ *  Definition              | value | note
+ *  CMD_S2D_IDX_H2N         | 0x00  | command from HOST to WM
+ *  CMD_S2D_IDX_C2N         | 0x01  | command from WA to WM
+ *  CMD_S2D_IDX_H2C         | 0x02  | command from HOST to WA
+ *  CMD_S2D_IDX_H2N_AND_H2C | 0x03  | command from HOST to WA and WM
+ *
+ * @option: command option
+ *  BIT[0]: UNI_CMD_OPT_BIT_ACK
+ *          set to 1 to request a fw reply
+ *          if UNI_CMD_OPT_BIT_0_ACK is set and UNI_CMD_OPT_BIT_2_SET_QUERY
+ *          is set, mcu firmware will send response event EID = 0x01
+ *          (UNI_EVENT_ID_CMD_RESULT) to the host.
+ *  BIT[1]: UNI_CMD_OPT_BIT_UNI_CMD
+ *          0: original command
+ *          1: unified command
+ *  BIT[2]: UNI_CMD_OPT_BIT_SET_QUERY
+ *          0: QUERY command
+ *          1: SET command
+ */
+struct mt7615_uni_txd {
+	__le32 txd[8];
+
+	/* DW1 */
+	__le16 len;
+	__le16 cid;
+
+	/* DW2 */
+	u8 reserved;
+	u8 pkt_type;
+	u8 frag_n;
+	u8 seq;
+
+	/* DW3 */
+	__le16 checksum;
+	u8 s2d_index;
+	u8 option;
+
+	/* DW4 */
+	u8 reserved2[4];
+} __packed __aligned(4);
+
 /* event table */
 enum {
 	MCU_EVENT_TARGET_ADDRESS_LEN = 0x01,
@@ -45,6 +96,62 @@ enum {
 	MCU_EXT_EVENT_CSA_NOTIFY = 0x4f,
 };
 
+enum {
+    MT_SKU_CCK_1_2 = 0,
+    MT_SKU_CCK_55_11,
+    MT_SKU_OFDM_6_9,
+    MT_SKU_OFDM_12_18,
+    MT_SKU_OFDM_24_36,
+    MT_SKU_OFDM_48,
+    MT_SKU_OFDM_54,
+    MT_SKU_HT20_0_8,
+    MT_SKU_HT20_32,
+    MT_SKU_HT20_1_2_9_10,
+    MT_SKU_HT20_3_4_11_12,
+    MT_SKU_HT20_5_13,
+    MT_SKU_HT20_6_14,
+    MT_SKU_HT20_7_15,
+    MT_SKU_HT40_0_8,
+    MT_SKU_HT40_32,
+    MT_SKU_HT40_1_2_9_10,
+    MT_SKU_HT40_3_4_11_12,
+    MT_SKU_HT40_5_13,
+    MT_SKU_HT40_6_14,
+    MT_SKU_HT40_7_15,
+    MT_SKU_VHT20_0,
+    MT_SKU_VHT20_1_2,
+    MT_SKU_VHT20_3_4,
+    MT_SKU_VHT20_5_6,
+    MT_SKU_VHT20_7,
+    MT_SKU_VHT20_8,
+    MT_SKU_VHT20_9,
+    MT_SKU_VHT40_0,
+    MT_SKU_VHT40_1_2,
+    MT_SKU_VHT40_3_4,
+    MT_SKU_VHT40_5_6,
+    MT_SKU_VHT40_7,
+    MT_SKU_VHT40_8,
+    MT_SKU_VHT40_9,
+    MT_SKU_VHT80_0,
+    MT_SKU_VHT80_1_2,
+    MT_SKU_VHT80_3_4,
+    MT_SKU_VHT80_5_6,
+    MT_SKU_VHT80_7,
+    MT_SKU_VHT80_8,
+    MT_SKU_VHT80_9,
+    MT_SKU_VHT160_0,
+    MT_SKU_VHT160_1_2,
+    MT_SKU_VHT160_3_4,
+    MT_SKU_VHT160_5_6,
+    MT_SKU_VHT160_7,
+    MT_SKU_VHT160_8,
+    MT_SKU_VHT160_9,
+    MT_SKU_1SS_DELTA,
+    MT_SKU_2SS_DELTA,
+    MT_SKU_3SS_DELTA,
+    MT_SKU_4SS_DELTA,
+};
+
 struct mt7615_mcu_rxd {
 	__le32 rxd[4];
 
@@ -58,6 +165,52 @@ struct mt7615_mcu_rxd {
 	u8 ext_eid;
 	u8 __rsv1[2];
 	u8 s2d_index;
+};
+
+struct mt7615_mcu_rdd_report {
+	struct mt7615_mcu_rxd rxd;
+
+	u8 idx;
+	u8 long_detected;
+	u8 constant_prf_detected;
+	u8 staggered_prf_detected;
+	u8 radar_type_idx;
+	u8 periodic_pulse_num;
+	u8 long_pulse_num;
+	u8 hw_pulse_num;
+
+	u8 out_lpn;
+	u8 out_spn;
+	u8 out_crpn;
+	u8 out_crpw;
+	u8 out_crbn;
+	u8 out_stgpn;
+	u8 out_stgpw;
+
+	u8 _rsv[2];
+
+	__le32 out_pri_const;
+	__le32 out_pri_stg[3];
+
+	struct {
+		__le32 start;
+		__le16 pulse_width;
+		__le16 pulse_power;
+	} long_pulse[32];
+
+	struct {
+		__le32 start;
+		__le16 pulse_width;
+		__le16 pulse_power;
+	} periodic_pulse[32];
+
+	struct {
+		__le32 start;
+		__le16 pulse_width;
+		__le16 pulse_power;
+		u8 sc_pass;
+		u8 sw_reset;
+	} hw_pulse[32];
 };
 
 #define MCU_PQ_ID(p, q)		(((p) << 15) | ((q) << 10))
@@ -77,22 +230,27 @@ enum {
 	MCU_S2D_H2CN
 };
 
+#define MCU_FW_PREFIX		BIT(31)
+#define MCU_UNI_PREFIX		BIT(30)
+#define MCU_CMD_MASK		~(MCU_FW_PREFIX | MCU_UNI_PREFIX)
+
 enum {
-	MCU_CMD_TARGET_ADDRESS_LEN_REQ = 0x01,
-	MCU_CMD_FW_START_REQ = 0x02,
+	MCU_CMD_TARGET_ADDRESS_LEN_REQ = MCU_FW_PREFIX | 0x01,
+	MCU_CMD_FW_START_REQ = MCU_FW_PREFIX | 0x02,
 	MCU_CMD_INIT_ACCESS_REG = 0x3,
 	MCU_CMD_PATCH_START_REQ = 0x05,
-	MCU_CMD_PATCH_FINISH_REQ = 0x07,
-	MCU_CMD_PATCH_SEM_CONTROL = 0x10,
+	MCU_CMD_PATCH_FINISH_REQ = MCU_FW_PREFIX | 0x07,
+	MCU_CMD_PATCH_SEM_CONTROL = MCU_FW_PREFIX | 0x10,
 	MCU_CMD_EXT_CID = 0xED,
-	MCU_CMD_FW_SCATTER = 0xEE,
-	MCU_CMD_RESTART_DL_REQ = 0xEF,
+	MCU_CMD_FW_SCATTER = MCU_FW_PREFIX | 0xEE,
+	MCU_CMD_RESTART_DL_REQ = MCU_FW_PREFIX | 0xEF,
 };
 
 enum {
 	MCU_EXT_CMD_PM_STATE_CTRL = 0x07,
 	MCU_EXT_CMD_CHANNEL_SWITCH = 0x08,
 	MCU_EXT_CMD_SET_TX_POWER_CTRL = 0x11,
+	MCU_EXT_CMD_FW_LOG_2_HOST = 0x13,
 	MCU_EXT_CMD_EFUSE_BUFFER_MODE = 0x21,
 	MCU_EXT_CMD_STA_REC_UPDATE = 0x25,
 	MCU_EXT_CMD_BSS_INFO_UPDATE = 0x26,
@@ -102,10 +260,30 @@ enum {
 	MCU_EXT_CMD_WTBL_UPDATE = 0x32,
 	MCU_EXT_CMD_SET_RDD_CTRL = 0x3a,
 	MCU_EXT_CMD_PROTECT_CTRL = 0x3e,
+	MCU_EXT_CMD_DBDC_CTRL = 0x45,
 	MCU_EXT_CMD_MAC_INIT_CTRL = 0x46,
 	MCU_EXT_CMD_BCN_OFFLOAD = 0x49,
 	MCU_EXT_CMD_SET_RX_PATH = 0x4e,
+	MCU_EXT_CMD_TX_POWER_FEATURE_CTRL = 0x58,
+	MCU_EXT_CMD_SET_RDD_TH = 0x7c,
 	MCU_EXT_CMD_SET_RDD_PATTERN = 0x7d,
+};
+
+enum {
+	MCU_UNI_CMD_DEV_INFO_UPDATE = MCU_UNI_PREFIX | 0x01,
+	MCU_UNI_CMD_BSS_INFO_UPDATE = MCU_UNI_PREFIX | 0x02,
+	MCU_UNI_CMD_STA_REC_UPDATE = MCU_UNI_PREFIX | 0x03,
+};
+
+#define MCU_CMD_ACK		BIT(0)
+#define MCU_CMD_UNI		BIT(1)
+#define MCU_CMD_QUERY		BIT(2)
+
+#define MCU_CMD_UNI_EXT_ACK	(MCU_CMD_ACK | MCU_CMD_UNI | MCU_CMD_QUERY)
+
+enum {
+	UNI_BSS_INFO_BASIC = 0,
+	UNI_BSS_INFO_BCN_CONTENT = 7,
 };
 
 enum {
@@ -155,6 +333,23 @@ enum {
 	DEV_INFO_ACTIVE,
 	DEV_INFO_MAX_NUM
 };
+
+enum {
+	DBDC_TYPE_WMM,
+	DBDC_TYPE_MGMT,
+	DBDC_TYPE_BSS,
+	DBDC_TYPE_MBSS,
+	DBDC_TYPE_REPEATER,
+	DBDC_TYPE_MU,
+	DBDC_TYPE_BF,
+	DBDC_TYPE_PTA,
+	__DBDC_TYPE_MAX,
+};
+
+struct tlv {
+	__le16 tag;
+	__le16 len;
+} __packed;
 
 struct bss_info_omac {
 	__le16 tag;
@@ -365,18 +560,28 @@ struct wtbl_raw {
 	__le32 val;
 } __packed;
 
-#define MT7615_WTBL_UPDATE_MAX_SIZE (sizeof(struct wtbl_req_hdr) + \
-				     sizeof(struct wtbl_generic) + \
-				     sizeof(struct wtbl_rx) + \
-				     sizeof(struct wtbl_ht) + \
-				     sizeof(struct wtbl_vht) + \
-				     sizeof(struct wtbl_tx_ps) + \
-				     sizeof(struct wtbl_hdr_trans) + \
-				     sizeof(struct wtbl_ba) + \
-				     sizeof(struct wtbl_bf) + \
-				     sizeof(struct wtbl_smps) + \
-				     sizeof(struct wtbl_pn) + \
-				     sizeof(struct wtbl_spe))
+#define MT7615_WTBL_UPDATE_MAX_SIZE	(sizeof(struct wtbl_req_hdr) +	\
+					 sizeof(struct wtbl_generic) +	\
+					 sizeof(struct wtbl_rx) +	\
+					 sizeof(struct wtbl_ht) +	\
+					 sizeof(struct wtbl_vht) +	\
+					 sizeof(struct wtbl_tx_ps) +	\
+					 sizeof(struct wtbl_hdr_trans) +\
+					 sizeof(struct wtbl_ba) +	\
+					 sizeof(struct wtbl_bf) +	\
+					 sizeof(struct wtbl_smps) +	\
+					 sizeof(struct wtbl_pn) +	\
+					 sizeof(struct wtbl_spe))
+
+#define MT7615_STA_UPDATE_MAX_SIZE	(sizeof(struct sta_req_hdr) +	\
+					 sizeof(struct sta_rec_basic) +	\
+					 sizeof(struct sta_rec_ht) +	\
+					 sizeof(struct sta_rec_vht) +	\
+					 sizeof(struct tlv) +	\
+					 MT7615_WTBL_UPDATE_MAX_SIZE)
+
+#define MT7615_WTBL_UPDATE_BA_SIZE	(sizeof(struct wtbl_req_hdr) +	\
+					 sizeof(struct wtbl_ba))
 
 enum {
 	WTBL_GENERIC,
@@ -399,6 +604,11 @@ enum {
 	WTBL_MAX_NUM
 };
 
+struct sta_ntlv_hdr {
+	u8 rsv[2];
+	__le16 tlv_num;
+} __packed;
+
 struct sta_req_hdr {
 	u8 bss_idx;
 	u8 wlan_idx;
@@ -406,6 +616,15 @@ struct sta_req_hdr {
 	u8 is_tlv_append;
 	u8 muar_idx;
 	u8 rsv[2];
+} __packed;
+
+struct sta_rec_state {
+	__le16 tag;
+	__le16 len;
+	u8 state;
+	__le32 flags;
+	u8 vhtop;
+	u8 pad[2];
 } __packed;
 
 struct sta_rec_basic {
@@ -447,10 +666,6 @@ struct sta_rec_ba {
 	__le16 winsize;
 } __packed;
 
-#define MT7615_STA_REC_UPDATE_MAX_SIZE (sizeof(struct sta_rec_basic) + \
-					sizeof(struct sta_rec_ht) + \
-					sizeof(struct sta_rec_vht))
-
 enum {
 	STA_REC_BASIC,
 	STA_REC_RA,
@@ -459,11 +674,12 @@ enum {
 	STA_REC_BF,
 	STA_REC_AMSDU, /* for CR4 */
 	STA_REC_BA,
-	STA_REC_RED, /* not used */
+	STA_REC_STATE,
 	STA_REC_TX_PROC, /* for hdr trans and CSO in CR4 */
 	STA_REC_HT,
 	STA_REC_VHT,
 	STA_REC_APPS,
+	STA_REC_WTBL = 13,
 	STA_REC_MAX_NUM
 };
 

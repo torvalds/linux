@@ -8,6 +8,7 @@
 
 #include <linux/bits.h>
 #include <uapi/asm/setup.h>
+#include <linux/build_bug.h>
 
 #define EP_OFFSET		0x10008
 #define EP_STRING		"S390EP"
@@ -160,6 +161,12 @@ extern unsigned long __kaslr_offset;
 static inline unsigned long kaslr_offset(void)
 {
 	return __kaslr_offset;
+}
+
+static inline u32 gen_lpswe(unsigned long addr)
+{
+	BUILD_BUG_ON(addr > 0xfff);
+	return 0xb2b20000 | addr;
 }
 
 #else /* __ASSEMBLY__ */

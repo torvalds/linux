@@ -29,6 +29,28 @@ a header file, it isn't the full solution. Such interfaces must either
 be fully removed from the kernel, or added to this file to discourage
 others from using them in the future.
 
+BUG() and BUG_ON()
+------------------
+Use WARN() and WARN_ON() instead, and handle the "impossible"
+error condition as gracefully as possible. While the BUG()-family
+of APIs were originally designed to act as an "impossible situation"
+assert and to kill a kernel thread "safely", they turn out to just be
+too risky. (e.g. "In what order do locks need to be released? Have
+various states been restored?") Very commonly, using BUG() will
+destabilize a system or entirely break it, which makes it impossible
+to debug or even get viable crash reports. Linus has `very strong
+<https://lore.kernel.org/lkml/CA+55aFy6jNLsywVYdGp83AMrXBo_P-pkjkphPGrO=82SPKCpLQ@mail.gmail.com/>`_
+feelings `about this
+<https://lore.kernel.org/lkml/CAHk-=whDHsbK3HTOpTF=ue_o04onRwTEaK_ZoJp_fjbqq4+=Jw@mail.gmail.com/>`_.
+
+Note that the WARN()-family should only be used for "expected to
+be unreachable" situations. If you want to warn about "reachable
+but undesirable" situations, please use the pr_warn()-family of
+functions. System owners may have set the *panic_on_warn* sysctl,
+to make sure their systems do not continue running in the face of
+"unreachable" conditions. (For example, see commits like `this one
+<https://git.kernel.org/linus/d4689846881d160a4d12a514e991a740bcb5d65a>`_.)
+
 open-coded arithmetic in allocator arguments
 --------------------------------------------
 Dynamic size calculations (especially multiplication) should not be
@@ -63,51 +85,73 @@ Instead, use the helper::
 
 	header = kzalloc(struct_size(header, item, count), GFP_KERNEL);
 
-See :c:func:`array_size`, :c:func:`array3_size`, and :c:func:`struct_size`,
-for more details as well as the related :c:func:`check_add_overflow` and
-:c:func:`check_mul_overflow` family of functions.
+See array_size(), array3_size(), and struct_size(),
+for more details as well as the related check_add_overflow() and
+check_mul_overflow() family of functions.
 
 simple_strtol(), simple_strtoll(), simple_strtoul(), simple_strtoull()
 ----------------------------------------------------------------------
-The :c:func:`simple_strtol`, :c:func:`simple_strtoll`,
-:c:func:`simple_strtoul`, and :c:func:`simple_strtoull` functions
+The simple_strtol(), simple_strtoll(),
+simple_strtoul(), and simple_strtoull() functions
 explicitly ignore overflows, which may lead to unexpected results
-in callers. The respective :c:func:`kstrtol`, :c:func:`kstrtoll`,
-:c:func:`kstrtoul`, and :c:func:`kstrtoull` functions tend to be the
+in callers. The respective kstrtol(), kstrtoll(),
+kstrtoul(), and kstrtoull() functions tend to be the
 correct replacements, though note that those require the string to be
 NUL or newline terminated.
 
 strcpy()
 --------
-:c:func:`strcpy` performs no bounds checking on the destination
+strcpy() performs no bounds checking on the destination
 buffer. This could result in linear overflows beyond the
 end of the buffer, leading to all kinds of misbehaviors. While
 `CONFIG_FORTIFY_SOURCE=y` and various compiler flags help reduce the
 risk of using this function, there is no good reason to add new uses of
-this function. The safe replacement is :c:func:`strscpy`.
+this function. The safe replacement is strscpy().
 
 strncpy() on NUL-terminated strings
 -----------------------------------
-Use of :c:func:`strncpy` does not guarantee that the destination buffer
+Use of strncpy() does not guarantee that the destination buffer
 will be NUL terminated. This can lead to various linear read overflows
 and other misbehavior due to the missing termination. It also NUL-pads the
 destination buffer if the source contents are shorter than the destination
 buffer size, which may be a needless performance penalty for callers using
-only NUL-terminated strings. The safe replacement is :c:func:`strscpy`.
-(Users of :c:func:`strscpy` still needing NUL-padding will need an
-explicit :c:func:`memset` added.)
+only NUL-terminated strings. The safe replacement is strscpy().
+(Users of strscpy() still needing NUL-padding should instead
+use strscpy_pad().)
 
-If a caller is using non-NUL-terminated strings, :c:func:`strncpy()` can
+If a caller is using non-NUL-terminated strings, strncpy()() can
 still be used, but destinations should be marked with the `__nonstring
 <https://gcc.gnu.org/onlinedocs/gcc/Common-Variable-Attributes.html>`_
 attribute to avoid future compiler warnings.
 
 strlcpy()
 ---------
-:c:func:`strlcpy` reads the entire source buffer first, possibly exceeding
+strlcpy() reads the entire source buffer first, possibly exceeding
 the given limit of bytes to copy. This is inefficient and can lead to
 linear read overflows if a source string is not NUL-terminated. The
-safe replacement is :c:func:`strscpy`.
+safe replacement is strscpy().
+
+%p format specifier
+-------------------
+Traditionally, using "%p" in format strings would lead to regular address
+exposure flaws in dmesg, proc, sysfs, etc. Instead of leaving these to
+be exploitable, all "%p" uses in the kernel are being printed as a hashed
+value, rendering them unusable for addressing. New uses of "%p" should not
+be added to the kernel. For text addresses, using "%pS" is likely better,
+as it produces the more useful symbol name instead. For nearly everything
+else, just do not add "%p" at all.
+
+Paraphrasing Linus's current `guidance <https://lore.kernel.org/lkml/CA+55aFwQEd_d40g4mUCSsVRZzrFPUJt74vc6PPpb675hYNXcKw@mail.gmail.com/>`_:
+
+- If the hashed "%p" value is pointless, ask yourself whether the pointer
+  itself is important. Maybe it should be removed entirely?
+- If you really think the true pointer value is important, why is some
+  system state or user privilege level considered "special"? If you think
+  you can justify it (in comments and commit log) well enough to stand
+  up to Linus's scrutiny, maybe you can use "%px", along with making sure
+  you have sensible permissions.
+
+And finally, know that a toggle for "%p" hashing will `not be accepted <https://lore.kernel.org/lkml/CA+55aFwieC1-nAs+NFq9RTwaR8ef9hWa4MjNBWL41F-8wM49eA@mail.gmail.com/>`_.
 
 Variable Length Arrays (VLAs)
 -----------------------------
@@ -122,27 +166,37 @@ memory adjacent to the stack (when built without `CONFIG_VMAP_STACK=y`)
 
 Implicit switch case fall-through
 ---------------------------------
-The C language allows switch cases to "fall-through" when a "break" statement
-is missing at the end of a case. This, however, introduces ambiguity in the
-code, as it's not always clear if the missing break is intentional or a bug.
+The C language allows switch cases to fall through to the next case
+when a "break" statement is missing at the end of a case. This, however,
+introduces ambiguity in the code, as it's not always clear if the missing
+break is intentional or a bug. For example, it's not obvious just from
+looking at the code if `STATE_ONE` is intentionally designed to fall
+through into `STATE_TWO`::
+
+	switch (value) {
+	case STATE_ONE:
+		do_something();
+	case STATE_TWO:
+		do_other();
+		break;
+	default:
+		WARN("unknown state");
+	}
 
 As there have been a long list of flaws `due to missing "break" statements
 <https://cwe.mitre.org/data/definitions/484.html>`_, we no longer allow
-"implicit fall-through".
-
-In order to identify intentional fall-through cases, we have adopted a
-pseudo-keyword macro 'fallthrough' which expands to gcc's extension
-__attribute__((__fallthrough__)).  `Statement Attributes
-<https://gcc.gnu.org/onlinedocs/gcc/Statement-Attributes.html>`_
-
-When the C17/C18  [[fallthrough]] syntax is more commonly supported by
+implicit fall-through. In order to identify intentional fall-through
+cases, we have adopted a pseudo-keyword macro "fallthrough" which
+expands to gcc's extension `__attribute__((__fallthrough__))
+<https://gcc.gnu.org/onlinedocs/gcc/Statement-Attributes.html>`_.
+(When the C17/C18  `[[fallthrough]]` syntax is more commonly supported by
 C compilers, static analyzers, and IDEs, we can switch to using that syntax
-for the macro pseudo-keyword.
+for the macro pseudo-keyword.)
 
 All switch/case blocks must end in one of:
 
-	break;
-	fallthrough;
-	continue;
-	goto <label>;
-	return [expression];
+* break;
+* fallthrough;
+* continue;
+* goto <label>;
+* return [expression];

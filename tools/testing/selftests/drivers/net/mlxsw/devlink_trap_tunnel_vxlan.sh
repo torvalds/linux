@@ -314,11 +314,11 @@ overlay_smac_is_mc_test()
 		-B 192.0.2.17 -t udp sp=12345,dp=$VXPORT,p=$payload -q &
 	mz_pid=$!
 
-	devlink_trap_drop_test $trap_name $group_name $swp1
+	devlink_trap_drop_test $trap_name $group_name $swp1 101
 
 	log_test "Overlay source MAC is multicast"
 
-	devlink_trap_drop_cleanup $mz_pid $swp1 "ip"
+	devlink_trap_drop_cleanup $mz_pid $swp1 "ip" 1 101
 }
 
 trap cleanup EXIT

@@ -21,6 +21,10 @@
 #include <linux/sched.h>
 #include <linux/smp.h>
 
+__weak bool arch_freq_counters_available(struct cpumask *cpus)
+{
+	return false;
+}
 DEFINE_PER_CPU(unsigned long, freq_scale) = SCHED_CAPACITY_SCALE;
 
 void arch_set_freq_scale(struct cpumask *cpus, unsigned long cur_freq,
@@ -28,6 +32,14 @@ void arch_set_freq_scale(struct cpumask *cpus, unsigned long cur_freq,
 {
 	unsigned long scale;
 	int i;
+
+	/*
+	 * If the use of counters for FIE is enabled, just return as we don't
+	 * want to update the scale factor with information from CPUFREQ.
+	 * Instead the scale factor will be updated from arch_scale_freq_tick.
+	 */
+	if (arch_freq_counters_available(cpus))
+		return;
 
 	scale = (cur_freq << SCHED_CAPACITY_SHIFT) / max_freq;
 
@@ -94,7 +106,7 @@ static void update_topology_flags_workfn(struct work_struct *work)
 	update_topology = 0;
 }
 
-static u32 capacity_scale;
+static DEFINE_PER_CPU(u32, freq_factor) = 1;
 static u32 *raw_capacity;
 
 static int free_raw_capacity(void)
@@ -108,17 +120,23 @@ static int free_raw_capacity(void)
 void topology_normalize_cpu_scale(void)
 {
 	u64 capacity;
+	u64 capacity_scale;
 	int cpu;
 
 	if (!raw_capacity)
 		return;
 
-	pr_debug("cpu_capacity: capacity_scale=%u\n", capacity_scale);
+	capacity_scale = 1;
 	for_each_possible_cpu(cpu) {
-		pr_debug("cpu_capacity: cpu=%d raw_capacity=%u\n",
-			 cpu, raw_capacity[cpu]);
-		capacity = (raw_capacity[cpu] << SCHED_CAPACITY_SHIFT)
-			/ capacity_scale;
+		capacity = raw_capacity[cpu] * per_cpu(freq_factor, cpu);
+		capacity_scale = max(capacity, capacity_scale);
+	}
+
+	pr_debug("cpu_capacity: capacity_scale=%llu\n", capacity_scale);
+	for_each_possible_cpu(cpu) {
+		capacity = raw_capacity[cpu] * per_cpu(freq_factor, cpu);
+		capacity = div64_u64(capacity << SCHED_CAPACITY_SHIFT,
+			capacity_scale);
 		topology_set_cpu_scale(cpu, capacity);
 		pr_debug("cpu_capacity: CPU%d cpu_capacity=%lu\n",
 			cpu, topology_get_cpu_scale(cpu));
@@ -127,6 +145,7 @@ void topology_normalize_cpu_scale(void)
 
 bool __init topology_parse_cpu_capacity(struct device_node *cpu_node, int cpu)
 {
+	struct clk *cpu_clk;
 	static bool cap_parsing_failed;
 	int ret;
 	u32 cpu_capacity;
@@ -146,10 +165,22 @@ bool __init topology_parse_cpu_capacity(struct device_node *cpu_node, int cpu)
 				return false;
 			}
 		}
-		capacity_scale = max(cpu_capacity, capacity_scale);
 		raw_capacity[cpu] = cpu_capacity;
 		pr_debug("cpu_capacity: %pOF cpu_capacity=%u (raw)\n",
 			cpu_node, raw_capacity[cpu]);
+
+		/*
+		 * Update freq_factor for calculating early boot cpu capacities.
+		 * For non-clk CPU DVFS mechanism, there's no way to get the
+		 * frequency value now, assuming they are running at the same
+		 * frequency (by keeping the initial freq_factor value).
+		 */
+		cpu_clk = of_clk_get(cpu_node, 0);
+		if (!PTR_ERR_OR_ZERO(cpu_clk)) {
+			per_cpu(freq_factor, cpu) =
+				clk_get_rate(cpu_clk) / 1000;
+			clk_put(cpu_clk);
+		}
 	} else {
 		if (raw_capacity) {
 			pr_err("cpu_capacity: missing %pOF raw capacity\n",
@@ -188,11 +219,8 @@ init_cpu_capacity_callback(struct notifier_block *nb,
 
 	cpumask_andnot(cpus_to_visit, cpus_to_visit, policy->related_cpus);
 
-	for_each_cpu(cpu, policy->related_cpus) {
-		raw_capacity[cpu] = topology_get_cpu_scale(cpu) *
-				    policy->cpuinfo.max_freq / 1000UL;
-		capacity_scale = max(raw_capacity[cpu], capacity_scale);
-	}
+	for_each_cpu(cpu, policy->related_cpus)
+		per_cpu(freq_factor, cpu) = policy->cpuinfo.max_freq / 1000;
 
 	if (cpumask_empty(cpus_to_visit)) {
 		topology_normalize_cpu_scale();
@@ -281,7 +309,7 @@ static int __init get_cpu_for_node(struct device_node *node)
 static int __init parse_core(struct device_node *core, int package_id,
 			     int core_id)
 {
-	char name[10];
+	char name[20];
 	bool leaf = true;
 	int i = 0;
 	int cpu;
@@ -327,7 +355,7 @@ static int __init parse_core(struct device_node *core, int package_id,
 
 static int __init parse_cluster(struct device_node *cluster, int depth)
 {
-	char name[10];
+	char name[20];
 	bool leaf = true;
 	bool has_cores = false;
 	struct device_node *c;

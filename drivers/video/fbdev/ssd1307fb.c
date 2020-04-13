@@ -89,7 +89,7 @@ struct ssd1307fb_par {
 
 struct ssd1307fb_array {
 	u8	type;
-	u8	data[0];
+	u8	data[];
 };
 
 static const struct fb_fix_screeninfo ssd1307fb_fix = {
@@ -791,6 +791,8 @@ static int ssd1307fb_remove(struct i2c_client *client)
 		pwm_disable(par->pwm);
 		pwm_put(par->pwm);
 	}
+	if (par->vbat_reg)
+		regulator_disable(par->vbat_reg);
 	fb_deferred_io_cleanup(info);
 	__free_pages(__va(info->fix.smem_start), get_order(info->fix.smem_len));
 	framebuffer_release(info);

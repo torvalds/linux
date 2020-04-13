@@ -52,8 +52,8 @@ enum modestrap_mode { USBSS_MODESTRAP_MODE_NONE,
 struct cdns_ti {
 	struct device *dev;
 	void __iomem *usbss;
-	int usb2_only:1;
-	int vbus_divider:1;
+	unsigned usb2_only:1;
+	unsigned vbus_divider:1;
 	struct clk *usb2_refclk;
 	struct clk *lpm_clk;
 };

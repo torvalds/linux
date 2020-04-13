@@ -92,7 +92,7 @@
 		timeout-sec = <30>;
 	};
 
-	smb@8000000 {
+	bus@8000000 {
 		compatible = "arm,vexpress,v2m-p1", "simple-bus";
 		arm,v2m-memory-map = "rs1";
 		#address-cells = <2>; /* SMB chipselect number and offset */

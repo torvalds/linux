@@ -189,6 +189,10 @@ enum pq_init_status {
  *       ArmCP to write to the structure, to prevent data corruption in case of
  *       mismatched driver/FW versions.
  *
+ * ARMCP_PACKET_TEMPERATURE_SET -
+ *       Set the value of the offset property of a specified thermal sensor.
+ *       The packet's arguments specify the desired sensor and the field to
+ *       set.
  */
 
 enum armcp_packet_id {
@@ -214,6 +218,8 @@ enum armcp_packet_id {
 	ARMCP_PACKET_MAX_POWER_GET,		/* sysfs */
 	ARMCP_PACKET_MAX_POWER_SET,		/* sysfs */
 	ARMCP_PACKET_EEPROM_DATA_GET,		/* sysfs */
+	ARMCP_RESERVED,
+	ARMCP_PACKET_TEMPERATURE_SET,		/* sysfs */
 };
 
 #define ARMCP_PACKET_FENCE_VAL	0xFE8CE7A5
@@ -271,24 +277,32 @@ enum armcp_packet_rc {
 	armcp_packet_fault
 };
 
+/*
+ * armcp_temp_type should adhere to hwmon_temp_attributes
+ * defined in Linux kernel hwmon.h file
+ */
 enum armcp_temp_type {
 	armcp_temp_input,
 	armcp_temp_max = 6,
 	armcp_temp_max_hyst,
 	armcp_temp_crit,
-	armcp_temp_crit_hyst
+	armcp_temp_crit_hyst,
+	armcp_temp_offset = 19,
+	armcp_temp_highest = 22
 };
 
 enum armcp_in_attributes {
 	armcp_in_input,
 	armcp_in_min,
-	armcp_in_max
+	armcp_in_max,
+	armcp_in_highest = 7
 };
 
 enum armcp_curr_attributes {
 	armcp_curr_input,
 	armcp_curr_min,
-	armcp_curr_max
+	armcp_curr_max,
+	armcp_curr_highest = 7
 };
 
 enum armcp_fan_attributes {

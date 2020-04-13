@@ -296,6 +296,10 @@ int clk_mgr_helper_get_active_display_cnt(
 		struct dc *dc,
 		struct dc_state *context);
 
+int clk_mgr_helper_get_active_plane_cnt(
+		struct dc *dc,
+		struct dc_state *context);
+
 
 
 #endif //__DAL_CLK_MGR_INTERNAL_H__

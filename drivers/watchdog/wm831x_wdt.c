@@ -13,7 +13,6 @@
 #include <linux/platform_device.h>
 #include <linux/watchdog.h>
 #include <linux/uaccess.h>
-#include <linux/gpio.h>
 
 #include <linux/mfd/wm831x/core.h>
 #include <linux/mfd/wm831x/pdata.h>
@@ -29,7 +28,6 @@ struct wm831x_wdt_drvdata {
 	struct watchdog_device wdt;
 	struct wm831x *wm831x;
 	struct mutex lock;
-	int update_gpio;
 	int update_state;
 };
 
@@ -102,14 +100,6 @@ static int wm831x_wdt_ping(struct watchdog_device *wdt_dev)
 	u16 reg;
 
 	mutex_lock(&driver_data->lock);
-
-	if (driver_data->update_gpio) {
-		gpio_set_value_cansleep(driver_data->update_gpio,
-					driver_data->update_state);
-		driver_data->update_state = !driver_data->update_state;
-		ret = 0;
-		goto out;
-	}
 
 	reg = wm831x_reg_read(wm831x, WM831X_WATCHDOG);
 
@@ -238,23 +228,6 @@ static int wm831x_wdt_probe(struct platform_device *pdev)
 		reg |= pdata->primary << WM831X_WDOG_PRIMACT_SHIFT;
 		reg |= pdata->secondary << WM831X_WDOG_SECACT_SHIFT;
 		reg |= pdata->software << WM831X_WDOG_RST_SRC_SHIFT;
-
-		if (pdata->update_gpio) {
-			ret = devm_gpio_request_one(dev, pdata->update_gpio,
-						    GPIOF_OUT_INIT_LOW,
-						    "Watchdog update");
-			if (ret < 0) {
-				dev_err(wm831x->dev,
-					"Failed to request update GPIO: %d\n",
-					ret);
-				return ret;
-			}
-
-			driver_data->update_gpio = pdata->update_gpio;
-
-			/* Make sure the watchdog takes hardware updates */
-			reg |= WM831X_WDOG_RST_SRC;
-		}
 
 		ret = wm831x_reg_unlock(wm831x);
 		if (ret == 0) {

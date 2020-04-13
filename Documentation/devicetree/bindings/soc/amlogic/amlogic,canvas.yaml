@@ -40,6 +40,8 @@ required:
   - compatible
   - reg
 
+additionalProperties: false
+
 examples:
   - |
     canvas: video-lut@48 {

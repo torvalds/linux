@@ -239,7 +239,6 @@
 	cap-mmc-highspeed;
 	cap-sd-highspeed;
 	card-detect-delay = <200>;
-	no-emmc;
 	no-sdio;
 	sd-uhs-sdr12;
 	sd-uhs-sdr25;

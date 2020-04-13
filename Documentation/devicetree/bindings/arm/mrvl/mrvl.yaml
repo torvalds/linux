@@ -28,8 +28,11 @@ properties:
         items:
           - enum:
               - mrvl,mmp2-brownstone
+              - olpc,xo-1.75
           - const: mrvl,mmp2
       - description: MMP3 based boards
         items:
-          - const: mrvl,mmp3
+          - enum:
+              - dell,wyse-ariel
+          - const: marvell,mmp3
 ...

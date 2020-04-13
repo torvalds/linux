@@ -191,7 +191,7 @@ struct rvt_swqe {
 	u32 ssn;                /* send sequence number */
 	u32 length;             /* total length of data in sg_list */
 	void *priv;             /* driver dependent field */
-	struct rvt_sge sg_list[0];
+	struct rvt_sge sg_list[];
 };
 
 /**

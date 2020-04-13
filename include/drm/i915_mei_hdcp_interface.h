@@ -12,7 +12,6 @@
 #include <linux/mutex.h>
 #include <linux/device.h>
 #include <drm/drm_hdcp.h>
-#include <drm/i915_drm.h>
 
 /**
  * enum hdcp_port_type - HDCP port implementation type defined by ME FW

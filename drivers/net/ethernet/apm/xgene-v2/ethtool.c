@@ -89,8 +89,6 @@ static void xge_get_drvinfo(struct net_device *ndev,
 	struct platform_device *pdev = pdata->pdev;
 
 	strcpy(info->driver, "xgene-enet-v2");
-	strcpy(info->version, XGENE_ENET_V2_VERSION);
-	snprintf(info->fw_version, ETHTOOL_FWVERS_LEN, "N/A");
 	sprintf(info->bus_info, "%s", pdev->name);
 }
 

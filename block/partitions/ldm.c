@@ -14,10 +14,10 @@
 #include <linux/stringify.h>
 #include <linux/kernel.h>
 #include <linux/uuid.h>
+#include <linux/msdos_partition.h>
 
 #include "ldm.h"
 #include "check.h"
-#include "msdos.h"
 
 /*
  * ldm_debug/info/error/crit - Output an error message
@@ -493,7 +493,7 @@ static bool ldm_validate_partition_table(struct parsed_partitions *state)
 {
 	Sector sect;
 	u8 *data;
-	struct partition *p;
+	struct msdos_partition *p;
 	int i;
 	bool result = false;
 
@@ -508,7 +508,7 @@ static bool ldm_validate_partition_table(struct parsed_partitions *state)
 	if (*(__le16*) (data + 0x01FE) != cpu_to_le16 (MSDOS_LABEL_MAGIC))
 		goto out;
 
-	p = (struct partition*)(data + 0x01BE);
+	p = (struct msdos_partition *)(data + 0x01BE);
 	for (i = 0; i < 4; i++, p++)
 		if (SYS_IND (p) == LDM_PARTITION) {
 			result = true;

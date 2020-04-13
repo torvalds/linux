@@ -82,7 +82,7 @@ struct fwevent {
 
 #define C2HEVENT_SZ			32
 
-struct event_node{
+struct event_node {
 	unsigned char *node;
 	unsigned char evt_code;
 	unsigned short evt_sz;

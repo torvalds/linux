@@ -62,12 +62,8 @@ static int of_pci_phb_probe(struct platform_device *dev)
 	/* Init pci_dn data structures */
 	pci_devs_phb_init_dynamic(phb);
 
-	/* Create EEH devices for the PHB */
+	/* Create EEH PEs for the PHB */
 	eeh_dev_phb_init_dynamic(phb);
-
-	/* Register devices with EEH */
-	if (dev->dev.of_node->child)
-		eeh_add_device_tree_early(PCI_DN(dev->dev.of_node));
 
 	/* Scan the bus */
 	pcibios_scan_phb(phb);
@@ -80,14 +76,8 @@ static int of_pci_phb_probe(struct platform_device *dev)
 	 */
 	pcibios_claim_one_bus(phb->bus);
 
-	/* Finish EEH setup */
-	eeh_add_device_tree_late(phb->bus);
-
 	/* Add probed PCI devices to the device model */
 	pci_bus_add_devices(phb->bus);
-
-	/* sysfs files should only be added after devices are added */
-	eeh_add_sysfs_files(phb->bus);
 
 	return 0;
 }

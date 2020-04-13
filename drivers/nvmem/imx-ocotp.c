@@ -44,12 +44,25 @@
 #define IMX_OCOTP_BM_CTRL_ERROR		0x00000200
 #define IMX_OCOTP_BM_CTRL_REL_SHADOWS	0x00000400
 
+#define IMX_OCOTP_BM_CTRL_ADDR_8MP		0x000001FF
+#define IMX_OCOTP_BM_CTRL_BUSY_8MP		0x00000200
+#define IMX_OCOTP_BM_CTRL_ERROR_8MP		0x00000400
+#define IMX_OCOTP_BM_CTRL_REL_SHADOWS_8MP	0x00000800
+
 #define IMX_OCOTP_BM_CTRL_DEFAULT				\
 	{							\
 		.bm_addr = IMX_OCOTP_BM_CTRL_ADDR,		\
 		.bm_busy = IMX_OCOTP_BM_CTRL_BUSY,		\
 		.bm_error = IMX_OCOTP_BM_CTRL_ERROR,		\
 		.bm_rel_shadows = IMX_OCOTP_BM_CTRL_REL_SHADOWS,\
+	}
+
+#define IMX_OCOTP_BM_CTRL_8MP					\
+	{							\
+		.bm_addr = IMX_OCOTP_BM_CTRL_ADDR_8MP,		\
+		.bm_busy = IMX_OCOTP_BM_CTRL_BUSY_8MP,		\
+		.bm_error = IMX_OCOTP_BM_CTRL_ERROR_8MP,	\
+		.bm_rel_shadows = IMX_OCOTP_BM_CTRL_REL_SHADOWS_8MP,\
 	}
 
 #define TIMING_STROBE_PROG_US		10	/* Min time to blow a fuse */
@@ -193,9 +206,9 @@ read_end:
 
 static void imx_ocotp_set_imx6_timing(struct ocotp_priv *priv)
 {
-	unsigned long clk_rate = 0;
+	unsigned long clk_rate;
 	unsigned long strobe_read, relax, strobe_prog;
-	u32 timing = 0;
+	u32 timing;
 
 	/* 47.3.1.3.1
 	 * Program HW_OCOTP_TIMING[STROBE_PROG] and HW_OCOTP_TIMING[RELAX]
@@ -245,9 +258,9 @@ static void imx_ocotp_set_imx6_timing(struct ocotp_priv *priv)
 
 static void imx_ocotp_set_imx7_timing(struct ocotp_priv *priv)
 {
-	unsigned long clk_rate = 0;
+	unsigned long clk_rate;
 	u64 fsource, strobe_prog;
-	u32 timing = 0;
+	u32 timing;
 
 	/* i.MX 7Solo Applications Processor Reference Manual, Rev. 0.1
 	 * 6.4.3.3
@@ -520,6 +533,13 @@ static const struct ocotp_params imx8mn_params = {
 	.ctrl = IMX_OCOTP_BM_CTRL_DEFAULT,
 };
 
+static const struct ocotp_params imx8mp_params = {
+	.nregs = 384,
+	.bank_address_words = 0,
+	.set_timing = imx_ocotp_set_imx6_timing,
+	.ctrl = IMX_OCOTP_BM_CTRL_8MP,
+};
+
 static const struct of_device_id imx_ocotp_dt_ids[] = {
 	{ .compatible = "fsl,imx6q-ocotp",  .data = &imx6q_params },
 	{ .compatible = "fsl,imx6sl-ocotp", .data = &imx6sl_params },
@@ -532,6 +552,7 @@ static const struct of_device_id imx_ocotp_dt_ids[] = {
 	{ .compatible = "fsl,imx8mq-ocotp", .data = &imx8mq_params },
 	{ .compatible = "fsl,imx8mm-ocotp", .data = &imx8mm_params },
 	{ .compatible = "fsl,imx8mn-ocotp", .data = &imx8mn_params },
+	{ .compatible = "fsl,imx8mp-ocotp", .data = &imx8mp_params },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, imx_ocotp_dt_ids);

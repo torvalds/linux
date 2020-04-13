@@ -129,7 +129,7 @@ config IP_PNP_DHCP
 
 	  If unsure, say Y. Note that if you want to use DHCP, a DHCP server
 	  must be operating on your network.  Read
-	  <file:Documentation/filesystems/nfs/nfsroot.txt> for details.
+	  <file:Documentation/admin-guide/nfs/nfsroot.rst> for details.
 
 config IP_PNP_BOOTP
 	bool "IP: BOOTP support"
@@ -144,7 +144,7 @@ config IP_PNP_BOOTP
 	  does BOOTP itself, providing all necessary information on the kernel
 	  command line, you can say N here. If unsure, say Y. Note that if you
 	  want to use BOOTP, a BOOTP server must be operating on your network.
-	  Read <file:Documentation/filesystems/nfs/nfsroot.txt> for details.
+	  Read <file:Documentation/admin-guide/nfs/nfsroot.rst> for details.
 
 config IP_PNP_RARP
 	bool "IP: RARP support"
@@ -157,7 +157,7 @@ config IP_PNP_RARP
 	  older protocol which is being obsoleted by BOOTP and DHCP), say Y
 	  here. Note that if you want to use RARP, a RARP server must be
 	  operating on your network. Read
-	  <file:Documentation/filesystems/nfs/nfsroot.txt> for details.
+	  <file:Documentation/admin-guide/nfs/nfsroot.rst> for details.
 
 config NET_IPIP
 	tristate "IP: tunneling"
@@ -303,6 +303,7 @@ config SYN_COOKIES
 
 config NET_IPVTI
 	tristate "Virtual (secure) IP: tunneling"
+	depends on IPV6 || IPV6=n
 	select INET_TUNNEL
 	select NET_IP_TUNNEL
 	select XFRM

@@ -74,6 +74,7 @@ struct ipv6_devconf {
 	__u32		addr_gen_mode;
 	__s32		disable_policy;
 	__s32           ndisc_tclass;
+	__s32		rpl_seg_enabled;
 
 	struct ctl_table_header *sysctl_header;
 };

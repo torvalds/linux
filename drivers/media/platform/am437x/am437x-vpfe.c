@@ -285,6 +285,7 @@ vpfe_ccdc_validate_param(struct vpfe_ccdc *ccdc,
 	max_data = ccdc_data_size_max_bit(ccdcparam->data_sz);
 
 	if (ccdcparam->alaw.gamma_wd > VPFE_CCDC_GAMMA_BITS_09_0 ||
+	    ccdcparam->data_sz > VPFE_CCDC_DATA_8BITS ||
 	    max_gamma > max_data) {
 		vpfe_dbg(1, vpfe, "Invalid data line select\n");
 		return -EINVAL;
@@ -324,7 +325,7 @@ static void vpfe_ccdc_restore_defaults(struct vpfe_ccdc *ccdc)
 
 static int vpfe_ccdc_close(struct vpfe_ccdc *ccdc, struct device *dev)
 {
-	struct vpfe_device *vpfe = container_of(ccdc, struct vpfe_device, ccdc);
+	struct vpfe_device *vpfe = to_vpfe(ccdc);
 	u32 dma_cntl, pcr;
 
 	pcr = vpfe_reg_read(ccdc, VPFE_PCR);
@@ -348,7 +349,7 @@ static int vpfe_ccdc_close(struct vpfe_ccdc *ccdc, struct device *dev)
 
 static int vpfe_ccdc_set_params(struct vpfe_ccdc *ccdc, void __user *params)
 {
-	struct vpfe_device *vpfe = container_of(ccdc, struct vpfe_device, ccdc);
+	struct vpfe_device *vpfe = to_vpfe(ccdc);
 	struct vpfe_ccdc_config_params_raw raw_params;
 	int x;
 
@@ -504,7 +505,7 @@ vpfe_ccdc_config_black_compense(struct vpfe_ccdc *ccdc,
  */
 static void vpfe_ccdc_config_raw(struct vpfe_ccdc *ccdc)
 {
-	struct vpfe_device *vpfe = container_of(ccdc, struct vpfe_device, ccdc);
+	struct vpfe_device *vpfe = to_vpfe(ccdc);
 	struct vpfe_ccdc_config_params_raw *config_params =
 				&ccdc->ccdc_cfg.bayer.config_params;
 	struct ccdc_params_raw *params = &ccdc->ccdc_cfg.bayer;
@@ -609,7 +610,7 @@ static inline enum ccdc_buftype vpfe_ccdc_get_buftype(struct vpfe_ccdc *ccdc)
 
 static int vpfe_ccdc_set_pixel_format(struct vpfe_ccdc *ccdc, u32 pixfmt)
 {
-	struct vpfe_device *vpfe = container_of(ccdc, struct vpfe_device, ccdc);
+	struct vpfe_device *vpfe = to_vpfe(ccdc);
 
 	vpfe_dbg(1, vpfe, "%s: if_type: %d, pixfmt:%s\n",
 		 __func__, ccdc->ccdc_cfg.if_type, print_fourcc(pixfmt));
@@ -741,7 +742,7 @@ static inline void vpfe_set_sdr_addr(struct vpfe_ccdc *ccdc, unsigned long addr)
 static int vpfe_ccdc_set_hw_if_params(struct vpfe_ccdc *ccdc,
 				      struct vpfe_hw_if_param *params)
 {
-	struct vpfe_device *vpfe = container_of(ccdc, struct vpfe_device, ccdc);
+	struct vpfe_device *vpfe = to_vpfe(ccdc);
 
 	ccdc->ccdc_cfg.if_type = params->if_type;
 
@@ -2267,7 +2268,7 @@ static int vpfe_probe_complete(struct vpfe_device *vpfe)
 	vdev->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING |
 			    V4L2_CAP_READWRITE;
 	video_set_drvdata(vdev, vpfe);
-	err = video_register_device(&vpfe->video_dev, VFL_TYPE_GRABBER, -1);
+	err = video_register_device(&vpfe->video_dev, VFL_TYPE_VIDEO, -1);
 	if (err) {
 		vpfe_err(vpfe,
 			"Unable to register video device.\n");

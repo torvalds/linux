@@ -136,7 +136,8 @@ static ssize_t withdraw_store(struct gfs2_sbd *sdp, const char *buf, size_t len)
 	if (val != 1)
 		return -EINVAL;
 
-	gfs2_lm_withdraw(sdp, "withdrawing from cluster at user's request\n");
+	gfs2_lm(sdp, "withdrawing from cluster at user's request\n");
+	gfs2_withdraw(sdp);
 
 	return len;
 }
@@ -434,6 +435,8 @@ int gfs2_recover_set(struct gfs2_sbd *sdp, unsigned jid)
 	 * never clear the DFL_BLOCK_LOCKS flag, so all our locks would
 	 * permanently stop working.
 	 */
+	if (!sdp->sd_jdesc)
+		goto out;
 	if (sdp->sd_jdesc->jd_jid == jid && !sdp->sd_args.ar_spectator)
 		goto out;
 	rv = -ENOENT;

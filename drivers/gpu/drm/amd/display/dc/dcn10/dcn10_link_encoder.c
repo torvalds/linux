@@ -782,6 +782,11 @@ bool dcn10_link_encoder_validate_output_with_stream(
 	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
 	bool is_valid;
 
+	//if SCDC (340-600MHz) is disabled, set to HDMI 1.4 timing limit
+	if (stream->sink->edid_caps.panel_patch.skip_scdc_overwrite &&
+		enc10->base.features.max_hdmi_pixel_clock > 300000)
+		enc10->base.features.max_hdmi_pixel_clock = 300000;
+
 	switch (stream->signal) {
 	case SIGNAL_TYPE_DVI_SINGLE_LINK:
 	case SIGNAL_TYPE_DVI_DUAL_LINK:

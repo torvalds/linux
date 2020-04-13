@@ -222,7 +222,9 @@ void __init sni_a20r_irq_init(void)
 		irq_set_chip_and_handler(i, &a20r_irq_type, handle_level_irq);
 	sni_hwint = a20r_hwint;
 	change_c0_status(ST0_IM, IE_IRQ0);
-	setup_irq(SNI_A20R_IRQ_BASE + 3, &sni_isa_irq);
+	if (request_irq(SNI_A20R_IRQ_BASE + 3, sni_isa_irq_handler, 0, "ISA",
+			NULL))
+		pr_err("Failed to register ISA interrupt\n");
 }
 
 void sni_a20r_init(void)

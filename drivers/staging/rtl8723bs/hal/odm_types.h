@@ -28,7 +28,7 @@ typedef enum _HAL_STATUS {
 
 
 /*  */
-/*  Declare for ODM spin lock defintion temporarily fro compile pass. */
+/*  Declare for ODM spin lock definition temporarily from compile pass. */
 /*  */
 typedef enum _RT_SPINLOCK_TYPE {
 	RT_TX_SPINLOCK = 1,

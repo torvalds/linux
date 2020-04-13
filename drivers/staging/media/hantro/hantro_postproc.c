@@ -14,16 +14,16 @@
 
 #define HANTRO_PP_REG_WRITE(vpu, reg_name, val) \
 { \
-	hantro_reg_write((vpu), \
-			 &((vpu)->variant->postproc_regs->reg_name), \
-			 (val)); \
+	hantro_reg_write(vpu, \
+			 &(vpu)->variant->postproc_regs->reg_name, \
+			 val); \
 }
 
 #define HANTRO_PP_REG_WRITE_S(vpu, reg_name, val) \
 { \
-	hantro_reg_write_s((vpu), \
-			   &((vpu)->variant->postproc_regs->reg_name), \
-			   (val)); \
+	hantro_reg_write_s(vpu, \
+			   &(vpu)->variant->postproc_regs->reg_name, \
+			   val); \
 }
 
 #define VPU_PP_IN_YUYV			0x0

@@ -132,6 +132,8 @@ enum hl_device_hw_state {
 
 /**
  * struct hl_mmu_properties - ASIC specific MMU address translation properties.
+ * @start_addr: virtual start address of the memory region.
+ * @end_addr: virtual end address of the memory region.
  * @hop0_shift: shift of hop 0 mask.
  * @hop1_shift: shift of hop 1 mask.
  * @hop2_shift: shift of hop 2 mask.
@@ -143,9 +145,10 @@ enum hl_device_hw_state {
  * @hop3_mask: mask to get the PTE address in hop 3.
  * @hop4_mask: mask to get the PTE address in hop 4.
  * @page_size: default page size used to allocate memory.
- * @huge_page_size: page size used to allocate memory with huge pages.
  */
 struct hl_mmu_properties {
+	u64	start_addr;
+	u64	end_addr;
 	u64	hop0_shift;
 	u64	hop1_shift;
 	u64	hop2_shift;
@@ -157,7 +160,6 @@ struct hl_mmu_properties {
 	u64	hop3_mask;
 	u64	hop4_mask;
 	u32	page_size;
-	u32	huge_page_size;
 };
 
 /**
@@ -169,6 +171,8 @@ struct hl_mmu_properties {
  * @preboot_ver: F/W Preboot version.
  * @dmmu: DRAM MMU address translation properties.
  * @pmmu: PCI (host) MMU address translation properties.
+ * @pmmu_huge: PCI (host) MMU address translation properties for memory
+ *              allocated with huge pages.
  * @sram_base_address: SRAM physical start address.
  * @sram_end_address: SRAM physical end address.
  * @sram_user_base_address - SRAM physical start address for user access.
@@ -178,14 +182,6 @@ struct hl_mmu_properties {
  * @dram_size: DRAM total size.
  * @dram_pci_bar_size: size of PCI bar towards DRAM.
  * @max_power_default: max power of the device after reset
- * @va_space_host_start_address: base address of virtual memory range for
- *                               mapping host memory.
- * @va_space_host_end_address: end address of virtual memory range for
- *                             mapping host memory.
- * @va_space_dram_start_address: base address of virtual memory range for
- *                               mapping DRAM memory.
- * @va_space_dram_end_address: end address of virtual memory range for
- *                             mapping DRAM memory.
  * @dram_size_for_default_page_mapping: DRAM size needed to map to avoid page
  *                                      fault.
  * @pcie_dbi_base_address: Base address of the PCIE_DBI block.
@@ -218,6 +214,7 @@ struct asic_fixed_properties {
 	char				preboot_ver[VERSION_MAX_LEN];
 	struct hl_mmu_properties	dmmu;
 	struct hl_mmu_properties	pmmu;
+	struct hl_mmu_properties	pmmu_huge;
 	u64				sram_base_address;
 	u64				sram_end_address;
 	u64				sram_user_base_address;
@@ -227,10 +224,6 @@ struct asic_fixed_properties {
 	u64				dram_size;
 	u64				dram_pci_bar_size;
 	u64				max_power_default;
-	u64				va_space_host_start_address;
-	u64				va_space_host_end_address;
-	u64				va_space_dram_start_address;
-	u64				va_space_dram_end_address;
 	u64				dram_size_for_default_page_mapping;
 	u64				pcie_dbi_base_address;
 	u64				pcie_aux_dbi_reg_addr;
@@ -431,10 +424,12 @@ struct hl_eq {
  * enum hl_asic_type - supported ASIC types.
  * @ASIC_INVALID: Invalid ASIC type.
  * @ASIC_GOYA: Goya device.
+ * @ASIC_GAUDI: Gaudi device.
  */
 enum hl_asic_type {
 	ASIC_INVALID,
-	ASIC_GOYA
+	ASIC_GOYA,
+	ASIC_GAUDI
 };
 
 struct hl_cs_parser;
@@ -589,6 +584,8 @@ struct hl_asic_funcs {
 	void (*restore_phase_topology)(struct hl_device *hdev);
 	int (*debugfs_read32)(struct hl_device *hdev, u64 addr, u32 *val);
 	int (*debugfs_write32)(struct hl_device *hdev, u64 addr, u32 val);
+	int (*debugfs_read64)(struct hl_device *hdev, u64 addr, u64 *val);
+	int (*debugfs_write64)(struct hl_device *hdev, u64 addr, u64 val);
 	void (*add_device_attr)(struct hl_device *hdev,
 				struct attribute_group *dev_attr_grp);
 	void (*handle_eqe)(struct hl_device *hdev,
@@ -658,6 +655,8 @@ struct hl_va_range {
  *		this hits 0l. It is incremented on CS and CS_WAIT.
  * @cs_pending: array of DMA fence objects representing pending CS.
  * @host_va_range: holds available virtual addresses for host mappings.
+ * @host_huge_va_range: holds available virtual addresses for host mappings
+ *                      with huge pages.
  * @dram_va_range: holds available virtual addresses for DRAM mappings.
  * @mem_hash_lock: protects the mem_hash.
  * @mmu_lock: protects the MMU page tables. Any change to the PGT, modifing the
@@ -688,8 +687,9 @@ struct hl_ctx {
 	struct hl_device	*hdev;
 	struct kref		refcount;
 	struct dma_fence	*cs_pending[HL_MAX_PENDING_CS];
-	struct hl_va_range	host_va_range;
-	struct hl_va_range	dram_va_range;
+	struct hl_va_range	*host_va_range;
+	struct hl_va_range	*host_huge_va_range;
+	struct hl_va_range	*dram_va_range;
 	struct mutex		mem_hash_lock;
 	struct mutex		mmu_lock;
 	struct list_head	debugfs_list;
@@ -763,7 +763,7 @@ struct hl_userptr {
  * @aborted: true if CS was aborted due to some device error.
  */
 struct hl_cs {
-	u8			jobs_in_queue_cnt[HL_MAX_QUEUES];
+	u16			jobs_in_queue_cnt[HL_MAX_QUEUES];
 	struct hl_ctx		*ctx;
 	struct list_head	job_list;
 	spinlock_t		job_lock;
@@ -1291,6 +1291,8 @@ struct hl_device_idle_busy_ts {
  *                   otherwise.
  * @dram_supports_virtual_memory: is MMU enabled towards DRAM.
  * @dram_default_page_mapping: is DRAM default page mapping enabled.
+ * @pmmu_huge_range: is a different virtual addresses range used for PMMU with
+ *                   huge pages.
  * @init_done: is the initialization of the device done.
  * @mmu_enable: is MMU enabled.
  * @device_cpu_disabled: is the device CPU disabled (due to timeouts)
@@ -1372,6 +1374,7 @@ struct hl_device {
 	u8				reset_on_lockup;
 	u8				dram_supports_virtual_memory;
 	u8				dram_default_page_mapping;
+	u8				pmmu_huge_range;
 	u8				init_done;
 	u8				device_cpu_disabled;
 	u8				dma_mask;
@@ -1573,8 +1576,10 @@ int hl_mmu_init(struct hl_device *hdev);
 void hl_mmu_fini(struct hl_device *hdev);
 int hl_mmu_ctx_init(struct hl_ctx *ctx);
 void hl_mmu_ctx_fini(struct hl_ctx *ctx);
-int hl_mmu_map(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr, u32 page_size);
-int hl_mmu_unmap(struct hl_ctx *ctx, u64 virt_addr, u32 page_size);
+int hl_mmu_map(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr,
+		u32 page_size, bool flush_pte);
+int hl_mmu_unmap(struct hl_ctx *ctx, u64 virt_addr, u32 page_size,
+		bool flush_pte);
 void hl_mmu_swap_out(struct hl_ctx *ctx);
 void hl_mmu_swap_in(struct hl_ctx *ctx);
 
@@ -1606,11 +1611,18 @@ int hl_pci_set_dma_mask(struct hl_device *hdev, u8 dma_mask);
 
 long hl_get_frequency(struct hl_device *hdev, u32 pll_index, bool curr);
 void hl_set_frequency(struct hl_device *hdev, u32 pll_index, u64 freq);
-long hl_get_temperature(struct hl_device *hdev, int sensor_index, u32 attr);
-long hl_get_voltage(struct hl_device *hdev, int sensor_index, u32 attr);
-long hl_get_current(struct hl_device *hdev, int sensor_index, u32 attr);
-long hl_get_fan_speed(struct hl_device *hdev, int sensor_index, u32 attr);
-long hl_get_pwm_info(struct hl_device *hdev, int sensor_index, u32 attr);
+int hl_get_temperature(struct hl_device *hdev,
+		       int sensor_index, u32 attr, long *value);
+int hl_set_temperature(struct hl_device *hdev,
+		       int sensor_index, u32 attr, long value);
+int hl_get_voltage(struct hl_device *hdev,
+		   int sensor_index, u32 attr, long *value);
+int hl_get_current(struct hl_device *hdev,
+		   int sensor_index, u32 attr, long *value);
+int hl_get_fan_speed(struct hl_device *hdev,
+		     int sensor_index, u32 attr, long *value);
+int hl_get_pwm_info(struct hl_device *hdev,
+		    int sensor_index, u32 attr, long *value);
 void hl_set_pwm_info(struct hl_device *hdev, int sensor_index, u32 attr,
 			long value);
 u64 hl_get_max_power(struct hl_device *hdev);

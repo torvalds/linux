@@ -42,4 +42,3 @@ struct mac_driver_desc {
     /* ... more stuff */
 };
 
-int mac_partition(struct parsed_partitions *state);

@@ -726,6 +726,27 @@ static int sh_pfc_suspend_init(struct sh_pfc *pfc) { return 0; }
 #endif /* CONFIG_PM_SLEEP && CONFIG_ARM_PSCI_FW */
 
 #ifdef DEBUG
+#define SH_PFC_MAX_REGS		300
+#define SH_PFC_MAX_ENUMS	3000
+
+static unsigned int sh_pfc_errors __initdata = 0;
+static unsigned int sh_pfc_warnings __initdata = 0;
+static u32 *sh_pfc_regs __initdata = NULL;
+static u32 sh_pfc_num_regs __initdata = 0;
+static u16 *sh_pfc_enums __initdata = NULL;
+static u32 sh_pfc_num_enums __initdata = 0;
+
+#define sh_pfc_err(fmt, ...)					\
+	do {							\
+		pr_err("%s: " fmt, drvname, ##__VA_ARGS__);	\
+		sh_pfc_errors++;				\
+	} while (0)
+#define sh_pfc_warn(fmt, ...)					\
+	do {							\
+		pr_warn("%s: " fmt, drvname, ##__VA_ARGS__);	\
+		sh_pfc_warnings++;				\
+	} while (0)
+
 static bool __init is0s(const u16 *enum_ids, unsigned int n)
 {
 	unsigned int i;
@@ -737,77 +758,181 @@ static bool __init is0s(const u16 *enum_ids, unsigned int n)
 	return true;
 }
 
-static unsigned int sh_pfc_errors __initdata = 0;
-static unsigned int sh_pfc_warnings __initdata = 0;
+static bool __init same_name(const char *a, const char *b)
+{
+	if (!a || !b)
+		return false;
+
+	return !strcmp(a, b);
+}
+
+static void __init sh_pfc_check_reg(const char *drvname, u32 reg)
+{
+	unsigned int i;
+
+	for (i = 0; i < sh_pfc_num_regs; i++)
+		if (reg == sh_pfc_regs[i]) {
+			sh_pfc_err("reg 0x%x conflict\n", reg);
+			return;
+		}
+
+	if (sh_pfc_num_regs == SH_PFC_MAX_REGS) {
+		pr_warn_once("%s: Please increase SH_PFC_MAX_REGS\n", drvname);
+		return;
+	}
+
+	sh_pfc_regs[sh_pfc_num_regs++] = reg;
+}
+
+static int __init sh_pfc_check_enum(const char *drvname, u16 enum_id)
+{
+	unsigned int i;
+
+	for (i = 0; i < sh_pfc_num_enums; i++) {
+		if (enum_id == sh_pfc_enums[i])
+			return -EINVAL;
+	}
+
+	if (sh_pfc_num_enums == SH_PFC_MAX_ENUMS) {
+		pr_warn_once("%s: Please increase SH_PFC_MAX_ENUMS\n", drvname);
+		return 0;
+	}
+
+	sh_pfc_enums[sh_pfc_num_enums++] = enum_id;
+	return 0;
+}
+
+static void __init sh_pfc_check_reg_enums(const char *drvname, u32 reg,
+					  const u16 *enums, unsigned int n)
+{
+	unsigned int i;
+
+	for (i = 0; i < n; i++) {
+		if (enums[i] && sh_pfc_check_enum(drvname, enums[i]))
+			sh_pfc_err("reg 0x%x enum_id %u conflict\n", reg,
+				   enums[i]);
+	}
+}
+
+static void __init sh_pfc_check_pin(const struct sh_pfc_soc_info *info,
+				    u32 reg, unsigned int pin)
+{
+	const char *drvname = info->name;
+	unsigned int i;
+
+	if (pin == SH_PFC_PIN_NONE)
+		return;
+
+	for (i = 0; i < info->nr_pins; i++) {
+		if (pin == info->pins[i].pin)
+			return;
+	}
+
+	sh_pfc_err("reg 0x%x: pin %u not found\n", reg, pin);
+}
 
 static void __init sh_pfc_check_cfg_reg(const char *drvname,
 					const struct pinmux_cfg_reg *cfg_reg)
 {
 	unsigned int i, n, rw, fw;
 
+	sh_pfc_check_reg(drvname, cfg_reg->reg);
+
 	if (cfg_reg->field_width) {
-		/* Checked at build time */
-		return;
+		n = cfg_reg->reg_width / cfg_reg->field_width;
+		/* Skip field checks (done at build time) */
+		goto check_enum_ids;
 	}
 
 	for (i = 0, n = 0, rw = 0; (fw = cfg_reg->var_field_width[i]); i++) {
-		if (fw > 3 && is0s(&cfg_reg->enum_ids[n], 1 << fw)) {
-			pr_warn("%s: reg 0x%x: reserved field [%u:%u] can be split to reduce table size\n",
-				drvname, cfg_reg->reg, rw, rw + fw - 1);
-			sh_pfc_warnings++;
-		}
+		if (fw > 3 && is0s(&cfg_reg->enum_ids[n], 1 << fw))
+			sh_pfc_warn("reg 0x%x: reserved field [%u:%u] can be split to reduce table size\n",
+				    cfg_reg->reg, rw, rw + fw - 1);
 		n += 1 << fw;
 		rw += fw;
 	}
 
-	if (rw != cfg_reg->reg_width) {
-		pr_err("%s: reg 0x%x: var_field_width declares %u instead of %u bits\n",
-		       drvname, cfg_reg->reg, rw, cfg_reg->reg_width);
-		sh_pfc_errors++;
-	}
+	if (rw != cfg_reg->reg_width)
+		sh_pfc_err("reg 0x%x: var_field_width declares %u instead of %u bits\n",
+			   cfg_reg->reg, rw, cfg_reg->reg_width);
 
-	if (n != cfg_reg->nr_enum_ids) {
-		pr_err("%s: reg 0x%x: enum_ids[] has %u instead of %u values\n",
-		       drvname, cfg_reg->reg, cfg_reg->nr_enum_ids, n);
-		sh_pfc_errors++;
+	if (n != cfg_reg->nr_enum_ids)
+		sh_pfc_err("reg 0x%x: enum_ids[] has %u instead of %u values\n",
+			   cfg_reg->reg, cfg_reg->nr_enum_ids, n);
+
+check_enum_ids:
+	sh_pfc_check_reg_enums(drvname, cfg_reg->reg, cfg_reg->enum_ids, n);
+}
+
+static void __init sh_pfc_check_drive_reg(const struct sh_pfc_soc_info *info,
+					  const struct pinmux_drive_reg *drive)
+{
+	const char *drvname = info->name;
+	unsigned long seen = 0, mask;
+	unsigned int i;
+
+	sh_pfc_check_reg(info->name, drive->reg);
+	for (i = 0; i < ARRAY_SIZE(drive->fields); i++) {
+		const struct pinmux_drive_reg_field *field = &drive->fields[i];
+
+		if (!field->pin && !field->offset && !field->size)
+			continue;
+
+		mask = GENMASK(field->offset + field->size, field->offset);
+		if (mask & seen)
+			sh_pfc_err("drive_reg 0x%x: field %u overlap\n",
+				   drive->reg, i);
+		seen |= mask;
+
+		sh_pfc_check_pin(info, drive->reg, field->pin);
 	}
+}
+
+static void __init sh_pfc_check_bias_reg(const struct sh_pfc_soc_info *info,
+					 const struct pinmux_bias_reg *bias)
+{
+	unsigned int i;
+
+	sh_pfc_check_reg(info->name, bias->puen);
+	if (bias->pud)
+		sh_pfc_check_reg(info->name, bias->pud);
+	for (i = 0; i < ARRAY_SIZE(bias->pins); i++)
+		sh_pfc_check_pin(info, bias->puen, bias->pins[i]);
 }
 
 static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 {
-	const struct sh_pfc_function *func;
 	const char *drvname = info->name;
 	unsigned int *refcnts;
 	unsigned int i, j, k;
 
 	pr_info("Checking %s\n", drvname);
+	sh_pfc_num_regs = 0;
+	sh_pfc_num_enums = 0;
 
 	/* Check pins */
 	for (i = 0; i < info->nr_pins; i++) {
+		const struct sh_pfc_pin *pin = &info->pins[i];
+
+		if (!pin->name) {
+			sh_pfc_err("empty pin %u\n", i);
+			continue;
+		}
 		for (j = 0; j < i; j++) {
-			if (!strcmp(info->pins[i].name, info->pins[j].name)) {
-				pr_err("%s: pin %s/%s: name conflict\n",
-				       drvname, info->pins[i].name,
-				       info->pins[j].name);
-				sh_pfc_errors++;
-			}
+			const struct sh_pfc_pin *pin2 = &info->pins[j];
 
-			if (info->pins[i].pin != (u16)-1 &&
-			    info->pins[i].pin == info->pins[j].pin) {
-				pr_err("%s: pin %s/%s: pin %u conflict\n",
-				       drvname, info->pins[i].name,
-				       info->pins[j].name, info->pins[i].pin);
-				sh_pfc_errors++;
-			}
+			if (same_name(pin->name, pin2->name))
+				sh_pfc_err("pin %s: name conflict\n",
+					   pin->name);
 
-			if (info->pins[i].enum_id &&
-			    info->pins[i].enum_id == info->pins[j].enum_id) {
-				pr_err("%s: pin %s/%s: enum_id %u conflict\n",
-				       drvname, info->pins[i].name,
-				       info->pins[j].name,
-				       info->pins[i].enum_id);
-				sh_pfc_errors++;
-			}
+			if (pin->pin != (u16)-1 && pin->pin == pin2->pin)
+				sh_pfc_err("pin %s/%s: pin %u conflict\n",
+					   pin->name, pin2->name, pin->pin);
+
+			if (pin->enum_id && pin->enum_id == pin2->enum_id)
+				sh_pfc_err("pin %s/%s: enum_id %u conflict\n",
+					   pin->name, pin2->name,
+					   pin->enum_id);
 		}
 	}
 
@@ -817,45 +942,49 @@ static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 		return;
 
 	for (i = 0; i < info->nr_functions; i++) {
-		func = &info->functions[i];
+		const struct sh_pfc_function *func = &info->functions[i];
+
 		if (!func->name) {
-			pr_err("%s: empty function %u\n", drvname, i);
-			sh_pfc_errors++;
+			sh_pfc_err("empty function %u\n", i);
 			continue;
+		}
+		for (j = 0; j < i; j++) {
+			if (same_name(func->name, info->functions[j].name))
+				sh_pfc_err("function %s: name conflict\n",
+					   func->name);
 		}
 		for (j = 0; j < func->nr_groups; j++) {
 			for (k = 0; k < info->nr_groups; k++) {
-				if (info->groups[k].name &&
-				    !strcmp(func->groups[j],
-					    info->groups[k].name)) {
+				if (same_name(func->groups[j],
+					      info->groups[k].name)) {
 					refcnts[k]++;
 					break;
 				}
 			}
 
-			if (k == info->nr_groups) {
-				pr_err("%s: function %s: group %s not found\n",
-				       drvname, func->name, func->groups[j]);
-				sh_pfc_errors++;
-			}
+			if (k == info->nr_groups)
+				sh_pfc_err("function %s: group %s not found\n",
+					   func->name, func->groups[j]);
 		}
 	}
 
 	for (i = 0; i < info->nr_groups; i++) {
-		if (!info->groups[i].name) {
-			pr_err("%s: empty group %u\n", drvname, i);
-			sh_pfc_errors++;
+		const struct sh_pfc_pin_group *group = &info->groups[i];
+
+		if (!group->name) {
+			sh_pfc_err("empty group %u\n", i);
 			continue;
 		}
-		if (!refcnts[i]) {
-			pr_err("%s: orphan group %s\n", drvname,
-			       info->groups[i].name);
-			sh_pfc_errors++;
-		} else if (refcnts[i] > 1) {
-			pr_warn("%s: group %s referenced by %u functions\n",
-				drvname, info->groups[i].name, refcnts[i]);
-			sh_pfc_warnings++;
+		for (j = 0; j < i; j++) {
+			if (same_name(group->name, info->groups[j].name))
+				sh_pfc_err("group %s: name conflict\n",
+					   group->name);
 		}
+		if (!refcnts[i])
+			sh_pfc_err("orphan group %s\n", group->name);
+		else if (refcnts[i] > 1)
+			sh_pfc_warn("group %s referenced by %u functions\n",
+				    group->name, refcnts[i]);
 	}
 
 	kfree(refcnts);
@@ -863,11 +992,61 @@ static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 	/* Check config register descriptions */
 	for (i = 0; info->cfg_regs && info->cfg_regs[i].reg; i++)
 		sh_pfc_check_cfg_reg(drvname, &info->cfg_regs[i]);
+
+	/* Check drive strength registers */
+	for (i = 0; info->drive_regs && info->drive_regs[i].reg; i++)
+		sh_pfc_check_drive_reg(info, &info->drive_regs[i]);
+
+	/* Check bias registers */
+	for (i = 0; info->bias_regs && info->bias_regs[i].puen; i++)
+		sh_pfc_check_bias_reg(info, &info->bias_regs[i]);
+
+	/* Check ioctrl registers */
+	for (i = 0; info->ioctrl_regs && info->ioctrl_regs[i].reg; i++)
+		sh_pfc_check_reg(drvname, info->ioctrl_regs[i].reg);
+
+	/* Check data registers */
+	for (i = 0; info->data_regs && info->data_regs[i].reg; i++) {
+		sh_pfc_check_reg(drvname, info->data_regs[i].reg);
+		sh_pfc_check_reg_enums(drvname, info->data_regs[i].reg,
+				       info->data_regs[i].enum_ids,
+				       info->data_regs[i].reg_width);
+	}
+
+#ifdef CONFIG_PINCTRL_SH_FUNC_GPIO
+	/* Check function GPIOs */
+	for (i = 0; i < info->nr_func_gpios; i++) {
+		const struct pinmux_func *func = &info->func_gpios[i];
+
+		if (!func->name) {
+			sh_pfc_err("empty function gpio %u\n", i);
+			continue;
+		}
+		for (j = 0; j < i; j++) {
+			if (same_name(func->name, info->func_gpios[j].name))
+				sh_pfc_err("func_gpio %s: name conflict\n",
+					   func->name);
+		}
+		if (sh_pfc_check_enum(drvname, func->enum_id))
+			sh_pfc_err("%s enum_id %u conflict\n", func->name,
+				   func->enum_id);
+	}
+#endif
 }
 
 static void __init sh_pfc_check_driver(const struct platform_driver *pdrv)
 {
 	unsigned int i;
+
+	sh_pfc_regs = kcalloc(SH_PFC_MAX_REGS, sizeof(*sh_pfc_regs),
+			      GFP_KERNEL);
+	if (!sh_pfc_regs)
+		return;
+
+	sh_pfc_enums = kcalloc(SH_PFC_MAX_ENUMS, sizeof(*sh_pfc_enums),
+			      GFP_KERNEL);
+	if (!sh_pfc_enums)
+		goto free_regs;
 
 	pr_warn("Checking builtin pinmux tables\n");
 
@@ -881,6 +1060,10 @@ static void __init sh_pfc_check_driver(const struct platform_driver *pdrv)
 
 	pr_warn("Detected %u errors and %u warnings\n", sh_pfc_errors,
 		sh_pfc_warnings);
+
+	kfree(sh_pfc_enums);
+free_regs:
+	kfree(sh_pfc_regs);
 }
 
 #else /* !DEBUG */

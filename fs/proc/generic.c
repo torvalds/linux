@@ -531,6 +531,12 @@ struct proc_dir_entry *proc_create_reg(const char *name, umode_t mode,
 	return p;
 }
 
+static inline void pde_set_flags(struct proc_dir_entry *pde)
+{
+	if (pde->proc_ops->proc_flags & PROC_ENTRY_PERMANENT)
+		pde->flags |= PROC_ENTRY_PERMANENT;
+}
+
 struct proc_dir_entry *proc_create_data(const char *name, umode_t mode,
 		struct proc_dir_entry *parent,
 		const struct proc_ops *proc_ops, void *data)
@@ -541,6 +547,7 @@ struct proc_dir_entry *proc_create_data(const char *name, umode_t mode,
 	if (!p)
 		return NULL;
 	p->proc_ops = proc_ops;
+	pde_set_flags(p);
 	return proc_register(parent, p);
 }
 EXPORT_SYMBOL(proc_create_data);
@@ -572,6 +579,7 @@ static int proc_seq_release(struct inode *inode, struct file *file)
 }
 
 static const struct proc_ops proc_seq_ops = {
+	/* not permanent -- can call into arbitrary seq_operations */
 	.proc_open	= proc_seq_open,
 	.proc_read	= seq_read,
 	.proc_lseek	= seq_lseek,
@@ -602,6 +610,7 @@ static int proc_single_open(struct inode *inode, struct file *file)
 }
 
 static const struct proc_ops proc_single_ops = {
+	/* not permanent -- can call into arbitrary ->single_show */
 	.proc_open	= proc_single_open,
 	.proc_read	= seq_read,
 	.proc_lseek	= seq_lseek,
@@ -662,9 +671,13 @@ void remove_proc_entry(const char *name, struct proc_dir_entry *parent)
 
 	de = pde_subdir_find(parent, fn, len);
 	if (de) {
-		rb_erase(&de->subdir_node, &parent->subdir);
-		if (S_ISDIR(de->mode)) {
-			parent->nlink--;
+		if (unlikely(pde_is_permanent(de))) {
+			WARN(1, "removing permanent /proc entry '%s'", de->name);
+			de = NULL;
+		} else {
+			rb_erase(&de->subdir_node, &parent->subdir);
+			if (S_ISDIR(de->mode))
+				parent->nlink--;
 		}
 	}
 	write_unlock(&proc_subdir_lock);
@@ -700,12 +713,24 @@ int remove_proc_subtree(const char *name, struct proc_dir_entry *parent)
 		write_unlock(&proc_subdir_lock);
 		return -ENOENT;
 	}
+	if (unlikely(pde_is_permanent(root))) {
+		write_unlock(&proc_subdir_lock);
+		WARN(1, "removing permanent /proc entry '%s/%s'",
+			root->parent->name, root->name);
+		return -EINVAL;
+	}
 	rb_erase(&root->subdir_node, &parent->subdir);
 
 	de = root;
 	while (1) {
 		next = pde_subdir_first(de);
 		if (next) {
+			if (unlikely(pde_is_permanent(root))) {
+				write_unlock(&proc_subdir_lock);
+				WARN(1, "removing permanent /proc entry '%s/%s'",
+					next->parent->name, next->name);
+				return -EINVAL;
+			}
 			rb_erase(&next->subdir_node, &de->subdir);
 			de = next;
 			continue;

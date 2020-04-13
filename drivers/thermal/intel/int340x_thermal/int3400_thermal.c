@@ -65,7 +65,7 @@ static ssize_t available_uuids_show(struct device *dev,
 	for (i = 0; i < INT3400_THERMAL_MAXIMUM_UUID; i++) {
 		if (priv->uuid_bitmap & (1 << i))
 			if (PAGE_SIZE - length > 0)
-				length += snprintf(&buf[length],
+				length += scnprintf(&buf[length],
 						   PAGE_SIZE - length,
 						   "%s\n",
 						   int3400_thermal_uuids[i]);
@@ -369,8 +369,8 @@ static int int3400_thermal_remove(struct platform_device *pdev)
 }
 
 static const struct acpi_device_id int3400_thermal_match[] = {
-	{"INT1040", 0},
 	{"INT3400", 0},
+	{"INTC1040", 0},
 	{}
 };
 

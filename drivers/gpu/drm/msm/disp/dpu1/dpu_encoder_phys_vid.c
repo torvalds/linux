@@ -239,7 +239,7 @@ static void dpu_encoder_phys_vid_setup_timing_engine(
 	struct dpu_hw_intf_cfg intf_cfg = { 0 };
 
 	if (!phys_enc->hw_ctl->ops.setup_intf_cfg) {
-		DPU_ERROR("invalid encoder %d\n", phys_enc != 0);
+		DPU_ERROR("invalid encoder %d\n", phys_enc != NULL);
 		return;
 	}
 
@@ -559,7 +559,7 @@ static void dpu_encoder_phys_vid_disable(struct dpu_encoder_phys *phys_enc)
 
 	if (!phys_enc->hw_intf) {
 		DPU_ERROR("invalid hw_intf %d hw_ctl %d\n",
-				phys_enc->hw_intf != 0, phys_enc->hw_ctl != 0);
+				phys_enc->hw_intf != NULL, phys_enc->hw_ctl != NULL);
 		return;
 	}
 

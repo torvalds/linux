@@ -4,7 +4,7 @@
  *
  * Global definitions for the zfcp device driver.
  *
- * Copyright IBM Corp. 2002, 2018
+ * Copyright IBM Corp. 2002, 2020
  */
 
 #ifndef ZFCP_DEF_H
@@ -158,6 +158,8 @@ struct zfcp_adapter {
 	u32			adapter_features;  /* FCP channel features */
 	u32			connection_features; /* host connection features */
         u32			hardware_version;  /* of FCP channel */
+	u32			fc_security_algorithms; /* of FCP channel */
+	u32			fc_security_algorithms_old; /* of FCP channel */
 	u16			timer_ticks;       /* time int for a tick */
 	struct Scsi_Host	*scsi_host;	   /* Pointer to mid-layer */
 	struct list_head	port_list;	   /* remote port list */
@@ -218,6 +220,8 @@ struct zfcp_port {
         atomic_t               erp_counter;
 	u32                    maxframe_size;
 	u32                    supported_classes;
+	u32                    connection_info;
+	u32                    connection_info_old;
 	struct work_struct     gid_pn_work;
 	struct work_struct     test_link_work;
 	struct work_struct     rport_work;

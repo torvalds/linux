@@ -62,9 +62,12 @@ config NR_CPUS
 
 source "arch/$(HEADER_ARCH)/um/Kconfig"
 
+config FORBID_STATIC_LINK
+	bool
+
 config STATIC_LINK
 	bool "Force a static link"
-	default n
+	depends on !FORBID_STATIC_LINK
 	help
 	  This option gives you the ability to force a static link of UML.
 	  Normally, UML is linked as a shared binary.  This is inconvenient for
@@ -72,6 +75,9 @@ config STATIC_LINK
 	  you probably want to say Y here.
 	  Additionally, this option enables using higher memory spaces (up to
 	  2.75G) for UML.
+
+	  NOTE: This option is incompatible with some networking features which
+	  depend on features that require being dynamically loaded (like NSS).
 
 config LD_SCRIPT_STATIC
 	bool
@@ -191,6 +197,7 @@ config UML_TIME_TRAVEL_SUPPORT
 	prompt "Support time-travel mode (e.g. for test execution)"
 	# inf-cpu mode is incompatible with the benchmarking
 	depends on !RAID6_PQ_BENCHMARK
+	depends on !SMP
 	help
 	  Enable this option to support time travel inside the UML instance.
 

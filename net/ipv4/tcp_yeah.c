@@ -36,8 +36,6 @@ struct yeah {
 
 	u32 reno_count;
 	u32 fast_count;
-
-	u32 pkts_acked;
 };
 
 static void tcp_yeah_init(struct sock *sk)
@@ -57,18 +55,6 @@ static void tcp_yeah_init(struct sock *sk)
 	tp->snd_cwnd_clamp = min_t(u32, tp->snd_cwnd_clamp, 0xffffffff/128);
 }
 
-static void tcp_yeah_pkts_acked(struct sock *sk,
-				const struct ack_sample *sample)
-{
-	const struct inet_connection_sock *icsk = inet_csk(sk);
-	struct yeah *yeah = inet_csk_ca(sk);
-
-	if (icsk->icsk_ca_state == TCP_CA_Open)
-		yeah->pkts_acked = sample->pkts_acked;
-
-	tcp_vegas_pkts_acked(sk, sample);
-}
-
 static void tcp_yeah_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
@@ -77,24 +63,19 @@ static void tcp_yeah_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 	if (!tcp_is_cwnd_limited(sk))
 		return;
 
-	if (tcp_in_slow_start(tp))
-		tcp_slow_start(tp, acked);
+	if (tcp_in_slow_start(tp)) {
+		acked = tcp_slow_start(tp, acked);
+		if (!acked)
+			goto do_vegas;
+	}
 
-	else if (!yeah->doing_reno_now) {
+	if (!yeah->doing_reno_now) {
 		/* Scalable */
-
-		tp->snd_cwnd_cnt += yeah->pkts_acked;
-		if (tp->snd_cwnd_cnt > min(tp->snd_cwnd, TCP_SCALABLE_AI_CNT)) {
-			if (tp->snd_cwnd < tp->snd_cwnd_clamp)
-				tp->snd_cwnd++;
-			tp->snd_cwnd_cnt = 0;
-		}
-
-		yeah->pkts_acked = 1;
-
+		tcp_cong_avoid_ai(tp, min(tp->snd_cwnd, TCP_SCALABLE_AI_CNT),
+				  acked);
 	} else {
 		/* Reno */
-		tcp_cong_avoid_ai(tp, tp->snd_cwnd, 1);
+		tcp_cong_avoid_ai(tp, tp->snd_cwnd, acked);
 	}
 
 	/* The key players are v_vegas.beg_snd_una and v_beg_snd_nxt.
@@ -118,7 +99,7 @@ static void tcp_yeah_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 	 * of bytes we send in an RTT is often less than our cwnd will allow.
 	 * So we keep track of our cwnd separately, in v_beg_snd_cwnd.
 	 */
-
+do_vegas:
 	if (after(ack, yeah->vegas.beg_snd_nxt)) {
 		/* We do the Vegas calculations only if we got enough RTT
 		 * samples that we can be reasonably sure that we got
@@ -232,7 +213,7 @@ static struct tcp_congestion_ops tcp_yeah __read_mostly = {
 	.set_state	= tcp_vegas_state,
 	.cwnd_event	= tcp_vegas_cwnd_event,
 	.get_info	= tcp_vegas_get_info,
-	.pkts_acked	= tcp_yeah_pkts_acked,
+	.pkts_acked	= tcp_vegas_pkts_acked,
 
 	.owner		= THIS_MODULE,
 	.name		= "yeah",

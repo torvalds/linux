@@ -1834,21 +1834,6 @@ ahc_handle_scsiint(struct ahc_softc *ahc, u_int intstat)
 				printerror = 0;
 			} else if (ahc_sent_msg(ahc, AHCMSG_1B,
 						MSG_BUS_DEV_RESET, TRUE)) {
-#ifdef __FreeBSD__
-				/*
-				 * Don't mark the user's request for this BDR
-				 * as completing with CAM_BDR_SENT.  CAM3
-				 * specifies CAM_REQ_CMP.
-				 */
-				if (scb != NULL
-				 && scb->io_ctx->ccb_h.func_code== XPT_RESET_DEV
-				 && ahc_match_scb(ahc, scb, target, channel,
-						  CAM_LUN_WILDCARD,
-						  SCB_LIST_NULL,
-						  ROLE_INITIATOR)) {
-					ahc_set_transaction_status(scb, CAM_REQ_CMP);
-				}
-#endif
 				ahc_compile_devinfo(&devinfo,
 						    initiator_role_id,
 						    target,
@@ -4399,22 +4384,16 @@ ahc_alloc(void *platform_arg, char *name)
 	struct  ahc_softc *ahc;
 	int	i;
 
-#ifndef	__FreeBSD__
 	ahc = kmalloc(sizeof(*ahc), GFP_ATOMIC);
 	if (!ahc) {
 		printk("aic7xxx: cannot malloc softc!\n");
 		kfree(name);
 		return NULL;
 	}
-#else
-	ahc = device_get_softc((device_t)platform_arg);
-#endif
 	memset(ahc, 0, sizeof(*ahc));
 	ahc->seep_config = kmalloc(sizeof(*ahc->seep_config), GFP_ATOMIC);
 	if (ahc->seep_config == NULL) {
-#ifndef	__FreeBSD__
 		kfree(ahc);
-#endif
 		kfree(name);
 		return (NULL);
 	}
@@ -4540,9 +4519,7 @@ ahc_free(struct ahc_softc *ahc)
 		kfree(ahc->name);
 	if (ahc->seep_config != NULL)
 		kfree(ahc->seep_config);
-#ifndef __FreeBSD__
 	kfree(ahc);
-#endif
 	return;
 }
 

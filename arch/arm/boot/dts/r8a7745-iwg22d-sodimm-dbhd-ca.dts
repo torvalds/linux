@@ -108,6 +108,12 @@
 	};
 };
 
+&lcd_panel {
+	status = "disabled";
+
+	/delete-node/ port;
+};
+
 &pfc {
 	can1_pins: can1 {
 		groups = "can1_data_b";

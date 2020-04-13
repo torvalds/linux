@@ -25,7 +25,7 @@
  *  dio_device_id structure or %NULL if there is no match.
  */
 
-const struct dio_device_id *
+static const struct dio_device_id *
 dio_match_device(const struct dio_device_id *ids,
 		   const struct dio_dev *d)
 {
@@ -105,9 +105,9 @@ void dio_unregister_driver(struct dio_driver *drv)
  *  @dev: the DIO device structure to match against
  *  @drv: the &device_driver that points to the array of DIO device id structures to search
  *
- *  Used by a driver to check whether a DIO device present in the
- *  system is in its list of supported devices. Returns the matching
- *  dio_device_id structure or %NULL if there is no match.
+ *  Used by the driver core to check whether a DIO device present in the
+ *  system is in a driver's list of supported devices. Returns 1 if supported,
+ *  and 0 if there is no match.
  */
 
 static int dio_bus_match(struct device *dev, struct device_driver *drv)
@@ -137,7 +137,6 @@ static int __init dio_driver_init(void)
 
 postcore_initcall(dio_driver_init);
 
-EXPORT_SYMBOL(dio_match_device);
 EXPORT_SYMBOL(dio_register_driver);
 EXPORT_SYMBOL(dio_unregister_driver);
 EXPORT_SYMBOL(dio_bus_type);

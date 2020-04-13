@@ -27,7 +27,7 @@ struct scsi_device;
 typedef struct scsi_ioctl_command {
 	unsigned int inlen;
 	unsigned int outlen;
-	unsigned char data[0];
+	unsigned char data[];
 } Scsi_Ioctl_Command;
 
 typedef struct scsi_idlun {

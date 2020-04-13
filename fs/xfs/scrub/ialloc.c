@@ -104,7 +104,7 @@ xchk_iallocbt_chunk(
 	xfs_extlen_t			len)
 {
 	struct xfs_mount		*mp = bs->cur->bc_mp;
-	xfs_agnumber_t			agno = bs->cur->bc_private.a.agno;
+	xfs_agnumber_t			agno = bs->cur->bc_ag.agno;
 	xfs_agblock_t			bno;
 
 	bno = XFS_AGINO_TO_AGBNO(mp, agino);
@@ -164,7 +164,7 @@ xchk_iallocbt_check_cluster_ifree(
 	 * the record, compute which fs inode we're talking about.
 	 */
 	agino = irec->ir_startino + irec_ino;
-	fsino = XFS_AGINO_TO_INO(mp, bs->cur->bc_private.a.agno, agino);
+	fsino = XFS_AGINO_TO_INO(mp, bs->cur->bc_ag.agno, agino);
 	irec_free = (irec->ir_free & XFS_INOBT_MASK(irec_ino));
 
 	if (be16_to_cpu(dip->di_magic) != XFS_DINODE_MAGIC ||
@@ -215,7 +215,7 @@ xchk_iallocbt_check_cluster(
 	struct xfs_dinode		*dip;
 	struct xfs_buf			*cluster_bp;
 	unsigned int			nr_inodes;
-	xfs_agnumber_t			agno = bs->cur->bc_private.a.agno;
+	xfs_agnumber_t			agno = bs->cur->bc_ag.agno;
 	xfs_agblock_t			agbno;
 	unsigned int			cluster_index;
 	uint16_t			cluster_mask = 0;
@@ -426,7 +426,7 @@ xchk_iallocbt_rec(
 	struct xchk_iallocbt		*iabt = bs->private;
 	struct xfs_inobt_rec_incore	irec;
 	uint64_t			holes;
-	xfs_agnumber_t			agno = bs->cur->bc_private.a.agno;
+	xfs_agnumber_t			agno = bs->cur->bc_ag.agno;
 	xfs_agino_t			agino;
 	xfs_extlen_t			len;
 	int				holecount;

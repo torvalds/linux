@@ -332,7 +332,7 @@ static struct siw_wqe *siw_rqe_get(struct siw_qp *qp)
 	struct siw_srq *srq;
 	struct siw_wqe *wqe = NULL;
 	bool srq_event = false;
-	unsigned long flags;
+	unsigned long uninitialized_var(flags);
 
 	srq = qp->srq;
 	if (srq) {

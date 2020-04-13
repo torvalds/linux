@@ -64,6 +64,4 @@ config KVM_ARM_PMU
 config KVM_INDIRECT_VECTORS
        def_bool KVM && (HARDEN_BRANCH_PREDICTOR || HARDEN_EL2_VECTORS)
 
-source "drivers/vhost/Kconfig"
-
 endif # VIRTUALIZATION

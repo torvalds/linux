@@ -219,19 +219,21 @@ xchk_da_btree_block_check_sibling(
 	int			direction,
 	xfs_dablk_t		sibling)
 {
+	struct xfs_da_state_path *path = &ds->state->path;
+	struct xfs_da_state_path *altpath = &ds->state->altpath;
 	int			retval;
+	int			plevel;
 	int			error;
 
-	memcpy(&ds->state->altpath, &ds->state->path,
-			sizeof(ds->state->altpath));
+	memcpy(altpath, path, sizeof(ds->state->altpath));
 
 	/*
 	 * If the pointer is null, we shouldn't be able to move the upper
 	 * level pointer anywhere.
 	 */
 	if (sibling == 0) {
-		error = xfs_da3_path_shift(ds->state, &ds->state->altpath,
-				direction, false, &retval);
+		error = xfs_da3_path_shift(ds->state, altpath, direction,
+				false, &retval);
 		if (error == 0 && retval == 0)
 			xchk_da_set_corrupt(ds, level);
 		error = 0;
@@ -239,27 +241,33 @@ xchk_da_btree_block_check_sibling(
 	}
 
 	/* Move the alternate cursor one block in the direction given. */
-	error = xfs_da3_path_shift(ds->state, &ds->state->altpath,
-			direction, false, &retval);
+	error = xfs_da3_path_shift(ds->state, altpath, direction, false,
+			&retval);
 	if (!xchk_da_process_error(ds, level, &error))
-		return error;
+		goto out;
 	if (retval) {
 		xchk_da_set_corrupt(ds, level);
-		return error;
+		goto out;
 	}
-	if (ds->state->altpath.blk[level].bp)
-		xchk_buffer_recheck(ds->sc,
-				ds->state->altpath.blk[level].bp);
+	if (altpath->blk[level].bp)
+		xchk_buffer_recheck(ds->sc, altpath->blk[level].bp);
 
 	/* Compare upper level pointer to sibling pointer. */
-	if (ds->state->altpath.blk[level].blkno != sibling)
+	if (altpath->blk[level].blkno != sibling)
 		xchk_da_set_corrupt(ds, level);
-	if (ds->state->altpath.blk[level].bp) {
-		xfs_trans_brelse(ds->dargs.trans,
-				ds->state->altpath.blk[level].bp);
-		ds->state->altpath.blk[level].bp = NULL;
-	}
+
 out:
+	/* Free all buffers in the altpath that aren't referenced from path. */
+	for (plevel = 0; plevel < altpath->active; plevel++) {
+		if (altpath->blk[plevel].bp == NULL ||
+		    (plevel < path->active &&
+		     altpath->blk[plevel].bp == path->blk[plevel].bp))
+			continue;
+
+		xfs_trans_brelse(ds->dargs.trans, altpath->blk[plevel].bp);
+		altpath->blk[plevel].bp = NULL;
+	}
+
 	return error;
 }
 

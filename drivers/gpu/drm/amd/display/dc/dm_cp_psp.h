@@ -32,6 +32,7 @@ struct cp_psp_stream_config {
 	uint8_t otg_inst;
 	uint8_t link_enc_inst;
 	uint8_t stream_enc_inst;
+	uint8_t mst_supported;
 	void *dm_stream_ctx;
 	bool dpms_off;
 };

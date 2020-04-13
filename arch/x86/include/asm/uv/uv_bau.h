@@ -858,4 +858,6 @@ static inline int atomic_inc_unless_ge(spinlock_t *lock, atomic_t *v, int u)
 	return 1;
 }
 
+void uv_bau_message_interrupt(struct pt_regs *regs);
+
 #endif /* _ASM_X86_UV_UV_BAU_H */

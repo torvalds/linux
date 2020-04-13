@@ -395,13 +395,11 @@ static ssize_t nvmet_ns_device_uuid_store(struct config_item *item,
 	struct nvmet_subsys *subsys = ns->subsys;
 	int ret = 0;
 
-
 	mutex_lock(&subsys->lock);
 	if (ns->enabled) {
 		ret = -EBUSY;
 		goto out_unlock;
 	}
-
 
 	if (uuid_parse(page, &ns->uuid))
 		ret = -EINVAL;
@@ -815,10 +813,10 @@ static ssize_t nvmet_subsys_attr_version_show(struct config_item *item,
 				(int)NVME_MAJOR(subsys->ver),
 				(int)NVME_MINOR(subsys->ver),
 				(int)NVME_TERTIARY(subsys->ver));
-	else
-		return snprintf(page, PAGE_SIZE, "%d.%d\n",
-				(int)NVME_MAJOR(subsys->ver),
-				(int)NVME_MINOR(subsys->ver));
+
+	return snprintf(page, PAGE_SIZE, "%d.%d\n",
+			(int)NVME_MAJOR(subsys->ver),
+			(int)NVME_MINOR(subsys->ver));
 }
 
 static ssize_t nvmet_subsys_attr_version_store(struct config_item *item,
@@ -827,7 +825,6 @@ static ssize_t nvmet_subsys_attr_version_store(struct config_item *item,
 	struct nvmet_subsys *subsys = to_subsys(item);
 	int major, minor, tertiary = 0;
 	int ret;
-
 
 	ret = sscanf(page, "%d.%d.%d\n", &major, &minor, &tertiary);
 	if (ret != 2 && ret != 3)
@@ -852,20 +849,151 @@ static ssize_t nvmet_subsys_attr_serial_show(struct config_item *item,
 static ssize_t nvmet_subsys_attr_serial_store(struct config_item *item,
 					      const char *page, size_t count)
 {
-	struct nvmet_subsys *subsys = to_subsys(item);
+	u64 serial;
+
+	if (sscanf(page, "%llx\n", &serial) != 1)
+		return -EINVAL;
 
 	down_write(&nvmet_config_sem);
-	sscanf(page, "%llx\n", &subsys->serial);
+	to_subsys(item)->serial = serial;
 	up_write(&nvmet_config_sem);
 
 	return count;
 }
 CONFIGFS_ATTR(nvmet_subsys_, attr_serial);
 
+static ssize_t nvmet_subsys_attr_cntlid_min_show(struct config_item *item,
+						 char *page)
+{
+	return snprintf(page, PAGE_SIZE, "%u\n", to_subsys(item)->cntlid_min);
+}
+
+static ssize_t nvmet_subsys_attr_cntlid_min_store(struct config_item *item,
+						  const char *page, size_t cnt)
+{
+	u16 cntlid_min;
+
+	if (sscanf(page, "%hu\n", &cntlid_min) != 1)
+		return -EINVAL;
+
+	if (cntlid_min == 0)
+		return -EINVAL;
+
+	down_write(&nvmet_config_sem);
+	if (cntlid_min >= to_subsys(item)->cntlid_max)
+		goto out_unlock;
+	to_subsys(item)->cntlid_min = cntlid_min;
+	up_write(&nvmet_config_sem);
+	return cnt;
+
+out_unlock:
+	up_write(&nvmet_config_sem);
+	return -EINVAL;
+}
+CONFIGFS_ATTR(nvmet_subsys_, attr_cntlid_min);
+
+static ssize_t nvmet_subsys_attr_cntlid_max_show(struct config_item *item,
+						 char *page)
+{
+	return snprintf(page, PAGE_SIZE, "%u\n", to_subsys(item)->cntlid_max);
+}
+
+static ssize_t nvmet_subsys_attr_cntlid_max_store(struct config_item *item,
+						  const char *page, size_t cnt)
+{
+	u16 cntlid_max;
+
+	if (sscanf(page, "%hu\n", &cntlid_max) != 1)
+		return -EINVAL;
+
+	if (cntlid_max == 0)
+		return -EINVAL;
+
+	down_write(&nvmet_config_sem);
+	if (cntlid_max <= to_subsys(item)->cntlid_min)
+		goto out_unlock;
+	to_subsys(item)->cntlid_max = cntlid_max;
+	up_write(&nvmet_config_sem);
+	return cnt;
+
+out_unlock:
+	up_write(&nvmet_config_sem);
+	return -EINVAL;
+}
+CONFIGFS_ATTR(nvmet_subsys_, attr_cntlid_max);
+
+static ssize_t nvmet_subsys_attr_model_show(struct config_item *item,
+					    char *page)
+{
+	struct nvmet_subsys *subsys = to_subsys(item);
+	struct nvmet_subsys_model *subsys_model;
+	char *model = NVMET_DEFAULT_CTRL_MODEL;
+	int ret;
+
+	rcu_read_lock();
+	subsys_model = rcu_dereference(subsys->model);
+	if (subsys_model)
+		model = subsys_model->number;
+	ret = snprintf(page, PAGE_SIZE, "%s\n", model);
+	rcu_read_unlock();
+
+	return ret;
+}
+
+/* See Section 1.5 of NVMe 1.4 */
+static bool nvmet_is_ascii(const char c)
+{
+	return c >= 0x20 && c <= 0x7e;
+}
+
+static ssize_t nvmet_subsys_attr_model_store(struct config_item *item,
+					     const char *page, size_t count)
+{
+	struct nvmet_subsys *subsys = to_subsys(item);
+	struct nvmet_subsys_model *new_model;
+	char *new_model_number;
+	int pos = 0, len;
+
+	len = strcspn(page, "\n");
+	if (!len)
+		return -EINVAL;
+
+	for (pos = 0; pos < len; pos++) {
+		if (!nvmet_is_ascii(page[pos]))
+			return -EINVAL;
+	}
+
+	new_model_number = kstrndup(page, len, GFP_KERNEL);
+	if (!new_model_number)
+		return -ENOMEM;
+
+	new_model = kzalloc(sizeof(*new_model) + len + 1, GFP_KERNEL);
+	if (!new_model) {
+		kfree(new_model_number);
+		return -ENOMEM;
+	}
+	memcpy(new_model->number, new_model_number, len);
+
+	down_write(&nvmet_config_sem);
+	mutex_lock(&subsys->lock);
+	new_model = rcu_replace_pointer(subsys->model, new_model,
+					mutex_is_locked(&subsys->lock));
+	mutex_unlock(&subsys->lock);
+	up_write(&nvmet_config_sem);
+
+	kfree_rcu(new_model, rcuhead);
+
+	return count;
+}
+CONFIGFS_ATTR(nvmet_subsys_, attr_model);
+
 static struct configfs_attribute *nvmet_subsys_attrs[] = {
 	&nvmet_subsys_attr_attr_allow_any_host,
 	&nvmet_subsys_attr_attr_version,
 	&nvmet_subsys_attr_attr_serial,
+	&nvmet_subsys_attr_attr_cntlid_min,
+	&nvmet_subsys_attr_attr_cntlid_max,
+	&nvmet_subsys_attr_attr_model,
 	NULL,
 };
 
@@ -970,12 +1098,19 @@ static struct configfs_attribute *nvmet_referral_attrs[] = {
 	NULL,
 };
 
-static void nvmet_referral_release(struct config_item *item)
+static void nvmet_referral_notify(struct config_group *group,
+		struct config_item *item)
 {
 	struct nvmet_port *parent = to_nvmet_port(item->ci_parent->ci_parent);
 	struct nvmet_port *port = to_nvmet_port(item);
 
 	nvmet_referral_disable(parent, port);
+}
+
+static void nvmet_referral_release(struct config_item *item)
+{
+	struct nvmet_port *port = to_nvmet_port(item);
+
 	kfree(port);
 }
 
@@ -1006,6 +1141,7 @@ static struct config_group *nvmet_referral_make(
 
 static struct configfs_group_operations nvmet_referral_group_ops = {
 	.make_group		= nvmet_referral_make,
+	.disconnect_notify	= nvmet_referral_notify,
 };
 
 static const struct config_item_type nvmet_referrals_type = {

@@ -279,27 +279,15 @@ static const struct v4l2_ctrl_ops vimc_sen_ctrl_ops = {
 	.s_ctrl = vimc_sen_s_ctrl,
 };
 
-static void vimc_sen_release(struct v4l2_subdev *sd)
+void vimc_sen_release(struct vimc_ent_device *ved)
 {
 	struct vimc_sen_device *vsen =
-				container_of(sd, struct vimc_sen_device, sd);
+		container_of(ved, struct vimc_sen_device, ved);
 
 	v4l2_ctrl_handler_free(&vsen->hdl);
 	tpg_free(&vsen->tpg);
 	media_entity_cleanup(vsen->ved.ent);
 	kfree(vsen);
-}
-
-static const struct v4l2_subdev_internal_ops vimc_sen_int_ops = {
-	.release = vimc_sen_release,
-};
-
-void vimc_sen_rm(struct vimc_device *vimc, struct vimc_ent_device *ved)
-{
-	struct vimc_sen_device *vsen;
-
-	vsen = container_of(ved, struct vimc_sen_device, ved);
-	v4l2_device_unregister_subdev(&vsen->sd);
 }
 
 /* Image Processing Controls */
@@ -365,12 +353,12 @@ struct vimc_ent_device *vimc_sen_add(struct vimc_device *vimc,
 	ret = vimc_ent_sd_register(&vsen->ved, &vsen->sd, v4l2_dev,
 				   vcfg_name,
 				   MEDIA_ENT_F_CAM_SENSOR, 1, &vsen->pad,
-				   &vimc_sen_int_ops, &vimc_sen_ops);
+				   &vimc_sen_ops);
 	if (ret)
 		goto err_free_tpg;
 
 	vsen->ved.process_frame = vimc_sen_process_frame;
-	vsen->ved.dev = &vimc->pdev.dev;
+	vsen->ved.dev = vimc->mdev.dev;
 
 	/* Initialize the frame format */
 	vsen->mbus_format = fmt_default;

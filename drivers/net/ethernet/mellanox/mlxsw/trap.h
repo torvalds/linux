@@ -102,6 +102,8 @@ enum {
 	MLXSW_TRAP_ID_ACL1 = 0x1C1,
 	/* Multicast trap used for routes with trap-and-forward action */
 	MLXSW_TRAP_ID_ACL2 = 0x1C2,
+	MLXSW_TRAP_ID_DISCARD_INGRESS_ACL = 0x1C3,
+	MLXSW_TRAP_ID_DISCARD_EGRESS_ACL = 0x1C4,
 
 	MLXSW_TRAP_ID_MAX = 0x1FF
 };

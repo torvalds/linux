@@ -227,8 +227,8 @@ struct amdgpu_vm_update_params {
 
 struct amdgpu_vm_update_funcs {
 	int (*map_table)(struct amdgpu_bo *bo);
-	int (*prepare)(struct amdgpu_vm_update_params *p, void * owner,
-		       struct dma_fence *exclusive);
+	int (*prepare)(struct amdgpu_vm_update_params *p, struct dma_resv *resv,
+		       enum amdgpu_sync_mode sync_mode);
 	int (*update)(struct amdgpu_vm_update_params *p,
 		      struct amdgpu_bo *bo, uint64_t pe, uint64_t addr,
 		      unsigned count, uint32_t incr, uint64_t flags);
@@ -276,7 +276,6 @@ struct amdgpu_vm {
 
 	/* Last submission to the scheduler entities */
 	struct dma_fence	*last_direct;
-	struct dma_fence	*last_delayed;
 
 	unsigned int		pasid;
 	/* dedicated to vm */

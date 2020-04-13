@@ -145,9 +145,6 @@ struct sh_mobile_dt_config {
 
 #define IIC_FLAG_HAS_ICIC67	(1 << 0)
 
-#define STANDARD_MODE		100000
-#define FAST_MODE		400000
-
 /* Register offsets */
 #define ICDR			0x00
 #define ICCR			0x04
@@ -270,11 +267,11 @@ static int sh_mobile_i2c_init(struct sh_mobile_i2c_data *pd)
 
 	i2c_clk_khz = clk_get_rate(pd->clk) / 1000 / pd->clks_per_count;
 
-	if (pd->bus_speed == STANDARD_MODE) {
+	if (pd->bus_speed == I2C_MAX_STANDARD_MODE_FREQ) {
 		tLOW	= 47;	/* tLOW = 4.7 us */
 		tHIGH	= 40;	/* tHD;STA = tHIGH = 4.0 us */
 		tf	= 3;	/* tf = 0.3 us */
-	} else if (pd->bus_speed == FAST_MODE) {
+	} else if (pd->bus_speed == I2C_MAX_FAST_MODE_FREQ) {
 		tLOW	= 13;	/* tLOW = 1.3 us */
 		tHIGH	= 6;	/* tHD;STA = tHIGH = 0.6 us */
 		tf	= 3;	/* tf = 0.3 us */
@@ -851,7 +848,7 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 		return PTR_ERR(pd->reg);
 
 	ret = of_property_read_u32(dev->dev.of_node, "clock-frequency", &bus_speed);
-	pd->bus_speed = (ret || !bus_speed) ? STANDARD_MODE : bus_speed;
+	pd->bus_speed = (ret || !bus_speed) ? I2C_MAX_STANDARD_MODE_FREQ : bus_speed;
 	pd->clks_per_count = 1;
 
 	/* Newer variants come with two new bits in ICIC */

@@ -4,6 +4,7 @@
  */
 
 #include "dra76x.dtsi"
+#include "am57-pruss.dtsi"
 
 / {
 	compatible = "ti,am5748", "ti,dra762", "ti,dra7";

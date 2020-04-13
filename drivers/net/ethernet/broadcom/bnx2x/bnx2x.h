@@ -32,8 +32,14 @@
  * (you will need to reboot afterwards) */
 /* #define BNX2X_STOP_ON_ERROR */
 
+/* FIXME: Delete the DRV_MODULE_VERSION below, but please be warned
+ * that it is not an easy task because such change has all chances
+ * to break this driver due to amount of abuse of in-kernel interfaces
+ * between modules and FW.
+ *
+ * DO NOT UPDATE DRV_MODULE_VERSION below.
+ */
 #define DRV_MODULE_VERSION      "1.713.36-0"
-#define DRV_MODULE_RELDATE      "2014/02/10"
 #define BNX2X_BC_VER            0x040200
 
 #if defined(CONFIG_DCB)

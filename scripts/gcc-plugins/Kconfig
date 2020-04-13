@@ -1,13 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0-only
-preferred-plugin-hostcc := $(if-success,[ $(gcc-version) -ge 40800 ],$(HOSTCXX),$(HOSTCC))
-
-config PLUGIN_HOSTCC
-	string
-	default "$(shell,$(srctree)/scripts/gcc-plugin.sh "$(preferred-plugin-hostcc)" "$(HOSTCXX)" "$(CC)")" if CC_IS_GCC
-	help
-	  Host compiler used to build GCC plugins.  This can be $(HOSTCXX),
-	  $(HOSTCC), or a null string if GCC plugin is unsupported.
-
 config HAVE_GCC_PLUGINS
 	bool
 	help
@@ -17,13 +8,14 @@ config HAVE_GCC_PLUGINS
 menuconfig GCC_PLUGINS
 	bool "GCC plugins"
 	depends on HAVE_GCC_PLUGINS
-	depends on PLUGIN_HOSTCC != ""
+	depends on CC_IS_GCC && GCC_VERSION >= 40800
+	depends on $(success,$(srctree)/scripts/gcc-plugin.sh $(CC))
 	default y
 	help
 	  GCC plugins are loadable modules that provide extra features to the
 	  compiler. They are useful for runtime instrumentation and static analysis.
 
-	  See Documentation/core-api/gcc-plugins.rst for details.
+	  See Documentation/kbuild/gcc-plugins.rst for details.
 
 if GCC_PLUGINS
 

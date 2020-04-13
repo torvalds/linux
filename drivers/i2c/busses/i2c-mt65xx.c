@@ -56,9 +56,6 @@
 #define I2C_DMA_4G_MODE			0x0001
 
 #define I2C_DEFAULT_CLK_DIV		5
-#define I2C_DEFAULT_SPEED		100000	/* hz */
-#define MAX_FS_MODE_SPEED		400000
-#define MAX_HS_MODE_SPEED		3400000
 #define MAX_SAMPLE_CNT_DIV		8
 #define MAX_STEP_CNT_DIV		64
 #define MAX_HS_STEP_CNT_DIV		8
@@ -450,10 +447,10 @@ static int mtk_i2c_calculate_speed(struct mtk_i2c *i2c, unsigned int clk_src,
 	unsigned int best_mul;
 	unsigned int cnt_mul;
 
-	if (target_speed > MAX_HS_MODE_SPEED)
-		target_speed = MAX_HS_MODE_SPEED;
+	if (target_speed > I2C_MAX_FAST_MODE_PLUS_FREQ)
+		target_speed = I2C_MAX_FAST_MODE_PLUS_FREQ;
 
-	if (target_speed > MAX_FS_MODE_SPEED)
+	if (target_speed > I2C_MAX_FAST_MODE_FREQ)
 		max_step_cnt = MAX_HS_STEP_CNT_DIV;
 	else
 		max_step_cnt = MAX_STEP_CNT_DIV;
@@ -514,9 +511,9 @@ static int mtk_i2c_set_speed(struct mtk_i2c *i2c, unsigned int parent_clk)
 	clk_src = parent_clk / i2c->clk_src_div;
 	target_speed = i2c->speed_hz;
 
-	if (target_speed > MAX_FS_MODE_SPEED) {
+	if (target_speed > I2C_MAX_FAST_MODE_FREQ) {
 		/* Set master code speed register */
-		ret = mtk_i2c_calculate_speed(i2c, clk_src, MAX_FS_MODE_SPEED,
+		ret = mtk_i2c_calculate_speed(i2c, clk_src, I2C_MAX_FAST_MODE_FREQ,
 					      &l_step_cnt, &l_sample_cnt);
 		if (ret < 0)
 			return ret;
@@ -581,7 +578,7 @@ static int mtk_i2c_do_transfer(struct mtk_i2c *i2c, struct i2c_msg *msgs,
 
 	control_reg = mtk_i2c_readw(i2c, OFFSET_CONTROL) &
 			~(I2C_CONTROL_DIR_CHANGE | I2C_CONTROL_RS);
-	if ((i2c->speed_hz > MAX_FS_MODE_SPEED) || (left_num >= 1))
+	if ((i2c->speed_hz > I2C_MAX_FAST_MODE_FREQ) || (left_num >= 1))
 		control_reg |= I2C_CONTROL_RS;
 
 	if (i2c->op == I2C_MASTER_WRRD)
@@ -590,7 +587,7 @@ static int mtk_i2c_do_transfer(struct mtk_i2c *i2c, struct i2c_msg *msgs,
 	mtk_i2c_writew(i2c, control_reg, OFFSET_CONTROL);
 
 	/* set start condition */
-	if (i2c->speed_hz <= I2C_DEFAULT_SPEED)
+	if (i2c->speed_hz <= I2C_MAX_STANDARD_MODE_FREQ)
 		mtk_i2c_writew(i2c, I2C_ST_START_CON, OFFSET_EXT_CONF);
 	else
 		mtk_i2c_writew(i2c, I2C_FS_START_CON, OFFSET_EXT_CONF);
@@ -798,7 +795,7 @@ static int mtk_i2c_transfer(struct i2c_adapter *adap,
 		}
 	}
 
-	if (i2c->auto_restart && num >= 2 && i2c->speed_hz > MAX_FS_MODE_SPEED)
+	if (i2c->auto_restart && num >= 2 && i2c->speed_hz > I2C_MAX_FAST_MODE_FREQ)
 		/* ignore the first restart irq after the master code,
 		 * otherwise the first transfer will be discarded.
 		 */
@@ -893,7 +890,7 @@ static int mtk_i2c_parse_dt(struct device_node *np, struct mtk_i2c *i2c)
 
 	ret = of_property_read_u32(np, "clock-frequency", &i2c->speed_hz);
 	if (ret < 0)
-		i2c->speed_hz = I2C_DEFAULT_SPEED;
+		i2c->speed_hz = I2C_MAX_STANDARD_MODE_FREQ;
 
 	ret = of_property_read_u32(np, "clock-div", &i2c->clk_src_div);
 	if (ret < 0)

@@ -119,13 +119,6 @@ static struct efm32_clock_event_ddata clock_event_ddata = {
 	},
 };
 
-static struct irqaction efm32_clock_event_irq = {
-	.name = "efm32 clockevent",
-	.flags = IRQF_TIMER,
-	.handler = efm32_clock_event_handler,
-	.dev_id = &clock_event_ddata,
-};
-
 static int __init efm32_clocksource_init(struct device_node *np)
 {
 	struct clk *clk;
@@ -230,7 +223,8 @@ static int __init efm32_clockevent_init(struct device_node *np)
 					DIV_ROUND_CLOSEST(rate, 1024),
 					0xf, 0xffff);
 
-	ret = setup_irq(irq, &efm32_clock_event_irq);
+	ret = request_irq(irq, efm32_clock_event_handler, IRQF_TIMER,
+			  "efm32 clockevent", &clock_event_ddata);
 	if (ret) {
 		pr_err("Failed setup irq\n");
 		goto err_setup_irq;

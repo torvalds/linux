@@ -18,13 +18,13 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/err.h>
+#include <linux/freezer.h>
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
 #include <linux/slab.h>
 #include <linux/notifier.h>
 #include <linux/kthread.h>
 #include <linux/mutex.h>
-#include <linux/suspend.h>
 #include <asm/airq.h>
 #include <linux/atomic.h>
 #include <asm/isc.h>
@@ -103,16 +103,9 @@ static struct hrtimer ap_poll_timer;
  */
 static unsigned long long poll_timeout = 250000;
 
-/* Suspend flag */
-static int ap_suspend_flag;
 /* Maximum domain id */
 static int ap_max_domain_id;
-/*
- * Flag to check if domain was set through module parameter domain=. This is
- * important when supsend and resume is done in a z/VM environment where the
- * domain might change.
- */
-static int user_set_domain;
+
 static struct bus_type ap_bus_type;
 
 /* Adapter interrupt definitions */
@@ -360,7 +353,7 @@ void ap_wait(enum ap_wait wait)
 			wake_up(&ap_poll_wait);
 			break;
 		}
-		/* Fall through */
+		fallthrough;
 	case AP_WAIT_TIMEOUT:
 		spin_lock_bh(&ap_poll_timer_lock);
 		if (!hrtimer_is_queued(&ap_poll_timer)) {
@@ -386,8 +379,6 @@ void ap_request_timeout(struct timer_list *t)
 {
 	struct ap_queue *aq = from_timer(aq, t, timeout);
 
-	if (ap_suspend_flag)
-		return;
 	spin_lock_bh(&aq->lock);
 	ap_wait(ap_sm_event(aq, AP_EVENT_TIMEOUT));
 	spin_unlock_bh(&aq->lock);
@@ -401,8 +392,7 @@ void ap_request_timeout(struct timer_list *t)
  */
 static enum hrtimer_restart ap_poll_timeout(struct hrtimer *unused)
 {
-	if (!ap_suspend_flag)
-		tasklet_schedule(&ap_tasklet);
+	tasklet_schedule(&ap_tasklet);
 	return HRTIMER_NORESTART;
 }
 
@@ -413,8 +403,7 @@ static enum hrtimer_restart ap_poll_timeout(struct hrtimer *unused)
 static void ap_interrupt_handler(struct airq_struct *airq, bool floating)
 {
 	inc_irq_stat(IRQIO_APB);
-	if (!ap_suspend_flag)
-		tasklet_schedule(&ap_tasklet);
+	tasklet_schedule(&ap_tasklet);
 }
 
 /**
@@ -486,7 +475,7 @@ static int ap_poll_thread(void *data)
 	while (!kthread_should_stop()) {
 		add_wait_queue(&ap_poll_wait, &wait);
 		set_current_state(TASK_INTERRUPTIBLE);
-		if (ap_suspend_flag || !ap_pending_requests()) {
+		if (!ap_pending_requests()) {
 			schedule();
 			try_to_freeze();
 		}
@@ -587,51 +576,6 @@ static int ap_uevent(struct device *dev, struct kobj_uevent_env *env)
 	return retval;
 }
 
-static int ap_dev_suspend(struct device *dev)
-{
-	struct ap_device *ap_dev = to_ap_dev(dev);
-
-	if (ap_dev->drv && ap_dev->drv->suspend)
-		ap_dev->drv->suspend(ap_dev);
-	return 0;
-}
-
-static int ap_dev_resume(struct device *dev)
-{
-	struct ap_device *ap_dev = to_ap_dev(dev);
-
-	if (ap_dev->drv && ap_dev->drv->resume)
-		ap_dev->drv->resume(ap_dev);
-	return 0;
-}
-
-static void ap_bus_suspend(void)
-{
-	AP_DBF(DBF_DEBUG, "%s running\n", __func__);
-
-	ap_suspend_flag = 1;
-	/*
-	 * Disable scanning for devices, thus we do not want to scan
-	 * for them after removing.
-	 */
-	flush_work(&ap_scan_work);
-	tasklet_disable(&ap_tasklet);
-}
-
-static int __ap_card_devices_unregister(struct device *dev, void *dummy)
-{
-	if (is_card_dev(dev))
-		device_unregister(dev);
-	return 0;
-}
-
-static int __ap_queue_devices_unregister(struct device *dev, void *dummy)
-{
-	if (is_queue_dev(dev))
-		device_unregister(dev);
-	return 0;
-}
-
 static int __ap_queue_devices_with_id_unregister(struct device *dev, void *data)
 {
 	if (is_queue_dev(dev) &&
@@ -640,67 +584,10 @@ static int __ap_queue_devices_with_id_unregister(struct device *dev, void *data)
 	return 0;
 }
 
-static void ap_bus_resume(void)
-{
-	int rc;
-
-	AP_DBF(DBF_DEBUG, "%s running\n", __func__);
-
-	/* remove all queue devices */
-	bus_for_each_dev(&ap_bus_type, NULL, NULL,
-			 __ap_queue_devices_unregister);
-	/* remove all card devices */
-	bus_for_each_dev(&ap_bus_type, NULL, NULL,
-			 __ap_card_devices_unregister);
-
-	/* Reset thin interrupt setting */
-	if (ap_interrupts_available() && !ap_using_interrupts()) {
-		rc = register_adapter_interrupt(&ap_airq);
-		ap_airq_flag = (rc == 0);
-	}
-	if (!ap_interrupts_available() && ap_using_interrupts()) {
-		unregister_adapter_interrupt(&ap_airq);
-		ap_airq_flag = 0;
-	}
-	/* Reset domain */
-	if (!user_set_domain)
-		ap_domain_index = -1;
-	/* Get things going again */
-	ap_suspend_flag = 0;
-	if (ap_airq_flag)
-		xchg(ap_airq.lsi_ptr, 0);
-	tasklet_enable(&ap_tasklet);
-	queue_work(system_long_wq, &ap_scan_work);
-}
-
-static int ap_power_event(struct notifier_block *this, unsigned long event,
-			  void *ptr)
-{
-	switch (event) {
-	case PM_HIBERNATION_PREPARE:
-	case PM_SUSPEND_PREPARE:
-		ap_bus_suspend();
-		break;
-	case PM_POST_HIBERNATION:
-	case PM_POST_SUSPEND:
-		ap_bus_resume();
-		break;
-	default:
-		break;
-	}
-	return NOTIFY_DONE;
-}
-static struct notifier_block ap_power_notifier = {
-	.notifier_call = ap_power_event,
-};
-
-static SIMPLE_DEV_PM_OPS(ap_bus_pm_ops, ap_dev_suspend, ap_dev_resume);
-
 static struct bus_type ap_bus_type = {
 	.name = "ap",
 	.match = &ap_bus_match,
 	.uevent = &ap_uevent,
-	.pm = &ap_bus_pm_ops,
 };
 
 static int __ap_revise_reserved(struct device *dev, void *dummy)
@@ -873,8 +760,6 @@ EXPORT_SYMBOL(ap_driver_unregister);
 
 void ap_bus_force_rescan(void)
 {
-	if (ap_suspend_flag)
-		return;
 	/* processing a asynchronous bus rescan */
 	del_timer(&ap_config_timer);
 	queue_work(system_long_wq, &ap_scan_work);
@@ -1021,7 +906,7 @@ EXPORT_SYMBOL(ap_parse_mask_str);
 
 static ssize_t ap_domain_show(struct bus_type *bus, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", ap_domain_index);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", ap_domain_index);
 }
 
 static ssize_t ap_domain_store(struct bus_type *bus,
@@ -1047,14 +932,14 @@ static BUS_ATTR_RW(ap_domain);
 static ssize_t ap_control_domain_mask_show(struct bus_type *bus, char *buf)
 {
 	if (!ap_configuration)	/* QCI not supported */
-		return snprintf(buf, PAGE_SIZE, "not supported\n");
+		return scnprintf(buf, PAGE_SIZE, "not supported\n");
 
-	return snprintf(buf, PAGE_SIZE,
-			"0x%08x%08x%08x%08x%08x%08x%08x%08x\n",
-			ap_configuration->adm[0], ap_configuration->adm[1],
-			ap_configuration->adm[2], ap_configuration->adm[3],
-			ap_configuration->adm[4], ap_configuration->adm[5],
-			ap_configuration->adm[6], ap_configuration->adm[7]);
+	return scnprintf(buf, PAGE_SIZE,
+			 "0x%08x%08x%08x%08x%08x%08x%08x%08x\n",
+			 ap_configuration->adm[0], ap_configuration->adm[1],
+			 ap_configuration->adm[2], ap_configuration->adm[3],
+			 ap_configuration->adm[4], ap_configuration->adm[5],
+			 ap_configuration->adm[6], ap_configuration->adm[7]);
 }
 
 static BUS_ATTR_RO(ap_control_domain_mask);
@@ -1062,14 +947,14 @@ static BUS_ATTR_RO(ap_control_domain_mask);
 static ssize_t ap_usage_domain_mask_show(struct bus_type *bus, char *buf)
 {
 	if (!ap_configuration)	/* QCI not supported */
-		return snprintf(buf, PAGE_SIZE, "not supported\n");
+		return scnprintf(buf, PAGE_SIZE, "not supported\n");
 
-	return snprintf(buf, PAGE_SIZE,
-			"0x%08x%08x%08x%08x%08x%08x%08x%08x\n",
-			ap_configuration->aqm[0], ap_configuration->aqm[1],
-			ap_configuration->aqm[2], ap_configuration->aqm[3],
-			ap_configuration->aqm[4], ap_configuration->aqm[5],
-			ap_configuration->aqm[6], ap_configuration->aqm[7]);
+	return scnprintf(buf, PAGE_SIZE,
+			 "0x%08x%08x%08x%08x%08x%08x%08x%08x\n",
+			 ap_configuration->aqm[0], ap_configuration->aqm[1],
+			 ap_configuration->aqm[2], ap_configuration->aqm[3],
+			 ap_configuration->aqm[4], ap_configuration->aqm[5],
+			 ap_configuration->aqm[6], ap_configuration->aqm[7]);
 }
 
 static BUS_ATTR_RO(ap_usage_domain_mask);
@@ -1077,29 +962,29 @@ static BUS_ATTR_RO(ap_usage_domain_mask);
 static ssize_t ap_adapter_mask_show(struct bus_type *bus, char *buf)
 {
 	if (!ap_configuration)	/* QCI not supported */
-		return snprintf(buf, PAGE_SIZE, "not supported\n");
+		return scnprintf(buf, PAGE_SIZE, "not supported\n");
 
-	return snprintf(buf, PAGE_SIZE,
-			"0x%08x%08x%08x%08x%08x%08x%08x%08x\n",
-			ap_configuration->apm[0], ap_configuration->apm[1],
-			ap_configuration->apm[2], ap_configuration->apm[3],
-			ap_configuration->apm[4], ap_configuration->apm[5],
-			ap_configuration->apm[6], ap_configuration->apm[7]);
+	return scnprintf(buf, PAGE_SIZE,
+			 "0x%08x%08x%08x%08x%08x%08x%08x%08x\n",
+			 ap_configuration->apm[0], ap_configuration->apm[1],
+			 ap_configuration->apm[2], ap_configuration->apm[3],
+			 ap_configuration->apm[4], ap_configuration->apm[5],
+			 ap_configuration->apm[6], ap_configuration->apm[7]);
 }
 
 static BUS_ATTR_RO(ap_adapter_mask);
 
 static ssize_t ap_interrupts_show(struct bus_type *bus, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n",
-			ap_using_interrupts() ? 1 : 0);
+	return scnprintf(buf, PAGE_SIZE, "%d\n",
+			 ap_using_interrupts() ? 1 : 0);
 }
 
 static BUS_ATTR_RO(ap_interrupts);
 
 static ssize_t config_time_show(struct bus_type *bus, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", ap_config_time);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", ap_config_time);
 }
 
 static ssize_t config_time_store(struct bus_type *bus,
@@ -1118,7 +1003,7 @@ static BUS_ATTR_RW(config_time);
 
 static ssize_t poll_thread_show(struct bus_type *bus, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", ap_poll_kthread ? 1 : 0);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", ap_poll_kthread ? 1 : 0);
 }
 
 static ssize_t poll_thread_store(struct bus_type *bus,
@@ -1141,7 +1026,7 @@ static BUS_ATTR_RW(poll_thread);
 
 static ssize_t poll_timeout_show(struct bus_type *bus, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%llu\n", poll_timeout);
+	return scnprintf(buf, PAGE_SIZE, "%llu\n", poll_timeout);
 }
 
 static ssize_t poll_timeout_store(struct bus_type *bus, const char *buf,
@@ -1176,7 +1061,7 @@ static ssize_t ap_max_domain_id_show(struct bus_type *bus, char *buf)
 		max_domain_id = ap_max_domain_id ? : -1;
 	else
 		max_domain_id = 15;
-	return snprintf(buf, PAGE_SIZE, "%d\n", max_domain_id);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", max_domain_id);
 }
 
 static BUS_ATTR_RO(ap_max_domain_id);
@@ -1187,10 +1072,10 @@ static ssize_t apmask_show(struct bus_type *bus, char *buf)
 
 	if (mutex_lock_interruptible(&ap_perms_mutex))
 		return -ERESTARTSYS;
-	rc = snprintf(buf, PAGE_SIZE,
-		      "0x%016lx%016lx%016lx%016lx\n",
-		      ap_perms.apm[0], ap_perms.apm[1],
-		      ap_perms.apm[2], ap_perms.apm[3]);
+	rc = scnprintf(buf, PAGE_SIZE,
+		       "0x%016lx%016lx%016lx%016lx\n",
+		       ap_perms.apm[0], ap_perms.apm[1],
+		       ap_perms.apm[2], ap_perms.apm[3]);
 	mutex_unlock(&ap_perms_mutex);
 
 	return rc;
@@ -1218,10 +1103,10 @@ static ssize_t aqmask_show(struct bus_type *bus, char *buf)
 
 	if (mutex_lock_interruptible(&ap_perms_mutex))
 		return -ERESTARTSYS;
-	rc = snprintf(buf, PAGE_SIZE,
-		      "0x%016lx%016lx%016lx%016lx\n",
-		      ap_perms.aqm[0], ap_perms.aqm[1],
-		      ap_perms.aqm[2], ap_perms.aqm[3]);
+	rc = scnprintf(buf, PAGE_SIZE,
+		       "0x%016lx%016lx%016lx%016lx\n",
+		       ap_perms.aqm[0], ap_perms.aqm[1],
+		       ap_perms.aqm[2], ap_perms.aqm[3]);
 	mutex_unlock(&ap_perms_mutex);
 
 	return rc;
@@ -1567,8 +1452,6 @@ static void ap_scan_bus(struct work_struct *unused)
 
 static void ap_config_timeout(struct timer_list *unused)
 {
-	if (ap_suspend_flag)
-		return;
 	queue_work(system_long_wq, &ap_scan_work);
 }
 
@@ -1641,11 +1524,6 @@ static int __init ap_module_init(void)
 			ap_domain_index);
 		ap_domain_index = -1;
 	}
-	/* In resume callback we need to know if the user had set the domain.
-	 * If so, we can not just reset it.
-	 */
-	if (ap_domain_index >= 0)
-		user_set_domain = 1;
 
 	if (ap_interrupts_available()) {
 		rc = register_adapter_interrupt(&ap_airq);
@@ -1688,17 +1566,11 @@ static int __init ap_module_init(void)
 			goto out_work;
 	}
 
-	rc = register_pm_notifier(&ap_power_notifier);
-	if (rc)
-		goto out_pm;
-
 	queue_work(system_long_wq, &ap_scan_work);
 	initialised = true;
 
 	return 0;
 
-out_pm:
-	ap_poll_thread_stop();
 out_work:
 	hrtimer_cancel(&ap_poll_timer);
 	root_device_unregister(ap_root_device);

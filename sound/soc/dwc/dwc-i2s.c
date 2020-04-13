@@ -422,15 +422,15 @@ static int dw_i2s_resume(struct snd_soc_component *component)
 {
 	struct dw_i2s_dev *dev = snd_soc_component_get_drvdata(component);
 	struct snd_soc_dai *dai;
+	int stream;
 
 	if (dev->capability & DW_I2S_MASTER)
 		clk_enable(dev->clk);
 
 	for_each_component_dais(component, dai) {
-		if (dai->playback_active)
-			dw_i2s_config(dev, SNDRV_PCM_STREAM_PLAYBACK);
-		if (dai->capture_active)
-			dw_i2s_config(dev, SNDRV_PCM_STREAM_CAPTURE);
+		for_each_pcm_streams(stream)
+			if (dai->stream_active[stream])
+				dw_i2s_config(dev, stream);
 	}
 
 	return 0;

@@ -782,9 +782,9 @@ static int __cvmx_helper_errata_fix_ipd_ptr_alignment(void)
 #define INTERFACE(port) (port >> 4)
 #define INDEX(port) (port & 0xf)
 	uint64_t *p64;
-	cvmx_pko_command_word0_t pko_command;
+	union cvmx_pko_command_word0 pko_command;
 	union cvmx_buf_ptr g_buffer, pkt_buffer;
-	cvmx_wqe_t *work;
+	struct cvmx_wqe *work;
 	int size, num_segs = 0, wqe_pcnt, pkt_pcnt;
 	union cvmx_gmxx_prtx_cfg gmx_cfg;
 	int retry_cnt;
@@ -1075,9 +1075,9 @@ int cvmx_helper_initialize_packet_io_local(void)
  *
  * Returns Link state
  */
-cvmx_helper_link_info_t cvmx_helper_link_get(int ipd_port)
+union cvmx_helper_link_info cvmx_helper_link_get(int ipd_port)
 {
-	cvmx_helper_link_info_t result;
+	union cvmx_helper_link_info result;
 	int interface = cvmx_helper_get_interface_num(ipd_port);
 	int index = cvmx_helper_get_interface_index_num(ipd_port);
 
@@ -1136,7 +1136,7 @@ EXPORT_SYMBOL_GPL(cvmx_helper_link_get);
  *
  * Returns Zero on success, negative on failure
  */
-int cvmx_helper_link_set(int ipd_port, cvmx_helper_link_info_t link_info)
+int cvmx_helper_link_set(int ipd_port, union cvmx_helper_link_info link_info)
 {
 	int result = -1;
 	int interface = cvmx_helper_get_interface_num(ipd_port);

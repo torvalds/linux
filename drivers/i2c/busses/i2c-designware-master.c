@@ -521,7 +521,7 @@ static u32 i2c_dw_read_clear_intrbits(struct dw_i2c_dev *dev)
 
 	/*
 	 * The IC_INTR_STAT register just indicates "enabled" interrupts.
-	 * Ths unmasked raw version of interrupt status bits are available
+	 * The unmasked raw version of interrupt status bits is available
 	 * in the IC_RAW_INTR_STAT register.
 	 *
 	 * That is,
@@ -697,6 +697,8 @@ int i2c_dw_probe(struct dw_i2c_dev *dev)
 	ret = i2c_dw_set_timings_master(dev);
 	if (ret)
 		return ret;
+
+	i2c_dw_set_fifo_size(dev);
 
 	ret = dev->init(dev);
 	if (ret)

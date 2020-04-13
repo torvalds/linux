@@ -206,12 +206,13 @@ static void enqueue_seq(struct cc_drvdata *drvdata, struct cc_hw_desc seq[],
 	}
 }
 
-/*!
- * Completion will take place if and only if user requested completion
- * by cc_send_sync_request().
+/**
+ * request_mgr_complete() - Completion will take place if and only if user
+ * requested completion by cc_send_sync_request().
  *
- * \param dev
- * \param dx_compl_h The completion event to signal
+ * @dev: Device pointer
+ * @dx_compl_h: The completion event to signal
+ * @dummy: unused error code
  */
 static void request_mgr_complete(struct device *dev, void *dx_compl_h,
 				 int dummy)
@@ -264,15 +265,15 @@ static int cc_queues_status(struct cc_drvdata *drvdata,
 	return -ENOSPC;
 }
 
-/*!
- * Enqueue caller request to crypto hardware.
+/**
+ * cc_do_send_request() - Enqueue caller request to crypto hardware.
  * Need to be called with HW lock held and PM running
  *
- * \param drvdata
- * \param cc_req The request to enqueue
- * \param desc The crypto sequence
- * \param len The crypto sequence length
- * \param add_comp If "true": add an artificial dout DMA to mark completion
+ * @drvdata: Associated device driver context
+ * @cc_req: The request to enqueue
+ * @desc: The crypto sequence
+ * @len: The crypto sequence length
+ * @add_comp: If "true": add an artificial dout DMA to mark completion
  *
  */
 static void cc_do_send_request(struct cc_drvdata *drvdata,
@@ -295,7 +296,6 @@ static void cc_do_send_request(struct cc_drvdata *drvdata,
 	req_mgr_h->req_queue[req_mgr_h->req_queue_head] = *cc_req;
 	req_mgr_h->req_queue_head = (req_mgr_h->req_queue_head + 1) &
 				    (MAX_REQUEST_QUEUE_SIZE - 1);
-	/* TODO: Use circ_buf.h ? */
 
 	dev_dbg(dev, "Enqueue request head=%u\n", req_mgr_h->req_queue_head);
 
@@ -377,7 +377,7 @@ static void cc_proc_backlog(struct cc_drvdata *drvdata)
 		rc = cc_queues_status(drvdata, mgr, bli->len);
 		if (rc) {
 			/*
-			 * There is still not room in the FIFO for
+			 * There is still no room in the FIFO for
 			 * this request. Bail out. We'll return here
 			 * on the next completion irq.
 			 */
@@ -476,10 +476,6 @@ int cc_send_sync_request(struct cc_drvdata *drvdata,
 			break;
 
 		spin_unlock_bh(&mgr->hw_lock);
-		if (rc != -EAGAIN) {
-			cc_pm_put_suspend(dev);
-			return rc;
-		}
 		wait_for_completion_interruptible(&drvdata->hw_queue_avail);
 		reinit_completion(&drvdata->hw_queue_avail);
 	}
@@ -490,16 +486,18 @@ int cc_send_sync_request(struct cc_drvdata *drvdata,
 	return 0;
 }
 
-/*!
- * Enqueue caller request to crypto hardware during init process.
- * assume this function is not called in middle of a flow,
+/**
+ * send_request_init() - Enqueue caller request to crypto hardware during init
+ * process.
+ * Assume this function is not called in the middle of a flow,
  * since we set QUEUE_LAST_IND flag in the last descriptor.
  *
- * \param drvdata
- * \param desc The crypto sequence
- * \param len The crypto sequence length
+ * @drvdata: Associated device driver context
+ * @desc: The crypto sequence
+ * @len: The crypto sequence length
  *
- * \return int Returns "0" upon success
+ * Return:
+ * Returns "0" upon success
  */
 int send_request_init(struct cc_drvdata *drvdata, struct cc_hw_desc *desc,
 		      unsigned int len)

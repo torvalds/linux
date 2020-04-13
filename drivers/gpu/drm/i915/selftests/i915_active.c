@@ -201,11 +201,57 @@ static int live_active_retire(void *arg)
 	return err;
 }
 
+static int live_active_barrier(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	struct intel_engine_cs *engine;
+	struct live_active *active;
+	int err = 0;
+
+	/* Check that we get a callback when requests retire upon waiting */
+
+	active = __live_alloc(i915);
+	if (!active)
+		return -ENOMEM;
+
+	err = i915_active_acquire(&active->base);
+	if (err)
+		goto out;
+
+	for_each_uabi_engine(engine, i915) {
+		err = i915_active_acquire_preallocate_barrier(&active->base,
+							      engine);
+		if (err)
+			break;
+
+		i915_active_acquire_barrier(&active->base);
+	}
+
+	i915_active_release(&active->base);
+
+	if (err == 0)
+		err = i915_active_wait(&active->base);
+
+	if (err == 0 && !READ_ONCE(active->retired)) {
+		pr_err("i915_active not retired after flushing barriers!\n");
+		err = -EINVAL;
+	}
+
+out:
+	__live_put(active);
+
+	if (igt_flush_test(i915))
+		err = -EIO;
+
+	return err;
+}
+
 int i915_active_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(live_active_wait),
 		SUBTEST(live_active_retire),
+		SUBTEST(live_active_barrier),
 	};
 
 	if (intel_gt_is_wedged(&i915->gt))
@@ -265,28 +311,40 @@ static void spin_unlock_wait(spinlock_t *lock)
 	spin_unlock_irq(lock);
 }
 
+static void active_flush(struct i915_active *ref,
+			 struct i915_active_fence *active)
+{
+	struct dma_fence *fence;
+
+	fence = xchg(__active_fence_slot(active), NULL);
+	if (!fence)
+		return;
+
+	spin_lock_irq(fence->lock);
+	__list_del_entry(&active->cb.node);
+	spin_unlock_irq(fence->lock); /* serialise with fence->cb_list */
+	atomic_dec(&ref->count);
+
+	GEM_BUG_ON(!test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags));
+}
+
 void i915_active_unlock_wait(struct i915_active *ref)
 {
 	if (i915_active_acquire_if_busy(ref)) {
 		struct active_node *it, *n;
 
+		/* Wait for all active callbacks */
 		rcu_read_lock();
-		rbtree_postorder_for_each_entry_safe(it, n, &ref->tree, node) {
-			struct dma_fence *f;
-
-			/* Wait for all active callbacks */
-			f = rcu_dereference(it->base.fence);
-			if (f)
-				spin_unlock_wait(f->lock);
-		}
+		active_flush(ref, &ref->excl);
+		rbtree_postorder_for_each_entry_safe(it, n, &ref->tree, node)
+			active_flush(ref, &it->base);
 		rcu_read_unlock();
 
 		i915_active_release(ref);
 	}
 
 	/* And wait for the retire callback */
-	spin_lock_irq(&ref->tree_lock);
-	spin_unlock_irq(&ref->tree_lock);
+	spin_unlock_wait(&ref->tree_lock);
 
 	/* ... which may have been on a thread instead */
 	flush_work(&ref->work);

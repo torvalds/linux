@@ -81,7 +81,7 @@ int create_orc(struct objtool_file *file)
 	return 0;
 }
 
-static int create_orc_entry(struct section *u_sec, struct section *ip_relasec,
+static int create_orc_entry(struct elf *elf, struct section *u_sec, struct section *ip_relasec,
 				unsigned int idx, struct section *insn_sec,
 				unsigned long insn_off, struct orc_entry *o)
 {
@@ -109,9 +109,10 @@ static int create_orc_entry(struct section *u_sec, struct section *ip_relasec,
 	rela->addend = insn_off;
 	rela->type = R_X86_64_PC32;
 	rela->offset = idx * sizeof(int);
+	rela->sec = ip_relasec;
 
 	list_add_tail(&rela->list, &ip_relasec->rela_list);
-	hash_add(ip_relasec->rela_hash, &rela->hash, rela->offset);
+	hash_add(elf->rela_hash, &rela->hash, rela_hash(rela));
 
 	return 0;
 }
@@ -182,7 +183,7 @@ int create_orc_sections(struct objtool_file *file)
 			if (!prev_insn || memcmp(&insn->orc, &prev_insn->orc,
 						 sizeof(struct orc_entry))) {
 
-				if (create_orc_entry(u_sec, ip_relasec, idx,
+				if (create_orc_entry(file->elf, u_sec, ip_relasec, idx,
 						     insn->sec, insn->offset,
 						     &insn->orc))
 					return -1;
@@ -194,7 +195,7 @@ int create_orc_sections(struct objtool_file *file)
 
 		/* section terminator */
 		if (prev_insn) {
-			if (create_orc_entry(u_sec, ip_relasec, idx,
+			if (create_orc_entry(file->elf, u_sec, ip_relasec, idx,
 					     prev_insn->sec,
 					     prev_insn->offset + prev_insn->len,
 					     &empty))

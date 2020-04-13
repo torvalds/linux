@@ -165,6 +165,15 @@
 	cpu0-supply = <&buck2_reg>;
 };
 
+&cpu0_opp_table {
+	opp-1000000000 {
+		opp-suspend;
+	};
+	opp-800000000 {
+		/delete-property/opp-suspend;
+	};
+};
+
 &pinctrl_1 {
 	gpio_power_key: power_key {
 		samsung,pins = "gpx1-3";

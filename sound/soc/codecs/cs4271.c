@@ -356,9 +356,9 @@ static int cs4271_hw_params(struct snd_pcm_substream *substream,
 		 */
 
 		if ((substream->stream == SNDRV_PCM_STREAM_PLAYBACK &&
-		     !dai->capture_active) ||
+		     !dai->stream_active[SNDRV_PCM_STREAM_CAPTURE]) ||
 		    (substream->stream == SNDRV_PCM_STREAM_CAPTURE &&
-		     !dai->playback_active)) {
+		     !dai->stream_active[SNDRV_PCM_STREAM_PLAYBACK])) {
 			ret = regmap_update_bits(cs4271->regmap, CS4271_MODE2,
 						 CS4271_MODE2_PDN,
 						 CS4271_MODE2_PDN);

@@ -279,7 +279,7 @@ static bool rtc_does_wakealarm(struct rtc_device *rtc)
 static umode_t rtc_attr_is_visible(struct kobject *kobj,
 				   struct attribute *attr, int n)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct rtc_device *rtc = to_rtc_device(dev);
 	umode_t mode = attr->mode;
 

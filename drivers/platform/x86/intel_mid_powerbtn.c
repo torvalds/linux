@@ -113,8 +113,8 @@ static const struct mid_pb_ddata mrfld_ddata = {
 };
 
 static const struct x86_cpu_id mid_pb_cpu_ids[] = {
-	INTEL_CPU_FAM6(ATOM_SALTWELL_MID,	mfld_ddata),
-	INTEL_CPU_FAM6(ATOM_SILVERMONT_MID,	mrfld_ddata),
+	X86_MATCH_INTEL_FAM6_MODEL(ATOM_SALTWELL_MID,	&mfld_ddata),
+	X86_MATCH_INTEL_FAM6_MODEL(ATOM_SILVERMONT_MID,	&mrfld_ddata),
 	{}
 };
 

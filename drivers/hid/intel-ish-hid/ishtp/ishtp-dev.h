@@ -214,7 +214,7 @@ struct ishtp_device {
 	const struct ishtp_hw_ops *ops;
 	size_t	mtu;
 	uint32_t	ishtp_msg_hdr;
-	char hw[0] __aligned(sizeof(void *));
+	char hw[] __aligned(sizeof(void *));
 };
 
 static inline unsigned long ishtp_secs_to_jiffies(unsigned long sec)

@@ -22,6 +22,7 @@ enum {
 	DSA_NOTIFIER_MDB_DEL,
 	DSA_NOTIFIER_VLAN_ADD,
 	DSA_NOTIFIER_VLAN_DEL,
+	DSA_NOTIFIER_MTU,
 };
 
 /* DSA_NOTIFIER_AGEING_TIME */
@@ -59,6 +60,14 @@ struct dsa_notifier_vlan_info {
 	struct switchdev_trans *trans;
 	int sw_index;
 	int port;
+};
+
+/* DSA_NOTIFIER_MTU */
+struct dsa_notifier_mtu_info {
+	bool propagate_upstream;
+	int sw_index;
+	int port;
+	int mtu;
 };
 
 struct dsa_slave_priv {
@@ -127,6 +136,8 @@ int dsa_port_vlan_filtering(struct dsa_port *dp, bool vlan_filtering,
 			    struct switchdev_trans *trans);
 int dsa_port_ageing_time(struct dsa_port *dp, clock_t ageing_clock,
 			 struct switchdev_trans *trans);
+int dsa_port_mtu_change(struct dsa_port *dp, int new_mtu,
+			bool propagate_upstream);
 int dsa_port_fdb_add(struct dsa_port *dp, const unsigned char *addr,
 		     u16 vid);
 int dsa_port_fdb_del(struct dsa_port *dp, const unsigned char *addr,
@@ -183,4 +194,8 @@ dsa_slave_to_master(const struct net_device *dev)
 /* switch.c */
 int dsa_switch_register_notifier(struct dsa_switch *ds);
 void dsa_switch_unregister_notifier(struct dsa_switch *ds);
+
+/* dsa2.c */
+extern struct list_head dsa_tree_list;
+
 #endif

@@ -222,11 +222,11 @@ static ssize_t fault_opcodes_read(struct file *file, char __user *buf,
 	while (bit < bitsize) {
 		zero = find_next_zero_bit(fault->opcodes, bitsize, bit);
 		if (zero - 1 != bit)
-			size += snprintf(data + size,
+			size += scnprintf(data + size,
 					 datalen - size - 1,
 					 "0x%lx-0x%lx,", bit, zero - 1);
 		else
-			size += snprintf(data + size,
+			size += scnprintf(data + size,
 					 datalen - size - 1, "0x%lx,",
 					 bit);
 		bit = find_next_bit(fault->opcodes, bitsize, zero);

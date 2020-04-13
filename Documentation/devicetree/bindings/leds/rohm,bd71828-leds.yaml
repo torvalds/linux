@@ -50,3 +50,6 @@ patternProperties:
 
 required:
   - compatible
+additionalProperties: false
+
+...

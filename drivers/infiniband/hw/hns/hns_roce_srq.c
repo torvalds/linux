@@ -381,7 +381,8 @@ int hns_roce_create_srq(struct ib_srq *ib_srq,
 	srq->wqe_cnt = roundup_pow_of_two(init_attr->attr.max_wr + 1);
 	srq->max_gs = init_attr->attr.max_sge;
 
-	srq_desc_size = roundup_pow_of_two(max(16, 16 * srq->max_gs));
+	srq_desc_size = roundup_pow_of_two(max(HNS_ROCE_SGE_SIZE,
+					HNS_ROCE_SGE_SIZE * srq->max_gs));
 
 	srq->wqe_shift = ilog2(srq_desc_size);
 

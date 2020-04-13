@@ -181,6 +181,7 @@ DECLARE_EVENT_CLASS(nfs_inode_event_done,
 				int error \
 			), \
 			TP_ARGS(inode, error))
+DEFINE_NFS_INODE_EVENT(nfs_set_inode_stale);
 DEFINE_NFS_INODE_EVENT(nfs_refresh_inode_enter);
 DEFINE_NFS_INODE_EVENT_DONE(nfs_refresh_inode_exit);
 DEFINE_NFS_INODE_EVENT(nfs_revalidate_inode_enter);

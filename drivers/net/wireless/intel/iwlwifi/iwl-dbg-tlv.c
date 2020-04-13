@@ -236,6 +236,12 @@ static int iwl_dbg_tlv_alloc_region(struct iwl_trans *trans,
 		return -EINVAL;
 	}
 
+	if (type == IWL_FW_INI_REGION_PCI_IOSF_CONFIG &&
+	    !trans->ops->read_config32) {
+		IWL_ERR(trans, "WRT: Unsupported region type %u\n", type);
+		return -EOPNOTSUPP;
+	}
+
 	active_reg = &trans->dbg.active_regions[id];
 	if (*active_reg) {
 		IWL_WARN(trans, "WRT: Overriding region id %u\n", id);

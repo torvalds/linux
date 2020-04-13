@@ -1219,6 +1219,61 @@ static int em28178_dvb_init_pctv_461e(struct em28xx *dev)
 	return 0;
 }
 
+static int em28178_dvb_init_pctv_461e_v2(struct em28xx *dev)
+{
+	struct em28xx_dvb *dvb = dev->dvb;
+	struct i2c_adapter *i2c_adapter;
+	struct m88ds3103_platform_data m88ds3103_pdata = {};
+	struct ts2020_config ts2020_config = {};
+	struct a8293_platform_data a8293_pdata = {};
+
+	/* attach demod */
+	m88ds3103_pdata.clk = 27000000;
+	m88ds3103_pdata.i2c_wr_max = 33;
+	m88ds3103_pdata.ts_mode = M88DS3103_TS_PARALLEL;
+	m88ds3103_pdata.ts_clk = 16000;
+	m88ds3103_pdata.ts_clk_pol = 0;
+	m88ds3103_pdata.agc = 0x99;
+	m88ds3103_pdata.agc_inv = 0;
+	m88ds3103_pdata.spec_inv = 0;
+	dvb->i2c_client_demod = dvb_module_probe("m88ds3103", "m88ds3103b",
+						 &dev->i2c_adap[dev->def_i2c_bus],
+						 0x6a, &m88ds3103_pdata);
+
+	if (!dvb->i2c_client_demod)
+		return -ENODEV;
+
+	dvb->fe[0] = m88ds3103_pdata.get_dvb_frontend(dvb->i2c_client_demod);
+	i2c_adapter = m88ds3103_pdata.get_i2c_adapter(dvb->i2c_client_demod);
+
+	/* attach tuner */
+	ts2020_config.fe = dvb->fe[0];
+	dvb->i2c_client_tuner = dvb_module_probe("ts2020", "ts2022",
+						 i2c_adapter,
+						 0x60, &ts2020_config);
+	if (!dvb->i2c_client_tuner) {
+		dvb_module_release(dvb->i2c_client_demod);
+		return -ENODEV;
+	}
+
+	/* delegate signal strength measurement to tuner */
+	dvb->fe[0]->ops.read_signal_strength =
+			dvb->fe[0]->ops.tuner_ops.get_rf_strength;
+
+	/* attach SEC */
+	a8293_pdata.dvb_frontend = dvb->fe[0];
+	dvb->i2c_client_sec = dvb_module_probe("a8293", NULL,
+					       &dev->i2c_adap[dev->def_i2c_bus],
+					       0x08, &a8293_pdata);
+	if (!dvb->i2c_client_sec) {
+		dvb_module_release(dvb->i2c_client_tuner);
+		dvb_module_release(dvb->i2c_client_demod);
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
 static int em28178_dvb_init_pctv_292e(struct em28xx *dev)
 {
 	struct em28xx_dvb *dvb = dev->dvb;
@@ -1857,6 +1912,11 @@ static int em28xx_dvb_init(struct em28xx *dev)
 		break;
 	case EM28178_BOARD_PCTV_461E:
 		result = em28178_dvb_init_pctv_461e(dev);
+		if (result)
+			goto out_free;
+		break;
+	case EM28178_BOARD_PCTV_461E_V2:
+		result = em28178_dvb_init_pctv_461e_v2(dev);
 		if (result)
 			goto out_free;
 		break;

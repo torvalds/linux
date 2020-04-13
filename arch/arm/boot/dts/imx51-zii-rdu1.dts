@@ -217,8 +217,8 @@
 		simple-audio-card,widgets =
 			"Headphone", "Headphone Jack";
 		simple-audio-card,routing =
-			"Headphone Jack", "HPLEFT",
-			"Headphone Jack", "HPRIGHT";
+			"Headphone Jack", "TPA6130A2 HPLEFT",
+			"Headphone Jack", "TPA6130A2 HPRIGHT";
 		simple-audio-card,aux-devs = <&hpa1>;
 
 		sound_cpu: simple-audio-card,cpu {
@@ -470,6 +470,7 @@
 		compatible = "ti,tpa6130a2";
 		reg = <0x60>;
 		Vdd-supply = <&reg_3p3v>;
+		sound-name-prefix = "TPA6130A2";
 	};
 
 	ds1341: rtc@68 {

@@ -9,5 +9,5 @@ struct hantro_jpeg_ctx {
 	unsigned char *buffer;
 };
 
-unsigned char *hantro_jpeg_get_qtable(struct hantro_jpeg_ctx *ctx, int index);
+unsigned char *hantro_jpeg_get_qtable(int index);
 void hantro_jpeg_header_assemble(struct hantro_jpeg_ctx *ctx);

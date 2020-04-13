@@ -62,7 +62,7 @@ void ucall_init(struct kvm_vm *vm, void *arg)
 		if (ucall_mmio_init(vm, start + offset))
 			return;
 	}
-	TEST_ASSERT(false, "Can't find a ucall mmio address");
+	TEST_FAIL("Can't find a ucall mmio address");
 }
 
 void ucall_uninit(struct kvm_vm *vm)

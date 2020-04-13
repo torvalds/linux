@@ -20,7 +20,7 @@ struct mlxsw_sp_acl_tcam {
 	struct mutex lock; /* guards vregion list */
 	struct list_head vregion_list;
 	u32 vregion_rehash_intrvl;   /* ms */
-	unsigned long priv[0];
+	unsigned long priv[];
 	/* priv has to be always the last item */
 };
 
@@ -86,7 +86,7 @@ struct mlxsw_sp_acl_tcam_region {
 	char tcam_region_info[MLXSW_REG_PXXX_TCAM_REGION_INFO_LEN];
 	struct mlxsw_afk_key_info *key_info;
 	struct mlxsw_sp *mlxsw_sp;
-	unsigned long priv[0];
+	unsigned long priv[];
 	/* priv has to be always the last item */
 };
 

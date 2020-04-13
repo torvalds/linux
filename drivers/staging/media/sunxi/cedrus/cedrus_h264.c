@@ -610,8 +610,12 @@ static int cedrus_h264_start(struct cedrus_ctx *ctx)
 			goto err_mv_col_buf;
 		}
 
+		/*
+		 * NOTE: Multiplying by two deviates from CedarX logic, but it
+		 * is for some unknown reason needed for H264 4K decoding on H6.
+		 */
 		ctx->codec.h264.intra_pred_buf_size =
-			ALIGN(ctx->src_fmt.width, 64) * 5;
+			ALIGN(ctx->src_fmt.width, 64) * 5 * 2;
 		ctx->codec.h264.intra_pred_buf =
 			dma_alloc_coherent(dev->dev,
 					   ctx->codec.h264.intra_pred_buf_size,

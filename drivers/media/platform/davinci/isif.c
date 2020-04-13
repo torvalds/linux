@@ -29,7 +29,7 @@
 #include "ccdc_hw_device.h"
 
 /* Defaults for module configuration parameters */
-static struct isif_config_params_raw isif_config_defaults = {
+static const struct isif_config_params_raw isif_config_defaults = {
 	.linearize = {
 		.en = 0,
 		.corr_shft = ISIF_NO_SHIFT,

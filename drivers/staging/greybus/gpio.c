@@ -364,8 +364,7 @@ static int gb_gpio_request_handler(struct gb_operation *op)
 	struct gb_message *request;
 	struct gb_gpio_irq_event_request *event;
 	u8 type = op->type;
-	int irq;
-	struct irq_desc *desc;
+	int irq, ret;
 
 	if (type != GB_GPIO_TYPE_IRQ_EVENT) {
 		dev_err(dev, "unsupported unsolicited request: %u\n", type);
@@ -391,17 +390,15 @@ static int gb_gpio_request_handler(struct gb_operation *op)
 		dev_err(dev, "failed to find IRQ\n");
 		return -EINVAL;
 	}
-	desc = irq_to_desc(irq);
-	if (!desc) {
-		dev_err(dev, "failed to look up irq\n");
-		return -EINVAL;
-	}
 
 	local_irq_disable();
-	generic_handle_irq_desc(desc);
+	ret = generic_handle_irq(irq);
 	local_irq_enable();
 
-	return 0;
+	if (ret)
+		dev_err(dev, "failed to invoke irq handler\n");
+
+	return ret;
 }
 
 static int gb_gpio_request(struct gpio_chip *chip, unsigned int offset)

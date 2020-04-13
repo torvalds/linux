@@ -200,7 +200,7 @@ static void efm32_uart_rx_chars(struct efm32_uart_port *efm_port)
 		/*
 		 * This is a reserved bit and I only saw it read as 0. But to be
 		 * sure not to be confused too much by new devices adhere to the
-		 * warning in the reference manual that reserverd bits might
+		 * warning in the reference manual that reserved bits might
 		 * read as 1 in the future.
 		 */
 		rxdata &= ~SW_UARTn_RXDATAX_BERR;

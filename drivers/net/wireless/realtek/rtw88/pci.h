@@ -39,6 +39,7 @@
 #define RTK_PCIE_LINK_CFG	0x0719
 #define BIT_CLKREQ_SW_EN	BIT(4)
 #define BIT_L1_SW_EN		BIT(3)
+#define RTK_PCIE_CLKDLY_CTRL	0x0725
 
 #define BIT_PCI_BCNQ_FLAG	BIT(4)
 #define RTK_PCI_TXBD_DESA_BCNQ	0x308
@@ -50,6 +51,8 @@
 #define RTK_PCI_TXBD_DESA_VOQ	0x318
 #define RTK_PCI_TXBD_DESA_HI0Q	0x340
 #define RTK_PCI_RXBD_DESA_MPDUQ	0x338
+
+#define TRX_BD_IDX_MASK		GENMASK(11, 0)
 
 /* BCNQ is specialized for rsvd page, does not need to specify a number */
 #define RTK_PCI_TXBD_NUM_H2CQ	0x1328
@@ -197,12 +200,15 @@ struct rtw_pci_rx_ring {
 struct rtw_pci {
 	struct pci_dev *pdev;
 
-	/* used for pci interrupt */
+	/* Used for PCI interrupt. */
+	spinlock_t hwirq_lock;
+	/* Used for PCI TX queueing. */
 	spinlock_t irq_lock;
 	u32 irq_mask[4];
 	bool irq_enabled;
 
 	u16 rx_tag;
+	DECLARE_BITMAP(tx_queued, RTK_MAX_TX_QUEUE_NUM);
 	struct rtw_pci_tx_ring tx_rings[RTK_MAX_TX_QUEUE_NUM];
 	struct rtw_pci_rx_ring rx_rings[RTK_MAX_RX_QUEUE_NUM];
 	u16 link_ctrl;

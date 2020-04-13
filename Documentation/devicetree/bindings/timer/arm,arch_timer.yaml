@@ -82,6 +82,8 @@ properties:
 required:
   - compatible
 
+additionalProperties: false
+
 oneOf:
   - required:
       - interrupts

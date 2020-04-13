@@ -313,15 +313,15 @@
 			dai-tdm-slot-rx-mask-1 = <1 1>;
 			mclk-fs = <256>;
 
-			codec@0 {
+			codec-0 {
 				sound-dai = <&lineout>;
 			};
 
-			codec@1 {
+			codec-1 {
 				sound-dai = <&speaker_amp1>;
 			};
 
-			codec@2 {
+			codec-2 {
 				sound-dai = <&linein>;
 			};
 

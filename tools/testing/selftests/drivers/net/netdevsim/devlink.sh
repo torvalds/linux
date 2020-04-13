@@ -141,6 +141,16 @@ regions_test()
 
 	check_region_snapshot_count dummy post-first-delete 2
 
+	devlink region new $DL_HANDLE/dummy snapshot 25
+	check_err $? "Failed to create a new snapshot with id 25"
+
+	check_region_snapshot_count dummy post-first-request 3
+
+	devlink region del $DL_HANDLE/dummy snapshot 25
+	check_err $? "Failed to delete snapshot with id 25"
+
+	check_region_snapshot_count dummy post-second-delete 2
+
 	log_test "regions test"
 }
 
@@ -366,6 +376,11 @@ check_reporter_info()
 dummy_reporter_test()
 {
 	RET=0
+
+	check_reporter_info dummy healthy 0 0 0 true
+
+	devlink health set $DL_HANDLE reporter dummy auto_recover false
+	check_err $? "Failed to dummy reporter auto_recover option"
 
 	check_reporter_info dummy healthy 0 0 0 false
 

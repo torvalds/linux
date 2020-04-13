@@ -544,13 +544,17 @@ static bool valid_pedit_action(struct net_device *dev,
 }
 
 int cxgb4_validate_flow_actions(struct net_device *dev,
-				struct flow_action *actions)
+				struct flow_action *actions,
+				struct netlink_ext_ack *extack)
 {
 	struct flow_action_entry *act;
 	bool act_redir = false;
 	bool act_pedit = false;
 	bool act_vlan = false;
 	int i;
+
+	if (!flow_action_basic_hw_stats_check(actions, extack))
+		return -EOPNOTSUPP;
 
 	flow_action_for_each(i, act, actions) {
 		switch (act->id) {
@@ -631,6 +635,64 @@ int cxgb4_validate_flow_actions(struct net_device *dev,
 	return 0;
 }
 
+static void cxgb4_tc_flower_hash_prio_add(struct adapter *adap, u32 tc_prio)
+{
+	spin_lock_bh(&adap->tids.ftid_lock);
+	if (adap->tids.tc_hash_tids_max_prio < tc_prio)
+		adap->tids.tc_hash_tids_max_prio = tc_prio;
+	spin_unlock_bh(&adap->tids.ftid_lock);
+}
+
+static void cxgb4_tc_flower_hash_prio_del(struct adapter *adap, u32 tc_prio)
+{
+	struct tid_info *t = &adap->tids;
+	struct ch_tc_flower_entry *fe;
+	struct rhashtable_iter iter;
+	u32 found = 0;
+
+	spin_lock_bh(&t->ftid_lock);
+	/* Bail if the current rule is not the one with the max
+	 * prio.
+	 */
+	if (t->tc_hash_tids_max_prio != tc_prio)
+		goto out_unlock;
+
+	/* Search for the next rule having the same or next lower
+	 * max prio.
+	 */
+	rhashtable_walk_enter(&adap->flower_tbl, &iter);
+	do {
+		rhashtable_walk_start(&iter);
+
+		fe = rhashtable_walk_next(&iter);
+		while (!IS_ERR_OR_NULL(fe)) {
+			if (fe->fs.hash &&
+			    fe->fs.tc_prio <= t->tc_hash_tids_max_prio) {
+				t->tc_hash_tids_max_prio = fe->fs.tc_prio;
+				found++;
+
+				/* Bail if we found another rule
+				 * having the same prio as the
+				 * current max one.
+				 */
+				if (fe->fs.tc_prio == tc_prio)
+					break;
+			}
+
+			fe = rhashtable_walk_next(&iter);
+		}
+
+		rhashtable_walk_stop(&iter);
+	} while (fe == ERR_PTR(-EAGAIN));
+	rhashtable_walk_exit(&iter);
+
+	if (!found)
+		t->tc_hash_tids_max_prio = 0;
+
+out_unlock:
+	spin_unlock_bh(&t->ftid_lock);
+}
+
 int cxgb4_tc_flower_replace(struct net_device *dev,
 			    struct flow_cls_offload *cls)
 {
@@ -640,9 +702,10 @@ int cxgb4_tc_flower_replace(struct net_device *dev,
 	struct ch_tc_flower_entry *ch_flower;
 	struct ch_filter_specification *fs;
 	struct filter_ctx ctx;
+	u8 inet_family;
 	int fidx, ret;
 
-	if (cxgb4_validate_flow_actions(dev, &rule->action))
+	if (cxgb4_validate_flow_actions(dev, &rule->action, extack))
 		return -EOPNOTSUPP;
 
 	if (cxgb4_validate_flow_match(dev, cls))
@@ -660,38 +723,31 @@ int cxgb4_tc_flower_replace(struct net_device *dev,
 	cxgb4_process_flow_actions(dev, &rule->action, fs);
 
 	fs->hash = is_filter_exact_match(adap, fs);
-	if (fs->hash) {
-		fidx = 0;
-	} else {
-		u8 inet_family;
+	inet_family = fs->type ? PF_INET6 : PF_INET;
 
-		inet_family = fs->type ? PF_INET6 : PF_INET;
-
-		/* Note that TC uses prio 0 to indicate stack to
-		 * generate automatic prio and hence doesn't pass prio
-		 * 0 to driver. However, the hardware TCAM index
-		 * starts from 0. Hence, the -1 here.
-		 */
-		if (cls->common.prio <= (adap->tids.nftids +
-					 adap->tids.nhpftids)) {
-			fidx = cls->common.prio - 1;
-			if (fidx < adap->tids.nhpftids)
-				fs->prio = 1;
-		} else {
-			fidx = cxgb4_get_free_ftid(dev, inet_family);
-		}
-
-		/* Only insert FLOWER rule if its priority doesn't
-		 * conflict with existing rules in the LETCAM.
-		 */
-		if (fidx < 0 ||
-		    !cxgb4_filter_prio_in_range(dev, fidx, cls->common.prio)) {
-			NL_SET_ERR_MSG_MOD(extack,
-					   "No free LETCAM index available");
-			ret = -ENOMEM;
-			goto free_entry;
-		}
+	/* Get a free filter entry TID, where we can insert this new
+	 * rule. Only insert rule if its prio doesn't conflict with
+	 * existing rules.
+	 */
+	fidx = cxgb4_get_free_ftid(dev, inet_family, fs->hash,
+				   cls->common.prio);
+	if (fidx < 0) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "No free LETCAM index available");
+		ret = -ENOMEM;
+		goto free_entry;
 	}
+
+	if (fidx < adap->tids.nhpftids) {
+		fs->prio = 1;
+		fs->hash = 0;
+	}
+
+	/* If the rule can be inserted into HASH region, then ignore
+	 * the index to normal FILTER region.
+	 */
+	if (fs->hash)
+		fidx = 0;
 
 	fs->tc_prio = cls->common.prio;
 	fs->tc_cookie = cls->cookie;
@@ -723,6 +779,9 @@ int cxgb4_tc_flower_replace(struct net_device *dev,
 	if (ret)
 		goto del_filter;
 
+	if (fs->hash)
+		cxgb4_tc_flower_hash_prio_add(adap, cls->common.prio);
+
 	return 0;
 
 del_filter:
@@ -738,11 +797,16 @@ int cxgb4_tc_flower_destroy(struct net_device *dev,
 {
 	struct adapter *adap = netdev2adap(dev);
 	struct ch_tc_flower_entry *ch_flower;
+	u32 tc_prio;
+	bool hash;
 	int ret;
 
 	ch_flower = ch_flower_lookup(adap, cls->cookie);
 	if (!ch_flower)
 		return -ENOENT;
+
+	hash = ch_flower->fs.hash;
+	tc_prio = ch_flower->fs.tc_prio;
 
 	ret = cxgb4_del_filter(dev, ch_flower->filter_id, &ch_flower->fs);
 	if (ret)
@@ -755,6 +819,9 @@ int cxgb4_tc_flower_destroy(struct net_device *dev,
 		goto err;
 	}
 	kfree_rcu(ch_flower, rcu);
+
+	if (hash)
+		cxgb4_tc_flower_hash_prio_del(adap, tc_prio);
 
 err:
 	return ret;
@@ -836,7 +903,8 @@ int cxgb4_tc_flower_stats(struct net_device *dev,
 			ofld_stats->last_used = jiffies;
 		flow_stats_update(&cls->stats, bytes - ofld_stats->byte_count,
 				  packets - ofld_stats->packet_count,
-				  ofld_stats->last_used);
+				  ofld_stats->last_used,
+				  FLOW_ACTION_HW_STATS_IMMEDIATE);
 
 		ofld_stats->packet_count = packets;
 		ofld_stats->byte_count = bytes;

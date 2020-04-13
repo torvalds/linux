@@ -32,7 +32,8 @@ is also supported.
 DesignWare(R) Cores Ethernet MAC 10/100/1000 Universal version 3.70a
 (and older) and DesignWare(R) Cores Ethernet Quality-of-Service version 4.0
 (and upper) have been used for developing this driver as well as
-DesignWare(R) Cores XGMAC - 10G Ethernet MAC.
+DesignWare(R) Cores XGMAC - 10G Ethernet MAC and DesignWare(R) Cores
+Enterprise MAC - 100G Ethernet MAC.
 
 This driver supports both the platform bus and PCI.
 
@@ -48,6 +49,8 @@ Cores Ethernet Controllers and corresponding minimum and maximum versions:
 +-------------------------------+--------------+--------------+--------------+
 | XGMAC - 10G Ethernet MAC      | 2.10a        | N/A          | XGMAC2+      |
 +-------------------------------+--------------+--------------+--------------+
+| XLGMAC - 100G Ethernet MAC    | 2.00a        | N/A          | XLGMAC2+     |
++-------------------------------+--------------+--------------+--------------+
 
 For questions related to hardware requirements, refer to the documentation
 supplied with your Ethernet adapter. All hardware requirements listed apply
@@ -57,7 +60,7 @@ Feature List
 ============
 
 The following features are available in this driver:
- - GMII/MII/RGMII/SGMII/RMII/XGMII Interface
+ - GMII/MII/RGMII/SGMII/RMII/XGMII/XLGMII Interface
  - Half-Duplex / Full-Duplex Operation
  - Energy Efficient Ethernet (EEE)
  - IEEE 802.3x PAUSE Packets (Flow Control)

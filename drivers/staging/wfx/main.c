@@ -262,6 +262,16 @@ static int wfx_send_pdata_pds(struct wfx_dev *wdev)
 	return ret;
 }
 
+static void wfx_free_common(void *data)
+{
+	struct wfx_dev *wdev = data;
+
+	mutex_destroy(&wdev->rx_stats_lock);
+	mutex_destroy(&wdev->conf_mutex);
+	wfx_tx_queues_deinit(wdev);
+	ieee80211_free_hw(wdev->hw);
+}
+
 struct wfx_dev *wfx_init_common(struct device *dev,
 				const struct wfx_platform_data *pdata,
 				const struct hwbus_ops *hwbus_ops,
@@ -332,15 +342,10 @@ struct wfx_dev *wfx_init_common(struct device *dev,
 	wfx_init_hif_cmd(&wdev->hif_cmd);
 	wfx_tx_queues_init(wdev);
 
-	return wdev;
-}
+	if (devm_add_action_or_reset(dev, wfx_free_common, wdev))
+		return NULL;
 
-void wfx_free_common(struct wfx_dev *wdev)
-{
-	mutex_destroy(&wdev->rx_stats_lock);
-	mutex_destroy(&wdev->conf_mutex);
-	wfx_tx_queues_deinit(wdev);
-	ieee80211_free_hw(wdev->hw);
+	return wdev;
 }
 
 int wfx_probe(struct wfx_dev *wdev)
@@ -420,7 +425,7 @@ int wfx_probe(struct wfx_dev *wdev)
 			"enable 'quiescent' power mode with gpio %d and PDS file %s\n",
 			desc_to_gpio(wdev->pdata.gpio_wakeup),
 			wdev->pdata.file_pds);
-		gpiod_set_value(wdev->pdata.gpio_wakeup, 1);
+		gpiod_set_value_cansleep(wdev->pdata.gpio_wakeup, 1);
 		control_reg_write(wdev, 0);
 		hif_set_operational_mode(wdev, HIF_OP_POWER_MODE_QUIESCENT);
 	} else {

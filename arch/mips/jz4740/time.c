@@ -4,8 +4,8 @@
  *  JZ4740 platform time support
  */
 
-#include <linux/clk-provider.h>
 #include <linux/clocksource.h>
+#include <linux/of_clk.h>
 
 #include <asm/mach-jz4740/timer.h>
 

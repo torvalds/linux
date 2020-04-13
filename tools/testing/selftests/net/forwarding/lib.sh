@@ -60,6 +60,15 @@ check_tc_chain_support()
 	fi
 }
 
+check_tc_action_hw_stats_support()
+{
+	tc actions help 2>&1 | grep -q hw_stats
+	if [[ $? -ne 0 ]]; then
+		echo "SKIP: iproute2 too old; tc is missing action hw_stats support"
+		exit 1
+	fi
+}
+
 if [[ "$(id -u)" -ne 0 ]]; then
 	echo "SKIP: need root privileges"
 	exit 0
@@ -248,13 +257,40 @@ busywait()
 	done
 }
 
+not()
+{
+	"$@"
+	[[ $? != 0 ]]
+}
+
+grep_bridge_fdb()
+{
+	local addr=$1; shift
+	local word
+	local flag
+
+	if [ "$1" == "self" ] || [ "$1" == "master" ]; then
+		word=$1; shift
+		if [ "$1" == "-v" ]; then
+			flag=$1; shift
+		fi
+	fi
+
+	$@ | grep $addr | grep $flag "$word"
+}
+
+wait_for_offload()
+{
+	"$@" | grep -q offload
+}
+
 until_counter_is()
 {
-	local value=$1; shift
+	local expr=$1; shift
 	local current=$("$@")
 
 	echo $((current))
-	((current >= value))
+	((current $expr))
 }
 
 busywait_for_counter()
@@ -263,7 +299,7 @@ busywait_for_counter()
 	local delta=$1; shift
 
 	local base=$("$@")
-	busywait "$timeout" until_counter_is $((base + delta)) "$@"
+	busywait "$timeout" until_counter_is ">= $((base + delta))" "$@"
 }
 
 setup_wait_dev()
@@ -599,12 +635,43 @@ tc_rule_stats_get()
 	    | jq ".[1].options.actions[].stats$selector"
 }
 
+tc_rule_handle_stats_get()
+{
+	local id=$1; shift
+	local handle=$1; shift
+	local selector=${1:-.packets}; shift
+
+	tc -j -s filter show $id \
+	    | jq ".[] | select(.options.handle == $handle) | \
+		  .options.actions[0].stats$selector"
+}
+
 ethtool_stats_get()
 {
 	local dev=$1; shift
 	local stat=$1; shift
 
 	ethtool -S $dev | grep "^ *$stat:" | head -n 1 | cut -d: -f2
+}
+
+qdisc_stats_get()
+{
+	local dev=$1; shift
+	local handle=$1; shift
+	local selector=$1; shift
+
+	tc -j -s qdisc show dev "$dev" \
+	    | jq '.[] | select(.handle == "'"$handle"'") | '"$selector"
+}
+
+qdisc_parent_stats_get()
+{
+	local dev=$1; shift
+	local parent=$1; shift
+	local selector=$1; shift
+
+	tc -j -s qdisc show dev "$dev" invisible \
+	    | jq '.[] | select(.parent == "'"$parent"'") | '"$selector"
 }
 
 humanize()
@@ -1132,16 +1199,27 @@ flood_test()
 	flood_multicast_test $br_port $host1_if $host2_if
 }
 
-start_traffic()
+__start_traffic()
 {
+	local proto=$1; shift
 	local h_in=$1; shift    # Where the traffic egresses the host
 	local sip=$1; shift
 	local dip=$1; shift
 	local dmac=$1; shift
 
 	$MZ $h_in -p 8000 -A $sip -B $dip -c 0 \
-		-a own -b $dmac -t udp -q &
+		-a own -b $dmac -t "$proto" -q "$@" &
 	sleep 1
+}
+
+start_traffic()
+{
+	__start_traffic udp "$@"
+}
+
+start_tcp_traffic()
+{
+	__start_traffic tcp "$@"
 }
 
 stop_traffic()

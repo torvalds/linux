@@ -31,6 +31,12 @@ int send_signal_tp(void *ctx)
 	return bpf_send_signal_test(ctx);
 }
 
+SEC("tracepoint/sched/sched_switch")
+int send_signal_tp_sched(void *ctx)
+{
+	return bpf_send_signal_test(ctx);
+}
+
 SEC("perf_event")
 int send_signal_perf(void *ctx)
 {

@@ -4,6 +4,7 @@
 #include "rk3288-evb.dtsi"
 
 / {
+	model = "Rockchip RK3288 EVB ACT8846";
 	compatible = "rockchip,rk3288-evb-act8846", "rockchip,rk3288";
 
 	vcc_lcd: vcc-lcd {

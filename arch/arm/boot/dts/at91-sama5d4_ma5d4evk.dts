@@ -136,7 +136,7 @@
 
 	panel: panel {
 		/* Actually Ampire 800480R2 */
-		compatible = "foxlink,fl500wvr00-a0t", "simple-panel";
+		compatible = "foxlink,fl500wvr00-a0t";
 		backlight = <&backlight>;
 		#address-cells = <1>;
 		#size-cells = <0>;

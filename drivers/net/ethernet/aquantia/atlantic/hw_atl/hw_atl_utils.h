@@ -225,7 +225,7 @@ struct __packed offload_info {
 	struct offload_port_info ports;
 	struct offload_ka_info kas;
 	struct offload_rr_info rrs;
-	u8 buf[0];
+	u8 buf[];
 };
 
 struct __packed hw_atl_utils_fw_rpc {
@@ -317,6 +317,32 @@ struct __packed hw_atl_utils_settings {
 	u32 msm_options;
 	u32 dac_cable_serdes_modes;
 	u32 media_detect;
+};
+
+enum macsec_msg_type {
+	macsec_cfg_msg = 0,
+	macsec_add_rx_sc_msg,
+	macsec_add_tx_sc_msg,
+	macsec_add_rx_sa_msg,
+	macsec_add_tx_sa_msg,
+	macsec_get_stats_msg,
+};
+
+struct __packed macsec_cfg_request {
+	u32 enabled;
+	u32 egress_threshold;
+	u32 ingress_threshold;
+	u32 interrupts_enabled;
+};
+
+struct __packed macsec_msg_fw_request {
+	u32 msg_id; /* not used */
+	u32 msg_type;
+	struct macsec_cfg_request cfg;
+};
+
+struct __packed macsec_msg_fw_response {
+	u32 result;
 };
 
 enum hw_atl_rx_action_with_traffic {
@@ -437,34 +463,43 @@ enum hw_atl_fw2x_caps_lo {
 	CAPS_LO_2P5GBASET_FD,
 	CAPS_LO_5GBASET_FD        = 10,
 	CAPS_LO_10GBASET_FD,
+	CAPS_LO_AUTONEG,
+	CAPS_LO_SMBUS_READ,
+	CAPS_LO_SMBUS_WRITE,
+	CAPS_LO_MACSEC            = 15,
+	CAPS_LO_RESERVED1,
+	CAPS_LO_WAKE_ON_LINK_FORCED,
+	CAPS_LO_HIGH_TEMP_WARNING = 29,
+	CAPS_LO_DRIVER_SCRATCHPAD = 30,
+	CAPS_LO_GLOBAL_FAULT      = 31
 };
 
 /* 0x374
  * Status register
  */
 enum hw_atl_fw2x_caps_hi {
-	CAPS_HI_RESERVED1         = 0,
+	CAPS_HI_TPO2EN            = 0,
 	CAPS_HI_10BASET_EEE,
 	CAPS_HI_RESERVED2,
 	CAPS_HI_PAUSE,
 	CAPS_HI_ASYMMETRIC_PAUSE,
 	CAPS_HI_100BASETX_EEE     = 5,
-	CAPS_HI_RESERVED3,
-	CAPS_HI_RESERVED4,
+	CAPS_HI_PHY_BUF_SEND,
+	CAPS_HI_PHY_BUF_RECV,
 	CAPS_HI_1000BASET_FD_EEE,
 	CAPS_HI_2P5GBASET_FD_EEE,
 	CAPS_HI_5GBASET_FD_EEE    = 10,
 	CAPS_HI_10GBASET_FD_EEE,
 	CAPS_HI_FW_REQUEST,
-	CAPS_HI_RESERVED6,
-	CAPS_HI_RESERVED7,
-	CAPS_HI_RESERVED8         = 15,
-	CAPS_HI_RESERVED9,
+	CAPS_HI_PHY_LOG,
+	CAPS_HI_EEE_AUTO_DISABLE_SETTINGS,
+	CAPS_HI_PFC               = 15,
+	CAPS_HI_WAKE_ON_LINK,
 	CAPS_HI_CABLE_DIAG,
 	CAPS_HI_TEMPERATURE,
 	CAPS_HI_DOWNSHIFT,
 	CAPS_HI_PTP_AVB_EN_FW2X   = 20,
-	CAPS_HI_MEDIA_DETECT,
+	CAPS_HI_THERMAL_SHUTDOWN,
 	CAPS_HI_LINK_DROP,
 	CAPS_HI_SLEEP_PROXY,
 	CAPS_HI_WOL,

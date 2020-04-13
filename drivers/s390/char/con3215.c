@@ -398,7 +398,7 @@ static void raw3215_irq(struct ccw_device *cdev, unsigned long intparm,
 		}
 		if (dstat == 0x08)
 			break;
-		/* else, fall through */
+		fallthrough;
 	case 0x04:
 		/* Device end interrupt. */
 		if ((raw = req->info) == NULL)

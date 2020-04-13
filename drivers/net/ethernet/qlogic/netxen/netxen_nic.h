@@ -1316,7 +1316,7 @@ struct netxen_minidump_template_hdr {
 	u32 driver_info_word4;
 	u32 saved_state_array[NX_DUMP_STATE_ARRAY_LEN];
 	u32 capture_size_array[NX_DUMP_CAP_SIZE_ARRAY_LEN];
-	u32 rsvd[0];
+	u32 rsvd[];
 };
 
 /* Common Entry Header:  Common to All Entry Types */

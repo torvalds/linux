@@ -55,7 +55,6 @@
 /*
  * Generic information about the driver.
  */
-#define DRV_VERSION "2.0.0-ko"
 #define DRV_DESC "Chelsio T4/T5/T6 Virtual Function (VF) Network Driver"
 
 /*
@@ -1556,7 +1555,6 @@ static void cxgb4vf_get_drvinfo(struct net_device *dev,
 	struct adapter *adapter = netdev2adap(dev);
 
 	strlcpy(drvinfo->driver, KBUILD_MODNAME, sizeof(drvinfo->driver));
-	strlcpy(drvinfo->version, DRV_VERSION, sizeof(drvinfo->version));
 	strlcpy(drvinfo->bus_info, pci_name(to_pci_dev(dev->dev.parent)),
 		sizeof(drvinfo->bus_info));
 	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
@@ -1921,6 +1919,8 @@ static void cxgb4vf_get_wol(struct net_device *dev,
 		   NETIF_F_GRO | NETIF_F_IPV6_CSUM | NETIF_F_HIGHDMA)
 
 static const struct ethtool_ops cxgb4vf_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_RX_USECS |
+				     ETHTOOL_COALESCE_RX_MAX_FRAMES,
 	.get_link_ksettings	= cxgb4vf_get_link_ksettings,
 	.get_fecparam		= cxgb4vf_get_fecparam,
 	.get_drvinfo		= cxgb4vf_get_drvinfo,
@@ -2934,12 +2934,6 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 	unsigned int pf;
 
 	/*
-	 * Print our driver banner the first time we're called to initialize a
-	 * device.
-	 */
-	pr_info_once("%s - version %s\n", DRV_DESC, DRV_VERSION);
-
-	/*
 	 * Initialize generic PCI device state.
 	 */
 	err = pci_enable_device(pdev);
@@ -3454,7 +3448,6 @@ static void cxgb4vf_pci_shutdown(struct pci_dev *pdev)
 MODULE_DESCRIPTION(DRV_DESC);
 MODULE_AUTHOR("Chelsio Communications");
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_VERSION(DRV_VERSION);
 MODULE_DEVICE_TABLE(pci, cxgb4vf_pci_tbl);
 
 static struct pci_driver cxgb4vf_driver = {

@@ -60,6 +60,12 @@
 
 	sm: secure-monitor {
 		compatible = "amlogic,meson-gxbb-sm";
+
+		pwrc: power-controller {
+			compatible = "amlogic,meson-a1-pwrc";
+			#power-domain-cells = <1>;
+			status = "okay";
+		};
 	};
 
 	soc {

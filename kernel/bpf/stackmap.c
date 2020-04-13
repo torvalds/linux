@@ -40,6 +40,9 @@ static void do_up_read(struct irq_work *entry)
 {
 	struct stack_map_irq_work *work;
 
+	if (WARN_ON_ONCE(IS_ENABLED(CONFIG_PREEMPT_RT)))
+		return;
+
 	work = container_of(entry, struct stack_map_irq_work, irq_work);
 	up_read_non_owner(work->sem);
 	work->sem = NULL;
@@ -288,10 +291,19 @@ static void stack_map_get_build_id_offset(struct bpf_stack_build_id *id_offs,
 	struct stack_map_irq_work *work = NULL;
 
 	if (irqs_disabled()) {
-		work = this_cpu_ptr(&up_read_work);
-		if (atomic_read(&work->irq_work.flags) & IRQ_WORK_BUSY)
-			/* cannot queue more up_read, fallback */
+		if (!IS_ENABLED(CONFIG_PREEMPT_RT)) {
+			work = this_cpu_ptr(&up_read_work);
+			if (atomic_read(&work->irq_work.flags) & IRQ_WORK_BUSY) {
+				/* cannot queue more up_read, fallback */
+				irq_work_busy = true;
+			}
+		} else {
+			/*
+			 * PREEMPT_RT does not allow to trylock mmap sem in
+			 * interrupt disabled context. Force the fallback code.
+			 */
 			irq_work_busy = true;
+		}
 	}
 
 	/*

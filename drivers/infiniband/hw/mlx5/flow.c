@@ -35,6 +35,9 @@ mlx5_ib_ft_type_to_namespace(enum mlx5_ib_uapi_flow_table_type table_type,
 	case MLX5_IB_UAPI_FLOW_TABLE_TYPE_RDMA_RX:
 		*namespace = MLX5_FLOW_NAMESPACE_RDMA_RX;
 		break;
+	case MLX5_IB_UAPI_FLOW_TABLE_TYPE_RDMA_TX:
+		*namespace = MLX5_FLOW_NAMESPACE_RDMA_TX;
+		break;
 	default:
 		return -EINVAL;
 	}

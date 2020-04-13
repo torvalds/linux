@@ -118,6 +118,7 @@ union stream_update_flags {
 		uint32_t dpms_off:1;
 		uint32_t gamut_remap:1;
 		uint32_t wb_update:1;
+		uint32_t dsc_changed : 1;
 	} bits;
 
 	uint32_t raw;

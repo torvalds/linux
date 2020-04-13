@@ -102,10 +102,10 @@ static int pmbus_identify(struct i2c_client *client,
 			int page;
 
 			for (page = 1; page < PMBUS_PAGES; page++) {
-				if (pmbus_set_page(client, page) < 0)
+				if (pmbus_set_page(client, page, 0xff) < 0)
 					break;
 			}
-			pmbus_set_page(client, 0);
+			pmbus_set_page(client, 0, 0xff);
 			info->pages = page;
 		} else {
 			info->pages = 1;

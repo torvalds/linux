@@ -227,8 +227,8 @@ mediatek_gpio_bank_probe(struct device *dev,
 	ctrl = mtk->base + GPIO_REG_DCLR + (rg->bank * GPIO_BANK_STRIDE);
 	diro = mtk->base + GPIO_REG_CTRL + (rg->bank * GPIO_BANK_STRIDE);
 
-	ret = bgpio_init(&rg->chip, dev, 4,
-			 dat, set, ctrl, diro, NULL, 0);
+	ret = bgpio_init(&rg->chip, dev, 4, dat, set, ctrl, diro, NULL,
+			 BGPIOF_NO_SET_ON_INPUT);
 	if (ret) {
 		dev_err(dev, "bgpio_init() failed\n");
 		return ret;

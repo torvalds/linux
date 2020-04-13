@@ -52,7 +52,7 @@
 #define WDT_A370_RATIO		(1 << WDT_A370_RATIO_SHIFT)
 
 static bool nowayout = WATCHDOG_NOWAYOUT;
-static int heartbeat = -1;		/* module parameter (seconds) */
+static int heartbeat;		/* module parameter (seconds) */
 
 struct orion_watchdog;
 

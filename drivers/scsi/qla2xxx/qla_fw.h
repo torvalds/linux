@@ -31,6 +31,9 @@
 #define PDO_FORCE_ADISC		BIT_1
 #define PDO_FORCE_PLOGI		BIT_0
 
+struct buffer_credit_24xx {
+	u32 parameter[28];
+};
 
 #define	PORT_DATABASE_24XX_SIZE		64
 struct port_database_24xx {
@@ -721,6 +724,48 @@ struct ct_entry_24xx {
 };
 
 /*
+ * ISP queue - PUREX IOCB entry structure definition
+ */
+#define PUREX_IOCB_TYPE		0x51	/* CT Pass Through IOCB entry */
+struct purex_entry_24xx {
+	uint8_t entry_type;		/* Entry type. */
+	uint8_t entry_count;		/* Entry count. */
+	uint8_t sys_define;		/* System defined. */
+	uint8_t entry_status;		/* Entry Status. */
+
+	uint16_t reserved1;
+	uint8_t vp_idx;
+	uint8_t reserved2;
+
+	uint16_t status_flags;
+	uint16_t nport_handle;
+
+	uint16_t frame_size;
+	uint16_t trunc_frame_size;
+
+	uint32_t rx_xchg_addr;
+
+	uint8_t d_id[3];
+	uint8_t r_ctl;
+
+	uint8_t s_id[3];
+	uint8_t cs_ctl;
+
+	uint8_t f_ctl[3];
+	uint8_t type;
+
+	uint16_t seq_cnt;
+	uint8_t df_ctl;
+	uint8_t seq_id;
+
+	uint16_t rx_id;
+	uint16_t ox_id;
+	uint32_t param;
+
+	uint8_t els_frame_payload[20];
+};
+
+/*
  * ISP queue - ELS Pass-Through entry structure definition.
  */
 #define ELS_IOCB_TYPE		0x53	/* ELS Pass-Through IOCB entry */
@@ -732,9 +777,8 @@ struct els_entry_24xx {
 
 	uint32_t handle;		/* System handle. */
 
-	uint16_t reserved_1;
-
-	uint16_t nport_handle;		/* N_PORT handle. */
+	uint16_t comp_status;		/* response only */
+	uint16_t nport_handle;
 
 	uint16_t tx_dsd_count;
 
@@ -749,7 +793,7 @@ struct els_entry_24xx {
 	uint8_t opcode;
 	uint8_t reserved_2;
 
-	uint8_t port_id[3];
+	uint8_t d_id[3];
 	uint8_t s_id[3];
 
 	uint16_t control_flags;		/* Control flags. */
@@ -761,13 +805,24 @@ struct els_entry_24xx {
 #define ECF_CLR_PASSTHRU_PEND	BIT_12
 #define ECF_INCL_FRAME_HDR	BIT_11
 
-	__le32	 rx_byte_count;
-	__le32	 tx_byte_count;
+	union {
+		struct {
+			__le32	 rx_byte_count;
+			__le32	 tx_byte_count;
 
-	__le64	 tx_address __packed;	/* Data segment 0 address. */
-	__le32	 tx_len;		/* Data segment 0 length. */
-	__le64	 rx_address __packed;	/* Data segment 1 address. */
-	__le32	 rx_len;		/* Data segment 1 length. */
+			__le64	 tx_address __packed;	/* DSD 0 address. */
+			__le32	 tx_len;		/* DSD 0 length. */
+
+			__le64	 rx_address __packed;	/* DSD 1 address. */
+			__le32	 rx_len;		/* DSD 1 length. */
+		};
+		struct {
+			uint32_t total_byte_count;
+			uint32_t error_subcode_1;
+			uint32_t error_subcode_2;
+			uint32_t error_subcode_3;
+		};
+	};
 };
 
 struct els_sts_entry_24xx {
@@ -793,15 +848,16 @@ struct els_sts_entry_24xx {
 	uint8_t opcode;
 	uint8_t reserved_3;
 
-	uint8_t port_id[3];
-	uint8_t reserved_4;
-
-	uint16_t reserved_5;
+	uint8_t d_id[3];
+	uint8_t s_id[3];
 
 	uint16_t control_flags;		/* Control flags. */
 	uint32_t total_byte_count;
 	uint32_t error_subcode_1;
 	uint32_t error_subcode_2;
+	uint32_t error_subcode_3;
+
+	uint32_t reserved_4[4];
 };
 /*
  * ISP queue - Mailbox Command entry structure definition.
@@ -941,6 +997,91 @@ struct abort_entry_24xx {
 
 	uint8_t reserved_2[12];
 };
+
+#define ABTS_RCV_TYPE		0x54
+#define ABTS_RSP_TYPE		0x55
+struct abts_entry_24xx {
+	uint8_t entry_type;
+	uint8_t entry_count;
+	uint8_t handle_count;
+	uint8_t entry_status;
+
+	uint32_t handle;		/* type 0x55 only */
+
+	uint16_t comp_status;		/* type 0x55 only */
+	uint16_t nport_handle;		/* type 0x54 only */
+
+	uint16_t control_flags;		/* type 0x55 only */
+	uint8_t vp_idx;
+	uint8_t sof_type;		/* sof_type is upper nibble */
+
+	uint32_t rx_xch_addr;
+
+	uint8_t d_id[3];
+	uint8_t r_ctl;
+
+	uint8_t s_id[3];
+	uint8_t cs_ctl;
+
+	uint8_t f_ctl[3];
+	uint8_t type;
+
+	uint16_t seq_cnt;
+	uint8_t df_ctl;
+	uint8_t seq_id;
+
+	uint16_t rx_id;
+	uint16_t ox_id;
+
+	uint32_t param;
+
+	union {
+		struct {
+			uint32_t subcode3;
+			uint32_t rsvd;
+			uint32_t subcode1;
+			uint32_t subcode2;
+		} error;
+		struct {
+			uint16_t rsrvd1;
+			uint8_t last_seq_id;
+			uint8_t seq_id_valid;
+			uint16_t aborted_rx_id;
+			uint16_t aborted_ox_id;
+			uint16_t high_seq_cnt;
+			uint16_t low_seq_cnt;
+		} ba_acc;
+		struct {
+			uint8_t vendor_unique;
+			uint8_t explanation;
+			uint8_t reason;
+		} ba_rjt;
+	} payload;
+
+	uint32_t rx_xch_addr_to_abort;
+} __packed;
+
+/* ABTS payload explanation values */
+#define BA_RJT_EXP_NO_ADDITIONAL	0
+#define BA_RJT_EXP_INV_OX_RX_ID		3
+#define BA_RJT_EXP_SEQ_ABORTED		5
+
+/* ABTS payload reason values */
+#define BA_RJT_RSN_INV_CMD_CODE		1
+#define BA_RJT_RSN_LOGICAL_ERROR	3
+#define BA_RJT_RSN_LOGICAL_BUSY		5
+#define BA_RJT_RSN_PROTOCOL_ERROR	7
+#define BA_RJT_RSN_UNABLE_TO_PERFORM	9
+#define BA_RJT_RSN_VENDOR_SPECIFIC	0xff
+
+/* FC_F values */
+#define FC_TYPE_BLD		0x000		/* Basic link data */
+#define FC_F_CTL_RSP_CNTXT	0x800000	/* Responder of exchange */
+#define FC_F_CTL_LAST_SEQ	0x100000	/* Last sequence */
+#define FC_F_CTL_END_SEQ	0x80000		/* Last sequence */
+#define FC_F_CTL_SEQ_INIT	0x010000	/* Sequence initiative */
+#define FC_ROUTING_BLD		0x80		/* Basic link data frame */
+#define FC_R_CTL_BLD_BA_ACC	0x04		/* BA_ACC (basic accept) */
 
 /*
  * ISP I/O Register Set structure definitions.
@@ -1726,9 +1867,8 @@ struct access_chip_rsp_84xx {
 
 /* LR Distance bit positions */
 #define LR_DIST_NV_POS		2
+#define LR_DIST_NV_MASK		0xf
 #define LR_DIST_FW_POS		12
-#define LR_DIST_FW_SHIFT	(LR_DIST_FW_POS - LR_DIST_NV_POS)
-#define LR_DIST_FW_FIELD(x)	((x) << LR_DIST_FW_SHIFT & 0xf000)
 
 /* FAC semaphore defines */
 #define FAC_SEMAPHORE_UNLOCK    0
@@ -1883,6 +2023,7 @@ struct nvram_81xx {
 	 * BIT 6-15 = Unused
 	 */
 	uint16_t enhanced_features;
+
 	uint16_t reserved_24[4];
 
 	/* Offset 416. */

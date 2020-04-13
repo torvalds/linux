@@ -50,7 +50,7 @@ void rtw_reset_drv_sw(struct adapter *padapter);
 void rtw_dev_unload(struct adapter *padapter);
 
 u32 rtw_start_drv_threads(struct adapter *padapter);
-void rtw_stop_drv_threads (struct adapter *padapter);
+void rtw_stop_drv_threads(struct adapter *padapter);
 void rtw_cancel_all_timer(struct adapter *padapter);
 
 int rtw_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);

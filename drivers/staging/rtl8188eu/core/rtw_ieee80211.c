@@ -236,14 +236,10 @@ int rtw_generate_ie(struct registry_priv *pregistrypriv)
 	ie = rtw_set_ie(ie, _SSID_IE_, pdev_network->ssid.ssid_length, pdev_network->ssid.ssid, &sz);
 
 	/* supported rates */
-	if (pregistrypriv->wireless_mode == WIRELESS_11ABGN) {
-		if (pdev_network->Configuration.DSConfig > 14)
-			wireless_mode = WIRELESS_11A_5N;
-		else
-			wireless_mode = WIRELESS_11BG_24N;
-	} else {
+	if (pregistrypriv->wireless_mode == WIRELESS_11ABGN)
+		wireless_mode = WIRELESS_11BG_24N;
+	else
 		wireless_mode = pregistrypriv->wireless_mode;
-	}
 
 	rtw_set_supported_rate(pdev_network->SupportedRates, wireless_mode);
 

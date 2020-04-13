@@ -78,7 +78,7 @@ struct card {
 	struct sk_buff *rx_skbs[RX_QUEUE_LENGTH];
 	struct card_status *status;	/* shared between host and card */
 	dma_addr_t status_address;
-	struct port ports[0];	/* 1 - 4 port structures follow */
+	struct port ports[];	/* 1 - 4 port structures follow */
 };
 
 

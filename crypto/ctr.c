@@ -260,7 +260,6 @@ static int crypto_rfc3686_create(struct crypto_template *tmpl,
 	struct skcipher_instance *inst;
 	struct skcipher_alg *alg;
 	struct crypto_skcipher_spawn *spawn;
-	const char *cipher_name;
 	u32 mask;
 
 	int err;
@@ -271,10 +270,6 @@ static int crypto_rfc3686_create(struct crypto_template *tmpl,
 
 	if ((algt->type ^ CRYPTO_ALG_TYPE_SKCIPHER) & algt->mask)
 		return -EINVAL;
-
-	cipher_name = crypto_attr_alg_name(tb[1]);
-	if (IS_ERR(cipher_name))
-		return PTR_ERR(cipher_name);
 
 	inst = kzalloc(sizeof(*inst) + sizeof(*spawn), GFP_KERNEL);
 	if (!inst)
@@ -287,7 +282,7 @@ static int crypto_rfc3686_create(struct crypto_template *tmpl,
 	spawn = skcipher_instance_ctx(inst);
 
 	err = crypto_grab_skcipher(spawn, skcipher_crypto_instance(inst),
-				   cipher_name, 0, mask);
+				   crypto_attr_alg_name(tb[1]), 0, mask);
 	if (err)
 		goto err_free_inst;
 
@@ -296,20 +291,20 @@ static int crypto_rfc3686_create(struct crypto_template *tmpl,
 	/* We only support 16-byte blocks. */
 	err = -EINVAL;
 	if (crypto_skcipher_alg_ivsize(alg) != CTR_RFC3686_BLOCK_SIZE)
-		goto err_drop_spawn;
+		goto err_free_inst;
 
 	/* Not a stream cipher? */
 	if (alg->base.cra_blocksize != 1)
-		goto err_drop_spawn;
+		goto err_free_inst;
 
 	err = -ENAMETOOLONG;
 	if (snprintf(inst->alg.base.cra_name, CRYPTO_MAX_ALG_NAME,
 		     "rfc3686(%s)", alg->base.cra_name) >= CRYPTO_MAX_ALG_NAME)
-		goto err_drop_spawn;
+		goto err_free_inst;
 	if (snprintf(inst->alg.base.cra_driver_name, CRYPTO_MAX_ALG_NAME,
 		     "rfc3686(%s)", alg->base.cra_driver_name) >=
 	    CRYPTO_MAX_ALG_NAME)
-		goto err_drop_spawn;
+		goto err_free_inst;
 
 	inst->alg.base.cra_priority = alg->base.cra_priority;
 	inst->alg.base.cra_blocksize = 1;
@@ -336,17 +331,11 @@ static int crypto_rfc3686_create(struct crypto_template *tmpl,
 	inst->free = crypto_rfc3686_free;
 
 	err = skcipher_register_instance(tmpl, inst);
-	if (err)
-		goto err_drop_spawn;
-
-out:
-	return err;
-
-err_drop_spawn:
-	crypto_drop_skcipher(spawn);
+	if (err) {
 err_free_inst:
-	kfree(inst);
-	goto out;
+		crypto_rfc3686_free(inst);
+	}
+	return err;
 }
 
 static struct crypto_template crypto_ctr_tmpls[] = {

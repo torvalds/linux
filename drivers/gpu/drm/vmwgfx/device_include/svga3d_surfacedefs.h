@@ -131,6 +131,8 @@ enum svga3d_block_desc {
 	SVGA3DBLOCKDESC_BC3         = 1 << 26,
 	SVGA3DBLOCKDESC_BC4         = 1 << 27,
 	SVGA3DBLOCKDESC_BC5         = 1 << 28,
+	SVGA3DBLOCKDESC_BC6H        = 1 << 29,
+	SVGA3DBLOCKDESC_BC7         = 1 << 30,
 
 	SVGA3DBLOCKDESC_A_UINT    = SVGA3DBLOCKDESC_ALPHA |
 				    SVGA3DBLOCKDESC_UINT |
@@ -290,6 +292,18 @@ enum svga3d_block_desc {
 					 SVGA3DBLOCKDESC_COMP_UNORM,
 	SVGA3DBLOCKDESC_BC5_COMP_SNORM = SVGA3DBLOCKDESC_BC5 |
 					 SVGA3DBLOCKDESC_COMP_SNORM,
+	SVGA3DBLOCKDESC_BC6H_COMP_TYPELESS = SVGA3DBLOCKDESC_BC6H |
+					     SVGA3DBLOCKDESC_COMP_TYPELESS,
+	SVGA3DBLOCKDESC_BC6H_COMP_UF16 = SVGA3DBLOCKDESC_BC6H |
+					 SVGA3DBLOCKDESC_COMPRESSED,
+	SVGA3DBLOCKDESC_BC6H_COMP_SF16 = SVGA3DBLOCKDESC_BC6H |
+					 SVGA3DBLOCKDESC_COMPRESSED,
+	SVGA3DBLOCKDESC_BC7_COMP_TYPELESS = SVGA3DBLOCKDESC_BC7 |
+					    SVGA3DBLOCKDESC_COMP_TYPELESS,
+	SVGA3DBLOCKDESC_BC7_COMP_UNORM = SVGA3DBLOCKDESC_BC7 |
+					 SVGA3DBLOCKDESC_COMP_UNORM,
+	SVGA3DBLOCKDESC_BC7_COMP_UNORM_SRGB = SVGA3DBLOCKDESC_BC7_COMP_UNORM |
+					      SVGA3DBLOCKDESC_SRGB,
 
 	SVGA3DBLOCKDESC_NV12       = SVGA3DBLOCKDESC_YUV_VIDEO |
 				     SVGA3DBLOCKDESC_PLANAR_YUV |
@@ -494,7 +508,7 @@ static const struct svga3d_surface_desc svga3d_surface_descs[] = {
       {{8}, {8}, {8}, {0}},
       {{16}, {8}, {0}, {0}}},
 
-   {SVGA3D_FORMAT_DEAD1, SVGA3DBLOCKDESC_UVL,
+   {SVGA3D_FORMAT_DEAD1, SVGA3DBLOCKDESC_NONE,
       {1, 1, 1},  3, 3,
       {{8}, {8}, {8}, {0}},
       {{16}, {8}, {0}, {0}}},
@@ -604,7 +618,7 @@ static const struct svga3d_surface_desc svga3d_surface_descs[] = {
       {{0}, {0}, {48}, {0}},
       {{0}, {0}, {0}, {0}}},
 
-   {SVGA3D_AYUV, SVGA3DBLOCKDESC_AYUV,
+   {SVGA3D_FORMAT_DEAD2, SVGA3DBLOCKDESC_NONE,
       {1, 1, 1},  4, 4,
       {{8}, {8}, {8}, {8}},
       {{0}, {8}, {16}, {24}}},
@@ -1103,6 +1117,46 @@ static const struct svga3d_surface_desc svga3d_surface_descs[] = {
       {4, 4, 1},  16, 16,
       {{0}, {0}, {128}, {0}},
       {{0}, {0}, {0}, {0}}},
+
+   {SVGA3D_B4G4R4A4_UNORM, SVGA3DBLOCKDESC_RGBA_UNORM,
+      {1, 1, 1},  2, 2,
+      {{4}, {4}, {4}, {4}},
+      {{0}, {4}, {8}, {12}}},
+
+   {SVGA3D_BC6H_TYPELESS, SVGA3DBLOCKDESC_BC6H_COMP_TYPELESS,
+      {4, 4, 1},  16, 16,
+      {{0}, {0}, {128}, {0}},
+      {{0}, {0}, {0}, {0}}},
+
+   {SVGA3D_BC6H_UF16, SVGA3DBLOCKDESC_BC6H_COMP_UF16,
+      {4, 4, 1},  16, 16,
+      {{0}, {0}, {128}, {0}},
+      {{0}, {0}, {0}, {0}}},
+
+   {SVGA3D_BC6H_SF16, SVGA3DBLOCKDESC_BC6H_COMP_SF16,
+      {4, 4, 1},  16, 16,
+      {{0}, {0}, {128}, {0}},
+      {{0}, {0}, {0}, {0}}},
+
+   {SVGA3D_BC7_TYPELESS, SVGA3DBLOCKDESC_BC7_COMP_TYPELESS,
+      {4, 4, 1},  16, 16,
+      {{0}, {0}, {128}, {0}},
+      {{0}, {0}, {0}, {0}}},
+
+   {SVGA3D_BC7_UNORM, SVGA3DBLOCKDESC_BC7_COMP_UNORM,
+      {4, 4, 1},  16, 16,
+      {{0}, {0}, {128}, {0}},
+      {{0}, {0}, {0}, {0}}},
+
+   {SVGA3D_BC7_UNORM_SRGB, SVGA3DBLOCKDESC_BC7_COMP_UNORM_SRGB,
+      {4, 4, 1},  16, 16,
+      {{0}, {0}, {128}, {0}},
+      {{0}, {0}, {0}, {0}}},
+
+   {SVGA3D_AYUV, SVGA3DBLOCKDESC_AYUV,
+      {1, 1, 1},  4, 4,
+      {{8}, {8}, {8}, {8}},
+      {{0}, {8}, {16}, {24}}},
 };
 
 static inline u32 clamped_umul32(u32 a, u32 b)

@@ -240,9 +240,10 @@ xprt_rdma_connect_worker(struct work_struct *work)
 	struct rpc_xprt *xprt = &r_xprt->rx_xprt;
 	int rc;
 
-	rc = rpcrdma_ep_connect(&r_xprt->rx_ep, &r_xprt->rx_ia);
+	rc = rpcrdma_xprt_connect(r_xprt);
 	xprt_clear_connecting(xprt);
-	if (r_xprt->rx_ep.rep_connected > 0) {
+	if (r_xprt->rx_ep && r_xprt->rx_ep->re_connect_status > 0) {
+		xprt->connect_cookie++;
 		xprt->stat.connect_count++;
 		xprt->stat.connect_time += (long)jiffies -
 					   xprt->stat.connect_start;
@@ -265,7 +266,7 @@ xprt_rdma_inject_disconnect(struct rpc_xprt *xprt)
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(xprt);
 
 	trace_xprtrdma_op_inject_dsc(r_xprt);
-	rdma_disconnect(r_xprt->rx_ia.ri_id);
+	rdma_disconnect(r_xprt->rx_ep->re_id);
 }
 
 /**
@@ -284,9 +285,8 @@ xprt_rdma_destroy(struct rpc_xprt *xprt)
 
 	cancel_delayed_work_sync(&r_xprt->rx_connect_worker);
 
-	rpcrdma_ep_destroy(r_xprt);
+	rpcrdma_xprt_disconnect(r_xprt);
 	rpcrdma_buffer_destroy(&r_xprt->rx_buf);
-	rpcrdma_ia_close(&r_xprt->rx_ia);
 
 	xprt_rdma_free_addresses(xprt);
 	xprt_free(xprt);
@@ -316,10 +316,15 @@ xprt_setup_rdma(struct xprt_create *args)
 	if (args->addrlen > sizeof(xprt->addr))
 		return ERR_PTR(-EBADF);
 
+	if (!try_module_get(THIS_MODULE))
+		return ERR_PTR(-EIO);
+
 	xprt = xprt_alloc(args->net, sizeof(struct rpcrdma_xprt), 0,
 			  xprt_rdma_slot_table_entries);
-	if (!xprt)
+	if (!xprt) {
+		module_put(THIS_MODULE);
 		return ERR_PTR(-ENOMEM);
+	}
 
 	xprt->timeout = &xprt_rdma_default_timeout;
 	xprt->connect_timeout = xprt->timeout->to_initval;
@@ -347,23 +352,17 @@ xprt_setup_rdma(struct xprt_create *args)
 	xprt_rdma_format_addresses(xprt, sap);
 
 	new_xprt = rpcx_to_rdmax(xprt);
-	rc = rpcrdma_ia_open(new_xprt);
-	if (rc)
-		goto out1;
-
-	rc = rpcrdma_ep_create(new_xprt);
-	if (rc)
-		goto out2;
-
 	rc = rpcrdma_buffer_create(new_xprt);
-	if (rc)
-		goto out3;
-
-	if (!try_module_get(THIS_MODULE))
-		goto out4;
+	if (rc) {
+		xprt_rdma_free_addresses(xprt);
+		xprt_free(xprt);
+		module_put(THIS_MODULE);
+		return ERR_PTR(rc);
+	}
 
 	INIT_DELAYED_WORK(&new_xprt->rx_connect_worker,
 			  xprt_rdma_connect_worker);
+
 	xprt->max_payload = RPCRDMA_MAX_DATA_SEGS << PAGE_SHIFT;
 
 	dprintk("RPC:       %s: %s:%s\n", __func__,
@@ -371,19 +370,6 @@ xprt_setup_rdma(struct xprt_create *args)
 		xprt->address_strings[RPC_DISPLAY_PORT]);
 	trace_xprtrdma_create(new_xprt);
 	return xprt;
-
-out4:
-	rpcrdma_buffer_destroy(&new_xprt->rx_buf);
-	rc = -ENODEV;
-out3:
-	rpcrdma_ep_destroy(new_xprt);
-out2:
-	rpcrdma_ia_close(&new_xprt->rx_ia);
-out1:
-	trace_xprtrdma_op_destroy(new_xprt);
-	xprt_rdma_free_addresses(xprt);
-	xprt_free(xprt);
-	return ERR_PTR(rc);
 }
 
 /**
@@ -398,26 +384,11 @@ out1:
 void xprt_rdma_close(struct rpc_xprt *xprt)
 {
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(xprt);
-	struct rpcrdma_ep *ep = &r_xprt->rx_ep;
-	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
-
-	might_sleep();
 
 	trace_xprtrdma_op_close(r_xprt);
 
-	/* Prevent marshaling and sending of new requests */
-	xprt_clear_connected(xprt);
+	rpcrdma_xprt_disconnect(r_xprt);
 
-	if (test_and_clear_bit(RPCRDMA_IAF_REMOVING, &ia->ri_flags)) {
-		rpcrdma_ia_remove(ia);
-		goto out;
-	}
-
-	if (ep->rep_connected == -ENODEV)
-		return;
-	rpcrdma_ep_disconnect(ep, ia);
-
-out:
 	xprt->reestablish_timeout = 0;
 	++xprt->connect_cookie;
 	xprt_disconnect_done(xprt);
@@ -517,10 +488,11 @@ static void
 xprt_rdma_connect(struct rpc_xprt *xprt, struct rpc_task *task)
 {
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(xprt);
+	struct rpcrdma_ep *ep = r_xprt->rx_ep;
 	unsigned long delay;
 
 	delay = 0;
-	if (r_xprt->rx_ep.rep_connected != 0) {
+	if (ep && ep->re_connect_status != 0) {
 		delay = xprt_reconnect_delay(xprt);
 		xprt_reconnect_backoff(xprt, RPCRDMA_INIT_REEST_TO);
 	}
@@ -694,7 +666,7 @@ xprt_rdma_send_request(struct rpc_rqst *rqst)
 		goto drop_connection;
 	rqst->rq_xtime = ktime_get();
 
-	if (rpcrdma_ep_post(&r_xprt->rx_ia, &r_xprt->rx_ep, req))
+	if (rpcrdma_post_sends(r_xprt, req))
 		goto drop_connection;
 
 	rqst->rq_xmit_bytes_sent += rqst->rq_snd_buf.len;

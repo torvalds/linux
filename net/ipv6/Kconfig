@@ -303,4 +303,14 @@ config IPV6_SEG6_BPF
 	depends on IPV6_SEG6_LWTUNNEL
 	depends on IPV6 = y
 
+config IPV6_RPL_LWTUNNEL
+	bool "IPv6: RPL Source Routing Header support"
+	depends on IPV6
+	select LWTUNNEL
+	---help---
+	  Support for RFC6554 RPL Source Routing Header using the lightweight
+	  tunnels mechanism.
+
+	  If unsure, say N.
+
 endif # IPV6

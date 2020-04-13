@@ -234,7 +234,7 @@ To reduce its OS jitter, do any of the following:
 	Such a workqueue can be confined to a given subset of the
 	CPUs using the ``/sys/devices/virtual/workqueue/*/cpumask`` sysfs
 	files.	The set of WQ_SYSFS workqueues can be displayed using
-	"ls sys/devices/virtual/workqueue".  That said, the workqueues
+	"ls /sys/devices/virtual/workqueue".  That said, the workqueues
 	maintainer would like to caution people against indiscriminately
 	sprinkling WQ_SYSFS across all the workqueues.	The reason for
 	caution is that it is easy to add WQ_SYSFS, but because sysfs is

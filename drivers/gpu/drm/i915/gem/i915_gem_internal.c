@@ -8,8 +8,6 @@
 #include <linux/slab.h>
 #include <linux/swiotlb.h>
 
-#include <drm/i915_drm.h>
-
 #include "i915_drv.h"
 #include "i915_gem.h"
 #include "i915_gem_object.h"

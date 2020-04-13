@@ -358,6 +358,26 @@ static int hisi_lpc_acpi_xlat_io_res(struct acpi_device *adev,
 }
 
 /*
+ * Released firmware describes the IO port max address as 0x3fff, which is
+ * the max host bus address. Fixup to a proper range. This will probably
+ * never be fixed in firmware.
+ */
+static void hisi_lpc_acpi_fixup_child_resource(struct device *hostdev,
+					       struct resource *r)
+{
+	if (r->end != 0x3fff)
+		return;
+
+	if (r->start == 0xe4)
+		r->end = 0xe4 + 0x04 - 1;
+	else if (r->start == 0x2f8)
+		r->end = 0x2f8 + 0x08 - 1;
+	else
+		dev_warn(hostdev, "unrecognised resource %pR to fixup, ignoring\n",
+			 r);
+}
+
+/*
  * hisi_lpc_acpi_set_io_res - set the resources for a child
  * @child: the device node to be updated the I/O resource
  * @hostdev: the device node associated with host controller
@@ -418,8 +438,11 @@ static int hisi_lpc_acpi_set_io_res(struct device *child,
 		return -ENOMEM;
 	}
 	count = 0;
-	list_for_each_entry(rentry, &resource_list, node)
-		resources[count++] = *rentry->res;
+	list_for_each_entry(rentry, &resource_list, node) {
+		resources[count] = *rentry->res;
+		hisi_lpc_acpi_fixup_child_resource(hostdev, &resources[count]);
+		count++;
+	}
 
 	acpi_dev_free_resource_list(&resource_list);
 

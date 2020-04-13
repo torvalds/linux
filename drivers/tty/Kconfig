@@ -137,7 +137,6 @@ config LEGACY_PTYS
 	  security.  This option enables these legacy devices; on most
 	  systems, it is safe to say N.
 
-
 config LEGACY_PTY_COUNT
 	int "Maximum number of legacy PTY in use"
 	depends on LEGACY_PTYS
@@ -150,6 +149,31 @@ config LEGACY_PTY_COUNT
 
 	  When not in use, each legacy PTY occupies 12 bytes on 32-bit
 	  architectures and 24 bytes on 64-bit architectures.
+
+config LDISC_AUTOLOAD
+	bool "Automatically load TTY Line Disciplines"
+	default y
+	help
+	  Historically the kernel has always automatically loaded any
+	  line discipline that is in a kernel module when a user asks
+	  for it to be loaded with the TIOCSETD ioctl, or through other
+	  means.  This is not always the best thing to do on systems
+	  where you know you will not be using some of the more
+	  "ancient" line disciplines, so prevent the kernel from doing
+	  this unless the request is coming from a process with the
+	  CAP_SYS_MODULE permissions.
+
+	  Say 'Y' here if you trust your userspace users to do the right
+	  thing, or if you have only provided the line disciplines that
+	  you know you will be using, or if you wish to continue to use
+	  the traditional method of on-demand loading of these modules
+	  by any user.
+
+	  This functionality can be changed at runtime with the
+	  dev.tty.ldisc_autoload sysctl, this configuration option will
+	  only set the default value of this functionality.
+
+source "drivers/tty/serial/Kconfig"
 
 config SERIAL_NONSTANDARD
 	bool "Non-standard serial port support"
@@ -270,16 +294,6 @@ config SYNCLINK_GT
 	  synchronous and asynchronous serial adapters
 	  manufactured by Microgate Systems, Ltd. (www.microgate.com)
 
-config NOZOMI
-	tristate "HSDPA Broadband Wireless Data Card - Globe Trotter"
-	depends on PCI
-	help
-	  If you have a HSDPA driver Broadband Wireless Data Card -
-	  Globe Trotter PCMCIA card, say Y here.
-
-	  To compile this driver as a module, choose M here, the module
-	  will be called nozomi.
-
 config ISI
 	tristate "Multi-Tech multiport card support"
 	depends on SERIAL_NONSTANDARD && PCI
@@ -301,43 +315,6 @@ config N_HDLC
 	  inserted in and removed from the running kernel whenever you want).
 	  The module will be called n_hdlc. If you want to do that, say M
 	  here.
-
-config N_GSM
-	tristate "GSM MUX line discipline support (EXPERIMENTAL)"
-	depends on NET
-	help
-	  This line discipline provides support for the GSM MUX protocol and
-	  presents the mux as a set of 61 individual tty devices.
-
-config TRACE_ROUTER
-	tristate "Trace data router for MIPI P1149.7 cJTAG standard"
-	depends on TRACE_SINK
-	help
-	  The trace router uses the Linux tty line discipline framework to
-	  route trace data coming from a tty port (say UART for example) to
-	  the trace sink line discipline driver and to another tty port (say
-	  USB). This is part of a solution for the MIPI P1149.7, compact JTAG,
-	  standard, which is for debugging mobile devices. The PTI driver in
-	  drivers/misc/pti.c defines the majority of this MIPI solution.
-
-	  You should select this driver if the target kernel is meant for
-	  a mobile device containing a modem.  Then you will need to select
-	  "Trace data sink for MIPI P1149.7 cJTAG standard" line discipline
-	  driver.
-
-config TRACE_SINK
-	tristate "Trace data sink for MIPI P1149.7 cJTAG standard"
-	help
-	  The trace sink uses the Linux line discipline framework to receive
-	  trace data coming from the trace router line discipline driver
-	  to a user-defined tty port target, like USB.
-	  This is to provide a way to extract modem trace data on
-	  devices that do not have a PTI HW module, or just need modem
-	  trace data to come out of a different HW output port.
-	  This is part of a solution for the P1149.7, compact JTAG, standard.
-
-	  If you select this option, you need to select
-	  "Trace data router for MIPI P1149.7 cJTAG standard".
 
 config PPC_EPAPR_HV_BYTECHAN
 	bool "ePAPR hypervisor byte channel driver"
@@ -374,20 +351,6 @@ config PPC_EARLY_DEBUG_EHV_BC_HANDLE
 	  there simply will be no early console output.  This is true also
 	  if you don't boot under a hypervisor at all.
 
-config NULL_TTY
-	tristate "NULL TTY driver"
-	help
-	  Say Y here if you want a NULL TTY which simply discards messages.
-
-	  This is useful to allow userspace applications which expect a console
-	  device to work without modifications even when no console is
-	  available or desired.
-
-	  In order to use this driver, you should redirect the console to this
-	  TTY, or boot the kernel with console=ttynull.
-
-	  If unsure, say N.
-
 config GOLDFISH_TTY
 	tristate "Goldfish TTY Driver"
 	depends on GOLDFISH
@@ -400,6 +363,23 @@ config GOLDFISH_TTY_EARLY_CONSOLE
 	bool
 	default y if GOLDFISH_TTY=y
 	select SERIAL_EARLYCON
+
+config N_GSM
+	tristate "GSM MUX line discipline support (EXPERIMENTAL)"
+	depends on NET
+	help
+	  This line discipline provides support for the GSM MUX protocol and
+	  presents the mux as a set of 61 individual tty devices.
+
+config NOZOMI
+	tristate "HSDPA Broadband Wireless Data Card - Globe Trotter"
+	depends on PCI
+	help
+	  If you have a HSDPA driver Broadband Wireless Data Card -
+	  Globe Trotter PCMCIA card, say Y here.
+
+	  To compile this driver as a module, choose M here, the module
+	  will be called nozomi.
 
 config MIPS_EJTAG_FDC_TTY
 	bool "MIPS EJTAG Fast Debug Channel TTY"
@@ -448,33 +428,58 @@ config MIPS_EJTAG_FDC_KGDB_CHAN
 	help
 	  FDC channel number to use for KGDB.
 
+config NULL_TTY
+	tristate "NULL TTY driver"
+	help
+	  Say Y here if you want a NULL TTY which simply discards messages.
+
+	  This is useful to allow userspace applications which expect a console
+	  device to work without modifications even when no console is
+	  available or desired.
+
+	  In order to use this driver, you should redirect the console to this
+	  TTY, or boot the kernel with console=ttynull.
+
+	  If unsure, say N.
+
+config TRACE_ROUTER
+	tristate "Trace data router for MIPI P1149.7 cJTAG standard"
+	depends on TRACE_SINK
+	help
+	  The trace router uses the Linux tty line discipline framework to
+	  route trace data coming from a tty port (say UART for example) to
+	  the trace sink line discipline driver and to another tty port (say
+	  USB). This is part of a solution for the MIPI P1149.7, compact JTAG,
+	  standard, which is for debugging mobile devices. The PTI driver in
+	  drivers/misc/pti.c defines the majority of this MIPI solution.
+
+	  You should select this driver if the target kernel is meant for
+	  a mobile device containing a modem.  Then you will need to select
+	  "Trace data sink for MIPI P1149.7 cJTAG standard" line discipline
+	  driver.
+
+config TRACE_SINK
+	tristate "Trace data sink for MIPI P1149.7 cJTAG standard"
+	help
+	  The trace sink uses the Linux line discipline framework to receive
+	  trace data coming from the trace router line discipline driver
+	  to a user-defined tty port target, like USB.
+	  This is to provide a way to extract modem trace data on
+	  devices that do not have a PTI HW module, or just need modem
+	  trace data to come out of a different HW output port.
+	  This is part of a solution for the P1149.7, compact JTAG, standard.
+
+	  If you select this option, you need to select
+	  "Trace data router for MIPI P1149.7 cJTAG standard".
+
 config VCC
 	tristate "Sun Virtual Console Concentrator"
 	depends on SUN_LDOMS
 	help
 	  Support for Sun logical domain consoles.
 
-config LDISC_AUTOLOAD
-	bool "Automatically load TTY Line Disciplines"
-	default y
-	help
-	  Historically the kernel has always automatically loaded any
-	  line discipline that is in a kernel module when a user asks
-	  for it to be loaded with the TIOCSETD ioctl, or through other
-	  means.  This is not always the best thing to do on systems
-	  where you know you will not be using some of the more
-	  "ancient" line disciplines, so prevent the kernel from doing
-	  this unless the request is coming from a process with the
-	  CAP_SYS_MODULE permissions.
-
-	  Say 'Y' here if you trust your userspace users to do the right
-	  thing, or if you have only provided the line disciplines that
-	  you know you will be using, or if you wish to continue to use
-	  the traditional method of on-demand loading of these modules
-	  by any user.
-
-	  This functionality can be changed at runtime with the
-	  dev.tty.ldisc_autoload sysctl, this configuration option will
-	  only set the default value of this functionality.
+source "drivers/tty/hvc/Kconfig"
 
 endif # TTY
+
+source "drivers/tty/serdev/Kconfig"

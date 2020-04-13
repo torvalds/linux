@@ -372,7 +372,7 @@ struct gru_thread_state {
 	int			ts_data_valid;	/* Indicates if ts_gdata has
 						   valid data */
 	struct gru_gseg_statistics ustats;	/* User statistics */
-	unsigned long		ts_gdata[0];	/* save area for GRU data (CB,
+	unsigned long		ts_gdata[];	/* save area for GRU data (CB,
 						   DS, CBE) */
 };
 

@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/amplifiers/adi,hmc425a.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: HMC425A 6-bit Digital Step Attenuator
+
+maintainers:
+- Michael Hennerich <michael.hennerich@analog.com>
+- Beniamin Bia <beniamin.bia@analog.com>
+
+description: |
+  Digital Step Attenuator IIO device with gpio interface.
+  HMC425A 0.5 dB LSB GaAs MMIC 6-BIT DIGITAL POSITIVE CONTROL ATTENUATOR, 2.2 - 8.0 GHz
+  https://www.analog.com/media/en/technical-documentation/data-sheets/hmc425A.pdf
+
+properties:
+  compatible:
+    enum:
+      - adi,hmc425a
+
+  vcc-supply: true
+
+  ctrl-gpios:
+    description:
+      Must contain an array of 6 GPIO specifiers, referring to the GPIO pins
+      connected to the control pins V1-V6.
+    minItems: 6
+    maxItems: 6
+
+required:
+  - compatible
+  - ctrl-gpios
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    gpio_hmc425a: hmc425a {
+      compatible = "adi,hmc425a";
+      ctrl-gpios = <&gpio 40 GPIO_ACTIVE_HIGH>,
+        <&gpio 39 GPIO_ACTIVE_HIGH>,
+        <&gpio 38 GPIO_ACTIVE_HIGH>,
+        <&gpio 37 GPIO_ACTIVE_HIGH>,
+        <&gpio 36 GPIO_ACTIVE_HIGH>,
+        <&gpio 35 GPIO_ACTIVE_HIGH>;
+      vcc-supply = <&foo>;
+    };
+...

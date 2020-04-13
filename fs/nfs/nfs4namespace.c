@@ -354,7 +354,7 @@ static int try_location(struct fs_context *fc,
 
 /**
  * nfs_follow_referral - set up mountpoint when hitting a referral on moved error
- * @dentry: parent directory
+ * @fc: pointer to struct nfs_fs_context
  * @locations: array of NFSv4 server location information
  *
  */

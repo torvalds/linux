@@ -16,7 +16,6 @@
 #include "emac.h"
 
 #define DRV_NAME        "rockchip_emac"
-#define DRV_VERSION     "1.1"
 
 struct emac_rockchip_soc_data {
 	unsigned int grf_offset;
@@ -112,7 +111,6 @@ static int emac_rockchip_probe(struct platform_device *pdev)
 
 	priv = netdev_priv(ndev);
 	priv->emac.drv_name = DRV_NAME;
-	priv->emac.drv_version = DRV_VERSION;
 	priv->emac.set_mac_speed = emac_rockchip_set_mac_speed;
 
 	err = of_get_phy_mode(dev->of_node, &interface);

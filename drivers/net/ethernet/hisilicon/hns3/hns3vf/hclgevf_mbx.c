@@ -5,6 +5,11 @@
 #include "hclgevf_main.h"
 #include "hnae3.h"
 
+static int hclgevf_resp_to_errno(u16 resp_code)
+{
+	return resp_code ? -resp_code : 0;
+}
+
 static void hclgevf_reset_mbx_resp_status(struct hclgevf_dev *hdev)
 {
 	/* this function should be called with mbx_resp.mbx_mutex held
@@ -79,8 +84,8 @@ static int hclgevf_get_mbx_resp(struct hclgevf_dev *hdev, u16 code0, u16 code1,
 	return 0;
 }
 
-int hclgevf_send_mbx_msg(struct hclgevf_dev *hdev, u16 code, u16 subcode,
-			 const u8 *msg_data, u8 msg_len, bool need_resp,
+int hclgevf_send_mbx_msg(struct hclgevf_dev *hdev,
+			 struct hclge_vf_to_pf_msg *send_msg, bool need_resp,
 			 u8 *resp_data, u16 resp_len)
 {
 	struct hclge_mbx_vf_to_pf_cmd *req;
@@ -89,21 +94,17 @@ int hclgevf_send_mbx_msg(struct hclgevf_dev *hdev, u16 code, u16 subcode,
 
 	req = (struct hclge_mbx_vf_to_pf_cmd *)desc.data;
 
-	/* first two bytes are reserved for code & subcode */
-	if (msg_len > (HCLGE_MBX_MAX_MSG_SIZE - 2)) {
+	if (!send_msg) {
 		dev_err(&hdev->pdev->dev,
-			"VF send mbx msg fail, msg len %d exceeds max len %d\n",
-			msg_len, HCLGE_MBX_MAX_MSG_SIZE);
+			"failed to send mbx, msg is NULL\n");
 		return -EINVAL;
 	}
 
 	hclgevf_cmd_setup_basic_desc(&desc, HCLGEVF_OPC_MBX_VF_TO_PF, false);
-	req->mbx_need_resp |= need_resp ? HCLGE_MBX_NEED_RESP_BIT :
-					  ~HCLGE_MBX_NEED_RESP_BIT;
-	req->msg[0] = code;
-	req->msg[1] = subcode;
-	if (msg_data)
-		memcpy(&req->msg[2], msg_data, msg_len);
+	if (need_resp)
+		hnae3_set_bit(req->mbx_need_resp, HCLGE_MBX_NEED_RESP_B, 1);
+
+	memcpy(&req->msg, send_msg, sizeof(struct hclge_vf_to_pf_msg));
 
 	/* synchronous send */
 	if (need_resp) {
@@ -118,7 +119,8 @@ int hclgevf_send_mbx_msg(struct hclgevf_dev *hdev, u16 code, u16 subcode,
 			return status;
 		}
 
-		status = hclgevf_get_mbx_resp(hdev, code, subcode, resp_data,
+		status = hclgevf_get_mbx_resp(hdev, send_msg->code,
+					      send_msg->subcode, resp_data,
 					      resp_len);
 		mutex_unlock(&hdev->mbx_resp.mbx_mutex);
 	} else {
@@ -169,7 +171,7 @@ void hclgevf_mbx_handler(struct hclgevf_dev *hdev)
 		if (unlikely(!hnae3_get_bit(flag, HCLGEVF_CMDQ_RX_OUTVLD_B))) {
 			dev_warn(&hdev->pdev->dev,
 				 "dropped invalid mailbox message, code = %u\n",
-				 req->msg[0]);
+				 req->msg.code);
 
 			/* dropping/not processing this invalid message */
 			crq->desc[crq->next_to_use].flag = 0;
@@ -183,19 +185,21 @@ void hclgevf_mbx_handler(struct hclgevf_dev *hdev)
 		 * timeout and simultaneously queue the async messages for later
 		 * prcessing in context of mailbox task i.e. the slow path.
 		 */
-		switch (req->msg[0]) {
+		switch (req->msg.code) {
 		case HCLGE_MBX_PF_VF_RESP:
 			if (resp->received_resp)
 				dev_warn(&hdev->pdev->dev,
 					 "VF mbx resp flag not clear(%u)\n",
-					 req->msg[1]);
+					 req->msg.vf_mbx_msg_code);
 			resp->received_resp = true;
 
-			resp->origin_mbx_msg = (req->msg[1] << 16);
-			resp->origin_mbx_msg |= req->msg[2];
-			resp->resp_status = req->msg[3];
+			resp->origin_mbx_msg =
+					(req->msg.vf_mbx_msg_code << 16);
+			resp->origin_mbx_msg |= req->msg.vf_mbx_msg_subcode;
+			resp->resp_status =
+				hclgevf_resp_to_errno(req->msg.resp_status);
 
-			temp = (u8 *)&req->msg[4];
+			temp = (u8 *)req->msg.resp_data;
 			for (i = 0; i < HCLGE_MBX_MAX_RESP_DATA_SIZE; i++) {
 				resp->additional_info[i] = *temp;
 				temp++;
@@ -220,13 +224,13 @@ void hclgevf_mbx_handler(struct hclgevf_dev *hdev)
 			    HCLGE_MBX_MAX_ARQ_MSG_NUM) {
 				dev_warn(&hdev->pdev->dev,
 					 "Async Q full, dropping msg(%u)\n",
-					 req->msg[1]);
+					 req->msg.code);
 				break;
 			}
 
 			/* tail the async message in arq */
 			msg_q = hdev->arq.msg_q[hdev->arq.tail];
-			memcpy(&msg_q[0], req->msg,
+			memcpy(&msg_q[0], &req->msg,
 			       HCLGE_MBX_MAX_ARQ_MSG_SIZE * sizeof(u16));
 			hclge_mbx_tail_ptr_move_arq(hdev->arq);
 			atomic_inc(&hdev->arq.count);
@@ -237,7 +241,7 @@ void hclgevf_mbx_handler(struct hclgevf_dev *hdev)
 		default:
 			dev_err(&hdev->pdev->dev,
 				"VF received unsupported(%u) mbx msg from PF\n",
-				req->msg[0]);
+				req->msg.code);
 			break;
 		}
 		crq->desc[crq->next_to_use].flag = 0;

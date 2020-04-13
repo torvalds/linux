@@ -24,7 +24,7 @@
  *	http://sg.danny.cz/sg  [alternatively check the MAINTAINERS file]
  * The documentation for the sg version 3 driver can be found at:
  *	http://sg.danny.cz/sg/p/sg_v3_ho.html
- * Also see: <kernel_source>/Documentation/scsi/scsi-generic.txt
+ * Also see: <kernel_source>/Documentation/scsi/scsi-generic.rst
  *
  * For utility and test programs see: http://sg.danny.cz/sg/sg3_utils.html
  */

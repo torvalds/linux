@@ -108,16 +108,9 @@ Groups:
       mask or unmask the adapter, as specified in mask
 
     KVM_S390_IO_ADAPTER_MAP
-      perform a gmap translation for the guest address provided in addr,
-      pin a userspace page for the translated address and add it to the
-      list of mappings
-
-      .. note:: A new mapping will be created unconditionally; therefore,
-	        the calling code should avoid making duplicate mappings.
-
+      This is now a no-op. The mapping is purely done by the irq route.
     KVM_S390_IO_ADAPTER_UNMAP
-      release a userspace page for the translated address specified in addr
-      from the list of mappings
+      This is now a no-op. The mapping is purely done by the irq route.
 
   KVM_DEV_FLIC_AISM
     modify the adapter-interruption-suppression mode for a given isc if the

@@ -12,6 +12,7 @@
 
 	aliases {
 		serial0 = &blsp1_uart1;
+		serial1 = &blsp2_uart10;
 	};
 
 	chosen {
@@ -355,6 +356,57 @@
 				bias-disable;
 			};
 		};
+
+		bt_pin: bt {
+			hostwake {
+				pins = "gpio42";
+				function = "gpio";
+			};
+
+			devwake {
+				pins = "gpio62";
+				function = "gpio";
+			};
+
+			shutdown {
+				pins = "gpio41";
+				function = "gpio";
+			};
+		};
+
+		blsp2_uart10_pin_a: blsp2-uart10-pin-active {
+			tx {
+				pins = "gpio53";
+				function = "blsp_uart10";
+
+				drive-strength = <2>;
+				bias-disable;
+			};
+
+			rx {
+				pins = "gpio54";
+				function = "blsp_uart10";
+
+				drive-strength = <2>;
+				bias-pull-up;
+			};
+
+			cts {
+				pins = "gpio55";
+				function = "blsp_uart10";
+
+				drive-strength = <2>;
+				bias-pull-up;
+			};
+
+			rts {
+				pins = "gpio56";
+				function = "blsp_uart10";
+
+				drive-strength = <2>;
+				bias-disable;
+			};
+		};
 	};
 
 	sdhci@f9824900 {
@@ -415,6 +467,25 @@
 			gpios = <&pm8941_gpios 3 GPIO_ACTIVE_LOW>;
 			linux,input-type = <1>;
 			linux,code = <KEY_VOLUMEDOWN>;
+		};
+	};
+
+	serial@f9960000 {
+		status = "ok";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&blsp2_uart10_pin_a>;
+
+		bluetooth {
+			compatible = "brcm,bcm43438-bt";
+			max-speed = <3000000>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&bt_pin>;
+
+			host-wakeup-gpios = <&msmgpio 42 GPIO_ACTIVE_HIGH>;
+			device-wakeup-gpios = <&msmgpio 62 GPIO_ACTIVE_HIGH>;
+			shutdown-gpios = <&msmgpio 41 GPIO_ACTIVE_HIGH>;
 		};
 	};
 

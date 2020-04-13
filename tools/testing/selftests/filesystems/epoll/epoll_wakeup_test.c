@@ -7,13 +7,14 @@
 #include <pthread.h>
 #include <sys/epoll.h>
 #include <sys/socket.h>
+#include <sys/eventfd.h>
 #include "../../kselftest_harness.h"
 
 struct epoll_mtcontext
 {
 	int efd[3];
 	int sfd[4];
-	int count;
+	volatile int count;
 
 	pthread_t main;
 	pthread_t waiter;
@@ -3069,6 +3070,70 @@ TEST(epoll58)
 	close(ctx.sfd[1]);
 	close(ctx.sfd[2]);
 	close(ctx.sfd[3]);
+}
+
+static void *epoll59_thread(void *ctx_)
+{
+	struct epoll_mtcontext *ctx = ctx_;
+	struct epoll_event e;
+	int i;
+
+	for (i = 0; i < 100000; i++) {
+		while (ctx->count == 0)
+			;
+
+		e.events = EPOLLIN | EPOLLERR | EPOLLET;
+		epoll_ctl(ctx->efd[0], EPOLL_CTL_MOD, ctx->sfd[0], &e);
+		ctx->count = 0;
+	}
+
+	return NULL;
+}
+
+/*
+ *        t0
+ *      (p) \
+ *           e0
+ *     (et) /
+ *        e0
+ *
+ * Based on https://bugzilla.kernel.org/show_bug.cgi?id=205933
+ */
+TEST(epoll59)
+{
+	pthread_t emitter;
+	struct pollfd pfd;
+	struct epoll_event e;
+	struct epoll_mtcontext ctx = { 0 };
+	int i, ret;
+
+	signal(SIGUSR1, signal_handler);
+
+	ctx.efd[0] = epoll_create1(0);
+	ASSERT_GE(ctx.efd[0], 0);
+
+	ctx.sfd[0] = eventfd(1, 0);
+	ASSERT_GE(ctx.sfd[0], 0);
+
+	e.events = EPOLLIN | EPOLLERR | EPOLLET;
+	ASSERT_EQ(epoll_ctl(ctx.efd[0], EPOLL_CTL_ADD, ctx.sfd[0], &e), 0);
+
+	ASSERT_EQ(pthread_create(&emitter, NULL, epoll59_thread, &ctx), 0);
+
+	for (i = 0; i < 100000; i++) {
+		ret = epoll_wait(ctx.efd[0], &e, 1, 1000);
+		ASSERT_GT(ret, 0);
+
+		while (ctx.count != 0)
+			;
+		ctx.count = 1;
+	}
+	if (pthread_tryjoin_np(emitter, NULL) < 0) {
+		pthread_kill(emitter, SIGUSR1);
+		pthread_join(emitter, NULL);
+	}
+	close(ctx.efd[0]);
+	close(ctx.sfd[0]);
 }
 
 TEST_HARNESS_MAIN

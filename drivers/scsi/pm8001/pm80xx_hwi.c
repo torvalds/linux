@@ -393,6 +393,136 @@ moreData:
 		(char *)buf;
 }
 
+/* pm80xx_get_non_fatal_dump - dump the nonfatal data from the dma
+ * location by the firmware.
+ */
+ssize_t pm80xx_get_non_fatal_dump(struct device *cdev,
+	struct device_attribute *attr, char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
+	struct pm8001_hba_info *pm8001_ha = sha->lldd_ha;
+	void __iomem *nonfatal_table_address = pm8001_ha->fatal_tbl_addr;
+	u32 accum_len = 0;
+	u32 total_len = 0;
+	u32 reg_val = 0;
+	u32 *temp = NULL;
+	u32 index = 0;
+	u32 output_length;
+	unsigned long start = 0;
+	char *buf_copy = buf;
+
+	temp = (u32 *)pm8001_ha->memoryMap.region[FORENSIC_MEM].virt_ptr;
+	if (++pm8001_ha->non_fatal_count == 1) {
+		if (pm8001_ha->chip_id == chip_8001) {
+			snprintf(pm8001_ha->forensic_info.data_buf.direct_data,
+				PAGE_SIZE, "Not supported for SPC controller");
+			return 0;
+		}
+		PM8001_IO_DBG(pm8001_ha,
+			pm8001_printk("forensic_info TYPE_NON_FATAL...\n"));
+		/*
+		 * Step 1: Write the host buffer parameters in the MPI Fatal and
+		 * Non-Fatal Error Dump Capture Table.This is the buffer
+		 * where debug data will be DMAed to.
+		 */
+		pm8001_mw32(nonfatal_table_address,
+		MPI_FATAL_EDUMP_TABLE_LO_OFFSET,
+		pm8001_ha->memoryMap.region[FORENSIC_MEM].phys_addr_lo);
+
+		pm8001_mw32(nonfatal_table_address,
+		MPI_FATAL_EDUMP_TABLE_HI_OFFSET,
+		pm8001_ha->memoryMap.region[FORENSIC_MEM].phys_addr_hi);
+
+		pm8001_mw32(nonfatal_table_address,
+		MPI_FATAL_EDUMP_TABLE_LENGTH, SYSFS_OFFSET);
+
+		/* Optionally, set the DUMPCTRL bit to 1 if the host
+		 * keeps sending active I/Os while capturing the non-fatal
+		 * debug data. Otherwise, leave this bit set to zero
+		 */
+		pm8001_mw32(nonfatal_table_address,
+		MPI_FATAL_EDUMP_TABLE_HANDSHAKE, MPI_FATAL_EDUMP_HANDSHAKE_RDY);
+
+		/*
+		 * Step 2: Clear Accumulative Length of Debug Data Transferred
+		 * [ACCDDLEN] field in the MPI Fatal and Non-Fatal Error Dump
+		 * Capture Table to zero.
+		 */
+		pm8001_mw32(nonfatal_table_address,
+				MPI_FATAL_EDUMP_TABLE_ACCUM_LEN, 0);
+
+		/* initiallize previous accumulated length to 0 */
+		pm8001_ha->forensic_preserved_accumulated_transfer = 0;
+		pm8001_ha->non_fatal_read_length = 0;
+	}
+
+	total_len = pm8001_mr32(nonfatal_table_address,
+			MPI_FATAL_EDUMP_TABLE_TOTAL_LEN);
+	/*
+	 * Step 3:Clear Fatal/Non-Fatal Debug Data Transfer Status [FDDTSTAT]
+	 * field and then request that the SPCv controller transfer the debug
+	 * data by setting bit 7 of the Inbound Doorbell Set Register.
+	 */
+	pm8001_mw32(nonfatal_table_address, MPI_FATAL_EDUMP_TABLE_STATUS, 0);
+	pm8001_cw32(pm8001_ha, 0, MSGU_IBDB_SET,
+			SPCv_MSGU_CFG_TABLE_NONFATAL_DUMP);
+
+	/*
+	 * Step 4.1: Read back the Inbound Doorbell Set Register (by polling for
+	 * 2 seconds) until register bit 7 is cleared.
+	 * This step only indicates the request is accepted by the controller.
+	 */
+	start = jiffies + (2 * HZ); /* 2 sec */
+	do {
+		reg_val = pm8001_cr32(pm8001_ha, 0, MSGU_IBDB_SET) &
+			SPCv_MSGU_CFG_TABLE_NONFATAL_DUMP;
+	} while ((reg_val != 0) && time_before(jiffies, start));
+
+	/* Step 4.2: To check the completion of the transfer, poll the Fatal/Non
+	 * Fatal Debug Data Transfer Status [FDDTSTAT] field for 2 seconds in
+	 * the MPI Fatal and Non-Fatal Error Dump Capture Table.
+	 */
+	start = jiffies + (2 * HZ); /* 2 sec */
+	do {
+		reg_val = pm8001_mr32(nonfatal_table_address,
+				MPI_FATAL_EDUMP_TABLE_STATUS);
+	} while ((!reg_val) && time_before(jiffies, start));
+
+	if ((reg_val == 0x00) ||
+		(reg_val == MPI_FATAL_EDUMP_TABLE_STAT_DMA_FAILED) ||
+		(reg_val > MPI_FATAL_EDUMP_TABLE_STAT_NF_SUCCESS_DONE)) {
+		pm8001_ha->non_fatal_read_length = 0;
+		buf_copy += snprintf(buf_copy, PAGE_SIZE, "%08x ", 0xFFFFFFFF);
+		pm8001_ha->non_fatal_count = 0;
+		return (buf_copy - buf);
+	} else if (reg_val ==
+			MPI_FATAL_EDUMP_TABLE_STAT_NF_SUCCESS_MORE_DATA) {
+		buf_copy += snprintf(buf_copy, PAGE_SIZE, "%08x ", 2);
+	} else if ((reg_val == MPI_FATAL_EDUMP_TABLE_STAT_NF_SUCCESS_DONE) ||
+		(pm8001_ha->non_fatal_read_length >= total_len)) {
+		pm8001_ha->non_fatal_read_length = 0;
+		buf_copy += snprintf(buf_copy, PAGE_SIZE, "%08x ", 4);
+		pm8001_ha->non_fatal_count = 0;
+	}
+	accum_len = pm8001_mr32(nonfatal_table_address,
+			MPI_FATAL_EDUMP_TABLE_ACCUM_LEN);
+	output_length = accum_len -
+		pm8001_ha->forensic_preserved_accumulated_transfer;
+
+	for (index = 0; index < output_length/4; index++)
+		buf_copy += snprintf(buf_copy, PAGE_SIZE,
+				"%08x ", *(temp+index));
+
+	pm8001_ha->non_fatal_read_length += output_length;
+
+	/* store current accumulated length to use in next iteration as
+	 * the previous accumulated length
+	 */
+	pm8001_ha->forensic_preserved_accumulated_transfer = accum_len;
+	return (buf_copy - buf);
+}
+
 /**
  * read_main_config_table - read the configure table and save it.
  * @pm8001_ha: our hba card information
@@ -1438,11 +1568,18 @@ pm80xx_chip_soft_rst(struct pm8001_hba_info *pm8001_ha)
 	if (!pm8001_ha->controller_fatal_error) {
 		/* Check if MPI is in ready state to reset */
 		if (mpi_uninit_check(pm8001_ha) != 0) {
-			regval = pm8001_cr32(pm8001_ha, 0, MSGU_SCRATCH_PAD_1);
+			u32 r0 = pm8001_cr32(pm8001_ha, 0, MSGU_SCRATCH_PAD_0);
+			u32 r1 = pm8001_cr32(pm8001_ha, 0, MSGU_SCRATCH_PAD_1);
+			u32 r2 = pm8001_cr32(pm8001_ha, 0, MSGU_SCRATCH_PAD_2);
+			u32 r3 = pm8001_cr32(pm8001_ha, 0, MSGU_SCRATCH_PAD_3);
 			PM8001_FAIL_DBG(pm8001_ha, pm8001_printk(
-				"MPI state is not ready scratch1 :0x%x\n",
-				regval));
-			return -1;
+				"MPI state is not ready scratch: %x:%x:%x:%x\n",
+				r0, r1, r2, r3));
+			/* if things aren't ready but the bootloader is ok then
+			 * try the reset anyway.
+			 */
+			if (r1 & SCRATCH_PAD1_BOOTSTATE_MASK)
+				return -1;
 		}
 	}
 	/* checked for reset register normal state; 0x0 */
@@ -3708,28 +3845,32 @@ static int mpi_flash_op_ext_resp(struct pm8001_hba_info *pm8001_ha, void *piomb)
 static int mpi_set_phy_profile_resp(struct pm8001_hba_info *pm8001_ha,
 			void *piomb)
 {
+	u32 tag;
 	u8 page_code;
+	int rc = 0;
 	struct set_phy_profile_resp *pPayload =
 		(struct set_phy_profile_resp *)(piomb + 4);
 	u32 ppc_phyid = le32_to_cpu(pPayload->ppc_phyid);
 	u32 status = le32_to_cpu(pPayload->status);
 
+	tag = le32_to_cpu(pPayload->tag);
 	page_code = (u8)((ppc_phyid & 0xFF00) >> 8);
 	if (status) {
 		/* status is FAILED */
 		PM8001_FAIL_DBG(pm8001_ha,
 			pm8001_printk("PhyProfile command failed  with status "
 			"0x%08X \n", status));
-		return -1;
+		rc = -1;
 	} else {
 		if (page_code != SAS_PHY_ANALOG_SETTINGS_PAGE) {
 			PM8001_FAIL_DBG(pm8001_ha,
 				pm8001_printk("Invalid page code 0x%X\n",
 					page_code));
-			return -1;
+			rc = -1;
 		}
 	}
-	return 0;
+	pm8001_tag_free(pm8001_ha, tag);
+	return rc;
 }
 
 /**

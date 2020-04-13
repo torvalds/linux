@@ -2028,7 +2028,8 @@ static int leaf_dealloc(struct gfs2_inode *dip, u32 index, u32 len,
 
 	error = gfs2_trans_begin(sdp,
 			rg_blocks + (DIV_ROUND_UP(size, sdp->sd_jbsize) + 1) +
-			RES_DINODE + RES_STATFS + RES_QUOTA, l_blocks);
+			RES_DINODE + RES_STATFS + RES_QUOTA, RES_DINODE +
+				 l_blocks);
 	if (error)
 		goto out_rg_gunlock;
 

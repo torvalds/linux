@@ -252,6 +252,7 @@ unsigned int __weak get_c0_compare_int(void)
 
 int r4k_clockevent_init(void)
 {
+	unsigned long flags = IRQF_PERCPU | IRQF_TIMER | IRQF_SHARED;
 	unsigned int cpu = smp_processor_id();
 	struct clock_event_device *cd;
 	unsigned int irq, min_delta;
@@ -291,7 +292,9 @@ int r4k_clockevent_init(void)
 
 	cp0_timer_irq_installed = 1;
 
-	setup_irq(irq, &c0_compare_irqaction);
+	if (request_irq(irq, c0_compare_interrupt, flags, "timer",
+			c0_compare_interrupt))
+		pr_err("Failed to request irq %d (timer)\n", irq);
 
 	return 0;
 }

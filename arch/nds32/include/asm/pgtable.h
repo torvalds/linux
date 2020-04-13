@@ -286,15 +286,6 @@ PTE_BIT_FUNC(mkclean, &=~_PAGE_D);
 PTE_BIT_FUNC(mkdirty, |=_PAGE_D);
 PTE_BIT_FUNC(mkold, &=~_PAGE_YOUNG);
 PTE_BIT_FUNC(mkyoung, |=_PAGE_YOUNG);
-static inline int pte_special(pte_t pte)
-{
-	return 0;
-}
-
-static inline pte_t pte_mkspecial(pte_t pte)
-{
-	return pte;
-}
 
 /*
  * Mark the prot value as uncacheable and unbufferable.

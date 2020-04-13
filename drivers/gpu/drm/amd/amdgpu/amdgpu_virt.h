@@ -270,6 +270,9 @@ struct amdgpu_virt {
 #define amdgpu_sriov_runtime(adev) \
 ((adev)->virt.caps & AMDGPU_SRIOV_CAPS_RUNTIME)
 
+#define amdgpu_sriov_fullaccess(adev) \
+(amdgpu_sriov_vf((adev)) && !amdgpu_sriov_runtime((adev)))
+
 #define amdgpu_passthrough(adev) \
 ((adev)->virt.caps & AMDGPU_PASSTHROUGH_MODE)
 

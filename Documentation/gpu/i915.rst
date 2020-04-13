@@ -207,10 +207,10 @@ DPIO
 CSR firmware support for DMC
 ----------------------------
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_csr.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_csr.c
    :doc: csr support for dmc
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_csr.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_csr.c
    :internal:
 
 Video BIOS Table (VBT)
@@ -332,7 +332,7 @@ This process is dubbed relocation.
 GEM BO Management Implementation Details
 ----------------------------------------
 
-.. kernel-doc:: drivers/gpu/drm/i915/i915_vma.h
+.. kernel-doc:: drivers/gpu/drm/i915/i915_vma_types.h
    :doc: Virtual Memory Address
 
 Buffer Object Eviction
@@ -382,7 +382,7 @@ Logical Rings, Logical Ring Contexts and Execlists
 Global GTT views
 ----------------
 
-.. kernel-doc:: drivers/gpu/drm/i915/i915_gem_gtt.c
+.. kernel-doc:: drivers/gpu/drm/i915/i915_vma_types.h
    :doc: Global GTT views
 
 .. kernel-doc:: drivers/gpu/drm/i915/i915_gem_gtt.c

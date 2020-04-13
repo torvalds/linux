@@ -8,8 +8,6 @@
 */
 
 #define DRV_NAME	"DL2000/TC902x-based linux driver"
-#define DRV_VERSION	"v1.19"
-#define DRV_RELDATE	"2007/08/12"
 #include "dl2k.h"
 #include <linux/dma-mapping.h>
 
@@ -20,8 +18,6 @@
 #define dr16(reg)	ioread16(ioaddr + (reg))
 #define dr8(reg)	ioread8(ioaddr + (reg))
 
-static char version[] =
-      KERN_INFO DRV_NAME " " DRV_VERSION " " DRV_RELDATE "\n";
 #define MAX_UNITS 8
 static int mtu[MAX_UNITS];
 static int vlan[MAX_UNITS];
@@ -113,12 +109,8 @@ rio_probe1 (struct pci_dev *pdev, const struct pci_device_id *ent)
 	int chip_idx = ent->driver_data;
 	int err, irq;
 	void __iomem *ioaddr;
-	static int version_printed;
 	void *ring_space;
 	dma_addr_t ring_dma;
-
-	if (!version_printed++)
-		printk ("%s", version);
 
 	err = pci_enable_device (pdev);
 	if (err)
@@ -1244,7 +1236,6 @@ static void rio_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info
 	struct netdev_private *np = netdev_priv(dev);
 
 	strlcpy(info->driver, "dl2k", sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 	strlcpy(info->bus_info, pci_name(np->pdev), sizeof(info->bus_info));
 }
 

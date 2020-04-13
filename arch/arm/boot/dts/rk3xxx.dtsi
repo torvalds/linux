@@ -32,7 +32,7 @@
 		spi1 = &spi1;
 	};
 
-	amba {
+	amba: bus {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -91,7 +91,7 @@
 		status = "disabled";
 	};
 
-	L2: l2-cache-controller@10138000 {
+	L2: cache-controller@10138000 {
 		compatible = "arm,pl310-cache";
 		reg = <0x10138000 0x1000>;
 		cache-unified;

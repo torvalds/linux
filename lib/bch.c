@@ -102,7 +102,7 @@
  */
 struct gf_poly {
 	unsigned int deg;    /* polynomial degree */
-	unsigned int c[0];   /* polynomial terms */
+	unsigned int c[];   /* polynomial terms */
 };
 
 /* given its degree, compute a polynomial size in bytes */

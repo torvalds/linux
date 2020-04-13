@@ -81,13 +81,14 @@ TRACE_DEFINE_ENUM(COMMIT_TRANS);
 
 #define show_extent_io_tree_owner(owner)				       \
 	__print_symbolic(owner,						       \
-		{ IO_TREE_FS_INFO_FREED_EXTENTS0, "FREED_EXTENTS0" },	       \
-		{ IO_TREE_FS_INFO_FREED_EXTENTS1, "FREED_EXTENTS1" },	       \
+		{ IO_TREE_FS_PINNED_EXTENTS, 	  "PINNED_EXTENTS" },	       \
+		{ IO_TREE_FS_EXCLUDED_EXTENTS,	  "EXCLUDED_EXTENTS" },	       \
 		{ IO_TREE_INODE_IO,		  "INODE_IO" },		       \
 		{ IO_TREE_INODE_IO_FAILURE,	  "INODE_IO_FAILURE" },	       \
 		{ IO_TREE_RELOC_BLOCKS,		  "RELOC_BLOCKS" },	       \
 		{ IO_TREE_TRANS_DIRTY_PAGES,	  "TRANS_DIRTY_PAGES" },       \
 		{ IO_TREE_ROOT_DIRTY_LOG_PAGES,	  "ROOT_DIRTY_LOG_PAGES" },    \
+		{ IO_TREE_INODE_FILE_EXTENT,	  "INODE_FILE_EXTENT" },       \
 		{ IO_TREE_SELFTEST,		  "SELFTEST" })
 
 #define BTRFS_GROUP_FLAGS	\
@@ -468,7 +469,6 @@ DEFINE_EVENT(
 		{ (1 << BTRFS_ORDERED_PREALLOC), 	"PREALLOC" 	}, \
 		{ (1 << BTRFS_ORDERED_DIRECT),	 	"DIRECT" 	}, \
 		{ (1 << BTRFS_ORDERED_IOERR), 		"IOERR" 	}, \
-		{ (1 << BTRFS_ORDERED_UPDATED_ISIZE), 	"UPDATED_ISIZE"	}, \
 		{ (1 << BTRFS_ORDERED_TRUNCATED), 	"TRUNCATED"	})
 
 

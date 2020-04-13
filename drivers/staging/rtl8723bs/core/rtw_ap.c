@@ -2417,7 +2417,7 @@ void stop_ap_mode(struct adapter *padapter)
 		paclnode = LIST_CONTAINOR(plist, struct rtw_wlan_acl_node, list);
 		plist = get_next(plist);
 
-		if (paclnode->valid == true) {
+		if (paclnode->valid) {
 			paclnode->valid = false;
 
 			list_del_init(&paclnode->list);

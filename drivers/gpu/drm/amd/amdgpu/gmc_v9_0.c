@@ -476,13 +476,26 @@ static void gmc_v9_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 {
 	bool use_semaphore = gmc_v9_0_use_invalidate_semaphore(adev, vmhub);
 	const unsigned eng = 17;
-	u32 j, inv_req, tmp;
+	u32 j, inv_req, inv_req2, tmp;
 	struct amdgpu_vmhub *hub;
 
 	BUG_ON(vmhub >= adev->num_vmhubs);
 
 	hub = &adev->vmhub[vmhub];
-	inv_req = gmc_v9_0_get_invalidate_req(vmid, flush_type);
+	if (adev->gmc.xgmi.num_physical_nodes &&
+	    adev->asic_type == CHIP_VEGA20) {
+		/* Vega20+XGMI caches PTEs in TC and TLB. Add a
+		 * heavy-weight TLB flush (type 2), which flushes
+		 * both. Due to a race condition with concurrent
+		 * memory accesses using the same TLB cache line, we
+		 * still need a second TLB flush after this.
+		 */
+		inv_req = gmc_v9_0_get_invalidate_req(vmid, 2);
+		inv_req2 = gmc_v9_0_get_invalidate_req(vmid, flush_type);
+	} else {
+		inv_req = gmc_v9_0_get_invalidate_req(vmid, flush_type);
+		inv_req2 = 0;
+	}
 
 	/* This is necessary for a HW workaround under SRIOV as well
 	 * as GFXOFF under bare metal
@@ -521,21 +534,27 @@ static void gmc_v9_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 			DRM_ERROR("Timeout waiting for sem acquire in VM flush!\n");
 	}
 
-	WREG32_NO_KIQ(hub->vm_inv_eng0_req + eng, inv_req);
+	do {
+		WREG32_NO_KIQ(hub->vm_inv_eng0_req + eng, inv_req);
 
-	/*
-	 * Issue a dummy read to wait for the ACK register to be cleared
-	 * to avoid a false ACK due to the new fast GRBM interface.
-	 */
-	if (vmhub == AMDGPU_GFXHUB_0)
-		RREG32_NO_KIQ(hub->vm_inv_eng0_req + eng);
+		/*
+		 * Issue a dummy read to wait for the ACK register to
+		 * be cleared to avoid a false ACK due to the new fast
+		 * GRBM interface.
+		 */
+		if (vmhub == AMDGPU_GFXHUB_0)
+			RREG32_NO_KIQ(hub->vm_inv_eng0_req + eng);
 
-	for (j = 0; j < adev->usec_timeout; j++) {
-		tmp = RREG32_NO_KIQ(hub->vm_inv_eng0_ack + eng);
-		if (tmp & (1 << vmid))
-			break;
-		udelay(1);
-	}
+		for (j = 0; j < adev->usec_timeout; j++) {
+			tmp = RREG32_NO_KIQ(hub->vm_inv_eng0_ack + eng);
+			if (tmp & (1 << vmid))
+				break;
+			udelay(1);
+		}
+
+		inv_req = inv_req2;
+		inv_req2 = 0;
+	} while (inv_req);
 
 	/* TODO: It needs to continue working on debugging with semaphore for GFXHUB as well. */
 	if (use_semaphore)
@@ -577,9 +596,26 @@ static int gmc_v9_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
 		return -EIO;
 
 	if (ring->sched.ready) {
+		/* Vega20+XGMI caches PTEs in TC and TLB. Add a
+		 * heavy-weight TLB flush (type 2), which flushes
+		 * both. Due to a race condition with concurrent
+		 * memory accesses using the same TLB cache line, we
+		 * still need a second TLB flush after this.
+		 */
+		bool vega20_xgmi_wa = (adev->gmc.xgmi.num_physical_nodes &&
+				       adev->asic_type == CHIP_VEGA20);
+		/* 2 dwords flush + 8 dwords fence */
+		unsigned int ndw = kiq->pmf->invalidate_tlbs_size + 8;
+
+		if (vega20_xgmi_wa)
+			ndw += kiq->pmf->invalidate_tlbs_size;
+
 		spin_lock(&adev->gfx.kiq.ring_lock);
 		/* 2 dwords flush + 8 dwords fence */
-		amdgpu_ring_alloc(ring, kiq->pmf->invalidate_tlbs_size + 8);
+		amdgpu_ring_alloc(ring, ndw);
+		if (vega20_xgmi_wa)
+			kiq->pmf->kiq_invalidate_tlbs(ring,
+						      pasid, 2, all_hub);
 		kiq->pmf->kiq_invalidate_tlbs(ring,
 					pasid, flush_type, all_hub);
 		amdgpu_fence_emit_polling(ring, &seq);
@@ -886,31 +922,24 @@ static int gmc_v9_0_late_init(void *handle)
 	if (r)
 		return r;
 	/* Check if ecc is available */
-	if (!amdgpu_sriov_vf(adev)) {
-		switch (adev->asic_type) {
-		case CHIP_VEGA10:
-		case CHIP_VEGA20:
-		case CHIP_ARCTURUS:
-			r = amdgpu_atomfirmware_mem_ecc_supported(adev);
-			if (!r) {
-				DRM_INFO("ECC is not present.\n");
-				if (adev->df.funcs->enable_ecc_force_par_wr_rmw)
-					adev->df.funcs->enable_ecc_force_par_wr_rmw(adev, false);
-			} else {
-				DRM_INFO("ECC is active.\n");
-			}
+	if (!amdgpu_sriov_vf(adev) && (adev->asic_type == CHIP_VEGA10)) {
+		r = amdgpu_atomfirmware_mem_ecc_supported(adev);
+		if (!r) {
+			DRM_INFO("ECC is not present.\n");
+			if (adev->df.funcs->enable_ecc_force_par_wr_rmw)
+				adev->df.funcs->enable_ecc_force_par_wr_rmw(adev, false);
+		} else
+			DRM_INFO("ECC is active.\n");
 
-			r = amdgpu_atomfirmware_sram_ecc_supported(adev);
-			if (!r) {
-				DRM_INFO("SRAM ECC is not present.\n");
-			} else {
-				DRM_INFO("SRAM ECC is active.\n");
-			}
-			break;
-		default:
-			break;
-		}
+		r = amdgpu_atomfirmware_sram_ecc_supported(adev);
+		if (!r)
+			DRM_INFO("SRAM ECC is not present.\n");
+		else
+			DRM_INFO("SRAM ECC is active.\n");
 	}
+
+	if (adev->mmhub.funcs && adev->mmhub.funcs->reset_ras_error_count)
+		adev->mmhub.funcs->reset_ras_error_count(adev);
 
 	r = amdgpu_gmc_ras_late_init(adev);
 	if (r)

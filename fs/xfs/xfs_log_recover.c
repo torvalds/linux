@@ -2869,8 +2869,8 @@ xfs_recover_inode_owner_change(
 		return -ENOMEM;
 
 	/* instantiate the inode */
+	ASSERT(dip->di_version >= 3);
 	xfs_inode_from_disk(ip, dip);
-	ASSERT(ip->i_d.di_version >= 3);
 
 	error = xfs_iformat_fork(ip, dip);
 	if (error)
@@ -2997,7 +2997,7 @@ xlog_recover_inode_pass2(
 	 * superblock flag to determine whether we need to look at di_flushiter
 	 * to skip replay when the on disk inode is newer than the log one
 	 */
-	if (!xfs_sb_version_hascrc(&mp->m_sb) &&
+	if (!xfs_sb_version_has_v3inode(&mp->m_sb) &&
 	    ldip->di_flushiter < be16_to_cpu(dip->di_flushiter)) {
 		/*
 		 * Deal with the wrap case, DI_MAX_FLUSH is less
@@ -3068,7 +3068,7 @@ xlog_recover_inode_pass2(
 		error = -EFSCORRUPTED;
 		goto out_release;
 	}
-	isize = xfs_log_dinode_size(ldip->di_version);
+	isize = xfs_log_dinode_size(mp);
 	if (unlikely(item->ri_buf[1].i_len > isize)) {
 		XFS_CORRUPTION_ERROR("xlog_recover_inode_pass2(7)",
 				     XFS_ERRLEVEL_LOW, mp, ldip,
@@ -4947,7 +4947,7 @@ xlog_recover_clear_agi_bucket(
 	if (error)
 		goto out_abort;
 
-	agi = XFS_BUF_TO_AGI(agibp);
+	agi = agibp->b_addr;
 	agi->agi_unlinked[bucket] = cpu_to_be32(NULLAGINO);
 	offset = offsetof(xfs_agi_t, agi_unlinked) +
 		 (sizeof(xfs_agino_t) * bucket);
@@ -5083,7 +5083,7 @@ xlog_recover_process_iunlinks(
 		 * buffer reference though, so that it stays pinned in memory
 		 * while we need the buffer.
 		 */
-		agi = XFS_BUF_TO_AGI(agibp);
+		agi = agibp->b_addr;
 		xfs_buf_unlock(agibp);
 
 		for (bucket = 0; bucket < XFS_AGI_UNLINKED_BUCKETS; bucket++) {
@@ -5636,7 +5636,7 @@ xlog_do_recover(
 
 	/* Convert superblock from on-disk format */
 	sbp = &mp->m_sb;
-	xfs_sb_from_disk(sbp, XFS_BUF_TO_SBP(bp));
+	xfs_sb_from_disk(sbp, bp->b_addr);
 	xfs_buf_relse(bp);
 
 	/* re-initialise in-core superblock and geometry structures */
@@ -5809,7 +5809,6 @@ xlog_recover_check_summary(
 	struct xlog	*log)
 {
 	xfs_mount_t	*mp;
-	xfs_agf_t	*agfp;
 	xfs_buf_t	*agfbp;
 	xfs_buf_t	*agibp;
 	xfs_agnumber_t	agno;
@@ -5829,7 +5828,8 @@ xlog_recover_check_summary(
 			xfs_alert(mp, "%s agf read failed agno %d error %d",
 						__func__, agno, error);
 		} else {
-			agfp = XFS_BUF_TO_AGF(agfbp);
+			struct xfs_agf	*agfp = agfbp->b_addr;
+
 			freeblks += be32_to_cpu(agfp->agf_freeblks) +
 				    be32_to_cpu(agfp->agf_flcount);
 			xfs_buf_relse(agfbp);
@@ -5840,7 +5840,7 @@ xlog_recover_check_summary(
 			xfs_alert(mp, "%s agi read failed agno %d error %d",
 						__func__, agno, error);
 		} else {
-			struct xfs_agi	*agi = XFS_BUF_TO_AGI(agibp);
+			struct xfs_agi	*agi = agibp->b_addr;
 
 			itotal += be32_to_cpu(agi->agi_count);
 			ifree += be32_to_cpu(agi->agi_freecount);

@@ -9,13 +9,14 @@
 #include <drm/drm_atomic.h>
 
 #include "intel_display.h"
+#include "intel_global_state.h"
 
 struct drm_i915_private;
 struct intel_atomic_state;
 struct intel_crtc_state;
 
 struct intel_bw_state {
-	struct drm_private_state base;
+	struct intel_global_state base;
 
 	unsigned int data_rate[I915_MAX_PIPES];
 	u8 num_active_planes[I915_MAX_PIPES];
@@ -25,7 +26,6 @@ struct intel_bw_state {
 
 void intel_bw_init_hw(struct drm_i915_private *dev_priv);
 int intel_bw_init(struct drm_i915_private *dev_priv);
-void intel_bw_cleanup(struct drm_i915_private *dev_priv);
 int intel_bw_atomic_check(struct intel_atomic_state *state);
 void intel_bw_crtc_update(struct intel_bw_state *bw_state,
 			  const struct intel_crtc_state *crtc_state);

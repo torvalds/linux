@@ -72,7 +72,7 @@
 	srp-disable;
 	hnp-disable;
 	adp-disable;
-	over-current-active-low;
+	disable-over-current;
 	status = "okay";
 };
 
@@ -110,7 +110,6 @@
 	pinctrl_usbotg1_id: otg1idgrp {
 		fsl,pins = <
 			IMX7ULP_PAD_PTC13__USB0_ID	0x10003
-			IMX7ULP_PAD_PTC16__USB1_OC2	0x10003
 		>;
 	};
 

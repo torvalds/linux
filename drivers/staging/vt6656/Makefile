@@ -9,13 +9,11 @@ vt6656_stage-y +=	main_usb.o \
 			baseband.o \
 			wcmd.o\
 			rxtx.o \
-			dpc.o \
 			power.o \
 			key.o \
 			rf.o \
 			usbpipe.o \
 			channel.o \
-			firmware.o \
-			int.o
+			firmware.o
 
 obj-$(CONFIG_VT6656) +=	vt6656_stage.o

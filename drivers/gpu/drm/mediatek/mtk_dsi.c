@@ -904,7 +904,7 @@ static int mtk_dsi_create_conn_enc(struct drm_device *drm, struct mtk_dsi *dsi)
 
 	/* If there's a bridge, attach to it and let it create the connector */
 	if (dsi->bridge) {
-		ret = drm_bridge_attach(&dsi->encoder, dsi->bridge, NULL);
+		ret = drm_bridge_attach(&dsi->encoder, dsi->bridge, NULL, 0);
 		if (ret) {
 			DRM_ERROR("Failed to attach bridge to drm\n");
 			goto err_encoder_cleanup;

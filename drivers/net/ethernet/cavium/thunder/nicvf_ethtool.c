@@ -16,7 +16,6 @@
 #include "../common/cavium_ptp.h"
 
 #define DRV_NAME	"nicvf"
-#define DRV_VERSION     "1.0"
 
 struct nicvf_stat {
 	char name[ETH_GSTRING_LEN];
@@ -192,7 +191,6 @@ static void nicvf_get_drvinfo(struct net_device *netdev,
 	struct nicvf *nic = netdev_priv(netdev);
 
 	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 	strlcpy(info->bus_info, pci_name(nic->pdev), sizeof(info->bus_info));
 }
 

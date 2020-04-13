@@ -17,7 +17,7 @@
 #include "builtin.h"
 #include "check.h"
 
-bool no_fp, no_unreachable, retpoline, module, backtrace, uaccess;
+bool no_fp, no_unreachable, retpoline, module, backtrace, uaccess, stats;
 
 static const char * const check_usage[] = {
 	"objtool check [<options>] file.o",
@@ -31,6 +31,7 @@ const struct option check_options[] = {
 	OPT_BOOLEAN('m', "module", &module, "Indicates the object will be part of a kernel module"),
 	OPT_BOOLEAN('b', "backtrace", &backtrace, "unwind on error"),
 	OPT_BOOLEAN('a', "uaccess", &uaccess, "enable uaccess checking"),
+	OPT_BOOLEAN('s', "stats", &stats, "print statistics"),
 	OPT_END(),
 };
 

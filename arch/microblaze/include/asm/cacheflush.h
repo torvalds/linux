@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2007-2009 Michal Simek <monstr@monstr.eu>
  * Copyright (C) 2007-2009 PetaLogix
@@ -5,11 +6,6 @@
  * based on v850 version which was
  * Copyright (C) 2001,02,03 NEC Electronics Corporation
  * Copyright (C) 2001,02,03 Miles Bader <miles@gnu.org>
- *
- * This file is subject to the terms and conditions of the GNU General
- * Public License. See the file COPYING in the main directory of this
- * archive for more details.
- *
  */
 
 #ifndef _ASM_MICROBLAZE_CACHEFLUSH_H

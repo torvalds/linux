@@ -448,7 +448,7 @@ static void engine_event_destroy(struct perf_event *event)
 	engine = intel_engine_lookup_user(i915,
 					  engine_event_class(event),
 					  engine_event_instance(event));
-	if (WARN_ON_ONCE(!engine))
+	if (drm_WARN_ON_ONCE(&i915->drm, !engine))
 		return;
 
 	if (engine_event_sample(event) == I915_SAMPLE_BUSY &&
@@ -584,7 +584,7 @@ static u64 __i915_pmu_event_read(struct perf_event *event)
 						  engine_event_class(event),
 						  engine_event_instance(event));
 
-		if (WARN_ON_ONCE(!engine)) {
+		if (drm_WARN_ON_ONCE(&i915->drm, !engine)) {
 			/* Do nothing */
 		} else if (sample == I915_SAMPLE_BUSY &&
 			   intel_engine_supports_stats(engine)) {
@@ -1188,7 +1188,7 @@ void i915_pmu_unregister(struct drm_i915_private *i915)
 	if (!pmu->base.event_init)
 		return;
 
-	WARN_ON(pmu->enable);
+	drm_WARN_ON(&i915->drm, pmu->enable);
 
 	hrtimer_cancel(&pmu->timer);
 

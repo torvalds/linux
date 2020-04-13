@@ -128,16 +128,20 @@ static int dr_table_init_nic(struct mlx5dr_domain *dmn,
 						  DR_CHUNK_SIZE_1,
 						  MLX5DR_STE_LU_TYPE_DONT_CARE,
 						  0);
-	if (!nic_tbl->s_anchor)
+	if (!nic_tbl->s_anchor) {
+		mlx5dr_err(dmn, "Failed allocating htbl\n");
 		return -ENOMEM;
+	}
 
 	info.type = CONNECT_MISS;
 	info.miss_icm_addr = nic_dmn->default_icm_addr;
 	ret = mlx5dr_ste_htbl_init_and_postsend(dmn, nic_dmn,
 						nic_tbl->s_anchor,
 						&info, true);
-	if (ret)
+	if (ret) {
+		mlx5dr_err(dmn, "Failed int and send htbl\n");
 		goto free_s_anchor;
+	}
 
 	mlx5dr_htbl_get(nic_tbl->s_anchor);
 

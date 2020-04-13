@@ -364,8 +364,8 @@ static int orion_mdio_probe(struct platform_device *pdev)
 		writel(MVMDIO_ERR_INT_SMI_DONE,
 			dev->regs + MVMDIO_ERR_INT_MASK);
 
-	} else if (dev->err_interrupt < 0) {
-		ret = dev->err_interrupt;
+	} else if (dev->err_interrupt == -EPROBE_DEFER) {
+		ret = -EPROBE_DEFER;
 		goto out_mdio;
 	}
 

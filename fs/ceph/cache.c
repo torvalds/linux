@@ -32,7 +32,7 @@ struct ceph_fscache_entry {
 	size_t uniq_len;
 	/* The following members must be last */
 	struct ceph_fsid fsid;
-	char uniquifier[0];
+	char uniquifier[];
 };
 
 static const struct fscache_cookie_def ceph_fscache_fsid_object_def = {

@@ -46,7 +46,7 @@
 
 static int drm_lock_take(struct drm_lock_data *lock_data, unsigned int context);
 
-/**
+/*
  * Take the heavyweight lock.
  *
  * \param lock lock pointer.
@@ -93,7 +93,7 @@ int drm_lock_take(struct drm_lock_data *lock_data,
 	return 0;
 }
 
-/**
+/*
  * This takes a lock forcibly and hands it to context.	Should ONLY be used
  * inside *_unlock to give lock to kernel before calling *_dma_schedule.
  *
@@ -150,7 +150,7 @@ static int drm_legacy_lock_free(struct drm_lock_data *lock_data,
 	return 0;
 }
 
-/**
+/*
  * Lock ioctl.
  *
  * \param inode device inode.
@@ -243,7 +243,7 @@ int drm_legacy_lock(struct drm_device *dev, void *data,
 	return 0;
 }
 
-/**
+/*
  * Unlock ioctl.
  *
  * \param inode device inode.
@@ -275,7 +275,7 @@ int drm_legacy_unlock(struct drm_device *dev, void *data, struct drm_file *file_
 	return 0;
 }
 
-/**
+/*
  * This function returns immediately and takes the hw lock
  * with the kernel context if it is free, otherwise it gets the highest priority when and if
  * it is eventually released.
@@ -287,7 +287,6 @@ int drm_legacy_unlock(struct drm_device *dev, void *data, struct drm_file *file_
  * This should be sufficient to wait for GPU idle without
  * having to worry about starvation.
  */
-
 void drm_legacy_idlelock_take(struct drm_lock_data *lock_data)
 {
 	int ret;

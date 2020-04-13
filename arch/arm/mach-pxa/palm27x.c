@@ -318,7 +318,6 @@ static void palm27x_backlight_exit(struct device *dev)
 static struct platform_pwm_backlight_data palm27x_backlight_data = {
 	.max_brightness	= 0xfe,
 	.dft_brightness	= 0x7e,
-	.enable_gpio	= -1,
 	.init		= palm27x_backlight_init,
 	.notify		= palm27x_backlight_notify,
 	.exit		= palm27x_backlight_exit,

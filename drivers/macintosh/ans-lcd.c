@@ -142,7 +142,7 @@ const struct file_operations anslcd_fops = {
 };
 
 static struct miscdevice anslcd_dev = {
-	ANSLCD_MINOR,
+	LCD_MINOR,
 	"anslcd",
 	&anslcd_fops
 };

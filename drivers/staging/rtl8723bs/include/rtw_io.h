@@ -168,7 +168,7 @@ struct reg_protocol_rd {
 
 	u32 Byte2Access : 1;
 	u32 Byte1Access : 1;
-	u32 BurstMode :1 ;
+	u32 BurstMode :1;
 	u32 FixOrContinuous : 1;
 
 	u32 Reserved4 : 16;
@@ -224,7 +224,7 @@ struct reg_protocol_wt {
 
 	u32 Byte2Access : 1;
 	u32 Byte1Access : 1;
-	u32 BurstMode :1 ;
+	u32 BurstMode :1;
 	u32 FixOrContinuous : 1;
 
 	u32 Reserved4 : 16;
@@ -259,7 +259,7 @@ struct io_queue {
 	struct	intf_hdl	intf;
 };
 
-struct io_priv{
+struct io_priv {
 
 	struct adapter *padapter;
 

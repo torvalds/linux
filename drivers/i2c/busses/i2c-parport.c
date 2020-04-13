@@ -333,13 +333,17 @@ static void i2c_parport_attach(struct parport *port)
 
 	/* Setup SMBus alert if supported */
 	if (adapter_parm[type].smbus_alert) {
-		adapter->ara = i2c_setup_smbus_alert(&adapter->adapter,
-						     &adapter->alert_data);
-		if (adapter->ara)
+		struct i2c_client *ara;
+
+		ara = i2c_new_smbus_alert_device(&adapter->adapter,
+						 &adapter->alert_data);
+		if (!IS_ERR(ara)) {
+			adapter->ara = ara;
 			parport_enable_irq(port);
-		else
+		} else {
 			dev_warn(&adapter->pdev->dev,
 				 "Failed to register ARA client\n");
+		}
 	}
 
 	/* Add the new adapter to the list */

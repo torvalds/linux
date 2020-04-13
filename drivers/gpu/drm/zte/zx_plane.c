@@ -54,7 +54,7 @@ static int zx_vl_plane_atomic_check(struct drm_plane *plane,
 	int min_scale = FRAC_16_16(1, 8);
 	int max_scale = FRAC_16_16(8, 1);
 
-	if (!crtc || !fb)
+	if (!crtc || WARN_ON(!fb))
 		return 0;
 
 	crtc_state = drm_atomic_get_existing_crtc_state(plane_state->state,
@@ -281,7 +281,7 @@ static int zx_gl_plane_atomic_check(struct drm_plane *plane,
 	struct drm_crtc *crtc = plane_state->crtc;
 	struct drm_crtc_state *crtc_state;
 
-	if (!crtc || !fb)
+	if (!crtc || WARN_ON(!fb))
 		return 0;
 
 	crtc_state = drm_atomic_get_existing_crtc_state(plane_state->state,

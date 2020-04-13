@@ -75,6 +75,9 @@ properties:
 
   mali-supply: true
 
+  power-domains:
+    maxItems: 1
+
   resets:
     minItems: 1
     maxItems: 2
@@ -90,6 +93,8 @@ required:
   - interrupts
   - interrupt-names
   - clocks
+
+additionalProperties: false
 
 allOf:
   - if:

@@ -70,6 +70,7 @@ struct vgic_global {
 
 	/* Hardware has GICv4? */
 	bool			has_gicv4;
+	bool			has_gicv4_1;
 
 	/* GIC system register CPU interface */
 	struct static_key_false gicv3_cpuif;
@@ -229,6 +230,9 @@ struct vgic_dist {
 
 	/* distributor enabled */
 	bool			enabled;
+
+	/* Wants SGIs without active state */
+	bool			nassgireq;
 
 	struct vgic_irq		*spis;
 

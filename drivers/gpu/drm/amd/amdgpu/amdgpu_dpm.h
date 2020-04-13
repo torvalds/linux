@@ -448,6 +448,8 @@ struct amdgpu_pm {
 	/* powerplay feature */
 	uint32_t pp_feature;
 
+	/* Used for I2C access to various EEPROMs on relevant ASICs */
+	struct i2c_adapter smu_i2c;
 };
 
 #define R600_SSTU_DFLT                               0
@@ -532,5 +534,8 @@ int amdgpu_dpm_set_mp1_state(struct amdgpu_device *adev,
 int amdgpu_dpm_baco_exit(struct amdgpu_device *adev);
 
 int amdgpu_dpm_baco_enter(struct amdgpu_device *adev);
+
+int amdgpu_dpm_set_df_cstate(struct amdgpu_device *adev,
+			     uint32_t cstate);
 
 #endif

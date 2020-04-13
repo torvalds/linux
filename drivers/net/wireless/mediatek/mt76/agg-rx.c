@@ -4,7 +4,13 @@
  */
 #include "mt76.h"
 
-#define REORDER_TIMEOUT (HZ / 10)
+static unsigned long mt76_aggr_tid_to_timeo(u8 tidno)
+{
+	/* Currently voice traffic (AC_VO) always runs without aggregation,
+	 * no special handling is needed. AC_BE/AC_BK use tids 0-3. Just check
+	 * for non AC_BK/AC_BE and set smaller timeout for it. */
+	return HZ / (tidno >= 4 ? 25 : 10);
+}
 
 static void
 mt76_aggr_release(struct mt76_rx_tid *tid, struct sk_buff_head *frames, int idx)
@@ -71,7 +77,8 @@ mt76_rx_aggr_check_release(struct mt76_rx_tid *tid, struct sk_buff_head *frames)
 		nframes--;
 		status = (struct mt76_rx_status *)skb->cb;
 		if (!time_after(jiffies,
-				status->reorder_time + REORDER_TIMEOUT))
+				status->reorder_time +
+				mt76_aggr_tid_to_timeo(tid->num)))
 			continue;
 
 		mt76_rx_aggr_release_frames(tid, frames, status->seqno);
@@ -101,7 +108,7 @@ mt76_rx_aggr_reorder_work(struct work_struct *work)
 
 	if (nframes)
 		ieee80211_queue_delayed_work(tid->dev->hw, &tid->reorder_work,
-					     REORDER_TIMEOUT);
+					     mt76_aggr_tid_to_timeo(tid->num));
 	mt76_rx_complete(dev, &frames, NULL);
 
 	rcu_read_unlock();
@@ -225,7 +232,7 @@ void mt76_rx_aggr_reorder(struct sk_buff *skb, struct sk_buff_head *frames)
 	mt76_rx_aggr_release_head(tid, frames);
 
 	ieee80211_queue_delayed_work(tid->dev->hw, &tid->reorder_work,
-				     REORDER_TIMEOUT);
+				     mt76_aggr_tid_to_timeo(tid->num));
 
 out:
 	spin_unlock_bh(&tid->lock);
@@ -245,6 +252,7 @@ int mt76_rx_aggr_start(struct mt76_dev *dev, struct mt76_wcid *wcid, u8 tidno,
 	tid->dev = dev;
 	tid->head = ssn;
 	tid->size = size;
+	tid->num = tidno;
 	INIT_DELAYED_WORK(&tid->reorder_work, mt76_rx_aggr_reorder_work);
 	spin_lock_init(&tid->lock);
 
@@ -268,6 +276,7 @@ static void mt76_rx_aggr_shutdown(struct mt76_dev *dev, struct mt76_rx_tid *tid)
 		if (!skb)
 			continue;
 
+		tid->reorder_buf[i] = NULL;
 		tid->nframes--;
 		dev_kfree_skb(skb);
 	}

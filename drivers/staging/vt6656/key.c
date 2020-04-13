@@ -144,11 +144,14 @@ int vnt_set_keys(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
 		if (priv->local_id <= MAC_REVISION_A1)
-			return -EINVAL;
+			return -EOPNOTSUPP;
 
 		key_dec_mode = KEY_CTL_CCMP;
 
 		key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
+		break;
+	default:
+		return -EOPNOTSUPP;
 	}
 
 	if (key->flags & IEEE80211_KEY_FLAG_PAIRWISE) {

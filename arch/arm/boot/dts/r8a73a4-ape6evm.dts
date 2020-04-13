@@ -157,11 +157,8 @@
 
 &cpu0 {
 	cpu0-supply = <&vdd_dvfs>;
-	operating-points = <
-		/* kHz  uV */
-		1950000 1115000
-		1462500  995000
-	>;
+	operating-points = <1950000 1115000>,	/* kHz  uV */
+			   <1462500  995000>;
 	voltage-tolerance = <1>; /* 1% */
 };
 

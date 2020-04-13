@@ -23,8 +23,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/etherdevice.h>
 #include <linux/uaccess.h>
-
-#include "../most.h"
+#include <linux/most.h>
 
 #define USB_MTU			512
 #define NO_ISOCHRONOUS_URB	0

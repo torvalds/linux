@@ -3,6 +3,7 @@
 
 #include "health.h"
 #include "lib/eq.h"
+#include "lib/mlx5.h"
 
 int mlx5e_reporter_named_obj_nest_start(struct devlink_fmsg *fmsg, char *name)
 {
@@ -197,10 +198,114 @@ int mlx5e_health_report(struct mlx5e_priv *priv,
 			struct devlink_health_reporter *reporter, char *err_str,
 			struct mlx5e_err_ctx *err_ctx)
 {
-	netdev_err(priv->netdev, err_str);
+	netdev_err(priv->netdev, "%s\n", err_str);
 
 	if (!reporter)
 		return err_ctx->recover(err_ctx->ctx);
 
 	return devlink_health_report(reporter, err_str, err_ctx);
+}
+
+#define MLX5_HEALTH_DEVLINK_MAX_SIZE 1024
+static int mlx5e_health_rsc_fmsg_binary(struct devlink_fmsg *fmsg,
+					const void *value, u32 value_len)
+
+{
+	u32 data_size;
+	u32 offset;
+	int err;
+
+	for (offset = 0; offset < value_len; offset += data_size) {
+		data_size = value_len - offset;
+		if (data_size > MLX5_HEALTH_DEVLINK_MAX_SIZE)
+			data_size = MLX5_HEALTH_DEVLINK_MAX_SIZE;
+		err = devlink_fmsg_binary_put(fmsg, value + offset, data_size);
+		if (err)
+			break;
+	}
+	return err;
+}
+
+int mlx5e_health_rsc_fmsg_dump(struct mlx5e_priv *priv, struct mlx5_rsc_key *key,
+			       struct devlink_fmsg *fmsg)
+{
+	struct mlx5_core_dev *mdev = priv->mdev;
+	struct mlx5_rsc_dump_cmd *cmd;
+	struct page *page;
+	int cmd_err, err;
+	int end_err;
+	int size;
+
+	if (IS_ERR_OR_NULL(mdev->rsc_dump))
+		return -EOPNOTSUPP;
+
+	page = alloc_page(GFP_KERNEL);
+	if (!page)
+		return -ENOMEM;
+
+	err = devlink_fmsg_binary_pair_nest_start(fmsg, "data");
+	if (err)
+		return err;
+
+	cmd = mlx5_rsc_dump_cmd_create(mdev, key);
+	if (IS_ERR(cmd)) {
+		err = PTR_ERR(cmd);
+		goto free_page;
+	}
+
+	do {
+		cmd_err = mlx5_rsc_dump_next(mdev, cmd, page, &size);
+		if (cmd_err < 0) {
+			err = cmd_err;
+			goto destroy_cmd;
+		}
+
+		err = mlx5e_health_rsc_fmsg_binary(fmsg, page_address(page), size);
+		if (err)
+			goto destroy_cmd;
+
+	} while (cmd_err > 0);
+
+destroy_cmd:
+	mlx5_rsc_dump_cmd_destroy(cmd);
+	end_err = devlink_fmsg_binary_pair_nest_end(fmsg);
+	if (end_err)
+		err = end_err;
+free_page:
+	__free_page(page);
+	return err;
+}
+
+int mlx5e_health_queue_dump(struct mlx5e_priv *priv, struct devlink_fmsg *fmsg,
+			    int queue_idx, char *lbl)
+{
+	struct mlx5_rsc_key key = {};
+	int err;
+
+	key.rsc = MLX5_SGMT_TYPE_FULL_QPC;
+	key.index1 = queue_idx;
+	key.size = PAGE_SIZE;
+	key.num_of_obj1 = 1;
+
+	err = devlink_fmsg_obj_nest_start(fmsg);
+	if (err)
+		return err;
+
+	err = mlx5e_reporter_named_obj_nest_start(fmsg, lbl);
+	if (err)
+		return err;
+
+	err = devlink_fmsg_u32_pair_put(fmsg, "index", queue_idx);
+	if (err)
+		return err;
+
+	err = mlx5e_health_rsc_fmsg_dump(priv, &key, fmsg);
+	if (err)
+		return err;
+
+	err = mlx5e_reporter_named_obj_nest_end(fmsg);
+	if (err)
+		return err;
+
+	return devlink_fmsg_obj_nest_end(fmsg);
 }

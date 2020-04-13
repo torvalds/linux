@@ -1094,7 +1094,9 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 						    &exynos_sensor_ops);
 	if (IS_ERR(data->tzd)) {
 		ret = PTR_ERR(data->tzd);
-		dev_err(&pdev->dev, "Failed to register sensor: %d\n", ret);
+		if (ret != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "Failed to register sensor: %d\n",
+				ret);
 		goto err_sclk;
 	}
 

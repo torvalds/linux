@@ -20,13 +20,13 @@ Date:		April 2017
 Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
 Description:
 		The supported power roles. This attribute can be used to request
-		power role swap on the port when the port supports USB Power
-		Delivery. Swapping is supported as synchronous operation, so
-		write(2) to the attribute will not return until the operation
-		has finished. The attribute is notified about role changes so
-		that poll(2) on the attribute wakes up. Change on the role will
-		also generate uevent KOBJ_CHANGE. The current role is show in
-		brackets, for example "[source] sink" when in source mode.
+		power role swap on the port. Swapping is supported as
+		synchronous operation, so write(2) to the attribute will not
+		return until the operation has finished. The attribute is
+		notified about role changes so that poll(2) on the attribute
+		wakes up. Change on the role will also generate uevent
+		KOBJ_CHANGE. The current role is show in brackets, for example
+		"[source] sink" when in source mode.
 
 		Valid values: source, sink
 
@@ -108,6 +108,15 @@ Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
 Description:
 		Revision number of the supported USB Type-C specification.
 
+What:		/sys/class/typec/<port>/orientation
+Date:		February 2020
+Contact:	Badhri Jagan Sridharan <badhri@google.com>
+Description:
+		Indicates the active orientation of the Type-C connector.
+		Valid values:
+		- "normal": CC1 orientation
+		- "reverse": CC2 orientation
+		- "unknown": Orientation cannot be determined.
 
 USB Type-C partner devices (eg. /sys/class/typec/port0-partner/)
 

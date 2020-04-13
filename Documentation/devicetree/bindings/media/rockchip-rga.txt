@@ -6,8 +6,9 @@ BitBLT, alpha blending and image blur/sharpness.
 
 Required properties:
 - compatible: value should be one of the following
-		"rockchip,rk3288-rga";
-		"rockchip,rk3399-rga";
+  "rockchip,rk3228-rga", "rockchip,rk3288-rga": for Rockchip RK3228
+  "rockchip,rk3288-rga": for Rockchip RK3288
+  "rockchip,rk3399-rga": for Rockchip RK3399
 
 - interrupts: RGA interrupt specifier.
 

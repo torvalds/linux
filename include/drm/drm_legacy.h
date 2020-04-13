@@ -136,7 +136,7 @@ struct drm_sg_mem {
  * Kernel side of a mapping
  */
 struct drm_local_map {
-	resource_size_t offset;	 /**< Requested physical address (0 for SAREA)*/
+	dma_addr_t offset;	 /**< Requested physical address (0 for SAREA)*/
 	unsigned long size;	 /**< Requested physical size (bytes) */
 	enum drm_map_type type;	 /**< Type of memory to map */
 	enum drm_map_flags flags;	 /**< Flags */
@@ -194,16 +194,10 @@ void drm_legacy_idlelock_release(struct drm_lock_data *lock);
 
 #ifdef CONFIG_PCI
 
-void __drm_legacy_pci_free(struct drm_device *dev, drm_dma_handle_t * dmah);
 int drm_legacy_pci_init(struct drm_driver *driver, struct pci_driver *pdriver);
 void drm_legacy_pci_exit(struct drm_driver *driver, struct pci_driver *pdriver);
 
 #else
-
-static inline void __drm_legacy_pci_free(struct drm_device *dev,
-					 drm_dma_handle_t *dmah)
-{
-}
 
 static inline int drm_legacy_pci_init(struct drm_driver *driver,
 				      struct pci_driver *pdriver)

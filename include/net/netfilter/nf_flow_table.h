@@ -16,6 +16,35 @@ struct nf_flow_rule;
 struct flow_offload;
 enum flow_offload_tuple_dir;
 
+struct nf_flow_key {
+	struct flow_dissector_key_meta			meta;
+	struct flow_dissector_key_control		control;
+	struct flow_dissector_key_control		enc_control;
+	struct flow_dissector_key_basic			basic;
+	union {
+		struct flow_dissector_key_ipv4_addrs	ipv4;
+		struct flow_dissector_key_ipv6_addrs	ipv6;
+	};
+	struct flow_dissector_key_keyid			enc_key_id;
+	union {
+		struct flow_dissector_key_ipv4_addrs	enc_ipv4;
+		struct flow_dissector_key_ipv6_addrs	enc_ipv6;
+	};
+	struct flow_dissector_key_tcp			tcp;
+	struct flow_dissector_key_ports			tp;
+} __aligned(BITS_PER_LONG / 8); /* Ensure that we can do comparisons as longs. */
+
+struct nf_flow_match {
+	struct flow_dissector	dissector;
+	struct nf_flow_key	key;
+	struct nf_flow_key	mask;
+};
+
+struct nf_flow_rule {
+	struct nf_flow_match	match;
+	struct flow_rule	*rule;
+};
+
 struct nf_flowtable_type {
 	struct list_head		list;
 	int				family;
@@ -33,7 +62,8 @@ struct nf_flowtable_type {
 };
 
 enum nf_flowtable_flags {
-	NF_FLOWTABLE_HW_OFFLOAD		= 0x1,
+	NF_FLOWTABLE_HW_OFFLOAD		= 0x1,	/* NFT_FLOWTABLE_HW_OFFLOAD */
+	NF_FLOWTABLE_COUNTER		= 0x2,	/* NFT_FLOWTABLE_COUNTER */
 };
 
 struct nf_flowtable {
@@ -44,6 +74,7 @@ struct nf_flowtable {
 	struct delayed_work		gc_work;
 	unsigned int			flags;
 	struct flow_block		flow_block;
+	struct rw_semaphore		flow_block_lock; /* Guards flow_block */
 	possible_net_t			net;
 };
 
@@ -129,10 +160,18 @@ struct nf_flow_route {
 struct flow_offload *flow_offload_alloc(struct nf_conn *ct);
 void flow_offload_free(struct flow_offload *flow);
 
+int nf_flow_table_offload_add_cb(struct nf_flowtable *flow_table,
+				 flow_setup_cb_t *cb, void *cb_priv);
+void nf_flow_table_offload_del_cb(struct nf_flowtable *flow_table,
+				  flow_setup_cb_t *cb, void *cb_priv);
+
 int flow_offload_route_init(struct flow_offload *flow,
 			    const struct nf_flow_route *route);
 
 int flow_offload_add(struct nf_flowtable *flow_table, struct flow_offload *flow);
+void flow_offload_refresh(struct nf_flowtable *flow_table,
+			  struct flow_offload *flow);
+
 struct flow_offload_tuple_rhash *flow_offload_lookup(struct nf_flowtable *flow_table,
 						     struct flow_offload_tuple *tuple);
 void nf_flow_table_cleanup(struct net_device *dev);

@@ -521,3 +521,20 @@ void mce_intel_feature_clear(struct cpuinfo_x86 *c)
 {
 	intel_clear_lmce();
 }
+
+bool intel_filter_mce(struct mce *m)
+{
+	struct cpuinfo_x86 *c = &boot_cpu_data;
+
+	/* MCE errata HSD131, HSM142, HSW131, BDM48, and HSM142 */
+	if ((c->x86 == 6) &&
+	    ((c->x86_model == INTEL_FAM6_HASWELL) ||
+	     (c->x86_model == INTEL_FAM6_HASWELL_L) ||
+	     (c->x86_model == INTEL_FAM6_BROADWELL) ||
+	     (c->x86_model == INTEL_FAM6_HASWELL_G)) &&
+	    (m->bank == 0) &&
+	    ((m->status & 0xa0000000ffffffff) == 0x80000000000f0005))
+		return true;
+
+	return false;
+}

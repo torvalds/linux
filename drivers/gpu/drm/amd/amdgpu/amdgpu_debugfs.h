@@ -32,9 +32,8 @@ struct amdgpu_debugfs {
 };
 
 int amdgpu_debugfs_regs_init(struct amdgpu_device *adev);
-void amdgpu_debugfs_regs_cleanup(struct amdgpu_device *adev);
 int amdgpu_debugfs_init(struct amdgpu_device *adev);
-void amdgpu_debugfs_preempt_cleanup(struct amdgpu_device *adev);
+void amdgpu_debugfs_fini(struct amdgpu_device *adev);
 int amdgpu_debugfs_add_files(struct amdgpu_device *adev,
 			     const struct drm_info_list *files,
 			     unsigned nfiles);

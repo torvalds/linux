@@ -52,6 +52,8 @@ required:
   - clock-names
   - '#clock-cells'
 
+additionalProperties: false
+
 examples:
   # Clock Control Module node:
   - |

@@ -8,7 +8,7 @@ bus (e.g. UART, I2C or SPI).
 
 Please refer to the following documents for generic properties:
 
-	Documentation/devicetree/bindings/serial/slave-device.txt
+	Documentation/devicetree/bindings/serial/serial.yaml
 	Documentation/devicetree/bindings/spi/spi-bus.txt
 
 Required properties:

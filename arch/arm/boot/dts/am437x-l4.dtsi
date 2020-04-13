@@ -2117,7 +2117,6 @@
 
 		target-module@2a000 {			/* 0x4832a000, ap 88 3c.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "dss_core";
 			reg = <0x2a000 0x4>,
 			      <0x2a010 0x4>,
 			      <0x2a014 0x4>;
@@ -2135,6 +2134,82 @@
 				 <0x00000800 0x0002a800 0x00000400>,
 				 <0x00000c00 0x0002ac00 0x00000400>,
 				 <0x00001000 0x0002b000 0x00001000>;
+
+			dss: dss@0 {
+				compatible = "ti,omap3-dss";
+				reg = <0 0x200>;
+				status = "disabled";
+				clocks = <&disp_clk>;
+				clock-names = "fck";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0x00000000 0x00000000 0x00000400>,
+					 <0x00000400 0x00000400 0x00000400>,
+					 <0x00000800 0x00000800 0x00000400>,
+					 <0x00000c00 0x00000c00 0x00000400>,
+					 <0x00001000 0x00001000 0x00001000>;
+
+				target-module@400 {
+					compatible = "ti,sysc-omap2", "ti,sysc";
+					reg = <0x400 0x4>,
+					      <0x410 0x4>,
+					      <0x414 0x4>;
+					reg-names = "rev", "sysc", "syss";
+					ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+							<SYSC_IDLE_NO>,
+							<SYSC_IDLE_SMART>;
+					ti,sysc-midle = <SYSC_IDLE_FORCE>,
+							<SYSC_IDLE_NO>,
+							<SYSC_IDLE_SMART>;
+					ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
+							 SYSC_OMAP2_ENAWAKEUP |
+							 SYSC_OMAP2_SOFTRESET |
+							 SYSC_OMAP2_AUTOIDLE)>;
+					ti,syss-mask = <1>;
+					clocks = <&dss_clkctrl AM4_DSS_DSS_CORE_CLKCTRL 0>;
+					clock-names = "fck";
+					#address-cells = <1>;
+					#size-cells = <1>;
+					ranges = <0 0x400 0x400>;
+
+					dispc: dispc@0 {
+						compatible = "ti,omap3-dispc";
+						reg = <0 0x400>;
+						interrupts = <GIC_SPI 127 IRQ_TYPE_LEVEL_HIGH>;
+						clocks = <&disp_clk>;
+						clock-names = "fck";
+
+						max-memory-bandwidth = <230000000>;
+					};
+				};
+
+				target-module@800 {
+					compatible = "ti,sysc-omap2", "ti,sysc";
+					reg = <0x800 0x4>,
+					      <0x810 0x4>,
+					      <0x814 0x4>;
+					reg-names = "rev", "sysc", "syss";
+					ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+							<SYSC_IDLE_NO>,
+							<SYSC_IDLE_SMART>;
+					ti,sysc-mask = <(SYSC_OMAP2_SOFTRESET |
+							 SYSC_OMAP2_AUTOIDLE)>;
+					ti,syss-mask = <1>;
+					clocks = <&dss_clkctrl AM4_DSS_DSS_CORE_CLKCTRL 0>;
+					clock-names = "fck";
+					#address-cells = <1>;
+					#size-cells = <1>;
+					ranges = <0 0x800 0x400>;
+
+					rfbi: rfbi@0 {
+						compatible = "ti,omap3-rfbi";
+						reg = <0 0x100>;
+						clocks = <&dss_clkctrl AM4_DSS_DSS_CORE_CLKCTRL 0>;
+						clock-names = "fck";
+						status = "disabled";
+					};
+				};
+			};
 		};
 
 		target-module@3d000 {			/* 0x4833d000, ap 102 6e.0 */

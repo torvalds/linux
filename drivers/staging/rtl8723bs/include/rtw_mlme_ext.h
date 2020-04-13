@@ -182,7 +182,7 @@ typedef enum _RT_CHANNEL_DOMAIN
 	/*  Add new channel plan above this line =============== */
 	RT_CHANNEL_DOMAIN_MAX,
 	RT_CHANNEL_DOMAIN_REALTEK_DEFINE = 0x7F,
-}RT_CHANNEL_DOMAIN, *PRT_CHANNEL_DOMAIN;
+} RT_CHANNEL_DOMAIN, *PRT_CHANNEL_DOMAIN;
 
 typedef enum _RT_CHANNEL_DOMAIN_2G
 {
@@ -195,7 +195,7 @@ typedef enum _RT_CHANNEL_DOMAIN_2G
 	RT_CHANNEL_DOMAIN_2G_NULL = 0x06,
 	/*  Add new channel plan above this line =============== */
 	RT_CHANNEL_DOMAIN_2G_MAX,
-}RT_CHANNEL_DOMAIN_2G, *PRT_CHANNEL_DOMAIN_2G;
+} RT_CHANNEL_DOMAIN_2G, *PRT_CHANNEL_DOMAIN_2G;
 
 typedef enum _RT_CHANNEL_DOMAIN_5G
 {
@@ -237,33 +237,33 @@ typedef enum _RT_CHANNEL_DOMAIN_5G
 	RT_CHANNEL_DOMAIN_5G_JAPAN_NO_DFS = 0x21,
 	RT_CHANNEL_DOMAIN_5G_FCC4_NO_DFS = 0x22,
 	RT_CHANNEL_DOMAIN_5G_MAX,
-}RT_CHANNEL_DOMAIN_5G, *PRT_CHANNEL_DOMAIN_5G;
+} RT_CHANNEL_DOMAIN_5G, *PRT_CHANNEL_DOMAIN_5G;
 
-#define rtw_is_channel_plan_valid(chplan) (chplan<RT_CHANNEL_DOMAIN_MAX || chplan == RT_CHANNEL_DOMAIN_REALTEK_DEFINE)
+#define rtw_is_channel_plan_valid(chplan) (chplan < RT_CHANNEL_DOMAIN_MAX || chplan == RT_CHANNEL_DOMAIN_REALTEK_DEFINE)
 
 typedef struct _RT_CHANNEL_PLAN
 {
 	unsigned char Channel[MAX_CHANNEL_NUM];
 	unsigned char Len;
-}RT_CHANNEL_PLAN, *PRT_CHANNEL_PLAN;
+} RT_CHANNEL_PLAN, *PRT_CHANNEL_PLAN;
 
 typedef struct _RT_CHANNEL_PLAN_2G
 {
 	unsigned char Channel[MAX_CHANNEL_NUM_2G];
 	unsigned char Len;
-}RT_CHANNEL_PLAN_2G, *PRT_CHANNEL_PLAN_2G;
+} RT_CHANNEL_PLAN_2G, *PRT_CHANNEL_PLAN_2G;
 
 typedef struct _RT_CHANNEL_PLAN_5G
 {
 	unsigned char Channel[MAX_CHANNEL_NUM_5G];
 	unsigned char Len;
-}RT_CHANNEL_PLAN_5G, *PRT_CHANNEL_PLAN_5G;
+} RT_CHANNEL_PLAN_5G, *PRT_CHANNEL_PLAN_5G;
 
 typedef struct _RT_CHANNEL_PLAN_MAP
 {
 	unsigned char Index2G;
 	unsigned char Index5G;
-}RT_CHANNEL_PLAN_MAP, *PRT_CHANNEL_PLAN_MAP;
+} RT_CHANNEL_PLAN_MAP, *PRT_CHANNEL_PLAN_MAP;
 
 enum Associated_AP
 {
@@ -299,7 +299,7 @@ typedef enum _HT_IOT_PEER
 	HT_IOT_PEER_REALTEK_JAGUAR_BCUTAP = 16,
 	HT_IOT_PEER_REALTEK_JAGUAR_CCUTAP = 17,
 	HT_IOT_PEER_MAX					= 18
-}HT_IOT_PEER_E, *PHTIOT_PEER_E;
+} HT_IOT_PEER_E, *PHTIOT_PEER_E;
 
 
 enum SCAN_STATE
@@ -353,7 +353,7 @@ struct	ss_res
 #define	WIFI_FW_ASSOC_STATE			0x00002000
 #define	WIFI_FW_ASSOC_SUCCESS		0x00004000
 
-#define	WIFI_FW_LINKING_STATE		(WIFI_FW_AUTH_NULL | WIFI_FW_AUTH_STATE | WIFI_FW_AUTH_SUCCESS |WIFI_FW_ASSOC_STATE)
+#define	WIFI_FW_LINKING_STATE		(WIFI_FW_AUTH_NULL | WIFI_FW_AUTH_STATE | WIFI_FW_AUTH_SUCCESS | WIFI_FW_ASSOC_STATE)
 
 struct FW_Sta_Info
 {
@@ -434,7 +434,7 @@ typedef struct _RT_CHANNEL_INFO
 {
 	u8 		ChannelNum;		/*  The channel number. */
 	RT_SCAN_TYPE	ScanType;		/*  Scan type such as passive or active scan. */
-}RT_CHANNEL_INFO, *PRT_CHANNEL_INFO;
+} RT_CHANNEL_INFO, *PRT_CHANNEL_INFO;
 
 int rtw_ch_set_search_ch(RT_CHANNEL_INFO *ch_set, const u32 ch);
 bool rtw_mlme_band_check(struct adapter *adapter, const u32 ch);
@@ -537,7 +537,7 @@ struct mlme_ext_priv
 void init_mlme_default_rate_set(struct adapter *padapter);
 void init_mlme_ext_priv(struct adapter *padapter);
 int init_hw_mlme_ext(struct adapter *padapter);
-void free_mlme_ext_priv (struct mlme_ext_priv *pmlmeext);
+void free_mlme_ext_priv(struct mlme_ext_priv *pmlmeext);
 extern void init_mlme_ext_timer(struct adapter *padapter);
 extern void init_addba_retry_timer(struct adapter *padapter, struct sta_info *psta);
 extern struct xmit_frame *alloc_mgtxmitframe(struct xmit_priv *pxmitpriv);
@@ -571,7 +571,7 @@ void SelectChannel(struct adapter *padapter, unsigned char channel);
 
 unsigned int decide_wait_for_beacon_timeout(unsigned int bcn_interval);
 
-void read_cam(struct adapter *padapter , u8 entry, u8 *get_key);
+void read_cam(struct adapter *padapter, u8 entry, u8 *get_key);
 
 /* modify HW only */
 void _write_cam(struct adapter *padapter, u8 entry, u16 ctrl, u8 *mac, u8 *key);
@@ -708,8 +708,8 @@ void linked_status_chk(struct adapter *padapter);
 
 void _linked_info_dump(struct adapter *padapter);
 
-void survey_timer_hdl (struct timer_list *t);
-void link_timer_hdl (struct timer_list *t);
+void survey_timer_hdl(struct timer_list *t);
+void link_timer_hdl(struct timer_list *t);
 void addba_timer_hdl(struct timer_list *t);
 void sa_query_timer_hdl(struct timer_list *t);
 /* void reauth_timer_hdl(struct adapter *padapter); */
@@ -802,8 +802,8 @@ struct C2HEvent_Header
 	unsigned int rsvd;
 };
 
-void rtw_dummy_event_callback(struct adapter *adapter , u8 *pbuf);
-void rtw_fwdbg_event_callback(struct adapter *adapter , u8 *pbuf);
+void rtw_dummy_event_callback(struct adapter *adapter, u8 *pbuf);
+void rtw_fwdbg_event_callback(struct adapter *adapter, u8 *pbuf);
 
 enum rtw_c2h_event
 {
@@ -818,10 +818,10 @@ enum rtw_c2h_event
 	GEN_EVT_CODE(_Survey),	 /*8*/
 	GEN_EVT_CODE(_SurveyDone),	 /*9*/
 
-	GEN_EVT_CODE(_JoinBss) , /*10*/
+	GEN_EVT_CODE(_JoinBss), /*10*/
 	GEN_EVT_CODE(_AddSTA),
 	GEN_EVT_CODE(_DelSTA),
-	GEN_EVT_CODE(_AtimDone) ,
+	GEN_EVT_CODE(_AtimDone),
 	GEN_EVT_CODE(_TX_Report),
 	GEN_EVT_CODE(_CCX_Report),			/*15*/
 	GEN_EVT_CODE(_DTM_Report),
@@ -851,7 +851,7 @@ static struct fwevent wlanevents[] =
 	{0, NULL},
 	{0, NULL},
 	{0, &rtw_survey_event_callback},		/*8*/
-	{sizeof (struct surveydone_event), &rtw_surveydone_event_callback},	/*9*/
+	{sizeof(struct surveydone_event), &rtw_surveydone_event_callback},	/*9*/
 
 	{0, &rtw_joinbss_event_callback},		/*10*/
 	{sizeof(struct stassoc_event), &rtw_stassoc_event_callback},

@@ -8,8 +8,6 @@
 
 #include <linux/types.h>
 
-#include <drm/i915_drm.h>
-
 struct drm_i915_private;
 struct intel_connector;
 struct intel_encoder;

@@ -404,7 +404,7 @@ disable_otp:
 }
 
 /**
- * ab8500_power_supply_changed - a wrapper with local extentions for
+ * ab8500_power_supply_changed - a wrapper with local extensions for
  * power_supply_changed
  * @di:	  pointer to the ab8500_charger structure
  * @psy:  pointer to power_supply_that have changed.
@@ -683,7 +683,7 @@ static int ab8500_charger_max_usb_curr(struct ab8500_charger *di,
 	/*
 	 * Platform only supports USB 2.0.
 	 * This means that charging current from USB source
-	 * is maximum 500 mA. Every occurence of USB_STAT_*_HOST_*
+	 * is maximum 500 mA. Every occurrence of USB_STAT_*_HOST_*
 	 * should set USB_CH_IP_CUR_LVL_0P5.
 	 */
 
@@ -1379,13 +1379,13 @@ static int ab8500_charger_ac_en(struct ux500_charger *charger,
 
 		/*
 		 * Due to a bug in AB8500, BTEMP_HIGH/LOW interrupts
-		 * will be triggered everytime we enable the VDD ADC supply.
+		 * will be triggered every time we enable the VDD ADC supply.
 		 * This will turn off charging for a short while.
 		 * It can be avoided by having the supply on when
 		 * there is a charger enabled. Normally the VDD ADC supply
-		 * is enabled everytime a GPADC conversion is triggered. We will
-		 * force it to be enabled from this driver to have
-		 * the GPADC module independant of the AB8500 chargers
+		 * is enabled every time a GPADC conversion is triggered.
+		 * We will force it to be enabled from this driver to have
+		 * the GPADC module independent of the AB8500 chargers
 		 */
 		if (!di->vddadc_en_ac) {
 			ret = regulator_enable(di->regu);
@@ -1455,7 +1455,7 @@ static int ab8500_charger_ac_en(struct ux500_charger *charger,
 		if (is_ab8500_1p1_or_earlier(di->parent)) {
 			/*
 			 * For ABB revision 1.0 and 1.1 there is a bug in the
-			 * watchdog logic. That means we have to continously
+			 * watchdog logic. That means we have to continuously
 			 * kick the charger watchdog even when no charger is
 			 * connected. This is only valid once the AC charger
 			 * has been enabled. This is a bug that is not handled
@@ -1552,13 +1552,13 @@ static int ab8500_charger_usb_en(struct ux500_charger *charger,
 
 		/*
 		 * Due to a bug in AB8500, BTEMP_HIGH/LOW interrupts
-		 * will be triggered everytime we enable the VDD ADC supply.
+		 * will be triggered every time we enable the VDD ADC supply.
 		 * This will turn off charging for a short while.
 		 * It can be avoided by having the supply on when
 		 * there is a charger enabled. Normally the VDD ADC supply
-		 * is enabled everytime a GPADC conversion is triggered. We will
-		 * force it to be enabled from this driver to have
-		 * the GPADC module independant of the AB8500 chargers
+		 * is enabled every time a GPADC conversion is triggered.
+		 * We will force it to be enabled from this driver to have
+		 * the GPADC module independent of the AB8500 chargers
 		 */
 		if (!di->vddadc_en_usb) {
 			ret = regulator_enable(di->regu);
@@ -1582,7 +1582,10 @@ static int ab8500_charger_usb_en(struct ux500_charger *charger,
 			return -ENXIO;
 		}
 
-		/* ChVoltLevel: max voltage upto which battery can be charged */
+		/*
+		 * ChVoltLevel: max voltage up to which battery can be
+		 * charged
+		 */
 		ret = abx500_set_register_interruptible(di->dev, AB8500_CHARGER,
 			AB8500_CH_VOLT_LVL_REG, (u8) volt_index);
 		if (ret) {
@@ -2014,7 +2017,7 @@ static void ab8500_charger_check_hw_failure_work(struct work_struct *work)
  * Work queue function for kicking the charger watchdog.
  *
  * For ABB revision 1.0 and 1.1 there is a bug in the watchdog
- * logic. That means we have to continously kick the charger
+ * logic. That means we have to continuously kick the charger
  * watchdog even when no charger is connected. This is only
  * valid once the AC charger has been enabled. This is
  * a bug that is not handled by the algorithm and the
@@ -2262,7 +2265,7 @@ static void ab8500_charger_usb_link_status_work(struct work_struct *work)
 	 * Some chargers that breaks the USB spec is
 	 * identified as invalid by AB8500 and it refuse
 	 * to start the charging process. but by jumping
-	 * thru a few hoops it can be forced to start.
+	 * through a few hoops it can be forced to start.
 	 */
 	if (is_ab8500(di->parent))
 		ret = abx500_get_register_interruptible(di->dev, AB8500_USB,
@@ -3214,7 +3217,7 @@ static int ab8500_charger_resume(struct platform_device *pdev)
 
 	/*
 	 * For ABB revision 1.0 and 1.1 there is a bug in the watchdog
-	 * logic. That means we have to continously kick the charger
+	 * logic. That means we have to continuously kick the charger
 	 * watchdog even when no charger is connected. This is only
 	 * valid once the AC charger has been enabled. This is
 	 * a bug that is not handled by the algorithm and the
@@ -3483,7 +3486,7 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 
 	/*
 	 * For ABB revision 1.0 and 1.1 there is a bug in the watchdog
-	 * logic. That means we have to continously kick the charger
+	 * logic. That means we have to continuously kick the charger
 	 * watchdog even when no charger is connected. This is only
 	 * valid once the AC charger has been enabled. This is
 	 * a bug that is not handled by the algorithm and the

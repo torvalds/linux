@@ -1663,7 +1663,7 @@ static int jpu_probe(struct platform_device *pdev)
 	jpu->vfd_encoder.device_caps	= V4L2_CAP_STREAMING |
 					  V4L2_CAP_VIDEO_M2M_MPLANE;
 
-	ret = video_register_device(&jpu->vfd_encoder, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(&jpu->vfd_encoder, VFL_TYPE_VIDEO, -1);
 	if (ret) {
 		v4l2_err(&jpu->v4l2_dev, "Failed to register video device\n");
 		goto m2m_init_rollback;
@@ -1682,7 +1682,7 @@ static int jpu_probe(struct platform_device *pdev)
 	jpu->vfd_decoder.device_caps	= V4L2_CAP_STREAMING |
 					  V4L2_CAP_VIDEO_M2M_MPLANE;
 
-	ret = video_register_device(&jpu->vfd_decoder, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(&jpu->vfd_decoder, VFL_TYPE_VIDEO, -1);
 	if (ret) {
 		v4l2_err(&jpu->v4l2_dev, "Failed to register video device\n");
 		goto enc_vdev_register_rollback;

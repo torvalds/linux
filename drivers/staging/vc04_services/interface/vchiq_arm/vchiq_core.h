@@ -7,6 +7,8 @@
 #include <linux/mutex.h>
 #include <linux/completion.h>
 #include <linux/kthread.h>
+#include <linux/kref.h>
+#include <linux/rcupdate.h>
 #include <linux/wait.h>
 
 #include "vchiq_cfg.h"
@@ -251,7 +253,8 @@ struct vchiq_slot_info {
 struct vchiq_service {
 	struct vchiq_service_base base;
 	unsigned int handle;
-	unsigned int ref_count;
+	struct kref ref_count;
+	struct rcu_head rcu;
 	int srvstate;
 	vchiq_userdata_term userdata_term;
 	unsigned int localport;
@@ -464,7 +467,7 @@ struct vchiq_state {
 		int error_count;
 	} stats;
 
-	struct vchiq_service *services[VCHIQ_MAX_SERVICES];
+	struct vchiq_service __rcu *services[VCHIQ_MAX_SERVICES];
 	struct vchiq_service_quota service_quotas[VCHIQ_MAX_SERVICES];
 	struct vchiq_slot_info slot_info[VCHIQ_MAX_SLOTS];
 
@@ -545,12 +548,13 @@ request_poll(struct vchiq_state *state, struct vchiq_service *service,
 static inline struct vchiq_service *
 handle_to_service(unsigned int handle)
 {
+	int idx = handle & (VCHIQ_MAX_SERVICES - 1);
 	struct vchiq_state *state = vchiq_states[(handle / VCHIQ_MAX_SERVICES) &
 		(VCHIQ_MAX_STATES - 1)];
+
 	if (!state)
 		return NULL;
-
-	return state->services[handle & (VCHIQ_MAX_SERVICES - 1)];
+	return rcu_dereference(state->services[idx]);
 }
 
 extern struct vchiq_service *
@@ -568,7 +572,13 @@ find_closed_service_for_instance(struct vchiq_instance *instance,
 	unsigned int handle);
 
 extern struct vchiq_service *
-next_service_by_instance(struct vchiq_state *state, struct vchiq_instance *instance,
+__next_service_by_instance(struct vchiq_state *state,
+			   struct vchiq_instance *instance,
+			   int *pidx);
+
+extern struct vchiq_service *
+next_service_by_instance(struct vchiq_state *state,
+			 struct vchiq_instance *instance,
 			 int *pidx);
 
 extern void
@@ -589,18 +599,6 @@ vchiq_complete_bulk(struct vchiq_bulk *bulk);
 
 extern void
 remote_event_signal(struct remote_event *event);
-
-void
-vchiq_platform_check_suspend(struct vchiq_state *state);
-
-extern void
-vchiq_platform_paused(struct vchiq_state *state);
-
-extern enum vchiq_status
-vchiq_platform_resume(struct vchiq_state *state);
-
-extern void
-vchiq_platform_resumed(struct vchiq_state *state);
 
 extern int
 vchiq_dump(void *dump_context, const char *str, int len);
@@ -646,9 +644,6 @@ extern void
 vchiq_platform_conn_state_changed(struct vchiq_state *state,
 				  enum vchiq_connstate oldstate,
 				  enum vchiq_connstate newstate);
-
-extern void
-vchiq_platform_handle_timeout(struct vchiq_state *state);
 
 extern void
 vchiq_set_conn_state(struct vchiq_state *state, enum vchiq_connstate newstate);

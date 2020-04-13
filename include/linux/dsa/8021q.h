@@ -28,8 +28,6 @@ int dsa_8021q_rx_switch_id(u16 vid);
 
 int dsa_8021q_rx_source_port(u16 vid);
 
-struct sk_buff *dsa_8021q_remove_header(struct sk_buff *skb);
-
 #else
 
 int dsa_port_setup_8021q_tagging(struct dsa_switch *ds, int index,
@@ -62,11 +60,6 @@ int dsa_8021q_rx_switch_id(u16 vid)
 int dsa_8021q_rx_source_port(u16 vid)
 {
 	return 0;
-}
-
-struct sk_buff *dsa_8021q_remove_header(struct sk_buff *skb)
-{
-	return NULL;
 }
 
 #endif /* IS_ENABLED(CONFIG_NET_DSA_TAG_8021Q) */

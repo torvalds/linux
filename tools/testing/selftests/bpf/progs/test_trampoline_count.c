@@ -2,7 +2,8 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <linux/bpf.h>
-#include "bpf_trace_helpers.h"
+#include <bpf/bpf_helpers.h>
+#include <bpf/bpf_tracing.h>
 
 struct task_struct;
 

@@ -115,6 +115,8 @@ required:
   - clocks
   - clock-names
 
+additionalProperties: false
+
 examples:
   - |
     #include <dt-bindings/clock/exynos-audss-clk.h>

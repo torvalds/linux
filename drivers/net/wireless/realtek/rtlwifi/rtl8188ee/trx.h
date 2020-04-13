@@ -561,6 +561,7 @@ static inline void clear_pci_tx_desc_content(__le32 *__pdesc, int _size)
 	 rxmcs == DESC92C_RATE11M)
 
 struct phy_status_rpt {
+	u8	padding[2];
 	u8	ch_corr[2];
 	u8	cck_sig_qual_ofdm_pwdb_all;
 	u8	cck_agc_rpt_ofdm_cfosho_a;

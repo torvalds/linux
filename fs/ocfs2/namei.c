@@ -406,7 +406,7 @@ static int ocfs2_mknod(struct inode *dir,
 
 	if (status < 0) {
 		mlog_errno(status);
-		goto leave;
+		goto roll_back;
 	}
 
 	if (si.enable) {
@@ -414,7 +414,7 @@ static int ocfs2_mknod(struct inode *dir,
 						 meta_ac, data_ac);
 		if (status < 0) {
 			mlog_errno(status);
-			goto leave;
+			goto roll_back;
 		}
 	}
 
@@ -427,7 +427,7 @@ static int ocfs2_mknod(struct inode *dir,
 					  OCFS2_I(dir)->ip_blkno);
 	if (status) {
 		mlog_errno(status);
-		goto leave;
+		goto roll_back;
 	}
 
 	dl = dentry->d_fsdata;
@@ -437,12 +437,19 @@ static int ocfs2_mknod(struct inode *dir,
 				 &lookup);
 	if (status < 0) {
 		mlog_errno(status);
-		goto leave;
+		goto roll_back;
 	}
 
 	insert_inode_hash(inode);
 	d_instantiate(dentry, inode);
 	status = 0;
+
+roll_back:
+	if (status < 0 && S_ISDIR(mode)) {
+		ocfs2_add_links_count(dirfe, -1);
+		drop_nlink(dir);
+	}
+
 leave:
 	if (status < 0 && did_quota_inode)
 		dquot_free_inode(inode);

@@ -96,9 +96,9 @@ mt76x02_led_set_config(struct mt76_dev *mdev, u8 delay_on,
 					       mt76);
 	u32 val;
 
-	val = MT_LED_STATUS_DURATION(0xff) |
-	      MT_LED_STATUS_OFF(delay_off) |
-	      MT_LED_STATUS_ON(delay_on);
+	val = FIELD_PREP(MT_LED_STATUS_DURATION, 0xff) |
+	      FIELD_PREP(MT_LED_STATUS_OFF, delay_off) |
+	      FIELD_PREP(MT_LED_STATUS_ON, delay_on);
 
 	mt76_wr(dev, MT_LED_S0(mdev->led_pin), val);
 	mt76_wr(dev, MT_LED_S1(mdev->led_pin), val);
@@ -166,7 +166,6 @@ void mt76x02_init_device(struct mt76x02_dev *dev)
 		wiphy->reg_notifier = mt76x02_regd_notifier;
 		wiphy->iface_combinations = mt76x02_if_comb;
 		wiphy->n_iface_combinations = ARRAY_SIZE(mt76x02_if_comb);
-		wiphy->flags |= WIPHY_FLAG_HAS_CHANNEL_SWITCH;
 
 		/* init led callbacks */
 		if (IS_ENABLED(CONFIG_MT76_LEDS)) {
@@ -182,21 +181,22 @@ void mt76x02_init_device(struct mt76x02_dev *dev)
 	hw->vif_data_size = sizeof(struct mt76x02_vif);
 
 	ieee80211_hw_set(hw, SUPPORTS_HT_CCK_RATES);
+	ieee80211_hw_set(hw, HOST_BROADCAST_PS_BUFFERING);
 
 	dev->mt76.global_wcid.idx = 255;
 	dev->mt76.global_wcid.hw_key_idx = -1;
 	dev->slottime = 9;
 
 	if (is_mt76x2(dev)) {
-		dev->mt76.sband_2g.sband.ht_cap.cap |=
+		dev->mphy.sband_2g.sband.ht_cap.cap |=
 				IEEE80211_HT_CAP_LDPC_CODING;
-		dev->mt76.sband_5g.sband.ht_cap.cap |=
+		dev->mphy.sband_5g.sband.ht_cap.cap |=
 				IEEE80211_HT_CAP_LDPC_CODING;
-		dev->mt76.chainmask = 0x202;
-		dev->mt76.antenna_mask = 3;
+		dev->chainmask = 0x202;
+		dev->mphy.antenna_mask = 3;
 	} else {
-		dev->mt76.chainmask = 0x101;
-		dev->mt76.antenna_mask = 1;
+		dev->chainmask = 0x101;
+		dev->mphy.antenna_mask = 1;
 	}
 }
 EXPORT_SYMBOL_GPL(mt76x02_init_device);
@@ -325,7 +325,9 @@ mt76x02_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	if (vif->type == NL80211_IFTYPE_STATION)
 		idx += 8;
 
-	if (dev->vif_mask & BIT(idx))
+	/* vif is already set or idx is 8 for AP/Mesh/... */
+	if (dev->vif_mask & BIT(idx) ||
+	    (vif->type != NL80211_IFTYPE_STATION && idx > 7))
 		return -EBUSY;
 
 	dev->vif_mask |= BIT(idx);
@@ -545,7 +547,7 @@ void mt76x02_set_coverage_class(struct ieee80211_hw *hw,
 	struct mt76x02_dev *dev = hw->priv;
 
 	mutex_lock(&dev->mt76.mutex);
-	dev->coverage_class = coverage_class;
+	dev->coverage_class = max_t(s16, coverage_class, 0);
 	mt76x02_set_tx_ackto(dev);
 	mutex_unlock(&dev->mt76.mutex);
 }
@@ -602,7 +604,7 @@ void mt76x02_sw_scan_complete(struct ieee80211_hw *hw,
 {
 	struct mt76x02_dev *dev = hw->priv;
 
-	clear_bit(MT76_SCANNING, &dev->mt76.state);
+	clear_bit(MT76_SCANNING, &dev->mphy.state);
 	if (dev->cal.gain_init_done) {
 		/* Restore AGC gain and resume calibration after scanning. */
 		dev->cal.low_gain = -1;

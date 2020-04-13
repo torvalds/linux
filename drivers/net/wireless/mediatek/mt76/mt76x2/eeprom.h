@@ -53,7 +53,7 @@ mt76x2_has_ext_lna(struct mt76x02_dev *dev)
 {
 	u32 val = mt76x02_eeprom_get(dev, MT_EE_NIC_CONF_1);
 
-	if (dev->mt76.chandef.chan->band == NL80211_BAND_2GHZ)
+	if (dev->mphy.chandef.chan->band == NL80211_BAND_2GHZ)
 		return val & MT_EE_NIC_CONF_1_LNA_EXT_2G;
 	else
 		return val & MT_EE_NIC_CONF_1_LNA_EXT_5G;

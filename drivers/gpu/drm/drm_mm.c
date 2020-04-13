@@ -399,10 +399,10 @@ next_hole(struct drm_mm *mm,
  */
 int drm_mm_reserve_node(struct drm_mm *mm, struct drm_mm_node *node)
 {
-	u64 end = node->start + node->size;
 	struct drm_mm_node *hole;
 	u64 hole_start, hole_end;
 	u64 adj_start, adj_end;
+	u64 end;
 
 	end = node->start + node->size;
 	if (unlikely(end <= node->start))

@@ -109,7 +109,7 @@ struct srp_direct_buf {
 struct srp_indirect_buf {
 	struct srp_direct_buf	table_desc;
 	__be32			len;
-	struct srp_direct_buf	desc_list[0];
+	struct srp_direct_buf	desc_list[];
 } __attribute__((packed));
 
 /* Immediate data buffer descriptor as defined in SRP2. */
@@ -244,7 +244,7 @@ struct srp_cmd {
 	u8	reserved4;
 	u8	add_cdb_len;
 	u8	cdb[16];
-	u8	add_data[0];
+	u8	add_data[];
 };
 
 enum {
@@ -274,7 +274,7 @@ struct srp_rsp {
 	__be32	data_in_res_cnt;
 	__be32	sense_data_len;
 	__be32	resp_data_len;
-	u8	data[0];
+	u8	data[];
 } __attribute__((packed));
 
 struct srp_cred_req {
@@ -306,7 +306,7 @@ struct srp_aer_req {
 	struct scsi_lun	lun;
 	__be32	sense_data_len;
 	u32	reserved3;
-	u8	sense_data[0];
+	u8	sense_data[];
 } __attribute__((packed));
 
 struct srp_aer_rsp {

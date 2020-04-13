@@ -4,6 +4,7 @@
  * Copyright (c) 2019 Microsemi Corporation
  */
 
+#include <soc/mscc/ocelot.h>
 #include "ocelot_police.h"
 
 enum mscc_qos_rate_mode {
@@ -203,6 +204,7 @@ int ocelot_port_policer_add(struct ocelot *ocelot, int port,
 
 	return 0;
 }
+EXPORT_SYMBOL(ocelot_port_policer_add);
 
 int ocelot_port_policer_del(struct ocelot *ocelot, int port)
 {
@@ -224,4 +226,29 @@ int ocelot_port_policer_del(struct ocelot *ocelot, int port)
 		       ANA_PORT_POL_CFG, port);
 
 	return 0;
+}
+EXPORT_SYMBOL(ocelot_port_policer_del);
+
+int ocelot_ace_policer_add(struct ocelot *ocelot, u32 pol_ix,
+			   struct ocelot_policer *pol)
+{
+	struct qos_policer_conf pp = { 0 };
+
+	if (!pol)
+		return -EINVAL;
+
+	pp.mode = MSCC_QOS_RATE_MODE_DATA;
+	pp.pir = pol->rate;
+	pp.pbs = pol->burst;
+
+	return qos_policer_conf_set(ocelot, 0, pol_ix, &pp);
+}
+
+int ocelot_ace_policer_del(struct ocelot *ocelot, u32 pol_ix)
+{
+	struct qos_policer_conf pp = { 0 };
+
+	pp.mode = MSCC_QOS_RATE_MODE_DISABLED;
+
+	return qos_policer_conf_set(ocelot, 0, pol_ix, &pp);
 }

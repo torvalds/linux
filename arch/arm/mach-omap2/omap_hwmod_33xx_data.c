@@ -233,14 +233,6 @@ static struct omap_hwmod_ocp_if am33xx_l4_wkup__wkup_m3 = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* l4 hs -> pru-icss */
-static struct omap_hwmod_ocp_if am33xx_l4_hs__pruss = {
-	.master		= &am33xx_l4_hs_hwmod,
-	.slave		= &am33xx_pruss_hwmod,
-	.clk		= "dpll_core_m4_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 /* l3_main -> debugss */
 static struct omap_hwmod_ocp_if am33xx_l3_main__debugss = {
 	.master		= &am33xx_l3_main_hwmod,
@@ -292,7 +284,6 @@ static struct omap_hwmod_ocp_if *am33xx_hwmod_ocp_ifs[] __initdata = {
 	&am33xx_l3_main__l3_instr,
 	&am33xx_l3_main__gfx,
 	&am33xx_l3_s__l3_main,
-	&am33xx_pruss__l3_main,
 	&am33xx_wkup_m3__l4_wkup,
 	&am33xx_gfx__l3_main,
 	&am33xx_l3_main__debugss,
@@ -302,13 +293,8 @@ static struct omap_hwmod_ocp_if *am33xx_hwmod_ocp_ifs[] __initdata = {
 	&am33xx_l4_wkup__smartreflex1,
 	&am33xx_l4_wkup__timer1,
 	&am33xx_l4_wkup__rtc,
-	&am33xx_l4_hs__pruss,
 	&am33xx_l4_ls__timer2,
-	&am33xx_l3_main__tpcc,
 	&am33xx_l3_s__gpmc,
-	&am33xx_l3_main__tptc0,
-	&am33xx_l3_main__tptc1,
-	&am33xx_l3_main__tptc2,
 	&am33xx_l3_main__ocmc,
 	NULL,
 };

@@ -16,8 +16,7 @@
 #include <linux/kfifo.h>
 #include <linux/uaccess.h>
 #include <linux/idr.h>
-
-#include "../most.h"
+#include <linux/most.h>
 
 #define CHRDEV_REGION_SIZE 50
 

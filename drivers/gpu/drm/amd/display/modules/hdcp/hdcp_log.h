@@ -37,10 +37,11 @@
 /* default logs */
 #define HDCP_ERROR_TRACE(hdcp, status) \
 		HDCP_LOG_ERR(hdcp, \
-			"[Link %d] WARNING %s IN STATE %s", \
+			"[Link %d] WARNING %s IN STATE %s STAY COUNT %d", \
 			hdcp->config.index, \
 			mod_hdcp_status_to_str(status), \
-			mod_hdcp_state_id_to_str(hdcp->state.id))
+			mod_hdcp_state_id_to_str(hdcp->state.id), \
+			hdcp->state.stay_count)
 #define HDCP_HDCP1_ENABLED_TRACE(hdcp, displayIndex) \
 		HDCP_LOG_VER(hdcp, \
 			"[Link %d] HDCP 1.4 enabled on display %d", \
@@ -49,6 +50,15 @@
 		HDCP_LOG_VER(hdcp, \
 			"[Link %d] HDCP 2.2 enabled on display %d", \
 			hdcp->config.index, displayIndex)
+#define HDCP_HDCP1_DISABLED_TRACE(hdcp, displayIndex) \
+		HDCP_LOG_VER(hdcp, \
+			"[Link %d] HDCP 1.4 disabled on display %d", \
+			hdcp->config.index, displayIndex)
+#define HDCP_HDCP2_DISABLED_TRACE(hdcp, displayIndex) \
+		HDCP_LOG_VER(hdcp, \
+			"[Link %d] HDCP 2.2 disabled on display %d", \
+			hdcp->config.index, displayIndex)
+
 /* state machine logs */
 #define HDCP_REMOVE_DISPLAY_TRACE(hdcp, displayIndex) \
 		HDCP_LOG_FSM(hdcp, \
@@ -102,6 +112,9 @@
 				sizeof(hdcp->auth.msg.hdcp1.bksv)); \
 		HDCP_DDC_READ_TRACE(hdcp, "BCAPS", &hdcp->auth.msg.hdcp1.bcaps, \
 				sizeof(hdcp->auth.msg.hdcp1.bcaps)); \
+		HDCP_DDC_READ_TRACE(hdcp, "BSTATUS", \
+				(uint8_t *)&hdcp->auth.msg.hdcp1.bstatus, \
+				sizeof(hdcp->auth.msg.hdcp1.bstatus)); \
 		HDCP_DDC_WRITE_TRACE(hdcp, "AN", hdcp->auth.msg.hdcp1.an, \
 				sizeof(hdcp->auth.msg.hdcp1.an)); \
 		HDCP_DDC_WRITE_TRACE(hdcp, "AKSV", hdcp->auth.msg.hdcp1.aksv, \

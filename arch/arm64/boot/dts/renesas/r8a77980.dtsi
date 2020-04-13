@@ -1484,15 +1484,16 @@
 		};
 
 		du: display@feb00000 {
-			compatible = "renesas,du-r8a77980",
-				     "renesas,du-r8a77970";
+			compatible = "renesas,du-r8a77980";
 			reg = <0 0xfeb00000 0 0x80000>;
 			interrupts = <GIC_SPI 256 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD 724>;
 			clock-names = "du.0";
 			power-domains = <&sysc R8A77980_PD_ALWAYS_ON>;
 			resets = <&cpg 724>;
-			vsps = <&vspd0 0>;
+			reset-names = "du.0";
+			renesas,vsps = <&vspd0 0>;
+
 			status = "disabled";
 
 			ports {

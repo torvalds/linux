@@ -139,6 +139,8 @@ required:
   - "#address-cells"
   - "#size-cells"
 
+additionalProperties: false
+
 examples:
   - |
     codec@1,0{

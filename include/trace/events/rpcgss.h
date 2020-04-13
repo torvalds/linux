@@ -126,7 +126,7 @@ DEFINE_GSSAPI_EVENT(verify_mic);
 DEFINE_GSSAPI_EVENT(wrap);
 DEFINE_GSSAPI_EVENT(unwrap);
 
-TRACE_EVENT(rpcgss_accept_upcall,
+TRACE_EVENT(rpcgss_svc_accept_upcall,
 	TP_PROTO(
 		__be32 xid,
 		u32 major_status,
@@ -151,6 +151,29 @@ TRACE_EVENT(rpcgss_accept_upcall,
 		__entry->xid, __entry->major_status == 0 ? "GSS_S_COMPLETE" :
 				show_gss_status(__entry->major_status),
 		__entry->major_status, __entry->minor_status
+	)
+);
+
+TRACE_EVENT(rpcgss_svc_accept,
+	TP_PROTO(
+		__be32 xid,
+		size_t len
+	),
+
+	TP_ARGS(xid, len),
+
+	TP_STRUCT__entry(
+		__field(u32, xid)
+		__field(size_t, len)
+	),
+
+	TP_fast_assign(
+		__entry->xid = be32_to_cpu(xid);
+		__entry->len = len;
+	),
+
+	TP_printk("xid=0x%08x len=%zu",
+		__entry->xid, __entry->len
 	)
 );
 
@@ -267,6 +290,40 @@ TRACE_EVENT(rpcgss_need_reencode,
 		__entry->xid, __entry->seqno, __entry->seq_xmit,
 		__entry->ret ? "" : "un")
 );
+
+DECLARE_EVENT_CLASS(rpcgss_svc_seqno_class,
+	TP_PROTO(
+		__be32 xid,
+		u32 seqno
+	),
+
+	TP_ARGS(xid, seqno),
+
+	TP_STRUCT__entry(
+		__field(u32, xid)
+		__field(u32, seqno)
+	),
+
+	TP_fast_assign(
+		__entry->xid = be32_to_cpu(xid);
+		__entry->seqno = seqno;
+	),
+
+	TP_printk("xid=0x%08x seqno=%u, request discarded",
+		__entry->xid, __entry->seqno)
+);
+
+#define DEFINE_SVC_SEQNO_EVENT(name)					\
+	DEFINE_EVENT(rpcgss_svc_seqno_class, rpcgss_svc_##name,		\
+			TP_PROTO(					\
+				__be32 xid,				\
+				u32 seqno				\
+			),						\
+			TP_ARGS(xid, seqno))
+
+DEFINE_SVC_SEQNO_EVENT(large_seqno);
+DEFINE_SVC_SEQNO_EVENT(old_seqno);
+
 
 /**
  ** gssd upcall related trace events

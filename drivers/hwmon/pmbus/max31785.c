@@ -72,7 +72,7 @@ static int max31785_read_long_data(struct i2c_client *client, int page,
 
 	cmdbuf[0] = reg;
 
-	rc = pmbus_set_page(client, page);
+	rc = pmbus_set_page(client, page, 0xff);
 	if (rc < 0)
 		return rc;
 
@@ -110,7 +110,7 @@ static int max31785_get_pwm_mode(struct i2c_client *client, int page)
 	if (config < 0)
 		return config;
 
-	command = pmbus_read_word_data(client, page, PMBUS_FAN_COMMAND_1);
+	command = pmbus_read_word_data(client, page, 0xff, PMBUS_FAN_COMMAND_1);
 	if (command < 0)
 		return command;
 
@@ -126,7 +126,7 @@ static int max31785_get_pwm_mode(struct i2c_client *client, int page)
 }
 
 static int max31785_read_word_data(struct i2c_client *client, int page,
-				   int reg)
+				   int phase, int reg)
 {
 	u32 val;
 	int rv;

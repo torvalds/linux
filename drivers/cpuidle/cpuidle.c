@@ -736,53 +736,15 @@ int cpuidle_register(struct cpuidle_driver *drv,
 }
 EXPORT_SYMBOL_GPL(cpuidle_register);
 
-#ifdef CONFIG_SMP
-
-/*
- * This function gets called when a part of the kernel has a new latency
- * requirement.  This means we need to get all processors out of their C-state,
- * and then recalculate a new suitable C-state. Just do a cross-cpu IPI; that
- * wakes them all right up.
- */
-static int cpuidle_latency_notify(struct notifier_block *b,
-		unsigned long l, void *v)
-{
-	wake_up_all_idle_cpus();
-	return NOTIFY_OK;
-}
-
-static struct notifier_block cpuidle_latency_notifier = {
-	.notifier_call = cpuidle_latency_notify,
-};
-
-static inline void latency_notifier_init(struct notifier_block *n)
-{
-	pm_qos_add_notifier(PM_QOS_CPU_DMA_LATENCY, n);
-}
-
-#else /* CONFIG_SMP */
-
-#define latency_notifier_init(x) do { } while (0)
-
-#endif /* CONFIG_SMP */
-
 /**
  * cpuidle_init - core initializer
  */
 static int __init cpuidle_init(void)
 {
-	int ret;
-
 	if (cpuidle_disabled())
 		return -ENODEV;
 
-	ret = cpuidle_add_interface(cpu_subsys.dev_root);
-	if (ret)
-		return ret;
-
-	latency_notifier_init(&cpuidle_latency_notifier);
-
-	return 0;
+	return cpuidle_add_interface(cpu_subsys.dev_root);
 }
 
 module_param(off, int, 0444);

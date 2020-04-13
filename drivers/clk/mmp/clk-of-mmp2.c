@@ -3,6 +3,7 @@
  *
  * Copyright (C) 2012 Marvell
  * Chao Xie <xiechao.mail@gmail.com>
+ * Copyright (C) 2020 Lubomir Rintel <lkundrak@v3.sk>
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
@@ -48,17 +49,39 @@
 #define APMU_SDH1	0x58
 #define APMU_SDH2	0xe8
 #define APMU_SDH3	0xec
+#define APMU_SDH4	0x15c
 #define APMU_USB	0x5c
 #define APMU_DISP0	0x4c
 #define APMU_DISP1	0x110
 #define APMU_CCIC0	0x50
 #define APMU_CCIC1	0xf4
+#define APBC_THERMAL0	0x90
+#define APBC_THERMAL1	0x98
+#define APBC_THERMAL2	0x9c
+#define APBC_THERMAL3	0xa0
 #define APMU_USBHSIC0	0xf8
 #define APMU_USBHSIC1	0xfc
-#define MPMU_UART_PLL	0x14
+#define APMU_GPU	0xcc
+
+#define MPMU_FCCR		0x8
+#define MPMU_POSR		0x10
+#define MPMU_UART_PLL		0x14
+#define MPMU_PLL2_CR		0x34
+/* MMP3 specific below */
+#define MPMU_PLL3_CR		0x50
+#define MPMU_PLL3_CTRL1		0x58
+#define MPMU_PLL1_CTRL		0x5c
+#define MPMU_PLL_DIFF_CTRL	0x68
+#define MPMU_PLL2_CTRL1		0x414
+
+enum mmp2_clk_model {
+	CLK_MODEL_MMP2,
+	CLK_MODEL_MMP3,
+};
 
 struct mmp2_clk_unit {
 	struct mmp_clk_unit unit;
+	enum mmp2_clk_model model;
 	void __iomem *mpmu_base;
 	void __iomem *apmu_base;
 	void __iomem *apbc_base;
@@ -67,9 +90,20 @@ struct mmp2_clk_unit {
 static struct mmp_param_fixed_rate_clk fixed_rate_clks[] = {
 	{MMP2_CLK_CLK32, "clk32", NULL, 0, 32768},
 	{MMP2_CLK_VCTCXO, "vctcxo", NULL, 0, 26000000},
-	{MMP2_CLK_PLL1, "pll1", NULL, 0, 800000000},
-	{MMP2_CLK_PLL2, "pll2", NULL, 0, 960000000},
 	{MMP2_CLK_USB_PLL, "usb_pll", NULL, 0, 480000000},
+};
+
+static struct mmp_param_pll_clk pll_clks[] = {
+	{MMP2_CLK_PLL1,   "pll1",   797330000, MPMU_FCCR,          0x4000, MPMU_POSR,     0},
+	{MMP2_CLK_PLL2,   "pll2",           0, MPMU_PLL2_CR,       0x0300, MPMU_PLL2_CR, 10},
+};
+
+static struct mmp_param_pll_clk mmp3_pll_clks[] = {
+	{MMP2_CLK_PLL2,   "pll1",   797330000, MPMU_FCCR,          0x4000, MPMU_POSR,     0,      26000000, MPMU_PLL1_CTRL,      25},
+	{MMP2_CLK_PLL2,   "pll2",           0, MPMU_PLL2_CR,       0x0300, MPMU_PLL2_CR, 10,      26000000, MPMU_PLL2_CTRL1,     25},
+	{MMP3_CLK_PLL1_P, "pll1_p",         0, MPMU_PLL_DIFF_CTRL, 0x0010, 0,             0,     797330000, MPMU_PLL_DIFF_CTRL,   0},
+	{MMP3_CLK_PLL2_P, "pll2_p",         0, MPMU_PLL_DIFF_CTRL, 0x0100, MPMU_PLL2_CR, 10,      26000000, MPMU_PLL_DIFF_CTRL,   5},
+	{MMP3_CLK_PLL3,   "pll3",           0, MPMU_PLL3_CR,       0x0300, MPMU_PLL3_CR, 10,      26000000, MPMU_PLL3_CTRL1,     25},
 };
 
 static struct mmp_param_fixed_factor_clk fixed_factor_clks[] = {
@@ -113,6 +147,16 @@ static void mmp2_pll_init(struct mmp2_clk_unit *pxa_unit)
 	mmp_register_fixed_rate_clks(unit, fixed_rate_clks,
 					ARRAY_SIZE(fixed_rate_clks));
 
+	if (pxa_unit->model == CLK_MODEL_MMP3) {
+		mmp_register_pll_clks(unit, mmp3_pll_clks,
+					pxa_unit->mpmu_base,
+					ARRAY_SIZE(mmp3_pll_clks));
+	} else {
+		mmp_register_pll_clks(unit, pll_clks,
+					pxa_unit->mpmu_base,
+					ARRAY_SIZE(pll_clks));
+	}
+
 	mmp_register_fixed_factor_clks(unit, fixed_factor_clks,
 					ARRAY_SIZE(fixed_factor_clks));
 
@@ -127,16 +171,16 @@ static void mmp2_pll_init(struct mmp2_clk_unit *pxa_unit)
 static DEFINE_SPINLOCK(uart0_lock);
 static DEFINE_SPINLOCK(uart1_lock);
 static DEFINE_SPINLOCK(uart2_lock);
-static const char *uart_parent_names[] = {"uart_pll", "vctcxo"};
+static const char * const uart_parent_names[] = {"uart_pll", "vctcxo"};
 
 static DEFINE_SPINLOCK(ssp0_lock);
 static DEFINE_SPINLOCK(ssp1_lock);
 static DEFINE_SPINLOCK(ssp2_lock);
 static DEFINE_SPINLOCK(ssp3_lock);
-static const char *ssp_parent_names[] = {"vctcxo_4", "vctcxo_2", "vctcxo", "pll1_16"};
+static const char * const ssp_parent_names[] = {"vctcxo_4", "vctcxo_2", "vctcxo", "pll1_16"};
 
 static DEFINE_SPINLOCK(timer_lock);
-static const char *timer_parent_names[] = {"clk32", "vctcxo_4", "vctcxo_2", "vctcxo"};
+static const char * const timer_parent_names[] = {"clk32", "vctcxo_4", "vctcxo_2", "vctcxo"};
 
 static DEFINE_SPINLOCK(reset_lock);
 
@@ -176,6 +220,13 @@ static struct mmp_param_gate_clk apbc_gate_clks[] = {
 	{MMP2_CLK_SSP2, "ssp2_clk", "ssp2_mux", CLK_SET_RATE_PARENT, APBC_SSP2, 0x7, 0x3, 0x0, 0, &ssp2_lock},
 	{MMP2_CLK_SSP3, "ssp3_clk", "ssp3_mux", CLK_SET_RATE_PARENT, APBC_SSP3, 0x7, 0x3, 0x0, 0, &ssp3_lock},
 	{MMP2_CLK_TIMER, "timer_clk", "timer_mux", CLK_SET_RATE_PARENT, APBC_TIMER, 0x7, 0x3, 0x0, 0, &timer_lock},
+	{MMP2_CLK_THERMAL0, "thermal0_clk", "vctcxo", CLK_SET_RATE_PARENT, APBC_THERMAL0, 0x7, 0x3, 0x0, MMP_CLK_GATE_NEED_DELAY, &reset_lock},
+};
+
+static struct mmp_param_gate_clk mmp3_apbc_gate_clks[] = {
+	{MMP3_CLK_THERMAL1, "thermal1_clk", "vctcxo", CLK_SET_RATE_PARENT, APBC_THERMAL1, 0x7, 0x3, 0x0, MMP_CLK_GATE_NEED_DELAY, &reset_lock},
+	{MMP3_CLK_THERMAL2, "thermal2_clk", "vctcxo", CLK_SET_RATE_PARENT, APBC_THERMAL2, 0x7, 0x3, 0x0, MMP_CLK_GATE_NEED_DELAY, &reset_lock},
+	{MMP3_CLK_THERMAL3, "thermal3_clk", "vctcxo", CLK_SET_RATE_PARENT, APBC_THERMAL3, 0x7, 0x3, 0x0, MMP_CLK_GATE_NEED_DELAY, &reset_lock},
 };
 
 static void mmp2_apb_periph_clk_init(struct mmp2_clk_unit *pxa_unit)
@@ -187,10 +238,15 @@ static void mmp2_apb_periph_clk_init(struct mmp2_clk_unit *pxa_unit)
 
 	mmp_register_gate_clks(unit, apbc_gate_clks, pxa_unit->apbc_base,
 				ARRAY_SIZE(apbc_gate_clks));
+
+	if (pxa_unit->model == CLK_MODEL_MMP3) {
+		mmp_register_gate_clks(unit, mmp3_apbc_gate_clks, pxa_unit->apbc_base,
+					ARRAY_SIZE(mmp3_apbc_gate_clks));
+	}
 }
 
 static DEFINE_SPINLOCK(sdh_lock);
-static const char *sdh_parent_names[] = {"pll1_4", "pll2", "usb_pll", "pll1"};
+static const char * const sdh_parent_names[] = {"pll1_4", "pll2", "usb_pll", "pll1"};
 static struct mmp_clk_mix_config sdh_mix_config = {
 	.reg_info = DEFINE_MIX_REG_INFO(4, 10, 2, 8, 32),
 };
@@ -201,11 +257,20 @@ static DEFINE_SPINLOCK(usbhsic1_lock);
 
 static DEFINE_SPINLOCK(disp0_lock);
 static DEFINE_SPINLOCK(disp1_lock);
-static const char *disp_parent_names[] = {"pll1", "pll1_16", "pll2", "vctcxo"};
+static const char * const disp_parent_names[] = {"pll1", "pll1_16", "pll2", "vctcxo"};
 
 static DEFINE_SPINLOCK(ccic0_lock);
 static DEFINE_SPINLOCK(ccic1_lock);
-static const char *ccic_parent_names[] = {"pll1_2", "pll1_16", "vctcxo"};
+static const char * const ccic_parent_names[] = {"pll1_2", "pll1_16", "vctcxo"};
+
+static DEFINE_SPINLOCK(gpu_lock);
+static const char * const mmp2_gpu_gc_parent_names[] =  {"pll1_2", "pll1_3", "pll2_2", "pll2_3", "pll2", "usb_pll"};
+static u32 mmp2_gpu_gc_parent_table[] =          { 0x0000,   0x0040,   0x0080,   0x00c0,   0x1000, 0x1040   };
+static const char * const mmp2_gpu_bus_parent_names[] = {"pll1_4", "pll2",   "pll2_2", "usb_pll"};
+static u32 mmp2_gpu_bus_parent_table[] =         { 0x0000,   0x0020,   0x0030,   0x4020   };
+static const char * const mmp3_gpu_bus_parent_names[] = {"pll1_4", "pll1_6", "pll1_2", "pll2_2"};
+static const char * const mmp3_gpu_gc_parent_names[] =  {"pll1",   "pll2",   "pll1_p", "pll2_p"};
+
 static struct mmp_clk_mix_config ccic0_mix_config = {
 	.reg_info = DEFINE_MIX_REG_INFO(4, 17, 2, 6, 32),
 };
@@ -218,12 +283,26 @@ static struct mmp_param_mux_clk apmu_mux_clks[] = {
 	{MMP2_CLK_DISP1_MUX, "disp1_mux", disp_parent_names, ARRAY_SIZE(disp_parent_names), CLK_SET_RATE_PARENT, APMU_DISP1, 6, 2, 0, &disp1_lock},
 };
 
+static struct mmp_param_mux_clk mmp3_apmu_mux_clks[] = {
+	{0, "gpu_bus_mux", mmp3_gpu_bus_parent_names, ARRAY_SIZE(mmp3_gpu_bus_parent_names),
+									CLK_SET_RATE_PARENT, APMU_GPU, 4, 2, 0, &gpu_lock},
+	{0, "gpu_3d_mux", mmp3_gpu_gc_parent_names, ARRAY_SIZE(mmp3_gpu_gc_parent_names),
+									CLK_SET_RATE_PARENT, APMU_GPU, 6, 2, 0, &gpu_lock},
+	{0, "gpu_2d_mux", mmp3_gpu_gc_parent_names, ARRAY_SIZE(mmp3_gpu_gc_parent_names),
+									CLK_SET_RATE_PARENT, APMU_GPU, 12, 2, 0, &gpu_lock},
+};
+
 static struct mmp_param_div_clk apmu_div_clks[] = {
 	{0, "disp0_div", "disp0_mux", CLK_SET_RATE_PARENT, APMU_DISP0, 8, 4, 0, &disp0_lock},
 	{0, "disp0_sphy_div", "disp0_mux", CLK_SET_RATE_PARENT, APMU_DISP0, 15, 5, 0, &disp0_lock},
 	{0, "disp1_div", "disp1_mux", CLK_SET_RATE_PARENT, APMU_DISP1, 8, 4, 0, &disp1_lock},
 	{0, "ccic0_sphy_div", "ccic0_mix_clk", CLK_SET_RATE_PARENT, APMU_CCIC0, 10, 5, 0, &ccic0_lock},
 	{0, "ccic1_sphy_div", "ccic1_mix_clk", CLK_SET_RATE_PARENT, APMU_CCIC1, 10, 5, 0, &ccic1_lock},
+};
+
+static struct mmp_param_div_clk mmp3_apmu_div_clks[] = {
+	{0, "gpu_3d_div", "gpu_3d_mux", CLK_SET_RATE_PARENT, APMU_GPU, 24, 4, 0, &gpu_lock},
+	{0, "gpu_2d_div", "gpu_2d_mux", CLK_SET_RATE_PARENT, APMU_GPU, 28, 4, 0, &gpu_lock},
 };
 
 static struct mmp_param_gate_clk apmu_gate_clks[] = {
@@ -235,8 +314,8 @@ static struct mmp_param_gate_clk apmu_gate_clks[] = {
 	{MMP2_CLK_SDH1, "sdh1_clk", "sdh_mix_clk", CLK_SET_RATE_PARENT, APMU_SDH1, 0x1b, 0x1b, 0x0, 0, &sdh_lock},
 	{MMP2_CLK_SDH2, "sdh2_clk", "sdh_mix_clk", CLK_SET_RATE_PARENT, APMU_SDH2, 0x1b, 0x1b, 0x0, 0, &sdh_lock},
 	{MMP2_CLK_SDH3, "sdh3_clk", "sdh_mix_clk", CLK_SET_RATE_PARENT, APMU_SDH3, 0x1b, 0x1b, 0x0, 0, &sdh_lock},
-	{MMP2_CLK_DISP0, "disp0_clk", "disp0_div", CLK_SET_RATE_PARENT, APMU_DISP0, 0x09, 0x09, 0x0, 0, &disp0_lock},
-	{MMP2_CLK_DISP0_LCDC, "disp0_lcdc_clk", "disp0_mux", CLK_SET_RATE_PARENT, APMU_DISP0, 0x12, 0x12, 0x0, 0, &disp0_lock},
+	{MMP2_CLK_DISP0, "disp0_clk", "disp0_div", CLK_SET_RATE_PARENT, APMU_DISP0, 0x12, 0x12, 0x0, 0, &disp0_lock},
+	{MMP2_CLK_DISP0_LCDC, "disp0_lcdc_clk", "disp0_mux", CLK_SET_RATE_PARENT, APMU_DISP0, 0x09, 0x09, 0x0, 0, &disp0_lock},
 	{MMP2_CLK_DISP0_SPHY, "disp0_sphy_clk", "disp0_sphy_div", CLK_SET_RATE_PARENT, APMU_DISP0, 0x1024, 0x1024, 0x0, 0, &disp0_lock},
 	{MMP2_CLK_DISP1, "disp1_clk", "disp1_div", CLK_SET_RATE_PARENT, APMU_DISP1, 0x09, 0x09, 0x0, 0, &disp1_lock},
 	{MMP2_CLK_CCIC_ARBITER, "ccic_arbiter", "vctcxo", CLK_SET_RATE_PARENT, APMU_CCIC0, 0x1800, 0x1800, 0x0, 0, &ccic0_lock},
@@ -246,6 +325,17 @@ static struct mmp_param_gate_clk apmu_gate_clks[] = {
 	{MMP2_CLK_CCIC1, "ccic1_clk", "ccic1_mix_clk", CLK_SET_RATE_PARENT, APMU_CCIC1, 0x1b, 0x1b, 0x0, 0, &ccic1_lock},
 	{MMP2_CLK_CCIC1_PHY, "ccic1_phy_clk", "ccic1_mix_clk", CLK_SET_RATE_PARENT, APMU_CCIC1, 0x24, 0x24, 0x0, 0, &ccic1_lock},
 	{MMP2_CLK_CCIC1_SPHY, "ccic1_sphy_clk", "ccic1_sphy_div", CLK_SET_RATE_PARENT, APMU_CCIC1, 0x300, 0x300, 0x0, 0, &ccic1_lock},
+	{MMP2_CLK_GPU_BUS, "gpu_bus_clk", "gpu_bus_mux", CLK_SET_RATE_PARENT, APMU_GPU, 0xa, 0xa, 0x0, MMP_CLK_GATE_NEED_DELAY, &gpu_lock},
+};
+
+static struct mmp_param_gate_clk mmp2_apmu_gate_clks[] = {
+	{MMP2_CLK_GPU_3D, "gpu_3d_clk", "gpu_3d_mux", CLK_SET_RATE_PARENT, APMU_GPU, 0x5, 0x5, 0x0, MMP_CLK_GATE_NEED_DELAY, &gpu_lock},
+};
+
+static struct mmp_param_gate_clk mmp3_apmu_gate_clks[] = {
+	{MMP3_CLK_SDH4, "sdh4_clk", "sdh_mix_clk", CLK_SET_RATE_PARENT, APMU_SDH4, 0x1b, 0x1b, 0x0, 0, &sdh_lock},
+	{MMP3_CLK_GPU_3D, "gpu_3d_clk", "gpu_3d_div", CLK_SET_RATE_PARENT, APMU_GPU, 0x5, 0x5, 0x0, MMP_CLK_GATE_NEED_DELAY, &gpu_lock},
+	{MMP3_CLK_GPU_2D, "gpu_2d_clk", "gpu_2d_div", CLK_SET_RATE_PARENT, APMU_GPU, 0x1c0000, 0x1c0000, 0x0, MMP_CLK_GATE_NEED_DELAY, &gpu_lock},
 };
 
 static void mmp2_axi_periph_clk_init(struct mmp2_clk_unit *pxa_unit)
@@ -281,6 +371,34 @@ static void mmp2_axi_periph_clk_init(struct mmp2_clk_unit *pxa_unit)
 
 	mmp_register_gate_clks(unit, apmu_gate_clks, pxa_unit->apmu_base,
 				ARRAY_SIZE(apmu_gate_clks));
+
+	if (pxa_unit->model == CLK_MODEL_MMP3) {
+		mmp_register_mux_clks(unit, mmp3_apmu_mux_clks, pxa_unit->apmu_base,
+					ARRAY_SIZE(mmp3_apmu_mux_clks));
+
+		mmp_register_div_clks(unit, mmp3_apmu_div_clks, pxa_unit->apmu_base,
+					ARRAY_SIZE(mmp3_apmu_div_clks));
+
+		mmp_register_gate_clks(unit, mmp3_apmu_gate_clks, pxa_unit->apmu_base,
+					ARRAY_SIZE(mmp3_apmu_gate_clks));
+	} else {
+		clk_register_mux_table(NULL, "gpu_3d_mux", mmp2_gpu_gc_parent_names,
+					ARRAY_SIZE(mmp2_gpu_gc_parent_names),
+					CLK_SET_RATE_PARENT,
+					pxa_unit->apmu_base + APMU_GPU,
+					0, 0x10c0, 0,
+					mmp2_gpu_gc_parent_table, &gpu_lock);
+
+		clk_register_mux_table(NULL, "gpu_bus_mux", mmp2_gpu_bus_parent_names,
+					ARRAY_SIZE(mmp2_gpu_bus_parent_names),
+					CLK_SET_RATE_PARENT,
+					pxa_unit->apmu_base + APMU_GPU,
+					0, 0x4030, 0,
+					mmp2_gpu_bus_parent_table, &gpu_lock);
+
+		mmp_register_gate_clks(unit, mmp2_apmu_gate_clks, pxa_unit->apmu_base,
+					ARRAY_SIZE(mmp2_apmu_gate_clks));
+	}
 }
 
 static void mmp2_clk_reset_init(struct device_node *np,
@@ -312,6 +430,11 @@ static void __init mmp2_clk_init(struct device_node *np)
 	pxa_unit = kzalloc(sizeof(*pxa_unit), GFP_KERNEL);
 	if (!pxa_unit)
 		return;
+
+	if (of_device_is_compatible(np, "marvell,mmp3-clock"))
+		pxa_unit->model = CLK_MODEL_MMP3;
+	else
+		pxa_unit->model = CLK_MODEL_MMP2;
 
 	pxa_unit->mpmu_base = of_iomap(np, 0);
 	if (!pxa_unit->mpmu_base) {
@@ -352,3 +475,4 @@ free_memory:
 }
 
 CLK_OF_DECLARE(mmp2_clk, "marvell,mmp2-clock", mmp2_clk_init);
+CLK_OF_DECLARE(mmp3_clk, "marvell,mmp3-clock", mmp2_clk_init);

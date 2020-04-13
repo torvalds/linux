@@ -657,6 +657,31 @@ static int find_valid_gpt(struct parsed_partitions *state, gpt_header **gpt,
 }
 
 /**
+ * utf16_le_to_7bit(): Naively converts a UTF-16LE string to 7-bit ASCII characters
+ * @in: input UTF-16LE string
+ * @size: size of the input string
+ * @out: output string ptr, should be capable to store @size+1 characters
+ *
+ * Description: Converts @size UTF16-LE symbols from @in string to 7-bit
+ * ASCII characters and stores them to @out. Adds trailing zero to @out array.
+ */
+static void utf16_le_to_7bit(const __le16 *in, unsigned int size, u8 *out)
+{
+	unsigned int i = 0;
+
+	out[size] = 0;
+
+	while (i < size) {
+		u8 c = le16_to_cpu(in[i]) & 0xff;
+
+		if (c && !isprint(c))
+			c = '!';
+		out[i] = c;
+		i++;
+	}
+}
+
+/**
  * efi_partition(struct parsed_partitions *state)
  * @state: disk parsed partitions
  *
@@ -692,7 +717,6 @@ int efi_partition(struct parsed_partitions *state)
 
 	for (i = 0; i < le32_to_cpu(gpt->num_partition_entries) && i < state->limit-1; i++) {
 		struct partition_meta_info *info;
-		unsigned label_count = 0;
 		unsigned label_max;
 		u64 start = le64_to_cpu(ptes[i].starting_lba);
 		u64 size = le64_to_cpu(ptes[i].ending_lba) -
@@ -713,14 +737,7 @@ int efi_partition(struct parsed_partitions *state)
 		/* Naively convert UTF16-LE to 7 bits. */
 		label_max = min(ARRAY_SIZE(info->volname) - 1,
 				ARRAY_SIZE(ptes[i].partition_name));
-		info->volname[label_max] = 0;
-		while (label_count < label_max) {
-			u8 c = ptes[i].partition_name[label_count] & 0xff;
-			if (c && !isprint(c))
-				c = '!';
-			info->volname[label_count] = c;
-			label_count++;
-		}
+		utf16_le_to_7bit(ptes[i].partition_name, label_max, info->volname);
 		state->parts[i + 1].has_info = true;
 	}
 	kfree(ptes);

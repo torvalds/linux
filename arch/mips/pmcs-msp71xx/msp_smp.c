@@ -38,21 +38,10 @@ static irqreturn_t ipi_call_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static struct irqaction irq_resched = {
-	.handler	= ipi_resched_interrupt,
-	.flags		= IRQF_PERCPU,
-	.name		= "IPI_resched"
-};
-
-static struct irqaction irq_call = {
-	.handler	= ipi_call_interrupt,
-	.flags		= IRQF_PERCPU,
-	.name		= "IPI_call"
-};
-
-void __init arch_init_ipiirq(int irq, struct irqaction *action)
+void __init arch_init_ipiirq(int irq, const char *name, irq_handler_t handler)
 {
-	setup_irq(irq, action);
+	if (request_irq(irq, handler, IRQF_PERCPU, name, NULL))
+		pr_err("Failed to request irq %d (%s)\n", irq, name);
 	irq_set_handler(irq, handle_percpu_irq);
 }
 
@@ -60,7 +49,8 @@ void __init msp_vsmp_int_init(void)
 {
 	set_vi_handler(MIPS_CPU_IPI_RESCHED_IRQ, ipi_resched_dispatch);
 	set_vi_handler(MIPS_CPU_IPI_CALL_IRQ, ipi_call_dispatch);
-	arch_init_ipiirq(MIPS_CPU_IPI_RESCHED_IRQ, &irq_resched);
-	arch_init_ipiirq(MIPS_CPU_IPI_CALL_IRQ, &irq_call);
+	arch_init_ipiirq(MIPS_CPU_IPI_RESCHED_IRQ, "IPI_resched",
+			 ipi_resched_interrupt);
+	arch_init_ipiirq(MIPS_CPU_IPI_CALL_IRQ, "IPI_call", ipi_call_interrupt);
 }
 #endif /* CONFIG_MIPS_MT_SMP */

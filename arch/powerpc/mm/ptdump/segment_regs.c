@@ -55,10 +55,8 @@ static const struct file_operations sr_fops = {
 
 static int __init sr_init(void)
 {
-	struct dentry *debugfs_file;
-
-	debugfs_file = debugfs_create_file("segment_registers", 0400,
-					   powerpc_debugfs_root, NULL, &sr_fops);
-	return debugfs_file ? 0 : -ENOMEM;
+	debugfs_create_file("segment_registers", 0400, powerpc_debugfs_root,
+			    NULL, &sr_fops);
+	return 0;
 }
 device_initcall(sr_init);

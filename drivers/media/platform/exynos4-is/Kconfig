@@ -13,7 +13,7 @@ config VIDEO_SAMSUNG_EXYNOS4_IS
 if VIDEO_SAMSUNG_EXYNOS4_IS
 
 config VIDEO_EXYNOS4_IS_COMMON
-       tristate
+	tristate
 
 config VIDEO_S5P_FIMC
 	tristate "S5P/EXYNOS4 FIMC/CAMIF camera interface driver"

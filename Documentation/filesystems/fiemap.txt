@@ -115,8 +115,10 @@ data. Note that the opposite is not true - it would be valid for
 FIEMAP_EXTENT_NOT_ALIGNED to appear alone.
 
 * FIEMAP_EXTENT_LAST
-This is the last extent in the file. A mapping attempt past this
-extent will return nothing.
+This is generally the last extent in the file. A mapping attempt past
+this extent may return nothing. Some implementations set this flag to
+indicate this extent is the last one in the range queried by the user
+(via fiemap->fm_length).
 
 * FIEMAP_EXTENT_UNKNOWN
 The location of this extent is currently unknown. This may indicate

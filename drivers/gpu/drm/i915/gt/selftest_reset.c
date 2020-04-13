@@ -115,7 +115,7 @@ static int igt_atomic_engine_reset(void *arg)
 	if (!intel_has_reset_engine(gt))
 		return 0;
 
-	if (USES_GUC_SUBMISSION(gt->i915))
+	if (intel_uc_uses_guc_submission(&gt->uc))
 		return 0;
 
 	intel_gt_pm_get(gt);

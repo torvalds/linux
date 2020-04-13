@@ -173,34 +173,7 @@ extern int mpol_parse_str(char *str, struct mempolicy **mpol);
 extern void mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol);
 
 /* Check if a vma is migratable */
-static inline bool vma_migratable(struct vm_area_struct *vma)
-{
-	if (vma->vm_flags & (VM_IO | VM_PFNMAP))
-		return false;
-
-	/*
-	 * DAX device mappings require predictable access latency, so avoid
-	 * incurring periodic faults.
-	 */
-	if (vma_is_dax(vma))
-		return false;
-
-#ifndef CONFIG_ARCH_ENABLE_HUGEPAGE_MIGRATION
-	if (vma->vm_flags & VM_HUGETLB)
-		return false;
-#endif
-
-	/*
-	 * Migration allocates pages in the highest zone. If we cannot
-	 * do so then migration (at least from node to node) is not
-	 * possible.
-	 */
-	if (vma->vm_file &&
-		gfp_zone(mapping_gfp_mask(vma->vm_file->f_mapping))
-								< policy_zone)
-			return false;
-	return true;
-}
+extern bool vma_migratable(struct vm_area_struct *vma);
 
 extern int mpol_misplaced(struct page *, struct vm_area_struct *, unsigned long);
 extern void mpol_put_task_policy(struct task_struct *);

@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
- *
+/* SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause) */
+/*
  * Copyright (c) 2003-2012 Broadcom Corporation
  * All Rights Reserved
  */

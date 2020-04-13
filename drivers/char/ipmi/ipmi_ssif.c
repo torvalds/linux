@@ -313,6 +313,7 @@ static int start_send(struct ssif_info *ssif_info,
 
 static unsigned long *ipmi_ssif_lock_cond(struct ssif_info *ssif_info,
 					  unsigned long *flags)
+	__acquires(&ssif_info->lock)
 {
 	spin_lock_irqsave(&ssif_info->lock, *flags);
 	return flags;
@@ -320,6 +321,7 @@ static unsigned long *ipmi_ssif_lock_cond(struct ssif_info *ssif_info,
 
 static void ipmi_ssif_unlock_cond(struct ssif_info *ssif_info,
 				  unsigned long *flags)
+	__releases(&ssif_info->lock)
 {
 	spin_unlock_irqrestore(&ssif_info->lock, *flags);
 }

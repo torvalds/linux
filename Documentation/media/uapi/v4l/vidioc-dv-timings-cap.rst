@@ -112,7 +112,7 @@ that doesn't support them will return an ``EINVAL`` error code.
 .. flat-table:: struct v4l2_dv_timings_cap
     :header-rows:  0
     :stub-columns: 0
-    :widths:       1 1 2 1
+    :widths:       1 1 2
 
     * - __u32
       - ``type``
@@ -127,16 +127,14 @@ that doesn't support them will return an ``EINVAL`` error code.
       - Reserved for future extensions.
 
 	Drivers and applications must set the array to zero.
-    * - union
-      -
-      -
-    * -
-      - struct :c:type:`v4l2_bt_timings_cap`
+    * - union {
+      - (anonymous)
+    * - struct :c:type:`v4l2_bt_timings_cap`
       - ``bt``
       - BT.656/1120 timings capabilities of the hardware.
-    * -
-      - __u32
+    * - __u32
       - ``raw_data``\ [32]
+    * - }
       -
 
 .. tabularcolumns:: |p{7.0cm}|p{10.5cm}|

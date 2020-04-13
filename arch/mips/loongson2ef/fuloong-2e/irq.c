@@ -35,14 +35,10 @@ asmlinkage void mach_irq_dispatch(unsigned int pending)
 		spurious_interrupt();
 }
 
-static struct irqaction cascade_irqaction = {
-	.handler = no_action,
-	.name = "cascade",
-	.flags = IRQF_NO_THREAD,
-};
-
 void __init mach_init_irq(void)
 {
+	int irq;
+
 	/* init all controller
 	 *   0-15	  ------> i8259 interrupt
 	 *   16-23	  ------> mips cpu interrupt
@@ -59,7 +55,11 @@ void __init mach_init_irq(void)
 	bonito_irq_init();
 
 	/* bonito irq at IP2 */
-	setup_irq(MIPS_CPU_IRQ_BASE + 2, &cascade_irqaction);
+	irq = MIPS_CPU_IRQ_BASE + 2;
+	if (request_irq(irq, no_action, IRQF_NO_THREAD, "cascade", NULL))
+		pr_err("Failed to request irq %d (cascade)\n", irq);
 	/* 8259 irq at IP5 */
-	setup_irq(MIPS_CPU_IRQ_BASE + 5, &cascade_irqaction);
+	irq = MIPS_CPU_IRQ_BASE + 5;
+	if (request_irq(irq, no_action, IRQF_NO_THREAD, "cascade", NULL))
+		pr_err("Failed to request irq %d (cascade)\n", irq);
 }

@@ -23,6 +23,7 @@
  * link takes priority and the other port is completely locked out.
  */
 #include <linux/ctype.h>
+#include <linux/delay.h>
 #include <linux/hwmon.h>
 #include <linux/marvell_phy.h>
 #include <linux/phy.h>
@@ -39,10 +40,29 @@ enum {
 	MV_PCS_BASE_R		= 0x1000,
 	MV_PCS_1000BASEX	= 0x2000,
 
-	MV_PCS_PAIRSWAP		= 0x8182,
-	MV_PCS_PAIRSWAP_MASK	= 0x0003,
-	MV_PCS_PAIRSWAP_AB	= 0x0002,
-	MV_PCS_PAIRSWAP_NONE	= 0x0003,
+	MV_PCS_CSCR1		= 0x8000,
+	MV_PCS_CSCR1_ED_MASK	= 0x0300,
+	MV_PCS_CSCR1_ED_OFF	= 0x0000,
+	MV_PCS_CSCR1_ED_RX	= 0x0200,
+	MV_PCS_CSCR1_ED_NLP	= 0x0300,
+	MV_PCS_CSCR1_MDIX_MASK	= 0x0060,
+	MV_PCS_CSCR1_MDIX_MDI	= 0x0000,
+	MV_PCS_CSCR1_MDIX_MDIX	= 0x0020,
+	MV_PCS_CSCR1_MDIX_AUTO	= 0x0060,
+
+	MV_PCS_CSSR1		= 0x8008,
+	MV_PCS_CSSR1_SPD1_MASK	= 0xc000,
+	MV_PCS_CSSR1_SPD1_SPD2	= 0xc000,
+	MV_PCS_CSSR1_SPD1_1000	= 0x8000,
+	MV_PCS_CSSR1_SPD1_100	= 0x4000,
+	MV_PCS_CSSR1_SPD1_10	= 0x0000,
+	MV_PCS_CSSR1_DUPLEX_FULL= BIT(13),
+	MV_PCS_CSSR1_RESOLVED	= BIT(11),
+	MV_PCS_CSSR1_MDIX	= BIT(6),
+	MV_PCS_CSSR1_SPD2_MASK	= 0x000c,
+	MV_PCS_CSSR1_SPD2_5000	= 0x0008,
+	MV_PCS_CSSR1_SPD2_2500	= 0x0004,
+	MV_PCS_CSSR1_SPD2_10000	= 0x0000,
 
 	/* These registers appear at 0x800X and 0xa00X - the 0xa00X control
 	 * registers appear to set themselves to the 0x800X when AN is
@@ -207,6 +227,86 @@ static int mv3310_hwmon_probe(struct phy_device *phydev)
 }
 #endif
 
+static int mv3310_power_down(struct phy_device *phydev)
+{
+	return phy_set_bits_mmd(phydev, MDIO_MMD_VEND2, MV_V2_PORT_CTRL,
+				MV_V2_PORT_CTRL_PWRDOWN);
+}
+
+static int mv3310_power_up(struct phy_device *phydev)
+{
+	return phy_clear_bits_mmd(phydev, MDIO_MMD_VEND2, MV_V2_PORT_CTRL,
+				  MV_V2_PORT_CTRL_PWRDOWN);
+}
+
+static int mv3310_reset(struct phy_device *phydev, u32 unit)
+{
+	int val, err;
+
+	err = phy_modify_mmd(phydev, MDIO_MMD_PCS, unit + MDIO_CTRL1,
+			     MDIO_CTRL1_RESET, MDIO_CTRL1_RESET);
+	if (err < 0)
+		return err;
+
+	return phy_read_mmd_poll_timeout(phydev, MDIO_MMD_PCS,
+					 unit + MDIO_CTRL1, val,
+					 !(val & MDIO_CTRL1_RESET),
+					 5000, 100000, true);
+}
+
+static int mv3310_get_edpd(struct phy_device *phydev, u16 *edpd)
+{
+	int val;
+
+	val = phy_read_mmd(phydev, MDIO_MMD_PCS, MV_PCS_CSCR1);
+	if (val < 0)
+		return val;
+
+	switch (val & MV_PCS_CSCR1_ED_MASK) {
+	case MV_PCS_CSCR1_ED_NLP:
+		*edpd = 1000;
+		break;
+	case MV_PCS_CSCR1_ED_RX:
+		*edpd = ETHTOOL_PHY_EDPD_NO_TX;
+		break;
+	default:
+		*edpd = ETHTOOL_PHY_EDPD_DISABLE;
+		break;
+	}
+	return 0;
+}
+
+static int mv3310_set_edpd(struct phy_device *phydev, u16 edpd)
+{
+	u16 val;
+	int err;
+
+	switch (edpd) {
+	case 1000:
+	case ETHTOOL_PHY_EDPD_DFLT_TX_MSECS:
+		val = MV_PCS_CSCR1_ED_NLP;
+		break;
+
+	case ETHTOOL_PHY_EDPD_NO_TX:
+		val = MV_PCS_CSCR1_ED_RX;
+		break;
+
+	case ETHTOOL_PHY_EDPD_DISABLE:
+		val = MV_PCS_CSCR1_ED_OFF;
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	err = phy_modify_mmd_changed(phydev, MDIO_MMD_PCS, MV_PCS_CSCR1,
+				     MV_PCS_CSCR1_ED_MASK, val);
+	if (err > 0)
+		err = mv3310_reset(phydev, MV_PCS_BASE_T);
+
+	return err;
+}
+
 static int mv3310_sfp_insert(void *upstream, const struct sfp_eeprom_id *id)
 {
 	struct phy_device *phydev = upstream;
@@ -255,6 +355,11 @@ static int mv3310_probe(struct phy_device *phydev)
 
 	dev_set_drvdata(&phydev->mdio.dev, priv);
 
+	/* Powering down the port when not in use saves about 600mW */
+	ret = mv3310_power_down(phydev);
+	if (ret)
+		return ret;
+
 	ret = mv3310_hwmon_probe(phydev);
 	if (ret)
 		return ret;
@@ -264,16 +369,14 @@ static int mv3310_probe(struct phy_device *phydev)
 
 static int mv3310_suspend(struct phy_device *phydev)
 {
-	return phy_set_bits_mmd(phydev, MDIO_MMD_VEND2, MV_V2_PORT_CTRL,
-				MV_V2_PORT_CTRL_PWRDOWN);
+	return mv3310_power_down(phydev);
 }
 
 static int mv3310_resume(struct phy_device *phydev)
 {
 	int ret;
 
-	ret = phy_clear_bits_mmd(phydev, MDIO_MMD_VEND2, MV_V2_PORT_CTRL,
-				 MV_V2_PORT_CTRL_PWRDOWN);
+	ret = mv3310_power_up(phydev);
 	if (ret)
 		return ret;
 
@@ -299,6 +402,8 @@ static bool mv3310_has_pma_ngbaset_quirk(struct phy_device *phydev)
 
 static int mv3310_config_init(struct phy_device *phydev)
 {
+	int err;
+
 	/* Check that the PHY interface type is compatible */
 	if (phydev->interface != PHY_INTERFACE_MODE_SGMII &&
 	    phydev->interface != PHY_INTERFACE_MODE_2500BASEX &&
@@ -307,7 +412,15 @@ static int mv3310_config_init(struct phy_device *phydev)
 	    phydev->interface != PHY_INTERFACE_MODE_10GBASER)
 		return -ENODEV;
 
-	return 0;
+	phydev->mdix_ctrl = ETH_TP_MDI_AUTO;
+
+	/* Power up so reset works */
+	err = mv3310_power_up(phydev);
+	if (err)
+		return err;
+
+	/* Enable EDPD mode - saving 600mW */
+	return mv3310_set_edpd(phydev, ETHTOOL_PHY_EDPD_DFLT_TX_MSECS);
 }
 
 static int mv3310_get_features(struct phy_device *phydev)
@@ -336,14 +449,42 @@ static int mv3310_get_features(struct phy_device *phydev)
 	return 0;
 }
 
+static int mv3310_config_mdix(struct phy_device *phydev)
+{
+	u16 val;
+	int err;
+
+	switch (phydev->mdix_ctrl) {
+	case ETH_TP_MDI_AUTO:
+		val = MV_PCS_CSCR1_MDIX_AUTO;
+		break;
+	case ETH_TP_MDI_X:
+		val = MV_PCS_CSCR1_MDIX_MDIX;
+		break;
+	case ETH_TP_MDI:
+		val = MV_PCS_CSCR1_MDIX_MDI;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	err = phy_modify_mmd_changed(phydev, MDIO_MMD_PCS, MV_PCS_CSCR1,
+				     MV_PCS_CSCR1_MDIX_MASK, val);
+	if (err > 0)
+		err = mv3310_reset(phydev, MV_PCS_BASE_T);
+
+	return err;
+}
+
 static int mv3310_config_aneg(struct phy_device *phydev)
 {
 	bool changed = false;
 	u16 reg;
 	int ret;
 
-	/* We don't support manual MDI control */
-	phydev->mdix_ctrl = ETH_TP_MDI_AUTO;
+	ret = mv3310_config_mdix(phydev);
+	if (ret < 0)
+		return ret;
 
 	if (phydev->autoneg == AUTONEG_DISABLE)
 		return genphy_c45_pma_setup_forced(phydev);
@@ -413,35 +554,18 @@ static void mv3310_update_interface(struct phy_device *phydev)
 }
 
 /* 10GBASE-ER,LR,LRM,SR do not support autonegotiation. */
-static int mv3310_read_10gbr_status(struct phy_device *phydev)
+static int mv3310_read_status_10gbaser(struct phy_device *phydev)
 {
 	phydev->link = 1;
 	phydev->speed = SPEED_10000;
 	phydev->duplex = DUPLEX_FULL;
 
-	mv3310_update_interface(phydev);
-
 	return 0;
 }
 
-static int mv3310_read_status(struct phy_device *phydev)
+static int mv3310_read_status_copper(struct phy_device *phydev)
 {
-	int val;
-
-	phydev->speed = SPEED_UNKNOWN;
-	phydev->duplex = DUPLEX_UNKNOWN;
-	linkmode_zero(phydev->lp_advertising);
-	phydev->link = 0;
-	phydev->pause = 0;
-	phydev->asym_pause = 0;
-	phydev->mdix = 0;
-
-	val = phy_read_mmd(phydev, MDIO_MMD_PCS, MV_PCS_BASE_R + MDIO_STAT1);
-	if (val < 0)
-		return val;
-
-	if (val & MDIO_STAT1_LSTATUS)
-		return mv3310_read_10gbr_status(phydev);
+	int cssr1, speed, val;
 
 	val = genphy_c45_read_link(phydev);
 	if (val < 0)
@@ -450,6 +574,52 @@ static int mv3310_read_status(struct phy_device *phydev)
 	val = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_STAT1);
 	if (val < 0)
 		return val;
+
+	cssr1 = phy_read_mmd(phydev, MDIO_MMD_PCS, MV_PCS_CSSR1);
+	if (cssr1 < 0)
+		return val;
+
+	/* If the link settings are not resolved, mark the link down */
+	if (!(cssr1 & MV_PCS_CSSR1_RESOLVED)) {
+		phydev->link = 0;
+		return 0;
+	}
+
+	/* Read the copper link settings */
+	speed = cssr1 & MV_PCS_CSSR1_SPD1_MASK;
+	if (speed == MV_PCS_CSSR1_SPD1_SPD2)
+		speed |= cssr1 & MV_PCS_CSSR1_SPD2_MASK;
+
+	switch (speed) {
+	case MV_PCS_CSSR1_SPD1_SPD2 | MV_PCS_CSSR1_SPD2_10000:
+		phydev->speed = SPEED_10000;
+		break;
+
+	case MV_PCS_CSSR1_SPD1_SPD2 | MV_PCS_CSSR1_SPD2_5000:
+		phydev->speed = SPEED_5000;
+		break;
+
+	case MV_PCS_CSSR1_SPD1_SPD2 | MV_PCS_CSSR1_SPD2_2500:
+		phydev->speed = SPEED_2500;
+		break;
+
+	case MV_PCS_CSSR1_SPD1_1000:
+		phydev->speed = SPEED_1000;
+		break;
+
+	case MV_PCS_CSSR1_SPD1_100:
+		phydev->speed = SPEED_100;
+		break;
+
+	case MV_PCS_CSSR1_SPD1_10:
+		phydev->speed = SPEED_10;
+		break;
+	}
+
+	phydev->duplex = cssr1 & MV_PCS_CSSR1_DUPLEX_FULL ?
+			 DUPLEX_FULL : DUPLEX_HALF;
+	phydev->mdix = cssr1 & MV_PCS_CSSR1_MDIX ?
+		       ETH_TP_MDI_X : ETH_TP_MDI;
 
 	if (val & MDIO_AN_STAT1_COMPLETE) {
 		val = genphy_c45_read_lpa(phydev);
@@ -463,41 +633,62 @@ static int mv3310_read_status(struct phy_device *phydev)
 
 		mii_stat1000_mod_linkmode_lpa_t(phydev->lp_advertising, val);
 
-		if (phydev->autoneg == AUTONEG_ENABLE)
-			phy_resolve_aneg_linkmode(phydev);
+		/* Update the pause status */
+		phy_resolve_aneg_pause(phydev);
 	}
-
-	if (phydev->autoneg != AUTONEG_ENABLE) {
-		val = genphy_c45_read_pma(phydev);
-		if (val < 0)
-			return val;
-	}
-
-	if (phydev->speed == SPEED_10000) {
-		val = genphy_c45_read_mdix(phydev);
-		if (val < 0)
-			return val;
-	} else {
-		val = phy_read_mmd(phydev, MDIO_MMD_PCS, MV_PCS_PAIRSWAP);
-		if (val < 0)
-			return val;
-
-		switch (val & MV_PCS_PAIRSWAP_MASK) {
-		case MV_PCS_PAIRSWAP_AB:
-			phydev->mdix = ETH_TP_MDI_X;
-			break;
-		case MV_PCS_PAIRSWAP_NONE:
-			phydev->mdix = ETH_TP_MDI;
-			break;
-		default:
-			phydev->mdix = ETH_TP_MDI_INVALID;
-			break;
-		}
-	}
-
-	mv3310_update_interface(phydev);
 
 	return 0;
+}
+
+static int mv3310_read_status(struct phy_device *phydev)
+{
+	int err, val;
+
+	phydev->speed = SPEED_UNKNOWN;
+	phydev->duplex = DUPLEX_UNKNOWN;
+	linkmode_zero(phydev->lp_advertising);
+	phydev->link = 0;
+	phydev->pause = 0;
+	phydev->asym_pause = 0;
+	phydev->mdix = ETH_TP_MDI_INVALID;
+
+	val = phy_read_mmd(phydev, MDIO_MMD_PCS, MV_PCS_BASE_R + MDIO_STAT1);
+	if (val < 0)
+		return val;
+
+	if (val & MDIO_STAT1_LSTATUS)
+		err = mv3310_read_status_10gbaser(phydev);
+	else
+		err = mv3310_read_status_copper(phydev);
+	if (err < 0)
+		return err;
+
+	if (phydev->link)
+		mv3310_update_interface(phydev);
+
+	return 0;
+}
+
+static int mv3310_get_tunable(struct phy_device *phydev,
+			      struct ethtool_tunable *tuna, void *data)
+{
+	switch (tuna->id) {
+	case ETHTOOL_PHY_EDPD:
+		return mv3310_get_edpd(phydev, data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int mv3310_set_tunable(struct phy_device *phydev,
+			      struct ethtool_tunable *tuna, const void *data)
+{
+	switch (tuna->id) {
+	case ETHTOOL_PHY_EDPD:
+		return mv3310_set_edpd(phydev, *(u16 *)data);
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static struct phy_driver mv3310_drivers[] = {
@@ -514,6 +705,8 @@ static struct phy_driver mv3310_drivers[] = {
 		.config_aneg	= mv3310_config_aneg,
 		.aneg_done	= mv3310_aneg_done,
 		.read_status	= mv3310_read_status,
+		.get_tunable	= mv3310_get_tunable,
+		.set_tunable	= mv3310_set_tunable,
 	},
 	{
 		.phy_id		= MARVELL_PHY_ID_88E2110,
@@ -527,6 +720,8 @@ static struct phy_driver mv3310_drivers[] = {
 		.config_aneg	= mv3310_config_aneg,
 		.aneg_done	= mv3310_aneg_done,
 		.read_status	= mv3310_read_status,
+		.get_tunable	= mv3310_get_tunable,
+		.set_tunable	= mv3310_set_tunable,
 	},
 };
 

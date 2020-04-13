@@ -58,8 +58,4 @@ config CAIF_VIRTIO
 	---help---
 	  The CAIF driver for CAIF over Virtio.
 
-if CAIF_VIRTIO
-source "drivers/vhost/Kconfig.vringh"
-endif
-
 endif # CAIF_DRIVERS

@@ -1,8 +1,0 @@
-NEC LCD Technologies, Ltd. 12.1" WXGA (1280x800) LVDS TFT LCD panel
-
-Required properties:
-- compatible: should be "nec,nl12880bc20-05"
-- power-supply: as specified in the base binding
-
-This binding is compatible with the simple-panel binding, which is specified
-in simple-panel.txt in this directory.

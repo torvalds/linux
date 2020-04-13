@@ -1141,3 +1141,64 @@ void drm_vram_helper_release_mm(struct drm_device *dev)
 	dev->vram_mm = NULL;
 }
 EXPORT_SYMBOL(drm_vram_helper_release_mm);
+
+/*
+ * Mode-config helpers
+ */
+
+static enum drm_mode_status
+drm_vram_helper_mode_valid_internal(struct drm_device *dev,
+				    const struct drm_display_mode *mode,
+				    unsigned long max_bpp)
+{
+	struct drm_vram_mm *vmm = dev->vram_mm;
+	unsigned long fbsize, fbpages, max_fbpages;
+
+	if (WARN_ON(!dev->vram_mm))
+		return MODE_BAD;
+
+	max_fbpages = (vmm->vram_size / 2) >> PAGE_SHIFT;
+
+	fbsize = mode->hdisplay * mode->vdisplay * max_bpp;
+	fbpages = DIV_ROUND_UP(fbsize, PAGE_SIZE);
+
+	if (fbpages > max_fbpages)
+		return MODE_MEM;
+
+	return MODE_OK;
+}
+
+/**
+ * drm_vram_helper_mode_valid - Tests if a display mode's
+ *	framebuffer fits into the available video memory.
+ * @dev:	the DRM device
+ * @mode:	the mode to test
+ *
+ * This function tests if enough video memory is available for using the
+ * specified display mode. Atomic modesetting requires importing the
+ * designated framebuffer into video memory before evicting the active
+ * one. Hence, any framebuffer may consume at most half of the available
+ * VRAM. Display modes that require a larger framebuffer can not be used,
+ * even if the CRTC does support them. Each framebuffer is assumed to
+ * have 32-bit color depth.
+ *
+ * Note:
+ * The function can only test if the display mode is supported in
+ * general. If there are too many framebuffers pinned to video memory,
+ * a display mode may still not be usable in practice. The color depth of
+ * 32-bit fits all current use case. A more flexible test can be added
+ * when necessary.
+ *
+ * Returns:
+ * MODE_OK if the display mode is supported, or an error code of type
+ * enum drm_mode_status otherwise.
+ */
+enum drm_mode_status
+drm_vram_helper_mode_valid(struct drm_device *dev,
+			   const struct drm_display_mode *mode)
+{
+	static const unsigned long max_bpp = 4; /* DRM_FORMAT_XRGB8888 */
+
+	return drm_vram_helper_mode_valid_internal(dev, mode, max_bpp);
+}
+EXPORT_SYMBOL(drm_vram_helper_mode_valid);

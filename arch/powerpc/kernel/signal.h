@@ -10,8 +10,6 @@
 #ifndef _POWERPC_ARCH_SIGNAL_H
 #define _POWERPC_ARCH_SIGNAL_H
 
-extern void do_notify_resume(struct pt_regs *regs, unsigned long thread_info_flags);
-
 extern void __user *get_sigframe(struct ksignal *ksig, unsigned long sp,
 				  size_t frame_size, int is_32);
 

@@ -7,6 +7,11 @@
  *
  * Copyright (c) 2019 Advantech
  * Author: Amy.Shih <amy.shih@advantech.com.tw>
+ *
+ * Supports the following chips:
+ *
+ * Chip        #vin  #fan  #pwm  #temp  #dts  chip ID
+ * nct7904d     20    12    4     5      8    0xc5
  */
 
 #include <linux/module.h>
@@ -820,6 +825,10 @@ static const struct hwmon_channel_info *nct7904_info[] = {
 			   HWMON_F_INPUT | HWMON_F_MIN | HWMON_F_ALARM,
 			   HWMON_F_INPUT | HWMON_F_MIN | HWMON_F_ALARM,
 			   HWMON_F_INPUT | HWMON_F_MIN | HWMON_F_ALARM,
+			   HWMON_F_INPUT | HWMON_F_MIN | HWMON_F_ALARM,
+			   HWMON_F_INPUT | HWMON_F_MIN | HWMON_F_ALARM,
+			   HWMON_F_INPUT | HWMON_F_MIN | HWMON_F_ALARM,
+			   HWMON_F_INPUT | HWMON_F_MIN | HWMON_F_ALARM,
 			   HWMON_F_INPUT | HWMON_F_MIN | HWMON_F_ALARM),
 	HWMON_CHANNEL_INFO(pwm,
 			   HWMON_PWM_INPUT | HWMON_PWM_ENABLE,
@@ -827,6 +836,18 @@ static const struct hwmon_channel_info *nct7904_info[] = {
 			   HWMON_PWM_INPUT | HWMON_PWM_ENABLE,
 			   HWMON_PWM_INPUT | HWMON_PWM_ENABLE),
 	HWMON_CHANNEL_INFO(temp,
+			   HWMON_T_INPUT | HWMON_T_ALARM | HWMON_T_MAX |
+			   HWMON_T_MAX_HYST | HWMON_T_TYPE | HWMON_T_CRIT |
+			   HWMON_T_CRIT_HYST,
+			   HWMON_T_INPUT | HWMON_T_ALARM | HWMON_T_MAX |
+			   HWMON_T_MAX_HYST | HWMON_T_TYPE | HWMON_T_CRIT |
+			   HWMON_T_CRIT_HYST,
+			   HWMON_T_INPUT | HWMON_T_ALARM | HWMON_T_MAX |
+			   HWMON_T_MAX_HYST | HWMON_T_TYPE | HWMON_T_CRIT |
+			   HWMON_T_CRIT_HYST,
+			   HWMON_T_INPUT | HWMON_T_ALARM | HWMON_T_MAX |
+			   HWMON_T_MAX_HYST | HWMON_T_TYPE | HWMON_T_CRIT |
+			   HWMON_T_CRIT_HYST,
 			   HWMON_T_INPUT | HWMON_T_ALARM | HWMON_T_MAX |
 			   HWMON_T_MAX_HYST | HWMON_T_TYPE | HWMON_T_CRIT |
 			   HWMON_T_CRIT_HYST,

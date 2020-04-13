@@ -168,7 +168,10 @@ static void process_num_buffers(struct vb2_queue *q,
 {
 	const struct amvdec_format *fmt_out = sess->fmt_out;
 	unsigned int buffers_total = q->num_buffers + *num_buffers;
+	u32 min_buf_capture = v4l2_ctrl_g_ctrl(sess->ctrl_min_buf_capture);
 
+	if (q->num_buffers + *num_buffers < min_buf_capture)
+		*num_buffers = min_buf_capture - q->num_buffers;
 	if (is_reqbufs && buffers_total < fmt_out->min_buffers)
 		*num_buffers = fmt_out->min_buffers - q->num_buffers;
 	if (buffers_total > fmt_out->max_buffers)
@@ -193,7 +196,8 @@ static int vdec_queue_setup(struct vb2_queue *q, unsigned int *num_buffers,
 	if (*num_planes) {
 		switch (q->type) {
 		case V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE:
-			if (*num_planes != 1 || sizes[0] < output_size)
+			if (*num_planes != 1 ||
+			    sizes[0] < sess->src_buffer_size)
 				return -EINVAL;
 			break;
 		case V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE:
@@ -224,7 +228,7 @@ static int vdec_queue_setup(struct vb2_queue *q, unsigned int *num_buffers,
 
 	switch (q->type) {
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE:
-		sizes[0] = amvdec_get_output_size(sess);
+		sizes[0] = sess->src_buffer_size;
 		*num_planes = 1;
 		break;
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE:
@@ -250,6 +254,7 @@ static int vdec_queue_setup(struct vb2_queue *q, unsigned int *num_buffers,
 		return -EINVAL;
 	}
 
+	sess->changed_format = 1;
 	return 0;
 }
 
@@ -261,10 +266,11 @@ static void vdec_vb2_buf_queue(struct vb2_buffer *vb)
 
 	v4l2_m2m_buf_queue(m2m_ctx, vbuf);
 
-	if (!sess->streamon_out || !sess->streamon_cap)
+	if (!sess->streamon_out)
 		return;
 
-	if (vb->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE &&
+	if (sess->streamon_cap &&
+	    vb->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE &&
 	    vdec_codec_needs_recycle(sess))
 		vdec_queue_recycle(sess, vb);
 
@@ -289,15 +295,21 @@ static int vdec_start_streaming(struct vb2_queue *q, unsigned int count)
 	else
 		sess->streamon_cap = 1;
 
-	if (!sess->streamon_out || !sess->streamon_cap)
+	if (!sess->streamon_out)
 		return 0;
 
 	if (sess->status == STATUS_NEEDS_RESUME &&
-	    q->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
+	    q->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE &&
+	    sess->changed_format) {
 		codec_ops->resume(sess);
 		sess->status = STATUS_RUNNING;
 		return 0;
 	}
+
+	if (sess->status == STATUS_RUNNING ||
+	    sess->status == STATUS_NEEDS_RESUME ||
+	    sess->status == STATUS_INIT)
+		return 0;
 
 	sess->vififo_size = SIZE_VIFIFO;
 	sess->vififo_vaddr =
@@ -323,13 +335,14 @@ static int vdec_start_streaming(struct vb2_queue *q, unsigned int count)
 		goto vififo_free;
 
 	sess->sequence_cap = 0;
+	sess->sequence_out = 0;
 	if (vdec_codec_needs_recycle(sess))
 		sess->recycle_thread = kthread_run(vdec_recycle_thread, sess,
 						   "vdec_recycle");
 
-	sess->status = STATUS_RUNNING;
+	sess->status = STATUS_INIT;
 	core->cur_sess = sess;
-
+	schedule_work(&sess->esparser_queue_work);
 	return 0;
 
 vififo_free:
@@ -382,10 +395,12 @@ static void vdec_reset_bufs_recycle(struct amvdec_session *sess)
 static void vdec_stop_streaming(struct vb2_queue *q)
 {
 	struct amvdec_session *sess = vb2_get_drv_priv(q);
+	struct amvdec_codec_ops *codec_ops = sess->fmt_out->codec_ops;
 	struct amvdec_core *core = sess->core;
 	struct vb2_v4l2_buffer *buf;
 
 	if (sess->status == STATUS_RUNNING ||
+	    sess->status == STATUS_INIT ||
 	    (sess->status == STATUS_NEEDS_RESUME &&
 	     (!sess->streamon_out || !sess->streamon_cap))) {
 		if (vdec_codec_needs_recycle(sess))
@@ -409,6 +424,10 @@ static void vdec_stop_streaming(struct vb2_queue *q)
 
 		sess->streamon_out = 0;
 	} else {
+		/* Drain remaining refs if was still running */
+		if (sess->status >= STATUS_RUNNING && codec_ops->drain)
+			codec_ops->drain(sess);
+
 		while ((buf = v4l2_m2m_dst_buf_remove(sess->m2m_ctx)))
 			v4l2_m2m_buf_done(buf, VB2_BUF_STATE_ERROR);
 
@@ -476,20 +495,34 @@ vdec_try_fmt_common(struct amvdec_session *sess, u32 size,
 	struct v4l2_pix_format_mplane *pixmp = &f->fmt.pix_mp;
 	struct v4l2_plane_pix_format *pfmt = pixmp->plane_fmt;
 	const struct amvdec_format *fmts = sess->core->platform->formats;
-	const struct amvdec_format *fmt_out;
+	const struct amvdec_format *fmt_out = NULL;
+	u32 output_size = 0;
 
 	memset(pfmt[0].reserved, 0, sizeof(pfmt[0].reserved));
 	memset(pixmp->reserved, 0, sizeof(pixmp->reserved));
 
-	if (f->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
+	switch (f->type) {
+	case V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE:
 		fmt_out = find_format(fmts, size, pixmp->pixelformat);
 		if (!fmt_out) {
 			pixmp->pixelformat = V4L2_PIX_FMT_MPEG2;
 			fmt_out = find_format(fmts, size, pixmp->pixelformat);
 		}
+		break;
+	case V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE:
+		fmt_out = sess->fmt_out;
+		break;
+	default:
+		return NULL;
+	}
 
-		pfmt[0].sizeimage =
-			get_output_size(pixmp->width, pixmp->height);
+	pixmp->width  = clamp(pixmp->width,  (u32)256, fmt_out->max_width);
+	pixmp->height = clamp(pixmp->height, (u32)144, fmt_out->max_height);
+	output_size = get_output_size(pixmp->width, pixmp->height);
+
+	if (f->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
+		if (!pfmt[0].sizeimage)
+			pfmt[0].sizeimage = sess->src_buffer_size;
 		pfmt[0].bytesperline = 0;
 		pixmp->num_planes = 1;
 	} else if (f->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
@@ -499,34 +532,24 @@ vdec_try_fmt_common(struct amvdec_session *sess, u32 size,
 
 		memset(pfmt[1].reserved, 0, sizeof(pfmt[1].reserved));
 		if (pixmp->pixelformat == V4L2_PIX_FMT_NV12M) {
-			pfmt[0].sizeimage =
-				get_output_size(pixmp->width, pixmp->height);
-			pfmt[0].bytesperline = ALIGN(pixmp->width, 64);
+			pfmt[0].sizeimage = output_size;
+			pfmt[0].bytesperline = ALIGN(pixmp->width, 32);
 
-			pfmt[1].sizeimage =
-			      get_output_size(pixmp->width, pixmp->height) / 2;
-			pfmt[1].bytesperline = ALIGN(pixmp->width, 64);
+			pfmt[1].sizeimage = output_size / 2;
+			pfmt[1].bytesperline = ALIGN(pixmp->width, 32);
 			pixmp->num_planes = 2;
 		} else if (pixmp->pixelformat == V4L2_PIX_FMT_YUV420M) {
-			pfmt[0].sizeimage =
-				get_output_size(pixmp->width, pixmp->height);
-			pfmt[0].bytesperline = ALIGN(pixmp->width, 64);
+			pfmt[0].sizeimage = output_size;
+			pfmt[0].bytesperline = ALIGN(pixmp->width, 32);
 
-			pfmt[1].sizeimage =
-			      get_output_size(pixmp->width, pixmp->height) / 4;
-			pfmt[1].bytesperline = ALIGN(pixmp->width, 64) / 2;
+			pfmt[1].sizeimage = output_size / 4;
+			pfmt[1].bytesperline = ALIGN(pixmp->width, 32) / 2;
 
-			pfmt[2].sizeimage =
-			      get_output_size(pixmp->width, pixmp->height) / 4;
-			pfmt[2].bytesperline = ALIGN(pixmp->width, 64) / 2;
+			pfmt[2].sizeimage = output_size / 2;
+			pfmt[2].bytesperline = ALIGN(pixmp->width, 32) / 2;
 			pixmp->num_planes = 3;
 		}
-	} else {
-		return NULL;
 	}
-
-	pixmp->width  = clamp(pixmp->width,  (u32)256, fmt_out->max_width);
-	pixmp->height = clamp(pixmp->height, (u32)144, fmt_out->max_height);
 
 	if (pixmp->field == V4L2_FIELD_ANY)
 		pixmp->field = V4L2_FIELD_NONE;
@@ -586,6 +609,8 @@ static int vdec_s_fmt(struct file *file, void *fh, struct v4l2_format *f)
 	orig_pixmp = *pixmp;
 
 	fmt_out = vdec_try_fmt_common(sess, num_formats, f);
+	if (!fmt_out)
+		return -EINVAL;
 
 	if (f->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 		pixfmt_out = pixmp->pixelformat;
@@ -610,6 +635,7 @@ static int vdec_s_fmt(struct file *file, void *fh, struct v4l2_format *f)
 		sess->ycbcr_enc = pixmp->ycbcr_enc;
 		sess->quantization = pixmp->quantization;
 		sess->xfer_func = pixmp->xfer_func;
+		sess->src_buffer_size = pixmp->plane_fmt[0].sizeimage;
 	}
 
 	memset(&format, 0, sizeof(format));
@@ -701,29 +727,31 @@ vdec_decoder_cmd(struct file *file, void *fh, struct v4l2_decoder_cmd *cmd)
 	if (!(sess->streamon_out & sess->streamon_cap))
 		return 0;
 
-	/* Currently not handled since we do not support dynamic resolution
-	 * for MPEG2. We consider both queues streaming to mean that the
-	 * decoding session is started
-	 */
-	if (cmd->cmd == V4L2_DEC_CMD_START)
+	if (cmd->cmd == V4L2_DEC_CMD_START) {
+		v4l2_m2m_clear_state(sess->m2m_ctx);
+		sess->should_stop = 0;
 		return 0;
+	}
 
 	/* Should not happen */
 	if (cmd->cmd != V4L2_DEC_CMD_STOP)
 		return -EINVAL;
 
 	dev_dbg(dev, "Received V4L2_DEC_CMD_STOP\n");
+
 	sess->should_stop = 1;
 
-	vdec_wait_inactive(sess);
+	v4l2_m2m_mark_stopped(sess->m2m_ctx);
 
 	if (codec_ops->drain) {
+		vdec_wait_inactive(sess);
 		codec_ops->drain(sess);
 	} else if (codec_ops->eos_sequence) {
 		u32 len;
 		const u8 *data = codec_ops->eos_sequence(&len);
 
 		esparser_queue_eos(sess->core, data, len);
+		vdec_wait_inactive(sess);
 	}
 
 	return ret;
@@ -883,6 +911,7 @@ static int vdec_open(struct file *file)
 	sess->height = 720;
 	sess->pixelaspect.numerator = 1;
 	sess->pixelaspect.denominator = 1;
+	sess->src_buffer_size = SZ_1M;
 
 	INIT_LIST_HEAD(&sess->timestamps);
 	INIT_LIST_HEAD(&sess->bufs_recycle);
@@ -1076,7 +1105,7 @@ static int vdec_probe(struct platform_device *pdev)
 
 	video_set_drvdata(vdev, core);
 
-	ret = video_register_device(vdev, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(vdev, VFL_TYPE_VIDEO, -1);
 	if (ret) {
 		dev_err(dev, "Failed registering video device\n");
 		goto err_vdev_release;

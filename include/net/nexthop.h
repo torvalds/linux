@@ -73,7 +73,7 @@ struct nh_group {
 	u16			num_nh;
 	bool			mpath;
 	bool			has_v4;
-	struct nh_grp_entry	nh_entries[0];
+	struct nh_grp_entry	nh_entries[];
 };
 
 struct nexthop {

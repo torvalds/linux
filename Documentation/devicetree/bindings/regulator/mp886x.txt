@@ -1,0 +1,27 @@
+Monolithic Power Systems MP8867/MP8869 voltage regulator
+
+Required properties:
+- compatible: Must be one of the following.
+	"mps,mp8867"
+	"mps,mp8869"
+- reg: I2C slave address.
+- enable-gpios: enable gpios.
+- mps,fb-voltage-divider: An array of two integers containing the resistor
+  values R1 and R2 of the feedback voltage divider in kilo ohms.
+
+Any property defined as part of the core regulator binding, defined in
+./regulator.txt, can also be used.
+
+Example:
+
+	vcpu: regulator@62 {
+		compatible = "mps,mp8869";
+		regulator-name = "vcpu";
+		regulator-min-microvolt = <700000>;
+		regulator-max-microvolt = <850000>;
+		regulator-always-on;
+		regulator-boot-on;
+		enable-gpios = <&porta 1 GPIO_ACTIVE_LOW>;
+		mps,fb-voltage-divider = <80 240>;
+		reg = <0x62>;
+	};

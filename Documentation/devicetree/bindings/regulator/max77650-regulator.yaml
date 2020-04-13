@@ -24,8 +24,11 @@ properties:
     const: maxim,max77650-regulator
 
 patternProperties:
-  "^regulator@[0-3]$":
+  "^regulator-(ldo|sbb[0-2])$":
     $ref: "regulator.yaml#"
 
 required:
   - compatible
+additionalProperties: false
+
+...

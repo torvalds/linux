@@ -64,7 +64,7 @@
 struct dblock {
 	__le32 addr;		/* adapter address where to write the block */
 	__le16 len;		/* length of the data only, in bytes */
-	char data[0];		/* data to be written */
+	char data[];		/* data to be written */
 } __packed;
 
 /*
@@ -76,7 +76,7 @@ struct pdr {
 	__le32 id;		/* record ID */
 	__le32 addr;		/* adapter address where to write the data */
 	__le32 len;		/* expected length of the data, in bytes */
-	char next[0];		/* next PDR starts here */
+	char next[];		/* next PDR starts here */
 } __packed;
 
 /*
@@ -87,7 +87,7 @@ struct pdr {
 struct pdi {
 	__le16 len;		/* length of ID and data, in words */
 	__le16 id;		/* record ID */
-	char data[0];		/* plug data */
+	char data[];		/* plug data */
 } __packed;
 
 /*** FW data block access functions ***/

@@ -38,8 +38,6 @@ struct mlx5dr_action_dest {
 	struct mlx5dr_action *reformat;
 };
 
-#ifdef CONFIG_MLX5_SW_STEERING
-
 struct mlx5dr_domain *
 mlx5dr_domain_create(struct mlx5_core_dev *mdev, enum mlx5dr_domain_type type);
 
@@ -59,7 +57,7 @@ u32 mlx5dr_table_get_id(struct mlx5dr_table *table);
 
 struct mlx5dr_matcher *
 mlx5dr_matcher_create(struct mlx5dr_table *table,
-		      u16 priority,
+		      u32 priority,
 		      u8 match_criteria_enable,
 		      struct mlx5dr_match_parameters *mask);
 
@@ -75,6 +73,9 @@ int mlx5dr_rule_destroy(struct mlx5dr_rule *rule);
 
 int mlx5dr_table_set_miss_action(struct mlx5dr_table *tbl,
 				 struct mlx5dr_action *action);
+
+struct mlx5dr_action *
+mlx5dr_action_create_dest_table_num(struct mlx5dr_domain *dmn, u32 table_num);
 
 struct mlx5dr_action *
 mlx5dr_action_create_dest_table(struct mlx5dr_table *table);
@@ -124,104 +125,5 @@ mlx5dr_is_supported(struct mlx5_core_dev *dev)
 {
 	return MLX5_CAP_ESW_FLOWTABLE_FDB(dev, sw_owner);
 }
-
-#else /* CONFIG_MLX5_SW_STEERING */
-
-static inline struct mlx5dr_domain *
-mlx5dr_domain_create(struct mlx5_core_dev *mdev, enum mlx5dr_domain_type type) { return NULL; }
-
-static inline int
-mlx5dr_domain_destroy(struct mlx5dr_domain *domain) { return 0; }
-
-static inline int
-mlx5dr_domain_sync(struct mlx5dr_domain *domain, u32 flags) { return 0; }
-
-static inline void
-mlx5dr_domain_set_peer(struct mlx5dr_domain *dmn,
-		       struct mlx5dr_domain *peer_dmn) { }
-
-static inline struct mlx5dr_table *
-mlx5dr_table_create(struct mlx5dr_domain *domain, u32 level, u32 flags) { return NULL; }
-
-static inline int
-mlx5dr_table_destroy(struct mlx5dr_table *table) { return 0; }
-
-static inline u32
-mlx5dr_table_get_id(struct mlx5dr_table *table) { return 0; }
-
-static inline struct mlx5dr_matcher *
-mlx5dr_matcher_create(struct mlx5dr_table *table,
-		      u16 priority,
-		      u8 match_criteria_enable,
-		      struct mlx5dr_match_parameters *mask) { return NULL; }
-
-static inline int
-mlx5dr_matcher_destroy(struct mlx5dr_matcher *matcher) { return 0; }
-
-static inline struct mlx5dr_rule *
-mlx5dr_rule_create(struct mlx5dr_matcher *matcher,
-		   struct mlx5dr_match_parameters *value,
-		   size_t num_actions,
-		   struct mlx5dr_action *actions[]) { return NULL; }
-
-static inline int
-mlx5dr_rule_destroy(struct mlx5dr_rule *rule) { return 0; }
-
-static inline int
-mlx5dr_table_set_miss_action(struct mlx5dr_table *tbl,
-			     struct mlx5dr_action *action) { return 0; }
-
-static inline struct mlx5dr_action *
-mlx5dr_action_create_dest_table(struct mlx5dr_table *table) { return NULL; }
-
-static inline struct mlx5dr_action *
-mlx5dr_action_create_dest_flow_fw_table(struct mlx5dr_domain *domain,
-					struct mlx5_flow_table *ft) { return NULL; }
-
-static inline struct mlx5dr_action *
-mlx5dr_action_create_dest_vport(struct mlx5dr_domain *domain,
-				u32 vport, u8 vhca_id_valid,
-				u16 vhca_id) { return NULL; }
-
-static inline struct mlx5dr_action *
-mlx5dr_action_create_mult_dest_tbl(struct mlx5dr_domain *dmn,
-				   struct mlx5dr_action_dest *dests,
-				   u32 num_of_dests)  { return NULL; }
-
-static inline struct mlx5dr_action *
-mlx5dr_action_create_drop(void) { return NULL; }
-
-static inline struct mlx5dr_action *
-mlx5dr_action_create_tag(u32 tag_value) { return NULL; }
-
-static inline struct mlx5dr_action *
-mlx5dr_action_create_flow_counter(u32 counter_id) { return NULL; }
-
-static inline struct mlx5dr_action *
-mlx5dr_action_create_packet_reformat(struct mlx5dr_domain *dmn,
-				     enum mlx5dr_action_reformat_type reformat_type,
-				     size_t data_sz,
-				     void *data) { return NULL; }
-
-static inline struct mlx5dr_action *
-mlx5dr_action_create_modify_header(struct mlx5dr_domain *domain,
-				   u32 flags,
-				   size_t actions_sz,
-				   __be64 actions[]) { return NULL; }
-
-static inline struct mlx5dr_action *
-mlx5dr_action_create_pop_vlan(void) { return NULL; }
-
-static inline struct mlx5dr_action *
-mlx5dr_action_create_push_vlan(struct mlx5dr_domain *domain,
-			       __be32 vlan_hdr) { return NULL; }
-
-static inline int
-mlx5dr_action_destroy(struct mlx5dr_action *action) { return 0; }
-
-static inline bool
-mlx5dr_is_supported(struct mlx5_core_dev *dev) { return false; }
-
-#endif /* CONFIG_MLX5_SW_STEERING */
 
 #endif /* _MLX5DR_H_ */

@@ -42,3 +42,14 @@ config CRYPTO_DEV_CHELSIO_TLS
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called chtls.
+
+config CHELSIO_TLS_DEVICE
+	bool "Chelsio Inline KTLS Offload"
+	depends on CHELSIO_T4
+	depends on TLS_DEVICE
+	select CRYPTO_DEV_CHELSIO
+	default y
+	help
+	  This flag enables support for kernel tls offload over Chelsio T6
+	  crypto accelerator. CONFIG_CHELSIO_TLS_DEVICE flag can be enabled
+	  only if CONFIG_TLS and CONFIG_TLS_DEVICE flags are enabled.

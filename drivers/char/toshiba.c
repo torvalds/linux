@@ -61,8 +61,6 @@
 #include <linux/mutex.h>
 #include <linux/toshiba.h>
 
-#define TOSH_MINOR_DEV 181
-
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jonathan Buzzard <jonathan@buzzard.org.uk>");
 MODULE_DESCRIPTION("Toshiba laptop SMM driver");

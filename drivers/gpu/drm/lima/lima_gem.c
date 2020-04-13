@@ -4,6 +4,8 @@
 #include <linux/mm.h>
 #include <linux/sync_file.h>
 #include <linux/pagemap.h>
+#include <linux/shmem_fs.h>
+#include <linux/dma-mapping.h>
 
 #include <drm/drm_file.h>
 #include <drm/drm_syncobj.h>
@@ -15,6 +17,83 @@
 #include "lima_gem.h"
 #include "lima_vm.h"
 
+int lima_heap_alloc(struct lima_bo *bo, struct lima_vm *vm)
+{
+	struct page **pages;
+	struct address_space *mapping = bo->base.base.filp->f_mapping;
+	struct device *dev = bo->base.base.dev->dev;
+	size_t old_size = bo->heap_size;
+	size_t new_size = bo->heap_size ? bo->heap_size * 2 :
+		(lima_heap_init_nr_pages << PAGE_SHIFT);
+	struct sg_table sgt;
+	int i, ret;
+
+	if (bo->heap_size >= bo->base.base.size)
+		return -ENOSPC;
+
+	new_size = min(new_size, bo->base.base.size);
+
+	mutex_lock(&bo->base.pages_lock);
+
+	if (bo->base.pages) {
+		pages = bo->base.pages;
+	} else {
+		pages = kvmalloc_array(bo->base.base.size >> PAGE_SHIFT,
+				       sizeof(*pages), GFP_KERNEL | __GFP_ZERO);
+		if (!pages) {
+			mutex_unlock(&bo->base.pages_lock);
+			return -ENOMEM;
+		}
+
+		bo->base.pages = pages;
+		bo->base.pages_use_count = 1;
+
+		mapping_set_unevictable(mapping);
+	}
+
+	for (i = old_size >> PAGE_SHIFT; i < new_size >> PAGE_SHIFT; i++) {
+		struct page *page = shmem_read_mapping_page(mapping, i);
+
+		if (IS_ERR(page)) {
+			mutex_unlock(&bo->base.pages_lock);
+			return PTR_ERR(page);
+		}
+		pages[i] = page;
+	}
+
+	mutex_unlock(&bo->base.pages_lock);
+
+	ret = sg_alloc_table_from_pages(&sgt, pages, i, 0,
+					new_size, GFP_KERNEL);
+	if (ret)
+		return ret;
+
+	if (bo->base.sgt) {
+		dma_unmap_sg(dev, bo->base.sgt->sgl,
+			     bo->base.sgt->nents, DMA_BIDIRECTIONAL);
+		sg_free_table(bo->base.sgt);
+	} else {
+		bo->base.sgt = kmalloc(sizeof(*bo->base.sgt), GFP_KERNEL);
+		if (!bo->base.sgt) {
+			sg_free_table(&sgt);
+			return -ENOMEM;
+		}
+	}
+
+	dma_map_sg(dev, sgt.sgl, sgt.nents, DMA_BIDIRECTIONAL);
+
+	*bo->base.sgt = sgt;
+
+	if (vm) {
+		ret = lima_vm_map_bo(vm, bo, old_size >> PAGE_SHIFT);
+		if (ret)
+			return ret;
+	}
+
+	bo->heap_size = new_size;
+	return 0;
+}
+
 int lima_gem_create_handle(struct drm_device *dev, struct drm_file *file,
 			   u32 size, u32 flags, u32 *handle)
 {
@@ -22,7 +101,8 @@ int lima_gem_create_handle(struct drm_device *dev, struct drm_file *file,
 	gfp_t mask;
 	struct drm_gem_shmem_object *shmem;
 	struct drm_gem_object *obj;
-	struct sg_table *sgt;
+	struct lima_bo *bo;
+	bool is_heap = flags & LIMA_BO_FLAG_HEAP;
 
 	shmem = drm_gem_shmem_create(dev, size);
 	if (IS_ERR(shmem))
@@ -36,10 +116,18 @@ int lima_gem_create_handle(struct drm_device *dev, struct drm_file *file,
 	mask |= __GFP_DMA32;
 	mapping_set_gfp_mask(obj->filp->f_mapping, mask);
 
-	sgt = drm_gem_shmem_get_pages_sgt(obj);
-	if (IS_ERR(sgt)) {
-		err = PTR_ERR(sgt);
-		goto out;
+	if (is_heap) {
+		bo = to_lima_bo(obj);
+		err = lima_heap_alloc(bo, NULL);
+		if (err)
+			goto out;
+	} else {
+		struct sg_table *sgt = drm_gem_shmem_get_pages_sgt(obj);
+
+		if (IS_ERR(sgt)) {
+			err = PTR_ERR(sgt);
+			goto out;
+		}
 	}
 
 	err = drm_gem_handle_create(file, obj, handle);
@@ -79,17 +167,47 @@ static void lima_gem_object_close(struct drm_gem_object *obj, struct drm_file *f
 	lima_vm_bo_del(vm, bo);
 }
 
+static int lima_gem_pin(struct drm_gem_object *obj)
+{
+	struct lima_bo *bo = to_lima_bo(obj);
+
+	if (bo->heap_size)
+		return -EINVAL;
+
+	return drm_gem_shmem_pin(obj);
+}
+
+static void *lima_gem_vmap(struct drm_gem_object *obj)
+{
+	struct lima_bo *bo = to_lima_bo(obj);
+
+	if (bo->heap_size)
+		return ERR_PTR(-EINVAL);
+
+	return drm_gem_shmem_vmap(obj);
+}
+
+static int lima_gem_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
+{
+	struct lima_bo *bo = to_lima_bo(obj);
+
+	if (bo->heap_size)
+		return -EINVAL;
+
+	return drm_gem_shmem_mmap(obj, vma);
+}
+
 static const struct drm_gem_object_funcs lima_gem_funcs = {
 	.free = lima_gem_free_object,
 	.open = lima_gem_object_open,
 	.close = lima_gem_object_close,
 	.print_info = drm_gem_shmem_print_info,
-	.pin = drm_gem_shmem_pin,
+	.pin = lima_gem_pin,
 	.unpin = drm_gem_shmem_unpin,
 	.get_sg_table = drm_gem_shmem_get_sg_table,
-	.vmap = drm_gem_shmem_vmap,
+	.vmap = lima_gem_vmap,
 	.vunmap = drm_gem_shmem_vunmap,
-	.mmap = drm_gem_shmem_mmap,
+	.mmap = lima_gem_mmap,
 };
 
 struct drm_gem_object *lima_gem_create_object(struct drm_device *dev, size_t size)

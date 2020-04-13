@@ -266,11 +266,15 @@ to use.
   attached (via the dmaengine_desc_attach_metadata() helper to the descriptor.
 
   From the DMA driver the following is expected for this mode:
+
   - DMA_MEM_TO_DEV / DEV_MEM_TO_MEM
+
     The data from the provided metadata buffer should be prepared for the DMA
     controller to be sent alongside of the payload data. Either by copying to a
     hardware descriptor, or highly coupled packet.
+
   - DMA_DEV_TO_MEM
+
     On transfer completion the DMA driver must copy the metadata to the client
     provided metadata buffer before notifying the client about the completion.
     After the transfer completion, DMA drivers must not touch the metadata
@@ -284,10 +288,14 @@ to use.
   and dmaengine_desc_set_metadata_len() is provided as helper functions.
 
   From the DMA driver the following is expected for this mode:
-  - get_metadata_ptr
+
+  - get_metadata_ptr()
+
     Should return a pointer for the metadata buffer, the maximum size of the
     metadata buffer and the currently used / valid (if any) bytes in the buffer.
-  - set_metadata_len
+
+  - set_metadata_len()
+
     It is called by the clients after it have placed the metadata to the buffer
     to let the DMA driver know the number of valid bytes provided.
 

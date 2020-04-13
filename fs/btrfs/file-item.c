@@ -23,6 +23,97 @@
 #define MAX_CSUM_ITEMS(r, size) (min_t(u32, __MAX_CSUM_ITEMS(r, size), \
 				       PAGE_SIZE))
 
+/**
+ * @inode - the inode we want to update the disk_i_size for
+ * @new_i_size - the i_size we want to set to, 0 if we use i_size
+ *
+ * With NO_HOLES set this simply sets the disk_is_size to whatever i_size_read()
+ * returns as it is perfectly fine with a file that has holes without hole file
+ * extent items.
+ *
+ * However without NO_HOLES we need to only return the area that is contiguous
+ * from the 0 offset of the file.  Otherwise we could end up adjust i_size up
+ * to an extent that has a gap in between.
+ *
+ * Finally new_i_size should only be set in the case of truncate where we're not
+ * ready to use i_size_read() as the limiter yet.
+ */
+void btrfs_inode_safe_disk_i_size_write(struct inode *inode, u64 new_i_size)
+{
+	struct btrfs_fs_info *fs_info = BTRFS_I(inode)->root->fs_info;
+	u64 start, end, i_size;
+	int ret;
+
+	i_size = new_i_size ?: i_size_read(inode);
+	if (btrfs_fs_incompat(fs_info, NO_HOLES)) {
+		BTRFS_I(inode)->disk_i_size = i_size;
+		return;
+	}
+
+	spin_lock(&BTRFS_I(inode)->lock);
+	ret = find_contiguous_extent_bit(&BTRFS_I(inode)->file_extent_tree, 0,
+					 &start, &end, EXTENT_DIRTY);
+	if (!ret && start == 0)
+		i_size = min(i_size, end + 1);
+	else
+		i_size = 0;
+	BTRFS_I(inode)->disk_i_size = i_size;
+	spin_unlock(&BTRFS_I(inode)->lock);
+}
+
+/**
+ * @inode - the inode we're modifying
+ * @start - the start file offset of the file extent we've inserted
+ * @len - the logical length of the file extent item
+ *
+ * Call when we are inserting a new file extent where there was none before.
+ * Does not need to call this in the case where we're replacing an existing file
+ * extent, however if not sure it's fine to call this multiple times.
+ *
+ * The start and len must match the file extent item, so thus must be sectorsize
+ * aligned.
+ */
+int btrfs_inode_set_file_extent_range(struct btrfs_inode *inode, u64 start,
+				      u64 len)
+{
+	if (len == 0)
+		return 0;
+
+	ASSERT(IS_ALIGNED(start + len, inode->root->fs_info->sectorsize));
+
+	if (btrfs_fs_incompat(inode->root->fs_info, NO_HOLES))
+		return 0;
+	return set_extent_bits(&inode->file_extent_tree, start, start + len - 1,
+			       EXTENT_DIRTY);
+}
+
+/**
+ * @inode - the inode we're modifying
+ * @start - the start file offset of the file extent we've inserted
+ * @len - the logical length of the file extent item
+ *
+ * Called when we drop a file extent, for example when we truncate.  Doesn't
+ * need to be called for cases where we're replacing a file extent, like when
+ * we've COWed a file extent.
+ *
+ * The start and len must match the file extent item, so thus must be sectorsize
+ * aligned.
+ */
+int btrfs_inode_clear_file_extent_range(struct btrfs_inode *inode, u64 start,
+					u64 len)
+{
+	if (len == 0)
+		return 0;
+
+	ASSERT(IS_ALIGNED(start + len, inode->root->fs_info->sectorsize) ||
+	       len == (u64)-1);
+
+	if (btrfs_fs_incompat(inode->root->fs_info, NO_HOLES))
+		return 0;
+	return clear_extent_bit(&inode->file_extent_tree, start,
+				start + len - 1, EXTENT_DIRTY, 0, 0, NULL);
+}
+
 static inline u32 max_ordered_sum_bytes(struct btrfs_fs_info *fs_info,
 					u16 csum_size)
 {
@@ -949,18 +1040,7 @@ void btrfs_extent_item_to_extent_map(struct btrfs_inode *inode,
 
 	btrfs_item_key_to_cpu(leaf, &key, slot);
 	extent_start = key.offset;
-
-	if (type == BTRFS_FILE_EXTENT_REG ||
-	    type == BTRFS_FILE_EXTENT_PREALLOC) {
-		extent_end = extent_start +
-			btrfs_file_extent_num_bytes(leaf, fi);
-	} else if (type == BTRFS_FILE_EXTENT_INLINE) {
-		size_t size;
-		size = btrfs_file_extent_ram_bytes(leaf, fi);
-		extent_end = ALIGN(extent_start + size,
-				   fs_info->sectorsize);
-	}
-
+	extent_end = btrfs_file_extent_end(path);
 	em->ram_bytes = btrfs_file_extent_ram_bytes(leaf, fi);
 	if (type == BTRFS_FILE_EXTENT_REG ||
 	    type == BTRFS_FILE_EXTENT_PREALLOC) {
@@ -1006,4 +1086,31 @@ void btrfs_extent_item_to_extent_map(struct btrfs_inode *inode,
 			  "root %llu", type, btrfs_ino(inode), extent_start,
 			  root->root_key.objectid);
 	}
+}
+
+/*
+ * Returns the end offset (non inclusive) of the file extent item the given path
+ * points to. If it points to an inline extent, the returned offset is rounded
+ * up to the sector size.
+ */
+u64 btrfs_file_extent_end(const struct btrfs_path *path)
+{
+	const struct extent_buffer *leaf = path->nodes[0];
+	const int slot = path->slots[0];
+	struct btrfs_file_extent_item *fi;
+	struct btrfs_key key;
+	u64 end;
+
+	btrfs_item_key_to_cpu(leaf, &key, slot);
+	ASSERT(key.type == BTRFS_EXTENT_DATA_KEY);
+	fi = btrfs_item_ptr(leaf, slot, struct btrfs_file_extent_item);
+
+	if (btrfs_file_extent_type(leaf, fi) == BTRFS_FILE_EXTENT_INLINE) {
+		end = btrfs_file_extent_ram_bytes(leaf, fi);
+		end = ALIGN(key.offset + end, leaf->fs_info->sectorsize);
+	} else {
+		end = key.offset + btrfs_file_extent_num_bytes(leaf, fi);
+	}
+
+	return end;
 }

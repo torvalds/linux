@@ -76,7 +76,7 @@ struct send_packet {
 	uint8_t channels;
 	uint8_t busy7;
 	uint8_t busy4;
-	uint8_t payload[0];
+	uint8_t payload[];
 };
 
 static void process_ir_data(struct iguanair *ir, unsigned len)

@@ -21,8 +21,7 @@
 #include <net/busy_poll.h>
 #include <net/vxlan.h>
 
-MODULE_VERSION(DRV_VER);
-MODULE_DESCRIPTION(DRV_DESC " " DRV_VER);
+MODULE_DESCRIPTION(DRV_DESC);
 MODULE_AUTHOR("Emulex Corporation");
 MODULE_LICENSE("GPL");
 
@@ -5948,8 +5947,6 @@ static int be_probe(struct pci_dev *pdev, const struct pci_device_id *pdev_id)
 	struct be_adapter *adapter;
 	struct net_device *netdev;
 	int status = 0;
-
-	dev_info(&pdev->dev, "%s version is %s\n", DRV_NAME, DRV_VER);
 
 	status = pci_enable_device(pdev);
 	if (status)

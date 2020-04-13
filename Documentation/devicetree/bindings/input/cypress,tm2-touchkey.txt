@@ -5,6 +5,7 @@ Required properties:
     * "cypress,tm2-touchkey" - for the touchkey found on the tm2 board
     * "cypress,midas-touchkey" - for the touchkey found on midas boards
     * "cypress,aries-touchkey" - for the touchkey found on aries boards
+    * "coreriver,tc360-touchkey" - for the Coreriver TouchCore 360 touchkey
 - reg: I2C address of the chip.
 - interrupts: interrupt to which the chip is connected (see interrupt
 	binding[0]).

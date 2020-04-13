@@ -11,6 +11,7 @@
 #include "aq_vec.h"
 #include "aq_ptp.h"
 #include "aq_filters.h"
+#include "aq_macsec.h"
 
 #include <linux/ptp_clock_kernel.h>
 
@@ -96,6 +97,62 @@ static const char aq_ethtool_queue_stat_names[][ETH_GSTRING_LEN] = {
 	"Queue[%d] InErrors",
 };
 
+#if IS_ENABLED(CONFIG_MACSEC)
+static const char aq_macsec_stat_names[][ETH_GSTRING_LEN] = {
+	"MACSec InCtlPackets",
+	"MACSec InTaggedMissPackets",
+	"MACSec InUntaggedMissPackets",
+	"MACSec InNotagPackets",
+	"MACSec InUntaggedPackets",
+	"MACSec InBadTagPackets",
+	"MACSec InNoSciPackets",
+	"MACSec InUnknownSciPackets",
+	"MACSec InCtrlPortPassPackets",
+	"MACSec InUnctrlPortPassPackets",
+	"MACSec InCtrlPortFailPackets",
+	"MACSec InUnctrlPortFailPackets",
+	"MACSec InTooLongPackets",
+	"MACSec InIgpocCtlPackets",
+	"MACSec InEccErrorPackets",
+	"MACSec InUnctrlHitDropRedir",
+	"MACSec OutCtlPackets",
+	"MACSec OutUnknownSaPackets",
+	"MACSec OutUntaggedPackets",
+	"MACSec OutTooLong",
+	"MACSec OutEccErrorPackets",
+	"MACSec OutUnctrlHitDropRedir",
+};
+
+static const char *aq_macsec_txsc_stat_names[] = {
+	"MACSecTXSC%d ProtectedPkts",
+	"MACSecTXSC%d EncryptedPkts",
+	"MACSecTXSC%d ProtectedOctets",
+	"MACSecTXSC%d EncryptedOctets",
+};
+
+static const char *aq_macsec_txsa_stat_names[] = {
+	"MACSecTXSC%dSA%d HitDropRedirect",
+	"MACSecTXSC%dSA%d Protected2Pkts",
+	"MACSecTXSC%dSA%d ProtectedPkts",
+	"MACSecTXSC%dSA%d EncryptedPkts",
+};
+
+static const char *aq_macsec_rxsa_stat_names[] = {
+	"MACSecRXSC%dSA%d UntaggedHitPkts",
+	"MACSecRXSC%dSA%d CtrlHitDrpRedir",
+	"MACSecRXSC%dSA%d NotUsingSa",
+	"MACSecRXSC%dSA%d UnusedSa",
+	"MACSecRXSC%dSA%d NotValidPkts",
+	"MACSecRXSC%dSA%d InvalidPkts",
+	"MACSecRXSC%dSA%d OkPkts",
+	"MACSecRXSC%dSA%d LatePkts",
+	"MACSecRXSC%dSA%d DelayedPkts",
+	"MACSecRXSC%dSA%d UncheckedPkts",
+	"MACSecRXSC%dSA%d ValidatedOctets",
+	"MACSecRXSC%dSA%d DecryptedOctets",
+};
+#endif
+
 static const char aq_ethtool_priv_flag_names[][ETH_GSTRING_LEN] = {
 	"DMASystemLoopback",
 	"PKTSystemLoopback",
@@ -104,18 +161,38 @@ static const char aq_ethtool_priv_flag_names[][ETH_GSTRING_LEN] = {
 	"PHYExternalLoopback",
 };
 
+static u32 aq_ethtool_n_stats(struct net_device *ndev)
+{
+	struct aq_nic_s *nic = netdev_priv(ndev);
+	struct aq_nic_cfg_s *cfg = aq_nic_get_cfg(nic);
+	u32 n_stats = ARRAY_SIZE(aq_ethtool_stat_names) +
+		      ARRAY_SIZE(aq_ethtool_queue_stat_names) * cfg->vecs;
+
+#if IS_ENABLED(CONFIG_MACSEC)
+	if (nic->macsec_cfg) {
+		n_stats += ARRAY_SIZE(aq_macsec_stat_names) +
+			   ARRAY_SIZE(aq_macsec_txsc_stat_names) *
+				   aq_macsec_tx_sc_cnt(nic) +
+			   ARRAY_SIZE(aq_macsec_txsa_stat_names) *
+				   aq_macsec_tx_sa_cnt(nic) +
+			   ARRAY_SIZE(aq_macsec_rxsa_stat_names) *
+				   aq_macsec_rx_sa_cnt(nic);
+	}
+#endif
+
+	return n_stats;
+}
+
 static void aq_ethtool_stats(struct net_device *ndev,
 			     struct ethtool_stats *stats, u64 *data)
 {
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
-	struct aq_nic_cfg_s *cfg;
 
-	cfg = aq_nic_get_cfg(aq_nic);
-
-	memset(data, 0, (ARRAY_SIZE(aq_ethtool_stat_names) +
-			 ARRAY_SIZE(aq_ethtool_queue_stat_names) *
-			 cfg->vecs) * sizeof(u64));
-	aq_nic_get_stats(aq_nic, data);
+	memset(data, 0, aq_ethtool_n_stats(ndev) * sizeof(u64));
+	data = aq_nic_get_stats(aq_nic, data);
+#if IS_ENABLED(CONFIG_MACSEC)
+	data = aq_macsec_get_stats(aq_nic, data);
+#endif
 }
 
 static void aq_ethtool_get_drvinfo(struct net_device *ndev,
@@ -123,16 +200,13 @@ static void aq_ethtool_get_drvinfo(struct net_device *ndev,
 {
 	struct pci_dev *pdev = to_pci_dev(ndev->dev.parent);
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
-	struct aq_nic_cfg_s *cfg;
 	u32 firmware_version;
 	u32 regs_count;
 
-	cfg = aq_nic_get_cfg(aq_nic);
 	firmware_version = aq_nic_get_fw_version(aq_nic);
 	regs_count = aq_nic_get_regs_count(aq_nic);
 
 	strlcat(drvinfo->driver, AQ_CFG_DRV_NAME, sizeof(drvinfo->driver));
-	strlcat(drvinfo->version, AQ_CFG_DRV_VERSION, sizeof(drvinfo->version));
 
 	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
 		 "%u.%u.%u", firmware_version >> 24,
@@ -140,8 +214,7 @@ static void aq_ethtool_get_drvinfo(struct net_device *ndev,
 
 	strlcpy(drvinfo->bus_info, pdev ? pci_name(pdev) : "",
 		sizeof(drvinfo->bus_info));
-	drvinfo->n_stats = ARRAY_SIZE(aq_ethtool_stat_names) +
-		cfg->vecs * ARRAY_SIZE(aq_ethtool_queue_stat_names);
+	drvinfo->n_stats = aq_ethtool_n_stats(ndev);
 	drvinfo->testinfo_len = 0;
 	drvinfo->regdump_len = regs_count;
 	drvinfo->eedump_len = 0;
@@ -154,6 +227,9 @@ static void aq_ethtool_get_strings(struct net_device *ndev,
 	struct aq_nic_cfg_s *cfg;
 	u8 *p = data;
 	int i, si;
+#if IS_ENABLED(CONFIG_MACSEC)
+	int sa;
+#endif
 
 	cfg = aq_nic_get_cfg(aq_nic);
 
@@ -171,6 +247,60 @@ static void aq_ethtool_get_strings(struct net_device *ndev,
 				p += ETH_GSTRING_LEN;
 			}
 		}
+#if IS_ENABLED(CONFIG_MACSEC)
+		if (!aq_nic->macsec_cfg)
+			break;
+
+		memcpy(p, aq_macsec_stat_names, sizeof(aq_macsec_stat_names));
+		p = p + sizeof(aq_macsec_stat_names);
+		for (i = 0; i < AQ_MACSEC_MAX_SC; i++) {
+			struct aq_macsec_txsc *aq_txsc;
+
+			if (!(test_bit(i, &aq_nic->macsec_cfg->txsc_idx_busy)))
+				continue;
+
+			for (si = 0;
+				si < ARRAY_SIZE(aq_macsec_txsc_stat_names);
+				si++) {
+				snprintf(p, ETH_GSTRING_LEN,
+					 aq_macsec_txsc_stat_names[si], i);
+				p += ETH_GSTRING_LEN;
+			}
+			aq_txsc = &aq_nic->macsec_cfg->aq_txsc[i];
+			for (sa = 0; sa < MACSEC_NUM_AN; sa++) {
+				if (!(test_bit(sa, &aq_txsc->tx_sa_idx_busy)))
+					continue;
+				for (si = 0;
+				     si < ARRAY_SIZE(aq_macsec_txsa_stat_names);
+				     si++) {
+					snprintf(p, ETH_GSTRING_LEN,
+						 aq_macsec_txsa_stat_names[si],
+						 i, sa);
+					p += ETH_GSTRING_LEN;
+				}
+			}
+		}
+		for (i = 0; i < AQ_MACSEC_MAX_SC; i++) {
+			struct aq_macsec_rxsc *aq_rxsc;
+
+			if (!(test_bit(i, &aq_nic->macsec_cfg->rxsc_idx_busy)))
+				continue;
+
+			aq_rxsc = &aq_nic->macsec_cfg->aq_rxsc[i];
+			for (sa = 0; sa < MACSEC_NUM_AN; sa++) {
+				if (!(test_bit(sa, &aq_rxsc->rx_sa_idx_busy)))
+					continue;
+				for (si = 0;
+				     si < ARRAY_SIZE(aq_macsec_rxsa_stat_names);
+				     si++) {
+					snprintf(p, ETH_GSTRING_LEN,
+						 aq_macsec_rxsa_stat_names[si],
+						 i, sa);
+					p += ETH_GSTRING_LEN;
+				}
+			}
+		}
+#endif
 		break;
 	case ETH_SS_PRIV_FLAGS:
 		memcpy(p, aq_ethtool_priv_flag_names,
@@ -210,16 +340,11 @@ static int aq_ethtool_set_phys_id(struct net_device *ndev,
 
 static int aq_ethtool_get_sset_count(struct net_device *ndev, int stringset)
 {
-	struct aq_nic_s *aq_nic = netdev_priv(ndev);
-	struct aq_nic_cfg_s *cfg;
 	int ret = 0;
-
-	cfg = aq_nic_get_cfg(aq_nic);
 
 	switch (stringset) {
 	case ETH_SS_STATS:
-		ret = ARRAY_SIZE(aq_ethtool_stat_names) +
-			cfg->vecs * ARRAY_SIZE(aq_ethtool_queue_stat_names);
+		ret = aq_ethtool_n_stats(ndev);
 		break;
 	case ETH_SS_PRIV_FLAGS:
 		ret = ARRAY_SIZE(aq_ethtool_priv_flag_names);
@@ -387,21 +512,10 @@ static int aq_ethtool_set_coalesce(struct net_device *ndev,
 
 	cfg = aq_nic_get_cfg(aq_nic);
 
-	/* This is not yet supported
-	 */
-	if (coal->use_adaptive_rx_coalesce || coal->use_adaptive_tx_coalesce)
-		return -EOPNOTSUPP;
-
 	/* Atlantic only supports timing based coalescing
 	 */
 	if (coal->rx_max_coalesced_frames > 1 ||
-	    coal->rx_coalesce_usecs_irq ||
-	    coal->rx_max_coalesced_frames_irq)
-		return -EOPNOTSUPP;
-
-	if (coal->tx_max_coalesced_frames > 1 ||
-	    coal->tx_coalesce_usecs_irq ||
-	    coal->tx_max_coalesced_frames_irq)
+	    coal->tx_max_coalesced_frames > 1)
 		return -EOPNOTSUPP;
 
 	/* We do not support frame counting. Check this
@@ -743,6 +857,8 @@ static int aq_ethtool_set_priv_flags(struct net_device *ndev, u32 flags)
 }
 
 const struct ethtool_ops aq_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
+				     ETHTOOL_COALESCE_MAX_FRAMES,
 	.get_link            = aq_ethtool_get_link,
 	.get_regs_len        = aq_ethtool_get_regs_len,
 	.get_regs            = aq_ethtool_get_regs,

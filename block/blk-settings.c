@@ -87,42 +87,6 @@ void blk_set_stacking_limits(struct queue_limits *lim)
 EXPORT_SYMBOL(blk_set_stacking_limits);
 
 /**
- * blk_queue_make_request - define an alternate make_request function for a device
- * @q:  the request queue for the device to be affected
- * @mfn: the alternate make_request function
- *
- * Description:
- *    The normal way for &struct bios to be passed to a device
- *    driver is for them to be collected into requests on a request
- *    queue, and then to allow the device driver to select requests
- *    off that queue when it is ready.  This works well for many block
- *    devices. However some block devices (typically virtual devices
- *    such as md or lvm) do not benefit from the processing on the
- *    request queue, and are served best by having the requests passed
- *    directly to them.  This can be achieved by providing a function
- *    to blk_queue_make_request().
- *
- * Caveat:
- *    The driver that does this *must* be able to deal appropriately
- *    with buffers in "highmemory". This can be accomplished by either calling
- *    kmap_atomic() to get a temporary kernel mapping, or by calling
- *    blk_queue_bounce() to create a buffer in normal memory.
- **/
-void blk_queue_make_request(struct request_queue *q, make_request_fn *mfn)
-{
-	/*
-	 * set defaults
-	 */
-	q->nr_requests = BLKDEV_MAX_RQ;
-
-	q->make_request_fn = mfn;
-	blk_queue_dma_alignment(q, 511);
-
-	blk_set_default_limits(&q->limits);
-}
-EXPORT_SYMBOL(blk_queue_make_request);
-
-/**
  * blk_queue_bounce_limit - set bounce buffer limit for queue
  * @q: the request queue for the device
  * @max_addr: the maximum address the device can handle
@@ -664,6 +628,9 @@ void disk_stack_limits(struct gendisk *disk, struct block_device *bdev,
 		printk(KERN_NOTICE "%s: Warning: Device %s is misaligned\n",
 		       top, bottom);
 	}
+
+	t->backing_dev_info->io_pages =
+		t->limits.max_sectors >> (PAGE_SHIFT - 9);
 }
 EXPORT_SYMBOL(disk_stack_limits);
 

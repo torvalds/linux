@@ -32,6 +32,7 @@
 #include "cifs_debug.h"
 #include "cifs_fs_sb.h"
 #include "cifsfs.h"
+#include "smb2proto.h"
 
 /*
  * To be safe - for UCS to UTF-8 with strings loaded with the rare long
@@ -217,6 +218,60 @@ cifs_fill_common_info(struct cifs_fattr *fattr, struct cifs_sb_info *cifs_sb)
 	}
 }
 
+/* Fill a cifs_fattr struct with info from SMB_FIND_FILE_POSIX_INFO. */
+static void
+cifs_posix_to_fattr(struct cifs_fattr *fattr, struct smb2_posix_info *info,
+		    struct cifs_sb_info *cifs_sb)
+{
+	struct smb2_posix_info_parsed parsed;
+
+	posix_info_parse(info, NULL, &parsed);
+
+	memset(fattr, 0, sizeof(*fattr));
+	fattr->cf_uniqueid = le64_to_cpu(info->Inode);
+	fattr->cf_bytes = le64_to_cpu(info->AllocationSize);
+	fattr->cf_eof = le64_to_cpu(info->EndOfFile);
+
+	fattr->cf_atime = cifs_NTtimeToUnix(info->LastAccessTime);
+	fattr->cf_mtime = cifs_NTtimeToUnix(info->LastWriteTime);
+	fattr->cf_ctime = cifs_NTtimeToUnix(info->CreationTime);
+
+	fattr->cf_nlink = le32_to_cpu(info->HardLinks);
+	fattr->cf_cifsattrs = le32_to_cpu(info->DosAttributes);
+
+	/*
+	 * Since we set the inode type below we need to mask off
+	 * to avoid strange results if bits set above.
+	 * XXX: why not make server&client use the type bits?
+	 */
+	fattr->cf_mode = le32_to_cpu(info->Mode) & ~S_IFMT;
+
+	cifs_dbg(FYI, "posix fattr: dev %d, reparse %d, mode %o",
+		 le32_to_cpu(info->DeviceId),
+		 le32_to_cpu(info->ReparseTag),
+		 le32_to_cpu(info->Mode));
+
+	if (fattr->cf_cifsattrs & ATTR_DIRECTORY) {
+		fattr->cf_mode |= S_IFDIR;
+		fattr->cf_dtype = DT_DIR;
+	} else {
+		/*
+		 * mark anything that is not a dir as regular
+		 * file. special files should have the REPARSE
+		 * attribute and will be marked as needing revaluation
+		 */
+		fattr->cf_mode |= S_IFREG;
+		fattr->cf_dtype = DT_REG;
+	}
+
+	if (reparse_file_needs_reval(fattr))
+		fattr->cf_flags |= CIFS_FATTR_NEED_REVAL;
+
+	/* TODO map SIDs */
+	fattr->cf_uid = cifs_sb->mnt_uid;
+	fattr->cf_gid = cifs_sb->mnt_gid;
+}
+
 static void __dir_info_to_fattr(struct cifs_fattr *fattr, const void *info)
 {
 	const FILE_DIRECTORY_INFO *fi = info;
@@ -359,6 +414,8 @@ ffirst_retry:
 	/* if (cap_unix(tcon->ses) { */
 	if (tcon->unix_ext)
 		cifsFile->srch_inf.info_level = SMB_FIND_FILE_UNIX;
+	else if (tcon->posix_extensions)
+		cifsFile->srch_inf.info_level = SMB_FIND_FILE_POSIX_INFO;
 	else if ((tcon->ses->capabilities &
 		  tcon->ses->server->vals->cap_nt_find) == 0) {
 		cifsFile->srch_inf.info_level = SMB_FIND_FILE_INFO_STANDARD;
@@ -451,6 +508,23 @@ struct cifs_dirent {
 	u64		ino;
 };
 
+static void cifs_fill_dirent_posix(struct cifs_dirent *de,
+				   const struct smb2_posix_info *info)
+{
+	struct smb2_posix_info_parsed parsed;
+
+	/* payload should have already been checked at this point */
+	if (posix_info_parse(info, NULL, &parsed) < 0) {
+		cifs_dbg(VFS, "invalid POSIX info payload");
+		return;
+	}
+
+	de->name = parsed.name;
+	de->namelen = parsed.name_len;
+	de->resume_key = info->Ignored;
+	de->ino = le64_to_cpu(info->Inode);
+}
+
 static void cifs_fill_dirent_unix(struct cifs_dirent *de,
 		const FILE_UNIX_INFO *info, bool is_unicode)
 {
@@ -511,6 +585,9 @@ static int cifs_fill_dirent(struct cifs_dirent *de, const void *info,
 	memset(de, 0, sizeof(*de));
 
 	switch (level) {
+	case SMB_FIND_FILE_POSIX_INFO:
+		cifs_fill_dirent_posix(de, info);
+		break;
 	case SMB_FIND_FILE_UNIX:
 		cifs_fill_dirent_unix(de, info, is_unicode);
 		break;
@@ -786,6 +863,11 @@ static int cifs_filldir(char *find_entry, struct file *file,
 	}
 
 	switch (file_info->srch_inf.info_level) {
+	case SMB_FIND_FILE_POSIX_INFO:
+		cifs_posix_to_fattr(&fattr,
+				    (struct smb2_posix_info *)find_entry,
+				    cifs_sb);
+		break;
 	case SMB_FIND_FILE_UNIX:
 		cifs_unix_basic_to_fattr(&fattr,
 					 &((FILE_UNIX_INFO *)find_entry)->basic,

@@ -230,10 +230,10 @@ static ssize_t wakeup_data_show(struct device *dev,
 	for (i = 0; i < fifo_len; i++) {
 		duration = nvt_cir_wake_reg_read(nvt, CIR_WAKE_RD_FIFO_ONLY);
 		duration = (duration & BUF_LEN_MASK) * SAMPLE_PERIOD;
-		buf_len += snprintf(buf + buf_len, PAGE_SIZE - buf_len,
+		buf_len += scnprintf(buf + buf_len, PAGE_SIZE - buf_len,
 				    "%d ", duration);
 	}
-	buf_len += snprintf(buf + buf_len, PAGE_SIZE - buf_len, "\n");
+	buf_len += scnprintf(buf + buf_len, PAGE_SIZE - buf_len, "\n");
 
 	spin_unlock_irqrestore(&nvt->lock, flags);
 

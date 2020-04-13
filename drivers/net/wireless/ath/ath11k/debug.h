@@ -53,6 +53,8 @@ enum ath11k_dbg_htt_ext_stats_type {
 	ATH11K_DBG_HTT_EXT_STATS_TWT_SESSIONS               =  20,
 	ATH11K_DBG_HTT_EXT_STATS_REO_RESOURCE_STATS         =  21,
 	ATH11K_DBG_HTT_EXT_STATS_TX_SOUNDING_INFO           =  22,
+	ATH11K_DBG_HTT_EXT_STATS_PDEV_OBSS_PD_STATS	    =  23,
+	ATH11K_DBG_HTT_EXT_STATS_RING_BACKPRESSURE_STATS    =  24,
 
 	/* keep this last */
 	ATH11K_DBG_HTT_NUM_EXT_STATS,
@@ -68,11 +70,18 @@ struct debug_htt_stats_req {
 	u8 buf[0];
 };
 
+struct ath_pktlog_hdr {
+	u16 flags;
+	u16 missed_cnt;
+	u16 log_type;
+	u16 size;
+	u32 timestamp;
+	u32 type_specific_data;
+	u8 payload[0];
+};
+
 #define ATH11K_HTT_STATS_BUF_SIZE (1024 * 512)
-
 #define ATH11K_FW_STATS_BUF_SIZE (1024 * 1024)
-
-#define ATH11K_HTT_PKTLOG_MAX_SIZE 2048
 
 enum ath11k_pktlog_filter {
 	ATH11K_PKTLOG_RX		= 0x000000001,

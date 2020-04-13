@@ -1208,107 +1208,6 @@ static int igt_write_huge(struct i915_gem_context *ctx,
 	return err;
 }
 
-static int igt_ppgtt_exhaust_huge(void *arg)
-{
-	struct i915_gem_context *ctx = arg;
-	struct drm_i915_private *i915 = ctx->i915;
-	unsigned long supported = INTEL_INFO(i915)->page_sizes;
-	static unsigned int pages[ARRAY_SIZE(page_sizes)];
-	struct drm_i915_gem_object *obj;
-	unsigned int size_mask;
-	unsigned int page_mask;
-	int n, i;
-	int err = -ENODEV;
-
-	if (supported == I915_GTT_PAGE_SIZE_4K)
-		return 0;
-
-	/*
-	 * Sanity check creating objects with a varying mix of page sizes --
-	 * ensuring that our writes lands in the right place.
-	 */
-
-	n = 0;
-	for_each_set_bit(i, &supported, ilog2(I915_GTT_MAX_PAGE_SIZE) + 1)
-		pages[n++] = BIT(i);
-
-	for (size_mask = 2; size_mask < BIT(n); size_mask++) {
-		unsigned int size = 0;
-
-		for (i = 0; i < n; i++) {
-			if (size_mask & BIT(i))
-				size |= pages[i];
-		}
-
-		/*
-		 * For our page mask we want to enumerate all the page-size
-		 * combinations which will fit into our chosen object size.
-		 */
-		for (page_mask = 2; page_mask <= size_mask; page_mask++) {
-			unsigned int page_sizes = 0;
-
-			for (i = 0; i < n; i++) {
-				if (page_mask & BIT(i))
-					page_sizes |= pages[i];
-			}
-
-			/*
-			 * Ensure that we can actually fill the given object
-			 * with our chosen page mask.
-			 */
-			if (!IS_ALIGNED(size, BIT(__ffs(page_sizes))))
-				continue;
-
-			obj = huge_pages_object(i915, size, page_sizes);
-			if (IS_ERR(obj)) {
-				err = PTR_ERR(obj);
-				goto out_device;
-			}
-
-			err = i915_gem_object_pin_pages(obj);
-			if (err) {
-				i915_gem_object_put(obj);
-
-				if (err == -ENOMEM) {
-					pr_info("unable to get pages, size=%u, pages=%u\n",
-						size, page_sizes);
-					err = 0;
-					break;
-				}
-
-				pr_err("pin_pages failed, size=%u, pages=%u\n",
-				       size_mask, page_mask);
-
-				goto out_device;
-			}
-
-			/* Force the page-size for the gtt insertion */
-			obj->mm.page_sizes.sg = page_sizes;
-
-			err = igt_write_huge(ctx, obj);
-			if (err) {
-				pr_err("exhaust write-huge failed with size=%u\n",
-				       size);
-				goto out_unpin;
-			}
-
-			i915_gem_object_unpin_pages(obj);
-			__i915_gem_object_put_pages(obj);
-			i915_gem_object_put(obj);
-		}
-	}
-
-	goto out_device;
-
-out_unpin:
-	i915_gem_object_unpin_pages(obj);
-	i915_gem_object_put(obj);
-out_device:
-	mkwrite_device_info(i915)->page_sizes = supported;
-
-	return err;
-}
-
 typedef struct drm_i915_gem_object *
 (*igt_create_fn)(struct drm_i915_private *i915, u32 size, u32 flags);
 
@@ -1900,7 +1799,6 @@ int i915_gem_huge_page_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(igt_shrink_thp),
 		SUBTEST(igt_ppgtt_pin_update),
 		SUBTEST(igt_tmpfs_fallback),
-		SUBTEST(igt_ppgtt_exhaust_huge),
 		SUBTEST(igt_ppgtt_smoke_huge),
 		SUBTEST(igt_ppgtt_sanity_check),
 	};

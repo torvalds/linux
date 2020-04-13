@@ -77,6 +77,7 @@ enum mlx5_flow_namespace_type {
 	MLX5_FLOW_NAMESPACE_EGRESS,
 	MLX5_FLOW_NAMESPACE_RDMA_RX,
 	MLX5_FLOW_NAMESPACE_RDMA_RX_KERNEL,
+	MLX5_FLOW_NAMESPACE_RDMA_TX,
 };
 
 enum {
@@ -84,6 +85,7 @@ enum {
 	FDB_TC_OFFLOAD,
 	FDB_FT_OFFLOAD,
 	FDB_SLOW_PATH,
+	FDB_PER_VPORT,
 };
 
 struct mlx5_pkt_reformat;

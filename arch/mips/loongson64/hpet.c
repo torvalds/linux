@@ -187,12 +187,6 @@ static irqreturn_t hpet_irq_handler(int irq, void *data)
 	return IRQ_NONE;
 }
 
-static struct irqaction hpet_irq = {
-	.handler = hpet_irq_handler,
-	.flags = IRQF_NOBALANCING | IRQF_TIMER,
-	.name = "hpet",
-};
-
 /*
  * hpet address assignation and irq setting should be done in bios.
  * but pmon don't do this, we just setup here directly.
@@ -224,6 +218,7 @@ static void hpet_setup(void)
 
 void __init setup_hpet_timer(void)
 {
+	unsigned long flags = IRQF_NOBALANCING | IRQF_TIMER;
 	unsigned int cpu = smp_processor_id();
 	struct clock_event_device *cd;
 
@@ -247,7 +242,8 @@ void __init setup_hpet_timer(void)
 	cd->min_delta_ticks = HPET_MIN_PROG_DELTA;
 
 	clockevents_register_device(cd);
-	setup_irq(HPET_T0_IRQ, &hpet_irq);
+	if (request_irq(HPET_T0_IRQ, hpet_irq_handler, flags, "hpet", NULL))
+		pr_err("Failed to request irq %d (hpet)\n", HPET_T0_IRQ);
 	pr_info("hpet clock event device register\n");
 }
 

@@ -938,7 +938,7 @@ struct acx_rx_filter_cfg {
 	u8 action;
 
 	u8 num_fields;
-	u8 fields[0];
+	u8 fields[];
 } __packed;
 
 struct acx_roaming_stats {

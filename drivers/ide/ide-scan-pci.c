@@ -89,8 +89,7 @@ static int __init ide_scan_pcidev(struct pci_dev *dev)
 static int __init ide_scan_pcibus(void)
 {
 	struct pci_dev *dev = NULL;
-	struct pci_driver *d;
-	struct list_head *l, *n;
+	struct pci_driver *d, *tmp;
 
 	pre_init = 0;
 	for_each_pci_dev(dev)
@@ -101,9 +100,8 @@ static int __init ide_scan_pcibus(void)
 	 *	are post init.
 	 */
 
-	list_for_each_safe(l, n, &ide_pci_drivers) {
-		list_del(l);
-		d = list_entry(l, struct pci_driver, node);
+	list_for_each_entry_safe(d, tmp, &ide_pci_drivers, node) {
+		list_del(&d->node);
 		if (__pci_register_driver(d, d->driver.owner,
 					  d->driver.mod_name))
 			printk(KERN_ERR "%s: failed to register %s driver\n",

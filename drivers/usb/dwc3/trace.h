@@ -227,6 +227,8 @@ DECLARE_EVENT_CLASS(dwc3_log_trb,
 		__field(u32, size)
 		__field(u32, ctrl)
 		__field(u32, type)
+		__field(u32, enqueue)
+		__field(u32, dequeue)
 	),
 	TP_fast_assign(
 		__assign_str(name, dep->name);
@@ -236,9 +238,12 @@ DECLARE_EVENT_CLASS(dwc3_log_trb,
 		__entry->size = trb->size;
 		__entry->ctrl = trb->ctrl;
 		__entry->type = usb_endpoint_type(dep->endpoint.desc);
+		__entry->enqueue = dep->trb_enqueue;
+		__entry->dequeue = dep->trb_dequeue;
 	),
-	TP_printk("%s: trb %p buf %08x%08x size %s%d ctrl %08x (%c%c%c%c:%c%c:%s)",
-		__get_str(name), __entry->trb, __entry->bph, __entry->bpl,
+	TP_printk("%s: trb %p (E%d:D%d) buf %08x%08x size %s%d ctrl %08x (%c%c%c%c:%c%c:%s)",
+		__get_str(name), __entry->trb, __entry->enqueue,
+		__entry->dequeue, __entry->bph, __entry->bpl,
 		({char *s;
 		int pcm = ((__entry->size >> 24) & 3) + 1;
 		switch (__entry->type) {

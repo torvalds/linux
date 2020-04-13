@@ -5,10 +5,10 @@
  */
 
 #include <linux/clk.h>
-#include <linux/clk-provider.h>
 #include <linux/clocksource.h>
 #include <linux/init.h>
 #include <linux/irqchip.h>
+#include <linux/of_clk.h>
 #include <linux/of_fdt.h>
 
 #include <asm/bootinfo.h>

@@ -13,6 +13,7 @@ ENTRY(microblaze_start)
 
 #define RO_EXCEPTION_TABLE_ALIGN	16
 
+#include <asm/cache.h>
 #include <asm/page.h>
 #include <asm-generic/vmlinux.lds.h>
 #include <asm/thread_info.h>
@@ -88,6 +89,8 @@ SECTIONS {
 		_ssro_size = _essro - _ssro ;
 		_KERNEL_SDA_BASE_ = _ssro + (_ssro_size / 2) ;
 	}
+
+	PERCPU_SECTION(L1_CACHE_BYTES)
 
 	. = ALIGN(PAGE_SIZE);
 	__init_begin = .;

@@ -126,6 +126,38 @@ static int pmsr_parse_ftm(struct cfg80211_registered_device *rdev,
 			    "FTM: civic location request not supported");
 	}
 
+	out->ftm.trigger_based =
+		!!tb[NL80211_PMSR_FTM_REQ_ATTR_TRIGGER_BASED];
+	if (out->ftm.trigger_based && !capa->ftm.trigger_based) {
+		NL_SET_ERR_MSG_ATTR(info->extack,
+				    tb[NL80211_PMSR_FTM_REQ_ATTR_TRIGGER_BASED],
+				    "FTM: trigger based ranging is not supported");
+		return -EINVAL;
+	}
+
+	out->ftm.non_trigger_based =
+		!!tb[NL80211_PMSR_FTM_REQ_ATTR_NON_TRIGGER_BASED];
+	if (out->ftm.non_trigger_based && !capa->ftm.non_trigger_based) {
+		NL_SET_ERR_MSG_ATTR(info->extack,
+				    tb[NL80211_PMSR_FTM_REQ_ATTR_NON_TRIGGER_BASED],
+				    "FTM: trigger based ranging is not supported");
+		return -EINVAL;
+	}
+
+	if (out->ftm.trigger_based && out->ftm.non_trigger_based) {
+		NL_SET_ERR_MSG(info->extack,
+			       "FTM: can't set both trigger based and non trigger based");
+		return -EINVAL;
+	}
+
+	if ((out->ftm.trigger_based || out->ftm.non_trigger_based) &&
+	    out->ftm.preamble != NL80211_PREAMBLE_HE) {
+		NL_SET_ERR_MSG_ATTR(info->extack,
+				    tb[NL80211_PMSR_FTM_REQ_ATTR_PREAMBLE],
+				    "FTM: non EDCA based ranging must use HE preamble");
+		return -EINVAL;
+	}
+
 	return 0;
 }
 

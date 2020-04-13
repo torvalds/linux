@@ -18,6 +18,8 @@ KVM
    nested-vmx
    ppc-pv
    s390-diag
+   s390-pv
+   s390-pv-boot
    timekeeping
    vcpu-requests
 

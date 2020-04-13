@@ -79,6 +79,11 @@ config MMU
 config STACK_GROWSUP
 	def_bool y
 
+config ARCH_DEFCONFIG
+	string
+	default "arch/parisc/configs/generic-32bit_defconfig" if !64BIT
+	default "arch/parisc/configs/generic-64bit_defconfig" if 64BIT
+
 config GENERIC_LOCKBREAK
 	bool
 	default y

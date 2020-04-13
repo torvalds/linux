@@ -627,7 +627,7 @@ struct rtl8xxxu_firmware_header {
 	u32	reserved4;
 	u32	reserved5;
 
-	u8	data[0];
+	u8	data[];
 };
 
 /*
@@ -1133,6 +1133,15 @@ enum bt_mp_oper_opcode_8723b {
 	BT_MP_OP_ENABLE_CFO_TRACKING = 0x24,
 };
 
+enum rtl8xxxu_bw_mode {
+	RTL8XXXU_CHANNEL_WIDTH_20 = 0,
+	RTL8XXXU_CHANNEL_WIDTH_40 = 1,
+	RTL8XXXU_CHANNEL_WIDTH_80 = 2,
+	RTL8XXXU_CHANNEL_WIDTH_160 = 3,
+	RTL8XXXU_CHANNEL_WIDTH_80_80 = 4,
+	RTL8XXXU_CHANNEL_WIDTH_MAX = 5,
+};
+
 struct rtl8723bu_c2h {
 	u8 id;
 	u8 seq;
@@ -1174,13 +1183,16 @@ struct rtl8723bu_c2h {
 		} __packed bt_info;
 		struct {
 			u8 rate:7;
-			u8 dummy0_0:1;
+			u8 sgi:1;
 			u8 macid;
 			u8 ldpc:1;
 			u8 txbf:1;
 			u8 noisy_state:1;
 			u8 dummy2_0:5;
 			u8 dummy3_0;
+			u8 dummy4_0;
+			u8 dummy5_0;
+			u8 bw;
 		} __packed ra_report;
 	};
 };
@@ -1259,6 +1271,12 @@ struct rtl8xxxu_btcoex {
 #define RTL8XXXU_NOISE_FLOOR_MIN	-100
 #define RTL8XXXU_SNR_THRESH_HIGH	50
 #define RTL8XXXU_SNR_THRESH_LOW	20
+
+struct rtl8xxxu_ra_report {
+	struct rate_info txrate;
+	u32 bit_rate;
+	u8 desc_rate;
+};
 
 struct rtl8xxxu_priv {
 	struct ieee80211_hw *hw;
@@ -1375,6 +1393,7 @@ struct rtl8xxxu_priv {
 	struct sk_buff_head c2hcmd_queue;
 	spinlock_t c2hcmd_lock;
 	struct rtl8xxxu_btcoex bt_coex;
+	struct rtl8xxxu_ra_report ra_report;
 };
 
 struct rtl8xxxu_rx_urb {

@@ -388,14 +388,14 @@ static int dr_matcher_set_ste_builders(struct mlx5dr_matcher *matcher,
 		mlx5dr_ste_build_empty_always_hit(&sb[idx++], rx);
 
 	if (idx == 0) {
-		mlx5dr_dbg(dmn, "Cannot generate any valid rules from mask\n");
+		mlx5dr_err(dmn, "Cannot generate any valid rules from mask\n");
 		return -EINVAL;
 	}
 
 	/* Check that all mask fields were consumed */
 	for (i = 0; i < sizeof(struct mlx5dr_match_param); i++) {
 		if (((u8 *)&mask)[i] != 0) {
-			mlx5dr_info(dmn, "Mask contains unsupported parameters\n");
+			mlx5dr_err(dmn, "Mask contains unsupported parameters\n");
 			return -EOPNOTSUPP;
 		}
 	}
@@ -563,7 +563,7 @@ static int dr_matcher_set_all_ste_builders(struct mlx5dr_matcher *matcher,
 	dr_matcher_set_ste_builders(matcher, nic_matcher, DR_RULE_IPV6, DR_RULE_IPV6);
 
 	if (!nic_matcher->ste_builder) {
-		mlx5dr_dbg(dmn, "Cannot generate IPv4 or IPv6 rules with given mask\n");
+		mlx5dr_err(dmn, "Cannot generate IPv4 or IPv6 rules with given mask\n");
 		return -EINVAL;
 	}
 
@@ -634,13 +634,13 @@ static int dr_matcher_init(struct mlx5dr_matcher *matcher,
 	int ret;
 
 	if (matcher->match_criteria >= DR_MATCHER_CRITERIA_MAX) {
-		mlx5dr_info(dmn, "Invalid match criteria attribute\n");
+		mlx5dr_err(dmn, "Invalid match criteria attribute\n");
 		return -EINVAL;
 	}
 
 	if (mask) {
 		if (mask->match_sz > sizeof(struct mlx5dr_match_param)) {
-			mlx5dr_info(dmn, "Invalid match size attribute\n");
+			mlx5dr_err(dmn, "Invalid match size attribute\n");
 			return -EINVAL;
 		}
 		mlx5dr_ste_copy_param(matcher->match_criteria,
@@ -671,7 +671,7 @@ static int dr_matcher_init(struct mlx5dr_matcher *matcher,
 
 struct mlx5dr_matcher *
 mlx5dr_matcher_create(struct mlx5dr_table *tbl,
-		      u16 priority,
+		      u32 priority,
 		      u8 match_criteria_enable,
 		      struct mlx5dr_match_parameters *mask)
 {

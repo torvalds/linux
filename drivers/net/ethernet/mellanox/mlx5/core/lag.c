@@ -615,8 +615,10 @@ void mlx5_lag_remove(struct mlx5_core_dev *dev)
 			break;
 
 	if (i == MLX5_MAX_PORTS) {
-		if (ldev->nb.notifier_call)
+		if (ldev->nb.notifier_call) {
 			unregister_netdevice_notifier_net(&init_net, &ldev->nb);
+			ldev->nb.notifier_call = NULL;
+		}
 		mlx5_lag_mp_cleanup(ldev);
 		cancel_delayed_work_sync(&ldev->bond_work);
 		mlx5_lag_dev_free(ldev);

@@ -1,8 +1,0 @@
-DataImage, Inc. 7" WVGA (800x480) TFT LCD panel with 24-bit parallel interface.
-
-Required properties:
-- compatible: should be "dataimage,scf0700c48ggu18"
-- power-supply: as specified in the base binding
-
-This binding is compatible with the simple-panel binding, which is specified
-in simple-panel.txt in this directory.

@@ -6,7 +6,7 @@
 #include <linux/types.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_core_read.h>
-#include "bpf_trace_helpers.h"
+#include <bpf/bpf_tracing.h>
 
 #define BPF_STRUCT_OPS(name, args...) \
 SEC("struct_ops/"#name) \

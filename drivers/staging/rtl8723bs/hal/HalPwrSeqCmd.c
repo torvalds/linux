@@ -118,7 +118,7 @@ u8 HalPwrSeqCmdParsing(
 						&GET_PWR_CFG_MASK(PwrCfgCmd)
 					);
 
-					/*  Write the value back to sytem register */
+					/*  Write the value back to system register */
 					rtw_write8(padapter, offset, value);
 				}
 				break;

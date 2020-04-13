@@ -25,7 +25,7 @@
 	};
 
 	panel {
-		compatible = "auo,g101evn010", "simple-panel";
+		compatible = "auo,g101evn010";
 		power-supply = <&ldo4_ext>;
 		backlight = <&lcd_backlight>;
 

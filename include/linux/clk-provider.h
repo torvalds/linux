@@ -522,9 +522,9 @@ struct clk *clk_register_gate(struct device *dev, const char *name,
  * @clk_gate_flags: gate-specific flags for this clock
  * @lock: shared register lock for this clock
  */
-#define clk_hw_register_gate_parent_hw(dev, name, parent_name, flags, reg,    \
+#define clk_hw_register_gate_parent_hw(dev, name, parent_hw, flags, reg,      \
 				       bit_idx, clk_gate_flags, lock)	      \
-	__clk_hw_register_gate((dev), NULL, (name), (parent_name), NULL,      \
+	__clk_hw_register_gate((dev), NULL, (name), NULL, (parent_hw),        \
 			       NULL, (flags), (reg), (bit_idx),		      \
 			       (clk_gate_flags), (lock))
 /**
@@ -539,10 +539,10 @@ struct clk *clk_register_gate(struct device *dev, const char *name,
  * @clk_gate_flags: gate-specific flags for this clock
  * @lock: shared register lock for this clock
  */
-#define clk_hw_register_gate_parent_data(dev, name, parent_name, flags, reg,  \
+#define clk_hw_register_gate_parent_data(dev, name, parent_data, flags, reg,  \
 				       bit_idx, clk_gate_flags, lock)	      \
-	__clk_hw_register_gate((dev), NULL, (name), (parent_name), NULL,      \
-			       NULL, (flags), (reg), (bit_idx),		      \
+	__clk_hw_register_gate((dev), NULL, (name), NULL, NULL, (parent_data), \
+			       (flags), (reg), (bit_idx),		      \
 			       (clk_gate_flags), (lock))
 void clk_unregister_gate(struct clk *clk);
 void clk_hw_unregister_gate(struct clk_hw *hw);

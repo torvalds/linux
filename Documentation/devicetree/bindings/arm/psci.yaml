@@ -32,6 +32,9 @@ description: |+
     http://infocenter.arm.com/help/topic/com.arm.doc.den0022c/DEN0022C_Power_State_Coordination_Interface.pdf
 
 properties:
+  $nodename:
+    const: psci
+
   compatible:
     oneOf:
       - description:
@@ -140,6 +143,8 @@ allOf:
       required:
         - cpu_off
         - cpu_on
+
+additionalProperties: false
 
 examples:
   - |+

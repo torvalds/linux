@@ -220,6 +220,24 @@ static bool display_send_page_flip(struct drm_simple_display_pipe *pipe,
 	return false;
 }
 
+static int display_check(struct drm_simple_display_pipe *pipe,
+			 struct drm_plane_state *plane_state,
+			 struct drm_crtc_state *crtc_state)
+{
+	/*
+	 * Xen doesn't initialize vblanking via drm_vblank_init(), so
+	 * DRM helpers assume that it doesn't handle vblanking and start
+	 * sending out fake VBLANK events automatically.
+	 *
+	 * As xen contains it's own logic for sending out VBLANK events
+	 * in send_pending_event(), disable no_vblank (i.e., the xen
+	 * driver has vblanking support).
+	 */
+	crtc_state->no_vblank = false;
+
+	return 0;
+}
+
 static void display_update(struct drm_simple_display_pipe *pipe,
 			   struct drm_plane_state *old_plane_state)
 {
@@ -284,6 +302,7 @@ static const struct drm_simple_display_pipe_funcs display_funcs = {
 	.enable = display_enable,
 	.disable = display_disable,
 	.prepare_fb = drm_gem_fb_simple_display_pipe_prepare_fb,
+	.check = display_check,
 	.update = display_update,
 };
 

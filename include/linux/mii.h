@@ -355,24 +355,6 @@ static inline u32 mii_adv_to_ethtool_adv_x(u32 adv)
 }
 
 /**
- * mii_lpa_to_ethtool_lpa_x
- * @adv: value of the MII_LPA register
- *
- * A small helper function that translates MII_LPA
- * bits, when in 1000Base-X mode, to ethtool
- * LP advertisement settings.
- */
-static inline u32 mii_lpa_to_ethtool_lpa_x(u32 lpa)
-{
-	u32 result = 0;
-
-	if (lpa & LPA_LPACK)
-		result |= ADVERTISED_Autoneg;
-
-	return result | mii_adv_to_ethtool_adv_x(lpa);
-}
-
-/**
  * mii_lpa_mod_linkmode_adv_sgmii
  * @lp_advertising: pointer to destination link mode.
  * @lpa: value of the MII_LPA register
@@ -533,6 +515,45 @@ static inline u32 linkmode_adv_to_lcl_adv_t(unsigned long *advertising)
 		lcl_adv |= ADVERTISE_PAUSE_ASYM;
 
 	return lcl_adv;
+}
+
+/**
+ * mii_lpa_mod_linkmode_x - decode the link partner's config_reg to linkmodes
+ * @linkmodes: link modes array
+ * @lpa: config_reg word from link partner
+ * @fd_bit: link mode for 1000XFULL bit
+ */
+static inline void mii_lpa_mod_linkmode_x(unsigned long *linkmodes, u16 lpa,
+					 int fd_bit)
+{
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_Autoneg_BIT, linkmodes,
+			 lpa & LPA_LPACK);
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_Pause_BIT, linkmodes,
+			 lpa & LPA_1000XPAUSE);
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT, linkmodes,
+			 lpa & LPA_1000XPAUSE_ASYM);
+	linkmode_mod_bit(fd_bit, linkmodes,
+			 lpa & LPA_1000XFULL);
+}
+
+/**
+ * linkmode_adv_to_mii_adv_x - encode a linkmode to config_reg
+ * @linkmodes: linkmodes
+ * @fd_bit: full duplex bit
+ */
+static inline u16 linkmode_adv_to_mii_adv_x(const unsigned long *linkmodes,
+					    int fd_bit)
+{
+	u16 adv = 0;
+
+	if (linkmode_test_bit(fd_bit, linkmodes))
+		adv |= ADVERTISE_1000XFULL;
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_Pause_BIT, linkmodes))
+		adv |= ADVERTISE_1000XPAUSE;
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT, linkmodes))
+		adv |= ADVERTISE_1000XPSE_ASYM;
+
+	return adv;
 }
 
 /**

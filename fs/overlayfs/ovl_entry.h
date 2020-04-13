@@ -75,6 +75,8 @@ struct ovl_fs {
 	struct inode *indexdir_trap;
 	/* -1: disabled, 0: same fs, 1..32: number of unused ino bits */
 	int xino_mode;
+	/* For allocation of non-persistent inode numbers */
+	atomic_long_t last_ino;
 };
 
 static inline struct ovl_fs *OVL_FS(struct super_block *sb)

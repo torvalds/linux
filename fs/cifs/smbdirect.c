@@ -284,13 +284,10 @@ static void send_done(struct ib_cq *cq, struct ib_wc *wc)
 			request->sge[i].length,
 			DMA_TO_DEVICE);
 
-	if (request->has_payload) {
-		if (atomic_dec_and_test(&request->info->send_payload_pending))
-			wake_up(&request->info->wait_send_payload_pending);
-	} else {
-		if (atomic_dec_and_test(&request->info->send_pending))
-			wake_up(&request->info->wait_send_pending);
-	}
+	if (atomic_dec_and_test(&request->info->send_pending))
+		wake_up(&request->info->wait_send_pending);
+
+	wake_up(&request->info->wait_post_send);
 
 	mempool_free(request, request->info->request_mempool);
 }
@@ -383,27 +380,6 @@ static bool process_negotiation_response(
 	return true;
 }
 
-/*
- * Check and schedule to send an immediate packet
- * This is used to extend credtis to remote peer to keep the transport busy
- */
-static void check_and_send_immediate(struct smbd_connection *info)
-{
-	if (info->transport_status != SMBD_CONNECTED)
-		return;
-
-	info->send_immediate = true;
-
-	/*
-	 * Promptly send a packet if our peer is running low on receive
-	 * credits
-	 */
-	if (atomic_read(&info->receive_credits) <
-		info->receive_credit_target - 1)
-		queue_delayed_work(
-			info->workqueue, &info->send_immediate_work, 0);
-}
-
 static void smbd_post_send_credits(struct work_struct *work)
 {
 	int ret = 0;
@@ -453,29 +429,16 @@ static void smbd_post_send_credits(struct work_struct *work)
 	info->new_credits_offered += ret;
 	spin_unlock(&info->lock_new_credits_offered);
 
-	atomic_add(ret, &info->receive_credits);
-
-	/* Check if we can post new receive and grant credits to peer */
-	check_and_send_immediate(info);
-}
-
-static void smbd_recv_done_work(struct work_struct *work)
-{
-	struct smbd_connection *info =
-		container_of(work, struct smbd_connection, recv_done_work);
-
-	/*
-	 * We may have new send credits granted from remote peer
-	 * If any sender is blcoked on lack of credets, unblock it
-	 */
-	if (atomic_read(&info->send_credits))
-		wake_up_interruptible(&info->wait_send_queue);
-
-	/*
-	 * Check if we need to send something to remote peer to
-	 * grant more credits or respond to KEEP_ALIVE packet
-	 */
-	check_and_send_immediate(info);
+	/* Promptly send an immediate packet as defined in [MS-SMBD] 3.1.1.1 */
+	info->send_immediate = true;
+	if (atomic_read(&info->receive_credits) <
+		info->receive_credit_target - 1) {
+		if (info->keep_alive_requested == KEEP_ALIVE_PENDING ||
+		    info->send_immediate) {
+			log_keep_alive(INFO, "send an empty message\n");
+			smbd_post_send_empty(info);
+		}
+	}
 }
 
 /* Called from softirq, when recv is done */
@@ -546,8 +509,15 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 		atomic_dec(&info->receive_credits);
 		info->receive_credit_target =
 			le16_to_cpu(data_transfer->credits_requested);
-		atomic_add(le16_to_cpu(data_transfer->credits_granted),
-			&info->send_credits);
+		if (le16_to_cpu(data_transfer->credits_granted)) {
+			atomic_add(le16_to_cpu(data_transfer->credits_granted),
+				&info->send_credits);
+			/*
+			 * We have new send credits granted from remote peer
+			 * If any sender is waiting for credits, unblock it
+			 */
+			wake_up_interruptible(&info->wait_send_queue);
+		}
 
 		log_incoming(INFO, "data flags %d data_offset %d "
 			"data_length %d remaining_data_length %d\n",
@@ -563,7 +533,6 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 			info->keep_alive_requested = KEEP_ALIVE_PENDING;
 		}
 
-		queue_work(info->workqueue, &info->recv_done_work);
 		return;
 
 	default:
@@ -756,7 +725,6 @@ static int smbd_post_send_negotiate_req(struct smbd_connection *info)
 		request->sge[0].addr,
 		request->sge[0].length, request->sge[0].lkey);
 
-	request->has_payload = false;
 	atomic_inc(&info->send_pending);
 	rc = ib_post_send(info->id->qp, &send_wr, NULL);
 	if (!rc)
@@ -813,120 +781,9 @@ static int manage_keep_alive_before_sending(struct smbd_connection *info)
 	return 0;
 }
 
-/*
- * Build and prepare the SMBD packet header
- * This function waits for avaialbe send credits and build a SMBD packet
- * header. The caller then optional append payload to the packet after
- * the header
- * intput values
- * size: the size of the payload
- * remaining_data_length: remaining data to send if this is part of a
- * fragmented packet
- * output values
- * request_out: the request allocated from this function
- * return values: 0 on success, otherwise actual error code returned
- */
-static int smbd_create_header(struct smbd_connection *info,
-		int size, int remaining_data_length,
-		struct smbd_request **request_out)
-{
-	struct smbd_request *request;
-	struct smbd_data_transfer *packet;
-	int header_length;
-	int rc;
-
-	/* Wait for send credits. A SMBD packet needs one credit */
-	rc = wait_event_interruptible(info->wait_send_queue,
-		atomic_read(&info->send_credits) > 0 ||
-		info->transport_status != SMBD_CONNECTED);
-	if (rc)
-		return rc;
-
-	if (info->transport_status != SMBD_CONNECTED) {
-		log_outgoing(ERR, "disconnected not sending\n");
-		return -EAGAIN;
-	}
-	atomic_dec(&info->send_credits);
-
-	request = mempool_alloc(info->request_mempool, GFP_KERNEL);
-	if (!request) {
-		rc = -ENOMEM;
-		goto err;
-	}
-
-	request->info = info;
-
-	/* Fill in the packet header */
-	packet = smbd_request_payload(request);
-	packet->credits_requested = cpu_to_le16(info->send_credit_target);
-	packet->credits_granted =
-		cpu_to_le16(manage_credits_prior_sending(info));
-	info->send_immediate = false;
-
-	packet->flags = 0;
-	if (manage_keep_alive_before_sending(info))
-		packet->flags |= cpu_to_le16(SMB_DIRECT_RESPONSE_REQUESTED);
-
-	packet->reserved = 0;
-	if (!size)
-		packet->data_offset = 0;
-	else
-		packet->data_offset = cpu_to_le32(24);
-	packet->data_length = cpu_to_le32(size);
-	packet->remaining_data_length = cpu_to_le32(remaining_data_length);
-	packet->padding = 0;
-
-	log_outgoing(INFO, "credits_requested=%d credits_granted=%d "
-		"data_offset=%d data_length=%d remaining_data_length=%d\n",
-		le16_to_cpu(packet->credits_requested),
-		le16_to_cpu(packet->credits_granted),
-		le32_to_cpu(packet->data_offset),
-		le32_to_cpu(packet->data_length),
-		le32_to_cpu(packet->remaining_data_length));
-
-	/* Map the packet to DMA */
-	header_length = sizeof(struct smbd_data_transfer);
-	/* If this is a packet without payload, don't send padding */
-	if (!size)
-		header_length = offsetof(struct smbd_data_transfer, padding);
-
-	request->num_sge = 1;
-	request->sge[0].addr = ib_dma_map_single(info->id->device,
-						 (void *)packet,
-						 header_length,
-						 DMA_TO_DEVICE);
-	if (ib_dma_mapping_error(info->id->device, request->sge[0].addr)) {
-		mempool_free(request, info->request_mempool);
-		rc = -EIO;
-		goto err;
-	}
-
-	request->sge[0].length = header_length;
-	request->sge[0].lkey = info->pd->local_dma_lkey;
-
-	*request_out = request;
-	return 0;
-
-err:
-	atomic_inc(&info->send_credits);
-	return rc;
-}
-
-static void smbd_destroy_header(struct smbd_connection *info,
-		struct smbd_request *request)
-{
-
-	ib_dma_unmap_single(info->id->device,
-			    request->sge[0].addr,
-			    request->sge[0].length,
-			    DMA_TO_DEVICE);
-	mempool_free(request, info->request_mempool);
-	atomic_inc(&info->send_credits);
-}
-
 /* Post the send request */
 static int smbd_post_send(struct smbd_connection *info,
-		struct smbd_request *request, bool has_payload)
+		struct smbd_request *request)
 {
 	struct ib_send_wr send_wr;
 	int rc, i;
@@ -951,24 +808,9 @@ static int smbd_post_send(struct smbd_connection *info,
 	send_wr.opcode = IB_WR_SEND;
 	send_wr.send_flags = IB_SEND_SIGNALED;
 
-	if (has_payload) {
-		request->has_payload = true;
-		atomic_inc(&info->send_payload_pending);
-	} else {
-		request->has_payload = false;
-		atomic_inc(&info->send_pending);
-	}
-
 	rc = ib_post_send(info->id->qp, &send_wr, NULL);
 	if (rc) {
 		log_rdma_send(ERR, "ib_post_send failed rc=%d\n", rc);
-		if (has_payload) {
-			if (atomic_dec_and_test(&info->send_payload_pending))
-				wake_up(&info->wait_send_payload_pending);
-		} else {
-			if (atomic_dec_and_test(&info->send_pending))
-				wake_up(&info->wait_send_pending);
-		}
 		smbd_disconnect_rdma_connection(info);
 		rc = -EAGAIN;
 	} else
@@ -984,14 +826,107 @@ static int smbd_post_send_sgl(struct smbd_connection *info,
 {
 	int num_sgs;
 	int i, rc;
+	int header_length;
 	struct smbd_request *request;
+	struct smbd_data_transfer *packet;
+	int new_credits;
 	struct scatterlist *sg;
 
-	rc = smbd_create_header(
-		info, data_length, remaining_data_length, &request);
+wait_credit:
+	/* Wait for send credits. A SMBD packet needs one credit */
+	rc = wait_event_interruptible(info->wait_send_queue,
+		atomic_read(&info->send_credits) > 0 ||
+		info->transport_status != SMBD_CONNECTED);
 	if (rc)
-		return rc;
+		goto err_wait_credit;
 
+	if (info->transport_status != SMBD_CONNECTED) {
+		log_outgoing(ERR, "disconnected not sending on wait_credit\n");
+		rc = -EAGAIN;
+		goto err_wait_credit;
+	}
+	if (unlikely(atomic_dec_return(&info->send_credits) < 0)) {
+		atomic_inc(&info->send_credits);
+		goto wait_credit;
+	}
+
+wait_send_queue:
+	wait_event(info->wait_post_send,
+		atomic_read(&info->send_pending) < info->send_credit_target ||
+		info->transport_status != SMBD_CONNECTED);
+
+	if (info->transport_status != SMBD_CONNECTED) {
+		log_outgoing(ERR, "disconnected not sending on wait_send_queue\n");
+		rc = -EAGAIN;
+		goto err_wait_send_queue;
+	}
+
+	if (unlikely(atomic_inc_return(&info->send_pending) >
+				info->send_credit_target)) {
+		atomic_dec(&info->send_pending);
+		goto wait_send_queue;
+	}
+
+	request = mempool_alloc(info->request_mempool, GFP_KERNEL);
+	if (!request) {
+		rc = -ENOMEM;
+		goto err_alloc;
+	}
+
+	request->info = info;
+
+	/* Fill in the packet header */
+	packet = smbd_request_payload(request);
+	packet->credits_requested = cpu_to_le16(info->send_credit_target);
+
+	new_credits = manage_credits_prior_sending(info);
+	atomic_add(new_credits, &info->receive_credits);
+	packet->credits_granted = cpu_to_le16(new_credits);
+
+	info->send_immediate = false;
+
+	packet->flags = 0;
+	if (manage_keep_alive_before_sending(info))
+		packet->flags |= cpu_to_le16(SMB_DIRECT_RESPONSE_REQUESTED);
+
+	packet->reserved = 0;
+	if (!data_length)
+		packet->data_offset = 0;
+	else
+		packet->data_offset = cpu_to_le32(24);
+	packet->data_length = cpu_to_le32(data_length);
+	packet->remaining_data_length = cpu_to_le32(remaining_data_length);
+	packet->padding = 0;
+
+	log_outgoing(INFO, "credits_requested=%d credits_granted=%d "
+		"data_offset=%d data_length=%d remaining_data_length=%d\n",
+		le16_to_cpu(packet->credits_requested),
+		le16_to_cpu(packet->credits_granted),
+		le32_to_cpu(packet->data_offset),
+		le32_to_cpu(packet->data_length),
+		le32_to_cpu(packet->remaining_data_length));
+
+	/* Map the packet to DMA */
+	header_length = sizeof(struct smbd_data_transfer);
+	/* If this is a packet without payload, don't send padding */
+	if (!data_length)
+		header_length = offsetof(struct smbd_data_transfer, padding);
+
+	request->num_sge = 1;
+	request->sge[0].addr = ib_dma_map_single(info->id->device,
+						 (void *)packet,
+						 header_length,
+						 DMA_TO_DEVICE);
+	if (ib_dma_mapping_error(info->id->device, request->sge[0].addr)) {
+		rc = -EIO;
+		request->sge[0].addr = 0;
+		goto err_dma;
+	}
+
+	request->sge[0].length = header_length;
+	request->sge[0].lkey = info->pd->local_dma_lkey;
+
+	/* Fill in the packet data payload */
 	num_sgs = sgl ? sg_nents(sgl) : 0;
 	for_each_sg(sgl, sg, num_sgs, i) {
 		request->sge[i+1].addr =
@@ -1001,25 +936,41 @@ static int smbd_post_send_sgl(struct smbd_connection *info,
 				info->id->device, request->sge[i+1].addr)) {
 			rc = -EIO;
 			request->sge[i+1].addr = 0;
-			goto dma_mapping_failure;
+			goto err_dma;
 		}
 		request->sge[i+1].length = sg->length;
 		request->sge[i+1].lkey = info->pd->local_dma_lkey;
 		request->num_sge++;
 	}
 
-	rc = smbd_post_send(info, request, data_length);
+	rc = smbd_post_send(info, request);
 	if (!rc)
 		return 0;
 
-dma_mapping_failure:
-	for (i = 1; i < request->num_sge; i++)
+err_dma:
+	for (i = 0; i < request->num_sge; i++)
 		if (request->sge[i].addr)
 			ib_dma_unmap_single(info->id->device,
 					    request->sge[i].addr,
 					    request->sge[i].length,
 					    DMA_TO_DEVICE);
-	smbd_destroy_header(info, request);
+	mempool_free(request, info->request_mempool);
+
+	/* roll back receive credits and credits to be offered */
+	spin_lock(&info->lock_new_credits_offered);
+	info->new_credits_offered += new_credits;
+	spin_unlock(&info->lock_new_credits_offered);
+	atomic_sub(new_credits, &info->receive_credits);
+
+err_alloc:
+	if (atomic_dec_and_test(&info->send_pending))
+		wake_up(&info->wait_send_pending);
+
+err_wait_send_queue:
+	/* roll back send credits and pending */
+	atomic_inc(&info->send_credits);
+
+err_wait_credit:
 	return rc;
 }
 
@@ -1341,25 +1292,6 @@ static void destroy_receive_buffers(struct smbd_connection *info)
 		mempool_free(response, info->response_mempool);
 }
 
-/*
- * Check and send an immediate or keep alive packet
- * The condition to send those packets are defined in [MS-SMBD] 3.1.1.1
- * Connection.KeepaliveRequested and Connection.SendImmediate
- * The idea is to extend credits to server as soon as it becomes available
- */
-static void send_immediate_work(struct work_struct *work)
-{
-	struct smbd_connection *info = container_of(
-					work, struct smbd_connection,
-					send_immediate_work.work);
-
-	if (info->keep_alive_requested == KEEP_ALIVE_PENDING ||
-	    info->send_immediate) {
-		log_keep_alive(INFO, "send an empty message\n");
-		smbd_post_send_empty(info);
-	}
-}
-
 /* Implement idle connection timer [MS-SMBD] 3.1.6.2 */
 static void idle_connection_timer(struct work_struct *work)
 {
@@ -1414,14 +1346,10 @@ void smbd_destroy(struct TCP_Server_Info *server)
 
 	log_rdma_event(INFO, "cancelling idle timer\n");
 	cancel_delayed_work_sync(&info->idle_timer_work);
-	log_rdma_event(INFO, "cancelling send immediate work\n");
-	cancel_delayed_work_sync(&info->send_immediate_work);
 
 	log_rdma_event(INFO, "wait for all send posted to IB to finish\n");
 	wait_event(info->wait_send_pending,
 		atomic_read(&info->send_pending) == 0);
-	wait_event(info->wait_send_payload_pending,
-		atomic_read(&info->send_payload_pending) == 0);
 
 	/* It's not posssible for upper layer to get to reassembly */
 	log_rdma_event(INFO, "drain the reassembly queue\n");
@@ -1751,18 +1679,15 @@ static struct smbd_connection *_smbd_get_connection(
 
 	init_waitqueue_head(&info->wait_send_queue);
 	INIT_DELAYED_WORK(&info->idle_timer_work, idle_connection_timer);
-	INIT_DELAYED_WORK(&info->send_immediate_work, send_immediate_work);
 	queue_delayed_work(info->workqueue, &info->idle_timer_work,
 		info->keep_alive_interval*HZ);
 
 	init_waitqueue_head(&info->wait_send_pending);
 	atomic_set(&info->send_pending, 0);
 
-	init_waitqueue_head(&info->wait_send_payload_pending);
-	atomic_set(&info->send_payload_pending, 0);
+	init_waitqueue_head(&info->wait_post_send);
 
 	INIT_WORK(&info->disconnect_work, smbd_disconnect_rdma_work);
-	INIT_WORK(&info->recv_done_work, smbd_recv_done_work);
 	INIT_WORK(&info->post_send_credits_work, smbd_post_send_credits);
 	info->new_credits_offered = 0;
 	spin_lock_init(&info->lock_new_credits_offered);
@@ -2097,8 +2022,7 @@ int smbd_send(struct TCP_Server_Info *server,
 	for (i = 0; i < num_rqst; i++)
 		remaining_data_length += smb_rqst_len(server, &rqst_array[i]);
 
-	if (remaining_data_length + sizeof(struct smbd_data_transfer) >
-		info->max_fragmented_send_size) {
+	if (remaining_data_length > info->max_fragmented_send_size) {
 		log_write(ERR, "payload size %d > max size %d\n",
 			remaining_data_length, info->max_fragmented_send_size);
 		rc = -EINVAL;
@@ -2235,8 +2159,8 @@ done:
 	 * that means all the I/Os have been out and we are good to return
 	 */
 
-	wait_event(info->wait_send_payload_pending,
-		atomic_read(&info->send_payload_pending) == 0);
+	wait_event(info->wait_send_pending,
+		atomic_read(&info->send_pending) == 0);
 
 	return rc;
 }

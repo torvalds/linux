@@ -307,7 +307,7 @@ int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
 
 			for (hw_ip = 0; hw_ip < MAX_HWIP; hw_ip++) {
 				if (hw_id_map[hw_ip] == le16_to_cpu(ip->hw_id)) {
-					DRM_INFO("set register base offset for %s\n",
+					DRM_DEBUG("set register base offset for %s\n",
 							hw_id_names[le16_to_cpu(ip->hw_id)]);
 					adev->reg_offset[hw_ip][ip->number_instance] =
 						ip->base_address;

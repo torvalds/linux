@@ -370,7 +370,7 @@ static void ucd9000_probe_gpio(struct i2c_client *client,
 #ifdef CONFIG_DEBUG_FS
 static int ucd9000_get_mfr_status(struct i2c_client *client, u8 *buffer)
 {
-	int ret = pmbus_set_page(client, 0);
+	int ret = pmbus_set_page(client, 0, 0xff);
 
 	if (ret < 0)
 		return ret;

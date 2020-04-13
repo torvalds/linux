@@ -52,6 +52,40 @@ static int dsa_switch_ageing_time(struct dsa_switch *ds,
 	return 0;
 }
 
+static bool dsa_switch_mtu_match(struct dsa_switch *ds, int port,
+				 struct dsa_notifier_mtu_info *info)
+{
+	if (ds->index == info->sw_index)
+		return (port == info->port) || dsa_is_dsa_port(ds, port);
+
+	if (!info->propagate_upstream)
+		return false;
+
+	if (dsa_is_dsa_port(ds, port) || dsa_is_cpu_port(ds, port))
+		return true;
+
+	return false;
+}
+
+static int dsa_switch_mtu(struct dsa_switch *ds,
+			  struct dsa_notifier_mtu_info *info)
+{
+	int port, ret;
+
+	if (!ds->ops->port_change_mtu)
+		return -EOPNOTSUPP;
+
+	for (port = 0; port < ds->num_ports; port++) {
+		if (dsa_switch_mtu_match(ds, port, info)) {
+			ret = ds->ops->port_change_mtu(ds, port, info->mtu);
+			if (ret)
+				return ret;
+		}
+	}
+
+	return 0;
+}
+
 static int dsa_switch_bridge_join(struct dsa_switch *ds,
 				  struct dsa_notifier_bridge_info *info)
 {
@@ -327,6 +361,9 @@ static int dsa_switch_event(struct notifier_block *nb,
 		break;
 	case DSA_NOTIFIER_VLAN_DEL:
 		err = dsa_switch_vlan_del(ds, info);
+		break;
+	case DSA_NOTIFIER_MTU:
+		err = dsa_switch_mtu(ds, info);
 		break;
 	default:
 		err = -EOPNOTSUPP;

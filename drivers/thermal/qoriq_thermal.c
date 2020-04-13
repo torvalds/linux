@@ -3,12 +3,11 @@
 // Copyright 2016 Freescale Semiconductor, Inc.
 
 #include <linux/clk.h>
-#include <linux/module.h>
-#include <linux/platform_device.h>
 #include <linux/err.h>
 #include <linux/io.h>
+#include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_address.h>
+#include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/sizes.h>
 #include <linux/thermal.h>
@@ -228,6 +227,14 @@ static const struct regmap_access_table qoriq_rd_table = {
 	.n_yes_ranges	= ARRAY_SIZE(qoriq_yes_ranges),
 };
 
+static void qoriq_tmu_action(void *p)
+{
+	struct qoriq_tmu_data *data = p;
+
+	regmap_write(data->regmap, REGS_TMR, TMR_DISABLE);
+	clk_disable_unprepare(data->clk);
+}
+
 static int qoriq_tmu_probe(struct platform_device *pdev)
 {
 	int ret;
@@ -278,6 +285,10 @@ static int qoriq_tmu_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	ret = devm_add_action_or_reset(dev, qoriq_tmu_action, data);
+	if (ret)
+		return ret;
+
 	/* version register offset at: 0xbf8 on both v1 and v2 */
 	ret = regmap_read(data->regmap, REGS_IPBRR(0), &ver);
 	if (ret) {
@@ -290,33 +301,15 @@ static int qoriq_tmu_probe(struct platform_device *pdev)
 
 	ret = qoriq_tmu_calibration(dev, data);	/* TMU calibration */
 	if (ret < 0)
-		goto err;
+		return ret;
 
 	ret = qoriq_tmu_register_tmu_zone(dev, data);
 	if (ret < 0) {
 		dev_err(dev, "Failed to register sensors\n");
-		ret = -ENODEV;
-		goto err;
+		return ret;
 	}
 
 	platform_set_drvdata(pdev, data);
-
-	return 0;
-
-err:
-	clk_disable_unprepare(data->clk);
-
-	return ret;
-}
-
-static int qoriq_tmu_remove(struct platform_device *pdev)
-{
-	struct qoriq_tmu_data *data = platform_get_drvdata(pdev);
-
-	/* Disable monitoring */
-	regmap_write(data->regmap, REGS_TMR, TMR_DISABLE);
-
-	clk_disable_unprepare(data->clk);
 
 	return 0;
 }
@@ -365,7 +358,6 @@ static struct platform_driver qoriq_tmu = {
 		.of_match_table	= qoriq_tmu_match,
 	},
 	.probe	= qoriq_tmu_probe,
-	.remove	= qoriq_tmu_remove,
 };
 module_platform_driver(qoriq_tmu);
 

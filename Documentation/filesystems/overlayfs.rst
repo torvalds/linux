@@ -40,13 +40,46 @@ On 64bit systems, even if all overlay layers are not on the same
 underlying filesystem, the same compliant behavior could be achieved
 with the "xino" feature.  The "xino" feature composes a unique object
 identifier from the real object st_ino and an underlying fsid index.
+
 If all underlying filesystems support NFS file handles and export file
 handles with 32bit inode number encoding (e.g. ext4), overlay filesystem
 will use the high inode number bits for fsid.  Even when the underlying
 filesystem uses 64bit inode numbers, users can still enable the "xino"
 feature with the "-o xino=on" overlay mount option.  That is useful for the
 case of underlying filesystems like xfs and tmpfs, which use 64bit inode
-numbers, but are very unlikely to use the high inode number bit.
+numbers, but are very unlikely to use the high inode number bits.  In case
+the underlying inode number does overflow into the high xino bits, overlay
+filesystem will fall back to the non xino behavior for that inode.
+
+The following table summarizes what can be expected in different overlay
+configurations.
+
+Inode properties
+````````````````
+
++--------------+------------+------------+-----------------+----------------+
+|Configuration | Persistent | Uniform    | st_ino == d_ino | d_ino == i_ino |
+|              | st_ino     | st_dev     |                 | [*]            |
++==============+=====+======+=====+======+========+========+========+=======+
+|              | dir | !dir | dir | !dir |  dir   +  !dir  |  dir   | !dir  |
++--------------+-----+------+-----+------+--------+--------+--------+-------+
+| All layers   |  Y  |  Y   |  Y  |  Y   |  Y     |   Y    |  Y     |  Y    |
+| on same fs   |     |      |     |      |        |        |        |       |
++--------------+-----+------+-----+------+--------+--------+--------+-------+
+| Layers not   |  N  |  Y   |  Y  |  N   |  N     |   Y    |  N     |  Y    |
+| on same fs,  |     |      |     |      |        |        |        |       |
+| xino=off     |     |      |     |      |        |        |        |       |
++--------------+-----+------+-----+------+--------+--------+--------+-------+
+| xino=on/auto |  Y  |  Y   |  Y  |  Y   |  Y     |   Y    |  Y     |  Y    |
+|              |     |      |     |      |        |        |        |       |
++--------------+-----+------+-----+------+--------+--------+--------+-------+
+| xino=on/auto,|  N  |  Y   |  Y  |  N   |  N     |   Y    |  N     |  Y    |
+| ino overflow |     |      |     |      |        |        |        |       |
++--------------+-----+------+-----+------+--------+--------+--------+-------+
+
+[*] nfsd v3 readdirplus verifies d_ino == i_ino. i_ino is exposed via several
+/proc files, such as /proc/locks and /proc/self/fdinfo/<fd> of an inotify
+file descriptor.
 
 
 Upper and Lower
@@ -248,6 +281,50 @@ overlay filesystem (though an operation on the name of the file such as
 rename or unlink will of course be noticed and handled).
 
 
+Permission model
+----------------
+
+Permission checking in the overlay filesystem follows these principles:
+
+ 1) permission check SHOULD return the same result before and after copy up
+
+ 2) task creating the overlay mount MUST NOT gain additional privileges
+
+ 3) non-mounting task MAY gain additional privileges through the overlay,
+ compared to direct access on underlying lower or upper filesystems
+
+This is achieved by performing two permission checks on each access
+
+ a) check if current task is allowed access based on local DAC (owner,
+    group, mode and posix acl), as well as MAC checks
+
+ b) check if mounting task would be allowed real operation on lower or
+    upper layer based on underlying filesystem permissions, again including
+    MAC checks
+
+Check (a) ensures consistency (1) since owner, group, mode and posix acls
+are copied up.  On the other hand it can result in server enforced
+permissions (used by NFS, for example) being ignored (3).
+
+Check (b) ensures that no task gains permissions to underlying layers that
+the mounting task does not have (2).  This also means that it is possible
+to create setups where the consistency rule (1) does not hold; normally,
+however, the mounting task will have sufficient privileges to perform all
+operations.
+
+Another way to demonstrate this model is drawing parallels between
+
+  mount -t overlay overlay -olowerdir=/lower,upperdir=/upper,... /merged
+
+and
+
+  cp -a /lower /upper
+  mount --bind /upper /merged
+
+The resulting access permissions should be the same.  The difference is in
+the time of copy (on-demand vs. up-front).
+
+
 Multiple lower layers
 ---------------------
 
@@ -383,7 +460,8 @@ guarantee that the values of st_ino and st_dev returned by stat(2) and the
 value of d_ino returned by readdir(3) will act like on a normal filesystem.
 E.g. the value of st_dev may be different for two objects in the same
 overlay filesystem and the value of st_ino for directory objects may not be
-persistent and could change even while the overlay filesystem is mounted.
+persistent and could change even while the overlay filesystem is mounted, as
+summarized in the `Inode properties`_ table above.
 
 
 Changes to underlying filesystems

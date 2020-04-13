@@ -221,7 +221,7 @@ static void ena_queue_strings(struct ena_adapter *adapter, u8 **data)
 
 			snprintf(*data, ETH_GSTRING_LEN,
 				 "queue_%u_tx_%s", i, ena_stats->name);
-			 (*data) += ETH_GSTRING_LEN;
+			(*data) += ETH_GSTRING_LEN;
 		}
 		/* Rx stats */
 		for (j = 0; j < ENA_STATS_ARRAY_RX; j++) {
@@ -404,7 +404,6 @@ static void ena_get_drvinfo(struct net_device *dev,
 	struct ena_adapter *adapter = netdev_priv(dev);
 
 	strlcpy(info->driver, DRV_MODULE_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_MODULE_VERSION, sizeof(info->version));
 	strlcpy(info->bus_info, pci_name(adapter->pdev),
 		sizeof(info->bus_info));
 }
@@ -674,7 +673,6 @@ static int ena_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
 	 * supports getting/setting the hash function.
 	 */
 	rc = ena_com_get_hash_function(adapter->ena_dev, &ena_func, key);
-
 	if (rc) {
 		if (rc == -EOPNOTSUPP) {
 			key = NULL;
@@ -684,9 +682,6 @@ static int ena_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
 
 		return rc;
 	}
-
-	if (rc)
-		return rc;
 
 	switch (ena_func) {
 	case ENA_ADMIN_TOEPLITZ:
@@ -831,6 +826,8 @@ static int ena_set_tunable(struct net_device *netdev,
 }
 
 static const struct ethtool_ops ena_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
+				     ETHTOOL_COALESCE_USE_ADAPTIVE_RX,
 	.get_link_ksettings	= ena_get_link_ksettings,
 	.get_drvinfo		= ena_get_drvinfo,
 	.get_msglevel		= ena_get_msglevel,

@@ -189,7 +189,8 @@ xfs_qm_dquot_logitem_push(
 		if (!xfs_buf_delwri_queue(bp, buffer_list))
 			rval = XFS_ITEM_FLUSHING;
 		xfs_buf_relse(bp);
-	}
+	} else if (error == -EAGAIN)
+		rval = XFS_ITEM_LOCKED;
 
 	spin_lock(&lip->li_ailp->ail_lock);
 out_unlock:
@@ -307,20 +308,25 @@ xfs_qm_qoffend_logitem_committed(
 {
 	struct xfs_qoff_logitem	*qfe = QOFF_ITEM(lip);
 	struct xfs_qoff_logitem	*qfs = qfe->qql_start_lip;
-	struct xfs_ail		*ailp = qfs->qql_item.li_ailp;
 
-	/*
-	 * Delete the qoff-start logitem from the AIL.
-	 * xfs_trans_ail_delete() drops the AIL lock.
-	 */
-	spin_lock(&ailp->ail_lock);
-	xfs_trans_ail_delete(ailp, &qfs->qql_item, SHUTDOWN_LOG_IO_ERROR);
+	xfs_qm_qoff_logitem_relse(qfs);
 
-	kmem_free(qfs->qql_item.li_lv_shadow);
 	kmem_free(lip->li_lv_shadow);
-	kmem_free(qfs);
 	kmem_free(qfe);
 	return (xfs_lsn_t)-1;
+}
+
+STATIC void
+xfs_qm_qoff_logitem_release(
+	struct xfs_log_item	*lip)
+{
+	struct xfs_qoff_logitem	*qoff = QOFF_ITEM(lip);
+
+	if (test_bit(XFS_LI_ABORTED, &lip->li_flags)) {
+		if (qoff->qql_start_lip)
+			xfs_qm_qoff_logitem_relse(qoff->qql_start_lip);
+		xfs_qm_qoff_logitem_relse(qoff);
+	}
 }
 
 static const struct xfs_item_ops xfs_qm_qoffend_logitem_ops = {
@@ -328,13 +334,34 @@ static const struct xfs_item_ops xfs_qm_qoffend_logitem_ops = {
 	.iop_format	= xfs_qm_qoff_logitem_format,
 	.iop_committed	= xfs_qm_qoffend_logitem_committed,
 	.iop_push	= xfs_qm_qoff_logitem_push,
+	.iop_release	= xfs_qm_qoff_logitem_release,
 };
 
 static const struct xfs_item_ops xfs_qm_qoff_logitem_ops = {
 	.iop_size	= xfs_qm_qoff_logitem_size,
 	.iop_format	= xfs_qm_qoff_logitem_format,
 	.iop_push	= xfs_qm_qoff_logitem_push,
+	.iop_release	= xfs_qm_qoff_logitem_release,
 };
+
+/*
+ * Delete the quotaoff intent from the AIL and free it. On success,
+ * this should only be called for the start item. It can be used for
+ * either on shutdown or abort.
+ */
+void
+xfs_qm_qoff_logitem_relse(
+	struct xfs_qoff_logitem	*qoff)
+{
+	struct xfs_log_item	*lip = &qoff->qql_item;
+
+	ASSERT(test_bit(XFS_LI_IN_AIL, &lip->li_flags) ||
+	       test_bit(XFS_LI_ABORTED, &lip->li_flags) ||
+	       XFS_FORCED_SHUTDOWN(lip->li_mountp));
+	xfs_trans_ail_remove(lip, SHUTDOWN_LOG_IO_ERROR);
+	kmem_free(lip->li_lv_shadow);
+	kmem_free(qoff);
+}
 
 /*
  * Allocate and initialize an quotaoff item of the correct quota type(s).

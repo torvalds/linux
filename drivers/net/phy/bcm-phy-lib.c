@@ -423,6 +423,28 @@ int bcm_phy_28nm_a0b0_afe_config_init(struct phy_device *phydev)
 }
 EXPORT_SYMBOL_GPL(bcm_phy_28nm_a0b0_afe_config_init);
 
+int bcm_phy_enable_jumbo(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = bcm54xx_auxctl_read(phydev, MII_BCM54XX_AUXCTL_SHDWSEL_AUXCTL);
+	if (ret < 0)
+		return ret;
+
+	/* Enable extended length packet reception */
+	ret = bcm54xx_auxctl_write(phydev, MII_BCM54XX_AUXCTL_SHDWSEL_AUXCTL,
+				   ret | MII_BCM54XX_AUXCTL_ACTL_EXT_PKT_LEN);
+	if (ret < 0)
+		return ret;
+
+	/* Enable the elastic FIFO for raising the transmission limit from
+	 * 4.5KB to 10KB, at the expense of an additional 16 ns in propagation
+	 * latency.
+	 */
+	return phy_set_bits(phydev, MII_BCM54XX_ECR, MII_BCM54XX_ECR_FIFOE);
+}
+EXPORT_SYMBOL_GPL(bcm_phy_enable_jumbo);
+
 MODULE_DESCRIPTION("Broadcom PHY Library");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Broadcom Corporation");

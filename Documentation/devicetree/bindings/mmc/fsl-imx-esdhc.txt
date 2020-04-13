@@ -43,6 +43,11 @@ Optional properties:
   This property allows user to change the tuning step to more than one delay
   cells which is useful for some special boards or cards when the default
   tuning step can't find the proper delay window within limited tuning retries.
+- fsl,strobe-dll-delay-target: Specify the strobe dll control slave delay target.
+  This delay target programming host controller loopback read clock, and this
+  property allows user to change the delay target for the strobe input read clock.
+  If not use this property, driver default set the delay target to value 7.
+  Only eMMC HS400 mode need to take care of this property.
 
 Examples:
 

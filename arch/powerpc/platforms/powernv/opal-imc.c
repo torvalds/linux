@@ -35,11 +35,10 @@ static int imc_mem_set(void *data, u64 val)
 }
 DEFINE_DEBUGFS_ATTRIBUTE(fops_imc_x64, imc_mem_get, imc_mem_set, "0x%016llx\n");
 
-static struct dentry *imc_debugfs_create_x64(const char *name, umode_t mode,
-					     struct dentry *parent, u64  *value)
+static void imc_debugfs_create_x64(const char *name, umode_t mode,
+				   struct dentry *parent, u64  *value)
 {
-	return debugfs_create_file_unsafe(name, mode, parent,
-					  value, &fops_imc_x64);
+	debugfs_create_file_unsafe(name, mode, parent, value, &fops_imc_x64);
 }
 
 /*
@@ -59,9 +58,6 @@ static void export_imc_mode_and_cmd(struct device_node *node,
 
 	imc_debugfs_parent = debugfs_create_dir("imc", powerpc_debugfs_root);
 
-	if (!imc_debugfs_parent)
-		return;
-
 	if (of_property_read_u32(node, "cb_offset", &cb_offset))
 		cb_offset = IMC_CNTL_BLK_OFFSET;
 
@@ -69,21 +65,15 @@ static void export_imc_mode_and_cmd(struct device_node *node,
 		loc = (u64)(ptr->vbase) + cb_offset;
 		imc_mode_addr = (u64 *)(loc + IMC_CNTL_BLK_MODE_OFFSET);
 		sprintf(mode, "imc_mode_%d", (u32)(ptr->id));
-		if (!imc_debugfs_create_x64(mode, 0600, imc_debugfs_parent,
-					    imc_mode_addr))
-			goto err;
+		imc_debugfs_create_x64(mode, 0600, imc_debugfs_parent,
+				       imc_mode_addr);
 
 		imc_cmd_addr = (u64 *)(loc + IMC_CNTL_BLK_CMD_OFFSET);
 		sprintf(cmd, "imc_cmd_%d", (u32)(ptr->id));
-		if (!imc_debugfs_create_x64(cmd, 0600, imc_debugfs_parent,
-					    imc_cmd_addr))
-			goto err;
+		imc_debugfs_create_x64(cmd, 0600, imc_debugfs_parent,
+				       imc_cmd_addr);
 		ptr++;
 	}
-	return;
-
-err:
-	debugfs_remove_recursive(imc_debugfs_parent);
 }
 
 /*
@@ -278,14 +268,7 @@ static int opal_imc_counters_probe(struct platform_device *pdev)
 			domain = IMC_DOMAIN_THREAD;
 			break;
 		case IMC_TYPE_TRACE:
-			/*
-			 * FIXME. Using trace_imc events to monitor application
-			 * or KVM thread performance can cause a checkstop
-			 * (system crash).
-			 * Disable it for now.
-			 */
-			pr_info_once("IMC: disabling trace_imc PMU\n");
-			domain = -1;
+			domain = IMC_DOMAIN_TRACE;
 			break;
 		default:
 			pr_warn("IMC Unknown Device type \n");

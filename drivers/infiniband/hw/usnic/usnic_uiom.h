@@ -77,7 +77,7 @@ struct usnic_uiom_reg {
 struct usnic_uiom_chunk {
 	struct list_head		list;
 	int				nents;
-	struct scatterlist		page_list[0];
+	struct scatterlist		page_list[];
 };
 
 struct usnic_uiom_pd *usnic_uiom_alloc_pd(void);

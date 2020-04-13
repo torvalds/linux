@@ -16,12 +16,31 @@
 
 #define BCH_AUTO_GC_DIRTY_THRESHOLD	50
 
+#define BCH_DIRTY_INIT_THRD_MAX	64
 /*
  * 14 (16384ths) is chosen here as something that each backing device
  * should be a reasonable fraction of the share, and not to blow up
  * until individual backing devices are a petabyte.
  */
 #define WRITEBACK_SHARE_SHIFT   14
+
+struct bch_dirty_init_state;
+struct dirty_init_thrd_info {
+	struct bch_dirty_init_state	*state;
+	struct task_struct		*thread;
+};
+
+struct bch_dirty_init_state {
+	struct cache_set		*c;
+	struct bcache_device		*d;
+	int				total_threads;
+	int				key_idx;
+	spinlock_t			idx_lock;
+	atomic_t			started;
+	atomic_t			enough;
+	wait_queue_head_t		wait;
+	struct dirty_init_thrd_info	infos[BCH_DIRTY_INIT_THRD_MAX];
+};
 
 static inline uint64_t bcache_dev_sectors_dirty(struct bcache_device *d)
 {

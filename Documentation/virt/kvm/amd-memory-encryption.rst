@@ -53,6 +53,29 @@ key management interface to perform common hypervisor activities such as
 encrypting bootstrap code, snapshot, migrating and debugging the guest. For more
 information, see the SEV Key Management spec [api-spec]_
 
+The main ioctl to access SEV is KVM_MEM_ENCRYPT_OP.  If the argument
+to KVM_MEM_ENCRYPT_OP is NULL, the ioctl returns 0 if SEV is enabled
+and ``ENOTTY` if it is disabled (on some older versions of Linux,
+the ioctl runs normally even with a NULL argument, and therefore will
+likely return ``EFAULT``).  If non-NULL, the argument to KVM_MEM_ENCRYPT_OP
+must be a struct kvm_sev_cmd::
+
+       struct kvm_sev_cmd {
+               __u32 id;
+               __u64 data;
+               __u32 error;
+               __u32 sev_fd;
+       };
+
+
+The ``id`` field contains the subcommand, and the ``data`` field points to
+another struct containing arguments specific to command.  The ``sev_fd``
+should point to a file descriptor that is opened on the ``/dev/sev``
+device, if needed (see individual commands).
+
+On output, ``error`` is zero on success, or an error code.  Error codes
+are defined in ``<linux/psp-dev.h>`.
+
 KVM implements the following commands to support common lifecycle events of SEV
 guests, such as launching, running, snapshotting, migrating and decommissioning.
 
@@ -89,6 +112,8 @@ Returns: 0 on success, -negative on error
         };
 
 On success, the 'handle' field contains a new handle and on error, a negative value.
+
+KVM_SEV_LAUNCH_START requires the ``sev_fd`` field to be valid.
 
 For more details, see SEV spec Section 6.2.
 

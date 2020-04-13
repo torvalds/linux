@@ -52,19 +52,6 @@ config DEBUG_WX
 
 	  If in doubt, say "Y".
 
-config DEBUG_ALIGN_RODATA
-	depends on STRICT_KERNEL_RWX
-	bool "Align linker sections up to SECTION_SIZE"
-	help
-	  If this option is enabled, sections that may potentially be marked as
-	  read only or non-executable will be aligned up to the section size of
-	  the kernel. This prevents sections from being split into pages and
-	  avoids a potential TLB penalty. The downside is an increase in
-	  alignment and potentially wasted space. Turn on this option if
-	  performance is more important than memory pressure.
-
-	  If in doubt, say N.
-
 config DEBUG_EFI
 	depends on EFI && DEBUG_INFO
 	bool "UEFI debugging"

@@ -4,6 +4,7 @@ subdir-y	+= cavium-octeon
 subdir-y	+= img
 subdir-y	+= ingenic
 subdir-y	+= lantiq
+subdir-y	+= loongson
 subdir-y	+= mscc
 subdir-y	+= mti
 subdir-y	+= netlogic

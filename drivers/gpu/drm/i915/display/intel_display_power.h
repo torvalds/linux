@@ -100,6 +100,7 @@ enum i915_power_well_id {
 	SKL_DISP_PW_MISC_IO,
 	SKL_DISP_PW_1,
 	SKL_DISP_PW_2,
+	TGL_DISP_PW_3,
 	SKL_DISP_DC_OFF,
 };
 
@@ -306,6 +307,11 @@ intel_display_power_put_async(struct drm_i915_private *i915,
 	__intel_display_power_put_async(i915, domain, -1);
 }
 #endif
+
+enum dbuf_slice {
+	DBUF_S1,
+	DBUF_S2,
+};
 
 #define with_intel_display_power(i915, domain, wf) \
 	for ((wf) = intel_display_power_get((i915), (domain)); (wf); \

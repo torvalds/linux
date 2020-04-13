@@ -5,14 +5,19 @@ PCIe controller implemented on Socionext UniPhier SoCs.
 
 Required properties:
 - compatible: Should contain one of the following:
+    "socionext,uniphier-pro5-pcie-phy" - for Pro5 PHY
     "socionext,uniphier-ld20-pcie-phy" - for LD20 PHY
     "socionext,uniphier-pxs3-pcie-phy" - for PXs3 PHY
 - reg: Specifies offset and length of the register set for the device.
 - #phy-cells: Must be zero.
-- clocks: A phandle to the clock gate for PCIe glue layer including
-	this phy.
-- resets: A phandle to the reset line for PCIe glue layer including
-	this phy.
+- clocks: A list of phandles to the clock gate for PCIe glue layer
+	including this phy.
+- clock-names: For Pro5 only, should contain the following:
+    "gio", "link" - for Pro5 SoC
+- resets: A list of phandles to the reset line for PCIe glue layer
+	including this phy.
+- reset-names: For Pro5 only, should contain the following:
+    "gio", "link" - for Pro5 SoC
 
 Optional properties:
 - socionext,syscon: A phandle to system control to set configurations

@@ -327,3 +327,10 @@ config IMA_QUEUE_EARLY_BOOT_KEYS
 	depends on IMA_MEASURE_ASYMMETRIC_KEYS
 	depends on SYSTEM_TRUSTED_KEYRING
 	default y
+
+config IMA_SECURE_AND_OR_TRUSTED_BOOT
+       bool
+       depends on IMA_ARCH_POLICY
+       help
+          This option is selected by architectures to enable secure and/or
+          trusted boot based on IMA runtime policies.

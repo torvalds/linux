@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2019 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2020 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.  *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -512,21 +512,12 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 	lpfc_sli_read_link_ste(phba);
 
 	/* Reset the DFT_HBA_Q_DEPTH to the max xri  */
-	i = (mb->un.varRdConfig.max_xri + 1);
-	if (phba->cfg_hba_queue_depth > i) {
+	if (phba->cfg_hba_queue_depth > mb->un.varRdConfig.max_xri) {
 		lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
 				"3359 HBA queue depth changed from %d to %d\n",
-				phba->cfg_hba_queue_depth, i);
-		phba->cfg_hba_queue_depth = i;
-	}
-
-	/* Reset the DFT_LUN_Q_DEPTH to (max xri >> 3)  */
-	i = (mb->un.varRdConfig.max_xri >> 3);
-	if (phba->pport->cfg_lun_queue_depth > i) {
-		lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
-				"3360 LUN queue depth changed from %d to %d\n",
-				phba->pport->cfg_lun_queue_depth, i);
-		phba->pport->cfg_lun_queue_depth = i;
+				phba->cfg_hba_queue_depth,
+				mb->un.varRdConfig.max_xri);
+		phba->cfg_hba_queue_depth = mb->un.varRdConfig.max_xri;
 	}
 
 	phba->lmt = mb->un.varRdConfig.lmt;
@@ -4240,6 +4231,7 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 {
 	struct lpfc_vport *vport;
 	struct Scsi_Host  *shost = NULL;
+	struct scsi_host_template *template;
 	int error = 0;
 	int i;
 	uint64_t wwn;
@@ -4268,22 +4260,50 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 		}
 	}
 
-	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_FCP) {
-		if (dev != &phba->pcidev->dev) {
-			shost = scsi_host_alloc(&lpfc_vport_template,
-						sizeof(struct lpfc_vport));
+	/* Seed template for SCSI host registration */
+	if (dev == &phba->pcidev->dev) {
+		template = &phba->port_template;
+
+		if (phba->cfg_enable_fc4_type & LPFC_ENABLE_FCP) {
+			/* Seed physical port template */
+			memcpy(template, &lpfc_template, sizeof(*template));
+
+			if (use_no_reset_hba) {
+				/* template is for a no reset SCSI Host */
+				template->max_sectors = 0xffff;
+				template->eh_host_reset_handler = NULL;
+			}
+
+			/* Template for all vports this physical port creates */
+			memcpy(&phba->vport_template, &lpfc_template,
+			       sizeof(*template));
+			phba->vport_template.max_sectors = 0xffff;
+			phba->vport_template.shost_attrs = lpfc_vport_attrs;
+			phba->vport_template.eh_bus_reset_handler = NULL;
+			phba->vport_template.eh_host_reset_handler = NULL;
+			phba->vport_template.vendor_id = 0;
+
+			/* Initialize the host templates with updated value */
+			if (phba->sli_rev == LPFC_SLI_REV4) {
+				template->sg_tablesize = phba->cfg_scsi_seg_cnt;
+				phba->vport_template.sg_tablesize =
+					phba->cfg_scsi_seg_cnt;
+			} else {
+				template->sg_tablesize = phba->cfg_sg_seg_cnt;
+				phba->vport_template.sg_tablesize =
+					phba->cfg_sg_seg_cnt;
+			}
+
 		} else {
-			if (!use_no_reset_hba)
-				shost = scsi_host_alloc(&lpfc_template,
-						sizeof(struct lpfc_vport));
-			else
-				shost = scsi_host_alloc(&lpfc_template_no_hr,
-						sizeof(struct lpfc_vport));
+			/* NVMET is for physical port only */
+			memcpy(template, &lpfc_template_nvme,
+			       sizeof(*template));
 		}
-	} else if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
-		shost = scsi_host_alloc(&lpfc_template_nvme,
-					sizeof(struct lpfc_vport));
+	} else {
+		template = &phba->vport_template;
 	}
+
+	shost = scsi_host_alloc(template, sizeof(struct lpfc_vport));
 	if (!shost)
 		goto out;
 
@@ -4337,6 +4357,12 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 		shost->transportt = lpfc_transport_template;
 		vport->port_type = LPFC_PHYSICAL_PORT;
 	}
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_INIT | LOG_FCP,
+			"9081 CreatePort TMPLATE type %x TBLsize %d "
+			"SEGcnt %d/%d\n",
+			vport->port_type, shost->sg_tablesize,
+			phba->cfg_scsi_seg_cnt, phba->cfg_sg_seg_cnt);
 
 	/* Initialize all internally managed lists. */
 	INIT_LIST_HEAD(&vport->fc_nodes);
@@ -6310,11 +6336,6 @@ lpfc_sli_driver_resource_setup(struct lpfc_hba *phba)
 	 * used to create the sg_dma_buf_pool must be dynamically calculated.
 	 */
 
-	/* Initialize the host templates the configured values. */
-	lpfc_vport_template.sg_tablesize = phba->cfg_sg_seg_cnt;
-	lpfc_template_no_hr.sg_tablesize = phba->cfg_sg_seg_cnt;
-	lpfc_template.sg_tablesize = phba->cfg_sg_seg_cnt;
-
 	if (phba->sli_rev == LPFC_SLI_REV4)
 		entry_sz = sizeof(struct sli4_sge);
 	else
@@ -6355,7 +6376,7 @@ lpfc_sli_driver_resource_setup(struct lpfc_hba *phba)
 	}
 
 	lpfc_printf_log(phba, KERN_INFO, LOG_INIT | LOG_FCP,
-			"9088 sg_tablesize:%d dmabuf_size:%d total_bde:%d\n",
+			"9088 INIT sg_tablesize:%d dmabuf_size:%d total_bde:%d\n",
 			phba->cfg_sg_seg_cnt, phba->cfg_sg_dma_buf_size,
 			phba->cfg_total_seg_cnt);
 
@@ -6825,11 +6846,6 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 			phba->cfg_nvme_seg_cnt = phba->cfg_sg_seg_cnt;
 	}
 
-	/* Initialize the host templates with the updated values. */
-	lpfc_vport_template.sg_tablesize = phba->cfg_scsi_seg_cnt;
-	lpfc_template.sg_tablesize = phba->cfg_scsi_seg_cnt;
-	lpfc_template_no_hr.sg_tablesize = phba->cfg_scsi_seg_cnt;
-
 	lpfc_printf_log(phba, KERN_INFO, LOG_INIT | LOG_FCP,
 			"9087 sg_seg_cnt:%d dmabuf_size:%d "
 			"total:%d scsi:%d nvme:%d\n",
@@ -6935,6 +6951,17 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		rc = -ENOMEM;
 		goto out_free_hba_cpu_map;
 	}
+
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+	phba->sli4_hba.c_stat = alloc_percpu(struct lpfc_hdwq_stat);
+	if (!phba->sli4_hba.c_stat) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"3332 Failed allocating per cpu hdwq stats\n");
+		rc = -ENOMEM;
+		goto out_free_hba_eq_info;
+	}
+#endif
+
 	/*
 	 * Enable sr-iov virtual functions if supported and configured
 	 * through the module parameter.
@@ -6954,6 +6981,10 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 
 	return 0;
 
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+out_free_hba_eq_info:
+	free_percpu(phba->sli4_hba.eq_info);
+#endif
 out_free_hba_cpu_map:
 	kfree(phba->sli4_hba.cpu_map);
 out_free_hba_eq_hdl:
@@ -6992,6 +7023,9 @@ lpfc_sli4_driver_resource_unset(struct lpfc_hba *phba)
 	struct lpfc_fcf_conn_entry *conn_entry, *next_conn_entry;
 
 	free_percpu(phba->sli4_hba.eq_info);
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+	free_percpu(phba->sli4_hba.c_stat);
+#endif
 
 	/* Free memory allocated for msi-x interrupt vector to CPU mapping */
 	kfree(phba->sli4_hba.cpu_map);
@@ -9235,6 +9269,7 @@ lpfc_sli4_release_hdwq(struct lpfc_hba *phba)
 		/* Free the CQ/WQ corresponding to the Hardware Queue */
 		lpfc_sli4_queue_free(hdwq[idx].io_cq);
 		lpfc_sli4_queue_free(hdwq[idx].io_wq);
+		hdwq[idx].hba_eq = NULL;
 		hdwq[idx].io_cq = NULL;
 		hdwq[idx].io_wq = NULL;
 		if (phba->cfg_xpsgl && !phba->nvmet_support)
@@ -10831,6 +10866,9 @@ lpfc_cpu_affinity_check(struct lpfc_hba *phba, int vectors)
 #ifdef CONFIG_X86
 	struct cpuinfo_x86 *cpuinfo;
 #endif
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+	struct lpfc_hdwq_stat *c_stat;
+#endif
 
 	max_phys_id = 0;
 	min_phys_id = LPFC_VECTOR_MAP_EMPTY;
@@ -11082,10 +11120,17 @@ found_any:
 	idx = 0;
 	for_each_possible_cpu(cpu) {
 		cpup = &phba->sli4_hba.cpu_map[cpu];
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+		c_stat = per_cpu_ptr(phba->sli4_hba.c_stat, cpu);
+		c_stat->hdwq_no = cpup->hdwq;
+#endif
 		if (cpup->hdwq != LPFC_VECTOR_MAP_EMPTY)
 			continue;
 
 		cpup->hdwq = idx++ % phba->cfg_hdw_queue;
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+		c_stat->hdwq_no = cpup->hdwq;
+#endif
 		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 				"3340 Set Affinity: not present "
 				"CPU %d hdwq %d\n",
@@ -11105,14 +11150,18 @@ found_any:
  * @cpu:    cpu going offline
  * @eqlist:
  */
-static void
+static int
 lpfc_cpuhp_get_eq(struct lpfc_hba *phba, unsigned int cpu,
 		  struct list_head *eqlist)
 {
 	const struct cpumask *maskp;
 	struct lpfc_queue *eq;
-	cpumask_t tmp;
+	struct cpumask *tmp;
 	u16 idx;
+
+	tmp = kzalloc(cpumask_size(), GFP_KERNEL);
+	if (!tmp)
+		return -ENOMEM;
 
 	for (idx = 0; idx < phba->cfg_irq_chann; idx++) {
 		maskp = pci_irq_get_affinity(phba->pcidev, idx);
@@ -11123,7 +11172,7 @@ lpfc_cpuhp_get_eq(struct lpfc_hba *phba, unsigned int cpu,
 		 * then we don't need to poll the eq attached
 		 * to it.
 		 */
-		if (!cpumask_and(&tmp, maskp, cpumask_of(cpu)))
+		if (!cpumask_and(tmp, maskp, cpumask_of(cpu)))
 			continue;
 		/* get the cpus that are online and are affini-
 		 * tized to this irq vector.  If the count is
@@ -11131,8 +11180,8 @@ lpfc_cpuhp_get_eq(struct lpfc_hba *phba, unsigned int cpu,
 		 * down this vector.  Since this cpu has not
 		 * gone offline yet, we need >1.
 		 */
-		cpumask_and(&tmp, maskp, cpu_online_mask);
-		if (cpumask_weight(&tmp) > 1)
+		cpumask_and(tmp, maskp, cpu_online_mask);
+		if (cpumask_weight(tmp) > 1)
 			continue;
 
 		/* Now that we have an irq to shutdown, get the eq
@@ -11143,6 +11192,8 @@ lpfc_cpuhp_get_eq(struct lpfc_hba *phba, unsigned int cpu,
 		eq = phba->sli4_hba.hba_eq_hdl[idx].eq;
 		list_add(&eq->_poll_list, eqlist);
 	}
+	kfree(tmp);
+	return 0;
 }
 
 static void __lpfc_cpuhp_remove(struct lpfc_hba *phba)
@@ -11175,11 +11226,9 @@ static void lpfc_cpuhp_add(struct lpfc_hba *phba)
 
 	rcu_read_lock();
 
-	if (!list_empty(&phba->poll_list)) {
-		timer_setup(&phba->cpuhp_poll_timer, lpfc_sli4_poll_hbtimer, 0);
+	if (!list_empty(&phba->poll_list))
 		mod_timer(&phba->cpuhp_poll_timer,
 			  jiffies + msecs_to_jiffies(LPFC_POLL_HB));
-	}
 
 	rcu_read_unlock();
 
@@ -11313,7 +11362,9 @@ static int lpfc_cpu_offline(unsigned int cpu, struct hlist_node *node)
 
 	lpfc_irq_rebalance(phba, cpu, true);
 
-	lpfc_cpuhp_get_eq(phba, cpu, &eqlist);
+	retval = lpfc_cpuhp_get_eq(phba, cpu, &eqlist);
+	if (retval)
+		return retval;
 
 	/* start polling on these eq's */
 	list_for_each_entry_safe(eq, next, &eqlist, _poll_list) {
@@ -13145,6 +13196,7 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 	lpfc_sli4_ras_setup(phba);
 
 	INIT_LIST_HEAD(&phba->poll_list);
+	timer_setup(&phba->cpuhp_poll_timer, lpfc_sli4_poll_hbtimer, 0);
 	cpuhp_state_add_instance_nocalls(lpfc_cpuhp_state, &phba->cpuhp);
 
 	return 0;

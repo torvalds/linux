@@ -4,6 +4,7 @@ http://www.invensense.com/mems/gyro/mpu6050.html
 
 Required properties:
  - compatible : should be one of
+		"invensense,mpu6000"
 		"invensense,mpu6050"
  		"invensense,mpu6500"
 		"invensense,mpu6515"
@@ -11,7 +12,11 @@ Required properties:
 		"invensense,mpu9250"
 		"invensense,mpu9255"
 		"invensense,icm20608"
+		"invensense,icm20609"
+		"invensense,icm20689"
 		"invensense,icm20602"
+		"invensense,icm20690"
+		"invensense,iam20680"
  - reg : the I2C address of the sensor
  - interrupts: interrupt mapping for IRQ. It should be configured with flags
    IRQ_TYPE_LEVEL_HIGH, IRQ_TYPE_EDGE_RISING, IRQ_TYPE_LEVEL_LOW or

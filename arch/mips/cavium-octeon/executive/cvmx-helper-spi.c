@@ -140,9 +140,9 @@ int __cvmx_helper_spi_enable(int interface)
  *
  * Returns Link state
  */
-cvmx_helper_link_info_t __cvmx_helper_spi_link_get(int ipd_port)
+union cvmx_helper_link_info __cvmx_helper_spi_link_get(int ipd_port)
 {
-	cvmx_helper_link_info_t result;
+	union cvmx_helper_link_info result;
 	int interface = cvmx_helper_get_interface_num(ipd_port);
 	int index = cvmx_helper_get_interface_index_num(ipd_port);
 	result.u64 = 0;
@@ -193,7 +193,7 @@ cvmx_helper_link_info_t __cvmx_helper_spi_link_get(int ipd_port)
  *
  * Returns Zero on success, negative on failure
  */
-int __cvmx_helper_spi_link_set(int ipd_port, cvmx_helper_link_info_t link_info)
+int __cvmx_helper_spi_link_set(int ipd_port, union cvmx_helper_link_info link_info)
 {
 	/* Nothing to do. If we have a SPI4000 then the setup was already performed
 	   by cvmx_spi4000_check_speed(). If not then there isn't any link

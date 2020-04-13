@@ -19,6 +19,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
+#include <linux/reset.h>
 #include <linux/slab.h>
 
 #define USB20_CLKSET0		0x00
@@ -26,9 +27,16 @@
 #define CLKSET0_PRIVATE		BIT(0)
 #define CLKSET0_EXTAL_ONLY	(CLKSET0_INTCLK_EN | CLKSET0_PRIVATE)
 
+static const struct clk_bulk_data rcar_usb2_clocks[] = {
+	{ .id = "ehci_ohci", },
+	{ .id = "hs-usb-if", },
+};
+
 struct usb2_clock_sel_priv {
 	void __iomem *base;
 	struct clk_hw hw;
+	struct clk_bulk_data clks[ARRAY_SIZE(rcar_usb2_clocks)];
+	struct reset_control *rsts;
 	bool extal;
 	bool xtal;
 };
@@ -53,14 +61,32 @@ static void usb2_clock_sel_disable_extal_only(struct usb2_clock_sel_priv *priv)
 
 static int usb2_clock_sel_enable(struct clk_hw *hw)
 {
-	usb2_clock_sel_enable_extal_only(to_priv(hw));
+	struct usb2_clock_sel_priv *priv = to_priv(hw);
+	int ret;
+
+	ret = reset_control_deassert(priv->rsts);
+	if (ret)
+		return ret;
+
+	ret = clk_bulk_prepare_enable(ARRAY_SIZE(priv->clks), priv->clks);
+	if (ret) {
+		reset_control_assert(priv->rsts);
+		return ret;
+	}
+
+	usb2_clock_sel_enable_extal_only(priv);
 
 	return 0;
 }
 
 static void usb2_clock_sel_disable(struct clk_hw *hw)
 {
-	usb2_clock_sel_disable_extal_only(to_priv(hw));
+	struct usb2_clock_sel_priv *priv = to_priv(hw);
+
+	usb2_clock_sel_disable_extal_only(priv);
+
+	clk_bulk_disable_unprepare(ARRAY_SIZE(priv->clks), priv->clks);
+	reset_control_assert(priv->rsts);
 }
 
 /*
@@ -119,6 +145,7 @@ static int rcar_usb2_clock_sel_probe(struct platform_device *pdev)
 	struct usb2_clock_sel_priv *priv;
 	struct clk *clk;
 	struct clk_init_data init;
+	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -127,6 +154,15 @@ static int rcar_usb2_clock_sel_probe(struct platform_device *pdev)
 	priv->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
+
+	memcpy(priv->clks, rcar_usb2_clocks, sizeof(priv->clks));
+	ret = devm_clk_bulk_get(dev, ARRAY_SIZE(priv->clks), priv->clks);
+	if (ret < 0)
+		return ret;
+
+	priv->rsts = devm_reset_control_array_get(dev, true, false);
+	if (IS_ERR(priv->rsts))
+		return PTR_ERR(priv->rsts);
 
 	pm_runtime_enable(dev);
 	pm_runtime_get_sync(dev);

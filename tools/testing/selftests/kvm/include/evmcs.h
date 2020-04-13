@@ -16,6 +16,8 @@
 #define u32 uint32_t
 #define u64 uint64_t
 
+#define EVMCS_VERSION 1
+
 extern bool enable_evmcs;
 
 struct hv_vp_assist_page {

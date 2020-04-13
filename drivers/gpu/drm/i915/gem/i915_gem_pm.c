@@ -85,7 +85,8 @@ void i915_gem_suspend_late(struct drm_i915_private *i915)
 			spin_unlock_irqrestore(&i915->mm.obj_lock, flags);
 
 			i915_gem_object_lock(obj);
-			WARN_ON(i915_gem_object_set_to_gtt_domain(obj, false));
+			drm_WARN_ON(&i915->drm,
+			    i915_gem_object_set_to_gtt_domain(obj, false));
 			i915_gem_object_unlock(obj);
 			i915_gem_object_put(obj);
 

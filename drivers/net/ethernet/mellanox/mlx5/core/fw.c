@@ -613,6 +613,44 @@ static void mlx5_fsm_release(struct mlxfw_dev *mlxfw_dev, u32 fwhandle)
 			 fwhandle, 0);
 }
 
+#define MLX5_FSM_REACTIVATE_TOUT 5000 /* msecs */
+static int mlx5_fsm_reactivate(struct mlxfw_dev *mlxfw_dev, u8 *status)
+{
+	unsigned long exp_time = jiffies + msecs_to_jiffies(MLX5_FSM_REACTIVATE_TOUT);
+	struct mlx5_mlxfw_dev *mlx5_mlxfw_dev =
+		container_of(mlxfw_dev, struct mlx5_mlxfw_dev, mlxfw_dev);
+	struct mlx5_core_dev *dev = mlx5_mlxfw_dev->mlx5_core_dev;
+	u32 out[MLX5_ST_SZ_DW(mirc_reg)];
+	u32 in[MLX5_ST_SZ_DW(mirc_reg)];
+	int err;
+
+	if (!MLX5_CAP_MCAM_REG2(dev, mirc))
+		return -EOPNOTSUPP;
+
+	memset(in, 0, sizeof(in));
+
+	err = mlx5_core_access_reg(dev, in, sizeof(in), out,
+				   sizeof(out), MLX5_REG_MIRC, 0, 1);
+	if (err)
+		return err;
+
+	do {
+		memset(out, 0, sizeof(out));
+		err = mlx5_core_access_reg(dev, in, sizeof(in), out,
+					   sizeof(out), MLX5_REG_MIRC, 0, 0);
+		if (err)
+			return err;
+
+		*status = MLX5_GET(mirc_reg, out, status_code);
+		if (*status != MLXFW_FSM_REACTIVATE_STATUS_BUSY)
+			return 0;
+
+		msleep(20);
+	} while (time_before(jiffies, exp_time));
+
+	return 0;
+}
+
 static const struct mlxfw_dev_ops mlx5_mlxfw_dev_ops = {
 	.component_query	= mlx5_component_query,
 	.fsm_lock		= mlx5_fsm_lock,
@@ -620,6 +658,7 @@ static const struct mlxfw_dev_ops mlx5_mlxfw_dev_ops = {
 	.fsm_block_download	= mlx5_fsm_block_download,
 	.fsm_component_verify	= mlx5_fsm_component_verify,
 	.fsm_activate		= mlx5_fsm_activate,
+	.fsm_reactivate		= mlx5_fsm_reactivate,
 	.fsm_query_state	= mlx5_fsm_query_state,
 	.fsm_cancel		= mlx5_fsm_cancel,
 	.fsm_release		= mlx5_fsm_release
@@ -634,6 +673,7 @@ int mlx5_firmware_flash(struct mlx5_core_dev *dev,
 			.ops = &mlx5_mlxfw_dev_ops,
 			.psid = dev->board_id,
 			.psid_size = strlen(dev->board_id),
+			.devlink = priv_to_devlink(dev),
 		},
 		.mlx5_core_dev = dev
 	};

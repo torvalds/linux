@@ -946,7 +946,8 @@ static int ca8210_spi_transfer(
 	cas_ctl->transfer.bits_per_word = 0; /* Use device setting */
 	cas_ctl->transfer.tx_buf = cas_ctl->tx_buf;
 	cas_ctl->transfer.rx_buf = cas_ctl->tx_in_buf;
-	cas_ctl->transfer.delay_usecs = 0;
+	cas_ctl->transfer.delay.value = 0;
+	cas_ctl->transfer.delay.unit = SPI_DELAY_UNIT_USECS;
 	cas_ctl->transfer.cs_change = 0;
 	cas_ctl->transfer.len = sizeof(struct mac_message);
 	cas_ctl->msg.complete = ca8210_spi_transfer_complete;

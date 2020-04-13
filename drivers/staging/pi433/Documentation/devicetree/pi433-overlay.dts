@@ -3,51 +3,46 @@
 /plugin/;
 
 / {
-	compatible = "bcm,bcm2835", "bcm,bcm2708", "bcm,bcm2709";
+	compatible = "brcm,bcm2835", "brcm,bcm2708", "brcm,bcm2709";
+};
 
-	fragment@0 {
-		target = <&spi0>;
-		__overlay__ {
-			status = "okay";
+&spi0 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
 
-			spidev@0{
-				status = "disabled";
-			};
-
-			spidev@1{
-				status = "disabled";
-			};
-		};
+	spidev@0{
+		reg = <0>;
+		status = "disabled";
 	};
 
-	fragment@1 {
-		target = <&gpio>;
-		__overlay__ {
-			pi433_pins: pi433_pins {
-				brcm,pins = <7 25 24>;
-				brcm,function = <0 0 0>; // in in in
-			};
-		};
+	spidev@1{
+		reg = <1>;
+		status = "disabled";
 	};
+};
 
-	fragment@2 {
-		target = <&spi0>;
-		__overlay__ {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			status = "okay";
+&gpio {
+	pi433_pins: pi433_pins {
+		brcm,pins = <7 25 24>;
+		brcm,function = <0 0 0>; // in in in
+	};
+};
 
-			pi433: pi433@0 {
-				compatible = "Smarthome-Wolf,pi433";
-				reg = <0>;
-				spi-max-frequency = <10000000>;
-				status = "okay";
+&spi0 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
 
-				pinctrl-0 = <&pi433_pins>;
-				DIO0-gpio = <&gpio 24 0>;
-				DIO1-gpio = <&gpio 25 0>;
-				DIO2-gpio = <&gpio  7 0>;
-			};
-		};
+	pi433: pi433@0 {
+		compatible = "Smarthome-Wolf,pi433";
+		reg = <0>;
+		spi-max-frequency = <10000000>;
+		status = "okay";
+
+		pinctrl-0 = <&pi433_pins>;
+		DIO0-gpio = <&gpio 24 0>;
+		DIO1-gpio = <&gpio 25 0>;
+		DIO2-gpio = <&gpio  7 0>;
 	};
 };

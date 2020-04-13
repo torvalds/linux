@@ -1585,7 +1585,7 @@ int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 		goto err;
 	}
 
-	hbuf_len = mei_slots2data(hbuf_slots);
+	hbuf_len = mei_slots2data(hbuf_slots) & MEI_MSG_MAX_LEN_MASK;
 	dr_slots = mei_dma_ring_empty_slots(dev);
 	dr_len = mei_slots2data(dr_slots);
 
@@ -1718,7 +1718,7 @@ ssize_t mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb)
 		goto out;
 	}
 
-	hbuf_len = mei_slots2data(hbuf_slots);
+	hbuf_len = mei_slots2data(hbuf_slots) & MEI_MSG_MAX_LEN_MASK;
 	dr_slots = mei_dma_ring_empty_slots(dev);
 	dr_len =  mei_slots2data(dr_slots);
 

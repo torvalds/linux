@@ -103,21 +103,20 @@ static unsigned int rpcrdma_max_reply_header_size(unsigned int maxsegs)
 
 /**
  * rpcrdma_set_max_header_sizes - Initialize inline payload sizes
- * @r_xprt: transport instance to initialize
+ * @ep: endpoint to initialize
  *
  * The max_inline fields contain the maximum size of an RPC message
  * so the marshaling code doesn't have to repeat this calculation
  * for every RPC.
  */
-void rpcrdma_set_max_header_sizes(struct rpcrdma_xprt *r_xprt)
+void rpcrdma_set_max_header_sizes(struct rpcrdma_ep *ep)
 {
-	unsigned int maxsegs = r_xprt->rx_ia.ri_max_rdma_segs;
-	struct rpcrdma_ep *ep = &r_xprt->rx_ep;
+	unsigned int maxsegs = ep->re_max_rdma_segs;
 
-	ep->rep_max_inline_send =
-		ep->rep_inline_send - rpcrdma_max_call_header_size(maxsegs);
-	ep->rep_max_inline_recv =
-		ep->rep_inline_recv - rpcrdma_max_reply_header_size(maxsegs);
+	ep->re_max_inline_send =
+		ep->re_inline_send - rpcrdma_max_call_header_size(maxsegs);
+	ep->re_max_inline_recv =
+		ep->re_inline_recv - rpcrdma_max_reply_header_size(maxsegs);
 }
 
 /* The client can send a request inline as long as the RPCRDMA header
@@ -132,9 +131,10 @@ static bool rpcrdma_args_inline(struct rpcrdma_xprt *r_xprt,
 				struct rpc_rqst *rqst)
 {
 	struct xdr_buf *xdr = &rqst->rq_snd_buf;
+	struct rpcrdma_ep *ep = r_xprt->rx_ep;
 	unsigned int count, remaining, offset;
 
-	if (xdr->len > r_xprt->rx_ep.rep_max_inline_send)
+	if (xdr->len > ep->re_max_inline_send)
 		return false;
 
 	if (xdr->page_len) {
@@ -145,7 +145,7 @@ static bool rpcrdma_args_inline(struct rpcrdma_xprt *r_xprt,
 			remaining -= min_t(unsigned int,
 					   PAGE_SIZE - offset, remaining);
 			offset = 0;
-			if (++count > r_xprt->rx_ep.rep_attr.cap.max_send_sge)
+			if (++count > ep->re_attr.cap.max_send_sge)
 				return false;
 		}
 	}
@@ -162,7 +162,7 @@ static bool rpcrdma_args_inline(struct rpcrdma_xprt *r_xprt,
 static bool rpcrdma_results_inline(struct rpcrdma_xprt *r_xprt,
 				   struct rpc_rqst *rqst)
 {
-	return rqst->rq_rcv_buf.buflen <= r_xprt->rx_ep.rep_max_inline_recv;
+	return rqst->rq_rcv_buf.buflen <= r_xprt->rx_ep->re_max_inline_recv;
 }
 
 /* The client is required to provide a Reply chunk if the maximum
@@ -176,7 +176,7 @@ rpcrdma_nonpayload_inline(const struct rpcrdma_xprt *r_xprt,
 	const struct xdr_buf *buf = &rqst->rq_rcv_buf;
 
 	return (buf->head[0].iov_len + buf->tail[0].iov_len) <
-		r_xprt->rx_ep.rep_max_inline_recv;
+		r_xprt->rx_ep->re_max_inline_recv;
 }
 
 /* Split @vec on page boundaries into SGEs. FMR registers pages, not
@@ -255,7 +255,7 @@ rpcrdma_convert_iovs(struct rpcrdma_xprt *r_xprt, struct xdr_buf *xdrbuf,
 	/* When encoding a Read chunk, the tail iovec contains an
 	 * XDR pad and may be omitted.
 	 */
-	if (type == rpcrdma_readch && r_xprt->rx_ia.ri_implicit_roundup)
+	if (type == rpcrdma_readch && r_xprt->rx_ep->re_implicit_roundup)
 		goto out;
 
 	/* When encoding a Write chunk, some servers need to see an
@@ -263,7 +263,7 @@ rpcrdma_convert_iovs(struct rpcrdma_xprt *r_xprt, struct xdr_buf *xdrbuf,
 	 * layer provides space in the tail iovec that may be used
 	 * for this purpose.
 	 */
-	if (type == rpcrdma_writech && r_xprt->rx_ia.ri_implicit_roundup)
+	if (type == rpcrdma_writech && r_xprt->rx_ep->re_implicit_roundup)
 		goto out;
 
 	if (xdrbuf->tail[0].iov_len)
@@ -273,32 +273,6 @@ out:
 	if (unlikely(n > RPCRDMA_MAX_SEGS))
 		return -EIO;
 	return n;
-}
-
-static inline int
-encode_item_present(struct xdr_stream *xdr)
-{
-	__be32 *p;
-
-	p = xdr_reserve_space(xdr, sizeof(*p));
-	if (unlikely(!p))
-		return -EMSGSIZE;
-
-	*p = xdr_one;
-	return 0;
-}
-
-static inline int
-encode_item_not_present(struct xdr_stream *xdr)
-{
-	__be32 *p;
-
-	p = xdr_reserve_space(xdr, sizeof(*p));
-	if (unlikely(!p))
-		return -EMSGSIZE;
-
-	*p = xdr_zero;
-	return 0;
 }
 
 static void
@@ -414,7 +388,7 @@ static int rpcrdma_encode_read_list(struct rpcrdma_xprt *r_xprt,
 	} while (nsegs);
 
 done:
-	return encode_item_not_present(xdr);
+	return xdr_stream_encode_item_absent(xdr);
 }
 
 /* Register and XDR encode the Write list. Supports encoding a list
@@ -453,7 +427,7 @@ static int rpcrdma_encode_write_list(struct rpcrdma_xprt *r_xprt,
 	if (nsegs < 0)
 		return nsegs;
 
-	if (encode_item_present(xdr) < 0)
+	if (xdr_stream_encode_item_present(xdr) < 0)
 		return -EMSGSIZE;
 	segcount = xdr_reserve_space(xdr, sizeof(*segcount));
 	if (unlikely(!segcount))
@@ -480,7 +454,7 @@ static int rpcrdma_encode_write_list(struct rpcrdma_xprt *r_xprt,
 	*segcount = cpu_to_be32(nchunks);
 
 done:
-	return encode_item_not_present(xdr);
+	return xdr_stream_encode_item_absent(xdr);
 }
 
 /* Register and XDR encode the Reply chunk. Supports encoding an array
@@ -507,14 +481,14 @@ static int rpcrdma_encode_reply_chunk(struct rpcrdma_xprt *r_xprt,
 	__be32 *segcount;
 
 	if (wtype != rpcrdma_replych)
-		return encode_item_not_present(xdr);
+		return xdr_stream_encode_item_absent(xdr);
 
 	seg = req->rl_segments;
 	nsegs = rpcrdma_convert_iovs(r_xprt, &rqst->rq_rcv_buf, 0, wtype, seg);
 	if (nsegs < 0)
 		return nsegs;
 
-	if (encode_item_present(xdr) < 0)
+	if (xdr_stream_encode_item_present(xdr) < 0)
 		return -EMSGSIZE;
 	segcount = xdr_reserve_space(xdr, sizeof(*segcount));
 	if (unlikely(!segcount))
@@ -1476,8 +1450,8 @@ void rpcrdma_reply_handler(struct rpcrdma_rep *rep)
 
 	if (credits == 0)
 		credits = 1;	/* don't deadlock */
-	else if (credits > r_xprt->rx_ep.rep_max_requests)
-		credits = r_xprt->rx_ep.rep_max_requests;
+	else if (credits > r_xprt->rx_ep->re_max_requests)
+		credits = r_xprt->rx_ep->re_max_requests;
 	if (buf->rb_credits != credits)
 		rpcrdma_update_cwnd(r_xprt, credits);
 	rpcrdma_post_recvs(r_xprt, false);

@@ -582,40 +582,23 @@ static void ioc3_timer(struct timer_list *t)
 
 /* Try to find a PHY.  There is no apparent relation between the MII addresses
  * in the SGI documentation and what we find in reality, so we simply probe
- * for the PHY.  It seems IOC3 PHYs usually live on address 31.  One of my
- * onboard IOC3s has the special oddity that probing doesn't seem to find it
- * yet the interface seems to work fine, so if probing fails we for now will
- * simply default to PHY 31 instead of bailing out.
+ * for the PHY.
  */
 static int ioc3_mii_init(struct ioc3_private *ip)
 {
-	int ioc3_phy_workaround = 1;
-	int i, found = 0, res = 0;
 	u16 word;
+	int i;
 
 	for (i = 0; i < 32; i++) {
 		word = ioc3_mdio_read(ip->mii.dev, i, MII_PHYSID1);
 
 		if (word != 0xffff && word != 0x0000) {
-			found = 1;
-			break;			/* Found a PHY		*/
+			ip->mii.phy_id = i;
+			return 0;
 		}
 	}
-
-	if (!found) {
-		if (ioc3_phy_workaround) {
-			i = 31;
-		} else {
-			ip->mii.phy_id = -1;
-			res = -ENODEV;
-			goto out;
-		}
-	}
-
-	ip->mii.phy_id = i;
-
-out:
-	return res;
+	ip->mii.phy_id = -1;
+	return -ENODEV;
 }
 
 static void ioc3_mii_start(struct ioc3_private *ip)

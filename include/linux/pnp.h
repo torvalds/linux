@@ -379,7 +379,7 @@ struct pnp_id {
 };
 
 struct pnp_driver {
-	char *name;
+	const char *name;
 	const struct pnp_device_id *id_table;
 	unsigned int flags;
 	int (*probe) (struct pnp_dev *dev, const struct pnp_device_id *dev_id);

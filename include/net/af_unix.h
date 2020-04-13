@@ -27,7 +27,7 @@ struct unix_address {
 	refcount_t	refcnt;
 	int		len;
 	unsigned int	hash;
-	struct sockaddr_un name[0];
+	struct sockaddr_un name[];
 };
 
 struct unix_skb_parms {
@@ -42,7 +42,7 @@ struct unix_skb_parms {
 } __randomize_layout;
 
 struct scm_stat {
-	u32 nr_fds;
+	atomic_t nr_fds;
 };
 
 #define UNIXCB(skb)	(*(struct unix_skb_parms *)&((skb)->cb))

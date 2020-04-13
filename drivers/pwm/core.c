@@ -120,6 +120,9 @@ static int pwm_device_request(struct pwm_device *pwm, const char *label)
 	if (pwm->chip->ops->get_state) {
 		pwm->chip->ops->get_state(pwm->chip, pwm, &pwm->state);
 		trace_pwm_get(pwm, &pwm->state);
+
+		if (IS_ENABLED(PWM_DEBUG))
+			pwm->last = pwm->state;
 	}
 
 	set_bit(PWMF_REQUESTED, &pwm->flags);
@@ -232,17 +235,28 @@ void *pwm_get_chip_data(struct pwm_device *pwm)
 }
 EXPORT_SYMBOL_GPL(pwm_get_chip_data);
 
-static bool pwm_ops_check(const struct pwm_ops *ops)
+static bool pwm_ops_check(const struct pwm_chip *chip)
 {
+
+	const struct pwm_ops *ops = chip->ops;
+
 	/* driver supports legacy, non-atomic operation */
-	if (ops->config && ops->enable && ops->disable)
-		return true;
+	if (ops->config && ops->enable && ops->disable) {
+		if (IS_ENABLED(CONFIG_PWM_DEBUG))
+			dev_warn(chip->dev,
+				 "Driver needs updating to atomic API\n");
 
-	/* driver supports atomic operation */
-	if (ops->apply)
 		return true;
+	}
 
-	return false;
+	if (!ops->apply)
+		return false;
+
+	if (IS_ENABLED(CONFIG_PWM_DEBUG) && !ops->get_state)
+		dev_warn(chip->dev,
+			 "Please implement the .get_state() callback\n");
+
+	return true;
 }
 
 /**
@@ -266,7 +280,7 @@ int pwmchip_add_with_polarity(struct pwm_chip *chip,
 	if (!chip || !chip->dev || !chip->ops || !chip->npwm)
 		return -EINVAL;
 
-	if (!pwm_ops_check(chip->ops))
+	if (!pwm_ops_check(chip))
 		return -EINVAL;
 
 	mutex_lock(&pwm_lock);
@@ -450,6 +464,107 @@ void pwm_free(struct pwm_device *pwm)
 }
 EXPORT_SYMBOL_GPL(pwm_free);
 
+static void pwm_apply_state_debug(struct pwm_device *pwm,
+				  const struct pwm_state *state)
+{
+	struct pwm_state *last = &pwm->last;
+	struct pwm_chip *chip = pwm->chip;
+	struct pwm_state s1, s2;
+	int err;
+
+	if (!IS_ENABLED(CONFIG_PWM_DEBUG))
+		return;
+
+	/* No reasonable diagnosis possible without .get_state() */
+	if (!chip->ops->get_state)
+		return;
+
+	/*
+	 * *state was just applied. Read out the hardware state and do some
+	 * checks.
+	 */
+
+	chip->ops->get_state(chip, pwm, &s1);
+	trace_pwm_get(pwm, &s1);
+
+	/*
+	 * The lowlevel driver either ignored .polarity (which is a bug) or as
+	 * best effort inverted .polarity and fixed .duty_cycle respectively.
+	 * Undo this inversion and fixup for further tests.
+	 */
+	if (s1.enabled && s1.polarity != state->polarity) {
+		s2.polarity = state->polarity;
+		s2.duty_cycle = s1.period - s1.duty_cycle;
+		s2.period = s1.period;
+		s2.enabled = s1.enabled;
+	} else {
+		s2 = s1;
+	}
+
+	if (s2.polarity != state->polarity &&
+	    state->duty_cycle < state->period)
+		dev_warn(chip->dev, ".apply ignored .polarity\n");
+
+	if (state->enabled &&
+	    last->polarity == state->polarity &&
+	    last->period > s2.period &&
+	    last->period <= state->period)
+		dev_warn(chip->dev,
+			 ".apply didn't pick the best available period (requested: %u, applied: %u, possible: %u)\n",
+			 state->period, s2.period, last->period);
+
+	if (state->enabled && state->period < s2.period)
+		dev_warn(chip->dev,
+			 ".apply is supposed to round down period (requested: %u, applied: %u)\n",
+			 state->period, s2.period);
+
+	if (state->enabled &&
+	    last->polarity == state->polarity &&
+	    last->period == s2.period &&
+	    last->duty_cycle > s2.duty_cycle &&
+	    last->duty_cycle <= state->duty_cycle)
+		dev_warn(chip->dev,
+			 ".apply didn't pick the best available duty cycle (requested: %u/%u, applied: %u/%u, possible: %u/%u)\n",
+			 state->duty_cycle, state->period,
+			 s2.duty_cycle, s2.period,
+			 last->duty_cycle, last->period);
+
+	if (state->enabled && state->duty_cycle < s2.duty_cycle)
+		dev_warn(chip->dev,
+			 ".apply is supposed to round down duty_cycle (requested: %u/%u, applied: %u/%u)\n",
+			 state->duty_cycle, state->period,
+			 s2.duty_cycle, s2.period);
+
+	if (!state->enabled && s2.enabled && s2.duty_cycle > 0)
+		dev_warn(chip->dev,
+			 "requested disabled, but yielded enabled with duty > 0");
+
+	/* reapply the state that the driver reported being configured. */
+	err = chip->ops->apply(chip, pwm, &s1);
+	if (err) {
+		*last = s1;
+		dev_err(chip->dev, "failed to reapply current setting\n");
+		return;
+	}
+
+	trace_pwm_apply(pwm, &s1);
+
+	chip->ops->get_state(chip, pwm, last);
+	trace_pwm_get(pwm, last);
+
+	/* reapplication of the current state should give an exact match */
+	if (s1.enabled != last->enabled ||
+	    s1.polarity != last->polarity ||
+	    (s1.enabled && s1.period != last->period) ||
+	    (s1.enabled && s1.duty_cycle != last->duty_cycle)) {
+		dev_err(chip->dev,
+			".apply is not idempotent (ena=%d pol=%d %u/%u) -> (ena=%d pol=%d %u/%u)\n",
+			s1.enabled, s1.polarity, s1.duty_cycle, s1.period,
+			last->enabled, last->polarity, last->duty_cycle,
+			last->period);
+	}
+}
+
 /**
  * pwm_apply_state() - atomically apply a new state to a PWM device
  * @pwm: PWM device
@@ -480,6 +595,12 @@ int pwm_apply_state(struct pwm_device *pwm, const struct pwm_state *state)
 		trace_pwm_apply(pwm, state);
 
 		pwm->state = *state;
+
+		/*
+		 * only do this after pwm->state was applied as some
+		 * implementations of .get_state depend on this
+		 */
+		pwm_apply_state_debug(pwm, state);
 	} else {
 		/*
 		 * FIXME: restore the initial state in case of error.

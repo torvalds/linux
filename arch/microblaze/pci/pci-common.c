@@ -433,10 +433,6 @@ void pci_process_bridge_OF_ranges(struct pci_controller *hose,
 	pr_debug("Parsing ranges property...\n");
 	for_each_of_pci_range(&parser, &range) {
 		/* Read next ranges element */
-		pr_debug("pci_space: 0x%08x pci_addr:0x%016llx ",
-				range.pci_space, range.pci_addr);
-		pr_debug("cpu_addr:0x%016llx size:0x%016llx\n",
-					range.cpu_addr, range.size);
 
 		/* If we failed translation or got a zero-sized region
 		 * (some FW try to feed us with non sensical zero sized regions
@@ -486,7 +482,7 @@ void pci_process_bridge_OF_ranges(struct pci_controller *hose,
 			pr_info(" MEM 0x%016llx..0x%016llx -> 0x%016llx %s\n",
 				range.cpu_addr, range.cpu_addr + range.size - 1,
 				range.pci_addr,
-				(range.pci_space & 0x40000000) ?
+				(range.flags & IORESOURCE_PREFETCH) ?
 				"Prefetch" : "");
 
 			/* We support only 3 memory ranges */
@@ -1121,4 +1117,3 @@ int early_find_capability(struct pci_controller *hose, int bus, int devfn,
 {
 	return pci_bus_find_capability(fake_pci_bus(hose, bus), devfn, cap);
 }
-

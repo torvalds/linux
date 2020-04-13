@@ -694,7 +694,7 @@ u32 ath11k_hal_reo_qdesc_size(u32 ba_window_size, u8 tid)
 }
 
 void ath11k_hal_reo_qdesc_setup(void *vaddr, int tid, u32 ba_window_size,
-				u32 start_seq)
+				u32 start_seq, enum hal_pn_type type)
 {
 	struct hal_rx_reo_queue *qdesc = (struct hal_rx_reo_queue *)vaddr;
 	struct hal_rx_reo_queue_ext *ext_desc;
@@ -723,6 +723,18 @@ void ath11k_hal_reo_qdesc_setup(void *vaddr, int tid, u32 ba_window_size,
 
 	qdesc->info0 |= FIELD_PREP(HAL_RX_REO_QUEUE_INFO0_BA_WINDOW_SIZE,
 				   ba_window_size - 1);
+	switch (type) {
+	case HAL_PN_TYPE_NONE:
+	case HAL_PN_TYPE_WAPI_EVEN:
+	case HAL_PN_TYPE_WAPI_UNEVEN:
+		break;
+	case HAL_PN_TYPE_WPA:
+		qdesc->info0 |=
+			FIELD_PREP(HAL_RX_REO_QUEUE_INFO0_PN_CHECK, 1) |
+			FIELD_PREP(HAL_RX_REO_QUEUE_INFO0_PN_SIZE,
+				   HAL_RX_REO_QUEUE_PN_SIZE_48);
+		break;
+	}
 
 	/* TODO: Set Ignore ampdu flags based on BA window size and/or
 	 * AMPDU capabilities
@@ -787,7 +799,7 @@ void ath11k_hal_reo_init_cmd_ring(struct ath11k_base *ab,
 	}
 }
 
-void ath11k_hal_reo_hw_setup(struct ath11k_base *ab)
+void ath11k_hal_reo_hw_setup(struct ath11k_base *ab, u32 ring_hash_map)
 {
 	u32 reo_base = HAL_SEQ_WCSS_UMAC_REO_REG;
 	u32 val;
@@ -809,6 +821,19 @@ void ath11k_hal_reo_hw_setup(struct ath11k_base *ab)
 			   HAL_DEFAULT_REO_TIMEOUT_USEC);
 	ath11k_ahb_write32(ab, reo_base + HAL_REO1_AGING_THRESH_IX_3,
 			   HAL_DEFAULT_REO_TIMEOUT_USEC);
+
+	ath11k_ahb_write32(ab, reo_base + HAL_REO1_DEST_RING_CTRL_IX_0,
+			   FIELD_PREP(HAL_REO_DEST_RING_CTRL_HASH_RING_MAP,
+				      ring_hash_map));
+	ath11k_ahb_write32(ab, reo_base + HAL_REO1_DEST_RING_CTRL_IX_1,
+			   FIELD_PREP(HAL_REO_DEST_RING_CTRL_HASH_RING_MAP,
+				      ring_hash_map));
+	ath11k_ahb_write32(ab, reo_base + HAL_REO1_DEST_RING_CTRL_IX_2,
+			   FIELD_PREP(HAL_REO_DEST_RING_CTRL_HASH_RING_MAP,
+				      ring_hash_map));
+	ath11k_ahb_write32(ab, reo_base + HAL_REO1_DEST_RING_CTRL_IX_3,
+			   FIELD_PREP(HAL_REO_DEST_RING_CTRL_HASH_RING_MAP,
+				      ring_hash_map));
 }
 
 static enum hal_rx_mon_status
@@ -1001,6 +1026,7 @@ ath11k_hal_rx_parse_mon_status_tlv(struct ath11k_base *ab,
 		}
 
 		ppdu_info->nss = nsts + 1;
+		ppdu_info->dcm = dcm;
 		ppdu_info->reception_type = HAL_RX_RECEPTION_TYPE_SU;
 		break;
 	}
@@ -1038,9 +1064,15 @@ ath11k_hal_rx_parse_mon_status_tlv(struct ath11k_base *ab,
 		break;
 	}
 	case HAL_PHYRX_HE_SIG_B1_MU: {
-		/* TODO: Check if resource unit(RU) allocation stats
-		 * are required
-		 */
+		struct hal_rx_he_sig_b1_mu_info *he_sig_b1_mu =
+			(struct hal_rx_he_sig_b1_mu_info *)tlv_data;
+		u16 ru_tones;
+
+		info0 = __le32_to_cpu(he_sig_b1_mu->info0);
+
+		ru_tones = FIELD_GET(HAL_RX_HE_SIG_B1_MU_INFO_INFO0_RU_ALLOCATION,
+				     info0);
+		ppdu_info->ru_alloc = ath11k_he_ru_tones_to_nl80211_he_ru_alloc(ru_tones);
 		ppdu_info->reception_type = HAL_RX_RECEPTION_TYPE_MU_MIMO;
 		break;
 	}

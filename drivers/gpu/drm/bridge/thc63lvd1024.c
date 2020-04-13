@@ -42,11 +42,12 @@ static inline struct thc63_dev *to_thc63(struct drm_bridge *bridge)
 	return container_of(bridge, struct thc63_dev, bridge);
 }
 
-static int thc63_attach(struct drm_bridge *bridge)
+static int thc63_attach(struct drm_bridge *bridge,
+			enum drm_bridge_attach_flags flags)
 {
 	struct thc63_dev *thc63 = to_thc63(bridge);
 
-	return drm_bridge_attach(bridge->encoder, thc63->next, bridge);
+	return drm_bridge_attach(bridge->encoder, thc63->next, bridge, flags);
 }
 
 static enum drm_mode_status thc63_mode_valid(struct drm_bridge *bridge,

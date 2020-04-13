@@ -3,7 +3,6 @@ menuconfig ARCH_ORION5X
 	bool "Marvell Orion"
 	depends on MMU && ARCH_MULTI_V5
 	select CPU_FEROCEON
-	select GENERIC_CLOCKEVENTS
 	select GPIOLIB
 	select MVEBU_MBUS
 	select FORCE_PCI
@@ -18,7 +17,6 @@ if ARCH_ORION5X
 
 config ARCH_ORION5X_DT
 	bool "Marvell Orion5x Flattened Device Tree"
-	select USE_OF
 	select ORION_CLK
 	select ORION_IRQCHIP
 	select ORION_TIMER

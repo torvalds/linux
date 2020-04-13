@@ -31,6 +31,8 @@ required:
   - reset-gpios
   - "#phy-cells"
 
+additionalProperties: false
+
 examples:
   - |
     #include <dt-bindings/gpio/gpio.h>

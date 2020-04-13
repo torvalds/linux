@@ -195,7 +195,7 @@ struct sunxi_nand_chip {
 	u32 timing_cfg;
 	u32 timing_ctl;
 	int nsels;
-	struct sunxi_nand_chip_sel sels[0];
+	struct sunxi_nand_chip_sel sels[];
 };
 
 static inline struct sunxi_nand_chip *to_sunxi_nand(struct nand_chip *nand)
@@ -2123,8 +2123,16 @@ static int sunxi_nfc_probe(struct platform_device *pdev)
 	if (ret)
 		goto out_ahb_reset_reassert;
 
-	nfc->dmac = dma_request_slave_channel(dev, "rxtx");
-	if (nfc->dmac) {
+	nfc->dmac = dma_request_chan(dev, "rxtx");
+	if (IS_ERR(nfc->dmac)) {
+		ret = PTR_ERR(nfc->dmac);
+		if (ret == -EPROBE_DEFER)
+			goto out_ahb_reset_reassert;
+
+		/* Ignore errors to fall back to PIO mode */
+		dev_warn(dev, "failed to request rxtx DMA channel: %d\n", ret);
+		nfc->dmac = NULL;
+	} else {
 		struct dma_slave_config dmac_cfg = { };
 
 		dmac_cfg.src_addr = r->start + nfc->caps->reg_io_data;
@@ -2138,9 +2146,6 @@ static int sunxi_nfc_probe(struct platform_device *pdev)
 		if (nfc->caps->extra_mbus_conf)
 			writel(readl(nfc->regs + NFC_REG_CTL) |
 			       NFC_DMA_TYPE_NORMAL, nfc->regs + NFC_REG_CTL);
-
-	} else {
-		dev_warn(dev, "failed to request rxtx DMA channel\n");
 	}
 
 	platform_set_drvdata(pdev, nfc);

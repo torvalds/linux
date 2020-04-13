@@ -49,6 +49,52 @@ static int mv88e6390_serdes_write(struct mv88e6xxx_chip *chip,
 	return mv88e6xxx_phy_write(chip, lane, reg_c45, val);
 }
 
+static int mv88e6xxx_serdes_pcs_get_state(struct mv88e6xxx_chip *chip,
+					  u16 status, u16 lpa,
+					  struct phylink_link_state *state)
+{
+	if (status & MV88E6390_SGMII_PHY_STATUS_SPD_DPL_VALID) {
+		state->link = !!(status & MV88E6390_SGMII_PHY_STATUS_LINK);
+		state->duplex = status &
+				MV88E6390_SGMII_PHY_STATUS_DUPLEX_FULL ?
+			                         DUPLEX_FULL : DUPLEX_HALF;
+
+		if (status & MV88E6390_SGMII_PHY_STATUS_TX_PAUSE)
+			state->pause |= MLO_PAUSE_TX;
+		if (status & MV88E6390_SGMII_PHY_STATUS_RX_PAUSE)
+			state->pause |= MLO_PAUSE_RX;
+
+		switch (status & MV88E6390_SGMII_PHY_STATUS_SPEED_MASK) {
+		case MV88E6390_SGMII_PHY_STATUS_SPEED_1000:
+			if (state->interface == PHY_INTERFACE_MODE_2500BASEX)
+				state->speed = SPEED_2500;
+			else
+				state->speed = SPEED_1000;
+			break;
+		case MV88E6390_SGMII_PHY_STATUS_SPEED_100:
+			state->speed = SPEED_100;
+			break;
+		case MV88E6390_SGMII_PHY_STATUS_SPEED_10:
+			state->speed = SPEED_10;
+			break;
+		default:
+			dev_err(chip->dev, "invalid PHY speed\n");
+			return -EINVAL;
+		}
+	} else {
+		state->link = false;
+	}
+
+	if (state->interface == PHY_INTERFACE_MODE_2500BASEX)
+		mii_lpa_mod_linkmode_x(state->lp_advertising, lpa,
+				       ETHTOOL_LINK_MODE_2500baseX_Full_BIT);
+	else if (state->interface == PHY_INTERFACE_MODE_1000BASEX)
+		mii_lpa_mod_linkmode_x(state->lp_advertising, lpa,
+				       ETHTOOL_LINK_MODE_1000baseX_Full_BIT);
+
+	return 0;
+}
+
 int mv88e6352_serdes_power(struct mv88e6xxx_chip *chip, int port, u8 lane,
 			   bool up)
 {
@@ -68,6 +114,120 @@ int mv88e6352_serdes_power(struct mv88e6xxx_chip *chip, int port, u8 lane,
 		err = mv88e6352_serdes_write(chip, MII_BMCR, new_val);
 
 	return err;
+}
+
+int mv88e6352_serdes_pcs_config(struct mv88e6xxx_chip *chip, int port,
+				u8 lane, unsigned int mode,
+				phy_interface_t interface,
+				const unsigned long *advertise)
+{
+	u16 adv, bmcr, val;
+	bool changed;
+	int err;
+
+	switch (interface) {
+	case PHY_INTERFACE_MODE_SGMII:
+		adv = 0x0001;
+		break;
+
+	case PHY_INTERFACE_MODE_1000BASEX:
+		adv = linkmode_adv_to_mii_adv_x(advertise,
+					ETHTOOL_LINK_MODE_1000baseX_Full_BIT);
+		break;
+
+	default:
+		return 0;
+	}
+
+	err = mv88e6352_serdes_read(chip, MII_ADVERTISE, &val);
+	if (err)
+		return err;
+
+	changed = val != adv;
+	if (changed) {
+		err = mv88e6352_serdes_write(chip, MII_ADVERTISE, adv);
+		if (err)
+			return err;
+	}
+
+	err = mv88e6352_serdes_read(chip, MII_BMCR, &val);
+	if (err)
+		return err;
+
+	if (phylink_autoneg_inband(mode))
+		bmcr = val | BMCR_ANENABLE;
+	else
+		bmcr = val & ~BMCR_ANENABLE;
+
+	if (bmcr == val)
+		return changed;
+
+	return mv88e6352_serdes_write(chip, MII_BMCR, bmcr);
+}
+
+int mv88e6352_serdes_pcs_get_state(struct mv88e6xxx_chip *chip, int port,
+				   u8 lane, struct phylink_link_state *state)
+{
+	u16 lpa, status;
+	int err;
+
+	err = mv88e6352_serdes_read(chip, 0x11, &status);
+	if (err) {
+		dev_err(chip->dev, "can't read Serdes PHY status: %d\n", err);
+		return err;
+	}
+
+	err = mv88e6352_serdes_read(chip, MII_LPA, &lpa);
+	if (err) {
+		dev_err(chip->dev, "can't read Serdes PHY LPA: %d\n", err);
+		return err;
+	}
+
+	return mv88e6xxx_serdes_pcs_get_state(chip, status, lpa, state);
+}
+
+int mv88e6352_serdes_pcs_an_restart(struct mv88e6xxx_chip *chip, int port,
+				    u8 lane)
+{
+	u16 bmcr;
+	int err;
+
+	err = mv88e6352_serdes_read(chip, MII_BMCR, &bmcr);
+	if (err)
+		return err;
+
+	return mv88e6352_serdes_write(chip, MII_BMCR, bmcr | BMCR_ANRESTART);
+}
+
+int mv88e6352_serdes_pcs_link_up(struct mv88e6xxx_chip *chip, int port,
+				 u8 lane, int speed, int duplex)
+{
+	u16 val, bmcr;
+	int err;
+
+	err = mv88e6352_serdes_read(chip, MII_BMCR, &val);
+	if (err)
+		return err;
+
+	bmcr = val & ~(BMCR_SPEED100 | BMCR_FULLDPLX | BMCR_SPEED1000);
+	switch (speed) {
+	case SPEED_1000:
+		bmcr |= BMCR_SPEED1000;
+		break;
+	case SPEED_100:
+		bmcr |= BMCR_SPEED100;
+		break;
+	case SPEED_10:
+		break;
+	}
+
+	if (duplex == DUPLEX_FULL)
+		bmcr |= BMCR_FULLDPLX;
+
+	if (bmcr == val)
+		return 0;
+
+	return mv88e6352_serdes_write(chip, MII_BMCR, bmcr);
 }
 
 u8 mv88e6352_serdes_get_lane(struct mv88e6xxx_chip *chip, int port)
@@ -180,26 +340,17 @@ int mv88e6352_serdes_get_stats(struct mv88e6xxx_chip *chip, int port,
 
 static void mv88e6352_serdes_irq_link(struct mv88e6xxx_chip *chip, int port)
 {
-	struct dsa_switch *ds = chip->ds;
-	u16 status;
-	bool up;
+	u16 bmsr;
 	int err;
 
-	err = mv88e6352_serdes_read(chip, MII_BMSR, &status);
-	if (err)
+	/* If the link has dropped, we want to know about it. */
+	err = mv88e6352_serdes_read(chip, MII_BMSR, &bmsr);
+	if (err) {
+		dev_err(chip->dev, "can't read Serdes BMSR: %d\n", err);
 		return;
+	}
 
-	/* Status must be read twice in order to give the current link
-	 * status. Otherwise the change in link status since the last
-	 * read of the register is returned.
-	 */
-	err = mv88e6352_serdes_read(chip, MII_BMSR, &status);
-	if (err)
-		return;
-
-	up = status & BMSR_LSTATUS;
-
-	dsa_port_phylink_mac_change(ds, port, up);
+	dsa_port_phylink_mac_change(chip->ds, port, !!(bmsr & BMSR_LSTATUS));
 }
 
 irqreturn_t mv88e6352_serdes_irq_status(struct mv88e6xxx_chip *chip, int port,
@@ -235,6 +386,29 @@ int mv88e6352_serdes_irq_enable(struct mv88e6xxx_chip *chip, int port, u8 lane,
 unsigned int mv88e6352_serdes_irq_mapping(struct mv88e6xxx_chip *chip, int port)
 {
 	return irq_find_mapping(chip->g2_irq.domain, MV88E6352_SERDES_IRQ);
+}
+
+int mv88e6352_serdes_get_regs_len(struct mv88e6xxx_chip *chip, int port)
+{
+	if (!mv88e6352_port_has_serdes(chip, port))
+		return 0;
+
+	return 32 * sizeof(u16);
+}
+
+void mv88e6352_serdes_get_regs(struct mv88e6xxx_chip *chip, int port, void *_p)
+{
+	u16 *p = _p;
+	u16 reg;
+	int i;
+
+	if (!mv88e6352_port_has_serdes(chip, port))
+		return;
+
+	for (i = 0 ; i < 32; i++) {
+		mv88e6352_serdes_read(chip, i, &reg);
+		p[i] = reg;
+	}
 }
 
 u8 mv88e6341_serdes_get_lane(struct mv88e6xxx_chip *chip, int port)
@@ -387,20 +561,18 @@ static int mv88e6390_serdes_power_sgmii(struct mv88e6xxx_chip *chip, u8 lane,
 	int err;
 
 	err = mv88e6390_serdes_read(chip, lane, MDIO_MMD_PHYXS,
-				    MV88E6390_SGMII_CONTROL, &val);
+				    MV88E6390_SGMII_BMCR, &val);
 	if (err)
 		return err;
 
 	if (up)
-		new_val = val & ~(MV88E6390_SGMII_CONTROL_RESET |
-				  MV88E6390_SGMII_CONTROL_LOOPBACK |
-				  MV88E6390_SGMII_CONTROL_PDOWN);
+		new_val = val & ~(BMCR_RESET | BMCR_LOOPBACK | BMCR_PDOWN);
 	else
-		new_val = val | MV88E6390_SGMII_CONTROL_PDOWN;
+		new_val = val | BMCR_PDOWN;
 
 	if (val != new_val)
 		err = mv88e6390_serdes_write(chip, lane, MDIO_MMD_PHYXS,
-					     MV88E6390_SGMII_CONTROL, new_val);
+					     MV88E6390_SGMII_BMCR, new_val);
 
 	return err;
 }
@@ -517,71 +689,153 @@ int mv88e6390_serdes_power(struct mv88e6xxx_chip *chip, int port, u8 lane,
 	return err;
 }
 
-static void mv88e6390_serdes_irq_link_sgmii(struct mv88e6xxx_chip *chip,
-					    int port, u8 lane)
+int mv88e6390_serdes_pcs_config(struct mv88e6xxx_chip *chip, int port,
+				u8 lane, unsigned int mode,
+				phy_interface_t interface,
+				const unsigned long *advertise)
 {
-	u8 cmode = chip->ports[port].cmode;
-	struct dsa_switch *ds = chip->ds;
-	int duplex = DUPLEX_UNKNOWN;
-	int speed = SPEED_UNKNOWN;
-	phy_interface_t mode;
-	int link, err;
-	u16 status;
+	u16 val, bmcr, adv;
+	bool changed;
+	int err;
+
+	switch (interface) {
+	case PHY_INTERFACE_MODE_SGMII:
+		adv = 0x0001;
+		break;
+
+	case PHY_INTERFACE_MODE_1000BASEX:
+		adv = linkmode_adv_to_mii_adv_x(advertise,
+					ETHTOOL_LINK_MODE_1000baseX_Full_BIT);
+		break;
+
+	case PHY_INTERFACE_MODE_2500BASEX:
+		adv = linkmode_adv_to_mii_adv_x(advertise,
+					ETHTOOL_LINK_MODE_2500baseX_Full_BIT);
+		break;
+
+	default:
+		return 0;
+	}
+
+	err = mv88e6390_serdes_read(chip, lane, MDIO_MMD_PHYXS,
+				    MV88E6390_SGMII_ADVERTISE, &val);
+	if (err)
+		return err;
+
+	changed = val != adv;
+	if (changed) {
+		err = mv88e6390_serdes_write(chip, lane, MDIO_MMD_PHYXS,
+					     MV88E6390_SGMII_ADVERTISE, adv);
+		if (err)
+			return err;
+	}
+
+	err = mv88e6390_serdes_read(chip, lane, MDIO_MMD_PHYXS,
+				    MV88E6390_SGMII_BMCR, &val);
+	if (err)
+		return err;
+
+	if (phylink_autoneg_inband(mode))
+		bmcr = val | BMCR_ANENABLE;
+	else
+		bmcr = val & ~BMCR_ANENABLE;
+
+	/* setting ANENABLE triggers a restart of negotiation */
+	if (bmcr == val)
+		return changed;
+
+	return mv88e6390_serdes_write(chip, lane, MDIO_MMD_PHYXS,
+				      MV88E6390_SGMII_BMCR, bmcr);
+}
+
+int mv88e6390_serdes_pcs_get_state(struct mv88e6xxx_chip *chip, int port,
+				   u8 lane, struct phylink_link_state *state)
+{
+	u16 lpa, status;
+	int err;
 
 	err = mv88e6390_serdes_read(chip, lane, MDIO_MMD_PHYXS,
 				    MV88E6390_SGMII_PHY_STATUS, &status);
 	if (err) {
-		dev_err(chip->dev, "can't read SGMII PHY status: %d\n", err);
+		dev_err(chip->dev, "can't read Serdes PHY status: %d\n", err);
+		return err;
+	}
+
+	err = mv88e6390_serdes_read(chip, lane, MDIO_MMD_PHYXS,
+				    MV88E6390_SGMII_LPA, &lpa);
+	if (err) {
+		dev_err(chip->dev, "can't read Serdes PHY LPA: %d\n", err);
+		return err;
+	}
+
+	return mv88e6xxx_serdes_pcs_get_state(chip, status, lpa, state);
+}
+
+int mv88e6390_serdes_pcs_an_restart(struct mv88e6xxx_chip *chip, int port,
+				    u8 lane)
+{
+	u16 bmcr;
+	int err;
+
+	err = mv88e6390_serdes_read(chip, lane, MDIO_MMD_PHYXS,
+				    MV88E6390_SGMII_BMCR, &bmcr);
+	if (err)
+		return err;
+
+	return mv88e6390_serdes_write(chip, lane, MDIO_MMD_PHYXS,
+				      MV88E6390_SGMII_BMCR,
+				      bmcr | BMCR_ANRESTART);
+}
+
+int mv88e6390_serdes_pcs_link_up(struct mv88e6xxx_chip *chip, int port,
+				 u8 lane, int speed, int duplex)
+{
+	u16 val, bmcr;
+	int err;
+
+	err = mv88e6390_serdes_read(chip, lane, MDIO_MMD_PHYXS,
+				    MV88E6390_SGMII_BMCR, &val);
+	if (err)
+		return err;
+
+	bmcr = val & ~(BMCR_SPEED100 | BMCR_FULLDPLX | BMCR_SPEED1000);
+	switch (speed) {
+	case SPEED_2500:
+	case SPEED_1000:
+		bmcr |= BMCR_SPEED1000;
+		break;
+	case SPEED_100:
+		bmcr |= BMCR_SPEED100;
+		break;
+	case SPEED_10:
+		break;
+	}
+
+	if (duplex == DUPLEX_FULL)
+		bmcr |= BMCR_FULLDPLX;
+
+	if (bmcr == val)
+		return 0;
+
+	return mv88e6390_serdes_write(chip, lane, MDIO_MMD_PHYXS,
+				      MV88E6390_SGMII_BMCR, bmcr);
+}
+
+static void mv88e6390_serdes_irq_link_sgmii(struct mv88e6xxx_chip *chip,
+					    int port, u8 lane)
+{
+	u16 bmsr;
+	int err;
+
+	/* If the link has dropped, we want to know about it. */
+	err = mv88e6390_serdes_read(chip, lane, MDIO_MMD_PHYXS,
+				    MV88E6390_SGMII_BMSR, &bmsr);
+	if (err) {
+		dev_err(chip->dev, "can't read Serdes BMSR: %d\n", err);
 		return;
 	}
 
-	link = status & MV88E6390_SGMII_PHY_STATUS_LINK ?
-	       LINK_FORCED_UP : LINK_FORCED_DOWN;
-
-	if (status & MV88E6390_SGMII_PHY_STATUS_SPD_DPL_VALID) {
-		duplex = status & MV88E6390_SGMII_PHY_STATUS_DUPLEX_FULL ?
-			 DUPLEX_FULL : DUPLEX_HALF;
-
-		switch (status & MV88E6390_SGMII_PHY_STATUS_SPEED_MASK) {
-		case MV88E6390_SGMII_PHY_STATUS_SPEED_1000:
-			if (cmode == MV88E6XXX_PORT_STS_CMODE_2500BASEX)
-				speed = SPEED_2500;
-			else
-				speed = SPEED_1000;
-			break;
-		case MV88E6390_SGMII_PHY_STATUS_SPEED_100:
-			speed = SPEED_100;
-			break;
-		case MV88E6390_SGMII_PHY_STATUS_SPEED_10:
-			speed = SPEED_10;
-			break;
-		default:
-			dev_err(chip->dev, "invalid PHY speed\n");
-			return;
-		}
-	}
-
-	switch (cmode) {
-	case MV88E6XXX_PORT_STS_CMODE_SGMII:
-		mode = PHY_INTERFACE_MODE_SGMII;
-		break;
-	case MV88E6XXX_PORT_STS_CMODE_1000BASEX:
-		mode = PHY_INTERFACE_MODE_1000BASEX;
-		break;
-	case MV88E6XXX_PORT_STS_CMODE_2500BASEX:
-		mode = PHY_INTERFACE_MODE_2500BASEX;
-		break;
-	default:
-		mode = PHY_INTERFACE_MODE_NA;
-	}
-
-	err = mv88e6xxx_port_setup_mac(chip, port, link, speed, duplex,
-				       PAUSE_OFF, mode);
-	if (err)
-		dev_err(chip->dev, "can't propagate PHY settings to MAC: %d\n",
-			err);
-	else
-		dsa_port_phylink_mac_change(ds, port, link == LINK_FORCED_UP);
+	dsa_port_phylink_mac_change(chip->ds, port, !!(bmsr & BMSR_LSTATUS));
 }
 
 static int mv88e6390_serdes_irq_enable_sgmii(struct mv88e6xxx_chip *chip,
@@ -651,4 +905,58 @@ irqreturn_t mv88e6390_serdes_irq_status(struct mv88e6xxx_chip *chip, int port,
 unsigned int mv88e6390_serdes_irq_mapping(struct mv88e6xxx_chip *chip, int port)
 {
 	return irq_find_mapping(chip->g2_irq.domain, port);
+}
+
+static const u16 mv88e6390_serdes_regs[] = {
+	/* SERDES common registers */
+	0xf00a, 0xf00b, 0xf00c,
+	0xf010, 0xf011, 0xf012, 0xf013,
+	0xf016, 0xf017, 0xf018,
+	0xf01b, 0xf01c, 0xf01d, 0xf01e, 0xf01f,
+	0xf020, 0xf021, 0xf022, 0xf023, 0xf024, 0xf025, 0xf026, 0xf027,
+	0xf028, 0xf029,
+	0xf030, 0xf031, 0xf032, 0xf033, 0xf034, 0xf035, 0xf036, 0xf037,
+	0xf038, 0xf039,
+	/* SGMII */
+	0x2000, 0x2001, 0x2002, 0x2003, 0x2004, 0x2005, 0x2006, 0x2007,
+	0x2008,
+	0x200f,
+	0xa000, 0xa001, 0xa002, 0xa003,
+	/* 10Gbase-X */
+	0x1000, 0x1001, 0x1002, 0x1003, 0x1004, 0x1005, 0x1006, 0x1007,
+	0x1008,
+	0x100e, 0x100f,
+	0x1018, 0x1019,
+	0x9000, 0x9001, 0x9002, 0x9003, 0x9004,
+	0x9006,
+	0x9010, 0x9011, 0x9012, 0x9013, 0x9014, 0x9015, 0x9016,
+	/* 10Gbase-R */
+	0x1020, 0x1021, 0x1022, 0x1023, 0x1024, 0x1025, 0x1026, 0x1027,
+	0x1028, 0x1029, 0x102a, 0x102b,
+};
+
+int mv88e6390_serdes_get_regs_len(struct mv88e6xxx_chip *chip, int port)
+{
+	if (mv88e6xxx_serdes_get_lane(chip, port) == 0)
+		return 0;
+
+	return ARRAY_SIZE(mv88e6390_serdes_regs) * sizeof(u16);
+}
+
+void mv88e6390_serdes_get_regs(struct mv88e6xxx_chip *chip, int port, void *_p)
+{
+	u16 *p = _p;
+	int lane;
+	u16 reg;
+	int i;
+
+	lane = mv88e6xxx_serdes_get_lane(chip, port);
+	if (lane == 0)
+		return;
+
+	for (i = 0 ; i < ARRAY_SIZE(mv88e6390_serdes_regs); i++) {
+		mv88e6390_serdes_read(chip, lane, MDIO_MMD_PHYXS,
+				      mv88e6390_serdes_regs[i], &reg);
+		p[i] = reg;
+	}
 }

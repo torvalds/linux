@@ -100,7 +100,7 @@ static int espintcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 
 	flags |= nonblock ? MSG_DONTWAIT : 0;
 
-	skb = __skb_recv_datagram(sk, &ctx->ike_queue, flags, NULL, &off, &err);
+	skb = __skb_recv_datagram(sk, &ctx->ike_queue, flags, &off, &err);
 	if (!skb)
 		return err;
 

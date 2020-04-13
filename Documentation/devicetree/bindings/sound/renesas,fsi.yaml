@@ -63,6 +63,8 @@ required:
   - reg
   - interrupts
 
+additionalProperties: false
+
 examples:
   - |
     sh_fsi2: sound@ec230000 {

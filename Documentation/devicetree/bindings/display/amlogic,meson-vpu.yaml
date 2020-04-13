@@ -71,9 +71,9 @@ properties:
     maxItems: 2
 
   reg-names:
-   items:
-     - const: vpu
-     - const: hhi
+    items:
+      - const: vpu
+      - const: hhi
 
   interrupts:
     maxItems: 1
@@ -106,6 +106,8 @@ required:
   - port@1
   - "#address-cells"
   - "#size-cells"
+
+additionalProperties: false
 
 examples:
   - |

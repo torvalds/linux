@@ -1304,7 +1304,7 @@ static struct solo_enc_dev *solo_enc_alloc(struct solo_dev *solo_dev,
 	solo_enc->vfd->queue = &solo_enc->vidq;
 	solo_enc->vfd->lock = &solo_enc->lock;
 	video_set_drvdata(solo_enc->vfd, solo_enc);
-	ret = video_register_device(solo_enc->vfd, VFL_TYPE_GRABBER, nr);
+	ret = video_register_device(solo_enc->vfd, VFL_TYPE_VIDEO, nr);
 	if (ret < 0)
 		goto vdev_release;
 

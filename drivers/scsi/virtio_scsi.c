@@ -742,7 +742,6 @@ static struct scsi_host_template virtscsi_host_template = {
 	.dma_boundary = UINT_MAX,
 	.map_queues = virtscsi_map_queues,
 	.track_queue_depth = 1,
-	.force_blk_mq = 1,
 };
 
 #define virtscsi_config_get(vdev, fld) \

@@ -8,8 +8,14 @@
 
 #include <asm/wbflush.h>
 #include <asm/bootinfo.h>
+#include <linux/libfdt.h>
+#include <linux/of_fdt.h>
+
+#include <asm/prom.h>
 
 #include <loongson.h>
+
+void *loongson_fdt_blob;
 
 static void wbflush_loongson(void)
 {
@@ -27,4 +33,14 @@ EXPORT_SYMBOL(__wbflush);
 
 void __init plat_mem_setup(void)
 {
+	if (loongson_fdt_blob)
+		__dt_setup_arch(loongson_fdt_blob);
+}
+
+void __init device_tree_init(void)
+{
+	if (!initial_boot_params)
+		return;
+
+	unflatten_and_copy_device_tree();
 }

@@ -264,12 +264,12 @@ int mt76x0_register_device(struct mt76x02_dev *dev)
 
 	if (dev->mt76.cap.has_5ghz) {
 		/* overwrite unsupported features */
-		mt76x0_vht_cap_mask(&dev->mt76.sband_5g.sband);
-		mt76x0_init_txpower(dev, &dev->mt76.sband_5g.sband);
+		mt76x0_vht_cap_mask(&dev->mphy.sband_5g.sband);
+		mt76x0_init_txpower(dev, &dev->mphy.sband_5g.sband);
 	}
 
 	if (dev->mt76.cap.has_2ghz)
-		mt76x0_init_txpower(dev, &dev->mt76.sband_2g.sband);
+		mt76x0_init_txpower(dev, &dev->mphy.sband_2g.sband);
 
 	mt76x02_init_debugfs(dev);
 

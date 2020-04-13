@@ -171,7 +171,7 @@ static int gpio_mockup_apply_pull(struct gpio_mockup_chip *chip,
 
 	/* Change the value unless we're actively driving the line. */
 	if (!test_bit(FLAG_REQUESTED, &desc->flags) ||
-		!test_bit(FLAG_IS_OUT, &desc->flags))
+	    !test_bit(FLAG_IS_OUT, &desc->flags))
 		__gpio_mockup_set(chip, offset, value);
 
 out:

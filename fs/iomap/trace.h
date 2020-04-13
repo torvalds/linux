@@ -41,14 +41,12 @@ DEFINE_EVENT(iomap_readpage_class, name,	\
 DEFINE_READPAGE_EVENT(iomap_readpage);
 DEFINE_READPAGE_EVENT(iomap_readpages);
 
-DECLARE_EVENT_CLASS(iomap_page_class,
-	TP_PROTO(struct inode *inode, struct page *page, unsigned long off,
-		 unsigned int len),
-	TP_ARGS(inode, page, off, len),
+DECLARE_EVENT_CLASS(iomap_range_class,
+	TP_PROTO(struct inode *inode, unsigned long off, unsigned int len),
+	TP_ARGS(inode, off, len),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(u64, ino)
-		__field(pgoff_t, pgoff)
 		__field(loff_t, size)
 		__field(unsigned long, offset)
 		__field(unsigned int, length)
@@ -56,29 +54,26 @@ DECLARE_EVENT_CLASS(iomap_page_class,
 	TP_fast_assign(
 		__entry->dev = inode->i_sb->s_dev;
 		__entry->ino = inode->i_ino;
-		__entry->pgoff = page_offset(page);
 		__entry->size = i_size_read(inode);
 		__entry->offset = off;
 		__entry->length = len;
 	),
-	TP_printk("dev %d:%d ino 0x%llx pgoff 0x%lx size 0x%llx offset %lx "
+	TP_printk("dev %d:%d ino 0x%llx size 0x%llx offset %lx "
 		  "length %x",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->ino,
-		  __entry->pgoff,
 		  __entry->size,
 		  __entry->offset,
 		  __entry->length)
 )
 
-#define DEFINE_PAGE_EVENT(name)		\
-DEFINE_EVENT(iomap_page_class, name,	\
-	TP_PROTO(struct inode *inode, struct page *page, unsigned long off, \
-		 unsigned int len),	\
-	TP_ARGS(inode, page, off, len))
-DEFINE_PAGE_EVENT(iomap_writepage);
-DEFINE_PAGE_EVENT(iomap_releasepage);
-DEFINE_PAGE_EVENT(iomap_invalidatepage);
+#define DEFINE_RANGE_EVENT(name)		\
+DEFINE_EVENT(iomap_range_class, name,	\
+	TP_PROTO(struct inode *inode, unsigned long off, unsigned int len),\
+	TP_ARGS(inode, off, len))
+DEFINE_RANGE_EVENT(iomap_writepage);
+DEFINE_RANGE_EVENT(iomap_releasepage);
+DEFINE_RANGE_EVENT(iomap_invalidatepage);
 
 #define IOMAP_TYPE_STRINGS \
 	{ IOMAP_HOLE,		"HOLE" }, \

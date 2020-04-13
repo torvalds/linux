@@ -32,6 +32,7 @@
 #include <asm/sections.h>
 
 #include "fsyscall_gtod_data.h"
+#include "irq.h"
 
 static u64 itc_get_cycles(struct clocksource *cs);
 
@@ -380,13 +381,6 @@ static u64 itc_get_cycles(struct clocksource *cs)
 	return now;
 }
 
-
-static struct irqaction timer_irqaction = {
-	.handler =	timer_interrupt,
-	.flags =	IRQF_IRQPOLL,
-	.name =		"timer"
-};
-
 void read_persistent_clock64(struct timespec64 *ts)
 {
 	efi_gettimeofday(ts);
@@ -395,7 +389,8 @@ void read_persistent_clock64(struct timespec64 *ts)
 void __init
 time_init (void)
 {
-	register_percpu_irq(IA64_TIMER_VECTOR, &timer_irqaction);
+	register_percpu_irq(IA64_TIMER_VECTOR, timer_interrupt, IRQF_IRQPOLL,
+			    "timer");
 	ia64_init_itm();
 }
 

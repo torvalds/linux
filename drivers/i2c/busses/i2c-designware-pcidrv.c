@@ -109,7 +109,7 @@ static int mfld_setup(struct pci_dev *pdev, struct dw_pci_controller *c)
 static int mrfld_setup(struct pci_dev *pdev, struct dw_pci_controller *c)
 {
 	/*
-	 * On Intel Merrifield the user visible i2c busses are enumerated
+	 * On Intel Merrifield the user visible i2c buses are enumerated
 	 * [1..7]. So, we add 1 to shift the default range. Besides that the
 	 * first PCI slot provides 4 functions, that's why we have to add 0 to
 	 * the first slot and 4 to the next one.

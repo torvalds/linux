@@ -350,10 +350,10 @@ mic_x100_load_command_line(struct mic_device *mdev, const struct firmware *fw)
 	if (!buf)
 		return -ENOMEM;
 
-	len += snprintf(buf, CMDLINE_SIZE - len,
+	len += scnprintf(buf, CMDLINE_SIZE - len,
 		" mem=%dM", boot_mem);
 	if (mdev->cosm_dev->cmdline)
-		snprintf(buf + len, CMDLINE_SIZE - len, " %s",
+		scnprintf(buf + len, CMDLINE_SIZE - len, " %s",
 			 mdev->cosm_dev->cmdline);
 	memcpy_toio(cmd_line_va, buf, strlen(buf) + 1);
 	kfree(buf);

@@ -130,6 +130,7 @@ int load_xbc_from_initrd(int fd, char **buf)
 	int ret;
 	u32 size = 0, csum = 0, rcsum;
 	char magic[BOOTCONFIG_MAGIC_LEN];
+	const char *msg;
 
 	ret = fstat(fd, &stat);
 	if (ret < 0)
@@ -182,10 +183,12 @@ int load_xbc_from_initrd(int fd, char **buf)
 		return -EINVAL;
 	}
 
-	ret = xbc_init(*buf);
+	ret = xbc_init(*buf, &msg, NULL);
 	/* Wrong data */
-	if (ret < 0)
+	if (ret < 0) {
+		pr_err("parse error: %s.\n", msg);
 		return ret;
+	}
 
 	return size;
 }
@@ -244,11 +247,34 @@ int delete_xbc(const char *path)
 	return ret;
 }
 
+static void show_xbc_error(const char *data, const char *msg, int pos)
+{
+	int lin = 1, col, i;
+
+	if (pos < 0) {
+		pr_err("Error: %s.\n", msg);
+		return;
+	}
+
+	/* Note that pos starts from 0 but lin and col should start from 1. */
+	col = pos + 1;
+	for (i = 0; i < pos; i++) {
+		if (data[i] == '\n') {
+			lin++;
+			col = pos - i;
+		}
+	}
+	pr_err("Parse Error: %s at %d:%d\n", msg, lin, col);
+
+}
+
 int apply_xbc(const char *path, const char *xbc_path)
 {
 	u32 size, csum;
 	char *buf, *data;
 	int ret, fd;
+	const char *msg;
+	int pos;
 
 	ret = load_xbc_file(xbc_path, &buf);
 	if (ret < 0) {
@@ -267,11 +293,12 @@ int apply_xbc(const char *path, const char *xbc_path)
 	*(u32 *)(data + size + 4) = csum;
 
 	/* Check the data format */
-	ret = xbc_init(buf);
+	ret = xbc_init(buf, &msg, &pos);
 	if (ret < 0) {
-		pr_err("Failed to parse %s: %d\n", xbc_path, ret);
+		show_xbc_error(data, msg, pos);
 		free(data);
 		free(buf);
+
 		return ret;
 	}
 	printf("Apply %s to %s\n", xbc_path, path);

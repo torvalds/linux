@@ -125,28 +125,28 @@ config PINCTRL_IMX7ULP
 
 config PINCTRL_IMX8MM
 	bool "IMX8MM pinctrl driver"
-	depends on ARCH_MXC && ARM64
+	depends on ARCH_MXC
 	select PINCTRL_IMX
 	help
 	  Say Y here to enable the imx8mm pinctrl driver
 
 config PINCTRL_IMX8MN
 	bool "IMX8MN pinctrl driver"
-	depends on ARCH_MXC && ARM64
+	depends on ARCH_MXC
 	select PINCTRL_IMX
 	help
 	  Say Y here to enable the imx8mn pinctrl driver
 
 config PINCTRL_IMX8MP
 	bool "IMX8MP pinctrl driver"
-	depends on ARCH_MXC && ARM64
+	depends on ARCH_MXC
 	select PINCTRL_IMX
 	help
 	  Say Y here to enable the imx8mp pinctrl driver
 
 config PINCTRL_IMX8MQ
 	bool "IMX8MQ pinctrl driver"
-	depends on ARCH_MXC && ARM64
+	depends on ARCH_MXC
 	select PINCTRL_IMX
 	help
 	  Say Y here to enable the imx8mq pinctrl driver

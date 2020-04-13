@@ -36,17 +36,24 @@ struct btrfs_ioctl_vol_args {
 #define BTRFS_DEVICE_PATH_NAME_MAX	1024
 #define BTRFS_SUBVOL_NAME_MAX 		4039
 
-#define BTRFS_SUBVOL_CREATE_ASYNC	(1ULL << 0)
+/*
+ * Deprecated since 5.7:
+ *
+ * BTRFS_SUBVOL_CREATE_ASYNC	(1ULL << 0)
+ */
+
 #define BTRFS_SUBVOL_RDONLY		(1ULL << 1)
 #define BTRFS_SUBVOL_QGROUP_INHERIT	(1ULL << 2)
 
 #define BTRFS_DEVICE_SPEC_BY_ID		(1ULL << 3)
 
+#define BTRFS_SUBVOL_SPEC_BY_ID	(1ULL << 4)
+
 #define BTRFS_VOL_ARG_V2_FLAGS_SUPPORTED		\
-			(BTRFS_SUBVOL_CREATE_ASYNC |	\
-			BTRFS_SUBVOL_RDONLY |		\
+			(BTRFS_SUBVOL_RDONLY |		\
 			BTRFS_SUBVOL_QGROUP_INHERIT |	\
-			BTRFS_DEVICE_SPEC_BY_ID)
+			BTRFS_DEVICE_SPEC_BY_ID |	\
+			BTRFS_SUBVOL_SPEC_BY_ID)
 
 #define BTRFS_FSID_SIZE 16
 #define BTRFS_UUID_SIZE 16
@@ -97,15 +104,28 @@ struct btrfs_ioctl_qgroup_limit_args {
 };
 
 /*
- * flags for subvolumes
+ * Arguments for specification of subvolumes or devices, supporting by-name or
+ * by-id and flags
  *
- * Used by:
- * struct btrfs_ioctl_vol_args_v2.flags
+ * The set of supported flags depends on the ioctl
  *
  * BTRFS_SUBVOL_RDONLY is also provided/consumed by the following ioctls:
  * - BTRFS_IOC_SUBVOL_GETFLAGS
  * - BTRFS_IOC_SUBVOL_SETFLAGS
  */
+
+/* Supported flags for BTRFS_IOC_RM_DEV_V2 */
+#define BTRFS_DEVICE_REMOVE_ARGS_MASK					\
+	(BTRFS_DEVICE_SPEC_BY_ID)
+
+/* Supported flags for BTRFS_IOC_SNAP_CREATE_V2 and BTRFS_IOC_SUBVOL_CREATE_V2 */
+#define BTRFS_SUBVOL_CREATE_ARGS_MASK					\
+	 (BTRFS_SUBVOL_RDONLY |						\
+	 BTRFS_SUBVOL_QGROUP_INHERIT)
+
+/* Supported flags for BTRFS_IOC_SNAP_DESTROY_V2 */
+#define BTRFS_SUBVOL_DELETE_ARGS_MASK					\
+	(BTRFS_SUBVOL_SPEC_BY_ID)
 
 struct btrfs_ioctl_vol_args_v2 {
 	__s64 fd;
@@ -121,6 +141,7 @@ struct btrfs_ioctl_vol_args_v2 {
 	union {
 		char name[BTRFS_SUBVOL_NAME_MAX + 1];
 		__u64 devid;
+		__u64 subvolid;
 	};
 };
 
@@ -949,5 +970,7 @@ enum btrfs_err_code {
 				struct btrfs_ioctl_get_subvol_rootref_args)
 #define BTRFS_IOC_INO_LOOKUP_USER _IOWR(BTRFS_IOCTL_MAGIC, 62, \
 				struct btrfs_ioctl_ino_lookup_user_args)
+#define BTRFS_IOC_SNAP_DESTROY_V2 _IOW(BTRFS_IOCTL_MAGIC, 63, \
+				struct btrfs_ioctl_vol_args_v2)
 
 #endif /* _UAPI_LINUX_BTRFS_H */

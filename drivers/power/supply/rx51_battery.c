@@ -2,7 +2,7 @@
 /*
  * Nokia RX-51 battery driver
  *
- * Copyright (C) 2012  Pali Rohár <pali.rohar@gmail.com>
+ * Copyright (C) 2012  Pali Rohár <pali@kernel.org>
  */
 
 #include <linux/module.h>
@@ -278,6 +278,6 @@ static struct platform_driver rx51_battery_driver = {
 module_platform_driver(rx51_battery_driver);
 
 MODULE_ALIAS("platform:rx51-battery");
-MODULE_AUTHOR("Pali Rohár <pali.rohar@gmail.com>");
+MODULE_AUTHOR("Pali Rohár <pali@kernel.org>");
 MODULE_DESCRIPTION("Nokia RX-51 battery driver");
 MODULE_LICENSE("GPL");

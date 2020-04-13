@@ -593,7 +593,7 @@ static int qtnf_pcie_skb_send(struct qtnf_bus *bus, struct sk_buff *skb)
 	priv->tx_bd_w_index = i;
 
 tx_done:
-	if (ret && skb) {
+	if (ret) {
 		pr_err_ratelimited("drop skb\n");
 		if (skb->dev)
 			skb->dev->stats.tx_dropped++;

@@ -59,6 +59,32 @@
 		#size-cells = <0>;
 		reg = <0x77>;
 
+		i2c@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+
+			eeprom@50 {
+				compatible = "atmel,24c512";
+				reg = <0x50>;
+			};
+
+			eeprom@51 {
+				compatible = "atmel,spd";
+				reg = <0x51>;
+			};
+
+			eeprom@53 {
+				compatible = "atmel,spd";
+				reg = <0x53>;
+			};
+
+			eeprom@57 {
+				compatible = "atmel,24c02";
+				reg = <0x57>;
+			};
+		};
+
 		i2c@1 {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -70,6 +96,17 @@
 				cooling-min-state = <0>;
 				cooling-max-state = <9>;
 				#cooling-cells = <2>;
+			};
+		};
+
+		i2c@2 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <2>;
+
+			regulator@5c {
+				compatible = "lltc,ltc3882";
+				reg = <0x5c>;
 			};
 		};
 

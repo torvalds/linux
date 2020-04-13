@@ -77,32 +77,25 @@ introduced in Linux 3.3. They are, however, mandatory for stateful mem2mem decod
 .. flat-table:: struct v4l2_decoder_cmd
     :header-rows:  0
     :stub-columns: 0
-    :widths: 11 24 12 16 106
+    :widths: 1 1 1 3
 
     * - __u32
       - ``cmd``
-      -
       -
       - The decoder command, see :ref:`decoder-cmds`.
     * - __u32
       - ``flags``
       -
-      -
       - Flags to go with the command. If no flags are defined for this
 	command, drivers and applications must set this field to zero.
-    * - union
+    * - union {
       - (anonymous)
-      -
-      -
-      -
-    * -
-      - struct
+    * - struct
       - ``start``
       -
       - Structure containing additional data for the
 	``V4L2_DEC_CMD_START`` command.
     * -
-      -
       - __s32
       - ``speed``
       - Playback speed and direction. The playback speed is defined as
@@ -113,7 +106,6 @@ introduced in Linux 3.3. They are, however, mandatory for stateful mem2mem decod
 	of 1 steps just one frame forward, a speed of -1 steps just one
 	frame back.
     * -
-      -
       - __u32
       - ``format``
       - Format restrictions. This field is set by the driver, not the
@@ -124,30 +116,26 @@ introduced in Linux 3.3. They are, however, mandatory for stateful mem2mem decod
 	GOPs, which it can then play in reverse order. So to implement
 	reverse playback the application must feed the decoder the last
 	GOP in the video file, then the GOP before that, etc. etc.
-    * -
-      - struct
+    * - struct
       - ``stop``
       -
       - Structure containing additional data for the ``V4L2_DEC_CMD_STOP``
 	command.
     * -
-      -
       - __u64
       - ``pts``
       - Stop playback at this ``pts`` or immediately if the playback is
 	already past that timestamp. Leave to 0 if you want to stop after
 	the last frame was decoded.
-    * -
-      - struct
+    * - struct
       - ``raw``
-      -
-      -
     * -
-      -
       - __u32
       - ``data``\ [16]
       - Reserved for future extensions. Drivers and applications must set
 	the array to zero.
+    * - }
+      -
 
 
 

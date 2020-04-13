@@ -2,6 +2,10 @@
 config WILC1000
 	tristate
 	help
+	  Add support for the Atmel WILC1000 802.11 b/g/n SoC.
+	  This provides Wi-FI over an SDIO or SPI interface, and
+	  is usually found in IoT devices.
+
 	  This module only support IEEE 802.11n WiFi.
 
 config WILC1000_SDIO
@@ -22,6 +26,7 @@ config WILC1000_SPI
 	tristate "Atmel WILC1000 SPI (WiFi only)"
 	depends on CFG80211 && INET && SPI
 	select WILC1000
+	select CRC7
 	help
 	  This module adds support for the SPI interface of adapters using
 	  WILC1000 chipset. The Atmel WILC1000 has a Serial Peripheral

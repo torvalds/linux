@@ -35,6 +35,8 @@ required:
   - clocks
   - '#clock-cells'
 
+additionalProperties: false
+
 examples:
   # Clock controller node:
   - |

@@ -248,14 +248,37 @@ config PCI_MESON
 	  implement the driver.
 
 config PCIE_TEGRA194
-	tristate "NVIDIA Tegra194 (and later) PCIe controller"
+	tristate
+
+config PCIE_TEGRA194_HOST
+	tristate "NVIDIA Tegra194 (and later) PCIe controller - Host Mode"
 	depends on ARCH_TEGRA_194_SOC || COMPILE_TEST
 	depends on PCI_MSI_IRQ_DOMAIN
 	select PCIE_DW_HOST
 	select PHY_TEGRA194_P2U
+	select PCIE_TEGRA194
 	help
-	  Say Y here if you want support for DesignWare core based PCIe host
-	  controller found in NVIDIA Tegra194 SoC.
+	  Enables support for the PCIe controller in the NVIDIA Tegra194 SoC to
+	  work in host mode. There are two instances of PCIe controllers in
+	  Tegra194. This controller can work either as EP or RC. In order to
+	  enable host-specific features PCIE_TEGRA194_HOST must be selected and
+	  in order to enable device-specific features PCIE_TEGRA194_EP must be
+	  selected. This uses the DesignWare core.
+
+config PCIE_TEGRA194_EP
+	tristate "NVIDIA Tegra194 (and later) PCIe controller - Endpoint Mode"
+	depends on ARCH_TEGRA_194_SOC || COMPILE_TEST
+	depends on PCI_ENDPOINT
+	select PCIE_DW_EP
+	select PHY_TEGRA194_P2U
+	select PCIE_TEGRA194
+	help
+	  Enables support for the PCIe controller in the NVIDIA Tegra194 SoC to
+	  work in host mode. There are two instances of PCIe controllers in
+	  Tegra194. This controller can work either as EP or RC. In order to
+	  enable host-specific features PCIE_TEGRA194_HOST must be selected and
+	  in order to enable device-specific features PCIE_TEGRA194_EP must be
+	  selected. This uses the DesignWare core.
 
 config PCIE_UNIPHIER
 	bool "Socionext UniPhier PCIe controllers"

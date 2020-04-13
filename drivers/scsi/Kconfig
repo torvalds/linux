@@ -33,7 +33,7 @@ config SCSI
 	  Channel, and FireWire storage.
 
 	  To compile this driver as a module, choose M here and read
-	  <file:Documentation/scsi/scsi.txt>.
+	  <file:Documentation/scsi/scsi.rst>.
 	  The module will be called scsi_mod.
 
 	  However, do not compile this as a module if your root file system
@@ -79,7 +79,7 @@ config BLK_DEV_SD
 	  CD-ROMs.
 
 	  To compile this driver as a module, choose M here and read
-	  <file:Documentation/scsi/scsi.txt>.
+	  <file:Documentation/scsi/scsi.rst>.
 	  The module will be called sd_mod.
 
 	  Do not compile this driver as a module if your root file system
@@ -94,11 +94,11 @@ config CHR_DEV_ST
 	  If you want to use a SCSI tape drive under Linux, say Y and read the
 	  SCSI-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>, and
-	  <file:Documentation/scsi/st.txt> in the kernel source.  This is NOT
+	  <file:Documentation/scsi/st.rst> in the kernel source.  This is NOT
 	  for SCSI CD-ROMs.
 
 	  To compile this driver as a module, choose M here and read
-	  <file:Documentation/scsi/scsi.txt>. The module will be called st.
+	  <file:Documentation/scsi/scsi.rst>. The module will be called st.
 
 config BLK_DEV_SR
 	tristate "SCSI CDROM support"
@@ -112,17 +112,8 @@ config BLK_DEV_SR
 	  Make sure to say Y or M to "ISO 9660 CD-ROM file system support".
 
 	  To compile this driver as a module, choose M here and read
-	  <file:Documentation/scsi/scsi.txt>.
+	  <file:Documentation/scsi/scsi.rst>.
 	  The module will be called sr_mod.
-
-config BLK_DEV_SR_VENDOR
-	bool "Enable vendor-specific extensions (for SCSI CDROM)"
-	depends on BLK_DEV_SR
-	help
-	  This enables the usage of vendor specific SCSI commands. This is
-	  required to support multisession CDs with old NEC/TOSHIBA cdrom
-	  drives (and HP Writers). If you have such a drive and get the first
-	  session only, try saying Y here; everybody else says N.
 
 config CHR_DEV_SG
 	tristate "SCSI generic support"
@@ -142,10 +133,10 @@ config CHR_DEV_SG
 	  quality digital reader of audio CDs (<http://www.xiph.org/paranoia/>).
 	  For other devices, it's possible that you'll have to write the
 	  driver software yourself. Please read the file
-	  <file:Documentation/scsi/scsi-generic.txt> for more information.
+	  <file:Documentation/scsi/scsi-generic.rst> for more information.
 
 	  To compile this driver as a module, choose M here and read
-	  <file:Documentation/scsi/scsi.txt>. The module will be called sg.
+	  <file:Documentation/scsi/scsi.rst>. The module will be called sg.
 
 	  If unsure, say N.
 
@@ -158,12 +149,12 @@ config CHR_DEV_SCH
 	  don't need this for those tiny 6-slot cdrom changers.  Media
 	  changers are listed as "Type: Medium Changer" in /proc/scsi/scsi.
 	  If you have such hardware and want to use it with linux, say Y
-	  here.  Check <file:Documentation/scsi/scsi-changer.txt> for details.
+	  here.  Check <file:Documentation/scsi/scsi-changer.rst> for details.
 	
 	  If you want to compile this as a module ( = code which can be
 	  inserted in and removed from the running kernel whenever you want),
 	  say M here and read <file:Documentation/kbuild/modules.rst> and
-	  <file:Documentation/scsi/scsi.txt>. The module will be called ch.o.
+	  <file:Documentation/scsi/scsi.rst>. The module will be called ch.o.
 	  If unsure, say N.
 
 config SCSI_ENCLOSURE
@@ -392,7 +383,7 @@ config SCSI_AHA152X
 
 	  It is explained in section 3.3 of the SCSI-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>. You might also want to
-	  read the file <file:Documentation/scsi/aha152x.txt>.
+	  read the file <file:Documentation/scsi/aha152x.rst>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called aha152x.
@@ -430,7 +421,7 @@ config SCSI_AACRAID
 	help
 	  This driver supports a variety of Dell, HP, Adaptec, IBM and
 	  ICP storage products. For a list of supported products, refer
-	  to <file:Documentation/scsi/aacraid.txt>.
+	  to <file:Documentation/scsi/aacraid.rst>.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called aacraid.
@@ -457,7 +448,7 @@ config SCSI_DPT_I2O
 	help
 	  This driver supports all of Adaptec's I2O based RAID controllers as 
 	  well as the DPT SmartRaid V cards.  This is an Adaptec maintained
-	  driver by Deanna Bonds.  See <file:Documentation/scsi/dpti.txt>.
+	  driver by Deanna Bonds.  See <file:Documentation/scsi/dpti.rst>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called dpt_i2o.
@@ -511,8 +502,8 @@ config SCSI_BUSLOGIC
 	  This is support for BusLogic MultiMaster and FlashPoint SCSI Host
 	  Adapters. Consult the SCSI-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>, and the files
-	  <file:Documentation/scsi/BusLogic.txt> and
-	  <file:Documentation/scsi/FlashPoint.txt> for more information.
+	  <file:Documentation/scsi/BusLogic.rst> and
+	  <file:Documentation/scsi/FlashPoint.rst> for more information.
 	  Note that support for FlashPoint is only available for 32-bit
 	  x86 configurations.
 
@@ -613,7 +604,7 @@ config FCOE_FNIC
 	  This is support for the Cisco PCI-Express FCoE HBA.
 
 	  To compile this driver as a module, choose M here and read
-	  <file:Documentation/scsi/scsi.txt>.
+	  <file:Documentation/scsi/scsi.rst>.
 	  The module will be called fnic.
 
 config SCSI_SNIC
@@ -623,7 +614,7 @@ config SCSI_SNIC
 	  This is support for the Cisco PCI-Express SCSI HBA.
 
 	  To compile this driver as a module, choose M here and read
-	  <file:Documentation/scsi/scsi.txt>.
+	  <file:Documentation/scsi/scsi.rst>.
 	  The module will be called snic.
 
 config SCSI_SNIC_DEBUG_FS
@@ -813,7 +804,7 @@ config SCSI_PPA
 	  newer drives)", below.
 
 	  For more information about this driver and how to use it you should
-	  read the file <file:Documentation/scsi/ppa.txt>.  You should also read
+	  read the file <file:Documentation/scsi/ppa.rst>.  You should also read
 	  the SCSI-HOWTO, which is available from
 	  <http://www.tldp.org/docs.html#howto>.  If you use this driver,
 	  you will still be able to use the parallel port for other tasks,
@@ -840,7 +831,7 @@ config SCSI_IMM
 	  here and Y to "IOMEGA Parallel Port (ppa - older drives)", above.
 
 	  For more information about this driver and how to use it you should
-	  read the file <file:Documentation/scsi/ppa.txt>.  You should also read
+	  read the file <file:Documentation/scsi/ppa.rst>.  You should also read
 	  the SCSI-HOWTO, which is available from
 	  <http://www.tldp.org/docs.html#howto>.  If you use this driver,
 	  you will still be able to use the parallel port for other tasks,
@@ -930,7 +921,7 @@ config SCSI_SYM53C8XX_2
 	  language.  It does not support LSI53C10XX Ultra-320 PCI-X SCSI
 	  controllers; you need to use the Fusion MPT driver for that.
 
-	  Please read <file:Documentation/scsi/sym53c8xx_2.txt> for more
+	  Please read <file:Documentation/scsi/sym53c8xx_2.rst> for more
 	  information.
 
 config SCSI_SYM53C8XX_DMA_ADDRESSING_MODE
@@ -989,6 +980,7 @@ config SCSI_SYM53C8XX_MMIO
 config SCSI_IPR
 	tristate "IBM Power Linux RAID adapter support"
 	depends on PCI && SCSI && ATA
+	select SATA_HOST
 	select FW_LOADER
 	select IRQ_POLL
 	select SGL_ALLOC
@@ -1126,7 +1118,7 @@ config SCSI_QLOGIC_FAS
 	  SCSI support"), below.
 
 	  Information about this driver is contained in
-	  <file:Documentation/scsi/qlogicfas.txt>.  You should also read the
+	  <file:Documentation/scsi/qlogicfas.rst>.  You should also read the
 	  SCSI-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>.
 
@@ -1196,7 +1188,7 @@ config SCSI_DC395x
 	  This driver works, but is still in experimental status. So better
 	  have a bootable disk and a backup in case of emergency.
 
-	  Documentation can be found in <file:Documentation/scsi/dc395x.txt>.
+	  Documentation can be found in <file:Documentation/scsi/dc395x.rst>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called dc395x.

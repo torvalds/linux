@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: GPL-2.0
+
+/ {
+	bus@10000000 {
+		compatible = "simple-bus";
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges = <0 0x10000000 0 0x10000000 0 0x10000000
+				0 0x40000000 0 0x40000000 0 0x40000000
+				0xfd 0xfe000000 0xfd 0xfe000000  0 0x2000000 /* PCI Config Space */>;
+
+		isa {
+			compatible = "isa";
+			#address-cells = <2>;
+			#size-cells = <1>;
+			ranges = <1 0 0 0 0x1000>;
+
+			rtc0: rtc@70 {
+				compatible = "motorola,mc146818";
+				reg = <1 0x70 0x8>;
+				interrupts = <8>;
+				interrupt-parent = <&htpic>;
+			};
+		};
+	};
+};

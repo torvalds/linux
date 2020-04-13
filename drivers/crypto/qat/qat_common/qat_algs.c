@@ -97,7 +97,7 @@ struct qat_alg_cd {
 			struct icp_qat_hw_cipher_algo_blk cipher;
 			struct icp_qat_hw_auth_algo_blk hash;
 		} qat_enc_cd;
-		struct qat_dec { /* Decrytp content desc */
+		struct qat_dec { /* Decrypt content desc */
 			struct icp_qat_hw_auth_algo_blk hash;
 			struct icp_qat_hw_cipher_algo_blk cipher;
 		} qat_dec_cd;

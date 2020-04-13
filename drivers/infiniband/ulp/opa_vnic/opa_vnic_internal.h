@@ -292,7 +292,6 @@ struct opa_vnic_mac_tbl_node {
 		hlist_for_each_entry(obj, &name[bkt], member)
 
 extern char opa_vnic_driver_name[];
-extern const char opa_vnic_driver_version[];
 
 struct opa_vnic_adapter *opa_vnic_add_netdev(struct ib_device *ibdev,
 					     u8 port_num, u8 vport_num);

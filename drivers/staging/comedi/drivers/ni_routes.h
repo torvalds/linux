@@ -76,6 +76,7 @@ struct ni_route_tables {
  */
 int ni_assign_device_routes(const char *device_family,
 			    const char *board_name,
+			    const char *alt_board_name,
 			    struct ni_route_tables *tables);
 
 /*

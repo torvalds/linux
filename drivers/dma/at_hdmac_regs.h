@@ -243,7 +243,6 @@ enum atc_status {
  * @active_list: list of descriptors dmaengine is being running on
  * @queue: list of descriptors ready to be submitted to engine
  * @free_list: list of descriptors usable by the channel
- * @descs_allocated: records the actual size of the descriptor pool
  */
 struct at_dma_chan {
 	struct dma_chan		chan_common;
@@ -264,7 +263,6 @@ struct at_dma_chan {
 	struct list_head	active_list;
 	struct list_head	queue;
 	struct list_head	free_list;
-	unsigned int		descs_allocated;
 };
 
 #define	channel_readl(atchan, name) \

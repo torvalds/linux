@@ -244,7 +244,8 @@ config HW_RANDOM_MXC_RNGA
 
 config HW_RANDOM_IMX_RNGC
 	tristate "Freescale i.MX RNGC Random Number Generator"
-	depends on ARCH_MXC
+	depends on HAS_IOMEM && HAVE_CLK
+	depends on SOC_IMX25 || COMPILE_TEST
 	default HW_RANDOM
 	---help---
 	  This driver provides kernel-side support for the Random Number
@@ -466,6 +467,13 @@ config HW_RANDOM_NPCM
 
  	  If unsure, say Y.
 
+config HW_RANDOM_KEYSTONE
+	depends on ARCH_KEYSTONE || COMPILE_TEST
+	default HW_RANDOM
+	tristate "TI Keystone NETCP SA Hardware random number generator"
+	help
+	  This option enables Keystone's hardware random generator.
+
 endif # HW_RANDOM
 
 config UML_RANDOM
@@ -482,10 +490,3 @@ config UML_RANDOM
 	  (check your distro, or download from
 	  http://sourceforge.net/projects/gkernel/).  rngd periodically reads
 	  /dev/hwrng and injects the entropy into /dev/random.
-
-config HW_RANDOM_KEYSTONE
-	depends on ARCH_KEYSTONE || COMPILE_TEST
-	default HW_RANDOM
-	tristate "TI Keystone NETCP SA Hardware random number generator"
-	help
-	  This option enables Keystone's hardware random generator.

@@ -55,13 +55,6 @@ void show_stack(struct task_struct *task, unsigned long *esp)
 	unwind_stack(NULL, esp, print_trace);
 }
 
-void show_trace_task(struct task_struct *tsk)
-{
-	/*
-	 * TODO: SysRq-T trace dump...
-	 */
-}
-
 void show_registers(struct pt_regs *regs)
 {
 	int i;

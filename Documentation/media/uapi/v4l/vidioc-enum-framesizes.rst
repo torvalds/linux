@@ -155,31 +155,27 @@ application should zero out all members except for the *IN* fields.
 
     * - __u32
       - ``index``
-      -
       - IN: Index of the given frame size in the enumeration.
     * - __u32
       - ``pixel_format``
-      -
       - IN: Pixel format for which the frame sizes are enumerated.
     * - __u32
       - ``type``
-      -
       - OUT: Frame size type the device supports.
-    * - union
-      -
-      -
+    * - union {
+      - (anonymous)
       - OUT: Frame size with the given index.
-    * -
-      - struct :c:type:`v4l2_frmsize_discrete`
+    * - struct :c:type:`v4l2_frmsize_discrete`
       - ``discrete``
       -
-    * -
-      - struct :c:type:`v4l2_frmsize_stepwise`
+    * - struct :c:type:`v4l2_frmsize_stepwise`
       - ``stepwise``
+      -
+    * - }
+      -
       -
     * - __u32
       - ``reserved[2]``
-      -
       - Reserved space for future use. Must be zeroed by drivers and
 	applications.
 

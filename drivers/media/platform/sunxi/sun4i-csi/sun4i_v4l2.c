@@ -214,7 +214,7 @@ static int sun4i_csi_open(struct file *file)
 	if (ret < 0)
 		goto err_pm_put;
 
-	ret = v4l2_pipeline_pm_use(&csi->vdev.entity, 1);
+	ret = v4l2_pipeline_pm_get(&csi->vdev.entity);
 	if (ret)
 		goto err_pm_put;
 
@@ -227,7 +227,7 @@ static int sun4i_csi_open(struct file *file)
 	return 0;
 
 err_pipeline_pm_put:
-	v4l2_pipeline_pm_use(&csi->vdev.entity, 0);
+	v4l2_pipeline_pm_put(&csi->vdev.entity);
 
 err_pm_put:
 	pm_runtime_put(csi->dev);
@@ -243,7 +243,7 @@ static int sun4i_csi_release(struct file *file)
 	mutex_lock(&csi->lock);
 
 	v4l2_fh_release(file);
-	v4l2_pipeline_pm_use(&csi->vdev.entity, 0);
+	v4l2_pipeline_pm_put(&csi->vdev.entity);
 	pm_runtime_put(csi->dev);
 
 	mutex_unlock(&csi->lock);
@@ -374,7 +374,7 @@ int sun4i_csi_v4l2_register(struct sun4i_csi *csi)
 	vdev->ioctl_ops = &sun4i_csi_ioctl_ops;
 	video_set_drvdata(vdev, csi);
 
-	ret = video_register_device(&csi->vdev, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(&csi->vdev, VFL_TYPE_VIDEO, -1);
 	if (ret)
 		return ret;
 

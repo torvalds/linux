@@ -37,6 +37,12 @@ properties:
     description:
        The physical base address and size of full the CPSW module IO range
 
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 1
+
   ranges: true
 
   clocks:
@@ -111,13 +117,6 @@ properties:
             - reg
             - phys
 
-  mdio:
-    type: object
-    allOf:
-      - $ref: "ti,davinci-mdio.yaml#"
-    description:
-      CPSW MDIO bus.
-
   cpts:
     type: object
     description:
@@ -148,6 +147,15 @@ properties:
       - clocks
       - clock-names
 
+patternProperties:
+  "^mdio@":
+    type: object
+    allOf:
+      - $ref: "ti,davinci-mdio.yaml#"
+    description:
+      CPSW MDIO bus.
+
+
 required:
   - compatible
   - reg
@@ -158,6 +166,8 @@ required:
   - interrupt-names
   - '#address-cells'
   - '#size-cells'
+
+additionalProperties: false
 
 examples:
   - |
@@ -174,7 +184,6 @@ examples:
         #address-cells = <1>;
         #size-cells = <1>;
         syscon = <&scm_conf>;
-        inctrl-names = "default", "sleep";
 
         interrupts = <GIC_SPI 334 IRQ_TYPE_LEVEL_HIGH>,
                      <GIC_SPI 335 IRQ_TYPE_LEVEL_HIGH>,

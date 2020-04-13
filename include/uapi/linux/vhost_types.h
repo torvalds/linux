@@ -119,6 +119,14 @@ struct vhost_scsi_target {
 	unsigned short reserved;
 };
 
+/* VHOST_VDPA specific definitions */
+
+struct vhost_vdpa_config {
+	__u32 off;
+	__u32 len;
+	__u8 buf[0];
+};
+
 /* Feature bits */
 /* Log all write descriptors. Can be changed while device is active. */
 #define VHOST_F_LOG_ALL 26

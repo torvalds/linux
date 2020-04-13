@@ -418,7 +418,7 @@ struct qlcnic_83xx_dump_template_hdr {
 	u32	saved_state[16];
 	u32	cap_sizes[8];
 	u32	ocm_wnd_reg[16];
-	u32	rsvd[0];
+	u32	rsvd[];
 };
 
 struct qlcnic_82xx_dump_template_hdr {
@@ -436,7 +436,7 @@ struct qlcnic_82xx_dump_template_hdr {
 	u32	cap_sizes[8];
 	u32	rsvd[7];
 	u32	capabilities;
-	u32	rsvd1[0];
+	u32	rsvd1[];
 };
 
 #define QLC_PEX_DMA_READ_SIZE	(PAGE_SIZE * 16)
@@ -740,7 +740,7 @@ struct qlcnic_hostrq_rx_ctx {
 	   The following is packed:
 	   - N hostrq_rds_rings
 	   - N hostrq_sds_rings */
-	char data[0];
+	char data[];
 } __packed;
 
 struct qlcnic_cardrsp_rds_ring{
@@ -769,7 +769,7 @@ struct qlcnic_cardrsp_rx_ctx {
 	   The following is packed:
 	   - N cardrsp_rds_rings
 	   - N cardrs_sds_rings */
-	char data[0];
+	char data[];
 } __packed;
 
 #define SIZEOF_HOSTRQ_RX(HOSTRQ_RX, rds_rings, sds_rings)	\

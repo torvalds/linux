@@ -14,11 +14,15 @@
 static void ionic_watchdog_cb(struct timer_list *t)
 {
 	struct ionic *ionic = from_timer(ionic, t, watchdog_timer);
+	int hb;
 
 	mod_timer(&ionic->watchdog_timer,
 		  round_jiffies(jiffies + ionic->watchdog_period));
 
-	ionic_heartbeat_check(ionic);
+	hb = ionic_heartbeat_check(ionic);
+
+	if (hb >= 0 && ionic->master_lif)
+		ionic_link_status_check_request(ionic->master_lif);
 }
 
 void ionic_init_devinfo(struct ionic *ionic)
@@ -82,6 +86,7 @@ int ionic_dev_setup(struct ionic *ionic)
 		return -EFAULT;
 	}
 
+	idev->last_fw_status = 0xff;
 	timer_setup(&ionic->watchdog_timer, ionic_watchdog_cb, 0);
 	ionic->watchdog_period = IONIC_WATCHDOG_SECS * HZ;
 	mod_timer(&ionic->watchdog_timer,
@@ -115,8 +120,43 @@ int ionic_heartbeat_check(struct ionic *ionic)
 	 * fw_status != 0xff (bad PCI read)
 	 */
 	fw_status = ioread8(&idev->dev_info_regs->fw_status);
-	if (fw_status == 0xff ||
-	    !(fw_status & IONIC_FW_STS_F_RUNNING))
+	if (fw_status != 0xff)
+		fw_status &= IONIC_FW_STS_F_RUNNING;  /* use only the run bit */
+
+	/* is this a transition? */
+	if (fw_status != idev->last_fw_status &&
+	    idev->last_fw_status != 0xff) {
+		struct ionic_lif *lif = ionic->master_lif;
+		bool trigger = false;
+
+		if (!fw_status || fw_status == 0xff) {
+			dev_info(ionic->dev, "FW stopped %u\n", fw_status);
+			if (lif && !test_bit(IONIC_LIF_F_FW_RESET, lif->state))
+				trigger = true;
+		} else {
+			dev_info(ionic->dev, "FW running %u\n", fw_status);
+			if (lif && test_bit(IONIC_LIF_F_FW_RESET, lif->state))
+				trigger = true;
+		}
+
+		if (trigger) {
+			struct ionic_deferred_work *work;
+
+			work = kzalloc(sizeof(*work), GFP_ATOMIC);
+			if (!work) {
+				dev_err(ionic->dev, "%s OOM\n", __func__);
+			} else {
+				work->type = IONIC_DW_TYPE_LIF_RESET;
+				if (fw_status & IONIC_FW_STS_F_RUNNING &&
+				    fw_status != 0xff)
+					work->fw_status = 1;
+				ionic_lif_deferred_enqueue(&lif->deferred, work);
+			}
+		}
+	}
+	idev->last_fw_status = fw_status;
+
+	if (!fw_status || fw_status == 0xff)
 		return -ENXIO;
 
 	/* early FW has no heartbeat, else FW will return non-zero */

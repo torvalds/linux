@@ -93,9 +93,8 @@ static void mlx5_lag_set_port_affinity(struct mlx5_lag *ldev,
 static void mlx5_lag_fib_event_flush(struct notifier_block *nb)
 {
 	struct lag_mp *mp = container_of(nb, struct lag_mp, fib_nb);
-	struct mlx5_lag *ldev = container_of(mp, struct mlx5_lag, lag_mp);
 
-	flush_workqueue(ldev->wq);
+	flush_workqueue(mp->wq);
 }
 
 struct mlx5_fib_event_work {
@@ -293,7 +292,7 @@ static int mlx5_lag_fib_event(struct notifier_block *nb,
 		return NOTIFY_DONE;
 	}
 
-	queue_work(ldev->wq, &fib_work->work);
+	queue_work(mp->wq, &fib_work->work);
 
 	return NOTIFY_DONE;
 }
@@ -306,11 +305,17 @@ int mlx5_lag_mp_init(struct mlx5_lag *ldev)
 	if (mp->fib_nb.notifier_call)
 		return 0;
 
+	mp->wq = create_singlethread_workqueue("mlx5_lag_mp");
+	if (!mp->wq)
+		return -ENOMEM;
+
 	mp->fib_nb.notifier_call = mlx5_lag_fib_event;
 	err = register_fib_notifier(&init_net, &mp->fib_nb,
 				    mlx5_lag_fib_event_flush, NULL);
-	if (err)
+	if (err) {
+		destroy_workqueue(mp->wq);
 		mp->fib_nb.notifier_call = NULL;
+	}
 
 	return err;
 }
@@ -323,5 +328,6 @@ void mlx5_lag_mp_cleanup(struct mlx5_lag *ldev)
 		return;
 
 	unregister_fib_notifier(&init_net, &mp->fib_nb);
+	destroy_workqueue(mp->wq);
 	mp->fib_nb.notifier_call = NULL;
 }

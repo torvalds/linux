@@ -8,14 +8,20 @@
 
 #include <linux/linkage.h>
 #include <linux/init.h>
+#include <asm/asm-offsets.h>
 #include <asm/page_types.h>
 
 	__INIT
 SYM_FUNC_START(efi_call_svam)
-	push	8(%esp)
-	push	8(%esp)
+	push	%ebp
+	movl	%esp, %ebp
+	push	%ebx
+
+	push	16(%esp)
+	push	16(%esp)
 	push	%ecx
 	push	%edx
+	movl	%eax, %ebx		// &systab_phys->runtime
 
 	/*
 	 * Switch to the flat mapped alias of this routine, by jumping to the
@@ -35,15 +41,20 @@ SYM_FUNC_START(efi_call_svam)
 	subl	$__PAGE_OFFSET, %esp
 
 	/* call the EFI routine */
-	call	*(%eax)
+	movl	(%eax), %eax
+	call	*EFI_svam(%eax)
 
-	/* convert ESP back to a kernel VA, and pop the outgoing args */
-	addl	$__PAGE_OFFSET + 16, %esp
+	/* grab the virtually remapped EFI runtime services table pointer */
+	movl	(%ebx), %ecx
+	movl	36(%esp), %edx		// &efi.runtime
+	movl	%ecx, (%edx)
 
 	/* re-enable paging */
 	movl	%cr0, %edx
 	orl	$0x80000000, %edx
 	movl	%edx, %cr0
 
+	movl	16(%esp), %ebx
+	leave
 	ret
 SYM_FUNC_END(efi_call_svam)

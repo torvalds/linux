@@ -12,6 +12,7 @@
 #include <asm/hardirq.h>
 #include <asm/page.h>
 
+
 int main(void)
 {
 	DEFINE(TASK_THREAD, offsetof(struct task_struct, thread));
@@ -74,6 +75,9 @@ int main(void)
 #ifdef CONFIG_ARC_HAS_ACCL_REGS
 	OFFSET(PT_r58, pt_regs, r58);
 	OFFSET(PT_r59, pt_regs, r59);
+#endif
+#ifdef CONFIG_ARC_DSP_SAVE_RESTORE_REGS
+	OFFSET(PT_DSP_CTRL, pt_regs, DSP_CTRL);
 #endif
 
 	return 0;

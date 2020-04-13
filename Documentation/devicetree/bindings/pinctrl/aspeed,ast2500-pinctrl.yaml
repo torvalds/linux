@@ -70,6 +70,8 @@ required:
   - compatible
   - aspeed,external-nodes
 
+additionalProperties: false
+
 examples:
   - |
     apb {

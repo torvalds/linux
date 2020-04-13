@@ -55,66 +55,54 @@ call.
 .. flat-table:: struct v4l2_event
     :header-rows:  0
     :stub-columns: 0
-    :widths:       1 1 2 1
+    :widths:       1 1 2
 
     * - __u32
       - ``type``
-      -
       - Type of the event, see :ref:`event-type`.
-    * - union
+    * - union {
       - ``u``
-      -
-      -
-    * -
-      - struct :c:type:`v4l2_event_vsync`
+    * - struct :c:type:`v4l2_event_vsync`
       - ``vsync``
       - Event data for event ``V4L2_EVENT_VSYNC``.
-    * -
-      - struct :c:type:`v4l2_event_ctrl`
+    * - struct :c:type:`v4l2_event_ctrl`
       - ``ctrl``
       - Event data for event ``V4L2_EVENT_CTRL``.
-    * -
-      - struct :c:type:`v4l2_event_frame_sync`
+    * - struct :c:type:`v4l2_event_frame_sync`
       - ``frame_sync``
       - Event data for event ``V4L2_EVENT_FRAME_SYNC``.
-    * -
-      - struct :c:type:`v4l2_event_motion_det`
+    * - struct :c:type:`v4l2_event_motion_det`
       - ``motion_det``
       - Event data for event V4L2_EVENT_MOTION_DET.
-    * -
-      - struct :c:type:`v4l2_event_src_change`
+    * - struct :c:type:`v4l2_event_src_change`
       - ``src_change``
       - Event data for event V4L2_EVENT_SOURCE_CHANGE.
-    * -
-      - __u8
+    * - __u8
       - ``data``\ [64]
       - Event data. Defined by the event type. The union should be used to
 	define easily accessible type for events.
+    * - }
+      -
     * - __u32
       - ``pending``
-      -
       - Number of pending events excluding this one.
     * - __u32
       - ``sequence``
-      -
       - Event sequence number. The sequence number is incremented for
 	every subscribed event that takes place. If sequence numbers are
 	not contiguous it means that events have been lost.
     * - struct timespec
       - ``timestamp``
-      -
       - Event timestamp. The timestamp has been taken from the
 	``CLOCK_MONOTONIC`` clock. To access the same clock outside V4L2,
 	use :c:func:`clock_gettime`.
     * - u32
       - ``id``
-      -
       - The ID associated with the event source. If the event does not
 	have an associated ID (this depends on the event type), then this
 	is 0.
     * - __u32
       - ``reserved``\ [8]
-      -
       - Reserved for future extensions. Drivers must set the array to
 	zero.
 
@@ -233,54 +221,45 @@ call.
 .. flat-table:: struct v4l2_event_ctrl
     :header-rows:  0
     :stub-columns: 0
-    :widths:       1 1 2 1
+    :widths:       1 1 2
 
     * - __u32
       - ``changes``
-      -
       - A bitmask that tells what has changed. See
 	:ref:`ctrl-changes-flags`.
     * - __u32
       - ``type``
-      -
       - The type of the control. See enum
 	:c:type:`v4l2_ctrl_type`.
-    * - union (anonymous)
-      -
-      -
-      -
-    * -
-      - __s32
+    * - union {
+      - (anonymous)
+    * - __s32
       - ``value``
       - The 32-bit value of the control for 32-bit control types. This is
 	0 for string controls since the value of a string cannot be passed
 	using :ref:`VIDIOC_DQEVENT`.
-    * -
-      - __s64
+    * - __s64
       - ``value64``
       - The 64-bit value of the control for 64-bit control types.
+    * - }
+      -
     * - __u32
       - ``flags``
-      -
       - The control flags. See :ref:`control-flags`.
     * - __s32
       - ``minimum``
-      -
       - The minimum value of the control. See struct
 	:ref:`v4l2_queryctrl <v4l2-queryctrl>`.
     * - __s32
       - ``maximum``
-      -
       - The maximum value of the control. See struct
 	:ref:`v4l2_queryctrl <v4l2-queryctrl>`.
     * - __s32
       - ``step``
-      -
       - The step value of the control. See struct
 	:ref:`v4l2_queryctrl <v4l2-queryctrl>`.
     * - __s32
       - ``default_value``
-      -
       - The default value value of the control. See struct
 	:ref:`v4l2_queryctrl <v4l2-queryctrl>`.
 

@@ -411,7 +411,7 @@ static void _dpu_encoder_phys_cmd_pingpong_config(
 		to_dpu_encoder_phys_cmd(phys_enc);
 
 	if (!phys_enc->hw_pp || !phys_enc->hw_ctl->ops.setup_intf_cfg) {
-		DPU_ERROR("invalid arg(s), enc %d\n", phys_enc != 0);
+		DPU_ERROR("invalid arg(s), enc %d\n", phys_enc != NULL);
 		return;
 	}
 
@@ -440,7 +440,7 @@ static void dpu_encoder_phys_cmd_enable_helper(
 	u32 flush_mask = 0;
 
 	if (!phys_enc->hw_pp) {
-		DPU_ERROR("invalid arg(s), encoder %d\n", phys_enc != 0);
+		DPU_ERROR("invalid arg(s), encoder %d\n", phys_enc != NULL);
 		return;
 	}
 

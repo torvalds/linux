@@ -583,20 +583,17 @@ Power Management Quality of Service for CPUs
 The power management quality of service (PM QoS) framework in the Linux kernel
 allows kernel code and user space processes to set constraints on various
 energy-efficiency features of the kernel to prevent performance from dropping
-below a required level.  The PM QoS constraints can be set globally, in
-predefined categories referred to as PM QoS classes, or against individual
-devices.
+below a required level.
 
 CPU idle time management can be affected by PM QoS in two ways, through the
-global constraint in the ``PM_QOS_CPU_DMA_LATENCY`` class and through the
-resume latency constraints for individual CPUs.  Kernel code (e.g. device
-drivers) can set both of them with the help of special internal interfaces
-provided by the PM QoS framework.  User space can modify the former by opening
-the :file:`cpu_dma_latency` special device file under :file:`/dev/` and writing
-a binary value (interpreted as a signed 32-bit integer) to it.  In turn, the
-resume latency constraint for a CPU can be modified by user space by writing a
-string (representing a signed 32-bit integer) to the
-:file:`power/pm_qos_resume_latency_us` file under
+global CPU latency limit and through the resume latency constraints for
+individual CPUs.  Kernel code (e.g. device drivers) can set both of them with
+the help of special internal interfaces provided by the PM QoS framework.  User
+space can modify the former by opening the :file:`cpu_dma_latency` special
+device file under :file:`/dev/` and writing a binary value (interpreted as a
+signed 32-bit integer) to it.  In turn, the resume latency constraint for a CPU
+can be modified from user space by writing a string (representing a signed
+32-bit integer) to the :file:`power/pm_qos_resume_latency_us` file under
 :file:`/sys/devices/system/cpu/cpu<N>/` in ``sysfs``, where the CPU number
 ``<N>`` is allocated at the system initialization time.  Negative values
 will be rejected in both cases and, also in both cases, the written integer
@@ -605,32 +602,34 @@ number will be interpreted as a requested PM QoS constraint in microseconds.
 The requested value is not automatically applied as a new constraint, however,
 as it may be less restrictive (greater in this particular case) than another
 constraint previously requested by someone else.  For this reason, the PM QoS
-framework maintains a list of requests that have been made so far in each
-global class and for each device, aggregates them and applies the effective
-(minimum in this particular case) value as the new constraint.
+framework maintains a list of requests that have been made so far for the
+global CPU latency limit and for each individual CPU, aggregates them and
+applies the effective (minimum in this particular case) value as the new
+constraint.
 
 In fact, opening the :file:`cpu_dma_latency` special device file causes a new
-PM QoS request to be created and added to the priority list of requests in the
-``PM_QOS_CPU_DMA_LATENCY`` class and the file descriptor coming from the
-"open" operation represents that request.  If that file descriptor is then
-used for writing, the number written to it will be associated with the PM QoS
-request represented by it as a new requested constraint value.  Next, the
-priority list mechanism will be used to determine the new effective value of
-the entire list of requests and that effective value will be set as a new
-constraint.  Thus setting a new requested constraint value will only change the
-real constraint if the effective "list" value is affected by it.  In particular,
-for the ``PM_QOS_CPU_DMA_LATENCY`` class it only affects the real constraint if
-it is the minimum of the requested constraints in the list.  The process holding
-a file descriptor obtained by opening the :file:`cpu_dma_latency` special device
-file controls the PM QoS request associated with that file descriptor, but it
-controls this particular PM QoS request only.
+PM QoS request to be created and added to a global priority list of CPU latency
+limit requests and the file descriptor coming from the "open" operation
+represents that request.  If that file descriptor is then used for writing, the
+number written to it will be associated with the PM QoS request represented by
+it as a new requested limit value.  Next, the priority list mechanism will be
+used to determine the new effective value of the entire list of requests and
+that effective value will be set as a new CPU latency limit.  Thus requesting a
+new limit value will only change the real limit if the effective "list" value is
+affected by it, which is the case if it is the minimum of the requested values
+in the list.
+
+The process holding a file descriptor obtained by opening the
+:file:`cpu_dma_latency` special device file controls the PM QoS request
+associated with that file descriptor, but it controls this particular PM QoS
+request only.
 
 Closing the :file:`cpu_dma_latency` special device file or, more precisely, the
 file descriptor obtained while opening it, causes the PM QoS request associated
-with that file descriptor to be removed from the ``PM_QOS_CPU_DMA_LATENCY``
-class priority list and destroyed.  If that happens, the priority list mechanism
-will be used, again, to determine the new effective value for the whole list
-and that value will become the new real constraint.
+with that file descriptor to be removed from the global priority list of CPU
+latency limit requests and destroyed.  If that happens, the priority list
+mechanism will be used again, to determine the new effective value for the whole
+list and that value will become the new limit.
 
 In turn, for each CPU there is one resume latency PM QoS request associated with
 the :file:`power/pm_qos_resume_latency_us` file under
@@ -647,10 +646,10 @@ CPU in question every time the list of requests is updated this way or another
 (there may be other requests coming from kernel code in that list).
 
 CPU idle time governors are expected to regard the minimum of the global
-effective ``PM_QOS_CPU_DMA_LATENCY`` class constraint and the effective
-resume latency constraint for the given CPU as the upper limit for the exit
-latency of the idle states they can select for that CPU.  They should never
-select any idle states with exit latency beyond that limit.
+(effective) CPU latency limit and the effective resume latency constraint for
+the given CPU as the upper limit for the exit latency of the idle states that
+they are allowed to select for that CPU.  They should never select any idle
+states with exit latency beyond that limit.
 
 
 Idle States Control Via Kernel Command Line

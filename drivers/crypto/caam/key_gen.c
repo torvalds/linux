@@ -108,7 +108,7 @@ int gen_split_key(struct device *jrdev, u8 *key_out,
 	init_completion(&result.completion);
 
 	ret = caam_jr_enqueue(jrdev, desc, split_key_done, &result);
-	if (!ret) {
+	if (ret == -EINPROGRESS) {
 		/* in progress */
 		wait_for_completion(&result.completion);
 		ret = result.err;

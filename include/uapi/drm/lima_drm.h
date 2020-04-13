@@ -32,12 +32,19 @@ struct drm_lima_get_param {
 	__u64 value; /* out, parameter value */
 };
 
+/*
+ * heap buffer dynamically increase backup memory size when GP task fail
+ * due to lack of heap memory. size field of heap buffer is an up bound of
+ * the backup memory which can be set to a fairly large value.
+ */
+#define LIMA_BO_FLAG_HEAP  (1 << 0)
+
 /**
  * create a buffer for used by GPU
  */
 struct drm_lima_gem_create {
 	__u32 size;    /* in, buffer size */
-	__u32 flags;   /* in, currently no flags, must be zero */
+	__u32 flags;   /* in, buffer flags */
 	__u32 handle;  /* out, GEM buffer handle */
 	__u32 pad;     /* pad, must be zero */
 };

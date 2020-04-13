@@ -3,6 +3,7 @@
  * HE handling
  *
  * Copyright(c) 2017 Intel Deutschland GmbH
+ * Copyright(c) 2019 - 2020 Intel Corporation
  */
 
 #include "ieee80211_i.h"
@@ -49,6 +50,9 @@ ieee80211_he_cap_ie_to_sta_he_cap(struct ieee80211_sub_if_data *sdata,
 		       he_ppe_size);
 
 	he_cap->has_he = true;
+
+	sta->cur_max_bandwidth = ieee80211_sta_cap_rx_bw(sta);
+	sta->sta.bandwidth = ieee80211_sta_cur_vht_bw(sta);
 }
 
 void
