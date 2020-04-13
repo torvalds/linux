@@ -41,6 +41,7 @@
  */
 
 /dts-v1/;
+#include <dt-bindings/input/input.h>
 #include <dt-bindings/pwm/pwm.h>
 #include <dt-bindings/sensor-dev.h>
 #include "rk3368.dtsi"
@@ -132,29 +133,36 @@
 		status = "okay";
 	};
 
-	rk_key: rockchip-key {
-		compatible = "rockchip,key";
-		status = "okay";
+	gpio_keys: gpio-keys {
+		compatible = "gpio-keys";
+		autorepeat;
 
+		power {
+			debounce-interval = <100>;
+			gpios = <&gpio0 2 GPIO_ACTIVE_LOW>;
+			label = "GPIO Key Power";
+			linux,code = <KEY_POWER>;
+			wakeup-source;
+		};
+	};
+
+	adc_keys: adc-keys {
+		compatible = "adc-keys";
 		io-channels = <&saradc 1>;
+		io-channel-names = "buttons";
+		keyup-threshold-microvolt = <1024000>;
+		poll-interval = <100>;
 
 		vol-up-key {
-			linux,code = <115>;
 			label = "volume up";
-			rockchip,adc_value = <1>;
+			linux,code = <KEY_VOLUMEUP>;
+			press-threshold-microvolt = <1000>;
 		};
 
 		vol-down-key {
-			linux,code = <114>;
 			label = "volume down";
-			rockchip,adc_value = <170>;
-		};
-
-		power-key {
-			gpios = <&gpio0 2 GPIO_ACTIVE_LOW>;
-			linux,code = <116>;
-			label = "power";
-			gpio-key,wakeup;
+			linux,code = <KEY_VOLUMEDOWN>;
+			press-threshold-microvolt = <170000>;
 		};
 	};
 
