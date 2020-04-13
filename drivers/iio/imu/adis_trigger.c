@@ -27,6 +27,13 @@ static const struct iio_trigger_ops adis_trigger_ops = {
 	.set_trigger_state = &adis_data_rdy_trigger_set_state,
 };
 
+static void adis_trigger_setup(struct adis *adis)
+{
+	adis->trig->dev.parent = &adis->spi->dev;
+	adis->trig->ops = &adis_trigger_ops;
+	iio_trigger_set_drvdata(adis->trig, adis);
+}
+
 /**
  * adis_probe_trigger() - Sets up trigger for a adis device
  * @adis: The adis device
@@ -45,9 +52,7 @@ int adis_probe_trigger(struct adis *adis, struct iio_dev *indio_dev)
 	if (adis->trig == NULL)
 		return -ENOMEM;
 
-	adis->trig->dev.parent = &adis->spi->dev;
-	adis->trig->ops = &adis_trigger_ops;
-	iio_trigger_set_drvdata(adis->trig, adis);
+	adis_trigger_setup(adis);
 
 	ret = request_irq(adis->spi->irq,
 			  &iio_trigger_generic_data_rdy_poll,
@@ -72,6 +77,36 @@ error_free_trig:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(adis_probe_trigger);
+
+/**
+ * devm_adis_probe_trigger() - Sets up trigger for a managed adis device
+ * @adis: The adis device
+ * @indio_dev: The IIO device
+ *
+ * Returns 0 on success or a negative error code
+ */
+int devm_adis_probe_trigger(struct adis *adis, struct iio_dev *indio_dev)
+{
+	int ret;
+
+	adis->trig = devm_iio_trigger_alloc(&adis->spi->dev, "%s-dev%d",
+					    indio_dev->name, indio_dev->id);
+	if (!adis->trig)
+		return -ENOMEM;
+
+	adis_trigger_setup(adis);
+
+	ret = devm_request_irq(&adis->spi->dev, adis->spi->irq,
+			       &iio_trigger_generic_data_rdy_poll,
+			       IRQF_TRIGGER_RISING,
+			       indio_dev->name,
+			       adis->trig);
+	if (ret)
+		return ret;
+
+	return devm_iio_trigger_register(&adis->spi->dev, adis->trig);
+}
+EXPORT_SYMBOL_GPL(devm_adis_probe_trigger);
 
 /**
  * adis_remove_trigger() - Remove trigger for a adis devices
