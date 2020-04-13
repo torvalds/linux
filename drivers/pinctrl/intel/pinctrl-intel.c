@@ -1281,6 +1281,9 @@ static int intel_pinctrl_add_padgroups(struct intel_pinctrl *pctrl,
 			case INTEL_GPIO_BASE_MATCH:
 				gpps[i].gpio_base = gpps[i].base;
 				break;
+			case INTEL_GPIO_BASE_ZERO:
+				gpps[i].gpio_base = 0;
+				break;
 			case INTEL_GPIO_BASE_NOMAP:
 			default:
 				break;

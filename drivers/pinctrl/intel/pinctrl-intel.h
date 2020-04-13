@@ -70,10 +70,12 @@ struct intel_padgroup {
 /**
  * enum - Special treatment for GPIO base in pad group
  *
+ * @INTEL_GPIO_BASE_ZERO:	force GPIO base to be 0
  * @INTEL_GPIO_BASE_NOMAP:	no GPIO mapping should be created
  * @INTEL_GPIO_BASE_MATCH:	matches with starting pin number
  */
 enum {
+	INTEL_GPIO_BASE_ZERO	= -2,
 	INTEL_GPIO_BASE_NOMAP	= -1,
 	INTEL_GPIO_BASE_MATCH	= 0,
 };
