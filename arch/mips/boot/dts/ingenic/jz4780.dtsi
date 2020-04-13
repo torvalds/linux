@@ -58,9 +58,9 @@
 
 		#clock-cells = <1>;
 
-		clocks = <&cgu JZ4780_CLK_RTCLK
-			  &cgu JZ4780_CLK_EXCLK
-			  &cgu JZ4780_CLK_PCLK>;
+		clocks = <&cgu JZ4780_CLK_RTCLK>,
+			 <&cgu JZ4780_CLK_EXCLK>,
+			 <&cgu JZ4780_CLK_PCLK>;
 		clock-names = "rtc", "ext", "pclk";
 
 		interrupt-controller;
@@ -196,8 +196,7 @@
 		gpio-miso = <&gpe 14 0>;
 		gpio-sck = <&gpe 15 0>;
 		gpio-mosi = <&gpe 17 0>;
-		cs-gpios = <&gpe 16 0
-			    &gpe 18 0>;
+		cs-gpios = <&gpe 16 0>, <&gpe 18 0>;
 
 		spidev@0 {
 			compatible = "spidev";
@@ -362,13 +361,13 @@
 		reg = <0x13410000 0x10000>;
 		#address-cells = <2>;
 		#size-cells = <1>;
-		ranges = <0 0 0x13410000 0x10000
-			  1 0 0x1b000000 0x1000000
-			  2 0 0x1a000000 0x1000000
-			  3 0 0x19000000 0x1000000
-			  4 0 0x18000000 0x1000000
-			  5 0 0x17000000 0x1000000
-			  6 0 0x16000000 0x1000000>;
+		ranges = <0 0 0x13410000 0x10000>,
+			 <1 0 0x1b000000 0x1000000>,
+			 <2 0 0x1a000000 0x1000000>,
+			 <3 0 0x19000000 0x1000000>,
+			 <4 0 0x18000000 0x1000000>,
+			 <5 0 0x17000000 0x1000000>,
+			 <6 0 0x16000000 0x1000000>;
 
 		clocks = <&cgu JZ4780_CLK_NEMC>;
 
@@ -391,8 +390,7 @@
 
 	dma: dma@13420000 {
 		compatible = "ingenic,jz4780-dma";
-		reg = <0x13420000 0x400
-		       0x13421000 0x40>;
+		reg = <0x13420000 0x400>, <0x13421000 0x40>;
 		#dma-cells = <2>;
 
 		interrupt-parent = <&intc>;

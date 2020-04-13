@@ -55,10 +55,10 @@
 
 		#clock-cells = <1>;
 
-		clocks = <&cgu JZ4740_CLK_RTC
-			  &cgu JZ4740_CLK_EXT
-			  &cgu JZ4740_CLK_PCLK
-			  &cgu JZ4740_CLK_TCU>;
+		clocks = <&cgu JZ4740_CLK_RTC>,
+			 <&cgu JZ4740_CLK_EXT>,
+			 <&cgu JZ4740_CLK_PCLK>,
+			 <&cgu JZ4740_CLK_TCU>;
 		clock-names = "rtc", "ext", "pclk", "tcu";
 
 		interrupt-controller;
@@ -241,10 +241,10 @@
 		reg = <0x13010000 0x54>;
 		#address-cells = <2>;
 		#size-cells = <1>;
-		ranges = <1 0 0x18000000 0x4000000
-			  2 0 0x14000000 0x4000000
-			  3 0 0x0c000000 0x4000000
-			  4 0 0x08000000 0x4000000>;
+		ranges = <1 0 0x18000000 0x4000000>,
+			 <2 0 0x14000000 0x4000000>,
+			 <3 0 0x0c000000 0x4000000>,
+			 <4 0 0x08000000 0x4000000>;
 
 		clocks = <&cgu JZ4740_CLK_MCLK>;
 	};
@@ -258,8 +258,7 @@
 
 	dmac: dma-controller@13020000 {
 		compatible = "ingenic,jz4740-dma";
-		reg = <0x13020000 0xbc
-		       0x13020300 0x14>;
+		reg = <0x13020000 0xbc>, <0x13020300 0x14>;
 		#dma-cells = <2>;
 
 		interrupt-parent = <&intc>;

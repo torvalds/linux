@@ -55,9 +55,9 @@
 
 		#clock-cells = <1>;
 
-		clocks = <&cgu JZ4770_CLK_RTC
-			  &cgu JZ4770_CLK_EXT
-			  &cgu JZ4770_CLK_PCLK>;
+		clocks = <&cgu JZ4770_CLK_RTC>,
+			 <&cgu JZ4770_CLK_EXT>,
+			 <&cgu JZ4770_CLK_PCLK>;
 		clock-names = "rtc", "ext", "pclk";
 
 		interrupt-controller;
@@ -219,8 +219,7 @@
 
 	dmac0: dma-controller@13420000 {
 		compatible = "ingenic,jz4770-dma";
-		reg = <0x13420000 0xC0
-		       0x13420300 0x20>;
+		reg = <0x13420000 0xC0>, <0x13420300 0x20>;
 
 		#dma-cells = <2>;
 
@@ -234,8 +233,7 @@
 
 	dmac1: dma-controller@13420100 {
 		compatible = "ingenic,jz4770-dma";
-		reg = <0x13420100 0xC0
-		       0x13420400 0x20>;
+		reg = <0x13420100 0xC0>, <0x13420400 0x20>;
 
 		#dma-cells = <2>;
 
