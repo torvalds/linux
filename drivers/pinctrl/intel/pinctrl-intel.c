@@ -798,7 +798,7 @@ static int intel_gpio_to_pin(struct intel_pinctrl *pctrl, unsigned int offset,
 		for (j = 0; j < comm->ngpps; j++) {
 			const struct intel_padgroup *pgrp = &comm->gpps[j];
 
-			if (pgrp->gpio_base < 0)
+			if (pgrp->gpio_base == INTEL_GPIO_BASE_NOMAP)
 				continue;
 
 			if (offset >= pgrp->gpio_base &&
@@ -1138,7 +1138,7 @@ static int intel_gpio_add_community_ranges(struct intel_pinctrl *pctrl,
 	for (i = 0; i < community->ngpps; i++) {
 		const struct intel_padgroup *gpp = &community->gpps[i];
 
-		if (gpp->gpio_base < 0)
+		if (gpp->gpio_base == INTEL_GPIO_BASE_NOMAP)
 			continue;
 
 		ret = gpiochip_add_pin_range(&pctrl->chip, dev_name(pctrl->dev),
@@ -1180,7 +1180,7 @@ static unsigned int intel_gpio_ngpio(const struct intel_pinctrl *pctrl)
 		for (j = 0; j < community->ngpps; j++) {
 			const struct intel_padgroup *gpp = &community->gpps[j];
 
-			if (gpp->gpio_base < 0)
+			if (gpp->gpio_base == INTEL_GPIO_BASE_NOMAP)
 				continue;
 
 			if (gpp->gpio_base + gpp->size > ngpio)
@@ -1276,8 +1276,15 @@ static int intel_pinctrl_add_padgroups(struct intel_pinctrl *pctrl,
 		if (gpps[i].size > 32)
 			return -EINVAL;
 
-		if (!gpps[i].gpio_base)
-			gpps[i].gpio_base = gpps[i].base;
+		/* Special treatment for GPIO base */
+		switch (gpps[i].gpio_base) {
+			case INTEL_GPIO_BASE_MATCH:
+				gpps[i].gpio_base = gpps[i].base;
+				break;
+			case INTEL_GPIO_BASE_NOMAP:
+			default:
+				break;
+		}
 
 		gpps[i].padown_num = padown_num;
 
@@ -1596,7 +1603,7 @@ static void intel_restore_hostown(struct intel_pinctrl *pctrl, unsigned int c,
 	struct device *dev = pctrl->dev;
 	u32 requested;
 
-	if (padgrp->gpio_base < 0)
+	if (padgrp->gpio_base == INTEL_GPIO_BASE_NOMAP)
 		return;
 
 	requested = intel_gpio_is_requested(&pctrl->chip, padgrp->gpio_base, padgrp->size);

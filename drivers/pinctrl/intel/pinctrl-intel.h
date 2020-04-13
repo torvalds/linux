@@ -53,8 +53,7 @@ struct intel_function {
  * @reg_num: GPI_IS register number
  * @base: Starting pin of this group
  * @size: Size of this group (maximum is 32).
- * @gpio_base: Starting GPIO base of this group (%0 if matches with @base,
- *	       and %-1 if no GPIO mapping should be created)
+ * @gpio_base: Starting GPIO base of this group
  * @padown_num: PAD_OWN register number (assigned by the core driver)
  *
  * If pad groups of a community are not the same size, use this structure
@@ -66,6 +65,17 @@ struct intel_padgroup {
 	unsigned int size;
 	int gpio_base;
 	unsigned int padown_num;
+};
+
+/**
+ * enum - Special treatment for GPIO base in pad group
+ *
+ * @INTEL_GPIO_BASE_NOMAP:	no GPIO mapping should be created
+ * @INTEL_GPIO_BASE_MATCH:	matches with starting pin number
+ */
+enum {
+	INTEL_GPIO_BASE_NOMAP	= -1,
+	INTEL_GPIO_BASE_MATCH	= 0,
 };
 
 /**
