@@ -2699,7 +2699,7 @@ static struct hns_roce_v2_cqe *next_cqe_sw_v2(struct hns_roce_cq *hr_cq)
 
 static void *get_srq_wqe(struct hns_roce_srq *srq, int n)
 {
-	return hns_roce_buf_offset(&srq->buf, n << srq->wqe_shift);
+	return hns_roce_buf_offset(srq->buf_mtr.kmem, n << srq->wqe_shift);
 }
 
 static void hns_roce_free_srq_wqe(struct hns_roce_srq *srq, int wqe_index)
@@ -5699,43 +5699,45 @@ static void hns_roce_v2_write_srqc(struct hns_roce_dev *hr_dev,
 		       dma_handle_idx >> 35);
 
 	srq_context->idx_cur_blk_addr =
-		cpu_to_le32(mtts_idx[0] >> PAGE_ADDR_SHIFT);
+		cpu_to_le32(to_hr_hw_page_addr(mtts_idx[0]));
 	roce_set_field(srq_context->byte_44_idxbufpgsz_addr,
 		       SRQC_BYTE_44_SRQ_IDX_CUR_BLK_ADDR_M,
 		       SRQC_BYTE_44_SRQ_IDX_CUR_BLK_ADDR_S,
-		       mtts_idx[0] >> (32 + PAGE_ADDR_SHIFT));
+		       upper_32_bits(to_hr_hw_page_addr(mtts_idx[0])));
 	roce_set_field(srq_context->byte_44_idxbufpgsz_addr,
 		       SRQC_BYTE_44_SRQ_IDX_HOP_NUM_M,
 		       SRQC_BYTE_44_SRQ_IDX_HOP_NUM_S,
 		       hr_dev->caps.idx_hop_num == HNS_ROCE_HOP_NUM_0 ? 0 :
 		       hr_dev->caps.idx_hop_num);
 
-	roce_set_field(srq_context->byte_44_idxbufpgsz_addr,
-		       SRQC_BYTE_44_SRQ_IDX_BA_PG_SZ_M,
-		       SRQC_BYTE_44_SRQ_IDX_BA_PG_SZ_S,
-		       hr_dev->caps.idx_ba_pg_sz + PG_SHIFT_OFFSET);
-	roce_set_field(srq_context->byte_44_idxbufpgsz_addr,
-		       SRQC_BYTE_44_SRQ_IDX_BUF_PG_SZ_M,
-		       SRQC_BYTE_44_SRQ_IDX_BUF_PG_SZ_S,
-		       hr_dev->caps.idx_buf_pg_sz + PG_SHIFT_OFFSET);
+	roce_set_field(
+		srq_context->byte_44_idxbufpgsz_addr,
+		SRQC_BYTE_44_SRQ_IDX_BA_PG_SZ_M,
+		SRQC_BYTE_44_SRQ_IDX_BA_PG_SZ_S,
+		to_hr_hw_page_shift(srq->idx_que.mtr.hem_cfg.ba_pg_shift));
+	roce_set_field(
+		srq_context->byte_44_idxbufpgsz_addr,
+		SRQC_BYTE_44_SRQ_IDX_BUF_PG_SZ_M,
+		SRQC_BYTE_44_SRQ_IDX_BUF_PG_SZ_S,
+		to_hr_hw_page_shift(srq->idx_que.mtr.hem_cfg.buf_pg_shift));
 
 	srq_context->idx_nxt_blk_addr =
-		cpu_to_le32(mtts_idx[1] >> PAGE_ADDR_SHIFT);
+		cpu_to_le32(to_hr_hw_page_addr(mtts_idx[1]));
 	roce_set_field(srq_context->rsv_idxnxtblkaddr,
 		       SRQC_BYTE_52_SRQ_IDX_NXT_BLK_ADDR_M,
 		       SRQC_BYTE_52_SRQ_IDX_NXT_BLK_ADDR_S,
-		       mtts_idx[1] >> (32 + PAGE_ADDR_SHIFT));
+		       upper_32_bits(to_hr_hw_page_addr(mtts_idx[1])));
 	roce_set_field(srq_context->byte_56_xrc_cqn,
 		       SRQC_BYTE_56_SRQ_XRC_CQN_M, SRQC_BYTE_56_SRQ_XRC_CQN_S,
 		       cqn);
 	roce_set_field(srq_context->byte_56_xrc_cqn,
 		       SRQC_BYTE_56_SRQ_WQE_BA_PG_SZ_M,
 		       SRQC_BYTE_56_SRQ_WQE_BA_PG_SZ_S,
-		       hr_dev->caps.srqwqe_ba_pg_sz + PG_SHIFT_OFFSET);
+		       to_hr_hw_page_shift(srq->buf_mtr.hem_cfg.ba_pg_shift));
 	roce_set_field(srq_context->byte_56_xrc_cqn,
 		       SRQC_BYTE_56_SRQ_WQE_BUF_PG_SZ_M,
 		       SRQC_BYTE_56_SRQ_WQE_BUF_PG_SZ_S,
-		       hr_dev->caps.srqwqe_buf_pg_sz + PG_SHIFT_OFFSET);
+		       to_hr_hw_page_shift(srq->buf_mtr.hem_cfg.buf_pg_shift));
 
 	roce_set_bit(srq_context->db_record_addr_record_en,
 		     SRQC_BYTE_60_SRQ_RECORD_EN_S, 0);
@@ -5847,7 +5849,7 @@ static void fill_idx_queue(struct hns_roce_idx_que *idx_que,
 {
 	unsigned int *addr;
 
-	addr = (unsigned int *)hns_roce_buf_offset(&idx_que->idx_buf,
+	addr = (unsigned int *)hns_roce_buf_offset(idx_que->mtr.kmem,
 						   cur_idx * idx_que->entry_sz);
 	*addr = wqe_idx;
 }

@@ -528,11 +528,8 @@ struct hns_roce_cq {
 };
 
 struct hns_roce_idx_que {
-	struct hns_roce_buf		idx_buf;
+	struct hns_roce_mtr		mtr;
 	int				entry_sz;
-	u32				buf_size;
-	struct ib_umem			*umem;
-	struct hns_roce_mtt		mtt;
 	unsigned long			*bitmap;
 };
 
@@ -547,12 +544,9 @@ struct hns_roce_srq {
 	atomic_t		refcount;
 	struct completion	free;
 
-	struct hns_roce_buf	buf;
+	struct hns_roce_mtr	buf_mtr;
+
 	u64		       *wrid;
-	struct ib_umem	       *umem;
-	u32			buf_size;
-	int			page_shift;
-	struct hns_roce_mtt	mtt;
 	struct hns_roce_idx_que idx_que;
 	spinlock_t		lock;
 	int			head;
