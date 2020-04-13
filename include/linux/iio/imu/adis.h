@@ -87,6 +87,7 @@ struct adis_data {
  * @msg: SPI message object
  * @xfer: SPI transfer objects to be used for a @msg
  * @current_page: Some ADIS devices have registers, this selects current page
+ * @irq_flag: IRQ handling flags as passed to request_irq()
  * @buffer: Data buffer for information read from the device
  * @tx: DMA safe TX buffer for SPI transfers
  * @rx: DMA safe RX buffer for SPI transfers
@@ -113,6 +114,7 @@ struct adis {
 	struct spi_message	msg;
 	struct spi_transfer	*xfer;
 	unsigned int		current_page;
+	unsigned long		irq_flag;
 	void			*buffer;
 
 	uint8_t			tx[10] ____cacheline_aligned;
