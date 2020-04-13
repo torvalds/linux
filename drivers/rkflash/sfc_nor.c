@@ -180,11 +180,12 @@ static int snor_write_status2(u32 reg_index, u8 status)
 	int ret;
 	struct rk_sfc_op op;
 	u8 status2[2];
-	u8 read_index;
 
 	status2[reg_index] = status;
-	read_index = (reg_index == 0) ? 2 : 0;
-	ret = snor_read_status(read_index, &status2[read_index]);
+	if (reg_index == 0)
+		ret = snor_read_status(2, &status2[1]);
+	else
+		ret = snor_read_status(0, &status2[0]);
 	if (ret != SFC_OK)
 		return ret;
 
