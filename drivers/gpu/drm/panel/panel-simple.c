@@ -1191,10 +1191,14 @@ static const struct drm_display_mode boe_hv070wsa_mode = {
 static const struct panel_desc boe_hv070wsa = {
 	.modes = &boe_hv070wsa_mode,
 	.num_modes = 1,
+	.bpc = 8,
 	.size = {
 		.width = 154,
 		.height = 90,
 	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_SPWG,
+	.bus_flags = DRM_BUS_FLAG_DE_HIGH,
+	.connector_type = DRM_MODE_CONNECTOR_LVDS,
 };
 
 static const struct drm_display_mode boe_nv101wxmn51_modes[] = {
