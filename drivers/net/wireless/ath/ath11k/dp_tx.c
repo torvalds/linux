@@ -9,10 +9,6 @@
 #include "hw.h"
 #include "peer.h"
 
-/* NOTE: Any of the mapped ring id value must not exceed DP_TCL_NUM_RING_MAX */
-static const u8
-ath11k_txq_tcl_ring_map[ATH11K_HW_MAX_QUEUES] = { 0x0, 0x1, 0x2, 0x2 };
-
 static enum hal_tcl_encap_type
 ath11k_dp_tx_get_encap_type(struct ath11k_vif *arvif, struct sk_buff *skb)
 {
@@ -84,6 +80,8 @@ int ath11k_dp_tx(struct ath11k *ar, struct ath11k_vif *arvif,
 	u8 pool_id;
 	u8 hal_ring_id;
 	int ret;
+	u8 ring_selector = 0, ring_map = 0;
+	bool tcl_ring_retry;
 
 	if (test_bit(ATH11K_FLAG_CRASH_FLUSH, &ar->ab->dev_flags))
 		return -ESHUTDOWN;
@@ -92,7 +90,20 @@ int ath11k_dp_tx(struct ath11k *ar, struct ath11k_vif *arvif,
 		return -ENOTSUPP;
 
 	pool_id = skb_get_queue_mapping(skb) & (ATH11K_HW_MAX_QUEUES - 1);
-	ti.ring_id = ath11k_txq_tcl_ring_map[pool_id];
+
+	/* Let the default ring selection be based on a round robin
+	 * fashion where one of the 3 tcl rings are selected based on
+	 * the tcl_ring_selector counter. In case that ring
+	 * is full/busy, we resort to other available rings.
+	 * If all rings are full, we drop the packet.
+	 * //TODO Add throttling logic when all rings are full
+	 */
+	ring_selector = atomic_inc_return(&ab->tcl_ring_selector);
+
+tcl_ring_sel:
+	tcl_ring_retry = false;
+	ti.ring_id = ring_selector % DP_TCL_NUM_RING_MAX;
+	ring_map |= BIT(ti.ring_id);
 
 	tx_ring = &dp->tx_ring[ti.ring_id];
 
@@ -101,8 +112,14 @@ int ath11k_dp_tx(struct ath11k *ar, struct ath11k_vif *arvif,
 			DP_TX_IDR_SIZE - 1, GFP_ATOMIC);
 	spin_unlock_bh(&tx_ring->tx_idr_lock);
 
-	if (ret < 0)
-		return -ENOSPC;
+	if (ret < 0) {
+		if (ring_map == (BIT(DP_TCL_NUM_RING_MAX) - 1))
+			return -ENOSPC;
+
+		/* Check if the next ring is available */
+		ring_selector++;
+		goto tcl_ring_sel;
+	}
 
 	ti.desc_id = FIELD_PREP(DP_TX_DESC_ID_MAC_ID, ar->pdev_idx) |
 		     FIELD_PREP(DP_TX_DESC_ID_MSDU_ID, ret) |
@@ -178,11 +195,21 @@ int ath11k_dp_tx(struct ath11k *ar, struct ath11k_vif *arvif,
 	if (!hal_tcl_desc) {
 		/* NOTE: It is highly unlikely we'll be running out of tcl_ring
 		 * desc because the desc is directly enqueued onto hw queue.
-		 * So add tx packet throttling logic in future if required.
 		 */
 		ath11k_hal_srng_access_end(ab, tcl_ring);
 		spin_unlock_bh(&tcl_ring->lock);
 		ret = -ENOMEM;
+
+		/* Checking for available tcl descritors in another ring in
+		 * case of failure due to full tcl ring now, is better than
+		 * checking this ring earlier for each pkt tx.
+		 * Restart ring selection if some rings are not checked yet.
+		 */
+		if (ring_map != (BIT(DP_TCL_NUM_RING_MAX) - 1)) {
+			tcl_ring_retry = true;
+			ring_selector++;
+		}
+
 		goto fail_unmap_dma;
 	}
 
@@ -205,6 +232,9 @@ fail_remove_idr:
 	idr_remove(&tx_ring->txbuf_idr,
 		   FIELD_GET(DP_TX_DESC_ID_MSDU_ID, ti.desc_id));
 	spin_unlock_bh(&tx_ring->tx_idr_lock);
+
+	if (tcl_ring_retry)
+		goto tcl_ring_sel;
 
 	return ret;
 }

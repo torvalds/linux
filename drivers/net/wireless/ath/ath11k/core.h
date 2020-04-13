@@ -657,6 +657,9 @@ struct ath11k_base {
 		u32 fw_crash_counter;
 	} stats;
 	u32 pktlog_defs_checksum;
+
+	/* Round robbin based TCL ring selector */
+	atomic_t tcl_ring_selector;
 };
 
 struct ath11k_fw_stats_pdev {
