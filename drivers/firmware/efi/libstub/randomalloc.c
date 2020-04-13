@@ -87,7 +87,7 @@ efi_status_t efi_random_alloc(unsigned long size,
 	}
 
 	/* find a random number between 0 and total_slots */
-	target_slot = (total_slots * (u16)random_seed) >> 16;
+	target_slot = (total_slots * (u64)(random_seed & U32_MAX)) >> 32;
 
 	/*
 	 * target_slot is now a value in the range [0, total_slots), and so
