@@ -271,6 +271,9 @@ enum {
 
 #define PAGE_ADDR_SHIFT				12
 
+/* The minimum page count for hardware access page directly. */
+#define HNS_HW_DIRECT_PAGE_COUNT 2
+
 struct hns_roce_uar {
 	u64		pfn;
 	unsigned long	index;
@@ -357,13 +360,32 @@ struct hns_roce_hem_list {
 	struct list_head mid_bt[HNS_ROCE_MAX_BT_REGION][HNS_ROCE_MAX_BT_LEVEL];
 	struct list_head btm_bt; /* link all bottom bt in @mid_bt */
 	dma_addr_t root_ba; /* pointer to the root ba table */
-	int bt_pg_shift;
+};
+
+struct hns_roce_buf_attr {
+	struct {
+		size_t	size;  /* region size */
+		int	hopnum; /* multi-hop addressing hop num */
+	} region[HNS_ROCE_MAX_BT_REGION];
+	int region_count; /* valid region count */
+	int page_shift;  /* buffer page shift */
+	bool fixed_page; /* decide page shift is fixed-size or maximum size */
+	int user_access; /* umem access flag */
+	bool mtt_only; /* only alloc buffer-required MTT memory */
 };
 
 /* memory translate region */
 struct hns_roce_mtr {
-	struct hns_roce_hem_list hem_list;
-	int buf_pg_shift;
+	struct hns_roce_hem_list hem_list; /* multi-hop addressing resource */
+	struct ib_umem		 *umem; /* user space buffer */
+	struct hns_roce_buf	 *kmem; /* kernel space buffer */
+	struct {
+		dma_addr_t	 root_ba; /* root BA table's address */
+		bool		 is_direct; /* addressing without BA table */
+		int		 ba_pg_shift; /* BA table page shift */
+		int		 buf_pg_shift; /* buffer page shift */
+		int		 buf_pg_count;  /* buffer page count */
+	} hem_cfg; /* config for hardware addressing */
 };
 
 struct hns_roce_mw {
@@ -1113,6 +1135,16 @@ static inline void *hns_roce_buf_offset(struct hns_roce_buf *buf, int offset)
 		       (offset & (page_size - 1));
 }
 
+static inline u64 to_hr_hw_page_addr(u64 addr)
+{
+	return addr >> PAGE_ADDR_SHIFT;
+}
+
+static inline u32 to_hr_hw_page_shift(u32 page_shift)
+{
+	return page_shift - PAGE_ADDR_SHIFT;
+}
+
 int hns_roce_init_uar_table(struct hns_roce_dev *dev);
 int hns_roce_uar_alloc(struct hns_roce_dev *dev, struct hns_roce_uar *uar);
 void hns_roce_uar_free(struct hns_roce_dev *dev, struct hns_roce_uar *uar);
@@ -1144,6 +1176,14 @@ void hns_roce_mtr_cleanup(struct hns_roce_dev *hr_dev,
 #define MTT_MIN_COUNT	 2
 int hns_roce_mtr_find(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 		      int offset, u64 *mtt_buf, int mtt_max, u64 *base_addr);
+int hns_roce_mtr_create(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
+			struct hns_roce_buf_attr *buf_attr, int page_shift,
+			struct ib_udata *udata, unsigned long user_addr);
+void hns_roce_mtr_destroy(struct hns_roce_dev *hr_dev,
+			  struct hns_roce_mtr *mtr);
+int hns_roce_mtr_map(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
+		     struct hns_roce_buf_region *regions, int region_cnt,
+		     dma_addr_t *pages, int page_cnt);
 
 int hns_roce_init_pd_table(struct hns_roce_dev *hr_dev);
 int hns_roce_init_mr_table(struct hns_roce_dev *hr_dev);

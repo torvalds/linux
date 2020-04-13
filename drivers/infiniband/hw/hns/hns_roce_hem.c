@@ -1505,7 +1505,7 @@ err_exit:
 int hns_roce_hem_list_request(struct hns_roce_dev *hr_dev,
 			      struct hns_roce_hem_list *hem_list,
 			      const struct hns_roce_buf_region *regions,
-			      int region_cnt)
+			      int region_cnt, int bt_pg_shift)
 {
 	const struct hns_roce_buf_region *r;
 	int ofs, end;
@@ -1519,7 +1519,7 @@ int hns_roce_hem_list_request(struct hns_roce_dev *hr_dev,
 		return -EINVAL;
 	}
 
-	unit = (1 << hem_list->bt_pg_shift) / BA_BYTE_LEN;
+	unit = (1 << bt_pg_shift) / BA_BYTE_LEN;
 	for (i = 0; i < region_cnt; i++) {
 		r = &regions[i];
 		if (!r->count)
@@ -1566,8 +1566,7 @@ void hns_roce_hem_list_release(struct hns_roce_dev *hr_dev,
 	hem_list->root_ba = 0;
 }
 
-void hns_roce_hem_list_init(struct hns_roce_hem_list *hem_list,
-			    int bt_page_order)
+void hns_roce_hem_list_init(struct hns_roce_hem_list *hem_list)
 {
 	int i, j;
 
@@ -1576,8 +1575,6 @@ void hns_roce_hem_list_init(struct hns_roce_hem_list *hem_list,
 	for (i = 0; i < HNS_ROCE_MAX_BT_REGION; i++)
 		for (j = 0; j < HNS_ROCE_MAX_BT_LEVEL; j++)
 			INIT_LIST_HEAD(&hem_list->mid_bt[i][j]);
-
-	hem_list->bt_pg_shift = bt_page_order;
 }
 
 void *hns_roce_hem_list_find_mtt(struct hns_roce_dev *hr_dev,
