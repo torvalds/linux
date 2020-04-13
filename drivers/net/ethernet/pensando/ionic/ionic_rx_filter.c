@@ -26,7 +26,7 @@ void ionic_rx_filter_replay(struct ionic_lif *lif)
 	struct hlist_head *head;
 	struct hlist_node *tmp;
 	unsigned int i;
-	int err = 0;
+	int err;
 
 	ac = &ctx.cmd.rx_filter_add;
 
