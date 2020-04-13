@@ -3314,13 +3314,19 @@ isp_gain_config(struct rkisp_isp_params_vdev *params_vdev,
 {
 	struct rkisp_isp_params_val_v2x *priv_val =
 		(struct rkisp_isp_params_val_v2x *)params_vdev->priv_val;
-	u32 value, i;
+	u32 value, i, gain_wsize;
 
-	value = (priv_val->dhaz_en & 0x01) << 16 |
-		(priv_val->wdr_en & 0x01) << 12 |
-		(priv_val->tmo_en & 0x01) << 8 |
-		(priv_val->lsc_en & 0x01) << 4 |
-		(priv_val->mge_en & 0x01);
+	gain_wsize = rkisp_ioread32(params_vdev, MI_GAIN_WR_SIZE);
+	gain_wsize &= 0x0FFFFFF0;
+	if (gain_wsize)
+		value = (priv_val->dhaz_en & 0x01) << 16 |
+			(priv_val->wdr_en & 0x01) << 12 |
+			(priv_val->tmo_en & 0x01) << 8 |
+			(priv_val->lsc_en & 0x01) << 4 |
+			(priv_val->mge_en & 0x01);
+	else
+		value = 0;
+
 	rkisp_iowrite32(params_vdev, value, ISP_GAIN_CTRL);
 
 	value = arg->mge_gain[0];

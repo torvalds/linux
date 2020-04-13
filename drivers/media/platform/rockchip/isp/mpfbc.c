@@ -164,6 +164,7 @@ static int mpfbc_s_rx_buffer(struct v4l2_subdev *sd,
 	u32 w = ALIGN(mpfbc_dev->crop.width, 16);
 	u32 h = ALIGN(mpfbc_dev->crop.height, 16);
 	u32 sizes = (w * h >> 4) + w * h * 2;
+	u32 w_tmp;
 	int ret = 0;
 
 	if (!dbuf || !size)
@@ -222,7 +223,10 @@ static int mpfbc_s_rx_buffer(struct v4l2_subdev *sd,
 					SW_GAIN_WR_PINGPONG);
 		}
 		writel(*size, base + MI_GAIN_WR_SIZE);
-		writel(w >> 4, base + MI_GAIN_WR_LENGTH);
+
+		w_tmp = (mpfbc_dev->crop.width + 3) / 4;
+		w_tmp = ALIGN(w_tmp, 16);
+		writel(w_tmp, base + MI_GAIN_WR_LENGTH);
 		mi_wr_ctrl2(base, SW_GAIN_WR_AUTOUPD);
 	}
 
