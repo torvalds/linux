@@ -2505,6 +2505,30 @@ ath10k_peer_assoc_h_vht_limit(u16 tx_mcs_set,
 	return tx_mcs_set;
 }
 
+static u32 get_160mhz_nss_from_maxrate(int rate)
+{
+	u32 nss;
+
+	switch (rate) {
+	case 780:
+		nss = 1;
+		break;
+	case 1560:
+		nss = 2;
+		break;
+	case 2106:
+		nss = 3; /* not support MCS9 from spec*/
+		break;
+	case 3120:
+		nss = 4;
+		break;
+	default:
+		 nss = 1;
+	}
+
+	return nss;
+}
+
 static void ath10k_peer_assoc_h_vht(struct ath10k *ar,
 				    struct ieee80211_vif *vif,
 				    struct ieee80211_sta *sta,
@@ -2512,6 +2536,7 @@ static void ath10k_peer_assoc_h_vht(struct ath10k *ar,
 {
 	const struct ieee80211_sta_vht_cap *vht_cap = &sta->vht_cap;
 	struct ath10k_vif *arvif = (void *)vif->drv_priv;
+	struct ath10k_hw_params *hw = &ar->hw_params;
 	struct cfg80211_chan_def def;
 	enum nl80211_band band;
 	const u16 *vht_mcs_mask;
@@ -2578,22 +2603,38 @@ static void ath10k_peer_assoc_h_vht(struct ath10k *ar,
 	arg->peer_vht_rates.tx_mcs_set = ath10k_peer_assoc_h_vht_limit(
 		__le16_to_cpu(vht_cap->vht_mcs.tx_mcs_map), vht_mcs_mask);
 
-	ath10k_dbg(ar, ATH10K_DBG_MAC, "mac vht peer %pM max_mpdu %d flags 0x%x\n",
-		   sta->addr, arg->peer_max_mpdu, arg->peer_flags);
+	/* Configure bandwidth-NSS mapping to FW
+	 * for the chip's tx chains setting on 160Mhz bw
+	 */
+	if (arg->peer_phymode == MODE_11AC_VHT160 ||
+	    arg->peer_phymode == MODE_11AC_VHT80_80) {
+		u32 rx_nss;
+		u32 max_rate;
 
-	if (arg->peer_vht_rates.rx_max_rate &&
-	    (sta->vht_cap.cap & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK)) {
-		switch (arg->peer_vht_rates.rx_max_rate) {
-		case 1560:
-			/* Must be 2x2 at 160Mhz is all it can do. */
-			arg->peer_bw_rxnss_override = 2;
-			break;
-		case 780:
-			/* Can only do 1x1 at 160Mhz (Long Guard Interval) */
-			arg->peer_bw_rxnss_override = 1;
-			break;
+		max_rate = arg->peer_vht_rates.rx_max_rate;
+		rx_nss = get_160mhz_nss_from_maxrate(max_rate);
+
+		if (rx_nss == 0)
+			rx_nss = arg->peer_num_spatial_streams;
+		else
+			rx_nss = min(arg->peer_num_spatial_streams, rx_nss);
+
+		max_rate = hw->vht160_mcs_tx_highest;
+		rx_nss = min(rx_nss, get_160mhz_nss_from_maxrate(max_rate));
+
+		arg->peer_bw_rxnss_override =
+			FIELD_PREP(WMI_PEER_NSS_MAP_ENABLE, 1) |
+			FIELD_PREP(WMI_PEER_NSS_160MHZ_MASK, (rx_nss - 1));
+
+		if (arg->peer_phymode == MODE_11AC_VHT80_80) {
+			arg->peer_bw_rxnss_override |=
+			FIELD_PREP(WMI_PEER_NSS_80_80MHZ_MASK, (rx_nss - 1));
 		}
 	}
+	ath10k_dbg(ar, ATH10K_DBG_MAC,
+		   "mac vht peer %pM max_mpdu %d flags 0x%x peer_rx_nss_override 0x%x\n",
+		   sta->addr, arg->peer_max_mpdu,
+		   arg->peer_flags, arg->peer_bw_rxnss_override);
 }
 
 static void ath10k_peer_assoc_h_qos(struct ath10k *ar,
@@ -2745,9 +2786,9 @@ static int ath10k_peer_assoc_prepare(struct ath10k *ar,
 	ath10k_peer_assoc_h_crypto(ar, vif, sta, arg);
 	ath10k_peer_assoc_h_rates(ar, vif, sta, arg);
 	ath10k_peer_assoc_h_ht(ar, vif, sta, arg);
+	ath10k_peer_assoc_h_phymode(ar, vif, sta, arg);
 	ath10k_peer_assoc_h_vht(ar, vif, sta, arg);
 	ath10k_peer_assoc_h_qos(ar, vif, sta, arg);
-	ath10k_peer_assoc_h_phymode(ar, vif, sta, arg);
 
 	return 0;
 }
@@ -4562,13 +4603,6 @@ static struct ieee80211_sta_vht_cap ath10k_create_vht_cap(struct ath10k *ar)
 
 		vht_cap.cap |= val;
 	}
-
-	/* Currently the firmware seems to be buggy, don't enable 80+80
-	 * mode until that's resolved.
-	 */
-	if ((ar->vht_cap_info & IEEE80211_VHT_CAP_SHORT_GI_160) &&
-	    (ar->vht_cap_info & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK) == 0)
-		vht_cap.cap |= IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160MHZ;
 
 	mcs_map = 0;
 	for (i = 0; i < 8; i++) {
@@ -8625,7 +8659,9 @@ static const struct ieee80211_iface_combination ath10k_10_4_if_comb[] = {
 		.radar_detect_widths =	BIT(NL80211_CHAN_WIDTH_20_NOHT) |
 					BIT(NL80211_CHAN_WIDTH_20) |
 					BIT(NL80211_CHAN_WIDTH_40) |
-					BIT(NL80211_CHAN_WIDTH_80),
+					BIT(NL80211_CHAN_WIDTH_80) |
+					BIT(NL80211_CHAN_WIDTH_80P80) |
+					BIT(NL80211_CHAN_WIDTH_160),
 #endif
 	},
 };
@@ -8643,7 +8679,9 @@ ieee80211_iface_combination ath10k_10_4_bcn_int_if_comb[] = {
 		.radar_detect_widths =  BIT(NL80211_CHAN_WIDTH_20_NOHT) |
 					BIT(NL80211_CHAN_WIDTH_20) |
 					BIT(NL80211_CHAN_WIDTH_40) |
-					BIT(NL80211_CHAN_WIDTH_80),
+					BIT(NL80211_CHAN_WIDTH_80) |
+					BIT(NL80211_CHAN_WIDTH_80P80) |
+					BIT(NL80211_CHAN_WIDTH_160),
 #endif
 	},
 };
