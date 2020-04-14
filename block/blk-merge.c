@@ -532,8 +532,7 @@ int blk_rq_map_sg(struct request_queue *q, struct request *rq,
 	else if (rq->bio)
 		nsegs = __blk_bios_map_sg(q, rq->bio, sglist, &sg);
 
-	if (unlikely(rq->rq_flags & RQF_COPY_USER) &&
-	    (blk_rq_bytes(rq) & q->dma_pad_mask)) {
+	if (blk_rq_bytes(rq) && (blk_rq_bytes(rq) & q->dma_pad_mask)) {
 		unsigned int pad_len =
 			(q->dma_pad_mask & ~blk_rq_bytes(rq)) + 1;
 

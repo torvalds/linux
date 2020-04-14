@@ -654,8 +654,6 @@ int blk_rq_map_user_iov(struct request_queue *q, struct request *rq,
 			bio = rq->bio;
 	} while (iov_iter_count(&i));
 
-	if (!bio_flagged(bio, BIO_USER_MAPPED))
-		rq->rq_flags |= RQF_COPY_USER;
 	return 0;
 
 unmap_rq:
@@ -731,7 +729,6 @@ int blk_rq_map_kern(struct request_queue *q, struct request *rq, void *kbuf,
 {
 	int reading = rq_data_dir(rq) == READ;
 	unsigned long addr = (unsigned long) kbuf;
-	int do_copy = 0;
 	struct bio *bio, *orig_bio;
 	int ret;
 
@@ -740,8 +737,7 @@ int blk_rq_map_kern(struct request_queue *q, struct request *rq, void *kbuf,
 	if (!len || !kbuf)
 		return -EINVAL;
 
-	do_copy = !blk_rq_aligned(q, addr, len) || object_is_on_stack(kbuf);
-	if (do_copy)
+	if (!blk_rq_aligned(q, addr, len) || object_is_on_stack(kbuf))
 		bio = bio_copy_kern(q, kbuf, len, gfp_mask, reading);
 	else
 		bio = bio_map_kern(q, kbuf, len, gfp_mask);
@@ -751,9 +747,6 @@ int blk_rq_map_kern(struct request_queue *q, struct request *rq, void *kbuf,
 
 	bio->bi_opf &= ~REQ_OP_MASK;
 	bio->bi_opf |= req_op(rq);
-
-	if (do_copy)
-		rq->rq_flags |= RQF_COPY_USER;
 
 	orig_bio = bio;
 	ret = blk_rq_append_bio(rq, &bio);
