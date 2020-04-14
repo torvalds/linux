@@ -320,14 +320,13 @@ void vnt_get_phy_field(struct vnt_private *priv, u32 frame_length,
 
 	i = tx_rate > RATE_54M ? RATE_54M : tx_rate;
 	phy->signal = vnt_phy_signal[i] | mask;
+	phy->service = 0x00;
 
 	if (pkt_type == PK_TYPE_11B) {
-		phy->service = 0x00;
 		if (ext_bit)
 			phy->service |= 0x80;
 		phy->len = cpu_to_le16((u16)count);
 	} else {
-		phy->service = 0x00;
 		phy->len = cpu_to_le16((u16)frame_length);
 	}
 }
