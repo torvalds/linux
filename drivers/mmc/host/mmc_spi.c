@@ -242,6 +242,7 @@ static char *maptype(struct mmc_command *cmd)
 static int mmc_spi_response_get(struct mmc_spi_host *host,
 		struct mmc_command *cmd, int cs_on)
 {
+	unsigned long timeout_ms;
 	u8	*cp = host->data->status;
 	u8	*end = cp + host->t.len;
 	int	value = 0;
@@ -340,9 +341,11 @@ checkstatus:
 		/* maybe we read all the busy tokens already */
 		while (cp < end && *cp == 0)
 			cp++;
-		if (cp == end)
-			mmc_spi_wait_unbusy(host,
-				msecs_to_jiffies(MMC_SPI_R1B_TIMEOUT_MS));
+		if (cp == end) {
+			timeout_ms = cmd->busy_timeout ? cmd->busy_timeout :
+				MMC_SPI_R1B_TIMEOUT_MS;
+			mmc_spi_wait_unbusy(host, msecs_to_jiffies(timeout_ms));
+		}
 		break;
 
 	/* SPI R2 == R1 + second status byte; SEND_STATUS
