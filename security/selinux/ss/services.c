@@ -1812,7 +1812,7 @@ static int security_compute_sid(struct selinux_state *state,
 	} else if (cladatum && cladatum->default_role == DEFAULT_TARGET) {
 		newcontext.role = tcontext->role;
 	} else {
-		if ((tclass == policydb->process_class) || (sock == true))
+		if ((tclass == policydb->process_class) || sock)
 			newcontext.role = scontext->role;
 		else
 			newcontext.role = OBJECT_R_VAL;
@@ -1824,7 +1824,7 @@ static int security_compute_sid(struct selinux_state *state,
 	} else if (cladatum && cladatum->default_type == DEFAULT_TARGET) {
 		newcontext.type = tcontext->type;
 	} else {
-		if ((tclass == policydb->process_class) || (sock == true)) {
+		if ((tclass == policydb->process_class) || sock) {
 			/* Use the type of process. */
 			newcontext.type = scontext->type;
 		} else {

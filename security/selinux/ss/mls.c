@@ -536,7 +536,7 @@ int mls_compute_sid(struct policydb *p,
 
 		/* Fallthrough */
 	case AVTAB_CHANGE:
-		if ((tclass == p->process_class) || (sock == true))
+		if ((tclass == p->process_class) || sock)
 			/* Use the process MLS attributes. */
 			return mls_context_cpy(newcontext, scontext);
 		else
