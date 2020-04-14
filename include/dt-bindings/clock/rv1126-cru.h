@@ -416,10 +416,10 @@
 #define SRST_PDBUS_HOLD_NIU1_A	23
 #define SRST_DBG_NIU_P		24
 #define SRST_PDCORE_NIIU_H	25
-#define SRST_SCR1_NIU		26
+#define SRST_MUC_NIU		26
 #define SRST_DCF_A		29
 #define SRST_DCF_P		30
-#define SRST_BUSMEM_A		31
+#define SRST_SYSTEM_SRAM_A	31
 
 /* cru_softrst_con2 */
 #define SRST_I2C1_P		32
@@ -432,7 +432,7 @@
 #define SRST_I2C5		39
 #define SRST_SPI1_P		40
 #define SRST_SPI1		41
-#define SRST_SCR1_CORE		42
+#define SRST_MCU_CORE		42
 #define SRST_PWM2_P		44
 #define SRST_PWM2		45
 #define SRST_SPINLOCK_A		46
@@ -595,8 +595,7 @@
 #define SRST_DDR_MSCH		199
 #define SRST_DDR_DFICTL		202
 #define SRST_DDR_STANDBY	203
-#define SRST_NPUSCR1_CORE	204
-#define SRST_NPUSCR1_NIU	205
+#define SRST_NPUMCU_NIU		205
 #define SRST_DDRPHY_P		206
 #define SRST_DDRPHY		207
 
@@ -612,7 +611,6 @@
 #define SRST_NPU_TSADC_P	216
 #define SRST_NPU_TSADC		217
 #define SRST_NPU_TSADCPHY	218
-#define SRST_NPU_MAILBOX_P	219
 #define SRST_CIFLITE_A		220
 #define SRST_CIFLITE_H		221
 #define SRST_CIFLITE_D		222
