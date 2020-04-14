@@ -116,6 +116,17 @@ config BATTERY_CPCAP
 	  Say Y here to enable support for battery on Motorola
 	  phones and tablets such as droid 4.
 
+config BATTERY_CW2015
+	tristate "CW2015 Battery driver"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say Y here to enable support for the cellwise cw2015
+	  battery fuel gauge (used in the Pinebook Pro & others)
+
+	  This driver can also be built as a module. If so, the module will be
+	  called cw2015_battery.
+
 config BATTERY_DS2760
 	tristate "DS2760 battery driver (HP iPAQ & others)"
 	depends on W1

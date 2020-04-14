@@ -3932,6 +3932,12 @@ F:	arch/powerpc/include/uapi/asm/spu*.h
 F:	arch/powerpc/oprofile/*cell*
 F:	arch/powerpc/platforms/cell/
 
+CELLWISE CW2015 BATTERY DRIVER
+M:	Tobias Schrammm <t.schramm@manjaro.org>
+S:	Maintained
+F:	Documentation/devicetree/bindings/power/supply/cw2015_battery.yaml
+F:	drivers/power/supply/cw2015_battery.c
+
 CEPH COMMON CODE (LIBCEPH)
 M:	Ilya Dryomov <idryomov@gmail.com>
 M:	Jeff Layton <jlayton@kernel.org>
