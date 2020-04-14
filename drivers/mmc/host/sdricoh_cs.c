@@ -57,10 +57,8 @@ static unsigned int switchlocked;
 #define STATUS_BUSY              0x40000000
 
 /* timeouts */
-#define INIT_TIMEOUT      100
 #define CMD_TIMEOUT       100000
 #define TRANSFER_TIMEOUT  100000
-#define BUSY_TIMEOUT      32767
 
 /* list of supported pcmcia devices */
 static const struct pcmcia_device_id pcmcia_ids[] = {
