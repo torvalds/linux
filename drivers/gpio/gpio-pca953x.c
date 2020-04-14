@@ -115,6 +115,7 @@ MODULE_DEVICE_TABLE(acpi, pca953x_acpi_ids);
 
 #define MAX_BANK 5
 #define BANK_SZ 8
+#define BANK_SFT 3 /* ilog2(BANK_SZ) */
 #define MAX_LINE	(MAX_BANK * BANK_SZ)
 
 #define NBANK(chip) DIV_ROUND_UP(chip->gpio_chip.ngpio, BANK_SZ)
@@ -466,6 +467,41 @@ static int pca953x_gpio_get_direction(struct gpio_chip *gc, unsigned off)
 	return GPIO_LINE_DIRECTION_OUT;
 }
 
+static int pca953x_gpio_get_multiple(struct gpio_chip *gc,
+				      unsigned long *mask, unsigned long *bits)
+{
+	struct pca953x_chip *chip = gpiochip_get_data(gc);
+	unsigned int reg_val;
+	int offset, value, i, ret = 0;
+	u8 inreg;
+
+	/* Force offset outside the range of i so that
+	 * at least the first relevant register is read
+	 */
+	offset = gc->ngpio;
+	for_each_set_bit(i, mask, gc->ngpio) {
+		/* whenever i goes into a new bank update inreg
+		 * and read the register
+		 */
+		if ((offset >> BANK_SFT) != (i >> BANK_SFT)) {
+			offset = i;
+			inreg = pca953x_recalc_addr(chip, chip->regs->input,
+						    offset, true, false);
+			mutex_lock(&chip->i2c_lock);
+			ret = regmap_read(chip->regmap, inreg, &reg_val);
+			mutex_unlock(&chip->i2c_lock);
+			if (ret < 0)
+				return ret;
+		}
+		/* reg_val is relative to the last read byte,
+		 * so only shift the relative bits
+		 */
+		value = (reg_val >> (i % 8)) & 0x01;
+		__assign_bit(i, bits, value);
+	}
+	return ret;
+}
+
 static void pca953x_gpio_set_multiple(struct gpio_chip *gc,
 				      unsigned long *mask, unsigned long *bits)
 {
@@ -551,6 +587,7 @@ static void pca953x_setup_gpio(struct pca953x_chip *chip, int gpios)
 	gc->get = pca953x_gpio_get_value;
 	gc->set = pca953x_gpio_set_value;
 	gc->get_direction = pca953x_gpio_get_direction;
+	gc->get_multiple = pca953x_gpio_get_multiple;
 	gc->set_multiple = pca953x_gpio_set_multiple;
 	gc->set_config = pca953x_gpio_set_config;
 	gc->can_sleep = true;
