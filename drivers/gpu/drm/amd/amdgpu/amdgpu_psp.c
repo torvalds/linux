@@ -42,6 +42,8 @@ static void psp_set_funcs(struct amdgpu_device *adev);
 static int psp_sysfs_init(struct amdgpu_device *adev);
 static void psp_sysfs_fini(struct amdgpu_device *adev);
 
+static int psp_load_smu_fw(struct psp_context *psp);
+
 /*
  * Due to DF Cstate management centralized to PMFW, the firmware
  * loading sequence will be updated as below:
@@ -1175,16 +1177,20 @@ static int psp_hw_start(struct psp_context *psp)
 	}
 
 	/*
-	 * For those ASICs with DF Cstate management centralized
+	 * For ASICs with DF Cstate management centralized
 	 * to PMFW, TMR setup should be performed after PMFW
 	 * loaded and before other non-psp firmware loaded.
 	 */
-	if (!psp->pmfw_centralized_cstate_management) {
-		ret = psp_tmr_load(psp);
-		if (ret) {
-			DRM_ERROR("PSP load tmr failed!\n");
+	if (psp->pmfw_centralized_cstate_management) {
+		ret = psp_load_smu_fw(psp);
+		if (ret)
 			return ret;
-		}
+	}
+
+	ret = psp_tmr_load(psp);
+	if (ret) {
+		DRM_ERROR("PSP load tmr failed!\n");
+		return ret;
 	}
 
 	return 0;
@@ -1361,7 +1367,7 @@ static int psp_prep_load_ip_fw_cmd_buf(struct amdgpu_firmware_info *ucode,
 }
 
 static int psp_execute_np_fw_load(struct psp_context *psp,
-			       struct amdgpu_firmware_info *ucode)
+			          struct amdgpu_firmware_info *ucode)
 {
 	int ret = 0;
 
@@ -1375,64 +1381,86 @@ static int psp_execute_np_fw_load(struct psp_context *psp,
 	return ret;
 }
 
+static int psp_load_smu_fw(struct psp_context *psp)
+{
+	int ret;
+	struct amdgpu_firmware_info *ucode =
+			&psp->adev->firmware.ucode[AMDGPU_UCODE_ID_SMC];
+
+	if (!ucode->fw || amdgpu_sriov_vf(psp->adev))
+		return 0;
+
+	ret = psp_execute_np_fw_load(psp, ucode);
+
+	if (ret)
+		DRM_ERROR("PSP load smu failed!\n");
+
+	return ret;
+}
+
+static bool fw_load_skip_check(struct psp_context *psp,
+			       struct amdgpu_firmware_info *ucode)
+{
+	if (!ucode->fw)
+		return true;
+
+	if (ucode->ucode_id == AMDGPU_UCODE_ID_SMC &&
+	    (psp_smu_reload_quirk(psp) ||
+	     psp->autoload_supported ||
+	     psp->pmfw_centralized_cstate_management))
+		return true;
+
+	if (amdgpu_sriov_vf(psp->adev) &&
+	   (ucode->ucode_id == AMDGPU_UCODE_ID_SDMA0
+	    || ucode->ucode_id == AMDGPU_UCODE_ID_SDMA1
+	    || ucode->ucode_id == AMDGPU_UCODE_ID_SDMA2
+	    || ucode->ucode_id == AMDGPU_UCODE_ID_SDMA3
+	    || ucode->ucode_id == AMDGPU_UCODE_ID_SDMA4
+	    || ucode->ucode_id == AMDGPU_UCODE_ID_SDMA5
+	    || ucode->ucode_id == AMDGPU_UCODE_ID_SDMA6
+	    || ucode->ucode_id == AMDGPU_UCODE_ID_SDMA7
+	    || ucode->ucode_id == AMDGPU_UCODE_ID_RLC_G
+	    || ucode->ucode_id == AMDGPU_UCODE_ID_RLC_RESTORE_LIST_CNTL
+	    || ucode->ucode_id == AMDGPU_UCODE_ID_RLC_RESTORE_LIST_GPM_MEM
+	    || ucode->ucode_id == AMDGPU_UCODE_ID_RLC_RESTORE_LIST_SRM_MEM
+	    || ucode->ucode_id == AMDGPU_UCODE_ID_SMC))
+		/*skip ucode loading in SRIOV VF */
+		return true;
+
+	if (psp->autoload_supported &&
+	    (ucode->ucode_id == AMDGPU_UCODE_ID_CP_MEC1_JT ||
+	     ucode->ucode_id == AMDGPU_UCODE_ID_CP_MEC2_JT))
+		/* skip mec JT when autoload is enabled */
+		return true;
+
+	return false;
+}
+
 static int psp_np_fw_load(struct psp_context *psp)
 {
 	int i, ret;
 	struct amdgpu_firmware_info *ucode;
 	struct amdgpu_device* adev = psp->adev;
 
-	if (psp->autoload_supported ||
-	    psp->pmfw_centralized_cstate_management) {
-		ucode = &adev->firmware.ucode[AMDGPU_UCODE_ID_SMC];
-		if (!ucode->fw || amdgpu_sriov_vf(adev))
-			goto out;
-
-		ret = psp_execute_np_fw_load(psp, ucode);
+	if (psp->autoload_supported &&
+	    !psp->pmfw_centralized_cstate_management) {
+		ret = psp_load_smu_fw(psp);
 		if (ret)
 			return ret;
 	}
 
-	if (psp->pmfw_centralized_cstate_management) {
-		ret = psp_tmr_load(psp);
-		if (ret) {
-			DRM_ERROR("PSP load tmr failed!\n");
-			return ret;
-		}
-	}
-
-out:
 	for (i = 0; i < adev->firmware.max_ucodes; i++) {
 		ucode = &adev->firmware.ucode[i];
-		if (!ucode->fw)
-			continue;
 
 		if (ucode->ucode_id == AMDGPU_UCODE_ID_SMC &&
-		    (psp_smu_reload_quirk(psp) ||
-		     psp->autoload_supported ||
-		     psp->pmfw_centralized_cstate_management))
+		    !fw_load_skip_check(psp, ucode)) {
+			ret = psp_load_smu_fw(psp);
+			if (ret)
+				return ret;
 			continue;
+		}
 
-		if (amdgpu_sriov_vf(adev) &&
-		   (ucode->ucode_id == AMDGPU_UCODE_ID_SDMA0
-		    || ucode->ucode_id == AMDGPU_UCODE_ID_SDMA1
-		    || ucode->ucode_id == AMDGPU_UCODE_ID_SDMA2
-		    || ucode->ucode_id == AMDGPU_UCODE_ID_SDMA3
-		    || ucode->ucode_id == AMDGPU_UCODE_ID_SDMA4
-		    || ucode->ucode_id == AMDGPU_UCODE_ID_SDMA5
-		    || ucode->ucode_id == AMDGPU_UCODE_ID_SDMA6
-		    || ucode->ucode_id == AMDGPU_UCODE_ID_SDMA7
-                    || ucode->ucode_id == AMDGPU_UCODE_ID_RLC_G
-	            || ucode->ucode_id == AMDGPU_UCODE_ID_RLC_RESTORE_LIST_CNTL
-	            || ucode->ucode_id == AMDGPU_UCODE_ID_RLC_RESTORE_LIST_GPM_MEM
-	            || ucode->ucode_id == AMDGPU_UCODE_ID_RLC_RESTORE_LIST_SRM_MEM
-	            || ucode->ucode_id == AMDGPU_UCODE_ID_SMC))
-			/*skip ucode loading in SRIOV VF */
-			continue;
-
-		if (psp->autoload_supported &&
-		    (ucode->ucode_id == AMDGPU_UCODE_ID_CP_MEC1_JT ||
-		     ucode->ucode_id == AMDGPU_UCODE_ID_CP_MEC2_JT))
-			/* skip mec JT when autoload is enabled */
+		if (fw_load_skip_check(psp, ucode))
 			continue;
 
 		psp_print_fw_hdr(psp, ucode);
