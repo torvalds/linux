@@ -957,8 +957,8 @@ static inline bool __req_need_defer(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 
-	return req->sequence != ctx->cached_cq_tail + ctx->cached_sq_dropped
-					+ atomic_read(&ctx->cached_cq_overflow);
+	return req->sequence != ctx->cached_cq_tail
+				+ atomic_read(&ctx->cached_cq_overflow);
 }
 
 static inline bool req_need_defer(struct io_kiocb *req)
@@ -5801,7 +5801,7 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	 * it can be used to mark the position of the first IO in the
 	 * link list.
 	 */
-	req->sequence = ctx->cached_sq_head;
+	req->sequence = ctx->cached_sq_head - ctx->cached_sq_dropped;
 	req->opcode = READ_ONCE(sqe->opcode);
 	req->user_data = READ_ONCE(sqe->user_data);
 	req->io = NULL;
