@@ -411,25 +411,36 @@ static int create_codec_dai_name(struct device *dev,
 
 static int set_codec_init_func(const struct snd_soc_acpi_link_adr *link,
 			       struct snd_soc_dai_link *dai_links,
-			       bool playback)
+			       bool playback, int group_id)
 {
 	int i;
 
-	for (i = 0; i < link->num_adr; i++) {
-		unsigned int part_id;
-		int codec_index;
+	do {
+		/*
+		 * Initialize the codec. If codec is part of an aggregated
+		 * group (group_id>0), initialize all codecs belonging to
+		 * same group.
+		 */
+		for (i = 0; i < link->num_adr; i++) {
+			unsigned int part_id;
+			int codec_index;
 
-		part_id = SDW_PART_ID(link->adr_d[i].adr);
-		codec_index = find_codec_info_part(part_id);
+			part_id = SDW_PART_ID(link->adr_d[i].adr);
+			codec_index = find_codec_info_part(part_id);
 
-		if (codec_index < 0)
-			return codec_index;
-
-		if (codec_info_list[codec_index].init)
-			codec_info_list[codec_index].init(link, dai_links,
-						 &codec_info_list[codec_index],
-						 playback);
-	}
+			if (codec_index < 0)
+				return codec_index;
+			/* The group_id is > 0 iff the codec is aggregated */
+			if (link->adr_d[i].endpoints->group_id != group_id)
+				continue;
+			if (codec_info_list[codec_index].init)
+				codec_info_list[codec_index].init(link,
+						dai_links,
+						&codec_info_list[codec_index],
+						playback);
+		}
+		link++;
+	} while (link->mask && group_id);
 
 	return 0;
 }
@@ -623,7 +634,7 @@ static int create_sdw_dailink(struct device *dev, int *be_index,
 			      NULL, &sdw_ops);
 
 		ret = set_codec_init_func(link, dai_links + (*be_index)++,
-					  playback);
+					  playback, group_id);
 		if (ret < 0) {
 			dev_err(dev, "failed to init codec %d", codec_index);
 			return ret;
