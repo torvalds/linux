@@ -22,15 +22,9 @@ static inline void arch_atomic_##op(int i, atomic_t *v)			\
 }									\
 
 #define ATOMIC_OP_RETURN(op, c_op, asm_op)				\
-static inline int arch_atomic_##op##_return(int i, atomic_t *v)		\
+static inline int arch_atomic_##op##_return_relaxed(int i, atomic_t *v)	\
 {									\
 	unsigned int val;						\
-									\
-	/*								\
-	 * Explicit full memory barrier needed before/after as		\
-	 * LLOCK/SCOND themselves don't provide any such semantics	\
-	 */								\
-	smp_mb();							\
 									\
 	__asm__ __volatile__(						\
 	"1:	llock   %[val], [%[ctr]]		\n"		\
@@ -42,21 +36,16 @@ static inline int arch_atomic_##op##_return(int i, atomic_t *v)		\
 	  [i]	"ir"	(i)						\
 	: "cc");							\
 									\
-	smp_mb();							\
-									\
 	return val;							\
 }
 
+#define arch_atomic_add_return_relaxed		arch_atomic_add_return_relaxed
+#define arch_atomic_sub_return_relaxed		arch_atomic_sub_return_relaxed
+
 #define ATOMIC_FETCH_OP(op, c_op, asm_op)				\
-static inline int arch_atomic_fetch_##op(int i, atomic_t *v)		\
+static inline int arch_atomic_fetch_##op##_relaxed(int i, atomic_t *v)	\
 {									\
 	unsigned int val, orig;						\
-									\
-	/*								\
-	 * Explicit full memory barrier needed before/after as		\
-	 * LLOCK/SCOND themselves don't provide any such semantics	\
-	 */								\
-	smp_mb();							\
 									\
 	__asm__ __volatile__(						\
 	"1:	llock   %[orig], [%[ctr]]		\n"		\
@@ -69,10 +58,16 @@ static inline int arch_atomic_fetch_##op(int i, atomic_t *v)		\
 	  [i]	"ir"	(i)						\
 	: "cc");							\
 									\
-	smp_mb();							\
-									\
 	return orig;							\
 }
+
+#define arch_atomic_fetch_add_relaxed		arch_atomic_fetch_add_relaxed
+#define arch_atomic_fetch_sub_relaxed		arch_atomic_fetch_sub_relaxed
+
+#define arch_atomic_fetch_and_relaxed		arch_atomic_fetch_and_relaxed
+#define arch_atomic_fetch_andnot_relaxed	arch_atomic_fetch_andnot_relaxed
+#define arch_atomic_fetch_or_relaxed		arch_atomic_fetch_or_relaxed
+#define arch_atomic_fetch_xor_relaxed		arch_atomic_fetch_xor_relaxed
 
 #define ATOMIC_OPS(op, c_op, asm_op)					\
 	ATOMIC_OP(op, c_op, asm_op)					\
@@ -93,7 +88,6 @@ ATOMIC_OPS(or, |=, or)
 ATOMIC_OPS(xor, ^=, xor)
 
 #define arch_atomic_andnot		arch_atomic_andnot
-#define arch_atomic_fetch_andnot	arch_atomic_fetch_andnot
 
 #undef ATOMIC_OPS
 #undef ATOMIC_FETCH_OP
