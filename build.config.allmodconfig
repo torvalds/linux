@@ -6,8 +6,6 @@ function update_config() {
     ${KERNEL_DIR}/scripts/config --file ${OUT_DIR}/.config \
          -d TEST_KMOD  \
          -d CPU_BIG_ENDIAN \
-         -d STM \
-         -d TEST_MEMCAT_P \
          -e UNWINDER_FRAME_POINTER \
 
     (cd ${OUT_DIR} && \
