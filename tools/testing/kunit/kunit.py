@@ -32,8 +32,8 @@ KunitExecRequest = namedtuple('KunitExecRequest',
 KunitParseRequest = namedtuple('KunitParseRequest',
 			       ['raw_output', 'input_data'])
 KunitRequest = namedtuple('KunitRequest', ['raw_output','timeout', 'jobs',
-					   'build_dir', 'defconfig',
-					   'alltests', 'make_options'])
+					   'build_dir', 'alltests',
+					   'make_options'])
 
 KernelDirectoryPath = sys.argv[0].split('tools/testing/kunit/')[0]
 
@@ -60,8 +60,7 @@ def config_tests(linux: kunit_kernel.LinuxSourceTree,
 	kunit_parser.print_with_timestamp('Configuring KUnit Kernel ...')
 
 	config_start = time.time()
-	if request.defconfig:
-		create_default_kunitconfig()
+	create_default_kunitconfig()
 	success = linux.build_reconfig(request.build_dir, request.make_options)
 	config_end = time.time()
 	if not success:
@@ -177,11 +176,6 @@ def add_common_opts(parser):
 			    help='Run all KUnit tests through allyesconfig',
 			    action='store_true')
 
-def add_config_opts(parser):
-	parser.add_argument('--defconfig',
-			    help='Uses a default .kunitconfig.',
-			    action='store_true')
-
 def add_build_opts(parser):
 	parser.add_argument('--jobs',
 			    help='As in the make command, "Specifies  the number of '
@@ -210,7 +204,6 @@ def main(argv, linux=None):
 	# The 'run' command will config, build, exec, and parse in one go.
 	run_parser = subparser.add_parser('run', help='Runs KUnit tests.')
 	add_common_opts(run_parser)
-	add_config_opts(run_parser)
 	add_build_opts(run_parser)
 	add_exec_opts(run_parser)
 	add_parse_opts(run_parser)
@@ -258,7 +251,6 @@ def main(argv, linux=None):
 				       cli_args.timeout,
 				       cli_args.jobs,
 				       cli_args.build_dir,
-				       cli_args.defconfig,
 				       cli_args.alltests,
 				       cli_args.make_options)
 		result = run_tests(linux, request)
