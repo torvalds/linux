@@ -265,9 +265,9 @@ static int pch_irq_type(struct irq_data *d, unsigned int type)
 	iowrite32(im | (val << (im_pos * 4)), im_reg);
 
 	/* And the handler */
-	if (type & (IRQ_TYPE_LEVEL_LOW | IRQ_TYPE_LEVEL_HIGH))
+	if (type & IRQ_TYPE_LEVEL_MASK)
 		irq_set_handler_locked(d, handle_level_irq);
-	else if (type & (IRQ_TYPE_EDGE_FALLING | IRQ_TYPE_EDGE_RISING))
+	else if (type & IRQ_TYPE_EDGE_BOTH)
 		irq_set_handler_locked(d, handle_edge_irq);
 
 	spin_unlock_irqrestore(&chip->spinlock, flags);
