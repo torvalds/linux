@@ -5125,7 +5125,7 @@ X:	Documentation/ABI/
 X:	Documentation/devicetree/
 X:	Documentation/firmware-guide/acpi/
 X:	Documentation/i2c/
-X:	Documentation/media/
+X:	Documentation/admin-guide/media/
 X:	Documentation/userspace-api/media/
 X:	Documentation/driver-api/media/
 X:	Documentation/power/
@@ -10609,7 +10609,7 @@ W:	https://linuxtv.org
 Q:	http://patchwork.kernel.org/project/linux-media/list/
 T:	git git://linuxtv.org/media_tree.git
 F:	Documentation/devicetree/bindings/media/
-F:	Documentation/media/
+X:	Documentation/admin-guide/media/
 F:	Documentation/userspace-api/media/
 F:	Documentation/driver-api/media/
 F:	drivers/media/
