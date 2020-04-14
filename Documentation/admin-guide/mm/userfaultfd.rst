@@ -79,7 +79,7 @@ or shared memory need to set the corresponding flag in
 If the userland desires to receive notifications for events other than
 page faults, it has to verify that ``uffdio_api.features`` has appropriate
 ``UFFD_FEATURE_EVENT_*`` bits set. These events are described in more
-detail below in "Non-cooperative userfaultfd" section.
+detail below in `Non-cooperative userfaultfd`_ section.
 
 Once the ``userfaultfd`` has been enabled the ``UFFDIO_REGISTER`` ioctl should
 be invoked (if present in the returned ``uffdio_api.ioctls`` bitmask) to
