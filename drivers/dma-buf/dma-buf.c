@@ -34,6 +34,9 @@
 #include <linux/poll.h>
 #include <linux/reservation.h>
 #include <linux/mm.h>
+#include <linux/sched/signal.h>
+#include <linux/fdtable.h>
+#include <linux/list_sort.h>
 #include <linux/mount.h>
 
 #include <uapi/linux/dma-buf.h>
