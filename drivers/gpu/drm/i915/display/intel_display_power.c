@@ -380,16 +380,16 @@ static void gen9_wait_for_power_well_fuses(struct drm_i915_private *dev_priv,
 					  SKL_FUSE_PG_DIST_STATUS(pg), 1));
 }
 
-static void hsw_power_well_enable(struct drm_i915_private *dev_priv,
-				  struct i915_power_well *power_well)
+static void hsw_power_well_enable_prepare(struct drm_i915_private *dev_priv,
+					  struct i915_power_well *power_well)
 {
 	const struct i915_power_well_regs *regs = power_well->desc->hsw.regs;
 	int pw_idx = power_well->desc->hsw.idx;
-	bool wait_fuses = power_well->desc->hsw.has_fuses;
-	enum skl_power_gate uninitialized_var(pg);
 	u32 val;
 
-	if (wait_fuses) {
+	if (power_well->desc->hsw.has_fuses) {
+		enum skl_power_gate pg;
+
 		pg = INTEL_GEN(dev_priv) >= 11 ? ICL_PW_CTL_IDX_TO_PG(pw_idx) :
 						 SKL_PW_CTL_IDX_TO_PG(pw_idx);
 		/*
@@ -406,23 +406,44 @@ static void hsw_power_well_enable(struct drm_i915_private *dev_priv,
 	val = intel_de_read(dev_priv, regs->driver);
 	intel_de_write(dev_priv, regs->driver,
 		       val | HSW_PWR_WELL_CTL_REQ(pw_idx));
+}
+
+static void hsw_power_well_enable_complete(struct drm_i915_private *dev_priv,
+					   struct i915_power_well *power_well)
+{
+	int pw_idx = power_well->desc->hsw.idx;
+
 	hsw_wait_for_power_well_enable(dev_priv, power_well);
 
 	/* Display WA #1178: cnl */
 	if (IS_CANNONLAKE(dev_priv) &&
 	    pw_idx >= GLK_PW_CTL_IDX_AUX_B &&
 	    pw_idx <= CNL_PW_CTL_IDX_AUX_F) {
+		u32 val;
+
 		val = intel_de_read(dev_priv, CNL_AUX_ANAOVRD1(pw_idx));
 		val |= CNL_AUX_ANAOVRD1_ENABLE | CNL_AUX_ANAOVRD1_LDO_BYPASS;
 		intel_de_write(dev_priv, CNL_AUX_ANAOVRD1(pw_idx), val);
 	}
 
-	if (wait_fuses)
+	if (power_well->desc->hsw.has_fuses) {
+		enum skl_power_gate pg;
+
+		pg = INTEL_GEN(dev_priv) >= 11 ? ICL_PW_CTL_IDX_TO_PG(pw_idx) :
+						 SKL_PW_CTL_IDX_TO_PG(pw_idx);
 		gen9_wait_for_power_well_fuses(dev_priv, pg);
+	}
 
 	hsw_power_well_post_enable(dev_priv,
 				   power_well->desc->hsw.irq_pipe_mask,
 				   power_well->desc->hsw.has_vga);
+}
+
+static void hsw_power_well_enable(struct drm_i915_private *dev_priv,
+				  struct i915_power_well *power_well)
+{
+	hsw_power_well_enable_prepare(dev_priv, power_well);
+	hsw_power_well_enable_complete(dev_priv, power_well);
 }
 
 static void hsw_power_well_disable(struct drm_i915_private *dev_priv,
@@ -570,7 +591,11 @@ icl_tc_phy_aux_power_well_enable(struct drm_i915_private *dev_priv,
 		val |= DP_AUX_CH_CTL_TBT_IO;
 	intel_de_write(dev_priv, DP_AUX_CH_CTL(aux_ch), val);
 
-	hsw_power_well_enable(dev_priv, power_well);
+	hsw_power_well_enable_prepare(dev_priv, power_well);
+
+	/* TODO ICL TC cold handling */
+
+	hsw_power_well_enable_complete(dev_priv, power_well);
 
 	if (INTEL_GEN(dev_priv) >= 12 && !power_well->desc->hsw.is_tc_tbt) {
 		enum tc_port tc_port;
