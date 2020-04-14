@@ -196,6 +196,21 @@ static const struct vnt_threshold vt3342_vnt_threshold[] = {
 	{41, 0xff, 0x00}
 };
 
+static const u8 vnt_phy_signal[] = {
+	0x00,	/* RATE_1M  */
+	0x01,	/* RATE_2M  */
+	0x02,	/* RATE_5M  */
+	0x03,	/* RATE_11M */
+	0x8b,	/* RATE_6M  */
+	0x8f,	/* RATE_9M  */
+	0x8a,	/* RATE_12M */
+	0x8e,	/* RATE_18M */
+	0x89,	/* RATE_24M */
+	0x8d,	/* RATE_36M */
+	0x88,	/* RATE_48M */
+	0x8c	/* RATE_54M */
+};
+
 /*
  * Description: Calculate data frame transmitting time
  *
@@ -264,6 +279,8 @@ void vnt_get_phy_field(struct vnt_private *priv, u32 frame_length,
 	u32 count = 0;
 	u32 tmp;
 	int ext_bit;
+	int i;
+	u8 mask = 0;
 	u8 preamble_type = priv->preamble_type;
 
 	bit_count = frame_length * 8;
@@ -272,27 +289,12 @@ void vnt_get_phy_field(struct vnt_private *priv, u32 frame_length,
 	switch (tx_rate) {
 	case RATE_1M:
 		count = bit_count;
-
-		phy->signal = 0x00;
-
 		break;
 	case RATE_2M:
 		count = bit_count / 2;
-
-		if (preamble_type == PREAMBLE_SHORT)
-			phy->signal = 0x09;
-		else
-			phy->signal = 0x01;
-
 		break;
 	case RATE_5M:
 		count = DIV_ROUND_UP(bit_count * 10, 55);
-
-		if (preamble_type == PREAMBLE_SHORT)
-			phy->signal = 0x0a;
-		else
-			phy->signal = 0x02;
-
 		break;
 	case RATE_11M:
 		count = bit_count / 11;
@@ -305,74 +307,19 @@ void vnt_get_phy_field(struct vnt_private *priv, u32 frame_length,
 				ext_bit = true;
 		}
 
-		if (preamble_type == PREAMBLE_SHORT)
-			phy->signal = 0x0b;
-		else
-			phy->signal = 0x03;
-
-		break;
-	case RATE_6M:
-		if (pkt_type == PK_TYPE_11A)
-			phy->signal = 0x9b;
-		else
-			phy->signal = 0x8b;
-
-		break;
-	case RATE_9M:
-		if (pkt_type == PK_TYPE_11A)
-			phy->signal = 0x9f;
-		else
-			phy->signal = 0x8f;
-
-		break;
-	case RATE_12M:
-		if (pkt_type == PK_TYPE_11A)
-			phy->signal = 0x9a;
-		else
-			phy->signal = 0x8a;
-
-		break;
-	case RATE_18M:
-		if (pkt_type == PK_TYPE_11A)
-			phy->signal = 0x9e;
-		else
-			phy->signal = 0x8e;
-
-		break;
-	case RATE_24M:
-		if (pkt_type == PK_TYPE_11A)
-			phy->signal = 0x99;
-		else
-			phy->signal = 0x89;
-
-		break;
-	case RATE_36M:
-		if (pkt_type == PK_TYPE_11A)
-			phy->signal = 0x9d;
-		else
-			phy->signal = 0x8d;
-
-		break;
-	case RATE_48M:
-		if (pkt_type == PK_TYPE_11A)
-			phy->signal = 0x98;
-		else
-			phy->signal = 0x88;
-
-		break;
-	case RATE_54M:
-		if (pkt_type == PK_TYPE_11A)
-			phy->signal = 0x9c;
-		else
-			phy->signal = 0x8c;
-		break;
-	default:
-		if (pkt_type == PK_TYPE_11A)
-			phy->signal = 0x9c;
-		else
-			phy->signal = 0x8c;
 		break;
 	}
+
+	if (tx_rate > RATE_11M) {
+		if (pkt_type == PK_TYPE_11A)
+			mask = BIT(4);
+	} else if (tx_rate > RATE_1M) {
+		if (preamble_type == PREAMBLE_SHORT)
+			mask = BIT(3);
+	}
+
+	i = tx_rate > RATE_54M ? RATE_54M : tx_rate;
+	phy->signal = vnt_phy_signal[i] | mask;
 
 	if (pkt_type == PK_TYPE_11B) {
 		phy->service = 0x00;
