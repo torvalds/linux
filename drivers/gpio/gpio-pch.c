@@ -2,6 +2,7 @@
 /*
  * Copyright (C) 2011 LAPIS Semiconductor Co., Ltd.
  */
+#include <linux/bits.h>
 #include <linux/gpio/driver.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
@@ -11,11 +12,11 @@
 #include <linux/slab.h>
 
 #define PCH_EDGE_FALLING	0
-#define PCH_EDGE_RISING		BIT(0)
-#define PCH_LEVEL_L		BIT(1)
-#define PCH_LEVEL_H		(BIT(0) | BIT(1))
-#define PCH_EDGE_BOTH		BIT(2)
-#define PCH_IM_MASK		(BIT(0) | BIT(1) | BIT(2))
+#define PCH_EDGE_RISING		1
+#define PCH_LEVEL_L		2
+#define PCH_LEVEL_H		3
+#define PCH_EDGE_BOTH		4
+#define PCH_IM_MASK		GENMASK(2, 0)
 
 #define PCH_IRQ_BASE		24
 
@@ -103,9 +104,9 @@ static void pch_gpio_set(struct gpio_chip *gpio, unsigned nr, int val)
 	spin_lock_irqsave(&chip->spinlock, flags);
 	reg_val = ioread32(&chip->reg->po);
 	if (val)
-		reg_val |= (1 << nr);
+		reg_val |= BIT(nr);
 	else
-		reg_val &= ~(1 << nr);
+		reg_val &= ~BIT(nr);
 
 	iowrite32(reg_val, &chip->reg->po);
 	spin_unlock_irqrestore(&chip->spinlock, flags);
@@ -115,7 +116,7 @@ static int pch_gpio_get(struct gpio_chip *gpio, unsigned nr)
 {
 	struct pch_gpio *chip =	gpiochip_get_data(gpio);
 
-	return (ioread32(&chip->reg->pi) >> nr) & 1;
+	return !!(ioread32(&chip->reg->pi) & BIT(nr));
 }
 
 static int pch_gpio_direction_output(struct gpio_chip *gpio, unsigned nr,
@@ -130,13 +131,14 @@ static int pch_gpio_direction_output(struct gpio_chip *gpio, unsigned nr,
 
 	reg_val = ioread32(&chip->reg->po);
 	if (val)
-		reg_val |= (1 << nr);
+		reg_val |= BIT(nr);
 	else
-		reg_val &= ~(1 << nr);
+		reg_val &= ~BIT(nr);
 	iowrite32(reg_val, &chip->reg->po);
 
-	pm = ioread32(&chip->reg->pm) & ((1 << gpio_pins[chip->ioh]) - 1);
-	pm |= (1 << nr);
+	pm = ioread32(&chip->reg->pm);
+	pm &= BIT(gpio_pins[chip->ioh]) - 1;
+	pm |= BIT(nr);
 	iowrite32(pm, &chip->reg->pm);
 
 	spin_unlock_irqrestore(&chip->spinlock, flags);
@@ -151,8 +153,9 @@ static int pch_gpio_direction_input(struct gpio_chip *gpio, unsigned nr)
 	unsigned long flags;
 
 	spin_lock_irqsave(&chip->spinlock, flags);
-	pm = ioread32(&chip->reg->pm) & ((1 << gpio_pins[chip->ioh]) - 1);
-	pm &= ~(1 << nr);
+	pm = ioread32(&chip->reg->pm);
+	pm &= BIT(gpio_pins[chip->ioh]) - 1;
+	pm &= ~BIT(nr);
 	iowrite32(pm, &chip->reg->pm);
 	spin_unlock_irqrestore(&chip->spinlock, flags);
 
@@ -277,7 +280,7 @@ static void pch_irq_unmask(struct irq_data *d)
 	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
 	struct pch_gpio *chip = gc->private;
 
-	iowrite32(1 << (d->irq - chip->irq_base), &chip->reg->imaskclr);
+	iowrite32(BIT(d->irq - chip->irq_base), &chip->reg->imaskclr);
 }
 
 static void pch_irq_mask(struct irq_data *d)
@@ -285,7 +288,7 @@ static void pch_irq_mask(struct irq_data *d)
 	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
 	struct pch_gpio *chip = gc->private;
 
-	iowrite32(1 << (d->irq - chip->irq_base), &chip->reg->imask);
+	iowrite32(BIT(d->irq - chip->irq_base), &chip->reg->imask);
 }
 
 static void pch_irq_ack(struct irq_data *d)
@@ -293,7 +296,7 @@ static void pch_irq_ack(struct irq_data *d)
 	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
 	struct pch_gpio *chip = gc->private;
 
-	iowrite32(1 << (d->irq - chip->irq_base), &chip->reg->iclr);
+	iowrite32(BIT(d->irq - chip->irq_base), &chip->reg->iclr);
 }
 
 static irqreturn_t pch_gpio_handler(int irq, void *dev_id)
@@ -344,7 +347,6 @@ static int pch_gpio_probe(struct pci_dev *pdev,
 	s32 ret;
 	struct pch_gpio *chip;
 	int irq_base;
-	u32 msk;
 
 	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL)
@@ -357,7 +359,7 @@ static int pch_gpio_probe(struct pci_dev *pdev,
 		return ret;
 	}
 
-	ret = pcim_iomap_regions(pdev, 1 << 1, KBUILD_MODNAME);
+	ret = pcim_iomap_regions(pdev, BIT(1), KBUILD_MODNAME);
 	if (ret) {
 		dev_err(&pdev->dev, "pci_request_regions FAILED-%d", ret);
 		return ret;
@@ -393,9 +395,8 @@ static int pch_gpio_probe(struct pci_dev *pdev,
 	chip->irq_base = irq_base;
 
 	/* Mask all interrupts, but enable them */
-	msk = (1 << gpio_pins[chip->ioh]) - 1;
-	iowrite32(msk, &chip->reg->imask);
-	iowrite32(msk, &chip->reg->ien);
+	iowrite32(BIT(gpio_pins[chip->ioh]) - 1, &chip->reg->imask);
+	iowrite32(BIT(gpio_pins[chip->ioh]) - 1, &chip->reg->ien);
 
 	ret = devm_request_irq(&pdev->dev, pdev->irq, pch_gpio_handler,
 			       IRQF_SHARED, KBUILD_MODNAME, chip);
