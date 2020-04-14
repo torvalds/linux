@@ -178,17 +178,16 @@ struct qeth_vnicc_info {
 #define QETH_RECLAIM_WORK_TIME	HZ
 #define QETH_MAX_PORTNO		15
 
-/*IPv6 address autoconfiguration stuff*/
-#define UNIQUE_ID_IF_CREATE_ADDR_FAILED 0xfffe
-#define UNIQUE_ID_NOT_BY_CARD		0x10000
-
 /*****************************************************************************/
 /* QDIO queue and buffer handling                                            */
 /*****************************************************************************/
-#define QETH_MAX_QUEUES 4
+#define QETH_MAX_OUT_QUEUES	4
 #define QETH_IQD_MIN_TXQ	2	/* One for ucast, one for mcast. */
 #define QETH_IQD_MCAST_TXQ	0
 #define QETH_IQD_MIN_UCAST_TXQ	1
+
+#define QETH_MAX_IN_QUEUES	2
+#define QETH_RX_COPYBREAK      (PAGE_SIZE >> 1)
 #define QETH_IN_BUF_SIZE_DEFAULT 65536
 #define QETH_IN_BUF_COUNT_DEFAULT 64
 #define QETH_IN_BUF_COUNT_HSDEFAULT 128
@@ -213,14 +212,12 @@ struct qeth_vnicc_info {
 #define QETH_PRIO_Q_ING_TOS   2
 #define QETH_PRIO_Q_ING_SKB   3
 #define QETH_PRIO_Q_ING_VLAN  4
+#define QETH_PRIO_Q_ING_FIXED 5
 
 /* Packing */
 #define QETH_LOW_WATERMARK_PACK  2
 #define QETH_HIGH_WATERMARK_PACK 5
 #define QETH_WATERMARK_PACK_FUZZ 1
-
-/* large receive scatter gather copy break */
-#define QETH_RX_SG_CB (PAGE_SIZE >> 1)
 
 struct qeth_hdr_layer3 {
 	__u8  id;
@@ -369,7 +366,7 @@ enum qeth_qdio_info_states {
 struct qeth_buffer_pool_entry {
 	struct list_head list;
 	struct list_head init_list;
-	void *elements[QDIO_MAX_ELEMENTS_PER_BUFFER];
+	struct page *elements[QDIO_MAX_ELEMENTS_PER_BUFFER];
 };
 
 struct qeth_qdio_buffer_pool {
@@ -407,6 +404,7 @@ struct qeth_qdio_out_buffer {
 	struct qdio_buffer *buffer;
 	atomic_t state;
 	int next_element_to_fill;
+	unsigned int frames;
 	unsigned int bytes;
 	struct sk_buff_head skb_list;
 	int is_header[QDIO_MAX_ELEMENTS_PER_BUFFER];
@@ -462,6 +460,8 @@ struct qeth_out_q_stats {
 	u64 tso_bytes;
 	u64 packing_mode_switch;
 	u64 stopped;
+	u64 doorbell;
+	u64 coal_frames;
 	u64 completion_yield;
 	u64 completion_timer;
 
@@ -472,6 +472,8 @@ struct qeth_out_q_stats {
 	u64 tx_dropped;
 };
 
+#define QETH_TX_MAX_COALESCED_FRAMES	1
+#define QETH_TX_COALESCE_USECS		25
 #define QETH_TX_TIMER_USECS		500
 
 struct qeth_qdio_out_q {
@@ -495,9 +497,13 @@ struct qeth_qdio_out_q {
 	struct napi_struct napi;
 	struct timer_list timer;
 	struct qeth_hdr *prev_hdr;
+	unsigned int coalesced_frames;
 	u8 bulk_start;
 	u8 bulk_count;
 	u8 bulk_max;
+
+	unsigned int coalesce_usecs;
+	unsigned int max_coalesced_frames;
 };
 
 #define qeth_for_each_output_queue(card, q, i)		\
@@ -506,12 +512,10 @@ struct qeth_qdio_out_q {
 
 #define	qeth_napi_to_out_queue(n) container_of(n, struct qeth_qdio_out_q, napi)
 
-static inline void qeth_tx_arm_timer(struct qeth_qdio_out_q *queue)
+static inline void qeth_tx_arm_timer(struct qeth_qdio_out_q *queue,
+				     unsigned long usecs)
 {
-	if (timer_pending(&queue->timer))
-		return;
-	mod_timer(&queue->timer, usecs_to_jiffies(QETH_TX_TIMER_USECS) +
-				 jiffies);
+	timer_reduce(&queue->timer, usecs_to_jiffies(usecs) + jiffies);
 }
 
 static inline bool qeth_out_queue_is_full(struct qeth_qdio_out_q *queue)
@@ -536,7 +540,7 @@ struct qeth_qdio_info {
 
 	/* output */
 	int no_out_queues;
-	struct qeth_qdio_out_q *out_qs[QETH_MAX_QUEUES];
+	struct qeth_qdio_out_q *out_qs[QETH_MAX_OUT_QUEUES];
 	struct qdio_outbuf_state *out_bufstates;
 
 	/* priority queueing */
@@ -673,22 +677,20 @@ struct qeth_card_blkt {
 
 #define QETH_BROADCAST_WITH_ECHO    0x01
 #define QETH_BROADCAST_WITHOUT_ECHO 0x02
-#define QETH_LAYER2_MAC_REGISTERED  0x02
 struct qeth_card_info {
 	unsigned short unit_addr2;
 	unsigned short cula;
 	u8 chpid;
 	__u16 func_level;
 	char mcl_level[QETH_MCL_LENGTH + 1];
+	u8 dev_addr_is_registered:1;
 	u8 open_when_online:1;
 	u8 promisc_mode:1;
 	u8 use_v1_blkt:1;
 	u8 is_vm_nic:1;
-	int mac_bits;
 	enum qeth_card_types type;
 	enum qeth_link_types link_type;
 	int broadcast_capable;
-	int unique_id;
 	bool layer_enforced;
 	struct qeth_card_blkt blkt;
 	__u32 diagass_support;
@@ -709,9 +711,7 @@ struct qeth_card_options {
 	struct qeth_ipa_caps adp; /* Adapter parameters */
 	struct qeth_sbp_info sbp; /* SETBRIDGEPORT options */
 	struct qeth_vnicc_info vnicc; /* VNICC options */
-	int fake_broadcast;
 	enum qeth_discipline_id layer;
-	int rx_sg_cb;
 	enum qeth_ipa_isolation_modes isolation;
 	enum qeth_ipa_isolation_modes prev_isolation;
 	int sniffer;
@@ -754,7 +754,7 @@ enum qeth_addr_disposition {
 struct qeth_rx {
 	int b_count;
 	int b_index;
-	struct qdio_buffer_element *b_element;
+	u8 buf_element;
 	int e_offset;
 	int qdio_err;
 };
@@ -768,6 +768,10 @@ struct carrier_info {
 struct qeth_switch_info {
 	__u32 capabilities;
 	__u32 settings;
+};
+
+struct qeth_priv {
+	unsigned int rx_copybreak;
 };
 
 #define QETH_NAPI_WEIGHT NAPI_POLL_WEIGHT
@@ -844,11 +848,6 @@ struct qeth_trap_id {
 
 /*some helper functions*/
 #define QETH_CARD_IFNAME(card) (((card)->dev)? (card)->dev->name : "")
-
-static inline bool qeth_netdev_is_registered(struct net_device *dev)
-{
-	return dev->netdev_ops != NULL;
-}
 
 static inline u16 qeth_iqd_translate_txq(struct net_device *dev, u16 txq)
 {
@@ -983,7 +982,7 @@ extern const struct attribute_group qeth_device_blkt_group;
 extern const struct device_type qeth_generic_devtype;
 
 const char *qeth_get_cardname_short(struct qeth_card *);
-int qeth_realloc_buffer_pool(struct qeth_card *, int);
+int qeth_resize_buffer_pool(struct qeth_card *card, unsigned int count);
 int qeth_core_load_discipline(struct qeth_card *, enum qeth_discipline_id);
 void qeth_core_free_discipline(struct qeth_card *);
 
@@ -1051,6 +1050,7 @@ int qeth_configure_cq(struct qeth_card *, enum qeth_cq);
 int qeth_hw_trap(struct qeth_card *, enum qeth_diags_trap_action);
 void qeth_trace_features(struct qeth_card *);
 int qeth_setassparms_cb(struct qeth_card *, struct qeth_reply *, unsigned long);
+int qeth_setup_netdev(struct qeth_card *card);
 int qeth_set_features(struct net_device *, netdev_features_t);
 void qeth_enable_hw_features(struct net_device *dev);
 netdev_features_t qeth_fix_features(struct net_device *, netdev_features_t);
@@ -1058,6 +1058,7 @@ netdev_features_t qeth_features_check(struct sk_buff *skb,
 				      struct net_device *dev,
 				      netdev_features_t features);
 void qeth_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats);
+int qeth_set_real_num_tx_queues(struct qeth_card *card, unsigned int count);
 u16 qeth_iqd_select_queue(struct net_device *dev, struct sk_buff *skb,
 			  u8 cast_type, struct net_device *sb_dev);
 int qeth_open(struct net_device *dev);

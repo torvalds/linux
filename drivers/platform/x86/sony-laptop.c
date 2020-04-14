@@ -827,10 +827,10 @@ static ssize_t sony_nc_handles_show(struct device *dev,
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(handles->cap); i++) {
-		len += snprintf(buffer + len, PAGE_SIZE - len, "0x%.4x ",
+		len += scnprintf(buffer + len, PAGE_SIZE - len, "0x%.4x ",
 				handles->cap[i]);
 	}
-	len += snprintf(buffer + len, PAGE_SIZE - len, "\n");
+	len += scnprintf(buffer + len, PAGE_SIZE - len, "\n");
 
 	return len;
 }
@@ -2187,10 +2187,10 @@ static ssize_t sony_nc_thermal_profiles_show(struct device *dev,
 
 	for (cnt = 0; cnt < THM_PROFILE_MAX; cnt++) {
 		if (!cnt || (th_handle->profiles & cnt))
-			idx += snprintf(buffer + idx, PAGE_SIZE - idx, "%s ",
+			idx += scnprintf(buffer + idx, PAGE_SIZE - idx, "%s ",
 					snc_thermal_profiles[cnt]);
 	}
-	idx += snprintf(buffer + idx, PAGE_SIZE - idx, "\n");
+	idx += scnprintf(buffer + idx, PAGE_SIZE - idx, "\n");
 
 	return idx;
 }

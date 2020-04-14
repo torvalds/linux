@@ -17,10 +17,12 @@ ENTRY(csky_cmpxchg)
 	mfcr	a3, epc
 	addi	a3, TRAP0_SIZE
 
-	subi    sp, 8
+	subi    sp, 16
 	stw     a3, (sp, 0)
 	mfcr    a3, epsr
 	stw     a3, (sp, 4)
+	mfcr	a3, usp
+	stw     a3, (sp, 8)
 
 	psrset	ee
 #ifdef CONFIG_CPU_HAS_LDSTEX
@@ -47,7 +49,9 @@ ENTRY(csky_cmpxchg)
 	mtcr	a3, epc
 	ldw     a3, (sp, 4)
 	mtcr	a3, epsr
-	addi	sp, 8
+	ldw     a3, (sp, 8)
+	mtcr	a3, usp
+	addi	sp, 16
 	KSPTOUSP
 	rte
 END(csky_cmpxchg)

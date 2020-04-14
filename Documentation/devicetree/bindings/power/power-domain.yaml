@@ -25,22 +25,20 @@ description: |+
 
 properties:
   $nodename:
-    pattern: "^(power-controller|power-domain)(@.*)?$"
+    pattern: "^(power-controller|power-domain)([@-].*)?$"
 
   domain-idle-states:
     $ref: /schemas/types.yaml#/definitions/phandle-array
-    description:
-      A phandle of an idle-state that shall be soaked into a generic domain
-      power state. The idle state definitions are compatible with
-      domain-idle-state specified in
-      Documentation/devicetree/bindings/power/domain-idle-state.txt
-      phandles that are not compatible with domain-idle-state will be ignored.
-      The domain-idle-state property reflects the idle state of this PM domain
-      and not the idle states of the devices or sub-domains in the PM domain.
-      Devices and sub-domains have their own idle-states independent
-      of the parent domain's idle states. In the absence of this property,
-      the domain would be considered as capable of being powered-on
-      or powered-off.
+    description: |
+      Phandles of idle states that defines the available states for the
+      power-domain provider. The idle state definitions are compatible with the
+      domain-idle-state bindings, specified in ./domain-idle-state.yaml.
+
+      Note that, the domain-idle-state property reflects the idle states of this
+      PM domain and not the idle states of the devices or sub-domains in the PM
+      domain. Devices and sub-domains have their own idle states independent of
+      the parent domain's idle states. In the absence of this property, the
+      domain would be considered as capable of being powered-on or powered-off.
 
   operating-points-v2:
     $ref: /schemas/types.yaml#/definitions/phandle-array
@@ -116,18 +114,18 @@ examples:
         domain-idle-states = <&DOMAIN_PWR_DN>;
     };
 
-    DOMAIN_RET: state@0 {
-        compatible = "domain-idle-state";
-        reg = <0x0 0x0>;
-        entry-latency-us = <1000>;
-        exit-latency-us = <2000>;
-        min-residency-us = <10000>;
-    };
+    domain-idle-states {
+        DOMAIN_RET: domain-retention {
+            compatible = "domain-idle-state";
+            entry-latency-us = <1000>;
+            exit-latency-us = <2000>;
+            min-residency-us = <10000>;
+        };
 
-    DOMAIN_PWR_DN: state@1 {
-        compatible = "domain-idle-state";
-        reg = <0x1 0x0>;
-        entry-latency-us = <5000>;
-        exit-latency-us = <8000>;
-        min-residency-us = <7000>;
+        DOMAIN_PWR_DN: domain-pwr-dn {
+            compatible = "domain-idle-state";
+            entry-latency-us = <5000>;
+            exit-latency-us = <8000>;
+            min-residency-us = <7000>;
+        };
     };

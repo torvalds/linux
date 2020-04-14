@@ -19,13 +19,13 @@ struct xdp_ring {
 /* Used for the RX and TX queues for packets */
 struct xdp_rxtx_ring {
 	struct xdp_ring ptrs;
-	struct xdp_desc desc[0] ____cacheline_aligned_in_smp;
+	struct xdp_desc desc[] ____cacheline_aligned_in_smp;
 };
 
 /* Used for the fill and completion queues for buffers */
 struct xdp_umem_ring {
 	struct xdp_ring ptrs;
-	u64 desc[0] ____cacheline_aligned_in_smp;
+	u64 desc[] ____cacheline_aligned_in_smp;
 };
 
 struct xsk_queue {
@@ -271,7 +271,8 @@ static inline void xskq_cons_release(struct xsk_queue *q)
 {
 	/* To improve performance, only update local state here.
 	 * Reflect this to global state when we get new entries
-	 * from the ring in xskq_cons_get_entries().
+	 * from the ring in xskq_cons_get_entries() and whenever
+	 * Rx or Tx processing are completed in the NAPI loop.
 	 */
 	q->cached_cons++;
 }

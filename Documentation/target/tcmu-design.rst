@@ -5,7 +5,7 @@ TCM Userspace Design
 
 .. Contents:
 
-   1) TCM Userspace Design
+   1) Design
      a) Background
      b) Benefits
      c) Design constraints
@@ -23,8 +23,8 @@ TCM Userspace Design
    3) A final note
 
 
-TCM Userspace Design
-====================
+Design
+======
 
 TCM is another name for LIO, an in-kernel iSCSI target (server).
 Existing TCM targets run in the kernel.  TCMU (TCM in Userspace)

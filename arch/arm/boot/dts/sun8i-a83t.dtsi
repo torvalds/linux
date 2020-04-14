@@ -72,7 +72,7 @@
 			#cooling-cells = <2>;
 		};
 
-		cpu@1 {
+		cpu1: cpu@1 {
 			compatible = "arm,cortex-a7";
 			device_type = "cpu";
 			clocks = <&ccu CLK_C0CPUX>;
@@ -83,7 +83,7 @@
 			#cooling-cells = <2>;
 		};
 
-		cpu@2 {
+		cpu2: cpu@2 {
 			compatible = "arm,cortex-a7";
 			device_type = "cpu";
 			clocks = <&ccu CLK_C0CPUX>;
@@ -94,7 +94,7 @@
 			#cooling-cells = <2>;
 		};
 
-		cpu@3 {
+		cpu3: cpu@3 {
 			compatible = "arm,cortex-a7";
 			device_type = "cpu";
 			clocks = <&ccu CLK_C0CPUX>;
@@ -116,7 +116,7 @@
 			#cooling-cells = <2>;
 		};
 
-		cpu@101 {
+		cpu101: cpu@101 {
 			compatible = "arm,cortex-a7";
 			device_type = "cpu";
 			clocks = <&ccu CLK_C1CPUX>;
@@ -127,7 +127,7 @@
 			#cooling-cells = <2>;
 		};
 
-		cpu@102 {
+		cpu102: cpu@102 {
 			compatible = "arm,cortex-a7";
 			device_type = "cpu";
 			clocks = <&ccu CLK_C1CPUX>;
@@ -138,7 +138,7 @@
 			#cooling-cells = <2>;
 		};
 
-		cpu@103 {
+		cpu103: cpu@103 {
 			compatible = "arm,cortex-a7";
 			device_type = "cpu";
 			clocks = <&ccu CLK_C1CPUX>;
@@ -314,7 +314,7 @@
 
 		display_clocks: clock@1000000 {
 			compatible = "allwinner,sun8i-a83t-de2-clk";
-			reg = <0x01000000 0x100000>;
+			reg = <0x01000000 0x10000>;
 			clocks = <&ccu CLK_BUS_DE>,
 				 <&ccu CLK_PLL_DE>;
 			clock-names = "bus",
@@ -322,6 +322,17 @@
 			resets = <&ccu RST_BUS_DE>;
 			#clock-cells = <1>;
 			#reset-cells = <1>;
+		};
+
+		rotate: rotate@1020000 {
+			compatible = "allwinner,sun8i-a83t-de2-rotate";
+			reg = <0x1020000 0x10000>;
+			interrupts = <GIC_SPI 92 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&display_clocks CLK_BUS_ROT>,
+				 <&display_clocks CLK_ROT>;
+			clock-names = "bus",
+				      "mod";
+			resets = <&display_clocks RST_ROT>;
 		};
 
 		mixer0: mixer@1100000 {
@@ -1006,10 +1017,10 @@
 			reg = <0x01c30000 0x104>;
 			interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "macirq";
-			resets = <&ccu CLK_BUS_EMAC>;
-			reset-names = "stmmaceth";
-			clocks = <&ccu RST_BUS_EMAC>;
+			clocks = <&ccu CLK_BUS_EMAC>;
 			clock-names = "stmmaceth";
+			resets = <&ccu RST_BUS_EMAC>;
+			reset-names = "stmmaceth";
 			status = "disabled";
 
 			mdio: mdio {
@@ -1188,12 +1199,60 @@
 			polling-delay-passive = <0>;
 			polling-delay = <0>;
 			thermal-sensors = <&ths 0>;
+
+			trips {
+				cpu0_hot: cpu-hot {
+					temperature = <80000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+
+				cpu0_very_hot: cpu-very-hot {
+					temperature = <100000>;
+					hysteresis = <0>;
+					type = "critical";
+				};
+			};
+
+			cooling-maps {
+				cpu-hot-limit {
+					trip = <&cpu0_hot>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+			};
 		};
 
 		cpu1_thermal: cpu1-thermal {
 			polling-delay-passive = <0>;
 			polling-delay = <0>;
 			thermal-sensors = <&ths 1>;
+
+			trips {
+				cpu1_hot: cpu-hot {
+					temperature = <80000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+
+				cpu1_very_hot: cpu-very-hot {
+					temperature = <100000>;
+					hysteresis = <0>;
+					type = "critical";
+				};
+			};
+
+			cooling-maps {
+				cpu-hot-limit {
+					trip = <&cpu1_hot>;
+					cooling-device = <&cpu100 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu101 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu102 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu103 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+			};
 		};
 
 		gpu_thermal: gpu-thermal {

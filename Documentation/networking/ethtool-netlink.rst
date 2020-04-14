@@ -189,6 +189,21 @@ Userspace to kernel:
   ``ETHTOOL_MSG_DEBUG_SET``             set debugging settings
   ``ETHTOOL_MSG_WOL_GET``               get wake-on-lan settings
   ``ETHTOOL_MSG_WOL_SET``               set wake-on-lan settings
+  ``ETHTOOL_MSG_FEATURES_GET``          get device features
+  ``ETHTOOL_MSG_FEATURES_SET``          set device features
+  ``ETHTOOL_MSG_PRIVFLAGS_GET``         get private flags
+  ``ETHTOOL_MSG_PRIVFLAGS_SET``         set private flags
+  ``ETHTOOL_MSG_RINGS_GET``             get ring sizes
+  ``ETHTOOL_MSG_RINGS_SET``             set ring sizes
+  ``ETHTOOL_MSG_CHANNELS_GET``          get channel counts
+  ``ETHTOOL_MSG_CHANNELS_SET``          set channel counts
+  ``ETHTOOL_MSG_COALESCE_GET``          get coalescing parameters
+  ``ETHTOOL_MSG_COALESCE_SET``          set coalescing parameters
+  ``ETHTOOL_MSG_PAUSE_GET``             get pause parameters
+  ``ETHTOOL_MSG_PAUSE_SET``             set pause parameters
+  ``ETHTOOL_MSG_EEE_GET``               get EEE settings
+  ``ETHTOOL_MSG_EEE_SET``               set EEE settings
+  ``ETHTOOL_MSG_TSINFO_GET``		get timestamping info
   ===================================== ================================
 
 Kernel to userspace:
@@ -204,6 +219,22 @@ Kernel to userspace:
   ``ETHTOOL_MSG_DEBUG_NTF``             debugging settings notification
   ``ETHTOOL_MSG_WOL_GET_REPLY``         wake-on-lan settings
   ``ETHTOOL_MSG_WOL_NTF``               wake-on-lan settings notification
+  ``ETHTOOL_MSG_FEATURES_GET_REPLY``    device features
+  ``ETHTOOL_MSG_FEATURES_SET_REPLY``    optional reply to FEATURES_SET
+  ``ETHTOOL_MSG_FEATURES_NTF``          netdev features notification
+  ``ETHTOOL_MSG_PRIVFLAGS_GET_REPLY``   private flags
+  ``ETHTOOL_MSG_PRIVFLAGS_NTF``         private flags
+  ``ETHTOOL_MSG_RINGS_GET_REPLY``       ring sizes
+  ``ETHTOOL_MSG_RINGS_NTF``             ring sizes
+  ``ETHTOOL_MSG_CHANNELS_GET_REPLY``    channel counts
+  ``ETHTOOL_MSG_CHANNELS_NTF``          channel counts
+  ``ETHTOOL_MSG_COALESCE_GET_REPLY``    coalescing parameters
+  ``ETHTOOL_MSG_COALESCE_NTF``          coalescing parameters
+  ``ETHTOOL_MSG_PAUSE_GET_REPLY``       pause parameters
+  ``ETHTOOL_MSG_PAUSE_NTF``             pause parameters
+  ``ETHTOOL_MSG_EEE_GET_REPLY``         EEE settings
+  ``ETHTOOL_MSG_EEE_NTF``               EEE settings
+  ``ETHTOOL_MSG_TSINFO_GET_REPLY``	timestamping info
   ===================================== =================================
 
 ``GET`` requests are sent by userspace applications to retrieve device
@@ -521,6 +552,410 @@ Request contents:
 ``WAKE_MAGICSECURE`` mode.
 
 
+FEATURES_GET
+============
+
+Gets netdev features like ``ETHTOOL_GFEATURES`` ioctl request.
+
+Request contents:
+
+  ====================================  ======  ==========================
+  ``ETHTOOL_A_FEATURES_HEADER``         nested  request header
+  ====================================  ======  ==========================
+
+Kernel response contents:
+
+  ====================================  ======  ==========================
+  ``ETHTOOL_A_FEATURES_HEADER``         nested  reply header
+  ``ETHTOOL_A_FEATURES_HW``             bitset  dev->hw_features
+  ``ETHTOOL_A_FEATURES_WANTED``         bitset  dev->wanted_features
+  ``ETHTOOL_A_FEATURES_ACTIVE``         bitset  dev->features
+  ``ETHTOOL_A_FEATURES_NOCHANGE``       bitset  NETIF_F_NEVER_CHANGE
+  ====================================  ======  ==========================
+
+Bitmaps in kernel response have the same meaning as bitmaps used in ioctl
+interference but attribute names are different (they are based on
+corresponding members of struct net_device). Legacy "flags" are not provided,
+if userspace needs them (most likely only ethtool for backward compatibility),
+it can calculate their values from related feature bits itself.
+ETHA_FEATURES_HW uses mask consisting of all features recognized by kernel (to
+provide all names when using verbose bitmap format), the other three use no
+mask (simple bit lists).
+
+
+FEATURES_SET
+============
+
+Request to set netdev features like ``ETHTOOL_SFEATURES`` ioctl request.
+
+Request contents:
+
+  ====================================  ======  ==========================
+  ``ETHTOOL_A_FEATURES_HEADER``         nested  request header
+  ``ETHTOOL_A_FEATURES_WANTED``         bitset  requested features
+  ====================================  ======  ==========================
+
+Kernel response contents:
+
+  ====================================  ======  ==========================
+  ``ETHTOOL_A_FEATURES_HEADER``         nested  reply header
+  ``ETHTOOL_A_FEATURES_WANTED``         bitset  diff wanted vs. result
+  ``ETHTOOL_A_FEATURES_ACTIVE``         bitset  diff old vs. new active
+  ====================================  ======  ==========================
+
+Request constains only one bitset which can be either value/mask pair (request
+to change specific feature bits and leave the rest) or only a value (request
+to set all features to specified set).
+
+As request is subject to netdev_change_features() sanity checks, optional
+kernel reply (can be suppressed by ``ETHTOOL_FLAG_OMIT_REPLY`` flag in request
+header) informs client about the actual result. ``ETHTOOL_A_FEATURES_WANTED``
+reports the difference between client request and actual result: mask consists
+of bits which differ between requested features and result (dev->features
+after the operation), value consists of values of these bits in the request
+(i.e. negated values from resulting features). ``ETHTOOL_A_FEATURES_ACTIVE``
+reports the difference between old and new dev->features: mask consists of
+bits which have changed, values are their values in new dev->features (after
+the operation).
+
+``ETHTOOL_MSG_FEATURES_NTF`` notification is sent not only if device features
+are modified using ``ETHTOOL_MSG_FEATURES_SET`` request or on of ethtool ioctl
+request but also each time features are modified with netdev_update_features()
+or netdev_change_features().
+
+
+PRIVFLAGS_GET
+=============
+
+Gets private flags like ``ETHTOOL_GPFLAGS`` ioctl request.
+
+Request contents:
+
+  ====================================  ======  ==========================
+  ``ETHTOOL_A_PRIVFLAGS_HEADER``        nested  request header
+  ====================================  ======  ==========================
+
+Kernel response contents:
+
+  ====================================  ======  ==========================
+  ``ETHTOOL_A_PRIVFLAGS_HEADER``        nested  reply header
+  ``ETHTOOL_A_PRIVFLAGS_FLAGS``         bitset  private flags
+  ====================================  ======  ==========================
+
+``ETHTOOL_A_PRIVFLAGS_FLAGS`` is a bitset with values of device private flags.
+These flags are defined by driver, their number and names (and also meaning)
+are device dependent. For compact bitset format, names can be retrieved as
+``ETH_SS_PRIV_FLAGS`` string set. If verbose bitset format is requested,
+response uses all private flags supported by the device as mask so that client
+gets the full information without having to fetch the string set with names.
+
+
+PRIVFLAGS_SET
+=============
+
+Sets or modifies values of device private flags like ``ETHTOOL_SPFLAGS``
+ioctl request.
+
+Request contents:
+
+  ====================================  ======  ==========================
+  ``ETHTOOL_A_PRIVFLAGS_HEADER``        nested  request header
+  ``ETHTOOL_A_PRIVFLAGS_FLAGS``         bitset  private flags
+  ====================================  ======  ==========================
+
+``ETHTOOL_A_PRIVFLAGS_FLAGS`` can either set the whole set of private flags or
+modify only values of some of them.
+
+
+RINGS_GET
+=========
+
+Gets ring sizes like ``ETHTOOL_GRINGPARAM`` ioctl request.
+
+Request contents:
+
+  ====================================  ======  ==========================
+  ``ETHTOOL_A_RINGS_HEADER``            nested  request header
+  ====================================  ======  ==========================
+
+Kernel response contents:
+
+  ====================================  ======  ==========================
+  ``ETHTOOL_A_RINGS_HEADER``            nested  reply header
+  ``ETHTOOL_A_RINGS_RX_MAX``            u32     max size of RX ring
+  ``ETHTOOL_A_RINGS_RX_MINI_MAX``       u32     max size of RX mini ring
+  ``ETHTOOL_A_RINGS_RX_JUMBO_MAX``      u32     max size of RX jumbo ring
+  ``ETHTOOL_A_RINGS_TX_MAX``            u32     max size of TX ring
+  ``ETHTOOL_A_RINGS_RX``                u32     size of RX ring
+  ``ETHTOOL_A_RINGS_RX_MINI``           u32     size of RX mini ring
+  ``ETHTOOL_A_RINGS_RX_JUMBO``          u32     size of RX jumbo ring
+  ``ETHTOOL_A_RINGS_TX``                u32     size of TX ring
+  ====================================  ======  ==========================
+
+
+RINGS_SET
+=========
+
+Sets ring sizes like ``ETHTOOL_SRINGPARAM`` ioctl request.
+
+Request contents:
+
+  ====================================  ======  ==========================
+  ``ETHTOOL_A_RINGS_HEADER``            nested  reply header
+  ``ETHTOOL_A_RINGS_RX``                u32     size of RX ring
+  ``ETHTOOL_A_RINGS_RX_MINI``           u32     size of RX mini ring
+  ``ETHTOOL_A_RINGS_RX_JUMBO``          u32     size of RX jumbo ring
+  ``ETHTOOL_A_RINGS_TX``                u32     size of TX ring
+  ====================================  ======  ==========================
+
+Kernel checks that requested ring sizes do not exceed limits reported by
+driver. Driver may impose additional constraints and may not suspport all
+attributes.
+
+
+CHANNELS_GET
+============
+
+Gets channel counts like ``ETHTOOL_GCHANNELS`` ioctl request.
+
+Request contents:
+
+  ====================================  ======  ==========================
+  ``ETHTOOL_A_CHANNELS_HEADER``         nested  request header
+  ====================================  ======  ==========================
+
+Kernel response contents:
+
+  =====================================  ======  ==========================
+  ``ETHTOOL_A_CHANNELS_HEADER``          nested  reply header
+  ``ETHTOOL_A_CHANNELS_RX_MAX``          u32     max receive channels
+  ``ETHTOOL_A_CHANNELS_TX_MAX``          u32     max transmit channels
+  ``ETHTOOL_A_CHANNELS_OTHER_MAX``       u32     max other channels
+  ``ETHTOOL_A_CHANNELS_COMBINED_MAX``    u32     max combined channels
+  ``ETHTOOL_A_CHANNELS_RX_COUNT``        u32     receive channel count
+  ``ETHTOOL_A_CHANNELS_TX_COUNT``        u32     transmit channel count
+  ``ETHTOOL_A_CHANNELS_OTHER_COUNT``     u32     other channel count
+  ``ETHTOOL_A_CHANNELS_COMBINED_COUNT``  u32     combined channel count
+  =====================================  ======  ==========================
+
+
+CHANNELS_SET
+============
+
+Sets channel counts like ``ETHTOOL_SCHANNELS`` ioctl request.
+
+Request contents:
+
+  =====================================  ======  ==========================
+  ``ETHTOOL_A_CHANNELS_HEADER``          nested  request header
+  ``ETHTOOL_A_CHANNELS_RX_COUNT``        u32     receive channel count
+  ``ETHTOOL_A_CHANNELS_TX_COUNT``        u32     transmit channel count
+  ``ETHTOOL_A_CHANNELS_OTHER_COUNT``     u32     other channel count
+  ``ETHTOOL_A_CHANNELS_COMBINED_COUNT``  u32     combined channel count
+  =====================================  ======  ==========================
+
+Kernel checks that requested channel counts do not exceed limits reported by
+driver. Driver may impose additional constraints and may not suspport all
+attributes.
+
+
+COALESCE_GET
+============
+
+Gets coalescing parameters like ``ETHTOOL_GCOALESCE`` ioctl request.
+
+Request contents:
+
+  ====================================  ======  ==========================
+  ``ETHTOOL_A_COALESCE_HEADER``         nested  request header
+  ====================================  ======  ==========================
+
+Kernel response contents:
+
+  ===========================================  ======  =======================
+  ``ETHTOOL_A_COALESCE_HEADER``                nested  reply header
+  ``ETHTOOL_A_COALESCE_RX_USECS``              u32     delay (us), normal Rx
+  ``ETHTOOL_A_COALESCE_RX_MAX_FRAMES``         u32     max packets, normal Rx
+  ``ETHTOOL_A_COALESCE_RX_USECS_IRQ``          u32     delay (us), Rx in IRQ
+  ``ETHTOOL_A_COALESCE_RX_MAX_FRAMES_IRQ``     u32     max packets, Rx in IRQ
+  ``ETHTOOL_A_COALESCE_TX_USECS``              u32     delay (us), normal Tx
+  ``ETHTOOL_A_COALESCE_TX_MAX_FRAMES``         u32     max packets, normal Tx
+  ``ETHTOOL_A_COALESCE_TX_USECS_IRQ``          u32     delay (us), Tx in IRQ
+  ``ETHTOOL_A_COALESCE_TX_MAX_FRAMES_IRQ``     u32     IRQ packets, Tx in IRQ
+  ``ETHTOOL_A_COALESCE_STATS_BLOCK_USECS``     u32     delay of stats update
+  ``ETHTOOL_A_COALESCE_USE_ADAPTIVE_RX``       bool    adaptive Rx coalesce
+  ``ETHTOOL_A_COALESCE_USE_ADAPTIVE_TX``       bool    adaptive Tx coalesce
+  ``ETHTOOL_A_COALESCE_PKT_RATE_LOW``          u32     threshold for low rate
+  ``ETHTOOL_A_COALESCE_RX_USECS_LOW``          u32     delay (us), low Rx
+  ``ETHTOOL_A_COALESCE_RX_MAX_FRAMES_LOW``     u32     max packets, low Rx
+  ``ETHTOOL_A_COALESCE_TX_USECS_LOW``          u32     delay (us), low Tx
+  ``ETHTOOL_A_COALESCE_TX_MAX_FRAMES_LOW``     u32     max packets, low Tx
+  ``ETHTOOL_A_COALESCE_PKT_RATE_HIGH``         u32     threshold for high rate
+  ``ETHTOOL_A_COALESCE_RX_USECS_HIGH``         u32     delay (us), high Rx
+  ``ETHTOOL_A_COALESCE_RX_MAX_FRAMES_HIGH``    u32     max packets, high Rx
+  ``ETHTOOL_A_COALESCE_TX_USECS_HIGH``         u32     delay (us), high Tx
+  ``ETHTOOL_A_COALESCE_TX_MAX_FRAMES_HIGH``    u32     max packets, high Tx
+  ``ETHTOOL_A_COALESCE_RATE_SAMPLE_INTERVAL``  u32     rate sampling interval
+  ===========================================  ======  =======================
+
+Attributes are only included in reply if their value is not zero or the
+corresponding bit in ``ethtool_ops::supported_coalesce_params`` is set (i.e.
+they are declared as supported by driver).
+
+
+COALESCE_SET
+============
+
+Sets coalescing parameters like ``ETHTOOL_SCOALESCE`` ioctl request.
+
+Request contents:
+
+  ===========================================  ======  =======================
+  ``ETHTOOL_A_COALESCE_HEADER``                nested  request header
+  ``ETHTOOL_A_COALESCE_RX_USECS``              u32     delay (us), normal Rx
+  ``ETHTOOL_A_COALESCE_RX_MAX_FRAMES``         u32     max packets, normal Rx
+  ``ETHTOOL_A_COALESCE_RX_USECS_IRQ``          u32     delay (us), Rx in IRQ
+  ``ETHTOOL_A_COALESCE_RX_MAX_FRAMES_IRQ``     u32     max packets, Rx in IRQ
+  ``ETHTOOL_A_COALESCE_TX_USECS``              u32     delay (us), normal Tx
+  ``ETHTOOL_A_COALESCE_TX_MAX_FRAMES``         u32     max packets, normal Tx
+  ``ETHTOOL_A_COALESCE_TX_USECS_IRQ``          u32     delay (us), Tx in IRQ
+  ``ETHTOOL_A_COALESCE_TX_MAX_FRAMES_IRQ``     u32     IRQ packets, Tx in IRQ
+  ``ETHTOOL_A_COALESCE_STATS_BLOCK_USECS``     u32     delay of stats update
+  ``ETHTOOL_A_COALESCE_USE_ADAPTIVE_RX``       bool    adaptive Rx coalesce
+  ``ETHTOOL_A_COALESCE_USE_ADAPTIVE_TX``       bool    adaptive Tx coalesce
+  ``ETHTOOL_A_COALESCE_PKT_RATE_LOW``          u32     threshold for low rate
+  ``ETHTOOL_A_COALESCE_RX_USECS_LOW``          u32     delay (us), low Rx
+  ``ETHTOOL_A_COALESCE_RX_MAX_FRAMES_LOW``     u32     max packets, low Rx
+  ``ETHTOOL_A_COALESCE_TX_USECS_LOW``          u32     delay (us), low Tx
+  ``ETHTOOL_A_COALESCE_TX_MAX_FRAMES_LOW``     u32     max packets, low Tx
+  ``ETHTOOL_A_COALESCE_PKT_RATE_HIGH``         u32     threshold for high rate
+  ``ETHTOOL_A_COALESCE_RX_USECS_HIGH``         u32     delay (us), high Rx
+  ``ETHTOOL_A_COALESCE_RX_MAX_FRAMES_HIGH``    u32     max packets, high Rx
+  ``ETHTOOL_A_COALESCE_TX_USECS_HIGH``         u32     delay (us), high Tx
+  ``ETHTOOL_A_COALESCE_TX_MAX_FRAMES_HIGH``    u32     max packets, high Tx
+  ``ETHTOOL_A_COALESCE_RATE_SAMPLE_INTERVAL``  u32     rate sampling interval
+  ===========================================  ======  =======================
+
+Request is rejected if it attributes declared as unsupported by driver (i.e.
+such that the corresponding bit in ``ethtool_ops::supported_coalesce_params``
+is not set), regardless of their values. Driver may impose additional
+constraints on coalescing parameters and their values.
+
+
+PAUSE_GET
+============
+
+Gets channel counts like ``ETHTOOL_GPAUSE`` ioctl request.
+
+Request contents:
+
+  =====================================  ======  ==========================
+  ``ETHTOOL_A_PAUSE_HEADER``             nested  request header
+  =====================================  ======  ==========================
+
+Kernel response contents:
+
+  =====================================  ======  ==========================
+  ``ETHTOOL_A_PAUSE_HEADER``             nested  request header
+  ``ETHTOOL_A_PAUSE_AUTONEG``            bool    pause autonegotiation
+  ``ETHTOOL_A_PAUSE_RX``                 bool    receive pause frames
+  ``ETHTOOL_A_PAUSE_TX``                 bool    transmit pause frames
+  =====================================  ======  ==========================
+
+
+PAUSE_SET
+============
+
+Sets pause parameters like ``ETHTOOL_GPAUSEPARAM`` ioctl request.
+
+Request contents:
+
+  =====================================  ======  ==========================
+  ``ETHTOOL_A_PAUSE_HEADER``             nested  request header
+  ``ETHTOOL_A_PAUSE_AUTONEG``            bool    pause autonegotiation
+  ``ETHTOOL_A_PAUSE_RX``                 bool    receive pause frames
+  ``ETHTOOL_A_PAUSE_TX``                 bool    transmit pause frames
+  =====================================  ======  ==========================
+
+
+EEE_GET
+=======
+
+Gets channel counts like ``ETHTOOL_GEEE`` ioctl request.
+
+Request contents:
+
+  =====================================  ======  ==========================
+  ``ETHTOOL_A_EEE_HEADER``               nested  request header
+  =====================================  ======  ==========================
+
+Kernel response contents:
+
+  =====================================  ======  ==========================
+  ``ETHTOOL_A_EEE_HEADER``               nested  request header
+  ``ETHTOOL_A_EEE_MODES_OURS``           bool    supported/advertised modes
+  ``ETHTOOL_A_EEE_MODES_PEER``           bool    peer advertised link modes
+  ``ETHTOOL_A_EEE_ACTIVE``               bool    EEE is actively used
+  ``ETHTOOL_A_EEE_ENABLED``              bool    EEE is enabled
+  ``ETHTOOL_A_EEE_TX_LPI_ENABLED``       bool    Tx lpi enabled
+  ``ETHTOOL_A_EEE_TX_LPI_TIMER``         u32     Tx lpi timeout (in us)
+  =====================================  ======  ==========================
+
+In ``ETHTOOL_A_EEE_MODES_OURS``, mask consists of link modes for which EEE is
+enabled, value of link modes for which EEE is advertised. Link modes for which
+peer advertises EEE are listed in ``ETHTOOL_A_EEE_MODES_PEER`` (no mask). The
+netlink interface allows reporting EEE status for all link modes but only
+first 32 are provided by the ``ethtool_ops`` callback.
+
+
+EEE_SET
+=======
+
+Sets pause parameters like ``ETHTOOL_GEEEPARAM`` ioctl request.
+
+Request contents:
+
+  =====================================  ======  ==========================
+  ``ETHTOOL_A_EEE_HEADER``               nested  request header
+  ``ETHTOOL_A_EEE_MODES_OURS``           bool    advertised modes
+  ``ETHTOOL_A_EEE_ENABLED``              bool    EEE is enabled
+  ``ETHTOOL_A_EEE_TX_LPI_ENABLED``       bool    Tx lpi enabled
+  ``ETHTOOL_A_EEE_TX_LPI_TIMER``         u32     Tx lpi timeout (in us)
+  =====================================  ======  ==========================
+
+``ETHTOOL_A_EEE_MODES_OURS`` is used to either list link modes to advertise
+EEE for (if there is no mask) or specify changes to the list (if there is
+a mask). The netlink interface allows reporting EEE status for all link modes
+but only first 32 can be set at the moment as that is what the ``ethtool_ops``
+callback supports.
+
+
+TSINFO_GET
+==========
+
+Gets timestamping information like ``ETHTOOL_GET_TS_INFO`` ioctl request.
+
+Request contents:
+
+  =====================================  ======  ==========================
+  ``ETHTOOL_A_TSINFO_HEADER``            nested  request header
+  =====================================  ======  ==========================
+
+Kernel response contents:
+
+  =====================================  ======  ==========================
+  ``ETHTOOL_A_TSINFO_HEADER``            nested  request header
+  ``ETHTOOL_A_TSINFO_TIMESTAMPING``      bitset  SO_TIMESTAMPING flags
+  ``ETHTOOL_A_TSINFO_TX_TYPES``          bitset  supported Tx types
+  ``ETHTOOL_A_TSINFO_RX_FILTERS``        bitset  supported Rx filters
+  ``ETHTOOL_A_TSINFO_PHC_INDEX``         u32     PTP hw clock index
+  =====================================  ======  ==========================
+
+``ETHTOOL_A_TSINFO_PHC_INDEX`` is absent if there is no associated PHC (there
+is no special value for this case). The bitset attributes are omitted if they
+would be empty (no bit set).
+
+
 Request translation
 ===================
 
@@ -545,37 +980,37 @@ have their netlink replacement yet.
   ``ETHTOOL_GLINK``                   ``ETHTOOL_MSG_LINKSTATE_GET``
   ``ETHTOOL_GEEPROM``                 n/a
   ``ETHTOOL_SEEPROM``                 n/a
-  ``ETHTOOL_GCOALESCE``               n/a
-  ``ETHTOOL_SCOALESCE``               n/a
-  ``ETHTOOL_GRINGPARAM``              n/a
-  ``ETHTOOL_SRINGPARAM``              n/a
-  ``ETHTOOL_GPAUSEPARAM``             n/a
-  ``ETHTOOL_SPAUSEPARAM``             n/a
-  ``ETHTOOL_GRXCSUM``                 n/a
-  ``ETHTOOL_SRXCSUM``                 n/a
-  ``ETHTOOL_GTXCSUM``                 n/a
-  ``ETHTOOL_STXCSUM``                 n/a
-  ``ETHTOOL_GSG``                     n/a
-  ``ETHTOOL_SSG``                     n/a
+  ``ETHTOOL_GCOALESCE``               ``ETHTOOL_MSG_COALESCE_GET``
+  ``ETHTOOL_SCOALESCE``               ``ETHTOOL_MSG_COALESCE_SET``
+  ``ETHTOOL_GRINGPARAM``              ``ETHTOOL_MSG_RINGS_GET``
+  ``ETHTOOL_SRINGPARAM``              ``ETHTOOL_MSG_RINGS_SET``
+  ``ETHTOOL_GPAUSEPARAM``             ``ETHTOOL_MSG_PAUSE_GET``
+  ``ETHTOOL_SPAUSEPARAM``             ``ETHTOOL_MSG_PAUSE_SET``
+  ``ETHTOOL_GRXCSUM``                 ``ETHTOOL_MSG_FEATURES_GET``
+  ``ETHTOOL_SRXCSUM``                 ``ETHTOOL_MSG_FEATURES_SET``
+  ``ETHTOOL_GTXCSUM``                 ``ETHTOOL_MSG_FEATURES_GET``
+  ``ETHTOOL_STXCSUM``                 ``ETHTOOL_MSG_FEATURES_SET``
+  ``ETHTOOL_GSG``                     ``ETHTOOL_MSG_FEATURES_GET``
+  ``ETHTOOL_SSG``                     ``ETHTOOL_MSG_FEATURES_SET``
   ``ETHTOOL_TEST``                    n/a
   ``ETHTOOL_GSTRINGS``                ``ETHTOOL_MSG_STRSET_GET``
   ``ETHTOOL_PHYS_ID``                 n/a
   ``ETHTOOL_GSTATS``                  n/a
-  ``ETHTOOL_GTSO``                    n/a
-  ``ETHTOOL_STSO``                    n/a
+  ``ETHTOOL_GTSO``                    ``ETHTOOL_MSG_FEATURES_GET``
+  ``ETHTOOL_STSO``                    ``ETHTOOL_MSG_FEATURES_SET``
   ``ETHTOOL_GPERMADDR``               rtnetlink ``RTM_GETLINK``
-  ``ETHTOOL_GUFO``                    n/a
-  ``ETHTOOL_SUFO``                    n/a
-  ``ETHTOOL_GGSO``                    n/a
-  ``ETHTOOL_SGSO``                    n/a
-  ``ETHTOOL_GFLAGS``                  n/a
-  ``ETHTOOL_SFLAGS``                  n/a
-  ``ETHTOOL_GPFLAGS``                 n/a
-  ``ETHTOOL_SPFLAGS``                 n/a
+  ``ETHTOOL_GUFO``                    ``ETHTOOL_MSG_FEATURES_GET``
+  ``ETHTOOL_SUFO``                    ``ETHTOOL_MSG_FEATURES_SET``
+  ``ETHTOOL_GGSO``                    ``ETHTOOL_MSG_FEATURES_GET``
+  ``ETHTOOL_SGSO``                    ``ETHTOOL_MSG_FEATURES_SET``
+  ``ETHTOOL_GFLAGS``                  ``ETHTOOL_MSG_FEATURES_GET``
+  ``ETHTOOL_SFLAGS``                  ``ETHTOOL_MSG_FEATURES_SET``
+  ``ETHTOOL_GPFLAGS``                 ``ETHTOOL_MSG_PRIVFLAGS_GET``
+  ``ETHTOOL_SPFLAGS``                 ``ETHTOOL_MSG_PRIVFLAGS_SET``
   ``ETHTOOL_GRXFH``                   n/a
   ``ETHTOOL_SRXFH``                   n/a
-  ``ETHTOOL_GGRO``                    n/a
-  ``ETHTOOL_SGRO``                    n/a
+  ``ETHTOOL_GGRO``                    ``ETHTOOL_MSG_FEATURES_GET``
+  ``ETHTOOL_SGRO``                    ``ETHTOOL_MSG_FEATURES_SET``
   ``ETHTOOL_GRXRINGS``                n/a
   ``ETHTOOL_GRXCLSRLCNT``             n/a
   ``ETHTOOL_GRXCLSRULE``              n/a
@@ -589,18 +1024,18 @@ have their netlink replacement yet.
   ``ETHTOOL_GSSET_INFO``              ``ETHTOOL_MSG_STRSET_GET``
   ``ETHTOOL_GRXFHINDIR``              n/a
   ``ETHTOOL_SRXFHINDIR``              n/a
-  ``ETHTOOL_GFEATURES``               n/a
-  ``ETHTOOL_SFEATURES``               n/a
-  ``ETHTOOL_GCHANNELS``               n/a
-  ``ETHTOOL_SCHANNELS``               n/a
+  ``ETHTOOL_GFEATURES``               ``ETHTOOL_MSG_FEATURES_GET``
+  ``ETHTOOL_SFEATURES``               ``ETHTOOL_MSG_FEATURES_SET``
+  ``ETHTOOL_GCHANNELS``               ``ETHTOOL_MSG_CHANNELS_GET``
+  ``ETHTOOL_SCHANNELS``               ``ETHTOOL_MSG_CHANNELS_SET``
   ``ETHTOOL_SET_DUMP``                n/a
   ``ETHTOOL_GET_DUMP_FLAG``           n/a
   ``ETHTOOL_GET_DUMP_DATA``           n/a
-  ``ETHTOOL_GET_TS_INFO``             n/a
+  ``ETHTOOL_GET_TS_INFO``             ``ETHTOOL_MSG_TSINFO_GET``
   ``ETHTOOL_GMODULEINFO``             n/a
   ``ETHTOOL_GMODULEEEPROM``           n/a
-  ``ETHTOOL_GEEE``                    n/a
-  ``ETHTOOL_SEEE``                    n/a
+  ``ETHTOOL_GEEE``                    ``ETHTOOL_MSG_EEE_GET``
+  ``ETHTOOL_SEEE``                    ``ETHTOOL_MSG_EEE_SET``
   ``ETHTOOL_GRSSH``                   n/a
   ``ETHTOOL_SRSSH``                   n/a
   ``ETHTOOL_GTUNABLE``                n/a

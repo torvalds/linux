@@ -530,7 +530,7 @@ __qla2x00_marker(struct scsi_qla_host *vha, struct qla_qpair *qpair,
 			int_to_scsilun(lun, (struct scsi_lun *)&mrk24->lun);
 			host_to_fcp_swap(mrk24->lun, sizeof(mrk24->lun));
 			mrk24->vp_index = vha->vp_idx;
-			mrk24->handle = MAKE_HANDLE(req->id, mrk24->handle);
+			mrk24->handle = make_handle(req->id, mrk24->handle);
 		} else {
 			SET_TARGET_ID(ha, mrk->target, loop_id);
 			mrk->lun = cpu_to_le16((uint16_t)lun);
@@ -1655,7 +1655,7 @@ qla24xx_start_scsi(srb_t *sp)
 	req->cnt -= req_cnt;
 
 	cmd_pkt = (struct cmd_type_7 *)req->ring_ptr;
-	cmd_pkt->handle = MAKE_HANDLE(req->id, handle);
+	cmd_pkt->handle = make_handle(req->id, handle);
 
 	/* Zero out remaining portion of packet. */
 	/*    tagged queuing modifier -- default is TSK_SIMPLE (0). */
@@ -1843,7 +1843,7 @@ qla24xx_dif_start_scsi(srb_t *sp)
 
 	/* Fill-in common area */
 	cmd_pkt = (struct cmd_type_crc_2 *)req->ring_ptr;
-	cmd_pkt->handle = MAKE_HANDLE(req->id, handle);
+	cmd_pkt->handle = make_handle(req->id, handle);
 
 	clr_ptr = (uint32_t *)cmd_pkt + 2;
 	memset(clr_ptr, 0, REQUEST_ENTRY_SIZE - 8);
@@ -1975,7 +1975,7 @@ qla2xxx_start_scsi_mq(srb_t *sp)
 	req->cnt -= req_cnt;
 
 	cmd_pkt = (struct cmd_type_7 *)req->ring_ptr;
-	cmd_pkt->handle = MAKE_HANDLE(req->id, handle);
+	cmd_pkt->handle = make_handle(req->id, handle);
 
 	/* Zero out remaining portion of packet. */
 	/*    tagged queuing modifier -- default is TSK_SIMPLE (0). */
@@ -2178,7 +2178,7 @@ qla2xxx_dif_start_scsi_mq(srb_t *sp)
 
 	/* Fill-in common area */
 	cmd_pkt = (struct cmd_type_crc_2 *)req->ring_ptr;
-	cmd_pkt->handle = MAKE_HANDLE(req->id, handle);
+	cmd_pkt->handle = make_handle(req->id, handle);
 
 	clr_ptr = (uint32_t *)cmd_pkt + 2;
 	memset(clr_ptr, 0, REQUEST_ENTRY_SIZE - 8);
@@ -2362,6 +2362,8 @@ qla24xx_login_iocb(srb_t *sp, struct logio_entry_24xx *logio)
 	struct srb_iocb *lio = &sp->u.iocb_cmd;
 
 	logio->entry_type = LOGINOUT_PORT_IOCB_TYPE;
+	logio->control_flags = cpu_to_le16(LCF_COMMAND_PLOGI);
+
 	if (lio->u.logio.flags & SRB_LOGIN_PRLI_ONLY) {
 		logio->control_flags = cpu_to_le16(LCF_COMMAND_PRLI);
 	} else {
@@ -2489,7 +2491,7 @@ qla24xx_tm_iocb(srb_t *sp, struct tsk_mgmt_entry *tsk)
 
 	tsk->entry_type = TSK_MGMT_IOCB_TYPE;
 	tsk->entry_count = 1;
-	tsk->handle = MAKE_HANDLE(req->id, tsk->handle);
+	tsk->handle = make_handle(req->id, tsk->handle);
 	tsk->nport_handle = cpu_to_le16(fcport->loop_id);
 	tsk->timeout = cpu_to_le16(ha->r_a_tov / 10 * 2);
 	tsk->control_flags = cpu_to_le32(flags);
@@ -2684,9 +2686,9 @@ qla24xx_els_logo_iocb(srb_t *sp, struct els_entry_24xx *els_iocb)
 	els_iocb->rx_dsd_count = 0;
 	els_iocb->opcode = elsio->u.els_logo.els_cmd;
 
-	els_iocb->port_id[0] = sp->fcport->d_id.b.al_pa;
-	els_iocb->port_id[1] = sp->fcport->d_id.b.area;
-	els_iocb->port_id[2] = sp->fcport->d_id.b.domain;
+	els_iocb->d_id[0] = sp->fcport->d_id.b.al_pa;
+	els_iocb->d_id[1] = sp->fcport->d_id.b.area;
+	els_iocb->d_id[2] = sp->fcport->d_id.b.domain;
 	/* For SID the byte order is different than DID */
 	els_iocb->s_id[1] = vha->d_id.b.al_pa;
 	els_iocb->s_id[2] = vha->d_id.b.area;
@@ -2939,7 +2941,6 @@ qla24xx_els_dcmd2_iocb(scsi_qla_host_t *vha, int els_opcode,
 	sp->fcport = fcport;
 
 	elsio->timeout = qla2x00_els_dcmd2_iocb_timeout;
-	init_completion(&elsio->u.els_plogi.comp);
 	if (wait)
 		sp->flags = SRB_WAKEUP_ON_COMP;
 
@@ -2949,7 +2950,7 @@ qla24xx_els_dcmd2_iocb(scsi_qla_host_t *vha, int els_opcode,
 	elsio->u.els_plogi.tx_size = elsio->u.els_plogi.rx_size = DMA_POOL_SIZE;
 
 	ptr = elsio->u.els_plogi.els_plogi_pyld =
-	    dma_alloc_coherent(&ha->pdev->dev, DMA_POOL_SIZE,
+	    dma_alloc_coherent(&ha->pdev->dev, elsio->u.els_plogi.tx_size,
 		&elsio->u.els_plogi.els_plogi_pyld_dma, GFP_KERNEL);
 
 	if (!elsio->u.els_plogi.els_plogi_pyld) {
@@ -2958,7 +2959,7 @@ qla24xx_els_dcmd2_iocb(scsi_qla_host_t *vha, int els_opcode,
 	}
 
 	resp_ptr = elsio->u.els_plogi.els_resp_pyld =
-	    dma_alloc_coherent(&ha->pdev->dev, DMA_POOL_SIZE,
+	    dma_alloc_coherent(&ha->pdev->dev, elsio->u.els_plogi.rx_size,
 		&elsio->u.els_plogi.els_resp_pyld_dma, GFP_KERNEL);
 
 	if (!elsio->u.els_plogi.els_resp_pyld) {
@@ -2982,6 +2983,7 @@ qla24xx_els_dcmd2_iocb(scsi_qla_host_t *vha, int els_opcode,
 	    (uint8_t *)elsio->u.els_plogi.els_plogi_pyld,
 	    sizeof(*elsio->u.els_plogi.els_plogi_pyld));
 
+	init_completion(&elsio->u.els_plogi.comp);
 	rval = qla2x00_start_sp(sp);
 	if (rval != QLA_SUCCESS) {
 		rval = QLA_FUNCTION_FAILED;
@@ -3030,9 +3032,9 @@ qla24xx_els_iocb(srb_t *sp, struct els_entry_24xx *els_iocb)
 	    sp->type == SRB_ELS_CMD_RPT ?
 	    bsg_request->rqst_data.r_els.els_code :
 	    bsg_request->rqst_data.h_els.command_code;
-        els_iocb->port_id[0] = sp->fcport->d_id.b.al_pa;
-        els_iocb->port_id[1] = sp->fcport->d_id.b.area;
-        els_iocb->port_id[2] = sp->fcport->d_id.b.domain;
+	els_iocb->d_id[0] = sp->fcport->d_id.b.al_pa;
+	els_iocb->d_id[1] = sp->fcport->d_id.b.area;
+	els_iocb->d_id[2] = sp->fcport->d_id.b.domain;
         els_iocb->control_flags = 0;
         els_iocb->rx_byte_count =
             cpu_to_le32(bsg_job->reply_payload.payload_len);
@@ -3358,7 +3360,7 @@ sufficient_dsds:
 		}
 
 		cmd_pkt = (struct cmd_type_6 *)req->ring_ptr;
-		cmd_pkt->handle = MAKE_HANDLE(req->id, handle);
+		cmd_pkt->handle = make_handle(req->id, handle);
 
 		/* Zero out remaining portion of packet. */
 		/*    tagged queuing modifier -- default is TSK_SIMPLE (0). */
@@ -3429,7 +3431,7 @@ sufficient_dsds:
 			goto queuing_error;
 
 		cmd_pkt = (struct cmd_type_7 *)req->ring_ptr;
-		cmd_pkt->handle = MAKE_HANDLE(req->id, handle);
+		cmd_pkt->handle = make_handle(req->id, handle);
 
 		/* Zero out remaining portion of packet. */
 		/* tagged queuing modifier -- default is TSK_SIMPLE (0).*/
@@ -3534,7 +3536,7 @@ qla24xx_abort_iocb(srb_t *sp, struct abort_entry_24xx *abt_iocb)
 	memset(abt_iocb, 0, sizeof(struct abort_entry_24xx));
 	abt_iocb->entry_type = ABORT_IOCB_TYPE;
 	abt_iocb->entry_count = 1;
-	abt_iocb->handle = cpu_to_le32(MAKE_HANDLE(req->id, sp->handle));
+	abt_iocb->handle = cpu_to_le32(make_handle(req->id, sp->handle));
 	if (sp->fcport) {
 		abt_iocb->nport_handle = cpu_to_le16(sp->fcport->loop_id);
 		abt_iocb->port_id[0] = sp->fcport->d_id.b.al_pa;
@@ -3542,7 +3544,7 @@ qla24xx_abort_iocb(srb_t *sp, struct abort_entry_24xx *abt_iocb)
 		abt_iocb->port_id[2] = sp->fcport->d_id.b.domain;
 	}
 	abt_iocb->handle_to_abort =
-	    cpu_to_le32(MAKE_HANDLE(aio->u.abt.req_que_no,
+	    cpu_to_le32(make_handle(aio->u.abt.req_que_no,
 				    aio->u.abt.cmd_hndl));
 	abt_iocb->vp_index = vha->vp_idx;
 	abt_iocb->req_que_no = cpu_to_le16(aio->u.abt.req_que_no);
@@ -3905,7 +3907,7 @@ qla2x00_start_bidir(srb_t *sp, struct scsi_qla_host *vha, uint32_t tot_dsds)
 	}
 
 	cmd_pkt = (struct cmd_bidir *)req->ring_ptr;
-	cmd_pkt->handle = MAKE_HANDLE(req->id, handle);
+	cmd_pkt->handle = make_handle(req->id, handle);
 
 	/* Zero out remaining portion of packet. */
 	/* tagged queuing modifier -- default is TSK_SIMPLE (0).*/

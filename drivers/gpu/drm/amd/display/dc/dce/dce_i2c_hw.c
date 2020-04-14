@@ -267,6 +267,9 @@ static void set_speed(
 	uint32_t xtal_ref_div = 0;
 	uint32_t prescale = 0;
 
+	if (speed == 0)
+		return;
+
 	REG_GET(MICROSECOND_TIME_BASE_DIV, XTAL_REF_DIV, &xtal_ref_div);
 
 	if (xtal_ref_div == 0)
@@ -274,17 +277,15 @@ static void set_speed(
 
 	prescale = ((dce_i2c_hw->reference_frequency * 2) / xtal_ref_div) / speed;
 
-	if (speed) {
-		if (dce_i2c_hw->masks->DC_I2C_DDC1_START_STOP_TIMING_CNTL)
-			REG_UPDATE_N(SPEED, 3,
-				     FN(DC_I2C_DDC1_SPEED, DC_I2C_DDC1_PRESCALE), prescale,
-				     FN(DC_I2C_DDC1_SPEED, DC_I2C_DDC1_THRESHOLD), 2,
-				     FN(DC_I2C_DDC1_SPEED, DC_I2C_DDC1_START_STOP_TIMING_CNTL), speed > 50 ? 2:1);
-		else
-			REG_UPDATE_N(SPEED, 2,
-				     FN(DC_I2C_DDC1_SPEED, DC_I2C_DDC1_PRESCALE), prescale,
-				     FN(DC_I2C_DDC1_SPEED, DC_I2C_DDC1_THRESHOLD), 2);
-	}
+	if (dce_i2c_hw->masks->DC_I2C_DDC1_START_STOP_TIMING_CNTL)
+		REG_UPDATE_N(SPEED, 3,
+			     FN(DC_I2C_DDC1_SPEED, DC_I2C_DDC1_PRESCALE), prescale,
+			     FN(DC_I2C_DDC1_SPEED, DC_I2C_DDC1_THRESHOLD), 2,
+			     FN(DC_I2C_DDC1_SPEED, DC_I2C_DDC1_START_STOP_TIMING_CNTL), speed > 50 ? 2:1);
+	else
+		REG_UPDATE_N(SPEED, 2,
+			     FN(DC_I2C_DDC1_SPEED, DC_I2C_DDC1_PRESCALE), prescale,
+			     FN(DC_I2C_DDC1_SPEED, DC_I2C_DDC1_THRESHOLD), 2);
 }
 
 static bool setup_engine(

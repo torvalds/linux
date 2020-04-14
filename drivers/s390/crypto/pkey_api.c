@@ -80,7 +80,7 @@ struct clearaeskeytoken {
 	u8  res1[3];
 	u32 keytype;	 /* key type, one of the PKEY_KEYTYPE values */
 	u32 len;	 /* bytes actually stored in clearkey[] */
-	u8  clearkey[0]; /* clear key value */
+	u8  clearkey[]; /* clear key value */
 } __packed;
 
 /*
@@ -994,7 +994,7 @@ static long pkey_unlocked_ioctl(struct file *filp, unsigned int cmd,
 			return -EFAULT;
 		rc = cca_sec2protkey(ksp.cardnr, ksp.domain,
 				     ksp.seckey.seckey, ksp.protkey.protkey,
-				     NULL, &ksp.protkey.type);
+				     &ksp.protkey.len, &ksp.protkey.type);
 		DEBUG_DBG("%s cca_sec2protkey()=%d\n", __func__, rc);
 		if (rc)
 			break;

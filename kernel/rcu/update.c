@@ -183,6 +183,8 @@ void rcu_unexpedite_gp(void)
 }
 EXPORT_SYMBOL_GPL(rcu_unexpedite_gp);
 
+static bool rcu_boot_ended __read_mostly;
+
 /*
  * Inform RCU of the end of the in-kernel boot sequence.
  */
@@ -191,7 +193,17 @@ void rcu_end_inkernel_boot(void)
 	rcu_unexpedite_gp();
 	if (rcu_normal_after_boot)
 		WRITE_ONCE(rcu_normal, 1);
+	rcu_boot_ended = 1;
 }
+
+/*
+ * Let rcutorture know when it is OK to turn it up to eleven.
+ */
+bool rcu_inkernel_boot_has_ended(void)
+{
+	return rcu_boot_ended;
+}
+EXPORT_SYMBOL_GPL(rcu_inkernel_boot_has_ended);
 
 #endif /* #ifndef CONFIG_TINY_RCU */
 
@@ -227,18 +239,30 @@ core_initcall(rcu_set_runtime_mode);
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 static struct lock_class_key rcu_lock_key;
-struct lockdep_map rcu_lock_map =
-	STATIC_LOCKDEP_MAP_INIT("rcu_read_lock", &rcu_lock_key);
+struct lockdep_map rcu_lock_map = {
+	.name = "rcu_read_lock",
+	.key = &rcu_lock_key,
+	.wait_type_outer = LD_WAIT_FREE,
+	.wait_type_inner = LD_WAIT_CONFIG, /* XXX PREEMPT_RCU ? */
+};
 EXPORT_SYMBOL_GPL(rcu_lock_map);
 
 static struct lock_class_key rcu_bh_lock_key;
-struct lockdep_map rcu_bh_lock_map =
-	STATIC_LOCKDEP_MAP_INIT("rcu_read_lock_bh", &rcu_bh_lock_key);
+struct lockdep_map rcu_bh_lock_map = {
+	.name = "rcu_read_lock_bh",
+	.key = &rcu_bh_lock_key,
+	.wait_type_outer = LD_WAIT_FREE,
+	.wait_type_inner = LD_WAIT_CONFIG, /* PREEMPT_LOCK also makes BH preemptible */
+};
 EXPORT_SYMBOL_GPL(rcu_bh_lock_map);
 
 static struct lock_class_key rcu_sched_lock_key;
-struct lockdep_map rcu_sched_lock_map =
-	STATIC_LOCKDEP_MAP_INIT("rcu_read_lock_sched", &rcu_sched_lock_key);
+struct lockdep_map rcu_sched_lock_map = {
+	.name = "rcu_read_lock_sched",
+	.key = &rcu_sched_lock_key,
+	.wait_type_outer = LD_WAIT_FREE,
+	.wait_type_inner = LD_WAIT_SPIN,
+};
 EXPORT_SYMBOL_GPL(rcu_sched_lock_map);
 
 static struct lock_class_key rcu_callback_key;
@@ -464,12 +488,18 @@ EXPORT_SYMBOL_GPL(rcutorture_sched_setaffinity);
 #ifdef CONFIG_RCU_STALL_COMMON
 int rcu_cpu_stall_ftrace_dump __read_mostly;
 module_param(rcu_cpu_stall_ftrace_dump, int, 0644);
-int rcu_cpu_stall_suppress __read_mostly; /* 1 = suppress stall warnings. */
+int rcu_cpu_stall_suppress __read_mostly; // !0 = suppress stall warnings.
 EXPORT_SYMBOL_GPL(rcu_cpu_stall_suppress);
 module_param(rcu_cpu_stall_suppress, int, 0644);
 int rcu_cpu_stall_timeout __read_mostly = CONFIG_RCU_CPU_STALL_TIMEOUT;
 module_param(rcu_cpu_stall_timeout, int, 0644);
 #endif /* #ifdef CONFIG_RCU_STALL_COMMON */
+
+// Suppress boot-time RCU CPU stall warnings and rcutorture writer stall
+// warnings.  Also used by rcutorture even if stall warnings are excluded.
+int rcu_cpu_stall_suppress_at_boot __read_mostly; // !0 = suppress boot stalls.
+EXPORT_SYMBOL_GPL(rcu_cpu_stall_suppress_at_boot);
+module_param(rcu_cpu_stall_suppress_at_boot, int, 0444);
 
 #ifdef CONFIG_TASKS_RCU
 
@@ -528,7 +558,7 @@ void call_rcu_tasks(struct rcu_head *rhp, rcu_callback_t func)
 	rhp->func = func;
 	raw_spin_lock_irqsave(&rcu_tasks_cbs_lock, flags);
 	needwake = !rcu_tasks_cbs_head;
-	*rcu_tasks_cbs_tail = rhp;
+	WRITE_ONCE(*rcu_tasks_cbs_tail, rhp);
 	rcu_tasks_cbs_tail = &rhp->next;
 	raw_spin_unlock_irqrestore(&rcu_tasks_cbs_lock, flags);
 	/* We can't create the thread unless interrupts are enabled. */
@@ -658,7 +688,7 @@ static int __noreturn rcu_tasks_kthread(void *arg)
 		/* If there were none, wait a bit and start over. */
 		if (!list) {
 			wait_event_interruptible(rcu_tasks_cbs_wq,
-						 rcu_tasks_cbs_head);
+						 READ_ONCE(rcu_tasks_cbs_head));
 			if (!rcu_tasks_cbs_head) {
 				WARN_ON(signal_pending(current));
 				schedule_timeout_interruptible(HZ/10);
@@ -801,7 +831,7 @@ static int __init rcu_spawn_tasks_kthread(void)
 core_initcall(rcu_spawn_tasks_kthread);
 
 /* Do the srcu_read_lock() for the above synchronize_srcu().  */
-void exit_tasks_rcu_start(void)
+void exit_tasks_rcu_start(void) __acquires(&tasks_rcu_exit_srcu)
 {
 	preempt_disable();
 	current->rcu_tasks_idx = __srcu_read_lock(&tasks_rcu_exit_srcu);
@@ -809,7 +839,7 @@ void exit_tasks_rcu_start(void)
 }
 
 /* Do the srcu_read_unlock() for the above synchronize_srcu().  */
-void exit_tasks_rcu_finish(void)
+void exit_tasks_rcu_finish(void) __releases(&tasks_rcu_exit_srcu)
 {
 	preempt_disable();
 	__srcu_read_unlock(&tasks_rcu_exit_srcu, current->rcu_tasks_idx);

@@ -1134,7 +1134,7 @@ int cpia2_register_camera(struct camera_data *cam)
 	reset_camera_struct_v4l(cam);
 
 	/* register v4l device */
-	if (video_register_device(&cam->vdev, VFL_TYPE_GRABBER, video_nr) < 0) {
+	if (video_register_device(&cam->vdev, VFL_TYPE_VIDEO, video_nr) < 0) {
 		ERR("video_register_device failed\n");
 		return -ENODEV;
 	}

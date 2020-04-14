@@ -287,7 +287,6 @@ static void bcm_sysport_get_drvinfo(struct net_device *dev,
 				    struct ethtool_drvinfo *info)
 {
 	strlcpy(info->driver, KBUILD_MODNAME, sizeof(info->driver));
-	strlcpy(info->version, "0.1", sizeof(info->version));
 	strlcpy(info->bus_info, "platform", sizeof(info->bus_info));
 }
 
@@ -624,8 +623,7 @@ static int bcm_sysport_set_coalesce(struct net_device *dev,
 		return -EINVAL;
 
 	if ((ec->tx_coalesce_usecs == 0 && ec->tx_max_coalesced_frames == 0) ||
-	    (ec->rx_coalesce_usecs == 0 && ec->rx_max_coalesced_frames == 0) ||
-	    ec->use_adaptive_tx_coalesce)
+	    (ec->rx_coalesce_usecs == 0 && ec->rx_max_coalesced_frames == 0))
 		return -EINVAL;
 
 	for (i = 0; i < dev->num_tx_queues; i++)
@@ -2135,7 +2133,7 @@ static int bcm_sysport_rule_set(struct bcm_sysport_priv *priv,
 		return -ENOSPC;
 
 	index = find_first_zero_bit(priv->filters, RXCHK_BRCM_TAG_MAX);
-	if (index > RXCHK_BRCM_TAG_MAX)
+	if (index >= RXCHK_BRCM_TAG_MAX)
 		return -ENOSPC;
 
 	/* Location is the classification ID, and index is the position
@@ -2210,6 +2208,9 @@ static int bcm_sysport_set_rxnfc(struct net_device *dev,
 }
 
 static const struct ethtool_ops bcm_sysport_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
+				     ETHTOOL_COALESCE_MAX_FRAMES |
+				     ETHTOOL_COALESCE_USE_ADAPTIVE_RX,
 	.get_drvinfo		= bcm_sysport_get_drvinfo,
 	.get_msglevel		= bcm_sysport_get_msglvl,
 	.set_msglevel		= bcm_sysport_set_msglvl,

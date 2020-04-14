@@ -44,9 +44,9 @@ static int init_mp_priv(struct mp_priv *pmp_priv)
 	pmp_priv->pallocated_mp_xmitframe_buf = kmalloc(NR_MP_XMITFRAME *
 				sizeof(struct mp_xmit_frame) + 4,
 				GFP_ATOMIC);
-	if (!pmp_priv->pallocated_mp_xmitframe_buf) {
+	if (!pmp_priv->pallocated_mp_xmitframe_buf)
 		return -ENOMEM;
-	}
+
 	pmp_priv->pmp_xmtframe_buf = pmp_priv->pallocated_mp_xmitframe_buf +
 			 4 -
 			 ((addr_t)(pmp_priv->pallocated_mp_xmitframe_buf) & 3);

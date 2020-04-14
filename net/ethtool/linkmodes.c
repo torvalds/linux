@@ -237,6 +237,7 @@ static const struct link_mode_info link_mode_params[] = {
 	__DEFINE_LINK_MODE_PARAMS(400000, LR8_ER8_FR8, Full),
 	__DEFINE_LINK_MODE_PARAMS(400000, DR8, Full),
 	__DEFINE_LINK_MODE_PARAMS(400000, CR8, Full),
+	__DEFINE_SPECIAL_MODE_PARAMS(FEC_LLRS),
 };
 
 static const struct nla_policy
@@ -333,14 +334,17 @@ int ethnl_set_linkmodes(struct sk_buff *skb, struct genl_info *info)
 			  info->extack);
 	if (ret < 0)
 		return ret;
-	ret = ethnl_parse_header(&req_info, tb[ETHTOOL_A_LINKMODES_HEADER],
-				 genl_info_net(info), info->extack, true);
+	ret = ethnl_parse_header_dev_get(&req_info,
+					 tb[ETHTOOL_A_LINKMODES_HEADER],
+					 genl_info_net(info), info->extack,
+					 true);
 	if (ret < 0)
 		return ret;
 	dev = req_info.dev;
+	ret = -EOPNOTSUPP;
 	if (!dev->ethtool_ops->get_link_ksettings ||
 	    !dev->ethtool_ops->set_link_ksettings)
-		return -EOPNOTSUPP;
+		goto out_dev;
 
 	rtnl_lock();
 	ret = ethnl_ops_begin(dev);
@@ -370,6 +374,7 @@ out_ops:
 	ethnl_ops_complete(dev);
 out_rtnl:
 	rtnl_unlock();
+out_dev:
 	dev_put(dev);
 	return ret;
 }

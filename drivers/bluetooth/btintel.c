@@ -376,13 +376,13 @@ struct ibt_cp_reg_access {
 	__le32  addr;
 	__u8    mode;
 	__u8    len;
-	__u8    data[0];
+	__u8    data[];
 } __packed;
 
 struct ibt_rp_reg_access {
 	__u8    status;
 	__le32  addr;
-	__u8    data[0];
+	__u8    data[];
 } __packed;
 
 static int regmap_ibt_read(void *context, const void *addr, size_t reg_size,

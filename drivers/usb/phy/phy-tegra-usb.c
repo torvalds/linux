@@ -12,12 +12,11 @@
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/export.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/resource.h>
 #include <linux/slab.h>
@@ -969,6 +968,10 @@ static int utmi_phy_probe(struct tegra_usb_phy *tegra_phy,
 		return  -ENXIO;
 	}
 
+	/*
+	 * Note that UTMI pad registers are shared by all PHYs, therefore
+	 * devm_platform_ioremap_resource() can't be used here.
+	 */
 	tegra_phy->pad_regs = devm_ioremap(&pdev->dev, res->start,
 					   resource_size(res));
 	if (!tegra_phy->pad_regs) {
@@ -1087,6 +1090,10 @@ static int tegra_usb_phy_probe(struct platform_device *pdev)
 		return  -ENXIO;
 	}
 
+	/*
+	 * Note that PHY and USB controller are using shared registers,
+	 * therefore devm_platform_ioremap_resource() can't be used here.
+	 */
 	tegra_phy->regs = devm_ioremap(&pdev->dev, res->start,
 				       resource_size(res));
 	if (!tegra_phy->regs) {

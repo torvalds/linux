@@ -4,7 +4,7 @@
  *
  * External function declarations.
  *
- * Copyright IBM Corp. 2002, 2018
+ * Copyright IBM Corp. 2002, 2020
  */
 
 #ifndef ZFCP_EXT_H
@@ -44,6 +44,9 @@ extern void zfcp_dbf_rec_run_lvl(int level, char *tag,
 extern void zfcp_dbf_rec_run_wka(char *, struct zfcp_fc_wka_port *, u64);
 extern void zfcp_dbf_hba_fsf_uss(char *, struct zfcp_fsf_req *);
 extern void zfcp_dbf_hba_fsf_res(char *, int, struct zfcp_fsf_req *);
+extern void zfcp_dbf_hba_fsf_fces(char *tag, const struct zfcp_fsf_req *req,
+				  u64 wwpn, u32 fc_security_old,
+				  u32 fc_security_new);
 extern void zfcp_dbf_hba_bit_err(char *, struct zfcp_fsf_req *);
 extern void zfcp_dbf_hba_def_err(struct zfcp_adapter *, u64, u16, void **);
 extern void zfcp_dbf_hba_basic(char *, struct zfcp_adapter *);
@@ -135,6 +138,13 @@ extern struct zfcp_fsf_req *zfcp_fsf_fcp_task_mgmt(struct scsi_device *sdev,
 						   u8 tm_flags);
 extern struct zfcp_fsf_req *zfcp_fsf_abort_fcp_cmnd(struct scsi_cmnd *);
 extern void zfcp_fsf_reqid_check(struct zfcp_qdio *, int);
+enum zfcp_fsf_print_fmt {
+	ZFCP_FSF_PRINT_FMT_LIST,
+	ZFCP_FSF_PRINT_FMT_SINGLEITEM,
+};
+extern ssize_t zfcp_fsf_scnprint_fc_security(char *buf, size_t size,
+					     u32 fc_security,
+					     enum zfcp_fsf_print_fmt fmt);
 
 /* zfcp_qdio.c */
 extern int zfcp_qdio_setup(struct zfcp_adapter *);

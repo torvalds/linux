@@ -1169,7 +1169,8 @@ try_again:
 	rc = posix_lock_file(file, flock, NULL);
 	up_write(&cinode->lock_sem);
 	if (rc == FILE_LOCK_DEFERRED) {
-		rc = wait_event_interruptible(flock->fl_wait, !flock->fl_blocker);
+		rc = wait_event_interruptible(flock->fl_wait,
+					list_empty(&flock->fl_blocked_member));
 		if (!rc)
 			goto try_again;
 		locks_delete_block(flock);
@@ -1958,7 +1959,7 @@ struct cifsFileInfo *find_readable_file(struct cifsInodeInfo *cifs_inode,
 
 /* Return -EBADF if no handle is found and general rc otherwise */
 int
-cifs_get_writable_file(struct cifsInodeInfo *cifs_inode, bool fsuid_only,
+cifs_get_writable_file(struct cifsInodeInfo *cifs_inode, int flags,
 		       struct cifsFileInfo **ret_file)
 {
 	struct cifsFileInfo *open_file, *inv_file = NULL;
@@ -1966,7 +1967,8 @@ cifs_get_writable_file(struct cifsInodeInfo *cifs_inode, bool fsuid_only,
 	bool any_available = false;
 	int rc = -EBADF;
 	unsigned int refind = 0;
-
+	bool fsuid_only = flags & FIND_WR_FSUID_ONLY;
+	bool with_delete = flags & FIND_WR_WITH_DELETE;
 	*ret_file = NULL;
 
 	/*
@@ -1997,6 +1999,8 @@ refind_writable:
 		if (!any_available && open_file->pid != current->tgid)
 			continue;
 		if (fsuid_only && !uid_eq(open_file->uid, current_fsuid()))
+			continue;
+		if (with_delete && !(open_file->fid.access & DELETE))
 			continue;
 		if (OPEN_FMODE(open_file->f_flags) & FMODE_WRITE) {
 			if (!open_file->invalidHandle) {
@@ -2045,12 +2049,12 @@ refind_writable:
 }
 
 struct cifsFileInfo *
-find_writable_file(struct cifsInodeInfo *cifs_inode, bool fsuid_only)
+find_writable_file(struct cifsInodeInfo *cifs_inode, int flags)
 {
 	struct cifsFileInfo *cfile;
 	int rc;
 
-	rc = cifs_get_writable_file(cifs_inode, fsuid_only, &cfile);
+	rc = cifs_get_writable_file(cifs_inode, flags, &cfile);
 	if (rc)
 		cifs_dbg(FYI, "couldn't find writable handle rc=%d", rc);
 
@@ -2059,6 +2063,7 @@ find_writable_file(struct cifsInodeInfo *cifs_inode, bool fsuid_only)
 
 int
 cifs_get_writable_path(struct cifs_tcon *tcon, const char *name,
+		       int flags,
 		       struct cifsFileInfo **ret_file)
 {
 	struct list_head *tmp;
@@ -2085,7 +2090,7 @@ cifs_get_writable_path(struct cifs_tcon *tcon, const char *name,
 		kfree(full_path);
 		cinode = CIFS_I(d_inode(cfile->dentry));
 		spin_unlock(&tcon->open_file_lock);
-		return cifs_get_writable_file(cinode, 0, ret_file);
+		return cifs_get_writable_file(cinode, flags, ret_file);
 	}
 
 	spin_unlock(&tcon->open_file_lock);
@@ -2162,7 +2167,8 @@ static int cifs_partialpagewrite(struct page *page, unsigned from, unsigned to)
 	if (mapping->host->i_size - offset < (loff_t)to)
 		to = (unsigned)(mapping->host->i_size - offset);
 
-	rc = cifs_get_writable_file(CIFS_I(mapping->host), false, &open_file);
+	rc = cifs_get_writable_file(CIFS_I(mapping->host), FIND_WR_ANY,
+				    &open_file);
 	if (!rc) {
 		bytes_written = cifs_write(open_file, open_file->pid,
 					   write_data, to - from, &offset);
@@ -2355,7 +2361,7 @@ retry:
 		if (cfile)
 			cifsFileInfo_put(cfile);
 
-		rc = cifs_get_writable_file(CIFS_I(inode), false, &cfile);
+		rc = cifs_get_writable_file(CIFS_I(inode), FIND_WR_ANY, &cfile);
 
 		/* in case of an error store it to return later */
 		if (rc)
@@ -3835,7 +3841,7 @@ again:
 	if (rc == -ENODATA)
 		rc = 0;
 
-	ctx->rc = (rc == 0) ? ctx->total_len : rc;
+	ctx->rc = (rc == 0) ? (ssize_t)ctx->total_len : rc;
 
 	mutex_unlock(&ctx->aio_mutex);
 
@@ -4802,6 +4808,60 @@ cifs_direct_io(struct kiocb *iocb, struct iov_iter *iter)
         return -EINVAL;
 }
 
+static int cifs_swap_activate(struct swap_info_struct *sis,
+			      struct file *swap_file, sector_t *span)
+{
+	struct cifsFileInfo *cfile = swap_file->private_data;
+	struct inode *inode = swap_file->f_mapping->host;
+	unsigned long blocks;
+	long long isize;
+
+	cifs_dbg(FYI, "swap activate\n");
+
+	spin_lock(&inode->i_lock);
+	blocks = inode->i_blocks;
+	isize = inode->i_size;
+	spin_unlock(&inode->i_lock);
+	if (blocks*512 < isize) {
+		pr_warn("swap activate: swapfile has holes\n");
+		return -EINVAL;
+	}
+	*span = sis->pages;
+
+	printk_once(KERN_WARNING "Swap support over SMB3 is experimental\n");
+
+	/*
+	 * TODO: consider adding ACL (or documenting how) to prevent other
+	 * users (on this or other systems) from reading it
+	 */
+
+
+	/* TODO: add sk_set_memalloc(inet) or similar */
+
+	if (cfile)
+		cfile->swapfile = true;
+	/*
+	 * TODO: Since file already open, we can't open with DENY_ALL here
+	 * but we could add call to grab a byte range lock to prevent others
+	 * from reading or writing the file
+	 */
+
+	return 0;
+}
+
+static void cifs_swap_deactivate(struct file *file)
+{
+	struct cifsFileInfo *cfile = file->private_data;
+
+	cifs_dbg(FYI, "swap deactivate\n");
+
+	/* TODO: undo sk_set_memalloc(inet) will eventually be needed */
+
+	if (cfile)
+		cfile->swapfile = false;
+
+	/* do we need to unpin (or unlock) the file */
+}
 
 const struct address_space_operations cifs_addr_ops = {
 	.readpage = cifs_readpage,
@@ -4815,6 +4875,13 @@ const struct address_space_operations cifs_addr_ops = {
 	.direct_IO = cifs_direct_io,
 	.invalidatepage = cifs_invalidate_page,
 	.launder_page = cifs_launder_page,
+	/*
+	 * TODO: investigate and if useful we could add an cifs_migratePage
+	 * helper (under an CONFIG_MIGRATION) in the future, and also
+	 * investigate and add an is_dirty_writeback helper if needed
+	 */
+	.swap_activate = cifs_swap_activate,
+	.swap_deactivate = cifs_swap_deactivate,
 };
 
 /*

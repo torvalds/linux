@@ -16,6 +16,7 @@ Required Properties:
 	  - "renesas,r8a7794-usb-dmac" (R-Car E2)
 	  - "renesas,r8a7795-usb-dmac" (R-Car H3)
 	  - "renesas,r8a7796-usb-dmac" (R-Car M3-W)
+	  - "renesas,r8a77961-usb-dmac" (R-Car M3-W+)
 	  - "renesas,r8a77965-usb-dmac" (R-Car M3-N)
 	  - "renesas,r8a77990-usb-dmac" (R-Car E3)
 	  - "renesas,r8a77995-usb-dmac" (R-Car D3)

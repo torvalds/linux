@@ -54,7 +54,8 @@ static inline u64 tcf_police_rate_bytes_ps(const struct tc_action *act)
 	struct tcf_police *police = to_police(act);
 	struct tcf_police_params *params;
 
-	params = rcu_dereference_bh_rtnl(police->params);
+	params = rcu_dereference_protected(police->params,
+					   lockdep_is_held(&police->tcf_lock));
 	return params->rate.rate_bytes_ps;
 }
 
@@ -63,7 +64,8 @@ static inline s64 tcf_police_tcfp_burst(const struct tc_action *act)
 	struct tcf_police *police = to_police(act);
 	struct tcf_police_params *params;
 
-	params = rcu_dereference_bh_rtnl(police->params);
+	params = rcu_dereference_protected(police->params,
+					   lockdep_is_held(&police->tcf_lock));
 	return params->tcfp_burst;
 }
 

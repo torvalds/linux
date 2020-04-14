@@ -209,6 +209,8 @@ static void kick_submission(struct intel_engine_cs *engine,
 	if (!inflight)
 		goto unlock;
 
+	engine->execlists.queue_priority_hint = prio;
+
 	/*
 	 * If we are already the currently executing context, don't
 	 * bother evaluating if we should preempt ourselves.
@@ -216,7 +218,6 @@ static void kick_submission(struct intel_engine_cs *engine,
 	if (inflight->context == rq->context)
 		goto unlock;
 
-	engine->execlists.queue_priority_hint = prio;
 	if (need_preempt(prio, rq_prio(inflight)))
 		tasklet_hi_schedule(&engine->execlists.tasklet);
 
@@ -227,19 +228,16 @@ unlock:
 static void __i915_schedule(struct i915_sched_node *node,
 			    const struct i915_sched_attr *attr)
 {
+	const int prio = max(attr->priority, node->attr.priority);
 	struct intel_engine_cs *engine;
 	struct i915_dependency *dep, *p;
 	struct i915_dependency stack;
-	const int prio = attr->priority;
 	struct sched_cache cache;
 	LIST_HEAD(dfs);
 
 	/* Needed in order to use the temporary link inside i915_dependency */
 	lockdep_assert_held(&schedule_lock);
 	GEM_BUG_ON(prio == I915_PRIORITY_INVALID);
-
-	if (prio <= READ_ONCE(node->attr.priority))
-		return;
 
 	if (node_signaled(node))
 		return;
@@ -324,22 +322,20 @@ static void __i915_schedule(struct i915_sched_node *node,
 
 		GEM_BUG_ON(node_to_request(node)->engine != engine);
 
-		node->attr.priority = prio;
+		WRITE_ONCE(node->attr.priority, prio);
 
-		if (list_empty(&node->link)) {
-			/*
-			 * If the request is not in the priolist queue because
-			 * it is not yet runnable, then it doesn't contribute
-			 * to our preemption decisions. On the other hand,
-			 * if the request is on the HW, it too is not in the
-			 * queue; but in that case we may still need to reorder
-			 * the inflight requests.
-			 */
+		/*
+		 * Once the request is ready, it will be placed into the
+		 * priority lists and then onto the HW runlist. Before the
+		 * request is ready, it does not contribute to our preemption
+		 * decisions and we can safely ignore it, as it will, and
+		 * any preemption required, be dealt with upon submission.
+		 * See engine->submit_request()
+		 */
+		if (list_empty(&node->link))
 			continue;
-		}
 
-		if (!intel_engine_is_virtual(engine) &&
-		    !i915_request_is_active(node_to_request(node))) {
+		if (i915_request_in_priority_queue(node_to_request(node))) {
 			if (!cache.priolist)
 				cache.priolist =
 					i915_sched_lookup_priolist(engine,
@@ -364,6 +360,9 @@ void i915_schedule(struct i915_request *rq, const struct i915_sched_attr *attr)
 static void __bump_priority(struct i915_sched_node *node, unsigned int bump)
 {
 	struct i915_sched_attr attr = node->attr;
+
+	if (attr.priority & bump)
+		return;
 
 	attr.priority |= bump;
 	__i915_schedule(node, &attr);
@@ -425,8 +424,6 @@ bool __i915_sched_node_add_dependency(struct i915_sched_node *node,
 
 	if (!node_signaled(signal)) {
 		INIT_LIST_HEAD(&dep->dfs_link);
-		list_add(&dep->wait_link, &signal->waiters_list);
-		list_add(&dep->signal_link, &node->signalers_list);
 		dep->signaler = signal;
 		dep->waiter = node;
 		dep->flags = flags;
@@ -435,6 +432,10 @@ bool __i915_sched_node_add_dependency(struct i915_sched_node *node,
 		if (signal->flags & I915_SCHED_HAS_SEMAPHORE_CHAIN &&
 		    !node_started(signal))
 			node->flags |= I915_SCHED_HAS_SEMAPHORE_CHAIN;
+
+		/* All set, now publish. Beware the lockless walkers. */
+		list_add_rcu(&dep->signal_link, &node->signalers_list);
+		list_add_rcu(&dep->wait_link, &signal->waiters_list);
 
 		/*
 		 * As we do not allow WAIT to preempt inflight requests,
@@ -486,7 +487,7 @@ void i915_sched_node_fini(struct i915_sched_node *node)
 	list_for_each_entry_safe(dep, tmp, &node->signalers_list, signal_link) {
 		GEM_BUG_ON(!list_empty(&dep->dfs_link));
 
-		list_del(&dep->wait_link);
+		list_del_rcu(&dep->wait_link);
 		if (dep->flags & I915_DEPENDENCY_ALLOC)
 			i915_dependency_free(dep);
 	}
@@ -497,7 +498,7 @@ void i915_sched_node_fini(struct i915_sched_node *node)
 		GEM_BUG_ON(dep->signaler != node);
 		GEM_BUG_ON(!list_empty(&dep->dfs_link));
 
-		list_del(&dep->signal_link);
+		list_del_rcu(&dep->signal_link);
 		if (dep->flags & I915_DEPENDENCY_ALLOC)
 			i915_dependency_free(dep);
 	}
@@ -526,7 +527,8 @@ static struct i915_global_scheduler global = { {
 int __init i915_global_scheduler_init(void)
 {
 	global.slab_dependencies = KMEM_CACHE(i915_dependency,
-					      SLAB_HWCACHE_ALIGN);
+					      SLAB_HWCACHE_ALIGN |
+					      SLAB_TYPESAFE_BY_RCU);
 	if (!global.slab_dependencies)
 		return -ENOMEM;
 

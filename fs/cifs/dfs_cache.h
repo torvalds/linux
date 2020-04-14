@@ -49,6 +49,10 @@ extern int dfs_cache_update_vol(const char *fullpath,
 				struct TCP_Server_Info *server);
 extern void dfs_cache_del_vol(const char *fullpath);
 
+extern int dfs_cache_get_tgt_share(const struct dfs_cache_tgt_iterator *it,
+				   const char **share, size_t *share_len,
+				   const char **prefix, size_t *prefix_len);
+
 static inline struct dfs_cache_tgt_iterator *
 dfs_cache_get_next_tgt(struct dfs_cache_tgt_list *tl,
 		       struct dfs_cache_tgt_iterator *it)

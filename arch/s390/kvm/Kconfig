@@ -55,8 +55,4 @@ config KVM_S390_UCONTROL
 
 	  If unsure, say N.
 
-# OK, it's a little counter-intuitive to do this, but it puts it neatly under
-# the virtualization menu.
-source "drivers/vhost/Kconfig"
-
 endif # VIRTUALIZATION

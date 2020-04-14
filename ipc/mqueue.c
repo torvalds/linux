@@ -239,11 +239,10 @@ static inline void msg_tree_erase(struct posix_msg_tree_node *leaf,
 		info->msg_tree_rightmost = rb_prev(node);
 
 	rb_erase(node, &info->msg_tree);
-	if (info->node_cache) {
+	if (info->node_cache)
 		kfree(leaf);
-	} else {
+	else
 		info->node_cache = leaf;
-	}
 }
 
 static inline struct msg_msg *msg_get(struct mqueue_inode_info *info)

@@ -39,7 +39,6 @@
 #include <linux/utsname.h>
 #include <linux/rculist.h>
 #include <linux/mm.h>
-#include <linux/random.h>
 #include <linux/vmalloc.h>
 #include <rdma/rdma_vt.h>
 
@@ -329,8 +328,10 @@ void qib_ib_rcv(struct qib_ctxtdata *rcd, void *rhdr, void *data, u32 tlen)
 		if (mcast == NULL)
 			goto drop;
 		this_cpu_inc(ibp->pmastats->n_multicast_rcv);
+		rcu_read_lock();
 		list_for_each_entry_rcu(p, &mcast->qp_list, list)
 			qib_qp_rcv(rcd, hdr, 1, data, tlen, p->qp);
+		rcu_read_unlock();
 		/*
 		 * Notify rvt_multicast_detach() if it is waiting for us
 		 * to finish.
@@ -1501,7 +1502,6 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	unsigned i, ctxt;
 	int ret;
 
-	get_random_bytes(&dev->qp_rnd, sizeof(dev->qp_rnd));
 	for (i = 0; i < dd->num_pports; i++)
 		init_ibport(ppd + i);
 

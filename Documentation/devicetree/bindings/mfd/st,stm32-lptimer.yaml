@@ -39,6 +39,8 @@ properties:
   "#size-cells":
     const: 0
 
+  wakeup-source: true
+
   pwm:
     type: object
 
@@ -81,6 +83,16 @@ patternProperties:
     required:
       - compatible
 
+  timer:
+    type: object
+
+    properties:
+      compatible:
+        const: st,stm32-lptimer-timer
+
+    required:
+      - compatible
+
 required:
   - "#address-cells"
   - "#size-cells"
@@ -114,6 +126,10 @@ examples:
 
       counter {
         compatible = "st,stm32-lptimer-counter";
+      };
+
+      timer {
+        compatible = "st,stm32-lptimer-timer";
       };
     };
 

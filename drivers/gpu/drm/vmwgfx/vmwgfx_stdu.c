@@ -590,7 +590,7 @@ static void vmw_stdu_bo_cpu_commit(struct vmw_kms_dirty *dirty)
 		return;
 
 	/* Assume we are blitting from Guest (bo) to Host (display_srf) */
-	dst_pitch = stdu->display_srf->base_size.width * stdu->cpp;
+	dst_pitch = stdu->display_srf->metadata.base_size.width * stdu->cpp;
 	dst_bo = &stdu->display_srf->res.backup->base;
 	dst_offset = ddirty->top * dst_pitch + ddirty->left * stdu->cpp;
 
@@ -916,6 +916,9 @@ static const struct drm_crtc_funcs vmw_stdu_crtc_funcs = {
 	.atomic_destroy_state = vmw_du_crtc_destroy_state,
 	.set_config = drm_atomic_helper_set_config,
 	.page_flip = drm_atomic_helper_page_flip,
+	.get_vblank_counter = vmw_get_vblank_counter,
+	.enable_vblank = vmw_enable_vblank,
+	.disable_vblank = vmw_disable_vblank,
 };
 
 
@@ -1038,7 +1041,6 @@ vmw_stdu_primary_plane_prepare_fb(struct drm_plane *plane,
 	struct vmw_plane_state *vps = vmw_plane_state_to_vps(new_state);
 	enum stdu_content_type new_content_type;
 	struct vmw_framebuffer_surface *new_vfbs;
-	struct drm_crtc *crtc = new_state->crtc;
 	uint32_t hdisplay = new_state->crtc_w, vdisplay = new_state->crtc_h;
 	int ret;
 
@@ -1055,8 +1057,9 @@ vmw_stdu_primary_plane_prepare_fb(struct drm_plane *plane,
 	vfb = vmw_framebuffer_to_vfb(new_fb);
 	new_vfbs = (vfb->bo) ? NULL : vmw_framebuffer_to_vfbs(new_fb);
 
-	if (new_vfbs && new_vfbs->surface->base_size.width == hdisplay &&
-	    new_vfbs->surface->base_size.height == vdisplay)
+	if (new_vfbs &&
+	    new_vfbs->surface->metadata.base_size.width == hdisplay &&
+	    new_vfbs->surface->metadata.base_size.height == vdisplay)
 		new_content_type = SAME_AS_DISPLAY;
 	else if (vfb->bo)
 		new_content_type = SEPARATE_BO;
@@ -1064,12 +1067,11 @@ vmw_stdu_primary_plane_prepare_fb(struct drm_plane *plane,
 		new_content_type = SEPARATE_SURFACE;
 
 	if (new_content_type != SAME_AS_DISPLAY) {
-		struct vmw_surface content_srf;
-		struct drm_vmw_size display_base_size = {0};
+		struct vmw_surface_metadata metadata = {0};
 
-		display_base_size.width  = hdisplay;
-		display_base_size.height = vdisplay;
-		display_base_size.depth  = 1;
+		metadata.base_size.width = hdisplay;
+		metadata.base_size.height = vdisplay;
+		metadata.base_size.depth = 1;
 
 		/*
 		 * If content buffer is a buffer object, then we have to
@@ -1079,15 +1081,15 @@ vmw_stdu_primary_plane_prepare_fb(struct drm_plane *plane,
 
 			switch (new_fb->format->cpp[0]*8) {
 			case 32:
-				content_srf.format = SVGA3D_X8R8G8B8;
+				metadata.format = SVGA3D_X8R8G8B8;
 				break;
 
 			case 16:
-				content_srf.format = SVGA3D_R5G6B5;
+				metadata.format = SVGA3D_R5G6B5;
 				break;
 
 			case 8:
-				content_srf.format = SVGA3D_P8;
+				metadata.format = SVGA3D_P8;
 				break;
 
 			default:
@@ -1095,22 +1097,20 @@ vmw_stdu_primary_plane_prepare_fb(struct drm_plane *plane,
 				return -EINVAL;
 			}
 
-			content_srf.flags             = 0;
-			content_srf.mip_levels[0]     = 1;
-			content_srf.multisample_count = 0;
-			content_srf.multisample_pattern =
-				SVGA3D_MS_PATTERN_NONE;
-			content_srf.quality_level = SVGA3D_MS_QUALITY_NONE;
+			metadata.mip_levels[0] = 1;
+			metadata.num_sizes = 1;
+			metadata.scanout = true;
 		} else {
-			content_srf = *new_vfbs->surface;
+			metadata = new_vfbs->surface->metadata;
 		}
 
 		if (vps->surf) {
-			struct drm_vmw_size cur_base_size = vps->surf->base_size;
+			struct drm_vmw_size cur_base_size =
+				vps->surf->metadata.base_size;
 
-			if (cur_base_size.width != display_base_size.width ||
-			    cur_base_size.height != display_base_size.height ||
-			    vps->surf->format != content_srf.format) {
+			if (cur_base_size.width != metadata.base_size.width ||
+			    cur_base_size.height != metadata.base_size.height ||
+			    vps->surf->metadata.format != metadata.format) {
 				WARN_ON(vps->pinned != 0);
 				vmw_surface_unreference(&vps->surf);
 			}
@@ -1118,20 +1118,8 @@ vmw_stdu_primary_plane_prepare_fb(struct drm_plane *plane,
 		}
 
 		if (!vps->surf) {
-			ret = vmw_surface_gb_priv_define
-				(crtc->dev,
-				 /* Kernel visible only */
-				 0,
-				 content_srf.flags,
-				 content_srf.format,
-				 true,  /* a scanout buffer */
-				 content_srf.mip_levels[0],
-				 content_srf.multisample_count,
-				 0,
-				 display_base_size,
-				 content_srf.multisample_pattern,
-				 content_srf.quality_level,
-				 &vps->surf);
+			ret = vmw_gb_surface_define(dev_priv, 0, &metadata,
+						    &vps->surf);
 			if (ret != 0) {
 				DRM_ERROR("Couldn't allocate STDU surface.\n");
 				return ret;
@@ -1308,7 +1296,7 @@ vmw_stdu_bo_populate_update_cpu(struct vmw_du_update_plane  *update, void *cmd,
 	diff.cpp = stdu->cpp;
 
 	dst_bo = &stdu->display_srf->res.backup->base;
-	dst_pitch = stdu->display_srf->base_size.width * stdu->cpp;
+	dst_pitch = stdu->display_srf->metadata.base_size.width * stdu->cpp;
 	dst_offset = bb->y1 * dst_pitch + bb->x1 * stdu->cpp;
 
 	src_bo = &vfbbo->buffer->base;
@@ -1885,7 +1873,7 @@ int vmw_kms_stdu_init_display(struct vmw_private *dev_priv)
 
 
 	/* Do nothing if Screen Target support is turned off */
-	if (!VMWGFX_ENABLE_SCREEN_TARGET_OTABLE)
+	if (!VMWGFX_ENABLE_SCREEN_TARGET_OTABLE || !dev_priv->has_mob)
 		return -ENOSYS;
 
 	if (!(dev_priv->capabilities & SVGA_CAP_GBOBJECTS))

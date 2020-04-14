@@ -816,7 +816,7 @@ static void bcache_device_free(struct bcache_device *d)
 }
 
 static int bcache_device_init(struct bcache_device *d, unsigned int block_size,
-			      sector_t sectors)
+			      sector_t sectors, make_request_fn make_request_fn)
 {
 	struct request_queue *q;
 	const size_t max_stripes = min_t(size_t, INT_MAX,
@@ -866,11 +866,10 @@ static int bcache_device_init(struct bcache_device *d, unsigned int block_size,
 	d->disk->fops		= &bcache_ops;
 	d->disk->private_data	= d;
 
-	q = blk_alloc_queue(GFP_KERNEL);
+	q = blk_alloc_queue(make_request_fn, NUMA_NO_NODE);
 	if (!q)
 		return -ENOMEM;
 
-	blk_queue_make_request(q, NULL);
 	d->disk->queue			= q;
 	q->queuedata			= d;
 	q->backing_dev_info->congested_data = d;
@@ -1339,7 +1338,8 @@ static int cached_dev_init(struct cached_dev *dc, unsigned int block_size)
 			q->limits.raid_partial_stripes_expensive;
 
 	ret = bcache_device_init(&dc->disk, block_size,
-			 dc->bdev->bd_part->nr_sects - dc->sb.data_offset);
+			 dc->bdev->bd_part->nr_sects - dc->sb.data_offset,
+			 cached_dev_make_request);
 	if (ret)
 		return ret;
 
@@ -1451,7 +1451,8 @@ static int flash_dev_run(struct cache_set *c, struct uuid_entry *u)
 
 	kobject_init(&d->kobj, &bch_flash_dev_ktype);
 
-	if (bcache_device_init(d, block_bytes(c), u->sectors))
+	if (bcache_device_init(d, block_bytes(c), u->sectors,
+			flash_dev_make_request))
 		goto err;
 
 	bcache_device_attach(d, c, u - c->uuids);
@@ -1916,23 +1917,6 @@ static int run_cache_set(struct cache_set *c)
 		err = "error in recovery";
 		if (bch_btree_check(c))
 			goto err;
-
-		/*
-		 * bch_btree_check() may occupy too much system memory which
-		 * has negative effects to user space application (e.g. data
-		 * base) performance. Shrink the mca cache memory proactively
-		 * here to avoid competing memory with user space workloads..
-		 */
-		if (!c->shrinker_disabled) {
-			struct shrink_control sc;
-
-			sc.gfp_mask = GFP_KERNEL;
-			sc.nr_to_scan = c->btree_cache_used * c->btree_pages;
-			/* first run to clear b->accessed tag */
-			c->shrink.scan_objects(&c->shrink, &sc);
-			/* second run to reap non-accessed nodes */
-			c->shrink.scan_objects(&c->shrink, &sc);
-		}
 
 		bch_journal_mark(c, &journal);
 		bch_initial_gc_finish(c);

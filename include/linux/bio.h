@@ -441,14 +441,6 @@ void __bio_add_page(struct bio *bio, struct page *page,
 		unsigned int len, unsigned int off);
 int bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter);
 void bio_release_pages(struct bio *bio, bool mark_dirty);
-struct rq_map_data;
-extern struct bio *bio_map_user_iov(struct request_queue *,
-				    struct iov_iter *, gfp_t);
-extern void bio_unmap_user(struct bio *);
-extern struct bio *bio_map_kern(struct request_queue *, void *, unsigned int,
-				gfp_t);
-extern struct bio *bio_copy_kern(struct request_queue *, void *, unsigned int,
-				 gfp_t, int);
 extern void bio_set_pages_dirty(struct bio *bio);
 extern void bio_check_pages_dirty(struct bio *bio);
 
@@ -463,14 +455,9 @@ extern void bio_copy_data_iter(struct bio *dst, struct bvec_iter *dst_iter,
 extern void bio_copy_data(struct bio *dst, struct bio *src);
 extern void bio_list_copy_data(struct bio *dst, struct bio *src);
 extern void bio_free_pages(struct bio *bio);
-
-extern struct bio *bio_copy_user_iov(struct request_queue *,
-				     struct rq_map_data *,
-				     struct iov_iter *,
-				     gfp_t);
-extern int bio_uncopy_user(struct bio *);
 void zero_fill_bio_iter(struct bio *bio, struct bvec_iter iter);
 void bio_truncate(struct bio *bio, unsigned new_size);
+void guard_bio_eod(struct bio *bio);
 
 static inline void zero_fill_bio(struct bio *bio)
 {

@@ -18,8 +18,8 @@
 
 #include "dsa_priv.h"
 
-static LIST_HEAD(dsa_tree_list);
 static DEFINE_MUTEX(dsa2_mutex);
+LIST_HEAD(dsa_tree_list);
 
 static const struct devlink_ops dsa_devlink_ops = {
 };

@@ -148,6 +148,8 @@
 
 /* Vendors and devices.  Sort key: vendor first, device next. */
 
+#define PCI_VENDOR_ID_LOONGSON		0x0014
+
 #define PCI_VENDOR_ID_TTTECH		0x0357
 #define PCI_DEVICE_ID_TTTECH_MC322	0x000a
 
@@ -2582,6 +2584,8 @@
 #define PCI_SUBSYSTEM_ID_CIRCUITCO_MINNOWBOARD	0x0001
 
 #define PCI_VENDOR_ID_AMAZON		0x1d0f
+
+#define PCI_VENDOR_ID_ZHAOXIN		0x1d17
 
 #define PCI_VENDOR_ID_HYGON		0x1d94
 

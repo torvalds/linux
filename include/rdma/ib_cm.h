@@ -360,7 +360,6 @@ struct ib_cm_req_param {
 	u32			starting_psn;
 	const void		*private_data;
 	u8			private_data_len;
-	u8			peer_to_peer;
 	u8			responder_resources;
 	u8			initiator_depth;
 	u8			remote_cm_response_timeout;

@@ -211,7 +211,7 @@ static const struct nfp_devlink_versions {
 	enum nfp_nsp_versions id;
 	const char *key;
 } nfp_devlink_versions_nsp[] = {
-	{ NFP_VERSIONS_BUNDLE,	"fw.bundle_id", },
+	{ NFP_VERSIONS_BUNDLE,	DEVLINK_INFO_VERSION_GENERIC_FW_BUNDLE_ID, },
 	{ NFP_VERSIONS_BSP,	DEVLINK_INFO_VERSION_GENERIC_FW_MGMT, },
 	{ NFP_VERSIONS_CPLD,	"fw.cpld", },
 	{ NFP_VERSIONS_APP,	DEVLINK_INFO_VERSION_GENERIC_FW_APP, },

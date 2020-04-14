@@ -487,6 +487,12 @@
 #define ERROR_QID_M    0x1ffffU
 #define ERROR_QID_G(x) (((x) >> ERROR_QID_S) & ERROR_QID_M)
 
+#define SGE_INT_CAUSE5_A        0x110c
+
+#define ERR_T_RXCRC_S    31
+#define ERR_T_RXCRC_V(x) ((x) << ERR_T_RXCRC_S)
+#define ERR_T_RXCRC_F    ERR_T_RXCRC_V(1U)
+
 #define HP_INT_THRESH_S    28
 #define HP_INT_THRESH_M    0xfU
 #define HP_INT_THRESH_V(x) ((x) << HP_INT_THRESH_S)

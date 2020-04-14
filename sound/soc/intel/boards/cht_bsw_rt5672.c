@@ -144,7 +144,7 @@ static int cht_aif1_hw_params(struct snd_pcm_substream *substream,
 					struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
 	int ret;
 
 	/* set codec PLL source to the 19.2MHz platform clock (MCLK) */
@@ -176,7 +176,7 @@ static const struct acpi_gpio_mapping cht_rt5672_gpios[] = {
 static int cht_codec_init(struct snd_soc_pcm_runtime *runtime)
 {
 	int ret;
-	struct snd_soc_dai *codec_dai = runtime->codec_dai;
+	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(runtime, 0);
 	struct snd_soc_component *component = codec_dai->component;
 	struct cht_mc_private *ctx = snd_soc_card_get_drvdata(runtime->card);
 
@@ -255,7 +255,7 @@ static int cht_codec_fixup(struct snd_soc_pcm_runtime *rtd,
 	/*
 	 * Default mode for SSP configuration is TDM 4 slot
 	 */
-	ret = snd_soc_dai_set_fmt(rtd->codec_dai,
+	ret = snd_soc_dai_set_fmt(asoc_rtd_to_codec(rtd, 0),
 				  SND_SOC_DAIFMT_DSP_B |
 				  SND_SOC_DAIFMT_IB_NF |
 				  SND_SOC_DAIFMT_CBS_CFS);
@@ -265,7 +265,7 @@ static int cht_codec_fixup(struct snd_soc_pcm_runtime *rtd,
 	}
 
 	/* TDM 4 slots 24 bit, set Rx & Tx bitmask to 4 active slots */
-	ret = snd_soc_dai_set_tdm_slot(rtd->codec_dai, 0xF, 0xF, 4, 24);
+	ret = snd_soc_dai_set_tdm_slot(asoc_rtd_to_codec(rtd, 0), 0xF, 0xF, 4, 24);
 	if (ret < 0) {
 		dev_err(rtd->dev, "can't set codec TDM slot %d\n", ret);
 		return ret;

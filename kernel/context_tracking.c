@@ -198,11 +198,13 @@ void __init context_tracking_cpu_set(int cpu)
 	if (initialized)
 		return;
 
+#ifdef CONFIG_HAVE_TIF_NOHZ
 	/*
 	 * Set TIF_NOHZ to init/0 and let it propagate to all tasks through fork
 	 * This assumes that init is the only task at this early boot stage.
 	 */
 	set_tsk_thread_flag(&init_task, TIF_NOHZ);
+#endif
 	WARN_ON_ONCE(!tasklist_empty());
 
 	initialized = true;

@@ -37,6 +37,7 @@
 #include <linux/vga_switcheroo.h>
 #include <linux/mmu_notifier.h>
 
+#include <drm/drm_agpsupport.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fb_helper.h>
@@ -119,9 +120,6 @@ void radeon_driver_postclose_kms(struct drm_device *dev,
 int radeon_suspend_kms(struct drm_device *dev, bool suspend,
 		       bool fbcon, bool freeze);
 int radeon_resume_kms(struct drm_device *dev, bool resume, bool fbcon);
-u32 radeon_get_vblank_counter_kms(struct drm_device *dev, unsigned int pipe);
-int radeon_enable_vblank_kms(struct drm_device *dev, unsigned int pipe);
-void radeon_disable_vblank_kms(struct drm_device *dev, unsigned int pipe);
 void radeon_driver_irq_preinstall_kms(struct drm_device *dev);
 int radeon_driver_irq_postinstall_kms(struct drm_device *dev);
 void radeon_driver_irq_uninstall_kms(struct drm_device *dev);
@@ -325,6 +323,7 @@ static int radeon_pci_probe(struct pci_dev *pdev,
 			    const struct pci_device_id *ent)
 {
 	unsigned long flags = 0;
+	struct drm_device *dev;
 	int ret;
 
 	if (!ent)
@@ -365,7 +364,44 @@ static int radeon_pci_probe(struct pci_dev *pdev,
 	if (ret)
 		return ret;
 
-	return drm_get_pci_dev(pdev, ent, &kms_driver);
+	dev = drm_dev_alloc(&kms_driver, &pdev->dev);
+	if (IS_ERR(dev))
+		return PTR_ERR(dev);
+
+	ret = pci_enable_device(pdev);
+	if (ret)
+		goto err_free;
+
+	dev->pdev = pdev;
+#ifdef __alpha__
+	dev->hose = pdev->sysdata;
+#endif
+
+	pci_set_drvdata(pdev, dev);
+
+	if (pci_find_capability(dev->pdev, PCI_CAP_ID_AGP))
+		dev->agp = drm_agp_init(dev);
+	if (dev->agp) {
+		dev->agp->agp_mtrr = arch_phys_wc_add(
+			dev->agp->agp_info.aper_base,
+			dev->agp->agp_info.aper_size *
+			1024 * 1024);
+	}
+
+	ret = drm_dev_register(dev, ent->driver_data);
+	if (ret)
+		goto err_agp;
+
+	return 0;
+
+err_agp:
+	if (dev->agp)
+		arch_phys_wc_del(dev->agp->agp_mtrr);
+	kfree(dev->agp);
+	pci_disable_device(pdev);
+err_free:
+	drm_dev_put(dev);
+	return ret;
 }
 
 static void
@@ -563,29 +599,14 @@ static const struct file_operations radeon_driver_kms_fops = {
 #endif
 };
 
-static bool
-radeon_get_crtc_scanout_position(struct drm_device *dev, unsigned int pipe,
-				 bool in_vblank_irq, int *vpos, int *hpos,
-				 ktime_t *stime, ktime_t *etime,
-				 const struct drm_display_mode *mode)
-{
-	return radeon_get_crtc_scanoutpos(dev, pipe, 0, vpos, hpos,
-					  stime, etime, mode);
-}
-
 static struct drm_driver kms_driver = {
 	.driver_features =
-	    DRIVER_USE_AGP | DRIVER_GEM | DRIVER_RENDER,
+	    DRIVER_GEM | DRIVER_RENDER,
 	.load = radeon_driver_load_kms,
 	.open = radeon_driver_open_kms,
 	.postclose = radeon_driver_postclose_kms,
 	.lastclose = radeon_driver_lastclose_kms,
 	.unload = radeon_driver_unload_kms,
-	.get_vblank_counter = radeon_get_vblank_counter_kms,
-	.enable_vblank = radeon_enable_vblank_kms,
-	.disable_vblank = radeon_disable_vblank_kms,
-	.get_vblank_timestamp = drm_calc_vbltimestamp_from_scanoutpos,
-	.get_scanout_position = radeon_get_crtc_scanout_position,
 	.irq_preinstall = radeon_driver_irq_preinstall_kms,
 	.irq_postinstall = radeon_driver_irq_postinstall_kms,
 	.irq_uninstall = radeon_driver_irq_uninstall_kms,

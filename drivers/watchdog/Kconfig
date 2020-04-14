@@ -207,6 +207,7 @@ config DA9063_WATCHDOG
 config DA9062_WATCHDOG
 	tristate "Dialog DA9062/61 Watchdog"
 	depends on MFD_DA9062 || COMPILE_TEST
+	depends on I2C
 	select WATCHDOG_CORE
 	help
 	  Support for the watchdog in the DA9062 and DA9061 PMICs.
@@ -583,6 +584,14 @@ config DAVINCI_WATCHDOG
 	  NOTE: once enabled, this timer cannot be disabled.
 	  Say N if you are unsure.
 
+config K3_RTI_WATCHDOG
+	tristate "Texas Instruments K3 RTI watchdog"
+	depends on ARCH_K3 || COMPILE_TEST
+	select WATCHDOG_CORE
+	help
+	  Say Y here if you want to include support for the K3 watchdog
+	  timer (RTI module) available in the K3 generation of processors.
+
 config ORION_WATCHDOG
 	tristate "Orion watchdog"
 	depends on ARCH_ORION5X || ARCH_DOVE || MACH_DOVE || ARCH_MVEBU || (COMPILE_TEST && !ARCH_EBSA110)
@@ -841,6 +850,7 @@ config MEDIATEK_WATCHDOG
 	tristate "Mediatek SoCs watchdog support"
 	depends on ARCH_MEDIATEK || COMPILE_TEST
 	select WATCHDOG_CORE
+	select RESET_CONTROLLER
 	help
 	  Say Y here to include support for the watchdog timer
 	  in Mediatek SoCs.

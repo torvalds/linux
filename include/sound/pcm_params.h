@@ -133,6 +133,13 @@ static inline int snd_mask_test(const struct snd_mask *mask, unsigned int val)
 	return mask->bits[MASK_OFS(val)] & MASK_BIT(val);
 }
 
+/* Most of drivers need only this one */
+static inline int snd_mask_test_format(const struct snd_mask *mask,
+				       snd_pcm_format_t format)
+{
+	return snd_mask_test(mask, (__force unsigned int)format);
+}
+
 static inline int snd_mask_single(const struct snd_mask *mask)
 {
 	int i, c = 0;

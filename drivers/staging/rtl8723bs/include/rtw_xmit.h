@@ -40,17 +40,17 @@
 #define HW_QUEUE_ENTRY	8
 
 #define WEP_IV(pattrib_iv, dot11txpn, keyidx)\
-do{\
+do {\
 	pattrib_iv[0] = dot11txpn._byte_.TSC0;\
 	pattrib_iv[1] = dot11txpn._byte_.TSC1;\
 	pattrib_iv[2] = dot11txpn._byte_.TSC2;\
 	pattrib_iv[3] = ((keyidx & 0x3)<<6);\
-	dot11txpn.val = (dot11txpn.val == 0xffffff) ? 0: (dot11txpn.val+1);\
-}while (0)
+	dot11txpn.val = (dot11txpn.val == 0xffffff) ? 0 : (dot11txpn.val + 1);\
+} while (0)
 
 
 #define TKIP_IV(pattrib_iv, dot11txpn, keyidx)\
-do{\
+do {\
 	pattrib_iv[0] = dot11txpn._byte_.TSC1;\
 	pattrib_iv[1] = (dot11txpn._byte_.TSC1 | 0x20) & 0x7f;\
 	pattrib_iv[2] = dot11txpn._byte_.TSC0;\
@@ -59,11 +59,11 @@ do{\
 	pattrib_iv[5] = dot11txpn._byte_.TSC3;\
 	pattrib_iv[6] = dot11txpn._byte_.TSC4;\
 	pattrib_iv[7] = dot11txpn._byte_.TSC5;\
-	dot11txpn.val = dot11txpn.val == 0xffffffffffffULL ? 0: (dot11txpn.val+1);\
-}while (0)
+	dot11txpn.val = dot11txpn.val == 0xffffffffffffULL ? 0 : (dot11txpn.val + 1);\
+} while (0)
 
 #define AES_IV(pattrib_iv, dot11txpn, keyidx)\
-do{\
+do {\
 	pattrib_iv[0] = dot11txpn._byte_.TSC0;\
 	pattrib_iv[1] = dot11txpn._byte_.TSC1;\
 	pattrib_iv[2] = 0;\
@@ -72,8 +72,8 @@ do{\
 	pattrib_iv[5] = dot11txpn._byte_.TSC3;\
 	pattrib_iv[6] = dot11txpn._byte_.TSC4;\
 	pattrib_iv[7] = dot11txpn._byte_.TSC5;\
-	dot11txpn.val = dot11txpn.val == 0xffffffffffffULL ? 0: (dot11txpn.val+1);\
-}while (0)
+	dot11txpn.val = dot11txpn.val == 0xffffffffffffULL ? 0 : (dot11txpn.val + 1);\
+} while (0)
 
 
 #define HWXMIT_ENTRY	4
@@ -217,7 +217,7 @@ enum {
 	XMITBUF_CMD = 2,
 };
 
-struct  submit_ctx{
+struct  submit_ctx {
 	unsigned long submit_time; /* */
 	u32 timeout_ms; /* <0: not synchronous, 0: wait forever, >0: up to ms waiting */
 	int status; /* status for operation */
@@ -274,7 +274,7 @@ struct xmit_buf
 	u8 pg_num;
 	u8 agg_num;
 
-#if defined(DBG_XMIT_BUF)|| defined(DBG_XMIT_BUF_EXT)
+#if defined(DBG_XMIT_BUF) || defined(DBG_XMIT_BUF_EXT)
 	u8 no;
 #endif
 
@@ -350,7 +350,7 @@ struct	hw_txqueue	{
 	sint	ac_tag;
 };
 
-struct agg_pkt_info{
+struct agg_pkt_info {
 	u16 offset;
 	u16 pkt_len;
 };
@@ -484,7 +484,7 @@ void rtw_init_hwxmits(struct hw_xmit *phwxmit, sint entry);
 
 
 s32 _rtw_init_xmit_priv(struct xmit_priv *pxmitpriv, struct adapter *padapter);
-void _rtw_free_xmit_priv (struct xmit_priv *pxmitpriv);
+void _rtw_free_xmit_priv(struct xmit_priv *pxmitpriv);
 
 
 s32 rtw_alloc_hwxmits(struct adapter *padapter);

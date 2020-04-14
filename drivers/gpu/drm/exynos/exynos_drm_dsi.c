@@ -1514,7 +1514,6 @@ static int exynos_dsi_create_connector(struct drm_encoder *encoder)
 		return 0;
 
 	connector->funcs->reset(connector);
-	drm_fb_helper_add_one_connector(drm->fb_helper, connector);
 	drm_connector_register(connector);
 	return 0;
 }
@@ -1540,7 +1539,7 @@ static int exynos_dsi_host_attach(struct mipi_dsi_host *host,
 
 	out_bridge  = of_drm_find_bridge(device->dev.of_node);
 	if (out_bridge) {
-		drm_bridge_attach(encoder, out_bridge, NULL);
+		drm_bridge_attach(encoder, out_bridge, NULL, 0);
 		dsi->out_bridge = out_bridge;
 		list_splice_init(&encoder->bridge_chain, &dsi->bridge_chain);
 	} else {
@@ -1717,7 +1716,7 @@ static int exynos_dsi_bind(struct device *dev, struct device *master,
 	if (dsi->in_bridge_node) {
 		in_bridge = of_drm_find_bridge(dsi->in_bridge_node);
 		if (in_bridge)
-			drm_bridge_attach(encoder, in_bridge, NULL);
+			drm_bridge_attach(encoder, in_bridge, NULL, 0);
 	}
 
 	return mipi_dsi_host_register(&dsi->dsi_host);
@@ -1773,8 +1772,9 @@ static int exynos_dsi_probe(struct platform_device *pdev)
 	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(dsi->supplies),
 				      dsi->supplies);
 	if (ret) {
-		dev_info(dev, "failed to get regulators: %d\n", ret);
-		return -EPROBE_DEFER;
+		if (ret != -EPROBE_DEFER)
+			dev_info(dev, "failed to get regulators: %d\n", ret);
+		return ret;
 	}
 
 	dsi->clks = devm_kcalloc(dev,
@@ -1787,9 +1787,10 @@ static int exynos_dsi_probe(struct platform_device *pdev)
 		dsi->clks[i] = devm_clk_get(dev, clk_names[i]);
 		if (IS_ERR(dsi->clks[i])) {
 			if (strcmp(clk_names[i], "sclk_mipi") == 0) {
-				strcpy(clk_names[i], OLD_SCLK_MIPI_CLK_NAME);
-				i--;
-				continue;
+				dsi->clks[i] = devm_clk_get(dev,
+							OLD_SCLK_MIPI_CLK_NAME);
+				if (!IS_ERR(dsi->clks[i]))
+					continue;
 			}
 
 			dev_info(dev, "failed to get the clock: %s\n",

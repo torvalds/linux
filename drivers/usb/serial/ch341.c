@@ -205,6 +205,16 @@ static int ch341_get_divisor(speed_t speed)
 			16 * speed - 16 * CH341_CLKRATE / (clk_div * (div + 1)))
 		div++;
 
+	/*
+	 * Prefer lower base clock (fact = 0) if even divisor.
+	 *
+	 * Note that this makes the receiver more tolerant to errors.
+	 */
+	if (fact == 1 && div % 2 == 0) {
+		div /= 2;
+		fact = 0;
+	}
+
 	return (0x100 - div) << 8 | fact << 2 | ps;
 }
 

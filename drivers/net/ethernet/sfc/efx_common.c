@@ -200,11 +200,11 @@ void efx_link_status_changed(struct efx_nic *efx)
 unsigned int efx_xdp_max_mtu(struct efx_nic *efx)
 {
 	/* The maximum MTU that we can fit in a single page, allowing for
-	 * framing, overhead and XDP headroom.
+	 * framing, overhead and XDP headroom + tailroom.
 	 */
 	int overhead = EFX_MAX_FRAME_LEN(0) + sizeof(struct efx_rx_page_state) +
 		       efx->rx_prefix_size + efx->type->rx_buffer_padding +
-		       efx->rx_ip_align + XDP_PACKET_HEADROOM;
+		       efx->rx_ip_align + EFX_XDP_HEADROOM + EFX_XDP_TAILROOM;
 
 	return PAGE_SIZE - overhead;
 }
@@ -302,8 +302,9 @@ static void efx_start_datapath(struct efx_nic *efx)
 	efx->rx_dma_len = (efx->rx_prefix_size +
 			   EFX_MAX_FRAME_LEN(efx->net_dev->mtu) +
 			   efx->type->rx_buffer_padding);
-	rx_buf_len = (sizeof(struct efx_rx_page_state) + XDP_PACKET_HEADROOM +
-		      efx->rx_ip_align + efx->rx_dma_len);
+	rx_buf_len = (sizeof(struct efx_rx_page_state)   + EFX_XDP_HEADROOM +
+		      efx->rx_ip_align + efx->rx_dma_len + EFX_XDP_TAILROOM);
+
 	if (rx_buf_len <= PAGE_SIZE) {
 		efx->rx_scatter = efx->type->always_rx_scatter;
 		efx->rx_buffer_order = 0;

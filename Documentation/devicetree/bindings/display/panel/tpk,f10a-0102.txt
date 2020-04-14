@@ -1,8 +1,0 @@
-TPK U.S.A. LLC Fusion 10.1" integrated projected capacitive touch display with,
-1024 x 600 (WSVGA) LCD panel.
-
-Required properties:
-- compatible: should be "tpk,f10a-0102"
-
-This binding is compatible with the simple-panel binding, which is specified
-in simple-panel.txt in this directory.

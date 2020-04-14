@@ -20,11 +20,11 @@
  * input formats including most variants of RGB and YUV.
  *
  * The hardware has four display pipes, and the layout is a little
- * bit like this:
+ * bit like this::
  *
- * Memory     -> Overlay -> Channel -> FIFO -> 5 formatters -> DSI/DPI
- * External      0..5       0..3       A,B,    3 x DSI         bridge
- * source 0..9                         C0,C1   2 x DPI
+ *   Memory     -> Overlay -> Channel -> FIFO -> 5 formatters -> DSI/DPI
+ *   External      0..5       0..3       A,B,    3 x DSI         bridge
+ *   source 0..9                         C0,C1   2 x DPI
  *
  * FIFOs A and B are for LCD and HDMI while FIFO CO/C1 are for
  * panels with embedded buffer.
@@ -43,6 +43,7 @@
  * to change as we exploit more of the hardware capabilities.
  *
  * TODO:
+ *
  * - Enabled damaged rectangles using drm_plane_enable_fb_damage_clips()
  *   so we can selectively just transmit the damaged area to a
  *   command-only display.

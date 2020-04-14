@@ -40,7 +40,7 @@ void wilc_wfi_monitor_rx(struct net_device *mon_dev, u8 *buff, u32 size)
 	 * The packet offset field contain info about what type of management
 	 * the frame we are dealing with and ack status
 	 */
-	pkt_offset = GET_PKT_OFFSET(header);
+	pkt_offset = FIELD_GET(WILC_PKT_HDR_OFFSET_FIELD, header);
 
 	if (pkt_offset & IS_MANAGMEMENT_CALLBACK) {
 		/* hostapd callback mgmt frame */

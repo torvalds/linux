@@ -18,11 +18,11 @@
 
 int arm_cpuidle_init(unsigned int cpu)
 {
+	const struct cpu_operations *ops = get_cpu_ops(cpu);
 	int ret = -EOPNOTSUPP;
 
-	if (cpu_ops[cpu] && cpu_ops[cpu]->cpu_suspend &&
-			cpu_ops[cpu]->cpu_init_idle)
-		ret = cpu_ops[cpu]->cpu_init_idle(cpu);
+	if (ops && ops->cpu_suspend && ops->cpu_init_idle)
+		ret = ops->cpu_init_idle(cpu);
 
 	return ret;
 }
@@ -37,8 +37,9 @@ int arm_cpuidle_init(unsigned int cpu)
 int arm_cpuidle_suspend(int index)
 {
 	int cpu = smp_processor_id();
+	const struct cpu_operations *ops = get_cpu_ops(cpu);
 
-	return cpu_ops[cpu]->cpu_suspend(index);
+	return ops->cpu_suspend(index);
 }
 
 #ifdef CONFIG_ACPI

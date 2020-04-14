@@ -13,8 +13,6 @@
  *
  */
 
-#ifdef CONFIG_AS_AVX2
-
 #include <linux/raid/pq.h>
 #include "x86.h"
 
@@ -470,5 +468,3 @@ const struct raid6_calls raid6_avx2x4 = {
 	1			/* Has cache hints */
 };
 #endif
-
-#endif /* CONFIG_AS_AVX2 */

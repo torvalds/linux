@@ -918,6 +918,10 @@ static int nldev_set_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 		nla_strlcpy(name, tb[RDMA_NLDEV_ATTR_DEV_NAME],
 			    IB_DEVICE_NAME_MAX);
+		if (strlen(name) == 0) {
+			err = -EINVAL;
+			goto done;
+		}
 		err = ib_device_rename(device, name);
 		goto done;
 	}
@@ -1514,7 +1518,7 @@ static int nldev_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	nla_strlcpy(ibdev_name, tb[RDMA_NLDEV_ATTR_DEV_NAME],
 		    sizeof(ibdev_name));
-	if (strchr(ibdev_name, '%'))
+	if (strchr(ibdev_name, '%') || strlen(ibdev_name) == 0)
 		return -EINVAL;
 
 	nla_strlcpy(type, tb[RDMA_NLDEV_ATTR_LINK_TYPE], sizeof(type));
@@ -1757,6 +1761,8 @@ static int nldev_stat_set_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 		if (ret)
 			goto err_msg;
 	} else {
+		if (!tb[RDMA_NLDEV_ATTR_RES_LQPN])
+			goto err_msg;
 		qpn = nla_get_u32(tb[RDMA_NLDEV_ATTR_RES_LQPN]);
 		if (tb[RDMA_NLDEV_ATTR_STAT_COUNTER_ID]) {
 			cntn = nla_get_u32(tb[RDMA_NLDEV_ATTR_STAT_COUNTER_ID]);

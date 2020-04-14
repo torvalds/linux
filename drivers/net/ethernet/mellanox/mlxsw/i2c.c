@@ -53,6 +53,7 @@
 
 /**
  * struct mlxsw_i2c - device private data:
+ * @cmd: command attributes;
  * @cmd.mb_size_in: input mailbox size;
  * @cmd.mb_off_in: input mailbox offset in register space;
  * @cmd.mb_size_out: output mailbox size;

@@ -1413,8 +1413,6 @@ struct hfi1_devdata {
 	bool aspm_enabled;	/* ASPM state: enabled/disabled */
 	struct rhashtable *sdma_rht;
 
-	struct kobject kobj;
-
 	/* vnic data */
 	struct hfi1_vnic_data vnic;
 	/* Lock to protect IRQ SRC register access */
@@ -1444,10 +1442,13 @@ struct mmu_rb_handler;
 
 /* Private data for file operations */
 struct hfi1_filedata {
+	struct srcu_struct pq_srcu;
 	struct hfi1_devdata *dd;
 	struct hfi1_ctxtdata *uctxt;
 	struct hfi1_user_sdma_comp_q *cq;
-	struct hfi1_user_sdma_pkt_q *pq;
+	/* update side lock for SRCU */
+	spinlock_t pq_rcu_lock;
+	struct hfi1_user_sdma_pkt_q __rcu *pq;
 	u16 subctxt;
 	/* for cpu affinity; -1 if none */
 	int rec_cpu_num;

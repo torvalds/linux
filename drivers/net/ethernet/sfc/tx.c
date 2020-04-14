@@ -287,9 +287,8 @@ static int efx_tx_tso_fallback(struct efx_tx_queue *tx_queue,
 		return PTR_ERR(segments);
 
 	dev_consume_skb_any(skb);
-	skb = segments;
 
-	skb_list_walk_safe(skb, skb, next) {
+	skb_list_walk_safe(segments, skb, next) {
 		skb_mark_not_on_list(skb);
 		efx_enqueue_skb(tx_queue, skb);
 	}
@@ -533,6 +532,44 @@ netdev_tx_t efx_hard_start_xmit(struct sk_buff *skb,
 	tx_queue = efx_get_tx_queue(efx, index, type);
 
 	return efx_enqueue_skb(tx_queue, skb);
+}
+
+void efx_xmit_done_single(struct efx_tx_queue *tx_queue)
+{
+	unsigned int pkts_compl = 0, bytes_compl = 0;
+	unsigned int read_ptr;
+	bool finished = false;
+
+	read_ptr = tx_queue->read_count & tx_queue->ptr_mask;
+
+	while (!finished) {
+		struct efx_tx_buffer *buffer = &tx_queue->buffer[read_ptr];
+
+		if (!efx_tx_buffer_in_use(buffer)) {
+			struct efx_nic *efx = tx_queue->efx;
+
+			netif_err(efx, hw, efx->net_dev,
+				  "TX queue %d spurious single TX completion\n",
+				  tx_queue->queue);
+			efx_schedule_reset(efx, RESET_TYPE_TX_SKIP);
+			return;
+		}
+
+		/* Need to check the flag before dequeueing. */
+		if (buffer->flags & EFX_TX_BUF_SKB)
+			finished = true;
+		efx_dequeue_buffer(tx_queue, buffer, &pkts_compl, &bytes_compl);
+
+		++tx_queue->read_count;
+		read_ptr = tx_queue->read_count & tx_queue->ptr_mask;
+	}
+
+	tx_queue->pkts_compl += pkts_compl;
+	tx_queue->bytes_compl += bytes_compl;
+
+	EFX_WARN_ON_PARANOID(pkts_compl != 1);
+
+	efx_xmit_done_check_empty(tx_queue);
 }
 
 void efx_init_tx_queue_core_txq(struct efx_tx_queue *tx_queue)

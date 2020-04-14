@@ -51,8 +51,6 @@
 drm_dma_handle_t *drm_pci_alloc(struct drm_device * dev, size_t size, size_t align)
 {
 	drm_dma_handle_t *dmah;
-	unsigned long addr;
-	size_t sz;
 
 	/* pci_alloc_consistent only guarantees alignment to the smallest
 	 * PAGE_SIZE order which is greater than or equal to the requested size.
@@ -68,46 +66,16 @@ drm_dma_handle_t *drm_pci_alloc(struct drm_device * dev, size_t size, size_t ali
 	dmah->size = size;
 	dmah->vaddr = dma_alloc_coherent(&dev->pdev->dev, size,
 					 &dmah->busaddr,
-					 GFP_KERNEL | __GFP_COMP);
+					 GFP_KERNEL);
 
 	if (dmah->vaddr == NULL) {
 		kfree(dmah);
 		return NULL;
 	}
 
-	/* XXX - Is virt_to_page() legal for consistent mem? */
-	/* Reserve */
-	for (addr = (unsigned long)dmah->vaddr, sz = size;
-	     sz > 0; addr += PAGE_SIZE, sz -= PAGE_SIZE) {
-		SetPageReserved(virt_to_page((void *)addr));
-	}
-
 	return dmah;
 }
-
 EXPORT_SYMBOL(drm_pci_alloc);
-
-/*
- * Free a PCI consistent memory block without freeing its descriptor.
- *
- * This function is for internal use in the Linux-specific DRM core code.
- */
-void __drm_legacy_pci_free(struct drm_device * dev, drm_dma_handle_t * dmah)
-{
-	unsigned long addr;
-	size_t sz;
-
-	if (dmah->vaddr) {
-		/* XXX - Is virt_to_page() legal for consistent mem? */
-		/* Unreserve */
-		for (addr = (unsigned long)dmah->vaddr, sz = dmah->size;
-		     sz > 0; addr += PAGE_SIZE, sz -= PAGE_SIZE) {
-			ClearPageReserved(virt_to_page((void *)addr));
-		}
-		dma_free_coherent(&dev->pdev->dev, dmah->size, dmah->vaddr,
-				  dmah->busaddr);
-	}
-}
 
 /**
  * drm_pci_free - Free a PCI consistent memory block
@@ -119,7 +87,8 @@ void __drm_legacy_pci_free(struct drm_device * dev, drm_dma_handle_t * dmah)
  */
 void drm_pci_free(struct drm_device * dev, drm_dma_handle_t * dmah)
 {
-	__drm_legacy_pci_free(dev, dmah);
+	dma_free_coherent(&dev->pdev->dev, dmah->size, dmah->vaddr,
+			  dmah->busaddr);
 	kfree(dmah);
 }
 
@@ -197,6 +166,18 @@ int drm_irq_by_busid(struct drm_device *dev, void *data,
 	return drm_pci_irq_by_busid(dev, p);
 }
 
+void drm_pci_agp_destroy(struct drm_device *dev)
+{
+	if (dev->agp) {
+		arch_phys_wc_del(dev->agp->agp_mtrr);
+		drm_legacy_agp_clear(dev);
+		kfree(dev->agp);
+		dev->agp = NULL;
+	}
+}
+
+#ifdef CONFIG_DRM_LEGACY
+
 static void drm_pci_agp_init(struct drm_device *dev)
 {
 	if (drm_core_check_feature(dev, DRIVER_USE_AGP)) {
@@ -211,33 +192,9 @@ static void drm_pci_agp_init(struct drm_device *dev)
 	}
 }
 
-void drm_pci_agp_destroy(struct drm_device *dev)
-{
-	if (dev->agp) {
-		arch_phys_wc_del(dev->agp->agp_mtrr);
-		drm_legacy_agp_clear(dev);
-		kfree(dev->agp);
-		dev->agp = NULL;
-	}
-}
-
-/**
- * drm_get_pci_dev - Register a PCI device with the DRM subsystem
- * @pdev: PCI device
- * @ent: entry from the PCI ID table that matches @pdev
- * @driver: DRM device driver
- *
- * Attempt to gets inter module "drm" information. If we are first
- * then register the character device and inter module information.
- * Try and register, if we fail to register, backout previous work.
- *
- * NOTE: This function is deprecated, please use drm_dev_alloc() and
- * drm_dev_register() instead and remove your &drm_driver.load callback.
- *
- * Return: 0 on success or a negative error code on failure.
- */
-int drm_get_pci_dev(struct pci_dev *pdev, const struct pci_device_id *ent,
-		    struct drm_driver *driver)
+static int drm_get_pci_dev(struct pci_dev *pdev,
+			   const struct pci_device_id *ent,
+			   struct drm_driver *driver)
 {
 	struct drm_device *dev;
 	int ret;
@@ -280,9 +237,6 @@ err_free:
 	drm_dev_put(dev);
 	return ret;
 }
-EXPORT_SYMBOL(drm_get_pci_dev);
-
-#ifdef CONFIG_DRM_LEGACY
 
 /**
  * drm_legacy_pci_init - shadow-attach a legacy DRM PCI driver

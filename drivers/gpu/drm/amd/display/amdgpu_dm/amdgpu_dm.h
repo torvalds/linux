@@ -90,15 +90,41 @@ struct dm_comressor_info {
 };
 
 /**
- * struct amdgpu_dm_backlight_caps - Usable range of backlight values from ACPI
- * @min_input_signal: minimum possible input in range 0-255
- * @max_input_signal: maximum possible input in range 0-255
- * @caps_valid: true if these values are from the ACPI interface
+ * struct amdgpu_dm_backlight_caps - Information about backlight
+ *
+ * Describe the backlight support for ACPI or eDP AUX.
  */
 struct amdgpu_dm_backlight_caps {
+	/**
+	 * @ext_caps: Keep the data struct with all the information about the
+	 * display support for HDR.
+	 */
+	union dpcd_sink_ext_caps *ext_caps;
+	/**
+	 * @aux_min_input_signal: Min brightness value supported by the display
+	 */
+	u32 aux_min_input_signal;
+	/**
+	 * @aux_max_input_signal: Max brightness value supported by the display
+	 * in nits.
+	 */
+	u32 aux_max_input_signal;
+	/**
+	 * @min_input_signal: minimum possible input in range 0-255.
+	 */
 	int min_input_signal;
+	/**
+	 * @max_input_signal: maximum possible input in range 0-255.
+	 */
 	int max_input_signal;
+	/**
+	 * @caps_valid: true if these values are from the ACPI interface.
+	 */
 	bool caps_valid;
+	/**
+	 * @aux_support: Describes if the display supports AUX backlight.
+	 */
+	bool aux_support;
 };
 
 /**
@@ -456,6 +482,9 @@ void amdgpu_dm_init_color_mod(void);
 int amdgpu_dm_update_crtc_color_mgmt(struct dm_crtc_state *crtc);
 int amdgpu_dm_update_plane_color_mgmt(struct dm_crtc_state *crtc,
 				      struct dc_plane_state *dc_plane_state);
+
+void amdgpu_dm_update_connector_after_detect(
+		struct amdgpu_dm_connector *aconnector);
 
 extern const struct drm_encoder_helper_funcs amdgpu_dm_encoder_helper_funcs;
 

@@ -8,6 +8,7 @@ Contents:
 
    netdev-FAQ
    af_xdp
+   bareudp
    batman-adv
    can
    can_ucan_protocol
@@ -33,6 +34,7 @@ Contents:
    tls
    tls-offload
    nfc
+   6lowpan
 
 .. only::  subproject and html
 

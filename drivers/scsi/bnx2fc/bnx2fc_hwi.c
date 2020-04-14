@@ -863,36 +863,22 @@ ret_warn_rqe:
 	}
 }
 
-void bnx2fc_process_cq_compl(struct bnx2fc_rport *tgt, u16 wqe)
+void bnx2fc_process_cq_compl(struct bnx2fc_rport *tgt, u16 wqe,
+			     unsigned char *rq_data, u8 num_rq,
+			     struct fcoe_task_ctx_entry *task)
 {
-	struct fcoe_task_ctx_entry *task;
-	struct fcoe_task_ctx_entry *task_page;
 	struct fcoe_port *port = tgt->port;
 	struct bnx2fc_interface *interface = port->priv;
 	struct bnx2fc_hba *hba = interface->hba;
 	struct bnx2fc_cmd *io_req;
-	int task_idx, index;
+
 	u16 xid;
 	u8  cmd_type;
 	u8 rx_state = 0;
-	u8 num_rq;
 
 	spin_lock_bh(&tgt->tgt_lock);
+
 	xid = wqe & FCOE_PEND_WQ_CQE_TASK_ID;
-	if (xid >= hba->max_tasks) {
-		printk(KERN_ERR PFX "ERROR:xid out of range\n");
-		spin_unlock_bh(&tgt->tgt_lock);
-		return;
-	}
-	task_idx = xid / BNX2FC_TASKS_PER_PAGE;
-	index = xid % BNX2FC_TASKS_PER_PAGE;
-	task_page = (struct fcoe_task_ctx_entry *)hba->task_ctx[task_idx];
-	task = &(task_page[index]);
-
-	num_rq = ((task->rxwr_txrd.var_ctx.rx_flags &
-		   FCOE_TCE_RX_WR_TX_RD_VAR_NUM_RQ_WQE) >>
-		   FCOE_TCE_RX_WR_TX_RD_VAR_NUM_RQ_WQE_SHIFT);
-
 	io_req = (struct bnx2fc_cmd *)hba->cmd_mgr->cmds[xid];
 
 	if (io_req == NULL) {
@@ -912,7 +898,8 @@ void bnx2fc_process_cq_compl(struct bnx2fc_rport *tgt, u16 wqe)
 	switch (cmd_type) {
 	case BNX2FC_SCSI_CMD:
 		if (rx_state == FCOE_TASK_RX_STATE_COMPLETED) {
-			bnx2fc_process_scsi_cmd_compl(io_req, task, num_rq);
+			bnx2fc_process_scsi_cmd_compl(io_req, task, num_rq,
+						      rq_data);
 			spin_unlock_bh(&tgt->tgt_lock);
 			return;
 		}
@@ -929,7 +916,7 @@ void bnx2fc_process_cq_compl(struct bnx2fc_rport *tgt, u16 wqe)
 
 	case BNX2FC_TASK_MGMT_CMD:
 		BNX2FC_IO_DBG(io_req, "Processing TM complete\n");
-		bnx2fc_process_tm_compl(io_req, task, num_rq);
+		bnx2fc_process_tm_compl(io_req, task, num_rq, rq_data);
 		break;
 
 	case BNX2FC_ABTS:
@@ -987,7 +974,9 @@ void bnx2fc_arm_cq(struct bnx2fc_rport *tgt)
 
 }
 
-static struct bnx2fc_work *bnx2fc_alloc_work(struct bnx2fc_rport *tgt, u16 wqe)
+static struct bnx2fc_work *bnx2fc_alloc_work(struct bnx2fc_rport *tgt, u16 wqe,
+					     unsigned char *rq_data, u8 num_rq,
+					     struct fcoe_task_ctx_entry *task)
 {
 	struct bnx2fc_work *work;
 	work = kzalloc(sizeof(struct bnx2fc_work), GFP_ATOMIC);
@@ -997,29 +986,87 @@ static struct bnx2fc_work *bnx2fc_alloc_work(struct bnx2fc_rport *tgt, u16 wqe)
 	INIT_LIST_HEAD(&work->list);
 	work->tgt = tgt;
 	work->wqe = wqe;
+	work->num_rq = num_rq;
+	work->task = task;
+	if (rq_data)
+		memcpy(work->rq_data, rq_data, BNX2FC_RQ_BUF_SZ);
+
 	return work;
 }
 
 /* Pending work request completion */
-static void bnx2fc_pending_work(struct bnx2fc_rport *tgt, unsigned int wqe)
+static bool bnx2fc_pending_work(struct bnx2fc_rport *tgt, unsigned int wqe)
 {
 	unsigned int cpu = wqe % num_possible_cpus();
 	struct bnx2fc_percpu_s *fps;
 	struct bnx2fc_work *work;
+	struct fcoe_task_ctx_entry *task;
+	struct fcoe_task_ctx_entry *task_page;
+	struct fcoe_port *port = tgt->port;
+	struct bnx2fc_interface *interface = port->priv;
+	struct bnx2fc_hba *hba = interface->hba;
+	unsigned char *rq_data = NULL;
+	unsigned char rq_data_buff[BNX2FC_RQ_BUF_SZ];
+	int task_idx, index;
+	unsigned char *dummy;
+	u16 xid;
+	u8 num_rq;
+	int i;
+
+	xid = wqe & FCOE_PEND_WQ_CQE_TASK_ID;
+	if (xid >= hba->max_tasks) {
+		pr_err(PFX "ERROR:xid out of range\n");
+		return false;
+	}
+
+	task_idx = xid / BNX2FC_TASKS_PER_PAGE;
+	index = xid % BNX2FC_TASKS_PER_PAGE;
+	task_page = (struct fcoe_task_ctx_entry *)hba->task_ctx[task_idx];
+	task = &task_page[index];
+
+	num_rq = ((task->rxwr_txrd.var_ctx.rx_flags &
+		   FCOE_TCE_RX_WR_TX_RD_VAR_NUM_RQ_WQE) >>
+		  FCOE_TCE_RX_WR_TX_RD_VAR_NUM_RQ_WQE_SHIFT);
+
+	memset(rq_data_buff, 0, BNX2FC_RQ_BUF_SZ);
+
+	if (!num_rq)
+		goto num_rq_zero;
+
+	rq_data = bnx2fc_get_next_rqe(tgt, 1);
+
+	if (num_rq > 1) {
+		/* We do not need extra sense data */
+		for (i = 1; i < num_rq; i++)
+			dummy = bnx2fc_get_next_rqe(tgt, 1);
+	}
+
+	if (rq_data)
+		memcpy(rq_data_buff, rq_data, BNX2FC_RQ_BUF_SZ);
+
+	/* return RQ entries */
+	for (i = 0; i < num_rq; i++)
+		bnx2fc_return_rqe(tgt, 1);
+
+num_rq_zero:
 
 	fps = &per_cpu(bnx2fc_percpu, cpu);
 	spin_lock_bh(&fps->fp_work_lock);
 	if (fps->iothread) {
-		work = bnx2fc_alloc_work(tgt, wqe);
+		work = bnx2fc_alloc_work(tgt, wqe, rq_data_buff,
+					 num_rq, task);
 		if (work) {
 			list_add_tail(&work->list, &fps->work_list);
 			wake_up_process(fps->iothread);
 			spin_unlock_bh(&fps->fp_work_lock);
-			return;
+			return true;
 		}
 	}
 	spin_unlock_bh(&fps->fp_work_lock);
-	bnx2fc_process_cq_compl(tgt, wqe);
+	bnx2fc_process_cq_compl(tgt, wqe,
+				rq_data_buff, num_rq, task);
+
+	return true;
 }
 
 int bnx2fc_process_new_cqes(struct bnx2fc_rport *tgt)
@@ -1056,8 +1103,8 @@ int bnx2fc_process_new_cqes(struct bnx2fc_rport *tgt)
 			/* Unsolicited event notification */
 			bnx2fc_process_unsol_compl(tgt, wqe);
 		} else {
-			bnx2fc_pending_work(tgt, wqe);
-			num_free_sqes++;
+			if (bnx2fc_pending_work(tgt, wqe))
+				num_free_sqes++;
 		}
 		cqe++;
 		tgt->cq_cons_idx++;

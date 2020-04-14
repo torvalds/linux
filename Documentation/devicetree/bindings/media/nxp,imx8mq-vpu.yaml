@@ -1,0 +1,77 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/media/nxp,imx8mq-vpu.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: Hantro G1/G2 VPU codecs implemented on i.MX8MQ SoCs
+
+maintainers:
+  - Philipp Zabel <p.zabel@pengutronix.de>
+
+description:
+  Hantro G1/G2 video decode accelerators present on i.MX8MQ SoCs.
+
+properties:
+  compatible:
+    const: nxp,imx8mq-vpu
+
+  reg:
+    maxItems: 3
+
+  reg-names:
+    items:
+      - const: g1
+      - const: g2
+      - const: ctrl
+
+  interrupts:
+    maxItems: 2
+
+  interrupt-names:
+    items:
+      - const: g1
+      - const: g2
+
+  clocks:
+    maxItems: 3
+
+  clock-names:
+    items:
+      - const: g1
+      - const: g2
+      - const: bus
+
+  power-domains:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - interrupts
+  - interrupt-names
+  - clocks
+  - clock-names
+
+examples:
+  - |
+        #include <dt-bindings/clock/imx8mq-clock.h>
+        #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+        vpu: video-codec@38300000 {
+                compatible = "nxp,imx8mq-vpu";
+                reg = <0x38300000 0x10000>,
+                      <0x38310000 0x10000>,
+                      <0x38320000 0x10000>;
+                reg-names = "g1", "g2", "ctrl";
+                interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>,
+                             <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
+                interrupt-names = "g1", "g2";
+                clocks = <&clk IMX8MQ_CLK_VPU_G1_ROOT>,
+                         <&clk IMX8MQ_CLK_VPU_G2_ROOT>,
+                         <&clk IMX8MQ_CLK_VPU_DEC_ROOT>;
+                clock-names = "g1", "g2", "bus";
+                power-domains = <&pgc_vpu>;
+        };

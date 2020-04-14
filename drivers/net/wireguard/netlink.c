@@ -411,11 +411,7 @@ static int set_peer(struct wg_device *wg, struct nlattr **attrs)
 
 		peer = wg_peer_create(wg, public_key, preshared_key);
 		if (IS_ERR(peer)) {
-			/* Similar to the above, if the key is invalid, we skip
-			 * it without fanfare, so that services don't need to
-			 * worry about doing key validation themselves.
-			 */
-			ret = PTR_ERR(peer) == -EKEYREJECTED ? 0 : PTR_ERR(peer);
+			ret = PTR_ERR(peer);
 			peer = NULL;
 			goto out;
 		}
@@ -569,7 +565,7 @@ static int wg_set_device(struct sk_buff *skb, struct genl_info *info)
 							 private_key);
 		list_for_each_entry_safe(peer, temp, &wg->peer_list,
 					 peer_list) {
-			BUG_ON(!wg_noise_precompute_static_static(peer));
+			wg_noise_precompute_static_static(peer);
 			wg_noise_expire_current_peer_keypairs(peer);
 		}
 		wg_cookie_checker_precompute_device_keys(&wg->cookie_checker);

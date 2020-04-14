@@ -82,7 +82,7 @@ void mt76_write_mac_initvals(struct mt76x02_dev *dev)
 		{ MT_PBF_SYS_CTRL,		0x00080c00 },
 		{ MT_PBF_CFG,			0x1efebcff },
 		{ MT_FCE_PSE_CTRL,		0x00000001 },
-		{ MT_MAC_SYS_CTRL,		0x0000000c },
+		{ MT_MAC_SYS_CTRL,		0x00000000 },
 		{ MT_MAX_LEN_CFG,		0x003e3f00 },
 		{ MT_AMPDU_MAX_LEN_20M1S,	0xaaa99887 },
 		{ MT_AMPDU_MAX_LEN_20M2S,	0x000000aa },

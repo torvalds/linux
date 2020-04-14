@@ -42,7 +42,7 @@ properties:
       be part of GCC and hence the TSENS properties can also be part
       of the GCC/clock-controller node.
       For more details on the TSENS properties please refer
-      Documentation/devicetree/bindings/thermal/qcom-tsens.txt
+      Documentation/devicetree/bindings/thermal/qcom-tsens.yaml
 
   nvmem-cell-names:
     minItems: 1
@@ -67,6 +67,8 @@ required:
   - nvmem-cells
   - nvmem-cell-names
   - '#thermal-sensor-cells'
+
+additionalProperties: false
 
 examples:
   - |

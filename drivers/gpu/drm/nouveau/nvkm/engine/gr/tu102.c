@@ -164,6 +164,32 @@ MODULE_FIRMWARE("nvidia/tu106/gr/sw_nonctx.bin");
 MODULE_FIRMWARE("nvidia/tu106/gr/sw_bundle_init.bin");
 MODULE_FIRMWARE("nvidia/tu106/gr/sw_method_init.bin");
 
+MODULE_FIRMWARE("nvidia/tu117/gr/fecs_bl.bin");
+MODULE_FIRMWARE("nvidia/tu117/gr/fecs_inst.bin");
+MODULE_FIRMWARE("nvidia/tu117/gr/fecs_data.bin");
+MODULE_FIRMWARE("nvidia/tu117/gr/fecs_sig.bin");
+MODULE_FIRMWARE("nvidia/tu117/gr/gpccs_bl.bin");
+MODULE_FIRMWARE("nvidia/tu117/gr/gpccs_inst.bin");
+MODULE_FIRMWARE("nvidia/tu117/gr/gpccs_data.bin");
+MODULE_FIRMWARE("nvidia/tu117/gr/gpccs_sig.bin");
+MODULE_FIRMWARE("nvidia/tu117/gr/sw_ctx.bin");
+MODULE_FIRMWARE("nvidia/tu117/gr/sw_nonctx.bin");
+MODULE_FIRMWARE("nvidia/tu117/gr/sw_bundle_init.bin");
+MODULE_FIRMWARE("nvidia/tu117/gr/sw_method_init.bin");
+
+MODULE_FIRMWARE("nvidia/tu116/gr/fecs_bl.bin");
+MODULE_FIRMWARE("nvidia/tu116/gr/fecs_inst.bin");
+MODULE_FIRMWARE("nvidia/tu116/gr/fecs_data.bin");
+MODULE_FIRMWARE("nvidia/tu116/gr/fecs_sig.bin");
+MODULE_FIRMWARE("nvidia/tu116/gr/gpccs_bl.bin");
+MODULE_FIRMWARE("nvidia/tu116/gr/gpccs_inst.bin");
+MODULE_FIRMWARE("nvidia/tu116/gr/gpccs_data.bin");
+MODULE_FIRMWARE("nvidia/tu116/gr/gpccs_sig.bin");
+MODULE_FIRMWARE("nvidia/tu116/gr/sw_ctx.bin");
+MODULE_FIRMWARE("nvidia/tu116/gr/sw_nonctx.bin");
+MODULE_FIRMWARE("nvidia/tu116/gr/sw_bundle_init.bin");
+MODULE_FIRMWARE("nvidia/tu116/gr/sw_method_init.bin");
+
 static const struct gf100_gr_fwif
 tu102_gr_fwif[] = {
 	{ 0, gm200_gr_load, &tu102_gr, &gp108_gr_fecs_acr, &gp108_gr_gpccs_acr },

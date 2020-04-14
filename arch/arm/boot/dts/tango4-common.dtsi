@@ -85,7 +85,7 @@
 		};
 
 		uart: serial@10700 {
-			compatible = "ralink,rt2880-uart";
+			compatible = "ralink,rt2880-uart", "ns16550a";
 			reg = <0x10700 0x30>;
 			interrupts = <1 IRQ_TYPE_LEVEL_HIGH>;
 			clock-frequency = <7372800>;

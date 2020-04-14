@@ -1168,6 +1168,8 @@ const char * const vmstat_text[] = {
 	"nr_dirtied",
 	"nr_written",
 	"nr_kernel_misc_reclaimable",
+	"nr_foll_pin_acquired",
+	"nr_foll_pin_released",
 
 	/* enum writeback_stat_item counters */
 	"nr_dirty_threshold",
@@ -1254,9 +1256,12 @@ const char * const vmstat_text[] = {
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 	"thp_fault_alloc",
 	"thp_fault_fallback",
+	"thp_fault_fallback_charge",
 	"thp_collapse_alloc",
 	"thp_collapse_alloc_failed",
 	"thp_file_alloc",
+	"thp_file_fallback",
+	"thp_file_fallback_charge",
 	"thp_file_mapped",
 	"thp_split_page",
 	"thp_split_page_failed",

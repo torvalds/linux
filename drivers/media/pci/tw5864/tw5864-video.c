@@ -1156,7 +1156,7 @@ static int tw5864_video_input_init(struct tw5864_input *input, int video_nr)
 	input->gop = GOP_SIZE;
 	input->frame_interval = 1;
 
-	ret = video_register_device(&input->vdev, VFL_TYPE_GRABBER, video_nr);
+	ret = video_register_device(&input->vdev, VFL_TYPE_VIDEO, video_nr);
 	if (ret)
 		goto free_v4l2_hdl;
 

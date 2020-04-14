@@ -153,6 +153,7 @@ struct _vcs_dpi_ip_params_st dcn2_0_ip = {
 	.xfc_supported = true,
 	.xfc_fill_bw_overhead_percent = 10.0,
 	.xfc_fill_constant_bytes = 0,
+	.number_of_cursors = 1,
 };
 
 struct _vcs_dpi_ip_params_st dcn2_0_nv14_ip = {
@@ -220,7 +221,8 @@ struct _vcs_dpi_ip_params_st dcn2_0_nv14_ip = {
 	.xfc_supported = true,
 	.xfc_fill_bw_overhead_percent = 10.0,
 	.xfc_fill_constant_bytes = 0,
-	.ptoi_supported = 0
+	.ptoi_supported = 0,
+	.number_of_cursors = 1,
 };
 
 struct _vcs_dpi_soc_bounding_box_st dcn2_0_soc = {
@@ -324,6 +326,117 @@ struct _vcs_dpi_soc_bounding_box_st dcn2_0_soc = {
 	.channel_interleave_bytes = 256,
 	.num_banks = 8,
 	.num_chans = 16,
+	.vmm_page_size_bytes = 4096,
+	.dram_clock_change_latency_us = 404.0,
+	.dummy_pstate_latency_us = 5.0,
+	.writeback_dram_clock_change_latency_us = 23.0,
+	.return_bus_width_bytes = 64,
+	.dispclk_dppclk_vco_speed_mhz = 3850,
+	.xfc_bus_transport_time_us = 20,
+	.xfc_xbuf_latency_tolerance_us = 4,
+	.use_urgent_burst_bw = 0
+};
+
+struct _vcs_dpi_soc_bounding_box_st dcn2_0_nv14_soc = {
+	.clock_limits = {
+			{
+				.state = 0,
+				.dcfclk_mhz = 560.0,
+				.fabricclk_mhz = 560.0,
+				.dispclk_mhz = 513.0,
+				.dppclk_mhz = 513.0,
+				.phyclk_mhz = 540.0,
+				.socclk_mhz = 560.0,
+				.dscclk_mhz = 171.0,
+				.dram_speed_mts = 8960.0,
+			},
+			{
+				.state = 1,
+				.dcfclk_mhz = 694.0,
+				.fabricclk_mhz = 694.0,
+				.dispclk_mhz = 642.0,
+				.dppclk_mhz = 642.0,
+				.phyclk_mhz = 600.0,
+				.socclk_mhz = 694.0,
+				.dscclk_mhz = 214.0,
+				.dram_speed_mts = 11104.0,
+			},
+			{
+				.state = 2,
+				.dcfclk_mhz = 875.0,
+				.fabricclk_mhz = 875.0,
+				.dispclk_mhz = 734.0,
+				.dppclk_mhz = 734.0,
+				.phyclk_mhz = 810.0,
+				.socclk_mhz = 875.0,
+				.dscclk_mhz = 245.0,
+				.dram_speed_mts = 14000.0,
+			},
+			{
+				.state = 3,
+				.dcfclk_mhz = 1000.0,
+				.fabricclk_mhz = 1000.0,
+				.dispclk_mhz = 1100.0,
+				.dppclk_mhz = 1100.0,
+				.phyclk_mhz = 810.0,
+				.socclk_mhz = 1000.0,
+				.dscclk_mhz = 367.0,
+				.dram_speed_mts = 16000.0,
+			},
+			{
+				.state = 4,
+				.dcfclk_mhz = 1200.0,
+				.fabricclk_mhz = 1200.0,
+				.dispclk_mhz = 1284.0,
+				.dppclk_mhz = 1284.0,
+				.phyclk_mhz = 810.0,
+				.socclk_mhz = 1200.0,
+				.dscclk_mhz = 428.0,
+				.dram_speed_mts = 16000.0,
+			},
+			/*Extra state, no dispclk ramping*/
+			{
+				.state = 5,
+				.dcfclk_mhz = 1200.0,
+				.fabricclk_mhz = 1200.0,
+				.dispclk_mhz = 1284.0,
+				.dppclk_mhz = 1284.0,
+				.phyclk_mhz = 810.0,
+				.socclk_mhz = 1200.0,
+				.dscclk_mhz = 428.0,
+				.dram_speed_mts = 16000.0,
+			},
+		},
+	.num_states = 5,
+	.sr_exit_time_us = 8.6,
+	.sr_enter_plus_exit_time_us = 10.9,
+	.urgent_latency_us = 4.0,
+	.urgent_latency_pixel_data_only_us = 4.0,
+	.urgent_latency_pixel_mixed_with_vm_data_us = 4.0,
+	.urgent_latency_vm_data_only_us = 4.0,
+	.urgent_out_of_order_return_per_channel_pixel_only_bytes = 4096,
+	.urgent_out_of_order_return_per_channel_pixel_and_vm_bytes = 4096,
+	.urgent_out_of_order_return_per_channel_vm_only_bytes = 4096,
+	.pct_ideal_dram_sdp_bw_after_urgent_pixel_only = 40.0,
+	.pct_ideal_dram_sdp_bw_after_urgent_pixel_and_vm = 40.0,
+	.pct_ideal_dram_sdp_bw_after_urgent_vm_only = 40.0,
+	.max_avg_sdp_bw_use_normal_percent = 40.0,
+	.max_avg_dram_bw_use_normal_percent = 40.0,
+	.writeback_latency_us = 12.0,
+	.ideal_dram_bw_after_urgent_percent = 40.0,
+	.max_request_size_bytes = 256,
+	.dram_channel_width_bytes = 2,
+	.fabric_datapath_to_dcn_data_return_bytes = 64,
+	.dcn_downspread_percent = 0.5,
+	.downspread_percent = 0.38,
+	.dram_page_open_time_ns = 50.0,
+	.dram_rw_turnaround_time_ns = 17.5,
+	.dram_return_buffer_per_channel_bytes = 8192,
+	.round_trip_ping_latency_dcfclk_cycles = 131,
+	.urgent_out_of_order_return_per_channel_bytes = 256,
+	.channel_interleave_bytes = 256,
+	.num_banks = 8,
+	.num_chans = 8,
 	.vmm_page_size_bytes = 4096,
 	.dram_clock_change_latency_us = 404.0,
 	.dummy_pstate_latency_us = 5.0,
@@ -899,7 +1012,8 @@ static const struct dc_plane_cap plane_cap = {
 	.pixel_format_support = {
 			.argb8888 = true,
 			.nv12 = true,
-			.fp16 = true
+			.fp16 = true,
+			.p010 = true
 	},
 
 	.max_upscale_factor = {
@@ -928,7 +1042,7 @@ static const struct resource_caps res_cap_nv14 = {
 };
 
 static const struct dc_debug_options debug_defaults_drv = {
-		.disable_dmcu = true,
+		.disable_dmcu = false,
 		.force_abm_enable = false,
 		.timing_trace = false,
 		.clock_trace = true,
@@ -947,7 +1061,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 };
 
 static const struct dc_debug_options debug_defaults_diags = {
-		.disable_dmcu = true,
+		.disable_dmcu = false,
 		.force_abm_enable = false,
 		.timing_trace = true,
 		.clock_trace = true,
@@ -1143,6 +1257,7 @@ static const struct encoder_feature_support link_enc_feature = {
 		.max_hdmi_pixel_clock = 600000,
 		.hdmi_ycbcr420_supported = true,
 		.dp_ycbcr420_supported = true,
+		.fec_supported = true,
 		.flags.bits.IS_HBR2_CAPABLE = true,
 		.flags.bits.IS_HBR3_CAPABLE = true,
 		.flags.bits.IS_TPS3_CAPABLE = true,
@@ -1557,7 +1672,7 @@ static void acquire_dsc(struct resource_context *res_ctx,
 		}
 }
 
-static void release_dsc(struct resource_context *res_ctx,
+void dcn20_release_dsc(struct resource_context *res_ctx,
 			const struct resource_pool *pool,
 			struct display_stream_compressor **dsc)
 {
@@ -1617,7 +1732,7 @@ static enum dc_status remove_dsc_from_stream_resource(struct dc *dc,
 			pipe_ctx = &new_ctx->res_ctx.pipe_ctx[i];
 
 			if (pipe_ctx->stream_res.dsc)
-				release_dsc(&new_ctx->res_ctx, dc->res_pool, &pipe_ctx->stream_res.dsc);
+				dcn20_release_dsc(&new_ctx->res_ctx, dc->res_pool, &pipe_ctx->stream_res.dsc);
 		}
 	}
 
@@ -1861,22 +1976,6 @@ void dcn20_populate_dml_writeback_from_context(
 
 }
 
-static int get_num_odm_heads(struct pipe_ctx *pipe)
-{
-	int odm_head_count = 0;
-	struct pipe_ctx *next_pipe = pipe->next_odm_pipe;
-	while (next_pipe) {
-		odm_head_count++;
-		next_pipe = next_pipe->next_odm_pipe;
-	}
-	pipe = pipe->prev_odm_pipe;
-	while (pipe) {
-		odm_head_count++;
-		pipe = pipe->prev_odm_pipe;
-	}
-	return odm_head_count ? odm_head_count + 1 : 0;
-}
-
 int dcn20_populate_dml_pipes_from_context(
 		struct dc *dc, struct dc_state *context, display_e2e_pipe_params_st *pipes)
 {
@@ -1956,8 +2055,8 @@ int dcn20_populate_dml_pipes_from_context(
 		pipes[pipe_cnt].dout.dp_lanes = 4;
 		pipes[pipe_cnt].pipe.dest.vtotal_min = res_ctx->pipe_ctx[i].stream->adjust.v_total_min;
 		pipes[pipe_cnt].pipe.dest.vtotal_max = res_ctx->pipe_ctx[i].stream->adjust.v_total_max;
-		switch (get_num_odm_heads(&res_ctx->pipe_ctx[i])) {
-		case 2:
+		switch (get_num_odm_splits(&res_ctx->pipe_ctx[i])) {
+		case 1:
 			pipes[pipe_cnt].pipe.dest.odm_combine = dm_odm_combine_mode_2to1;
 			break;
 		default:
@@ -1965,9 +2064,14 @@ int dcn20_populate_dml_pipes_from_context(
 		}
 		pipes[pipe_cnt].pipe.src.hsplit_grp = res_ctx->pipe_ctx[i].pipe_idx;
 		if (res_ctx->pipe_ctx[i].top_pipe && res_ctx->pipe_ctx[i].top_pipe->plane_state
-				== res_ctx->pipe_ctx[i].plane_state)
-			pipes[pipe_cnt].pipe.src.hsplit_grp = res_ctx->pipe_ctx[i].top_pipe->pipe_idx;
-		else if (res_ctx->pipe_ctx[i].prev_odm_pipe) {
+				== res_ctx->pipe_ctx[i].plane_state) {
+			struct pipe_ctx *first_pipe = res_ctx->pipe_ctx[i].top_pipe;
+
+			while (first_pipe->top_pipe && first_pipe->top_pipe->plane_state
+					== res_ctx->pipe_ctx[i].plane_state)
+				first_pipe = first_pipe->top_pipe;
+			pipes[pipe_cnt].pipe.src.hsplit_grp = first_pipe->pipe_idx;
+		} else if (res_ctx->pipe_ctx[i].prev_odm_pipe) {
 			struct pipe_ctx *first_pipe = res_ctx->pipe_ctx[i].prev_odm_pipe;
 
 			while (first_pipe->prev_odm_pipe)
@@ -2052,16 +2156,20 @@ int dcn20_populate_dml_pipes_from_context(
 		/* todo: default max for now, until there is logic reflecting this in dc*/
 		pipes[pipe_cnt].dout.output_bpc = 12;
 		/*
-		 * Use max cursor settings for calculations to minimize
+		 * For graphic plane, cursor number is 1, nv12 is 0
 		 * bw calculations due to cursor on/off
 		 */
-		pipes[pipe_cnt].pipe.src.num_cursors = 2;
+		if (res_ctx->pipe_ctx[i].plane_state &&
+				res_ctx->pipe_ctx[i].plane_state->address.type == PLN_ADDR_TYPE_VIDEO_PROGRESSIVE)
+			pipes[pipe_cnt].pipe.src.num_cursors = 0;
+		else
+			pipes[pipe_cnt].pipe.src.num_cursors = dc->dml.ip.number_of_cursors;
+
 		pipes[pipe_cnt].pipe.src.cur0_src_width = 256;
 		pipes[pipe_cnt].pipe.src.cur0_bpp = dm_cur_32bit;
-		pipes[pipe_cnt].pipe.src.cur1_src_width = 256;
-		pipes[pipe_cnt].pipe.src.cur1_bpp = dm_cur_32bit;
 
 		if (!res_ctx->pipe_ctx[i].plane_state) {
+			pipes[pipe_cnt].pipe.src.is_hsplit = pipes[pipe_cnt].pipe.dest.odm_combine != dm_odm_combine_mode_disabled;
 			pipes[pipe_cnt].pipe.src.source_scan = dm_horz;
 			pipes[pipe_cnt].pipe.src.sw_mode = dm_sw_linear;
 			pipes[pipe_cnt].pipe.src.macro_tile_size = dm_64k_tile;
@@ -2087,19 +2195,21 @@ int dcn20_populate_dml_pipes_from_context(
 			pipes[pipe_cnt].pipe.scale_ratio_depth.scl_enable = 0; /*Lb only or Full scl*/
 			pipes[pipe_cnt].pipe.scale_taps.htaps = 1;
 			pipes[pipe_cnt].pipe.scale_taps.vtaps = 1;
-			pipes[pipe_cnt].pipe.src.is_hsplit = 0;
-			pipes[pipe_cnt].pipe.dest.odm_combine = 0;
 			pipes[pipe_cnt].pipe.dest.vtotal_min = v_total;
 			pipes[pipe_cnt].pipe.dest.vtotal_max = v_total;
+
+			if (pipes[pipe_cnt].pipe.dest.odm_combine == dm_odm_combine_mode_2to1) {
+				pipes[pipe_cnt].pipe.src.viewport_width /= 2;
+				pipes[pipe_cnt].pipe.dest.recout_width /= 2;
+			}
 		} else {
 			struct dc_plane_state *pln = res_ctx->pipe_ctx[i].plane_state;
 			struct scaler_data *scl = &res_ctx->pipe_ctx[i].plane_res.scl_data;
 
 			pipes[pipe_cnt].pipe.src.immediate_flip = pln->flip_immediate;
-			pipes[pipe_cnt].pipe.src.is_hsplit = (res_ctx->pipe_ctx[i].bottom_pipe
-					&& res_ctx->pipe_ctx[i].bottom_pipe->plane_state == pln)
-					|| (res_ctx->pipe_ctx[i].top_pipe
-					&& res_ctx->pipe_ctx[i].top_pipe->plane_state == pln);
+			pipes[pipe_cnt].pipe.src.is_hsplit = (res_ctx->pipe_ctx[i].bottom_pipe && res_ctx->pipe_ctx[i].bottom_pipe->plane_state == pln)
+					|| (res_ctx->pipe_ctx[i].top_pipe && res_ctx->pipe_ctx[i].top_pipe->plane_state == pln)
+					|| pipes[pipe_cnt].pipe.dest.odm_combine != dm_odm_combine_mode_disabled;
 			pipes[pipe_cnt].pipe.src.source_scan = pln->rotation == ROTATION_ANGLE_90
 					|| pln->rotation == ROTATION_ANGLE_270 ? dm_vert : dm_horz;
 			pipes[pipe_cnt].pipe.src.viewport_y_y = scl->viewport.y;
@@ -2124,18 +2234,22 @@ int dcn20_populate_dml_pipes_from_context(
 			pipes[pipe_cnt].pipe.src.dcc = pln->dcc.enable;
 			pipes[pipe_cnt].pipe.dest.recout_width = scl->recout.width;
 			pipes[pipe_cnt].pipe.dest.recout_height = scl->recout.height;
-			pipes[pipe_cnt].pipe.dest.full_recout_width = scl->recout.width;
 			pipes[pipe_cnt].pipe.dest.full_recout_height = scl->recout.height;
-			if (res_ctx->pipe_ctx[i].bottom_pipe && res_ctx->pipe_ctx[i].bottom_pipe->plane_state == pln) {
-				pipes[pipe_cnt].pipe.dest.full_recout_width +=
-						res_ctx->pipe_ctx[i].bottom_pipe->plane_res.scl_data.recout.width;
-				pipes[pipe_cnt].pipe.dest.full_recout_height +=
-						res_ctx->pipe_ctx[i].bottom_pipe->plane_res.scl_data.recout.height;
-			} else if (res_ctx->pipe_ctx[i].top_pipe && res_ctx->pipe_ctx[i].top_pipe->plane_state == pln) {
-				pipes[pipe_cnt].pipe.dest.full_recout_width +=
-						res_ctx->pipe_ctx[i].top_pipe->plane_res.scl_data.recout.width;
-				pipes[pipe_cnt].pipe.dest.full_recout_height +=
-						res_ctx->pipe_ctx[i].top_pipe->plane_res.scl_data.recout.height;
+			pipes[pipe_cnt].pipe.dest.full_recout_width = scl->recout.width;
+			if (pipes[pipe_cnt].pipe.dest.odm_combine == dm_odm_combine_mode_2to1)
+				pipes[pipe_cnt].pipe.dest.full_recout_width *= 2;
+			else {
+				struct pipe_ctx *split_pipe = res_ctx->pipe_ctx[i].bottom_pipe;
+
+				while (split_pipe && split_pipe->plane_state == pln) {
+					pipes[pipe_cnt].pipe.dest.full_recout_width += split_pipe->plane_res.scl_data.recout.width;
+					split_pipe = split_pipe->bottom_pipe;
+				}
+				split_pipe = res_ctx->pipe_ctx[i].top_pipe;
+				while (split_pipe && split_pipe->plane_state == pln) {
+					pipes[pipe_cnt].pipe.dest.full_recout_width += split_pipe->plane_res.scl_data.recout.width;
+					split_pipe = split_pipe->top_pipe;
+				}
 			}
 
 			pipes[pipe_cnt].pipe.scale_ratio_depth.lb_depth = dm_lb_16;
@@ -2302,6 +2416,7 @@ bool dcn20_validate_dsc(struct dc *dc, struct dc_state *new_ctx)
 				+ stream->timing.v_border_bottom;
 		dsc_cfg.pixel_encoding = stream->timing.pixel_encoding;
 		dsc_cfg.color_depth = stream->timing.display_color_depth;
+		dsc_cfg.is_odm = pipe_ctx->next_odm_pipe ? true : false;
 		dsc_cfg.dc_dsc_cfg = stream->timing.dsc_cfg;
 		dsc_cfg.dc_dsc_cfg.num_slices_h /= opp_cnt;
 
@@ -2388,7 +2503,7 @@ struct pipe_ctx *dcn20_find_secondary_pipe(struct dc *dc,
 	return secondary_pipe;
 }
 
-void dcn20_merge_pipes_for_validate(
+static void dcn20_merge_pipes_for_validate(
 		struct dc *dc,
 		struct dc_state *context)
 {
@@ -2413,7 +2528,7 @@ void dcn20_merge_pipes_for_validate(
 			odm_pipe->prev_odm_pipe = NULL;
 			odm_pipe->next_odm_pipe = NULL;
 			if (odm_pipe->stream_res.dsc)
-				release_dsc(&context->res_ctx, dc->res_pool, &odm_pipe->stream_res.dsc);
+				dcn20_release_dsc(&context->res_ctx, dc->res_pool, &odm_pipe->stream_res.dsc);
 			/* Clear plane_res and stream_res */
 			memset(&odm_pipe->plane_res, 0, sizeof(odm_pipe->plane_res));
 			memset(&odm_pipe->stream_res, 0, sizeof(odm_pipe->stream_res));
@@ -2451,41 +2566,29 @@ int dcn20_validate_apply_pipe_split_flags(
 		struct dc *dc,
 		struct dc_state *context,
 		int vlevel,
-		bool *split)
+		bool *split,
+		bool *merge)
 {
 	int i, pipe_idx, vlevel_split;
+	int plane_count = 0;
 	bool force_split = false;
-	bool avoid_split = dc->debug.pipe_split_policy != MPC_SPLIT_DYNAMIC;
+	bool avoid_split = dc->debug.pipe_split_policy == MPC_SPLIT_AVOID;
 
-	/* Single display loop, exits if there is more than one display */
+	if (context->stream_count > 1) {
+		if (dc->debug.pipe_split_policy == MPC_SPLIT_AVOID_MULT_DISP)
+			avoid_split = true;
+	} else if (dc->debug.force_single_disp_pipe_split)
+			force_split = true;
+
+	/* TODO: fix dc bugs and remove this split threshold thing */
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
-		bool exit_loop = false;
 
-		if (!pipe->stream || pipe->top_pipe)
-			continue;
-
-		if (dc->debug.force_single_disp_pipe_split) {
-			if (!force_split)
-				force_split = true;
-			else {
-				force_split = false;
-				exit_loop = true;
-			}
-		}
-		if (dc->debug.pipe_split_policy == MPC_SPLIT_AVOID_MULT_DISP) {
-			if (avoid_split)
-				avoid_split = false;
-			else {
-				avoid_split = true;
-				exit_loop = true;
-			}
-		}
-		if (exit_loop)
-			break;
+		if (pipe->stream && !pipe->prev_odm_pipe &&
+				(!pipe->top_pipe || pipe->top_pipe->plane_state != pipe->plane_state))
+			++plane_count;
 	}
-	/* TODO: fix dc bugs and remove this split threshold thing */
-	if (context->stream_count > dc->res_pool->pipe_count / 2)
+	if (plane_count > dc->res_pool->pipe_count / 2)
 		avoid_split = true;
 
 	/* Avoid split loop looks for lowest voltage level that allows most unsplit pipes possible */
@@ -2508,11 +2611,12 @@ int dcn20_validate_apply_pipe_split_flags(
 	/* Split loop sets which pipe should be split based on dml outputs and dc flags */
 	for (i = 0, pipe_idx = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+		int pipe_plane = context->bw_ctx.dml.vba.pipe_plane[pipe_idx];
 
 		if (!context->res_ctx.pipe_ctx[i].stream)
 			continue;
 
-		if (force_split || context->bw_ctx.dml.vba.NoOfDPP[vlevel][context->bw_ctx.dml.vba.maxMpcComb][pipe_idx] > 1)
+		if (force_split || context->bw_ctx.dml.vba.NoOfDPP[vlevel][context->bw_ctx.dml.vba.maxMpcComb][pipe_plane] > 1)
 			split[i] = true;
 		if ((pipe->stream->view_format ==
 				VIEW_3D_FORMAT_SIDE_BY_SIDE ||
@@ -2525,10 +2629,44 @@ int dcn20_validate_apply_pipe_split_flags(
 			split[i] = true;
 		if (dc->debug.force_odm_combine & (1 << pipe->stream_res.tg->inst)) {
 			split[i] = true;
-			context->bw_ctx.dml.vba.ODMCombineEnablePerState[vlevel][pipe_idx] = dm_odm_combine_mode_2to1;
+			context->bw_ctx.dml.vba.ODMCombineEnablePerState[vlevel][pipe_plane] = dm_odm_combine_mode_2to1;
 		}
-		context->bw_ctx.dml.vba.ODMCombineEnabled[pipe_idx] =
-			context->bw_ctx.dml.vba.ODMCombineEnablePerState[vlevel][pipe_idx];
+		context->bw_ctx.dml.vba.ODMCombineEnabled[pipe_plane] =
+			context->bw_ctx.dml.vba.ODMCombineEnablePerState[vlevel][pipe_plane];
+
+		if (pipe->prev_odm_pipe && context->bw_ctx.dml.vba.ODMCombineEnabled[pipe_plane] != dm_odm_combine_mode_disabled) {
+			/*Already split odm pipe tree, don't try to split again*/
+			split[i] = false;
+			split[pipe->prev_odm_pipe->pipe_idx] = false;
+		} else if (pipe->top_pipe && pipe->plane_state == pipe->top_pipe->plane_state
+				&& context->bw_ctx.dml.vba.ODMCombineEnabled[pipe_plane] == dm_odm_combine_mode_disabled) {
+			/*Already split mpc tree, don't try to split again, assumes only 2x mpc combine*/
+			split[i] = false;
+			split[pipe->top_pipe->pipe_idx] = false;
+		} else if (pipe->prev_odm_pipe || (pipe->top_pipe && pipe->plane_state == pipe->top_pipe->plane_state)) {
+			if (split[i] == false) {
+				/*Exiting mpc/odm combine*/
+				merge[i] = true;
+				if (pipe->prev_odm_pipe) {
+					ASSERT(0); /*should not actually happen yet*/
+					merge[pipe->prev_odm_pipe->pipe_idx] = true;
+				} else
+					merge[pipe->top_pipe->pipe_idx] = true;
+			} else {
+				/*Transition from mpc combine to odm combine or vice versa*/
+				ASSERT(0); /*should not actually happen yet*/
+				split[i] = true;
+				merge[i] = true;
+				if (pipe->prev_odm_pipe) {
+					split[pipe->prev_odm_pipe->pipe_idx] = true;
+					merge[pipe->prev_odm_pipe->pipe_idx] = true;
+				} else {
+					split[pipe->top_pipe->pipe_idx] = true;
+					merge[pipe->top_pipe->pipe_idx] = true;
+				}
+			}
+		}
+
 		/* Adjust dppclk when split is forced, do not bother with dispclk */
 		if (split[i] && context->bw_ctx.dml.vba.NoOfDPP[vlevel][context->bw_ctx.dml.vba.maxMpcComb][pipe_idx] == 1)
 			context->bw_ctx.dml.vba.RequiredDPPCLK[vlevel][context->bw_ctx.dml.vba.maxMpcComb][pipe_idx] /= 2;
@@ -2570,7 +2708,7 @@ bool dcn20_fast_validate_bw(
 	if (vlevel > context->bw_ctx.dml.soc.num_states)
 		goto validate_fail;
 
-	vlevel = dcn20_validate_apply_pipe_split_flags(dc, context, vlevel, split);
+	vlevel = dcn20_validate_apply_pipe_split_flags(dc, context, vlevel, split, NULL);
 
 	/*initialize pipe_just_split_from to invalid idx*/
 	for (i = 0; i < MAX_PIPES; i++)
@@ -2789,6 +2927,9 @@ void dcn20_calculate_dlg_params(
 		context->bw_ctx.dml.vba.DRAMClockChangeSupport[vlevel][context->bw_ctx.dml.vba.maxMpcComb]
 							!= dm_dram_clock_change_unsupported;
 	context->bw_ctx.bw.dcn.clk.dppclk_khz = 0;
+
+	if (context->bw_ctx.bw.dcn.clk.dispclk_khz < dc->debug.min_disp_clk_khz)
+		context->bw_ctx.bw.dcn.clk.dispclk_khz = dc->debug.min_disp_clk_khz;
 
 	/*
 	 * An artifact of dml pipe split/odm is that pipes get merged back together for
@@ -3027,7 +3168,7 @@ static struct dc_cap_funcs cap_funcs = {
 };
 
 
-enum dc_status dcn20_get_default_swizzle_mode(struct dc_plane_state *plane_state)
+enum dc_status dcn20_patch_unknown_plane_state(struct dc_plane_state *plane_state)
 {
 	enum dc_status result = DC_OK;
 
@@ -3053,7 +3194,7 @@ static struct resource_funcs dcn20_res_pool_funcs = {
 	.add_stream_to_ctx = dcn20_add_stream_to_ctx,
 	.remove_stream_from_ctx = dcn20_remove_stream_from_ctx,
 	.populate_dml_writeback_from_context = dcn20_populate_dml_writeback_from_context,
-	.get_default_swizzle_mode = dcn20_get_default_swizzle_mode,
+	.patch_unknown_plane_state = dcn20_patch_unknown_plane_state,
 	.set_mcif_arb_params = dcn20_set_mcif_arb_params,
 	.populate_dml_pipes = dcn20_populate_dml_pipes_from_context,
 	.find_first_free_match_stream_enc_for_link = dcn10_find_first_free_match_stream_enc_for_link
@@ -3202,7 +3343,7 @@ void dcn20_cap_soc_clocks(
 void dcn20_update_bounding_box(struct dc *dc, struct _vcs_dpi_soc_bounding_box_st *bb,
 		struct pp_smu_nv_clock_table *max_clocks, unsigned int *uclk_states, unsigned int num_states)
 {
-	struct _vcs_dpi_voltage_scaling_st calculated_states[MAX_CLOCK_LIMIT_STATES];
+	struct _vcs_dpi_voltage_scaling_st calculated_states[DC__VOLTAGE_STATES];
 	int i;
 	int num_calculated_states = 0;
 	int min_dcfclk = 0;
@@ -3291,6 +3432,9 @@ void dcn20_patch_bounding_box(struct dc *dc, struct _vcs_dpi_soc_bounding_box_st
 static struct _vcs_dpi_soc_bounding_box_st *get_asic_rev_soc_bb(
 	uint32_t hw_internal_rev)
 {
+	if (ASICREV_IS_NAVI14_M(hw_internal_rev))
+		return &dcn2_0_nv14_soc;
+
 	if (ASICREV_IS_NAVI12_P(hw_internal_rev))
 		return &dcn2_0_nv12_soc;
 
@@ -3771,6 +3915,15 @@ static bool dcn20_resource_construct(
 			goto create_fail;
 
 	dcn20_hw_sequencer_construct(dc);
+
+	// IF NV12, set PG function pointer to NULL. It's not that
+	// PG isn't supported for NV12, it's that we don't want to
+	// program the registers because that will cause more power
+	// to be consumed. We could have created dcn20_init_hw to get
+	// the same effect by checking ASIC rev, but there was a
+	// request at some point to not check ASIC rev on hw sequencer.
+	if (ASICREV_IS_NAVI12_P(dc->ctx->asic_id.hw_internal_rev))
+		dc->hwseq->funcs.enable_power_gating_plane = NULL;
 
 	dc->caps.max_planes =  pool->base.pipe_count;
 

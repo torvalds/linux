@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0
- *
+/* SPDX-License-Identifier: GPL-2.0 */
+/*
  * Renesas R-Car System Controller
  *
  * Copyright (C) 2016 Glider bvba

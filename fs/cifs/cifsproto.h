@@ -134,11 +134,12 @@ extern bool backup_cred(struct cifs_sb_info *);
 extern bool is_size_safe_to_change(struct cifsInodeInfo *, __u64 eof);
 extern void cifs_update_eof(struct cifsInodeInfo *cifsi, loff_t offset,
 			    unsigned int bytes_written);
-extern struct cifsFileInfo *find_writable_file(struct cifsInodeInfo *, bool);
+extern struct cifsFileInfo *find_writable_file(struct cifsInodeInfo *, int);
 extern int cifs_get_writable_file(struct cifsInodeInfo *cifs_inode,
-				  bool fsuid_only,
+				  int flags,
 				  struct cifsFileInfo **ret_file);
 extern int cifs_get_writable_path(struct cifs_tcon *tcon, const char *name,
+				  int flags,
 				  struct cifsFileInfo **ret_file);
 extern struct cifsFileInfo *find_readable_file(struct cifsInodeInfo *, bool);
 extern int cifs_get_readable_path(struct cifs_tcon *tcon, const char *name,
@@ -600,6 +601,11 @@ int copy_path_name(char *dst, const char *src);
 int smb2_parse_query_directory(struct cifs_tcon *tcon, struct kvec *rsp_iov,
 			       int resp_buftype,
 			       struct cifs_search_info *srch_inf);
+
+struct super_block *cifs_get_tcp_super(struct TCP_Server_Info *server);
+void cifs_put_tcp_super(struct super_block *sb);
+int update_super_prepath(struct cifs_tcon *tcon, const char *prefix,
+			 size_t prefix_len);
 
 #ifdef CONFIG_CIFS_DFS_UPCALL
 static inline int get_dfs_path(const unsigned int xid, struct cifs_ses *ses,

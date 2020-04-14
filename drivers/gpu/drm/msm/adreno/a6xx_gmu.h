@@ -12,8 +12,7 @@
 struct a6xx_gmu_bo {
 	void *virt;
 	size_t size;
-	u64 iova;
-	struct page **pages;
+	dma_addr_t iova;
 };
 
 /*
@@ -48,9 +47,6 @@ struct a6xx_gmu {
 
 	int hfi_irq;
 	int gmu_irq;
-
-	struct iommu_domain *domain;
-	u64 uncached_iova_base;
 
 	struct device *gxpd;
 

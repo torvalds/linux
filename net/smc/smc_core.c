@@ -46,6 +46,7 @@ static DECLARE_WAIT_QUEUE_HEAD(lgrs_deleted);
 
 static void smc_buf_free(struct smc_link_group *lgr, bool is_rmb,
 			 struct smc_buf_desc *buf_desc);
+static void __smc_lgr_terminate(struct smc_link_group *lgr, bool soft);
 
 /* return head of link group list and its lock for a given link group */
 static inline struct list_head *smc_lgr_list_head(struct smc_link_group *lgr,
@@ -162,6 +163,18 @@ static void smc_lgr_unregister_conn(struct smc_connection *conn)
 	conn->lgr = NULL;
 }
 
+void smc_lgr_cleanup_early(struct smc_connection *conn)
+{
+	struct smc_link_group *lgr = conn->lgr;
+
+	if (!lgr)
+		return;
+
+	smc_conn_free(conn);
+	smc_lgr_forget(lgr);
+	smc_lgr_schedule_free_work_fast(lgr);
+}
+
 /* Send delete link, either as client to request the initiation
  * of the DELETE LINK sequence from server; or as server to
  * initiate the delete processing. See smc_llc_rx_delete_link().
@@ -229,7 +242,7 @@ static void smc_lgr_terminate_work(struct work_struct *work)
 	struct smc_link_group *lgr = container_of(work, struct smc_link_group,
 						  terminate_work);
 
-	smc_lgr_terminate(lgr, true);
+	__smc_lgr_terminate(lgr, true);
 }
 
 /* create a new SMC link group */
@@ -576,15 +589,15 @@ static void smc_lgr_cleanup(struct smc_link_group *lgr)
 	} else {
 		struct smc_link *lnk = &lgr->lnk[SMC_SINGLE_LINK];
 
-		wake_up(&lnk->wr_reg_wait);
-		if (lnk->state != SMC_LNK_INACTIVE) {
-			smc_link_send_delete(lnk, false);
+		if (lnk->state != SMC_LNK_INACTIVE)
 			smc_llc_link_inactive(lnk);
-		}
 	}
 }
 
-/* terminate link group */
+/* terminate link group
+ * @soft: true if link group shutdown can take its time
+ *	  false if immediate link group shutdown is required
+ */
 static void __smc_lgr_terminate(struct smc_link_group *lgr, bool soft)
 {
 	struct smc_connection *conn;
@@ -622,25 +635,20 @@ static void __smc_lgr_terminate(struct smc_link_group *lgr, bool soft)
 		smc_lgr_free(lgr);
 }
 
-/* unlink and terminate link group
- * @soft: true if link group shutdown can take its time
- *	  false if immediate link group shutdown is required
- */
-void smc_lgr_terminate(struct smc_link_group *lgr, bool soft)
+/* unlink link group and schedule termination */
+void smc_lgr_terminate_sched(struct smc_link_group *lgr)
 {
 	spinlock_t *lgr_lock;
 
 	smc_lgr_list_head(lgr, &lgr_lock);
 	spin_lock_bh(lgr_lock);
-	if (lgr->terminating) {
+	if (list_empty(&lgr->list) || lgr->terminating || lgr->freeing) {
 		spin_unlock_bh(lgr_lock);
 		return;	/* lgr already terminating */
 	}
-	if (!soft)
-		lgr->freeing = 1;
 	list_del_init(&lgr->list);
 	spin_unlock_bh(lgr_lock);
-	__smc_lgr_terminate(lgr, soft);
+	schedule_work(&lgr->terminate_work);
 }
 
 /* Called when IB port is terminated */

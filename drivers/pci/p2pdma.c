@@ -291,6 +291,9 @@ static const struct pci_p2pdma_whitelist_entry {
 	{PCI_VENDOR_ID_INTEL,	0x2f01, REQ_SAME_HOST_BRIDGE},
 	/* Intel SkyLake-E */
 	{PCI_VENDOR_ID_INTEL,	0x2030, 0},
+	{PCI_VENDOR_ID_INTEL,	0x2031, 0},
+	{PCI_VENDOR_ID_INTEL,	0x2032, 0},
+	{PCI_VENDOR_ID_INTEL,	0x2033, 0},
 	{PCI_VENDOR_ID_INTEL,	0x2020, 0},
 	{}
 };

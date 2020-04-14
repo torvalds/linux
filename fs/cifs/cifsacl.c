@@ -342,7 +342,7 @@ static int
 sid_to_id(struct cifs_sb_info *cifs_sb, struct cifs_sid *psid,
 		struct cifs_fattr *fattr, uint sidtype)
 {
-	int rc;
+	int rc = 0;
 	struct key *sidkey;
 	char *sidstr;
 	const struct cred *saved_cred;
@@ -450,11 +450,12 @@ out_revert_creds:
 	 * fails then we just fall back to using the mnt_uid/mnt_gid.
 	 */
 got_valid_id:
+	rc = 0;
 	if (sidtype == SIDOWNER)
 		fattr->cf_uid = fuid;
 	else
 		fattr->cf_gid = fgid;
-	return 0;
+	return rc;
 }
 
 int
@@ -601,7 +602,7 @@ static void access_flags_to_mode(__le32 ace_flags, int type, umode_t *pmode,
 			((flags & FILE_EXEC_RIGHTS) == FILE_EXEC_RIGHTS))
 		*pmode |= (S_IXUGO & (*pbits_to_set));
 
-	cifs_dbg(NOISY, "access flags 0x%x mode now 0x%x\n", flags, *pmode);
+	cifs_dbg(NOISY, "access flags 0x%x mode now %04o\n", flags, *pmode);
 	return;
 }
 
@@ -630,7 +631,7 @@ static void mode_to_access_flags(umode_t mode, umode_t bits_to_use,
 	if (mode & S_IXUGO)
 		*pace_flags |= SET_FILE_EXEC_RIGHTS;
 
-	cifs_dbg(NOISY, "mode: 0x%x, access flags now 0x%x\n",
+	cifs_dbg(NOISY, "mode: %04o, access flags now 0x%x\n",
 		 mode, *pace_flags);
 	return;
 }

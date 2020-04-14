@@ -138,7 +138,6 @@ static bool bnxt_is_trusted_vf(struct bnxt *bp, struct bnxt_vf_info *vf)
 static int bnxt_hwrm_set_trusted_vf(struct bnxt *bp, struct bnxt_vf_info *vf)
 {
 	struct hwrm_func_cfg_input req = {0};
-	int rc;
 
 	if (!(bp->fw_cap & BNXT_FW_CAP_TRUSTED_VF))
 		return 0;
@@ -149,8 +148,7 @@ static int bnxt_hwrm_set_trusted_vf(struct bnxt *bp, struct bnxt_vf_info *vf)
 		req.flags = cpu_to_le32(FUNC_CFG_REQ_FLAGS_TRUSTED_VF_ENABLE);
 	else
 		req.flags = cpu_to_le32(FUNC_CFG_REQ_FLAGS_TRUSTED_VF_DISABLE);
-	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
-	return rc;
+	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 }
 
 int bnxt_set_vf_trust(struct net_device *dev, int vf_id, bool trusted)

@@ -4,8 +4,8 @@
  * Copyright (c) 2019 Microsemi Corporation
  */
 
+#include <soc/mscc/ocelot.h>
 #include "ocelot_tc.h"
-#include "ocelot_police.h"
 #include "ocelot_ace.h"
 #include <net/pkt_cls.h>
 
@@ -19,9 +19,6 @@ static int ocelot_setup_tc_cls_matchall(struct ocelot_port_private *priv,
 	struct flow_action_entry *action;
 	int port = priv->chip_port;
 	int err;
-
-	netdev_dbg(priv->dev, "%s: port %u command %d cookie %lu\n",
-		   __func__, port, f->command, f->cookie);
 
 	if (!ingress) {
 		NL_SET_ERR_MSG_MOD(extack, "Only ingress is supported");
@@ -99,17 +96,10 @@ static int ocelot_setup_tc_block_cb(enum tc_setup_type type,
 
 	switch (type) {
 	case TC_SETUP_CLSMATCHALL:
-		netdev_dbg(priv->dev, "tc_block_cb: TC_SETUP_CLSMATCHALL %s\n",
-			   ingress ? "ingress" : "egress");
-
 		return ocelot_setup_tc_cls_matchall(priv, type_data, ingress);
 	case TC_SETUP_CLSFLOWER:
-		return 0;
+		return ocelot_setup_tc_cls_flower(priv, type_data, ingress);
 	default:
-		netdev_dbg(priv->dev, "tc_block_cb: type %d %s\n",
-			   type,
-			   ingress ? "ingress" : "egress");
-
 		return -EOPNOTSUPP;
 	}
 }
@@ -137,10 +127,6 @@ static int ocelot_setup_tc_block(struct ocelot_port_private *priv,
 {
 	struct flow_block_cb *block_cb;
 	flow_setup_cb_t *cb;
-	int err;
-
-	netdev_dbg(priv->dev, "tc_block command %d, binder_type %d\n",
-		   f->command, f->binder_type);
 
 	if (f->binder_type == FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS) {
 		cb = ocelot_setup_tc_block_cb_ig;
@@ -162,11 +148,6 @@ static int ocelot_setup_tc_block(struct ocelot_port_private *priv,
 		if (IS_ERR(block_cb))
 			return PTR_ERR(block_cb);
 
-		err = ocelot_setup_tc_block_flower_bind(priv, f);
-		if (err < 0) {
-			flow_block_cb_free(block_cb);
-			return err;
-		}
 		flow_block_cb_add(block_cb, f);
 		list_add_tail(&block_cb->driver_list, f->driver_block_list);
 		return 0;
@@ -175,7 +156,6 @@ static int ocelot_setup_tc_block(struct ocelot_port_private *priv,
 		if (!block_cb)
 			return -ENOENT;
 
-		ocelot_setup_tc_block_flower_unbind(priv, f);
 		flow_block_cb_remove(block_cb, f);
 		list_del(&block_cb->driver_list);
 		return 0;

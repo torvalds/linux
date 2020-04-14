@@ -278,7 +278,7 @@ struct tipc_crypto *tipc_node_crypto_rx_by_list(struct list_head *pos)
 }
 #endif
 
-void tipc_node_free(struct rcu_head *rp)
+static void tipc_node_free(struct rcu_head *rp)
 {
 	struct tipc_node *n = container_of(rp, struct tipc_node, rcu);
 
@@ -1586,7 +1586,8 @@ static void tipc_lxc_xmit(struct net *peer_net, struct sk_buff_head *list)
 	case TIPC_MEDIUM_IMPORTANCE:
 	case TIPC_HIGH_IMPORTANCE:
 	case TIPC_CRITICAL_IMPORTANCE:
-		if (msg_connected(hdr) || msg_named(hdr)) {
+		if (msg_connected(hdr) || msg_named(hdr) ||
+		    msg_direct(hdr)) {
 			tipc_loopback_trace(peer_net, list);
 			spin_lock_init(&list->lock);
 			tipc_sk_rcv(peer_net, list);
@@ -2798,7 +2799,7 @@ static int tipc_nl_retrieve_nodeid(struct nlattr **attrs, u8 **node_id)
 	return 0;
 }
 
-int __tipc_nl_node_set_key(struct sk_buff *skb, struct genl_info *info)
+static int __tipc_nl_node_set_key(struct sk_buff *skb, struct genl_info *info)
 {
 	struct nlattr *attrs[TIPC_NLA_NODE_MAX + 1];
 	struct net *net = sock_net(skb->sk);
@@ -2875,7 +2876,8 @@ int tipc_nl_node_set_key(struct sk_buff *skb, struct genl_info *info)
 	return err;
 }
 
-int __tipc_nl_node_flush_key(struct sk_buff *skb, struct genl_info *info)
+static int __tipc_nl_node_flush_key(struct sk_buff *skb,
+				    struct genl_info *info)
 {
 	struct net *net = sock_net(skb->sk);
 	struct tipc_net *tn = tipc_net(net);

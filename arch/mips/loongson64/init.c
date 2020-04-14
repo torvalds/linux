@@ -4,6 +4,7 @@
  * Author: Wu Zhangjin, wuzhangjin@gmail.com
  */
 
+#include <linux/irqchip.h>
 #include <linux/memblock.h>
 #include <asm/bootinfo.h>
 #include <asm/traps.h>
@@ -43,4 +44,9 @@ void __init prom_init(void)
 
 void __init prom_free_prom_memory(void)
 {
+}
+
+void __init arch_init_irq(void)
+{
+	irqchip_init();
 }

@@ -41,9 +41,16 @@ struct adis_timeout {
  * @glob_cmd_reg: Register address of the GLOB_CMD register
  * @msc_ctrl_reg: Register address of the MSC_CTRL register
  * @diag_stat_reg: Register address of the DIAG_STAT register
+ * @prod_id_reg: Register address of the PROD_ID register
+ * @prod_id: Product ID code that should be expected when reading @prod_id_reg
+ * @self_test_mask: Bitmask of supported self-test operations
+ * @self_test_reg: Register address to request self test command
+ * @self_test_no_autoclear: True if device's self-test needs clear of ctrl reg
  * @status_error_msgs: Array of error messgaes
- * @status_error_mask:
+ * @status_error_mask: Bitmask of errors supported by the device
  * @timeouts: Chip specific delays
+ * @enable_irq: Hook for ADIS devices that have a special IRQ enable/disable
+ * @has_paging: True if ADIS device has paged registers
  */
 struct adis_data {
 	unsigned int read_delay;
@@ -53,8 +60,12 @@ struct adis_data {
 	unsigned int glob_cmd_reg;
 	unsigned int msc_ctrl_reg;
 	unsigned int diag_stat_reg;
+	unsigned int prod_id_reg;
+
+	unsigned int prod_id;
 
 	unsigned int self_test_mask;
+	unsigned int self_test_reg;
 	bool self_test_no_autoclear;
 	const struct adis_timeout *timeouts;
 
@@ -66,6 +77,20 @@ struct adis_data {
 	bool has_paging;
 };
 
+/**
+ * struct adis - ADIS device instance data
+ * @spi: Reference to SPI device which owns this ADIS IIO device
+ * @trig: IIO trigger object data
+ * @data: ADIS chip variant specific data
+ * @burst: ADIS burst transfer information
+ * @state_lock: Lock used by the device to protect state
+ * @msg: SPI message object
+ * @xfer: SPI transfer objects to be used for a @msg
+ * @current_page: Some ADIS devices have registers, this selects current page
+ * @buffer: Data buffer for information read from the device
+ * @tx: DMA safe TX buffer for SPI transfers
+ * @rx: DMA safe RX buffer for SPI transfers
+ */
 struct adis {
 	struct spi_device	*spi;
 	struct iio_trigger	*trig;
@@ -73,6 +98,17 @@ struct adis {
 	const struct adis_data	*data;
 	struct adis_burst	*burst;
 
+	/**
+	 * The state_lock is meant to be used during operations that require
+	 * a sequence of SPI R/W in order to protect the SPI transfer
+	 * information (fields 'xfer', 'msg' & 'current_page') between
+	 * potential concurrent accesses.
+	 * This lock is used by all "adis_{functions}" that have to read/write
+	 * registers. These functions also have unlocked variants
+	 * (see "__adis_{functions}"), which don't hold this lock.
+	 * This allows users of the ADIS library to group SPI R/W into
+	 * the drivers, but they also must manage this lock themselves.
+	 */
 	struct mutex		state_lock;
 	struct spi_message	msg;
 	struct spi_transfer	*xfer;
@@ -297,6 +333,7 @@ static inline int adis_read_reg_32(struct adis *adis, unsigned int reg,
 
 int adis_enable_irq(struct adis *adis, bool enable);
 int __adis_check_status(struct adis *adis);
+int __adis_initial_startup(struct adis *adis);
 
 static inline int adis_check_status(struct adis *adis)
 {
@@ -309,7 +346,17 @@ static inline int adis_check_status(struct adis *adis)
 	return ret;
 }
 
-int adis_initial_startup(struct adis *adis);
+/* locked version of __adis_initial_startup() */
+static inline int adis_initial_startup(struct adis *adis)
+{
+	int ret;
+
+	mutex_lock(&adis->state_lock);
+	ret = __adis_initial_startup(adis);
+	mutex_unlock(&adis->state_lock);
+
+	return ret;
+}
 
 int adis_single_conversion(struct iio_dev *indio_dev,
 	const struct iio_chan_spec *chan, unsigned int error_mask,

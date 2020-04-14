@@ -43,4 +43,6 @@ void amdgpu_dpm_enable_uvd(struct amdgpu_device *adev, bool enable);
 void amdgpu_dpm_enable_vce(struct amdgpu_device *adev, bool enable);
 void amdgpu_dpm_enable_jpeg(struct amdgpu_device *adev, bool enable);
 
+int amdgpu_debugfs_pm_init(struct amdgpu_device *adev);
+
 #endif

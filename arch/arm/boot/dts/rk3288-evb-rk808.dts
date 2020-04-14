@@ -4,6 +4,7 @@
 #include "rk3288-evb.dtsi"
 
 / {
+	model = "Rockchip RK3288 EVB RK808";
 	compatible = "rockchip,rk3288-evb-rk808", "rockchip,rk3288";
 };
 

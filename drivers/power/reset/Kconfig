@@ -248,7 +248,7 @@ config SYSCON_REBOOT_MODE
 	  action according to the mode.
 
 config POWER_RESET_SC27XX
-	bool "Spreadtrum SC27xx PMIC power-off driver"
+	tristate "Spreadtrum SC27xx PMIC power-off driver"
 	depends on MFD_SC27XX_PMIC || COMPILE_TEST
 	help
 	  This driver supports powering off a system through

@@ -10,7 +10,7 @@
  */
 
 #include <linux/efi.h>
-#include <linux/sort.h>
+#include <linux/libfdt.h>
 #include <asm/efi.h>
 
 #include "efistub.h"
@@ -36,6 +36,7 @@
 #endif
 
 static u64 virtmap_base = EFI_RT_VIRTUAL_BASE;
+static bool __efistub_global flat_va_mapping;
 
 static efi_system_table_t *__efistub_global sys_table;
 
@@ -87,6 +88,39 @@ void install_memreserve_table(void)
 		pr_efi_err("Failed to install memreserve config table!\n");
 }
 
+static unsigned long get_dram_base(void)
+{
+	efi_status_t status;
+	unsigned long map_size, buff_size;
+	unsigned long membase  = EFI_ERROR;
+	struct efi_memory_map map;
+	efi_memory_desc_t *md;
+	struct efi_boot_memmap boot_map;
+
+	boot_map.map		= (efi_memory_desc_t **)&map.map;
+	boot_map.map_size	= &map_size;
+	boot_map.desc_size	= &map.desc_size;
+	boot_map.desc_ver	= NULL;
+	boot_map.key_ptr	= NULL;
+	boot_map.buff_size	= &buff_size;
+
+	status = efi_get_memory_map(&boot_map);
+	if (status != EFI_SUCCESS)
+		return membase;
+
+	map.map_end = map.map + map_size;
+
+	for_each_efi_memory_desc_in_map(&map, md) {
+		if (md->attribute & EFI_MEMORY_WB) {
+			if (membase > md->phys_addr)
+				membase = md->phys_addr;
+		}
+	}
+
+	efi_bs_call(free_pool, map.map);
+
+	return membase;
+}
 
 /*
  * This function handles the architcture specific differences between arm and
@@ -100,38 +134,46 @@ efi_status_t handle_kernel_image(unsigned long *image_addr,
 				 unsigned long *reserve_size,
 				 unsigned long dram_base,
 				 efi_loaded_image_t *image);
+
+asmlinkage void __noreturn efi_enter_kernel(unsigned long entrypoint,
+					    unsigned long fdt_addr,
+					    unsigned long fdt_size);
+
 /*
  * EFI entry point for the arm/arm64 EFI stubs.  This is the entrypoint
  * that is described in the PE/COFF header.  Most of the code is the same
  * for both archictectures, with the arch-specific code provided in the
  * handle_kernel_image() function.
  */
-unsigned long efi_entry(void *handle, efi_system_table_t *sys_table_arg,
-			       unsigned long *image_addr)
+efi_status_t efi_entry(efi_handle_t handle, efi_system_table_t *sys_table_arg)
 {
 	efi_loaded_image_t *image;
 	efi_status_t status;
+	unsigned long image_addr;
 	unsigned long image_size = 0;
 	unsigned long dram_base;
 	/* addr/point and size pairs for memory management*/
-	unsigned long initrd_addr;
-	u64 initrd_size = 0;
+	unsigned long initrd_addr = 0;
+	unsigned long initrd_size = 0;
 	unsigned long fdt_addr = 0;  /* Original DTB */
 	unsigned long fdt_size = 0;
 	char *cmdline_ptr = NULL;
 	int cmdline_size = 0;
-	unsigned long new_fdt_addr;
 	efi_guid_t loaded_image_proto = LOADED_IMAGE_PROTOCOL_GUID;
 	unsigned long reserve_addr = 0;
 	unsigned long reserve_size = 0;
 	enum efi_secureboot_mode secure_boot;
 	struct screen_info *si;
+	efi_properties_table_t *prop_tbl;
+	unsigned long max_addr;
 
 	sys_table = sys_table_arg;
 
 	/* Check if we were booted by the EFI firmware */
-	if (sys_table->hdr.signature != EFI_SYSTEM_TABLE_SIGNATURE)
+	if (sys_table->hdr.signature != EFI_SYSTEM_TABLE_SIGNATURE) {
+		status = EFI_INVALID_PARAMETER;
 		goto fail;
+	}
 
 	status = check_platform_features();
 	if (status != EFI_SUCCESS)
@@ -152,6 +194,7 @@ unsigned long efi_entry(void *handle, efi_system_table_t *sys_table_arg,
 	dram_base = get_dram_base();
 	if (dram_base == EFI_ERROR) {
 		pr_efi_err("Failed to find DRAM base\n");
+		status = EFI_LOAD_ERROR;
 		goto fail;
 	}
 
@@ -160,9 +203,10 @@ unsigned long efi_entry(void *handle, efi_system_table_t *sys_table_arg,
 	 * protocol. We are going to copy the command line into the
 	 * device tree, so this can be allocated anywhere.
 	 */
-	cmdline_ptr = efi_convert_cmdline(image, &cmdline_size);
+	cmdline_ptr = efi_convert_cmdline(image, &cmdline_size, ULONG_MAX);
 	if (!cmdline_ptr) {
 		pr_efi_err("getting command line via LOADED_IMAGE_PROTOCOL\n");
+		status = EFI_OUT_OF_RESOURCES;
 		goto fail;
 	}
 
@@ -178,7 +222,7 @@ unsigned long efi_entry(void *handle, efi_system_table_t *sys_table_arg,
 
 	si = setup_graphics();
 
-	status = handle_kernel_image(image_addr, &image_size,
+	status = handle_kernel_image(&image_addr, &image_size,
 				     &reserve_addr,
 				     &reserve_size,
 				     dram_base, image);
@@ -204,8 +248,7 @@ unsigned long efi_entry(void *handle, efi_system_table_t *sys_table_arg,
 		if (strstr(cmdline_ptr, "dtb="))
 			pr_efi("Ignoring DTB from command line.\n");
 	} else {
-		status = handle_cmdline_files(image, cmdline_ptr, "dtb=",
-					      ~0UL, &fdt_addr, &fdt_size);
+		status = efi_load_dtb(image, &fdt_addr, &fdt_size);
 
 		if (status != EFI_SUCCESS) {
 			pr_efi_err("Failed to load device tree!\n");
@@ -225,18 +268,38 @@ unsigned long efi_entry(void *handle, efi_system_table_t *sys_table_arg,
 	if (!fdt_addr)
 		pr_efi("Generating empty DTB\n");
 
-	status = handle_cmdline_files(image, cmdline_ptr, "initrd=",
-				      efi_get_max_initrd_addr(dram_base,
-							      *image_addr),
-				      (unsigned long *)&initrd_addr,
-				      (unsigned long *)&initrd_size);
-	if (status != EFI_SUCCESS)
-		pr_efi_err("Failed initrd from command line!\n");
+	if (!noinitrd()) {
+		max_addr = efi_get_max_initrd_addr(dram_base, image_addr);
+		status = efi_load_initrd_dev_path(&initrd_addr, &initrd_size,
+						  max_addr);
+		if (status == EFI_SUCCESS) {
+			pr_efi("Loaded initrd from LINUX_EFI_INITRD_MEDIA_GUID device path\n");
+		} else if (status == EFI_NOT_FOUND) {
+			status = efi_load_initrd(image, &initrd_addr, &initrd_size,
+						 ULONG_MAX, max_addr);
+			if (status == EFI_SUCCESS && initrd_size > 0)
+				pr_efi("Loaded initrd from command line option\n");
+		}
+		if (status != EFI_SUCCESS)
+			pr_efi_err("Failed to load initrd!\n");
+	}
 
 	efi_random_get_seed();
 
+	/*
+	 * If the NX PE data feature is enabled in the properties table, we
+	 * should take care not to create a virtual mapping that changes the
+	 * relative placement of runtime services code and data regions, as
+	 * they may belong to the same PE/COFF executable image in memory.
+	 * The easiest way to achieve that is to simply use a 1:1 mapping.
+	 */
+	prop_tbl = get_efi_config_table(EFI_PROPERTIES_TABLE_GUID);
+	flat_va_mapping = prop_tbl &&
+			  (prop_tbl->memory_protection_attribute &
+			   EFI_PROPERTIES_RUNTIME_MEMORY_PROTECTION_NON_EXECUTABLE_PE_DATA);
+
 	/* hibernation expects the runtime regions to stay in the same place */
-	if (!IS_ENABLED(CONFIG_HIBERNATION) && !nokaslr()) {
+	if (!IS_ENABLED(CONFIG_HIBERNATION) && !nokaslr() && !flat_va_mapping) {
 		/*
 		 * Randomize the base of the UEFI runtime services region.
 		 * Preserve the 2 MB alignment of the region by taking a
@@ -257,71 +320,30 @@ unsigned long efi_entry(void *handle, efi_system_table_t *sys_table_arg,
 
 	install_memreserve_table();
 
-	new_fdt_addr = fdt_addr;
-	status = allocate_new_fdt_and_exit_boot(handle,
-				&new_fdt_addr, efi_get_max_fdt_addr(dram_base),
-				initrd_addr, initrd_size, cmdline_ptr,
-				fdt_addr, fdt_size);
+	status = allocate_new_fdt_and_exit_boot(handle, &fdt_addr,
+						efi_get_max_fdt_addr(dram_base),
+						initrd_addr, initrd_size,
+						cmdline_ptr, fdt_addr, fdt_size);
+	if (status != EFI_SUCCESS)
+		goto fail_free_initrd;
 
-	/*
-	 * If all went well, we need to return the FDT address to the
-	 * calling function so it can be passed to kernel as part of
-	 * the kernel boot protocol.
-	 */
-	if (status == EFI_SUCCESS)
-		return new_fdt_addr;
+	efi_enter_kernel(image_addr, fdt_addr, fdt_totalsize((void *)fdt_addr));
+	/* not reached */
 
+fail_free_initrd:
 	pr_efi_err("Failed to update FDT and exit boot services\n");
 
 	efi_free(initrd_size, initrd_addr);
 	efi_free(fdt_size, fdt_addr);
 
 fail_free_image:
-	efi_free(image_size, *image_addr);
+	efi_free(image_size, image_addr);
 	efi_free(reserve_size, reserve_addr);
 fail_free_cmdline:
 	free_screen_info(si);
 	efi_free(cmdline_size, (unsigned long)cmdline_ptr);
 fail:
-	return EFI_ERROR;
-}
-
-static int cmp_mem_desc(const void *l, const void *r)
-{
-	const efi_memory_desc_t *left = l, *right = r;
-
-	return (left->phys_addr > right->phys_addr) ? 1 : -1;
-}
-
-/*
- * Returns whether region @left ends exactly where region @right starts,
- * or false if either argument is NULL.
- */
-static bool regions_are_adjacent(efi_memory_desc_t *left,
-				 efi_memory_desc_t *right)
-{
-	u64 left_end;
-
-	if (left == NULL || right == NULL)
-		return false;
-
-	left_end = left->phys_addr + left->num_pages * EFI_PAGE_SIZE;
-
-	return left_end == right->phys_addr;
-}
-
-/*
- * Returns whether region @left and region @right have compatible memory type
- * mapping attributes, and are both EFI_MEMORY_RUNTIME regions.
- */
-static bool regions_have_compatible_memory_type_attrs(efi_memory_desc_t *left,
-						      efi_memory_desc_t *right)
-{
-	static const u64 mem_type_mask = EFI_MEMORY_WB | EFI_MEMORY_WT |
-					 EFI_MEMORY_WC | EFI_MEMORY_UC |
-					 EFI_MEMORY_RUNTIME;
-
-	return ((left->attribute ^ right->attribute) & mem_type_mask) == 0;
+	return status;
 }
 
 /*
@@ -336,23 +358,10 @@ void efi_get_virtmap(efi_memory_desc_t *memory_map, unsigned long map_size,
 		     int *count)
 {
 	u64 efi_virt_base = virtmap_base;
-	efi_memory_desc_t *in, *prev = NULL, *out = runtime_map;
+	efi_memory_desc_t *in, *out = runtime_map;
 	int l;
 
-	/*
-	 * To work around potential issues with the Properties Table feature
-	 * introduced in UEFI 2.5, which may split PE/COFF executable images
-	 * in memory into several RuntimeServicesCode and RuntimeServicesData
-	 * regions, we need to preserve the relative offsets between adjacent
-	 * EFI_MEMORY_RUNTIME regions with the same memory type attributes.
-	 * The easiest way to find adjacent regions is to sort the memory map
-	 * before traversing it.
-	 */
-	if (IS_ENABLED(CONFIG_ARM64))
-		sort(memory_map, map_size / desc_size, desc_size, cmp_mem_desc,
-		     NULL);
-
-	for (l = 0; l < map_size; l += desc_size, prev = in) {
+	for (l = 0; l < map_size; l += desc_size) {
 		u64 paddr, size;
 
 		in = (void *)memory_map + l;
@@ -362,8 +371,8 @@ void efi_get_virtmap(efi_memory_desc_t *memory_map, unsigned long map_size,
 		paddr = in->phys_addr;
 		size = in->num_pages * EFI_PAGE_SIZE;
 
+		in->virt_addr = in->phys_addr;
 		if (novamap()) {
-			in->virt_addr = in->phys_addr;
 			continue;
 		}
 
@@ -372,9 +381,7 @@ void efi_get_virtmap(efi_memory_desc_t *memory_map, unsigned long map_size,
 		 * a 4k page size kernel to kexec a 64k page size kernel and
 		 * vice versa.
 		 */
-		if ((IS_ENABLED(CONFIG_ARM64) &&
-		     !regions_are_adjacent(prev, in)) ||
-		    !regions_have_compatible_memory_type_attrs(prev, in)) {
+		if (!flat_va_mapping) {
 
 			paddr = round_down(in->phys_addr, SZ_64K);
 			size += in->phys_addr - paddr;
@@ -389,10 +396,10 @@ void efi_get_virtmap(efi_memory_desc_t *memory_map, unsigned long map_size,
 				efi_virt_base = round_up(efi_virt_base, SZ_2M);
 			else
 				efi_virt_base = round_up(efi_virt_base, SZ_64K);
-		}
 
-		in->virt_addr = efi_virt_base + in->phys_addr - paddr;
-		efi_virt_base += size;
+			in->virt_addr += efi_virt_base - paddr;
+			efi_virt_base += size;
+		}
 
 		memcpy(out, in, desc_size);
 		out = (void *)out + desc_size;

@@ -184,7 +184,7 @@ static struct i2c_driver smbalert_driver = {
  * corresponding I2C device driver's alert function.
  *
  * It is assumed that ara is a valid i2c client previously returned by
- * i2c_setup_smbus_alert().
+ * i2c_new_smbus_alert_device().
  */
 int i2c_handle_smbus_alert(struct i2c_client *ara)
 {

@@ -80,7 +80,6 @@ void efx_init_tx_queue(struct efx_tx_queue *tx_queue)
 	tx_queue->xmit_more_available = false;
 	tx_queue->timestamping = (efx_ptp_use_mac_tx_timestamps(efx) &&
 				  tx_queue->channel == efx_ptp_channel(efx));
-	tx_queue->completed_desc_ptr = tx_queue->ptr_mask;
 	tx_queue->completed_timestamp_major = 0;
 	tx_queue->completed_timestamp_minor = 0;
 
@@ -210,10 +209,9 @@ static void efx_dequeue_buffers(struct efx_tx_queue *tx_queue,
 	while (read_ptr != stop_index) {
 		struct efx_tx_buffer *buffer = &tx_queue->buffer[read_ptr];
 
-		if (!(buffer->flags & EFX_TX_BUF_OPTION) &&
-		    unlikely(buffer->len == 0)) {
+		if (!efx_tx_buffer_in_use(buffer)) {
 			netif_err(efx, tx_err, efx->net_dev,
-				  "TX queue %d spurious TX completion id %x\n",
+				  "TX queue %d spurious TX completion id %d\n",
 				  tx_queue->queue, read_ptr);
 			efx_schedule_reset(efx, RESET_TYPE_TX_SKIP);
 			return;
@@ -223,6 +221,19 @@ static void efx_dequeue_buffers(struct efx_tx_queue *tx_queue,
 
 		++tx_queue->read_count;
 		read_ptr = tx_queue->read_count & tx_queue->ptr_mask;
+	}
+}
+
+void efx_xmit_done_check_empty(struct efx_tx_queue *tx_queue)
+{
+	if ((int)(tx_queue->read_count - tx_queue->old_write_count) >= 0) {
+		tx_queue->old_write_count = READ_ONCE(tx_queue->write_count);
+		if (tx_queue->read_count == tx_queue->old_write_count) {
+			/* Ensure that read_count is flushed. */
+			smp_mb();
+			tx_queue->empty_read_count =
+				tx_queue->read_count | EFX_EMPTY_COUNT_VALID;
+		}
 	}
 }
 
@@ -256,15 +267,7 @@ void efx_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index)
 			netif_tx_wake_queue(tx_queue->core_txq);
 	}
 
-	/* Check whether the hardware queue is now empty */
-	if ((int)(tx_queue->read_count - tx_queue->old_write_count) >= 0) {
-		tx_queue->old_write_count = READ_ONCE(tx_queue->write_count);
-		if (tx_queue->read_count == tx_queue->old_write_count) {
-			smp_mb();
-			tx_queue->empty_read_count =
-				tx_queue->read_count | EFX_EMPTY_COUNT_VALID;
-		}
-	}
+	efx_xmit_done_check_empty(tx_queue);
 }
 
 /* Remove buffers put into a tx_queue for the current packet.

@@ -43,6 +43,20 @@ Description:    Allows the root user to read or write directly through the
                 If the IOMMU is disabled, it also allows the root user to read
                 or write from the host a device VA of a host mapped memory
 
+What:           /sys/kernel/debug/habanalabs/hl<n>/data64
+Date:           Jan 2020
+KernelVersion:  5.6
+Contact:        oded.gabbay@gmail.com
+Description:    Allows the root user to read or write 64 bit data directly
+                through the device's PCI bar. Writing to this file generates a
+                write transaction while reading from the file generates a read
+                transaction. This custom interface is needed (instead of using
+                the generic Linux user-space PCI mapping) because the DDR bar
+                is very small compared to the DDR memory and only the driver can
+                move the bar before and after the transaction.
+                If the IOMMU is disabled, it also allows the root user to read
+                or write from the host a device VA of a host mapped memory
+
 What:           /sys/kernel/debug/habanalabs/hl<n>/device
 Date:           Jan 2019
 KernelVersion:  5.1
