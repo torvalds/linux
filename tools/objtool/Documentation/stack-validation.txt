@@ -323,6 +323,14 @@ they mean, and suggestions for how to fix them.
     The easiest way to enforce this is to ensure alternatives do not contain
     any ORC entries, which in turn implies the above constraint.
 
+11. file.o: warning: unannotated intra-function call
+
+   This warning means that a direct call is done to a destination which
+   is not at the beginning of a function. If this is a legit call, you
+   can remove this warning by putting the ANNOTATE_INTRA_FUNCTION_CALL
+   directive right before the call.
+
+
 If the error doesn't seem to make sense, it could be a bug in objtool.
 Feel free to ask the objtool maintainer for help.
 

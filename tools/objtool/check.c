@@ -674,6 +674,16 @@ static int add_jump_destinations(struct objtool_file *file)
 	return 0;
 }
 
+static void remove_insn_ops(struct instruction *insn)
+{
+	struct stack_op *op, *tmp;
+
+	list_for_each_entry_safe(op, tmp, &insn->stack_ops, list) {
+		list_del(&op->list);
+		free(op);
+	}
+}
+
 /*
  * Find the destination instructions for all calls.
  */
@@ -699,10 +709,7 @@ static int add_call_destinations(struct objtool_file *file)
 				continue;
 
 			if (!insn->call_dest) {
-				WARN_FUNC("unsupported intra-function call",
-					  insn->sec, insn->offset);
-				if (retpoline)
-					WARN("If this is a retpoline, please patch it in with alternatives and annotate it with ANNOTATE_NOSPEC_ALTERNATIVE.");
+				WARN_FUNC("unannotated intra-function call", insn->sec, insn->offset);
 				return -1;
 			}
 
@@ -725,6 +732,15 @@ static int add_call_destinations(struct objtool_file *file)
 			}
 		} else
 			insn->call_dest = rela->sym;
+
+		/*
+		 * Whatever stack impact regular CALLs have, should be undone
+		 * by the RETURN of the called function.
+		 *
+		 * Annotated intra-function calls retain the stack_ops but
+		 * are converted to JUMP, see read_intra_function_calls().
+		 */
+		remove_insn_ops(insn);
 	}
 
 	return 0;
@@ -1404,6 +1420,57 @@ static int read_instr_hints(struct objtool_file *file)
 	return 0;
 }
 
+static int read_intra_function_calls(struct objtool_file *file)
+{
+	struct instruction *insn;
+	struct section *sec;
+	struct rela *rela;
+
+	sec = find_section_by_name(file->elf, ".rela.discard.intra_function_calls");
+	if (!sec)
+		return 0;
+
+	list_for_each_entry(rela, &sec->rela_list, list) {
+		unsigned long dest_off;
+
+		if (rela->sym->type != STT_SECTION) {
+			WARN("unexpected relocation symbol type in %s",
+			     sec->name);
+			return -1;
+		}
+
+		insn = find_insn(file, rela->sym->sec, rela->addend);
+		if (!insn) {
+			WARN("bad .discard.intra_function_call entry");
+			return -1;
+		}
+
+		if (insn->type != INSN_CALL) {
+			WARN_FUNC("intra_function_call not a direct call",
+				  insn->sec, insn->offset);
+			return -1;
+		}
+
+		/*
+		 * Treat intra-function CALLs as JMPs, but with a stack_op.
+		 * See add_call_destinations(), which strips stack_ops from
+		 * normal CALLs.
+		 */
+		insn->type = INSN_JUMP_UNCONDITIONAL;
+
+		dest_off = insn->offset + insn->len + insn->immediate;
+		insn->jump_dest = find_insn(file, insn->sec, dest_off);
+		if (!insn->jump_dest) {
+			WARN_FUNC("can't find call dest at %s+0x%lx",
+				  insn->sec, insn->offset,
+				  insn->sec->name, dest_off);
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
 static void mark_rodata(struct objtool_file *file)
 {
 	struct section *sec;
@@ -1456,6 +1523,10 @@ static int decode_sections(struct objtool_file *file)
 		return ret;
 
 	ret = add_special_section_alts(file);
+	if (ret)
+		return ret;
+
+	ret = read_intra_function_calls(file);
 	if (ret)
 		return ret;
 
