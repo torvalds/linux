@@ -33,6 +33,24 @@ enum pnv_phb_model {
 #define PNV_IODA_PE_SLAVE	(1 << 4)	/* Slave PE in compound case	*/
 #define PNV_IODA_PE_VF		(1 << 5)	/* PE for one VF 		*/
 
+/*
+ * A brief note on PNV_IODA_PE_BUS_ALL
+ *
+ * This is needed because of the behaviour of PCIe-to-PCI bridges. The PHB uses
+ * the Requester ID field of the PCIe request header to determine the device
+ * (and PE) that initiated a DMA. In legacy PCI individual memory read/write
+ * requests aren't tagged with the RID. To work around this the PCIe-to-PCI
+ * bridge will use (secondary_bus_no << 8) | 0x00 as the RID on the PCIe side.
+ *
+ * PCIe-to-X bridges have a similar issue even though PCI-X requests also have
+ * a RID in the transaction header. The PCIe-to-X bridge is permitted to "take
+ * ownership" of a transaction by a PCI-X device when forwarding it to the PCIe
+ * side of the bridge.
+ *
+ * To work around these problems we use the BUS_ALL flag since every subordinate
+ * bus of the bridge should go into the same PE.
+ */
+
 /* Indicates operations are frozen for a PE: MMIO in PESTA & DMA in PESTB. */
 #define PNV_IODA_STOPPED_STATE	0x8000000000000000
 
