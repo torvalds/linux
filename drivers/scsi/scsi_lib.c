@@ -978,30 +978,6 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 		scsi_io_completion_action(cmd, result);
 }
 
-static blk_status_t scsi_init_sgtable(struct request *req,
-		struct scsi_data_buffer *sdb)
-{
-	int count;
-
-	/*
-	 * If sg table allocation fails, requeue request later.
-	 */
-	if (unlikely(sg_alloc_table_chained(&sdb->table,
-			blk_rq_nr_phys_segments(req), sdb->table.sgl,
-			SCSI_INLINE_SG_CNT)))
-		return BLK_STS_RESOURCE;
-
-	/* 
-	 * Next, walk the list, and fill in the addresses and sizes of
-	 * each segment.
-	 */
-	count = blk_rq_map_sg(req->q, req, sdb->table.sgl);
-	BUG_ON(count > sdb->table.nents);
-	sdb->table.nents = count;
-	sdb->length = blk_rq_payload_bytes(req);
-	return BLK_STS_OK;
-}
-
 /*
  * Function:    scsi_init_io()
  *
@@ -1017,17 +993,31 @@ blk_status_t scsi_init_io(struct scsi_cmnd *cmd)
 {
 	struct request *rq = cmd->request;
 	blk_status_t ret;
+	int count;
 
 	if (WARN_ON_ONCE(!blk_rq_nr_phys_segments(rq)))
 		return BLK_STS_IOERR;
 
-	ret = scsi_init_sgtable(rq, &cmd->sdb);
-	if (ret)
-		return ret;
+	/*
+	 * If sg table allocation fails, requeue request later.
+	 */
+	if (unlikely(sg_alloc_table_chained(&cmd->sdb.table,
+			blk_rq_nr_phys_segments(rq), cmd->sdb.table.sgl,
+			SCSI_INLINE_SG_CNT)))
+		return BLK_STS_RESOURCE;
+
+	/*
+	 * Next, walk the list, and fill in the addresses and sizes of
+	 * each segment.
+	 */
+	count = blk_rq_map_sg(rq->q, rq, cmd->sdb.table.sgl);
+	BUG_ON(count > cmd->sdb.table.nents);
+	cmd->sdb.table.nents = count;
+	cmd->sdb.length = blk_rq_payload_bytes(rq);
 
 	if (blk_integrity_rq(rq)) {
 		struct scsi_data_buffer *prot_sdb = cmd->prot_sdb;
-		int ivecs, count;
+		int ivecs;
 
 		if (WARN_ON_ONCE(!prot_sdb)) {
 			/*
