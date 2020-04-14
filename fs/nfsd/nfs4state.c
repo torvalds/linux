@@ -2424,7 +2424,8 @@ static void nfs4_show_owner(struct seq_file *s, struct nfs4_stateowner *oo)
 
 static void nfs4_show_stateid(struct seq_file *s, stateid_t *stid)
 {
-	seq_printf(s, "0x%16phN", stid);
+	seq_printf(s, "0x%.8x", stid->si_generation);
+	seq_printf(s, "%12phN", &stid->si_opaque);
 }
 
 static int nfs4_show_open(struct seq_file *s, struct nfs4_stid *st)
