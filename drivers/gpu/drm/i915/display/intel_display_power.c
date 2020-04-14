@@ -20,6 +20,8 @@
 #include "intel_tc.h"
 #include "intel_vga.h"
 
+static const struct i915_power_well_ops icl_tc_phy_aux_power_well_ops;
+
 bool intel_display_power_well_is_enabled(struct drm_i915_private *dev_priv,
 					 enum i915_power_well_id power_well_id);
 
@@ -284,6 +286,21 @@ static void hsw_power_well_pre_disable(struct drm_i915_private *dev_priv,
 		gen8_irq_power_well_pre_disable(dev_priv, irq_pipe_mask);
 }
 
+#define ICL_AUX_PW_TO_CH(pw_idx)	\
+	((pw_idx) - ICL_PW_CTL_IDX_AUX_A + AUX_CH_A)
+
+#define ICL_TBT_AUX_PW_TO_CH(pw_idx)	\
+	((pw_idx) - ICL_PW_CTL_IDX_AUX_TBT1 + AUX_CH_C)
+
+static enum aux_ch icl_tc_phy_aux_ch(struct drm_i915_private *dev_priv,
+				     struct i915_power_well *power_well)
+{
+	int pw_idx = power_well->desc->hsw.idx;
+
+	return power_well->desc->hsw.is_tc_tbt ? ICL_TBT_AUX_PW_TO_CH(pw_idx) :
+						 ICL_AUX_PW_TO_CH(pw_idx);
+}
+
 static struct intel_digital_port *
 aux_ch_to_digital_port(struct drm_i915_private *dev_priv,
 		       enum aux_ch aux_ch)
@@ -311,6 +328,28 @@ aux_ch_to_digital_port(struct drm_i915_private *dev_priv,
 	return dig_port;
 }
 
+static bool tc_phy_aux_timeout_expected(struct drm_i915_private *dev_priv,
+					struct i915_power_well *power_well)
+{
+	/* An AUX timeout is expected if the TBT DP tunnel is down. */
+	if (power_well->desc->hsw.is_tc_tbt)
+		return true;
+
+	/*
+	 * An AUX timeout is expected because we enable TC legacy port aux
+	 * to hold port out of TC cold
+	 */
+	if (INTEL_GEN(dev_priv) == 11 &&
+	    power_well->desc->ops == &icl_tc_phy_aux_power_well_ops) {
+		enum aux_ch aux_ch = icl_tc_phy_aux_ch(dev_priv, power_well);
+		struct intel_digital_port *dig_port = aux_ch_to_digital_port(dev_priv, aux_ch);
+
+		return dig_port->tc_legacy_port;
+	}
+
+	return false;
+}
+
 static void hsw_wait_for_power_well_enable(struct drm_i915_private *dev_priv,
 					   struct i915_power_well *power_well)
 {
@@ -323,8 +362,9 @@ static void hsw_wait_for_power_well_enable(struct drm_i915_private *dev_priv,
 		drm_dbg_kms(&dev_priv->drm, "%s power well enable timeout\n",
 			    power_well->desc->name);
 
-		/* An AUX timeout is expected if the TBT DP tunnel is down. */
-		drm_WARN_ON(&dev_priv->drm, !power_well->desc->hsw.is_tc_tbt);
+		drm_WARN_ON(&dev_priv->drm,
+			    !tc_phy_aux_timeout_expected(dev_priv, power_well));
+
 	}
 }
 
@@ -518,21 +558,6 @@ icl_combo_phy_aux_power_well_disable(struct drm_i915_private *dev_priv,
 		       val & ~HSW_PWR_WELL_CTL_REQ(pw_idx));
 
 	hsw_wait_for_power_well_disable(dev_priv, power_well);
-}
-
-#define ICL_AUX_PW_TO_CH(pw_idx)	\
-	((pw_idx) - ICL_PW_CTL_IDX_AUX_A + AUX_CH_A)
-
-#define ICL_TBT_AUX_PW_TO_CH(pw_idx)	\
-	((pw_idx) - ICL_PW_CTL_IDX_AUX_TBT1 + AUX_CH_C)
-
-static enum aux_ch icl_tc_phy_aux_ch(struct drm_i915_private *dev_priv,
-				     struct i915_power_well *power_well)
-{
-	int pw_idx = power_well->desc->hsw.idx;
-
-	return power_well->desc->hsw.is_tc_tbt ? ICL_TBT_AUX_PW_TO_CH(pw_idx) :
-						 ICL_AUX_PW_TO_CH(pw_idx);
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM)
