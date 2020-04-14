@@ -1922,9 +1922,6 @@
   register_restart_handler
   unregister_restart_handler
 
-# required by pinctrl-spmi-gpio.ko
-  pmic_gpio_dump_builtin_cb
-
 # required by platform_dlkm.ko
   __ll_sc___cmpxchg_case_mb_8
   of_property_read_variable_u16_array
