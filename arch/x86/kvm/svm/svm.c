@@ -3070,9 +3070,10 @@ static int svm_nmi_allowed(struct kvm_vcpu *vcpu)
 	struct vcpu_svm *svm = to_svm(vcpu);
 	struct vmcb *vmcb = svm->vmcb;
 	int ret;
+
 	ret = !(vmcb->control.int_state & SVM_INTERRUPT_SHADOW_MASK) &&
 	      !(svm->vcpu.arch.hflags & HF_NMI_MASK);
-	ret = ret && gif_set(svm) && nested_svm_nmi(svm);
+	ret = ret && gif_set(svm);
 
 	return ret;
 }
@@ -3149,9 +3150,6 @@ static void enable_nmi_window(struct kvm_vcpu *vcpu)
 			set_intercept(svm, INTERCEPT_STGI);
 		return; /* STGI will cause a vm exit */
 	}
-
-	if (svm->nested.exit_required)
-		return; /* we're not going to run the guest yet */
 
 	/*
 	 * Something prevents NMI from been injected. Single step over possible
