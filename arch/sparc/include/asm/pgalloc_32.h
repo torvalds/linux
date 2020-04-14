@@ -60,13 +60,14 @@ pgtable_t pte_alloc_one(struct mm_struct *mm);
 
 static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm)
 {
-	return srmmu_get_nocache(PTE_SIZE, PTE_SIZE);
+	return srmmu_get_nocache(SRMMU_PTE_TABLE_SIZE,
+				 SRMMU_PTE_TABLE_SIZE);
 }
 
 
 static inline void free_pte_fast(pte_t *pte)
 {
-	srmmu_free_nocache(pte, PTE_SIZE);
+	srmmu_free_nocache(pte, SRMMU_PTE_TABLE_SIZE);
 }
 
 #define pte_free_kernel(mm, pte)	free_pte_fast(pte)
