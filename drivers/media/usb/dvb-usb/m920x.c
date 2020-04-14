@@ -459,8 +459,8 @@ static int m920x_firmware_download(struct usb_device *udev, const struct firmwar
 
 /* Callbacks for DVB USB */
 static int m920x_identify_state(struct usb_device *udev,
-				struct dvb_usb_device_properties *props,
-				struct dvb_usb_device_description **desc,
+				const struct dvb_usb_device_properties *props,
+				const struct dvb_usb_device_description **desc,
 				int *cold)
 {
 	struct usb_host_interface *alt;
