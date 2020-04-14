@@ -33,6 +33,8 @@
 #define MV_PHY_ALASKA_NBT_QUIRK_REV	(MARVELL_PHY_ID_88X3310 | 0xa)
 
 enum {
+	MV_PMA_FW_VER0		= 0xc011,
+	MV_PMA_FW_VER1		= 0xc012,
 	MV_PMA_BOOT		= 0xc050,
 	MV_PMA_BOOT_FATAL	= BIT(0),
 
@@ -83,6 +85,8 @@ enum {
 };
 
 struct mv3310_priv {
+	u32 firmware_ver;
+
 	struct device *hwmon_dev;
 	char *hwmon_name;
 };
@@ -354,6 +358,22 @@ static int mv3310_probe(struct phy_device *phydev)
 		return -ENOMEM;
 
 	dev_set_drvdata(&phydev->mdio.dev, priv);
+
+	ret = phy_read_mmd(phydev, MDIO_MMD_PMAPMD, MV_PMA_FW_VER0);
+	if (ret < 0)
+		return ret;
+
+	priv->firmware_ver = ret << 16;
+
+	ret = phy_read_mmd(phydev, MDIO_MMD_PMAPMD, MV_PMA_FW_VER1);
+	if (ret < 0)
+		return ret;
+
+	priv->firmware_ver |= ret;
+
+	phydev_info(phydev, "Firmware version %u.%u.%u.%u\n",
+		    priv->firmware_ver >> 24, (priv->firmware_ver >> 16) & 255,
+		    (priv->firmware_ver >> 8) & 255, priv->firmware_ver & 255);
 
 	/* Powering down the port when not in use saves about 600mW */
 	ret = mv3310_power_down(phydev);
