@@ -207,7 +207,6 @@ EXPORT_SYMBOL_NS(hda_codec_i915_init, SND_SOC_SOF_HDA_AUDIO_CODEC_I915);
 int hda_codec_i915_exit(struct snd_sof_dev *sdev)
 {
 	struct hdac_bus *bus = sof_to_bus(sdev);
-	int ret;
 
 	if (!bus->audio_component)
 		return 0;
@@ -215,9 +214,7 @@ int hda_codec_i915_exit(struct snd_sof_dev *sdev)
 	/* power down unconditionally */
 	snd_hdac_display_power(bus, HDA_CODEC_IDX_CONTROLLER, false);
 
-	ret = snd_hdac_i915_exit(bus);
-
-	return ret;
+	return snd_hdac_i915_exit(bus);
 }
 EXPORT_SYMBOL_NS(hda_codec_i915_exit, SND_SOC_SOF_HDA_AUDIO_CODEC_I915);
 
