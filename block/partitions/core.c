@@ -335,7 +335,7 @@ static DEVICE_ATTR(whole_disk, 0444, whole_disk_show, NULL);
  * Must be called either with bd_mutex held, before a disk can be opened or
  * after all disk users are gone.
  */
-struct hd_struct *add_partition(struct gendisk *disk, int partno,
+static struct hd_struct *add_partition(struct gendisk *disk, int partno,
 				sector_t start, sector_t len, int flags,
 				struct partition_meta_info *info)
 {
@@ -470,6 +470,119 @@ out_del:
 out_put:
 	put_device(pdev);
 	return ERR_PTR(err);
+}
+
+static bool partition_overlaps(struct gendisk *disk, sector_t start,
+		sector_t length, int skip_partno)
+{
+	struct disk_part_iter piter;
+	struct hd_struct *part;
+	bool overlap = false;
+
+	disk_part_iter_init(&piter, disk, DISK_PITER_INCL_EMPTY);
+	while ((part = disk_part_iter_next(&piter))) {
+		if (part->partno == skip_partno ||
+		    start >= part->start_sect + part->nr_sects ||
+		    start + length <= part->start_sect)
+			continue;
+		overlap = true;
+		break;
+	}
+
+	disk_part_iter_exit(&piter);
+	return overlap;
+}
+
+int bdev_add_partition(struct block_device *bdev, int partno,
+		sector_t start, sector_t length)
+{
+	struct hd_struct *part;
+
+	mutex_lock(&bdev->bd_mutex);
+	if (partition_overlaps(bdev->bd_disk, start, length, -1)) {
+		mutex_unlock(&bdev->bd_mutex);
+		return -EBUSY;
+	}
+
+	part = add_partition(bdev->bd_disk, partno, start, length,
+			ADDPART_FLAG_NONE, NULL);
+	mutex_unlock(&bdev->bd_mutex);
+	return PTR_ERR_OR_ZERO(part);
+}
+
+int bdev_del_partition(struct block_device *bdev, int partno)
+{
+	struct block_device *bdevp;
+	struct hd_struct *part;
+	int ret = 0;
+
+	part = disk_get_part(bdev->bd_disk, partno);
+	if (!part)
+		return -ENXIO;
+
+	bdevp = bdget(part_devt(part));
+	disk_put_part(part);
+	if (!bdevp)
+		return -ENOMEM;
+
+	mutex_lock(&bdevp->bd_mutex);
+
+	ret = -EBUSY;
+	if (bdevp->bd_openers)
+		goto out_unlock;
+
+	fsync_bdev(bdevp);
+	invalidate_bdev(bdevp);
+
+	mutex_lock_nested(&bdev->bd_mutex, 1);
+	delete_partition(bdev->bd_disk, partno);
+	mutex_unlock(&bdev->bd_mutex);
+
+	ret = 0;
+out_unlock:
+	mutex_unlock(&bdevp->bd_mutex);
+	bdput(bdevp);
+	return ret;
+}
+
+int bdev_resize_partition(struct block_device *bdev, int partno,
+		sector_t start, sector_t length)
+{
+	struct block_device *bdevp;
+	struct hd_struct *part;
+	int ret = 0;
+
+	part = disk_get_part(bdev->bd_disk, partno);
+	if (!part)
+		return -ENXIO;
+
+	ret = -ENOMEM;
+	bdevp = bdget(part_devt(part));
+	if (!bdevp)
+		goto out_put_part;
+
+	mutex_lock(&bdevp->bd_mutex);
+	mutex_lock_nested(&bdev->bd_mutex, 1);
+
+	ret = -EINVAL;
+	if (start != part->start_sect)
+		goto out_unlock;
+
+	ret = -EBUSY;
+	if (partition_overlaps(bdev->bd_disk, start, length, partno))
+		goto out_unlock;
+
+	part_nr_sects_write(part, (sector_t)length);
+	i_size_write(bdevp->bd_inode, length << SECTOR_SHIFT);
+
+	ret = 0;
+out_unlock:
+	mutex_unlock(&bdevp->bd_mutex);
+	mutex_unlock(&bdev->bd_mutex);
+	bdput(bdevp);
+out_put_part:
+	disk_put_part(part);
+	return ret;
 }
 
 static bool disk_unlock_native_capacity(struct gendisk *disk)
