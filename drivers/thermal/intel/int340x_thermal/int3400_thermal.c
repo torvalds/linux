@@ -271,6 +271,8 @@ static int int3400_thermal_set_mode(struct thermal_zone_device *thermal,
 
 static struct thermal_zone_device_ops int3400_thermal_ops = {
 	.get_temp = int3400_thermal_get_temp,
+	.get_mode = int3400_thermal_get_mode,
+	.set_mode = int3400_thermal_set_mode,
 };
 
 static struct thermal_zone_params int3400_thermal_params = {
@@ -308,9 +310,6 @@ static int int3400_thermal_probe(struct platform_device *pdev)
 		dev_dbg(&pdev->dev, "_TRT table parsing error\n");
 
 	platform_set_drvdata(pdev, priv);
-
-	int3400_thermal_ops.get_mode = int3400_thermal_get_mode;
-	int3400_thermal_ops.set_mode = int3400_thermal_set_mode;
 
 	priv->thermal = thermal_zone_device_register("INT3400 Thermal", 0, 0,
 						priv, &int3400_thermal_ops,
