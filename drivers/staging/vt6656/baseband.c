@@ -574,7 +574,7 @@ void vnt_update_pre_ed_threshold(struct vnt_private *priv, int scanning)
 	const struct vnt_threshold *threshold = NULL;
 	u8 length;
 	u8 cr_201, cr_206;
-	u8 ed_inx = priv->bb_pre_ed_index;
+	u8 ed_inx;
 
 	switch (priv->rf_type) {
 	case RF_AL2230:
