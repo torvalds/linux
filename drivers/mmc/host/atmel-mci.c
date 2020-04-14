@@ -1557,6 +1557,8 @@ static void atmci_request_end(struct atmel_mci *host, struct mmc_request *mrq)
 
 	WARN_ON(host->cmd || host->data);
 
+	del_timer(&host->timer);
+
 	/*
 	 * Update the MMC clock rate if necessary. This may be
 	 * necessary if set_ios() is called when a different slot is
@@ -1582,8 +1584,6 @@ static void atmci_request_end(struct atmel_mci *host, struct mmc_request *mrq)
 		dev_vdbg(&host->pdev->dev, "list empty\n");
 		host->state = STATE_IDLE;
 	}
-
-	del_timer(&host->timer);
 
 	spin_unlock(&host->lock);
 	mmc_request_done(prev_mmc, mrq);
