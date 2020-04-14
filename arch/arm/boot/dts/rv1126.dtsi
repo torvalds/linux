@@ -1448,7 +1448,7 @@
 		assigned-clocks = <&cru ACLK_ISPP>, <&cru HCLK_ISPP>,
 				  <&cru CLK_ISPP>;
 		assigned-clock-rates = <500000000>, <250000000>,
-				       <500000000>;
+				       <400000000>;
 		power-domains = <&power RV1126_PD_ISPP>;
 		iommus = <&rkispp_mmu>;
 		status = "disabled";
