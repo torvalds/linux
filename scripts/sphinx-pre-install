@@ -446,8 +446,10 @@ sub give_opensuse_hints()
 		"convert"		=> "ImageMagick",
 		"Pod::Usage"		=> "perl-Pod-Usage",
 		"xelatex"		=> "texlive-xetex-bin",
-		"rsvg-convert"		=> "rsvg-view",
 	);
+
+	# On Tumbleweed, this package is also named rsvg-convert
+	$map{"rsvg-convert"} = "rsvg-view" if (!($system_release =~ /Tumbleweed/));
 
 	my @suse_tex_pkgs = (
 		"texlive-babel-english",
