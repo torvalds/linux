@@ -274,10 +274,10 @@ struct device_type part_type = {
 	.uevent		= part_uevent,
 };
 
-static void delete_partition_work_fn(struct work_struct *work)
+static void hd_struct_free_work(struct work_struct *work)
 {
-	struct hd_struct *part = container_of(to_rcu_work(work), struct hd_struct,
-					rcu_work);
+	struct hd_struct *part =
+		container_of(to_rcu_work(work), struct hd_struct, rcu_work);
 
 	part->start_sect = 0;
 	part->nr_sects = 0;
@@ -285,11 +285,19 @@ static void delete_partition_work_fn(struct work_struct *work)
 	put_device(part_to_dev(part));
 }
 
-void __delete_partition(struct percpu_ref *ref)
+static void hd_struct_free(struct percpu_ref *ref)
 {
 	struct hd_struct *part = container_of(ref, struct hd_struct, ref);
-	INIT_RCU_WORK(&part->rcu_work, delete_partition_work_fn);
+
+	INIT_RCU_WORK(&part->rcu_work, hd_struct_free_work);
 	queue_rcu_work(system_wq, &part->rcu_work);
+}
+
+int hd_ref_init(struct hd_struct *part)
+{
+	if (percpu_ref_init(&part->ref, hd_struct_free, 0, GFP_KERNEL))
+		return -ENOMEM;
+	return 0;
 }
 
 /*
