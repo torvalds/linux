@@ -1030,13 +1030,21 @@ blk_status_t scsi_init_io(struct scsi_cmnd *cmd)
 	 */
 	count = __blk_rq_map_sg(rq->q, rq, cmd->sdb.table.sgl, &last_sg);
 
+	if (blk_rq_bytes(rq) & rq->q->dma_pad_mask) {
+		unsigned int pad_len =
+			(rq->q->dma_pad_mask & ~blk_rq_bytes(rq)) + 1;
+
+		last_sg->length += pad_len;
+		cmd->extra_len += pad_len;
+	}
+
 	if (need_drain) {
 		sg_unmark_end(last_sg);
 		last_sg = sg_next(last_sg);
 		sg_set_buf(last_sg, sdev->dma_drain_buf, sdev->dma_drain_len);
 		sg_mark_end(last_sg);
 
-		rq->extra_len += sdev->dma_drain_len;
+		cmd->extra_len += sdev->dma_drain_len;
 		count++;
 	}
 

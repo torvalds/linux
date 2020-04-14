@@ -531,14 +531,6 @@ int __blk_rq_map_sg(struct request_queue *q, struct request *rq,
 	else if (rq->bio)
 		nsegs = __blk_bios_map_sg(q, rq->bio, sglist, last_sg);
 
-	if (blk_rq_bytes(rq) && (blk_rq_bytes(rq) & q->dma_pad_mask)) {
-		unsigned int pad_len =
-			(q->dma_pad_mask & ~blk_rq_bytes(rq)) + 1;
-
-		(*last_sg)->length += pad_len;
-		rq->extra_len += pad_len;
-	}
-
 	if (*last_sg)
 		sg_mark_end(*last_sg);
 
