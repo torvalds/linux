@@ -83,9 +83,9 @@ enum dma_transfer_direction {
 /**
  * Interleaved Transfer Request
  * ----------------------------
- * A chunk is collection of contiguous bytes to be transfered.
+ * A chunk is collection of contiguous bytes to be transferred.
  * The gap(in bytes) between two chunks is called inter-chunk-gap(ICG).
- * ICGs may or maynot change between chunks.
+ * ICGs may or may not change between chunks.
  * A FRAME is the smallest series of contiguous {chunk,icg} pairs,
  *  that when repeated an integral number of times, specifies the transfer.
  * A transfer template is specification of a Frame, the number of times
@@ -1069,7 +1069,7 @@ static inline int dmaengine_terminate_all(struct dma_chan *chan)
  * dmaengine_synchronize() needs to be called before it is safe to free
  * any memory that is accessed by previously submitted descriptors or before
  * freeing any resources accessed from within the completion callback of any
- * perviously submitted descriptors.
+ * previously submitted descriptors.
  *
  * This function can be called from atomic context as well as from within a
  * complete callback of a descriptor submitted on the same channel.
@@ -1091,7 +1091,7 @@ static inline int dmaengine_terminate_async(struct dma_chan *chan)
  *
  * Synchronizes to the DMA channel termination to the current context. When this
  * function returns it is guaranteed that all transfers for previously issued
- * descriptors have stopped and and it is safe to free the memory assoicated
+ * descriptors have stopped and it is safe to free the memory associated
  * with them. Furthermore it is guaranteed that all complete callback functions
  * for a previously submitted descriptor have finished running and it is safe to
  * free resources accessed from within the complete callbacks.
