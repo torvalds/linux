@@ -10640,10 +10640,8 @@ static void ipw_bg_link_down(struct work_struct *work)
 	mutex_unlock(&priv->mutex);
 }
 
-static int ipw_setup_deferred_work(struct ipw_priv *priv)
+static void ipw_setup_deferred_work(struct ipw_priv *priv)
 {
-	int ret = 0;
-
 	init_waitqueue_head(&priv->wait_command_queue);
 	init_waitqueue_head(&priv->wait_state);
 
@@ -10677,8 +10675,6 @@ static int ipw_setup_deferred_work(struct ipw_priv *priv)
 
 	tasklet_init(&priv->irq_tasklet,
 		     ipw_irq_tasklet, (unsigned long)priv);
-
-	return ret;
 }
 
 static void shim__set_security(struct net_device *dev,
@@ -11659,11 +11655,7 @@ static int ipw_pci_probe(struct pci_dev *pdev,
 	IPW_DEBUG_INFO("pci_resource_len = 0x%08x\n", length);
 	IPW_DEBUG_INFO("pci_resource_base = %p\n", base);
 
-	err = ipw_setup_deferred_work(priv);
-	if (err) {
-		IPW_ERROR("Unable to setup deferred work\n");
-		goto out_iounmap;
-	}
+	ipw_setup_deferred_work(priv);
 
 	ipw_sw_reset(priv, 1);
 
