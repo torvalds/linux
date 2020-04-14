@@ -77,14 +77,8 @@
 
 #define MMC_SPI_BLOCKSIZE	512
 
-
-/* These fixed timeouts come from the latest SD specs, which say to ignore
- * the CSD values.  The R1B value is for card erase (e.g. the "I forgot the
- * card's password" scenario); it's mostly applied to STOP_TRANSMISSION after
- * reads which takes nowhere near that long.  Older cards may be able to use
- * shorter timeouts ... but why bother?
- */
-#define r1b_timeout		(HZ * 3)
+#define MMC_SPI_R1B_TIMEOUT_MS	3000
+#define MMC_SPI_INIT_TIMEOUT_MS	3000
 
 /* One of the critical speed parameters is the amount of data which may
  * be transferred in one command. If this value is too low, the SD card
@@ -347,7 +341,8 @@ checkstatus:
 		while (cp < end && *cp == 0)
 			cp++;
 		if (cp == end)
-			mmc_spi_wait_unbusy(host, r1b_timeout);
+			mmc_spi_wait_unbusy(host,
+				msecs_to_jiffies(MMC_SPI_R1B_TIMEOUT_MS));
 		break;
 
 	/* SPI R2 == R1 + second status byte; SEND_STATUS
@@ -1118,7 +1113,7 @@ static void mmc_spi_initsequence(struct mmc_spi_host *host)
 	/* Try to be very sure any previous command has completed;
 	 * wait till not-busy, skip debris from any old commands.
 	 */
-	mmc_spi_wait_unbusy(host, r1b_timeout);
+	mmc_spi_wait_unbusy(host, msecs_to_jiffies(MMC_SPI_INIT_TIMEOUT_MS));
 	mmc_spi_readbytes(host, 10);
 
 	/*
