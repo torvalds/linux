@@ -9108,6 +9108,7 @@ enum {
 #define     ICL_PCODE_MEM_SS_READ_QGV_POINT_INFO(point)	(((point) << 16) | (0x1 << 8))
 #define   GEN6_PCODE_READ_D_COMP		0x10
 #define   GEN6_PCODE_WRITE_D_COMP		0x11
+#define   ICL_PCODE_EXIT_TCCOLD			0x12
 #define   HSW_PCODE_DE_WRITE_FREQ_REQ		0x17
 #define   DISPLAY_IPS_CONTROL			0x19
             /* See also IPS_CTL */

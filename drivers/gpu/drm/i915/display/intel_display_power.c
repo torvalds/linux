@@ -575,6 +575,28 @@ static void icl_tc_port_assert_ref_held(struct drm_i915_private *dev_priv,
 
 #define TGL_AUX_PW_TO_TC_PORT(pw_idx)	((pw_idx) - TGL_PW_CTL_IDX_AUX_TC1)
 
+static void icl_tc_cold_exit(struct drm_i915_private *i915)
+{
+	int ret, tries = 0;
+
+	while (1) {
+		ret = sandybridge_pcode_write_timeout(i915,
+						      ICL_PCODE_EXIT_TCCOLD,
+						      0, 250, 1);
+		if (ret != -EAGAIN || ++tries == 3)
+			break;
+		msleep(1);
+	}
+
+	/* Spec states that TC cold exit can take up to 1ms to complete */
+	if (!ret)
+		msleep(1);
+
+	/* TODO: turn failure into a error as soon i915 CI updates ICL IFWI */
+	drm_dbg_kms(&i915->drm, "TC cold block %s\n", ret ? "failed" :
+		    "succeeded");
+}
+
 static void
 icl_tc_phy_aux_power_well_enable(struct drm_i915_private *dev_priv,
 				 struct i915_power_well *power_well)
@@ -593,7 +615,8 @@ icl_tc_phy_aux_power_well_enable(struct drm_i915_private *dev_priv,
 
 	hsw_power_well_enable_prepare(dev_priv, power_well);
 
-	/* TODO ICL TC cold handling */
+	if (INTEL_GEN(dev_priv) == 11 && dig_port->tc_legacy_port)
+		icl_tc_cold_exit(dev_priv);
 
 	hsw_power_well_enable_complete(dev_priv, power_well);
 
