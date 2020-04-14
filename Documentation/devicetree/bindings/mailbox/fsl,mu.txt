@@ -51,7 +51,7 @@ Optional properties:
 Examples:
 --------
 lsio_mu0: mailbox@5d1b0000 {
-	compatible = "fsl,imx8qxp-mu";
+	compatible = "fsl,imx8qxp-mu", "fsl,imx6sx-mu";
 	reg = <0x0 0x5d1b0000 0x0 0x10000>;
 	interrupts = <GIC_SPI 176 IRQ_TYPE_LEVEL_HIGH>;
 	#mbox-cells = <2>;
