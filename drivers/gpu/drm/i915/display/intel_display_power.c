@@ -151,6 +151,8 @@ intel_display_power_domain_str(enum intel_display_power_domain domain)
 		return "GT_IRQ";
 	case POWER_DOMAIN_DPLL_DC_OFF:
 		return "DPLL_DC_OFF";
+	case POWER_DOMAIN_TC_COLD_OFF:
+		return "TC_COLD_OFF";
 	default:
 		MISSING_CASE(domain);
 		return "?";
@@ -2861,6 +2863,21 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 #define TGL_AUX_I_TBT6_IO_POWER_DOMAINS (	\
 	BIT_ULL(POWER_DOMAIN_AUX_I_TBT))
 
+#define TGL_TC_COLD_OFF_POWER_DOMAINS (		\
+	BIT_ULL(POWER_DOMAIN_AUX_D)	|	\
+	BIT_ULL(POWER_DOMAIN_AUX_E)	|	\
+	BIT_ULL(POWER_DOMAIN_AUX_F)	|	\
+	BIT_ULL(POWER_DOMAIN_AUX_G)	|	\
+	BIT_ULL(POWER_DOMAIN_AUX_H)	|	\
+	BIT_ULL(POWER_DOMAIN_AUX_I)	|	\
+	BIT_ULL(POWER_DOMAIN_AUX_D_TBT)	|	\
+	BIT_ULL(POWER_DOMAIN_AUX_E_TBT)	|	\
+	BIT_ULL(POWER_DOMAIN_AUX_F_TBT)	|	\
+	BIT_ULL(POWER_DOMAIN_AUX_G_TBT)	|	\
+	BIT_ULL(POWER_DOMAIN_AUX_H_TBT)	|	\
+	BIT_ULL(POWER_DOMAIN_AUX_I_TBT)	|	\
+	BIT_ULL(POWER_DOMAIN_TC_COLD_OFF))
+
 static const struct i915_power_well_ops i9xx_always_on_power_well_ops = {
 	.sync_hw = i9xx_power_well_sync_hw_noop,
 	.enable = i9xx_always_on_power_well_noop,
@@ -3963,6 +3980,91 @@ static const struct i915_power_well_desc ehl_power_wells[] = {
 	},
 };
 
+static void
+tgl_tc_cold_request(struct drm_i915_private *i915, bool block)
+{
+	u8 tries = 0;
+	int ret;
+
+	while (1) {
+		u32 low_val = 0, high_val;
+
+		if (block)
+			high_val = TGL_PCODE_EXIT_TCCOLD_DATA_H_BLOCK_REQ;
+		else
+			high_val = TGL_PCODE_EXIT_TCCOLD_DATA_H_UNBLOCK_REQ;
+
+		/*
+		 * Spec states that we should timeout the request after 200us
+		 * but the function below will timeout after 500us
+		 */
+		ret = sandybridge_pcode_read(i915, TGL_PCODE_TCCOLD, &low_val,
+					     &high_val);
+		if (ret == 0) {
+			if (block &&
+			    (low_val & TGL_PCODE_EXIT_TCCOLD_DATA_L_EXIT_FAILED))
+				ret = -EIO;
+			else
+				break;
+		}
+
+		if (++tries == 3)
+			break;
+
+		if (ret == -EAGAIN)
+			msleep(1);
+	}
+
+	if (ret)
+		drm_err(&i915->drm, "TC cold %sblock failed\n",
+			block ? "" : "un");
+	else
+		drm_dbg_kms(&i915->drm, "TC cold %sblock succeeded\n",
+			    block ? "" : "un");
+}
+
+static void
+tgl_tc_cold_off_power_well_enable(struct drm_i915_private *i915,
+				  struct i915_power_well *power_well)
+{
+	tgl_tc_cold_request(i915, true);
+}
+
+static void
+tgl_tc_cold_off_power_well_disable(struct drm_i915_private *i915,
+				   struct i915_power_well *power_well)
+{
+	tgl_tc_cold_request(i915, false);
+}
+
+static void
+tgl_tc_cold_off_power_well_sync_hw(struct drm_i915_private *i915,
+				   struct i915_power_well *power_well)
+{
+	if (power_well->count > 0)
+		tgl_tc_cold_off_power_well_enable(i915, power_well);
+	else
+		tgl_tc_cold_off_power_well_disable(i915, power_well);
+}
+
+static bool
+tgl_tc_cold_off_power_well_is_enabled(struct drm_i915_private *dev_priv,
+				      struct i915_power_well *power_well)
+{
+	/*
+	 * Not the correctly implementation but there is no way to just read it
+	 * from PCODE, so returning count to avoid state mismatch errors
+	 */
+	return power_well->count;
+}
+
+static const struct i915_power_well_ops tgl_tc_cold_off_ops = {
+	.sync_hw = tgl_tc_cold_off_power_well_sync_hw,
+	.enable = tgl_tc_cold_off_power_well_enable,
+	.disable = tgl_tc_cold_off_power_well_disable,
+	.is_enabled = tgl_tc_cold_off_power_well_is_enabled,
+};
+
 static const struct i915_power_well_desc tgl_power_wells[] = {
 	{
 		.name = "always-on",
@@ -4289,6 +4391,12 @@ static const struct i915_power_well_desc tgl_power_wells[] = {
 			.hsw.has_fuses = true,
 			.hsw.irq_pipe_mask = BIT(PIPE_D),
 		},
+	},
+	{
+		.name = "TC cold off",
+		.domains = TGL_TC_COLD_OFF_POWER_DOMAINS,
+		.ops = &tgl_tc_cold_off_ops,
+		.id = DISP_PW_ID_NONE,
 	},
 };
 
