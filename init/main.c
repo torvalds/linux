@@ -1376,6 +1376,10 @@ static noinline void __init kernel_init_freeable(void)
 	smp_init();
 	sched_init_smp();
 
+#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
+	kthread_run(defer_free_bootmem, NULL, "defer_mem");
+#endif
+
 	page_alloc_init_late();
 	/* Initialize page ext after all struct pages are initialized. */
 	page_ext_init();

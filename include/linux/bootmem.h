@@ -71,6 +71,9 @@ extern void free_bootmem_node(pg_data_t *pgdat,
 			      unsigned long size);
 extern void free_bootmem(unsigned long physaddr, unsigned long size);
 extern void free_bootmem_late(unsigned long physaddr, unsigned long size);
+#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
+extern int defer_free_bootmem(void *unused);
+#endif
 
 /*
  * Flags for reserve_bootmem (also if CONFIG_HAVE_ARCH_BOOTMEM_NODE,

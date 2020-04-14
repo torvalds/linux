@@ -32,6 +32,26 @@ struct pglist_data __refdata contig_page_data;
 EXPORT_SYMBOL(contig_page_data);
 #endif
 
+#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
+static unsigned long defer_start __initdata;
+static unsigned long defer_end __initdata;
+
+#define DEFAULT_DEFER_FREE_BLOCK_SIZE SZ_256M
+static unsigned long defer_free_block_size __initdata =
+	DEFAULT_DEFER_FREE_BLOCK_SIZE;
+
+static int __init early_defer_free_block_size(char *p)
+{
+	defer_free_block_size = memparse(p, &p);
+
+	pr_debug("defer_free_block_size = 0x%lx\n", defer_free_block_size);
+
+	return 0;
+}
+
+early_param("defer_free_block_size", early_defer_free_block_size);
+#endif
+
 unsigned long max_low_pfn;
 unsigned long min_low_pfn;
 unsigned long max_pfn;
@@ -112,6 +132,28 @@ static void __init __free_pages_memory(unsigned long start, unsigned long end)
 	}
 }
 
+#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
+int __init defer_free_bootmem(void *unused)
+{
+	if (defer_start == 0)
+		return 0;
+
+	pr_debug("start = %ld, end = %ld\n", defer_start, defer_end);
+
+	__free_pages_memory(defer_start, defer_end);
+
+	totalram_pages += defer_end - defer_start;
+
+	pr_info("%s: size %luM free %luM [%luM - %luM] total %luM\n", __func__,
+		defer_free_block_size >> 20,
+		(defer_end - defer_start) >> (20 - PAGE_SHIFT),
+		defer_end >> (20 - PAGE_SHIFT),
+		defer_start >> (20 - PAGE_SHIFT),
+		totalram_pages >> (20 - PAGE_SHIFT));
+	return 0;
+}
+#endif
+
 static unsigned long __init __free_memory_core(phys_addr_t start,
 				 phys_addr_t end)
 {
@@ -122,6 +164,14 @@ static unsigned long __init __free_memory_core(phys_addr_t start,
 	if (start_pfn >= end_pfn)
 		return 0;
 
+#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
+	if ((end - start) > defer_free_block_size) {
+		defer_start = start_pfn;
+		defer_end = end_pfn;
+
+		return 0;
+	}
+#endif
 	__free_pages_memory(start_pfn, end_pfn);
 
 	return end_pfn - start_pfn;
