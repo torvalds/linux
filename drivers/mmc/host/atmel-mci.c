@@ -169,6 +169,7 @@
 #define	atmci_writel(port, reg, value)			\
 	__raw_writel((value), (port)->regs + reg)
 
+#define ATMCI_CMD_TIMEOUT_MS	2000
 #define AUTOSUSPEND_DELAY	50
 
 #define ATMCI_DATA_ERROR_FLAGS	(ATMCI_DCRCE | ATMCI_DTOE | ATMCI_OVRE | ATMCI_UNRE)
@@ -817,6 +818,9 @@ static void atmci_send_command(struct atmel_mci *host,
 
 	atmci_writel(host, ATMCI_ARGR, cmd->arg);
 	atmci_writel(host, ATMCI_CMDR, cmd_flags);
+
+	mod_timer(&host->timer,
+		  jiffies + msecs_to_jiffies(ATMCI_CMD_TIMEOUT_MS));
 }
 
 static void atmci_send_stop_cmd(struct atmel_mci *host, struct mmc_data *data)
@@ -1314,8 +1318,6 @@ static void atmci_start_request(struct atmel_mci *host,
 	 * prepared yet.)
 	 */
 	atmci_writel(host, ATMCI_IER, iflags);
-
-	mod_timer(&host->timer, jiffies +  msecs_to_jiffies(2000));
 }
 
 static void atmci_queue_request(struct atmel_mci *host,
