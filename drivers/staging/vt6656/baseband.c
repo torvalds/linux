@@ -24,6 +24,7 @@
 
 #include <linux/bits.h>
 #include <linux/kernel.h>
+#include "device.h"
 #include "mac.h"
 #include "baseband.h"
 #include "rf.h"
@@ -221,7 +222,7 @@ unsigned int vnt_get_frame_time(u8 preamble_type, u8 pkt_type,
 
 	rate = (unsigned int)vnt_frame_time[tx_rate];
 
-	if (tx_rate <= 3) {
+	if (tx_rate <= RATE_11M) {
 		if (preamble_type == PREAMBLE_SHORT)
 			preamble = 96;
 		else
