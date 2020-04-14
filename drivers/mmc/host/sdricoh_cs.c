@@ -22,6 +22,7 @@
 #include <linux/io.h>
 
 #include <linux/mmc/host.h>
+#include <linux/mmc/mmc.h>
 
 #define DRIVER_NAME "sdricoh_cs"
 
@@ -261,7 +262,7 @@ static void sdricoh_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	if (host->app_cmd) {
 		opcode |= 64;
 		host->app_cmd = 0;
-	} else if (opcode == 55)
+	} else if (opcode == MMC_APP_CMD)
 		host->app_cmd = 1;
 
 	/* read/write commands seem to require this */
