@@ -24,11 +24,26 @@ config SOC_VIRT
 config SOC_KENDRYTE
 	bool "Kendryte K210 SoC"
 	depends on !MMU
-	select BUILTIN_DTB
 	select SERIAL_SIFIVE if TTY
 	select SERIAL_SIFIVE_CONSOLE if TTY
 	select SIFIVE_PLIC
 	help
 	  This enables support for Kendryte K210 SoC platform hardware.
+
+config SOC_KENDRYTE_K210_DTB
+	def_bool y
+	depends on SOC_KENDRYTE_K210_DTB_BUILTIN
+
+config SOC_KENDRYTE_K210_DTB_BUILTIN
+	bool "Builtin device tree for the Kendryte K210"
+	depends on SOC_KENDRYTE
+	default y
+	select OF
+	select BUILTIN_DTB
+	select SOC_KENDRYTE_K210_DTB
+	help
+	  Builds a device tree for the Kendryte K210 into the Linux image.
+	  This option should be selected if no bootloader is being used.
+	  If unsure, say Y.
 
 endmenu
