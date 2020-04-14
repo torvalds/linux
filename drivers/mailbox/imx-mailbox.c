@@ -155,12 +155,17 @@ static int imx_mu_scu_tx(struct imx_mu_priv *priv,
 
 	switch (cp->type) {
 	case IMX_MU_TYPE_TX:
-		if (msg->hdr.size > sizeof(*msg)) {
+		/*
+		 * msg->hdr.size specifies the number of u32 words while
+		 * sizeof yields bytes.
+		 */
+
+		if (msg->hdr.size > sizeof(*msg) / 4) {
 			/*
 			 * The real message size can be different to
 			 * struct imx_sc_rpc_msg_max size
 			 */
-			dev_err(priv->dev, "Exceed max msg size (%zu) on TX, got: %i\n", sizeof(*msg), msg->hdr.size);
+			dev_err(priv->dev, "Maximal message size (%zu bytes) exceeded on TX; got: %i bytes\n", sizeof(*msg), msg->hdr.size << 2);
 			return -EINVAL;
 		}
 
@@ -199,9 +204,8 @@ static int imx_mu_scu_rx(struct imx_mu_priv *priv,
 	imx_mu_xcr_rmw(priv, 0, IMX_MU_xCR_RIEn(0));
 	*data++ = imx_mu_read(priv, priv->dcfg->xRR[0]);
 
-	if (msg.hdr.size > sizeof(msg)) {
-		dev_err(priv->dev, "Exceed max msg size (%zu) on RX, got: %i\n",
-			sizeof(msg), msg.hdr.size);
+	if (msg.hdr.size > sizeof(msg) / 4) {
+		dev_err(priv->dev, "Maximal message size (%zu bytes) exceeded on RX; got: %i bytes\n", sizeof(msg), msg.hdr.size << 2);
 		return -EINVAL;
 	}
 
