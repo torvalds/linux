@@ -539,20 +539,6 @@ int __blk_rq_map_sg(struct request_queue *q, struct request *rq,
 		rq->extra_len += pad_len;
 	}
 
-	if (q->dma_drain_size && q->dma_drain_needed(rq)) {
-		if (op_is_write(req_op(rq)))
-			memset(q->dma_drain_buffer, 0, q->dma_drain_size);
-
-		sg_unmark_end(*last_sg);
-		*last_sg = sg_next(*last_sg);
-		sg_set_page(*last_sg, virt_to_page(q->dma_drain_buffer),
-			    q->dma_drain_size,
-			    ((unsigned long)q->dma_drain_buffer) &
-			    (PAGE_SIZE - 1));
-		nsegs++;
-		rq->extra_len += q->dma_drain_size;
-	}
-
 	if (*last_sg)
 		sg_mark_end(*last_sg);
 

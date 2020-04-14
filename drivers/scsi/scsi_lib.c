@@ -978,6 +978,14 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 		scsi_io_completion_action(cmd, result);
 }
 
+static inline bool scsi_cmd_needs_dma_drain(struct scsi_device *sdev,
+		struct request *rq)
+{
+	return sdev->dma_drain_len && blk_rq_is_passthrough(rq) &&
+	       !op_is_write(req_op(rq)) &&
+	       sdev->host->hostt->dma_need_drain(rq);
+}
+
 /*
  * Function:    scsi_init_io()
  *
@@ -991,26 +999,47 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
  */
 blk_status_t scsi_init_io(struct scsi_cmnd *cmd)
 {
+	struct scsi_device *sdev = cmd->device;
 	struct request *rq = cmd->request;
+	unsigned short nr_segs = blk_rq_nr_phys_segments(rq);
+	struct scatterlist *last_sg = NULL;
 	blk_status_t ret;
+	bool need_drain = scsi_cmd_needs_dma_drain(sdev, rq);
 	int count;
 
-	if (WARN_ON_ONCE(!blk_rq_nr_phys_segments(rq)))
+	if (WARN_ON_ONCE(!nr_segs))
 		return BLK_STS_IOERR;
+
+	/*
+	 * Make sure there is space for the drain.  The driver must adjust
+	 * max_hw_segments to be prepared for this.
+	 */
+	if (need_drain)
+		nr_segs++;
 
 	/*
 	 * If sg table allocation fails, requeue request later.
 	 */
-	if (unlikely(sg_alloc_table_chained(&cmd->sdb.table,
-			blk_rq_nr_phys_segments(rq), cmd->sdb.table.sgl,
-			SCSI_INLINE_SG_CNT)))
+	if (unlikely(sg_alloc_table_chained(&cmd->sdb.table, nr_segs,
+			cmd->sdb.table.sgl, SCSI_INLINE_SG_CNT)))
 		return BLK_STS_RESOURCE;
 
 	/*
 	 * Next, walk the list, and fill in the addresses and sizes of
 	 * each segment.
 	 */
-	count = blk_rq_map_sg(rq->q, rq, cmd->sdb.table.sgl);
+	count = __blk_rq_map_sg(rq->q, rq, cmd->sdb.table.sgl, &last_sg);
+
+	if (need_drain) {
+		sg_unmark_end(last_sg);
+		last_sg = sg_next(last_sg);
+		sg_set_buf(last_sg, sdev->dma_drain_buf, sdev->dma_drain_len);
+		sg_mark_end(last_sg);
+
+		rq->extra_len += sdev->dma_drain_len;
+		count++;
+	}
+
 	BUG_ON(count > cmd->sdb.table.nents);
 	cmd->sdb.table.nents = count;
 	cmd->sdb.length = blk_rq_payload_bytes(rq);
