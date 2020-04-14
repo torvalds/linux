@@ -228,7 +228,7 @@ void vnt_update_top_rates(struct vnt_private *priv)
 
 	/*Determines the highest basic rate.*/
 	for (i = RATE_54M; i >= RATE_6M; i--) {
-		if (priv->basic_rates & (u16)(1 << i)) {
+		if (priv->basic_rates & BIT(i)) {
 			top_ofdm = i;
 			break;
 		}
@@ -237,7 +237,7 @@ void vnt_update_top_rates(struct vnt_private *priv)
 	priv->top_ofdm_basic_rate = top_ofdm;
 
 	for (i = RATE_11M;; i--) {
-		if (priv->basic_rates & (u16)(1 << i)) {
+		if (priv->basic_rates & BIT(i)) {
 			top_cck = i;
 			break;
 		}
