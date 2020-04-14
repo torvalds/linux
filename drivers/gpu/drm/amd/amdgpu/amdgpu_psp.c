@@ -1384,11 +1384,20 @@ static int psp_execute_np_fw_load(struct psp_context *psp,
 static int psp_load_smu_fw(struct psp_context *psp)
 {
 	int ret;
+	struct amdgpu_device* adev = psp->adev;
 	struct amdgpu_firmware_info *ucode =
-			&psp->adev->firmware.ucode[AMDGPU_UCODE_ID_SMC];
+			&adev->firmware.ucode[AMDGPU_UCODE_ID_SMC];
 
 	if (!ucode->fw || amdgpu_sriov_vf(psp->adev))
 		return 0;
+
+
+	if (adev->in_gpu_reset) {
+		ret = amdgpu_dpm_set_mp1_state(adev, PP_MP1_STATE_UNLOAD);
+		if (ret) {
+			DRM_WARN("Failed to set MP1 state prepare for reload\n");
+		}
+	}
 
 	ret = psp_execute_np_fw_load(psp, ucode);
 
