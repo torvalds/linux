@@ -2422,6 +2422,11 @@ static void nfs4_show_owner(struct seq_file *s, struct nfs4_stateowner *oo)
 	seq_quote_mem(s, oo->so_owner.data, oo->so_owner.len);
 }
 
+static void nfs4_show_stateid(struct seq_file *s, stateid_t *stid)
+{
+	seq_printf(s, "0x%16phN", stid);
+}
+
 static int nfs4_show_open(struct seq_file *s, struct nfs4_stid *st)
 {
 	struct nfs4_ol_stateid *ols;
@@ -2437,7 +2442,9 @@ static int nfs4_show_open(struct seq_file *s, struct nfs4_stid *st)
 	nf = st->sc_file;
 	file = find_any_file(nf);
 
-	seq_printf(s, "- 0x%16phN: { type: open, ", &st->sc_stateid);
+	seq_printf(s, "- ");
+	nfs4_show_stateid(s, &st->sc_stateid);
+	seq_printf(s, ": { type: open, ");
 
 	access = bmap_to_share_mode(ols->st_access_bmap);
 	deny   = bmap_to_share_mode(ols->st_deny_bmap);
@@ -2470,7 +2477,9 @@ static int nfs4_show_lock(struct seq_file *s, struct nfs4_stid *st)
 	nf = st->sc_file;
 	file = find_any_file(nf);
 
-	seq_printf(s, "- 0x%16phN: { type: lock, ", &st->sc_stateid);
+	seq_printf(s, "- ");
+	nfs4_show_stateid(s, &st->sc_stateid);
+	seq_printf(s, ": { type: lock, ");
 
 	/*
 	 * Note: a lock stateid isn't really the same thing as a lock,
@@ -2499,7 +2508,9 @@ static int nfs4_show_deleg(struct seq_file *s, struct nfs4_stid *st)
 	nf = st->sc_file;
 	file = nf->fi_deleg_file;
 
-	seq_printf(s, "- 0x%16phN: { type: deleg, ", &st->sc_stateid);
+	seq_printf(s, "- ");
+	nfs4_show_stateid(s, &st->sc_stateid);
+	seq_printf(s, ": { type: deleg, ");
 
 	/* Kinda dead code as long as we only support read delegs: */
 	seq_printf(s, "access: %s, ",
@@ -2521,7 +2532,9 @@ static int nfs4_show_layout(struct seq_file *s, struct nfs4_stid *st)
 	ls = container_of(st, struct nfs4_layout_stateid, ls_stid);
 	file = ls->ls_file;
 
-	seq_printf(s, "- 0x%16phN: { type: layout, ", &st->sc_stateid);
+	seq_printf(s, "- ");
+	nfs4_show_stateid(s, &st->sc_stateid);
+	seq_printf(s, ": { type: layout, ");
 
 	/* XXX: What else would be useful? */
 
