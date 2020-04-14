@@ -30,12 +30,13 @@ struct instruction {
 	unsigned int len;
 	enum insn_type type;
 	unsigned long immediate;
-	bool alt_group, dead_end, ignore, ignore_alts;
+	bool dead_end, ignore, ignore_alts;
 	bool hint;
 	bool retpoline_safe;
 	s8 instr;
 	u8 visited;
 	u8 ret_offset;
+	int alt_group;
 	struct symbol *call_dest;
 	struct instruction *jump_dest;
 	struct instruction *first_jump_src;
