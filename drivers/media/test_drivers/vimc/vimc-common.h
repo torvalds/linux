@@ -33,7 +33,7 @@
 #define VIMC_IS_SINK(pad)	(!(pad))
 
 /**
- * struct vimc_colorimetry_clamp - Adjust colorimetry parameters
+ * vimc_colorimetry_clamp - Adjust colorimetry parameters
  *
  * @fmt:		the pointer to struct v4l2_pix_format or
  *			struct v4l2_mbus_framefmt
@@ -62,7 +62,7 @@ do {									\
  * struct vimc_pix_map - maps media bus code with v4l2 pixel format
  *
  * @code:		media bus format code defined by MEDIA_BUS_FMT_* macros
- * @bbp:		number of bytes each pixel occupies
+ * @bpp:		number of bytes each pixel occupies
  * @pixelformat:	pixel format defined by V4L2_PIX_FMT_* macros
  * @bayer:		true if this is a bayer format
  *
@@ -107,10 +107,10 @@ struct vimc_ent_device {
 /**
  * struct vimc_device - main device for vimc driver
  *
- * @pipe_cfg	pointer to the vimc pipeline configuration structure
- * @ent_devs	array of vimc_ent_device pointers
- * @mdev	the associated media_device parent
- * @v4l2_dev	Internal v4l2 parent device
+ * @pipe_cfg:	pointer to the vimc pipeline configuration structure
+ * @ent_devs:	array of vimc_ent_device pointers
+ * @mdev:	the associated media_device parent
+ * @v4l2_dev:	Internal v4l2 parent device
  */
 struct vimc_device {
 	const struct vimc_pipeline_config *pipe_cfg;
@@ -123,11 +123,11 @@ struct vimc_device {
  * struct vimc_ent_type		Structure for the callbacks of the entity types
  *
  *
- * @add				initializes and registers
- *					vimc entity - called from vimc-core
- * @unregister			unregisters vimc entity - called from vimc-core
- * @release			releases vimc entity - called from the v4l2_dev
- *					release callback
+ * @add:			initializes and registers
+ *				vimc entity - called from vimc-core
+ * @unregister:			unregisters vimc entity - called from vimc-core
+ * @release:			releases vimc entity - called from the v4l2_dev
+ *				release callback
  */
 struct vimc_ent_type {
 	struct vimc_ent_device *(*add)(struct vimc_device *vimc,
@@ -140,8 +140,8 @@ struct vimc_ent_type {
  * struct vimc_ent_config	Structure which describes individual
  *				configuration for each entity
  *
- * @name			entity name
- * @type			contain the callbacks of this entity type
+ * @name:			entity name
+ * @type:			contain the callbacks of this entity type
  *
  */
 struct vimc_ent_config {
@@ -194,7 +194,7 @@ const struct vimc_pix_map *vimc_pix_map_by_pixelformat(u32 pixelformat);
  * @function:	media entity function defined by MEDIA_ENT_F_* macros
  * @num_pads:	number of pads to initialize
  * @pads:	the array of pads of the entity, the caller should set the
-		flags of the pads
+ *		flags of the pads
  * @sd_ops:	pointer to &struct v4l2_subdev_ops.
  *
  * Helper function initialize and register the struct vimc_ent_device and struct

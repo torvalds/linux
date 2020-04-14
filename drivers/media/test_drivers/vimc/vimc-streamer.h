@@ -20,9 +20,10 @@
  *
  * @pipe:		the media pipeline object associated with this stream
  * @ved_pipeline:	array containing all the entities participating in the
- * stream. The order is from a video device (usually a capture device) where
- * stream_on was called, to the entity generating the first base image to be
- * processed in the pipeline.
+ * 			stream. The order is from a video device (usually a
+ *			capture device) where stream_on was called, to the
+ *			entity generating the first base image to be
+ *			processed in the pipeline.
  * @pipe_size:		size of @ved_pipeline
  * @kthread:		thread that generates the frames of the stream.
  *
