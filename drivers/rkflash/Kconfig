@@ -52,6 +52,7 @@ config RK_SFC_NAND_MTD
 
 config RK_SFC_NOR
 	tristate "Rockchip SFC Spi Nor Devices Support"
+	select CRYPTO_ARC4
 	default n
 	help
 	  This enables support for Rockchip SFC Spi Nor Devices.

@@ -4,9 +4,12 @@
 
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <crypto/skcipher.h>
+#include <linux/scatterlist.h>
 
 #include "sfc_nor.h"
 #include "rkflash_api.h"
+#include "rkflash_debug.h"
 
 #define VENDOR_PART_NUM			4
 
@@ -17,12 +20,17 @@
 	(FLASH_VENDOR_PART_START +\
 	FLASH_VENDOR_PART_SIZE * VENDOR_PART_NUM - 1)
 
+#define IDB_ALIGN_64			128	/* 64 KB */
+#define IDB_ALIGN_32			64	/* 32 KB */
+
 struct SFNOR_DEV *sfnor_dev;
 
 /* SFNOR_DEV sfnor_dev is in the sfc_nor.h */
 static int spi_nor_init(void __iomem *reg_addr)
 {
 	int ret;
+	struct id_block_tag *idb_tag;
+	struct snor_info_packet *packet;
 
 	sfnor_dev = kzalloc(sizeof(*sfnor_dev), GFP_KERNEL);
 
@@ -31,6 +39,52 @@ static int spi_nor_init(void __iomem *reg_addr)
 
 	sfc_init(reg_addr);
 	ret = snor_init(sfnor_dev);
+	if (ret == SFC_OK && sfnor_dev->read_lines == DATA_LINES_X1) {
+		struct crypto_skcipher *tfm_arc4;
+
+		tfm_arc4 = crypto_alloc_skcipher("ecb(arc4)", 0,
+						 CRYPTO_ALG_ASYNC);
+		if (IS_ERR(tfm_arc4)) {
+			crypto_free_skcipher(tfm_arc4);
+			return SFC_OK;
+		}
+
+		idb_tag = kzalloc(NOR_SECS_PAGE * 512, GFP_KERNEL);
+		if (!idb_tag) {
+			crypto_free_skcipher(tfm_arc4);
+			return SFC_OK;
+		}
+
+		if (sfc_get_version() >= SFC_VER_4)
+			snor_read(sfnor_dev, IDB_ALIGN_32, NOR_SECS_PAGE,
+				  idb_tag);
+		else
+			snor_read(sfnor_dev, IDB_ALIGN_64, NOR_SECS_PAGE,
+				  idb_tag);
+		packet = (struct snor_info_packet *)&idb_tag->dev_param[0];
+		if (idb_tag->id == IDB_BLOCK_TAG_ID) {
+			SKCIPHER_REQUEST_ON_STACK(req, tfm_arc4);
+			u8 key[16] = {124, 78, 3, 4, 85, 5, 9, 7,
+				      45, 44, 123, 56, 23, 13, 23, 17};
+			struct scatterlist sg;
+			u32 len = sizeof(struct id_block_tag);
+
+			crypto_skcipher_setkey(tfm_arc4, key, 16);
+			sg_init_one(&sg, idb_tag, len + 4);
+			skcipher_request_set_tfm(req, tfm_arc4);
+			skcipher_request_set_callback(req, 0, NULL, NULL);
+			skcipher_request_set_crypt(req, &sg, &sg, len + 4,
+						   NULL);
+			ret = crypto_skcipher_encrypt(req);
+			if (!ret) {
+				snor_reinit_from_table_packet(sfnor_dev,
+							      packet);
+				rkflash_print_error("snor reinit, ret= %d\n", ret);
+			}
+		}
+		crypto_free_skcipher(tfm_arc4);
+		kfree(idb_tag);
+	}
 
 	return ret;
 }
