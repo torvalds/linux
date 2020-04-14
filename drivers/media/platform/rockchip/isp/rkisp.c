@@ -623,6 +623,11 @@ static int rkisp_config_isp(struct rkisp_device *dev)
 		    CIF_ISP_FRAME_IN;
 	writel(irq_mask, base + CIF_ISP_IMSC);
 
+	if (dev->isp_ver == ISP_V20 && IS_HDR_RDBK(dev->hdr.op_mode)) {
+		irq_mask = ISP2X_3A_RAWAE_BIG;
+		writel(irq_mask, base + ISP_ISP3A_IMSC);
+	}
+
 	if (out_fmt->fmt_type == FMT_BAYER)
 		rkisp_params_disable_isp(&dev->params_vdev);
 	else
@@ -1984,8 +1989,15 @@ void rkisp_isp_isr(unsigned int isp_mis,
 		ISP2X_3A_RAWAF_SUM | ISP2X_3A_RAWAF_LUM |
 		ISP2X_3A_RAWAF | ISP2X_3A_RAWAWB;
 
+	/*
+	 * The last time that rx perform 'back read' don't clear done flag
+	 * in advance, otherwise the statistics will be abnormal.
+	 */
+	if (isp3a_mis & ISP2X_3A_RAWAE_BIG && dev->params_vdev.rdbk_times > 0)
+		writel(BIT(31), base + RAWAE_BIG1_BASE + RAWAE_BIG_CTRL);
+
 	v4l2_dbg(3, rkisp_debug, &dev->v4l2_dev,
-		 "isp isr:0x%x\n", isp_mis);
+		 "isp isr:0x%x, 0x%x\n", isp_mis, isp3a_mis);
 
 	/* start edge of v_sync */
 	if (isp_mis & CIF_ISP_V_START) {

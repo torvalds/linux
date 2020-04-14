@@ -1341,15 +1341,13 @@ static void
 rkisp_stats_isr_v2x(struct rkisp_isp_stats_vdev *stats_vdev,
 		    u32 isp_ris, u32 isp3a_ris)
 {
+	struct rkisp_device *dev = stats_vdev->dev;
 	u32 isp_mis_tmp = 0;
 	struct rkisp_isp_readout_work work;
 	u32 cur_frame_id = rkisp_dmarx_get_frame_id(stats_vdev->dev);
 	u32 iq_isr_mask = ISP2X_SIAWB_DONE | ISP2X_SIAF_FIN |
 		ISP2X_YUVAE_END | ISP2X_SIHST_RDY | ISP2X_AFM_SUM_OF | ISP2X_AFM_LUM_OF;
-	u32 iq_3a_mask = ISP2X_3A_RAWAE_BIG | ISP2X_3A_RAWAE_CH0 | ISP2X_3A_RAWAE_CH1 |
-		ISP2X_3A_RAWAE_CH2 | ISP2X_3A_RAWHIST_BIG | ISP2X_3A_RAWHIST_CH0 |
-		ISP2X_3A_RAWHIST_CH1 | ISP2X_3A_RAWHIST_CH2 | ISP2X_3A_RAWAF_SUM |
-		ISP2X_3A_RAWAF_LUM | ISP2X_3A_RAWAF | ISP2X_3A_RAWAWB;
+	u32 iq_3a_mask = 0;
 	u32 hdl_ris, hdl_3aris, unhdl_ris, unhdl_3aris;
 	u32 wr_buf_idx;
 	u32 temp_isp_ris, temp_isp3a_ris;
@@ -1357,6 +1355,10 @@ rkisp_stats_isr_v2x(struct rkisp_isp_stats_vdev *stats_vdev,
 #ifdef LOG_ISR_EXE_TIME
 	ktime_t in_t = ktime_get();
 #endif
+
+	if (IS_HDR_RDBK(dev->hdr.op_mode))
+		iq_3a_mask = ISP2X_3A_RAWAE_BIG;
+
 	spin_lock(&stats_vdev->irq_lock);
 
 	temp_isp_ris = readl(stats_vdev->dev->base_addr + ISP_ISP_RIS);
@@ -1413,7 +1415,7 @@ rkisp_stats_isr_v2x(struct rkisp_isp_stats_vdev *stats_vdev,
 		work.readout = RKISP_ISP_READOUT_MEAS;
 		work.frame_id = cur_frame_id;
 		work.isp_ris = temp_isp_ris | isp_ris;
-		work.isp3a_ris = temp_isp3a_ris;
+		work.isp3a_ris = temp_isp3a_ris | iq_3a_mask;
 		work.timestamp = ktime_get_ns();
 
 		if (!kfifo_is_full(&stats_vdev->rd_kfifo))
@@ -1426,7 +1428,13 @@ rkisp_stats_isr_v2x(struct rkisp_isp_stats_vdev *stats_vdev,
 		tasklet_schedule(&stats_vdev->rd_tasklet);
 	}
 
-	rkisp_stats_clr_3a_isr(stats_vdev, unhdl_ris, unhdl_3aris);
+	/*
+	 * The last time that rx perform 'back read' don't clear done flag
+	 * in advance, otherwise the statistics will be abnormal.
+	 */
+	if (!(isp3a_ris & ISP2X_3A_RAWAE_BIG) ||
+	    stats_vdev->dev->params_vdev.rdbk_times > 1)
+		rkisp_stats_clr_3a_isr(stats_vdev, unhdl_ris, unhdl_3aris);
 
 #ifdef LOG_ISR_EXE_TIME
 	if (isp_ris & iq_isr_mask) {
