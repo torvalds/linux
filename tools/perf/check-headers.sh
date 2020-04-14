@@ -23,6 +23,7 @@ include/uapi/linux/vhost.h
 include/uapi/sound/asound.h
 include/linux/bits.h
 include/linux/const.h
+include/vdso/const.h
 include/linux/hash.h
 include/uapi/linux/hw_breakpoint.h
 arch/x86/include/asm/disabled-features.h
