@@ -303,14 +303,15 @@ static irqreturn_t pch_gpio_handler(int irq, void *dev_id)
 {
 	struct pch_gpio *chip = dev_id;
 	unsigned long reg_val = ioread32(&chip->reg->istatus);
-	int i, ret = IRQ_NONE;
+	int i;
 
-	for_each_set_bit(i, &reg_val, gpio_pins[chip->ioh]) {
-		dev_dbg(chip->dev, "[%d]:irq=%d  status=0x%lx\n", i, irq, reg_val);
+	dev_dbg(chip->dev, "irq=%d  status=0x%lx\n", irq, reg_val);
+
+	reg_val &= BIT(gpio_pins[chip->ioh]) - 1;
+	for_each_set_bit(i, &reg_val, gpio_pins[chip->ioh])
 		generic_handle_irq(chip->irq_base + i);
-		ret = IRQ_HANDLED;
-	}
-	return ret;
+
+	return IRQ_RETVAL(reg_val);
 }
 
 static int pch_gpio_alloc_generic_chip(struct pch_gpio *chip,
