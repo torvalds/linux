@@ -229,16 +229,14 @@ static int pch_irq_type(struct irq_data *d, unsigned int type)
 	int ch, irq = d->irq;
 
 	ch = irq - chip->irq_base;
-	if (irq <= chip->irq_base + 7) {
+	if (irq < chip->irq_base + 8) {
 		im_reg = &chip->reg->im0;
-		im_pos = ch;
+		im_pos = ch - 0;
 	} else {
 		im_reg = &chip->reg->im1;
 		im_pos = ch - 8;
 	}
 	dev_dbg(chip->dev, "irq=%d type=%d ch=%d pos=%d\n", irq, type, ch, im_pos);
-
-	spin_lock_irqsave(&chip->spinlock, flags);
 
 	switch (type) {
 	case IRQ_TYPE_EDGE_RISING:
@@ -257,8 +255,10 @@ static int pch_irq_type(struct irq_data *d, unsigned int type)
 		val = PCH_LEVEL_L;
 		break;
 	default:
-		goto unlock;
+		return 0;
 	}
+
+	spin_lock_irqsave(&chip->spinlock, flags);
 
 	/* Set interrupt mode */
 	im = ioread32(im_reg) & ~(PCH_IM_MASK << (im_pos * 4));
@@ -270,7 +270,6 @@ static int pch_irq_type(struct irq_data *d, unsigned int type)
 	else if (type & (IRQ_TYPE_EDGE_FALLING | IRQ_TYPE_EDGE_RISING))
 		irq_set_handler_locked(d, handle_edge_irq);
 
-unlock:
 	spin_unlock_irqrestore(&chip->spinlock, flags);
 	return 0;
 }
