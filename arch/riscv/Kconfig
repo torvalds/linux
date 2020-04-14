@@ -381,6 +381,11 @@ endchoice
 
 endmenu
 
+config BUILTIN_DTB
+	def_bool n
+	depends on RISCV_M_MODE
+	depends on OF
+
 menu "Power management options"
 
 source "kernel/power/Kconfig"
