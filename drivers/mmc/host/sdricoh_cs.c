@@ -123,11 +123,13 @@ static inline unsigned int sdricoh_readb(struct sdricoh_host *host,
 	return value;
 }
 
-static int sdricoh_query_status(struct sdricoh_host *host, unsigned int wanted,
-				unsigned int timeout){
+static int sdricoh_query_status(struct sdricoh_host *host, unsigned int wanted)
+{
 	unsigned int loop;
 	unsigned int status = 0;
+	unsigned int timeout = TRANSFER_TIMEOUT;
 	struct device *dev = host->dev;
+
 	for (loop = 0; loop < timeout; loop++) {
 		status = sdricoh_readl(host, R21C_STATUS);
 		sdricoh_writel(host, R2E4_STATUS_RESP, status);
@@ -215,8 +217,7 @@ static int sdricoh_blockio(struct sdricoh_host *host, int read,
 	u32 data = 0;
 	/* wait until the data is available */
 	if (read) {
-		if (sdricoh_query_status(host, STATUS_READY_TO_READ,
-						TRANSFER_TIMEOUT))
+		if (sdricoh_query_status(host, STATUS_READY_TO_READ))
 			return -ETIMEDOUT;
 		sdricoh_writel(host, R21C_STATUS, 0x18);
 		/* read data */
@@ -232,8 +233,7 @@ static int sdricoh_blockio(struct sdricoh_host *host, int read,
 			}
 		}
 	} else {
-		if (sdricoh_query_status(host, STATUS_READY_TO_WRITE,
-						TRANSFER_TIMEOUT))
+		if (sdricoh_query_status(host, STATUS_READY_TO_WRITE))
 			return -ETIMEDOUT;
 		sdricoh_writel(host, R21C_STATUS, 0x18);
 		/* write data */
@@ -323,8 +323,7 @@ static void sdricoh_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 		sdricoh_writel(host, R208_DATAIO, 1);
 
-		if (sdricoh_query_status(host, STATUS_TRANSFER_FINISHED,
-					TRANSFER_TIMEOUT)) {
+		if (sdricoh_query_status(host, STATUS_TRANSFER_FINISHED)) {
 			dev_err(dev, "sdricoh_request: transfer end error\n");
 			cmd->error = -EINVAL;
 		}
