@@ -1,10 +1,11 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config VIDEO_BT848
 	tristate "BT848 Video For Linux"
-	depends on PCI && I2C
+	depends on VIDEO_DEV && PCI && I2C && VIDEO_V4L2
 	select I2C_ALGOBIT
 	select VIDEOBUF_DMA_SG
 	depends on RC_CORE
+	depends on MEDIA_RADIO_SUPPORT
 	select VIDEO_TUNER
 	select VIDEO_TVEEPROM
 	select VIDEO_MSP3400 if MEDIA_SUBDRV_AUTOSELECT
@@ -23,7 +24,7 @@ config VIDEO_BT848
 
 config DVB_BT8XX
 	tristate "DVB/ATSC Support for bt878 based TV cards"
-	depends on PCI && I2C && VIDEO_BT848
+	depends on DVB_CORE && PCI && I2C && VIDEO_BT848
 	select DVB_MT352 if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_SP887X if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_NXT6000 if MEDIA_SUBDRV_AUTOSELECT

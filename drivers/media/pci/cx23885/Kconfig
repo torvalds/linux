@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config VIDEO_CX23885
 	tristate "Conexant cx23885 (2388x successor) support"
-	depends on PCI && I2C && INPUT && SND
+	depends on DVB_CORE && VIDEO_DEV && PCI && I2C && INPUT && SND
 	select SND_PCM
 	select I2C_ALGOBIT
 	select VIDEO_TUNER
@@ -53,7 +53,7 @@ config VIDEO_CX23885
 
 config MEDIA_ALTERA_CI
 	tristate "Altera FPGA based CI module"
-	depends on VIDEO_CX23885
+	depends on VIDEO_CX23885 && DVB_CORE
 	select ALTERA_STAPL
 	help
 	  An Altera FPGA CI module for NetUP Dual DVB-T/C RF CI card.

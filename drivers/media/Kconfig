@@ -77,7 +77,12 @@ config MEDIA_ANALOG_TV_SUPPORT
 	help
 	  Enable analog TV support.
 
-	  Say Y when you have a board with analog TV support.
+	  Say Y when you have a TV board with analog support or with a
+	  hybrid analog/digital TV chipset.
+
+	  Note: There are several DVB cards that are based on chips that
+		support both analog and digital TV. Disabling this option
+		will disable support for them.
 
 config MEDIA_DIGITAL_TV_SUPPORT
 	bool
@@ -86,7 +91,8 @@ config MEDIA_DIGITAL_TV_SUPPORT
 	help
 	  Enable digital TV support.
 
-	  Say Y when you have a board with digital TV support.
+	  Say Y when you have a board with digital support or a board with
+	  hybrid digital TV and analog TV.
 
 config MEDIA_RADIO_SUPPORT
 	bool
@@ -99,6 +105,10 @@ config MEDIA_RADIO_SUPPORT
 	  <https://linuxtv.org>
 
 	  Say Y when you have a board with radio support.
+
+	  Note: There are several TV cards that are based on chips that
+		support radio reception. Disabling this option will
+		disable support for them.
 
 config MEDIA_SDR_SUPPORT
 	bool
@@ -155,13 +165,9 @@ endmenu # media device types
 menu "Media core support"
 	visible if !MEDIA_SUPPORT_FILTER
 
-comment "Video4Linux core enabled to support hybrid TV devices"
-	depends on MEDIA_HYBRID_USB || MEDIA_HYBRID_PCI
-
 config VIDEO_DEV
-	tristate
-	prompt "Video4Linux core" if !(MEDIA_HYBRID_USB || MEDIA_HYBRID_PCI)
-	default MEDIA_CAMERA_SUPPORT || MEDIA_ANALOG_TV_SUPPORT || MEDIA_RADIO_SUPPORT || MEDIA_SDR_SUPPORT || MEDIA_PLATFORM_SUPPORT || MEDIA_TEST_SUPPORT || MEDIA_HYBRID_USB || MEDIA_HYBRID_PCI
+	tristate "Video4Linux core"
+	default MEDIA_CAMERA_SUPPORT || MEDIA_ANALOG_TV_SUPPORT || MEDIA_RADIO_SUPPORT || MEDIA_SDR_SUPPORT || MEDIA_PLATFORM_SUPPORT || MEDIA_TEST_SUPPORT
 	help
 	  Enables the V4L2 API, used by cameras, analog TV, video grabbers,
 	  radio devices and by some input devices.
@@ -180,12 +186,8 @@ config MEDIA_CONTROLLER
 #	Only enables if one of DTV is selected
 #
 
-comment "Digital TV core enabled to support hybrid TV devices"
-	depends on MEDIA_HYBRID_USB || MEDIA_HYBRID_PCI
-
 config DVB_CORE
 	tristate
-	prompt "Digital TV core"  if !(MEDIA_HYBRID_USB || MEDIA_HYBRID_PCI)
 	depends on MEDIA_DIGITAL_TV_SUPPORT
 	depends on (I2C || I2C=n)
 	select CRC32

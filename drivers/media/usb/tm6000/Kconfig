@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config VIDEO_TM6000
 	tristate "TV Master TM5600/6000/6010 driver"
-	depends on I2C && INPUT && RC_CORE && USB
+	depends on VIDEO_DEV && I2C && INPUT && RC_CORE && USB
 	select VIDEO_TUNER
 	select MEDIA_TUNER_XC2028
 	select MEDIA_TUNER_XC5000
@@ -28,7 +28,7 @@ config VIDEO_TM6000_ALSA
 
 config VIDEO_TM6000_DVB
 	tristate "DVB Support for tm6000 based TV cards"
-	depends on VIDEO_TM6000 && USB
+	depends on VIDEO_TM6000 && DVB_CORE && USB
 	select DVB_ZL10353
 	help
 	  This adds support for DVB cards based on the tm5600/tm6000 chip.
