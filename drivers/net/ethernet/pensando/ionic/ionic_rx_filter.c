@@ -2,6 +2,7 @@
 /* Copyright(c) 2017 - 2019 Pensando Systems, Inc */
 
 #include <linux/netdevice.h>
+#include <linux/dynamic_debug.h>
 #include <linux/etherdevice.h>
 
 #include "ionic.h"
@@ -25,7 +26,7 @@ void ionic_rx_filter_replay(struct ionic_lif *lif)
 	struct hlist_head *head;
 	struct hlist_node *tmp;
 	unsigned int i;
-	int err = 0;
+	int err;
 
 	ac = &ctx.cmd.rx_filter_add;
 
