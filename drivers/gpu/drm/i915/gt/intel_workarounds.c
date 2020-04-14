@@ -943,6 +943,8 @@ icl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 static void
 tgl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 {
+	wa_init_mcr(i915, wal);
+
 	/* Wa_1409420604:tgl */
 	if (IS_TGL_REVID(i915, TGL_REVID_A0, TGL_REVID_A0))
 		wa_write_or(wal,
