@@ -21,6 +21,7 @@
  *
  */
 
+#include <linux/errno.h>
 #include "mac.h"
 #include "rf.h"
 #include "baseband.h"
@@ -531,10 +532,8 @@ int vnt_rf_write_embedded(struct vnt_private *priv, u32 data)
 	reg_data[2] = (u8)(data >> 16);
 	reg_data[3] = (u8)(data >> 24);
 
-	vnt_control_out(priv, MESSAGE_TYPE_WRITE_IFRF,
-			0, 0, ARRAY_SIZE(reg_data), reg_data);
-
-	return true;
+	return vnt_control_out(priv, MESSAGE_TYPE_WRITE_IFRF, 0, 0,
+			       ARRAY_SIZE(reg_data), reg_data);
 }
 
 static u8 vnt_rf_addpower(struct vnt_private *priv)
@@ -568,14 +567,14 @@ static int vnt_rf_set_txpower(struct vnt_private *priv, u8 power,
 			      struct ieee80211_channel *ch)
 {
 	u32 power_setting = 0;
-	int ret = true;
+	int ret = 0;
 
 	power += vnt_rf_addpower(priv);
 	if (power > VNT_RF_MAX_POWER)
 		power = VNT_RF_MAX_POWER;
 
 	if (priv->power == power)
-		return true;
+		return 0;
 
 	priv->power = power;
 
@@ -583,35 +582,50 @@ static int vnt_rf_set_txpower(struct vnt_private *priv, u8 power,
 	case RF_AL2230:
 		power_setting = 0x0404090 | (power << 12);
 
-		ret &= vnt_rf_write_embedded(priv, power_setting);
+		ret = vnt_rf_write_embedded(priv, power_setting);
+		if (ret)
+			return ret;
 
 		if (ch->flags & IEEE80211_CHAN_NO_OFDM)
-			ret &= vnt_rf_write_embedded(priv, 0x0001b400);
+			ret = vnt_rf_write_embedded(priv, 0x0001b400);
 		else
-			ret &= vnt_rf_write_embedded(priv, 0x0005a400);
+			ret = vnt_rf_write_embedded(priv, 0x0005a400);
+
 		break;
 	case RF_AL2230S:
 		power_setting = 0x0404090 | (power << 12);
 
-		ret &= vnt_rf_write_embedded(priv, power_setting);
+		ret = vnt_rf_write_embedded(priv, power_setting);
+		if (ret)
+			return ret;
 
 		if (ch->flags & IEEE80211_CHAN_NO_OFDM) {
-			ret &= vnt_rf_write_embedded(priv, 0x040c1400);
-			ret &= vnt_rf_write_embedded(priv, 0x00299b00);
+			ret = vnt_rf_write_embedded(priv, 0x040c1400);
+			if (ret)
+				return ret;
+
+			ret = vnt_rf_write_embedded(priv, 0x00299b00);
 		} else {
-			ret &= vnt_rf_write_embedded(priv, 0x0005a400);
-			ret &= vnt_rf_write_embedded(priv, 0x00099b00);
+			ret = vnt_rf_write_embedded(priv, 0x0005a400);
+			if (ret)
+				return ret;
+
+			ret = vnt_rf_write_embedded(priv, 0x00099b00);
 		}
+
 		break;
 
 	case RF_AIROHA7230:
 		if (ch->flags & IEEE80211_CHAN_NO_OFDM)
-			ret &= vnt_rf_write_embedded(priv, 0x111bb900);
+			ret = vnt_rf_write_embedded(priv, 0x111bb900);
 		else
-			ret &= vnt_rf_write_embedded(priv, 0x221bb900);
+			ret = vnt_rf_write_embedded(priv, 0x221bb900);
+
+		if (ret)
+			return ret;
 
 		if (power >= AL7230_PWR_IDX_LEN)
-			return false;
+			return -EINVAL;
 
 		/*
 		 * 0x080F1B00 for 3 wire control TxGain(D10)
@@ -619,61 +633,76 @@ static int vnt_rf_set_txpower(struct vnt_private *priv, u8 power,
 		 */
 		power_setting = 0x080c0b00 | (power << 12);
 
-		ret &= vnt_rf_write_embedded(priv, power_setting);
-
+		ret = vnt_rf_write_embedded(priv, power_setting);
 		break;
 
 	case RF_VT3226:
 		if (power >= VT3226_PWR_IDX_LEN)
-			return false;
+			return -EINVAL;
 		power_setting = ((0x3f - power) << 20) | (0x17 << 8);
 
-		ret &= vnt_rf_write_embedded(priv, power_setting);
-
+		ret = vnt_rf_write_embedded(priv, power_setting);
 		break;
 	case RF_VT3226D0:
 		if (power >= VT3226_PWR_IDX_LEN)
-			return false;
+			return -EINVAL;
 
 		if (ch->flags & IEEE80211_CHAN_NO_OFDM) {
 			u16 hw_value = ch->hw_value;
 
 			power_setting = ((0x3f - power) << 20) | (0xe07 << 8);
 
-			ret &= vnt_rf_write_embedded(priv, power_setting);
-			ret &= vnt_rf_write_embedded(priv, 0x03c6a200);
+			ret = vnt_rf_write_embedded(priv, power_setting);
+			if (ret)
+				return ret;
+
+			ret = vnt_rf_write_embedded(priv, 0x03c6a200);
+			if (ret)
+				return ret;
 
 			dev_dbg(&priv->usb->dev,
 				"%s 11b channel [%d]\n", __func__, hw_value);
 
 			hw_value--;
 
-			if (hw_value < ARRAY_SIZE(vt3226d0_lo_current_table))
-				ret &= vnt_rf_write_embedded(priv,
+			if (hw_value < ARRAY_SIZE(vt3226d0_lo_current_table)) {
+				ret = vnt_rf_write_embedded(priv,
 					vt3226d0_lo_current_table[hw_value]);
+				if (ret)
+					return ret;
+			}
 
-			ret &= vnt_rf_write_embedded(priv, 0x015C0800);
+			ret = vnt_rf_write_embedded(priv, 0x015C0800);
 		} else {
 			dev_dbg(&priv->usb->dev,
 				"@@@@ %s> 11G mode\n", __func__);
 
 			power_setting = ((0x3f - power) << 20) | (0x7 << 8);
 
-			ret &= vnt_rf_write_embedded(priv, power_setting);
-			ret &= vnt_rf_write_embedded(priv, 0x00C6A200);
-			ret &= vnt_rf_write_embedded(priv, 0x016BC600);
-			ret &= vnt_rf_write_embedded(priv, 0x00900800);
+			ret = vnt_rf_write_embedded(priv, power_setting);
+			if (ret)
+				return ret;
+
+			ret = vnt_rf_write_embedded(priv, 0x00C6A200);
+			if (ret)
+				return ret;
+
+			ret = vnt_rf_write_embedded(priv, 0x016BC600);
+			if (ret)
+				return ret;
+
+			ret = vnt_rf_write_embedded(priv, 0x00900800);
 		}
+
 		break;
 
 	case RF_VT3342A0:
 		if (power >= VT3342_PWR_IDX_LEN)
-			return false;
+			return -EINVAL;
 
 		power_setting =  ((0x3f - power) << 20) | (0x27 << 8);
 
-		ret &= vnt_rf_write_embedded(priv, power_setting);
-
+		ret = vnt_rf_write_embedded(priv, power_setting);
 		break;
 	default:
 		break;
