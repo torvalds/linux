@@ -577,30 +577,16 @@ static void *snor_flash_info_adjust(struct flash_info *spi_flash_info)
 	return 0;
 }
 
-int snor_init(struct SFNOR_DEV *p_dev)
+static int snor_parse_flash_table(struct SFNOR_DEV *p_dev,
+				  struct flash_info *g_spi_flash_info)
 {
-	struct flash_info *g_spi_flash_info;
-	u32 i, ret;
-	u8 id_byte[5];
+	int i, ret;
 
-	if (!p_dev)
-		return SFC_PARAM_ERR;
-
-	memset((void *)p_dev, 0, sizeof(struct SFNOR_DEV));
-	p_dev->max_iosize = sfc_get_max_iosize();
-	snor_read_id(id_byte);
-	rkflash_print_error("sfc nor id: %x %x %x\n",
-			    id_byte[0], id_byte[1], id_byte[2]);
-	if (0xFF == id_byte[0] || 0x00 == id_byte[0])
-		return SFC_ERROR;
-
-	p_dev->manufacturer = id_byte[0];
-	p_dev->mem_type = id_byte[1];
-
-	g_spi_flash_info = snor_get_flash_info(id_byte);
 	if (g_spi_flash_info) {
 		snor_flash_info_adjust(g_spi_flash_info);
-		p_dev->capacity = 1 << g_spi_flash_info->density;
+		p_dev->manufacturer = (g_spi_flash_info->id >> 16) & 0xFF;
+		p_dev->mem_type = (g_spi_flash_info->id >> 8) & 0xFF;
+		p_dev->capacity = 1 << ((g_spi_flash_info->id & 0xFF) - 9);
 		p_dev->blk_size = g_spi_flash_info->block_size;
 		p_dev->page_size = NOR_SECS_PAGE;
 		p_dev->read_cmd = g_spi_flash_info->read_cmd;
@@ -619,6 +605,7 @@ int snor_init(struct SFNOR_DEV *p_dev)
 			p_dev->write_status = snor_write_status1;
 		else if (i == 2)
 			p_dev->write_status = snor_write_status2;
+
 		if (g_spi_flash_info->feature & FEA_4BIT_READ) {
 			ret = SFC_OK;
 			if (g_spi_flash_info->QE_bits)
@@ -639,7 +626,34 @@ int snor_init(struct SFNOR_DEV *p_dev)
 
 		if ((g_spi_flash_info->feature & FEA_4BYTE_ADDR_MODE))
 			snor_enter_4byte_mode();
+	}
+
+	return SFC_OK;
+}
+
+int snor_init(struct SFNOR_DEV *p_dev)
+{
+	struct flash_info *g_spi_flash_info;
+	u8 id_byte[5];
+
+	if (!p_dev)
+		return SFC_PARAM_ERR;
+
+	memset((void *)p_dev, 0, sizeof(struct SFNOR_DEV));
+	p_dev->max_iosize = sfc_get_max_iosize();
+
+	snor_read_id(id_byte);
+	rkflash_print_error("sfc nor id: %x %x %x\n",
+			    id_byte[0], id_byte[1], id_byte[2]);
+	if (0xFF == id_byte[0] || 0x00 == id_byte[0])
+		return SFC_ERROR;
+
+	g_spi_flash_info = snor_get_flash_info(id_byte);
+	if (g_spi_flash_info) {
+		snor_parse_flash_table(p_dev, g_spi_flash_info);
 	} else {
+		p_dev->manufacturer = id_byte[0];
+		p_dev->mem_type = id_byte[1];
 		p_dev->capacity = 1 << (id_byte[2] - 9);
 		p_dev->QE_bits = 0;
 		p_dev->blk_size = NOR_SECS_BLK;
@@ -651,6 +665,7 @@ int snor_init(struct SFNOR_DEV *p_dev)
 		p_dev->prog_lines = DATA_LINES_X1;
 		p_dev->read_lines = DATA_LINES_X1;
 		p_dev->write_status = snor_write_status;
+		snor_reset_device();
 	}
 
 	rkflash_print_info("addr_mode: %x\n", p_dev->addr_mode);
@@ -660,7 +675,42 @@ int snor_init(struct SFNOR_DEV *p_dev)
 	rkflash_print_info("prog_cmd: %x\n", p_dev->prog_cmd);
 	rkflash_print_info("blk_erase_cmd: %x\n", p_dev->blk_erase_cmd);
 	rkflash_print_info("sec_erase_cmd: %x\n", p_dev->sec_erase_cmd);
+	rkflash_print_info("capacity: %x\n", p_dev->capacity);
 
 	return SFC_OK;
+}
+
+int snor_reinit_from_table_packet(struct SFNOR_DEV *p_dev,
+				  struct snor_info_packet *packet)
+{
+	struct flash_info g_spi_flash_info;
+	u8 id_byte[5];
+	int ret;
+
+	if (!p_dev || packet->id != SNOR_INFO_PACKET_ID)
+		return SFC_PARAM_ERR;
+
+	snor_read_id(id_byte);
+	if (0xFF == id_byte[0] || 0x00 == id_byte[0])
+		return SFC_ERROR;
+
+	g_spi_flash_info.id = id_byte[0] << 16 | id_byte[1] << 8 | id_byte[2];
+	g_spi_flash_info.block_size = NOR_SECS_BLK;
+	g_spi_flash_info.sector_size = NOR_SECS_PAGE;
+	g_spi_flash_info.read_cmd = packet->read_cmd;
+	g_spi_flash_info.prog_cmd = packet->prog_cmd;
+	g_spi_flash_info.read_cmd_4 = packet->read_cmd_4;
+	g_spi_flash_info.prog_cmd_4 = packet->prog_cmd_4;
+	if (id_byte[2] >=  0x19)
+		g_spi_flash_info.read_cmd_4 = CMD_FAST_4READ_X4;
+	g_spi_flash_info.sector_erase_cmd = packet->sector_erase_cmd;
+	g_spi_flash_info.block_erase_cmd = packet->block_erase_cmd;
+	g_spi_flash_info.feature = packet->feature;
+	g_spi_flash_info.density = id_byte[2] - 9;
+	g_spi_flash_info.QE_bits = packet->QE_bits;
+
+	ret = snor_parse_flash_table(p_dev, &g_spi_flash_info);
+
+	return ret;
 }
 

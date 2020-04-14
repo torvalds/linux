@@ -187,6 +187,21 @@ struct rk_sfc_op {
 	union SFCCTRL_DATA sfctrl;
 };
 
+#define IDB_BLOCK_TAG_ID	0xFCDC8C3B
+
+struct id_block_tag {
+	u32 id;
+	u32 version;
+	u32 flags;
+	u16 boot_img_offset;
+	u8  reserved1[10];
+	u32 dev_param[8];
+	u8  reserved2[506 - 56];
+	u16 data_img_len;
+	u16 boot_img_len;
+	u8  reserved3[512 - 510];
+} __packed;
+
 int sfc_init(void __iomem *reg_addr);
 int sfc_request(struct rk_sfc_op *op, u32 addr, void *data, u32 size);
 u16 sfc_get_version(void);
