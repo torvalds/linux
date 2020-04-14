@@ -296,20 +296,12 @@ void __delete_partition(struct percpu_ref *ref)
  * Must be called either with bd_mutex held, before a disk can be opened or
  * after all disk users are gone.
  */
-void delete_partition(struct gendisk *disk, int partno)
+void delete_partition(struct gendisk *disk, struct hd_struct *part)
 {
 	struct disk_part_tbl *ptbl =
 		rcu_dereference_protected(disk->part_tbl, 1);
-	struct hd_struct *part;
 
-	if (partno >= ptbl->len)
-		return;
-
-	part = rcu_dereference_protected(ptbl->part[partno], 1);
-	if (!part)
-		return;
-
-	rcu_assign_pointer(ptbl->part[partno], NULL);
+	rcu_assign_pointer(ptbl->part[part->partno], NULL);
 	rcu_assign_pointer(ptbl->last_lookup, NULL);
 	kobject_put(part->holder_dir);
 	device_del(part_to_dev(part));
@@ -520,10 +512,10 @@ int bdev_del_partition(struct block_device *bdev, int partno)
 	if (!part)
 		return -ENXIO;
 
+	ret = -ENOMEM;
 	bdevp = bdget(part_devt(part));
-	disk_put_part(part);
 	if (!bdevp)
-		return -ENOMEM;
+		goto out_put_part;
 
 	mutex_lock(&bdevp->bd_mutex);
 
@@ -535,13 +527,15 @@ int bdev_del_partition(struct block_device *bdev, int partno)
 	invalidate_bdev(bdevp);
 
 	mutex_lock_nested(&bdev->bd_mutex, 1);
-	delete_partition(bdev->bd_disk, partno);
+	delete_partition(bdev->bd_disk, part);
 	mutex_unlock(&bdev->bd_mutex);
 
 	ret = 0;
 out_unlock:
 	mutex_unlock(&bdevp->bd_mutex);
 	bdput(bdevp);
+out_put_part:
+	disk_put_part(part);
 	return ret;
 }
 
@@ -617,7 +611,7 @@ int blk_drop_partitions(struct gendisk *disk, struct block_device *bdev)
 
 	disk_part_iter_init(&piter, disk, DISK_PITER_INCL_EMPTY);
 	while ((part = disk_part_iter_next(&piter)))
-		delete_partition(disk, part->partno);
+		delete_partition(disk, part);
 	disk_part_iter_exit(&piter);
 
 	return 0;

@@ -897,7 +897,7 @@ void del_gendisk(struct gendisk *disk)
 	while ((part = disk_part_iter_next(&piter))) {
 		invalidate_partition(disk, part->partno);
 		bdev_unhash_inode(part_devt(part));
-		delete_partition(disk, part->partno);
+		delete_partition(disk, part);
 	}
 	disk_part_iter_exit(&piter);
 
