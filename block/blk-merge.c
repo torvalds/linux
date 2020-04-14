@@ -519,24 +519,23 @@ static int __blk_bios_map_sg(struct request_queue *q, struct bio *bio,
  * map a request to scatterlist, return number of sg entries setup. Caller
  * must make sure sg can hold rq->nr_phys_segments entries
  */
-int blk_rq_map_sg(struct request_queue *q, struct request *rq,
-		  struct scatterlist *sglist)
+int __blk_rq_map_sg(struct request_queue *q, struct request *rq,
+		struct scatterlist *sglist, struct scatterlist **last_sg)
 {
-	struct scatterlist *sg = NULL;
 	int nsegs = 0;
 
 	if (rq->rq_flags & RQF_SPECIAL_PAYLOAD)
-		nsegs = __blk_bvec_map_sg(rq->special_vec, sglist, &sg);
+		nsegs = __blk_bvec_map_sg(rq->special_vec, sglist, last_sg);
 	else if (rq->bio && bio_op(rq->bio) == REQ_OP_WRITE_SAME)
-		nsegs = __blk_bvec_map_sg(bio_iovec(rq->bio), sglist, &sg);
+		nsegs = __blk_bvec_map_sg(bio_iovec(rq->bio), sglist, last_sg);
 	else if (rq->bio)
-		nsegs = __blk_bios_map_sg(q, rq->bio, sglist, &sg);
+		nsegs = __blk_bios_map_sg(q, rq->bio, sglist, last_sg);
 
 	if (blk_rq_bytes(rq) && (blk_rq_bytes(rq) & q->dma_pad_mask)) {
 		unsigned int pad_len =
 			(q->dma_pad_mask & ~blk_rq_bytes(rq)) + 1;
 
-		sg->length += pad_len;
+		(*last_sg)->length += pad_len;
 		rq->extra_len += pad_len;
 	}
 
@@ -544,9 +543,9 @@ int blk_rq_map_sg(struct request_queue *q, struct request *rq,
 		if (op_is_write(req_op(rq)))
 			memset(q->dma_drain_buffer, 0, q->dma_drain_size);
 
-		sg_unmark_end(sg);
-		sg = sg_next(sg);
-		sg_set_page(sg, virt_to_page(q->dma_drain_buffer),
+		sg_unmark_end(*last_sg);
+		*last_sg = sg_next(*last_sg);
+		sg_set_page(*last_sg, virt_to_page(q->dma_drain_buffer),
 			    q->dma_drain_size,
 			    ((unsigned long)q->dma_drain_buffer) &
 			    (PAGE_SIZE - 1));
@@ -554,8 +553,8 @@ int blk_rq_map_sg(struct request_queue *q, struct request *rq,
 		rq->extra_len += q->dma_drain_size;
 	}
 
-	if (sg)
-		sg_mark_end(sg);
+	if (*last_sg)
+		sg_mark_end(*last_sg);
 
 	/*
 	 * Something must have been wrong if the figured number of
@@ -565,7 +564,7 @@ int blk_rq_map_sg(struct request_queue *q, struct request *rq,
 
 	return nsegs;
 }
-EXPORT_SYMBOL(blk_rq_map_sg);
+EXPORT_SYMBOL(__blk_rq_map_sg);
 
 static inline int ll_new_hw_segment(struct request *req, struct bio *bio,
 		unsigned int nr_phys_segs)
