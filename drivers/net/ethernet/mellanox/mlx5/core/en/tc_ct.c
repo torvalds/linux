@@ -73,9 +73,7 @@ struct mlx5_ct_ft {
 struct mlx5_ct_entry {
 	u16 zone;
 	struct rhash_head node;
-	struct flow_rule *flow_rule;
 	struct mlx5_fc *counter;
-	unsigned long lastuse;
 	unsigned long cookie;
 	unsigned long restore_cookie;
 	struct mlx5_ct_zone_rule zone_rules[2];
@@ -603,7 +601,6 @@ mlx5_tc_ct_block_flow_offload_add(struct mlx5_ct_ft *ft,
 		return -ENOMEM;
 
 	entry->zone = ft->zone;
-	entry->flow_rule = flow_rule;
 	entry->cookie = flow->cookie;
 	entry->restore_cookie = meta_action->ct_metadata.cookie;
 
