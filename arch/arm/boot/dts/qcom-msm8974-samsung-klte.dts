@@ -297,6 +297,117 @@
 			};
 		};
 	};
+
+	pinctrl@fd510000 {
+		i2c6_pins: i2c6 {
+			mux {
+				pins = "gpio29", "gpio30";
+				function = "blsp_i2c6";
+
+				drive-strength = <2>;
+				bias-disable;
+			};
+		};
+	};
+
+	i2c@f9928000 {
+		status = "okay";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c6_pins>;
+
+		pmic@60 {
+			reg = <0x60>;
+			compatible = "maxim,max77826";
+
+			regulators {
+				max77826_ldo1: LDO1 {
+					regulator-min-microvolt = <1200000>;
+					regulator-max-microvolt = <1200000>;
+				};
+
+				max77826_ldo2: LDO2 {
+					regulator-min-microvolt = <1000000>;
+					regulator-max-microvolt = <1000000>;
+				};
+
+				max77826_ldo3: LDO3 {
+					regulator-min-microvolt = <1200000>;
+					regulator-max-microvolt = <1200000>;
+				};
+
+				max77826_ldo4: LDO4 {
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
+				};
+
+				max77826_ldo5: LDO5 {
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
+				};
+
+				max77826_ldo6: LDO6 {
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <3300000>;
+				};
+
+				max77826_ldo7: LDO7 {
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
+				};
+
+				max77826_ldo8: LDO8 {
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <3300000>;
+				};
+
+				max77826_ldo9: LDO9 {
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
+				};
+
+				max77826_ldo10: LDO10 {
+					regulator-min-microvolt = <2800000>;
+					regulator-max-microvolt = <2950000>;
+				};
+
+				max77826_ldo11: LDO11 {
+					regulator-min-microvolt = <2700000>;
+					regulator-max-microvolt = <2950000>;
+				};
+
+				max77826_ldo12: LDO12 {
+					regulator-min-microvolt = <2500000>;
+					regulator-max-microvolt = <3300000>;
+				};
+
+				max77826_ldo13: LDO13 {
+					regulator-min-microvolt = <3300000>;
+					regulator-max-microvolt = <3300000>;
+				};
+
+				max77826_ldo14: LDO14 {
+					regulator-min-microvolt = <3300000>;
+					regulator-max-microvolt = <3300000>;
+				};
+
+				max77826_ldo15: LDO15 {
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
+				};
+
+				max77826_buck: BUCK {
+					regulator-min-microvolt = <1225000>;
+					regulator-max-microvolt = <1225000>;
+				};
+
+				max77826_buckboost: BUCKBOOST {
+					regulator-min-microvolt = <3400000>;
+					regulator-max-microvolt = <3400000>;
+				};
+			};
+		};
+	};
 };
 
 &spmi_bus {
