@@ -5551,7 +5551,7 @@ static bool nested_vmx_exit_handled_mtf(struct vmcs12 *vmcs12)
 }
 
 /*
- * Return 1 if we should exit from L2 to L1 to handle an exit, or 0 if we
+ * Return true if we should exit from L2 to L1 to handle an exit, or false if we
  * should handle it ourselves in L0 (and then continue L2). Only call this
  * when in is_guest_mode (L2).
  */
