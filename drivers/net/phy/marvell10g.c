@@ -75,7 +75,8 @@ enum {
 
 	/* Vendor2 MMD registers */
 	MV_V2_PORT_CTRL		= 0xf001,
-	MV_V2_PORT_CTRL_PWRDOWN = 0x0800,
+	MV_V2_PORT_CTRL_SWRST	= BIT(15),
+	MV_V2_PORT_CTRL_PWRDOWN = BIT(11),
 	MV_V2_TEMP_CTRL		= 0xf08a,
 	MV_V2_TEMP_CTRL_MASK	= 0xc000,
 	MV_V2_TEMP_CTRL_SAMPLE	= 0x0000,
@@ -239,8 +240,17 @@ static int mv3310_power_down(struct phy_device *phydev)
 
 static int mv3310_power_up(struct phy_device *phydev)
 {
-	return phy_clear_bits_mmd(phydev, MDIO_MMD_VEND2, MV_V2_PORT_CTRL,
-				  MV_V2_PORT_CTRL_PWRDOWN);
+	struct mv3310_priv *priv = dev_get_drvdata(&phydev->mdio.dev);
+	int ret;
+
+	ret = phy_clear_bits_mmd(phydev, MDIO_MMD_VEND2, MV_V2_PORT_CTRL,
+				 MV_V2_PORT_CTRL_PWRDOWN);
+
+	if (priv->firmware_ver < 0x00030000)
+		return ret;
+
+	return phy_set_bits_mmd(phydev, MDIO_MMD_VEND2, MV_V2_PORT_CTRL,
+				MV_V2_PORT_CTRL_SWRST);
 }
 
 static int mv3310_reset(struct phy_device *phydev, u32 unit)
