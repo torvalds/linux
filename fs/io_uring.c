@@ -357,7 +357,6 @@ struct io_timeout_data {
 	struct hrtimer			timer;
 	struct timespec64		ts;
 	enum hrtimer_mode		mode;
-	u32				seq_offset;
 };
 
 struct io_accept {
@@ -385,7 +384,7 @@ struct io_timeout {
 	struct file			*file;
 	u64				addr;
 	int				flags;
-	unsigned			count;
+	u32				count;
 };
 
 struct io_rw {
@@ -4709,11 +4708,11 @@ static int io_timeout_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 
 static int io_timeout(struct io_kiocb *req)
 {
-	unsigned count;
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_timeout_data *data;
 	struct list_head *entry;
 	unsigned span = 0;
+	u32 count = req->timeout.count;
 	u32 seq = req->sequence;
 
 	data = &req->io->timeout;
@@ -4723,7 +4722,6 @@ static int io_timeout(struct io_kiocb *req)
 	 * timeout event to be satisfied. If it isn't set, then this is
 	 * a pure timeout request, sequence isn't used.
 	 */
-	count = req->timeout.count;
 	if (!count) {
 		req->flags |= REQ_F_TIMEOUT_NOSEQ;
 		spin_lock_irq(&ctx->completion_lock);
@@ -4732,7 +4730,6 @@ static int io_timeout(struct io_kiocb *req)
 	}
 
 	req->sequence = seq + count;
-	data->seq_offset = count;
 
 	/*
 	 * Insertion sort, ensuring the first entry in the list is always
@@ -4743,7 +4740,7 @@ static int io_timeout(struct io_kiocb *req)
 		struct io_kiocb *nxt = list_entry(entry, struct io_kiocb, list);
 		unsigned nxt_seq;
 		long long tmp, tmp_nxt;
-		u32 nxt_offset = nxt->io->timeout.seq_offset;
+		u32 nxt_offset = nxt->timeout.count;
 
 		if (nxt->flags & REQ_F_TIMEOUT_NOSEQ)
 			continue;
