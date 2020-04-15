@@ -21,10 +21,6 @@
 #define SFDP_4BAIT_ID		0xff84  /* 4-byte Address Instruction Table */
 
 #define SFDP_SIGNATURE		0x50444653U
-#define SFDP_JESD216_MAJOR	1
-#define SFDP_JESD216_MINOR	0
-#define SFDP_JESD216A_MINOR	5
-#define SFDP_JESD216B_MINOR	6
 
 struct sfdp_header {
 	u32		signature; /* Ox50444653U <=> "SFDP" */
