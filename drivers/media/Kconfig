@@ -247,7 +247,6 @@ config MEDIA_HIDE_ANCILLARY_SUBDRV
 	default y
 
 menu "Media ancillary drivers"
-	visible if !MEDIA_HIDE_ANCILLARY_SUBDRV
 
 config MEDIA_ATTACH
 	bool

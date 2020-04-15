@@ -5,6 +5,9 @@
 
 if VIDEO_V4L2
 
+comment "IR I2C driver auto-selected by 'Autoselect ancillary drivers'"
+	depends on MEDIA_SUBDRV_AUTOSELECT && I2C && RC_CORE
+
 config VIDEO_IR_I2C
 	tristate "I2C module for IR" if !MEDIA_SUBDRV_AUTOSELECT || EXPERT
 	depends on I2C && RC_CORE
@@ -22,17 +25,14 @@ config VIDEO_IR_I2C
 # V4L2 I2C drivers that aren't related with Camera support
 #
 
-comment "I2C drivers hidden by 'Autoselect ancillary drivers'"
+comment "audio, video and radio I2C drivers auto-selected by 'Autoselect ancillary drivers'"
 	depends on MEDIA_HIDE_ANCILLARY_SUBDRV
-
-menu "I2C Encoders, decoders, sensors and other helper chips"
-	visible if !MEDIA_HIDE_ANCILLARY_SUBDRV
-
 #
 # Encoder / Decoder module configuration
 #
 
-comment "Audio decoders, processors and mixers"
+menu "Audio decoders, processors and mixers"
+	visible if !MEDIA_HIDE_ANCILLARY_SUBDRV
 
 config VIDEO_TVAUDIO
 	tristate "Simple audio decoder chips"
@@ -191,8 +191,10 @@ config VIDEO_SONY_BTF_MPX
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called sony-btf-mpx.
+endmenu
 
-comment "RDS decoders"
+menu "RDS decoders"
+	visible if !MEDIA_HIDE_ANCILLARY_SUBDRV
 
 config VIDEO_SAA6588
 	tristate "SAA6588 Radio Chip RDS decoder support"
@@ -205,8 +207,10 @@ config VIDEO_SAA6588
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called saa6588.
+endmenu
 
-comment "Video decoders"
+menu "Video decoders"
+	visible if !MEDIA_HIDE_ANCILLARY_SUBDRV
 
 config VIDEO_ADV7180
 	tristate "Analog Devices ADV7180 decoder"
@@ -473,7 +477,10 @@ config VIDEO_SAA717X
 
 source "drivers/media/i2c/cx25840/Kconfig"
 
-comment "Video encoders"
+endmenu
+
+menu "Video encoders"
+	visible if !MEDIA_HIDE_ANCILLARY_SUBDRV
 
 config VIDEO_SAA7127
 	tristate "Philips SAA7127/9 digital video encoders"
@@ -580,8 +587,10 @@ config VIDEO_THS8200
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ths8200.
+endmenu
 
-comment "Video improvement chips"
+menu "Video improvement chips"
+	visible if !MEDIA_HIDE_ANCILLARY_SUBDRV
 
 config VIDEO_UPD64031A
 	tristate "NEC Electronics uPD64031A Ghost Reduction"
@@ -605,8 +614,10 @@ config VIDEO_UPD64083
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called upd64083.
+endmenu
 
-comment "Audio/Video compression chips"
+menu "Audio/Video compression chips"
+	visible if !MEDIA_HIDE_ANCILLARY_SUBDRV
 
 config VIDEO_SAA6752HS
 	tristate "Philips SAA6752HS MPEG-2 Audio/Video Encoder"
@@ -619,7 +630,10 @@ config VIDEO_SAA6752HS
 	  To compile this driver as a module, choose M here: the
 	  module will be called saa6752hs.
 
-comment "SDR tuner chips"
+endmenu
+
+menu "SDR tuner chips"
+	visible if !MEDIA_HIDE_ANCILLARY_SUBDRV
 
 config SDR_MAX2175
 	tristate "Maxim 2175 RF to Bits tuner"
@@ -632,7 +646,11 @@ config SDR_MAX2175
 	  To compile this driver as a module, choose M here; the
 	  module will be called max2175.
 
-comment "Miscellaneous helper chips"
+
+endmenu
+
+menu "Miscellaneous helper chips"
+	visible if !MEDIA_HIDE_ANCILLARY_SUBDRV
 
 config VIDEO_THS7303
 	tristate "THS7303/53 Video Amplifier"
@@ -679,16 +697,14 @@ config VIDEO_ST_MIPID02
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called st-mipid02.
-
 endmenu
 
 #
-# All drivers that are related to Media Camera Support should be here
+# V4L2 I2C drivers that are related with Camera support
 #
 
-if MEDIA_CAMERA_SUPPORT
-
-comment "Camera sensor devices"
+menu "Camera sensor devices"
+	visible if MEDIA_CAMERA_SUPPORT
 
 config VIDEO_APTINA_PLL
 	tristate
@@ -1189,7 +1205,10 @@ config VIDEO_S5C73M3
 	  This is a V4L2 sensor driver for Samsung S5C73M3
 	  8 Mpixel camera.
 
-comment "Lens drivers"
+endmenu
+
+menu "Lens drivers"
+	visible if MEDIA_CAMERA_SUPPORT
 
 config VIDEO_AD5820
 	tristate "AD5820 lens voice coil support"
@@ -1232,8 +1251,10 @@ config VIDEO_DW9807_VCM
 	  capability. This is designed for linear control of
 	  voice coil motors, controlled via I2C serial interface.
 
+endmenu
 
-comment "Flash devices"
+menu "Flash devices"
+	visible if MEDIA_CAMERA_SUPPORT
 
 config VIDEO_ADP1653
 	tristate "ADP1653 flash support"
@@ -1260,7 +1281,6 @@ config VIDEO_LM3646
 	help
 	  This is a driver for the lm3646 dual flash controllers. It controls
 	  flash, torch LEDs.
-
-endif # MEDIA_CAMERA_SUPPORT
+endmenu
 
 endif # VIDEO_V4L2
