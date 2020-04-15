@@ -76,11 +76,23 @@ struct sof_ipc_comp {
 #define SOF_MEM_CAPS_CACHE			(1 << 6) /**< cacheable */
 #define SOF_MEM_CAPS_EXEC			(1 << 7) /**< executable */
 
+/*
+ * overrun will cause ring buffer overwrite, instead of XRUN.
+ */
+#define SOF_BUF_OVERRUN_PERMITTED	BIT(0)
+
+/*
+ * underrun will cause readback of 0s, instead of XRUN.
+ */
+#define SOF_BUF_UNDERRUN_PERMITTED	BIT(1)
+
 /* create new component buffer - SOF_IPC_TPLG_BUFFER_NEW */
 struct sof_ipc_buffer {
 	struct sof_ipc_comp comp;
 	uint32_t size;		/**< buffer size in bytes */
 	uint32_t caps;		/**< SOF_MEM_CAPS_ */
+	uint32_t flags;		/**< SOF_BUF_ flags defined above */
+	uint32_t reserved;	/**< reserved for future use */
 } __packed;
 
 /* generic component config data - must always be after struct sof_ipc_comp */
