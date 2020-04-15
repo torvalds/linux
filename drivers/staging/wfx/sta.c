@@ -174,14 +174,6 @@ void wfx_update_filtering(struct wfx_vif *wvif)
 	hif_set_data_filtering(wvif, true, true);
 }
 
-static void wfx_update_filtering_work(struct work_struct *work)
-{
-	struct wfx_vif *wvif = container_of(work, struct wfx_vif,
-					    update_filtering_work);
-
-	wfx_update_filtering(wvif);
-}
-
 u64 wfx_prepare_multicast(struct ieee80211_hw *hw,
 			  struct netdev_hw_addr_list *mc_list)
 {
@@ -415,7 +407,6 @@ static void wfx_do_unjoin(struct wfx_vif *wvif)
 	if (wvif->state == WFX_STATE_AP)
 		return;
 
-	cancel_work_sync(&wvif->update_filtering_work);
 	wvif->state = WFX_STATE_PASSIVE;
 
 	/* Unjoin is a reset. */
@@ -934,7 +925,6 @@ int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 	init_completion(&wvif->set_pm_mode_complete);
 	complete(&wvif->set_pm_mode_complete);
-	INIT_WORK(&wvif->update_filtering_work, wfx_update_filtering_work);
 	INIT_WORK(&wvif->bss_params_work, wfx_bss_params_work);
 	INIT_WORK(&wvif->tx_policy_upload_work, wfx_tx_policy_upload_work);
 

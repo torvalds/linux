@@ -88,7 +88,6 @@ void wfx_suspend_resume_mc(struct wfx_vif *wvif, enum sta_notify_cmd cmd);
 
 // Other Helpers
 void wfx_cqm_bssloss_sm(struct wfx_vif *wvif, int init, int good, int bad);
-void wfx_update_filtering(struct wfx_vif *wvif);
 int wfx_fwd_probe_req(struct wfx_vif *wvif, bool enable);
 u32 wfx_rate_mask_to_hw(struct wfx_dev *wdev, u32 rates);
 
