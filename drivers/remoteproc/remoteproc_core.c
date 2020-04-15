@@ -1982,24 +1982,19 @@ static const struct device_type rproc_type = {
 static int rproc_alloc_firmware(struct rproc *rproc,
 				const char *name, const char *firmware)
 {
-	char *p, *template = "rproc-%s-fw";
-	int name_len;
+	char *p;
 
-	if (!firmware) {
+	if (!firmware)
 		/*
 		 * If the caller didn't pass in a firmware name then
 		 * construct a default name.
 		 */
-		name_len = strlen(name) + strlen(template) - 2 + 1;
-		p = kmalloc(name_len, GFP_KERNEL);
-		if (!p)
-			return -ENOMEM;
-		snprintf(p, name_len, template, name);
-	} else {
+		p = kasprintf(GFP_KERNEL, "rproc-%s-fw", name);
+	else
 		p = kstrdup(firmware, GFP_KERNEL);
-		if (!p)
-			return -ENOMEM;
-	}
+
+	if (!p)
+		return -ENOMEM;
 
 	rproc->firmware = p;
 
