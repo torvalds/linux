@@ -265,7 +265,6 @@ static int v3d_platform_drm_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, drm);
-	drm->dev_private = v3d;
 	drmm_add_final_kfree(drm, v3d);
 
 	ret = map_regs(v3d, &v3d->hub_regs, "hub");

@@ -121,7 +121,7 @@ struct v3d_dev {
 static inline struct v3d_dev *
 to_v3d_dev(struct drm_device *dev)
 {
-	return (struct v3d_dev *)dev->dev_private;
+	return container_of(dev, struct v3d_dev, drm);
 }
 
 static inline bool
