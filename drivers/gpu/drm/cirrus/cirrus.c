@@ -567,18 +567,13 @@ static int cirrus_pci_probe(struct pci_dev *pdev,
 		return ret;
 
 	ret = -ENOMEM;
-	cirrus = kzalloc(sizeof(*cirrus), GFP_KERNEL);
-	if (cirrus == NULL)
-		return ret;
+	cirrus = devm_drm_dev_alloc(&pdev->dev, &cirrus_driver,
+				    struct cirrus_device, dev);
+	if (IS_ERR(cirrus))
+		return PTR_ERR(cirrus);
 
 	dev = &cirrus->dev;
-	ret = devm_drm_dev_init(&pdev->dev, dev, &cirrus_driver);
-	if (ret) {
-		kfree(cirrus);
-		return ret;
-	}
 	dev->dev_private = cirrus;
-	drmm_add_final_kfree(dev, cirrus);
 
 	cirrus->vram = devm_ioremap(&pdev->dev, pci_resource_start(pdev, 0),
 				    pci_resource_len(pdev, 0));
