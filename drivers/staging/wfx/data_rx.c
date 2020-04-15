@@ -118,18 +118,6 @@ void wfx_rx_cb(struct wfx_vif *wvif,
 	    arg->rx_flags.match_uc_addr &&
 	    mgmt->u.action.category == WLAN_CATEGORY_BACK)
 		goto drop;
-	if (ieee80211_is_beacon(frame->frame_control) &&
-	    !arg->status && wvif->vif &&
-	    ether_addr_equal(ieee80211_get_SA(frame),
-			     wvif->vif->bss_conf.bssid)) {
-		/* Disable beacon filter once we're associated... */
-		if (wvif->disable_beacon_filter &&
-		    (wvif->vif->bss_conf.assoc ||
-		     wvif->vif->bss_conf.ibss_joined)) {
-			wvif->disable_beacon_filter = false;
-			schedule_work(&wvif->update_filtering_work);
-		}
-	}
 	ieee80211_rx_irqsafe(wvif->wdev->hw, skb);
 
 	return;

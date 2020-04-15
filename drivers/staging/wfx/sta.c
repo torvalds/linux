@@ -712,9 +712,17 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_BEACON_ENABLED)
 		wfx_enable_beacon(wvif, info->enable_beacon);
 
-	if (changed & BSS_CHANGED_BEACON_INFO)
+	if (changed & BSS_CHANGED_BEACON_INFO) {
+		if (vif->type != NL80211_IFTYPE_STATION)
+			dev_warn(wdev->dev, "%s: misunderstood change: BEACON_INFO\n",
+				 __func__);
 		hif_set_beacon_wakeup_period(wvif, info->dtim_period,
 					     info->dtim_period);
+		// We temporary forwarded beacon for join process. It is now no
+		// more necessary.
+		wvif->disable_beacon_filter = false;
+		wfx_update_filtering(wvif);
+	}
 
 	/* assoc/disassoc, or maybe AID changed */
 	if (changed & BSS_CHANGED_ASSOC) {
