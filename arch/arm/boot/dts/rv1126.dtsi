@@ -200,11 +200,11 @@
 
 		ramoops: ramoops@8000000 {
 			compatible = "ramoops";
-			reg = <0x8000000 0xf0000>;
-			record-size = <0x30000>;
-			console-size = <0xc0000>;
+			reg = <0x8000000 0x100000>;
+			record-size = <0x20000>;
+			console-size = <0x40000>;
 			ftrace-size = <0x00000>;
-			pmsg-size = <0x00000>;
+			pmsg-size = <0x40000>;
 			status = "disabled";
 		};
 	};
