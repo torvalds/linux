@@ -168,9 +168,6 @@ void wfx_update_filtering(struct wfx_vif *wvif)
 		}
 	};
 
-	if (wvif->state == WFX_STATE_PASSIVE)
-		return;
-
 	if (wvif->disable_beacon_filter) {
 		bf_enable = 0;
 		bf_count = 1;
