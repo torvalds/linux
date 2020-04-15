@@ -2720,6 +2720,28 @@ out:
 	return -EINVAL;
 }
 
+static bool check_qp_state(enum ib_qp_state cur_state,
+			   enum ib_qp_state new_state)
+{
+	static const bool sm[][IB_QPS_ERR + 1] = {
+		[IB_QPS_RESET] = { [IB_QPS_RESET] = true,
+				   [IB_QPS_INIT] = true },
+		[IB_QPS_INIT] = { [IB_QPS_RESET] = true,
+				  [IB_QPS_INIT] = true,
+				  [IB_QPS_RTR] = true,
+				  [IB_QPS_ERR] = true },
+		[IB_QPS_RTR] = { [IB_QPS_RESET] = true,
+				 [IB_QPS_RTS] = true,
+				 [IB_QPS_ERR] = true },
+		[IB_QPS_RTS] = { [IB_QPS_RESET] = true, [IB_QPS_ERR] = true },
+		[IB_QPS_SQD] = {},
+		[IB_QPS_SQE] = {},
+		[IB_QPS_ERR] = { [IB_QPS_RESET] = true, [IB_QPS_ERR] = true }
+	};
+
+	return sm[cur_state][new_state];
+}
+
 static int hns_roce_v1_m_qp(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 			    int attr_mask, enum ib_qp_state cur_state,
 			    enum ib_qp_state new_state)
@@ -2740,6 +2762,13 @@ static int hns_roce_v1_m_qp(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 	u8 port_num;
 	u8 *dmac;
 	u8 *smac;
+
+	if (!check_qp_state(cur_state, new_state)) {
+		ibdev_err(ibqp->device,
+			  "not support QP(%u) status from %d to %d\n",
+			  ibqp->qp_num, cur_state, new_state);
+		return -EINVAL;
+	}
 
 	context = kzalloc(sizeof(*context), GFP_KERNEL);
 	if (!context)
@@ -3072,8 +3101,7 @@ static int hns_roce_v1_m_qp(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 			       QP_CONTEXT_QPC_BYTES_156_SL_S,
 			       rdma_ah_get_sl(&attr->ah_attr));
 		hr_qp->sl = rdma_ah_get_sl(&attr->ah_attr);
-	} else if (cur_state == IB_QPS_RTR &&
-		new_state == IB_QPS_RTS) {
+	} else if (cur_state == IB_QPS_RTR && new_state == IB_QPS_RTS) {
 		/* If exist optional param, return error */
 		if ((attr_mask & IB_QP_ALT_PATH) ||
 		    (attr_mask & IB_QP_ACCESS_FLAGS) ||
@@ -3245,16 +3273,6 @@ static int hns_roce_v1_m_qp(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 			       QP_CONTEXT_QPC_BYTES_188_TX_RETRY_CUR_INDEX_M,
 			       QP_CONTEXT_QPC_BYTES_188_TX_RETRY_CUR_INDEX_S,
 			       0);
-	} else if (!((cur_state == IB_QPS_INIT && new_state == IB_QPS_RESET) ||
-		   (cur_state == IB_QPS_INIT && new_state == IB_QPS_ERR) ||
-		   (cur_state == IB_QPS_RTR && new_state == IB_QPS_RESET) ||
-		   (cur_state == IB_QPS_RTR && new_state == IB_QPS_ERR) ||
-		   (cur_state == IB_QPS_RTS && new_state == IB_QPS_RESET) ||
-		   (cur_state == IB_QPS_RTS && new_state == IB_QPS_ERR) ||
-		   (cur_state == IB_QPS_ERR && new_state == IB_QPS_RESET) ||
-		   (cur_state == IB_QPS_ERR && new_state == IB_QPS_ERR))) {
-		dev_err(dev, "not support this status migration\n");
-		goto out;
 	}
 
 	/* Every status migrate must change state */
