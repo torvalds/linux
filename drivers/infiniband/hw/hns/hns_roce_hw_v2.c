@@ -4077,21 +4077,6 @@ static int modify_qp_rtr_to_rts(struct ib_qp *ibqp,
 	return 0;
 }
 
-static inline bool hns_roce_v2_check_qp_stat(enum ib_qp_state cur_state,
-					     enum ib_qp_state new_state)
-{
-
-	if ((cur_state != IB_QPS_RESET &&
-	    (new_state == IB_QPS_ERR || new_state == IB_QPS_RESET)) ||
-	    ((cur_state == IB_QPS_RTS || cur_state == IB_QPS_SQD) &&
-	    (new_state == IB_QPS_RTS || new_state == IB_QPS_SQD)) ||
-	    (cur_state == IB_QPS_SQE && new_state == IB_QPS_RTS))
-		return true;
-
-	return false;
-
-}
-
 static int hns_roce_v2_set_path(struct ib_qp *ibqp,
 				const struct ib_qp_attr *attr,
 				int attr_mask,
@@ -4195,6 +4180,28 @@ static int hns_roce_v2_set_path(struct ib_qp *ibqp,
 	return 0;
 }
 
+static bool check_qp_state(enum ib_qp_state cur_state,
+			   enum ib_qp_state new_state)
+{
+	static const bool sm[][IB_QPS_ERR + 1] = {
+		[IB_QPS_RESET] = { [IB_QPS_RESET] = true,
+				   [IB_QPS_INIT] = true },
+		[IB_QPS_INIT] = { [IB_QPS_RESET] = true,
+				  [IB_QPS_INIT] = true,
+				  [IB_QPS_RTR] = true,
+				  [IB_QPS_ERR] = true },
+		[IB_QPS_RTR] = { [IB_QPS_RESET] = true,
+				 [IB_QPS_RTS] = true,
+				 [IB_QPS_ERR] = true },
+		[IB_QPS_RTS] = { [IB_QPS_RESET] = true, [IB_QPS_ERR] = true },
+		[IB_QPS_SQD] = {},
+		[IB_QPS_SQE] = {},
+		[IB_QPS_ERR] = { [IB_QPS_RESET] = true, [IB_QPS_ERR] = true }
+	};
+
+	return sm[cur_state][new_state];
+}
+
 static int hns_roce_v2_set_abs_fields(struct ib_qp *ibqp,
 				      const struct ib_qp_attr *attr,
 				      int attr_mask,
@@ -4206,6 +4213,11 @@ static int hns_roce_v2_set_abs_fields(struct ib_qp *ibqp,
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibqp->device);
 	int ret = 0;
 
+	if (!check_qp_state(cur_state, new_state)) {
+		ibdev_err(&hr_dev->ib_dev, "Illegal state for QP!\n");
+		return -EINVAL;
+	}
+
 	if (cur_state == IB_QPS_RESET && new_state == IB_QPS_INIT) {
 		memset(qpc_mask, 0, sizeof(*qpc_mask));
 		modify_qp_reset_to_init(ibqp, attr, attr_mask, context,
@@ -4216,23 +4228,11 @@ static int hns_roce_v2_set_abs_fields(struct ib_qp *ibqp,
 	} else if (cur_state == IB_QPS_INIT && new_state == IB_QPS_RTR) {
 		ret = modify_qp_init_to_rtr(ibqp, attr, attr_mask, context,
 					    qpc_mask);
-		if (ret)
-			goto out;
 	} else if (cur_state == IB_QPS_RTR && new_state == IB_QPS_RTS) {
 		ret = modify_qp_rtr_to_rts(ibqp, attr, attr_mask, context,
 					   qpc_mask);
-		if (ret)
-			goto out;
-	} else if (hns_roce_v2_check_qp_stat(cur_state, new_state)) {
-		/* Nothing */
-		;
-	} else {
-		ibdev_err(&hr_dev->ib_dev, "Illegal state for QP!\n");
-		ret = -EINVAL;
-		goto out;
 	}
 
-out:
 	return ret;
 }
 
