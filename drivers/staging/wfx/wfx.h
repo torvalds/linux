@@ -90,7 +90,7 @@ struct wfx_vif {
 
 	bool			filter_bssid;
 	bool			fwd_probe_req;
-	bool			disable_beacon_filter;
+	bool			filter_beacon;
 
 	unsigned long		uapsd_mask;
 	struct hif_req_set_bss_params bss_params;

@@ -137,7 +137,7 @@ void wfx_update_filtering(struct wfx_vif *wvif)
 	};
 
 	hif_set_rx_filter(wvif, wvif->filter_bssid, wvif->fwd_probe_req);
-	if (wvif->disable_beacon_filter) {
+	if (!wvif->filter_beacon) {
 		hif_set_beacon_filter_table(wvif, 0, NULL);
 		hif_beacon_filter_control(wvif, 0, 1);
 	} else {
@@ -215,9 +215,9 @@ void wfx_configure_filter(struct ieee80211_hw *hw,
 		// Note: FIF_BCN_PRBRESP_PROMISC covers probe response and
 		// beacons from other BSS
 		if (*total_flags & FIF_BCN_PRBRESP_PROMISC)
-			wvif->disable_beacon_filter = true;
+			wvif->filter_beacon = false;
 		else
-			wvif->disable_beacon_filter = false;
+			wvif->filter_beacon = true;
 
 		if (*total_flags & FIF_ALLMULTI) {
 			wvif->mcast_filter.enable = false;
@@ -504,7 +504,7 @@ static void wfx_do_join(struct wfx_vif *wvif)
 		 * Disable filtering temporary to make sure the stack
 		 * receives at least one
 		 */
-		wvif->disable_beacon_filter = true;
+		wvif->filter_beacon = false;
 		wfx_update_filtering(wvif);
 	}
 	wfx_tx_unlock(wvif->wdev);
@@ -706,7 +706,7 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw,
 					     info->dtim_period);
 		// We temporary forwarded beacon for join process. It is now no
 		// more necessary.
-		wvif->disable_beacon_filter = false;
+		wvif->filter_beacon = true;
 		wfx_update_filtering(wvif);
 	}
 
