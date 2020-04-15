@@ -656,6 +656,16 @@ static const struct sof_topology_token ssp_tokens[] = {
 
 };
 
+/* ALH */
+static const struct sof_topology_token alh_tokens[] = {
+	{SOF_TKN_INTEL_ALH_RATE,
+		SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
+		offsetof(struct sof_ipc_dai_alh_params, rate), 0},
+	{SOF_TKN_INTEL_ALH_CH,
+		SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
+		offsetof(struct sof_ipc_dai_alh_params, channels), 0},
+};
+
 /* DMIC */
 static const struct sof_topology_token dmic_tokens[] = {
 	{SOF_TKN_INTEL_DMIC_DRIVER_VERSION,
@@ -3095,12 +3105,25 @@ static int sof_link_alh_load(struct snd_soc_component *scomp, int index,
 			     struct sof_ipc_dai_config *config)
 {
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+	struct snd_soc_tplg_private *private = &cfg->priv;
 	struct sof_ipc_reply reply;
 	u32 size = sizeof(*config);
 	int ret;
 
+	ret = sof_parse_tokens(scomp, &config->alh, alh_tokens,
+			       ARRAY_SIZE(alh_tokens), private->array,
+			       le32_to_cpu(private->size));
+	if (ret != 0) {
+		dev_err(scomp->dev, "error: parse alh tokens failed %d\n",
+			le32_to_cpu(private->size));
+		return ret;
+	}
+
 	/* init IPC */
 	config->hdr.size = size;
+
+	dev_dbg(scomp->dev, "ALH config rate %d channels %d\n",
+		config->alh.rate, config->alh.channels);
 
 	/* send message to DSP */
 	ret = sof_ipc_tx_message(sdev->ipc,
