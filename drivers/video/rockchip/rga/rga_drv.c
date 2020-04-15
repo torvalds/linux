@@ -1040,6 +1040,13 @@ static int rga_convert_dma_buf(struct rga_req *req)
 		pr_err("RGA ERROR ion buf handle\n");
 		return ret;
 		}
+
+	if (req->src.uv_addr) {
+		if (RGA_TEST_MSG)
+			pr_err("WARNING : don't input viraddrs when already input fd !\n");
+		req->src.uv_addr = 0;
+	}
+
 #if RGA_DEBUGFS
 	if (RGA_CHECK_MODE) {
 		vaddr = ion_map_kernel(drvdata->ion_client, hdl);
@@ -1076,6 +1083,13 @@ static int rga_convert_dma_buf(struct rga_req *req)
             printk("RGA2 ERROR ion buf handle\n");
             return ret;
         }
+
+	if (req->dst.uv_addr) {
+		if (RGA_TEST_MSG)
+			pr_err("WARNING : don't input viraddrs when already input fd !\n");
+		req->dst.uv_addr = 0;
+	}
+
 #if RGA_DEBUGFS
 	if (RGA_CHECK_MODE) {
 		vaddr = ion_map_kernel(drvdata->ion_client, hdl);
