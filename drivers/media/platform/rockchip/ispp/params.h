@@ -20,7 +20,7 @@ struct rkispp_params_vdev {
 
 	spinlock_t config_lock;
 	struct list_head params;
-	struct rkispp_params_cfg cur_params;
+	struct rkispp_params_cfg *cur_params;
 	struct rkispp_buffer *cur_buf;
 
 	struct v4l2_format vdev_fmt;

@@ -639,7 +639,7 @@ static void rkispp_params_vb2_buf_queue(struct vb2_buffer *vb)
 	if (params_vdev->first_params) {
 		vb2_buffer_done(&params_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 		params_vdev->first_params = false;
-		params_vdev->cur_params = *new_params;
+		*params_vdev->cur_params = *new_params;
 		if (new_params->module_init_ens)
 			stream_vdev->module_ens = new_params->module_init_ens;
 		spin_unlock_irqrestore(&params_vdev->config_lock, flags);
@@ -692,8 +692,8 @@ static void rkispp_params_vb2_stop_streaming(struct vb2_queue *vq)
 	}
 
 	/* clean module params */
-	params_vdev->cur_params.module_cfg_update = 0;
-	params_vdev->cur_params.module_en_update = 0;
+	params_vdev->cur_params->module_cfg_update = 0;
+	params_vdev->cur_params->module_en_update = 0;
 }
 
 static int
@@ -877,9 +877,9 @@ void rkispp_params_isr(struct rkispp_params_vdev *params_vdev, u32 mis)
 
 void rkispp_params_configure(struct rkispp_params_vdev *params_vdev)
 {
-	u32 module_en_update = params_vdev->cur_params.module_en_update;
-	u32 module_cfg_update = params_vdev->cur_params.module_cfg_update;
-	u32 module_ens = params_vdev->cur_params.module_ens;
+	u32 module_en_update = params_vdev->cur_params->module_en_update;
+	u32 module_cfg_update = params_vdev->cur_params->module_cfg_update;
+	u32 module_ens = params_vdev->cur_params->module_ens;
 	unsigned long flags;
 
 	spin_lock_irqsave(&params_vdev->config_lock, flags);
@@ -892,36 +892,36 @@ void rkispp_params_configure(struct rkispp_params_vdev *params_vdev)
 
 	if (module_cfg_update & ISPP_MODULE_TNR)
 		tnr_config(params_vdev,
-			   &params_vdev->cur_params.tnr_cfg);
+			   &params_vdev->cur_params->tnr_cfg);
 	if (module_en_update & ISPP_MODULE_TNR)
 		tnr_enable(params_vdev,
 			   !!(module_ens & ISPP_MODULE_TNR));
 
 	if (module_cfg_update & ISPP_MODULE_NR)
 		nr_config(params_vdev,
-			  &params_vdev->cur_params.nr_cfg);
+			  &params_vdev->cur_params->nr_cfg);
 	if (module_en_update & ISPP_MODULE_NR)
 		nr_enable(params_vdev,
 			  !!(module_ens & ISPP_MODULE_NR),
-			  &params_vdev->cur_params.nr_cfg);
+			  &params_vdev->cur_params->nr_cfg);
 
 	if (module_cfg_update & ISPP_MODULE_SHP)
 		shp_config(params_vdev,
-			   &params_vdev->cur_params.shp_cfg);
+			   &params_vdev->cur_params->shp_cfg);
 	if (module_en_update & ISPP_MODULE_SHP)
 		shp_enable(params_vdev,
 			   !!(module_ens & ISPP_MODULE_SHP));
 
 	if (module_cfg_update & ISPP_MODULE_FEC)
 		fec_config(params_vdev,
-			   &params_vdev->cur_params.fec_cfg);
+			   &params_vdev->cur_params->fec_cfg);
 	if (module_en_update & ISPP_MODULE_FEC)
 		fec_enable(params_vdev,
 			   !!(module_ens & ISPP_MODULE_FEC));
 
 	if (module_cfg_update & ISPP_MODULE_ORB)
 		orb_config(params_vdev,
-			   &params_vdev->cur_params.orb_cfg);
+			   &params_vdev->cur_params->orb_cfg);
 	if (module_en_update & ISPP_MODULE_ORB)
 		orb_enable(params_vdev,
 			   !!(module_ens & ISPP_MODULE_ORB));
@@ -935,8 +935,14 @@ int rkispp_register_params_vdev(struct rkispp_device *dev)
 	int ret;
 
 	params_vdev->dev = dev;
-	spin_lock_init(&params_vdev->config_lock);
+	params_vdev->cur_params = vmalloc(sizeof(*params_vdev->cur_params));
+	if (!params_vdev->cur_params)
+		return -ENOMEM;
 
+	params_vdev->cur_params->module_cfg_update = 0;
+	params_vdev->cur_params->module_en_update = 0;
+
+	spin_lock_init(&params_vdev->config_lock);
 	strlcpy(vdev->name, "rkispp_input_params", sizeof(vdev->name));
 
 	video_set_drvdata(vdev, params_vdev);
@@ -985,4 +991,5 @@ void rkispp_unregister_params_vdev(struct rkispp_device *dev)
 	video_unregister_device(vdev);
 	media_entity_cleanup(&vdev->entity);
 	vb2_queue_release(vdev->queue);
+	vfree(params_vdev->cur_params);
 }
