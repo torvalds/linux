@@ -759,8 +759,6 @@ static DEVICE_ATTR(interrupt_coalescing,
 			 mvs_show_interrupt_coalescing,
 			 mvs_store_interrupt_coalescing);
 
-/* task handler */
-struct task_struct *mvs_th;
 static int __init mvs_init(void)
 {
 	int rc;
