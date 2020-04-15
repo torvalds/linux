@@ -114,7 +114,6 @@ int qxl_device_init(struct qxl_device *qdev,
 
 	qdev->ddev.pdev = pdev;
 	pci_set_drvdata(pdev, &qdev->ddev);
-	qdev->ddev.dev_private = qdev;
 
 	mutex_init(&qdev->gem.mutex);
 	mutex_init(&qdev->update_area_mutex);

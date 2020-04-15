@@ -137,7 +137,7 @@ disable_pci:
 
 static void qxl_drm_release(struct drm_device *dev)
 {
-	struct qxl_device *qdev = dev->dev_private;
+	struct qxl_device *qdev = to_qxl(dev);
 
 	/*
 	 * TODO: qxl_device_fini() call should be in qxl_pci_remove(),
@@ -164,7 +164,7 @@ DEFINE_DRM_GEM_FOPS(qxl_fops);
 static int qxl_drm_freeze(struct drm_device *dev)
 {
 	struct pci_dev *pdev = dev->pdev;
-	struct qxl_device *qdev = dev->dev_private;
+	struct qxl_device *qdev = to_qxl(dev);
 	int ret;
 
 	ret = drm_mode_config_helper_suspend(dev);
@@ -186,7 +186,7 @@ static int qxl_drm_freeze(struct drm_device *dev)
 
 static int qxl_drm_resume(struct drm_device *dev, bool thaw)
 {
-	struct qxl_device *qdev = dev->dev_private;
+	struct qxl_device *qdev = to_qxl(dev);
 
 	qdev->ram_header->int_mask = QXL_INTERRUPT_MASK;
 	if (!thaw) {
@@ -245,7 +245,7 @@ static int qxl_pm_restore(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
-	struct qxl_device *qdev = drm_dev->dev_private;
+	struct qxl_device *qdev = to_qxl(drm_dev);
 
 	qxl_io_reset(qdev);
 	return qxl_drm_resume(drm_dev, false);

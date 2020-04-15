@@ -243,7 +243,7 @@ static void qxl_bo_move_notify(struct ttm_buffer_object *bo,
 	if (!qxl_ttm_bo_is_qxl_bo(bo))
 		return;
 	qbo = to_qxl_bo(bo);
-	qdev = qbo->tbo.base.dev->dev_private;
+	qdev = to_qxl(qbo->tbo.base.dev);
 
 	if (bo->mem.mem_type == TTM_PL_PRIV && qbo->surface_id)
 		qxl_surface_evict(qdev, qbo, new_mem ? true : false);

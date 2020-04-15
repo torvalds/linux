@@ -192,8 +192,6 @@ struct qxl_debugfs {
 
 int qxl_debugfs_fence_init(struct qxl_device *rdev);
 
-struct qxl_device;
-
 struct qxl_device {
 	struct drm_device ddev;
 
@@ -272,6 +270,8 @@ struct qxl_device {
 	int monitors_config_width;
 	int monitors_config_height;
 };
+
+#define to_qxl(dev) container_of(dev, struct qxl_device, ddev)
 
 extern const struct drm_ioctl_desc qxl_ioctls[];
 extern int qxl_max_ioctl;
