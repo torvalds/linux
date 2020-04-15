@@ -1,13 +1,17 @@
+.. SPDX-License-Identifier: GPL-2.0
 
-  Submitting devicetree (DT) binding patches
+==========================================
+Submitting devicetree (DT) binding patches
+==========================================
 
 I. For patch submitters
+=======================
 
   0) Normal patch submission rules from Documentation/process/submitting-patches.rst
      applies.
 
   1) The Documentation/ and include/dt-bindings/ portion of the patch should
-     be a separate patch. The preferred subject prefix for binding patches is:
+     be a separate patch. The preferred subject prefix for binding patches is::
 
        "dt-bindings: <binding dir>: ..."
 
@@ -17,7 +21,7 @@ I. For patch submitters
 
   2) DT binding files are written in DT schema format using json-schema
      vocabulary and YAML file format. The DT binding files must pass validation
-     by running:
+     by running::
 
        make dt_binding_check
 
@@ -60,6 +64,7 @@ I. For patch submitters
 
 
 II. For kernel maintainers
+==========================
 
   1) If you aren't comfortable reviewing a given binding, reply to it and ask
      the devicetree maintainers for guidance.  This will help them prioritize
@@ -76,6 +81,7 @@ II. For kernel maintainers
      kept with the driver using the binding.
 
 III. Notes
+==========
 
   0) Please see ...bindings/ABI.txt for details regarding devicetree ABI.
 

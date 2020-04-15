@@ -8,3 +8,4 @@ Device Tree
    :maxdepth: 1
 
    ABI
+   submitting-patches

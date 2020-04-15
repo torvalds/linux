@@ -4,7 +4,7 @@ This is a list of common review feedback items focused on binding design. With
 every rule, there are exceptions and bindings have many gray areas.
 
 For guidelines related to patches, see
-Documentation/devicetree/bindings/submitting-patches.txt
+Documentation/devicetree/bindings/submitting-patches.rst
 
 
 Overall design
