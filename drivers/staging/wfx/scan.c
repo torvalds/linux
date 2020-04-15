@@ -89,7 +89,6 @@ void wfx_hw_scan_work(struct work_struct *work)
 	mutex_lock(&wvif->wdev->conf_mutex);
 	mutex_lock(&wvif->scan_lock);
 	update_probe_tmpl(wvif, &hw_req->req);
-	wfx_fwd_probe_req(wvif, true);
 	chan_cur = 0;
 	do {
 		ret = send_scan_req(wvif, &hw_req->req, chan_cur);
