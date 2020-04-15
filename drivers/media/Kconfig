@@ -3,6 +3,19 @@
 # Multimedia device configuration
 #
 
+#
+# NOTE: Those symbols can't depend on MEDIA_SUPPORT, as it would cause
+# unmatched dependencies
+#
+config CEC_CORE
+	tristate
+
+config CEC_NOTIFIER
+	bool
+
+config CEC_PIN
+	bool
+
 source "drivers/media/rc/Kconfig"
 
 menuconfig MEDIA_SUPPORT
