@@ -580,7 +580,7 @@ static u32 virtio_balloon_cmd_id_received(struct virtio_balloon *vb)
 	if (test_and_clear_bit(VIRTIO_BALLOON_CONFIG_READ_CMD_ID,
 			       &vb->config_read_bitmap))
 		virtio_cread(vb->vdev, struct virtio_balloon_config,
-			     free_page_report_cmd_id,
+			     free_page_hint_cmd_id,
 			     &vb->cmd_id_received_cache);
 
 	return vb->cmd_id_received_cache;
