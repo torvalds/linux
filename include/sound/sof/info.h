@@ -31,6 +31,7 @@ enum sof_ipc_ext_data {
 	SOF_IPC_EXT_UNUSED		= 0,
 	SOF_IPC_EXT_WINDOW		= 1,
 	SOF_IPC_EXT_CC_INFO		= 2,
+	SOF_IPC_EXT_PROBE_INFO		= 3,
 };
 
 /* FW version - SOF_IPC_GLB_VERSION */
@@ -112,6 +113,17 @@ struct sof_ipc_cc_version {
 	char name[16]; /* null terminated compiler name */
 	char optim[4]; /* null terminated compiler -O flag value */
 	char desc[]; /* null terminated compiler description */
+} __packed;
+
+/* extended data: Probe setup */
+struct sof_ipc_probe_support {
+	struct sof_ipc_ext_data_hdr ext_hdr;
+
+	uint32_t probe_points_max;
+	uint32_t injection_dmas_max;
+
+	/* reserved for future use */
+	uint32_t reserved[2];
 } __packed;
 
 #endif
