@@ -419,8 +419,6 @@ static void wfx_do_unjoin(struct wfx_vif *wvif)
 	cancel_work_sync(&wvif->event_handler_work);
 	wfx_cqm_bssloss_sm(wvif, 0, 0, 0);
 
-	wvif->disable_beacon_filter = false;
-	wfx_update_filtering(wvif);
 	memset(&wvif->bss_params, 0, sizeof(wvif->bss_params));
 	wfx_tx_unlock(wvif->wdev);
 }
