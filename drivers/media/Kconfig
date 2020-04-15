@@ -226,8 +226,11 @@ source "drivers/media/common/Kconfig"
 
 if MEDIA_PLATFORM_SUPPORT
 source "drivers/media/platform/Kconfig"
-source "drivers/media/test_drivers/Kconfig"
 source "drivers/media/mmc/Kconfig"
+endif
+
+if MEDIA_TEST_SUPPORT
+source "drivers/media/test_drivers/Kconfig"
 endif
 
 source "drivers/media/firewire/Kconfig"

@@ -1,7 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
-if MEDIA_TEST_SUPPORT
-
 menuconfig V4L_TEST_DRIVERS
 	bool "V4L test drivers"
 	depends on VIDEO_DEV
@@ -24,5 +22,3 @@ config VIDEO_VIM2M
 source "drivers/media/test_drivers/vicodec/Kconfig"
 
 endif #V4L_TEST_DRIVERS
-
-endif #MEDIA_TEST_SUPPORT
