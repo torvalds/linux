@@ -193,22 +193,21 @@ static void dwapb_toggle_trigger(struct dwapb_gpio *gpio, unsigned int offs)
 
 static u32 dwapb_do_irq(struct dwapb_gpio *gpio)
 {
-	u32 irq_status = dwapb_read(gpio, GPIO_INTSTATUS);
-	u32 ret = irq_status;
+	unsigned long irq_status;
+	int hwirq;
 
-	while (irq_status) {
-		int hwirq = fls(irq_status) - 1;
+	irq_status = dwapb_read(gpio, GPIO_INTSTATUS);
+	for_each_set_bit(hwirq, &irq_status, 32) {
 		int gpio_irq = irq_find_mapping(gpio->domain, hwirq);
+		u32 irq_type = irq_get_trigger_type(gpio_irq);
 
 		generic_handle_irq(gpio_irq);
-		irq_status &= ~BIT(hwirq);
 
-		if ((irq_get_trigger_type(gpio_irq) & IRQ_TYPE_SENSE_MASK)
-			== IRQ_TYPE_EDGE_BOTH)
+		if ((irq_type & IRQ_TYPE_SENSE_MASK) == IRQ_TYPE_EDGE_BOTH)
 			dwapb_toggle_trigger(gpio, hwirq);
 	}
 
-	return ret;
+	return irq_status;
 }
 
 static void dwapb_irq_handler(struct irq_desc *desc)
