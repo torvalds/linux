@@ -317,6 +317,7 @@ out:
 static void sdhci_init(struct sdhci_host *host, int soft)
 {
 	struct mmc_host *mmc = host->mmc;
+	unsigned long flags;
 
 	if (soft)
 		sdhci_do_reset(host, SDHCI_RESET_CMD | SDHCI_RESET_DATA);
@@ -326,7 +327,9 @@ static void sdhci_init(struct sdhci_host *host, int soft)
 	if (host->v4_mode)
 		sdhci_do_enable_v4_mode(host);
 
+	spin_lock_irqsave(&host->lock, flags);
 	sdhci_set_default_irqs(host);
+	spin_unlock_irqrestore(&host->lock, flags);
 
 	host->cqe_on = false;
 
