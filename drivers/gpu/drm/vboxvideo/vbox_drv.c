@@ -55,13 +55,13 @@ static int vbox_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pci_set_drvdata(pdev, vbox);
 	mutex_init(&vbox->hw_mutex);
 
-	ret = pci_enable_device(pdev);
+	ret = pcim_enable_device(pdev);
 	if (ret)
 		return ret;
 
 	ret = vbox_hw_init(vbox);
 	if (ret)
-		goto err_pci_disable;
+		return ret;
 
 	ret = vbox_mm_init(vbox);
 	if (ret)
@@ -91,8 +91,6 @@ err_mm_fini:
 	vbox_mm_fini(vbox);
 err_hw_fini:
 	vbox_hw_fini(vbox);
-err_pci_disable:
-	pci_disable_device(pdev);
 	return ret;
 }
 
