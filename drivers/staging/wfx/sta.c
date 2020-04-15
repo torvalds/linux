@@ -630,8 +630,7 @@ static void wfx_join_finalize(struct wfx_vif *wvif,
 		wvif->state = WFX_STATE_STA;
 		hif_keep_alive_period(wvif, 0);
 		hif_set_bss_params(wvif, &wvif->bss_params);
-		hif_set_beacon_wakeup_period(wvif, info->dtim_period,
-					     info->dtim_period);
+		hif_set_beacon_wakeup_period(wvif, 1, 1);
 		wfx_update_pm(wvif);
 	}
 }

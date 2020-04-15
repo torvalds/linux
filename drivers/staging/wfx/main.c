@@ -288,7 +288,6 @@ struct wfx_dev *wfx_init_common(struct device *dev,
 
 	SET_IEEE80211_DEV(hw, dev);
 
-	ieee80211_hw_set(hw, NEED_DTIM_BEFORE_ASSOC);
 	ieee80211_hw_set(hw, TX_AMPDU_SETUP_IN_HW);
 	ieee80211_hw_set(hw, AMPDU_AGGREGATION);
 	ieee80211_hw_set(hw, CONNECTION_MONITOR);
