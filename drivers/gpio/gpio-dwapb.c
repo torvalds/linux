@@ -215,10 +215,9 @@ static void dwapb_irq_handler(struct irq_desc *desc)
 	struct dwapb_gpio *gpio = irq_desc_get_handler_data(desc);
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 
+	chained_irq_enter(chip, desc);
 	dwapb_do_irq(gpio);
-
-	if (chip->irq_eoi)
-		chip->irq_eoi(irq_desc_get_irq_data(desc));
+	chained_irq_exit(chip, desc);
 }
 
 static void dwapb_irq_enable(struct irq_data *d)
