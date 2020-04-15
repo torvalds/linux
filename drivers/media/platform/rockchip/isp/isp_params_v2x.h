@@ -338,7 +338,7 @@ struct rkisp_isp_params_val_v2x {
 	u8 mge_en;
 };
 
-void rkisp_init_params_vdev_v2x(struct rkisp_isp_params_vdev *params_vdev);
+int rkisp_init_params_vdev_v2x(struct rkisp_isp_params_vdev *params_vdev);
 void rkisp_uninit_params_vdev_v2x(struct rkisp_isp_params_vdev *params_vdev);
 
 #endif /* _RKISP_ISP_PARAM_V2X_H */

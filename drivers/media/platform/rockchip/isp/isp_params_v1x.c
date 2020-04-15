@@ -769,7 +769,8 @@ static void isp_aec_config_v12(struct rkisp_isp_params_vdev *params_vdev,
 static void isp_cproc_config(struct rkisp_isp_params_vdev *params_vdev,
 			     const struct cifisp_cproc_config *arg)
 {
-	struct cifisp_isp_other_cfg *cur_other_cfg = &params_vdev->isp1x_params.others;
+	struct cifisp_isp_other_cfg *cur_other_cfg =
+		&params_vdev->isp1x_params->others;
 	struct cifisp_ie_config *cur_ie_config = &cur_other_cfg->ie_config;
 	u32 effect = cur_ie_config->effect;
 	u32 quantization = params_vdev->quantization;
@@ -2240,13 +2241,13 @@ static void rkisp1_params_first_cfg_v1x(struct rkisp_isp_params_vdev *params_vde
 		params_vdev->hdrae_para.lsc_table[i] = 0x0400;
 
 	/* override the default things */
-	if (!params_vdev->isp1x_params.module_cfg_update &&
-	    !params_vdev->isp1x_params.module_en_update)
+	if (!params_vdev->isp1x_params->module_cfg_update &&
+	    !params_vdev->isp1x_params->module_en_update)
 		dev_warn(dev, "can not get first iq setting in stream on\n");
 
-	__isp_isr_other_config(params_vdev, &params_vdev->isp1x_params);
-	__isp_isr_meas_config(params_vdev, &params_vdev->isp1x_params);
-	__preisp_isr_update_hdrae_para(params_vdev, &params_vdev->isp1x_params);
+	__isp_isr_other_config(params_vdev, params_vdev->isp1x_params);
+	__isp_isr_meas_config(params_vdev, params_vdev->isp1x_params);
+	__preisp_isr_update_hdrae_para(params_vdev, params_vdev->isp1x_params);
 
 	spin_unlock(&params_vdev->config_lock);
 }
@@ -2256,13 +2257,13 @@ static void rkisp1_save_first_param_v1x(struct rkisp_isp_params_vdev *params_vde
 	struct rkisp1_isp_params_cfg *new_params;
 
 	new_params = (struct rkisp1_isp_params_cfg *)param;
-	params_vdev->isp1x_params = *new_params;
+	*params_vdev->isp1x_params = *new_params;
 }
 
 static void rkisp1_clear_first_param_v1x(struct rkisp_isp_params_vdev *params_vdev)
 {
-	params_vdev->isp1x_params.module_cfg_update = 0;
-	params_vdev->isp1x_params.module_en_update = 0;
+	params_vdev->isp1x_params->module_cfg_update = 0;
+	params_vdev->isp1x_params->module_en_update = 0;
 }
 
 static void
@@ -2354,10 +2355,9 @@ static struct rkisp_isp_params_ops rkisp_isp_params_ops_tbl = {
 	.isr_hdl = rkisp1_params_isr_v1x,
 };
 
-void rkisp_init_params_vdev_v1x(struct rkisp_isp_params_vdev *params_vdev)
+int rkisp_init_params_vdev_v1x(struct rkisp_isp_params_vdev *params_vdev)
 {
 	params_vdev->ops = &rkisp_isp_params_ops_tbl;
-
 	if (params_vdev->dev->isp_ver == ISP_V12 ||
 	    params_vdev->dev->isp_ver == ISP_V13) {
 		params_vdev->priv_ops = &rkisp1_v12_isp_params_ops;
@@ -2366,9 +2366,18 @@ void rkisp_init_params_vdev_v1x(struct rkisp_isp_params_vdev *params_vdev)
 		params_vdev->priv_ops = &rkisp1_v10_isp_params_ops;
 		params_vdev->priv_cfg = &rkisp1_v10_isp_params_config;
 	}
+
+	params_vdev->isp1x_params = vmalloc(sizeof(*params_vdev->isp1x_params));
+	if (!params_vdev->isp1x_params)
+		return -ENOMEM;
+
+	rkisp1_clear_first_param_v1x(params_vdev);
+
+	return 0;
 }
 
 void rkisp_uninit_params_vdev_v1x(struct rkisp_isp_params_vdev *params_vdev)
 {
+	vfree(params_vdev->isp1x_params);
 }
 

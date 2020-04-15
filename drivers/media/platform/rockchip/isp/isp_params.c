@@ -268,7 +268,7 @@ rkisp_params_init_vb2_queue(struct vb2_queue *q,
 	return vb2_queue_init(q);
 }
 
-static void rkisp_init_params_vdev(struct rkisp_isp_params_vdev *params_vdev)
+static int rkisp_init_params_vdev(struct rkisp_isp_params_vdev *params_vdev)
 {
 	params_vdev->vdev_fmt.fmt.meta.dataformat =
 		V4L2_META_FMT_RK_ISP1_PARAMS;
@@ -276,9 +276,9 @@ static void rkisp_init_params_vdev(struct rkisp_isp_params_vdev *params_vdev)
 		sizeof(struct rkisp1_isp_params_cfg);
 
 	if (params_vdev->dev->isp_ver <= ISP_V13)
-		rkisp_init_params_vdev_v1x(params_vdev);
+		return rkisp_init_params_vdev_v1x(params_vdev);
 	else
-		rkisp_init_params_vdev_v2x(params_vdev);
+		return rkisp_init_params_vdev_v2x(params_vdev);
 }
 
 static void rkisp_uninit_params_vdev(struct rkisp_isp_params_vdev *params_vdev)
@@ -347,7 +347,9 @@ int rkisp_register_params_vdev(struct rkisp_isp_params_vdev *params_vdev,
 	vdev->device_caps = V4L2_CAP_STREAMING | V4L2_CAP_META_OUTPUT;
 	vdev->vfl_dir = VFL_DIR_TX;
 	rkisp_params_init_vb2_queue(vdev->queue, params_vdev);
-	rkisp_init_params_vdev(params_vdev);
+	ret = rkisp_init_params_vdev(params_vdev);
+	if (ret < 0)
+		goto err_release_queue;
 	video_set_drvdata(vdev, params_vdev);
 
 	node->pad.flags = MEDIA_PAD_FL_SOURCE;

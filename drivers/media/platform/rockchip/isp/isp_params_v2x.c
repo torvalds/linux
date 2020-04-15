@@ -880,7 +880,8 @@ static void
 isp_cproc_config(struct rkisp_isp_params_vdev *params_vdev,
 		 const struct isp2x_cproc_cfg *arg)
 {
-	struct isp2x_isp_other_cfg *cur_other_cfg = &params_vdev->isp2x_params.others;
+	struct isp2x_isp_other_cfg *cur_other_cfg =
+		&params_vdev->isp2x_params->others;
 	struct isp2x_ie_cfg *cur_ie_config = &cur_other_cfg->ie_cfg;
 	u32 effect = cur_ie_config->effect;
 	u32 quantization = params_vdev->quantization;
@@ -3998,8 +3999,8 @@ rkisp_params_first_cfg_v2x(struct rkisp_isp_params_vdev *params_vdev)
 
 	spin_lock(&params_vdev->config_lock);
 	/* override the default things */
-	if (!params_vdev->isp2x_params.module_cfg_update &&
-	    !params_vdev->isp2x_params.module_en_update)
+	if (!params_vdev->isp2x_params->module_cfg_update &&
+	    !params_vdev->isp2x_params->module_en_update)
 		dev_warn(dev, "can not get first iq setting in stream on\n");
 
 	/* set the  range */
@@ -4013,9 +4014,9 @@ rkisp_params_first_cfg_v2x(struct rkisp_isp_params_vdev *params_vdev)
 	priv_val->tmo_en = 0;
 	priv_val->lsc_en = 0;
 	priv_val->mge_en = 0;
-	__isp_isr_other_config(params_vdev, &params_vdev->isp2x_params, RKISP_PARAMS_ALL);
-	__isp_isr_meas_config(params_vdev, &params_vdev->isp2x_params, RKISP_PARAMS_ALL);
-	__preisp_isr_update_hdrae_para(params_vdev, &params_vdev->isp2x_params);
+	__isp_isr_other_config(params_vdev, params_vdev->isp2x_params, RKISP_PARAMS_ALL);
+	__isp_isr_meas_config(params_vdev, params_vdev->isp2x_params, RKISP_PARAMS_ALL);
+	__preisp_isr_update_hdrae_para(params_vdev, params_vdev->isp2x_params);
 	spin_unlock(&params_vdev->config_lock);
 }
 
@@ -4024,41 +4025,20 @@ static void rkisp_save_first_param_v2x(struct rkisp_isp_params_vdev *params_vdev
 	struct isp2x_isp_params_cfg *new_params;
 
 	new_params = (struct isp2x_isp_params_cfg *)param;
-	params_vdev->isp2x_params = *new_params;
+	*params_vdev->isp2x_params = *new_params;
 }
 
 static void rkisp_clear_first_param_v2x(struct rkisp_isp_params_vdev *params_vdev)
 {
-	params_vdev->isp2x_params.module_cfg_update = 0;
-	params_vdev->isp2x_params.module_en_update = 0;
+	params_vdev->isp2x_params->module_cfg_update = 0;
+	params_vdev->isp2x_params->module_en_update = 0;
 }
 
 static void
 rkisp_get_param_size_v2x(struct rkisp_isp_params_vdev *params_vdev,
 			 unsigned int sizes[])
 {
-	struct rkisp_device *dev = params_vdev->dev;
-	struct rkisp_isp_params_val_v2x *priv_val;
-	u32 width, height;
-	int i, ret;
-
-	width = (dev->isp_sdev.in_crop.width + 15) / 16 + 1;
-	height = (dev->isp_sdev.in_crop.height + 7) / 8 + 1;
-
-	sizes[0] = sizeof(struct isp2x_isp_params_cfg) + 2 * width * height;
-
-	priv_val = (struct rkisp_isp_params_val_v2x *)params_vdev->priv_val;
-	if (priv_val->buf_ldch[0].size != 2 * width * height) {
-		for (i = 0; i < RKISP_PARAM_LDCH_BUF_NUM; i++)
-			rkisp_free_buffer(dev->dev, &priv_val->buf_ldch[i]);
-
-		for (i = 0; i < RKISP_PARAM_LDCH_BUF_NUM; i++) {
-			priv_val->buf_ldch[i].size = 2 * width * height;
-			ret = rkisp_alloc_buffer(dev->dev, &priv_val->buf_ldch[i]);
-			if (ret)
-				dev_err(dev->dev, "can not alloc buffer\n");
-		}
-	}
+	sizes[0] = sizeof(struct isp2x_isp_params_cfg);
 }
 
 /* Not called when the camera active, thus not isr protection. */
@@ -4189,7 +4169,7 @@ static struct rkisp_isp_params_ops rkisp_isp_params_ops_tbl = {
 	.param_cfg = rkisp_params_cfg_v2x,
 };
 
-void rkisp_init_params_vdev_v2x(struct rkisp_isp_params_vdev *params_vdev)
+int rkisp_init_params_vdev_v2x(struct rkisp_isp_params_vdev *params_vdev)
 {
 	struct rkisp_isp_params_val_v2x *priv_val;
 	struct device *dev = params_vdev->dev->dev;
@@ -4198,7 +4178,7 @@ void rkisp_init_params_vdev_v2x(struct rkisp_isp_params_vdev *params_vdev)
 	priv_val = kzalloc(sizeof(*priv_val), GFP_KERNEL);
 	if (!priv_val) {
 		dev_err(dev, "can not get memory\n");
-		return;
+		return -ENOMEM;
 	}
 
 	priv_val->buf_3dlut_idx = 0;
@@ -4221,10 +4201,26 @@ void rkisp_init_params_vdev_v2x(struct rkisp_isp_params_vdev *params_vdev)
 		}
 	}
 
+	priv_val->buf_ldch_idx = 0;
+	for (i = 0; i < RKISP_PARAM_LDCH_BUF_NUM; i++) {
+		priv_val->buf_ldch[i].size = ISP2X_LDCH_MESH_XY_NUM * sizeof(u16);
+		ret = rkisp_alloc_buffer(dev, &priv_val->buf_ldch[i]);
+		if (ret) {
+			dev_err(dev, "can not alloc buffer\n");
+			goto err;
+		}
+	}
+
+	params_vdev->isp2x_params = vmalloc(sizeof(*params_vdev->isp2x_params));
+	if (!params_vdev->isp2x_params)
+		goto err;
+
+	rkisp_clear_first_param_v2x(params_vdev);
+
 	params_vdev->priv_val = (void *)priv_val;
 	params_vdev->ops = &rkisp_isp_params_ops_tbl;
 	params_vdev->priv_ops = &rkisp_v2x_isp_params_ops;
-	return;
+	return 0;
 
 err:
 	for (i = 0; i < RKISP_PARAM_3DLUT_BUF_NUM; i++)
@@ -4232,6 +4228,13 @@ err:
 
 	for (i = 0; i < RKISP_PARAM_LSC_LUT_BUF_NUM; i++)
 		rkisp_free_buffer(dev, &priv_val->buf_lsclut[i]);
+
+	for (i = 0; i < RKISP_PARAM_LDCH_BUF_NUM; i++)
+		rkisp_free_buffer(dev, &priv_val->buf_ldch[i]);
+
+	vfree(params_vdev->isp2x_params);
+
+	return -ENOMEM;
 }
 
 void rkisp_uninit_params_vdev_v2x(struct rkisp_isp_params_vdev *params_vdev)
@@ -4249,6 +4252,11 @@ void rkisp_uninit_params_vdev_v2x(struct rkisp_isp_params_vdev *params_vdev)
 
 	for (i = 0; i < RKISP_PARAM_LSC_LUT_BUF_NUM; i++)
 		rkisp_free_buffer(dev, &priv_val->buf_lsclut[i]);
+
+	for (i = 0; i < RKISP_PARAM_LDCH_BUF_NUM; i++)
+		rkisp_free_buffer(dev, &priv_val->buf_ldch[i]);
+
+	vfree(params_vdev->isp2x_params);
 
 	kfree(priv_val);
 	params_vdev->priv_val = NULL;
