@@ -317,6 +317,7 @@ config ARM_TEGRA186_CPUFREQ
 config ARM_TI_CPUFREQ
 	bool "Texas Instruments CPUFreq support"
 	depends on ARCH_OMAP2PLUS
+	default ARCH_OMAP2PLUS
 	help
 	  This driver enables valid OPPs on the running platform based on
 	  values contained within the SoC in use. Enable this in order to
