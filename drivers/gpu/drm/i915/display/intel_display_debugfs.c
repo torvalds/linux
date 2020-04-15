@@ -1997,6 +1997,48 @@ static int i915_hdcp_sink_capability_show(struct seq_file *m, void *data)
 }
 DEFINE_SHOW_ATTRIBUTE(i915_hdcp_sink_capability);
 
+#define LPSP_CAPABLE(COND) (COND ? seq_puts(m, "LPSP: capable\n") : \
+				seq_puts(m, "LPSP: incapable\n"))
+
+static int i915_lpsp_capability_show(struct seq_file *m, void *data)
+{
+	struct drm_connector *connector = m->private;
+	struct intel_encoder *encoder =
+			intel_attached_encoder(to_intel_connector(connector));
+	struct drm_i915_private *i915 = to_i915(connector->dev);
+
+	if (connector->status != connector_status_connected)
+		return -ENODEV;
+
+	switch (INTEL_GEN(i915)) {
+	case 12:
+		/*
+		 * Actually TGL can drive LPSP on port till DDI_C
+		 * but there is no physical connected DDI_C on TGL sku's,
+		 * even driver is not initilizing DDI_C port for gen12.
+		 */
+		LPSP_CAPABLE(encoder->port <= PORT_B);
+		break;
+	case 11:
+		LPSP_CAPABLE(connector->connector_type == DRM_MODE_CONNECTOR_DSI ||
+			     connector->connector_type == DRM_MODE_CONNECTOR_eDP);
+		break;
+	case 10:
+	case 9:
+		LPSP_CAPABLE(encoder->port == PORT_A &&
+			     (connector->connector_type == DRM_MODE_CONNECTOR_DSI ||
+			     connector->connector_type == DRM_MODE_CONNECTOR_eDP  ||
+			     connector->connector_type == DRM_MODE_CONNECTOR_DisplayPort));
+		break;
+	default:
+		if (IS_HASWELL(i915) || IS_BROADWELL(i915))
+			LPSP_CAPABLE(connector->connector_type == DRM_MODE_CONNECTOR_eDP);
+	}
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(i915_lpsp_capability);
+
 static int i915_dsc_fec_support_show(struct seq_file *m, void *data)
 {
 	struct drm_connector *connector = m->private;
@@ -2139,6 +2181,17 @@ int intel_connector_debugfs_add(struct drm_connector *connector)
 	     connector->connector_type == DRM_MODE_CONNECTOR_eDP))
 		debugfs_create_file("i915_dsc_fec_support", S_IRUGO, root,
 				    connector, &i915_dsc_fec_support_fops);
+
+	/* Legacy panels doesn't lpsp on any platform */
+	if ((INTEL_GEN(dev_priv) >= 9 || IS_HASWELL(dev_priv) ||
+	     IS_BROADWELL(dev_priv)) &&
+	     (connector->connector_type == DRM_MODE_CONNECTOR_DSI ||
+	     connector->connector_type == DRM_MODE_CONNECTOR_eDP ||
+	     connector->connector_type == DRM_MODE_CONNECTOR_DisplayPort ||
+	     connector->connector_type == DRM_MODE_CONNECTOR_HDMIA ||
+	     connector->connector_type == DRM_MODE_CONNECTOR_HDMIB))
+		debugfs_create_file("i915_lpsp_capability", 0444, root,
+				    connector, &i915_lpsp_capability_fops);
 
 	return 0;
 }
