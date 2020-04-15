@@ -631,22 +631,17 @@ static int gm12u320_usb_probe(struct usb_interface *interface,
 	if (interface->cur_altsetting->desc.bInterfaceNumber != 0)
 		return -ENODEV;
 
-	gm12u320 = kzalloc(sizeof(*gm12u320), GFP_KERNEL);
-	if (gm12u320 == NULL)
-		return -ENOMEM;
+	gm12u320 = devm_drm_dev_alloc(&interface->dev, &gm12u320_drm_driver,
+				      struct gm12u320_device, dev);
+	if (IS_ERR(gm12u320))
+		return PTR_ERR(gm12u320);
 
 	gm12u320->udev = interface_to_usbdev(interface);
 	INIT_DELAYED_WORK(&gm12u320->fb_update.work, gm12u320_fb_update_work);
 	mutex_init(&gm12u320->fb_update.lock);
 
 	dev = &gm12u320->dev;
-	ret = devm_drm_dev_init(&interface->dev, dev, &gm12u320_drm_driver);
-	if (ret) {
-		kfree(gm12u320);
-		return ret;
-	}
 	dev->dev_private = gm12u320;
-	drmm_add_final_kfree(dev, gm12u320);
 
 	ret = drmm_mode_config_init(dev);
 	if (ret)
