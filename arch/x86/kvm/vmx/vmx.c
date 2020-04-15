@@ -5635,7 +5635,7 @@ static const int kvm_vmx_max_exit_handlers =
 static void vmx_get_exit_info(struct kvm_vcpu *vcpu, u64 *info1, u64 *info2)
 {
 	*info1 = vmx_get_exit_qual(vcpu);
-	*info2 = vmcs_read32(VM_EXIT_INTR_INFO);
+	*info2 = vmx_get_intr_info(vcpu);
 }
 
 static void vmx_destroy_pml_buffer(struct vcpu_vmx *vmx)
@@ -6298,16 +6298,16 @@ static void vmx_apicv_post_state_restore(struct kvm_vcpu *vcpu)
 
 static void handle_exception_nmi_irqoff(struct vcpu_vmx *vmx)
 {
-	vmx->exit_intr_info = vmcs_read32(VM_EXIT_INTR_INFO);
+	u32 intr_info = vmx_get_intr_info(&vmx->vcpu);
 
 	/* if exit due to PF check for async PF */
-	if (is_page_fault(vmx->exit_intr_info)) {
+	if (is_page_fault(intr_info)) {
 		vmx->vcpu.arch.apf.host_apf_reason = kvm_read_and_reset_pf_reason();
 	/* Handle machine checks before interrupts are enabled */
-	} else if (is_machine_check(vmx->exit_intr_info)) {
+	} else if (is_machine_check(intr_info)) {
 		kvm_machine_check();
 	/* We need to handle NMIs before interrupts are enabled */
-	} else if (is_nmi(vmx->exit_intr_info)) {
+	} else if (is_nmi(intr_info)) {
 		kvm_before_interrupt(&vmx->vcpu);
 		asm("int $2");
 		kvm_after_interrupt(&vmx->vcpu);
@@ -6322,9 +6322,8 @@ static void handle_external_interrupt_irqoff(struct kvm_vcpu *vcpu)
 	unsigned long tmp;
 #endif
 	gate_desc *desc;
-	u32 intr_info;
+	u32 intr_info = vmx_get_intr_info(vcpu);
 
-	intr_info = vmcs_read32(VM_EXIT_INTR_INFO);
 	if (WARN_ONCE(!is_external_intr(intr_info),
 	    "KVM: unexpected VM-Exit interrupt info: 0x%x", intr_info))
 		return;
@@ -6405,11 +6404,8 @@ static void vmx_recover_nmi_blocking(struct vcpu_vmx *vmx)
 	if (enable_vnmi) {
 		if (vmx->loaded_vmcs->nmi_known_unmasked)
 			return;
-		/*
-		 * Can't use vmx->exit_intr_info since we're not sure what
-		 * the exit reason is.
-		 */
-		exit_intr_info = vmcs_read32(VM_EXIT_INTR_INFO);
+
+		exit_intr_info = vmx_get_intr_info(&vmx->vcpu);
 		unblock_nmi = (exit_intr_info & INTR_INFO_UNBLOCK_NMI) != 0;
 		vector = exit_intr_info & INTR_INFO_VECTOR_MASK;
 		/*

@@ -5419,7 +5419,7 @@ static int handle_vmfunc(struct kvm_vcpu *vcpu)
 
 fail:
 	nested_vmx_vmexit(vcpu, vmx->exit_reason,
-			  vmcs_read32(VM_EXIT_INTR_INFO),
+			  vmx_get_intr_info(vcpu),
 			  vmx_get_exit_qual(vcpu));
 	return 1;
 }
@@ -5652,7 +5652,7 @@ static bool nested_vmx_l0_wants_exit(struct kvm_vcpu *vcpu, u32 exit_reason)
 
 	switch (exit_reason) {
 	case EXIT_REASON_EXCEPTION_NMI:
-		intr_info = vmcs_read32(VM_EXIT_INTR_INFO);
+		intr_info = vmx_get_intr_info(vcpu);
 		if (is_nmi(intr_info))
 			return true;
 		else if (is_page_fault(intr_info))
@@ -5708,12 +5708,12 @@ static bool nested_vmx_l0_wants_exit(struct kvm_vcpu *vcpu, u32 exit_reason)
  */
 static bool nested_vmx_l1_wants_exit(struct kvm_vcpu *vcpu, u32 exit_reason)
 {
+	u32 intr_info = vmx_get_intr_info(vcpu);
 	struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
-	u32 intr_info;
 
 	switch (exit_reason) {
 	case EXIT_REASON_EXCEPTION_NMI:
-		intr_info = vmcs_read32(VM_EXIT_INTR_INFO);
+		intr_info = vmx_get_intr_info(vcpu);
 		if (is_nmi(intr_info))
 			return true;
 		else if (is_page_fault(intr_info))
@@ -5848,7 +5848,7 @@ bool nested_vmx_reflect_vmexit(struct kvm_vcpu *vcpu)
 		goto reflect_vmexit;
 	}
 
-	exit_intr_info = vmcs_read32(VM_EXIT_INTR_INFO);
+	exit_intr_info = vmx_get_intr_info(vcpu);
 	exit_qual = vmx_get_exit_qual(vcpu);
 
 	trace_kvm_nested_vmexit(kvm_rip_read(vcpu), exit_reason, exit_qual,

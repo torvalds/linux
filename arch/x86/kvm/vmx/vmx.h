@@ -451,7 +451,8 @@ static inline void vmx_register_cache_reset(struct kvm_vcpu *vcpu)
 				  | (1 << VCPU_EXREG_PDPTR)
 				  | (1 << VCPU_EXREG_SEGMENTS)
 				  | (1 << VCPU_EXREG_CR3)
-				  | (1 << VCPU_EXREG_EXIT_INFO_1));
+				  | (1 << VCPU_EXREG_EXIT_INFO_1)
+				  | (1 << VCPU_EXREG_EXIT_INFO_2));
 	vcpu->arch.regs_dirty = 0;
 }
 
@@ -504,6 +505,17 @@ static inline unsigned long vmx_get_exit_qual(struct kvm_vcpu *vcpu)
 		vmx->exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
 	}
 	return vmx->exit_qualification;
+}
+
+static inline u32 vmx_get_intr_info(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+
+	if (!kvm_register_is_available(vcpu, VCPU_EXREG_EXIT_INFO_2)) {
+		kvm_register_mark_available(vcpu, VCPU_EXREG_EXIT_INFO_2);
+		vmx->exit_intr_info = vmcs_read32(VM_EXIT_INTR_INFO);
+	}
+	return vmx->exit_intr_info;
 }
 
 struct vmcs *alloc_vmcs_cpu(bool shadow, int cpu, gfp_t flags);
