@@ -194,6 +194,7 @@ void wfx_configure_filter(struct ieee80211_hw *hw,
 {
 	struct wfx_vif *wvif = NULL;
 	struct wfx_dev *wdev = hw->priv;
+	bool filter_bssid, filter_prbreq;
 
 	// Notes:
 	//   - Probe responses (FIF_BCN_PRBRESP_PROMISC) are never filtered
@@ -227,9 +228,9 @@ void wfx_configure_filter(struct ieee80211_hw *hw,
 		wfx_update_filtering(wvif);
 
 		if (*total_flags & FIF_OTHER_BSS)
-			wvif->filter_bssid = false;
+			filter_bssid = false;
 		else
-			wvif->filter_bssid = true;
+			filter_bssid = true;
 
 		// In AP mode, chip can reply to probe request itself
 		if (*total_flags & FIF_PROBE_REQ &&
@@ -239,11 +240,10 @@ void wfx_configure_filter(struct ieee80211_hw *hw,
 		}
 
 		if (*total_flags & FIF_PROBE_REQ)
-			wvif->filter_prbreq = false;
+			filter_prbreq = false;
 		else
-			wvif->filter_prbreq = true;
-		hif_set_rx_filter(wvif, wvif->filter_bssid,
-				  wvif->filter_prbreq);
+			filter_prbreq = true;
+		hif_set_rx_filter(wvif, filter_bssid, filter_prbreq);
 
 		mutex_unlock(&wvif->scan_lock);
 	}

@@ -90,8 +90,6 @@ struct wfx_vif {
 	int			filter_mcast_count;
 	u8			filter_mcast_addr[8][ETH_ALEN];
 	bool			filter_mcast;
-	bool			filter_bssid;
-	bool			filter_prbreq;
 	bool			filter_beacon;
 
 	unsigned long		uapsd_mask;
