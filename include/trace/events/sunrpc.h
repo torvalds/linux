@@ -1406,27 +1406,32 @@ DECLARE_EVENT_CLASS(svc_deferred_event,
 	TP_ARGS(dr),
 
 	TP_STRUCT__entry(
+		__field(const void *, dr)
 		__field(u32, xid)
 		__string(addr, dr->xprt->xpt_remotebuf)
 	),
 
 	TP_fast_assign(
+		__entry->dr = dr;
 		__entry->xid = be32_to_cpu(*(__be32 *)(dr->args +
 						       (dr->xprt_hlen>>2)));
 		__assign_str(addr, dr->xprt->xpt_remotebuf);
 	),
 
-	TP_printk("addr=%s xid=0x%08x", __get_str(addr), __entry->xid)
+	TP_printk("addr=%s dr=%p xid=0x%08x", __get_str(addr), __entry->dr,
+		__entry->xid)
 );
+
 #define DEFINE_SVC_DEFERRED_EVENT(name) \
-	DEFINE_EVENT(svc_deferred_event, svc_##name##_deferred, \
+	DEFINE_EVENT(svc_deferred_event, svc_defer_##name, \
 			TP_PROTO( \
 				const struct svc_deferred_req *dr \
 			), \
 			TP_ARGS(dr))
 
 DEFINE_SVC_DEFERRED_EVENT(drop);
-DEFINE_SVC_DEFERRED_EVENT(revisit);
+DEFINE_SVC_DEFERRED_EVENT(queue);
+DEFINE_SVC_DEFERRED_EVENT(recv);
 
 TRACE_EVENT(svcsock_new_socket,
 	TP_PROTO(
