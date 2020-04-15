@@ -307,19 +307,12 @@ static int mcde_probe(struct platform_device *pdev)
 	int ret;
 	int i;
 
-	mcde = kzalloc(sizeof(*mcde), GFP_KERNEL);
-	if (!mcde)
-		return -ENOMEM;
-	mcde->dev = dev;
-
-	ret = devm_drm_dev_init(dev, &mcde->drm, &mcde_drm_driver);
-	if (ret) {
-		kfree(mcde);
-		return ret;
-	}
+	mcde = devm_drm_dev_alloc(dev, &mcde_drm_driver, struct mcde, drm);
+	if (IS_ERR(mcde))
+		return PTR_ERR(mcde);
 	drm = &mcde->drm;
 	drm->dev_private = mcde;
-	drmm_add_final_kfree(drm, mcde);
+	mcde->dev = dev;
 	platform_set_drvdata(pdev, drm);
 
 	/* Enable continuous updates: this is what Linux' framebuffer expects */
