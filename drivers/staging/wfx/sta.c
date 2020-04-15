@@ -113,9 +113,8 @@ end:
 	mutex_unlock(&wvif->bss_loss_lock);
 }
 
-void wfx_update_filtering(struct wfx_vif *wvif)
+static void wfx_filter_beacon(struct wfx_vif *wvif, bool filter_beacon)
 {
-	int i;
 	const struct hif_ie_table_entry filter_ies[] = {
 		{
 			.ie_id        = WLAN_EID_VENDOR_SPECIFIC,
@@ -136,13 +135,18 @@ void wfx_update_filtering(struct wfx_vif *wvif)
 		}
 	};
 
-	if (!wvif->filter_beacon) {
+	if (!filter_beacon) {
 		hif_set_beacon_filter_table(wvif, 0, NULL);
 		hif_beacon_filter_control(wvif, 0, 1);
 	} else {
 		hif_set_beacon_filter_table(wvif, 3, filter_ies);
 		hif_beacon_filter_control(wvif, HIF_BEACON_FILTER_ENABLE, 0);
 	}
+}
+
+void wfx_update_filtering(struct wfx_vif *wvif)
+{
+	int i;
 
 	// Temporary workaround for filters
 	hif_set_data_filtering(wvif, false, true);
@@ -194,7 +198,7 @@ void wfx_configure_filter(struct ieee80211_hw *hw,
 {
 	struct wfx_vif *wvif = NULL;
 	struct wfx_dev *wdev = hw->priv;
-	bool filter_bssid, filter_prbreq;
+	bool filter_bssid, filter_prbreq, filter_beacon;
 
 	// Notes:
 	//   - Probe responses (FIF_BCN_PRBRESP_PROMISC) are never filtered
@@ -213,9 +217,10 @@ void wfx_configure_filter(struct ieee80211_hw *hw,
 		// Note: FIF_BCN_PRBRESP_PROMISC covers probe response and
 		// beacons from other BSS
 		if (*total_flags & FIF_BCN_PRBRESP_PROMISC)
-			wvif->filter_beacon = false;
+			filter_beacon = false;
 		else
-			wvif->filter_beacon = true;
+			filter_beacon = true;
+		wfx_filter_beacon(wvif, filter_beacon);
 
 		if (*total_flags & FIF_ALLMULTI) {
 			wvif->filter_mcast = false;
@@ -501,8 +506,7 @@ static void wfx_do_join(struct wfx_vif *wvif)
 		 * Disable filtering temporary to make sure the stack
 		 * receives at least one
 		 */
-		wvif->filter_beacon = false;
-		wfx_update_filtering(wvif);
+		wfx_filter_beacon(wvif, false);
 	}
 	wfx_tx_unlock(wvif->wdev);
 }
@@ -703,8 +707,7 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw,
 					     info->dtim_period);
 		// We temporary forwarded beacon for join process. It is now no
 		// more necessary.
-		wvif->filter_beacon = true;
-		wfx_update_filtering(wvif);
+		wfx_filter_beacon(wvif, true);
 	}
 
 	/* assoc/disassoc, or maybe AID changed */
