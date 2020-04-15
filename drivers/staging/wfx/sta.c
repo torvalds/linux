@@ -147,10 +147,6 @@ void wfx_update_filtering(struct wfx_vif *wvif)
 	if (wvif->disable_beacon_filter) {
 		hif_set_beacon_filter_table(wvif, 0, NULL);
 		hif_beacon_filter_control(wvif, 0, 1);
-	} else if (wvif->vif->type != NL80211_IFTYPE_STATION) {
-		hif_set_beacon_filter_table(wvif, 2, filter_ies);
-		hif_beacon_filter_control(wvif, HIF_BEACON_FILTER_ENABLE |
-						HIF_BEACON_FILTER_AUTO_ERP, 0);
 	} else {
 		hif_set_beacon_filter_table(wvif, 3, filter_ies);
 		hif_beacon_filter_control(wvif, HIF_BEACON_FILTER_ENABLE, 0);
