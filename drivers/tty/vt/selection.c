@@ -185,47 +185,16 @@ int set_selection_user(const struct tiocl_selection __user *sel,
 	return set_selection_kernel(&v, tty);
 }
 
-static int __set_selection_kernel(struct tiocl_selection *v, struct tty_struct *tty)
+static int vc_do_selection(struct vc_data *vc, unsigned short mode, int ps,
+		int pe)
 {
-	struct vc_data *vc = vc_cons[fg_console].d;
 	int new_sel_start, new_sel_end, spc;
 	char *bp, *obp;
-	int i, ps, pe;
 	u32 c;
-	int ret = 0;
-	bool unicode;
+	int i, ret = 0;
+	bool unicode = vt_do_kdgkbmode(fg_console) == K_UNICODE;
 
-	poke_blanked_console();
-
-	v->xs = min_t(u16, v->xs - 1, vc->vc_cols - 1);
-	v->ys = min_t(u16, v->ys - 1, vc->vc_rows - 1);
-	v->xe = min_t(u16, v->xe - 1, vc->vc_cols - 1);
-	v->ye = min_t(u16, v->ye - 1, vc->vc_rows - 1);
-	ps = v->ys * vc->vc_size_row + (v->xs << 1);
-	pe = v->ye * vc->vc_size_row + (v->xe << 1);
-
-	if (v->sel_mode == TIOCL_SELCLEAR) {
-		/* useful for screendump without selection highlights */
-		clear_selection();
-		return 0;
-	}
-
-	if (mouse_reporting() && (v->sel_mode & TIOCL_SELMOUSEREPORT)) {
-		mouse_report(tty, v->sel_mode & TIOCL_SELBUTTONMASK, v->xs,
-			     v->ys);
-		return 0;
-	}
-
-	if (ps > pe)	/* make vc_sel.start <= vc_sel.end */
-		swap(ps, pe);
-
-	if (vc_sel.cons != vc_cons[fg_console].d) {
-		clear_selection();
-		vc_sel.cons = vc_cons[fg_console].d;
-	}
-	unicode = vt_do_kdgkbmode(fg_console) == K_UNICODE;
-
-	switch (v->sel_mode) {
+	switch (mode) {
 	case TIOCL_SELCHAR:	/* character-by-character selection */
 		new_sel_start = ps;
 		new_sel_end = pe;
@@ -339,13 +308,50 @@ static int __set_selection_kernel(struct tiocl_selection *v, struct tty_struct *
 	return ret;
 }
 
+static int vc_selection(struct vc_data *vc, struct tiocl_selection *v,
+		struct tty_struct *tty)
+{
+	int ps, pe;
+
+	poke_blanked_console();
+
+	if (v->sel_mode == TIOCL_SELCLEAR) {
+		/* useful for screendump without selection highlights */
+		clear_selection();
+		return 0;
+	}
+
+	v->xs = min_t(u16, v->xs - 1, vc->vc_cols - 1);
+	v->ys = min_t(u16, v->ys - 1, vc->vc_rows - 1);
+	v->xe = min_t(u16, v->xe - 1, vc->vc_cols - 1);
+	v->ye = min_t(u16, v->ye - 1, vc->vc_rows - 1);
+
+	if (mouse_reporting() && (v->sel_mode & TIOCL_SELMOUSEREPORT)) {
+		mouse_report(tty, v->sel_mode & TIOCL_SELBUTTONMASK, v->xs,
+			     v->ys);
+		return 0;
+	}
+
+	ps = v->ys * vc->vc_size_row + (v->xs << 1);
+	pe = v->ye * vc->vc_size_row + (v->xe << 1);
+	if (ps > pe)	/* make vc_sel.start <= vc_sel.end */
+		swap(ps, pe);
+
+	if (vc_sel.cons != vc) {
+		clear_selection();
+		vc_sel.cons = vc;
+	}
+
+	return vc_do_selection(vc, v->sel_mode, ps, pe);
+}
+
 int set_selection_kernel(struct tiocl_selection *v, struct tty_struct *tty)
 {
 	int ret;
 
 	mutex_lock(&vc_sel.lock);
 	console_lock();
-	ret = __set_selection_kernel(v, tty);
+	ret = vc_selection(vc_cons[fg_console].d, v, tty);
 	console_unlock();
 	mutex_unlock(&vc_sel.lock);
 
