@@ -190,7 +190,6 @@ struct q6v5 {
 
 	phys_addr_t mpss_phys;
 	phys_addr_t mpss_reloc;
-	void *mpss_region;
 	size_t mpss_size;
 
 	struct qcom_rproc_glink glink_subdev;
@@ -1302,18 +1301,6 @@ static int q6v5_stop(struct rproc *rproc)
 	return 0;
 }
 
-static void *q6v5_da_to_va(struct rproc *rproc, u64 da, size_t len)
-{
-	struct q6v5 *qproc = rproc->priv;
-	int offset;
-
-	offset = da - qproc->mpss_reloc;
-	if (offset < 0 || offset + len > qproc->mpss_size)
-		return NULL;
-
-	return qproc->mpss_region + offset;
-}
-
 static int qcom_q6v5_register_dump_segments(struct rproc *rproc,
 					    const struct firmware *mba_fw)
 {
@@ -1361,7 +1348,6 @@ static int qcom_q6v5_register_dump_segments(struct rproc *rproc,
 static const struct rproc_ops q6v5_ops = {
 	.start = q6v5_start,
 	.stop = q6v5_stop,
-	.da_to_va = q6v5_da_to_va,
 	.parse_fw = qcom_q6v5_register_dump_segments,
 	.load = q6v5_load,
 };
