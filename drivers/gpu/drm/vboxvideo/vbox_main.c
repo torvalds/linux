@@ -121,7 +121,8 @@ int vbox_hw_init(struct vbox_private *vbox)
 		return -ENOMEM;
 
 	/* Create guest-heap mem-pool use 2^4 = 16 byte chunks */
-	vbox->guest_pool = gen_pool_create(4, -1);
+	vbox->guest_pool = devm_gen_pool_create(vbox->ddev.dev, 4, -1,
+						"vboxvideo-accel");
 	if (!vbox->guest_pool)
 		return -ENOMEM;
 
@@ -130,12 +131,12 @@ int vbox_hw_init(struct vbox_private *vbox)
 				GUEST_HEAP_OFFSET(vbox),
 				GUEST_HEAP_USABLE_SIZE, -1);
 	if (ret)
-		goto err_destroy_guest_pool;
+		return ret;
 
 	ret = hgsmi_test_query_conf(vbox->guest_pool);
 	if (ret) {
 		DRM_ERROR("vboxvideo: hgsmi_test_query_conf failed\n");
-		goto err_destroy_guest_pool;
+		return ret;
 	}
 
 	/* Reduce available VRAM size to reflect the guest heap. */
@@ -147,30 +148,23 @@ int vbox_hw_init(struct vbox_private *vbox)
 
 	if (!have_hgsmi_mode_hints(vbox)) {
 		ret = -ENOTSUPP;
-		goto err_destroy_guest_pool;
+		return ret;
 	}
 
 	vbox->last_mode_hints = devm_kcalloc(vbox->ddev.dev, vbox->num_crtcs,
 					     sizeof(struct vbva_modehint),
 					     GFP_KERNEL);
-	if (!vbox->last_mode_hints) {
-		ret = -ENOMEM;
-		goto err_destroy_guest_pool;
-	}
+	if (!vbox->last_mode_hints)
+		return -ENOMEM;
 
 	ret = vbox_accel_init(vbox);
 	if (ret)
-		goto err_destroy_guest_pool;
+		return ret;
 
 	return 0;
-
-err_destroy_guest_pool:
-	gen_pool_destroy(vbox->guest_pool);
-	return ret;
 }
 
 void vbox_hw_fini(struct vbox_private *vbox)
 {
 	vbox_accel_fini(vbox);
-	gen_pool_destroy(vbox->guest_pool);
 }
