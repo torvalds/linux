@@ -307,6 +307,7 @@ static void vmx_switch_vmcs(struct kvm_vcpu *vcpu, struct loaded_vmcs *vmcs)
 	vmx_sync_vmcs_host_state(vmx, prev);
 	put_cpu();
 
+	vmx_register_cache_reset(vcpu);
 	vmx_segment_cache_clear(vmx);
 }
 
