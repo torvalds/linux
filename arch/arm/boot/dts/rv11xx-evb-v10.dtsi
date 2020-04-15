@@ -982,6 +982,10 @@
 	status = "okay";
 };
 
+&sfc {
+	status = "okay";
+};
+
 &u2phy0 {
 	status = "okay";
 	u2phy_otg: otg-port {
