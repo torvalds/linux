@@ -120,34 +120,9 @@ int wfx_fwd_probe_req(struct wfx_vif *wvif, bool enable)
 				 wvif->fwd_probe_req);
 }
 
-static int wfx_set_mcast_filter(struct wfx_vif *wvif,
-				    struct wfx_grp_addr_table *fp)
-{
-	int i;
-
-	// Temporary workaround for filters
-	return hif_set_data_filtering(wvif, false, true);
-
-	if (!fp->enable)
-		return hif_set_data_filtering(wvif, false, true);
-
-	for (i = 0; i < fp->num_addresses; i++)
-		hif_set_mac_addr_condition(wvif, i, fp->address_list[i]);
-	hif_set_uc_mc_bc_condition(wvif, 0,
-				   HIF_FILTER_UNICAST | HIF_FILTER_BROADCAST);
-	hif_set_config_data_filter(wvif, true, 0, BIT(1),
-				   BIT(fp->num_addresses) - 1);
-	hif_set_data_filtering(wvif, true, true);
-
-	return 0;
-}
-
 void wfx_update_filtering(struct wfx_vif *wvif)
 {
-	int ret;
-	int bf_enable;
-	int bf_count;
-	int n_filter_ies;
+	int i;
 	const struct hif_ie_table_entry filter_ies[] = {
 		{
 			.ie_id        = WLAN_EID_VENDOR_SPECIFIC,
@@ -168,29 +143,35 @@ void wfx_update_filtering(struct wfx_vif *wvif)
 		}
 	};
 
+	hif_set_rx_filter(wvif, wvif->filter_bssid, wvif->fwd_probe_req);
 	if (wvif->disable_beacon_filter) {
-		bf_enable = 0;
-		bf_count = 1;
-		n_filter_ies = 0;
+		hif_set_beacon_filter_table(wvif, 0, NULL);
+		hif_beacon_filter_control(wvif, 0, 1);
 	} else if (wvif->vif->type != NL80211_IFTYPE_STATION) {
-		bf_enable = HIF_BEACON_FILTER_ENABLE | HIF_BEACON_FILTER_AUTO_ERP;
-		bf_count = 0;
-		n_filter_ies = 2;
+		hif_set_beacon_filter_table(wvif, 2, filter_ies);
+		hif_beacon_filter_control(wvif, HIF_BEACON_FILTER_ENABLE |
+						HIF_BEACON_FILTER_AUTO_ERP, 0);
 	} else {
-		bf_enable = HIF_BEACON_FILTER_ENABLE;
-		bf_count = 0;
-		n_filter_ies = 3;
+		hif_set_beacon_filter_table(wvif, 3, filter_ies);
+		hif_beacon_filter_control(wvif, HIF_BEACON_FILTER_ENABLE, 0);
 	}
 
-	ret = hif_set_rx_filter(wvif, wvif->filter_bssid, wvif->fwd_probe_req);
-	if (!ret)
-		ret = hif_set_beacon_filter_table(wvif, n_filter_ies, filter_ies);
-	if (!ret)
-		ret = hif_beacon_filter_control(wvif, bf_enable, bf_count);
-	if (!ret)
-		ret = wfx_set_mcast_filter(wvif, &wvif->mcast_filter);
-	if (ret)
-		dev_err(wvif->wdev->dev, "update filtering failed: %d\n", ret);
+	// Temporary workaround for filters
+	hif_set_data_filtering(wvif, false, true);
+	return;
+
+	if (!wvif->mcast_filter.enable) {
+		hif_set_data_filtering(wvif, false, true);
+		return;
+	}
+	for (i = 0; i < wvif->mcast_filter.num_addresses; i++)
+		hif_set_mac_addr_condition(wvif, i,
+					   wvif->mcast_filter.address_list[i]);
+	hif_set_uc_mc_bc_condition(wvif, 0,
+				   HIF_FILTER_UNICAST | HIF_FILTER_BROADCAST);
+	hif_set_config_data_filter(wvif, true, 0, BIT(1),
+				   BIT(wvif->mcast_filter.num_addresses) - 1);
+	hif_set_data_filtering(wvif, true, true);
 }
 
 static void wfx_update_filtering_work(struct work_struct *work)
