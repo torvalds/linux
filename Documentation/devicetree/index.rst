@@ -9,3 +9,4 @@ Open Firmware and Device Tree
 
    usage-model
    writing-schema
+   changesets
