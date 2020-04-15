@@ -1,5 +1,8 @@
+.. SPDX-License-Identifier: GPL-2.0
 
-  Devicetree (DT) ABI
+===================
+Devicetree (DT) ABI
+===================
 
 I. Regarding stable bindings/ABI, we quote from the 2013 ARM mini-summit
    summary document:
