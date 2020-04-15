@@ -194,7 +194,7 @@ static void dwapb_toggle_trigger(struct dwapb_gpio *gpio, unsigned int offs)
 static u32 dwapb_do_irq(struct dwapb_gpio *gpio)
 {
 	unsigned long irq_status;
-	int hwirq;
+	irq_hw_number_t hwirq;
 
 	irq_status = dwapb_read(gpio, GPIO_INTSTATUS);
 	for_each_set_bit(hwirq, &irq_status, 32) {
@@ -230,7 +230,7 @@ static void dwapb_irq_enable(struct irq_data *d)
 
 	spin_lock_irqsave(&gc->bgpio_lock, flags);
 	val = dwapb_read(gpio, GPIO_INTEN);
-	val |= BIT(d->hwirq);
+	val |= BIT(irqd_to_hwirq(d));
 	dwapb_write(gpio, GPIO_INTEN, val);
 	spin_unlock_irqrestore(&gc->bgpio_lock, flags);
 }
@@ -245,7 +245,7 @@ static void dwapb_irq_disable(struct irq_data *d)
 
 	spin_lock_irqsave(&gc->bgpio_lock, flags);
 	val = dwapb_read(gpio, GPIO_INTEN);
-	val &= ~BIT(d->hwirq);
+	val &= ~BIT(irqd_to_hwirq(d));
 	dwapb_write(gpio, GPIO_INTEN, val);
 	spin_unlock_irqrestore(&gc->bgpio_lock, flags);
 }
@@ -255,7 +255,7 @@ static int dwapb_irq_set_type(struct irq_data *d, u32 type)
 	struct irq_chip_generic *igc = irq_data_get_irq_chip_data(d);
 	struct dwapb_gpio *gpio = igc->private;
 	struct gpio_chip *gc = &gpio->ports[0].gc;
-	int bit = d->hwirq;
+	irq_hw_number_t bit = irqd_to_hwirq(d);
 	unsigned long level, polarity, flags;
 
 	if (type & ~(IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING |
@@ -305,11 +305,12 @@ static int dwapb_irq_set_wake(struct irq_data *d, unsigned int enable)
 	struct irq_chip_generic *igc = irq_data_get_irq_chip_data(d);
 	struct dwapb_gpio *gpio = igc->private;
 	struct dwapb_context *ctx = gpio->ports[0].ctx;
+	irq_hw_number_t bit = irqd_to_hwirq(d);
 
 	if (enable)
-		ctx->wake_en |= BIT(d->hwirq);
+		ctx->wake_en |= BIT(bit);
 	else
-		ctx->wake_en &= ~BIT(d->hwirq);
+		ctx->wake_en &= ~BIT(bit);
 
 	return 0;
 }
@@ -365,8 +366,9 @@ static void dwapb_configure_irqs(struct dwapb_gpio *gpio,
 	struct gpio_chip *gc = &port->gc;
 	struct fwnode_handle  *fwnode = pp->fwnode;
 	struct irq_chip_generic	*irq_gc = NULL;
-	unsigned int hwirq, ngpio = gc->ngpio;
+	unsigned int ngpio = gc->ngpio;
 	struct irq_chip_type *ct;
+	irq_hw_number_t hwirq;
 	int err, i;
 
 	gpio->domain = irq_domain_create_linear(fwnode, ngpio,
