@@ -33,6 +33,8 @@ struct tidss_device {
 	struct drm_atomic_state *saved_state;
 };
 
+#define to_tidss(__dev) container_of(__dev, struct tidss_device, ddev)
+
 int tidss_runtime_get(struct tidss_device *tidss);
 void tidss_runtime_put(struct tidss_device *tidss);
 
