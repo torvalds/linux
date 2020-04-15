@@ -1,4 +1,8 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+============================================================
 DOs and DON'Ts for designing and writing Devicetree bindings
+============================================================
 
 This is a list of common review feedback items focused on binding design. With
 every rule, there are exceptions and bindings have many gray areas.
@@ -8,6 +12,7 @@ Documentation/devicetree/bindings/submitting-patches.rst
 
 
 Overall design
+==============
 
 - DO attempt to make bindings complete even if a driver doesn't support some
   features. For example, if a device has an interrupt, then include the
@@ -32,6 +37,7 @@ Overall design
 
 
 Properties
+==========
 
 - DO make 'compatible' properties specific. DON'T use wildcards in compatible
   strings. DO use fallback compatibles when devices are the same as or a subset
@@ -53,6 +59,7 @@ Properties
 
 
 Board/SoC .dts Files
+====================
 
 - DO put all MMIO devices under a bus node and not at the top-level.
 

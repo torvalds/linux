@@ -9,3 +9,4 @@ Device Tree
 
    ABI
    submitting-patches
+   writing-bindings
