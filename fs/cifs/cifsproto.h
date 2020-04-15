@@ -45,25 +45,25 @@ extern int smb_send(struct TCP_Server_Info *, struct smb_hdr *,
 			unsigned int /* length */);
 extern unsigned int _get_xid(void);
 extern void _free_xid(unsigned int);
-#define get_xid()						\
-({								\
+#define get_xid()							\
+({									\
 	unsigned int __xid = _get_xid();				\
-	cifs_dbg(FYI, "CIFS VFS: in %s as Xid: %u with uid: %d\n",	\
+	cifs_dbg(FYI, "VFS: in %s as Xid: %u with uid: %d\n",		\
 		 __func__, __xid,					\
 		 from_kuid(&init_user_ns, current_fsuid()));		\
-	trace_smb3_enter(__xid, __func__);			\
-	__xid;							\
+	trace_smb3_enter(__xid, __func__);				\
+	__xid;								\
 })
 
-#define free_xid(curr_xid)					\
-do {								\
-	_free_xid(curr_xid);					\
-	cifs_dbg(FYI, "CIFS VFS: leaving %s (xid = %u) rc = %d\n",	\
-		 __func__, curr_xid, (int)rc);			\
-	if (rc)							\
+#define free_xid(curr_xid)						\
+do {									\
+	_free_xid(curr_xid);						\
+	cifs_dbg(FYI, "VFS: leaving %s (xid = %u) rc = %d\n",		\
+		 __func__, curr_xid, (int)rc);				\
+	if (rc)								\
 		trace_smb3_exit_err(curr_xid, __func__, (int)rc);	\
-	else							\
-		trace_smb3_exit_done(curr_xid, __func__);	\
+	else								\
+		trace_smb3_exit_done(curr_xid, __func__);		\
 } while (0)
 extern int init_cifs_idmap(void);
 extern void exit_cifs_idmap(void);

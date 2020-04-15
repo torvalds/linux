@@ -1155,7 +1155,7 @@ struct inode *cifs_root_iget(struct super_block *sb)
 		/* some servers mistakenly claim POSIX support */
 		if (rc != -EOPNOTSUPP)
 			goto iget_no_retry;
-		cifs_dbg(VFS, "server does not support POSIX extensions");
+		cifs_dbg(VFS, "server does not support POSIX extensions\n");
 		tcon->unix_ext = false;
 	}
 
@@ -2010,7 +2010,7 @@ cifs_invalidate_mapping(struct inode *inode)
 	if (inode->i_mapping && inode->i_mapping->nrpages != 0) {
 		rc = invalidate_inode_pages2(inode->i_mapping);
 		if (rc)
-			cifs_dbg(VFS, "%s: could not invalidate inode %p\n",
+			cifs_dbg(VFS, "%s: Could not invalidate inode %p\n",
 				 __func__, inode);
 	}
 

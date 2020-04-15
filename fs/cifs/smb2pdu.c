@@ -334,8 +334,8 @@ smb2_reconnect(__le16 smb2_command, struct cifs_tcon *tcon)
 						      (server->tcpStatus != CifsNeedReconnect),
 						      10 * HZ);
 		if (rc < 0) {
-			cifs_dbg(FYI, "%s: aborting reconnect due to a received"
-				 " signal by the process\n", __func__);
+			cifs_dbg(FYI, "%s: aborting reconnect due to a received signal by the process\n",
+				 __func__);
 			return -ERESTARTSYS;
 		}
 
@@ -404,7 +404,7 @@ smb2_reconnect(__le16 smb2_command, struct cifs_tcon *tcon)
 	cifs_dbg(FYI, "reconnect tcon rc = %d\n", rc);
 	if (rc) {
 		/* If sess reconnected but tcon didn't, something strange ... */
-		printk_once(KERN_WARNING "reconnect tcon failed rc = %d\n", rc);
+		pr_warn_once("reconnect tcon failed rc = %d\n", rc);
 		goto out;
 	}
 
@@ -646,13 +646,13 @@ static void decode_preauth_context(struct smb2_preauth_neg_context *ctxt)
 
 	/* If invalid preauth context warn but use what we requested, SHA-512 */
 	if (len < MIN_PREAUTH_CTXT_DATA_LEN) {
-		printk_once(KERN_WARNING "server sent bad preauth context\n");
+		pr_warn_once("server sent bad preauth context\n");
 		return;
 	}
 	if (le16_to_cpu(ctxt->HashAlgorithmCount) != 1)
-		printk_once(KERN_WARNING "illegal SMB3 hash algorithm count\n");
+		pr_warn_once("Invalid SMB3 hash algorithm count\n");
 	if (ctxt->HashAlgorithms != SMB2_PREAUTH_INTEGRITY_SHA512)
-		printk_once(KERN_WARNING "unknown SMB3 hash algorithm\n");
+		pr_warn_once("unknown SMB3 hash algorithm\n");
 }
 
 static void decode_compress_ctx(struct TCP_Server_Info *server,
@@ -662,15 +662,15 @@ static void decode_compress_ctx(struct TCP_Server_Info *server,
 
 	/* sizeof compress context is a one element compression capbility struct */
 	if (len < 10) {
-		printk_once(KERN_WARNING "server sent bad compression cntxt\n");
+		pr_warn_once("server sent bad compression cntxt\n");
 		return;
 	}
 	if (le16_to_cpu(ctxt->CompressionAlgorithmCount) != 1) {
-		printk_once(KERN_WARNING "illegal SMB3 compress algorithm count\n");
+		pr_warn_once("Invalid SMB3 compress algorithm count\n");
 		return;
 	}
 	if (le16_to_cpu(ctxt->CompressionAlgorithms[0]) > 3) {
-		printk_once(KERN_WARNING "unknown compression algorithm\n");
+		pr_warn_once("unknown compression algorithm\n");
 		return;
 	}
 	server->compress_algorithm = ctxt->CompressionAlgorithms[0];
@@ -683,18 +683,18 @@ static int decode_encrypt_ctx(struct TCP_Server_Info *server,
 
 	cifs_dbg(FYI, "decode SMB3.11 encryption neg context of len %d\n", len);
 	if (len < MIN_ENCRYPT_CTXT_DATA_LEN) {
-		printk_once(KERN_WARNING "server sent bad crypto ctxt len\n");
+		pr_warn_once("server sent bad crypto ctxt len\n");
 		return -EINVAL;
 	}
 
 	if (le16_to_cpu(ctxt->CipherCount) != 1) {
-		printk_once(KERN_WARNING "illegal SMB3.11 cipher count\n");
+		pr_warn_once("Invalid SMB3.11 cipher count\n");
 		return -EINVAL;
 	}
 	cifs_dbg(FYI, "SMB311 cipher type:%d\n", le16_to_cpu(ctxt->Ciphers[0]));
 	if ((ctxt->Ciphers[0] != SMB2_ENCRYPTION_AES128_CCM) &&
 	    (ctxt->Ciphers[0] != SMB2_ENCRYPTION_AES128_GCM)) {
-		printk_once(KERN_WARNING "invalid SMB3.11 cipher returned\n");
+		pr_warn_once("Invalid SMB3.11 cipher returned\n");
 		return -EINVAL;
 	}
 	server->cipher_type = ctxt->Ciphers[0];
@@ -794,7 +794,7 @@ create_posix_buf(umode_t mode)
 	buf->Name[14] = 0xCD;
 	buf->Name[15] = 0x7C;
 	buf->Mode = cpu_to_le32(mode);
-	cifs_dbg(FYI, "mode on posix create 0%o", mode);
+	cifs_dbg(FYI, "mode on posix create 0%o\n", mode);
 	return buf;
 }
 
@@ -806,7 +806,7 @@ add_posix_context(struct kvec *iov, unsigned int *num_iovec, umode_t mode)
 
 	iov[num].iov_base = create_posix_buf(mode);
 	if (mode == ACL_NO_MODE)
-		cifs_dbg(FYI, "illegal mode\n");
+		cifs_dbg(FYI, "Invalid mode\n");
 	if (iov[num].iov_base == NULL)
 		return -ENOMEM;
 	iov[num].iov_len = sizeof(struct create_posix);
@@ -924,9 +924,7 @@ SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 	 * cifs_stats_inc(&tcon->stats.smb2_stats.smb2_com_fail[SMB2...]);
 	 */
 	if (rc == -EOPNOTSUPP) {
-		cifs_server_dbg(VFS, "Dialect not supported by server. Consider "
-			"specifying vers=1.0 or vers=2.0 on mount for accessing"
-			" older servers\n");
+		cifs_server_dbg(VFS, "Dialect not supported by server. Consider  specifying vers=1.0 or vers=2.0 on mount for accessing older servers\n");
 		goto neg_exit;
 	} else if (rc != 0)
 		goto neg_exit;
@@ -959,8 +957,8 @@ SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 	} else if (le16_to_cpu(rsp->DialectRevision) !=
 				server->vals->protocol_id) {
 		/* if requested single dialect ensure returned dialect matched */
-		cifs_server_dbg(VFS, "Illegal 0x%x dialect returned: not requested\n",
-			le16_to_cpu(rsp->DialectRevision));
+		cifs_server_dbg(VFS, "Invalid 0x%x dialect returned: not requested\n",
+				le16_to_cpu(rsp->DialectRevision));
 		return -EIO;
 	}
 
@@ -977,8 +975,8 @@ SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 	else if (rsp->DialectRevision == cpu_to_le16(SMB311_PROT_ID))
 		cifs_dbg(FYI, "negotiated smb3.1.1 dialect\n");
 	else {
-		cifs_server_dbg(VFS, "Illegal dialect returned by server 0x%x\n",
-			 le16_to_cpu(rsp->DialectRevision));
+		cifs_server_dbg(VFS, "Invalid dialect returned by server 0x%x\n",
+				le16_to_cpu(rsp->DialectRevision));
 		rc = -EIO;
 		goto neg_exit;
 	}
@@ -1136,15 +1134,16 @@ int smb3_validate_negotiate(const unsigned int xid, struct cifs_tcon *tcon)
 		rc = 0;
 		goto out_free_inbuf;
 	} else if (rc != 0) {
-		cifs_tcon_dbg(VFS, "validate protocol negotiate failed: %d\n", rc);
+		cifs_tcon_dbg(VFS, "validate protocol negotiate failed: %d\n",
+			      rc);
 		rc = -EIO;
 		goto out_free_inbuf;
 	}
 
 	rc = -EIO;
 	if (rsplen != sizeof(*pneg_rsp)) {
-		cifs_tcon_dbg(VFS, "invalid protocol negotiate response size: %d\n",
-			 rsplen);
+		cifs_tcon_dbg(VFS, "Invalid protocol negotiate response size: %d\n",
+			      rsplen);
 
 		/* relax check since Mac returns max bufsize allowed on ioctl */
 		if (rsplen > CIFSMaxBufSize || rsplen < sizeof(*pneg_rsp))
@@ -1377,9 +1376,8 @@ SMB2_auth_kerberos(struct SMB2_sess_data *sess_data)
 	 * sending us a response in an expected form
 	 */
 	if (msg->version != CIFS_SPNEGO_UPCALL_VERSION) {
-		cifs_dbg(VFS,
-			  "bad cifs.upcall version. Expected %d got %d",
-			  CIFS_SPNEGO_UPCALL_VERSION, msg->version);
+		cifs_dbg(VFS, "bad cifs.upcall version. Expected %d got %d\n",
+			 CIFS_SPNEGO_UPCALL_VERSION, msg->version);
 		rc = -EKEYREJECTED;
 		goto out_put_spnego_key;
 	}
@@ -1389,8 +1387,7 @@ SMB2_auth_kerberos(struct SMB2_sess_data *sess_data)
 		ses->auth_key.response = kmemdup(msg->data, msg->sesskey_len,
 						 GFP_KERNEL);
 		if (!ses->auth_key.response) {
-			cifs_dbg(VFS,
-				 "Kerberos can't allocate (%u bytes) memory",
+			cifs_dbg(VFS, "Kerberos can't allocate (%u bytes) memory\n",
 				 msg->sesskey_len);
 			rc = -ENOMEM;
 			goto out_put_spnego_key;
@@ -1604,8 +1601,7 @@ SMB2_select_sec(struct cifs_ses *ses, struct SMB2_sess_data *sess_data)
 	type = smb2_select_sectype(cifs_ses_server(ses), ses->sectype);
 	cifs_dbg(FYI, "sess setup type %d\n", type);
 	if (type == Unspecified) {
-		cifs_dbg(VFS,
-			"Unable to select appropriate authentication method!");
+		cifs_dbg(VFS, "Unable to select appropriate authentication method!\n");
 		return -EINVAL;
 	}
 
@@ -2832,8 +2828,8 @@ SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms, __le16 *path,
 		trace_smb3_open_err(xid, tcon->tid, ses->Suid,
 				    oparms->create_options, oparms->desired_access, rc);
 		if (rc == -EREMCHG) {
-			printk_once(KERN_WARNING "server share %s deleted\n",
-				    tcon->treeName);
+			pr_warn_once("server share %s deleted\n",
+				     tcon->treeName);
 			tcon->need_reconnect = true;
 		}
 		goto creat_exit;
@@ -3245,7 +3241,7 @@ smb2_validate_iov(unsigned int offset, unsigned int buffer_length,
 	}
 
 	if ((begin_of_buf > end_of_smb) || (end_of_buf > end_of_smb)) {
-		cifs_dbg(VFS, "illegal server response, bad offset to data\n");
+		cifs_dbg(VFS, "Invalid server response, bad offset to data\n");
 		return -EINVAL;
 	}
 
@@ -4128,8 +4124,8 @@ smb2_writev_callback(struct mid_q_entry *mid)
 				     tcon->tid, tcon->ses->Suid, wdata->offset,
 				     wdata->bytes, wdata->result);
 		if (wdata->result == -ENOSPC)
-			printk_once(KERN_WARNING "Out of space writing to %s\n",
-				    tcon->treeName);
+			pr_warn_once("Out of space writing to %s\n",
+				     tcon->treeName);
 	} else
 		trace_smb3_write_done(0 /* no xid */,
 				      wdata->cfile->fid.persistent_fid,
@@ -4652,7 +4648,7 @@ smb2_parse_query_directory(struct cifs_tcon *tcon,
 	else if (resp_buftype == CIFS_SMALL_BUFFER)
 		srch_inf->smallBuf = true;
 	else
-		cifs_tcon_dbg(VFS, "illegal search buffer type\n");
+		cifs_tcon_dbg(VFS, "Invalid search buffer type\n");
 
 	return 0;
 }

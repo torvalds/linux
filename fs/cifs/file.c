@@ -857,7 +857,7 @@ cifs_reopen_persistent_handles(struct cifs_tcon *tcon)
 
 	tcon->need_reopen_files = false;
 
-	cifs_dbg(FYI, "Reopen persistent handles");
+	cifs_dbg(FYI, "Reopen persistent handles\n");
 	INIT_LIST_HEAD(&tmp_list);
 
 	/* list all files open on tree connection, reopen resilient handles  */
@@ -2056,7 +2056,7 @@ find_writable_file(struct cifsInodeInfo *cifs_inode, int flags)
 
 	rc = cifs_get_writable_file(cifs_inode, flags, &cfile);
 	if (rc)
-		cifs_dbg(FYI, "couldn't find writable handle rc=%d", rc);
+		cifs_dbg(FYI, "Couldn't find writable handle rc=%d\n", rc);
 
 	return cfile;
 }
@@ -2923,11 +2923,9 @@ cifs_write_from_iter(loff_t offset, size_t len, struct iov_iter *from,
 				from, &pagevec, cur_len, &start);
 			if (result < 0) {
 				cifs_dbg(VFS,
-					"direct_writev couldn't get user pages "
-					"(rc=%zd) iter type %d iov_offset %zd "
-					"count %zd\n",
-					result, iov_iter_type(from),
-					from->iov_offset, from->count);
+					 "direct_writev couldn't get user pages (rc=%zd) iter type %d iov_offset %zd count %zd\n",
+					 result, iov_iter_type(from),
+					 from->iov_offset, from->count);
 				dump_stack();
 
 				rc = result;
@@ -3654,12 +3652,10 @@ cifs_send_async_read(loff_t offset, size_t len, struct cifsFileInfo *open_file,
 					cur_len, &start);
 			if (result < 0) {
 				cifs_dbg(VFS,
-					"couldn't get user pages (rc=%zd)"
-					" iter type %d"
-					" iov_offset %zd count %zd\n",
-					result, iov_iter_type(&direct_iov),
-					direct_iov.iov_offset,
-					direct_iov.count);
+					 "Couldn't get user pages (rc=%zd) iter type %d iov_offset %zd count %zd\n",
+					 result, iov_iter_type(&direct_iov),
+					 direct_iov.iov_offset,
+					 direct_iov.count);
 				dump_stack();
 
 				rc = result;
@@ -4828,7 +4824,7 @@ static int cifs_swap_activate(struct swap_info_struct *sis,
 	}
 	*span = sis->pages;
 
-	printk_once(KERN_WARNING "Swap support over SMB3 is experimental\n");
+	pr_warn_once("Swap support over SMB3 is experimental\n");
 
 	/*
 	 * TODO: consider adding ACL (or documenting how) to prevent other

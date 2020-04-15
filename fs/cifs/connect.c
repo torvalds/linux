@@ -879,8 +879,7 @@ dequeue_mid(struct mid_q_entry *mid, bool malformed)
 	 * function has finished processing it is a bug.
 	 */
 	if (mid->mid_flags & MID_DELETED)
-		printk_once(KERN_WARNING
-			    "trying to dequeue a deleted mid\n");
+		pr_warn_once("trying to dequeue a deleted mid\n");
 	else {
 		list_del_init(&mid->qhead);
 		mid->mid_flags |= MID_DELETED;
@@ -1229,9 +1228,8 @@ next_pdu:
 				smb2_add_credits_from_hdr(bufs[i], server);
 				cifs_dbg(FYI, "Received oplock break\n");
 			} else {
-				cifs_server_dbg(VFS, "No task to wake, unknown frame "
-					 "received! NumMids %d\n",
-					 atomic_read(&midCount));
+				cifs_server_dbg(VFS, "No task to wake, unknown frame received! NumMids %d\n",
+						atomic_read(&midCount));
 				cifs_dump_mem("Received Data is: ", bufs[i],
 					      HEADER_SIZE(server));
 				smb2_add_credits_from_hdr(bufs[i], server);
@@ -1476,9 +1474,7 @@ cifs_parse_smb_version(char *value, struct smb_vol *vol, bool is_smb3)
 			cifs_dbg(VFS, "vers=1.0 (cifs) not permitted when mounting with smb3\n");
 			return 1;
 		}
-		cifs_dbg(VFS, "Use of the less secure dialect vers=1.0 "
-			   "is not recommended unless required for "
-			   "access to very old servers\n");
+		cifs_dbg(VFS, "Use of the less secure dialect vers=1.0 is not recommended unless required for access to very old servers\n");
 		vol->ops = &smb1_operations;
 		vol->vals = &smb1_values;
 		break;
@@ -1545,7 +1541,7 @@ cifs_parse_devname(const char *devname, struct smb_vol *vol)
 	size_t len;
 
 	if (unlikely(!devname || !*devname)) {
-		cifs_dbg(VFS, "Device name not specified.\n");
+		cifs_dbg(VFS, "Device name not specified\n");
 		return -EINVAL;
 	}
 
@@ -1695,13 +1691,13 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 	case 0:
 		break;
 	case -ENOMEM:
-		cifs_dbg(VFS, "Unable to allocate memory for devname.\n");
+		cifs_dbg(VFS, "Unable to allocate memory for devname\n");
 		goto cifs_parse_mount_err;
 	case -EINVAL:
-		cifs_dbg(VFS, "Malformed UNC in devname.\n");
+		cifs_dbg(VFS, "Malformed UNC in devname\n");
 		goto cifs_parse_mount_err;
 	default:
-		cifs_dbg(VFS, "Unknown error parsing devname.\n");
+		cifs_dbg(VFS, "Unknown error parsing devname\n");
 		goto cifs_parse_mount_err;
 	}
 
@@ -1912,7 +1908,7 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			vol->seal = 1;
 			break;
 		case Opt_noac:
-			pr_warn("CIFS: Mount option noac not supported. Instead set /proc/fs/cifs/LookupCacheEnabled to 0\n");
+			pr_warn("Mount option noac not supported. Instead set /proc/fs/cifs/LookupCacheEnabled to 0\n");
 			break;
 		case Opt_fsc:
 #ifndef CONFIG_CIFS_FSCACHE
@@ -2159,7 +2155,7 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 
 			if (strnlen(string, CIFS_MAX_USERNAME_LEN) >
 							CIFS_MAX_USERNAME_LEN) {
-				pr_warn("CIFS: username too long\n");
+				pr_warn("username too long\n");
 				goto cifs_parse_mount_err;
 			}
 
@@ -2225,7 +2221,7 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			temp_len = strlen(value);
 			vol->password = kzalloc(temp_len+1, GFP_KERNEL);
 			if (vol->password == NULL) {
-				pr_warn("CIFS: no memory for password\n");
+				pr_warn("no memory for password\n");
 				goto cifs_parse_mount_err;
 			}
 
@@ -2249,7 +2245,7 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 
 			if (!cifs_convert_address(dstaddr, string,
 					strlen(string))) {
-				pr_err("CIFS: bad ip= option (%s).\n", string);
+				pr_err("bad ip= option (%s)\n", string);
 				goto cifs_parse_mount_err;
 			}
 			got_ip = true;
@@ -2261,14 +2257,14 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 
 			if (strnlen(string, CIFS_MAX_DOMAINNAME_LEN)
 					== CIFS_MAX_DOMAINNAME_LEN) {
-				pr_warn("CIFS: domain name too long\n");
+				pr_warn("domain name too long\n");
 				goto cifs_parse_mount_err;
 			}
 
 			kfree(vol->domainname);
 			vol->domainname = kstrdup(string, GFP_KERNEL);
 			if (!vol->domainname) {
-				pr_warn("CIFS: no memory for domainname\n");
+				pr_warn("no memory for domainname\n");
 				goto cifs_parse_mount_err;
 			}
 			cifs_dbg(FYI, "Domain name set\n");
@@ -2281,7 +2277,7 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			if (!cifs_convert_address(
 					(struct sockaddr *)&vol->srcaddr,
 					string, strlen(string))) {
-				pr_warn("CIFS: Could not parse srcaddr: %s\n",
+				pr_warn("Could not parse srcaddr: %s\n",
 					string);
 				goto cifs_parse_mount_err;
 			}
@@ -2292,7 +2288,7 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 				goto out_nomem;
 
 			if (strnlen(string, 1024) >= 65) {
-				pr_warn("CIFS: iocharset name too long.\n");
+				pr_warn("iocharset name too long\n");
 				goto cifs_parse_mount_err;
 			}
 
@@ -2301,7 +2297,7 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 				vol->iocharset = kstrdup(string,
 							 GFP_KERNEL);
 				if (!vol->iocharset) {
-					pr_warn("CIFS: no memory for charset\n");
+					pr_warn("no memory for charset\n");
 					goto cifs_parse_mount_err;
 				}
 			}
@@ -2332,7 +2328,7 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			 * set at top of the function
 			 */
 			if (i == RFC1001_NAME_LEN && string[i] != 0)
-				pr_warn("CIFS: netbiosname longer than 15 truncated.\n");
+				pr_warn("netbiosname longer than 15 truncated\n");
 			break;
 		case Opt_servern:
 			/* servernetbiosname specified override *SMBSERVER */
@@ -2358,7 +2354,7 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			/* The string has 16th byte zero still from
 			   set at top of the function  */
 			if (i == RFC1001_NAME_LEN && string[i] != 0)
-				pr_warn("CIFS: server netbiosname longer than 15 truncated.\n");
+				pr_warn("server netbiosname longer than 15 truncated\n");
 			break;
 		case Opt_ver:
 			/* version of mount userspace tools, not dialect */
@@ -2369,17 +2365,15 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			/* If interface changes in mount.cifs bump to new ver */
 			if (strncasecmp(string, "1", 1) == 0) {
 				if (strlen(string) > 1) {
-					pr_warn("Bad mount helper ver=%s. Did "
-						"you want SMB1 (CIFS) dialect "
-						"and mean to type vers=1.0 "
-						"instead?\n", string);
+					pr_warn("Bad mount helper ver=%s. Did you want SMB1 (CIFS) dialect and mean to type vers=1.0 instead?\n",
+						string);
 					goto cifs_parse_mount_err;
 				}
 				/* This is the default */
 				break;
 			}
 			/* For all other value, error */
-			pr_warn("CIFS: Invalid mount helper version specified\n");
+			pr_warn("Invalid mount helper version specified\n");
 			goto cifs_parse_mount_err;
 		case Opt_vers:
 			/* protocol version (dialect) */
@@ -2422,7 +2416,7 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 	}
 
 	if (!sloppy && invalid) {
-		pr_err("CIFS: Unknown mount option \"%s\"\n", invalid);
+		pr_err("Unknown mount option \"%s\"\n", invalid);
 		goto cifs_parse_mount_err;
 	}
 
@@ -2458,7 +2452,7 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 		slash = strchr(&vol->UNC[2], '\\');
 		len = slash - &vol->UNC[2];
 		if (!cifs_convert_address(dstaddr, &vol->UNC[2], len)) {
-			pr_err("Unable to determine destination address.\n");
+			pr_err("Unable to determine destination address\n");
 			goto cifs_parse_mount_err;
 		}
 	}
@@ -2469,20 +2463,15 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 	if (uid_specified)
 		vol->override_uid = override_uid;
 	else if (override_uid == 1)
-		pr_notice("CIFS: ignoring forceuid mount option specified with no uid= option.\n");
+		pr_notice("ignoring forceuid mount option specified with no uid= option\n");
 
 	if (gid_specified)
 		vol->override_gid = override_gid;
 	else if (override_gid == 1)
-		pr_notice("CIFS: ignoring forcegid mount option specified with no gid= option.\n");
+		pr_notice("ignoring forcegid mount option specified with no gid= option\n");
 
 	if (got_version == false)
-		pr_warn_once("No dialect specified on mount. Default has changed"
-			" to a more secure dialect, SMB2.1 or later (e.g. "
-			"SMB3.1.1), from CIFS (SMB1). To use the less secure "
-			"SMB1 dialect to access old servers which do not "
-			"support SMB3.1.1 (or even SMB3 or SMB2.1) specify "
-			"vers=1.0 on mount.\n");
+		pr_warn_once("No dialect specified on mount. Default has changed to a more secure dialect, SMB2.1 or later (e.g. SMB3.1.1), from CIFS (SMB1). To use the less secure SMB1 dialect to access old servers which do not support SMB3.1.1 (or even SMB3 or SMB2.1) specify vers=1.0 on mount.\n");
 
 	kfree(mountdata_copy);
 	return 0;
@@ -3200,8 +3189,8 @@ cifs_set_cifscreds(struct smb_vol *vol, struct cifs_ses *ses)
 					   strlen(ses->domainName),
 					   GFP_KERNEL);
 		if (!vol->domainname) {
-			cifs_dbg(FYI, "Unable to allocate %zd bytes for "
-				 "domain\n", len);
+			cifs_dbg(FYI, "Unable to allocate %zd bytes for domain\n",
+				 len);
 			rc = -ENOMEM;
 			kfree(vol->username);
 			vol->username = NULL;
@@ -3524,10 +3513,9 @@ cifs_get_tcon(struct cifs_ses *ses, struct smb_vol *volume_info)
 	if (volume_info->linux_ext) {
 		if (ses->server->posix_ext_supported) {
 			tcon->posix_extensions = true;
-			printk_once(KERN_WARNING
-				"SMB3.11 POSIX Extensions are experimental\n");
+			pr_warn_once("SMB3.11 POSIX Extensions are experimental\n");
 		} else {
-			cifs_dbg(VFS, "Server does not support mounting with posix SMB3.11 extensions.\n");
+			cifs_dbg(VFS, "Server does not support mounting with posix SMB3.11 extensions\n");
 			rc = -EOPNOTSUPP;
 			goto out_fail;
 		}
@@ -4757,8 +4745,7 @@ static int is_path_remote(struct cifs_sb_info *cifs_sb, struct smb_vol *vol,
 		rc = cifs_are_all_path_components_accessible(server, xid, tcon,
 			cifs_sb, full_path, tcon->Flags & SMB_SHARE_IS_IN_DFS);
 		if (rc != 0) {
-			cifs_server_dbg(VFS, "cannot query dirs between root and final path, "
-				 "enabling CIFS_MOUNT_USE_PREFIX_PATH\n");
+			cifs_server_dbg(VFS, "cannot query dirs between root and final path, enabling CIFS_MOUNT_USE_PREFIX_PATH\n");
 			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_USE_PREFIX_PATH;
 			rc = 0;
 		}
