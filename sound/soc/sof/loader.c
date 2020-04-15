@@ -127,6 +127,20 @@ int snd_sof_fw_parse_ext_data(struct snd_sof_dev *sdev, u32 bar, u32 offset)
 }
 EXPORT_SYMBOL(snd_sof_fw_parse_ext_data);
 
+static int ext_man_get_fw_version(struct snd_sof_dev *sdev,
+				  const struct sof_ext_man_elem_header *hdr)
+{
+	const struct sof_ext_man_fw_version *v;
+
+	v = container_of(hdr, struct sof_ext_man_fw_version, hdr);
+
+	memcpy(&sdev->fw_ready.version, &v->version, sizeof(v->version));
+	sdev->fw_ready.flags = v->flags;
+
+	/* log ABI versions and check FW compatibility */
+	return snd_sof_ipc_valid(sdev);
+}
+
 static ssize_t snd_sof_ext_man_size(const struct firmware *fw)
 {
 	const struct sof_ext_man_header *head = (void *)fw->data;
@@ -201,6 +215,9 @@ static int snd_sof_fw_ext_man_parse(struct snd_sof_dev *sdev,
 
 		/* process structure data */
 		switch (elem_hdr->type) {
+		case SOF_EXT_MAN_ELEM_FW_VERSION:
+			ret = ext_man_get_fw_version(sdev, elem_hdr);
+			break;
 		default:
 			dev_warn(sdev->dev, "warning: unknown sof_ext_man header type %d size 0x%X\n",
 				 elem_hdr->type, elem_hdr->size);
