@@ -310,7 +310,6 @@ static const struct rtc_class_ops mt2712_rtc_ops = {
 
 static int mt2712_rtc_probe(struct platform_device *pdev)
 {
-	struct resource *res;
 	struct mt2712_rtc *mt2712_rtc;
 	int ret;
 
@@ -319,8 +318,7 @@ static int mt2712_rtc_probe(struct platform_device *pdev)
 	if (!mt2712_rtc)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mt2712_rtc->base = devm_ioremap_resource(&pdev->dev, res);
+	mt2712_rtc->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mt2712_rtc->base))
 		return PTR_ERR(mt2712_rtc->base);
 
