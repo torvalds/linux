@@ -327,9 +327,10 @@ static int dwapb_gpio_set_debounce(struct gpio_chip *gc,
 
 	val_deb = dwapb_read(gpio, GPIO_PORTA_DEBOUNCE);
 	if (debounce)
-		dwapb_write(gpio, GPIO_PORTA_DEBOUNCE, val_deb | mask);
+		val_deb |= mask;
 	else
-		dwapb_write(gpio, GPIO_PORTA_DEBOUNCE, val_deb & ~mask);
+		val_deb &= ~mask;
+	dwapb_write(gpio, GPIO_PORTA_DEBOUNCE, val_deb);
 
 	spin_unlock_irqrestore(&gc->bgpio_lock, flags);
 
