@@ -683,18 +683,7 @@ static int dwapb_gpio_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	gpio->flags = 0;
-	if (dev->of_node) {
-		gpio->flags = (uintptr_t)of_device_get_match_data(dev);
-	} else if (has_acpi_companion(dev)) {
-		const struct acpi_device_id *acpi_id;
-
-		acpi_id = acpi_match_device(dwapb_acpi_match, dev);
-		if (acpi_id) {
-			if (acpi_id->driver_data)
-				gpio->flags = acpi_id->driver_data;
-		}
-	}
+	gpio->flags = (uintptr_t)device_get_match_data(dev);
 
 	for (i = 0; i < gpio->nr_ports; i++) {
 		err = dwapb_gpio_add_port(gpio, &pdata->properties[i], i);
