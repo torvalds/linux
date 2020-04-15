@@ -14,7 +14,6 @@
 #include "uapi/drm/v3d_drm.h"
 
 struct clk;
-struct device;
 struct platform_device;
 struct reset_control;
 
@@ -47,7 +46,6 @@ struct v3d_dev {
 	int ver;
 	bool single_irq_line;
 
-	struct device *dev;
 	struct platform_device *pdev;
 	void __iomem *hub_regs;
 	void __iomem *core_regs[3];

@@ -105,7 +105,7 @@ static int v3d_get_param_ioctl(struct drm_device *dev, void *data,
 		if (args->value != 0)
 			return -EINVAL;
 
-		ret = pm_runtime_get_sync(v3d->dev);
+		ret = pm_runtime_get_sync(v3d->drm.dev);
 		if (ret < 0)
 			return ret;
 		if (args->param >= DRM_V3D_PARAM_V3D_CORE0_IDENT0 &&
@@ -114,8 +114,8 @@ static int v3d_get_param_ioctl(struct drm_device *dev, void *data,
 		} else {
 			args->value = V3D_READ(offset);
 		}
-		pm_runtime_mark_last_busy(v3d->dev);
-		pm_runtime_put_autosuspend(v3d->dev);
+		pm_runtime_mark_last_busy(v3d->drm.dev);
+		pm_runtime_put_autosuspend(v3d->drm.dev);
 		return 0;
 	}
 
@@ -237,7 +237,7 @@ map_regs(struct v3d_dev *v3d, void __iomem **regs, const char *name)
 	struct resource *res =
 		platform_get_resource_byname(v3d->pdev, IORESOURCE_MEM, name);
 
-	*regs = devm_ioremap_resource(v3d->dev, res);
+	*regs = devm_ioremap_resource(v3d->drm.dev, res);
 	return PTR_ERR_OR_ZERO(*regs);
 }
 
@@ -255,7 +255,6 @@ static int v3d_platform_drm_probe(struct platform_device *pdev)
 	if (IS_ERR(v3d))
 		return PTR_ERR(v3d);
 
-	v3d->dev = dev;
 	v3d->pdev = pdev;
 	drm = &v3d->drm;
 
@@ -345,7 +344,8 @@ static int v3d_platform_drm_remove(struct platform_device *pdev)
 
 	v3d_gem_destroy(drm);
 
-	dma_free_wc(v3d->dev, 4096, v3d->mmu_scratch, v3d->mmu_scratch_paddr);
+	dma_free_wc(v3d->drm.dev, 4096, v3d->mmu_scratch,
+		    v3d->mmu_scratch_paddr);
 
 	return 0;
 }
