@@ -111,9 +111,9 @@ struct sof_ipc_cc_version {
 	/* reserved for future use */
 	uint32_t reserved[4];
 
-	char name[16]; /* null terminated compiler name */
-	char optim[4]; /* null terminated compiler -O flag value */
-	char desc[]; /* null terminated compiler description */
+	uint8_t name[16]; /* null terminated compiler name */
+	uint8_t optim[4]; /* null terminated compiler -O flag value */
+	uint8_t desc[]; /* null terminated compiler description */
 } __packed;
 
 /* extended data: Probe setup */
