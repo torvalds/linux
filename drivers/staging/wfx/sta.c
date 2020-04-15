@@ -113,13 +113,6 @@ end:
 	mutex_unlock(&wvif->bss_loss_lock);
 }
 
-int wfx_fwd_probe_req(struct wfx_vif *wvif, bool enable)
-{
-	wvif->fwd_probe_req = enable;
-	return hif_set_rx_filter(wvif, wvif->filter_bssid,
-				 wvif->fwd_probe_req);
-}
-
 void wfx_update_filtering(struct wfx_vif *wvif)
 {
 	int i;
@@ -249,9 +242,12 @@ void wfx_configure_filter(struct ieee80211_hw *hw,
 		}
 
 		if (*total_flags & FIF_PROBE_REQ)
-			wfx_fwd_probe_req(wvif, true);
+			wvif->fwd_probe_req = true;
 		else
-			wfx_fwd_probe_req(wvif, false);
+			wvif->fwd_probe_req = false;
+		hif_set_rx_filter(wvif, wvif->filter_bssid,
+				  wvif->fwd_probe_req);
+
 		mutex_unlock(&wvif->scan_lock);
 	}
 	mutex_unlock(&wdev->conf_mutex);
