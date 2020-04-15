@@ -1477,11 +1477,12 @@ static int qpnp_lpg_parse_dt(struct qpnp_lpg_chip *chip)
 		}
 	}
 
-	chip->lut = devm_kmalloc(chip->dev, sizeof(*chip->lut), GFP_KERNEL);
-	if (!chip->lut)
-		return -ENOMEM;
-
 	if (of_find_property(chip->dev->of_node, "nvmem", NULL)) {
+		chip->lut = devm_kmalloc(chip->dev, sizeof(*chip->lut),
+				GFP_KERNEL);
+		if (!chip->lut)
+			return -ENOMEM;
+
 		chip->sdam_nvmem = devm_nvmem_device_get(chip->dev, "ppg_sdam");
 		if (IS_ERR_OR_NULL(chip->sdam_nvmem)) {
 			rc = PTR_ERR(chip->sdam_nvmem);
@@ -1514,13 +1515,19 @@ static int qpnp_lpg_parse_dt(struct qpnp_lpg_chip *chip)
 			return rc;
 		}
 	} else if (lut_is_defined(chip, &addr)) {
-		chip->lut->reg_base = be32_to_cpu(*addr);
-		return qpnp_lpg_parse_pattern_dt(chip, LPG_LUT_COUNT_MAX);
-	}
+		chip->lut = devm_kmalloc(chip->dev, sizeof(*chip->lut),
+				GFP_KERNEL);
+		if (!chip->lut)
+			return -ENOMEM;
 
-	pr_debug("Neither SDAM nor LUT specified\n");
-	devm_kfree(chip->dev, chip->lut);
-	chip->lut = NULL;
+		chip->lut->reg_base = be32_to_cpu(*addr);
+
+		rc = qpnp_lpg_parse_pattern_dt(chip, LPG_LUT_COUNT_MAX);
+		if (rc < 0)
+			return rc;
+	} else {
+		pr_debug("Neither SDAM nor LUT specified\n");
+	}
 
 	return 0;
 }
