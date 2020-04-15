@@ -14,7 +14,7 @@
 #include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/dma/edma.h>
-#include <linux/pci.h>
+#include <linux/dma-mapping.h>
 
 #include "dw-edma-core.h"
 #include "dw-edma-v0-core.h"
@@ -781,7 +781,7 @@ static int dw_edma_irq_request(struct dw_edma_chip *chip,
 
 	if (dw->nr_irqs == 1) {
 		/* Common IRQ shared among all channels */
-		err = request_irq(pci_irq_vector(to_pci_dev(dev), 0),
+		err = request_irq(dw->ops->irq_vector(dev, 0),
 				  dw_edma_interrupt_common,
 				  IRQF_SHARED, dw->name, &dw->irq[0]);
 		if (err) {
@@ -789,7 +789,7 @@ static int dw_edma_irq_request(struct dw_edma_chip *chip,
 			return err;
 		}
 
-		get_cached_msi_msg(pci_irq_vector(to_pci_dev(dev), 0),
+		get_cached_msi_msg(dw->ops->irq_vector(dev, 0),
 				   &dw->irq[0].msi);
 	} else {
 		/* Distribute IRQs equally among all channels */
@@ -804,7 +804,7 @@ static int dw_edma_irq_request(struct dw_edma_chip *chip,
 		dw_edma_add_irq_mask(&rd_mask, *rd_alloc, dw->rd_ch_cnt);
 
 		for (i = 0; i < (*wr_alloc + *rd_alloc); i++) {
-			err = request_irq(pci_irq_vector(to_pci_dev(dev), i),
+			err = request_irq(dw->ops->irq_vector(dev, i),
 					  i < *wr_alloc ?
 						dw_edma_interrupt_write :
 						dw_edma_interrupt_read,
@@ -815,7 +815,7 @@ static int dw_edma_irq_request(struct dw_edma_chip *chip,
 				return err;
 			}
 
-			get_cached_msi_msg(pci_irq_vector(to_pci_dev(dev), i),
+			get_cached_msi_msg(dw->ops->irq_vector(dev, i),
 					   &dw->irq[i].msi);
 		}
 
@@ -827,11 +827,22 @@ static int dw_edma_irq_request(struct dw_edma_chip *chip,
 
 int dw_edma_probe(struct dw_edma_chip *chip)
 {
-	struct device *dev = chip->dev;
-	struct dw_edma *dw = chip->dw;
+	struct device *dev;
+	struct dw_edma *dw;
 	u32 wr_alloc = 0;
 	u32 rd_alloc = 0;
 	int i, err;
+
+	if (!chip)
+		return -EINVAL;
+
+	dev = chip->dev;
+	if (!dev)
+		return -EINVAL;
+
+	dw = chip->dw;
+	if (!dw || !dw->irq || !dw->ops || !dw->ops->irq_vector)
+		return -EINVAL;
 
 	raw_spin_lock_init(&dw->lock);
 
@@ -884,7 +895,7 @@ int dw_edma_probe(struct dw_edma_chip *chip)
 
 err_irq_free:
 	for (i = (dw->nr_irqs - 1); i >= 0; i--)
-		free_irq(pci_irq_vector(to_pci_dev(dev), i), &dw->irq[i]);
+		free_irq(dw->ops->irq_vector(dev, i), &dw->irq[i]);
 
 	dw->nr_irqs = 0;
 
@@ -904,7 +915,7 @@ int dw_edma_remove(struct dw_edma_chip *chip)
 
 	/* Free irqs */
 	for (i = (dw->nr_irqs - 1); i >= 0; i--)
-		free_irq(pci_irq_vector(to_pci_dev(dev), i), &dw->irq[i]);
+		free_irq(dw->ops->irq_vector(dev, i), &dw->irq[i]);
 
 	/* Power management */
 	pm_runtime_disable(dev);
