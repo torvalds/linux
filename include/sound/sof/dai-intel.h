@@ -49,6 +49,9 @@
 /* bclk idle */
 #define SOF_DAI_INTEL_SSP_CLKCTRL_BCLK_IDLE_HIGH	BIT(5)
 
+/* DMIC max. four controllers for eight microphone channels */
+#define SOF_DAI_INTEL_DMIC_NUM_CTRL			4
+
 /* SSP Configuration Request - SOF_IPC_DAI_SSP_CONFIG */
 struct sof_ipc_dai_ssp_params {
 	struct sof_ipc_hdr hdr;
@@ -175,7 +178,8 @@ struct sof_ipc_dai_dmic_params {
 	uint16_t duty_min;	/**< Min. mic clock duty cycle in % (20..80) */
 	uint16_t duty_max;	/**< Max. mic clock duty cycle in % (min..80) */
 
-	uint32_t num_pdm_active; /**< Number of active pdm controllers */
+	uint32_t num_pdm_active; /**< Number of active pdm controllers. */
+				 /**< Range is 1..SOF_DAI_INTEL_DMIC_NUM_CTRL */
 
 	uint32_t wake_up_time;      /**< Time from clock start to data (us) */
 	uint32_t min_clock_on_time; /**< Min. time that clk is kept on (us) */
@@ -184,8 +188,8 @@ struct sof_ipc_dai_dmic_params {
 	/* reserved for future use */
 	uint32_t reserved[5];
 
-	/**< variable number of pdm controller config */
-	struct sof_ipc_dai_dmic_pdm_ctrl pdm[0];
+	/**< PDM controllers configuration */
+	struct sof_ipc_dai_dmic_pdm_ctrl pdm[SOF_DAI_INTEL_DMIC_NUM_CTRL];
 } __packed;
 
 #endif

@@ -2891,18 +2891,13 @@ static int sof_link_dmic_load(struct snd_soc_component *scomp, int index,
 {
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct snd_soc_tplg_private *private = &cfg->priv;
-	struct sof_ipc_dai_config *ipc_config;
 	struct sof_ipc_reply reply;
 	struct sof_ipc_fw_ready *ready = &sdev->fw_ready;
 	struct sof_ipc_fw_version *v = &ready->version;
-	u32 size;
+	size_t size = sizeof(*config);
 	int ret, j;
 
-	/*
-	 * config is only used for the common params in dmic_params structure
-	 * that does not include the PDM controller config array
-	 * Set the common params to 0.
-	 */
+	/* Ensure the entire DMIC config struct is zeros */
 	memset(&config->dmic, 0, sizeof(struct sof_ipc_dai_dmic_params));
 
 	/* get DMIC tokens */
@@ -2916,32 +2911,15 @@ static int sof_link_dmic_load(struct snd_soc_component *scomp, int index,
 	}
 
 	/*
-	 * allocate memory for dmic dai config accounting for the
-	 * variable number of active pdm controllers
-	 * This will be the ipc payload for setting dai config
-	 */
-	size = sizeof(*config) + sizeof(struct sof_ipc_dai_dmic_pdm_ctrl) *
-					config->dmic.num_pdm_active;
-
-	ipc_config = kzalloc(size, GFP_KERNEL);
-	if (!ipc_config)
-		return -ENOMEM;
-
-	/* copy the common dai config and dmic params */
-	memcpy(ipc_config, config, sizeof(*config));
-
-	/*
 	 * alloc memory for private member
 	 * Used to track the pdm config array index currently being parsed
 	 */
 	sdev->private = kzalloc(sizeof(u32), GFP_KERNEL);
-	if (!sdev->private) {
-		kfree(ipc_config);
+	if (!sdev->private)
 		return -ENOMEM;
-	}
 
 	/* get DMIC PDM tokens */
-	ret = sof_parse_tokens(scomp, &ipc_config->dmic.pdm[0], dmic_pdm_tokens,
+	ret = sof_parse_tokens(scomp, &config->dmic.pdm[0], dmic_pdm_tokens,
 			       ARRAY_SIZE(dmic_pdm_tokens), private->array,
 			       le32_to_cpu(private->size));
 	if (ret != 0) {
@@ -2951,44 +2929,42 @@ static int sof_link_dmic_load(struct snd_soc_component *scomp, int index,
 	}
 
 	/* set IPC header size */
-	ipc_config->hdr.size = size;
+	config->hdr.size = size;
 
 	/* debug messages */
 	dev_dbg(scomp->dev, "tplg: config DMIC%d driver version %d\n",
-		ipc_config->dai_index, ipc_config->dmic.driver_ipc_version);
+		config->dai_index, config->dmic.driver_ipc_version);
 	dev_dbg(scomp->dev, "pdmclk_min %d pdm_clkmax %d duty_min %hd\n",
-		ipc_config->dmic.pdmclk_min, ipc_config->dmic.pdmclk_max,
-		ipc_config->dmic.duty_min);
+		config->dmic.pdmclk_min, config->dmic.pdmclk_max,
+		config->dmic.duty_min);
 	dev_dbg(scomp->dev, "duty_max %hd fifo_fs %d num_pdms active %d\n",
-		ipc_config->dmic.duty_max, ipc_config->dmic.fifo_fs,
-		ipc_config->dmic.num_pdm_active);
-	dev_dbg(scomp->dev, "fifo word length %hd\n",
-		ipc_config->dmic.fifo_bits);
+		config->dmic.duty_max, config->dmic.fifo_fs,
+		config->dmic.num_pdm_active);
+	dev_dbg(scomp->dev, "fifo word length %hd\n", config->dmic.fifo_bits);
 
-	for (j = 0; j < ipc_config->dmic.num_pdm_active; j++) {
+	for (j = 0; j < config->dmic.num_pdm_active; j++) {
 		dev_dbg(scomp->dev, "pdm %hd mic a %hd mic b %hd\n",
-			ipc_config->dmic.pdm[j].id,
-			ipc_config->dmic.pdm[j].enable_mic_a,
-			ipc_config->dmic.pdm[j].enable_mic_b);
+			config->dmic.pdm[j].id,
+			config->dmic.pdm[j].enable_mic_a,
+			config->dmic.pdm[j].enable_mic_b);
 		dev_dbg(scomp->dev, "pdm %hd polarity a %hd polarity b %hd\n",
-			ipc_config->dmic.pdm[j].id,
-			ipc_config->dmic.pdm[j].polarity_mic_a,
-			ipc_config->dmic.pdm[j].polarity_mic_b);
+			config->dmic.pdm[j].id,
+			config->dmic.pdm[j].polarity_mic_a,
+			config->dmic.pdm[j].polarity_mic_b);
 		dev_dbg(scomp->dev, "pdm %hd clk_edge %hd skew %hd\n",
-			ipc_config->dmic.pdm[j].id,
-			ipc_config->dmic.pdm[j].clk_edge,
-			ipc_config->dmic.pdm[j].skew);
+			config->dmic.pdm[j].id,
+			config->dmic.pdm[j].clk_edge,
+			config->dmic.pdm[j].skew);
 	}
 
 	if (SOF_ABI_VER(v->major, v->minor, v->micro) < SOF_ABI_VER(3, 0, 1)) {
 		/* this takes care of backwards compatible handling of fifo_bits_b */
-		ipc_config->dmic.reserved_2 = ipc_config->dmic.fifo_bits;
+		config->dmic.reserved_2 = config->dmic.fifo_bits;
 	}
 
 	/* send message to DSP */
-	ret = sof_ipc_tx_message(sdev->ipc,
-				 ipc_config->hdr.cmd, ipc_config, size, &reply,
-				 sizeof(reply));
+	ret = sof_ipc_tx_message(sdev->ipc, config->hdr.cmd, config, size,
+				 &reply, sizeof(reply));
 
 	if (ret < 0) {
 		dev_err(scomp->dev,
@@ -2998,14 +2974,13 @@ static int sof_link_dmic_load(struct snd_soc_component *scomp, int index,
 	}
 
 	/* set config for all DAI's with name matching the link name */
-	ret = sof_set_dai_config(sdev, size, link, ipc_config);
+	ret = sof_set_dai_config(sdev, size, link, config);
 	if (ret < 0)
 		dev_err(scomp->dev, "error: failed to save DAI config for DMIC%d\n",
 			config->dai_index);
 
 err:
 	kfree(sdev->private);
-	kfree(ipc_config);
 
 	return ret;
 }
