@@ -619,7 +619,6 @@ static int ingenic_drm_probe(struct platform_device *pdev)
 	priv->soc_info = soc_info;
 	priv->dev = dev;
 	drm = &priv->drm;
-	drm->dev_private = priv;
 
 	platform_set_drvdata(pdev, priv);
 
