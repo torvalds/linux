@@ -77,7 +77,6 @@ struct wfx_vif {
 	u32			link_id_map;
 
 	bool			after_dtim_tx_allowed;
-	struct wfx_grp_addr_table mcast_filter;
 
 	s8			wep_default_key_id;
 	struct sk_buff		*wep_pending_skb;
@@ -88,6 +87,9 @@ struct wfx_vif {
 
 	struct work_struct	update_tim_work;
 
+	int			filter_mcast_count;
+	u8			filter_mcast_addr[8][ETH_ALEN];
+	bool			filter_mcast;
 	bool			filter_bssid;
 	bool			filter_prbreq;
 	bool			filter_beacon;

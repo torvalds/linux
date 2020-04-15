@@ -28,12 +28,6 @@ struct wfx_hif_event {
 	struct hif_ind_event evt;
 };
 
-struct wfx_grp_addr_table {
-	bool enable;
-	int num_addresses;
-	u8 address_list[8][ETH_ALEN];
-};
-
 struct wfx_sta_priv {
 	int link_id;
 	int vif_id;

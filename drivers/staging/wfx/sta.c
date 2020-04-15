@@ -149,17 +149,16 @@ void wfx_update_filtering(struct wfx_vif *wvif)
 	hif_set_data_filtering(wvif, false, true);
 	return;
 
-	if (!wvif->mcast_filter.enable) {
+	if (!wvif->filter_mcast) {
 		hif_set_data_filtering(wvif, false, true);
 		return;
 	}
-	for (i = 0; i < wvif->mcast_filter.num_addresses; i++)
-		hif_set_mac_addr_condition(wvif, i,
-					   wvif->mcast_filter.address_list[i]);
+	for (i = 0; i < wvif->filter_mcast_count; i++)
+		hif_set_mac_addr_condition(wvif, i, wvif->filter_mcast_addr[i]);
 	hif_set_uc_mc_bc_condition(wvif, 0,
 				   HIF_FILTER_UNICAST | HIF_FILTER_BROADCAST);
 	hif_set_config_data_filter(wvif, true, 0, BIT(1),
-				   BIT(wvif->mcast_filter.num_addresses) - 1);
+				   BIT(wvif->filter_mcast_count) - 1);
 	hif_set_data_filtering(wvif, true, true);
 }
 
@@ -173,18 +172,17 @@ u64 wfx_prepare_multicast(struct ieee80211_hw *hw,
 	int count = netdev_hw_addr_list_count(mc_list);
 
 	while ((wvif = wvif_iterate(wdev, wvif)) != NULL) {
-		memset(&wvif->mcast_filter, 0x00, sizeof(wvif->mcast_filter));
-		if (!count ||
-		    count > ARRAY_SIZE(wvif->mcast_filter.address_list))
+		if (count > ARRAY_SIZE(wvif->filter_mcast_addr)) {
+			wvif->filter_mcast_count = 0;
 			continue;
+		}
+		wvif->filter_mcast_count = count;
 
 		i = 0;
 		netdev_hw_addr_list_for_each(ha, mc_list) {
-			ether_addr_copy(wvif->mcast_filter.address_list[i],
-					ha->addr);
+			ether_addr_copy(wvif->filter_mcast_addr[i], ha->addr);
 			i++;
 		}
-		wvif->mcast_filter.num_addresses = count;
 	}
 
 	return 0;
@@ -220,12 +218,12 @@ void wfx_configure_filter(struct ieee80211_hw *hw,
 			wvif->filter_beacon = true;
 
 		if (*total_flags & FIF_ALLMULTI) {
-			wvif->mcast_filter.enable = false;
-		} else if (!wvif->mcast_filter.num_addresses) {
+			wvif->filter_mcast = false;
+		} else if (!wvif->filter_mcast_count) {
 			dev_dbg(wdev->dev, "disabling unconfigured multicast filter");
-			wvif->mcast_filter.enable = false;
+			wvif->filter_mcast = false;
 		} else {
-			wvif->mcast_filter.enable = true;
+			wvif->filter_mcast = true;
 		}
 		wfx_update_filtering(wvif);
 
