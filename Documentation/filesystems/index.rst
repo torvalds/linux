@@ -69,6 +69,7 @@ Documentation for filesystem implementations.
    f2fs
    gfs2
    gfs2-uevents
+   gfs2-glocks
    hfs
    hfsplus
    hpfs
