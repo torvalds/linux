@@ -46,7 +46,6 @@ struct v3d_dev {
 	int ver;
 	bool single_irq_line;
 
-	struct platform_device *pdev;
 	void __iomem *hub_regs;
 	void __iomem *core_regs[3];
 	void __iomem *bridge_regs;
@@ -127,6 +126,8 @@ v3d_has_csd(struct v3d_dev *v3d)
 {
 	return v3d->ver >= 41;
 }
+
+#define v3d_to_pdev(v3d) to_platform_device((v3d)->drm.dev)
 
 /* The per-fd struct, which tracks the MMU mappings. */
 struct v3d_file_priv {
