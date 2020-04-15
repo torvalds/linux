@@ -52,7 +52,6 @@ static int vbox_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return PTR_ERR(vbox);
 
 	vbox->ddev.pdev = pdev;
-	vbox->ddev.dev_private = vbox;
 	pci_set_drvdata(pdev, vbox);
 	mutex_init(&vbox->hw_mutex);
 
