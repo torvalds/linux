@@ -1227,6 +1227,7 @@ static long gpio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	void __user *ip = (void __user *)arg;
 	struct gpio_desc *desc;
 	__u32 offset;
+	int hwgpio;
 
 	/* We fail any subsequent ioctl():s when the chip is gone */
 	if (!gc)
@@ -1259,13 +1260,19 @@ static long gpio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		if (IS_ERR(desc))
 			return PTR_ERR(desc);
 
+		hwgpio = gpio_chip_hwgpio(desc);
+
+		if (cmd == GPIO_GET_LINEINFO_WATCH_IOCTL &&
+		    test_bit(hwgpio, priv->watched_lines))
+			return -EBUSY;
+
 		gpio_desc_to_lineinfo(desc, &lineinfo);
 
 		if (copy_to_user(ip, &lineinfo, sizeof(lineinfo)))
 			return -EFAULT;
 
 		if (cmd == GPIO_GET_LINEINFO_WATCH_IOCTL)
-			set_bit(gpio_chip_hwgpio(desc), priv->watched_lines);
+			set_bit(hwgpio, priv->watched_lines);
 
 		return 0;
 	} else if (cmd == GPIO_GET_LINEHANDLE_IOCTL) {
@@ -1280,7 +1287,12 @@ static long gpio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		if (IS_ERR(desc))
 			return PTR_ERR(desc);
 
-		clear_bit(gpio_chip_hwgpio(desc), priv->watched_lines);
+		hwgpio = gpio_chip_hwgpio(desc);
+
+		if (!test_bit(hwgpio, priv->watched_lines))
+			return -EBUSY;
+
+		clear_bit(hwgpio, priv->watched_lines);
 		return 0;
 	}
 	return -EINVAL;
