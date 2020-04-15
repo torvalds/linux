@@ -3,7 +3,7 @@ Device Tree Overlay Notes
 
 This document describes the implementation of the in-kernel
 device tree overlay functionality residing in drivers/of/overlay.c and is a
-companion document to Documentation/devicetree/dynamic-resolution-notes.txt[1]
+companion document to Documentation/devicetree/dynamic-resolution-notes.rst[1]
 
 How overlays work
 -----------------
