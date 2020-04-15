@@ -377,7 +377,7 @@ config PPC_HAVE_KUEP
 config PPC_KUEP
 	bool "Kernel Userspace Execution Prevention"
 	depends on PPC_HAVE_KUEP
-	default y
+	default y if !PPC_BOOK3S_32
 	help
 	  Enable support for Kernel Userspace Execution Prevention (KUEP)
 
