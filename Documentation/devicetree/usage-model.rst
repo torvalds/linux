@@ -1,14 +1,18 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+=========================
 Linux and the Device Tree
--------------------------
+=========================
+
 The Linux usage model for device tree data
 
-Author: Grant Likely <grant.likely@secretlab.ca>
+:Author: Grant Likely <grant.likely@secretlab.ca>
 
 This article describes how Linux uses the device tree.  An overview of
 the device tree data format can be found on the device tree usage page
-at devicetree.org[1].
+at devicetree.org\ [1]_.
 
-[1] http://devicetree.org/Device_Tree_Usage
+.. [1] http://devicetree.org/Device_Tree_Usage
 
 The "Open Firmware Device Tree", or simply Device Tree (DT), is a data
 structure and language for describing hardware.  More specifically, it
@@ -57,7 +61,7 @@ Tree (FDT) was created which could be passed to the kernel as a binary
 blob without requiring a real Open Firmware implementation.  U-Boot,
 kexec, and other bootloaders were modified to support both passing a
 Device Tree Binary (dtb) and to modify a dtb at boot time.  DT was
-also added to the PowerPC boot wrapper (arch/powerpc/boot/*) so that
+also added to the PowerPC boot wrapper (``arch/powerpc/boot/*``) so that
 a dtb could be wrapped up with the kernel image to support booting
 existing non-DT aware firmware.
 
@@ -68,7 +72,7 @@ out of mainline (nios) have some level of DT support.
 
 2. Data Model
 -------------
-If you haven't already read the Device Tree Usage[1] page,
+If you haven't already read the Device Tree Usage\ [1]_ page,
 then go read it now.  It's okay, I'll wait....
 
 2.1 High Level View
@@ -88,6 +92,7 @@ duplication and make it easier to support a wide range of hardware
 with a single kernel image.
 
 Linux uses DT data for three major purposes:
+
 1) platform identification,
 2) runtime configuration, and
 3) device population.
@@ -117,7 +122,7 @@ The 'compatible' property contains a sorted list of strings starting
 with the exact name of the machine, followed by an optional list of
 boards it is compatible with sorted from most compatible to least.  For
 example, the root compatible properties for the TI BeagleBoard and its
-successor, the BeagleBoard xM board might look like, respectively:
+successor, the BeagleBoard xM board might look like, respectively::
 
 	compatible = "ti,omap3-beagleboard", "ti,omap3450", "ti,omap3";
 	compatible = "ti,omap3-beagleboard-xm", "ti,omap3450", "ti,omap3";
@@ -183,7 +188,7 @@ configuration data like the kernel parameters string and the location
 of an initrd image.
 
 Most of this data is contained in the /chosen node, and when booting
-Linux it will look something like this:
+Linux it will look something like this::
 
 	chosen {
 		bootargs = "console=ttyS0,115200 loglevel=8";
@@ -251,9 +256,9 @@ platform devices roughly correspond to device nodes at the root of the
 tree and children of simple memory mapped bus nodes.
 
 About now is a good time to lay out an example.  Here is part of the
-device tree for the NVIDIA Tegra board.
+device tree for the NVIDIA Tegra board::
 
-/{
+  /{
 	compatible = "nvidia,harmony", "nvidia,tegra20";
 	#address-cells = <1>;
 	#size-cells = <1>;
@@ -313,7 +318,7 @@ device tree for the NVIDIA Tegra board.
 		i2s-controller = <&i2s1>;
 		i2s-codec = <&wm8903>;
 	};
-};
+  };
 
 At .init_machine() time, Tegra board support code will need to look at
 this DT and decide which nodes to create platform_devices for.
@@ -379,13 +384,13 @@ device tree support code reflects that and makes the above example
 simpler.  The second argument to of_platform_populate() is an
 of_device_id table, and any node that matches an entry in that table
 will also get its child nodes registered.  In the Tegra case, the code
-can look something like this:
+can look something like this::
 
-static void __init harmony_init_machine(void)
-{
+  static void __init harmony_init_machine(void)
+  {
 	/* ... */
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
-}
+  }
 
 "simple-bus" is defined in the Devicetree Specification as a property
 meaning a simple memory mapped bus, so the of_platform_populate() code

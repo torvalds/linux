@@ -7,4 +7,5 @@ Open Firmware and Device Tree
 .. toctree::
    :maxdepth: 1
 
+   usage-model
    writing-schema

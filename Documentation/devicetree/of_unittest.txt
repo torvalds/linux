@@ -11,7 +11,7 @@ architecture.
 
 It is recommended to read the following documents before moving ahead.
 
-[1] Documentation/devicetree/usage-model.txt
+[1] Documentation/devicetree/usage-model.rst
 [2] http://www.devicetree.org/Device_Tree_Usage
 
 OF Selftest has been designed to test the interface (include/linux/of.h)
