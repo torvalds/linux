@@ -4539,19 +4539,20 @@ out:
 	return ret;
 }
 
-static inline enum ib_qp_state to_ib_qp_st(enum hns_roce_v2_qp_state state)
+static int to_ib_qp_st(enum hns_roce_v2_qp_state state)
 {
-	switch (state) {
-	case HNS_ROCE_QP_ST_RST:	return IB_QPS_RESET;
-	case HNS_ROCE_QP_ST_INIT:	return IB_QPS_INIT;
-	case HNS_ROCE_QP_ST_RTR:	return IB_QPS_RTR;
-	case HNS_ROCE_QP_ST_RTS:	return IB_QPS_RTS;
-	case HNS_ROCE_QP_ST_SQ_DRAINING:
-	case HNS_ROCE_QP_ST_SQD:	return IB_QPS_SQD;
-	case HNS_ROCE_QP_ST_SQER:	return IB_QPS_SQE;
-	case HNS_ROCE_QP_ST_ERR:	return IB_QPS_ERR;
-	default:			return -1;
-	}
+	static const enum ib_qp_state map[] = {
+		[HNS_ROCE_QP_ST_RST] = IB_QPS_RESET,
+		[HNS_ROCE_QP_ST_INIT] = IB_QPS_INIT,
+		[HNS_ROCE_QP_ST_RTR] = IB_QPS_RTR,
+		[HNS_ROCE_QP_ST_RTS] = IB_QPS_RTS,
+		[HNS_ROCE_QP_ST_SQD] = IB_QPS_SQD,
+		[HNS_ROCE_QP_ST_SQER] = IB_QPS_SQE,
+		[HNS_ROCE_QP_ST_ERR] = IB_QPS_ERR,
+		[HNS_ROCE_QP_ST_SQ_DRAINING] = IB_QPS_SQD
+	};
+
+	return (state < ARRAY_SIZE(map)) ? map[state] : -1;
 }
 
 static int hns_roce_v2_query_qpc(struct hns_roce_dev *hr_dev,
