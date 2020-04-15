@@ -3757,6 +3757,22 @@ intel_disable_sagv(struct drm_i915_private *dev_priv)
 	return 0;
 }
 
+void intel_sagv_pre_plane_update(struct intel_atomic_state *state)
+{
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+
+	if (!intel_can_enable_sagv(state))
+		intel_disable_sagv(dev_priv);
+}
+
+void intel_sagv_post_plane_update(struct intel_atomic_state *state)
+{
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+
+	if (intel_can_enable_sagv(state))
+		intel_enable_sagv(dev_priv);
+}
+
 static bool intel_crtc_can_enable_sagv(const struct intel_crtc_state *crtc_state)
 {
 	struct drm_device *dev = crtc_state->uapi.crtc->dev;

@@ -15354,12 +15354,7 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 
 		intel_set_cdclk_pre_plane_update(state);
 
-		/*
-		 * SKL workaround: bspec recommends we disable the SAGV when we
-		 * have more then one pipe enabled
-		 */
-		if (!intel_can_enable_sagv(state))
-			intel_disable_sagv(dev_priv);
+		intel_sagv_pre_plane_update(state);
 
 		intel_modeset_verify_disabled(dev_priv, state);
 	}
@@ -15456,11 +15451,11 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 	intel_check_cpu_fifo_underruns(dev_priv);
 	intel_check_pch_fifo_underruns(dev_priv);
 
-	if (state->modeset)
+	if (state->modeset) {
 		intel_verify_planes(state);
 
-	if (state->modeset && intel_can_enable_sagv(state))
-		intel_enable_sagv(dev_priv);
+		intel_sagv_post_plane_update(state);
+	}
 
 	drm_atomic_helper_commit_hw_done(&state->base);
 
