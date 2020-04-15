@@ -275,20 +275,6 @@
   fwnode_property_read_u32_array
   gcd
   generic_handle_irq
-  geni_abort_m_cmd
-  geni_cancel_m_cmd
-  geni_se_dump_dbg_regs
-  geni_se_init
-  geni_se_iommu_map_buf
-  geni_se_iommu_unmap_buf
-  geni_se_resources_init
-  geni_se_rx_dma_prep
-  geni_se_rx_dma_unprep
-  geni_se_select_mode
-  geni_setup_m_cmd
-  geni_se_tx_dma_prep
-  geni_se_tx_dma_unprep
-  geni_write_reg
   genlmsg_put
   gen_pool_add_virt
   gen_pool_alloc
@@ -300,9 +286,7 @@
   __get_free_pages
   get_pid_task
   get_random_bytes
-  get_se_proto
   __get_task_comm
-  get_tx_fifo_depth
   get_unused_fd_flags
   gpiochip_add_data_with_key
   gpiochip_add_pin_range
@@ -725,6 +709,7 @@
   _raw_spin_lock_bh
   _raw_spin_lock_irq
   _raw_spin_lock_irqsave
+  _raw_spin_trylock
   _raw_spin_trylock_bh
   _raw_spin_unlock
   _raw_spin_unlock_bh
@@ -801,10 +786,6 @@
   schedule
   schedule_timeout
   scnprintf
-  se_config_packing
-  se_geni_clks_off
-  se_geni_resources_off
-  se_geni_resources_on
   seq_lseek
   seq_open
   seq_printf
@@ -965,11 +946,16 @@
   trace_raw_output_prep
   trace_seq_printf
   try_module_get
+  tty_flip_buffer_push
   typec_register_partner
   typec_register_port
   typec_set_data_role
   typec_set_pwr_role
   typec_unregister_partner
+  uart_add_one_port
+  uart_register_driver
+  uart_remove_one_port
+  uart_unregister_driver
   __udelay
   __unregister_chrdev
   unregister_chrdev_region
@@ -1329,12 +1315,7 @@
   xt_unregister_target
 
 # required by eud.ko
-  tty_flip_buffer_push
-  uart_add_one_port
   uart_insert_char
-  uart_register_driver
-  uart_remove_one_port
-  uart_unregister_driver
 
 # required by event_timer.ko
   cpumask_next_and
@@ -1403,6 +1384,7 @@
   dma_buf_export
   dma_get_device_base
   dma_get_size
+  mm_event_count
   __next_zones_zonelist
   sched_setattr
   split_page
@@ -1545,10 +1527,6 @@
   vm_insert_pfn
 
 # required by msm_bus_rpmh.ko
-  __msm_bus_scale_client_update_request_cb
-  __msm_bus_scale_register_cb
-  __msm_bus_scale_register_client_cb
-  __msm_bus_scale_update_bw_cb
   of_clk_get_by_name
   raw_notifier_call_chain
   raw_notifier_chain_register
@@ -1833,6 +1811,24 @@
 
 # required by msm_ext_display.ko
   devm_extcon_dev_unregister
+
+# required by msm_geni_serial.ko
+  console_stop
+  console_suspend_enabled
+  do_SAK
+  handle_sysrq
+  oops_in_progress
+  __tty_insert_flip_char
+  tty_insert_flip_string_fixed_flag
+  uart_console_device
+  uart_console_write
+  uart_get_baud_rate
+  uart_parse_options
+  uart_resume_port
+  uart_set_options
+  uart_suspend_port
+  uart_update_timeout
+  uart_write_wakeup
 
 # required by msm_icnss.ko
   dmam_alloc_coherent
@@ -2377,13 +2373,6 @@
 
 # required by spi-geni-qcom.ko
   dma_release_channel
-  geni_read_reg
-  geni_se_clk_freq_match
-  geni_se_qupv3_hw_version
-  get_rx_fifo_depth
-  get_tx_fifo_width
-  se_geni_clks_on
-  se_get_packing_config
   __spi_alloc_controller
   spi_register_controller
   spi_unregister_controller
@@ -2521,7 +2510,6 @@
   pm_system_wakeup
   proc_create_data
   proc_mkdir
-  _raw_spin_trylock
   register_cld_cmd_cb
   register_netevent_notifier
   register_sysctl_table
