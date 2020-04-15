@@ -5642,13 +5642,71 @@ static bool nested_vmx_exit_handled_mtf(struct vmcs12 *vmcs12)
 }
 
 /*
- * Return true if we should exit from L2 to L1 to handle an exit, or false if we
- * should handle it ourselves in L0 (and then continue L2). Only call this
- * when in is_guest_mode (L2).
+ * Return true if L0 wants to handle an exit from L2 regardless of whether or not
+ * L1 wants the exit.  Only call this when in is_guest_mode (L2).
  */
-static bool nested_vmx_exit_reflected(struct kvm_vcpu *vcpu, u32 exit_reason)
+static bool nested_vmx_l0_wants_exit(struct kvm_vcpu *vcpu, u32 exit_reason)
 {
-	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	u32 intr_info;
+
+	switch (exit_reason) {
+	case EXIT_REASON_EXCEPTION_NMI:
+		intr_info = vmcs_read32(VM_EXIT_INTR_INFO);
+		if (is_nmi(intr_info))
+			return true;
+		else if (is_page_fault(intr_info))
+			return vcpu->arch.apf.host_apf_reason || !enable_ept;
+		else if (is_debug(intr_info) &&
+			 vcpu->guest_debug &
+			 (KVM_GUESTDBG_SINGLESTEP | KVM_GUESTDBG_USE_HW_BP))
+			return true;
+		else if (is_breakpoint(intr_info) &&
+			 vcpu->guest_debug & KVM_GUESTDBG_USE_SW_BP)
+			return true;
+		return false;
+	case EXIT_REASON_EXTERNAL_INTERRUPT:
+		return true;
+	case EXIT_REASON_MCE_DURING_VMENTRY:
+		return true;
+	case EXIT_REASON_EPT_VIOLATION:
+		/*
+		 * L0 always deals with the EPT violation. If nested EPT is
+		 * used, and the nested mmu code discovers that the address is
+		 * missing in the guest EPT table (EPT12), the EPT violation
+		 * will be injected with nested_ept_inject_page_fault()
+		 */
+		return true;
+	case EXIT_REASON_EPT_MISCONFIG:
+		/*
+		 * L2 never uses directly L1's EPT, but rather L0's own EPT
+		 * table (shadow on EPT) or a merged EPT table that L0 built
+		 * (EPT on EPT). So any problems with the structure of the
+		 * table is L0's fault.
+		 */
+		return true;
+	case EXIT_REASON_PREEMPTION_TIMER:
+		return true;
+	case EXIT_REASON_PML_FULL:
+		/* We emulate PML support to L1. */
+		return true;
+	case EXIT_REASON_VMFUNC:
+		/* VM functions are emulated through L2->L0 vmexits. */
+		return true;
+	case EXIT_REASON_ENCLS:
+		/* SGX is never exposed to L1 */
+		return true;
+	default:
+		break;
+	}
+	return false;
+}
+
+/*
+ * Return 1 if L1 wants to intercept an exit from L2.  Only call this when in
+ * is_guest_mode (L2).
+ */
+static bool nested_vmx_l1_wants_exit(struct kvm_vcpu *vcpu, u32 exit_reason)
+{
 	struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
 	u32 intr_info;
 
@@ -5656,20 +5714,13 @@ static bool nested_vmx_exit_reflected(struct kvm_vcpu *vcpu, u32 exit_reason)
 	case EXIT_REASON_EXCEPTION_NMI:
 		intr_info = vmcs_read32(VM_EXIT_INTR_INFO);
 		if (is_nmi(intr_info))
-			return false;
+			return true;
 		else if (is_page_fault(intr_info))
-			return !vmx->vcpu.arch.apf.host_apf_reason && enable_ept;
-		else if (is_debug(intr_info) &&
-			 vcpu->guest_debug &
-			 (KVM_GUESTDBG_SINGLESTEP | KVM_GUESTDBG_USE_HW_BP))
-			return false;
-		else if (is_breakpoint(intr_info) &&
-			 vcpu->guest_debug & KVM_GUESTDBG_USE_SW_BP)
-			return false;
+			return true;
 		return vmcs12->exception_bitmap &
 				(1u << (intr_info & INTR_INFO_VECTOR_MASK));
 	case EXIT_REASON_EXTERNAL_INTERRUPT:
-		return false;
+		return nested_exit_on_intr(vcpu);
 	case EXIT_REASON_TRIPLE_FAULT:
 		return true;
 	case EXIT_REASON_INTERRUPT_WINDOW:
@@ -5734,7 +5785,7 @@ static bool nested_vmx_exit_reflected(struct kvm_vcpu *vcpu, u32 exit_reason)
 			nested_cpu_has2(vmcs12,
 				SECONDARY_EXEC_PAUSE_LOOP_EXITING);
 	case EXIT_REASON_MCE_DURING_VMENTRY:
-		return false;
+		return true;
 	case EXIT_REASON_TPR_BELOW_THRESHOLD:
 		return nested_cpu_has(vmcs12, CPU_BASED_TPR_SHADOW);
 	case EXIT_REASON_APIC_ACCESS:
@@ -5746,22 +5797,6 @@ static bool nested_vmx_exit_reflected(struct kvm_vcpu *vcpu, u32 exit_reason)
 		 * delivery" only come from vmcs12.
 		 */
 		return true;
-	case EXIT_REASON_EPT_VIOLATION:
-		/*
-		 * L0 always deals with the EPT violation. If nested EPT is
-		 * used, and the nested mmu code discovers that the address is
-		 * missing in the guest EPT table (EPT12), the EPT violation
-		 * will be injected with nested_ept_inject_page_fault()
-		 */
-		return false;
-	case EXIT_REASON_EPT_MISCONFIG:
-		/*
-		 * L2 never uses directly L1's EPT, but rather L0's own EPT
-		 * table (shadow on EPT) or a merged EPT table that L0 built
-		 * (EPT on EPT). So any problems with the structure of the
-		 * table is L0's fault.
-		 */
-		return false;
 	case EXIT_REASON_INVPCID:
 		return
 			nested_cpu_has2(vmcs12, SECONDARY_EXEC_ENABLE_INVPCID) &&
@@ -5778,17 +5813,6 @@ static bool nested_vmx_exit_reflected(struct kvm_vcpu *vcpu, u32 exit_reason)
 		 * the XSS exit bitmap in vmcs12.
 		 */
 		return nested_cpu_has2(vmcs12, SECONDARY_EXEC_XSAVES);
-	case EXIT_REASON_PREEMPTION_TIMER:
-		return false;
-	case EXIT_REASON_PML_FULL:
-		/* We emulate PML support to L1. */
-		return false;
-	case EXIT_REASON_VMFUNC:
-		/* VM functions are emulated through L2->L0 vmexits. */
-		return false;
-	case EXIT_REASON_ENCLS:
-		/* SGX is never exposed to L1 */
-		return false;
 	case EXIT_REASON_UMWAIT:
 	case EXIT_REASON_TPAUSE:
 		return nested_cpu_has2(vmcs12,
@@ -5830,7 +5854,12 @@ bool nested_vmx_reflect_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason)
 				vmcs_read32(VM_EXIT_INTR_ERROR_CODE),
 				KVM_ISA_VMX);
 
-	if (!nested_vmx_exit_reflected(vcpu, exit_reason))
+	/* If L0 (KVM) wants the exit, it trumps L1's desires. */
+	if (nested_vmx_l0_wants_exit(vcpu, exit_reason))
+		return false;
+
+	/* If L1 doesn't want the exit, handle it in L0. */
+	if (!nested_vmx_l1_wants_exit(vcpu, exit_reason))
 		return false;
 
 	/*
@@ -6162,7 +6191,7 @@ void nested_vmx_setup_ctls_msrs(struct nested_vmx_msrs *msrs, u32 ept_caps)
 	 * reason is that if one of these bits is necessary, it will appear
 	 * in vmcs01 and prepare_vmcs02, when it bitwise-or's the control
 	 * fields of vmcs01 and vmcs02, will turn these bits off - and
-	 * nested_vmx_exit_reflected() will not pass related exits to L1.
+	 * nested_vmx_l1_wants_exit() will not pass related exits to L1.
 	 * These rules have exceptions below.
 	 */
 
