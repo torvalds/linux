@@ -94,9 +94,11 @@ struct sof_ipc_dai_hda_params {
 struct sof_ipc_dai_alh_params {
 	struct sof_ipc_hdr hdr;
 	uint32_t stream_id;
+	uint32_t rate;
+	uint32_t channels;
 
 	/* reserved for future use */
-	uint32_t reserved[15];
+	uint32_t reserved[13];
 } __packed;
 
 /* DMIC Configuration Request - SOF_IPC_DAI_DMIC_CONFIG */
