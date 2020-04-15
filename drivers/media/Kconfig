@@ -4,19 +4,10 @@
 #
 
 #
-# NOTE: Those symbols can't depend on MEDIA_SUPPORT, as it would cause
-# unmatched dependencies
+# NOTE: CEC and Remote Controller support should not depend on MEDIA_SUPPORT
 #
-config CEC_CORE
-	tristate
-
-config CEC_NOTIFIER
-	bool
-
-config CEC_PIN
-	bool
-
 source "drivers/media/rc/Kconfig"
+source "drivers/media/cec/Kconfig"
 
 menuconfig MEDIA_SUPPORT
 	tristate "Multimedia support"
@@ -132,17 +123,6 @@ config MEDIA_SDR_SUPPORT
 
 	  Say Y when you have a software defined radio device.
 
-config MEDIA_CEC_SUPPORT
-	bool
-	prompt "HDMI CEC support" if MEDIA_SUPPORT_FILTER
-	default y if !MEDIA_SUPPORT_FILTER
-	help
-	  Enable support for HDMI CEC (Consumer Electronics Control),
-	  which is an optional HDMI feature.
-
-	  Say Y when you have an HDMI receiver, transmitter or a USB CEC
-	  adapter that supports HDMI CEC.
-
 config MEDIA_PLATFORM_SUPPORT
 	bool
 	prompt "Platform-specific devices" if MEDIA_SUPPORT_FILTER
@@ -230,12 +210,6 @@ menu "Digital TV options"
 	visible if DVB_CORE
 
 source "drivers/media/dvb-core/Kconfig"
-endmenu
-
-menu "HDMI CEC options"
-	visible if CEC_CORE
-
-source "drivers/media/cec/Kconfig"
 endmenu
 
 menu "Media drivers"
