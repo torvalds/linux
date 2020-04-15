@@ -144,7 +144,7 @@ static void wfx_filter_beacon(struct wfx_vif *wvif, bool filter_beacon)
 	}
 }
 
-void wfx_update_filtering(struct wfx_vif *wvif)
+static void wfx_filter_mcast(struct wfx_vif *wvif, bool filter_mcast)
 {
 	int i;
 
@@ -152,7 +152,7 @@ void wfx_update_filtering(struct wfx_vif *wvif)
 	hif_set_data_filtering(wvif, false, true);
 	return;
 
-	if (!wvif->filter_mcast) {
+	if (!filter_mcast) {
 		hif_set_data_filtering(wvif, false, true);
 		return;
 	}
@@ -198,7 +198,7 @@ void wfx_configure_filter(struct ieee80211_hw *hw,
 {
 	struct wfx_vif *wvif = NULL;
 	struct wfx_dev *wdev = hw->priv;
-	bool filter_bssid, filter_prbreq, filter_beacon;
+	bool filter_bssid, filter_prbreq, filter_beacon, filter_mcast;
 
 	// Notes:
 	//   - Probe responses (FIF_BCN_PRBRESP_PROMISC) are never filtered
@@ -223,14 +223,14 @@ void wfx_configure_filter(struct ieee80211_hw *hw,
 		wfx_filter_beacon(wvif, filter_beacon);
 
 		if (*total_flags & FIF_ALLMULTI) {
-			wvif->filter_mcast = false;
+			filter_mcast = false;
 		} else if (!wvif->filter_mcast_count) {
 			dev_dbg(wdev->dev, "disabling unconfigured multicast filter");
-			wvif->filter_mcast = false;
+			filter_mcast = false;
 		} else {
-			wvif->filter_mcast = true;
+			filter_mcast = true;
 		}
-		wfx_update_filtering(wvif);
+		wfx_filter_mcast(wvif, filter_mcast);
 
 		if (*total_flags & FIF_OTHER_BSS)
 			filter_bssid = false;

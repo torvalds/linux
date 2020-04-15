@@ -89,7 +89,6 @@ struct wfx_vif {
 
 	int			filter_mcast_count;
 	u8			filter_mcast_addr[8][ETH_ALEN];
-	bool			filter_mcast;
 
 	unsigned long		uapsd_mask;
 	struct hif_req_set_bss_params bss_params;
