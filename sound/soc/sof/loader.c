@@ -15,9 +15,9 @@
 #include "ops.h"
 
 static int get_ext_windows(struct snd_sof_dev *sdev,
-			   struct sof_ipc_ext_data_hdr *ext_hdr)
+			   const struct sof_ipc_ext_data_hdr *ext_hdr)
 {
-	struct sof_ipc_window *w =
+	const struct sof_ipc_window *w =
 		container_of(ext_hdr, struct sof_ipc_window, ext_hdr);
 
 	if (w->num_windows == 0 || w->num_windows > SOF_IPC_MAX_ELEMS)
@@ -33,11 +33,11 @@ static int get_ext_windows(struct snd_sof_dev *sdev,
 }
 
 static int get_cc_info(struct snd_sof_dev *sdev,
-		       struct sof_ipc_ext_data_hdr *ext_hdr)
+		       const struct sof_ipc_ext_data_hdr *ext_hdr)
 {
 	int ret;
 
-	struct sof_ipc_cc_version *cc =
+	const struct sof_ipc_cc_version *cc =
 		container_of(ext_hdr, struct sof_ipc_cc_version, ext_hdr);
 
 	dev_dbg(sdev->dev, "Firmware info: used compiler %s %d:%d:%d%s used optimization flags %s\n",
