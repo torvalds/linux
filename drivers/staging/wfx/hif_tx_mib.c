@@ -90,13 +90,13 @@ int hif_set_macaddr(struct wfx_vif *wvif, u8 *mac)
 }
 
 int hif_set_rx_filter(struct wfx_vif *wvif,
-		      bool filter_bssid, bool fwd_probe_req)
+		      bool filter_bssid, bool filter_prbreq)
 {
 	struct hif_mib_rx_filter val = { };
 
 	if (filter_bssid)
 		val.bssid_filter = 1;
-	if (fwd_probe_req)
+	if (!filter_prbreq)
 		val.fwd_probe_req = 1;
 	return hif_write_mib(wvif->wdev, wvif->id, HIF_MIB_ID_RX_FILTER,
 			     &val, sizeof(val));

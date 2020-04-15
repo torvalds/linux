@@ -136,7 +136,7 @@ void wfx_update_filtering(struct wfx_vif *wvif)
 		}
 	};
 
-	hif_set_rx_filter(wvif, wvif->filter_bssid, wvif->fwd_probe_req);
+	hif_set_rx_filter(wvif, wvif->filter_bssid, wvif->filter_prbreq);
 	if (!wvif->filter_beacon) {
 		hif_set_beacon_filter_table(wvif, 0, NULL);
 		hif_beacon_filter_control(wvif, 0, 1);
@@ -242,11 +242,11 @@ void wfx_configure_filter(struct ieee80211_hw *hw,
 		}
 
 		if (*total_flags & FIF_PROBE_REQ)
-			wvif->fwd_probe_req = true;
+			wvif->filter_prbreq = false;
 		else
-			wvif->fwd_probe_req = false;
+			wvif->filter_prbreq = true;
 		hif_set_rx_filter(wvif, wvif->filter_bssid,
-				  wvif->fwd_probe_req);
+				  wvif->filter_prbreq);
 
 		mutex_unlock(&wvif->scan_lock);
 	}
