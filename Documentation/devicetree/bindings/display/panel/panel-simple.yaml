@@ -53,6 +53,8 @@ properties:
       - auo,g101evn010
         # AU Optronics Corporation 10.4" (800x600) color TFT LCD panel
       - auo,g104sn02
+        # AU Optronics Corporation 12.1" (1280x800) TFT LCD panel
+      - auo,g121ean01
         # AU Optronics Corporation 13.3" FHD (1920x1080) TFT LCD panel
       - auo,g133han01
         # AU Optronics Corporation 15.6" (1366x768) TFT LCD panel
