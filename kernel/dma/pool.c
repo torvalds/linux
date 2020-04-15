@@ -3,6 +3,7 @@
  * Copyright (C) 2012 ARM Ltd.
  * Copyright (C) 2020 Google LLC
  */
+#include <linux/debugfs.h>
 #include <linux/dma-direct.h>
 #include <linux/dma-noncoherent.h>
 #include <linux/dma-contiguous.h>
@@ -13,8 +14,11 @@
 #include <linux/workqueue.h>
 
 static struct gen_pool *atomic_pool_dma __ro_after_init;
+static unsigned long pool_size_dma;
 static struct gen_pool *atomic_pool_dma32 __ro_after_init;
+static unsigned long pool_size_dma32;
 static struct gen_pool *atomic_pool_kernel __ro_after_init;
+static unsigned long pool_size_kernel;
 
 #define DEFAULT_DMA_COHERENT_POOL_SIZE  SZ_256K
 static size_t atomic_pool_size = DEFAULT_DMA_COHERENT_POOL_SIZE;
@@ -28,6 +32,29 @@ static int __init early_coherent_pool(char *p)
 	return 0;
 }
 early_param("coherent_pool", early_coherent_pool);
+
+static void __init dma_atomic_pool_debugfs_init(void)
+{
+	struct dentry *root;
+
+	root = debugfs_create_dir("dma_pools", NULL);
+	if (IS_ERR_OR_NULL(root))
+		return;
+
+	debugfs_create_ulong("pool_size_dma", 0400, root, &pool_size_dma);
+	debugfs_create_ulong("pool_size_dma32", 0400, root, &pool_size_dma32);
+	debugfs_create_ulong("pool_size_kernel", 0400, root, &pool_size_kernel);
+}
+
+static void dma_atomic_pool_size_add(gfp_t gfp, size_t size)
+{
+	if (gfp & __GFP_DMA)
+		pool_size_dma += size;
+	else if (gfp & __GFP_DMA32)
+		pool_size_dma32 += size;
+	else
+		pool_size_kernel += size;
+}
 
 static int atomic_pool_expand(struct gen_pool *pool, size_t pool_size,
 			      gfp_t gfp)
@@ -76,6 +103,7 @@ static int atomic_pool_expand(struct gen_pool *pool, size_t pool_size,
 	if (ret)
 		goto encrypt_mapping;
 
+	dma_atomic_pool_size_add(gfp, pool_size);
 	return 0;
 
 encrypt_mapping:
@@ -160,6 +188,8 @@ static int __init dma_atomic_pool_init(void)
 		if (!atomic_pool_dma32)
 			ret = -ENOMEM;
 	}
+
+	dma_atomic_pool_debugfs_init();
 	return ret;
 }
 postcore_initcall(dma_atomic_pool_init);
