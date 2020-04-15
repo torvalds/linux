@@ -133,6 +133,8 @@ static int populate_shadow_context(struct intel_vgpu_workload *workload)
 	void *dst;
 	void *context_base;
 	unsigned long context_gpa, context_page_num;
+	unsigned long gpa_base; /* first gpa of consecutive GPAs */
+	unsigned long gpa_size; /* size of consecutive GPAs */
 	int i;
 
 	GEM_BUG_ON(!intel_context_is_pinned(ctx));
@@ -186,8 +188,11 @@ static int populate_shadow_context(struct intel_vgpu_workload *workload)
 	if (IS_BROADWELL(gvt->gt->i915) && workload->engine->id == RCS0)
 		context_page_num = 19;
 
-	i = 2;
-	while (i < context_page_num) {
+	/* find consecutive GPAs from gma until the first inconsecutive GPA.
+	 * read from the continuous GPAs into dst virtual address
+	 */
+	gpa_size = 0;
+	for (i = 2; i < context_page_num; i++) {
 		context_gpa = intel_vgpu_gma_to_gpa(vgpu->gtt.ggtt_mm,
 				(u32)((workload->ctx_desc.lrca + i) <<
 				I915_GTT_PAGE_SHIFT));
@@ -196,10 +201,24 @@ static int populate_shadow_context(struct intel_vgpu_workload *workload)
 			return -EFAULT;
 		}
 
+		if (gpa_size == 0) {
+			gpa_base = context_gpa;
+			dst = context_base + (i << I915_GTT_PAGE_SHIFT);
+		} else if (context_gpa != gpa_base + gpa_size)
+			goto read;
+
+		gpa_size += I915_GTT_PAGE_SIZE;
+
+		if (i == context_page_num - 1)
+			goto read;
+
+		continue;
+
+read:
+		intel_gvt_hypervisor_read_gpa(vgpu, gpa_base, dst, gpa_size);
+		gpa_base = context_gpa;
+		gpa_size = I915_GTT_PAGE_SIZE;
 		dst = context_base + (i << I915_GTT_PAGE_SHIFT);
-		intel_gvt_hypervisor_read_gpa(vgpu, context_gpa, dst,
-				I915_GTT_PAGE_SIZE);
-		i++;
 	}
 	return 0;
 }
@@ -789,6 +808,8 @@ static void update_guest_context(struct intel_vgpu_workload *workload)
 	void *context_base;
 	void *src;
 	unsigned long context_gpa, context_page_num;
+	unsigned long gpa_base; /* first gpa of consecutive GPAs */
+	unsigned long gpa_size; /* size of consecutive GPAs*/
 	int i;
 	u32 ring_base;
 	u32 head, tail;
@@ -822,11 +843,14 @@ static void update_guest_context(struct intel_vgpu_workload *workload)
 	if (IS_BROADWELL(rq->i915) && rq->engine->id == RCS0)
 		context_page_num = 19;
 
-	i = 2;
 	context_base = (void *) ctx->lrc_reg_state -
 			(LRC_STATE_PN << I915_GTT_PAGE_SHIFT);
 
-	while (i < context_page_num) {
+	/* find consecutive GPAs from gma until the first inconsecutive GPA.
+	 * write to the consecutive GPAs from src virtual address
+	 */
+	gpa_size = 0;
+	for (i = 2; i < context_page_num; i++) {
 		context_gpa = intel_vgpu_gma_to_gpa(vgpu->gtt.ggtt_mm,
 				(u32)((workload->ctx_desc.lrca + i) <<
 					I915_GTT_PAGE_SHIFT));
@@ -835,10 +859,24 @@ static void update_guest_context(struct intel_vgpu_workload *workload)
 			return;
 		}
 
+		if (gpa_size == 0) {
+			gpa_base = context_gpa;
+			src = context_base + (i << I915_GTT_PAGE_SHIFT);
+		} else if (context_gpa != gpa_base + gpa_size)
+			goto write;
+
+		gpa_size += I915_GTT_PAGE_SIZE;
+
+		if (i == context_page_num - 1)
+			goto write;
+
+		continue;
+
+write:
+		intel_gvt_hypervisor_write_gpa(vgpu, gpa_base, src, gpa_size);
+		gpa_base = context_gpa;
+		gpa_size = I915_GTT_PAGE_SIZE;
 		src = context_base + (i << I915_GTT_PAGE_SHIFT);
-		intel_gvt_hypervisor_write_gpa(vgpu, context_gpa, src,
-				I915_GTT_PAGE_SIZE);
-		i++;
 	}
 
 	intel_gvt_hypervisor_write_gpa(vgpu, workload->ring_context_gpa +
