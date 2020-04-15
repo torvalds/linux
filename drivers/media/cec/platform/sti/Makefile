@@ -1,2 +1,2 @@
 # SPDX-License-Identifier: GPL-2.0-only
-obj-$(CONFIG_VIDEO_STI_HDMI_CEC) += stih-cec.o
+obj-$(CONFIG_CEC_STI) += stih-cec.o

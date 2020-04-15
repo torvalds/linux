@@ -2,7 +2,7 @@
 #
 # Platform drivers
 
-config VIDEO_CROS_EC_CEC
+config CEC_CROS_EC
 	tristate "ChromeOS EC CEC driver"
 	depends on CROS_EC
 	select CEC_CORE
@@ -14,7 +14,7 @@ config VIDEO_CROS_EC_CEC
 	  The CEC bus is present in the HDMI connector and enables communication
 	  between compatible devices.
 
-config VIDEO_MESON_AO_CEC
+config CEC_MESON_AO
 	tristate "Amlogic Meson AO CEC driver"
 	depends on ARCH_MESON || COMPILE_TEST
 	select CEC_CORE
@@ -24,7 +24,7 @@ config VIDEO_MESON_AO_CEC
 	  generic CEC framework interface.
 	  CEC bus is present in the HDMI connector and enables communication
 
-config VIDEO_MESON_G12A_AO_CEC
+config CEC_MESON_G12A_AO
 	tristate "Amlogic Meson G12A AO CEC driver"
 	depends on ARCH_MESON || COMPILE_TEST
 	depends on COMMON_CLK && OF
@@ -52,7 +52,7 @@ config CEC_GPIO
 	  The CEC bus is present in the HDMI connector and enables communication
 	  between compatible devices.
 
-config VIDEO_SAMSUNG_S5P_CEC
+config CEC_SAMSUNG_S5P
 	tristate "Samsung S5P CEC driver"
 	depends on ARCH_EXYNOS || COMPILE_TEST
 	select CEC_CORE
@@ -63,7 +63,7 @@ config VIDEO_SAMSUNG_S5P_CEC
 	  CEC bus is present in the HDMI connector and enables communication
 	  between compatible devices.
 
-config VIDEO_STI_HDMI_CEC
+config CEC_STI
 	tristate "STMicroelectronics STiH4xx HDMI CEC driver"
 	depends on ARCH_STI || COMPILE_TEST
 	select CEC_CORE
@@ -74,7 +74,7 @@ config VIDEO_STI_HDMI_CEC
 	  CEC bus is present in the HDMI connector and enables communication
 	  between compatible devices.
 
-config VIDEO_STM32_HDMI_CEC
+config CEC_STM32
 	tristate "STMicroelectronics STM32 HDMI CEC driver"
 	depends on ARCH_STM32 || COMPILE_TEST
 	select REGMAP
@@ -86,7 +86,7 @@ config VIDEO_STM32_HDMI_CEC
 	  CEC bus is present in the HDMI connector and enables communication
 	  between compatible devices.
 
-config VIDEO_TEGRA_HDMI_CEC
+config CEC_TEGRA
 	tristate "Tegra HDMI CEC driver"
 	depends on ARCH_TEGRA || COMPILE_TEST
 	select CEC_CORE
@@ -97,7 +97,7 @@ config VIDEO_TEGRA_HDMI_CEC
 	  The CEC bus is present in the HDMI connector and enables communication
 	  between compatible devices.
 
-config VIDEO_SECO_CEC
+config CEC_SECO
 	tristate "SECO Boards HDMI CEC driver"
 	depends on (X86 || IA64) || COMPILE_TEST
 	select PCI
@@ -110,10 +110,10 @@ config VIDEO_SECO_CEC
 	  CEC bus is present in the HDMI connector and enables communication
 	  between compatible devices.
 
-config VIDEO_SECO_RC
+config CEC_SECO_RC
 	bool "SECO Boards IR RC5 support"
-	depends on VIDEO_SECO_CEC
-	depends on RC_CORE=y || RC_CORE = VIDEO_SECO_CEC
+	depends on CEC_SECO
+	depends on RC_CORE=y || RC_CORE = CEC_SECO
 	help
 	  If you say yes here you will get support for the
 	  SECO Boards Consumer-IR in seco-cec driver.

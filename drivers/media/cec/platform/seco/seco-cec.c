@@ -343,7 +343,7 @@ static const struct cec_adap_ops secocec_cec_adap_ops = {
 	.adap_transmit = secocec_adap_transmit,
 };
 
-#ifdef CONFIG_VIDEO_SECO_RC
+#ifdef CONFIG_CEC_SECO_RC
 static int secocec_ir_probe(void *priv)
 {
 	struct secocec_data *cec = priv;

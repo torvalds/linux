@@ -1,2 +1,2 @@
 # SPDX-License-Identifier: GPL-2.0-only
-obj-$(CONFIG_VIDEO_SECO_CEC) += seco-cec.o
+obj-$(CONFIG_CEC_SECO) += seco-cec.o

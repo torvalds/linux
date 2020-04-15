@@ -1,2 +1,2 @@
 # SPDX-License-Identifier: GPL-2.0-only
-obj-$(CONFIG_VIDEO_CROS_EC_CEC) += cros-ec-cec.o
+obj-$(CONFIG_CEC_CROS_EC) += cros-ec-cec.o
