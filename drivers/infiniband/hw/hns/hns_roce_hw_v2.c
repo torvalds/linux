@@ -2040,8 +2040,6 @@ static int hns_roce_config_link_table(struct hns_roce_dev *hr_dev,
 
 	page_num = link_tbl->npages;
 	entry = link_tbl->table.buf;
-	memset(req_a, 0, sizeof(*req_a));
-	memset(req_b, 0, sizeof(*req_b));
 
 	for (i = 0; i < 2; i++) {
 		hns_roce_cmq_setup_basic_desc(&desc[i], opcode, false);
@@ -2050,39 +2048,30 @@ static int hns_roce_config_link_table(struct hns_roce_dev *hr_dev,
 			desc[i].flag |= cpu_to_le16(HNS_ROCE_CMD_FLAG_NEXT);
 		else
 			desc[i].flag &= ~cpu_to_le16(HNS_ROCE_CMD_FLAG_NEXT);
-
-		if (i == 0) {
-			req_a->base_addr_l =
-				cpu_to_le32(link_tbl->table.map & 0xffffffff);
-			req_a->base_addr_h =
-				cpu_to_le32(link_tbl->table.map >> 32);
-			roce_set_field(req_a->depth_pgsz_init_en,
-				       CFG_LLM_QUE_DEPTH_M, CFG_LLM_QUE_DEPTH_S,
-				       link_tbl->npages);
-			roce_set_field(req_a->depth_pgsz_init_en,
-				       CFG_LLM_QUE_PGSZ_M, CFG_LLM_QUE_PGSZ_S,
-				       link_tbl->pg_sz);
-			req_a->head_ba_l = cpu_to_le32(entry[0].blk_ba0);
-			req_a->head_ba_h_nxtptr =
-				cpu_to_le32(entry[0].blk_ba1_nxt_ptr);
-			roce_set_field(req_a->head_ptr, CFG_LLM_HEAD_PTR_M,
-				       CFG_LLM_HEAD_PTR_S, 0);
-		} else {
-			req_b->tail_ba_l =
-				cpu_to_le32(entry[page_num - 1].blk_ba0);
-			roce_set_field(req_b->tail_ba_h, CFG_LLM_TAIL_BA_H_M,
-				       CFG_LLM_TAIL_BA_H_S,
-				       entry[page_num - 1].blk_ba1_nxt_ptr &
-					       HNS_ROCE_LINK_TABLE_BA1_M);
-			roce_set_field(req_b->tail_ptr, CFG_LLM_TAIL_PTR_M,
-				       CFG_LLM_TAIL_PTR_S,
-				       (entry[page_num - 2].blk_ba1_nxt_ptr &
-					HNS_ROCE_LINK_TABLE_NXT_PTR_M) >>
-					       HNS_ROCE_LINK_TABLE_NXT_PTR_S);
-		}
 	}
+
+	req_a->base_addr_l = cpu_to_le32(link_tbl->table.map & 0xffffffff);
+	req_a->base_addr_h = cpu_to_le32(link_tbl->table.map >> 32);
+	roce_set_field(req_a->depth_pgsz_init_en, CFG_LLM_QUE_DEPTH_M,
+		       CFG_LLM_QUE_DEPTH_S, link_tbl->npages);
+	roce_set_field(req_a->depth_pgsz_init_en, CFG_LLM_QUE_PGSZ_M,
+		       CFG_LLM_QUE_PGSZ_S, link_tbl->pg_sz);
 	roce_set_field(req_a->depth_pgsz_init_en, CFG_LLM_INIT_EN_M,
 		       CFG_LLM_INIT_EN_S, 1);
+	req_a->head_ba_l = cpu_to_le32(entry[0].blk_ba0);
+	req_a->head_ba_h_nxtptr = cpu_to_le32(entry[0].blk_ba1_nxt_ptr);
+	roce_set_field(req_a->head_ptr, CFG_LLM_HEAD_PTR_M, CFG_LLM_HEAD_PTR_S,
+		       0);
+
+	req_b->tail_ba_l = cpu_to_le32(entry[page_num - 1].blk_ba0);
+	roce_set_field(req_b->tail_ba_h, CFG_LLM_TAIL_BA_H_M,
+		       CFG_LLM_TAIL_BA_H_S,
+		       entry[page_num - 1].blk_ba1_nxt_ptr &
+		       HNS_ROCE_LINK_TABLE_BA1_M);
+	roce_set_field(req_b->tail_ptr, CFG_LLM_TAIL_PTR_M, CFG_LLM_TAIL_PTR_S,
+		       (entry[page_num - 2].blk_ba1_nxt_ptr &
+			HNS_ROCE_LINK_TABLE_NXT_PTR_M) >>
+			HNS_ROCE_LINK_TABLE_NXT_PTR_S);
 
 	return hns_roce_cmq_send(hr_dev, desc, 2);
 }
