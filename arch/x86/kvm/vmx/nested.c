@@ -5652,15 +5652,6 @@ static bool nested_vmx_exit_reflected(struct kvm_vcpu *vcpu, u32 exit_reason)
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
 
-	WARN_ON_ONCE(vmx->nested.nested_run_pending);
-
-	if (unlikely(vmx->fail)) {
-		trace_kvm_nested_vmenter_failed(
-			"hardware VM-instruction error: ",
-			vmcs_read32(VM_INSTRUCTION_ERROR));
-		return true;
-	}
-
 	trace_kvm_nested_vmexit(kvm_rip_read(vcpu), exit_reason,
 				vmcs_readl(EXIT_QUALIFICATION),
 				vmx->idt_vectoring_info,
@@ -5819,7 +5810,23 @@ static bool nested_vmx_exit_reflected(struct kvm_vcpu *vcpu, u32 exit_reason)
  */
 bool nested_vmx_reflect_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason)
 {
-	u32 exit_intr_info;
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	u32 exit_intr_info, exit_qual;
+
+	WARN_ON_ONCE(vmx->nested.nested_run_pending);
+
+	/*
+	 * Late nested VM-Fail shares the same flow as nested VM-Exit since KVM
+	 * has already loaded L2's state.
+	 */
+	if (unlikely(vmx->fail)) {
+		trace_kvm_nested_vmenter_failed(
+			"hardware VM-instruction error: ",
+			vmcs_read32(VM_INSTRUCTION_ERROR));
+		exit_intr_info = 0;
+		exit_qual = 0;
+		goto reflect_vmexit;
+	}
 
 	if (!nested_vmx_exit_reflected(vcpu, exit_reason))
 		return false;
@@ -5840,9 +5847,10 @@ bool nested_vmx_reflect_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason)
 		vmcs12->vm_exit_intr_error_code =
 			vmcs_read32(VM_EXIT_INTR_ERROR_CODE);
 	}
+	exit_qual = vmcs_readl(EXIT_QUALIFICATION);
 
-	nested_vmx_vmexit(vcpu, exit_reason, exit_intr_info,
-			  vmcs_readl(EXIT_QUALIFICATION));
+reflect_vmexit:
+	nested_vmx_vmexit(vcpu, exit_reason, exit_intr_info, exit_qual);
 	return true;
 }
 
