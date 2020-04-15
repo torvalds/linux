@@ -528,14 +528,38 @@ static void dwapb_gpio_unregister(struct dwapb_gpio *gpio)
 			gpiochip_remove(&gpio->ports[m].gc);
 }
 
-static struct dwapb_platform_data *
-dwapb_gpio_get_pdata(struct device *dev)
+static void dwapb_get_irq(struct device *dev, struct fwnode_handle *fwnode,
+			  struct dwapb_port_property *pp)
+{
+	struct device_node *np = NULL;
+	int j;
+
+	if (fwnode_property_read_bool(fwnode, "interrupt-controller"))
+		np = to_of_node(fwnode);
+
+	for (j = 0; j < pp->ngpio; j++) {
+		pp->irq[j] = -ENXIO;
+
+		if (np)
+			pp->irq[j] = of_irq_get(np, j);
+		else if (has_acpi_companion(dev))
+			pp->irq[j] = platform_get_irq(to_platform_device(dev), j);
+
+		if (pp->irq[j] >= 0)
+			pp->has_irq = true;
+	}
+
+	if (!pp->has_irq)
+		dev_warn(dev, "no irq for port%d\n", pp->idx);
+}
+
+static struct dwapb_platform_data *dwapb_gpio_get_pdata(struct device *dev)
 {
 	struct fwnode_handle *fwnode;
 	struct dwapb_platform_data *pdata;
 	struct dwapb_port_property *pp;
 	int nports;
-	int i, j;
+	int i;
 
 	nports = device_get_child_node_count(dev);
 	if (nports == 0)
@@ -553,8 +577,6 @@ dwapb_gpio_get_pdata(struct device *dev)
 
 	i = 0;
 	device_for_each_child_node(dev, fwnode)  {
-		struct device_node *np = NULL;
-
 		pp = &pdata->properties[i++];
 		pp->fwnode = fwnode;
 
@@ -581,28 +603,8 @@ dwapb_gpio_get_pdata(struct device *dev)
 		 * Only port A can provide interrupts in all configurations of
 		 * the IP.
 		 */
-		if (pp->idx != 0)
-			continue;
-
-		if (dev->of_node && fwnode_property_read_bool(fwnode,
-						  "interrupt-controller")) {
-			np = to_of_node(fwnode);
-		}
-
-		for (j = 0; j < pp->ngpio; j++) {
-			pp->irq[j] = -ENXIO;
-
-			if (np)
-				pp->irq[j] = of_irq_get(np, j);
-			else if (has_acpi_companion(dev))
-				pp->irq[j] = platform_get_irq(to_platform_device(dev), j);
-
-			if (pp->irq[j] >= 0)
-				pp->has_irq = true;
-		}
-
-		if (!pp->has_irq)
-			dev_warn(dev, "no irq for port%d\n", pp->idx);
+		if (pp->idx == 0)
+			dwapb_get_irq(dev, fwnode, pp);
 	}
 
 	return pdata;
