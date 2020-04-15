@@ -12,6 +12,7 @@
 
 #include <linux/firmware.h>
 #include <sound/sof.h>
+#include <uapi/sound/sof/ext_manifest.h>
 #include "ops.h"
 
 static int get_ext_windows(struct snd_sof_dev *sdev,
@@ -125,6 +126,104 @@ int snd_sof_fw_parse_ext_data(struct snd_sof_dev *sdev, u32 bar, u32 offset)
 	return ret;
 }
 EXPORT_SYMBOL(snd_sof_fw_parse_ext_data);
+
+static ssize_t snd_sof_ext_man_size(const struct firmware *fw)
+{
+	const struct sof_ext_man_header *head = (void *)fw->data;
+
+	/*
+	 * assert fw size is big enough to contain extended manifest header,
+	 * it prevents from reading unallocated memory from `head` in following
+	 * step.
+	 */
+	if (fw->size < sizeof(*head))
+		return -EINVAL;
+
+	/*
+	 * When fw points to extended manifest,
+	 * then first u32 must be equal SOF_EXT_MAN_MAGIC_NUMBER.
+	 */
+	if (head->magic == SOF_EXT_MAN_MAGIC_NUMBER)
+		return head->full_size;
+
+	/* otherwise given fw don't have an extended manifest */
+	return 0;
+}
+
+/* parse extended FW manifest data structures */
+static int snd_sof_fw_ext_man_parse(struct snd_sof_dev *sdev,
+				    const struct firmware *fw)
+{
+	const struct sof_ext_man_elem_header *elem_hdr;
+	const struct sof_ext_man_header *head;
+	ssize_t ext_man_size;
+	ssize_t remaining;
+	uintptr_t iptr;
+	int ret = 0;
+
+	head = (struct sof_ext_man_header *)fw->data;
+	remaining = head->full_size - head->header_size;
+	ext_man_size = snd_sof_ext_man_size(fw);
+
+	/* Assert firmware starts with extended manifest */
+	if (ext_man_size < 0) {
+		dev_err(sdev->dev, "error: exception while reading firmware extended manifest, code %d\n",
+			(int)ext_man_size);
+		return ext_man_size;
+	} else if (!ext_man_size) {
+		dev_err(sdev->dev, "error: can't parse extended manifest when it's not present\n");
+		return -EINVAL;
+	}
+
+	/* incompatible version */
+	if (SOF_EXT_MAN_VERSION_INCOMPATIBLE(SOF_EXT_MAN_VERSION,
+					     head->header_version)) {
+		dev_err(sdev->dev, "error: extended manifest version 0x%X differ from used 0x%X\n",
+			head->header_version, SOF_EXT_MAN_VERSION);
+		return -EINVAL;
+	}
+
+	/* get first extended manifest element header */
+	iptr = (uintptr_t)fw->data + head->header_size;
+
+	while (remaining > sizeof(*elem_hdr)) {
+		elem_hdr = (struct sof_ext_man_elem_header *)iptr;
+
+		dev_dbg(sdev->dev, "found sof_ext_man header type %d size 0x%X\n",
+			elem_hdr->type, elem_hdr->size);
+
+		if (elem_hdr->size < sizeof(*elem_hdr) ||
+		    elem_hdr->size > remaining) {
+			dev_err(sdev->dev, "error: invalid sof_ext_man header size, type %d size 0x%X\n",
+				elem_hdr->type, elem_hdr->size);
+			break;
+		}
+
+		/* process structure data */
+		switch (elem_hdr->type) {
+		default:
+			dev_warn(sdev->dev, "warning: unknown sof_ext_man header type %d size 0x%X\n",
+				 elem_hdr->type, elem_hdr->size);
+			break;
+		}
+
+		if (ret < 0) {
+			dev_err(sdev->dev, "error: failed to parse sof_ext_man header type %d size 0x%X\n",
+				elem_hdr->type, elem_hdr->size);
+			break;
+		}
+
+		remaining -= elem_hdr->size;
+		iptr += elem_hdr->size;
+	}
+
+	if (remaining) {
+		dev_err(sdev->dev, "error: sof_ext_man header is inconsistent\n");
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
 
 /*
  * IPC Firmware ready.
@@ -473,6 +572,7 @@ int snd_sof_load_firmware_raw(struct snd_sof_dev *sdev)
 {
 	struct snd_sof_pdata *plat_data = sdev->pdata;
 	const char *fw_filename;
+	ssize_t ext_man_size;
 	int ret;
 
 	/* Don't request firmware again if firmware is already requested */
@@ -490,11 +590,33 @@ int snd_sof_load_firmware_raw(struct snd_sof_dev *sdev)
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: request firmware %s failed err: %d\n",
 			fw_filename, ret);
+		goto err;
 	} else {
 		dev_dbg(sdev->dev, "request_firmware %s successful\n",
 			fw_filename);
 	}
 
+	/* check for extended manifest */
+	ext_man_size = snd_sof_ext_man_size(plat_data->fw);
+	if (ext_man_size > 0) {
+		ret = snd_sof_fw_ext_man_parse(sdev, plat_data->fw);
+
+		/* when no error occurred, drop extended manifest */
+		if (!ret)
+			plat_data->fw_offset = ext_man_size;
+		else
+			dev_err(sdev->dev, "error: firmware %s contains unsupported or invalid extended manifest: %d\n",
+				fw_filename, ret);
+	} else if (!ext_man_size) {
+		/* No extended manifest, so nothing to skip during FW load */
+		dev_dbg(sdev->dev, "firmware doesn't contain extended manifest\n");
+	} else {
+		ret = ext_man_size;
+		dev_err(sdev->dev, "error: firmware %s contains unsupported or invalid extended manifest: %d\n",
+			fw_filename, ret);
+	}
+
+err:
 	kfree(fw_filename);
 
 	return ret;
