@@ -128,16 +128,19 @@ static int populate_shadow_context(struct intel_vgpu_workload *workload)
 {
 	struct intel_vgpu *vgpu = workload->vgpu;
 	struct intel_gvt *gvt = vgpu->gvt;
-	struct drm_i915_gem_object *ctx_obj =
-		workload->req->context->state->obj;
+	struct intel_context *ctx = workload->req->context;
 	struct execlist_ring_context *shadow_ring_context;
-	struct page *page;
 	void *dst;
+	void *context_base;
 	unsigned long context_gpa, context_page_num;
 	int i;
 
-	page = i915_gem_object_get_page(ctx_obj, LRC_STATE_PN);
-	shadow_ring_context = kmap(page);
+	GEM_BUG_ON(!intel_context_is_pinned(ctx));
+
+	context_base = (void *) ctx->lrc_reg_state -
+				(LRC_STATE_PN << I915_GTT_PAGE_SHIFT);
+
+	shadow_ring_context = (void *) ctx->lrc_reg_state;
 
 	sr_oa_regs(workload, (u32 *)shadow_ring_context, true);
 #define COPY_REG(name) \
@@ -169,7 +172,6 @@ static int populate_shadow_context(struct intel_vgpu_workload *workload)
 			I915_GTT_PAGE_SIZE - sizeof(*shadow_ring_context));
 
 	sr_oa_regs(workload, (u32 *)shadow_ring_context, false);
-	kunmap(page);
 
 	if (IS_RESTORE_INHIBIT(shadow_ring_context->ctx_ctrl.val))
 		return 0;
@@ -194,11 +196,9 @@ static int populate_shadow_context(struct intel_vgpu_workload *workload)
 			return -EFAULT;
 		}
 
-		page = i915_gem_object_get_page(ctx_obj, i);
-		dst = kmap(page);
+		dst = context_base + (i << I915_GTT_PAGE_SHIFT);
 		intel_gvt_hypervisor_read_gpa(vgpu, context_gpa, dst,
 				I915_GTT_PAGE_SIZE);
-		kunmap(page);
 		i++;
 	}
 	return 0;
@@ -784,9 +784,9 @@ static void update_guest_context(struct intel_vgpu_workload *workload)
 {
 	struct i915_request *rq = workload->req;
 	struct intel_vgpu *vgpu = workload->vgpu;
-	struct drm_i915_gem_object *ctx_obj = rq->context->state->obj;
 	struct execlist_ring_context *shadow_ring_context;
-	struct page *page;
+	struct intel_context *ctx = workload->req->context;
+	void *context_base;
 	void *src;
 	unsigned long context_gpa, context_page_num;
 	int i;
@@ -796,6 +796,8 @@ static void update_guest_context(struct intel_vgpu_workload *workload)
 
 	gvt_dbg_sched("ring id %d workload lrca %x\n", rq->engine->id,
 		      workload->ctx_desc.lrca);
+
+	GEM_BUG_ON(!intel_context_is_pinned(ctx));
 
 	head = workload->rb_head;
 	tail = workload->rb_tail;
@@ -821,6 +823,8 @@ static void update_guest_context(struct intel_vgpu_workload *workload)
 		context_page_num = 19;
 
 	i = 2;
+	context_base = (void *) ctx->lrc_reg_state -
+			(LRC_STATE_PN << I915_GTT_PAGE_SHIFT);
 
 	while (i < context_page_num) {
 		context_gpa = intel_vgpu_gma_to_gpa(vgpu->gtt.ggtt_mm,
@@ -831,19 +835,16 @@ static void update_guest_context(struct intel_vgpu_workload *workload)
 			return;
 		}
 
-		page = i915_gem_object_get_page(ctx_obj, i);
-		src = kmap(page);
+		src = context_base + (i << I915_GTT_PAGE_SHIFT);
 		intel_gvt_hypervisor_write_gpa(vgpu, context_gpa, src,
 				I915_GTT_PAGE_SIZE);
-		kunmap(page);
 		i++;
 	}
 
 	intel_gvt_hypervisor_write_gpa(vgpu, workload->ring_context_gpa +
 		RING_CTX_OFF(ring_header.val), &workload->rb_tail, 4);
 
-	page = i915_gem_object_get_page(ctx_obj, LRC_STATE_PN);
-	shadow_ring_context = kmap(page);
+	shadow_ring_context = (void *) ctx->lrc_reg_state;
 
 #define COPY_REG(name) \
 	intel_gvt_hypervisor_write_gpa(vgpu, workload->ring_context_gpa + \
@@ -860,8 +861,6 @@ static void update_guest_context(struct intel_vgpu_workload *workload)
 			(void *)shadow_ring_context +
 			sizeof(*shadow_ring_context),
 			I915_GTT_PAGE_SIZE - sizeof(*shadow_ring_context));
-
-	kunmap(page);
 }
 
 void intel_vgpu_clean_workloads(struct intel_vgpu *vgpu,
