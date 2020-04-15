@@ -279,7 +279,7 @@ static int cmd_db_debugfs_dump(struct seq_file *seq, void *p)
 		ent = rsc_to_entry_header(rsc);
 		for (j = 0; j < le16_to_cpu(rsc->cnt); j++, ent++) {
 			seq_printf(seq, "0x%08x: %*pEp", le32_to_cpu(ent->addr),
-				   sizeof(ent->id), ent->id);
+				   (int)sizeof(ent->id), ent->id);
 
 			len = le16_to_cpu(ent->len);
 			if (len) {
