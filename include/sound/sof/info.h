@@ -32,6 +32,7 @@ enum sof_ipc_ext_data {
 	SOF_IPC_EXT_WINDOW		= 1,
 	SOF_IPC_EXT_CC_INFO		= 2,
 	SOF_IPC_EXT_PROBE_INFO		= 3,
+	SOF_IPC_EXT_USER_ABI_INFO	= 4,
 };
 
 /* FW version - SOF_IPC_GLB_VERSION */
@@ -125,5 +126,12 @@ struct sof_ipc_probe_support {
 	/* reserved for future use */
 	uint32_t reserved[2];
 } __packed;
+
+/* extended data: user abi version(s) */
+struct sof_ipc_user_abi_version {
+	struct sof_ipc_ext_data_hdr ext_hdr;
+
+	uint32_t abi_dbg_version;
+}  __packed;
 
 #endif
