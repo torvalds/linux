@@ -405,7 +405,9 @@ struct smu_context
 	bool pm_enabled;
 	bool is_apu;
 
-	uint32_t smc_if_version;
+	uint32_t smc_driver_if_version;
+	uint32_t smc_fw_if_version;
+	uint32_t smc_fw_version;
 
 	bool uploading_custom_pp_table;
 	bool dc_controlled_by_gpio;

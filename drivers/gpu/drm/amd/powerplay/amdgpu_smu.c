@@ -196,16 +196,31 @@ int smu_get_smc_version(struct smu_context *smu, uint32_t *if_version, uint32_t 
 	if (!if_version && !smu_version)
 		return -EINVAL;
 
+	if (smu->smc_fw_if_version && smu->smc_fw_version)
+	{
+		if (if_version)
+			*if_version = smu->smc_fw_if_version;
+
+		if (smu_version)
+			*smu_version = smu->smc_fw_version;
+
+		return 0;
+	}
+
 	if (if_version) {
 		ret = smu_send_smc_msg(smu, SMU_MSG_GetDriverIfVersion, if_version);
 		if (ret)
 			return ret;
+
+		smu->smc_fw_if_version = *if_version;
 	}
 
 	if (smu_version) {
 		ret = smu_send_smc_msg(smu, SMU_MSG_GetSmuVersion, smu_version);
 		if (ret)
 			return ret;
+
+		smu->smc_fw_version = *smu_version;
 	}
 
 	return ret;
