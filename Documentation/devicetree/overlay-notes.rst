@@ -1,5 +1,8 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+=========================
 Device Tree Overlay Notes
--------------------------
+=========================
 
 This document describes the implementation of the in-kernel
 device tree overlay functionality residing in drivers/of/overlay.c and is a
@@ -15,9 +18,9 @@ Since the kernel mainly deals with devices, any new device node that result
 in an active device should have it created while if the device node is either
 disabled or removed all together, the affected device should be deregistered.
 
-Lets take an example where we have a foo board with the following base tree:
+Lets take an example where we have a foo board with the following base tree::
 
----- foo.dts -----------------------------------------------------------------
+    ---- foo.dts ---------------------------------------------------------------
 	/* FOO platform */
 	/dts-v1/;
 	/ {
@@ -33,11 +36,12 @@ Lets take an example where we have a foo board with the following base tree:
 			peripheral1 { ... };
 		};
 	};
----- foo.dts -----------------------------------------------------------------
+    ---- foo.dts ---------------------------------------------------------------
 
 The overlay bar.dts,
+::
 
----- bar.dts - overlay target location by label ------------------------------
+    ---- bar.dts - overlay target location by label ----------------------------
 	/dts-v1/;
 	/plugin/;
 	&ocp {
@@ -47,11 +51,11 @@ The overlay bar.dts,
 			... /* various properties and child nodes */
 		};
 	};
----- bar.dts -----------------------------------------------------------------
+    ---- bar.dts ---------------------------------------------------------------
 
-when loaded (and resolved as described in [1]) should result in foo+bar.dts
+when loaded (and resolved as described in [1]) should result in foo+bar.dts::
 
----- foo+bar.dts -------------------------------------------------------------
+    ---- foo+bar.dts -----------------------------------------------------------
 	/* FOO platform + bar peripheral */
 	/ {
 		compatible = "corp,foo";
@@ -72,7 +76,7 @@ when loaded (and resolved as described in [1]) should result in foo+bar.dts
 			};
 		};
 	};
----- foo+bar.dts -------------------------------------------------------------
+    ---- foo+bar.dts -----------------------------------------------------------
 
 As a result of the overlay, a new device node (bar) has been created
 so a bar platform device will be registered and if a matching device driver
@@ -84,9 +88,9 @@ in the base DT. In this case, the target path can be provided. The target
 location by label syntax is preferred because the overlay can be applied to
 any base DT containing the label, no matter where the label occurs in the DT.
 
-The above bar.dts example modified to use target path syntax is:
+The above bar.dts example modified to use target path syntax is::
 
----- bar.dts - overlay target location by explicit path ----------------------
+    ---- bar.dts - overlay target location by explicit path --------------------
 	/dts-v1/;
 	/plugin/;
 	&{/ocp} {
@@ -96,7 +100,7 @@ The above bar.dts example modified to use target path syntax is:
 			... /* various properties and child nodes */
 		}
 	};
----- bar.dts -----------------------------------------------------------------
+    ---- bar.dts ---------------------------------------------------------------
 
 
 Overlay in-kernel API
@@ -104,12 +108,12 @@ Overlay in-kernel API
 
 The API is quite easy to use.
 
-1. Call of_overlay_fdt_apply() to create and apply an overlay changeset. The
-return value is an error or a cookie identifying this overlay.
+1) Call of_overlay_fdt_apply() to create and apply an overlay changeset. The
+   return value is an error or a cookie identifying this overlay.
 
-2. Call of_overlay_remove() to remove and cleanup the overlay changeset
-previously created via the call to of_overlay_fdt_apply(). Removal of an
-overlay changeset that is stacked by another will not be permitted.
+2) Call of_overlay_remove() to remove and cleanup the overlay changeset
+   previously created via the call to of_overlay_fdt_apply(). Removal of an
+   overlay changeset that is stacked by another will not be permitted.
 
 Finally, if you need to remove all overlays in one-go, just call
 of_overlay_remove_all() which will remove every single one in the correct
