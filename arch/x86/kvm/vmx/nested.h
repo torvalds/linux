@@ -81,12 +81,16 @@ static inline bool nested_ept_ad_enabled(struct kvm_vcpu *vcpu)
 }
 
 /*
- * Reflect a VM Exit into L1.
+ * Conditionally reflect a VM-Exit into L1.  Returns %true if the VM-Exit was
+ * reflected into L1.
  */
-static inline int nested_vmx_reflect_vmexit(struct kvm_vcpu *vcpu,
-					    u32 exit_reason)
+static inline bool nested_vmx_reflect_vmexit(struct kvm_vcpu *vcpu,
+					     u32 exit_reason)
 {
-	u32 exit_intr_info = vmcs_read32(VM_EXIT_INTR_INFO);
+	u32 exit_intr_info;
+
+	if (!nested_vmx_exit_reflected(vcpu, exit_reason))
+		return false;
 
 	/*
 	 * At this point, the exit interruption info in exit_intr_info
@@ -94,6 +98,8 @@ static inline int nested_vmx_reflect_vmexit(struct kvm_vcpu *vcpu,
 	 * we need to query the in-kernel LAPIC.
 	 */
 	WARN_ON(exit_reason == EXIT_REASON_EXTERNAL_INTERRUPT);
+
+	exit_intr_info = vmcs_read32(VM_EXIT_INTR_INFO);
 	if ((exit_intr_info &
 	     (INTR_INFO_VALID_MASK | INTR_INFO_DELIVER_CODE_MASK)) ==
 	    (INTR_INFO_VALID_MASK | INTR_INFO_DELIVER_CODE_MASK)) {
@@ -105,7 +111,7 @@ static inline int nested_vmx_reflect_vmexit(struct kvm_vcpu *vcpu,
 
 	nested_vmx_vmexit(vcpu, exit_reason, exit_intr_info,
 			  vmcs_readl(EXIT_QUALIFICATION));
-	return 1;
+	return true;
 }
 
 /*
