@@ -56,6 +56,7 @@ struct sof_ext_man_header {
 enum sof_ext_man_elem_type {
 	SOF_EXT_MAN_ELEM_FW_VERSION		= 0,
 	SOF_EXT_MAN_ELEM_WINDOW			= SOF_IPC_EXT_WINDOW,
+	SOF_EXT_MAN_ELEM_CC_VERSION		= SOF_IPC_EXT_CC_INFO,
 };
 
 /* extended manifest element header */
@@ -78,6 +79,13 @@ struct sof_ext_man_window {
 	struct sof_ext_man_elem_header hdr;
 	/* use sof_ipc struct because of code re-use */
 	struct sof_ipc_window ipc_window;
+} __packed;
+
+/* Used C compiler description */
+struct sof_ext_man_cc_version {
+	struct sof_ext_man_elem_header hdr;
+	/* use sof_ipc struct because of code re-use */
+	struct sof_ipc_cc_version cc_version;
 } __packed;
 
 #endif /* __SOF_FIRMWARE_EXT_MANIFEST_H__ */
