@@ -173,7 +173,7 @@ struct sof_ipc_dai_dmic_params {
 	uint32_t fifo_fs;	/**< FIFO sample rate in Hz (8000..96000) */
 	uint32_t reserved_1;	/**< Reserved */
 	uint16_t fifo_bits;	/**< FIFO word length (16 or 32) */
-	uint16_t reserved_2;	/**< Reserved */
+	uint16_t fifo_bits_b;	/**< Deprecated since firmware ABI 3.0.1 */
 
 	uint16_t duty_min;	/**< Min. mic clock duty cycle in % (20..80) */
 	uint16_t duty_max;	/**< Max. mic clock duty cycle in % (min..80) */

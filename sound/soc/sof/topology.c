@@ -2957,10 +2957,12 @@ static int sof_link_dmic_load(struct snd_soc_component *scomp, int index,
 			config->dmic.pdm[j].skew);
 	}
 
-	if (SOF_ABI_VER(v->major, v->minor, v->micro) < SOF_ABI_VER(3, 0, 1)) {
-		/* this takes care of backwards compatible handling of fifo_bits_b */
-		config->dmic.reserved_2 = config->dmic.fifo_bits;
-	}
+	/*
+	 * this takes care of backwards compatible handling of fifo_bits_b.
+	 * It is deprecated since firmware ABI version 3.0.1.
+	 */
+	if (SOF_ABI_VER(v->major, v->minor, v->micro) < SOF_ABI_VER(3, 0, 1))
+		config->dmic.fifo_bits_b = config->dmic.fifo_bits;
 
 	/* send message to DSP */
 	ret = sof_ipc_tx_message(sdev->ipc, config->hdr.cmd, config, size,
