@@ -579,7 +579,6 @@ int wfx_start_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 	wfx_upload_keys(wvif);
 	wvif->state = WFX_STATE_AP;
-	wfx_update_filtering(wvif);
 	wfx_upload_ap_templates(wvif);
 	hif_start(wvif, &vif->bss_conf, wvif->channel);
 	return 0;
