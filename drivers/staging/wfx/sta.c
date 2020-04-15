@@ -136,7 +136,6 @@ void wfx_update_filtering(struct wfx_vif *wvif)
 		}
 	};
 
-	hif_set_rx_filter(wvif, wvif->filter_bssid, wvif->filter_prbreq);
 	if (!wvif->filter_beacon) {
 		hif_set_beacon_filter_table(wvif, 0, NULL);
 		hif_beacon_filter_control(wvif, 0, 1);
