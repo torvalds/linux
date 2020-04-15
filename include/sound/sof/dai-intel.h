@@ -135,7 +135,7 @@ struct sof_ipc_dai_dmic_pdm_ctrl {
  * version number used in configuration data is checked vs. version used by
  * device driver src/drivers/dmic.c need to match. It is incremented from
  * initial value 1 if updates done for the to driver would alter the operation
- * of the microhone.
+ * of the microphone.
  *
  * Note: The microphone clock (pdmclk_min, pdmclk_max, duty_min, duty_max)
  * parameters need to be set as defined in microphone data sheet. E.g. clock
