@@ -5826,9 +5826,10 @@ static bool nested_vmx_l1_wants_exit(struct kvm_vcpu *vcpu, u32 exit_reason)
  * Conditionally reflect a VM-Exit into L1.  Returns %true if the VM-Exit was
  * reflected into L1.
  */
-bool nested_vmx_reflect_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason)
+bool nested_vmx_reflect_vmexit(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	u32 exit_reason = vmx->exit_reason;
 	u32 exit_intr_info, exit_qual;
 
 	WARN_ON_ONCE(vmx->nested.nested_run_pending);

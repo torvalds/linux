@@ -5905,7 +5905,7 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu,
 		 */
 		nested_mark_vmcs12_pages_dirty(vcpu);
 
-		if (nested_vmx_reflect_vmexit(vcpu, exit_reason))
+		if (nested_vmx_reflect_vmexit(vcpu))
 			return 1;
 	}
 
