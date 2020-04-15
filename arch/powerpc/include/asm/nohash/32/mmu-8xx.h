@@ -36,16 +36,16 @@
  * Therefore, we define 2 APG groups. lsb is _PMD_USER
  * 0 => Kernel => 01 (all accesses performed according to page definition)
  * 1 => User => 00 (all accesses performed as supervisor iaw page definition)
- * 2-16 => NA => 11 (all accesses performed as user iaw page definition)
+ * 2-15 => Not Used
  */
-#define MI_APG_INIT	0x4fffffff
+#define MI_APG_INIT	0x40000000
 
 /*
  * 0 => Kernel => 01 (all accesses performed according to page definition)
  * 1 => User => 10 (all accesses performed according to swaped page definition)
- * 2-16 => NA => 11 (all accesses performed as user iaw page definition)
+ * 2-15 => Not Used
  */
-#define MI_APG_KUEP	0x6fffffff
+#define MI_APG_KUEP	0x60000000
 
 /* The effective page number register.  When read, contains the information
  * about the last instruction TLB miss.  When MI_RPN is written, bits in
@@ -115,16 +115,16 @@
  * Therefore, we define 2 APG groups. lsb is _PMD_USER
  * 0 => Kernel => 01 (all accesses performed according to page definition)
  * 1 => User => 00 (all accesses performed as supervisor iaw page definition)
- * 2-16 => NA => 11 (all accesses performed as user iaw page definition)
+ * 2-15 => Not Used
  */
-#define MD_APG_INIT	0x4fffffff
+#define MD_APG_INIT	0x40000000
 
 /*
  * 0 => No user => 01 (all accesses performed according to page definition)
  * 1 => User => 10 (all accesses performed according to swaped page definition)
- * 2-16 => NA => 11 (all accesses performed as user iaw page definition)
+ * 2-15 => Not Used
  */
-#define MD_APG_KUAP	0x6fffffff
+#define MD_APG_KUAP	0x60000000
 
 /* The effective page number register.  When read, contains the information
  * about the last instruction TLB miss.  When MD_RPN is written, bits in
