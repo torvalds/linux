@@ -25,7 +25,7 @@ void nested_vmx_set_vmcs_shadowing_bitmap(void);
 void nested_vmx_free_vcpu(struct kvm_vcpu *vcpu);
 enum nvmx_vmentry_status nested_vmx_enter_non_root_mode(struct kvm_vcpu *vcpu,
 						     bool from_vmentry);
-bool nested_vmx_exit_reflected(struct kvm_vcpu *vcpu, u32 exit_reason);
+bool nested_vmx_reflect_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason);
 void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason,
 		       u32 exit_intr_info, unsigned long exit_qualification);
 void nested_sync_vmcs12_to_shadow(struct kvm_vcpu *vcpu);
@@ -78,40 +78,6 @@ static inline unsigned long nested_ept_get_eptp(struct kvm_vcpu *vcpu)
 static inline bool nested_ept_ad_enabled(struct kvm_vcpu *vcpu)
 {
 	return nested_ept_get_eptp(vcpu) & VMX_EPTP_AD_ENABLE_BIT;
-}
-
-/*
- * Conditionally reflect a VM-Exit into L1.  Returns %true if the VM-Exit was
- * reflected into L1.
- */
-static inline bool nested_vmx_reflect_vmexit(struct kvm_vcpu *vcpu,
-					     u32 exit_reason)
-{
-	u32 exit_intr_info;
-
-	if (!nested_vmx_exit_reflected(vcpu, exit_reason))
-		return false;
-
-	/*
-	 * At this point, the exit interruption info in exit_intr_info
-	 * is only valid for EXCEPTION_NMI exits.  For EXTERNAL_INTERRUPT
-	 * we need to query the in-kernel LAPIC.
-	 */
-	WARN_ON(exit_reason == EXIT_REASON_EXTERNAL_INTERRUPT);
-
-	exit_intr_info = vmcs_read32(VM_EXIT_INTR_INFO);
-	if ((exit_intr_info &
-	     (INTR_INFO_VALID_MASK | INTR_INFO_DELIVER_CODE_MASK)) ==
-	    (INTR_INFO_VALID_MASK | INTR_INFO_DELIVER_CODE_MASK)) {
-		struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
-
-		vmcs12->vm_exit_intr_error_code =
-			vmcs_read32(VM_EXIT_INTR_ERROR_CODE);
-	}
-
-	nested_vmx_vmexit(vcpu, exit_reason, exit_intr_info,
-			  vmcs_readl(EXIT_QUALIFICATION));
-	return true;
 }
 
 /*
