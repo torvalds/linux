@@ -48,7 +48,6 @@
 #include "intel_audio.h"
 #include "intel_connector.h"
 #include "intel_ddi.h"
-#include "intel_display_debugfs.h"
 #include "intel_display_types.h"
 #include "intel_dp.h"
 #include "intel_dp_link_training.h"
@@ -6450,8 +6449,6 @@ intel_dp_connector_register(struct drm_connector *connector)
 	ret = intel_connector_register(connector);
 	if (ret)
 		return ret;
-
-	intel_connector_debugfs_add(connector);
 
 	drm_dbg_kms(&i915->drm, "registering %s bus for %s\n",
 		    intel_dp->aux.name, connector->kdev->kobj.name);

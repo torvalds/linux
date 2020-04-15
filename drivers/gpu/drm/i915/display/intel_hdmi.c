@@ -44,7 +44,6 @@
 #include "intel_audio.h"
 #include "intel_connector.h"
 #include "intel_ddi.h"
-#include "intel_display_debugfs.h"
 #include "intel_display_types.h"
 #include "intel_dp.h"
 #include "intel_dpio_phy.h"
@@ -2877,8 +2876,6 @@ intel_hdmi_connector_register(struct drm_connector *connector)
 	ret = intel_connector_register(connector);
 	if (ret)
 		return ret;
-
-	intel_connector_debugfs_add(connector);
 
 	intel_hdmi_create_i2c_symlink(connector);
 
