@@ -1923,3 +1923,7 @@ bool i915_gpu_turbo_disable(void)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(i915_gpu_turbo_disable);
+
+#if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
+#include "selftest_rps.c"
+#endif
