@@ -203,7 +203,6 @@ u64 wfx_prepare_multicast(struct ieee80211_hw *hw,
 					ha->addr);
 			i++;
 		}
-		wvif->mcast_filter.enable = true;
 		wvif->mcast_filter.num_addresses = count;
 	}
 
@@ -218,16 +217,46 @@ void wfx_configure_filter(struct ieee80211_hw *hw,
 	struct wfx_vif *wvif = NULL;
 	struct wfx_dev *wdev = hw->priv;
 
-	*total_flags &= FIF_OTHER_BSS | FIF_FCSFAIL | FIF_PROBE_REQ;
+	// Notes:
+	//   - Probe responses (FIF_BCN_PRBRESP_PROMISC) are never filtered
+	//   - PS-Poll (FIF_PSPOLL) are never filtered
+	//   - RTS, CTS and Ack (FIF_CONTROL) are always filtered
+	//   - Broken frames (FIF_FCSFAIL and FIF_PLCPFAIL) are always filtered
+	//   - Firmware does (yet) allow to forward unicast traffic sent to
+	//     other stations (aka. promiscuous mode)
+	*total_flags &= FIF_BCN_PRBRESP_PROMISC | FIF_ALLMULTI | FIF_OTHER_BSS |
+			FIF_PROBE_REQ | FIF_PSPOLL;
 
 	mutex_lock(&wdev->conf_mutex);
 	while ((wvif = wvif_iterate(wdev, wvif)) != NULL) {
 		mutex_lock(&wvif->scan_lock);
-		wvif->filter_bssid = (*total_flags &
-				      (FIF_OTHER_BSS | FIF_PROBE_REQ)) ? 0 : 1;
-		wvif->disable_beacon_filter = !(*total_flags & FIF_PROBE_REQ);
-		wfx_fwd_probe_req(wvif, true);
+
+		// Note: FIF_BCN_PRBRESP_PROMISC covers probe response and
+		// beacons from other BSS
+		if (*total_flags & FIF_BCN_PRBRESP_PROMISC)
+			wvif->disable_beacon_filter = true;
+		else
+			wvif->disable_beacon_filter = false;
+
+		if (*total_flags & FIF_ALLMULTI) {
+			wvif->mcast_filter.enable = false;
+		} else if (!wvif->mcast_filter.num_addresses) {
+			dev_dbg(wdev->dev, "disabling unconfigured multicast filter");
+			wvif->mcast_filter.enable = false;
+		} else {
+			wvif->mcast_filter.enable = true;
+		}
 		wfx_update_filtering(wvif);
+
+		if (*total_flags & FIF_OTHER_BSS)
+			wvif->filter_bssid = false;
+		else
+			wvif->filter_bssid = true;
+
+		if (*total_flags & FIF_PROBE_REQ)
+			wfx_fwd_probe_req(wvif, true);
+		else
+			wfx_fwd_probe_req(wvif, false);
 		mutex_unlock(&wvif->scan_lock);
 	}
 	mutex_unlock(&wdev->conf_mutex);
