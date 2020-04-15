@@ -6880,6 +6880,10 @@ static void tgl_init_clock_gating(struct drm_i915_private *dev_priv)
 	if (IS_TGL_REVID(dev_priv, TGL_REVID_A0, TGL_REVID_A0))
 		I915_WRITE(GEN9_CLKGATE_DIS_3, I915_READ(GEN9_CLKGATE_DIS_3) |
 			   TGL_VRH_GATING_DIS);
+
+	/* Wa_14011059788:tgl */
+	intel_uncore_rmw(&dev_priv->uncore, GEN10_DFR_RATIO_EN_AND_CHICKEN,
+			 0, DFR_DISABLE);
 }
 
 static void cnp_init_clock_gating(struct drm_i915_private *dev_priv)
