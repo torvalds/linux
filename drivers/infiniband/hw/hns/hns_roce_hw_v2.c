@@ -2427,12 +2427,9 @@ static int hns_roce_v2_set_mac(struct hns_roce_dev *hr_dev, u8 phy_port,
 	reg_smac_l = *(u32 *)(&addr[0]);
 	reg_smac_h = *(u16 *)(&addr[4]);
 
-	memset(smac_tb, 0, sizeof(*smac_tb));
-	roce_set_field(smac_tb->tb_idx_rsv,
-		       CFG_SMAC_TB_IDX_M,
+	roce_set_field(smac_tb->tb_idx_rsv, CFG_SMAC_TB_IDX_M,
 		       CFG_SMAC_TB_IDX_S, phy_port);
-	roce_set_field(smac_tb->vf_smac_h_rsv,
-		       CFG_SMAC_TB_VF_SMAC_H_M,
+	roce_set_field(smac_tb->vf_smac_h_rsv, CFG_SMAC_TB_VF_SMAC_H_M,
 		       CFG_SMAC_TB_VF_SMAC_H_S, reg_smac_h);
 	smac_tb->vf_smac_l = cpu_to_le32(reg_smac_l);
 
