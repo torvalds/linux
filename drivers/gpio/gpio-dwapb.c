@@ -805,8 +805,8 @@ static struct platform_driver dwapb_gpio_driver = {
 	.driver		= {
 		.name	= DWAPB_DRIVER_NAME,
 		.pm	= &dwapb_gpio_pm_ops,
-		.of_match_table = of_match_ptr(dwapb_of_match),
-		.acpi_match_table = ACPI_PTR(dwapb_acpi_match),
+		.of_match_table = dwapb_of_match,
+		.acpi_match_table = dwapb_acpi_match,
 	},
 	.probe		= dwapb_gpio_probe,
 	.remove		= dwapb_gpio_remove,
