@@ -5,6 +5,7 @@ config GKI_HIDDEN_DRM_CONFIGS
 	select DRM_GEM_CMA_HELPER
 	select DRM_KMS_CMA_HELPER
 	select DRM_MIPI_DSI
+	select DRM_TTM if (HAS_IOMEM && DRM)
 	select VIDEOMODE_HELPERS
 	select WANT_DEV_COREDUMP
 	help
