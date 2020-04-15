@@ -753,6 +753,12 @@ static const struct sof_topology_token dmic_pdm_tokens[] = {
 
 /* HDA */
 static const struct sof_topology_token hda_tokens[] = {
+	{SOF_TKN_INTEL_HDA_RATE,
+		SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
+		offsetof(struct sof_ipc_dai_hda_params, rate), 0},
+	{SOF_TKN_INTEL_HDA_CH,
+		SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
+		offsetof(struct sof_ipc_dai_hda_params, channels), 0},
 };
 
 /* Leds */
@@ -3082,6 +3088,9 @@ static int sof_link_hda_load(struct snd_soc_component *scomp, int index,
 			le32_to_cpu(private->size));
 		return ret;
 	}
+
+	dev_dbg(scomp->dev, "HDA config rate %d channels %d\n",
+		config->hda.rate, config->hda.channels);
 
 	dai = snd_soc_find_dai(link->cpus);
 	if (!dai) {

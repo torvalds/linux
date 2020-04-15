@@ -130,4 +130,8 @@
 #define SOF_TKN_INTEL_ALH_RATE			1400
 #define SOF_TKN_INTEL_ALH_CH			1401
 
+/* HDA */
+#define SOF_TKN_INTEL_HDA_RATE			1500
+#define SOF_TKN_INTEL_HDA_CH			1501
+
 #endif
