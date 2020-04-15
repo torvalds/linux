@@ -470,7 +470,7 @@ int amdgpu_fence_driver_init_ring(struct amdgpu_ring *ring,
 		return -ENOMEM;
 
 	/* No need to setup the GPU scheduler for KIQ and MES ring */
-	if (ring->funcs->type != AMDGPU_RING_TYPE_KIQ ||
+	if (ring->funcs->type != AMDGPU_RING_TYPE_KIQ &&
 	    ring->funcs->type != AMDGPU_RING_TYPE_MES) {
 		switch (ring->funcs->type) {
 		case AMDGPU_RING_TYPE_GFX:
