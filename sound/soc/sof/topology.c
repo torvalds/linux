@@ -3074,7 +3074,7 @@ static int sof_link_hda_load(struct snd_soc_component *scomp, int index,
 	config->hdr.size = size;
 
 	/* get any bespoke DAI tokens */
-	ret = sof_parse_tokens(scomp, config, hda_tokens,
+	ret = sof_parse_tokens(scomp, &config->hda, hda_tokens,
 			       ARRAY_SIZE(hda_tokens), private->array,
 			       le32_to_cpu(private->size));
 	if (ret != 0) {
