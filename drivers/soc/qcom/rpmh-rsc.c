@@ -10,6 +10,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/module.h>
@@ -175,12 +176,13 @@ static void write_tcs_reg(const struct rsc_drv *drv, int reg, int tcs_id,
 static void write_tcs_reg_sync(const struct rsc_drv *drv, int reg, int tcs_id,
 			       u32 data)
 {
+	u32 new_data;
+
 	writel(data, tcs_reg_addr(drv, reg, tcs_id));
-	for (;;) {
-		if (data == readl(tcs_reg_addr(drv, reg, tcs_id)))
-			break;
-		udelay(1);
-	}
+	if (readl_poll_timeout_atomic(tcs_reg_addr(drv, reg, tcs_id), new_data,
+				      new_data == data, 1, USEC_PER_SEC))
+		pr_err("%s: error writing %#x to %d:%#x\n", drv->name,
+		       data, tcs_id, reg);
 }
 
 /**
