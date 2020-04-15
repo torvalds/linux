@@ -548,9 +548,6 @@ static void firmware_free_data(const struct firmware *fw)
 static void fw_set_page_data(struct fw_priv *fw_priv, struct firmware *fw)
 {
 	fw->priv = fw_priv;
-#ifdef CONFIG_FW_LOADER_USER_HELPER
-	fw->pages = fw_priv->pages;
-#endif
 	fw->size = fw_priv->size;
 	fw->data = fw_priv->data;
 
