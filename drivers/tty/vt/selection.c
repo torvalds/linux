@@ -185,13 +185,51 @@ int set_selection_user(const struct tiocl_selection __user *sel,
 	return set_selection_kernel(&v, tty);
 }
 
+static int vc_selection_store_chars(struct vc_data *vc, bool unicode)
+{
+	char *bp, *obp;
+	unsigned int i;
+
+	/* Allocate a new buffer before freeing the old one ... */
+	/* chars can take up to 4 bytes with unicode */
+	bp = kmalloc_array((vc_sel.end - vc_sel.start) / 2 + 1, unicode ? 4 : 1,
+			   GFP_KERNEL);
+	if (!bp) {
+		printk(KERN_WARNING "selection: kmalloc() failed\n");
+		clear_selection();
+		return -ENOMEM;
+	}
+	kfree(vc_sel.buffer);
+	vc_sel.buffer = bp;
+
+	obp = bp;
+	for (i = vc_sel.start; i <= vc_sel.end; i += 2) {
+		u32 c = sel_pos(i, unicode);
+		if (unicode)
+			bp += store_utf8(c, bp);
+		else
+			*bp++ = c;
+		if (!isspace(c))
+			obp = bp;
+		if (!((i + 2) % vc->vc_size_row)) {
+			/* strip trailing blanks from line and add newline,
+			   unless non-space at end of line. */
+			if (obp != bp) {
+				bp = obp;
+				*bp++ = '\r';
+			}
+			obp = bp;
+		}
+	}
+	vc_sel.buf_len = bp - vc_sel.buffer;
+
+	return 0;
+}
+
 static int vc_do_selection(struct vc_data *vc, unsigned short mode, int ps,
 		int pe)
 {
 	int new_sel_start, new_sel_end, spc;
-	char *bp, *obp;
-	u32 c;
-	int i, ret = 0;
 	bool unicode = vt_do_kdgkbmode(fg_console) == K_UNICODE;
 
 	switch (mode) {
@@ -272,40 +310,7 @@ static int vc_do_selection(struct vc_data *vc, unsigned short mode, int ps,
 	vc_sel.start = new_sel_start;
 	vc_sel.end = new_sel_end;
 
-	/* Allocate a new buffer before freeing the old one ... */
-	/* chars can take up to 4 bytes with unicode */
-	bp = kmalloc_array((vc_sel.end - vc_sel.start) / 2 + 1, unicode ? 4 : 1,
-			   GFP_KERNEL);
-	if (!bp) {
-		printk(KERN_WARNING "selection: kmalloc() failed\n");
-		clear_selection();
-		return -ENOMEM;
-	}
-	kfree(vc_sel.buffer);
-	vc_sel.buffer = bp;
-
-	obp = bp;
-	for (i = vc_sel.start; i <= vc_sel.end; i += 2) {
-		c = sel_pos(i, unicode);
-		if (unicode)
-			bp += store_utf8(c, bp);
-		else
-			*bp++ = c;
-		if (!isspace(c))
-			obp = bp;
-		if (! ((i + 2) % vc->vc_size_row)) {
-			/* strip trailing blanks from line and add newline,
-			   unless non-space at end of line. */
-			if (obp != bp) {
-				bp = obp;
-				*bp++ = '\r';
-			}
-			obp = bp;
-		}
-	}
-	vc_sel.buf_len = bp - vc_sel.buffer;
-
-	return ret;
+	return vc_selection_store_chars(vc, unicode);
 }
 
 static int vc_selection(struct vc_data *vc, struct tiocl_selection *v,
