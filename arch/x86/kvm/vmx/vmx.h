@@ -210,6 +210,7 @@ struct vcpu_vmx {
 	 */
 	bool		      guest_state_loaded;
 
+	unsigned long         exit_qualification;
 	u32                   exit_intr_info;
 	u32                   idt_vectoring_info;
 	ulong                 rflags;
@@ -449,7 +450,8 @@ static inline void vmx_register_cache_reset(struct kvm_vcpu *vcpu)
 				  | (1 << VCPU_EXREG_RFLAGS)
 				  | (1 << VCPU_EXREG_PDPTR)
 				  | (1 << VCPU_EXREG_SEGMENTS)
-				  | (1 << VCPU_EXREG_CR3));
+				  | (1 << VCPU_EXREG_CR3)
+				  | (1 << VCPU_EXREG_EXIT_INFO_1));
 	vcpu->arch.regs_dirty = 0;
 }
 
@@ -491,6 +493,17 @@ static inline struct vcpu_vmx *to_vmx(struct kvm_vcpu *vcpu)
 static inline struct pi_desc *vcpu_to_pi_desc(struct kvm_vcpu *vcpu)
 {
 	return &(to_vmx(vcpu)->pi_desc);
+}
+
+static inline unsigned long vmx_get_exit_qual(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+
+	if (!kvm_register_is_available(vcpu, VCPU_EXREG_EXIT_INFO_1)) {
+		kvm_register_mark_available(vcpu, VCPU_EXREG_EXIT_INFO_1);
+		vmx->exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
+	}
+	return vmx->exit_qualification;
 }
 
 struct vmcs *alloc_vmcs_cpu(bool shadow, int cpu, gfp_t flags);
