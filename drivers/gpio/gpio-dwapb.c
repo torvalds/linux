@@ -258,8 +258,7 @@ static int dwapb_irq_set_type(struct irq_data *d, u32 type)
 	irq_hw_number_t bit = irqd_to_hwirq(d);
 	unsigned long level, polarity, flags;
 
-	if (type & ~(IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING |
-		     IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW))
+	if (type & ~IRQ_TYPE_SENSE_MASK)
 		return -EINVAL;
 
 	spin_lock_irqsave(&gc->bgpio_lock, flags);
@@ -351,12 +350,7 @@ static int dwapb_gpio_set_config(struct gpio_chip *gc, unsigned offset,
 
 static irqreturn_t dwapb_irq_handler_mfd(int irq, void *dev_id)
 {
-	u32 worked;
-	struct dwapb_gpio *gpio = dev_id;
-
-	worked = dwapb_do_irq(gpio);
-
-	return worked ? IRQ_HANDLED : IRQ_NONE;
+	return IRQ_RETVAL(dwapb_do_irq(dev_id));
 }
 
 static void dwapb_configure_irqs(struct dwapb_gpio *gpio,
