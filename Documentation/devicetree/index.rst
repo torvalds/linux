@@ -11,3 +11,4 @@ Open Firmware and Device Tree
    writing-schema
    changesets
    dynamic-resolution-notes
+   of_unittest
