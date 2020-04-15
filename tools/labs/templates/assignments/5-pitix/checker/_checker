@@ -5,6 +5,7 @@ mkfs_cmd=./mkfs.pitix
 inode_direct_data_blocks=5
 inode_size=32
 
+test_ok=0
 test_no=0
 
 #
@@ -64,6 +65,7 @@ check_true()
         extra_string="$@"
         ret=1
     else
+        test_ok=$(($test_ok+1))
         extra_string=""
         end_string="ok"
         ret=0
@@ -88,6 +90,7 @@ check_false()
         end_string="failed"
         extra_string="$@"
     else
+        test_ok=$(($test_ok+1))
         end_string="ok"
         extra_string=""
     fi
@@ -374,5 +377,7 @@ test_rw 512
 check_true "module unloading" rmmod pitix
 
 cleanup_world
+
+echo "Tests ok: $test_ok/$test_no" # could also display as percent
 
 # vim: set tabstop=4 shiftwidth=4:
