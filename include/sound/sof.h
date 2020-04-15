@@ -27,6 +27,9 @@ struct snd_sof_pdata {
 
 	struct device *dev;
 
+	/* indicate how many first bytes shouldn't be loaded into DSP memory. */
+	size_t fw_offset;
+
 	/*
 	 * notification callback used if the hardware initialization
 	 * can take time or is handled in a workqueue. This callback

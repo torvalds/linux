@@ -72,7 +72,7 @@ struct sof_ipc_dma_trace_posn {
 struct sof_ipc_panic_info {
 	struct sof_ipc_hdr hdr;
 	uint32_t code;			/* SOF_IPC_PANIC_ */
-	char filename[SOF_TRACE_FILENAME_SIZE];
+	uint8_t filename[SOF_TRACE_FILENAME_SIZE];
 	uint32_t linenum;
 }  __packed;
 
