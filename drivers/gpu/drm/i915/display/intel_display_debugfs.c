@@ -9,6 +9,7 @@
 #include "i915_debugfs.h"
 #include "intel_csr.h"
 #include "intel_display_debugfs.h"
+#include "intel_display_power.h"
 #include "intel_display_types.h"
 #include "intel_dp.h"
 #include "intel_fbc.h"
@@ -1149,6 +1150,51 @@ static int i915_drrs_status(struct seq_file *m, void *unused)
 	return 0;
 }
 
+#define LPSP_STATUS(COND) (COND ? seq_puts(m, "LPSP: enabled\n") : \
+				seq_puts(m, "LPSP: disabled\n"))
+
+static bool
+intel_lpsp_power_well_enabled(struct drm_i915_private *i915,
+			      enum i915_power_well_id power_well_id)
+{
+	intel_wakeref_t wakeref;
+	bool is_enabled;
+
+	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
+	is_enabled = intel_display_power_well_is_enabled(i915,
+							 power_well_id);
+	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
+
+	return is_enabled;
+}
+
+static int i915_lpsp_status(struct seq_file *m, void *unused)
+{
+	struct drm_i915_private *i915 = node_to_i915(m->private);
+
+	switch (INTEL_GEN(i915)) {
+	case 12:
+	case 11:
+		LPSP_STATUS(!intel_lpsp_power_well_enabled(i915, ICL_DISP_PW_3));
+		break;
+	case 10:
+	case 9:
+		LPSP_STATUS(!intel_lpsp_power_well_enabled(i915, SKL_DISP_PW_2));
+		break;
+	default:
+		/*
+		 * Apart from HASWELL/BROADWELL other legacy platform doesn't
+		 * support lpsp.
+		 */
+		if (IS_HASWELL(i915) || IS_BROADWELL(i915))
+			LPSP_STATUS(!intel_lpsp_power_well_enabled(i915, HSW_DISP_PW_GLOBAL));
+		else
+			seq_puts(m, "LPSP: not supported\n");
+	}
+
+	return 0;
+}
+
 static int i915_dp_mst_info(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
@@ -1916,6 +1962,7 @@ static const struct drm_info_list intel_display_debugfs_list[] = {
 	{"i915_dp_mst_info", i915_dp_mst_info, 0},
 	{"i915_ddb_info", i915_ddb_info, 0},
 	{"i915_drrs_status", i915_drrs_status, 0},
+	{"i915_lpsp_status", i915_lpsp_status, 0},
 };
 
 static const struct {
