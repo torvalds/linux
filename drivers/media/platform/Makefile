@@ -23,8 +23,6 @@ obj-$(CONFIG_VIDEO_IMX_PXP)		+= imx-pxp.o
 
 obj-$(CONFIG_VIDEO_SH_VEU)		+= sh_veu.o
 
-obj-$(CONFIG_CEC_GPIO)			+= cec-gpio/
-
 obj-$(CONFIG_VIDEO_MEM2MEM_DEINTERLACE)	+= m2m-deinterlace.o
 
 obj-$(CONFIG_VIDEO_MUX)			+= video-mux.o
@@ -35,21 +33,15 @@ obj-$(CONFIG_VIDEO_SAMSUNG_S5P_JPEG)	+= s5p-jpeg/
 obj-$(CONFIG_VIDEO_SAMSUNG_S5P_MFC)	+= s5p-mfc/
 
 obj-$(CONFIG_VIDEO_SAMSUNG_S5P_G2D)	+= s5p-g2d/
-obj-$(CONFIG_VIDEO_SAMSUNG_S5P_CEC)	+= s5p-cec/
 obj-$(CONFIG_VIDEO_SAMSUNG_EXYNOS_GSC)	+= exynos-gsc/
 
 obj-$(CONFIG_VIDEO_STI_BDISP)		+= sti/bdisp/
 obj-$(CONFIG_VIDEO_STI_HVA)		+= sti/hva/
 obj-$(CONFIG_DVB_C8SECTPFE)		+= sti/c8sectpfe/
-obj-$(CONFIG_VIDEO_STI_HDMI_CEC)	+= sti/cec/
 
 obj-$(CONFIG_VIDEO_STI_DELTA)		+= sti/delta/
 
-obj-$(CONFIG_VIDEO_TEGRA_HDMI_CEC)	+= tegra-cec/
-
 obj-y					+= stm32/
-
-obj-$(CONFIG_VIDEO_SECO_CEC)		+= seco-cec/
 
 obj-y					+= davinci/
 
@@ -88,9 +80,5 @@ obj-$(CONFIG_VIDEO_MEDIATEK_JPEG)	+= mtk-jpeg/
 obj-$(CONFIG_VIDEO_QCOM_CAMSS)		+= qcom/camss/
 
 obj-$(CONFIG_VIDEO_QCOM_VENUS)		+= qcom/venus/
-
-obj-y					+= meson/
-
-obj-y					+= cros-ec-cec/
 
 obj-y					+= sunxi/

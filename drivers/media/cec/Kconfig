@@ -21,7 +21,7 @@ config CEC_PIN_ERROR_INJ
 	help
 	  This option enables CEC error injection using debugfs.
 
-config MEDIA_CEC_SUPPORT
+menuconfig MEDIA_CEC_SUPPORT
 	bool
 	prompt "HDMI CEC drivers"
 	default y if !MEDIA_SUPPORT_FILTER
@@ -31,3 +31,7 @@ config MEDIA_CEC_SUPPORT
 
 	  Say Y when you have an HDMI receiver, transmitter or a USB CEC
 	  adapter that supports HDMI CEC.
+
+if MEDIA_CEC_SUPPORT
+source "drivers/media/cec/platform/Kconfig"
+endif
