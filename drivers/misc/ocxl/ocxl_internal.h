@@ -128,11 +128,12 @@ int ocxl_config_check_afu_index(struct pci_dev *dev,
 				struct ocxl_fn_config *fn, int afu_idx);
 
 /**
- * Update values within a Process Element
+ * ocxl_link_update_pe() - Update values within a Process Element
+ * @link_handle: the link handle associated with the process element
+ * @pasid: the PASID for the AFU context
+ * @tid: the new thread id for the process element
  *
- * link_handle: the link handle associated with the process element
- * pasid: the PASID for the AFU context
- * tid: the new thread id for the process element
+ * Returns 0 on success
  */
 int ocxl_link_update_pe(void *link_handle, int pasid, __u16 tid);
 
