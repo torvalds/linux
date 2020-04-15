@@ -241,6 +241,13 @@ void wfx_configure_filter(struct ieee80211_hw *hw,
 		else
 			wvif->filter_bssid = true;
 
+		// In AP mode, chip can reply to probe request itself
+		if (*total_flags & FIF_PROBE_REQ &&
+		    wvif->vif->type == NL80211_IFTYPE_AP) {
+			dev_dbg(wdev->dev, "do not forward probe request in AP mode\n");
+			*total_flags &= ~FIF_PROBE_REQ;
+		}
+
 		if (*total_flags & FIF_PROBE_REQ)
 			wfx_fwd_probe_req(wvif, true);
 		else
@@ -577,7 +584,6 @@ int wfx_start_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	wvif->state = WFX_STATE_AP;
 	wfx_update_filtering(wvif);
 	wfx_upload_ap_templates(wvif);
-	wfx_fwd_probe_req(wvif, false);
 	hif_start(wvif, &vif->bss_conf, wvif->channel);
 	return 0;
 }
