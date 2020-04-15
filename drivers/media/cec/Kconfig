@@ -34,4 +34,5 @@ menuconfig MEDIA_CEC_SUPPORT
 
 if MEDIA_CEC_SUPPORT
 source "drivers/media/cec/platform/Kconfig"
+source "drivers/media/cec/usb/Kconfig"
 endif
