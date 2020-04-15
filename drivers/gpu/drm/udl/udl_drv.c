@@ -63,7 +63,6 @@ static struct udl_device *udl_driver_create(struct usb_interface *interface)
 		return udl;
 
 	udl->udev = udev;
-	udl->drm.dev_private = udl;
 
 	r = udl_init(udl);
 	if (r)

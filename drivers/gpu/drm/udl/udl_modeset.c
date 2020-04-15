@@ -215,7 +215,7 @@ static char *udl_dummy_render(char *wrptr)
 static int udl_crtc_write_mode_to_hw(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
-	struct udl_device *udl = dev->dev_private;
+	struct udl_device *udl = to_udl(dev);
 	struct urb *urb;
 	char *buf;
 	int retval;
@@ -369,7 +369,7 @@ udl_simple_display_pipe_enable(struct drm_simple_display_pipe *pipe,
 	struct drm_crtc *crtc = &pipe->crtc;
 	struct drm_device *dev = crtc->dev;
 	struct drm_framebuffer *fb = plane_state->fb;
-	struct udl_device *udl = dev->dev_private;
+	struct udl_device *udl = to_udl(dev);
 	struct drm_display_mode *mode = &crtc_state->mode;
 	char *buf;
 	char *wrptr;
@@ -464,7 +464,7 @@ static const struct drm_mode_config_funcs udl_mode_funcs = {
 int udl_modeset_init(struct drm_device *dev)
 {
 	size_t format_count = ARRAY_SIZE(udl_simple_display_pipe_formats);
-	struct udl_device *udl = dev->dev_private;
+	struct udl_device *udl = to_udl(dev);
 	struct drm_connector *connector;
 	int ret;
 
