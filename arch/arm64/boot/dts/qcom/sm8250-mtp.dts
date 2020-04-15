@@ -358,3 +358,23 @@
 &uart2 {
 	status = "okay";
 };
+
+&ufs_mem_hc {
+	status = "okay";
+
+	vcc-supply = <&vreg_l17a_3p0>;
+	vcc-max-microamp = <750000>;
+	vccq-supply = <&vreg_l6a_1p2>;
+	vccq-max-microamp = <700000>;
+	vccq2-supply = <&vreg_s4a_1p8>;
+	vccq2-max-microamp = <750000>;
+};
+
+&ufs_mem_phy {
+	status = "okay";
+
+	vdda-phy-supply = <&vreg_l5a_0p875>;
+	vdda-max-microamp = <90200>;
+	vdda-pll-supply = <&vreg_l9a_1p2>;
+	vdda-pll-max-microamp = <19000>;
+};
