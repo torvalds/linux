@@ -319,7 +319,6 @@
 #define PCLK_I2C4		257
 #define PCLK_I2C5		258
 #define PCLK_SPI1		259
-#define PCLK_CAPTURE_PWM2	260
 #define PCLK_PWM2		261
 #define PCLK_GPIO1		262
 #define PCLK_GPIO2		263
