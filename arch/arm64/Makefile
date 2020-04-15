@@ -117,7 +117,7 @@ TEXT_OFFSET := $(shell awk "BEGIN {srand(); printf \"0x%06x\n\", \
 		 int(2 * 1024 * 1024 / (2 ^ $(CONFIG_ARM64_PAGE_SHIFT)) * \
 		 rand()) * (2 ^ $(CONFIG_ARM64_PAGE_SHIFT))}")
 else
-TEXT_OFFSET := 0x00080000
+TEXT_OFFSET := 0x0
 endif
 
 ifeq ($(CONFIG_KASAN_SW_TAGS), y)
