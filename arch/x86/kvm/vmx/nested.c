@@ -4250,7 +4250,7 @@ static void nested_vmx_restore_host_state(struct kvm_vcpu *vcpu)
 	 * VMFail, like everything else we just need to ensure our
 	 * software model is up-to-date.
 	 */
-	if (enable_ept)
+	if (enable_ept && is_pae_paging(vcpu))
 		ept_save_pdptrs(vcpu);
 
 	kvm_mmu_reset_context(vcpu);
