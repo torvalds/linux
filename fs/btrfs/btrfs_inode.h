@@ -301,7 +301,6 @@ struct btrfs_dio_private {
 	u64 logical_offset;
 	u64 disk_bytenr;
 	u64 bytes;
-	void *private;
 
 	/* number of bios pending for this dio */
 	atomic_t pending_bios;

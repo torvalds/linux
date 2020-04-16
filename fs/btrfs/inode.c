@@ -7923,7 +7923,6 @@ static struct btrfs_dio_private *btrfs_create_dio_private(struct bio *dio_bio,
 	bio->bi_private = dip;
 	btrfs_io_bio(bio)->logical = file_offset;
 
-	dip->private = dio_bio->bi_private;
 	dip->inode = inode;
 	dip->logical_offset = file_offset;
 	dip->bytes = dio_bio->bi_iter.bi_size;
