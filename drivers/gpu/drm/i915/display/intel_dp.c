@@ -5401,9 +5401,180 @@ static u8 intel_dp_autotest_edid(struct intel_dp *intel_dp)
 	return test_result;
 }
 
+static u8 intel_dp_prepare_phytest(struct intel_dp *intel_dp)
+{
+	struct drm_dp_phy_test_params *data =
+		&intel_dp->compliance.test_data.phytest;
+
+	if (drm_dp_get_phy_test_pattern(&intel_dp->aux, data)) {
+		DRM_DEBUG_KMS("DP Phy Test pattern AUX read failure\n");
+		return DP_TEST_NAK;
+	}
+
+	/*
+	 * link_mst is set to false to avoid executing mst related code
+	 * during compliance testing.
+	 */
+	intel_dp->link_mst = false;
+
+	return DP_TEST_ACK;
+}
+
+static void intel_dp_phy_pattern_update(struct intel_dp *intel_dp)
+{
+	struct drm_i915_private *dev_priv =
+			to_i915(dp_to_dig_port(intel_dp)->base.base.dev);
+	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	struct drm_dp_phy_test_params *data =
+			&intel_dp->compliance.test_data.phytest;
+	struct intel_crtc *crtc = to_intel_crtc(intel_dig_port->base.base.crtc);
+	enum pipe pipe = crtc->pipe;
+	u32 pattern_val;
+
+	switch (data->phy_pattern) {
+	case DP_PHY_TEST_PATTERN_NONE:
+		DRM_DEBUG_KMS("Disable Phy Test Pattern\n");
+		intel_de_write(dev_priv, DDI_DP_COMP_CTL(pipe), 0x0);
+		break;
+	case DP_PHY_TEST_PATTERN_D10_2:
+		DRM_DEBUG_KMS("Set D10.2 Phy Test Pattern\n");
+		intel_de_write(dev_priv, DDI_DP_COMP_CTL(pipe),
+			       DDI_DP_COMP_CTL_ENABLE | DDI_DP_COMP_CTL_D10_2);
+		break;
+	case DP_PHY_TEST_PATTERN_ERROR_COUNT:
+		DRM_DEBUG_KMS("Set Error Count Phy Test Pattern\n");
+		intel_de_write(dev_priv, DDI_DP_COMP_CTL(pipe),
+			       DDI_DP_COMP_CTL_ENABLE |
+			       DDI_DP_COMP_CTL_SCRAMBLED_0);
+		break;
+	case DP_PHY_TEST_PATTERN_PRBS7:
+		DRM_DEBUG_KMS("Set PRBS7 Phy Test Pattern\n");
+		intel_de_write(dev_priv, DDI_DP_COMP_CTL(pipe),
+			       DDI_DP_COMP_CTL_ENABLE | DDI_DP_COMP_CTL_PRBS7);
+		break;
+	case DP_PHY_TEST_PATTERN_80BIT_CUSTOM:
+		/*
+		 * FIXME: Ideally pattern should come from DPCD 0x250. As
+		 * current firmware of DPR-100 could not set it, so hardcoding
+		 * now for complaince test.
+		 */
+		DRM_DEBUG_KMS("Set 80Bit Custom Phy Test Pattern 0x3e0f83e0 0x0f83e0f8 0x0000f83e\n");
+		pattern_val = 0x3e0f83e0;
+		intel_de_write(dev_priv, DDI_DP_COMP_PAT(pipe, 0), pattern_val);
+		pattern_val = 0x0f83e0f8;
+		intel_de_write(dev_priv, DDI_DP_COMP_PAT(pipe, 1), pattern_val);
+		pattern_val = 0x0000f83e;
+		intel_de_write(dev_priv, DDI_DP_COMP_PAT(pipe, 2), pattern_val);
+		intel_de_write(dev_priv, DDI_DP_COMP_CTL(pipe),
+			       DDI_DP_COMP_CTL_ENABLE |
+			       DDI_DP_COMP_CTL_CUSTOM80);
+		break;
+	case DP_PHY_TEST_PATTERN_CP2520:
+		/*
+		 * FIXME: Ideally pattern should come from DPCD 0x24A. As
+		 * current firmware of DPR-100 could not set it, so hardcoding
+		 * now for complaince test.
+		 */
+		DRM_DEBUG_KMS("Set HBR2 compliance Phy Test Pattern\n");
+		pattern_val = 0xFB;
+		intel_de_write(dev_priv, DDI_DP_COMP_CTL(pipe),
+			       DDI_DP_COMP_CTL_ENABLE | DDI_DP_COMP_CTL_HBR2 |
+			       pattern_val);
+		break;
+	default:
+		WARN(1, "Invalid Phy Test Pattern\n");
+	}
+}
+
+static void
+intel_dp_autotest_phy_ddi_disable(struct intel_dp *intel_dp)
+{
+	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	struct drm_device *dev = intel_dig_port->base.base.dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_crtc *crtc = to_intel_crtc(intel_dig_port->base.base.crtc);
+	enum pipe pipe = crtc->pipe;
+	u32 trans_ddi_func_ctl_value, trans_conf_value, dp_tp_ctl_value;
+
+	trans_ddi_func_ctl_value = intel_de_read(dev_priv,
+						 TRANS_DDI_FUNC_CTL(pipe));
+	trans_conf_value = intel_de_read(dev_priv, PIPECONF(pipe));
+	dp_tp_ctl_value = intel_de_read(dev_priv, TGL_DP_TP_CTL(pipe));
+
+	trans_ddi_func_ctl_value &= ~(TRANS_DDI_FUNC_ENABLE |
+				      TGL_TRANS_DDI_PORT_MASK);
+	trans_conf_value &= ~PIPECONF_ENABLE;
+	dp_tp_ctl_value &= ~DP_TP_CTL_ENABLE;
+
+	intel_de_write(dev_priv, PIPECONF(pipe), trans_conf_value);
+	intel_de_write(dev_priv, TRANS_DDI_FUNC_CTL(pipe),
+		       trans_ddi_func_ctl_value);
+	intel_de_write(dev_priv, TGL_DP_TP_CTL(pipe), dp_tp_ctl_value);
+}
+
+static void
+intel_dp_autotest_phy_ddi_enable(struct intel_dp *intel_dp, uint8_t lane_cnt)
+{
+	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	struct drm_device *dev = intel_dig_port->base.base.dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	enum port port = intel_dig_port->base.port;
+	struct intel_crtc *crtc = to_intel_crtc(intel_dig_port->base.base.crtc);
+	enum pipe pipe = crtc->pipe;
+	u32 trans_ddi_func_ctl_value, trans_conf_value, dp_tp_ctl_value;
+
+	trans_ddi_func_ctl_value = intel_de_read(dev_priv,
+						 TRANS_DDI_FUNC_CTL(pipe));
+	trans_conf_value = intel_de_read(dev_priv, PIPECONF(pipe));
+	dp_tp_ctl_value = intel_de_read(dev_priv, TGL_DP_TP_CTL(pipe));
+
+	trans_ddi_func_ctl_value |= TRANS_DDI_FUNC_ENABLE |
+				    TGL_TRANS_DDI_SELECT_PORT(port);
+	trans_conf_value |= PIPECONF_ENABLE;
+	dp_tp_ctl_value |= DP_TP_CTL_ENABLE;
+
+	intel_de_write(dev_priv, PIPECONF(pipe), trans_conf_value);
+	intel_de_write(dev_priv, TGL_DP_TP_CTL(pipe), dp_tp_ctl_value);
+	intel_de_write(dev_priv, TRANS_DDI_FUNC_CTL(pipe),
+		       trans_ddi_func_ctl_value);
+}
+
+void intel_dp_process_phy_request(struct intel_dp *intel_dp)
+{
+	struct drm_dp_phy_test_params *data =
+		&intel_dp->compliance.test_data.phytest;
+	u8 link_status[DP_LINK_STATUS_SIZE];
+
+	if (!intel_dp_get_link_status(intel_dp, link_status)) {
+		DRM_DEBUG_KMS("failed to get link status\n");
+		return;
+	}
+
+	/* retrieve vswing & pre-emphasis setting */
+	intel_dp_get_adjust_train(intel_dp, link_status);
+
+	intel_dp_autotest_phy_ddi_disable(intel_dp);
+
+	intel_dp_set_signal_levels(intel_dp);
+
+	intel_dp_phy_pattern_update(intel_dp);
+
+	intel_dp_autotest_phy_ddi_enable(intel_dp, data->num_lanes);
+
+	drm_dp_set_phy_test_pattern(&intel_dp->aux, data,
+				    link_status[DP_DPCD_REV]);
+}
+
 static u8 intel_dp_autotest_phy_pattern(struct intel_dp *intel_dp)
 {
 	u8 test_result = DP_TEST_NAK;
+
+	test_result = intel_dp_prepare_phytest(intel_dp);
+	if (test_result != DP_TEST_ACK)
+		DRM_ERROR("Phy test preparation failed\n");
+
+	intel_dp_process_phy_request(intel_dp);
+
 	return test_result;
 }
 

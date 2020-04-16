@@ -9886,6 +9886,24 @@ enum skl_power_gate {
 #define  DDI_BUF_BALANCE_LEG_ENABLE	(1 << 31)
 #define DDI_BUF_TRANS_HI(port, i)	_MMIO(_PORT(port, _DDI_BUF_TRANS_A, _DDI_BUF_TRANS_B) + (i) * 8 + 4)
 
+/* DDI DP Compliance Control */
+#define _DDI_DP_COMP_CTL_A			0x605F0
+#define _DDI_DP_COMP_CTL_B			0x615F0
+#define DDI_DP_COMP_CTL(pipe)			_MMIO_PIPE(pipe, _DDI_DP_COMP_CTL_A, _DDI_DP_COMP_CTL_B)
+#define   DDI_DP_COMP_CTL_ENABLE		(1 << 31)
+#define   DDI_DP_COMP_CTL_D10_2			(0 << 28)
+#define   DDI_DP_COMP_CTL_SCRAMBLED_0		(1 << 28)
+#define   DDI_DP_COMP_CTL_PRBS7			(2 << 28)
+#define   DDI_DP_COMP_CTL_CUSTOM80		(3 << 28)
+#define   DDI_DP_COMP_CTL_HBR2			(4 << 28)
+#define   DDI_DP_COMP_CTL_SCRAMBLED_1		(5 << 28)
+#define   DDI_DP_COMP_CTL_HBR2_RESET		(0xFC << 0)
+
+/* DDI DP Compliance Pattern */
+#define _DDI_DP_COMP_PAT_A			0x605F4
+#define _DDI_DP_COMP_PAT_B			0x615F4
+#define DDI_DP_COMP_PAT(pipe, i)		_MMIO(_PIPE(pipe, _DDI_DP_COMP_PAT_A, _DDI_DP_COMP_PAT_B) + (i) * 4)
+
 /* Sideband Interface (SBI) is programmed indirectly, via
  * SBI_ADDR, which contains the register offset; and SBI_DATA,
  * which contains the payload */
