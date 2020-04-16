@@ -1256,6 +1256,7 @@ int f2fs_sync_fs(struct super_block *sb, int sync)
 
 		cpc.reason = __get_cp_reason(sbi);
 
+		atomic_set(&sbi->no_cp_fsync_pages, 0);
 		down_write(&sbi->gc_lock);
 		err = f2fs_write_checkpoint(sbi, &cpc);
 		up_write(&sbi->gc_lock);
@@ -3609,6 +3610,8 @@ try_onemore:
 			le64_to_cpu(seg_i->journal->info.kbytes_written);
 
 	f2fs_build_gc_manager(sbi);
+
+	atomic_set(&sbi->no_cp_fsync_pages, 0);
 
 	err = f2fs_build_stats(sbi);
 	if (err)
