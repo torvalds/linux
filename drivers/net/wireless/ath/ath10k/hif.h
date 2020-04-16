@@ -170,7 +170,8 @@ static inline void ath10k_hif_get_default_pipe(struct ath10k *ar,
 static inline void ath10k_hif_send_complete_check(struct ath10k *ar,
 						  u8 pipe_id, int force)
 {
-	ar->hif.ops->send_complete_check(ar, pipe_id, force);
+	if (ar->hif.ops->send_complete_check)
+		ar->hif.ops->send_complete_check(ar, pipe_id, force);
 }
 
 static inline u16 ath10k_hif_get_free_queue_number(struct ath10k *ar,

@@ -2101,17 +2101,6 @@ static void ath10k_sdio_hif_get_default_pipe(struct ath10k *ar,
 	*dl_pipe = 0;
 }
 
-/* This op is currently only used by htc_wait_target if the HTC ready
- * message times out. It is not applicable for SDIO since there is nothing
- * we can do if the HTC ready message does not arrive in time.
- * TODO: Make this op non mandatory by introducing a NULL check in the
- * hif op wrapper.
- */
-static void ath10k_sdio_hif_send_complete_check(struct ath10k *ar,
-						u8 pipe, int force)
-{
-}
-
 static const struct ath10k_hif_ops ath10k_sdio_hif_ops = {
 	.tx_sg			= ath10k_sdio_hif_tx_sg,
 	.diag_read		= ath10k_sdio_hif_diag_read,
@@ -2123,7 +2112,6 @@ static const struct ath10k_hif_ops ath10k_sdio_hif_ops = {
 	.get_htt_tx_complete	= ath10k_sdio_get_htt_tx_complete,
 	.map_service_to_pipe	= ath10k_sdio_hif_map_service_to_pipe,
 	.get_default_pipe	= ath10k_sdio_hif_get_default_pipe,
-	.send_complete_check	= ath10k_sdio_hif_send_complete_check,
 	.power_up		= ath10k_sdio_hif_power_up,
 	.power_down		= ath10k_sdio_hif_power_down,
 #ifdef CONFIG_PM
