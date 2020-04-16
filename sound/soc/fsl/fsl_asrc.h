@@ -448,7 +448,7 @@ struct fsl_asrc_soc_data {
 /**
  * fsl_asrc_pair: ASRC Pair private data
  *
- * @asrc_priv: pointer to its parent module
+ * @asrc: pointer to its parent module
  * @config: configuration profile
  * @error: error record
  * @index: pair index (ASRC_PAIR_A, ASRC_PAIR_B, ASRC_PAIR_C)
@@ -460,7 +460,7 @@ struct fsl_asrc_soc_data {
  * @private: pair private area
  */
 struct fsl_asrc_pair {
-	struct fsl_asrc *asrc_priv;
+	struct fsl_asrc *asrc;
 	struct asrc_config *config;
 	unsigned int error;
 

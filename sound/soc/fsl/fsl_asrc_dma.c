@@ -135,7 +135,7 @@ static int fsl_asrc_dma_hw_params(struct snd_soc_component *component,
 	struct snd_dmaengine_dai_dma_data *dma_params_be = NULL;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct fsl_asrc_pair *pair = runtime->private_data;
-	struct fsl_asrc *asrc_priv = pair->asrc_priv;
+	struct fsl_asrc *asrc = pair->asrc;
 	struct dma_slave_config config_fe, config_be;
 	enum asrc_pair_index index = pair->index;
 	struct device *dev = component->dev;
@@ -170,7 +170,7 @@ static int fsl_asrc_dma_hw_params(struct snd_soc_component *component,
 
 	/* Override dma_data of the Front-End and config its dmaengine */
 	dma_params_fe = snd_soc_dai_get_dma_data(asoc_rtd_to_cpu(rtd, 0), substream);
-	dma_params_fe->addr = asrc_priv->paddr + REG_ASRDx(!dir, index);
+	dma_params_fe->addr = asrc->paddr + REG_ASRDx(!dir, index);
 	dma_params_fe->maxburst = dma_params_be->maxburst;
 
 	pair->dma_chan[!dir] = fsl_asrc_get_dma_channel(pair, !dir);
@@ -203,7 +203,7 @@ static int fsl_asrc_dma_hw_params(struct snd_soc_component *component,
 	 * need to configure dma_request and dma_request2, but get dma_chan via
 	 * dma_request_slave_channel directly with dma name of Front-End device
 	 */
-	if (!asrc_priv->soc->use_edma) {
+	if (!asrc->soc->use_edma) {
 		/* Get DMA request of Back-End */
 		tmp_chan = dma_request_slave_channel(dev_be, tx ? "tx" : "rx");
 		tmp_data = tmp_chan->private;
@@ -230,7 +230,7 @@ static int fsl_asrc_dma_hw_params(struct snd_soc_component *component,
 		return -EINVAL;
 	}
 
-	if (asrc_priv->asrc_width == 16)
+	if (asrc->asrc_width == 16)
 		buswidth = DMA_SLAVE_BUSWIDTH_2_BYTES;
 	else
 		buswidth = DMA_SLAVE_BUSWIDTH_4_BYTES;
@@ -242,10 +242,10 @@ static int fsl_asrc_dma_hw_params(struct snd_soc_component *component,
 	config_be.dst_maxburst = dma_params_be->maxburst;
 
 	if (tx) {
-		config_be.src_addr = asrc_priv->paddr + REG_ASRDO(index);
+		config_be.src_addr = asrc->paddr + REG_ASRDO(index);
 		config_be.dst_addr = dma_params_be->addr;
 	} else {
-		config_be.dst_addr = asrc_priv->paddr + REG_ASRDI(index);
+		config_be.dst_addr = asrc->paddr + REG_ASRDI(index);
 		config_be.src_addr = dma_params_be->addr;
 	}
 
@@ -288,7 +288,7 @@ static int fsl_asrc_dma_startup(struct snd_soc_component *component,
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_dmaengine_dai_dma_data *dma_data;
 	struct device *dev = component->dev;
-	struct fsl_asrc *asrc_priv = dev_get_drvdata(dev);
+	struct fsl_asrc *asrc = dev_get_drvdata(dev);
 	struct fsl_asrc_pair *pair;
 	struct dma_chan *tmp_chan = NULL;
 	u8 dir = tx ? OUT : IN;
@@ -306,7 +306,7 @@ static int fsl_asrc_dma_startup(struct snd_soc_component *component,
 	if (!pair)
 		return -ENOMEM;
 
-	pair->asrc_priv = asrc_priv;
+	pair->asrc = asrc;
 
 	runtime->private_data = pair;
 
@@ -361,15 +361,15 @@ static int fsl_asrc_dma_shutdown(struct snd_soc_component *component,
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct fsl_asrc_pair *pair = runtime->private_data;
-	struct fsl_asrc *asrc_priv;
+	struct fsl_asrc *asrc;
 
 	if (!pair)
 		return 0;
 
-	asrc_priv = pair->asrc_priv;
+	asrc = pair->asrc;
 
-	if (asrc_priv->pair[pair->index] == pair)
-		asrc_priv->pair[pair->index] = NULL;
+	if (asrc->pair[pair->index] == pair)
+		asrc->pair[pair->index] = NULL;
 
 	kfree(pair);
 
