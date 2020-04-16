@@ -160,15 +160,21 @@ enum mt7615_reg_base {
 #define MT_WF_PHYCTRL_STAT_PD_OFDM	GENMASK(31, 16)
 #define MT_WF_PHYCTRL_STAT_PD_CCK	GENMASK(15, 0)
 
+#define MT7663_WF_PHY_R0_PHYCTRL_STS0(_phy)	MT_WF_PHY(0x0210 + ((_phy) << 12))
+
 #define MT_WF_PHY_R0_PHYCTRL_STS5(_phy)	MT_WF_PHY(0x0220 + ((_phy) << 9))
 #define MT_WF_PHYCTRL_STAT_MDRDY_OFDM	GENMASK(31, 16)
 #define MT_WF_PHYCTRL_STAT_MDRDY_CCK	GENMASK(15, 0)
+
+#define MT7663_WF_PHY_R0_PHYCTRL_STS5(_phy)	MT_WF_PHY(0x0224 + ((_phy) << 12))
 
 #define MT_WF_PHY_MIN_PRI_PWR(_phy)	MT_WF_PHY((_phy) ? 0x084 : 0x229c)
 #define MT_WF_PHY_PD_OFDM_MASK(_phy)	((_phy) ? GENMASK(24, 16) : \
 					 GENMASK(28, 20))
 #define MT_WF_PHY_PD_OFDM(_phy, v)	((v) << ((_phy) ? 16 : 20))
 #define MT_WF_PHY_PD_BLK(_phy)		((_phy) ? BIT(25) : BIT(19))
+
+#define MT7663_WF_PHY_MIN_PRI_PWR(_phy)	MT_WF_PHY((_phy) ? 0x2aec : 0x22f0)
 
 #define MT_WF_PHY_RXTD_BASE		MT_WF_PHY(0x2200)
 #define MT_WF_PHY_RXTD(_n)		(MT_WF_PHY_RXTD_BASE + ((_n) << 2))
@@ -179,6 +185,8 @@ enum mt7615_reg_base {
 #define MT_WF_PHY_PD_CCK_MASK(_phy)	(_phy) ? GENMASK(31, 24) : \
 					 GENMASK(8, 1)
 #define MT_WF_PHY_PD_CCK(_phy, v)	((v) << ((_phy) ? 24 : 1))
+
+#define MT7663_WF_PHY_RXTD_CCK_PD(_phy)	MT_WF_PHY((_phy) ? 0x2350 : 0x234c)
 
 #define MT_WF_PHY_RXTD2_BASE		MT_WF_PHY(0x2a00)
 #define MT_WF_PHY_RXTD2(_n)		(MT_WF_PHY_RXTD2_BASE + ((_n) << 2))

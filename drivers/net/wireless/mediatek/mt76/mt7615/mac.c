@@ -1417,17 +1417,40 @@ void mt7615_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 EXPORT_SYMBOL_GPL(mt7615_queue_rx_skb);
 
 static void
-mt7615_mac_set_default_sensitivity(struct mt7615_phy *phy)
+mt7615_mac_set_sensitivity(struct mt7615_phy *phy, int val, bool ofdm)
 {
 	struct mt7615_dev *dev = phy->dev;
 	bool ext_phy = phy != &dev->phy;
 
-	mt76_rmw(dev, MT_WF_PHY_MIN_PRI_PWR(ext_phy),
-		 MT_WF_PHY_PD_OFDM_MASK(ext_phy),
-		 MT_WF_PHY_PD_OFDM(ext_phy, 0x13c));
-	mt76_rmw(dev, MT_WF_PHY_RXTD_CCK_PD(ext_phy),
-		 MT_WF_PHY_PD_CCK_MASK(ext_phy),
-		 MT_WF_PHY_PD_CCK(ext_phy, 0x92));
+	if (is_mt7663(&dev->mt76)) {
+		if (ofdm)
+			mt76_rmw(dev, MT7663_WF_PHY_MIN_PRI_PWR(ext_phy),
+				 MT_WF_PHY_PD_OFDM_MASK(0),
+				 MT_WF_PHY_PD_OFDM(0, val));
+		else
+			mt76_rmw(dev, MT7663_WF_PHY_RXTD_CCK_PD(ext_phy),
+				 MT_WF_PHY_PD_CCK_MASK(ext_phy),
+				 MT_WF_PHY_PD_CCK(ext_phy, val));
+		return;
+	}
+
+	if (ofdm)
+		mt76_rmw(dev, MT_WF_PHY_MIN_PRI_PWR(ext_phy),
+			 MT_WF_PHY_PD_OFDM_MASK(ext_phy),
+			 MT_WF_PHY_PD_OFDM(ext_phy, val));
+	else
+		mt76_rmw(dev, MT_WF_PHY_RXTD_CCK_PD(ext_phy),
+			 MT_WF_PHY_PD_CCK_MASK(ext_phy),
+			 MT_WF_PHY_PD_CCK(ext_phy, val));
+}
+
+static void
+mt7615_mac_set_default_sensitivity(struct mt7615_phy *phy)
+{
+	/* ofdm */
+	mt7615_mac_set_sensitivity(phy, 0x13c, true);
+	/* cck */
+	mt7615_mac_set_sensitivity(phy, 0x92, false);
 
 	phy->ofdm_sensitivity = -98;
 	phy->cck_sensitivity = -110;
@@ -1438,25 +1461,29 @@ void mt7615_mac_set_scs(struct mt7615_phy *phy, bool enable)
 {
 	struct mt7615_dev *dev = phy->dev;
 	bool ext_phy = phy != &dev->phy;
+	u32 reg, mask;
 
 	mutex_lock(&dev->mt76.mutex);
 
 	if (phy->scs_en == enable)
 		goto out;
 
-	if (is_mt7663(&dev->mt76))
-		goto out;
+	if (is_mt7663(&dev->mt76)) {
+		reg = MT7663_WF_PHY_MIN_PRI_PWR(ext_phy);
+		mask = MT_WF_PHY_PD_BLK(0);
+	} else {
+		reg = MT_WF_PHY_MIN_PRI_PWR(ext_phy);
+		mask = MT_WF_PHY_PD_BLK(ext_phy);
+	}
 
 	if (enable) {
-		mt76_set(dev, MT_WF_PHY_MIN_PRI_PWR(ext_phy),
-			 MT_WF_PHY_PD_BLK(ext_phy));
+		mt76_set(dev, reg, mask);
 		if (is_mt7622(&dev->mt76)) {
 			mt76_set(dev, MT_MIB_M0_MISC_CR(0), 0x7 << 8);
 			mt76_set(dev, MT_MIB_M0_MISC_CR(0), 0x7);
 		}
 	} else {
-		mt76_clear(dev, MT_WF_PHY_MIN_PRI_PWR(ext_phy),
-			   MT_WF_PHY_PD_BLK(ext_phy));
+		mt76_clear(dev, reg, mask);
 	}
 
 	mt7615_mac_set_default_sensitivity(phy);
@@ -1547,19 +1574,9 @@ mt7615_mac_adjust_sensitivity(struct mt7615_phy *phy,
 	}
 
 	if (update) {
-		u16 val;
+		u16 val = ofdm ? *sensitivity * 2 + 512 : *sensitivity + 256;
 
-		if (ofdm) {
-			val = *sensitivity * 2 + 512;
-			mt76_rmw(dev, MT_WF_PHY_MIN_PRI_PWR(ext_phy),
-				 MT_WF_PHY_PD_OFDM_MASK(ext_phy),
-				 MT_WF_PHY_PD_OFDM(ext_phy, val));
-		} else {
-			val = *sensitivity + 256;
-			mt76_rmw(dev, MT_WF_PHY_RXTD_CCK_PD(ext_phy),
-				 MT_WF_PHY_PD_CCK_MASK(ext_phy),
-				 MT_WF_PHY_PD_CCK(ext_phy, val));
-		}
+		mt7615_mac_set_sensitivity(phy, val, ofdm);
 		phy->last_cca_adj = jiffies;
 	}
 }
@@ -1576,11 +1593,17 @@ mt7615_mac_scs_check(struct mt7615_phy *phy)
 	if (!phy->scs_en)
 		return;
 
-	val = mt76_rr(dev, MT_WF_PHY_R0_PHYCTRL_STS0(ext_phy));
+	if (is_mt7663(&dev->mt76))
+		val = mt76_rr(dev, MT7663_WF_PHY_R0_PHYCTRL_STS0(ext_phy));
+	else
+		val = mt76_rr(dev, MT_WF_PHY_R0_PHYCTRL_STS0(ext_phy));
 	pd_cck = FIELD_GET(MT_WF_PHYCTRL_STAT_PD_CCK, val);
 	pd_ofdm = FIELD_GET(MT_WF_PHYCTRL_STAT_PD_OFDM, val);
 
-	val = mt76_rr(dev, MT_WF_PHY_R0_PHYCTRL_STS5(ext_phy));
+	if (is_mt7663(&dev->mt76))
+		val = mt76_rr(dev, MT7663_WF_PHY_R0_PHYCTRL_STS5(ext_phy));
+	else
+		val = mt76_rr(dev, MT_WF_PHY_R0_PHYCTRL_STS5(ext_phy));
 	mdrdy_cck = FIELD_GET(MT_WF_PHYCTRL_STAT_MDRDY_CCK, val);
 	mdrdy_ofdm = FIELD_GET(MT_WF_PHYCTRL_STAT_MDRDY_OFDM, val);
 
