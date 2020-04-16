@@ -25,7 +25,6 @@ enum btrfs_wq_endio_type {
 	BTRFS_WQ_ENDIO_METADATA,
 	BTRFS_WQ_ENDIO_FREE_SPACE,
 	BTRFS_WQ_ENDIO_RAID56,
-	BTRFS_WQ_ENDIO_DIO_REPAIR,
 };
 
 static inline u64 btrfs_sb_offset(int mirror)
