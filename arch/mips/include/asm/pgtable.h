@@ -507,20 +507,17 @@ static inline void update_mmu_cache_pmd(struct vm_area_struct *vma,
 
 #define kern_addr_valid(addr)	(1)
 
-#ifdef CONFIG_PHYS_ADDR_T_64BIT
-extern int remap_pfn_range(struct vm_area_struct *vma, unsigned long from, unsigned long pfn, unsigned long size, pgprot_t prot);
-
-static inline int io_remap_pfn_range(struct vm_area_struct *vma,
-		unsigned long vaddr,
-		unsigned long pfn,
-		unsigned long size,
-		pgprot_t prot)
-{
-	phys_addr_t phys_addr_high = fixup_bigphys_addr(pfn << PAGE_SHIFT, size);
-	return remap_pfn_range(vma, vaddr, phys_addr_high >> PAGE_SHIFT, size, prot);
-}
+/*
+ * Allow physical addresses to be fixed up to help 36-bit peripherals.
+ */
+#ifdef CONFIG_MIPS_FIXUP_BIGPHYS_ADDR
+phys_addr_t fixup_bigphys_addr(phys_addr_t addr, phys_addr_t size);
+int io_remap_pfn_range(struct vm_area_struct *vma, unsigned long vaddr,
+		unsigned long pfn, unsigned long size, pgprot_t prot);
 #define io_remap_pfn_range io_remap_pfn_range
-#endif
+#else
+#define fixup_bigphys_addr(addr, size)	(addr)
+#endif /* CONFIG_MIPS_FIXUP_BIGPHYS_ADDR */
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 
