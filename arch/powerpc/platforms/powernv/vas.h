@@ -296,6 +296,22 @@ enum vas_notify_after_count {
 };
 
 /*
+ * NX can generate an interrupt for multiple faults and expects kernel
+ * to process all of them. So read all valid CRB entries until find the
+ * invalid one. So use pswid which is pasted by NX and ccw[0] (reserved
+ * bit in BE) to check valid CRB. CCW[0] will not be touched by user
+ * space. Application gets CRB formt error if it updates this bit.
+ *
+ * Invalidate FIFO during allocation and process all entries from last
+ * successful read until finds invalid pswid and ccw[0] values.
+ * After reading each CRB entry from fault FIFO, the kernel invalidate
+ * it by updating pswid with FIFO_INVALID_ENTRY and CCW[0] with
+ * CCW0_INVALID.
+ */
+#define FIFO_INVALID_ENTRY	0xffffffff
+#define CCW0_INVALID		1
+
+/*
  * One per instance of VAS. Each instance will have a separate set of
  * receive windows, one per coprocessor type.
  *
@@ -315,6 +331,10 @@ struct vas_instance {
 
 	u64 irq_port;
 	int virq;
+	int fault_fifo_size;
+	void *fault_fifo;
+	struct vas_window *fault_win; /* Fault window */
+
 	struct mutex mutex;
 	struct vas_window *rxwin[VAS_COP_TYPE_MAX];
 	struct vas_window *windows[VAS_WINDOWS_PER_CHIP];
@@ -408,6 +428,7 @@ extern void vas_init_dbgdir(void);
 extern void vas_instance_init_dbgdir(struct vas_instance *vinst);
 extern void vas_window_init_dbgdir(struct vas_window *win);
 extern void vas_window_free_dbgdir(struct vas_window *win);
+extern int vas_setup_fault_window(struct vas_instance *vinst);
 
 static inline void vas_log_write(struct vas_window *win, char *name,
 			void *regptr, u64 val)
