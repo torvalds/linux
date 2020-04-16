@@ -104,5 +104,6 @@ int drm_prime_sg_to_page_addr_arrays(struct sg_table *sgt, struct page **pages,
 struct sg_table *drm_prime_pages_to_sg(struct page **pages, unsigned int nr_pages);
 void drm_prime_gem_destroy(struct drm_gem_object *obj, struct sg_table *sg);
 
+int drm_gem_dmabuf_get_uuid(struct dma_buf *dma_buf, uuid_t *uuid);
 
 #endif /* __DRM_PRIME_H__ */

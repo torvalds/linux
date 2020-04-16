@@ -549,6 +549,7 @@ int dma_buf_mmap(struct dma_buf *, struct vm_area_struct *,
 void *dma_buf_vmap(struct dma_buf *);
 void dma_buf_vunmap(struct dma_buf *, void *vaddr);
 int dma_buf_get_flags(struct dma_buf *dmabuf, unsigned long *flags);
+int dma_buf_get_uuid(struct dma_buf *dmabuf, uuid_t *uuid);
 
 /**
  * dma_buf_set_destructor - set the dma-buf's destructor
@@ -563,4 +564,5 @@ static inline void dma_buf_set_destructor(struct dma_buf *dmabuf,
 	dmabuf->dtor = dtor;
 	dmabuf->dtor_data = dtor_data;
 }
+
 #endif /* __DMA_BUF_H__ */
