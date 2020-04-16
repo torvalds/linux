@@ -1378,7 +1378,7 @@ static int ath10k_sdio_read_rtc_state(struct ath10k_sdio *ar_sdio, unsigned char
 	return ret;
 }
 
-static int ath10k_sdio_hif_set_mbox_sleep(struct ath10k *ar, bool enable_sleep)
+static int ath10k_sdio_set_mbox_sleep(struct ath10k *ar, bool enable_sleep)
 {
 	struct ath10k_sdio *ar_sdio = ath10k_sdio_priv(ar);
 	u32 val;
@@ -1459,7 +1459,7 @@ static void ath10k_sdio_write_async_work(struct work_struct *work)
 
 		if (req->address >= mbox_info->htc_addr &&
 		    ar_sdio->mbox_state == SDIO_MBOX_SLEEP_STATE) {
-			ath10k_sdio_hif_set_mbox_sleep(ar, false);
+			ath10k_sdio_set_mbox_sleep(ar, false);
 			mod_timer(&ar_sdio->sleep_timer, jiffies +
 				  msecs_to_jiffies(ATH10K_MIN_SLEEP_INACTIVITY_TIME_MS));
 		}
@@ -1471,7 +1471,7 @@ static void ath10k_sdio_write_async_work(struct work_struct *work)
 	spin_unlock_bh(&ar_sdio->wr_async_lock);
 
 	if (ar_sdio->mbox_state == SDIO_MBOX_REQUEST_TO_SLEEP_STATE)
-		ath10k_sdio_hif_set_mbox_sleep(ar, true);
+		ath10k_sdio_set_mbox_sleep(ar, true);
 }
 
 static int ath10k_sdio_prep_async_req(struct ath10k *ar, u32 addr,
@@ -1538,7 +1538,7 @@ static void ath10k_sdio_irq_handler(struct sdio_func *func)
 
 /* sdio HIF functions */
 
-static int ath10k_sdio_hif_disable_intrs(struct ath10k *ar)
+static int ath10k_sdio_disable_intrs(struct ath10k *ar)
 {
 	struct ath10k_sdio *ar_sdio = ath10k_sdio_priv(ar);
 	struct ath10k_sdio_irq_data *irq_data = &ar_sdio->irq_data;
@@ -1594,7 +1594,7 @@ static int ath10k_sdio_hif_power_up(struct ath10k *ar,
 
 	ar_sdio->is_disabled = false;
 
-	ret = ath10k_sdio_hif_disable_intrs(ar);
+	ret = ath10k_sdio_disable_intrs(ar);
 	if (ret)
 		return ret;
 
@@ -1612,7 +1612,7 @@ static void ath10k_sdio_hif_power_down(struct ath10k *ar)
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "sdio power off\n");
 
 	del_timer_sync(&ar_sdio->sleep_timer);
-	ath10k_sdio_hif_set_mbox_sleep(ar, true);
+	ath10k_sdio_set_mbox_sleep(ar, true);
 
 	/* Disable the card */
 	sdio_claim_host(ar_sdio->func);
@@ -1666,7 +1666,7 @@ static int ath10k_sdio_hif_tx_sg(struct ath10k *ar, u8 pipe_id,
 	return 0;
 }
 
-static int ath10k_sdio_hif_enable_intrs(struct ath10k *ar)
+static int ath10k_sdio_enable_intrs(struct ath10k *ar)
 {
 	struct ath10k_sdio *ar_sdio = ath10k_sdio_priv(ar);
 	struct ath10k_sdio_irq_data *irq_data = &ar_sdio->irq_data;
@@ -1749,8 +1749,8 @@ out:
 	return ret;
 }
 
-static int ath10k_sdio_hif_diag_read32(struct ath10k *ar, u32 address,
-				       u32 *value)
+static int ath10k_sdio_diag_read32(struct ath10k *ar, u32 address,
+				   u32 *value)
 {
 	__le32 *val;
 	int ret;
@@ -1803,7 +1803,7 @@ static int ath10k_sdio_hif_start_post(struct ath10k *ar)
 
 	addr = host_interest_item_address(HI_ITEM(hi_acs_flags));
 
-	ret = ath10k_sdio_hif_diag_read32(ar, addr, &val);
+	ret = ath10k_sdio_diag_read32(ar, addr, &val);
 	if (ret) {
 		ath10k_warn(ar, "unable to read hi_acs_flags : %d\n", ret);
 		return ret;
@@ -1819,7 +1819,7 @@ static int ath10k_sdio_hif_start_post(struct ath10k *ar)
 		ar_sdio->swap_mbox = false;
 	}
 
-	ath10k_sdio_hif_set_mbox_sleep(ar, true);
+	ath10k_sdio_set_mbox_sleep(ar, true);
 
 	return 0;
 }
@@ -1831,7 +1831,7 @@ static int ath10k_sdio_get_htt_tx_complete(struct ath10k *ar)
 
 	addr = host_interest_item_address(HI_ITEM(hi_acs_flags));
 
-	ret = ath10k_sdio_hif_diag_read32(ar, addr, &val);
+	ret = ath10k_sdio_diag_read32(ar, addr, &val);
 	if (ret) {
 		ath10k_warn(ar,
 			    "unable to read hi_acs_flags for htt tx comple : %d\n", ret);
@@ -1860,7 +1860,7 @@ static int ath10k_sdio_hif_start(struct ath10k *ar)
 	 * request before interrupts are disabled.
 	 */
 	msleep(20);
-	ret = ath10k_sdio_hif_disable_intrs(ar);
+	ret = ath10k_sdio_disable_intrs(ar);
 	if (ret)
 		return ret;
 
@@ -1882,19 +1882,19 @@ static int ath10k_sdio_hif_start(struct ath10k *ar)
 
 	sdio_release_host(ar_sdio->func);
 
-	ret = ath10k_sdio_hif_enable_intrs(ar);
+	ret = ath10k_sdio_enable_intrs(ar);
 	if (ret)
 		ath10k_warn(ar, "failed to enable sdio interrupts: %d\n", ret);
 
 	/* Enable sleep and then disable it again */
-	ret = ath10k_sdio_hif_set_mbox_sleep(ar, true);
+	ret = ath10k_sdio_set_mbox_sleep(ar, true);
 	if (ret)
 		return ret;
 
 	/* Wait for 20ms for the written value to take effect */
 	msleep(20);
 
-	ret = ath10k_sdio_hif_set_mbox_sleep(ar, false);
+	ret = ath10k_sdio_set_mbox_sleep(ar, false);
 	if (ret)
 		return ret;
 
@@ -2148,7 +2148,7 @@ static int ath10k_sdio_pm_suspend(struct device *device)
 	if (!device_may_wakeup(ar->dev))
 		return 0;
 
-	ath10k_sdio_hif_set_mbox_sleep(ar, true);
+	ath10k_sdio_set_mbox_sleep(ar, true);
 
 	pm_flag = MMC_PM_KEEP_POWER;
 
