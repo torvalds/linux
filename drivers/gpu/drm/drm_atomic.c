@@ -1098,8 +1098,9 @@ EXPORT_SYMBOL(drm_atomic_get_new_bridge_state);
  *
  * This function adds all bridges attached to @encoder. This is needed to add
  * bridge states to @state and make them available when
- * &bridge_funcs.atomic_{check,pre_enable,enable,disable_post_disable}() are
- * called
+ * &drm_bridge_funcs.atomic_check(), &drm_bridge_funcs.atomic_pre_enable(),
+ * &drm_bridge_funcs.atomic_enable(),
+ * &drm_bridge_funcs.atomic_disable_post_disable() are called.
  *
  * Returns:
  * 0 on success or can fail with -EDEADLK or -ENOMEM. When the error is EDEADLK

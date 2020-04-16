@@ -8,7 +8,7 @@ Required properties:
 
 Example:
 
-sah@10025000 {
+sah: crypto@10025000 {
 	compatible = "fsl,imx27-sahara";
 	reg = <	0x10025000 0x800>;
 	interrupts = <75>;

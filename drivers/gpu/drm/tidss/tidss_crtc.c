@@ -17,6 +17,7 @@
 #include "tidss_dispc.h"
 #include "tidss_drv.h"
 #include "tidss_irq.h"
+#include "tidss_plane.h"
 
 /* Page flip and frame done IRQs */
 
@@ -111,6 +112,54 @@ static int tidss_crtc_atomic_check(struct drm_crtc *crtc,
 	return dispc_vp_bus_check(dispc, hw_videoport, state);
 }
 
+/*
+ * This needs all affected planes to be present in the atomic
+ * state. The untouched planes are added to the state in
+ * tidss_atomic_check().
+ */
+static void tidss_crtc_position_planes(struct tidss_device *tidss,
+				       struct drm_crtc *crtc,
+				       struct drm_crtc_state *old_state,
+				       bool newmodeset)
+{
+	struct drm_atomic_state *ostate = old_state->state;
+	struct tidss_crtc *tcrtc = to_tidss_crtc(crtc);
+	struct drm_crtc_state *cstate = crtc->state;
+	int layer;
+
+	if (!newmodeset && !cstate->zpos_changed &&
+	    !to_tidss_crtc_state(cstate)->plane_pos_changed)
+		return;
+
+	for (layer = 0; layer < tidss->feat->num_planes; layer++) {
+		struct drm_plane_state *pstate;
+		struct drm_plane *plane;
+		bool layer_active = false;
+		int i;
+
+		for_each_new_plane_in_state(ostate, plane, pstate, i) {
+			if (pstate->crtc != crtc || !pstate->visible)
+				continue;
+
+			if (pstate->normalized_zpos == layer) {
+				layer_active = true;
+				break;
+			}
+		}
+
+		if (layer_active) {
+			struct tidss_plane *tplane = to_tidss_plane(plane);
+
+			dispc_ovr_set_plane(tidss->dispc, tplane->hw_plane_id,
+					    tcrtc->hw_videoport,
+					    pstate->crtc_x, pstate->crtc_y,
+					    layer);
+		}
+		dispc_ovr_enable_layer(tidss->dispc, tcrtc->hw_videoport, layer,
+				       layer_active);
+	}
+}
+
 static void tidss_crtc_atomic_flush(struct drm_crtc *crtc,
 				    struct drm_crtc_state *old_crtc_state)
 {
@@ -145,6 +194,9 @@ static void tidss_crtc_atomic_flush(struct drm_crtc *crtc,
 
 	/* Write vp properties to HW if needed. */
 	dispc_vp_setup(tidss->dispc, tcrtc->hw_videoport, crtc->state, false);
+
+	/* Update plane positions if needed. */
+	tidss_crtc_position_planes(tidss, crtc, old_crtc_state, false);
 
 	WARN_ON(drm_crtc_vblank_get(crtc) != 0);
 
@@ -183,6 +235,7 @@ static void tidss_crtc_atomic_enable(struct drm_crtc *crtc,
 		return;
 
 	dispc_vp_setup(tidss->dispc, tcrtc->hw_videoport, crtc->state, true);
+	tidss_crtc_position_planes(tidss, crtc, old_state, true);
 
 	/* Turn vertical blanking interrupt reporting on. */
 	drm_crtc_vblank_on(crtc);
@@ -317,6 +370,8 @@ static struct drm_crtc_state *tidss_crtc_duplicate_state(struct drm_crtc *crtc)
 		return NULL;
 
 	__drm_atomic_helper_crtc_duplicate_state(crtc, &state->base);
+
+	state->plane_pos_changed = false;
 
 	state->bus_format = current_state->bus_format;
 	state->bus_flags = current_state->bus_flags;

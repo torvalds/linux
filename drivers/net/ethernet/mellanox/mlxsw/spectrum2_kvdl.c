@@ -45,7 +45,7 @@ struct mlxsw_sp2_kvdl_part {
 	unsigned int usage_bit_count;
 	unsigned int indexes_per_usage_bit;
 	unsigned int last_allocated_bit;
-	unsigned long usage[0];	/* Usage bits */
+	unsigned long usage[];	/* Usage bits */
 };
 
 struct mlxsw_sp2_kvdl {

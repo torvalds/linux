@@ -1494,8 +1494,13 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *reg)
 			ret = nvif_object_map_handle(&mem->mem.object,
 						     &args, argc,
 						     &handle, &length);
-			if (ret != 1)
-				return ret ? ret : -EINVAL;
+			if (ret != 1) {
+				if (WARN_ON(ret == 0))
+					return -EINVAL;
+				if (ret == -ENOSPC)
+					return -EAGAIN;
+				return ret;
+			}
 
 			reg->bus.base = 0;
 			reg->bus.offset = handle;

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 tm-resched-dscr
 tm-syscall
 tm-signal-msr-resv
@@ -13,6 +14,7 @@ tm-signal-context-chk-vmx
 tm-signal-context-chk-vsx
 tm-signal-context-force-tm
 tm-signal-sigreturn-nt
+tm-signal-pagefault
 tm-vmx-unavail
 tm-unavailable
 tm-trap

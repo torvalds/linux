@@ -10,8 +10,6 @@
  *	 Using root's kernel master key (kmk), calculate the HMAC
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/export.h>
 #include <linux/crypto.h>
 #include <linux/xattr.h>

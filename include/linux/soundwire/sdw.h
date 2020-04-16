@@ -80,6 +80,21 @@ enum sdw_slave_status {
 };
 
 /**
+ * enum sdw_clk_stop_type: clock stop operations
+ *
+ * @SDW_CLK_PRE_PREPARE: pre clock stop prepare
+ * @SDW_CLK_POST_PREPARE: post clock stop prepare
+ * @SDW_CLK_PRE_DEPREPARE: pre clock stop de-prepare
+ * @SDW_CLK_POST_DEPREPARE: post clock stop de-prepare
+ */
+enum sdw_clk_stop_type {
+	       SDW_CLK_PRE_PREPARE = 0,
+	       SDW_CLK_POST_PREPARE,
+	       SDW_CLK_PRE_DEPREPARE,
+	       SDW_CLK_POST_DEPREPARE,
+};
+
+/**
  * enum sdw_command_response - Command response as defined by SDW spec
  * @SDW_CMD_OK: cmd was successful
  * @SDW_CMD_IGNORED: cmd was ignored
@@ -284,6 +299,7 @@ struct sdw_dpn_audio_mode {
  * @max_async_buffer: Number of samples that this port can buffer in
  * asynchronous modes
  * @block_pack_mode: Type of block port mode supported
+ * @read_only_wordlength: Read Only wordlength field in DPN_BlockCtrl1 register
  * @port_encoding: Payload Channel Sample encoding schemes supported
  * @audio_modes: Audio modes supported
  */
@@ -307,6 +323,7 @@ struct sdw_dpn_prop {
 	u32 modes;
 	u32 max_async_buffer;
 	bool block_pack_mode;
+	bool read_only_wordlength;
 	u32 port_encoding;
 	struct sdw_dpn_audio_mode *audio_modes;
 };
@@ -424,6 +441,29 @@ struct sdw_slave_id {
 	__u8 sdw_version:4;
 };
 
+/*
+ * Helper macros to extract the MIPI-defined IDs
+ *
+ * Spec definition
+ *   Register		Bit	Contents
+ *   DevId_0 [7:4]	47:44	sdw_version
+ *   DevId_0 [3:0]	43:40	unique_id
+ *   DevId_1		39:32	mfg_id [15:8]
+ *   DevId_2		31:24	mfg_id [7:0]
+ *   DevId_3		23:16	part_id [15:8]
+ *   DevId_4		15:08	part_id [7:0]
+ *   DevId_5		07:00	class_id
+ *
+ * The MIPI DisCo for SoundWire defines in addition the link_id as bits 51:48
+ */
+
+#define SDW_DISCO_LINK_ID(adr)	(((adr) >> 48) & GENMASK(3, 0))
+#define SDW_VERSION(adr)	(((adr) >> 44) & GENMASK(3, 0))
+#define SDW_UNIQUE_ID(adr)	(((adr) >> 40) & GENMASK(3, 0))
+#define SDW_MFG_ID(adr)		(((adr) >> 24) & GENMASK(15, 0))
+#define SDW_PART_ID(adr)	(((adr) >> 8) & GENMASK(15, 0))
+#define SDW_CLASS_ID(adr)	((adr) & GENMASK(7, 0))
+
 /**
  * struct sdw_slave_intr_status - Slave interrupt status
  * @control_port: control port status
@@ -533,6 +573,11 @@ struct sdw_slave_ops {
 	int (*port_prep)(struct sdw_slave *slave,
 			 struct sdw_prepare_ch *prepare_ch,
 			 enum sdw_port_prep_ops pre_ops);
+	int (*get_clk_stop_mode)(struct sdw_slave *slave);
+	int (*clk_stop)(struct sdw_slave *slave,
+			enum sdw_clk_stop_mode mode,
+			enum sdw_clk_stop_type type);
+
 };
 
 /**
@@ -575,6 +620,7 @@ struct sdw_slave {
 #endif
 	struct list_head node;
 	struct completion *port_ready;
+	enum sdw_clk_stop_mode curr_clk_stop_mode;
 	u16 dev_num;
 	u16 dev_num_sticky;
 	bool probed;
@@ -892,6 +938,9 @@ int sdw_prepare_stream(struct sdw_stream_runtime *stream);
 int sdw_enable_stream(struct sdw_stream_runtime *stream);
 int sdw_disable_stream(struct sdw_stream_runtime *stream);
 int sdw_deprepare_stream(struct sdw_stream_runtime *stream);
+int sdw_bus_prep_clk_stop(struct sdw_bus *bus);
+int sdw_bus_clk_stop(struct sdw_bus *bus);
+int sdw_bus_exit_clk_stop(struct sdw_bus *bus);
 
 /* messaging and data APIs */
 

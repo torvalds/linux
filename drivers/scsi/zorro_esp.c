@@ -801,8 +801,7 @@ static int zorro_esp_probe(struct zorro_dev *z,
 	/* additional setup required for Fastlane */
 	if (zep->zorro3 && ent->driver_data == ZORRO_BLZ1230II) {
 		/* map full address space up to ESP base for DMA */
-		zep->board_base = ioremap(board,
-						FASTLANE_ESP_ADDR-1);
+		zep->board_base = ioremap(board, FASTLANE_ESP_ADDR - 1);
 		if (!zep->board_base) {
 			pr_err("Cannot allocate board address space\n");
 			err = -ENOMEM;
@@ -843,7 +842,7 @@ static int zorro_esp_probe(struct zorro_dev *z,
 		 * dma_registers size if adding any more
 		 */
 		esp->dma_regs = ioremap(dmaaddr,
-				sizeof(struct fastlane_dma_registers));
+					sizeof(struct fastlane_dma_registers));
 	} else
 		/* ZorroII address space remapped nocache by early startup */
 		esp->dma_regs = ZTWO_VADDR(dmaaddr);

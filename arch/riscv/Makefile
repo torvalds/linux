@@ -13,8 +13,10 @@ LDFLAGS_vmlinux :=
 ifeq ($(CONFIG_DYNAMIC_FTRACE),y)
 	LDFLAGS_vmlinux := --no-relax
 endif
-KBUILD_AFLAGS_MODULE += -fPIC
-KBUILD_CFLAGS_MODULE += -fPIC
+
+ifeq ($(CONFIG_64BIT)$(CONFIG_CMODEL_MEDLOW),yy)
+KBUILD_CFLAGS_MODULE += -mcmodel=medany
+endif
 
 export BITS
 ifeq ($(CONFIG_ARCH_RV64I),y)
@@ -83,12 +85,12 @@ PHONY += vdso_install
 vdso_install:
 	$(Q)$(MAKE) $(build)=arch/riscv/kernel/vdso $@
 
-ifeq ($(CONFIG_RISCV_M_MODE),y)
-KBUILD_IMAGE := $(boot)/loader
+ifeq ($(CONFIG_RISCV_M_MODE)$(CONFIG_SOC_KENDRYTE),yy)
+KBUILD_IMAGE := $(boot)/loader.bin
 else
 KBUILD_IMAGE := $(boot)/Image.gz
 endif
-BOOT_TARGETS := Image Image.gz loader
+BOOT_TARGETS := Image Image.gz loader loader.bin
 
 all:	$(notdir $(KBUILD_IMAGE))
 

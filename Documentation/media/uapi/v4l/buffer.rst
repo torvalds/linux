@@ -172,11 +172,10 @@ struct v4l2_buffer
 .. flat-table:: struct v4l2_buffer
     :header-rows:  0
     :stub-columns: 0
-    :widths:       1 2 1 10
+    :widths:       1 2 10
 
     * - __u32
       - ``index``
-      -
       - Number of the buffer, set by the application except when calling
 	:ref:`VIDIOC_DQBUF <VIDIOC_QBUF>`, then it is set by the
 	driver. This field can range from zero to the number of buffers
@@ -186,14 +185,12 @@ struct v4l2_buffer
 	:ref:`VIDIOC_CREATE_BUFS` minus one.
     * - __u32
       - ``type``
-      -
       - Type of the buffer, same as struct
 	:c:type:`v4l2_format` ``type`` or struct
 	:c:type:`v4l2_requestbuffers` ``type``, set
 	by the application. See :c:type:`v4l2_buf_type`
     * - __u32
       - ``bytesused``
-      -
       - The number of bytes occupied by the data in the buffer. It depends
 	on the negotiated data format and may change with each buffer for
 	compressed variable size data like JPEG images. Drivers must set
@@ -205,18 +202,15 @@ struct v4l2_buffer
 	``planes`` pointer is used instead.
     * - __u32
       - ``flags``
-      -
       - Flags set by the application or driver, see :ref:`buffer-flags`.
     * - __u32
       - ``field``
-      -
       - Indicates the field order of the image in the buffer, see
 	:c:type:`v4l2_field`. This field is not used when the buffer
 	contains VBI data. Drivers must set it when ``type`` refers to a
 	capture stream, applications when it refers to an output stream.
     * - struct timeval
       - ``timestamp``
-      -
       - For capture streams this is time when the first data byte was
 	captured, as returned by the :c:func:`clock_gettime()` function
 	for the relevant clock id; see ``V4L2_BUF_FLAG_TIMESTAMP_*`` in
@@ -229,7 +223,6 @@ struct v4l2_buffer
 	stream.
     * - struct :c:type:`v4l2_timecode`
       - ``timecode``
-      -
       - When the ``V4L2_BUF_FLAG_TIMECODE`` flag is set in ``flags``, this
 	structure contains a frame timecode. In
 	:c:type:`V4L2_FIELD_ALTERNATE <v4l2_field>` mode the top and
@@ -239,10 +232,9 @@ struct v4l2_buffer
 	independent of the ``timestamp`` and ``sequence`` fields.
     * - __u32
       - ``sequence``
-      -
       - Set by the driver, counting the frames (not fields!) in sequence.
 	This field is set for both input and output devices.
-    * - :cspan:`3`
+    * - :cspan:`2`
 
 	In :c:type:`V4L2_FIELD_ALTERNATE <v4l2_field>` mode the top and
 	bottom field have the same sequence number. The count starts at
@@ -262,13 +254,11 @@ struct v4l2_buffer
 
     * - __u32
       - ``memory``
-      -
       - This field must be set by applications and/or drivers in
 	accordance with the selected I/O method. See :c:type:`v4l2_memory`
-    * - union
+    * - union {
       - ``m``
-    * -
-      - __u32
+    * - __u32
       - ``offset``
       - For the single-planar API and when ``memory`` is
 	``V4L2_MEMORY_MMAP`` this is the offset of the buffer from the
@@ -276,29 +266,27 @@ struct v4l2_buffer
 	and apart of serving as parameter to the
 	:ref:`mmap() <func-mmap>` function not useful for applications.
 	See :ref:`mmap` for details
-    * -
-      - unsigned long
+    * - unsigned long
       - ``userptr``
       - For the single-planar API and when ``memory`` is
 	``V4L2_MEMORY_USERPTR`` this is a pointer to the buffer (casted to
 	unsigned long type) in virtual memory, set by the application. See
 	:ref:`userp` for details.
-    * -
-      - struct v4l2_plane
+    * - struct v4l2_plane
       - ``*planes``
       - When using the multi-planar API, contains a userspace pointer to
 	an array of struct :c:type:`v4l2_plane`. The size of
 	the array should be put in the ``length`` field of this
 	struct :c:type:`v4l2_buffer` structure.
-    * -
-      - int
+    * - int
       - ``fd``
       - For the single-plane API and when ``memory`` is
 	``V4L2_MEMORY_DMABUF`` this is the file descriptor associated with
 	a DMABUF buffer.
+    * - }
+      -
     * - __u32
       - ``length``
-      -
       - Size of the buffer (not the payload) in bytes for the
 	single-planar API. This is set by the driver based on the calls to
 	:ref:`VIDIOC_REQBUFS` and/or
@@ -308,12 +296,10 @@ struct v4l2_buffer
 	actual number of valid elements in that array.
     * - __u32
       - ``reserved2``
-      -
       - A place holder for future extensions. Drivers and applications
 	must set this to 0.
     * - __u32
       - ``request_fd``
-      -
       - The file descriptor of the request to queue the buffer to. If the flag
         ``V4L2_BUF_FLAG_REQUEST_FD`` is set, then the buffer will be
 	queued to this request. If the flag is not set, then this field will
@@ -344,11 +330,10 @@ struct v4l2_plane
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-    :widths:       1 1 1 2
+    :widths:       1 1 2
 
     * - __u32
       - ``bytesused``
-      -
       - The number of bytes occupied by data in the plane (its payload).
 	Drivers must set this field when ``type`` refers to a capture
 	stream, applications when it refers to an output stream. If the
@@ -362,40 +347,35 @@ struct v4l2_plane
 	   which may not be 0.
     * - __u32
       - ``length``
-      -
       - Size in bytes of the plane (not its payload). This is set by the
 	driver based on the calls to
 	:ref:`VIDIOC_REQBUFS` and/or
 	:ref:`VIDIOC_CREATE_BUFS`.
-    * - union
+    * - union {
       - ``m``
-      -
-      -
-    * -
-      - __u32
+    * - __u32
       - ``mem_offset``
       - When the memory type in the containing struct
 	:c:type:`v4l2_buffer` is ``V4L2_MEMORY_MMAP``, this
 	is the value that should be passed to :ref:`mmap() <func-mmap>`,
 	similar to the ``offset`` field in struct
 	:c:type:`v4l2_buffer`.
-    * -
-      - unsigned long
+    * - unsigned long
       - ``userptr``
       - When the memory type in the containing struct
 	:c:type:`v4l2_buffer` is ``V4L2_MEMORY_USERPTR``,
 	this is a userspace pointer to the memory allocated for this plane
 	by an application.
-    * -
-      - int
+    * - int
       - ``fd``
       - When the memory type in the containing struct
 	:c:type:`v4l2_buffer` is ``V4L2_MEMORY_DMABUF``,
 	this is a file descriptor associated with a DMABUF buffer, similar
 	to the ``fd`` field in struct :c:type:`v4l2_buffer`.
+    * - }
+      -
     * - __u32
       - ``data_offset``
-      -
       - Offset in bytes to video data in the plane. Drivers must set this
 	field when ``type`` refers to a capture stream, applications when
 	it refers to an output stream.
@@ -407,7 +387,6 @@ struct v4l2_plane
 	   at offset ``data_offset`` from the start of the plane.
     * - __u32
       - ``reserved[11]``
-      -
       - Reserved for future use. Should be zeroed by drivers and
 	applications.
 

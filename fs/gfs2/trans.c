@@ -228,6 +228,10 @@ void gfs2_trans_add_meta(struct gfs2_glock *gl, struct buffer_head *bh)
 		fs_info(sdp, "GFS2:adding buf while frozen\n");
 		gfs2_assert_withdraw(sdp, 0);
 	}
+	if (unlikely(gfs2_withdrawn(sdp))) {
+		fs_info(sdp, "GFS2:adding buf while withdrawn! 0x%llx\n",
+			(unsigned long long)bd->bd_bh->b_blocknr);
+	}
 	gfs2_pin(sdp, bd->bd_bh);
 	mh->__pad0 = cpu_to_be64(0);
 	mh->mh_jid = cpu_to_be32(sdp->sd_jdesc->jd_jid);

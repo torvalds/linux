@@ -160,15 +160,10 @@ static int m48t35_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	priv->size = resource_size(res);
-	/*
-	 * kludge: remove the #ifndef after ioc3 resource
-	 * conflicts are resolved
-	 */
-#ifndef CONFIG_SGI_IP27
 	if (!devm_request_mem_region(&pdev->dev, res->start, priv->size,
 				     pdev->name))
 		return -EBUSY;
-#endif
+
 	priv->baseaddr = res->start;
 	priv->reg = devm_ioremap(&pdev->dev, priv->baseaddr, priv->size);
 	if (!priv->reg)

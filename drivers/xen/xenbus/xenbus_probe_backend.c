@@ -45,6 +45,7 @@
 #include <linux/mm.h>
 #include <linux/notifier.h>
 #include <linux/export.h>
+#include <linux/semaphore.h>
 
 #include <asm/page.h>
 #include <asm/pgtable.h>
@@ -257,10 +258,10 @@ static int backend_reclaim_memory(struct device *dev, void *data)
 	drv = to_xenbus_driver(dev->driver);
 	if (drv && drv->reclaim_memory) {
 		xdev = to_xenbus_device(dev);
-		if (!spin_trylock(&xdev->reclaim_lock))
+		if (down_trylock(&xdev->reclaim_sem))
 			return 0;
 		drv->reclaim_memory(xdev);
-		spin_unlock(&xdev->reclaim_lock);
+		up(&xdev->reclaim_sem);
 	}
 	return 0;
 }

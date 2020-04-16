@@ -9,6 +9,7 @@
 #ifndef __ASSEMBLY__
 
 #include <linux/sched.h>
+#include <asm/dsp-impl.h>
 #include <asm/fpu.h>
 
 #ifdef CONFIG_ARC_PLAT_EZNPS
@@ -24,6 +25,7 @@ struct task_struct *__switch_to(struct task_struct *p, struct task_struct *n);
 #define switch_to(prev, next, last)	\
 do {					\
 	ARC_EZNPS_DP_PREV(prev, next);	\
+	dsp_save_restore(prev, next);	\
 	fpu_save_restore(prev, next);	\
 	last = __switch_to(prev, next);\
 	mb();				\

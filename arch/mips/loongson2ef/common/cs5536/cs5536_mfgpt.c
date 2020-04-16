@@ -100,12 +100,6 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static struct irqaction irq5 = {
-	.handler = timer_interrupt,
-	.flags = IRQF_NOBALANCING | IRQF_TIMER,
-	.name = "timer"
-};
-
 /*
  * Initialize the conversion factor and the min/max deltas of the clock event
  * structure and register the clock event source with the framework.
@@ -134,7 +128,9 @@ void __init setup_mfgpt0_timer(void)
 
 	clockevents_register_device(cd);
 
-	setup_irq(CS5536_MFGPT_INTR, &irq5);
+	if (request_irq(CS5536_MFGPT_INTR, timer_interrupt,
+			IRQF_NOBALANCING | IRQF_TIMER, "timer", NULL))
+		pr_err("Failed to register timer interrupt\n");
 }
 
 /*

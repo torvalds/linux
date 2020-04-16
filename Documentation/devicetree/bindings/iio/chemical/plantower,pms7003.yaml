@@ -38,6 +38,8 @@ required:
   - compatible
   - vcc-supply
 
+additionalProperties: false
+
 examples:
   - |
     serial {

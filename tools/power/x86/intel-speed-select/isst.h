@@ -172,6 +172,7 @@ extern int get_cpu_count(int pkg_id, int die_id);
 extern int get_core_count(int pkg_id, int die_id);
 
 /* Common interfaces */
+FILE *get_output_file(void);
 extern void debug_printf(const char *format, ...);
 extern int out_format_is_json(void);
 extern int get_physical_package_id(int cpu);
@@ -196,6 +197,8 @@ extern int isst_send_msr_command(unsigned int cpu, unsigned int command,
 				 int write, unsigned long long *req_resp);
 
 extern int isst_get_ctdp_levels(int cpu, struct isst_pkg_ctdp *pkg_dev);
+extern int isst_get_ctdp_control(int cpu, int config_index,
+				 struct isst_pkg_ctdp_level_info *ctdp_level);
 extern int isst_get_coremask_info(int cpu, int config_index,
 			   struct isst_pkg_ctdp_level_info *ctdp_level);
 extern int isst_get_process_ctdp(int cpu, int tdp_level,
@@ -205,7 +208,7 @@ extern void isst_get_process_ctdp_complete(int cpu,
 extern void isst_ctdp_display_information(int cpu, FILE *outf, int tdp_level,
 					  struct isst_pkg_ctdp *pkg_dev);
 extern void isst_ctdp_display_core_info(int cpu, FILE *outf, char *prefix,
-					unsigned int val);
+					unsigned int val, char *str0, char *str1);
 extern void isst_ctdp_display_information_start(FILE *outf);
 extern void isst_ctdp_display_information_end(FILE *outf);
 extern void isst_pbf_display_information(int cpu, FILE *outf, int level,
@@ -216,7 +219,7 @@ extern int isst_set_pbf_fact_status(int cpu, int pbf, int enable);
 extern int isst_get_pbf_info(int cpu, int level,
 			     struct isst_pbf_info *pbf_info);
 extern void isst_get_pbf_info_complete(struct isst_pbf_info *pbf_info);
-extern int isst_get_fact_info(int cpu, int level,
+extern int isst_get_fact_info(int cpu, int level, int fact_bucket,
 			      struct isst_fact_info *fact_info);
 extern int isst_get_fact_bucket_info(int cpu, int level,
 				     struct isst_fact_bucket_info *bucket_info);
@@ -245,7 +248,10 @@ extern void isst_display_result(int cpu, FILE *outf, char *feature, char *cmd,
 
 extern int isst_clos_get_clos_information(int cpu, int *enable, int *type);
 extern void isst_clos_display_clos_information(int cpu, FILE *outf,
-					       int clos_enable, int type);
+					       int clos_enable, int type,
+					       int state, int cap);
 extern int is_clx_n_platform(void);
 extern int get_cpufreq_base_freq(int cpu);
+extern int isst_read_pm_config(int cpu, int *cp_state, int *cp_cap);
+extern void isst_display_error_info_message(int error, char *msg, int arg_valid, int arg);
 #endif

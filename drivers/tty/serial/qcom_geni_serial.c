@@ -21,6 +21,7 @@
 
 /* UART specific GENI registers */
 #define SE_UART_LOOPBACK_CFG		0x22c
+#define SE_UART_IO_MACRO_CTRL		0x240
 #define SE_UART_TX_TRANS_CFG		0x25c
 #define SE_UART_TX_WORD_LEN		0x268
 #define SE_UART_TX_STOP_BIT_LEN		0x26c
@@ -95,6 +96,12 @@
 #define CTS_RTS_SORTED	BIT(1)
 #define RX_TX_CTS_RTS_SORTED	(RX_TX_SORTED | CTS_RTS_SORTED)
 
+/* UART pin swap value */
+#define DEFAULT_IO_MACRO_IO0_IO1_MASK		GENMASK(3, 0)
+#define IO_MACRO_IO0_SEL		0x3
+#define DEFAULT_IO_MACRO_IO2_IO3_MASK		GENMASK(15, 4)
+#define IO_MACRO_IO2_IO3_SWAP		0x4640
+
 #ifdef CONFIG_CONSOLE_POLL
 #define CONSOLE_RX_BYTES_PW 1
 #else
@@ -113,12 +120,14 @@ struct qcom_geni_serial_port {
 	unsigned int baud;
 	unsigned int tx_bytes_pw;
 	unsigned int rx_bytes_pw;
-	u32 *rx_fifo;
+	void *rx_fifo;
 	u32 loopback;
 	bool brk;
 
 	unsigned int tx_remaining;
 	int wakeup_irq;
+	bool rx_tx_swap;
+	bool cts_rts_swap;
 };
 
 static const struct uart_ops qcom_geni_console_pops;
@@ -129,6 +138,7 @@ static int handle_rx_console(struct uart_port *uport, u32 bytes, bool drop);
 static int handle_rx_uart(struct uart_port *uport, u32 bytes, bool drop);
 static unsigned int qcom_geni_serial_tx_empty(struct uart_port *port);
 static void qcom_geni_serial_stop_rx(struct uart_port *uport);
+static void qcom_geni_serial_handle_rx(struct uart_port *uport, bool drop);
 
 static const unsigned long root_freq[] = {7372800, 14745600, 19200000, 29491200,
 					32000000, 48000000, 64000000, 80000000,
@@ -504,7 +514,6 @@ static int handle_rx_console(struct uart_port *uport, u32 bytes, bool drop)
 
 static int handle_rx_uart(struct uart_port *uport, u32 bytes, bool drop)
 {
-	unsigned char *buf;
 	struct tty_port *tport;
 	struct qcom_geni_serial_port *port = to_dev_port(uport, uport);
 	u32 num_bytes_pw = port->tx_fifo_width / BITS_PER_BYTE;
@@ -516,8 +525,7 @@ static int handle_rx_uart(struct uart_port *uport, u32 bytes, bool drop)
 	if (drop)
 		return 0;
 
-	buf = (unsigned char *)port->rx_fifo;
-	ret = tty_insert_flip_string(tport, buf, bytes);
+	ret = tty_insert_flip_string(tport, port->rx_fifo, bytes);
 	if (ret != bytes) {
 		dev_err(uport->dev, "%s:Unable to push data ret %d_bytes %d\n",
 				__func__, ret, bytes);
@@ -599,7 +607,7 @@ static void qcom_geni_serial_stop_rx(struct uart_port *uport)
 	u32 irq_en;
 	u32 status;
 	struct qcom_geni_serial_port *port = to_dev_port(uport, uport);
-	u32 irq_clear = S_CMD_DONE_EN;
+	u32 s_irq_status;
 
 	irq_en = readl(uport->membase + SE_GENI_S_IRQ_EN);
 	irq_en &= ~(S_RX_FIFO_WATERMARK_EN | S_RX_FIFO_LAST_EN);
@@ -615,10 +623,19 @@ static void qcom_geni_serial_stop_rx(struct uart_port *uport)
 		return;
 
 	geni_se_cancel_s_cmd(&port->se);
-	qcom_geni_serial_poll_bit(uport, SE_GENI_S_CMD_CTRL_REG,
-					S_GENI_CMD_CANCEL, false);
+	qcom_geni_serial_poll_bit(uport, SE_GENI_S_IRQ_STATUS,
+					S_CMD_CANCEL_EN, true);
+	/*
+	 * If timeout occurs secondary engine remains active
+	 * and Abort sequence is executed.
+	 */
+	s_irq_status = readl(uport->membase + SE_GENI_S_IRQ_STATUS);
+	/* Flush the Rx buffer */
+	if (s_irq_status & S_RX_FIFO_LAST_EN)
+		qcom_geni_serial_handle_rx(uport, true);
+	writel(s_irq_status, uport->membase + SE_GENI_S_IRQ_CLEAR);
+
 	status = readl(uport->membase + SE_GENI_STATUS);
-	writel(irq_clear, uport->membase + SE_GENI_S_IRQ_CLEAR);
 	if (status & S_GENI_CMD_ACTIVE)
 		qcom_geni_serial_abort_rx(uport);
 }
@@ -808,17 +825,7 @@ static void get_tx_fifo_size(struct qcom_geni_serial_port *port)
 
 static void qcom_geni_serial_shutdown(struct uart_port *uport)
 {
-	unsigned long flags;
-
-	/* Stop the console before stopping the current tx */
-	if (uart_console(uport))
-		console_stop(uport->cons);
-
 	disable_irq(uport->irq);
-	spin_lock_irqsave(&uport->lock, flags);
-	qcom_geni_serial_stop_tx(uport);
-	qcom_geni_serial_stop_rx(uport);
-	spin_unlock_irqrestore(&uport->lock, flags);
 }
 
 static int qcom_geni_serial_port_setup(struct uart_port *uport)
@@ -826,6 +833,7 @@ static int qcom_geni_serial_port_setup(struct uart_port *uport)
 	struct qcom_geni_serial_port *port = to_dev_port(uport, uport);
 	u32 rxstale = DEFAULT_BITS_PER_CHAR * STALE_TIMEOUT;
 	u32 proto;
+	u32 pin_swap;
 
 	if (uart_console(uport)) {
 		port->tx_bytes_pw = 1;
@@ -846,6 +854,20 @@ static int qcom_geni_serial_port_setup(struct uart_port *uport)
 	get_tx_fifo_size(port);
 
 	writel(rxstale, uport->membase + SE_UART_RX_STALE_CNT);
+
+	pin_swap = readl(uport->membase + SE_UART_IO_MACRO_CTRL);
+	if (port->rx_tx_swap) {
+		pin_swap &= ~DEFAULT_IO_MACRO_IO2_IO3_MASK;
+		pin_swap |= IO_MACRO_IO2_IO3_SWAP;
+	}
+	if (port->cts_rts_swap) {
+		pin_swap &= ~DEFAULT_IO_MACRO_IO0_IO1_MASK;
+		pin_swap |= IO_MACRO_IO0_SEL;
+	}
+	/* Configure this register if RX-TX, CTS-RTS pins are swapped */
+	if (port->rx_tx_swap || port->cts_rts_swap)
+		writel(pin_swap, uport->membase + SE_UART_IO_MACRO_CTRL);
+
 	/*
 	 * Make an unconditional cancel on the main sequencer to reset
 	 * it else we could end up in data loss scenarios.
@@ -858,12 +880,6 @@ static int qcom_geni_serial_port_setup(struct uart_port *uport)
 						false, false, true);
 	geni_se_init(&port->se, UART_RX_WM, port->rx_fifo_depth - 2);
 	geni_se_select_mode(&port->se, GENI_SE_FIFO);
-	if (!uart_console(uport)) {
-		port->rx_fifo = devm_kcalloc(uport->dev,
-			port->rx_fifo_depth, sizeof(u32), GFP_KERNEL);
-		if (!port->rx_fifo)
-			return -ENOMEM;
-	}
 	port->setup = true;
 
 	return 0;
@@ -1274,6 +1290,13 @@ static int qcom_geni_serial_probe(struct platform_device *pdev)
 	port->rx_fifo_depth = DEF_FIFO_DEPTH_WORDS;
 	port->tx_fifo_width = DEF_FIFO_WIDTH_BITS;
 
+	if (!console) {
+		port->rx_fifo = devm_kcalloc(uport->dev,
+			port->rx_fifo_depth, sizeof(u32), GFP_KERNEL);
+		if (!port->rx_fifo)
+			return -ENOMEM;
+	}
+
 	port->name = devm_kasprintf(uport->dev, GFP_KERNEL,
 			"qcom_geni_serial_%s%d",
 			uart_console(uport) ? "console" : "uart", uport->line);
@@ -1288,6 +1311,12 @@ static int qcom_geni_serial_probe(struct platform_device *pdev)
 
 	if (!console)
 		port->wakeup_irq = platform_get_irq_optional(pdev, 1);
+
+	if (of_property_read_bool(pdev->dev.of_node, "rx-tx-swap"))
+		port->rx_tx_swap = true;
+
+	if (of_property_read_bool(pdev->dev.of_node, "cts-rts-swap"))
+		port->cts_rts_swap = true;
 
 	uport->private_data = drv;
 	platform_set_drvdata(pdev, port);

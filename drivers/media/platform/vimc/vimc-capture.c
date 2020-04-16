@@ -325,20 +325,20 @@ static const struct media_entity_operations vimc_cap_mops = {
 	.link_validate		= vimc_vdev_link_validate,
 };
 
-static void vimc_cap_release(struct video_device *vdev)
+void vimc_cap_release(struct vimc_ent_device *ved)
 {
 	struct vimc_cap_device *vcap =
-		container_of(vdev, struct vimc_cap_device, vdev);
+		container_of(ved, struct vimc_cap_device, ved);
 
 	media_entity_cleanup(vcap->ved.ent);
 	kfree(vcap);
 }
 
-void vimc_cap_rm(struct vimc_device *vimc, struct vimc_ent_device *ved)
+void vimc_cap_unregister(struct vimc_ent_device *ved)
 {
-	struct vimc_cap_device *vcap;
+	struct vimc_cap_device *vcap =
+		container_of(ved, struct vimc_cap_device, ved);
 
-	vcap = container_of(ved, struct vimc_cap_device, ved);
 	vb2_queue_release(&vcap->queue);
 	video_unregister_device(&vcap->vdev);
 }
@@ -423,7 +423,7 @@ struct vimc_ent_device *vimc_cap_add(struct vimc_device *vimc,
 
 	ret = vb2_queue_init(q);
 	if (ret) {
-		dev_err(&vimc->pdev.dev, "%s: vb2 queue init failed (err=%d)\n",
+		dev_err(vimc->mdev.dev, "%s: vb2 queue init failed (err=%d)\n",
 			vcfg_name, ret);
 		goto err_clean_m_ent;
 	}
@@ -443,13 +443,13 @@ struct vimc_ent_device *vimc_cap_add(struct vimc_device *vimc,
 	vcap->ved.ent = &vcap->vdev.entity;
 	vcap->ved.process_frame = vimc_cap_process_frame;
 	vcap->ved.vdev_get_format = vimc_cap_get_format;
-	vcap->ved.dev = &vimc->pdev.dev;
+	vcap->ved.dev = vimc->mdev.dev;
 
 	/* Initialize the video_device struct */
 	vdev = &vcap->vdev;
 	vdev->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
 	vdev->entity.ops = &vimc_cap_mops;
-	vdev->release = vimc_cap_release;
+	vdev->release = video_device_release_empty;
 	vdev->fops = &vimc_cap_fops;
 	vdev->ioctl_ops = &vimc_cap_ioctl_ops;
 	vdev->lock = &vcap->lock;
@@ -460,9 +460,9 @@ struct vimc_ent_device *vimc_cap_add(struct vimc_device *vimc,
 	video_set_drvdata(vdev, &vcap->ved);
 
 	/* Register the video_device with the v4l2 and the media framework */
-	ret = video_register_device(vdev, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(vdev, VFL_TYPE_VIDEO, -1);
 	if (ret) {
-		dev_err(&vimc->pdev.dev, "%s: video register failed (err=%d)\n",
+		dev_err(vimc->mdev.dev, "%s: video register failed (err=%d)\n",
 			vcap->vdev.name, ret);
 		goto err_release_queue;
 	}

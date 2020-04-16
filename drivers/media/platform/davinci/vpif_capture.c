@@ -1466,7 +1466,7 @@ static int vpif_probe_complete(void)
 		vdev->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
 		video_set_drvdata(&ch->video_dev, ch);
 		err = video_register_device(vdev,
-					    VFL_TYPE_GRABBER, (j ? 1 : 0));
+					    VFL_TYPE_VIDEO, (j ? 1 : 0));
 		if (err)
 			goto probe_out;
 	}

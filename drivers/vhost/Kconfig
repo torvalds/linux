@@ -1,4 +1,29 @@
 # SPDX-License-Identifier: GPL-2.0-only
+config VHOST_IOTLB
+	tristate
+	help
+	  Generic IOTLB implementation for vhost and vringh.
+
+config VHOST_RING
+	tristate
+	select VHOST_IOTLB
+	help
+	  This option is selected by any driver which needs to access
+	  the host side of a virtio ring.
+
+config VHOST
+	tristate
+	select VHOST_IOTLB
+	help
+	  This option is selected by any driver which needs to access
+	  the core of vhost.
+
+menuconfig VHOST_MENU
+	bool "VHOST drivers"
+	default y
+
+if VHOST_MENU
+
 config VHOST_NET
 	tristate "Host kernel accelerator for virtio net"
 	depends on NET && EVENTFD && (TUN || !TUN) && (TAP || !TAP)
@@ -23,8 +48,8 @@ config VHOST_SCSI
 config VHOST_VSOCK
 	tristate "vhost virtio-vsock driver"
 	depends on VSOCKETS && EVENTFD
-	select VIRTIO_VSOCKETS_COMMON
 	select VHOST
+	select VIRTIO_VSOCKETS_COMMON
 	default n
 	---help---
 	This kernel module can be loaded in the host kernel to provide AF_VSOCK
@@ -34,11 +59,17 @@ config VHOST_VSOCK
 	To compile this driver as a module, choose M here: the module will be called
 	vhost_vsock.
 
-config VHOST
-	tristate
-	---help---
-	  This option is selected by any driver which needs to access
-	  the core of vhost.
+config VHOST_VDPA
+	tristate "Vhost driver for vDPA-based backend"
+	depends on EVENTFD
+	select VHOST
+	select VDPA
+	help
+	  This kernel module can be loaded in host kernel to accelerate
+	  guest virtio devices with the vDPA-based backends.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called vhost_vdpa.
 
 config VHOST_CROSS_ENDIAN_LEGACY
 	bool "Cross-endian support for vhost"
@@ -54,3 +85,5 @@ config VHOST_CROSS_ENDIAN_LEGACY
 	  adds some overhead, it is disabled by default.
 
 	  If unsure, say "N".
+
+endif

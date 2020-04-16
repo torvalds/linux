@@ -67,7 +67,6 @@ static void tse_get_drvinfo(struct net_device *dev,
 	u32 rev = ioread32(&priv->mac_dev->megacore_revision);
 
 	strcpy(info->driver, "altera_tse");
-	strcpy(info->version, "v8.0");
 	snprintf(info->fw_version, ETHTOOL_FWVERS_LEN, "v%d.%d",
 		 rev & 0xFFFF, (rev & 0xFFFF0000) >> 16);
 	sprintf(info->bus_info, "platform");

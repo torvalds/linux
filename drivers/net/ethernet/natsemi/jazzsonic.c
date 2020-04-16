@@ -147,38 +147,11 @@ static int sonic_probe1(struct net_device *dev)
 		dev->dev_addr[i*2+1] = val >> 8;
 	}
 
-	err = -ENOMEM;
-
-	/* Initialize the device structure. */
-
 	lp->dma_bitmode = SONIC_BITMODE32;
 
-	/* Allocate the entire chunk of memory for the descriptors.
-           Note that this cannot cross a 64K boundary. */
-	lp->descriptors = dma_alloc_coherent(lp->device,
-					     SIZEOF_SONIC_DESC *
-					     SONIC_BUS_SCALE(lp->dma_bitmode),
-					     &lp->descriptors_laddr,
-					     GFP_KERNEL);
-	if (lp->descriptors == NULL)
+	err = sonic_alloc_descriptors(dev);
+	if (err)
 		goto out;
-
-	/* Now set up the pointers to point to the appropriate places */
-	lp->cda = lp->descriptors;
-	lp->tda = lp->cda + (SIZEOF_SONIC_CDA
-	                     * SONIC_BUS_SCALE(lp->dma_bitmode));
-	lp->rda = lp->tda + (SIZEOF_SONIC_TD * SONIC_NUM_TDS
-	                     * SONIC_BUS_SCALE(lp->dma_bitmode));
-	lp->rra = lp->rda + (SIZEOF_SONIC_RD * SONIC_NUM_RDS
-	                     * SONIC_BUS_SCALE(lp->dma_bitmode));
-
-	lp->cda_laddr = lp->descriptors_laddr;
-	lp->tda_laddr = lp->cda_laddr + (SIZEOF_SONIC_CDA
-	                     * SONIC_BUS_SCALE(lp->dma_bitmode));
-	lp->rda_laddr = lp->tda_laddr + (SIZEOF_SONIC_TD * SONIC_NUM_TDS
-	                     * SONIC_BUS_SCALE(lp->dma_bitmode));
-	lp->rra_laddr = lp->rda_laddr + (SIZEOF_SONIC_RD * SONIC_NUM_RDS
-	                     * SONIC_BUS_SCALE(lp->dma_bitmode));
 
 	dev->netdev_ops = &sonic_netdev_ops;
 	dev->watchdog_timeo = TX_TIMEOUT;

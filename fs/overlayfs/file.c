@@ -244,6 +244,9 @@ static void ovl_aio_cleanup_handler(struct ovl_aio_req *aio_req)
 	if (iocb->ki_flags & IOCB_WRITE) {
 		struct inode *inode = file_inode(orig_iocb->ki_filp);
 
+		/* Actually acquired in ovl_write_iter() */
+		__sb_writers_acquired(file_inode(iocb->ki_filp)->i_sb,
+				      SB_FREEZE_WRITE);
 		file_end_write(iocb->ki_filp);
 		ovl_copyattr(ovl_inode_real(inode), inode);
 	}
@@ -346,6 +349,9 @@ static ssize_t ovl_write_iter(struct kiocb *iocb, struct iov_iter *iter)
 			goto out;
 
 		file_start_write(real.file);
+		/* Pacify lockdep, same trick as done in aio_write() */
+		__sb_writers_release(file_inode(real.file)->i_sb,
+				     SB_FREEZE_WRITE);
 		aio_req->fd = real;
 		real.flags = 0;
 		aio_req->orig_iocb = iocb;

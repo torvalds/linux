@@ -71,7 +71,7 @@ struct digital_atr_req {
 	u8 bs;
 	u8 br;
 	u8 pp;
-	u8 gb[0];
+	u8 gb[];
 } __packed;
 
 struct digital_atr_res {
@@ -83,7 +83,7 @@ struct digital_atr_res {
 	u8 br;
 	u8 to;
 	u8 pp;
-	u8 gb[0];
+	u8 gb[];
 } __packed;
 
 struct digital_psl_req {

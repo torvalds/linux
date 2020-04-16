@@ -32,6 +32,9 @@ description: |+
     http://infocenter.arm.com/help/topic/com.arm.doc.den0022c/DEN0022C_Power_State_Coordination_Interface.pdf
 
 properties:
+  $nodename:
+    const: psci
+
   compatible:
     oneOf:
       - description:
@@ -100,13 +103,14 @@ properties:
       bindings in [1]) must specify this property.
 
       [1] Kernel documentation - ARM idle states bindings
-        Documentation/devicetree/bindings/arm/idle-states.txt
+        Documentation/devicetree/bindings/arm/idle-states.yaml
 
-  "#power-domain-cells":
-    description:
-      The number of cells in a PM domain specifier as per binding in [3].
-      Must be 0 as to represent a single PM domain.
-
+patternProperties:
+  "^power-domain-":
+    allOf:
+      - $ref: "../power/power-domain.yaml#"
+    type: object
+    description: |
       ARM systems can have multiple cores, sometimes in an hierarchical
       arrangement. This often, but not always, maps directly to the processor
       power topology of the system. Individual nodes in a topology have their
@@ -122,14 +126,8 @@ properties:
       helps to implement support for OSI mode and OS implementations may choose
       to mandate it.
 
-      [3] Documentation/devicetree/bindings/power/power_domain.txt
-      [4] Documentation/devicetree/bindings/power/domain-idle-state.txt
-
-  power-domains:
-    $ref: '/schemas/types.yaml#/definitions/phandle-array'
-    description:
-      List of phandles and PM domain specifiers, as defined by bindings of the
-      PM domain provider.
+      [3] Documentation/devicetree/bindings/power/power-domain.yaml
+      [4] Documentation/devicetree/bindings/power/domain-idle-state.yaml
 
 required:
   - compatible
@@ -145,6 +143,8 @@ allOf:
       required:
         - cpu_off
         - cpu_on
+
+additionalProperties: false
 
 examples:
   - |+
@@ -199,7 +199,7 @@ examples:
 
       CPU0: cpu@0 {
         device_type = "cpu";
-        compatible = "arm,cortex-a53", "arm,armv8";
+        compatible = "arm,cortex-a53";
         reg = <0x0>;
         enable-method = "psci";
         power-domains = <&CPU_PD0>;
@@ -208,7 +208,7 @@ examples:
 
       CPU1: cpu@1 {
         device_type = "cpu";
-        compatible = "arm,cortex-a57", "arm,armv8";
+        compatible = "arm,cortex-a53";
         reg = <0x100>;
         enable-method = "psci";
         power-domains = <&CPU_PD1>;
@@ -224,6 +224,9 @@ examples:
           exit-latency-us = <10>;
           min-residency-us = <100>;
         };
+      };
+
+      domain-idle-states {
 
         CLUSTER_RET: cluster-retention {
           compatible = "domain-idle-state";
@@ -247,19 +250,19 @@ examples:
       compatible = "arm,psci-1.0";
       method = "smc";
 
-      CPU_PD0: cpu-pd0 {
+      CPU_PD0: power-domain-cpu0 {
         #power-domain-cells = <0>;
         domain-idle-states = <&CPU_PWRDN>;
         power-domains = <&CLUSTER_PD>;
       };
 
-      CPU_PD1: cpu-pd1 {
+      CPU_PD1: power-domain-cpu1 {
         #power-domain-cells = <0>;
         domain-idle-states =  <&CPU_PWRDN>;
         power-domains = <&CLUSTER_PD>;
       };
 
-      CLUSTER_PD: cluster-pd {
+      CLUSTER_PD: power-domain-cluster {
         #power-domain-cells = <0>;
         domain-idle-states = <&CLUSTER_RET>, <&CLUSTER_PWRDN>;
       };

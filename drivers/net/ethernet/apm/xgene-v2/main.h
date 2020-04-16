@@ -28,7 +28,6 @@
 #include "ring.h"
 #include "ethtool.h"
 
-#define XGENE_ENET_V2_VERSION	"v1.0"
 #define XGENE_ENET_STD_MTU	1536
 #define XGENE_ENET_MIN_FRAME	60
 #define IRQ_ID_SIZE             16

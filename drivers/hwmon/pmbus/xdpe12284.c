@@ -18,6 +18,60 @@
 #define XDPE122_AMD_625MV		0x10 /* AMD mode 6.25mV */
 #define XDPE122_PAGE_NUM		2
 
+static int xdpe122_read_word_data(struct i2c_client *client, int page,
+				  int phase, int reg)
+{
+	const struct pmbus_driver_info *info = pmbus_get_driver_info(client);
+	long val;
+	s16 exponent;
+	s32 mantissa;
+	int ret;
+
+	switch (reg) {
+	case PMBUS_VOUT_OV_FAULT_LIMIT:
+	case PMBUS_VOUT_UV_FAULT_LIMIT:
+		ret = pmbus_read_word_data(client, page, phase, reg);
+		if (ret < 0)
+			return ret;
+
+		/* Convert register value to LINEAR11 data. */
+		exponent = ((s16)ret) >> 11;
+		mantissa = ((s16)((ret & GENMASK(10, 0)) << 5)) >> 5;
+		val = mantissa * 1000L;
+		if (exponent >= 0)
+			val <<= exponent;
+		else
+			val >>= -exponent;
+
+		/* Convert data to VID register. */
+		switch (info->vrm_version[page]) {
+		case vr13:
+			if (val >= 500)
+				return 1 + DIV_ROUND_CLOSEST(val - 500, 10);
+			return 0;
+		case vr12:
+			if (val >= 250)
+				return 1 + DIV_ROUND_CLOSEST(val - 250, 5);
+			return 0;
+		case imvp9:
+			if (val >= 200)
+				return 1 + DIV_ROUND_CLOSEST(val - 200, 10);
+			return 0;
+		case amd625mv:
+			if (val >= 200 && val <= 1550)
+				return DIV_ROUND_CLOSEST((1550 - val) * 100,
+							 625);
+			return 0;
+		default:
+			return -EINVAL;
+		}
+	default:
+		return -ENODATA;
+	}
+
+	return 0;
+}
+
 static int xdpe122_identify(struct i2c_client *client,
 			    struct pmbus_driver_info *info)
 {
@@ -70,6 +124,7 @@ static struct pmbus_driver_info xdpe122_info = {
 		PMBUS_HAVE_TEMP | PMBUS_HAVE_STATUS_TEMP |
 		PMBUS_HAVE_POUT | PMBUS_HAVE_PIN | PMBUS_HAVE_STATUS_INPUT,
 	.identify = xdpe122_identify,
+	.read_word_data = xdpe122_read_word_data,
 };
 
 static int xdpe122_probe(struct i2c_client *client,

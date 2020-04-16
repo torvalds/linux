@@ -85,7 +85,7 @@ struct ebt_table_info {
 	/* room to maintain the stack used for jumping from and into udc */
 	struct ebt_chainstack **chainstack;
 	char *entries;
-	struct ebt_counter counters[0] ____cacheline_aligned;
+	struct ebt_counter counters[] ____cacheline_aligned;
 };
 
 struct ebt_table {

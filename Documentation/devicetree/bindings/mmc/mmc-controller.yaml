@@ -351,7 +351,7 @@ dependencies:
 
 examples:
   - |
-    sdhci@ab000000 {
+    mmc@ab000000 {
         compatible = "sdhci";
         reg = <0xab000000 0x200>;
         interrupts = <23>;
@@ -370,6 +370,7 @@ examples:
     mmc3: mmc@1c12000 {
         #address-cells = <1>;
         #size-cells = <0>;
+        reg = <0x1c12000 0x200>;
         pinctrl-names = "default";
         pinctrl-0 = <&mmc3_pins_a>;
         vmmc-supply = <&reg_vmmc3>;

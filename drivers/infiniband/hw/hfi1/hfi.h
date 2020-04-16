@@ -1413,8 +1413,6 @@ struct hfi1_devdata {
 	bool aspm_enabled;	/* ASPM state: enabled/disabled */
 	struct rhashtable *sdma_rht;
 
-	struct kobject kobj;
-
 	/* vnic data */
 	struct hfi1_vnic_data vnic;
 	/* Lock to protect IRQ SRC register access */

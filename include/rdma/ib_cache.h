@@ -39,6 +39,7 @@
 
 int rdma_query_gid(struct ib_device *device, u8 port_num, int index,
 		   union ib_gid *gid);
+void *rdma_read_gid_hw_context(const struct ib_gid_attr *attr);
 const struct ib_gid_attr *rdma_find_gid(struct ib_device *device,
 					const union ib_gid *gid,
 					enum ib_gid_type gid_type,

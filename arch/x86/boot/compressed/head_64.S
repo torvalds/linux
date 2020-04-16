@@ -53,19 +53,7 @@ SYM_FUNC_START(startup_32)
 	 * all need to be under the 4G limit.
 	 */
 	cld
-	/*
-	 * Test KEEP_SEGMENTS flag to see if the bootloader is asking
-	 * us to not reload segments
-	 */
-	testb $KEEP_SEGMENTS, BP_loadflags(%esi)
-	jnz 1f
-
 	cli
-	movl	$(__BOOT_DS), %eax
-	movl	%eax, %ds
-	movl	%eax, %es
-	movl	%eax, %ss
-1:
 
 /*
  * Calculate the delta between where we were compiled to run
@@ -80,10 +68,21 @@ SYM_FUNC_START(startup_32)
 1:	popl	%ebp
 	subl	$1b, %ebp
 
+	/* Load new GDT with the 64bit segments using 32bit descriptor */
+	leal	gdt(%ebp), %eax
+	movl	%eax, 2(%eax)
+	lgdt	(%eax)
+
+	/* Load segment registers with our descriptors */
+	movl	$__BOOT_DS, %eax
+	movl	%eax, %ds
+	movl	%eax, %es
+	movl	%eax, %fs
+	movl	%eax, %gs
+	movl	%eax, %ss
+
 /* setup a stack and make sure cpu supports long mode. */
-	movl	$boot_stack_end, %eax
-	addl	%ebp, %eax
-	movl	%eax, %esp
+	leal	boot_stack_end(%ebp), %esp
 
 	call	verify_cpu
 	testl	%eax, %eax
@@ -100,29 +99,37 @@ SYM_FUNC_START(startup_32)
 
 #ifdef CONFIG_RELOCATABLE
 	movl	%ebp, %ebx
+
+#ifdef CONFIG_EFI_STUB
+/*
+ * If we were loaded via the EFI LoadImage service, startup_32 will be at an
+ * offset to the start of the space allocated for the image. efi_pe_entry will
+ * set up image_offset to tell us where the image actually starts, so that we
+ * can use the full available buffer.
+ *	image_offset = startup_32 - image_base
+ * Otherwise image_offset will be zero and has no effect on the calculations.
+ */
+	subl    image_offset(%ebp), %ebx
+#endif
+
 	movl	BP_kernel_alignment(%esi), %eax
 	decl	%eax
 	addl	%eax, %ebx
 	notl	%eax
 	andl	%eax, %ebx
 	cmpl	$LOAD_PHYSICAL_ADDR, %ebx
-	jge	1f
+	jae	1f
 #endif
 	movl	$LOAD_PHYSICAL_ADDR, %ebx
 1:
 
 	/* Target address to relocate to for decompression */
-	movl	BP_init_size(%esi), %eax
-	subl	$_end, %eax
-	addl	%eax, %ebx
+	addl	BP_init_size(%esi), %ebx
+	subl	$_end, %ebx
 
 /*
  * Prepare for entering 64 bit mode
  */
-
-	/* Load new GDT with the 64bit segments using 32bit descriptor */
-	addl	%ebp, gdt+2(%ebp)
-	lgdt	gdt(%ebp)
 
 	/* Enable PAE mode */
 	movl	%cr4, %eax
@@ -212,8 +219,13 @@ SYM_FUNC_START(startup_32)
 	cmp	$0, %edi
 	jz	1f
 	leal	efi64_stub_entry(%ebp), %eax
-	movl	%esi, %edx
 	movl	efi32_boot_args+4(%ebp), %esi
+	movl	efi32_boot_args+8(%ebp), %edx	// saved bootparams pointer
+	cmpl	$0, %edx
+	jnz	1f
+	leal	efi_pe_entry(%ebp), %eax
+	movl	%edi, %ecx			// MS calling convention
+	movl	%esi, %edx
 1:
 #endif
 	pushl	%eax
@@ -238,10 +250,16 @@ SYM_FUNC_START(efi32_stub_entry)
 1:	pop	%ebp
 	subl	$1b, %ebp
 
+	movl	%esi, efi32_boot_args+8(%ebp)
+SYM_INNER_LABEL(efi32_pe_stub_entry, SYM_L_LOCAL)
 	movl	%ecx, efi32_boot_args(%ebp)
 	movl	%edx, efi32_boot_args+4(%ebp)
-	sgdtl	efi32_boot_gdt(%ebp)
 	movb	$0, efi_is64(%ebp)
+
+	/* Save firmware GDTR and code/data selectors */
+	sgdtl	efi32_boot_gdt(%ebp)
+	movw	%cs, efi32_boot_cs(%ebp)
+	movw	%ds, efi32_boot_ds(%ebp)
 
 	/* Disable paging */
 	movl	%cr0, %eax
@@ -265,6 +283,9 @@ SYM_CODE_START(startup_64)
 	 * that maps our entire kernel(text+data+bss+brk), zero page
 	 * and command line.
 	 */
+
+	cld
+	cli
 
 	/* Setup data segments. */
 	xorl	%eax, %eax
@@ -290,13 +311,27 @@ SYM_CODE_START(startup_64)
 	/* Start with the delta to where the kernel will run at. */
 #ifdef CONFIG_RELOCATABLE
 	leaq	startup_32(%rip) /* - $startup_32 */, %rbp
+
+#ifdef CONFIG_EFI_STUB
+/*
+ * If we were loaded via the EFI LoadImage service, startup_32 will be at an
+ * offset to the start of the space allocated for the image. efi_pe_entry will
+ * set up image_offset to tell us where the image actually starts, so that we
+ * can use the full available buffer.
+ *	image_offset = startup_32 - image_base
+ * Otherwise image_offset will be zero and has no effect on the calculations.
+ */
+	movl    image_offset(%rip), %eax
+	subq	%rax, %rbp
+#endif
+
 	movl	BP_kernel_alignment(%rsi), %eax
 	decl	%eax
 	addq	%rax, %rbp
 	notq	%rax
 	andq	%rax, %rbp
 	cmpq	$LOAD_PHYSICAL_ADDR, %rbp
-	jge	1f
+	jae	1f
 #endif
 	movq	$LOAD_PHYSICAL_ADDR, %rbp
 1:
@@ -354,9 +389,9 @@ SYM_CODE_START(startup_64)
 	 */
 
 	/* Make sure we have GDT with 32-bit code segment */
-	leaq	gdt(%rip), %rax
-	movq	%rax, gdt64+2(%rip)
-	lgdt	gdt64(%rip)
+	leaq	gdt64(%rip), %rax
+	addq	%rax, 2(%rax)
+	lgdt	(%rax)
 
 	/*
 	 * paging_prepare() sets up the trampoline and checks if we need to
@@ -441,6 +476,16 @@ trampoline_return:
 	cld
 	popq	%rsi
 
+	/*
+	 * The GDT may get overwritten either during the copy we just did or
+	 * during extract_kernel below. To avoid any issues, repoint the GDTR
+	 * to the new copy of the GDT.
+	 */
+	leaq	gdt64(%rbx), %rax
+	leaq	gdt(%rbx), %rdx
+	movq	%rdx, 2(%rax)
+	lgdt	(%rax)
+
 /*
  * Jump to the relocated address.
  */
@@ -453,9 +498,9 @@ SYM_CODE_END(startup_64)
 SYM_FUNC_START(efi64_stub_entry)
 SYM_FUNC_START_ALIAS(efi_stub_entry)
 	and	$~0xf, %rsp			/* realign the stack */
+	movq	%rdx, %rbx			/* save boot_params pointer */
 	call	efi_main
-	movq	%rax,%rsi
-	movl	BP_code32_start(%esi), %eax
+	movq	%rbx,%rsi
 	leaq	startup_64(%rax), %rax
 	jmp	*%rax
 SYM_FUNC_END(efi64_stub_entry)
@@ -484,7 +529,7 @@ SYM_FUNC_START_LOCAL_NOALIGN(.Lrelocated)
 	leaq	input_data(%rip), %rdx  /* input_data */
 	movl	$z_input_len, %ecx	/* input_len */
 	movq	%rbp, %r8		/* output target address */
-	movq	$z_output_len, %r9	/* decompressed length, end of relocs */
+	movl	$z_output_len, %r9d	/* decompressed length, end of relocs */
 	call	extract_kernel		/* returns kernel location in %rax */
 	popq	%rsi
 
@@ -613,13 +658,13 @@ SYM_FUNC_END(.Lno_longmode)
 
 	.data
 SYM_DATA_START_LOCAL(gdt64)
-	.word	gdt_end - gdt
-	.quad   0
+	.word	gdt_end - gdt - 1
+	.quad   gdt - gdt64
 SYM_DATA_END(gdt64)
 	.balign	8
 SYM_DATA_START_LOCAL(gdt)
-	.word	gdt_end - gdt
-	.long	gdt
+	.word	gdt_end - gdt - 1
+	.long	0
 	.word	0
 	.quad	0x00cf9a000000ffff	/* __KERNEL32_CS */
 	.quad	0x00af9a000000ffff	/* __KERNEL_CS */
@@ -628,9 +673,97 @@ SYM_DATA_START_LOCAL(gdt)
 	.quad   0x0000000000000000	/* TS continued */
 SYM_DATA_END_LABEL(gdt, SYM_L_LOCAL, gdt_end)
 
+#ifdef CONFIG_EFI_STUB
+SYM_DATA(image_offset, .long 0)
+#endif
+
 #ifdef CONFIG_EFI_MIXED
-SYM_DATA_LOCAL(efi32_boot_args, .long 0, 0)
+SYM_DATA_LOCAL(efi32_boot_args, .long 0, 0, 0)
 SYM_DATA(efi_is64, .byte 1)
+
+#define ST32_boottime		60 // offsetof(efi_system_table_32_t, boottime)
+#define BS32_handle_protocol	88 // offsetof(efi_boot_services_32_t, handle_protocol)
+#define LI32_image_base		32 // offsetof(efi_loaded_image_32_t, image_base)
+
+	.text
+	.code32
+SYM_FUNC_START(efi32_pe_entry)
+/*
+ * efi_status_t efi32_pe_entry(efi_handle_t image_handle,
+ *			       efi_system_table_32_t *sys_table)
+ */
+
+	pushl	%ebp
+	movl	%esp, %ebp
+	pushl	%eax				// dummy push to allocate loaded_image
+
+	pushl	%ebx				// save callee-save registers
+	pushl	%edi
+
+	call	verify_cpu			// check for long mode support
+	testl	%eax, %eax
+	movl	$0x80000003, %eax		// EFI_UNSUPPORTED
+	jnz	2f
+
+	call	1f
+1:	pop	%ebx
+	subl	$1b, %ebx
+
+	/* Get the loaded image protocol pointer from the image handle */
+	leal	-4(%ebp), %eax
+	pushl	%eax				// &loaded_image
+	leal	loaded_image_proto(%ebx), %eax
+	pushl	%eax				// pass the GUID address
+	pushl	8(%ebp)				// pass the image handle
+
+	/*
+	 * Note the alignment of the stack frame.
+	 *   sys_table
+	 *   handle             <-- 16-byte aligned on entry by ABI
+	 *   return address
+	 *   frame pointer
+	 *   loaded_image       <-- local variable
+	 *   saved %ebx		<-- 16-byte aligned here
+	 *   saved %edi
+	 *   &loaded_image
+	 *   &loaded_image_proto
+	 *   handle             <-- 16-byte aligned for call to handle_protocol
+	 */
+
+	movl	12(%ebp), %eax			// sys_table
+	movl	ST32_boottime(%eax), %eax	// sys_table->boottime
+	call	*BS32_handle_protocol(%eax)	// sys_table->boottime->handle_protocol
+	addl	$12, %esp			// restore argument space
+	testl	%eax, %eax
+	jnz	2f
+
+	movl	8(%ebp), %ecx			// image_handle
+	movl	12(%ebp), %edx			// sys_table
+	movl	-4(%ebp), %esi			// loaded_image
+	movl	LI32_image_base(%esi), %esi	// loaded_image->image_base
+	movl	%ebx, %ebp			// startup_32 for efi32_pe_stub_entry
+	/*
+	 * We need to set the image_offset variable here since startup_32() will
+	 * use it before we get to the 64-bit efi_pe_entry() in C code.
+	 */
+	subl	%esi, %ebx
+	movl	%ebx, image_offset(%ebp)	// save image_offset
+	jmp	efi32_pe_stub_entry
+
+2:	popl	%edi				// restore callee-save registers
+	popl	%ebx
+	leave
+	ret
+SYM_FUNC_END(efi32_pe_entry)
+
+	.section ".rodata"
+	/* EFI loaded image protocol GUID */
+	.balign 4
+SYM_DATA_START_LOCAL(loaded_image_proto)
+	.long	0x5b1b31a1
+	.word	0x9562, 0x11d2
+	.byte	0x8e, 0x3f, 0x00, 0xa0, 0xc9, 0x69, 0x72, 0x3b
+SYM_DATA_END(loaded_image_proto)
 #endif
 
 /*
@@ -647,7 +780,7 @@ SYM_DATA_END_LABEL(boot_stack, SYM_L_LOCAL, boot_stack_end)
 /*
  * Space for page tables (not in .bss so not zeroed)
  */
-	.section ".pgtable","a",@nobits
+	.section ".pgtable","aw",@nobits
 	.balign 4096
 SYM_DATA_LOCAL(pgtable,		.fill BOOT_PGT_SIZE, 1, 0)
 

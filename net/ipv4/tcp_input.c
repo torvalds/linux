@@ -2865,7 +2865,7 @@ static void tcp_fastretrans_alert(struct sock *sk, const u32 prior_snd_una,
 		      (*ack_flag & FLAG_LOST_RETRANS)))
 			return;
 		/* Change state if cwnd is undone or retransmits are lost */
-		/* fall through */
+		fallthrough;
 	default:
 		if (tcp_is_reno(tp)) {
 			if (flag & FLAG_SND_UNA_ADVANCED)
@@ -6124,7 +6124,11 @@ static void tcp_rcv_synrecv_state_fastopen(struct sock *sk)
 {
 	struct request_sock *req;
 
-	tcp_try_undo_loss(sk, false);
+	/* If we are still handling the SYNACK RTO, see if timestamp ECR allows
+	 * undo. If peer SACKs triggered fast recovery, we can't undo here.
+	 */
+	if (inet_csk(sk)->icsk_ca_state == TCP_CA_Loss)
+		tcp_try_undo_loss(sk, false);
 
 	/* Reset rtx states to prevent spurious retransmits_timed_out() */
 	tcp_sk(sk)->retrans_stamp = 0;
@@ -6363,7 +6367,7 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb)
 				mptcp_incoming_options(sk, skb, &tp->rx_opt);
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	case TCP_FIN_WAIT1:
 	case TCP_FIN_WAIT2:
 		/* RFC 793 says to queue data in these states,
@@ -6378,7 +6382,7 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb)
 				return 1;
 			}
 		}
-		/* Fall through */
+		fallthrough;
 	case TCP_ESTABLISHED:
 		tcp_data_queue(sk, skb);
 		queued = 1;

@@ -779,7 +779,6 @@ static int pxa168fb_remove(struct platform_device *pdev)
 {
 	struct pxa168fb_info *fbi = platform_get_drvdata(pdev);
 	struct fb_info *info;
-	int irq;
 	unsigned int data;
 
 	if (!fbi)
@@ -798,8 +797,6 @@ static int pxa168fb_remove(struct platform_device *pdev)
 
 	if (info->cmap.len)
 		fb_dealloc_cmap(&info->cmap);
-
-	irq = platform_get_irq(pdev, 0);
 
 	dma_free_wc(fbi->dev, info->fix.smem_len,
 		    info->screen_base, info->fix.smem_start);

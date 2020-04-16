@@ -718,7 +718,6 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		      struct iwl_device_tx_cmd *dev_cmd, int txq_id);
 void iwl_pcie_txq_check_wrptrs(struct iwl_trans *trans);
 int iwl_trans_pcie_send_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd);
-void iwl_pcie_cmdq_reclaim(struct iwl_trans *trans, int txq_id, int idx);
 void iwl_pcie_gen2_txq_inc_wr_ptr(struct iwl_trans *trans,
 				  struct iwl_txq *txq);
 void iwl_pcie_hcmd_complete(struct iwl_trans *trans,

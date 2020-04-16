@@ -187,7 +187,8 @@ static void ps8640_post_disable(struct drm_bridge *bridge)
 		DRM_ERROR("cannot disable regulators %d\n", ret);
 }
 
-static int ps8640_bridge_attach(struct drm_bridge *bridge)
+static int ps8640_bridge_attach(struct drm_bridge *bridge,
+				enum drm_bridge_attach_flags flags)
 {
 	struct ps8640 *ps_bridge = bridge_to_ps8640(bridge);
 	struct device *dev = &ps_bridge->page[0]->dev;
@@ -234,7 +235,7 @@ static int ps8640_bridge_attach(struct drm_bridge *bridge)
 
 	/* Attach the panel-bridge to the dsi bridge */
 	return drm_bridge_attach(bridge->encoder, ps_bridge->panel_bridge,
-				 &ps_bridge->bridge);
+				 &ps_bridge->bridge, flags);
 
 err_dsi_attach:
 	mipi_dsi_device_unregister(dsi);

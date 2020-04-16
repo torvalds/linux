@@ -3,6 +3,7 @@
 
 #include <linux/mlx5/fs.h>
 #include "eswitch.h"
+#include "fs_core.h"
 
 struct mlx5_termtbl_handle {
 	struct hlist_node termtbl_hlist;
@@ -28,6 +29,10 @@ mlx5_eswitch_termtbl_hash(struct mlx5_flow_act *flow_act,
 		     sizeof(dest->vport.num), hash);
 	hash = jhash((const void *)&dest->vport.vhca_id,
 		     sizeof(dest->vport.num), hash);
+	if (dest->vport.pkt_reformat)
+		hash = jhash(dest->vport.pkt_reformat,
+			     sizeof(*dest->vport.pkt_reformat),
+			     hash);
 	return hash;
 }
 
@@ -37,11 +42,19 @@ mlx5_eswitch_termtbl_cmp(struct mlx5_flow_act *flow_act1,
 			 struct mlx5_flow_act *flow_act2,
 			 struct mlx5_flow_destination *dest2)
 {
-	return flow_act1->action != flow_act2->action ||
-	       dest1->vport.num != dest2->vport.num ||
-	       dest1->vport.vhca_id != dest2->vport.vhca_id ||
-	       memcmp(&flow_act1->vlan, &flow_act2->vlan,
-		      sizeof(flow_act1->vlan));
+	int ret;
+
+	ret = flow_act1->action != flow_act2->action ||
+	      dest1->vport.num != dest2->vport.num ||
+	      dest1->vport.vhca_id != dest2->vport.vhca_id ||
+	      memcmp(&flow_act1->vlan, &flow_act2->vlan,
+		     sizeof(flow_act1->vlan));
+	if (ret)
+		return ret;
+
+	return dest1->vport.pkt_reformat && dest2->vport.pkt_reformat ?
+	       memcmp(dest1->vport.pkt_reformat, dest2->vport.pkt_reformat,
+		      sizeof(*dest1->vport.pkt_reformat)) : 0;
 }
 
 static int
@@ -49,7 +62,6 @@ mlx5_eswitch_termtbl_create(struct mlx5_core_dev *dev,
 			    struct mlx5_termtbl_handle *tt,
 			    struct mlx5_flow_act *flow_act)
 {
-	static const struct mlx5_flow_spec spec = {};
 	struct mlx5_flow_table_attr ft_attr = {};
 	struct mlx5_flow_namespace *root_ns;
 	int err;
@@ -63,7 +75,8 @@ mlx5_eswitch_termtbl_create(struct mlx5_core_dev *dev,
 	/* As this is the terminating action then the termination table is the
 	 * same prio as the slow path
 	 */
-	ft_attr.flags = MLX5_FLOW_TABLE_TERMINATION;
+	ft_attr.flags = MLX5_FLOW_TABLE_TERMINATION |
+			MLX5_FLOW_TABLE_TUNNEL_EN_REFORMAT;
 	ft_attr.prio = FDB_SLOW_PATH;
 	ft_attr.max_fte = 1;
 	ft_attr.autogroup.max_num_groups = 1;
@@ -73,9 +86,8 @@ mlx5_eswitch_termtbl_create(struct mlx5_core_dev *dev,
 		return -EOPNOTSUPP;
 	}
 
-	tt->rule = mlx5_add_flow_rules(tt->termtbl, &spec, flow_act,
+	tt->rule = mlx5_add_flow_rules(tt->termtbl, NULL, flow_act,
 				       &tt->dest, 1);
-
 	if (IS_ERR(tt->rule)) {
 		esw_warn(dev, "Failed to create termination table rule\n");
 		goto add_flow_err;
@@ -93,7 +105,8 @@ add_flow_err:
 static struct mlx5_termtbl_handle *
 mlx5_eswitch_termtbl_get_create(struct mlx5_eswitch *esw,
 				struct mlx5_flow_act *flow_act,
-				struct mlx5_flow_destination *dest)
+				struct mlx5_flow_destination *dest,
+				struct mlx5_esw_flow_attr *attr)
 {
 	struct mlx5_termtbl_handle *tt;
 	bool found = false;
@@ -101,7 +114,6 @@ mlx5_eswitch_termtbl_get_create(struct mlx5_eswitch *esw,
 	int err;
 
 	mutex_lock(&esw->offloads.termtbl_mutex);
-
 	hash_key = mlx5_eswitch_termtbl_hash(flow_act, dest);
 	hash_for_each_possible(esw->offloads.termtbl_tbl, tt,
 			       termtbl_hlist, hash_key) {
@@ -123,6 +135,7 @@ mlx5_eswitch_termtbl_get_create(struct mlx5_eswitch *esw,
 	tt->dest.type = MLX5_FLOW_DESTINATION_TYPE_VPORT;
 	tt->dest.vport.num = dest->vport.num;
 	tt->dest.vport.vhca_id = dest->vport.vhca_id;
+	tt->dest.vport.flags = dest->vport.flags;
 	memcpy(&tt->flow_act, flow_act, sizeof(*flow_act));
 
 	err = mlx5_eswitch_termtbl_create(esw->dev, tt, flow_act);
@@ -157,31 +170,50 @@ mlx5_eswitch_termtbl_put(struct mlx5_eswitch *esw,
 	}
 }
 
+static bool mlx5_eswitch_termtbl_is_encap_reformat(struct mlx5_pkt_reformat *rt)
+{
+	switch (rt->reformat_type) {
+	case MLX5_REFORMAT_TYPE_L2_TO_VXLAN:
+	case MLX5_REFORMAT_TYPE_L2_TO_NVGRE:
+	case MLX5_REFORMAT_TYPE_L2_TO_L2_TUNNEL:
+	case MLX5_REFORMAT_TYPE_L2_TO_L3_TUNNEL:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static void
 mlx5_eswitch_termtbl_actions_move(struct mlx5_flow_act *src,
 				  struct mlx5_flow_act *dst)
 {
-	if (!(src->action & MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH))
-		return;
+	if (src->action & MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH) {
+		src->action &= ~MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH;
+		dst->action |= MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH;
+		memcpy(&dst->vlan[0], &src->vlan[0], sizeof(src->vlan[0]));
+		memset(&src->vlan[0], 0, sizeof(src->vlan[0]));
 
-	src->action &= ~MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH;
-	dst->action |= MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH;
-	memcpy(&dst->vlan[0], &src->vlan[0], sizeof(src->vlan[0]));
-	memset(&src->vlan[0], 0, sizeof(src->vlan[0]));
+		if (src->action & MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH_2) {
+			src->action &= ~MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH_2;
+			dst->action |= MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH_2;
+			memcpy(&dst->vlan[1], &src->vlan[1], sizeof(src->vlan[1]));
+			memset(&src->vlan[1], 0, sizeof(src->vlan[1]));
+		}
+	}
 
-	if (!(src->action & MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH_2))
-		return;
-
-	src->action &= ~MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH_2;
-	dst->action |= MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH_2;
-	memcpy(&dst->vlan[1], &src->vlan[1], sizeof(src->vlan[1]));
-	memset(&src->vlan[1], 0, sizeof(src->vlan[1]));
+	if (src->action & MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT &&
+	    mlx5_eswitch_termtbl_is_encap_reformat(src->pkt_reformat)) {
+		src->action &= ~MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT;
+		dst->action |= MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT;
+		dst->pkt_reformat = src->pkt_reformat;
+		src->pkt_reformat = NULL;
+	}
 }
 
 static bool mlx5_eswitch_offload_is_uplink_port(const struct mlx5_eswitch *esw,
 						const struct mlx5_flow_spec *spec)
 {
-	u32 port_mask, port_value;
+	u16 port_mask, port_value;
 
 	if (MLX5_CAP_ESW_FLOWTABLE(esw->dev, flow_source))
 		return spec->flow_context.flow_source ==
@@ -191,20 +223,32 @@ static bool mlx5_eswitch_offload_is_uplink_port(const struct mlx5_eswitch *esw,
 			     misc_parameters.source_port);
 	port_value = MLX5_GET(fte_match_param, spec->match_value,
 			      misc_parameters.source_port);
-	return (port_mask & port_value & 0xffff) == MLX5_VPORT_UPLINK;
+	return (port_mask & port_value) == MLX5_VPORT_UPLINK;
 }
 
 bool
 mlx5_eswitch_termtbl_required(struct mlx5_eswitch *esw,
+			      struct mlx5_esw_flow_attr *attr,
 			      struct mlx5_flow_act *flow_act,
 			      struct mlx5_flow_spec *spec)
 {
-	if (!MLX5_CAP_ESW_FLOWTABLE_FDB(esw->dev, termination_table))
+	int i;
+
+	if (!MLX5_CAP_ESW_FLOWTABLE_FDB(esw->dev, termination_table) ||
+	    attr->flags & MLX5_ESW_ATTR_FLAG_SLOW_PATH ||
+	    !mlx5_eswitch_offload_is_uplink_port(esw, spec))
 		return false;
 
 	/* push vlan on RX */
-	return (flow_act->action & MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH) &&
-		mlx5_eswitch_offload_is_uplink_port(esw, spec);
+	if (flow_act->action & MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH)
+		return true;
+
+	/* hairpin */
+	for (i = attr->split_count; i < attr->out_count; i++)
+		if (attr->dests[i].rep->vport == MLX5_VPORT_UPLINK)
+			return true;
+
+	return false;
 }
 
 struct mlx5_flow_handle *
@@ -234,7 +278,7 @@ mlx5_eswitch_add_termtbl_rule(struct mlx5_eswitch *esw,
 
 		/* get the terminating table for the action list */
 		tt = mlx5_eswitch_termtbl_get_create(esw, &term_tbl_act,
-						     &dest[i]);
+						     &dest[i], attr);
 		if (IS_ERR(tt)) {
 			esw_warn(esw->dev, "Failed to create termination table\n");
 			goto revert_changes;

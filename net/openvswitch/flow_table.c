@@ -462,12 +462,14 @@ static void flow_table_copy_flows(struct table_instance *old,
 		struct hlist_head *head = &old->buckets[i];
 
 		if (ufid)
-			hlist_for_each_entry(flow, head,
-					     ufid_table.node[old_ver])
+			hlist_for_each_entry_rcu(flow, head,
+						 ufid_table.node[old_ver],
+						 lockdep_ovsl_is_held())
 				ufid_table_instance_insert(new, flow);
 		else
-			hlist_for_each_entry(flow, head,
-					     flow_table.node[old_ver])
+			hlist_for_each_entry_rcu(flow, head,
+						 flow_table.node[old_ver],
+						 lockdep_ovsl_is_held())
 				table_instance_insert(new, flow);
 	}
 
@@ -585,7 +587,8 @@ static struct sw_flow *masked_flow_lookup(struct table_instance *ti,
 	head = find_bucket(ti, hash);
 	(*n_mask_hit)++;
 
-	hlist_for_each_entry_rcu(flow, head, flow_table.node[ti->node_ver]) {
+	hlist_for_each_entry_rcu(flow, head, flow_table.node[ti->node_ver],
+				lockdep_ovsl_is_held()) {
 		if (flow->mask == mask && flow->flow_table.hash == hash &&
 		    flow_cmp_masked_key(flow, &masked_key, &mask->range))
 			return flow;
@@ -769,7 +772,8 @@ struct sw_flow *ovs_flow_tbl_lookup_ufid(struct flow_table *tbl,
 
 	hash = ufid_hash(ufid);
 	head = find_bucket(ti, hash);
-	hlist_for_each_entry_rcu(flow, head, ufid_table.node[ti->node_ver]) {
+	hlist_for_each_entry_rcu(flow, head, ufid_table.node[ti->node_ver],
+				lockdep_ovsl_is_held()) {
 		if (flow->ufid_table.hash == hash &&
 		    ovs_flow_cmp_ufid(flow, ufid))
 			return flow;

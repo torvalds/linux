@@ -21,6 +21,11 @@ END(_start)
 ENTRY(_start_smp_secondary)
 	SETUP_MMU
 
+	/* copy msa1 from CPU0 */
+	lrw     r6, secondary_msa1
+	ld.w	r6, (r6, 0)
+	mtcr	r6, cr<31, 15>
+
 	/* set stack point */
 	lrw     r6, secondary_stack
 	ld.w	r6, (r6, 0)

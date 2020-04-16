@@ -764,36 +764,8 @@ err:
 	return NULL;
 }
 
-static void intel_dp_register_mst_connector(struct drm_connector *connector)
-{
-	struct drm_i915_private *dev_priv = to_i915(connector->dev);
-
-	if (dev_priv->fbdev)
-		drm_fb_helper_add_one_connector(&dev_priv->fbdev->helper,
-						connector);
-
-	drm_connector_register(connector);
-}
-
-static void intel_dp_destroy_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
-					   struct drm_connector *connector)
-{
-	struct drm_i915_private *dev_priv = to_i915(connector->dev);
-
-	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n", connector->base.id, connector->name);
-	drm_connector_unregister(connector);
-
-	if (dev_priv->fbdev)
-		drm_fb_helper_remove_one_connector(&dev_priv->fbdev->helper,
-						   connector);
-
-	drm_connector_put(connector);
-}
-
 static const struct drm_dp_mst_topology_cbs mst_cbs = {
 	.add_connector = intel_dp_add_mst_connector,
-	.register_connector = intel_dp_register_mst_connector,
-	.destroy_connector = intel_dp_destroy_mst_connector,
 };
 
 static struct intel_dp_mst_encoder *

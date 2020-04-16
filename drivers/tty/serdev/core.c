@@ -18,6 +18,7 @@
 #include <linux/sched.h>
 #include <linux/serdev.h>
 #include <linux/slab.h>
+#include <linux/platform_data/x86/apple.h>
 
 static bool is_registered;
 static DEFINE_IDA(ctrl_ida);
@@ -630,6 +631,15 @@ static int acpi_serdev_check_resources(struct serdev_controller *ctrl,
 	ret = acpi_serdev_do_lookup(adev, &lookup);
 	if (ret)
 		return ret;
+
+	/*
+	 * Apple machines provide an empty resource template, so on those
+	 * machines just look for immediate children with a "baud" property
+	 * (from the _DSM method) instead.
+	 */
+	if (!lookup.controller_handle && x86_apple_machine &&
+	    !acpi_dev_get_property(adev, "baud", ACPI_TYPE_BUFFER, NULL))
+		acpi_get_parent(adev->handle, &lookup.controller_handle);
 
 	/* Make sure controller and ResourceSource handle match */
 	if (ACPI_HANDLE(ctrl->dev.parent) != lookup.controller_handle)

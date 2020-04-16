@@ -3,6 +3,7 @@
 #define _ASM_POWERPC_BOOK3S_64_KUP_RADIX_H
 
 #include <linux/const.h>
+#include <asm/reg.h>
 
 #define AMR_KUAP_BLOCK_READ	UL(0x4000000000000000)
 #define AMR_KUAP_BLOCK_WRITE	UL(0x8000000000000000)
@@ -56,7 +57,20 @@
 
 #ifdef CONFIG_PPC_KUAP
 
-#include <asm/reg.h>
+#include <asm/mmu.h>
+#include <asm/ptrace.h>
+
+static inline void kuap_restore_amr(struct pt_regs *regs)
+{
+	if (mmu_has_feature(MMU_FTR_RADIX_KUAP))
+		mtspr(SPRN_AMR, regs->kuap);
+}
+
+static inline void kuap_check_amr(void)
+{
+	if (IS_ENABLED(CONFIG_PPC_KUAP_DEBUG) && mmu_has_feature(MMU_FTR_RADIX_KUAP))
+		WARN_ON_ONCE(mfspr(SPRN_AMR) != AMR_KUAP_BLOCKED);
+}
 
 /*
  * We support individually allowing read or write, but we don't support nesting
@@ -126,6 +140,14 @@ bad_kuap_fault(struct pt_regs *regs, unsigned long address, bool is_write)
 	return WARN(mmu_has_feature(MMU_FTR_RADIX_KUAP) &&
 		    (regs->kuap & (is_write ? AMR_KUAP_BLOCK_WRITE : AMR_KUAP_BLOCK_READ)),
 		    "Bug: %s fault blocked by AMR!", is_write ? "Write" : "Read");
+}
+#else /* CONFIG_PPC_KUAP */
+static inline void kuap_restore_amr(struct pt_regs *regs)
+{
+}
+
+static inline void kuap_check_amr(void)
+{
 }
 #endif /* CONFIG_PPC_KUAP */
 

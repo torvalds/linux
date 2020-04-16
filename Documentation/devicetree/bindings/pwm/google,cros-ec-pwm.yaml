@@ -1,0 +1,40 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pwm/google,cros-ec-pwm.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: PWM controlled by ChromeOS EC
+
+maintainers:
+  - Thierry Reding <thierry.reding@gmail.com>
+  - '"Uwe Kleine-König" <u.kleine-koenig@pengutronix.de>'
+
+description: |
+  Google's ChromeOS EC PWM is a simple PWM attached to the Embedded Controller
+  (EC) and controlled via a host-command interface.
+  An EC PWM node should be only found as a sub-node of the EC node (see
+  Documentation/devicetree/bindings/mfd/cros-ec.txt).
+
+properties:
+  compatible:
+    const: google,cros-ec-pwm
+  "#pwm-cells":
+    description: The cell specifies the PWM index.
+    const: 1
+
+required:
+  - compatible
+  - '#pwm-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    cros-ec@0 {
+        compatible = "google,cros-ec-spi";
+        cros_ec_pwm: ec-pwm {
+            compatible = "google,cros-ec-pwm";
+            #pwm-cells = <1>;
+        };
+    };

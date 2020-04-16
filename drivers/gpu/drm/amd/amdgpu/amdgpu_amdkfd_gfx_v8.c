@@ -41,31 +41,6 @@ enum hqd_dequeue_request_type {
 	RESET_WAVES
 };
 
-/* Because of REG_GET_FIELD() being used, we put this function in the
- * asic specific file.
- */
-static int get_tile_config(struct kgd_dev *kgd,
-		struct tile_config *config)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
-
-	config->gb_addr_config = adev->gfx.config.gb_addr_config;
-	config->num_banks = REG_GET_FIELD(adev->gfx.config.mc_arb_ramcfg,
-				MC_ARB_RAMCFG, NOOFBANK);
-	config->num_ranks = REG_GET_FIELD(adev->gfx.config.mc_arb_ramcfg,
-				MC_ARB_RAMCFG, NOOFRANKS);
-
-	config->tile_config_ptr = adev->gfx.config.tile_mode_array;
-	config->num_tile_configs =
-			ARRAY_SIZE(adev->gfx.config.tile_mode_array);
-	config->macro_tile_config_ptr =
-			adev->gfx.config.macrotile_mode_array;
-	config->num_macro_tile_configs =
-			ARRAY_SIZE(adev->gfx.config.macrotile_mode_array);
-
-	return 0;
-}
-
 static inline struct amdgpu_device *get_amdgpu_device(struct kgd_dev *kgd)
 {
 	return (struct amdgpu_device *)kgd;
@@ -676,6 +651,5 @@ const struct kfd2kgd_calls gfx_v8_kfd2kgd = {
 	.get_atc_vmid_pasid_mapping_info =
 			get_atc_vmid_pasid_mapping_info,
 	.set_scratch_backing_va = set_scratch_backing_va,
-	.get_tile_config = get_tile_config,
 	.set_vm_context_page_table_base = set_vm_context_page_table_base,
 };

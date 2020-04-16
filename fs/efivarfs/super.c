@@ -252,7 +252,7 @@ static struct file_system_type efivarfs_type = {
 
 static __init int efivarfs_init(void)
 {
-	if (!efi_enabled(EFI_RUNTIME_SERVICES))
+	if (!efi_rt_services_supported(EFI_RT_SUPPORTED_VARIABLE_SERVICES))
 		return -ENODEV;
 
 	if (!efivars_kobject())

@@ -17,7 +17,7 @@ description: |+
                 "aspeed,ast2600-scu", "syscon", "simple-mfd"
 
   Refer to the the bindings described in
-  Documentation/devicetree/bindings/mfd/syscon.txt
+  Documentation/devicetree/bindings/mfd/syscon.yaml
 
 properties:
   compatible:
@@ -91,6 +91,8 @@ patternProperties:
 
 required:
   - compatible
+
+additionalProperties: false
 
 examples:
   - |

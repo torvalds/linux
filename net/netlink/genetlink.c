@@ -497,8 +497,9 @@ genl_family_rcv_msg_attrs_parse(const struct genl_family *family,
 
 	err = __nlmsg_parse(nlh, hdrlen, attrbuf, family->maxattr,
 			    family->policy, validate, extack);
-	if (err && parallel) {
-		kfree(attrbuf);
+	if (err) {
+		if (parallel)
+			kfree(attrbuf);
 		return ERR_PTR(err);
 	}
 	return attrbuf;

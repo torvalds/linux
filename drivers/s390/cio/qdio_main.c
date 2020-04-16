@@ -950,19 +950,14 @@ static void qdio_int_handler_pci(struct qdio_irq *irq_ptr)
 	if (unlikely(irq_ptr->state != QDIO_IRQ_STATE_ACTIVE))
 		return;
 
-	for_each_input_queue(irq_ptr, q, i) {
-		if (q->u.in.queue_start_poll) {
-			/* skip if polling is enabled or already in work */
-			if (test_and_set_bit(QDIO_QUEUE_IRQS_DISABLED,
-				     &q->u.in.queue_irq_state)) {
-				QDIO_PERF_STAT_INC(irq_ptr, int_discarded);
-				continue;
-			}
-			q->u.in.queue_start_poll(q->irq_ptr->cdev, q->nr,
-						 q->irq_ptr->int_parm);
-		} else {
+	if (irq_ptr->irq_poll) {
+		if (!test_and_set_bit(QDIO_IRQ_DISABLED, &irq_ptr->poll_state))
+			irq_ptr->irq_poll(irq_ptr->cdev, irq_ptr->int_parm);
+		else
+			QDIO_PERF_STAT_INC(irq_ptr, int_discarded);
+	} else {
+		for_each_input_queue(irq_ptr, q, i)
 			tasklet_schedule(&q->tasklet);
-		}
 	}
 
 	if (!pci_out_supported(irq_ptr) || !irq_ptr->scan_threshold)
@@ -1105,9 +1100,8 @@ int qdio_get_ssqd_desc(struct ccw_device *cdev,
 }
 EXPORT_SYMBOL_GPL(qdio_get_ssqd_desc);
 
-static void qdio_shutdown_queues(struct ccw_device *cdev)
+static void qdio_shutdown_queues(struct qdio_irq *irq_ptr)
 {
-	struct qdio_irq *irq_ptr = cdev->private->qdio_data;
 	struct qdio_q *q;
 	int i;
 
@@ -1155,7 +1149,7 @@ int qdio_shutdown(struct ccw_device *cdev, int how)
 	qdio_set_state(irq_ptr, QDIO_IRQ_STATE_STOPPED);
 
 	tiqdio_remove_device(irq_ptr);
-	qdio_shutdown_queues(cdev);
+	qdio_shutdown_queues(irq_ptr);
 	qdio_shutdown_debug_entries(irq_ptr);
 
 	/* cleanup subchannel */
@@ -1226,26 +1220,21 @@ EXPORT_SYMBOL_GPL(qdio_free);
 
 /**
  * qdio_allocate - allocate qdio queues and associated data
- * @init_data: initialization data
+ * @cdev: associated ccw device
+ * @no_input_qs: allocate this number of Input Queues
+ * @no_output_qs: allocate this number of Output Queues
  */
-int qdio_allocate(struct qdio_initialize *init_data)
+int qdio_allocate(struct ccw_device *cdev, unsigned int no_input_qs,
+		  unsigned int no_output_qs)
 {
 	struct subchannel_id schid;
 	struct qdio_irq *irq_ptr;
 
-	ccw_device_get_schid(init_data->cdev, &schid);
+	ccw_device_get_schid(cdev, &schid);
 	DBF_EVENT("qallocate:%4x", schid.sch_no);
 
-	if ((init_data->no_input_qs && !init_data->input_handler) ||
-	    (init_data->no_output_qs && !init_data->output_handler))
-		return -EINVAL;
-
-	if ((init_data->no_input_qs > QDIO_MAX_QUEUES_PER_IRQ) ||
-	    (init_data->no_output_qs > QDIO_MAX_QUEUES_PER_IRQ))
-		return -EINVAL;
-
-	if ((!init_data->input_sbal_addr_array) ||
-	    (!init_data->output_sbal_addr_array))
+	if (no_input_qs > QDIO_MAX_QUEUES_PER_IRQ ||
+	    no_output_qs > QDIO_MAX_QUEUES_PER_IRQ)
 		return -EINVAL;
 
 	/* irq_ptr must be in GFP_DMA since it contains ccw1.cda */
@@ -1253,9 +1242,13 @@ int qdio_allocate(struct qdio_initialize *init_data)
 	if (!irq_ptr)
 		goto out_err;
 
+	irq_ptr->cdev = cdev;
 	mutex_init(&irq_ptr->setup_mutex);
-	if (qdio_allocate_dbf(init_data, irq_ptr))
+	if (qdio_allocate_dbf(irq_ptr))
 		goto out_rel;
+
+	DBF_DEV_EVENT(DBF_ERR, irq_ptr, "alloc niq:%1u noq:%1u", no_input_qs,
+		      no_output_qs);
 
 	/*
 	 * Allocate a page for the chsc calls in qdio_establish.
@@ -1272,12 +1265,11 @@ int qdio_allocate(struct qdio_initialize *init_data)
 	if (!irq_ptr->qdr)
 		goto out_rel;
 
-	if (qdio_allocate_qs(irq_ptr, init_data->no_input_qs,
-			     init_data->no_output_qs))
+	if (qdio_allocate_qs(irq_ptr, no_input_qs, no_output_qs))
 		goto out_rel;
 
 	INIT_LIST_HEAD(&irq_ptr->entry);
-	init_data->cdev->private->qdio_data = irq_ptr;
+	cdev->private->qdio_data = irq_ptr;
 	qdio_set_state(irq_ptr, QDIO_IRQ_STATE_INACTIVE);
 	return 0;
 out_rel:
@@ -1309,26 +1301,54 @@ static void qdio_detect_hsicq(struct qdio_irq *irq_ptr)
 	DBF_EVENT("use_cq:%d", use_cq);
 }
 
+static void qdio_trace_init_data(struct qdio_irq *irq,
+				 struct qdio_initialize *data)
+{
+	DBF_DEV_EVENT(DBF_ERR, irq, "qfmt:%1u", data->q_format);
+	DBF_DEV_HEX(irq, data->adapter_name, 8, DBF_ERR);
+	DBF_DEV_EVENT(DBF_ERR, irq, "qpff%4x", data->qib_param_field_format);
+	DBF_DEV_HEX(irq, &data->qib_param_field, sizeof(void *), DBF_ERR);
+	DBF_DEV_HEX(irq, &data->input_slib_elements, sizeof(void *), DBF_ERR);
+	DBF_DEV_HEX(irq, &data->output_slib_elements, sizeof(void *), DBF_ERR);
+	DBF_DEV_EVENT(DBF_ERR, irq, "niq:%1u noq:%1u", data->no_input_qs,
+		      data->no_output_qs);
+	DBF_DEV_HEX(irq, &data->input_handler, sizeof(void *), DBF_ERR);
+	DBF_DEV_HEX(irq, &data->output_handler, sizeof(void *), DBF_ERR);
+	DBF_DEV_HEX(irq, &data->int_parm, sizeof(long), DBF_ERR);
+	DBF_DEV_HEX(irq, &data->input_sbal_addr_array, sizeof(void *), DBF_ERR);
+	DBF_DEV_HEX(irq, &data->output_sbal_addr_array, sizeof(void *),
+		    DBF_ERR);
+}
+
 /**
  * qdio_establish - establish queues on a qdio subchannel
+ * @cdev: associated ccw device
  * @init_data: initialization data
  */
-int qdio_establish(struct qdio_initialize *init_data)
+int qdio_establish(struct ccw_device *cdev,
+		   struct qdio_initialize *init_data)
 {
-	struct ccw_device *cdev = init_data->cdev;
+	struct qdio_irq *irq_ptr = cdev->private->qdio_data;
 	struct subchannel_id schid;
-	struct qdio_irq *irq_ptr;
 	int rc;
 
 	ccw_device_get_schid(cdev, &schid);
 	DBF_EVENT("qestablish:%4x", schid.sch_no);
 
-	irq_ptr = cdev->private->qdio_data;
 	if (!irq_ptr)
 		return -ENODEV;
 
+	if ((init_data->no_input_qs && !init_data->input_handler) ||
+	    (init_data->no_output_qs && !init_data->output_handler))
+		return -EINVAL;
+
+	if (!init_data->input_sbal_addr_array ||
+	    !init_data->output_sbal_addr_array)
+		return -EINVAL;
+
 	mutex_lock(&irq_ptr->setup_mutex);
-	qdio_setup_irq(init_data);
+	qdio_trace_init_data(irq_ptr, init_data);
+	qdio_setup_irq(irq_ptr, init_data);
 
 	rc = qdio_establish_thinint(irq_ptr);
 	if (rc) {
@@ -1374,8 +1394,8 @@ int qdio_establish(struct qdio_initialize *init_data)
 	qdio_init_buf_states(irq_ptr);
 
 	mutex_unlock(&irq_ptr->setup_mutex);
-	qdio_print_subchannel_info(irq_ptr, cdev);
-	qdio_setup_debug_entries(irq_ptr, cdev);
+	qdio_print_subchannel_info(irq_ptr);
+	qdio_setup_debug_entries(irq_ptr);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(qdio_establish);
@@ -1386,14 +1406,13 @@ EXPORT_SYMBOL_GPL(qdio_establish);
  */
 int qdio_activate(struct ccw_device *cdev)
 {
+	struct qdio_irq *irq_ptr = cdev->private->qdio_data;
 	struct subchannel_id schid;
-	struct qdio_irq *irq_ptr;
 	int rc;
 
 	ccw_device_get_schid(cdev, &schid);
 	DBF_EVENT("qactivate:%4x", schid.sch_no);
 
-	irq_ptr = cdev->private->qdio_data;
 	if (!irq_ptr)
 		return -ENODEV;
 
@@ -1610,24 +1629,24 @@ EXPORT_SYMBOL_GPL(do_QDIO);
 /**
  * qdio_start_irq - process input buffers
  * @cdev: associated ccw_device for the qdio subchannel
- * @nr: input queue number
  *
  * Return codes
  *   0 - success
  *   1 - irqs not started since new data is available
  */
-int qdio_start_irq(struct ccw_device *cdev, int nr)
+int qdio_start_irq(struct ccw_device *cdev)
 {
 	struct qdio_q *q;
 	struct qdio_irq *irq_ptr = cdev->private->qdio_data;
+	unsigned int i;
 
 	if (!irq_ptr)
 		return -ENODEV;
-	q = irq_ptr->input_qs[nr];
 
-	clear_nonshared_ind(irq_ptr);
-	qdio_stop_polling(q);
-	clear_bit(QDIO_QUEUE_IRQS_DISABLED, &q->u.in.queue_irq_state);
+	for_each_input_queue(irq_ptr, q, i)
+		qdio_stop_polling(q);
+
+	clear_bit(QDIO_IRQ_DISABLED, &irq_ptr->poll_state);
 
 	/*
 	 * We need to check again to not lose initiative after
@@ -1635,13 +1654,16 @@ int qdio_start_irq(struct ccw_device *cdev, int nr)
 	 */
 	if (test_nonshared_ind(irq_ptr))
 		goto rescan;
-	if (!qdio_inbound_q_done(q, q->first_to_check))
-		goto rescan;
+
+	for_each_input_queue(irq_ptr, q, i) {
+		if (!qdio_inbound_q_done(q, q->first_to_check))
+			goto rescan;
+	}
+
 	return 0;
 
 rescan:
-	if (test_and_set_bit(QDIO_QUEUE_IRQS_DISABLED,
-			     &q->u.in.queue_irq_state))
+	if (test_and_set_bit(QDIO_IRQ_DISABLED, &irq_ptr->poll_state))
 		return 0;
 	else
 		return 1;
@@ -1729,23 +1751,19 @@ EXPORT_SYMBOL(qdio_get_next_buffers);
 /**
  * qdio_stop_irq - disable interrupt processing for the device
  * @cdev: associated ccw_device for the qdio subchannel
- * @nr: input queue number
  *
  * Return codes
  *   0 - interrupts were already disabled
  *   1 - interrupts successfully disabled
  */
-int qdio_stop_irq(struct ccw_device *cdev, int nr)
+int qdio_stop_irq(struct ccw_device *cdev)
 {
-	struct qdio_q *q;
 	struct qdio_irq *irq_ptr = cdev->private->qdio_data;
 
 	if (!irq_ptr)
 		return -ENODEV;
-	q = irq_ptr->input_qs[nr];
 
-	if (test_and_set_bit(QDIO_QUEUE_IRQS_DISABLED,
-			     &q->u.in.queue_irq_state))
+	if (test_and_set_bit(QDIO_IRQ_DISABLED, &irq_ptr->poll_state))
 		return 0;
 	else
 		return 1;

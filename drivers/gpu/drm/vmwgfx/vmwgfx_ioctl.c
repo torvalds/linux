@@ -114,10 +114,13 @@ int vmw_getparam_ioctl(struct drm_device *dev, void *data,
 			(dev_priv->active_display_unit == vmw_du_screen_target);
 		break;
 	case DRM_VMW_PARAM_DX:
-		param->value = dev_priv->has_dx;
+		param->value = has_sm4_context(dev_priv);
 		break;
 	case DRM_VMW_PARAM_SM4_1:
-		param->value = dev_priv->has_sm4_1;
+		param->value = has_sm4_1_context(dev_priv);
+		break;
+	case DRM_VMW_PARAM_SM5:
+		param->value = has_sm5_context(dev_priv);
 		break;
 	default:
 		return -EINVAL;
@@ -126,14 +129,17 @@ int vmw_getparam_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
-static u32 vmw_mask_multisample(unsigned int cap, u32 fmt_value)
+static u32 vmw_mask_legacy_multisample(unsigned int cap, u32 fmt_value)
 {
 	/*
 	 * A version of user-space exists which use MULTISAMPLE_MASKABLESAMPLES
 	 * to check the sample count supported by virtual device. Since there
 	 * never was support for multisample count for backing MOB return 0.
+	 *
+	 * MULTISAMPLE_MASKABLESAMPLES devcap is marked as deprecated by virtual
+	 * device.
 	 */
-	if (cap == SVGA3D_DEVCAP_MULTISAMPLE_MASKABLESAMPLES)
+	if (cap == SVGA3D_DEVCAP_DEAD5)
 		return 0;
 
 	return fmt_value;
@@ -164,7 +170,7 @@ static int vmw_fill_compat_cap(struct vmw_private *dev_priv, void *bounce,
 	for (i = 0; i < max_size; ++i) {
 		vmw_write(dev_priv, SVGA_REG_DEV_CAP, i);
 		compat_cap->pairs[i][0] = i;
-		compat_cap->pairs[i][1] = vmw_mask_multisample
+		compat_cap->pairs[i][1] = vmw_mask_legacy_multisample
 			(i, vmw_read(dev_priv, SVGA_REG_DEV_CAP));
 	}
 	spin_unlock(&dev_priv->cap_lock);
@@ -220,7 +226,7 @@ int vmw_get_cap_3d_ioctl(struct drm_device *dev, void *data,
 		spin_lock(&dev_priv->cap_lock);
 		for (i = 0; i < num; ++i) {
 			vmw_write(dev_priv, SVGA_REG_DEV_CAP, i);
-			*bounce32++ = vmw_mask_multisample
+			*bounce32++ = vmw_mask_legacy_multisample
 				(i, vmw_read(dev_priv, SVGA_REG_DEV_CAP));
 		}
 		spin_unlock(&dev_priv->cap_lock);

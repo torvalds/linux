@@ -1043,7 +1043,7 @@ static void qla24xx_async_gnl_sp_done(srb_t *sp, int res)
 			    __func__, __LINE__, (u8 *)&wwn, id.b24);
 			wwnn = wwn_to_u64(e->node_name);
 			qla24xx_post_newsess_work(vha, &id, (u8 *)&wwn,
-			    (u8 *)&wwnn, NULL, FC4_TYPE_UNKNOWN);
+			    (u8 *)&wwnn, NULL, 0);
 		}
 	}
 
@@ -2219,10 +2219,10 @@ qla2x00_initialize_adapter(scsi_qla_host_t *vha)
 
 	/* Check for secure flash support */
 	if (IS_QLA28XX(ha)) {
-		if (RD_REG_DWORD(&reg->mailbox12) & BIT_0) {
-			ql_log(ql_log_info, vha, 0xffff, "Adapter is Secure\n");
+		if (RD_REG_DWORD(&reg->mailbox12) & BIT_0)
 			ha->flags.secure_adapter = 1;
-		}
+		ql_log(ql_log_info, vha, 0xffff, "Secure Adapter: %s\n",
+		    (ha->flags.secure_adapter) ? "Yes" : "No");
 	}
 
 
@@ -2269,6 +2269,12 @@ qla2x00_initialize_adapter(scsi_qla_host_t *vha)
 
 	ql_dbg(ql_dbg_init, vha, 0x0078,
 	    "Verifying loaded RISC code...\n");
+
+	/* If smartsan enabled then require fdmi and rdp enabled */
+	if (ql2xsmartsan) {
+		ql2xfdmienable = 1;
+		ql2xrdpenable = 1;
+	}
 
 	if (qla2x00_isp_firmware(vha) != QLA_SUCCESS) {
 		rval = ha->isp_ops->chip_diag(vha);
@@ -3544,53 +3550,77 @@ static void qla2xxx_print_sfp_info(struct scsi_qla_host *vha)
 }
 
 
-/*
- * Return Code:
- *   QLA_SUCCESS: no action
- *   QLA_INTERFACE_ERROR: SFP is not there.
- *   QLA_FUNCTION_FAILED: detected New SFP
+/**
+ * qla24xx_detect_sfp()
+ *
+ * @vha: adapter state pointer.
+ *
+ * @return
+ *	0 -- Configure firmware to use short-range settings -- normal
+ *	     buffer-to-buffer credits.
+ *
+ *	1 -- Configure firmware to use long-range settings -- extra
+ *	     buffer-to-buffer credits should be allocated with
+ *	     ha->lr_distance containing distance settings from NVRAM or SFP
+ *	     (if supported).
  */
 int
 qla24xx_detect_sfp(scsi_qla_host_t *vha)
 {
-	int rc = QLA_SUCCESS;
+	int rc, used_nvram;
 	struct sff_8247_a0 *a;
 	struct qla_hw_data *ha = vha->hw;
+	struct nvram_81xx *nv = ha->nvram;
+#define LR_DISTANCE_UNKNOWN	2
+	static const char * const types[] = { "Short", "Long" };
+	static const char * const lengths[] = { "(10km)", "(5km)", "" };
+	u8 ll = 0;
 
-	if (!AUTO_DETECT_SFP_SUPPORT(vha))
+	/* Seed with NVRAM settings. */
+	used_nvram = 0;
+	ha->flags.lr_detected = 0;
+	if (IS_BPM_RANGE_CAPABLE(ha) &&
+	    (nv->enhanced_features & NEF_LR_DIST_ENABLE)) {
+		used_nvram = 1;
+		ha->flags.lr_detected = 1;
+		ha->lr_distance =
+		    (nv->enhanced_features >> LR_DIST_NV_POS)
+		     & LR_DIST_NV_MASK;
+	}
+
+	if (!IS_BPM_ENABLED(vha))
 		goto out;
-
+	/* Determine SR/LR capabilities of SFP/Transceiver. */
 	rc = qla2x00_read_sfp_dev(vha, NULL, 0);
 	if (rc)
 		goto out;
 
+	used_nvram = 0;
 	a = (struct sff_8247_a0 *)vha->hw->sfp_data;
 	qla2xxx_print_sfp_info(vha);
 
-	if (a->fc_ll_cc7 & FC_LL_VL || a->fc_ll_cc7 & FC_LL_L) {
-		/* long range */
-		ha->flags.detected_lr_sfp = 1;
+	ha->flags.lr_detected = 0;
+	ll = a->fc_ll_cc7;
+	if (ll & FC_LL_VL || ll & FC_LL_L) {
+		/* Long range, track length. */
+		ha->flags.lr_detected = 1;
 
 		if (a->length_km > 5 || a->length_100m > 50)
-			ha->long_range_distance = LR_DISTANCE_10K;
+			ha->lr_distance = LR_DISTANCE_10K;
 		else
-			ha->long_range_distance = LR_DISTANCE_5K;
-
-		if (ha->flags.detected_lr_sfp != ha->flags.using_lr_setting)
-			ql_dbg(ql_dbg_async, vha, 0x507b,
-			    "Detected Long Range SFP.\n");
-	} else {
-		/* short range */
-		ha->flags.detected_lr_sfp = 0;
-		if (ha->flags.using_lr_setting)
-			ql_dbg(ql_dbg_async, vha, 0x5084,
-			    "Detected Short Range SFP.\n");
+			ha->lr_distance = LR_DISTANCE_5K;
 	}
 
 	if (!vha->flags.init_done)
 		rc = QLA_SUCCESS;
 out:
-	return rc;
+	ql_dbg(ql_dbg_async, vha, 0x507b,
+	    "SFP detect: %s-Range SFP %s (nvr=%x ll=%x lr=%x lrd=%x).\n",
+	    types[ha->flags.lr_detected],
+	    ha->flags.lr_detected ? lengths[ha->lr_distance] :
+	       lengths[LR_DISTANCE_UNKNOWN],
+	    used_nvram, ll, ha->flags.lr_detected, ha->lr_distance);
+	return ha->flags.lr_detected;
 }
 
 /**
@@ -3608,6 +3638,7 @@ qla2x00_setup_chip(scsi_qla_host_t *vha)
 	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 	unsigned long flags;
 	uint16_t fw_major_version;
+	int done_once = 0;
 
 	if (IS_P3P_TYPE(ha)) {
 		rval = ha->isp_ops->load_risc(vha, &srisc_address);
@@ -3628,6 +3659,7 @@ qla2x00_setup_chip(scsi_qla_host_t *vha)
 
 	qla81xx_mpi_sync(vha);
 
+execute_fw_with_lr:
 	/* Load firmware sequences */
 	rval = ha->isp_ops->load_risc(vha, &srisc_address);
 	if (rval == QLA_SUCCESS) {
@@ -3649,7 +3681,15 @@ qla2x00_setup_chip(scsi_qla_host_t *vha)
 			rval = qla2x00_execute_fw(vha, srisc_address);
 			/* Retrieve firmware information. */
 			if (rval == QLA_SUCCESS) {
-				qla24xx_detect_sfp(vha);
+				/* Enable BPM support? */
+				if (!done_once++ && qla24xx_detect_sfp(vha)) {
+					ql_dbg(ql_dbg_init, vha, 0x00ca,
+					    "Re-starting firmware -- BPM.\n");
+					/* Best-effort - re-init. */
+					ha->isp_ops->reset_chip(vha);
+					ha->isp_ops->chip_diag(vha);
+					goto execute_fw_with_lr;
+				}
 
 				if ((IS_QLA83XX(ha) || IS_QLA27XX(ha) ||
 				    IS_QLA28XX(ha)) &&
@@ -3708,6 +3748,10 @@ enable_82xx_npiv:
 			    "ISP Firmware failed checksum.\n");
 			goto failed;
 		}
+
+		/* Enable PUREX PASSTHRU */
+		if (ql2xrdpenable)
+			qla25xx_set_els_cmds_supported(vha);
 	} else
 		goto failed;
 
@@ -3918,6 +3962,13 @@ qla24xx_update_fw_options(scsi_qla_host_t *vha)
 		else
 			ha->fw_options[2] &= ~BIT_8;
 	}
+
+	if (ql2xrdpenable)
+		ha->fw_options[1] |= ADD_FO1_ENABLE_PUREX_IOCB;
+
+	/* Enable Async 8130/8131 events -- transceiver insertion/removal */
+	if (IS_BPM_RANGE_CAPABLE(ha))
+		ha->fw_options[3] |= BIT_10;
 
 	ql_dbg(ql_dbg_init, vha, 0x00e8,
 	    "%s, add FW options 1-3 = 0x%04x 0x%04x 0x%04x mode %x\n",
@@ -5060,7 +5111,7 @@ qla2x00_configure_local_loop(scsi_qla_host_t *vha)
 	if (N2N_TOPO(ha)) {
 		if (test_and_clear_bit(N2N_LOGIN_NEEDED, &vha->dpc_flags)) {
 			/* borrowing */
-			u32 *bp, i, sz;
+			u32 *bp, sz;
 
 			memset(ha->init_cb, 0, ha->init_cb_size);
 			sz = min_t(int, sizeof(struct els_plogi_payload),
@@ -5068,13 +5119,12 @@ qla2x00_configure_local_loop(scsi_qla_host_t *vha)
 			rval = qla24xx_get_port_login_templ(vha,
 			    ha->init_cb_dma, (void *)ha->init_cb, sz);
 			if (rval == QLA_SUCCESS) {
-				bp = (uint32_t *)ha->init_cb;
-				for (i = 0; i < sz/4 ; i++, bp++)
-					*bp = cpu_to_be32(*bp);
+				__be32 *q = &ha->plogi_els_payld.data[0];
 
-				memcpy(&ha->plogi_els_payld.data,
-				    (void *)ha->init_cb,
-				    sizeof(ha->plogi_els_payld.data));
+				bp = (uint32_t *)ha->init_cb;
+				cpu_to_be32_array(q, bp, sz / 4);
+
+				memcpy(bp, q, sizeof(ha->plogi_els_payld.data));
 			} else {
 				ql_dbg(ql_dbg_init, vha, 0x00d1,
 				    "PLOGI ELS param read fail.\n");
@@ -5097,6 +5147,7 @@ skip_login:
 			set_bit(LOCAL_LOOP_UPDATE, &vha->dpc_flags);
 			set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
 		}
+		return QLA_FUNCTION_FAILED;
 	}
 
 	found_devs = 0;
@@ -5541,23 +5592,21 @@ qla2x00_configure_fabric(scsi_qla_host_t *vha)
 	}
 	vha->device_flags |= SWITCH_FOUND;
 
+	rval = qla2x00_get_port_name(vha, loop_id, vha->fabric_port_name, 0);
+	if (rval != QLA_SUCCESS)
+		ql_dbg(ql_dbg_disc, vha, 0x20ff,
+		    "Failed to get Fabric Port Name\n");
 
 	if (qla_tgt_mode_enabled(vha) || qla_dual_mode_enabled(vha)) {
 		rval = qla2x00_send_change_request(vha, 0x3, 0);
 		if (rval != QLA_SUCCESS)
 			ql_log(ql_log_warn, vha, 0x121,
-				"Failed to enable receiving of RSCN requests: 0x%x.\n",
-				rval);
+			    "Failed to enable receiving of RSCN requests: 0x%x.\n",
+			    rval);
 	}
-
 
 	do {
 		qla2x00_mgmt_svr_login(vha);
-
-		/* FDMI support. */
-		if (ql2xfdmienable &&
-		    test_and_clear_bit(REGISTER_FDMI_NEEDED, &vha->dpc_flags))
-			qla2x00_fdmi_register(vha);
 
 		/* Ensure we are logged into the SNS. */
 		loop_id = NPH_SNS_LID(ha);
@@ -5570,6 +5619,12 @@ qla2x00_configure_fabric(scsi_qla_host_t *vha)
 			set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
 			return rval;
 		}
+
+		/* FDMI support. */
+		if (ql2xfdmienable &&
+		    test_and_clear_bit(REGISTER_FDMI_NEEDED, &vha->dpc_flags))
+			qla2x00_fdmi_register(vha);
+
 		if (test_and_clear_bit(REGISTER_FC4_NEEDED, &vha->dpc_flags)) {
 			if (qla2x00_rft_id(vha)) {
 				/* EMPTY */
@@ -5812,7 +5867,7 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *vha)
 		/* Bypass ports whose FCP-4 type is not FCP_SCSI */
 		if (ql2xgffidenable &&
 		    (!(new_fcport->fc4_type & FS_FC4TYPE_FCP) &&
-		    new_fcport->fc4_type != FC4_TYPE_UNKNOWN))
+		    new_fcport->fc4_type != 0))
 			continue;
 
 		spin_lock_irqsave(&vha->hw->tgt.sess_lock, flags);
@@ -6656,7 +6711,7 @@ qla2x00_abort_isp_cleanup(scsi_qla_host_t *vha)
 	ha->flags.n2n_ae = 0;
 	ha->flags.lip_ae = 0;
 	ha->current_topology = 0;
-	ha->flags.fw_started = 0;
+	QLA_FW_STOPPED(ha);
 	ha->flags.fw_init_done = 0;
 	ha->chip_reset++;
 	ha->base_qpair->chip_reset = ha->chip_reset;
@@ -8661,61 +8716,6 @@ qla82xx_restart_isp(scsi_qla_host_t *vha)
 	}
 
 	return status;
-}
-
-void
-qla81xx_update_fw_options(scsi_qla_host_t *vha)
-{
-	struct qla_hw_data *ha = vha->hw;
-
-	/*  Hold status IOCBs until ABTS response received. */
-	if (ql2xfwholdabts)
-		ha->fw_options[3] |= BIT_12;
-
-	/* Set Retry FLOGI in case of P2P connection */
-	if (ha->operating_mode == P2P) {
-		ha->fw_options[2] |= BIT_3;
-		ql_dbg(ql_dbg_disc, vha, 0x2103,
-		    "(%s): Setting FLOGI retry BIT in fw_options[2]: 0x%x\n",
-			__func__, ha->fw_options[2]);
-	}
-
-	/* Move PUREX, ABTS RX & RIDA to ATIOQ */
-	if (ql2xmvasynctoatio) {
-		if (qla_tgt_mode_enabled(vha) ||
-		    qla_dual_mode_enabled(vha))
-			ha->fw_options[2] |= BIT_11;
-		else
-			ha->fw_options[2] &= ~BIT_11;
-	}
-
-	if (qla_tgt_mode_enabled(vha) ||
-	    qla_dual_mode_enabled(vha)) {
-		/* FW auto send SCSI status during */
-		ha->fw_options[1] |= BIT_8;
-		ha->fw_options[10] |= (u16)SAM_STAT_BUSY << 8;
-
-		/* FW perform Exchange validation */
-		ha->fw_options[2] |= BIT_4;
-	} else {
-		ha->fw_options[1]  &= ~BIT_8;
-		ha->fw_options[10] &= 0x00ff;
-
-		ha->fw_options[2] &= ~BIT_4;
-	}
-
-	if (ql2xetsenable) {
-		/* Enable ETS Burst. */
-		memset(ha->fw_options, 0, sizeof(ha->fw_options));
-		ha->fw_options[2] |= BIT_9;
-	}
-
-	ql_dbg(ql_dbg_init, vha, 0x00e9,
-	    "%s, add FW options 1-3 = 0x%04x 0x%04x 0x%04x mode %x\n",
-	    __func__, ha->fw_options[1], ha->fw_options[2],
-	    ha->fw_options[3], vha->host->active_mode);
-
-	qla2x00_set_fw_options(vha, ha->fw_options);
 }
 
 /*

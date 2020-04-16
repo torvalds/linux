@@ -359,23 +359,6 @@ Contact: Sean Paul
 
 Level: Starter
 
-drm_fb_helper tasks
--------------------
-
-- drm_fb_helper_restore_fbdev_mode_unlocked() should call restore_fbdev_mode()
-  not the _force variant so it can bail out if there is a master. But first
-  these igt tests need to be fixed: kms_fbcon_fbt@psr and
-  kms_fbcon_fbt@psr-suspend.
-
-- The max connector argument for drm_fb_helper_init() isn't used anymore and
-  can be removed.
-
-- The helper doesn't keep an array of connectors anymore so these can be
-  removed: drm_fb_helper_single_add_all_connectors(),
-  drm_fb_helper_add_one_connector() and drm_fb_helper_remove_one_connector().
-
-Level: Intermediate
-
 connector register/unregister fixes
 -----------------------------------
 
@@ -404,6 +387,20 @@ between setting up the &drm_driver structure and calling drm_dev_register().
   callbacks for all modern drivers.
 
 Contact: Daniel Vetter
+
+Level: Intermediate
+
+Replace drm_detect_hdmi_monitor() with drm_display_info.is_hdmi
+---------------------------------------------------------------
+
+Once EDID is parsed, the monitor HDMI support information is available through
+drm_display_info.is_hdmi. Many drivers still call drm_detect_hdmi_monitor() to
+retrieve the same information, which is less efficient.
+
+Audit each individual driver calling drm_detect_hdmi_monitor() and switch to
+drm_display_info.is_hdmi if applicable.
+
+Contact: Laurent Pinchart, respective driver maintainers
 
 Level: Intermediate
 

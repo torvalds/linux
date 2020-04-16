@@ -198,7 +198,7 @@ static struct cpufreq_driver elanfreq_driver = {
 };
 
 static const struct x86_cpu_id elan_id[] = {
-	{ X86_VENDOR_AMD, 4, 10, },
+	X86_MATCH_VENDOR_FAM_MODEL(AMD, 4, 10, NULL),
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, elan_id);

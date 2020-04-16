@@ -56,17 +56,6 @@ static const char *symtab_name[SYM_NUM] = {
 };
 #endif
 
-static unsigned int symtab_sizes[SYM_NUM] = {
-	2,
-	32,
-	16,
-	512,
-	128,
-	16,
-	16,
-	16,
-};
-
 struct policydb_compat_info {
 	int version;
 	int sym_num;
@@ -336,11 +325,17 @@ static int (*destroy_f[SYM_NUM]) (void *key, void *datum, void *datap) =
 
 static int filenametr_destroy(void *key, void *datum, void *p)
 {
-	struct filename_trans *ft = key;
+	struct filename_trans_key *ft = key;
+	struct filename_trans_datum *next, *d = datum;
 
 	kfree(ft->name);
 	kfree(key);
-	kfree(datum);
+	do {
+		ebitmap_destroy(&d->stypes);
+		next = d->next;
+		kfree(d);
+		d = next;
+	} while (unlikely(d));
 	cond_resched();
 	return 0;
 }
@@ -406,12 +401,12 @@ out:
 
 static u32 filenametr_hash(struct hashtab *h, const void *k)
 {
-	const struct filename_trans *ft = k;
+	const struct filename_trans_key *ft = k;
 	unsigned long hash;
 	unsigned int byte_num;
 	unsigned char focus;
 
-	hash = ft->stype ^ ft->ttype ^ ft->tclass;
+	hash = ft->ttype ^ ft->tclass;
 
 	byte_num = 0;
 	while ((focus = ft->name[byte_num++]))
@@ -421,13 +416,9 @@ static u32 filenametr_hash(struct hashtab *h, const void *k)
 
 static int filenametr_cmp(struct hashtab *h, const void *k1, const void *k2)
 {
-	const struct filename_trans *ft1 = k1;
-	const struct filename_trans *ft2 = k2;
+	const struct filename_trans_key *ft1 = k1;
+	const struct filename_trans_key *ft2 = k2;
 	int v;
-
-	v = ft1->stype - ft2->stype;
-	if (v)
-		return v;
 
 	v = ft1->ttype - ft2->ttype;
 	if (v)
@@ -472,54 +463,21 @@ static int rangetr_cmp(struct hashtab *h, const void *k1, const void *k2)
  */
 static int policydb_init(struct policydb *p)
 {
-	int i, rc;
-
 	memset(p, 0, sizeof(*p));
 
-	for (i = 0; i < SYM_NUM; i++) {
-		rc = symtab_init(&p->symtab[i], symtab_sizes[i]);
-		if (rc)
-			goto out;
-	}
-
-	rc = avtab_init(&p->te_avtab);
-	if (rc)
-		goto out;
-
-	rc = roles_init(p);
-	if (rc)
-		goto out;
-
-	rc = cond_policydb_init(p);
-	if (rc)
-		goto out;
+	avtab_init(&p->te_avtab);
+	cond_policydb_init(p);
 
 	p->filename_trans = hashtab_create(filenametr_hash, filenametr_cmp,
-					   (1 << 10));
-	if (!p->filename_trans) {
-		rc = -ENOMEM;
-		goto out;
-	}
-
-	p->range_tr = hashtab_create(rangetr_hash, rangetr_cmp, 256);
-	if (!p->range_tr) {
-		rc = -ENOMEM;
-		goto out;
-	}
+					   (1 << 11));
+	if (!p->filename_trans)
+		return -ENOMEM;
 
 	ebitmap_init(&p->filename_trans_ttypes);
 	ebitmap_init(&p->policycaps);
 	ebitmap_init(&p->permissive_map);
 
 	return 0;
-out:
-	hashtab_destroy(p->filename_trans);
-	hashtab_destroy(p->range_tr);
-	for (i = 0; i < SYM_NUM; i++) {
-		hashtab_map(p->symtab[i].table, destroy_f[i], NULL);
-		hashtab_destroy(p->symtab[i].table);
-	}
-	return rc;
 }
 
 /*
@@ -865,29 +823,28 @@ int policydb_load_isids(struct policydb *p, struct sidtab *s)
 
 	head = p->ocontexts[OCON_ISID];
 	for (c = head; c; c = c->next) {
-		rc = -EINVAL;
-		if (!c->context[0].user) {
-			pr_err("SELinux:  SID %s was never defined.\n",
-				c->u.name);
+		u32 sid = c->sid[0];
+		const char *name = security_get_initial_sid_context(sid);
+
+		if (sid == SECSID_NULL) {
+			pr_err("SELinux:  SID 0 was assigned a context.\n");
 			sidtab_destroy(s);
 			goto out;
 		}
-		if (c->sid[0] == SECSID_NULL || c->sid[0] > SECINITSID_NUM) {
-			pr_err("SELinux:  Initial SID %s out of range.\n",
-				c->u.name);
-			sidtab_destroy(s);
-			goto out;
-		}
+
+		/* Ignore initial SIDs unused by this kernel. */
+		if (!name)
+			continue;
+
 		rc = context_add_hash(p, &c->context[0]);
 		if (rc) {
 			sidtab_destroy(s);
 			goto out;
 		}
-
-		rc = sidtab_set_initial(s, c->sid[0], &c->context[0]);
+		rc = sidtab_set_initial(s, sid, &c->context[0]);
 		if (rc) {
 			pr_err("SELinux:  unable to load initial SID %s.\n",
-				c->u.name);
+			       name);
 			sidtab_destroy(s);
 			goto out;
 		}
@@ -1140,12 +1097,12 @@ static int common_read(struct policydb *p, struct hashtab *h, void *fp)
 
 	len = le32_to_cpu(buf[0]);
 	comdatum->value = le32_to_cpu(buf[1]);
+	nel = le32_to_cpu(buf[3]);
 
-	rc = symtab_init(&comdatum->permissions, PERM_SYMTAB_SIZE);
+	rc = symtab_init(&comdatum->permissions, nel);
 	if (rc)
 		goto bad;
 	comdatum->permissions.nprim = le32_to_cpu(buf[2]);
-	nel = le32_to_cpu(buf[3]);
 
 	rc = str_read(&key, GFP_KERNEL, fp, len);
 	if (rc)
@@ -1262,10 +1219,9 @@ static int read_cons_helper(struct policydb *p,
 				if (rc)
 					return rc;
 				if (p->policyvers >=
-					POLICYDB_VERSION_CONSTRAINT_NAMES) {
-						e->type_names = kzalloc(sizeof
-						(*e->type_names),
-						GFP_KERNEL);
+				    POLICYDB_VERSION_CONSTRAINT_NAMES) {
+					e->type_names = kzalloc(sizeof
+						(*e->type_names), GFP_KERNEL);
 					if (!e->type_names)
 						return -ENOMEM;
 					type_set_init(e->type_names);
@@ -1306,12 +1262,12 @@ static int class_read(struct policydb *p, struct hashtab *h, void *fp)
 	len = le32_to_cpu(buf[0]);
 	len2 = le32_to_cpu(buf[1]);
 	cladatum->value = le32_to_cpu(buf[2]);
+	nel = le32_to_cpu(buf[4]);
 
-	rc = symtab_init(&cladatum->permissions, PERM_SYMTAB_SIZE);
+	rc = symtab_init(&cladatum->permissions, nel);
 	if (rc)
 		goto bad;
 	cladatum->permissions.nprim = le32_to_cpu(buf[3]);
-	nel = le32_to_cpu(buf[4]);
 
 	ncons = le32_to_cpu(buf[5]);
 
@@ -1824,6 +1780,11 @@ static int range_read(struct policydb *p, void *fp)
 		return rc;
 
 	nel = le32_to_cpu(buf[0]);
+
+	p->range_tr = hashtab_create(rangetr_hash, rangetr_cmp, nel);
+	if (!p->range_tr)
+		return -ENOMEM;
+
 	for (i = 0; i < nel; i++) {
 		rc = -ENOMEM;
 		rt = kzalloc(sizeof(*rt), GFP_KERNEL);
@@ -1880,13 +1841,93 @@ out:
 	return rc;
 }
 
+static int filename_trans_read_one(struct policydb *p, void *fp)
+{
+	struct filename_trans_key key, *ft = NULL;
+	struct filename_trans_datum *last, *datum = NULL;
+	char *name = NULL;
+	u32 len, stype, otype;
+	__le32 buf[4];
+	int rc;
+
+	/* length of the path component string */
+	rc = next_entry(buf, fp, sizeof(u32));
+	if (rc)
+		return rc;
+	len = le32_to_cpu(buf[0]);
+
+	/* path component string */
+	rc = str_read(&name, GFP_KERNEL, fp, len);
+	if (rc)
+		return rc;
+
+	rc = next_entry(buf, fp, sizeof(u32) * 4);
+	if (rc)
+		goto out;
+
+	stype = le32_to_cpu(buf[0]);
+	key.ttype = le32_to_cpu(buf[1]);
+	key.tclass = le32_to_cpu(buf[2]);
+	key.name = name;
+
+	otype = le32_to_cpu(buf[3]);
+
+	last = NULL;
+	datum = hashtab_search(p->filename_trans, &key);
+	while (datum) {
+		if (unlikely(ebitmap_get_bit(&datum->stypes, stype - 1))) {
+			/* conflicting/duplicate rules are ignored */
+			datum = NULL;
+			goto out;
+		}
+		if (likely(datum->otype == otype))
+			break;
+		last = datum;
+		datum = datum->next;
+	}
+	if (!datum) {
+		rc = -ENOMEM;
+		datum = kmalloc(sizeof(*datum), GFP_KERNEL);
+		if (!datum)
+			goto out;
+
+		ebitmap_init(&datum->stypes);
+		datum->otype = otype;
+		datum->next = NULL;
+
+		if (unlikely(last)) {
+			last->next = datum;
+		} else {
+			rc = -ENOMEM;
+			ft = kmemdup(&key, sizeof(key), GFP_KERNEL);
+			if (!ft)
+				goto out;
+
+			rc = hashtab_insert(p->filename_trans, ft, datum);
+			if (rc)
+				goto out;
+			name = NULL;
+
+			rc = ebitmap_set_bit(&p->filename_trans_ttypes,
+					     key.ttype, 1);
+			if (rc)
+				return rc;
+		}
+	}
+	kfree(name);
+	return ebitmap_set_bit(&datum->stypes, stype - 1, 1);
+
+out:
+	kfree(ft);
+	kfree(name);
+	kfree(datum);
+	return rc;
+}
+
 static int filename_trans_read(struct policydb *p, void *fp)
 {
-	struct filename_trans *ft;
-	struct filename_trans_datum *otype;
-	char *name;
-	u32 nel, len;
-	__le32 buf[4];
+	u32 nel;
+	__le32 buf[1];
 	int rc, i;
 
 	if (p->policyvers < POLICYDB_VERSION_FILENAME_TRANS)
@@ -1897,69 +1938,15 @@ static int filename_trans_read(struct policydb *p, void *fp)
 		return rc;
 	nel = le32_to_cpu(buf[0]);
 
+	p->filename_trans_count = nel;
+
 	for (i = 0; i < nel; i++) {
-		otype = NULL;
-		name = NULL;
-
-		rc = -ENOMEM;
-		ft = kzalloc(sizeof(*ft), GFP_KERNEL);
-		if (!ft)
-			goto out;
-
-		rc = -ENOMEM;
-		otype = kmalloc(sizeof(*otype), GFP_KERNEL);
-		if (!otype)
-			goto out;
-
-		/* length of the path component string */
-		rc = next_entry(buf, fp, sizeof(u32));
+		rc = filename_trans_read_one(p, fp);
 		if (rc)
-			goto out;
-		len = le32_to_cpu(buf[0]);
-
-		/* path component string */
-		rc = str_read(&name, GFP_KERNEL, fp, len);
-		if (rc)
-			goto out;
-
-		ft->name = name;
-
-		rc = next_entry(buf, fp, sizeof(u32) * 4);
-		if (rc)
-			goto out;
-
-		ft->stype = le32_to_cpu(buf[0]);
-		ft->ttype = le32_to_cpu(buf[1]);
-		ft->tclass = le32_to_cpu(buf[2]);
-
-		otype->otype = le32_to_cpu(buf[3]);
-
-		rc = ebitmap_set_bit(&p->filename_trans_ttypes, ft->ttype, 1);
-		if (rc)
-			goto out;
-
-		rc = hashtab_insert(p->filename_trans, ft, otype);
-		if (rc) {
-			/*
-			 * Do not return -EEXIST to the caller, or the system
-			 * will not boot.
-			 */
-			if (rc != -EEXIST)
-				goto out;
-			/* But free memory to avoid memory leak. */
-			kfree(ft);
-			kfree(name);
-			kfree(otype);
-		}
+			return rc;
 	}
 	hash_eval(p->filename_trans, "filenametr");
 	return 0;
-out:
-	kfree(ft);
-	kfree(name);
-	kfree(otype);
-
-	return rc;
 }
 
 static int genfs_read(struct policydb *p, void *fp)
@@ -2390,6 +2377,17 @@ int policydb_read(struct policydb *p, void *fp)
 			goto bad;
 		nprim = le32_to_cpu(buf[0]);
 		nel = le32_to_cpu(buf[1]);
+
+		rc = symtab_init(&p->symtab[i], nel);
+		if (rc)
+			goto out;
+
+		if (i == SYM_ROLES) {
+			rc = roles_init(p);
+			if (rc)
+				goto out;
+		}
+
 		for (j = 0; j < nel; j++) {
 			rc = read_f[i](p, p->symtab[i].table, fp);
 			if (rc)
@@ -3330,50 +3328,50 @@ static int range_write(struct policydb *p, void *fp)
 
 static int filename_write_helper(void *key, void *data, void *ptr)
 {
-	__le32 buf[4];
-	struct filename_trans *ft = key;
-	struct filename_trans_datum *otype = data;
+	struct filename_trans_key *ft = key;
+	struct filename_trans_datum *datum = data;
+	struct ebitmap_node *node;
 	void *fp = ptr;
+	__le32 buf[4];
 	int rc;
-	u32 len;
+	u32 bit, len = strlen(ft->name);
 
-	len = strlen(ft->name);
-	buf[0] = cpu_to_le32(len);
-	rc = put_entry(buf, sizeof(u32), 1, fp);
-	if (rc)
-		return rc;
+	do {
+		ebitmap_for_each_positive_bit(&datum->stypes, node, bit) {
+			buf[0] = cpu_to_le32(len);
+			rc = put_entry(buf, sizeof(u32), 1, fp);
+			if (rc)
+				return rc;
 
-	rc = put_entry(ft->name, sizeof(char), len, fp);
-	if (rc)
-		return rc;
+			rc = put_entry(ft->name, sizeof(char), len, fp);
+			if (rc)
+				return rc;
 
-	buf[0] = cpu_to_le32(ft->stype);
-	buf[1] = cpu_to_le32(ft->ttype);
-	buf[2] = cpu_to_le32(ft->tclass);
-	buf[3] = cpu_to_le32(otype->otype);
+			buf[0] = cpu_to_le32(bit + 1);
+			buf[1] = cpu_to_le32(ft->ttype);
+			buf[2] = cpu_to_le32(ft->tclass);
+			buf[3] = cpu_to_le32(datum->otype);
 
-	rc = put_entry(buf, sizeof(u32), 4, fp);
-	if (rc)
-		return rc;
+			rc = put_entry(buf, sizeof(u32), 4, fp);
+			if (rc)
+				return rc;
+		}
+
+		datum = datum->next;
+	} while (unlikely(datum));
 
 	return 0;
 }
 
 static int filename_trans_write(struct policydb *p, void *fp)
 {
-	u32 nel;
 	__le32 buf[1];
 	int rc;
 
 	if (p->policyvers < POLICYDB_VERSION_FILENAME_TRANS)
 		return 0;
 
-	nel = 0;
-	rc = hashtab_map(p->filename_trans, hashtab_cnt, &nel);
-	if (rc)
-		return rc;
-
-	buf[0] = cpu_to_le32(nel);
+	buf[0] = cpu_to_le32(p->filename_trans_count);
 	rc = put_entry(buf, sizeof(u32), 1, fp);
 	if (rc)
 		return rc;
@@ -3483,7 +3481,7 @@ int policydb_write(struct policydb *p, void *fp)
 	if (rc)
 		return rc;
 
-	rc = cond_write_list(p, p->cond_list, fp);
+	rc = cond_write_list(p, fp);
 	if (rc)
 		return rc;
 

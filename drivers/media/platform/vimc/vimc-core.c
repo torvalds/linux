@@ -48,48 +48,51 @@ static struct vimc_ent_config ent_config[] = {
 	{
 		.name = "Sensor A",
 		.add = vimc_sen_add,
-		.rm = vimc_sen_rm,
+		.release = vimc_sen_release,
 	},
 	{
 		.name = "Sensor B",
 		.add = vimc_sen_add,
-		.rm = vimc_sen_rm,
+		.release = vimc_sen_release,
 	},
 	{
 		.name = "Debayer A",
 		.add = vimc_deb_add,
-		.rm = vimc_deb_rm,
+		.release = vimc_deb_release,
 	},
 	{
 		.name = "Debayer B",
 		.add = vimc_deb_add,
-		.rm = vimc_deb_rm,
+		.release = vimc_deb_release,
 	},
 	{
 		.name = "Raw Capture 0",
 		.add = vimc_cap_add,
-		.rm = vimc_cap_rm,
+		.unregister = vimc_cap_unregister,
+		.release = vimc_cap_release,
 	},
 	{
 		.name = "Raw Capture 1",
 		.add = vimc_cap_add,
-		.rm = vimc_cap_rm,
+		.unregister = vimc_cap_unregister,
+		.release = vimc_cap_release,
 	},
 	{
 		/* TODO: change this to vimc-input when it is implemented */
 		.name = "RGB/YUV Input",
 		.add = vimc_sen_add,
-		.rm = vimc_sen_rm,
+		.release = vimc_sen_release,
 	},
 	{
 		.name = "Scaler",
 		.add = vimc_sca_add,
-		.rm = vimc_sca_rm,
+		.release = vimc_sca_release,
 	},
 	{
 		.name = "RGB/YUV Capture",
 		.add = vimc_cap_add,
-		.rm = vimc_cap_rm,
+		.unregister = vimc_cap_unregister,
+		.release = vimc_cap_release,
 	},
 };
 
@@ -162,12 +165,12 @@ static int vimc_add_subdevs(struct vimc_device *vimc)
 	unsigned int i;
 
 	for (i = 0; i < vimc->pipe_cfg->num_ents; i++) {
-		dev_dbg(&vimc->pdev.dev, "new entity for %s\n",
+		dev_dbg(vimc->mdev.dev, "new entity for %s\n",
 			vimc->pipe_cfg->ents[i].name);
 		vimc->ent_devs[i] = vimc->pipe_cfg->ents[i].add(vimc,
 					vimc->pipe_cfg->ents[i].name);
 		if (!vimc->ent_devs[i]) {
-			dev_err(&vimc->pdev.dev, "add new entity for %s\n",
+			dev_err(vimc->mdev.dev, "add new entity for %s\n",
 				vimc->pipe_cfg->ents[i].name);
 			return -EINVAL;
 		}
@@ -175,13 +178,33 @@ static int vimc_add_subdevs(struct vimc_device *vimc)
 	return 0;
 }
 
-static void vimc_rm_subdevs(struct vimc_device *vimc)
+static void vimc_release_subdevs(struct vimc_device *vimc)
 {
 	unsigned int i;
 
 	for (i = 0; i < vimc->pipe_cfg->num_ents; i++)
 		if (vimc->ent_devs[i])
-			vimc->pipe_cfg->ents[i].rm(vimc, vimc->ent_devs[i]);
+			vimc->pipe_cfg->ents[i].release(vimc->ent_devs[i]);
+}
+
+static void vimc_unregister_subdevs(struct vimc_device *vimc)
+{
+	unsigned int i;
+
+	for (i = 0; i < vimc->pipe_cfg->num_ents; i++)
+		if (vimc->ent_devs[i] && vimc->pipe_cfg->ents[i].unregister)
+			vimc->pipe_cfg->ents[i].unregister(vimc->ent_devs[i]);
+}
+
+static void vimc_v4l2_dev_release(struct v4l2_device *v4l2_dev)
+{
+	struct vimc_device *vimc =
+		container_of(v4l2_dev, struct vimc_device, v4l2_dev);
+
+	vimc_release_subdevs(vimc);
+	media_device_cleanup(&vimc->mdev);
+	kfree(vimc->ent_devs);
+	kfree(vimc);
 }
 
 static int vimc_register_devices(struct vimc_device *vimc)
@@ -195,7 +218,6 @@ static int vimc_register_devices(struct vimc_device *vimc)
 			"v4l2 device register failed (err=%d)\n", ret);
 		return ret;
 	}
-
 	/* allocate ent_devs */
 	vimc->ent_devs = kcalloc(vimc->pipe_cfg->num_ents,
 				 sizeof(*vimc->ent_devs), GFP_KERNEL);
@@ -236,9 +258,9 @@ static int vimc_register_devices(struct vimc_device *vimc)
 
 err_mdev_unregister:
 	media_device_unregister(&vimc->mdev);
-	media_device_cleanup(&vimc->mdev);
 err_rm_subdevs:
-	vimc_rm_subdevs(vimc);
+	vimc_unregister_subdevs(vimc);
+	vimc_release_subdevs(vimc);
 	kfree(vimc->ent_devs);
 err_v4l2_unregister:
 	v4l2_device_unregister(&vimc->v4l2_dev);
@@ -248,20 +270,23 @@ err_v4l2_unregister:
 
 static void vimc_unregister(struct vimc_device *vimc)
 {
+	vimc_unregister_subdevs(vimc);
 	media_device_unregister(&vimc->mdev);
-	media_device_cleanup(&vimc->mdev);
 	v4l2_device_unregister(&vimc->v4l2_dev);
-	kfree(vimc->ent_devs);
 }
 
 static int vimc_probe(struct platform_device *pdev)
 {
-	struct vimc_device *vimc = container_of(pdev, struct vimc_device, pdev);
+	struct vimc_device *vimc;
 	int ret;
 
 	dev_dbg(&pdev->dev, "probe");
 
-	memset(&vimc->mdev, 0, sizeof(vimc->mdev));
+	vimc = kzalloc(sizeof(*vimc), GFP_KERNEL);
+	if (!vimc)
+		return -ENOMEM;
+
+	vimc->pipe_cfg = &pipe_cfg;
 
 	/* Link the media device within the v4l2_device */
 	vimc->v4l2_dev.mdev = &vimc->mdev;
@@ -277,20 +302,27 @@ static int vimc_probe(struct platform_device *pdev)
 	ret = vimc_register_devices(vimc);
 	if (ret) {
 		media_device_cleanup(&vimc->mdev);
+		kfree(vimc);
 		return ret;
 	}
+	/*
+	 * the release cb is set only after successful registration.
+	 * if the registration fails, we release directly from probe
+	 */
 
+	vimc->v4l2_dev.release = vimc_v4l2_dev_release;
+	platform_set_drvdata(pdev, vimc);
 	return 0;
 }
 
 static int vimc_remove(struct platform_device *pdev)
 {
-	struct vimc_device *vimc = container_of(pdev, struct vimc_device, pdev);
+	struct vimc_device *vimc = platform_get_drvdata(pdev);
 
 	dev_dbg(&pdev->dev, "remove");
 
-	vimc_rm_subdevs(vimc);
 	vimc_unregister(vimc);
+	v4l2_device_put(&vimc->v4l2_dev);
 
 	return 0;
 }
@@ -299,12 +331,9 @@ static void vimc_dev_release(struct device *dev)
 {
 }
 
-static struct vimc_device vimc_dev = {
-	.pipe_cfg = &pipe_cfg,
-	.pdev = {
-		.name = VIMC_PDEV_NAME,
-		.dev.release = vimc_dev_release,
-	}
+static struct platform_device vimc_pdev = {
+	.name = VIMC_PDEV_NAME,
+	.dev.release = vimc_dev_release,
 };
 
 static struct platform_driver vimc_pdrv = {
@@ -319,16 +348,16 @@ static int __init vimc_init(void)
 {
 	int ret;
 
-	ret = platform_device_register(&vimc_dev.pdev);
+	ret = platform_device_register(&vimc_pdev);
 	if (ret) {
-		dev_err(&vimc_dev.pdev.dev,
+		dev_err(&vimc_pdev.dev,
 			"platform device registration failed (err=%d)\n", ret);
 		return ret;
 	}
 
 	ret = platform_driver_register(&vimc_pdrv);
 	if (ret) {
-		dev_err(&vimc_dev.pdev.dev,
+		dev_err(&vimc_pdev.dev,
 			"platform driver registration failed (err=%d)\n", ret);
 		platform_driver_unregister(&vimc_pdrv);
 		return ret;
@@ -341,7 +370,7 @@ static void __exit vimc_exit(void)
 {
 	platform_driver_unregister(&vimc_pdrv);
 
-	platform_device_unregister(&vimc_dev.pdev);
+	platform_device_unregister(&vimc_pdev);
 }
 
 module_init(vimc_init);

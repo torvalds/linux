@@ -16347,6 +16347,7 @@ static const struct drm_crtc_funcs bdw_crtc_funcs = {
 	.get_vblank_counter = g4x_get_vblank_counter,
 	.enable_vblank = bdw_enable_vblank,
 	.disable_vblank = bdw_disable_vblank,
+	.get_vblank_timestamp = intel_crtc_get_vblank_timestamp,
 };
 
 static const struct drm_crtc_funcs ilk_crtc_funcs = {
@@ -16355,6 +16356,7 @@ static const struct drm_crtc_funcs ilk_crtc_funcs = {
 	.get_vblank_counter = g4x_get_vblank_counter,
 	.enable_vblank = ilk_enable_vblank,
 	.disable_vblank = ilk_disable_vblank,
+	.get_vblank_timestamp = intel_crtc_get_vblank_timestamp,
 };
 
 static const struct drm_crtc_funcs g4x_crtc_funcs = {
@@ -16363,6 +16365,7 @@ static const struct drm_crtc_funcs g4x_crtc_funcs = {
 	.get_vblank_counter = g4x_get_vblank_counter,
 	.enable_vblank = i965_enable_vblank,
 	.disable_vblank = i965_disable_vblank,
+	.get_vblank_timestamp = intel_crtc_get_vblank_timestamp,
 };
 
 static const struct drm_crtc_funcs i965_crtc_funcs = {
@@ -16371,6 +16374,7 @@ static const struct drm_crtc_funcs i965_crtc_funcs = {
 	.get_vblank_counter = i915_get_vblank_counter,
 	.enable_vblank = i965_enable_vblank,
 	.disable_vblank = i965_disable_vblank,
+	.get_vblank_timestamp = intel_crtc_get_vblank_timestamp,
 };
 
 static const struct drm_crtc_funcs i915gm_crtc_funcs = {
@@ -16379,6 +16383,7 @@ static const struct drm_crtc_funcs i915gm_crtc_funcs = {
 	.get_vblank_counter = i915_get_vblank_counter,
 	.enable_vblank = i915gm_enable_vblank,
 	.disable_vblank = i915gm_disable_vblank,
+	.get_vblank_timestamp = intel_crtc_get_vblank_timestamp,
 };
 
 static const struct drm_crtc_funcs i915_crtc_funcs = {
@@ -16387,6 +16392,7 @@ static const struct drm_crtc_funcs i915_crtc_funcs = {
 	.get_vblank_counter = i915_get_vblank_counter,
 	.enable_vblank = i8xx_enable_vblank,
 	.disable_vblank = i8xx_disable_vblank,
+	.get_vblank_timestamp = intel_crtc_get_vblank_timestamp,
 };
 
 static const struct drm_crtc_funcs i8xx_crtc_funcs = {
@@ -16395,6 +16401,7 @@ static const struct drm_crtc_funcs i8xx_crtc_funcs = {
 	/* no hw vblank counter */
 	.enable_vblank = i8xx_enable_vblank,
 	.disable_vblank = i8xx_disable_vblank,
+	.get_vblank_timestamp = intel_crtc_get_vblank_timestamp,
 };
 
 static struct intel_crtc *intel_crtc_alloc(void)

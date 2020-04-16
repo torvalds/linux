@@ -66,32 +66,14 @@ static inline ktime_t ktime_set(const s64 secs, const unsigned long nsecs)
  */
 #define ktime_sub_ns(kt, nsval)		((kt) - (nsval))
 
-/* convert a timespec to ktime_t format: */
-static inline ktime_t timespec_to_ktime(struct timespec ts)
-{
-	return ktime_set(ts.tv_sec, ts.tv_nsec);
-}
-
 /* convert a timespec64 to ktime_t format: */
 static inline ktime_t timespec64_to_ktime(struct timespec64 ts)
 {
 	return ktime_set(ts.tv_sec, ts.tv_nsec);
 }
 
-/* convert a timeval to ktime_t format: */
-static inline ktime_t timeval_to_ktime(struct timeval tv)
-{
-	return ktime_set(tv.tv_sec, tv.tv_usec * NSEC_PER_USEC);
-}
-
-/* Map the ktime_t to timespec conversion to ns_to_timespec function */
-#define ktime_to_timespec(kt)		ns_to_timespec((kt))
-
 /* Map the ktime_t to timespec conversion to ns_to_timespec function */
 #define ktime_to_timespec64(kt)		ns_to_timespec64((kt))
-
-/* Map the ktime_t to timeval conversion to ns_to_timeval function */
-#define ktime_to_timeval(kt)		ns_to_timeval((kt))
 
 /* Convert ktime_t to nanoseconds */
 static inline s64 ktime_to_ns(const ktime_t kt)
@@ -216,25 +198,6 @@ static inline ktime_t ktime_sub_ms(const ktime_t kt, const u64 msec)
 extern ktime_t ktime_add_safe(const ktime_t lhs, const ktime_t rhs);
 
 /**
- * ktime_to_timespec_cond - convert a ktime_t variable to timespec
- *			    format only if the variable contains data
- * @kt:		the ktime_t variable to convert
- * @ts:		the timespec variable to store the result in
- *
- * Return: %true if there was a successful conversion, %false if kt was 0.
- */
-static inline __must_check bool ktime_to_timespec_cond(const ktime_t kt,
-						       struct timespec *ts)
-{
-	if (kt) {
-		*ts = ktime_to_timespec(kt);
-		return true;
-	} else {
-		return false;
-	}
-}
-
-/**
  * ktime_to_timespec64_cond - convert a ktime_t variable to timespec64
  *			    format only if the variable contains data
  * @kt:		the ktime_t variable to convert
@@ -253,14 +216,7 @@ static inline __must_check bool ktime_to_timespec64_cond(const ktime_t kt,
 	}
 }
 
-/*
- * The resolution of the clocks. The resolution value is returned in
- * the clock_getres() system call to give application programmers an
- * idea of the (in)accuracy of timers. Timer values are rounded up to
- * this resolution values.
- */
-#define LOW_RES_NSEC		TICK_NSEC
-#define KTIME_LOW_RES		(LOW_RES_NSEC)
+#include <vdso/ktime.h>
 
 static inline ktime_t ns_to_ktime(u64 ns)
 {

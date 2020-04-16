@@ -177,6 +177,8 @@ properties:
       - nec,nl4827hc19-05b
         # Netron-DY E231732 7.0" WSVGA TFT LCD panel
       - netron-dy,e231732
+        # NewEast Optoelectronics CO., LTD WJFH116008A eDP TFT LCD panel
+      - neweast,wjfh116008a
         # Newhaven Display International 480 x 272 TFT LCD panel
       - newhaven,nhd-4.3-480272ef-atxl
         # NLT Technologies, Ltd. 15.6" FHD (1920x1080) LVDS TFT LCD panel
@@ -201,6 +203,8 @@ properties:
       - osddisplays,osd101t2045-53ts
         # QiaoDian XianShi Corporation 4"3 TFT LCD panel
       - qiaodian,qd43003c0-40
+        # Rocktech Displays Ltd. RK101II01D-CT 10.1" TFT 1280x800
+      - rocktech,rk101ii01d-ct
         # Rocktech Display Ltd. RK070ER9427 800(RGB)x480 TFT LCD panel
       - rocktech,rk070er9427
         # Samsung 12.2" (2560x1600 pixels) TFT LCD panel

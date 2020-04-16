@@ -18,7 +18,7 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/mount.h>
-#include <linux/parser.h>
+#include <linux/fs_parser.h>
 #include <linux/radix-tree.h>
 #include <linux/sched.h>
 #include <linux/seq_file.h>
@@ -48,26 +48,30 @@ static dev_t binderfs_dev;
 static DEFINE_MUTEX(binderfs_minors_mutex);
 static DEFINE_IDA(binderfs_minors);
 
-enum {
+enum binderfs_param {
 	Opt_max,
 	Opt_stats_mode,
-	Opt_err
 };
 
 enum binderfs_stats_mode {
-	STATS_NONE,
-	STATS_GLOBAL,
+	binderfs_stats_mode_unset,
+	binderfs_stats_mode_global,
 };
 
-static const match_table_t tokens = {
-	{ Opt_max, "max=%d" },
-	{ Opt_stats_mode, "stats=%s" },
-	{ Opt_err, NULL     }
+static const struct constant_table binderfs_param_stats[] = {
+	{ "global", binderfs_stats_mode_global },
+	{}
 };
 
-static inline struct binderfs_info *BINDERFS_I(const struct inode *inode)
+const struct fs_parameter_spec binderfs_fs_parameters[] = {
+	fsparam_u32("max",	Opt_max),
+	fsparam_enum("stats",	Opt_stats_mode, binderfs_param_stats),
+	{}
+};
+
+static inline struct binderfs_info *BINDERFS_SB(const struct super_block *sb)
 {
-	return inode->i_sb->s_fs_info;
+	return sb->s_fs_info;
 }
 
 bool is_binderfs_device(const struct inode *inode)
@@ -154,6 +158,7 @@ static int binderfs_binder_device_create(struct inode *ref_inode,
 	if (!name)
 		goto err;
 
+	refcount_set(&device->ref, 1);
 	device->binderfs_inode = inode;
 	device->context.binder_context_mgr_uid = INVALID_UID;
 	device->context.name = name;
@@ -245,7 +250,7 @@ static long binder_ctl_ioctl(struct file *file, unsigned int cmd,
 static void binderfs_evict_inode(struct inode *inode)
 {
 	struct binder_device *device = inode->i_private;
-	struct binderfs_info *info = BINDERFS_I(inode);
+	struct binderfs_info *info = BINDERFS_SB(inode->i_sb);
 
 	clear_inode(inode);
 
@@ -257,101 +262,90 @@ static void binderfs_evict_inode(struct inode *inode)
 	ida_free(&binderfs_minors, device->miscdev.minor);
 	mutex_unlock(&binderfs_minors_mutex);
 
-	kfree(device->context.name);
-	kfree(device);
+	if (refcount_dec_and_test(&device->ref)) {
+		kfree(device->context.name);
+		kfree(device);
+	}
 }
 
-/**
- * binderfs_parse_mount_opts - parse binderfs mount options
- * @data: options to set (can be NULL in which case defaults are used)
- */
-static int binderfs_parse_mount_opts(char *data,
-				     struct binderfs_mount_opts *opts)
+static int binderfs_fs_context_parse_param(struct fs_context *fc,
+					   struct fs_parameter *param)
 {
-	char *p, *stats;
-	opts->max = BINDERFS_MAX_MINOR;
-	opts->stats_mode = STATS_NONE;
+	int opt;
+	struct binderfs_mount_opts *ctx = fc->fs_private;
+	struct fs_parse_result result;
 
-	while ((p = strsep(&data, ",")) != NULL) {
-		substring_t args[MAX_OPT_ARGS];
-		int token;
-		int max_devices;
+	opt = fs_parse(fc, binderfs_fs_parameters, param, &result);
+	if (opt < 0)
+		return opt;
 
-		if (!*p)
-			continue;
+	switch (opt) {
+	case Opt_max:
+		if (result.uint_32 > BINDERFS_MAX_MINOR)
+			return invalfc(fc, "Bad value for '%s'", param->key);
 
-		token = match_token(p, tokens, args);
-		switch (token) {
-		case Opt_max:
-			if (match_int(&args[0], &max_devices) ||
-			    (max_devices < 0 ||
-			     (max_devices > BINDERFS_MAX_MINOR)))
-				return -EINVAL;
+		ctx->max = result.uint_32;
+		break;
+	case Opt_stats_mode:
+		if (!capable(CAP_SYS_ADMIN))
+			return -EPERM;
 
-			opts->max = max_devices;
-			break;
-		case Opt_stats_mode:
-			if (!capable(CAP_SYS_ADMIN))
-				return -EINVAL;
-
-			stats = match_strdup(&args[0]);
-			if (!stats)
-				return -ENOMEM;
-
-			if (strcmp(stats, "global") != 0) {
-				kfree(stats);
-				return -EINVAL;
-			}
-
-			opts->stats_mode = STATS_GLOBAL;
-			kfree(stats);
-			break;
-		default:
-			pr_err("Invalid mount options\n");
-			return -EINVAL;
-		}
+		ctx->stats_mode = result.uint_32;
+		break;
+	default:
+		return invalfc(fc, "Unsupported parameter '%s'", param->key);
 	}
 
 	return 0;
 }
 
-static int binderfs_remount(struct super_block *sb, int *flags, char *data)
+static int binderfs_fs_context_reconfigure(struct fs_context *fc)
 {
-	int prev_stats_mode, ret;
-	struct binderfs_info *info = sb->s_fs_info;
+	struct binderfs_mount_opts *ctx = fc->fs_private;
+	struct binderfs_info *info = BINDERFS_SB(fc->root->d_sb);
 
-	prev_stats_mode = info->mount_opts.stats_mode;
-	ret = binderfs_parse_mount_opts(data, &info->mount_opts);
-	if (ret)
-		return ret;
+	if (info->mount_opts.stats_mode != ctx->stats_mode)
+		return invalfc(fc, "Binderfs stats mode cannot be changed during a remount");
 
-	if (prev_stats_mode != info->mount_opts.stats_mode) {
-		pr_err("Binderfs stats mode cannot be changed during a remount\n");
-		info->mount_opts.stats_mode = prev_stats_mode;
-		return -EINVAL;
-	}
-
+	info->mount_opts.stats_mode = ctx->stats_mode;
+	info->mount_opts.max = ctx->max;
 	return 0;
 }
 
-static int binderfs_show_mount_opts(struct seq_file *seq, struct dentry *root)
+static int binderfs_show_options(struct seq_file *seq, struct dentry *root)
 {
-	struct binderfs_info *info;
+	struct binderfs_info *info = BINDERFS_SB(root->d_sb);
 
-	info = root->d_sb->s_fs_info;
 	if (info->mount_opts.max <= BINDERFS_MAX_MINOR)
 		seq_printf(seq, ",max=%d", info->mount_opts.max);
-	if (info->mount_opts.stats_mode == STATS_GLOBAL)
+
+	switch (info->mount_opts.stats_mode) {
+	case binderfs_stats_mode_unset:
+		break;
+	case binderfs_stats_mode_global:
 		seq_printf(seq, ",stats=global");
+		break;
+	}
 
 	return 0;
+}
+
+static void binderfs_put_super(struct super_block *sb)
+{
+	struct binderfs_info *info = sb->s_fs_info;
+
+	if (info && info->ipc_ns)
+		put_ipc_ns(info->ipc_ns);
+
+	kfree(info);
+	sb->s_fs_info = NULL;
 }
 
 static const struct super_operations binderfs_super_ops = {
 	.evict_inode    = binderfs_evict_inode,
-	.remount_fs	= binderfs_remount,
-	.show_options	= binderfs_show_mount_opts,
+	.show_options	= binderfs_show_options,
 	.statfs         = simple_statfs,
+	.put_super	= binderfs_put_super,
 };
 
 static inline bool is_binderfs_control_device(const struct dentry *dentry)
@@ -445,6 +439,7 @@ static int binderfs_binder_ctl_create(struct super_block *sb)
 	inode->i_uid = info->root_uid;
 	inode->i_gid = info->root_gid;
 
+	refcount_set(&device->ref, 1);
 	device->binderfs_inode = inode;
 	device->miscdev.minor = minor;
 
@@ -649,10 +644,11 @@ out:
 	return ret;
 }
 
-static int binderfs_fill_super(struct super_block *sb, void *data, int silent)
+static int binderfs_fill_super(struct super_block *sb, struct fs_context *fc)
 {
 	int ret;
 	struct binderfs_info *info;
+	struct binderfs_mount_opts *ctx = fc->fs_private;
 	struct inode *inode = NULL;
 	struct binderfs_device device_info = { 0 };
 	const char *name;
@@ -685,16 +681,14 @@ static int binderfs_fill_super(struct super_block *sb, void *data, int silent)
 
 	info->ipc_ns = get_ipc_ns(current->nsproxy->ipc_ns);
 
-	ret = binderfs_parse_mount_opts(data, &info->mount_opts);
-	if (ret)
-		return ret;
-
 	info->root_gid = make_kgid(sb->s_user_ns, 0);
 	if (!gid_valid(info->root_gid))
 		info->root_gid = GLOBAL_ROOT_GID;
 	info->root_uid = make_kuid(sb->s_user_ns, 0);
 	if (!uid_valid(info->root_uid))
 		info->root_uid = GLOBAL_ROOT_UID;
+	info->mount_opts.max = ctx->max;
+	info->mount_opts.stats_mode = ctx->stats_mode;
 
 	inode = new_inode(sb);
 	if (!inode)
@@ -726,36 +720,54 @@ static int binderfs_fill_super(struct super_block *sb, void *data, int silent)
 			name++;
 	}
 
-	if (info->mount_opts.stats_mode == STATS_GLOBAL)
+	if (info->mount_opts.stats_mode == binderfs_stats_mode_global)
 		return init_binder_logs(sb);
 
 	return 0;
 }
 
-static struct dentry *binderfs_mount(struct file_system_type *fs_type,
-				     int flags, const char *dev_name,
-				     void *data)
+static int binderfs_fs_context_get_tree(struct fs_context *fc)
 {
-	return mount_nodev(fs_type, flags, data, binderfs_fill_super);
+	return get_tree_nodev(fc, binderfs_fill_super);
 }
 
-static void binderfs_kill_super(struct super_block *sb)
+static void binderfs_fs_context_free(struct fs_context *fc)
 {
-	struct binderfs_info *info = sb->s_fs_info;
+	struct binderfs_mount_opts *ctx = fc->fs_private;
 
-	kill_litter_super(sb);
+	kfree(ctx);
+}
 
-	if (info && info->ipc_ns)
-		put_ipc_ns(info->ipc_ns);
+static const struct fs_context_operations binderfs_fs_context_ops = {
+	.free		= binderfs_fs_context_free,
+	.get_tree	= binderfs_fs_context_get_tree,
+	.parse_param	= binderfs_fs_context_parse_param,
+	.reconfigure	= binderfs_fs_context_reconfigure,
+};
 
-	kfree(info);
+static int binderfs_init_fs_context(struct fs_context *fc)
+{
+	struct binderfs_mount_opts *ctx = fc->fs_private;
+
+	ctx = kzalloc(sizeof(struct binderfs_mount_opts), GFP_KERNEL);
+	if (!ctx)
+		return -ENOMEM;
+
+	ctx->max = BINDERFS_MAX_MINOR;
+	ctx->stats_mode = binderfs_stats_mode_unset;
+
+	fc->fs_private = ctx;
+	fc->ops = &binderfs_fs_context_ops;
+
+	return 0;
 }
 
 static struct file_system_type binder_fs_type = {
-	.name		= "binder",
-	.mount		= binderfs_mount,
-	.kill_sb	= binderfs_kill_super,
-	.fs_flags	= FS_USERNS_MOUNT,
+	.name			= "binder",
+	.init_fs_context	= binderfs_init_fs_context,
+	.parameters		= binderfs_fs_parameters,
+	.kill_sb		= kill_litter_super,
+	.fs_flags		= FS_USERNS_MOUNT,
 };
 
 int __init init_binderfs(void)
