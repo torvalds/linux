@@ -1330,6 +1330,7 @@ config INTEL_PMC_CORE
 config INTEL_PMC_IPC
 	tristate "Intel PMC IPC Driver"
 	depends on ACPI && PCI
+	select INTEL_SCU_IPC
 	---help---
 	This driver provides support for PMC control on some Intel platforms.
 	The PMC is an ARC processor which defines IPC commands for communication
