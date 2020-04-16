@@ -55,6 +55,21 @@ settings for an specific product type.
 	usbvision-cardlist
 	gspca-cardlist
 
+	dvb-usb-af9015-cardlist
+	dvb-usb-af9035-cardlist
+	dvb-usb-anysee-cardlist
+	dvb-usb-au6610-cardlist
+	dvb-usb-az6007-cardlist
+	dvb-usb-ce6230-cardlist
+	dvb-usb-dib0700-cardlist
+	dvb-usb-dvbsky-cardlist
+	dvb-usb-ec168-cardlist
+	dvb-usb-gl861-cardlist
+	dvb-usb-lmedm04-cardlist
+	dvb-usb-mxl111sf-cardlist
+	dvb-usb-rtl28xxu-cardlist
+	dvb-usb-zd1301-cardlist
+
 PCI drivers
 ===========
 
