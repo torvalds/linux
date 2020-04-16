@@ -71,11 +71,10 @@ properties:
     maxItems: 4
 
   clock-output-names:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/string-array
-      - maxItems: 1
     description:
       Name of the LCD pixel clock created.
+    $ref: /schemas/types.yaml#/definitions/string-array
+    maxItems: 1
 
   dmas:
     maxItems: 1

@@ -40,10 +40,9 @@ properties:
   ti,hwmods:
     description: TI hwmod name
     deprecated: true
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/string-array
-      - items:
-          const: davinci_mdio
+    $ref: /schemas/types.yaml#/definitions/string-array
+    items:
+      const: davinci_mdio
 
 if:
   properties:

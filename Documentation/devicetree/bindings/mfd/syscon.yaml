@@ -52,9 +52,8 @@ properties:
     description: |
       The size (in bytes) of the IO accesses that should be performed
       on the device.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - enum: [ 1, 2, 4, 8 ]
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [1, 2, 4, 8]
 
   hwlocks:
     maxItems: 1

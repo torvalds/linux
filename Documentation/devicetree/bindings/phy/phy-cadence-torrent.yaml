@@ -77,24 +77,21 @@ patternProperties:
         description:
           Specifies the type of PHY for which the group of PHY lanes is used.
           Refer include/dt-bindings/phy/phy.h. Constants from the header should be used.
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32
-          - enum: [1, 2, 3, 4, 5, 6]
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [1, 2, 3, 4, 5, 6]
 
       cdns,num-lanes:
         description:
           Number of DisplayPort lanes.
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32
-          - enum: [1, 2, 4]
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [1, 2, 4]
         default: 4
 
       cdns,max-bit-rate:
         description:
           Maximum DisplayPort link bit rate to use, in Mbps
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32
-          - enum: [2160, 2430, 2700, 3240, 4320, 5400, 8100]
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [2160, 2430, 2700, 3240, 4320, 5400, 8100]
         default: 8100
 
     required:

@@ -204,14 +204,13 @@ properties:
 
   snps,reset-delays-us:
     deprecated: true
-    allOf:
-      - $ref: /schemas/types.yaml#definitions/uint32-array
-      - minItems: 3
-        maxItems: 3
     description:
       Triplet of delays. The 1st cell is reset pre-delay in micro
       seconds. The 2nd cell is reset pulse in micro seconds. The 3rd
       cell is reset post-delay in micro seconds.
+    $ref: /schemas/types.yaml#definitions/uint32-array
+    minItems: 3
+    maxItems: 3
 
   snps,aal:
     $ref: /schemas/types.yaml#definitions/flag
@@ -306,27 +305,24 @@ allOf:
     then:
       properties:
         snps,pbl:
-          allOf:
-            - $ref: /schemas/types.yaml#definitions/uint32
-            - enum: [2, 4, 8]
           description:
             Programmable Burst Length (tx and rx)
+          $ref: /schemas/types.yaml#definitions/uint32
+          enum: [2, 4, 8]
 
         snps,txpbl:
-          allOf:
-            - $ref: /schemas/types.yaml#definitions/uint32
-            - enum: [2, 4, 8]
           description:
             Tx Programmable Burst Length. If set, DMA tx will use this
             value rather than snps,pbl.
+          $ref: /schemas/types.yaml#definitions/uint32
+          enum: [2, 4, 8]
 
         snps,rxpbl:
-          allOf:
-            - $ref: /schemas/types.yaml#definitions/uint32
-            - enum: [2, 4, 8]
           description:
             Rx Programmable Burst Length. If set, DMA rx will use this
             value rather than snps,pbl.
+          $ref: /schemas/types.yaml#definitions/uint32
+          enum: [2, 4, 8]
 
         snps,no-pbl-x8:
           $ref: /schemas/types.yaml#definitions/flag

@@ -66,8 +66,7 @@ properties:
         - eth-ck
 
   st,syscon:
-    allOf:
-      - $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    $ref: "/schemas/types.yaml#/definitions/phandle-array"
     description:
       Should be phandle/offset pair. The phandle to the syscon node which
       encompases the glue register, and the offset of the control register

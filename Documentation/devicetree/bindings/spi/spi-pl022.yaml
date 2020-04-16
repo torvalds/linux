@@ -80,55 +80,48 @@ patternProperties:
     properties:
       pl022,interface:
         description: SPI interface type
-        allOf:
-          - $ref: "/schemas/types.yaml#/definitions/uint32"
-          - enum:
-              - 0  # SPI
-              - 1  # Texas Instruments Synchronous Serial Frame Format
-              - 2  # Microwire (Half Duplex)
+        $ref: "/schemas/types.yaml#/definitions/uint32"
+        enum:
+          - 0      # SPI
+          - 1      # Texas Instruments Synchronous Serial Frame Format
+          - 2      # Microwire (Half Duplex)
 
       pl022,com-mode:
         description: Specifies the transfer mode
-        allOf:
-          - $ref: "/schemas/types.yaml#/definitions/uint32"
-          - enum:
-              - 0  # interrupt mode
-              - 1  # polling mode
-              - 2  # DMA mode
-            default: 1
+        $ref: "/schemas/types.yaml#/definitions/uint32"
+        enum:
+          - 0      # interrupt mode
+          - 1      # polling mode
+          - 2      # DMA mode
+        default: 1
 
       pl022,rx-level-trig:
         description: Rx FIFO watermark level
-        allOf:
-          - $ref: "/schemas/types.yaml#/definitions/uint32"
-          - minimum: 0
-            maximum: 4
+        $ref: "/schemas/types.yaml#/definitions/uint32"
+        minimum: 0
+        maximum: 4
 
       pl022,tx-level-trig:
         description: Tx FIFO watermark level
-        allOf:
-          - $ref: "/schemas/types.yaml#/definitions/uint32"
-          - minimum: 0
-            maximum: 4
+        $ref: "/schemas/types.yaml#/definitions/uint32"
+        minimum: 0
+        maximum: 4
 
       pl022,ctrl-len:
         description: Microwire interface - Control length
-        allOf:
-          - $ref: "/schemas/types.yaml#/definitions/uint32"
-          - minimum: 0x03
-            maximum: 0x1f
+        $ref: "/schemas/types.yaml#/definitions/uint32"
+        minimum: 0x03
+        maximum: 0x1f
 
       pl022,wait-state:
         description: Microwire interface - Wait state
-        allOf:
-          - $ref: "/schemas/types.yaml#/definitions/uint32"
-          - enum: [ 0, 1 ]
+        $ref: "/schemas/types.yaml#/definitions/uint32"
+        enum: [0, 1]
 
       pl022,duplex:
         description: Microwire interface - Full/Half duplex
-        allOf:
-          - $ref: "/schemas/types.yaml#/definitions/uint32"
-          - enum: [ 0, 1 ]
+        $ref: "/schemas/types.yaml#/definitions/uint32"
+        enum: [0, 1]
 
 required:
   - compatible

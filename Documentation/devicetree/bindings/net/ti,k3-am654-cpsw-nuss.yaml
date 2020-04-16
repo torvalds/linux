@@ -103,8 +103,7 @@ properties:
        type: object
        description: CPSW2G NUSS external ports
 
-       allOf:
-         - $ref: ethernet-controller.yaml#
+       $ref: ethernet-controller.yaml#
 
        properties:
          reg:
@@ -139,8 +138,8 @@ properties:
 patternProperties:
   "^mdio@[0-9a-f]+$":
     type: object
-    allOf:
-      - $ref: "ti,davinci-mdio.yaml#"
+    $ref: "ti,davinci-mdio.yaml#"
+
     description:
       CPSW MDIO bus.
 

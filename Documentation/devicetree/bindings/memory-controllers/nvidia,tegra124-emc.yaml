@@ -73,10 +73,9 @@ patternProperties:
               timings
 
           nvidia,emc-auto-cal-interval:
-            allOf:
-              - $ref: /schemas/types.yaml#/definitions/uint32
             description:
               pad calibration interval in microseconds
+            $ref: /schemas/types.yaml#/definitions/uint32
             minimum: 0
             maximum: 2097151
 
@@ -136,11 +135,10 @@ patternProperties:
               value of the EMC_XM2DQSPADCTRL2 register for this set of timings
 
           nvidia,emc-zcal-cnt-long:
-            allOf:
-              - $ref: /schemas/types.yaml#/definitions/uint32
             description:
               number of EMC clocks to wait before issuing any commands after
               clock change
+            $ref: /schemas/types.yaml#/definitions/uint32
             minimum: 0
             maximum: 1023
 
@@ -150,12 +148,11 @@ patternProperties:
               value of the EMC_ZCAL_INTERVAL register for this set of timings
 
           nvidia,emc-configuration:
-            allOf:
-              - $ref: /schemas/types.yaml#/definitions/uint32-array
             description:
               EMC timing characterization data. These are the registers (see
               section "15.6.2 EMC Registers" in the TRM) whose values need to
               be specified, according to the board documentation.
+            $ref: /schemas/types.yaml#/definitions/uint32-array
             items:
               - description: EMC_RC
               - description: EMC_RFC

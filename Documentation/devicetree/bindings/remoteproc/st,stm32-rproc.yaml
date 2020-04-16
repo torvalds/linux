@@ -28,22 +28,20 @@ properties:
     maxItems: 1
 
   st,syscfg-holdboot:
-    allOf:
-      - $ref: "/schemas/types.yaml#/definitions/phandle-array"
     description: remote processor reset hold boot
       - Phandle of syscon block.
       - The offset of the hold boot setting register.
       - The field mask of the hold boot.
+    $ref: "/schemas/types.yaml#/definitions/phandle-array"
     maxItems: 1
 
   st,syscfg-tz:
-    allOf:
-      - $ref: "/schemas/types.yaml#/definitions/phandle-array"
     description:
       Reference to the system configuration which holds the RCC trust zone mode
       - Phandle of syscon block.
       - The offset of the RCC trust zone mode register.
       - The field mask of the RCC trust zone mode.
+    $ref: "/schemas/types.yaml#/definitions/phandle-array"
     maxItems: 1
 
   interrupts:
@@ -90,8 +88,7 @@ properties:
       (see ../reserved-memory/reserved-memory.txt)
 
   st,syscfg-pdds:
-    allOf:
-      - $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    $ref: "/schemas/types.yaml#/definitions/phandle-array"
     description: |
       Reference to the system configuration which holds the remote
         1st cell: phandle to syscon block

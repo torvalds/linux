@@ -77,13 +77,11 @@ properties:
 
   amlogic,ao-sysctrl:
     description: should point to the AOBUS sysctrl node
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/phandle
+    $ref: /schemas/types.yaml#/definitions/phandle
 
   amlogic,canvas:
     description: should point to a canvas provider node
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/phandle
+    $ref: /schemas/types.yaml#/definitions/phandle
 
 allOf:
   - if:

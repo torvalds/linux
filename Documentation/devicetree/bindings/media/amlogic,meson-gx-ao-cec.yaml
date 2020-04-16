@@ -35,8 +35,7 @@ properties:
 
   hdmi-phandle:
     description: phandle to the HDMI controller
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/phandle
+    $ref: /schemas/types.yaml#/definitions/phandle
 
 allOf:
   - if:

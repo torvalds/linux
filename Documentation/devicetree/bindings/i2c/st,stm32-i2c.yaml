@@ -31,11 +31,10 @@ allOf:
                        Fast Mode Plus speed is selected by slave.
                        Format is phandle to syscfg / register offset within
                        syscfg / register bitmask for FMP bit.
-          allOf:
-            - $ref: "/schemas/types.yaml#/definitions/phandle-array"
-            - items:
-                minItems: 3
-                maxItems: 3
+          $ref: "/schemas/types.yaml#/definitions/phandle-array"
+          items:
+            minItems: 3
+            maxItems: 3
 
   - if:
       properties:

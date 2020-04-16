@@ -18,8 +18,7 @@ properties:
 
   vref-supply:
     description: phandle to an external regulator providing the reference voltage
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/phandle
+    $ref: /schemas/types.yaml#/definitions/phandle
 
   reg:
     description: spi chipselect number according to the usual spi bindings

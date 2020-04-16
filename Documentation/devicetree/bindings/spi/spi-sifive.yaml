@@ -50,18 +50,16 @@ properties:
   sifive,fifo-depth:
     description:
       Depth of hardware queues; defaults to 8
-    allOf:
-      - $ref: "/schemas/types.yaml#/definitions/uint32"
-      - enum: [ 8 ]
-      - default: 8
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    enum: [8]
+    default: 8
 
   sifive,max-bits-per-word:
     description:
       Maximum bits per word; defaults to 8
-    allOf:
-      - $ref: "/schemas/types.yaml#/definitions/uint32"
-      - enum: [ 0, 1, 2, 3, 4, 5, 6, 7, 8 ]
-      - default: 8
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    enum: [0, 1, 2, 3, 4, 5, 6, 7, 8]
+    default: 8
 
 required:
   - compatible

@@ -57,15 +57,13 @@ properties:
       - const: rx
 
   rockchip,capture-channels:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     default: 2
     description:
       Max capture channels, if not set, 2 channels default.
 
   rockchip,playback-channels:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     default: 8
     description:
       Max playback channels, if not set, 8 channels default.

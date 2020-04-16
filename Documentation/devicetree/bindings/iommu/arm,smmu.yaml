@@ -56,8 +56,7 @@ properties:
 
   '#global-interrupts':
     description: The number of global interrupts exposed by the device.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 260   # 2 secure, 2 non-secure, and up to 256 perf counters
 

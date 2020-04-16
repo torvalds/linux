@@ -48,9 +48,8 @@ properties:
   rotation:
     description:
       Display rotation in degrees counter clockwise (0,90,180,270)
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - enum: [ 0, 90, 180, 270 ]
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 90, 180, 270]
 
   # Display Timings
   panel-timing:
@@ -58,16 +57,14 @@ properties:
       Most display panels are restricted to a single resolution and
       require specific display timings. The panel-timing subnode expresses those
       timings.
-    allOf:
-      - $ref: panel-timing.yaml#
+    $ref: panel-timing.yaml#
 
   display-timings:
     description:
       Some display panels supports several resolutions with different timing.
       The display-timings bindings supports specifying several timings and
       optional specify which is the native mode.
-    allOf:
-      - $ref: display-timings.yaml#
+    $ref: display-timings.yaml#
 
   # Connectivity
   port:

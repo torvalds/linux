@@ -27,8 +27,8 @@ properties:
     description: Size of the connector, should be specified in case of
       non-fullsize 'usb-a-connector' or 'usb-b-connector' compatible
       connectors.
-    allOf:
-      - $ref: /schemas/types.yaml#definitions/string
+    $ref: /schemas/types.yaml#definitions/string
+
     enum:
       - mini
       - micro
@@ -57,8 +57,8 @@ properties:
   power-role:
     description: Determines the power role that the Type C connector will
       support. "dual" refers to Dual Role Port (DRP).
-    allOf:
-      - $ref: /schemas/types.yaml#definitions/string
+    $ref: /schemas/types.yaml#definitions/string
+
     enum:
       - source
       - sink
@@ -66,18 +66,18 @@ properties:
 
   try-power-role:
     description: Preferred power role.
-    allOf:
-      - $ref: /schemas/types.yaml#definitions/string
+    $ref: /schemas/types.yaml#definitions/string
+
     enum:
-     - source
-     - sink
-     - dual
+      - source
+      - sink
+      - dual
 
   data-role:
     description: Data role if Type C connector supports USB data. "dual" refers
       Dual Role Device (DRD).
-    allOf:
-      - $ref: /schemas/types.yaml#definitions/string
+    $ref: /schemas/types.yaml#definitions/string
+
     enum:
       - host
       - device
@@ -95,8 +95,7 @@ properties:
       defined in dt-bindings/usb/pd.h.
     minItems: 1
     maxItems: 7
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32-array
+    $ref: /schemas/types.yaml#/definitions/uint32-array
 
   sink-pdos:
     description: An array of u32 with each entry providing supported power sink
@@ -108,8 +107,7 @@ properties:
       in dt-bindings/usb/pd.h.
     minItems: 1
     maxItems: 7
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32-array
+    $ref: /schemas/types.yaml#/definitions/uint32-array
 
   op-sink-microwatt:
     description: Sink required operating power in microwatt, if source can't

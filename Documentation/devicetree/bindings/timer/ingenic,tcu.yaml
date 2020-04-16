@@ -100,16 +100,15 @@ properties:
 
   ingenic,pwm-channels-mask:
     description: Bitmask of TCU channels reserved for PWM use.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - minimum: 0x00
-      - maximum: 0xff
-      - default: 0xfc
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0x00
+    maximum: 0xff
+    default: 0xfc
 
 patternProperties:
   "^watchdog@[a-f0-9]+$":
     type: object
-    allOf: [ $ref: ../watchdog/watchdog.yaml# ]
+    $ref: ../watchdog/watchdog.yaml#
     properties:
       compatible:
         oneOf:
@@ -137,7 +136,7 @@ patternProperties:
 
   "^pwm@[a-f0-9]+$":
     type: object
-    allOf: [ $ref: ../pwm/pwm.yaml# ]
+    $ref: ../pwm/pwm.yaml#
     properties:
       compatible:
         oneOf:

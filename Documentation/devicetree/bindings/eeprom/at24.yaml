@@ -118,14 +118,13 @@ properties:
     maxItems: 1
 
   pagesize:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
     description:
       The length of the pagesize for writing. Please consult the
       manual of your device, that value varies a lot. A wrong value
       may result in data loss! If not specified, a safety value of
       '1' is used which will be very slow.
-    enum: [ 1, 8, 16, 32, 64, 128, 258 ]
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [1, 8, 16, 32, 64, 128, 258]
     default: 1
 
   read-only:
@@ -148,18 +147,16 @@ properties:
   wp-gpios: true
 
   address-width:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
     description:
       Number of address bits.
+    $ref: /schemas/types.yaml#/definitions/uint32
     default: 8
     enum: [ 8, 16 ]
 
   num-addresses:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
     description:
       Total number of i2c slave addresses this device takes.
+    $ref: /schemas/types.yaml#/definitions/uint32
     default: 1
     minimum: 1
     maximum: 8

@@ -76,8 +76,7 @@ properties:
       high speed modes.
 
   rockchip,default-sample-phase:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 360
     default: 0
@@ -87,8 +86,7 @@ properties:
       If not specified 0 deg will be used.
 
   rockchip,desired-num-phases:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 360
     default: 360

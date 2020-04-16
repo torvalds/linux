@@ -32,11 +32,10 @@ properties:
     maxItems: 1
 
   st,syscfg:
-    allOf:
-      - $ref: "/schemas/types.yaml#/definitions/phandle-array"
-      - items:
-          minItems: 3
-          maxItems: 3
+    $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    items:
+      minItems: 3
+      maxItems: 3
     description: |
       Phandle/offset/mask triplet. The phandle to pwrcfg used to
       access control register at offset, and change the dbp (Disable Backup

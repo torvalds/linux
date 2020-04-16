@@ -49,9 +49,8 @@ properties:
        0 - Mic bias is set to VREF
        1 - Mic bias is set to VREF × 1.096
        6 - Mic bias is set to AVDD
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - enum: [0, 1, 6]
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 6]
 
   ti,vref-source:
     description: |
@@ -59,9 +58,8 @@ properties:
        0 - Set VREF to 2.75V
        1 - Set VREF to 2.5V
        2 - Set VREF to 1.375V
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - enum: [0, 1, 2]
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 2]
 
 required:
   - compatible

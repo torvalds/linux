@@ -42,9 +42,8 @@ patternProperties:
         description: Keycode to emit
 
       channel:
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32
-          - enum: [0, 1]
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [0, 1]
         description: ADC Channel this key is attached to
 
       voltage:

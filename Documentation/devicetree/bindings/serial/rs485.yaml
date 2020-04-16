@@ -16,20 +16,18 @@ maintainers:
 properties:
   rs485-rts-delay:
     description: prop-encoded-array <a b>
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32-array
-      - items:
-          items:
-            - description:
-                Delay between rts signal and beginning of data sent in milliseconds.
-                It corresponds to the delay before sending data.
-              default: 0
-              maximum: 1000
-            - description:
-                Delay between end of data sent and rts signal in milliseconds.
-                It corresponds to the delay after sending data and actual release of the line.
-              default: 0
-              maximum: 1000
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    items:
+      items:
+        - description: Delay between rts signal and beginning of data sent in
+            milliseconds. It corresponds to the delay before sending data.
+          default: 0
+          maximum: 1000
+        - description: Delay between end of data sent and rts signal in milliseconds.
+            It corresponds to the delay after sending data and actual release
+            of the line.
+          default: 0
+          maximum: 1000
 
   rs485-rts-active-low:
     description: drive RTS low when sending (default is high).

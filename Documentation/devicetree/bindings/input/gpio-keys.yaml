@@ -20,8 +20,7 @@ patternProperties:
     if:
       type: object
     then:
-      allOf:
-        - $ref: input.yaml#
+      $ref: input.yaml#
 
       properties:
         gpios:
@@ -41,8 +40,8 @@ patternProperties:
           description:
             Specify event type this button/key generates. If not specified defaults to
             <1> == EV_KEY.
-          allOf:
-            - $ref: /schemas/types.yaml#definitions/uint32
+          $ref: /schemas/types.yaml#definitions/uint32
+
           default: 1
 
         linux,input-value:
@@ -57,14 +56,13 @@ patternProperties:
 
             linux,input-value = <0xffffffff>; /* -1 */
 
-          allOf:
-            - $ref: /schemas/types.yaml#definitions/uint32
+          $ref: /schemas/types.yaml#definitions/uint32
 
         debounce-interval:
           description:
             Debouncing interval time in milliseconds. If not specified defaults to 5.
-          allOf:
-            - $ref: /schemas/types.yaml#definitions/uint32
+          $ref: /schemas/types.yaml#definitions/uint32
+
           default: 5
 
         wakeup-source:
@@ -81,9 +79,8 @@ patternProperties:
               EV_ACT_ANY        - both asserted and deasserted
               EV_ACT_ASSERTED   - asserted
               EV_ACT_DEASSERTED - deasserted
-          allOf:
-            - $ref: /schemas/types.yaml#definitions/uint32
-          enum: [ 0, 1, 2 ]
+          $ref: /schemas/types.yaml#definitions/uint32
+          enum: [0, 1, 2]
 
         linux,can-disable:
           description:
