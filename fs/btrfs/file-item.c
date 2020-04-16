@@ -242,11 +242,13 @@ int btrfs_lookup_file_extent(struct btrfs_trans_handle *trans,
 /**
  * btrfs_lookup_bio_sums - Look up checksums for a bio.
  * @inode: inode that the bio is for.
- * @bio: bio embedded in btrfs_io_bio.
+ * @bio: bio to look up.
  * @offset: Unless (u64)-1, look up checksums for this offset in the file.
  *          If (u64)-1, use the page offsets from the bio instead.
- * @dst: Buffer of size btrfs_super_csum_size() used to return checksum. If
- *       NULL, the checksum is returned in btrfs_io_bio(bio)->csum instead.
+ * @dst: Buffer of size nblocks * btrfs_super_csum_size() used to return
+ *       checksum (nblocks = bio->bi_iter.bi_size / fs_info->sectorsize). If
+ *       NULL, the checksum buffer is allocated and returned in
+ *       btrfs_io_bio(bio)->csum instead.
  *
  * Return: BLK_STS_RESOURCE if allocating memory fails, BLK_STS_OK otherwise.
  */
@@ -256,7 +258,6 @@ blk_status_t btrfs_lookup_bio_sums(struct inode *inode, struct bio *bio,
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct bio_vec bvec;
 	struct bvec_iter iter;
-	struct btrfs_io_bio *btrfs_bio = btrfs_io_bio(bio);
 	struct btrfs_csum_item *item = NULL;
 	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
 	struct btrfs_path *path;
@@ -277,6 +278,8 @@ blk_status_t btrfs_lookup_bio_sums(struct inode *inode, struct bio *bio,
 
 	nblocks = bio->bi_iter.bi_size >> inode->i_sb->s_blocksize_bits;
 	if (!dst) {
+		struct btrfs_io_bio *btrfs_bio = btrfs_io_bio(bio);
+
 		if (nblocks * csum_size > BTRFS_BIO_INLINE_CSUM_SIZE) {
 			btrfs_bio->csum = kmalloc_array(nblocks, csum_size,
 							GFP_NOFS);
