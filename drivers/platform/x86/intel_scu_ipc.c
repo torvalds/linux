@@ -18,11 +18,10 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
-#include <linux/pci.h>
-#include <linux/pm.h>
-#include <linux/sfi.h>
+#include <linux/io.h>
+#include <linux/module.h>
+#include <linux/slab.h>
 
-#include <asm/intel-mid.h>
 #include <asm/intel_scu_ipc.h>
 
 /* IPC defines the following message types */
@@ -55,13 +54,12 @@
 #define IPC_IOC	          0x100		/* IPC command register IOC bit */
 
 struct intel_scu_ipc_dev {
-	struct device *dev;
+	struct device dev;
+	struct resource mem;
+	int irq;
 	void __iomem *ipc_base;
 	struct completion cmd_complete;
-	u8 irq_mode;
 };
-
-static struct intel_scu_ipc_dev  ipcdev; /* Only one for now */
 
 #define IPC_STATUS		0x04
 #define IPC_STATUS_IRQ		BIT(2)
@@ -78,7 +76,13 @@ static struct intel_scu_ipc_dev  ipcdev; /* Only one for now */
 /* Timeout in jiffies */
 #define IPC_TIMEOUT		(3 * HZ)
 
+static struct intel_scu_ipc_dev *ipcdev; /* Only one for now */
 static DEFINE_MUTEX(ipclock); /* lock used to prevent multiple call to SCU */
+
+static struct class intel_scu_ipc_class = {
+	.name = "intel_scu_ipc",
+	.owner = THIS_MODULE,
+};
 
 /*
  * Send ipc command
@@ -143,7 +147,7 @@ static inline int busy_loop(struct intel_scu_ipc_dev *scu)
 		usleep_range(50, 100);
 	} while (time_before(jiffies, end));
 
-	dev_err(scu->dev, "IPC timed out");
+	dev_err(&scu->dev, "IPC timed out");
 	return -ETIMEDOUT;
 }
 
@@ -153,7 +157,7 @@ static inline int ipc_wait_for_interrupt(struct intel_scu_ipc_dev *scu)
 	int status;
 
 	if (!wait_for_completion_timeout(&scu->cmd_complete, IPC_TIMEOUT)) {
-		dev_err(scu->dev, "IPC timed out\n");
+		dev_err(&scu->dev, "IPC timed out\n");
 		return -ETIMEDOUT;
 	}
 
@@ -166,13 +170,13 @@ static inline int ipc_wait_for_interrupt(struct intel_scu_ipc_dev *scu)
 
 static int intel_scu_ipc_check_status(struct intel_scu_ipc_dev *scu)
 {
-	return scu->irq_mode ? ipc_wait_for_interrupt(scu) : busy_loop(scu);
+	return scu->irq > 0 ? ipc_wait_for_interrupt(scu) : busy_loop(scu);
 }
 
 /* Read/Write power control(PMIC in Langwell, MSIC in PenWell) registers */
 static int pwr_reg_rdwr(u16 *addr, u8 *data, u32 count, u32 op, u32 id)
 {
-	struct intel_scu_ipc_dev *scu = &ipcdev;
+	struct intel_scu_ipc_dev *scu;
 	int nc;
 	u32 offset = 0;
 	int err;
@@ -182,11 +186,11 @@ static int pwr_reg_rdwr(u16 *addr, u8 *data, u32 count, u32 op, u32 id)
 	memset(cbuf, 0, sizeof(cbuf));
 
 	mutex_lock(&ipclock);
-
-	if (scu->dev == NULL) {
+	if (!ipcdev) {
 		mutex_unlock(&ipclock);
 		return -ENODEV;
 	}
+	scu = ipcdev;
 
 	for (nc = 0; nc < count; nc++, offset += 2) {
 		cbuf[offset] = addr[nc];
@@ -326,14 +330,15 @@ EXPORT_SYMBOL(intel_scu_ipc_update_register);
  */
 int intel_scu_ipc_simple_command(int cmd, int sub)
 {
-	struct intel_scu_ipc_dev *scu = &ipcdev;
+	struct intel_scu_ipc_dev *scu;
 	int err;
 
 	mutex_lock(&ipclock);
-	if (scu->dev == NULL) {
+	if (!ipcdev) {
 		mutex_unlock(&ipclock);
 		return -ENODEV;
 	}
+	scu = ipcdev;
 	ipc_command(scu, sub << 12 | cmd);
 	err = intel_scu_ipc_check_status(scu);
 	mutex_unlock(&ipclock);
@@ -356,14 +361,15 @@ EXPORT_SYMBOL(intel_scu_ipc_simple_command);
 int intel_scu_ipc_command(int cmd, int sub, u32 *in, int inlen,
 			  u32 *out, int outlen)
 {
-	struct intel_scu_ipc_dev *scu = &ipcdev;
+	struct intel_scu_ipc_dev *scu;
 	int i, err;
 
 	mutex_lock(&ipclock);
-	if (scu->dev == NULL) {
+	if (!ipcdev) {
 		mutex_unlock(&ipclock);
 		return -ENODEV;
 	}
+	scu = ipcdev;
 
 	for (i = 0; i < inlen; i++)
 		ipc_data_writel(scu, *in++, 4 * i);
@@ -399,61 +405,113 @@ static irqreturn_t ioc(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-/**
- *	ipc_probe	-	probe an Intel SCU IPC
- *	@pdev: the PCI device matching
- *	@id: entry in the match table
- *
- *	Enable and install an intel SCU IPC. This appears in the PCI space
- *	but uses some hard coded addresses as well.
- */
-static int ipc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+static void intel_scu_ipc_release(struct device *dev)
 {
-	int err;
-	struct intel_scu_ipc_dev *scu = &ipcdev;
+	struct intel_scu_ipc_dev *scu;
 
-	if (scu->dev)		/* We support only one SCU */
-		return -EBUSY;
-
-	err = pcim_enable_device(pdev);
-	if (err)
-		return err;
-
-	err = pcim_iomap_regions(pdev, 1 << 0, pci_name(pdev));
-	if (err)
-		return err;
-
-	init_completion(&scu->cmd_complete);
-
-	scu->ipc_base = pcim_iomap_table(pdev)[0];
-
-	err = devm_request_irq(&pdev->dev, pdev->irq, ioc, 0, "intel_scu_ipc",
-			       scu);
-	if (err)
-		return err;
-
-	/* Assign device at last */
-	scu->dev = &pdev->dev;
-
-	intel_scu_devices_create();
-
-	pci_set_drvdata(pdev, scu);
-	return 0;
+	scu = container_of(dev, struct intel_scu_ipc_dev, dev);
+	if (scu->irq > 0)
+		free_irq(scu->irq, scu);
+	iounmap(scu->ipc_base);
+	release_mem_region(scu->mem.start, resource_size(&scu->mem));
+	kfree(scu);
 }
 
-static const struct pci_device_id pci_ids[] = {
-	{ PCI_VDEVICE(INTEL, 0x080e) },
-	{ PCI_VDEVICE(INTEL, 0x08ea) },
-	{ PCI_VDEVICE(INTEL, 0x11a0) },
-	{}
-};
+/**
+ * intel_scu_ipc_register() - Register SCU IPC device
+ * @parent: Parent device
+ * @scu_data: Data used to configure SCU IPC
+ *
+ * Call this function to register SCU IPC mechanism under @parent.
+ * Returns pointer to the new SCU IPC device or ERR_PTR() in case of
+ * failure.
+ */
+struct intel_scu_ipc_dev *
+intel_scu_ipc_register(struct device *parent,
+		       const struct intel_scu_ipc_data *scu_data)
+{
+	int err;
+	struct intel_scu_ipc_dev *scu;
+	void __iomem *ipc_base;
 
-static struct pci_driver ipc_driver = {
-	.driver = {
-		.suppress_bind_attrs = true,
-	},
-	.name = "intel_scu_ipc",
-	.id_table = pci_ids,
-	.probe = ipc_probe,
-};
-builtin_pci_driver(ipc_driver);
+	mutex_lock(&ipclock);
+	/* We support only one IPC */
+	if (ipcdev) {
+		err = -EBUSY;
+		goto err_unlock;
+	}
+
+	scu = kzalloc(sizeof(*scu), GFP_KERNEL);
+	if (!scu) {
+		err = -ENOMEM;
+		goto err_unlock;
+	}
+
+	scu->dev.parent = parent;
+	scu->dev.class = &intel_scu_ipc_class;
+	scu->dev.release = intel_scu_ipc_release;
+	dev_set_name(&scu->dev, "intel_scu_ipc");
+
+	if (!request_mem_region(scu_data->mem.start, resource_size(&scu_data->mem),
+				"intel_scu_ipc")) {
+		err = -EBUSY;
+		goto err_free;
+	}
+
+	ipc_base = ioremap(scu_data->mem.start, resource_size(&scu_data->mem));
+	if (!ipc_base) {
+		err = -ENOMEM;
+		goto err_release;
+	}
+
+	scu->ipc_base = ipc_base;
+	scu->mem = scu_data->mem;
+	scu->irq = scu_data->irq;
+	init_completion(&scu->cmd_complete);
+
+	if (scu->irq > 0) {
+		err = request_irq(scu->irq, ioc, 0, "intel_scu_ipc", scu);
+		if (err)
+			goto err_unmap;
+	}
+
+	/*
+	 * After this point intel_scu_ipc_release() takes care of
+	 * releasing the SCU IPC resources once refcount drops to zero.
+	 */
+	err = device_register(&scu->dev);
+	if (err) {
+		put_device(&scu->dev);
+		goto err_unlock;
+	}
+
+	/* Assign device at last */
+	ipcdev = scu;
+	mutex_unlock(&ipclock);
+
+	return scu;
+
+err_unmap:
+	iounmap(ipc_base);
+err_release:
+	release_mem_region(scu_data->mem.start, resource_size(&scu_data->mem));
+err_free:
+	kfree(scu);
+err_unlock:
+	mutex_unlock(&ipclock);
+
+	return ERR_PTR(err);
+}
+EXPORT_SYMBOL_GPL(intel_scu_ipc_register);
+
+static int __init intel_scu_ipc_init(void)
+{
+	return class_register(&intel_scu_ipc_class);
+}
+subsys_initcall(intel_scu_ipc_init);
+
+static void __exit intel_scu_ipc_exit(void)
+{
+	class_unregister(&intel_scu_ipc_class);
+}
+module_exit(intel_scu_ipc_exit);
