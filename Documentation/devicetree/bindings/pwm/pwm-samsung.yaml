@@ -49,17 +49,17 @@ properties:
       are available.
     oneOf:
       - items:
-        - const: timers
+          - const: timers
       - items:
-        - const: timers
-        - const: pwm-tclk0
+          - const: timers
+          - const: pwm-tclk0
       - items:
-        - const: timers
-        - const: pwm-tclk1
+          - const: timers
+          - const: pwm-tclk1
       - items:
-        - const: timers
-        - const: pwm-tclk0
-        - const: pwm-tclk1
+          - const: timers
+          - const: pwm-tclk0
+          - const: pwm-tclk1
 
   interrupts:
     description:

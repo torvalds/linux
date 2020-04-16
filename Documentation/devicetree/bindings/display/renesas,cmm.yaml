@@ -21,15 +21,15 @@ properties:
   compatible:
     oneOf:
       - items:
-        - enum:
-          - renesas,r8a7795-cmm
-          - renesas,r8a7796-cmm
-          - renesas,r8a77965-cmm
-          - renesas,r8a77990-cmm
-          - renesas,r8a77995-cmm
-        - const: renesas,rcar-gen3-cmm
+          - enum:
+              - renesas,r8a7795-cmm
+              - renesas,r8a7796-cmm
+              - renesas,r8a77965-cmm
+              - renesas,r8a77990-cmm
+              - renesas,r8a77995-cmm
+          - const: renesas,rcar-gen3-cmm
       - items:
-        - const: renesas,rcar-gen2-cmm
+          - const: renesas,rcar-gen2-cmm
 
   reg:
     maxItems: 1

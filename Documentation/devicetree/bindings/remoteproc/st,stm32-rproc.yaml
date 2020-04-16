@@ -25,7 +25,7 @@ properties:
     maxItems: 3
 
   resets:
-     maxItems: 1
+    maxItems: 1
 
   st,syscfg-holdboot:
     allOf:

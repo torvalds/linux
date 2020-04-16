@@ -261,13 +261,13 @@ properties:
 
         anyOf:
           - required:
-            - endpoint@0
+              - endpoint@0
           - required:
-            - endpoint@1
+              - endpoint@1
           - required:
-            - endpoint@2
+              - endpoint@2
           - required:
-            - endpoint@3
+              - endpoint@3
 
         additionalProperties: false
 

@@ -17,16 +17,16 @@ properties:
     oneOf:
       # for FSI2 SoC
       - items:
-        - enum:
-          - renesas,fsi2-sh73a0
-          - renesas,fsi2-r8a7740
-        - enum:
-          - renesas,sh_fsi2
+          - enum:
+              - renesas,fsi2-sh73a0
+              - renesas,fsi2-r8a7740
+          - enum:
+              - renesas,sh_fsi2
       # for Generic
       - items:
-        - enum:
-          - renesas,sh_fsi
-          - renesas,sh_fsi2
+          - enum:
+              - renesas,sh_fsi
+              - renesas,sh_fsi2
 
   reg:
     maxItems: 1

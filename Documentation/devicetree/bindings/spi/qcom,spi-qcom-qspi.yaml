@@ -8,12 +8,12 @@ $schema: "http://devicetree.org/meta-schemas/core.yaml#"
 title: Qualcomm Quad Serial Peripheral Interface (QSPI)
 
 maintainers:
- - Mukesh Savaliya <msavaliy@codeaurora.org>
- - Akash Asthana <akashast@codeaurora.org>
+  - Mukesh Savaliya <msavaliy@codeaurora.org>
+  - Akash Asthana <akashast@codeaurora.org>
 
-description:
- The QSPI controller allows SPI protocol communication in single, dual, or quad
- wire transmission modes for read/write access to slaves such as NOR flash.
+description: The QSPI controller allows SPI protocol communication in single,
+  dual, or quad wire transmission modes for read/write access to slaves such
+  as NOR flash.
 
 allOf:
   - $ref: /spi/spi-controller.yaml#

@@ -17,7 +17,7 @@ properties:
   compatible:
     items:
       - enum:
-         - socionext,uniphier-sd4hc
+          - socionext,uniphier-sd4hc
       - const: cdns,sd4hc
 
   reg:

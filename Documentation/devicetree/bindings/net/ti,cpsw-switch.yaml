@@ -23,14 +23,14 @@ properties:
     oneOf:
       - const: ti,cpsw-switch
       - items:
-         - const: ti,am335x-cpsw-switch
-         - const: ti,cpsw-switch
+          - const: ti,am335x-cpsw-switch
+          - const: ti,cpsw-switch
       - items:
-        - const: ti,am4372-cpsw-switch
-        - const: ti,cpsw-switch
+          - const: ti,am4372-cpsw-switch
+          - const: ti,cpsw-switch
       - items:
-        - const: ti,dra7-cpsw-switch
-        - const: ti,cpsw-switch
+          - const: ti,dra7-cpsw-switch
+          - const: ti,cpsw-switch
 
   reg:
     maxItems: 1

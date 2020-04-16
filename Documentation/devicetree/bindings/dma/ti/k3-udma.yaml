@@ -69,10 +69,10 @@ properties:
     maxItems: 3
 
   reg-names:
-   items:
-     - const: gcfg
-     - const: rchanrt
-     - const: tchanrt
+    items:
+      - const: gcfg
+      - const: rchanrt
+      - const: tchanrt
 
   msi-parent: true
 

@@ -62,14 +62,14 @@ properties:
 
   resets:
     items:
-     - description: common reset
-     - description: ecc reset
+      - description: common reset
+      - description: ecc reset
     minItems: 1
 
   reset-names:
     items:
-     - const: dwc2
-     - const: dwc2-ecc
+      - const: dwc2
+      - const: dwc2-ecc
     minItems: 1
 
   phys:

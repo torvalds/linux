@@ -28,10 +28,10 @@ properties:
               - arm,armv7-timer
       - items:
           - enum:
-            - arm,armv7-timer
+              - arm,armv7-timer
       - items:
           - enum:
-            - arm,armv8-timer
+              - arm,armv8-timer
 
   interrupts:
     items:

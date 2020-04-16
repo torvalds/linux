@@ -12,7 +12,7 @@ maintainers:
 properties:
   compatible:
     items:
-    - const: amlogic,gxl-crypto
+      - const: amlogic,gxl-crypto
 
   reg:
     maxItems: 1

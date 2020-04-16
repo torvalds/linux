@@ -72,8 +72,8 @@ patternProperties:
           The channel number. It can have up to 8 channels on ad7124-4
           and 16 channels on ad7124-8, numbered from 0 to 15.
         items:
-         minimum: 0
-         maximum: 15
+          minimum: 0
+          maximum: 15
 
       adi,reference-select:
         description: |

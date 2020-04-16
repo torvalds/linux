@@ -144,7 +144,7 @@ required:
 
 examples:
   # Micro-USB connector with HS lines routed via controller (MUIC).
-  - |+
+  - |
     muic-max77843 {
       usb_con1: connector {
         compatible = "usb-b-connector";
@@ -156,7 +156,7 @@ examples:
   # USB-C connector attached to CC controller (s2mm005), HS lines routed
   # to companion PMIC (max77865), SS lines to USB3 PHY and SBU to DisplayPort.
   # DisplayPort video lines are routed to the connector via SS mux in USB3 PHY.
-  - |+
+  - |
     ccic: s2mm005 {
       usb_con2: connector {
         compatible = "usb-c-connector";
@@ -190,7 +190,7 @@ examples:
 
   # USB-C connector attached to a typec port controller(ptn5110), which has
   # power delivery support and enables drp.
-  - |+
+  - |
     #include <dt-bindings/usb/pd.h>
     typec: ptn5110 {
       usb_con3: connector {

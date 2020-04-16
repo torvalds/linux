@@ -102,8 +102,8 @@ patternProperties:
       reg:
         description: Identify trigger hardware block.
         items:
-         minimum: 0
-         maximum: 16
+          minimum: 0
+          maximum: 16
 
     required:
       - compatible

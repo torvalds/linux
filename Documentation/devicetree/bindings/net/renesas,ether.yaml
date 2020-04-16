@@ -40,8 +40,8 @@ properties:
 
   reg:
     items:
-       - description: E-DMAC/feLic registers
-       - description: TSU registers
+      - description: E-DMAC/feLic registers
+      - description: TSU registers
     minItems: 1
 
   interrupts:

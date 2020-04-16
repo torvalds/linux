@@ -51,7 +51,7 @@ properties:
 
   pl022,rt:
     description: indicates the controller should run the message pump with realtime
-               priority to minimise the transfer latency on the bus (boolean)
+      priority to minimise the transfer latency on the bus (boolean)
     type: boolean
 
   dmas:

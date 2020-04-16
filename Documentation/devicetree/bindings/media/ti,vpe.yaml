@@ -17,7 +17,7 @@ description: |-
 
 properties:
   compatible:
-      const: ti,dra7-vpe
+    const: ti,dra7-vpe
 
   reg:
     items:

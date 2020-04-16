@@ -24,7 +24,7 @@ properties:
     maxItems: 1
 
   clocks:
-     maxItems: 1
+    maxItems: 1
 
   interrupts:
     items:
