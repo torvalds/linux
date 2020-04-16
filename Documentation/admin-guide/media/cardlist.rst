@@ -55,6 +55,8 @@ settings for an specific product type.
 	usbvision-cardlist
 	gspca-cardlist
 
+	dvb-usb-dib0700-cardlist
+
 	dvb-usb-af9015-cardlist
 	dvb-usb-af9035-cardlist
 	dvb-usb-anysee-cardlist
