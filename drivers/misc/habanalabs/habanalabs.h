@@ -1676,6 +1676,10 @@ void hl_set_pwm_info(struct hl_device *hdev, int sensor_index, u32 attr,
 			long value);
 u64 hl_get_max_power(struct hl_device *hdev);
 void hl_set_max_power(struct hl_device *hdev, u64 value);
+int hl_set_voltage(struct hl_device *hdev,
+			int sensor_index, u32 attr, long value);
+int hl_set_current(struct hl_device *hdev,
+			int sensor_index, u32 attr, long value);
 
 #ifdef CONFIG_DEBUG_FS
 

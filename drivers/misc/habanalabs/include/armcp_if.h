@@ -193,6 +193,16 @@ enum pq_init_status {
  *       Set the value of the offset property of a specified thermal sensor.
  *       The packet's arguments specify the desired sensor and the field to
  *       set.
+ *
+ * ARMCP_PACKET_VOLTAGE_SET -
+ *       Trigger the reset_history property of a specified voltage sensor.
+ *       The packet's arguments specify the desired sensor and the field to
+ *       set.
+ *
+ * ARMCP_PACKET_CURRENT_SET -
+ *       Trigger the reset_history property of a specified current sensor.
+ *       The packet's arguments specify the desired sensor and the field to
+ *       set.
  */
 
 enum armcp_packet_id {
@@ -220,6 +230,8 @@ enum armcp_packet_id {
 	ARMCP_PACKET_EEPROM_DATA_GET,		/* sysfs */
 	ARMCP_RESERVED,
 	ARMCP_PACKET_TEMPERATURE_SET,		/* sysfs */
+	ARMCP_PACKET_VOLTAGE_SET,		/* sysfs */
+	ARMCP_PACKET_CURRENT_SET,		/* sysfs */
 };
 
 #define ARMCP_PACKET_FENCE_VAL	0xFE8CE7A5
@@ -288,21 +300,24 @@ enum armcp_temp_type {
 	armcp_temp_crit,
 	armcp_temp_crit_hyst,
 	armcp_temp_offset = 19,
-	armcp_temp_highest = 22
+	armcp_temp_highest = 22,
+	armcp_temp_reset_history = 23
 };
 
 enum armcp_in_attributes {
 	armcp_in_input,
 	armcp_in_min,
 	armcp_in_max,
-	armcp_in_highest = 7
+	armcp_in_highest = 7,
+	armcp_in_reset_history
 };
 
 enum armcp_curr_attributes {
 	armcp_curr_input,
 	armcp_curr_min,
 	armcp_curr_max,
-	armcp_curr_highest = 7
+	armcp_curr_highest = 7,
+	armcp_curr_reset_history
 };
 
 enum armcp_fan_attributes {
