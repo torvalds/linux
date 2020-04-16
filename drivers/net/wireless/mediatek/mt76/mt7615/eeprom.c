@@ -297,3 +297,4 @@ int mt7615_eeprom_init(struct mt7615_dev *dev, u32 addr)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mt7615_eeprom_init);

@@ -342,6 +342,7 @@ mt7615_ext_phy(struct mt7615_dev *dev)
 	return phy->priv;
 }
 
+extern struct ieee80211_rate mt7615_rates[12];
 extern const struct ieee80211_ops mt7615_ops;
 extern const u32 mt7615e_reg_map[__MT_BASE_MAX];
 extern const u32 mt7663e_reg_map[__MT_BASE_MAX];
@@ -419,6 +420,12 @@ static inline bool mt7615_firmware_offload(struct mt7615_dev *dev)
 }
 
 void mt7615_scan_work(struct work_struct *work);
+void mt7615_init_txpower(struct mt7615_dev *dev,
+			 struct ieee80211_supported_band *sband);
+void mt7615_phy_init(struct mt7615_dev *dev);
+void mt7615_mac_init(struct mt7615_dev *dev);
+
+int mt7615_mcu_restart(struct mt76_dev *dev);
 void mt7615_update_channel(struct mt76_dev *mdev);
 bool mt7615_mac_wtbl_update(struct mt7615_dev *dev, int idx, u32 mask);
 void mt7615_mac_reset_counters(struct mt7615_dev *dev);
@@ -431,9 +438,6 @@ int mt7615_mac_write_txwi(struct mt7615_dev *dev, __le32 *txwi,
 			  struct ieee80211_sta *sta, int pid,
 			  struct ieee80211_key_conf *key, bool beacon);
 void mt7615_mac_set_timing(struct mt7615_phy *phy);
-int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb);
-void mt7615_mac_add_txs(struct mt7615_dev *dev, void *data);
-void mt7615_mac_tx_free(struct mt7615_dev *dev, struct sk_buff *skb);
 int mt7615_mac_wtbl_set_key(struct mt7615_dev *dev, struct mt76_wcid *wcid,
 			    struct ieee80211_key_conf *key,
 			    enum set_key_cmd cmd);
@@ -453,6 +457,8 @@ int mt7615_mac_wtbl_update_key(struct mt7615_dev *dev,
 void mt7615_mac_reset_work(struct work_struct *work);
 
 int mt7615_mcu_wait_response(struct mt7615_dev *dev, int cmd, int seq);
+int mt7615_mcu_msg_send(struct mt76_dev *mdev, int cmd, const void *data,
+			int len, bool wait_resp);
 int mt7615_mcu_set_dbdc(struct mt7615_dev *dev);
 int mt7615_mcu_set_eeprom(struct mt7615_dev *dev);
 int mt7615_mcu_set_mac_enable(struct mt7615_dev *dev, int band, bool enable);

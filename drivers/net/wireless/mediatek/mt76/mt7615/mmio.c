@@ -1,5 +1,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/platform_device.h>
+#include <linux/pci.h>
 
 #include "mt7615.h"
 #include "regs.h"
@@ -191,3 +193,31 @@ error:
 	ieee80211_free_hw(mt76_hw(dev));
 	return ret;
 }
+
+static int __init mt7615_init(void)
+{
+	int ret;
+
+	ret = pci_register_driver(&mt7615_pci_driver);
+	if (ret)
+		return ret;
+
+	if (IS_ENABLED(CONFIG_MT7622_WMAC)) {
+		ret = platform_driver_register(&mt7622_wmac_driver);
+		if (ret)
+			pci_unregister_driver(&mt7615_pci_driver);
+	}
+
+	return ret;
+}
+
+static void __exit mt7615_exit(void)
+{
+	if (IS_ENABLED(CONFIG_MT7622_WMAC))
+		platform_driver_unregister(&mt7622_wmac_driver);
+	pci_unregister_driver(&mt7615_pci_driver);
+}
+
+module_init(mt7615_init);
+module_exit(mt7615_exit);
+MODULE_LICENSE("Dual BSD/GPL");

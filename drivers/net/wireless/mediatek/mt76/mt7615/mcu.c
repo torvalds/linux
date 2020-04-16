@@ -152,6 +152,7 @@ void mt7615_mcu_fill_msg(struct mt7615_dev *dev, struct sk_buff *skb,
 		break;
 	}
 }
+EXPORT_SYMBOL_GPL(mt7615_mcu_fill_msg);
 
 static int __mt7615_mcu_msg_send(struct mt7615_dev *dev, struct sk_buff *skb,
 				 int cmd, int *wait_seq)
@@ -215,6 +216,7 @@ int mt7615_mcu_wait_response(struct mt7615_dev *dev, int cmd, int seq)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(mt7615_mcu_wait_response);
 
 static int
 mt7615_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
@@ -238,9 +240,8 @@ out:
 	return ret;
 }
 
-static int
-mt7615_mcu_msg_send(struct mt76_dev *mdev, int cmd, const void *data,
-		    int len, bool wait_resp)
+int mt7615_mcu_msg_send(struct mt76_dev *mdev, int cmd, const void *data,
+			int len, bool wait_resp)
 {
 	struct sk_buff *skb;
 
@@ -250,6 +251,7 @@ mt7615_mcu_msg_send(struct mt76_dev *mdev, int cmd, const void *data,
 
 	return __mt76_mcu_skb_send_msg(mdev, skb, cmd, wait_resp);
 }
+EXPORT_SYMBOL_GPL(mt7615_mcu_msg_send);
 
 static void
 mt7615_mcu_csa_finish(void *priv, u8 *mac, struct ieee80211_vif *vif)
@@ -1629,11 +1631,12 @@ static int mt7615_mcu_start_firmware(struct mt7615_dev *dev, u32 addr,
 				   &req, sizeof(req), true);
 }
 
-static int mt7615_mcu_restart(struct mt76_dev *dev)
+int mt7615_mcu_restart(struct mt76_dev *dev)
 {
 	return __mt76_mcu_send_msg(dev, MCU_CMD_RESTART_DL_REQ, NULL,
 				   0, true);
 }
+EXPORT_SYMBOL_GPL(mt7615_mcu_restart);
 
 static int mt7615_mcu_patch_sem_ctrl(struct mt7615_dev *dev, bool get)
 {
@@ -2165,6 +2168,7 @@ int mt7615_mcu_init(struct mt7615_dev *dev)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mt7615_mcu_init);
 
 void mt7615_mcu_exit(struct mt7615_dev *dev)
 {
@@ -2172,6 +2176,7 @@ void mt7615_mcu_exit(struct mt7615_dev *dev)
 	mt7615_firmware_own(dev);
 	skb_queue_purge(&dev->mt76.mcu.res_q);
 }
+EXPORT_SYMBOL_GPL(mt7615_mcu_exit);
 
 int mt7615_mcu_set_eeprom(struct mt7615_dev *dev)
 {
@@ -2214,6 +2219,7 @@ int mt7615_mcu_set_eeprom(struct mt7615_dev *dev)
 	return __mt76_mcu_skb_send_msg(&dev->mt76, skb,
 				       MCU_EXT_CMD_EFUSE_BUFFER_MODE, true);
 }
+EXPORT_SYMBOL_GPL(mt7615_mcu_set_eeprom);
 
 int mt7615_mcu_set_mac_enable(struct mt7615_dev *dev, int band, bool enable)
 {
@@ -2355,6 +2361,7 @@ int mt7615_mcu_del_wtbl_all(struct mt7615_dev *dev)
 	return __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_WTBL_UPDATE,
 				   &req, sizeof(req), true);
 }
+EXPORT_SYMBOL_GPL(mt7615_mcu_del_wtbl_all);
 
 int mt7615_mcu_rdd_cmd(struct mt7615_dev *dev,
 		       enum mt7615_rdd_cmd cmd, u8 index,
