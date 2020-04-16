@@ -174,6 +174,7 @@ int amdgpu_driver_load_kms(struct drm_device *dev, unsigned long flags)
 		 (adev->asic_type >= CHIP_TOPAZ) &&
 		 (adev->asic_type != CHIP_VEGA10) &&
 		 (adev->asic_type != CHIP_VEGA20) &&
+		 (adev->asic_type != CHIP_SIENNA_CICHLID) &&
 		 (adev->asic_type != CHIP_ARCTURUS)) /* enable runpm on VI+ */
 		adev->runpm = true;
 	else if (amdgpu_device_supports_baco(dev) &&
