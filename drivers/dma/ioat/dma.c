@@ -332,8 +332,8 @@ ioat_alloc_ring_ent(struct dma_chan *chan, int idx, gfp_t flags)
 	u8 *pos;
 	off_t offs;
 
-	chunk = idx / IOAT_DESCS_PER_2M;
-	idx &= (IOAT_DESCS_PER_2M - 1);
+	chunk = idx / IOAT_DESCS_PER_CHUNK;
+	idx &= (IOAT_DESCS_PER_CHUNK - 1);
 	offs = idx * IOAT_DESC_SZ;
 	pos = (u8 *)ioat_chan->descs[chunk].virt + offs;
 	phys = ioat_chan->descs[chunk].hw + offs;
@@ -370,7 +370,8 @@ ioat_alloc_ring(struct dma_chan *c, int order, gfp_t flags)
 	if (!ring)
 		return NULL;
 
-	ioat_chan->desc_chunks = chunks = (total_descs * IOAT_DESC_SZ) / SZ_2M;
+	chunks = (total_descs * IOAT_DESC_SZ) / IOAT_CHUNK_SIZE;
+	ioat_chan->desc_chunks = chunks;
 
 	for (i = 0; i < chunks; i++) {
 		struct ioat_descs *descs = &ioat_chan->descs[i];
@@ -382,8 +383,9 @@ ioat_alloc_ring(struct dma_chan *c, int order, gfp_t flags)
 
 			for (idx = 0; idx < i; idx++) {
 				descs = &ioat_chan->descs[idx];
-				dma_free_coherent(to_dev(ioat_chan), SZ_2M,
-						  descs->virt, descs->hw);
+				dma_free_coherent(to_dev(ioat_chan),
+						IOAT_CHUNK_SIZE,
+						descs->virt, descs->hw);
 				descs->virt = NULL;
 				descs->hw = 0;
 			}
@@ -404,7 +406,7 @@ ioat_alloc_ring(struct dma_chan *c, int order, gfp_t flags)
 
 			for (idx = 0; idx < ioat_chan->desc_chunks; idx++) {
 				dma_free_coherent(to_dev(ioat_chan),
-						  SZ_2M,
+						  IOAT_CHUNK_SIZE,
 						  ioat_chan->descs[idx].virt,
 						  ioat_chan->descs[idx].hw);
 				ioat_chan->descs[idx].virt = NULL;
