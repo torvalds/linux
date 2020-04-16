@@ -553,6 +553,9 @@ config ARM64_ERRATUM_1530923
 
 	  If unsure, say Y.
 
+config ARM64_WORKAROUND_REPEAT_TLBI
+	bool
+
 config ARM64_ERRATUM_1286807
 	bool "Cortex-A76: Modification of the translation table for a virtual address might lead to read-after-read ordering violation"
 	default y
@@ -694,6 +697,35 @@ config CAVIUM_TX2_ERRATUM_219
 
 	  If unsure, say Y.
 
+config FUJITSU_ERRATUM_010001
+	bool "Fujitsu-A64FX erratum E#010001: Undefined fault may occur wrongly"
+	default y
+	help
+	  This option adds a workaround for Fujitsu-A64FX erratum E#010001.
+	  On some variants of the Fujitsu-A64FX cores ver(1.0, 1.1), memory
+	  accesses may cause undefined fault (Data abort, DFSC=0b111111).
+	  This fault occurs under a specific hardware condition when a
+	  load/store instruction performs an address translation using:
+	  case-1  TTBR0_EL1 with TCR_EL1.NFD0 == 1.
+	  case-2  TTBR0_EL2 with TCR_EL2.NFD0 == 1.
+	  case-3  TTBR1_EL1 with TCR_EL1.NFD1 == 1.
+	  case-4  TTBR1_EL2 with TCR_EL2.NFD1 == 1.
+
+	  The workaround is to ensure these bits are clear in TCR_ELx.
+	  The workaround only affects the Fujitsu-A64FX.
+
+	  If unsure, say Y.
+
+config HISILICON_ERRATUM_161600802
+	bool "Hip07 161600802: Erroneous redistributor VLPI base"
+	default y
+	help
+	  The HiSilicon Hip07 SoC uses the wrong redistributor base
+	  when issued ITS commands such as VMOVP and VMAPP, and requires
+	  a 128kB offset to be applied to the target address in this commands.
+
+	  If unsure, say Y.
+
 config QCOM_FALKOR_ERRATUM_1003
 	bool "Falkor E1003: Incorrect translation due to ASID change"
 	default y
@@ -704,9 +736,6 @@ config QCOM_FALKOR_ERRATUM_1003
 	  then only for entries in the walk cache, since the leaf translation
 	  is unchanged. Work around the erratum by invalidating the walk cache
 	  entries for the trampoline before entering the kernel proper.
-
-config ARM64_WORKAROUND_REPEAT_TLBI
-	bool
 
 config QCOM_FALKOR_ERRATUM_1009
 	bool "Falkor E1009: Prematurely complete a DSB after a TLBI"
@@ -729,25 +758,6 @@ config QCOM_QDF2400_ERRATUM_0065
 
 	  If unsure, say Y.
 
-config SOCIONEXT_SYNQUACER_PREITS
-	bool "Socionext Synquacer: Workaround for GICv3 pre-ITS"
-	default y
-	help
-	  Socionext Synquacer SoCs implement a separate h/w block to generate
-	  MSI doorbell writes with non-zero values for the device ID.
-
-	  If unsure, say Y.
-
-config HISILICON_ERRATUM_161600802
-	bool "Hip07 161600802: Erroneous redistributor VLPI base"
-	default y
-	help
-	  The HiSilicon Hip07 SoC uses the wrong redistributor base
-	  when issued ITS commands such as VMOVP and VMAPP, and requires
-	  a 128kB offset to be applied to the target address in this commands.
-
-	  If unsure, say Y.
-
 config QCOM_FALKOR_ERRATUM_E1041
 	bool "Falkor E1041: Speculative instruction fetches might cause errant memory access"
 	default y
@@ -758,22 +768,12 @@ config QCOM_FALKOR_ERRATUM_E1041
 
 	  If unsure, say Y.
 
-config FUJITSU_ERRATUM_010001
-	bool "Fujitsu-A64FX erratum E#010001: Undefined fault may occur wrongly"
+config SOCIONEXT_SYNQUACER_PREITS
+	bool "Socionext Synquacer: Workaround for GICv3 pre-ITS"
 	default y
 	help
-	  This option adds a workaround for Fujitsu-A64FX erratum E#010001.
-	  On some variants of the Fujitsu-A64FX cores ver(1.0, 1.1), memory
-	  accesses may cause undefined fault (Data abort, DFSC=0b111111).
-	  This fault occurs under a specific hardware condition when a
-	  load/store instruction performs an address translation using:
-	  case-1  TTBR0_EL1 with TCR_EL1.NFD0 == 1.
-	  case-2  TTBR0_EL2 with TCR_EL2.NFD0 == 1.
-	  case-3  TTBR1_EL1 with TCR_EL1.NFD1 == 1.
-	  case-4  TTBR1_EL2 with TCR_EL2.NFD1 == 1.
-
-	  The workaround is to ensure these bits are clear in TCR_ELx.
-	  The workaround only affects the Fujitsu-A64FX.
+	  Socionext Synquacer SoCs implement a separate h/w block to generate
+	  MSI doorbell writes with non-zero values for the device ID.
 
 	  If unsure, say Y.
 
