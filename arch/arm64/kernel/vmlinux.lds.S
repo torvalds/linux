@@ -17,10 +17,6 @@
 
 #include "image.h"
 
-/* .exit.text needed in case of alternative patching */
-#define ARM_EXIT_KEEP(x)	x
-#define ARM_EXIT_DISCARD(x)
-
 OUTPUT_ARCH(aarch64)
 ENTRY(_text)
 
@@ -95,8 +91,6 @@ SECTIONS
 	 * order of matching.
 	 */
 	/DISCARD/ : {
-		ARM_EXIT_DISCARD(EXIT_TEXT)
-		ARM_EXIT_DISCARD(EXIT_DATA)
 		EXIT_CALL
 		*(.discard)
 		*(.discard.*)
@@ -161,7 +155,7 @@ SECTIONS
 
 	__exittext_begin = .;
 	.exit.text : {
-		ARM_EXIT_KEEP(EXIT_TEXT)
+		EXIT_TEXT
 	}
 	__exittext_end = .;
 
@@ -188,7 +182,7 @@ SECTIONS
 		*(.init.rodata.* .init.bss)	/* from the EFI stub */
 	}
 	.exit.data : {
-		ARM_EXIT_KEEP(EXIT_DATA)
+		EXIT_DATA
 	}
 
 	PERCPU_SECTION(L1_CACHE_BYTES)
