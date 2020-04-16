@@ -12,7 +12,6 @@
 #include "protocol_yfs.h"
 
 static unsigned afs_server_gc_delay = 10;	/* Server record timeout in seconds */
-static unsigned afs_server_update_delay = 30;	/* Time till VLDB recheck in secs */
 static atomic_t afs_server_debug_id;
 
 static void afs_inc_servers_outstanding(struct afs_net *net)
@@ -218,7 +217,6 @@ static struct afs_server *afs_alloc_server(struct afs_net *net,
 	RCU_INIT_POINTER(server->addresses, alist);
 	server->addr_version = alist->version;
 	server->uuid = *uuid;
-	server->update_at = ktime_get_real_seconds() + afs_server_update_delay;
 	rwlock_init(&server->fs_lock);
 	INIT_HLIST_HEAD(&server->cb_volumes);
 	rwlock_init(&server->cb_break_lock);
@@ -264,7 +262,7 @@ static struct afs_addr_list *afs_vl_lookup_addrs(struct afs_cell *cell,
  * Get or create a fileserver record.
  */
 struct afs_server *afs_lookup_server(struct afs_cell *cell, struct key *key,
-				     const uuid_t *uuid)
+				     const uuid_t *uuid, u32 addr_version)
 {
 	struct afs_addr_list *alist;
 	struct afs_server *server, *candidate;
@@ -272,8 +270,11 @@ struct afs_server *afs_lookup_server(struct afs_cell *cell, struct key *key,
 	_enter("%p,%pU", cell->net, uuid);
 
 	server = afs_find_server_by_uuid(cell->net, uuid);
-	if (server)
+	if (server) {
+		if (server->addr_version != addr_version)
+			set_bit(AFS_SERVER_FL_NEEDS_UPDATE, &server->flags);
 		return server;
+	}
 
 	alist = afs_vl_lookup_addrs(cell, key, uuid);
 	if (IS_ERR(alist))
@@ -558,7 +559,6 @@ static noinline bool afs_update_server_record(struct afs_fs_cursor *fc, struct a
 		write_unlock(&server->fs_lock);
 	}
 
-	server->update_at = ktime_get_real_seconds() + afs_server_update_delay;
 	afs_put_addrlist(discard);
 	_leave(" = t");
 	return true;
@@ -569,8 +569,6 @@ static noinline bool afs_update_server_record(struct afs_fs_cursor *fc, struct a
  */
 bool afs_check_server_record(struct afs_fs_cursor *fc, struct afs_server *server)
 {
-	time64_t now = ktime_get_real_seconds();
-	long diff;
 	bool success;
 	int ret, retries = 0;
 
@@ -579,13 +577,16 @@ bool afs_check_server_record(struct afs_fs_cursor *fc, struct afs_server *server
 	ASSERT(server);
 
 retry:
-	diff = READ_ONCE(server->update_at) - now;
-	if (diff > 0) {
-		_leave(" = t [not now %ld]", diff);
-		return true;
-	}
+	if (test_bit(AFS_SERVER_FL_UPDATING, &server->flags))
+		goto wait;
+	if (test_bit(AFS_SERVER_FL_NEEDS_UPDATE, &server->flags))
+		goto update;
+	_leave(" = t [good]");
+	return true;
 
+update:
 	if (!test_and_set_bit_lock(AFS_SERVER_FL_UPDATING, &server->flags)) {
+		clear_bit(AFS_SERVER_FL_NEEDS_UPDATE, &server->flags);
 		success = afs_update_server_record(fc, server);
 		clear_bit_unlock(AFS_SERVER_FL_UPDATING, &server->flags);
 		wake_up_bit(&server->flags, AFS_SERVER_FL_UPDATING);
@@ -593,6 +594,7 @@ retry:
 		return success;
 	}
 
+wait:
 	ret = wait_on_bit(&server->flags, AFS_SERVER_FL_UPDATING,
 			  (fc->flags & AFS_FS_CURSOR_INTR) ?
 			  TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE);
