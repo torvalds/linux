@@ -2641,6 +2641,14 @@ static bool btrfs_io_needs_validation(struct inode *inode, struct bio *bio)
 	int i;
 
 	/*
+	 * If bi_status is BLK_STS_OK, then this was a checksum error, not an
+	 * I/O error. In this case, we already know exactly which sector was
+	 * bad, so we don't need to validate.
+	 */
+	if (bio->bi_status == BLK_STS_OK)
+		return false;
+
+	/*
 	 * We need to validate each sector individually if the failed I/O was
 	 * for multiple sectors.
 	 */
