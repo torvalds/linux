@@ -7712,7 +7712,6 @@ static void btrfs_endio_direct_read(struct bio *bio)
 
 	dio_bio->bi_status = err;
 	dio_end_io(dio_bio);
-	btrfs_io_bio_free_csum(io_bio);
 	bio_put(bio);
 }
 
@@ -7824,39 +7823,6 @@ out:
 	bio_put(bio);
 }
 
-static inline blk_status_t btrfs_lookup_and_bind_dio_csum(struct inode *inode,
-						 struct btrfs_dio_private *dip,
-						 struct bio *bio,
-						 u64 file_offset)
-{
-	struct btrfs_io_bio *io_bio = btrfs_io_bio(bio);
-	struct btrfs_io_bio *orig_io_bio = btrfs_io_bio(dip->orig_bio);
-	u16 csum_size;
-	blk_status_t ret;
-
-	/*
-	 * We load all the csum data we need when we submit
-	 * the first bio to reduce the csum tree search and
-	 * contention.
-	 */
-	if (dip->logical_offset == file_offset) {
-		ret = btrfs_lookup_bio_sums(inode, dip->orig_bio, file_offset,
-					    NULL);
-		if (ret)
-			return ret;
-	}
-
-	if (bio == dip->orig_bio)
-		return 0;
-
-	file_offset -= dip->logical_offset;
-	file_offset >>= inode->i_sb->s_blocksize_bits;
-	csum_size = btrfs_super_csum_size(btrfs_sb(inode->i_sb)->super_copy);
-	io_bio->csum = orig_io_bio->csum + csum_size * file_offset;
-
-	return 0;
-}
-
 static inline blk_status_t btrfs_submit_dio_bio(struct bio *bio,
 		struct inode *inode, u64 file_offset, int async_submit)
 {
@@ -7892,10 +7858,12 @@ static inline blk_status_t btrfs_submit_dio_bio(struct bio *bio,
 		if (ret)
 			goto err;
 	} else {
-		ret = btrfs_lookup_and_bind_dio_csum(inode, dip, bio,
-						     file_offset);
-		if (ret)
-			goto err;
+		u64 csum_offset;
+
+		csum_offset = file_offset - dip->logical_offset;
+		csum_offset >>= inode->i_sb->s_blocksize_bits;
+		csum_offset *= btrfs_super_csum_size(fs_info->super_copy);
+		btrfs_io_bio(bio)->csum = dip->csums + csum_offset;
 	}
 map:
 	ret = btrfs_map_bio(fs_info, bio, 0);
@@ -7912,10 +7880,22 @@ static struct btrfs_dio_private *btrfs_create_dio_private(struct bio *dio_bio,
 							  loff_t file_offset)
 {
 	const bool write = (bio_op(dio_bio) == REQ_OP_WRITE);
+	const bool csum = !(BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM);
+	size_t dip_size;
 	struct btrfs_dio_private *dip;
 	struct bio *bio;
 
-	dip = kzalloc(sizeof(*dip), GFP_NOFS);
+	dip_size = sizeof(*dip);
+	if (!write && csum) {
+		struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+		const u16 csum_size = btrfs_super_csum_size(fs_info->super_copy);
+		size_t nblocks;
+
+		nblocks = dio_bio->bi_iter.bi_size >> inode->i_sb->s_blocksize_bits;
+		dip_size += csum_size * nblocks;
+	}
+
+	dip = kzalloc(dip_size, GFP_NOFS);
 	if (!dip)
 		return NULL;
 
@@ -7955,6 +7935,7 @@ static void btrfs_submit_direct(struct bio *dio_bio, struct inode *inode,
 				loff_t file_offset)
 {
 	const bool write = (bio_op(dio_bio) == REQ_OP_WRITE);
+	const bool csum = !(BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM);
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct btrfs_dio_private *dip;
 	struct bio *bio;
@@ -7977,6 +7958,17 @@ static void btrfs_submit_direct(struct bio *dio_bio, struct inode *inode,
 		dio_bio->bi_status = BLK_STS_RESOURCE;
 		dio_end_io(dio_bio);
 		return;
+	}
+
+	if (!write && csum) {
+		/*
+		 * Load the csums up front to reduce csum tree searches and
+		 * contention when submitting bios.
+		 */
+		status = btrfs_lookup_bio_sums(inode, dio_bio, file_offset,
+					       dip->csums);
+		if (status != BLK_STS_OK)
+			goto out_err;
 	}
 
 	orig_bio = dip->orig_bio;

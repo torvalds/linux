@@ -324,6 +324,9 @@ struct btrfs_dio_private {
 	 */
 	blk_status_t (*subio_endio)(struct inode *, struct btrfs_io_bio *,
 			blk_status_t);
+
+	/* Array of checksums */
+	u8 csums[];
 };
 
 /*
