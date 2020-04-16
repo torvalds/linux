@@ -83,7 +83,7 @@ struct ioatdma_device {
 
 #define IOAT_MAX_ORDER 16
 #define IOAT_MAX_DESCS (1 << IOAT_MAX_ORDER)
-#define IOAT_CHUNK_SIZE (SZ_2M)
+#define IOAT_CHUNK_SIZE (SZ_512K)
 #define IOAT_DESCS_PER_CHUNK (IOAT_CHUNK_SIZE / IOAT_DESC_SZ)
 
 struct ioat_descs {
