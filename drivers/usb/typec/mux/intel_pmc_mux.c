@@ -15,7 +15,7 @@
 #include <linux/usb/typec_dp.h>
 #include <linux/usb/typec_tbt.h>
 
-#include <asm/intel_pmc_ipc.h>
+#include <asm/intel_scu_ipc.h>
 
 #define PMC_USBC_CMD		0xa7
 
@@ -96,6 +96,7 @@ struct pmc_usb_port {
 struct pmc_usb {
 	u8 num_ports;
 	struct device *dev;
+	struct intel_scu_ipc_dev *ipc;
 	struct pmc_usb_port *port;
 };
 
@@ -107,9 +108,8 @@ static int pmc_usb_command(struct pmc_usb_port *port, u8 *msg, u32 len)
 	 * Error bit will always be 0 with the USBC command.
 	 * Status can be checked from the response message.
 	 */
-	intel_pmc_ipc_command(PMC_USBC_CMD, 0, msg, len,
-			      (void *)response, 1);
-
+	intel_scu_ipc_dev_command(port->pmc->ipc, PMC_USBC_CMD, 0, msg, len,
+				  response, sizeof(response));
 	if (response[2]) {
 		if (response[2] & BIT(1))
 			return -EIO;
@@ -369,6 +369,10 @@ static int pmc_usb_probe(struct platform_device *pdev)
 				 sizeof(struct pmc_usb_port), GFP_KERNEL);
 	if (!pmc->port)
 		return -ENOMEM;
+
+	pmc->ipc = devm_intel_scu_ipc_dev_get(&pdev->dev);
+	if (!pmc->ipc)
+		return -ENODEV;
 
 	pmc->dev = &pdev->dev;
 
