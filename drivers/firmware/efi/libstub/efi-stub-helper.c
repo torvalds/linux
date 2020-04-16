@@ -287,8 +287,8 @@ fail:
 
 void *get_efi_config_table(efi_guid_t guid)
 {
-	unsigned long tables = efi_table_attr(efi_system_table(), tables);
-	int nr_tables = efi_table_attr(efi_system_table(), nr_tables);
+	unsigned long tables = efi_table_attr(efi_system_table, tables);
+	int nr_tables = efi_table_attr(efi_system_table, nr_tables);
 	int i;
 
 	for (i = 0; i < nr_tables; i++) {
@@ -305,7 +305,7 @@ void *get_efi_config_table(efi_guid_t guid)
 
 void efi_char16_printk(efi_char16_t *str)
 {
-	efi_call_proto(efi_table_attr(efi_system_table(), con_out),
+	efi_call_proto(efi_table_attr(efi_system_table, con_out),
 		       output_string, str);
 }
 

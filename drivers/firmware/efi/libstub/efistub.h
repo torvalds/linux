@@ -31,13 +31,13 @@ extern bool __pure noinitrd(void);
 extern bool __pure is_quiet(void);
 extern bool __pure novamap(void);
 
-extern __pure efi_system_table_t  *efi_system_table(void);
+extern const efi_system_table_t *efi_system_table;
 
 #ifndef efi_bs_call
-#define efi_bs_call(func, ...)	efi_system_table()->boottime->func(__VA_ARGS__)
+#define efi_bs_call(func, ...)	efi_system_table->boottime->func(__VA_ARGS__)
 #endif
 #ifndef efi_rt_call
-#define efi_rt_call(func, ...)	efi_system_table()->runtime->func(__VA_ARGS__)
+#define efi_rt_call(func, ...)	efi_system_table->runtime->func(__VA_ARGS__)
 #endif
 #ifndef efi_is_native
 #define efi_is_native()		(true)

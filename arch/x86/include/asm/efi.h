@@ -339,15 +339,17 @@ static inline u32 efi64_convert_status(efi_status_t status)
 
 #define efi_bs_call(func, ...)						\
 	(efi_is_native()						\
-		? efi_system_table()->boottime->func(__VA_ARGS__)	\
-		: __efi64_thunk_map(efi_table_attr(efi_system_table(),	\
-				boottime), func, __VA_ARGS__))
+		? efi_system_table->boottime->func(__VA_ARGS__)		\
+		: __efi64_thunk_map(efi_table_attr(efi_system_table,	\
+						   boottime),		\
+				    func, __VA_ARGS__))
 
 #define efi_rt_call(func, ...)						\
 	(efi_is_native()						\
-		? efi_system_table()->runtime->func(__VA_ARGS__)	\
-		: __efi64_thunk_map(efi_table_attr(efi_system_table(),	\
-				runtime), func, __VA_ARGS__))
+		? efi_system_table->runtime->func(__VA_ARGS__)		\
+		: __efi64_thunk_map(efi_table_attr(efi_system_table,	\
+						   runtime),		\
+				    func, __VA_ARGS__))
 
 extern bool efi_reboot_required(void);
 extern bool efi_is_table_address(unsigned long phys_addr);

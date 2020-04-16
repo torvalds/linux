@@ -38,12 +38,7 @@
 static u64 virtmap_base = EFI_RT_VIRTUAL_BASE;
 static bool flat_va_mapping;
 
-static efi_system_table_t *sys_table;
-
-__pure efi_system_table_t *efi_system_table(void)
-{
-	return sys_table;
-}
+const efi_system_table_t *efi_system_table;
 
 static struct screen_info *setup_graphics(void)
 {
@@ -167,10 +162,10 @@ efi_status_t efi_entry(efi_handle_t handle, efi_system_table_t *sys_table_arg)
 	efi_properties_table_t *prop_tbl;
 	unsigned long max_addr;
 
-	sys_table = sys_table_arg;
+	efi_system_table = sys_table_arg;
 
 	/* Check if we were booted by the EFI firmware */
-	if (sys_table->hdr.signature != EFI_SYSTEM_TABLE_SIGNATURE) {
+	if (efi_system_table->hdr.signature != EFI_SYSTEM_TABLE_SIGNATURE) {
 		status = EFI_INVALID_PARAMETER;
 		goto fail;
 	}
@@ -184,7 +179,7 @@ efi_status_t efi_entry(efi_handle_t handle, efi_system_table_t *sys_table_arg)
 	 * information about the running image, such as size and the command
 	 * line.
 	 */
-	status = sys_table->boottime->handle_protocol(handle,
+	status = efi_system_table->boottime->handle_protocol(handle,
 					&loaded_image_proto, (void *)&image);
 	if (status != EFI_SUCCESS) {
 		pr_efi_err("Failed to get loaded image protocol\n");
