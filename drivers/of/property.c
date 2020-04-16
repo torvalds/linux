@@ -1074,7 +1074,7 @@ static int of_link_to_phandle(struct device *dev, struct device_node *sup_np,
 		return -EAGAIN;
 	}
 	if (!device_link_add(dev, sup_dev, dl_flags))
-		ret = -EAGAIN;
+		ret = -EINVAL;
 	put_device(sup_dev);
 	return ret;
 }
