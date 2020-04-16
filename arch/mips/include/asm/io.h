@@ -153,6 +153,25 @@ static inline void *isa_bus_to_virt(unsigned long address)
  */
 #define page_to_phys(page)	((dma_addr_t)page_to_pfn(page) << PAGE_SHIFT)
 
+#ifdef CONFIG_64BIT
+static inline void __iomem *ioremap_prot(phys_addr_t offset,
+		unsigned long size, unsigned long prot_val)
+{
+	unsigned long flags = prot_val & _CACHE_MASK;
+	u64 base = (flags == _CACHE_UNCACHED ? IO_BASE : UNCAC_BASE);
+	void __iomem *addr;
+
+	addr = plat_ioremap(offset, size, flags);
+	if (!addr)
+		addr = (void __iomem *)(unsigned long)(base + offset);
+	return addr;
+}
+
+static inline void iounmap(const volatile void __iomem *addr)
+{
+	plat_iounmap(addr);
+}
+#else /* CONFIG_64BIT */
 extern void __iomem * __ioremap(phys_addr_t offset, phys_addr_t size, unsigned long flags);
 extern void __iounmap(const volatile void __iomem *addr);
 
@@ -174,18 +193,8 @@ static inline void __iomem *ioremap_prot(phys_addr_t offset,
 
 #define __IS_LOW512(addr) (!((phys_addr_t)(addr) & (phys_addr_t) ~0x1fffffffULL))
 
-	if (IS_ENABLED(CONFIG_64BIT)) {
-		u64 base = UNCAC_BASE;
-
-		/*
-		 * R10000 supports a 2 bit uncached attribute therefore
-		 * UNCAC_BASE may not equal IO_BASE.
-		 */
-		if (flags == _CACHE_UNCACHED)
-			base = (u64) IO_BASE;
-		return (void __iomem *) (unsigned long) (base + offset);
-	} else if (__builtin_constant_p(offset) &&
-		   __builtin_constant_p(size) && __builtin_constant_p(flags)) {
+	if (__builtin_constant_p(offset) &&
+	    __builtin_constant_p(size) && __builtin_constant_p(flags)) {
 		phys_addr_t phys_addr, last_addr;
 
 		phys_addr = fixup_bigphys_addr(offset, size);
@@ -209,6 +218,22 @@ static inline void __iomem *ioremap_prot(phys_addr_t offset,
 
 #undef __IS_LOW512
 }
+
+static inline void iounmap(const volatile void __iomem *addr)
+{
+	if (plat_iounmap(addr))
+		return;
+
+#define __IS_KSEG1(addr) (((unsigned long)(addr) & ~0x1fffffffUL) == CKSEG1)
+
+	if (__builtin_constant_p(addr) && __IS_KSEG1(addr))
+		return;
+
+	__iounmap(addr);
+
+#undef __IS_KSEG1
+}
+#endif /* !CONFIG_64BIT */
 
 /*
  * ioremap     -   map bus memory into CPU space
@@ -263,22 +288,6 @@ static inline void __iomem *ioremap_prot(phys_addr_t offset,
  */
 #define ioremap_wc(offset, size)					\
 	ioremap_prot((offset), (size), boot_cpu_data.writecombine)
-
-static inline void iounmap(const volatile void __iomem *addr)
-{
-	if (plat_iounmap(addr))
-		return;
-
-#define __IS_KSEG1(addr) (((unsigned long)(addr) & ~0x1fffffffUL) == CKSEG1)
-
-	if (IS_ENABLED(CONFIG_64BIT) ||
-	    (__builtin_constant_p(addr) && __IS_KSEG1(addr)))
-		return;
-
-	__iounmap(addr);
-
-#undef __IS_KSEG1
-}
 
 #if defined(CONFIG_CPU_CAVIUM_OCTEON) || defined(CONFIG_CPU_LOONGSON64)
 #define war_io_reorder_wmb()		wmb()
