@@ -342,6 +342,7 @@ mlx5e_txwqe_complete(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 		.num_bytes = attr->num_bytes,
 		.num_dma = num_dma,
 		.num_wqebbs = wqe_attr->num_wqebbs,
+		.num_fifo_pkts = 0,
 	};
 
 	cseg->opmod_idx_opcode = cpu_to_be32((sq->pc << 8) | attr->opcode);
@@ -489,6 +490,18 @@ static void mlx5e_consume_skb(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	napi_consume_skb(skb, napi_budget);
 }
 
+static void mlx5e_tx_wi_consume_fifo_skbs(struct mlx5e_txqsq *sq, struct mlx5e_tx_wqe_info *wi,
+					  struct mlx5_cqe64 *cqe, int napi_budget)
+{
+	int i;
+
+	for (i = 0; i < wi->num_fifo_pkts; i++) {
+		struct sk_buff *skb = mlx5e_skb_fifo_pop(sq);
+
+		mlx5e_consume_skb(sq, skb, cqe, napi_budget);
+	}
+}
+
 bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget)
 {
 	struct mlx5e_sq_stats *stats;
@@ -534,26 +547,33 @@ bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget)
 		wqe_counter = be16_to_cpu(cqe->wqe_counter);
 
 		do {
-			struct sk_buff *skb;
-
 			last_wqe = (sqcc == wqe_counter);
 
 			ci = mlx5_wq_cyc_ctr2ix(&sq->wq, sqcc);
 			wi = &sq->db.wqe_info[ci];
-			skb = wi->skb;
 
 			sqcc += wi->num_wqebbs;
 
-			if (unlikely(!skb)) {
-				mlx5e_ktls_tx_try_handle_resync_dump_comp(sq, wi, &dma_fifo_cc);
+			if (likely(wi->skb)) {
+				mlx5e_tx_wi_dma_unmap(sq, wi, &dma_fifo_cc);
+				mlx5e_consume_skb(sq, wi->skb, cqe, napi_budget);
+
+				npkts++;
+				nbytes += wi->num_bytes;
 				continue;
 			}
 
-			mlx5e_tx_wi_dma_unmap(sq, wi, &dma_fifo_cc);
-			mlx5e_consume_skb(sq, wi->skb, cqe, napi_budget);
+			if (unlikely(mlx5e_ktls_tx_try_handle_resync_dump_comp(sq, wi,
+									       &dma_fifo_cc)))
+				continue;
 
-			npkts++;
-			nbytes += wi->num_bytes;
+			if (wi->num_fifo_pkts) {
+				mlx5e_tx_wi_dma_unmap(sq, wi, &dma_fifo_cc);
+				mlx5e_tx_wi_consume_fifo_skbs(sq, wi, cqe, napi_budget);
+
+				npkts += wi->num_fifo_pkts;
+				nbytes += wi->num_bytes;
+			}
 		} while (!last_wqe);
 
 		if (unlikely(get_cqe_opcode(cqe) == MLX5_CQE_REQ_ERR)) {
@@ -592,12 +612,19 @@ bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget)
 	return (i == MLX5E_TX_CQ_POLL_BUDGET);
 }
 
+static void mlx5e_tx_wi_kfree_fifo_skbs(struct mlx5e_txqsq *sq, struct mlx5e_tx_wqe_info *wi)
+{
+	int i;
+
+	for (i = 0; i < wi->num_fifo_pkts; i++)
+		dev_kfree_skb_any(mlx5e_skb_fifo_pop(sq));
+}
+
 void mlx5e_free_txqsq_descs(struct mlx5e_txqsq *sq)
 {
 	struct mlx5e_tx_wqe_info *wi;
 	u32 dma_fifo_cc, nbytes = 0;
 	u16 ci, sqcc, npkts = 0;
-	struct sk_buff *skb;
 
 	sqcc = sq->cc;
 	dma_fifo_cc = sq->dma_fifo_cc;
@@ -605,20 +632,28 @@ void mlx5e_free_txqsq_descs(struct mlx5e_txqsq *sq)
 	while (sqcc != sq->pc) {
 		ci = mlx5_wq_cyc_ctr2ix(&sq->wq, sqcc);
 		wi = &sq->db.wqe_info[ci];
-		skb = wi->skb;
 
 		sqcc += wi->num_wqebbs;
 
-		if (!skb) {
-			mlx5e_ktls_tx_try_handle_resync_dump_comp(sq, wi, &dma_fifo_cc);
+		if (likely(wi->skb)) {
+			mlx5e_tx_wi_dma_unmap(sq, wi, &dma_fifo_cc);
+			dev_kfree_skb_any(wi->skb);
+
+			npkts++;
+			nbytes += wi->num_bytes;
 			continue;
 		}
 
-		mlx5e_tx_wi_dma_unmap(sq, wi, &dma_fifo_cc);
-		dev_kfree_skb_any(skb);
+		if (unlikely(mlx5e_ktls_tx_try_handle_resync_dump_comp(sq, wi, &dma_fifo_cc)))
+			continue;
 
-		npkts++;
-		nbytes += wi->num_bytes;
+		if (wi->num_fifo_pkts) {
+			mlx5e_tx_wi_dma_unmap(sq, wi, &dma_fifo_cc);
+			mlx5e_tx_wi_kfree_fifo_skbs(sq, wi);
+
+			npkts += wi->num_fifo_pkts;
+			nbytes += wi->num_bytes;
+		}
 	}
 
 	sq->dma_fifo_cc = dma_fifo_cc;
