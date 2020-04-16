@@ -30,8 +30,6 @@
 #include <asm/pgtable-bits.h>
 #include <asm/processor.h>
 #include <asm/string.h>
-
-#include <ioremap.h>
 #include <mangle-port.h>
 
 /*
@@ -153,87 +151,9 @@ static inline void *isa_bus_to_virt(unsigned long address)
  */
 #define page_to_phys(page)	((dma_addr_t)page_to_pfn(page) << PAGE_SHIFT)
 
-#ifdef CONFIG_64BIT
-static inline void __iomem *ioremap_prot(phys_addr_t offset,
-		unsigned long size, unsigned long prot_val)
-{
-	unsigned long flags = prot_val & _CACHE_MASK;
-	u64 base = (flags == _CACHE_UNCACHED ? IO_BASE : UNCAC_BASE);
-	void __iomem *addr;
-
-	addr = plat_ioremap(offset, size, flags);
-	if (!addr)
-		addr = (void __iomem *)(unsigned long)(base + offset);
-	return addr;
-}
-
-static inline void iounmap(const volatile void __iomem *addr)
-{
-	plat_iounmap(addr);
-}
-#else /* CONFIG_64BIT */
-extern void __iomem * __ioremap(phys_addr_t offset, phys_addr_t size, unsigned long flags);
-extern void __iounmap(const volatile void __iomem *addr);
-
-/*
- * ioremap_prot     -   map bus memory into CPU space
- * @offset:    bus address of the memory
- * @size:      size of the resource to map
-
- * ioremap_prot gives the caller control over cache coherency attributes (CCA)
- */
-static inline void __iomem *ioremap_prot(phys_addr_t offset,
-		unsigned long size, unsigned long prot_val)
-{
-	unsigned long flags = prot_val & _CACHE_MASK;
-	void __iomem *addr = plat_ioremap(offset, size, flags);
-
-	if (addr)
-		return addr;
-
-#define __IS_LOW512(addr) (!((phys_addr_t)(addr) & (phys_addr_t) ~0x1fffffffULL))
-
-	if (__builtin_constant_p(offset) &&
-	    __builtin_constant_p(size) && __builtin_constant_p(flags)) {
-		phys_addr_t phys_addr, last_addr;
-
-		phys_addr = fixup_bigphys_addr(offset, size);
-
-		/* Don't allow wraparound or zero size. */
-		last_addr = phys_addr + size - 1;
-		if (!size || last_addr < phys_addr)
-			return NULL;
-
-		/*
-		 * Map uncached objects in the low 512MB of address
-		 * space using KSEG1.
-		 */
-		if (__IS_LOW512(phys_addr) && __IS_LOW512(last_addr) &&
-		    flags == _CACHE_UNCACHED)
-			return (void __iomem *)
-				(unsigned long)CKSEG1ADDR(phys_addr);
-	}
-
-	return __ioremap(offset, size, flags);
-
-#undef __IS_LOW512
-}
-
-static inline void iounmap(const volatile void __iomem *addr)
-{
-	if (plat_iounmap(addr))
-		return;
-
-#define __IS_KSEG1(addr) (((unsigned long)(addr) & ~0x1fffffffUL) == CKSEG1)
-
-	if (__builtin_constant_p(addr) && __IS_KSEG1(addr))
-		return;
-
-	__iounmap(addr);
-
-#undef __IS_KSEG1
-}
-#endif /* !CONFIG_64BIT */
+void __iomem *ioremap_prot(phys_addr_t offset, unsigned long size,
+		unsigned long prot_val);
+void iounmap(const volatile void __iomem *addr);
 
 /*
  * ioremap     -   map bus memory into CPU space

@@ -17,6 +17,10 @@
 #include <asm/cacheflush.h>
 #include <asm/io.h>
 #include <asm/tlbflush.h>
+#include <ioremap.h>
+
+#define IS_LOW512(addr) (!((phys_addr_t)(addr) & (phys_addr_t) ~0x1fffffffULL))
+#define IS_KSEG1(addr) (((unsigned long)(addr) & ~0x1fffffffUL) == CKSEG1)
 
 static inline void remap_area_pte(pte_t * pte, unsigned long address,
 	phys_addr_t size, phys_addr_t phys_addr, unsigned long flags)
@@ -118,27 +122,25 @@ static int __ioremap_check_ram(unsigned long start_pfn, unsigned long nr_pages,
 }
 
 /*
- * Generic mapping function (not visible outside):
- */
-
-/*
- * Remap an arbitrary physical address space into the kernel virtual
- * address space. Needed when the kernel wants to access high addresses
- * directly.
+ * ioremap_prot     -   map bus memory into CPU space
+ * @phys_addr:    bus address of the memory
+ * @size:      size of the resource to map
  *
- * NOTE! We need to allow non-page-aligned mappings too: we will obviously
- * have to convert them into an offset in a page-aligned mapping, but the
- * caller shouldn't need to know that small detail.
+ * ioremap_prot gives the caller control over cache coherency attributes (CCA)
  */
-
-#define IS_LOW512(addr) (!((phys_addr_t)(addr) & (phys_addr_t) ~0x1fffffffULL))
-
-void __iomem * __ioremap(phys_addr_t phys_addr, phys_addr_t size, unsigned long flags)
+void __iomem *ioremap_prot(phys_addr_t phys_addr, unsigned long size,
+		unsigned long prot_val)
 {
+	unsigned long flags = prot_val & _CACHE_MASK;
 	unsigned long offset, pfn, last_pfn;
-	struct vm_struct * area;
+	struct vm_struct *area;
 	phys_addr_t last_addr;
-	void * addr;
+	void *addr;
+	void __iomem *cpu_addr;
+
+	cpu_addr = plat_ioremap(phys_addr, size, flags);
+	if (cpu_addr)
+		return cpu_addr;
 
 	phys_addr = fixup_bigphys_addr(phys_addr, size);
 
@@ -189,14 +191,13 @@ void __iomem * __ioremap(phys_addr_t phys_addr, phys_addr_t size, unsigned long 
 
 	return (void __iomem *) (offset + (char *)addr);
 }
+EXPORT_SYMBOL(ioremap_prot);
 
-#define IS_KSEG1(addr) (((unsigned long)(addr) & ~0x1fffffffUL) == CKSEG1)
-
-void __iounmap(const volatile void __iomem *addr)
+void iounmap(const volatile void __iomem *addr)
 {
 	struct vm_struct *p;
 
-	if (IS_KSEG1(addr))
+	if (plat_iounmap(addr) || IS_KSEG1(addr))
 		return;
 
 	p = remove_vm_area((void *) (PAGE_MASK & (unsigned long __force) addr));
@@ -205,6 +206,4 @@ void __iounmap(const volatile void __iomem *addr)
 
 	kfree(p);
 }
-
-EXPORT_SYMBOL(__ioremap);
-EXPORT_SYMBOL(__iounmap);
+EXPORT_SYMBOL(iounmap);
