@@ -1115,6 +1115,8 @@ static int telemetry_pltdrv_probe(struct platform_device *pdev)
 
 	telm_conf = (struct telemetry_plt_config *)id->driver_data;
 
+	telm_conf->pmc = dev_get_drvdata(pdev->dev.parent);
+
 	mem = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mem))
 		return PTR_ERR(mem);

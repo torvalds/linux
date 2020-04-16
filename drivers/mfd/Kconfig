@@ -551,7 +551,7 @@ config INTEL_SOC_PMIC
 
 config INTEL_SOC_PMIC_BXTWC
 	tristate "Support for Intel Broxton Whiskey Cove PMIC"
-	depends on INTEL_PMC_IPC
+	depends on MFD_INTEL_PMC_BXT
 	select MFD_CORE
 	select REGMAP_IRQ
 	help
@@ -631,6 +631,20 @@ config MFD_INTEL_MSIC
 	  Select this option to enable access to Intel MSIC (Avatele
 	  Passage) chip. This chip embeds audio, battery, GPIO, etc.
 	  devices used in Intel Medfield platforms.
+
+config MFD_INTEL_PMC_BXT
+	tristate "Intel PMC Driver for Broxton"
+	depends on X86
+	depends on X86_PLATFORM_DEVICES
+	depends on ACPI
+	select INTEL_SCU_IPC
+	select MFD_CORE
+	help
+	  This driver provides support for the PMC (Power Management
+	  Controller) on Intel Broxton and Apollo Lake. The PMC is a
+	  multi-function device that exposes IPC, General Control
+	  Register and P-unit access. In addition this creates devices
+	  for iTCO watchdog and telemetry that are part of the PMC.
 
 config MFD_IPAQ_MICRO
 	bool "Atmel Micro ASIC (iPAQ h3100/h3600/h3700) Support"
