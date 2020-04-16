@@ -1119,8 +1119,6 @@ void switch_to_sld(unsigned long tifn)
 	sld_update_msr(!(tifn & _TIF_SLD));
 }
 
-#define SPLIT_LOCK_CPU(model) {X86_VENDOR_INTEL, 6, model, X86_FEATURE_ANY}
-
 /*
  * The following processors have the split lock detection feature. But
  * since they don't have the IA32_CORE_CAPABILITIES MSR, the feature cannot
@@ -1128,8 +1126,8 @@ void switch_to_sld(unsigned long tifn)
  * processors.
  */
 static const struct x86_cpu_id split_lock_cpu_ids[] __initconst = {
-	SPLIT_LOCK_CPU(INTEL_FAM6_ICELAKE_X),
-	SPLIT_LOCK_CPU(INTEL_FAM6_ICELAKE_L),
+	X86_MATCH_INTEL_FAM6_MODEL(ICELAKE_X,		0),
+	X86_MATCH_INTEL_FAM6_MODEL(ICELAKE_L,		0),
 	{}
 };
 
