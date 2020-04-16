@@ -388,6 +388,7 @@ struct qedf_ctx {
 	mempool_t *io_mempool;
 	struct workqueue_struct *dpc_wq;
 	struct delayed_work grcdump_work;
+	struct delayed_work stag_work;
 
 	u32 slow_sge_ios;
 	u32 fast_sge_ios;
@@ -403,6 +404,7 @@ struct qedf_ctx {
 
 	u32 flogi_cnt;
 	u32 flogi_failed;
+	u32 flogi_pending;
 
 	/* Used for fc statistics */
 	struct mutex stats_mutex;

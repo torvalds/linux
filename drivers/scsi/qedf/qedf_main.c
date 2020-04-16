@@ -282,6 +282,7 @@ static void qedf_flogi_resp(struct fc_seq *seq, struct fc_frame *fp,
 	else if (fc_frame_payload_op(fp) == ELS_LS_ACC) {
 		/* Set the source MAC we will use for FCoE traffic */
 		qedf_set_data_src_addr(qedf, fp);
+		qedf->flogi_pending = 0;
 	}
 
 	/* Complete flogi_compl so we can proceed to sending ADISCs */
@@ -307,6 +308,11 @@ static struct fc_seq *qedf_elsct_send(struct fc_lport *lport, u32 did,
 	 */
 	if (resp == fc_lport_flogi_resp) {
 		qedf->flogi_cnt++;
+		if (qedf->flogi_pending >= QEDF_FLOGI_RETRY_CNT) {
+			schedule_delayed_work(&qedf->stag_work, 2);
+			return NULL;
+		}
+		qedf->flogi_pending++;
 		return fc_elsct_send(lport, did, fp, op, qedf_flogi_resp,
 		    arg, timeout);
 	}
@@ -850,6 +856,7 @@ void qedf_ctx_soft_reset(struct fc_lport *lport)
 
 	qedf = lport_priv(lport);
 
+	qedf->flogi_pending = 0;
 	/* For host reset, essentially do a soft link up/down */
 	atomic_set(&qedf->link_state, QEDF_LINK_DOWN);
 	QEDF_INFO(&qedf->dbg_ctx, QEDF_LOG_DISC,
@@ -3197,6 +3204,7 @@ static int __qedf_probe(struct pci_dev *pdev, int mode)
 		init_completion(&qedf->fipvlan_compl);
 		mutex_init(&qedf->stats_mutex);
 		mutex_init(&qedf->flush_mutex);
+		qedf->flogi_pending = 0;
 
 		QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_INFO,
 		   "QLogic FastLinQ FCoE Module qedf %s, "
@@ -3227,6 +3235,7 @@ static int __qedf_probe(struct pci_dev *pdev, int mode)
 	INIT_DELAYED_WORK(&qedf->link_update, qedf_handle_link_update);
 	INIT_DELAYED_WORK(&qedf->link_recovery, qedf_link_recovery);
 	INIT_DELAYED_WORK(&qedf->grcdump_work, qedf_wq_grcdump);
+	INIT_DELAYED_WORK(&qedf->stag_work, qedf_stag_change_work);
 	qedf->fipvlan_retries = qedf_fipvlan_retries;
 	/* Set a default prio in case DCBX doesn't converge */
 	if (qedf_default_prio > -1) {
@@ -3760,6 +3769,20 @@ void qedf_get_protocol_tlv_data(void *dev, void *data)
 
 	fcoe->scsi_tsk_full_set = true;
 	fcoe->scsi_tsk_full = qedf->task_set_fulls;
+}
+
+/* Deferred work function to perform soft context reset on STAG change */
+void qedf_stag_change_work(struct work_struct *work)
+{
+	struct qedf_ctx *qedf =
+	    container_of(work, struct qedf_ctx, stag_work.work);
+
+	if (!qedf) {
+		QEDF_ERR(&qedf->dbg_ctx, "qedf is NULL");
+		return;
+	}
+	QEDF_ERR(&qedf->dbg_ctx, "Performing software context reset.\n");
+	qedf_ctx_soft_reset(qedf->lport);
 }
 
 static void qedf_shutdown(struct pci_dev *pdev)
