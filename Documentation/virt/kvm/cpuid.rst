@@ -50,8 +50,8 @@ KVM_FEATURE_NOP_IO_DELAY          1           not necessary to perform delays
 KVM_FEATURE_MMU_OP                2           deprecated
 
 KVM_FEATURE_CLOCKSOURCE2          3           kvmclock available at msrs
-
                                               0x4b564d00 and 0x4b564d01
+
 KVM_FEATURE_ASYNC_PF              4           async pf can be enabled by
                                               writing to msr 0x4b564d02
 
