@@ -387,6 +387,7 @@ struct qedf_ctx {
 #define QEDF_IO_WORK_MIN		64
 	mempool_t *io_mempool;
 	struct workqueue_struct *dpc_wq;
+	struct delayed_work recovery_work;
 	struct delayed_work grcdump_work;
 	struct delayed_work stag_work;
 

@@ -28,6 +28,8 @@ const struct qed_fcoe_ops *qed_ops;
 static int qedf_probe(struct pci_dev *pdev, const struct pci_device_id *id);
 static void qedf_remove(struct pci_dev *pdev);
 static void qedf_shutdown(struct pci_dev *pdev);
+static void qedf_schedule_recovery_handler(void *dev);
+static void qedf_recovery_handler(struct work_struct *work);
 
 /*
  * Driver module parameters.
@@ -662,6 +664,7 @@ static struct qed_fcoe_cb_ops qedf_cb_ops = {
 	{
 		.link_update = qedf_link_update,
 		.bw_update = qedf_bw_update,
+		.schedule_recovery_handler = qedf_schedule_recovery_handler,
 		.dcbx_aen = qedf_dcbx_handler,
 		.get_generic_tlv_data = qedf_get_generic_tlv_data,
 		.get_protocol_tlv_data = qedf_get_protocol_tlv_data,
@@ -3502,6 +3505,7 @@ static int __qedf_probe(struct pci_dev *pdev, int mode)
 		    qedf->lport->host->host_no);
 		qedf->dpc_wq = create_workqueue(host_buf);
 	}
+	INIT_DELAYED_WORK(&qedf->recovery_work, qedf_recovery_handler);
 
 	/*
 	 * GRC dump and sysfs parameters are not reaped during the recovery
@@ -3815,6 +3819,45 @@ void qedf_stag_change_work(struct work_struct *work)
 static void qedf_shutdown(struct pci_dev *pdev)
 {
 	__qedf_remove(pdev, QEDF_MODE_NORMAL);
+}
+
+/*
+ * Recovery handler code
+ */
+static void qedf_schedule_recovery_handler(void *dev)
+{
+	struct qedf_ctx *qedf = dev;
+
+	QEDF_ERR(&qedf->dbg_ctx, "Recovery handler scheduled.\n");
+	schedule_delayed_work(&qedf->recovery_work, 0);
+}
+
+static void qedf_recovery_handler(struct work_struct *work)
+{
+	struct qedf_ctx *qedf =
+	    container_of(work, struct qedf_ctx, recovery_work.work);
+
+	if (test_and_set_bit(QEDF_IN_RECOVERY, &qedf->flags))
+		return;
+
+	/*
+	 * Call common_ops->recovery_prolog to allow the MFW to quiesce
+	 * any PCI transactions.
+	 */
+	qed_ops->common->recovery_prolog(qedf->cdev);
+
+	QEDF_ERR(&qedf->dbg_ctx, "Recovery work start.\n");
+	__qedf_remove(qedf->pdev, QEDF_MODE_RECOVERY);
+	/*
+	 * Reset link and dcbx to down state since we will not get a link down
+	 * event from the MFW but calling __qedf_remove will essentially be a
+	 * link down event.
+	 */
+	atomic_set(&qedf->link_state, QEDF_LINK_DOWN);
+	atomic_set(&qedf->dcbx, QEDF_DCBX_PENDING);
+	__qedf_probe(qedf->pdev, QEDF_MODE_RECOVERY);
+	clear_bit(QEDF_IN_RECOVERY, &qedf->flags);
+	QEDF_ERR(&qedf->dbg_ctx, "Recovery work complete.\n");
 }
 
 /* Generic TLV data callback */
