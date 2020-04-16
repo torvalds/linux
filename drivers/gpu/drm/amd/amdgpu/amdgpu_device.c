@@ -4218,6 +4218,8 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 			                amdgpu_amdkfd_pre_reset(tmp_adev);
 		}
 
+		cancel_delayed_work_sync(&tmp_adev->delayed_init_work);
+
 		/*
 		 * Mark these ASICs to be reseted as untracked first
 		 * And add them back after reset completed
