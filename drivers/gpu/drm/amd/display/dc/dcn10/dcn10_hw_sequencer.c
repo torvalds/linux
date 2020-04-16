@@ -1333,30 +1333,28 @@ void dcn10_init_hw(struct dc *dc)
 				continue;
 
 			/*
-			 * core_link_read_dpcd() will invoke dm_helpers_dp_read_dpcd(),
-			 * which needs to read dpcd info with the help of aconnector.
-			 * If aconnector (dc->links[i]->prev) is NULL, then dpcd status
-			 * cannot be read.
+			 * If any of the displays are lit up turn them off.
+			 * The reason is that some MST hubs cannot be turned off
+			 * completely until we tell them to do so.
+			 * If not turned off, then displays connected to MST hub
+			 * won't light up.
 			 */
-			if (dc->links[i]->priv) {
-				/* if any of the displays are lit up turn them off */
-				status = core_link_read_dpcd(dc->links[i], DP_SET_POWER,
-								&dpcd_power_state, sizeof(dpcd_power_state));
-				if (status == DC_OK && dpcd_power_state == DP_POWER_STATE_D0) {
-					/* blank dp stream before power off receiver*/
-					if (dc->links[i]->link_enc->funcs->get_dig_frontend) {
-						unsigned int fe = dc->links[i]->link_enc->funcs->get_dig_frontend(dc->links[i]->link_enc);
+			status = core_link_read_dpcd(dc->links[i], DP_SET_POWER,
+							&dpcd_power_state, sizeof(dpcd_power_state));
+			if (status == DC_OK && dpcd_power_state == DP_POWER_STATE_D0) {
+				/* blank dp stream before power off receiver*/
+				if (dc->links[i]->link_enc->funcs->get_dig_frontend) {
+					unsigned int fe = dc->links[i]->link_enc->funcs->get_dig_frontend(dc->links[i]->link_enc);
 
-						for (j = 0; j < dc->res_pool->stream_enc_count; j++) {
-							if (fe == dc->res_pool->stream_enc[j]->id) {
-								dc->res_pool->stream_enc[j]->funcs->dp_blank(
-											dc->res_pool->stream_enc[j]);
-								break;
-							}
+					for (j = 0; j < dc->res_pool->stream_enc_count; j++) {
+						if (fe == dc->res_pool->stream_enc[j]->id) {
+							dc->res_pool->stream_enc[j]->funcs->dp_blank(
+										dc->res_pool->stream_enc[j]);
+							break;
 						}
 					}
-					dp_receiver_power_ctrl(dc->links[i], false);
 				}
+				dp_receiver_power_ctrl(dc->links[i], false);
 			}
 		}
 	}
