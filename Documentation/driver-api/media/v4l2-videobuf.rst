@@ -399,8 +399,5 @@ again.
 
 Developers who are interested in more information can go into the relevant
 header files; there are a few low-level functions declared there which have
-not been talked about here.  Also worthwhile is the vivi driver
-(drivers/media/platform/vivi.c), which is maintained as an example of how V4L2
-drivers should be written.  Vivi only uses the vmalloc() API, but it's good
-enough to get started with.  Note also that all of these calls are exported
+not been talked about here.  Note also that all of these calls are exported
 GPL-only, so they will not be available to non-GPL kernel modules.

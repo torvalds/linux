@@ -83,7 +83,7 @@ specification the ioctl returns an ``EINVAL`` error code.
 	string. For example: "PCI:0000:05:06.0". This information is
 	intended for users, to distinguish multiple identical devices. If
 	no such information is available the field must simply count the
-	devices controlled by the driver ("platform:vivi-000"). The
+	devices controlled by the driver ("platform:vivid-000"). The
 	bus_info must start with "PCI:" for PCI boards, "PCIe:" for PCI
 	Express boards, "usb-" for USB devices, "I2C:" for i2c devices,
 	"ISA:" for ISA devices, "parport" for parallel port devices and
