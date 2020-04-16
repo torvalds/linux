@@ -24,11 +24,8 @@ struct chip_data {
 	u8 tmode;		/* TR/TO/RO/EEPROM */
 	u8 type;		/* SPI/SSP/MicroWire */
 
-	u8 poll_mode;		/* 1 means use poll mode */
-
 	u16 clk_div;		/* baud rate divider */
 	u32 speed_hz;		/* baud rate */
-	void (*cs_control)(u32 command);
 };
 
 #ifdef CONFIG_DEBUG_FS
@@ -127,11 +124,6 @@ static inline void dw_spi_debugfs_remove(struct dw_spi *dws)
 void dw_spi_set_cs(struct spi_device *spi, bool enable)
 {
 	struct dw_spi *dws = spi_controller_get_devdata(spi->controller);
-	struct chip_data *chip = spi_get_ctldata(spi);
-
-	/* Chip select logic is inverted from spi_set_cs() */
-	if (chip && chip->cs_control)
-		chip->cs_control(!enable);
 
 	if (!enable)
 		dw_writel(dws, DW_SPI_SER, BIT(spi->chip_select));
@@ -265,18 +257,6 @@ static irqreturn_t dw_spi_irq(int irq, void *dev_id)
 	return dws->transfer_handler(dws);
 }
 
-/* Must be called inside pump_transfers() */
-static int poll_transfer(struct dw_spi *dws)
-{
-	do {
-		dw_writer(dws);
-		dw_reader(dws);
-		cpu_relax();
-	} while (dws->rx_end > dws->rx);
-
-	return 0;
-}
-
 static int dw_spi_transfer_one(struct spi_controller *master,
 		struct spi_device *spi, struct spi_transfer *transfer)
 {
@@ -324,22 +304,6 @@ static int dw_spi_transfer_one(struct spi_controller *master,
 			(((spi->mode & SPI_LOOP) ? 1 : 0) << SPI_SRL_OFFSET))
 		| (chip->tmode << SPI_TMOD_OFFSET);
 
-	/*
-	 * Adjust transfer mode if necessary. Requires platform dependent
-	 * chipselect mechanism.
-	 */
-	if (chip->cs_control) {
-		if (dws->rx && dws->tx)
-			chip->tmode = SPI_TMOD_TR;
-		else if (dws->rx)
-			chip->tmode = SPI_TMOD_RO;
-		else
-			chip->tmode = SPI_TMOD_TO;
-
-		cr0 &= ~SPI_TMOD_MASK;
-		cr0 |= (chip->tmode << SPI_TMOD_OFFSET);
-	}
-
 	dw_writel(dws, DW_SPI_CTRL0, cr0);
 
 	/* Check if current transfer is a DMA transaction */
@@ -359,7 +323,7 @@ static int dw_spi_transfer_one(struct spi_controller *master,
 			spi_enable_chip(dws, 1);
 			return ret;
 		}
-	} else if (!chip->poll_mode) {
+	} else {
 		txlevel = min_t(u16, dws->fifo_len / 2, dws->len / dws->n_bytes);
 		dw_writel(dws, DW_SPI_TXFLTR, txlevel);
 
@@ -379,9 +343,6 @@ static int dw_spi_transfer_one(struct spi_controller *master,
 			return ret;
 	}
 
-	if (chip->poll_mode)
-		return poll_transfer(dws);
-
 	return 1;
 }
 
@@ -399,7 +360,6 @@ static void dw_spi_handle_err(struct spi_controller *master,
 /* This may be called twice for each spi dev */
 static int dw_spi_setup(struct spi_device *spi)
 {
-	struct dw_spi_chip *chip_info = NULL;
 	struct chip_data *chip;
 
 	/* Only alloc on first setup */
@@ -409,21 +369,6 @@ static int dw_spi_setup(struct spi_device *spi)
 		if (!chip)
 			return -ENOMEM;
 		spi_set_ctldata(spi, chip);
-	}
-
-	/*
-	 * Protocol drivers may change the chip settings, so...
-	 * if chip_info exists, use it
-	 */
-	chip_info = spi->controller_data;
-
-	/* chip_info doesn't always exist */
-	if (chip_info) {
-		if (chip_info->cs_control)
-			chip->cs_control = chip_info->cs_control;
-
-		chip->poll_mode = chip_info->poll_mode;
-		chip->type = chip_info->type;
 	}
 
 	chip->tmode = SPI_TMOD_TR;
