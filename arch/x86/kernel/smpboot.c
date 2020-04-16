@@ -1945,18 +1945,23 @@ static bool skx_set_max_freq_ratio(u64 *base_freq, u64 *turbo_freq, int size)
 
 static bool core_set_max_freq_ratio(u64 *base_freq, u64 *turbo_freq)
 {
+	u64 msr;
 	int err;
 
 	err = rdmsrl_safe(MSR_PLATFORM_INFO, base_freq);
 	if (err)
 		return false;
 
-	err = rdmsrl_safe(MSR_TURBO_RATIO_LIMIT, turbo_freq);
+	err = rdmsrl_safe(MSR_TURBO_RATIO_LIMIT, &msr);
 	if (err)
 		return false;
 
-	*base_freq = (*base_freq >> 8) & 0xFF;      /* max P state */
-	*turbo_freq = (*turbo_freq >> 24) & 0xFF;   /* 4C turbo    */
+	*base_freq = (*base_freq >> 8) & 0xFF;    /* max P state */
+	*turbo_freq = (msr >> 24) & 0xFF;         /* 4C turbo    */
+
+	/* The CPU may have less than 4 cores */
+	if (!*turbo_freq)
+		*turbo_freq = msr & 0xFF;         /* 1C turbo    */
 
 	return true;
 }
