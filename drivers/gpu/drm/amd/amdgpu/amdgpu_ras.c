@@ -1453,9 +1453,10 @@ static void amdgpu_ras_do_recovery(struct work_struct *work)
 	struct amdgpu_hive_info *hive = amdgpu_get_xgmi_hive(adev, false);
 
 	/* Build list of devices to query RAS related errors */
-	if  (hive && adev->gmc.xgmi.num_physical_nodes > 1) {
+	if  (hive && adev->gmc.xgmi.num_physical_nodes > 1)
 		device_list_handle = &hive->device_list;
-	} else {
+	else {
+		INIT_LIST_HEAD(&device_list);
 		list_add_tail(&adev->gmc.xgmi.head, &device_list);
 		device_list_handle = &device_list;
 	}
