@@ -430,3 +430,7 @@ EM28xx cards list
      - Magix USB Videowandler-2
      - em2861
      - 1b80:e349
+   * - 104
+     - PCTV DVB-S2 Stick (461e v2)
+     - em28178
+     - 2013:0461, 2013:0259
