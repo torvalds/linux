@@ -1058,13 +1058,6 @@ struct vas_window *vas_tx_win_open(int vasid, enum vas_cop_type cop,
 			rc = -ENODEV;
 			goto free_window;
 		}
-		/*
-		 * A user mapping must ensure that context switch issues
-		 * CP_ABORT for this thread.
-		 */
-		rc = set_thread_uses_vas();
-		if (rc)
-			goto free_window;
 
 		/*
 		 * Window opened by a child thread may not be closed when
@@ -1090,7 +1083,7 @@ struct vas_window *vas_tx_win_open(int vasid, enum vas_cop_type cop,
 
 		mmgrab(txwin->mm);
 		mmput(txwin->mm);
-		mm_context_add_copro(txwin->mm);
+		mm_context_add_vas_window(txwin->mm);
 		/*
 		 * Process closes window during exit. In the case of
 		 * multithread application, the child thread can open
@@ -1099,6 +1092,17 @@ struct vas_window *vas_tx_win_open(int vasid, enum vas_cop_type cop,
 		 * to take pid reference for parent thread.
 		 */
 		txwin->tgid = find_get_pid(task_tgid_vnr(current));
+		/*
+		 * Even a process that has no foreign real address mapping can
+		 * use an unpaired COPY instruction (to no real effect). Issue
+		 * CP_ABORT to clear any pending COPY and prevent a covert
+		 * channel.
+		 *
+		 * __switch_to() will issue CP_ABORT on future context switches
+		 * if process / thread has any open VAS window (Use
+		 * current->mm->context.vas_windows).
+		 */
+		asm volatile(PPC_CP_ABORT);
 	}
 
 	set_vinst_win(vinst, txwin);
@@ -1332,7 +1336,7 @@ int vas_win_close(struct vas_window *window)
 			/* Drop references to pid and mm */
 			put_pid(window->pid);
 			if (window->mm) {
-				mm_context_remove_copro(window->mm);
+				mm_context_remove_vas_window(window->mm);
 				mmdrop(window->mm);
 			}
 		}
