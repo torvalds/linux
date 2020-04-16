@@ -72,7 +72,7 @@
  *
  */
 
-#define GOYA_UBOOT_FW_FILE	"habanalabs/goya/goya-u-boot.bin"
+#define GOYA_BOOT_FIT_FILE	"habanalabs/goya/goya-boot-fit.itb"
 #define GOYA_LINUX_FW_FILE	"habanalabs/goya/goya-fit.itb"
 
 #define GOYA_MMU_REGS_NUM		63
@@ -87,6 +87,7 @@
 #define GOYA_TEST_QUEUE_WAIT_USEC	100000		/* 100ms */
 #define GOYA_PLDM_MMU_TIMEOUT_USEC	(MMU_CONFIG_TIMEOUT_USEC * 100)
 #define GOYA_PLDM_QMAN0_TIMEOUT_USEC	(HL_DEVICE_TIMEOUT_USEC * 30)
+#define GOYA_BOOT_FIT_REQ_TIMEOUT_USEC	1000000		/* 1s */
 
 #define GOYA_QMAN0_FENCE_VAL		0xD169B243
 
@@ -2210,23 +2211,6 @@ static void goya_halt_engines(struct hl_device *hdev, bool hard_reset)
 }
 
 /*
- * goya_push_uboot_to_device() - Push u-boot FW code to device.
- * @hdev: Pointer to hl_device structure.
- *
- * Copy u-boot fw code from firmware file to SRAM BAR.
- *
- * Return: 0 on success, non-zero for failure.
- */
-static int goya_push_uboot_to_device(struct hl_device *hdev)
-{
-	void __iomem *dst;
-
-	dst = hdev->pcie_bar[SRAM_CFG_BAR_ID] + UBOOT_FW_OFFSET;
-
-	return hl_fw_load_fw_to_device(hdev, GOYA_UBOOT_FW_FILE, dst);
-}
-
-/*
  * goya_load_firmware_to_device() - Load LINUX FW code to device.
  * @hdev: Pointer to hl_device structure.
  *
@@ -2243,47 +2227,21 @@ static int goya_load_firmware_to_device(struct hl_device *hdev)
 	return hl_fw_load_fw_to_device(hdev, GOYA_LINUX_FW_FILE, dst);
 }
 
-static int goya_pldm_init_cpu(struct hl_device *hdev)
+/*
+ * goya_load_boot_fit_to_device() - Load boot fit to device.
+ * @hdev: Pointer to hl_device structure.
+ *
+ * Copy boot fit file to SRAM BAR.
+ *
+ * Return: 0 on success, non-zero for failure.
+ */
+static int goya_load_boot_fit_to_device(struct hl_device *hdev)
 {
-	u32 unit_rst_val;
-	int rc;
+	void __iomem *dst;
 
-	/* Must initialize SRAM scrambler before pushing u-boot to SRAM */
-	goya_init_golden_registers(hdev);
+	dst = hdev->pcie_bar[SRAM_CFG_BAR_ID] + BOOT_FIT_SRAM_OFFSET;
 
-	/* Put ARM cores into reset */
-	WREG32(mmCPU_CA53_CFG_ARM_RST_CONTROL, CPU_RESET_ASSERT);
-	RREG32(mmCPU_CA53_CFG_ARM_RST_CONTROL);
-
-	/* Reset the CA53 MACRO */
-	unit_rst_val = RREG32(mmPSOC_GLOBAL_CONF_UNIT_RST_N);
-	WREG32(mmPSOC_GLOBAL_CONF_UNIT_RST_N, CA53_RESET);
-	RREG32(mmPSOC_GLOBAL_CONF_UNIT_RST_N);
-	WREG32(mmPSOC_GLOBAL_CONF_UNIT_RST_N, unit_rst_val);
-	RREG32(mmPSOC_GLOBAL_CONF_UNIT_RST_N);
-
-	rc = goya_push_uboot_to_device(hdev);
-	if (rc)
-		return rc;
-
-	rc = goya_load_firmware_to_device(hdev);
-	if (rc)
-		return rc;
-
-	WREG32(mmPSOC_GLOBAL_CONF_UBOOT_MAGIC, KMD_MSG_FIT_RDY);
-	WREG32(mmPSOC_GLOBAL_CONF_WARM_REBOOT, CPU_BOOT_STATUS_NA);
-
-	WREG32(mmCPU_CA53_CFG_RST_ADDR_LSB_0,
-		lower_32_bits(SRAM_BASE_ADDR + UBOOT_FW_OFFSET));
-	WREG32(mmCPU_CA53_CFG_RST_ADDR_MSB_0,
-		upper_32_bits(SRAM_BASE_ADDR + UBOOT_FW_OFFSET));
-
-	/* Release ARM core 0 from reset */
-	WREG32(mmCPU_CA53_CFG_ARM_RST_CONTROL,
-					CPU_RESET_CORE0_DEASSERT);
-	RREG32(mmCPU_CA53_CFG_ARM_RST_CONTROL);
-
-	return 0;
+	return hl_fw_load_fw_to_device(hdev, GOYA_BOOT_FIT_FILE, dst);
 }
 
 /*
@@ -2325,7 +2283,7 @@ static void goya_read_device_fw_version(struct hl_device *hdev,
 	}
 }
 
-static int goya_init_cpu(struct hl_device *hdev, u32 cpu_timeout)
+static int goya_init_cpu(struct hl_device *hdev)
 {
 	struct goya_device *goya = hdev->asic_specific;
 	int rc;
@@ -2346,22 +2304,15 @@ static int goya_init_cpu(struct hl_device *hdev, u32 cpu_timeout)
 		return -EIO;
 	}
 
-	if (hdev->pldm) {
-		rc = goya_pldm_init_cpu(hdev);
-		if (rc)
-			return rc;
-
-		goto out;
-	}
-
 	rc = hl_fw_init_cpu(hdev, mmPSOC_GLOBAL_CONF_CPU_BOOT_STATUS,
-			mmPSOC_GLOBAL_CONF_UBOOT_MAGIC, mmCPU_BOOT_ERR0,
-			false, cpu_timeout);
+			mmPSOC_GLOBAL_CONF_UBOOT_MAGIC,
+			mmCPU_CMD_STATUS_TO_HOST, mmCPU_BOOT_ERR0,
+			false, GOYA_CPU_TIMEOUT_USEC,
+			GOYA_BOOT_FIT_REQ_TIMEOUT_USEC);
 
 	if (rc)
 		return rc;
 
-out:
 	goya->hw_cap_initialized |= HW_CAP_CPU;
 
 	return 0;
@@ -2476,7 +2427,7 @@ static int goya_hw_init(struct hl_device *hdev)
 	 */
 	WREG32(mmHW_STATE, HL_DEVICE_HW_STATE_DIRTY);
 
-	rc = goya_init_cpu(hdev, GOYA_CPU_TIMEOUT_USEC);
+	rc = goya_init_cpu(hdev);
 	if (rc) {
 		dev_err(hdev->dev, "failed to initialize CPU\n");
 		return rc;
@@ -5270,6 +5221,7 @@ static const struct hl_asic_funcs goya_funcs = {
 	.get_queue_id_for_cq = goya_get_queue_id_for_cq,
 	.read_device_fw_version = goya_read_device_fw_version,
 	.load_firmware_to_device = goya_load_firmware_to_device,
+	.load_boot_fit_to_device = goya_load_boot_fit_to_device,
 	.set_dma_mask_from_fw = goya_set_dma_mask_from_fw,
 	.get_device_time = goya_get_device_time
 };

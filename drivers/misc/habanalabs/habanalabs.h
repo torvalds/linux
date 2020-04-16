@@ -552,6 +552,7 @@ enum hl_pll_frequency {
  * @read_device_fw_version: read the device's firmware versions that are
  *                          contained in registers
  * @load_firmware_to_device: load the firmware to the device's memory
+ * @load_boot_fit_to_device: load boot fit to device's memory
  * @set_dma_mask_from_fw: set the DMA mask in the driver according to the
  *                        firmware configuration
  * @get_device_time: Get the device time.
@@ -646,6 +647,7 @@ struct hl_asic_funcs {
 	void (*read_device_fw_version)(struct hl_device *hdev,
 					enum hl_fw_component fwc);
 	int (*load_firmware_to_device)(struct hl_device *hdev);
+	int (*load_boot_fit_to_device)(struct hl_device *hdev);
 	void (*set_dma_mask_from_fw)(struct hl_device *hdev);
 	u64 (*get_device_time)(struct hl_device *hdev);
 };
@@ -1644,8 +1646,9 @@ int hl_fw_send_heartbeat(struct hl_device *hdev);
 int hl_fw_armcp_info_get(struct hl_device *hdev);
 int hl_fw_get_eeprom_data(struct hl_device *hdev, void *data, size_t max_size);
 int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
-			u32 msg_to_cpu_reg, u32 boot_err0_reg, bool skip_bmc,
-			u32 cpu_timeout);
+			u32 msg_to_cpu_reg, u32 cpu_msg_status_reg,
+			u32 boot_err0_reg, bool skip_bmc,
+			u32 cpu_timeout, u32 boot_fit_timeout);
 
 int hl_pci_bars_map(struct hl_device *hdev, const char * const name[3],
 			bool is_wc[3]);

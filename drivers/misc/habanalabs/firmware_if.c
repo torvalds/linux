@@ -328,14 +328,57 @@ static void fw_read_errors(struct hl_device *hdev, u32 boot_err0_reg)
 }
 
 int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
-			u32 msg_to_cpu_reg, u32 boot_err0_reg, bool skip_bmc,
-			u32 cpu_timeout)
+			u32 msg_to_cpu_reg, u32 cpu_msg_status_reg,
+			u32 boot_err0_reg, bool skip_bmc,
+			u32 cpu_timeout, u32 boot_fit_timeout)
 {
 	u32 status;
 	int rc;
 
 	dev_info(hdev->dev, "Going to wait for device boot (up to %lds)\n",
 		cpu_timeout / USEC_PER_SEC);
+
+	/* Wait for boot FIT request */
+	rc = hl_poll_timeout(
+		hdev,
+		cpu_boot_status_reg,
+		status,
+		status == CPU_BOOT_STATUS_WAITING_FOR_BOOT_FIT,
+		10000,
+		boot_fit_timeout);
+
+	if (rc) {
+		dev_dbg(hdev->dev,
+			"No boot fit request received, resuming boot\n");
+	} else {
+		rc = hdev->asic_funcs->load_boot_fit_to_device(hdev);
+		if (rc)
+			goto out;
+
+		/* Clear device CPU message status */
+		WREG32(cpu_msg_status_reg, CPU_MSG_CLR);
+
+		/* Signal device CPU that boot loader is ready */
+		WREG32(msg_to_cpu_reg, KMD_MSG_FIT_RDY);
+
+		/* Poll for CPU device ack */
+		rc = hl_poll_timeout(
+			hdev,
+			cpu_msg_status_reg,
+			status,
+			status == CPU_MSG_OK,
+			10000,
+			boot_fit_timeout);
+
+		if (rc) {
+			dev_err(hdev->dev,
+				"Timeout waiting for boot fit load ack\n");
+			goto out;
+		}
+
+		/* Clear message */
+		WREG32(msg_to_cpu_reg, KMD_MSG_NA);
+	}
 
 	/* Make sure CPU boot-loader is running */
 	rc = hl_poll_timeout(
@@ -396,7 +439,8 @@ int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
 			break;
 		default:
 			dev_err(hdev->dev,
-				"Device boot error - Invalid status code\n");
+				"Device boot error - Invalid status code %d\n",
+				status);
 			break;
 		}
 
@@ -450,6 +494,9 @@ int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
 		10000,
 		cpu_timeout);
 
+	/* Clear message */
+	WREG32(msg_to_cpu_reg, KMD_MSG_NA);
+
 	if (rc) {
 		if (status == CPU_BOOT_STATUS_FIT_CORRUPTED)
 			dev_err(hdev->dev,
@@ -458,7 +505,6 @@ int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
 			dev_err(hdev->dev,
 				"Device failed to load, %d\n", status);
 
-		WREG32(msg_to_cpu_reg, KMD_MSG_NA);
 		rc = -EIO;
 		goto out;
 	}

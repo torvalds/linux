@@ -11,6 +11,8 @@
 #define LKD_HARD_RESET_MAGIC		0xED7BD694
 #define HL_POWER9_HOST_MAGIC		0x1DA30009
 
+#define BOOT_FIT_SRAM_OFFSET		0x200000
+
 /*
  * CPU error bits in BOOT_ERROR registers
  *
@@ -77,6 +79,7 @@ enum cpu_boot_status {
 	CPU_BOOT_STATUS_BMC_WAITING_SKIPPED, /* deprecated - will be removed */
 	/* Last boot loader progress status, ready to receive commands */
 	CPU_BOOT_STATUS_READY_TO_BOOT = 15,
+	CPU_BOOT_STATUS_WAITING_FOR_BOOT_FIT = 16,
 };
 
 enum kmd_msg {
