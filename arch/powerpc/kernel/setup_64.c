@@ -518,6 +518,8 @@ static bool __init parse_cache_info(struct device_node *np,
 	lsizep = of_get_property(np, propnames[3], NULL);
 	if (bsizep == NULL)
 		bsizep = lsizep;
+	if (lsizep == NULL)
+		lsizep = bsizep;
 	if (lsizep != NULL)
 		lsize = be32_to_cpu(*lsizep);
 	if (bsizep != NULL)
