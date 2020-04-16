@@ -449,6 +449,11 @@ enum {
 	FW_STATE_CR4_RDY          = 7
 };
 
+enum {
+	FW_STATE_PWR_ON = 1,
+	FW_STATE_N9_RDY = 2,
+};
+
 #define STA_TYPE_STA		BIT(0)
 #define STA_TYPE_AP		BIT(1)
 #define STA_TYPE_ADHOC		BIT(2)

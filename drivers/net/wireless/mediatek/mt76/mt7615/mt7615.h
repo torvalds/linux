@@ -269,6 +269,9 @@ struct mt7615_dev {
 	struct idr token;
 
 	u8 fw_ver;
+
+	struct work_struct wtbl_work;
+	struct list_head wd_head;
 };
 
 enum {
@@ -508,6 +511,13 @@ int mt7615_mcu_apply_tx_dpd(struct mt7615_phy *phy);
 int mt7615_dfs_init_radar_detector(struct mt7615_phy *phy);
 
 int mt7615_init_debugfs(struct mt7615_dev *dev);
+int mt7615_mcu_wait_response(struct mt7615_dev *dev, int cmd, int seq);
+
 int __mt7663_load_firmware(struct mt7615_dev *dev);
+
+/* usb */
+void mt7663u_wtbl_work(struct work_struct *work);
+int mt7663u_mcu_init(struct mt7615_dev *dev);
+int mt7663u_register_device(struct mt7615_dev *dev);
 
 #endif

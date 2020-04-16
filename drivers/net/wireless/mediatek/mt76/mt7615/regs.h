@@ -43,6 +43,7 @@ enum mt7615_reg_base {
 #define MT_TOP_MISC2_FW_STATE		GENMASK(2, 0)
 
 #define MT7663_TOP_MISC2_FW_STATE	GENMASK(3, 1)
+#define MT_TOP_MISC2_FW_PWR_ON		BIT(1)
 
 #define MT_MCU_BASE			0x2000
 #define MT_MCU(ofs)			(MT_MCU_BASE + (ofs))
@@ -58,6 +59,8 @@ enum mt7615_reg_base {
 #define MT_PCIE_REMAP_BASE_2		((dev)->reg_map[MT_PCIE_REMAP_BASE2])
 
 #define MT_HIF(ofs)			((dev)->reg_map[MT_HIF_BASE] + (ofs))
+#define MT_HIF_RST			MT_HIF(0x100)
+#define MT_HIF_LOGIC_RST_N		BIT(4)
 
 #define MT7663_MCU_PCIE_REMAP_2_OFFSET	GENMASK(15, 0)
 #define MT7663_MCU_PCIE_REMAP_2_BASE	GENMASK(31, 16)
@@ -482,5 +485,28 @@ enum mt7615_reg_base {
 /* INFRACFG host register range on MT7622 */
 #define MT_INFRACFG_MISC		0x700
 #define MT_INFRACFG_MISC_AP2CONN_WAKE	BIT(1)
+
+#define MT_UMAC_BASE			0x7c000000
+#define MT_UMAC(ofs)			(MT_UMAC_BASE + (ofs))
+#define MT_UDMA_TX_QSEL			MT_UMAC(0x008)
+#define MT_FW_DL_EN			BIT(3)
+
+#define MT_UDMA_WLCFG_1			MT_UMAC(0x00c)
+#define MT_WL_RX_AGG_PKT_LMT		GENMASK(7, 0)
+#define MT_WL_TX_TMOUT_LMT		GENMASK(27, 8)
+
+#define MT_UDMA_WLCFG_0			MT_UMAC(0x18)
+#define MT_WL_RX_AGG_TO			GENMASK(7, 0)
+#define MT_WL_RX_AGG_LMT		GENMASK(15, 8)
+#define MT_WL_TX_TMOUT_FUNC_EN		BIT(16)
+#define MT_WL_TX_DPH_CHK_EN		BIT(17)
+#define MT_WL_RX_MPSZ_PAD0		BIT(18)
+#define MT_WL_RX_FLUSH			BIT(19)
+#define MT_TICK_1US_EN			BIT(20)
+#define MT_WL_RX_AGG_EN			BIT(21)
+#define MT_WL_RX_EN			BIT(22)
+#define MT_WL_TX_EN			BIT(23)
+#define MT_WL_RX_BUSY			BIT(30)
+#define MT_WL_TX_BUSY			BIT(31)
 
 #endif

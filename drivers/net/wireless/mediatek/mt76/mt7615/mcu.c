@@ -1598,8 +1598,7 @@ static int mt7615_mcu_send_firmware(struct mt7615_dev *dev, const void *data,
 	int ret = 0, cur_len;
 
 	while (len > 0) {
-		cur_len = min_t(int, 4096 - sizeof(struct mt7615_mcu_txd),
-				len);
+		cur_len = min_t(int, 4096 - dev->mt76.mcu_ops->headroom, len);
 
 		ret = __mt76_mcu_send_msg(&dev->mt76, MCU_CMD_FW_SCATTER,
 					  data, cur_len, false);

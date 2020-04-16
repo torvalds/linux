@@ -277,6 +277,37 @@ out:
 	return ret;
 }
 
+static int
+mt7615_queue_key_update(struct mt7615_dev *dev, enum set_key_cmd cmd,
+			struct mt7615_sta *msta,
+			struct ieee80211_key_conf *key)
+{
+	struct mt7615_wtbl_desc *wd;
+
+	wd = kzalloc(sizeof(*wd), GFP_KERNEL);
+	if (!wd)
+		return -ENOMEM;
+
+	wd->type = MT7615_WTBL_KEY_DESC;
+	wd->sta = msta;
+
+	wd->key.key = kzalloc(key->keylen, GFP_KERNEL);
+	if (!wd->key.key) {
+		kfree(wd);
+		return -ENOMEM;
+	}
+	memcpy(wd->key.key, key->key, key->keylen);
+	wd->key.cipher = key->cipher;
+	wd->key.keyidx = key->keyidx;
+	wd->key.keylen = key->keylen;
+	wd->key.cmd = cmd;
+
+	list_add_tail(&wd->node, &dev->wd_head);
+	queue_work(dev->mt76.usb.wq, &dev->wtbl_work);
+
+	return 0;
+}
+
 static int mt7615_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 			  struct ieee80211_vif *vif, struct ieee80211_sta *sta,
 			  struct ieee80211_key_conf *key)
@@ -324,6 +355,9 @@ static int mt7615_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	}
 	mt76_wcid_key_setup(&dev->mt76, wcid,
 			    cmd == SET_KEY ? key : NULL);
+
+	if (mt76_is_usb(&dev->mt76))
+		return mt7615_queue_key_update(dev, cmd, msta, key);
 
 	return mt7615_mac_wtbl_set_key(dev, wcid, key, cmd);
 }
