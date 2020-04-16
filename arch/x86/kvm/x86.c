@@ -10353,6 +10353,10 @@ static void kvm_del_async_pf_gfn(struct kvm_vcpu *vcpu, gfn_t gfn)
 	u32 i, j, k;
 
 	i = j = kvm_async_pf_gfn_slot(vcpu, gfn);
+
+	if (WARN_ON_ONCE(vcpu->arch.apf.gfns[i] != gfn))
+		return;
+
 	while (true) {
 		vcpu->arch.apf.gfns[i] = ~0;
 		do {
