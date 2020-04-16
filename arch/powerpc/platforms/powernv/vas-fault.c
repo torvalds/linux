@@ -11,6 +11,7 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/kthread.h>
+#include <linux/mmu_context.h>
 #include <asm/icswx.h>
 
 #include "vas.h"
@@ -23,6 +24,136 @@
  * instance.
  */
 #define VAS_FAULT_WIN_FIFO_SIZE	(4 << 20)
+
+/*
+ * Process valid CRBs in fault FIFO.
+ * NX process user space requests, return credit and update the status
+ * in CRB. If it encounters transalation error when accessing CRB or
+ * request buffers, raises interrupt on the CPU to handle the fault.
+ * It takes credit on fault window, updates nx_fault_stamp in CRB with
+ * the following information and pastes CRB in fault FIFO.
+ *
+ * pswid - window ID of the window on which the request is sent.
+ * fault_storage_addr - fault address
+ *
+ * It can raise a single interrupt for multiple faults. Expects OS to
+ * process all valid faults and return credit for each fault on user
+ * space and fault windows. This fault FIFO control will be done with
+ * credit mechanism. NX can continuously paste CRBs until credits are not
+ * available on fault window. Otherwise, returns with RMA_reject.
+ *
+ * Total credits available on fault window: FIFO_SIZE(4MB)/CRBS_SIZE(128)
+ *
+ */
+irqreturn_t vas_fault_thread_fn(int irq, void *data)
+{
+	struct vas_instance *vinst = data;
+	struct coprocessor_request_block *crb, *entry;
+	struct coprocessor_request_block buf;
+	struct vas_window *window;
+	unsigned long flags;
+	void *fifo;
+
+	crb = &buf;
+
+	/*
+	 * VAS can interrupt with multiple page faults. So process all
+	 * valid CRBs within fault FIFO until reaches invalid CRB.
+	 * We use CCW[0] and pswid to validate validate CRBs:
+	 *
+	 * CCW[0]	Reserved bit. When NX pastes CRB, CCW[0]=0
+	 *		OS sets this bit to 1 after reading CRB.
+	 * pswid	NX assigns window ID. Set pswid to -1 after
+	 *		reading CRB from fault FIFO.
+	 *
+	 * We exit this function if no valid CRBs are available to process.
+	 * So acquire fault_lock and reset fifo_in_progress to 0 before
+	 * exit.
+	 * In case kernel receives another interrupt with different page
+	 * fault, interrupt handler returns with IRQ_HANDLED if
+	 * fifo_in_progress is set. Means these new faults will be
+	 * handled by the current thread. Otherwise set fifo_in_progress
+	 * and return IRQ_WAKE_THREAD to wake up thread.
+	 */
+	while (true) {
+		spin_lock_irqsave(&vinst->fault_lock, flags);
+		/*
+		 * Advance the fault fifo pointer to next CRB.
+		 * Use CRB_SIZE rather than sizeof(*crb) since the latter is
+		 * aligned to CRB_ALIGN (256) but the CRB written to by VAS is
+		 * only CRB_SIZE in len.
+		 */
+		fifo = vinst->fault_fifo + (vinst->fault_crbs * CRB_SIZE);
+		entry = fifo;
+
+		if ((entry->stamp.nx.pswid == cpu_to_be32(FIFO_INVALID_ENTRY))
+			|| (entry->ccw & cpu_to_be32(CCW0_INVALID))) {
+			vinst->fifo_in_progress = 0;
+			spin_unlock_irqrestore(&vinst->fault_lock, flags);
+			return IRQ_HANDLED;
+		}
+
+		spin_unlock_irqrestore(&vinst->fault_lock, flags);
+		vinst->fault_crbs++;
+		if (vinst->fault_crbs == (vinst->fault_fifo_size / CRB_SIZE))
+			vinst->fault_crbs = 0;
+
+		memcpy(crb, fifo, CRB_SIZE);
+		entry->stamp.nx.pswid = cpu_to_be32(FIFO_INVALID_ENTRY);
+		entry->ccw |= cpu_to_be32(CCW0_INVALID);
+
+		pr_devel("VAS[%d] fault_fifo %p, fifo %p, fault_crbs %d\n",
+				vinst->vas_id, vinst->fault_fifo, fifo,
+				vinst->fault_crbs);
+
+		window = vas_pswid_to_window(vinst,
+				be32_to_cpu(crb->stamp.nx.pswid));
+
+		if (IS_ERR(window)) {
+			/*
+			 * We got an interrupt about a specific send
+			 * window but we can't find that window and we can't
+			 * even clean it up (return credit on user space
+			 * window).
+			 * But we should not get here.
+			 * TODO: Disable IRQ.
+			 */
+			pr_err("VAS[%d] fault_fifo %p, fifo %p, pswid 0x%x, fault_crbs %d bad CRB?\n",
+				vinst->vas_id, vinst->fault_fifo, fifo,
+				be32_to_cpu(crb->stamp.nx.pswid),
+				vinst->fault_crbs);
+
+			WARN_ON_ONCE(1);
+		}
+
+	}
+}
+
+irqreturn_t vas_fault_handler(int irq, void *dev_id)
+{
+	struct vas_instance *vinst = dev_id;
+	irqreturn_t ret = IRQ_WAKE_THREAD;
+	unsigned long flags;
+
+	/*
+	 * NX can generate an interrupt for multiple faults. So the
+	 * fault handler thread process all CRBs until finds invalid
+	 * entry. In case if NX sees continuous faults, it is possible
+	 * that the thread function entered with the first interrupt
+	 * can execute and process all valid CRBs.
+	 * So wake up thread only if the fault thread is not in progress.
+	 */
+	spin_lock_irqsave(&vinst->fault_lock, flags);
+
+	if (vinst->fifo_in_progress)
+		ret = IRQ_HANDLED;
+	else
+		vinst->fifo_in_progress = 1;
+
+	spin_unlock_irqrestore(&vinst->fault_lock, flags);
+
+	return ret;
+}
 
 /*
  * Fault window is opened per VAS instance. NX pastes fault CRB in fault
