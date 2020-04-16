@@ -56,6 +56,7 @@
 struct intel_scu_ipc_dev {
 	struct device dev;
 	struct resource mem;
+	struct module *owner;
 	int irq;
 	void __iomem *ipc_base;
 	struct completion cmd_complete;
@@ -83,6 +84,102 @@ static struct class intel_scu_ipc_class = {
 	.name = "intel_scu_ipc",
 	.owner = THIS_MODULE,
 };
+
+/**
+ * intel_scu_ipc_dev_get() - Get SCU IPC instance
+ *
+ * The recommended new API takes SCU IPC instance as parameter and this
+ * function can be called by driver to get the instance. This also makes
+ * sure the driver providing the IPC functionality cannot be unloaded
+ * while the caller has the instance.
+ *
+ * Call intel_scu_ipc_dev_put() to release the instance.
+ *
+ * Returns %NULL if SCU IPC is not currently available.
+ */
+struct intel_scu_ipc_dev *intel_scu_ipc_dev_get(void)
+{
+	struct intel_scu_ipc_dev *scu = NULL;
+
+	mutex_lock(&ipclock);
+	if (ipcdev) {
+		get_device(&ipcdev->dev);
+		/*
+		 * Prevent the IPC provider from being unloaded while it
+		 * is being used.
+		 */
+		if (!try_module_get(ipcdev->owner))
+			put_device(&ipcdev->dev);
+		else
+			scu = ipcdev;
+	}
+
+	mutex_unlock(&ipclock);
+	return scu;
+}
+EXPORT_SYMBOL_GPL(intel_scu_ipc_dev_get);
+
+/**
+ * intel_scu_ipc_dev_put() - Put SCU IPC instance
+ * @scu: SCU IPC instance
+ *
+ * This function releases the SCU IPC instance retrieved from
+ * intel_scu_ipc_dev_get() and allows the driver providing IPC to be
+ * unloaded.
+ */
+void intel_scu_ipc_dev_put(struct intel_scu_ipc_dev *scu)
+{
+	if (scu) {
+		module_put(scu->owner);
+		put_device(&scu->dev);
+	}
+}
+EXPORT_SYMBOL_GPL(intel_scu_ipc_dev_put);
+
+struct intel_scu_ipc_devres {
+	struct intel_scu_ipc_dev *scu;
+};
+
+static void devm_intel_scu_ipc_dev_release(struct device *dev, void *res)
+{
+	struct intel_scu_ipc_devres *dr = res;
+	struct intel_scu_ipc_dev *scu = dr->scu;
+
+	intel_scu_ipc_dev_put(scu);
+}
+
+/**
+ * devm_intel_scu_ipc_dev_get() - Allocate managed SCU IPC device
+ * @dev: Device requesting the SCU IPC device
+ *
+ * The recommended new API takes SCU IPC instance as parameter and this
+ * function can be called by driver to get the instance. This also makes
+ * sure the driver providing the IPC functionality cannot be unloaded
+ * while the caller has the instance.
+ *
+ * Returns %NULL if SCU IPC is not currently available.
+ */
+struct intel_scu_ipc_dev *devm_intel_scu_ipc_dev_get(struct device *dev)
+{
+	struct intel_scu_ipc_devres *dr;
+	struct intel_scu_ipc_dev *scu;
+
+	dr = devres_alloc(devm_intel_scu_ipc_dev_release, sizeof(*dr), GFP_KERNEL);
+	if (!dr)
+		return NULL;
+
+	scu = intel_scu_ipc_dev_get();
+	if (!scu) {
+		devres_free(dr);
+		return NULL;
+	}
+
+	dr->scu = scu;
+	devres_add(dev, dr);
+
+	return scu;
+}
+EXPORT_SYMBOL_GPL(devm_intel_scu_ipc_dev_get);
 
 /*
  * Send ipc command
@@ -171,9 +268,9 @@ static int intel_scu_ipc_check_status(struct intel_scu_ipc_dev *scu)
 }
 
 /* Read/Write power control(PMIC in Langwell, MSIC in PenWell) registers */
-static int pwr_reg_rdwr(u16 *addr, u8 *data, u32 count, u32 op, u32 id)
+static int pwr_reg_rdwr(struct intel_scu_ipc_dev *scu, u16 *addr, u8 *data,
+			u32 count, u32 op, u32 id)
 {
-	struct intel_scu_ipc_dev *scu;
 	int nc;
 	u32 offset = 0;
 	int err;
@@ -183,11 +280,12 @@ static int pwr_reg_rdwr(u16 *addr, u8 *data, u32 count, u32 op, u32 id)
 	memset(cbuf, 0, sizeof(cbuf));
 
 	mutex_lock(&ipclock);
-	if (!ipcdev) {
+	if (!scu)
+		scu = ipcdev;
+	if (!scu) {
 		mutex_unlock(&ipclock);
 		return -ENODEV;
 	}
-	scu = ipcdev;
 
 	for (nc = 0; nc < count; nc++, offset += 2) {
 		cbuf[offset] = addr[nc];
@@ -223,7 +321,8 @@ static int pwr_reg_rdwr(u16 *addr, u8 *data, u32 count, u32 op, u32 id)
 }
 
 /**
- * intel_scu_ipc_ioread8		-	read a word via the SCU
+ * intel_scu_ipc_dev_ioread8() - Read a byte via the SCU
+ * @scu: Optional SCU IPC instance
  * @addr: Register on SCU
  * @data: Return pointer for read byte
  *
@@ -232,14 +331,15 @@ static int pwr_reg_rdwr(u16 *addr, u8 *data, u32 count, u32 op, u32 id)
  *
  * This function may sleep.
  */
-int intel_scu_ipc_ioread8(u16 addr, u8 *data)
+int intel_scu_ipc_dev_ioread8(struct intel_scu_ipc_dev *scu, u16 addr, u8 *data)
 {
-	return pwr_reg_rdwr(&addr, data, 1, IPCMSG_PCNTRL, IPC_CMD_PCNTRL_R);
+	return pwr_reg_rdwr(scu, &addr, data, 1, IPCMSG_PCNTRL, IPC_CMD_PCNTRL_R);
 }
-EXPORT_SYMBOL(intel_scu_ipc_ioread8);
+EXPORT_SYMBOL(intel_scu_ipc_dev_ioread8);
 
 /**
- * intel_scu_ipc_iowrite8		-	write a byte via the SCU
+ * intel_scu_ipc_dev_iowrite8() - Write a byte via the SCU
+ * @scu: Optional SCU IPC instance
  * @addr: Register on SCU
  * @data: Byte to write
  *
@@ -248,14 +348,15 @@ EXPORT_SYMBOL(intel_scu_ipc_ioread8);
  *
  * This function may sleep.
  */
-int intel_scu_ipc_iowrite8(u16 addr, u8 data)
+int intel_scu_ipc_dev_iowrite8(struct intel_scu_ipc_dev *scu, u16 addr, u8 data)
 {
-	return pwr_reg_rdwr(&addr, &data, 1, IPCMSG_PCNTRL, IPC_CMD_PCNTRL_W);
+	return pwr_reg_rdwr(scu, &addr, &data, 1, IPCMSG_PCNTRL, IPC_CMD_PCNTRL_W);
 }
-EXPORT_SYMBOL(intel_scu_ipc_iowrite8);
+EXPORT_SYMBOL(intel_scu_ipc_dev_iowrite8);
 
 /**
- * intel_scu_ipc_readvv		-	read a set of registers
+ * intel_scu_ipc_dev_readv() - Read a set of registers
+ * @scu: Optional SCU IPC instance
  * @addr: Register list
  * @data: Bytes to return
  * @len: Length of array
@@ -267,14 +368,16 @@ EXPORT_SYMBOL(intel_scu_ipc_iowrite8);
  *
  * This function may sleep.
  */
-int intel_scu_ipc_readv(u16 *addr, u8 *data, int len)
+int intel_scu_ipc_dev_readv(struct intel_scu_ipc_dev *scu, u16 *addr, u8 *data,
+			    size_t len)
 {
-	return pwr_reg_rdwr(addr, data, len, IPCMSG_PCNTRL, IPC_CMD_PCNTRL_R);
+	return pwr_reg_rdwr(scu, addr, data, len, IPCMSG_PCNTRL, IPC_CMD_PCNTRL_R);
 }
-EXPORT_SYMBOL(intel_scu_ipc_readv);
+EXPORT_SYMBOL(intel_scu_ipc_dev_readv);
 
 /**
- * intel_scu_ipc_writev		-	write a set of registers
+ * intel_scu_ipc_dev_writev() - Write a set of registers
+ * @scu: Optional SCU IPC instance
  * @addr: Register list
  * @data: Bytes to write
  * @len: Length of array
@@ -286,16 +389,18 @@ EXPORT_SYMBOL(intel_scu_ipc_readv);
  *
  * This function may sleep.
  */
-int intel_scu_ipc_writev(u16 *addr, u8 *data, int len)
+int intel_scu_ipc_dev_writev(struct intel_scu_ipc_dev *scu, u16 *addr, u8 *data,
+			     size_t len)
 {
-	return pwr_reg_rdwr(addr, data, len, IPCMSG_PCNTRL, IPC_CMD_PCNTRL_W);
+	return pwr_reg_rdwr(scu, addr, data, len, IPCMSG_PCNTRL, IPC_CMD_PCNTRL_W);
 }
-EXPORT_SYMBOL(intel_scu_ipc_writev);
+EXPORT_SYMBOL(intel_scu_ipc_dev_writev);
 
 /**
- * intel_scu_ipc_update_register	-	r/m/w a register
+ * intel_scu_ipc_dev_update() - Update a register
+ * @scu: Optional SCU IPC instance
  * @addr: Register address
- * @bits: Bits to update
+ * @data: Bits to update
  * @mask: Mask of bits to update
  *
  * Read-modify-write power control unit register. The first data argument
@@ -306,15 +411,17 @@ EXPORT_SYMBOL(intel_scu_ipc_writev);
  * This function may sleep. Locking between SCU accesses is handled
  * for the caller.
  */
-int intel_scu_ipc_update_register(u16 addr, u8 bits, u8 mask)
+int intel_scu_ipc_dev_update(struct intel_scu_ipc_dev *scu, u16 addr, u8 data,
+			     u8 mask)
 {
-	u8 data[2] = { bits, mask };
-	return pwr_reg_rdwr(&addr, data, 1, IPCMSG_PCNTRL, IPC_CMD_PCNTRL_M);
+	u8 tmp[2] = { data, mask };
+	return pwr_reg_rdwr(scu, &addr, tmp, 1, IPCMSG_PCNTRL, IPC_CMD_PCNTRL_M);
 }
-EXPORT_SYMBOL(intel_scu_ipc_update_register);
+EXPORT_SYMBOL(intel_scu_ipc_dev_update);
 
 /**
- * intel_scu_ipc_simple_command	-	send a simple command
+ * intel_scu_ipc_dev_simple_command() - Send a simple command
+ * @scu: Optional SCU IPC instance
  * @cmd: Command
  * @sub: Sub type
  *
@@ -325,14 +432,16 @@ EXPORT_SYMBOL(intel_scu_ipc_update_register);
  * This function may sleep. Locking for SCU accesses is handled for the
  * caller.
  */
-int intel_scu_ipc_simple_command(int cmd, int sub)
+int intel_scu_ipc_dev_simple_command(struct intel_scu_ipc_dev *scu, int cmd,
+				     int sub)
 {
-	struct intel_scu_ipc_dev *scu;
 	u32 cmdval;
 	int err;
 
 	mutex_lock(&ipclock);
-	if (!ipcdev) {
+	if (!scu)
+		scu = ipcdev;
+	if (!scu) {
 		mutex_unlock(&ipclock);
 		return -ENODEV;
 	}
@@ -345,44 +454,59 @@ int intel_scu_ipc_simple_command(int cmd, int sub)
 		dev_err(&scu->dev, "IPC command %#x failed with %d\n", cmdval, err);
 	return err;
 }
-EXPORT_SYMBOL(intel_scu_ipc_simple_command);
+EXPORT_SYMBOL(intel_scu_ipc_dev_simple_command);
 
 /**
- * intel_scu_ipc_command	-	command with data
+ * intel_scu_ipc_command_with_size() - Command with data
+ * @scu: Optional SCU IPC instance
  * @cmd: Command
  * @sub: Sub type
  * @in: Input data
- * @inlen: Input length in dwords
+ * @inlen: Input length in bytes
+ * @size: Input size written to the IPC command register in whatever
+ *	  units (dword, byte) the particular firmware requires. Normally
+ *	  should be the same as @inlen.
  * @out: Output data
- * @outlen: Output length in dwords
+ * @outlen: Output length in bytes
  *
  * Issue a command to the SCU which involves data transfers. Do the
  * data copies under the lock but leave it for the caller to interpret.
  */
-int intel_scu_ipc_command(int cmd, int sub, u32 *in, int inlen,
-			  u32 *out, int outlen)
+int intel_scu_ipc_dev_command_with_size(struct intel_scu_ipc_dev *scu, int cmd,
+					int sub, const void *in, size_t inlen,
+					size_t size, void *out, size_t outlen)
 {
-	struct intel_scu_ipc_dev *scu;
-	u32 cmdval;
+	size_t outbuflen = DIV_ROUND_UP(outlen, sizeof(u32));
+	size_t inbuflen = DIV_ROUND_UP(inlen, sizeof(u32));
+	u32 cmdval, inbuf[4] = {};
 	int i, err;
 
+	if (inbuflen > 4 || outbuflen > 4)
+		return -EINVAL;
+
 	mutex_lock(&ipclock);
-	if (!ipcdev) {
+	if (!scu)
+		scu = ipcdev;
+	if (!scu) {
 		mutex_unlock(&ipclock);
 		return -ENODEV;
 	}
-	scu = ipcdev;
 
-	for (i = 0; i < inlen; i++)
-		ipc_data_writel(scu, *in++, 4 * i);
+	memcpy(inbuf, in, inlen);
+	for (i = 0; i < inbuflen; i++)
+		ipc_data_writel(scu, inbuf[i], 4 * i);
 
-	cmdval = (inlen << 16) | (sub << 12) | cmd;
+	cmdval = (size << 16) | (sub << 12) | cmd;
 	ipc_command(scu, cmdval);
 	err = intel_scu_ipc_check_status(scu);
 
 	if (!err) {
-		for (i = 0; i < outlen; i++)
-			*out++ = ipc_data_readl(scu, 4 * i);
+		u32 outbuf[4] = {};
+
+		for (i = 0; i < outbuflen; i++)
+			outbuf[i] = ipc_data_readl(scu, 4 * i);
+
+		memcpy(out, outbuf, outlen);
 	}
 
 	mutex_unlock(&ipclock);
@@ -390,7 +514,7 @@ int intel_scu_ipc_command(int cmd, int sub, u32 *in, int inlen,
 		dev_err(&scu->dev, "IPC command %#x failed with %d\n", cmdval, err);
 	return err;
 }
-EXPORT_SYMBOL(intel_scu_ipc_command);
+EXPORT_SYMBOL(intel_scu_ipc_dev_command_with_size);
 
 /*
  * Interrupt handler gets called when ioc bit of IPC_COMMAND_REG set to 1
@@ -423,17 +547,20 @@ static void intel_scu_ipc_release(struct device *dev)
 }
 
 /**
- * intel_scu_ipc_register() - Register SCU IPC device
+ * __intel_scu_ipc_register() - Register SCU IPC device
  * @parent: Parent device
  * @scu_data: Data used to configure SCU IPC
+ * @owner: Module registering the SCU IPC device
  *
  * Call this function to register SCU IPC mechanism under @parent.
  * Returns pointer to the new SCU IPC device or ERR_PTR() in case of
- * failure.
+ * failure. The caller may use the returned instance if it needs to do
+ * SCU IPC calls itself.
  */
 struct intel_scu_ipc_dev *
-intel_scu_ipc_register(struct device *parent,
-		       const struct intel_scu_ipc_data *scu_data)
+__intel_scu_ipc_register(struct device *parent,
+			 const struct intel_scu_ipc_data *scu_data,
+			 struct module *owner)
 {
 	int err;
 	struct intel_scu_ipc_dev *scu;
@@ -452,6 +579,7 @@ intel_scu_ipc_register(struct device *parent,
 		goto err_unlock;
 	}
 
+	scu->owner = owner;
 	scu->dev.parent = parent;
 	scu->dev.class = &intel_scu_ipc_class;
 	scu->dev.release = intel_scu_ipc_release;
@@ -507,7 +635,7 @@ err_unlock:
 
 	return ERR_PTR(err);
 }
-EXPORT_SYMBOL_GPL(intel_scu_ipc_register);
+EXPORT_SYMBOL_GPL(__intel_scu_ipc_register);
 
 static int __init intel_scu_ipc_init(void)
 {
