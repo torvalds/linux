@@ -7811,7 +7811,7 @@ static void btrfs_end_dio_bio(struct bio *bio)
 	}
 
 	/* if there are more bios still pending for this dio, just exit */
-	if (!atomic_dec_and_test(&dip->pending_bios))
+	if (!refcount_dec_and_test(&dip->refs))
 		goto out;
 
 	if (dip->errors) {
@@ -7929,7 +7929,7 @@ static struct btrfs_dio_private *btrfs_create_dio_private(struct bio *dio_bio,
 	dip->disk_bytenr = (u64)dio_bio->bi_iter.bi_sector << 9;
 	dip->orig_bio = bio;
 	dip->dio_bio = dio_bio;
-	atomic_set(&dip->pending_bios, 1);
+	refcount_set(&dip->refs, 1);
 
 	if (write) {
 		struct btrfs_dio_data *dio_data = current->journal_info;
@@ -8025,13 +8025,13 @@ static void btrfs_submit_direct(struct bio *dio_bio, struct inode *inode,
 		 * count. Otherwise, the dip might get freed before we're
 		 * done setting it up.
 		 */
-		atomic_inc(&dip->pending_bios);
+		refcount_inc(&dip->refs);
 
 		status = btrfs_submit_dio_bio(bio, inode, file_offset,
 						async_submit);
 		if (status) {
 			bio_put(bio);
-			atomic_dec(&dip->pending_bios);
+			refcount_dec(&dip->refs);
 			goto out_err;
 		}
 
@@ -8060,7 +8060,7 @@ out_err:
 	 * atomic operations with a return value are fully ordered as per
 	 * atomic_t.txt
 	 */
-	if (atomic_dec_and_test(&dip->pending_bios))
+	if (refcount_dec_and_test(&dip->refs))
 		bio_io_error(dip->orig_bio);
 }
 

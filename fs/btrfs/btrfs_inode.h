@@ -7,6 +7,7 @@
 #define BTRFS_INODE_H
 
 #include <linux/hash.h>
+#include <linux/refcount.h>
 #include "extent_map.h"
 #include "extent_io.h"
 #include "ordered-data.h"
@@ -302,8 +303,11 @@ struct btrfs_dio_private {
 	u64 disk_bytenr;
 	u64 bytes;
 
-	/* number of bios pending for this dio */
-	atomic_t pending_bios;
+	/*
+	 * References to this structure. There is one reference per in-flight
+	 * bio plus one while we're still setting up.
+	 */
+	refcount_t refs;
 
 	/* IO errors */
 	int errors;
