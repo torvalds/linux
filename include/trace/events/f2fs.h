@@ -1842,6 +1842,13 @@ TRACE_EVENT(f2fs_iostat,
 		__field(unsigned long long,	fs_cp_dio)
 		__field(unsigned long long,	fs_cp_nio)
 		__field(unsigned long long,	fs_cp_mio)
+		__field(unsigned long long,	app_drio)
+		__field(unsigned long long,	app_brio)
+		__field(unsigned long long,	app_rio)
+		__field(unsigned long long,	app_mrio)
+		__field(unsigned long long,	fs_drio)
+		__field(unsigned long long,	fs_nrio)
+		__field(unsigned long long,	fs_mrio)
 		__field(unsigned long long,	fs_discard)
 	),
 
@@ -1859,6 +1866,13 @@ TRACE_EVENT(f2fs_iostat,
 		__entry->fs_cp_dio	= iostat[FS_CP_DATA_IO];
 		__entry->fs_cp_nio	= iostat[FS_CP_NODE_IO];
 		__entry->fs_cp_mio	= iostat[FS_CP_META_IO];
+		__entry->app_drio	= iostat[APP_DIRECT_READ_IO];
+		__entry->app_brio	= iostat[APP_BUFFERED_READ_IO];
+		__entry->app_rio	= iostat[APP_READ_IO];
+		__entry->app_mrio	= iostat[APP_MAPPED_READ_IO];
+		__entry->fs_drio	= iostat[FS_DATA_READ_IO];
+		__entry->fs_nrio	= iostat[FS_NODE_READ_IO];
+		__entry->fs_mrio	= iostat[FS_META_READ_IO];
 		__entry->fs_discard	= iostat[FS_DISCARD];
 	),
 
@@ -1866,12 +1880,17 @@ TRACE_EVENT(f2fs_iostat,
 		"app [write=%llu (direct=%llu, buffered=%llu), mapped=%llu], "
 		"fs [data=%llu, node=%llu, meta=%llu, discard=%llu], "
 		"gc [data=%llu, node=%llu], "
-		"cp [data=%llu, node=%llu, meta=%llu]",
+		"cp [data=%llu, node=%llu, meta=%llu], "
+		"app [read=%llu (direct=%llu, buffered=%llu), mapped=%llu], "
+		"fs [data=%llu, node=%llu, meta=%llu]",
 		show_dev(__entry->dev), __entry->app_wio, __entry->app_dio,
 		__entry->app_bio, __entry->app_mio, __entry->fs_dio,
 		__entry->fs_nio, __entry->fs_mio, __entry->fs_discard,
 		__entry->fs_gc_dio, __entry->fs_gc_nio, __entry->fs_cp_dio,
-		__entry->fs_cp_nio, __entry->fs_cp_mio)
+		__entry->fs_cp_nio, __entry->fs_cp_mio,
+		__entry->app_rio, __entry->app_drio, __entry->app_brio,
+		__entry->app_mrio, __entry->fs_drio, __entry->fs_nrio,
+		__entry->fs_mrio)
 );
 
 #endif /* _TRACE_F2FS_H */
