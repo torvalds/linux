@@ -1317,6 +1317,42 @@ int vas_win_close(struct vas_window *window)
 }
 EXPORT_SYMBOL_GPL(vas_win_close);
 
+/*
+ * Return credit for the given window.
+ * Send windows and fault window uses credit mechanism as follows:
+ *
+ * Send windows:
+ * - The default number of credits available for each send window is
+ *   1024. It means 1024 requests can be issued asynchronously at the
+ *   same time. If the credit is not available, that request will be
+ *   returned with RMA_Busy.
+ * - One credit is taken when NX request is issued.
+ * - This credit is returned after NX processed that request.
+ * - If NX encounters translation error, kernel will return the
+ *   credit on the specific send window after processing the fault CRB.
+ *
+ * Fault window:
+ * - The total number credits available is FIFO_SIZE/CRB_SIZE.
+ *   Means 4MB/128 in the current implementation. If credit is not
+ *   available, RMA_Reject is returned.
+ * - A credit is taken when NX pastes CRB in fault FIFO.
+ * - The kernel with return credit on fault window after reading entry
+ *   from fault FIFO.
+ */
+void vas_return_credit(struct vas_window *window, bool tx)
+{
+	uint64_t val;
+
+	val = 0ULL;
+	if (tx) { /* send window */
+		val = SET_FIELD(VAS_TX_WCRED, val, 1);
+		write_hvwc_reg(window, VREG(TX_WCRED_ADDER), val);
+	} else {
+		val = SET_FIELD(VAS_LRX_WCRED, val, 1);
+		write_hvwc_reg(window, VREG(LRX_WCRED_ADDER), val);
+	}
+}
+
 struct vas_window *vas_pswid_to_window(struct vas_instance *vinst,
 		uint32_t pswid)
 {
