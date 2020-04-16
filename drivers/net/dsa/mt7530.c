@@ -67,58 +67,6 @@ static const struct mt7530_mib_desc mt7530_mib[] = {
 };
 
 static int
-mt7623_trgmii_write(struct mt7530_priv *priv,  u32 reg, u32 val)
-{
-	int ret;
-
-	ret =  regmap_write(priv->ethernet, TRGMII_BASE(reg), val);
-	if (ret < 0)
-		dev_err(priv->dev,
-			"failed to priv write register\n");
-	return ret;
-}
-
-static u32
-mt7623_trgmii_read(struct mt7530_priv *priv, u32 reg)
-{
-	int ret;
-	u32 val;
-
-	ret = regmap_read(priv->ethernet, TRGMII_BASE(reg), &val);
-	if (ret < 0) {
-		dev_err(priv->dev,
-			"failed to priv read register\n");
-		return ret;
-	}
-
-	return val;
-}
-
-static void
-mt7623_trgmii_rmw(struct mt7530_priv *priv, u32 reg,
-		  u32 mask, u32 set)
-{
-	u32 val;
-
-	val = mt7623_trgmii_read(priv, reg);
-	val &= ~mask;
-	val |= set;
-	mt7623_trgmii_write(priv, reg, val);
-}
-
-static void
-mt7623_trgmii_set(struct mt7530_priv *priv, u32 reg, u32 val)
-{
-	mt7623_trgmii_rmw(priv, reg, 0, val);
-}
-
-static void
-mt7623_trgmii_clear(struct mt7530_priv *priv, u32 reg, u32 val)
-{
-	mt7623_trgmii_rmw(priv, reg, val, 0);
-}
-
-static int
 core_read_mmd_indirect(struct mt7530_priv *priv, int prtad, int devad)
 {
 	struct mii_bus *bus = priv->bus;
@@ -530,27 +478,6 @@ mt7530_pad_clk_setup(struct dsa_switch *ds, int mode)
 		for (i = 0 ; i < NUM_TRGMII_CTRL; i++)
 			mt7530_rmw(priv, MT7530_TRGMII_RD(i),
 				   RD_TAP_MASK, RD_TAP(16));
-	else
-		if (priv->id != ID_MT7621)
-			mt7623_trgmii_set(priv, GSW_INTF_MODE,
-					  INTF_MODE_TRGMII);
-
-	return 0;
-}
-
-static int
-mt7623_pad_clk_setup(struct dsa_switch *ds)
-{
-	struct mt7530_priv *priv = ds->priv;
-	int i;
-
-	for (i = 0 ; i < NUM_TRGMII_CTRL; i++)
-		mt7623_trgmii_write(priv, GSW_TRGMII_TD_ODT(i),
-				    TD_DM_DRVP(8) | TD_DM_DRVN(8));
-
-	mt7623_trgmii_set(priv, GSW_TRGMII_RCK_CTRL, RX_RST | RXC_DQSISEL);
-	mt7623_trgmii_clear(priv, GSW_TRGMII_RCK_CTRL, RX_RST);
-
 	return 0;
 }
 
@@ -846,8 +773,9 @@ mt7530_port_set_vlan_unaware(struct dsa_switch *ds, int port)
 	 */
 	mt7530_rmw(priv, MT7530_PCR_P(port), PCR_PORT_VLAN_MASK,
 		   MT7530_PORT_MATRIX_MODE);
-	mt7530_rmw(priv, MT7530_PVC_P(port), VLAN_ATTR_MASK,
-		   VLAN_ATTR(MT7530_VLAN_TRANSPARENT));
+	mt7530_rmw(priv, MT7530_PVC_P(port), VLAN_ATTR_MASK | PVC_EG_TAG_MASK,
+		   VLAN_ATTR(MT7530_VLAN_TRANSPARENT) |
+		   PVC_EG_TAG(MT7530_VLAN_EG_CONSISTENT));
 
 	for (i = 0; i < MT7530_NUM_PORTS; i++) {
 		if (dsa_is_user_port(ds, i) &&
@@ -863,8 +791,8 @@ mt7530_port_set_vlan_unaware(struct dsa_switch *ds, int port)
 	if (all_user_ports_removed) {
 		mt7530_write(priv, MT7530_PCR_P(MT7530_CPU_PORT),
 			     PCR_MATRIX(dsa_user_ports(priv->ds)));
-		mt7530_write(priv, MT7530_PVC_P(MT7530_CPU_PORT),
-			     PORT_SPEC_TAG);
+		mt7530_write(priv, MT7530_PVC_P(MT7530_CPU_PORT), PORT_SPEC_TAG
+			     | PVC_EG_TAG(MT7530_VLAN_EG_CONSISTENT));
 	}
 }
 
@@ -890,8 +818,9 @@ mt7530_port_set_vlan_aware(struct dsa_switch *ds, int port)
 	/* Set the port as a user port which is to be able to recognize VID
 	 * from incoming packets before fetching entry within the VLAN table.
 	 */
-	mt7530_rmw(priv, MT7530_PVC_P(port), VLAN_ATTR_MASK,
-		   VLAN_ATTR(MT7530_VLAN_USER));
+	mt7530_rmw(priv, MT7530_PVC_P(port), VLAN_ATTR_MASK | PVC_EG_TAG_MASK,
+		   VLAN_ATTR(MT7530_VLAN_USER) |
+		   PVC_EG_TAG(MT7530_VLAN_EG_DISABLED));
 }
 
 static void
@@ -1303,10 +1232,6 @@ mt7530_setup(struct dsa_switch *ds)
 	dn = dsa_to_port(ds, MT7530_CPU_PORT)->master->dev.of_node->parent;
 
 	if (priv->id == ID_MT7530) {
-		priv->ethernet = syscon_node_to_regmap(dn);
-		if (IS_ERR(priv->ethernet))
-			return PTR_ERR(priv->ethernet);
-
 		regulator_set_voltage(priv->core_pwr, 1000000, 1000000);
 		ret = regulator_enable(priv->core_pwr);
 		if (ret < 0) {
@@ -1380,6 +1305,10 @@ mt7530_setup(struct dsa_switch *ds)
 			mt7530_cpu_port_enable(priv, i);
 		else
 			mt7530_port_disable(ds, i);
+
+		/* Enable consistent egress tag */
+		mt7530_rmw(priv, MT7530_PVC_P(i), PVC_EG_TAG_MASK,
+			   PVC_EG_TAG(MT7530_VLAN_EG_CONSISTENT));
 	}
 
 	/* Setup port 5 */
@@ -1467,14 +1396,6 @@ static void mt7530_phylink_mac_config(struct dsa_switch *ds, int port,
 
 		/* Setup TX circuit incluing relevant PAD and driving */
 		mt7530_pad_clk_setup(ds, state->interface);
-
-		if (priv->id == ID_MT7530) {
-			/* Setup RX circuit, relevant PAD and driving on the
-			 * host which must be placed after the setup on the
-			 * device side is all finished.
-			 */
-			mt7623_pad_clk_setup(ds);
-		}
 
 		priv->p6_interface = state->interface;
 		break;
