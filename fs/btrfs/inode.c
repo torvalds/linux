@@ -2726,10 +2726,9 @@ void btrfs_writepage_endio_finish_ordered(struct page *page, u64 start,
 	btrfs_queue_work(wq, &ordered_extent->work);
 }
 
-static int __readpage_endio_check(struct inode *inode,
-				  struct btrfs_io_bio *io_bio,
-				  int icsum, struct page *page,
-				  int pgoff, u64 start, size_t len)
+static int check_data_csum(struct inode *inode, struct btrfs_io_bio *io_bio,
+			   int icsum, struct page *page, int pgoff, u64 start,
+			   size_t len)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	SHASH_DESC_ON_STACK(shash, fs_info->csum_shash);
@@ -2790,8 +2789,8 @@ static int btrfs_readpage_end_io_hook(struct btrfs_io_bio *io_bio,
 	}
 
 	phy_offset >>= inode->i_sb->s_blocksize_bits;
-	return __readpage_endio_check(inode, io_bio, phy_offset, page, offset,
-				      start, (size_t)(end - start + 1));
+	return check_data_csum(inode, io_bio, phy_offset, page, offset, start,
+			       (size_t)(end - start + 1));
 }
 
 /*
@@ -7584,9 +7583,9 @@ static void btrfs_retry_endio(struct bio *bio)
 
 	ASSERT(!bio_flagged(bio, BIO_CLONED));
 	bio_for_each_segment_all(bvec, bio, iter_all) {
-		ret = __readpage_endio_check(inode, io_bio, i, bvec->bv_page,
-					     bvec->bv_offset, done->start,
-					     bvec->bv_len);
+		ret = check_data_csum(inode, io_bio, i, bvec->bv_page,
+				      bvec->bv_offset, done->start,
+				      bvec->bv_len);
 		if (!ret)
 			clean_io_failure(BTRFS_I(inode)->root->fs_info,
 					 failure_tree, io_tree, done->start,
@@ -7636,8 +7635,9 @@ static blk_status_t __btrfs_subio_endio_read(struct inode *inode,
 next_block:
 		if (uptodate) {
 			csum_pos = BTRFS_BYTES_TO_BLKS(fs_info, offset);
-			ret = __readpage_endio_check(inode, io_bio, csum_pos,
-					bvec.bv_page, pgoff, start, sectorsize);
+			ret = check_data_csum(inode, io_bio, csum_pos,
+					      bvec.bv_page, pgoff, start,
+					      sectorsize);
 			if (likely(!ret))
 				goto next;
 		}
