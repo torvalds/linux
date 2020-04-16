@@ -67,8 +67,8 @@ static void mlx5e_xsk_tx_post_err(struct mlx5e_xdpsq *sq,
 bool mlx5e_xsk_tx(struct mlx5e_xdpsq *sq, unsigned int budget)
 {
 	struct xsk_buff_pool *pool = sq->xsk_pool;
+	struct mlx5e_xmit_data xdptxd;
 	struct mlx5e_xdp_info xdpi;
-	struct mlx5e_xdp_xmit_data xdptxd;
 	bool work_done = true;
 	bool flush = false;
 
