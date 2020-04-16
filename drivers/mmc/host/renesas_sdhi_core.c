@@ -237,7 +237,7 @@ static int renesas_sdhi_start_signal_voltage_switch(struct mmc_host *mmc,
 			MMC_SIGNAL_VOLTAGE_330 ? 0 : -EINVAL;
 
 	ret = mmc_regulator_set_vqmmc(host->mmc, ios);
-	if (ret)
+	if (ret < 0)
 		return ret;
 
 	return pinctrl_select_state(priv->pinctrl, pin_state);

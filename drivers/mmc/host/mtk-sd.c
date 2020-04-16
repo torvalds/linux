@@ -1369,7 +1369,7 @@ static void msdc_set_buswidth(struct msdc_host *host, u32 width)
 static int msdc_ops_switch_volt(struct mmc_host *mmc, struct mmc_ios *ios)
 {
 	struct msdc_host *host = mmc_priv(mmc);
-	int ret = 0;
+	int ret;
 
 	if (!IS_ERR(mmc->supply.vqmmc)) {
 		if (ios->signal_voltage != MMC_SIGNAL_VOLTAGE_330 &&
@@ -1379,18 +1379,19 @@ static int msdc_ops_switch_volt(struct mmc_host *mmc, struct mmc_ios *ios)
 		}
 
 		ret = mmc_regulator_set_vqmmc(mmc, ios);
-		if (ret) {
+		if (ret < 0) {
 			dev_dbg(host->dev, "Regulator set error %d (%d)\n",
 				ret, ios->signal_voltage);
-		} else {
-			/* Apply different pinctrl settings for different signal voltage */
-			if (ios->signal_voltage == MMC_SIGNAL_VOLTAGE_180)
-				pinctrl_select_state(host->pinctrl, host->pins_uhs);
-			else
-				pinctrl_select_state(host->pinctrl, host->pins_default);
+			return ret;
 		}
+
+		/* Apply different pinctrl settings for different signal voltage */
+		if (ios->signal_voltage == MMC_SIGNAL_VOLTAGE_180)
+			pinctrl_select_state(host->pinctrl, host->pins_uhs);
+		else
+			pinctrl_select_state(host->pinctrl, host->pins_default);
 	}
-	return ret;
+	return 0;
 }
 
 static int msdc_card_busy(struct mmc_host *mmc)
