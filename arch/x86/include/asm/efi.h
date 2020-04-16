@@ -225,13 +225,18 @@ efi_status_t efi_set_virtual_address_map(unsigned long memory_map_size,
 
 /* arch specific definitions used by the stub code */
 
-__attribute_const__ bool efi_is_64bit(void);
+extern const bool efi_is64;
+
+static inline bool efi_is_64bit(void)
+{
+	if (IS_ENABLED(CONFIG_EFI_MIXED))
+		return efi_is64;
+	return IS_ENABLED(CONFIG_X86_64);
+}
 
 static inline bool efi_is_native(void)
 {
 	if (!IS_ENABLED(CONFIG_X86_64))
-		return true;
-	if (!IS_ENABLED(CONFIG_EFI_MIXED))
 		return true;
 	return efi_is_64bit();
 }
