@@ -34,6 +34,8 @@ Video4Linux (V4L)  driver-specific documentation
 	:maxdepth: 5
 	:numbered:
 
+	intro
+
 	cardlist
 
 	v4l-with-ir
