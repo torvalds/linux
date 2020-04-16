@@ -25,11 +25,11 @@
 #define EFI_ALLOC_ALIGN		EFI_PAGE_SIZE
 #endif
 
-extern bool __pure nochunk(void);
-extern bool __pure nokaslr(void);
-extern bool __pure noinitrd(void);
-extern bool __pure is_quiet(void);
-extern bool __pure novamap(void);
+extern bool efi_nochunk;
+extern bool efi_nokaslr;
+extern bool efi_noinitrd;
+extern bool efi_quiet;
+extern bool efi_novamap;
 
 extern const efi_system_table_t *efi_system_table;
 
@@ -50,7 +50,7 @@ extern const efi_system_table_t *efi_system_table;
 #endif
 
 #define pr_efi(msg)		do {			\
-	if (!is_quiet()) efi_printk("EFI stub: "msg);	\
+	if (!efi_quiet) efi_printk("EFI stub: "msg);	\
 } while (0)
 
 #define pr_efi_err(msg) efi_printk("EFI stub: ERROR: "msg)

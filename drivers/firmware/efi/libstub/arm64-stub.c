@@ -55,7 +55,7 @@ efi_status_t handle_kernel_image(unsigned long *image_addr,
 	u32 phys_seed = 0;
 
 	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE)) {
-		if (!nokaslr()) {
+		if (!efi_nokaslr) {
 			status = efi_get_random_bytes(sizeof(phys_seed),
 						      (u8 *)&phys_seed);
 			if (status == EFI_NOT_FOUND) {

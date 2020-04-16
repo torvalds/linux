@@ -142,7 +142,7 @@ efi_status_t handle_cmdline_files(efi_loaded_image_t *image,
 	if (!load_addr || !load_size)
 		return EFI_INVALID_PARAMETER;
 
-	if (IS_ENABLED(CONFIG_X86) && !nochunk())
+	if (IS_ENABLED(CONFIG_X86) && !efi_nochunk)
 		efi_chunk_size = EFI_READ_CHUNK_SIZE;
 
 	alloc_addr = alloc_size = 0;

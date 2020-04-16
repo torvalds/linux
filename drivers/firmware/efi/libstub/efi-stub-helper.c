@@ -12,34 +12,15 @@
 
 #include "efistub.h"
 
-static bool efi_nochunk;
-static bool efi_nokaslr;
-static bool efi_noinitrd;
-static bool efi_quiet;
-static bool efi_novamap;
+bool efi_nochunk;
+bool efi_nokaslr;
+bool efi_noinitrd;
+bool efi_quiet;
+bool efi_novamap;
+
 static bool efi_nosoftreserve;
 static bool efi_disable_pci_dma = IS_ENABLED(CONFIG_EFI_DISABLE_PCI_DMA);
 
-bool __pure nochunk(void)
-{
-	return efi_nochunk;
-}
-bool __pure nokaslr(void)
-{
-	return efi_nokaslr;
-}
-bool __pure noinitrd(void)
-{
-	return efi_noinitrd;
-}
-bool __pure is_quiet(void)
-{
-	return efi_quiet;
-}
-bool __pure novamap(void)
-{
-	return efi_novamap;
-}
 bool __pure __efi_soft_reserve_enabled(void)
 {
 	return !efi_nosoftreserve;

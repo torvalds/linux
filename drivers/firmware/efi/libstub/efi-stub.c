@@ -263,7 +263,7 @@ efi_status_t efi_entry(efi_handle_t handle, efi_system_table_t *sys_table_arg)
 	if (!fdt_addr)
 		pr_efi("Generating empty DTB\n");
 
-	if (!noinitrd()) {
+	if (!efi_noinitrd) {
 		max_addr = efi_get_max_initrd_addr(dram_base, image_addr);
 		status = efi_load_initrd_dev_path(&initrd_addr, &initrd_size,
 						  max_addr);
@@ -294,7 +294,7 @@ efi_status_t efi_entry(efi_handle_t handle, efi_system_table_t *sys_table_arg)
 			   EFI_PROPERTIES_RUNTIME_MEMORY_PROTECTION_NON_EXECUTABLE_PE_DATA);
 
 	/* hibernation expects the runtime regions to stay in the same place */
-	if (!IS_ENABLED(CONFIG_HIBERNATION) && !nokaslr() && !flat_va_mapping) {
+	if (!IS_ENABLED(CONFIG_HIBERNATION) && !efi_nokaslr && !flat_va_mapping) {
 		/*
 		 * Randomize the base of the UEFI runtime services region.
 		 * Preserve the 2 MB alignment of the region by taking a
@@ -367,7 +367,7 @@ void efi_get_virtmap(efi_memory_desc_t *memory_map, unsigned long map_size,
 		size = in->num_pages * EFI_PAGE_SIZE;
 
 		in->virt_addr = in->phys_addr;
-		if (novamap()) {
+		if (efi_novamap) {
 			continue;
 		}
 

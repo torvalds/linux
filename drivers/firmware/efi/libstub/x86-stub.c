@@ -427,7 +427,7 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 		if (status != EFI_SUCCESS)
 			goto fail2;
 
-		if (!noinitrd()) {
+		if (!efi_noinitrd) {
 			status = efi_load_initrd(image, &ramdisk_addr,
 						 &ramdisk_size,
 						 hdr->initrd_addr_max,
@@ -787,7 +787,7 @@ unsigned long efi_main(efi_handle_t handle,
 	 * permit an initrd loaded from the LINUX_EFI_INITRD_MEDIA_GUID device
 	 * path to supersede it.
 	 */
-	if (!noinitrd()) {
+	if (!efi_noinitrd) {
 		unsigned long addr, size;
 
 		status = efi_load_initrd_dev_path(&addr, &size, ULONG_MAX);

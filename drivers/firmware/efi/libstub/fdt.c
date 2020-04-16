@@ -310,7 +310,7 @@ efi_status_t allocate_new_fdt_and_exit_boot(void *handle,
 	if (status == EFI_SUCCESS) {
 		efi_set_virtual_address_map_t *svam;
 
-		if (novamap())
+		if (efi_novamap)
 			return EFI_SUCCESS;
 
 		/* Install the new virtual address map */
