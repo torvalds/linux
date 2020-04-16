@@ -236,10 +236,8 @@ static int p2wi_probe(struct platform_device *pdev)
 
 	strlcpy(p2wi->adapter.name, pdev->name, sizeof(p2wi->adapter.name));
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(dev, "failed to retrieve irq: %d\n", irq);
+	if (irq < 0)
 		return irq;
-	}
 
 	p2wi->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(p2wi->clk)) {

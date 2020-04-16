@@ -1761,10 +1761,8 @@ nodma:
 		return PTR_ERR(qup->base);
 
 	qup->irq = platform_get_irq(pdev, 0);
-	if (qup->irq < 0) {
-		dev_err(qup->dev, "No IRQ defined\n");
+	if (qup->irq < 0)
 		return qup->irq;
-	}
 
 	if (has_acpi_companion(qup->dev)) {
 		ret = device_property_read_u32(qup->dev,

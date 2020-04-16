@@ -746,10 +746,8 @@ static int axxia_i2c_probe(struct platform_device *pdev)
 		return PTR_ERR(base);
 
 	idev->irq = platform_get_irq(pdev, 0);
-	if (idev->irq < 0) {
-		dev_err(&pdev->dev, "missing interrupt resource\n");
+	if (idev->irq < 0)
 		return idev->irq;
-	}
 
 	idev->i2c_clk = devm_clk_get(&pdev->dev, "i2c");
 	if (IS_ERR(idev->i2c_clk)) {

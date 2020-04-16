@@ -1267,10 +1267,8 @@ static int i2c_pxa_probe(struct platform_device *dev)
 		return PTR_ERR(i2c->reg_base);
 
 	irq = platform_get_irq(dev, 0);
-	if (irq < 0) {
-		dev_err(&dev->dev, "no irq resource: %d\n", irq);
+	if (irq < 0)
 		return irq;
-	}
 
 	/* Default adapter num to device id; i2c_pxa_probe_dt can override. */
 	i2c->adap.nr = dev->id;

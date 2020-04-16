@@ -821,8 +821,7 @@ static int bcm_kona_i2c_probe(struct platform_device *pdev)
 	/* Get the interrupt number */
 	dev->irq = platform_get_irq(pdev, 0);
 	if (dev->irq < 0) {
-		dev_err(dev->device, "no irq resource\n");
-		rc = -ENODEV;
+		rc = dev->irq;
 		goto probe_disable_clk;
 	}
 
