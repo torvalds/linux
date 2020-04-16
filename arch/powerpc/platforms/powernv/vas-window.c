@@ -1316,13 +1316,13 @@ int vas_win_close(struct vas_window *window)
 
 	unmap_paste_region(window);
 
-	clear_vinst_win(window);
-
 	poll_window_busy_state(window);
 
 	unpin_close_window(window);
 
 	poll_window_credits(window);
+
+	clear_vinst_win(window);
 
 	poll_window_castout(window);
 
