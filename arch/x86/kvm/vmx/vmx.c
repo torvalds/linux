@@ -5717,7 +5717,6 @@ void dump_vmcs(void)
 	u32 cpu_based_exec_ctrl, pin_based_exec_ctrl, secondary_exec_control;
 	unsigned long cr4;
 	u64 efer;
-	int i, n;
 
 	if (!dump_invalid_vmcs) {
 		pr_warn_ratelimited("set kvm_intel.dump_invalid_vmcs=1 to dump internal KVM state.\n");
@@ -5854,14 +5853,6 @@ void dump_vmcs(void)
 		pr_err("PostedIntrVec = 0x%02x\n", vmcs_read16(POSTED_INTR_NV));
 	if ((secondary_exec_control & SECONDARY_EXEC_ENABLE_EPT))
 		pr_err("EPT pointer = 0x%016llx\n", vmcs_read64(EPT_POINTER));
-	n = vmcs_read32(CR3_TARGET_COUNT);
-	for (i = 0; i + 1 < n; i += 4)
-		pr_err("CR3 target%u=%016lx target%u=%016lx\n",
-		       i, vmcs_readl(CR3_TARGET_VALUE0 + i * 2),
-		       i + 1, vmcs_readl(CR3_TARGET_VALUE0 + i * 2 + 2));
-	if (i < n)
-		pr_err("CR3 target%u=%016lx\n",
-		       i, vmcs_readl(CR3_TARGET_VALUE0 + i * 2));
 	if (secondary_exec_control & SECONDARY_EXEC_PAUSE_LOOP_EXITING)
 		pr_err("PLE Gap=%08x Window=%08x\n",
 		       vmcs_read32(PLE_GAP), vmcs_read32(PLE_WINDOW));

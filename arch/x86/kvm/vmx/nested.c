@@ -1785,10 +1785,6 @@ static int copy_enlightened_to_vmcs12(struct vcpu_vmx *vmx)
 	 * vmcs12->vm_exit_msr_store_addr = evmcs->vm_exit_msr_store_addr;
 	 * vmcs12->vm_exit_msr_load_addr = evmcs->vm_exit_msr_load_addr;
 	 * vmcs12->vm_entry_msr_load_addr = evmcs->vm_entry_msr_load_addr;
-	 * vmcs12->cr3_target_value0 = evmcs->cr3_target_value0;
-	 * vmcs12->cr3_target_value1 = evmcs->cr3_target_value1;
-	 * vmcs12->cr3_target_value2 = evmcs->cr3_target_value2;
-	 * vmcs12->cr3_target_value3 = evmcs->cr3_target_value3;
 	 * vmcs12->page_fault_error_code_mask =
 	 *		evmcs->page_fault_error_code_mask;
 	 * vmcs12->page_fault_error_code_match =
@@ -1862,10 +1858,6 @@ static int copy_vmcs12_to_enlightened(struct vcpu_vmx *vmx)
 	 * evmcs->vm_exit_msr_store_addr = vmcs12->vm_exit_msr_store_addr;
 	 * evmcs->vm_exit_msr_load_addr = vmcs12->vm_exit_msr_load_addr;
 	 * evmcs->vm_entry_msr_load_addr = vmcs12->vm_entry_msr_load_addr;
-	 * evmcs->cr3_target_value0 = vmcs12->cr3_target_value0;
-	 * evmcs->cr3_target_value1 = vmcs12->cr3_target_value1;
-	 * evmcs->cr3_target_value2 = vmcs12->cr3_target_value2;
-	 * evmcs->cr3_target_value3 = vmcs12->cr3_target_value3;
 	 * evmcs->tpr_threshold = vmcs12->tpr_threshold;
 	 * evmcs->virtual_processor_id = vmcs12->virtual_processor_id;
 	 * evmcs->exception_bitmap = vmcs12->exception_bitmap;
@@ -5541,15 +5533,6 @@ static bool nested_vmx_exit_handled_cr(struct kvm_vcpu *vcpu,
 				return true;
 			break;
 		case 3:
-			if ((vmcs12->cr3_target_count >= 1 &&
-					vmcs12->cr3_target_value0 == val) ||
-				(vmcs12->cr3_target_count >= 2 &&
-					vmcs12->cr3_target_value1 == val) ||
-				(vmcs12->cr3_target_count >= 3 &&
-					vmcs12->cr3_target_value2 == val) ||
-				(vmcs12->cr3_target_count >= 4 &&
-					vmcs12->cr3_target_value3 == val))
-				return false;
 			if (nested_cpu_has(vmcs12, CPU_BASED_CR3_LOAD_EXITING))
 				return true;
 			break;
