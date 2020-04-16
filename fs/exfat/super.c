@@ -102,7 +102,7 @@ int exfat_set_vol_flags(struct super_block *sb, unsigned short new_flag)
 {
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
 	struct pbr64 *bpb = (struct pbr64 *)sbi->pbr_bh->b_data;
-	bool sync = 0;
+	bool sync;
 
 	/* flags are not changed */
 	if (sbi->vol_flag == new_flag)
