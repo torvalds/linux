@@ -644,6 +644,24 @@
 			};
 		};
 
+		usb@3550000 {
+			compatible = "nvidia,tegra194-xudc";
+			reg = <0x03550000 0x8000>,
+			      <0x03558000 0x1000>;
+			reg-names = "base", "fpci";
+			interrupts = <GIC_SPI 166 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&bpmp TEGRA194_CLK_XUSB_CORE_DEV>,
+				 <&bpmp TEGRA194_CLK_XUSB_CORE_SS>,
+				 <&bpmp TEGRA194_CLK_XUSB_SS>,
+				 <&bpmp TEGRA194_CLK_XUSB_FS>;
+			clock-names = "dev", "ss", "ss_src", "fs_src";
+			power-domains = <&bpmp TEGRA194_POWER_DOMAIN_XUSBB>,
+					<&bpmp TEGRA194_POWER_DOMAIN_XUSBA>;
+			power-domain-names = "dev", "ss";
+			nvidia,xusb-padctl = <&xusb_padctl>;
+			status = "disabled";
+		};
+
 		usb@3610000 {
 			compatible = "nvidia,tegra194-xusb";
 			reg = <0x03610000 0x40000>,
