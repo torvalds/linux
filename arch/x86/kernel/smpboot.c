@@ -1877,9 +1877,6 @@ static bool knl_set_max_freq_ratio(u64 *base_freq, u64 *turbo_freq,
 	int err, i;
 	u64 msr;
 
-	if (!x86_match_cpu(has_knl_turbo_ratio_limits))
-		return false;
-
 	err = rdmsrl_safe(MSR_PLATFORM_INFO, base_freq);
 	if (err)
 		return false;
@@ -1977,7 +1974,8 @@ static bool intel_set_max_freq_ratio(void)
 	    skx_set_max_freq_ratio(&base_freq, &turbo_freq, 1))
 		goto out;
 
-	if (knl_set_max_freq_ratio(&base_freq, &turbo_freq, 1))
+	if (x86_match_cpu(has_knl_turbo_ratio_limits) &&
+	    knl_set_max_freq_ratio(&base_freq, &turbo_freq, 1))
 		goto out;
 
 	if (x86_match_cpu(has_skx_turbo_ratio_limits) &&
