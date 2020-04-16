@@ -1551,6 +1551,8 @@ struct f2fs_sb_info {
 	/* migration granularity of garbage collection, unit: segment */
 	unsigned int migration_granularity;
 
+	atomic_t no_cp_fsync_pages;
+
 	/*
 	 * for stat information.
 	 * one is for the LFS mode, and the other is for the SSR mode.

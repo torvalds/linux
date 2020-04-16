@@ -250,6 +250,25 @@ static void try_to_fix_pino(struct inode *inode)
 	up_write(&fi->i_sem);
 }
 
+static bool f2fs_update_fsync_count(struct f2fs_sb_info *sbi,
+					unsigned int npages)
+{
+	struct sysinfo val;
+	unsigned long avail_ram;
+
+	si_meminfo(&val);
+
+	/* only uses low memory */
+	avail_ram = val.totalram - val.totalhigh;
+	avail_ram = (avail_ram * DEF_RAM_THRESHOLD) / 100;
+
+	if ((atomic_read(&sbi->no_cp_fsync_pages) + npages) > avail_ram)
+		return false;
+
+	atomic_add(npages, &sbi->no_cp_fsync_pages);
+	return true;
+}
+
 static int f2fs_do_sync_file(struct file *file, loff_t start, loff_t end,
 						int datasync, bool atomic)
 {
@@ -257,6 +276,7 @@ static int f2fs_do_sync_file(struct file *file, loff_t start, loff_t end,
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	nid_t ino = inode->i_ino;
 	int ret = 0;
+	unsigned int npages = 0;
 	enum cp_reason_type cp_reason = 0;
 	struct writeback_control wbc = {
 		.sync_mode = WB_SYNC_ALL,
@@ -275,6 +295,7 @@ static int f2fs_do_sync_file(struct file *file, loff_t start, loff_t end,
 		goto go_write;
 
 	/* if fdatasync is triggered, let's do in-place-update */
+	npages = get_dirty_pages(inode);
 	if (datasync || get_dirty_pages(inode) <= SM_I(sbi)->min_fsync_blocks)
 		set_inode_flag(inode, FI_NEED_IPU);
 	ret = file_write_and_wait_range(file, start, end);
@@ -315,7 +336,7 @@ go_write:
 	cp_reason = need_do_checkpoint(inode);
 	up_read(&F2FS_I(inode)->i_sem);
 
-	if (cp_reason) {
+	if (cp_reason || !f2fs_update_fsync_count(sbi, npages)) {
 		/* all the dirty node pages should be flushed for POR */
 		ret = f2fs_sync_fs(inode->i_sb, 1);
 

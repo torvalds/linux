@@ -1454,8 +1454,10 @@ int f2fs_sync_fs(struct super_block *sb, int sync)
 	if (unlikely(is_sbi_flag_set(sbi, SBI_POR_DOING)))
 		return -EAGAIN;
 
-	if (sync)
+	if (sync) {
 		err = f2fs_issue_checkpoint(sbi);
+		atomic_set(&sbi->no_cp_fsync_pages, 0);
+	}
 
 	return err;
 }
@@ -3873,6 +3875,8 @@ try_onemore:
 			le64_to_cpu(seg_i->journal->info.kbytes_written);
 
 	f2fs_build_gc_manager(sbi);
+
+	atomic_set(&sbi->no_cp_fsync_pages, 0);
 
 	err = f2fs_build_stats(sbi);
 	if (err)
