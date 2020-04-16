@@ -9,7 +9,7 @@ Source code documentation
 vimc-streamer
 ~~~~~~~~~~~~~
 
-.. kernel-doc:: drivers/media/test_drivers/vimc/vimc-streamer.h
+.. kernel-doc:: drivers/media/test-drivers/vimc/vimc-streamer.h
    :internal:
 
-.. kernel-doc:: drivers/media/test_drivers/vimc/vimc-streamer.c
+.. kernel-doc:: drivers/media/test-drivers/vimc/vimc-streamer.c

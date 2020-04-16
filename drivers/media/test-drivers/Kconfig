@@ -6,9 +6,9 @@ menuconfig V4L_TEST_DRIVERS
 
 if V4L_TEST_DRIVERS
 
-source "drivers/media/test_drivers/vimc/Kconfig"
+source "drivers/media/test-drivers/vimc/Kconfig"
 
-source "drivers/media/test_drivers/vivid/Kconfig"
+source "drivers/media/test-drivers/vivid/Kconfig"
 
 config VIDEO_VIM2M
 	tristate "Virtual Memory-to-Memory Driver"
@@ -21,6 +21,6 @@ config VIDEO_VIM2M
 	  This is a virtual test device for the memory-to-memory driver
 	  framework.
 
-source "drivers/media/test_drivers/vicodec/Kconfig"
+source "drivers/media/test-drivers/vicodec/Kconfig"
 
 endif #V4L_TEST_DRIVERS

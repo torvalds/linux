@@ -17803,7 +17803,7 @@ L:	linux-media@vger.kernel.org
 S:	Maintained
 W:	https://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
-F:	drivers/media/platform/vicodec/*
+F:	drivers/media/test-drivers/vicodec/*
 
 VIDEO I2C POLLING DRIVER
 M:	Matt Ranostay <matt.ranostay@konsulko.com>
@@ -17834,7 +17834,7 @@ L:	linux-media@vger.kernel.org
 S:	Maintained
 W:	https://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
-F:	drivers/media/test_drivers/vimc/*
+F:	drivers/media/test-drivers/vimc/*
 
 VIRT LIB
 M:	Alex Williamson <alex.williamson@redhat.com>
@@ -18001,7 +18001,7 @@ L:	linux-media@vger.kernel.org
 S:	Maintained
 W:	https://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
-F:	drivers/media/platform/vivid/*
+F:	drivers/media/test-drivers/vivid/*
 
 VLYNQ BUS
 M:	Florian Fainelli <f.fainelli@gmail.com>
