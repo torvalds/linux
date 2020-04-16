@@ -572,7 +572,6 @@ netdev_tx_t mlx5i_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 			  struct mlx5_av *av, u32 dqpn, u32 dqkey,
 			  bool xmit_more)
 {
-	struct mlx5_wq_cyc *wq = &sq->wq;
 	struct mlx5i_tx_wqe *wqe;
 
 	struct mlx5_wqe_datagram_seg *datagram;
@@ -582,9 +581,9 @@ netdev_tx_t mlx5i_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	struct mlx5e_tx_wqe_info *wi;
 
 	struct mlx5e_sq_stats *stats = sq->stats;
-	u16 headlen, ihs, pi, contig_wqebbs_room;
 	u16 ds_cnt, ds_cnt_inl = 0;
 	u8 num_wqebbs, opcode;
+	u16 headlen, ihs, pi;
 	u32 num_bytes;
 	int num_dma;
 	__be16 mss;
@@ -620,13 +619,7 @@ netdev_tx_t mlx5i_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	}
 
 	num_wqebbs = DIV_ROUND_UP(ds_cnt, MLX5_SEND_WQEBB_NUM_DS);
-	pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
-	contig_wqebbs_room = mlx5_wq_cyc_get_contig_wqebbs(wq, pi);
-	if (unlikely(contig_wqebbs_room < num_wqebbs)) {
-		mlx5e_fill_sq_frag_edge(sq, wq, pi, contig_wqebbs_room);
-		pi = mlx5_wq_cyc_ctr2ix(&sq->wq, sq->pc);
-	}
-
+	pi = mlx5e_txqsq_get_next_pi(sq, num_wqebbs);
 	wqe = MLX5I_SQ_FETCH_WQE(sq, pi);
 
 	/* fill wqe */

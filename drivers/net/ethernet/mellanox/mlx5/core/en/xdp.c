@@ -178,21 +178,42 @@ xdp_abort:
 	}
 }
 
-static void mlx5e_xdp_mpwqe_session_start(struct mlx5e_xdpsq *sq)
+static u16 mlx5e_xdpsq_get_next_pi(struct mlx5e_xdpsq *sq, u16 size)
 {
-	struct mlx5e_xdp_mpwqe *session = &sq->mpwqe;
-	struct mlx5e_xdpsq_stats *stats = sq->stats;
 	struct mlx5_wq_cyc *wq = &sq->wq;
 	u16 pi, contig_wqebbs;
 
 	pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
 	contig_wqebbs = mlx5_wq_cyc_get_contig_wqebbs(wq, pi);
+	if (unlikely(contig_wqebbs < size)) {
+		struct mlx5e_xdp_wqe_info *wi, *edge_wi;
 
-	if (unlikely(contig_wqebbs < MLX5_SEND_WQE_MAX_WQEBBS)) {
-		mlx5e_fill_xdpsq_frag_edge(sq, wq, pi, contig_wqebbs);
+		wi = &sq->db.wqe_info[pi];
+		edge_wi = wi + contig_wqebbs;
+
+		/* Fill SQ frag edge with NOPs to avoid WQE wrapping two pages. */
+		for (; wi < edge_wi; wi++) {
+			*wi = (struct mlx5e_xdp_wqe_info) {
+				.num_wqebbs = 1,
+				.num_pkts = 0,
+			};
+			mlx5e_post_nop(wq, sq->sqn, &sq->pc);
+		}
+		sq->stats->nops += contig_wqebbs;
+
 		pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
 	}
 
+	return pi;
+}
+
+static void mlx5e_xdp_mpwqe_session_start(struct mlx5e_xdpsq *sq)
+{
+	struct mlx5e_xdp_mpwqe *session = &sq->mpwqe;
+	struct mlx5e_xdpsq_stats *stats = sq->stats;
+	u16 pi;
+
+	pi = mlx5e_xdpsq_get_next_pi(sq, MLX5_SEND_WQE_MAX_WQEBBS);
 	session->wqe = MLX5E_TX_FETCH_WQE(sq, pi);
 
 	prefetchw(session->wqe->data);

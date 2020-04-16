@@ -81,6 +81,62 @@ mlx5e_post_nop_fence(struct mlx5_wq_cyc *wq, u32 sqn, u16 *pc)
 	return wqe;
 }
 
+static inline u16 mlx5e_txqsq_get_next_pi(struct mlx5e_txqsq *sq, u16 size)
+{
+	struct mlx5_wq_cyc *wq = &sq->wq;
+	u16 pi, contig_wqebbs;
+
+	pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
+	contig_wqebbs = mlx5_wq_cyc_get_contig_wqebbs(wq, pi);
+	if (unlikely(contig_wqebbs < size)) {
+		struct mlx5e_tx_wqe_info *wi, *edge_wi;
+
+		wi = &sq->db.wqe_info[pi];
+		edge_wi = wi + contig_wqebbs;
+
+		/* Fill SQ frag edge with NOPs to avoid WQE wrapping two pages. */
+		for (; wi < edge_wi; wi++) {
+			*wi = (struct mlx5e_tx_wqe_info) {
+				.num_wqebbs = 1,
+			};
+			mlx5e_post_nop(wq, sq->sqn, &sq->pc);
+		}
+		sq->stats->nop += contig_wqebbs;
+
+		pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
+	}
+
+	return pi;
+}
+
+static inline u16 mlx5e_icosq_get_next_pi(struct mlx5e_icosq *sq, u16 size)
+{
+	struct mlx5_wq_cyc *wq = &sq->wq;
+	u16 pi, contig_wqebbs;
+
+	pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
+	contig_wqebbs = mlx5_wq_cyc_get_contig_wqebbs(wq, pi);
+	if (unlikely(contig_wqebbs < size)) {
+		struct mlx5e_icosq_wqe_info *wi, *edge_wi;
+
+		wi = &sq->db.wqe_info[pi];
+		edge_wi = wi + contig_wqebbs;
+
+		/* Fill SQ frag edge with NOPs to avoid WQE wrapping two pages. */
+		for (; wi < edge_wi; wi++) {
+			*wi = (struct mlx5e_icosq_wqe_info) {
+				.opcode = MLX5_OPCODE_NOP,
+				.num_wqebbs = 1,
+			};
+			mlx5e_post_nop(wq, sq->sqn, &sq->pc);
+		}
+
+		pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
+	}
+
+	return pi;
+}
+
 static inline void
 mlx5e_fill_sq_frag_edge(struct mlx5e_txqsq *sq, struct mlx5_wq_cyc *wq,
 			u16 pi, u16 nnops)

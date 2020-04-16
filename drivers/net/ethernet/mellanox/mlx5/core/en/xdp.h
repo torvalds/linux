@@ -138,23 +138,6 @@ mlx5e_xdp_no_room_for_inline_pkt(struct mlx5e_xdp_mpwqe *session)
 }
 
 static inline void
-mlx5e_fill_xdpsq_frag_edge(struct mlx5e_xdpsq *sq, struct mlx5_wq_cyc *wq,
-			   u16 pi, u16 nnops)
-{
-	struct mlx5e_xdp_wqe_info *edge_wi, *wi = &sq->db.wqe_info[pi];
-
-	edge_wi = wi + nnops;
-	/* fill sq frag edge with nops to avoid wqe wrapping two pages */
-	for (; wi < edge_wi; wi++) {
-		wi->num_wqebbs = 1;
-		wi->num_pkts   = 0;
-		mlx5e_post_nop(wq, sq->sqn, &sq->pc);
-	}
-
-	sq->stats->nops += nnops;
-}
-
-static inline void
 mlx5e_xdp_mpwqe_add_dseg(struct mlx5e_xdpsq *sq,
 			 struct mlx5e_xdp_xmit_data *xdptxd,
 			 struct mlx5e_xdpsq_stats *stats)
