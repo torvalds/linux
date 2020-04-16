@@ -308,8 +308,10 @@ static int fsl_asrc_set_ideal_ratio(struct fsl_asrc_pair *pair,
  */
 static int fsl_asrc_config_pair(struct fsl_asrc_pair *pair, bool use_ideal_rate)
 {
-	struct asrc_config *config = pair->config;
+	struct fsl_asrc_pair_priv *pair_priv = pair->private;
+	struct asrc_config *config = pair_priv->config;
 	struct fsl_asrc *asrc = pair->asrc;
+	struct fsl_asrc_priv *asrc_priv = asrc->private;
 	enum asrc_pair_index index = pair->index;
 	enum asrc_word_width input_word_width;
 	enum asrc_word_width output_word_width;
@@ -392,11 +394,11 @@ static int fsl_asrc_config_pair(struct fsl_asrc_pair *pair, bool use_ideal_rate)
 	}
 
 	/* Validate input and output clock sources */
-	clk_index[IN] = asrc->clk_map[IN][config->inclk];
-	clk_index[OUT] = asrc->clk_map[OUT][config->outclk];
+	clk_index[IN] = asrc_priv->clk_map[IN][config->inclk];
+	clk_index[OUT] = asrc_priv->clk_map[OUT][config->outclk];
 
 	/* We only have output clock for ideal ratio mode */
-	clk = asrc->asrck_clk[clk_index[ideal ? OUT : IN]];
+	clk = asrc_priv->asrck_clk[clk_index[ideal ? OUT : IN]];
 
 	clk_rate = clk_get_rate(clk);
 	rem[IN] = do_div(clk_rate, inrate);
@@ -417,7 +419,7 @@ static int fsl_asrc_config_pair(struct fsl_asrc_pair *pair, bool use_ideal_rate)
 
 	div[IN] = min_t(u32, 1024, div[IN]);
 
-	clk = asrc->asrck_clk[clk_index[OUT]];
+	clk = asrc_priv->asrck_clk[clk_index[OUT]];
 	clk_rate = clk_get_rate(clk);
 	if (ideal && use_ideal_rate)
 		rem[OUT] = do_div(clk_rate, IDEAL_RATIO_RATE);
@@ -437,13 +439,13 @@ static int fsl_asrc_config_pair(struct fsl_asrc_pair *pair, bool use_ideal_rate)
 	/* Set the channel number */
 	channels = config->channel_num;
 
-	if (asrc->soc->channel_bits < 4)
+	if (asrc_priv->soc->channel_bits < 4)
 		channels /= 2;
 
 	/* Update channels for current pair */
 	regmap_update_bits(asrc->regmap, REG_ASRCNCR,
-			   ASRCNCR_ANCi_MASK(index, asrc->soc->channel_bits),
-			   ASRCNCR_ANCi(index, channels, asrc->soc->channel_bits));
+			   ASRCNCR_ANCi_MASK(index, asrc_priv->soc->channel_bits),
+			   ASRCNCR_ANCi(index, channels, asrc_priv->soc->channel_bits));
 
 	/* Default setting: Automatic selection for processing mode */
 	regmap_update_bits(asrc->regmap, REG_ASRCTR,
@@ -568,9 +570,10 @@ static int fsl_asrc_dai_startup(struct snd_pcm_substream *substream,
 				struct snd_soc_dai *dai)
 {
 	struct fsl_asrc *asrc = snd_soc_dai_get_drvdata(dai);
+	struct fsl_asrc_priv *asrc_priv = asrc->private;
 
 	/* Odd channel number is not valid for older ASRC (channel_bits==3) */
-	if (asrc->soc->channel_bits == 3)
+	if (asrc_priv->soc->channel_bits == 3)
 		snd_pcm_hw_constraint_step(substream->runtime, 0,
 					   SNDRV_PCM_HW_PARAM_CHANNELS, 2);
 
@@ -586,6 +589,7 @@ static int fsl_asrc_dai_hw_params(struct snd_pcm_substream *substream,
 	struct fsl_asrc *asrc = snd_soc_dai_get_drvdata(dai);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct fsl_asrc_pair *pair = runtime->private_data;
+	struct fsl_asrc_pair_priv *pair_priv = pair->private;
 	unsigned int channels = params_channels(params);
 	unsigned int rate = params_rate(params);
 	struct asrc_config config;
@@ -597,7 +601,7 @@ static int fsl_asrc_dai_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
-	pair->config = &config;
+	pair_priv->config = &config;
 
 	config.pair = pair->index;
 	config.channel_num = channels;
@@ -931,9 +935,15 @@ static irqreturn_t fsl_asrc_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static int fsl_asrc_get_fifo_addr(u8 dir, enum asrc_pair_index index)
+{
+	return REG_ASRDx(dir, index);
+}
+
 static int fsl_asrc_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
+	struct fsl_asrc_priv *asrc_priv;
 	struct fsl_asrc *asrc;
 	struct resource *res;
 	void __iomem *regs;
@@ -946,7 +956,12 @@ static int fsl_asrc_probe(struct platform_device *pdev)
 	if (!asrc)
 		return -ENOMEM;
 
+	asrc_priv = devm_kzalloc(&pdev->dev, sizeof(*asrc_priv), GFP_KERNEL);
+	if (!asrc_priv)
+		return -ENOMEM;
+
 	asrc->pdev = pdev;
+	asrc->private = asrc_priv;
 
 	/* Get the addresses and IRQ */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -992,25 +1007,32 @@ static int fsl_asrc_probe(struct platform_device *pdev)
 
 	for (i = 0; i < ASRC_CLK_MAX_NUM; i++) {
 		sprintf(tmp, "asrck_%x", i);
-		asrc->asrck_clk[i] = devm_clk_get(&pdev->dev, tmp);
-		if (IS_ERR(asrc->asrck_clk[i])) {
+		asrc_priv->asrck_clk[i] = devm_clk_get(&pdev->dev, tmp);
+		if (IS_ERR(asrc_priv->asrck_clk[i])) {
 			dev_err(&pdev->dev, "failed to get %s clock\n", tmp);
-			return PTR_ERR(asrc->asrck_clk[i]);
+			return PTR_ERR(asrc_priv->asrck_clk[i]);
 		}
 	}
 
-	asrc->soc = of_device_get_match_data(&pdev->dev);
-	if (!asrc->soc) {
+	asrc_priv->soc = of_device_get_match_data(&pdev->dev);
+	if (!asrc_priv->soc) {
 		dev_err(&pdev->dev, "failed to get soc data\n");
 		return -ENODEV;
 	}
 
+	asrc->use_edma = asrc_priv->soc->use_edma;
+	asrc->get_dma_channel = fsl_asrc_get_dma_channel;
+	asrc->request_pair = fsl_asrc_request_pair;
+	asrc->release_pair = fsl_asrc_release_pair;
+	asrc->get_fifo_addr = fsl_asrc_get_fifo_addr;
+	asrc->pair_priv_size = sizeof(struct fsl_asrc_pair_priv);
+
 	if (of_device_is_compatible(np, "fsl,imx35-asrc")) {
-		asrc->clk_map[IN] = input_clk_map_imx35;
-		asrc->clk_map[OUT] = output_clk_map_imx35;
+		asrc_priv->clk_map[IN] = input_clk_map_imx35;
+		asrc_priv->clk_map[OUT] = output_clk_map_imx35;
 	} else if (of_device_is_compatible(np, "fsl,imx53-asrc")) {
-		asrc->clk_map[IN] = input_clk_map_imx53;
-		asrc->clk_map[OUT] = output_clk_map_imx53;
+		asrc_priv->clk_map[IN] = input_clk_map_imx53;
+		asrc_priv->clk_map[OUT] = output_clk_map_imx53;
 	} else if (of_device_is_compatible(np, "fsl,imx8qm-asrc") ||
 		   of_device_is_compatible(np, "fsl,imx8qxp-asrc")) {
 		ret = of_property_read_u32(np, "fsl,asrc-clk-map", &map_idx);
@@ -1024,11 +1046,11 @@ static int fsl_asrc_probe(struct platform_device *pdev)
 			return -EINVAL;
 		}
 		if (of_device_is_compatible(np, "fsl,imx8qm-asrc")) {
-			asrc->clk_map[IN] = clk_map_imx8qm[map_idx];
-			asrc->clk_map[OUT] = clk_map_imx8qm[map_idx];
+			asrc_priv->clk_map[IN] = clk_map_imx8qm[map_idx];
+			asrc_priv->clk_map[OUT] = clk_map_imx8qm[map_idx];
 		} else {
-			asrc->clk_map[IN] = clk_map_imx8qxp[map_idx];
-			asrc->clk_map[OUT] = clk_map_imx8qxp[map_idx];
+			asrc_priv->clk_map[IN] = clk_map_imx8qxp[map_idx];
+			asrc_priv->clk_map[OUT] = clk_map_imx8qxp[map_idx];
 		}
 	}
 
@@ -1093,6 +1115,7 @@ static int fsl_asrc_probe(struct platform_device *pdev)
 static int fsl_asrc_runtime_resume(struct device *dev)
 {
 	struct fsl_asrc *asrc = dev_get_drvdata(dev);
+	struct fsl_asrc_priv *asrc_priv = asrc->private;
 	int i, ret;
 
 	ret = clk_prepare_enable(asrc->mem_clk);
@@ -1107,7 +1130,7 @@ static int fsl_asrc_runtime_resume(struct device *dev)
 			goto disable_ipg_clk;
 	}
 	for (i = 0; i < ASRC_CLK_MAX_NUM; i++) {
-		ret = clk_prepare_enable(asrc->asrck_clk[i]);
+		ret = clk_prepare_enable(asrc_priv->asrck_clk[i]);
 		if (ret)
 			goto disable_asrck_clk;
 	}
@@ -1116,7 +1139,7 @@ static int fsl_asrc_runtime_resume(struct device *dev)
 
 disable_asrck_clk:
 	for (i--; i >= 0; i--)
-		clk_disable_unprepare(asrc->asrck_clk[i]);
+		clk_disable_unprepare(asrc_priv->asrck_clk[i]);
 	if (!IS_ERR(asrc->spba_clk))
 		clk_disable_unprepare(asrc->spba_clk);
 disable_ipg_clk:
@@ -1129,10 +1152,11 @@ disable_mem_clk:
 static int fsl_asrc_runtime_suspend(struct device *dev)
 {
 	struct fsl_asrc *asrc = dev_get_drvdata(dev);
+	struct fsl_asrc_priv *asrc_priv = asrc->private;
 	int i;
 
 	for (i = 0; i < ASRC_CLK_MAX_NUM; i++)
-		clk_disable_unprepare(asrc->asrck_clk[i]);
+		clk_disable_unprepare(asrc_priv->asrck_clk[i]);
 	if (!IS_ERR(asrc->spba_clk))
 		clk_disable_unprepare(asrc->spba_clk);
 	clk_disable_unprepare(asrc->ipg_clk);
@@ -1146,9 +1170,10 @@ static int fsl_asrc_runtime_suspend(struct device *dev)
 static int fsl_asrc_suspend(struct device *dev)
 {
 	struct fsl_asrc *asrc = dev_get_drvdata(dev);
+	struct fsl_asrc_priv *asrc_priv = asrc->private;
 
 	regmap_read(asrc->regmap, REG_ASRCFG,
-		    &asrc->regcache_cfg);
+		    &asrc_priv->regcache_cfg);
 
 	regcache_cache_only(asrc->regmap, true);
 	regcache_mark_dirty(asrc->regmap);
@@ -1159,6 +1184,7 @@ static int fsl_asrc_suspend(struct device *dev)
 static int fsl_asrc_resume(struct device *dev)
 {
 	struct fsl_asrc *asrc = dev_get_drvdata(dev);
+	struct fsl_asrc_priv *asrc_priv = asrc->private;
 	u32 asrctr;
 
 	/* Stop all pairs provisionally */
@@ -1172,7 +1198,7 @@ static int fsl_asrc_resume(struct device *dev)
 
 	regmap_update_bits(asrc->regmap, REG_ASRCFG,
 			   ASRCFG_NDPRi_ALL_MASK | ASRCFG_POSTMODi_ALL_MASK |
-			   ASRCFG_PREMODi_ALL_MASK, asrc->regcache_cfg);
+			   ASRCFG_PREMODi_ALL_MASK, asrc_priv->regcache_cfg);
 
 	/* Restart enabled pairs */
 	regmap_update_bits(asrc->regmap, REG_ASRCTR,
