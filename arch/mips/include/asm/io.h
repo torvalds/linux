@@ -166,7 +166,7 @@ static inline void __iomem * __ioremap_mode(phys_addr_t offset, unsigned long si
 
 #define __IS_LOW512(addr) (!((phys_addr_t)(addr) & (phys_addr_t) ~0x1fffffffULL))
 
-	if (cpu_has_64bit_addresses) {
+	if (IS_ENABLED(CONFIG_64BIT)) {
 		u64 base = UNCAC_BASE;
 
 		/*
@@ -275,7 +275,7 @@ static inline void iounmap(const volatile void __iomem *addr)
 
 #define __IS_KSEG1(addr) (((unsigned long)(addr) & ~0x1fffffffUL) == CKSEG1)
 
-	if (cpu_has_64bit_addresses ||
+	if (IS_ENABLED(CONFIG_64BIT) ||
 	    (__builtin_constant_p(addr) && __IS_KSEG1(addr)))
 		return;
 
