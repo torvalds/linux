@@ -116,8 +116,9 @@ static irqreturn_t rk_decom_irq_handler(int irq, void *priv)
 			dev_info(rk_dec->dev, "decom completed\n");
 		} else {
 			dev_info(rk_dec->dev,
-				 "decom failed, irq_status = 0x%x, decom_status = 0x%x\n",
+				 "decom failed, irq_status = 0x%x, decom_status = 0x%x, try again !\n",
 				 irq_status, decom_status);
+			writel(DECOM_ENABLE, rk_dec->regs + DECOM_ENR);
 		}
 	}
 
@@ -138,9 +139,8 @@ static irqreturn_t rk_decom_irq_thread(int irq, void *priv)
 		start = phys_to_virt(rk_dec->mem_start);
 		end = start + rk_dec->mem_size;
 		free_reserved_area(start, end, -1, "ramdisk gzip archive");
+		clk_bulk_disable_unprepare(rk_dec->num_clocks, rk_dec->clocks);
 	}
-
-	clk_bulk_disable_unprepare(rk_dec->num_clocks, rk_dec->clocks);
 
 	return IRQ_HANDLED;
 }
