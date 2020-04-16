@@ -7379,10 +7379,11 @@ static void btrfs_dio_private_put(struct btrfs_dio_private *dip)
 	kfree(dip);
 }
 
-static inline blk_status_t submit_dio_repair_bio(struct inode *inode,
-						 struct bio *bio,
-						 int mirror_num)
+static blk_status_t submit_dio_repair_bio(struct inode *inode, struct bio *bio,
+					  int mirror_num,
+					  unsigned long bio_flags)
 {
+	struct btrfs_dio_private *dip = bio->bi_private;
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	blk_status_t ret;
 
@@ -7392,96 +7393,11 @@ static inline blk_status_t submit_dio_repair_bio(struct inode *inode,
 	if (ret)
 		return ret;
 
-	ret = btrfs_map_bio(fs_info, bio, mirror_num);
-
-	return ret;
-}
-
-static int btrfs_check_dio_repairable(struct inode *inode,
-				      struct bio *failed_bio,
-				      struct io_failure_record *failrec,
-				      int failed_mirror)
-{
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-	int num_copies;
-
-	num_copies = btrfs_num_copies(fs_info, failrec->logical, failrec->len);
-	if (num_copies == 1) {
-		/*
-		 * we only have a single copy of the data, so don't bother with
-		 * all the retry and error correction code that follows. no
-		 * matter what the error is, it is very likely to persist.
-		 */
-		btrfs_debug(fs_info,
-			"Check DIO Repairable: cannot repair, num_copies=%d, next_mirror %d, failed_mirror %d",
-			num_copies, failrec->this_mirror, failed_mirror);
-		return 0;
-	}
-
-	failrec->failed_mirror = failed_mirror;
-	failrec->this_mirror++;
-	if (failrec->this_mirror == failed_mirror)
-		failrec->this_mirror++;
-
-	if (failrec->this_mirror > num_copies) {
-		btrfs_debug(fs_info,
-			"Check DIO Repairable: (fail) num_copies=%d, next_mirror %d, failed_mirror %d",
-			num_copies, failrec->this_mirror, failed_mirror);
-		return 0;
-	}
-
-	return 1;
-}
-
-static blk_status_t dio_read_error(struct inode *inode, struct bio *failed_bio,
-				   struct page *page, unsigned int pgoff,
-				   u64 start, u64 end, int failed_mirror)
-{
-	struct btrfs_dio_private *dip = failed_bio->bi_private;
-	struct io_failure_record *failrec;
-	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
-	struct extent_io_tree *failure_tree = &BTRFS_I(inode)->io_failure_tree;
-	struct bio *bio;
-	int isector;
-	unsigned int read_mode = 0;
-	int ret;
-	blk_status_t status;
-
-	BUG_ON(bio_op(failed_bio) == REQ_OP_WRITE);
-
-	ret = btrfs_get_io_failure_record(inode, start, end, &failrec);
-	if (ret)
-		return errno_to_blk_status(ret);
-
-	ret = btrfs_check_dio_repairable(inode, failed_bio, failrec,
-					 failed_mirror);
-	if (!ret) {
-		free_io_failure(failure_tree, io_tree, failrec);
-		return BLK_STS_IOERR;
-	}
-
-	if (btrfs_io_bio(failed_bio)->iter.bi_size > inode->i_sb->s_blocksize)
-		read_mode |= REQ_FAILFAST_DEV;
-
-	isector = start - btrfs_io_bio(failed_bio)->logical;
-	isector >>= inode->i_sb->s_blocksize_bits;
-	bio = btrfs_create_repair_bio(inode, failed_bio, failrec, page, pgoff,
-				      isector, failed_bio->bi_end_io, dip);
-	bio->bi_opf = REQ_OP_READ | read_mode;
-
-	btrfs_debug(BTRFS_I(inode)->root->fs_info,
-		    "repair DIO read error: submitting new dio read[%#x] to this_mirror=%d, in_validation=%d",
-		    read_mode, failrec->this_mirror, failrec->in_validation);
-
 	refcount_inc(&dip->refs);
-	status = submit_dio_repair_bio(inode, bio, failrec->this_mirror);
-	if (status) {
-		free_io_failure(failure_tree, io_tree, failrec);
-		bio_put(bio);
+	ret = btrfs_map_bio(fs_info, bio, mirror_num);
+	if (ret)
 		refcount_dec(&dip->refs);
-	}
-
-	return status;
+	return ret;
 }
 
 static blk_status_t btrfs_check_read_dio_bio(struct inode *inode,
@@ -7517,11 +7433,14 @@ static blk_status_t btrfs_check_read_dio_bio(struct inode *inode,
 			} else {
 				blk_status_t status;
 
-				status = dio_read_error(inode, &io_bio->bio,
+				status = btrfs_submit_read_repair(inode,
+							&io_bio->bio,
+							start - io_bio->logical,
 							bvec.bv_page, pgoff,
 							start,
 							start + sectorsize - 1,
-							io_bio->mirror_num);
+							io_bio->mirror_num,
+							submit_dio_repair_bio);
 				if (status)
 					err = status;
 			}
