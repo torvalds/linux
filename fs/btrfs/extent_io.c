@@ -2630,6 +2630,8 @@ struct bio *btrfs_create_repair_bio(struct inode *inode, struct bio *failed_bio,
 	}
 
 	bio_add_page(bio, page, failrec->len, pg_offset);
+	btrfs_io_bio(bio)->logical = failrec->start;
+	btrfs_io_bio(bio)->iter = bio->bi_iter;
 
 	return bio;
 }
