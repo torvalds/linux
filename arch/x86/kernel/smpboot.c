@@ -1985,6 +1985,15 @@ static bool intel_set_max_freq_ratio(void)
 	return false;
 
 out:
+	/*
+	 * Some hypervisors advertise X86_FEATURE_APERFMPERF
+	 * but then fill all MSR's with zeroes.
+	 */
+	if (!base_freq) {
+		pr_debug("Couldn't determine cpu base frequency, necessary for scale-invariant accounting.\n");
+		return false;
+	}
+
 	arch_turbo_freq_ratio = div_u64(turbo_freq * SCHED_CAPACITY_SCALE,
 					base_freq);
 	arch_set_max_freq_ratio(turbo_disabled());
