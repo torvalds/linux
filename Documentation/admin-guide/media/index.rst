@@ -35,6 +35,7 @@ Video4Linux (V4L)  driver-specific documentation
 	:numbered:
 
 	intro
+	building
 
 	cardlist
 
