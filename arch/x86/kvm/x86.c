@@ -257,7 +257,7 @@ static int emulator_fix_hypercall(struct x86_emulate_ctxt *ctxt);
 static inline void kvm_async_pf_hash_reset(struct kvm_vcpu *vcpu)
 {
 	int i;
-	for (i = 0; i < roundup_pow_of_two(ASYNC_PF_PER_VCPU); i++)
+	for (i = 0; i < ASYNC_PF_PER_VCPU; i++)
 		vcpu->arch.apf.gfns[i] = ~0;
 }
 
@@ -10310,12 +10310,14 @@ void kvm_arch_async_page_ready(struct kvm_vcpu *vcpu, struct kvm_async_pf *work)
 
 static inline u32 kvm_async_pf_hash_fn(gfn_t gfn)
 {
+	BUILD_BUG_ON(!is_power_of_2(ASYNC_PF_PER_VCPU));
+
 	return hash_32(gfn & 0xffffffff, order_base_2(ASYNC_PF_PER_VCPU));
 }
 
 static inline u32 kvm_async_pf_next_probe(u32 key)
 {
-	return (key + 1) & (roundup_pow_of_two(ASYNC_PF_PER_VCPU) - 1);
+	return (key + 1) & (ASYNC_PF_PER_VCPU - 1);
 }
 
 static void kvm_add_async_pf_gfn(struct kvm_vcpu *vcpu, gfn_t gfn)
@@ -10333,7 +10335,7 @@ static u32 kvm_async_pf_gfn_slot(struct kvm_vcpu *vcpu, gfn_t gfn)
 	int i;
 	u32 key = kvm_async_pf_hash_fn(gfn);
 
-	for (i = 0; i < roundup_pow_of_two(ASYNC_PF_PER_VCPU) &&
+	for (i = 0; i < ASYNC_PF_PER_VCPU &&
 		     (vcpu->arch.apf.gfns[key] != gfn &&
 		      vcpu->arch.apf.gfns[key] != ~0); i++)
 		key = kvm_async_pf_next_probe(key);
