@@ -147,6 +147,10 @@ static void gt_sanitize(struct intel_gt *gt, bool force)
 	if (intel_gt_is_wedged(gt))
 		intel_gt_unset_wedged(gt);
 
+	for_each_engine(engine, gt, id)
+		if (engine->sanitize)
+			engine->sanitize(engine);
+
 	intel_uc_sanitize(&gt->uc);
 
 	for_each_engine(engine, gt, id)
