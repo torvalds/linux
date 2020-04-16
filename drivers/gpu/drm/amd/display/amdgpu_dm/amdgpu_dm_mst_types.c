@@ -472,9 +472,12 @@ static const struct drm_dp_mst_topology_cbs dm_mst_cbs = {
 };
 
 void amdgpu_dm_initialize_dp_connector(struct amdgpu_display_manager *dm,
-				       struct amdgpu_dm_connector *aconnector)
+				       struct amdgpu_dm_connector *aconnector,
+				       int link_index)
 {
-	aconnector->dm_dp_aux.aux.name = "dmdc";
+	aconnector->dm_dp_aux.aux.name =
+		kasprintf(GFP_KERNEL, "AMDGPU DM aux hw bus %d",
+			  link_index);
 	aconnector->dm_dp_aux.aux.transfer = dm_dp_aux_transfer;
 	aconnector->dm_dp_aux.ddc_service = aconnector->dc_link->ddc;
 
