@@ -1653,6 +1653,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&emmc_clk &emmc_cmd &emmc_bus8>;
 		power-domains = <&power RV1126_PD_NVM>;
+		rockchip,use-v2-tuning;
 		status = "disabled";
 	};
 
