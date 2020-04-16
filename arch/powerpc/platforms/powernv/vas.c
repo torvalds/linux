@@ -15,6 +15,7 @@
 #include <linux/of_address.h>
 #include <linux/of.h>
 #include <asm/prom.h>
+#include <asm/xive.h>
 
 #include "vas.h"
 
@@ -25,14 +26,22 @@ static DEFINE_PER_CPU(int, cpu_vas_id);
 
 static int init_vas_instance(struct platform_device *pdev)
 {
-	int rc, cpu, vasid;
-	struct resource *res;
-	struct vas_instance *vinst;
 	struct device_node *dn = pdev->dev.of_node;
+	struct vas_instance *vinst;
+	struct xive_irq_data *xd;
+	uint32_t chipid, hwirq;
+	struct resource *res;
+	int rc, cpu, vasid;
 
 	rc = of_property_read_u32(dn, "ibm,vas-id", &vasid);
 	if (rc) {
 		pr_err("No ibm,vas-id property for %s?\n", pdev->name);
+		return -ENODEV;
+	}
+
+	rc = of_property_read_u32(dn, "ibm,chip-id", &chipid);
+	if (rc) {
+		pr_err("No ibm,chip-id property for %s?\n", pdev->name);
 		return -ENODEV;
 	}
 
@@ -69,9 +78,32 @@ static int init_vas_instance(struct platform_device *pdev)
 
 	vinst->paste_win_id_shift = 63 - res->end;
 
-	pr_devel("Initialized instance [%s, %d], paste_base 0x%llx, "
-			"paste_win_id_shift 0x%llx\n", pdev->name, vasid,
-			vinst->paste_base_addr, vinst->paste_win_id_shift);
+	hwirq = xive_native_alloc_irq_on_chip(chipid);
+	if (!hwirq) {
+		pr_err("Inst%d: Unable to allocate global irq for chip %d\n",
+				vinst->vas_id, chipid);
+		return -ENOENT;
+	}
+
+	vinst->virq = irq_create_mapping(NULL, hwirq);
+	if (!vinst->virq) {
+		pr_err("Inst%d: Unable to map global irq %d\n",
+				vinst->vas_id, hwirq);
+		return -EINVAL;
+	}
+
+	xd = irq_get_handler_data(vinst->virq);
+	if (!xd) {
+		pr_err("Inst%d: Invalid virq %d\n",
+				vinst->vas_id, vinst->virq);
+		return -EINVAL;
+	}
+
+	vinst->irq_port = xd->trig_page;
+	pr_devel("Initialized instance [%s, %d] paste_base 0x%llx paste_win_id_shift 0x%llx IRQ %d Port 0x%llx\n",
+			pdev->name, vasid, vinst->paste_base_addr,
+			vinst->paste_win_id_shift, vinst->virq,
+			vinst->irq_port);
 
 	for_each_possible_cpu(cpu) {
 		if (cpu_to_chip_id(cpu) == of_get_ibm_chip_id(dn))
