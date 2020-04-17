@@ -63,6 +63,22 @@ struct resource_table *rproc_elf_find_loaded_rsc_table(struct rproc *rproc,
 struct rproc_mem_entry *
 rproc_find_carveout_by_name(struct rproc *rproc, const char *name, ...);
 
+static inline int rproc_prepare_device(struct rproc *rproc)
+{
+	if (rproc->ops->prepare)
+		return rproc->ops->prepare(rproc);
+
+	return 0;
+}
+
+static inline int rproc_unprepare_device(struct rproc *rproc)
+{
+	if (rproc->ops->unprepare)
+		return rproc->ops->unprepare(rproc);
+
+	return 0;
+}
+
 static inline
 int rproc_fw_sanity_check(struct rproc *rproc, const struct firmware *fw)
 {
