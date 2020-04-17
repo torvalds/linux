@@ -502,15 +502,16 @@ int btbcm_initialize(struct hci_dev *hdev, bool *fw_load_done)
 }
 EXPORT_SYMBOL_GPL(btbcm_initialize);
 
-int btbcm_finalize(struct hci_dev *hdev)
+int btbcm_finalize(struct hci_dev *hdev, bool *fw_load_done)
 {
-	bool fw_load_done = true;
 	int err;
 
-	/* Re-initialize */
-	err = btbcm_initialize(hdev, &fw_load_done);
-	if (err)
-		return err;
+	/* Re-initialize if necessary */
+	if (*fw_load_done) {
+		err = btbcm_initialize(hdev, fw_load_done);
+		if (err)
+			return err;
+	}
 
 	btbcm_check_bdaddr(hdev);
 
@@ -530,20 +531,8 @@ int btbcm_setup_patchram(struct hci_dev *hdev)
 	if (err)
 		return err;
 
-	if (!fw_load_done)
-		goto done;
-
 	/* Re-initialize after loading Patch */
-	err = btbcm_initialize(hdev, &fw_load_done);
-	if (err)
-		return err;
-
-done:
-	btbcm_check_bdaddr(hdev);
-
-	set_bit(HCI_QUIRK_STRICT_DUPLICATE_FILTER, &hdev->quirks);
-
-	return 0;
+	return btbcm_finalize(hdev, &fw_load_done);
 }
 EXPORT_SYMBOL_GPL(btbcm_setup_patchram);
 

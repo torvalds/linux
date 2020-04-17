@@ -606,7 +606,7 @@ static int bcm_setup(struct hci_uart *hu)
 		btbcm_write_pcm_int_params(hu->hdev, &params);
 	}
 
-	err = btbcm_finalize(hu->hdev);
+	err = btbcm_finalize(hu->hdev, &fw_load_done);
 	if (err)
 		return err;
 
