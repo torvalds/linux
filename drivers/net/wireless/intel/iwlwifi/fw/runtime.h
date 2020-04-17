@@ -98,8 +98,16 @@ struct iwl_fwrt_shared_mem_cfg {
  * @fw_pkt: packet received from FW
  */
 struct iwl_fwrt_dump_data {
-	struct iwl_fw_ini_trigger_tlv *trig;
-	struct iwl_rx_packet *fw_pkt;
+	union {
+		struct {
+			struct iwl_fw_ini_trigger_tlv *trig;
+			struct iwl_rx_packet *fw_pkt;
+		};
+		struct {
+			const struct iwl_fw_dump_desc *desc;
+			bool monitor_only;
+		};
+	};
 };
 
 /**
@@ -162,8 +170,6 @@ struct iwl_fw_runtime {
 
 	/* debug */
 	struct {
-		const struct iwl_fw_dump_desc *desc;
-		bool monitor_only;
 		struct iwl_fwrt_wk_data wks[IWL_FW_RUNTIME_DUMP_WK_NUM];
 		unsigned long active_wks;
 
