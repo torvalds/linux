@@ -158,6 +158,8 @@ struct intel_device_info {
 
 	enum intel_platform platform;
 
+	unsigned int dma_mask_size; /* available DMA address bits */
+
 	enum intel_ppgtt_type ppgtt_type;
 	unsigned int ppgtt_size; /* log2, e.g. 31/32/48 bits */
 

@@ -569,6 +569,62 @@ static void intel_sanitize_options(struct drm_i915_private *dev_priv)
 }
 
 /**
+ * i915_set_dma_info - set all relevant PCI dma info as configured for the
+ * platform
+ * @i915: valid i915 instance
+ *
+ * Set the dma max segment size, device and coherent masks.  The dma mask set
+ * needs to occur before i915_ggtt_probe_hw.
+ *
+ * A couple of platforms have special needs.  Address them as well.
+ *
+ */
+static int i915_set_dma_info(struct drm_i915_private *i915)
+{
+	struct pci_dev *pdev = i915->drm.pdev;
+	unsigned int mask_size = INTEL_INFO(i915)->dma_mask_size;
+	int ret;
+
+	GEM_BUG_ON(!mask_size);
+
+	/*
+	 * We don't have a max segment size, so set it to the max so sg's
+	 * debugging layer doesn't complain
+	 */
+	dma_set_max_seg_size(&pdev->dev, UINT_MAX);
+
+	ret = dma_set_mask(&pdev->dev, DMA_BIT_MASK(mask_size));
+	if (ret)
+		goto mask_err;
+
+	/* overlay on gen2 is broken and can't address above 1G */
+	if (IS_GEN(i915, 2))
+		mask_size = 30;
+
+	/*
+	 * 965GM sometimes incorrectly writes to hardware status page (HWS)
+	 * using 32bit addressing, overwriting memory if HWS is located
+	 * above 4GB.
+	 *
+	 * The documentation also mentions an issue with undefined
+	 * behaviour if any general state is accessed within a page above 4GB,
+	 * which also needs to be handled carefully.
+	 */
+	if (IS_I965G(i915) || IS_I965GM(i915))
+		mask_size = 32;
+
+	ret = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(mask_size));
+	if (ret)
+		goto mask_err;
+
+	return 0;
+
+mask_err:
+	drm_err(&i915->drm, "Can't set DMA mask/consistent mask (%d)\n", ret);
+	return ret;
+}
+
+/**
  * i915_driver_hw_probe - setup state requiring device access
  * @dev_priv: device private
  *
@@ -613,6 +669,10 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 	/* needs to be done before ggtt probe */
 	intel_dram_edram_detect(dev_priv);
 
+	ret = i915_set_dma_info(dev_priv);
+	if (ret)
+		return ret;
+
 	i915_perf_init(dev_priv);
 
 	ret = i915_ggtt_probe_hw(dev_priv);
@@ -640,40 +700,6 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 	}
 
 	pci_set_master(pdev);
-
-	/*
-	 * We don't have a max segment size, so set it to the max so sg's
-	 * debugging layer doesn't complain
-	 */
-	dma_set_max_seg_size(&pdev->dev, UINT_MAX);
-
-	/* overlay on gen2 is broken and can't address above 1G */
-	if (IS_GEN(dev_priv, 2)) {
-		ret = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(30));
-		if (ret) {
-			drm_err(&dev_priv->drm, "failed to set DMA mask\n");
-
-			goto err_mem_regions;
-		}
-	}
-
-	/* 965GM sometimes incorrectly writes to hardware status page (HWS)
-	 * using 32bit addressing, overwriting memory if HWS is located
-	 * above 4GB.
-	 *
-	 * The documentation also mentions an issue with undefined
-	 * behaviour if any general state is accessed within a page above 4GB,
-	 * which also needs to be handled carefully.
-	 */
-	if (IS_I965G(dev_priv) || IS_I965GM(dev_priv)) {
-		ret = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
-
-		if (ret) {
-			drm_err(&dev_priv->drm, "failed to set DMA mask\n");
-
-			goto err_mem_regions;
-		}
-	}
 
 	cpu_latency_qos_add_request(&dev_priv->pm_qos, PM_QOS_DEFAULT_VALUE);
 
