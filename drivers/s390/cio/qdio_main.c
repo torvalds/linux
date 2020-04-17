@@ -880,47 +880,17 @@ static inline void qdio_check_outbound_pci_queues(struct qdio_irq *irq)
 			qdio_tasklet_schedule(out);
 }
 
-static void __tiqdio_inbound_processing(struct qdio_q *q)
+void tiqdio_inbound_processing(unsigned long data)
 {
-	unsigned int start = q->first_to_check;
-	int count;
+	struct qdio_q *q = (struct qdio_q *)data;
 
-	qperf_inc(q, tasklet_inbound);
 	if (need_siga_sync(q) && need_siga_sync_after_ai(q))
 		qdio_sync_queues(q);
 
 	/* The interrupt could be caused by a PCI request: */
 	qdio_check_outbound_pci_queues(q->irq_ptr);
 
-	count = qdio_inbound_q_moved(q, start);
-	if (count == 0)
-		return;
-
-	start = add_buf(start, count);
-	q->first_to_check = start;
-	qdio_kick_handler(q, count);
-
-	if (!qdio_inbound_q_done(q, start)) {
-		qperf_inc(q, tasklet_inbound_resched);
-		if (!qdio_tasklet_schedule(q))
-			return;
-	}
-
-	qdio_stop_polling(q);
-	/*
-	 * We need to check again to not lose initiative after
-	 * resetting the ACK state.
-	 */
-	if (!qdio_inbound_q_done(q, start)) {
-		qperf_inc(q, tasklet_inbound_resched2);
-		qdio_tasklet_schedule(q);
-	}
-}
-
-void tiqdio_inbound_processing(unsigned long data)
-{
-	struct qdio_q *q = (struct qdio_q *)data;
-	__tiqdio_inbound_processing(q);
+	__qdio_inbound_processing(q);
 }
 
 static inline void qdio_set_state(struct qdio_irq *irq_ptr,
