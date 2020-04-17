@@ -274,7 +274,7 @@ examples:
   - |
     #include <dt-bindings/mfd/st,stpmic1.h>
     #include <dt-bindings/interrupt-controller/arm-gic.h>
-    i2c@0 {
+    i2c {
       #address-cells = <1>;
       #size-cells = <0>;
       pmic@33 {
