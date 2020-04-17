@@ -7077,9 +7077,6 @@ static void hsw_crtc_enable(struct intel_atomic_state *state,
 	if (INTEL_GEN(dev_priv) >= 11)
 		icl_pipe_mbus_enable(crtc);
 
-	if (!transcoder_is_dsi(cpu_transcoder))
-		intel_ddi_enable_transcoder_func(new_crtc_state);
-
 	intel_encoders_enable(state, crtc);
 
 	if (psl_clkgate_wa) {

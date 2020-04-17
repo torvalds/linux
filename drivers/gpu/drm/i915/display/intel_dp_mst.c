@@ -510,6 +510,8 @@ static void intel_mst_enable_dp(struct intel_atomic_state *state,
 
 	drm_WARN_ON(&dev_priv->drm, pipe_config->has_pch_encoder);
 
+	intel_ddi_enable_transcoder_func(pipe_config);
+
 	intel_enable_pipe(pipe_config);
 
 	intel_crtc_vblank_on(pipe_config);

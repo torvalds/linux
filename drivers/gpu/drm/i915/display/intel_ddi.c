@@ -3765,6 +3765,8 @@ static void intel_enable_ddi(struct intel_atomic_state *state,
 {
 	WARN_ON(crtc_state->has_pch_encoder);
 
+	intel_ddi_enable_transcoder_func(crtc_state);
+
 	intel_enable_pipe(crtc_state);
 
 	intel_crtc_vblank_on(crtc_state);
