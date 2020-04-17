@@ -1284,6 +1284,10 @@ static void i915_audio_component_unbind(struct device *i915_kdev,
 	drm_modeset_unlock_all(&dev_priv->drm);
 
 	device_link_remove(hda_kdev, i915_kdev);
+
+	if (dev_priv->audio_power_refcount)
+		drm_err(&dev_priv->drm, "audio power refcount %d after unbind\n",
+			dev_priv->audio_power_refcount);
 }
 
 static const struct component_ops i915_audio_component_bind_ops = {
