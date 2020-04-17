@@ -60,6 +60,7 @@
 #include "ntb_hw_intel.h"
 #include "ntb_hw_gen1.h"
 #include "ntb_hw_gen3.h"
+#include "ntb_hw_gen4.h"
 
 #define NTB_NAME	"ntb_hw_intel"
 #define NTB_DESC	"Intel(R) PCI-E Non-Transparent Bridge Driver"
@@ -762,6 +763,8 @@ static ssize_t ndev_debugfs_read(struct file *filp, char __user *ubuf,
 		return ndev_ntb_debugfs_read(filp, ubuf, count, offp);
 	else if (pdev_is_gen3(ndev->ntb.pdev))
 		return ndev_ntb3_debugfs_read(filp, ubuf, count, offp);
+	else if (pdev_is_gen4(ndev->ntb.pdev))
+		return ndev_ntb4_debugfs_read(filp, ubuf, count, offp);
 
 	return -ENXIO;
 }
@@ -1858,16 +1861,15 @@ static int intel_ntb_pci_probe(struct pci_dev *pdev,
 	int rc, node;
 
 	node = dev_to_node(&pdev->dev);
+	ndev = kzalloc_node(sizeof(*ndev), GFP_KERNEL, node);
+	if (!ndev) {
+		rc = -ENOMEM;
+		goto err_ndev;
+	}
+
+	ndev_init_struct(ndev, pdev);
 
 	if (pdev_is_gen1(pdev)) {
-		ndev = kzalloc_node(sizeof(*ndev), GFP_KERNEL, node);
-		if (!ndev) {
-			rc = -ENOMEM;
-			goto err_ndev;
-		}
-
-		ndev_init_struct(ndev, pdev);
-
 		rc = intel_ntb_init_pci(ndev, pdev);
 		if (rc)
 			goto err_init_pci;
@@ -1875,17 +1877,8 @@ static int intel_ntb_pci_probe(struct pci_dev *pdev,
 		rc = xeon_init_dev(ndev);
 		if (rc)
 			goto err_init_dev;
-
 	} else if (pdev_is_gen3(pdev)) {
-		ndev = kzalloc_node(sizeof(*ndev), GFP_KERNEL, node);
-		if (!ndev) {
-			rc = -ENOMEM;
-			goto err_ndev;
-		}
-
-		ndev_init_struct(ndev, pdev);
 		ndev->ntb.ops = &intel_ntb3_ops;
-
 		rc = intel_ntb_init_pci(ndev, pdev);
 		if (rc)
 			goto err_init_pci;
@@ -1893,7 +1886,15 @@ static int intel_ntb_pci_probe(struct pci_dev *pdev,
 		rc = gen3_init_dev(ndev);
 		if (rc)
 			goto err_init_dev;
+	} else if (pdev_is_gen4(pdev)) {
+		ndev->ntb.ops = &intel_ntb4_ops;
+		rc = intel_ntb_init_pci(ndev, pdev);
+		if (rc)
+			goto err_init_pci;
 
+		rc = gen4_init_dev(ndev);
+		if (rc)
+			goto err_init_dev;
 	} else {
 		rc = -EINVAL;
 		goto err_ndev;
@@ -1915,7 +1916,7 @@ static int intel_ntb_pci_probe(struct pci_dev *pdev,
 
 err_register:
 	ndev_deinit_debugfs(ndev);
-	if (pdev_is_gen1(pdev) || pdev_is_gen3(pdev))
+	if (pdev_is_gen1(pdev) || pdev_is_gen3(pdev) || pdev_is_gen4(pdev))
 		xeon_deinit_dev(ndev);
 err_init_dev:
 	intel_ntb_deinit_pci(ndev);
@@ -1931,7 +1932,7 @@ static void intel_ntb_pci_remove(struct pci_dev *pdev)
 
 	ntb_unregister_device(&ndev->ntb);
 	ndev_deinit_debugfs(ndev);
-	if (pdev_is_gen1(pdev) || pdev_is_gen3(pdev))
+	if (pdev_is_gen1(pdev) || pdev_is_gen3(pdev) || pdev_is_gen4(pdev))
 		xeon_deinit_dev(ndev);
 	intel_ntb_deinit_pci(ndev);
 	kfree(ndev);
@@ -2036,6 +2037,7 @@ static const struct file_operations intel_ntb_debugfs_info = {
 };
 
 static const struct pci_device_id intel_ntb_pci_tbl[] = {
+	/* GEN1 */
 	{PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_NTB_B2B_JSF)},
 	{PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_NTB_B2B_SNB)},
 	{PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_NTB_B2B_IVT)},
@@ -2051,7 +2053,12 @@ static const struct pci_device_id intel_ntb_pci_tbl[] = {
 	{PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_NTB_SS_IVT)},
 	{PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_NTB_SS_HSX)},
 	{PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_NTB_SS_BDX)},
+
+	/* GEN3 */
 	{PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_NTB_B2B_SKX)},
+
+	/* GEN4 */
+	{PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_NTB_B2B_ICX)},
 	{0}
 };
 MODULE_DEVICE_TABLE(pci, intel_ntb_pci_tbl);
