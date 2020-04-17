@@ -3838,6 +3838,13 @@ static bool svm_need_emulation_on_page_fault(struct kvm_vcpu *vcpu)
 	bool is_user = svm_get_cpl(vcpu) == 3;
 
 	/*
+	 * If RIP is invalid, go ahead with emulation which will cause an
+	 * internal error exit.
+	 */
+	if (!kvm_vcpu_gfn_to_memslot(vcpu, kvm_rip_read(vcpu) >> PAGE_SHIFT))
+		return true;
+
+	/*
 	 * Detect and workaround Errata 1096 Fam_17h_00_0Fh.
 	 *
 	 * Errata:
