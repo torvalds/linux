@@ -15,7 +15,6 @@ config SPMI_MSM_PMIC_ARB
 	select IRQ_DOMAIN
 	depends on ARCH_QCOM || COMPILE_TEST
 	depends on HAS_IOMEM
-	default ARCH_QCOM
 	help
 	  If you say yes to this option, support will be included for the
 	  built-in SPMI PMIC Arbiter interface on Qualcomm MSM family
