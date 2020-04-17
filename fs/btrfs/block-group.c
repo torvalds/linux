@@ -1288,11 +1288,15 @@ static bool clean_pinned_extents(struct btrfs_trans_handle *trans,
 	if (ret)
 		goto err;
 	mutex_unlock(&fs_info->unused_bg_unpin_mutex);
+	if (prev_trans)
+		btrfs_put_transaction(prev_trans);
 
 	return true;
 
 err:
 	mutex_unlock(&fs_info->unused_bg_unpin_mutex);
+	if (prev_trans)
+		btrfs_put_transaction(prev_trans);
 	btrfs_dec_block_group_ro(bg);
 	return false;
 }
