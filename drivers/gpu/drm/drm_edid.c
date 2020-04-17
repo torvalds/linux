@@ -4242,6 +4242,62 @@ parse_hdmi_hf_vsdb(struct drm_connector *connector, const u8 *db)
 		connector->supports_scramble ? "supported" : "not supported");
 }
 
+static void drm_parse_ycbcr420_deep_color_info(struct drm_connector *connector,
+					       const u8 *db)
+{
+	u8 dc_mask;
+	struct drm_hdmi_info *hdmi = &connector->display_info.hdmi;
+
+	dc_mask = db[7] & DRM_EDID_YCBCR420_DC_MASK;
+	hdmi->y420_dc_modes = dc_mask;
+}
+
+static void drm_parse_hdmi_forum_vsdb(struct drm_connector *connector,
+				 const u8 *hf_vsdb)
+{
+	struct drm_display_info *display = &connector->display_info;
+	struct drm_hdmi_info *hdmi = &display->hdmi;
+
+	display->has_hdmi_infoframe = true;
+
+	if (hf_vsdb[6] & 0x80) {
+		hdmi->scdc.supported = true;
+		if (hf_vsdb[6] & 0x40)
+			hdmi->scdc.read_request = true;
+	}
+
+	/*
+	 * All HDMI 2.0 monitors must support scrambling at rates > 340 MHz.
+	 * And as per the spec, three factors confirm this:
+	 * * Availability of a HF-VSDB block in EDID (check)
+	 * * Non zero Max_TMDS_Char_Rate filed in HF-VSDB (let's check)
+	 * * SCDC support available (let's check)
+	 * Lets check it out.
+	 */
+
+	if (hf_vsdb[5]) {
+		/* max clock is 5000 KHz times block value */
+		u32 max_tmds_clock = hf_vsdb[5] * 5000;
+		struct drm_scdc *scdc = &hdmi->scdc;
+
+		if (max_tmds_clock > 340000) {
+			display->max_tmds_clock = max_tmds_clock;
+			DRM_DEBUG_KMS("HF-VSDB: max TMDS clock %d kHz\n",
+				display->max_tmds_clock);
+		}
+
+		if (scdc->supported) {
+			scdc->scrambling.supported = true;
+
+			/* Few sinks support scrambling for cloks < 340M */
+			if ((hf_vsdb[6] & 0x8))
+				scdc->scrambling.low_rates = true;
+		}
+	}
+
+	drm_parse_ycbcr420_deep_color_info(connector, hf_vsdb);
+	parse_hdmi_hf_vsdb(connector, hf_vsdb);
+}
 
 static void
 monitor_name(struct detailed_timing *t, void *data)
@@ -4377,7 +4433,8 @@ static void drm_edid_to_eld(struct drm_connector *connector, struct edid *edid)
 					drm_parse_hdmi_vsdb_audio(connector, db);
 				/* HDMI Forum Vendor-Specific Data Block */
 				else if (cea_db_is_hdmi_forum_vsdb(db))
-					parse_hdmi_hf_vsdb(connector, db);
+					drm_parse_hdmi_forum_vsdb(connector,
+								  db);
 				break;
 			default:
 				break;
@@ -4691,62 +4748,6 @@ drm_default_rgb_quant_range(const struct drm_display_mode *mode)
 }
 EXPORT_SYMBOL(drm_default_rgb_quant_range);
 
-static void drm_parse_ycbcr420_deep_color_info(struct drm_connector *connector,
-					       const u8 *db)
-{
-	u8 dc_mask;
-	struct drm_hdmi_info *hdmi = &connector->display_info.hdmi;
-
-	dc_mask = db[7] & DRM_EDID_YCBCR420_DC_MASK;
-	hdmi->y420_dc_modes = dc_mask;
-}
-
-static void drm_parse_hdmi_forum_vsdb(struct drm_connector *connector,
-				 const u8 *hf_vsdb)
-{
-	struct drm_display_info *display = &connector->display_info;
-	struct drm_hdmi_info *hdmi = &display->hdmi;
-
-	display->has_hdmi_infoframe = true;
-
-	if (hf_vsdb[6] & 0x80) {
-		hdmi->scdc.supported = true;
-		if (hf_vsdb[6] & 0x40)
-			hdmi->scdc.read_request = true;
-	}
-
-	/*
-	 * All HDMI 2.0 monitors must support scrambling at rates > 340 MHz.
-	 * And as per the spec, three factors confirm this:
-	 * * Availability of a HF-VSDB block in EDID (check)
-	 * * Non zero Max_TMDS_Char_Rate filed in HF-VSDB (let's check)
-	 * * SCDC support available (let's check)
-	 * Lets check it out.
-	 */
-
-	if (hf_vsdb[5]) {
-		/* max clock is 5000 KHz times block value */
-		u32 max_tmds_clock = hf_vsdb[5] * 5000;
-		struct drm_scdc *scdc = &hdmi->scdc;
-
-		if (max_tmds_clock > 340000) {
-			display->max_tmds_clock = max_tmds_clock;
-			DRM_DEBUG_KMS("HF-VSDB: max TMDS clock %d kHz\n",
-				display->max_tmds_clock);
-		}
-
-		if (scdc->supported) {
-			scdc->scrambling.supported = true;
-
-			/* Few sinks support scrambling for cloks < 340M */
-			if ((hf_vsdb[6] & 0x8))
-				scdc->scrambling.low_rates = true;
-		}
-	}
-
-	drm_parse_ycbcr420_deep_color_info(connector, hf_vsdb);
-}
-
 static void drm_parse_hdmi_deep_color_info(struct drm_connector *connector,
 					   const u8 *hdmi)
 {
@@ -4918,7 +4919,8 @@ drm_hdmi_extract_vsdbs_info(struct drm_connector *connector,
 				}
 				/* HDMI Forum Vendor-Specific Data Block */
 				else if (cea_db_is_hdmi_forum_vsdb(db))
-					parse_hdmi_hf_vsdb(connector, db);
+					drm_parse_hdmi_forum_vsdb(connector,
+								  db);
 			}
 		}
 	}
