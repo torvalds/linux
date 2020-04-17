@@ -209,7 +209,8 @@ struct hl_info_args {
 /* Opcode to destroy previously created command buffer */
 #define HL_CB_OP_DESTROY	1
 
-#define HL_MAX_CB_SIZE		0x200000	/* 2MB */
+/* 2MB minus 32 bytes for 2xMSG_PROT */
+#define HL_MAX_CB_SIZE		(0x200000 - 32)
 
 struct hl_cb_in {
 	/* Handle of CB or 0 if we want to create one */
