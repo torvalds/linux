@@ -241,6 +241,10 @@
 	status = "okay";
 };
 
+&mmcc {
+	vdd-gfx-supply = <&vdd_gfx>;
+};
+
 &msmgpio {
 	gpio-line-names =
 		"[SPI0_DOUT]", /* GPIO_0, BLSP1_SPI_MOSI, LSEC pin 14 */
@@ -675,6 +679,15 @@
 			qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
 			power-source = <PM8994_GPIO_S4>; // 1.8V
 		};
+	};
+};
+
+&pmi8994_spmi_regulators {
+	vdd_gfx: s2@1700 {
+		reg = <0x1700 0x100>;
+		regulator-name = "VDD_GFX";
+		regulator-min-microvolt = <980000>;
+		regulator-max-microvolt = <980000>;
 	};
 };
 
