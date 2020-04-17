@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Driver for IBM PowerNV 842 compression accelerator
+ * Driver for IBM PowerNV compression accelerator
  *
  * Copyright (C) 2015 Dan Streetman, IBM Corp
  */
@@ -20,7 +20,7 @@
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Dan Streetman <ddstreet@ieee.org>");
-MODULE_DESCRIPTION("842 H/W Compression driver for IBM PowerNV processors");
+MODULE_DESCRIPTION("H/W Compression driver for IBM PowerNV processors");
 MODULE_ALIAS_CRYPTO("842");
 MODULE_ALIAS_CRYPTO("842-nx");
 
