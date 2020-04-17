@@ -355,7 +355,7 @@ static int mlx5_handle_changeupper_event(struct mlx5_lag *ldev,
 {
 	struct net_device *upper = info->upper_dev, *ndev_tmp;
 	struct netdev_lag_upper_info *lag_upper_info = NULL;
-	bool is_bonded;
+	bool is_bonded, is_in_lag, mode_supported;
 	int bond_status = 0;
 	int num_slaves = 0;
 	int idx;
@@ -391,13 +391,18 @@ static int mlx5_handle_changeupper_event(struct mlx5_lag *ldev,
 	/* Determine bonding status:
 	 * A device is considered bonded if both its physical ports are slaves
 	 * of the same lag master, and only them.
-	 * Lag mode must be activebackup or hash.
 	 */
-	is_bonded = (num_slaves == MLX5_MAX_PORTS) &&
-		    (bond_status == 0x3) &&
-		    ((tracker->tx_type == NETDEV_LAG_TX_TYPE_ACTIVEBACKUP) ||
-		     (tracker->tx_type == NETDEV_LAG_TX_TYPE_HASH));
+	is_in_lag = num_slaves == MLX5_MAX_PORTS && bond_status == 0x3;
 
+	/* Lag mode must be activebackup or hash. */
+	mode_supported = tracker->tx_type == NETDEV_LAG_TX_TYPE_ACTIVEBACKUP ||
+			 tracker->tx_type == NETDEV_LAG_TX_TYPE_HASH;
+
+	if (is_in_lag && !mode_supported)
+		NL_SET_ERR_MSG_MOD(info->info.extack,
+				   "Can't activate LAG offload, TX type isn't supported");
+
+	is_bonded = is_in_lag && mode_supported;
 	if (tracker->is_bonded != is_bonded) {
 		tracker->is_bonded = is_bonded;
 		return 1;
