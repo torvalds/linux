@@ -450,8 +450,6 @@ struct ieee80211_if_managed {
 
 	u8 bssid[ETH_ALEN] __aligned(2);
 
-	u16 aid;
-
 	bool powersave; /* powersave requested for this iface */
 	bool broken_ap; /* AP is broken -- turn off powersave */
 	bool have_beacon;
