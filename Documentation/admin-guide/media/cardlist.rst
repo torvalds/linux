@@ -52,7 +52,9 @@ settings for an specific product type.
 	cx231xx-cardlist
 	em28xx-cardlist
 	tm6000-cardlist
+	siano-cardlist
 	usbvision-cardlist
+
 	gspca-cardlist
 
 	dvb-usb-dib0700-cardlist
