@@ -41,28 +41,72 @@
  */
 
 /dts-v1/;
-
+#include <dt-bindings/sensor-dev.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/display/mipi_dsi.h>
+#include <dt-bindings/pwm/pwm.h>
 #include "rk3399.dtsi"
 #include "rk3399-android.dtsi"
 #include "rk3399-opp.dtsi"
-#include <dt-bindings/sensor-dev.h>
-#include <dt-bindings/pwm/pwm.h>
+#include "rk3399-vop-clk-set.dtsi"
 
 / {
 	compatible = "rockchip,rk3399-mid", "rockchip,rk3399";
+	chosen: chosen {
+		bootargs = "earlycon=uart8250,mmio32,0xff1a0000 swiotlb=1 console=ttyFIQ0 androidboot.baseband=N/A androidboot.veritymode=enforcing androidboot.hardware=rk30board androidboot.console=ttyFIQ0 init=/init initrd=0x62000001,0x00800000 coherent_pool=1m";
+	};
 
-	edp_panel: edp-panel {
-		compatible = "lg,lp079qx1-sp0v", "panel-simple";
-		bus-format = <MEDIA_BUS_FMT_RGB666_1X18>;
-		bpc = <6>;
-		backlight = <&backlight>;
-		power-supply = <&vcc3v3_s0>;
-		enable-gpios = <&gpio3 8 GPIO_ACTIVE_HIGH>;
-		ports {
-			panel_in_edp: endpoint {
-				remote-endpoint = <&edp_out_panel>;
-			};
+	adc_keys {
+		compatible = "adc-keys";
+		io-channels = <&saradc 1>;
+		io-channel-names = "buttons";
+		keyup-threshold-microvolt = <1800000>;
+		poll-interval = <100>;
+
+		vol-up-key {
+			label = "volume up";
+			linux,code = <KEY_VOLUMEUP>;
+			press-threshold-microvolt = <1000>;
 		};
+
+		vol-down-key {
+			label = "volume down";
+			linux,code = <KEY_VOLUMEDOWN>;
+			press-threshold-microvolt = <170000>;
+		};
+	};
+
+	rk_headset: rk-headset {
+		compatible = "rockchip_headset";
+		headset_gpio = <&gpio4 RK_PD4 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&hp_det>;
+		io-channels = <&saradc 2>;
+	};
+
+	charge-animation {
+		compatible = "rockchip,uboot-charge";
+		rockchip,uboot-charge-on = <1>;
+		rockchip,android-charge-on = <0>;
+		rockchip,uboot-low-power-voltage = <6700>;
+		rockchip,screen-on-voltage = <6800>;
+		status = "okay";
+	};
+
+	sdio_pwrseq: sdio-pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		clocks = <&rk818 1>;
+		clock-names = "ext_clock";
+		pinctrl-names = "default";
+		pinctrl-0 = <&wifi_enable_h>;
+
+		/*
+		 * On the module itself this is one of these (depending
+		 * on the actual card populated):
+		 * - SDIO_RESET_L_WL_REG_ON
+		 * - PDN (power down when low)
+		 */
+		reset-gpios = <&gpio0 10 GPIO_ACTIVE_LOW>; /* GPIO0_B2 */
 	};
 
 	hall_sensor: hall-mh248 {
@@ -119,6 +163,20 @@
 		clock-frequency = <32768>;
 		clock-output-names = "xin32k";
 		#clock-cells = <0>;
+	};
+
+	edp_panel: edp-panel {
+		compatible = "lg,lp079qx1-sp0v", "panel-simple";
+		bus-format = <MEDIA_BUS_FMT_RGB666_1X18>;
+		bpc = <6>;
+		backlight = <&backlight>;
+		power-supply = <&vcc3v3_s0>;
+		enable-gpios = <&gpio3 8 GPIO_ACTIVE_HIGH>;
+		ports {
+			panel_in_edp: endpoint {
+				remote-endpoint = <&edp_out_panel>;
+			};
+		};
 	};
 
 	backlight: backlight {
@@ -236,12 +294,6 @@
 		status = "okay";
 	};
 
-	uboot-charge {
-		compatible = "rockchip,uboot-charge";
-		rockchip,uboot-charge-on = <0>;
-		rockchip,android-charge-on = <1>;
-	};
-
 	vibrator {
 		compatible = "rk-vibrator-gpio";
 		vibrator-gpio = <&gpio4 30 GPIO_ACTIVE_LOW>;
@@ -257,75 +309,37 @@
 	};
 };
 
-&firmware_android {
-	compatible = "android,firmware";
-	fstab {
-		compatible = "android,fstab";
-		system {
-			compatible = "android,system";
-			dev = "/dev/block/by-name/system";
-			type = "ext4";
-			mnt_flags = "ro,barrier=1,inode_readahead_blks=8";
-			fsmgr_flags = "wait,verify";
-		};
-		vendor {
-			compatible = "android,vendor";
-			dev = "/dev/block/by-name/vendor";
-			type = "ext4";
-			mnt_flags = "ro,barrier=1,inode_readahead_blks=8";
-			fsmgr_flags = "wait,verify";
-		};
-	};
+&dfi {
+	status = "okay";
 };
 
-&rk_key {
-	compatible = "rockchip,key";
+&dmc {
 	status = "okay";
+	center-supply = <&vdd_center>;
+	upthreshold = <40>;
+	downdifferential = <20>;
+	system-status-freq = <
+		/*system status         freq(KHz)*/
+		SYS_STATUS_NORMAL       800000
+		SYS_STATUS_REBOOT       528000
+		SYS_STATUS_SUSPEND      200000
+		SYS_STATUS_VIDEO_1080P  200000
+		SYS_STATUS_VIDEO_4K     600000
+		SYS_STATUS_VIDEO_4K_10B 800000
+		SYS_STATUS_PERFORMANCE  800000
+		SYS_STATUS_BOOST        600000
+		SYS_STATUS_DUALVIEW     600000
+		SYS_STATUS_ISP          600000
+	>;
+	vop-bw-dmc-freq = <
+	/* min_bw(MB/s) max_bw(MB/s) freq(KHz) */
+		0       762      200000
+		763     1893     400000
+		1894    3012     528000
+		3013    99999    800000
+	>;
 
-	io-channels = <&saradc 1>;
-
-	vol-up-key {
-		linux,code = <114>;
-		label = "volume up";
-		rockchip,adc_value = <1>;
-	};
-
-	vol-down-key {
-		linux,code = <115>;
-		label = "volume down";
-		rockchip,adc_value = <170>;
-	};
-
-	power-key {
-		gpios = <&gpio0 5 GPIO_ACTIVE_LOW>;
-		linux,code = <116>;
-		label = "power";
-		gpio-key,wakeup;
-	};
-
-	menu-key {
-		linux,code = <59>;
-		label = "menu";
-		rockchip,adc_value = <746>;
-	};
-
-	home-key {
-		linux,code = <102>;
-		label = "home";
-		rockchip,adc_value = <355>;
-	};
-
-	back-key {
-		linux,code = <158>;
-		label = "back";
-		rockchip,adc_value = <560>;
-	};
-
-	camera-key {
-		linux,code = <212>;
-		label = "camera";
-		rockchip,adc_value = <450>;
-	};
+	auto-min-freq = <200000>;
 };
 
 &sdmmc {
@@ -389,7 +403,7 @@
 };
 
 &spdif {
-	status = "okay";
+	status = "disabled";
 	#sound-dai-cells = <0>;
 };
 
@@ -1069,7 +1083,7 @@
 };
 
 &hdmi {
-	status = "okay";
+	status = "disabled";
 };
 
 &hdmi_in_vopb {
@@ -1094,4 +1108,14 @@
 &route_edp {
 	status = "okay";
 	logo,mode = "center";
+};
+
+&vopb {
+	assigned-clocks = <&cru DCLK_VOP0_DIV>;
+	assigned-clock-parents = <&cru PLL_CPLL>;
+};
+
+&vopl {
+	assigned-clocks = <&cru DCLK_VOP1_DIV>;
+	assigned-clock-parents = <&cru PLL_VPLL>;
 };
