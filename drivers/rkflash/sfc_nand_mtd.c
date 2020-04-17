@@ -45,8 +45,8 @@ static int sfc_erase_mtd(struct mtd_info *mtd, struct erase_info *instr)
 	while (len) {
 		ret = sfc_nand_erase_block(0, addr >> mtd->writesize_shift);
 		if (ret) {
-			rkflash_print_dio("sfc_nand_erase addr 0x%x ret=%d\n",
-					  addr, ret);
+			rkflash_print_error("%s fail addr 0x%x ret=%d\n",
+					    __func__, addr, ret);
 			instr->fail_addr = addr;
 			mutex_unlock(p_dev->lock);
 			return -EIO;
