@@ -463,6 +463,13 @@ int btbcm_initialize(struct hci_dev *hdev, bool *fw_load_done)
 		}
 	}
 
+	bt_dev_info(hdev, "%s (%3.3u.%3.3u.%3.3u) build %4.4u",
+		    hw_name, (subver & 0xe000) >> 13,
+		    (subver & 0x1f00) >> 8, (subver & 0x00ff), rev & 0x0fff);
+
+	if (*fw_load_done)
+		return 0;
+
 	if (hdev->bus == HCI_USB) {
 		/* Read USB Product Info */
 		skb = btbcm_read_usb_product(hdev);
@@ -478,13 +485,6 @@ int btbcm_initialize(struct hci_dev *hdev, bool *fw_load_done)
 	} else {
 		snprintf(fw_name, BCM_FW_NAME_LEN, "brcm/%s.hcd", hw_name);
 	}
-
-	bt_dev_info(hdev, "%s (%3.3u.%3.3u.%3.3u) build %4.4u",
-		    hw_name, (subver & 0xe000) >> 13,
-		    (subver & 0x1f00) >> 8, (subver & 0x00ff), rev & 0x0fff);
-
-	if (*fw_load_done)
-		return 0;
 
 	err = request_firmware(&fw, fw_name, &hdev->dev);
 	if (err) {
