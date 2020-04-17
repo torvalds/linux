@@ -308,7 +308,7 @@ static void hsw_enable_crt(struct intel_atomic_state *state,
 
 	drm_WARN_ON(&dev_priv->drm, !crtc_state->has_pch_encoder);
 
-	intel_ddi_enable_transcoder_func(crtc_state);
+	intel_ddi_enable_transcoder_func(encoder, crtc_state);
 
 	intel_enable_pipe(crtc_state);
 
