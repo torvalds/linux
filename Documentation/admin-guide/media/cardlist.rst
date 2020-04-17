@@ -56,6 +56,8 @@ settings for an specific product type.
 	gspca-cardlist
 
 	dvb-usb-dib0700-cardlist
+	dvb-usb-dibusb-mb-cardlist
+	dvb-usb-dibusb-mc-cardlist
 
 	dvb-usb-af9015-cardlist
 	dvb-usb-af9035-cardlist
