@@ -31,7 +31,6 @@ struct context {
 	u32 len;        /* length of string in bytes */
 	struct mls_range range;
 	char *str;	/* string representation if context cannot be mapped. */
-	u32 hash;	/* a hash of the string representation */
 };
 
 static inline void mls_context_init(struct context *c)
@@ -169,13 +168,12 @@ static inline int context_cpy(struct context *dst, struct context *src)
 		kfree(dst->str);
 		return rc;
 	}
-	dst->hash = src->hash;
 	return 0;
 }
 
 static inline void context_destroy(struct context *c)
 {
-	c->user = c->role = c->type = c->hash = 0;
+	c->user = c->role = c->type = 0;
 	kfree(c->str);
 	c->str = NULL;
 	c->len = 0;
@@ -184,8 +182,6 @@ static inline void context_destroy(struct context *c)
 
 static inline int context_cmp(struct context *c1, struct context *c2)
 {
-	if (c1->hash && c2->hash && (c1->hash != c2->hash))
-		return 0;
 	if (c1->len && c2->len)
 		return (c1->len == c2->len && !strcmp(c1->str, c2->str));
 	if (c1->len || c2->len)
@@ -197,11 +193,6 @@ static inline int context_cmp(struct context *c1, struct context *c2)
 }
 
 u32 context_compute_hash(const struct context *c);
-
-static inline void context_add_hash(struct context *context)
-{
-	context->hash = context_compute_hash(context);
-}
 
 #endif	/* _SS_CONTEXT_H_ */
 
