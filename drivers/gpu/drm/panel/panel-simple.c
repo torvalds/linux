@@ -836,7 +836,8 @@ static const struct panel_desc auo_g101evn010 = {
 		.width = 216,
 		.height = 135,
 	},
-	.bus_format = MEDIA_BUS_FMT_RGB666_1X18,
+	.bus_format = MEDIA_BUS_FMT_RGB666_1X7X3_SPWG,
+	.connector_type = DRM_MODE_CONNECTOR_LVDS,
 };
 
 static const struct drm_display_mode auo_g104sn02_mode = {
