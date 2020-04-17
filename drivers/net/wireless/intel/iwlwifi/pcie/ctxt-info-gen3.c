@@ -129,6 +129,18 @@ int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
 	int cmdq_size = max_t(u32, IWL_CMD_QUEUE_SIZE,
 			      trans->cfg->min_txq_size);
 
+	switch (trans_pcie->rx_buf_size) {
+	case IWL_AMSDU_DEF:
+		return -EINVAL;
+	case IWL_AMSDU_2K:
+		break;
+	case IWL_AMSDU_4K:
+	case IWL_AMSDU_8K:
+	case IWL_AMSDU_12K:
+		control_flags |= IWL_PRPH_SCRATCH_RB_SIZE_4K;
+		break;
+	}
+
 	/* Allocate prph scratch */
 	prph_scratch = dma_alloc_coherent(trans->dev, sizeof(*prph_scratch),
 					  &trans_pcie->prph_scratch_dma_addr,
@@ -143,10 +155,8 @@ int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
 		cpu_to_le16((u16)iwl_read32(trans, CSR_HW_REV));
 	prph_sc_ctrl->version.size = cpu_to_le16(sizeof(*prph_scratch) / 4);
 
-	control_flags = IWL_PRPH_SCRATCH_RB_SIZE_4K |
-			IWL_PRPH_SCRATCH_MTR_MODE |
-			(IWL_PRPH_MTR_FORMAT_256B &
-			 IWL_PRPH_SCRATCH_MTR_FORMAT);
+	control_flags |= IWL_PRPH_SCRATCH_MTR_MODE;
+	control_flags |= IWL_PRPH_MTR_FORMAT_256B & IWL_PRPH_SCRATCH_MTR_FORMAT;
 
 	/* initialize RX default queue */
 	prph_sc_ctrl->rbd_cfg.free_rbd_addr =
