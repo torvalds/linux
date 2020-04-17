@@ -535,7 +535,26 @@ static __must_check inline bool user_access_begin(const void __user *ptr, size_t
 #define unsafe_op_wrap(op, err) do { if (unlikely(op)) goto err; } while (0)
 #define unsafe_get_user(x, p, e) unsafe_op_wrap(__get_user_allowed(x, p), e)
 #define unsafe_put_user(x, p, e) __put_user_goto(x, p, e)
+
 #define unsafe_copy_to_user(d, s, l, e) \
-	unsafe_op_wrap(raw_copy_to_user_allowed(d, s, l), e)
+do {									\
+	u8 __user *_dst = (u8 __user *)(d);				\
+	const u8 *_src = (const u8 *)(s);				\
+	size_t _len = (l);						\
+	int _i;								\
+									\
+	for (_i = 0; _i < (_len & ~(sizeof(long) - 1)); _i += sizeof(long))		\
+		__put_user_goto(*(long*)(_src + _i), (long __user *)(_dst + _i), e);\
+	if (IS_ENABLED(CONFIG_PPC64) && (_len & 4)) {			\
+		__put_user_goto(*(u32*)(_src + _i), (u32 __user *)(_dst + _i), e);	\
+		_i += 4;						\
+	}								\
+	if (_len & 2) {							\
+		__put_user_goto(*(u16*)(_src + _i), (u16 __user *)(_dst + _i), e);	\
+		_i += 2;						\
+	}								\
+	if (_len & 1) \
+		__put_user_goto(*(u8*)(_src + _i), (u8 __user *)(_dst + _i), e);\
+} while (0)
 
 #endif	/* _ARCH_POWERPC_UACCESS_H */
