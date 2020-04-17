@@ -37,7 +37,7 @@ static const struct v4l2_pix_format fmt_default = {
 	.height = 480,
 	.pixelformat = V4L2_PIX_FMT_RGB24,
 	.field = V4L2_FIELD_NONE,
-	.colorspace = V4L2_COLORSPACE_DEFAULT,
+	.colorspace = V4L2_COLORSPACE_SRGB,
 };
 
 struct vimc_cap_buffer {
@@ -106,6 +106,9 @@ static int vimc_cap_try_fmt_vid_cap(struct file *file, void *priv,
 		format->field = fmt_default.field;
 
 	vimc_colorimetry_clamp(format);
+
+	if (format->colorspace == V4L2_COLORSPACE_DEFAULT)
+		format->colorspace = fmt_default.colorspace;
 
 	return 0;
 }

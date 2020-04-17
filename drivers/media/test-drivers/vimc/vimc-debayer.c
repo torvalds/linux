@@ -48,7 +48,7 @@ static const struct v4l2_mbus_framefmt sink_fmt_default = {
 	.height = 480,
 	.code = MEDIA_BUS_FMT_SRGGB8_1X8,
 	.field = V4L2_FIELD_NONE,
-	.colorspace = V4L2_COLORSPACE_DEFAULT,
+	.colorspace = V4L2_COLORSPACE_SRGB,
 };
 
 static const struct vimc_deb_pix_map vimc_deb_pix_map_list[] = {

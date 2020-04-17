@@ -42,7 +42,7 @@ static const struct v4l2_mbus_framefmt sink_fmt_default = {
 	.height = VIMC_SCA_FMT_HEIGHT_DEFAULT,
 	.code = MEDIA_BUS_FMT_RGB888_1X24,
 	.field = V4L2_FIELD_NONE,
-	.colorspace = V4L2_COLORSPACE_DEFAULT,
+	.colorspace = V4L2_COLORSPACE_SRGB,
 };
 
 static const struct v4l2_rect crop_rect_default = {

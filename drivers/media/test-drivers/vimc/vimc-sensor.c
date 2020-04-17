@@ -30,7 +30,7 @@ static const struct v4l2_mbus_framefmt fmt_default = {
 	.height = 480,
 	.code = MEDIA_BUS_FMT_RGB888_1X24,
 	.field = V4L2_FIELD_NONE,
-	.colorspace = V4L2_COLORSPACE_DEFAULT,
+	.colorspace = V4L2_COLORSPACE_SRGB,
 };
 
 static int vimc_sen_init_cfg(struct v4l2_subdev *sd,
