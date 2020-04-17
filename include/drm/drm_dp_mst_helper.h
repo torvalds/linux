@@ -664,6 +664,14 @@ int drm_dp_mst_update_dsc_info(struct drm_dp_mst_topology_mgr *mgr,
 			       struct drm_dp_mst_port *port,
 			       struct drm_dp_mst_dsc_info *dsc_info);
 
+int drm_dp_send_dpcd_write(struct drm_dp_mst_topology_mgr *mgr,
+			   struct drm_dp_mst_port *port,
+			   int offset, int size, u8 *bytes);
+
+int drm_dp_send_dpcd_read(struct drm_dp_mst_topology_mgr *mgr,
+			  struct drm_dp_mst_port *port,
+			  int offset, int size, u8 *bytes);
+
 int drm_dp_mst_get_max_sdp_streams_supported(
 		struct drm_dp_mst_topology_mgr *mgr,
 		struct drm_dp_mst_port *port);
