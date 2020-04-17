@@ -254,7 +254,7 @@ static int cmd_db_debugfs_dump(struct seq_file *seq, void *p)
 		if (!rsc->slv_id)
 			break;
 
-		switch (rsc->slv_id) {
+		switch (le16_to_cpu(rsc->slv_id)) {
 		case CMD_DB_HW_ARC:
 			name = "ARC";
 			break;
