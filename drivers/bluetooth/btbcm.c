@@ -440,10 +440,6 @@ int btbcm_initialize(struct hci_dev *hdev, char *fw_name, size_t len,
 			return err;
 	}
 
-	/* Upper nibble of rev should be between 0 and 3? */
-	if (((rev & 0xf000) >> 12) > 3)
-		return 0;
-
 	bcm_subver_table = (hdev->bus == HCI_USB) ? bcm_usb_subver_table :
 						    bcm_uart_subver_table;
 
