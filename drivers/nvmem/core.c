@@ -167,11 +167,8 @@ static ssize_t bin_attr_nvmem_write(struct file *filp, struct kobject *kobj,
 	return count;
 }
 
-static umode_t nvmem_bin_attr_is_visible(struct kobject *kobj,
-					 struct bin_attribute *attr, int i)
+static umode_t nvmem_bin_attr_get_umode(struct nvmem_device *nvmem)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
-	struct nvmem_device *nvmem = to_nvmem_device(dev);
 	umode_t mode = 0400;
 
 	if (!nvmem->root_only)
@@ -187,6 +184,15 @@ static umode_t nvmem_bin_attr_is_visible(struct kobject *kobj,
 		mode &= ~0444;
 
 	return mode;
+}
+
+static umode_t nvmem_bin_attr_is_visible(struct kobject *kobj,
+					 struct bin_attribute *attr, int i)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct nvmem_device *nvmem = to_nvmem_device(dev);
+
+	return nvmem_bin_attr_get_umode(nvmem);
 }
 
 /* default read/write permissions */
@@ -215,32 +221,12 @@ static const struct attribute_group *nvmem_dev_groups[] = {
 	NULL,
 };
 
-/* read only permission */
-static struct bin_attribute bin_attr_ro_nvmem = {
+static struct bin_attribute bin_attr_nvmem_eeprom_compat = {
 	.attr	= {
-		.name	= "nvmem",
-		.mode	= 0444,
-	},
-	.read	= bin_attr_nvmem_read,
-};
-
-/* default read/write permissions, root only */
-static struct bin_attribute bin_attr_rw_root_nvmem = {
-	.attr	= {
-		.name	= "nvmem",
-		.mode	= 0600,
+		.name	= "eeprom",
 	},
 	.read	= bin_attr_nvmem_read,
 	.write	= bin_attr_nvmem_write,
-};
-
-/* read only permission, root only */
-static struct bin_attribute bin_attr_ro_root_nvmem = {
-	.attr	= {
-		.name	= "nvmem",
-		.mode	= 0400,
-	},
-	.read	= bin_attr_nvmem_read,
 };
 
 /*
@@ -259,18 +245,8 @@ static int nvmem_sysfs_setup_compat(struct nvmem_device *nvmem,
 	if (!config->base_dev)
 		return -EINVAL;
 
-	if (nvmem->read_only) {
-		if (config->root_only)
-			nvmem->eeprom = bin_attr_ro_root_nvmem;
-		else
-			nvmem->eeprom = bin_attr_ro_nvmem;
-	} else {
-		if (config->root_only)
-			nvmem->eeprom = bin_attr_rw_root_nvmem;
-		else
-			nvmem->eeprom = bin_attr_rw_nvmem;
-	}
-	nvmem->eeprom.attr.name = "eeprom";
+	nvmem->eeprom = bin_attr_nvmem_eeprom_compat;
+	nvmem->eeprom.attr.mode = nvmem_bin_attr_get_umode(nvmem);
 	nvmem->eeprom.size = nvmem->size;
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	nvmem->eeprom.attr.key = &eeprom_lock_key;
