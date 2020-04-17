@@ -1151,6 +1151,7 @@ struct drm_dp_aux {
 	struct device *dev;
 	struct drm_crtc *crtc;
 	struct mutex hw_mutex;
+	struct mutex i2c_mutex;
 	struct work_struct crc_work;
 	u8 crc_count;
 	ssize_t (*transfer)(struct drm_dp_aux *aux,
