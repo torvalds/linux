@@ -370,6 +370,12 @@ static void mptcp_sock_destruct(struct sock *sk)
 	inet_sock_destruct(sk);
 }
 
+static void mptcp_force_close(struct sock *sk)
+{
+	inet_sk_state_store(sk, TCP_CLOSE);
+	sk_common_release(sk);
+}
+
 static struct sock *subflow_syn_recv_sock(const struct sock *sk,
 					  struct sk_buff *skb,
 					  struct request_sock *req,
@@ -467,7 +473,7 @@ create_child:
 out:
 	/* dispose of the left over mptcp master, if any */
 	if (unlikely(new_msk))
-		sock_put(new_msk);
+		mptcp_force_close(new_msk);
 	return child;
 
 close_child:
