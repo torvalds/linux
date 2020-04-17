@@ -2172,14 +2172,15 @@ static int gsi_prepare_trbs(struct usb_ep *ep, struct usb_gsi_request *req)
 	dbg_log_string("TRB buffer_addr = %pad buf_len = %zu\n", &buffer_addr,
 				req->buf_len);
 
-	/* Allocate and configgure TRBs */
-
+	/* Allocate and configure TRBs */
 	dep->trb_pool = dma_alloc_coherent(dwc->sysdev,
 				num_trbs * sizeof(struct dwc3_trb),
 				&dep->trb_pool_dma, GFP_KERNEL);
 
 	if (!dep->trb_pool)
 		goto free_trb_buffer;
+
+	memset(dep->trb_pool, 0, num_trbs * sizeof(struct dwc3_trb));
 
 	trb0_dma = dwc3_trb_dma_offset(dep, &dep->trb_pool[0]);
 
@@ -2199,85 +2200,50 @@ static int gsi_prepare_trbs(struct usb_ep *ep, struct usb_gsi_request *req)
 
 	/* IN direction */
 	if (dep->direction) {
-		for (i = 0; i < num_trbs ; i++) {
-			trb = &dep->trb_pool[i];
-			memset(trb, 0, sizeof(*trb));
-			/* Set up first n+1 TRBs for ZLPs */
-			if (i < (req->num_bufs + 1)) {
-				trb->bpl = 0;
-				trb->bph = 0;
-				trb->size = 0;
-				trb->ctrl = DWC3_TRBCTL_NORMAL
-						| DWC3_TRB_CTRL_IOC;
-				continue;
-			}
+		trb = &dep->trb_pool[0];
+		/* Set up first n+1 TRBs for ZLPs */
+		for (i = 0; i < req->num_bufs + 1; i++, trb++)
+			trb->ctrl = DWC3_TRBCTL_NORMAL | DWC3_TRB_CTRL_IOC;
 
-			/* Setup n TRBs pointing to valid buffers */
+		/* Setup next n TRBs pointing to valid buffers */
+		for (; i < num_trbs - 1; i++, trb++) {
 			trb->bpl = lower_32_bits(buffer_addr);
 			trb->bph = upper_32_bits(buffer_addr);
-			trb->size = 0;
-			trb->ctrl = DWC3_TRBCTL_NORMAL
-					| DWC3_TRB_CTRL_IOC;
+			trb->ctrl = DWC3_TRBCTL_NORMAL | DWC3_TRB_CTRL_IOC;
 			buffer_addr += req->buf_len;
-
-			/* Set up the Link TRB at the end */
-			if (i == (num_trbs - 1)) {
-				trb->bpl = lower_32_bits(trb0_dma);
-				trb->bph = upper_32_bits(trb0_dma & 0xffff);
-				trb->bph |= (1 << 23) | (1 << 21)
-						| (req->ep_intr_num << 16);
-				trb->size = 0;
-				trb->ctrl = DWC3_TRBCTL_LINK_TRB
-						| DWC3_TRB_CTRL_HWO;
-			}
 		}
+
+		/* Set up the Link TRB at the end */
+		trb->bpl = lower_32_bits(trb0_dma);
+		trb->bph = upper_32_bits(trb0_dma & 0xffff);
+		trb->bph |= (1 << 23) | (1 << 21) | (req->ep_intr_num << 16);
+		trb->ctrl = DWC3_TRBCTL_LINK_TRB | DWC3_TRB_CTRL_HWO;
 	} else { /* OUT direction */
+		/* Start ring with LINK TRB pointing to second entry */
+		trb = &dep->trb_pool[0];
+		trb->bpl = lower_32_bits(trb0_dma + sizeof(*trb));
+		trb->bph = upper_32_bits(trb0_dma + sizeof(*trb));
+		trb->ctrl = DWC3_TRBCTL_LINK_TRB;
 
-		for (i = 0; i < num_trbs ; i++) {
-
-			trb = &dep->trb_pool[i];
-			memset(trb, 0, sizeof(*trb));
-			/* Setup LINK TRB to start with TRB ring */
-			if (i == 0) {
-				trb->bpl =
-					lower_32_bits(trb0_dma + sizeof(*trb));
-				trb->bph =
-					upper_32_bits(trb0_dma + sizeof(*trb));
-				trb->ctrl = DWC3_TRBCTL_LINK_TRB;
-			} else if (i == (num_trbs - 1)) {
-				/* Set up the Link TRB at the end */
-				trb->bpl = lower_32_bits(trb0_dma);
-				trb->bph = upper_32_bits(trb0_dma & 0xffff);
-				trb->bph |= (1 << 23) | (1 << 21)
-						| (req->ep_intr_num << 16);
-				trb->ctrl = DWC3_TRBCTL_LINK_TRB
-						| DWC3_TRB_CTRL_HWO;
-			} else {
-				trb->bpl = lower_32_bits(buffer_addr);
-				trb->bph = upper_32_bits(buffer_addr);
-				trb->size = req->buf_len;
-				buffer_addr += req->buf_len;
-				trb->ctrl = DWC3_TRBCTL_NORMAL
-					| DWC3_TRB_CTRL_IOC
-					| DWC3_TRB_CTRL_CSP
-					| DWC3_TRB_CTRL_ISP_IMI;
-			}
+		/* Setup next n-1 TRBs pointing to valid buffers */
+		for (i = 1, trb++; i < num_trbs - 1; i++, trb++) {
+			trb->bpl = lower_32_bits(buffer_addr);
+			trb->bph = upper_32_bits(buffer_addr);
+			trb->size = req->buf_len;
+			buffer_addr += req->buf_len;
+			trb->ctrl = DWC3_TRBCTL_NORMAL | DWC3_TRB_CTRL_IOC
+				| DWC3_TRB_CTRL_CSP | DWC3_TRB_CTRL_ISP_IMI;
 		}
+
+		/* Set up the Link TRB at the end */
+		trb->bpl = lower_32_bits(trb0_dma);
+		trb->bph = upper_32_bits(trb0_dma & 0xffff);
+		trb->bph |= (1 << 23) | (1 << 21) | (req->ep_intr_num << 16);
+		trb->ctrl = DWC3_TRBCTL_LINK_TRB | DWC3_TRB_CTRL_HWO;
 	}
 
 	dev_dbg(dwc->dev, "%s: Initialized TRB Ring for %s\n",
 					__func__, dep->name);
-	trb = &dep->trb_pool[0];
-	if (trb) {
-		for (i = 0; i < num_trbs; i++) {
-			dev_dbg(dwc->dev,
-				"TRB %d: ADDR:%lx bpl:%x bph:%x sz:%x ctl:%x\n",
-				i, (unsigned long)dwc3_trb_dma_offset(dep,
-				&dep->trb_pool[i]), trb->bpl, trb->bph,
-				trb->size, trb->ctrl);
-			trb++;
-		}
-	}
 
 	return 0;
 
