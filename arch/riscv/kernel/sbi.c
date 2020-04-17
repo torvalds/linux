@@ -167,6 +167,11 @@ static int __sbi_rfence_v01(int fid, const unsigned long *hart_mask,
 
 	return result;
 }
+
+static void sbi_set_power_off(void)
+{
+	pm_power_off = sbi_shutdown;
+}
 #else
 static void __sbi_set_timer_v01(uint64_t stime_value)
 {
@@ -191,6 +196,8 @@ static int __sbi_rfence_v01(int fid, const unsigned long *hart_mask,
 
 	return 0;
 }
+
+static void sbi_set_power_off(void) {}
 #endif /* CONFIG_RISCV_SBI_V01 */
 
 static void __sbi_set_timer_v02(uint64_t stime_value)
@@ -540,16 +547,12 @@ static inline long sbi_get_firmware_version(void)
 	return __sbi_base_ecall(SBI_EXT_BASE_GET_IMP_VERSION);
 }
 
-static void sbi_power_off(void)
-{
-	sbi_shutdown();
-}
 
 int __init sbi_init(void)
 {
 	int ret;
 
-	pm_power_off = sbi_power_off;
+	sbi_set_power_off();
 	ret = sbi_get_spec_version();
 	if (ret > 0)
 		sbi_spec_version = ret;
