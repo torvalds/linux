@@ -1431,6 +1431,7 @@ static struct sock *mptcp_accept(struct sock *sk, int flags, int *err,
 		newsk = new_mptcp_sock;
 		mptcp_copy_inaddrs(newsk, ssk);
 		list_add(&subflow->node, &msk->conn_list);
+		inet_sk_state_store(newsk, TCP_ESTABLISHED);
 
 		bh_unlock_sock(new_mptcp_sock);
 

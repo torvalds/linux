@@ -347,6 +347,29 @@ static bool subflow_hmac_valid(const struct request_sock *req,
 	return ret;
 }
 
+static void mptcp_sock_destruct(struct sock *sk)
+{
+	/* if new mptcp socket isn't accepted, it is free'd
+	 * from the tcp listener sockets request queue, linked
+	 * from req->sk.  The tcp socket is released.
+	 * This calls the ULP release function which will
+	 * also remove the mptcp socket, via
+	 * sock_put(ctx->conn).
+	 *
+	 * Problem is that the mptcp socket will not be in
+	 * SYN_RECV state and doesn't have SOCK_DEAD flag.
+	 * Both result in warnings from inet_sock_destruct.
+	 */
+
+	if (sk->sk_state == TCP_SYN_RECV) {
+		sk->sk_state = TCP_CLOSE;
+		WARN_ON_ONCE(sk->sk_socket);
+		sock_orphan(sk);
+	}
+
+	inet_sock_destruct(sk);
+}
+
 static struct sock *subflow_syn_recv_sock(const struct sock *sk,
 					  struct sk_buff *skb,
 					  struct request_sock *req,
@@ -422,7 +445,7 @@ create_child:
 			/* new mpc subflow takes ownership of the newly
 			 * created mptcp socket
 			 */
-			inet_sk_state_store(new_msk, TCP_ESTABLISHED);
+			new_msk->sk_destruct = mptcp_sock_destruct;
 			mptcp_pm_new_connection(mptcp_sk(new_msk), 1);
 			ctx->conn = new_msk;
 			new_msk = NULL;
