@@ -15,6 +15,7 @@
 #include <linux/completion.h>
 #include <linux/of.h>
 #include <linux/bitfield.h>
+#include <linux/fips.h>
 
 #include "cctrng.h"
 
