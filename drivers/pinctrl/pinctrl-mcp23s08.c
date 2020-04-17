@@ -658,3 +658,4 @@ fail:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(mcp23s08_probe_one);
+MODULE_LICENSE("GPL");
