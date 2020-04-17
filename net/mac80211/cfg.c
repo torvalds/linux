@@ -3421,12 +3421,15 @@ static void ieee80211_mgmt_frame_register(struct wiphy *wiphy,
 		if (!local->open_count)
 			break;
 
-		if (sdata->vif.probe_req_reg == 1)
-			drv_config_iface_filter(local, sdata, FIF_PROBE_REQ,
-						FIF_PROBE_REQ);
-		else if (sdata->vif.probe_req_reg == 0)
-			drv_config_iface_filter(local, sdata, 0,
-						FIF_PROBE_REQ);
+		if (ieee80211_sdata_running(sdata)) {
+			if (sdata->vif.probe_req_reg == 1)
+				drv_config_iface_filter(local, sdata,
+							FIF_PROBE_REQ,
+							FIF_PROBE_REQ);
+			else if (sdata->vif.probe_req_reg == 0)
+				drv_config_iface_filter(local, sdata, 0,
+							FIF_PROBE_REQ);
+		}
 
 		ieee80211_configure_filter(local);
 		break;
