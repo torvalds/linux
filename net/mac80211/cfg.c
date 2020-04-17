@@ -3398,44 +3398,35 @@ int ieee80211_attach_ack_skb(struct ieee80211_local *local, struct sk_buff *skb,
 	return 0;
 }
 
-static void ieee80211_mgmt_frame_register(struct wiphy *wiphy,
+static void
+ieee80211_update_mgmt_frame_registrations(struct wiphy *wiphy,
 					  struct wireless_dev *wdev,
-					  u16 frame_type, bool reg)
+					  struct mgmt_frame_regs *upd)
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);
 	struct ieee80211_sub_if_data *sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
+	u32 preq_mask = BIT(IEEE80211_STYPE_PROBE_REQ >> 4);
+	bool global_change, intf_change;
 
-	switch (frame_type) {
-	case IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_PROBE_REQ:
-		if (reg) {
-			local->probe_req_reg++;
-			sdata->vif.probe_req_reg++;
-		} else {
-			if (local->probe_req_reg)
-				local->probe_req_reg--;
+	global_change =
+		local->probe_req_reg != !!(upd->global_stypes & preq_mask);
+	local->probe_req_reg = upd->global_stypes & preq_mask;
 
-			if (sdata->vif.probe_req_reg)
-				sdata->vif.probe_req_reg--;
-		}
+	intf_change = sdata->vif.probe_req_reg !=
+				!!(upd->interface_stypes & preq_mask);
+	sdata->vif.probe_req_reg = upd->interface_stypes & preq_mask;
 
-		if (!local->open_count)
-			break;
+	if (!local->open_count)
+		return;
 
-		if (ieee80211_sdata_running(sdata)) {
-			if (sdata->vif.probe_req_reg == 1)
-				drv_config_iface_filter(local, sdata,
-							FIF_PROBE_REQ,
-							FIF_PROBE_REQ);
-			else if (sdata->vif.probe_req_reg == 0)
-				drv_config_iface_filter(local, sdata, 0,
-							FIF_PROBE_REQ);
-		}
+	if (intf_change && ieee80211_sdata_running(sdata))
+		drv_config_iface_filter(local, sdata,
+					sdata->vif.probe_req_reg ?
+						FIF_PROBE_REQ : 0,
+					FIF_PROBE_REQ);
 
+	if (global_change)
 		ieee80211_configure_filter(local);
-		break;
-	default:
-		break;
-	}
 }
 
 static int ieee80211_set_antenna(struct wiphy *wiphy, u32 tx_ant, u32 rx_ant)
@@ -4020,7 +4011,8 @@ const struct cfg80211_ops mac80211_config_ops = {
 	.mgmt_tx_cancel_wait = ieee80211_mgmt_tx_cancel_wait,
 	.set_cqm_rssi_config = ieee80211_set_cqm_rssi_config,
 	.set_cqm_rssi_range_config = ieee80211_set_cqm_rssi_range_config,
-	.mgmt_frame_register = ieee80211_mgmt_frame_register,
+	.update_mgmt_frame_registrations =
+		ieee80211_update_mgmt_frame_registrations,
 	.set_antenna = ieee80211_set_antenna,
 	.get_antenna = ieee80211_get_antenna,
 	.set_rekey_data = ieee80211_set_rekey_data,

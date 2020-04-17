@@ -1647,7 +1647,7 @@ struct ieee80211_vif {
 	struct dentry *debugfs_dir;
 #endif
 
-	unsigned int probe_req_reg;
+	bool probe_req_reg;
 
 	bool txqs_stopped[IEEE80211_NUM_ACS];
 

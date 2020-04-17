@@ -429,43 +429,37 @@ struct cfg80211_mgmt_registration {
 	u8 match[];
 };
 
-static void
-cfg80211_process_mlme_unregistrations(struct cfg80211_registered_device *rdev)
+static void cfg80211_mgmt_registrations_update(struct wireless_dev *wdev)
 {
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
+	struct wireless_dev *tmp;
 	struct cfg80211_mgmt_registration *reg;
+	struct mgmt_frame_regs upd = {};
 
 	ASSERT_RTNL();
 
-	spin_lock_bh(&rdev->mlme_unreg_lock);
-	while ((reg = list_first_entry_or_null(&rdev->mlme_unreg,
-					       struct cfg80211_mgmt_registration,
-					       list))) {
-		list_del(&reg->list);
-		spin_unlock_bh(&rdev->mlme_unreg_lock);
+	rcu_read_lock();
+	list_for_each_entry_rcu(tmp, &rdev->wiphy.wdev_list, list) {
+		list_for_each_entry_rcu(reg, &tmp->mgmt_registrations, list) {
+			u32 mask = BIT(le16_to_cpu(reg->frame_type) >> 4);
 
-		if (rdev->ops->mgmt_frame_register) {
-			u16 frame_type = le16_to_cpu(reg->frame_type);
-
-			rdev_mgmt_frame_register(rdev, reg->wdev,
-						 frame_type, false);
+			upd.global_stypes |= mask;
+			if (tmp == wdev)
+				upd.interface_stypes |= mask;
 		}
-
-		kfree(reg);
-
-		spin_lock_bh(&rdev->mlme_unreg_lock);
 	}
-	spin_unlock_bh(&rdev->mlme_unreg_lock);
+	rcu_read_unlock();
+
+	rdev_update_mgmt_frame_registrations(rdev, wdev, &upd);
 }
 
-void cfg80211_mlme_unreg_wk(struct work_struct *wk)
+void cfg80211_mgmt_registrations_update_wk(struct work_struct *wk)
 {
-	struct cfg80211_registered_device *rdev;
-
-	rdev = container_of(wk, struct cfg80211_registered_device,
-			    mlme_unreg_wk);
+	struct wireless_dev *wdev = container_of(wk, struct wireless_dev,
+						 mgmt_registrations_update_wk);
 
 	rtnl_lock();
-	cfg80211_process_mlme_unregistrations(rdev);
+	cfg80211_mgmt_registrations_update(wdev);
 	rtnl_unlock();
 }
 
@@ -473,8 +467,6 @@ int cfg80211_mlme_register_mgmt(struct wireless_dev *wdev, u32 snd_portid,
 				u16 frame_type, const u8 *match_data,
 				int match_len, struct netlink_ext_ack *extack)
 {
-	struct wiphy *wiphy = wdev->wiphy;
-	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
 	struct cfg80211_mgmt_registration *reg, *nreg;
 	int err = 0;
 	u16 mgmt_type;
@@ -534,10 +526,8 @@ int cfg80211_mlme_register_mgmt(struct wireless_dev *wdev, u32 snd_portid,
 		}
 	}
 
-	if (err) {
-		kfree(nreg);
+	if (err)
 		goto out;
-	}
 
 	memcpy(nreg->match, match_data, match_len);
 	nreg->match_len = match_len;
@@ -547,15 +537,12 @@ int cfg80211_mlme_register_mgmt(struct wireless_dev *wdev, u32 snd_portid,
 	list_add(&nreg->list, &wdev->mgmt_registrations);
 	spin_unlock_bh(&wdev->mgmt_registrations_lock);
 
-	/* process all unregistrations to avoid driver confusion */
-	cfg80211_process_mlme_unregistrations(rdev);
-
-	if (rdev->ops->mgmt_frame_register)
-		rdev_mgmt_frame_register(rdev, wdev, frame_type, true);
+	cfg80211_mgmt_registrations_update(wdev);
 
 	return 0;
 
  out:
+	kfree(nreg);
 	spin_unlock_bh(&wdev->mgmt_registrations_lock);
 
 	return err;
@@ -574,11 +561,9 @@ void cfg80211_mlme_unregister_socket(struct wireless_dev *wdev, u32 nlportid)
 			continue;
 
 		list_del(&reg->list);
-		spin_lock(&rdev->mlme_unreg_lock);
-		list_add_tail(&reg->list, &rdev->mlme_unreg);
-		spin_unlock(&rdev->mlme_unreg_lock);
+		kfree(reg);
 
-		schedule_work(&rdev->mlme_unreg_wk);
+		schedule_work(&wdev->mgmt_registrations_update_wk);
 	}
 
 	spin_unlock_bh(&wdev->mgmt_registrations_lock);
@@ -594,15 +579,16 @@ void cfg80211_mlme_unregister_socket(struct wireless_dev *wdev, u32 nlportid)
 
 void cfg80211_mlme_purge_registrations(struct wireless_dev *wdev)
 {
-	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
+	struct cfg80211_mgmt_registration *reg, *tmp;
 
 	spin_lock_bh(&wdev->mgmt_registrations_lock);
-	spin_lock(&rdev->mlme_unreg_lock);
-	list_splice_tail_init(&wdev->mgmt_registrations, &rdev->mlme_unreg);
-	spin_unlock(&rdev->mlme_unreg_lock);
+	list_for_each_entry_safe(reg, tmp, &wdev->mgmt_registrations, list) {
+		list_del(&reg->list);
+		kfree(reg);
+	}
 	spin_unlock_bh(&wdev->mgmt_registrations_lock);
 
-	cfg80211_process_mlme_unregistrations(rdev);
+	cfg80211_mgmt_registrations_update(wdev);
 }
 
 int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,

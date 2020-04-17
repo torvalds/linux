@@ -3385,6 +3385,17 @@ struct cfg80211_update_owe_info {
 };
 
 /**
+ * struct mgmt_frame_regs - management frame registrations data
+ * @global_stypes: bitmap of management frame subtypes registered
+ *	for the entire device
+ * @interface_stypes: bitmap of management frame subtypes registered
+ *	for the given interface
+ */
+struct mgmt_frame_regs {
+	u32 global_stypes, interface_stypes;
+};
+
+/**
  * struct cfg80211_ops - backend description for wireless configuration
  *
  * This struct is registered by fullmac card drivers and/or wireless stacks
@@ -3608,8 +3619,8 @@ struct cfg80211_update_owe_info {
  *	The driver should not call cfg80211_sched_scan_stopped() for a requested
  *	stop (when this method returns 0).
  *
- * @mgmt_frame_register: Notify driver that a management frame type was
- *	registered. The callback is allowed to sleep.
+ * @update_mgmt_frame_registrations: Notify the driver that management frame
+ *	registrations were updated. The callback is allowed to sleep.
  *
  * @set_antenna: Set antenna configuration (tx_ant, rx_ant) on the device.
  *	Parameters are bitmaps of allowed antennas to use for TX/RX. Drivers may
@@ -3932,9 +3943,9 @@ struct cfg80211_ops {
 				      struct net_device *dev,
 				      u32 rate, u32 pkts, u32 intvl);
 
-	void	(*mgmt_frame_register)(struct wiphy *wiphy,
-				       struct wireless_dev *wdev,
-				       u16 frame_type, bool reg);
+	void	(*update_mgmt_frame_registrations)(struct wiphy *wiphy,
+						   struct wireless_dev *wdev,
+						   struct mgmt_frame_regs *upd);
 
 	int	(*set_antenna)(struct wiphy *wiphy, u32 tx_ant, u32 rx_ant);
 	int	(*get_antenna)(struct wiphy *wiphy, u32 *tx_ant, u32 *rx_ant);
@@ -5015,6 +5026,7 @@ struct cfg80211_cqm_config;
  *	by cfg80211 on change_interface
  * @mgmt_registrations: list of registrations for management frames
  * @mgmt_registrations_lock: lock for the list
+ * @mgmt_registrations_update_wk: update work to defer from atomic context
  * @mtx: mutex used to lock data in this struct, may be used by drivers
  *	and some API functions require it held
  * @beacon_interval: beacon interval used on this device for transmitting
@@ -5060,6 +5072,7 @@ struct wireless_dev {
 
 	struct list_head mgmt_registrations;
 	spinlock_t mgmt_registrations_lock;
+	struct work_struct mgmt_registrations_update_wk;
 
 	struct mutex mtx;
 
