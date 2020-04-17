@@ -7,5 +7,6 @@
 #define SELFTEST_RPS_H
 
 int live_rps_interrupt(void *arg);
+int live_rps_power(void *arg);
 
 #endif /* SELFTEST_RPS_H */

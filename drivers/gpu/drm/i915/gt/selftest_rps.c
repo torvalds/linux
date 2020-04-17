@@ -3,12 +3,15 @@
  * Copyright © 2020 Intel Corporation
  */
 
+#include <linux/sort.h>
+
 #include "intel_engine_pm.h"
 #include "intel_gt_pm.h"
 #include "intel_rc6.h"
 #include "selftest_rps.h"
 #include "selftests/igt_flush_test.h"
 #include "selftests/igt_spinner.h"
+#include "selftests/librapl.h"
 
 static void dummy_rps_work(struct work_struct *wrk)
 {
@@ -223,6 +226,141 @@ int live_rps_interrupt(void *arg)
 out:
 	if (igt_flush_test(gt->i915))
 		err = -EIO;
+
+	igt_spinner_fini(&spin);
+
+	intel_gt_pm_wait_for_idle(gt);
+	rps->work.func = saved_work;
+
+	return err;
+}
+
+static u64 __measure_power(int duration_ms)
+{
+	u64 dE, dt;
+
+	dt = ktime_get();
+	dE = librapl_energy_uJ();
+	usleep_range(1000 * duration_ms, 2000 * duration_ms);
+	dE = librapl_energy_uJ() - dE;
+	dt = ktime_get() - dt;
+
+	return div64_u64(1000 * 1000 * dE, dt);
+}
+
+static int cmp_u64(const void *A, const void *B)
+{
+	const u64 *a = A, *b = B;
+
+	if (a < b)
+		return -1;
+	else if (a > b)
+		return 1;
+	else
+		return 0;
+}
+
+static u64 measure_power_at(struct intel_rps *rps, int freq)
+{
+	u64 x[5];
+	int i;
+
+	mutex_lock(&rps->lock);
+	GEM_BUG_ON(!rps->active);
+	intel_rps_set(rps, freq);
+	mutex_unlock(&rps->lock);
+
+	msleep(20); /* more than enough time to stabilise! */
+
+	i = read_cagf(rps);
+	if (i != freq)
+		pr_notice("Running at %x [%uMHz], not target %x [%uMHz]\n",
+			  i, intel_gpu_freq(rps, i),
+			  freq, intel_gpu_freq(rps, freq));
+
+	for (i = 0; i < 5; i++)
+		x[i] = __measure_power(5);
+
+	/* A simple triangle filter for better result stability */
+	sort(x, 5, sizeof(*x), cmp_u64, NULL);
+	return div_u64(x[1] + 2 * x[2] + x[3], 4);
+}
+
+int live_rps_power(void *arg)
+{
+	struct intel_gt *gt = arg;
+	struct intel_rps *rps = &gt->rps;
+	void (*saved_work)(struct work_struct *wrk);
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+	struct igt_spinner spin;
+	int err = 0;
+
+	/*
+	 * Our fundamental assumption is that running at lower frequency
+	 * actually saves power. Let's see if our RAPL measurement support
+	 * that theory.
+	 */
+
+	if (!rps->enabled || rps->max_freq <= rps->min_freq)
+		return 0;
+
+	if (!librapl_energy_uJ())
+		return 0;
+
+	if (igt_spinner_init(&spin, gt))
+		return -ENOMEM;
+
+	intel_gt_pm_wait_for_idle(gt);
+	saved_work = rps->work.func;
+	rps->work.func = dummy_rps_work;
+
+	for_each_engine(engine, gt, id) {
+		struct i915_request *rq;
+		u64 min, max;
+
+		if (!intel_engine_can_store_dword(engine))
+			continue;
+
+		rq = igt_spinner_create_request(&spin,
+						engine->kernel_context,
+						MI_NOOP);
+		if (IS_ERR(rq)) {
+			err = PTR_ERR(rq);
+			break;
+		}
+
+		i915_request_add(rq);
+
+		if (!igt_wait_for_spinner(&spin, rq)) {
+			pr_err("%s: RPS spinner did not start\n",
+			       engine->name);
+			intel_gt_set_wedged(engine->gt);
+			err = -EIO;
+			break;
+		}
+
+		max = measure_power_at(rps, rps->max_freq);
+		min = measure_power_at(rps, rps->min_freq);
+
+		igt_spinner_end(&spin);
+
+		pr_info("%s: min:%llumW @ %uMHz, max:%llumW @ %uMHz\n",
+			engine->name,
+			min, intel_gpu_freq(rps, rps->min_freq),
+			max, intel_gpu_freq(rps, rps->max_freq));
+		if (11 * min > 10 * max) {
+			pr_err("%s: did not conserve power when setting lower frequency!\n",
+			       engine->name);
+			err = -EINVAL;
+			break;
+		}
+
+		if (igt_flush_test(gt->i915)) {
+			err = -EIO;
+			break;
+		}
+	}
 
 	igt_spinner_fini(&spin);
 
