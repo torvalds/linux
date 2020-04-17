@@ -4,6 +4,7 @@
 #include <linux/smp.h>
 
 #include "../hyperv.h"
+#include "../cpuid.h"
 #include "evmcs.h"
 #include "vmcs.h"
 #include "vmx.h"
@@ -326,17 +327,18 @@ bool nested_enlightened_vmentry(struct kvm_vcpu *vcpu, u64 *evmcs_gpa)
 
 uint16_t nested_get_evmcs_version(struct kvm_vcpu *vcpu)
 {
-       struct vcpu_vmx *vmx = to_vmx(vcpu);
-       /*
-        * vmcs_version represents the range of supported Enlightened VMCS
-        * versions: lower 8 bits is the minimal version, higher 8 bits is the
-        * maximum supported version. KVM supports versions from 1 to
-        * KVM_EVMCS_VERSION.
-        */
-       if (vmx->nested.enlightened_vmcs_enabled)
-               return (KVM_EVMCS_VERSION << 8) | 1;
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	/*
+	 * vmcs_version represents the range of supported Enlightened VMCS
+	 * versions: lower 8 bits is the minimal version, higher 8 bits is the
+	 * maximum supported version. KVM supports versions from 1 to
+	 * KVM_EVMCS_VERSION.
+	 */
+	if (kvm_cpu_cap_get(X86_FEATURE_VMX) &&
+	    vmx->nested.enlightened_vmcs_enabled)
+		return (KVM_EVMCS_VERSION << 8) | 1;
 
-       return 0;
+	return 0;
 }
 
 void nested_evmcs_filter_control_msr(u32 msr_index, u64 *pdata)
