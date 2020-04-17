@@ -706,12 +706,113 @@ ocelot_ace_rule_get_rule_index(struct ocelot_acl_block *block, int index)
 	return NULL;
 }
 
+/* If @on=false, then SNAP, ARP, IP and OAM frames will not match on keys based
+ * on destination and source MAC addresses, but only on higher-level protocol
+ * information. The only frame types to match on keys containing MAC addresses
+ * in this case are non-SNAP, non-ARP, non-IP and non-OAM frames.
+ *
+ * If @on=true, then the above frame types (SNAP, ARP, IP and OAM) will match
+ * on MAC_ETYPE keys such as destination and source MAC on this ingress port.
+ * However the setting has the side effect of making these frames not matching
+ * on any _other_ keys than MAC_ETYPE ones.
+ */
+static void ocelot_match_all_as_mac_etype(struct ocelot *ocelot, int port,
+					  bool on)
+{
+	u32 val = 0;
+
+	if (on)
+		val = ANA_PORT_VCAP_S2_CFG_S2_SNAP_DIS(3) |
+		      ANA_PORT_VCAP_S2_CFG_S2_ARP_DIS(3) |
+		      ANA_PORT_VCAP_S2_CFG_S2_IP_TCPUDP_DIS(3) |
+		      ANA_PORT_VCAP_S2_CFG_S2_IP_OTHER_DIS(3) |
+		      ANA_PORT_VCAP_S2_CFG_S2_OAM_DIS(3);
+
+	ocelot_rmw_gix(ocelot, val,
+		       ANA_PORT_VCAP_S2_CFG_S2_SNAP_DIS_M |
+		       ANA_PORT_VCAP_S2_CFG_S2_ARP_DIS_M |
+		       ANA_PORT_VCAP_S2_CFG_S2_IP_TCPUDP_DIS_M |
+		       ANA_PORT_VCAP_S2_CFG_S2_IP_OTHER_DIS_M |
+		       ANA_PORT_VCAP_S2_CFG_S2_OAM_DIS_M,
+		       ANA_PORT_VCAP_S2_CFG, port);
+}
+
+static bool ocelot_ace_is_problematic_mac_etype(struct ocelot_ace_rule *ace)
+{
+	if (ace->type != OCELOT_ACE_TYPE_ETYPE)
+		return false;
+	if (ether_addr_to_u64(ace->frame.etype.dmac.value) &
+	    ether_addr_to_u64(ace->frame.etype.dmac.mask))
+		return true;
+	if (ether_addr_to_u64(ace->frame.etype.smac.value) &
+	    ether_addr_to_u64(ace->frame.etype.smac.mask))
+		return true;
+	return false;
+}
+
+static bool ocelot_ace_is_problematic_non_mac_etype(struct ocelot_ace_rule *ace)
+{
+	if (ace->type == OCELOT_ACE_TYPE_SNAP)
+		return true;
+	if (ace->type == OCELOT_ACE_TYPE_ARP)
+		return true;
+	if (ace->type == OCELOT_ACE_TYPE_IPV4)
+		return true;
+	if (ace->type == OCELOT_ACE_TYPE_IPV6)
+		return true;
+	return false;
+}
+
+static bool ocelot_exclusive_mac_etype_ace_rules(struct ocelot *ocelot,
+						 struct ocelot_ace_rule *ace)
+{
+	struct ocelot_acl_block *block = &ocelot->acl_block;
+	struct ocelot_ace_rule *tmp;
+	unsigned long port;
+	int i;
+
+	if (ocelot_ace_is_problematic_mac_etype(ace)) {
+		/* Search for any non-MAC_ETYPE rules on the port */
+		for (i = 0; i < block->count; i++) {
+			tmp = ocelot_ace_rule_get_rule_index(block, i);
+			if (tmp->ingress_port_mask & ace->ingress_port_mask &&
+			    ocelot_ace_is_problematic_non_mac_etype(tmp))
+				return false;
+		}
+
+		for_each_set_bit(port, &ace->ingress_port_mask,
+				 ocelot->num_phys_ports)
+			ocelot_match_all_as_mac_etype(ocelot, port, true);
+	} else if (ocelot_ace_is_problematic_non_mac_etype(ace)) {
+		/* Search for any MAC_ETYPE rules on the port */
+		for (i = 0; i < block->count; i++) {
+			tmp = ocelot_ace_rule_get_rule_index(block, i);
+			if (tmp->ingress_port_mask & ace->ingress_port_mask &&
+			    ocelot_ace_is_problematic_mac_etype(tmp))
+				return false;
+		}
+
+		for_each_set_bit(port, &ace->ingress_port_mask,
+				 ocelot->num_phys_ports)
+			ocelot_match_all_as_mac_etype(ocelot, port, false);
+	}
+
+	return true;
+}
+
 int ocelot_ace_rule_offload_add(struct ocelot *ocelot,
-				struct ocelot_ace_rule *rule)
+				struct ocelot_ace_rule *rule,
+				struct netlink_ext_ack *extack)
 {
 	struct ocelot_acl_block *block = &ocelot->acl_block;
 	struct ocelot_ace_rule *ace;
 	int i, index;
+
+	if (!ocelot_exclusive_mac_etype_ace_rules(ocelot, rule)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Cannot mix MAC_ETYPE with non-MAC_ETYPE rules");
+		return -EBUSY;
+	}
 
 	/* Add rule to the linked list */
 	ocelot_ace_rule_add(ocelot, block, rule);

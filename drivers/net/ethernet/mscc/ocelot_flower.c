@@ -205,7 +205,7 @@ int ocelot_cls_flower_replace(struct ocelot *ocelot, int port,
 		return ret;
 	}
 
-	return ocelot_ace_rule_offload_add(ocelot, ace);
+	return ocelot_ace_rule_offload_add(ocelot, ace, f->common.extack);
 }
 EXPORT_SYMBOL_GPL(ocelot_cls_flower_replace);
 
