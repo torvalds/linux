@@ -1733,9 +1733,9 @@ static noinline int generic_bin_search(struct extent_buffer *eb,
  * leaves vs nodes
  */
 int btrfs_bin_search(struct extent_buffer *eb, const struct btrfs_key *key,
-		     int level, int *slot)
+		     int *slot)
 {
-	if (level == 0)
+	if (btrfs_header_level(eb) == 0)
 		return generic_bin_search(eb,
 					  offsetof(struct btrfs_leaf, items),
 					  sizeof(struct btrfs_item),
@@ -2502,10 +2502,10 @@ done:
 }
 
 static int key_search(struct extent_buffer *b, const struct btrfs_key *key,
-		      int level, int *prev_cmp, int *slot)
+		      int *prev_cmp, int *slot)
 {
 	if (*prev_cmp != 0) {
-		*prev_cmp = btrfs_bin_search(b, key, level, slot);
+		*prev_cmp = btrfs_bin_search(b, key, slot);
 		return *prev_cmp;
 	}
 
@@ -2783,7 +2783,7 @@ cow_done:
 			}
 		}
 
-		ret = key_search(b, key, level, &prev_cmp, &slot);
+		ret = key_search(b, key, &prev_cmp, &slot);
 		if (ret < 0)
 			goto done;
 
@@ -2947,7 +2947,7 @@ again:
 		 * time.
 		 */
 		prev_cmp = -1;
-		ret = key_search(b, key, level, &prev_cmp, &slot);
+		ret = key_search(b, key, &prev_cmp, &slot);
 		if (ret < 0)
 			goto done;
 
@@ -5103,7 +5103,7 @@ again:
 	while (1) {
 		nritems = btrfs_header_nritems(cur);
 		level = btrfs_header_level(cur);
-		sret = btrfs_bin_search(cur, min_key, level, &slot);
+		sret = btrfs_bin_search(cur, min_key, &slot);
 		if (sret < 0) {
 			ret = sret;
 			goto out;
