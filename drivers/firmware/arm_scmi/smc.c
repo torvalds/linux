@@ -114,7 +114,10 @@ static int smc_send_message(struct scmi_chan_info *cinfo,
 
 	mutex_unlock(&scmi_info->shmem_lock);
 
-	return res.a0;
+	/* Only SMCCC_RET_NOT_SUPPORTED is valid error code */
+	if (res.a0)
+		return -EOPNOTSUPP;
+	return 0;
 }
 
 static void smc_fetch_response(struct scmi_chan_info *cinfo,
