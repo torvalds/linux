@@ -312,15 +312,6 @@ static const char * const dra7_gpu_hyd_mux_parents[] __initconst = {
 	NULL,
 };
 
-static const char * const dra7_gpu_sys_clk_parents[] __initconst = {
-	"sys_clkin",
-	NULL,
-};
-
-static const struct omap_clkctrl_div_data dra7_gpu_sys_clk_data __initconst = {
-	.max_div = 2,
-};
-
 static const struct omap_clkctrl_bit_data dra7_gpu_core_bit_data[] __initconst = {
 	{ 24, TI_CLK_MUX, dra7_gpu_core_mux_parents, NULL, },
 	{ 26, TI_CLK_MUX, dra7_gpu_hyd_mux_parents, NULL, },
