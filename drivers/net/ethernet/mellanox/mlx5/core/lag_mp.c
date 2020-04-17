@@ -11,7 +11,7 @@
 
 static bool mlx5_lag_multipath_check_prereq(struct mlx5_lag *ldev)
 {
-	if (!ldev->pf[MLX5_LAG_P1].dev || !ldev->pf[MLX5_LAG_P2].dev)
+	if (!mlx5_lag_is_ready(ldev))
 		return false;
 
 	return mlx5_esw_multipath_prereq(ldev->pf[MLX5_LAG_P1].dev,
