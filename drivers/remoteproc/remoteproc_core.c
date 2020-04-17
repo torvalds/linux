@@ -1997,6 +1997,7 @@ static void rproc_type_release(struct device *dev)
 		ida_simple_remove(&rproc_dev_index, rproc->index);
 
 	kfree_const(rproc->firmware);
+	kfree_const(rproc->name);
 	kfree(rproc->ops);
 	kfree(rproc);
 }
@@ -2084,7 +2085,6 @@ struct rproc *rproc_alloc(struct device *dev, const char *name,
 	if (!rproc)
 		return NULL;
 
-	rproc->name = name;
 	rproc->priv = &rproc[1];
 	rproc->auto_boot = true;
 	rproc->elf_class = ELFCLASSNONE;
@@ -2096,6 +2096,10 @@ struct rproc *rproc_alloc(struct device *dev, const char *name,
 	rproc->dev.class = &rproc_class;
 	rproc->dev.driver_data = rproc;
 	idr_init(&rproc->notifyids);
+
+	rproc->name = kstrdup_const(name, GFP_KERNEL);
+	if (!rproc->name)
+		goto put_device;
 
 	if (rproc_alloc_firmware(rproc, name, firmware))
 		goto put_device;
