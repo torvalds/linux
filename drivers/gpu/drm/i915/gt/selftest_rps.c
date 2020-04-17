@@ -14,6 +14,20 @@ static void dummy_rps_work(struct work_struct *wrk)
 {
 }
 
+static void sleep_for_ei(struct intel_rps *rps, int timeout_us)
+{
+	/* Flush any previous EI */
+	usleep_range(timeout_us, 2 * timeout_us);
+
+	/* Reset the interrupt status */
+	rps_disable_interrupts(rps);
+	GEM_BUG_ON(rps->pm_iir);
+	rps_enable_interrupts(rps);
+
+	/* And then wait for the timeout, for real this time */
+	usleep_range(2 * timeout_us, 3 * timeout_us);
+}
+
 static int __rps_up_interrupt(struct intel_rps *rps,
 			      struct intel_engine_cs *engine,
 			      struct igt_spinner *spin)
@@ -28,7 +42,6 @@ static int __rps_up_interrupt(struct intel_rps *rps,
 	intel_gt_pm_wait_for_idle(engine->gt);
 	GEM_BUG_ON(rps->active);
 
-	rps->pm_iir = 0;
 	rps->cur_freq = rps->min_freq;
 
 	rq = igt_spinner_create_request(spin, engine->kernel_context, MI_NOOP);
@@ -71,7 +84,7 @@ static int __rps_up_interrupt(struct intel_rps *rps,
 	timeout = intel_uncore_read(uncore, GEN6_RP_UP_EI);
 	timeout = GT_PM_INTERVAL_TO_US(engine->i915, timeout);
 
-	usleep_range(2 * timeout, 3 * timeout);
+	sleep_for_ei(rps, timeout);
 	GEM_BUG_ON(i915_request_completed(rq));
 
 	igt_spinner_end(spin);
@@ -122,16 +135,7 @@ static int __rps_down_interrupt(struct intel_rps *rps,
 	timeout = intel_uncore_read(uncore, GEN6_RP_DOWN_EI);
 	timeout = GT_PM_INTERVAL_TO_US(engine->i915, timeout);
 
-	/* Flush any previous EI */
-	usleep_range(timeout, 2 * timeout);
-
-	/* Reset the interrupt status */
-	rps_disable_interrupts(rps);
-	GEM_BUG_ON(rps->pm_iir);
-	rps_enable_interrupts(rps);
-
-	/* And then wait for the timeout, for real this time */
-	usleep_range(2 * timeout, 3 * timeout);
+	sleep_for_ei(rps, timeout);
 
 	if (rps->cur_freq != rps->max_freq) {
 		pr_err("%s: Frequency unexpectedly changed [down], now %d!\n",
