@@ -623,6 +623,12 @@ finalize:
 	if (err)
 		return err;
 
+	/* Some devices ship with the controller default address.
+	 * Allow the bootloader to set a valid address through the
+	 * device tree.
+	 */
+	set_bit(HCI_QUIRK_USE_BDADDR_PROPERTY, &hu->hdev->quirks);
+
 	if (!bcm_request_irq(bcm))
 		err = bcm_setup_sleep(hu);
 

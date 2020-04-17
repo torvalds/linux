@@ -488,12 +488,6 @@ int btbcm_finalize(struct hci_dev *hdev)
 
 	set_bit(HCI_QUIRK_STRICT_DUPLICATE_FILTER, &hdev->quirks);
 
-	/* Some devices ship with the controller default address.
-	 * Allow the bootloader to set a valid address through the
-	 * device tree.
-	 */
-	set_bit(HCI_QUIRK_USE_BDADDR_PROPERTY, &hdev->quirks);
-
 	return 0;
 }
 EXPORT_SYMBOL_GPL(btbcm_finalize);
