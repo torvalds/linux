@@ -853,7 +853,7 @@ sub output_function_rst(%) {
 
 	if ($type =~ m/([^\(]*\(\*)\s*\)\s*\(([^\)]*)\)/) {
 	    # pointer-to-function
-	    print $1 . $parameter . ") (" . $2;
+	    print $1 . $parameter . ") (" . $2 . ")";
 	} else {
 	    print $type . " " . $parameter;
 	}
