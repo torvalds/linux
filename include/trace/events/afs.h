@@ -33,6 +33,7 @@ enum afs_server_trace {
 	afs_server_trace_destroy,
 	afs_server_trace_free,
 	afs_server_trace_gc,
+	afs_server_trace_get_by_addr,
 	afs_server_trace_get_by_uuid,
 	afs_server_trace_get_caps,
 	afs_server_trace_get_install,
@@ -241,6 +242,7 @@ enum afs_cb_break_reason {
 	EM(afs_server_trace_destroy,		"DESTROY  ") \
 	EM(afs_server_trace_free,		"FREE     ") \
 	EM(afs_server_trace_gc,			"GC       ") \
+	EM(afs_server_trace_get_by_addr,	"GET addr ") \
 	EM(afs_server_trace_get_by_uuid,	"GET uuid ") \
 	EM(afs_server_trace_get_caps,		"GET caps ") \
 	EM(afs_server_trace_get_install,	"GET inst ") \
@@ -1271,26 +1273,30 @@ TRACE_EVENT(afs_cb_miss,
 	    );
 
 TRACE_EVENT(afs_server,
-	    TP_PROTO(struct afs_server *server, int usage, enum afs_server_trace reason),
+	    TP_PROTO(struct afs_server *server, int ref, int active,
+		     enum afs_server_trace reason),
 
-	    TP_ARGS(server, usage, reason),
+	    TP_ARGS(server, ref, active, reason),
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,		server		)
-		    __field(int,			usage		)
+		    __field(int,			ref		)
+		    __field(int,			active		)
 		    __field(int,			reason		)
 			     ),
 
 	    TP_fast_assign(
 		    __entry->server = server->debug_id;
-		    __entry->usage = usage;
+		    __entry->ref = ref;
+		    __entry->active = active;
 		    __entry->reason = reason;
 			   ),
 
-	    TP_printk("s=%08x %s u=%d",
+	    TP_printk("s=%08x %s u=%d a=%d",
 		      __entry->server,
 		      __print_symbolic(__entry->reason, afs_server_traces),
-		      __entry->usage)
+		      __entry->ref,
+		      __entry->active)
 	    );
 
 #endif /* _TRACE_AFS_H */

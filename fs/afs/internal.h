@@ -498,7 +498,7 @@ struct afs_server {
 	struct hlist_node	addr6_link;	/* Link in net->fs_addresses6 */
 	struct hlist_node	proc_link;	/* Link in net->fs_proc */
 	struct afs_server	*gc_next;	/* Next server in manager's list */
-	time64_t		put_time;	/* Time at which last put */
+	time64_t		unuse_time;	/* Time at which last unused */
 	unsigned long		flags;
 #define AFS_SERVER_FL_NOT_READY	1		/* The record is not ready for use */
 #define AFS_SERVER_FL_NOT_FOUND	2		/* VL server says no such server */
@@ -512,7 +512,8 @@ struct afs_server {
 #define AFS_SERVER_FL_NO_RM2	10		/* Fileserver doesn't support YFS.RemoveFile2 */
 #define AFS_SERVER_FL_HAVE_EPOCH 11		/* ->epoch is valid */
 #define AFS_SERVER_FL_NEEDS_UPDATE 12		/* Fileserver address list is out of date */
-	atomic_t		usage;
+	atomic_t		ref;		/* Object refcount */
+	atomic_t		active;		/* Active user count */
 	u32			addr_version;	/* Address list version */
 	u32			cm_epoch;	/* Server RxRPC epoch */
 	unsigned int		debug_id;	/* Debugging ID for traces */
@@ -1244,6 +1245,9 @@ extern struct afs_server *afs_find_server(struct afs_net *,
 extern struct afs_server *afs_find_server_by_uuid(struct afs_net *, const uuid_t *);
 extern struct afs_server *afs_lookup_server(struct afs_cell *, struct key *, const uuid_t *, u32);
 extern struct afs_server *afs_get_server(struct afs_server *, enum afs_server_trace);
+extern struct afs_server *afs_use_server(struct afs_server *, enum afs_server_trace);
+extern void afs_unuse_server(struct afs_net *, struct afs_server *, enum afs_server_trace);
+extern void afs_unuse_server_notime(struct afs_net *, struct afs_server *, enum afs_server_trace);
 extern void afs_put_server(struct afs_net *, struct afs_server *, enum afs_server_trace);
 extern void afs_manage_servers(struct work_struct *);
 extern void afs_servers_timer(struct timer_list *);

@@ -16,7 +16,6 @@ static bool afs_fs_probe_done(struct afs_server *server)
 	if (!atomic_dec_and_test(&server->probe_outstanding))
 		return false;
 
-	wake_up_var(&server->probe_outstanding);
 	clear_bit_unlock(AFS_SERVER_FL_PROBING, &server->flags);
 	wake_up_bit(&server->flags, AFS_SERVER_FL_PROBING);
 	return true;

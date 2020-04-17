@@ -1842,7 +1842,7 @@ int afs_fs_give_up_all_callbacks(struct afs_net *net,
 	bp = call->request;
 	*bp++ = htonl(FSGIVEUPALLCALLBACKS);
 
-	/* Can't take a ref on server */
+	call->server = afs_use_server(server, afs_server_trace_give_up_cb);
 	afs_make_call(ac, call, GFP_NOFS);
 	return afs_wait_for_call_to_complete(call, ac);
 }
@@ -1924,7 +1924,7 @@ struct afs_call *afs_fs_get_capabilities(struct afs_net *net,
 		return ERR_PTR(-ENOMEM);
 
 	call->key = key;
-	call->server = afs_get_server(server, afs_server_trace_get_caps);
+	call->server = afs_use_server(server, afs_server_trace_get_caps);
 	call->server_index = server_index;
 	call->upgrade = true;
 	call->async = true;
@@ -1934,7 +1934,6 @@ struct afs_call *afs_fs_get_capabilities(struct afs_net *net,
 	bp = call->request;
 	*bp++ = htonl(FSGETCAPABILITIES);
 
-	/* Can't take a ref on server */
 	trace_afs_make_fs_call(call, NULL);
 	afs_make_call(ac, call, GFP_NOFS);
 	return call;
