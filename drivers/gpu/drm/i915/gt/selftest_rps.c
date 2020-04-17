@@ -39,10 +39,10 @@ static int __rps_up_interrupt(struct intel_rps *rps,
 	if (!intel_engine_can_store_dword(engine))
 		return 0;
 
-	intel_gt_pm_wait_for_idle(engine->gt);
-	GEM_BUG_ON(rps->active);
-
-	rps->cur_freq = rps->min_freq;
+	mutex_lock(&rps->lock);
+	GEM_BUG_ON(!rps->active);
+	intel_rps_set(rps, rps->min_freq);
+	mutex_unlock(&rps->lock);
 
 	rq = igt_spinner_create_request(spin, engine->kernel_context, MI_NOOP);
 	if (IS_ERR(rq))
@@ -105,7 +105,6 @@ static int __rps_up_interrupt(struct intel_rps *rps,
 		return -EINVAL;
 	}
 
-	intel_gt_pm_wait_for_idle(engine->gt);
 	return 0;
 }
 
@@ -195,9 +194,16 @@ int live_rps_interrupt(void *arg)
 	for_each_engine(engine, gt, id) {
 		/* Keep the engine busy with a spinner; expect an UP! */
 		if (pm_events & GEN6_PM_RP_UP_THRESHOLD) {
+			intel_gt_pm_wait_for_idle(engine->gt);
+			GEM_BUG_ON(rps->active);
+
+			intel_engine_pm_get(engine);
 			err = __rps_up_interrupt(rps, engine, &spin);
+			intel_engine_pm_put(engine);
 			if (err)
 				goto out;
+
+			intel_gt_pm_wait_for_idle(engine->gt);
 		}
 
 		/* Keep the engine awake but idle and check for DOWN */
