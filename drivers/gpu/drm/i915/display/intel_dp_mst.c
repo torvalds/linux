@@ -491,7 +491,7 @@ static void intel_mst_pre_enable_dp(struct intel_atomic_state *state,
 	 * here for the following ones.
 	 */
 	if (INTEL_GEN(dev_priv) < 12 || !first_mst_stream)
-		intel_ddi_enable_pipe_clock(pipe_config);
+		intel_ddi_enable_pipe_clock(encoder, pipe_config);
 
 	intel_ddi_set_dp_msa(pipe_config, conn_state);
 

@@ -1986,11 +1986,11 @@ static void intel_ddi_get_power_domains(struct intel_encoder *encoder,
 					intel_dsc_power_domain(crtc_state));
 }
 
-void intel_ddi_enable_pipe_clock(const struct intel_crtc_state *crtc_state)
+void intel_ddi_enable_pipe_clock(struct intel_encoder *encoder,
+				 const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	struct intel_encoder *encoder = intel_ddi_get_crtc_encoder(crtc);
 	enum port port = encoder->port;
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 
@@ -3158,7 +3158,7 @@ static void tgl_ddi_pre_enable_dp(struct intel_atomic_state *state,
 	 * 7.a Configure Transcoder Clock Select to direct the Port clock to the
 	 * Transcoder.
 	 */
-	intel_ddi_enable_pipe_clock(crtc_state);
+	intel_ddi_enable_pipe_clock(encoder, crtc_state);
 
 	/*
 	 * 7.b Configure TRANS_DDI_FUNC_CTL DDI Select, DDI Mode Select & MST
@@ -3296,7 +3296,7 @@ static void hsw_ddi_pre_enable_dp(struct intel_atomic_state *state,
 	intel_ddi_enable_fec(encoder, crtc_state);
 
 	if (!is_mst)
-		intel_ddi_enable_pipe_clock(crtc_state);
+		intel_ddi_enable_pipe_clock(encoder, crtc_state);
 
 	intel_dsc_enable(encoder, crtc_state);
 }
@@ -3357,7 +3357,7 @@ static void intel_ddi_pre_enable_hdmi(struct intel_atomic_state *state,
 	if (IS_GEN9_BC(dev_priv))
 		skl_ddi_set_iboost(encoder, level, INTEL_OUTPUT_HDMI);
 
-	intel_ddi_enable_pipe_clock(crtc_state);
+	intel_ddi_enable_pipe_clock(encoder, crtc_state);
 
 	intel_dig_port->set_infoframes(encoder,
 				       crtc_state->has_infoframe,

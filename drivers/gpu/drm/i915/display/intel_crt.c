@@ -294,7 +294,7 @@ static void hsw_pre_enable_crt(struct intel_atomic_state *state,
 
 	hsw_fdi_link_train(encoder, crtc_state);
 
-	intel_ddi_enable_pipe_clock(crtc_state);
+	intel_ddi_enable_pipe_clock(encoder, crtc_state);
 }
 
 static void hsw_enable_crt(struct intel_atomic_state *state,
