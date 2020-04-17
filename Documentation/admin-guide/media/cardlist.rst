@@ -95,6 +95,8 @@ settings for an specific product type.
 	dvb-usb-rtl28xxu-cardlist
 	dvb-usb-zd1301-cardlist
 
+	other-usb-cardlist
+
 PCI drivers
 ===========
 
