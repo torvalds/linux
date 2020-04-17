@@ -25,6 +25,7 @@
  */
 
 #include <linux/export.h>
+#include <linux/kthread.h>
 #include <linux/moduleparam.h>
 
 #include <drm/drm_crtc.h>
@@ -363,7 +364,7 @@ static void drm_update_vblank_count(struct drm_device *dev, unsigned int pipe,
 	store_vblank(dev, pipe, diff, t_vblank, cur_vblank);
 }
 
-static u64 drm_vblank_count(struct drm_device *dev, unsigned int pipe)
+u64 drm_vblank_count(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
 	u64 count;
@@ -497,6 +498,7 @@ static void drm_vblank_init_release(struct drm_device *dev, void *ptr)
 	drm_WARN_ON(dev, READ_ONCE(vblank->enabled) &&
 		    drm_core_check_feature(dev, DRIVER_MODESET));
 
+	drm_vblank_destroy_worker(vblank);
 	del_timer_sync(&vblank->disable_timer);
 }
 
@@ -537,6 +539,10 @@ int drm_vblank_init(struct drm_device *dev, unsigned int num_crtcs)
 
 		ret = drmm_add_action_or_reset(dev, drm_vblank_init_release,
 					       vblank);
+		if (ret)
+			return ret;
+
+		ret = drm_vblank_worker_init(vblank);
 		if (ret)
 			return ret;
 	}
@@ -1135,7 +1141,7 @@ static int drm_vblank_enable(struct drm_device *dev, unsigned int pipe)
 	return ret;
 }
 
-static int drm_vblank_get(struct drm_device *dev, unsigned int pipe)
+int drm_vblank_get(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
 	unsigned long irqflags;
@@ -1178,7 +1184,7 @@ int drm_crtc_vblank_get(struct drm_crtc *crtc)
 }
 EXPORT_SYMBOL(drm_crtc_vblank_get);
 
-static void drm_vblank_put(struct drm_device *dev, unsigned int pipe)
+void drm_vblank_put(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
 
@@ -1281,13 +1287,16 @@ void drm_crtc_vblank_off(struct drm_crtc *crtc)
 	unsigned int pipe = drm_crtc_index(crtc);
 	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
 	struct drm_pending_vblank_event *e, *t;
-
 	ktime_t now;
 	u64 seq;
 
 	if (drm_WARN_ON(dev, pipe >= dev->num_crtcs))
 		return;
 
+	/*
+	 * Grab event_lock early to prevent vblank work from being scheduled
+	 * while we're in the middle of shutting down vblank interrupts
+	 */
 	spin_lock_irq(&dev->event_lock);
 
 	spin_lock(&dev->vbl_lock);
@@ -1324,11 +1333,18 @@ void drm_crtc_vblank_off(struct drm_crtc *crtc)
 		drm_vblank_put(dev, pipe);
 		send_vblank_event(dev, e, seq, now);
 	}
+
+	/* Cancel any leftover pending vblank work */
+	drm_vblank_cancel_pending_works(vblank);
+
 	spin_unlock_irq(&dev->event_lock);
 
 	/* Will be reset by the modeset helpers when re-enabling the crtc by
 	 * calling drm_calc_timestamping_constants(). */
 	vblank->hwmode.crtc_clock = 0;
+
+	/* Wait for any vblank work that's still executing to finish */
+	drm_vblank_flush_worker(vblank);
 }
 EXPORT_SYMBOL(drm_crtc_vblank_off);
 
@@ -1363,6 +1379,7 @@ void drm_crtc_vblank_reset(struct drm_crtc *crtc)
 	spin_unlock_irqrestore(&dev->vbl_lock, irqflags);
 
 	drm_WARN_ON(dev, !list_empty(&dev->vblank_event_list));
+	drm_WARN_ON(dev, !list_empty(&vblank->pending_work));
 }
 EXPORT_SYMBOL(drm_crtc_vblank_reset);
 
@@ -1589,11 +1606,6 @@ int drm_legacy_modeset_ctl_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
-static inline bool vblank_passed(u64 seq, u64 ref)
-{
-	return (seq - ref) <= (1 << 23);
-}
-
 static int drm_queue_vblank_event(struct drm_device *dev, unsigned int pipe,
 				  u64 req_seq,
 				  union drm_wait_vblank *vblwait,
@@ -1651,7 +1663,7 @@ static int drm_queue_vblank_event(struct drm_device *dev, unsigned int pipe,
 	trace_drm_vblank_event_queued(file_priv, pipe, req_seq);
 
 	e->sequence = req_seq;
-	if (vblank_passed(seq, req_seq)) {
+	if (drm_vblank_passed(seq, req_seq)) {
 		drm_vblank_put(dev, pipe);
 		send_vblank_event(dev, e, seq, now);
 		vblwait->reply.sequence = seq;
@@ -1806,7 +1818,7 @@ int drm_wait_vblank_ioctl(struct drm_device *dev, void *data,
 	}
 
 	if ((flags & _DRM_VBLANK_NEXTONMISS) &&
-	    vblank_passed(seq, req_seq)) {
+	    drm_vblank_passed(seq, req_seq)) {
 		req_seq = seq + 1;
 		vblwait->request.type &= ~_DRM_VBLANK_NEXTONMISS;
 		vblwait->request.sequence = req_seq;
@@ -1825,7 +1837,7 @@ int drm_wait_vblank_ioctl(struct drm_device *dev, void *data,
 		drm_dbg_core(dev, "waiting on vblank count %llu, crtc %u\n",
 			     req_seq, pipe);
 		wait = wait_event_interruptible_timeout(vblank->queue,
-			vblank_passed(drm_vblank_count(dev, pipe), req_seq) ||
+			drm_vblank_passed(drm_vblank_count(dev, pipe), req_seq) ||
 				      !READ_ONCE(vblank->enabled),
 			msecs_to_jiffies(3000));
 
@@ -1874,7 +1886,7 @@ static void drm_handle_vblank_events(struct drm_device *dev, unsigned int pipe)
 	list_for_each_entry_safe(e, t, &dev->vblank_event_list, base.link) {
 		if (e->pipe != pipe)
 			continue;
-		if (!vblank_passed(seq, e->sequence))
+		if (!drm_vblank_passed(seq, e->sequence))
 			continue;
 
 		drm_dbg_core(dev, "vblank event on %llu, current %llu\n",
@@ -1944,6 +1956,7 @@ bool drm_handle_vblank(struct drm_device *dev, unsigned int pipe)
 		       !atomic_read(&vblank->refcount));
 
 	drm_handle_vblank_events(dev, pipe);
+	drm_handle_vblank_works(vblank);
 
 	spin_unlock_irqrestore(&dev->event_lock, irqflags);
 
@@ -2097,7 +2110,7 @@ int drm_crtc_queue_sequence_ioctl(struct drm_device *dev, void *data,
 	if (flags & DRM_CRTC_SEQUENCE_RELATIVE)
 		req_seq += seq;
 
-	if ((flags & DRM_CRTC_SEQUENCE_NEXT_ON_MISS) && vblank_passed(seq, req_seq))
+	if ((flags & DRM_CRTC_SEQUENCE_NEXT_ON_MISS) && drm_vblank_passed(seq, req_seq))
 		req_seq = seq + 1;
 
 	e->pipe = pipe;
@@ -2126,7 +2139,7 @@ int drm_crtc_queue_sequence_ioctl(struct drm_device *dev, void *data,
 
 	e->sequence = req_seq;
 
-	if (vblank_passed(seq, req_seq)) {
+	if (drm_vblank_passed(seq, req_seq)) {
 		drm_crtc_vblank_put(crtc);
 		send_vblank_event(dev, e, seq, now);
 		queue_seq->sequence = seq;
@@ -2146,3 +2159,4 @@ err_free:
 	kfree(e);
 	return ret;
 }
+

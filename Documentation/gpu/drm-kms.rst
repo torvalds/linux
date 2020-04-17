@@ -543,3 +543,18 @@ Vertical Blanking and Interrupt Handling Functions Reference
 
 .. kernel-doc:: drivers/gpu/drm/drm_vblank.c
    :export:
+
+Vertical Blank Work
+===================
+
+.. kernel-doc:: drivers/gpu/drm/drm_vblank_work.c
+   :doc: vblank works
+
+Vertical Blank Work Functions Reference
+---------------------------------------
+
+.. kernel-doc:: include/drm/drm_vblank_work.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_vblank_work.c
+   :export:
