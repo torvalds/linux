@@ -446,8 +446,8 @@ static const struct regval os04a10_linear10bit_2688x1520_regs[] = {
 	{0x380b, 0xf0},
 	{0x380c, 0x02},
 	{0x380d, 0xdc},
-	{0x380e, 0x06},
-	{0x380f, 0x58},
+	{0x380e, 0x0c},
+	{0x380f, 0xb0},
 	{0x381c, 0x00},
 	{0x3820, 0x02},
 	{0x3833, 0x40},
@@ -526,10 +526,12 @@ static const struct regval os04a10_linear12bit_2688x1520_regs[] = {
 	{0x384d, 0xc4},
 	{0x3c5a, 0xe5},
 	{0x4001, 0x2f},
-	{0x4005, 0x80},
+	{0x4004, 0x01},
+	{0x4005, 0x00},
 	{0x400a, 0x03},
 	{0x400b, 0x27},
-	{0x402f, 0x80},
+	{0x402e, 0x01},
+	{0x402f, 0x00},
 	{0x4031, 0x80},
 	{0x4032, 0x9f},
 	{0x4288, 0xcf},
@@ -1184,7 +1186,7 @@ static int os04a10_set_hdrae(struct os04a10 *os04a10,
 	if (!os04a10->has_init_exp && !os04a10->streaming) {
 		os04a10->init_hdrae_exp = *ae;
 		os04a10->has_init_exp = true;
-		dev_info(&os04a10->client->dev, "os04a10 don't stream, record exp for hdr!\n");
+		dev_dbg(&os04a10->client->dev, "os04a10 don't stream, record exp for hdr!\n");
 		return ret;
 	}
 	l_exp_time = ae->long_exp_reg;
@@ -1193,7 +1195,7 @@ static int os04a10_set_hdrae(struct os04a10 *os04a10,
 	l_a_gain = ae->long_gain_reg;
 	m_a_gain = ae->middle_gain_reg;
 	s_a_gain = ae->short_gain_reg;
-	dev_info(&os04a10->client->dev,
+	dev_dbg(&os04a10->client->dev,
 		"rev exp req: L_exp: 0x%x, 0x%x, M_exp: 0x%x, 0x%x S_exp: 0x%x, 0x%x\n",
 		l_exp_time, l_a_gain,
 		m_exp_time, m_a_gain,
