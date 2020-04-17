@@ -529,7 +529,7 @@ static int exfat_fill_super(struct super_block *sb, struct fs_context *fc)
 	sb->s_magic = EXFAT_SUPER_MAGIC;
 	sb->s_op = &exfat_sops;
 
-	sb->s_time_gran = 1;
+	sb->s_time_gran = 10 * NSEC_PER_MSEC;
 	sb->s_time_min = EXFAT_MIN_TIMESTAMP_SECS;
 	sb->s_time_max = EXFAT_MAX_TIMESTAMP_SECS;
 
