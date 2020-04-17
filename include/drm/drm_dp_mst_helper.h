@@ -27,6 +27,7 @@
 #include <drm/drm_atomic.h>
 
 struct drm_dp_mst_branch;
+struct drm_dp_mst_port;
 
 /**
  * struct drm_dp_vcpi - Virtual Channel Payload Identifier
@@ -40,6 +41,18 @@ struct drm_dp_vcpi {
 	int pbn;
 	int aligned_pbn;
 	int num_slots;
+};
+
+struct drm_dp_mst_dsc_dpcd_cache {
+	bool valid;
+	bool use_parent_dpcd;
+	u8 dsc_dpcd[16];
+};
+
+struct drm_dp_mst_dsc_info {
+	bool dsc_support;
+	struct drm_dp_mst_port *dsc_port;
+	struct drm_dp_mst_dsc_dpcd_cache dsc_dpcd_cache;
 };
 
 /**
@@ -100,6 +113,8 @@ struct drm_dp_mst_port {
 	bool has_audio;
 
 	bool fec_capable;
+
+	struct drm_dp_mst_dsc_info dsc_info;
 };
 
 /**
@@ -636,5 +651,13 @@ int drm_dp_atomic_release_vcpi_slots(struct drm_atomic_state *state,
 				     int slots);
 int drm_dp_send_power_updown_phy(struct drm_dp_mst_topology_mgr *mgr,
 				 struct drm_dp_mst_port *port, bool power_up);
+
+int drm_dp_mst_get_dsc_info(struct drm_dp_mst_topology_mgr *mgr,
+			    struct drm_dp_mst_port *port,
+			    struct drm_dp_mst_dsc_info *dsc_info);
+
+int drm_dp_mst_update_dsc_info(struct drm_dp_mst_topology_mgr *mgr,
+			       struct drm_dp_mst_port *port,
+			       struct drm_dp_mst_dsc_info *dsc_info);
 
 #endif

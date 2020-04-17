@@ -1810,6 +1810,42 @@ int drm_dp_send_power_updown_phy(struct drm_dp_mst_topology_mgr *mgr,
 }
 EXPORT_SYMBOL(drm_dp_send_power_updown_phy);
 
+int drm_dp_mst_get_dsc_info(struct drm_dp_mst_topology_mgr *mgr,
+		struct drm_dp_mst_port *port,
+		struct drm_dp_mst_dsc_info *dsc_info)
+{
+	if (!dsc_info)
+		return -EINVAL;
+
+	port = drm_dp_get_validated_port_ref(mgr, port);
+	if (!port)
+		return -EINVAL;
+
+	memcpy(dsc_info, &port->dsc_info, sizeof(struct drm_dp_mst_dsc_info));
+	drm_dp_put_port(port);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(drm_dp_mst_get_dsc_info);
+
+int drm_dp_mst_update_dsc_info(struct drm_dp_mst_topology_mgr *mgr,
+		struct drm_dp_mst_port *port,
+		struct drm_dp_mst_dsc_info *dsc_info)
+{
+	if (!dsc_info)
+		return -EINVAL;
+
+	port = drm_dp_get_validated_port_ref(mgr, port);
+	if (!port)
+		return -EINVAL;
+
+	memcpy(&port->dsc_info, dsc_info, sizeof(struct drm_dp_mst_dsc_info));
+		drm_dp_put_port(port);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(drm_dp_mst_update_dsc_info);
+
 static int drm_dp_create_payload_step1(struct drm_dp_mst_topology_mgr *mgr,
 				       int id,
 				       struct drm_dp_payload *payload)
