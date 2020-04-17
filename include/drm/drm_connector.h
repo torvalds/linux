@@ -1178,6 +1178,13 @@ struct drm_connector {
 	 * Can find the panel which connected to drm_connector.
 	 */
 	struct drm_panel *panel;
+
+	/**
+	 * @checksum:
+	 *
+	 * The calculated checksum value of first 127 bytes of associated EDID.
+	 */
+	u8 checksum;
 };
 
 #define obj_to_connector(x) container_of(x, struct drm_connector, base)
