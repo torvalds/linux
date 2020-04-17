@@ -12,49 +12,6 @@
 #include <Mp_Precomp.h>
 
 /* 		Global variables */
-static const char *const BtProfileString[] = {
-	"NONE",
-	"A2DP",
-	"PAN",
-	"HID",
-	"SCO",
-};
-
-static const char *const BtSpecString[] = {
-	"1.0b",
-	"1.1",
-	"1.2",
-	"2.0+EDR",
-	"2.1+EDR",
-	"3.0+HS",
-	"4.0",
-};
-
-static const char *const BtLinkRoleString[] = {
-	"Master",
-	"Slave",
-};
-
-static const char *const h2cStaString[] = {
-	"successful",
-	"h2c busy",
-	"rf off",
-	"fw not read",
-};
-
-static const char *const ioStaString[] = {
-	"success",
-	"can not IO",
-	"rf off",
-	"fw not read",
-	"wait io timeout",
-	"invalid len",
-	"idle Q empty",
-	"insert waitQ fail",
-	"unknown fail",
-	"wrong level",
-	"h2c stopped",
-};
 
 BTC_COEXIST GLBtCoexist;
 static u8 GLBtcWiFiInScanState;
