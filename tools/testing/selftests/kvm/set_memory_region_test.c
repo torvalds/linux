@@ -287,10 +287,15 @@ static void test_delete_memory_region(void)
 
 	vcpu_regs_get(vm, VCPU_ID, &regs);
 
-	TEST_ASSERT(regs.rip >= final_rip_start &&
-		    regs.rip < final_rip_end,
-		    "Bad rip, expected 0x%lx - 0x%lx, got 0x%llx\n",
-		    final_rip_start, final_rip_end, regs.rip);
+	/*
+	 * On AMD, after KVM_EXIT_SHUTDOWN the VMCB has been reinitialized already,
+	 * so the instruction pointer would point to the reset vector.
+	 */
+	if (run->exit_reason == KVM_EXIT_INTERNAL_ERROR)
+		TEST_ASSERT(regs.rip >= final_rip_start &&
+			    regs.rip < final_rip_end,
+			    "Bad rip, expected 0x%lx - 0x%lx, got 0x%llx\n",
+			    final_rip_start, final_rip_end, regs.rip);
 
 	kvm_vm_free(vm);
 }
