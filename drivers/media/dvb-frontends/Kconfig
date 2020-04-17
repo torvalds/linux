@@ -956,7 +956,6 @@ comment "Tools to develop new frontends"
 
 config DVB_DUMMY_FE
 	tristate "Dummy frontend driver"
-	depends on MEDIA_TEST_SUPPORT
-	select DVB_CORE
+	depends on MEDIA_TEST_SUPPORT && DVB_CORE
 	help
 	  Dummy skeleton frontend driver.
