@@ -42,7 +42,9 @@ enum {
 };
 
 struct drm_panel_notifier {
+	int refresh_rate;
 	void *data;
+	uint32_t id;
 };
 
 struct device_node;
