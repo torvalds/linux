@@ -687,6 +687,10 @@
  *	four bytes for vendor frames including the OUI. The registration
  *	cannot be dropped, but is removed automatically when the netlink
  *	socket is closed. Multiple registrations can be made.
+ *	The %NL80211_ATTR_RECEIVE_MULTICAST flag attribute can be given if
+ *	%NL80211_EXT_FEATURE_MULTICAST_REGISTRATIONS is available, in which
+ *	case the registration can also be modified to include/exclude the
+ *	flag, rather than requiring unregistration to change it.
  * @NL80211_CMD_REGISTER_ACTION: Alias for @NL80211_CMD_REGISTER_FRAME for
  *	backward compatibility
  * @NL80211_CMD_FRAME: Management frame TX request and RX notification. This
@@ -2477,6 +2481,9 @@ enum nl80211_commands {
  *	no roaming occurs between the reauth threshold and PMK expiration,
  *	disassociation is still forced.
  *
+ * @NL80211_ATTR_RECEIVE_MULTICAST: multicast flag for the
+ *	%NL80211_CMD_REGISTER_FRAME command, see the description there.
+ *
  * @NUM_NL80211_ATTR: total number of nl80211_attrs available
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
@@ -2951,6 +2958,8 @@ enum nl80211_attrs {
 
 	NL80211_ATTR_PMK_LIFETIME,
 	NL80211_ATTR_PMK_REAUTH_THRESHOLD,
+
+	NL80211_ATTR_RECEIVE_MULTICAST,
 
 	/* add attributes here, update the policy in nl80211.c */
 
@@ -5691,6 +5700,9 @@ enum nl80211_feature_flags {
  * @NL80211_EXT_FEATURE_DEL_IBSS_STA: The driver supports removing stations
  *      in IBSS mode, essentially by dropping their state.
  *
+ * @NL80211_EXT_FEATURE_MULTICAST_REGISTRATIONS: management frame registrations
+ *	are possible for multicast frames and those will be reported properly.
+ *
  * @NUM_NL80211_EXT_FEATURES: number of extended features.
  * @MAX_NL80211_EXT_FEATURES: highest extended feature index.
  */
@@ -5742,6 +5754,7 @@ enum nl80211_ext_feature_index {
 	NL80211_EXT_FEATURE_CONTROL_PORT_NO_PREAUTH,
 	NL80211_EXT_FEATURE_PROTECTED_TWT,
 	NL80211_EXT_FEATURE_DEL_IBSS_STA,
+	NL80211_EXT_FEATURE_MULTICAST_REGISTRATIONS,
 
 	/* add new features before the definition below */
 	NUM_NL80211_EXT_FEATURES,

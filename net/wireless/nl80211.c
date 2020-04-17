@@ -661,6 +661,7 @@ const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 	[NL80211_ATTR_CONTROL_PORT_NO_PREAUTH] = { .type = NLA_FLAG },
 	[NL80211_ATTR_PMK_LIFETIME] = NLA_POLICY_MIN(NLA_U32, 1),
 	[NL80211_ATTR_PMK_REAUTH_THRESHOLD] = NLA_POLICY_RANGE(NLA_U8, 1, 100),
+	[NL80211_ATTR_RECEIVE_MULTICAST] = { .type = NLA_FLAG },
 };
 
 /* policy for the key attributes */
@@ -10773,9 +10774,18 @@ static int nl80211_register_mgmt(struct sk_buff *skb, struct genl_info *info)
 	if (!rdev->ops->mgmt_tx)
 		return -EOPNOTSUPP;
 
+	if (info->attrs[NL80211_ATTR_RECEIVE_MULTICAST] &&
+	    !wiphy_ext_feature_isset(&rdev->wiphy,
+				     NL80211_EXT_FEATURE_MULTICAST_REGISTRATIONS)) {
+		GENL_SET_ERR_MSG(info,
+				 "multicast RX registrations are not supported");
+		return -EOPNOTSUPP;
+	}
+
 	return cfg80211_mlme_register_mgmt(wdev, info->snd_portid, frame_type,
 					   nla_data(info->attrs[NL80211_ATTR_FRAME_MATCH]),
 					   nla_len(info->attrs[NL80211_ATTR_FRAME_MATCH]),
+					   info->attrs[NL80211_ATTR_RECEIVE_MULTICAST],
 					   info->extack);
 }
 

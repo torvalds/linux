@@ -426,6 +426,8 @@ struct cfg80211_mgmt_registration {
 
 	__le16 frame_type;
 
+	bool multicast_rx;
+
 	u8 match[];
 };
 
@@ -442,10 +444,18 @@ static void cfg80211_mgmt_registrations_update(struct wireless_dev *wdev)
 	list_for_each_entry_rcu(tmp, &rdev->wiphy.wdev_list, list) {
 		list_for_each_entry_rcu(reg, &tmp->mgmt_registrations, list) {
 			u32 mask = BIT(le16_to_cpu(reg->frame_type) >> 4);
+			u32 mcast_mask = 0;
+
+			if (reg->multicast_rx)
+				mcast_mask = mask;
 
 			upd.global_stypes |= mask;
-			if (tmp == wdev)
+			upd.global_mcast_stypes |= mcast_mask;
+
+			if (tmp == wdev) {
 				upd.interface_stypes |= mask;
+				upd.interface_mcast_stypes |= mcast_mask;
+			}
 		}
 	}
 	rcu_read_unlock();
@@ -465,11 +475,13 @@ void cfg80211_mgmt_registrations_update_wk(struct work_struct *wk)
 
 int cfg80211_mlme_register_mgmt(struct wireless_dev *wdev, u32 snd_portid,
 				u16 frame_type, const u8 *match_data,
-				int match_len, struct netlink_ext_ack *extack)
+				int match_len, bool multicast_rx,
+				struct netlink_ext_ack *extack)
 {
 	struct cfg80211_mgmt_registration *reg, *nreg;
 	int err = 0;
 	u16 mgmt_type;
+	bool update_multicast = false;
 
 	if (!wdev->wiphy->mgmt_stypes)
 		return -EOPNOTSUPP;
@@ -520,6 +532,11 @@ int cfg80211_mlme_register_mgmt(struct wireless_dev *wdev, u32 snd_portid,
 			continue;
 
 		if (memcmp(reg->match, match_data, mlen) == 0) {
+			if (reg->multicast_rx != multicast_rx) {
+				update_multicast = true;
+				reg->multicast_rx = multicast_rx;
+				break;
+			}
 			NL_SET_ERR_MSG(extack, "Match already configured");
 			err = -EALREADY;
 			break;
@@ -529,12 +546,17 @@ int cfg80211_mlme_register_mgmt(struct wireless_dev *wdev, u32 snd_portid,
 	if (err)
 		goto out;
 
-	memcpy(nreg->match, match_data, match_len);
-	nreg->match_len = match_len;
-	nreg->nlportid = snd_portid;
-	nreg->frame_type = cpu_to_le16(frame_type);
-	nreg->wdev = wdev;
-	list_add(&nreg->list, &wdev->mgmt_registrations);
+	if (update_multicast) {
+		kfree(nreg);
+	} else {
+		memcpy(nreg->match, match_data, match_len);
+		nreg->match_len = match_len;
+		nreg->nlportid = snd_portid;
+		nreg->frame_type = cpu_to_le16(frame_type);
+		nreg->wdev = wdev;
+		nreg->multicast_rx = multicast_rx;
+		list_add(&nreg->list, &wdev->mgmt_registrations);
+	}
 	spin_unlock_bh(&wdev->mgmt_registrations_lock);
 
 	cfg80211_mgmt_registrations_update(wdev);
