@@ -59,13 +59,32 @@ settings for an specific product type.
 	dvb-usb-dibusb-mb-cardlist
 	dvb-usb-dibusb-mc-cardlist
 
+	dvb-usb-a800-cardlist
+	dvb-usb-af9005-cardlist
+	dvb-usb-az6027-cardlist
+	dvb-usb-cinergyT2-cardlist
+	dvb-usb-cxusb-cardlist
+	dvb-usb-digitv-cardlist
+	dvb-usb-dtt200u-cardlist
+	dvb-usb-dtv5100-cardlist
+	dvb-usb-dw2102-cardlist
+	dvb-usb-gp8psk-cardlist
+	dvb-usb-m920x-cardlist
+	dvb-usb-nova-t-usb2-cardlist
+	dvb-usb-opera1-cardlist
+	dvb-usb-pctv452e-cardlist
+	dvb-usb-technisat-usb2-cardlist
+	dvb-usb-ttusb2-cardlist
+	dvb-usb-umt-010-cardlist
+	dvb-usb-vp702x-cardlist
+	dvb-usb-vp7045-cardlist
+
 	dvb-usb-af9015-cardlist
 	dvb-usb-af9035-cardlist
 	dvb-usb-anysee-cardlist
 	dvb-usb-au6610-cardlist
 	dvb-usb-az6007-cardlist
 	dvb-usb-ce6230-cardlist
-	dvb-usb-dib0700-cardlist
 	dvb-usb-dvbsky-cardlist
 	dvb-usb-ec168-cardlist
 	dvb-usb-gl861-cardlist
