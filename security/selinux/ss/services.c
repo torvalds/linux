@@ -1490,38 +1490,13 @@ out:
 	return rc;
 }
 
-int context_add_hash(struct policydb *policydb,
-		     struct context *context)
-{
-	int rc;
-	char *str;
-	int len;
-
-	if (context->str) {
-		context->hash = context_compute_hash(context->str);
-	} else {
-		rc = context_struct_to_string(policydb, context,
-					      &str, &len);
-		if (rc)
-			return rc;
-		context->hash = context_compute_hash(str);
-		kfree(str);
-	}
-	return 0;
-}
-
 static int context_struct_to_sid(struct selinux_state *state,
 				 struct context *context, u32 *sid)
 {
-	int rc;
 	struct sidtab *sidtab = state->ss->sidtab;
-	struct policydb *policydb = &state->ss->policydb;
 
-	if (!context->hash) {
-		rc = context_add_hash(policydb, context);
-		if (rc)
-			return rc;
-	}
+	if (!context->hash)
+		context_add_hash(context);
 
 	return sidtab_context_to_sid(sidtab, context, sid);
 }
@@ -2119,9 +2094,7 @@ static int convert_context(struct context *oldc, struct context *newc, void *p)
 			goto bad;
 	}
 
-	rc = context_add_hash(args->newp, newc);
-	if (rc)
-		goto bad;
+	context_add_hash(newc);
 
 	return 0;
 bad:
@@ -2132,7 +2105,7 @@ bad:
 	context_destroy(newc);
 	newc->str = s;
 	newc->len = len;
-	newc->hash = context_compute_hash(s);
+	context_add_hash(newc);
 	pr_info("SELinux:  Context %s became invalid (unmapped).\n",
 		newc->str);
 	return 0;

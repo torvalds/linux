@@ -196,9 +196,11 @@ static inline int context_cmp(struct context *c1, struct context *c2)
 		mls_context_cmp(c1, c2));
 }
 
-static inline unsigned int context_compute_hash(const char *s)
+u32 context_compute_hash(const struct context *c);
+
+static inline void context_add_hash(struct context *context)
 {
-	return full_name_hash(NULL, s, strlen(s));
+	context->hash = context_compute_hash(context);
 }
 
 #endif	/* _SS_CONTEXT_H_ */
