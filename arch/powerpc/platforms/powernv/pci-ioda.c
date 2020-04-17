@@ -1139,7 +1139,7 @@ static struct pnv_ioda_pe *pnv_ioda_setup_bus_PE(struct pci_bus *bus, bool all)
 	 * We should reuse it instead of allocating a new one.
 	 */
 	pe_num = phb->ioda.pe_rmap[bus->number << 8];
-	if (pe_num != IODA_INVALID_PE) {
+	if (WARN_ON(pe_num != IODA_INVALID_PE)) {
 		pe = &phb->ioda.pe_array[pe_num];
 		return NULL;
 	}
@@ -3199,7 +3199,7 @@ static void pnv_pci_configure_bus(struct pci_bus *bus)
 	dev_info(&bus->dev, "Configuring PE for bus\n");
 
 	/* Don't assign PE to PCI bus, which doesn't have subordinate devices */
-	if (list_empty(&bus->devices))
+	if (WARN_ON(list_empty(&bus->devices)))
 		return;
 
 	/* Reserve PEs according to used M64 resources */
