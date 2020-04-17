@@ -1158,7 +1158,18 @@ static void gpio_desc_to_lineinfo(struct gpio_desc *desc,
 				  struct gpioline_info *info)
 {
 	struct gpio_chip *gc = desc->gdev->chip;
+	bool ok_for_pinctrl;
 	unsigned long flags;
+
+	/*
+	 * This function takes a mutex so we must check this before taking
+	 * the spinlock.
+	 *
+	 * FIXME: find a non-racy way to retrieve this information. Maybe a
+	 * lock common to both frameworks?
+	 */
+	ok_for_pinctrl =
+		pinctrl_gpio_can_use_line(gc->base + info->line_offset);
 
 	spin_lock_irqsave(&gpio_lock, flags);
 
@@ -1186,7 +1197,7 @@ static void gpio_desc_to_lineinfo(struct gpio_desc *desc,
 	    test_bit(FLAG_USED_AS_IRQ, &desc->flags) ||
 	    test_bit(FLAG_EXPORT, &desc->flags) ||
 	    test_bit(FLAG_SYSFS, &desc->flags) ||
-	    !pinctrl_gpio_can_use_line(gc->base + info->line_offset))
+	    !ok_for_pinctrl)
 		info->flags |= GPIOLINE_FLAG_KERNEL;
 	if (test_bit(FLAG_IS_OUT, &desc->flags))
 		info->flags |= GPIOLINE_FLAG_IS_OUT;
