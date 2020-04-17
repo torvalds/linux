@@ -6440,12 +6440,14 @@ __init int nested_vmx_hardware_setup(struct kvm_x86_ops *ops,
 	exit_handlers[EXIT_REASON_INVVPID]	= handle_invvpid;
 	exit_handlers[EXIT_REASON_VMFUNC]	= handle_vmfunc;
 
-	ops->check_nested_events = vmx_check_nested_events;
-	ops->get_nested_state = vmx_get_nested_state;
-	ops->set_nested_state = vmx_set_nested_state;
-	ops->get_vmcs12_pages = nested_get_vmcs12_pages;
-	ops->nested_enable_evmcs = nested_enable_evmcs;
-	ops->nested_get_evmcs_version = nested_get_evmcs_version;
-
 	return 0;
 }
+
+struct kvm_x86_nested_ops vmx_nested_ops = {
+	.check_events = vmx_check_nested_events,
+	.get_state = vmx_get_nested_state,
+	.set_state = vmx_set_nested_state,
+	.get_vmcs12_pages = nested_get_vmcs12_pages,
+	.enable_evmcs = nested_enable_evmcs,
+	.get_evmcs_version = nested_get_evmcs_version,
+};

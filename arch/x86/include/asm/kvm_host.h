@@ -1178,7 +1178,6 @@ struct kvm_x86_ops {
 			       struct x86_exception *exception);
 	void (*handle_exit_irqoff)(struct kvm_vcpu *vcpu);
 
-	int (*check_nested_events)(struct kvm_vcpu *vcpu);
 	void (*request_immediate_exit)(struct kvm_vcpu *vcpu);
 
 	void (*sched_in)(struct kvm_vcpu *kvm, int cpu);
@@ -1211,6 +1210,7 @@ struct kvm_x86_ops {
 
 	/* pmu operations of sub-arch */
 	const struct kvm_pmu_ops *pmu_ops;
+	const struct kvm_x86_nested_ops *nested_ops;
 
 	/*
 	 * Architecture specific hooks for vCPU blocking due to
@@ -1238,14 +1238,6 @@ struct kvm_x86_ops {
 
 	void (*setup_mce)(struct kvm_vcpu *vcpu);
 
-	int (*get_nested_state)(struct kvm_vcpu *vcpu,
-				struct kvm_nested_state __user *user_kvm_nested_state,
-				unsigned user_data_size);
-	int (*set_nested_state)(struct kvm_vcpu *vcpu,
-				struct kvm_nested_state __user *user_kvm_nested_state,
-				struct kvm_nested_state *kvm_state);
-	bool (*get_vmcs12_pages)(struct kvm_vcpu *vcpu);
-
 	int (*smi_allowed)(struct kvm_vcpu *vcpu);
 	int (*pre_enter_smm)(struct kvm_vcpu *vcpu, char *smstate);
 	int (*pre_leave_smm)(struct kvm_vcpu *vcpu, const char *smstate);
@@ -1257,14 +1249,25 @@ struct kvm_x86_ops {
 
 	int (*get_msr_feature)(struct kvm_msr_entry *entry);
 
-	int (*nested_enable_evmcs)(struct kvm_vcpu *vcpu,
-				   uint16_t *vmcs_version);
-	uint16_t (*nested_get_evmcs_version)(struct kvm_vcpu *vcpu);
-
 	bool (*need_emulation_on_page_fault)(struct kvm_vcpu *vcpu);
 
 	bool (*apic_init_signal_blocked)(struct kvm_vcpu *vcpu);
 	int (*enable_direct_tlbflush)(struct kvm_vcpu *vcpu);
+};
+
+struct kvm_x86_nested_ops {
+	int (*check_events)(struct kvm_vcpu *vcpu);
+	int (*get_state)(struct kvm_vcpu *vcpu,
+			 struct kvm_nested_state __user *user_kvm_nested_state,
+			 unsigned user_data_size);
+	int (*set_state)(struct kvm_vcpu *vcpu,
+			 struct kvm_nested_state __user *user_kvm_nested_state,
+			 struct kvm_nested_state *kvm_state);
+	bool (*get_vmcs12_pages)(struct kvm_vcpu *vcpu);
+
+	int (*enable_evmcs)(struct kvm_vcpu *vcpu,
+			    uint16_t *vmcs_version);
+	uint16_t (*get_evmcs_version)(struct kvm_vcpu *vcpu);
 };
 
 struct kvm_x86_init_ops {

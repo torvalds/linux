@@ -784,7 +784,7 @@ static bool nested_exit_on_intr(struct vcpu_svm *svm)
 	return (svm->nested.intercept & 1ULL);
 }
 
-int svm_check_nested_events(struct kvm_vcpu *vcpu)
+static int svm_check_nested_events(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 	bool block_nested_events =
@@ -825,3 +825,7 @@ int nested_svm_exit_special(struct vcpu_svm *svm)
 
 	return NESTED_EXIT_CONTINUE;
 }
+
+struct kvm_x86_nested_ops svm_nested_ops = {
+	.check_events = svm_check_nested_events,
+};

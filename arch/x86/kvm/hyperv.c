@@ -1799,8 +1799,8 @@ int kvm_vcpu_ioctl_get_hv_cpuid(struct kvm_vcpu *vcpu, struct kvm_cpuid2 *cpuid,
 	};
 	int i, nent = ARRAY_SIZE(cpuid_entries);
 
-	if (kvm_x86_ops.nested_get_evmcs_version)
-		evmcs_ver = kvm_x86_ops.nested_get_evmcs_version(vcpu);
+	if (kvm_x86_ops.nested_ops->get_evmcs_version)
+		evmcs_ver = kvm_x86_ops.nested_ops->get_evmcs_version(vcpu);
 
 	/* Skip NESTED_FEATURES if eVMCS is not supported */
 	if (!evmcs_ver)

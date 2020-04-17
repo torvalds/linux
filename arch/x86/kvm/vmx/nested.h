@@ -278,4 +278,6 @@ static inline bool nested_cr4_valid(struct kvm_vcpu *vcpu, unsigned long val)
 #define nested_guest_cr4_valid	nested_cr4_valid
 #define nested_host_cr4_valid	nested_cr4_valid
 
+extern struct kvm_x86_nested_ops vmx_nested_ops;
+
 #endif /* __KVM_X86_VMX_NESTED_H */
