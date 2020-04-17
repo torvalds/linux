@@ -796,7 +796,7 @@ void dce110_edp_power_control(
 		return;
 	}
 
-	if (link->panel_cntl)
+	if (!link->panel_cntl)
 		return;
 
 	if (power_up !=
