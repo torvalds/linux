@@ -31,6 +31,7 @@ ALL_TESTS="
 	ping_ipv4
 	test_update
 	test_no_update
+	test_pedit_norewrite
 	test_dscp_leftover
 "
 
@@ -54,6 +55,11 @@ reprioritize()
 zero()
 {
     echo 0
+}
+
+three()
+{
+    echo 3
 }
 
 h1_create()
@@ -103,6 +109,9 @@ switch_create()
 	simple_if_init $swp1 192.0.2.2/28
 	__simple_if_init $swp2 v$swp1 192.0.2.17/28
 
+	tc qdisc add dev $swp1 clsact
+	tc qdisc add dev $swp2 clsact
+
 	lldptool -T -i $swp1 -V APP $(dscp_map 0) >/dev/null
 	lldptool -T -i $swp2 -V APP $(dscp_map 0) >/dev/null
 	lldpad_app_wait_set $swp1
@@ -114,6 +123,9 @@ switch_destroy()
 	lldptool -T -i $swp2 -V APP -d $(dscp_map 0) >/dev/null
 	lldptool -T -i $swp1 -V APP -d $(dscp_map 0) >/dev/null
 	lldpad_app_wait_del
+
+	tc qdisc del dev $swp2 clsact
+	tc qdisc del dev $swp1 clsact
 
 	__simple_if_fini $swp2 192.0.2.17/28
 	simple_if_fini $swp1 192.0.2.2/28
@@ -223,18 +235,36 @@ __test_update()
 
 test_update()
 {
+	echo "Test net.ipv4.ip_forward_update_priority=1"
 	__test_update 1 reprioritize
 }
 
 test_no_update()
 {
+	echo "Test net.ipv4.ip_forward_update_priority=0"
 	__test_update 0 echo
+}
+
+# Test that when DSCP is updated in pedit, the DSCP rewrite is turned off.
+test_pedit_norewrite()
+{
+	echo "Test no DSCP rewrite after DSCP is updated by pedit"
+
+	tc filter add dev $swp1 ingress handle 101 pref 1 prot ip flower \
+	    action pedit ex munge ip dsfield set $((3 << 2)) retain 0xfc \
+	    action skbedit priority 3
+
+	__test_update 0 three
+
+	tc filter del dev $swp1 ingress pref 1
 }
 
 # Test that when the last APP rule is removed, the prio->DSCP map is properly
 # set to zeroes, and that the last APP rule does not stay active in the ASIC.
 test_dscp_leftover()
 {
+	echo "Test that last removed DSCP rule is deconfigured correctly"
+
 	lldptool -T -i $swp2 -V APP -d $(dscp_map 0) >/dev/null
 	lldpad_app_wait_del
 

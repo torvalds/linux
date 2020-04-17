@@ -343,6 +343,23 @@ void optc1_set_blank_data_double_buffer(struct timing_generator *optc, bool enab
 }
 
 /**
+ * optc1_set_timing_double_buffer() - DRR double buffering control
+ *
+ * Sets double buffer point for V_TOTAL, H_TOTAL, VTOTAL_MIN,
+ * VTOTAL_MAX, VTOTAL_MIN_SEL and VTOTAL_MAX_SEL registers.
+ *
+ * Options: any time,  start of frame, dp start of frame (range timing)
+ */
+void optc1_set_timing_double_buffer(struct timing_generator *optc, bool enable)
+{
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+	uint32_t mode = enable ? 2 : 0;
+
+	REG_UPDATE(OTG_DOUBLE_BUFFER_CONTROL,
+		   OTG_RANGE_TIMING_DBUF_UPDATE_MODE, mode);
+}
+
+/**
  * unblank_crtc
  * Call ASIC Control Object to UnBlank CRTC.
  */
@@ -1353,6 +1370,7 @@ void optc1_clear_optc_underflow(struct timing_generator *optc)
 void optc1_tg_init(struct timing_generator *optc)
 {
 	optc1_set_blank_data_double_buffer(optc, true);
+	optc1_set_timing_double_buffer(optc, true);
 	optc1_clear_optc_underflow(optc);
 }
 

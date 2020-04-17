@@ -124,6 +124,8 @@ required:
   - amlogic,ao-sysctrl
   - amlogic,canvas
 
+additionalProperties: false
+
 examples:
   - |
     vdec: video-decoder@c8820000 {

@@ -96,12 +96,19 @@ struct k10temp_data {
 	void (*read_tempreg)(struct pci_dev *pdev, u32 *regval);
 	int temp_offset;
 	u32 temp_adjust_mask;
-	bool show_tdie;
-	u32 show_tccd;
+	u32 show_temp;
 	u32 svi_addr[2];
+	bool is_zen;
 	bool show_current;
 	int cfactor[2];
 };
+
+#define TCTL_BIT	0
+#define TDIE_BIT	1
+#define TCCD_BIT(x)	((x) + 2)
+
+#define HAVE_TEMP(d, channel)	((d)->show_temp & BIT(channel))
+#define HAVE_TDIE(d)		HAVE_TEMP(d, TDIE_BIT)
 
 struct tctl_offset {
 	u8 model;
@@ -180,8 +187,8 @@ static long get_raw_temp(struct k10temp_data *data)
 }
 
 const char *k10temp_temp_label[] = {
-	"Tdie",
 	"Tctl",
+	"Tdie",
 	"Tccd1",
 	"Tccd2",
 	"Tccd3",
@@ -269,13 +276,13 @@ static int k10temp_read_temp(struct device *dev, u32 attr, int channel,
 	switch (attr) {
 	case hwmon_temp_input:
 		switch (channel) {
-		case 0:		/* Tdie */
-			*val = get_raw_temp(data) - data->temp_offset;
+		case 0:		/* Tctl */
+			*val = get_raw_temp(data);
 			if (*val < 0)
 				*val = 0;
 			break;
-		case 1:		/* Tctl */
-			*val = get_raw_temp(data);
+		case 1:		/* Tdie */
+			*val = get_raw_temp(data) - data->temp_offset;
 			if (*val < 0)
 				*val = 0;
 			break;
@@ -333,23 +340,11 @@ static umode_t k10temp_is_visible(const void *_data,
 	case hwmon_temp:
 		switch (attr) {
 		case hwmon_temp_input:
-			switch (channel) {
-			case 0:		/* Tdie, or Tctl if we don't show it */
-				break;
-			case 1:		/* Tctl */
-				if (!data->show_tdie)
-					return 0;
-				break;
-			case 2 ... 9:		/* Tccd{1-8} */
-				if (!(data->show_tccd & BIT(channel - 2)))
-					return 0;
-				break;
-			default:
+			if (!HAVE_TEMP(data, channel))
 				return 0;
-			}
 			break;
 		case hwmon_temp_max:
-			if (channel || data->show_tdie)
+			if (channel || data->is_zen)
 				return 0;
 			break;
 		case hwmon_temp_crit:
@@ -368,20 +363,9 @@ static umode_t k10temp_is_visible(const void *_data,
 				return 0;
 			break;
 		case hwmon_temp_label:
-			/* No labels if we don't show the die temperature */
-			if (!data->show_tdie)
+			/* Show temperature labels only on Zen CPUs */
+			if (!data->is_zen || !HAVE_TEMP(data, channel))
 				return 0;
-			switch (channel) {
-			case 0:		/* Tdie */
-			case 1:		/* Tctl */
-				break;
-			case 2 ... 9:		/* Tccd{1-8} */
-				if (!(data->show_tccd & BIT(channel - 2)))
-					return 0;
-				break;
-			default:
-				return 0;
-			}
 			break;
 		default:
 			return 0;
@@ -480,7 +464,7 @@ static void k10temp_init_debugfs(struct k10temp_data *data)
 	char name[32];
 
 	/* Only show debugfs data for Family 17h/18h CPUs */
-	if (!data->show_tdie)
+	if (!data->is_zen)
 		return;
 
 	scnprintf(name, sizeof(name), "k10temp-%s", pci_name(data->pdev));
@@ -546,7 +530,7 @@ static void k10temp_get_ccd_support(struct pci_dev *pdev,
 		amd_smn_read(amd_pci_dev_to_node_id(pdev),
 			     F17H_M70H_CCD_TEMP(i), &regval);
 		if (regval & F17H_M70H_CCD_TEMP_VALID)
-			data->show_tccd |= BIT(i);
+			data->show_temp |= BIT(TCCD_BIT(i));
 	}
 }
 
@@ -573,6 +557,7 @@ static int k10temp_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return -ENOMEM;
 
 	data->pdev = pdev;
+	data->show_temp |= BIT(TCTL_BIT);	/* Always show Tctl */
 
 	if (boot_cpu_data.x86 == 0x15 &&
 	    ((boot_cpu_data.x86_model & 0xf0) == 0x60 ||
@@ -582,7 +567,8 @@ static int k10temp_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	} else if (boot_cpu_data.x86 == 0x17 || boot_cpu_data.x86 == 0x18) {
 		data->temp_adjust_mask = CUR_TEMP_RANGE_SEL_MASK;
 		data->read_tempreg = read_tempreg_nb_f17;
-		data->show_tdie = true;
+		data->show_temp |= BIT(TDIE_BIT);	/* show Tdie */
+		data->is_zen = true;
 
 		switch (boot_cpu_data.x86_model) {
 		case 0x1:	/* Zen */

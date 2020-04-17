@@ -113,7 +113,6 @@ extern struct irq_chip irq_type_ia64_lsapic;	/* CPU-internal interrupt controlle
 #define ia64_register_ipi	ia64_native_register_ipi
 #define assign_irq_vector	ia64_native_assign_irq_vector
 #define free_irq_vector		ia64_native_free_irq_vector
-#define register_percpu_irq	ia64_native_register_percpu_irq
 #define ia64_resend_irq		ia64_native_resend_irq
 
 extern void ia64_native_register_ipi(void);
@@ -123,7 +122,6 @@ extern void ia64_native_free_irq_vector (int vector);
 extern int reserve_irq_vector (int vector);
 extern void __setup_vector_irq(int cpu);
 extern void ia64_send_ipi (int cpu, int vector, int delivery_mode, int redirect);
-extern void ia64_native_register_percpu_irq (ia64_vector vec, struct irqaction *action);
 extern void destroy_and_reserve_irq (unsigned int irq);
 
 #ifdef CONFIG_SMP

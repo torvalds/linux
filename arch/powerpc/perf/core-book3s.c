@@ -518,6 +518,7 @@ static void power_pmu_bhrb_read(struct perf_event *event, struct cpu_hw_events *
 		}
 	}
 	cpuhw->bhrb_stack.nr = u_index;
+	cpuhw->bhrb_stack.hw_idx = -1ULL;
 	return;
 }
 

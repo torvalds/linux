@@ -192,7 +192,7 @@ struct rc_dev {
 	struct timer_list		timer_repeat;
 	u32				last_keycode;
 	enum rc_proto			last_protocol;
-	u32				last_scancode;
+	u64				last_scancode;
 	u8				last_toggle;
 	u32				timeout;
 	u32				min_timeout;
@@ -284,12 +284,12 @@ int devm_rc_register_device(struct device *parent, struct rc_dev *dev);
 void rc_unregister_device(struct rc_dev *dev);
 
 void rc_repeat(struct rc_dev *dev);
-void rc_keydown(struct rc_dev *dev, enum rc_proto protocol, u32 scancode,
+void rc_keydown(struct rc_dev *dev, enum rc_proto protocol, u64 scancode,
 		u8 toggle);
 void rc_keydown_notimeout(struct rc_dev *dev, enum rc_proto protocol,
-			  u32 scancode, u8 toggle);
+			  u64 scancode, u8 toggle);
 void rc_keyup(struct rc_dev *dev);
-u32 rc_g_keycode_from_table(struct rc_dev *dev, u32 scancode);
+u32 rc_g_keycode_from_table(struct rc_dev *dev, u64 scancode);
 
 /*
  * From rc-raw.c

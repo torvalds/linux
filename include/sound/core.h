@@ -266,6 +266,7 @@ void snd_device_disconnect(struct snd_card *card, void *device_data);
 void snd_device_disconnect_all(struct snd_card *card);
 void snd_device_free(struct snd_card *card, void *device_data);
 void snd_device_free_all(struct snd_card *card);
+int snd_device_get_state(struct snd_card *card, void *device_data);
 
 /* isadma.c */
 

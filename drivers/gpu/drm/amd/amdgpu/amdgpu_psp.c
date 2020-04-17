@@ -159,10 +159,6 @@ static int psp_sw_fini(void *handle)
 	adev->psp.sos_fw = NULL;
 	release_firmware(adev->psp.asd_fw);
 	adev->psp.asd_fw = NULL;
-	if (adev->psp.cap_fw) {
-		release_firmware(adev->psp.cap_fw);
-		adev->psp.cap_fw = NULL;
-	}
 	if (adev->psp.ta_fw) {
 		release_firmware(adev->psp.ta_fw);
 		adev->psp.ta_fw = NULL;
@@ -250,7 +246,7 @@ psp_cmd_submit_buf(struct psp_context *psp,
 		DRM_WARN("psp command (0x%X) failed and response status is (0x%X)\n",
 			 psp->cmd_buf_mem->cmd_id,
 			 psp->cmd_buf_mem->resp.status);
-		if ((ucode->ucode_id == AMDGPU_UCODE_ID_CAP) || !timeout) {
+		if (!timeout) {
 			mutex_unlock(&psp->mutex);
 			return -EINVAL;
 		}
@@ -822,7 +818,7 @@ static int psp_ras_initialize(struct psp_context *psp)
 
 	if (!psp->adev->psp.ta_ras_ucode_size ||
 	    !psp->adev->psp.ta_ras_start_addr) {
-		dev_warn(psp->adev->dev, "RAS: ras ta ucode is not available\n");
+		dev_info(psp->adev->dev, "RAS: optional ras ta ucode is not available\n");
 		return 0;
 	}
 
@@ -906,7 +902,7 @@ static int psp_hdcp_initialize(struct psp_context *psp)
 
 	if (!psp->adev->psp.ta_hdcp_ucode_size ||
 	    !psp->adev->psp.ta_hdcp_start_addr) {
-		dev_warn(psp->adev->dev, "HDCP: hdcp ta ucode is not available\n");
+		dev_info(psp->adev->dev, "HDCP: optional hdcp ta ucode is not available\n");
 		return 0;
 	}
 
@@ -1052,7 +1048,7 @@ static int psp_dtm_initialize(struct psp_context *psp)
 
 	if (!psp->adev->psp.ta_dtm_ucode_size ||
 	    !psp->adev->psp.ta_dtm_start_addr) {
-		dev_warn(psp->adev->dev, "DTM: dtm ta ucode is not available\n");
+		dev_info(psp->adev->dev, "DTM: optional dtm ta ucode is not available\n");
 		return 0;
 	}
 
@@ -1192,9 +1188,6 @@ static int psp_get_fw_type(struct amdgpu_firmware_info *ucode,
 			   enum psp_gfx_fw_type *type)
 {
 	switch (ucode->ucode_id) {
-	case AMDGPU_UCODE_ID_CAP:
-		*type = GFX_FW_TYPE_CAP;
-		break;
 	case AMDGPU_UCODE_ID_SDMA0:
 		*type = GFX_FW_TYPE_SDMA0;
 		break;

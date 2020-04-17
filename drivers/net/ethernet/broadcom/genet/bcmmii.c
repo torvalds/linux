@@ -5,7 +5,7 @@
  * Copyright (c) 2014-2017 Broadcom
  */
 
-
+#include <linux/acpi.h>
 #include <linux/types.h>
 #include <linux/delay.h>
 #include <linux/wait.h>
@@ -95,6 +95,12 @@ void bcmgenet_mii_setup(struct net_device *dev)
 			       CMD_HD_EN |
 			       CMD_RX_PAUSE_IGNORE | CMD_TX_PAUSE_IGNORE);
 		reg |= cmd_bits;
+		if (reg & CMD_SW_RESET) {
+			reg &= ~CMD_SW_RESET;
+			bcmgenet_umac_writel(priv, reg, UMAC_CMD);
+			udelay(2);
+			reg |= CMD_TX_EN | CMD_RX_EN;
+		}
 		bcmgenet_umac_writel(priv, reg, UMAC_CMD);
 	} else {
 		/* done if nothing has changed */
@@ -181,37 +187,7 @@ int bcmgenet_mii_config(struct net_device *dev, bool init)
 	const char *phy_name = NULL;
 	u32 id_mode_dis = 0;
 	u32 port_ctrl;
-	int bmcr = -1;
-	int ret;
 	u32 reg;
-
-	/* MAC clocking workaround during reset of umac state machines */
-	reg = bcmgenet_umac_readl(priv, UMAC_CMD);
-	if (reg & CMD_SW_RESET) {
-		/* An MII PHY must be isolated to prevent TXC contention */
-		if (priv->phy_interface == PHY_INTERFACE_MODE_MII) {
-			ret = phy_read(phydev, MII_BMCR);
-			if (ret >= 0) {
-				bmcr = ret;
-				ret = phy_write(phydev, MII_BMCR,
-						bmcr | BMCR_ISOLATE);
-			}
-			if (ret) {
-				netdev_err(dev, "failed to isolate PHY\n");
-				return ret;
-			}
-		}
-		/* Switch MAC clocking to RGMII generated clock */
-		bcmgenet_sys_writel(priv, PORT_MODE_EXT_GPHY, SYS_PORT_CTRL);
-		/* Ensure 5 clks with Rx disabled
-		 * followed by 5 clks with Reset asserted
-		 */
-		udelay(4);
-		reg &= ~(CMD_SW_RESET | CMD_LCL_LOOP_EN);
-		bcmgenet_umac_writel(priv, reg, UMAC_CMD);
-		/* Ensure 5 more clocks before Rx is enabled */
-		udelay(2);
-	}
 
 	switch (priv->phy_interface) {
 	case PHY_INTERFACE_MODE_INTERNAL:
@@ -282,10 +258,6 @@ int bcmgenet_mii_config(struct net_device *dev, bool init)
 
 	bcmgenet_sys_writel(priv, port_ctrl, SYS_PORT_CTRL);
 
-	/* Restore the MII PHY after isolation */
-	if (bmcr >= 0)
-		phy_write(phydev, MII_BMCR, bmcr);
-
 	priv->ext_phy = !priv->internal_phy &&
 			(priv->phy_interface != PHY_INTERFACE_MODE_MOCA);
 
@@ -312,7 +284,8 @@ int bcmgenet_mii_config(struct net_device *dev, bool init)
 int bcmgenet_mii_probe(struct net_device *dev)
 {
 	struct bcmgenet_priv *priv = netdev_priv(dev);
-	struct device_node *dn = priv->pdev->dev.of_node;
+	struct device *kdev = &priv->pdev->dev;
+	struct device_node *dn = kdev->of_node;
 	struct phy_device *phydev;
 	u32 phy_flags = 0;
 	int ret;
@@ -335,7 +308,27 @@ int bcmgenet_mii_probe(struct net_device *dev)
 			return -ENODEV;
 		}
 	} else {
-		phydev = dev->phydev;
+		if (has_acpi_companion(kdev)) {
+			char mdio_bus_id[MII_BUS_ID_SIZE];
+			struct mii_bus *unimacbus;
+
+			snprintf(mdio_bus_id, MII_BUS_ID_SIZE, "%s-%d",
+				 UNIMAC_MDIO_DRV_NAME, priv->pdev->id);
+
+			unimacbus = mdio_find_bus(mdio_bus_id);
+			if (!unimacbus) {
+				pr_err("Unable to find mii\n");
+				return -ENODEV;
+			}
+			phydev = phy_find_first(unimacbus);
+			put_device(&unimacbus->dev);
+			if (!phydev) {
+				pr_err("Unable to find PHY\n");
+				return -ENODEV;
+			}
+		} else {
+			phydev = dev->phydev;
+		}
 		phydev->dev_flags = phy_flags;
 
 		ret = phy_connect_direct(dev, phydev, bcmgenet_mii_setup,
@@ -456,9 +449,12 @@ static int bcmgenet_mii_register(struct bcmgenet_priv *priv)
 	/* Retain this platform_device pointer for later cleanup */
 	priv->mii_pdev = ppdev;
 	ppdev->dev.parent = &pdev->dev;
-	ppdev->dev.of_node = bcmgenet_mii_of_find_mdio(priv);
-	if (pdata)
+	if (dn)
+		ppdev->dev.of_node = bcmgenet_mii_of_find_mdio(priv);
+	else if (pdata)
 		bcmgenet_mii_pdata_init(priv, &ppd);
+	else
+		ppd.phy_mask = ~0;
 
 	ret = platform_device_add_resources(ppdev, &res, 1);
 	if (ret)
@@ -478,12 +474,33 @@ out:
 	return ret;
 }
 
+static int bcmgenet_phy_interface_init(struct bcmgenet_priv *priv)
+{
+	struct device *kdev = &priv->pdev->dev;
+	int phy_mode = device_get_phy_mode(kdev);
+
+	if (phy_mode < 0) {
+		dev_err(kdev, "invalid PHY mode property\n");
+		return phy_mode;
+	}
+
+	priv->phy_interface = phy_mode;
+
+	/* We need to specifically look up whether this PHY interface is
+	 * internal or not *before* we even try to probe the PHY driver
+	 * over MDIO as we may have shut down the internal PHY for power
+	 * saving purposes.
+	 */
+	if (priv->phy_interface == PHY_INTERFACE_MODE_INTERNAL)
+		priv->internal_phy = true;
+
+	return 0;
+}
+
 static int bcmgenet_mii_of_init(struct bcmgenet_priv *priv)
 {
 	struct device_node *dn = priv->pdev->dev.of_node;
-	struct device *kdev = &priv->pdev->dev;
 	struct phy_device *phydev;
-	phy_interface_t phy_mode;
 	int ret;
 
 	/* Fetch the PHY phandle */
@@ -501,23 +518,12 @@ static int bcmgenet_mii_of_init(struct bcmgenet_priv *priv)
 	}
 
 	/* Get the link mode */
-	ret = of_get_phy_mode(dn, &phy_mode);
-	if (ret) {
-		dev_err(kdev, "invalid PHY mode property\n");
+	ret = bcmgenet_phy_interface_init(priv);
+	if (ret)
 		return ret;
-	}
-
-	priv->phy_interface = phy_mode;
-
-	/* We need to specifically look up whether this PHY interface is internal
-	 * or not *before* we even try to probe the PHY driver over MDIO as we
-	 * may have shut down the internal PHY for power saving purposes.
-	 */
-	if (priv->phy_interface == PHY_INTERFACE_MODE_INTERNAL)
-		priv->internal_phy = true;
 
 	/* Make sure we initialize MoCA PHYs with a link down */
-	if (phy_mode == PHY_INTERFACE_MODE_MOCA) {
+	if (priv->phy_interface == PHY_INTERFACE_MODE_MOCA) {
 		phydev = of_phy_find_device(dn);
 		if (phydev) {
 			phydev->link = 0;
@@ -582,10 +588,13 @@ static int bcmgenet_mii_pd_init(struct bcmgenet_priv *priv)
 
 static int bcmgenet_mii_bus_init(struct bcmgenet_priv *priv)
 {
-	struct device_node *dn = priv->pdev->dev.of_node;
+	struct device *kdev = &priv->pdev->dev;
+	struct device_node *dn = kdev->of_node;
 
 	if (dn)
 		return bcmgenet_mii_of_init(priv);
+	else if (has_acpi_companion(kdev))
+		return bcmgenet_phy_interface_init(priv);
 	else
 		return bcmgenet_mii_pd_init(priv);
 }

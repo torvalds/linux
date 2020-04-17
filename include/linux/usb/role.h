@@ -13,8 +13,9 @@ enum usb_role {
 	USB_ROLE_DEVICE,
 };
 
-typedef int (*usb_role_switch_set_t)(struct device *dev, enum usb_role role);
-typedef enum usb_role (*usb_role_switch_get_t)(struct device *dev);
+typedef int (*usb_role_switch_set_t)(struct usb_role_switch *sw,
+				     enum usb_role role);
+typedef enum usb_role (*usb_role_switch_get_t)(struct usb_role_switch *sw);
 
 /**
  * struct usb_role_switch_desc - USB Role Switch Descriptor
@@ -25,6 +26,8 @@ typedef enum usb_role (*usb_role_switch_get_t)(struct device *dev);
  * @set: Callback for setting the role
  * @get: Callback for getting the role (optional)
  * @allow_userspace_control: If true userspace may change the role through sysfs
+ * @driver_data: Private data pointer
+ * @name: Name for the switch (optional)
  *
  * @usb2_port and @usb3_port will point to the USB host port and @udc to the USB
  * device controller behind the USB connector with the role switch. If
@@ -40,6 +43,8 @@ struct usb_role_switch_desc {
 	usb_role_switch_set_t set;
 	usb_role_switch_get_t get;
 	bool allow_userspace_control;
+	void *driver_data;
+	const char *name;
 };
 
 
@@ -57,6 +62,9 @@ struct usb_role_switch *
 usb_role_switch_register(struct device *parent,
 			 const struct usb_role_switch_desc *desc);
 void usb_role_switch_unregister(struct usb_role_switch *sw);
+
+void usb_role_switch_set_drvdata(struct usb_role_switch *sw, void *data);
+void *usb_role_switch_get_drvdata(struct usb_role_switch *sw);
 #else
 static inline int usb_role_switch_set_role(struct usb_role_switch *sw,
 		enum usb_role role)
@@ -90,6 +98,17 @@ usb_role_switch_register(struct device *parent,
 }
 
 static inline void usb_role_switch_unregister(struct usb_role_switch *sw) { }
+
+static inline void
+usb_role_switch_set_drvdata(struct usb_role_switch *sw, void *data)
+{
+}
+
+static inline void *usb_role_switch_get_drvdata(struct usb_role_switch *sw)
+{
+	return NULL;
+}
+
 #endif
 
 #endif /* __LINUX_USB_ROLE_H */

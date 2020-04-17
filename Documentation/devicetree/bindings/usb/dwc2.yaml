@@ -18,46 +18,33 @@ properties:
           - const: rockchip,rk3066-usb
           - const: snps,dwc2
       - items:
-          - const: rockchip,px30-usb
-          - const: rockchip,rk3066-usb
-          - const: snps,dwc2
-      - items:
-          - const: rockchip,rk3036-usb
-          - const: rockchip,rk3066-usb
-          - const: snps,dwc2
-      - items:
-          - const: rockchip,rv1108-usb
-          - const: rockchip,rk3066-usb
-          - const: snps,dwc2
-      - items:
-          - const: rockchip,rk3188-usb
-          - const: rockchip,rk3066-usb
-          - const: snps,dwc2
-      - items:
-          - const: rockchip,rk3228-usb
-          - const: rockchip,rk3066-usb
-          - const: snps,dwc2
-      - items:
-          - const: rockchip,rk3288-usb
+          - enum:
+            - rockchip,px30-usb
+            - rockchip,rk3036-usb
+            - rockchip,rk3188-usb
+            - rockchip,rk3228-usb
+            - rockchip,rk3288-usb
+            - rockchip,rk3328-usb
+            - rockchip,rk3368-usb
+            - rockchip,rv1108-usb
           - const: rockchip,rk3066-usb
           - const: snps,dwc2
       - const: lantiq,arx100-usb
       - const: lantiq,xrx200-usb
       - items:
-          - const: amlogic,meson8-usb
-          - const: snps,dwc2
-      - items:
-          - const: amlogic,meson8b-usb
-          - const: snps,dwc2
-      - const: amlogic,meson-gxbb-usb
-      - items:
-          - const: amlogic,meson-g12a-usb
+          - enum:
+            - amlogic,meson8-usb
+            - amlogic,meson8b-usb
+            - amlogic,meson-gxbb-usb
+            - amlogic,meson-g12a-usb
           - const: snps,dwc2
       - const: amcc,dwc-otg
       - const: snps,dwc2
       - const: st,stm32f4x9-fsotg
       - const: st,stm32f4x9-hsotg
       - const: st,stm32f7-hsotg
+      - const: st,stm32mp15-fsotg
+      - const: st,stm32mp15-hsotg
       - const: samsung,s3c6400-hsotg
 
   reg:
@@ -102,6 +89,10 @@ properties:
 
   vusb_a-supply:
     description: phandle to voltage regulator of analog section.
+
+  vusb33d-supply:
+    description: reference to the VBUS and ID sensing comparators supply, in
+      order to perform OTG operation, used on STM32MP15 SoCs.
 
   dr_mode:
     enum: [host, peripheral, otg]

@@ -28,13 +28,15 @@
 #include "smu_internal.h"
 #include "atomfirmware.h"
 #include "amdgpu_atomfirmware.h"
+#include "soc15_common.h"
 #include "smu_v11_0.h"
 #include "smu11_driver_if_navi10.h"
 #include "atom.h"
 #include "navi10_ppt.h"
 #include "smu_v11_0_pptable.h"
 #include "smu_v11_0_ppsmc.h"
-#include "nbio/nbio_7_4_sh_mask.h"
+#include "nbio/nbio_2_3_offset.h"
+#include "nbio/nbio_2_3_sh_mask.h"
 
 #include "asic_reg/mp/mp_11_0_sh_mask.h"
 
@@ -347,7 +349,6 @@ navi10_get_allowed_feature_mask(struct smu_context *smu,
 				| FEATURE_MASK(FEATURE_DS_DCEFCLK_BIT)
 				| FEATURE_MASK(FEATURE_FW_DSTATE_BIT)
 				| FEATURE_MASK(FEATURE_BACO_BIT)
-				| FEATURE_MASK(FEATURE_ACDC_BIT)
 				| FEATURE_MASK(FEATURE_GFX_SS_BIT)
 				| FEATURE_MASK(FEATURE_APCC_DFLL_BIT)
 				| FEATURE_MASK(FEATURE_FW_CTF_BIT)
@@ -390,6 +391,9 @@ navi10_get_allowed_feature_mask(struct smu_context *smu,
 
 	if (smu->adev->pg_flags & AMD_PG_SUPPORT_JPEG)
 		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_JPEG_PG_BIT);
+
+	if (smu->dc_controlled_by_gpio)
+		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_ACDC_BIT);
 
 	/* disable DPM UCLK and DS SOCCLK on navi10 A0 secure board */
 	if (is_asic_secure(smu)) {
@@ -524,6 +528,9 @@ static int navi10_store_powerplay_table(struct smu_context *smu)
 	       sizeof(PPTable_t));
 
 	table_context->thermal_controller_type = powerplay_table->thermal_controller_type;
+
+	if (powerplay_table->platform_caps & SMU_11_0_PP_PLATFORM_CAP_HARDWAREDC)
+		smu->dc_controlled_by_gpio = true;
 
 	mutex_lock(&smu_baco->mutex);
 	if (powerplay_table->platform_caps & SMU_11_0_PP_PLATFORM_CAP_BACO ||
@@ -1980,6 +1987,18 @@ static int navi10_setup_od_limits(struct smu_context *smu) {
 	return 0;
 }
 
+static bool navi10_is_baco_supported(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+	uint32_t val;
+
+	if (!smu_v11_0_baco_is_support(smu))
+		return false;
+
+	val = RREG32_SOC15(NBIO, 0, mmRCC_BIF_STRAP0);
+	return (val & RCC_BIF_STRAP0__STRAP_PX_CAPABLE_MASK) ? true : false;
+}
+
 static int navi10_set_default_od_settings(struct smu_context *smu, bool initialize) {
 	OverDriveTable_t *od_table, *boot_od_table;
 	int ret = 0;
@@ -2356,7 +2375,7 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.register_irq_handler = smu_v11_0_register_irq_handler,
 	.set_azalia_d3_pme = smu_v11_0_set_azalia_d3_pme,
 	.get_max_sustainable_clocks_by_dc = smu_v11_0_get_max_sustainable_clocks_by_dc,
-	.baco_is_support= smu_v11_0_baco_is_support,
+	.baco_is_support= navi10_is_baco_supported,
 	.baco_get_state = smu_v11_0_baco_get_state,
 	.baco_set_state = smu_v11_0_baco_set_state,
 	.baco_enter = smu_v11_0_baco_enter,
@@ -2369,6 +2388,7 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.get_pptable_power_limit = navi10_get_pptable_power_limit,
 	.run_btc = navi10_run_btc,
 	.disable_umc_cdr_12gbps_workaround = navi10_disable_umc_cdr_12gbps_workaround,
+	.set_power_source = smu_v11_0_set_power_source,
 };
 
 void navi10_set_ppt_funcs(struct smu_context *smu)

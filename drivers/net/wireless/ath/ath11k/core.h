@@ -20,6 +20,7 @@
 #include "hw.h"
 #include "hal_rx.h"
 #include "reg.h"
+#include "thermal.h"
 
 #define SM(_v, _f) (((_v) << _f##_LSB) & _f##_MASK)
 
@@ -76,6 +77,8 @@ struct ath11k_skb_rxcb {
 	u8 err_code;
 	u8 mac_id;
 	u8 unmapped;
+	u8 is_frag;
+	u8 tid;
 };
 
 enum ath11k_hw_rev {
@@ -108,12 +111,9 @@ struct ath11k_ext_irq_grp {
 	u32 irqs[ATH11K_EXT_IRQ_NUM_MAX];
 	u32 num_irq;
 	u32 grp_id;
+	u64 timestamp;
 	struct napi_struct napi;
 	struct net_device napi_ndev;
-	/* Queue of pending packets, not expected to be accessed concurrently
-	 * to avoid locking overhead.
-	 */
-	struct sk_buff_head pending_q;
 };
 
 #define HEHANDLE_CAP_PHYINFO_SIZE       3
@@ -243,6 +243,8 @@ struct ath11k_rx_peer_stats {
 	u64 pream_cnt[HAL_RX_PREAMBLE_MAX];
 	u64 reception_type[HAL_RX_RECEPTION_TYPE_MAX];
 	u64 rx_duration;
+	u64 dcm_count;
+	u64 ru_alloc_cnt[HAL_RX_RU_ALLOC_TYPE_MAX];
 };
 
 #define ATH11K_HE_MCS_NUM       12
@@ -329,9 +331,9 @@ struct ath11k_sta {
 	u32 bw;
 	u32 nss;
 	u32 smps;
+	enum hal_pn_type pn_type;
 
 	struct work_struct update_wk;
-	struct ieee80211_tx_info tx_info;
 	struct rate_info txrate;
 	struct rate_info last_txrate;
 	u64 rx_duration;
@@ -486,6 +488,7 @@ struct ath11k {
 	int max_num_peers;
 	u32 num_started_vdevs;
 	u32 num_created_vdevs;
+	unsigned long long allocated_vdev_map;
 
 	struct idr txmgmt_idr;
 	/* protects txmgmt_idr data */
@@ -524,6 +527,7 @@ struct ath11k {
 	struct ath11k_debug debug;
 #endif
 	bool dfs_block_radar_events;
+	struct ath11k_thermal thermal;
 };
 
 struct ath11k_band_cap {

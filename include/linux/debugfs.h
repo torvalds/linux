@@ -35,6 +35,7 @@ struct debugfs_regset32 {
 	const struct debugfs_reg32 *regs;
 	int nregs;
 	void __iomem *base;
+	struct device *dev;	/* Optional device for Runtime PM */
 };
 
 extern struct dentry *arch_debugfs_dir;
@@ -67,10 +68,10 @@ struct dentry *debugfs_create_file_unsafe(const char *name, umode_t mode,
 				   struct dentry *parent, void *data,
 				   const struct file_operations *fops);
 
-struct dentry *debugfs_create_file_size(const char *name, umode_t mode,
-					struct dentry *parent, void *data,
-					const struct file_operations *fops,
-					loff_t file_size);
+void debugfs_create_file_size(const char *name, umode_t mode,
+			      struct dentry *parent, void *data,
+			      const struct file_operations *fops,
+			      loff_t file_size);
 
 struct dentry *debugfs_create_dir(const char *name, struct dentry *parent);
 
@@ -181,13 +182,11 @@ static inline struct dentry *debugfs_create_file_unsafe(const char *name,
 	return ERR_PTR(-ENODEV);
 }
 
-static inline struct dentry *debugfs_create_file_size(const char *name, umode_t mode,
-					struct dentry *parent, void *data,
-					const struct file_operations *fops,
-					loff_t file_size)
-{
-	return ERR_PTR(-ENODEV);
-}
+static inline void debugfs_create_file_size(const char *name, umode_t mode,
+					    struct dentry *parent, void *data,
+					    const struct file_operations *fops,
+					    loff_t file_size)
+{ }
 
 static inline struct dentry *debugfs_create_dir(const char *name,
 						struct dentry *parent)

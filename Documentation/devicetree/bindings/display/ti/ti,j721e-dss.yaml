@@ -98,7 +98,7 @@ properties:
   ports:
     type: object
     description:
-      Ports as described in Documentation/devictree/bindings/graph.txt
+      Ports as described in Documentation/devicetree/bindings/graph.txt
     properties:
       "#address-cells":
         const: 1
@@ -154,7 +154,7 @@ examples:
     #include <dt-bindings/interrupt-controller/irq.h>
     #include <dt-bindings/soc/ti,sci_pm_domain.h>
 
-    dss: dss@04a00000 {
+    dss: dss@4a00000 {
             compatible = "ti,j721e-dss";
             reg =   <0x00 0x04a00000 0x00 0x10000>, /* common_m */
                     <0x00 0x04a10000 0x00 0x10000>, /* common_s0*/

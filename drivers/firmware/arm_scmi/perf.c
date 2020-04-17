@@ -89,7 +89,7 @@ struct scmi_msg_resp_perf_describe_levels {
 		__le32 power;
 		__le16 transition_latency_us;
 		__le16 reserved;
-	} opp[0];
+	} opp[];
 };
 
 struct scmi_perf_get_fc_info {

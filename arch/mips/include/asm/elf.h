@@ -445,6 +445,9 @@ extern unsigned int elf_hwcap;
 #define ELF_PLATFORM  __elf_platform
 extern const char *__elf_platform;
 
+#define ELF_BASE_PLATFORM  __elf_base_platform
+extern const char *__elf_base_platform;
+
 /*
  * See comments in asm-alpha/elf.h, this is the same thing
  * on the MIPS.

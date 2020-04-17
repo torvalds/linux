@@ -102,7 +102,7 @@ int i2c_dw_set_reg_access(struct dw_i2c_dev *dev)
 	i2c_dw_release_lock(dev);
 
 	if (reg == swab32(DW_IC_COMP_TYPE_VALUE)) {
-		/* Configure register endianess access */
+		/* Configure register endianness access */
 		dev->flags |= ACCESS_SWAP;
 	} else if (reg == (DW_IC_COMP_TYPE_VALUE & 0x0000ffff)) {
 		/* Configure register access mode 16bit */
@@ -190,10 +190,10 @@ int i2c_dw_set_sda_hold(struct dw_i2c_dev *dev)
 
 		/*
 		 * Workaround for avoiding TX arbitration lost in case I2C
-		 * slave pulls SDA down "too quickly" after falling egde of
+		 * slave pulls SDA down "too quickly" after falling edge of
 		 * SCL by enabling non-zero SDA RX hold. Specification says it
 		 * extends incoming SDA low to high transition while SCL is
-		 * high but it apprears to help also above issue.
+		 * high but it appears to help also above issue.
 		 */
 		if (!(dev->sda_hold_time & DW_IC_SDA_HOLD_RX_MASK))
 			dev->sda_hold_time |= 1 << DW_IC_SDA_HOLD_RX_SHIFT;
@@ -344,6 +344,28 @@ int i2c_dw_handle_tx_abort(struct dw_i2c_dev *dev)
 		return -EIO;
 }
 
+void i2c_dw_set_fifo_size(struct dw_i2c_dev *dev)
+{
+	u32 param, tx_fifo_depth, rx_fifo_depth;
+
+	/*
+	 * Try to detect the FIFO depth if not set by interface driver,
+	 * the depth could be from 2 to 256 from HW spec.
+	 */
+	param = dw_readl(dev, DW_IC_COMP_PARAM_1);
+	tx_fifo_depth = ((param >> 16) & 0xff) + 1;
+	rx_fifo_depth = ((param >> 8)  & 0xff) + 1;
+	if (!dev->tx_fifo_depth) {
+		dev->tx_fifo_depth = tx_fifo_depth;
+		dev->rx_fifo_depth = rx_fifo_depth;
+	} else if (tx_fifo_depth >= 2) {
+		dev->tx_fifo_depth = min_t(u32, dev->tx_fifo_depth,
+				tx_fifo_depth);
+		dev->rx_fifo_depth = min_t(u32, dev->rx_fifo_depth,
+				rx_fifo_depth);
+	}
+}
+
 u32 i2c_dw_func(struct i2c_adapter *adap)
 {
 	struct dw_i2c_dev *dev = i2c_get_adapdata(adap);
@@ -356,7 +378,7 @@ void i2c_dw_disable(struct dw_i2c_dev *dev)
 	/* Disable controller */
 	__i2c_dw_disable(dev);
 
-	/* Disable all interupts */
+	/* Disable all interrupts */
 	dw_writel(dev, 0, DW_IC_INTR_MASK);
 	dw_readl(dev, DW_IC_CLR_INTR);
 }
@@ -365,12 +387,6 @@ void i2c_dw_disable_int(struct dw_i2c_dev *dev)
 {
 	dw_writel(dev, 0, DW_IC_INTR_MASK);
 }
-
-u32 i2c_dw_read_comp_param(struct dw_i2c_dev *dev)
-{
-	return dw_readl(dev, DW_IC_COMP_PARAM_1);
-}
-EXPORT_SYMBOL_GPL(i2c_dw_read_comp_param);
 
 MODULE_DESCRIPTION("Synopsys DesignWare I2C bus adapter core");
 MODULE_LICENSE("GPL");

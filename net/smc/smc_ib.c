@@ -37,11 +37,7 @@ struct smc_ib_devices smc_ib_devices = {	/* smc-registered ib devices */
 	.list = LIST_HEAD_INIT(smc_ib_devices.list),
 };
 
-#define SMC_LOCAL_SYSTEMID_RESET	"%%%%%%%"
-
-u8 local_systemid[SMC_SYSTEMID_LEN] = SMC_LOCAL_SYSTEMID_RESET;	/* unique system
-								 * identifier
-								 */
+u8 local_systemid[SMC_SYSTEMID_LEN];		/* unique system identifier */
 
 static int smc_ib_modify_qp_init(struct smc_link *lnk)
 {
@@ -168,6 +164,15 @@ static inline void smc_ib_define_local_systemid(struct smc_ib_device *smcibdev,
 {
 	memcpy(&local_systemid[2], &smcibdev->mac[ibport - 1],
 	       sizeof(smcibdev->mac[ibport - 1]));
+}
+
+bool smc_ib_is_valid_local_systemid(void)
+{
+	return !is_zero_ether_addr(&local_systemid[2]);
+}
+
+static void smc_ib_init_local_systemid(void)
+{
 	get_random_bytes(&local_systemid[0], 2);
 }
 
@@ -224,8 +229,7 @@ static int smc_ib_remember_port_attr(struct smc_ib_device *smcibdev, u8 ibport)
 	rc = smc_ib_fill_mac(smcibdev, ibport);
 	if (rc)
 		goto out;
-	if (!strncmp(local_systemid, SMC_LOCAL_SYSTEMID_RESET,
-		     sizeof(local_systemid)) &&
+	if (!smc_ib_is_valid_local_systemid() &&
 	    smc_ib_port_active(smcibdev, ibport))
 		/* create unique system identifier */
 		smc_ib_define_local_systemid(smcibdev, ibport);
@@ -257,6 +261,7 @@ static void smc_ib_global_event_handler(struct ib_event_handler *handler,
 					struct ib_event *ibevent)
 {
 	struct smc_ib_device *smcibdev;
+	bool schedule = false;
 	u8 port_idx;
 
 	smcibdev = container_of(handler, struct smc_ib_device, event_handler);
@@ -266,22 +271,35 @@ static void smc_ib_global_event_handler(struct ib_event_handler *handler,
 		/* terminate all ports on device */
 		for (port_idx = 0; port_idx < SMC_MAX_PORTS; port_idx++) {
 			set_bit(port_idx, &smcibdev->port_event_mask);
-			set_bit(port_idx, smcibdev->ports_going_away);
+			if (!test_and_set_bit(port_idx,
+					      smcibdev->ports_going_away))
+				schedule = true;
 		}
-		schedule_work(&smcibdev->port_event_work);
+		if (schedule)
+			schedule_work(&smcibdev->port_event_work);
+		break;
+	case IB_EVENT_PORT_ACTIVE:
+		port_idx = ibevent->element.port_num - 1;
+		if (port_idx >= SMC_MAX_PORTS)
+			break;
+		set_bit(port_idx, &smcibdev->port_event_mask);
+		if (test_and_clear_bit(port_idx, smcibdev->ports_going_away))
+			schedule_work(&smcibdev->port_event_work);
 		break;
 	case IB_EVENT_PORT_ERR:
-	case IB_EVENT_PORT_ACTIVE:
+		port_idx = ibevent->element.port_num - 1;
+		if (port_idx >= SMC_MAX_PORTS)
+			break;
+		set_bit(port_idx, &smcibdev->port_event_mask);
+		if (!test_and_set_bit(port_idx, smcibdev->ports_going_away))
+			schedule_work(&smcibdev->port_event_work);
+		break;
 	case IB_EVENT_GID_CHANGE:
 		port_idx = ibevent->element.port_num - 1;
-		if (port_idx < SMC_MAX_PORTS) {
-			set_bit(port_idx, &smcibdev->port_event_mask);
-			if (ibevent->event == IB_EVENT_PORT_ERR)
-				set_bit(port_idx, smcibdev->ports_going_away);
-			else if (ibevent->event == IB_EVENT_PORT_ACTIVE)
-				clear_bit(port_idx, smcibdev->ports_going_away);
-			schedule_work(&smcibdev->port_event_work);
-		}
+		if (port_idx >= SMC_MAX_PORTS)
+			break;
+		set_bit(port_idx, &smcibdev->port_event_mask);
+		schedule_work(&smcibdev->port_event_work);
 		break;
 	default:
 		break;
@@ -316,11 +334,11 @@ static void smc_ib_qp_event_handler(struct ib_event *ibevent, void *priv)
 	case IB_EVENT_QP_FATAL:
 	case IB_EVENT_QP_ACCESS_ERR:
 		port_idx = ibevent->element.qp->port - 1;
-		if (port_idx < SMC_MAX_PORTS) {
-			set_bit(port_idx, &smcibdev->port_event_mask);
-			set_bit(port_idx, smcibdev->ports_going_away);
+		if (port_idx >= SMC_MAX_PORTS)
+			break;
+		set_bit(port_idx, &smcibdev->port_event_mask);
+		if (!test_and_set_bit(port_idx, smcibdev->ports_going_away))
 			schedule_work(&smcibdev->port_event_work);
-		}
 		break;
 	default:
 		break;
@@ -582,6 +600,7 @@ static void smc_ib_remove_dev(struct ib_device *ibdev, void *client_data)
 	smc_smcr_terminate_all(smcibdev);
 	smc_ib_cleanup_per_ibdev(smcibdev);
 	ib_unregister_event_handler(&smcibdev->event_handler);
+	cancel_work_sync(&smcibdev->port_event_work);
 	kfree(smcibdev);
 }
 
@@ -593,6 +612,7 @@ static struct ib_client smc_ib_client = {
 
 int __init smc_ib_register_client(void)
 {
+	smc_ib_init_local_systemid();
 	return ib_register_client(&smc_ib_client);
 }
 

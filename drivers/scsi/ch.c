@@ -44,7 +44,6 @@ MODULE_LICENSE("GPL");
 MODULE_ALIAS_CHARDEV_MAJOR(SCSI_CHANGER_MAJOR);
 MODULE_ALIAS_SCSI_DEVICE(TYPE_MEDIUM_CHANGER);
 
-static DEFINE_MUTEX(ch_mutex);
 static int init = 1;
 module_param(init, int, 0444);
 MODULE_PARM_DESC(init, \
@@ -569,6 +568,7 @@ static void ch_destroy(struct kref *ref)
 {
 	scsi_changer *ch = container_of(ref, scsi_changer, ref);
 
+	ch->device = NULL;
 	kfree(ch->dt);
 	kfree(ch);
 }
@@ -590,20 +590,22 @@ ch_open(struct inode *inode, struct file *file)
 	scsi_changer *ch;
 	int minor = iminor(inode);
 
-	mutex_lock(&ch_mutex);
 	spin_lock(&ch_index_lock);
 	ch = idr_find(&ch_index_idr, minor);
 
-	if (NULL == ch || scsi_device_get(ch->device)) {
+	if (ch == NULL || !kref_get_unless_zero(&ch->ref)) {
 		spin_unlock(&ch_index_lock);
-		mutex_unlock(&ch_mutex);
 		return -ENXIO;
 	}
-	kref_get(&ch->ref);
 	spin_unlock(&ch_index_lock);
-
+	if (scsi_device_get(ch->device)) {
+		kref_put(&ch->ref, ch_destroy);
+		return -ENXIO;
+	}
+	/* Synchronize with ch_probe() */
+	mutex_lock(&ch->lock);
 	file->private_data = ch;
-	mutex_unlock(&ch_mutex);
+	mutex_unlock(&ch->lock);
 	return 0;
 }
 
@@ -938,7 +940,16 @@ static int ch_probe(struct device *dev)
 
 	ch->minor = ret;
 	sprintf(ch->name,"ch%d",ch->minor);
+	ret = scsi_device_get(sd);
+	if (ret) {
+		sdev_printk(KERN_WARNING, sd, "ch%d: failed to get device\n",
+			    ch->minor);
+		goto remove_idr;
+	}
 
+	mutex_init(&ch->lock);
+	kref_init(&ch->ref);
+	ch->device = sd;
 	class_dev = device_create(ch_sysfs_class, dev,
 				  MKDEV(SCSI_CHANGER_MAJOR, ch->minor), ch,
 				  "s%s", ch->name);
@@ -946,24 +957,27 @@ static int ch_probe(struct device *dev)
 		sdev_printk(KERN_WARNING, sd, "ch%d: device_create failed\n",
 			    ch->minor);
 		ret = PTR_ERR(class_dev);
-		goto remove_idr;
+		goto put_device;
 	}
 
-	mutex_init(&ch->lock);
-	kref_init(&ch->ref);
-	ch->device = sd;
+	mutex_lock(&ch->lock);
 	ret = ch_readconfig(ch);
-	if (ret)
+	if (ret) {
+		mutex_unlock(&ch->lock);
 		goto destroy_dev;
+	}
 	if (init)
 		ch_init_elem(ch);
 
+	mutex_unlock(&ch->lock);
 	dev_set_drvdata(dev, ch);
 	sdev_printk(KERN_INFO, sd, "Attached scsi changer %s\n", ch->name);
 
 	return 0;
 destroy_dev:
 	device_destroy(ch_sysfs_class, MKDEV(SCSI_CHANGER_MAJOR, ch->minor));
+put_device:
+	scsi_device_put(sd);
 remove_idr:
 	idr_remove(&ch_index_idr, ch->minor);
 free_ch:
@@ -977,9 +991,11 @@ static int ch_remove(struct device *dev)
 
 	spin_lock(&ch_index_lock);
 	idr_remove(&ch_index_idr, ch->minor);
+	dev_set_drvdata(dev, NULL);
 	spin_unlock(&ch_index_lock);
 
 	device_destroy(ch_sysfs_class, MKDEV(SCSI_CHANGER_MAJOR,ch->minor));
+	scsi_device_put(ch->device);
 	kref_put(&ch->ref, ch_destroy);
 	return 0;
 }

@@ -23,6 +23,8 @@ int process(struct __sk_buff *skb)
 		return 1;
 	if (skb->gso_segs != 8)
 		return 1;
+	if (skb->gso_size != 10)
+		return 1;
 
 	return 0;
 }

@@ -54,7 +54,7 @@ enum mod_hdcp_status mod_hdcp_remove_display_from_topology(
 
 	dtm_cmd = (struct ta_dtm_shared_memory *)psp->dtm_context.dtm_shared_buf;
 
-	if (!display || !is_display_active(display))
+	if (!display || !is_display_added(display))
 		return MOD_HDCP_STATUS_DISPLAY_NOT_FOUND;
 
 	memset(dtm_cmd, 0, sizeof(struct ta_dtm_shared_memory));
@@ -73,20 +73,24 @@ enum mod_hdcp_status mod_hdcp_remove_display_from_topology(
 	HDCP_TOP_REMOVE_DISPLAY_TRACE(hdcp, display->index);
  
  	return MOD_HDCP_STATUS_SUCCESS;
- }
-
-enum mod_hdcp_status mod_hdcp_add_display_to_topology(
-		struct mod_hdcp *hdcp, struct mod_hdcp_display *display)
+ 
+}
+enum mod_hdcp_status mod_hdcp_add_display_to_topology(struct mod_hdcp *hdcp,
+						      uint8_t index)
 {
 	struct psp_context *psp = hdcp->config.psp.handle;
 	struct ta_dtm_shared_memory *dtm_cmd;
+	struct mod_hdcp_display *display =
+			get_active_display_at_index(hdcp, index);
 	struct mod_hdcp_link *link = &hdcp->connection.link;
 
 	if (!psp->dtm_context.dtm_initialized) {
 		DRM_ERROR("Failed to add display topology, DTM TA is not initialized.");
-		display->state = MOD_HDCP_DISPLAY_INACTIVE;
 		return MOD_HDCP_STATUS_FAILURE;
 	}
+
+	if (!display || is_display_added(display))
+		return MOD_HDCP_STATUS_UPDATE_TOPOLOGY_FAILURE;
 
 	dtm_cmd = (struct ta_dtm_shared_memory *)psp->dtm_context.dtm_shared_buf;
 
@@ -109,11 +113,10 @@ enum mod_hdcp_status mod_hdcp_add_display_to_topology(
 
 	psp_dtm_invoke(psp, dtm_cmd->cmd_id);
 
-	if (dtm_cmd->dtm_status != TA_DTM_STATUS__SUCCESS) {
-		display->state = MOD_HDCP_DISPLAY_INACTIVE;
+	if (dtm_cmd->dtm_status != TA_DTM_STATUS__SUCCESS)
 		return MOD_HDCP_STATUS_UPDATE_TOPOLOGY_FAILURE;
-	}
 
+	display->state = MOD_HDCP_DISPLAY_ACTIVE_AND_ADDED;
 	HDCP_TOP_ADD_DISPLAY_TRACE(hdcp, display->index);
 
 	return MOD_HDCP_STATUS_SUCCESS;
@@ -123,7 +126,7 @@ enum mod_hdcp_status mod_hdcp_hdcp1_create_session(struct mod_hdcp *hdcp)
 {
 
 	struct psp_context *psp = hdcp->config.psp.handle;
-	struct mod_hdcp_display *display = get_first_active_display(hdcp);
+	struct mod_hdcp_display *display = get_first_added_display(hdcp);
 	struct ta_hdcp_shared_memory *hdcp_cmd;
 
 	if (!psp->hdcp_context.hdcp_initialized) {
@@ -176,7 +179,7 @@ enum mod_hdcp_status mod_hdcp_hdcp1_destroy_session(struct mod_hdcp *hdcp)
 		if (is_display_encryption_enabled(
 				&hdcp->displays[i])) {
 			hdcp->displays[i].state =
-								MOD_HDCP_DISPLAY_ACTIVE;
+					MOD_HDCP_DISPLAY_ACTIVE_AND_ADDED;
 			HDCP_HDCP1_DISABLED_TRACE(hdcp,
 					hdcp->displays[i].index);
 		}
@@ -228,7 +231,7 @@ enum mod_hdcp_status mod_hdcp_hdcp1_enable_encryption(struct mod_hdcp *hdcp)
 {
 	struct psp_context *psp = hdcp->config.psp.handle;
 	struct ta_hdcp_shared_memory *hdcp_cmd;
-	struct mod_hdcp_display *display = get_first_active_display(hdcp);
+	struct mod_hdcp_display *display = get_first_added_display(hdcp);
 
 	hdcp_cmd = (struct ta_hdcp_shared_memory *)psp->hdcp_context.hdcp_shared_buf;
 	memset(hdcp_cmd, 0, sizeof(struct ta_hdcp_shared_memory));
@@ -298,7 +301,8 @@ enum mod_hdcp_status mod_hdcp_hdcp1_enable_dp_stream_encryption(struct mod_hdcp 
 
 	for (i = 0; i < MAX_NUM_OF_DISPLAYS; i++) {
 
-		if (hdcp->displays[i].adjust.disable)
+		if (hdcp->displays[i].state != MOD_HDCP_DISPLAY_ACTIVE_AND_ADDED ||
+		    hdcp->displays[i].adjust.disable)
 			continue;
 
 		memset(hdcp_cmd, 0, sizeof(struct ta_hdcp_shared_memory));
@@ -360,7 +364,7 @@ enum mod_hdcp_status mod_hdcp_hdcp2_create_session(struct mod_hdcp *hdcp)
 {
 	struct psp_context *psp = hdcp->config.psp.handle;
 	struct ta_hdcp_shared_memory *hdcp_cmd;
-	struct mod_hdcp_display *display = get_first_active_display(hdcp);
+	struct mod_hdcp_display *display = get_first_added_display(hdcp);
 
 	if (!psp->hdcp_context.hdcp_initialized) {
 		DRM_ERROR("Failed to create hdcp session, HDCP TA is not initialized");
@@ -419,7 +423,7 @@ enum mod_hdcp_status mod_hdcp_hdcp2_destroy_session(struct mod_hdcp *hdcp)
 		if (is_display_encryption_enabled(
 				&hdcp->displays[i])) {
 			hdcp->displays[i].state =
-								MOD_HDCP_DISPLAY_ACTIVE;
+					MOD_HDCP_DISPLAY_ACTIVE_AND_ADDED;
 			HDCP_HDCP2_DISABLED_TRACE(hdcp,
 					hdcp->displays[i].index);
 		}
@@ -658,7 +662,7 @@ enum mod_hdcp_status mod_hdcp_hdcp2_enable_encryption(struct mod_hdcp *hdcp)
 {
 	struct psp_context *psp = hdcp->config.psp.handle;
 	struct ta_hdcp_shared_memory *hdcp_cmd;
-	struct mod_hdcp_display *display = get_first_active_display(hdcp);
+	struct mod_hdcp_display *display = get_first_added_display(hdcp);
 
 	hdcp_cmd = (struct ta_hdcp_shared_memory *)psp->hdcp_context.hdcp_shared_buf;
 	memset(hdcp_cmd, 0, sizeof(struct ta_hdcp_shared_memory));
@@ -743,7 +747,8 @@ enum mod_hdcp_status mod_hdcp_hdcp2_enable_dp_stream_encryption(struct mod_hdcp 
 
 
 	for (i = 0; i < MAX_NUM_OF_DISPLAYS; i++) {
-		if (hdcp->displays[i].adjust.disable)
+		if (hdcp->displays[i].state != MOD_HDCP_DISPLAY_ACTIVE_AND_ADDED ||
+		    hdcp->displays[i].adjust.disable)
 			continue;
 		hdcp_cmd->in_msg.hdcp2_enable_dp_stream_encryption.display_handle = hdcp->displays[i].index;
 		hdcp_cmd->in_msg.hdcp2_enable_dp_stream_encryption.session_handle = hdcp->auth.id;

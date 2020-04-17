@@ -99,6 +99,13 @@ static int uio_pdrv_genirq_irqcontrol(struct uio_info *dev_info, s32 irq_on)
 	return 0;
 }
 
+static void uio_pdrv_genirq_cleanup(void *data)
+{
+	struct device *dev = data;
+
+	pm_runtime_disable(dev);
+}
+
 static int uio_pdrv_genirq_probe(struct platform_device *pdev)
 {
 	struct uio_info *uioinfo = dev_get_platdata(&pdev->dev);
@@ -213,28 +220,16 @@ static int uio_pdrv_genirq_probe(struct platform_device *pdev)
 	 */
 	pm_runtime_enable(&pdev->dev);
 
-	ret = uio_register_device(&pdev->dev, priv->uioinfo);
-	if (ret) {
-		dev_err(&pdev->dev, "unable to register uio device\n");
-		pm_runtime_disable(&pdev->dev);
+	ret = devm_add_action_or_reset(&pdev->dev, uio_pdrv_genirq_cleanup,
+				       &pdev->dev);
+	if (ret)
 		return ret;
-	}
 
-	platform_set_drvdata(pdev, priv);
-	return 0;
-}
+	ret = devm_uio_register_device(&pdev->dev, priv->uioinfo);
+	if (ret)
+		dev_err(&pdev->dev, "unable to register uio device\n");
 
-static int uio_pdrv_genirq_remove(struct platform_device *pdev)
-{
-	struct uio_pdrv_genirq_platdata *priv = platform_get_drvdata(pdev);
-
-	uio_unregister_device(priv->uioinfo);
-	pm_runtime_disable(&pdev->dev);
-
-	priv->uioinfo->handler = NULL;
-	priv->uioinfo->irqcontrol = NULL;
-
-	return 0;
+	return ret;
 }
 
 static int uio_pdrv_genirq_runtime_nop(struct device *dev)
@@ -271,7 +266,6 @@ MODULE_PARM_DESC(of_id, "Openfirmware id of the device to be handled by uio");
 
 static struct platform_driver uio_pdrv_genirq = {
 	.probe = uio_pdrv_genirq_probe,
-	.remove = uio_pdrv_genirq_remove,
 	.driver = {
 		.name = DRIVER_NAME,
 		.pm = &uio_pdrv_genirq_dev_pm_ops,

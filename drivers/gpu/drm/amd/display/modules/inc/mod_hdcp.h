@@ -117,6 +117,7 @@ enum mod_hdcp_operation_mode {
 enum mod_hdcp_display_state {
 	MOD_HDCP_DISPLAY_INACTIVE = 0,
 	MOD_HDCP_DISPLAY_ACTIVE,
+	MOD_HDCP_DISPLAY_ACTIVE_AND_ADDED,
 	MOD_HDCP_DISPLAY_ENCRYPTION_ENABLED
 };
 

@@ -62,7 +62,6 @@
 #define SIRFSOC_I2C_STOP		BIT(6)
 #define SIRFSOC_I2C_START		BIT(7)
 
-#define SIRFSOC_I2C_DEFAULT_SPEED 100000
 #define SIRFSOC_I2C_ERR_NOACK      1
 #define SIRFSOC_I2C_ERR_TIMEOUT    2
 
@@ -353,7 +352,7 @@ static int i2c_sirfsoc_probe(struct platform_device *pdev)
 	err = of_property_read_u32(pdev->dev.of_node,
 		"clock-frequency", &bitrate);
 	if (err < 0)
-		bitrate = SIRFSOC_I2C_DEFAULT_SPEED;
+		bitrate = I2C_MAX_STANDARD_MODE_FREQ;
 
 	/*
 	 * Due to some hardware design issues, we need to tune the formula.

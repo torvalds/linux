@@ -176,7 +176,7 @@ static ssize_t qeth_dev_prioqing_store(struct device *dev,
 	struct qeth_card *card = dev_get_drvdata(dev);
 	int rc = 0;
 
-	if (IS_IQD(card))
+	if (IS_IQD(card) || IS_VM_NIC(card))
 		return -EOPNOTSUPP;
 
 	mutex_lock(&card->conf_mutex);
@@ -211,16 +211,16 @@ static ssize_t qeth_dev_prioqing_store(struct device *dev,
 		card->qdio.do_prio_queueing = QETH_PRIO_Q_ING_VLAN;
 		card->qdio.default_out_queue = QETH_DEFAULT_QUEUE;
 	} else if (sysfs_streq(buf, "no_prio_queueing:0")) {
-		card->qdio.do_prio_queueing = QETH_NO_PRIO_QUEUEING;
+		card->qdio.do_prio_queueing = QETH_PRIO_Q_ING_FIXED;
 		card->qdio.default_out_queue = 0;
 	} else if (sysfs_streq(buf, "no_prio_queueing:1")) {
-		card->qdio.do_prio_queueing = QETH_NO_PRIO_QUEUEING;
+		card->qdio.do_prio_queueing = QETH_PRIO_Q_ING_FIXED;
 		card->qdio.default_out_queue = 1;
 	} else if (sysfs_streq(buf, "no_prio_queueing:2")) {
-		card->qdio.do_prio_queueing = QETH_NO_PRIO_QUEUEING;
+		card->qdio.do_prio_queueing = QETH_PRIO_Q_ING_FIXED;
 		card->qdio.default_out_queue = 2;
 	} else if (sysfs_streq(buf, "no_prio_queueing:3")) {
-		card->qdio.do_prio_queueing = QETH_NO_PRIO_QUEUEING;
+		card->qdio.do_prio_queueing = QETH_PRIO_Q_ING_FIXED;
 		card->qdio.default_out_queue = 3;
 	} else if (sysfs_streq(buf, "no_prio_queueing")) {
 		card->qdio.do_prio_queueing = QETH_NO_PRIO_QUEUEING;
@@ -247,8 +247,8 @@ static ssize_t qeth_dev_bufcnt_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct qeth_card *card = dev_get_drvdata(dev);
+	unsigned int cnt;
 	char *tmp;
-	int cnt, old_cnt;
 	int rc = 0;
 
 	mutex_lock(&card->conf_mutex);
@@ -257,13 +257,12 @@ static ssize_t qeth_dev_bufcnt_store(struct device *dev,
 		goto out;
 	}
 
-	old_cnt = card->qdio.in_buf_pool.buf_count;
 	cnt = simple_strtoul(buf, &tmp, 10);
 	cnt = (cnt < QETH_IN_BUF_COUNT_MIN) ? QETH_IN_BUF_COUNT_MIN :
 		((cnt > QETH_IN_BUF_COUNT_MAX) ? QETH_IN_BUF_COUNT_MAX : cnt);
-	if (old_cnt != cnt) {
-		rc = qeth_realloc_buffer_pool(card, cnt);
-	}
+
+	rc = qeth_resize_buffer_pool(card, cnt);
+
 out:
 	mutex_unlock(&card->conf_mutex);
 	return rc ? rc : count;

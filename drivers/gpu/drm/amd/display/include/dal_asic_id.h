@@ -136,6 +136,7 @@
 #define RAVEN2_A0 0x81
 #define RAVEN1_F0 0xF0
 #define RAVEN_UNKNOWN 0xFF
+#define RENOIR_A0 0x91
 #ifndef ASICREV_IS_RAVEN
 #define ASICREV_IS_RAVEN(eChipRev) ((eChipRev >= RAVEN_A0) && eChipRev < RAVEN_UNKNOWN)
 #endif
@@ -171,8 +172,6 @@ enum {
 #define ASICREV_IS_NAVI10_P(eChipRev)        (eChipRev < NV_NAVI12_P_A0)
 #define ASICREV_IS_NAVI12_P(eChipRev)        ((eChipRev >= NV_NAVI12_P_A0) && (eChipRev < NV_NAVI14_M_A0))
 #define ASICREV_IS_NAVI14_M(eChipRev)        ((eChipRev >= NV_NAVI14_M_A0) && (eChipRev < NV_UNKNOWN))
-#define RENOIR_A0 0x91
-#define DEVICE_ID_RENOIR_1636 0x1636   // Renoir
 #define ASICREV_IS_RENOIR(eChipRev) ((eChipRev >= RENOIR_A0) && (eChipRev < RAVEN1_F0))
 
 /*
@@ -182,6 +181,9 @@ enum {
 #define DEVICE_ID_KALINDI_9834 0x9834
 #define DEVICE_ID_TEMASH_9839 0x9839
 #define DEVICE_ID_TEMASH_983D 0x983D
+
+/* RENOIR */
+#define DEVICE_ID_RENOIR_1636 0x1636
 
 /* Asic Family IDs for different asic family. */
 #define FAMILY_CI 120 /* Sea Islands: Hawaii (P), Bonaire (M) */

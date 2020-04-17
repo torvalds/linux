@@ -391,6 +391,10 @@ extern int recvmsg_copy_msghdr(struct msghdr *msg,
 			       struct user_msghdr __user *umsg, unsigned flags,
 			       struct sockaddr __user **uaddr,
 			       struct iovec **iov);
+extern int __copy_msghdr_from_user(struct msghdr *kmsg,
+				   struct user_msghdr __user *umsg,
+				   struct sockaddr __user **save_addr,
+				   struct iovec __user **uiov, size_t *nsegs);
 
 /* helpers which do the actual work for syscalls */
 extern int __sys_recvfrom(int fd, void __user *ubuf, size_t size,
@@ -401,7 +405,8 @@ extern int __sys_sendto(int fd, void __user *buff, size_t len,
 			int addr_len);
 extern int __sys_accept4_file(struct file *file, unsigned file_flags,
 			struct sockaddr __user *upeer_sockaddr,
-			 int __user *upeer_addrlen, int flags);
+			 int __user *upeer_addrlen, int flags,
+			 unsigned long nofile);
 extern int __sys_accept4(int fd, struct sockaddr __user *upeer_sockaddr,
 			 int __user *upeer_addrlen, int flags);
 extern int __sys_socket(int family, int type, int protocol);

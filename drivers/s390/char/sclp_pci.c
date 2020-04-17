@@ -39,7 +39,7 @@ struct err_notify_evbuf {
 	u8 atype;
 	u32 fh;
 	u32 fid;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 struct err_notify_sccb {

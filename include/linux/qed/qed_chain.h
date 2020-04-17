@@ -97,6 +97,11 @@ struct qed_chain_u32 {
 	u32 cons_idx;
 };
 
+struct addr_tbl_entry {
+	void *virt_addr;
+	dma_addr_t dma_map;
+};
+
 struct qed_chain {
 	/* fastpath portion of the chain - required for commands such
 	 * as produce / consume.
@@ -107,10 +112,11 @@ struct qed_chain {
 
 	/* Fastpath portions of the PBL [if exists] */
 	struct {
-		/* Table for keeping the virtual addresses of the chain pages,
-		 * respectively to the physical addresses in the pbl table.
+		/* Table for keeping the virtual and physical addresses of the
+		 * chain pages, respectively to the physical addresses
+		 * in the pbl table.
 		 */
-		void **pp_virt_addr_tbl;
+		struct addr_tbl_entry *pp_addr_tbl;
 
 		union {
 			struct qed_chain_pbl_u16 u16;
@@ -287,7 +293,7 @@ qed_chain_advance_page(struct qed_chain *p_chain,
 				*(u32 *)page_to_inc = 0;
 			page_index = *(u32 *)page_to_inc;
 		}
-		*p_next_elem = p_chain->pbl.pp_virt_addr_tbl[page_index];
+		*p_next_elem = p_chain->pbl.pp_addr_tbl[page_index].virt_addr;
 	}
 }
 
@@ -537,7 +543,7 @@ static inline void qed_chain_init_params(struct qed_chain *p_chain,
 
 	p_chain->pbl_sp.p_phys_table = 0;
 	p_chain->pbl_sp.p_virt_table = NULL;
-	p_chain->pbl.pp_virt_addr_tbl = NULL;
+	p_chain->pbl.pp_addr_tbl = NULL;
 }
 
 /**
@@ -575,11 +581,11 @@ static inline void qed_chain_init_mem(struct qed_chain *p_chain,
 static inline void qed_chain_init_pbl_mem(struct qed_chain *p_chain,
 					  void *p_virt_pbl,
 					  dma_addr_t p_phys_pbl,
-					  void **pp_virt_addr_tbl)
+					  struct addr_tbl_entry *pp_addr_tbl)
 {
 	p_chain->pbl_sp.p_phys_table = p_phys_pbl;
 	p_chain->pbl_sp.p_virt_table = p_virt_pbl;
-	p_chain->pbl.pp_virt_addr_tbl = pp_virt_addr_tbl;
+	p_chain->pbl.pp_addr_tbl = pp_addr_tbl;
 }
 
 /**
@@ -644,7 +650,7 @@ static inline void *qed_chain_get_last_elem(struct qed_chain *p_chain)
 		break;
 	case QED_CHAIN_MODE_PBL:
 		last_page_idx = p_chain->page_cnt - 1;
-		p_virt_addr = p_chain->pbl.pp_virt_addr_tbl[last_page_idx];
+		p_virt_addr = p_chain->pbl.pp_addr_tbl[last_page_idx].virt_addr;
 		break;
 	}
 	/* p_virt_addr points at this stage to the last page of the chain */
@@ -716,7 +722,7 @@ static inline void qed_chain_pbl_zero_mem(struct qed_chain *p_chain)
 	page_cnt = qed_chain_get_page_cnt(p_chain);
 
 	for (i = 0; i < page_cnt; i++)
-		memset(p_chain->pbl.pp_virt_addr_tbl[i], 0,
+		memset(p_chain->pbl.pp_addr_tbl[i].virt_addr, 0,
 		       QED_CHAIN_PAGE_SIZE);
 }
 

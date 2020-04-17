@@ -1000,6 +1000,7 @@ extern int vmw_mmap(struct file *filp, struct vm_area_struct *vma);
 
 extern void vmw_validation_mem_init_ttm(struct vmw_private *dev_priv,
 					size_t gran);
+
 /**
  * TTM buffer object driver - vmwgfx_ttm_buffer.c
  */
@@ -1510,6 +1511,17 @@ void vmw_bo_dirty_unmap(struct vmw_buffer_object *vbo,
 			pgoff_t start, pgoff_t end);
 vm_fault_t vmw_bo_vm_fault(struct vm_fault *vmf);
 vm_fault_t vmw_bo_vm_mkwrite(struct vm_fault *vmf);
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+vm_fault_t vmw_bo_vm_huge_fault(struct vm_fault *vmf,
+				enum page_entry_size pe_size);
+#endif
+
+/* Transparent hugepage support - vmwgfx_thp.c */
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+extern const struct ttm_mem_type_manager_func vmw_thp_func;
+#else
+#define vmw_thp_func ttm_bo_manager_func
+#endif
 
 /**
  * VMW_DEBUG_KMS - Debug output for kernel mode-setting

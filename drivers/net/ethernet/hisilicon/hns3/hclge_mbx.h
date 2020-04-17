@@ -7,8 +7,6 @@
 #include <linux/mutex.h>
 #include <linux/types.h>
 
-#define HCLGE_MBX_VF_MSG_DATA_NUM	16
-
 enum HCLGE_MBX_OPCODE {
 	HCLGE_MBX_RESET = 0x01,		/* (VF -> PF) assert reset */
 	HCLGE_MBX_ASSERTING_RESET,	/* (PF -> VF) PF is asserting reset*/
@@ -46,6 +44,7 @@ enum HCLGE_MBX_OPCODE {
 	HCLGE_MBX_PUSH_VLAN_INFO,	/* (PF -> VF) push port base vlan */
 	HCLGE_MBX_GET_MEDIA_TYPE,       /* (VF -> PF) get media type */
 	HCLGE_MBX_PUSH_PROMISC_INFO,	/* (PF -> VF) push vf promisc info */
+	HCLGE_MBX_VF_UNINIT,            /* (VF -> PF) vf is unintializing */
 
 	HCLGE_MBX_GET_VF_FLR_STATUS = 200, /* (M7 -> PF) get vf flr status */
 	HCLGE_MBX_PUSH_LINK_STATUS,	/* (M7 -> PF) get port link status */
@@ -71,10 +70,15 @@ enum hclge_mbx_vlan_cfg_subcode {
 	HCLGE_MBX_GET_PORT_BASE_VLAN_STATE,	/* get port based vlan state */
 };
 
-#define HCLGE_MBX_MAX_MSG_SIZE	16
+#define HCLGE_MBX_MAX_MSG_SIZE	14
 #define HCLGE_MBX_MAX_RESP_DATA_SIZE	8U
-#define HCLGE_MBX_RING_MAP_BASIC_MSG_NUM	3
-#define HCLGE_MBX_RING_NODE_VARIABLE_NUM	3
+#define HCLGE_MBX_MAX_RING_CHAIN_PARAM_NUM	4
+
+struct hclge_ring_chain_param {
+	u8 ring_type;
+	u8 tqp_index;
+	u8 int_gl_index;
+};
 
 struct hclgevf_mbx_resp_status {
 	struct mutex mbx_mutex; /* protects against contending sync cmd resp */
@@ -84,6 +88,41 @@ struct hclgevf_mbx_resp_status {
 	u8 additional_info[HCLGE_MBX_MAX_RESP_DATA_SIZE];
 };
 
+struct hclge_respond_to_vf_msg {
+	int status;
+	u8 data[HCLGE_MBX_MAX_RESP_DATA_SIZE];
+	u16 len;
+};
+
+struct hclge_vf_to_pf_msg {
+	u8 code;
+	union {
+		struct {
+			u8 subcode;
+			u8 data[HCLGE_MBX_MAX_MSG_SIZE];
+		};
+		struct {
+			u8 en_bc;
+			u8 en_uc;
+			u8 en_mc;
+		};
+		struct {
+			u8 vector_id;
+			u8 ring_num;
+			struct hclge_ring_chain_param
+				param[HCLGE_MBX_MAX_RING_CHAIN_PARAM_NUM];
+		};
+	};
+};
+
+struct hclge_pf_to_vf_msg {
+	u16 code;
+	u16 vf_mbx_msg_code;
+	u16 vf_mbx_msg_subcode;
+	u16 resp_status;
+	u8 resp_data[HCLGE_MBX_MAX_RESP_DATA_SIZE];
+};
+
 struct hclge_mbx_vf_to_pf_cmd {
 	u8 rsv;
 	u8 mbx_src_vfid; /* Auto filled by IMP */
@@ -91,17 +130,17 @@ struct hclge_mbx_vf_to_pf_cmd {
 	u8 rsv1[1];
 	u8 msg_len;
 	u8 rsv2[3];
-	u8 msg[HCLGE_MBX_MAX_MSG_SIZE];
+	struct hclge_vf_to_pf_msg msg;
 };
 
-#define HCLGE_MBX_NEED_RESP_BIT		BIT(0)
+#define HCLGE_MBX_NEED_RESP_B		0
 
 struct hclge_mbx_pf_to_vf_cmd {
 	u8 dest_vfid;
 	u8 rsv[3];
 	u8 msg_len;
 	u8 rsv1[3];
-	u16 msg[8];
+	struct hclge_pf_to_vf_msg msg;
 };
 
 struct hclge_vf_rst_cmd {

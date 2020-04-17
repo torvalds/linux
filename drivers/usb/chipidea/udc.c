@@ -1530,18 +1530,19 @@ static const struct usb_ep_ops usb_ep_ops = {
 static void ci_hdrc_gadget_connect(struct usb_gadget *_gadget, int is_active)
 {
 	struct ci_hdrc *ci = container_of(_gadget, struct ci_hdrc, gadget);
-	unsigned long flags;
 
 	if (is_active) {
-		pm_runtime_get_sync(&_gadget->dev);
+		pm_runtime_get_sync(ci->dev);
 		hw_device_reset(ci);
-		spin_lock_irqsave(&ci->lock, flags);
+		spin_lock_irq(&ci->lock);
 		if (ci->driver) {
 			hw_device_state(ci, ci->ep0out->qh.dma);
 			usb_gadget_set_state(_gadget, USB_STATE_POWERED);
+			spin_unlock_irq(&ci->lock);
 			usb_udc_vbus_handler(_gadget, true);
+		} else {
+			spin_unlock_irq(&ci->lock);
 		}
-		spin_unlock_irqrestore(&ci->lock, flags);
 	} else {
 		usb_udc_vbus_handler(_gadget, false);
 		if (ci->driver)
@@ -1551,7 +1552,7 @@ static void ci_hdrc_gadget_connect(struct usb_gadget *_gadget, int is_active)
 			ci->platdata->notify_event(ci,
 			CI_HDRC_CONTROLLER_STOPPED_EVENT);
 		_gadget_stop_activity(&ci->gadget);
-		pm_runtime_put_sync(&_gadget->dev);
+		pm_runtime_put_sync(ci->dev);
 		usb_gadget_set_state(_gadget, USB_STATE_NOTATTACHED);
 	}
 }
@@ -1636,12 +1637,12 @@ static int ci_udc_pullup(struct usb_gadget *_gadget, int is_on)
 	if (ci_otg_is_fsm_mode(ci) || ci->role == CI_ROLE_HOST)
 		return 0;
 
-	pm_runtime_get_sync(&ci->gadget.dev);
+	pm_runtime_get_sync(ci->dev);
 	if (is_on)
 		hw_write(ci, OP_USBCMD, USBCMD_RS, USBCMD_RS);
 	else
 		hw_write(ci, OP_USBCMD, USBCMD_RS, 0);
-	pm_runtime_put_sync(&ci->gadget.dev);
+	pm_runtime_put_sync(ci->dev);
 
 	return 0;
 }
@@ -1839,7 +1840,7 @@ static int ci_udc_stop(struct usb_gadget *gadget)
 			CI_HDRC_CONTROLLER_STOPPED_EVENT);
 		_gadget_stop_activity(&ci->gadget);
 		spin_lock_irqsave(&ci->lock, flags);
-		pm_runtime_put(&ci->gadget.dev);
+		pm_runtime_put(ci->dev);
 	}
 
 	spin_unlock_irqrestore(&ci->lock, flags);
@@ -1969,9 +1970,6 @@ static int udc_start(struct ci_hdrc *ci)
 	retval = usb_add_gadget_udc(dev, &ci->gadget);
 	if (retval)
 		goto destroy_eps;
-
-	pm_runtime_no_callbacks(&ci->gadget.dev);
-	pm_runtime_enable(&ci->gadget.dev);
 
 	return retval;
 

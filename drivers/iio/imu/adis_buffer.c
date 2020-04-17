@@ -97,7 +97,8 @@ int adis_update_scan_mode(struct iio_dev *indio_dev,
 		if (j != scan_count)
 			adis->xfer[j].cs_change = 1;
 		adis->xfer[j].len = 2;
-		adis->xfer[j].delay_usecs = adis->data->read_delay;
+		adis->xfer[j].delay.value = adis->data->read_delay;
+		adis->xfer[j].delay.unit = SPI_DELAY_UNIT_USECS;
 		if (j < scan_count)
 			adis->xfer[j].tx_buf = &tx[j];
 		if (j >= 1)

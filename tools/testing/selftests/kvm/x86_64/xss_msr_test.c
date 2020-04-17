@@ -51,7 +51,7 @@ int main(int argc, char *argv[])
 		xss_supported = entry && !!(entry->eax & X86_FEATURE_XSAVES);
 	}
 	if (!xss_supported) {
-		printf("IA32_XSS is not supported by the vCPU.\n");
+		print_skip("IA32_XSS is not supported by the vCPU");
 		exit(KSFT_SKIP);
 	}
 

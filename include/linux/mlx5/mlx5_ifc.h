@@ -414,8 +414,10 @@ struct mlx5_ifc_flow_table_prop_layout_bits {
 	u8         reserved_at_16[0x1];
 	u8	   table_miss_action_domain[0x1];
 	u8         termination_table[0x1];
-	u8         reserved_at_19[0x7];
-	u8         reserved_at_20[0x2];
+	u8         reformat_and_fwd_to_table[0x1];
+	u8         reserved_at_1a[0x6];
+	u8         termination_table_raw_traffic[0x1];
+	u8         reserved_at_21[0x1];
 	u8         log_max_ft_size[0x6];
 	u8         log_max_modify_header_context[0x8];
 	u8         max_modify_header_actions[0x8];
@@ -707,7 +709,7 @@ struct mlx5_ifc_flow_table_nic_cap_bits {
 
 	struct mlx5_ifc_flow_table_prop_layout_bits flow_table_properties_nic_transmit;
 
-	u8         reserved_at_a00[0x200];
+	struct mlx5_ifc_flow_table_prop_layout_bits flow_table_properties_nic_transmit_rdma;
 
 	struct mlx5_ifc_flow_table_prop_layout_bits flow_table_properties_nic_transmit_sniffer;
 
@@ -741,7 +743,7 @@ struct mlx5_ifc_flow_table_eswitch_cap_bits {
 	u8      flow_source[0x1];
 	u8      reserved_at_18[0x2];
 	u8      multi_fdb_encap[0x1];
-	u8      reserved_at_1b[0x1];
+	u8      egress_acl_forward_to_vport[0x1];
 	u8      fdb_multi_path_to_table[0x1];
 	u8      reserved_at_1d[0x3];
 
@@ -813,7 +815,9 @@ struct mlx5_ifc_qos_cap_bits {
 	u8         reserved_at_4[0x1];
 	u8         packet_pacing_burst_bound[0x1];
 	u8         packet_pacing_typical_size[0x1];
-	u8         reserved_at_7[0x19];
+	u8         reserved_at_7[0x4];
+	u8         packet_pacing_uid[0x1];
+	u8         reserved_at_c[0x14];
 
 	u8         reserved_at_20[0x20];
 
@@ -875,7 +879,11 @@ struct mlx5_ifc_per_protocol_networking_offload_caps_bits {
 	u8         swp_csum[0x1];
 	u8         swp_lso[0x1];
 	u8         cqe_checksum_full[0x1];
-	u8         reserved_at_24[0x5];
+	u8         tunnel_stateless_geneve_tx[0x1];
+	u8         tunnel_stateless_mpls_over_udp[0x1];
+	u8         tunnel_stateless_mpls_over_gre[0x1];
+	u8         tunnel_stateless_vxlan_gpe[0x1];
+	u8         tunnel_stateless_ipv4_over_vxlan[0x1];
 	u8         tunnel_stateless_ip_over_ip[0x1];
 	u8         reserved_at_2a[0x6];
 	u8         max_vxlan_udp_ports[0x8];
@@ -8265,9 +8273,20 @@ struct mlx5_ifc_set_pp_rate_limit_out_bits {
 	u8         reserved_at_40[0x40];
 };
 
+struct mlx5_ifc_set_pp_rate_limit_context_bits {
+	u8         rate_limit[0x20];
+
+	u8	   burst_upper_bound[0x20];
+
+	u8         reserved_at_40[0x10];
+	u8	   typical_packet_size[0x10];
+
+	u8         reserved_at_60[0x120];
+};
+
 struct mlx5_ifc_set_pp_rate_limit_in_bits {
 	u8         opcode[0x10];
-	u8         reserved_at_10[0x10];
+	u8         uid[0x10];
 
 	u8         reserved_at_20[0x10];
 	u8         op_mod[0x10];
@@ -8277,14 +8296,7 @@ struct mlx5_ifc_set_pp_rate_limit_in_bits {
 
 	u8         reserved_at_60[0x20];
 
-	u8         rate_limit[0x20];
-
-	u8	   burst_upper_bound[0x20];
-
-	u8         reserved_at_c0[0x10];
-	u8	   typical_packet_size[0x10];
-
-	u8         reserved_at_e0[0x120];
+	struct mlx5_ifc_set_pp_rate_limit_context_bits ctx;
 };
 
 struct mlx5_ifc_access_register_out_bits {
@@ -8420,7 +8432,8 @@ struct mlx5_ifc_ptys_reg_bits {
 	u8         proto_mask[0x3];
 
 	u8         an_status[0x4];
-	u8         reserved_at_24[0x1c];
+	u8         reserved_at_24[0xc];
+	u8         data_rate_oper[0x10];
 
 	u8         ext_eth_proto_capability[0x20];
 
@@ -10486,7 +10499,8 @@ enum {
 };
 
 enum {
-	MLX5_GENERAL_OBJECT_TYPE_ENCRYPTION_KEY_TYPE_DEK = 0x1,
+	MLX5_GENERAL_OBJECT_TYPE_ENCRYPTION_KEY_TYPE_TLS = 0x1,
+	MLX5_GENERAL_OBJECT_TYPE_ENCRYPTION_KEY_TYPE_IPSEC = 0x2,
 };
 
 struct mlx5_ifc_tls_static_params_bits {

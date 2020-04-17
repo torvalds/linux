@@ -149,8 +149,6 @@ struct ptp_qoriq {
 	bool extts_fifo_support;
 	int irq;
 	int phc_index;
-	u64 alarm_interval; /* for periodic alarm */
-	u64 alarm_value;
 	u32 tclk_period;  /* nanoseconds */
 	u32 tmr_prsc;
 	u32 tmr_add;

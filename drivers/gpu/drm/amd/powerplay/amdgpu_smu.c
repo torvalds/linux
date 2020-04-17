@@ -1154,6 +1154,21 @@ static int smu_smc_table_hw_init(struct smu_context *smu,
 				}
 			}
 		}
+
+		if (smu->ppt_funcs->set_power_source) {
+			/*
+			 * For Navi1X, manually switch it to AC mode as PMFW
+			 * may boot it with DC mode.
+			 */
+			if (adev->pm.ac_power)
+				ret = smu_set_power_source(smu, SMU_POWER_SOURCE_AC);
+			else
+				ret = smu_set_power_source(smu, SMU_POWER_SOURCE_DC);
+			if (ret) {
+				pr_err("Failed to switch to %s mode!\n", adev->pm.ac_power ? "AC" : "DC");
+				return ret;
+			}
+		}
 	}
 	if (adev->asic_type != CHIP_ARCTURUS) {
 		ret = smu_notify_display_change(smu);
@@ -2070,6 +2085,29 @@ int smu_set_watermarks_for_clock_ranges(struct smu_context *smu,
 	mutex_unlock(&smu->mutex);
 
 	return 0;
+}
+
+int smu_set_ac_dc(struct smu_context *smu)
+{
+	int ret = 0;
+
+	/* controlled by firmware */
+	if (smu->dc_controlled_by_gpio)
+		return 0;
+
+	mutex_lock(&smu->mutex);
+	if (smu->ppt_funcs->set_power_source) {
+		if (smu->adev->pm.ac_power)
+			ret = smu_set_power_source(smu, SMU_POWER_SOURCE_AC);
+		else
+			ret = smu_set_power_source(smu, SMU_POWER_SOURCE_DC);
+		if (ret)
+			pr_err("Failed to switch to %s mode!\n",
+			       smu->adev->pm.ac_power ? "AC" : "DC");
+	}
+	mutex_unlock(&smu->mutex);
+
+	return ret;
 }
 
 const struct amd_ip_funcs smu_ip_funcs = {

@@ -22,7 +22,7 @@ struct em_ipt_match {
 	const struct xt_match *match;
 	u32 hook;
 	u8 nfproto;
-	u8 match_data[0] __aligned(8);
+	u8 match_data[] __aligned(8);
 };
 
 struct em_ipt_xt_match {

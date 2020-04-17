@@ -8,7 +8,8 @@ with the difference that the orphan objects are not freed but only
 reported via /sys/kernel/debug/kmemleak. A similar method is used by the
 Valgrind tool (``memcheck --leak-check``) to detect the memory leaks in
 user-space applications.
-Kmemleak is supported on x86, arm, powerpc, sparc, sh, microblaze, ppc, mips, s390 and tile.
+Kmemleak is supported on x86, arm, arm64, powerpc, sparc, sh, microblaze, mips,
+s390, nds32, arc and xtensa.
 
 Usage
 -----

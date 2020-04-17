@@ -248,7 +248,7 @@ static void dump_ipv6_packet(struct net *net, struct nf_log_buf *m,
 			/* Max length: 17 "POINTER=ffffffff " */
 			nf_log_buf_add(m, "POINTER=%08x ",
 				       ntohl(ic->icmp6_pointer));
-			/* Fall through */
+			fallthrough;
 		case ICMPV6_DEST_UNREACH:
 		case ICMPV6_PKT_TOOBIG:
 		case ICMPV6_TIME_EXCEED:

@@ -112,7 +112,7 @@ struct pkt_attrib {
 	u32	last_txcmdsz;
 	u8	nr_frags;
 	u8	encrypt;	/* when 0 indicate no encrypt. when non-zero,
-				 * indicate the encrypt algorith
+				 * indicate the encrypt algorithm
 				 */
 	u8	iv_len;
 	u8	icv_len;

@@ -281,6 +281,11 @@ static ssize_t amdgpu_ras_debugfs_ctrl_write(struct file *f, const char __user *
 	struct ras_debug_if data;
 	int ret = 0;
 
+	if (amdgpu_ras_intr_triggered()) {
+		DRM_WARN("RAS WARN: error injection currently inaccessible\n");
+		return size;
+	}
+
 	ret = amdgpu_ras_debugfs_ctrl_parse_data(f, buf, size, pos, &data);
 	if (ret)
 		return -EINVAL;
@@ -393,6 +398,10 @@ static ssize_t amdgpu_ras_sysfs_read(struct device *dev,
 	struct ras_query_if info = {
 		.head = obj->head,
 	};
+
+	if (amdgpu_ras_intr_triggered())
+		return snprintf(buf, PAGE_SIZE,
+				"Query currently inaccessible\n");
 
 	if (amdgpu_ras_error_query(obj->adev, &info))
 		return -EINVAL;
@@ -1415,12 +1424,22 @@ static void amdgpu_ras_do_recovery(struct work_struct *work)
 {
 	struct amdgpu_ras *ras =
 		container_of(work, struct amdgpu_ras, recovery_work);
+	struct amdgpu_device *remote_adev = NULL;
+	struct amdgpu_device *adev = ras->adev;
+	struct list_head device_list, *device_list_handle =  NULL;
+	struct amdgpu_hive_info *hive = amdgpu_get_xgmi_hive(adev, false);
 
-	/*
-	 * Query and print non zero error counter per IP block for
-	 * awareness before recovering GPU.
-	 */
-	amdgpu_ras_log_on_err_counter(ras->adev);
+	/* Build list of devices to query RAS related errors */
+	if  (hive && adev->gmc.xgmi.num_physical_nodes > 1) {
+		device_list_handle = &hive->device_list;
+	} else {
+		list_add_tail(&adev->gmc.xgmi.head, &device_list);
+		device_list_handle = &device_list;
+	}
+
+	list_for_each_entry(remote_adev, device_list_handle, gmc.xgmi.head) {
+		amdgpu_ras_log_on_err_counter(remote_adev);
+	}
 
 	if (amdgpu_device_should_recover_gpu(ras->adev))
 		amdgpu_device_gpu_recover(ras->adev, 0);

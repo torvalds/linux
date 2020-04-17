@@ -177,7 +177,6 @@ struct qib_ibdev {
 	struct timer_list mem_timer;
 	struct qib_pio_header *pio_hdrs;
 	dma_addr_t pio_hdrs_phys;
-	u32 qp_rnd; /* random bytes for hash */
 
 	u32 n_piowait;
 	u32 n_txwait;

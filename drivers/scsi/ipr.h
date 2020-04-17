@@ -451,12 +451,12 @@ struct ipr_config_table_hdr64 {
 
 struct ipr_config_table {
 	struct ipr_config_table_hdr hdr;
-	struct ipr_config_table_entry dev[0];
+	struct ipr_config_table_entry dev[];
 }__attribute__((packed, aligned (4)));
 
 struct ipr_config_table64 {
 	struct ipr_config_table_hdr64 hdr64;
-	struct ipr_config_table_entry64 dev[0];
+	struct ipr_config_table_entry64 dev[];
 }__attribute__((packed, aligned (8)));
 
 struct ipr_config_table_entry_wrapper {
@@ -792,7 +792,7 @@ struct ipr_mode_page28 {
 	struct ipr_mode_page_hdr hdr;
 	u8 num_entries;
 	u8 entry_length;
-	struct ipr_dev_bus_entry bus[0];
+	struct ipr_dev_bus_entry bus[];
 }__attribute__((packed));
 
 struct ipr_mode_page24 {
@@ -1300,6 +1300,7 @@ struct ipr_resource_entry {
 #define IPR_ARRAY_VIRTUAL_BUS			0x1
 #define IPR_VSET_VIRTUAL_BUS			0x2
 #define IPR_IOAFP_VIRTUAL_BUS			0x3
+#define IPR_MAX_SIS64_BUSES			0x4
 
 #define IPR_GET_RES_PHYS_LOC(res) \
 	(((res)->bus << 24) | ((res)->target << 8) | (res)->lun)

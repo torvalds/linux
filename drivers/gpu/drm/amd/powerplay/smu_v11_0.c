@@ -42,8 +42,6 @@
 #include "asic_reg/thm/thm_11_0_2_sh_mask.h"
 #include "asic_reg/mp/mp_11_0_offset.h"
 #include "asic_reg/mp/mp_11_0_sh_mask.h"
-#include "asic_reg/nbio/nbio_7_4_offset.h"
-#include "asic_reg/nbio/nbio_7_4_sh_mask.h"
 #include "asic_reg/smuio/smuio_11_0_0_offset.h"
 #include "asic_reg/smuio/smuio_11_0_0_sh_mask.h"
 
@@ -1525,6 +1523,13 @@ int smu_v11_0_set_xgmi_pstate(struct smu_context *smu,
 	return ret;
 }
 
+static int smu_v11_0_ack_ac_dc_interrupt(struct smu_context *smu)
+{
+	return smu_send_smc_msg(smu,
+				SMU_MSG_ReenableAcDcInterrupt,
+				NULL);
+}
+
 #define THM_11_0__SRCID__THM_DIG_THERM_L2H		0		/* ASIC_TEMP > CG_THERMAL_INT.DIG_THERM_INTH  */
 #define THM_11_0__SRCID__THM_DIG_THERM_H2L		1		/* ASIC_TEMP < CG_THERMAL_INT.DIG_THERM_INTL  */
 
@@ -1558,6 +1563,9 @@ static int smu_v11_0_irq_process(struct amdgpu_device *adev,
 		break;
 
 		}
+	} else if (client_id == SOC15_IH_CLIENTID_MP1) {
+		if (src_id == 0xfe)
+			smu_v11_0_ack_ac_dc_interrupt(&adev->smu);
 	}
 
 	return 0;
@@ -1593,6 +1601,12 @@ int smu_v11_0_register_irq_handler(struct smu_context *smu)
 
 	ret = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_THM,
 				THM_11_0__SRCID__THM_DIG_THERM_H2L,
+				irq_src);
+	if (ret)
+		return ret;
+
+	ret = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_MP1,
+				0xfe,
 				irq_src);
 	if (ret)
 		return ret;
@@ -1646,9 +1660,7 @@ static int smu_v11_0_baco_set_armd3_sequence(struct smu_context *smu, enum smu_v
 
 bool smu_v11_0_baco_is_support(struct smu_context *smu)
 {
-	struct amdgpu_device *adev = smu->adev;
 	struct smu_baco_context *smu_baco = &smu->smu_baco;
-	uint32_t val;
 	bool baco_support;
 
 	mutex_lock(&smu_baco->mutex);
@@ -1663,11 +1675,7 @@ bool smu_v11_0_baco_is_support(struct smu_context *smu)
 	   !smu_feature_is_enabled(smu, SMU_FEATURE_BACO_BIT))
 		return false;
 
-	val = RREG32_SOC15(NBIO, 0, mmRCC_BIF_STRAP0);
-	if (val & RCC_BIF_STRAP0__STRAP_PX_CAPABLE_MASK)
-		return true;
-
-	return false;
+	return true;
 }
 
 enum smu_baco_state smu_v11_0_baco_get_state(struct smu_context *smu)
@@ -1684,11 +1692,9 @@ enum smu_baco_state smu_v11_0_baco_get_state(struct smu_context *smu)
 
 int smu_v11_0_baco_set_state(struct smu_context *smu, enum smu_baco_state state)
 {
-
 	struct smu_baco_context *smu_baco = &smu->smu_baco;
 	struct amdgpu_device *adev = smu->adev;
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
-	uint32_t bif_doorbell_intr_cntl;
 	uint32_t data;
 	int ret = 0;
 
@@ -1697,14 +1703,7 @@ int smu_v11_0_baco_set_state(struct smu_context *smu, enum smu_baco_state state)
 
 	mutex_lock(&smu_baco->mutex);
 
-	bif_doorbell_intr_cntl = RREG32_SOC15(NBIO, 0, mmBIF_DOORBELL_INT_CNTL);
-
 	if (state == SMU_BACO_STATE_ENTER) {
-		bif_doorbell_intr_cntl = REG_SET_FIELD(bif_doorbell_intr_cntl,
-						BIF_DOORBELL_INT_CNTL,
-						DOORBELL_INTERRUPT_DISABLE, 1);
-		WREG32_SOC15(NBIO, 0, mmBIF_DOORBELL_INT_CNTL, bif_doorbell_intr_cntl);
-
 		if (!ras || !ras->supported) {
 			data = RREG32_SOC15(THM, 0, mmTHM_BACO_CNTL);
 			data |= 0x80000000;
@@ -1718,11 +1717,6 @@ int smu_v11_0_baco_set_state(struct smu_context *smu, enum smu_baco_state state)
 		ret = smu_send_smc_msg(smu, SMU_MSG_ExitBaco, NULL);
 		if (ret)
 			goto out;
-
-		bif_doorbell_intr_cntl = REG_SET_FIELD(bif_doorbell_intr_cntl,
-						BIF_DOORBELL_INT_CNTL,
-						DOORBELL_INTERRUPT_DISABLE, 0);
-		WREG32_SOC15(NBIO, 0, mmBIF_DOORBELL_INT_CNTL, bif_doorbell_intr_cntl);
 
 		/* clear vbios scratch 6 and 7 for coming asic reinit */
 		WREG32(adev->bios_scratch_reg_offset + 6, 0);
@@ -1937,5 +1931,20 @@ int smu_v11_0_set_performance_level(struct smu_context *smu,
 		break;
 	}
 	return ret;
+}
+
+int smu_v11_0_set_power_source(struct smu_context *smu,
+			       enum smu_power_src_type power_src)
+{
+	int pwr_source;
+
+	pwr_source = smu_power_get_index(smu, (uint32_t)power_src);
+	if (pwr_source < 0)
+		return -EINVAL;
+
+	return smu_send_smc_msg_with_param(smu,
+					SMU_MSG_NotifyPowerSource,
+					pwr_source,
+					NULL);
 }
 

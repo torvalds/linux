@@ -18,7 +18,20 @@ Required Properties:
 	- clocks: Handles to the clock inputs.
 	- clock-names: Tuple including "clk_xin" and "clk_ahb"
 	- interrupts: Interrupt specifiers
-	- ti,otap-del-sel: Output Tap Delay select
+	Output tap delay for each speed mode:
+	- ti,otap-del-sel-legacy
+	- ti,otap-del-sel-mmc-hs
+	- ti,otap-del-sel-sd-hs
+	- ti,otap-del-sel-sdr12
+	- ti,otap-del-sel-sdr25
+	- ti,otap-del-sel-sdr50
+	- ti,otap-del-sel-sdr104
+	- ti,otap-del-sel-ddr50
+	- ti,otap-del-sel-ddr52
+	- ti,otap-del-sel-hs200
+	- ti,otap-del-sel-hs400
+	  These bindings must be provided otherwise the driver will disable the
+	  corresponding speed mode (i.e. all nodes must provide at least -legacy)
 
 Optional Properties (Required for ti,am654-sdhci-5.1 and ti,j721e-sdhci-8bit):
 	- ti,trm-icp: DLL trim select
@@ -38,6 +51,10 @@ Example:
 		interrupts = <GIC_SPI 136 IRQ_TYPE_LEVEL_HIGH>;
 		sdhci-caps-mask = <0x80000007 0x0>;
 		mmc-ddr-1_8v;
-		ti,otap-del-sel = <0x2>;
+		ti,otap-del-sel-legacy = <0x0>;
+		ti,otap-del-sel-mmc-hs = <0x0>;
+		ti,otap-del-sel-ddr52 = <0x5>;
+		ti,otap-del-sel-hs200 = <0x5>;
+		ti,otap-del-sel-hs400 = <0x0>;
 		ti,trm-icp = <0x8>;
 	};

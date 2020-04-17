@@ -50,6 +50,7 @@ int unregister_sysrq_key(int key, struct sysrq_key_op *op);
 struct sysrq_key_op *__sysrq_get_key_op(int key);
 
 int sysrq_toggle_support(int enable_mask);
+int sysrq_mask(void);
 
 #else
 
@@ -69,6 +70,12 @@ static inline int register_sysrq_key(int key, struct sysrq_key_op *op)
 static inline int unregister_sysrq_key(int key, struct sysrq_key_op *op)
 {
 	return -EINVAL;
+}
+
+static inline int sysrq_mask(void)
+{
+	/* Magic SysRq disabled mask */
+	return 0;
 }
 
 #endif

@@ -8,7 +8,7 @@
  * VEMotherBoard.lisa
  */
 / {
-	smb@8000000 {
+	bus@8000000 {
 		motherboard {
 			arm,v2m-memory-map = "rs1";
 			compatible = "arm,vexpress,v2m-p1", "simple-bus";

@@ -173,7 +173,7 @@ static void dump_ipv4_packet(struct net *net, struct nf_log_buf *m,
 		case ICMP_REDIRECT:
 			/* Max length: 24 "GATEWAY=255.255.255.255 " */
 			nf_log_buf_add(m, "GATEWAY=%pI4 ", &ich->un.gateway);
-			/* Fall through */
+			fallthrough;
 		case ICMP_DEST_UNREACH:
 		case ICMP_SOURCE_QUENCH:
 		case ICMP_TIME_EXCEEDED:

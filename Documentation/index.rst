@@ -99,6 +99,7 @@ needed).
    accounting/index
    block/index
    cdrom/index
+   cpu-freq/index
    ide/index
    fb/index
    fpga/index
@@ -130,9 +131,10 @@ needed).
    bpf/index
    usb/index
    PCI/index
+   scsi/index
    misc-devices/index
-   mic/index
    scheduler/index
+   mhi/index
 
 Architecture-agnostic documentation
 -----------------------------------
