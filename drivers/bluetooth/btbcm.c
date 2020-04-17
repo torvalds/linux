@@ -360,6 +360,13 @@ static int btbcm_read_info(struct hci_dev *hdev)
 	bt_dev_info(hdev, "BCM: features 0x%2.2x", skb->data[1]);
 	kfree_skb(skb);
 
+	return 0;
+}
+
+static int btbcm_print_local_name(struct hci_dev *hdev)
+{
+	struct sk_buff *skb;
+
 	/* Read Local Name */
 	skb = btbcm_read_local_name(hdev);
 	if (IS_ERR(skb))
@@ -442,6 +449,9 @@ int btbcm_initialize(struct hci_dev *hdev, bool *fw_load_done)
 		if (err)
 			return err;
 	}
+	err = btbcm_print_local_name(hdev);
+	if (err)
+		return err;
 
 	bcm_subver_table = (hdev->bus == HCI_USB) ? bcm_usb_subver_table :
 						    bcm_uart_subver_table;
@@ -513,7 +523,6 @@ EXPORT_SYMBOL_GPL(btbcm_finalize);
 int btbcm_setup_patchram(struct hci_dev *hdev)
 {
 	bool fw_load_done = false;
-	struct sk_buff *skb;
 	int err;
 
 	/* Initialize */
@@ -528,14 +537,6 @@ int btbcm_setup_patchram(struct hci_dev *hdev)
 	err = btbcm_initialize(hdev, &fw_load_done);
 	if (err)
 		return err;
-
-	/* Read Local Name */
-	skb = btbcm_read_local_name(hdev);
-	if (IS_ERR(skb))
-		return PTR_ERR(skb);
-
-	bt_dev_info(hdev, "%s", (char *)(skb->data + 1));
-	kfree_skb(skb);
 
 done:
 	btbcm_check_bdaddr(hdev);
