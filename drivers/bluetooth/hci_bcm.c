@@ -553,8 +553,7 @@ static int bcm_flush(struct hci_uart *hu)
 static int bcm_setup(struct hci_uart *hu)
 {
 	struct bcm_data *bcm = hu->priv;
-	char fw_name[64];
-	const struct firmware *fw;
+	bool fw_load_done = false;
 	unsigned int speed;
 	int err;
 
@@ -563,21 +562,12 @@ static int bcm_setup(struct hci_uart *hu)
 	hu->hdev->set_diag = bcm_set_diag;
 	hu->hdev->set_bdaddr = btbcm_set_bdaddr;
 
-	err = btbcm_initialize(hu->hdev, fw_name, sizeof(fw_name), false);
+	err = btbcm_initialize(hu->hdev, &fw_load_done);
 	if (err)
 		return err;
 
-	err = request_firmware(&fw, fw_name, &hu->hdev->dev);
-	if (err < 0) {
-		bt_dev_info(hu->hdev, "BCM: Patch %s not found", fw_name);
+	if (!fw_load_done)
 		return 0;
-	}
-
-	err = btbcm_patchram(hu->hdev, fw);
-	if (err) {
-		bt_dev_info(hu->hdev, "BCM: Patch failed (%d)", err);
-		goto finalize;
-	}
 
 	/* Init speed if any */
 	if (hu->init_speed)
@@ -615,9 +605,6 @@ static int bcm_setup(struct hci_uart *hu)
 		memcpy(&params, bcm->dev->pcm_int_params, 5);
 		btbcm_write_pcm_int_params(hu->hdev, &params);
 	}
-
-finalize:
-	release_firmware(fw);
 
 	err = btbcm_finalize(hu->hdev);
 	if (err)

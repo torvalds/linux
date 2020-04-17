@@ -27,6 +27,8 @@
 #define BDADDR_BCM4345C5 (&(bdaddr_t) {{0xac, 0x1f, 0x00, 0xc5, 0x45, 0x43}})
 #define BDADDR_BCM43341B (&(bdaddr_t) {{0xac, 0x1f, 0x00, 0x1b, 0x34, 0x43}})
 
+#define BCM_FW_NAME_LEN			64
+
 int btbcm_check_bdaddr(struct hci_dev *hdev)
 {
 	struct hci_rp_read_bd_addr *bda;
@@ -408,14 +410,15 @@ static const struct bcm_subver_table bcm_usb_subver_table[] = {
 	{ }
 };
 
-int btbcm_initialize(struct hci_dev *hdev, char *fw_name, size_t len,
-		     bool reinit)
+int btbcm_initialize(struct hci_dev *hdev, bool *fw_load_done)
 {
 	u16 subver, rev, pid, vid;
 	const char *hw_name = "BCM";
 	struct sk_buff *skb;
 	struct hci_rp_read_local_version *ver;
 	const struct bcm_subver_table *bcm_subver_table;
+	char fw_name[BCM_FW_NAME_LEN];
+	const struct firmware *fw;
 	int i, err;
 
 	/* Reset */
@@ -434,7 +437,7 @@ int btbcm_initialize(struct hci_dev *hdev, char *fw_name, size_t len,
 	kfree_skb(skb);
 
 	/* Read controller information */
-	if (!reinit) {
+	if (!(*fw_load_done)) {
 		err = btbcm_read_info(hdev);
 		if (err)
 			return err;
@@ -460,27 +463,42 @@ int btbcm_initialize(struct hci_dev *hdev, char *fw_name, size_t len,
 		pid = get_unaligned_le16(skb->data + 3);
 		kfree_skb(skb);
 
-		snprintf(fw_name, len, "brcm/%s-%4.4x-%4.4x.hcd",
+		snprintf(fw_name, BCM_FW_NAME_LEN, "brcm/%s-%4.4x-%4.4x.hcd",
 			 hw_name, vid, pid);
 	} else {
-		snprintf(fw_name, len, "brcm/%s.hcd", hw_name);
+		snprintf(fw_name, BCM_FW_NAME_LEN, "brcm/%s.hcd", hw_name);
 	}
 
 	bt_dev_info(hdev, "%s (%3.3u.%3.3u.%3.3u) build %4.4u",
 		    hw_name, (subver & 0xe000) >> 13,
 		    (subver & 0x1f00) >> 8, (subver & 0x00ff), rev & 0x0fff);
 
+	if (*fw_load_done)
+		return 0;
+
+	err = request_firmware(&fw, fw_name, &hdev->dev);
+	if (err) {
+		bt_dev_info(hdev, "BCM: Patch %s not found", fw_name);
+		return 0;
+	}
+
+	err = btbcm_patchram(hdev, fw);
+	if (err)
+		bt_dev_info(hdev, "BCM: Patch failed (%d)", err);
+
+	release_firmware(fw);
+	*fw_load_done = true;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(btbcm_initialize);
 
 int btbcm_finalize(struct hci_dev *hdev)
 {
-	char fw_name[64];
+	bool fw_load_done = true;
 	int err;
 
 	/* Re-initialize */
-	err = btbcm_initialize(hdev, fw_name, sizeof(fw_name), true);
+	err = btbcm_initialize(hdev, &fw_load_done);
 	if (err)
 		return err;
 
@@ -494,28 +512,20 @@ EXPORT_SYMBOL_GPL(btbcm_finalize);
 
 int btbcm_setup_patchram(struct hci_dev *hdev)
 {
-	char fw_name[64];
-	const struct firmware *fw;
+	bool fw_load_done = false;
 	struct sk_buff *skb;
 	int err;
 
 	/* Initialize */
-	err = btbcm_initialize(hdev, fw_name, sizeof(fw_name), false);
+	err = btbcm_initialize(hdev, &fw_load_done);
 	if (err)
 		return err;
 
-	err = request_firmware(&fw, fw_name, &hdev->dev);
-	if (err < 0) {
-		bt_dev_info(hdev, "BCM: Patch %s not found", fw_name);
+	if (!fw_load_done)
 		goto done;
-	}
 
-	btbcm_patchram(hdev, fw);
-
-	release_firmware(fw);
-
-	/* Re-initialize */
-	err = btbcm_initialize(hdev, fw_name, sizeof(fw_name), true);
+	/* Re-initialize after loading Patch */
+	err = btbcm_initialize(hdev, &fw_load_done);
 	if (err)
 		return err;
 
