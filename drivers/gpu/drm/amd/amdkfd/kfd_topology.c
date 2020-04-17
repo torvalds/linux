@@ -787,7 +787,6 @@ static int kfd_topology_update_sysfs(void)
 {
 	int ret;
 
-	pr_info("Creating topology SYSFS entries\n");
 	if (!sys_props.kobj_topology) {
 		sys_props.kobj_topology =
 				kfd_alloc_struct(sys_props.kobj_topology);
@@ -1048,7 +1047,6 @@ int kfd_topology_init(void)
 		sys_props.generation_count++;
 		kfd_update_system_properties();
 		kfd_debug_print_topology();
-		pr_info("Finished initializing topology\n");
 	} else
 		pr_err("Failed to update topology in sysfs ret=%d\n", ret);
 
