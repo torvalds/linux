@@ -11,22 +11,7 @@
 #include "selftest_rc6.h"
 
 #include "selftests/i915_random.h"
-
-static u64 energy_uJ(struct intel_rc6 *rc6)
-{
-	unsigned long long power;
-	u32 units;
-
-	if (rdmsrl_safe(MSR_RAPL_POWER_UNIT, &power))
-		return 0;
-
-	units = (power & 0x1f00) >> 8;
-
-	if (rdmsrl_safe(MSR_PP1_ENERGY_STATUS, &power))
-		return 0;
-
-	return (1000000 * power) >> units; /* convert to uJ */
-}
+#include "selftests/librapl.h"
 
 static u64 rc6_residency(struct intel_rc6 *rc6)
 {
@@ -74,9 +59,9 @@ int live_rc6_manual(void *arg)
 	res[0] = rc6_residency(rc6);
 
 	dt = ktime_get();
-	rc0_power = energy_uJ(rc6);
+	rc0_power = librapl_energy_uJ();
 	msleep(250);
-	rc0_power = energy_uJ(rc6) - rc0_power;
+	rc0_power = librapl_energy_uJ() - rc0_power;
 	dt = ktime_sub(ktime_get(), dt);
 	res[1] = rc6_residency(rc6);
 	if ((res[1] - res[0]) >> 10) {
@@ -99,9 +84,9 @@ int live_rc6_manual(void *arg)
 	res[0] = rc6_residency(rc6);
 	intel_uncore_forcewake_flush(rc6_to_uncore(rc6), FORCEWAKE_ALL);
 	dt = ktime_get();
-	rc6_power = energy_uJ(rc6);
+	rc6_power = librapl_energy_uJ();
 	msleep(100);
-	rc6_power = energy_uJ(rc6) - rc6_power;
+	rc6_power = librapl_energy_uJ() - rc6_power;
 	dt = ktime_sub(ktime_get(), dt);
 	res[1] = rc6_residency(rc6);
 	if (res[1] == res[0]) {
