@@ -5563,7 +5563,7 @@ void intel_dp_process_phy_request(struct intel_dp *intel_dp)
 
 static u8 intel_dp_autotest_phy_pattern(struct intel_dp *intel_dp)
 {
-	u8 test_result = DP_TEST_NAK;
+	u8 test_result;
 
 	test_result = intel_dp_prepare_phytest(intel_dp);
 	if (test_result != DP_TEST_ACK)
