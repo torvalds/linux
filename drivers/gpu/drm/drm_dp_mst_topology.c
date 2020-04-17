@@ -2082,6 +2082,21 @@ fail_put:
 	return ret;
 }
 
+int drm_dp_mst_get_max_sdp_streams_supported(
+		struct drm_dp_mst_topology_mgr *mgr,
+		struct drm_dp_mst_port *port)
+{
+	int ret = -1;
+
+	port = drm_dp_get_validated_port_ref(mgr, port);
+	if (!port)
+		return ret;
+	ret = port->num_sdp_streams;
+	drm_dp_put_port(port);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(drm_dp_mst_get_max_sdp_streams_supported);
+
 static int drm_dp_encode_up_ack_reply(struct drm_dp_sideband_msg_tx *msg, u8 req_type)
 {
 	struct drm_dp_sideband_msg_reply_body reply;
