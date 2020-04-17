@@ -16,6 +16,7 @@ static void mt7615_init_work(struct work_struct *work)
 {
 	struct mt7615_dev *dev = container_of(work, struct mt7615_dev,
 					      mcu_work);
+	struct ieee80211_hw *hw = mt76_hw(dev);
 
 	if (mt7615_mcu_init(dev))
 		return;
@@ -25,8 +26,11 @@ static void mt7615_init_work(struct work_struct *work)
 	mt7615_phy_init(dev);
 	mt7615_mcu_del_wtbl_all(dev);
 
-	if (!mt7615_firmware_offload(dev)) {
-		struct wiphy *wiphy = mt76_hw(dev)->wiphy;
+	if (mt7615_firmware_offload(dev)) {
+		ieee80211_hw_set(hw, SUPPORTS_PS);
+		ieee80211_hw_set(hw, SUPPORTS_DYNAMIC_PS);
+	} else {
+		struct wiphy *wiphy = hw->wiphy;
 
 		dev->ops->hw_scan = NULL;
 		dev->ops->cancel_hw_scan = NULL;

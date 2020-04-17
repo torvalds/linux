@@ -605,8 +605,11 @@ int mt7615_mac_write_txwi(struct mt7615_dev *dev, __le32 *txwi,
 	}
 
 	if (!ieee80211_is_beacon(fc)) {
-		val = MT_TXD5_TX_STATUS_HOST | MT_TXD5_SW_POWER_MGMT |
-		      FIELD_PREP(MT_TXD5_PID, pid);
+		struct ieee80211_hw *hw = mt76_hw(dev);
+
+		val = MT_TXD5_TX_STATUS_HOST | FIELD_PREP(MT_TXD5_PID, pid);
+		if (!ieee80211_hw_check(hw, SUPPORTS_PS))
+			val |= MT_TXD5_SW_POWER_MGMT;
 		txwi[5] = cpu_to_le32(val);
 	} else {
 		txwi[5] = 0;

@@ -286,6 +286,7 @@ enum {
 	MT76_REMOVED,
 	MT76_READING_STATS,
 	MT76_STATE_POWER_OFF,
+	MT76_STATE_PS,
 };
 
 struct mt76_hw_cap {
