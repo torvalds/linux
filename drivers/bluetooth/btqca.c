@@ -32,7 +32,7 @@ int qca_read_soc_version(struct hci_dev *hdev, u32 *soc_version,
 	 * VSE event. WCN3991 sends version command response as a payload to
 	 * command complete event.
 	 */
-	if (soc_type == QCA_WCN3991) {
+	if (soc_type >= QCA_WCN3991) {
 		event_type = 0;
 		rlen += 1;
 		rtype = EDL_PATCH_VER_REQ_CMD;
@@ -69,7 +69,7 @@ int qca_read_soc_version(struct hci_dev *hdev, u32 *soc_version,
 		goto out;
 	}
 
-	if (soc_type == QCA_WCN3991)
+	if (soc_type >= QCA_WCN3991)
 		memmove(&edl->data, &edl->data[1], sizeof(*ver));
 
 	ver = (struct qca_btsoc_version *)(edl->data);
@@ -217,7 +217,7 @@ static void qca_tlv_check_data(struct qca_fw_config *config,
 				tlv_nvm->data[0] |= 0x80;
 
 				/* UART Baud Rate */
-				if (soc_type == QCA_WCN3991)
+				if (soc_type >= QCA_WCN3991)
 					tlv_nvm->data[1] = nvm_baud_rate;
 				else
 					tlv_nvm->data[2] = nvm_baud_rate;
@@ -268,7 +268,7 @@ static int qca_tlv_send_segment(struct hci_dev *hdev, int seg_size,
 	 * VSE event. WCN3991 sends version command response as a payload to
 	 * command complete event.
 	 */
-	if (soc_type == QCA_WCN3991) {
+	if (soc_type >= QCA_WCN3991) {
 		event_type = 0;
 		rlen = sizeof(*edl);
 		rtype = EDL_PATCH_TLV_REQ_CMD;
@@ -301,7 +301,7 @@ static int qca_tlv_send_segment(struct hci_dev *hdev, int seg_size,
 		err = -EIO;
 	}
 
-	if (soc_type == QCA_WCN3991)
+	if (soc_type >= QCA_WCN3991)
 		goto out;
 
 	tlv_resp = (struct tlv_seg_resp *)(edl->data);
@@ -442,6 +442,11 @@ int qca_uart_setup(struct hci_dev *hdev, uint8_t baudrate,
 			    (soc_ver & 0x0000000f);
 		snprintf(config.fwname, sizeof(config.fwname),
 			 "qca/crbtfw%02x.tlv", rom_ver);
+	} else if (soc_type == QCA_QCA6390) {
+		rom_ver = ((soc_ver & 0x00000f00) >> 0x04) |
+			    (soc_ver & 0x0000000f);
+		snprintf(config.fwname, sizeof(config.fwname),
+			 "qca/htbtfw%02x.tlv", rom_ver);
 	} else {
 		snprintf(config.fwname, sizeof(config.fwname),
 			 "qca/rampatch_%08x.bin", soc_ver);
@@ -464,6 +469,9 @@ int qca_uart_setup(struct hci_dev *hdev, uint8_t baudrate,
 	else if (qca_is_wcn399x(soc_type))
 		snprintf(config.fwname, sizeof(config.fwname),
 			 "qca/crnv%02x.bin", rom_ver);
+	else if (soc_type == QCA_QCA6390)
+		snprintf(config.fwname, sizeof(config.fwname),
+			 "qca/htnv%02x.bin", rom_ver);
 	else
 		snprintf(config.fwname, sizeof(config.fwname),
 			 "qca/nvm_%08x.bin", soc_ver);

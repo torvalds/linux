@@ -38,7 +38,7 @@
 #include "mgmt_util.h"
 
 #define MGMT_VERSION	1
-#define MGMT_REVISION	16
+#define MGMT_REVISION	17
 
 static const u16 mgmt_commands[] = {
 	MGMT_OP_READ_INDEX_LIST,
@@ -108,6 +108,7 @@ static const u16 mgmt_commands[] = {
 	MGMT_OP_SET_APPEARANCE,
 	MGMT_OP_SET_BLOCKED_KEYS,
 	MGMT_OP_SET_WIDEBAND_SPEECH,
+	MGMT_OP_READ_SECURITY_INFO,
 };
 
 static const u16 mgmt_events[] = {
@@ -155,6 +156,7 @@ static const u16 mgmt_untrusted_commands[] = {
 	MGMT_OP_READ_CONFIG_INFO,
 	MGMT_OP_READ_EXT_INDEX_LIST,
 	MGMT_OP_READ_EXT_INFO,
+	MGMT_OP_READ_SECURITY_INFO,
 };
 
 static const u16 mgmt_untrusted_events[] = {
@@ -3659,6 +3661,55 @@ unlock:
 	return err;
 }
 
+static int read_security_info(struct sock *sk, struct hci_dev *hdev,
+			      void *data, u16 data_len)
+{
+	char buf[16];
+	struct mgmt_rp_read_security_info *rp = (void *)buf;
+	u16 sec_len = 0;
+	u8 flags = 0;
+
+	bt_dev_dbg(hdev, "sock %p", sk);
+
+	memset(&buf, 0, sizeof(buf));
+
+	hci_dev_lock(hdev);
+
+	/* When the Read Simple Pairing Options command is supported, then
+	 * the remote public key validation is supported.
+	 */
+	if (hdev->commands[41] & 0x08)
+		flags |= 0x01;	/* Remote public key validation (BR/EDR) */
+
+	flags |= 0x02;		/* Remote public key validation (LE) */
+
+	/* When the Read Encryption Key Size command is supported, then the
+	 * encryption key size is enforced.
+	 */
+	if (hdev->commands[20] & 0x10)
+		flags |= 0x04;	/* Encryption key size enforcement (BR/EDR) */
+
+	flags |= 0x08;		/* Encryption key size enforcement (LE) */
+
+	sec_len = eir_append_data(rp->sec, sec_len, 0x01, &flags, 1);
+
+	/* When the Read Simple Pairing Options command is supported, then
+	 * also max encryption key size information is provided.
+	 */
+	if (hdev->commands[41] & 0x08)
+		sec_len = eir_append_le16(rp->sec, sec_len, 0x02,
+					  hdev->max_enc_key_size);
+
+	sec_len = eir_append_le16(rp->sec, sec_len, 0x03, SMP_MAX_ENC_KEY_SIZE);
+
+	rp->sec_len = cpu_to_le16(sec_len);
+
+	hci_dev_unlock(hdev);
+
+	return mgmt_cmd_complete(sk, hdev->id, MGMT_OP_READ_SECURITY_INFO, 0,
+				 rp, sizeof(*rp) + sec_len);
+}
+
 static void read_local_oob_data_complete(struct hci_dev *hdev, u8 status,
 				         u16 opcode, struct sk_buff *skb)
 {
@@ -7099,6 +7150,8 @@ static const struct hci_mgmt_handler mgmt_handlers[] = {
 	{ set_blocked_keys,	   MGMT_OP_SET_BLOCKED_KEYS_SIZE,
 						HCI_MGMT_VAR_LEN },
 	{ set_wideband_speech,	   MGMT_SETTING_SIZE },
+	{ read_security_info,      MGMT_READ_SECURITY_INFO_SIZE,
+						HCI_MGMT_UNTRUSTED },
 };
 
 void mgmt_index_added(struct hci_dev *hdev)

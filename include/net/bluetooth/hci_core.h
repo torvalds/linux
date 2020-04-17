@@ -312,6 +312,8 @@ struct hci_dev {
 	__u16		conn_info_max_age;
 	__u16		auth_payload_timeout;
 	__u8		min_enc_key_size;
+	__u8		max_enc_key_size;
+	__u8		pairing_opts;
 	__u8		ssp_debug_mode;
 	__u8		hw_error_code;
 	__u32		clock;
@@ -484,6 +486,11 @@ struct hci_dev {
 	struct led_trigger	*power_led;
 #endif
 
+#if IS_ENABLED(CONFIG_BT_MSFTEXT)
+	__u16			msft_opcode;
+	void			*msft_data;
+#endif
+
 	int (*open)(struct hci_dev *hdev);
 	int (*close)(struct hci_dev *hdev);
 	int (*flush)(struct hci_dev *hdev);
@@ -638,6 +645,7 @@ extern struct mutex hci_cb_list_lock;
 	do {							\
 		hci_dev_clear_flag(hdev, HCI_LE_SCAN);		\
 		hci_dev_clear_flag(hdev, HCI_LE_ADV);		\
+		hci_dev_clear_flag(hdev, HCI_LL_RPA_RESOLUTION);\
 		hci_dev_clear_flag(hdev, HCI_PERIODIC_INQ);	\
 	} while (0)
 
@@ -1116,6 +1124,14 @@ int hci_recv_frame(struct hci_dev *hdev, struct sk_buff *skb);
 int hci_recv_diag(struct hci_dev *hdev, struct sk_buff *skb);
 __printf(2, 3) void hci_set_hw_info(struct hci_dev *hdev, const char *fmt, ...);
 __printf(2, 3) void hci_set_fw_info(struct hci_dev *hdev, const char *fmt, ...);
+
+static inline void hci_set_msft_opcode(struct hci_dev *hdev, __u16 opcode)
+{
+#if IS_ENABLED(CONFIG_BT_MSFTEXT)
+	hdev->msft_opcode = opcode;
+#endif
+}
+
 int hci_dev_open(__u16 dev);
 int hci_dev_close(__u16 dev);
 int hci_dev_do_close(struct hci_dev *hdev);

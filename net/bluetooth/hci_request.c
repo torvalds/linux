@@ -2723,6 +2723,8 @@ static int active_scan(struct hci_request *req, unsigned long opt)
 	uint16_t interval = opt;
 	struct hci_dev *hdev = req->hdev;
 	u8 own_addr_type;
+	/* White list is not used for discovery */
+	u8 filter_policy = 0x00;
 	int err;
 
 	BT_DBG("%s", hdev->name);
@@ -2744,7 +2746,7 @@ static int active_scan(struct hci_request *req, unsigned long opt)
 		own_addr_type = ADDR_LE_DEV_PUBLIC;
 
 	hci_req_start_scan(req, LE_SCAN_ACTIVE, interval, DISCOV_LE_SCAN_WIN,
-			   own_addr_type, 0);
+			   own_addr_type, filter_policy);
 	return 0;
 }
 
