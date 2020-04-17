@@ -5625,6 +5625,7 @@ static int
 intel_dp_check_mst_status(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	bool need_retrain = false;
 
 	if (!intel_dp->is_mst)
 		return -EINVAL;
@@ -5644,16 +5645,11 @@ intel_dp_check_mst_status(struct intel_dp *intel_dp)
 		}
 
 		/* check link status - esi[10] = 0x200c */
-		/*
-		 * FIXME kill this and use the SST retraining approach
-		 * for MST as well.
-		 */
-		if (intel_dp->active_mst_links > 0 &&
+		if (intel_dp->active_mst_links > 0 && !need_retrain &&
 		    !drm_dp_channel_eq_ok(&esi[10], intel_dp->lane_count)) {
 			drm_dbg_kms(&i915->drm,
 				    "channel EQ not ok, retraining\n");
-			intel_dp_start_link_train(intel_dp);
-			intel_dp_stop_link_train(intel_dp);
+			need_retrain = true;
 		}
 
 		drm_dbg_kms(&i915->drm, "got esi %3ph\n", esi);
@@ -5673,7 +5669,7 @@ intel_dp_check_mst_status(struct intel_dp *intel_dp)
 		}
 	}
 
-	return 0;
+	return need_retrain;
 }
 
 static bool
@@ -5710,20 +5706,102 @@ intel_dp_needs_link_retrain(struct intel_dp *intel_dp)
 	return !drm_dp_channel_eq_ok(link_status, intel_dp->lane_count);
 }
 
+static bool intel_dp_has_connector(struct intel_dp *intel_dp,
+				   const struct drm_connector_state *conn_state)
+{
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	struct intel_encoder *encoder;
+	enum pipe pipe;
+
+	if (!conn_state->best_encoder)
+		return false;
+
+	/* SST */
+	encoder = &dp_to_dig_port(intel_dp)->base;
+	if (conn_state->best_encoder == &encoder->base)
+		return true;
+
+	/* MST */
+	for_each_pipe(i915, pipe) {
+		encoder = &intel_dp->mst_encoders[pipe]->base;
+		if (conn_state->best_encoder == &encoder->base)
+			return true;
+	}
+
+	return false;
+}
+
+static int intel_dp_prep_link_retrain(struct intel_dp *intel_dp,
+				      struct drm_modeset_acquire_ctx *ctx,
+				      u32 *crtc_mask)
+{
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	struct drm_connector_list_iter conn_iter;
+	struct intel_connector *connector;
+	int ret = 0;
+
+	*crtc_mask = 0;
+
+	if (!intel_dp_needs_link_retrain(intel_dp))
+		return 0;
+
+	drm_connector_list_iter_begin(&i915->drm, &conn_iter);
+	for_each_intel_connector_iter(connector, &conn_iter) {
+		struct drm_connector_state *conn_state =
+			connector->base.state;
+		struct intel_crtc_state *crtc_state;
+		struct intel_crtc *crtc;
+
+		if (!intel_dp_has_connector(intel_dp, conn_state))
+			continue;
+
+		crtc = to_intel_crtc(conn_state->crtc);
+		if (!crtc)
+			continue;
+
+		ret = drm_modeset_lock(&crtc->base.mutex, ctx);
+		if (ret)
+			break;
+
+		crtc_state = to_intel_crtc_state(crtc->base.state);
+
+		drm_WARN_ON(&i915->drm, !intel_crtc_has_dp_encoder(crtc_state));
+
+		if (!crtc_state->hw.active)
+			continue;
+
+		if (conn_state->commit &&
+		    !try_wait_for_completion(&conn_state->commit->hw_done))
+			continue;
+
+		*crtc_mask |= drm_crtc_mask(&crtc->base);
+	}
+	drm_connector_list_iter_end(&conn_iter);
+
+	if (!intel_dp_needs_link_retrain(intel_dp))
+		*crtc_mask = 0;
+
+	return ret;
+}
+
+static bool intel_dp_is_connected(struct intel_dp *intel_dp)
+{
+	struct intel_connector *connector = intel_dp->attached_connector;
+
+	return connector->base.status == connector_status_connected ||
+		intel_dp->is_mst;
+}
+
 int intel_dp_retrain_link(struct intel_encoder *encoder,
 			  struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-	struct intel_connector *connector = intel_dp->attached_connector;
-	struct drm_connector_state *conn_state;
-	struct intel_crtc_state *crtc_state;
 	struct intel_crtc *crtc;
+	u32 crtc_mask;
 	int ret;
 
-	/* FIXME handle the MST connectors as well */
-
-	if (!connector || connector->base.status != connector_status_connected)
+	if (!intel_dp_is_connected(intel_dp))
 		return 0;
 
 	ret = drm_modeset_lock(&dev_priv->drm.mode_config.connection_mutex,
@@ -5731,46 +5809,42 @@ int intel_dp_retrain_link(struct intel_encoder *encoder,
 	if (ret)
 		return ret;
 
-	conn_state = connector->base.state;
-
-	crtc = to_intel_crtc(conn_state->crtc);
-	if (!crtc)
-		return 0;
-
-	ret = drm_modeset_lock(&crtc->base.mutex, ctx);
+	ret = intel_dp_prep_link_retrain(intel_dp, ctx, &crtc_mask);
 	if (ret)
 		return ret;
 
-	crtc_state = to_intel_crtc_state(crtc->base.state);
-
-	drm_WARN_ON(&dev_priv->drm, !intel_crtc_has_dp_encoder(crtc_state));
-
-	if (!crtc_state->hw.active)
+	if (crtc_mask == 0)
 		return 0;
 
-	if (conn_state->commit &&
-	    !try_wait_for_completion(&conn_state->commit->hw_done))
-		return 0;
+	drm_dbg_kms(&dev_priv->drm, "[ENCODER:%d:%s] retraining link\n",
+		    encoder->base.base.id, encoder->base.name);
 
-	if (!intel_dp_needs_link_retrain(intel_dp))
-		return 0;
+	for_each_intel_crtc_mask(&dev_priv->drm, crtc, crtc_mask) {
+		const struct intel_crtc_state *crtc_state =
+			to_intel_crtc_state(crtc->base.state);
 
-	/* Suppress underruns caused by re-training */
-	intel_set_cpu_fifo_underrun_reporting(dev_priv, crtc->pipe, false);
-	if (crtc_state->has_pch_encoder)
-		intel_set_pch_fifo_underrun_reporting(dev_priv,
-						      intel_crtc_pch_transcoder(crtc), false);
+		/* Suppress underruns caused by re-training */
+		intel_set_cpu_fifo_underrun_reporting(dev_priv, crtc->pipe, false);
+		if (crtc_state->has_pch_encoder)
+			intel_set_pch_fifo_underrun_reporting(dev_priv,
+							      intel_crtc_pch_transcoder(crtc), false);
+	}
 
 	intel_dp_start_link_train(intel_dp);
 	intel_dp_stop_link_train(intel_dp);
 
-	/* Keep underrun reporting disabled until things are stable */
-	intel_wait_for_vblank(dev_priv, crtc->pipe);
+	for_each_intel_crtc_mask(&dev_priv->drm, crtc, crtc_mask) {
+		const struct intel_crtc_state *crtc_state =
+			to_intel_crtc_state(crtc->base.state);
 
-	intel_set_cpu_fifo_underrun_reporting(dev_priv, crtc->pipe, true);
-	if (crtc_state->has_pch_encoder)
-		intel_set_pch_fifo_underrun_reporting(dev_priv,
-						      intel_crtc_pch_transcoder(crtc), true);
+		/* Keep underrun reporting disabled until things are stable */
+		intel_wait_for_vblank(dev_priv, crtc->pipe);
+
+		intel_set_cpu_fifo_underrun_reporting(dev_priv, crtc->pipe, true);
+		if (crtc_state->has_pch_encoder)
+			intel_set_pch_fifo_underrun_reporting(dev_priv,
+							      intel_crtc_pch_transcoder(crtc), true);
+	}
 
 	return 0;
 }
@@ -7412,7 +7486,8 @@ intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 	}
 
 	if (intel_dp->is_mst) {
-		if (intel_dp_check_mst_status(intel_dp) == -EINVAL) {
+		switch (intel_dp_check_mst_status(intel_dp)) {
+		case -EINVAL:
 			/*
 			 * If we were in MST mode, and device is not
 			 * there, get out of MST mode
@@ -7426,6 +7501,10 @@ intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 							intel_dp->is_mst);
 
 			return IRQ_NONE;
+		case 1:
+			return IRQ_NONE;
+		default:
+			break;
 		}
 	}
 
