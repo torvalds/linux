@@ -156,6 +156,7 @@ struct ion_dma_buf_attachment {
 	struct device *dev;
 	struct sg_table *table;
 	struct list_head list;
+	bool mapped:1;
 };
 
 #ifdef CONFIG_ION
