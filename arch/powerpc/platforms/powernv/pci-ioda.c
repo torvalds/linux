@@ -1145,8 +1145,7 @@ static struct pnv_ioda_pe *pnv_ioda_setup_bus_PE(struct pci_bus *bus, bool all)
 	}
 
 	/* PE number for root bus should have been reserved */
-	if (pci_is_root_bus(bus) &&
-	    phb->ioda.root_pe_idx != IODA_INVALID_PE)
+	if (pci_is_root_bus(bus))
 		pe = &phb->ioda.pe_array[phb->ioda.root_pe_idx];
 
 	/* Check if PE is determined by M64 */
@@ -3199,15 +3198,6 @@ static void pnv_pci_configure_bus(struct pci_bus *bus)
 
 	dev_info(&bus->dev, "Configuring PE for bus\n");
 
-	/* The PE for root bus should be realized before any one else */
-	if (!phb->ioda.root_pe_populated) {
-		pe = pnv_ioda_setup_bus_PE(phb->hose->bus, false);
-		if (pe) {
-			phb->ioda.root_pe_idx = pe->pe_number;
-			phb->ioda.root_pe_populated = true;
-		}
-	}
-
 	/* Don't assign PE to PCI bus, which doesn't have subordinate devices */
 	if (list_empty(&bus->devices))
 		return;
@@ -3490,11 +3480,10 @@ static void pnv_ioda_release_pe(struct pnv_ioda_pe *pe)
 	 * that it can be populated again in PCI hot add path. The PE
 	 * shouldn't be destroyed as it's the global reserved resource.
 	 */
-	if (phb->ioda.root_pe_populated &&
-	    phb->ioda.root_pe_idx == pe->pe_number)
-		phb->ioda.root_pe_populated = false;
-	else
-		pnv_ioda_free_pe(pe);
+	if (phb->ioda.root_pe_idx == pe->pe_number)
+		return;
+
+	pnv_ioda_free_pe(pe);
 }
 
 static void pnv_pci_release_device(struct pci_dev *pdev)
@@ -3602,6 +3591,7 @@ static void __init pnv_pci_init_ioda_phb(struct device_node *np,
 	struct pnv_phb *phb;
 	unsigned long size, m64map_off, m32map_off, pemap_off;
 	unsigned long iomap_off = 0, dma32map_off = 0;
+	struct pnv_ioda_pe *root_pe;
 	struct resource r;
 	const __be64 *prop64;
 	const __be32 *prop32;
@@ -3769,7 +3759,9 @@ static void __init pnv_pci_init_ioda_phb(struct device_node *np,
 		phb->ioda.root_pe_idx = phb->ioda.reserved_pe_idx - 1;
 		pnv_ioda_reserve_pe(phb, phb->ioda.root_pe_idx);
 	} else {
-		phb->ioda.root_pe_idx = IODA_INVALID_PE;
+		/* otherwise just allocate one */
+		root_pe = pnv_ioda_alloc_pe(phb);
+		phb->ioda.root_pe_idx = root_pe->pe_number;
 	}
 
 	INIT_LIST_HEAD(&phb->ioda.pe_list);

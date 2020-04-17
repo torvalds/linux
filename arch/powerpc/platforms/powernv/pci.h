@@ -136,7 +136,6 @@ struct pnv_phb {
 		unsigned int		total_pe_num;
 		unsigned int		reserved_pe_idx;
 		unsigned int		root_pe_idx;
-		bool			root_pe_populated;
 
 		/* 32-bit MMIO window */
 		unsigned int		m32_size;
