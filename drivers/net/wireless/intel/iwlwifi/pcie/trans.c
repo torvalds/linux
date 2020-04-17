@@ -2601,9 +2601,10 @@ static int iwl_dbgfs_tx_queue_seq_show(struct seq_file *seq, void *v)
 		   !!test_bit(state->pos, trans_pcie->queue_stopped));
 	if (txq)
 		seq_printf(seq,
-			   "read=%u write=%u need_update=%d frozen=%d",
+			   "read=%u write=%u need_update=%d frozen=%d n_window=%d ampdu=%d",
 			   txq->read_ptr, txq->write_ptr,
-			   txq->need_update, txq->frozen);
+			   txq->need_update, txq->frozen,
+			   txq->n_window, txq->ampdu);
 	else
 		seq_puts(seq, "(unallocated)");
 
