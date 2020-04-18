@@ -105,10 +105,10 @@
 #define IMX347_HDR_LANES		4
 #define IMX347_BITS_PER_SAMPLE		10
 
-#define RHS1_MAX 3113 // <2*BRL=2*1556 && 4n+1
-#define SHS1_MIN 9
-#define FSC 4950
-#define BRL 1556
+#define RHS1_MAX			3113 // <2*BRL=2*1556 && 4n+1
+#define SHR1_MIN			9
+#define BRL				1556
+
 static bool g_isHCG;
 
 #define OF_CAMERA_PINCTRL_STATE_DEFAULT	"rockchip,camera_default"
@@ -180,6 +180,9 @@ struct imx347 {
 	const char		*module_facing;
 	const char		*module_name;
 	const char		*len_name;
+	u32			cur_vts;
+	bool			has_init_exp;
+	struct preisp_hdrae_exp_s init_hdrae_exp;
 };
 
 #define to_imx347(sd) container_of(sd, struct imx347, subdev)
@@ -283,8 +286,8 @@ static const struct regval imx347_hdr_2x_2688x1520_regs[] = {
 	{0x3002, 0x00},
 	{0x300C, 0x5B},
 	{0x300D, 0x40},
-	{0x3030, 0xab},
-	{0x3031, 0x09},
+	{0x3030, 0xbc},
+	{0x3031, 0x07},
 	{0x3032, 0x00},
 	{0x3034, 0xEE},
 	{0x3035, 0x02},
@@ -409,11 +412,11 @@ static const struct imx347_mode supported_modes[] = {
 		.height = 1536,
 		.max_fps = {
 			.numerator = 10000,
-			.denominator = 200000,
+			.denominator = 250000,
 		},
 		.exp_def = 0x0240,
 		.hts_def = 0x02ee * 4,
-		.vts_def = 0x09ab,
+		.vts_def = 0x07bc,
 		.reg_list = imx347_hdr_2x_2688x1520_regs,
 		.hdr_mode = HDR_X2,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_1,
@@ -522,7 +525,8 @@ imx347_find_best_fit(struct imx347 *imx347, struct v4l2_subdev_format *fmt)
 
 	for (i = 0; i < imx347->cfg_num; i++) {
 		dist = imx347_get_reso_dist(&supported_modes[i], framefmt);
-		if (cur_best_fit_dist == -1 || dist < cur_best_fit_dist) {
+		if ((cur_best_fit_dist == -1 || dist <= cur_best_fit_dist) &&
+			supported_modes[i].bus_fmt == framefmt->code) {
 			cur_best_fit_dist = dist;
 			cur_best_fit = i;
 		}
@@ -691,21 +695,28 @@ static int imx347_set_hdrae(struct imx347 *imx347,
 	u32 l_exp_time, m_exp_time, s_exp_time;
 	u32 l_a_gain, m_a_gain, s_a_gain;
 	u32 gain_switch = 0;
-	u32 shs1 = 0;
-	u32 shs2 = 0;
+	u32 shr1 = 0;
+	u32 shr0 = 0;
 	u32 rhs1 = 0;
 	u32 rhs1_max = 0;
 	static int rhs1_old = 209;
 	int rhs1_change_limit;
 	int ret = 0;
+	u32 fsc = imx347->cur_vts * 2;
 
+	if (!imx347->has_init_exp && !imx347->streaming) {
+		imx347->init_hdrae_exp = *ae;
+		imx347->has_init_exp = true;
+		dev_dbg(&imx347->client->dev, "imx347 don't stream, record exp for hdr!\n");
+		return ret;
+	}
 	l_exp_time = ae->long_exp_reg;
 	m_exp_time = ae->middle_exp_reg;
 	s_exp_time = ae->short_exp_reg;
 	l_a_gain = ae->long_gain_reg;
 	m_a_gain = ae->middle_gain_reg;
 	s_a_gain = ae->short_gain_reg;
-	dev_info(&client->dev,
+	dev_dbg(&client->dev,
 		"rev exp req: L_exp: 0x%x, 0x%x, M_exp: 0x%x, 0x%x S_exp: 0x%x, 0x%x\n",
 		l_exp_time, m_exp_time, s_exp_time,
 		l_a_gain, m_a_gain, s_a_gain);
@@ -758,9 +769,9 @@ static int imx347_set_hdrae(struct imx347 *imx347,
 			gain_switch & 0xff);
 
 	//long exposure and short exposure
-	shs2 = FSC - l_exp_time;
-	rhs1_max = (RHS1_MAX > (shs2 - 9)) ? (shs2 - 9) : RHS1_MAX;
-	rhs1 = SHS1_MIN + s_exp_time;
+	shr0 = fsc - l_exp_time;
+	rhs1_max = (RHS1_MAX > (shr0 - 9)) ? (shr0 - 9) : RHS1_MAX;
+	rhs1 = SHR1_MIN + s_exp_time;
 	dev_dbg(&client->dev, "line(%d) rhs1 %d\n", __LINE__, rhs1);
 	if (rhs1 < 13)
 		rhs1 = 13;
@@ -769,7 +780,7 @@ static int imx347_set_hdrae(struct imx347 *imx347,
 	dev_dbg(&client->dev, "line(%d) rhs1 %d\n", __LINE__, rhs1);
 
 	//Dynamic adjustment rhs1 must meet the following conditions
-	rhs1_change_limit = rhs1_old + 2 * BRL - FSC + 2;
+	rhs1_change_limit = rhs1_old + 2 * BRL - fsc + 2;
 	rhs1_change_limit = (rhs1_change_limit < 13) ?  13 : rhs1_change_limit;
 	if (rhs1 < rhs1_change_limit)
 		rhs1 = rhs1_change_limit;
@@ -777,34 +788,34 @@ static int imx347_set_hdrae(struct imx347 *imx347,
 	dev_dbg(&client->dev,
 		"line(%d) rhs1 %d,short time %d rhs1_old %d test %d\n",
 		__LINE__, rhs1, s_exp_time, rhs1_old,
-		(rhs1_old + 2 * BRL - FSC + 2));
+		(rhs1_old + 2 * BRL - fsc + 2));
 
 	rhs1 = (rhs1 >> 2) * 4 + 1;
 	rhs1_old = rhs1;
 
 	if (rhs1 < s_exp_time) {
-		shs1 = 9;
-		s_exp_time = rhs1 - shs1;
+		shr1 = 9;
+		s_exp_time = rhs1 - shr1;
 	} else {
-		shs1 = rhs1 - s_exp_time;
+		shr1 = rhs1 - s_exp_time;
 	}
 
-	if (shs1 < 9)
-		shs1 = 9;
-	else if (shs1 > (rhs1 - 2))
-		shs1 = rhs1 - 2;
+	if (shr1 < 9)
+		shr1 = 9;
+	else if (shr1 > (rhs1 - 2))
+		shr1 = rhs1 - 2;
 
-	if (shs2 < (rhs1 + 9))
-		shs2 = rhs1 + 9;
-	else if (shs2 > (FSC - 2))
-		shs2 = FSC - 2;
+	if (shr0 < (rhs1 + 9))
+		shr0 = rhs1 + 9;
+	else if (shr0 > (fsc - 2))
+		shr0 = fsc - 2;
 
 	dev_dbg(&client->dev,
-		"FSC=%d,RHS1_MAX=%d,SHS1_MIN=%d,rhs1_max=%d\n",
-		FSC, RHS1_MAX, SHS1_MIN, rhs1_max);
+		"fsc=%d,RHS1_MAX=%d,SHR1_MIN=%d,rhs1_max=%d\n",
+		fsc, RHS1_MAX, SHR1_MIN, rhs1_max);
 	dev_dbg(&client->dev,
-		"l_exp_time=%d,s_exp_time=%d,shs2=%d,shs1=%d,rhs1=%d,l_a_gain=%d,s_a_gain=%d\n",
-		l_exp_time, s_exp_time, shs2, shs1, rhs1, l_a_gain, s_a_gain);
+		"l_exp_time=%d,s_exp_time=%d,shr0=%d,shr1=%d,rhs1=%d,l_a_gain=%d,s_a_gain=%d\n",
+		l_exp_time, s_exp_time, shr0, shr1, rhs1, l_a_gain, s_a_gain);
 	//time effect n+2
 	ret |= imx347_write_reg(client,
 		IMX347_RHS1_REG_L,
@@ -822,27 +833,27 @@ static int imx347_set_hdrae(struct imx347 *imx347,
 	ret |= imx347_write_reg(client,
 		IMX347_SF1_EXPO_REG_L,
 		IMX347_REG_VALUE_08BIT,
-		IMX347_FETCH_EXP_L(shs1));
+		IMX347_FETCH_EXP_L(shr1));
 	ret |= imx347_write_reg(client,
 		IMX347_SF1_EXPO_REG_M,
 		IMX347_REG_VALUE_08BIT,
-		IMX347_FETCH_EXP_M(shs1));
+		IMX347_FETCH_EXP_M(shr1));
 	ret |= imx347_write_reg(client,
 		IMX347_SF1_EXPO_REG_H,
 		IMX347_REG_VALUE_08BIT,
-		IMX347_FETCH_EXP_H(shs1));
+		IMX347_FETCH_EXP_H(shr1));
 	ret |= imx347_write_reg(client,
 		IMX347_LF_EXPO_REG_L,
 		IMX347_REG_VALUE_08BIT,
-		IMX347_FETCH_EXP_L(shs2));
+		IMX347_FETCH_EXP_L(shr0));
 	ret |= imx347_write_reg(client,
 		IMX347_LF_EXPO_REG_M,
 		IMX347_REG_VALUE_08BIT,
-		IMX347_FETCH_EXP_M(shs2));
+		IMX347_FETCH_EXP_M(shr0));
 	ret |= imx347_write_reg(client,
 		IMX347_LF_EXPO_REG_H,
 		IMX347_REG_VALUE_08BIT,
-		IMX347_FETCH_EXP_H(shs2));
+		IMX347_FETCH_EXP_H(shr0));
 	return ret;
 }
 
@@ -988,17 +999,28 @@ static int __imx347_start_stream(struct imx347 *imx347)
 	if (ret)
 		return ret;
 	/* In case these controls are set before streaming */
-	mutex_unlock(&imx347->mutex);
-	ret = v4l2_ctrl_handler_setup(&imx347->ctrl_handler);
-	mutex_lock(&imx347->mutex);
-	if (ret)
-		return ret;
+	if (imx347->has_init_exp && imx347->cur_mode->hdr_mode != NO_HDR) {
+		ret = imx347_ioctl(&imx347->subdev, PREISP_CMD_SET_HDRAE_EXP,
+			&imx347->init_hdrae_exp);
+		if (ret) {
+			dev_err(&imx347->client->dev,
+				"init exp fail in hdr mode\n");
+			return ret;
+		}
+	} else {
+		mutex_unlock(&imx347->mutex);
+		ret = v4l2_ctrl_handler_setup(&imx347->ctrl_handler);
+		mutex_lock(&imx347->mutex);
+		if (ret)
+			return ret;
+	}
 	return imx347_write_reg(imx347->client, IMX347_REG_CTRL_MODE,
 				IMX347_REG_VALUE_08BIT, 0);
 }
 
 static int __imx347_stop_stream(struct imx347 *imx347)
 {
+	imx347->has_init_exp = false;
 	return imx347_write_reg(imx347->client, IMX347_REG_CTRL_MODE,
 				IMX347_REG_VALUE_08BIT, 1);
 }
@@ -1098,7 +1120,7 @@ static int __imx347_power_on(struct imx347 *imx347)
 	}
 	ret = clk_set_rate(imx347->xvclk, IMX347_XVCLK_FREQ);
 	if (ret < 0)
-		dev_warn(dev, "Failed to set xvclk rate (24MHz)\n");
+		dev_warn(dev, "Failed to set xvclk rate (37.125MHz)\n");
 	if (clk_get_rate(imx347->xvclk) != IMX347_XVCLK_FREQ)
 		dev_warn(dev, "xvclk mismatched, modes are based on 24MHz\n");
 	ret = clk_prepare_enable(imx347->xvclk);
@@ -1290,6 +1312,7 @@ static int imx347_set_ctrl(struct v4l2_ctrl *ctrl)
 	s64 max;
 	u32 vts = 0;
 	int ret = 0;
+	u32 shr0 = 0;
 
 	/* Propagate change of current control to all related controls */
 	switch (ctrl->id) {
@@ -1308,16 +1331,17 @@ static int imx347_set_ctrl(struct v4l2_ctrl *ctrl)
 
 	switch (ctrl->id) {
 	case V4L2_CID_EXPOSURE:
+		shr0 = imx347->cur_vts - ctrl->val;
 		ret = imx347_write_reg(imx347->client, IMX347_LF_EXPO_REG_L,
 				       IMX347_REG_VALUE_08BIT,
-				       IMX347_FETCH_EXP_L(ctrl->val));
+				       IMX347_FETCH_EXP_L(shr0));
 		ret |= imx347_write_reg(imx347->client, IMX347_LF_EXPO_REG_M,
 				       IMX347_REG_VALUE_08BIT,
-				       IMX347_FETCH_EXP_M(ctrl->val));
+				       IMX347_FETCH_EXP_M(shr0));
 		ret |= imx347_write_reg(imx347->client, IMX347_LF_EXPO_REG_H,
 				       IMX347_REG_VALUE_08BIT,
-				       IMX347_FETCH_EXP_H(ctrl->val));
-		dev_info(&client->dev, "set exposure 0x%x\n",
+				       IMX347_FETCH_EXP_H(shr0));
+		dev_dbg(&client->dev, "set exposure 0x%x\n",
 			ctrl->val);
 		break;
 	case V4L2_CID_ANALOGUE_GAIN:
@@ -1327,7 +1351,7 @@ static int imx347_set_ctrl(struct v4l2_ctrl *ctrl)
 		ret |= imx347_write_reg(imx347->client, IMX347_LF_GAIN_REG_L,
 				       IMX347_REG_VALUE_08BIT,
 				       IMX347_FETCH_GAIN_L(ctrl->val));
-		dev_info(&client->dev, "set analog gain 0x%x\n",
+		dev_dbg(&client->dev, "set analog gain 0x%x\n",
 			ctrl->val);
 		break;
 	case V4L2_CID_VBLANK:
@@ -1341,7 +1365,8 @@ static int imx347_set_ctrl(struct v4l2_ctrl *ctrl)
 		ret |= imx347_write_reg(imx347->client, IMX347_VTS_REG_H,
 				       IMX347_REG_VALUE_08BIT,
 				       IMX347_FETCH_VTS_H(vts));
-		dev_info(&client->dev, "set vblank 0x%x\n",
+		imx347->cur_vts = vts;
+		dev_dbg(&client->dev, "set vblank 0x%x\n",
 			ctrl->val);
 		break;
 	default:
@@ -1398,6 +1423,7 @@ static int imx347_initialize_controls(struct imx347 *imx347)
 				V4L2_CID_VBLANK, vblank_def,
 				IMX347_VTS_MAX - mode->height,
 				1, vblank_def);
+	imx347->cur_vts = mode->vts_def;
 
 	exposure_max = mode->vts_def - 4;
 	imx347->exposure = v4l2_ctrl_new_std(handler, &imx347_ctrl_ops,
@@ -1417,6 +1443,7 @@ static int imx347_initialize_controls(struct imx347 *imx347)
 	}
 
 	imx347->subdev.ctrl_handler = handler;
+	imx347->has_init_exp = false;
 
 	return 0;
 
@@ -1665,5 +1692,5 @@ static void __exit sensor_mod_exit(void)
 device_initcall_sync(sensor_mod_init);
 module_exit(sensor_mod_exit);
 
-MODULE_DESCRIPTION("OmniVision imx347 sensor driver");
+MODULE_DESCRIPTION("Sony imx347 sensor driver");
 MODULE_LICENSE("GPL v2");
