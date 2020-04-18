@@ -608,6 +608,9 @@ static int fsmc_exec_op(struct nand_chip *chip, const struct nand_operation *op,
 	unsigned int op_id;
 	int i;
 
+	if (check_only)
+		return 0;
+
 	pr_debug("Executing operation [%d instructions]:\n", op->ninstrs);
 
 	for (op_id = 0; op_id < op->ninstrs; op_id++) {

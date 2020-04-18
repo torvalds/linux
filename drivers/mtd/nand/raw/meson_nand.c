@@ -899,6 +899,9 @@ static int meson_nfc_exec_op(struct nand_chip *nand,
 	u32 op_id, delay_idle, cmd;
 	int i;
 
+	if (check_only)
+		return 0;
+
 	meson_nfc_select_chip(nand, op->cs);
 	for (op_id = 0; op_id < op->ninstrs; op_id++) {
 		instr = &op->instrs[op_id];

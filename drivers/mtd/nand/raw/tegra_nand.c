@@ -467,7 +467,9 @@ static int tegra_nand_exec_op(struct nand_chip *chip,
 			      const struct nand_operation *op,
 			      bool check_only)
 {
-	tegra_nand_select_target(chip, op->cs);
+	if (!check_only)
+		tegra_nand_select_target(chip, op->cs);
+
 	return nand_op_parser_exec_op(chip, &tegra_nand_op_parser, op,
 				      check_only);
 }

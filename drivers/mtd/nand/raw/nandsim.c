@@ -2144,6 +2144,9 @@ static int ns_exec_op(struct nand_chip *chip, const struct nand_operation *op,
 	const struct nand_op_instr *instr = NULL;
 	struct nandsim *ns = nand_get_controller_data(chip);
 
+	if (check_only)
+		return 0;
+
 	ns->lines.ce = 1;
 
 	for (op_id = 0; op_id < op->ninstrs; op_id++) {

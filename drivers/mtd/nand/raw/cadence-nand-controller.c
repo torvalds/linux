@@ -2223,10 +2223,12 @@ static int cadence_nand_exec_op(struct nand_chip *chip,
 				const struct nand_operation *op,
 				bool check_only)
 {
-	int status = cadence_nand_select_target(chip);
+	if (!check_only) {
+		int status = cadence_nand_select_target(chip);
 
-	if (status)
-		return status;
+		if (status)
+			return status;
+	}
 
 	return nand_op_parser_exec_op(chip, &cadence_nand_op_parser, op,
 				      check_only);

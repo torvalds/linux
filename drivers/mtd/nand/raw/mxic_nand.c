@@ -393,6 +393,9 @@ static int mxic_nfc_exec_op(struct nand_chip *chip,
 	int ret = 0;
 	unsigned int op_id;
 
+	if (check_only)
+		return 0;
+
 	mxic_nfc_cs_enable(nfc);
 	init_completion(&nfc->complete);
 	for (op_id = 0; op_id < op->ninstrs; op_id++) {

@@ -2107,7 +2107,8 @@ static int marvell_nfc_exec_op(struct nand_chip *chip,
 {
 	struct marvell_nfc *nfc = to_marvell_nfc(chip->controller);
 
-	marvell_nfc_select_target(chip, op->cs);
+	if (!check_only)
+		marvell_nfc_select_target(chip, op->cs);
 
 	if (nfc->caps->is_nfcv2)
 		return nand_op_parser_exec_op(chip, &marvell_nfcv2_op_parser,

@@ -1907,7 +1907,8 @@ static int sunxi_nfc_exec_op(struct nand_chip *nand,
 	struct sunxi_nand_chip *sunxi_nand = to_sunxi_nand(nand);
 	const struct nand_op_parser *parser;
 
-	sunxi_nfc_select_chip(nand, op->cs);
+	if (!check_only)
+		sunxi_nfc_select_chip(nand, op->cs);
 
 	if (sunxi_nand->sels[op->cs].rb >= 0)
 		parser = &sunxi_nfc_op_parser;

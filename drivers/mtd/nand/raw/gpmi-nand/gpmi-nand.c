@@ -2408,6 +2408,9 @@ static int gpmi_nfc_exec_op(struct nand_chip *chip,
 	struct completion *completion;
 	unsigned long to;
 
+	if (check_only)
+		return 0;
+
 	this->ntransfers = 0;
 	for (i = 0; i < GPMI_MAX_TRANSFERS; i++)
 		this->transfers[i].direction = DMA_NONE;

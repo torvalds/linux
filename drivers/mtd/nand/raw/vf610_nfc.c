@@ -502,7 +502,9 @@ static int vf610_nfc_exec_op(struct nand_chip *chip,
 			     const struct nand_operation *op,
 			     bool check_only)
 {
-	vf610_nfc_select_target(chip, op->cs);
+	if (!check_only)
+		vf610_nfc_select_target(chip, op->cs);
+
 	return nand_op_parser_exec_op(chip, &vf610_nfc_op_parser, op,
 				      check_only);
 }
