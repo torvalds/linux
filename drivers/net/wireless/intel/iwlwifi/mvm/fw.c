@@ -102,6 +102,20 @@ static int iwl_set_soc_latency(struct iwl_mvm *mvm)
 	if (!mvm->trans->trans_cfg->integrated)
 		cmd.flags = cpu_to_le32(SOC_CONFIG_CMD_FLAGS_DISCRETE);
 
+	BUILD_BUG_ON(IWL_CFG_TRANS_LTR_DELAY_NONE !=
+		     SOC_FLAGS_LTR_APPLY_DELAY_NONE);
+	BUILD_BUG_ON(IWL_CFG_TRANS_LTR_DELAY_200US !=
+		     SOC_FLAGS_LTR_APPLY_DELAY_200);
+	BUILD_BUG_ON(IWL_CFG_TRANS_LTR_DELAY_2500US !=
+		     SOC_FLAGS_LTR_APPLY_DELAY_2500);
+	BUILD_BUG_ON(IWL_CFG_TRANS_LTR_DELAY_1820US !=
+		     SOC_FLAGS_LTR_APPLY_DELAY_1820);
+
+	if (mvm->trans->trans_cfg->ltr_delay != IWL_CFG_TRANS_LTR_DELAY_NONE &&
+	    !WARN_ON(!mvm->trans->trans_cfg->integrated))
+		cmd.flags |= le32_encode_bits(mvm->trans->trans_cfg->ltr_delay,
+					      SOC_FLAGS_LTR_APPLY_DELAY_MASK);
+
 	if (iwl_fw_lookup_cmd_ver(mvm->fw, IWL_ALWAYS_LONG_GROUP,
 				  SCAN_REQ_UMAC) >= 2 &&
 	    mvm->trans->trans_cfg->low_latency_xtal)

@@ -5,9 +5,8 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
  * Copyright (C) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019 Intel Corporation
+ * Copyright(c) 2007 - 2014, 2018 - 2020 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -27,9 +26,8 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright (C) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019 Intel Corporation
+ * Copyright(c) 2005 - 2014, 2018 - 2020 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -284,6 +282,13 @@ struct iwl_pwr_tx_backoff {
 	u32 backoff;
 };
 
+enum iwl_cfg_trans_ltr_delay {
+	IWL_CFG_TRANS_LTR_DELAY_NONE	= 0,
+	IWL_CFG_TRANS_LTR_DELAY_200US	= 1,
+	IWL_CFG_TRANS_LTR_DELAY_2500US	= 2,
+	IWL_CFG_TRANS_LTR_DELAY_1820US	= 3,
+};
+
 /**
  * struct iwl_cfg_trans - information needed to start the trans
  *
@@ -304,6 +309,7 @@ struct iwl_pwr_tx_backoff {
  * @mq_rx_supported: multi-queue rx support
  * @integrated: discrete or integrated
  * @low_latency_xtal: use the low latency xtal if supported
+ * @ltr_delay: LTR delay parameter, &enum iwl_cfg_trans_ltr_delay.
  */
 struct iwl_cfg_trans_params {
 	const struct iwl_base_params *base_params;
@@ -317,7 +323,8 @@ struct iwl_cfg_trans_params {
 	    mq_rx_supported:1,
 	    integrated:1,
 	    low_latency_xtal:1,
-	    bisr_workaround:1;
+	    bisr_workaround:1,
+	    ltr_delay:2;
 };
 
 /**

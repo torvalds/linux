@@ -243,6 +243,7 @@ const struct iwl_cfg_trans_params iwl_qu_trans_cfg = {
 	.base_params = &iwl_22000_base_params,
 	.integrated = true,
 	.xtal_latency = 5000,
+	.ltr_delay = IWL_CFG_TRANS_LTR_DELAY_200US,
 };
 
 const struct iwl_cfg_trans_params iwl_qu_long_latency_trans_cfg = {
@@ -255,6 +256,7 @@ const struct iwl_cfg_trans_params iwl_qu_long_latency_trans_cfg = {
 	.integrated = true,
 	.xtal_latency = 12000,
 	.low_latency_xtal = true,
+	.ltr_delay = IWL_CFG_TRANS_LTR_DELAY_2500US,
 };
 
 const struct iwl_cfg_trans_params iwl_qnj_trans_cfg = {
