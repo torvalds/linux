@@ -1247,7 +1247,7 @@ Skip:
 	 * to be skipped.
 	 */
 	if (atomic_read(&dev->power.usage_count) > 1 ||
-	    !(dev_pm_test_driver_flags(dev, DPM_FLAG_LEAVE_SUSPENDED) &&
+	    !(dev_pm_test_driver_flags(dev, DPM_FLAG_MAY_SKIP_RESUME) &&
 	      dev->power.may_skip_resume))
 		dev->power.must_resume = true;
 

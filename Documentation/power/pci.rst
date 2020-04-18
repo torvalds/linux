@@ -1029,7 +1029,7 @@ into D0 going forward), but if it is in runtime suspend in pci_pm_thaw_noirq(),
 the function will set the power.direct_complete flag for it (to make the PM core
 skip the subsequent "thaw" callbacks for it) and return.
 
-Setting the DPM_FLAG_LEAVE_SUSPENDED flag means that the driver prefers the
+Setting the DPM_FLAG_MAY_SKIP_RESUME flag means that the driver prefers the
 device to be left in suspend after system-wide transitions to the working state.
 This flag is checked by the PM core, but the PCI bus type informs the PM core
 which devices may be left in suspend from its perspective (that happens during

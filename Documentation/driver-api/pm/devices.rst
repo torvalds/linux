@@ -803,7 +803,7 @@ general.]
 However, it often is desirable to leave devices in suspend after system
 transitions to the working state, especially if those devices had been in
 runtime suspend before the preceding system-wide suspend (or analogous)
-transition.  Device drivers can use the ``DPM_FLAG_LEAVE_SUSPENDED`` flag to
+transition.  Device drivers can use the ``DPM_FLAG_MAY_SKIP_RESUME`` flag to
 indicate to the PM core (and middle-layer code) that they prefer the specific
 devices handled by them to be left suspended and they have no problems with
 skipping their system-wide resume callbacks for this reason.  Whether or not the
@@ -825,7 +825,7 @@ device really can be left in suspend.
 
 For devices whose "noirq", "late" and "early" driver callbacks are invoked
 directly by the PM core, all of the system-wide resume callbacks are skipped if
-``DPM_FLAG_LEAVE_SUSPENDED`` is set and the device is in runtime suspend during
+``DPM_FLAG_MAY_SKIP_RESUME`` is set and the device is in runtime suspend during
 the ``suspend_noirq`` (or analogous) phase or the transition under way is a
 proper system suspend (rather than anything related to hibernation) and the
 device's wakeup settings are suitable for runtime PM (that is, it cannot
