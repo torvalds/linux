@@ -1132,14 +1132,6 @@ static int acpi_subsys_resume_noirq(struct device *dev)
 	if (dev_pm_may_skip_resume(dev))
 		return 0;
 
-	/*
-	 * Devices with DPM_FLAG_SMART_SUSPEND may be left in runtime suspend
-	 * during system suspend, so update their runtime PM status to "active"
-	 * as they will be put into D0 going forward.
-	 */
-	if (dev_pm_smart_suspend_and_suspended(dev))
-		pm_runtime_set_active(dev);
-
 	return pm_generic_resume_noirq(dev);
 }
 
@@ -1153,7 +1145,12 @@ static int acpi_subsys_resume_noirq(struct device *dev)
  */
 static int acpi_subsys_resume_early(struct device *dev)
 {
-	int ret = acpi_dev_resume(dev);
+	int ret;
+
+	if (dev_pm_may_skip_resume(dev))
+		return 0;
+
+	ret = acpi_dev_resume(dev);
 	return ret ? ret : pm_generic_resume_early(dev);
 }
 

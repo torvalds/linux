@@ -1035,10 +1035,7 @@ This flag is checked by the PM core, but the PCI bus type informs the PM core
 which devices may be left in suspend from its perspective (that happens during
 the "noirq" phase of system-wide suspend and analogous transitions) and next it
 uses the dev_pm_may_skip_resume() helper to decide whether or not to return from
-pci_pm_resume_noirq() early, as the PM core will skip the remaining resume
-callbacks for the device during the transition under way and will set its
-runtime PM status to "suspended" if dev_pm_may_skip_resume() returns "true" for
-it.
+pci_pm_resume_noirq() and pci_pm_resume_early() upfront.
 
 3.2. Device Runtime Power Management
 ------------------------------------

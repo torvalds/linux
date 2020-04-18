@@ -897,14 +897,6 @@ static int pci_pm_resume_noirq(struct device *dev)
 		return 0;
 
 	/*
-	 * Devices with DPM_FLAG_SMART_SUSPEND may be left in runtime suspend
-	 * during system suspend, so update their runtime PM status to "active"
-	 * as they are going to be put into D0 shortly.
-	 */
-	if (dev_pm_smart_suspend_and_suspended(dev))
-		pm_runtime_set_active(dev);
-
-	/*
 	 * In the suspend-to-idle case, devices left in D0 during suspend will
 	 * stay in D0, so it is not necessary to restore or update their
 	 * configuration here and attempting to put them into D0 again is
@@ -926,6 +918,14 @@ static int pci_pm_resume_noirq(struct device *dev)
 		return pm->resume_noirq(dev);
 
 	return 0;
+}
+
+static int pci_pm_resume_early(struct device *dev)
+{
+	if (dev_pm_may_skip_resume(dev))
+		return 0;
+
+	return pm_generic_resume_early(dev);
 }
 
 static int pci_pm_resume(struct device *dev)
@@ -961,6 +961,7 @@ static int pci_pm_resume(struct device *dev)
 #define pci_pm_suspend_late	NULL
 #define pci_pm_suspend_noirq	NULL
 #define pci_pm_resume		NULL
+#define pci_pm_resume_early	NULL
 #define pci_pm_resume_noirq	NULL
 
 #endif /* !CONFIG_SUSPEND */
@@ -1358,6 +1359,7 @@ static const struct dev_pm_ops pci_dev_pm_ops = {
 	.suspend = pci_pm_suspend,
 	.suspend_late = pci_pm_suspend_late,
 	.resume = pci_pm_resume,
+	.resume_early = pci_pm_resume_early,
 	.freeze = pci_pm_freeze,
 	.thaw = pci_pm_thaw,
 	.poweroff = pci_pm_poweroff,

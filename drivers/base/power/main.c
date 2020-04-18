@@ -565,12 +565,22 @@ static void dpm_watchdog_clear(struct dpm_watchdog *wd)
  * dev_pm_may_skip_resume - System-wide device resume optimization check.
  * @dev: Target device.
  *
- * Checks whether or not the device may be left in suspend after a system-wide
- * transition to the working state.
+ * Return:
+ * - %false if the transition under way is RESTORE.
+ * - The return value of dev_pm_smart_suspend_and_suspended() if the transition
+ *   under way is THAW.
+ * - The logical negation of %power.must_resume otherwise (that is, when the
+ *   transition under way is RESUME).
  */
 bool dev_pm_may_skip_resume(struct device *dev)
 {
-	return !dev->power.must_resume && pm_transition.event != PM_EVENT_RESTORE;
+	if (pm_transition.event == PM_EVENT_RESTORE)
+		return false;
+
+	if (pm_transition.event == PM_EVENT_THAW)
+		return dev_pm_smart_suspend_and_suspended(dev);
+
+	return !dev->power.must_resume;
 }
 
 /**
@@ -601,6 +611,22 @@ static int device_resume_noirq(struct device *dev, pm_message_t state, bool asyn
 	if (!dpm_wait_for_superior(dev, async))
 		goto Out;
 
+	skip_resume = dev_pm_may_skip_resume(dev);
+	/*
+	 * If the driver callback is skipped below or by the middle layer
+	 * callback and device_resume_early() also skips the driver callback for
+	 * this device later, it needs to appear as "suspended" to PM-runtime,
+	 * so change its status accordingly.
+	 *
+	 * Otherwise, the device is going to be resumed, so set its PM-runtime
+	 * status to "active", but do that only if DPM_FLAG_SMART_SUSPEND is set
+	 * to avoid confusing drivers that don't use it.
+	 */
+	if (skip_resume)
+		pm_runtime_set_suspended(dev);
+	else if (dev_pm_smart_suspend_and_suspended(dev))
+		pm_runtime_set_active(dev);
+
 	if (dev->pm_domain) {
 		info = "noirq power domain ";
 		callback = pm_noirq_op(&dev->pm_domain->ops, state);
@@ -614,34 +640,11 @@ static int device_resume_noirq(struct device *dev, pm_message_t state, bool asyn
 		info = "noirq bus ";
 		callback = pm_noirq_op(dev->bus->pm, state);
 	}
-	if (callback) {
-		skip_resume = false;
+	if (callback)
 		goto Run;
-	}
 
-	skip_resume = dev_pm_may_skip_resume(dev);
 	if (skip_resume)
 		goto Skip;
-
-	/*
-	 * If "freeze" driver callbacks have been skipped during hibernation,
-	 * because the device was runtime-suspended in __device_suspend_late(),
-	 * the corresponding "thaw" callbacks must be skipped too, because
-	 * running them for a runtime-suspended device may not be valid.
-	 */
-	if (dev_pm_smart_suspend_and_suspended(dev) &&
-	    state.event == PM_EVENT_THAW) {
-		skip_resume = true;
-		goto Skip;
-	}
-
-	/*
-	 * The device is going to be resumed, so set its PM-runtime status to
-	 * "active", but do that only if DPM_FLAG_SMART_SUSPEND is set to avoid
-	 * confusing drivers that don't use it.
-	 */
-	if (dev_pm_smart_suspend_and_suspended(dev))
-		pm_runtime_set_active(dev);
 
 	if (dev->driver && dev->driver->pm) {
 		info = "noirq driver ";
@@ -653,20 +656,6 @@ Run:
 
 Skip:
 	dev->power.is_noirq_suspended = false;
-
-	if (skip_resume) {
-		/* Make the next phases of resume skip the device. */
-		dev->power.is_late_suspended = false;
-		dev->power.is_suspended = false;
-		/*
-		 * The device is going to be left in suspend, but it might not
-		 * have been in runtime suspend before the system suspended, so
-		 * its runtime PM status needs to be updated to avoid confusing
-		 * the runtime PM framework when runtime PM is enabled for the
-		 * device again.
-		 */
-		pm_runtime_set_suspended(dev);
-	}
 
 Out:
 	complete_all(&dev->power.completion);
@@ -804,15 +793,25 @@ static int device_resume_early(struct device *dev, pm_message_t state, bool asyn
 	} else if (dev->bus && dev->bus->pm) {
 		info = "early bus ";
 		callback = pm_late_early_op(dev->bus->pm, state);
-	} else if (dev->driver && dev->driver->pm) {
+	}
+	if (callback)
+		goto Run;
+
+	if (dev_pm_may_skip_resume(dev))
+		goto Skip;
+
+	if (dev->driver && dev->driver->pm) {
 		info = "early driver ";
 		callback = pm_late_early_op(dev->driver->pm, state);
 	}
 
+Run:
 	error = dpm_run_callback(callback, dev, state, info);
+
+Skip:
 	dev->power.is_late_suspended = false;
 
- Out:
+Out:
 	TRACE_RESUME(error);
 
 	pm_runtime_enable(dev);
