@@ -46,6 +46,9 @@ struct vdev_info {
 	struct vhost_memory *mem;
 };
 
+static const struct vhost_vring_file no_backend = { .fd = -1 },
+				     backend = { .fd = 1 };
+
 bool vq_notify(struct virtqueue *vq)
 {
 	struct vq_info *info = vq->priv;
@@ -155,10 +158,10 @@ static void wait_for_interrupt(struct vdev_info *dev)
 }
 
 static void run_test(struct vdev_info *dev, struct vq_info *vq,
-		     bool delayed, int batch, int bufs)
+		     bool delayed, int batch, int reset_n, int bufs)
 {
 	struct scatterlist sl;
-	long started = 0, completed = 0;
+	long started = 0, completed = 0, next_reset = reset_n;
 	long completed_before, started_before;
 	int r, test = 1;
 	unsigned len;
@@ -171,6 +174,7 @@ static void run_test(struct vdev_info *dev, struct vq_info *vq,
 		completed_before = completed;
 		started_before = started;
 		do {
+			const bool reset = reset_n && completed > next_reset;
 			if (random_batch)
 				batch = (random() % vq->vring.num) + 1;
 
@@ -200,12 +204,26 @@ static void run_test(struct vdev_info *dev, struct vq_info *vq,
 			if (started >= bufs)
 				r = -1;
 
+			if (reset) {
+				r = ioctl(dev->control, VHOST_TEST_SET_BACKEND,
+					  &no_backend);
+				assert(!r);
+			}
+
 			/* Flush out completed bufs if any */
 			while (virtqueue_get_buf(vq->vq, &len)) {
 				++completed;
 				r = 0;
 			}
 
+			if (reset) {
+				r = ioctl(dev->control, VHOST_TEST_SET_BACKEND,
+					  &backend);
+				assert(!r);
+
+				while (completed > next_reset)
+					next_reset += completed;
+			}
 		} while (r == 0);
 		if (completed == completed_before && started == started_before)
 			++spurious;
@@ -271,6 +289,11 @@ const struct option longopts[] = {
 		.has_arg = required_argument,
 	},
 	{
+		.name = "reset",
+		.val = 'r',
+		.has_arg = optional_argument,
+	},
+	{
 	}
 };
 
@@ -282,6 +305,7 @@ static void help(void)
 		" [--no-virtio-1]"
 		" [--delayed-interrupt]"
 		" [--batch=random/N]"
+		" [--reset=N]"
 		"\n");
 }
 
@@ -290,7 +314,7 @@ int main(int argc, char **argv)
 	struct vdev_info dev;
 	unsigned long long features = (1ULL << VIRTIO_RING_F_INDIRECT_DESC) |
 		(1ULL << VIRTIO_RING_F_EVENT_IDX) | (1ULL << VIRTIO_F_VERSION_1);
-	long batch = 1;
+	long batch = 1, reset = 0;
 	int o;
 	bool delayed = false;
 
@@ -326,6 +350,15 @@ int main(int argc, char **argv)
 				assert(batch < (long)INT_MAX + 1);
 			}
 			break;
+		case 'r':
+			if (!optarg) {
+				reset = 1;
+			} else {
+				reset = strtol(optarg, NULL, 10);
+				assert(reset > 0);
+				assert(reset < (long)INT_MAX + 1);
+			}
+			break;
 		default:
 			assert(0);
 			break;
@@ -335,6 +368,6 @@ int main(int argc, char **argv)
 done:
 	vdev_info_init(&dev, features);
 	vq_info_add(&dev, 256);
-	run_test(&dev, &dev.vqs[0], delayed, batch, 0x100000);
+	run_test(&dev, &dev.vqs[0], delayed, batch, reset, 0x100000);
 	return 0;
 }
