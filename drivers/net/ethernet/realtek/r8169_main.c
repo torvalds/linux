@@ -2391,8 +2391,6 @@ static void rtl_pll_power_up(struct rtl8169_private *tp)
 	}
 
 	phy_resume(tp->phydev);
-	/* give MAC/PHY some time to resume */
-	msleep(20);
 }
 
 static void rtl_init_rxcfg(struct rtl8169_private *tp)
