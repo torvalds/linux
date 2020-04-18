@@ -234,6 +234,15 @@ static const struct iwl_ht_params iwl_22000_ht_params = {
 		},							\
 	}
 
+const struct iwl_cfg_trans_params iwl_qnj_trans_cfg = {
+	.mq_rx_supported = true,
+	.use_tfh = true,
+	.rf_id = true,
+	.gen2 = true,
+	.device_family = IWL_DEVICE_FAMILY_22000,
+	.base_params = &iwl_22000_base_params,
+};
+
 const struct iwl_cfg_trans_params iwl_qu_trans_cfg = {
 	.mq_rx_supported = true,
 	.use_tfh = true,
@@ -244,6 +253,18 @@ const struct iwl_cfg_trans_params iwl_qu_trans_cfg = {
 	.integrated = true,
 	.xtal_latency = 5000,
 	.ltr_delay = IWL_CFG_TRANS_LTR_DELAY_200US,
+};
+
+const struct iwl_cfg_trans_params iwl_qu_medium_latency_trans_cfg = {
+	.mq_rx_supported = true,
+	.use_tfh = true,
+	.rf_id = true,
+	.gen2 = true,
+	.device_family = IWL_DEVICE_FAMILY_22000,
+	.base_params = &iwl_22000_base_params,
+	.integrated = true,
+	.xtal_latency = 1820,
+	.ltr_delay = IWL_CFG_TRANS_LTR_DELAY_1820US,
 };
 
 const struct iwl_cfg_trans_params iwl_qu_long_latency_trans_cfg = {
@@ -257,15 +278,6 @@ const struct iwl_cfg_trans_params iwl_qu_long_latency_trans_cfg = {
 	.xtal_latency = 12000,
 	.low_latency_xtal = true,
 	.ltr_delay = IWL_CFG_TRANS_LTR_DELAY_2500US,
-};
-
-const struct iwl_cfg_trans_params iwl_qnj_trans_cfg = {
-	.mq_rx_supported = true,
-	.use_tfh = true,
-	.rf_id = true,
-	.gen2 = true,
-	.device_family = IWL_DEVICE_FAMILY_22000,
-	.base_params = &iwl_22000_base_params,
 };
 
 /*
