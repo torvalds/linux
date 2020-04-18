@@ -544,7 +544,7 @@ struct pm_subsys_data {
  * These flags can be set by device drivers at the probe time.  They need not be
  * cleared by the drivers as the driver core will take care of that.
  *
- * NEVER_SKIP: Do not skip all system suspend/resume callbacks for the device.
+ * NO_DIRECT_COMPLETE: Do not apply direct-complete optimization to the device.
  * SMART_PREPARE: Check the return value of the driver's ->prepare callback.
  * SMART_SUSPEND: No need to resume the device from runtime suspend.
  * LEAVE_SUSPENDED: Avoid resuming the device during system resume if possible.
@@ -554,7 +554,7 @@ struct pm_subsys_data {
  * their ->prepare callbacks if the driver's ->prepare callback returns 0 (in
  * other words, the system suspend/resume callbacks can only be skipped for the
  * device if its driver doesn't object against that).  This flag has no effect
- * if NEVER_SKIP is set.
+ * if NO_DIRECT_COMPLETE is set.
  *
  * Setting SMART_SUSPEND instructs bus types and PM domains which may want to
  * runtime resume the device upfront during system suspend that doing so is not
@@ -565,7 +565,7 @@ struct pm_subsys_data {
  * Setting LEAVE_SUSPENDED informs the PM core and middle-layer code that the
  * driver prefers the device to be left in suspend after system resume.
  */
-#define DPM_FLAG_NEVER_SKIP		BIT(0)
+#define DPM_FLAG_NO_DIRECT_COMPLETE	BIT(0)
 #define DPM_FLAG_SMART_PREPARE		BIT(1)
 #define DPM_FLAG_SMART_SUSPEND		BIT(2)
 #define DPM_FLAG_LEAVE_SUSPENDED	BIT(3)

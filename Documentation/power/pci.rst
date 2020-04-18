@@ -1004,11 +1004,11 @@ including the PCI bus type.  The flags should be set once at the driver probe
 time with the help of the dev_pm_set_driver_flags() function and they should not
 be updated directly afterwards.
 
-The DPM_FLAG_NEVER_SKIP flag prevents the PM core from using the direct-complete
-mechanism allowing device suspend/resume callbacks to be skipped if the device
-is in runtime suspend when the system suspend starts.  That also affects all of
-the ancestors of the device, so this flag should only be used if absolutely
-necessary.
+The DPM_FLAG_NO_DIRECT_COMPLETE flag prevents the PM core from using the
+direct-complete mechanism allowing device suspend/resume callbacks to be skipped
+if the device is in runtime suspend when the system suspend starts.  That also
+affects all of the ancestors of the device, so this flag should only be used if
+absolutely necessary.
 
 The DPM_FLAG_SMART_PREPARE flag instructs the PCI bus type to only return a
 positive value from pci_pm_prepare() if the ->prepare callback provided by the

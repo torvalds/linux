@@ -361,9 +361,9 @@ the phases are: ``prepare``, ``suspend``, ``suspend_late``, ``suspend_noirq``.
 	runtime PM disabled.
 
 	This feature also can be controlled by device drivers by using the
-	``DPM_FLAG_NEVER_SKIP`` and ``DPM_FLAG_SMART_PREPARE`` driver power
-	management flags.  [Typically, they are set at the time the driver is
-	probed against the device in question by passing them to the
+	``DPM_FLAG_NO_DIRECT_COMPLETE`` and ``DPM_FLAG_SMART_PREPARE`` driver
+	power management flags.  [Typically, they are set at the time the driver
+	is probed against the device in question by passing them to the
 	:c:func:`dev_pm_set_driver_flags` helper function.]  If the first of
 	these flags is set, the PM core will not apply the direct-complete
 	procedure described above to the given device and, consequenty, to any
