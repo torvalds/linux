@@ -129,6 +129,7 @@ static void vdev_info_init(struct vdev_info* dev, unsigned long long features)
 	int r;
 	memset(dev, 0, sizeof *dev);
 	dev->vdev.features = features;
+	INIT_LIST_HEAD(&dev->vdev.vqs);
 	dev->buf_size = 1024;
 	dev->buf = malloc(dev->buf_size);
 	assert(dev->buf);
