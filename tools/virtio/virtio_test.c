@@ -48,6 +48,7 @@ struct vdev_info {
 
 static const struct vhost_vring_file no_backend = { .fd = -1 },
 				     backend = { .fd = 1 };
+static const struct vhost_vring_state null_state = {};
 
 bool vq_notify(struct virtqueue *vq)
 {
@@ -173,14 +174,19 @@ static void run_test(struct vdev_info *dev, struct vq_info *vq,
 	unsigned len;
 	long long spurious = 0;
 	const bool random_batch = batch == RANDOM_BATCH;
+
 	r = ioctl(dev->control, VHOST_TEST_RUN, &test);
 	assert(r >= 0);
+	if (!reset_n) {
+		next_reset = INT_MAX;
+	}
+
 	for (;;) {
 		virtqueue_disable_cb(vq->vq);
 		completed_before = completed;
 		started_before = started;
 		do {
-			const bool reset = reset_n && completed > next_reset;
+			const bool reset = completed > next_reset;
 			if (random_batch)
 				batch = (random() % vq->vring.num) + 1;
 
@@ -223,10 +229,24 @@ static void run_test(struct vdev_info *dev, struct vq_info *vq,
 			}
 
 			if (reset) {
+				struct vhost_vring_state s = { .index = 0 };
+
+				vq_reset(vq, vq->vring.num, &dev->vdev);
+
+				r = ioctl(dev->control, VHOST_GET_VRING_BASE,
+					  &s);
+				assert(!r);
+
+				s.num = 0;
+				r = ioctl(dev->control, VHOST_SET_VRING_BASE,
+					  &null_state);
+				assert(!r);
+
 				r = ioctl(dev->control, VHOST_TEST_SET_BACKEND,
 					  &backend);
 				assert(!r);
 
+				started = completed;
 				while (completed > next_reset)
 					next_reset += completed;
 			}
@@ -248,7 +268,9 @@ static void run_test(struct vdev_info *dev, struct vq_info *vq,
 	test = 0;
 	r = ioctl(dev->control, VHOST_TEST_RUN, &test);
 	assert(r >= 0);
-	fprintf(stderr, "spurious wakeups: 0x%llx\n", spurious);
+	fprintf(stderr,
+		"spurious wakeups: 0x%llx started=0x%lx completed=0x%lx\n",
+		spurious, started, completed);
 }
 
 const char optstring[] = "h";
