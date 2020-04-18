@@ -143,6 +143,7 @@ static void *tpm2_bios_measurements_next(struct seq_file *m, void *v,
 	size_t event_size;
 	void *marker;
 
+	(*pos)++;
 	event_header = log->bios_event_log;
 
 	if (v == SEQ_START_TOKEN) {
@@ -167,7 +168,6 @@ static void *tpm2_bios_measurements_next(struct seq_file *m, void *v,
 	if (((v + event_size) >= limit) || (event_size == 0))
 		return NULL;
 
-	(*pos)++;
 	return v;
 }
 
