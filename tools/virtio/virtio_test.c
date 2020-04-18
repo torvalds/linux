@@ -19,6 +19,8 @@
 #include <linux/virtio_ring.h>
 #include "../../drivers/vhost/test.h"
 
+#define RANDOM_BATCH -1
+
 /* Unused */
 void *__kmalloc_fake, *__kfree_ignore_start, *__kfree_ignore_end;
 
@@ -161,6 +163,7 @@ static void run_test(struct vdev_info *dev, struct vq_info *vq,
 	int r, test = 1;
 	unsigned len;
 	long long spurious = 0;
+	const bool random_batch = batch == RANDOM_BATCH;
 	r = ioctl(dev->control, VHOST_TEST_RUN, &test);
 	assert(r >= 0);
 	for (;;) {
@@ -168,6 +171,9 @@ static void run_test(struct vdev_info *dev, struct vq_info *vq,
 		completed_before = completed;
 		started_before = started;
 		do {
+			if (random_batch)
+				batch = (random() % vq->vring.num) + 1;
+
 			while (started < bufs &&
 			       (started - completed) < batch) {
 				sg_init_one(&sl, dev->buf, dev->buf_size);
@@ -275,7 +281,7 @@ static void help(void)
 		" [--no-event-idx]"
 		" [--no-virtio-1]"
 		" [--delayed-interrupt]"
-		" [--batch=N]"
+		" [--batch=random/N]"
 		"\n");
 }
 
@@ -312,9 +318,13 @@ int main(int argc, char **argv)
 			delayed = true;
 			break;
 		case 'b':
-			batch = strtol(optarg, NULL, 10);
-			assert(batch > 0);
-			assert(batch < (long)INT_MAX + 1);
+			if (0 == strcmp(optarg, "random")) {
+				batch = RANDOM_BATCH;
+			} else {
+				batch = strtol(optarg, NULL, 10);
+				assert(batch > 0);
+				assert(batch < (long)INT_MAX + 1);
+			}
 			break;
 		default:
 			assert(0);
