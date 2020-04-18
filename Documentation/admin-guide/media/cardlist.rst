@@ -16,7 +16,9 @@ and may be added/removed by the user.
 
 This section contains a list of supported PCI and USB boards.
 
-Please notice that this list is not exaustive.
+Please notice that this list is not exhaustive. You may also take a
+look at https://linuxtv.org/wiki/index.php/Hardware_Device_Information
+for more details about supported cards.
 
 USB drivers
 ===========
@@ -148,6 +150,8 @@ specific board.
 	saa7134-cardlist
 	saa7164-cardlist
 
+	other-pci-cardlist
+
 I²C drivers
 ===========
 
@@ -168,3 +172,4 @@ different tuner number in order to address such issue.
 	:maxdepth: 1
 
 	tuner-cardlist
+	frontend-cardlist

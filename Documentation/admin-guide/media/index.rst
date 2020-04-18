@@ -83,7 +83,6 @@ Linux Digital TV driver-specific documentation
 	faq
 	dvb_references
 
-	cards
 	avermedia
 	bt8xx
 	lmedm04
