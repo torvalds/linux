@@ -703,3 +703,19 @@ xc5000        Xceive XC5000 silicon tuner
 
 	tuner-cardlist
 	frontend-cardlist
+
+Test drivers
+============
+
+In order to test userspace applications, there's a number of virtual
+drivers, with provide test functionality, simulating real hardware
+devices:
+
+=======  ======================================
+Driver   Name
+=======  ======================================
+vicodec  Virtual Codec Driver
+vim2m    Virtual Memory-to-Memory Driver
+vimc     Virtual Media Controller Driver (VIMC)
+vivid    Virtual Video Test Driver
+=======  ======================================
