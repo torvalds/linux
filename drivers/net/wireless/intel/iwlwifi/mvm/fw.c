@@ -550,10 +550,49 @@ error:
 	return ret;
 }
 
+#ifdef CONFIG_ACPI
+static void iwl_mvm_phy_filter_init(struct iwl_mvm *mvm,
+				    struct iwl_phy_specific_cfg *phy_filters)
+{
+	/*
+	 * TODO: read specific phy config from BIOS
+	 * ACPI table for this feature has not been defined yet,
+	 * so for now we use hardcoded values.
+	 */
+
+	if (IWL_MVM_PHY_FILTER_CHAIN_A) {
+		phy_filters->filter_cfg_chain_a =
+			cpu_to_le32(IWL_MVM_PHY_FILTER_CHAIN_A);
+	}
+	if (IWL_MVM_PHY_FILTER_CHAIN_B) {
+		phy_filters->filter_cfg_chain_b =
+			cpu_to_le32(IWL_MVM_PHY_FILTER_CHAIN_B);
+	}
+	if (IWL_MVM_PHY_FILTER_CHAIN_C) {
+		phy_filters->filter_cfg_chain_c =
+			cpu_to_le32(IWL_MVM_PHY_FILTER_CHAIN_C);
+	}
+	if (IWL_MVM_PHY_FILTER_CHAIN_D) {
+		phy_filters->filter_cfg_chain_d =
+			cpu_to_le32(IWL_MVM_PHY_FILTER_CHAIN_D);
+	}
+}
+
+#else /* CONFIG_ACPI */
+
+static void iwl_mvm_phy_filter_init(struct iwl_mvm *mvm,
+				    struct iwl_phy_specific_cfg *phy_filters)
+{
+}
+#endif /* CONFIG_ACPI */
+
 static int iwl_send_phy_cfg_cmd(struct iwl_mvm *mvm)
 {
-	struct iwl_phy_cfg_cmd phy_cfg_cmd;
+	struct iwl_phy_cfg_cmd_v3 phy_cfg_cmd;
 	enum iwl_ucode_type ucode_type = mvm->fwrt.cur_fw_img;
+	struct iwl_phy_specific_cfg phy_filters = {};
+	u8 cmd_ver;
+	size_t cmd_size;
 
 	if (iwl_mvm_has_unified_ucode(mvm) &&
 	    !mvm->trans->cfg->tx_with_siso_diversity)
@@ -580,11 +619,20 @@ static int iwl_send_phy_cfg_cmd(struct iwl_mvm *mvm)
 	phy_cfg_cmd.calib_control.flow_trigger =
 		mvm->fw->default_calib[ucode_type].flow_trigger;
 
+	cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, IWL_ALWAYS_LONG_GROUP,
+					PHY_CONFIGURATION_CMD);
+	if (cmd_ver == 3) {
+		iwl_mvm_phy_filter_init(mvm, &phy_filters);
+		memcpy(&phy_cfg_cmd.phy_specific_cfg, &phy_filters,
+		       sizeof(struct iwl_phy_specific_cfg));
+	}
+
 	IWL_DEBUG_INFO(mvm, "Sending Phy CFG command: 0x%x\n",
 		       phy_cfg_cmd.phy_cfg);
-
+	cmd_size = (cmd_ver == 3) ? sizeof(struct iwl_phy_cfg_cmd_v3) :
+				    sizeof(struct iwl_phy_cfg_cmd_v1);
 	return iwl_mvm_send_cmd_pdu(mvm, PHY_CONFIGURATION_CMD, 0,
-				    sizeof(phy_cfg_cmd), &phy_cfg_cmd);
+				    cmd_size, &phy_cfg_cmd);
 }
 
 int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
