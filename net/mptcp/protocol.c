@@ -1355,12 +1355,15 @@ struct sock *mptcp_sk_clone(const struct sock *sk, struct request_sock *req)
 	msk->subflow = NULL;
 
 	if (unlikely(mptcp_token_new_accept(subflow_req->token, nsk))) {
+		nsk->sk_state = TCP_CLOSE;
 		bh_unlock_sock(nsk);
 
 		/* we can't call into mptcp_close() here - possible BH context
-		 * free the sock directly
+		 * free the sock directly.
+		 * sk_clone_lock() sets nsk refcnt to two, hence call sk_free()
+		 * too.
 		 */
-		nsk->sk_prot->destroy(nsk);
+		sk_common_release(nsk);
 		sk_free(nsk);
 		return NULL;
 	}
@@ -1431,6 +1434,7 @@ static struct sock *mptcp_accept(struct sock *sk, int flags, int *err,
 		newsk = new_mptcp_sock;
 		mptcp_copy_inaddrs(newsk, ssk);
 		list_add(&subflow->node, &msk->conn_list);
+		inet_sk_state_store(newsk, TCP_ESTABLISHED);
 
 		bh_unlock_sock(new_mptcp_sock);
 
