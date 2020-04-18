@@ -115,7 +115,6 @@ enum iwl_uapsd_disable {
  * @nvm_file: specifies a external NVM file
  * @uapsd_disable: disable U-APSD, see &enum iwl_uapsd_disable, default =
  *	IWL_DISABLE_UAPSD_BSS | IWL_DISABLE_UAPSD_P2P_CLIENT
- * @fw_monitor: allow to use firmware monitor
  * @disable_11ac: disable VHT capabilities, default = false.
  * @remove_when_gone: remove an inaccessible device from the PCIe bus.
  * @enable_ini: enable new FW debug infratructure (INI TLVs)
@@ -135,7 +134,6 @@ struct iwl_mod_params {
 	int antenna_coupling;
 	char *nvm_file;
 	u32 uapsd_disable;
-	bool fw_monitor;
 	bool disable_11ac;
 	/**
 	 * @disable_11ax: disable HE capabilities, default = false

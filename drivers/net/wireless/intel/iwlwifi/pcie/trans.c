@@ -1019,21 +1019,8 @@ static int iwl_pcie_load_given_ucode(struct iwl_trans *trans,
 			return ret;
 	}
 
-	/* supported for 7000 only for the moment */
-	if (iwlwifi_mod_params.fw_monitor &&
-	    trans->trans_cfg->device_family == IWL_DEVICE_FAMILY_7000) {
-		struct iwl_dram_data *fw_mon = &trans->dbg.fw_mon;
-
-		iwl_pcie_alloc_fw_monitor(trans, 0);
-		if (fw_mon->size) {
-			iwl_write_prph(trans, MON_BUFF_BASE_ADDR,
-				       fw_mon->physical >> 4);
-			iwl_write_prph(trans, MON_BUFF_END_ADDR,
-				       (fw_mon->physical + fw_mon->size) >> 4);
-		}
-	} else if (iwl_pcie_dbg_on(trans)) {
+	if (iwl_pcie_dbg_on(trans))
 		iwl_pcie_apply_destination(trans);
-	}
 
 	iwl_enable_interrupts(trans);
 
