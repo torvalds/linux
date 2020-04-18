@@ -21,6 +21,7 @@
 struct gss_ctx {
 	struct gss_api_mech	*mech_type;
 	void			*internal_ctx_id;
+	unsigned int		slack, align;
 };
 
 #define GSS_C_NO_BUFFER		((struct xdr_netobj) 0)
