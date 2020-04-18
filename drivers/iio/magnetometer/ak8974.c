@@ -746,7 +746,12 @@ static int ak8974_probe(struct i2c_client *i2c,
 				      ARRAY_SIZE(ak8974->regs),
 				      ak8974->regs);
 	if (ret < 0) {
-		dev_err(&i2c->dev, "cannot get regulators\n");
+		if (ret != -EPROBE_DEFER)
+			dev_err(&i2c->dev, "cannot get regulators: %d\n", ret);
+		else
+			dev_dbg(&i2c->dev,
+				"regulators unavailable, deferring probe\n");
+
 		return ret;
 	}
 
