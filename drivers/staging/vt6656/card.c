@@ -248,16 +248,9 @@ void vnt_update_top_rates(struct vnt_private *priv)
 	priv->top_cck_basic_rate = top_cck;
 }
 
-int vnt_ofdm_min_rate(struct vnt_private *priv)
+bool vnt_ofdm_min_rate(struct vnt_private *priv)
 {
-	int ii;
-
-	for (ii = RATE_54M; ii >= RATE_6M; ii--) {
-		if ((priv->basic_rates) & ((u16)BIT(ii)))
-			return true;
-	}
-
-	return false;
+	return priv->basic_rates & GENMASK(RATE_54M, RATE_6M) ? true : false;
 }
 
 u8 vnt_get_pkt_type(struct vnt_private *priv)
