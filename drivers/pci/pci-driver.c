@@ -891,7 +891,7 @@ static int pci_pm_resume_noirq(struct device *dev)
 	pci_power_t prev_state = pci_dev->current_state;
 	bool skip_bus_pm = pci_dev->skip_bus_pm;
 
-	if (dev_pm_may_skip_resume(dev))
+	if (dev_pm_skip_resume(dev))
 		return 0;
 
 	/*
@@ -920,7 +920,7 @@ static int pci_pm_resume_noirq(struct device *dev)
 
 static int pci_pm_resume_early(struct device *dev)
 {
-	if (dev_pm_may_skip_resume(dev))
+	if (dev_pm_skip_resume(dev))
 		return 0;
 
 	return pm_generic_resume_early(dev);

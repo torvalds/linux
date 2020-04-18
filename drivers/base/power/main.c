@@ -562,7 +562,7 @@ static void dpm_watchdog_clear(struct dpm_watchdog *wd)
 /*------------------------- Resume routines -------------------------*/
 
 /**
- * dev_pm_may_skip_resume - System-wide device resume optimization check.
+ * dev_pm_skip_resume - System-wide device resume optimization check.
  * @dev: Target device.
  *
  * Return:
@@ -572,7 +572,7 @@ static void dpm_watchdog_clear(struct dpm_watchdog *wd)
  * - The logical negation of %power.must_resume otherwise (that is, when the
  *   transition under way is RESUME).
  */
-bool dev_pm_may_skip_resume(struct device *dev)
+bool dev_pm_skip_resume(struct device *dev)
 {
 	if (pm_transition.event == PM_EVENT_RESTORE)
 		return false;
@@ -611,7 +611,7 @@ static int device_resume_noirq(struct device *dev, pm_message_t state, bool asyn
 	if (!dpm_wait_for_superior(dev, async))
 		goto Out;
 
-	skip_resume = dev_pm_may_skip_resume(dev);
+	skip_resume = dev_pm_skip_resume(dev);
 	/*
 	 * If the driver callback is skipped below or by the middle layer
 	 * callback and device_resume_early() also skips the driver callback for
@@ -797,7 +797,7 @@ static int device_resume_early(struct device *dev, pm_message_t state, bool asyn
 	if (callback)
 		goto Run;
 
-	if (dev_pm_may_skip_resume(dev))
+	if (dev_pm_skip_resume(dev))
 		goto Skip;
 
 	if (dev->driver && dev->driver->pm) {

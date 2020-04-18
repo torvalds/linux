@@ -1127,7 +1127,7 @@ EXPORT_SYMBOL_GPL(acpi_subsys_suspend_noirq);
  */
 static int acpi_subsys_resume_noirq(struct device *dev)
 {
-	if (dev_pm_may_skip_resume(dev))
+	if (dev_pm_skip_resume(dev))
 		return 0;
 
 	return pm_generic_resume_noirq(dev);
@@ -1145,7 +1145,7 @@ static int acpi_subsys_resume_early(struct device *dev)
 {
 	int ret;
 
-	if (dev_pm_may_skip_resume(dev))
+	if (dev_pm_skip_resume(dev))
 		return 0;
 
 	ret = acpi_dev_resume(dev);
