@@ -1084,7 +1084,7 @@ int acpi_subsys_suspend_late(struct device *dev)
 {
 	int ret;
 
-	if (dev_pm_smart_suspend_and_suspended(dev))
+	if (dev_pm_skip_suspend(dev))
 		return 0;
 
 	ret = pm_generic_suspend_late(dev);
@@ -1100,7 +1100,7 @@ int acpi_subsys_suspend_noirq(struct device *dev)
 {
 	int ret;
 
-	if (dev_pm_smart_suspend_and_suspended(dev))
+	if (dev_pm_skip_suspend(dev))
 		return 0;
 
 	ret = pm_generic_suspend_noirq(dev);
@@ -1213,7 +1213,7 @@ static int acpi_subsys_poweroff_late(struct device *dev)
 {
 	int ret;
 
-	if (dev_pm_smart_suspend_and_suspended(dev))
+	if (dev_pm_skip_suspend(dev))
 		return 0;
 
 	ret = pm_generic_poweroff_late(dev);
@@ -1229,7 +1229,7 @@ static int acpi_subsys_poweroff_late(struct device *dev)
  */
 static int acpi_subsys_poweroff_noirq(struct device *dev)
 {
-	if (dev_pm_smart_suspend_and_suspended(dev))
+	if (dev_pm_skip_suspend(dev))
 		return 0;
 
 	return pm_generic_poweroff_noirq(dev);
