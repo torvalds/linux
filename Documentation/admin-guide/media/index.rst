@@ -2,9 +2,9 @@
 
 .. include:: <isonum.txt>
 
-============================
-Media subsystem usage guides
-============================
+====================================
+Media subsystem admin and user guide
+====================================
 
 This section contains usage information about media subsystem and
 its supported drivers.
@@ -18,11 +18,8 @@ Please see:
      for driver development information and Kernel APIs used by
      media devices;
 
-.. _uapi-v4l-drivers:
-
-################################################
-Video4Linux (V4L)  driver-specific documentation
-################################################
+The media subsystem
+===================
 
 .. only:: html
 
@@ -37,9 +34,27 @@ Video4Linux (V4L)  driver-specific documentation
 	intro
 	building
 
+	remote-controller
+
+	dvb
+
 	cardlist
 
-	v4l-with-ir
+
+.. _uapi-v4l-drivers:
+
+Video4Linux (V4L) driver-specific documentation
+===============================================
+
+.. only:: html
+
+    .. class:: toc-title
+
+        Table of Contents
+
+.. toctree::
+	:maxdepth: 5
+	:numbered:
 
 	bttv
 	cafe_ccic
@@ -64,9 +79,8 @@ Video4Linux (V4L)  driver-specific documentation
 	vimc
 	vivid
 
-##############################################
-Linux Digital TV driver-specific documentation
-##############################################
+Digital TV driver-specific documentation
+========================================
 
 .. only:: html
 
@@ -78,11 +92,6 @@ Linux Digital TV driver-specific documentation
 	:maxdepth: 5
 	:numbered:
 
-	dvb_intro
-	ci
-	faq
-	dvb_references
-
 	avermedia
 	bt8xx
 	lmedm04
@@ -91,9 +100,8 @@ Linux Digital TV driver-specific documentation
 	ttusb-dec
 	zr364xx
 
-#################################
 CEC driver-specific documentation
-#################################
+=================================
 
 .. only:: html
 

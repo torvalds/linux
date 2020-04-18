@@ -1,12 +1,13 @@
 .. SPDX-License-Identifier: GPL-2.0
 
+======================================================
 Infrared remote control support in video4linux drivers
 ======================================================
 
 Authors: Gerd Hoffmann, Mauro Carvalho Chehab
 
 Basics
-------
+======
 
 Most analog and digital TV boards support remote controllers. Several of
 them have a microprocessor that receives the IR carriers, convert into
@@ -33,7 +34,7 @@ detected. However, for a few devices, you need to manually load the
 ir-kbd-i2c module.
 
 How it works
-------------
+============
 
 The modules register the remote as keyboard within the linux input
 layer, i.e. you'll see the keys of the remote as normal key strokes
@@ -55,7 +56,7 @@ the keymaps, like the input kbd utility.
 
 
 Using with lircd
-================
+----------------
 
 The latest versions of the lircd daemon supports reading events from the
 linux input layer (via event device). It also supports receiving IR codes
@@ -63,7 +64,7 @@ in lirc mode.
 
 
 Using without lircd
-===================
+-------------------
 
 Xorg recognizes several IR keycodes that have its numerical value lower
 than 247. With the advent of Wayland, the input driver got updated too,
