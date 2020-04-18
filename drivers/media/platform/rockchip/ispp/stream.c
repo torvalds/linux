@@ -868,6 +868,7 @@ static int config_mb(struct rkispp_stream *stream)
 				limit_range | stream->out_cap_fmt.wr_fmt << 4);
 		writel((stream->out_fmt.height << 16) | stream->out_fmt.width,
 			base + RKISPP_FEC_PIC_SIZE);
+		rkispp_clear_bits(base + RKISPP_FEC_CORE_CTRL, SW_FEC2DDR_DIS);
 	}
 	if (stream->out_cap_fmt.wr_fmt & FMT_YUYV)
 		mult = 2;
@@ -1190,16 +1191,13 @@ static void rkispp_stream_stop(struct rkispp_stream *stream)
 			wait = true;
 	}
 	if (dev->inp == INP_ISP &&
-	    atomic_read(&dev->stream_vdev.refcnt) == 1) {
+	    atomic_read(&dev->stream_vdev.refcnt) == 1)
 		v4l2_subdev_call(&dev->ispp_sdev.sd,
 				 video, s_stream, false);
-		rkispp_clear_bits(dev->base_addr + RKISPP_CTRL_QUICK,
-				  GLB_QUICK_EN);
-	}
 	if (wait) {
 		ret = wait_event_timeout(stream->done,
 					 !stream->streaming,
-					 msecs_to_jiffies(100));
+					 msecs_to_jiffies(1000));
 		if (!ret)
 			v4l2_warn(&dev->v4l2_dev,
 				  "waiting on event ret:%d\n", ret);
@@ -1269,8 +1267,6 @@ static int start_isp(struct rkispp_device *dev)
 	ret = config_modules(dev);
 	if (ret)
 		return ret;
-	rkispp_set_bits(dev->base_addr + RKISPP_CTRL_QUICK,
-			0, GLB_QUICK_EN);
 	writel(ALL_FORCE_UPD, dev->base_addr + RKISPP_CTRL_UPDATE);
 	if (vdev->is_update_manual)
 		i = (vdev->module_ens & ISPP_MODULE_FEC) ?
@@ -1281,6 +1277,8 @@ static int start_isp(struct rkispp_device *dev)
 		stream = &vdev->stream[i];
 		rkispp_frame_end(stream);
 	}
+	rkispp_set_bits(dev->base_addr + RKISPP_CTRL_QUICK,
+			0, GLB_QUICK_EN);
 	return v4l2_subdev_call(&dev->ispp_sdev.sd,
 				video, s_stream, true);
 }

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2019 Fuzhou Rockchip Electronics Co., Ltd. */
 
+#include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/iommu.h>
 #include <linux/pm_runtime.h>
@@ -323,6 +324,7 @@ static int rkispp_sd_s_power(struct v4l2_subdev *sd, int on)
 {
 	struct rkispp_subdev *ispp_sdev = v4l2_get_subdevdata(sd);
 	struct rkispp_device *ispp_dev = ispp_sdev->dev;
+	void __iomem *base = ispp_dev->base_addr;
 	struct iommu_domain *domain;
 	int ret;
 
@@ -338,10 +340,16 @@ static int rkispp_sd_s_power(struct v4l2_subdev *sd, int on)
 			return ret;
 		}
 		atomic_set(&ispp_sdev->frm_sync_seq, 0);
-		writel(0xfffffff, ispp_dev->base_addr + RKISPP_CTRL_INT_MSK);
-		writel(SW_SHP_DMA_DIS,
-		       ispp_dev->base_addr + RKISPP_SHARP_CORE_CTRL);
-		writel(GATE_DIS_NR, ispp_dev->base_addr + RKISPP_CTRL_CLKGATE);
+		writel(SW_SCL_BYPASS, base + RKISPP_SCL0_CTRL);
+		writel(SW_SCL_BYPASS, base + RKISPP_SCL1_CTRL);
+		writel(SW_SCL_BYPASS, base + RKISPP_SCL2_CTRL);
+		writel(OTHER_FORCE_UPD, base + RKISPP_CTRL_UPDATE);
+		writel(SW_SHP_DMA_DIS, base + RKISPP_SHARP_CORE_CTRL);
+		writel(SW_FEC2DDR_DIS, base + RKISPP_FEC_CORE_CTRL);
+		writel(0xfffffff, base + RKISPP_CTRL_INT_MSK);
+		writel(GATE_DIS_ALL, base + RKISPP_CTRL_CLKGATE);
+		//usleep_range(1000, 1200);
+		//writel(0, base + RKISPP_CTRL_CLKGATE);
 		if (ispp_dev->inp == INP_ISP) {
 			struct v4l2_subdev_format fmt;
 			struct v4l2_subdev_selection sel;

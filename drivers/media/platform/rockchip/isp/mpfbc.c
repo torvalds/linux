@@ -266,8 +266,7 @@ static int mpfbc_stop(struct rkisp_mpfbc_device *mpfbc_dev)
 	int ret;
 
 	mpfbc_dev->stopping = true;
-	writel(SW_MPFBC_YUV_MODE(1),
-		base + ISP_MPFBC_BASE);
+	isp_clear_bits(base + ISP_MPFBC_BASE, SW_MPFBC_EN);
 	hdr_stop_dmatx(dev);
 	ret = wait_event_timeout(mpfbc_dev->done,
 				 !mpfbc_dev->en,

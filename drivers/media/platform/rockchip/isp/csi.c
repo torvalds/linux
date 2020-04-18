@@ -423,6 +423,9 @@ int rkisp_csi_config_patch(struct rkisp_device *dev)
 		writel(0x7FFFFF7F, dev->base_addr + CSI2RX_MASK_STAT);
 	}
 
+	if (IS_HDR_RDBK(dev->hdr.op_mode))
+		isp_set_bits(dev->base_addr + CTRL_SWS_CFG,
+			     0, SW_MPIP_DROP_FRM_DIS);
 	dev->csi_dev.is_first = true;
 	kfifo_reset(&dev->csi_dev.rdbk_kfifo);
 	return ret;

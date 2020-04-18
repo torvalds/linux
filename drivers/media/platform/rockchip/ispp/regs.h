@@ -19,6 +19,7 @@
 #define RKISPP_CTRL_INT_STA		(RKISPP_CTRL + 0x0028)
 #define RKISPP_CTRL_INT_SET		(RKISPP_CTRL + 0x002C)
 #define RKISPP_CTRL_INT_CLR		(RKISPP_CTRL + 0x0030)
+#define RKISPP_QUICK_DIF		(RKISPP_CTRL + 0x0034)
 #define RKISPP_CTRL_SYS_STATUS		(RKISPP_CTRL + 0x003C)
 #define RKISPP_CTRL_QUICK_FRM_NUM	(RKISPP_CTRL + 0x0040)
 #define RKISPP_CTRL_SYS_CTL_STA0	(RKISPP_CTRL + 0x0054)
@@ -338,9 +339,16 @@
 
 /* ISPP_CTRL_QUICK */
 #define GLB_QUICK_MODE_MASK		GENMASK(9, 8)
+#define SW_PP_FBC_MODE_DIS		BIT(30)
+#define SW_PP_MMU_PLUS_DIS		BIT(29)
+#define SW_PP2ISP_HOLD_SEL		BIT(28)
 #define GLB_FEC2SCL_EN			BIT(11)
 #define GLB_NR_SD32_TNR			BIT(10)
 #define GLB_QUICK_MODE(a)		(((a) & 0x3) << 8)
+#define GLB_NOC_HURRY(a)		(((a) & 0x3) << 4)
+#define GLB_TNR_RDY_DIS			BIT(3)
+#define GLB_TNR2NR_RDY_MODE		BIT(2)
+#define GLB_DIRECT_MODE			BIT(1)
 #define GLB_QUICK_EN			BIT(0)
 
 /* ISPP_CTRL_RESET */
@@ -353,10 +361,11 @@
 #define GLB_SOFT_RST_ALL		BIT(0)
 
 /* ISPP_CLKGATE */
+#define GATE_DIS_ALL			0xff
 #define GATE_DIS_GLOBAL_RAM_CLK		BIT(7)
 #define GATE_DIS_SWS			BIT(6)
 #define GATE_DIS_FEC			BIT(5)
-#define GATE_DIS_SCL			BTI(4)
+#define GATE_DIS_SCL			BIT(4)
 #define GATE_DIS_SHP			BIT(3)
 #define GATE_DIS_NR			BIT(2)
 #define GATE_DIS_TNR			BIT(1)
@@ -386,6 +395,11 @@
 #define TNR_INT				BIT(2)
 #define FRAME_INT			BIT(1)
 #define QUICK_INT			BIT(0)
+
+/* ISPP_QUICK_DIF */
+#define GLB_TNR2NR_DIF(a)		(((a) & 0xff) << 16)
+#define GLB_ISP2NR_DIF(a)		(((a) & 0xff) << 8)
+#define GLB_NR2FEC_DIF(a)		((a) & 0xff)
 
 /* TNR CTRL */
 #define SW_TNR_WR_FORMAT_MASK		GENMASK(7, 4)
