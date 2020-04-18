@@ -139,6 +139,54 @@ So, several media drivers allow passing a ``card=`` parameter, in order
 to setup a card number that would match the correct settings for an
 specific board.
 
+The current supported PCI/PCIe cards (not including staging drivers) are
+listed below\ [#]_.
+
+.. [#] some of the drivers have sub-drivers, not shown at this table
+
+================  ========================================================
+Driver            Name
+================  ========================================================
+altera-ci         Altera FPGA based CI module
+b2c2-flexcop-pci  Technisat/B2C2 Air/Sky/Cable2PC PCI
+bt878             DVB/ATSC Support for bt878 based TV cards
+bttv              BT8x8 Video For Linux
+cobalt            Cisco Cobalt
+cx18              Conexant cx23418 MPEG encoder
+cx23885           Conexant cx23885 (2388x successor)
+cx25821           Conexant cx25821
+cx88xx            Conexant 2388x (bt878 successor)
+ddbridge          Digital Devices bridge
+dm1105            SDMC DM1105 based PCI cards
+dt3155            DT3155 frame grabber
+dvb-ttpci         AV7110 cards
+earth-pt1         PT1 cards
+earth-pt3         Earthsoft PT3 cards
+hexium_gemini     Hexium Gemini frame grabber
+hexium_orion      Hexium HV-PCI6 and Orion frame grabber
+hopper            HOPPER based cards
+ipu3-cio2         Intel ipu3-cio2 driver
+ivtv              Conexant cx23416/cx23415 MPEG encoder/decoder
+ivtvfb            Conexant cx23415 framebuffer
+mantis            MANTIS based cards
+meye              Sony Vaio Picturebook Motion Eye
+mxb               Siemens-Nixdorf 'Multimedia eXtension Board'
+netup-unidvb      NetUP Universal DVB card
+ngene             Micronas nGene
+pluto2            Pluto2 cards
+saa7134           Philips SAA7134
+saa7164           NXP SAA7164
+smipcie           SMI PCIe DVBSky cards
+solo6x10          Bluecherry / Softlogic 6x10 capture cards (MPEG-4/H.264)
+sta2x11_vip       STA2X11 VIP Video For Linux
+tw5864            Techwell TW5864 video/audio grabber and encoder
+tw686x            Intersil/Techwell TW686x
+tw68              Techwell tw68x Video For Linux
+================  ========================================================
+
+Some of those drivers support multiple devices, as shown at the card
+lists below:
+
 .. toctree::
 	:maxdepth: 1
 
@@ -149,8 +197,6 @@ specific board.
 	ivtv-cardlist
 	saa7134-cardlist
 	saa7164-cardlist
-
-	other-pci-cardlist
 
 I²C drivers
 ===========
