@@ -789,10 +789,8 @@ static int pci_pm_suspend_noirq(struct device *dev)
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
 
-	if (dev_pm_smart_suspend_and_suspended(dev)) {
-		dev->power.may_skip_resume = true;
+	if (dev_pm_smart_suspend_and_suspended(dev))
 		return 0;
-	}
 
 	if (pci_has_legacy_pm_support(pci_dev))
 		return pci_legacy_suspend_late(dev, PMSG_SUSPEND);
@@ -880,8 +878,8 @@ Fixup:
 	 * pci_pm_complete() to take care of fixing up the device's state
 	 * anyway, if need be.
 	 */
-	dev->power.may_skip_resume = device_may_wakeup(dev) ||
-					!device_can_wakeup(dev);
+	if (device_can_wakeup(dev) && !device_may_wakeup(dev))
+		dev->power.may_skip_resume = false;
 
 	return 0;
 }

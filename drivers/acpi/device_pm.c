@@ -1100,10 +1100,8 @@ int acpi_subsys_suspend_noirq(struct device *dev)
 {
 	int ret;
 
-	if (dev_pm_smart_suspend_and_suspended(dev)) {
-		dev->power.may_skip_resume = true;
+	if (dev_pm_smart_suspend_and_suspended(dev))
 		return 0;
-	}
 
 	ret = pm_generic_suspend_noirq(dev);
 	if (ret)
@@ -1116,8 +1114,8 @@ int acpi_subsys_suspend_noirq(struct device *dev)
 	 * acpi_subsys_complete() to take care of fixing up the device's state
 	 * anyway, if need be.
 	 */
-	dev->power.may_skip_resume = device_may_wakeup(dev) ||
-					!device_can_wakeup(dev);
+	if (device_can_wakeup(dev) && !device_may_wakeup(dev))
+		dev->power.may_skip_resume = false;
 
 	return 0;
 }

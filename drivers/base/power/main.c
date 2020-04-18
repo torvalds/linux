@@ -1415,14 +1415,8 @@ static int __device_suspend_late(struct device *dev, pm_message_t state, bool as
 	if (callback)
 		goto Run;
 
-	if (dev_pm_smart_suspend_and_suspended(dev)) {
-		/*
-		 * In principle, the resume of the device may be skippend if it
-		 * remains in runtime suspend at this point.
-		 */
-		dev->power.may_skip_resume = true;
+	if (dev_pm_smart_suspend_and_suspended(dev))
 		goto Skip;
-	}
 
 	if (dev->driver && dev->driver->pm) {
 		info = "late driver ";
@@ -1647,7 +1641,7 @@ static int __device_suspend(struct device *dev, pm_message_t state, bool async)
 		dev->power.direct_complete = false;
 	}
 
-	dev->power.may_skip_resume = false;
+	dev->power.may_skip_resume = true;
 	dev->power.must_resume = false;
 
 	dpm_watchdog_set(&wd, dev);
