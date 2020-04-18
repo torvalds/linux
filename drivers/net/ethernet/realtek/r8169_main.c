@@ -2397,6 +2397,8 @@ static void rtl_pll_power_up(struct rtl8169_private *tp)
 
 static void rtl_init_rxcfg(struct rtl8169_private *tp)
 {
+	u32 vlan;
+
 	switch (tp->mac_version) {
 	case RTL_GIGA_MAC_VER_02 ... RTL_GIGA_MAC_VER_06:
 	case RTL_GIGA_MAC_VER_10 ... RTL_GIGA_MAC_VER_17:
@@ -2411,8 +2413,9 @@ static void rtl_init_rxcfg(struct rtl8169_private *tp)
 		RTL_W32(tp, RxConfig, RX128_INT_EN | RX_MULTI_EN | RX_DMA_BURST | RX_EARLY_OFF);
 		break;
 	case RTL_GIGA_MAC_VER_60 ... RTL_GIGA_MAC_VER_61:
-		RTL_W32(tp, RxConfig, RX_FETCH_DFLT_8125 | RX_VLAN_8125 |
-				      RX_DMA_BURST);
+		/* VLAN flags are controlled by NETIF_F_HW_VLAN_CTAG_RX */
+		vlan = RTL_R32(tp, RxConfig) & RX_VLAN_8125;
+		RTL_W32(tp, RxConfig, vlan | RX_FETCH_DFLT_8125 | RX_DMA_BURST);
 		break;
 	default:
 		RTL_W32(tp, RxConfig, RX128_INT_EN | RX_DMA_BURST);
