@@ -39,6 +39,7 @@ config GKI_HIDDEN_SND_CONFIGS
 config GKI_HIDDEN_SND_SOC_CONFIGS
 	bool "Hidden SND_SOC configs needed for GKI"
 	select SND_SOC_GENERIC_DMAENGINE_PCM if (SND_SOC && SND)
+	select SND_SOC_COMPRESS if (SND_SOC && SND)
 	help
 	  Dummy config option used to enable hidden SND_SOC configs.
 	  These are normally selected implicitly when a module
