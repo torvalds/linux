@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #define _GNU_SOURCE
 #include <getopt.h>
+#include <limits.h>
 #include <string.h>
 #include <poll.h>
 #include <sys/eventfd.h>
@@ -152,11 +153,11 @@ static void wait_for_interrupt(struct vdev_info *dev)
 }
 
 static void run_test(struct vdev_info *dev, struct vq_info *vq,
-		     bool delayed, int bufs)
+		     bool delayed, int batch, int bufs)
 {
 	struct scatterlist sl;
 	long started = 0, completed = 0;
-	long completed_before;
+	long completed_before, started_before;
 	int r, test = 1;
 	unsigned len;
 	long long spurious = 0;
@@ -165,28 +166,42 @@ static void run_test(struct vdev_info *dev, struct vq_info *vq,
 	for (;;) {
 		virtqueue_disable_cb(vq->vq);
 		completed_before = completed;
+		started_before = started;
 		do {
-			if (started < bufs) {
+			while (started < bufs &&
+			       (started - completed) < batch) {
 				sg_init_one(&sl, dev->buf, dev->buf_size);
 				r = virtqueue_add_outbuf(vq->vq, &sl, 1,
 							 dev->buf + started,
 							 GFP_ATOMIC);
-				if (likely(r == 0)) {
-					++started;
-					if (unlikely(!virtqueue_kick(vq->vq)))
+				if (unlikely(r != 0)) {
+					if (r == -ENOSPC &&
+					    started > started_before)
+						r = 0;
+					else
 						r = -1;
+					break;
 				}
-			} else
+
+				++started;
+
+				if (unlikely(!virtqueue_kick(vq->vq))) {
+					r = -1;
+					break;
+				}
+			}
+
+			if (started >= bufs)
 				r = -1;
 
 			/* Flush out completed bufs if any */
-			if (virtqueue_get_buf(vq->vq, &len)) {
+			while (virtqueue_get_buf(vq->vq, &len)) {
 				++completed;
 				r = 0;
 			}
 
 		} while (r == 0);
-		if (completed == completed_before)
+		if (completed == completed_before && started == started_before)
 			++spurious;
 		assert(completed <= bufs);
 		assert(started <= bufs);
@@ -245,6 +260,11 @@ const struct option longopts[] = {
 		.val = 'd',
 	},
 	{
+		.name = "batch",
+		.val = 'b',
+		.has_arg = required_argument,
+	},
+	{
 	}
 };
 
@@ -255,6 +275,7 @@ static void help(void)
 		" [--no-event-idx]"
 		" [--no-virtio-1]"
 		" [--delayed-interrupt]"
+		" [--batch=N]"
 		"\n");
 }
 
@@ -263,6 +284,7 @@ int main(int argc, char **argv)
 	struct vdev_info dev;
 	unsigned long long features = (1ULL << VIRTIO_RING_F_INDIRECT_DESC) |
 		(1ULL << VIRTIO_RING_F_EVENT_IDX) | (1ULL << VIRTIO_F_VERSION_1);
+	long batch = 1;
 	int o;
 	bool delayed = false;
 
@@ -289,6 +311,11 @@ int main(int argc, char **argv)
 		case 'D':
 			delayed = true;
 			break;
+		case 'b':
+			batch = strtol(optarg, NULL, 10);
+			assert(batch > 0);
+			assert(batch < (long)INT_MAX + 1);
+			break;
 		default:
 			assert(0);
 			break;
@@ -298,6 +325,6 @@ int main(int argc, char **argv)
 done:
 	vdev_info_init(&dev, features);
 	vq_info_add(&dev, 256);
-	run_test(&dev, &dev.vqs[0], delayed, 0x100000);
+	run_test(&dev, &dev.vqs[0], delayed, batch, 0x100000);
 	return 0;
 }
