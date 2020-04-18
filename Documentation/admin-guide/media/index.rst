@@ -28,7 +28,7 @@ The media subsystem
         Table of Contents
 
 .. toctree::
-	:maxdepth: 5
+	:maxdepth: 2
 	:numbered:
 
 	intro
@@ -40,80 +40,9 @@ The media subsystem
 
 	cardlist
 
-
-.. _uapi-v4l-drivers:
-
-Video4Linux (V4L) driver-specific documentation
-===============================================
-
-.. only:: html
-
-    .. class:: toc-title
-
-        Table of Contents
-
-.. toctree::
-	:maxdepth: 5
-	:numbered:
-
-	bttv
-	cafe_ccic
-	cpia2
-	cx88
-	davinci-vpbe
-	fimc
-	imx
-	imx7
-	ipu3
-	ivtv
-	meye
-	omap3isp
-	omap4_camera
-	philips
-	qcom_camss
-	rcar-fdp1
-	saa7134
-	si470x
-	si4713
-	si476x
-	vimc
-	vivid
-
-Digital TV driver-specific documentation
-========================================
-
-.. only:: html
-
-    .. class:: toc-title
-
-        Table of Contents
-
-.. toctree::
-	:maxdepth: 5
-	:numbered:
-
-	avermedia
-	bt8xx
-	lmedm04
-	opera-firmware
-	technisat
-	ttusb-dec
-	zr364xx
-
-CEC driver-specific documentation
-=================================
-
-.. only:: html
-
-    .. class:: toc-title
-
-        Table of Contents
-
-.. toctree::
-	:maxdepth: 5
-	:numbered:
-
-	pulse8-cec
+	v4l-drivers
+	dvb-drivers
+	cec-drivers
 
 **Copyright** |copy| 1999-2020 : LinuxTV Developers
 
