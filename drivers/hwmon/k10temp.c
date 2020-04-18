@@ -186,7 +186,7 @@ static long get_raw_temp(struct k10temp_data *data)
 	return temp;
 }
 
-const char *k10temp_temp_label[] = {
+static const char *k10temp_temp_label[] = {
 	"Tctl",
 	"Tdie",
 	"Tccd1",
@@ -199,12 +199,12 @@ const char *k10temp_temp_label[] = {
 	"Tccd8",
 };
 
-const char *k10temp_in_label[] = {
+static const char *k10temp_in_label[] = {
 	"Vcore",
 	"Vsoc",
 };
 
-const char *k10temp_curr_label[] = {
+static const char *k10temp_curr_label[] = {
 	"Icore",
 	"Isoc",
 };
