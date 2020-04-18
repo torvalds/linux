@@ -2210,9 +2210,7 @@ static void commit_planes_do_stream_update(struct dc *dc,
 
 				if (should_program_abm) {
 					if (*stream_update->abm_level == ABM_LEVEL_IMMEDIATE_DISABLE) {
-						pipe_ctx->stream_res.abm->funcs->set_abm_immediate_disable(
-								pipe_ctx->stream_res.abm,
-								pipe_ctx->stream->link->panel_cntl->inst);
+						dc->hwss.set_abm_immediate_disable(pipe_ctx);
 					} else {
 						pipe_ctx->stream_res.abm->funcs->set_abm_level(
 							pipe_ctx->stream_res.abm, stream->abm_level);

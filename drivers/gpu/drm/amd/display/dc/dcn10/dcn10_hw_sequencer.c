@@ -903,8 +903,7 @@ static void dcn10_reset_back_end_for_pipe(
 	if (pipe_ctx->top_pipe == NULL) {
 
 		if (pipe_ctx->stream_res.abm)
-			pipe_ctx->stream_res.abm->funcs->set_abm_immediate_disable(pipe_ctx->stream_res.abm,
-					pipe_ctx->stream->link->panel_cntl->inst);
+			dc->hwss.set_abm_immediate_disable(pipe_ctx);
 
 		pipe_ctx->stream_res.tg->funcs->disable_crtc(pipe_ctx->stream_res.tg);
 
@@ -1245,6 +1244,7 @@ void dcn10_init_hw(struct dc *dc)
 	struct dce_hwseq *hws = dc->hwseq;
 	struct dc_bios *dcb = dc->ctx->dc_bios;
 	struct resource_pool *res_pool = dc->res_pool;
+	uint32_t backlight = MAX_BACKLIGHT_LEVEL;
 
 	if (dc->clk_mgr && dc->clk_mgr->funcs->init_clocks)
 		dc->clk_mgr->funcs->init_clocks(dc->clk_mgr);
@@ -1411,10 +1411,15 @@ void dcn10_init_hw(struct dc *dc)
 		audio->funcs->hw_init(audio);
 	}
 
-	if (abm != NULL) {
-		abm->funcs->init_backlight(abm);
-		abm->funcs->abm_init(abm);
+	for (i = 0; i < dc->link_count; i++) {
+		struct dc_link *link = dc->links[i];
+
+		if (link->panel_cntl)
+			backlight = link->panel_cntl->funcs->hw_init(link->panel_cntl);
 	}
+
+	if (abm != NULL)
+		abm->funcs->abm_init(abm, backlight);
 
 	if (dmcu != NULL && !dmcu->auto_load_dmcu)
 		dmcu->funcs->dmcu_init(dmcu);
@@ -2490,9 +2495,7 @@ void dcn10_blank_pixel_data(
 			stream_res->abm->funcs->set_abm_level(stream_res->abm, stream->abm_level);
 		}
 	} else if (blank) {
-		if (stream_res->abm)
-			stream_res->abm->funcs->set_abm_immediate_disable(stream_res->abm,
-					stream->link->panel_cntl->inst);
+		dc->hwss.set_abm_immediate_disable(pipe_ctx);
 		if (stream_res->tg->funcs->set_blank)
 			stream_res->tg->funcs->set_blank(stream_res->tg, blank);
 	}

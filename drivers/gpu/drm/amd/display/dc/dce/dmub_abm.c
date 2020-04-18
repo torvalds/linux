@@ -70,53 +70,6 @@ static bool dmub_abm_set_pipe(struct abm *abm, uint32_t otg_inst, uint32_t panel
 	return true;
 }
 
-static unsigned int calculate_16_bit_backlight_from_pwm(struct dce_abm *dce_abm)
-{
-	uint64_t current_backlight;
-	uint32_t round_result;
-	uint32_t bl_period, bl_int_count;
-	uint32_t bl_pwm, fractional_duty_cycle_en;
-	uint32_t bl_period_mask, bl_pwm_mask;
-
-	REG_GET(BL_PWM_PERIOD_CNTL, BL_PWM_PERIOD, &bl_period);
-	REG_GET(BL_PWM_PERIOD_CNTL, BL_PWM_PERIOD_BITCNT, &bl_int_count);
-
-	REG_GET(BL_PWM_CNTL, BL_ACTIVE_INT_FRAC_CNT, &bl_pwm);
-	REG_GET(BL_PWM_CNTL, BL_PWM_FRACTIONAL_EN, &fractional_duty_cycle_en);
-
-	if (bl_int_count == 0)
-		bl_int_count = 16;
-
-	bl_period_mask = (1 << bl_int_count) - 1;
-	bl_period &= bl_period_mask;
-
-	bl_pwm_mask = bl_period_mask << (16 - bl_int_count);
-
-	if (fractional_duty_cycle_en == 0)
-		bl_pwm &= bl_pwm_mask;
-	else
-		bl_pwm &= 0xFFFF;
-
-	current_backlight = (uint64_t)bl_pwm << (1 + bl_int_count);
-
-	if (bl_period == 0)
-		bl_period = 0xFFFF;
-
-	current_backlight = div_u64(current_backlight, bl_period);
-	current_backlight = (current_backlight + 1) >> 1;
-
-	current_backlight = (uint64_t)(current_backlight) * bl_period;
-
-	round_result = (uint32_t)(current_backlight & 0xFFFFFFFF);
-
-	round_result = (round_result >> (bl_int_count-1)) & 1;
-
-	current_backlight >>= bl_int_count;
-	current_backlight += round_result;
-
-	return (uint32_t)(current_backlight);
-}
-
 static void dmcub_set_backlight_level(
 	struct dce_abm *dce_abm,
 	uint32_t backlight_pwm_u16_16,
@@ -178,10 +131,9 @@ static void dmub_abm_enable_fractional_pwm(struct dc_context *dc)
 	dc_dmub_srv_wait_idle(dc->dmub_srv);
 }
 
-static void dmub_abm_init(struct abm *abm)
+static void dmub_abm_init(struct abm *abm, uint32_t backlight)
 {
 	struct dce_abm *dce_abm = TO_DMUB_ABM(abm);
-	unsigned int backlight = calculate_16_bit_backlight_from_pwm(dce_abm);
 
 	REG_WRITE(DC_ABM1_HG_SAMPLE_RATE, 0x103);
 	REG_WRITE(DC_ABM1_HG_SAMPLE_RATE, 0x101);
@@ -261,76 +213,7 @@ static bool dmub_abm_set_level(struct abm *abm, uint32_t level)
 
 static bool dmub_abm_immediate_disable(struct abm *abm, uint32_t panel_inst)
 {
-	struct dce_abm *dce_abm = TO_DMUB_ABM(abm);
-
 	dmub_abm_set_pipe(abm, DISABLE_ABM_IMMEDIATELY, panel_inst);
-
-	abm->stored_backlight_registers.BL_PWM_CNTL =
-		REG_READ(BL_PWM_CNTL);
-	abm->stored_backlight_registers.BL_PWM_CNTL2 =
-		REG_READ(BL_PWM_CNTL2);
-	abm->stored_backlight_registers.BL_PWM_PERIOD_CNTL =
-		REG_READ(BL_PWM_PERIOD_CNTL);
-
-	REG_GET(LVTMA_PWRSEQ_REF_DIV, BL_PWM_REF_DIV,
-		&abm->stored_backlight_registers.LVTMA_PWRSEQ_REF_DIV_BL_PWM_REF_DIV);
-
-	return true;
-}
-
-static bool dmub_abm_init_backlight(struct abm *abm)
-{
-	struct dce_abm *dce_abm = TO_DMUB_ABM(abm);
-	uint32_t value;
-
-	/* It must not be 0, so we have to restore them
-	 * Bios bug w/a - period resets to zero,
-	 * restoring to cache values which is always correct
-	 */
-	REG_GET(BL_PWM_CNTL, BL_ACTIVE_INT_FRAC_CNT, &value);
-
-	if (value == 0 || value == 1) {
-		if (abm->stored_backlight_registers.BL_PWM_CNTL != 0) {
-			REG_WRITE(BL_PWM_CNTL,
-				abm->stored_backlight_registers.BL_PWM_CNTL);
-			REG_WRITE(BL_PWM_CNTL2,
-				abm->stored_backlight_registers.BL_PWM_CNTL2);
-			REG_WRITE(BL_PWM_PERIOD_CNTL,
-				abm->stored_backlight_registers.BL_PWM_PERIOD_CNTL);
-			REG_UPDATE(LVTMA_PWRSEQ_REF_DIV,
-				BL_PWM_REF_DIV,
-				abm->stored_backlight_registers.LVTMA_PWRSEQ_REF_DIV_BL_PWM_REF_DIV);
-		} else {
-			/* TODO: Note: This should not really happen since VBIOS
-			 * should have initialized PWM registers on boot.
-			 */
-			REG_WRITE(BL_PWM_CNTL, 0xC000FA00);
-			REG_WRITE(BL_PWM_PERIOD_CNTL, 0x000C0FA0);
-		}
-	} else {
-		abm->stored_backlight_registers.BL_PWM_CNTL =
-				REG_READ(BL_PWM_CNTL);
-		abm->stored_backlight_registers.BL_PWM_CNTL2 =
-				REG_READ(BL_PWM_CNTL2);
-		abm->stored_backlight_registers.BL_PWM_PERIOD_CNTL =
-				REG_READ(BL_PWM_PERIOD_CNTL);
-
-		REG_GET(LVTMA_PWRSEQ_REF_DIV, BL_PWM_REF_DIV,
-				&abm->stored_backlight_registers.LVTMA_PWRSEQ_REF_DIV_BL_PWM_REF_DIV);
-	}
-
-	// Have driver take backlight control
-	// TakeBacklightControl(true)
-	value = REG_READ(BIOS_SCRATCH_2);
-	value |= ATOM_S2_VRI_BRIGHT_ENABLE;
-	REG_WRITE(BIOS_SCRATCH_2, value);
-
-	// Enable the backlight output
-	REG_UPDATE(BL_PWM_CNTL, BL_PWM_EN, 1);
-
-	// Unlock group 2 backlight registers
-	REG_UPDATE(BL_PWM_GRP1_REG_LOCK,
-			BL_PWM_GRP1_REG_LOCK, 0);
 
 	return true;
 }
@@ -340,8 +223,7 @@ static bool dmub_abm_set_backlight_level_pwm(
 		unsigned int backlight_pwm_u16_16,
 		unsigned int frame_ramp,
 		unsigned int otg_inst,
-		uint32_t panel_inst,
-		bool fw_set_brightness)
+		uint32_t panel_inst)
 {
 	struct dce_abm *dce_abm = TO_DMUB_ABM(abm);
 
@@ -384,7 +266,6 @@ static bool dmub_abm_init_config(struct abm *abm,
 static const struct abm_funcs abm_funcs = {
 	.abm_init = dmub_abm_init,
 	.set_abm_level = dmub_abm_set_level,
-	.init_backlight = dmub_abm_init_backlight,
 	.set_pipe = dmub_abm_set_pipe,
 	.set_backlight_level_pwm = dmub_abm_set_backlight_level_pwm,
 	.get_current_backlight = dmub_abm_get_current_backlight,
@@ -404,10 +285,6 @@ static void dmub_abm_construct(
 
 	base->ctx = ctx;
 	base->funcs = &abm_funcs;
-	base->stored_backlight_registers.BL_PWM_CNTL = 0;
-	base->stored_backlight_registers.BL_PWM_CNTL2 = 0;
-	base->stored_backlight_registers.BL_PWM_PERIOD_CNTL = 0;
-	base->stored_backlight_registers.LVTMA_PWRSEQ_REF_DIV_BL_PWM_REF_DIV = 0;
 	base->dmcu_is_running = false;
 
 	abm_dce->regs = regs;

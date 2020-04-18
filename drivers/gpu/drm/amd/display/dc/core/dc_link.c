@@ -2504,57 +2504,54 @@ int dc_link_get_target_backlight_pwm(const struct dc_link *link)
 	return (int) abm->funcs->get_target_backlight(abm);
 }
 
+static struct pipe_ctx *get_pipe_from_link(const struct dc_link *link)
+{
+	int i;
+	struct dc *dc = link->ctx->dc;
+	struct pipe_ctx *pipe_ctx = NULL;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		if (dc->current_state->res_ctx.pipe_ctx[i].stream) {
+			if (dc->current_state->res_ctx.pipe_ctx[i].stream->link == link) {
+				pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
+				break;
+			}
+		}
+	}
+
+	return pipe_ctx;
+}
+
 bool dc_link_set_backlight_level(const struct dc_link *link,
 		uint32_t backlight_pwm_u16_16,
 		uint32_t frame_ramp)
 {
 	struct dc  *dc = link->ctx->dc;
-	int i;
 
 	DC_LOGGER_INIT(link->ctx->logger);
 	DC_LOG_BACKLIGHT("New Backlight level: %d (0x%X)\n",
 			backlight_pwm_u16_16, backlight_pwm_u16_16);
 
 	if (dc_is_embedded_signal(link->connector_signal)) {
-		struct pipe_ctx *pipe_ctx = NULL;
+		struct pipe_ctx *pipe_ctx = get_pipe_from_link(link);
 
-		for (i = 0; i < MAX_PIPES; i++) {
-			if (dc->current_state->res_ctx.pipe_ctx[i].stream) {
-				if (dc->current_state->res_ctx.
-						pipe_ctx[i].stream->link
-						== link) {
-					pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
-
-					/* Disable brightness ramping when the display is blanked
-					 * as it can hang the DMCU
-					 */
-					if (dc->current_state->res_ctx.pipe_ctx[i].plane_state == NULL)
-						frame_ramp = 0;
-				}
-			}
-		}
-
-		if (pipe_ctx == NULL)
+		if (pipe_ctx) {
+			/* Disable brightness ramping when the display is blanked
+			 * as it can hang the DMCU
+			 */
+			if (pipe_ctx->plane_state == NULL)
+				frame_ramp = 0;
+		} else {
 			ASSERT(false);
+			return false;
+		}
 
 		dc->hwss.set_backlight_level(
 				pipe_ctx,
 				backlight_pwm_u16_16,
 				frame_ramp);
 	}
-
 	return true;
-}
-
-bool dc_link_set_abm_disable(const struct dc_link *link)
-{
-	struct abm *abm = get_abm_from_stream_res(link);
-	bool success = false;
-
-	if (abm)
-		success = abm->funcs->set_abm_immediate_disable(abm, link->panel_cntl->inst);
-
-	return success;
 }
 
 bool dc_link_set_psr_allow_active(struct dc_link *link, bool allow_active, bool wait)
