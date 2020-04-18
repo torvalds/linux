@@ -352,6 +352,15 @@ xilinx-video       Xilinx Video IP (EXPERIMENTAL)
 xilinx-vtc         Xilinx Video Timing Controller
 =================  ============================================================
 
+MMC/SDIO DVB adapters
+---------------------
+
+=======  ===========================================
+Driver   Name
+=======  ===========================================
+smssdio  Siano SMS1xxx based MDTV via SDIO interface
+=======  ===========================================
+
 I²C drivers
 ===========
 
