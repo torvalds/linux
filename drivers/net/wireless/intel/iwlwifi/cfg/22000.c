@@ -90,7 +90,8 @@
 #define IWL_22000_SO_A_GF_A_FW_PRE      "iwlwifi-so-a0-gf-a0-"
 #define IWL_22000_TY_A_GF_A_FW_PRE      "iwlwifi-ty-a0-gf-a0-"
 #define IWL_22000_SO_A_GF4_A_FW_PRE     "iwlwifi-so-a0-gf4-a0-"
-#define IWL_22000_SOSNJ_A_GF4_A_FW_PRE  "iwlwifi-SoSnj-a0-gf4-a0-"
+#define IWL_SNJ_A_GF4_A_FW_PRE		"iwlwifi-SoSnj-a0-gf4-a0-"
+#define IWL_SNJ_A_GF_A_FW_PRE		"iwlwifi-SoSnj-a0-gf-a0-"
 
 #define IWL_22000_HR_MODULE_FIRMWARE(api) \
 	IWL_22000_HR_FW_PRE __stringify(api) ".ucode"
@@ -120,6 +121,10 @@
 	IWL_22000_SO_A_GF_A_FW_PRE __stringify(api) ".ucode"
 #define IWL_22000_TY_A_GF_A_MODULE_FIRMWARE(api) \
 	IWL_22000_TY_A_GF_A_FW_PRE __stringify(api) ".ucode"
+#define IWL_SNJ_A_GF4_A_MODULE_FIRMWARE(api) \
+	IWL_SNJ_A_GF4_A_FW_PRE __stringify(api) ".ucode"
+#define IWL_SNJ_A_GF_A_MODULE_FIRMWARE(api) \
+	IWL_SNJ_A_GF_A_FW_PRE __stringify(api) ".ucode"
 
 static const struct iwl_base_params iwl_22000_base_params = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE_32K,
@@ -553,8 +558,16 @@ const struct iwl_cfg iwlax411_2ax_cfg_so_gf4_a0 = {
 };
 
 const struct iwl_cfg iwlax411_2ax_cfg_sosnj_gf4_a0 = {
-	.name = "Intel(R) Wi-Fi 7 AX411 160MHz",
-	.fw_name_pre = IWL_22000_SOSNJ_A_GF4_A_FW_PRE,
+	.name = "Intel(R) Wi-Fi 6 AX411 160MHz",
+	.fw_name_pre = IWL_SNJ_A_GF4_A_FW_PRE,
+	.uhb_supported = true,
+	IWL_DEVICE_AX210,
+	.num_rbds = IWL_NUM_RBDS_AX210_HE,
+};
+
+const struct iwl_cfg iwlax211_cfg_snj_gf_a0 = {
+	.name = "Intel(R) Wi-Fi 6 AX211 160MHz",
+	.fw_name_pre = IWL_SNJ_A_GF_A_FW_PRE,
 	.uhb_supported = true,
 	IWL_DEVICE_AX210,
 	.num_rbds = IWL_NUM_RBDS_AX210_HE,
@@ -573,3 +586,5 @@ MODULE_FIRMWARE(IWL_22000_SO_A_JF_B_MODULE_FIRMWARE(IWL_22000_UCODE_API_MAX));
 MODULE_FIRMWARE(IWL_22000_SO_A_HR_B_MODULE_FIRMWARE(IWL_22000_UCODE_API_MAX));
 MODULE_FIRMWARE(IWL_22000_SO_A_GF_A_MODULE_FIRMWARE(IWL_22000_UCODE_API_MAX));
 MODULE_FIRMWARE(IWL_22000_TY_A_GF_A_MODULE_FIRMWARE(IWL_22000_UCODE_API_MAX));
+MODULE_FIRMWARE(IWL_SNJ_A_GF4_A_MODULE_FIRMWARE(IWL_22000_UCODE_API_MAX));
+MODULE_FIRMWARE(IWL_SNJ_A_GF_A_MODULE_FIRMWARE(IWL_22000_UCODE_API_MAX));
