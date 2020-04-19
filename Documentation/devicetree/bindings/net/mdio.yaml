@@ -45,6 +45,12 @@ properties:
       defined 2.5MHz should only be used when all devices on the bus support
       the given clock speed.
 
+  suppress-preamble:
+    description:
+      The 32 bit preamble should be suppressed. In order for this to
+      work, all devices on the bus must support suppressed preamble.
+    type: boolean
+
 patternProperties:
   "^ethernet-phy@[0-9a-f]+$":
     type: object

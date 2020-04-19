@@ -2064,6 +2064,7 @@ static int fec_enet_mii_init(struct platform_device *pdev)
 	static struct mii_bus *fec0_mii_bus;
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct fec_enet_private *fep = netdev_priv(ndev);
+	bool suppress_preamble = false;
 	struct device_node *node;
 	int err = -ENXIO;
 	u32 mii_speed, holdtime;
@@ -2097,8 +2098,11 @@ static int fec_enet_mii_init(struct platform_device *pdev)
 
 	bus_freq = 2500000; /* 2.5MHz by default */
 	node = of_get_child_by_name(pdev->dev.of_node, "mdio");
-	if (node)
+	if (node) {
 		of_property_read_u32(node, "clock-frequency", &bus_freq);
+		suppress_preamble = of_property_read_bool(node,
+							  "suppress-preamble");
+	}
 
 	/*
 	 * Set MII speed (= clk_get_rate() / 2 * phy_speed)
@@ -2134,6 +2138,9 @@ static int fec_enet_mii_init(struct platform_device *pdev)
 	holdtime = DIV_ROUND_UP(clk_get_rate(fep->clk_ipg), 100000000) - 1;
 
 	fep->phy_speed = mii_speed << 1 | holdtime << 8;
+
+	if (suppress_preamble)
+		fep->phy_speed |= BIT(7);
 
 	writel(fep->phy_speed, fep->hwp + FEC_MII_SPEED);
 
