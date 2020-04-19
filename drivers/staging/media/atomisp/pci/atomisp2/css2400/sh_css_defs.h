@@ -239,11 +239,7 @@ RGB[0,8191],coef[-8192,8191] -> RGB[0,8191]
 #define NUM_TNR_FRAMES_PER_REF_BUF_SET		(2)
 
 /* In luma-only mode alternate illuminated frames are supported, that requires two double buffers */
-#ifdef ENABLE_LUMA_ONLY
-#define NUM_TNR_REF_BUF_SETS	(2)
-#else
 #define NUM_TNR_REF_BUF_SETS	(1)
-#endif
 
 #define NUM_TNR_FRAMES		(NUM_TNR_FRAMES_PER_REF_BUF_SET * NUM_TNR_REF_BUF_SETS)
 

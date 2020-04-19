@@ -43,23 +43,6 @@
 #define CT_ASSERT(cnd) ((void)sizeof(char[(cnd) ? 1 :  -1]))
 #endif /* CT_ASSERT */
 
-#ifdef NDEBUG
-
-#define assert(cnd) ((void)0)
-
-#else
-
-#if defined(_MSC_VER)
-#ifdef _KERNEL_MODE
-/* Windows kernel mode compilation */
-#include <wdm.h>
-#define assert(cnd) ASSERT(cnd)
-#else
-/* Windows usermode compilation */
-#include <assert.h>
-#endif
-
-#elif defined(__KERNEL__)
 #include <linux/bug.h>
 
 /* TODO: it would be cleaner to use this:
@@ -72,17 +55,6 @@
 		if (!(cnd)) \
 			BUG(); \
 	} while (0)
-
-#elif defined(__FIST__) || defined(__GNUC__)
-
-/* enable assert for crun */
-#include "assert.h"
-
-#else /* default for unknown environments */
-#define assert(cnd) ((void)0)
-#endif
-
-#endif /* NDEBUG */
 
 #ifndef PIPE_GENERATION
 /* Deprecated OP___assert, this is still used in ~1000 places

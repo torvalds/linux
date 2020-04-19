@@ -15,42 +15,12 @@
 #ifndef __ERROR_SUPPORT_H_INCLUDED__
 #define __ERROR_SUPPORT_H_INCLUDED__
 
-#if defined(_MSC_VER)
-#include <errno.h>
-/*
- * Put here everything _MSC_VER specific not covered in
- * "errno.h"
- */
-#define EINVAL  22
-#define EBADE   52
-#define ENODATA 61
-#define ENOTCONN 107
-#define ENOTSUP 252
-#define ENOBUFS 233
-
-#elif defined(__KERNEL__)
 #include <linux/errno.h>
 /*
  * Put here everything __KERNEL__ specific not covered in
  * "errno.h"
  */
 #define ENOTSUP 252
-
-#elif defined(__GNUC__)
-#include <errno.h>
-/*
- * Put here everything __GNUC__ specific not covered in
- * "errno.h"
- */
-
-#else /* default is for the FIST environment */
-#include <errno.h>
-/*
- * Put here everything FIST specific not covered in
- * "errno.h"
- */
-
-#endif
 
 #define verifexit(cond, error_tag)  \
 do {                               \

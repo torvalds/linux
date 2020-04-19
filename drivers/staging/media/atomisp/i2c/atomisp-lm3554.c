@@ -403,7 +403,6 @@ static int lm3554_g_flash_status(struct v4l2_subdev *sd, s32 *val)
 	return 0;
 }
 
-#ifndef CSS15
 static int lm3554_g_flash_status_register(struct v4l2_subdev *sd, s32 *val)
 {
 	struct lm3554 *flash = to_lm3554(sd);
@@ -417,7 +416,6 @@ static int lm3554_g_flash_status_register(struct v4l2_subdev *sd, s32 *val)
 	*val = ret;
 	return 0;
 }
-#endif
 
 static int lm3554_s_ctrl(struct v4l2_ctrl *ctrl)
 {
@@ -475,11 +473,9 @@ static int lm3554_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_FLASH_STATUS:
 		ret = lm3554_g_flash_status(&dev->sd, &ctrl->val);
 		break;
-#ifndef CSS15
 	case V4L2_CID_FLASH_STATUS_REGISTER:
 		ret = lm3554_g_flash_status_register(&dev->sd, &ctrl->val);
 		break;
-#endif
 	default:
 		ret = -EINVAL;
 	}
@@ -570,7 +566,6 @@ static const struct v4l2_ctrl_config lm3554_controls[] = {
 		.def = ATOMISP_FLASH_STATUS_OK,
 		.flags = 0,
 	},
-#ifndef CSS15
 	{
 		.ops = &ctrl_ops,
 		.id = V4L2_CID_FLASH_STATUS_REGISTER,
@@ -582,7 +577,6 @@ static const struct v4l2_ctrl_config lm3554_controls[] = {
 		.def = 0,
 		.flags = 0,
 	},
-#endif
 };
 
 /* -----------------------------------------------------------------------------

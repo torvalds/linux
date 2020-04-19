@@ -17,7 +17,6 @@
 #include <platform_support.h>
 #include <type_support.h>
 
-#if !defined(_MSC_VER)
 /*
  * For all non microsoft cases, we need the following functions
  */
@@ -162,6 +161,5 @@ static inline int strcpy_s(
 	return 0;
 }
 
-#endif /*!defined(_MSC_VER)*/
 
 #endif /* __STRING_SUPPORT_H_INCLUDED__ */

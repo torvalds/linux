@@ -33,9 +33,4 @@
 
 #define CSS_ALIGN(d, a) d __attribute__((aligned(a)))
 
-/*
- * Put here everything __KERNEL__ specific not covered in
- * "assert_support.h", "math_support.h", etc
- */
-
 #endif /* __PLATFORM_SUPPORT_H_INCLUDED__ */

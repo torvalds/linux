@@ -17,9 +17,6 @@
 
 #include <linux/kernel.h> /* Override the definition of max/min from linux kernel*/
 
-#if defined(_MSC_VER)
-#include <stdlib.h> /* Override the definition of max/min from stdlib.h*/
-#endif /* _MSC_VER */
 
 /* in case we have min/max/MIN/MAX macro's undefine them */
 #ifdef min

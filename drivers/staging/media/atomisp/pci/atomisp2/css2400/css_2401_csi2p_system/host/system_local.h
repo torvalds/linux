@@ -25,11 +25,7 @@
 
 #include "system_global.h"
 
-#ifdef __FIST__
-#define HRT_ADDRESS_WIDTH	32		/* Surprise, this is a local property and even differs per platform */
-#else
 #define HRT_ADDRESS_WIDTH	64		/* Surprise, this is a local property */
-#endif
 
 /* This interface is deprecated */
 #include "hrt/hive_types.h"

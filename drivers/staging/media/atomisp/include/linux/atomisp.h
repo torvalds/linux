@@ -14,9 +14,6 @@
  *
  *
  */
-#ifdef CSS15
-#include <linux/atomisp_css15.h>
-#else
 
 #ifndef _ATOM_ISP_H
 #define _ATOM_ISP_H
@@ -1357,4 +1354,3 @@ enum {
 };
 
 #endif /* _ATOM_ISP_H */
-#endif /* CSS15*/

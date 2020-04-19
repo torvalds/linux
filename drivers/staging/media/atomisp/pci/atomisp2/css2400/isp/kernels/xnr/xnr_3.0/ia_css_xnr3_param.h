@@ -36,15 +36,7 @@
 #define XNR_BLENDING_SCALE_FACTOR   BIT(XNR_BLENDING_SCALE_LOG2)
 
 /* XNR3 filter size. Must be 11x11, 9x9 or 5x5. */
-#ifdef FLT_KERNEL_9x9
-#define XNR_FILTER_SIZE             9
-#else
-#ifdef FLT_KERNEL_11x11
-#define XNR_FILTER_SIZE             11
-#else
 #define XNR_FILTER_SIZE             5
-#endif
-#endif
 
 /* XNR3 alpha (1/sigma) parameters on the ISP, expressed as a base (0) value
  * for dark areas, and a scaled diff towards the value for bright areas. */

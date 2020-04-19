@@ -25,13 +25,9 @@
 
 #include "system_global.h"
 
-#ifdef __FIST__
-#define HRT_ADDRESS_WIDTH	32		/* Surprise, this is a local property and even differs per platform */
-#else
 /* HRT assumes 32 by default (see Linux/include/hrt/hive_types.h), overrule it in case it is different */
 #undef HRT_ADDRESS_WIDTH
 #define HRT_ADDRESS_WIDTH	64		/* Surprise, this is a local property */
-#endif
 
 /* This interface is deprecated */
 #include "hrt/hive_types.h"

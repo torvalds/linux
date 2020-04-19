@@ -1112,7 +1112,6 @@ static int mt9m114_g_exposure(struct v4l2_subdev *sd, s32 *value)
 	return 0;
 }
 
-#ifndef CSS15
 /*
  * This function will return the sensor supported max exposure zone number.
  * the sensor which supports max exposure zone number is 1.
@@ -1222,7 +1221,6 @@ static int mt9m114_s_exposure_selection(struct v4l2_subdev *sd,
 
 	return 0;
 }
-#endif
 
 static int mt9m114_g_bin_factor_x(struct v4l2_subdev *sd, s32 *val)
 {
@@ -1331,11 +1329,9 @@ static int mt9m114_s_ctrl(struct v4l2_ctrl *ctrl)
 			__func__, ctrl->val);
 		ret = mt9m114_t_hflip(&dev->sd, ctrl->val);
 		break;
-#ifndef CSS15
 	case V4L2_CID_EXPOSURE_METERING:
 		ret = mt9m114_s_exposure_metering(&dev->sd, ctrl->val);
 		break;
-#endif
 	case V4L2_CID_EXPOSURE:
 		ret = mt9m114_s_ev(&dev->sd, ctrl->val);
 		break;
@@ -1373,11 +1369,9 @@ static int mt9m114_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_EXPOSURE_ABSOLUTE:
 		ret = mt9m114_g_exposure(&dev->sd, &ctrl->val);
 		break;
-#ifndef CSS15
 	case V4L2_CID_EXPOSURE_ZONE_NUM:
 		ret = mt9m114_g_exposure_zone_num(&dev->sd, &ctrl->val);
 		break;
-#endif
 	case V4L2_CID_BIN_FACTOR_HORZ:
 		ret = mt9m114_g_bin_factor_x(&dev->sd, &ctrl->val);
 		break;
@@ -1467,7 +1461,6 @@ static struct v4l2_ctrl_config mt9m114_controls[] = {
 		.def = 0,
 		.flags = 0,
 	},
-#ifndef CSS15
 	{
 		.ops = &ctrl_ops,
 		.id = V4L2_CID_EXPOSURE_ZONE_NUM,
@@ -1490,7 +1483,6 @@ static struct v4l2_ctrl_config mt9m114_controls[] = {
 		.def = 1,
 		.flags = 0,
 	},
-#endif
 	{
 		.ops = &ctrl_ops,
 		.id = V4L2_CID_BIN_FACTOR_HORZ,
@@ -1794,9 +1786,7 @@ static const struct v4l2_subdev_pad_ops mt9m114_pad_ops = {
 	.enum_frame_size = mt9m114_enum_frame_size,
 	.get_fmt = mt9m114_get_fmt,
 	.set_fmt = mt9m114_set_fmt,
-#ifndef CSS15
 	.set_selection = mt9m114_s_exposure_selection,
-#endif
 };
 
 static const struct v4l2_subdev_ops mt9m114_ops = {
