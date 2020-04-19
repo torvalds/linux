@@ -1746,7 +1746,9 @@ static int ethtool_self_test(struct net_device *dev, char __user *useraddr)
 	if (!data)
 		return -ENOMEM;
 
+	netif_testing_on(dev);
 	ops->self_test(dev, &test, data);
+	netif_testing_off(dev);
 
 	ret = -EFAULT;
 	if (copy_to_user(useraddr, &test, sizeof(test)))
