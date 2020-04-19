@@ -23,6 +23,11 @@ struct au1550nd_ctx {
 	void (*write_byte)(struct nand_chip *, u_char);
 };
 
+static struct au1550nd_ctx *chip_to_au_ctx(struct nand_chip *this)
+{
+	return container_of(this, struct au1550nd_ctx, chip);
+}
+
 /**
  * au_read_byte -  read one byte from the chip
  * @this:	NAND chip object
@@ -85,10 +90,11 @@ static void au_write_byte16(struct nand_chip *this, u_char byte)
  */
 static void au_write_buf(struct nand_chip *this, const u_char *buf, int len)
 {
+	struct au1550nd_ctx *ctx = chip_to_au_ctx(this);
 	int i;
 
 	for (i = 0; i < len; i++) {
-		writeb(buf[i], this->legacy.IO_ADDR_W);
+		writeb(buf[i], ctx->base + MEM_STNAND_DATA);
 		wmb(); /* drain writebuffer */
 	}
 }
@@ -103,10 +109,11 @@ static void au_write_buf(struct nand_chip *this, const u_char *buf, int len)
  */
 static void au_read_buf(struct nand_chip *this, u_char *buf, int len)
 {
+	struct au1550nd_ctx *ctx = chip_to_au_ctx(this);
 	int i;
 
 	for (i = 0; i < len; i++) {
-		buf[i] = readb(this->legacy.IO_ADDR_R);
+		buf[i] = readb(ctx->base + MEM_STNAND_DATA);
 		wmb(); /* drain writebuffer */
 	}
 }
@@ -121,12 +128,13 @@ static void au_read_buf(struct nand_chip *this, u_char *buf, int len)
  */
 static void au_write_buf16(struct nand_chip *this, const u_char *buf, int len)
 {
+	struct au1550nd_ctx *ctx = chip_to_au_ctx(this);
 	int i;
 	u16 *p = (u16 *) buf;
 	len >>= 1;
 
 	for (i = 0; i < len; i++) {
-		writew(p[i], this->legacy.IO_ADDR_W);
+		writew(p[i], ctx->base + MEM_STNAND_DATA);
 		wmb(); /* drain writebuffer */
 	}
 
@@ -142,12 +150,13 @@ static void au_write_buf16(struct nand_chip *this, const u_char *buf, int len)
  */
 static void au_read_buf16(struct nand_chip *this, u_char *buf, int len)
 {
+	struct au1550nd_ctx *ctx = chip_to_au_ctx(this);
 	int i;
 	u16 *p = (u16 *) buf;
 	len >>= 1;
 
 	for (i = 0; i < len; i++) {
-		p[i] = readw(this->legacy.IO_ADDR_R);
+		p[i] = readw(ctx->base + MEM_STNAND_DATA);
 		wmb(); /* drain writebuffer */
 	}
 }
