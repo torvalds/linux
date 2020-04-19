@@ -22,7 +22,6 @@
 #include "dma_v2_defs.h"
 #include "print_support.h"
 
-
 STORAGE_CLASS_ISYS2401_DMA_C void isys2401_dma_reg_store(
 	const isys2401_dma_ID_t	dma_id,
 	const unsigned int	reg,
@@ -31,7 +30,7 @@ STORAGE_CLASS_ISYS2401_DMA_C void isys2401_dma_reg_store(
 	unsigned int reg_loc;
 
 	assert(dma_id < N_ISYS2401_DMA_ID);
-	assert(ISYS2401_DMA_BASE[dma_id] != (hrt_address)-1);
+	assert(ISYS2401_DMA_BASE[dma_id] != (hrt_address) - 1);
 
 	reg_loc = ISYS2401_DMA_BASE[dma_id] + (reg * sizeof(hrt_data));
 
@@ -47,7 +46,7 @@ STORAGE_CLASS_ISYS2401_DMA_C hrt_data isys2401_dma_reg_load(
 	hrt_data value;
 
 	assert(dma_id < N_ISYS2401_DMA_ID);
-	assert(ISYS2401_DMA_BASE[dma_id] != (hrt_address)-1);
+	assert(ISYS2401_DMA_BASE[dma_id] != (hrt_address) - 1);
 
 	reg_loc = ISYS2401_DMA_BASE[dma_id] + (reg * sizeof(hrt_data));
 

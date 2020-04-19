@@ -35,16 +35,16 @@
 #define HIVE_SWITCH_M_FSYNC					0x00000007
 
 #define HIVE_SWITCH_ENCODE_FSYNC(x) \
-	(1U<<(((x)-1)&HIVE_SWITCH_M_CHANNELS))
+	(1U << (((x) - 1) & HIVE_SWITCH_M_CHANNELS))
 
 #define _HIVE_INPUT_SWITCH_GET_LUT_FIELD(reg, bit_index) \
 	(((reg) >> (bit_index)) & HIVE_SWITCH_M_SWITCH_CODE)
 #define _HIVE_INPUT_SWITCH_SET_LUT_FIELD(reg, bit_index, val) \
-	(((reg) & ~(HIVE_SWITCH_M_SWITCH_CODE<<(bit_index))) | (((hrt_data)(val)&HIVE_SWITCH_M_SWITCH_CODE)<<(bit_index)))
+	(((reg) & ~(HIVE_SWITCH_M_SWITCH_CODE << (bit_index))) | (((hrt_data)(val) & HIVE_SWITCH_M_SWITCH_CODE) << (bit_index)))
 #define _HIVE_INPUT_SWITCH_GET_FSYNC_FIELD(reg, bit_index) \
 	(((reg) >> (bit_index)) & HIVE_SWITCH_M_FSYNC)
 #define _HIVE_INPUT_SWITCH_SET_FSYNC_FIELD(reg, bit_index, val) \
-	(((reg) & ~(HIVE_SWITCH_M_FSYNC<<(bit_index))) | (((hrt_data)(val)&HIVE_SWITCH_M_FSYNC)<<(bit_index)))
+	(((reg) & ~(HIVE_SWITCH_M_FSYNC << (bit_index))) | (((hrt_data)(val) & HIVE_SWITCH_M_FSYNC) << (bit_index)))
 
 typedef struct input_formatter_cfg_s	input_formatter_cfg_t;
 
@@ -93,22 +93,22 @@ typedef struct input_formatter_cfg_s	input_formatter_cfg_t;
  * This data structure is shared between host and SP
  */
 struct input_formatter_cfg_s {
-	uint32_t	start_line;
-	uint32_t	start_column;
-	uint32_t	left_padding;
-	uint32_t	cropped_height;
-	uint32_t	cropped_width;
-	uint32_t	deinterleaving;
-	uint32_t	buf_vecs;
-	uint32_t	buf_start_index;
-	uint32_t	buf_increment;
-	uint32_t	buf_eol_offset;
-	uint32_t	is_yuv420_format;
-	uint32_t	block_no_reqs;
+	u32	start_line;
+	u32	start_column;
+	u32	left_padding;
+	u32	cropped_height;
+	u32	cropped_width;
+	u32	deinterleaving;
+	u32	buf_vecs;
+	u32	buf_start_index;
+	u32	buf_increment;
+	u32	buf_eol_offset;
+	u32	is_yuv420_format;
+	u32	block_no_reqs;
 };
 
 extern const hrt_address HIVE_IF_SRST_ADDRESS[N_INPUT_FORMATTER_ID];
 extern const hrt_data HIVE_IF_SRST_MASK[N_INPUT_FORMATTER_ID];
-extern const uint8_t HIVE_IF_SWITCH_CODE[N_INPUT_FORMATTER_ID];
+extern const u8 HIVE_IF_SWITCH_CODE[N_INPUT_FORMATTER_ID];
 
 #endif /* __INPUT_FORMATTER_GLOBAL_H_INCLUDED__ */

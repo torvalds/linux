@@ -19,29 +19,29 @@
 
 /* BNR (Bayer Noise Reduction) ISP parameters */
 struct sh_css_isp_bnr2_2_params {
-	int32_t d_var_gain_r;
-	int32_t d_var_gain_g;
-	int32_t d_var_gain_b;
-	int32_t d_var_gain_slope_r;
-	int32_t d_var_gain_slope_g;
-	int32_t d_var_gain_slope_b;
-	int32_t n_var_gain_r;
-	int32_t n_var_gain_g;
-	int32_t n_var_gain_b;
-	int32_t n_var_gain_slope_r;
-	int32_t n_var_gain_slope_g;
-	int32_t n_var_gain_slope_b;
-	int32_t dir_thres;
-	int32_t dir_thres_w;
-	int32_t var_offset_coef;
-	int32_t dir_gain;
-	int32_t detail_gain;
-	int32_t detail_gain_divisor;
-	int32_t detail_level_offset;
-	int32_t d_var_th_min;
-	int32_t d_var_th_max;
-	int32_t n_var_th_min;
-	int32_t n_var_th_max;
+	s32 d_var_gain_r;
+	s32 d_var_gain_g;
+	s32 d_var_gain_b;
+	s32 d_var_gain_slope_r;
+	s32 d_var_gain_slope_g;
+	s32 d_var_gain_slope_b;
+	s32 n_var_gain_r;
+	s32 n_var_gain_g;
+	s32 n_var_gain_b;
+	s32 n_var_gain_slope_r;
+	s32 n_var_gain_slope_g;
+	s32 n_var_gain_slope_b;
+	s32 dir_thres;
+	s32 dir_thres_w;
+	s32 var_offset_coef;
+	s32 dir_gain;
+	s32 detail_gain;
+	s32 detail_gain_divisor;
+	s32 detail_level_offset;
+	s32 d_var_th_min;
+	s32 d_var_th_max;
+	s32 n_var_th_min;
+	s32 n_var_th_max;
 };
 
 #endif /* __IA_CSS_BNR2_2_PARAM_H */

@@ -31,6 +31,6 @@ struct stream2mmio_sid_state_s {
 };
 
 struct stream2mmio_state_s {
-	stream2mmio_sid_state_t 	sid_state[N_STREAM2MMIO_SID_ID];
+	stream2mmio_sid_state_t	sid_state[N_STREAM2MMIO_SID_ID];
 };
 #endif /* __ISYS_STREAM2MMIO_LOCAL_H_INCLUDED__ */

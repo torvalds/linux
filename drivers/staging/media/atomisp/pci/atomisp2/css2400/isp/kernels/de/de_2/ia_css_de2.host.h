@@ -24,15 +24,15 @@ void
 ia_css_ecd_encode(
 	struct sh_css_isp_ecd_params *to,
 	const struct ia_css_ecd_config *from,
-	unsigned size);
+	unsigned int size);
 
 void
 ia_css_ecd_dump(
 	const struct sh_css_isp_ecd_params *ecd,
-	unsigned level);
+	unsigned int level);
 
 void
 ia_css_ecd_debug_dtrace(
-	const struct ia_css_ecd_config *config, unsigned level);
+	const struct ia_css_ecd_config *config, unsigned int level);
 
 #endif /* __IA_CSS_DE2_HOST_H */

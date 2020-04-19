@@ -29,7 +29,7 @@
 #define ISP           testbench_isp_isp
 #define SP            testbench_isp_scp
 
-#define IF_PRIM       testbench_isp_ifmt_ift_prim  
+#define IF_PRIM       testbench_isp_ifmt_ift_prim
 #define IF_PRIM_B     testbench_isp_ifmt_ift_prim_b
 #define IF_SEC        testbench_isp_ifmt_ift_sec
 #define IF_SEC_MASTER testbench_isp_ifmt_ift_sec_mt_out

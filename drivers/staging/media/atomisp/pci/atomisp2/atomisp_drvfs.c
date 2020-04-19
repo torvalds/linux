@@ -41,9 +41,9 @@ struct _iunit_debug {
 	unsigned int		dbgopt;
 };
 
-#define OPTION_BIN_LIST			(1<<0)
-#define OPTION_BIN_RUN			(1<<1)
-#define OPTION_MEM_STAT			(1<<2)
+#define OPTION_BIN_LIST			BIT(0)
+#define OPTION_BIN_RUN			BIT(1)
+#define OPTION_MEM_STAT			BIT(2)
 #define OPTION_VALID			(OPTION_BIN_LIST \
 					| OPTION_BIN_RUN \
 					| OPTION_MEM_STAT)

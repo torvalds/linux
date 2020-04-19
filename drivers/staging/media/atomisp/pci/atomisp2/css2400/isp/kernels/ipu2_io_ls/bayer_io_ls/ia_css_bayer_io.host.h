@@ -21,7 +21,6 @@ more details.
 #include "ia_css_binary.h"
 #include "sh_css_internal.h"
 
-
 void
 ia_css_bayer_io_config(
 	const struct ia_css_binary     *binary,

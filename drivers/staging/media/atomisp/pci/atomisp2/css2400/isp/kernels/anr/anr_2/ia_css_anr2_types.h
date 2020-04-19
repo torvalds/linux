@@ -25,8 +25,7 @@
 
 /* Advanced Noise Reduction (ANR) thresholds */
 struct ia_css_anr_thres {
-	int16_t data[13*64];
+	s16 data[13 * 64];
 };
 
 #endif /* __IA_CSS_ANR2_TYPES_H */
-

@@ -50,7 +50,7 @@ STORAGE_CLASS_STREAM2MMIO_C void stream2mmio_get_state(
 	 * stream2mmio-controller sids.
 	 */
 	for (i = STREAM2MMIO_SID0_ID; i < N_STREAM2MMIO_SID_PROCS[ID]; i++) {
-		stream2mmio_get_sid_state(ID, i, &(state->sid_state[i]));
+		stream2mmio_get_sid_state(ID, i, &state->sid_state[i]);
 	}
 }
 
@@ -63,7 +63,6 @@ STORAGE_CLASS_STREAM2MMIO_C void stream2mmio_get_sid_state(
 		const stream2mmio_sid_ID_t sid_id,
 		stream2mmio_sid_state_t	*state)
 {
-
 	state->rcv_ack =
 		stream2mmio_reg_load(ID, sid_id, STREAM2MMIO_ACKNOWLEDGE_REG_ID);
 
@@ -84,7 +83,6 @@ STORAGE_CLASS_STREAM2MMIO_C void stream2mmio_get_sid_state(
 
 	state->block_when_no_cmd =
 		stream2mmio_reg_load(ID, sid_id, STREAM2MMIO_BLOCK_WHEN_NO_CMD_REG_ID);
-
 }
 
 /**
@@ -101,8 +99,8 @@ STORAGE_CLASS_STREAM2MMIO_C void stream2mmio_print_sid_state(
 	ia_css_print("\t \t Strides 0x%x\n", state->strides);
 	ia_css_print("\t \t Num Items 0x%x\n", state->num_items);
 	ia_css_print("\t \t block when no cmd 0x%x\n", state->block_when_no_cmd);
-
 }
+
 /**
  * @brief Dump the ibuf-controller state.
  * Refer to "stream2mmio_public.h" for details.
@@ -119,9 +117,10 @@ STORAGE_CLASS_STREAM2MMIO_C void stream2mmio_dump_state(
 	 */
 	for (i = STREAM2MMIO_SID0_ID; i < N_STREAM2MMIO_SID_PROCS[ID]; i++) {
 		ia_css_print("StREAM2MMIO ID %d SID %d\n", ID, i);
-		stream2mmio_print_sid_state(&(state->sid_state[i]));
+		stream2mmio_print_sid_state(&state->sid_state[i]);
 	}
 }
+
 /* end of NCI */
 
 /*****************************************************
@@ -138,7 +137,7 @@ STORAGE_CLASS_STREAM2MMIO_C hrt_data stream2mmio_reg_load(
 		const stream2mmio_sid_ID_t sid_id,
 		const uint32_t reg_idx)
 {
-	uint32_t reg_bank_offset;
+	u32 reg_bank_offset;
 
 	assert(ID < N_STREAM2MMIO_ID);
 
@@ -146,7 +145,6 @@ STORAGE_CLASS_STREAM2MMIO_C hrt_data stream2mmio_reg_load(
 	return ia_css_device_load_uint32(STREAM2MMIO_CTRL_BASE[ID] +
 			(reg_bank_offset + reg_idx) * sizeof(hrt_data));
 }
-
 
 /**
  * @brief Store a value to the register.
@@ -163,6 +161,7 @@ STORAGE_CLASS_STREAM2MMIO_C void stream2mmio_reg_store(
 	ia_css_device_store_uint32(STREAM2MMIO_CTRL_BASE[ID] +
 		reg * sizeof(hrt_data), value);
 }
+
 /* end of DLI */
 
 #endif /* __ISYS_STREAM2MMIO_PRIVATE_H_INCLUDED__ */

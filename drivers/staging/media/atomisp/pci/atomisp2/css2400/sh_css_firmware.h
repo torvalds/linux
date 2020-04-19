@@ -32,7 +32,7 @@ extern struct ia_css_fw_info     sh_css_sp_fw;
 extern struct ia_css_fw_info     sh_css_bl_fw;
 #endif /* HAS_BL */
 extern struct ia_css_blob_descr *sh_css_blob_info;
-extern unsigned			 sh_css_num_binaries;
+extern unsigned int sh_css_num_binaries;
 
 char
 *sh_css_get_fw_version(void);
@@ -46,7 +46,7 @@ sh_css_load_firmware(const char *fw_data,
 
 void sh_css_unload_firmware(void);
 
-hrt_vaddress sh_css_load_blob(const unsigned char *blob, unsigned size);
+hrt_vaddress sh_css_load_blob(const unsigned char *blob, unsigned int size);
 
 enum ia_css_err
 sh_css_load_blob_info(const char *fw, const struct ia_css_fw_info *bi, struct ia_css_blob_descr *bd, unsigned int i);

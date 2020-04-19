@@ -37,6 +37,7 @@ enum ia_css_pipeline_stage_sp_func {
 	IA_CSS_PIPELINE_ISYS_COPY = 2,
 	IA_CSS_PIPELINE_NO_FUNC = 3,
 };
+
 #define IA_CSS_PIPELINE_NUM_STAGE_FUNCS 3
 
 #endif /*__IA_CSS_PIPELINE_COMMON_H__*/

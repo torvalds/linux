@@ -17,11 +17,11 @@
 
 #include <system_types.h>
 
-#if defined (HAS_ISP_2401_MAMOIADA)
+#if defined(HAS_ISP_2401_MAMOIADA)
 #define IS_ISP_2401_MAMOIADA
 
 #include "isp2401_mamoiada_params.h"
-#elif defined (HAS_ISP_2400_MAMOIADA)
+#elif defined(HAS_ISP_2400_MAMOIADA)
 #define IS_ISP_2400_MAMOIADA
 
 #include "isp2400_mamoiada_params.h"
@@ -38,14 +38,14 @@
 #ifdef ISP2401
 #ifdef PIPE_GENERATION
 #define PIPEMEM(x) MEM(x)
-#define ISP_NWAY   (1<<ISP_NWAY_LOG2)
+#define ISP_NWAY   BIT(ISP_NWAY_LOG2)
 #else
 #define PIPEMEM(x)
 #endif
 
 #endif
 /* The number of data bytes in a vector disregarding the reduced precision */
-#define ISP_VEC_BYTES			(ISP_VEC_NELEMS*sizeof(uint16_t))
+#define ISP_VEC_BYTES			(ISP_VEC_NELEMS * sizeof(uint16_t))
 
 /* ISP SC Registers */
 #define ISP_SC_REG			0x00

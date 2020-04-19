@@ -36,7 +36,6 @@
  */
 #define ENABLE_NON_PREVIEW	0
 
-
 #define OV5693_POWER_UP_RETRY_NUM 5
 
 /* Defines for register writes and register array processing */
@@ -174,7 +173,7 @@
 #define OV5693_OTP_START_ADDR		0x3D00
 #define OV5693_OTP_END_ADDR		0x3D0F
 #define OV5693_OTP_DATA_SIZE		320
-#define OV5693_OTP_PROGRAM_REG      	0x3D80
+#define OV5693_OTP_PROGRAM_REG		0x3D80
 #define OV5693_OTP_READ_REG		0x3D81	// 1:Enable 0:disable
 #define OV5693_OTP_BANK_REG		0x3D84	//otp bank and mode
 #define OV5693_OTP_READY_REG_DONE	1
@@ -586,7 +585,6 @@ static struct ov5693_reg const ov5693_1296x976[] = {
 
 };
 
-
 /*
  * 336x256 30fps 17ms VBlanking 2lane 10Bit (Scaling)
  DS from 2564x1956
@@ -674,7 +672,6 @@ static struct ov5693_reg const ov5693_192x160[] = {
 	{OV5693_8BIT, 0x0100, 0x01},
 	{OV5693_TOK_TERM, 0, 0}
 };
-
 
 static struct ov5693_reg const ov5693_736x496[] = {
 	{OV5693_8BIT, 0x3501, 0x3d},
@@ -864,7 +861,6 @@ static struct ov5693_reg const ov5693_1616x1216_30fps[] = {
 	{OV5693_8BIT, 0x0100, 0x01},
 	{OV5693_TOK_TERM, 0, 0}
 };
-
 
 /*
  * 1940x1096 30fps 8.8ms VBlanking 2lane 10bit (Scaling)
@@ -1161,6 +1157,7 @@ static struct ov5693_resolution ov5693_res_preview[] = {
 		.regs = ov5693_2576x1936_30fps,
 	},
 };
+
 #define N_RES_PREVIEW (ARRAY_SIZE(ov5693_res_preview))
 
 /*
@@ -1240,6 +1237,7 @@ struct ov5693_resolution ov5693_res_still[] = {
 		.regs = ov5693_2592x1944_30fps,
 	},
 };
+
 #define N_RES_STILL (ARRAY_SIZE(ov5693_res_still))
 
 struct ov5693_resolution ov5693_res_video[] = {
@@ -1384,6 +1382,7 @@ struct ov5693_resolution ov5693_res_video[] = {
 		.regs = ov5693_2592x1944_30fps,
 	},
 };
+
 #define N_RES_VIDEO (ARRAY_SIZE(ov5693_res_video))
 #endif
 

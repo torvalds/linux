@@ -29,13 +29,12 @@
  *	- local:   system and cell specific constants and identifiers
  */
 
-
 #include "system_local.h"
 #include "sp_local.h"
 
 #ifndef __INLINE_SP__
 #define STORAGE_CLASS_SP_H extern
-#define STORAGE_CLASS_SP_C 
+#define STORAGE_CLASS_SP_C
 #include "sp_public.h"
 #else  /* __INLINE_SP__ */
 #define STORAGE_CLASS_SP_H static inline

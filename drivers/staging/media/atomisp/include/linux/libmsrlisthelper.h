@@ -18,11 +18,10 @@
 struct i2c_client;
 struct firmware;
 
-extern int load_msr_list(struct i2c_client *client, char *path,
+int load_msr_list(struct i2c_client *client, char *path,
 		const struct firmware **fw);
-extern int apply_msr_data(struct i2c_client *client, const struct firmware *fw);
-extern void release_msr_list(struct i2c_client *client,
+int apply_msr_data(struct i2c_client *client, const struct firmware *fw);
+void release_msr_list(struct i2c_client *client,
 		const struct firmware *fw);
-
 
 #endif /* ifndef __LIBMSRLISTHELPER_H__ */

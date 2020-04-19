@@ -33,7 +33,7 @@ void
 ia_css_wb_encode(
 	struct sh_css_isp_wb_params *to,
 	const struct ia_css_wb_config *from,
-	unsigned size)
+	unsigned int size)
 {
 	(void)size;
 	to->gain_shift =
@@ -56,7 +56,7 @@ ia_css_wb_encode(
 void
 ia_css_wb_dump(
 	const struct sh_css_isp_wb_params *wb,
-	unsigned level)
+	unsigned int level)
 {
 	if (!wb) return;
 	ia_css_debug_dtrace(level, "White Balance:\n");
@@ -75,15 +75,12 @@ ia_css_wb_dump(
 void
 ia_css_wb_debug_dtrace(
 	const struct ia_css_wb_config *config,
-	unsigned level)
+	unsigned int level)
 {
 	ia_css_debug_dtrace(level,
-		"config.integer_bits=%d, "
-		"config.gr=%d, config.r=%d, "
-		"config.b=%d, config.gb=%d\n",
+		"config.integer_bits=%d, config.gr=%d, config.r=%d, config.b=%d, config.gb=%d\n",
 		config->integer_bits,
 		config->gr, config->r,
 		config->b, config->gb);
 }
 #endif
-

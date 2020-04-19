@@ -127,10 +127,11 @@ bool atomisp_subdev_format_conversion(struct atomisp_sub_device *asd,
 		&& !atomisp_is_mbuscode_raw(src->code);
 }
 
-uint16_t atomisp_subdev_source_pad(struct video_device * vdev)
+uint16_t atomisp_subdev_source_pad(struct video_device *vdev)
 {
 	struct media_link *link;
-	uint16_t ret = 0;
+	u16 ret = 0;
+
 	list_for_each_entry(link, &vdev->entity.links, list) {
 		if (link->source) {
 			ret = link->source->index;
@@ -243,7 +244,7 @@ static int isp_subdev_validate_rect(struct v4l2_subdev *sd, uint32_t pad,
 
 struct v4l2_rect *atomisp_subdev_get_rect(struct v4l2_subdev *sd,
 					  struct v4l2_subdev_pad_config *cfg,
-					  uint32_t which, uint32_t pad,
+					  u32 which, uint32_t pad,
 					  uint32_t target)
 {
 	struct atomisp_sub_device *isp_sd = v4l2_get_subdevdata(sd);
@@ -299,7 +300,7 @@ static void isp_get_fmt_rect(struct v4l2_subdev *sd,
 
 static void isp_subdev_propagate(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_pad_config *cfg,
-				 uint32_t which, uint32_t pad, uint32_t target,
+				 u32 which, uint32_t pad, uint32_t target,
 				 uint32_t flags)
 {
 	struct v4l2_mbus_framefmt *ffmt[ATOMISP_SUBDEV_PADS_NUM];
@@ -353,13 +354,13 @@ static char *atomisp_pad_str[] = { "ATOMISP_SUBDEV_PAD_SINK",
 
 int atomisp_subdev_set_selection(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_pad_config *cfg,
-				 uint32_t which, uint32_t pad, uint32_t target,
-				 uint32_t flags, struct v4l2_rect *r)
+				 u32 which, uint32_t pad, uint32_t target,
+				 u32 flags, struct v4l2_rect *r)
 {
 	struct atomisp_sub_device *isp_sd = v4l2_get_subdevdata(sd);
 	struct atomisp_device *isp = isp_sd->isp;
 	struct v4l2_mbus_framefmt *ffmt[ATOMISP_SUBDEV_PADS_NUM];
-	uint16_t vdev_pad = atomisp_subdev_source_pad(sd->devnode);
+	u16 vdev_pad = atomisp_subdev_source_pad(sd->devnode);
 	struct v4l2_rect *crop[ATOMISP_SUBDEV_PADS_NUM],
 		*comp[ATOMISP_SUBDEV_PADS_NUM];
 	enum atomisp_input_stream_id stream_id;
@@ -551,6 +552,7 @@ static int isp_subdev_set_selection(struct v4l2_subdev *sd,
 				    struct v4l2_subdev_selection *sel)
 {
 	int rval = isp_subdev_validate_rect(sd, sel->pad, sel->target);
+
 	if (rval)
 		return rval;
 
@@ -594,13 +596,13 @@ static int atomisp_get_sensor_bin_factor(struct atomisp_sub_device *asd)
 
 void atomisp_subdev_set_ffmt(struct v4l2_subdev *sd,
 			     struct v4l2_subdev_pad_config *cfg, uint32_t which,
-			     uint32_t pad, struct v4l2_mbus_framefmt *ffmt)
+			     u32 pad, struct v4l2_mbus_framefmt *ffmt)
 {
 	struct atomisp_sub_device *isp_sd = v4l2_get_subdevdata(sd);
 	struct atomisp_device *isp = isp_sd->isp;
 	struct v4l2_mbus_framefmt *__ffmt =
 		atomisp_subdev_get_ffmt(sd, cfg, which, pad);
-	uint16_t vdev_pad = atomisp_subdev_source_pad(sd->devnode);
+	u16 vdev_pad = atomisp_subdev_source_pad(sd->devnode);
 	enum atomisp_input_stream_id stream_id;
 
 	dev_dbg(isp->dev, "ffmt: pad %s w %d h %d code 0x%8.8x which %s\n",
@@ -1240,6 +1242,7 @@ int atomisp_create_pads_links(struct atomisp_device *isp)
 {
 	struct atomisp_sub_device *asd;
 	int i, j, ret = 0;
+
 	isp->num_of_streams = 2;
 	for (i = 0; i < ATOMISP_CAMERA_NR_PORTS; i++) {
 		for (j = 0; j < isp->num_of_streams; j++) {

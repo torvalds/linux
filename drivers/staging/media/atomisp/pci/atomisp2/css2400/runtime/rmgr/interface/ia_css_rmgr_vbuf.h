@@ -40,18 +40,18 @@ more details.
  */
 struct ia_css_rmgr_vbuf_handle {
 	hrt_vaddress vptr;
-	uint8_t count;
-	uint32_t size;
+	u8 count;
+	u32 size;
 };
 
 /**
  * @brief Data structure for the resource pool (host, vbuf)
  */
 struct ia_css_rmgr_vbuf_pool {
-	uint8_t copy_on_write;
-	uint8_t recycle;
-	uint32_t size;
-	uint32_t index;
+	u8 copy_on_write;
+	u8 recycle;
+	u32 size;
+	u32 index;
 	struct ia_css_rmgr_vbuf_handle **handles;
 };
 

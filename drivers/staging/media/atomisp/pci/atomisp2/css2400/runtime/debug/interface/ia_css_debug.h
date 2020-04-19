@@ -138,7 +138,7 @@ ia_css_debug_vdtrace(unsigned int level, const char *fmt, va_list args)
 }
 
 __printf(2, 3)
-extern void ia_css_debug_dtrace(unsigned int level, const char *fmt, ...);
+void ia_css_debug_dtrace(unsigned int level, const char *fmt, ...);
 
 /*! @brief Dump sp thread's stack contents
  * SP thread's stack contents are set to 0xcafecafe. This function dumps the
@@ -370,7 +370,6 @@ void ia_css_debug_dump_pipe_extra_config(
  */
 void ia_css_debug_dump_pipe_config(
 	const struct ia_css_pipe_config *config);
-
 
 /*! @brief Dump the stream config source info to the trace output
  * Dumps the stream config source info to the trace output.

@@ -29,7 +29,7 @@ ia_css_bnr2_2_encode(
 void
 ia_css_bnr2_2_debug_dtrace(
 	const struct ia_css_bnr2_2_config *config,
-	unsigned level);
+	unsigned int level);
 #endif
 
 #endif /* __IA_CSS_BNR2_2_HOST_H */

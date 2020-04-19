@@ -19,11 +19,11 @@
 
 /* WB (White Balance) */
 struct sh_css_isp_wb_params {
-	int32_t gain_shift;
-	int32_t gain_gr;
-	int32_t gain_r;
-	int32_t gain_b;
-	int32_t gain_gb;
+	s32 gain_shift;
+	s32 gain_gr;
+	s32 gain_r;
+	s32 gain_b;
+	s32 gain_gb;
 };
 
 #endif /* __IA_CSS_WB_PARAM_H */

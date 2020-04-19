@@ -95,7 +95,7 @@
 #define _hrt_get_bit(w, b) \
   (((w) >> (b)) & 1)
 #define _hrt_set_bit(w, b, v) \
-  (((w) & (~(1 << (b)))) | (((v)&1) << (b)))
+  (((w) & (~(1 << (b)))) | (((v) & 1) << (b)))
 #define _hrt_set_lower_half(w, v) \
   _hrt_set_bits(w, 0, 16, v)
 #define _hrt_set_upper_half(w, v) \

@@ -27,8 +27,8 @@ typedef enum {
 
 typedef struct csi_rx_backend_lut_entry_s	csi_rx_backend_lut_entry_t;
 struct csi_rx_backend_lut_entry_s {
-	uint32_t	long_packet_entry;
-	uint32_t	short_packet_entry;
+	u32	long_packet_entry;
+	u32	short_packet_entry;
 };
 
 typedef struct csi_rx_backend_cfg_s csi_rx_backend_cfg_t;
@@ -41,23 +41,23 @@ struct csi_rx_backend_cfg_s {
 
 	struct {
 		bool     comp_enable;
-		uint32_t virtual_channel;
-		uint32_t data_type;
-		uint32_t comp_scheme;
-		uint32_t comp_predictor;
-		uint32_t comp_bit_idx;
+		u32 virtual_channel;
+		u32 data_type;
+		u32 comp_scheme;
+		u32 comp_predictor;
+		u32 comp_bit_idx;
 	} csi_mipi_cfg;
 };
 
 typedef struct csi_rx_frontend_cfg_s csi_rx_frontend_cfg_t;
 struct csi_rx_frontend_cfg_s {
-	uint32_t active_lanes;
+	u32 active_lanes;
 };
 
-extern const uint32_t N_SHORT_PACKET_LUT_ENTRIES[N_CSI_RX_BACKEND_ID];
-extern const uint32_t N_LONG_PACKET_LUT_ENTRIES[N_CSI_RX_BACKEND_ID];
-extern const uint32_t N_CSI_RX_FE_CTRL_DLANES[N_CSI_RX_FRONTEND_ID];
+extern const u32 N_SHORT_PACKET_LUT_ENTRIES[N_CSI_RX_BACKEND_ID];
+extern const u32 N_LONG_PACKET_LUT_ENTRIES[N_CSI_RX_BACKEND_ID];
+extern const u32 N_CSI_RX_FE_CTRL_DLANES[N_CSI_RX_FRONTEND_ID];
 /* sid_width for CSI_RX_BACKEND<N>_ID */
-extern const uint32_t N_CSI_RX_BE_SID_WIDTH[N_CSI_RX_BACKEND_ID];
+extern const u32 N_CSI_RX_BE_SID_WIDTH[N_CSI_RX_BACKEND_ID];
 
 #endif /* __CSI_RX_GLOBAL_H_INCLUDED__ */

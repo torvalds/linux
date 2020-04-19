@@ -116,13 +116,13 @@ unsigned int ia_css_debug_trace_level = IA_CSS_DEBUG_WARNING;
 #define ENABLE_LINE_MAX_LENGTH (25)
 
 #ifdef ISP2401
-#define DBG_EXT_CMD_TRACE_PNTS_DUMP (1 << 8)
-#define DBG_EXT_CMD_PUB_CFG_DUMP (1 << 9)
-#define DBG_EXT_CMD_GAC_REG_DUMP (1 << 10)
-#define DBG_EXT_CMD_GAC_ACB_REG_DUMP (1 << 11)
-#define DBG_EXT_CMD_FIFO_DUMP (1 << 12)
-#define DBG_EXT_CMD_QUEUE_DUMP (1 << 13)
-#define DBG_EXT_CMD_DMA_DUMP (1 << 14)
+#define DBG_EXT_CMD_TRACE_PNTS_DUMP BIT(8)
+#define DBG_EXT_CMD_PUB_CFG_DUMP BIT(9)
+#define DBG_EXT_CMD_GAC_REG_DUMP BIT(10)
+#define DBG_EXT_CMD_GAC_ACB_REG_DUMP BIT(11)
+#define DBG_EXT_CMD_FIFO_DUMP BIT(12)
+#define DBG_EXT_CMD_QUEUE_DUMP BIT(13)
+#define DBG_EXT_CMD_DMA_DUMP BIT(14)
 #define DBG_EXT_CMD_MASK 0xAB0000CD
 
 #endif
@@ -161,7 +161,7 @@ static const char * const pipe_id_to_str[] = {
 	/* [IA_CSS_PIPE_ID_ACC]       =*/ "accelerator"
 };
 
-static char dot_id_input_bin[SH_CSS_MAX_BINARY_NAME+10];
+static char dot_id_input_bin[SH_CSS_MAX_BINARY_NAME + 10];
 static char ring_buffer[200];
 
 void ia_css_debug_dtrace(unsigned int level, const char *fmt, ...)
@@ -176,18 +176,18 @@ void ia_css_debug_dtrace(unsigned int level, const char *fmt, ...)
 static void debug_dump_long_array_formatted(
 	const sp_ID_t sp_id,
 	hrt_address stack_sp_addr,
-	unsigned stack_size)
+	unsigned int stack_size)
 {
 	unsigned int i;
-	uint32_t val;
-	uint32_t addr = (uint32_t) stack_sp_addr;
-	uint32_t stack_size_words = CEIL_DIV(stack_size, sizeof(uint32_t));
+	u32 val;
+	u32 addr = (uint32_t)stack_sp_addr;
+	u32 stack_size_words = CEIL_DIV(stack_size, sizeof(uint32_t));
 
 	/* When size is not multiple of four, last word is only relevant for
 	 * remaining bytes */
 	for (i = 0; i < stack_size_words; i++) {
 		val = sp_dmem_load_uint32(sp_id, (hrt_address)addr);
-		if ((i%8) == 0)
+		if ((i % 8) == 0)
 			ia_css_debug_dtrace(IA_CSS_DEBUG_VERBOSE, "\n");
 
 		ia_css_debug_dtrace(IA_CSS_DEBUG_VERBOSE, "0x%08x ", val);
@@ -203,8 +203,8 @@ static void debug_dump_sp_stack_info(
 	const struct ia_css_fw_info *fw;
 	unsigned int HIVE_ADDR_sp_threads_stack;
 	unsigned int HIVE_ADDR_sp_threads_stack_size;
-	uint32_t stack_sizes[MAX_THREAD_NUM];
-	uint32_t stack_sp_addr[MAX_THREAD_NUM];
+	u32 stack_sizes[MAX_THREAD_NUM];
+	u32 stack_sp_addr[MAX_THREAD_NUM];
 	unsigned int i;
 
 	fw = &sh_css_sp_fw;
@@ -222,8 +222,8 @@ static void debug_dump_sp_stack_info(
 		fw->info.sp.threads_stack_size == 0)
 		return;
 
-	(void) HIVE_ADDR_sp_threads_stack;
-	(void) HIVE_ADDR_sp_threads_stack_size;
+	(void)HIVE_ADDR_sp_threads_stack;
+	(void)HIVE_ADDR_sp_threads_stack_size;
 
 	sp_dmem_load(sp_id,
 		(unsigned int)sp_address_of(sp_threads_stack),
@@ -245,7 +245,6 @@ void ia_css_debug_dump_sp_stack_info(void)
 {
 	debug_dump_sp_stack_info(SP0_ID);
 }
-
 
 void ia_css_debug_set_dtrace_level(const unsigned int trace_level)
 {
@@ -349,7 +348,6 @@ static const char *debug_stream_format2str(const enum atomisp_input_format strea
 static const char *debug_frame_format2str(const enum ia_css_frame_format frame_format)
 {
 	switch (frame_format) {
-
 	case IA_CSS_FRAME_FORMAT_NV11:
 		return "NV11";
 	case IA_CSS_FRAME_FORMAT_NV12:
@@ -415,8 +413,8 @@ static const char *debug_frame_format2str(const enum ia_css_frame_format frame_f
 
 static void debug_print_sp_state(const sp_state_t *state, const char *cell)
 {
-	assert(cell != NULL);
-	assert(state != NULL);
+	assert(cell);
+	assert(state);
 
 	ia_css_debug_dtrace(2, "%s state:\n", cell);
 	ia_css_debug_dtrace(2, "\t%-32s: 0x%X\n", "PC", state->pc);
@@ -433,8 +431,8 @@ static void debug_print_sp_state(const sp_state_t *state, const char *cell)
 
 static void debug_print_isp_state(const isp_state_t *state, const char *cell)
 {
-	assert(state != NULL);
-	assert(cell != NULL);
+	assert(state);
+	assert(cell);
 
 	ia_css_debug_dtrace(2, "%s state:\n", cell);
 	ia_css_debug_dtrace(2, "\t%-32s: 0x%X\n", "PC", state->pc);
@@ -509,6 +507,7 @@ void ia_css_debug_dump_sp_state(void)
 {
 	sp_state_t state;
 	sp_stall_t stall;
+
 	sp_get_state(SP0_ID, &state, &stall);
 	debug_print_sp_state(&state, "SP");
 	if (state.is_stalling) {
@@ -562,8 +561,8 @@ void ia_css_debug_dump_sp_state(void)
 static void debug_print_fifo_channel_state(const fifo_channel_state_t *state,
 					   const char *descr)
 {
-	assert(state != NULL);
-	assert(descr != NULL);
+	assert(state);
+	assert(descr);
 
 	ia_css_debug_dtrace(2, "FIFO channel: %s\n", descr);
 	ia_css_debug_dtrace(2, "\t%-32s: %d\n", "source valid",
@@ -581,6 +580,7 @@ static void debug_print_fifo_channel_state(const fifo_channel_state_t *state,
 void ia_css_debug_dump_pif_a_isp_fifo_state(void)
 {
 	fifo_channel_state_t pif_to_isp, isp_to_pif;
+
 	fifo_channel_get_state(FIFO_MONITOR0_ID,
 			       FIFO_CHANNEL_IF0_TO_ISP0, &pif_to_isp);
 	fifo_channel_get_state(FIFO_MONITOR0_ID,
@@ -592,6 +592,7 @@ void ia_css_debug_dump_pif_a_isp_fifo_state(void)
 void ia_css_debug_dump_pif_b_isp_fifo_state(void)
 {
 	fifo_channel_state_t pif_to_isp, isp_to_pif;
+
 	fifo_channel_get_state(FIFO_MONITOR0_ID,
 			       FIFO_CHANNEL_IF1_TO_ISP0, &pif_to_isp);
 	fifo_channel_get_state(FIFO_MONITOR0_ID,
@@ -603,6 +604,7 @@ void ia_css_debug_dump_pif_b_isp_fifo_state(void)
 void ia_css_debug_dump_str2mem_sp_fifo_state(void)
 {
 	fifo_channel_state_t s2m_to_sp, sp_to_s2m;
+
 	fifo_channel_get_state(FIFO_MONITOR0_ID,
 			       FIFO_CHANNEL_STREAM2MEM0_TO_SP0, &s2m_to_sp);
 	fifo_channel_get_state(FIFO_MONITOR0_ID,
@@ -644,7 +646,7 @@ static void debug_print_if_state(input_formatter_state_t *state, const char *id)
 	int st_allow_fifo_overflow = state->allow_fifo_overflow;
 	int st_block_fifo_when_no_req = state->block_fifo_when_no_req;
 
-	assert(state != NULL);
+	assert(state);
 	ia_css_debug_dtrace(2, "InputFormatter State (%s):\n", id);
 
 	ia_css_debug_dtrace(2, "\tConfiguration:\n");
@@ -1137,7 +1139,8 @@ void ia_css_debug_dump_dma_state(void)
 			    state.write_width);
 
 	for (i = 0; i < HIVE_ISP_NUM_DMA_CONNS; i++) {
-		dma_port_state_t *port = &(state.port_states[i]);
+		dma_port_state_t *port = &state.port_states[i];
+
 		ia_css_debug_dtrace(2, "\tDMA device interface %d\n", i);
 		ia_css_debug_dtrace(2, "\t\tDMA internal side state\n");
 		ia_css_debug_dtrace(2,
@@ -1164,7 +1167,8 @@ void ia_css_debug_dump_dma_state(void)
 	}
 
 	for (i = 0; i < HIVE_DMA_NUM_CHANNELS; i++) {
-		dma_channel_state_t *ch = &(state.channel_states[i]);
+		dma_channel_state_t *ch = &state.channel_states[i];
+
 		ia_css_debug_dtrace(2, "\t%-32s: %d\n", "DMA channel register",
 				    i);
 		ia_css_debug_dtrace(2, "\t\t%-32s: %d\n", "Connection",
@@ -1196,6 +1200,7 @@ void ia_css_debug_dump_dma_state(void)
 void ia_css_debug_dump_dma_sp_fifo_state(void)
 {
 	fifo_channel_state_t dma_to_sp, sp_to_dma;
+
 	fifo_channel_get_state(FIFO_MONITOR0_ID,
 			       FIFO_CHANNEL_DMA0_TO_SP0, &dma_to_sp);
 	fifo_channel_get_state(FIFO_MONITOR0_ID,
@@ -1208,6 +1213,7 @@ void ia_css_debug_dump_dma_sp_fifo_state(void)
 void ia_css_debug_dump_dma_isp_fifo_state(void)
 {
 	fifo_channel_state_t dma_to_isp, isp_to_dma;
+
 	fifo_channel_get_state(FIFO_MONITOR0_ID,
 			       FIFO_CHANNEL_DMA0_TO_ISP0, &dma_to_isp);
 	fifo_channel_get_state(FIFO_MONITOR0_ID,
@@ -1220,6 +1226,7 @@ void ia_css_debug_dump_dma_isp_fifo_state(void)
 void ia_css_debug_dump_isp_sp_fifo_state(void)
 {
 	fifo_channel_state_t sp_to_isp, isp_to_sp;
+
 	fifo_channel_get_state(FIFO_MONITOR0_ID,
 			       FIFO_CHANNEL_SP0_TO_ISP0, &sp_to_isp);
 	fifo_channel_get_state(FIFO_MONITOR0_ID,
@@ -1246,17 +1253,18 @@ void ia_css_debug_dump_all_fifo_state(void)
 {
 	int i;
 	fifo_monitor_state_t state;
+
 	fifo_monitor_get_state(FIFO_MONITOR0_ID, &state);
 
 	for (i = 0; i < N_FIFO_CHANNEL; i++)
-		debug_print_fifo_channel_state(&(state.fifo_channels[i]),
+		debug_print_fifo_channel_state(&state.fifo_channels[i],
 					       "squepfstqkt");
 	return;
 }
 
 static void debug_binary_info_print(const struct ia_css_binary_xinfo *info)
 {
-	assert(info != NULL);
+	assert(info);
 	ia_css_debug_dtrace(2, "id = %d\n", info->sp.id);
 	ia_css_debug_dtrace(2, "mode = %d\n", info->sp.pipeline.mode);
 	ia_css_debug_dtrace(2, "max_input_width = %d\n", info->sp.input.max_width);
@@ -1279,6 +1287,7 @@ static void debug_binary_info_print(const struct ia_css_binary_xinfo *info)
 void ia_css_debug_binary_print(const struct ia_css_binary *bi)
 {
 	unsigned int i;
+
 	debug_binary_info_print(bi->info);
 	ia_css_debug_dtrace(2,
 			    "input:  %dx%d, format = %d, padded width = %d\n",
@@ -1335,8 +1344,8 @@ void ia_css_debug_frame_print(const struct ia_css_frame *frame,
 {
 	char *data = NULL;
 
-	assert(frame != NULL);
-	assert(descr != NULL);
+	assert(frame);
+	assert(descr);
 
 	data = (char *)HOST_ADDRESS(frame->data);
 	ia_css_debug_dtrace(2, "frame %s (%p):\n", descr, frame);
@@ -1422,12 +1431,11 @@ void ia_css_debug_frame_print(const struct ia_css_frame *frame,
 void ia_css_debug_print_sp_debug_state(const struct sh_css_sp_debug_state
 				       *state)
 {
-
 #endif
 
 #if SP_DEBUG == SP_DEBUG_DUMP
 
-	assert(state != NULL);
+	assert(state);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_VERBOSE,
 			    "current SP software counter: %d\n",
 			    state->debug[0]);
@@ -1570,7 +1578,7 @@ void ia_css_debug_print_sp_debug_state(const struct sh_css_sp_debug_state
 	int sp_index = state->index;
 	int n;
 
-	assert(state != NULL);
+	assert(state);
 	if (sp_index < last_index) {
 		/* SP has been reset */
 		last_index = 0;
@@ -1578,10 +1586,7 @@ void ia_css_debug_print_sp_debug_state(const struct sh_css_sp_debug_state
 
 	if (last_index == 0) {
 		ia_css_debug_dtrace(IA_CSS_DEBUG_VERBOSE,
-				    "copy-trace init: sp_dbg_if_start_line=%d, "
-				    "sp_dbg_if_start_column=%d, "
-				    "sp_dbg_if_cropped_height=%d, "
-				    "sp_debg_if_cropped_width=%d\n",
+				    "copy-trace init: sp_dbg_if_start_line=%d, sp_dbg_if_start_column=%d, sp_dbg_if_cropped_height=%d, sp_debg_if_cropped_width=%d\n",
 				    state->if_start_line,
 				    state->if_start_column,
 				    state->if_cropped_height,
@@ -1596,12 +1601,10 @@ void ia_css_debug_print_sp_debug_state(const struct sh_css_sp_debug_state
 
 	for (n = last_index; n < sp_index; n++) {
 		int i = n % SH_CSS_SP_DBG_TRACE_DEPTH;
+
 		if (state->trace[i].frame != 0) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_VERBOSE,
-					    "copy-trace: frame=%d, line=%d, "
-					    "pixel_distance=%d, "
-					    "mipi_used_dword=%d, "
-					    "sp_index=%d\n",
+					    "copy-trace: frame=%d, line=%d, pixel_distance=%d, mipi_used_dword=%d, sp_index=%d\n",
 					    state->trace[i].frame,
 					    state->trace[i].line,
 					    state->trace[i].pixel_distance,
@@ -1649,7 +1652,7 @@ void ia_css_debug_print_sp_debug_state(const struct sh_css_sp_debug_state
 	static int host_index_last[SH_CSS_SP_DBG_NR_OF_TRACES] = { 0 };
 	int t, n;
 
-	assert(state != NULL);
+	assert(state);
 
 	for (t = 0; t < SH_CSS_SP_DBG_NR_OF_TRACES; t++) {
 		int sp_index_last = state->index_last[t];
@@ -1664,8 +1667,7 @@ void ia_css_debug_print_sp_debug_state(const struct sh_css_sp_debug_state
 			/* last index can be multiple rounds behind */
 			/* while trace size is only SH_CSS_SP_DBG_TRACE_DEPTH */
 			ia_css_debug_dtrace(IA_CSS_DEBUG_VERBOSE,
-					    "Warning: trace %s has gap of %d "
-					    "traces\n",
+					    "Warning: trace %s has gap of %d traces\n",
 					    trace_name[t],
 					    (sp_index_last -
 					     (host_index_last[t] +
@@ -1685,8 +1687,7 @@ void ia_css_debug_print_sp_debug_state(const struct sh_css_sp_debug_state
 
 			if (ts) {
 				ia_css_debug_dtrace(IA_CSS_DEBUG_VERBOSE,
-						    "%05d trace=%s, file=%s:%d, "
-						    "data=0x%08x\n",
+						    "%05d trace=%s, file=%s:%d, data=0x%08x\n",
 						    ts,
 						    trace_name[t],
 						    id2filename[fid], l,
@@ -1702,7 +1703,7 @@ void ia_css_debug_print_sp_debug_state(const struct sh_css_sp_debug_state
 	int limit = SH_CSS_NUM_SP_DEBUG;
 	int step = 1;
 
-	assert(state != NULL);
+	assert(state);
 
 	for (i = base; i < limit; i += step) {
 		ia_css_debug_dtrace(IA_CSS_DEBUG_VERBOSE,
@@ -1723,7 +1724,7 @@ static void debug_print_rx_mipi_port_state(mipi_port_state_t *state)
 	int i;
 	unsigned int bits, infos;
 
-	assert(state != NULL);
+	assert(state);
 
 	bits = state->irq_status;
 	infos = ia_css_isys_rx_translate_irq_infos(bits);
@@ -1797,7 +1798,7 @@ static void debug_print_rx_channel_state(rx_channel_state_t *state)
 {
 	int i;
 
-	assert(state != NULL);
+	assert(state);
 	ia_css_debug_dtrace(2, "\t\t%-32s: %d\n",
 			    "compression_scheme0", state->comp_scheme0);
 
@@ -1821,7 +1822,7 @@ static void debug_print_rx_state(receiver_state_t *state)
 {
 	int i;
 
-	assert(state != NULL);
+	assert(state);
 	ia_css_debug_dtrace(2, "CSI Receiver State:\n");
 
 	ia_css_debug_dtrace(2, "\tConfiguration:\n");
@@ -1942,7 +1943,7 @@ void ia_css_debug_dump_sp_sw_debug_info(void)
 #if defined(USE_INPUT_SYSTEM_VERSION_2)
 static void debug_print_isys_capture_unit_state(capture_unit_state_t *state)
 {
-	assert(state != NULL);
+	assert(state);
 	ia_css_debug_dtrace(2, "\t\t%-32s: %d\n",
 			    "Packet_Length", state->Packet_Length);
 
@@ -1989,7 +1990,7 @@ static void debug_print_isys_capture_unit_state(capture_unit_state_t *state)
 static void debug_print_isys_acquisition_unit_state(
 				acquisition_unit_state_t *state)
 {
-	assert(state != NULL);
+	assert(state);
 
 	ia_css_debug_dtrace(2, "\t\t%-32s: %d\n",
 			    "Received_Short_Packets",
@@ -2029,7 +2030,7 @@ static void debug_print_isys_acquisition_unit_state(
 
 static void debug_print_isys_ctrl_unit_state(ctrl_unit_state_t *state)
 {
-	assert(state != NULL);
+	assert(state);
 	ia_css_debug_dtrace(2, "\t\t%-32s: %d\n", "last_cmd", state->last_cmd);
 
 	ia_css_debug_dtrace(2, "\t\t%-32s: %d\n", "next_cmd", state->next_cmd);
@@ -2106,7 +2107,7 @@ static void debug_print_isys_state(input_system_state_t *state)
 {
 	int i;
 
-	assert(state != NULL);
+	assert(state);
 	ia_css_debug_dtrace(2, "InputSystem State:\n");
 
 	/* configuration */
@@ -2204,7 +2205,7 @@ void ia_css_debug_dump_isys_state(void)
 
 void ia_css_debug_dump_debug_info(const char *context)
 {
-	if (context == NULL)
+	if (!context)
 		context = "No Context provided";
 
 	ia_css_debug_dtrace(2, "CSS Debug Info dump [Context = %s]\n", context);
@@ -2233,6 +2234,7 @@ void ia_css_debug_dump_debug_info(const char *context)
 
 	{
 		irq_controller_state_t state;
+
 		irq_controller_get_state(IRQ2_ID, &state);
 
 		ia_css_debug_dtrace(2, "\t%-32s:\n",
@@ -2281,7 +2283,7 @@ void ia_css_debug_enable_sp_sleep_mode(enum ia_css_sp_sleep_mode mode)
 
 	sp_dmem_store_uint32(SP0_ID,
 			     (unsigned int)sp_address_of(sp_sleep_mode),
-			     (uint32_t) mode);
+			     (uint32_t)mode);
 }
 
 void ia_css_debug_wake_up_sp(void)
@@ -2302,10 +2304,12 @@ static char *
 findf_dmem_params(struct ia_css_stream *stream, short idx)
 {
 	int i;
+
 	for (i = 0; i < stream->num_pipes; i++) {
 		struct ia_css_pipe *pipe = stream->pipes[i];
 		struct ia_css_pipeline *pipeline = ia_css_pipe_get_pipeline(pipe);
 		struct ia_css_pipeline_stage *stage;
+
 		for (stage = pipeline->stages; stage; stage = stage->next) {
 			struct ia_css_binary *binary = stage->binary;
 			short *offsets = (short *)&binary->info->mem_offsets.offsets.param->dmem;
@@ -2331,7 +2335,7 @@ void ia_css_debug_dump_isp_params(struct ia_css_stream *stream,
 	(void)stream;
 #else
 
-	assert(stream != NULL);
+	assert(stream);
 	if ((enable & IA_CSS_DEBUG_DUMP_FPN)
 	    || (enable & IA_CSS_DEBUG_DUMP_ALL)) {
 		ia_css_fpn_dump(FIND_DMEM_PARAMS(stream, fpn), IA_CSS_DEBUG_VERBOSE);
@@ -2398,8 +2402,8 @@ void sh_css_dump_sp_raw_copy_linecount(bool reduced)
 {
 	const struct ia_css_fw_info *fw;
 	unsigned int HIVE_ADDR_raw_copy_line_count;
-	int32_t raw_copy_line_count;
-	static int32_t prev_raw_copy_line_count = -1;
+	s32 raw_copy_line_count;
+	static s32 prev_raw_copy_line_count = -1;
 
 	fw = &sh_css_sp_fw;
 	HIVE_ADDR_raw_copy_line_count =
@@ -2414,12 +2418,11 @@ void sh_css_dump_sp_raw_copy_linecount(bool reduced)
 
 	/* only indicate if copy loop is active */
 	if (reduced)
-		raw_copy_line_count = (raw_copy_line_count < 0)?raw_copy_line_count:1;
+		raw_copy_line_count = (raw_copy_line_count < 0) ? raw_copy_line_count : 1;
 	/* do the handling */
 	if (prev_raw_copy_line_count != raw_copy_line_count) {
 		ia_css_debug_dtrace(IA_CSS_DEBUG_VERBOSE,
-			"sh_css_dump_sp_raw_copy_linecount() "
-			"line_count=%d\n",
+			"sh_css_dump_sp_raw_copy_linecount() line_count=%d\n",
 			raw_copy_line_count);
 		prev_raw_copy_line_count = raw_copy_line_count;
 	}
@@ -2429,9 +2432,9 @@ void ia_css_debug_dump_isp_binary(void)
 {
 	const struct ia_css_fw_info *fw;
 	unsigned int HIVE_ADDR_pipeline_sp_curr_binary_id;
-	uint32_t curr_binary_id;
-	static uint32_t prev_binary_id = 0xFFFFFFFF;
-	static uint32_t sample_count;
+	u32 curr_binary_id;
+	static u32 prev_binary_id = 0xFFFFFFFF;
+	static u32 sample_count;
 
 	fw = &sh_css_sp_fw;
 	HIVE_ADDR_pipeline_sp_curr_binary_id = fw->info.sp.curr_binary_id;
@@ -2447,8 +2450,7 @@ void ia_css_debug_dump_isp_binary(void)
 	sample_count++;
 	if (prev_binary_id != curr_binary_id) {
 		ia_css_debug_dtrace(IA_CSS_DEBUG_VERBOSE,
-				    "sh_css_dump_isp_binary() "
-				    "pipe_id=%d, binary_id=%d, sample_count=%d\n",
+				    "sh_css_dump_isp_binary() pipe_id=%d, binary_id=%d, sample_count=%d\n",
 				    (curr_binary_id >> 16),
 				    (curr_binary_id & 0x0ffff),
 				    sample_count);
@@ -2463,7 +2465,7 @@ void ia_css_debug_dump_perf_counters(void)
 	const struct ia_css_fw_info *fw;
 	int i;
 	unsigned int HIVE_ADDR_ia_css_isys_sp_error_cnt;
-	int32_t ia_css_sp_input_system_error_cnt[N_MIPI_PORT_ID + 1]; /* 3 Capture Units and 1 Acquire Unit. */
+	s32 ia_css_sp_input_system_error_cnt[N_MIPI_PORT_ID + 1]; /* 3 Capture Units and 1 Acquire Unit. */
 
 	ia_css_debug_dtrace(IA_CSS_DEBUG_VERBOSE, "Input System Error Counters:\n");
 
@@ -2530,6 +2532,7 @@ void ia_css_debug_dump_ddr_debug_queue(void)
 bool ia_css_debug_mode_init(void)
 {
 	bool rc;
+
 	rc = sh_css_sp_init_dma_sw_reg(0);
 	return rc;
 }
@@ -2569,7 +2572,7 @@ void dtrace_dot(const char *fmt, ...)
 {
 	va_list ap;
 
-	assert(fmt != NULL);
+	assert(fmt);
 	va_start(ap, fmt);
 
 	ia_css_debug_dtrace(IA_CSS_DEBUG_INFO, "%s", DPG_START);
@@ -2577,13 +2580,15 @@ void dtrace_dot(const char *fmt, ...)
 	ia_css_debug_dtrace(IA_CSS_DEBUG_INFO, "%s", DPG_END);
 	va_end(ap);
 }
+
 #ifdef HAS_WATCHDOG_SP_THREAD_DEBUG
 void sh_css_dump_thread_wait_info(void)
 {
 	const struct ia_css_fw_info *fw;
 	int i;
 	unsigned int HIVE_ADDR_sp_thread_wait;
-	int32_t sp_thread_wait[MAX_THREAD_NUM];
+	s32 sp_thread_wait[MAX_THREAD_NUM];
+
 	ia_css_debug_dtrace(IA_CSS_DEBUG_VERBOSE, "SEM WAITS:\n");
 
 	fw = &sh_css_sp_fw;
@@ -2601,7 +2606,6 @@ void sh_css_dump_thread_wait_info(void)
 			"\twait[%d] = 0x%X\n",
 			i, sp_thread_wait[i]);
 	}
-
 }
 
 void sh_css_dump_pipe_stage_info(void)
@@ -2609,7 +2613,8 @@ void sh_css_dump_pipe_stage_info(void)
 	const struct ia_css_fw_info *fw;
 	int i;
 	unsigned int HIVE_ADDR_sp_pipe_stage;
-	int32_t sp_pipe_stage[MAX_THREAD_NUM];
+	s32 sp_pipe_stage[MAX_THREAD_NUM];
+
 	ia_css_debug_dtrace(IA_CSS_DEBUG_VERBOSE, "PIPE STAGE:\n");
 
 	fw = &sh_css_sp_fw;
@@ -2627,7 +2632,6 @@ void sh_css_dump_pipe_stage_info(void)
 			"\tstage[%d] = %d\n",
 			i, sp_pipe_stage[i]);
 	}
-
 }
 
 void sh_css_dump_pipe_stripe_info(void)
@@ -2635,7 +2639,8 @@ void sh_css_dump_pipe_stripe_info(void)
 	const struct ia_css_fw_info *fw;
 	int i;
 	unsigned int HIVE_ADDR_sp_pipe_stripe;
-	int32_t sp_pipe_stripe[MAX_THREAD_NUM];
+	s32 sp_pipe_stripe[MAX_THREAD_NUM];
+
 	ia_css_debug_dtrace(IA_CSS_DEBUG_VERBOSE, "PIPE STRIPE:\n");
 
 	fw = &sh_css_sp_fw;
@@ -2653,7 +2658,6 @@ void sh_css_dump_pipe_stripe_info(void)
 			"\tstripe[%d] = %d\n",
 			i, sp_pipe_stripe[i]);
 	}
-
 }
 #endif
 
@@ -2675,9 +2679,7 @@ ia_css_debug_pipe_graph_dump_frame(
 			queue_id_to_str[frame->dynamic_queue_id]);
 	}
 	dtrace_dot(
-		"node [shape = box, "
-		"fixedsize=true, width=2, height=0.7]; \"%p\" "
-		"[label = \"%s\\n%d(%d) x %d, %dbpp\\n%s\"];",
+		"node [shape = box, fixedsize=true, width=2, height=0.7]; \"%p\" [label = \"%s\\n%d(%d) x %d, %dbpp\\n%s\"];",
 		frame,
 		debug_frame_format2str(frame->info.format),
 		frame->info.res.width,
@@ -2688,14 +2690,12 @@ ia_css_debug_pipe_graph_dump_frame(
 
 	if (in_frame) {
 		dtrace_dot(
-			"\"%p\"->\"%s(pipe%d)\" "
-			"[label = %s_frame];",
+			"\"%p\"->\"%s(pipe%d)\" [label = %s_frame];",
 			frame,
 			blob_name, id, frame_name);
 	} else {
 		dtrace_dot(
-			"\"%s(pipe%d)\"->\"%p\" "
-			"[label = %s_frame];",
+			"\"%s(pipe%d)\"->\"%p\" [label = %s_frame];",
 			blob_name, id,
 			frame,
 			frame_name);
@@ -2709,48 +2709,33 @@ ia_css_debug_pipe_graph_dump_prologue(void)
 	dtrace_dot("rankdir=LR;");
 
 	dtrace_dot("fontsize=9;");
-	dtrace_dot("label = \"\\nEnable options: rp=reduced pipe, vfve=vf_veceven, "
-		"dvse=dvs_envelope, dvs6=dvs_6axis, bo=block_out, "
-		"fbds=fixed_bayer_ds, bf6=bayer_fir_6db, "
-		"rawb=raw_binning, cont=continuous, disc=dis_crop\\n"
-		"dp2a=dp_2adjacent, outp=output, outt=out_table, "
-		"reff=ref_frame, par=params, gam=gamma, "
-		"cagdc=ca_gdc, ispa=isp_addresses, inf=in_frame, "
-		"outf=out_frame, hs=high_speed, inpc=input_chunking\"");
+	dtrace_dot("label = \"\\nEnable options: rp=reduced pipe, vfve=vf_veceven, dvse=dvs_envelope, dvs6=dvs_6axis, bo=block_out, fbds=fixed_bayer_ds, bf6=bayer_fir_6db, rawb=raw_binning, cont=continuous, disc=dis_crop\\n"
+		"dp2a=dp_2adjacent, outp=output, outt=out_table, reff=ref_frame, par=params, gam=gamma, cagdc=ca_gdc, ispa=isp_addresses, inf=in_frame, outf=out_frame, hs=high_speed, inpc=input_chunking\"");
 }
 
 void ia_css_debug_pipe_graph_dump_epilogue(void)
 {
-
 	if (strlen(ring_buffer) > 0) {
 		dtrace_dot(ring_buffer);
 	}
-
 
 	if (pg_inst.stream_format != N_ATOMISP_INPUT_FORMAT) {
 		/* An input stream format has been set so assume we have
 		 * an input system and sensor
 		 */
 
+		dtrace_dot(
+			"node [shape = doublecircle, fixedsize=true, width=2.5]; \"input_system\" [label = \"Input system\"];");
 
 		dtrace_dot(
-			"node [shape = doublecircle, "
-			"fixedsize=true, width=2.5]; \"input_system\" "
-			"[label = \"Input system\"];");
-
-		dtrace_dot(
-			"\"input_system\"->\"%s\" "
-			"[label = \"%s\"];",
+			"\"input_system\"->\"%s\" [label = \"%s\"];",
 			dot_id_input_bin, debug_stream_format2str(pg_inst.stream_format));
 
 		dtrace_dot(
-			"node [shape = doublecircle, "
-			"fixedsize=true, width=2.5]; \"sensor\" "
-			"[label = \"Sensor\"];");
+			"node [shape = doublecircle, fixedsize=true, width=2.5]; \"sensor\" [label = \"Sensor\"];");
 
 		dtrace_dot(
-			"\"sensor\"->\"input_system\" "
-			"[label = \"%s\\n%d x %d\\n(%d x %d)\"];",
+			"\"sensor\"->\"input_system\" [label = \"%s\\n%d x %d\\n(%d x %d)\"];",
 			debug_stream_format2str(pg_inst.stream_format),
 			pg_inst.width, pg_inst.height,
 			pg_inst.eff_width, pg_inst.eff_height);
@@ -2775,11 +2760,11 @@ ia_css_debug_pipe_graph_dump_stage(
 	struct ia_css_pipeline_stage *stage,
 	enum ia_css_pipe_id id)
 {
-	char blob_name[SH_CSS_MAX_BINARY_NAME+10] = "<unknown type>";
+	char blob_name[SH_CSS_MAX_BINARY_NAME + 10] = "<unknown type>";
 	char const *bin_type = "<unknown type>";
 	int i;
 
-	assert(stage != NULL);
+	assert(stage);
 	if (stage->sp_func != IA_CSS_PIPELINE_NO_FUNC)
 		return;
 
@@ -2799,7 +2784,7 @@ ia_css_debug_pipe_graph_dump_stage(
 	}
 
 	/* Guard in case of binaries that don't have any binary_info */
-	if (stage->binary_info != NULL) {
+	if (stage->binary_info) {
 		char enable_info1[100];
 		char enable_info2[100];
 		char enable_info3[100];
@@ -2852,7 +2837,7 @@ ia_css_debug_pipe_graph_dump_stage(
 			l = strlen(ei);
 
 			/* Replace last ',' with \0 if present */
-			if (l && enable_info[l-1] == ',')
+			if (l && enable_info[l - 1] == ',')
 				enable_info[--l] = '\0';
 
 			if (l > ENABLE_LINE_MAX_LENGTH) {
@@ -2866,7 +2851,7 @@ ia_css_debug_pipe_graph_dump_stage(
 					ei, p);
 				enable_info1[p] = '\0';
 
-				ei += p+1;
+				ei += p + 1;
 				l = strlen(ei);
 
 				if (l <= ENABLE_LINE_MAX_LENGTH) {
@@ -2890,7 +2875,7 @@ ia_css_debug_pipe_graph_dump_stage(
 						sizeof(enable_info2),
 						ei, p);
 					enable_info2[p] = '\0';
-					ei += p+1;
+					ei += p + 1;
 					l = strlen(ei);
 
 					if (l <= ENABLE_LINE_MAX_LENGTH) {
@@ -2914,7 +2899,7 @@ ia_css_debug_pipe_graph_dump_stage(
 							sizeof(enable_info3),
 							ei, p);
 						enable_info3[p] = '\0';
-						ei += p+1;
+						ei += p + 1;
 						strcpy_s(enable_info3,
 							sizeof(enable_info3), ei);
 						snprintf(enable_info, sizeof(enable_info),
@@ -2926,14 +2911,10 @@ ia_css_debug_pipe_graph_dump_stage(
 			}
 		}
 
-		dtrace_dot("node [shape = circle, fixedsize=true, width=2.5, "
-			"label=\"%s\\n%s\\n\\n%s\"]; \"%s(pipe%d)\"",
+		dtrace_dot("node [shape = circle, fixedsize=true, width=2.5, label=\"%s\\n%s\\n\\n%s\"]; \"%s(pipe%d)\"",
 			bin_type, blob_name, enable_info, blob_name, id);
-
-	}
-	else {
-		dtrace_dot("node [shape = circle, fixedsize=true, width=2.5, "
-			"label=\"%s\\n%s\\n\"]; \"%s(pipe%d)\"",
+	} else {
+		dtrace_dot("node [shape = circle, fixedsize=true, width=2.5, label=\"%s\\n%s\\n\"]; \"%s(pipe%d)\"",
 			bin_type, blob_name, blob_name, id);
 	}
 
@@ -2996,20 +2977,17 @@ void
 ia_css_debug_pipe_graph_dump_sp_raw_copy(
 	struct ia_css_frame *out_frame)
 {
-	assert(out_frame != NULL);
+	assert(out_frame);
 	if (pg_inst.do_init) {
 		ia_css_debug_pipe_graph_dump_prologue();
 		pg_inst.do_init = false;
 	}
 
-	dtrace_dot("node [shape = circle, fixedsize=true, width=2.5, "
-		"label=\"%s\\n%s\"]; \"%s(pipe%d)\"",
+	dtrace_dot("node [shape = circle, fixedsize=true, width=2.5, label=\"%s\\n%s\"]; \"%s(pipe%d)\"",
 		"sp-binary", "sp_raw_copy", "sp_raw_copy", 1);
 
 	snprintf(ring_buffer, sizeof(ring_buffer),
-		"node [shape = box, "
-		"fixedsize=true, width=2, height=0.7]; \"%p\" "
-		"[label = \"%s\\n%d(%d) x %d\\nRingbuffer\"];",
+		"node [shape = box, fixedsize=true, width=2, height=0.7]; \"%p\" [label = \"%s\\n%d(%d) x %d\\nRingbuffer\"];",
 		out_frame,
 		debug_frame_format2str(out_frame->info.format),
 		out_frame->info.res.width,
@@ -3019,8 +2997,7 @@ ia_css_debug_pipe_graph_dump_sp_raw_copy(
 	dtrace_dot(ring_buffer);
 
 	dtrace_dot(
-		"\"%s(pipe%d)\"->\"%p\" "
-		"[label = out_frame];",
+		"\"%s(pipe%d)\"->\"%p\" [label = out_frame];",
 		"sp_raw_copy", 1, out_frame);
 
 	snprintf(dot_id_input_bin, sizeof(dot_id_input_bin), "%s(pipe%d)", "sp_raw_copy", 1);
@@ -3304,21 +3281,21 @@ static void debug_dump_one_trace(enum TRACE_CORE_ID proc_id)
 #endif
 {
 #if defined(HAS_TRACER_V2)
-	uint32_t start_addr;
-	uint32_t start_addr_data;
-	uint32_t item_size;
+	u32 start_addr;
+	u32 start_addr_data;
+	u32 item_size;
 #ifndef ISP2401
-	uint32_t tmp;
+	u32 tmp;
 #else
-	uint8_t tid_val;
+	u8 tid_val;
 	enum TRACE_DUMP_FORMAT dump_format;
 #endif
 	int i, j, max_trace_points, point_num, limit = -1;
 	/* using a static buffer here as the driver has issues allocating memory */
-	static uint32_t trace_read_buf[TRACE_BUFF_SIZE] = {0};
+	static u32 trace_read_buf[TRACE_BUFF_SIZE] = {0};
 #ifdef ISP2401
 	static struct trace_header_t header;
-	uint8_t *header_arr;
+	u8 *header_arr;
 #endif
 
 	/* read the header and parse it */
@@ -3402,8 +3379,8 @@ static void debug_dump_one_trace(enum TRACE_CORE_ID proc_id)
 		return;
 	}
 	/* no overrun: start from 0 */
-	if ((limit == point_num-1) ||         /* first 0 is at the end - border case */
-	    (trace_read_buf[limit+1] == 0))   /* did not make a full cycle after the memset */
+	if ((limit == point_num - 1) ||         /* first 0 is at the end - border case */
+	    (trace_read_buf[limit + 1] == 0))   /* did not make a full cycle after the memset */
 		limit = 0;
 	/* overrun: limit is the first non-zero after the first zero */
 	else
@@ -3571,7 +3548,6 @@ void ia_css_debug_tagger_state(void)
 		ia_css_debug_dtrace(2, "\t tagger frame[%d]: exp_id=%d, marked=%d, locked=%d\n",
 				i, tbuf_frames[i].exp_id, tbuf_frames[i].mark, tbuf_frames[i].lock);
 	}
-
 }
 #endif /* defined(USE_INPUT_SYSTEM_VERSION_2) || defined(USE_INPUT_SYSTEM_VERSION_2401) */
 
@@ -3581,6 +3557,7 @@ void ia_css_debug_pc_dump(sp_ID_t id, unsigned int num_of_dumps)
 	unsigned int pc;
 	unsigned int i;
 	hrt_data sc = sp_ctrl_load(id, SP_SC_REG);
+
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "SP%-1d Status reg: 0x%X\n", id, sc);
 	sc = sp_ctrl_load(id, SP_CTRL_SINK_REG);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "SP%-1d Stall reg: 0x%X\n", id, sc);

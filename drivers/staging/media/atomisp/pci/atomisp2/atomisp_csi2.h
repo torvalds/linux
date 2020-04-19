@@ -24,8 +24,8 @@
 #define CSI2_PAD_SOURCE		1
 #define CSI2_PADS_NUM		2
 
-#define CSI2_OUTPUT_ISP_SUBDEV	(1 << 0)
-#define CSI2_OUTPUT_MEMORY	(1 << 1)
+#define CSI2_OUTPUT_ISP_SUBDEV	BIT(0)
+#define CSI2_OUTPUT_MEMORY	BIT(1)
 
 struct atomisp_device;
 struct v4l2_device;

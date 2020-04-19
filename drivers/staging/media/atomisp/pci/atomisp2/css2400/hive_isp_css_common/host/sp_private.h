@@ -28,7 +28,7 @@ STORAGE_CLASS_SP_C void sp_ctrl_store(
 {
 	assert(ID < N_SP_ID);
 	assert(SP_CTRL_BASE[ID] != (hrt_address)-1);
-	ia_css_device_store_uint32(SP_CTRL_BASE[ID] + reg*sizeof(hrt_data), value);
+	ia_css_device_store_uint32(SP_CTRL_BASE[ID] + reg * sizeof(hrt_data), value);
 	return;
 }
 
@@ -38,7 +38,7 @@ STORAGE_CLASS_SP_C hrt_data sp_ctrl_load(
 {
 	assert(ID < N_SP_ID);
 	assert(SP_CTRL_BASE[ID] != (hrt_address)-1);
-	return ia_css_device_load_uint32(SP_CTRL_BASE[ID] + reg*sizeof(hrt_data));
+	return ia_css_device_load_uint32(SP_CTRL_BASE[ID] + reg * sizeof(hrt_data));
 }
 
 STORAGE_CLASS_SP_C bool sp_ctrl_getbit(
@@ -47,6 +47,7 @@ STORAGE_CLASS_SP_C bool sp_ctrl_getbit(
 	const unsigned int	bit)
 {
 	hrt_data val = sp_ctrl_load(ID, reg);
+
 	return (val & (1UL << bit)) != 0;
 }
 
@@ -56,6 +57,7 @@ STORAGE_CLASS_SP_C void sp_ctrl_setbit(
 	const unsigned int	bit)
 {
 	hrt_data	data = sp_ctrl_load(ID, reg);
+
 	sp_ctrl_store(ID, reg, (data | (1UL << bit)));
 	return;
 }
@@ -66,6 +68,7 @@ STORAGE_CLASS_SP_C void sp_ctrl_clearbit(
 	const unsigned int	bit)
 {
 	hrt_data	data = sp_ctrl_load(ID, reg);
+
 	sp_ctrl_store(ID, reg, (data & ~(1UL << bit)));
 	return;
 }

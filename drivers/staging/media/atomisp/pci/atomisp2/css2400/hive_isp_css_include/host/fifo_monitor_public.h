@@ -22,7 +22,7 @@ typedef struct fifo_switch_state_s		fifo_switch_state_t;
 typedef struct fifo_monitor_state_s		fifo_monitor_state_t;
 
 /*! Set a fifo switch multiplex
- 
+
  \param	ID[in]				FIFO_MONITOR identifier
  \param	switch_id[in]		fifo switch identifier
  \param	sel[in]				fifo switch selector
@@ -35,7 +35,7 @@ STORAGE_CLASS_FIFO_MONITOR_H void fifo_switch_set(
 	const hrt_data				sel);
 
 /*! Get a fifo switch multiplex
- 
+
  \param	ID[in]				FIFO_MONITOR identifier
  \param	switch_id[in]		fifo switch identifier
 
@@ -46,44 +46,44 @@ STORAGE_CLASS_FIFO_MONITOR_H hrt_data fifo_switch_get(
 	const fifo_switch_t			switch_id);
 
 /*! Read the state of FIFO_MONITOR[ID]
- 
+
  \param	ID[in]				FIFO_MONITOR identifier
  \param	state[out]			fifo monitor state structure
 
  \return none, state = FIFO_MONITOR[ID].state
  */
-extern void fifo_monitor_get_state(
+void fifo_monitor_get_state(
 	const fifo_monitor_ID_t		ID,
 	fifo_monitor_state_t		*state);
 
 /*! Read the state of a fifo channel
- 
+
  \param	ID[in]				FIFO_MONITOR identifier
  \param	channel_id[in]		fifo channel identifier
  \param	state[out]			fifo channel state structure
 
  \return none, state = fifo_channel[channel_id].state
  */
-extern void fifo_channel_get_state(
+void fifo_channel_get_state(
 	const fifo_monitor_ID_t		ID,
 	const fifo_channel_t		channel_id,
 	fifo_channel_state_t		*state);
 
 /*! Read the state of a fifo switch
- 
+
  \param	ID[in]				FIFO_MONITOR identifier
  \param	switch_id[in]		fifo switch identifier
  \param	state[out]			fifo switch state structure
 
  \return none, state = fifo_switch[switch_id].state
  */
-extern void fifo_switch_get_state(
+void fifo_switch_get_state(
 	const fifo_monitor_ID_t		ID,
 	const fifo_switch_t			switch_id,
 	fifo_switch_state_t			*state);
 
 /*! Write to a control register of FIFO_MONITOR[ID]
- 
+
  \param	ID[in]				FIFO_MONITOR identifier
  \param	reg[in]				register index
  \param value[in]			The data to be written
@@ -96,7 +96,7 @@ STORAGE_CLASS_FIFO_MONITOR_H void fifo_monitor_reg_store(
 	const hrt_data				value);
 
 /*! Read from a control register of FIFO_MONITOR[ID]
- 
+
  \param	ID[in]				FIFO_MONITOR identifier
  \param	reg[in]				register index
  \param value[in]			The data to be written

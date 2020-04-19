@@ -87,6 +87,7 @@ static int file_input_get_fmt(struct v4l2_subdev *sd,
 	/* only support file injection on subdev0 */
 	struct atomisp_sub_device *asd = &isp->asd[0];
 	struct v4l2_mbus_framefmt *isp_sink_fmt;
+
 	if (format->pad)
 		return -EINVAL;
 	isp_sink_fmt = atomisp_subdev_get_ffmt(&asd->subdev, NULL,
@@ -105,6 +106,7 @@ static int file_input_set_fmt(struct v4l2_subdev *sd,
 			      struct v4l2_subdev_format *format)
 {
 	struct v4l2_mbus_framefmt *fmt = &format->format;
+
 	if (format->pad)
 		return -EINVAL;
 	file_input_get_fmt(sd, cfg, format);
@@ -206,7 +208,7 @@ int atomisp_file_input_init(struct atomisp_device *isp)
 
 	file_dev->isp = isp;
 	file_dev->work_queue = alloc_workqueue(isp->v4l2_dev.name, 0, 1);
-	if (file_dev->work_queue == NULL) {
+	if (!file_dev->work_queue) {
 		dev_err(isp->dev, "Failed to initialize file inject workq\n");
 		return -ENOMEM;
 	}

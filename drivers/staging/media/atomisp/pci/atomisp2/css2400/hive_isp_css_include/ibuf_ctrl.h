@@ -15,7 +15,6 @@
 #ifndef __IBUF_CTRL_H_INCLUDED__
 #define __IBUF_CTRL_H_INCLUDED__
 
-
 /*
  * This file is included on every cell {SP,ISP,host} and on every system
  * that uses the input system device(s). It defines the API to DLI bridge
@@ -30,7 +29,6 @@
  * - global:  system specific constants and identifiers
  * - local:   system and cell specific constants and identifiers
  */
-
 
 #include "system_local.h"
 #include "ibuf_ctrl_local.h"

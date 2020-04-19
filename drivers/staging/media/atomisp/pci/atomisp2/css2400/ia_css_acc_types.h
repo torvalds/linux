@@ -77,120 +77,120 @@ struct ia_css_blob_descr;
  */
 struct ia_css_blob_info {
 	/** Static blob data */
-	uint32_t offset;		/** Blob offset in fw file */
+	u32 offset;		/** Blob offset in fw file */
 	struct ia_css_isp_param_memory_offsets memory_offsets;  /** offset wrt hdr in bytes */
-	uint32_t prog_name_offset;  /** offset wrt hdr in bytes */
-	uint32_t size;			/** Size of blob */
-	uint32_t padding_size;	/** total cummulative of bytes added due to section alignment */
-	uint32_t icache_source;	/** Position of icache in blob */
-	uint32_t icache_size;	/** Size of icache section */
-	uint32_t icache_padding;/** bytes added due to icache section alignment */
-	uint32_t text_source;	/** Position of text in blob */
-	uint32_t text_size;		/** Size of text section */
-	uint32_t text_padding;	/** bytes added due to text section alignment */
-	uint32_t data_source;	/** Position of data in blob */
-	uint32_t data_target;	/** Start of data in SP dmem */
-	uint32_t data_size;		/** Size of text section */
-	uint32_t data_padding;	/** bytes added due to data section alignment */
-	uint32_t bss_target;	/** Start position of bss in SP dmem */
-	uint32_t bss_size;		/** Size of bss section */
+	u32 prog_name_offset;  /** offset wrt hdr in bytes */
+	u32 size;			/** Size of blob */
+	u32 padding_size;	/** total cummulative of bytes added due to section alignment */
+	u32 icache_source;	/** Position of icache in blob */
+	u32 icache_size;	/** Size of icache section */
+	u32 icache_padding;/** bytes added due to icache section alignment */
+	u32 text_source;	/** Position of text in blob */
+	u32 text_size;		/** Size of text section */
+	u32 text_padding;	/** bytes added due to text section alignment */
+	u32 data_source;	/** Position of data in blob */
+	u32 data_target;	/** Start of data in SP dmem */
+	u32 data_size;		/** Size of text section */
+	u32 data_padding;	/** bytes added due to data section alignment */
+	u32 bss_target;	/** Start position of bss in SP dmem */
+	u32 bss_size;		/** Size of bss section */
 	/** Dynamic data filled by loader */
 	CSS_ALIGN(const void  *code, 8);		/** Code section absolute pointer within fw, code = icache + text */
 	CSS_ALIGN(const void  *data, 8);		/** Data section absolute pointer within fw, data = data + bss */
 };
 
 struct ia_css_binary_input_info {
-	uint32_t		min_width;
-	uint32_t		min_height;
-	uint32_t		max_width;
-	uint32_t		max_height;
-	uint32_t		source; /* memory, sensor, variable */
+	u32		min_width;
+	u32		min_height;
+	u32		max_width;
+	u32		max_height;
+	u32		source; /* memory, sensor, variable */
 };
 
 struct ia_css_binary_output_info {
-	uint32_t		min_width;
-	uint32_t		min_height;
-	uint32_t		max_width;
-	uint32_t		max_height;
-	uint32_t		num_chunks;
-	uint32_t		variable_format;
+	u32		min_width;
+	u32		min_height;
+	u32		max_width;
+	u32		max_height;
+	u32		num_chunks;
+	u32		variable_format;
 };
 
 struct ia_css_binary_internal_info {
-	uint32_t		max_width;
-	uint32_t		max_height;
+	u32		max_width;
+	u32		max_height;
 };
 
 struct ia_css_binary_bds_info {
-	uint32_t		supported_bds_factors;
+	u32		supported_bds_factors;
 };
 
 struct ia_css_binary_dvs_info {
-	uint32_t		max_envelope_width;
-	uint32_t		max_envelope_height;
+	u32		max_envelope_width;
+	u32		max_envelope_height;
 };
 
 struct ia_css_binary_vf_dec_info {
-	uint32_t		is_variable;
-	uint32_t		max_log_downscale;
+	u32		is_variable;
+	u32		max_log_downscale;
 };
 
 struct ia_css_binary_s3a_info {
-	uint32_t		s3atbl_use_dmem;
-	uint32_t		fixed_s3a_deci_log;
+	u32		s3atbl_use_dmem;
+	u32		fixed_s3a_deci_log;
 };
 
 /* DPC related binary info */
 struct ia_css_binary_dpc_info {
-	uint32_t		bnr_lite; /** bnr lite enable flag */
+	u32		bnr_lite; /** bnr lite enable flag */
 };
 
 struct ia_css_binary_iterator_info {
-	uint32_t		num_stripes;
-	uint32_t		row_stripes_height;
-	uint32_t		row_stripes_overlap_lines;
+	u32		num_stripes;
+	u32		row_stripes_height;
+	u32		row_stripes_overlap_lines;
 };
 
 struct ia_css_binary_address_info {
-	uint32_t		isp_addresses;	/* Address in ISP dmem */
-	uint32_t		main_entry;	/* Address of entry fct */
-	uint32_t		in_frame;	/* Address in ISP dmem */
-	uint32_t		out_frame;	/* Address in ISP dmem */
-	uint32_t		in_data;	/* Address in ISP dmem */
-	uint32_t		out_data;	/* Address in ISP dmem */
-	uint32_t		sh_dma_cmd_ptr;     /* In ISP dmem */
+	u32		isp_addresses;	/* Address in ISP dmem */
+	u32		main_entry;	/* Address of entry fct */
+	u32		in_frame;	/* Address in ISP dmem */
+	u32		out_frame;	/* Address in ISP dmem */
+	u32		in_data;	/* Address in ISP dmem */
+	u32		out_data;	/* Address in ISP dmem */
+	u32		sh_dma_cmd_ptr;     /* In ISP dmem */
 };
 
 struct ia_css_binary_uds_info {
-	uint16_t	bpp;
-	uint16_t	use_bci;
-	uint16_t	use_str;
-	uint16_t	woix;
-	uint16_t	woiy;
-	uint16_t	extra_out_vecs;
-	uint16_t	vectors_per_line_in;
-	uint16_t	vectors_per_line_out;
-	uint16_t	vectors_c_per_line_in;
-	uint16_t	vectors_c_per_line_out;
-	uint16_t	vmem_gdc_in_block_height_y;
-	uint16_t	vmem_gdc_in_block_height_c;
+	u16	bpp;
+	u16	use_bci;
+	u16	use_str;
+	u16	woix;
+	u16	woiy;
+	u16	extra_out_vecs;
+	u16	vectors_per_line_in;
+	u16	vectors_per_line_out;
+	u16	vectors_c_per_line_in;
+	u16	vectors_c_per_line_out;
+	u16	vmem_gdc_in_block_height_y;
+	u16	vmem_gdc_in_block_height_c;
 	/* uint16_t padding; */
 };
 
 struct ia_css_binary_pipeline_info {
-	uint32_t	mode;
-	uint32_t	isp_pipe_version;
-	uint32_t	pipelining;
-	uint32_t	c_subsampling;
-	uint32_t	top_cropping;
-	uint32_t	left_cropping;
-	uint32_t	variable_resolution;
+	u32	mode;
+	u32	isp_pipe_version;
+	u32	pipelining;
+	u32	c_subsampling;
+	u32	top_cropping;
+	u32	left_cropping;
+	u32	variable_resolution;
 };
 
 struct ia_css_binary_block_info {
-	uint32_t	block_width;
-	uint32_t	block_height;
-	uint32_t	output_block_height;
+	u32	block_width;
+	u32	block_height;
+	u32	output_block_height;
 };
 
 /* Structure describing an ISP binary.
@@ -201,7 +201,7 @@ struct ia_css_binary_block_info {
  * thereby making the SP code more binary independent.
  */
 struct ia_css_binary_info {
-	CSS_ALIGN(uint32_t			id, 8); /* IA_CSS_BINARY_ID_* */
+	CSS_ALIGN(u32			id, 8); /* IA_CSS_BINARY_ID_* */
 	struct ia_css_binary_pipeline_info	pipeline;
 	struct ia_css_binary_input_info		input;
 	struct ia_css_binary_output_info	output;
@@ -219,53 +219,53 @@ struct ia_css_binary_info {
 /* MW: Packing (related) bools in an integer ?? */
 	struct {
 #ifdef ISP2401
-		uint8_t	luma_only;
-		uint8_t	input_yuv;
-		uint8_t	input_raw;
+		u8	luma_only;
+		u8	input_yuv;
+		u8	input_raw;
 #endif
-		uint8_t	reduced_pipe;
-		uint8_t	vf_veceven;
-		uint8_t	dis;
-		uint8_t	dvs_envelope;
-		uint8_t	uds;
-		uint8_t	dvs_6axis;
-		uint8_t	block_output;
-		uint8_t	streaming_dma;
-		uint8_t	ds;
-		uint8_t	bayer_fir_6db;
-		uint8_t	raw_binning;
-		uint8_t	continuous;
-		uint8_t	s3a;
-		uint8_t	fpnr;
-		uint8_t	sc;
-		uint8_t	macc;
-		uint8_t	output;
-		uint8_t	ref_frame;
-		uint8_t	tnr;
-		uint8_t	xnr;
-		uint8_t	params;
-		uint8_t	ca_gdc;
-		uint8_t	isp_addresses;
-		uint8_t	in_frame;
-		uint8_t	out_frame;
-		uint8_t	high_speed;
-		uint8_t	dpc;
-		uint8_t padding[2];
+		u8	reduced_pipe;
+		u8	vf_veceven;
+		u8	dis;
+		u8	dvs_envelope;
+		u8	uds;
+		u8	dvs_6axis;
+		u8	block_output;
+		u8	streaming_dma;
+		u8	ds;
+		u8	bayer_fir_6db;
+		u8	raw_binning;
+		u8	continuous;
+		u8	s3a;
+		u8	fpnr;
+		u8	sc;
+		u8	macc;
+		u8	output;
+		u8	ref_frame;
+		u8	tnr;
+		u8	xnr;
+		u8	params;
+		u8	ca_gdc;
+		u8	isp_addresses;
+		u8	in_frame;
+		u8	out_frame;
+		u8	high_speed;
+		u8	dpc;
+		u8 padding[2];
 	} enable;
 	struct {
 /* DMA channel ID: [0,...,HIVE_ISP_NUM_DMA_CHANNELS> */
-		uint8_t	ref_y_channel;
-		uint8_t	ref_c_channel;
-		uint8_t	tnr_channel;
-		uint8_t	tnr_out_channel;
-		uint8_t	dvs_coords_channel;
-		uint8_t	output_channel;
-		uint8_t	c_channel;
-		uint8_t	vfout_channel;
-		uint8_t	vfout_c_channel;
-		uint8_t	vfdec_bits_per_pixel;
-		uint8_t	claimed_by_isp;
-		uint8_t padding[2];
+		u8	ref_y_channel;
+		u8	ref_c_channel;
+		u8	tnr_channel;
+		u8	tnr_out_channel;
+		u8	dvs_coords_channel;
+		u8	output_channel;
+		u8	c_channel;
+		u8	vfout_channel;
+		u8	vfout_c_channel;
+		u8	vfdec_bits_per_pixel;
+		u8	claimed_by_isp;
+		u8 padding[2];
 	} dma;
 };
 
@@ -279,14 +279,17 @@ struct ia_css_binary_xinfo {
 
 	/* Rest of the binary info, only interesting to the host. */
 	enum ia_css_acc_type	     type;
-	CSS_ALIGN(int32_t	     num_output_formats, 8);
+
+	CSS_ALIGN(s32	     num_output_formats, 8);
 	enum ia_css_frame_format     output_formats[IA_CSS_FRAME_FORMAT_NUM];
-	CSS_ALIGN(int32_t	     num_vf_formats, 8); /** number of supported vf formats */
+
+	CSS_ALIGN(s32	     num_vf_formats, 8); /** number of supported vf formats */
 	enum ia_css_frame_format     vf_formats[IA_CSS_FRAME_FORMAT_NUM]; /** types of supported vf formats */
-	uint8_t			     num_output_pins;
+	u8			     num_output_pins;
 	ia_css_ptr		     xmem_addr;
+
 	CSS_ALIGN(const struct ia_css_blob_descr *blob, 8);
-	CSS_ALIGN(uint32_t blob_index, 8);
+	CSS_ALIGN(u32 blob_index, 8);
 	CSS_ALIGN(union ia_css_all_memory_offsets mem_offsets, 8);
 	CSS_ALIGN(struct ia_css_binary_xinfo *next, 8);
 };
@@ -296,11 +299,11 @@ struct ia_css_binary_xinfo {
  * the entry function in icache.
  */
 struct ia_css_bl_info {
-	uint32_t num_dma_cmds;	/** Number of cmds sent by CSS */
-	uint32_t dma_cmd_list;	/** Dma command list sent by CSS */
-	uint32_t sw_state;	/** Polled from css */
+	u32 num_dma_cmds;	/** Number of cmds sent by CSS */
+	u32 dma_cmd_list;	/** Dma command list sent by CSS */
+	u32 sw_state;	/** Polled from css */
 	/* Entry functions */
-	uint32_t bl_entry;	/** The SP entry function */
+	u32 bl_entry;	/** The SP entry function */
 };
 
 /* Structure describing the SP binary.
@@ -308,38 +311,38 @@ struct ia_css_bl_info {
  * the entry function in pmem.
  */
 struct ia_css_sp_info {
-	uint32_t init_dmem_data; /** data sect config, stored to dmem */
-	uint32_t per_frame_data; /** Per frame data, stored to dmem */
-	uint32_t group;		/** Per pipeline data, loaded by dma */
-	uint32_t output;		/** SP output data, loaded by dmem */
-	uint32_t host_sp_queue;	/** Host <-> SP queues */
-	uint32_t host_sp_com;/** Host <-> SP commands */
-	uint32_t isp_started;	/** Polled from sensor thread, csim only */
-	uint32_t sw_state;	/** Polled from css */
-	uint32_t host_sp_queues_initialized; /** Polled from the SP */
-	uint32_t sleep_mode;  /** different mode to halt SP */
-	uint32_t invalidate_tlb;		/** inform SP to invalidate mmu TLB */
+	u32 init_dmem_data; /** data sect config, stored to dmem */
+	u32 per_frame_data; /** Per frame data, stored to dmem */
+	u32 group;		/** Per pipeline data, loaded by dma */
+	u32 output;		/** SP output data, loaded by dmem */
+	u32 host_sp_queue;	/** Host <-> SP queues */
+	u32 host_sp_com;/** Host <-> SP commands */
+	u32 isp_started;	/** Polled from sensor thread, csim only */
+	u32 sw_state;	/** Polled from css */
+	u32 host_sp_queues_initialized; /** Polled from the SP */
+	u32 sleep_mode;  /** different mode to halt SP */
+	u32 invalidate_tlb;		/** inform SP to invalidate mmu TLB */
 #ifndef ISP2401
-	uint32_t stop_copy_preview;       /** suspend copy and preview pipe when capture */
+	u32 stop_copy_preview;       /** suspend copy and preview pipe when capture */
 #endif
-	uint32_t debug_buffer_ddr_address;	/** inform SP the address
+	u32 debug_buffer_ddr_address;	/** inform SP the address
 	of DDR debug queue */
-	uint32_t perf_counter_input_system_error; /** input system perf
+	u32 perf_counter_input_system_error; /** input system perf
 	counter array */
 #ifdef HAS_WATCHDOG_SP_THREAD_DEBUG
-	uint32_t debug_wait; /** thread/pipe post mortem debug */
-	uint32_t debug_stage; /** thread/pipe post mortem debug */
-	uint32_t debug_stripe; /** thread/pipe post mortem debug */
+	u32 debug_wait; /** thread/pipe post mortem debug */
+	u32 debug_stage; /** thread/pipe post mortem debug */
+	u32 debug_stripe; /** thread/pipe post mortem debug */
 #endif
-	uint32_t threads_stack; /** sp thread's stack pointers */
-	uint32_t threads_stack_size; /** sp thread's stack sizes */
-	uint32_t curr_binary_id;        /** current binary id */
-	uint32_t raw_copy_line_count;   /** raw copy line counter */
-	uint32_t ddr_parameter_address; /** acc param ddrptr, sp dmem */
-	uint32_t ddr_parameter_size;    /** acc param size, sp dmem */
+	u32 threads_stack; /** sp thread's stack pointers */
+	u32 threads_stack_size; /** sp thread's stack sizes */
+	u32 curr_binary_id;        /** current binary id */
+	u32 raw_copy_line_count;   /** raw copy line counter */
+	u32 ddr_parameter_address; /** acc param ddrptr, sp dmem */
+	u32 ddr_parameter_size;    /** acc param size, sp dmem */
 	/* Entry functions */
-	uint32_t sp_entry;	/** The SP entry function */
-	uint32_t tagger_frames_addr;   /** Base address of tagger state */
+	u32 sp_entry;	/** The SP entry function */
+	u32 tagger_frames_addr;   /** Base address of tagger state */
 };
 
 /* The following #if is there because this header file is also included
@@ -351,7 +354,7 @@ struct ia_css_sp_info {
 /* Accelerator firmware information.
  */
 struct ia_css_acc_info {
-	uint32_t per_frame_data; /** Dummy for now */
+	u32 per_frame_data; /** Dummy for now */
 };
 
 /* Firmware information.
@@ -367,15 +370,17 @@ union ia_css_fw_union {
  */
 struct ia_css_fw_info {
 	size_t			 header_size; /** size of fw header */
-	CSS_ALIGN(uint32_t type, 8);
+
+	CSS_ALIGN(u32 type, 8);
 	union ia_css_fw_union	 info; /** Binary info */
 	struct ia_css_blob_info  blob; /** Blob info */
 	/* Dynamic part */
 	struct ia_css_fw_info   *next;
-	CSS_ALIGN(uint32_t       loaded, 8);	/** Firmware has been loaded */
-	CSS_ALIGN(const uint8_t *isp_code, 8);  /** ISP pointer to code */
+
+	CSS_ALIGN(u32       loaded, 8);	/** Firmware has been loaded */
+	CSS_ALIGN(const u8 *isp_code, 8);  /** ISP pointer to code */
 	/** Firmware handle between user space and kernel */
-	CSS_ALIGN(uint32_t	handle, 8);
+	CSS_ALIGN(u32	handle, 8);
 	/** Sections to copy from/to ISP */
 	struct ia_css_isp_param_css_segments mem_initializers;
 	/** Initializer for local ISP memories */
@@ -394,14 +399,14 @@ struct ia_css_acc_fw;
  */
 struct ia_css_acc_sp {
 	void (*init)(struct ia_css_acc_fw *);	/** init for crun */
-	uint32_t sp_prog_name_offset;		/** program name offset wrt hdr in bytes */
-	uint32_t sp_blob_offset;		/** blob offset wrt hdr in bytes */
+	u32 sp_prog_name_offset;		/** program name offset wrt hdr in bytes */
+	u32 sp_blob_offset;		/** blob offset wrt hdr in bytes */
 	void	 *entry;			/** Address of sp entry point */
-	uint32_t *css_abort;			/** SP dmem abort flag */
+	u32 *css_abort;			/** SP dmem abort flag */
 	void	 *isp_code;			/** SP dmem address holding xmem
 						     address of isp code */
 	struct ia_css_fw_info fw;		/** SP fw descriptor */
-	const uint8_t *code;			/** ISP pointer of allocated SP code */
+	const u8 *code;			/** ISP pointer of allocated SP code */
 };
 
 /* Acceleration firmware descriptor.
@@ -410,15 +415,15 @@ struct ia_css_acc_sp {
   */
 struct ia_css_acc_fw_hdr {
 	enum ia_css_acc_type type;	/** Type of accelerator */
-	uint32_t	isp_prog_name_offset; /** program name offset wrt
+	u32	isp_prog_name_offset; /** program name offset wrt
 						   header in bytes */
-	uint32_t	isp_blob_offset;      /** blob offset wrt header
+	u32	isp_blob_offset;      /** blob offset wrt header
 						   in bytes */
-	uint32_t	isp_size;	      /** Size of isp blob */
-	const uint8_t  *isp_code;	      /** ISP pointer to code */
+	u32	isp_size;	      /** Size of isp blob */
+	const u8  *isp_code;	      /** ISP pointer to code */
 	struct ia_css_acc_sp  sp;  /** Standalone sp code */
 	/** Firmware handle between user space and kernel */
-	uint32_t	handle;
+	u32	handle;
 	struct ia_css_data parameters; /** Current SP parameters */
 };
 
@@ -440,7 +445,7 @@ struct ia_css_acc_fw {
 };
 
 /* Access macros for firmware */
-#define IA_CSS_ACC_OFFSET(t, f, n) ((t)((uint8_t *)(f)+(f->header.n)))
+#define IA_CSS_ACC_OFFSET(t, f, n) ((t)((uint8_t *)(f) + (f->header.n)))
 #define IA_CSS_ACC_SP_PROG_NAME(f) IA_CSS_ACC_OFFSET(const char *, f, \
 						 sp.sp_prog_name_offset)
 #define IA_CSS_ACC_ISP_PROG_NAME(f) IA_CSS_ACC_OFFSET(const char *, f, \
@@ -454,9 +459,9 @@ struct ia_css_acc_fw {
 #define IA_CSS_ACC_ISP_SIZE(f)     ((f)->header.isp_size)
 
 /* Binary name follows header immediately */
-#define IA_CSS_EXT_ISP_PROG_NAME(f)   ((const char *)(f)+(f)->blob.prog_name_offset)
+#define IA_CSS_EXT_ISP_PROG_NAME(f)   ((const char *)(f) + (f)->blob.prog_name_offset)
 #define IA_CSS_EXT_ISP_MEM_OFFSETS(f) \
-	((const struct ia_css_memory_offsets *)((const char *)(f)+(f)->blob.mem_offsets))
+	((const struct ia_css_memory_offsets *)((const char *)(f) + (f)->blob.mem_offsets))
 
 #endif /* !defined(__ISP) */
 

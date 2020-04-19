@@ -21,14 +21,14 @@
 #include "ia_css_pipeline.h"
 #include "ia_css_pipeline_common.h"
 
-extern void ia_css_pipe_get_generic_stage_desc(
+void ia_css_pipe_get_generic_stage_desc(
 	struct ia_css_pipeline_stage_desc *stage_desc,
 	struct ia_css_binary *binary,
 	struct ia_css_frame *out_frame[],
 	struct ia_css_frame *in_frame,
 	struct ia_css_frame *vf_frame);
 
-extern void ia_css_pipe_get_firmwares_stage_desc(
+void ia_css_pipe_get_firmwares_stage_desc(
 	struct ia_css_pipeline_stage_desc *stage_desc,
 	struct ia_css_binary *binary,
 	struct ia_css_frame *out_frame[],
@@ -37,16 +37,15 @@ extern void ia_css_pipe_get_firmwares_stage_desc(
 	const struct ia_css_fw_info *fw,
 	unsigned int mode);
 
-extern void ia_css_pipe_get_acc_stage_desc(
+void ia_css_pipe_get_acc_stage_desc(
 	struct ia_css_pipeline_stage_desc *stage_desc,
 	struct ia_css_binary *binary,
 	struct ia_css_fw_info *fw);
 
-extern void ia_css_pipe_get_sp_func_stage_desc(
+void ia_css_pipe_get_sp_func_stage_desc(
 	struct ia_css_pipeline_stage_desc *stage_desc,
 	struct ia_css_frame *out_frame,
 	enum ia_css_pipeline_stage_sp_func sp_func,
-	unsigned max_input_width);
+	unsigned int max_input_width);
 
 #endif /*__IA_CSS_PIPE_STAGEDESC__H__ */
-

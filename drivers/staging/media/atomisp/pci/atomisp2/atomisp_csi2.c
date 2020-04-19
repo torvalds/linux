@@ -23,9 +23,9 @@
 
 static struct v4l2_mbus_framefmt *__csi2_get_format(struct
 						    atomisp_mipi_csi2_device
-						    *csi2,
+ * csi2,
 						    struct
-						    v4l2_subdev_pad_config *cfg,
+						    v4l2_subdev_pad_config * cfg,
 						    enum
 						    v4l2_subdev_format_whence
 						    which, unsigned int pad)
@@ -155,7 +155,7 @@ static int csi2_set_format(struct v4l2_subdev *sd,
 */
 static int csi2_set_stream(struct v4l2_subdev *sd, int enable)
 {
-	 return 0;
+	return 0;
 }
 
 /* subdev core operations */
@@ -345,6 +345,7 @@ static void atomisp_csi2_configure_isp2401(struct atomisp_sub_device *asd)
 	static const short int coeff_dat_settle[] = { 85, -2 };
 	static const int TERMEN_DEFAULT		  = 0 * 0;
 	static const int SETTLE_DEFAULT		  = 0x480;
+
 	static const hrt_address csi2_port_base[] = {
 		[ATOMISP_CAMERA_PORT_PRIMARY]     = CSI2_PORT_A_BASE,
 		[ATOMISP_CAMERA_PORT_SECONDARY]   = CSI2_PORT_B_BASE,
@@ -396,6 +397,7 @@ static void atomisp_csi2_configure_isp2401(struct atomisp_sub_device *asd)
 						 mipi_freq, SETTLE_DEFAULT);
 	for (n = 0; n < csi2_port_lanes[port] + 1; n++) {
 		hrt_address base = csi2_port_base[port] + csi2_lane_base[n];
+
 		atomisp_store_uint32(base + CSI2_REG_RX_CSI_DLY_CNT_TERMEN,
 				     n == 0 ? clk_termen : dat_termen);
 		atomisp_store_uint32(base + CSI2_REG_RX_CSI_DLY_CNT_SETTLE,
@@ -439,4 +441,3 @@ fail:
 	atomisp_mipi_csi2_cleanup(isp);
 	return ret;
 }
-

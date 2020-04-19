@@ -34,10 +34,9 @@
  *  ISP2: TNR1 is used.
  */
 
-
 struct ia_css_tnr_config {
 	ia_css_u0_16 gain; /** Interpolation ratio of current frame
-			        and previous frame.
+				and previous frame.
 				gain=0.0 -> previous frame is outputted.
 				gain=1.0 -> current frame is outputted.
 				u0.16, [0,65535],
@@ -55,6 +54,4 @@ struct ia_css_tnr_config {
 				u0.16, [0,65535], default/ineffective 0 */
 };
 
-
 #endif /* __IA_CSS_TNR_TYPES_H */
-

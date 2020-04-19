@@ -99,8 +99,8 @@
 //#define HRT_ADDRESS_WIDTH	64		/* Surprise, this is a local property*/
 #define HRT_DATA_WIDTH		32
 
-#define SIZEOF_HRT_REG		(HRT_DATA_WIDTH>>3)
-#define HIVE_ISP_CTRL_DATA_BYTES (HIVE_ISP_CTRL_DATA_WIDTH/8)
+#define SIZEOF_HRT_REG		(HRT_DATA_WIDTH >> 3)
+#define HIVE_ISP_CTRL_DATA_BYTES (HIVE_ISP_CTRL_DATA_WIDTH / 8)
 
 /* The main bus connecting all devices */
 #define HRT_BUS_WIDTH		HIVE_ISP_CTRL_DATA_WIDTH
@@ -109,7 +109,7 @@
 /* per-frame parameter handling support */
 #define SH_CSS_ENABLE_PER_FRAME_PARAMS
 
-typedef uint32_t			hrt_bus_align_t;
+typedef u32			hrt_bus_align_t;
 
 /*
  * Enumerate the devices, device access through the API is by ID, through the DLI by address
@@ -130,13 +130,13 @@ typedef enum {
 	N_SP_ID
 } sp_ID_t;
 
-#if defined (IS_ISP_2401_MAMOIADA_SYSTEM)
+#if defined(IS_ISP_2401_MAMOIADA_SYSTEM)
 typedef enum {
 	MMU0_ID = 0,
 	MMU1_ID,
 	N_MMU_ID
 } mmu_ID_t;
-#elif defined (IS_ISP_2400_MAMOIADA_SYSTEM)
+#elif defined(IS_ISP_2400_MAMOIADA_SYSTEM)
 typedef enum {
 	MMU0_ID = 0,
 	MMU1_ID,
@@ -316,6 +316,7 @@ enum ia_css_isp_memories {
 	IA_CSS_DDR,
 	N_IA_CSS_MEMORIES
 };
+
 #define IA_CSS_NUM_MEMORIES 9
 /* For driver compatibility */
 #define N_IA_CSS_ISP_MEMORIES   IA_CSS_NUM_MEMORIES

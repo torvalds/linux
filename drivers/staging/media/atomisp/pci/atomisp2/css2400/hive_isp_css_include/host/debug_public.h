@@ -45,55 +45,54 @@ extern hrt_address				debug_buffer_address;
 extern hrt_vaddress				debug_buffer_ddr_address;
 
 /*! Check the empty state of the local debug data buffer
- 
+
  \return isEmpty(buffer)
  */
 STORAGE_CLASS_DEBUG_H bool is_debug_buffer_empty(void);
 
 /*! Dequeue a token from the debug data buffer
- 
+
  \return isEmpty(buffer)?0:buffer[head]
  */
 STORAGE_CLASS_DEBUG_H hrt_data debug_dequeue(void);
 
 /*! Synchronise the remote buffer to the local buffer
- 
+
  \return none
  */
 STORAGE_CLASS_DEBUG_H void debug_synch_queue(void);
 
 /*! Synchronise the remote buffer to the local buffer
- 
+
  \return none
  */
 STORAGE_CLASS_DEBUG_H void debug_synch_queue_isp(void);
 
-
 /*! Synchronise the remote buffer to the local buffer
- 
+
  \return none
  */
 STORAGE_CLASS_DEBUG_H void debug_synch_queue_ddr(void);
 
 /*! Set the offset/address of the (remote) debug buffer
- 
+
  \return none
  */
-extern void debug_buffer_init(
+void debug_buffer_init(
 	const hrt_address		addr);
 
 /*! Set the offset/address of the (remote) debug buffer
- 
+
  \return none
  */
-extern void debug_buffer_ddr_init(
+void debug_buffer_ddr_init(
 	const hrt_vaddress		addr);
 
 /*! Set the (remote) operating mode of the debug buffer
- 
+
  \return none
  */
-extern void debug_buffer_setmode(
+void debug_buffer_setmode(
 	const debug_buf_mode_t	mode);
 
 #endif /* __DEBUG_PUBLIC_H_INCLUDED__ */

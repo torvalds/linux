@@ -94,8 +94,8 @@ crop_and_interpolate(unsigned int cropped_width,
 	unsigned short *in_ptr,
 		       *out_ptr;
 
-	assert(in_table != NULL);
-	assert(out_table != NULL);
+	assert(in_table);
+	assert(out_table);
 
 	sensor_width  = in_table->sensor_width;
 	sensor_height = in_table->sensor_height;
@@ -108,10 +108,10 @@ crop_and_interpolate(unsigned int cropped_width,
 	out_cell_size = CEIL_DIV(padded_width, out_table->width - 1);
 	in_cell_size  = CEIL_DIV(sensor_width, table_width - 1);
 
-	out_start_col = ((int)sensor_width - (int)cropped_width)/2 - left_padding;
-	out_start_row = ((int)sensor_height - (int)cropped_height)/2 - top_padding;
-	table_cell_w = (int)((table_width-1) * in_cell_size);
-	table_cell_h = (table_height-1) * in_cell_size;
+	out_start_col = ((int)sensor_width - (int)cropped_width) / 2 - left_padding;
+	out_start_row = ((int)sensor_height - (int)cropped_height) / 2 - top_padding;
+	table_cell_w = (int)((table_width - 1) * in_cell_size);
+	table_cell_h = (table_height - 1) * in_cell_size;
 
 	for (i = 0; i < out_table->height; i++) {
 		int ty, src_y0, src_y1;
@@ -128,14 +128,14 @@ crop_and_interpolate(unsigned int cropped_width,
 			src_y1 = (ty + out_cell_size) / in_cell_size;
 		else
 			src_y1 = src_y0 + 1;
-		src_y0 = clamp(src_y0, 0, (int)table_height-1);
-		src_y1 = clamp(src_y1, 0, (int)table_height-1);
-		ty = min(clamp(ty, 0, (int)sensor_height-1),
+		src_y0 = clamp(src_y0, 0, (int)table_height - 1);
+		src_y1 = clamp(src_y1, 0, (int)table_height - 1);
+		ty = min(clamp(ty, 0, (int)sensor_height - 1),
 				 (int)table_cell_h);
 
 		/* calculate closest source points for distance computation */
-		sy0 = min(src_y0 * in_cell_size, sensor_height-1);
-		sy1 = min(src_y1 * in_cell_size, sensor_height-1);
+		sy0 = min(src_y0 * in_cell_size, sensor_height - 1);
+		sy1 = min(src_y1 * in_cell_size, sensor_height - 1);
 		/* calculate distance between source and target pixels */
 		dy0 = ty - sy0;
 		dy1 = sy1 - ty;
@@ -161,14 +161,14 @@ crop_and_interpolate(unsigned int cropped_width,
 				src_x1 = src_x0 + 1;
 			}
 			/* if src points fall in padding, select closest ones.*/
-			src_x0 = clamp(src_x0, 0, (int)table_width-1);
-			src_x1 = clamp(src_x1, 0, (int)table_width-1);
-			tx = min(clamp(tx, 0, (int)sensor_width-1),
+			src_x0 = clamp(src_x0, 0, (int)table_width - 1);
+			src_x1 = clamp(src_x1, 0, (int)table_width - 1);
+			tx = min(clamp(tx, 0, (int)sensor_width - 1),
 				 (int)table_cell_w);
 			/* calculate closest source points for distance
 			   computation */
-			sx0 = min(src_x0 * in_cell_size, sensor_width-1);
-			sx1 = min(src_x1 * in_cell_size, sensor_width-1);
+			sx0 = min(src_x0 * in_cell_size, sensor_width - 1);
+			sx1 = min(src_x1 * in_cell_size, sensor_width - 1);
 			/* calculate distances between source and target
 			   pixels */
 			dx0 = tx - sx0;
@@ -184,13 +184,13 @@ crop_and_interpolate(unsigned int cropped_width,
 			}
 
 			/* get source pixel values */
-			s_ul = in_ptr[(table_width*src_y0)+src_x0];
-			s_ur = in_ptr[(table_width*src_y0)+src_x1];
-			s_ll = in_ptr[(table_width*src_y1)+src_x0];
-			s_lr = in_ptr[(table_width*src_y1)+src_x1];
+			s_ul = in_ptr[(table_width * src_y0) + src_x0];
+			s_ur = in_ptr[(table_width * src_y0) + src_x1];
+			s_ll = in_ptr[(table_width * src_y1) + src_x0];
+			s_lr = in_ptr[(table_width * src_y1) + src_x1];
 
-			*out_ptr = (unsigned short) ((dx0*dy0*s_lr + dx0*dy1*s_ur + dx1*dy0*s_ll + dx1*dy1*s_ul) /
-					(divx*divy));
+			*out_ptr = (unsigned short)((dx0 * dy0 * s_lr + dx0 * dy1 * s_ur + dx1 * dy0 * s_ll + dx1 * dy1 * s_ul) /
+					(divx * divy));
 		}
 	}
 }
@@ -213,9 +213,9 @@ sh_css_params_shading_id_table_generate(
 #endif
 	struct ia_css_shading_table *result;
 
-	assert(target_table != NULL);
+	assert(target_table);
 #ifndef ISP2401
-	assert(binary != NULL);
+	assert(binary);
 #endif
 
 #ifndef ISP2401
@@ -223,7 +223,7 @@ sh_css_params_shading_id_table_generate(
 	table_height = binary->sctbl_height;
 #endif
 	result = ia_css_shading_table_alloc(table_width, table_height);
-	if (result == NULL) {
+	if (!result) {
 		*target_table = NULL;
 		return;
 	}
@@ -257,8 +257,8 @@ prepare_shading_table(const struct ia_css_shading_table *in_table,
 
 	struct ia_css_shading_table *result;
 
-	assert(target_table != NULL);
-	assert(binary != NULL);
+	assert(target_table);
+	assert(binary);
 
 	if (!in_table) {
 #ifndef ISP2401
@@ -275,14 +275,14 @@ prepare_shading_table(const struct ia_css_shading_table *in_table,
 	   shading correction is performed in the bayer domain (before bayer
 	   down scaling). */
 #if defined(USE_INPUT_SYSTEM_VERSION_2401)
-	padded_width = CEIL_MUL(binary->effective_in_frame_res.width + 2*ISP_VEC_NELEMS,
-					2*ISP_VEC_NELEMS);
+	padded_width = CEIL_MUL(binary->effective_in_frame_res.width + 2 * ISP_VEC_NELEMS,
+					2 * ISP_VEC_NELEMS);
 #endif
 	input_height  = binary->in_frame_info.res.height;
 	input_width   = binary->in_frame_info.res.width;
 	left_padding  = binary->left_padding;
 	left_cropping = (binary->info->sp.pipeline.left_cropping == 0) ?
-			binary->dvs_envelope.width : 2*ISP_VEC_NELEMS;
+			binary->dvs_envelope.width : 2 * ISP_VEC_NELEMS;
 
 	sh_css_bds_factor_get_numerator_denominator
 		(bds_factor, &bds_numerator, &bds_denominator);
@@ -335,7 +335,7 @@ prepare_shading_table(const struct ia_css_shading_table *in_table,
 #endif
 
 	result = ia_css_shading_table_alloc(table_width, table_height);
-	if (result == NULL) {
+	if (!result) {
 		*target_table = NULL;
 		return;
 	}
@@ -376,8 +376,9 @@ ia_css_shading_table_alloc(
 	for (i = 0; i < IA_CSS_SC_NUM_COLORS; i++) {
 		me->data[i] =
 		    sh_css_malloc(width * height * sizeof(*me->data[0]));
-		if (me->data[i] == NULL) {
+		if (!me->data[i]) {
 			unsigned int j;
+
 			for (j = 0; j < i; j++) {
 				sh_css_free(me->data[j]);
 				me->data[j] = NULL;
@@ -396,7 +397,7 @@ ia_css_shading_table_free(struct ia_css_shading_table *table)
 {
 	unsigned int i;
 
-	if (table == NULL)
+	if (!table)
 		return;
 
 	/* We only output logging when the table is not NULL, otherwise
@@ -414,4 +415,3 @@ ia_css_shading_table_free(struct ia_css_shading_table *table)
 
 	IA_CSS_LEAVE("");
 }
-

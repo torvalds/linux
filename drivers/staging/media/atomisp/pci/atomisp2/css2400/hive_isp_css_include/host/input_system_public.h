@@ -30,7 +30,7 @@ typedef struct receiver_state_s			receiver_state_t;
 
  \return none, state = INPUT_SYSTEM[ID].state
  */
-extern void input_system_get_state(
+void input_system_get_state(
 	const input_system_ID_t		ID,
 	input_system_state_t		*state);
 
@@ -41,7 +41,7 @@ extern void input_system_get_state(
 
  \return none, state = RECEIVER[ID].state
  */
-extern void receiver_get_state(
+void receiver_get_state(
 	const rx_ID_t				ID,
 	receiver_state_t			*state);
 
@@ -51,7 +51,7 @@ extern void receiver_get_state(
 
  \return mipi_format == YUV420
  */
-extern bool is_mipi_format_yuv420(
+bool is_mipi_format_yuv420(
 	const mipi_format_t			mipi_format);
 
 /*! Set compression parameters for cfg[cfg_ID] of RECEIVER[ID]
@@ -62,12 +62,12 @@ extern bool is_mipi_format_yuv420(
  \param	pred[in]			Predictor method
 
  \NOTE: the storage of compression configuration is
-        implementation specific. The config can be
-        carried either on MIPI ports or on MIPI channels
+	implementation specific. The config can be
+	carried either on MIPI ports or on MIPI channels
 
  \return none, RECEIVER[ID].cfg[cfg_ID] = {comp, pred}
  */
-extern void receiver_set_compression(
+void receiver_set_compression(
 	const rx_ID_t				ID,
 	const unsigned int			cfg_ID,
 	const mipi_compressor_t		comp,
@@ -81,7 +81,7 @@ extern void receiver_set_compression(
 
  \return None, enable(RECEIVER[ID].PORT[port_ID])
  */
-extern void receiver_port_enable(
+void receiver_port_enable(
 	const rx_ID_t				ID,
 	const enum mipi_port_id		port_ID,
 	const bool					cnd);
@@ -93,7 +93,7 @@ extern void receiver_port_enable(
 
  \return enable(RECEIVER[ID].PORT[port_ID]) == true
  */
-extern bool is_receiver_port_enabled(
+bool is_receiver_port_enabled(
 	const rx_ID_t				ID,
 	const enum mipi_port_id		port_ID);
 
@@ -105,7 +105,7 @@ extern bool is_receiver_port_enabled(
 
  \return None, enable(RECEIVER[ID].PORT[port_ID].irq_info)
  */
-extern void receiver_irq_enable(
+void receiver_irq_enable(
 	const rx_ID_t				ID,
 	const enum mipi_port_id		port_ID,
 	const rx_irq_info_t			irq_info);
@@ -117,7 +117,7 @@ extern void receiver_irq_enable(
 
  \return RECEIVER[ID].PORT[port_ID].irq_info
  */
-extern rx_irq_info_t receiver_get_irq_info(
+rx_irq_info_t receiver_get_irq_info(
 	const rx_ID_t				ID,
 	const enum mipi_port_id		port_ID);
 
@@ -129,7 +129,7 @@ extern rx_irq_info_t receiver_get_irq_info(
 
  \return None, clear(RECEIVER[ID].PORT[port_ID].irq_info)
  */
-extern void receiver_irq_clear(
+void receiver_irq_clear(
 	const rx_ID_t				ID,
 	const enum mipi_port_id			port_ID,
 	const rx_irq_info_t			irq_info);
@@ -242,8 +242,6 @@ STORAGE_CLASS_INPUT_SYSTEM_H hrt_data input_system_sub_system_reg_load(
 	const sub_system_ID_t		sub_ID,
 	const hrt_address			reg);
 
-
-
 ///////////////////////////////////////////////////////////////////////////
 //
 //    Functions for configuration phase on input system.
@@ -268,107 +266,102 @@ input_system_error_t input_system_configuration_commit(void);
 //
 ///////////////////////////////////////////////////////////////////////////
 
-
 // FIFO channel config function user
 
 input_system_error_t	input_system_csi_fifo_channel_cfg(
-	uint32_t				ch_id,
+	u32				ch_id,
 	input_system_csi_port_t	port,
 	backend_channel_cfg_t	backend_ch,
 	target_cfg2400_t			target
 );
 
 input_system_error_t	input_system_csi_fifo_channel_with_counting_cfg(
-	uint32_t				ch_id,
-	uint32_t				nof_frame,
+	u32				ch_id,
+	u32				nof_frame,
 	input_system_csi_port_t	port,
 	backend_channel_cfg_t	backend_ch,
-	uint32_t				mem_region_size,
-	uint32_t				nof_mem_regions,
+	u32				mem_region_size,
+	u32				nof_mem_regions,
 	target_cfg2400_t			target
 );
-
 
 // SRAM channel config function user
 
 input_system_error_t	input_system_csi_sram_channel_cfg(
-	uint32_t				ch_id,
+	u32				ch_id,
 	input_system_csi_port_t	port,
 	backend_channel_cfg_t	backend_ch,
-	uint32_t				csi_mem_region_size,
-	uint32_t				csi_nof_mem_regions,
-	target_cfg2400_t 			target
+	u32				csi_mem_region_size,
+	u32				csi_nof_mem_regions,
+	target_cfg2400_t			target
 );
-
 
 //XMEM channel config function user
 
 input_system_error_t	input_system_csi_xmem_channel_cfg(
-	uint32_t 				ch_id,
+	u32				ch_id,
 	input_system_csi_port_t port,
 	backend_channel_cfg_t	backend_ch,
-	uint32_t 				mem_region_size,
-	uint32_t 				nof_mem_regions,
-	uint32_t 				acq_mem_region_size,
-	uint32_t 				acq_nof_mem_regions,
-	target_cfg2400_t 			target,
-	uint32_t 				nof_xmem_buffers
+	u32				mem_region_size,
+	u32				nof_mem_regions,
+	u32				acq_mem_region_size,
+	u32				acq_nof_mem_regions,
+	target_cfg2400_t			target,
+	uint32_t				nof_xmem_buffers
 );
 
 input_system_error_t	input_system_csi_xmem_capture_only_channel_cfg(
-	uint32_t 				ch_id,
-	uint32_t 				nof_frames,
+	u32				ch_id,
+	u32				nof_frames,
 	input_system_csi_port_t port,
-	uint32_t 				csi_mem_region_size,
-	uint32_t 				csi_nof_mem_regions,
-	uint32_t 				acq_mem_region_size,
-	uint32_t 				acq_nof_mem_regions,
-	target_cfg2400_t 			target
+	u32				csi_mem_region_size,
+	u32				csi_nof_mem_regions,
+	u32				acq_mem_region_size,
+	u32				acq_nof_mem_regions,
+	target_cfg2400_t			target
 );
 
 input_system_error_t	input_system_csi_xmem_acquire_only_channel_cfg(
-	uint32_t 				ch_id,
-	uint32_t 				nof_frames,
+	u32				ch_id,
+	u32				nof_frames,
 	input_system_csi_port_t port,
 	backend_channel_cfg_t	backend_ch,
-	uint32_t 				acq_mem_region_size,
-	uint32_t 				acq_nof_mem_regions,
-	target_cfg2400_t 			target
+	u32				acq_mem_region_size,
+	u32				acq_nof_mem_regions,
+	target_cfg2400_t			target
 );
 
 // Non - CSI channel config function user
 
 input_system_error_t	input_system_prbs_channel_cfg(
-	uint32_t 		ch_id,
-	uint32_t		nof_frames,
-	uint32_t		seed,
-	uint32_t		sync_gen_width,
-	uint32_t		sync_gen_height,
-	uint32_t		sync_gen_hblank_cycles,
-	uint32_t		sync_gen_vblank_cycles,
+	u32		ch_id,
+	u32		nof_frames,
+	u32		seed,
+	u32		sync_gen_width,
+	u32		sync_gen_height,
+	u32		sync_gen_hblank_cycles,
+	u32		sync_gen_vblank_cycles,
 	target_cfg2400_t	target
 );
-
 
 input_system_error_t	input_system_tpg_channel_cfg(
-	uint32_t 		ch_id,
-	uint32_t 		nof_frames,//not used yet
-	uint32_t		x_mask,
-	uint32_t		y_mask,
-	uint32_t		x_delta,
-	uint32_t		y_delta,
-	uint32_t		xy_mask,
-	uint32_t		sync_gen_width,
-	uint32_t		sync_gen_height,
-	uint32_t		sync_gen_hblank_cycles,
-	uint32_t		sync_gen_vblank_cycles,
+	u32		ch_id,
+	u32		nof_frames,//not used yet
+	u32		x_mask,
+	u32		y_mask,
+	u32		x_delta,
+	u32		y_delta,
+	u32		xy_mask,
+	u32		sync_gen_width,
+	u32		sync_gen_height,
+	u32		sync_gen_hblank_cycles,
+	u32		sync_gen_vblank_cycles,
 	target_cfg2400_t	target
 );
 
-
 input_system_error_t	input_system_gpfifo_channel_cfg(
-	uint32_t 		ch_id,
-	uint32_t 		nof_frames,
+	u32		ch_id,
+	u32		nof_frames,
 	target_cfg2400_t	target
 );
 #endif /* #ifdef USE_INPUT_SYSTEM_VERSION_2401 */

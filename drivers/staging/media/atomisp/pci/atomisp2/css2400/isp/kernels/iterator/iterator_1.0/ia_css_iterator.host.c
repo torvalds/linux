@@ -27,7 +27,7 @@ void
 ia_css_iterator_config(
 	struct sh_css_isp_iterator_isp_config *to,
 	const struct ia_css_iterator_configuration *from,
-	unsigned size)
+	unsigned int size)
 {
 	(void)size;
 	ia_css_frame_info_to_frame_sp_info(&to->input_info,    from->input_info);

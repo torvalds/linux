@@ -20,7 +20,7 @@
 #ifdef ISP2401
 #define BDS_UNIT 8
 #define FRAC_LOG 3
-#define FRAC_ACC (1<<FRAC_LOG)
+#define FRAC_ACC BIT(FRAC_LOG)
 #if FRAC_ACC != BDS_UNIT
 #error "FRAC_ACC and BDS_UNIT need to be merged into one define"
 #endif

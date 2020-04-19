@@ -61,16 +61,16 @@ void ia_css_isys_ibuf_rmgr_uninit(void)
 }
 
 bool ia_css_isys_ibuf_rmgr_acquire(
-	uint32_t	size,
+	u32	size,
 	uint32_t	*start_addr)
 {
 	bool retval = false;
 	bool input_buffer_found = false;
-	uint32_t aligned_size;
+	u32 aligned_size;
 	ibuf_handle_t *handle = NULL;
-	uint16_t i;
+	u16 i;
 
-	assert(start_addr != NULL);
+	assert(start_addr);
 	assert(size > 0);
 
 	aligned_size = (size + (IBUF_ALIGN - 1)) & ~(IBUF_ALIGN - 1);
@@ -123,10 +123,10 @@ bool ia_css_isys_ibuf_rmgr_acquire(
 void ia_css_isys_ibuf_rmgr_release(
 	uint32_t	*start_addr)
 {
-	uint16_t i;
+	u16 i;
 	ibuf_handle_t *handle = NULL;
 
-	assert(start_addr != NULL);
+	assert(start_addr);
 
 	for (i = 0; i < ibuf_rsrc.num_allocated; i++) {
 		handle = getHandle(i);

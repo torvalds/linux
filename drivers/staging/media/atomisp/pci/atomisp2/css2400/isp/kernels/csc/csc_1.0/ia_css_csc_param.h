@@ -18,17 +18,16 @@
 #include "type_support.h"
 /* CSC (Color Space Conversion) */
 struct sh_css_isp_csc_params {
-	uint16_t	m_shift;
-	int16_t		m00;
-	int16_t		m01;
-	int16_t		m02;
-	int16_t		m10;
-	int16_t		m11;
-	int16_t		m12;
-	int16_t		m20;
-	int16_t		m21;
-	int16_t		m22;
+	u16	m_shift;
+	s16		m00;
+	s16		m01;
+	s16		m02;
+	s16		m10;
+	s16		m11;
+	s16		m12;
+	s16		m20;
+	s16		m21;
+	s16		m22;
 };
-
 
 #endif /* __IA_CSS_CSC_PARAM_H */

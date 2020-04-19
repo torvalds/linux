@@ -101,7 +101,6 @@
 #define DMA_DDR_TO_VAMEM_WORKAROUND
 #define DMA_DDR_TO_HMEM_WORKAROUND
 
-
 /*
  * Semi global. "HRT" is accessible from SP, but
  * the HRT types do not fully apply
@@ -111,8 +110,8 @@
 /*#define HRT_ADDRESS_WIDTH	64 */
 #define HRT_DATA_WIDTH		32
 
-#define SIZEOF_HRT_REG		(HRT_DATA_WIDTH>>3)
-#define HIVE_ISP_CTRL_DATA_BYTES (HIVE_ISP_CTRL_DATA_WIDTH/8)
+#define SIZEOF_HRT_REG		(HRT_DATA_WIDTH >> 3)
+#define HIVE_ISP_CTRL_DATA_BYTES (HIVE_ISP_CTRL_DATA_WIDTH / 8)
 
 /* The main bus connecting all devices */
 #define HRT_BUS_WIDTH		HIVE_ISP_CTRL_DATA_WIDTH
@@ -123,7 +122,7 @@
 /* per-frame parameter handling support */
 #define SH_CSS_ENABLE_PER_FRAME_PARAMS
 
-typedef uint32_t			hrt_bus_align_t;
+typedef u32			hrt_bus_align_t;
 
 /*
  * Enumerate the devices, device access through the API is by ID,
@@ -380,7 +379,7 @@ typedef enum {
 	CSI_RX_FRONTEND0_ID = 0,	/* map to ISYS2401_CSI_RX_A */
 	CSI_RX_FRONTEND1_ID,		/* map to ISYS2401_CSI_RX_B */
 	CSI_RX_FRONTEND2_ID,		/* map to ISYS2401_CSI_RX_C */
-#define N_CSI_RX_FRONTEND_ID (CSI_RX_FRONTEND2_ID+1)
+#define N_CSI_RX_FRONTEND_ID (CSI_RX_FRONTEND2_ID + 1)
 } csi_rx_frontend_ID_t;
 
 typedef enum {
@@ -450,6 +449,7 @@ enum ia_css_isp_memories {
 	IA_CSS_DDR,
 	N_IA_CSS_MEMORIES
 };
+
 #define IA_CSS_NUM_MEMORIES 9
 /* For driver compatibility */
 #define N_IA_CSS_ISP_MEMORIES   IA_CSS_NUM_MEMORIES

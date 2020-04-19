@@ -23,7 +23,7 @@
 #include <hmm/hmm.h>
 #include <hrt/hive_isp_css_custom_host_hrt.h>
 
-#define HRT_BUF_FLAG_CACHED (1 << 0)
+#define HRT_BUF_FLAG_CACHED BIT(0)
 
 enum hrt_userptr_type {
 	HRT_USR_PTR = 0,

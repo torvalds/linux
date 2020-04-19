@@ -60,9 +60,9 @@ bool ia_css_isys_stream2mmio_sid_rmgr_acquire(
 	stream2mmio_sid_ID_t	i;
 
 	assert(stream2mmio < N_STREAM2MMIO_ID);
-	assert(sid != NULL);
+	assert(sid);
 
-	if ((stream2mmio < N_STREAM2MMIO_ID) && (sid != NULL)) {
+	if ((stream2mmio < N_STREAM2MMIO_ID) && (sid)) {
 		max_sid = N_STREAM2MMIO_SID_PROCS[stream2mmio];
 		cur_rsrc = &isys_stream2mmio_rsrc[stream2mmio];
 
@@ -89,9 +89,9 @@ void ia_css_isys_stream2mmio_sid_rmgr_release(
 	isys_stream2mmio_rsrc_t *cur_rsrc = NULL;
 
 	assert(stream2mmio < N_STREAM2MMIO_ID);
-	assert(sid != NULL);
+	assert(sid);
 
-	if ((stream2mmio < N_STREAM2MMIO_ID) && (sid != NULL)) {
+	if ((stream2mmio < N_STREAM2MMIO_ID) && (sid)) {
 		max_sid = N_STREAM2MMIO_SID_PROCS[stream2mmio];
 		cur_rsrc = &isys_stream2mmio_rsrc[stream2mmio];
 		if ((*sid < max_sid) && (cur_rsrc->num_active > 0)) {

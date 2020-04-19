@@ -73,8 +73,8 @@ mt9m114_read_reg(struct i2c_client *client, u16 data_length, u32 reg, u32 *val)
 	msg[0].buf = data;
 
 	/* high byte goes out first */
-	data[0] = (u16) (reg >> 8);
-	data[1] = (u16) (reg & 0xff);
+	data[0] = (u16)(reg >> 8);
+	data[1] = (u16)(reg & 0xff);
 
 	msg[1].addr = client->addr;
 	msg[1].len = data_length;
@@ -238,7 +238,6 @@ misensor_rmw_reg(struct i2c_client *client, u16 data_length, u16 reg,
 
 	return 0;
 }
-
 
 static int __mt9m114_flush_reg_array(struct i2c_client *client,
 				     struct mt9m114_write_ctrl *ctrl)
@@ -428,12 +427,12 @@ static int mt9m114_wait_state(struct i2c_client *client, int timeout)
 	}
 
 	return -EINVAL;
-
 }
 
 static int mt9m114_set_suspend(struct v4l2_subdev *sd)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
+
 	return mt9m114_write_reg_array(client,
 			mt9m114_standby_reg, POST_POLLING);
 }
@@ -499,7 +498,7 @@ static int power_up(struct v4l2_subdev *sd)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret;
 
-	if (NULL == dev->platform_data) {
+	if (!dev->platform_data) {
 		dev_err(&client->dev, "no camera_sensor_platform_data");
 		return -ENODEV;
 	}
@@ -541,7 +540,7 @@ static int power_down(struct v4l2_subdev *sd)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret;
 
-	if (NULL == dev->platform_data) {
+	if (!dev->platform_data) {
 		dev_err(&client->dev, "no camera_sensor_platform_data");
 		return -ENODEV;
 	}
@@ -704,9 +703,9 @@ static int mt9m114_res2size(struct v4l2_subdev *sd, int *h_size, int *v_size)
 		return -EINVAL;
 	}
 
-	if (h_size != NULL)
+	if (h_size)
 		*h_size = hsize;
-	if (v_size != NULL)
+	if (v_size)
 		*v_size = vsize;
 
 	return 0;
@@ -720,7 +719,7 @@ static int mt9m114_get_intg_factor(struct i2c_client *client,
 	u32 reg_val;
 	int ret;
 
-	if (info == NULL)
+	if (!info)
 		return -EINVAL;
 
 	ret =  mt9m114_read_reg(client, MISENSOR_32BIT,
@@ -807,6 +806,7 @@ static int mt9m114_get_fmt(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *fmt = &format->format;
 	int width, height;
 	int ret;
+
 	if (format->pad)
 		return -EINVAL;
 	fmt->code = MEDIA_BUS_FMT_SGRBG10_1X10;
@@ -833,13 +833,14 @@ static int mt9m114_set_fmt(struct v4l2_subdev *sd,
 	struct camera_mipi_info *mt9m114_info = NULL;
 
 	int ret;
+
 	if (format->pad)
 		return -EINVAL;
 	dev->streamon = 0;
 	dev->first_exp = MT9M114_DEFAULT_FIRST_EXP;
 
 	mt9m114_info = v4l2_get_subdev_hostdata(sd);
-	if (mt9m114_info == NULL)
+	if (!mt9m114_info)
 		return -EINVAL;
 
 	mt9m114_try_res(&width, &height);
@@ -964,6 +965,7 @@ static int mt9m114_g_hflip(struct v4l2_subdev *sd, s32 *val)
 	struct i2c_client *c = v4l2_get_subdevdata(sd);
 	int ret;
 	u32 data;
+
 	ret = mt9m114_read_reg(c, MISENSOR_16BIT,
 			(u32)MISENSOR_READ_MODE, &data);
 	if (ret)
@@ -1082,7 +1084,6 @@ static long mt9m114_s_exposure(struct v4l2_subdev *sd,
 
 static long mt9m114_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
-
 	switch (cmd) {
 	case ATOMISP_IOC_S_EXPOSURE:
 		return mt9m114_s_exposure(sd, arg);
@@ -1110,6 +1111,7 @@ static int mt9m114_g_exposure(struct v4l2_subdev *sd, s32 *value)
 	*value = coarse;
 	return 0;
 }
+
 #ifndef CSS15
 /*
  * This function will return the sensor supported max exposure zone number.
@@ -1563,7 +1565,7 @@ mt9m114_s_config(struct v4l2_subdev *sd, int irq, void *platform_data)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret;
 
-	if (NULL == platform_data)
+	if (!platform_data)
 		return -ENODEV;
 
 	dev->platform_data =
@@ -1738,7 +1740,6 @@ static int mt9m114_enum_frame_size(struct v4l2_subdev *sd,
 				   struct v4l2_subdev_pad_config *cfg,
 				   struct v4l2_subdev_frame_size_enum *fse)
 {
-
 	unsigned int index = fse->index;
 
 	if (index >= N_RES)
@@ -1757,7 +1758,7 @@ static int mt9m114_g_skip_frames(struct v4l2_subdev *sd, u32 *frames)
 	int index;
 	struct mt9m114_device *snr = to_mt9m114_sensor(sd);
 
-	if (frames == NULL)
+	if (!frames)
 		return -EINVAL;
 
 	for (index = 0; index < N_RES; index++) {

@@ -86,7 +86,7 @@ ia_css_bnr2_2_encode(
 void
 ia_css_bnr2_2_debug_dtrace(
 	const struct ia_css_bnr2_2_config *bnr,
-	unsigned level)
+	unsigned int level)
 {
 	if (!bnr)
 		return;

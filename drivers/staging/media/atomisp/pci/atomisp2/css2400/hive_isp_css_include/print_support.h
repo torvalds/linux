@@ -15,14 +15,14 @@
 #ifndef __PRINT_SUPPORT_H_INCLUDED__
 #define __PRINT_SUPPORT_H_INCLUDED__
 
-
 #include <stdarg.h>
 
-extern int (*sh_css_printf) (const char *fmt, va_list args);
+extern int (*sh_css_printf)(const char *fmt, va_list args);
 /* depends on host supplied print function in ia_css_init() */
 static inline void ia_css_print(const char *fmt, ...)
 {
 	va_list ap;
+
 	if (sh_css_printf) {
 		va_start(ap, fmt);
 		sh_css_printf(fmt, ap);

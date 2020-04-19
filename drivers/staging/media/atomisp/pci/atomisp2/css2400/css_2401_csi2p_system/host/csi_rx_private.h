@@ -24,7 +24,6 @@
 #include "assert_support.h" /* assert */
 #include "print_support.h" /* print */
 
-
 /*****************************************************
  *
  * Native command interface (NCI).
@@ -38,7 +37,7 @@ static inline void csi_rx_fe_ctrl_get_state(
 		const csi_rx_frontend_ID_t ID,
 		csi_rx_fe_ctrl_state_t *state)
 {
-	uint32_t i;
+	u32 i;
 
 	state->enable =
 		csi_rx_fe_ctrl_reg_load(ID, _HRT_CSI_RX_ENABLE_REG_IDX);
@@ -65,7 +64,7 @@ static inline void csi_rx_fe_ctrl_get_state(
 		csi_rx_fe_ctrl_get_dlane_state(
 				ID,
 				i,
-				&(state->dlane[i]));
+				&state->dlane[i]);
 	}
 }
 
@@ -75,16 +74,15 @@ static inline void csi_rx_fe_ctrl_get_state(
  */
 static inline void csi_rx_fe_ctrl_get_dlane_state(
 		const csi_rx_frontend_ID_t ID,
-		const uint32_t lane,
+		const u32 lane,
 		csi_rx_fe_ctrl_lane_t *dlane_state)
 {
-
 	dlane_state->termen =
 		csi_rx_fe_ctrl_reg_load(ID, _HRT_CSI_RX_DLY_CNT_TERMEN_DLANE_REG_IDX(lane));
 	dlane_state->settle =
 		csi_rx_fe_ctrl_reg_load(ID, _HRT_CSI_RX_DLY_CNT_SETTLE_DLANE_REG_IDX(lane));
-
 }
+
 /**
  * @brief dump the csi rx fe state.
  * Refer to "csi_rx_public.h" for details.
@@ -93,24 +91,24 @@ static inline void csi_rx_fe_ctrl_dump_state(
 		const csi_rx_frontend_ID_t ID,
 		csi_rx_fe_ctrl_state_t *state)
 {
-	uint32_t i;
+	u32 i;
 
-	ia_css_print("CSI RX FE STATE Controller %d Enable state 0x%x \n", ID, state->enable);
-	ia_css_print("CSI RX FE STATE Controller %d No Of enable lanes 0x%x \n", ID, state->nof_enable_lanes);
-	ia_css_print("CSI RX FE STATE Controller %d Error handling 0x%x \n", ID, state->error_handling);
-	ia_css_print("CSI RX FE STATE Controller %d Status 0x%x \n", ID, state->status);
-	ia_css_print("CSI RX FE STATE Controller %d Status Dlane HS 0x%x \n", ID, state->status_dlane_hs);
-	ia_css_print("CSI RX FE STATE Controller %d Status Dlane LP 0x%x \n", ID, state->status_dlane_lp);
-	ia_css_print("CSI RX FE STATE Controller %d Status term enable LP 0x%x \n", ID, state->clane.termen);
-	ia_css_print("CSI RX FE STATE Controller %d Status term settle LP 0x%x \n", ID, state->clane.settle);
+	ia_css_print("CSI RX FE STATE Controller %d Enable state 0x%x\n", ID, state->enable);
+	ia_css_print("CSI RX FE STATE Controller %d No Of enable lanes 0x%x\n", ID, state->nof_enable_lanes);
+	ia_css_print("CSI RX FE STATE Controller %d Error handling 0x%x\n", ID, state->error_handling);
+	ia_css_print("CSI RX FE STATE Controller %d Status 0x%x\n", ID, state->status);
+	ia_css_print("CSI RX FE STATE Controller %d Status Dlane HS 0x%x\n", ID, state->status_dlane_hs);
+	ia_css_print("CSI RX FE STATE Controller %d Status Dlane LP 0x%x\n", ID, state->status_dlane_lp);
+	ia_css_print("CSI RX FE STATE Controller %d Status term enable LP 0x%x\n", ID, state->clane.termen);
+	ia_css_print("CSI RX FE STATE Controller %d Status term settle LP 0x%x\n", ID, state->clane.settle);
 
 	/*
 	 * Get the values of the register-set per
 	 * dlane.
 	 */
 	for (i = 0; i < N_CSI_RX_FE_CTRL_DLANES[ID]; i++) {
-		ia_css_print("CSI RX FE STATE Controller %d DLANE ID %d termen 0x%x \n", ID, i, state->dlane[i].termen);
-		ia_css_print("CSI RX FE STATE Controller %d DLANE ID %d settle 0x%x \n", ID, i, state->dlane[i].settle);
+		ia_css_print("CSI RX FE STATE Controller %d DLANE ID %d termen 0x%x\n", ID, i, state->dlane[i].termen);
+		ia_css_print("CSI RX FE STATE Controller %d DLANE ID %d settle 0x%x\n", ID, i, state->dlane[i].settle);
 	}
 }
 
@@ -122,7 +120,7 @@ static inline void csi_rx_be_ctrl_get_state(
 		const csi_rx_backend_ID_t ID,
 		csi_rx_be_ctrl_state_t *state)
 {
-	uint32_t i;
+	u32 i;
 
 	state->enable =
 		csi_rx_be_ctrl_reg_load(ID, _HRT_MIPI_BACKEND_ENABLE_REG_IDX);
@@ -130,10 +128,10 @@ static inline void csi_rx_be_ctrl_get_state(
 	state->status =
 		csi_rx_be_ctrl_reg_load(ID, _HRT_MIPI_BACKEND_STATUS_REG_IDX);
 
-	for(i = 0; i <N_CSI_RX_BE_MIPI_COMP_FMT_REG ; i++) {
+	for (i = 0; i < N_CSI_RX_BE_MIPI_COMP_FMT_REG ; i++) {
 		state->comp_format_reg[i] =
-			csi_rx_be_ctrl_reg_load(ID, 
-						_HRT_MIPI_BACKEND_COMP_FORMAT_REG0_IDX+i);
+			csi_rx_be_ctrl_reg_load(ID,
+						_HRT_MIPI_BACKEND_COMP_FORMAT_REG0_IDX + i);
 	}
 
 	state->raw16 =
@@ -152,8 +150,8 @@ static inline void csi_rx_be_ctrl_get_state(
 
 	state->custom_mode_data_state =
 		csi_rx_be_ctrl_reg_load(ID, _HRT_MIPI_BACKEND_CUST_DATA_STATE_REG_IDX);
-	for(i = 0; i <N_CSI_RX_BE_MIPI_CUSTOM_PEC ; i++) {
-		state->pec[i] = 
+	for (i = 0; i < N_CSI_RX_BE_MIPI_CUSTOM_PEC ; i++) {
+		state->pec[i] =
 			csi_rx_be_ctrl_reg_load(ID, _HRT_MIPI_BACKEND_CUST_PIX_EXT_S0P0_REG_IDX + i);
 	}
 	state->custom_mode_valid_eop_config =
@@ -185,36 +183,37 @@ static inline void csi_rx_be_ctrl_dump_state(
 		const csi_rx_backend_ID_t ID,
 		csi_rx_be_ctrl_state_t *state)
 {
-	uint32_t i;
+	u32 i;
 
-	ia_css_print("CSI RX BE STATE Controller %d Enable 0x%x \n", ID, state->enable);
-	ia_css_print("CSI RX BE STATE Controller %d Status 0x%x \n", ID, state->status);
+	ia_css_print("CSI RX BE STATE Controller %d Enable 0x%x\n", ID, state->enable);
+	ia_css_print("CSI RX BE STATE Controller %d Status 0x%x\n", ID, state->status);
 
-	for(i = 0; i <N_CSI_RX_BE_MIPI_COMP_FMT_REG ; i++) {
-		ia_css_print("CSI RX BE STATE Controller %d comp format reg vc%d value 0x%x \n", ID, i, state->status);
+	for (i = 0; i < N_CSI_RX_BE_MIPI_COMP_FMT_REG ; i++) {
+		ia_css_print("CSI RX BE STATE Controller %d comp format reg vc%d value 0x%x\n", ID, i, state->status);
 	}
-	ia_css_print("CSI RX BE STATE Controller %d RAW16 0x%x \n", ID, state->raw16);
-	ia_css_print("CSI RX BE STATE Controller %d RAW18 0x%x \n", ID, state->raw18);
-	ia_css_print("CSI RX BE STATE Controller %d Force RAW8 0x%x \n", ID, state->force_raw8);
-	ia_css_print("CSI RX BE STATE Controller %d IRQ state 0x%x \n", ID, state->irq_status);
+	ia_css_print("CSI RX BE STATE Controller %d RAW16 0x%x\n", ID, state->raw16);
+	ia_css_print("CSI RX BE STATE Controller %d RAW18 0x%x\n", ID, state->raw18);
+	ia_css_print("CSI RX BE STATE Controller %d Force RAW8 0x%x\n", ID, state->force_raw8);
+	ia_css_print("CSI RX BE STATE Controller %d IRQ state 0x%x\n", ID, state->irq_status);
 #if 0   /* ToDo:Getting device access error for this register */
-	for(i = 0; i <N_CSI_RX_BE_MIPI_CUSTOM_PEC ; i++) {
-		ia_css_print("CSI RX BE STATE Controller %d PEC ID %d custom pec 0x%x \n", ID, i, state->pec[i]);
+	for (i = 0; i < N_CSI_RX_BE_MIPI_CUSTOM_PEC ; i++) {
+		ia_css_print("CSI RX BE STATE Controller %d PEC ID %d custom pec 0x%x\n", ID, i, state->pec[i]);
 	}
 #endif
-	ia_css_print("CSI RX BE STATE Controller %d Global LUT disregard reg 0x%x \n", ID, state->global_lut_disregard_reg);
-	ia_css_print("CSI RX BE STATE Controller %d packet stall reg 0x%x \n", ID, state->packet_status_stall);
+	ia_css_print("CSI RX BE STATE Controller %d Global LUT disregard reg 0x%x\n", ID, state->global_lut_disregard_reg);
+	ia_css_print("CSI RX BE STATE Controller %d packet stall reg 0x%x\n", ID, state->packet_status_stall);
 	/*
 	 * Get the values of the register-set per
 	 * lut.
 	 */
 	for (i = 0; i < N_SHORT_PACKET_LUT_ENTRIES[ID]; i++) {
-		ia_css_print("CSI RX BE STATE Controller ID %d Short packat entry %d shart packet lut id 0x%x \n", ID, i, state->short_packet_lut_entry[i]);
+		ia_css_print("CSI RX BE STATE Controller ID %d Short packat entry %d shart packet lut id 0x%x\n", ID, i, state->short_packet_lut_entry[i]);
 	}
 	for (i = 0; i < N_LONG_PACKET_LUT_ENTRIES[ID]; i++) {
-		ia_css_print("CSI RX BE STATE Controller ID %d Long packat entry %d Long packet lut id 0x%x \n", ID, i, state->long_packet_lut_entry[i]);
+		ia_css_print("CSI RX BE STATE Controller ID %d Long packat entry %d Long packet lut id 0x%x\n", ID, i, state->long_packet_lut_entry[i]);
 	}
 }
+
 /* end of NCI */
 /*****************************************************
  *
@@ -231,9 +230,8 @@ static inline hrt_data csi_rx_fe_ctrl_reg_load(
 {
 	assert(ID < N_CSI_RX_FRONTEND_ID);
 	assert(CSI_RX_FE_CTRL_BASE[ID] != (hrt_address)-1);
-	return ia_css_device_load_uint32(CSI_RX_FE_CTRL_BASE[ID] + reg*sizeof(hrt_data));
+	return ia_css_device_load_uint32(CSI_RX_FE_CTRL_BASE[ID] + reg * sizeof(hrt_data));
 }
-
 
 /**
  * @brief Store a value to the register.
@@ -247,8 +245,9 @@ static inline void csi_rx_fe_ctrl_reg_store(
 	assert(ID < N_CSI_RX_FRONTEND_ID);
 	assert(CSI_RX_FE_CTRL_BASE[ID] != (hrt_address)-1);
 
-	ia_css_device_store_uint32(CSI_RX_FE_CTRL_BASE[ID] + reg*sizeof(hrt_data), value);
+	ia_css_device_store_uint32(CSI_RX_FE_CTRL_BASE[ID] + reg * sizeof(hrt_data), value);
 }
+
 /**
  * @brief Load the register value.
  * Refer to "csi_rx_public.h" for details.
@@ -259,9 +258,8 @@ static inline hrt_data csi_rx_be_ctrl_reg_load(
 {
 	assert(ID < N_CSI_RX_BACKEND_ID);
 	assert(CSI_RX_BE_CTRL_BASE[ID] != (hrt_address)-1);
-	return ia_css_device_load_uint32(CSI_RX_BE_CTRL_BASE[ID] + reg*sizeof(hrt_data));
+	return ia_css_device_load_uint32(CSI_RX_BE_CTRL_BASE[ID] + reg * sizeof(hrt_data));
 }
-
 
 /**
  * @brief Store a value to the register.
@@ -275,8 +273,9 @@ static inline void csi_rx_be_ctrl_reg_store(
 	assert(ID < N_CSI_RX_BACKEND_ID);
 	assert(CSI_RX_BE_CTRL_BASE[ID] != (hrt_address)-1);
 
-	ia_css_device_store_uint32(CSI_RX_BE_CTRL_BASE[ID] + reg*sizeof(hrt_data), value);
+	ia_css_device_store_uint32(CSI_RX_BE_CTRL_BASE[ID] + reg * sizeof(hrt_data), value);
 }
+
 /* end of DLI */
 
 #endif /* __CSI_RX_PRIVATE_H_INCLUDED__ */

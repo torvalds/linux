@@ -49,11 +49,11 @@ more details.
  * @brief Data structure for the tagger buffer element.
  */
 typedef struct {
-	uint32_t frame;	/* the frame value stored in the element */
-	uint32_t param;	/* the param value stored in the element */
-	uint8_t mark;	/* the mark on the element */
-	uint8_t lock;	/* the lock on the element */
-	uint8_t exp_id; /* exp_id of frame, for debugging only */
+	u32 frame;	/* the frame value stored in the element */
+	u32 param;	/* the param value stored in the element */
+	u8 mark;	/* the mark on the element */
+	u8 lock;	/* the lock on the element */
+	u8 exp_id; /* exp_id of frame, for debugging only */
 } ia_css_tagger_buf_sp_elem_t;
 
 #endif /* __IA_CSS_TAGGER_COMMON_H__ */

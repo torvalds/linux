@@ -37,7 +37,7 @@ enum ia_css_err ia_css_convert_errno(
  * @return	IA_CSS_SUCCESS or error code upon error.
  *
  */
-extern enum ia_css_err ia_css_util_check_vf_info(
+enum ia_css_err ia_css_util_check_vf_info(
 	const struct ia_css_frame_info * const info);
 
 /* @brief check input configuration.
@@ -47,7 +47,7 @@ extern enum ia_css_err ia_css_util_check_vf_info(
  * @return	IA_CSS_SUCCESS or error code upon error.
  *
  */
-extern enum ia_css_err ia_css_util_check_input(
+enum ia_css_err ia_css_util_check_input(
 	const struct ia_css_stream_config * const stream_config,
 	bool must_be_raw,
 	bool must_be_yuv);
@@ -59,7 +59,7 @@ extern enum ia_css_err ia_css_util_check_input(
  * @return	IA_CSS_SUCCESS or error code upon error.
  *
  */
-extern enum ia_css_err ia_css_util_check_vf_out_info(
+enum ia_css_err ia_css_util_check_vf_out_info(
 	const struct ia_css_frame_info * const out_info,
 	const struct ia_css_frame_info * const vf_info);
 
@@ -70,7 +70,7 @@ extern enum ia_css_err ia_css_util_check_vf_out_info(
  * @return	IA_CSS_SUCCESS or error code upon error.
  *
  */
-extern enum ia_css_err ia_css_util_check_res(
+enum ia_css_err ia_css_util_check_res(
 	unsigned int width,
 	unsigned int height);
 
@@ -83,7 +83,7 @@ extern enum ia_css_err ia_css_util_check_res(
  *            equal than those of b, false otherwise
  *
  */
-extern bool ia_css_util_res_leq(
+bool ia_css_util_res_leq(
 	struct ia_css_resolution a,
 	struct ia_css_resolution b);
 
@@ -94,7 +94,7 @@ extern bool ia_css_util_res_leq(
  *
  * @returns true if resolution is zero
  */
-extern bool ia_css_util_resolution_is_zero(
+bool ia_css_util_resolution_is_zero(
 		const struct ia_css_resolution resolution);
 
 /**
@@ -104,7 +104,7 @@ extern bool ia_css_util_resolution_is_zero(
  *
  * @returns true if resolution is even
  */
-extern bool ia_css_util_resolution_is_even(
+bool ia_css_util_resolution_is_even(
 		const struct ia_css_resolution resolution);
 
 #endif
@@ -115,7 +115,7 @@ extern bool ia_css_util_resolution_is_even(
  * @return bits per pixel based on given parameters.
  *
  */
-extern unsigned int ia_css_util_input_format_bpp(
+unsigned int ia_css_util_input_format_bpp(
 	enum atomisp_input_format stream_format,
 	bool two_ppc);
 
@@ -125,7 +125,7 @@ extern unsigned int ia_css_util_input_format_bpp(
  * @return true if the input format is raw or false otherwise
  *
  */
-extern bool ia_css_util_is_input_format_raw(
+bool ia_css_util_is_input_format_raw(
 	enum atomisp_input_format stream_format);
 
 /* @brief check if input format it yuv
@@ -134,8 +134,7 @@ extern bool ia_css_util_is_input_format_raw(
  * @return true if the input format is yuv or false otherwise
  *
  */
-extern bool ia_css_util_is_input_format_yuv(
+bool ia_css_util_is_input_format_yuv(
 	enum atomisp_input_format stream_format);
 
 #endif /* __IA_CSS_UTIL_H__ */
-

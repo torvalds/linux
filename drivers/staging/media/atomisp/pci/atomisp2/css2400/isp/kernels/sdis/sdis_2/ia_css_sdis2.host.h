@@ -28,25 +28,25 @@ struct sh_css_isp_sdis_vert_coef_tbl;
 struct sh_css_isp_sdis_hori_proj_tbl;
 struct sh_css_isp_sdis_vert_proj_tbl;
 
-void ia_css_sdis2_horicoef_vmem_encode (
+void ia_css_sdis2_horicoef_vmem_encode(
 	struct sh_css_isp_sdis_hori_coef_tbl *to,
 	const struct ia_css_dvs2_coefficients *from,
-	unsigned size);
+	unsigned int size);
 
-void ia_css_sdis2_vertcoef_vmem_encode (
+void ia_css_sdis2_vertcoef_vmem_encode(
 	struct sh_css_isp_sdis_vert_coef_tbl *to,
 	const struct ia_css_dvs2_coefficients *from,
-	unsigned size);
+	unsigned int size);
 
-void ia_css_sdis2_horiproj_encode (
+void ia_css_sdis2_horiproj_encode(
 	struct sh_css_isp_sdis_hori_proj_tbl *to,
 	const struct ia_css_dvs2_coefficients *from,
-	unsigned size);
+	unsigned int size);
 
-void ia_css_sdis2_vertproj_encode (
+void ia_css_sdis2_vertproj_encode(
 	struct sh_css_isp_sdis_vert_proj_tbl *to,
 	const struct ia_css_dvs2_coefficients *from,
-	unsigned size);
+	unsigned int size);
 
 void ia_css_get_isp_dvs2_coefficients(
 	struct ia_css_stream *stream,
@@ -81,15 +81,15 @@ ia_css_isp_dvs2_statistics_free(
 	struct ia_css_isp_dvs_statistics *me);
 
 void ia_css_sdis2_horicoef_debug_dtrace(
-	const struct ia_css_dvs2_coefficients *config, unsigned level);
+	const struct ia_css_dvs2_coefficients *config, unsigned int level);
 
 void ia_css_sdis2_vertcoef_debug_dtrace(
-	const struct ia_css_dvs2_coefficients *config, unsigned level);
+	const struct ia_css_dvs2_coefficients *config, unsigned int level);
 
 void ia_css_sdis2_horiproj_debug_dtrace(
-	const struct ia_css_dvs2_coefficients *config, unsigned level);
+	const struct ia_css_dvs2_coefficients *config, unsigned int level);
 
 void ia_css_sdis2_vertproj_debug_dtrace(
-	const struct ia_css_dvs2_coefficients *config, unsigned level);
+	const struct ia_css_dvs2_coefficients *config, unsigned int level);
 
 #endif /* __IA_CSS_SDIS2_HOST_H */

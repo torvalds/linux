@@ -31,23 +31,23 @@ ia_css_ob_encode(
 	struct sh_css_isp_ob_params *to,
 	const struct ia_css_ob_config *from,
 	const struct sh_css_isp_ob_stream_config *config,
-	unsigned size);
+	unsigned int size);
 
 void
 ia_css_ob_vmem_encode(
 	struct sh_css_isp_ob_vmem_params *to,
 	const struct ia_css_ob_config *from,
 	const struct sh_css_isp_ob_stream_config *config,
-	unsigned size);
+	unsigned int size);
 
 void
 ia_css_ob_dump(
 	const struct sh_css_isp_ob_params *ob,
-	unsigned level);
+	unsigned int level);
 
 void
 ia_css_ob_debug_dtrace(
-	const struct ia_css_ob_config *config, unsigned level)
+	const struct ia_css_ob_config *config, unsigned int level)
 ;
 
 #endif /* __IA_CSS_OB_HOST_H */

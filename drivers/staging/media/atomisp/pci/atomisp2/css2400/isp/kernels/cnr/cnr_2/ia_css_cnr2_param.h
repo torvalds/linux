@@ -19,14 +19,14 @@
 
 /* CNR (Chroma Noise Reduction) */
 struct sh_css_isp_cnr_params {
-	int32_t coring_u;
-	int32_t coring_v;
-	int32_t sense_gain_vy;
-	int32_t sense_gain_vu;
-	int32_t sense_gain_vv;
-	int32_t sense_gain_hy;
-	int32_t sense_gain_hu;
-	int32_t sense_gain_hv;
+	s32 coring_u;
+	s32 coring_v;
+	s32 sense_gain_vy;
+	s32 sense_gain_vu;
+	s32 sense_gain_vv;
+	s32 sense_gain_hy;
+	s32 sense_gain_hu;
+	s32 sense_gain_hv;
 };
 
 #endif /* __IA_CSS_CNR2_PARAM_H */

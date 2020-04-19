@@ -35,7 +35,7 @@ void
 ia_css_dvs_config(
 	struct sh_css_isp_dvs_isp_config *to,
 	const struct ia_css_dvs_configuration  *from,
-	unsigned size)
+	unsigned int size)
 {
 	(void)size;
 	to->num_horizontal_blocks =
@@ -80,32 +80,30 @@ convert_coords_to_ispparams(
 					   DVS_GDC_BLI_INTERP_ENVELOPE : DVS_GDC_BCI_INTERP_ENVELOPE);
 
 	/* number of blocks per height and width */
-	unsigned int num_blocks_y =  (uv_flag ? DVS_NUM_BLOCKS_Y_CHROMA(o_height) : DVS_NUM_BLOCKS_Y(o_height) );
-	unsigned int num_blocks_x =  (uv_flag ? DVS_NUM_BLOCKS_X_CHROMA(o_width)  : DVS_NUM_BLOCKS_X(o_width)  ); // round num_x up to blockdim_x, if it concerns the Y0Y1 block (uv_flag==0) round up to even
-
+	unsigned int num_blocks_y =  (uv_flag ? DVS_NUM_BLOCKS_Y_CHROMA(o_height) : DVS_NUM_BLOCKS_Y(o_height));
+	unsigned int num_blocks_x =  (uv_flag ? DVS_NUM_BLOCKS_X_CHROMA(o_width)  : DVS_NUM_BLOCKS_X(o_width)); // round num_x up to blockdim_x, if it concerns the Y0Y1 block (uv_flag==0) round up to even
 
 	unsigned int in_stride = i_stride * DVS_INPUT_BYTES_PER_PIXEL;
-	unsigned width, height;
+	unsigned int width, height;
 	unsigned int *xbuff = NULL;
 	unsigned int *ybuff = NULL;
 	struct gdc_warp_param_mem_s *ptr;
 
-	assert(config != NULL);
-	assert(gdc_warp_table != NULL);
-	assert(gdc_warp_table->address != NULL);
+	assert(config);
+	assert(gdc_warp_table);
+	assert(gdc_warp_table->address);
 
 	ptr = (struct gdc_warp_param_mem_s *)gdc_warp_table->address;
 
 	ptr += (2 * uv_flag); /* format is Y0 Y1 UV, so UV starts at 3rd position */
 
-	if(uv_flag == 0)
+	if (uv_flag == 0)
 	{
 		xbuff = config->xcoords_y;
 		ybuff = config->ycoords_y;
 		width = config->width_y;
 		height = config->height_y;
-	}
-	else
+	} else
 	{
 		xbuff = config->xcoords_uv;
 		ybuff = config->ycoords_uv;
@@ -115,7 +113,7 @@ convert_coords_to_ispparams(
 
 	IA_CSS_LOG("blockdim_x %d blockdim_y %d",
 		   DVS_BLOCKDIM_X, DVS_BLOCKDIM_Y_LUMA >> uv_flag);
-	IA_CSS_LOG("num_blocks_x %d num_blocks_y %d", num_blocks_x,num_blocks_y);
+	IA_CSS_LOG("num_blocks_x %d num_blocks_y %d", num_blocks_x, num_blocks_y);
 	IA_CSS_LOG("width %d height %d", width, height);
 
 	assert(width == num_blocks_x + 1); // the width and height of the provided morphing table should be 1 more than the number of blocks
@@ -123,16 +121,15 @@ convert_coords_to_ispparams(
 
 	for (j = 0; j < num_blocks_y; j++) {
 		for (i = 0; i < num_blocks_x; i++) {
-
 			x00 = xbuff[j * width + i];
-			x01 = xbuff[j * width + (i+1)];
-			x10 = xbuff[(j+1) * width + i];
-			x11 = xbuff[(j+1) * width + (i+1)];
+			x01 = xbuff[j * width + (i + 1)];
+			x10 = xbuff[(j + 1) * width + i];
+			x11 = xbuff[(j + 1) * width + (i + 1)];
 
 			y00 = ybuff[j * width + i];
-			y01 = ybuff[j * width + (i+1)];
-			y10 = ybuff[(j+1) * width + i];
-			y11 = ybuff[(j+1) * width + (i+1)];
+			y01 = ybuff[j * width + (i + 1)];
+			y10 = ybuff[(j + 1) * width + i];
+			y11 = ybuff[(j + 1) * width + (i + 1)];
 
 			xmin = min(x00, x10);
 			xmax = max(x01, x11);
@@ -140,11 +137,11 @@ convert_coords_to_ispparams(
 			ymax = max(y10, y11);
 
 			/* Assert that right column's X is greater */
-			assert ( x01 >= xmin);
-			assert ( x11 >= xmin);
+			assert(x01 >= xmin);
+			assert(x11 >= xmin);
 			/* Assert that bottom row's Y is greater */
-			assert ( y10 >= ymin);
-			assert ( y11 >= ymin);
+			assert(y10 >= ymin);
+			assert(y11 >= ymin);
 
 			topleft_y = ymin >> DVS_COORD_FRAC_BITS;
 			topleft_x = ((xmin >> DVS_COORD_FRAC_BITS)
@@ -201,14 +198,14 @@ convert_coords_to_ispparams(
 			printf("p3_x: %d\n", s.p3_x);
 			printf("p3_y: %d\n", s.p3_y);
 
-			printf("p0_x_nofrac[0]: %d\n", s.p0_x>>DVS_COORD_FRAC_BITS);
-			printf("p0_y_nofrac[1]: %d\n", s.p0_y>>DVS_COORD_FRAC_BITS);
-			printf("p1_x_nofrac[2]: %d\n", s.p1_x>>DVS_COORD_FRAC_BITS);
-			printf("p1_y_nofrac[3]: %d\n", s.p1_y>>DVS_COORD_FRAC_BITS);
-			printf("p2_x_nofrac[0]: %d\n", s.p2_x>>DVS_COORD_FRAC_BITS);
-			printf("p2_y_nofrac[1]: %d\n", s.p2_y>>DVS_COORD_FRAC_BITS);
-			printf("p3_x_nofrac[2]: %d\n", s.p3_x>>DVS_COORD_FRAC_BITS);
-			printf("p3_y_nofrac[3]: %d\n", s.p3_y>>DVS_COORD_FRAC_BITS);
+			printf("p0_x_nofrac[0]: %d\n", s.p0_x >> DVS_COORD_FRAC_BITS);
+			printf("p0_y_nofrac[1]: %d\n", s.p0_y >> DVS_COORD_FRAC_BITS);
+			printf("p1_x_nofrac[2]: %d\n", s.p1_x >> DVS_COORD_FRAC_BITS);
+			printf("p1_y_nofrac[3]: %d\n", s.p1_y >> DVS_COORD_FRAC_BITS);
+			printf("p2_x_nofrac[0]: %d\n", s.p2_x >> DVS_COORD_FRAC_BITS);
+			printf("p2_y_nofrac[1]: %d\n", s.p2_y >> DVS_COORD_FRAC_BITS);
+			printf("p3_x_nofrac[2]: %d\n", s.p3_x >> DVS_COORD_FRAC_BITS);
+			printf("p3_y_nofrac[3]: %d\n", s.p3_y >> DVS_COORD_FRAC_BITS);
 			printf("\n");
 #endif
 
@@ -221,7 +218,7 @@ convert_coords_to_ispparams(
 			if (uv_flag)
 				ptr += 3;
 			else
-				ptr += (1 + (i&1));
+				ptr += (1 + (i & 1));
 		}
 	}
 }
@@ -238,9 +235,9 @@ convert_allocate_dvs_6axis_config(
 	struct ia_css_host_data *me;
 	struct gdc_warp_param_mem_s *isp_data_ptr;
 
-	assert(binary != NULL);
-	assert(dvs_6axis_config != NULL);
-	assert(dvs_in_frame_info != NULL);
+	assert(binary);
+	assert(dvs_6axis_config);
+	assert(dvs_in_frame_info);
 
 	me = ia_css_host_data_allocate((size_t)((DVS_6AXIS_BYTES(binary) / 2) * 3));
 
@@ -264,12 +261,12 @@ convert_allocate_dvs_6axis_config(
 
 	if (dvs_in_frame_info->format == IA_CSS_FRAME_FORMAT_YUV420) {
 		/*YUV420 has half the stride for U/V plane*/
-		i_stride /=2;
+		i_stride /= 2;
 	}
 
 	/* UV plane (packed inside the y plane) */
 	convert_coords_to_ispparams(me, dvs_6axis_config,
-				    i_stride, o_width/2, o_height/2, 1);
+				    i_stride, o_width / 2, o_height / 2, 1);
 
 	return me;
 }
@@ -281,11 +278,11 @@ store_dvs_6axis_config(
 	const struct ia_css_frame_info *dvs_in_frame_info,
 	hrt_vaddress ddr_addr_y)
 {
-
 	struct ia_css_host_data *me;
-	assert(dvs_6axis_config != NULL);
+
+	assert(dvs_6axis_config);
 	assert(ddr_addr_y != mmgr_NULL);
-	assert(dvs_in_frame_info != NULL);
+	assert(dvs_in_frame_info);
 
 	me = convert_allocate_dvs_6axis_config(dvs_6axis_config,
 				 binary,
@@ -303,4 +300,3 @@ store_dvs_6axis_config(
 
 	return IA_CSS_SUCCESS;
 }
-

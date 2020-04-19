@@ -34,7 +34,7 @@ STORAGE_CLASS_FIFO_MONITOR_C void fifo_switch_set(
 	const hrt_data				sel)
 {
 	assert(ID == FIFO_MONITOR0_ID);
-	assert(FIFO_MONITOR_BASE[ID] != (hrt_address)-1);
+	assert(FIFO_MONITOR_BASE[ID] != (hrt_address) - 1);
 	assert(switch_id < N_FIFO_SWITCH);
 	(void)ID;
 
@@ -48,13 +48,12 @@ STORAGE_CLASS_FIFO_MONITOR_C hrt_data fifo_switch_get(
 	const fifo_switch_t			switch_id)
 {
 	assert(ID == FIFO_MONITOR0_ID);
-	assert(FIFO_MONITOR_BASE[ID] != (hrt_address)-1);
+	assert(FIFO_MONITOR_BASE[ID] != (hrt_address) - 1);
 	assert(switch_id < N_FIFO_SWITCH);
 	(void)ID;
 
 	return gp_device_reg_load(GP_DEVICE0_ID, FIFO_SWITCH_ADDR[switch_id]);
 }
-
 
 STORAGE_CLASS_FIFO_MONITOR_C void fifo_monitor_reg_store(
 	const fifo_monitor_ID_t		ID,
@@ -62,8 +61,8 @@ STORAGE_CLASS_FIFO_MONITOR_C void fifo_monitor_reg_store(
 	const hrt_data				value)
 {
 	assert(ID < N_FIFO_MONITOR_ID);
-	assert(FIFO_MONITOR_BASE[ID] != (hrt_address)-1);
-	ia_css_device_store_uint32(FIFO_MONITOR_BASE[ID] + reg*sizeof(hrt_data), value);
+	assert(FIFO_MONITOR_BASE[ID] != (hrt_address) - 1);
+	ia_css_device_store_uint32(FIFO_MONITOR_BASE[ID] + reg * sizeof(hrt_data), value);
 	return;
 }
 
@@ -72,8 +71,8 @@ STORAGE_CLASS_FIFO_MONITOR_C hrt_data fifo_monitor_reg_load(
 	const unsigned int			reg)
 {
 	assert(ID < N_FIFO_MONITOR_ID);
-	assert(FIFO_MONITOR_BASE[ID] != (hrt_address)-1);
-	return ia_css_device_load_uint32(FIFO_MONITOR_BASE[ID] + reg*sizeof(hrt_data));
+	assert(FIFO_MONITOR_BASE[ID] != (hrt_address) - 1);
+	return ia_css_device_load_uint32(FIFO_MONITOR_BASE[ID] + reg * sizeof(hrt_data));
 }
 
 #endif /* __FIFO_MONITOR_PRIVATE_H_INCLUDED__ */

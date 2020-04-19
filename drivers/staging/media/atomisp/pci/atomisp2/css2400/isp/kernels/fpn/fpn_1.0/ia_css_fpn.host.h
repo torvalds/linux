@@ -23,18 +23,18 @@ void
 ia_css_fpn_encode(
 	struct sh_css_isp_fpn_params *to,
 	const struct ia_css_fpn_table *from,
-	unsigned size);
+	unsigned int size);
 
 void
 ia_css_fpn_dump(
 	const struct sh_css_isp_fpn_params *fpn,
-	unsigned level);
+	unsigned int level);
 
 void
 ia_css_fpn_config(
 	struct sh_css_isp_fpn_isp_config      *to,
 	const struct ia_css_fpn_configuration *from,
-	unsigned size);
+	unsigned int size);
 
 void
 ia_css_fpn_configure(

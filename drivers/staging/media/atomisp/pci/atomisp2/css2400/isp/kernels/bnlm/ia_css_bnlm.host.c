@@ -21,15 +21,15 @@
 #include <assert_support.h>
 
 #define BNLM_DIV_LUT_SIZE	(12)
-static const int32_t div_lut_nearests[BNLM_DIV_LUT_SIZE] = {
+static const s32 div_lut_nearests[BNLM_DIV_LUT_SIZE] = {
 	0, 454, 948, 1484, 2070, 2710, 3412, 4184, 5035, 5978, 7025, 8191
 };
 
-static const int32_t div_lut_slopes[BNLM_DIV_LUT_SIZE] = {
+static const s32 div_lut_slopes[BNLM_DIV_LUT_SIZE] = {
 	-7760, -6960, -6216, -5536, -4912, -4344, -3832, -3360, -2936, -2552, -2208, -2208
 };
 
-static const int32_t div_lut_intercepts[BNLM_DIV_LUT_SIZE] = {
+static const s32 div_lut_intercepts[BNLM_DIV_LUT_SIZE] = {
 	8184, 7752, 7336, 6928, 6536, 6152, 5776, 5416, 5064, 4728, 4408, 4408
 };
 
@@ -59,9 +59,9 @@ bnlm_lut_encode(struct bnlm_lut *lut, const int32_t *lut_thr, const int32_t *lut
 	 */
 	assert((lut_size >= 2) && (lut_size <= block_size));
 	/* array lut_thr has (lut_size-1) entries */
-	for (i = 0; i < lut_size-2; i++) {
+	for (i = 0; i < lut_size - 2; i++) {
 		/* Check if the lut_thr is monotonically increasing */
-		assert(lut_thr[i] <= lut_thr[i+1]);
+		assert(lut_thr[i] <= lut_thr[i + 1]);
 	}
 
 	/* Initialize */
@@ -80,6 +80,7 @@ bnlm_lut_encode(struct bnlm_lut *lut, const int32_t *lut_thr, const int32_t *lut
 	/* Copy data from first block to all blocks */
 	for (blk = 1; blk < total_blocks; blk++) {
 		u32 blk_offset = blk * block_size;
+
 		for (i = 1; i < lut_size; i++) {
 			lut->thr[0][blk_offset + i] = lut->thr[0][i];
 			lut->val[0][blk_offset + i] = lut->val[0][i];
@@ -125,12 +126,12 @@ ia_css_bnlm_vmem_encode(
 
 	bnlm_lut_encode(&to->div_lut, div_lut_nearests, div_lut_slopes, BNLM_DIV_LUT_SIZE);
 	memset(to->div_lut_intercepts, 0, sizeof(to->div_lut_intercepts));
-	for(i = 0; i < BNLM_DIV_LUT_SIZE; i++) {
+	for (i = 0; i < BNLM_DIV_LUT_SIZE; i++) {
 		to->div_lut_intercepts[0][i] = div_lut_intercepts[i];
 	}
 
 	memset(to->power_of_2, 0, sizeof(to->power_of_2));
-	for (i = 0; i < (ISP_VEC_ELEMBITS-1); i++) {
+	for (i = 0; i < (ISP_VEC_ELEMBITS - 1); i++) {
 		to->power_of_2[0][i] = 1 << i;
 	}
 }
@@ -159,7 +160,7 @@ ia_css_bnlm_encode(
 void
 ia_css_bnlm_debug_trace(
 	const struct ia_css_bnlm_config *config,
-	unsigned level)
+	unsigned int level)
 {
 	if (!config)
 		return;
@@ -179,5 +180,4 @@ ia_css_bnlm_debug_trace(
 
 	/* ToDo: print traces for LUTs */
 #endif /* IA_CSS_NO_DEBUG */
-
 }

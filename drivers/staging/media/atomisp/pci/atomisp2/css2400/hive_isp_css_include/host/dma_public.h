@@ -26,7 +26,7 @@ typedef struct dma_state_s		dma_state_t;
 
  \return none, state = DMA[ID].state
  */
-extern void dma_get_state(
+void dma_get_state(
 	const dma_ID_t		ID,
 	dma_state_t			*state);
 
@@ -54,7 +54,6 @@ STORAGE_CLASS_DMA_H void dma_reg_store(
 STORAGE_CLASS_DMA_H hrt_data dma_reg_load(
 	const dma_ID_t		ID,
 	const unsigned int	reg);
-
 
 /*! Set maximum burst size of DMA[ID]
 

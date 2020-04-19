@@ -35,11 +35,12 @@
  */
 typedef struct ia_css_circbuf_desc_s ia_css_circbuf_desc_t;
 struct ia_css_circbuf_desc_s {
-	uint8_t size;	/* the maximum number of elements*/
-	uint8_t step;   /* number of bytes per element */
-	uint8_t start;	/* index of the oldest element */
-	uint8_t end;	/* index at which to write the new element */
+	u8 size;	/* the maximum number of elements*/
+	u8 step;   /* number of bytes per element */
+	u8 start;	/* index of the oldest element */
+	u8 end;	/* index at which to write the new element */
 };
+
 #define SIZE_OF_IA_CSS_CIRCBUF_DESC_S_STRUCT				\
 	(4 * sizeof(uint8_t))
 
@@ -48,8 +49,9 @@ struct ia_css_circbuf_desc_s {
  */
 typedef struct ia_css_circbuf_elem_s ia_css_circbuf_elem_t;
 struct ia_css_circbuf_elem_s {
-	uint32_t val;	/* the value stored in the element */
+	u32 val;	/* the value stored in the element */
 };
+
 #define SIZE_OF_IA_CSS_CIRCBUF_ELEM_S_STRUCT				\
 	(sizeof(uint32_t))
 

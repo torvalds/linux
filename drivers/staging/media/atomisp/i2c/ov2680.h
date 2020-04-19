@@ -132,9 +132,7 @@
 #define OV2680_START_STREAMING			0x01
 #define OV2680_STOP_STREAMING			0x00
 
-
 #define OV2680_INVALID_CONFIG	0xffffffff
-
 
 struct regval_list {
 	u16 reg_num;
@@ -294,7 +292,6 @@ struct ov2680_format {
 		{OV2680_TOK_TERM, 0, 0}
 	};
 
-
 #if 0 /* None of the definitions below are used currently */
 	/*
 	 * 176x144 30fps  VBlanking 1lane 10Bit (binning)
@@ -426,7 +423,6 @@ struct ov2680_format {
 		// {OV2680_8BIT, 0x5090, 0x0c},
 		{OV2680_TOK_TERM, 0, 0}
 	};
-
 
 	/*
 	 * 656x496 30fps  VBlanking 1lane 10Bit (binning)
@@ -641,12 +637,12 @@ struct ov2680_format {
 		{OV2680_8BIT, 0x3821, 0x00}, //miror/flip
 		// {OV2680_8BIT, 0x5090, 0x0c},
 		{OV2680_TOK_TERM, 0, 0}
- 	};
+	};
 
 	/*
 	 *   1456*1096 30fps  VBlanking 1lane 10bit(no-scaling)
 	*/
-	static struct ov2680_reg const ov2680_1456x1096_30fps[]= {
+	static struct ov2680_reg const ov2680_1456x1096_30fps[] = {
 		{OV2680_8BIT, 0x3086, 0x00},
 		{OV2680_8BIT, 0x3501, 0x48},
 		{OV2680_8BIT, 0x3502, 0xe0},
@@ -773,7 +769,7 @@ struct ov2680_format {
 		{OV2680_8BIT, 0x4009, 0x09},
 		{OV2680_8BIT, 0x5081, 0x41},
 		{OV2680_TOK_TERM, 0, 0}
-        };
+	};
 #endif
 	/*
 	 * 1616x1216 30fps VBlanking 1lane 10Bit
@@ -821,7 +817,7 @@ struct ov2680_format {
 	static struct ov2680_resolution ov2680_res_preview[] = {
 	{
 		.desc = "ov2680_1616x1216_30fps",
- 	  	.width = 1616,
+		.width = 1616,
 		.height = 1216,
 		.pix_clk_freq = 66,
 		.fps = 30,
@@ -834,7 +830,7 @@ struct ov2680_format {
 		.skip_frames = 3,
 		.regs = ov2680_1616x1216_30fps,
 	},
-   	{
+	{
 		.desc = "ov2680_1616x916_30fps",
 		.width = 1616,
 		.height = 916,
@@ -850,6 +846,7 @@ struct ov2680_format {
 		.regs = ov2680_1616x916_30fps,
 	},
 };
+
 #define N_RES_PREVIEW (ARRAY_SIZE(ov2680_res_preview))
 
 static struct ov2680_resolution *ov2680_res = ov2680_res_preview;

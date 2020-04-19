@@ -30,7 +30,6 @@
  * - local:   system and cell specific constants and identifiers
  */
 
-
 #include "system_local.h"
 #include "csi_rx_local.h"
 

@@ -21,52 +21,50 @@
 #define HRT_GDC_FRAC_BITS               10 /* Number of fractional bits in the GDC block, driven by the size of the LUT */
 
 #define HRT_GDC_BLI_FRAC_BITS            4 /* Number of fractional bits for the bi-linear interpolation type            */
-#define HRT_GDC_BLI_COEF_ONE             (1 << HRT_GDC_BLI_FRAC_BITS)
+#define HRT_GDC_BLI_COEF_ONE             BIT(HRT_GDC_BLI_FRAC_BITS)
 
 #define HRT_GDC_BCI_COEF_BITS           14 /* 14 bits per coefficient                                                   */
-#define HRT_GDC_BCI_COEF_ONE             (1 << (HRT_GDC_BCI_COEF_BITS-2))  /* We represent signed 10 bit coefficients.  */
-                                                                        /* The supported range is [-256, .., +256]      */
-                                                                        /* in 14-bit signed notation,                   */
-                                                                        /* We need all ten bits (MSB must be zero).     */
-                                                                        /* -s is inserted to solve this issue, and      */
-                                                                        /* therefore "1" is equal to +256.              */
-#define HRT_GDC_BCI_COEF_MASK            ((1 << HRT_GDC_BCI_COEF_BITS) - 1) 
+#define HRT_GDC_BCI_COEF_ONE             (1 << (HRT_GDC_BCI_COEF_BITS - 2))  /* We represent signed 10 bit coefficients.  */
+									/* The supported range is [-256, .., +256]      */
+									/* in 14-bit signed notation,                   */
+									/* We need all ten bits (MSB must be zero).     */
+									/* -s is inserted to solve this issue, and      */
+									/* therefore "1" is equal to +256.              */
+#define HRT_GDC_BCI_COEF_MASK            ((1 << HRT_GDC_BCI_COEF_BITS) - 1)
 
-#define HRT_GDC_LUT_BYTES                (HRT_GDC_N*4*2)                /* 1024 addresses, 4 coefficients per address,  */
-                                                                        /* 2 bytes per coefficient                      */
+#define HRT_GDC_LUT_BYTES                (HRT_GDC_N * 4 * 2)                /* 1024 addresses, 4 coefficients per address,  */
+									/* 2 bytes per coefficient                      */
 
-#define _HRT_GDC_REG_ALIGN               4                              
+#define _HRT_GDC_REG_ALIGN               4
 
   //     31  30  29    25 24                     0
   //  |-----|---|--------|------------------------|
   //  | CMD | C | Reg_ID |        Value           |
 
-
   // There are just two commands possible for the GDC block:
-  // 1 - Configure reg 
-  // 0 - Data token    
-  
+  // 1 - Configure reg
+  // 0 - Data token
+
   // C      - Reserved bit
   //          Used in protocol to indicate whether it is C-run or other type of runs
   //          In case of C-run, this bit has a value of 1, for all the other runs, it is 0.
 
   // Reg_ID - Address of the register to be configured
-  
+
   // Value  - Value to store to the addressed register, maximum of 24 bits
 
-  // Configure reg command is not followed by any other token. 
-  // The address of the register and the data to be filled in is contained in the same token 
-  
+  // Configure reg command is not followed by any other token.
+  // The address of the register and the data to be filled in is contained in the same token
+
   // When the first data token is received, it must be:
   //   1. FRX and FRY (device configured in one of the  scaling modes) ***DEFAULT MODE***, or,
   //   2. P0'X        (device configured in one of the tetragon modes)
   // After the first data token is received, pre-defined number of tokens with the following meaning follow:
   //   1. two  tokens: SRC address ; DST address
   //   2. nine tokens: P0'Y, .., P3'Y ; SRC address ; DST address
-  
+
 #define HRT_GDC_CONFIG_CMD             1
 #define HRT_GDC_DATA_CMD               0
-
 
 #define HRT_GDC_CMD_POS               31
 #define HRT_GDC_CMD_BITS               1
@@ -79,15 +77,13 @@
 #define HRT_GDC_FRYIPXFRX_BITS        26
 #define HRT_GDC_P0X_BITS              23
 
-
-#define HRT_GDC_MAX_OXDIM           (8192-64)
+#define HRT_GDC_MAX_OXDIM           (8192 - 64)
 #define HRT_GDC_MAX_OYDIM           4095
-#define HRT_GDC_MAX_IXDIM           (8192-64)
+#define HRT_GDC_MAX_IXDIM           (8192 - 64)
 #define HRT_GDC_MAX_IYDIM           4095
 #define HRT_GDC_MAX_DS_FAC            16
-#define HRT_GDC_MAX_DX                 (HRT_GDC_MAX_DS_FAC*HRT_GDC_N - 1)
+#define HRT_GDC_MAX_DX                 (HRT_GDC_MAX_DS_FAC * HRT_GDC_N - 1)
 #define HRT_GDC_MAX_DY                 HRT_GDC_MAX_DX
-
 
 /* GDC lookup tables entries are 10 bits values, but they're
    stored 2 by 2 as 32 bit values, yielding 16 bits per entry.
@@ -109,17 +105,16 @@
 #define HRT_GDC_MODE_SCALING          0
 #define HRT_GDC_MODE_TETRAGON         1
 
-#define HRT_GDC_LUT_COEFF_OFFSET     16 
-#define HRT_GDC_FRY_BIT_OFFSET       16 
-// FRYIPXFRX is the only register where we store two values in one field, 
-// to save one token in the scaling protocol. 
-// Like this, we have three tokens in the scaling protocol, 
+#define HRT_GDC_LUT_COEFF_OFFSET     16
+#define HRT_GDC_FRY_BIT_OFFSET       16
+// FRYIPXFRX is the only register where we store two values in one field,
+// to save one token in the scaling protocol.
+// Like this, we have three tokens in the scaling protocol,
 // Otherwise, we would have had four.
 // The register bit-map is:
 //   31  26 25      16 15  10 9        0
 //  |------|----------|------|----------|
 //  | XXXX |   FRY    |  IPX |   FRX    |
-
 
 #define HRT_GDC_CE_FSM0_POS           0
 #define HRT_GDC_CE_FSM0_LEN           2
@@ -131,10 +126,9 @@
 //   31            16 15        2 1  0
 //  |----------------|-----------|----|
 //  |      OPX       |    OPY    |FSM0|
-// However, for the time being at least, 
+// However, for the time being at least,
 // this implementation is meaningless in hss model,
 // So, we just return 0
-
 
 #define HRT_GDC_CHK_ENGINE_IDX        0
 #define HRT_GDC_WOIX_IDX              1
@@ -165,6 +159,5 @@
 #define HRT_GDC_PROC_MODE_IDX        26  // 0 = Scaling ; 1 = Tetragon
 
 #define HRT_GDC_LUT_IDX              32
-
 
 #endif /* HRT_GDC_v2_defs_h_ */

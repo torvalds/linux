@@ -17,8 +17,6 @@
 
 //#include "rx_csi_common_defs.h"
 
-
-
 #define MIPI_PKT_DATA_WIDTH                         32
 //#define CLK_CROSSING_FIFO_DEPTH                     16
 #define _CSI_RX_REG_ALIGN                            4
@@ -30,36 +28,34 @@
 // REGISTER DESCRIPTION
 //#define _HRT_CSI_RX_SOFTRESET_REG_IDX                0
 #define _HRT_CSI_RX_ENABLE_REG_IDX                   0
-#define _HRT_CSI_RX_NOF_ENABLED_LANES_REG_IDX        1  
+#define _HRT_CSI_RX_NOF_ENABLED_LANES_REG_IDX        1
 #define _HRT_CSI_RX_ERROR_HANDLING_REG_IDX           2
-#define _HRT_CSI_RX_STATUS_REG_IDX                   3  
-#define _HRT_CSI_RX_STATUS_DLANE_HS_REG_IDX          4  
-#define _HRT_CSI_RX_STATUS_DLANE_LP_REG_IDX          5  
-//#define _HRT_CSI_RX_IRQ_CONFIG_REG_IDX               6  
+#define _HRT_CSI_RX_STATUS_REG_IDX                   3
+#define _HRT_CSI_RX_STATUS_DLANE_HS_REG_IDX          4
+#define _HRT_CSI_RX_STATUS_DLANE_LP_REG_IDX          5
+//#define _HRT_CSI_RX_IRQ_CONFIG_REG_IDX               6
 #define _HRT_CSI_RX_DLY_CNT_TERMEN_CLANE_REG_IDX     6
 #define _HRT_CSI_RX_DLY_CNT_SETTLE_CLANE_REG_IDX     7
-#define _HRT_CSI_RX_DLY_CNT_TERMEN_DLANE_REG_IDX(lane_idx)    (8+(2*lane_idx))
-#define _HRT_CSI_RX_DLY_CNT_SETTLE_DLANE_REG_IDX(lane_idx)    (8+(2*lane_idx)+1)
+#define _HRT_CSI_RX_DLY_CNT_TERMEN_DLANE_REG_IDX(lane_idx)    (8 + (2 * lane_idx))
+#define _HRT_CSI_RX_DLY_CNT_SETTLE_DLANE_REG_IDX(lane_idx)    (8 + (2 * lane_idx) + 1)
 
-#define _HRT_CSI_RX_NOF_REGISTERS(nof_dlanes)      (8+2*(nof_dlanes))
-
+#define _HRT_CSI_RX_NOF_REGISTERS(nof_dlanes)      (8 + 2 * (nof_dlanes))
 
 //#define _HRT_CSI_RX_SOFTRESET_REG_WIDTH              1
 #define _HRT_CSI_RX_ENABLE_REG_WIDTH                 1
 #define _HRT_CSI_RX_NOF_ENABLED_LANES_REG_WIDTH      3
-#define _HRT_CSI_RX_ERROR_HANDLING_REG_WIDTH         4 
-#define _HRT_CSI_RX_STATUS_REG_WIDTH                 1   
-#define _HRT_CSI_RX_STATUS_DLANE_HS_REG_WIDTH        8  
+#define _HRT_CSI_RX_ERROR_HANDLING_REG_WIDTH         4
+#define _HRT_CSI_RX_STATUS_REG_WIDTH                 1
+#define _HRT_CSI_RX_STATUS_DLANE_HS_REG_WIDTH        8
 #define _HRT_CSI_RX_STATUS_DLANE_LP_REG_WIDTH        24
 #define _HRT_CSI_RX_IRQ_CONFIG_REG_WIDTH             (CSI_RX_NOF_IRQS_ISP_DOMAIN)
 #define _HRT_CSI_RX_DLY_CNT_REG_WIDTH                24
-//#define _HRT_CSI_RX_IRQ_STATUS_REG_WIDTH            NOF_IRQS 
+//#define _HRT_CSI_RX_IRQ_STATUS_REG_WIDTH            NOF_IRQS
 //#define _HRT_CSI_RX_IRQ_CLEAR_REG_WIDTH             0
-
 
 #define ONE_LANE_ENABLED                             0
 #define TWO_LANES_ENABLED                            1
-#define THREE_LANES_ENABLED                          2    
+#define THREE_LANES_ENABLED                          2
 #define FOUR_LANES_ENABLED                           3
 
 // Error handling reg bit positions
@@ -71,7 +67,7 @@
 #define _HRT_CSI_RX_IRQ_CONFIG_REG_VAL_POSEDGE      0
 #define _HRT_CSI_RX_IRQ_CONFIG_REG_VAL_ORIGINAL     1
 
-// Interrupt bits 
+// Interrupt bits
 #define _HRT_RX_CSI_IRQ_SINGLE_PH_ERROR_CORRECTED   0
 #define _HRT_RX_CSI_IRQ_MULTIPLE_PH_ERROR_DETECTED  1
 #define _HRT_RX_CSI_IRQ_PAYLOAD_CHECKSUM_ERROR      2
@@ -109,7 +105,6 @@
 #define _HRT_RX_CSI_IRQ_ERR_ESCAPE_BIT            15
 #define _HRT_RX_CSI_IRQ_ERR_LINE_SYNC_BIT         16
 */
-
 
 ////Bit Description for reg _HRT_CSI_RX_STATUS_DLANE_HS_REG_IDX
 #define _HRT_CSI_RX_STATUS_DLANE_HS_SOT_ERR_LANE0        0
@@ -171,5 +166,4 @@
 #define _HRT_RX_CSI_DATA_FORMAT_ID_SOL                2   /* 00 0010    line start                                       */
 #define _HRT_RX_CSI_DATA_FORMAT_ID_EOL                3   /* 00 0011    line end                                         */
 
-
-#endif /* _csi_rx_defs_h */ 
+#endif /* _csi_rx_defs_h */

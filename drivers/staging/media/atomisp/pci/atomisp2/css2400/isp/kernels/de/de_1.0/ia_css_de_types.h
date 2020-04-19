@@ -40,4 +40,3 @@ struct ia_css_de_config {
 };
 
 #endif /* __IA_CSS_DE_TYPES_H */
-

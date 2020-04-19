@@ -46,8 +46,8 @@ input_system_error_t ia_css_isys_init(void)
 	backend_channel_cfg_t backend_ch1;
 	target_cfg2400_t targetB;
 	target_cfg2400_t targetC;
-	uint32_t acq_mem_region_size = 24;
-	uint32_t acq_nof_mem_regions = 2;
+	u32 acq_mem_region_size = 24;
+	u32 acq_nof_mem_regions = 2;
 	input_system_error_t error = INPUT_SYSTEM_ERR_NO_ERROR;
 
 	memset(&backend_ch0, 0, sizeof(backend_channel_cfg_t));

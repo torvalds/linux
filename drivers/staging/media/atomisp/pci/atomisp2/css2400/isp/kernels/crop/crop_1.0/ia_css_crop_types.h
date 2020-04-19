@@ -32,4 +32,3 @@ struct ia_css_crop_configuration {
 };
 
 #endif /* __IA_CSS_CROP_TYPES_H */
-

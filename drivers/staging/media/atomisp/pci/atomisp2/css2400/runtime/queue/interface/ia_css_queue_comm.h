@@ -58,12 +58,12 @@ DMAed to access single element.*/
 
 /* Remote Queue object descriptor */
 struct ia_css_queue_remote {
-	uint32_t cb_desc_addr; /*Circbuf desc address for remote queues*/
-	uint32_t cb_elems_addr; /*Circbuf elements addr for remote queue*/
-	uint8_t location;    /* Cell location for queue */
-	uint8_t proc_id;     /* Processor id for queue access */
+	u32 cb_desc_addr; /*Circbuf desc address for remote queues*/
+	u32 cb_elems_addr; /*Circbuf elements addr for remote queue*/
+	u8 location;    /* Cell location for queue */
+	u8 proc_id;     /* Processor id for queue access */
 };
-typedef struct ia_css_queue_remote ia_css_queue_remote_t;
 
+typedef struct ia_css_queue_remote ia_css_queue_remote_t;
 
 #endif /* __IA_CSS_QUEUE_COMM_H */

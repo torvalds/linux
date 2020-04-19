@@ -55,15 +55,14 @@ struct ia_css_ob_config {
 					(used for Fixed Mode only).
 					u0.16, [0,65535],
 					default/ineffective 0 */
-	uint16_t start_position; /** Start position of OB area
+	u16 start_position; /** Start position of OB area
 					(used for Raster Mode only).
 					u16.0, [0,63],
 					default/ineffective 0 */
-	uint16_t end_position;  /** End position of OB area
+	u16 end_position;  /** End position of OB area
 					(used for Raster Mode only).
 					u16.0, [0,63],
 					default/ineffective 0 */
 };
 
 #endif /* __IA_CSS_OB_TYPES_H */
-

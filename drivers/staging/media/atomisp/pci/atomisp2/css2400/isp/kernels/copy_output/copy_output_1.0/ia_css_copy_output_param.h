@@ -20,7 +20,7 @@ struct ia_css_copy_output_configuration {
 };
 
 struct sh_css_isp_copy_output_isp_config {
-	uint32_t enable;
+	u32 enable;
 };
 
 #endif /* __IA_CSS_COPY_PARAM_H */

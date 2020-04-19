@@ -25,4 +25,4 @@
 
 #define _HRT_IRQ_CONTROLLER_REG_ALIGN 4
 
-#endif /* _irq_controller_defs_h */   
+#endif /* _irq_controller_defs_h */

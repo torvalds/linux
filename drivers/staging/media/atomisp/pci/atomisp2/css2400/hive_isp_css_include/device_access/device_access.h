@@ -75,15 +75,14 @@ typedef	hrt_address		sys_address;
 
  \return none,
  */
-extern void device_set_base_address(
+void device_set_base_address(
 	const sys_address		base_addr);
-
 
 /*! Get the (sub)system base address
 
  \return base_address,
  */
-extern sys_address device_get_base_address(void);
+sys_address device_get_base_address(void);
 
 /*! Read an 8-bit value from a device register or memory in the device
 
@@ -91,7 +90,7 @@ extern sys_address device_get_base_address(void);
 
  \return device[addr]
  */
-extern uint8_t ia_css_device_load_uint8(
+uint8_t ia_css_device_load_uint8(
 	const hrt_address		addr);
 
 /*! Read a 16-bit value from a device register or memory in the device
@@ -100,7 +99,7 @@ extern uint8_t ia_css_device_load_uint8(
 
  \return device[addr]
  */
-extern uint16_t ia_css_device_load_uint16(
+uint16_t ia_css_device_load_uint16(
 	const hrt_address		addr);
 
 /*! Read a 32-bit value from a device register or memory in the device
@@ -109,7 +108,7 @@ extern uint16_t ia_css_device_load_uint16(
 
  \return device[addr]
  */
-extern uint32_t ia_css_device_load_uint32(
+uint32_t ia_css_device_load_uint32(
 	const hrt_address		addr);
 
 /*! Read a 64-bit value from a device register or memory in the device
@@ -118,7 +117,7 @@ extern uint32_t ia_css_device_load_uint32(
 
  \return device[addr]
  */
-extern uint64_t ia_css_device_load_uint64(
+uint64_t ia_css_device_load_uint64(
 	const hrt_address		addr);
 
 /*! Write an 8-bit value to a device register or memory in the device
@@ -128,7 +127,7 @@ extern uint64_t ia_css_device_load_uint64(
 
  \return none, device[addr] = value
  */
-extern void ia_css_device_store_uint8(
+void ia_css_device_store_uint8(
 	const hrt_address		addr,
 	const uint8_t			data);
 
@@ -139,7 +138,7 @@ extern void ia_css_device_store_uint8(
 
  \return none, device[addr] = value
  */
-extern void ia_css_device_store_uint16(
+void ia_css_device_store_uint16(
 	const hrt_address		addr,
 	const uint16_t			data);
 
@@ -150,7 +149,7 @@ extern void ia_css_device_store_uint16(
 
  \return none, device[addr] = value
  */
-extern void ia_css_device_store_uint32(
+void ia_css_device_store_uint32(
 	const hrt_address		addr,
 	const uint32_t			data);
 
@@ -161,7 +160,7 @@ extern void ia_css_device_store_uint32(
 
  \return none, device[addr] = value
  */
-extern void ia_css_device_store_uint64(
+void ia_css_device_store_uint64(
 	const hrt_address		addr,
 	const uint64_t			data);
 
@@ -173,7 +172,7 @@ extern void ia_css_device_store_uint64(
 
  \return none
  */
-extern void ia_css_device_load(
+void ia_css_device_load(
 	const hrt_address		addr,
 	void					*data,
 	const size_t			size);
@@ -186,7 +185,7 @@ extern void ia_css_device_load(
 
  \return none
  */
-extern void ia_css_device_store(
+void ia_css_device_store(
 	const hrt_address		addr,
 	const void				*data,
 	const size_t			size);

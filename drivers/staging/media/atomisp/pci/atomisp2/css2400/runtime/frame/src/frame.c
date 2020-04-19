@@ -36,7 +36,6 @@ more details.
 #include "sh_css_internal.h"
 #include "memory_access.h"
 
-
 #define NV12_TILEY_TILE_WIDTH  128
 #define NV12_TILEY_TILE_HEIGHT  32
 
@@ -112,7 +111,7 @@ ia_css_elems_bytes_from_info(
 
 void ia_css_frame_zero(struct ia_css_frame *frame)
 {
-	assert(frame != NULL);
+	assert(frame);
 	mmgr_clear(frame->data, frame->data_bytes);
 }
 
@@ -120,7 +119,8 @@ enum ia_css_err ia_css_frame_allocate_from_info(struct ia_css_frame **frame,
 	const struct ia_css_frame_info *info)
 {
 	enum ia_css_err err = IA_CSS_SUCCESS;
-	if (frame == NULL || info == NULL)
+
+	if (!frame || !info)
 		return IA_CSS_ERR_INVALID_ARGUMENTS;
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
 		      "ia_css_frame_allocate_from_info() enter:\n");
@@ -142,7 +142,7 @@ enum ia_css_err ia_css_frame_allocate(struct ia_css_frame **frame,
 {
 	enum ia_css_err err = IA_CSS_SUCCESS;
 
-	if (frame == NULL || width == 0 || height == 0)
+	if (!frame || width == 0 || height == 0)
 		return IA_CSS_ERR_INVALID_ARGUMENTS;
 
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
@@ -161,7 +161,7 @@ enum ia_css_err ia_css_frame_allocate(struct ia_css_frame **frame,
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
 		      "ia_css_frame_allocate() leave: frame=%p\n", *frame);
 #else
-	if ((*frame != NULL) && err == IA_CSS_SUCCESS)
+	if ((*frame) && err == IA_CSS_SUCCESS)
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
 		      "ia_css_frame_allocate() leave: frame=%p, data(DDR address)=0x%x\n", *frame, (*frame)->data);
 	else
@@ -176,12 +176,13 @@ enum ia_css_err ia_css_frame_allocate(struct ia_css_frame **frame,
 enum ia_css_err ia_css_frame_map(struct ia_css_frame **frame,
 	const struct ia_css_frame_info *info,
 	const void __user *data,
-	uint16_t attribute,
+	u16 attribute,
 	void *context)
 {
 	enum ia_css_err err = IA_CSS_SUCCESS;
 	struct ia_css_frame *me;
-	assert(frame != NULL);
+
+	assert(frame);
 
 	/* Create the frame structure */
 	err = ia_css_frame_create_from_info(&me, info);
@@ -217,12 +218,12 @@ enum ia_css_err ia_css_frame_create_from_info(struct ia_css_frame **frame,
 {
 	enum ia_css_err err = IA_CSS_SUCCESS;
 	struct ia_css_frame *me;
+
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
 		"ia_css_frame_create_from_info() enter:\n");
-	if (frame == NULL || info == NULL) {
+	if (!frame || !info) {
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-			"ia_css_frame_create_from_info() leave:"
-			" invalid arguments\n");
+			"ia_css_frame_create_from_info() leave: invalid arguments\n");
 		return IA_CSS_ERR_INVALID_ARGUMENTS;
 	}
 
@@ -233,10 +234,9 @@ enum ia_css_err ia_css_frame_create_from_info(struct ia_css_frame **frame,
 		info->raw_bit_depth,
 		false,
 		false);
-	if (me == NULL) {
+	if (!me) {
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-			"ia_css_frame_create_from_info() leave:"
-			" frame create failed\n");
+			"ia_css_frame_create_from_info() leave: frame create failed\n");
 		return IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
 	}
 
@@ -267,9 +267,10 @@ enum ia_css_err ia_css_frame_set_data(struct ia_css_frame *frame,
 	size_t data_bytes)
 {
 	enum ia_css_err err = IA_CSS_SUCCESS;
+
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
 		"ia_css_frame_set_data() enter:\n");
-	if (frame == NULL) {
+	if (!frame) {
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
 			"ia_css_frame_set_data() leave: NULL frame\n");
 		return IA_CSS_ERR_INVALID_ARGUMENTS;
@@ -326,7 +327,8 @@ enum ia_css_err ia_css_frame_allocate_contiguous_from_info(
 	const struct ia_css_frame_info *info)
 {
 	enum ia_css_err err = IA_CSS_SUCCESS;
-	assert(frame != NULL);
+
+	assert(frame);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
 		"ia_css_frame_allocate_contiguous_from_info() enter:\n");
 	err = ia_css_frame_allocate_contiguous(frame,
@@ -344,7 +346,7 @@ void ia_css_frame_free(struct ia_css_frame *frame)
 {
 	IA_CSS_ENTER_PRIVATE("frame = %p", frame);
 
-	if (frame != NULL) {
+	if (frame) {
 		hmm_free(frame->data);
 		sh_css_free(frame);
 	}
@@ -358,7 +360,7 @@ void ia_css_frame_free(struct ia_css_frame *frame)
 
 enum ia_css_err ia_css_frame_check_info(const struct ia_css_frame_info *info)
 {
-	assert(info != NULL);
+	assert(info);
 	if (info->res.width == 0 || info->res.height == 0)
 		return IA_CSS_ERR_INVALID_ARGUMENTS;
 	return IA_CSS_SUCCESS;
@@ -366,7 +368,7 @@ enum ia_css_err ia_css_frame_check_info(const struct ia_css_frame_info *info)
 
 enum ia_css_err ia_css_frame_init_planes(struct ia_css_frame *frame)
 {
-	assert(frame != NULL);
+	assert(frame);
 
 	switch (frame->info.format) {
 	case IA_CSS_FRAME_FORMAT_MIPI:
@@ -482,7 +484,7 @@ void ia_css_frame_info_set_width(struct ia_css_frame_info *info,
 
 	IA_CSS_ENTER_PRIVATE("info = %p,width = %d, minimum padded width = %d",
 			     info, width, min_padded_width);
-	if (info == NULL) {
+	if (!info) {
 		IA_CSS_ERROR("NULL input parameter");
 		IA_CSS_LEAVE_PRIVATE("");
 		return;
@@ -518,7 +520,7 @@ void ia_css_frame_info_set_width(struct ia_css_frame_info *info,
 void ia_css_frame_info_set_format(struct ia_css_frame_info *info,
 	enum ia_css_frame_format format)
 {
-	assert(info != NULL);
+	assert(info);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
 		"ia_css_frame_info_set_format() enter:\n");
 	info->format = format;
@@ -532,7 +534,7 @@ void ia_css_frame_info_init(struct ia_css_frame_info *info,
 {
 	IA_CSS_ENTER_PRIVATE("info = %p, width = %d, height = %d, format = %d, aligned = %d",
 			     info, width, height, format, aligned);
-	if (info == NULL) {
+	if (!info) {
 		IA_CSS_ERROR("NULL input parameter");
 		IA_CSS_LEAVE_PRIVATE("");
 		return;
@@ -547,6 +549,7 @@ void ia_css_frame_free_multiple(unsigned int num_frames,
 	struct ia_css_frame **frames_array)
 {
 	unsigned int i;
+
 	for (i = 0; i < num_frames; i++) {
 		if (frames_array[i]) {
 			ia_css_frame_free(frames_array[i]);
@@ -566,7 +569,7 @@ enum ia_css_err ia_css_frame_allocate_with_buffer_size(
 		IA_CSS_FRAME_FORMAT_NUM,/* Not valid format yet */
 		0, 0, contiguous, false);
 
-	if (me == NULL)
+	if (!me)
 		return IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
 
 	/* Get the data size */
@@ -627,11 +630,11 @@ ia_css_dma_configure_from_info(
 	struct dma_port_config *config,
 	const struct ia_css_frame_info *info)
 {
-	unsigned is_raw_packed = info->format == IA_CSS_FRAME_FORMAT_RAW_PACKED;
-	unsigned bits_per_pixel = is_raw_packed ? info->raw_bit_depth : ia_css_elems_bytes_from_info(info)*8;
-	unsigned pix_per_ddrword = HIVE_ISP_DDR_WORD_BITS / bits_per_pixel;
-	unsigned words_per_line = CEIL_DIV(info->padded_width, pix_per_ddrword);
-	unsigned elems_b = pix_per_ddrword;
+	unsigned int is_raw_packed = info->format == IA_CSS_FRAME_FORMAT_RAW_PACKED;
+	unsigned int bits_per_pixel = is_raw_packed ? info->raw_bit_depth : ia_css_elems_bytes_from_info(info) * 8;
+	unsigned int pix_per_ddrword = HIVE_ISP_DDR_WORD_BITS / bits_per_pixel;
+	unsigned int words_per_line = CEIL_DIV(info->padded_width, pix_per_ddrword);
+	unsigned int elems_b = pix_per_ddrword;
 
 	config->stride = HIVE_ISP_DDR_WORD_BYTES * words_per_line;
 	config->elems  = (uint8_t)elems_b;
@@ -684,7 +687,8 @@ static void frame_init_raw_single_plane(
 	unsigned int bits_per_pixel)
 {
 	unsigned int stride;
-	assert(frame != NULL);
+
+	assert(frame);
 
 	stride = HIVE_ISP_DDR_WORD_BYTES *
 			CEIL_DIV(subpixels_per_line,
@@ -729,7 +733,7 @@ static void frame_init_nv_planes(struct ia_css_frame *frame,
 	uv_width = 2 * (y_width / horizontal_decimation);
 	uv_height = y_height / vertical_decimation;
 
-	if (IA_CSS_FRAME_FORMAT_NV12_TILEY == frame->info.format) {
+	if (frame->info.format == IA_CSS_FRAME_FORMAT_NV12_TILEY) {
 		y_width   = CEIL_MUL(y_width,   NV12_TILEY_TILE_WIDTH);
 		uv_width  = CEIL_MUL(uv_width,  NV12_TILEY_TILE_WIDTH);
 		y_height  = CEIL_MUL(y_height,  NV12_TILEY_TILE_HEIGHT);
@@ -854,7 +858,7 @@ static enum ia_css_err frame_allocate_with_data(struct ia_css_frame **frame,
 		contiguous,
 		true);
 
-	if (me == NULL)
+	if (!me)
 		return IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
 
 	err = ia_css_frame_init_planes(me);
@@ -886,7 +890,7 @@ static struct ia_css_frame *frame_create(unsigned int width,
 {
 	struct ia_css_frame *me = sh_css_malloc(sizeof(*me));
 
-	if (me == NULL)
+	if (!me)
 		return NULL;
 
 	memset(me, 0, sizeof(*me));
@@ -926,7 +930,7 @@ ia_css_elems_bytes_from_info(const struct ia_css_frame_info *info)
 	if (info->format == IA_CSS_FRAME_FORMAT_RAW
 		|| (info->format == IA_CSS_FRAME_FORMAT_RAW_PACKED)) {
 		if (info->raw_bit_depth)
-			return CEIL_DIV(info->raw_bit_depth,8);
+			return CEIL_DIV(info->raw_bit_depth, 8);
 		else
 			return 2; /* bytes per pixel */
 	}
@@ -957,6 +961,7 @@ void ia_css_resolution_to_sp_resolution(
 	to->width  = (uint16_t)from->width;
 	to->height = (uint16_t)from->height;
 }
+
 #ifdef ISP2401
 
 enum ia_css_err
@@ -964,10 +969,10 @@ ia_css_frame_find_crop_resolution(const struct ia_css_resolution *in_res,
 	const struct ia_css_resolution *out_res,
 	struct ia_css_resolution *crop_res)
 {
-	uint32_t wd_even_ceil, ht_even_ceil;
-	uint32_t in_ratio, out_ratio;
+	u32 wd_even_ceil, ht_even_ceil;
+	u32 in_ratio, out_ratio;
 
-	if ((in_res == NULL) || (out_res == NULL) || (crop_res == NULL))
+	if ((!in_res) || (!out_res) || (!crop_res))
 		return IA_CSS_ERR_INVALID_ARGUMENTS;
 
 	IA_CSS_ENTER_PRIVATE("in(%ux%u) -> out(%ux%u)", in_res->width,

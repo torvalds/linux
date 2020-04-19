@@ -41,9 +41,9 @@ sh_css_metrics_start_frame(void)
 static void
 clear_histogram(struct sh_css_pc_histogram *histogram)
 {
-	unsigned i;
+	unsigned int i;
 
-	assert(histogram != NULL);
+	assert(histogram);
 
 	for (i = 0; i < histogram->length; i++) {
 		histogram->run[i] = 0;
@@ -59,9 +59,9 @@ sh_css_metrics_enable_pc_histogram(bool enable)
 }
 
 static void
-make_histogram(struct sh_css_pc_histogram *histogram, unsigned length)
+make_histogram(struct sh_css_pc_histogram *histogram, unsigned int length)
 {
-	assert(histogram != NULL);
+	assert(histogram);
 
 	if (histogram->length)
 		return;
@@ -85,9 +85,9 @@ static void
 insert_binary_metrics(struct sh_css_binary_metrics **l,
 			struct sh_css_binary_metrics *metrics)
 {
-	assert(l != NULL);
-	assert(*l != NULL);
-	assert(metrics != NULL);
+	assert(l);
+	assert(*l);
+	assert(metrics);
 
 	for (; *l; l = &(*l)->next)
 		if (*l == metrics)
@@ -100,7 +100,7 @@ insert_binary_metrics(struct sh_css_binary_metrics **l,
 void
 sh_css_metrics_start_binary(struct sh_css_binary_metrics *metrics)
 {
-	assert(metrics != NULL);
+	assert(metrics);
 
 	if (!pc_histogram_enabled)
 		return;
@@ -124,7 +124,6 @@ sh_css_metrics_sample_pcs(void)
 	unsigned int stopped_sc = 0;
 	unsigned int resume_sc = 0;
 #endif
-
 
 #if MULTIPLE_PCS
 	int i;

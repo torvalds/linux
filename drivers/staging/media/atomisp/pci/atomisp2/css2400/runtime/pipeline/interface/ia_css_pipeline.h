@@ -37,7 +37,6 @@ more details.
 
 #define IA_CSS_PIPELINE_NUM_MAX		(20)
 
-
 /* Pipeline stage to be executed on SP/ISP */
 struct ia_css_pipeline_stage {
 	unsigned int stage_num;
@@ -46,7 +45,7 @@ struct ia_css_pipeline_stage {
 	const struct ia_css_fw_info *firmware;	/* acceleration binary */
 	/* SP function for SP stage */
 	enum ia_css_pipeline_stage_sp_func sp_func;
-	unsigned max_input_width;	/* For SP raw copy */
+	unsigned int max_input_width;	/* For SP raw copy */
 	struct sh_css_binary_args args;
 	int mode;
 	bool out_frame_allocated[IA_CSS_BINARY_MAX_OUTPUT_PORTS];
@@ -58,19 +57,19 @@ struct ia_css_pipeline_stage {
 /* Pipeline of n stages to be executed on SP/ISP per stage */
 struct ia_css_pipeline {
 	enum ia_css_pipe_id pipe_id;
-	uint8_t pipe_num;
+	u8 pipe_num;
 	bool stop_requested;
 	struct ia_css_pipeline_stage *stages;
 	struct ia_css_pipeline_stage *current_stage;
-	unsigned num_stages;
+	unsigned int num_stages;
 	struct ia_css_frame in_frame;
 	struct ia_css_frame out_frame[IA_CSS_PIPE_MAX_OUTPUT_STAGE];
 	struct ia_css_frame vf_frame[IA_CSS_PIPE_MAX_OUTPUT_STAGE];
 	unsigned int dvs_frame_delay;
-	unsigned inout_port_config;
+	unsigned int inout_port_config;
 	int num_execs;
 	bool acquire_isp_each_stage;
-	uint32_t pipe_qos_config;
+	u32 pipe_qos_config;
 };
 
 #define DEFAULT_PIPELINE \
@@ -90,7 +89,7 @@ struct ia_css_pipeline_stage_desc {
 	struct ia_css_binary *binary;
 	const struct ia_css_fw_info *firmware;
 	enum ia_css_pipeline_stage_sp_func sp_func;
-	unsigned max_input_width;
+	unsigned int max_input_width;
 	unsigned int mode;
 	struct ia_css_frame *in_frame;
 	struct ia_css_frame *out_frame[IA_CSS_BINARY_MAX_OUTPUT_PORTS];
@@ -130,7 +129,6 @@ enum ia_css_err ia_css_pipeline_create(
  *
  */
 void ia_css_pipeline_destroy(struct ia_css_pipeline *pipeline);
-
 
 /* @brief Starts a pipeline
  *
@@ -212,7 +210,7 @@ enum ia_css_err ia_css_pipeline_get_stage(struct ia_css_pipeline *pipeline,
  *
  */
 enum ia_css_err ia_css_pipeline_get_stage_from_fw(struct ia_css_pipeline *pipeline,
-			  uint32_t fw_handle,
+			  u32 fw_handle,
 			  struct ia_css_pipeline_stage **stage);
 
 /* @brief Gets the Firmware handle corresponding the stage num from the pipeline
@@ -225,7 +223,7 @@ enum ia_css_err ia_css_pipeline_get_stage_from_fw(struct ia_css_pipeline *pipeli
  *
  */
 enum ia_css_err ia_css_pipeline_get_fw_from_stage(struct ia_css_pipeline *pipeline,
-			  uint32_t stage_num,
+			  u32 stage_num,
 			  uint32_t *fw_handle);
 
 /* @brief gets the output stage from the pipeline

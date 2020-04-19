@@ -26,7 +26,7 @@
  *
  *  This table contains coefficients used for division in XNR.
  *
- *  	u0.12, [0,4095],
+ *	u0.12, [0,4095],
  *      {4095, 2048, 1365, .........., 65, 64}
  *      ({1/1, 1/2, 1/3, ............., 1/63, 1/64})
  *
@@ -39,19 +39,19 @@
 /* Number of elements in the xnr table. */
 #define IA_CSS_VAMEM_1_XNR_TABLE_SIZE_LOG2      6
 /* Number of elements in the xnr table. */
-#define IA_CSS_VAMEM_1_XNR_TABLE_SIZE           (1U<<IA_CSS_VAMEM_1_XNR_TABLE_SIZE_LOG2)
+#define IA_CSS_VAMEM_1_XNR_TABLE_SIZE           BIT(IA_CSS_VAMEM_1_XNR_TABLE_SIZE_LOG2)
 
 /* Number of elements in the xnr table. */
 #define IA_CSS_VAMEM_2_XNR_TABLE_SIZE_LOG2      6
 /* Number of elements in the xnr table. */
-#define IA_CSS_VAMEM_2_XNR_TABLE_SIZE	        (1U<<IA_CSS_VAMEM_2_XNR_TABLE_SIZE_LOG2)
+#define IA_CSS_VAMEM_2_XNR_TABLE_SIZE	        BIT(IA_CSS_VAMEM_2_XNR_TABLE_SIZE_LOG2)
 
 /** IA_CSS_VAMEM_TYPE_1(ISP2300) or
      IA_CSS_VAMEM_TYPE_2(ISP2400) */
 union ia_css_xnr_data {
-	uint16_t vamem_1[IA_CSS_VAMEM_1_XNR_TABLE_SIZE];
+	u16 vamem_1[IA_CSS_VAMEM_1_XNR_TABLE_SIZE];
 	/** Coefficients table on vamem type1. u0.12, [0,4095] */
-	uint16_t vamem_2[IA_CSS_VAMEM_2_XNR_TABLE_SIZE];
+	u16 vamem_2[IA_CSS_VAMEM_2_XNR_TABLE_SIZE];
 	/** Coefficients table on vamem type2. u0.12, [0,4095] */
 };
 
@@ -64,8 +64,7 @@ struct ia_css_xnr_config {
 	/* XNR threshold.
 	 * type:u0.16 valid range:[0,65535]
 	 * default: 6400 */
-	uint16_t threshold;
+	u16 threshold;
 };
 
 #endif /* __IA_CSS_XNR_TYPES_H */
-

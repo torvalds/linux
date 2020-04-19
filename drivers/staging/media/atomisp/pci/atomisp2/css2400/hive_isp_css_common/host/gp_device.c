@@ -24,7 +24,7 @@ void gp_device_get_state(
 	gp_device_state_t			*state)
 {
 	assert(ID < N_GP_DEVICE_ID);
-	assert(state != NULL);
+	assert(state);
 
 	state->syncgen_enable = gp_device_reg_load(ID,
 		_REG_GP_SYNCGEN_ENABLE_ADDR);

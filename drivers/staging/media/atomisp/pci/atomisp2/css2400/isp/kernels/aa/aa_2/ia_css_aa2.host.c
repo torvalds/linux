@@ -29,4 +29,3 @@ const struct ia_css_aa_config default_aa_config = {
 const struct ia_css_aa_config default_baa_config = {
 	8191 /* default should be 0 */
 };
-

@@ -50,7 +50,7 @@
  */
 
 struct ia_css_macc_table {
-	int16_t data[IA_CSS_MACC_NUM_COEFS * IA_CSS_MACC_NUM_AXES];
+	s16 data[IA_CSS_MACC_NUM_COEFS * IA_CSS_MACC_NUM_AXES];
 	/** 16 of 2x2 matix
 	  MACC1: s2.13, [-65536,65535]
 	    default/ineffective:

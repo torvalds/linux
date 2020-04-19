@@ -21,11 +21,11 @@
 
 /* MACC */
 struct sh_css_isp_macc1_5_params {
-	int32_t exp;
+	s32 exp;
 };
 
 struct sh_css_isp_macc1_5_vmem_params {
-	VMEM_ARRAY(data, IA_CSS_MACC_NUM_COEFS*ISP_NWAY);
+	VMEM_ARRAY(data, IA_CSS_MACC_NUM_COEFS * ISP_NWAY);
 };
 
 #endif /* __IA_CSS_MACC1_5_PARAM_H */

@@ -32,7 +32,7 @@ ia_css_bh_hmem_decode(
 	/*
 	 * No weighted histogram, hence no grid definition
 	 */
-	if(!hmem_buf)
+	if (!hmem_buf)
 		return;
 	assert(sizeof_hmem(HMEM0_ID) == sizeof(*hmem_buf));
 
@@ -51,7 +51,7 @@ void
 ia_css_bh_encode(
 	struct sh_css_isp_bh_params *to,
 	const struct ia_css_3a_config *from,
-	unsigned size)
+	unsigned int size)
 {
 	(void)size;
 	/* coefficients to calculate Y */

@@ -80,28 +80,28 @@ struct ia_css_config_memory_offsets;
 struct ia_css_state_memory_offsets;
 
 /* Virtual address within the CSS address space. */
-typedef uint32_t ia_css_ptr;
+typedef u32 ia_css_ptr;
 
 /* Generic resolution structure.
  */
 struct ia_css_resolution {
-	uint32_t width;  /** Width */
-	uint32_t height; /** Height */
+	u32 width;  /** Width */
+	u32 height; /** Height */
 };
 
 /* Generic coordinate structure.
  */
 struct ia_css_coordinate {
-	int32_t x;	/** Value of a coordinate on the horizontal axis */
-	int32_t y;	/** Value of a coordinate on the vertical axis */
+	s32 x;	/** Value of a coordinate on the horizontal axis */
+	s32 y;	/** Value of a coordinate on the vertical axis */
 };
 
 /* Vector with signed values. This is used to indicate motion for
  * Digital Image Stabilization.
  */
 struct ia_css_vector {
-	int32_t x; /** horizontal motion (in pixels) */
-	int32_t y; /** vertical motion (in pixels) */
+	s32 x; /** horizontal motion (in pixels) */
+	s32 y; /** vertical motion (in pixels) */
 };
 
 /* Short hands */
@@ -111,19 +111,19 @@ struct ia_css_vector {
 /* CSS data descriptor */
 struct ia_css_data {
 	ia_css_ptr address; /** CSS virtual address */
-	uint32_t   size;    /** Disabled if 0 */
+	u32   size;    /** Disabled if 0 */
 };
 
 /* Host data descriptor */
 struct ia_css_host_data {
 	char      *address; /** Host address */
-	uint32_t   size;    /** Disabled if 0 */
+	u32   size;    /** Disabled if 0 */
 };
 
 /* ISP data descriptor */
 struct ia_css_isp_data {
-	uint32_t   address; /** ISP address */
-	uint32_t   size;    /** Disabled if 0 */
+	u32   address; /** ISP address */
+	u32   size;    /** Disabled if 0 */
 };
 
 /* Shading Correction types. */
@@ -288,27 +288,27 @@ struct ia_css_shading_info {
 		 */
 		struct {
 #ifndef ISP2401
-			uint32_t enable;	/** Shading correction enabled.
+			u32 enable;	/** Shading correction enabled.
 						     0:disabled, 1:enabled */
-			uint32_t num_hor_grids;	/** Number of data points per line
+			u32 num_hor_grids;	/** Number of data points per line
 						     per color on shading table. */
-			uint32_t num_ver_grids;	/** Number of lines of data points
+			u32 num_ver_grids;	/** Number of lines of data points
 						     per color on shading table. */
-			uint32_t bqs_per_grid_cell; /** Grid cell size
+			u32 bqs_per_grid_cell; /** Grid cell size
 						in BQ(Bayer Quad) unit.
 						(1BQ means {Gr,R,B,Gb}(2x2 pixels).)
 						Valid values are 8,16,32,64. */
 #else
-			uint32_t num_hor_grids;	/** Number of data points per line per color on shading table. */
-			uint32_t num_ver_grids;	/** Number of lines of data points per color on shading table. */
-			uint32_t bqs_per_grid_cell; /** Grid cell size in BQ unit.
+			u32 num_hor_grids;	/** Number of data points per line per color on shading table. */
+			u32 num_ver_grids;	/** Number of lines of data points per color on shading table. */
+			u32 bqs_per_grid_cell; /** Grid cell size in BQ unit.
 							 NOTE: bqs = size in BQ(Bayer Quad) unit.
 							       1BQ means {Gr,R,B,Gb} (2x2 pixels).
 							       Horizontal 1 bqs corresponds to horizontal 2 pixels.
 							       Vertical 1 bqs corresponds to vertical 2 pixels. */
 #endif
-			uint32_t bayer_scale_hor_ratio_in;
-			uint32_t bayer_scale_hor_ratio_out;
+			u32 bayer_scale_hor_ratio_in;
+			u32 bayer_scale_hor_ratio_out;
 #ifndef ISP2401
 			/** Horizontal ratio of bayer scaling
 			between input width and output width, for the scaling
@@ -321,21 +321,21 @@ struct ia_css_shading_info {
 					output_width = input_width * bayer_scale_hor_ratio_out
 									/ bayer_scale_hor_ratio_in + 0.5 */
 #endif
-			uint32_t bayer_scale_ver_ratio_in;
-			uint32_t bayer_scale_ver_ratio_out;
+			u32 bayer_scale_ver_ratio_in;
+			u32 bayer_scale_ver_ratio_out;
 #ifndef ISP2401
 			/** Vertical ratio of bayer scaling
 			between input height and output height, for the scaling
 			which should be done before shading correction.
 			  output_height = input_height * bayer_scale_ver_ratio_out
 						/ bayer_scale_ver_ratio_in */
-			uint32_t sc_bayer_origin_x_bqs_on_shading_table;
+			u32 sc_bayer_origin_x_bqs_on_shading_table;
 			/** X coordinate (in bqs) of bayer origin on shading table.
 			This indicates the left-most pixel of bayer
 			(not include margin) inputted to the shading correction.
 			This corresponds to the left-most pixel of bayer
 			inputted to isp from sensor. */
-			uint32_t sc_bayer_origin_y_bqs_on_shading_table;
+			u32 sc_bayer_origin_y_bqs_on_shading_table;
 			/** Y coordinate (in bqs) of bayer origin on shading table.
 			This indicates the top pixel of bayer
 			(not include margin) inputted to the shading correction.
@@ -393,8 +393,8 @@ struct ia_css_grid_info {
 	  * that is visible for user
 	  * @{
 	  */
-	uint32_t isp_in_width;
-	uint32_t isp_in_height;
+	u32 isp_in_width;
+	u32 isp_in_height;
 	/* @}*/
 
 	struct ia_css_3a_grid_info  s3a_grid; /** 3A grid info */
@@ -417,35 +417,35 @@ struct ia_css_grid_info {
  *  advanced ISP can correct for these imperfections using this table.
  */
 struct ia_css_morph_table {
-	uint32_t enable; /** To disable GDC, set this field to false. The
+	u32 enable; /** To disable GDC, set this field to false. The
 			  coordinates fields can be set to NULL in this case. */
-	uint32_t height; /** Table height */
-	uint32_t width;  /** Table width */
-	uint16_t *coordinates_x[IA_CSS_MORPH_TABLE_NUM_PLANES];
+	u32 height; /** Table height */
+	u32 width;  /** Table width */
+	u16 *coordinates_x[IA_CSS_MORPH_TABLE_NUM_PLANES];
 	/** X coordinates that describe the sensor imperfection */
-	uint16_t *coordinates_y[IA_CSS_MORPH_TABLE_NUM_PLANES];
+	u16 *coordinates_y[IA_CSS_MORPH_TABLE_NUM_PLANES];
 	/** Y coordinates that describe the sensor imperfection */
 };
 
 struct ia_css_dvs_6axis_config {
 	unsigned int exp_id;
 	/** Exposure ID, see ia_css_event_public.h for more detail */
-	uint32_t width_y;
-	uint32_t height_y;
-	uint32_t width_uv;
-	uint32_t height_uv;
-	uint32_t *xcoords_y;
-	uint32_t *ycoords_y;
-	uint32_t *xcoords_uv;
-	uint32_t *ycoords_uv;
+	u32 width_y;
+	u32 height_y;
+	u32 width_uv;
+	u32 height_uv;
+	u32 *xcoords_y;
+	u32 *ycoords_y;
+	u32 *xcoords_uv;
+	u32 *ycoords_uv;
 };
 
 /**
  * This specifies the coordinates (x,y)
  */
 struct ia_css_point {
-	int32_t x; /** x coordinate */
-	int32_t y; /** y coordinate */
+	s32 x; /** x coordinate */
+	s32 y; /** y coordinate */
 };
 
 /**
@@ -474,8 +474,8 @@ struct ia_css_region {
  * y + height <= effective input height
  */
 struct ia_css_dz_config {
-	uint32_t dx; /** Horizontal zoom factor */
-	uint32_t dy; /** Vertical zoom factor */
+	u32 dx; /** Horizontal zoom factor */
+	u32 dy; /** Vertical zoom factor */
 	struct ia_css_region zoom_region; /** region for zoom */
 };
 
@@ -492,8 +492,8 @@ enum ia_css_capture_mode {
 
 struct ia_css_capture_config {
 	enum ia_css_capture_mode mode; /** Still capture mode */
-	uint32_t enable_xnr;	       /** Enable/disable XNR */
-	uint32_t enable_raw_output;
+	u32 enable_xnr;	       /** Enable/disable XNR */
+	u32 enable_raw_output;
 	bool enable_capture_pp_bli;    /** Enable capture_pp_bli mode */
 };
 
@@ -502,7 +502,6 @@ struct ia_css_capture_config {
 (struct ia_css_capture_config) { \
 	.mode	= IA_CSS_CAPTURE_MODE_PRIMARY, \
 }
-
 
 /* ISP filter configuration. This is a collection of configurations
  *  for each of the ISP filters (modules).
@@ -610,7 +609,7 @@ struct ia_css_isp_config {
 	struct ia_css_output_config              *output_config_display; /** Viewfinder/display output mirroring, flipping (optional) */
 
 	struct ia_css_frame                      *output_frame;          /** Output frame the config is to be applied to (optional) */
-	uint32_t			isp_config_id;	/** Unique ID to track which config was actually applied to a particular frame */
+	u32			isp_config_id;	/** Unique ID to track which config was actually applied to a particular frame */
 };
 
 #endif /* _IA_CSS_TYPES_H */

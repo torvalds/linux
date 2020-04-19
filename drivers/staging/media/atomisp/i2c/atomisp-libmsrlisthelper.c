@@ -22,26 +22,26 @@
 
 /* Tagged binary data container structure definitions. */
 struct tbd_header {
-	uint32_t tag;          /*!< Tag identifier, also checks endianness */
-	uint32_t size;         /*!< Container size including this header */
-	uint32_t version;      /*!< Version, format 0xYYMMDDVV */
-	uint32_t revision;     /*!< Revision, format 0xYYMMDDVV */
-	uint32_t config_bits;  /*!< Configuration flag bits set */
-	uint32_t checksum;     /*!< Global checksum, header included */
+	u32 tag;          /*!< Tag identifier, also checks endianness */
+	u32 size;         /*!< Container size including this header */
+	u32 version;      /*!< Version, format 0xYYMMDDVV */
+	u32 revision;     /*!< Revision, format 0xYYMMDDVV */
+	u32 config_bits;  /*!< Configuration flag bits set */
+	u32 checksum;     /*!< Global checksum, header included */
 } __packed;
 
 struct tbd_record_header {
-	uint32_t size;        /*!< Size of record including header */
-	uint8_t format_id;    /*!< tbd_format_t enumeration values used */
-	uint8_t packing_key;  /*!< Packing method; 0 = no packing */
-	uint16_t class_id;    /*!< tbd_class_t enumeration values used */
+	u32 size;        /*!< Size of record including header */
+	u8 format_id;    /*!< tbd_format_t enumeration values used */
+	u8 packing_key;  /*!< Packing method; 0 = no packing */
+	u16 class_id;    /*!< tbd_class_t enumeration values used */
 } __packed;
 
 struct tbd_data_record_header {
-	uint16_t next_offset;
-	uint16_t flags;
-	uint16_t data_offset;
-	uint16_t data_size;
+	u16 next_offset;
+	u16 flags;
+	u16 data_offset;
+	u16 data_size;
 } __packed;
 
 #define TBD_CLASS_DRV_ID 2
@@ -58,7 +58,8 @@ static int set_msr_configuration(struct i2c_client *client, uint8_t *bufptr,
 	 * followed by lobyte) where the remaining data in the sequence
 	 * will be written. */
 
-	uint8_t *ptr = bufptr;
+	u8 *ptr = bufptr;
+
 	while (ptr < bufptr + size) {
 		struct i2c_msg msg = {
 			.addr = client->addr,
@@ -88,7 +89,7 @@ static int set_msr_configuration(struct i2c_client *client, uint8_t *bufptr,
 static int parse_and_apply(struct i2c_client *client, uint8_t *buffer,
 		unsigned int size)
 {
-	uint8_t *endptr8 = buffer + size;
+	u8 *endptr8 = buffer + size;
 	struct tbd_data_record_header *header =
 		(struct tbd_data_record_header *)buffer;
 
@@ -170,6 +171,7 @@ int load_msr_list(struct i2c_client *client, char *name,
 		const struct firmware **fw)
 {
 	int ret = request_firmware(fw, name, &client->dev);
+
 	if (ret) {
 		dev_err(&client->dev,
 			"Error %d while requesting firmware %s\n",

@@ -38,7 +38,7 @@ const hrt_data HIVE_IF_SRST_MASK[N_INPUT_FORMATTER_ID] = {
 	INPUT_FORMATTER2_SRST_MASK,
 	INPUT_FORMATTER3_SRST_MASK};
 
-const uint8_t HIVE_IF_SWITCH_CODE[N_INPUT_FORMATTER_ID] = {
+const u8 HIVE_IF_SWITCH_CODE[N_INPUT_FORMATTER_ID] = {
 	HIVE_INPUT_SWITCH_SELECT_IF_PRIM,
 	HIVE_INPUT_SWITCH_SELECT_IF_PRIM,
 	HIVE_INPUT_SWITCH_SELECT_IF_SEC,
@@ -98,7 +98,7 @@ void input_formatter_get_switch_state(
 	input_formatter_switch_state_t	*state)
 {
 	assert(ID < N_INPUT_FORMATTER_ID);
-	assert(state != NULL);
+	assert(state);
 
 	/* We'll change this into an intelligent function to get switch info per IF */
 	(void)ID;
@@ -122,7 +122,7 @@ void input_formatter_get_state(
 	input_formatter_state_t			*state)
 {
 	assert(ID < N_INPUT_FORMATTER_ID);
-	assert(state != NULL);
+	assert(state);
 /*
 	state->reset = input_formatter_reg_load(ID,
 		HIVE_IF_RESET_ADDRESS);
@@ -203,7 +203,7 @@ void input_formatter_bin_get_state(
 	input_formatter_bin_state_t		*state)
 {
 	assert(ID < N_INPUT_FORMATTER_ID);
-	assert(state != NULL);
+	assert(state);
 
 	state->reset = input_formatter_reg_load(ID,
 		HIVE_STR2MEM_SOFT_RESET_REG_ADDRESS);

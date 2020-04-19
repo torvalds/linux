@@ -32,7 +32,7 @@ void
 ia_css_qplane_config(
 	struct sh_css_isp_qplane_isp_config      *to,
 	const struct ia_css_qplane_configuration *from,
-	unsigned size);
+	unsigned int size);
 
 void
 ia_css_qplane_configure(

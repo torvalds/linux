@@ -23,24 +23,24 @@
 
 /* HDR irradiance map parameters on ISP. */
 struct sh_css_hdr_irradiance_params {
-	int32_t test_irr;
-	int32_t match_shift[HDR_NUM_INPUT_FRAMES - 1];  /* Histogram matching shift parameter */
-	int32_t match_mul[HDR_NUM_INPUT_FRAMES - 1];    /* Histogram matching multiplication parameter */
-	int32_t thr_low[HDR_NUM_INPUT_FRAMES - 1];      /* Weight map soft threshold low bound parameter */
-	int32_t thr_high[HDR_NUM_INPUT_FRAMES - 1];     /* Weight map soft threshold high bound parameter */
-	int32_t thr_coeff[HDR_NUM_INPUT_FRAMES - 1];    /* Soft threshold linear function coefficient */
-	int32_t thr_shift[HDR_NUM_INPUT_FRAMES - 1];    /* Soft threshold precision shift parameter */
-	int32_t weight_bpp;                             /* Weight map bits per pixel */
+	s32 test_irr;
+	s32 match_shift[HDR_NUM_INPUT_FRAMES - 1];  /* Histogram matching shift parameter */
+	s32 match_mul[HDR_NUM_INPUT_FRAMES - 1];    /* Histogram matching multiplication parameter */
+	s32 thr_low[HDR_NUM_INPUT_FRAMES - 1];      /* Weight map soft threshold low bound parameter */
+	s32 thr_high[HDR_NUM_INPUT_FRAMES - 1];     /* Weight map soft threshold high bound parameter */
+	s32 thr_coeff[HDR_NUM_INPUT_FRAMES - 1];    /* Soft threshold linear function coefficient */
+	s32 thr_shift[HDR_NUM_INPUT_FRAMES - 1];    /* Soft threshold precision shift parameter */
+	s32 weight_bpp;                             /* Weight map bits per pixel */
 };
 
 /* HDR deghosting parameters on ISP */
 struct sh_css_hdr_deghost_params {
-	int32_t test_deg;
+	s32 test_deg;
 };
 
 /* HDR exclusion parameters on ISP */
 struct sh_css_hdr_exclusion_params {
-	int32_t test_excl;
+	s32 test_excl;
 };
 
 /* HDR ISP parameters */

@@ -42,4 +42,3 @@ struct ia_css_ob2_config {
 };
 
 #endif /* __IA_CSS_OB2_TYPES_H */
-

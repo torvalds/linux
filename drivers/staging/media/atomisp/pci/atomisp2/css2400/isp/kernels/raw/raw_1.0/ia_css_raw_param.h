@@ -21,18 +21,18 @@
 
 /* Raw channel */
 struct sh_css_isp_raw_isp_config {
-	uint32_t width_a_over_b;
+	u32 width_a_over_b;
 	struct dma_port_config port_b;
-	uint32_t inout_port_config;
-	uint32_t input_needs_raw_binning;
-	uint32_t format; /* enum ia_css_frame_format */
-	uint32_t required_bds_factor;
-	uint32_t two_ppc;
-	uint32_t stream_format; /* enum sh_stream_format */
-	uint32_t deinterleaved;
-	uint32_t start_column; /*left crop offset*/
-	uint32_t start_line; /*top crop offset*/
-	uint8_t enable_left_padding; /*need this for multiple binary case*/
+	u32 inout_port_config;
+	u32 input_needs_raw_binning;
+	u32 format; /* enum ia_css_frame_format */
+	u32 required_bds_factor;
+	u32 two_ppc;
+	u32 stream_format; /* enum sh_stream_format */
+	u32 deinterleaved;
+	u32 start_column; /*left crop offset*/
+	u32 start_line; /*top crop offset*/
+	u8 enable_left_padding; /*need this for multiple binary case*/
 };
 
 #endif /* __IA_CSS_RAW_PARAM_H */

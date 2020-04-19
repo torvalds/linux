@@ -59,7 +59,7 @@ typedef virtual_input_system_stream_cfg_t	ia_css_isys_stream_cfg_t;
 typedef bool ia_css_isys_error_t;
 
 static inline uint32_t ia_css_isys_generate_stream_id(
-	uint32_t	sp_thread_id,
+	u32	sp_thread_id,
 	uint32_t	stream_id)
 {
 	return sp_thread_id * IA_CSS_STREAM_MAX_ISYS_STREAM_PER_CH + stream_id;

@@ -25,11 +25,11 @@
 
 /* Viewfinder decimation */
 struct sh_css_isp_vf_isp_config {
-	uint32_t vf_downscale_bits; /** Log VF downscale value */
-	uint32_t enable;
+	u32 vf_downscale_bits; /** Log VF downscale value */
+	u32 enable;
 	struct ia_css_frame_sp_info info;
 	struct {
-		uint32_t width_a_over_b;
+		u32 width_a_over_b;
 		struct dma_port_config port_b;
 	} dma;
 };

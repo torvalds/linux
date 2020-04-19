@@ -38,7 +38,7 @@ STORAGE_CLASS_FIFO_MONITOR_DATA unsigned int FIFO_SWITCH_ADDR[N_FIFO_SWITCH] = {
 #include "fifo_monitor_private.h"
 #endif /* __INLINE_FIFO_MONITOR__ */
 
-static inline bool fifo_monitor_status_valid (
+static inline bool fifo_monitor_status_valid(
 	const fifo_monitor_ID_t		ID,
 	const unsigned int			reg,
 	const unsigned int			port_id);
@@ -48,14 +48,13 @@ static inline bool fifo_monitor_status_accept(
 	const unsigned int			reg,
 	const unsigned int			port_id);
 
-
 void fifo_channel_get_state(
 	const fifo_monitor_ID_t		ID,
 	const fifo_channel_t		channel_id,
 	fifo_channel_state_t		*state)
 {
 	assert(channel_id < N_FIFO_CHANNEL);
-	assert(state != NULL);
+	assert(state);
 
 	switch (channel_id) {
 	case FIFO_CHANNEL_ISP0_TO_SP0:
@@ -235,6 +234,7 @@ void fifo_channel_get_state(
 			ISP_STR_MON_PORT_SND_GPD);
 		{
 		hrt_data	value = ia_css_device_load_uint32(0x0000000000380014ULL);
+
 		state->fifo_valid  = !_hrt_get_bit(value, 0);
 		state->sink_accept = false; /* no monitor connected */
 		}
@@ -242,6 +242,7 @@ void fifo_channel_get_state(
 	case FIFO_CHANNEL_HOST0_TO_ISP0:
 		{
 		hrt_data	value = ia_css_device_load_uint32(0x000000000038001CULL);
+
 		state->fifo_valid  = false; /* no monitor connected */
 		state->sink_accept = !_hrt_get_bit(value, 0);
 		}
@@ -429,6 +430,7 @@ void fifo_channel_get_state(
 			SP_STR_MON_PORT_SND_GPD);
 		{
 		hrt_data	value = ia_css_device_load_uint32(0x0000000000380010ULL);
+
 		state->fifo_valid  = !_hrt_get_bit(value, 0);
 		state->sink_accept = false; /* no monitor connected */
 		}
@@ -436,6 +438,7 @@ void fifo_channel_get_state(
 	case FIFO_CHANNEL_HOST0_TO_SP0:
 		{
 		hrt_data	value = ia_css_device_load_uint32(0x0000000000380018ULL);
+
 		state->fifo_valid  = false; /* no monitor connected */
 		state->sink_accept = !_hrt_get_bit(value, 0);
 		}
@@ -511,7 +514,7 @@ void fifo_switch_get_state(
 
 	assert(ID == FIFO_MONITOR0_ID);
 	assert(switch_id < N_FIFO_SWITCH);
-	assert(state != NULL);
+	assert(state);
 
 	(void)ID;
 
@@ -532,21 +535,21 @@ void fifo_monitor_get_state(
 	fifo_switch_t	sw_id;
 
 	assert(ID < N_FIFO_MONITOR_ID);
-	assert(state != NULL);
+	assert(state);
 
 	for (ch_id = 0; ch_id < N_FIFO_CHANNEL; ch_id++) {
 		fifo_channel_get_state(ID, ch_id,
-			&(state->fifo_channels[ch_id]));
+			&state->fifo_channels[ch_id]);
 	}
 
 	for (sw_id = 0; sw_id < N_FIFO_SWITCH; sw_id++) {
 		fifo_switch_get_state(ID, sw_id,
-			&(state->fifo_switches[sw_id]));
+			&state->fifo_switches[sw_id]);
 	}
 	return;
 }
 
-static inline bool fifo_monitor_status_valid (
+static inline bool fifo_monitor_status_valid(
 	const fifo_monitor_ID_t		ID,
 	const unsigned int			reg,
 	const unsigned int			port_id)

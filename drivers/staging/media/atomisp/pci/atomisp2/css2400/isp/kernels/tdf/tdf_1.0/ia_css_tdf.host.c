@@ -15,7 +15,7 @@
 #include "ia_css_debug.h"
 #include "ia_css_tdf.host.h"
 
-static const int16_t g_pyramid[8][8] = {
+static const s16 g_pyramid[8][8] = {
 {128, 384, 640, 896, 896, 640, 384, 128},
 {384, 1152, 1920, 2688, 2688, 1920, 1152, 384},
 {640, 1920, 3200, 4480, 4480, 3200, 1920, 640},
@@ -32,15 +32,14 @@ ia_css_tdf_vmem_encode(
 	const struct ia_css_tdf_config *from,
 	size_t size)
 {
-	unsigned i;
+	unsigned int i;
 	(void)size;
 
 	for (i = 0; i < ISP_VEC_NELEMS; i++) {
-		to->pyramid[0][i]          = g_pyramid[i/8][i%8];
+		to->pyramid[0][i]          = g_pyramid[i / 8][i % 8];
 		to->threshold_flat[0][i]   = from->thres_flat_table[i];
 		to->threshold_detail[0][i] = from->thres_detail_table[i];
 	}
-
 }
 
 void
@@ -68,9 +67,8 @@ ia_css_tdf_encode(
 void
 ia_css_tdf_debug_dtrace(
 	const struct ia_css_tdf_config *config,
-	unsigned level)
+	unsigned int level)
 {
 	(void)config;
 	(void)level;
 }
-

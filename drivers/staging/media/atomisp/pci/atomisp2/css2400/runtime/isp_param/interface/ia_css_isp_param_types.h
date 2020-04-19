@@ -51,14 +51,14 @@ enum ia_css_param_class {
 	IA_CSS_PARAM_CLASS_FRAME  = 3,  /* Frame time parameters, like output buffer */
 #endif
 };
+
 #define IA_CSS_NUM_PARAM_CLASSES (IA_CSS_PARAM_CLASS_STATE + 1)
 
 /* ISP parameter descriptor */
 struct ia_css_isp_parameter {
-	uint32_t offset; /* Offset in isp_<mem>)parameters, etc. */
-	uint32_t size;   /* Disabled if 0 */
+	u32 offset; /* Offset in isp_<mem>)parameters, etc. */
+	u32 size;   /* Disabled if 0 */
 };
-
 
 /* Address/size of each parameter class in each isp memory, host memory pointers */
 struct ia_css_isp_param_host_segments {
@@ -77,7 +77,7 @@ struct ia_css_isp_param_isp_segments {
 
 /* Memory offsets in binary info */
 struct ia_css_isp_param_memory_offsets {
-	uint32_t offsets[IA_CSS_NUM_PARAM_CLASSES];  /** offset wrt hdr in bytes */
+	u32 offsets[IA_CSS_NUM_PARAM_CLASSES];  /** offset wrt hdr in bytes */
 };
 
 /* Offsets for ISP kernel parameters per isp memory.
@@ -95,4 +95,3 @@ union ia_css_all_memory_offsets {
 };
 
 #endif /* _IA_CSS_ISP_PARAM_TYPES_H_ */
-

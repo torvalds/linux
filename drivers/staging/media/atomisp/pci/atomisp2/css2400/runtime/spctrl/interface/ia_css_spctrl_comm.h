@@ -46,10 +46,10 @@ typedef enum {
  */
 struct ia_css_sp_init_dmem_cfg {
 	ia_css_ptr      ddr_data_addr;  /** data segment address in ddr  */
-	uint32_t        dmem_data_addr; /** data segment address in dmem */
-	uint32_t        dmem_bss_addr;  /** bss segment address in dmem  */
-	uint32_t        data_size;      /** data segment size            */
-	uint32_t        bss_size;       /** bss segment size             */
+	u32        dmem_data_addr; /** data segment address in dmem */
+	u32        dmem_bss_addr;  /** bss segment address in dmem  */
+	u32        data_size;      /** data segment size            */
+	u32        bss_size;       /** bss segment size             */
 	sp_ID_t         sp_id;          /* <sp Id */
 };
 

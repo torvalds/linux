@@ -25,12 +25,12 @@ void
 ia_css_ref_config(
 	struct sh_css_isp_ref_isp_config *to,
 	const struct ia_css_ref_configuration  *from,
-	unsigned size)
+	unsigned int size)
 {
-	unsigned elems_a = ISP_VEC_NELEMS, i;
+	unsigned int elems_a = ISP_VEC_NELEMS, i;
 
 	(void)size;
-	ia_css_dma_configure_from_info(&to->port_b, &(from->ref_frames[0]->info));
+	ia_css_dma_configure_from_info(&to->port_b, &from->ref_frames[0]->info);
 	to->width_a_over_b = elems_a / to->port_b.elems;
 	to->dvs_frame_delay = from->dvs_frame_delay;
 	for (i = 0; i < MAX_NUM_VIDEO_DELAY_FRAMES; i++) {
@@ -44,7 +44,7 @@ ia_css_ref_config(
 	}
 
 	/* Assume divisiblity here, may need to generalize to fixed point. */
-	assert (elems_a % to->port_b.elems == 0);
+	assert(elems_a % to->port_b.elems == 0);
 }
 
 void
@@ -54,7 +54,7 @@ ia_css_ref_configure(
 	const uint32_t dvs_frame_delay)
 {
 	struct ia_css_ref_configuration config;
-	unsigned i;
+	unsigned int i;
 
 	for (i = 0; i < MAX_NUM_VIDEO_DELAY_FRAMES; i++)
 		config.ref_frames[i] = ref_frames[i];
@@ -65,7 +65,7 @@ ia_css_ref_configure(
 void
 ia_css_init_ref_state(
 	struct sh_css_isp_ref_dmem_state *state,
-	unsigned size)
+	unsigned int size)
 {
 	(void)size;
 	assert(MAX_NUM_VIDEO_DELAY_FRAMES >= 2);

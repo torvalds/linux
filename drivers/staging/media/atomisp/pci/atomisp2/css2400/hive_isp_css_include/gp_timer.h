@@ -29,7 +29,6 @@
  *	- local:   system and cell specific constants and identifiers
  */
 
-
 #include "system_local.h"    /*GP_TIMER_BASE address */
 #include "gp_timer_local.h"  /*GP_TIMER register offsets */
 

@@ -15,7 +15,6 @@
 #ifndef _sp_map_h_
 #define _sp_map_h_
 
-
 #ifndef _hrt_dummy_use_blob_sp
 #define _hrt_dummy_use_blob_sp()
 #endif

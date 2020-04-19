@@ -28,7 +28,7 @@ STORAGE_CLASS_INPUT_SYSTEM_C void input_system_reg_store(
 {
 	assert(ID < N_INPUT_SYSTEM_ID);
 	assert(INPUT_SYSTEM_BASE[ID] != (hrt_address)-1);
-	ia_css_device_store_uint32(INPUT_SYSTEM_BASE[ID] + reg*sizeof(hrt_data), value);
+	ia_css_device_store_uint32(INPUT_SYSTEM_BASE[ID] + reg * sizeof(hrt_data), value);
 	return;
 }
 
@@ -38,7 +38,7 @@ STORAGE_CLASS_INPUT_SYSTEM_C hrt_data input_system_reg_load(
 {
 	assert(ID < N_INPUT_SYSTEM_ID);
 	assert(INPUT_SYSTEM_BASE[ID] != (hrt_address)-1);
-	return ia_css_device_load_uint32(INPUT_SYSTEM_BASE[ID] + reg*sizeof(hrt_data));
+	return ia_css_device_load_uint32(INPUT_SYSTEM_BASE[ID] + reg * sizeof(hrt_data));
 }
 
 STORAGE_CLASS_INPUT_SYSTEM_C void receiver_reg_store(
@@ -48,7 +48,7 @@ STORAGE_CLASS_INPUT_SYSTEM_C void receiver_reg_store(
 {
 	assert(ID < N_RX_ID);
 	assert(RX_BASE[ID] != (hrt_address)-1);
-	ia_css_device_store_uint32(RX_BASE[ID] + reg*sizeof(hrt_data), value);
+	ia_css_device_store_uint32(RX_BASE[ID] + reg * sizeof(hrt_data), value);
 	return;
 }
 
@@ -58,7 +58,7 @@ STORAGE_CLASS_INPUT_SYSTEM_C hrt_data receiver_reg_load(
 {
 	assert(ID < N_RX_ID);
 	assert(RX_BASE[ID] != (hrt_address)-1);
-	return ia_css_device_load_uint32(RX_BASE[ID] + reg*sizeof(hrt_data));
+	return ia_css_device_load_uint32(RX_BASE[ID] + reg * sizeof(hrt_data));
 }
 
 STORAGE_CLASS_INPUT_SYSTEM_C void receiver_port_reg_store(
@@ -71,7 +71,7 @@ STORAGE_CLASS_INPUT_SYSTEM_C void receiver_port_reg_store(
 	assert(port_ID < N_MIPI_PORT_ID);
 	assert(RX_BASE[ID] != (hrt_address)-1);
 	assert(MIPI_PORT_OFFSET[port_ID] != (hrt_address)-1);
-	ia_css_device_store_uint32(RX_BASE[ID] + MIPI_PORT_OFFSET[port_ID] + reg*sizeof(hrt_data), value);
+	ia_css_device_store_uint32(RX_BASE[ID] + MIPI_PORT_OFFSET[port_ID] + reg * sizeof(hrt_data), value);
 	return;
 }
 
@@ -84,7 +84,7 @@ STORAGE_CLASS_INPUT_SYSTEM_C hrt_data receiver_port_reg_load(
 	assert(port_ID < N_MIPI_PORT_ID);
 	assert(RX_BASE[ID] != (hrt_address)-1);
 	assert(MIPI_PORT_OFFSET[port_ID] != (hrt_address)-1);
-	return ia_css_device_load_uint32(RX_BASE[ID] + MIPI_PORT_OFFSET[port_ID] + reg*sizeof(hrt_data));
+	return ia_css_device_load_uint32(RX_BASE[ID] + MIPI_PORT_OFFSET[port_ID] + reg * sizeof(hrt_data));
 }
 
 STORAGE_CLASS_INPUT_SYSTEM_C void input_system_sub_system_reg_store(
@@ -97,7 +97,7 @@ STORAGE_CLASS_INPUT_SYSTEM_C void input_system_sub_system_reg_store(
 	assert(sub_ID < N_SUB_SYSTEM_ID);
 	assert(INPUT_SYSTEM_BASE[ID] != (hrt_address)-1);
 	assert(SUB_SYSTEM_OFFSET[sub_ID] != (hrt_address)-1);
-	ia_css_device_store_uint32(INPUT_SYSTEM_BASE[ID] + SUB_SYSTEM_OFFSET[sub_ID] + reg*sizeof(hrt_data), value);
+	ia_css_device_store_uint32(INPUT_SYSTEM_BASE[ID] + SUB_SYSTEM_OFFSET[sub_ID] + reg * sizeof(hrt_data), value);
 	return;
 }
 
@@ -110,7 +110,7 @@ STORAGE_CLASS_INPUT_SYSTEM_C hrt_data input_system_sub_system_reg_load(
 	assert(sub_ID < N_SUB_SYSTEM_ID);
 	assert(INPUT_SYSTEM_BASE[ID] != (hrt_address)-1);
 	assert(SUB_SYSTEM_OFFSET[sub_ID] != (hrt_address)-1);
-	return ia_css_device_load_uint32(INPUT_SYSTEM_BASE[ID] + SUB_SYSTEM_OFFSET[sub_ID] + reg*sizeof(hrt_data));
+	return ia_css_device_load_uint32(INPUT_SYSTEM_BASE[ID] + SUB_SYSTEM_OFFSET[sub_ID] + reg * sizeof(hrt_data));
 }
 
 #endif /* __INPUT_SYSTEM_PRIVATE_H_INCLUDED__ */

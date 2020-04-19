@@ -28,7 +28,6 @@
 #define ENOTSUP 252
 #define ENOBUFS 233
 
-
 #elif defined(__KERNEL__)
 #include <linux/errno.h>
 /*
@@ -53,18 +52,18 @@
 
 #endif
 
-#define verifexit(cond,error_tag)  \
+#define verifexit(cond, error_tag)  \
 do {                               \
-	if (!(cond)){              \
+	if (!(cond)) {              \
 		goto EXIT;         \
 	}                          \
-} while(0)
+} while (0)
 
 #define verifjmpexit(cond)         \
 do {                               \
-	if (!(cond)){              \
+	if (!(cond)) {              \
 		goto EXIT;         \
 	}                          \
-} while(0)
+} while (0)
 
 #endif /* __ERROR_SUPPORT_H_INCLUDED__ */

@@ -40,8 +40,8 @@ void sp_get_state(
 {
 	hrt_data sc = sp_ctrl_load(ID, SP_SC_REG);
 
-	assert(state != NULL);
-	assert(stall != NULL);
+	assert(state);
+	assert(stall);
 
 	state->pc = sp_ctrl_load(ID, SP_PC_REG);
 	state->status_register = sc;

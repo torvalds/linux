@@ -36,19 +36,19 @@
  */
 #define XNR3_LOOK_UP_TABLE_POINTS 16
 
-static const int16_t x[XNR3_LOOK_UP_TABLE_POINTS] = {
+static const s16 x[XNR3_LOOK_UP_TABLE_POINTS] = {
 1024, 1164, 1320, 1492, 1680, 1884, 2108, 2352,
 2616, 2900, 3208, 3540, 3896, 4276, 4684, 5120};
 
-static const int16_t a[XNR3_LOOK_UP_TABLE_POINTS] = {
+static const s16 a[XNR3_LOOK_UP_TABLE_POINTS] = {
 -7213, -5580, -4371, -3421, -2722, -2159, -6950, -5585,
 -4529, -3697, -3010, -2485, -2070, -1727, -1428, 0};
 
-static const int16_t b[XNR3_LOOK_UP_TABLE_POINTS] = {
+static const s16 b[XNR3_LOOK_UP_TABLE_POINTS] = {
 4096, 3603, 3178, 2811, 2497, 2226, 1990, 1783,
 1603, 1446, 1307, 1185, 1077, 981, 895, 819};
 
-static const int16_t c[XNR3_LOOK_UP_TABLE_POINTS] = {
+static const s16 c[XNR3_LOOK_UP_TABLE_POINTS] = {
 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 /*
@@ -74,9 +74,9 @@ const struct ia_css_xnr3_config default_xnr3_config = {
 static int32_t
 compute_alpha(int sigma)
 {
-	int32_t alpha;
+	s32 alpha;
 #if defined(XNR_ATE_ROUNDING_BUG)
-	int32_t alpha_unscaled;
+	s32 alpha_unscaled;
 #else
 	int offset = sigma / 2;
 #endif
@@ -94,7 +94,7 @@ compute_alpha(int sigma)
 		alpha_unscaled = IA_CSS_XNR3_SIGMA_SCALE / sigma;
 		alpha = alpha_unscaled * XNR_ALPHA_SCALE_FACTOR;
 #else
-		alpha = ((IA_CSS_XNR3_SIGMA_SCALE * XNR_ALPHA_SCALE_FACTOR) + offset)/ sigma;
+		alpha = ((IA_CSS_XNR3_SIGMA_SCALE * XNR_ALPHA_SCALE_FACTOR) + offset) / sigma;
 #endif
 
 		if (alpha > XNR_MAX_ALPHA)
@@ -111,10 +111,10 @@ compute_alpha(int sigma)
 static int32_t
 compute_coring(int coring)
 {
-	int32_t isp_coring;
-	int32_t isp_scale = XNR_CORING_SCALE_FACTOR;
-	int32_t host_scale = IA_CSS_XNR3_CORING_SCALE;
-	int32_t offset = host_scale / 2; /* fixed-point 0.5 */
+	s32 isp_coring;
+	s32 isp_scale = XNR_CORING_SCALE_FACTOR;
+	s32 host_scale = IA_CSS_XNR3_CORING_SCALE;
+	s32 offset = host_scale / 2; /* fixed-point 0.5 */
 
 	/* Convert from public host-side scale factor to isp-side scale
 	 * factor. Clip to [0, isp_scale-1).
@@ -130,10 +130,10 @@ compute_coring(int coring)
 static int32_t
 compute_blending(int strength)
 {
-	int32_t isp_strength;
-	int32_t isp_scale = XNR_BLENDING_SCALE_FACTOR;
-	int32_t host_scale = IA_CSS_XNR3_BLENDING_SCALE;
-	int32_t offset = host_scale / 2; /* fixed-point 0.5 */
+	s32 isp_strength;
+	s32 isp_scale = XNR_BLENDING_SCALE_FACTOR;
+	s32 host_scale = IA_CSS_XNR3_BLENDING_SCALE;
+	s32 offset = host_scale / 2; /* fixed-point 0.5 */
 
 	/* Convert from public host-side scale factor to isp-side scale
 	 * factor. The blending factor is positive on the host side, but
@@ -148,33 +148,33 @@ void
 ia_css_xnr3_encode(
 	struct sh_css_isp_xnr3_params *to,
 	const struct ia_css_xnr3_config *from,
-	unsigned size)
+	unsigned int size)
 {
 	int kernel_size = XNR_FILTER_SIZE;
 	/* The adjust factor is the next power of 2
 	   w.r.t. the kernel size*/
 	int adjust_factor = ceil_pow2(kernel_size);
-	int32_t max_diff = (1 << (ISP_VEC_ELEMBITS - 1)) - 1;
-	int32_t min_diff = -(1 << (ISP_VEC_ELEMBITS - 1));
+	s32 max_diff = (1 << (ISP_VEC_ELEMBITS - 1)) - 1;
+	s32 min_diff = -(1 << (ISP_VEC_ELEMBITS - 1));
 
-	int32_t alpha_y0 = compute_alpha(from->sigma.y0);
-	int32_t alpha_y1 = compute_alpha(from->sigma.y1);
-	int32_t alpha_u0 = compute_alpha(from->sigma.u0);
-	int32_t alpha_u1 = compute_alpha(from->sigma.u1);
-	int32_t alpha_v0 = compute_alpha(from->sigma.v0);
-	int32_t alpha_v1 = compute_alpha(from->sigma.v1);
-	int32_t alpha_ydiff = (alpha_y1 - alpha_y0) * adjust_factor / kernel_size;
-	int32_t alpha_udiff = (alpha_u1 - alpha_u0) * adjust_factor / kernel_size;
-	int32_t alpha_vdiff = (alpha_v1 - alpha_v0) * adjust_factor / kernel_size;
+	s32 alpha_y0 = compute_alpha(from->sigma.y0);
+	s32 alpha_y1 = compute_alpha(from->sigma.y1);
+	s32 alpha_u0 = compute_alpha(from->sigma.u0);
+	s32 alpha_u1 = compute_alpha(from->sigma.u1);
+	s32 alpha_v0 = compute_alpha(from->sigma.v0);
+	s32 alpha_v1 = compute_alpha(from->sigma.v1);
+	s32 alpha_ydiff = (alpha_y1 - alpha_y0) * adjust_factor / kernel_size;
+	s32 alpha_udiff = (alpha_u1 - alpha_u0) * adjust_factor / kernel_size;
+	s32 alpha_vdiff = (alpha_v1 - alpha_v0) * adjust_factor / kernel_size;
 
-	int32_t coring_u0 = compute_coring(from->coring.u0);
-	int32_t coring_u1 = compute_coring(from->coring.u1);
-	int32_t coring_v0 = compute_coring(from->coring.v0);
-	int32_t coring_v1 = compute_coring(from->coring.v1);
-	int32_t coring_udiff = (coring_u1 - coring_u0) * adjust_factor / kernel_size;
-	int32_t coring_vdiff = (coring_v1 - coring_v0) * adjust_factor / kernel_size;
+	s32 coring_u0 = compute_coring(from->coring.u0);
+	s32 coring_u1 = compute_coring(from->coring.u1);
+	s32 coring_v0 = compute_coring(from->coring.v0);
+	s32 coring_v1 = compute_coring(from->coring.v1);
+	s32 coring_udiff = (coring_u1 - coring_u0) * adjust_factor / kernel_size;
+	s32 coring_vdiff = (coring_v1 - coring_v0) * adjust_factor / kernel_size;
 
-	int32_t blending = compute_blending(from->blending.strength);
+	s32 blending = compute_blending(from->blending.strength);
 
 	(void)size;
 
@@ -205,11 +205,11 @@ void
 ia_css_xnr3_vmem_encode(
 	struct sh_css_isp_xnr3_vmem_params *to,
 	const struct ia_css_xnr3_config *from,
-	unsigned size)
+	unsigned int size)
 {
-	unsigned i, j, base;
-	const unsigned total_blocks = 4;
-	const unsigned shuffle_block = 16;
+	unsigned int i, j, base;
+	const unsigned int total_blocks = 4;
+	const unsigned int shuffle_block = 16;
 
 	(void)from;
 	(void)size;
@@ -231,7 +231,6 @@ ia_css_xnr3_vmem_encode(
 	for (j = 1; j < XNR3_LOOK_UP_TABLE_POINTS; j++) {
 		assert(x[j] >= 0);
 		assert(x[j] > x[j - 1]);
-
 	}
 
 	/* The implementation of the calulating 1/x is based on the availability
@@ -258,7 +257,7 @@ ia_css_xnr3_vmem_encode(
 void
 ia_css_xnr3_debug_dtrace(
 	const struct ia_css_xnr3_config *config,
-	unsigned level)
+	unsigned int level)
 {
 	(void)config;
 	(void)level;

@@ -18,22 +18,22 @@
 #include <type_support.h>
 
 struct sh_css_pc_histogram {
-	unsigned length;
-	unsigned *run;
-	unsigned *stall;
-	unsigned *msink;
+	unsigned int length;
+	unsigned int *run;
+	unsigned int *stall;
+	unsigned int *msink;
 };
 
 struct sh_css_binary_metrics {
-	unsigned mode;
-	unsigned id;
+	unsigned int mode;
+	unsigned int id;
 	struct sh_css_pc_histogram isp_histogram;
 	struct sh_css_pc_histogram sp_histogram;
 	struct sh_css_binary_metrics *next;
 };
 
 struct ia_css_frame_metrics {
-	unsigned num_frames;
+	unsigned int num_frames;
 };
 
 struct sh_css_metrics {

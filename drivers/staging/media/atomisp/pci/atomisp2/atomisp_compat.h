@@ -202,7 +202,7 @@ int atomisp_css_dequeue_buffer(struct atomisp_sub_device *asd,
 				struct atomisp_css_buffer *isp_css_buffer);
 
 int atomisp_css_allocate_stat_buffers(struct atomisp_sub_device *asd,
-				      uint16_t stream_id,
+				      u16 stream_id,
 				      struct atomisp_s3a_buf *s3a_buf,
 				      struct atomisp_dis_buf *dis_buf,
 				      struct atomisp_metadata_buf *md_buf);
@@ -422,7 +422,7 @@ int atomisp_css_video_configure_output(struct atomisp_sub_device *asd,
 				enum atomisp_css_frame_format format);
 
 int atomisp_get_css_frame_info(struct atomisp_sub_device *asd,
-				uint16_t source_pad,
+				u16 source_pad,
 				struct atomisp_css_frame_info *frame_info);
 
 int atomisp_css_video_configure_viewfinder(struct atomisp_sub_device *asd,

@@ -410,7 +410,6 @@ static int atomisp_qbuffers_to_css_for_all_pipes(struct atomisp_sub_device *asd)
 	return 0;
 }
 
-
 /* queue all available buffers to css */
 int atomisp_qbuffers_to_css(struct atomisp_sub_device *asd)
 {
@@ -737,6 +736,7 @@ static void atomisp_subdev_init_struct(struct atomisp_sub_device *asd)
 	asd->sensor_array_res.width = 0;
 	atomisp_css_init_struct(asd);
 }
+
 /*
  * file operation functions
  */
@@ -753,6 +753,7 @@ static unsigned int atomisp_subdev_users(struct atomisp_sub_device *asd)
 unsigned int atomisp_dev_users(struct atomisp_device *isp)
 {
 	unsigned int i, sum;
+
 	for (i = 0, sum = 0; i < isp->num_of_streams; i++)
 		sum += atomisp_subdev_users(&isp->asd[i]);
 
@@ -902,7 +903,7 @@ static int atomisp_release(struct file *file)
 	v4l2_fh_init(&fh.vfh, vdev);
 
 	req.count = 0;
-	if (isp == NULL)
+	if (!isp)
 		return -EBADF;
 
 	mutex_lock(&isp->streamoff_mutex);
@@ -960,6 +961,7 @@ static int atomisp_release(struct file *file)
 	 */
 	if (!isp->sw_contex.file_input && asd->fmt_auto->val) {
 		struct v4l2_mbus_framefmt isp_sink_fmt = { 0 };
+
 		atomisp_subdev_set_ffmt(&asd->subdev, fh.pad,
 					V4L2_SUBDEV_FORMAT_ACTIVE,
 					ATOMISP_SUBDEV_PAD_SINK, &isp_sink_fmt);
@@ -971,6 +973,7 @@ subdev_uninit:
 	/* clear the sink pad for file input */
 	if (isp->sw_contex.file_input && asd->fmt_auto->val) {
 		struct v4l2_mbus_framefmt isp_sink_fmt = { 0 };
+
 		atomisp_subdev_set_ffmt(&asd->subdev, fh.pad,
 					V4L2_SUBDEV_FORMAT_ACTIVE,
 					ATOMISP_SUBDEV_PAD_SINK, &isp_sink_fmt);
@@ -1090,7 +1093,8 @@ int atomisp_videobuf_mmap_mapper(struct videobuf_queue *q,
 	mutex_lock(&q->vb_lock);
 	for (i = 0; i < VIDEO_MAX_FRAME; i++) {
 		struct videobuf_buffer *buf = q->bufs[i];
-		if (buf == NULL)
+
+		if (!buf)
 			continue;
 
 		map = kzalloc(sizeof(struct videobuf_mapping), GFP_KERNEL);
@@ -1108,7 +1112,7 @@ int atomisp_videobuf_mmap_mapper(struct videobuf_queue *q,
 		    buf->boff == offset) {
 			vm_mem = buf->priv;
 			ret = frame_mmap(isp, vm_mem->vaddr, vma);
-			vma->vm_flags |= VM_IO|VM_DONTEXPAND|VM_DONTDUMP;
+			vma->vm_flags |= VM_IO | VM_DONTEXPAND | VM_DONTDUMP;
 			break;
 		}
 	}
@@ -1130,17 +1134,17 @@ static int remove_pad_from_frame(struct atomisp_device *isp,
 	ia_css_ptr load = in_frame->data;
 	ia_css_ptr store = load;
 
-	buffer = kmalloc(width*sizeof(load), GFP_KERNEL);
+	buffer = kmalloc_array(width, sizeof(load), GFP_KERNEL);
 	if (!buffer)
 		return -ENOMEM;
 
 	load += ISP_LEFT_PAD;
 	for (i = 0; i < height; i++) {
-		ret = hmm_load(load, buffer, width*sizeof(load));
+		ret = hmm_load(load, buffer, width * sizeof(load));
 		if (ret < 0)
 			goto remove_pad_error;
 
-		ret = hmm_store(store, buffer, width*sizeof(store));
+		ret = hmm_store(store, buffer, width * sizeof(store));
 		if (ret < 0)
 			goto remove_pad_error;
 
@@ -1194,7 +1198,7 @@ static int atomisp_mmap(struct file *file, struct vm_area_struct *vma)
 			goto error;
 		}
 		raw_virt_addr = asd->raw_output_frame;
-		if (raw_virt_addr == NULL) {
+		if (!raw_virt_addr) {
 			dev_err(isp->dev, "Failed to request RAW frame\n");
 			ret = -EINVAL;
 			goto error;
@@ -1222,7 +1226,7 @@ static int atomisp_mmap(struct file *file, struct vm_area_struct *vma)
 			goto error;
 		}
 		raw_virt_addr->data_bytes = origin_size;
-		vma->vm_flags |= VM_IO|VM_DONTEXPAND|VM_DONTDUMP;
+		vma->vm_flags |= VM_IO | VM_DONTEXPAND | VM_DONTDUMP;
 		rt_mutex_unlock(&isp->mutex);
 		return 0;
 	}
@@ -1299,4 +1303,3 @@ const struct v4l2_file_operations atomisp_file_fops = {
 #endif
 	.poll = atomisp_poll,
 };
-

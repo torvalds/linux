@@ -71,30 +71,33 @@ static inline void hrt_sleep(void)
 	udelay(1);
 }
 
-static inline uint32_t _hrt_mem_store(uint32_t to, const void *from, size_t n)
+static inline u32 _hrt_mem_store(u32 to, const void *from, size_t n)
 {
-	unsigned i;
-	uint32_t _to = to;
+	unsigned int i;
+	u32 _to = to;
 	const char *_from = (const char *)from;
+
 	for (i = 0; i < n; i++, _to++, _from++)
 		_hrt_master_port_store_8(_to, *_from);
 	return _to;
 }
 
-static inline void *_hrt_mem_load(uint32_t from, void *to, size_t n)
+static inline void *_hrt_mem_load(u32 from, void *to, size_t n)
 {
-	unsigned i;
+	unsigned int i;
 	char *_to = (char *)to;
-	uint32_t _from = from;
+	u32 _from = from;
+
 	for (i = 0; i < n; i++, _to++, _from++)
 		*_to = _hrt_master_port_load_8(_from);
 	return _to;
 }
 
-static inline uint32_t _hrt_mem_set(uint32_t to, int c, size_t n)
+static inline u32 _hrt_mem_set(u32 to, int c, size_t n)
 {
-	unsigned i;
-	uint32_t _to = to;
+	unsigned int i;
+	u32 _to = to;
+
 	for (i = 0; i < n; i++, _to++)
 		_hrt_master_port_store_8(_to, c);
 	return _to;

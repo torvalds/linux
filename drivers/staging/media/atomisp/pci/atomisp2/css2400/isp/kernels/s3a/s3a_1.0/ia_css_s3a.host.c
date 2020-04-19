@@ -46,7 +46,7 @@ static void
 ia_css_ae_encode(
 	struct sh_css_isp_ae_params *to,
 	const struct ia_css_3a_config *from,
-	unsigned size)
+	unsigned int size)
 {
 	(void)size;
 	/* coefficients to calculate Y */
@@ -62,7 +62,7 @@ static void
 ia_css_awb_encode(
 	struct sh_css_isp_awb_params *to,
 	const struct ia_css_3a_config *from,
-	unsigned size)
+	unsigned int size)
 {
 	(void)size;
 	/* AWB level gate */
@@ -78,7 +78,7 @@ static void
 ia_css_af_encode(
 	struct sh_css_isp_af_params *to,
 	const struct ia_css_3a_config *from,
-	unsigned size)
+	unsigned int size)
 {
 	unsigned int i;
 	(void)size;
@@ -98,7 +98,7 @@ void
 ia_css_s3a_encode(
 	struct sh_css_isp_s3a_params *to,
 	const struct ia_css_3a_config *from,
-	unsigned size)
+	unsigned int size)
 {
 	(void)size;
 
@@ -110,13 +110,13 @@ ia_css_s3a_encode(
 #if 0
 void
 ia_css_process_s3a(
-	unsigned pipe_id,
+	unsigned int pipe_id,
 	const struct ia_css_pipeline_stage *stage,
 	struct ia_css_isp_parameters *params)
 {
 	short dmem_offset = stage->binary->info->mem_offsets->dmem.s3a;
 
-	assert(params != NULL);
+	assert(params);
 
 	if (dmem_offset >= 0) {
 		ia_css_s3a_encode((struct sh_css_isp_s3a_params *)
@@ -137,7 +137,7 @@ ia_css_process_s3a(
 void
 ia_css_ae_dump(
 	const struct sh_css_isp_ae_params *ae,
-	unsigned level)
+	unsigned int level)
 {
 	if (!ae) return;
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
@@ -151,7 +151,7 @@ ia_css_ae_dump(
 void
 ia_css_awb_dump(
 	const struct sh_css_isp_awb_params *awb,
-	unsigned level)
+	unsigned int level)
 {
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
 			"awb_lg_high_raw", awb->lg_high_raw);
@@ -164,7 +164,7 @@ ia_css_awb_dump(
 void
 ia_css_af_dump(
 	const struct sh_css_isp_af_params *af,
-	unsigned level)
+	unsigned int level)
 {
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
 			"af_fir1[0]", af->fir1[0]);
@@ -199,23 +199,21 @@ ia_css_af_dump(
 void
 ia_css_s3a_dump(
 	const struct sh_css_isp_s3a_params *s3a,
-	unsigned level)
+	unsigned int level)
 {
 	ia_css_debug_dtrace(level, "S3A Support:\n");
-	ia_css_ae_dump  (&s3a->ae, level);
-	ia_css_awb_dump (&s3a->awb, level);
-	ia_css_af_dump  (&s3a->af, level);
+	ia_css_ae_dump(&s3a->ae, level);
+	ia_css_awb_dump(&s3a->awb, level);
+	ia_css_af_dump(&s3a->af, level);
 }
 
 void
 ia_css_s3a_debug_dtrace(
 	const struct ia_css_3a_config *config,
-	unsigned level)
+	unsigned int level)
 {
 	ia_css_debug_dtrace(level,
-		"config.ae_y_coef_r=%d, config.ae_y_coef_g=%d, "
-		"config.ae_y_coef_b=%d, config.awb_lg_high_raw=%d, "
-		"config.awb_lg_low=%d, config.awb_lg_high=%d\n",
+		"config.ae_y_coef_r=%d, config.ae_y_coef_g=%d, config.ae_y_coef_b=%d, config.awb_lg_high_raw=%d, config.awb_lg_low=%d, config.awb_lg_high=%d\n",
 		config->ae_y_coef_r, config->ae_y_coef_g,
 		config->ae_y_coef_b, config->awb_lg_high_raw,
 		config->awb_lg_low, config->awb_lg_high);
@@ -238,9 +236,9 @@ ia_css_s3a_hmem_decode(
 	int count_for_3a;
 	int sum_r, diff;
 
-	assert(host_stats != NULL);
-	assert(host_stats->rgby_data != NULL);
-	assert(hmem_buf != NULL);
+	assert(host_stats);
+	assert(host_stats->rgby_data);
+	assert(hmem_buf);
 
 	count_for_3a = host_stats->grid.width * host_stats->grid.height
 	    * host_stats->grid.bqs_per_grid_cell
@@ -267,6 +265,7 @@ ia_css_s3a_hmem_decode(
 		int sum_g = 0;
 		int sum_b = 0;
 		int sum_y = 0;
+
 		for (i = 0; i < HMEM_UNIT_SIZE; i++) {
 			sum_g += out_ptr[i].g;
 			sum_b += out_ptr[i].b;
@@ -301,9 +300,9 @@ ia_css_s3a_dmem_decode(
 	int isp_width, host_width, height, i;
 	struct ia_css_3a_output *host_ptr;
 
-	assert(host_stats != NULL);
-	assert(host_stats->data != NULL);
-	assert(isp_stats != NULL);
+	assert(host_stats);
+	assert(host_stats->data);
+	assert(isp_stats);
 
 	isp_width  = host_stats->grid.aligned_width;
 	host_width = host_stats->grid.width;
@@ -324,25 +323,25 @@ ia_css_s3a_dmem_decode(
 static inline int
 merge_hi_lo_14(unsigned short hi, unsigned short lo)
 {
-	int val = (int) ((((unsigned int) hi << 14) & 0xfffc000) |
-			((unsigned int) lo & 0x3fff));
+	int val = (int)((((unsigned int)hi << 14) & 0xfffc000) |
+			((unsigned int)lo & 0x3fff));
 	return val;
 }
 
 void
 ia_css_s3a_vmem_decode(
 	struct ia_css_3a_statistics *host_stats,
-	const uint16_t *isp_stats_hi,
+	const u16 *isp_stats_hi,
 	const uint16_t *isp_stats_lo)
 {
 	int out_width, out_height, chunk, rest, kmax, y, x, k, elm_start, elm, ofs;
-	const uint16_t *hi, *lo;
+	const u16 *hi, *lo;
 	struct ia_css_3a_output *output;
 
-	assert(host_stats!= NULL);
-	assert(host_stats->data != NULL);
-	assert(isp_stats_hi != NULL);
-	assert(isp_stats_lo != NULL);
+	assert(host_stats);
+	assert(host_stats->data);
+	assert(isp_stats_hi);
+	assert(isp_stats_lo);
 
 	output = host_stats->data;
 	out_width  = host_stats->grid.width;

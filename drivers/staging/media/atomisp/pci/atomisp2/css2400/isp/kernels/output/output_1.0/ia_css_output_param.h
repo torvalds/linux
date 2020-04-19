@@ -21,16 +21,16 @@
 
 /* output frame */
 struct sh_css_isp_output_isp_config {
-	uint32_t width_a_over_b;
-	uint32_t height;
-	uint32_t enable;
+	u32 width_a_over_b;
+	u32 height;
+	u32 enable;
 	struct ia_css_frame_sp_info info;
 	struct dma_port_config port_b;
 };
 
 struct sh_css_isp_output_params {
-	uint8_t enable_hflip;
-	uint8_t enable_vflip;
+	u8 enable_hflip;
+	u8 enable_vflip;
 };
 
 #endif /* __IA_CSS_OUTPUT_PARAM_H */

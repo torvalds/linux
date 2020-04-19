@@ -35,7 +35,6 @@
 #define _gpio_block_reg_di_debounce_cnt_3	14
 #define _gpio_block_reg_di_active_level	  15
 
-
 /* read-only registers */
 #define _gpio_block_reg_di			          16
 

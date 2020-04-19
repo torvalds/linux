@@ -22,23 +22,22 @@
 #define OBAREA_LENGTHBQ_INVERSE_SHIFT     12
 
 /* AREA_LENGTH_UNIT is dependent on NWAY, requires rewrite */
-#define AREA_LENGTH_UNIT (1<<12)
-
+#define AREA_LENGTH_UNIT BIT(12)
 
 /* OB (Optical Black) */
 struct sh_css_isp_ob_stream_config {
-	unsigned isp_pipe_version;
-	unsigned raw_bit_depth;
+	unsigned int isp_pipe_version;
+	unsigned int raw_bit_depth;
 };
 
 struct sh_css_isp_ob_params {
-	int32_t blacklevel_gr;
-	int32_t blacklevel_r;
-	int32_t blacklevel_b;
-	int32_t blacklevel_gb;
-	int32_t area_start_bq;
-	int32_t area_length_bq;
-	int32_t area_length_bq_inverse;
+	s32 blacklevel_gr;
+	s32 blacklevel_r;
+	s32 blacklevel_b;
+	s32 blacklevel_gb;
+	s32 area_start_bq;
+	s32 area_length_bq;
+	s32 area_length_bq_inverse;
 };
 
 struct sh_css_isp_ob_vmem_params {

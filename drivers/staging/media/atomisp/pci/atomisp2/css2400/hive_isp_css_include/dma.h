@@ -30,13 +30,12 @@
  *
  */
 
-
 #include "system_local.h"
 #include "dma_local.h"
 
 #ifndef __INLINE_DMA__
 #define STORAGE_CLASS_DMA_H extern
-#define STORAGE_CLASS_DMA_C 
+#define STORAGE_CLASS_DMA_C
 #include "dma_public.h"
 #else  /* __INLINE_DMA__ */
 #define STORAGE_CLASS_DMA_H static inline

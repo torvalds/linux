@@ -24,17 +24,17 @@ void
 ia_css_ob2_encode(
 	struct sh_css_isp_ob2_params *to,
 	const struct ia_css_ob2_config *from,
-	unsigned size);
+	unsigned int size);
 
 #ifndef IA_CSS_NO_DEBUG
 void
 ia_css_ob2_dump(
 	const struct sh_css_isp_ob2_params *ob2,
-	unsigned level);
+	unsigned int level);
 
 void
 ia_css_ob2_debug_dtrace(
-	const struct ia_css_ob2_config *config, unsigned level);
+	const struct ia_css_ob2_config *config, unsigned int level);
 #endif
 
 #endif /* __IA_CSS_OB2_HOST_H */

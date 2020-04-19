@@ -37,7 +37,7 @@ void
 ia_css_yuv2rgb_encode(
 	struct sh_css_isp_csc_params *to,
 	const struct ia_css_cc_config *from,
-	unsigned size)
+	unsigned int size)
 {
 	ia_css_encode_cc(to, from, size);
 }
@@ -46,7 +46,7 @@ void
 ia_css_rgb2yuv_encode(
 	struct sh_css_isp_csc_params *to,
 	const struct ia_css_cc_config *from,
-	unsigned size)
+	unsigned int size)
 {
 	ia_css_encode_cc(to, from, size);
 }
@@ -55,37 +55,37 @@ void
 ia_css_r_gamma_vamem_encode(
 	struct sh_css_isp_rgb_gamma_vamem_params *to,
 	const struct ia_css_rgb_gamma_table *from,
-	unsigned size)
+	unsigned int size)
 {
 	(void)size;
-	memcpy (&to->gc,  &from->data, sizeof(to->gc));
+	memcpy(&to->gc,  &from->data, sizeof(to->gc));
 }
 
 void
 ia_css_g_gamma_vamem_encode(
 	struct sh_css_isp_rgb_gamma_vamem_params *to,
 	const struct ia_css_rgb_gamma_table *from,
-	unsigned size)
+	unsigned int size)
 {
 	(void)size;
-	memcpy (&to->gc,  &from->data, sizeof(to->gc));
+	memcpy(&to->gc,  &from->data, sizeof(to->gc));
 }
 
 void
 ia_css_b_gamma_vamem_encode(
 	struct sh_css_isp_rgb_gamma_vamem_params *to,
 	const struct ia_css_rgb_gamma_table *from,
-	unsigned size)
+	unsigned int size)
 {
 	(void)size;
-	memcpy (&to->gc,  &from->data, sizeof(to->gc));
+	memcpy(&to->gc,  &from->data, sizeof(to->gc));
 }
 
 #ifndef IA_CSS_NO_DEBUG
 void
 ia_css_yuv2rgb_dump(
 	const struct sh_css_isp_csc_params *yuv2rgb,
-	unsigned level)
+	unsigned int level)
 {
 	ia_css_cc_dump(yuv2rgb, level, "YUV to RGB Conversion");
 }
@@ -93,7 +93,7 @@ ia_css_yuv2rgb_dump(
 void
 ia_css_rgb2yuv_dump(
 	const struct sh_css_isp_csc_params *rgb2yuv,
-	unsigned level)
+	unsigned int level)
 {
 	ia_css_cc_dump(rgb2yuv, level, "RGB to YUV Conversion");
 }
@@ -101,10 +101,9 @@ ia_css_rgb2yuv_dump(
 void
 ia_css_rgb_gamma_table_debug_dtrace(
 	const struct ia_css_rgb_gamma_table *config,
-	unsigned level)
+	unsigned int level)
 {
 	(void)config;
 	(void)level;
 }
 #endif
-

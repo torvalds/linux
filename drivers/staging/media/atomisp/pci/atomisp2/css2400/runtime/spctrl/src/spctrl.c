@@ -39,11 +39,11 @@ more details.
 
 struct spctrl_context_info {
 	struct ia_css_sp_init_dmem_cfg dmem_config;
-	uint32_t        spctrl_config_dmem_addr; /* location of dmem_cfg  in SP dmem */
-	uint32_t        spctrl_state_dmem_addr;
+	u32        spctrl_config_dmem_addr; /* location of dmem_cfg  in SP dmem */
+	u32        spctrl_state_dmem_addr;
 	unsigned int    sp_entry;           /* entry function ptr on SP */
 	hrt_vaddress    code_addr;          /* sp firmware location in host mem-DDR*/
-	uint32_t        code_size;
+	u32        code_size;
 	char           *program_name;       /* used in case of PLATFORM_SIM */
 };
 
@@ -57,7 +57,7 @@ enum ia_css_err ia_css_spctrl_load_fw(sp_ID_t sp_id,
 	hrt_vaddress code_addr = mmgr_NULL;
 	struct ia_css_sp_init_dmem_cfg *init_dmem_cfg;
 
-	if ((sp_id >= N_SP_ID) || (spctrl_cfg == NULL))
+	if ((sp_id >= N_SP_ID) || (!spctrl_cfg))
 		return IA_CSS_ERR_INVALID_ARGUMENTS;
 
 	spctrl_cofig_info[sp_id].code_addr = mmgr_NULL;
@@ -172,22 +172,23 @@ ia_css_spctrl_sp_sw_state ia_css_spctrl_get_state(sp_ID_t sp_id)
 {
 	ia_css_spctrl_sp_sw_state state = 0;
 	unsigned int HIVE_ADDR_sp_sw_state;
+
 	if (sp_id >= N_SP_ID)
 		return IA_CSS_SP_SW_TERMINATED;
 
 	HIVE_ADDR_sp_sw_state = spctrl_cofig_info[sp_id].spctrl_state_dmem_addr;
 	(void)HIVE_ADDR_sp_sw_state; /* Suppres warnings in CRUN */
 	if (sp_id == SP0_ID)
-		state = sp_dmem_load_uint32(sp_id, (unsigned)sp_address_of(sp_sw_state));
+		state = sp_dmem_load_uint32(sp_id, (unsigned int)sp_address_of(sp_sw_state));
 	return state;
 }
 
 int ia_css_spctrl_is_idle(sp_ID_t sp_id)
 {
 	int state = 0;
-	assert (sp_id < N_SP_ID);
+
+	assert(sp_id < N_SP_ID);
 
 	state = sp_ctrl_getbit(sp_id, SP_SC_REG, SP_IDLE_BIT);
 	return state;
 }
-

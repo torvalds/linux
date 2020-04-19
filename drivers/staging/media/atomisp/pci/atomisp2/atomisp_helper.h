@@ -26,4 +26,3 @@ static inline void __iomem *atomisp_get_io_virt_addr(unsigned int address)
 	return ret;
 }
 #endif
-

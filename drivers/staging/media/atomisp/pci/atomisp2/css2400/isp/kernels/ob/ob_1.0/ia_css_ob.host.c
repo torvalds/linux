@@ -47,7 +47,7 @@ ia_css_ob_encode(
 	struct sh_css_isp_ob_params *to,
 	const struct ia_css_ob_config *from,
 	const struct sh_css_isp_ob_stream_config *config,
-	unsigned size)
+	unsigned int size)
 {
 	unsigned int ob_bit_depth
 		= config->isp_pipe_version == 2 ? SH_CSS_BAYER_BITS : config->raw_bit_depth;
@@ -91,7 +91,7 @@ ia_css_ob_vmem_encode(
 	struct sh_css_isp_ob_vmem_params *to,
 	const struct ia_css_ob_config *from,
 	const struct sh_css_isp_ob_stream_config *config,
-	unsigned size)
+	unsigned int size)
 {
 	struct sh_css_isp_ob_params tmp;
 	struct sh_css_isp_ob_params *ob = &tmp;
@@ -100,18 +100,18 @@ ia_css_ob_vmem_encode(
 	ia_css_ob_encode(&tmp, from, config, sizeof(tmp));
 
 	{
-		unsigned i;
-		unsigned sp_obarea_start_bq  = ob->area_start_bq;
-		unsigned sp_obarea_length_bq = ob->area_length_bq;
-		unsigned low = sp_obarea_start_bq;
-		unsigned high = low + sp_obarea_length_bq;
-		uint16_t all_ones = ~0;
+		unsigned int i;
+		unsigned int sp_obarea_start_bq  = ob->area_start_bq;
+		unsigned int sp_obarea_length_bq = ob->area_length_bq;
+		unsigned int low = sp_obarea_start_bq;
+		unsigned int high = low + sp_obarea_length_bq;
+		u16 all_ones = ~0;
 
 		for (i = 0; i < OBAREA_MASK_SIZE; i++) {
 			if (i >= low && i < high)
-				to->vmask[i/ISP_VEC_NELEMS][i%ISP_VEC_NELEMS] = all_ones;
+				to->vmask[i / ISP_VEC_NELEMS][i % ISP_VEC_NELEMS] = all_ones;
 			else
-				to->vmask[i/ISP_VEC_NELEMS][i%ISP_VEC_NELEMS] = 0;
+				to->vmask[i / ISP_VEC_NELEMS][i % ISP_VEC_NELEMS] = 0;
 		}
 	}
 }
@@ -119,7 +119,7 @@ ia_css_ob_vmem_encode(
 void
 ia_css_ob_dump(
 	const struct sh_css_isp_ob_params *ob,
-	unsigned level)
+	unsigned int level)
 {
 	if (!ob) return;
 	ia_css_debug_dtrace(level, "Optical Black:\n");
@@ -140,20 +140,15 @@ ia_css_ob_dump(
 		ob->area_length_bq_inverse);
 }
 
-
 void
 ia_css_ob_debug_dtrace(
 	const struct ia_css_ob_config *config,
-	unsigned level)
+	unsigned int level)
 {
 	ia_css_debug_dtrace(level,
-		"config.mode=%d, "
-		"config.level_gr=%d, config.level_r=%d, "
-		"config.level_b=%d,  config.level_gb=%d, "
-		"config.start_position=%d, config.end_position=%d\n",
+		"config.mode=%d, config.level_gr=%d, config.level_r=%d, config.level_b=%d,  config.level_gb=%d, config.start_position=%d, config.end_position=%d\n",
 		config->mode,
 		config->level_gr, config->level_r,
 		config->level_b, config->level_gb,
 		config->start_position, config->end_position);
 }
-

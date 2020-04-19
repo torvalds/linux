@@ -30,8 +30,9 @@ ia_css_configure_iterator(
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_configure_iterator() enter:\n");
 
 	{
-		unsigned offset = 0;
-		unsigned size   = 0;
+		unsigned int offset = 0;
+		unsigned int size   = 0;
+
 		if (binary->info->mem_offsets.offsets.config) {
 			size   = binary->info->mem_offsets.offsets.config->dmem.iterator.size;
 			offset = binary->info->mem_offsets.offsets.config->dmem.iterator.offset;
@@ -54,8 +55,9 @@ ia_css_configure_copy_output(
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_configure_copy_output() enter:\n");
 
 	{
-		unsigned offset = 0;
-		unsigned size   = 0;
+		unsigned int offset = 0;
+		unsigned int size   = 0;
+
 		if (binary->info->mem_offsets.offsets.config) {
 			size   = binary->info->mem_offsets.offsets.config->dmem.copy_output.size;
 			offset = binary->info->mem_offsets.offsets.config->dmem.copy_output.offset;
@@ -78,8 +80,9 @@ ia_css_configure_crop(
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_configure_crop() enter:\n");
 
 	{
-		unsigned offset = 0;
-		unsigned size   = 0;
+		unsigned int offset = 0;
+		unsigned int size   = 0;
+
 		if (binary->info->mem_offsets.offsets.config) {
 			size   = binary->info->mem_offsets.offsets.config->dmem.crop.size;
 			offset = binary->info->mem_offsets.offsets.config->dmem.crop.offset;
@@ -102,8 +105,9 @@ ia_css_configure_fpn(
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_configure_fpn() enter:\n");
 
 	{
-		unsigned offset = 0;
-		unsigned size   = 0;
+		unsigned int offset = 0;
+		unsigned int size   = 0;
+
 		if (binary->info->mem_offsets.offsets.config) {
 			size   = binary->info->mem_offsets.offsets.config->dmem.fpn.size;
 			offset = binary->info->mem_offsets.offsets.config->dmem.fpn.offset;
@@ -126,8 +130,9 @@ ia_css_configure_dvs(
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_configure_dvs() enter:\n");
 
 	{
-		unsigned offset = 0;
-		unsigned size   = 0;
+		unsigned int offset = 0;
+		unsigned int size   = 0;
+
 		if (binary->info->mem_offsets.offsets.config) {
 			size   = binary->info->mem_offsets.offsets.config->dmem.dvs.size;
 			offset = binary->info->mem_offsets.offsets.config->dmem.dvs.offset;
@@ -150,8 +155,9 @@ ia_css_configure_qplane(
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_configure_qplane() enter:\n");
 
 	{
-		unsigned offset = 0;
-		unsigned size   = 0;
+		unsigned int offset = 0;
+		unsigned int size   = 0;
+
 		if (binary->info->mem_offsets.offsets.config) {
 			size   = binary->info->mem_offsets.offsets.config->dmem.qplane.size;
 			offset = binary->info->mem_offsets.offsets.config->dmem.qplane.offset;
@@ -174,8 +180,9 @@ ia_css_configure_output0(
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_configure_output0() enter:\n");
 
 	{
-		unsigned offset = 0;
-		unsigned size   = 0;
+		unsigned int offset = 0;
+		unsigned int size   = 0;
+
 		if (binary->info->mem_offsets.offsets.config) {
 			size   = binary->info->mem_offsets.offsets.config->dmem.output0.size;
 			offset = binary->info->mem_offsets.offsets.config->dmem.output0.offset;
@@ -198,8 +205,9 @@ ia_css_configure_output1(
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_configure_output1() enter:\n");
 
 	{
-		unsigned offset = 0;
-		unsigned size   = 0;
+		unsigned int offset = 0;
+		unsigned int size   = 0;
+
 		if (binary->info->mem_offsets.offsets.config) {
 			size   = binary->info->mem_offsets.offsets.config->dmem.output1.size;
 			offset = binary->info->mem_offsets.offsets.config->dmem.output1.offset;
@@ -222,8 +230,9 @@ ia_css_configure_output(
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_configure_output() enter:\n");
 
 	{
-		unsigned offset = 0;
-		unsigned size   = 0;
+		unsigned int offset = 0;
+		unsigned int size   = 0;
+
 		if (binary->info->mem_offsets.offsets.config) {
 			size   = binary->info->mem_offsets.offsets.config->dmem.output.size;
 			offset = binary->info->mem_offsets.offsets.config->dmem.output.offset;
@@ -247,8 +256,9 @@ ia_css_configure_sc(
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_configure_sc() enter:\n");
 
 	{
-		unsigned offset = 0;
-		unsigned size   = 0;
+		unsigned int offset = 0;
+		unsigned int size   = 0;
+
 		if (binary->info->mem_offsets.offsets.config) {
 			size   = binary->info->mem_offsets.offsets.config->dmem.sc.size;
 			offset = binary->info->mem_offsets.offsets.config->dmem.sc.offset;
@@ -272,8 +282,9 @@ ia_css_configure_raw(
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_configure_raw() enter:\n");
 
 	{
-		unsigned offset = 0;
-		unsigned size   = 0;
+		unsigned int offset = 0;
+		unsigned int size   = 0;
+
 		if (binary->info->mem_offsets.offsets.config) {
 			size   = binary->info->mem_offsets.offsets.config->dmem.raw.size;
 			offset = binary->info->mem_offsets.offsets.config->dmem.raw.offset;
@@ -296,8 +307,9 @@ ia_css_configure_tnr(
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_configure_tnr() enter:\n");
 
 	{
-		unsigned offset = 0;
-		unsigned size   = 0;
+		unsigned int offset = 0;
+		unsigned int size   = 0;
+
 		if (binary->info->mem_offsets.offsets.config) {
 			size   = binary->info->mem_offsets.offsets.config->dmem.tnr.size;
 			offset = binary->info->mem_offsets.offsets.config->dmem.tnr.offset;
@@ -320,8 +332,9 @@ ia_css_configure_ref(
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_configure_ref() enter:\n");
 
 	{
-		unsigned offset = 0;
-		unsigned size   = 0;
+		unsigned int offset = 0;
+		unsigned int size   = 0;
+
 		if (binary->info->mem_offsets.offsets.config) {
 			size   = binary->info->mem_offsets.offsets.config->dmem.ref.size;
 			offset = binary->info->mem_offsets.offsets.config->dmem.ref.offset;
@@ -344,8 +357,9 @@ ia_css_configure_vf(
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_configure_vf() enter:\n");
 
 	{
-		unsigned offset = 0;
-		unsigned size   = 0;
+		unsigned int offset = 0;
+		unsigned int size   = 0;
+
 		if (binary->info->mem_offsets.offsets.config) {
 			size   = binary->info->mem_offsets.offsets.config->dmem.vf.size;
 			offset = binary->info->mem_offsets.offsets.config->dmem.vf.offset;
@@ -357,4 +371,3 @@ ia_css_configure_vf(
 	}
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_configure_vf() leave:\n");
 }
-

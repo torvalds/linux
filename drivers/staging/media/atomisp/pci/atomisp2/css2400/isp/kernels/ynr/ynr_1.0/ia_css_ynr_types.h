@@ -78,4 +78,3 @@ struct ia_css_yee_config {
 };
 
 #endif /* __IA_CSS_YNR_TYPES_H */
-

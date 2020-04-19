@@ -31,74 +31,74 @@
  */
 struct ia_css_bnlm_config {
 	bool		rad_enable;	/** Enable a radial dependency in a weight calculation */
-	int32_t		rad_x_origin;	/** Initial x coordinate for a radius calculation */
-	int32_t		rad_y_origin;	/** Initial x coordinate for a radius calculation */
+	s32		rad_x_origin;	/** Initial x coordinate for a radius calculation */
+	s32		rad_y_origin;	/** Initial x coordinate for a radius calculation */
 	/* a threshold for average of weights if this < Th, do not denoise pixel */
-	int32_t		avg_min_th;
+	s32		avg_min_th;
 	/* minimum weight for denoising if max < th, do not denoise pixel */
-	int32_t		max_min_th;
+	s32		max_min_th;
 
 	/**@{*/
 	/* Coefficient for approximation, in the form of (1 + x / N)^N,
 	 * that fits the first-order exp() to default exp_lut in BNLM sheet
 	 * */
-	int32_t		exp_coeff_a;
-	uint32_t	exp_coeff_b;
-	int32_t		exp_coeff_c;
-	uint32_t	exp_exponent;
+	s32		exp_coeff_a;
+	u32	exp_coeff_b;
+	s32		exp_coeff_c;
+	u32	exp_exponent;
 	/**@}*/
 
-	int32_t nl_th[3];	/** Detail thresholds */
+	s32 nl_th[3];	/** Detail thresholds */
 
 	/* Index for n-th maximum candidate weight for each detail group */
-	int32_t match_quality_max_idx[4];
+	s32 match_quality_max_idx[4];
 
 	/**@{*/
 	/* A lookup table for 1/sqrt(1+mu) approximation */
-	int32_t mu_root_lut_thr[15];
-	int32_t mu_root_lut_val[16];
+	s32 mu_root_lut_thr[15];
+	s32 mu_root_lut_val[16];
 	/**@}*/
 	/**@{*/
 	/* A lookup table for SAD normalization */
-	int32_t sad_norm_lut_thr[15];
-	int32_t sad_norm_lut_val[16];
+	s32 sad_norm_lut_thr[15];
+	s32 sad_norm_lut_val[16];
 	/**@}*/
 	/**@{*/
 	/* A lookup table that models a weight's dependency on textures */
-	int32_t sig_detail_lut_thr[15];
-	int32_t sig_detail_lut_val[16];
+	s32 sig_detail_lut_thr[15];
+	s32 sig_detail_lut_val[16];
 	/**@}*/
 	/**@{*/
 	/* A lookup table that models a weight's dependency on a pixel's radial distance */
-	int32_t sig_rad_lut_thr[15];
-	int32_t sig_rad_lut_val[16];
+	s32 sig_rad_lut_thr[15];
+	s32 sig_rad_lut_val[16];
 	/**@}*/
 	/**@{*/
 	/* A lookup table to control denoise power depending on a pixel's radial distance */
-	int32_t rad_pow_lut_thr[15];
-	int32_t rad_pow_lut_val[16];
+	s32 rad_pow_lut_thr[15];
+	s32 rad_pow_lut_val[16];
 	/**@}*/
 	/**@{*/
 	/* Non linear transfer functions to calculate the blending coefficient depending on detail group */
 	/* detail group 0 */
 	/**@{*/
-	int32_t nl_0_lut_thr[15];
-	int32_t nl_0_lut_val[16];
+	s32 nl_0_lut_thr[15];
+	s32 nl_0_lut_val[16];
 	/**@}*/
 	/**@{*/
 	/* detail group 1 */
-	int32_t nl_1_lut_thr[15];
-	int32_t nl_1_lut_val[16];
+	s32 nl_1_lut_thr[15];
+	s32 nl_1_lut_val[16];
 	/**@}*/
 	/**@{*/
 	/* detail group 2 */
-	int32_t nl_2_lut_thr[15];
-	int32_t nl_2_lut_val[16];
+	s32 nl_2_lut_thr[15];
+	s32 nl_2_lut_val[16];
 	/**@}*/
 	/**@{*/
 	/* detail group 3 */
-	int32_t nl_3_lut_thr[15];
-	int32_t nl_3_lut_val[16];
+	s32 nl_3_lut_thr[15];
+	s32 nl_3_lut_val[16];
 	/**@}*/
 	/**@}*/
 };

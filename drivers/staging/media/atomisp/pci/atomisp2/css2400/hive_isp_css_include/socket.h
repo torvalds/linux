@@ -30,7 +30,6 @@
  *
  */
 
-
 #include "system_local.h"
 #include "socket_local.h"
 

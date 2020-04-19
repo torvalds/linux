@@ -53,7 +53,7 @@ ia_css_binary_dvs_env(const struct ia_css_binary_info *info,
 		      struct ia_css_resolution *binary_dvs_env)
 {
 	if (info->enable.dvs_envelope) {
-		assert(dvs_env != NULL);
+		assert(dvs_env);
 		binary_dvs_env->width  = max(dvs_env->width, SH_CSS_MIN_DVS_ENVELOPE);
 		binary_dvs_env->height = max(dvs_env->height, SH_CSS_MIN_DVS_ENVELOPE);
 	}
@@ -77,20 +77,20 @@ ia_css_binary_internal_res(const struct ia_css_frame_info *in_info,
 	ia_css_binary_dvs_env(info, dvs_env, &binary_dvs_env);
 
 	if (binary_supports_yuv_ds) {
-		if (in_info != NULL) {
+		if (in_info) {
 			isp_tmp_internal_width = in_info->res.width
 				+ info->pipeline.left_cropping + binary_dvs_env.width;
 			isp_tmp_internal_height = in_info->res.height
 				+ info->pipeline.top_cropping + binary_dvs_env.height;
 		}
-	} else if ((bds_out_info != NULL) && (out_info != NULL) &&
+	} else if ((bds_out_info) && (out_info) &&
 				/* TODO: hack to make video_us case work. this should be reverted after
 				a nice solution in ISP */
 				(bds_out_info->res.width >= out_info->res.width)) {
 			isp_tmp_internal_width = bds_out_info->padded_width;
 			isp_tmp_internal_height = bds_out_info->res.height;
 	} else {
-		if (out_info != NULL) {
+		if (out_info) {
 			isp_tmp_internal_width = out_info->padded_width;
 			isp_tmp_internal_height = out_info->res.height;
 		}
@@ -111,25 +111,25 @@ ia_css_binary_internal_res(const struct ia_css_frame_info *in_info,
 #ifndef ISP2401
 /* Computation results of the origin coordinate of bayer on the shading table. */
 struct sh_css_shading_table_bayer_origin_compute_results {
-	uint32_t bayer_scale_hor_ratio_in;	/* Horizontal ratio (in) of bayer scaling. */
-	uint32_t bayer_scale_hor_ratio_out;	/* Horizontal ratio (out) of bayer scaling. */
-	uint32_t bayer_scale_ver_ratio_in;	/* Vertical ratio (in) of bayer scaling. */
-	uint32_t bayer_scale_ver_ratio_out;	/* Vertical ratio (out) of bayer scaling. */
-	uint32_t sc_bayer_origin_x_bqs_on_shading_table; /* X coordinate (in bqs) of bayer origin on shading table. */
-	uint32_t sc_bayer_origin_y_bqs_on_shading_table; /* Y coordinate (in bqs) of bayer origin on shading table. */
+	u32 bayer_scale_hor_ratio_in;	/* Horizontal ratio (in) of bayer scaling. */
+	u32 bayer_scale_hor_ratio_out;	/* Horizontal ratio (out) of bayer scaling. */
+	u32 bayer_scale_ver_ratio_in;	/* Vertical ratio (in) of bayer scaling. */
+	u32 bayer_scale_ver_ratio_out;	/* Vertical ratio (out) of bayer scaling. */
+	u32 sc_bayer_origin_x_bqs_on_shading_table; /* X coordinate (in bqs) of bayer origin on shading table. */
+	u32 sc_bayer_origin_y_bqs_on_shading_table; /* Y coordinate (in bqs) of bayer origin on shading table. */
 #else
 /* Requirements for the shading correction. */
 struct sh_css_binary_sc_requirements {
 	/* Bayer scaling factor, for the scaling which is applied before shading correction. */
-	uint32_t bayer_scale_hor_ratio_in;  /* Horizontal ratio (in) of scaling applied BEFORE shading correction. */
-	uint32_t bayer_scale_hor_ratio_out; /* Horizontal ratio (out) of scaling applied BEFORE shading correction. */
-	uint32_t bayer_scale_ver_ratio_in;  /* Vertical ratio (in) of scaling applied BEFORE shading correction. */
-	uint32_t bayer_scale_ver_ratio_out; /* Vertical ratio (out) of scaling applied BEFORE shading correction. */
+	u32 bayer_scale_hor_ratio_in;  /* Horizontal ratio (in) of scaling applied BEFORE shading correction. */
+	u32 bayer_scale_hor_ratio_out; /* Horizontal ratio (out) of scaling applied BEFORE shading correction. */
+	u32 bayer_scale_ver_ratio_in;  /* Vertical ratio (in) of scaling applied BEFORE shading correction. */
+	u32 bayer_scale_ver_ratio_out; /* Vertical ratio (out) of scaling applied BEFORE shading correction. */
 
 	/* ISP internal frame is composed of the real sensor data and the padding data. */
-	uint32_t sensor_data_origin_x_bqs_on_internal; /* X origin (in bqs) of sensor data on internal frame
+	u32 sensor_data_origin_x_bqs_on_internal; /* X origin (in bqs) of sensor data on internal frame
 								at shading correction. */
-	uint32_t sensor_data_origin_y_bqs_on_internal; /* Y origin (in bqs) of sensor data on internal frame
+	u32 sensor_data_origin_y_bqs_on_internal; /* Y origin (in bqs) of sensor data on internal frame
 								at shading correction. */
 #endif
 };
@@ -362,7 +362,7 @@ sh_css_binary_get_sc_requirements(
 		int top_padding_bqsxfrac_acc = (top_cropping_bqs * factor - top_cropping_bqs * bds_frac_acc)
 				+ (2 * bds_frac_acc - factor);	/* top padding by fixed-point (in bqs) */
 
-		top_padding_bqs = (unsigned int)((top_padding_bqsxfrac_acc + bds_frac_acc/2 - 1) / bds_frac_acc);
+		top_padding_bqs = (unsigned int)((top_padding_bqsxfrac_acc + bds_frac_acc / 2 - 1) / bds_frac_acc);
 	}
 
 	IA_CSS_LOG("top_cropping=%d, top_padding_bqs=%d", binary->info->sp.pipeline.top_cropping, top_padding_bqs);
@@ -414,12 +414,12 @@ sh_css_binary_get_sc_requirements(
 	located on the shading table during the shading correction. */
 	res->sc_bayer_origin_x_bqs_on_shading_table
 		= ((left_padding_adjusted_bqs + bad_bqs_on_left_before_bs)
-		* bs_hor_ratio_out + bs_hor_ratio_in/2) / bs_hor_ratio_in
+		* bs_hor_ratio_out + bs_hor_ratio_in / 2) / bs_hor_ratio_in
 		+ bad_bqs_on_left_after_bs;
 			/* "+ bs_hor_ratio_in/2": rounding for division by bs_hor_ratio_in */
 	res->sc_bayer_origin_y_bqs_on_shading_table
 		= (bad_bqs_on_top_before_bs
-		* bs_ver_ratio_out + bs_ver_ratio_in/2) / bs_ver_ratio_in
+		* bs_ver_ratio_out + bs_ver_ratio_in / 2) / bs_ver_ratio_in
 		+ bad_bqs_on_top_after_bs;
 			/* "+ bs_ver_ratio_in/2": rounding for division by bs_ver_ratio_in */
 
@@ -444,13 +444,13 @@ sh_css_binary_get_sc_requirements(
 		bs_out = bs_hor_ratio_out * bs_frac;
 		bs_in = bs_hor_ratio_in * bs_frac;
 		sensor_data_origin_x_bqs_on_internal
-			= ((left_padding_adjusted_bqs + right_shift_bqs_before_bs) * bs_out + bs_in/2) / bs_in
+			= ((left_padding_adjusted_bqs + right_shift_bqs_before_bs) * bs_out + bs_in / 2) / bs_in
 				+ right_shift_bqs_after_bs;	/* "+ bs_in/2": rounding */
 
 		bs_out = bs_ver_ratio_out * bs_frac;
 		bs_in = bs_ver_ratio_in * bs_frac;
 		sensor_data_origin_y_bqs_on_internal
-			= ((top_padding_bqs + down_shift_bqs_before_bs) * bs_out + bs_in/2) / bs_in
+			= ((top_padding_bqs + down_shift_bqs_before_bs) * bs_out + bs_in / 2) / bs_in
 				+ down_shift_bqs_after_bs;	/* "+ bs_in/2": rounding */
 	}
 
@@ -493,26 +493,26 @@ ia_css_binary_get_shading_info_type_1(const struct ia_css_binary *binary,	/* [in
 #endif
 
 #ifndef ISP2401
-	assert(binary != NULL);
-	assert(info != NULL);
+	assert(binary);
+	assert(info);
 #else
-	uint32_t in_width_bqs, in_height_bqs, internal_width_bqs, internal_height_bqs;
-	uint32_t num_hor_grids, num_ver_grids, bqs_per_grid_cell, tbl_width_bqs, tbl_height_bqs;
-	uint32_t sensor_org_x_bqs_on_internal, sensor_org_y_bqs_on_internal, sensor_width_bqs, sensor_height_bqs;
-	uint32_t sensor_center_x_bqs_on_internal, sensor_center_y_bqs_on_internal;
-	uint32_t left, right, upper, lower;
-	uint32_t adjust_left, adjust_right, adjust_upper, adjust_lower, adjust_width_bqs, adjust_height_bqs;
-	uint32_t internal_org_x_bqs_on_tbl, internal_org_y_bqs_on_tbl;
-	uint32_t sensor_org_x_bqs_on_tbl, sensor_org_y_bqs_on_tbl;
+	u32 in_width_bqs, in_height_bqs, internal_width_bqs, internal_height_bqs;
+	u32 num_hor_grids, num_ver_grids, bqs_per_grid_cell, tbl_width_bqs, tbl_height_bqs;
+	u32 sensor_org_x_bqs_on_internal, sensor_org_y_bqs_on_internal, sensor_width_bqs, sensor_height_bqs;
+	u32 sensor_center_x_bqs_on_internal, sensor_center_y_bqs_on_internal;
+	u32 left, right, upper, lower;
+	u32 adjust_left, adjust_right, adjust_upper, adjust_lower, adjust_width_bqs, adjust_height_bqs;
+	u32 internal_org_x_bqs_on_tbl, internal_org_y_bqs_on_tbl;
+	u32 sensor_org_x_bqs_on_tbl, sensor_org_y_bqs_on_tbl;
 #endif
 
 #ifndef ISP2401
 	info->type = IA_CSS_SHADING_CORRECTION_TYPE_1;
 #else
-	assert(binary != NULL);
-	assert(stream_config != NULL);
-	assert(shading_info != NULL);
-	assert(pipe_config != NULL);
+	assert(binary);
+	assert(stream_config);
+	assert(shading_info);
+	assert(pipe_config);
 #endif
 
 #ifndef ISP2401
@@ -601,11 +601,11 @@ ia_css_binary_get_shading_info_type_1(const struct ia_css_binary *binary,	/* [in
 
 		bs_out = scr.bayer_scale_hor_ratio_out * bs_frac;
 		bs_in = scr.bayer_scale_hor_ratio_in * bs_frac;
-		sensor_width_bqs  = (in_width_bqs * bs_out + bs_in/2) / bs_in; /* "+ bs_in/2": rounding */
+		sensor_width_bqs  = (in_width_bqs * bs_out + bs_in / 2) / bs_in; /* "+ bs_in/2": rounding */
 
 		bs_out = scr.bayer_scale_ver_ratio_out * bs_frac;
 		bs_in = scr.bayer_scale_ver_ratio_in * bs_frac;
-		sensor_height_bqs = (in_height_bqs * bs_out + bs_in/2) / bs_in; /* "+ bs_in/2": rounding */
+		sensor_height_bqs = (in_height_bqs * bs_out + bs_in / 2) / bs_in; /* "+ bs_in/2": rounding */
 	}
 
 	/* Center of the sensor data on the internal frame at shading correction. */
@@ -704,11 +704,11 @@ ia_css_binary_get_shading_info(const struct ia_css_binary *binary,			/* [in] */
 {
 	enum ia_css_err err;
 
-	assert(binary != NULL);
+	assert(binary);
 #ifndef ISP2401
-	assert(info != NULL);
+	assert(info);
 #else
-	assert(shading_info != NULL);
+	assert(shading_info);
 
 	IA_CSS_ENTER_PRIVATE("binary=%p, type=%d, required_bds_factor=%d, stream_config=%p",
 		binary, type, required_bds_factor, stream_config);
@@ -734,8 +734,8 @@ ia_css_binary_get_shading_info(const struct ia_css_binary *binary,			/* [in] */
 static void sh_css_binary_common_grid_info(const struct ia_css_binary *binary,
 				struct ia_css_grid_info *info)
 {
-	assert(binary != NULL);
-	assert(info != NULL);
+	assert(binary);
+	assert(info);
 
 	info->isp_in_width = binary->internal_frame_info.res.width;
 	info->isp_in_height = binary->internal_frame_info.res.height;
@@ -751,8 +751,8 @@ ia_css_binary_dvs_grid_info(const struct ia_css_binary *binary,
 	struct ia_css_dvs_grid_info *dvs_info;
 
 	(void)pipe;
-	assert(binary != NULL);
-	assert(info != NULL);
+	assert(binary);
+	assert(info);
 
 	dvs_info = &info->dvs_grid.dvs_grid_info;
 
@@ -794,10 +794,9 @@ ia_css_binary_3a_grid_info(const struct ia_css_binary *binary,
 	IA_CSS_ENTER_PRIVATE("binary=%p, info=%p, pipe=%p",
 			     binary, info, pipe);
 
-	assert(binary != NULL);
-	assert(info != NULL);
+	assert(binary);
+	assert(info);
 	s3a_info = &info->s3a_grid;
-
 
 	/* 3A statistics grid */
 	s3a_info->enable            = binary->info->sp.enable.s3a;
@@ -821,7 +820,7 @@ ia_css_binary_3a_grid_info(const struct ia_css_binary *binary,
 static void
 binary_init_pc_histogram(struct sh_css_pc_histogram *histo)
 {
-	assert(histo != NULL);
+	assert(histo);
 
 	histo->length = 0;
 	histo->run = NULL;
@@ -832,8 +831,8 @@ static void
 binary_init_metrics(struct sh_css_binary_metrics *metrics,
 	     const struct ia_css_binary_info *info)
 {
-	assert(metrics != NULL);
-	assert(info != NULL);
+	assert(metrics);
+	assert(info);
 
 	metrics->mode = info->pipeline.mode;
 	metrics->id   = info->id;
@@ -849,7 +848,7 @@ binary_supports_output_format(const struct ia_css_binary_xinfo *info,
 {
 	int i;
 
-	assert(info != NULL);
+	assert(info);
 
 	for (i = 0; i < info->num_output_formats; i++) {
 		if (info->output_formats[i] == format)
@@ -863,8 +862,7 @@ static bool
 binary_supports_input_format(const struct ia_css_binary_xinfo *info,
 			     enum atomisp_input_format format)
 {
-
-	assert(info != NULL);
+	assert(info);
 	(void)format;
 
 	return true;
@@ -877,7 +875,7 @@ binary_supports_vf_format(const struct ia_css_binary_xinfo *info,
 {
 	int i;
 
-	assert(info != NULL);
+	assert(info);
 
 	for (i = 0; i < info->num_vf_formats; i++) {
 		if (info->vf_formats[i] == format)
@@ -888,7 +886,7 @@ binary_supports_vf_format(const struct ia_css_binary_xinfo *info,
 
 /* move to host part of bds module */
 static bool
-supports_bds_factor(uint32_t supported_factors,
+supports_bds_factor(u32 supported_factors,
 		       uint32_t bds_factor)
 {
 	return ((supported_factors & PACK_BDS_FACTOR(bds_factor)) != 0);
@@ -899,13 +897,13 @@ binary_init_info(struct ia_css_binary_xinfo *info, unsigned int i,
 		 bool *binary_found)
 {
 	const unsigned char *blob = sh_css_blob_info[i].blob;
-	unsigned size = sh_css_blob_info[i].header.blob.size;
+	unsigned int size = sh_css_blob_info[i].header.blob.size;
 
-	if ((info == NULL) || (binary_found == NULL))
+	if ((!info) || (!binary_found))
 		return IA_CSS_ERR_INVALID_ARGUMENTS;
 
 	*info = sh_css_blob_info[i].header.info.isp;
-	*binary_found = blob != NULL;
+	*binary_found = blob;
 	info->blob_index = i;
 	/* we don't have this binary, skip it */
 	if (!size)
@@ -931,7 +929,7 @@ ia_css_binary_init_infos(void)
 
 	all_binaries = sh_css_malloc(num_of_isp_binaries *
 						sizeof(*all_binaries));
-	if (all_binaries == NULL)
+	if (!all_binaries)
 		return IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
 
 	for (i = 0; i < num_of_isp_binaries; i++) {
@@ -1058,7 +1056,7 @@ binary_in_frame_padded_width(int in_frame_width,
 	nr_of_left_paddings = 0;
 #else
 	/* in other cases, the left padding pixels are always 128 */
-	nr_of_left_paddings = 2*ISP_VEC_NELEMS;
+	nr_of_left_paddings = 2 * ISP_VEC_NELEMS;
 #endif
 	if (need_scaling) {
 		/* In SDV use-case, we need to match left-padding of
@@ -1067,14 +1065,14 @@ binary_in_frame_padded_width(int in_frame_width,
 			/* Different than before, we do left&right padding. */
 			rval =
 				CEIL_MUL(in_frame_width + nr_of_left_paddings,
-					2*ISP_VEC_NELEMS);
+					2 * ISP_VEC_NELEMS);
 		} else {
 			/* Different than before, we do left&right padding. */
 			in_frame_width += dvs_env_width;
 			rval =
 				CEIL_MUL(in_frame_width +
 					(left_cropping ? nr_of_left_paddings : 0),
-					2*ISP_VEC_NELEMS);
+					2 * ISP_VEC_NELEMS);
 		}
 	} else {
 		rval = isp_internal_width;
@@ -1082,7 +1080,6 @@ binary_in_frame_padded_width(int in_frame_width,
 
 	return rval;
 }
-
 
 enum ia_css_err
 ia_css_binary_fill_info(const struct ia_css_binary_xinfo *xinfo,
@@ -1120,8 +1117,8 @@ ia_css_binary_fill_info(const struct ia_css_binary_xinfo *xinfo,
 	unsigned int i;
 	const struct ia_css_frame_info *bin_out_info = NULL;
 
-	assert(info != NULL);
-	assert(binary != NULL);
+	assert(info);
+	assert(binary);
 
 	binary->info = xinfo;
 	if (!accelerator) {
@@ -1139,11 +1136,10 @@ ia_css_binary_fill_info(const struct ia_css_binary_xinfo *xinfo,
 			break;
 		}
 	}
-	if (in_info != NULL && bin_out_info != NULL) {
+	if (in_info && bin_out_info) {
 		need_scaling = (in_info->res.width != bin_out_info->res.width) ||
 			(in_info->res.height != bin_out_info->res.height);
 	}
-
 
 	/* binary_dvs_env has to be equal or larger than SH_CSS_MIN_DVS_ENVELOPE */
 	binary_dvs_env.width = 0;
@@ -1163,15 +1159,15 @@ ia_css_binary_fill_info(const struct ia_css_binary_xinfo *xinfo,
 	isp_internal_height = internal_res.height;
 
 	/* internal frame info */
-	if (bin_out_info != NULL) /* { */
+	if (bin_out_info) /* { */
 		binary->internal_frame_info.format = bin_out_info->format;
 	/* } */
 	binary->internal_frame_info.res.width       = isp_internal_width;
-	binary->internal_frame_info.padded_width    = CEIL_MUL(isp_internal_width, 2*ISP_VEC_NELEMS);
+	binary->internal_frame_info.padded_width    = CEIL_MUL(isp_internal_width, 2 * ISP_VEC_NELEMS);
 	binary->internal_frame_info.res.height      = isp_internal_height;
 	binary->internal_frame_info.raw_bit_depth   = bits_per_pixel;
 
-	if (in_info != NULL) {
+	if (in_info) {
 		binary->effective_in_frame_res.width = in_info->res.width;
 		binary->effective_in_frame_res.height = in_info->res.height;
 
@@ -1204,7 +1200,7 @@ ia_css_binary_fill_info(const struct ia_css_binary_xinfo *xinfo,
 	binary->in_frame_info.raw_bit_depth = bits_per_pixel;
 
 	for (i = 0; i < IA_CSS_BINARY_MAX_OUTPUT_PORTS; i++) {
-		if (out_info[i] != NULL) {
+		if (out_info[i]) {
 			binary->out_frame_info[i].res.width     = out_info[i]->res.width;
 			binary->out_frame_info[i].res.height    = out_info[i]->res.height;
 			binary->out_frame_info[i].padded_width  = out_info[i]->padded_width;
@@ -1239,10 +1235,11 @@ ia_css_binary_fill_info(const struct ia_css_binary_xinfo *xinfo,
 	binary->input_format      = stream_format;
 
 	/* viewfinder output info */
-	if ((vf_info != NULL) && (vf_info->res.width != 0)) {
+	if ((vf_info) && (vf_info->res.width != 0)) {
 		unsigned int vf_out_vecs, vf_out_width, vf_out_height;
+
 		binary->vf_frame_info.format = vf_info->format;
-		if (bin_out_info == NULL)
+		if (!bin_out_info)
 			return IA_CSS_ERR_INTERNAL_ERROR;
 		vf_out_vecs = __ISP_VF_OUTPUT_WIDTH_VECS(bin_out_info->padded_width,
 			vf_log_ds);
@@ -1292,7 +1289,7 @@ ia_css_binary_fill_info(const struct ia_css_binary_xinfo *xinfo,
 	sc_3a_dis_width = binary->in_frame_info.res.width;
 	sc_3a_dis_padded_width = binary->in_frame_info.padded_width;
 	sc_3a_dis_height = binary->in_frame_info.res.height;
-	if (bds_out_info != NULL && in_info != NULL &&
+	if (bds_out_info && in_info &&
 			bds_out_info->res.width != in_info->res.width) {
 		/* TODO: Next, "internal_frame_info" should be derived from
 		 * bds_out. So this part will change once it is in place! */
@@ -1300,7 +1297,6 @@ ia_css_binary_fill_info(const struct ia_css_binary_xinfo *xinfo,
 		sc_3a_dis_padded_width = isp_internal_width;
 		sc_3a_dis_height = isp_internal_height;
 	}
-
 
 	s3a_isp_width = _ISP_S3A_ELEMS_ISP_WIDTH(sc_3a_dis_padded_width,
 		info->pipeline.left_cropping);
@@ -1410,9 +1406,9 @@ ia_css_binary_find(struct ia_css_binary_descr *descr,
 	struct ia_css_resolution dvs_env, internal_res;
 	unsigned int i;
 
-	assert(descr != NULL);
+	assert(descr);
 	/* MW: used after an error check, may accept NULL, but doubtfull */
-	assert(binary != NULL);
+	assert(binary);
 
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
 		"ia_css_binary_find() enter: descr=%p, (mode=%d), binary=%p\n",
@@ -1430,13 +1426,13 @@ ia_css_binary_find(struct ia_css_binary_descr *descr,
 		if (req_out_info[i] && (req_out_info[i]->res.width != 0))
 			req_bin_out_info = req_out_info[i];
 	}
-	if (req_bin_out_info == NULL)
+	if (!req_bin_out_info)
 		return IA_CSS_ERR_INTERNAL_ERROR;
 #ifndef ISP2401
 	req_vf_info = descr->vf_info;
 #else
 
-	if ((descr->vf_info != NULL) && (descr->vf_info->res.width == 0))
+	if ((descr->vf_info) && (descr->vf_info->res.width == 0))
 		/* width==0 means that there is no vf pin (e.g. in SkyCam preview case) */
 		req_vf_info = NULL;
 	else
@@ -1467,7 +1463,6 @@ ia_css_binary_find(struct ia_css_binary_descr *descr,
 	dvs_env.height = 0;
 	internal_res.width = 0;
 	internal_res.height = 0;
-
 
 	if (mode == IA_CSS_BINARY_MODE_VIDEO) {
 		dvs_env = descr->dvs_env;
@@ -1586,7 +1581,7 @@ ia_css_binary_find(struct ia_css_binary_descr *descr,
 			need_dz = false;
 
 		/* when we require vf output, we need to have vf_veceven */
-		if ((req_vf_info != NULL) && !(candidate->enable.vf_veceven ||
+		if ((req_vf_info) && !(candidate->enable.vf_veceven ||
 				/* or variable vf vec even */
 				candidate->vf_dec.is_variable ||
 				/* or more than one output pin. */
@@ -1767,7 +1762,7 @@ ia_css_binary_find(struct ia_css_binary_descr *descr,
 			continue;
 		}
 
-		if(!candidate->enable.tnr && need_tnr) {
+		if (!candidate->enable.tnr && need_tnr) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
 				"ia_css_binary_find() [%d] continue: !%d && %d\n",
 				__LINE__, candidate->enable.tnr,
@@ -1824,7 +1819,7 @@ void
 ia_css_binary_get_isp_binaries(struct ia_css_binary_xinfo **binaries,
 	uint32_t *num_isp_binaries)
 {
-	assert(binaries != NULL);
+	assert(binaries);
 
 	if (num_isp_binaries)
 		*num_isp_binaries = 0;

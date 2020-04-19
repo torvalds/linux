@@ -42,11 +42,11 @@ struct ia_css_queue_local {
 	ia_css_circbuf_desc_t *cb_desc; /*Circbuf desc for local queues*/
 	ia_css_circbuf_elem_t *cb_elems; /*Circbuf elements*/
 };
+
 typedef struct ia_css_queue_local ia_css_queue_local_t;
 
 /* Handle for queue object*/
 typedef struct ia_css_queue ia_css_queue_t;
-
 
 /*****************************************************************************
  * Queue Public APIs
@@ -59,7 +59,7 @@ typedef struct ia_css_queue ia_css_queue_t;
  * @return     EINVAL - Invalid argument.
  *
  */
-extern int ia_css_queue_local_init(
+int ia_css_queue_local_init(
 			ia_css_queue_t *qhandle,
 			ia_css_queue_local_t *desc);
 
@@ -70,7 +70,7 @@ extern int ia_css_queue_local_init(
  * @return     0      - Successful init of remote queue instance.
  * @return     EINVAL - Invalid argument.
  */
-extern int ia_css_queue_remote_init(
+int ia_css_queue_remote_init(
 			ia_css_queue_t *qhandle,
 			ia_css_queue_remote_t *desc);
 
@@ -80,7 +80,7 @@ extern int ia_css_queue_remote_init(
  * @return     0 - Successful uninit.
  *
  */
-extern int ia_css_queue_uninit(
+int ia_css_queue_uninit(
 			ia_css_queue_t *qhandle);
 
 /* @brief Enqueue an item in the queue instance
@@ -92,7 +92,7 @@ extern int ia_css_queue_uninit(
  * @return     ENOBUFS - Queue is full.
  *
  */
-extern int ia_css_queue_enqueue(
+int ia_css_queue_enqueue(
 			ia_css_queue_t *qhandle,
 			uint32_t item);
 
@@ -106,7 +106,7 @@ extern int ia_css_queue_enqueue(
  * @return     ENODATA - Queue is empty.
  *
  */
-extern int ia_css_queue_dequeue(
+int ia_css_queue_dequeue(
 			ia_css_queue_t *qhandle,
 			uint32_t *item);
 
@@ -119,7 +119,7 @@ extern int ia_css_queue_dequeue(
  * @return     ENOSYS  - Function not implemented.
  *
  */
-extern int ia_css_queue_is_empty(
+int ia_css_queue_is_empty(
 			ia_css_queue_t *qhandle,
 			bool *is_empty);
 
@@ -132,7 +132,7 @@ extern int ia_css_queue_is_empty(
  * @return     ENOSYS  - Function not implemented.
  *
  */
-extern int ia_css_queue_is_full(
+int ia_css_queue_is_full(
 			ia_css_queue_t *qhandle,
 			bool *is_full);
 
@@ -144,7 +144,7 @@ extern int ia_css_queue_is_full(
  * @return     EINVAL  - Invalid argument.
  *
  */
-extern int ia_css_queue_get_used_space(
+int ia_css_queue_get_used_space(
 			ia_css_queue_t *qhandle,
 			uint32_t *size);
 
@@ -156,7 +156,7 @@ extern int ia_css_queue_get_used_space(
  * @return     EINVAL  - Invalid argument.
  *
  */
-extern int ia_css_queue_get_free_space(
+int ia_css_queue_get_free_space(
 			ia_css_queue_t *qhandle,
 			uint32_t *size);
 
@@ -164,15 +164,15 @@ extern int ia_css_queue_get_free_space(
  *
  * @param[in]  qhandle.  Handle to queue instance
  * @param[in]  offset   Offset of element to peek,
- * 			 starting from head of queue
+ *			 starting from head of queue
  * @param[in]  element   Value of element returned
  * @return     0       - Successfully access state.
  * @return     EINVAL  - Invalid argument.
  *
  */
-extern int ia_css_queue_peek(
+int ia_css_queue_peek(
 		ia_css_queue_t *qhandle,
-		uint32_t offset,
+		u32 offset,
 		uint32_t *element);
 
 /* @brief Get the usable size for the queue
@@ -184,9 +184,8 @@ extern int ia_css_queue_peek(
  * @return     ENOSYS  - Function not implemented.
  *
  */
-extern int ia_css_queue_get_size(
+int ia_css_queue_get_size(
 		ia_css_queue_t *qhandle,
 		uint32_t *size);
 
 #endif /* __IA_CSS_QUEUE_H */
-

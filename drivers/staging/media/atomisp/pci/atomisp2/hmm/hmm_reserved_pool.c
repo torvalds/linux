@@ -48,7 +48,7 @@ static unsigned int get_pages_from_reserved_pool(void *pool,
 	if (repool_info->initialized) {
 		repool_pgnr = repool_info->index;
 
-		for (j = repool_pgnr-1; j >= 0; j--) {
+		for (j = repool_pgnr - 1; j >= 0; j--) {
 			page_obj[i].page = repool_info->pages[j];
 			page_obj[i].type = HMM_PAGE_TYPE_RESERVED;
 			i++;
@@ -119,6 +119,7 @@ static int hmm_reserved_pool_init(void **pool, unsigned int pool_size)
 	struct page *pages;
 	int j;
 	struct hmm_reserved_pool_info *repool_info;
+
 	if (pool_size == 0)
 		return 0;
 
@@ -184,8 +185,7 @@ end:
 	*pool = repool_info;
 
 	dev_info(atomisp_dev,
-			"hmm_reserved_pool init successfully,"
-			"hmm_reserved_pool is with %d pages.\n",
+			"hmm_reserved_pool init successfully,hmm_reserved_pool is with %d pages.\n",
 			repool_info->pgnr);
 	return 0;
 }

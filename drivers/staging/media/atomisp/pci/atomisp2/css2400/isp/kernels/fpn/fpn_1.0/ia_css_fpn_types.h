@@ -33,15 +33,15 @@
  */
 
 struct ia_css_fpn_table {
-	int16_t *data;		/** Table content (fixed patterns noise).
+	s16 *data;		/** Table content (fixed patterns noise).
 					u0.[13-shift], [0,63] */
-	uint32_t width;		/** Table width (in pixels).
+	u32 width;		/** Table width (in pixels).
 					This is the input frame width. */
-	uint32_t height;	/** Table height (in pixels).
+	u32 height;	/** Table height (in pixels).
 					This is the input frame height. */
-	uint32_t shift;		/** Common exponent of table content.
+	u32 shift;		/** Common exponent of table content.
 					u8.0, [0,13] */
-	uint32_t enabled;	/** Fpn is enabled.
+	u32 enabled;	/** Fpn is enabled.
 					bool */
 };
 

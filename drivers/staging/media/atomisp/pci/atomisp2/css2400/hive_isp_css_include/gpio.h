@@ -29,13 +29,12 @@
  *	- local:   system and cell specific constants and identifiers
  */
 
-
 #include "system_local.h"
 #include "gpio_local.h"
 
 #ifndef __INLINE_GPIO__
 #define STORAGE_CLASS_GPIO_H extern
-#define STORAGE_CLASS_GPIO_C 
+#define STORAGE_CLASS_GPIO_C
 #include "gpio_public.h"
 #else  /* __INLINE_GPIO__ */
 #define STORAGE_CLASS_GPIO_H static inline

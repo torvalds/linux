@@ -25,8 +25,8 @@
  */
 
 struct ia_css_dvs_grid_dim {
-	uint32_t width;		/** Width of DVS grid table in cells */
-	uint32_t height;	/** Height of DVS grid table in cells */
+	u32 width;		/** Width of DVS grid table in cells */
+	u32 height;	/** Height of DVS grid table in cells */
 };
 
 /* DVS statistics dimensions in number of cells for
@@ -38,7 +38,7 @@ struct ia_css_sdis_info {
 		struct ia_css_dvs_grid_dim dim; /* Dimensions */
 		struct ia_css_dvs_grid_dim pad; /* Padded dimensions */
 	} grid, coef, proj;
-	uint32_t deci_factor_log2;
+	u32 deci_factor_log2;
 };
 
 /* DVS statistics grid
@@ -49,23 +49,23 @@ struct ia_css_sdis_info {
  *  ISP2: SDVS2 is used.
  */
 struct ia_css_dvs_grid_res {
-	uint32_t width;	    	/** Width of DVS grid table.
+	u32 width;		/** Width of DVS grid table.
 					(= Horizontal number of grid cells
 					in table, which cells have effective
 					statistics.)
 					For DVS1, this is equal to
 					 the number of vertical statistics. */
-	uint32_t aligned_width; /** Stride of each grid line.
+	u32 aligned_width; /** Stride of each grid line.
 					(= Horizontal number of grid cells
 					in table, which means
 					the allocated width.) */
-	uint32_t height;	/** Height of DVS grid table.
+	u32 height;	/** Height of DVS grid table.
 					(= Vertical number of grid cells
 					in table, which cells have effective
 					statistics.)
 					For DVS1, This is equal to
 					the number of horizontal statistics. */
-	uint32_t aligned_height;/** Stride of each grid column.
+	u32 aligned_height;/** Stride of each grid column.
 					(= Vertical number of grid cells
 					in table, which means
 					the allocated height.) */
@@ -75,35 +75,35 @@ struct ia_css_dvs_grid_res {
  * However, that implies driver I/F changes
  */
 struct ia_css_dvs_grid_info {
-	uint32_t enable;        /** DVS statistics enabled.
+	u32 enable;        /** DVS statistics enabled.
 					0:disabled, 1:enabled */
-	uint32_t width;	    	/** Width of DVS grid table.
+	u32 width;		/** Width of DVS grid table.
 					(= Horizontal number of grid cells
 					in table, which cells have effective
 					statistics.)
 					For DVS1, this is equal to
 					 the number of vertical statistics. */
-	uint32_t aligned_width; /** Stride of each grid line.
+	u32 aligned_width; /** Stride of each grid line.
 					(= Horizontal number of grid cells
 					in table, which means
 					the allocated width.) */
-	uint32_t height;	/** Height of DVS grid table.
+	u32 height;	/** Height of DVS grid table.
 					(= Vertical number of grid cells
 					in table, which cells have effective
 					statistics.)
 					For DVS1, This is equal to
 					the number of horizontal statistics. */
-	uint32_t aligned_height;/** Stride of each grid column.
+	u32 aligned_height;/** Stride of each grid column.
 					(= Vertical number of grid cells
 					in table, which means
 					the allocated height.) */
-	uint32_t bqs_per_grid_cell; /** Grid cell size in BQ(Bayer Quad) unit.
+	u32 bqs_per_grid_cell; /** Grid cell size in BQ(Bayer Quad) unit.
 					(1BQ means {Gr,R,B,Gb}(2x2 pixels).)
 					For DVS1, valid value is 64.
 					For DVS2, valid value is only 64,
 					currently. */
-	uint32_t num_hor_coefs;	/** Number of horizontal coefficients. */
-	uint32_t num_ver_coefs;	/** Number of vertical coefficients. */
+	u32 num_hor_coefs;	/** Number of horizontal coefficients. */
+	u32 num_ver_coefs;	/** Number of vertical coefficients. */
 };
 
 /* Number of DVS statistics levels

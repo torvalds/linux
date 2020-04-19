@@ -21,9 +21,9 @@
 
 /* TNR (Temporal Noise Reduction) */
 struct sh_css_isp_tnr_params {
-	int32_t coef;
-	int32_t threshold_Y;
-	int32_t threshold_C;
+	s32 coef;
+	s32 threshold_Y;
+	s32 threshold_C;
 };
 
 struct ia_css_tnr_configuration {
@@ -35,8 +35,8 @@ struct ia_css_tnr_configuration {
 };
 
 struct sh_css_isp_tnr_isp_config {
-	uint32_t width_a_over_b;
-	uint32_t frame_height;
+	u32 width_a_over_b;
+	u32 frame_height;
 	struct dma_port_config port_b;
 #ifndef ISP2401
 	hrt_vaddress tnr_frame_addr[NUM_VIDEO_TNR_FRAMES];

@@ -29,13 +29,12 @@
  *	- local:   system and cell specific constants and identifiers
  */
 
-
 #include "system_local.h"
 #include "event_fifo_local.h"
 
 #ifndef __INLINE_EVENT__
 #define STORAGE_CLASS_EVENT_H extern
-#define STORAGE_CLASS_EVENT_C 
+#define STORAGE_CLASS_EVENT_C
 #include "event_fifo_public.h"
 #else  /* __INLINE_EVENT__ */
 #define STORAGE_CLASS_EVENT_H static inline

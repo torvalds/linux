@@ -30,7 +30,7 @@ void
 ia_css_fpn_encode(
 	struct sh_css_isp_fpn_params *to,
 	const struct ia_css_fpn_table *from,
-	unsigned size)
+	unsigned int size)
 {
 	(void)size;
 	to->shift = from->shift;
@@ -40,7 +40,7 @@ ia_css_fpn_encode(
 void
 ia_css_fpn_dump(
 	const struct sh_css_isp_fpn_params *fpn,
-	unsigned level)
+	unsigned int level)
 {
 	if (!fpn) return;
 	ia_css_debug_dtrace(level, "Fixed Pattern Noise Reduction:\n");
@@ -54,16 +54,16 @@ void
 ia_css_fpn_config(
 	struct sh_css_isp_fpn_isp_config *to,
 	const struct ia_css_fpn_configuration *from,
-	unsigned size)
+	unsigned int size)
 {
-	unsigned elems_a = ISP_VEC_NELEMS;
+	unsigned int elems_a = ISP_VEC_NELEMS;
 
 	(void)size;
 	ia_css_dma_configure_from_info(&to->port_b, from->info);
 	to->width_a_over_b = elems_a / to->port_b.elems;
 
 	/* Assume divisiblity here, may need to generalize to fixed point. */
-	assert (elems_a % to->port_b.elems == 0);
+	assert(elems_a % to->port_b.elems == 0);
 }
 
 void
@@ -86,4 +86,3 @@ ia_css_fpn_configure(
 
 	ia_css_configure_fpn(binary, &config);
 }
-

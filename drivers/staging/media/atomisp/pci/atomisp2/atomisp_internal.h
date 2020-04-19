@@ -156,7 +156,7 @@
 
 #endif
 #define DIV_NEAREST_STEP(n, d, step) \
-	round_down((2 * (n) + (d) * (step))/(2 * (d)), (step))
+	round_down((2 * (n) + (d) * (step)) / (2 * (d)), (step))
 
 struct atomisp_input_subdev {
 	unsigned int type;
@@ -211,7 +211,6 @@ struct atomisp_sw_contex {
 	int power_state;
 	int running_freq;
 };
-
 
 #define ATOMISP_DEVICE_STREAMING_DISABLED	0
 #define ATOMISP_DEVICE_STREAMING_ENABLED	1
@@ -295,16 +294,16 @@ extern struct device *atomisp_dev;
 
 #define atomisp_is_wdt_running(a) timer_pending(&(a)->wdt)
 #ifdef ISP2401
-extern void atomisp_wdt_refresh_pipe(struct atomisp_video_pipe *pipe,
+void atomisp_wdt_refresh_pipe(struct atomisp_video_pipe *pipe,
 					unsigned int delay);
 #endif
-extern void atomisp_wdt_refresh(struct atomisp_sub_device *asd, unsigned int delay);
+void atomisp_wdt_refresh(struct atomisp_sub_device *asd, unsigned int delay);
 #ifndef ISP2401
-extern void atomisp_wdt_start(struct atomisp_sub_device *asd);
+void atomisp_wdt_start(struct atomisp_sub_device *asd);
 #else
-extern void atomisp_wdt_start(struct atomisp_video_pipe *pipe);
-extern void atomisp_wdt_stop_pipe(struct atomisp_video_pipe *pipe, bool sync);
+void atomisp_wdt_start(struct atomisp_video_pipe *pipe);
+void atomisp_wdt_stop_pipe(struct atomisp_video_pipe *pipe, bool sync);
 #endif
-extern void atomisp_wdt_stop(struct atomisp_sub_device *asd, bool sync);
+void atomisp_wdt_stop(struct atomisp_sub_device *asd, bool sync);
 
 #endif /* __ATOMISP_INTERNAL_H__ */

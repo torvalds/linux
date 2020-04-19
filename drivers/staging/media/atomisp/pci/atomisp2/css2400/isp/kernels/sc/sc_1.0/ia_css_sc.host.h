@@ -24,12 +24,12 @@ void
 ia_css_sc_encode(
 	struct sh_css_isp_sc_params *to,
 	struct ia_css_shading_table **from,
-	unsigned size);
+	unsigned int size);
 
 void
 ia_css_sc_dump(
 	const struct sh_css_isp_sc_params *sc,
-	unsigned level);
+	unsigned int level);
 
 #ifdef ISP2401
 /* @brief Configure the shading correction.
@@ -43,7 +43,7 @@ void
 ia_css_sc_config(
 	struct sh_css_isp_sc_isp_config *to,
 	const struct ia_css_sc_configuration *from,
-	unsigned size);
+	unsigned int size);
 
 /* @brief Configure the shading correction.
  * @param[in]	binary	The binary, which has the shading correction.
@@ -60,7 +60,7 @@ ia_css_sc_config(
 void
 ia_css_sc_configure(
 	const struct ia_css_binary *binary,
-	uint32_t internal_frame_origin_x_bqs_on_sctbl,
+	u32 internal_frame_origin_x_bqs_on_sctbl,
 	uint32_t internal_frame_origin_y_bqs_on_sctbl);
 
 #endif

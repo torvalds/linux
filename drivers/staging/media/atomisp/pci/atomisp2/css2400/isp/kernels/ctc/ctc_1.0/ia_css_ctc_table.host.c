@@ -212,4 +212,3 @@ ia_css_config_ctc_table(void)
 	default_ctc_table.vamem_type     = 1IA_CSS_VAMEM_TYPE_1;
 #endif
 }
-

@@ -102,7 +102,7 @@ static struct hmm_buffer_object *__bo_search_and_remove_from_free_rbtree(
 
 	this = rb_entry(node, struct hmm_buffer_object, node);
 	if (this->pgnr == pgnr ||
-		(this->pgnr > pgnr && this->node.rb_left == NULL)) {
+		(this->pgnr > pgnr && !this->node.rb_left)) {
 		goto remove_bo_and_return;
 	} else {
 		if (this->pgnr < pgnr) {
@@ -128,7 +128,7 @@ remove_bo_and_return:
 	 * 1. check if 'this->next' is NULL:
 	 *	yes: erase 'this' node and rebalance rbtree, return 'this'.
 	 */
-	if (this->next == NULL) {
+	if (!this->next) {
 		rb_erase(&this->node, &this->bdev->free_rbtree);
 		return this;
 	}
@@ -156,11 +156,11 @@ static struct hmm_buffer_object *__bo_search_by_addr(struct rb_root *root,
 		bo = rb_entry(n, struct hmm_buffer_object, node);
 
 		if (bo->start > start) {
-			if (n->rb_left == NULL)
+			if (!n->rb_left)
 				return NULL;
 			n = n->rb_left;
 		} else if (bo->start < start) {
-			if (n->rb_right == NULL)
+			if (!n->rb_right)
 				return NULL;
 			n = n->rb_right;
 		} else {
@@ -181,13 +181,13 @@ static struct hmm_buffer_object *__bo_search_by_addr_in_range(
 		bo = rb_entry(n, struct hmm_buffer_object, node);
 
 		if (bo->start > start) {
-			if (n->rb_left == NULL)
+			if (!n->rb_left)
 				return NULL;
 			n = n->rb_left;
 		} else {
 			if (bo->end > start)
 				return bo;
-			if (n->rb_right == NULL)
+			if (!n->rb_right)
 				return NULL;
 			n = n->rb_right;
 		}
@@ -199,7 +199,7 @@ static struct hmm_buffer_object *__bo_search_by_addr_in_range(
 static void __bo_insert_to_free_rbtree(struct rb_root *root,
 					struct hmm_buffer_object *bo)
 {
-	struct rb_node **new = &(root->rb_node);
+	struct rb_node **new = &root->rb_node;
 	struct rb_node *parent = NULL;
 	struct hmm_buffer_object *this;
 	unsigned int pgnr = bo->pgnr;
@@ -232,7 +232,7 @@ static void __bo_insert_to_free_rbtree(struct rb_root *root,
 static void __bo_insert_to_alloc_rbtree(struct rb_root *root,
 					struct hmm_buffer_object *bo)
 {
-	struct rb_node **new = &(root->rb_node);
+	struct rb_node **new = &root->rb_node;
 	struct rb_node *parent = NULL;
 	struct hmm_buffer_object *this;
 	unsigned int start = bo->start;
@@ -294,14 +294,14 @@ static void __bo_take_off_handling(struct hmm_buffer_object *bo)
 	 *	and does not have a linked list after bo, to take off this bo,
 	 *	we just need erase bo directly and rebalance the free rbtree
 	 */
-	if (bo->prev == NULL && bo->next == NULL) {
+	if (!bo->prev && !bo->next) {
 		rb_erase(&bo->node, &bdev->free_rbtree);
 	/* 2. when bo->next != NULL && bo->prev == NULL, bo is a rbtree node,
 	 *	and has a linked list,to take off this bo we need erase bo
 	 *	first, then, insert bo->next into free rbtree and rebalance
 	 *	the free rbtree
 	 */
-	} else if (bo->prev == NULL && bo->next != NULL) {
+	} else if (!bo->prev && bo->next) {
 		bo->next->prev = NULL;
 		rb_erase(&bo->node, &bdev->free_rbtree);
 		__bo_insert_to_free_rbtree(&bdev->free_rbtree, bo->next);
@@ -311,7 +311,7 @@ static void __bo_take_off_handling(struct hmm_buffer_object *bo)
 	 *	node, to take off this bo, we just need set the "prev/next"
 	 *	pointers to NULL, the free rbtree stays unchaged
 	 */
-	} else if (bo->prev != NULL && bo->next == NULL) {
+	} else if (bo->prev && !bo->next) {
 		bo->prev->next = NULL;
 		bo->prev = NULL;
 	/* 4. when bo->prev != NULL && bo->next != NULL ,bo is not a rbtree
@@ -319,7 +319,7 @@ static void __bo_take_off_handling(struct hmm_buffer_object *bo)
 	 *	to take off this bo, we just set take the "prev/next" pointers
 	 *	to NULL, the free rbtree stays unchaged
 	 */
-	} else if (bo->prev != NULL && bo->next != NULL) {
+	} else if (bo->prev && bo->next) {
 		bo->next->prev = bo->prev;
 		bo->prev->next = bo->next;
 		bo->next = NULL;
@@ -634,9 +634,7 @@ struct hmm_buffer_object *hmm_bo_device_search_vmap_start(
 found:
 	spin_unlock_irqrestore(&bdev->list_lock, flags);
 	return bo;
-
 }
-
 
 static void free_private_bo_pages(struct hmm_buffer_object *bo,
 				struct hmm_pool *dypool,
@@ -821,8 +819,7 @@ retry:
 				ret = set_pages_uc(pages, blk_pgnr);
 				if (ret) {
 					dev_err(atomisp_dev,
-						     "set page uncacheable"
-							"failed.\n");
+						     "set page uncacheablefailed.\n");
 
 					__free_pages(pages, order);
 
@@ -999,7 +996,7 @@ static int alloc_user_pages(struct hmm_buffer_object *bo,
 	down_read(&current->mm->mmap_sem);
 	vma = find_vma(current->mm, (unsigned long)userptr);
 	up_read(&current->mm->mmap_sem);
-	if (vma == NULL) {
+	if (!vma) {
 		dev_err(atomisp_dev, "find_vma failed\n");
 		kfree(bo->page_obj);
 		kfree(pages);
@@ -1029,8 +1026,7 @@ static int alloc_user_pages(struct hmm_buffer_object *bo,
 	/* can be written by caller, not forced */
 	if (page_nr != bo->pgnr) {
 		dev_err(atomisp_dev,
-				"get_user_pages err: bo->pgnr = %d, "
-				"pgnr actually pinned = %d.\n",
+				"get_user_pages err: bo->pgnr = %d, pgnr actually pinned = %d.\n",
 				bo->pgnr, page_nr);
 		goto out_of_mem;
 	}
@@ -1492,8 +1488,7 @@ int hmm_bo_mmap(struct vm_area_struct *vma, struct hmm_buffer_object *bo)
 	 */
 	if ((start + pgnr_to_size(pgnr)) != end) {
 		dev_warn(atomisp_dev,
-			     "vma's address space size not equal"
-			     " to buffer object's size");
+			     "vma's address space size not equal to buffer object's size");
 		return -EINVAL;
 	}
 
@@ -1502,9 +1497,8 @@ int hmm_bo_mmap(struct vm_area_struct *vma, struct hmm_buffer_object *bo)
 		pfn = page_to_pfn(bo->page_obj[i].page);
 		if (remap_pfn_range(vma, virt, pfn, PAGE_SIZE, PAGE_SHARED)) {
 			dev_warn(atomisp_dev,
-					"remap_pfn_range failed:"
-					" virt = 0x%x, pfn = 0x%x,"
-					" mapped_pgnr = %d\n", virt, pfn, 1);
+					"remap_pfn_range failed: virt = 0x%x, pfn = 0x%x, mapped_pgnr = %d\n",
+					virt, pfn, 1);
 			return -EINVAL;
 		}
 		virt += PAGE_SIZE;
@@ -1513,7 +1507,7 @@ int hmm_bo_mmap(struct vm_area_struct *vma, struct hmm_buffer_object *bo)
 	vma->vm_private_data = bo;
 
 	vma->vm_ops = &hmm_bo_vm_ops;
-	vma->vm_flags |= VM_IO|VM_DONTEXPAND|VM_DONTDUMP;
+	vma->vm_flags |= VM_IO | VM_DONTEXPAND | VM_DONTDUMP;
 
 	/*
 	 * call hmm_bo_vm_open explicitly.

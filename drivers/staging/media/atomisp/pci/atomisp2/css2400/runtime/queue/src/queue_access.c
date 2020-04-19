@@ -40,7 +40,7 @@ int ia_css_queue_load(
 		ia_css_circbuf_desc_t *cb_desc,
 		uint32_t ignore_desc_flags)
 {
-	if (rdesc == NULL || cb_desc == NULL)
+	if (!rdesc || !cb_desc)
 		return EINVAL;
 
 	if (rdesc->location == IA_CSS_QUEUE_LOC_SP) {
@@ -51,7 +51,7 @@ int ia_css_queue_load(
 				rdesc->desc.remote.cb_desc_addr
 				+ offsetof(ia_css_circbuf_desc_t, size));
 
-			if (0 == cb_desc->size) {
+			if (cb_desc->size == 0) {
 				/* Adding back the workaround which was removed
 				   while refactoring queues. When reading size
 				   through sp_dmem_load_*, sometimes we get back
@@ -95,7 +95,7 @@ int ia_css_queue_store(
 		ia_css_circbuf_desc_t *cb_desc,
 		uint32_t ignore_desc_flags)
 {
-	if (rdesc == NULL || cb_desc == NULL)
+	if (!rdesc || !cb_desc)
 		return EINVAL;
 
 	if (rdesc->location == IA_CSS_QUEUE_LOC_SP) {
@@ -139,10 +139,10 @@ int ia_css_queue_store(
 
 int ia_css_queue_item_load(
 		struct ia_css_queue *rdesc,
-		uint8_t position,
+		u8 position,
 		ia_css_circbuf_elem_t *item)
 {
-	if (rdesc == NULL || item == NULL)
+	if (!rdesc || !item)
 		return EINVAL;
 
 	if (rdesc->location == IA_CSS_QUEUE_LOC_SP) {
@@ -166,10 +166,10 @@ int ia_css_queue_item_load(
 
 int ia_css_queue_item_store(
 		struct ia_css_queue *rdesc,
-		uint8_t position,
+		u8 position,
 		ia_css_circbuf_elem_t *item)
 {
-	if (rdesc == NULL || item == NULL)
+	if (!rdesc || !item)
 		return EINVAL;
 
 	if (rdesc->location == IA_CSS_QUEUE_LOC_SP) {

@@ -64,13 +64,12 @@
 #define CEIL_DIV(a, b)       (((b) != 0) ? ((a) + (b) - 1) / (b) : 0)
 #define CEIL_MUL(a, b)       (CEIL_DIV(a, b) * (b))
 #define CEIL_MUL2(a, b)      (((a) + (b) - 1) & ~((b) - 1))
-#define CEIL_SHIFT(a, b)     (((a) + (1 << (b)) - 1)>>(b))
+#define CEIL_SHIFT(a, b)     (((a) + (1 << (b)) - 1) >> (b))
 #define CEIL_SHIFT_MUL(a, b) (CEIL_SHIFT(a, b) << (b))
 #ifdef ISP2401
 #define ROUND_HALF_DOWN_DIV(a, b)	(((b) != 0) ? ((a) + (b / 2) - 1) / (b) : 0)
 #define ROUND_HALF_DOWN_MUL(a, b)	(ROUND_HALF_DOWN_DIV(a, b) * (b))
 #endif
-
 
 /*To Find next power of 2 number from x */
 #define bit2(x)            ((x)      | ((x) >> 1))
@@ -78,13 +77,11 @@
 #define bit8(x)            (bit4(x)  | (bit4(x) >> 4))
 #define bit16(x)           (bit8(x)  | (bit8(x) >> 8))
 #define bit32(x)           (bit16(x) | (bit16(x) >> 16))
-#define NEXT_POWER_OF_2(x) (bit32(x-1) + 1)
-
+#define NEXT_POWER_OF_2(x) (bit32(x - 1) + 1)
 
 /* min and max should not be macros as they will evaluate their arguments twice.
    if you really need a macro (e.g. for CPP or for initializing an array)
    use MIN() and MAX(), otherwise use min() and max().
-
 
 */
 
@@ -132,7 +129,6 @@ static inline unsigned int umin(unsigned int a, unsigned int b)
 {
 	return MIN(a, b);
 }
-
 
 static inline unsigned int ceil_mul(unsigned int a, unsigned int b)
 {
@@ -190,17 +186,17 @@ static inline unsigned int ceil_pow2(unsigned int a)
 		return 1;
 	}
 	/* IF input is already a power of two*/
-	else if ((!((a)&((a)-1)))) {
+	else if ((!((a) & ((a) - 1)))) {
 		return a;
-	}
-	else {
+	} else {
 		unsigned int v = a;
-		v |= v>>1;
-		v |= v>>2;
-		v |= v>>4;
-		v |= v>>8;
-		v |= v>>16;
-		return (v+1);
+
+		v |= v >> 1;
+		v |= v >> 2;
+		v |= v >> 4;
+		v |= v >> 8;
+		v |= v >> 16;
+		return (v + 1);
 	}
 }
 
@@ -211,8 +207,7 @@ static inline unsigned int ceil_pow2(unsigned int a)
  * For SP and ISP, SDK provides the definition of OP_std_modadd.
  * We need it only for host
  */
-#define OP_std_modadd(base, offset, size) ((base+offset)%(size))
+#define OP_std_modadd(base, offset, size) ((base + offset) % (size))
 #endif /* !defined(__ISP) */
-
 
 #endif /* __MATH_SUPPORT_H */

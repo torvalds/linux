@@ -17,23 +17,22 @@ more details.
 #include "memory_access.h"
 
 static bool realloc_isp_css_mm_buf(
-	hrt_vaddress *curr_buf,
+	hrt_vaddress * curr_buf,
 	size_t *curr_size,
 	size_t needed_size,
 	bool force,
 	enum ia_css_err *err,
 	uint16_t mmgr_attribute);
 
-
 bool reallocate_buffer(
-	hrt_vaddress *curr_buf,
+	hrt_vaddress * curr_buf,
 	size_t *curr_size,
 	size_t needed_size,
 	bool force,
 	enum ia_css_err *err)
 {
 	bool ret;
-	uint16_t	mmgr_attribute = MMGR_ATTRIBUTE_DEFAULT;
+	u16	mmgr_attribute = MMGR_ATTRIBUTE_DEFAULT;
 
 	IA_CSS_ENTER_PRIVATE("void");
 
@@ -45,14 +44,14 @@ bool reallocate_buffer(
 }
 
 static bool realloc_isp_css_mm_buf(
-	hrt_vaddress *curr_buf,
+	hrt_vaddress * curr_buf,
 	size_t *curr_size,
 	size_t needed_size,
 	bool force,
 	enum ia_css_err *err,
 	uint16_t mmgr_attribute)
 {
-	int32_t id;
+	s32 id;
 
 	*err = IA_CSS_SUCCESS;
 	/* Possible optimization: add a function sh_css_isp_css_mm_realloc()

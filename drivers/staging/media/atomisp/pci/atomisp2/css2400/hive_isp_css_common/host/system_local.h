@@ -39,7 +39,7 @@
 /*
  * Cell specific address maps
  */
-#if HRT_ADDRESS_WIDTH==64
+#if HRT_ADDRESS_WIDTH == 64
 
 #define GP_FIFO_BASE   ((hrt_address)0x0000000000090104)		/* This is NOT a base address */
 
@@ -76,7 +76,7 @@ static const hrt_address SP_PMEM_BASE[N_SP_ID] = {
 	(hrt_address)0x00000000000B0000ULL};
 
 /* MMU */
-#if defined (IS_ISP_2400_MAMOIADA_SYSTEM) || defined (IS_ISP_2401_MAMOIADA_SYSTEM)
+#if defined(IS_ISP_2400_MAMOIADA_SYSTEM) || defined(IS_ISP_2401_MAMOIADA_SYSTEM)
 /*
  * MMU0_ID: The data MMU
  * MMU1_ID: The icache MMU
@@ -136,7 +136,6 @@ static const hrt_address GPIO_BASE[N_GPIO_ID] = {
 static const hrt_address TIMED_CTRL_BASE[N_TIMED_CTRL_ID] = {
 	(hrt_address)0x0000000000000100ULL};
 
-
 /* INPUT_FORMATTER */
 static const hrt_address INPUT_FORMATTER_BASE[N_INPUT_FORMATTER_ID] = {
 	(hrt_address)0x0000000000030000ULL,
@@ -161,7 +160,7 @@ static const hrt_address INPUT_SYSTEM_BASE[N_INPUT_SYSTEM_ID] = {
 static const hrt_address RX_BASE[N_RX_ID] = {
 	(hrt_address)0x0000000000080100ULL};
 
-#elif HRT_ADDRESS_WIDTH==32
+#elif HRT_ADDRESS_WIDTH == 32
 
 #define GP_FIFO_BASE   ((hrt_address)0x00090104)		/* This is NOT a base address */
 
@@ -198,7 +197,7 @@ static const hrt_address SP_PMEM_BASE[N_SP_ID] = {
 	(hrt_address)0x000B0000UL};
 
 /* MMU */
-#if defined (IS_ISP_2400_MAMOIADA_SYSTEM) || defined (IS_ISP_2401_MAMOIADA_SYSTEM)
+#if defined(IS_ISP_2400_MAMOIADA_SYSTEM) || defined(IS_ISP_2401_MAMOIADA_SYSTEM)
 /*
  * MMU0_ID: The data MMU
  * MMU1_ID: The icache MMU
@@ -258,7 +257,6 @@ static const hrt_address GPIO_BASE[N_GPIO_ID] = {
 /* TIMED_CTRL */
 static const hrt_address TIMED_CTRL_BASE[N_TIMED_CTRL_ID] = {
 	(hrt_address)0x00000100UL};
-
 
 /* INPUT_FORMATTER */
 static const hrt_address INPUT_FORMATTER_BASE[N_INPUT_FORMATTER_ID] = {

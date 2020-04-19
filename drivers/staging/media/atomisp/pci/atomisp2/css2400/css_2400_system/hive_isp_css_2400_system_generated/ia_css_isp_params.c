@@ -66,12 +66,12 @@
 
 static void
 ia_css_process_aa(
-	unsigned pipe_id,
+	unsigned int pipe_id,
 	const struct ia_css_pipeline_stage *stage,
 	struct ia_css_isp_parameters *params)
 {
-	unsigned size   = stage->binary->info->mem_offsets.offsets.param->dmem.aa.size;
-	unsigned offset = stage->binary->info->mem_offsets.offsets.param->dmem.aa.offset;
+	unsigned int size   = stage->binary->info->mem_offsets.offsets.param->dmem.aa.size;
+	unsigned int offset = stage->binary->info->mem_offsets.offsets.param->dmem.aa.offset;
 
 	if (size) {
 		struct sh_css_isp_aa_params *t =  (struct sh_css_isp_aa_params *)
@@ -86,16 +86,16 @@ ia_css_process_aa(
 
 static void
 ia_css_process_anr(
-	unsigned pipe_id,
+	unsigned int pipe_id,
 	const struct ia_css_pipeline_stage *stage,
 	struct ia_css_isp_parameters *params)
 {
-	assert(params != NULL);
+	assert(params);
 
 	{
-		unsigned size   = stage->binary->info->mem_offsets.offsets.param->dmem.anr.size;
+		unsigned int size   = stage->binary->info->mem_offsets.offsets.param->dmem.anr.size;
 
-		unsigned offset = stage->binary->info->mem_offsets.offsets.param->dmem.anr.offset;
+		unsigned int offset = stage->binary->info->mem_offsets.offsets.param->dmem.anr.offset;
 
 		if (size) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_anr() enter:\n");
@@ -109,7 +109,6 @@ size);
 
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_anr() leave:\n");
 		}
-
 	}
 }
 
@@ -117,16 +116,16 @@ size);
 
 static void
 ia_css_process_anr2(
-	unsigned pipe_id,
+	unsigned int pipe_id,
 	const struct ia_css_pipeline_stage *stage,
 	struct ia_css_isp_parameters *params)
 {
-	assert(params != NULL);
+	assert(params);
 
 	{
-		unsigned size   = stage->binary->info->mem_offsets.offsets.param->vmem.anr2.size;
+		unsigned int size   = stage->binary->info->mem_offsets.offsets.param->vmem.anr2.size;
 
-		unsigned offset = stage->binary->info->mem_offsets.offsets.param->vmem.anr2.offset;
+		unsigned int offset = stage->binary->info->mem_offsets.offsets.param->vmem.anr2.offset;
 
 		if (size) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_anr2() enter:\n");
@@ -140,7 +139,6 @@ size);
 
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_anr2() leave:\n");
 		}
-
 	}
 }
 
@@ -148,16 +146,16 @@ size);
 
 static void
 ia_css_process_bh(
-	unsigned pipe_id,
+	unsigned int pipe_id,
 	const struct ia_css_pipeline_stage *stage,
 	struct ia_css_isp_parameters *params)
 {
-	assert(params != NULL);
+	assert(params);
 
 	{
-		unsigned size   = stage->binary->info->mem_offsets.offsets.param->dmem.bh.size;
+		unsigned int size   = stage->binary->info->mem_offsets.offsets.param->dmem.bh.size;
 
-		unsigned offset = stage->binary->info->mem_offsets.offsets.param->dmem.bh.offset;
+		unsigned int offset = stage->binary->info->mem_offsets.offsets.param->dmem.bh.offset;
 
 		if (size) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_bh() enter:\n");
@@ -171,10 +169,9 @@ size);
 
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_bh() leave:\n");
 		}
-
 	}
 	{
-		unsigned size   = stage->binary->info->mem_offsets.offsets.param->hmem0.bh.size;
+		unsigned int size   = stage->binary->info->mem_offsets.offsets.param->hmem0.bh.size;
 
 		if (size) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_bh() enter:\n");
@@ -184,7 +181,6 @@ size);
 
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_bh() leave:\n");
 		}
-
 	}
 }
 
@@ -192,16 +188,16 @@ size);
 
 static void
 ia_css_process_cnr(
-	unsigned pipe_id,
+	unsigned int pipe_id,
 	const struct ia_css_pipeline_stage *stage,
 	struct ia_css_isp_parameters *params)
 {
-	assert(params != NULL);
+	assert(params);
 
 	{
-		unsigned size   = stage->binary->info->mem_offsets.offsets.param->dmem.cnr.size;
+		unsigned int size   = stage->binary->info->mem_offsets.offsets.param->dmem.cnr.size;
 
-		unsigned offset = stage->binary->info->mem_offsets.offsets.param->dmem.cnr.offset;
+		unsigned int offset = stage->binary->info->mem_offsets.offsets.param->dmem.cnr.offset;
 
 		if (size) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_cnr() enter:\n");
@@ -215,7 +211,6 @@ size);
 
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_cnr() leave:\n");
 		}
-
 	}
 }
 
@@ -223,16 +218,16 @@ size);
 
 static void
 ia_css_process_crop(
-	unsigned pipe_id,
+	unsigned int pipe_id,
 	const struct ia_css_pipeline_stage *stage,
 	struct ia_css_isp_parameters *params)
 {
-	assert(params != NULL);
+	assert(params);
 
 	{
-		unsigned size   = stage->binary->info->mem_offsets.offsets.param->dmem.crop.size;
+		unsigned int size   = stage->binary->info->mem_offsets.offsets.param->dmem.crop.size;
 
-		unsigned offset = stage->binary->info->mem_offsets.offsets.param->dmem.crop.offset;
+		unsigned int offset = stage->binary->info->mem_offsets.offsets.param->dmem.crop.offset;
 
 		if (size) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_crop() enter:\n");
@@ -246,7 +241,6 @@ size);
 
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_crop() leave:\n");
 		}
-
 	}
 }
 
@@ -254,16 +248,16 @@ size);
 
 static void
 ia_css_process_csc(
-	unsigned pipe_id,
+	unsigned int pipe_id,
 	const struct ia_css_pipeline_stage *stage,
 	struct ia_css_isp_parameters *params)
 {
-	assert(params != NULL);
+	assert(params);
 
 	{
-		unsigned size   = stage->binary->info->mem_offsets.offsets.param->dmem.csc.size;
+		unsigned int size   = stage->binary->info->mem_offsets.offsets.param->dmem.csc.size;
 
-		unsigned offset = stage->binary->info->mem_offsets.offsets.param->dmem.csc.offset;
+		unsigned int offset = stage->binary->info->mem_offsets.offsets.param->dmem.csc.offset;
 
 		if (size) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_csc() enter:\n");
@@ -277,7 +271,6 @@ size);
 
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_csc() leave:\n");
 		}
-
 	}
 }
 
@@ -285,16 +278,16 @@ size);
 
 static void
 ia_css_process_dp(
-	unsigned pipe_id,
+	unsigned int pipe_id,
 	const struct ia_css_pipeline_stage *stage,
 	struct ia_css_isp_parameters *params)
 {
-	assert(params != NULL);
+	assert(params);
 
 	{
-		unsigned size   = stage->binary->info->mem_offsets.offsets.param->dmem.dp.size;
+		unsigned int size   = stage->binary->info->mem_offsets.offsets.param->dmem.dp.size;
 
-		unsigned offset = stage->binary->info->mem_offsets.offsets.param->dmem.dp.offset;
+		unsigned int offset = stage->binary->info->mem_offsets.offsets.param->dmem.dp.offset;
 
 		if (size) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_dp() enter:\n");
@@ -308,7 +301,6 @@ size);
 
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_dp() leave:\n");
 		}
-
 	}
 }
 
@@ -316,16 +308,16 @@ size);
 
 static void
 ia_css_process_bnr(
-	unsigned pipe_id,
+	unsigned int pipe_id,
 	const struct ia_css_pipeline_stage *stage,
 	struct ia_css_isp_parameters *params)
 {
-	assert(params != NULL);
+	assert(params);
 
 	{
-		unsigned size   = stage->binary->info->mem_offsets.offsets.param->dmem.bnr.size;
+		unsigned int size   = stage->binary->info->mem_offsets.offsets.param->dmem.bnr.size;
 
-		unsigned offset = stage->binary->info->mem_offsets.offsets.param->dmem.bnr.offset;
+		unsigned int offset = stage->binary->info->mem_offsets.offsets.param->dmem.bnr.offset;
 
 		if (size) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_bnr() enter:\n");
@@ -339,7 +331,6 @@ size);
 
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_bnr() leave:\n");
 		}
-
 	}
 }
 
@@ -347,16 +338,16 @@ size);
 
 static void
 ia_css_process_de(
-	unsigned pipe_id,
+	unsigned int pipe_id,
 	const struct ia_css_pipeline_stage *stage,
 	struct ia_css_isp_parameters *params)
 {
-	assert(params != NULL);
+	assert(params);
 
 	{
-		unsigned size   = stage->binary->info->mem_offsets.offsets.param->dmem.de.size;
+		unsigned int size   = stage->binary->info->mem_offsets.offsets.param->dmem.de.size;
 
-		unsigned offset = stage->binary->info->mem_offsets.offsets.param->dmem.de.offset;
+		unsigned int offset = stage->binary->info->mem_offsets.offsets.param->dmem.de.offset;
 
 		if (size) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_de() enter:\n");
@@ -370,7 +361,6 @@ size);
 
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_de() leave:\n");
 		}
-
 	}
 }
 
@@ -378,16 +368,16 @@ size);
 
 static void
 ia_css_process_ecd(
-	unsigned pipe_id,
+	unsigned int pipe_id,
 	const struct ia_css_pipeline_stage *stage,
 	struct ia_css_isp_parameters *params)
 {
-	assert(params != NULL);
+	assert(params);
 
 	{
-		unsigned size   = stage->binary->info->mem_offsets.offsets.param->dmem.ecd.size;
+		unsigned int size   = stage->binary->info->mem_offsets.offsets.param->dmem.ecd.size;
 
-		unsigned offset = stage->binary->info->mem_offsets.offsets.param->dmem.ecd.offset;
+		unsigned int offset = stage->binary->info->mem_offsets.offsets.param->dmem.ecd.offset;
 
 		if (size) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_ecd() enter:\n");
@@ -401,7 +391,6 @@ size);
 
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_ecd() leave:\n");
 		}
-
 	}
 }
 
@@ -409,16 +398,16 @@ size);
 
 static void
 ia_css_process_formats(
-	unsigned pipe_id,
+	unsigned int pipe_id,
 	const struct ia_css_pipeline_stage *stage,
 	struct ia_css_isp_parameters *params)
 {
-	assert(params != NULL);
+	assert(params);
 
 	{
-		unsigned size   = stage->binary->info->mem_offsets.offsets.param->dmem.formats.size;
+		unsigned int size   = stage->binary->info->mem_offsets.offsets.param->dmem.formats.size;
 
-		unsigned offset = stage->binary->info->mem_offsets.offsets.param->dmem.formats.offset;
+		unsigned int offset = stage->binary->info->mem_offsets.offsets.param->dmem.formats.offset;
 
 		if (size) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_formats() enter:\n");
@@ -432,7 +421,6 @@ size);
 
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_formats() leave:\n");
 		}
-
 	}
 }
 
@@ -440,16 +428,16 @@ size);
 
 static void
 ia_css_process_fpn(
-	unsigned pipe_id,
+	unsigned int pipe_id,
 	const struct ia_css_pipeline_stage *stage,
 	struct ia_css_isp_parameters *params)
 {
-	assert(params != NULL);
+	assert(params);
 
 	{
-		unsigned size   = stage->binary->info->mem_offsets.offsets.param->dmem.fpn.size;
+		unsigned int size   = stage->binary->info->mem_offsets.offsets.param->dmem.fpn.size;
 
-		unsigned offset = stage->binary->info->mem_offsets.offsets.param->dmem.fpn.offset;
+		unsigned int offset = stage->binary->info->mem_offsets.offsets.param->dmem.fpn.offset;
 
 		if (size) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_fpn() enter:\n");
@@ -463,7 +451,6 @@ size);
 
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_fpn() leave:\n");
 		}
-
 	}
 }
 
@@ -471,16 +458,16 @@ size);
 
 static void
 ia_css_process_gc(
-	unsigned pipe_id,
+	unsigned int pipe_id,
 	const struct ia_css_pipeline_stage *stage,
 	struct ia_css_isp_parameters *params)
 {
-	assert(params != NULL);
+	assert(params);
 
 	{
-		unsigned size   = stage->binary->info->mem_offsets.offsets.param->dmem.gc.size;
+		unsigned int size   = stage->binary->info->mem_offsets.offsets.param->dmem.gc.size;
 
-		unsigned offset = stage->binary->info->mem_offsets.offsets.param->dmem.gc.offset;
+		unsigned int offset = stage->binary->info->mem_offsets.offsets.param->dmem.gc.offset;
 
 		if (size) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_gc() enter:\n");
@@ -494,12 +481,11 @@ size);
 
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_gc() leave:\n");
 		}
-
 	}
 	{
-		unsigned size   = stage->binary->info->mem_offsets.offsets.param->vamem1.gc.size;
+		unsigned int size   = stage->binary->info->mem_offsets.offsets.param->vamem1.gc.size;
 
-		unsigned offset = stage->binary->info->mem_offsets.offsets.param->vamem1.gc.offset;
+		unsigned int offset = stage->binary->info->mem_offsets.offsets.param->vamem1.gc.offset;
 
 		if (size) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_gc() enter:\n");
@@ -513,7 +499,6 @@ size);
 
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_gc() leave:\n");
 		}
-
 	}
 }
 
@@ -521,16 +506,16 @@ size);
 
 static void
 ia_css_process_ce(
-	unsigned pipe_id,
+	unsigned int pipe_id,
 	const struct ia_css_pipeline_stage *stage,
 	struct ia_css_isp_parameters *params)
 {
-	assert(params != NULL);
+	assert(params);
 
 	{
-		unsigned size   = stage->binary->info->mem_offsets.offsets.param->dmem.ce.size;
+		unsigned int size   = stage->binary->info->mem_offsets.offsets.param->dmem.ce.size;
 
-		unsigned offset = stage->binary->info->mem_offsets.offsets.param->dmem.ce.offset;
+		unsigned int offset = stage->binary->info->mem_offsets.offsets.param->dmem.ce.offset;
 
 		if (size) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_ce() enter:\n");
@@ -544,7 +529,6 @@ size);
 
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_ce() leave:\n");
 		}
-
 	}
 }
 
@@ -552,16 +536,16 @@ size);
 
 static void
 ia_css_process_yuv2rgb(
-	unsigned pipe_id,
+	unsigned int pipe_id,
 	const struct ia_css_pipeline_stage *stage,
 	struct ia_css_isp_parameters *params)
 {
-	assert(params != NULL);
+	assert(params);
 
 	{
-		unsigned size   = stage->binary->info->mem_offsets.offsets.param->dmem.yuv2rgb.size;
+		unsigned int size   = stage->binary->info->mem_offsets.offsets.param->dmem.yuv2rgb.size;
 
-		unsigned offset = stage->binary->info->mem_offsets.offsets.param->dmem.yuv2rgb.offset;
+		unsigned int offset = stage->binary->info->mem_offsets.offsets.param->dmem.yuv2rgb.offset;
 
 		if (size) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_yuv2rgb() enter:\n");
@@ -575,7 +559,6 @@ size);
 
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_yuv2rgb() leave:\n");
 		}
-
 	}
 }
 
@@ -583,16 +566,16 @@ size);
 
 static void
 ia_css_process_rgb2yuv(
-	unsigned pipe_id,
+	unsigned int pipe_id,
 	const struct ia_css_pipeline_stage *stage,
 	struct ia_css_isp_parameters *params)
 {
-	assert(params != NULL);
+	assert(params);
 
 	{
-		unsigned size   = stage->binary->info->mem_offsets.offsets.param->dmem.rgb2yuv.size;
+		unsigned int size   = stage->binary->info->mem_offsets.offsets.param->dmem.rgb2yuv.size;
 
-		unsigned offset = stage->binary->info->mem_offsets.offsets.param->dmem.rgb2yuv.offset;
+		unsigned int offset = stage->binary->info->mem_offsets.offsets.param->dmem.rgb2yuv.offset;
 
 		if (size) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_rgb2yuv() enter:\n");
@@ -606,7 +589,6 @@ size);
 
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_rgb2yuv() leave:\n");
 		}
-
 	}
 }
 
@@ -614,16 +596,16 @@ size);
 
 static void
 ia_css_process_r_gamma(
-	unsigned pipe_id,
+	unsigned int pipe_id,
 	const struct ia_css_pipeline_stage *stage,
 	struct ia_css_isp_parameters *params)
 {
-	assert(params != NULL);
+	assert(params);
 
 	{
-		unsigned size   = stage->binary->info->mem_offsets.offsets.param->vamem0.r_gamma.size;
+		unsigned int size   = stage->binary->info->mem_offsets.offsets.param->vamem0.r_gamma.size;
 
-		unsigned offset = stage->binary->info->mem_offsets.offsets.param->vamem0.r_gamma.offset;
+		unsigned int offset = stage->binary->info->mem_offsets.offsets.param->vamem0.r_gamma.offset;
 
 		if (size) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_r_gamma() enter:\n");
@@ -637,7 +619,6 @@ size);
 
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_r_gamma() leave:\n");
 		}
-
 	}
 }
 
@@ -645,16 +626,16 @@ size);
 
 static void
 ia_css_process_g_gamma(
-	unsigned pipe_id,
+	unsigned int pipe_id,
 	const struct ia_css_pipeline_stage *stage,
 	struct ia_css_isp_parameters *params)
 {
-	assert(params != NULL);
+	assert(params);
 
 	{
-		unsigned size   = stage->binary->info->mem_offsets.offsets.param->vamem1.g_gamma.size;
+		unsigned int size   = stage->binary->info->mem_offsets.offsets.param->vamem1.g_gamma.size;
 
-		unsigned offset = stage->binary->info->mem_offsets.offsets.param->vamem1.g_gamma.offset;
+		unsigned int offset = stage->binary->info->mem_offsets.offsets.param->vamem1.g_gamma.offset;
 
 		if (size) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_g_gamma() enter:\n");
@@ -668,7 +649,6 @@ size);
 
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_g_gamma() leave:\n");
 		}
-
 	}
 }
 
@@ -676,16 +656,16 @@ size);
 
 static void
 ia_css_process_b_gamma(
-	unsigned pipe_id,
+	unsigned int pipe_id,
 	const struct ia_css_pipeline_stage *stage,
 	struct ia_css_isp_parameters *params)
 {
-	assert(params != NULL);
+	assert(params);
 
 	{
-		unsigned size   = stage->binary->info->mem_offsets.offsets.param->vamem2.b_gamma.size;
+		unsigned int size   = stage->binary->info->mem_offsets.offsets.param->vamem2.b_gamma.size;
 
-		unsigned offset = stage->binary->info->mem_offsets.offsets.param->vamem2.b_gamma.offset;
+		unsigned int offset = stage->binary->info->mem_offsets.offsets.param->vamem2.b_gamma.offset;
 
 		if (size) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_b_gamma() enter:\n");
@@ -699,7 +679,6 @@ size);
 
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_b_gamma() leave:\n");
 		}
-
 	}
 }
 
@@ -707,19 +686,20 @@ size);
 
 static void
 ia_css_process_uds(
-	unsigned pipe_id,
+	unsigned int pipe_id,
 	const struct ia_css_pipeline_stage *stage,
 	struct ia_css_isp_parameters *params)
 {
-	assert(params != NULL);
+	assert(params);
 
 	{
-		unsigned size   = stage->binary->info->mem_offsets.offsets.param->dmem.uds.size;
+		unsigned int size   = stage->binary->info->mem_offsets.offsets.param->dmem.uds.size;
 
-		unsigned offset = stage->binary->info->mem_offsets.offsets.param->dmem.uds.offset;
+		unsigned int offset = stage->binary->info->mem_offsets.offsets.param->dmem.uds.offset;
 
 		if (size) {
 			struct sh_css_sp_uds_params *p;
+
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_uds() enter:\n");
 
 			p = (struct sh_css_sp_uds_params *)
@@ -732,7 +712,6 @@ ia_css_process_uds(
 
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_uds() leave:\n");
 		}
-
 	}
 }
 
@@ -740,16 +719,16 @@ ia_css_process_uds(
 
 static void
 ia_css_process_raa(
-	unsigned pipe_id,
+	unsigned int pipe_id,
 	const struct ia_css_pipeline_stage *stage,
 	struct ia_css_isp_parameters *params)
 {
-	assert(params != NULL);
+	assert(params);
 
 	{
-		unsigned size   = stage->binary->info->mem_offsets.offsets.param->dmem.raa.size;
+		unsigned int size   = stage->binary->info->mem_offsets.offsets.param->dmem.raa.size;
 
-		unsigned offset = stage->binary->info->mem_offsets.offsets.param->dmem.raa.offset;
+		unsigned int offset = stage->binary->info->mem_offsets.offsets.param->dmem.raa.offset;
 
 		if (size) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_raa() enter:\n");
@@ -763,7 +742,6 @@ size);
 
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_raa() leave:\n");
 		}
-
 	}
 }
 
@@ -771,16 +749,16 @@ size);
 
 static void
 ia_css_process_s3a(
-	unsigned pipe_id,
+	unsigned int pipe_id,
 	const struct ia_css_pipeline_stage *stage,
 	struct ia_css_isp_parameters *params)
 {
-	assert(params != NULL);
+	assert(params);
 
 	{
-		unsigned size   = stage->binary->info->mem_offsets.offsets.param->dmem.s3a.size;
+		unsigned int size   = stage->binary->info->mem_offsets.offsets.param->dmem.s3a.size;
 
-		unsigned offset = stage->binary->info->mem_offsets.offsets.param->dmem.s3a.offset;
+		unsigned int offset = stage->binary->info->mem_offsets.offsets.param->dmem.s3a.offset;
 
 		if (size) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_s3a() enter:\n");
@@ -794,7 +772,6 @@ size);
 
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_s3a() leave:\n");
 		}
-
 	}
 }
 
@@ -802,16 +779,16 @@ size);
 
 static void
 ia_css_process_ob(
-	unsigned pipe_id,
+	unsigned int pipe_id,
 	const struct ia_css_pipeline_stage *stage,
 	struct ia_css_isp_parameters *params)
 {
-	assert(params != NULL);
+	assert(params);
 
 	{
-		unsigned size   = stage->binary->info->mem_offsets.offsets.param->dmem.ob.size;
+		unsigned int size   = stage->binary->info->mem_offsets.offsets.param->dmem.ob.size;
 
-		unsigned offset = stage->binary->info->mem_offsets.offsets.param->dmem.ob.offset;
+		unsigned int offset = stage->binary->info->mem_offsets.offsets.param->dmem.ob.offset;
 
 		if (size) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_ob() enter:\n");
@@ -825,12 +802,11 @@ ia_css_process_ob(
 
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_ob() leave:\n");
 		}
-
 	}
 	{
-		unsigned size   = stage->binary->info->mem_offsets.offsets.param->vmem.ob.size;
+		unsigned int size   = stage->binary->info->mem_offsets.offsets.param->vmem.ob.size;
 
-		unsigned offset = stage->binary->info->mem_offsets.offsets.param->vmem.ob.offset;
+		unsigned int offset = stage->binary->info->mem_offsets.offsets.param->vmem.ob.offset;
 
 		if (size) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_ob() enter:\n");
@@ -844,7 +820,6 @@ ia_css_process_ob(
 
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_ob() leave:\n");
 		}
-
 	}
 }
 
@@ -852,16 +827,16 @@ ia_css_process_ob(
 
 static void
 ia_css_process_output(
-	unsigned pipe_id,
+	unsigned int pipe_id,
 	const struct ia_css_pipeline_stage *stage,
 	struct ia_css_isp_parameters *params)
 {
-	assert(params != NULL);
+	assert(params);
 
 	{
-		unsigned size   = stage->binary->info->mem_offsets.offsets.param->dmem.output.size;
+		unsigned int size   = stage->binary->info->mem_offsets.offsets.param->dmem.output.size;
 
-		unsigned offset = stage->binary->info->mem_offsets.offsets.param->dmem.output.offset;
+		unsigned int offset = stage->binary->info->mem_offsets.offsets.param->dmem.output.offset;
 
 		if (size) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_output() enter:\n");
@@ -875,7 +850,6 @@ size);
 
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_output() leave:\n");
 		}
-
 	}
 }
 
@@ -883,16 +857,16 @@ size);
 
 static void
 ia_css_process_sc(
-	unsigned pipe_id,
+	unsigned int pipe_id,
 	const struct ia_css_pipeline_stage *stage,
 	struct ia_css_isp_parameters *params)
 {
-	assert(params != NULL);
+	assert(params);
 
 	{
-		unsigned size   = stage->binary->info->mem_offsets.offsets.param->dmem.sc.size;
+		unsigned int size   = stage->binary->info->mem_offsets.offsets.param->dmem.sc.size;
 
-		unsigned offset = stage->binary->info->mem_offsets.offsets.param->dmem.sc.offset;
+		unsigned int offset = stage->binary->info->mem_offsets.offsets.param->dmem.sc.offset;
 
 		if (size) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_sc() enter:\n");
@@ -906,7 +880,6 @@ size);
 
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_sc() leave:\n");
 		}
-
 	}
 }
 
@@ -914,19 +887,20 @@ size);
 
 static void
 ia_css_process_bds(
-	unsigned pipe_id,
+	unsigned int pipe_id,
 	const struct ia_css_pipeline_stage *stage,
 	struct ia_css_isp_parameters *params)
 {
-	assert(params != NULL);
+	assert(params);
 
 	{
-		unsigned size   = stage->binary->info->mem_offsets.offsets.param->dmem.bds.size;
+		unsigned int size   = stage->binary->info->mem_offsets.offsets.param->dmem.bds.size;
 
-		unsigned offset = stage->binary->info->mem_offsets.offsets.param->dmem.bds.offset;
+		unsigned int offset = stage->binary->info->mem_offsets.offsets.param->dmem.bds.offset;
 
 		if (size) {
 			struct sh_css_isp_bds_params *p;
+
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_bds() enter:\n");
 
 			p = (struct sh_css_isp_bds_params *)
@@ -938,7 +912,6 @@ ia_css_process_bds(
 
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_bds() leave:\n");
 		}
-
 	}
 }
 
@@ -946,16 +919,16 @@ ia_css_process_bds(
 
 static void
 ia_css_process_tnr(
-	unsigned pipe_id,
+	unsigned int pipe_id,
 	const struct ia_css_pipeline_stage *stage,
 	struct ia_css_isp_parameters *params)
 {
-	assert(params != NULL);
+	assert(params);
 
 	{
-		unsigned size   = stage->binary->info->mem_offsets.offsets.param->dmem.tnr.size;
+		unsigned int size   = stage->binary->info->mem_offsets.offsets.param->dmem.tnr.size;
 
-		unsigned offset = stage->binary->info->mem_offsets.offsets.param->dmem.tnr.offset;
+		unsigned int offset = stage->binary->info->mem_offsets.offsets.param->dmem.tnr.offset;
 
 		if (size) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_tnr() enter:\n");
@@ -969,7 +942,6 @@ size);
 
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_tnr() leave:\n");
 		}
-
 	}
 }
 
@@ -977,16 +949,16 @@ size);
 
 static void
 ia_css_process_macc(
-	unsigned pipe_id,
+	unsigned int pipe_id,
 	const struct ia_css_pipeline_stage *stage,
 	struct ia_css_isp_parameters *params)
 {
-	assert(params != NULL);
+	assert(params);
 
 	{
-		unsigned size   = stage->binary->info->mem_offsets.offsets.param->dmem.macc.size;
+		unsigned int size   = stage->binary->info->mem_offsets.offsets.param->dmem.macc.size;
 
-		unsigned offset = stage->binary->info->mem_offsets.offsets.param->dmem.macc.offset;
+		unsigned int offset = stage->binary->info->mem_offsets.offsets.param->dmem.macc.offset;
 
 		if (size) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_macc() enter:\n");
@@ -1000,7 +972,6 @@ size);
 
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_macc() leave:\n");
 		}
-
 	}
 }
 
@@ -1008,16 +979,16 @@ size);
 
 static void
 ia_css_process_sdis_horicoef(
-	unsigned pipe_id,
+	unsigned int pipe_id,
 	const struct ia_css_pipeline_stage *stage,
 	struct ia_css_isp_parameters *params)
 {
-	assert(params != NULL);
+	assert(params);
 
 	{
-		unsigned size   = stage->binary->info->mem_offsets.offsets.param->vmem.sdis_horicoef.size;
+		unsigned int size   = stage->binary->info->mem_offsets.offsets.param->vmem.sdis_horicoef.size;
 
-		unsigned offset = stage->binary->info->mem_offsets.offsets.param->vmem.sdis_horicoef.offset;
+		unsigned int offset = stage->binary->info->mem_offsets.offsets.param->vmem.sdis_horicoef.offset;
 
 		if (size) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_sdis_horicoef() enter:\n");
@@ -1031,7 +1002,6 @@ size);
 
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_sdis_horicoef() leave:\n");
 		}
-
 	}
 }
 
@@ -1039,16 +1009,16 @@ size);
 
 static void
 ia_css_process_sdis_vertcoef(
-	unsigned pipe_id,
+	unsigned int pipe_id,
 	const struct ia_css_pipeline_stage *stage,
 	struct ia_css_isp_parameters *params)
 {
-	assert(params != NULL);
+	assert(params);
 
 	{
-		unsigned size   = stage->binary->info->mem_offsets.offsets.param->vmem.sdis_vertcoef.size;
+		unsigned int size   = stage->binary->info->mem_offsets.offsets.param->vmem.sdis_vertcoef.size;
 
-		unsigned offset = stage->binary->info->mem_offsets.offsets.param->vmem.sdis_vertcoef.offset;
+		unsigned int offset = stage->binary->info->mem_offsets.offsets.param->vmem.sdis_vertcoef.offset;
 
 		if (size) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_sdis_vertcoef() enter:\n");
@@ -1062,7 +1032,6 @@ size);
 
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_sdis_vertcoef() leave:\n");
 		}
-
 	}
 }
 
@@ -1070,16 +1039,16 @@ size);
 
 static void
 ia_css_process_sdis_horiproj(
-	unsigned pipe_id,
+	unsigned int pipe_id,
 	const struct ia_css_pipeline_stage *stage,
 	struct ia_css_isp_parameters *params)
 {
-	assert(params != NULL);
+	assert(params);
 
 	{
-		unsigned size   = stage->binary->info->mem_offsets.offsets.param->dmem.sdis_horiproj.size;
+		unsigned int size   = stage->binary->info->mem_offsets.offsets.param->dmem.sdis_horiproj.size;
 
-		unsigned offset = stage->binary->info->mem_offsets.offsets.param->dmem.sdis_horiproj.offset;
+		unsigned int offset = stage->binary->info->mem_offsets.offsets.param->dmem.sdis_horiproj.offset;
 
 		if (size) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_sdis_horiproj() enter:\n");
@@ -1093,7 +1062,6 @@ size);
 
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_sdis_horiproj() leave:\n");
 		}
-
 	}
 }
 
@@ -1101,16 +1069,16 @@ size);
 
 static void
 ia_css_process_sdis_vertproj(
-	unsigned pipe_id,
+	unsigned int pipe_id,
 	const struct ia_css_pipeline_stage *stage,
 	struct ia_css_isp_parameters *params)
 {
-	assert(params != NULL);
+	assert(params);
 
 	{
-		unsigned size   = stage->binary->info->mem_offsets.offsets.param->dmem.sdis_vertproj.size;
+		unsigned int size   = stage->binary->info->mem_offsets.offsets.param->dmem.sdis_vertproj.size;
 
-		unsigned offset = stage->binary->info->mem_offsets.offsets.param->dmem.sdis_vertproj.offset;
+		unsigned int offset = stage->binary->info->mem_offsets.offsets.param->dmem.sdis_vertproj.offset;
 
 		if (size) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_sdis_vertproj() enter:\n");
@@ -1124,7 +1092,6 @@ size);
 
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_sdis_vertproj() leave:\n");
 		}
-
 	}
 }
 
@@ -1132,16 +1099,16 @@ size);
 
 static void
 ia_css_process_sdis2_horicoef(
-	unsigned pipe_id,
+	unsigned int pipe_id,
 	const struct ia_css_pipeline_stage *stage,
 	struct ia_css_isp_parameters *params)
 {
-	assert(params != NULL);
+	assert(params);
 
 	{
-		unsigned size   = stage->binary->info->mem_offsets.offsets.param->vmem.sdis2_horicoef.size;
+		unsigned int size   = stage->binary->info->mem_offsets.offsets.param->vmem.sdis2_horicoef.size;
 
-		unsigned offset = stage->binary->info->mem_offsets.offsets.param->vmem.sdis2_horicoef.offset;
+		unsigned int offset = stage->binary->info->mem_offsets.offsets.param->vmem.sdis2_horicoef.offset;
 
 		if (size) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_sdis2_horicoef() enter:\n");
@@ -1155,7 +1122,6 @@ size);
 
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_sdis2_horicoef() leave:\n");
 		}
-
 	}
 }
 
@@ -1163,16 +1129,16 @@ size);
 
 static void
 ia_css_process_sdis2_vertcoef(
-	unsigned pipe_id,
+	unsigned int pipe_id,
 	const struct ia_css_pipeline_stage *stage,
 	struct ia_css_isp_parameters *params)
 {
-	assert(params != NULL);
+	assert(params);
 
 	{
-		unsigned size   = stage->binary->info->mem_offsets.offsets.param->vmem.sdis2_vertcoef.size;
+		unsigned int size   = stage->binary->info->mem_offsets.offsets.param->vmem.sdis2_vertcoef.size;
 
-		unsigned offset = stage->binary->info->mem_offsets.offsets.param->vmem.sdis2_vertcoef.offset;
+		unsigned int offset = stage->binary->info->mem_offsets.offsets.param->vmem.sdis2_vertcoef.offset;
 
 		if (size) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_sdis2_vertcoef() enter:\n");
@@ -1186,7 +1152,6 @@ size);
 
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_sdis2_vertcoef() leave:\n");
 		}
-
 	}
 }
 
@@ -1194,16 +1159,16 @@ size);
 
 static void
 ia_css_process_sdis2_horiproj(
-	unsigned pipe_id,
+	unsigned int pipe_id,
 	const struct ia_css_pipeline_stage *stage,
 	struct ia_css_isp_parameters *params)
 {
-	assert(params != NULL);
+	assert(params);
 
 	{
-		unsigned size   = stage->binary->info->mem_offsets.offsets.param->dmem.sdis2_horiproj.size;
+		unsigned int size   = stage->binary->info->mem_offsets.offsets.param->dmem.sdis2_horiproj.size;
 
-		unsigned offset = stage->binary->info->mem_offsets.offsets.param->dmem.sdis2_horiproj.offset;
+		unsigned int offset = stage->binary->info->mem_offsets.offsets.param->dmem.sdis2_horiproj.offset;
 
 		if (size) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_sdis2_horiproj() enter:\n");
@@ -1217,7 +1182,6 @@ size);
 
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_sdis2_horiproj() leave:\n");
 		}
-
 	}
 }
 
@@ -1225,16 +1189,16 @@ size);
 
 static void
 ia_css_process_sdis2_vertproj(
-	unsigned pipe_id,
+	unsigned int pipe_id,
 	const struct ia_css_pipeline_stage *stage,
 	struct ia_css_isp_parameters *params)
 {
-	assert(params != NULL);
+	assert(params);
 
 	{
-		unsigned size   = stage->binary->info->mem_offsets.offsets.param->dmem.sdis2_vertproj.size;
+		unsigned int size   = stage->binary->info->mem_offsets.offsets.param->dmem.sdis2_vertproj.size;
 
-		unsigned offset = stage->binary->info->mem_offsets.offsets.param->dmem.sdis2_vertproj.offset;
+		unsigned int offset = stage->binary->info->mem_offsets.offsets.param->dmem.sdis2_vertproj.offset;
 
 		if (size) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_sdis2_vertproj() enter:\n");
@@ -1248,7 +1212,6 @@ size);
 
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_sdis2_vertproj() leave:\n");
 		}
-
 	}
 }
 
@@ -1256,16 +1219,16 @@ size);
 
 static void
 ia_css_process_wb(
-	unsigned pipe_id,
+	unsigned int pipe_id,
 	const struct ia_css_pipeline_stage *stage,
 	struct ia_css_isp_parameters *params)
 {
-	assert(params != NULL);
+	assert(params);
 
 	{
-		unsigned size   = stage->binary->info->mem_offsets.offsets.param->dmem.wb.size;
+		unsigned int size   = stage->binary->info->mem_offsets.offsets.param->dmem.wb.size;
 
-		unsigned offset = stage->binary->info->mem_offsets.offsets.param->dmem.wb.offset;
+		unsigned int offset = stage->binary->info->mem_offsets.offsets.param->dmem.wb.offset;
 
 		if (size) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_wb() enter:\n");
@@ -1279,7 +1242,6 @@ size);
 
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_wb() leave:\n");
 		}
-
 	}
 }
 
@@ -1287,16 +1249,16 @@ size);
 
 static void
 ia_css_process_nr(
-	unsigned pipe_id,
+	unsigned int pipe_id,
 	const struct ia_css_pipeline_stage *stage,
 	struct ia_css_isp_parameters *params)
 {
-	assert(params != NULL);
+	assert(params);
 
 	{
-		unsigned size   = stage->binary->info->mem_offsets.offsets.param->dmem.nr.size;
+		unsigned int size   = stage->binary->info->mem_offsets.offsets.param->dmem.nr.size;
 
-		unsigned offset = stage->binary->info->mem_offsets.offsets.param->dmem.nr.offset;
+		unsigned int offset = stage->binary->info->mem_offsets.offsets.param->dmem.nr.offset;
 
 		if (size) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_nr() enter:\n");
@@ -1310,7 +1272,6 @@ size);
 
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_nr() leave:\n");
 		}
-
 	}
 }
 
@@ -1318,16 +1279,16 @@ size);
 
 static void
 ia_css_process_yee(
-	unsigned pipe_id,
+	unsigned int pipe_id,
 	const struct ia_css_pipeline_stage *stage,
 	struct ia_css_isp_parameters *params)
 {
-	assert(params != NULL);
+	assert(params);
 
 	{
-		unsigned size   = stage->binary->info->mem_offsets.offsets.param->dmem.yee.size;
+		unsigned int size   = stage->binary->info->mem_offsets.offsets.param->dmem.yee.size;
 
-		unsigned offset = stage->binary->info->mem_offsets.offsets.param->dmem.yee.offset;
+		unsigned int offset = stage->binary->info->mem_offsets.offsets.param->dmem.yee.offset;
 
 		if (size) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_yee() enter:\n");
@@ -1341,7 +1302,6 @@ size);
 
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_yee() leave:\n");
 		}
-
 	}
 }
 
@@ -1349,16 +1309,16 @@ size);
 
 static void
 ia_css_process_ynr(
-	unsigned pipe_id,
+	unsigned int pipe_id,
 	const struct ia_css_pipeline_stage *stage,
 	struct ia_css_isp_parameters *params)
 {
-	assert(params != NULL);
+	assert(params);
 
 	{
-		unsigned size   = stage->binary->info->mem_offsets.offsets.param->dmem.ynr.size;
+		unsigned int size   = stage->binary->info->mem_offsets.offsets.param->dmem.ynr.size;
 
-		unsigned offset = stage->binary->info->mem_offsets.offsets.param->dmem.ynr.offset;
+		unsigned int offset = stage->binary->info->mem_offsets.offsets.param->dmem.ynr.offset;
 
 		if (size) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_ynr() enter:\n");
@@ -1372,7 +1332,6 @@ size);
 
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_ynr() leave:\n");
 		}
-
 	}
 }
 
@@ -1380,16 +1339,16 @@ size);
 
 static void
 ia_css_process_fc(
-	unsigned pipe_id,
+	unsigned int pipe_id,
 	const struct ia_css_pipeline_stage *stage,
 	struct ia_css_isp_parameters *params)
 {
-	assert(params != NULL);
+	assert(params);
 
 	{
-		unsigned size   = stage->binary->info->mem_offsets.offsets.param->dmem.fc.size;
+		unsigned int size   = stage->binary->info->mem_offsets.offsets.param->dmem.fc.size;
 
-		unsigned offset = stage->binary->info->mem_offsets.offsets.param->dmem.fc.offset;
+		unsigned int offset = stage->binary->info->mem_offsets.offsets.param->dmem.fc.offset;
 
 		if (size) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_fc() enter:\n");
@@ -1403,7 +1362,6 @@ size);
 
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_fc() leave:\n");
 		}
-
 	}
 }
 
@@ -1411,16 +1369,16 @@ size);
 
 static void
 ia_css_process_ctc(
-	unsigned pipe_id,
+	unsigned int pipe_id,
 	const struct ia_css_pipeline_stage *stage,
 	struct ia_css_isp_parameters *params)
 {
-	assert(params != NULL);
+	assert(params);
 
 	{
-		unsigned size   = stage->binary->info->mem_offsets.offsets.param->dmem.ctc.size;
+		unsigned int size   = stage->binary->info->mem_offsets.offsets.param->dmem.ctc.size;
 
-		unsigned offset = stage->binary->info->mem_offsets.offsets.param->dmem.ctc.offset;
+		unsigned int offset = stage->binary->info->mem_offsets.offsets.param->dmem.ctc.offset;
 
 		if (size) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_ctc() enter:\n");
@@ -1434,12 +1392,11 @@ size);
 
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_ctc() leave:\n");
 		}
-
 	}
 	{
-		unsigned size   = stage->binary->info->mem_offsets.offsets.param->vamem0.ctc.size;
+		unsigned int size   = stage->binary->info->mem_offsets.offsets.param->vamem0.ctc.size;
 
-		unsigned offset = stage->binary->info->mem_offsets.offsets.param->vamem0.ctc.offset;
+		unsigned int offset = stage->binary->info->mem_offsets.offsets.param->vamem0.ctc.offset;
 
 		if (size) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_ctc() enter:\n");
@@ -1453,7 +1410,6 @@ size);
 
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_ctc() leave:\n");
 		}
-
 	}
 }
 
@@ -1461,16 +1417,16 @@ size);
 
 static void
 ia_css_process_xnr_table(
-	unsigned pipe_id,
+	unsigned int pipe_id,
 	const struct ia_css_pipeline_stage *stage,
 	struct ia_css_isp_parameters *params)
 {
-	assert(params != NULL);
+	assert(params);
 
 	{
-		unsigned size   = stage->binary->info->mem_offsets.offsets.param->vamem1.xnr_table.size;
+		unsigned int size   = stage->binary->info->mem_offsets.offsets.param->vamem1.xnr_table.size;
 
-		unsigned offset = stage->binary->info->mem_offsets.offsets.param->vamem1.xnr_table.offset;
+		unsigned int offset = stage->binary->info->mem_offsets.offsets.param->vamem1.xnr_table.offset;
 
 		if (size) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_xnr_table() enter:\n");
@@ -1484,7 +1440,6 @@ size);
 
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_xnr_table() leave:\n");
 		}
-
 	}
 }
 
@@ -1492,16 +1447,16 @@ size);
 
 static void
 ia_css_process_xnr(
-	unsigned pipe_id,
+	unsigned int pipe_id,
 	const struct ia_css_pipeline_stage *stage,
 	struct ia_css_isp_parameters *params)
 {
-	assert(params != NULL);
+	assert(params);
 
 	{
-		unsigned size   = stage->binary->info->mem_offsets.offsets.param->dmem.xnr.size;
+		unsigned int size   = stage->binary->info->mem_offsets.offsets.param->dmem.xnr.size;
 
-		unsigned offset = stage->binary->info->mem_offsets.offsets.param->dmem.xnr.offset;
+		unsigned int offset = stage->binary->info->mem_offsets.offsets.param->dmem.xnr.offset;
 
 		if (size) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_xnr() enter:\n");
@@ -1515,7 +1470,6 @@ size);
 
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_xnr() leave:\n");
 		}
-
 	}
 }
 
@@ -1523,16 +1477,16 @@ size);
 
 static void
 ia_css_process_xnr3(
-	unsigned pipe_id,
+	unsigned int pipe_id,
 	const struct ia_css_pipeline_stage *stage,
 	struct ia_css_isp_parameters *params)
 {
-	assert(params != NULL);
+	assert(params);
 
 	{
-		unsigned size   = stage->binary->info->mem_offsets.offsets.param->dmem.xnr3.size;
+		unsigned int size   = stage->binary->info->mem_offsets.offsets.param->dmem.xnr3.size;
 
-		unsigned offset = stage->binary->info->mem_offsets.offsets.param->dmem.xnr3.offset;
+		unsigned int offset = stage->binary->info->mem_offsets.offsets.param->dmem.xnr3.offset;
 
 		if (size) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_xnr3() enter:\n");
@@ -1546,13 +1500,12 @@ size);
 
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_xnr3() leave:\n");
 		}
-
 	}
 #ifdef ISP2401
 	{
-		unsigned size   = stage->binary->info->mem_offsets.offsets.param->vmem.xnr3.size;
+		unsigned int size   = stage->binary->info->mem_offsets.offsets.param->vmem.xnr3.size;
 
-		unsigned offset = stage->binary->info->mem_offsets.offsets.param->vmem.xnr3.offset;
+		unsigned int offset = stage->binary->info->mem_offsets.offsets.param->vmem.xnr3.offset;
 
 		if (size) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_xnr3() enter:\n");
@@ -1566,15 +1519,14 @@ size);
 
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_xnr3() leave:\n");
 		}
-
 	}
 #endif
 }
 
 /* Code generated by genparam/gencode.c:gen_param_process_table() */
 
-void (* ia_css_kernel_process_param[IA_CSS_NUM_PARAMETER_IDS])(
-			unsigned pipe_id,
+void (*ia_css_kernel_process_param[IA_CSS_NUM_PARAMETER_IDS])(
+			unsigned int pipe_id,
 			const struct ia_css_pipeline_stage *stage,
 			struct ia_css_isp_parameters *params) = {
 	ia_css_process_aa,
@@ -1630,12 +1582,12 @@ void (* ia_css_kernel_process_param[IA_CSS_NUM_PARAMETER_IDS])(
 static void
 ia_css_get_dp_config(const struct ia_css_isp_parameters *params,
 			struct ia_css_dp_config *config){
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_dp_config() enter: "
-		"config=%p\n",config);
+	assert(params);
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_dp_config() enter: config=%p\n",
+		config);
 
 	*config = params->dp_config;
 
@@ -1649,10 +1601,10 @@ void
 ia_css_set_dp_config(struct ia_css_isp_parameters *params,
 			const struct ia_css_dp_config *config)
 {
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
+	assert(params);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_set_dp_config() enter:\n");
 	ia_css_dp_debug_dtrace(config, IA_CSS_DEBUG_TRACE);
 	params->dp_config = *config;
@@ -1661,8 +1613,7 @@ ia_css_set_dp_config(struct ia_css_isp_parameters *params,
 	params->config_changed[IA_CSS_DP_ID] = true;
 
 #endif
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_dp_config() leave: "
-		"return_void\n");
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_dp_config() leave: return_void\n");
 }
 
 /* Code generated by genparam/gencode.c:gen_get_function() */
@@ -1670,12 +1621,12 @@ ia_css_set_dp_config(struct ia_css_isp_parameters *params,
 static void
 ia_css_get_wb_config(const struct ia_css_isp_parameters *params,
 			struct ia_css_wb_config *config){
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_wb_config() enter: "
-		"config=%p\n",config);
+	assert(params);
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_wb_config() enter: config=%p\n",
+		config);
 
 	*config = params->wb_config;
 
@@ -1689,10 +1640,10 @@ void
 ia_css_set_wb_config(struct ia_css_isp_parameters *params,
 			const struct ia_css_wb_config *config)
 {
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
+	assert(params);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_set_wb_config() enter:\n");
 	ia_css_wb_debug_dtrace(config, IA_CSS_DEBUG_TRACE);
 	params->wb_config = *config;
@@ -1701,8 +1652,7 @@ ia_css_set_wb_config(struct ia_css_isp_parameters *params,
 	params->config_changed[IA_CSS_WB_ID] = true;
 
 #endif
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_wb_config() leave: "
-		"return_void\n");
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_wb_config() leave: return_void\n");
 }
 
 /* Code generated by genparam/gencode.c:gen_get_function() */
@@ -1710,12 +1660,12 @@ ia_css_set_wb_config(struct ia_css_isp_parameters *params,
 static void
 ia_css_get_tnr_config(const struct ia_css_isp_parameters *params,
 			struct ia_css_tnr_config *config){
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_tnr_config() enter: "
-		"config=%p\n",config);
+	assert(params);
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_tnr_config() enter: config=%p\n",
+		config);
 
 	*config = params->tnr_config;
 
@@ -1729,10 +1679,10 @@ void
 ia_css_set_tnr_config(struct ia_css_isp_parameters *params,
 			const struct ia_css_tnr_config *config)
 {
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
+	assert(params);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_set_tnr_config() enter:\n");
 	ia_css_tnr_debug_dtrace(config, IA_CSS_DEBUG_TRACE);
 	params->tnr_config = *config;
@@ -1741,8 +1691,7 @@ ia_css_set_tnr_config(struct ia_css_isp_parameters *params,
 	params->config_changed[IA_CSS_TNR_ID] = true;
 
 #endif
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_tnr_config() leave: "
-		"return_void\n");
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_tnr_config() leave: return_void\n");
 }
 
 /* Code generated by genparam/gencode.c:gen_get_function() */
@@ -1750,12 +1699,12 @@ ia_css_set_tnr_config(struct ia_css_isp_parameters *params,
 static void
 ia_css_get_ob_config(const struct ia_css_isp_parameters *params,
 			struct ia_css_ob_config *config){
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_ob_config() enter: "
-		"config=%p\n",config);
+	assert(params);
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_ob_config() enter: config=%p\n",
+		config);
 
 	*config = params->ob_config;
 
@@ -1769,10 +1718,10 @@ void
 ia_css_set_ob_config(struct ia_css_isp_parameters *params,
 			const struct ia_css_ob_config *config)
 {
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
+	assert(params);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_set_ob_config() enter:\n");
 	ia_css_ob_debug_dtrace(config, IA_CSS_DEBUG_TRACE);
 	params->ob_config = *config;
@@ -1781,8 +1730,7 @@ ia_css_set_ob_config(struct ia_css_isp_parameters *params,
 	params->config_changed[IA_CSS_OB_ID] = true;
 
 #endif
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_ob_config() leave: "
-		"return_void\n");
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_ob_config() leave: return_void\n");
 }
 
 /* Code generated by genparam/gencode.c:gen_get_function() */
@@ -1790,12 +1738,12 @@ ia_css_set_ob_config(struct ia_css_isp_parameters *params,
 static void
 ia_css_get_de_config(const struct ia_css_isp_parameters *params,
 			struct ia_css_de_config *config){
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_de_config() enter: "
-		"config=%p\n",config);
+	assert(params);
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_de_config() enter: config=%p\n",
+		config);
 
 	*config = params->de_config;
 
@@ -1809,10 +1757,10 @@ void
 ia_css_set_de_config(struct ia_css_isp_parameters *params,
 			const struct ia_css_de_config *config)
 {
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
+	assert(params);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_set_de_config() enter:\n");
 	ia_css_de_debug_dtrace(config, IA_CSS_DEBUG_TRACE);
 	params->de_config = *config;
@@ -1821,8 +1769,7 @@ ia_css_set_de_config(struct ia_css_isp_parameters *params,
 	params->config_changed[IA_CSS_DE_ID] = true;
 
 #endif
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_de_config() leave: "
-		"return_void\n");
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_de_config() leave: return_void\n");
 }
 
 /* Code generated by genparam/gencode.c:gen_get_function() */
@@ -1830,12 +1777,12 @@ ia_css_set_de_config(struct ia_css_isp_parameters *params,
 static void
 ia_css_get_anr_config(const struct ia_css_isp_parameters *params,
 			struct ia_css_anr_config *config){
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_anr_config() enter: "
-		"config=%p\n",config);
+	assert(params);
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_anr_config() enter: config=%p\n",
+		config);
 
 	*config = params->anr_config;
 
@@ -1849,10 +1796,10 @@ void
 ia_css_set_anr_config(struct ia_css_isp_parameters *params,
 			const struct ia_css_anr_config *config)
 {
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
+	assert(params);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_set_anr_config() enter:\n");
 	ia_css_anr_debug_dtrace(config, IA_CSS_DEBUG_TRACE);
 	params->anr_config = *config;
@@ -1861,8 +1808,7 @@ ia_css_set_anr_config(struct ia_css_isp_parameters *params,
 	params->config_changed[IA_CSS_ANR_ID] = true;
 
 #endif
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_anr_config() leave: "
-		"return_void\n");
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_anr_config() leave: return_void\n");
 }
 
 /* Code generated by genparam/gencode.c:gen_get_function() */
@@ -1870,12 +1816,12 @@ ia_css_set_anr_config(struct ia_css_isp_parameters *params,
 static void
 ia_css_get_anr2_config(const struct ia_css_isp_parameters *params,
 			struct ia_css_anr_thres *config){
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_anr2_config() enter: "
-		"config=%p\n",config);
+	assert(params);
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_anr2_config() enter: config=%p\n",
+		config);
 
 	*config = params->anr_thres;
 
@@ -1889,10 +1835,10 @@ void
 ia_css_set_anr2_config(struct ia_css_isp_parameters *params,
 			const struct ia_css_anr_thres *config)
 {
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
+	assert(params);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_set_anr2_config() enter:\n");
 	ia_css_anr2_debug_dtrace(config, IA_CSS_DEBUG_TRACE);
 	params->anr_thres = *config;
@@ -1901,8 +1847,7 @@ ia_css_set_anr2_config(struct ia_css_isp_parameters *params,
 	params->config_changed[IA_CSS_ANR2_ID] = true;
 
 #endif
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_anr2_config() leave: "
-		"return_void\n");
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_anr2_config() leave: return_void\n");
 }
 
 /* Code generated by genparam/gencode.c:gen_get_function() */
@@ -1910,12 +1855,12 @@ ia_css_set_anr2_config(struct ia_css_isp_parameters *params,
 static void
 ia_css_get_ce_config(const struct ia_css_isp_parameters *params,
 			struct ia_css_ce_config *config){
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_ce_config() enter: "
-		"config=%p\n",config);
+	assert(params);
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_ce_config() enter: config=%p\n",
+		config);
 
 	*config = params->ce_config;
 
@@ -1929,10 +1874,10 @@ void
 ia_css_set_ce_config(struct ia_css_isp_parameters *params,
 			const struct ia_css_ce_config *config)
 {
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
+	assert(params);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_set_ce_config() enter:\n");
 	ia_css_ce_debug_dtrace(config, IA_CSS_DEBUG_TRACE);
 	params->ce_config = *config;
@@ -1941,8 +1886,7 @@ ia_css_set_ce_config(struct ia_css_isp_parameters *params,
 	params->config_changed[IA_CSS_CE_ID] = true;
 
 #endif
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_ce_config() leave: "
-		"return_void\n");
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_ce_config() leave: return_void\n");
 }
 
 /* Code generated by genparam/gencode.c:gen_get_function() */
@@ -1950,12 +1894,12 @@ ia_css_set_ce_config(struct ia_css_isp_parameters *params,
 static void
 ia_css_get_ecd_config(const struct ia_css_isp_parameters *params,
 			struct ia_css_ecd_config *config){
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_ecd_config() enter: "
-		"config=%p\n",config);
+	assert(params);
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_ecd_config() enter: config=%p\n",
+		config);
 
 	*config = params->ecd_config;
 
@@ -1969,10 +1913,10 @@ void
 ia_css_set_ecd_config(struct ia_css_isp_parameters *params,
 			const struct ia_css_ecd_config *config)
 {
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
+	assert(params);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_set_ecd_config() enter:\n");
 	ia_css_ecd_debug_dtrace(config, IA_CSS_DEBUG_TRACE);
 	params->ecd_config = *config;
@@ -1981,8 +1925,7 @@ ia_css_set_ecd_config(struct ia_css_isp_parameters *params,
 	params->config_changed[IA_CSS_ECD_ID] = true;
 
 #endif
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_ecd_config() leave: "
-		"return_void\n");
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_ecd_config() leave: return_void\n");
 }
 
 /* Code generated by genparam/gencode.c:gen_get_function() */
@@ -1990,12 +1933,12 @@ ia_css_set_ecd_config(struct ia_css_isp_parameters *params,
 static void
 ia_css_get_ynr_config(const struct ia_css_isp_parameters *params,
 			struct ia_css_ynr_config *config){
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_ynr_config() enter: "
-		"config=%p\n",config);
+	assert(params);
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_ynr_config() enter: config=%p\n",
+		config);
 
 	*config = params->ynr_config;
 
@@ -2009,10 +1952,10 @@ void
 ia_css_set_ynr_config(struct ia_css_isp_parameters *params,
 			const struct ia_css_ynr_config *config)
 {
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
+	assert(params);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_set_ynr_config() enter:\n");
 	ia_css_ynr_debug_dtrace(config, IA_CSS_DEBUG_TRACE);
 	params->ynr_config = *config;
@@ -2021,8 +1964,7 @@ ia_css_set_ynr_config(struct ia_css_isp_parameters *params,
 	params->config_changed[IA_CSS_YNR_ID] = true;
 
 #endif
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_ynr_config() leave: "
-		"return_void\n");
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_ynr_config() leave: return_void\n");
 }
 
 /* Code generated by genparam/gencode.c:gen_get_function() */
@@ -2030,12 +1972,12 @@ ia_css_set_ynr_config(struct ia_css_isp_parameters *params,
 static void
 ia_css_get_fc_config(const struct ia_css_isp_parameters *params,
 			struct ia_css_fc_config *config){
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_fc_config() enter: "
-		"config=%p\n",config);
+	assert(params);
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_fc_config() enter: config=%p\n",
+		config);
 
 	*config = params->fc_config;
 
@@ -2049,10 +1991,10 @@ void
 ia_css_set_fc_config(struct ia_css_isp_parameters *params,
 			const struct ia_css_fc_config *config)
 {
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
+	assert(params);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_set_fc_config() enter:\n");
 	ia_css_fc_debug_dtrace(config, IA_CSS_DEBUG_TRACE);
 	params->fc_config = *config;
@@ -2061,8 +2003,7 @@ ia_css_set_fc_config(struct ia_css_isp_parameters *params,
 	params->config_changed[IA_CSS_FC_ID] = true;
 
 #endif
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_fc_config() leave: "
-		"return_void\n");
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_fc_config() leave: return_void\n");
 }
 
 /* Code generated by genparam/gencode.c:gen_get_function() */
@@ -2070,12 +2011,12 @@ ia_css_set_fc_config(struct ia_css_isp_parameters *params,
 static void
 ia_css_get_cnr_config(const struct ia_css_isp_parameters *params,
 			struct ia_css_cnr_config *config){
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_cnr_config() enter: "
-		"config=%p\n",config);
+	assert(params);
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_cnr_config() enter: config=%p\n",
+		config);
 
 	*config = params->cnr_config;
 
@@ -2089,10 +2030,10 @@ void
 ia_css_set_cnr_config(struct ia_css_isp_parameters *params,
 			const struct ia_css_cnr_config *config)
 {
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
+	assert(params);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_set_cnr_config() enter:\n");
 	ia_css_cnr_debug_dtrace(config, IA_CSS_DEBUG_TRACE);
 	params->cnr_config = *config;
@@ -2101,8 +2042,7 @@ ia_css_set_cnr_config(struct ia_css_isp_parameters *params,
 	params->config_changed[IA_CSS_CNR_ID] = true;
 
 #endif
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_cnr_config() leave: "
-		"return_void\n");
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_cnr_config() leave: return_void\n");
 }
 
 /* Code generated by genparam/gencode.c:gen_get_function() */
@@ -2110,12 +2050,12 @@ ia_css_set_cnr_config(struct ia_css_isp_parameters *params,
 static void
 ia_css_get_macc_config(const struct ia_css_isp_parameters *params,
 			struct ia_css_macc_config *config){
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_macc_config() enter: "
-		"config=%p\n",config);
+	assert(params);
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_macc_config() enter: config=%p\n",
+		config);
 
 	*config = params->macc_config;
 
@@ -2129,10 +2069,10 @@ void
 ia_css_set_macc_config(struct ia_css_isp_parameters *params,
 			const struct ia_css_macc_config *config)
 {
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
+	assert(params);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_set_macc_config() enter:\n");
 	ia_css_macc_debug_dtrace(config, IA_CSS_DEBUG_TRACE);
 	params->macc_config = *config;
@@ -2141,8 +2081,7 @@ ia_css_set_macc_config(struct ia_css_isp_parameters *params,
 	params->config_changed[IA_CSS_MACC_ID] = true;
 
 #endif
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_macc_config() leave: "
-		"return_void\n");
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_macc_config() leave: return_void\n");
 }
 
 /* Code generated by genparam/gencode.c:gen_get_function() */
@@ -2150,12 +2089,12 @@ ia_css_set_macc_config(struct ia_css_isp_parameters *params,
 static void
 ia_css_get_ctc_config(const struct ia_css_isp_parameters *params,
 			struct ia_css_ctc_config *config){
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_ctc_config() enter: "
-		"config=%p\n",config);
+	assert(params);
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_ctc_config() enter: config=%p\n",
+		config);
 
 	*config = params->ctc_config;
 
@@ -2169,10 +2108,10 @@ void
 ia_css_set_ctc_config(struct ia_css_isp_parameters *params,
 			const struct ia_css_ctc_config *config)
 {
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
+	assert(params);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_set_ctc_config() enter:\n");
 	ia_css_ctc_debug_dtrace(config, IA_CSS_DEBUG_TRACE);
 	params->ctc_config = *config;
@@ -2181,8 +2120,7 @@ ia_css_set_ctc_config(struct ia_css_isp_parameters *params,
 	params->config_changed[IA_CSS_CTC_ID] = true;
 
 #endif
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_ctc_config() leave: "
-		"return_void\n");
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_ctc_config() leave: return_void\n");
 }
 
 /* Code generated by genparam/gencode.c:gen_get_function() */
@@ -2190,12 +2128,12 @@ ia_css_set_ctc_config(struct ia_css_isp_parameters *params,
 static void
 ia_css_get_aa_config(const struct ia_css_isp_parameters *params,
 			struct ia_css_aa_config *config){
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_aa_config() enter: "
-		"config=%p\n",config);
+	assert(params);
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_aa_config() enter: config=%p\n",
+		config);
 
 	*config = params->aa_config;
 
@@ -2208,10 +2146,10 @@ void
 ia_css_set_aa_config(struct ia_css_isp_parameters *params,
 			const struct ia_css_aa_config *config)
 {
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
+	assert(params);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_set_aa_config() enter:\n");
 	params->aa_config = *config;
 	params->config_changed[IA_CSS_AA_ID] = true;
@@ -2219,8 +2157,7 @@ ia_css_set_aa_config(struct ia_css_isp_parameters *params,
 	params->config_changed[IA_CSS_AA_ID] = true;
 
 #endif
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_aa_config() leave: "
-		"return_void\n");
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_aa_config() leave: return_void\n");
 }
 
 /* Code generated by genparam/gencode.c:gen_get_function() */
@@ -2228,12 +2165,12 @@ ia_css_set_aa_config(struct ia_css_isp_parameters *params,
 static void
 ia_css_get_yuv2rgb_config(const struct ia_css_isp_parameters *params,
 			struct ia_css_cc_config *config){
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_yuv2rgb_config() enter: "
-		"config=%p\n",config);
+	assert(params);
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_yuv2rgb_config() enter: config=%p\n",
+		config);
 
 	*config = params->yuv2rgb_cc_config;
 
@@ -2247,10 +2184,10 @@ void
 ia_css_set_yuv2rgb_config(struct ia_css_isp_parameters *params,
 			const struct ia_css_cc_config *config)
 {
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
+	assert(params);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_set_yuv2rgb_config() enter:\n");
 	ia_css_yuv2rgb_debug_dtrace(config, IA_CSS_DEBUG_TRACE);
 	params->yuv2rgb_cc_config = *config;
@@ -2259,8 +2196,7 @@ ia_css_set_yuv2rgb_config(struct ia_css_isp_parameters *params,
 	params->config_changed[IA_CSS_YUV2RGB_ID] = true;
 
 #endif
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_yuv2rgb_config() leave: "
-		"return_void\n");
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_yuv2rgb_config() leave: return_void\n");
 }
 
 /* Code generated by genparam/gencode.c:gen_get_function() */
@@ -2268,12 +2204,12 @@ ia_css_set_yuv2rgb_config(struct ia_css_isp_parameters *params,
 static void
 ia_css_get_rgb2yuv_config(const struct ia_css_isp_parameters *params,
 			struct ia_css_cc_config *config){
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_rgb2yuv_config() enter: "
-		"config=%p\n",config);
+	assert(params);
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_rgb2yuv_config() enter: config=%p\n",
+		config);
 
 	*config = params->rgb2yuv_cc_config;
 
@@ -2287,10 +2223,10 @@ void
 ia_css_set_rgb2yuv_config(struct ia_css_isp_parameters *params,
 			const struct ia_css_cc_config *config)
 {
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
+	assert(params);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_set_rgb2yuv_config() enter:\n");
 	ia_css_rgb2yuv_debug_dtrace(config, IA_CSS_DEBUG_TRACE);
 	params->rgb2yuv_cc_config = *config;
@@ -2299,8 +2235,7 @@ ia_css_set_rgb2yuv_config(struct ia_css_isp_parameters *params,
 	params->config_changed[IA_CSS_RGB2YUV_ID] = true;
 
 #endif
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_rgb2yuv_config() leave: "
-		"return_void\n");
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_rgb2yuv_config() leave: return_void\n");
 }
 
 /* Code generated by genparam/gencode.c:gen_get_function() */
@@ -2308,12 +2243,12 @@ ia_css_set_rgb2yuv_config(struct ia_css_isp_parameters *params,
 static void
 ia_css_get_csc_config(const struct ia_css_isp_parameters *params,
 			struct ia_css_cc_config *config){
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_csc_config() enter: "
-		"config=%p\n",config);
+	assert(params);
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_csc_config() enter: config=%p\n",
+		config);
 
 	*config = params->cc_config;
 
@@ -2327,10 +2262,10 @@ void
 ia_css_set_csc_config(struct ia_css_isp_parameters *params,
 			const struct ia_css_cc_config *config)
 {
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
+	assert(params);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_set_csc_config() enter:\n");
 	ia_css_csc_debug_dtrace(config, IA_CSS_DEBUG_TRACE);
 	params->cc_config = *config;
@@ -2339,8 +2274,7 @@ ia_css_set_csc_config(struct ia_css_isp_parameters *params,
 	params->config_changed[IA_CSS_CSC_ID] = true;
 
 #endif
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_csc_config() leave: "
-		"return_void\n");
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_csc_config() leave: return_void\n");
 }
 
 /* Code generated by genparam/gencode.c:gen_get_function() */
@@ -2348,12 +2282,12 @@ ia_css_set_csc_config(struct ia_css_isp_parameters *params,
 static void
 ia_css_get_nr_config(const struct ia_css_isp_parameters *params,
 			struct ia_css_nr_config *config){
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_nr_config() enter: "
-		"config=%p\n",config);
+	assert(params);
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_nr_config() enter: config=%p\n",
+		config);
 
 	*config = params->nr_config;
 
@@ -2367,10 +2301,10 @@ void
 ia_css_set_nr_config(struct ia_css_isp_parameters *params,
 			const struct ia_css_nr_config *config)
 {
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
+	assert(params);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_set_nr_config() enter:\n");
 	ia_css_nr_debug_dtrace(config, IA_CSS_DEBUG_TRACE);
 	params->nr_config = *config;
@@ -2380,8 +2314,7 @@ ia_css_set_nr_config(struct ia_css_isp_parameters *params,
 	params->config_changed[IA_CSS_NR_ID] = true;
 
 #endif
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_nr_config() leave: "
-		"return_void\n");
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_nr_config() leave: return_void\n");
 }
 
 /* Code generated by genparam/gencode.c:gen_get_function() */
@@ -2389,12 +2322,12 @@ ia_css_set_nr_config(struct ia_css_isp_parameters *params,
 static void
 ia_css_get_gc_config(const struct ia_css_isp_parameters *params,
 			struct ia_css_gc_config *config){
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_gc_config() enter: "
-		"config=%p\n",config);
+	assert(params);
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_gc_config() enter: config=%p\n",
+		config);
 
 	*config = params->gc_config;
 
@@ -2408,10 +2341,10 @@ void
 ia_css_set_gc_config(struct ia_css_isp_parameters *params,
 			const struct ia_css_gc_config *config)
 {
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
+	assert(params);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_set_gc_config() enter:\n");
 	ia_css_gc_debug_dtrace(config, IA_CSS_DEBUG_TRACE);
 	params->gc_config = *config;
@@ -2420,8 +2353,7 @@ ia_css_set_gc_config(struct ia_css_isp_parameters *params,
 	params->config_changed[IA_CSS_GC_ID] = true;
 
 #endif
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_gc_config() leave: "
-		"return_void\n");
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_gc_config() leave: return_void\n");
 }
 
 /* Code generated by genparam/gencode.c:gen_get_function() */
@@ -2429,12 +2361,12 @@ ia_css_set_gc_config(struct ia_css_isp_parameters *params,
 static void
 ia_css_get_sdis_horicoef_config(const struct ia_css_isp_parameters *params,
 			struct ia_css_dvs_coefficients *config){
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_sdis_horicoef_config() enter: "
-		"config=%p\n",config);
+	assert(params);
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_sdis_horicoef_config() enter: config=%p\n",
+		config);
 
 	*config = params->dvs_coefs;
 
@@ -2448,10 +2380,10 @@ void
 ia_css_set_sdis_horicoef_config(struct ia_css_isp_parameters *params,
 			const struct ia_css_dvs_coefficients *config)
 {
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
+	assert(params);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_set_sdis_horicoef_config() enter:\n");
 	ia_css_sdis_horicoef_debug_dtrace(config, IA_CSS_DEBUG_TRACE);
 	params->dvs_coefs = *config;
@@ -2463,8 +2395,7 @@ ia_css_set_sdis_horicoef_config(struct ia_css_isp_parameters *params,
 	params->config_changed[IA_CSS_SDIS_HORICOEF_ID] = true;
 
 #endif
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_sdis_horicoef_config() leave: "
-		"return_void\n");
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_sdis_horicoef_config() leave: return_void\n");
 }
 
 /* Code generated by genparam/gencode.c:gen_get_function() */
@@ -2472,12 +2403,12 @@ ia_css_set_sdis_horicoef_config(struct ia_css_isp_parameters *params,
 static void
 ia_css_get_sdis_vertcoef_config(const struct ia_css_isp_parameters *params,
 			struct ia_css_dvs_coefficients *config){
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_sdis_vertcoef_config() enter: "
-		"config=%p\n",config);
+	assert(params);
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_sdis_vertcoef_config() enter: config=%p\n",
+		config);
 
 	*config = params->dvs_coefs;
 
@@ -2491,10 +2422,10 @@ void
 ia_css_set_sdis_vertcoef_config(struct ia_css_isp_parameters *params,
 			const struct ia_css_dvs_coefficients *config)
 {
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
+	assert(params);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_set_sdis_vertcoef_config() enter:\n");
 	ia_css_sdis_vertcoef_debug_dtrace(config, IA_CSS_DEBUG_TRACE);
 	params->dvs_coefs = *config;
@@ -2506,8 +2437,7 @@ ia_css_set_sdis_vertcoef_config(struct ia_css_isp_parameters *params,
 	params->config_changed[IA_CSS_SDIS_VERTCOEF_ID] = true;
 
 #endif
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_sdis_vertcoef_config() leave: "
-		"return_void\n");
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_sdis_vertcoef_config() leave: return_void\n");
 }
 
 /* Code generated by genparam/gencode.c:gen_get_function() */
@@ -2515,12 +2445,12 @@ ia_css_set_sdis_vertcoef_config(struct ia_css_isp_parameters *params,
 static void
 ia_css_get_sdis_horiproj_config(const struct ia_css_isp_parameters *params,
 			struct ia_css_dvs_coefficients *config){
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_sdis_horiproj_config() enter: "
-		"config=%p\n",config);
+	assert(params);
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_sdis_horiproj_config() enter: config=%p\n",
+		config);
 
 	*config = params->dvs_coefs;
 
@@ -2534,10 +2464,10 @@ void
 ia_css_set_sdis_horiproj_config(struct ia_css_isp_parameters *params,
 			const struct ia_css_dvs_coefficients *config)
 {
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
+	assert(params);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_set_sdis_horiproj_config() enter:\n");
 	ia_css_sdis_horiproj_debug_dtrace(config, IA_CSS_DEBUG_TRACE);
 	params->dvs_coefs = *config;
@@ -2549,8 +2479,7 @@ ia_css_set_sdis_horiproj_config(struct ia_css_isp_parameters *params,
 	params->config_changed[IA_CSS_SDIS_HORIPROJ_ID] = true;
 
 #endif
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_sdis_horiproj_config() leave: "
-		"return_void\n");
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_sdis_horiproj_config() leave: return_void\n");
 }
 
 /* Code generated by genparam/gencode.c:gen_get_function() */
@@ -2558,12 +2487,12 @@ ia_css_set_sdis_horiproj_config(struct ia_css_isp_parameters *params,
 static void
 ia_css_get_sdis_vertproj_config(const struct ia_css_isp_parameters *params,
 			struct ia_css_dvs_coefficients *config){
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_sdis_vertproj_config() enter: "
-		"config=%p\n",config);
+	assert(params);
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_sdis_vertproj_config() enter: config=%p\n",
+		config);
 
 	*config = params->dvs_coefs;
 
@@ -2577,10 +2506,10 @@ void
 ia_css_set_sdis_vertproj_config(struct ia_css_isp_parameters *params,
 			const struct ia_css_dvs_coefficients *config)
 {
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
+	assert(params);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_set_sdis_vertproj_config() enter:\n");
 	ia_css_sdis_vertproj_debug_dtrace(config, IA_CSS_DEBUG_TRACE);
 	params->dvs_coefs = *config;
@@ -2592,8 +2521,7 @@ ia_css_set_sdis_vertproj_config(struct ia_css_isp_parameters *params,
 	params->config_changed[IA_CSS_SDIS_VERTPROJ_ID] = true;
 
 #endif
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_sdis_vertproj_config() leave: "
-		"return_void\n");
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_sdis_vertproj_config() leave: return_void\n");
 }
 
 /* Code generated by genparam/gencode.c:gen_get_function() */
@@ -2601,12 +2529,12 @@ ia_css_set_sdis_vertproj_config(struct ia_css_isp_parameters *params,
 static void
 ia_css_get_sdis2_horicoef_config(const struct ia_css_isp_parameters *params,
 			struct ia_css_dvs2_coefficients *config){
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_sdis2_horicoef_config() enter: "
-		"config=%p\n",config);
+	assert(params);
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_sdis2_horicoef_config() enter: config=%p\n",
+		config);
 
 	*config = params->dvs2_coefs;
 
@@ -2620,10 +2548,10 @@ void
 ia_css_set_sdis2_horicoef_config(struct ia_css_isp_parameters *params,
 			const struct ia_css_dvs2_coefficients *config)
 {
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
+	assert(params);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_set_sdis2_horicoef_config() enter:\n");
 	ia_css_sdis2_horicoef_debug_dtrace(config, IA_CSS_DEBUG_TRACE);
 	params->dvs2_coefs = *config;
@@ -2635,8 +2563,7 @@ ia_css_set_sdis2_horicoef_config(struct ia_css_isp_parameters *params,
 	params->config_changed[IA_CSS_SDIS2_HORICOEF_ID] = true;
 
 #endif
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_sdis2_horicoef_config() leave: "
-		"return_void\n");
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_sdis2_horicoef_config() leave: return_void\n");
 }
 
 /* Code generated by genparam/gencode.c:gen_get_function() */
@@ -2644,12 +2571,12 @@ ia_css_set_sdis2_horicoef_config(struct ia_css_isp_parameters *params,
 static void
 ia_css_get_sdis2_vertcoef_config(const struct ia_css_isp_parameters *params,
 			struct ia_css_dvs2_coefficients *config){
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_sdis2_vertcoef_config() enter: "
-		"config=%p\n",config);
+	assert(params);
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_sdis2_vertcoef_config() enter: config=%p\n",
+		config);
 
 	*config = params->dvs2_coefs;
 
@@ -2663,10 +2590,10 @@ void
 ia_css_set_sdis2_vertcoef_config(struct ia_css_isp_parameters *params,
 			const struct ia_css_dvs2_coefficients *config)
 {
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
+	assert(params);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_set_sdis2_vertcoef_config() enter:\n");
 	ia_css_sdis2_vertcoef_debug_dtrace(config, IA_CSS_DEBUG_TRACE);
 	params->dvs2_coefs = *config;
@@ -2678,8 +2605,7 @@ ia_css_set_sdis2_vertcoef_config(struct ia_css_isp_parameters *params,
 	params->config_changed[IA_CSS_SDIS2_VERTCOEF_ID] = true;
 
 #endif
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_sdis2_vertcoef_config() leave: "
-		"return_void\n");
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_sdis2_vertcoef_config() leave: return_void\n");
 }
 
 /* Code generated by genparam/gencode.c:gen_get_function() */
@@ -2687,12 +2613,12 @@ ia_css_set_sdis2_vertcoef_config(struct ia_css_isp_parameters *params,
 static void
 ia_css_get_sdis2_horiproj_config(const struct ia_css_isp_parameters *params,
 			struct ia_css_dvs2_coefficients *config){
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_sdis2_horiproj_config() enter: "
-		"config=%p\n",config);
+	assert(params);
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_sdis2_horiproj_config() enter: config=%p\n",
+		config);
 
 	*config = params->dvs2_coefs;
 
@@ -2706,10 +2632,10 @@ void
 ia_css_set_sdis2_horiproj_config(struct ia_css_isp_parameters *params,
 			const struct ia_css_dvs2_coefficients *config)
 {
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
+	assert(params);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_set_sdis2_horiproj_config() enter:\n");
 	ia_css_sdis2_horiproj_debug_dtrace(config, IA_CSS_DEBUG_TRACE);
 	params->dvs2_coefs = *config;
@@ -2721,8 +2647,7 @@ ia_css_set_sdis2_horiproj_config(struct ia_css_isp_parameters *params,
 	params->config_changed[IA_CSS_SDIS2_HORIPROJ_ID] = true;
 
 #endif
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_sdis2_horiproj_config() leave: "
-		"return_void\n");
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_sdis2_horiproj_config() leave: return_void\n");
 }
 
 /* Code generated by genparam/gencode.c:gen_get_function() */
@@ -2730,12 +2655,12 @@ ia_css_set_sdis2_horiproj_config(struct ia_css_isp_parameters *params,
 static void
 ia_css_get_sdis2_vertproj_config(const struct ia_css_isp_parameters *params,
 			struct ia_css_dvs2_coefficients *config){
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_sdis2_vertproj_config() enter: "
-		"config=%p\n",config);
+	assert(params);
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_sdis2_vertproj_config() enter: config=%p\n",
+		config);
 
 	*config = params->dvs2_coefs;
 
@@ -2749,10 +2674,10 @@ void
 ia_css_set_sdis2_vertproj_config(struct ia_css_isp_parameters *params,
 			const struct ia_css_dvs2_coefficients *config)
 {
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
+	assert(params);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_set_sdis2_vertproj_config() enter:\n");
 	ia_css_sdis2_vertproj_debug_dtrace(config, IA_CSS_DEBUG_TRACE);
 	params->dvs2_coefs = *config;
@@ -2764,8 +2689,7 @@ ia_css_set_sdis2_vertproj_config(struct ia_css_isp_parameters *params,
 	params->config_changed[IA_CSS_SDIS2_VERTPROJ_ID] = true;
 
 #endif
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_sdis2_vertproj_config() leave: "
-		"return_void\n");
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_sdis2_vertproj_config() leave: return_void\n");
 }
 
 /* Code generated by genparam/gencode.c:gen_get_function() */
@@ -2773,12 +2697,12 @@ ia_css_set_sdis2_vertproj_config(struct ia_css_isp_parameters *params,
 static void
 ia_css_get_r_gamma_config(const struct ia_css_isp_parameters *params,
 			struct ia_css_rgb_gamma_table *config){
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_r_gamma_config() enter: "
-		"config=%p\n",config);
+	assert(params);
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_r_gamma_config() enter: config=%p\n",
+		config);
 
 	*config = params->r_gamma_table;
 
@@ -2792,10 +2716,10 @@ void
 ia_css_set_r_gamma_config(struct ia_css_isp_parameters *params,
 			const struct ia_css_rgb_gamma_table *config)
 {
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
+	assert(params);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_set_r_gamma_config() enter:\n");
 	ia_css_r_gamma_debug_dtrace(config, IA_CSS_DEBUG_TRACE);
 	params->r_gamma_table = *config;
@@ -2804,8 +2728,7 @@ ia_css_set_r_gamma_config(struct ia_css_isp_parameters *params,
 	params->config_changed[IA_CSS_R_GAMMA_ID] = true;
 
 #endif
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_r_gamma_config() leave: "
-		"return_void\n");
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_r_gamma_config() leave: return_void\n");
 }
 
 /* Code generated by genparam/gencode.c:gen_get_function() */
@@ -2813,12 +2736,12 @@ ia_css_set_r_gamma_config(struct ia_css_isp_parameters *params,
 static void
 ia_css_get_g_gamma_config(const struct ia_css_isp_parameters *params,
 			struct ia_css_rgb_gamma_table *config){
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_g_gamma_config() enter: "
-		"config=%p\n",config);
+	assert(params);
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_g_gamma_config() enter: config=%p\n",
+		config);
 
 	*config = params->g_gamma_table;
 
@@ -2832,10 +2755,10 @@ void
 ia_css_set_g_gamma_config(struct ia_css_isp_parameters *params,
 			const struct ia_css_rgb_gamma_table *config)
 {
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
+	assert(params);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_set_g_gamma_config() enter:\n");
 	ia_css_g_gamma_debug_dtrace(config, IA_CSS_DEBUG_TRACE);
 	params->g_gamma_table = *config;
@@ -2844,8 +2767,7 @@ ia_css_set_g_gamma_config(struct ia_css_isp_parameters *params,
 	params->config_changed[IA_CSS_G_GAMMA_ID] = true;
 
 #endif
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_g_gamma_config() leave: "
-		"return_void\n");
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_g_gamma_config() leave: return_void\n");
 }
 
 /* Code generated by genparam/gencode.c:gen_get_function() */
@@ -2853,12 +2775,12 @@ ia_css_set_g_gamma_config(struct ia_css_isp_parameters *params,
 static void
 ia_css_get_b_gamma_config(const struct ia_css_isp_parameters *params,
 			struct ia_css_rgb_gamma_table *config){
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_b_gamma_config() enter: "
-		"config=%p\n",config);
+	assert(params);
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_b_gamma_config() enter: config=%p\n",
+		config);
 
 	*config = params->b_gamma_table;
 
@@ -2872,10 +2794,10 @@ void
 ia_css_set_b_gamma_config(struct ia_css_isp_parameters *params,
 			const struct ia_css_rgb_gamma_table *config)
 {
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
+	assert(params);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_set_b_gamma_config() enter:\n");
 	ia_css_b_gamma_debug_dtrace(config, IA_CSS_DEBUG_TRACE);
 	params->b_gamma_table = *config;
@@ -2884,8 +2806,7 @@ ia_css_set_b_gamma_config(struct ia_css_isp_parameters *params,
 	params->config_changed[IA_CSS_B_GAMMA_ID] = true;
 
 #endif
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_b_gamma_config() leave: "
-		"return_void\n");
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_b_gamma_config() leave: return_void\n");
 }
 
 /* Code generated by genparam/gencode.c:gen_get_function() */
@@ -2893,12 +2814,12 @@ ia_css_set_b_gamma_config(struct ia_css_isp_parameters *params,
 static void
 ia_css_get_xnr_table_config(const struct ia_css_isp_parameters *params,
 			struct ia_css_xnr_table *config){
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_xnr_table_config() enter: "
-		"config=%p\n",config);
+	assert(params);
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_xnr_table_config() enter: config=%p\n",
+		config);
 
 	*config = params->xnr_table;
 
@@ -2912,10 +2833,10 @@ void
 ia_css_set_xnr_table_config(struct ia_css_isp_parameters *params,
 			const struct ia_css_xnr_table *config)
 {
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
+	assert(params);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_set_xnr_table_config() enter:\n");
 	ia_css_xnr_table_debug_dtrace(config, IA_CSS_DEBUG_TRACE);
 	params->xnr_table = *config;
@@ -2924,8 +2845,7 @@ ia_css_set_xnr_table_config(struct ia_css_isp_parameters *params,
 	params->config_changed[IA_CSS_XNR_TABLE_ID] = true;
 
 #endif
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_xnr_table_config() leave: "
-		"return_void\n");
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_xnr_table_config() leave: return_void\n");
 }
 
 /* Code generated by genparam/gencode.c:gen_get_function() */
@@ -2933,12 +2853,12 @@ ia_css_set_xnr_table_config(struct ia_css_isp_parameters *params,
 static void
 ia_css_get_formats_config(const struct ia_css_isp_parameters *params,
 			struct ia_css_formats_config *config){
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_formats_config() enter: "
-		"config=%p\n",config);
+	assert(params);
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_formats_config() enter: config=%p\n",
+		config);
 
 	*config = params->formats_config;
 
@@ -2952,10 +2872,10 @@ void
 ia_css_set_formats_config(struct ia_css_isp_parameters *params,
 			const struct ia_css_formats_config *config)
 {
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
+	assert(params);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_set_formats_config() enter:\n");
 	ia_css_formats_debug_dtrace(config, IA_CSS_DEBUG_TRACE);
 	params->formats_config = *config;
@@ -2964,8 +2884,7 @@ ia_css_set_formats_config(struct ia_css_isp_parameters *params,
 	params->config_changed[IA_CSS_FORMATS_ID] = true;
 
 #endif
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_formats_config() leave: "
-		"return_void\n");
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_formats_config() leave: return_void\n");
 }
 
 /* Code generated by genparam/gencode.c:gen_get_function() */
@@ -2973,12 +2892,12 @@ ia_css_set_formats_config(struct ia_css_isp_parameters *params,
 static void
 ia_css_get_xnr_config(const struct ia_css_isp_parameters *params,
 			struct ia_css_xnr_config *config){
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_xnr_config() enter: "
-		"config=%p\n",config);
+	assert(params);
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_xnr_config() enter: config=%p\n",
+		config);
 
 	*config = params->xnr_config;
 
@@ -2992,10 +2911,10 @@ void
 ia_css_set_xnr_config(struct ia_css_isp_parameters *params,
 			const struct ia_css_xnr_config *config)
 {
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
+	assert(params);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_set_xnr_config() enter:\n");
 	ia_css_xnr_debug_dtrace(config, IA_CSS_DEBUG_TRACE);
 	params->xnr_config = *config;
@@ -3004,8 +2923,7 @@ ia_css_set_xnr_config(struct ia_css_isp_parameters *params,
 	params->config_changed[IA_CSS_XNR_ID] = true;
 
 #endif
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_xnr_config() leave: "
-		"return_void\n");
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_xnr_config() leave: return_void\n");
 }
 
 /* Code generated by genparam/gencode.c:gen_get_function() */
@@ -3013,12 +2931,12 @@ ia_css_set_xnr_config(struct ia_css_isp_parameters *params,
 static void
 ia_css_get_xnr3_config(const struct ia_css_isp_parameters *params,
 			struct ia_css_xnr3_config *config){
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_xnr3_config() enter: "
-		"config=%p\n",config);
+	assert(params);
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_xnr3_config() enter: config=%p\n",
+		config);
 
 	*config = params->xnr3_config;
 
@@ -3032,10 +2950,10 @@ void
 ia_css_set_xnr3_config(struct ia_css_isp_parameters *params,
 			const struct ia_css_xnr3_config *config)
 {
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
+	assert(params);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_set_xnr3_config() enter:\n");
 	ia_css_xnr3_debug_dtrace(config, IA_CSS_DEBUG_TRACE);
 	params->xnr3_config = *config;
@@ -3044,8 +2962,7 @@ ia_css_set_xnr3_config(struct ia_css_isp_parameters *params,
 	params->config_changed[IA_CSS_XNR3_ID] = true;
 
 #endif
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_xnr3_config() leave: "
-		"return_void\n");
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_xnr3_config() leave: return_void\n");
 }
 
 /* Code generated by genparam/gencode.c:gen_get_function() */
@@ -3053,12 +2970,12 @@ ia_css_set_xnr3_config(struct ia_css_isp_parameters *params,
 static void
 ia_css_get_s3a_config(const struct ia_css_isp_parameters *params,
 			struct ia_css_3a_config *config){
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_s3a_config() enter: "
-		"config=%p\n",config);
+	assert(params);
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_s3a_config() enter: config=%p\n",
+		config);
 
 	*config = params->s3a_config;
 
@@ -3072,10 +2989,10 @@ void
 ia_css_set_s3a_config(struct ia_css_isp_parameters *params,
 			const struct ia_css_3a_config *config)
 {
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
+	assert(params);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_set_s3a_config() enter:\n");
 	ia_css_s3a_debug_dtrace(config, IA_CSS_DEBUG_TRACE);
 	params->s3a_config = *config;
@@ -3085,8 +3002,7 @@ ia_css_set_s3a_config(struct ia_css_isp_parameters *params,
 	params->config_changed[IA_CSS_S3A_ID] = true;
 
 #endif
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_s3a_config() leave: "
-		"return_void\n");
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_s3a_config() leave: return_void\n");
 }
 
 /* Code generated by genparam/gencode.c:gen_get_function() */
@@ -3094,12 +3010,12 @@ ia_css_set_s3a_config(struct ia_css_isp_parameters *params,
 static void
 ia_css_get_output_config(const struct ia_css_isp_parameters *params,
 			struct ia_css_output_config *config){
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_output_config() enter: "
-		"config=%p\n",config);
+	assert(params);
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_get_output_config() enter: config=%p\n",
+		config);
 
 	*config = params->output_config;
 
@@ -3113,10 +3029,10 @@ void
 ia_css_set_output_config(struct ia_css_isp_parameters *params,
 			const struct ia_css_output_config *config)
 {
-	if (config == NULL)
+	if (!config)
 		return;
 
-	assert(params != NULL);
+	assert(params);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_set_output_config() enter:\n");
 	ia_css_output_debug_dtrace(config, IA_CSS_DEBUG_TRACE);
 	params->output_config = *config;
@@ -3125,8 +3041,7 @@ ia_css_set_output_config(struct ia_css_isp_parameters *params,
 	params->config_changed[IA_CSS_OUTPUT_ID] = true;
 
 #endif
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_output_config() leave: "
-		"return_void\n");
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_set_output_config() leave: return_void\n");
 }
 
 /* Code generated by genparam/gencode.c:gen_global_access_function() */
@@ -3218,4 +3133,3 @@ ia_css_set_configs(struct ia_css_isp_parameters *params,
 	ia_css_set_s3a_config(params, config->s3a_config);
 	ia_css_set_output_config(params, config->output_config);
 }
-

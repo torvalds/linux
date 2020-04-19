@@ -42,7 +42,7 @@ void
 ia_css_output_encode(
 	struct sh_css_isp_output_params *to,
 	const struct ia_css_output_config *from,
-	unsigned size)
+	unsigned int size)
 {
 	(void)size;
 	to->enable_hflip = from->enable_hflip;
@@ -53,9 +53,9 @@ void
 ia_css_output_config(
 	struct sh_css_isp_output_isp_config *to,
 	const struct ia_css_output_configuration  *from,
-	unsigned size)
+	unsigned int size)
 {
-	unsigned elems_a = ISP_VEC_NELEMS;
+	unsigned int elems_a = ISP_VEC_NELEMS;
 
 	(void)size;
 	ia_css_dma_configure_from_info(&to->port_b, from->info);
@@ -65,16 +65,16 @@ ia_css_output_config(
 	ia_css_frame_info_to_frame_sp_info(&to->info, from->info);
 
 	/* Assume divisiblity here, may need to generalize to fixed point. */
-	assert (elems_a % to->port_b.elems == 0);
+	assert(elems_a % to->port_b.elems == 0);
 }
 
 void
 ia_css_output0_config(
 	struct sh_css_isp_output_isp_config       *to,
 	const struct ia_css_output0_configuration *from,
-	unsigned size)
+	unsigned int size)
 {
-	ia_css_output_config (
+	ia_css_output_config(
 		to, (const struct ia_css_output_configuration *)from, size);
 }
 
@@ -82,9 +82,9 @@ void
 ia_css_output1_config(
 	struct sh_css_isp_output_isp_config       *to,
 	const struct ia_css_output1_configuration *from,
-	unsigned size)
+	unsigned int size)
 {
-	ia_css_output_config (
+	ia_css_output_config(
 		to, (const struct ia_css_output_configuration *)from, size);
 }
 
@@ -93,7 +93,7 @@ ia_css_output_configure(
 	const struct ia_css_binary     *binary,
 	const struct ia_css_frame_info *info)
 {
-	if (NULL != info) {
+	if (info) {
 		struct ia_css_output_configuration config =
 				default_output_configuration;
 
@@ -108,7 +108,7 @@ ia_css_output0_configure(
 	const struct ia_css_binary     *binary,
 	const struct ia_css_frame_info *info)
 {
-	if (NULL != info) {
+	if (info) {
 		struct ia_css_output0_configuration config =
 				default_output0_configuration;
 
@@ -123,8 +123,7 @@ ia_css_output1_configure(
 	const struct ia_css_binary     *binary,
 	const struct ia_css_frame_info *info)
 {
-
-	if (NULL != info) {
+	if (info) {
 		struct ia_css_output1_configuration config =
 				default_output1_configuration;
 
@@ -137,7 +136,7 @@ ia_css_output1_configure(
 void
 ia_css_output_dump(
 	const struct sh_css_isp_output_params *output,
-	unsigned level)
+	unsigned int level)
 {
 	if (!output) return;
 	ia_css_debug_dtrace(level, "Horizontal Output Flip:\n");
@@ -151,7 +150,7 @@ ia_css_output_dump(
 void
 ia_css_output_debug_dtrace(
 	const struct ia_css_output_config *config,
-	unsigned level)
+	unsigned int level)
 {
 	ia_css_debug_dtrace(level,
 		"config.enable_hflip=%d",

@@ -121,6 +121,4 @@
 #define _PXG_INVALID_FLAG              0xDEADBEEF
 #define _PXG_CAFE_FLAG                 0xCAFEBABE
 
-
 #endif /* _PixelGen_SysBlock_defs_h */
-

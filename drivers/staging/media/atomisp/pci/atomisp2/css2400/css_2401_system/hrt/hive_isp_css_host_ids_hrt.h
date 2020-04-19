@@ -29,7 +29,7 @@
 #define ISP           testbench_isp_isp_css_sec_part_isp
 #define SP            testbench_isp_isp_css_sec_part_scp
 
-#define IF_PRIM       testbench_isp_isp_css_part_is_2400_ifmt_ift_prim  
+#define IF_PRIM       testbench_isp_isp_css_part_is_2400_ifmt_ift_prim
 #define IF_PRIM_B     testbench_isp_isp_css_part_is_2400_ifmt_ift_prim_b
 #define IF_SEC        testbench_isp_isp_css_part_is_2400_ifmt_ift_sec
 #define IF_SEC_MASTER testbench_isp_isp_css_part_is_2400_ifmt_ift_sec_mt_out
@@ -95,7 +95,6 @@
 #define ISYS2401_PXG_C        testbench_isp_isp_css_part_is_2401_is_pipe_c_pxlgen
 #define ISYS2401_IBUF_CNTRL_C testbench_isp_isp_css_part_is_2401_is_pipe_c_ibuf_ctrl
 #define ISYS2401_IRQ_CTRL_C   testbench_isp_isp_css_part_is_2401_is_pipe_c_irq_ctrl_pipe
-
 
 /* Testbench identifiers */
 #define DDR             testbench_ddram

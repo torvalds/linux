@@ -78,8 +78,8 @@ struct ia_css_frame_sp_plane6 {
 };
 
 struct ia_css_sp_resolution {
-	uint16_t width;		/* width of valid data in pixels */
-	uint16_t height;	/* Height of valid data in lines */
+	u16 width;		/* width of valid data in pixels */
+	u16 height;	/* Height of valid data in lines */
 };
 
 /*
@@ -87,7 +87,7 @@ struct ia_css_sp_resolution {
  */
 struct ia_css_frame_sp_info {
 	struct ia_css_sp_resolution res;
-	uint16_t padded_width;		/* stride of line in memory
+	u16 padded_width;		/* stride of line in memory
 					(in pixels) */
 	unsigned char format;		/* format of the frame data */
 	unsigned char raw_bit_depth;	/* number of valid bits per pixel,
@@ -129,4 +129,3 @@ void ia_css_resolution_to_sp_resolution(
 	const struct ia_css_resolution *info);
 
 #endif /*__IA_CSS_FRAME_COMM_H__*/
-

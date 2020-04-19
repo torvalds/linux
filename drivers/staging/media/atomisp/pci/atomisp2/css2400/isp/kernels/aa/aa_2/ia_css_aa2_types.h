@@ -19,7 +19,6 @@
 * CSS-API header file for Anti-Aliasing parameters.
 */
 
-
 /* Anti-Aliasing configuration.
  *
  *  This structure is used both for YUV AA and Bayer AA.
@@ -39,10 +38,9 @@
  *     ISP2: BAA2 is used.
  */
 struct ia_css_aa_config {
-	uint16_t strength;	/** Strength of the filter.
+	u16 strength;	/** Strength of the filter.
 					u0.13, [0,8191],
 					default/ineffective 0 */
 };
 
 #endif /* __IA_CSS_AA2_TYPES_H */
-

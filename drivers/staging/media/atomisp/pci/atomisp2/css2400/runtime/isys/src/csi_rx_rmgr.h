@@ -33,11 +33,10 @@ more details.
 
 typedef struct isys_csi_rx_rsrc_s isys_csi_rx_rsrc_t;
 struct isys_csi_rx_rsrc_s {
-	uint32_t	active_table;
-	uint32_t        num_active;
-	uint16_t	num_long_packets;
-	uint16_t	num_short_packets;
+	u32	active_table;
+	u32        num_active;
+	u16	num_long_packets;
+	u16	num_short_packets;
 };
 
 #endif /* __CSI_RX_RMGR_H_INCLUDED__ */
-

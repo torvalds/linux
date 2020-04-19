@@ -30,13 +30,12 @@
 /* IRQ3_ID */
 #include "input_selector_defs.h"
 
-
 #define	IRQ_ID_OFFSET	32
 #define	IRQ0_ID_OFFSET	0
 #define	IRQ1_ID_OFFSET	IRQ_ID_OFFSET
-#define	IRQ2_ID_OFFSET	(2*IRQ_ID_OFFSET)
-#define	IRQ3_ID_OFFSET	(3*IRQ_ID_OFFSET)
-#define	IRQ_END_OFFSET	(4*IRQ_ID_OFFSET)
+#define	IRQ2_ID_OFFSET	(2 * IRQ_ID_OFFSET)
+#define	IRQ3_ID_OFFSET	(3 * IRQ_ID_OFFSET)
+#define	IRQ_END_OFFSET	(4 * IRQ_ID_OFFSET)
 
 #define	IRQ0_ID_N_CHANNEL	HIVE_GP_DEV_IRQ_NUM_IRQS
 #define	IRQ1_ID_N_CHANNEL	HIVE_IFMT_IRQ_NUM_IRQS
@@ -45,7 +44,6 @@
 
 typedef struct virq_info_s					virq_info_t;
 typedef struct irq_controller_state_s		irq_controller_state_t;
-
 
 typedef enum {
 	virq_gpio_pin_0            = IRQ0_ID_OFFSET + HIVE_GP_DEV_IRQ_GPIO_PIN_0_BIT_ID,
@@ -81,7 +79,7 @@ typedef enum {
 	virq_sp_dmem_error         = IRQ0_ID_OFFSET + HIVE_GP_DEV_IRQ_SP_DMEM_ERROR_BIT_ID,
 	virq_mmu_cache_mem_error   = IRQ0_ID_OFFSET + HIVE_GP_DEV_IRQ_MMU_CACHE_MEM_ERROR_BIT_ID,
 	virq_gp_timer_0            = IRQ0_ID_OFFSET + HIVE_GP_DEV_IRQ_GP_TIMER_0_BIT_ID,
-	virq_gp_timer_1            = IRQ0_ID_OFFSET + HIVE_GP_DEV_IRQ_GP_TIMER_1_BIT_ID,              
+	virq_gp_timer_1            = IRQ0_ID_OFFSET + HIVE_GP_DEV_IRQ_GP_TIMER_1_BIT_ID,
 	virq_sw_pin_0              = IRQ0_ID_OFFSET + HIVE_GP_DEV_IRQ_SW_PIN_0_BIT_ID,
 	virq_sw_pin_1              = IRQ0_ID_OFFSET + HIVE_GP_DEV_IRQ_SW_PIN_1_BIT_ID,
 	virq_dma                   = IRQ0_ID_OFFSET + HIVE_GP_DEV_IRQ_DMA_BIT_ID,
@@ -100,11 +98,11 @@ typedef enum {
 	virq_isys_csi              = IRQ2_ID_OFFSET + HIVE_ISYS_IRQ_CSI_RECEIVER_BIT_ID,
 	virq_isys_csi_be           = IRQ2_ID_OFFSET + HIVE_ISYS_IRQ_CSI_RECEIVER_BE_BIT_ID,
 	virq_isys_capt0_id_no_sop  = IRQ2_ID_OFFSET + HIVE_ISYS_IRQ_CAP_UNIT_A_NO_SOP,
-	virq_isys_capt0_id_late_sop= IRQ2_ID_OFFSET + HIVE_ISYS_IRQ_CAP_UNIT_A_LATE_SOP,
+	virq_isys_capt0_id_late_sop = IRQ2_ID_OFFSET + HIVE_ISYS_IRQ_CAP_UNIT_A_LATE_SOP,
 	virq_isys_capt1_id_no_sop  = IRQ2_ID_OFFSET + HIVE_ISYS_IRQ_CAP_UNIT_B_NO_SOP,
-	virq_isys_capt1_id_late_sop= IRQ2_ID_OFFSET + HIVE_ISYS_IRQ_CAP_UNIT_B_LATE_SOP,
+	virq_isys_capt1_id_late_sop = IRQ2_ID_OFFSET + HIVE_ISYS_IRQ_CAP_UNIT_B_LATE_SOP,
 	virq_isys_capt2_id_no_sop  = IRQ2_ID_OFFSET + HIVE_ISYS_IRQ_CAP_UNIT_C_NO_SOP,
-	virq_isys_capt2_id_late_sop= IRQ2_ID_OFFSET + HIVE_ISYS_IRQ_CAP_UNIT_C_LATE_SOP,
+	virq_isys_capt2_id_late_sop = IRQ2_ID_OFFSET + HIVE_ISYS_IRQ_CAP_UNIT_C_LATE_SOP,
 	virq_isys_acq_sop_mismatch = IRQ2_ID_OFFSET + HIVE_ISYS_IRQ_ACQ_UNIT_SOP_MISMATCH,
 	virq_isys_ctrl_capt0       = IRQ2_ID_OFFSET + HIVE_ISYS_IRQ_INP_CTRL_CAPA,
 	virq_isys_ctrl_capt1       = IRQ2_ID_OFFSET + HIVE_ISYS_IRQ_INP_CTRL_CAPB,

@@ -20,7 +20,6 @@
 /* for ia_css_binary_max_vf_width() */
 #include "ia_css_binary.h"
 
-
 enum ia_css_err ia_css_convert_errno(
 				int in_err)
 {
@@ -56,6 +55,7 @@ unsigned int ia_css_util_input_format_bpp(
 	bool two_ppc)
 {
 	unsigned int rval = 0;
+
 	switch (format) {
 	case ATOMISP_INPUT_FORMAT_YUV420_8_LEGACY:
 	case ATOMISP_INPUT_FORMAT_YUV420_8:
@@ -109,7 +109,6 @@ unsigned int ia_css_util_input_format_bpp(
 	default:
 		rval = 0;
 		break;
-
 	}
 	return rval;
 }
@@ -119,12 +118,13 @@ enum ia_css_err ia_css_util_check_vf_info(
 {
 	enum ia_css_err err;
 	unsigned int max_vf_width;
-	assert(info != NULL);
+
+	assert(info);
 	err = ia_css_frame_check_info(info);
 	if (err != IA_CSS_SUCCESS)
 		return err;
 	max_vf_width = ia_css_binary_max_vf_width();
-	if (max_vf_width != 0 && info->res.width > max_vf_width*2)
+	if (max_vf_width != 0 && info->res.width > max_vf_width * 2)
 		return IA_CSS_ERR_INVALID_ARGUMENTS;
 	return IA_CSS_SUCCESS;
 }
@@ -135,8 +135,8 @@ enum ia_css_err ia_css_util_check_vf_out_info(
 {
 	enum ia_css_err err;
 
-	assert(out_info != NULL);
-	assert(vf_info != NULL);
+	assert(out_info);
+	assert(vf_info);
 
 	err = ia_css_frame_check_info(out_info);
 	if (err != IA_CSS_SUCCESS)
@@ -204,9 +204,9 @@ enum ia_css_err ia_css_util_check_input(
 	bool must_be_raw,
 	bool must_be_yuv)
 {
-	assert(stream_config != NULL);
+	assert(stream_config);
 
-	if (stream_config == NULL)
+	if (!stream_config)
 		return IA_CSS_ERR_INVALID_ARGUMENTS;
 
 #ifdef IS_ISP_2400_SYSTEM
@@ -224,4 +224,3 @@ enum ia_css_err ia_css_util_check_input(
 
 	return IA_CSS_SUCCESS;
 }
-

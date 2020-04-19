@@ -24,15 +24,14 @@
 
 #include "ia_css_raw.host.h"
 
-
 static const struct ia_css_raw_configuration default_config = {
 	.pipe = (struct sh_css_sp_pipeline *)NULL,
 };
 
 static inline unsigned
-sh_css_elems_bytes_from_info (unsigned raw_bit_depth)
+sh_css_elems_bytes_from_info(unsigned int raw_bit_depth)
 {
-	return CEIL_DIV(raw_bit_depth,8);
+	return CEIL_DIV(raw_bit_depth, 8);
 }
 
 /* MW: These areMIPI / ISYS properties, not camera function properties */
@@ -74,9 +73,9 @@ void
 ia_css_raw_config(
 	struct sh_css_isp_raw_isp_config *to,
 	const struct ia_css_raw_configuration  *from,
-	unsigned size)
+	unsigned int size)
 {
-	unsigned elems_a = ISP_VEC_NELEMS;
+	unsigned int elems_a = ISP_VEC_NELEMS;
 	const struct ia_css_frame_info *in_info = from->in_info;
 	const struct ia_css_frame_info *internal_info = from->internal_info;
 
@@ -121,7 +120,7 @@ ia_css_raw_configure(
 	bool two_ppc,
 	bool deinterleaved)
 {
-	uint8_t enable_left_padding = (uint8_t)((binary->left_padding) ? 1 : 0);
+	u8 enable_left_padding = (uint8_t)((binary->left_padding) ? 1 : 0);
 	struct ia_css_raw_configuration config = default_config;
 
 	config.pipe                = pipe;

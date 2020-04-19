@@ -30,7 +30,7 @@ void
 sh_css_sp_store_init_dmem(const struct ia_css_fw_info *fw);
 
 void
-store_sp_stage_data(enum ia_css_pipe_id id, unsigned int pipe_num, unsigned stage);
+store_sp_stage_data(enum ia_css_pipe_id id, unsigned int pipe_num, unsigned int stage);
 
 void
 sh_css_stage_write_binary_info(struct ia_css_binary_info *info);
@@ -41,7 +41,7 @@ store_sp_group_data(void);
 /* Start binary (jpeg) copy on the SP */
 void
 sh_css_sp_start_binary_copy(unsigned int pipe_num, struct ia_css_frame *out_frame,
-			    unsigned two_ppc);
+			    unsigned int two_ppc);
 
 unsigned int
 sh_css_sp_get_binary_copy_size(void);
@@ -53,7 +53,7 @@ sh_css_sp_get_sw_interrupt_value(unsigned int irq);
 void
 sh_css_sp_init_pipeline(struct ia_css_pipeline *me,
 			enum ia_css_pipe_id id,
-			uint8_t pipe_num,
+			u8 pipe_num,
 			bool xnr,
 			bool two_ppc,
 			bool continuous,
@@ -93,7 +93,7 @@ sh_css_init_host2sp_frame_data(void);
  */
 void
 sh_css_update_host2sp_offline_frame(
-				unsigned frame_num,
+				unsigned int frame_num,
 				struct ia_css_frame *frame,
 				struct ia_css_metadata *metadata);
 
@@ -106,7 +106,7 @@ sh_css_update_host2sp_offline_frame(
  */
 void
 sh_css_update_host2sp_mipi_frame(
-				unsigned frame_num,
+				unsigned int frame_num,
 				struct ia_css_frame *frame);
 
 /**
@@ -117,7 +117,7 @@ sh_css_update_host2sp_mipi_frame(
  */
 void
 sh_css_update_host2sp_mipi_metadata(
-				unsigned frame_num,
+				unsigned int frame_num,
 				struct ia_css_metadata *metadata);
 
 /**
@@ -126,7 +126,7 @@ sh_css_update_host2sp_mipi_metadata(
  * @param[in] num_frames The number of mipi frames to use.
  */
 void
-sh_css_update_host2sp_num_mipi_frames(unsigned num_frames);
+sh_css_update_host2sp_num_mipi_frames(unsigned int num_frames);
 #endif
 
 /**
@@ -135,7 +135,7 @@ sh_css_update_host2sp_num_mipi_frames(unsigned num_frames);
  * @param[in] num_frames The number of raw frames to use.
  */
 void
-sh_css_update_host2sp_cont_num_raw_frames(unsigned num_frames, bool set_avail);
+sh_css_update_host2sp_cont_num_raw_frames(unsigned int num_frames, bool set_avail);
 
 void
 sh_css_event_init_irq_mask(void);
@@ -239,7 +239,6 @@ sh_css_sp_set_dma_sw_reg(int dma_id,
 		int channel_id,
 		int request_type,
 		bool enable);
-
 
 extern struct sh_css_sp_group sh_css_sp_group;
 extern struct sh_css_sp_stage sh_css_sp_stage;

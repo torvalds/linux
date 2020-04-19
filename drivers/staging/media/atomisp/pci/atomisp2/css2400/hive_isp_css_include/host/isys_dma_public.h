@@ -29,7 +29,7 @@ STORAGE_CLASS_ISYS2401_DMA_H hrt_data isys2401_dma_reg_load(
 	const isys2401_dma_ID_t dma_id,
 	const unsigned int	reg);
 
-extern void isys2401_dma_set_max_burst_size(
+void isys2401_dma_set_max_burst_size(
 	const isys2401_dma_ID_t dma_id,
 	uint32_t		max_burst_size);
 

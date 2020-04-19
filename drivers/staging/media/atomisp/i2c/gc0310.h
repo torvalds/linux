@@ -396,9 +396,9 @@ static struct gc0310_resolution gc0310_res_preview[] = {
 		.regs = gc0310_VGA_30fps,
 	},
 };
+
 #define N_RES_PREVIEW (ARRAY_SIZE(gc0310_res_preview))
 
 static struct gc0310_resolution *gc0310_res = gc0310_res_preview;
 static unsigned long N_RES = N_RES_PREVIEW;
 #endif
-

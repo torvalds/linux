@@ -111,6 +111,7 @@ void ia_css_rx_port_get_irq_info(enum mipi_port_id api_port,
 				 unsigned int *irq_infos)
 {
 	enum mipi_port_id port = ia_css_isys_port_to_mipi_port(api_port);
+
 	ia_css_isys_rx_get_irq_info(port, irq_infos);
 }
 
@@ -119,7 +120,7 @@ void ia_css_isys_rx_get_irq_info(enum mipi_port_id port,
 {
 	unsigned int bits;
 
-	assert(irq_infos != NULL);
+	assert(irq_infos);
 	bits = ia_css_isys_rx_get_interrupt_reg(port);
 	*irq_infos = ia_css_isys_rx_translate_irq_infos(bits);
 }
@@ -175,6 +176,7 @@ void ia_css_rx_clear_irq_info(unsigned int irq_infos)
 void ia_css_rx_port_clear_irq_info(enum mipi_port_id api_port, unsigned int irq_infos)
 {
 	enum mipi_port_id port = ia_css_isys_port_to_mipi_port(api_port);
+
 	ia_css_isys_rx_clear_irq_info(port, irq_infos);
 }
 
@@ -233,7 +235,7 @@ enum ia_css_err ia_css_isys_convert_stream_format_to_mipi_format(
 		mipi_predictor_t compression,
 		unsigned int *fmt_type)
 {
-	assert(fmt_type != NULL);
+	assert(fmt_type);
 	/*
 	 * Custom (user defined) modes. Used for compressed
 	 * MIPI transfers
@@ -372,6 +374,7 @@ enum ia_css_err ia_css_isys_convert_stream_format_to_mipi_format(
 	}
 	return IA_CSS_SUCCESS;
 }
+
 #if defined(USE_INPUT_SYSTEM_VERSION_2401)
 static mipi_predictor_t sh_css_csi2_compression_type_2_mipi_predictor(enum ia_css_csi2_compression_type type)
 {
@@ -379,22 +382,24 @@ static mipi_predictor_t sh_css_csi2_compression_type_2_mipi_predictor(enum ia_cs
 
 	switch (type) {
 	case IA_CSS_CSI2_COMPRESSION_TYPE_1:
-		predictor = MIPI_PREDICTOR_TYPE1-1;
+		predictor = MIPI_PREDICTOR_TYPE1 - 1;
 		break;
 	case IA_CSS_CSI2_COMPRESSION_TYPE_2:
-		predictor = MIPI_PREDICTOR_TYPE2-1;
+		predictor = MIPI_PREDICTOR_TYPE2 - 1;
 	default:
 		break;
 	}
 	return predictor;
 }
+
 enum ia_css_err ia_css_isys_convert_compressed_format(
 		struct ia_css_csi2_compression *comp,
 		struct input_system_cfg_s *cfg)
 {
 	enum ia_css_err err = IA_CSS_SUCCESS;
-	assert(comp != NULL);
-	assert(cfg != NULL);
+
+	assert(comp);
+	assert(cfg);
 
 	if (comp->type != IA_CSS_CSI2_COMPRESSION_TYPE_NONE) {
 		/* compression register bit slicing
@@ -494,13 +499,13 @@ void ia_css_isys_rx_configure(const rx_cfg_t *config,
 	bool any_port_enabled = false;
 	enum mipi_port_id port;
 
-	if ((config == NULL)
+	if ((!config)
 		|| (config->mode >= N_RX_MODE)
 		|| (config->port >= N_MIPI_PORT_ID)) {
 		assert(0);
 		return;
 	}
-	for (port = (enum mipi_port_id) 0; port < N_MIPI_PORT_ID; port++) {
+	for (port = (enum mipi_port_id)0; port < N_MIPI_PORT_ID; port++) {
 		if (is_receiver_port_enabled(RX0_ID, port))
 			any_port_enabled = true;
 	}
@@ -530,7 +535,6 @@ void ia_css_isys_rx_configure(const rx_cfg_t *config,
 		port_enabled[port] = true;
 
 		if (input_mode != IA_CSS_INPUT_MODE_BUFFERED_SENSOR) {
-
 			/* MW: A bit of a hack, straight wiring of the capture
 			 * units,assuming they are linearly enumerated. */
 			input_system_sub_system_reg_store(INPUT_SYSTEM0_ID,
@@ -543,7 +547,7 @@ void ia_css_isys_rx_configure(const rx_cfg_t *config,
 			input_system_sub_system_reg_store(INPUT_SYSTEM0_ID,
 					GPREGS_UNIT0_ID,
 					HIVE_ISYS_GPREG_MUX_IDX,
-					(input_system_multiplex_t) port);
+					(input_system_multiplex_t)port);
 		} else {
 			/*
 			 * AM: A bit of a hack, wiring the input system.
@@ -596,7 +600,8 @@ void ia_css_isys_rx_configure(const rx_cfg_t *config,
 void ia_css_isys_rx_disable(void)
 {
 	enum mipi_port_id port;
-	for (port = (enum mipi_port_id) 0; port < N_MIPI_PORT_ID; port++) {
+
+	for (port = (enum mipi_port_id)0; port < N_MIPI_PORT_ID; port++) {
 		receiver_port_reg_store(RX0_ID, port,
 					_HRT_CSS_RECEIVER_DEVICE_READY_REG_IDX,
 					false);
@@ -604,4 +609,3 @@ void ia_css_isys_rx_disable(void)
 	return;
 }
 #endif /* if !defined(USE_INPUT_SYSTEM_VERSION_2401) */
-

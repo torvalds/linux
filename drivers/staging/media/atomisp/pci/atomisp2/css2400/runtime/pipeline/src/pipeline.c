@@ -42,7 +42,6 @@ more details.
 #define PIPELINE_SP_THREAD_EMPTY_TOKEN          (0x0)
 #define PIPELINE_SP_THREAD_RESERVED_TOKEN       (0x1)
 
-
 /*******************************************************
 *** Static variables
 ********************************************************/
@@ -83,10 +82,10 @@ enum ia_css_err ia_css_pipeline_create(
 	unsigned int pipe_num,
 	unsigned int dvs_frame_delay)
 {
-	assert(pipeline != NULL);
+	assert(pipeline);
 	IA_CSS_ENTER_PRIVATE("pipeline = %p, pipe_id = %d, pipe_num = %d, dvs_frame_delay = %d",
 		     pipeline, pipe_id, pipe_num, dvs_frame_delay);
-	if (pipeline == NULL) {
+	if (!pipeline) {
 		IA_CSS_LEAVE_ERR_PRIVATE(IA_CSS_ERR_INVALID_ARGUMENTS);
 		return IA_CSS_ERR_INVALID_ARGUMENTS;
 	}
@@ -122,10 +121,10 @@ void ia_css_pipeline_map(unsigned int pipe_num, bool map)
  */
 void ia_css_pipeline_destroy(struct ia_css_pipeline *pipeline)
 {
-	assert(pipeline != NULL);
+	assert(pipeline);
 	IA_CSS_ENTER_PRIVATE("pipeline = %p", pipeline);
 
-	if (pipeline == NULL) {
+	if (!pipeline) {
 		IA_CSS_ERROR("NULL input parameter");
 		IA_CSS_LEAVE_PRIVATE("void");
 		return;
@@ -143,10 +142,10 @@ void ia_css_pipeline_destroy(struct ia_css_pipeline *pipeline)
 void ia_css_pipeline_start(enum ia_css_pipe_id pipe_id,
 			   struct ia_css_pipeline *pipeline)
 {
-	uint8_t pipe_num = 0;
+	u8 pipe_num = 0;
 	unsigned int thread_id;
 
-	assert(pipeline != NULL);
+	assert(pipeline);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
 	      "ia_css_pipeline_start() enter: pipe_id=%d, pipeline=%p\n",
 	      pipe_id, pipeline);
@@ -161,9 +160,9 @@ void ia_css_pipeline_start(enum ia_css_pipe_id pipe_id,
 #endif
 #if !defined(HAS_NO_INPUT_SYSTEM)
 #ifndef ISP2401
-				, (enum mipi_port_id) 0
+				, (enum mipi_port_id)0
 #else
-				(enum mipi_port_id) 0,
+				(enum mipi_port_id)0,
 #endif
 #endif
 #ifndef ISP2401
@@ -193,17 +192,16 @@ void ia_css_pipeline_start(enum ia_css_pipe_id pipe_id,
  */
 bool ia_css_pipeline_get_sp_thread_id(unsigned int key, unsigned int *val)
 {
-
 	IA_CSS_ENTER("key=%d, val=%p", key, val);
 
-	if ((val == NULL) || (key >= IA_CSS_PIPELINE_NUM_MAX) || (key >= IA_CSS_PIPE_ID_NUM)) {
+	if ((!val) || (key >= IA_CSS_PIPELINE_NUM_MAX) || (key >= IA_CSS_PIPE_ID_NUM)) {
 		IA_CSS_LEAVE("return value = false");
 		return false;
 	}
 
 	*val = pipeline_num_to_sp_thread_map[key];
 
-	if (*val == (unsigned)PIPELINE_NUM_UNMAPPED) {
+	if (*val == (unsigned int)PIPELINE_NUM_UNMAPPED) {
 		IA_CSS_LOG("unmapped pipeline number");
 		IA_CSS_LEAVE("return value = false");
 		return false;
@@ -215,6 +213,7 @@ bool ia_css_pipeline_get_sp_thread_id(unsigned int key, unsigned int *val)
 void ia_css_pipeline_dump_thread_map_info(void)
 {
 	unsigned int i;
+
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
 		"pipeline_num_to_sp_thread_map:\n");
 	for (i = 0; i < IA_CSS_PIPELINE_NUM_MAX; i++) {
@@ -228,9 +227,9 @@ enum ia_css_err ia_css_pipeline_request_stop(struct ia_css_pipeline *pipeline)
 	enum ia_css_err err = IA_CSS_SUCCESS;
 	unsigned int thread_id;
 
-	assert(pipeline != NULL);
+	assert(pipeline);
 
-	if (pipeline == NULL)
+	if (!pipeline)
 		return IA_CSS_ERR_INVALID_ARGUMENTS;
 
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
@@ -265,10 +264,10 @@ void ia_css_pipeline_clean(struct ia_css_pipeline *pipeline)
 {
 	struct ia_css_pipeline_stage *s;
 
-	assert(pipeline != NULL);
+	assert(pipeline);
 	IA_CSS_ENTER_PRIVATE("pipeline = %p", pipeline);
 
-	if (pipeline == NULL) {
+	if (!pipeline) {
 		IA_CSS_ERROR("NULL input parameter");
 		IA_CSS_LEAVE_PRIVATE("void");
 		return;
@@ -277,6 +276,7 @@ void ia_css_pipeline_clean(struct ia_css_pipeline *pipeline)
 
 	while (s) {
 		struct ia_css_pipeline_stage *next = s->next;
+
 		pipeline_stage_destroy(s);
 		s = next;
 	}
@@ -305,8 +305,8 @@ enum ia_css_err ia_css_pipeline_create_and_add_stage(
 	enum ia_css_err err;
 
 	/* other arguments can be NULL */
-	assert(pipeline != NULL);
-	assert(stage_desc != NULL);
+	assert(pipeline);
+	assert(stage_desc);
 	last = pipeline->stages;
 
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
@@ -314,8 +314,7 @@ enum ia_css_err ia_css_pipeline_create_and_add_stage(
 	if (!stage_desc->binary && !stage_desc->firmware
 	    && (stage_desc->sp_func == IA_CSS_PIPELINE_NO_FUNC)) {
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-			      "ia_css_pipeline_create_and_add_stage() done:"
-			      " Invalid args\n");
+			      "ia_css_pipeline_create_and_add_stage() done: Invalid args\n");
 
 		return IA_CSS_ERR_INTERNAL_ERROR;
 	}
@@ -331,7 +330,6 @@ enum ia_css_err ia_css_pipeline_create_and_add_stage(
 		&& (!stage_desc->in_frame)
 		&& (!stage_desc->firmware)
 		&& (!stage_desc->binary->online)) {
-
 		/* Do this only for ISP stages*/
 		if (last && last->args.out_frame[0])
 			stage_desc->in_frame = last->args.out_frame[0];
@@ -344,8 +342,7 @@ enum ia_css_err ia_css_pipeline_create_and_add_stage(
 	err = pipeline_stage_create(stage_desc, &new_stage);
 	if (err != IA_CSS_SUCCESS) {
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-			      "ia_css_pipeline_create_and_add_stage() done:"
-			      " stage_create_failed\n");
+			      "ia_css_pipeline_create_and_add_stage() done: stage_create_failed\n");
 		return err;
 	}
 
@@ -366,10 +363,10 @@ enum ia_css_err ia_css_pipeline_create_and_add_stage(
 void ia_css_pipeline_finalize_stages(struct ia_css_pipeline *pipeline,
 			bool continuous)
 {
-	unsigned i = 0;
+	unsigned int i = 0;
 	struct ia_css_pipeline_stage *stage;
 
-	assert(pipeline != NULL);
+	assert(pipeline);
 	for (stage = pipeline->stages; stage; stage = stage->next) {
 		stage->stage_num = i;
 		i++;
@@ -385,8 +382,9 @@ enum ia_css_err ia_css_pipeline_get_stage(struct ia_css_pipeline *pipeline,
 					  struct ia_css_pipeline_stage **stage)
 {
 	struct ia_css_pipeline_stage *s;
-	assert(pipeline != NULL);
-	assert(stage != NULL);
+
+	assert(pipeline);
+	assert(stage);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
 		      "ia_css_pipeline_get_stage() enter:\n");
 	for (s = pipeline->stages; s; s = s->next) {
@@ -399,13 +397,14 @@ enum ia_css_err ia_css_pipeline_get_stage(struct ia_css_pipeline *pipeline,
 }
 
 enum ia_css_err ia_css_pipeline_get_stage_from_fw(struct ia_css_pipeline *pipeline,
-			  uint32_t fw_handle,
+			  u32 fw_handle,
 			  struct ia_css_pipeline_stage **stage)
 {
 	struct ia_css_pipeline_stage *s;
-	assert(pipeline != NULL);
-	assert(stage != NULL);
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,"%s() \n",__func__);
+
+	assert(pipeline);
+	assert(stage);
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "%s()\n", __func__);
 	for (s = pipeline->stages; s; s = s->next) {
 		if ((s->firmware) && (s->firmware->handle == fw_handle)) {
 			*stage = s;
@@ -416,17 +415,17 @@ enum ia_css_err ia_css_pipeline_get_stage_from_fw(struct ia_css_pipeline *pipeli
 }
 
 enum ia_css_err ia_css_pipeline_get_fw_from_stage(struct ia_css_pipeline *pipeline,
-			  uint32_t stage_num,
+			  u32 stage_num,
 			  uint32_t *fw_handle)
 {
 	struct ia_css_pipeline_stage *s;
 
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,"%s() \n",__func__);
-	if ((pipeline == NULL) || (fw_handle == NULL))
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "%s()\n", __func__);
+	if ((!pipeline) || (!fw_handle))
 		return IA_CSS_ERR_INVALID_ARGUMENTS;
 
 	for (s = pipeline->stages; s; s = s->next) {
-		if((s->stage_num == stage_num) && (s->firmware)) {
+		if ((s->stage_num == stage_num) && (s->firmware)) {
 			*fw_handle = s->firmware->handle;
 			return IA_CSS_SUCCESS;
 		}
@@ -440,8 +439,9 @@ enum ia_css_err ia_css_pipeline_get_output_stage(
 		struct ia_css_pipeline_stage **stage)
 {
 	struct ia_css_pipeline_stage *s;
-	assert(pipeline != NULL);
-	assert(stage != NULL);
+
+	assert(pipeline);
+	assert(stage);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
 		      "ia_css_pipeline_get_output_stage() enter:\n");
 
@@ -499,7 +499,7 @@ bool ia_css_pipeline_is_mapped(unsigned int key)
 		return false;
 	}
 
-	ret = (bool)(pipeline_num_to_sp_thread_map[key] != (unsigned)PIPELINE_NUM_UNMAPPED);
+	ret = (bool)(pipeline_num_to_sp_thread_map[key] != (unsigned int)PIPELINE_NUM_UNMAPPED);
 
 	IA_CSS_LEAVE_PRIVATE("return = %d", ret);
 	return ret;
@@ -524,6 +524,7 @@ bool ia_css_pipeline_is_mapped(unsigned int key)
 static void pipeline_stage_destroy(struct ia_css_pipeline_stage *stage)
 {
 	unsigned int i;
+
 	for (i = 0; i < IA_CSS_BINARY_MAX_OUTPUT_PORTS; i++) {
 		if (stage->out_frame_allocated[i]) {
 			ia_css_frame_free(stage->args.out_frame[i]);
@@ -555,7 +556,7 @@ static void pipeline_map_num_to_sp_thread(unsigned int pipe_num)
 
 	/* pipe is not mapped to any thread */
 	assert(pipeline_num_to_sp_thread_map[pipe_num]
-		== (unsigned)PIPELINE_NUM_UNMAPPED);
+		== (unsigned int)PIPELINE_NUM_UNMAPPED);
 
 	for (i = 0; i < SH_CSS_MAX_SP_THREADS; i++) {
 		if (pipeline_sp_thread_list[i] ==
@@ -580,8 +581,9 @@ static void pipeline_map_num_to_sp_thread(unsigned int pipe_num)
 static void pipeline_unmap_num_to_sp_thread(unsigned int pipe_num)
 {
 	unsigned int thread_id;
+
 	assert(pipeline_num_to_sp_thread_map[pipe_num]
-		!= (unsigned)PIPELINE_NUM_UNMAPPED);
+		!= (unsigned int)PIPELINE_NUM_UNMAPPED);
 
 	thread_id = pipeline_num_to_sp_thread_map[pipe_num];
 	pipeline_num_to_sp_thread_map[pipe_num] = PIPELINE_NUM_UNMAPPED;
@@ -615,7 +617,7 @@ static enum ia_css_err pipeline_stage_create(
 	}
 
 	stage = sh_css_malloc(sizeof(*stage));
-	if (stage == NULL) {
+	if (!stage) {
 		err = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
 		goto ERR;
 	}
@@ -681,7 +683,7 @@ static enum ia_css_err pipeline_stage_create(
 	*new_stage = stage;
 	return err;
 ERR:
-	if (stage != NULL)
+	if (stage)
 		pipeline_stage_destroy(stage);
 	return err;
 }
@@ -714,7 +716,7 @@ static void ia_css_pipeline_set_zoom_stage(struct ia_css_pipeline *pipeline)
 	struct ia_css_pipeline_stage *stage = NULL;
 	enum ia_css_err err = IA_CSS_SUCCESS;
 
-	assert(pipeline != NULL);
+	assert(pipeline);
 	if (pipeline->pipe_id == IA_CSS_PIPE_ID_PREVIEW) {
 		/* in preview pipeline, vf_pp stage should do zoom */
 		err = ia_css_pipeline_get_stage(pipeline, IA_CSS_BINARY_MODE_VF_PP, &stage);

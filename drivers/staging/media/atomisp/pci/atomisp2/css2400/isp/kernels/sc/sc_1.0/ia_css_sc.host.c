@@ -29,7 +29,7 @@ void
 ia_css_sc_encode(
 	struct sh_css_isp_sc_params *to,
 	struct ia_css_shading_table **from,
-	unsigned size)
+	unsigned int size)
 {
 	(void)size;
 	to->gain_shift = (*from)->fraction_bits;
@@ -38,7 +38,7 @@ ia_css_sc_encode(
 void
 ia_css_sc_dump(
 	const struct sh_css_isp_sc_params *sc,
-	unsigned level)
+	unsigned int level)
 {
 	if (!sc) return;
 	ia_css_debug_dtrace(level, "Shading Correction:\n");
@@ -51,11 +51,11 @@ void
 ia_css_sc_config(
 	struct sh_css_isp_sc_isp_config *to,
 	const struct ia_css_sc_configuration *from,
-	unsigned size)
+	unsigned int size)
 {
-	uint32_t internal_org_x_bqs = from->internal_frame_origin_x_bqs_on_sctbl;
-	uint32_t internal_org_y_bqs = from->internal_frame_origin_y_bqs_on_sctbl;
-	uint32_t slice, rest, i;
+	u32 internal_org_x_bqs = from->internal_frame_origin_x_bqs_on_sctbl;
+	u32 internal_org_y_bqs = from->internal_frame_origin_y_bqs_on_sctbl;
+	u32 slice, rest, i;
 
 	(void)size;
 
@@ -73,7 +73,7 @@ ia_css_sc_config(
 void
 ia_css_sc_configure(
 	const struct ia_css_binary *binary,
-	uint32_t internal_frame_origin_x_bqs_on_sctbl,
+	u32 internal_frame_origin_x_bqs_on_sctbl,
 	uint32_t internal_frame_origin_y_bqs_on_sctbl)
 {
 	const struct ia_css_sc_configuration config = {
@@ -95,9 +95,9 @@ void
 sh_css_get_shading_settings(const struct ia_css_isp_parameters *params,
 			struct ia_css_shading_settings *settings)
 {
-	if (settings == NULL)
+	if (!settings)
 		return;
-	assert(params != NULL);
+	assert(params);
 
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
 		"ia_css_get_shading_settings() enter: settings=%p\n", settings);
@@ -113,9 +113,9 @@ void
 sh_css_set_shading_settings(struct ia_css_isp_parameters *params,
 			const struct ia_css_shading_settings *settings)
 {
-	if (settings == NULL)
+	if (!settings)
 		return;
-	assert(params != NULL);
+	assert(params);
 
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
 		"ia_css_set_shading_settings() enter: settings.enable_shading_table_conversion=%d\n",
@@ -127,4 +127,5 @@ sh_css_set_shading_settings(struct ia_css_isp_parameters *params,
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
 		"ia_css_set_shading_settings() leave: return_void\n");
 }
+
 /* ------ deprecated(bz675) : to ------ */

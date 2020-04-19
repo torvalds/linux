@@ -29,13 +29,12 @@
  *	- local:   system and cell specific constants and identifiers
  */
 
-
 #include "system_local.h"
 #include "input_system_local.h"
 
 #ifndef __INLINE_INPUT_SYSTEM__
 #define STORAGE_CLASS_INPUT_SYSTEM_H extern
-#define STORAGE_CLASS_INPUT_SYSTEM_C 
+#define STORAGE_CLASS_INPUT_SYSTEM_C
 #include "input_system_public.h"
 #else  /* __INLINE_INPUT_SYSTEM__ */
 #define STORAGE_CLASS_INPUT_SYSTEM_H static inline

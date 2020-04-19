@@ -39,8 +39,8 @@ void mmu_invalidate_cache(
 void mmu_invalidate_cache_all(void)
 {
 	mmu_ID_t	mmu_id;
-	for (mmu_id = (mmu_ID_t)0;mmu_id < N_MMU_ID; mmu_id++) {
+
+	for (mmu_id = (mmu_ID_t)0; mmu_id < N_MMU_ID; mmu_id++) {
 		mmu_invalidate_cache(mmu_id);
 	}
 }
-

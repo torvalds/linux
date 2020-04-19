@@ -29,13 +29,12 @@
  *	- local:   system and cell specific constants and identifiers
  */
 
-
 #include "system_local.h"
 #include "fifo_monitor_local.h"
 
 #ifndef __INLINE_FIFO_MONITOR__
 #define STORAGE_CLASS_FIFO_MONITOR_H extern
-#define STORAGE_CLASS_FIFO_MONITOR_C 
+#define STORAGE_CLASS_FIFO_MONITOR_C
 #include "fifo_monitor_public.h"
 #else  /* __INLINE_FIFO_MONITOR__ */
 #define STORAGE_CLASS_FIFO_MONITOR_H static inline

@@ -132,7 +132,6 @@
 #define _HRT_CSS_RECEIVER_2400_CSI2_MASK_ECC_TWO_BIT_ERR_IDX                  6
 #define _HRT_CSS_RECEIVER_2400_CSI2_MASK_DATA_ID_ERR_IDX                      7
 
-                                  
 /* Bits for CSI2_FUNC_PROG register */
 #define _HRT_CSS_RECEIVER_2400_CSI2_DATA_TIMEOUT_IDX    0
 #define _HRT_CSS_RECEIVER_2400_CSI2_DATA_TIMEOUT_BITS   19
@@ -182,7 +181,6 @@
 #define _HRT_CSS_RECEIVER_2400_COMP_SCHEME_USD_PRED_BITS_IDX  3
 #define _HRT_CSS_RECEIVER_2400_COMP_SCHEME_USD_PRED_BITS_BITS 2
 
-
 /* BITS for backend RAW16 and RAW 18 registers */
 
 #define _HRT_CSS_RECEIVER_2400_RAW18_DATAID_IDX    0
@@ -200,8 +198,8 @@
 #define _HRT_CSS_RECEIVER_2400_RAW16_EN_BITS       1
 
 /* These hsync and vsync values are for HSS simulation only */
-#define _HRT_CSS_RECEIVER_2400_HSYNC_VAL (1<<16)
-#define _HRT_CSS_RECEIVER_2400_VSYNC_VAL (1<<17)
+#define _HRT_CSS_RECEIVER_2400_HSYNC_VAL BIT(16)
+#define _HRT_CSS_RECEIVER_2400_VSYNC_VAL BIT(17)
 
 #define _HRT_CSS_RECEIVER_2400_BE_STREAMING_WIDTH                 28
 #define _HRT_CSS_RECEIVER_2400_BE_STREAMING_PIX_A_LSB              0

@@ -129,4 +129,3 @@ ia_css_config_rgb_gamma_tables(void)
 	default_b_gamma_table.vamem_type   = IA_CSS_VAMEM_TYPE_1;
 #endif
 }
-

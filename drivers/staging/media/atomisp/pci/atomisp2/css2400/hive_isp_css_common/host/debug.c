@@ -26,7 +26,7 @@
 #include "assert_support.h"
 
 /* The address of the remote copy */
-hrt_address	debug_buffer_address = (hrt_address)-1;
+hrt_address	debug_buffer_address = (hrt_address) - 1;
 hrt_vaddress	debug_buffer_ddr_address = (hrt_vaddress)-1;
 /* The local copy */
 static debug_data_t		debug_data;
@@ -43,9 +43,9 @@ void debug_buffer_init(const hrt_address addr)
 void debug_buffer_ddr_init(const hrt_vaddress addr)
 {
 	debug_buf_mode_t mode = DEBUG_BUFFER_MODE_LINEAR;
-	uint32_t enable = 1;
-	uint32_t head = 0;
-	uint32_t tail = 0;
+	u32 enable = 1;
+	u32 head = 0;
+	u32 tail = 0;
 	/* set the ddr queue */
 	debug_buffer_ddr_address = addr;
 	mmgr_store(addr + DEBUG_DATA_BUF_MODE_DDR_ADDR,
@@ -69,4 +69,3 @@ void debug_buffer_setmode(const debug_buf_mode_t mode)
 	sp_dmem_store_uint32(SP0_ID,
 		debug_buffer_address + DEBUG_DATA_BUF_MODE_ADDR, mode);
 }
-

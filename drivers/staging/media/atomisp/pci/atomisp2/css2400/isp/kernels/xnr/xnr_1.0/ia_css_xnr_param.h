@@ -29,7 +29,6 @@
 #error "Unknown vamem type"
 #endif
 
-
 #else
 /* For pipe generation, the size is not relevant */
 #define SH_CSS_ISP_XNR_TABLE_SIZE 0
@@ -37,7 +36,7 @@
 
 /* This should be vamem_data_t, but that breaks the pipe generator */
 struct sh_css_isp_xnr_vamem_params {
-	uint16_t xnr[SH_CSS_ISP_XNR_TABLE_SIZE];
+	u16 xnr[SH_CSS_ISP_XNR_TABLE_SIZE];
 };
 
 struct sh_css_isp_xnr_params {
@@ -45,7 +44,7 @@ struct sh_css_isp_xnr_params {
 	 * type:u0.16 but actual valid range is:[0,255]
 	 * valid range is dependent on SH_CSS_ISP_YUV_BITS (currently 8bits)
 	 * default: 25 */
-	uint16_t threshold;
+	u16 threshold;
 };
 
 #endif /* __IA_CSS_XNR_PARAM_H */

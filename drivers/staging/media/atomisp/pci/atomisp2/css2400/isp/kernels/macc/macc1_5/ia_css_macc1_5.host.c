@@ -58,7 +58,6 @@ ia_css_macc1_5_vmem_encode(
 			params->data[2][(idx)] = from->data[j + 2];
 			params->data[3][(idx)] = from->data[j + 3];
 		}
-
 }
 
 #ifndef IA_CSS_NO_DEBUG

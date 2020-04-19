@@ -21,7 +21,6 @@
 
 #include "assert_support.h"
 
-
 STORAGE_CLASS_ISP_C void isp_vamem_store(
 	const vamem_ID_t	ID,
 	vamem_data_t		*addr,
@@ -29,9 +28,8 @@ STORAGE_CLASS_ISP_C void isp_vamem_store(
 	const size_t		size) /* in vamem_data_t */
 {
 	assert(ID < N_VAMEM_ID);
-	assert(ISP_VAMEM_BASE[ID] != (hrt_address)-1);
-	hrt_master_port_store(ISP_VAMEM_BASE[ID] + (unsigned)addr, data, size * sizeof(vamem_data_t));
+	assert(ISP_VAMEM_BASE[ID] != (hrt_address) - 1);
+	hrt_master_port_store(ISP_VAMEM_BASE[ID] + (unsigned int)addr, data, size * sizeof(vamem_data_t));
 }
-
 
 #endif /* __VAMEM_PRIVATE_H_INCLUDED__ */

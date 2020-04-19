@@ -31,14 +31,14 @@
  * same as kernel's page size.
  */
 #define	ISP_PAGE_OFFSET		12
-#define	ISP_PAGE_SIZE		(1U << ISP_PAGE_OFFSET)
+#define	ISP_PAGE_SIZE		BIT(ISP_PAGE_OFFSET)
 #define	ISP_PAGE_MASK		(~(phys_addr_t)(ISP_PAGE_SIZE - 1))
 
 #define	ISP_L1PT_OFFSET		22
 #define	ISP_L1PT_MASK		(~((1U << ISP_L1PT_OFFSET) - 1))
 
 #define	ISP_L2PT_OFFSET		12
-#define	ISP_L2PT_MASK		(~(ISP_L1PT_MASK|(~(ISP_PAGE_MASK))))
+#define	ISP_L2PT_MASK		(~(ISP_L1PT_MASK | (~(ISP_PAGE_MASK))))
 
 #define	ISP_L1PT_PTES		1024
 #define	ISP_L2PT_PTES		1024
@@ -49,7 +49,7 @@
 #define	ISP_PTR_TO_L2_IDX(x)	((((x) & ISP_L2PT_MASK)) \
 					>> ISP_L2PT_OFFSET)
 
-#define	ISP_PAGE_ALIGN(x)	(((x) + (ISP_PAGE_SIZE-1)) \
+#define	ISP_PAGE_ALIGN(x)	(((x) + (ISP_PAGE_SIZE - 1)) \
 					& ISP_PAGE_MASK)
 
 #define	ISP_PT_TO_VIRT(l1_idx, l2_idx, offset) do {\
@@ -84,7 +84,7 @@ struct isp_mmu_client {
 	 *
 	 * must be provided.
 	 */
-	unsigned int (*get_pd_base) (struct isp_mmu *mmu, phys_addr_t pd_base);
+	unsigned int (*get_pd_base)(struct isp_mmu *mmu, phys_addr_t pd_base);
 	/*
 	 * callback to flush tlb.
 	 *
@@ -96,12 +96,12 @@ struct isp_mmu_client {
 	 * tlb_flush_all is must be provided. if tlb_flush_range is
 	 * not valid, it will set to tlb_flush_all by default.
 	 */
-	void (*tlb_flush_range) (struct isp_mmu *mmu,
+	void (*tlb_flush_range)(struct isp_mmu *mmu,
 				 unsigned int addr, unsigned int size);
-	void (*tlb_flush_all) (struct isp_mmu *mmu);
-	unsigned int (*phys_to_pte) (struct isp_mmu *mmu,
+	void (*tlb_flush_all)(struct isp_mmu *mmu);
+	unsigned int (*phys_to_pte)(struct isp_mmu *mmu,
 				     phys_addr_t phys);
-	phys_addr_t (*pte_to_phys) (struct isp_mmu *mmu,
+	phys_addr_t (*pte_to_phys)(struct isp_mmu *mmu,
 				    unsigned int pte);
 
 };

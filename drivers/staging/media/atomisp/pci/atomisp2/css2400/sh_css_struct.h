@@ -64,7 +64,7 @@ struct sh_css {
 	unsigned int                   size_mem_words; /* \deprecated{Use ia_css_mipi_buffer_config instead.}*/
 	enum ia_css_irq_type           irq_type;
 	unsigned int                   pipe_counter;
-	
+
 	unsigned int		type;	/* 2400 or 2401 for now */
 };
 
@@ -77,4 +77,3 @@ struct sh_css {
 extern struct sh_css my_css;
 
 #endif /* __SH_CSS_STRUCT_H */
-

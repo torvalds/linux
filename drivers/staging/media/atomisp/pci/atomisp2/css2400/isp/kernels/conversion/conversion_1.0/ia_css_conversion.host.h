@@ -24,7 +24,7 @@ void
 ia_css_conversion_encode(
 	struct sh_css_isp_conversion_params *to,
 	const struct ia_css_conversion_config *from,
-	unsigned size);
+	unsigned int size);
 
 #ifdef ISP2401
 /* workaround until code generation in isp_kernelparameters.host.c is fixed */

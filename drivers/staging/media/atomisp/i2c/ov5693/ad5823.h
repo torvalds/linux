@@ -20,7 +20,6 @@
 
 #include <linux/types.h>
 
-
 #define AD5823_VCM_ADDR	0x0c
 
 #define AD5823_REG_RESET		0x01

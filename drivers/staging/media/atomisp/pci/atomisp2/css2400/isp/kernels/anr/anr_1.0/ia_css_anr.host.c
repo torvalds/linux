@@ -31,7 +31,7 @@ void
 ia_css_anr_encode(
 	struct sh_css_isp_anr_params *to,
 	const struct ia_css_anr_config *from,
-	unsigned size)
+	unsigned int size)
 {
 	(void)size;
 	to->threshold = from->threshold;
@@ -40,7 +40,7 @@ ia_css_anr_encode(
 void
 ia_css_anr_dump(
 	const struct sh_css_isp_anr_params *anr,
-	unsigned level)
+	unsigned int level)
 {
 	if (!anr) return;
 	ia_css_debug_dtrace(level, "Advance Noise Reduction:\n");
@@ -51,10 +51,9 @@ ia_css_anr_dump(
 void
 ia_css_anr_debug_dtrace(
 	const struct ia_css_anr_config *config,
-	unsigned level)
+	unsigned int level)
 {
 	ia_css_debug_dtrace(level,
 		"config.threshold=%d\n",
 		config->threshold);
 }
-

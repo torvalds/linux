@@ -29,7 +29,7 @@
  * @return    None
  *
  */
-extern void ia_css_pipe_get_copy_binarydesc(
+void ia_css_pipe_get_copy_binarydesc(
 	struct ia_css_pipe const * const pipe,
 	struct ia_css_binary_descr *copy_descr,
 	struct ia_css_frame_info *in_info,
@@ -45,7 +45,7 @@ extern void ia_css_pipe_get_copy_binarydesc(
  * @return    None
  *
  */
-extern void ia_css_pipe_get_vfpp_binarydesc(
+void ia_css_pipe_get_vfpp_binarydesc(
 		struct ia_css_pipe const * const pipe,
 		struct ia_css_binary_descr *vf_pp_descr,
 		struct ia_css_frame_info *in_info,
@@ -62,7 +62,7 @@ extern void ia_css_pipe_get_vfpp_binarydesc(
  * @return	IA_CSS_SUCCESS or error code upon error.
  *
  */
-extern enum ia_css_err sh_css_bds_factor_get_numerator_denominator(
+enum ia_css_err sh_css_bds_factor_get_numerator_denominator(
 	unsigned int bds_factor,
 	unsigned int *bds_factor_numerator,
 	unsigned int *bds_factor_denominator);
@@ -78,7 +78,7 @@ extern enum ia_css_err sh_css_bds_factor_get_numerator_denominator(
  * @return	IA_CSS_SUCCESS or error code upon error.
  *
  */
-extern enum ia_css_err ia_css_pipe_get_preview_binarydesc(
+enum ia_css_err ia_css_pipe_get_preview_binarydesc(
 	struct ia_css_pipe * const pipe,
 	struct ia_css_binary_descr *preview_descr,
 	struct ia_css_frame_info *in_info,
@@ -96,7 +96,7 @@ extern enum ia_css_err ia_css_pipe_get_preview_binarydesc(
  * @return	IA_CSS_SUCCESS or error code upon error.
  *
  */
-extern enum ia_css_err ia_css_pipe_get_video_binarydesc(
+enum ia_css_err ia_css_pipe_get_video_binarydesc(
 	struct ia_css_pipe * const pipe,
 	struct ia_css_binary_descr *video_descr,
 	struct ia_css_frame_info *in_info,
@@ -133,7 +133,7 @@ void ia_css_pipe_get_yuvscaler_binarydesc(
  * @return    None
  *
  */
-extern void ia_css_pipe_get_capturepp_binarydesc(
+void ia_css_pipe_get_capturepp_binarydesc(
 	struct ia_css_pipe * const pipe,
 	struct ia_css_binary_descr *capture_pp_descr,
 	struct ia_css_frame_info *in_info,
@@ -150,7 +150,7 @@ extern void ia_css_pipe_get_capturepp_binarydesc(
  * @return    None
  *
  */
-extern void ia_css_pipe_get_primary_binarydesc(
+void ia_css_pipe_get_primary_binarydesc(
 	struct ia_css_pipe const * const pipe,
 	struct ia_css_binary_descr *prim_descr,
 	struct ia_css_frame_info *in_info,
@@ -167,7 +167,7 @@ extern void ia_css_pipe_get_primary_binarydesc(
  * @return    None
  *
  */
-extern void ia_css_pipe_get_pre_gdc_binarydesc(
+void ia_css_pipe_get_pre_gdc_binarydesc(
 	struct ia_css_pipe const * const pipe,
 	struct ia_css_binary_descr *gdc_descr,
 	struct ia_css_frame_info *in_info,
@@ -182,7 +182,7 @@ extern void ia_css_pipe_get_pre_gdc_binarydesc(
  * @return    None
  *
  */
-extern void ia_css_pipe_get_gdc_binarydesc(
+void ia_css_pipe_get_gdc_binarydesc(
 	struct ia_css_pipe const * const pipe,
 	struct ia_css_binary_descr *gdc_descr,
 	struct ia_css_frame_info *in_info,
@@ -198,7 +198,7 @@ extern void ia_css_pipe_get_gdc_binarydesc(
  * @return    None
  *
  */
-extern void ia_css_pipe_get_post_gdc_binarydesc(
+void ia_css_pipe_get_post_gdc_binarydesc(
 	struct ia_css_pipe const * const pipe,
 	struct ia_css_binary_descr *post_gdc_descr,
 	struct ia_css_frame_info *in_info,
@@ -214,7 +214,7 @@ extern void ia_css_pipe_get_post_gdc_binarydesc(
  * @return    None
  *
  */
-extern void ia_css_pipe_get_pre_de_binarydesc(
+void ia_css_pipe_get_pre_de_binarydesc(
 	struct ia_css_pipe const * const pipe,
 	struct ia_css_binary_descr *pre_de_descr,
 	struct ia_css_frame_info *in_info,
@@ -229,7 +229,7 @@ extern void ia_css_pipe_get_pre_de_binarydesc(
  * @return    None
  *
  */
-extern void ia_css_pipe_get_pre_anr_binarydesc(
+void ia_css_pipe_get_pre_anr_binarydesc(
 	struct ia_css_pipe const * const pipe,
 	struct ia_css_binary_descr *pre_anr_descr,
 	struct ia_css_frame_info *in_info,
@@ -244,7 +244,7 @@ extern void ia_css_pipe_get_pre_anr_binarydesc(
  * @return    None
  *
  */
-extern void ia_css_pipe_get_anr_binarydesc(
+void ia_css_pipe_get_anr_binarydesc(
 	struct ia_css_pipe const * const pipe,
 	struct ia_css_binary_descr *anr_descr,
 	struct ia_css_frame_info *in_info,
@@ -260,7 +260,7 @@ extern void ia_css_pipe_get_anr_binarydesc(
  * @return    None
  *
  */
-extern void ia_css_pipe_get_post_anr_binarydesc(
+void ia_css_pipe_get_post_anr_binarydesc(
 	struct ia_css_pipe const * const pipe,
 	struct ia_css_binary_descr *post_anr_descr,
 	struct ia_css_frame_info *in_info,
@@ -276,7 +276,7 @@ extern void ia_css_pipe_get_post_anr_binarydesc(
  * @return    None
  *
  */
-extern void ia_css_pipe_get_ldc_binarydesc(
+void ia_css_pipe_get_ldc_binarydesc(
 	struct ia_css_pipe const * const pipe,
 	struct ia_css_binary_descr *ldc_descr,
 	struct ia_css_frame_info *in_info,

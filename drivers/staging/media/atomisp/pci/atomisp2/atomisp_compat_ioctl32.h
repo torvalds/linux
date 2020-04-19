@@ -49,7 +49,7 @@ struct atomisp_dvs2_statistics32 {
 
 struct atomisp_dis_statistics32 {
 	struct atomisp_dvs2_statistics32 dvs2_stat;
-	uint32_t exp_id;
+	u32 exp_id;
 };
 
 struct atomisp_dis_coefficients32 {
@@ -62,27 +62,27 @@ struct atomisp_3a_statistics32 {
 	struct atomisp_grid_info  grid_info;
 	compat_uptr_t data;
 	compat_uptr_t rgby_data;
-	uint32_t exp_id;
-	uint32_t isp_config_id;
+	u32 exp_id;
+	u32 isp_config_id;
 };
 
 struct atomisp_metadata_with_type32 {
 	/* to specify which type of metadata to get */
 	enum atomisp_metadata_type type;
 	compat_uptr_t data;
-	uint32_t width;
-	uint32_t height;
-	uint32_t stride; /* in bytes */
-	uint32_t exp_id; /* exposure ID */
+	u32 width;
+	u32 height;
+	u32 stride; /* in bytes */
+	u32 exp_id; /* exposure ID */
 	compat_uptr_t effective_width;
 };
 
 struct atomisp_metadata32 {
 	compat_uptr_t data;
-	uint32_t width;
-	uint32_t height;
-	uint32_t stride;
-	uint32_t exp_id;
+	u32 width;
+	u32 height;
+	u32 stride;
+	u32 exp_id;
 	compat_uptr_t effective_width;
 };
 
@@ -258,8 +258,8 @@ struct atomisp_parameters32 {
 	 * Unique ID to track which config was actually applied to a particular
 	 * frame, driver will send this id back with output frame together.
 	 */
-	uint32_t	isp_config_id;
-	uint32_t	per_frame_setting;
+	u32	isp_config_id;
+	u32	per_frame_setting;
 };
 
 struct atomisp_acc_fw_load_to_pipe32 {
@@ -272,11 +272,11 @@ struct atomisp_acc_fw_load_to_pipe32 {
 };
 
 struct atomisp_dvs_6axis_config32 {
-	uint32_t exp_id;
-	uint32_t width_y;
-	uint32_t height_y;
-	uint32_t width_uv;
-	uint32_t height_uv;
+	u32 exp_id;
+	u32 width_y;
+	u32 height_y;
+	u32 width_uv;
+	u32 height_uv;
 	compat_uptr_t xcoords_y;
 	compat_uptr_t ycoords_y;
 	compat_uptr_t xcoords_uv;

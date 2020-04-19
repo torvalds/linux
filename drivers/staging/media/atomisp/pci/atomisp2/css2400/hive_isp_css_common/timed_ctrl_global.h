@@ -51,6 +51,4 @@
 #define HIVE_TIMED_CTRL_CSI_EOF_BIT_ID                          22
 #define HIVE_TIMED_CTRL_IRQ_IS_STREAMING_MONITOR_BIT_ID         23
 
-
-
 #endif /* __TIMED_CTRL_GLOBAL_H_INCLUDED__ */

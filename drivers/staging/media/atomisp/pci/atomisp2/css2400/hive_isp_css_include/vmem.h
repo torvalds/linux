@@ -29,13 +29,12 @@
  *	- local:   system and cell specific constants and identifiers
  */
 
-
 #include "system_local.h"
 #include "vmem_local.h"
 
 #ifndef __INLINE_VMEM__
 #define STORAGE_CLASS_VMEM_H extern
-#define STORAGE_CLASS_VMEM_C 
+#define STORAGE_CLASS_VMEM_C
 #include "vmem_public.h"
 #else  /* __INLINE_VMEM__ */
 #define STORAGE_CLASS_VMEM_H static inline

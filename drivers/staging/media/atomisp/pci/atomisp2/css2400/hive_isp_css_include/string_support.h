@@ -22,7 +22,6 @@
  * For all non microsoft cases, we need the following functions
  */
 
-
 /* @brief Copy from src_buf to dest_buf.
  *
  * @param[out] dest_buf. Destination buffer to copy to
@@ -34,12 +33,12 @@
  * @return     ERANGE on Destination size too small
  */
 static inline int memcpy_s(
-	void* dest_buf,
+	void *dest_buf,
 	size_t dest_size,
-	const void* src_buf,
+	const void *src_buf,
 	size_t src_size)
 {
-	if ((src_buf == NULL) || (dest_buf == NULL)) {
+	if ((!src_buf) || (!dest_buf)) {
 		/* Invalid arguments*/
 		return EINVAL;
 	}
@@ -62,11 +61,12 @@ static inline int memcpy_s(
  * @return     Returns 0 if src_str is NULL
  */
 static size_t strnlen_s(
-	const char* src_str,
+	const char *src_str,
 	size_t max_len)
 {
 	size_t ix;
-	if (src_str == NULL) {
+
+	if (!src_str) {
 		/* Invalid arguments*/
 		return 0;
 	}
@@ -89,18 +89,19 @@ static size_t strnlen_s(
  * @return     Returns ERANGE on destination size too small
  */
 static inline int strncpy_s(
-	char* dest_str,
+	char *dest_str,
 	size_t dest_size,
-	const char* src_str,
+	const char *src_str,
 	size_t src_size)
 {
 	size_t len;
-	if (dest_str == NULL) {
+
+	if (!dest_str) {
 		/* Invalid arguments*/
 		return EINVAL;
 	}
 
-	if ((src_str == NULL) || (dest_size == 0)) {
+	if ((!src_str) || (dest_size == 0)) {
 		/* Invalid arguments*/
 		dest_str[0] = '\0';
 		return EINVAL;
@@ -130,17 +131,18 @@ static inline int strncpy_s(
  * @return     Returns ERANGE on destination size too small
  */
 static inline int strcpy_s(
-	char* dest_str,
+	char *dest_str,
 	size_t dest_size,
-	const char* src_str)
+	const char *src_str)
 {
 	size_t len;
-	if (dest_str == NULL) {
+
+	if (!dest_str) {
 		/* Invalid arguments*/
 		return EINVAL;
 	}
 
-	if ((src_str == NULL) || (dest_size == 0)) {
+	if ((!src_str) || (dest_size == 0)) {
 		/* Invalid arguments*/
 		dest_str[0] = '\0';
 		return EINVAL;

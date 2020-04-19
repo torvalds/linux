@@ -21,16 +21,15 @@
 
 /* Application specific DMA settings  */
 #define ANR_BPP                 10
-#define ANR_ELEMENT_BITS        ((CEIL_DIV(ANR_BPP, 8))*8)
+#define ANR_ELEMENT_BITS        ((CEIL_DIV(ANR_BPP, 8)) * 8)
 
 /* Advanced Noise Reduction configuration.
  *  This is also known as Low-Light.
  */
 struct ia_css_anr_config {
-	int32_t threshold; /** Threshold */
-	int32_t thresholds[4*4*4];
-	int32_t factors[3];
+	s32 threshold; /** Threshold */
+	s32 thresholds[4 * 4 * 4];
+	s32 factors[3];
 };
 
 #endif /* __IA_CSS_ANR_TYPES_H */
-

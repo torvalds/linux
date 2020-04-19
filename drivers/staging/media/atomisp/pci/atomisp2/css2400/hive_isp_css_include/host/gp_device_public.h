@@ -20,13 +20,13 @@
 typedef struct gp_device_state_s		gp_device_state_t;
 
 /*! Read the state of GP_DEVICE[ID]
- 
+
  \param	ID[in]				GP_DEVICE identifier
  \param	state[out]			gp device state structure
 
  \return none, state = GP_DEVICE[ID].state
  */
-extern void gp_device_get_state(
+void gp_device_get_state(
 	const gp_device_ID_t		ID,
 	gp_device_state_t			*state);
 
@@ -44,7 +44,7 @@ STORAGE_CLASS_GP_DEVICE_H void gp_device_reg_store(
 	const hrt_data			value);
 
 /*! Read from a control register of GP_DEVICE[ID]
- 
+
  \param	ID[in]				GP_DEVICE identifier
  \param	reg_addr[in]		register byte address
  \param value[in]			The data to be written

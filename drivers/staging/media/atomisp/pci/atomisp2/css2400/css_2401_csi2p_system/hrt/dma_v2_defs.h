@@ -51,7 +51,7 @@
 #define _DMA_V2_SPEC_DEV_B_XB_IDX  (_DMA_V2_SPEC_DEV_A_XB_IDX + _DMA_V2_SPEC_DEV_A_XB_BITS)
 #define _DMA_V2_SPEC_DEV_B_XB_BITS 8
 #define _DMA_V2_SPEC_YB_IDX        (_DMA_V2_SPEC_DEV_B_XB_IDX + _DMA_V2_SPEC_DEV_B_XB_BITS)
-#define _DMA_V2_SPEC_YB_BITS       (32-_DMA_V2_SPEC_DEV_B_XB_BITS-_DMA_V2_SPEC_DEV_A_XB_BITS-_DMA_V2_CMD_BITS-_DMA_V2_CHANNEL_BITS)
+#define _DMA_V2_SPEC_YB_BITS       (32 - _DMA_V2_SPEC_DEV_B_XB_BITS - _DMA_V2_SPEC_DEV_A_XB_BITS - _DMA_V2_CMD_BITS - _DMA_V2_CHANNEL_BITS)
 
 /* */
 #define _DMA_V2_CMD_CTRL_IDX       4
@@ -79,44 +79,44 @@
 #define _DMA_V2_STRIDE_BITS        32
 
 /* Command IDs */
-#define _DMA_V2_MOVE_B2A_COMMAND                             0      
-#define _DMA_V2_MOVE_B2A_BLOCK_COMMAND                       1      
-#define _DMA_V2_MOVE_B2A_NO_SYNC_CHK_COMMAND                 2      
-#define _DMA_V2_MOVE_B2A_BLOCK_NO_SYNC_CHK_COMMAND           3      
-#define _DMA_V2_MOVE_A2B_COMMAND                             4      
-#define _DMA_V2_MOVE_A2B_BLOCK_COMMAND                       5      
-#define _DMA_V2_MOVE_A2B_NO_SYNC_CHK_COMMAND                 6      
-#define _DMA_V2_MOVE_A2B_BLOCK_NO_SYNC_CHK_COMMAND           7      
-#define _DMA_V2_INIT_A_COMMAND                               8      
-#define _DMA_V2_INIT_A_BLOCK_COMMAND                         9      
-#define _DMA_V2_INIT_A_NO_SYNC_CHK_COMMAND                  10      
-#define _DMA_V2_INIT_A_BLOCK_NO_SYNC_CHK_COMMAND            11      
-#define _DMA_V2_INIT_B_COMMAND                              12      
-#define _DMA_V2_INIT_B_BLOCK_COMMAND                        13      
-#define _DMA_V2_INIT_B_NO_SYNC_CHK_COMMAND                  14      
-#define _DMA_V2_INIT_B_BLOCK_NO_SYNC_CHK_COMMAND            15      
-#define _DMA_V2_NO_ACK_MOVE_B2A_NO_SYNC_CHK_COMMAND         (_DMA_V2_MOVE_B2A_NO_SYNC_CHK_COMMAND       + 16) 
-#define _DMA_V2_NO_ACK_MOVE_B2A_BLOCK_NO_SYNC_CHK_COMMAND   (_DMA_V2_MOVE_B2A_BLOCK_NO_SYNC_CHK_COMMAND + 16) 
-#define _DMA_V2_NO_ACK_MOVE_A2B_NO_SYNC_CHK_COMMAND         (_DMA_V2_MOVE_A2B_NO_SYNC_CHK_COMMAND       + 16) 
-#define _DMA_V2_NO_ACK_MOVE_A2B_BLOCK_NO_SYNC_CHK_COMMAND   (_DMA_V2_MOVE_A2B_BLOCK_NO_SYNC_CHK_COMMAND + 16) 
-#define _DMA_V2_NO_ACK_INIT_A_NO_SYNC_CHK_COMMAND           (_DMA_V2_INIT_A_NO_SYNC_CHK_COMMAND         + 16) 
-#define _DMA_V2_NO_ACK_INIT_A_BLOCK_NO_SYNC_CHK_COMMAND     (_DMA_V2_INIT_A_BLOCK_NO_SYNC_CHK_COMMAND   + 16) 
-#define _DMA_V2_NO_ACK_INIT_B_NO_SYNC_CHK_COMMAND           (_DMA_V2_INIT_B_NO_SYNC_CHK_COMMAND         + 16) 
-#define _DMA_V2_NO_ACK_INIT_B_BLOCK_NO_SYNC_CHK_COMMAND     (_DMA_V2_INIT_B_BLOCK_NO_SYNC_CHK_COMMAND   + 16) 
-#define _DMA_V2_CONFIG_CHANNEL_COMMAND                      32   
-#define _DMA_V2_SET_CHANNEL_PARAM_COMMAND                   33   
-#define _DMA_V2_SET_CRUN_COMMAND                            62   
+#define _DMA_V2_MOVE_B2A_COMMAND                             0
+#define _DMA_V2_MOVE_B2A_BLOCK_COMMAND                       1
+#define _DMA_V2_MOVE_B2A_NO_SYNC_CHK_COMMAND                 2
+#define _DMA_V2_MOVE_B2A_BLOCK_NO_SYNC_CHK_COMMAND           3
+#define _DMA_V2_MOVE_A2B_COMMAND                             4
+#define _DMA_V2_MOVE_A2B_BLOCK_COMMAND                       5
+#define _DMA_V2_MOVE_A2B_NO_SYNC_CHK_COMMAND                 6
+#define _DMA_V2_MOVE_A2B_BLOCK_NO_SYNC_CHK_COMMAND           7
+#define _DMA_V2_INIT_A_COMMAND                               8
+#define _DMA_V2_INIT_A_BLOCK_COMMAND                         9
+#define _DMA_V2_INIT_A_NO_SYNC_CHK_COMMAND                  10
+#define _DMA_V2_INIT_A_BLOCK_NO_SYNC_CHK_COMMAND            11
+#define _DMA_V2_INIT_B_COMMAND                              12
+#define _DMA_V2_INIT_B_BLOCK_COMMAND                        13
+#define _DMA_V2_INIT_B_NO_SYNC_CHK_COMMAND                  14
+#define _DMA_V2_INIT_B_BLOCK_NO_SYNC_CHK_COMMAND            15
+#define _DMA_V2_NO_ACK_MOVE_B2A_NO_SYNC_CHK_COMMAND         (_DMA_V2_MOVE_B2A_NO_SYNC_CHK_COMMAND       + 16)
+#define _DMA_V2_NO_ACK_MOVE_B2A_BLOCK_NO_SYNC_CHK_COMMAND   (_DMA_V2_MOVE_B2A_BLOCK_NO_SYNC_CHK_COMMAND + 16)
+#define _DMA_V2_NO_ACK_MOVE_A2B_NO_SYNC_CHK_COMMAND         (_DMA_V2_MOVE_A2B_NO_SYNC_CHK_COMMAND       + 16)
+#define _DMA_V2_NO_ACK_MOVE_A2B_BLOCK_NO_SYNC_CHK_COMMAND   (_DMA_V2_MOVE_A2B_BLOCK_NO_SYNC_CHK_COMMAND + 16)
+#define _DMA_V2_NO_ACK_INIT_A_NO_SYNC_CHK_COMMAND           (_DMA_V2_INIT_A_NO_SYNC_CHK_COMMAND         + 16)
+#define _DMA_V2_NO_ACK_INIT_A_BLOCK_NO_SYNC_CHK_COMMAND     (_DMA_V2_INIT_A_BLOCK_NO_SYNC_CHK_COMMAND   + 16)
+#define _DMA_V2_NO_ACK_INIT_B_NO_SYNC_CHK_COMMAND           (_DMA_V2_INIT_B_NO_SYNC_CHK_COMMAND         + 16)
+#define _DMA_V2_NO_ACK_INIT_B_BLOCK_NO_SYNC_CHK_COMMAND     (_DMA_V2_INIT_B_BLOCK_NO_SYNC_CHK_COMMAND   + 16)
+#define _DMA_V2_CONFIG_CHANNEL_COMMAND                      32
+#define _DMA_V2_SET_CHANNEL_PARAM_COMMAND                   33
+#define _DMA_V2_SET_CRUN_COMMAND                            62
 
 /* Channel Parameter IDs */
-#define _DMA_V2_PACKING_SETUP_PARAM                     0  
-#define _DMA_V2_STRIDE_A_PARAM                          1  
-#define _DMA_V2_ELEM_CROPPING_A_PARAM                   2  
-#define _DMA_V2_WIDTH_A_PARAM                           3  
-#define _DMA_V2_STRIDE_B_PARAM                          4  
-#define _DMA_V2_ELEM_CROPPING_B_PARAM                   5  
-#define _DMA_V2_WIDTH_B_PARAM                           6  
-#define _DMA_V2_HEIGHT_PARAM                            7  
-#define _DMA_V2_QUEUED_CMDS                             8  
+#define _DMA_V2_PACKING_SETUP_PARAM                     0
+#define _DMA_V2_STRIDE_A_PARAM                          1
+#define _DMA_V2_ELEM_CROPPING_A_PARAM                   2
+#define _DMA_V2_WIDTH_A_PARAM                           3
+#define _DMA_V2_STRIDE_B_PARAM                          4
+#define _DMA_V2_ELEM_CROPPING_B_PARAM                   5
+#define _DMA_V2_WIDTH_B_PARAM                           6
+#define _DMA_V2_HEIGHT_PARAM                            7
+#define _DMA_V2_QUEUED_CMDS                             8
 
 /* Parameter Constants */
 #define _DMA_V2_ZERO_EXTEND                             0
@@ -132,7 +132,7 @@
 #define _DMA_V2_ADDR_SEL_COMP_BITS                      4
 #define _DMA_V2_ADDR_SEL_CH_REG_IDX                     2
 #define _DMA_V2_ADDR_SEL_CH_REG_BITS                    6
-#define _DMA_V2_ADDR_SEL_PARAM_IDX                      (_DMA_V2_ADDR_SEL_CH_REG_BITS+_DMA_V2_ADDR_SEL_CH_REG_IDX)
+#define _DMA_V2_ADDR_SEL_PARAM_IDX                      (_DMA_V2_ADDR_SEL_CH_REG_BITS + _DMA_V2_ADDR_SEL_CH_REG_IDX)
 #define _DMA_V2_ADDR_SEL_PARAM_BITS                     4
 
 #define _DMA_V2_ADDR_SEL_GROUP_COMP_IDX                 2
@@ -142,7 +142,7 @@
 
 #define _DMA_V2_ADDR_SEL_DEV_INTERF_IDX_IDX             2
 #define _DMA_V2_ADDR_SEL_DEV_INTERF_IDX_BITS            6
-#define _DMA_V2_ADDR_SEL_DEV_INTERF_INFO_IDX            (_DMA_V2_ADDR_SEL_DEV_INTERF_IDX_IDX+_DMA_V2_ADDR_SEL_DEV_INTERF_IDX_BITS)
+#define _DMA_V2_ADDR_SEL_DEV_INTERF_INFO_IDX            (_DMA_V2_ADDR_SEL_DEV_INTERF_IDX_IDX + _DMA_V2_ADDR_SEL_DEV_INTERF_IDX_BITS)
 #define _DMA_V2_ADDR_SEL_DEV_INTERF_INFO_BITS           4
 
 #define _DMA_V2_FSM_GROUP_CMD_IDX                       0
@@ -153,7 +153,7 @@
 #define _DMA_V2_FSM_GROUP_FSM_PACK_IDX                  5
 #define _DMA_V2_FSM_GROUP_FSM_REQ_IDX                   6
 #define _DMA_V2_FSM_GROUP_FSM_WR_IDX                    7
-  
+
 #define _DMA_V2_FSM_GROUP_FSM_CTRL_STATE_IDX            0
 #define _DMA_V2_FSM_GROUP_FSM_CTRL_REQ_DEV_IDX          1
 #define _DMA_V2_FSM_GROUP_FSM_CTRL_REQ_ADDR_IDX         2

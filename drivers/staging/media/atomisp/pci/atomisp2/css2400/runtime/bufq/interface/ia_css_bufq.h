@@ -37,7 +37,6 @@ more details.
 #include "ia_css_err.h"
 #define BUFQ_EVENT_SIZE 4
 
-
 /**
  * @brief Query the internal frame ID.
  *
@@ -54,7 +53,6 @@ bool ia_css_query_internal_queue_id(
 	enum sh_css_queue_id *val
 	);
 
-
 /**
  * @brief  Map buffer type to a internal queue id.
  *
@@ -69,13 +67,11 @@ void ia_css_queue_map(
 	bool map
 	);
 
-
 /**
  * @brief  Initialize buffer type to a queue id mapping
  * @return none
  */
 void ia_css_queue_map_init(void);
-
 
 /**
  * @brief initializes bufq module
@@ -89,7 +85,6 @@ void ia_css_queue_map_init(void);
  * @return none
  */
 void ia_css_bufq_init(void);
-
 
 /**
 * @brief Enqueues an item into host to SP buffer queue
@@ -130,9 +125,9 @@ enum  ia_css_err ia_css_bufq_dequeue_buffer(
  *
 */
 enum ia_css_err ia_css_bufq_enqueue_psys_event(
-	uint8_t evt_id,
-	uint8_t evt_payload_0,
-	uint8_t evt_payload_1,
+	u8 evt_id,
+	u8 evt_payload_0,
+	u8 evt_payload_1,
 	uint8_t evt_payload_2
 	);
 
@@ -144,7 +139,8 @@ enum ia_css_err ia_css_bufq_enqueue_psys_event(
  *
 */
 enum  ia_css_err ia_css_bufq_dequeue_psys_event(
-	uint8_t item[BUFQ_EVENT_SIZE]
+	u8 item[BUFQ_EVENT_SIZE]
+
 	);
 
 /**
@@ -166,7 +162,7 @@ enum ia_css_err ia_css_bufq_enqueue_isys_event(
  *
  */
 enum  ia_css_err ia_css_bufq_dequeue_isys_event(
-	uint8_t item[BUFQ_EVENT_SIZE]);
+	u8 item[BUFQ_EVENT_SIZE]);
 
 /**
 * @brief   Enqueue a tagger command item into tagger command queue..

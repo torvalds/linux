@@ -28,12 +28,12 @@
    and in the DMA parameter list */
 #define HIVE_ISP_DDR_DMA_SPECS {{32,  8}, {16, 16}, {18, 14}, {25, 10}, {21, 12}}
 #define HIVE_ISP_DDR_WORD_BITS 256
-#define HIVE_ISP_DDR_WORD_BYTES  (HIVE_ISP_DDR_WORD_BITS/8)
+#define HIVE_ISP_DDR_WORD_BYTES  (HIVE_ISP_DDR_WORD_BITS / 8)
 #define HIVE_ISP_DDR_BYTES       (512 * 1024 * 1024)
 #define HIVE_ISP_DDR_BYTES_RTL   (127 * 1024 * 1024)
 #define HIVE_ISP_DDR_SMALL_BYTES (128 * 256 / 8)
 #define HIVE_ISP_PAGE_SHIFT    12
-#define HIVE_ISP_PAGE_SIZE     (1<<HIVE_ISP_PAGE_SHIFT)
+#define HIVE_ISP_PAGE_SIZE     BIT(HIVE_ISP_PAGE_SHIFT)
 
 #define CSS_DDR_WORD_BITS        HIVE_ISP_DDR_WORD_BITS
 #define CSS_DDR_WORD_BYTES       HIVE_ISP_DDR_WORD_BYTES
@@ -43,14 +43,12 @@
 #define HIVE_VMEM_VECTOR_ELEMENTS  64
 #define HIVE_VMEM_ELEMENT_BITS     14
 #define HIVE_XMEM_ELEMENT_BITS     16
-#define HIVE_VMEM_VECTOR_BYTES (HIVE_VMEM_VECTOR_ELEMENTS*HIVE_XMEM_ELEMENT_BITS/8) /* used for # addr bytes for one vector */
-#define HIVE_XMEM_PACKED_WORD_VMEM_ELEMENTS (HIVE_XMEM_WIDTH/HIVE_VMEM_ELEMENT_BITS)
-#define HIVE_XMEM_WORD_VMEM_ELEMENTS        (HIVE_XMEM_WIDTH/HIVE_XMEM_ELEMENT_BITS)
+#define HIVE_VMEM_VECTOR_BYTES (HIVE_VMEM_VECTOR_ELEMENTS * HIVE_XMEM_ELEMENT_BITS / 8) /* used for # addr bytes for one vector */
+#define HIVE_XMEM_PACKED_WORD_VMEM_ELEMENTS (HIVE_XMEM_WIDTH / HIVE_VMEM_ELEMENT_BITS)
+#define HIVE_XMEM_WORD_VMEM_ELEMENTS        (HIVE_XMEM_WIDTH / HIVE_XMEM_ELEMENT_BITS)
 #define XMEM_INT_SIZE              4
 
-
-
-#define HIVE_ISYS_INP_BUFFER_BYTES (64*1024)  /* 64 kByte = 2k words (of 256 bits) */
+#define HIVE_ISYS_INP_BUFFER_BYTES (64 * 1024)  /* 64 kByte = 2k words (of 256 bits) */
 
 /* If HIVE_ISP_DDR_BASE_OFFSET is set to a non-zero value, the wide bus just before the DDRAM gets an extra dummy port where         */
 /* address range 0 .. HIVE_ISP_DDR_BASE_OFFSET-1 maps onto. This effectively creates an offset for the DDRAM from system perspective */
@@ -271,7 +269,7 @@
 #define HIVE_GP_TIMER_ISP_WIRE_DEBUG_LM_MSINK_RUN_I4_I0        51
 #define HIVE_GP_TIMER_ISP_WIRE_DEBUG_LM_MSINK_RUN_I5_I0        52
 #define HIVE_GP_TIMER_ISP_WIRE_DEBUG_LM_MSINK_RUN_I6_I0        53
-#define HIVE_GP_TIMER_ISP_WIRE_DEBUG_LM_MSINK_RUN_I7_I0        54                                                         
+#define HIVE_GP_TIMER_ISP_WIRE_DEBUG_LM_MSINK_RUN_I7_I0        54
 #define HIVE_GP_TIMER_MIPI_SOL_BIT_ID                          55
 #define HIVE_GP_TIMER_MIPI_EOL_BIT_ID                          56
 #define HIVE_GP_TIMER_MIPI_SOF_BIT_ID                          57
@@ -283,15 +281,15 @@
 /* port definititions SP streaming monitor, monitors the status of streaming ports at the SP side of the streaming FIFO's */
 #define SP_STR_MON_PORT_SP2SIF            0
 #define SP_STR_MON_PORT_SIF2SP            1
-#define SP_STR_MON_PORT_SP2MC             2 
+#define SP_STR_MON_PORT_SP2MC             2
 #define SP_STR_MON_PORT_MC2SP             3
-#define SP_STR_MON_PORT_SP2DMA            4 
+#define SP_STR_MON_PORT_SP2DMA            4
 #define SP_STR_MON_PORT_DMA2SP            5
-#define SP_STR_MON_PORT_SP2ISP            6 
+#define SP_STR_MON_PORT_SP2ISP            6
 #define SP_STR_MON_PORT_ISP2SP            7
 #define SP_STR_MON_PORT_SP2GPD            8
 #define SP_STR_MON_PORT_FA2SP             9
-#define SP_STR_MON_PORT_SP2ISYS          10 
+#define SP_STR_MON_PORT_SP2ISYS          10
 #define SP_STR_MON_PORT_ISYS2SP          11
 #define SP_STR_MON_PORT_SP2PIFA          12
 #define SP_STR_MON_PORT_PIFA2SP          13
@@ -328,33 +326,33 @@
 /* port definititions ISP streaming monitor, monitors the status of streaming ports at the ISP side of the streaming FIFO's */
 #define ISP_STR_MON_PORT_ISP2PIFA         0
 #define ISP_STR_MON_PORT_PIFA2ISP         1
-#define ISP_STR_MON_PORT_ISP2PIFB         2 
+#define ISP_STR_MON_PORT_ISP2PIFB         2
 #define ISP_STR_MON_PORT_PIFB2ISP         3
-#define ISP_STR_MON_PORT_ISP2DMA          4 
+#define ISP_STR_MON_PORT_ISP2DMA          4
 #define ISP_STR_MON_PORT_DMA2ISP          5
-#define ISP_STR_MON_PORT_ISP2GDC1         6 
+#define ISP_STR_MON_PORT_ISP2GDC1         6
 #define ISP_STR_MON_PORT_GDC12ISP         7
-#define ISP_STR_MON_PORT_ISP2GDC2         8 
+#define ISP_STR_MON_PORT_ISP2GDC2         8
 #define ISP_STR_MON_PORT_GDC22ISP         9
-#define ISP_STR_MON_PORT_ISP2GPD         10 
+#define ISP_STR_MON_PORT_ISP2GPD         10
 #define ISP_STR_MON_PORT_FA2ISP          11
-#define ISP_STR_MON_PORT_ISP2SP          12 
+#define ISP_STR_MON_PORT_ISP2SP          12
 #define ISP_STR_MON_PORT_SP2ISP          13
 
 /* previously used ISP streaming monitor port identifiers, kept for backward compatibility */
 #define ISP_STR_MON_PORT_SND_PIF_A       ISP_STR_MON_PORT_ISP2PIFA
 #define ISP_STR_MON_PORT_RCV_PIF_A       ISP_STR_MON_PORT_PIFA2ISP
-#define ISP_STR_MON_PORT_SND_PIF_B       ISP_STR_MON_PORT_ISP2PIFB 
+#define ISP_STR_MON_PORT_SND_PIF_B       ISP_STR_MON_PORT_ISP2PIFB
 #define ISP_STR_MON_PORT_RCV_PIF_B       ISP_STR_MON_PORT_PIFB2ISP
-#define ISP_STR_MON_PORT_SND_DMA         ISP_STR_MON_PORT_ISP2DMA  
-#define ISP_STR_MON_PORT_RCV_DMA         ISP_STR_MON_PORT_DMA2ISP 
-#define ISP_STR_MON_PORT_SND_GDC         ISP_STR_MON_PORT_ISP2GDC1 
+#define ISP_STR_MON_PORT_SND_DMA         ISP_STR_MON_PORT_ISP2DMA
+#define ISP_STR_MON_PORT_RCV_DMA         ISP_STR_MON_PORT_DMA2ISP
+#define ISP_STR_MON_PORT_SND_GDC         ISP_STR_MON_PORT_ISP2GDC1
 #define ISP_STR_MON_PORT_RCV_GDC         ISP_STR_MON_PORT_GDC12ISP
-#define ISP_STR_MON_PORT_SND_GPD         ISP_STR_MON_PORT_ISP2GPD 
+#define ISP_STR_MON_PORT_SND_GPD         ISP_STR_MON_PORT_ISP2GPD
 #define ISP_STR_MON_PORT_RCV_GPD         ISP_STR_MON_PORT_FA2ISP
 #define ISP_STR_MON_PORT_SND_SP          ISP_STR_MON_PORT_ISP2SP
 #define ISP_STR_MON_PORT_RCV_SP          ISP_STR_MON_PORT_SP2ISP
-                                           
+
 /* port definititions MOD streaming monitor, monitors the status of streaming ports at the module side of the streaming FIFO's */
 
 #define MOD_STR_MON_PORT_PIFA2CELLS       0
@@ -388,7 +386,6 @@
 #define MOD_STR_MON_PORT_RCV_DMA_FR_SP   11
 #define MOD_STR_MON_PORT_SND_GDC         12
 #define MOD_STR_MON_PORT_RCV_GDC         13
-
 
 /* testbench signals:       */
 

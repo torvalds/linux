@@ -19,9 +19,9 @@
 
 /* DE (Demosaic) */
 struct sh_css_isp_de_params {
-	int32_t pixelnoise;
-	int32_t c1_coring_threshold;
-	int32_t c2_coring_threshold;
+	s32 pixelnoise;
+	s32 c1_coring_threshold;
+	s32 c2_coring_threshold;
 };
 
 #endif /* __IA_CSS_DE_PARAM_H */

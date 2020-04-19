@@ -21,7 +21,7 @@
 #define _HRT_CSS_RECEIVER_2400_GEN_SHORT_CH_ID_WIDTH     2
 #define _HRT_CSS_RECEIVER_2400_GEN_SHORT_FMT_TYPE_WIDTH  3
 #define _HRT_CSS_RECEIVER_2400_GEN_SHORT_STR_REAL_WIDTH (_HRT_CSS_RECEIVER_2400_GEN_SHORT_DATA_WIDTH + _HRT_CSS_RECEIVER_2400_GEN_SHORT_CH_ID_WIDTH + _HRT_CSS_RECEIVER_2400_GEN_SHORT_FMT_TYPE_WIDTH)
-#define _HRT_CSS_RECEIVER_2400_GEN_SHORT_STR_WIDTH      32 /* use 32 to be compatibel with streaming monitor !, MSB's of interface are tied to '0' */ 
+#define _HRT_CSS_RECEIVER_2400_GEN_SHORT_STR_WIDTH      32 /* use 32 to be compatibel with streaming monitor !, MSB's of interface are tied to '0' */
 
 /* Definition of data format ID at the interface CSS_receiver capture/acquisition units */
 #define _HRT_CSS_RECEIVER_2400_DATA_FORMAT_ID_YUV420_8          24   /* 01 1000 YUV420 8-bit                                        */
@@ -64,10 +64,10 @@
 #define _HRT_CSS_RECEIVER_2400_DATA_FORMAT_ID_YUV420_8_CSPS     28   /* 01 1100   YUV420 8-bit (Chroma Shifted Pixel Sampling)      */
 #define _HRT_CSS_RECEIVER_2400_DATA_FORMAT_ID_YUV420_10_CSPS    29   /* 01 1101   YUV420 10-bit (Chroma Shifted Pixel Sampling)     */
 /* used reserved mipi positions for these */
-#define _HRT_CSS_RECEIVER_2400_DATA_FORMAT_ID_RAW16             46 
-#define _HRT_CSS_RECEIVER_2400_DATA_FORMAT_ID_RAW18             47 
-#define _HRT_CSS_RECEIVER_2400_DATA_FORMAT_ID_RAW18_2           37 
-#define _HRT_CSS_RECEIVER_2400_DATA_FORMAT_ID_RAW18_3           38 
+#define _HRT_CSS_RECEIVER_2400_DATA_FORMAT_ID_RAW16             46
+#define _HRT_CSS_RECEIVER_2400_DATA_FORMAT_ID_RAW18             47
+#define _HRT_CSS_RECEIVER_2400_DATA_FORMAT_ID_RAW18_2           37
+#define _HRT_CSS_RECEIVER_2400_DATA_FORMAT_ID_RAW18_3           38
 
 #define _HRT_CSS_RECEIVER_2400_DATA_FORMAT_ID_WIDTH              6
 
@@ -78,7 +78,7 @@
 #define _HRT_CSS_RECEIVER_2400_FMT_TYPE_RGB444           2  // 32
 #define _HRT_CSS_RECEIVER_2400_FMT_TYPE_RGB565           3  // 34
 #define _HRT_CSS_RECEIVER_2400_FMT_TYPE_RGB666           4  // 35
-#define _HRT_CSS_RECEIVER_2400_FMT_TYPE_RAW8             5  // 42 
+#define _HRT_CSS_RECEIVER_2400_FMT_TYPE_RAW8             5  // 42
 #define _HRT_CSS_RECEIVER_2400_FMT_TYPE_RAW10            6  // 43
 #define _HRT_CSS_RECEIVER_2400_FMT_TYPE_RAW6             7  // 40
 #define _HRT_CSS_RECEIVER_2400_FMT_TYPE_RAW7             8  // 41
@@ -104,24 +104,24 @@
 #define _HRT_CSS_RECEIVER_2400_FMT_TYPE_RAW18           28  // ?
 #define _HRT_CSS_RECEIVER_2400_FMT_TYPE_RAW18_2         29  // ? Option 2 for depacketiser
 #define _HRT_CSS_RECEIVER_2400_FMT_TYPE_RAW18_3         30  // ? Option 3 for depacketiser
-#define _HRT_CSS_RECEIVER_2400_FMT_TYPE_CUSTOM          31  // to signal custom decoding 
+#define _HRT_CSS_RECEIVER_2400_FMT_TYPE_CUSTOM          31  // to signal custom decoding
 
 /* definition for state machine of data FIFO for decode different type of data */
-#define _HRT_CSS_RECEIVER_2400_YUV420_8_REPEAT_PTN                 1  
+#define _HRT_CSS_RECEIVER_2400_YUV420_8_REPEAT_PTN                 1
 #define _HRT_CSS_RECEIVER_2400_YUV420_10_REPEAT_PTN                5
 #define _HRT_CSS_RECEIVER_2400_YUV420_8L_REPEAT_PTN                1
 #define _HRT_CSS_RECEIVER_2400_YUV422_8_REPEAT_PTN                 1
 #define _HRT_CSS_RECEIVER_2400_YUV422_10_REPEAT_PTN                5
-#define _HRT_CSS_RECEIVER_2400_RGB444_REPEAT_PTN                   2 
+#define _HRT_CSS_RECEIVER_2400_RGB444_REPEAT_PTN                   2
 #define _HRT_CSS_RECEIVER_2400_RGB555_REPEAT_PTN                   2
 #define _HRT_CSS_RECEIVER_2400_RGB565_REPEAT_PTN                   2
-#define _HRT_CSS_RECEIVER_2400_RGB666_REPEAT_PTN                   9                       
+#define _HRT_CSS_RECEIVER_2400_RGB666_REPEAT_PTN                   9
 #define _HRT_CSS_RECEIVER_2400_RGB888_REPEAT_PTN                   3
 #define _HRT_CSS_RECEIVER_2400_RAW6_REPEAT_PTN                     3
 #define _HRT_CSS_RECEIVER_2400_RAW7_REPEAT_PTN                     7
 #define _HRT_CSS_RECEIVER_2400_RAW8_REPEAT_PTN                     1
 #define _HRT_CSS_RECEIVER_2400_RAW10_REPEAT_PTN                    5
-#define _HRT_CSS_RECEIVER_2400_RAW12_REPEAT_PTN                    3        
+#define _HRT_CSS_RECEIVER_2400_RAW12_REPEAT_PTN                    3
 #define _HRT_CSS_RECEIVER_2400_RAW14_REPEAT_PTN                    7
 
 #define _HRT_CSS_RECEIVER_2400_MAX_REPEAT_PTN                      _HRT_CSS_RECEIVER_2400_RGB666_REPEAT_PTN
@@ -146,7 +146,6 @@
 #define _HRT_CSS_RECEIVER_2400_BE_COMP_12_7_12                     5
 #define _HRT_CSS_RECEIVER_2400_BE_COMP_12_8_12                     6
 
-
 /* packet bit definition */
 #define _HRT_CSS_RECEIVER_2400_PKT_SOP_IDX                        32
 #define _HRT_CSS_RECEIVER_2400_PKT_SOP_BITS                        1
@@ -159,22 +158,21 @@
 #define _HRT_CSS_RECEIVER_2400_PKT_PAYLOAD_IDX                     0
 #define _HRT_CSS_RECEIVER_2400_PKT_PAYLOAD_BITS                   32
 
-
 /*************************************************************************************************/
 /* Custom Decoding                                                                               */
 /* These Custom Defs are defined based on design-time config in "csi_be_pixel_formatter.chdl" !! */
 /*************************************************************************************************/
 #define BE_CUST_EN_IDX                     0     /* 2bits */
-#define BE_CUST_EN_DATAID_IDX              2     /* 6bits MIPI DATA ID */ 
-#define BE_CUST_EN_WIDTH                   8     
+#define BE_CUST_EN_DATAID_IDX              2     /* 6bits MIPI DATA ID */
+#define BE_CUST_EN_WIDTH                   8
 #define BE_CUST_MODE_ALL                   1     /* Enable Custom Decoding for all DATA IDs */
 #define BE_CUST_MODE_ONE                   3     /* Enable Custom Decoding for ONE DATA ID, programmed in CUST_EN_DATA_ID */
 
 /* Data State config = {get_bits(6bits), valid(1bit)}  */
-#define BE_CUST_DATA_STATE_S0_IDX          0     /* 7bits */ 
-#define BE_CUST_DATA_STATE_S1_IDX          7     /* 7bits */ 
+#define BE_CUST_DATA_STATE_S0_IDX          0     /* 7bits */
+#define BE_CUST_DATA_STATE_S1_IDX          7     /* 7bits */
 #define BE_CUST_DATA_STATE_S2_IDX          14    /* 7bits */
-#define BE_CUST_DATA_STATE_WIDTH           21    
+#define BE_CUST_DATA_STATE_WIDTH           21
 #define BE_CUST_DATA_STATE_VALID_IDX       0     /* 1bits */
 #define BE_CUST_DATA_STATE_GETBITS_IDX     1     /* 6bits */
 
@@ -183,18 +181,18 @@
 #define BE_CUST_PIX_EXT_PIX_ALIGN_IDX      5     /* 5bits */
 #define BE_CUST_PIX_EXT_PIX_MASK_IDX       10    /* 18bits */
 #define BE_CUST_PIX_EXT_PIX_EN_IDX         28    /* 1bits */
-#define BE_CUST_PIX_EXT_WIDTH              29    
+#define BE_CUST_PIX_EXT_WIDTH              29
 
 /* Pixel Valid & EoP config = {[eop,valid](especial), [eop,valid](normal)} */
 #define BE_CUST_PIX_VALID_EOP_P0_IDX        0    /* 4bits */
 #define BE_CUST_PIX_VALID_EOP_P1_IDX        4    /* 4bits */
 #define BE_CUST_PIX_VALID_EOP_P2_IDX        8    /* 4bits */
 #define BE_CUST_PIX_VALID_EOP_P3_IDX        12   /* 4bits */
-#define BE_CUST_PIX_VALID_EOP_WIDTH         16 
+#define BE_CUST_PIX_VALID_EOP_WIDTH         16
 #define BE_CUST_PIX_VALID_EOP_NOR_VALID_IDX 0    /* Normal (NO less get_bits case) Valid - 1bits */
 #define BE_CUST_PIX_VALID_EOP_NOR_EOP_IDX   1    /* Normal (NO less get_bits case) EoP - 1bits */
 #define BE_CUST_PIX_VALID_EOP_ESP_VALID_IDX 2    /* Especial (less get_bits case) Valid - 1bits */
 #define BE_CUST_PIX_VALID_EOP_ESP_EOP_IDX   3    /* Especial (less get_bits case) EoP - 1bits */
 
 #endif /* _mipi_backend_common_defs_h_ */
-#endif /* _css_receiver_2400_common_defs_h_ */ 
+#endif /* _css_receiver_2400_common_defs_h_ */

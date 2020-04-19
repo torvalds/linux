@@ -20,7 +20,6 @@
 #include <linux/delay.h>
 #include <linux/pci.h>
 
-
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-event.h>
 #include <media/videobuf-vmalloc.h>
@@ -333,6 +332,7 @@ static struct v4l2_queryctrl ci_v4l2_controls[] = {
 		.default_value = 0,
 	},
 };
+
 static const u32 ctrls_num = ARRAY_SIZE(ci_v4l2_controls);
 
 /*
@@ -651,6 +651,7 @@ unsigned int atomisp_is_acc_enabled(struct atomisp_device *isp)
 
 	return 0;
 }
+
 /*
  * get input are used to get current primary/secondary camera
  */
@@ -666,6 +667,7 @@ static int atomisp_g_input(struct file *file, void *fh, unsigned int *input)
 
 	return 0;
 }
+
 /*
  * set input are used to set current primary/secondary camera
  */
@@ -689,7 +691,7 @@ static int atomisp_s_input(struct file *file, void *fh, unsigned int input)
 	 * 1: already in use
 	 * 2: if in use, whether it is used by other streams
 	 */
-	if (isp->inputs[input].asd != NULL && isp->inputs[input].asd != asd) {
+	if (isp->inputs[input].asd && isp->inputs[input].asd != asd) {
 		dev_err(isp->dev,
 			 "%s, camera is already used by stream: %d\n", __func__,
 			 isp->inputs[input].asd->index);
@@ -898,7 +900,7 @@ void atomisp_videobuf_free_buf(struct videobuf_buffer *vb)
 {
 	struct videobuf_vmalloc_memory *vm_mem;
 
-	if (vb == NULL)
+	if (!vb)
 		return;
 
 	vm_mem = vb->priv;
@@ -1037,8 +1039,8 @@ int __atomisp_reqbufs(struct file *file, void *fh,
 	struct atomisp_css_frame_info frame_info;
 	struct atomisp_css_frame *frame;
 	struct videobuf_vmalloc_memory *vm_mem;
-	uint16_t source_pad = atomisp_subdev_source_pad(vdev);
-	uint16_t stream_id = atomisp_source_pad_to_stream_id(asd, source_pad);
+	u16 source_pad = atomisp_subdev_source_pad(vdev);
+	u16 stream_id = atomisp_source_pad_to_stream_id(asd, source_pad);
 	int ret = 0, i = 0;
 
 	if (req->count == 0) {
@@ -1194,6 +1196,7 @@ static int atomisp_qbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 	 */
 	if (buf->memory == V4L2_MEMORY_USERPTR) {
 		struct hrt_userbuffer_attr attributes;
+
 		vb = pipe->capq.bufs[buf->index];
 		vm_mem = vb->priv;
 		if (!vm_mem) {
@@ -1338,7 +1341,7 @@ done:
 		asd->pending_capture_request++;
 		dev_dbg(isp->dev, "Add one pending capture request.\n");
 #else
-	    if (asd->re_trigger_capture) {
+	if (asd->re_trigger_capture) {
 			ret = atomisp_css_offline_capture_configure(asd,
 				asd->params.offline_parm.num_captures,
 				asd->params.offline_parm.skip_frames,
@@ -1347,11 +1350,11 @@ done:
 			dev_dbg(isp->dev, "%s Trigger capture again ret=%d\n",
 				__func__, ret);
 
-	    } else {
+	} else {
 			asd->pending_capture_request++;
 			asd->re_trigger_capture = false;
 			dev_dbg(isp->dev, "Add one pending capture request.\n");
-	    }
+	}
 #endif
 	}
 	rt_mutex_unlock(&isp->mutex);
@@ -1557,6 +1560,7 @@ int atomisp_stream_on_master_slave_sensor(struct atomisp_device *isp,
 	 */
 	for (i = 0; i < isp->num_of_streams; i++) {
 		int sensor_index = isp->asd[i].input_curr;
+
 		if (isp->inputs[sensor_index].camera_caps->
 				sensor[isp->asd[i].sensor_curr].is_slave)
 			slave = sensor_index;
@@ -1643,6 +1647,7 @@ static void atomisp_pause_buffer_event(struct atomisp_device *isp)
 
 	for (i = 0; i < isp->num_of_streams; i++) {
 		int sensor_index = isp->asd[i].input_curr;
+
 		if (isp->inputs[sensor_index].camera_caps->
 				sensor[isp->asd[i].sensor_curr].is_slave) {
 			v4l2_event_queue(isp->asd[i].subdev.devnode, &event);
@@ -1657,13 +1662,13 @@ static void atomisp_pause_buffer_event(struct atomisp_device *isp)
 /* manually to 128 in case of 13MPx snapshot and to 1 otherwise. */
 static void atomisp_dma_burst_len_cfg(struct atomisp_sub_device *asd)
 {
-
 	struct v4l2_mbus_framefmt *sink;
+
 	sink = atomisp_subdev_get_ffmt(&asd->subdev, NULL,
 				       V4L2_SUBDEV_FORMAT_ACTIVE,
 				       ATOMISP_SUBDEV_PAD_SINK);
 
-	if (sink->width * sink->height >= 4096*3072)
+	if (sink->width * sink->height >= 4096 * 3072)
 		atomisp_store_uint32(DMA_BURST_SIZE_REG, 0x7F);
 	else
 		atomisp_store_uint32(DMA_BURST_SIZE_REG, 0x00);
@@ -1717,7 +1722,7 @@ static int atomisp_streamon(struct file *file, void *fh,
 	sensor_start_stream = atomisp_sensor_start_stream(asd);
 
 	spin_lock_irqsave(&pipe->irq_lock, irqflags);
-	if (list_empty(&(pipe->capq.stream))) {
+	if (list_empty(&pipe->capq.stream)) {
 		spin_unlock_irqrestore(&pipe->irq_lock, irqflags);
 		dev_dbg(isp->dev, "no buffer in the queue\n");
 		ret = -EINVAL;
@@ -1971,7 +1976,6 @@ int __atomisp_streamoff(struct file *file, void *fh, enum v4l2_buf_type type)
 		ATOMISP_SUBDEV_PAD_SOURCE_PREVIEW &&
 	    atomisp_subdev_source_pad(vdev) !=
 		ATOMISP_SUBDEV_PAD_SOURCE_VIDEO) {
-
 		if (isp->inputs[asd->input_curr].camera_caps->multi_stream_ctrl) {
 			v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
 				video, s_stream, 0);
@@ -2138,6 +2142,7 @@ stopsensor:
 	if (isp->sw_contex.power_state == ATOM_ISP_POWER_UP) {
 		unsigned int i;
 		bool recreate_streams[MAX_STREAM_NUM] = {0};
+
 		if (isp->isp_timeout)
 			dev_err(isp->dev, "%s: Resetting with WA activated",
 				__func__);
@@ -2345,6 +2350,7 @@ static int atomisp_s_ctrl(struct file *file, void *fh,
 	rt_mutex_unlock(&isp->mutex);
 	return ret;
 }
+
 /*
  * To query the attributes of a control.
  * applications set the id field of a struct v4l2_queryctrl and call the

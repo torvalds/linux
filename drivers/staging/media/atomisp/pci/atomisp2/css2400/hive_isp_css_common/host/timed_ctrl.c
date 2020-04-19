@@ -54,7 +54,7 @@ void timed_ctrl_snd_sp_commnd(
 	OP___assert(SP_DMEM_BASE[SP_ID] != (hrt_address)-1);
 
 	timed_ctrl_snd_commnd(ID, mask, condition, counter,
-				SP_DMEM_BASE[SP_ID]+offset, value);
+				SP_DMEM_BASE[SP_ID] + offset, value);
 }
 
 void timed_ctrl_snd_gpio_commnd(
@@ -70,5 +70,5 @@ void timed_ctrl_snd_gpio_commnd(
 	OP___assert(GPIO_BASE[GPIO_ID] != (hrt_address)-1);
 
 	timed_ctrl_snd_commnd(ID, mask, condition, counter,
-				GPIO_BASE[GPIO_ID]+offset, value);
+				GPIO_BASE[GPIO_ID] + offset, value);
 }

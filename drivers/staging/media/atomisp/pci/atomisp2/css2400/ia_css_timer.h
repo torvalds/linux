@@ -38,7 +38,7 @@ more details.
 #include "ia_css_err.h"
 
 /* @brief timer reading definition */
-typedef uint32_t clock_value_t;
+typedef u32 clock_value_t;
 
 /* @brief 32 bit clock tick,(timestamp based on timer-value of CSS-internal timer)*/
 struct ia_css_clock_tick {

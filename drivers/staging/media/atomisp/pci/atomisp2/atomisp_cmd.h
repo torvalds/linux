@@ -344,7 +344,6 @@ int atomisp_get_sensor_mode_data(struct atomisp_sub_device *asd,
 
 int atomisp_get_fmt(struct video_device *vdev, struct v4l2_format *f);
 
-
 /* This function looks up the closest available resolution. */
 int atomisp_try_fmt(struct video_device *vdev, struct v4l2_format *f,
 						bool *res_overflow);

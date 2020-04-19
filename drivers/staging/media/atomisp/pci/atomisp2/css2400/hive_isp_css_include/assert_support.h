@@ -15,7 +15,6 @@
 #ifndef __ASSERT_SUPPORT_H_INCLUDED__
 #define __ASSERT_SUPPORT_H_INCLUDED__
 
-
 /**
  * The following macro can help to test the size of a struct at compile
  * time rather than at run-time. It does not work for all compilers; see
@@ -37,11 +36,11 @@
  * Not all compilers will trigger an error with this macro; use a search engine to search for
  * BUILD_BUG_ON to find other methods.
  */
-#define COMPILATION_ERROR_IF(condition) ((void)sizeof(char[1 - 2*!!(condition)]))
+#define COMPILATION_ERROR_IF(condition) ((void)sizeof(char[1 - 2 * !!(condition)]))
 
 /* Compile time assertion */
 #ifndef CT_ASSERT
-#define CT_ASSERT(cnd) ((void)sizeof(char[(cnd)?1:-1]))
+#define CT_ASSERT(cnd) ((void)sizeof(char[(cnd) ? 1 :  -1]))
 #endif /* CT_ASSERT */
 
 #ifdef NDEBUG
@@ -91,10 +90,10 @@
  * The implementation for the pipe generation tool is in see support.isp.h */
 #define OP___assert(cnd) assert(cnd)
 
-static inline void compile_time_assert (unsigned cond)
+static inline void compile_time_assert(unsigned int cond)
 {
 	/* Call undefined function if cond is false */
-	extern void _compile_time_assert (void);
+	void _compile_time_assert(void);
 	if (!cond) _compile_time_assert();
 }
 #endif /* PIPE_GENERATION */

@@ -33,17 +33,16 @@ struct ia_css_isp_ctc2_vmem_params {
 
 /*DMEM Chroma params*/
 struct ia_css_isp_ctc2_dmem_params {
-
 	/* Gains by UV(Chroma) under kneepoints uv_x0 and uv_x1*/
-	int32_t uv_y0;
-	int32_t uv_y1;
+	s32 uv_y0;
+	s32 uv_y1;
 
 	/* Kneepoints by UV(Chroma)- uv_x0 and uv_x1*/
-	int32_t uv_x0;
-	int32_t uv_x1;
+	s32 uv_x0;
+	s32 uv_x1;
 
 	/* Slope of line interconnecting uv_x0 -> uv_x1*/
-	int32_t uv_dydx;
+	s32 uv_dydx;
 
 };
 #endif /* __IA_CSS_CTC2_PARAM_H */

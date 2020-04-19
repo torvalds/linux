@@ -34,7 +34,7 @@ ia_css_bnlm_encode(
 void
 ia_css_bnlm_debug_trace(
 	const struct ia_css_bnlm_config *config,
-	unsigned level);
+	unsigned int level);
 #endif
 
 #endif /* __IA_CSS_BNLM_HOST_H */

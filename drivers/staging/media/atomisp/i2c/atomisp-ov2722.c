@@ -55,7 +55,7 @@ static int ov2722_read_reg(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	memset(msg, 0 , sizeof(msg));
+	memset(msg, 0, sizeof(msg));
 
 	msg[0].addr = client->addr;
 	msg[0].flags = 0;
@@ -259,6 +259,7 @@ static int ov2722_write_reg_array(struct i2c_client *client,
 
 	return __ov2722_flush_reg_array(client, &ctrl);
 }
+
 static int ov2722_g_focal(struct v4l2_subdev *sd, s32 *val)
 {
 	*val = (OV2722_FOCAL_LENGTH_NUM << 16) | OV2722_FOCAL_LENGTH_DEM;
@@ -318,7 +319,7 @@ static int ov2722_get_intg_factor(struct i2c_client *client,
 		return ret;
 
 	pre_pll_clk_div = (pre_pll_clk_div & 0x70) >> 4;
-	if (0 == pre_pll_clk_div)
+	if (!pre_pll_clk_div)
 		return -EINVAL;
 
 	pll_multiplier = pll_multiplier & 0x7f;
@@ -481,6 +482,7 @@ static long ov2722_s_exposure(struct v4l2_subdev *sd,
 	/* we should not accept the invalid value below. */
 	if (gain == 0) {
 		struct i2c_client *client = v4l2_get_subdevdata(sd);
+
 		v4l2_err(client, "%s: invalid value\n", __func__);
 		return -EINVAL;
 	}
@@ -490,7 +492,6 @@ static long ov2722_s_exposure(struct v4l2_subdev *sd,
 
 static long ov2722_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
-
 	switch (cmd) {
 	case ATOMISP_IOC_S_EXPOSURE:
 		return ov2722_s_exposure(sd, arg);
@@ -540,6 +541,7 @@ static int ov2722_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 	    container_of(ctrl->handler, struct ov2722_device, ctrl_handler);
 	int ret = 0;
 	unsigned int val;
+
 	switch (ctrl->id) {
 	case V4L2_CID_EXPOSURE_ABSOLUTE:
 		ret = ov2722_q_exposure(&dev->sd, &ctrl->val);
@@ -768,6 +770,7 @@ static int power_down(struct v4l2_subdev *sd)
 static int ov2722_s_power(struct v4l2_subdev *sd, int on)
 {
 	int ret;
+
 	if (on == 0)
 		return power_down(sd);
 	else {
@@ -881,6 +884,7 @@ static int ov2722_set_fmt(struct v4l2_subdev *sd,
 	struct camera_mipi_info *ov2722_info = NULL;
 	int ret = 0;
 	int idx;
+
 	if (format->pad)
 		return -EINVAL;
 	if (!fmt)
@@ -919,6 +923,7 @@ static int ov2722_set_fmt(struct v4l2_subdev *sd,
 	ret = startup(sd);
 	if (ret) {
 		int i = 0;
+
 		dev_err(&client->dev, "ov2722 startup err, retry to power up\n");
 		for (i = 0; i < OV2722_POWER_UP_RETRY_NUM; i++) {
 			dev_err(&client->dev,
@@ -953,6 +958,7 @@ err:
 	mutex_unlock(&dev->input_lock);
 	return ret;
 }
+
 static int ov2722_get_fmt(struct v4l2_subdev *sd,
 			  struct v4l2_subdev_pad_config *cfg,
 			  struct v4l2_subdev_format *format)
@@ -1000,7 +1006,7 @@ static int ov2722_detect(struct i2c_client *client)
 
 	ret = ov2722_read_reg(client, OV2722_8BIT,
 					OV2722_SC_CMMN_SUB_ID, &high);
-	revision = (u8) high & 0x0f;
+	revision = (u8)high & 0x0f;
 
 	dev_dbg(&client->dev, "sensor_revision = 0x%x\n", revision);
 	dev_dbg(&client->dev, "detect ov2722 success\n");
@@ -1122,9 +1128,7 @@ static int ov2722_enum_frame_size(struct v4l2_subdev *sd,
 	fse->max_height = ov2722_res[index].height;
 
 	return 0;
-
 }
-
 
 static int ov2722_g_skip_frames(struct v4l2_subdev *sd, u32 *frames)
 {
@@ -1169,6 +1173,7 @@ static int ov2722_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct ov2722_device *dev = to_ov2722_sensor(sd);
+
 	dev_dbg(&client->dev, "ov2722_remove...\n");
 
 	dev->platform_data->csi_cfg(sd, 0);
@@ -1187,6 +1192,7 @@ static int __ov2722_init_ctrl_handler(struct ov2722_device *dev)
 {
 	struct v4l2_ctrl_handler *hdl;
 	unsigned int i;
+
 	hdl = &dev->ctrl_handler;
 	v4l2_ctrl_handler_init(&dev->ctrl_handler, ARRAY_SIZE(ov2722_controls));
 	for (i = 0; i < ARRAY_SIZE(ov2722_controls); i++)
@@ -1216,7 +1222,7 @@ static int ov2722_probe(struct i2c_client *client)
 	mutex_init(&dev->input_lock);
 
 	dev->fmt_idx = 0;
-	v4l2_i2c_subdev_init(&(dev->sd), client, &ov2722_ops);
+	v4l2_i2c_subdev_init(&dev->sd, client, &ov2722_ops);
 
 	ovpdev = gmin_camera_platform_data(&dev->sd,
 					   ATOMISP_INPUT_FORMAT_RAW_10,

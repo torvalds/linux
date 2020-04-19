@@ -88,7 +88,8 @@ int ia_css_queue_enqueue(
 			uint32_t item)
 {
 	int error = 0;
-	if (NULL == qhandle)
+
+	if (!qhandle)
 		return EINVAL;
 
 	/* 1. Load the required queue object */
@@ -106,7 +107,7 @@ int ia_css_queue_enqueue(
 	} else if (qhandle->type == IA_CSS_QUEUE_TYPE_REMOTE) {
 		ia_css_circbuf_desc_t cb_desc;
 		ia_css_circbuf_elem_t cb_elem;
-		uint32_t ignore_desc_flags = QUEUE_IGNORE_STEP_FLAG;
+		u32 ignore_desc_flags = QUEUE_IGNORE_STEP_FLAG;
 
 		/* a. Load the queue cb_desc from remote */
 		QUEUE_CB_DESC_INIT(&cb_desc);
@@ -146,7 +147,8 @@ int ia_css_queue_dequeue(
 			uint32_t *item)
 {
 	int error = 0;
-	if (qhandle == NULL || NULL == item)
+
+	if (!qhandle || NULL == item)
 		return EINVAL;
 
 	/* 1. Load the required queue object */
@@ -164,7 +166,7 @@ int ia_css_queue_dequeue(
 		/* a. Load the queue from remote */
 		ia_css_circbuf_desc_t cb_desc;
 		ia_css_circbuf_elem_t cb_elem;
-		uint32_t ignore_desc_flags = QUEUE_IGNORE_STEP_FLAG;
+		u32 ignore_desc_flags = QUEUE_IGNORE_STEP_FLAG;
 
 		QUEUE_CB_DESC_INIT(&cb_desc);
 
@@ -202,7 +204,8 @@ int ia_css_queue_is_full(
 			bool *is_full)
 {
 	int error = 0;
-	if ((qhandle == NULL) || (is_full == NULL))
+
+	if ((!qhandle) || (!is_full))
 		return EINVAL;
 
 	/* 1. Load the required queue object */
@@ -215,7 +218,8 @@ int ia_css_queue_is_full(
 	} else if (qhandle->type == IA_CSS_QUEUE_TYPE_REMOTE) {
 		/* a. Load the queue from remote */
 		ia_css_circbuf_desc_t cb_desc;
-		uint32_t ignore_desc_flags = QUEUE_IGNORE_STEP_FLAG;
+		u32 ignore_desc_flags = QUEUE_IGNORE_STEP_FLAG;
+
 		QUEUE_CB_DESC_INIT(&cb_desc);
 		error = ia_css_queue_load(qhandle, &cb_desc, ignore_desc_flags);
 		if (error != 0)
@@ -234,7 +238,8 @@ int ia_css_queue_get_free_space(
 			uint32_t *size)
 {
 	int error = 0;
-	if ((qhandle == NULL) || (size == NULL))
+
+	if ((!qhandle) || (!size))
 		return EINVAL;
 
 	/* 1. Load the required queue object */
@@ -247,7 +252,8 @@ int ia_css_queue_get_free_space(
 	} else if (qhandle->type == IA_CSS_QUEUE_TYPE_REMOTE) {
 		/* a. Load the queue from remote */
 		ia_css_circbuf_desc_t cb_desc;
-		uint32_t ignore_desc_flags = QUEUE_IGNORE_STEP_FLAG;
+		u32 ignore_desc_flags = QUEUE_IGNORE_STEP_FLAG;
+
 		QUEUE_CB_DESC_INIT(&cb_desc);
 		error = ia_css_queue_load(qhandle, &cb_desc, ignore_desc_flags);
 		if (error != 0)
@@ -266,7 +272,8 @@ int ia_css_queue_get_used_space(
 			uint32_t *size)
 {
 	int error = 0;
-	if ((qhandle == NULL) || (size == NULL))
+
+	if ((!qhandle) || (!size))
 		return EINVAL;
 
 	/* 1. Load the required queue object */
@@ -279,7 +286,8 @@ int ia_css_queue_get_used_space(
 	} else if (qhandle->type == IA_CSS_QUEUE_TYPE_REMOTE) {
 		/* a. Load the queue from remote */
 		ia_css_circbuf_desc_t cb_desc;
-		uint32_t ignore_desc_flags = QUEUE_IGNORE_STEP_FLAG;
+		u32 ignore_desc_flags = QUEUE_IGNORE_STEP_FLAG;
+
 		QUEUE_CB_DESC_INIT(&cb_desc);
 		error = ia_css_queue_load(qhandle, &cb_desc, ignore_desc_flags);
 		if (error != 0)
@@ -295,13 +303,13 @@ int ia_css_queue_get_used_space(
 
 int ia_css_queue_peek(
 		ia_css_queue_t *qhandle,
-		uint32_t offset,
+		u32 offset,
 		uint32_t *element)
 {
-	uint32_t num_elems = 0;
+	u32 num_elems = 0;
 	int error = 0;
 
-	if ((qhandle == NULL) || (element == NULL))
+	if ((!qhandle) || (!element))
 		return EINVAL;
 
 	/* 1. Load the required queue object */
@@ -314,13 +322,13 @@ int ia_css_queue_peek(
 		if (offset > num_elems)
 			return EINVAL;
 
-		*element = ia_css_circbuf_peek_from_start(&qhandle->desc.cb_local, (int) offset);
+		*element = ia_css_circbuf_peek_from_start(&qhandle->desc.cb_local, (int)offset);
 		return 0;
 	} else if (qhandle->type == IA_CSS_QUEUE_TYPE_REMOTE) {
 		/* a. Load the queue from remote */
 		ia_css_circbuf_desc_t cb_desc;
 		ia_css_circbuf_elem_t cb_elem;
-		uint32_t ignore_desc_flags = QUEUE_IGNORE_STEP_FLAG;
+		u32 ignore_desc_flags = QUEUE_IGNORE_STEP_FLAG;
 
 		QUEUE_CB_DESC_INIT(&cb_desc);
 
@@ -350,7 +358,8 @@ int ia_css_queue_is_empty(
 			bool *is_empty)
 {
 	int error = 0;
-	if ((qhandle == NULL) || (is_empty == NULL))
+
+	if ((!qhandle) || (!is_empty))
 		return EINVAL;
 
 	/* 1. Load the required queue object */
@@ -363,7 +372,7 @@ int ia_css_queue_is_empty(
 	} else if (qhandle->type == IA_CSS_QUEUE_TYPE_REMOTE) {
 		/* a. Load the queue from remote */
 		ia_css_circbuf_desc_t cb_desc;
-		uint32_t ignore_desc_flags = QUEUE_IGNORE_STEP_FLAG;
+		u32 ignore_desc_flags = QUEUE_IGNORE_STEP_FLAG;
 
 		QUEUE_CB_DESC_INIT(&cb_desc);
 		error = ia_css_queue_load(qhandle, &cb_desc, ignore_desc_flags);
@@ -383,7 +392,8 @@ int ia_css_queue_get_size(
 			uint32_t *size)
 {
 	int error = 0;
-	if ((qhandle == NULL) || (size == NULL))
+
+	if ((!qhandle) || (!size))
 		return EINVAL;
 
 	/* 1. Load the required queue object */
@@ -396,7 +406,7 @@ int ia_css_queue_get_size(
 	} else if (qhandle->type == IA_CSS_QUEUE_TYPE_REMOTE) {
 		/* a. Load the queue from remote */
 		ia_css_circbuf_desc_t cb_desc;
-		uint32_t ignore_desc_flags = QUEUE_IGNORE_START_END_STEP_FLAGS;
+		u32 ignore_desc_flags = QUEUE_IGNORE_START_END_STEP_FLAGS;
 
 		QUEUE_CB_DESC_INIT(&cb_desc);
 

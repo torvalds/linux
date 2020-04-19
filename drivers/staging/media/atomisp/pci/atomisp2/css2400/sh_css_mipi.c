@@ -30,7 +30,7 @@
 #include "sw_event_global.h" /* IA_CSS_PSYS_SW_EVENT_MIPI_BUFFERS_READY */
 
 #if defined(USE_INPUT_SYSTEM_VERSION_2) || defined(USE_INPUT_SYSTEM_VERSION_2401)
-static uint32_t ref_count_mipi_allocation[N_CSI_PORTS]; /* Initialized in mipi_init */
+static u32 ref_count_mipi_allocation[N_CSI_PORTS]; /* Initialized in mipi_init */
 #endif
 
 enum ia_css_err
@@ -59,15 +59,15 @@ static bool ia_css_mipi_is_source_port_valid(struct ia_css_pipe *pipe,
 
 	switch (pipe->stream->config.mode) {
 	case IA_CSS_INPUT_MODE_BUFFERED_SENSOR:
-		port = (unsigned int) pipe->stream->config.source.port.port;
+		port = (unsigned int)pipe->stream->config.source.port.port;
 		max_ports = N_CSI_PORTS;
 		break;
 	case IA_CSS_INPUT_MODE_TPG:
-		port = (unsigned int) pipe->stream->config.source.tpg.id;
+		port = (unsigned int)pipe->stream->config.source.tpg.id;
 		max_ports = N_CSS_TPG_IDS;
 		break;
 	case IA_CSS_INPUT_MODE_PRBS:
-		port = (unsigned int) pipe->stream->config.source.prbs.id;
+		port = (unsigned int)pipe->stream->config.source.prbs.id;
 		max_ports = N_CSS_PRBS_IDS;
 		break;
 	default:
@@ -242,7 +242,7 @@ enum ia_css_err
 ia_css_mipi_frame_enable_check_on_size(const enum mipi_port_id port,
 				const unsigned int	size_mem_words)
 {
-	uint32_t idx;
+	u32 idx;
 
 	enum ia_css_err err = IA_CSS_ERR_RESOURCE_NOT_AVAILABLE;
 
@@ -396,9 +396,9 @@ allocate_mipi_frames(struct ia_css_pipe *pipe, struct ia_css_stream_info *info)
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE,
 		"allocate_mipi_frames(%p) enter:\n", pipe);
 
-	assert(pipe != NULL);
-	assert(pipe->stream != NULL);
-	if ((pipe == NULL) || (pipe->stream == NULL)) {
+	assert(pipe);
+	assert(pipe->stream);
+	if ((!pipe) || (!pipe->stream)) {
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE,
 			"allocate_mipi_frames(%p) exit: pipe or stream is null.\n",
 			pipe);
@@ -428,7 +428,7 @@ allocate_mipi_frames(struct ia_css_pipe *pipe, struct ia_css_stream_info *info)
 	}
 
 #ifndef ISP2401
-	port = (unsigned int) pipe->stream->config.source.port.port;
+	port = (unsigned int)pipe->stream->config.source.port.port;
 	assert(port < N_CSI_PORTS);
 	if (port >= N_CSI_PORTS) {
 #else
@@ -442,8 +442,8 @@ allocate_mipi_frames(struct ia_css_pipe *pipe, struct ia_css_stream_info *info)
 
 #ifdef USE_INPUT_SYSTEM_VERSION_2401
 	err = calculate_mipi_buff_size(
-			&(pipe->stream->config),
-			&(my_css.mipi_frame_size[port]));
+			&pipe->stream->config,
+			&my_css.mipi_frame_size[port]);
 #endif
 
 #if defined(USE_INPUT_SYSTEM_VERSION_2)
@@ -486,7 +486,8 @@ allocate_mipi_frames(struct ia_css_pipe *pipe, struct ia_css_stream_info *info)
 
 	/* Incremental allocation (per stream), not for all streams at once. */
 	{ /* limit the scope of i,j */
-		unsigned i, j;
+		unsigned int i, j;
+
 		for (i = 0; i < my_css.num_mipi_frames[port]; i++) {
 			/* free previous frame */
 			if (my_css.mipi_frames[port][i]) {
@@ -515,7 +516,7 @@ allocate_mipi_frames(struct ia_css_pipe *pipe, struct ia_css_stream_info *info)
 			}
 			if (info->metadata_info.size > 0) {
 				/* free previous metadata buffer */
-				if (my_css.mipi_metadata[port][i] != NULL) {
+				if (my_css.mipi_metadata[port][i]) {
 					ia_css_metadata_free(my_css.mipi_metadata[port][i]);
 					my_css.mipi_metadata[port][i] = NULL;
 				}
@@ -523,7 +524,7 @@ allocate_mipi_frames(struct ia_css_pipe *pipe, struct ia_css_stream_info *info)
 				if (i < my_css.num_mipi_frames[port]) {
 					/* allocate new metadata buffer */
 					my_css.mipi_metadata[port][i] = ia_css_metadata_allocate(&info->metadata_info);
-					if (my_css.mipi_metadata[port][i] == NULL) {
+					if (!my_css.mipi_metadata[port][i]) {
 						ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE,
 							"allocate_mipi_metadata(%p, %d) failed.\n",
 							pipe, port);
@@ -558,9 +559,9 @@ free_mipi_frames(struct ia_css_pipe *pipe)
 		"free_mipi_frames(%p) enter:\n", pipe);
 
 	/* assert(pipe != NULL); TEMP: TODO: Should be assert only. */
-	if (pipe != NULL) {
-		assert(pipe->stream != NULL);
-		if ((pipe == NULL) || (pipe->stream == NULL)) {
+	if (pipe) {
+		assert(pipe->stream);
+		if ((!pipe) || (!pipe->stream)) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE,
 				"free_mipi_frames(%p) exit: error: pipe or stream is null.\n",
 				pipe);
@@ -581,7 +582,7 @@ free_mipi_frames(struct ia_css_pipe *pipe)
 		}
 
 #ifndef ISP2401
-		port = (unsigned int) pipe->stream->config.source.port.port;
+		port = (unsigned int)pipe->stream->config.source.port.port;
 		assert(port < N_CSI_PORTS);
 		if (port >= N_CSI_PORTS) {
 #else
@@ -615,14 +616,15 @@ free_mipi_frames(struct ia_css_pipe *pipe)
 			if (ref_count_mipi_allocation[port] == 0) {
 				/* no streams are using this buffer, so free it */
 				unsigned int i;
+
 				for (i = 0; i < my_css.num_mipi_frames[port]; i++) {
-					if (my_css.mipi_frames[port][i] != NULL) {
+					if (my_css.mipi_frames[port][i]) {
 						ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE,
 							"free_mipi_frames(port=%d, num=%d).\n", port, i);
 						ia_css_frame_free(my_css.mipi_frames[port][i]);
 						my_css.mipi_frames[port][i] = NULL;
 					}
-					if (my_css.mipi_metadata[port][i] != NULL) {
+					if (my_css.mipi_metadata[port][i]) {
 						ia_css_metadata_free(my_css.mipi_metadata[port][i]);
 						my_css.mipi_metadata[port][i] = NULL;
 					}
@@ -648,14 +650,15 @@ free_mipi_frames(struct ia_css_pipe *pipe)
 		/* AM TEMP: free-ing all mipi buffers just like a legacy code. */
 		for (port = CSI_PORT0_ID; port < N_CSI_PORTS; port++) {
 			unsigned int i;
+
 			for (i = 0; i < my_css.num_mipi_frames[port]; i++) {
-				if (my_css.mipi_frames[port][i] != NULL) {
+				if (my_css.mipi_frames[port][i]) {
 					ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE,
 						"free_mipi_frames(port=%d, num=%d).\n", port, i);
 					ia_css_frame_free(my_css.mipi_frames[port][i]);
 					my_css.mipi_frames[port][i] = NULL;
 				}
-				if (my_css.mipi_metadata[port][i] != NULL) {
+				if (my_css.mipi_metadata[port][i]) {
 					ia_css_metadata_free(my_css.mipi_metadata[port][i]);
 					my_css.mipi_metadata[port][i] = NULL;
 				}
@@ -683,9 +686,9 @@ send_mipi_frames(struct ia_css_pipe *pipe)
 
 	IA_CSS_ENTER_PRIVATE("pipe=%p", pipe);
 
-	assert(pipe != NULL);
-	assert(pipe->stream != NULL);
-	if (pipe == NULL || pipe->stream == NULL) {
+	assert(pipe);
+	assert(pipe->stream);
+	if (!pipe || !pipe->stream) {
 		IA_CSS_ERROR("pipe or stream is null");
 		return IA_CSS_ERR_INVALID_ARGUMENTS;
 	}
@@ -705,7 +708,7 @@ send_mipi_frames(struct ia_css_pipe *pipe)
 	}
 
 #ifndef ISP2401
-	port = (unsigned int) pipe->stream->config.source.port.port;
+	port = (unsigned int)pipe->stream->config.source.port.port;
 	assert(port < N_CSI_PORTS);
 	if (port >= N_CSI_PORTS) {
 		IA_CSS_ERROR("invalid port specified (%d)", port);

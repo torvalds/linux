@@ -211,4 +211,3 @@ ia_css_config_gamma_table(void)
 	default_gamma_table.vamem_type   = IA_CSS_VAMEM_TYPE_1;
 #endif
 }
-

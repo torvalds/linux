@@ -15,6 +15,8 @@
 #ifndef __IA_CSS_CTC_TYPES_H
 #define __IA_CSS_CTC_TYPES_H
 
+#include <linux/bitops.h>
+
 /* @file
 * CSS-API header file for Chroma Tone Control parameters.
 */
@@ -35,12 +37,12 @@
 /* Number of elements in the CTC table. */
 #define IA_CSS_VAMEM_1_CTC_TABLE_SIZE_LOG2      10
 /* Number of elements in the CTC table. */
-#define IA_CSS_VAMEM_1_CTC_TABLE_SIZE           (1U<<IA_CSS_VAMEM_1_CTC_TABLE_SIZE_LOG2)
+#define IA_CSS_VAMEM_1_CTC_TABLE_SIZE           BIT(IA_CSS_VAMEM_1_CTC_TABLE_SIZE_LOG2)
 
 /* Number of elements in the CTC table. */
 #define IA_CSS_VAMEM_2_CTC_TABLE_SIZE_LOG2      8
 /* Number of elements in the CTC table. */
-#define IA_CSS_VAMEM_2_CTC_TABLE_SIZE           ((1U<<IA_CSS_VAMEM_2_CTC_TABLE_SIZE_LOG2) + 1)
+#define IA_CSS_VAMEM_2_CTC_TABLE_SIZE           ((1U << IA_CSS_VAMEM_2_CTC_TABLE_SIZE_LOG2) + 1)
 
 enum ia_css_vamem_type {
 	IA_CSS_VAMEM_TYPE_1,
@@ -54,44 +56,44 @@ enum ia_css_vamem_type {
  *  ISP2: CTC2 is used.
  */
 struct ia_css_ctc_config {
-	uint16_t y0;	/** 1st kneepoint gain.
+	u16 y0;	/** 1st kneepoint gain.
 				u[ce_gain_exp].[13-ce_gain_exp], [0,8191],
 				default/ineffective 4096(0.5) */
-	uint16_t y1;	/** 2nd kneepoint gain.
+	u16 y1;	/** 2nd kneepoint gain.
 				u[ce_gain_exp].[13-ce_gain_exp], [0,8191],
 				default/ineffective 4096(0.5) */
-	uint16_t y2;	/** 3rd kneepoint gain.
+	u16 y2;	/** 3rd kneepoint gain.
 				u[ce_gain_exp].[13-ce_gain_exp], [0,8191],
 				default/ineffective 4096(0.5) */
-	uint16_t y3;	/** 4th kneepoint gain.
+	u16 y3;	/** 4th kneepoint gain.
 				u[ce_gain_exp].[13-ce_gain_exp], [0,8191],
 				default/ineffective 4096(0.5) */
-	uint16_t y4;	/** 5th kneepoint gain.
+	u16 y4;	/** 5th kneepoint gain.
 				u[ce_gain_exp].[13-ce_gain_exp], [0,8191],
 				default/ineffective 4096(0.5) */
-	uint16_t y5;	/** 6th kneepoint gain.
+	u16 y5;	/** 6th kneepoint gain.
 				u[ce_gain_exp].[13-ce_gain_exp], [0,8191],
 				default/ineffective 4096(0.5) */
-	uint16_t ce_gain_exp;	/** Common exponent of y-axis gain.
+	u16 ce_gain_exp;	/** Common exponent of y-axis gain.
 				u8.0, [0,13],
 				default/ineffective 1 */
-	uint16_t x1;	/** 2nd kneepoint luma.
+	u16 x1;	/** 2nd kneepoint luma.
 				u0.13, [0,8191], constraints: 0<x1<x2,
 				default/ineffective 1024 */
-	uint16_t x2;	/** 3rd kneepoint luma.
+	u16 x2;	/** 3rd kneepoint luma.
 				u0.13, [0,8191], constraints: x1<x2<x3,
 				default/ineffective 2048 */
-	uint16_t x3;	/** 4th kneepoint luma.
+	u16 x3;	/** 4th kneepoint luma.
 				u0.13, [0,8191], constraints: x2<x3<x4,
 				default/ineffective 6144 */
-	uint16_t x4;	/** 5tn kneepoint luma.
+	u16 x4;	/** 5tn kneepoint luma.
 				u0.13, [0,8191], constraints: x3<x4<8191,
 				default/ineffective 7168 */
 };
 
 union ia_css_ctc_data {
-	uint16_t vamem_1[IA_CSS_VAMEM_1_CTC_TABLE_SIZE];
-	uint16_t vamem_2[IA_CSS_VAMEM_2_CTC_TABLE_SIZE];
+	u16 vamem_1[IA_CSS_VAMEM_1_CTC_TABLE_SIZE];
+	u16 vamem_2[IA_CSS_VAMEM_2_CTC_TABLE_SIZE];
 };
 
 /* CTC table, used for Chroma Tone Control.
@@ -106,5 +108,3 @@ struct ia_css_ctc_table {
 };
 
 #endif /* __IA_CSS_CTC_TYPES_H */
-
-

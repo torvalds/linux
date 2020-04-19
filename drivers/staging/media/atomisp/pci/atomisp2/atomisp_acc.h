@@ -70,7 +70,6 @@ int atomisp_acc_unmap(struct atomisp_sub_device *asd,
 int atomisp_acc_s_mapped_arg(struct atomisp_sub_device *asd,
 			     struct atomisp_acc_s_mapped_arg *arg);
 
-
 /*
  * Start acceleration.
  * Return immediately, acceleration is left running in background.

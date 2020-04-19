@@ -22,4 +22,3 @@
 #define bitop_clearbit(a, b) ((a) &= ~(1UL << (b)))
 
 #endif /* __BITOP_SUPPORT_H_INCLUDED__ */
-

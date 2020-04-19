@@ -19,4 +19,4 @@
 
 #define _HRT_TIMED_CONTROLLER_REG_ALIGN 4
 
-#endif /* _timed_controller_defs_h */   
+#endif /* _timed_controller_defs_h */

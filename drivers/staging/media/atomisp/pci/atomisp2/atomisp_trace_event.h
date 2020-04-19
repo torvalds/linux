@@ -54,9 +54,7 @@ TRACE_EVENT(camera_meminfo,
 	),
 
 	TP_printk(
-		"<%s> User ptr memory:%d pages,\tISP private memory used:%d"
-		" pages:\tsysFP system size:%d,\treserved size:%d"
-		"\tcamFP sysUse:%d,\tdycUse:%d,\tresUse:%d.\n",
+		"<%s> User ptr memory:%d pages,\tISP private memory used:%d pages:\tsysFP system size:%d,\treserved size:%d\tcamFP sysUse:%d,\tdycUse:%d,\tresUse:%d.\n",
 		__entry->name, __entry->uptr_size, __entry->counter,
 		__entry->sys_size, __entry->sys_res_size, __entry->cam_sys_use,
 		__entry->cam_dyc_use, __entry->cam_res_use)

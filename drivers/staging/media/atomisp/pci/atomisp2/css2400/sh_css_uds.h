@@ -23,15 +23,15 @@
 /* Uds types, used in pipeline_global.h and sh_css_internal.h */
 
 struct sh_css_uds_info {
-	uint16_t curr_dx;
-	uint16_t curr_dy;
-	uint16_t xc;
-	uint16_t yc;
+	u16 curr_dx;
+	u16 curr_dy;
+	u16 xc;
+	u16 yc;
 };
 
 struct sh_css_crop_pos {
-	uint16_t x;
-	uint16_t y;
+	u16 x;
+	u16 y;
 };
 
 #endif /* _SH_CSS_UDS_H_ */

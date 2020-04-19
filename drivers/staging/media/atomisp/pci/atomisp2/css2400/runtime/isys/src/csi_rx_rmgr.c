@@ -60,16 +60,16 @@ bool ia_css_isys_csi_rx_lut_rmgr_acquire(
 	csi_rx_backend_lut_entry_t	*entry)
 {
 	bool retval = false;
-	uint32_t max_num_packets_of_type;
-	uint32_t num_active_of_type;
+	u32 max_num_packets_of_type;
+	u32 num_active_of_type;
 	isys_csi_rx_rsrc_t *cur_rsrc = NULL;
-	uint16_t i;
+	u16 i;
 
 	assert(backend < N_CSI_RX_BACKEND_ID);
 	assert((packet_type == CSI_MIPI_PACKET_TYPE_LONG) || (packet_type == CSI_MIPI_PACKET_TYPE_SHORT));
-	assert(entry != NULL);
+	assert(entry);
 
-	if ((backend < N_CSI_RX_BACKEND_ID) && (entry != NULL)) {
+	if ((backend < N_CSI_RX_BACKEND_ID) && (entry)) {
 		cur_rsrc = &isys_csi_rx_rsrc[backend];
 		if (packet_type == CSI_MIPI_PACKET_TYPE_LONG) {
 			max_num_packets_of_type = N_LONG_PACKET_LUT_ENTRIES[backend];
@@ -108,15 +108,15 @@ void ia_css_isys_csi_rx_lut_rmgr_release(
 	csi_mipi_packet_type_t		packet_type,
 	csi_rx_backend_lut_entry_t	*entry)
 {
-	uint32_t max_num_packets;
+	u32 max_num_packets;
 	isys_csi_rx_rsrc_t *cur_rsrc = NULL;
-	uint32_t packet_entry = 0;
+	u32 packet_entry = 0;
 
 	assert(backend < N_CSI_RX_BACKEND_ID);
-	assert(entry != NULL);
+	assert(entry);
 	assert((packet_type >= CSI_MIPI_PACKET_TYPE_LONG) || (packet_type <= CSI_MIPI_PACKET_TYPE_SHORT));
 
-	if ((backend < N_CSI_RX_BACKEND_ID) && (entry != NULL)) {
+	if ((backend < N_CSI_RX_BACKEND_ID) && (entry)) {
 		if (packet_type == CSI_MIPI_PACKET_TYPE_LONG) {
 			max_num_packets = N_LONG_PACKET_LUT_ENTRIES[backend];
 			packet_entry = entry->long_packet_entry;
@@ -149,6 +149,7 @@ enum ia_css_err ia_css_isys_csi_rx_register_stream(
 	if ((port < N_INPUT_SYSTEM_CSI_PORT) &&
 	    (isys_stream_id < SH_CSS_MAX_ISYS_CHANNEL_NODES)) {
 		struct sh_css_sp_pipeline_io_status *pipe_io_status;
+
 		pipe_io_status = ia_css_pipeline_get_pipe_io_status();
 		if (bitop_getbit(pipe_io_status->active[port], isys_stream_id) == 0) {
 			bitop_setbit(pipe_io_status->active[port], isys_stream_id);
@@ -168,6 +169,7 @@ enum ia_css_err ia_css_isys_csi_rx_unregister_stream(
 	if ((port < N_INPUT_SYSTEM_CSI_PORT) &&
 	    (isys_stream_id < SH_CSS_MAX_ISYS_CHANNEL_NODES)) {
 		struct sh_css_sp_pipeline_io_status *pipe_io_status;
+
 		pipe_io_status = ia_css_pipeline_get_pipe_io_status();
 		if (bitop_getbit(pipe_io_status->active[port], isys_stream_id) == 1) {
 			bitop_clearbit(pipe_io_status->active[port], isys_stream_id);

@@ -708,7 +708,7 @@ void hmm_init_mem_stat(int res_pgnr, int dyc_en, int dyc_pgnr)
 {
 	hmm_mem_stat.res_size = res_pgnr;
 	/* If reserved mem pool is not enabled, set its "mem stat" values as -1. */
-	if (0 == hmm_mem_stat.res_size) {
+	if (hmm_mem_stat.res_size == 0) {
 		hmm_mem_stat.res_size = -1;
 		hmm_mem_stat.res_cnt = -1;
 	}

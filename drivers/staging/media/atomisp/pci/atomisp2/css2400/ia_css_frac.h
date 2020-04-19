@@ -26,12 +26,12 @@
  * to save on extension operations in the ISP code.
  */
 /* Unsigned fixed point value, 0 integer bits, 16 fractional bits */
-typedef uint32_t ia_css_u0_16;
+typedef u32 ia_css_u0_16;
 /* Unsigned fixed point value, 5 integer bits, 11 fractional bits */
-typedef uint32_t ia_css_u5_11;
+typedef u32 ia_css_u5_11;
 /* Unsigned fixed point value, 8 integer bits, 8 fractional bits */
-typedef uint32_t ia_css_u8_8;
+typedef u32 ia_css_u8_8;
 /* Signed fixed point value, 0 integer bits, 15 fractional bits */
-typedef int32_t ia_css_s0_15;
+typedef s32 ia_css_s0_15;
 
 #endif /* _IA_CSS_FRAC_H */

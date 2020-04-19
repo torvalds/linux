@@ -45,7 +45,7 @@ ia_css_circbuf_read(ia_css_circbuf_t *cb);
  * @param chunk_dest The position to which the first element in the chunk would be shift.
  */
 static inline void ia_css_circbuf_shift_chunk(ia_css_circbuf_t *cb,
-						   uint32_t chunk_src,
+						   u32 chunk_src,
 						   uint32_t chunk_dest);
 
 /*
@@ -72,7 +72,7 @@ ia_css_circbuf_create(ia_css_circbuf_t *cb,
 			   ia_css_circbuf_elem_t *elems,
 			   ia_css_circbuf_desc_t *desc)
 {
-	uint32_t i;
+	u32 i;
 
 	OP___assert(desc);
 
@@ -105,7 +105,7 @@ void ia_css_circbuf_destroy(ia_css_circbuf_t *cb)
  */
 uint32_t ia_css_circbuf_pop(ia_css_circbuf_t *cb)
 {
-	uint32_t ret;
+	u32 ret;
 	ia_css_circbuf_elem_t elem;
 
 	assert(!ia_css_circbuf_is_empty(cb));
@@ -123,10 +123,10 @@ uint32_t ia_css_circbuf_pop(ia_css_circbuf_t *cb)
 uint32_t ia_css_circbuf_extract(ia_css_circbuf_t *cb, int offset)
 {
 	int max_offset;
-	uint32_t val;
-	uint32_t pos;
-	uint32_t src_pos;
-	uint32_t dest_pos;
+	u32 val;
+	u32 pos;
+	u32 src_pos;
+	u32 dest_pos;
 
 	/* get the maximum offest */
 	max_offset = ia_css_circbuf_get_offset(cb, cb->desc->start, cb->desc->end);
@@ -204,8 +204,8 @@ bool ia_css_circbuf_increase_size(
 				unsigned int sz_delta,
 				ia_css_circbuf_elem_t *elems)
 {
-	uint8_t curr_size;
-	uint8_t curr_end;
+	u8 curr_size;
+	u8 curr_end;
 	unsigned int i = 0;
 
 	if (!cb || sz_delta == 0)
@@ -288,7 +288,7 @@ ia_css_circbuf_read(ia_css_circbuf_t *cb)
  */
 static inline void
 ia_css_circbuf_shift_chunk(ia_css_circbuf_t *cb,
-				uint32_t chunk_src, uint32_t chunk_dest)
+				u32 chunk_src, uint32_t chunk_dest)
 {
 	int chunk_offset;
 	int chunk_sz;
@@ -301,7 +301,6 @@ ia_css_circbuf_shift_chunk(ia_css_circbuf_t *cb,
 
 	/* shift each element to its terminal position */
 	for (i = 0; i < chunk_sz; i++) {
-
 		/* copy the element from the source to the destination */
 		ia_css_circbuf_elem_cpy(&cb->elems[chunk_src],
 					     &cb->elems[chunk_dest]);
@@ -312,10 +311,8 @@ ia_css_circbuf_shift_chunk(ia_css_circbuf_t *cb,
 		/* adjust the source/terminal positions */
 		chunk_src = ia_css_circbuf_get_pos_at_offset(cb, chunk_src, -1);
 		chunk_dest = ia_css_circbuf_get_pos_at_offset(cb, chunk_dest, -1);
-
 	}
 
 	/* adjust the index "start" */
 	cb->desc->start = ia_css_circbuf_get_pos_at_offset(cb, cb->desc->start, chunk_offset);
 }
-

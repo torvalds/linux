@@ -64,7 +64,7 @@ void irq_clear_all(
 	assert(IRQ_N_CHANNEL[ID] <= HRT_DATA_WIDTH);
 
 	if (IRQ_N_CHANNEL[ID] < HRT_DATA_WIDTH) {
-		mask = ~((~(hrt_data)0)>>IRQ_N_CHANNEL[ID]);
+		mask = ~((~(hrt_data)0) >> IRQ_N_CHANNEL[ID]);
 	}
 
 	irq_reg_store(ID,
@@ -119,7 +119,7 @@ void irq_enable_channel(
 
 void irq_enable_pulse(
 	const irq_ID_t	ID,
-	bool 			pulse)
+	bool			pulse)
 {
 	unsigned int edge_out = 0x0;
 
@@ -173,7 +173,7 @@ enum hrt_isp_css_irq_status irq_get_channel_id(
 	enum hrt_isp_css_irq_status status = hrt_isp_css_irq_status_success;
 
 	assert(ID < N_IRQ_ID);
-	assert(irq_id != NULL);
+	assert(irq_id);
 
 /* find the first irq bit */
 	for (idx = 0; idx < IRQ_N_CHANNEL[ID]; idx++) {
@@ -192,7 +192,7 @@ enum hrt_isp_css_irq_status irq_get_channel_id(
 
 	irq_wait_for_write_complete(ID);
 
-	if (irq_id != NULL)
+	if (irq_id)
 		*irq_id = (unsigned int)idx;
 
 	return status;
@@ -228,7 +228,7 @@ void irq_controller_get_state(
 	irq_controller_state_t		*state)
 {
 	assert(ID < N_IRQ_ID);
-	assert(state != NULL);
+	assert(state);
 
 	state->irq_edge = irq_reg_load(ID,
 		_HRT_IRQ_CONTROLLER_EDGE_REG_IDX);
@@ -258,10 +258,10 @@ void cnd_virq_enable_channel(
 	irq_ID_t		i;
 	unsigned int	channel_ID;
 	irq_ID_t		ID = virq_get_irq_id(irq_ID, &channel_ID);
-	
+
 	assert(ID < N_IRQ_ID);
 
-	for (i=IRQ1_ID;i<N_IRQ_ID;i++) {
+	for (i = IRQ1_ID; i < N_IRQ_ID; i++) {
 	/* It is not allowed to enable the pin of a nested IRQ directly */
 		assert(irq_ID != IRQ_NESTING_ID[i]);
 	}
@@ -282,7 +282,6 @@ void cnd_virq_enable_channel(
 	return;
 }
 
-
 void virq_clear_all(void)
 {
 	irq_ID_t	irq_id;
@@ -299,7 +298,7 @@ enum hrt_isp_css_irq_status virq_get_channel_signals(
 	enum hrt_isp_css_irq_status irq_status = hrt_isp_css_irq_status_error;
 	irq_ID_t ID;
 
-	assert(irq_info != NULL);
+	assert(irq_info);
 
 	for (ID = (irq_ID_t)0 ; ID < N_IRQ_ID; ID++) {
 		if (any_irq_channel_enabled(ID)) {
@@ -328,7 +327,7 @@ void virq_clear_info(
 {
 	irq_ID_t ID;
 
-	assert(irq_info != NULL);
+	assert(irq_info);
 
 	for (ID = (irq_ID_t)0 ; ID < N_IRQ_ID; ID++) {
 			irq_info->irq_status_reg[ID] = 0;
@@ -345,7 +344,7 @@ enum hrt_isp_css_irq_status virq_get_channel_id(
 	enum hrt_isp_css_irq_status status = hrt_isp_css_irq_status_success;
 	irq_ID_t ID;
 
-	assert(irq_id != NULL);
+	assert(irq_id);
 
 /* find the first irq bit on device 0 */
 	for (idx = 0; idx < IRQ_N_CHANNEL[IRQ0_ID]; idx++) {
@@ -363,7 +362,7 @@ enum hrt_isp_css_irq_status virq_get_channel_id(
 	}
 
 /* Check whether we have an IRQ on one of the nested devices */
-	for (ID = N_IRQ_ID-1 ; ID > (irq_ID_t)0; ID--) {
+	for (ID = N_IRQ_ID - 1 ; ID > (irq_ID_t)0; ID--) {
 		if (IRQ_NESTING_ID[ID] == (virq_id_t)idx) {
 			break;
 		}
@@ -400,7 +399,7 @@ enum hrt_isp_css_irq_status virq_get_channel_id(
 	irq_wait_for_write_complete(ID);
 
 	idx += IRQ_N_ID_OFFSET[ID];
-	if (irq_id != NULL)
+	if (irq_id)
 		*irq_id = (virq_id_t)idx;
 
 	return status;
@@ -412,7 +411,7 @@ static inline void irq_wait_for_write_complete(
 	assert(ID < N_IRQ_ID);
 	assert(IRQ_BASE[ID] != (hrt_address)-1);
 	(void)ia_css_device_load_uint32(IRQ_BASE[ID] +
-		_HRT_IRQ_CONTROLLER_ENABLE_REG_IDX*sizeof(hrt_data));
+		_HRT_IRQ_CONTROLLER_ENABLE_REG_IDX * sizeof(hrt_data));
 }
 
 static inline bool any_irq_channel_enabled(
@@ -434,7 +433,7 @@ static inline irq_ID_t virq_get_irq_id(
 {
 	irq_ID_t ID;
 
-	assert(channel_ID != NULL);
+	assert(channel_ID);
 
 	for (ID = (irq_ID_t)0 ; ID < N_IRQ_ID; ID++) {
 		if (irq_ID < IRQ_N_ID_OFFSET[ID + 1]) {

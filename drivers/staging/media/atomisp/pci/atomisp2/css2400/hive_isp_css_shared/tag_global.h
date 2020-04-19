@@ -21,12 +21,12 @@
 #define TAG_EXP	2
 
 #define TAG_NUM_CAPTURES_SIGN_SHIFT	 6
-#define TAG_OFFSET_SIGN_SHIFT 		 7
-#define TAG_NUM_CAPTURES_SHIFT 		 8
-#define TAG_OFFSET_SHIFT 		16
-#define TAG_SKIP_SHIFT 			24
+#define TAG_OFFSET_SIGN_SHIFT		 7
+#define TAG_NUM_CAPTURES_SHIFT		 8
+#define TAG_OFFSET_SHIFT		16
+#define TAG_SKIP_SHIFT			24
 
-#define TAG_EXP_ID_SHIFT 		 8
+#define TAG_EXP_ID_SHIFT		 8
 
 /* Data structure containing the tagging information which is used in
  * continuous mode to specify which frames should be captured.

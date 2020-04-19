@@ -18,7 +18,6 @@
 #include "type_support.h"
 #include "vmem.h" /* for VMEM_ARRAY*/
 
-
 /* 4 planes : GR, R, B, GB */
 #define NUM_PLANES		4
 
@@ -39,15 +38,14 @@
 #define DPC2_STATE_SECOND_MINMAX_BUFFER_HEIGHT	1
 #define DPC2_STATE_SECOND_MINMAX_BUFFER_WIDTH	MAX_FRAME_SIMDWIDTH
 
-
 struct ia_css_isp_dpc2_params {
-	int32_t metric1;
-	int32_t metric2;
-	int32_t metric3;
-	int32_t wb_gain_gr;
-	int32_t wb_gain_r;
-	int32_t wb_gain_b;
-	int32_t wb_gain_gb;
+	s32 metric1;
+	s32 metric2;
+	s32 metric3;
+	s32 wb_gain_gr;
+	s32 wb_gain_r;
+	s32 wb_gain_b;
+	s32 wb_gain_gb;
 };
 
 #endif /* __IA_CSS_DPC2_PARAM_H */

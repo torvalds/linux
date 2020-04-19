@@ -161,7 +161,7 @@ bool ia_css_query_internal_queue_id(
 {
 	IA_CSS_ENTER("buf_type=%d, thread_id=%d, val = %p", buf_type, thread_id, val);
 
-	if ((val == NULL) || (thread_id >= SH_CSS_MAX_SP_THREADS) || (buf_type >= IA_CSS_NUM_DYNAMIC_BUFFER_TYPE)) {
+	if ((!val) || (thread_id >= SH_CSS_MAX_SP_THREADS) || (buf_type >= IA_CSS_NUM_DYNAMIC_BUFFER_TYPE)) {
 		IA_CSS_LEAVE("return_val = false");
 		return false;
 	}
@@ -231,7 +231,6 @@ static void unmap_buffer_type_to_queue_id(
 	buffer_type_to_queue_id_map[thread_id][buf_type] = SH_CSS_INVALID_QUEUE_ID;
 	queue_availability[thread_id][queue_id] = true;
 }
-
 
 static ia_css_queue_t *bufq_get_qhandle(
 	enum sh_css_queue_type type,
@@ -369,7 +368,7 @@ enum ia_css_err ia_css_bufq_enqueue_buffer(
 	q = bufq_get_qhandle(sh_css_host2sp_buffer_queue,
 		queue_id,
 		thread_index);
-	if (q != NULL) {
+	if (q) {
 		error = ia_css_queue_enqueue(q, item);
 		return_err = ia_css_convert_errno(error);
 	} else {
@@ -390,7 +389,7 @@ enum ia_css_err ia_css_bufq_dequeue_buffer(
 	ia_css_queue_t *q;
 
 	IA_CSS_ENTER_PRIVATE("queue_id=%d", queue_id);
-	if ((item == NULL) ||
+	if ((!item) ||
 	    (queue_id <= SH_CSS_INVALID_QUEUE_ID) ||
 	    (queue_id >= SH_CSS_MAX_NUM_QUEUES)
 	   )
@@ -399,7 +398,7 @@ enum ia_css_err ia_css_bufq_dequeue_buffer(
 	q = bufq_get_qhandle(sh_css_sp2host_buffer_queue,
 		queue_id,
 		-1);
-	if (q != NULL) {
+	if (q) {
 		error = ia_css_queue_dequeue(q, item);
 		return_err = ia_css_convert_errno(error);
 	} else {
@@ -412,9 +411,9 @@ enum ia_css_err ia_css_bufq_dequeue_buffer(
 }
 
 enum ia_css_err ia_css_bufq_enqueue_psys_event(
-	uint8_t evt_id,
-	uint8_t evt_payload_0,
-	uint8_t evt_payload_1,
+	u8 evt_id,
+	u8 evt_payload_0,
+	u8 evt_payload_1,
 	uint8_t evt_payload_2)
 {
 	enum ia_css_err return_err;
@@ -423,7 +422,7 @@ enum ia_css_err ia_css_bufq_enqueue_psys_event(
 
 	IA_CSS_ENTER_PRIVATE("evt_id=%d", evt_id);
 	q = bufq_get_qhandle(sh_css_host2sp_psys_event_queue, -1, -1);
-	if (NULL == q) {
+	if (!q) {
 		IA_CSS_ERROR("queue is not initialized");
 		return IA_CSS_ERR_RESOURCE_NOT_AVAILABLE;
 	}
@@ -437,7 +436,7 @@ enum ia_css_err ia_css_bufq_enqueue_psys_event(
 }
 
 enum  ia_css_err ia_css_bufq_dequeue_psys_event(
-	uint8_t item[BUFQ_EVENT_SIZE])
+	u8 item[BUFQ_EVENT_SIZE])
 {
 	enum ia_css_err;
 	int error = 0;
@@ -446,22 +445,21 @@ enum  ia_css_err ia_css_bufq_dequeue_psys_event(
 	/* No ENTER/LEAVE in this function since this is polled
 	 * by some test apps. Enablign logging here floods the log
 	 * files which may cause timeouts. */
-	if (item == NULL)
+	if (!item)
 		return IA_CSS_ERR_INVALID_ARGUMENTS;
 
 	q = bufq_get_qhandle(sh_css_sp2host_psys_event_queue, -1, -1);
-	if (NULL == q) {
+	if (!q) {
 		IA_CSS_ERROR("queue is not initialized");
 		return IA_CSS_ERR_RESOURCE_NOT_AVAILABLE;
 	}
 	error = ia_css_eventq_recv(q, item);
 
 	return ia_css_convert_errno(error);
-
 }
 
 enum  ia_css_err ia_css_bufq_dequeue_isys_event(
-	uint8_t item[BUFQ_EVENT_SIZE])
+	u8 item[BUFQ_EVENT_SIZE])
 {
 #if !defined(HAS_NO_INPUT_SYSTEM)
 	enum ia_css_err;
@@ -471,11 +469,11 @@ enum  ia_css_err ia_css_bufq_dequeue_isys_event(
 	/* No ENTER/LEAVE in this function since this is polled
 	 * by some test apps. Enablign logging here floods the log
 	 * files which may cause timeouts. */
-	if (item == NULL)
+	if (!item)
 		return IA_CSS_ERR_INVALID_ARGUMENTS;
 
 	q = bufq_get_qhandle(sh_css_sp2host_isys_event_queue, -1, -1);
-	if (q == NULL) {
+	if (!q) {
 		IA_CSS_ERROR("queue is not initialized");
 		return IA_CSS_ERR_RESOURCE_NOT_AVAILABLE;
 	}
@@ -496,7 +494,7 @@ enum ia_css_err ia_css_bufq_enqueue_isys_event(uint8_t evt_id)
 
 	IA_CSS_ENTER_PRIVATE("event_id=%d", evt_id);
 	q = bufq_get_qhandle(sh_css_host2sp_isys_event_queue, -1, -1);
-	if (q == NULL) {
+	if (!q) {
 		IA_CSS_ERROR("queue is not initialized");
 		return IA_CSS_ERR_RESOURCE_NOT_AVAILABLE;
 	}
@@ -521,7 +519,7 @@ enum ia_css_err ia_css_bufq_enqueue_tag_cmd(
 
 	IA_CSS_ENTER_PRIVATE("item=%d", item);
 	q = bufq_get_qhandle(sh_css_host2sp_tag_cmd_queue, -1, -1);
-	if (NULL == q) {
+	if (!q) {
 		IA_CSS_ERROR("queue is not initialized");
 		return IA_CSS_ERR_RESOURCE_NOT_AVAILABLE;
 	}
@@ -543,13 +541,13 @@ enum ia_css_err ia_css_bufq_deinit(void)
 
 static void bufq_dump_queue_info(const char *prefix, ia_css_queue_t *qhandle)
 {
-	uint32_t free = 0, used = 0;
-	assert(prefix != NULL && qhandle != NULL);
+	u32 free = 0, used = 0;
+
+	assert(prefix && qhandle);
 	ia_css_queue_get_used_space(qhandle, &used);
 	ia_css_queue_get_free_space(qhandle, &free);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "%s: used=%u free=%u\n",
 		prefix, used, free);
-
 }
 
 void ia_css_bufq_dump_queue_info(void)

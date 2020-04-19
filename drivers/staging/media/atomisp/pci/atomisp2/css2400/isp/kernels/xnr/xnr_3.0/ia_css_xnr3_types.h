@@ -23,20 +23,19 @@
  * \brief Scale of the XNR sigma parameters.
  * \details The define specifies which fixed-point value represents 1.0.
  */
-#define IA_CSS_XNR3_SIGMA_SCALE  (1 << 10)
+#define IA_CSS_XNR3_SIGMA_SCALE  BIT(10)
 
 /**
  * \brief Scale of the XNR coring parameters.
  * \details The define specifies which fixed-point value represents 1.0.
  */
-#define IA_CSS_XNR3_CORING_SCALE (1 << 15)
+#define IA_CSS_XNR3_CORING_SCALE BIT(15)
 
 /**
  * \brief Scale of the XNR blending parameter.
  * \details The define specifies which fixed-point value represents 1.0.
  */
-#define IA_CSS_XNR3_BLENDING_SCALE (1 << 11)
-
+#define IA_CSS_XNR3_BLENDING_SCALE BIT(11)
 
 /**
  * \brief XNR3 Sigma Parameters.

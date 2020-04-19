@@ -40,9 +40,8 @@ struct ia_css_output1_configuration {
 };
 
 struct ia_css_output_config {
-	uint8_t enable_hflip;  /** enable horizontal output mirroring */
-	uint8_t enable_vflip;  /** enable vertical output mirroring */
+	u8 enable_hflip;  /** enable horizontal output mirroring */
+	u8 enable_vflip;  /** enable vertical output mirroring */
 };
 
 #endif /* __IA_CSS_OUTPUT_TYPES_H */
-

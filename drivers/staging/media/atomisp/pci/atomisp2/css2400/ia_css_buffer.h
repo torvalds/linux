@@ -64,7 +64,7 @@ struct ia_css_buffer {
 		struct ia_css_acc_param          *custom_data; /** Custom buffer. */
 		struct ia_css_metadata           *metadata;    /** Sensor metadata. */
 	} data; /** Buffer data pointer. */
-	uint64_t driver_cookie; /** cookie for the driver */
+	u64 driver_cookie; /** cookie for the driver */
 	struct ia_css_time_meas timing_data; /** timing data (readings from the timer) */
 	struct ia_css_clock_tick isys_eof_clock_tick; /** ISYS's end of frame timer tick*/
 };

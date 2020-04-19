@@ -31,7 +31,6 @@ struct ia_css_isp_parameters;
 #include "uds/uds_1.0/ia_css_uds_param.h"
 #include "crop/crop_1.0/ia_css_crop_types.h"
 
-
 #define PIX_SHIFT_FILTER_RUN_IN_X 12
 #define PIX_SHIFT_FILTER_RUN_IN_Y 12
 
@@ -41,7 +40,6 @@ struct sh_css_isp_param_configs {
 	/* OB (Optical Black) */
 	struct sh_css_isp_ob_stream_config ob;
 };
-
 
 /* Isp parameters per stream */
 struct ia_css_isp_parameters {
@@ -113,6 +111,7 @@ struct ia_css_isp_parameters {
 	struct ia_css_dvs2_coefficients dvs2_coefs;
 
 	bool isp_params_changed;
+
 	bool isp_mem_params_changed
 		[IA_CSS_PIPE_ID_NUM][SH_CSS_MAX_STAGES][IA_CSS_NUM_MEMORIES];
 	bool dz_config_changed;
@@ -145,7 +144,7 @@ struct ia_css_isp_parameters {
 	struct sh_css_ddr_address_map ddr_ptrs;
 	struct sh_css_ddr_address_map_size ddr_ptrs_size;
 	struct ia_css_frame *output_frame; /** Output frame the config is to be applied to (optional) */
-	uint32_t isp_parameters_id; /** Unique ID to track which config was actually applied to a particular frame */
+	u32 isp_parameters_id; /** Unique ID to track which config was actually applied to a particular frame */
 };
 
 void

@@ -31,7 +31,7 @@ sh_css_create_tag_descr(int num_captures,
 			unsigned int exp_id,
 			struct sh_css_tag_descr *tag_descr)
 {
-	assert(tag_descr != NULL);
+	assert(tag_descr);
 
 	tag_descr->num_captures = num_captures;
 	tag_descr->skip		= skip;
@@ -55,7 +55,7 @@ sh_css_encode_tag_descr(struct sh_css_tag_descr *tag)
 	unsigned int exp_id;
 	unsigned int encoded_tag;
 
-	assert(tag != NULL);
+	assert(tag);
 
 	if (tag->num_captures < 0) {
 		num_captures = -tag->num_captures;
@@ -80,16 +80,14 @@ sh_css_encode_tag_descr(struct sh_css_tag_descr *tag)
 		assert((num_captures == 0) && (skip == 0) && (offset == 0));
 
 		encoded_tag = TAG_EXP | (exp_id & 0xFF) << TAG_EXP_ID_SHIFT;
-	}
-	else
+	} else
 	{
-		encoded_tag = TAG_CAP 
+		encoded_tag = TAG_CAP
 				| ((num_captures_sign & 0x00000001) << TAG_NUM_CAPTURES_SIGN_SHIFT)
 				| ((offset_sign       & 0x00000001) << TAG_OFFSET_SIGN_SHIFT)
 				| ((num_captures      & 0x000000FF) << TAG_NUM_CAPTURES_SHIFT)
 				| ((skip              & 0x000000FF) << TAG_OFFSET_SHIFT)
 				| ((offset            & 0x000000FF) << TAG_SKIP_SHIFT);
-
 	}
 	return encoded_tag;
 }

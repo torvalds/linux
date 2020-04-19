@@ -35,18 +35,17 @@ more details.
 #include <ia_css_err.h>
 #include "ia_css_spctrl_comm.h"
 
-
 typedef struct {
-	uint32_t        ddr_data_offset;       /**  posistion of data in DDR */
-	uint32_t        dmem_data_addr;        /** data segment address in dmem */
-	uint32_t        dmem_bss_addr;         /** bss segment address in dmem  */
-	uint32_t        data_size;             /** data segment size            */
-	uint32_t        bss_size;              /** bss segment size             */
-	uint32_t        spctrl_config_dmem_addr; /* <location of dmem_cfg  in SP dmem */
-	uint32_t        spctrl_state_dmem_addr;  /* < location of state  in SP dmem */
+	u32        ddr_data_offset;       /**  posistion of data in DDR */
+	u32        dmem_data_addr;        /** data segment address in dmem */
+	u32        dmem_bss_addr;         /** bss segment address in dmem  */
+	u32        data_size;             /** data segment size            */
+	u32        bss_size;              /** bss segment size             */
+	u32        spctrl_config_dmem_addr; /* <location of dmem_cfg  in SP dmem */
+	u32        spctrl_state_dmem_addr;  /* < location of state  in SP dmem */
 	unsigned int    sp_entry;                /* < entry function ptr on SP */
 	const void      *code;                   /** location of firmware */
-	uint32_t         code_size;
+	u32         code_size;
 	char      *program_name;    /** not used on hardware, only for simulation */
 } ia_css_spctrl_cfg;
 
@@ -66,7 +65,6 @@ void sh_css_spctrl_reload_fw(sp_ID_t sp_id);
 /*!  Unload/release any memory allocated to hold the firmware
 */
 enum ia_css_err ia_css_spctrl_unload_fw(sp_ID_t sp_id);
-
 
 /*! Intilaize dmem_cfg in SP dmem  and  start SP program
 */

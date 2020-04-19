@@ -30,7 +30,7 @@ STORAGE_CLASS_TIMED_CTRL_H void timed_ctrl_reg_store(
 	const unsigned int		reg_addr,
 	const hrt_data			value);
 
-extern void timed_ctrl_snd_commnd(
+void timed_ctrl_snd_commnd(
 	const timed_ctrl_ID_t				ID,
 	hrt_data				mask,
 	hrt_data				condition,
@@ -38,7 +38,7 @@ extern void timed_ctrl_snd_commnd(
 	hrt_address				addr,
 	hrt_data				value);
 
-extern void timed_ctrl_snd_sp_commnd(
+void timed_ctrl_snd_sp_commnd(
 	const timed_ctrl_ID_t				ID,
 	hrt_data				mask,
 	hrt_data				condition,
@@ -47,7 +47,7 @@ extern void timed_ctrl_snd_sp_commnd(
 	hrt_address				offset,
 	hrt_data				value);
 
-extern void timed_ctrl_snd_gpio_commnd(
+void timed_ctrl_snd_gpio_commnd(
 	const timed_ctrl_ID_t				ID,
 	hrt_data				mask,
 	hrt_data				condition,

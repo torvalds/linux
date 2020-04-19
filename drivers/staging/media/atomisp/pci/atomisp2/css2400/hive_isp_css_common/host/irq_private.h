@@ -27,8 +27,8 @@ STORAGE_CLASS_IRQ_C void irq_reg_store(
 	const hrt_data		value)
 {
 	assert(ID < N_IRQ_ID);
-	assert(IRQ_BASE[ID] != (hrt_address)-1);
-	ia_css_device_store_uint32(IRQ_BASE[ID] + reg*sizeof(hrt_data), value);
+	assert(IRQ_BASE[ID] != (hrt_address) - 1);
+	ia_css_device_store_uint32(IRQ_BASE[ID] + reg * sizeof(hrt_data), value);
 	return;
 }
 
@@ -37,8 +37,8 @@ STORAGE_CLASS_IRQ_C hrt_data irq_reg_load(
 	const unsigned int	reg)
 {
 	assert(ID < N_IRQ_ID);
-	assert(IRQ_BASE[ID] != (hrt_address)-1);
-	return ia_css_device_load_uint32(IRQ_BASE[ID] + reg*sizeof(hrt_data));
+	assert(IRQ_BASE[ID] != (hrt_address) - 1);
+	return ia_css_device_load_uint32(IRQ_BASE[ID] + reg * sizeof(hrt_data));
 }
 
 #endif /* __IRQ_PRIVATE_H_INCLUDED__ */

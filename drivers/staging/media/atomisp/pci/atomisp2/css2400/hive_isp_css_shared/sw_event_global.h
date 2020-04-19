@@ -33,4 +33,3 @@ enum ia_css_isys_sw_event {
 };
 
 #endif /* __SW_EVENT_GLOBAL_H_INCLUDED__ */
-

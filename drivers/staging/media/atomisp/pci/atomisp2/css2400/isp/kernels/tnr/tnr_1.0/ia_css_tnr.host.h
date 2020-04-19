@@ -26,23 +26,23 @@ void
 ia_css_tnr_encode(
 	struct sh_css_isp_tnr_params *to,
 	const struct ia_css_tnr_config *from,
-	unsigned size);
+	unsigned int size);
 
 void
 ia_css_tnr_dump(
 	const struct sh_css_isp_tnr_params *tnr,
-	unsigned level);
+	unsigned int level);
 
 void
 ia_css_tnr_debug_dtrace(
 	const struct ia_css_tnr_config *config,
-	unsigned level);
+	unsigned int level);
 
 void
 ia_css_tnr_config(
 	struct sh_css_isp_tnr_isp_config      *to,
 	const struct ia_css_tnr_configuration *from,
-	unsigned size);
+	unsigned int size);
 
 void
 ia_css_tnr_configure(

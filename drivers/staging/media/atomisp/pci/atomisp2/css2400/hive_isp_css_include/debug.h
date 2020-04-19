@@ -30,13 +30,12 @@
  *
  */
 
-
 #include "system_local.h"
 #include "debug_local.h"
 
 #ifndef __INLINE_DEBUG__
 #define STORAGE_CLASS_DEBUG_H extern
-#define STORAGE_CLASS_DEBUG_C 
+#define STORAGE_CLASS_DEBUG_C
 #include "debug_public.h"
 #else  /* __INLINE_DEBUG__ */
 #define STORAGE_CLASS_DEBUG_H static inline

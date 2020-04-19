@@ -239,6 +239,7 @@ static int gc0310_write_reg_array(struct i2c_client *client,
 
 	return __gc0310_flush_reg_array(client, &ctrl);
 }
+
 static int gc0310_g_focal(struct v4l2_subdev *sd, s32 *val)
 {
 	*val = (GC0310_FOCAL_LENGTH_NUM << 16) | GC0310_FOCAL_LENGTH_DEM;
@@ -499,6 +500,7 @@ static long gc0310_s_exposure(struct v4l2_subdev *sd,
 	/* we should not accept the invalid value below. */
 	if (gain == 0) {
 		struct i2c_client *client = v4l2_get_subdevdata(sd);
+
 		v4l2_err(client, "%s: invalid value\n", __func__);
 		return -EINVAL;
 	}
@@ -520,7 +522,6 @@ static int gc0310_h_flip(struct v4l2_subdev *sd, s32 value)
 
 static long gc0310_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
-
 	switch (cmd) {
 	case ATOMISP_IOC_S_EXPOSURE:
 		return gc0310_s_exposure(sd, arg);
@@ -734,6 +735,7 @@ static int power_ctrl(struct v4l2_subdev *sd, bool flag)
 {
 	int ret = 0;
 	struct gc0310_device *dev = to_gc0310_sensor(sd);
+
 	if (!dev || !dev->platform_data)
 		return -ENODEV;
 
@@ -782,7 +784,6 @@ static int gpio_ctrl(struct v4l2_subdev *sd, bool flag)
 	}
 	return ret;
 }
-
 
 static int power_down(struct v4l2_subdev *sd);
 
@@ -867,6 +868,7 @@ static int power_down(struct v4l2_subdev *sd)
 static int gc0310_s_power(struct v4l2_subdev *sd, int on)
 {
 	int ret;
+
 	if (on == 0)
 		return power_down(sd);
 	else {
@@ -899,9 +901,9 @@ static int distance(struct gc0310_resolution *res, u32 w, u32 h)
 	h_ratio = (res->height << 13) / h;
 	if (h_ratio == 0)
 		return -1;
-	match   = abs(((w_ratio << 13) / h_ratio) - ((int)8192));
+	match   = abs(((w_ratio << 13) / h_ratio) - 8192);
 
-	if ((w_ratio < (int)8192) || (h_ratio < (int)8192)  ||
+	if ((w_ratio < 8192) || (h_ratio < 8192)  ||
 		(match > LARGEST_ALLOWED_RATIO_MISMATCH))
 		return -1;
 
@@ -947,7 +949,6 @@ static int get_resolution_index(int w, int h)
 	return -1;
 }
 
-
 /* TODO: remove it. */
 static int startup(struct v4l2_subdev *sd)
 {
@@ -977,6 +978,7 @@ static int gc0310_set_fmt(struct v4l2_subdev *sd,
 	struct camera_mipi_info *gc0310_info = NULL;
 	int ret = 0;
 	int idx = 0;
+
 	pr_info("%s S\n", __func__);
 
 	if (format->pad)
@@ -1015,7 +1017,7 @@ static int gc0310_set_fmt(struct v4l2_subdev *sd,
 		return -EINVAL;
 	}
 
-	printk("%s: before gc0310_write_reg_array %s\n", __FUNCTION__,
+	printk("%s: before gc0310_write_reg_array %s\n", __func__,
 	       gc0310_res[dev->fmt_idx].desc);
 	ret = startup(sd);
 	if (ret) {
@@ -1079,7 +1081,7 @@ static int gc0310_detect(struct i2c_client *client)
 		dev_err(&client->dev, "read sensor_id_low failed\n");
 		return -ENODEV;
 	}
-	id = ((((u16) high) << 8) | (u16) low);
+	id = ((((u16)high) << 8) | (u16)low);
 	pr_info("sensor ID = 0x%x\n", id);
 
 	if (id != GC0310_ID) {
@@ -1139,7 +1141,6 @@ static int gc0310_s_stream(struct v4l2_subdev *sd, int enable)
 	pr_info("%s E\n", __func__);
 	return ret;
 }
-
 
 static int gc0310_s_config(struct v4l2_subdev *sd,
 			   int irq, void *platform_data)
@@ -1241,9 +1242,7 @@ static int gc0310_enum_frame_size(struct v4l2_subdev *sd,
 	fse->max_height = gc0310_res[index].height;
 
 	return 0;
-
 }
-
 
 static int gc0310_g_skip_frames(struct v4l2_subdev *sd, u32 *frames)
 {
@@ -1288,6 +1287,7 @@ static int gc0310_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct gc0310_device *dev = to_gc0310_sensor(sd);
+
 	dev_dbg(&client->dev, "gc0310_remove...\n");
 
 	dev->platform_data->csi_cfg(sd, 0);
@@ -1315,7 +1315,7 @@ static int gc0310_probe(struct i2c_client *client)
 	mutex_init(&dev->input_lock);
 
 	dev->fmt_idx = 0;
-	v4l2_i2c_subdev_init(&(dev->sd), client, &gc0310_ops);
+	v4l2_i2c_subdev_init(&dev->sd, client, &gc0310_ops);
 
 	pdata = gmin_camera_platform_data(&dev->sd,
 					  ATOMISP_INPUT_FORMAT_RAW_8,

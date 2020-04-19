@@ -40,35 +40,35 @@
 #define hrt_host_type_of_ulong  unsigned long
 #define hrt_host_type_of_ptr    void*
 
-#define HRT_TYPE_BYTES(cell, type) (HRT_TYPE_BITS(cell, type)/8)
+#define HRT_TYPE_BYTES(cell, type) (HRT_TYPE_BITS(cell, type) / 8)
 #define HRT_HOST_TYPE(cell_type)   HRTCAT(hrt_host_type_of_, cell_type)
 #define HRT_INT_TYPE(type)         HRTCAT(hrt_int_type_of_, type)
 
 #define hrt_scalar_store(cell, type, var, data) \
-  HRTCAT(hrt_mem_store_,HRT_TYPE_BITS(cell, type))(\
+  HRTCAT(hrt_mem_store_, HRT_TYPE_BITS(cell, type))(\
 	       cell, \
-	       HRTCAT(HIVE_MEM_,var), \
-	       HRTCAT(HIVE_ADDR_,var), \
+	       HRTCAT(HIVE_MEM_, var), \
+	       HRTCAT(HIVE_ADDR_, var), \
 	       (HRT_INT_TYPE(type))(data))
 
 #define hrt_scalar_load(cell, type, var) \
-  (HRT_HOST_TYPE(type))(HRTCAT4(_hrt_mem_load_,HRT_PROC_TYPE(cell),_,type) ( \
+  (HRT_HOST_TYPE(type))(HRTCAT4(_hrt_mem_load_, HRT_PROC_TYPE(cell), _, type) ( \
 	       cell, \
-	       HRTCAT(HIVE_MEM_,var), \
-	       HRTCAT(HIVE_ADDR_,var)))
+	       HRTCAT(HIVE_MEM_, var), \
+	       HRTCAT(HIVE_ADDR_, var)))
 
 #define hrt_indexed_store(cell, type, array, index, data) \
-  HRTCAT(hrt_mem_store_,HRT_TYPE_BITS(cell, type))(\
+  HRTCAT(hrt_mem_store_, HRT_TYPE_BITS(cell, type))(\
 	       cell, \
-	       HRTCAT(HIVE_MEM_,array), \
-	       (HRTCAT(HIVE_ADDR_,array))+((index)*HRT_TYPE_BYTES(cell, type)), \
+	       HRTCAT(HIVE_MEM_, array), \
+	       (HRTCAT(HIVE_ADDR_, array)) + ((index) * HRT_TYPE_BYTES(cell, type)), \
 	       (HRT_INT_TYPE(type))(data))
 
 #define hrt_indexed_load(cell, type, array, index) \
-  (HRT_HOST_TYPE(type))(HRTCAT4(_hrt_mem_load_,HRT_PROC_TYPE(cell),_,type) ( \
-         cell, \
-	       HRTCAT(HIVE_MEM_,array), \
-	       (HRTCAT(HIVE_ADDR_,array))+((index)*HRT_TYPE_BYTES(cell, type))))
+  (HRT_HOST_TYPE(type))(HRTCAT4(_hrt_mem_load_, HRT_PROC_TYPE(cell), _, type) ( \
+	 cell, \
+	       HRTCAT(HIVE_MEM_, array), \
+	       (HRTCAT(HIVE_ADDR_, array)) + ((index) * HRT_TYPE_BYTES(cell, type))))
 
 #endif /* _HRT_VAR_H */
 #endif

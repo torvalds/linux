@@ -38,7 +38,6 @@
 #define DVS_NUM_BLOCKS_X_CHROMA(X)	(CEIL_DIV((X), DVS_BLOCKDIM_X))
 #define DVS_NUM_BLOCKS_Y_CHROMA(X)	(CEIL_DIV((X), DVS_BLOCKDIM_Y_CHROMA))
 
-
 #endif
 #define DVS_TABLE_IN_BLOCKDIM_X_LUMA(X)	(DVS_NUM_BLOCKS_X(X) + 1)  /* N blocks have N + 1 set of coords */
 #define DVS_TABLE_IN_BLOCKDIM_X_CHROMA(X)   (DVS_NUM_BLOCKS_X_CHROMA(X) + 1)
@@ -81,6 +80,5 @@ free_dvs_6axis_table(struct ia_css_dvs_6axis_config  **dvs_6axis_config);
 void
 copy_dvs_6axis_table(struct ia_css_dvs_6axis_config *dvs_config_dst,
 			 const struct ia_css_dvs_6axis_config *dvs_config_src);
-
 
 #endif

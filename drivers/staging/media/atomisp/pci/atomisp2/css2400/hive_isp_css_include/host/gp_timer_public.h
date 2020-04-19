@@ -23,7 +23,6 @@ param ID		timer_id
 extern void
 gp_timer_init(gp_timer_ID_t ID);
 
-
 /*! read timer value for (platform selected)selected timer.
 param ID		timer_id
  \return uint32_t	32 bit timer value

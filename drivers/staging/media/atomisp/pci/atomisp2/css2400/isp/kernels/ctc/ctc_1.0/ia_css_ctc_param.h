@@ -28,7 +28,7 @@
 #define SH_CSS_ISP_CTC_TABLE_SIZE_LOG2       IA_CSS_VAMEM_1_CTC_TABLE_SIZE_LOG2
 #define SH_CSS_ISP_CTC_TABLE_SIZE            IA_CSS_VAMEM_1_CTC_TABLE_SIZE
 #else
-#error "VAMEM should be {VERSION1, VERSION2}" 
+#error "VAMEM should be {VERSION1, VERSION2}"
 #endif
 
 #else
@@ -38,7 +38,7 @@
 
 /* This should be vamem_data_t, but that breaks the pipe generator */
 struct sh_css_isp_ctc_vamem_params {
-	uint16_t ctc[SH_CSS_ISP_CTC_TABLE_SIZE];
+	u16 ctc[SH_CSS_ISP_CTC_TABLE_SIZE];
 };
 
 #endif /* __IA_CSS_CTC_PARAM_H */

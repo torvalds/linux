@@ -118,7 +118,7 @@ static void atomisp_css2_hw_store_32(hrt_address addr, uint32_t data)
 static uint8_t atomisp_css2_hw_load_8(hrt_address addr)
 {
 	unsigned long flags;
-	uint8_t ret;
+	u8 ret;
 
 	spin_lock_irqsave(&mmio_lock, flags);
 	ret = _hrt_master_port_load_8(addr);
@@ -129,7 +129,7 @@ static uint8_t atomisp_css2_hw_load_8(hrt_address addr)
 static uint16_t atomisp_css2_hw_load_16(hrt_address addr)
 {
 	unsigned long flags;
-	uint16_t ret;
+	u16 ret;
 
 	spin_lock_irqsave(&mmio_lock, flags);
 	ret = _hrt_master_port_load_16(addr);
@@ -140,7 +140,7 @@ static uint16_t atomisp_css2_hw_load_16(hrt_address addr)
 static uint32_t atomisp_css2_hw_load_32(hrt_address addr)
 {
 	unsigned long flags;
-	uint32_t ret;
+	u32 ret;
 
 	spin_lock_irqsave(&mmio_lock, flags);
 	ret = _hrt_master_port_load_32(addr);
@@ -158,7 +158,7 @@ static void atomisp_css2_hw_store(hrt_address addr,
 
 	spin_lock_irqsave(&mmio_lock, flags);
 	for (i = 0; i < n; i++, _to++, _from++)
-		_hrt_master_port_store_8(_to , *_from);
+		_hrt_master_port_store_8(_to, *_from);
 	spin_unlock_irqrestore(&mmio_lock, flags);
 }
 
@@ -202,9 +202,10 @@ void atomisp_load_uint32(hrt_address addr, uint32_t *data)
 {
 	*data = atomisp_css2_hw_load_32(addr);
 }
+
 static int hmm_get_mmu_base_addr(unsigned int *mmu_base_addr)
 {
-	if (sh_mmu_mrfld.get_pd_base == NULL) {
+	if (!sh_mmu_mrfld.get_pd_base) {
 		dev_err(atomisp_dev, "get mmu base address failed.\n");
 		return -EINVAL;
 	}
@@ -515,6 +516,7 @@ static int __destroy_streams(struct atomisp_sub_device *asd, bool force)
 	asd->stream_prepared = false;
 	return 0;
 }
+
 static int __create_stream(struct atomisp_sub_device *asd,
 			   struct atomisp_stream_env *stream_env)
 {
@@ -598,7 +600,6 @@ static int __destroy_pipes(struct atomisp_sub_device *asd, bool force)
 
 	for (i = 0; i < ATOMISP_INPUT_STREAM_NUM; i++) {
 		if (asd->stream_env[i].stream) {
-
 			dev_err(isp->dev,
 				"cannot destroy css pipes for stream[%d].\n",
 				i);
@@ -1286,7 +1287,6 @@ void atomisp_css_update_isp_params(struct atomisp_sub_device *asd)
 	atomisp_isp_parameters_clean_up(&asd->params.config);
 }
 
-
 void atomisp_css_update_isp_params_on_pipe(struct atomisp_sub_device *asd,
 					struct ia_css_pipe *pipe)
 {
@@ -1347,7 +1347,7 @@ int atomisp_css_dequeue_buffer(struct atomisp_sub_device *asd,
 }
 
 int atomisp_css_allocate_stat_buffers(struct atomisp_sub_device   *asd,
-				      uint16_t stream_id,
+				      u16 stream_id,
 				      struct atomisp_s3a_buf      *s3a_buf,
 				      struct atomisp_dis_buf      *dis_buf,
 				      struct atomisp_metadata_buf *md_buf)
@@ -1566,8 +1566,7 @@ int atomisp_css_get_grid_info(struct atomisp_sub_device *asd,
 	    || asd->params.curr_grid_info.s3a_grid.height == 0)
 	    && asd->params.metadata_width_size == md_width) {
 		dev_dbg(isp->dev,
-			"grid info change escape. memcmp=%d, s3a_user_stat=%d,"
-			"dvs_stat=%d, s3a.width=%d, s3a.height=%d, metadata width =%d\n",
+			"grid info change escape. memcmp=%d, s3a_user_stat=%d,dvs_stat=%d, s3a.width=%d, s3a.height=%d, metadata width =%d\n",
 			!memcmp(&old_info, &asd->params.curr_grid_info,
 				 sizeof(old_info)),
 			 !!asd->params.s3a_user_stat, !!asd->params.dvs_stat,
@@ -1687,7 +1686,6 @@ void atomisp_css_get_dis_statistics(struct atomisp_sub_device *asd,
 		else
 			ia_css_get_dvs2_statistics(asd->params.dvs_stat,
 				isp_css_buffer->css_buffer.data.stats_dvs);
-
 	}
 }
 
@@ -1787,7 +1785,6 @@ void atomisp_css_isys_set_format(struct atomisp_sub_device *asd,
 				 enum atomisp_input_format format,
 				 int isys_stream)
 {
-
 	struct ia_css_stream_config *s_config =
 			&asd->stream_env[stream_id].stream_config;
 
@@ -1798,7 +1795,6 @@ void atomisp_css_input_set_format(struct atomisp_sub_device *asd,
 					enum atomisp_input_stream_id stream_id,
 					enum atomisp_input_format format)
 {
-
 	struct ia_css_stream_config *s_config =
 			&asd->stream_env[stream_id].stream_config;
 
@@ -2026,8 +2022,7 @@ void atomisp_css_input_set_mode(struct atomisp_sub_device *asd,
 			else
 				size_mem_words = CSS_MIPI_FRAME_BUFFER_SIZE_1;
 			dev_warn(asd->isp->dev,
-				"ia_css_mipi_frame_calculate_size failed,"
-				"applying pre-defined MIPI buffer size %u.\n",
+				"ia_css_mipi_frame_calculate_size failed,applying pre-defined MIPI buffer size %u.\n",
 				size_mem_words);
 		}
 		s_config->mipi_buffer_config.size_mem_words = size_mem_words;
@@ -2390,7 +2385,6 @@ static enum ia_css_pipe_mode __pipe_id_to_pipe_mode(
 		WARN_ON(1);
 		return IA_CSS_PIPE_MODE_PREVIEW;
 	}
-
 }
 
 static void __configure_output(struct atomisp_sub_device *asd,
@@ -2912,7 +2906,7 @@ static unsigned int atomisp_get_pipe_index(struct atomisp_sub_device *asd,
 }
 
 int atomisp_get_css_frame_info(struct atomisp_sub_device *asd,
-				uint16_t source_pad,
+				u16 source_pad,
 				struct atomisp_css_frame_info *frame_info)
 {
 	struct ia_css_pipe_info info;
@@ -3555,7 +3549,7 @@ void atomisp_css_set_ctc_table(struct atomisp_sub_device *asd,
 			struct atomisp_css_ctc_table *ctc_table)
 {
 	int i;
-	uint16_t *vamem_ptr = ctc_table->data.vamem_1;
+	u16 *vamem_ptr = ctc_table->data.vamem_1;
 	int data_size = IA_CSS_VAMEM_1_CTC_TABLE_SIZE;
 	bool valid = false;
 
@@ -3653,22 +3647,22 @@ int atomisp_css_set_dis_coefs(struct atomisp_sub_device *asd,
 		   try again. */
 		return -EAGAIN;
 
-	if (coefs->hor_coefs.odd_real == NULL ||
-	    coefs->hor_coefs.odd_imag == NULL ||
-	    coefs->hor_coefs.even_real == NULL ||
-	    coefs->hor_coefs.even_imag == NULL ||
-	    coefs->ver_coefs.odd_real == NULL ||
-	    coefs->ver_coefs.odd_imag == NULL ||
-	    coefs->ver_coefs.even_real == NULL ||
-	    coefs->ver_coefs.even_imag == NULL ||
-	    asd->params.css_param.dvs2_coeff->hor_coefs.odd_real == NULL ||
-	    asd->params.css_param.dvs2_coeff->hor_coefs.odd_imag == NULL ||
-	    asd->params.css_param.dvs2_coeff->hor_coefs.even_real == NULL ||
-	    asd->params.css_param.dvs2_coeff->hor_coefs.even_imag == NULL ||
-	    asd->params.css_param.dvs2_coeff->ver_coefs.odd_real == NULL ||
-	    asd->params.css_param.dvs2_coeff->ver_coefs.odd_imag == NULL ||
-	    asd->params.css_param.dvs2_coeff->ver_coefs.even_real == NULL ||
-	    asd->params.css_param.dvs2_coeff->ver_coefs.even_imag == NULL)
+	if (!coefs->hor_coefs.odd_real ||
+	    !coefs->hor_coefs.odd_imag ||
+	    !coefs->hor_coefs.even_real ||
+	    !coefs->hor_coefs.even_imag ||
+	    !coefs->ver_coefs.odd_real ||
+	    !coefs->ver_coefs.odd_imag ||
+	    !coefs->ver_coefs.even_real ||
+	    !coefs->ver_coefs.even_imag ||
+	    !asd->params.css_param.dvs2_coeff->hor_coefs.odd_real ||
+	    !asd->params.css_param.dvs2_coeff->hor_coefs.odd_imag ||
+	    !asd->params.css_param.dvs2_coeff->hor_coefs.even_real ||
+	    !asd->params.css_param.dvs2_coeff->hor_coefs.even_imag ||
+	    !asd->params.css_param.dvs2_coeff->ver_coefs.odd_real ||
+	    !asd->params.css_param.dvs2_coeff->ver_coefs.odd_imag ||
+	    !asd->params.css_param.dvs2_coeff->ver_coefs.even_real ||
+	    !asd->params.css_param.dvs2_coeff->ver_coefs.even_imag)
 		return -EINVAL;
 
 	if (copy_from_user(asd->params.css_param.dvs2_coeff->hor_coefs.odd_real,
@@ -3724,7 +3718,7 @@ void atomisp_css_set_zoom_factor(struct atomisp_sub_device *asd,
 	asd->params.css_param.dz_config.dy = zoom;
 
 	asd->params.css_param.update_flag.dz_config =
-		(struct atomisp_dz_config *) &asd->params.css_param.dz_config;
+		(struct atomisp_dz_config *)&asd->params.css_param.dz_config;
 	asd->params.css_update_params_needed = true;
 }
 
@@ -4047,7 +4041,6 @@ int atomisp_css_get_zoom_factor(struct atomisp_sub_device *asd,
 	return 0;
 }
 
-
 /*
  * Function to set/get image stablization statistics
  */
@@ -4058,14 +4051,14 @@ int atomisp_css_get_dis_stat(struct atomisp_sub_device *asd,
 	struct atomisp_dis_buf *dis_buf;
 	unsigned long flags;
 
-	if (asd->params.dvs_stat->hor_prod.odd_real == NULL ||
-	    asd->params.dvs_stat->hor_prod.odd_imag == NULL ||
-	    asd->params.dvs_stat->hor_prod.even_real == NULL ||
-	    asd->params.dvs_stat->hor_prod.even_imag == NULL ||
-	    asd->params.dvs_stat->ver_prod.odd_real == NULL ||
-	    asd->params.dvs_stat->ver_prod.odd_imag == NULL ||
-	    asd->params.dvs_stat->ver_prod.even_real == NULL ||
-	    asd->params.dvs_stat->ver_prod.even_imag == NULL)
+	if (!asd->params.dvs_stat->hor_prod.odd_real ||
+	    !asd->params.dvs_stat->hor_prod.odd_imag ||
+	    !asd->params.dvs_stat->hor_prod.even_real ||
+	    !asd->params.dvs_stat->hor_prod.even_imag ||
+	    !asd->params.dvs_stat->ver_prod.odd_real ||
+	    !asd->params.dvs_stat->ver_prod.odd_imag ||
+	    !asd->params.dvs_stat->ver_prod.even_real ||
+	    !asd->params.dvs_stat->ver_prod.even_imag)
 		return -EINVAL;
 
 	/* isp needs to be streaming to get DIS statistics */
@@ -4646,12 +4639,12 @@ int atomisp_css_dump_blob_infor(void)
 
 	if (nm == 0)
 		return -EPERM;
-	if (bd == NULL)
+	if (!bd)
 		return -EPERM;
 
 	for (i = 1; i < sh_css_num_binaries; i++)
 		dev_dbg(atomisp_dev, "Num%d binary id is %d, name is %s\n", i,
-			bd[i-1].header.info.isp.sp.id, bd[i-1].name);
+			bd[i - 1].header.info.isp.sp.id, bd[i - 1].name);
 
 	return 0;
 }
@@ -4683,6 +4676,7 @@ int atomisp_set_css_dbgfunc(struct atomisp_device *isp, int opt)
 
 	return ret;
 }
+
 void atomisp_en_dz_capt_pipe(struct atomisp_sub_device *asd, bool enable)
 {
 	ia_css_en_dz_capt_pipe(

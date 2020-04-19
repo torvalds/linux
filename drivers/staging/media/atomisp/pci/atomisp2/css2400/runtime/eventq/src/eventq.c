@@ -25,7 +25,7 @@ int ia_css_eventq_recv(
 		ia_css_queue_t *eventq_handle,
 		uint8_t *payload)
 {
-	uint32_t sp_event;
+	u32 sp_event;
 	int error;
 
 	/* dequeue the IRQ event */
@@ -43,13 +43,13 @@ int ia_css_eventq_recv(
  */
 int ia_css_eventq_send(
 			ia_css_queue_t *eventq_handle,
-			uint8_t evt_id,
-			uint8_t evt_payload_0,
-			uint8_t evt_payload_1,
+			u8 evt_id,
+			u8 evt_payload_0,
+			u8 evt_payload_1,
 			uint8_t evt_payload_2)
 {
-	uint8_t tmp[4];
-	uint32_t sw_event;
+	u8 tmp[4];
+	u32 sw_event;
 	int error = ENOSYS;
 
 	/*
@@ -65,7 +65,7 @@ int ia_css_eventq_send(
 	/* queue the software event (busy-waiting) */
 	for ( ; ; ) {
 		error = ia_css_queue_enqueue(eventq_handle, sw_event);
-		if (ENOBUFS != error) {
+		if (error != ENOBUFS) {
 			/* We were able to successfully send the event
 			   or had a real failure. return the status*/
 			break;

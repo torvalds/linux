@@ -224,7 +224,6 @@ void hmm_bo_ref(struct hmm_buffer_object *bo);
  */
 void hmm_bo_unref(struct hmm_buffer_object *bo);
 
-
 /*
  * allocate/free physical pages for the bo. will try to alloc mem
  * from highmem if from_highmem is set, and type indicate that the
@@ -232,9 +231,7 @@ void hmm_bo_unref(struct hmm_buffer_object *bo);
  * or by ISP driver itself.
  */
 
-
 int hmm_bo_allocated(struct hmm_buffer_object *bo);
-
 
 /*
  * allocate/free physical pages for the bo. will try to alloc mem
@@ -314,6 +311,5 @@ struct hmm_buffer_object *hmm_bo_device_search_in_range(
  */
 struct hmm_buffer_object *hmm_bo_device_search_vmap_start(
 		struct hmm_bo_device *bdev, const void *vaddr);
-
 
 #endif

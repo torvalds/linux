@@ -119,8 +119,7 @@ static int ad5823_i2c_read(struct i2c_client *client, u8 reg, u8 *val)
 	return 0;
 }
 
-
-static const uint32_t ov5693_embedded_effective_size = 28;
+static const u32 ov5693_embedded_effective_size = 28;
 
 /* i2c read/write stuff */
 static int ov5693_read_reg(struct i2c_client *client,
@@ -413,6 +412,7 @@ static int ov5693_write_reg_array(struct i2c_client *client,
 
 	return __ov5693_flush_reg_array(client, &ctrl);
 }
+
 static int ov5693_g_focal(struct v4l2_subdev *sd, s32 *val)
 {
 	*val = (OV5693_FOCAL_LENGTH_NUM << 16) | OV5693_FOCAL_LENGTH_DEM;
@@ -463,7 +463,7 @@ static int ov5693_get_intg_factor(struct i2c_client *client,
 	u16 reg_val;
 	int ret;
 
-	if (info == NULL)
+	if (!info)
 		return -EINVAL;
 
 	/* pixel clock */
@@ -576,7 +576,7 @@ static long __ov5693_set_exposure(struct v4l2_subdev *sd, int coarse_itg,
 	}
 	/* Increase the VTS to match exposure + MARGIN */
 	if (coarse_itg > vts - OV5693_INTEGRATION_TIME_MARGIN)
-		vts = (u16) coarse_itg + OV5693_INTEGRATION_TIME_MARGIN;
+		vts = (u16)coarse_itg + OV5693_INTEGRATION_TIME_MARGIN;
 
 	ret = ov5693_write_reg(client, OV5693_8BIT,
 				OV5693_TIMING_VTS_H, (vts >> 8) & 0xFF);
@@ -718,7 +718,7 @@ static int ov5693_read_otp_reg_array(struct i2c_client *client, u16 size,
 	u16 *pVal = NULL;
 
 	for (index = 0; index <= size; index++) {
-		pVal = (u16 *) (buf + index);
+		pVal = (u16 *)(buf + index);
 		ret =
 			ov5693_read_reg(client, OV5693_8BIT, addr + index,
 				    pVal);
@@ -873,12 +873,10 @@ out:
 	priv->size = dev->otp_size;
 
 	return 0;
-
 }
 
 static long ov5693_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
-
 	switch (cmd) {
 	case ATOMISP_IOC_S_EXPOSURE:
 		return ov5693_s_exposure(sd, arg);
@@ -1588,7 +1586,7 @@ static int ov5693_set_fmt(struct v4l2_subdev *sd,
 	if (!fmt)
 		return -EINVAL;
 	ov5693_info = v4l2_get_subdev_hostdata(sd);
-	if (ov5693_info == NULL)
+	if (!ov5693_info)
 		return -EINVAL;
 
 	mutex_lock(&dev->input_lock);
@@ -1624,7 +1622,7 @@ static int ov5693_set_fmt(struct v4l2_subdev *sd,
 		for (i = 0; i < OV5693_POWER_UP_RETRY_NUM; i++) {
 			dev_err(&client->dev,
 				"ov5693 retry to power up %d/%d times, result: ",
-				i+1, OV5693_POWER_UP_RETRY_NUM);
+				i + 1, OV5693_POWER_UP_RETRY_NUM);
 			power_down(sd);
 			ret = power_up(sd);
 			if (!ret) {
@@ -1670,6 +1668,7 @@ err:
 	mutex_unlock(&dev->input_lock);
 	return ret;
 }
+
 static int ov5693_get_fmt(struct v4l2_subdev *sd,
 			  struct v4l2_subdev_pad_config *cfg,
 			  struct v4l2_subdev_format *format)
@@ -1709,7 +1708,7 @@ static int ov5693_detect(struct i2c_client *client)
 	}
 	ret = ov5693_read_reg(client, OV5693_8BIT,
 					OV5693_SC_CMMN_CHIP_ID_L, &low);
-	id = ((((u16) high) << 8) | (u16) low);
+	id = ((((u16)high) << 8) | (u16)low);
 
 	if (id != OV5693_ID) {
 		dev_err(&client->dev, "sensor ID error 0x%x\n", id);
@@ -1718,7 +1717,7 @@ static int ov5693_detect(struct i2c_client *client)
 
 	ret = ov5693_read_reg(client, OV5693_8BIT,
 					OV5693_SC_CMMN_SUB_ID, &high);
-	revision = (u8) high & 0x0f;
+	revision = (u8)high & 0x0f;
 
 	dev_dbg(&client->dev, "sensor_revision = 0x%x\n", revision);
 	dev_dbg(&client->dev, "detect ov5693 success\n");
@@ -1742,7 +1741,6 @@ static int ov5693_s_stream(struct v4l2_subdev *sd, int enable)
 	return ret;
 }
 
-
 static int ov5693_s_config(struct v4l2_subdev *sd,
 			   int irq, void *platform_data)
 {
@@ -1750,7 +1748,7 @@ static int ov5693_s_config(struct v4l2_subdev *sd,
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret = 0;
 
-	if (platform_data == NULL)
+	if (!platform_data)
 		return -ENODEV;
 
 	dev->platform_data =
@@ -1846,7 +1844,6 @@ static int ov5693_enum_frame_size(struct v4l2_subdev *sd,
 	fse->max_height = ov5693_res[index].height;
 
 	return 0;
-
 }
 
 static const struct v4l2_subdev_video_ops ov5693_video_ops = {
@@ -1921,7 +1918,7 @@ static int ov5693_probe(struct i2c_client *client)
 	mutex_init(&dev->input_lock);
 
 	dev->fmt_idx = 0;
-	v4l2_i2c_subdev_init(&(dev->sd), client, &ov5693_ops);
+	v4l2_i2c_subdev_init(&dev->sd, client, &ov5693_ops);
 
 	pdata = gmin_camera_platform_data(&dev->sd,
 					  ATOMISP_INPUT_FORMAT_RAW_10,

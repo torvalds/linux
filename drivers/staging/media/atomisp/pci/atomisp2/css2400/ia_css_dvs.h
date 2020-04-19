@@ -30,7 +30,6 @@ enum dvs_statistics_type {
 	SKC_DVS_STATISTICS
 };
 
-
 /* Structure that holds DVS statistics in the ISP internal
  * format. Use ia_css_get_dvs_statistics() to translate
  * this to the format used on the host (DVS engine).
@@ -38,11 +37,11 @@ enum dvs_statistics_type {
 struct ia_css_isp_dvs_statistics {
 	ia_css_ptr hor_proj;
 	ia_css_ptr ver_proj;
-	uint32_t   hor_size;
-	uint32_t   ver_size;
-	uint32_t   exp_id;   /** see ia_css_event_public.h for more detail */
+	u32   hor_size;
+	u32   ver_size;
+	u32   exp_id;   /** see ia_css_event_public.h for more detail */
 	ia_css_ptr data_ptr; /* base pointer containing all memory */
-	uint32_t   size;     /* size of allocated memory in data_ptr */
+	u32   size;     /* size of allocated memory in data_ptr */
 };
 
 /* Structure that holds SKC DVS statistics in the ISP internal
@@ -50,7 +49,6 @@ struct ia_css_isp_dvs_statistics {
  * the format used on the host.
  * */
 struct ia_css_isp_skc_dvs_statistics;
-
 
 #define SIZE_OF_IA_CSS_ISP_DVS_STATISTICS_STRUCT			\
 	((3 * SIZE_OF_IA_CSS_PTR) +					\
@@ -65,10 +63,10 @@ struct ia_css_isp_skc_dvs_statistics;
  */
 struct ia_css_isp_dvs_statistics_map {
 	void    *data_ptr;
-	int32_t *hor_proj;
-	int32_t *ver_proj;
-	uint32_t size;		 /* total size in bytes */
-	uint32_t data_allocated; /* indicate whether data was allocated */
+	s32 *hor_proj;
+	s32 *ver_proj;
+	u32 size;		 /* total size in bytes */
+	u32 data_allocated; /* indicate whether data was allocated */
 };
 
 union ia_css_dvs_statistics_isp {

@@ -22,7 +22,4 @@
 
 #include <ia_css_frame_public.h>
 
-
-
 #endif /* __IA_CSS_REF_TYPES_H */
-

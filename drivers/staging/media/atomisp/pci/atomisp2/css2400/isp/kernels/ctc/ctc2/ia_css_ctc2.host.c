@@ -54,13 +54,13 @@ static int ctc2_slope(int y1, int y0, int x1, int x0)
 
 	if (dy < 0)
 		rounding = -rounding;
-	slope = (int) (dy_shift + rounding) / dx;
+	slope = (int)(dy_shift + rounding) / dx;
 
 	/*the slope must lie within the range
 	  (-max_slope-1) >= (dydx) >= (max_slope)
 	*/
-	if (slope <= -max_slope-1) {
-		dydx = -max_slope-1;
+	if (slope <= -max_slope - 1) {
+		dydx = -max_slope - 1;
 	} else if (slope >= max_slope) {
 		dydx = max_slope;
 	} else {
@@ -78,9 +78,9 @@ void ia_css_ctc2_vmem_encode(struct ia_css_isp_ctc2_vmem_params *to,
 			     const struct ia_css_ctc2_config *from,
 			     size_t size)
 {
-	unsigned i, j;
-	const unsigned shffl_blck = 4;
-	const unsigned length_zeros = 11;
+	unsigned int i, j;
+	const unsigned int shffl_blck = 4;
+	const unsigned int length_zeros = 11;
 	short dydx0, dydx1, dydx2, dydx3, dydx4;
 
 	(void)size;
@@ -130,7 +130,7 @@ void ia_css_ctc2_vmem_encode(struct ia_css_isp_ctc2_vmem_params *to,
 		for (j = 0; j < length_zeros; j++) {
 			to->y_x[0][(i << shffl_blck) + 5 + j] = 0;
 			to->y_y[0][(i << shffl_blck) + 5 + j] = 0;
-			to->e_y_slope[0][(i << shffl_blck)+ 5 + j] = 0;
+			to->e_y_slope[0][(i << shffl_blck) + 5 + j] = 0;
 		}
 	}
 }

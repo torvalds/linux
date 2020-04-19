@@ -111,8 +111,8 @@
 #define ISP_SRU_GUARDING                       1
 #define ISP_VLSU_GUARDING                      1
 
-#define ISP_VRF_RAM     	                     1
-#define ISP_SRF_RAM     	                     1
+#define ISP_VRF_RAM	                     1
+#define ISP_SRF_RAM	                     1
 
 #define ISP_SPLIT_VMUL_VADD_IS                 0
 #define ISP_RFSPLIT_FPGA                       0
@@ -175,7 +175,7 @@
 #define ISP_NWAY                               ISP_VEC_NELEMS
 #define NBITS                                  ISP_VEC_ELEMBITS
 
-#define _isp_ceil_div(a,b)                     (((a)+(b)-1)/(b))
+#define _isp_ceil_div(a, b)                     (((a) + (b) - 1) / (b))
 
 #define ISP_VEC_ALIGN                          ISP_VMEM_ALIGN
 

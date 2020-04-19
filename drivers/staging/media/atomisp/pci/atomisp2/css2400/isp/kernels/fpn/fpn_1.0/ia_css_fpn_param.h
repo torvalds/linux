@@ -23,12 +23,12 @@
 
 /* FPNR (Fixed Pattern Noise Reduction) */
 struct sh_css_isp_fpn_params {
-	int32_t shift;
-	int32_t enabled;
+	s32 shift;
+	s32 enabled;
 };
 
 struct sh_css_isp_fpn_isp_config {
-	uint32_t width_a_over_b;
+	u32 width_a_over_b;
 	struct dma_port_config port_b;
 };
 

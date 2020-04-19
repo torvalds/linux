@@ -26,13 +26,13 @@ typedef void (*clear_func)(hrt_vaddress ptr);
  * \param[in]	size		Size of the refcount list.
  * \return				ia_css_err
  */
-extern enum ia_css_err ia_css_refcount_init(uint32_t size);
+enum ia_css_err ia_css_refcount_init(uint32_t size);
 
 /*! \brief Function for de-initializing refcount list
  *
  * \return				None
  */
-extern void ia_css_refcount_uninit(void);
+void ia_css_refcount_uninit(void);
 
 /*! \brief Function for increasing reference by 1.
  *
@@ -40,7 +40,7 @@ extern void ia_css_refcount_uninit(void);
  * \param[in]	ptr		Data of the object (ptr).
  * \return				hrt_vaddress (saved address)
  */
-extern hrt_vaddress ia_css_refcount_increment(int32_t id, hrt_vaddress ptr);
+hrt_vaddress ia_css_refcount_increment(s32 id, hrt_vaddress ptr);
 
 /*! \brief Function for decrease reference by 1.
  *
@@ -50,7 +50,7 @@ extern hrt_vaddress ia_css_refcount_increment(int32_t id, hrt_vaddress ptr);
  *	- true, if it is successful.
  *	- false, otherwise.
  */
-extern bool ia_css_refcount_decrement(int32_t id, hrt_vaddress ptr);
+bool ia_css_refcount_decrement(s32 id, hrt_vaddress ptr);
 
 /*! \brief Function to check if reference count is 1.
  *
@@ -59,7 +59,7 @@ extern bool ia_css_refcount_decrement(int32_t id, hrt_vaddress ptr);
  *	- true, if it is successful.
  *	- false, otherwise.
  */
-extern bool ia_css_refcount_is_single(hrt_vaddress ptr);
+bool ia_css_refcount_is_single(hrt_vaddress ptr);
 
 /*! \brief Function to clear reference list objects.
  *
@@ -68,7 +68,7 @@ extern bool ia_css_refcount_is_single(hrt_vaddress ptr);
  *
  *  return				None
  */
-extern void ia_css_refcount_clear(int32_t id,
+void ia_css_refcount_clear(s32 id,
 				  clear_func clear_func_ptr);
 
 /*! \brief Function to verify if object is valid
@@ -78,6 +78,6 @@ extern void ia_css_refcount_clear(int32_t id,
  *      - true, if valid
  *      - false, if invalid
  */
-extern bool ia_css_refcount_is_valid(hrt_vaddress ptr);
+bool ia_css_refcount_is_valid(hrt_vaddress ptr);
 
 #endif /* _IA_CSS_REFCOUNT_H_ */

@@ -38,4 +38,3 @@ more details.
 #define _STREAM2MMIO_CMD_TOKEN_SYNC_FRAME	2
 
 #endif /* __VIRTUAL_ISYS_H_INCLUDED__ */
-

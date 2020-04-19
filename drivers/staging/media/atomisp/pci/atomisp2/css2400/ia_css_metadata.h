@@ -36,16 +36,17 @@ struct ia_css_metadata_config {
 
 struct ia_css_metadata_info {
 	struct ia_css_resolution resolution; /** Resolution */
-	uint32_t                 stride;     /** Stride in bytes */
-	uint32_t                 size;       /** Total size in bytes */
+	u32                 stride;     /** Stride in bytes */
+	u32                 size;       /** Total size in bytes */
 };
 
 struct ia_css_metadata {
 	struct ia_css_metadata_info info;    /** Layout info */
 	ia_css_ptr	            address; /** CSS virtual address */
-	uint32_t	            exp_id;
+	u32	            exp_id;
 	/** Exposure ID, see ia_css_event_public.h for more detail */
 };
+
 #define SIZE_OF_IA_CSS_METADATA_STRUCT sizeof(struct ia_css_metadata)
 
 /* @brief Allocate a metadata buffer.

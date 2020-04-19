@@ -25,7 +25,7 @@
 
  \return none, state = IRQ[ID].state
  */
-extern void irq_controller_get_state(
+void irq_controller_get_state(
 	const irq_ID_t				ID,
 	irq_controller_state_t		*state);
 
@@ -61,7 +61,7 @@ STORAGE_CLASS_IRQ_H hrt_data irq_reg_load(
 
  \return none, enable(IRQ[ID].channel[irq_ID])
  */
-extern void irq_enable_channel(
+void irq_enable_channel(
 	const irq_ID_t				ID,
 	const unsigned int			irq_ID);
 
@@ -72,9 +72,9 @@ extern void irq_enable_channel(
 
  \return none
  */
-extern void irq_enable_pulse(
+void irq_enable_pulse(
 	const irq_ID_t	ID,
-	bool 			pulse);
+	bool			pulse);
 
 /*! Disable an IRQ channel of IRQ[ID]
 
@@ -83,7 +83,7 @@ extern void irq_enable_pulse(
 
  \return none, disable(IRQ[ID].channel[irq_ID])
  */
-extern void irq_disable_channel(
+void irq_disable_channel(
 	const irq_ID_t				ID,
 	const unsigned int			irq);
 
@@ -93,7 +93,7 @@ extern void irq_disable_channel(
 
  \return none, clear(IRQ[ID].channel[])
  */
-extern void irq_clear_all(
+void irq_clear_all(
 	const irq_ID_t				ID);
 
 /*! Return the ID of a signalling IRQ channel of IRQ[ID]
@@ -107,7 +107,7 @@ extern void irq_clear_all(
 
  \return state(IRQ[ID])
  */
-extern enum hrt_isp_css_irq_status irq_get_channel_id(
+enum hrt_isp_css_irq_status irq_get_channel_id(
 	const irq_ID_t				ID,
 	unsigned int				*irq_id);
 
@@ -118,7 +118,7 @@ extern enum hrt_isp_css_irq_status irq_get_channel_id(
 
  \return none, signal(IRQ[ID].channel[irq_id])
  */
-extern void irq_raise(
+void irq_raise(
 	const irq_ID_t				ID,
 	const irq_sw_channel_id_t	irq_id);
 
@@ -126,7 +126,7 @@ extern void irq_raise(
 
  \return any(VIRQ.channel[irq_ID] != 0)
  */
-extern bool any_virq_signal(void);
+bool any_virq_signal(void);
 
 /*! Enable an IRQ channel of the virtual super IRQ
 
@@ -135,7 +135,7 @@ extern bool any_virq_signal(void);
 
  \return none, VIRQ.channel[irq_ID].enable = en
  */
-extern void cnd_virq_enable_channel(
+void cnd_virq_enable_channel(
 	const virq_id_t				irq_ID,
 	const bool					en);
 
@@ -143,7 +143,7 @@ extern void cnd_virq_enable_channel(
 
  \return none, clear(VIRQ.channel[])
  */
-extern void virq_clear_all(void);
+void virq_clear_all(void);
 
 /*! Clear the IRQ info state of the virtual super IRQ
 
@@ -151,7 +151,7 @@ extern void virq_clear_all(void);
 
  \return none
  */
-extern void virq_clear_info(
+void virq_clear_info(
 	virq_info_t					*irq_info);
 
 /*! Return the ID of a signalling IRQ channel of the virtual super IRQ
@@ -164,7 +164,7 @@ extern void virq_clear_info(
 
  \return state(IRQ[...])
  */
-extern enum hrt_isp_css_irq_status virq_get_channel_id(
+enum hrt_isp_css_irq_status virq_get_channel_id(
 	virq_id_t					*irq_id);
 
 /*! Return the IDs of all signaling IRQ channels of the virtual super IRQ
@@ -178,7 +178,7 @@ extern enum hrt_isp_css_irq_status virq_get_channel_id(
 
  \return (error(state(IRQ[...]))
  */
-extern enum hrt_isp_css_irq_status virq_get_channel_signals(
+enum hrt_isp_css_irq_status virq_get_channel_signals(
 	virq_info_t					*irq_info);
 
 #endif /* __IRQ_PUBLIC_H_INCLUDED__ */

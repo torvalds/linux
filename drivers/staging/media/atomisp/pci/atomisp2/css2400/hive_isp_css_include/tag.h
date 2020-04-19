@@ -29,12 +29,11 @@
  *
  */
 
-
 #include "tag_local.h"
 
 #ifndef __INLINE_TAG__
 #define STORAGE_CLASS_TAG_H extern
-#define STORAGE_CLASS_TAG_C 
+#define STORAGE_CLASS_TAG_C
 #include "tag_public.h"
 #else  /* __INLINE_TAG__ */
 #define STORAGE_CLASS_TAG_H static inline

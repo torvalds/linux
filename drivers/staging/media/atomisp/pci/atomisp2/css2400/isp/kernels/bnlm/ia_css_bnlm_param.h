@@ -38,6 +38,7 @@ struct bnlm_vmem_params {
 
 	/* LUTs used for division approximiation */
 	struct bnlm_lut div_lut;
+
 	VMEM_ARRAY(div_lut_intercepts, ISP_VEC_NELEMS);
 
 	/* 240x does not have an ISP instruction to left shift each element of a
@@ -49,15 +50,15 @@ struct bnlm_vmem_params {
 /* BNLM ISP parameters */
 struct bnlm_dmem_params {
 	bool rad_enable;
-	int32_t rad_x_origin;
-	int32_t rad_y_origin;
-	int32_t avg_min_th;
-	int32_t max_min_th;
+	s32 rad_x_origin;
+	s32 rad_y_origin;
+	s32 avg_min_th;
+	s32 max_min_th;
 
-	int32_t exp_coeff_a;
-	uint32_t exp_coeff_b;
-	int32_t exp_coeff_c;
-	uint32_t exp_exponent;
+	s32 exp_coeff_a;
+	u32 exp_coeff_b;
+	s32 exp_coeff_c;
+	u32 exp_exponent;
 };
 
 #endif /* __IA_CSS_BNLM_PARAM_H */

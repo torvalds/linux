@@ -24,16 +24,16 @@ void
 ia_css_anr_encode(
 	struct sh_css_isp_anr_params *to,
 	const struct ia_css_anr_config *from,
-	unsigned size);
+	unsigned int size);
 
 void
 ia_css_anr_dump(
 	const struct sh_css_isp_anr_params *anr,
-	unsigned level);
+	unsigned int level);
 
 void
 ia_css_anr_debug_dtrace(
-	const struct ia_css_anr_config *config, unsigned level)
+	const struct ia_css_anr_config *config, unsigned int level)
 ;
 
 #endif /* __IA_CSS_ANR_HOST_H */

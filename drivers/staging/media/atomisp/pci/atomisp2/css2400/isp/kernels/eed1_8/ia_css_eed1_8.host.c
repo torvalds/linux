@@ -32,46 +32,45 @@
 #define NUMBER_OF_TCINV_POINTS 9
 #define NUMBER_OF_FCINV_POINTS 9
 
-static const int16_t chgrinv_x[NUMBER_OF_CHGRINV_POINTS] = {
+static const s16 chgrinv_x[NUMBER_OF_CHGRINV_POINTS] = {
 0, 16, 64, 144, 272, 448, 672, 976,
 1376, 1888, 2528, 3312, 4256, 5376, 6688};
 
-static const int16_t chgrinv_a[NUMBER_OF_CHGRINV_POINTS] = {
+static const s16 chgrinv_a[NUMBER_OF_CHGRINV_POINTS] = {
 -7171, -256, -29, -3456, -1071, -475, -189, -102,
 -48, -38, -10, -9, -7, -6, 0};
 
-static const int16_t chgrinv_b[NUMBER_OF_CHGRINV_POINTS] = {
+static const s16 chgrinv_b[NUMBER_OF_CHGRINV_POINTS] = {
 8191, 1021, 256, 114, 60, 37, 24, 17,
 12, 9, 6, 5, 4, 3, 2};
 
-static const int16_t chgrinv_c[NUMBER_OF_CHGRINV_POINTS] = {
+static const s16 chgrinv_c[NUMBER_OF_CHGRINV_POINTS] = {
 1, 1, 1, 0, 0, 0, 0, 0,
 0, 0, 0, 0, 0, 0, 0};
 
-static const int16_t tcinv_x[NUMBER_OF_TCINV_POINTS] = {
+static const s16 tcinv_x[NUMBER_OF_TCINV_POINTS] = {
 0, 4, 11, 23, 42, 68, 102, 148, 205};
 
-static const int16_t tcinv_a[NUMBER_OF_TCINV_POINTS] = {
+static const s16 tcinv_a[NUMBER_OF_TCINV_POINTS] = {
 -6364, -631, -126, -34, -13, -6, -4452, -2156, 0};
 
-static const int16_t tcinv_b[NUMBER_OF_TCINV_POINTS] = {
+static const s16 tcinv_b[NUMBER_OF_TCINV_POINTS] = {
 8191, 1828, 726, 352, 197, 121, 80, 55, 40};
 
-static const int16_t tcinv_c[NUMBER_OF_TCINV_POINTS] = {
+static const s16 tcinv_c[NUMBER_OF_TCINV_POINTS] = {
 1, 1, 1, 1, 1, 1, 0, 0, 0};
 
-static const int16_t fcinv_x[NUMBER_OF_FCINV_POINTS] = {
+static const s16 fcinv_x[NUMBER_OF_FCINV_POINTS] = {
 0, 80, 216, 456, 824, 1344, 2040, 2952, 4096};
 
-static const int16_t fcinv_a[NUMBER_OF_FCINV_POINTS] = {
+static const s16 fcinv_a[NUMBER_OF_FCINV_POINTS] = {
 -5244, -486, -86, -2849, -961, -400, -180, -86, 0};
 
-static const int16_t fcinv_b[NUMBER_OF_FCINV_POINTS] = {
+static const s16 fcinv_b[NUMBER_OF_FCINV_POINTS] = {
 8191, 1637, 607, 287, 159, 98, 64, 44, 32};
 
-static const int16_t fcinv_c[NUMBER_OF_FCINV_POINTS] = {
+static const s16 fcinv_c[NUMBER_OF_FCINV_POINTS] = {
 1, 1, 1, 0, 0, 0, 0, 0, 0};
-
 
 void
 ia_css_eed1_8_vmem_encode(
@@ -79,9 +78,9 @@ ia_css_eed1_8_vmem_encode(
 	const struct ia_css_eed1_8_config *from,
 	size_t size)
 {
-	unsigned i, j, base;
-	const unsigned total_blocks = 4;
-	const unsigned shuffle_block = 16;
+	unsigned int i, j, base;
+	const unsigned int total_blocks = 4;
+	const unsigned int shuffle_block = 16;
 
 	(void)size;
 
@@ -121,8 +120,8 @@ ia_css_eed1_8_vmem_encode(
 	}
 
 	for (j = 1; j < IA_CSS_NUMBER_OF_DEW_ENHANCE_SEGMENTS; j++) {
-		assert(from->dew_enhance_seg_x[j] > from->dew_enhance_seg_x[j-1]);
-		assert(from->dew_enhance_seg_y[j] > from->dew_enhance_seg_y[j-1]);
+		assert(from->dew_enhance_seg_x[j] > from->dew_enhance_seg_x[j - 1]);
+		assert(from->dew_enhance_seg_y[j] > from->dew_enhance_seg_y[j - 1]);
 	}
 
 	assert(from->dew_enhance_seg_x[0] == 0);
@@ -138,15 +137,15 @@ ia_css_eed1_8_vmem_encode(
 	assert(fcinv_x[0] == 0);
 
 	for (j = 1; j < NUMBER_OF_CHGRINV_POINTS; j++) {
-		assert(chgrinv_x[j] > chgrinv_x[j-1]);
+		assert(chgrinv_x[j] > chgrinv_x[j - 1]);
 	}
 
 	for (j = 1; j < NUMBER_OF_TCINV_POINTS; j++) {
-		assert(tcinv_x[j] > tcinv_x[j-1]);
+		assert(tcinv_x[j] > tcinv_x[j - 1]);
 	}
 
 	for (j = 1; j < NUMBER_OF_FCINV_POINTS; j++) {
-		assert(fcinv_x[j] > fcinv_x[j-1]);
+		assert(fcinv_x[j] > fcinv_x[j - 1]);
 	}
 
 	/* The implementation of the calulating 1/x is based on the availability
@@ -156,7 +155,7 @@ ia_css_eed1_8_vmem_encode(
 	 * initialised as described in the KFS. The remaining elements of a vector are set to 0.
 	 */
 	/* TODO: guard this code with above assumptions */
-	for(i = 0; i < total_blocks; i++) {
+	for (i = 0; i < total_blocks; i++) {
 		base = shuffle_block * i;
 
 		for (j = 0; j < IA_CSS_NUMBER_OF_DEW_ENHANCE_SEGMENTS; j++) {
@@ -171,7 +170,7 @@ ia_css_eed1_8_vmem_encode(
 		for (j = 0; j < (IA_CSS_NUMBER_OF_DEW_ENHANCE_SEGMENTS - 1); j++) {
 			to->e_dew_enh_a[0][base + j] = min_t(int, max_t(int,
 									from->dew_enhance_seg_slope[j],
-								        -8192), 8191);
+									-8192), 8191);
 			/* Convert dew_enhance_seg_exp to flag:
 			 * 0 -> 0
 			 * 1...13 -> 1
@@ -210,7 +209,6 @@ ia_css_eed1_8_vmem_encode(
 		}
 	}
 }
-
 
 void
 ia_css_eed1_8_encode(
@@ -270,7 +268,6 @@ ia_css_eed1_8_encode(
 	to->dedgew_max = from->dedgew_max;
 }
 
-
 void
 ia_css_init_eed1_8_state(
 	void *state,
@@ -279,12 +276,11 @@ ia_css_init_eed1_8_state(
 	memset(state, 0, size);
 }
 
-
 #ifndef IA_CSS_NO_DEBUG
 void
 ia_css_eed1_8_debug_dtrace(
 	const struct ia_css_eed1_8_config *eed,
-	unsigned level)
+	unsigned int level)
 {
 	if (!eed)
 		return;
@@ -326,4 +322,3 @@ ia_css_eed1_8_debug_dtrace(
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n", "dedgew_max", eed->dedgew_max);
 }
 #endif
-

@@ -24,7 +24,7 @@
 //AM: Use previous define for this.
 
 //MIPI allows upto 4 channels.
-#define		N_CHANNELS  (4) 
+#define		N_CHANNELS  (4)
 // 12KB = 256bit x 384 words
 #define		IB_CAPACITY_IN_WORDS (384)
 
@@ -49,7 +49,7 @@ typedef enum {
 typedef enum {
 	INPUT_SYSTEM_DISCARD_ALL = 0,
 	INPUT_SYSTEM_CSI_BACKEND = 1,
-	INPUT_SYSTEM_INPUT_BUFFER = 2, 
+	INPUT_SYSTEM_INPUT_BUFFER = 2,
 	INPUT_SYSTEM_MULTICAST = 3,
 	N_INPUT_SYSTEM_CONNECTION
 } input_system_connection_t;
@@ -86,31 +86,31 @@ typedef struct prbs_cfg_s			prbs_cfg_t;
 
 /* MW: uint16_t should be sufficient */
 struct input_system_cfg_s {
-	uint32_t	no_side_band;
-	uint32_t	fmt_type;
-	uint32_t	ch_id;
-	uint32_t	input_mode;
+	u32	no_side_band;
+	u32	fmt_type;
+	u32	ch_id;
+	u32	input_mode;
 };
 
 struct sync_generator_cfg_s {
-	uint32_t	width;
-	uint32_t	height;
-	uint32_t	hblank_cycles;
-	uint32_t	vblank_cycles;
+	u32	width;
+	u32	height;
+	u32	hblank_cycles;
+	u32	vblank_cycles;
 };
 
 /* MW: tpg & prbs are exclusive */
 struct tpg_cfg_s {
-	uint32_t	x_mask;
-	uint32_t	y_mask;
-	uint32_t	x_delta;
-	uint32_t	y_delta;
-	uint32_t	xy_mask;
+	u32	x_mask;
+	u32	y_mask;
+	u32	x_delta;
+	u32	y_delta;
+	u32	xy_mask;
 	sync_generator_cfg_t sync_gen_cfg;
 };
 
 struct prbs_cfg_s {
-	uint32_t	seed;
+	u32	seed;
 	sync_generator_cfg_t sync_gen_cfg;
 };
 
@@ -125,19 +125,19 @@ typedef struct gpfifo_cfg_s		gpfifo_cfg_t;
 //typedef struct input_system_cfg_s input_system_cfg_t;
 
 struct ib_buffer_s {
-	uint32_t	mem_reg_size;
-	uint32_t	nof_mem_regs;
-	uint32_t	mem_reg_addr;
+	u32	mem_reg_size;
+	u32	nof_mem_regs;
+	u32	mem_reg_addr;
 };
 
 typedef struct ib_buffer_s	ib_buffer_t;
 
 struct csi_cfg_s {
-	uint32_t			csi_port;
+	u32			csi_port;
     buffering_mode_t	buffering_mode;
 	ib_buffer_t			csi_buffer;
 	ib_buffer_t			acquisition_buffer;
-	uint32_t			nof_xmem_buffers;
+	u32			nof_xmem_buffers;
 };
 
 typedef struct csi_cfg_s	 csi_cfg_t;
@@ -150,6 +150,6 @@ typedef enum {
 	INPUT_SYSTEM_CFG_FLAG_CONFLICT	= 1U << 3	// To mark a conflicting configuration.
 } input_system_cfg_flag_t;
 
-typedef uint32_t input_system_config_flags_t; 
+typedef u32 input_system_config_flags_t;
 
 #endif /* __INPUT_SYSTEM_GLOBAL_H_INCLUDED__ */

@@ -36,7 +36,6 @@
 				 */
 #include "pixelgen.h"
 
-
 #define INPUT_SYSTEM_N_STREAM_ID  6	/* maximum number of simultaneous
 					virtual channels supported*/
 
@@ -132,15 +131,15 @@ struct input_system_cfg_s {
 
 	bool online;
 	bool raw_packed;
-	int8_t linked_isys_stream_id;
+	s8 linked_isys_stream_id;
 
 	struct {
 		bool	comp_enable;
-		int32_t	active_lanes;
-		int32_t	fmt_type;
-		int32_t	ch_id;
-		int32_t comp_predictor;
-		int32_t comp_scheme;
+		s32	active_lanes;
+		s32	fmt_type;
+		s32	ch_id;
+		s32 comp_predictor;
+		s32 comp_scheme;
 	} csi_port_attr;
 
 	pixelgen_tpg_cfg_t	tpg_port_attr;
@@ -148,52 +147,52 @@ struct input_system_cfg_s {
 	pixelgen_prbs_cfg_t prbs_port_attr;
 
 	struct {
-		int32_t align_req_in_bytes;
-		int32_t bits_per_pixel;
-		int32_t pixels_per_line;
-		int32_t lines_per_frame;
+		s32 align_req_in_bytes;
+		s32 bits_per_pixel;
+		s32 pixels_per_line;
+		s32 lines_per_frame;
 	} input_port_resolution;
 
 	struct {
-		int32_t left_padding;
-		int32_t max_isp_input_width;
+		s32 left_padding;
+		s32 max_isp_input_width;
 	} output_port_attr;
 
 	struct {
 		bool    enable;
-		int32_t fmt_type;
-		int32_t align_req_in_bytes;
-		int32_t bits_per_pixel;
-		int32_t pixels_per_line;
-		int32_t lines_per_frame;
+		s32 fmt_type;
+		s32 align_req_in_bytes;
+		s32 bits_per_pixel;
+		s32 pixels_per_line;
+		s32 lines_per_frame;
 	} metadata;
 };
 
 typedef struct virtual_input_system_stream_s virtual_input_system_stream_t;
 struct virtual_input_system_stream_s {
-	uint32_t id;				/*Used when multiple MIPI data types and/or virtual channels are used.
+	u32 id;				/*Used when multiple MIPI data types and/or virtual channels are used.
 								Must be unique within one CSI RX
 								and lower than SH_CSS_MAX_ISYS_CHANNEL_NODES */
-	uint8_t enable_metadata;
+	u8 enable_metadata;
 	input_system_input_port_t	input_port;
 	input_system_channel_t		channel;
 	input_system_channel_t		md_channel; /* metadata channel */
-	uint8_t online;
-	int8_t linked_isys_stream_id;
-	uint8_t valid;
+	u8 online;
+	s8 linked_isys_stream_id;
+	u8 valid;
 #ifdef ISP2401
 	input_system_polling_mode_t	polling_mode;
-	int32_t subscr_index;
+	s32 subscr_index;
 #endif
 };
 
 typedef struct virtual_input_system_stream_cfg_s virtual_input_system_stream_cfg_t;
 struct virtual_input_system_stream_cfg_s {
-	uint8_t enable_metadata;
+	u8 enable_metadata;
 	input_system_input_port_cfg_t	input_port_cfg;
 	input_system_channel_cfg_t	channel_cfg;
 	input_system_channel_cfg_t	md_channel_cfg;
-	uint8_t valid;
+	u8 valid;
 };
 
 #define ISP_INPUT_BUF_START_ADDR	0
@@ -201,6 +200,5 @@ struct virtual_input_system_stream_cfg_s {
 #define NUM_OF_LINES_PER_BUF		2
 #define LINES_OF_ISP_INPUT_BUF		(NUM_OF_INPUT_BUF * NUM_OF_LINES_PER_BUF)
 #define ISP_INPUT_BUF_STRIDE		SH_CSS_MAX_SENSOR_WIDTH
-
 
 #endif /* __INPUT_SYSTEM_GLOBAL_H_INCLUDED__ */

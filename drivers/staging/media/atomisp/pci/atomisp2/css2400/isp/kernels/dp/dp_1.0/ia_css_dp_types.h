@@ -19,7 +19,6 @@
 * CSS-API header file for Defect Pixel Correction (DPC) parameters.
 */
 
-
 /* Defect Pixel Correction configuration.
  *
  *  ISP block: DPC1 (DPC after WB)
@@ -40,11 +39,10 @@ struct ia_css_dp_config {
 				too large.
 				u8.8, [0,65535],
 				default 4096, ineffective 65535 */
-	uint32_t gr;	/* unsigned <integer_bits>.<16-integer_bits> */
-	uint32_t r;	/* unsigned <integer_bits>.<16-integer_bits> */
-	uint32_t b;	/* unsigned <integer_bits>.<16-integer_bits> */
-	uint32_t gb;	/* unsigned <integer_bits>.<16-integer_bits> */
+	u32 gr;	/* unsigned <integer_bits>.<16-integer_bits> */
+	u32 r;	/* unsigned <integer_bits>.<16-integer_bits> */
+	u32 b;	/* unsigned <integer_bits>.<16-integer_bits> */
+	u32 gb;	/* unsigned <integer_bits>.<16-integer_bits> */
 };
 
 #endif /* __IA_CSS_DP_TYPES_H */
-

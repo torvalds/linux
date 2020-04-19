@@ -18,38 +18,40 @@
 #include "type_support.h"
 #include "vmem_global.h"
 
-typedef uint16_t t_vmem_elem;
+typedef u16 t_vmem_elem;
 
-#define VMEM_ARRAY(x,s)    t_vmem_elem x[s/ISP_NWAY][ISP_NWAY]
+#define VMEM_ARRAY(x, s)    t_vmem_elem x[s / ISP_NWAY][ISP_NWAY]
 
 void isp_vmem_load(
 	const isp_ID_t		ID,
 	const t_vmem_elem	*from,
 	t_vmem_elem		*to,
-	unsigned		elems); /* In t_vmem_elem */
+	unsigned int elems); /* In t_vmem_elem */
 
 void isp_vmem_store(
 	const isp_ID_t		ID,
 	t_vmem_elem		*to,
 	const t_vmem_elem	*from,
-	unsigned		elems); /* In t_vmem_elem */
+	unsigned int elems); /* In t_vmem_elem */
 
-void isp_vmem_2d_load (
+void isp_vmem_2d_load(
 	const isp_ID_t		ID,
 	const t_vmem_elem	*from,
 	t_vmem_elem		*to,
-	unsigned		height,
-	unsigned		width,
-	unsigned		stride_to,  /* In t_vmem_elem */
+	unsigned int height,
+	unsigned int width,
+	unsigned int stride_to,  /* In t_vmem_elem */
+
 	unsigned		stride_from /* In t_vmem_elem */);
 
-void isp_vmem_2d_store (
+void isp_vmem_2d_store(
 	const isp_ID_t		ID,
 	t_vmem_elem		*to,
 	const t_vmem_elem	*from,
-	unsigned		height,
-	unsigned		width,
-	unsigned		stride_to,  /* In t_vmem_elem */
+	unsigned int height,
+	unsigned int width,
+	unsigned int stride_to,  /* In t_vmem_elem */
+
 	unsigned		stride_from /* In t_vmem_elem */);
 
 #endif /* __VMEM_LOCAL_H_INCLUDED__ */

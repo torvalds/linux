@@ -51,9 +51,9 @@ enum sh_css_queue_id {
 #endif
 
 #if defined(HAS_NO_INPUT_SYSTEM) || defined(USE_INPUT_SYSTEM_VERSION_2) || defined(USE_INPUT_SYSTEM_VERSION_2401)
-#define SH_CSS_MAX_NUM_QUEUES (SH_CSS_QUEUE_H_ID+1)
+#define SH_CSS_MAX_NUM_QUEUES (SH_CSS_QUEUE_H_ID + 1)
 #else
-#define SH_CSS_MAX_NUM_QUEUES (SH_CSS_QUEUE_G_ID+1)
+#define SH_CSS_MAX_NUM_QUEUES (SH_CSS_QUEUE_G_ID + 1)
 #endif
 
 };

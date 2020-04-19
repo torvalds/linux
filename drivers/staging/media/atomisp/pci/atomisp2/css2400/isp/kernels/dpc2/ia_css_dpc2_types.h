@@ -23,10 +23,10 @@
 
 /**@{*/
 /* Floating point constants for different metrics. */
-#define METRIC1_ONE_FP	(1<<12)
-#define METRIC2_ONE_FP	(1<<5)
-#define METRIC3_ONE_FP	(1<<12)
-#define WBGAIN_ONE_FP	(1<<9)
+#define METRIC1_ONE_FP	BIT(12)
+#define METRIC2_ONE_FP	BIT(5)
+#define METRIC3_ONE_FP	BIT(12)
+#define WBGAIN_ONE_FP	BIT(9)
 /**@}*/
 
 /**@{*/
@@ -44,16 +44,16 @@
  */
 struct ia_css_dpc2_config {
 	/**@{*/
-	int32_t metric1;
-	int32_t metric2;
-	int32_t metric3;
-	int32_t wb_gain_gr;
-	int32_t wb_gain_r;
-	int32_t wb_gain_b;
-	int32_t wb_gain_gb;
+	s32 metric1;
+	s32 metric2;
+	s32 metric3;
+	s32 wb_gain_gr;
+	s32 wb_gain_r;
+	s32 wb_gain_b;
+	s32 wb_gain_gb;
 	/**@}*/
 };
+
 /**@}*/
 
 #endif /* __IA_CSS_DPC2_TYPES_H */
-

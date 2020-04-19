@@ -24,71 +24,70 @@ const struct ia_css_dvs2_coefficients default_sdis2_config = {
 };
 
 static void
-fill_row(short *private, const short *public, unsigned width, unsigned padding)
+fill_row(short *private, const short *public, unsigned int width, unsigned int padding)
 {
-	memcpy (private, public, width*sizeof(short));
-	memset (&private[width], 0, padding*sizeof(short));
+	memcpy(private, public, width * sizeof(short));
+	memset(&private[width], 0, padding * sizeof(short));
 }
 
-void ia_css_sdis2_horicoef_vmem_encode (
+void ia_css_sdis2_horicoef_vmem_encode(
 	struct sh_css_isp_sdis_hori_coef_tbl *to,
 	const struct ia_css_dvs2_coefficients *from,
-	unsigned size)
+	unsigned int size)
 {
-	unsigned aligned_width = from->grid.aligned_width * from->grid.bqs_per_grid_cell;
-	unsigned width         = from->grid.num_hor_coefs;
-	int      padding       = aligned_width-width;
-	unsigned stride        = size/IA_CSS_DVS2_NUM_COEF_TYPES/sizeof(short);
-	unsigned total_bytes   = aligned_width*IA_CSS_DVS2_NUM_COEF_TYPES*sizeof(short);
-	short   *private       = (short*)to;
-
+	unsigned int aligned_width = from->grid.aligned_width * from->grid.bqs_per_grid_cell;
+	unsigned int width         = from->grid.num_hor_coefs;
+	int      padding       = aligned_width - width;
+	unsigned int stride        = size / IA_CSS_DVS2_NUM_COEF_TYPES / sizeof(short);
+	unsigned int total_bytes   = aligned_width * IA_CSS_DVS2_NUM_COEF_TYPES * sizeof(short);
+	short   *private       = (short *)to;
 
 	/* Copy the table, add padding */
 	assert(padding >= 0);
 	assert(total_bytes <= size);
-	assert(size % (IA_CSS_DVS2_NUM_COEF_TYPES*ISP_VEC_NELEMS*sizeof(short)) == 0);
-	fill_row(&private[0*stride], from->hor_coefs.odd_real,  width, padding);
-	fill_row(&private[1*stride], from->hor_coefs.odd_imag,  width, padding);
-	fill_row(&private[2*stride], from->hor_coefs.even_real, width, padding);
-	fill_row(&private[3*stride], from->hor_coefs.even_imag, width, padding);
+	assert(size % (IA_CSS_DVS2_NUM_COEF_TYPES * ISP_VEC_NELEMS * sizeof(short)) == 0);
+	fill_row(&private[0 * stride], from->hor_coefs.odd_real,  width, padding);
+	fill_row(&private[1 * stride], from->hor_coefs.odd_imag,  width, padding);
+	fill_row(&private[2 * stride], from->hor_coefs.even_real, width, padding);
+	fill_row(&private[3 * stride], from->hor_coefs.even_imag, width, padding);
 }
 
-void ia_css_sdis2_vertcoef_vmem_encode (
+void ia_css_sdis2_vertcoef_vmem_encode(
 	struct sh_css_isp_sdis_vert_coef_tbl *to,
 	const struct ia_css_dvs2_coefficients *from,
-	unsigned size)
+	unsigned int size)
 {
-	unsigned aligned_height = from->grid.aligned_height * from->grid.bqs_per_grid_cell;
-	unsigned height         = from->grid.num_ver_coefs;
-	int      padding        = aligned_height-height;
-	unsigned stride         = size/IA_CSS_DVS2_NUM_COEF_TYPES/sizeof(short);
-	unsigned total_bytes    = aligned_height*IA_CSS_DVS2_NUM_COEF_TYPES*sizeof(short);
-	short   *private        = (short*)to;
+	unsigned int aligned_height = from->grid.aligned_height * from->grid.bqs_per_grid_cell;
+	unsigned int height         = from->grid.num_ver_coefs;
+	int      padding        = aligned_height - height;
+	unsigned int stride         = size / IA_CSS_DVS2_NUM_COEF_TYPES / sizeof(short);
+	unsigned int total_bytes    = aligned_height * IA_CSS_DVS2_NUM_COEF_TYPES * sizeof(short);
+	short   *private        = (short *)to;
 
 	/* Copy the table, add padding */
 	assert(padding >= 0);
 	assert(total_bytes <= size);
-	assert(size % (IA_CSS_DVS2_NUM_COEF_TYPES*ISP_VEC_NELEMS*sizeof(short)) == 0);
-	fill_row(&private[0*stride], from->ver_coefs.odd_real,  height, padding);
-	fill_row(&private[1*stride], from->ver_coefs.odd_imag,  height, padding);
-	fill_row(&private[2*stride], from->ver_coefs.even_real, height, padding);
-	fill_row(&private[3*stride], from->ver_coefs.even_imag, height, padding);
+	assert(size % (IA_CSS_DVS2_NUM_COEF_TYPES * ISP_VEC_NELEMS * sizeof(short)) == 0);
+	fill_row(&private[0 * stride], from->ver_coefs.odd_real,  height, padding);
+	fill_row(&private[1 * stride], from->ver_coefs.odd_imag,  height, padding);
+	fill_row(&private[2 * stride], from->ver_coefs.even_real, height, padding);
+	fill_row(&private[3 * stride], from->ver_coefs.even_imag, height, padding);
 }
 
-void ia_css_sdis2_horiproj_encode (
+void ia_css_sdis2_horiproj_encode(
 	struct sh_css_isp_sdis_hori_proj_tbl *to,
 	const struct ia_css_dvs2_coefficients *from,
-	unsigned size)
+	unsigned int size)
 {
 	(void)to;
 	(void)from;
 	(void)size;
 }
 
-void ia_css_sdis2_vertproj_encode (
+void ia_css_sdis2_vertproj_encode(
 	struct sh_css_isp_sdis_vert_proj_tbl *to,
 	const struct ia_css_dvs2_coefficients *from,
-	unsigned size)
+	unsigned int size)
 {
 	(void)to;
 	(void)from;
@@ -113,15 +112,15 @@ void ia_css_get_isp_dvs2_coefficients(
 
 	IA_CSS_ENTER("void");
 
-	assert(stream != NULL);
-	assert(hor_coefs_odd_real  != NULL);
-	assert(hor_coefs_odd_imag  != NULL);
-	assert(hor_coefs_even_real != NULL);
-	assert(hor_coefs_even_imag != NULL);
-	assert(ver_coefs_odd_real  != NULL);
-	assert(ver_coefs_odd_imag  != NULL);
-	assert(ver_coefs_even_real != NULL);
-	assert(ver_coefs_even_imag != NULL);
+	assert(stream);
+	assert(hor_coefs_odd_real);
+	assert(hor_coefs_odd_imag);
+	assert(hor_coefs_even_real);
+	assert(hor_coefs_even_imag);
+	assert(ver_coefs_odd_real);
+	assert(ver_coefs_odd_imag);
+	assert(ver_coefs_even_real);
+	assert(ver_coefs_even_imag);
 
 	params = stream->isp_params_configs;
 
@@ -135,14 +134,14 @@ void ia_css_get_isp_dvs2_coefficients(
 	hor_num_isp = dvs_binary->dis.coef.pad.width;
 	ver_num_isp = dvs_binary->dis.coef.pad.height;
 
-	memcpy (hor_coefs_odd_real,  params->dvs2_coefs.hor_coefs.odd_real,  hor_num_3a * sizeof(short));
-	memcpy (hor_coefs_odd_imag,  params->dvs2_coefs.hor_coefs.odd_imag,  hor_num_3a * sizeof(short));
-	memcpy (hor_coefs_even_real, params->dvs2_coefs.hor_coefs.even_real, hor_num_3a * sizeof(short));
-	memcpy (hor_coefs_even_imag, params->dvs2_coefs.hor_coefs.even_imag, hor_num_3a * sizeof(short));
-	memcpy (ver_coefs_odd_real,  params->dvs2_coefs.ver_coefs.odd_real,  ver_num_3a * sizeof(short));
-	memcpy (ver_coefs_odd_imag,  params->dvs2_coefs.ver_coefs.odd_imag,  ver_num_3a * sizeof(short));
-	memcpy (ver_coefs_even_real, params->dvs2_coefs.ver_coefs.even_real, ver_num_3a * sizeof(short));
-	memcpy (ver_coefs_even_imag, params->dvs2_coefs.ver_coefs.even_imag, ver_num_3a * sizeof(short));
+	memcpy(hor_coefs_odd_real,  params->dvs2_coefs.hor_coefs.odd_real,  hor_num_3a * sizeof(short));
+	memcpy(hor_coefs_odd_imag,  params->dvs2_coefs.hor_coefs.odd_imag,  hor_num_3a * sizeof(short));
+	memcpy(hor_coefs_even_real, params->dvs2_coefs.hor_coefs.even_real, hor_num_3a * sizeof(short));
+	memcpy(hor_coefs_even_imag, params->dvs2_coefs.hor_coefs.even_imag, hor_num_3a * sizeof(short));
+	memcpy(ver_coefs_odd_real,  params->dvs2_coefs.ver_coefs.odd_real,  ver_num_3a * sizeof(short));
+	memcpy(ver_coefs_odd_imag,  params->dvs2_coefs.ver_coefs.odd_imag,  ver_num_3a * sizeof(short));
+	memcpy(ver_coefs_even_real, params->dvs2_coefs.ver_coefs.even_real, ver_num_3a * sizeof(short));
+	memcpy(ver_coefs_even_imag, params->dvs2_coefs.ver_coefs.even_imag, ver_num_3a * sizeof(short));
 
 	IA_CSS_LEAVE("void");
 }
@@ -170,8 +169,8 @@ ia_css_get_dvs2_statistics(
 
 	IA_CSS_ENTER("host_stats=%p, isp_stats=%p", host_stats, isp_stats);
 
-	assert(host_stats != NULL);
-	assert(isp_stats != NULL);
+	assert(host_stats);
+	assert(isp_stats);
 
 	map = ia_css_isp_dvs_statistics_map_allocate(isp_stats, NULL);
 	if (map) {
@@ -194,26 +193,22 @@ ia_css_translate_dvs2_statistics(
 {
 	unsigned int size_bytes, table_width, table_size, height;
 	unsigned int src_offset = 0, dst_offset = 0;
-	int32_t *htemp_ptr, *vtemp_ptr;
+	s32 *htemp_ptr, *vtemp_ptr;
 
-	assert(host_stats != NULL);
-	assert(host_stats->hor_prod.odd_real  != NULL);
-	assert(host_stats->hor_prod.odd_imag  != NULL);
-	assert(host_stats->hor_prod.even_real != NULL);
-	assert(host_stats->hor_prod.even_imag != NULL);
-	assert(host_stats->ver_prod.odd_real  != NULL);
-	assert(host_stats->ver_prod.odd_imag  != NULL);
-	assert(host_stats->ver_prod.even_real != NULL);
-	assert(host_stats->ver_prod.even_imag != NULL);
-	assert(isp_stats != NULL);
-	assert(isp_stats->hor_proj != NULL);
-	assert(isp_stats->ver_proj != NULL);
+	assert(host_stats);
+	assert(host_stats->hor_prod.odd_real);
+	assert(host_stats->hor_prod.odd_imag);
+	assert(host_stats->hor_prod.even_real);
+	assert(host_stats->hor_prod.even_imag);
+	assert(host_stats->ver_prod.odd_real);
+	assert(host_stats->ver_prod.odd_imag);
+	assert(host_stats->ver_prod.even_real);
+	assert(host_stats->ver_prod.even_imag);
+	assert(isp_stats);
+	assert(isp_stats->hor_proj);
+	assert(isp_stats->ver_proj);
 
-	IA_CSS_ENTER("hor_coefs.odd_real=%p, hor_coefs.odd_imag=%p, "
-		     "hor_coefs.even_real=%p, hor_coefs.even_imag=%p, "
-		     "ver_coefs.odd_real=%p, ver_coefs.odd_imag=%p, "
-		     "ver_coefs.even_real=%p, ver_coefs.even_imag=%p, "
-		     "haddr=%p, vaddr=%p",
+	IA_CSS_ENTER("hor_coefs.odd_real=%p, hor_coefs.odd_imag=%p, hor_coefs.even_real=%p, hor_coefs.even_imag=%p, ver_coefs.odd_real=%p, ver_coefs.odd_imag=%p, ver_coefs.even_real=%p, ver_coefs.even_imag=%p, haddr=%p, vaddr=%p",
 		host_stats->hor_prod.odd_real, host_stats->hor_prod.odd_imag,
 		host_stats->hor_prod.even_real, host_stats->hor_prod.even_imag,
 		host_stats->ver_prod.odd_real, host_stats->ver_prod.odd_imag,
@@ -233,23 +228,23 @@ ia_css_translate_dvs2_statistics(
 	for (height = 0; height < host_stats->grid.aligned_height; height++) {
 		/* hor stats */
 		memcpy(host_stats->hor_prod.odd_real + dst_offset,
-			&htemp_ptr[0*table_size+src_offset], size_bytes);
+			&htemp_ptr[0 * table_size + src_offset], size_bytes);
 		memcpy(host_stats->hor_prod.odd_imag + dst_offset,
-			&htemp_ptr[1*table_size+src_offset], size_bytes);
+			&htemp_ptr[1 * table_size + src_offset], size_bytes);
 		memcpy(host_stats->hor_prod.even_real + dst_offset,
-			&htemp_ptr[2*table_size+src_offset], size_bytes);
+			&htemp_ptr[2 * table_size + src_offset], size_bytes);
 		memcpy(host_stats->hor_prod.even_imag + dst_offset,
-			&htemp_ptr[3*table_size+src_offset], size_bytes);
+			&htemp_ptr[3 * table_size + src_offset], size_bytes);
 
 		/* ver stats */
 		memcpy(host_stats->ver_prod.odd_real + dst_offset,
-			&vtemp_ptr[0*table_size+src_offset], size_bytes);
+			&vtemp_ptr[0 * table_size + src_offset], size_bytes);
 		memcpy(host_stats->ver_prod.odd_imag + dst_offset,
-			&vtemp_ptr[1*table_size+src_offset], size_bytes);
+			&vtemp_ptr[1 * table_size + src_offset], size_bytes);
 		memcpy(host_stats->ver_prod.even_real + dst_offset,
-			&vtemp_ptr[2*table_size+src_offset], size_bytes);
+			&vtemp_ptr[2 * table_size + src_offset], size_bytes);
 		memcpy(host_stats->ver_prod.even_imag + dst_offset,
-			&vtemp_ptr[3*table_size+src_offset], size_bytes);
+			&vtemp_ptr[3 * table_size + src_offset], size_bytes);
 
 		src_offset += table_width; /* aligned table width */
 		dst_offset += host_stats->grid.aligned_width;
@@ -265,14 +260,14 @@ ia_css_isp_dvs2_statistics_allocate(
 	struct ia_css_isp_dvs_statistics *me;
 	int size;
 
-	assert(grid != NULL);
+	assert(grid);
 
 	IA_CSS_ENTER("grid=%p", grid);
 
 	if (!grid->enable)
 		return NULL;
 
-	me = sh_css_calloc(1,sizeof(*me));
+	me = sh_css_calloc(1, sizeof(*me));
 	if (!me)
 		goto err;
 
@@ -282,7 +277,7 @@ ia_css_isp_dvs2_statistics_allocate(
 	size = CEIL_MUL(sizeof(int) * grid->aligned_width, HIVE_ISP_DDR_WORD_BYTES)
 		* grid->aligned_height * IA_CSS_DVS2_NUM_COEF_TYPES;
 
-	me->size = 2*size;
+	me->size = 2 * size;
 	me->data_ptr = mmgr_malloc(me->size);
 	if (me->data_ptr == mmgr_NULL)
 		goto err;
@@ -303,35 +298,35 @@ err:
 void
 ia_css_isp_dvs2_statistics_free(struct ia_css_isp_dvs_statistics *me)
 {
-	if (me != NULL) {
+	if (me) {
 		hmm_free(me->data_ptr);
 		sh_css_free(me);
 	}
 }
 
 void ia_css_sdis2_horicoef_debug_dtrace(
-	const struct ia_css_dvs2_coefficients *config, unsigned level)
+	const struct ia_css_dvs2_coefficients *config, unsigned int level)
 {
 	(void)config;
 	(void)level;
 }
 
 void ia_css_sdis2_vertcoef_debug_dtrace(
-	const struct ia_css_dvs2_coefficients *config, unsigned level)
+	const struct ia_css_dvs2_coefficients *config, unsigned int level)
 {
 	(void)config;
 	(void)level;
 }
 
 void ia_css_sdis2_horiproj_debug_dtrace(
-	const struct ia_css_dvs2_coefficients *config, unsigned level)
+	const struct ia_css_dvs2_coefficients *config, unsigned int level)
 {
 	(void)config;
 	(void)level;
 }
 
 void ia_css_sdis2_vertproj_debug_dtrace(
-	const struct ia_css_dvs2_coefficients *config, unsigned level)
+	const struct ia_css_dvs2_coefficients *config, unsigned int level)
 {
 	(void)config;
 	(void)level;

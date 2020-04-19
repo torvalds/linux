@@ -32,7 +32,6 @@
 #include "isp_acquisition_defs.h"
 #include "input_system_ctrl_defs.h"
 
-
 typedef enum {
 	INPUT_SYSTEM_ERR_NO_ERROR = 0,
 	INPUT_SYSTEM_ERR_GENERIC,
@@ -51,14 +50,14 @@ typedef enum {
 
 typedef struct ctrl_unit_cfg_s			ctrl_unit_cfg_t;
 typedef struct input_system_network_cfg_s	input_system_network_cfg_t;
-typedef struct target_cfg2400_s 		target_cfg2400_t;
-typedef struct channel_cfg_s 			channel_cfg_t;
-typedef struct backend_channel_cfg_s 		backend_channel_cfg_t;
-typedef struct input_system_cfg2400_s 		input_system_cfg2400_t;
+typedef struct target_cfg2400_s		target_cfg2400_t;
+typedef struct channel_cfg_s			channel_cfg_t;
+typedef struct backend_channel_cfg_s		backend_channel_cfg_t;
+typedef struct input_system_cfg2400_s		input_system_cfg2400_t;
 typedef struct mipi_port_state_s		mipi_port_state_t;
 typedef struct rx_channel_state_s		rx_channel_state_t;
-typedef struct input_switch_cfg_channel_s 	input_switch_cfg_channel_t;
-typedef struct input_switch_cfg_s 		input_switch_cfg_t;
+typedef struct input_switch_cfg_channel_s	input_switch_cfg_channel_t;
+typedef struct input_switch_cfg_s		input_switch_cfg_t;
 
 struct ctrl_unit_cfg_s {
 	ib_buffer_t		buffer_mipi[N_CAPTURE_UNIT_ID];
@@ -73,37 +72,35 @@ struct input_system_network_cfg_s {
 
 typedef struct {
 // TBD.
-	uint32_t 	dummy_parameter;
+	u32	dummy_parameter;
 } target_isp_cfg_t;
 
-
 typedef struct {
 // TBD.
-	uint32_t 	dummy_parameter;
+	u32	dummy_parameter;
 } target_sp_cfg_t;
 
-
 typedef struct {
 // TBD.
-	uint32_t 	dummy_parameter;
+	u32	dummy_parameter;
 } target_strm2mem_cfg_t;
 
 struct input_switch_cfg_channel_s {
-	uint32_t hsync_data_reg[2];
-	uint32_t vsync_data_reg;
+	u32 hsync_data_reg[2];
+	u32 vsync_data_reg;
 };
 
 struct target_cfg2400_s {
-	input_switch_cfg_channel_t 		input_switch_channel_cfg;
+	input_switch_cfg_channel_t		input_switch_channel_cfg;
 	target_isp_cfg_t	target_isp_cfg;
 	target_sp_cfg_t		target_sp_cfg;
 	target_strm2mem_cfg_t	target_strm2mem_cfg;
 };
 
 struct backend_channel_cfg_s {
-	uint32_t	fmt_control_word_1; // Format config.
-	uint32_t	fmt_control_word_2;
-	uint32_t	no_side_band;
+	u32	fmt_control_word_1; // Format config.
+	u32	fmt_control_word_2;
+	u32	no_side_band;
 };
 
 typedef union  {
@@ -113,25 +110,22 @@ typedef union  {
 	gpfifo_cfg_t	gpfifo_cfg;
 } source_cfg_t;
 
-
 struct input_switch_cfg_s {
-	uint32_t hsync_data_reg[N_RX_CHANNEL_ID * 2];
-	uint32_t vsync_data_reg;
+	u32 hsync_data_reg[N_RX_CHANNEL_ID * 2];
+	u32 vsync_data_reg;
 };
 
 // Configuration of a channel.
 struct channel_cfg_s {
-	uint32_t		ch_id;
+	u32		ch_id;
 	backend_channel_cfg_t	backend_ch;
 	input_system_source_t	source_type;
 	source_cfg_t		source_cfg;
 	target_cfg2400_t	target_cfg;
 };
 
-
 // Complete configuration for input system.
 struct input_system_cfg2400_s {
-
 	input_system_source_t source_type;				input_system_config_flags_t	source_type_flags;
 	//channel_cfg_t		channel[N_CHANNELS];
 	input_system_config_flags_t	ch_flags[N_CHANNELS];
@@ -142,24 +136,21 @@ struct input_system_cfg2400_s {
 	// This buffers set at the end, based on the all configurations.
 	ib_buffer_t			csi_buffer[N_CSI_PORTS];	input_system_config_flags_t	csi_buffer_flags[N_CSI_PORTS];
 	ib_buffer_t			acquisition_buffer_unique;	input_system_config_flags_t	acquisition_buffer_unique_flags;
-	uint32_t			unallocated_ib_mem_words; // Used for check.DEFAULT = IB_CAPACITY_IN_WORDS.
+	u32			unallocated_ib_mem_words; // Used for check.DEFAULT = IB_CAPACITY_IN_WORDS.
 	//uint32_t			acq_allocated_ib_mem_words;
 
 	input_system_connection_t		multicast[N_CSI_PORTS];
-	input_system_multiplex_t		multiplexer;   					input_system_config_flags_t		multiplexer_flags;
-
+	input_system_multiplex_t		multiplexer;					input_system_config_flags_t		multiplexer_flags;
 
 	tpg_cfg_t			tpg_value;			input_system_config_flags_t	tpg_flags;
 	prbs_cfg_t			prbs_value;			input_system_config_flags_t	prbs_flags;
 	gpfifo_cfg_t		gpfifo_value;		input_system_config_flags_t	gpfifo_flags;
 
-
 	input_switch_cfg_t		input_switch_cfg;
 
-
-	target_isp_cfg_t		target_isp      [N_CHANNELS];	input_system_config_flags_t	target_isp_flags      [N_CHANNELS];
-	target_sp_cfg_t			target_sp       [N_CHANNELS];	input_system_config_flags_t	target_sp_flags       [N_CHANNELS];
-	target_strm2mem_cfg_t	target_strm2mem [N_CHANNELS];	input_system_config_flags_t	target_strm2mem_flags [N_CHANNELS];
+	target_isp_cfg_t		target_isp[N_CHANNELS];	input_system_config_flags_t	target_isp_flags[N_CHANNELS];
+	target_sp_cfg_t			target_sp[N_CHANNELS];	input_system_config_flags_t	target_sp_flags[N_CHANNELS];
+	target_strm2mem_cfg_t	target_strm2mem[N_CHANNELS];	input_system_config_flags_t	target_strm2mem_flags[N_CHANNELS];
 
 	input_system_config_flags_t		session_flags;
 
@@ -217,7 +208,6 @@ struct input_system_cfg2400_s {
 #define _HRT_CSS_RECEIVER_BE_FORCE_RAW8_REG_IDX         (_HRT_CSS_RECEIVER_2400_BE_FORCE_RAW8_REG_IDX + _HRT_CSS_BE_OFFSET)
 #define _HRT_CSS_RECEIVER_BE_IRQ_STATUS_REG_IDX         (_HRT_CSS_RECEIVER_2400_BE_IRQ_STATUS_REG_IDX + _HRT_CSS_BE_OFFSET)
 #define _HRT_CSS_RECEIVER_BE_IRQ_CLEAR_REG_IDX          (_HRT_CSS_RECEIVER_2400_BE_IRQ_CLEAR_REG_IDX + _HRT_CSS_BE_OFFSET)
-
 
 #define _HRT_CSS_RECEIVER_IRQ_OVERRUN_BIT		_HRT_CSS_RECEIVER_2400_IRQ_OVERRUN_BIT
 #define _HRT_CSS_RECEIVER_IRQ_INIT_TIMEOUT_BIT		_HRT_CSS_RECEIVER_2400_IRQ_RESERVED_BIT
@@ -485,34 +475,34 @@ struct mipi_port_state_s {
 	int	device_ready;
 	int	irq_status;
 	int	irq_enable;
-	uint32_t	timeout_count;
-	uint16_t	init_count;
-	uint16_t	raw16_18;
-	uint32_t	sync_count;		/*4 x uint8_t */
-	uint32_t	rx_count;		/*4 x uint8_t */
-	uint8_t		lane_sync_count[MIPI_4LANE_CFG];
-	uint8_t		lane_rx_count[MIPI_4LANE_CFG];
+	u32	timeout_count;
+	u16	init_count;
+	u16	raw16_18;
+	u32	sync_count;		/*4 x uint8_t */
+	u32	rx_count;		/*4 x uint8_t */
+	u8		lane_sync_count[MIPI_4LANE_CFG];
+	u8		lane_rx_count[MIPI_4LANE_CFG];
 };
 
 struct rx_channel_state_s {
-	uint32_t	comp_scheme0;
-	uint32_t	comp_scheme1;
+	u32	comp_scheme0;
+	u32	comp_scheme1;
 	mipi_predictor_t		pred[N_MIPI_FORMAT_CUSTOM];
 	mipi_compressor_t		comp[N_MIPI_FORMAT_CUSTOM];
 };
 
 struct receiver_state_s {
-	uint8_t	fs_to_ls_delay;
-	uint8_t	ls_to_data_delay;
-	uint8_t	data_to_le_delay;
-	uint8_t	le_to_fe_delay;
-	uint8_t	fe_to_fs_delay;
-	uint8_t	le_to_fs_delay;
+	u8	fs_to_ls_delay;
+	u8	ls_to_data_delay;
+	u8	data_to_le_delay;
+	u8	le_to_fe_delay;
+	u8	fe_to_fs_delay;
+	u8	le_to_fs_delay;
 	bool	is_two_ppc;
 	int	backend_rst;
-	uint16_t	raw18;
+	u16	raw18;
 	bool		force_raw8;
-	uint16_t	raw16;
+	u16	raw16;
 	struct mipi_port_state_s	mipi_port_state[N_MIPI_PORT_ID];
 	struct rx_channel_state_s	rx_channel_state[N_RX_CHANNEL_ID];
 	int	be_gsp_acc_ovl;

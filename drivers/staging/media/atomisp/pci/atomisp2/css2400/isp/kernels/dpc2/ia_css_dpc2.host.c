@@ -23,14 +23,14 @@ ia_css_dpc2_encode(
 {
 	(void)size;
 
-	assert ((from->metric1 >= 0) && (from->metric1 <= METRIC1_ONE_FP));
-	assert ((from->metric3 >= 0) && (from->metric3 <= METRIC3_ONE_FP));
-	assert ((from->metric2 >= METRIC2_ONE_FP) &&
-			(from->metric2 < 256*METRIC2_ONE_FP));
-	assert ((from->wb_gain_gr > 0) && (from->wb_gain_gr < 16*WBGAIN_ONE_FP));
-	assert ((from->wb_gain_r  > 0) && (from->wb_gain_r  < 16*WBGAIN_ONE_FP));
-	assert ((from->wb_gain_b  > 0) && (from->wb_gain_b  < 16*WBGAIN_ONE_FP));
-	assert ((from->wb_gain_gb > 0) && (from->wb_gain_gb < 16*WBGAIN_ONE_FP));
+	assert((from->metric1 >= 0) && (from->metric1 <= METRIC1_ONE_FP));
+	assert((from->metric3 >= 0) && (from->metric3 <= METRIC3_ONE_FP));
+	assert((from->metric2 >= METRIC2_ONE_FP) &&
+			(from->metric2 < 256 * METRIC2_ONE_FP));
+	assert((from->wb_gain_gr > 0) && (from->wb_gain_gr < 16 * WBGAIN_ONE_FP));
+	assert((from->wb_gain_r  > 0) && (from->wb_gain_r  < 16 * WBGAIN_ONE_FP));
+	assert((from->wb_gain_b  > 0) && (from->wb_gain_b  < 16 * WBGAIN_ONE_FP));
+	assert((from->wb_gain_gb > 0) && (from->wb_gain_gb < 16 * WBGAIN_ONE_FP));
 
 	to->metric1 = from->metric1;
 	to->metric2 = from->metric2;
@@ -57,7 +57,7 @@ ia_css_init_dpc2_state(
 void
 ia_css_dpc2_debug_dtrace(
 	const struct ia_css_dpc2_config *config,
-	unsigned level)
+	unsigned int level)
 {
 	(void)config;
 	(void)level;

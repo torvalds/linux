@@ -28,7 +28,7 @@ void dma_get_state(const dma_ID_t ID, dma_state_t *state)
 	hrt_data	tmp;
 
 	assert(ID < N_DMA_ID);
-	assert(state != NULL);
+	assert(state);
 
 	tmp = dma_reg_load(ID, DMA_COMMAND_FSM_REG_IDX);
 	//reg  [3:0] : flags error [3], stall, run, idle [0]
@@ -39,9 +39,9 @@ void dma_get_state(const dma_ID_t ID, dma_state_t *state)
 	state->fsm_command_run = tmp & 0x2;
 	state->fsm_command_stalling = tmp & 0x4;
 	state->fsm_command_error    = tmp & 0x8;
-	state->last_command_channel = (tmp>>10 & 0x1F);
-	state->last_command_param =  (tmp>>15 & 0x0F);
-	tmp = (tmp>>4) & 0x3F;
+	state->last_command_channel = (tmp >> 10 & 0x1F);
+	state->last_command_param =  (tmp >> 15 & 0x0F);
+	tmp = (tmp >> 4) & 0x3F;
 /* state->last_command = (dma_commands_t)tmp; */
 /* if the enumerator is made non-linear */
 	/* AM: the list below does not cover all the cases*/
@@ -225,7 +225,7 @@ void dma_get_state(const dma_ID_t ID, dma_state_t *state)
 		_DMA_FSM_GROUP_FSM_WR_IDX));
 
 	for (i = 0; i < HIVE_ISP_NUM_DMA_CONNS; i++) {
-		dma_port_state_t *port = &(state->port_states[i]);
+		dma_port_state_t *port = &state->port_states[i];
 
 		tmp = dma_reg_load(ID, DMA_DEV_INFO_REG_IDX(0, i));
 		port->req_cs   = ((tmp & 0x1) != 0);
@@ -250,7 +250,7 @@ void dma_get_state(const dma_ID_t ID, dma_state_t *state)
 	}
 
 	for (i = 0; i < HIVE_DMA_NUM_CHANNELS; i++) {
-		dma_channel_state_t *ch = &(state->channel_states[i]);
+		dma_channel_state_t *ch = &state->channel_states[i];
 
 		ch->connection = DMA_GET_CONNECTION(dma_reg_load(ID,
 			DMA_CHANNEL_PARAM_REG_IDX(i,

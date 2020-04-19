@@ -26,47 +26,47 @@ void
 ia_css_yuv2rgb_encode(
 	struct sh_css_isp_csc_params *to,
 	const struct ia_css_cc_config *from,
-	unsigned size);
+	unsigned int size);
 
 void
 ia_css_rgb2yuv_encode(
 	struct sh_css_isp_csc_params *to,
 	const struct ia_css_cc_config *from,
-	unsigned size);
+	unsigned int size);
 
 void
 ia_css_r_gamma_vamem_encode(
 	struct sh_css_isp_rgb_gamma_vamem_params *to,
 	const struct ia_css_rgb_gamma_table *from,
-	unsigned size);
+	unsigned int size);
 
 void
 ia_css_g_gamma_vamem_encode(
 	struct sh_css_isp_rgb_gamma_vamem_params *to,
 	const struct ia_css_rgb_gamma_table *from,
-	unsigned size);
+	unsigned int size);
 
 void
 ia_css_b_gamma_vamem_encode(
 	struct sh_css_isp_rgb_gamma_vamem_params *to,
 	const struct ia_css_rgb_gamma_table *from,
-	unsigned size);
+	unsigned int size);
 
 #ifndef IA_CSS_NO_DEBUG
 void
 ia_css_yuv2rgb_dump(
 	const struct sh_css_isp_csc_params *yuv2rgb,
-	unsigned level);
+	unsigned int level);
 
 void
 ia_css_rgb2yuv_dump(
 	const struct sh_css_isp_csc_params *rgb2yuv,
-	unsigned level);
+	unsigned int level);
 
 void
 ia_css_rgb_gamma_table_debug_dtrace(
 	const struct ia_css_rgb_gamma_table *config,
-	unsigned level);
+	unsigned int level);
 
 #define ia_css_yuv2rgb_debug_dtrace ia_css_cc_config_debug_dtrace
 #define ia_css_rgb2yuv_debug_dtrace ia_css_cc_config_debug_dtrace

@@ -135,7 +135,6 @@ static const hrt_address GPIO_BASE[N_GPIO_ID] = {
 static const hrt_address TIMED_CTRL_BASE[N_TIMED_CTRL_ID] = {
 	0x0000000000000100ULL};
 
-
 /* INPUT_FORMATTER */
 static const hrt_address INPUT_FORMATTER_BASE[N_INPUT_FORMATTER_ID] = {
 	0x0000000000030000ULL,
@@ -180,18 +179,21 @@ static const hrt_address CSI_RX_FE_CTRL_BASE[N_CSI_RX_FRONTEND_ID] = {
 	0x00000000000C2400ULL,	/* csi fe controller B */
 	0x00000000000C4400ULL	/* csi fe controller C */
 };
+
 /* CSI BE, part of the Input System 2401 */
 static const hrt_address CSI_RX_BE_CTRL_BASE[N_CSI_RX_BACKEND_ID] = {
 	0x00000000000C0800ULL,	/* csi be controller A */
 	0x00000000000C2800ULL,	/* csi be controller B */
 	0x00000000000C4800ULL	/* csi be controller C */
 };
+
 /* PIXEL Generator, part of the Input System 2401 */
 static const hrt_address PIXELGEN_CTRL_BASE[N_PIXELGEN_ID] = {
 	0x00000000000C1000ULL,	/* pixel gen controller A */
 	0x00000000000C3000ULL,	/* pixel gen controller B */
 	0x00000000000C5000ULL	/* pixel gen controller C */
 };
+
 /* Stream2MMIO, part of the Input System 2401 */
 static const hrt_address STREAM2MMIO_CTRL_BASE[N_STREAM2MMIO_ID] = {
 	0x00000000000C0C00ULL,	/* stream2mmio controller A */
@@ -295,7 +297,6 @@ static const hrt_address GPIO_BASE[N_GPIO_ID] = {
 static const hrt_address TIMED_CTRL_BASE[N_TIMED_CTRL_ID] = {
 	0x00000100UL};
 
-
 /* INPUT_FORMATTER */
 static const hrt_address INPUT_FORMATTER_BASE[N_INPUT_FORMATTER_ID] = {
 	0x00030000UL,
@@ -340,18 +341,21 @@ static const hrt_address CSI_RX_FE_CTRL_BASE[N_CSI_RX_FRONTEND_ID] = {
 	0x000C2400UL,	/* csi fe controller B */
 	0x000C4400UL	/* csi fe controller C */
 };
+
 /* CSI BE, part of the Input System 2401 */
 static const hrt_address CSI_RX_FE_CTRL_BASE[N_CSI_RX_BACKEND_ID] = {
 	0x000C0800UL,	/* csi be controller A */
 	0x000C2800UL,	/* csi be controller B */
 	0x000C4800UL	/* csi be controller C */
 };
+
 /* PIXEL Generator, part of the Input System 2401 */
 static const hrt_address PIXELGEN_CTRL_BASE[N_PIXELGEN_ID] = {
 	0x000C1000UL,	/* pixel gen controller A */
 	0x000C3000UL,	/* pixel gen controller B */
 	0x000C5000UL	/* pixel gen controller C */
 };
+
 /* Stream2MMIO, part of the Input System 2401 */
 static const hrt_address STREAM2MMIO_CTRL_BASE[N_STREAM2MMIO_ID] = {
 	0x000C0C00UL,	/* stream2mmio controller A */

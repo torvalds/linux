@@ -253,7 +253,6 @@ static int put_atomisp_3a_statistics32(struct atomisp_3a_statistics *kp,
 	return 0;
 }
 
-
 static int get_atomisp_metadata_stat32(struct atomisp_metadata *kp,
 				struct atomisp_metadata32 __user *up)
 {
@@ -273,7 +272,6 @@ static int get_atomisp_metadata_stat32(struct atomisp_metadata *kp,
 	kp->effective_width = (void __force *)compat_ptr(effective_width);
 	return 0;
 }
-
 
 static int put_atomisp_metadata_stat32(struct atomisp_metadata *kp,
 				struct atomisp_metadata32 __user *up)
@@ -387,6 +385,7 @@ static int get_atomisp_overlay32(struct atomisp_overlay *kp,
 					struct atomisp_overlay32 __user *up)
 {
 	compat_uptr_t frame;
+
 	if (!access_ok(up, sizeof(struct atomisp_overlay32)) ||
 	    get_user(frame, &up->frame) ||
 	    get_user(kp->bg_y, &up->bg_y) ||
@@ -761,6 +760,7 @@ static int get_atomisp_acc_fw_load_to_pipe32(
 			struct atomisp_acc_fw_load_to_pipe32 __user *up)
 {
 	compat_uptr_t data;
+
 	if (!access_ok(up, sizeof(struct atomisp_acc_fw_load_to_pipe32)) ||
 	    get_user(kp->flags, &up->flags) ||
 	    get_user(kp->fw_handle, &up->fw_handle) ||
@@ -781,6 +781,7 @@ static int put_atomisp_acc_fw_load_to_pipe32(
 			struct atomisp_acc_fw_load_to_pipe32 __user *up)
 {
 	compat_uptr_t data = (compat_uptr_t)((uintptr_t)kp->data);
+
 	if (!access_ok(up, sizeof(struct atomisp_acc_fw_load_to_pipe32)) ||
 	    put_user(kp->flags, &up->flags) ||
 	    put_user(kp->fw_handle, &up->fw_handle) ||
@@ -800,6 +801,7 @@ static int get_atomisp_sensor_ae_bracketing_lut(
 			struct atomisp_sensor_ae_bracketing_lut32 __user *up)
 {
 	compat_uptr_t lut;
+
 	if (!access_ok(up, sizeof(struct atomisp_sensor_ae_bracketing_lut32)) ||
 	    get_user(kp->lut_size, &up->lut_size) ||
 	    get_user(lut, &up->lut))
@@ -1066,7 +1068,6 @@ static long atomisp_do_compat_ioctl(struct file *file,
 long atomisp_compat_ioctl32(struct file *file,
 			    unsigned int cmd, unsigned long arg)
 {
-
 	struct video_device *vdev = video_devdata(file);
 	struct atomisp_device *isp = video_get_drvdata(vdev);
 	long ret = -ENOIOCTLCMD;

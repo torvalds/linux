@@ -27,7 +27,6 @@ struct atomisp_freq_scaling_rule {
 	unsigned int run_mode;
 };
 
-
 struct atomisp_dfs_config {
 	unsigned int lowest_freq;
 	unsigned int max_freq_at_vmin;

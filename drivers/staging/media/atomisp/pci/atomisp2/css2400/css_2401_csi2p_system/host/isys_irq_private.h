@@ -52,9 +52,7 @@ STORAGE_CLASS_ISYS2401_IRQ_C void isys_irqc_state_dump(
 	const isys_irqc_state_t *state)
 {
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-		"isys irq controller id %d"
-		"\n\tstatus:0x%x\n\tedge:0x%x\n\tmask:0x%x"
-		"\n\tenable:0x%x\n\tlevel_not_pulse:0x%x\n",
+		"isys irq controller id %d\n\tstatus:0x%x\n\tedge:0x%x\n\tmask:0x%x\n\tenable:0x%x\n\tlevel_not_pulse:0x%x\n",
 		isys_irqc_id,
 		state->status, state->edge, state->mask, state->enable, state->level_no);
 }

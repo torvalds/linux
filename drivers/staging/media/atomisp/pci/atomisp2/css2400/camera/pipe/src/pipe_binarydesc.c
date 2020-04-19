@@ -40,8 +40,8 @@ static void pipe_binarydesc_get_offline(
 {
 	unsigned int i;
 	/* in_info, out_info, vf_info can be NULL */
-	assert(pipe != NULL);
-	assert(descr != NULL);
+	assert(pipe);
+	assert(descr);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE,
 			    "pipe_binarydesc_get_offline() enter:\n");
 
@@ -86,8 +86,8 @@ void ia_css_pipe_get_copy_binarydesc(
 	struct ia_css_frame_info *out_infos[IA_CSS_BINARY_MAX_OUTPUT_PORTS];
 	unsigned int i;
 	/* out_info can be NULL */
-	assert(pipe != NULL);
-	assert(in_info != NULL);
+	assert(pipe);
+	assert(in_info);
 	IA_CSS_ENTER_PRIVATE("");
 
 	*in_info = *out_info;
@@ -103,6 +103,7 @@ void ia_css_pipe_get_copy_binarydesc(
 	copy_descr->isp_pipe_version = IA_CSS_PIPE_VERSION_1;
 	IA_CSS_LEAVE_PRIVATE("");
 }
+
 void ia_css_pipe_get_vfpp_binarydesc(
 	struct ia_css_pipe const * const pipe,
 	struct ia_css_binary_descr *vf_pp_descr,
@@ -112,8 +113,8 @@ void ia_css_pipe_get_vfpp_binarydesc(
 	struct ia_css_frame_info *out_infos[IA_CSS_BINARY_MAX_OUTPUT_PORTS];
 	unsigned int i;
 	/* out_info can be NULL ??? */
-	assert(pipe != NULL);
-	assert(in_info != NULL);
+	assert(pipe);
+	assert(in_info);
 	IA_CSS_ENTER_PRIVATE("");
 
 	in_info->raw_bit_depth = 0;
@@ -184,8 +185,8 @@ enum ia_css_err binarydesc_calculate_bds_factor(
 
 	/* Loop over all bds factors until a match is found */
 	for (i = 0; i < ARRAY_SIZE(bds_factors_list); i++) {
-		unsigned num = bds_factors_list[i].numerator;
-		unsigned den = bds_factors_list[i].denominator;
+		unsigned int num = bds_factors_list[i].numerator;
+		unsigned int den = bds_factors_list[i].denominator;
 
 		/* See width-wise and height-wise if this bds_factor
 		 * satisfies the condition */
@@ -217,10 +218,10 @@ enum ia_css_err ia_css_pipe_get_preview_binarydesc(
 	int mode = IA_CSS_BINARY_MODE_PREVIEW;
 	unsigned int i;
 
-	assert(pipe != NULL);
-	assert(in_info != NULL);
-	assert(out_info != NULL);
-	assert(vf_info != NULL);
+	assert(pipe);
+	assert(in_info);
+	assert(out_info);
+	assert(vf_info);
 	IA_CSS_ENTER_PRIVATE("");
 
 	/*
@@ -339,8 +340,8 @@ enum ia_css_err ia_css_pipe_get_video_binarydesc(
 	bool stream_dz_config = false;
 
 	/* vf_info can be NULL */
-	assert(pipe != NULL);
-	assert(in_info != NULL);
+	assert(pipe);
+	assert(in_info);
 	/* assert(vf_info != NULL); */
 	IA_CSS_ENTER_PRIVATE("");
 
@@ -459,8 +460,8 @@ void ia_css_pipe_get_yuvscaler_binarydesc(
 	struct ia_css_frame_info *out_infos[IA_CSS_BINARY_MAX_OUTPUT_PORTS];
 	struct ia_css_frame_info *this_vf_info = NULL;
 
-	assert(pipe != NULL);
-	assert(in_info != NULL);
+	assert(pipe);
+	assert(in_info);
 	/* Note: if the following assert fails, the number of ports has been
 	 * changed; in that case an additional initializer must be added
 	 * a few lines below after which this assert can be updated.
@@ -502,11 +503,10 @@ void ia_css_pipe_get_capturepp_binarydesc(
 	unsigned int i;
 	struct ia_css_frame_info *out_infos[IA_CSS_BINARY_MAX_OUTPUT_PORTS];
 
-	assert(pipe != NULL);
-	assert(in_info != NULL);
-	assert(vf_info != NULL);
+	assert(pipe);
+	assert(in_info);
+	assert(vf_info);
 	IA_CSS_ENTER_PRIVATE("");
-
 
 	/* the in_info is only used for resolution to enable
 	   bayer down scaling. */
@@ -536,8 +536,7 @@ void ia_css_pipe_get_capturepp_binarydesc(
 }
 
 /* lookup table for high quality primary binaries */
-static unsigned int primary_hq_binary_modes[NUM_PRIMARY_HQ_STAGES] =
-{
+static unsigned int primary_hq_binary_modes[NUM_PRIMARY_HQ_STAGES] = {
 	IA_CSS_BINARY_MODE_PRIMARY_HQ_STAGE0,
 	IA_CSS_BINARY_MODE_PRIMARY_HQ_STAGE1,
 	IA_CSS_BINARY_MODE_PRIMARY_HQ_STAGE2,
@@ -559,9 +558,9 @@ void ia_css_pipe_get_primary_binarydesc(
 	unsigned int i;
 	struct ia_css_frame_info *out_infos[IA_CSS_BINARY_MAX_OUTPUT_PORTS];
 
-	assert(pipe != NULL);
-	assert(in_info != NULL);
-	assert(out_info != NULL);
+	assert(pipe);
+	assert(in_info);
+	assert(out_info);
 	assert(stage_idx < NUM_PRIMARY_HQ_STAGES);
 	/* vf_info can be NULL - example video_binarydescr */
 	/*assert(vf_info != NULL);*/
@@ -637,9 +636,9 @@ void ia_css_pipe_get_pre_gdc_binarydesc(
 	unsigned int i;
 	struct ia_css_frame_info *out_infos[IA_CSS_BINARY_MAX_OUTPUT_PORTS];
 
-	assert(pipe != NULL);
-	assert(in_info != NULL);
-	assert(out_info != NULL);
+	assert(pipe);
+	assert(in_info);
+	assert(out_info);
 	IA_CSS_ENTER_PRIVATE("");
 
 	*in_info = *out_info;
@@ -664,9 +663,9 @@ void ia_css_pipe_get_gdc_binarydesc(
 	unsigned int i;
 	struct ia_css_frame_info *out_infos[IA_CSS_BINARY_MAX_OUTPUT_PORTS];
 
-	assert(pipe != NULL);
-	assert(in_info != NULL);
-	assert(out_info != NULL);
+	assert(pipe);
+	assert(in_info);
+	assert(out_info);
 	IA_CSS_ENTER_PRIVATE("");
 
 	*in_info = *out_info;
@@ -690,10 +689,10 @@ void ia_css_pipe_get_post_gdc_binarydesc(
 	unsigned int i;
 	struct ia_css_frame_info *out_infos[IA_CSS_BINARY_MAX_OUTPUT_PORTS];
 
-	assert(pipe != NULL);
-	assert(in_info != NULL);
-	assert(out_info != NULL);
-	assert(vf_info != NULL);
+	assert(pipe);
+	assert(in_info);
+	assert(out_info);
+	assert(vf_info);
 	IA_CSS_ENTER_PRIVATE("");
 
 	*in_info = *out_info;
@@ -719,9 +718,9 @@ void ia_css_pipe_get_pre_de_binarydesc(
 	unsigned int i;
 	struct ia_css_frame_info *out_infos[IA_CSS_BINARY_MAX_OUTPUT_PORTS];
 
-	assert(pipe != NULL);
-	assert(in_info != NULL);
-	assert(out_info != NULL);
+	assert(pipe);
+	assert(in_info);
+	assert(out_info);
 	IA_CSS_ENTER_PRIVATE("");
 
 	*in_info = *out_info;
@@ -758,9 +757,9 @@ void ia_css_pipe_get_pre_anr_binarydesc(
 	unsigned int i;
 	struct ia_css_frame_info *out_infos[IA_CSS_BINARY_MAX_OUTPUT_PORTS];
 
-	assert(pipe != NULL);
-	assert(in_info != NULL);
-	assert(out_info != NULL);
+	assert(pipe);
+	assert(in_info);
+	assert(out_info);
 	IA_CSS_ENTER_PRIVATE("");
 
 	*in_info = *out_info;
@@ -792,9 +791,9 @@ void ia_css_pipe_get_anr_binarydesc(
 	unsigned int i;
 	struct ia_css_frame_info *out_infos[IA_CSS_BINARY_MAX_OUTPUT_PORTS];
 
-	assert(pipe != NULL);
-	assert(in_info != NULL);
-	assert(out_info != NULL);
+	assert(pipe);
+	assert(in_info);
+	assert(out_info);
 	IA_CSS_ENTER_PRIVATE("");
 
 	*in_info = *out_info;
@@ -811,7 +810,6 @@ void ia_css_pipe_get_anr_binarydesc(
 	IA_CSS_LEAVE_PRIVATE("");
 }
 
-
 void ia_css_pipe_get_post_anr_binarydesc(
 	struct ia_css_pipe const * const pipe,
 	struct ia_css_binary_descr *post_anr_descr,
@@ -822,10 +820,10 @@ void ia_css_pipe_get_post_anr_binarydesc(
 	unsigned int i;
 	struct ia_css_frame_info *out_infos[IA_CSS_BINARY_MAX_OUTPUT_PORTS];
 
-	assert(pipe != NULL);
-	assert(in_info != NULL);
-	assert(out_info != NULL);
-	assert(vf_info != NULL);
+	assert(pipe);
+	assert(in_info);
+	assert(out_info);
+	assert(vf_info);
 	IA_CSS_ENTER_PRIVATE("");
 
 	*in_info = *out_info;
@@ -851,9 +849,9 @@ void ia_css_pipe_get_ldc_binarydesc(
 	unsigned int i;
 	struct ia_css_frame_info *out_infos[IA_CSS_BINARY_MAX_OUTPUT_PORTS];
 
-	assert(pipe != NULL);
-	assert(in_info != NULL);
-	assert(out_info != NULL);
+	assert(pipe);
+	assert(in_info);
+	assert(out_info);
 	IA_CSS_ENTER_PRIVATE("");
 
 #ifndef ISP2401

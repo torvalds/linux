@@ -22,9 +22,9 @@
 
 /* DE (Demosaic) */
 struct sh_css_isp_ecd_params {
-	int32_t zip_strength;
-	int32_t fc_strength;
-	int32_t fc_debias;
+	s32 zip_strength;
+	s32 fc_strength;
+	s32 fc_debias;
 };
 
 #endif /* __IA_CSS_DE2_PARAM_H */

@@ -132,66 +132,65 @@ enum ia_css_err ia_css_isys_convert_stream_format_to_mipi_format(
 /**
  * Virtual Input System. (Input System 2401)
  */
-extern ia_css_isys_error_t ia_css_isys_stream_create(
+ia_css_isys_error_t ia_css_isys_stream_create(
 		ia_css_isys_descr_t	*isys_stream_descr,
 		ia_css_isys_stream_h	isys_stream,
 		uint32_t isys_stream_id);
 
-extern void ia_css_isys_stream_destroy(
+void ia_css_isys_stream_destroy(
 		ia_css_isys_stream_h	isys_stream);
 
-extern ia_css_isys_error_t ia_css_isys_stream_calculate_cfg(
+ia_css_isys_error_t ia_css_isys_stream_calculate_cfg(
 		ia_css_isys_stream_h		isys_stream,
 		ia_css_isys_descr_t		*isys_stream_descr,
 		ia_css_isys_stream_cfg_t	*isys_stream_cfg);
 
-extern void ia_css_isys_csi_rx_lut_rmgr_init(void);
+void ia_css_isys_csi_rx_lut_rmgr_init(void);
 
-extern void ia_css_isys_csi_rx_lut_rmgr_uninit(void);
+void ia_css_isys_csi_rx_lut_rmgr_uninit(void);
 
-extern bool ia_css_isys_csi_rx_lut_rmgr_acquire(
+bool ia_css_isys_csi_rx_lut_rmgr_acquire(
 	csi_rx_backend_ID_t		backend,
 	csi_mipi_packet_type_t		packet_type,
 	csi_rx_backend_lut_entry_t	*entry);
 
-extern void ia_css_isys_csi_rx_lut_rmgr_release(
+void ia_css_isys_csi_rx_lut_rmgr_release(
 	csi_rx_backend_ID_t		backend,
 	csi_mipi_packet_type_t		packet_type,
 	csi_rx_backend_lut_entry_t	*entry);
 
+void ia_css_isys_ibuf_rmgr_init(void);
 
-extern void ia_css_isys_ibuf_rmgr_init(void);
+void ia_css_isys_ibuf_rmgr_uninit(void);
 
-extern void ia_css_isys_ibuf_rmgr_uninit(void);
-
-extern bool ia_css_isys_ibuf_rmgr_acquire(
-	uint32_t	size,
+bool ia_css_isys_ibuf_rmgr_acquire(
+	u32	size,
 	uint32_t	*start_addr);
 
-extern void ia_css_isys_ibuf_rmgr_release(
+void ia_css_isys_ibuf_rmgr_release(
 	uint32_t	*start_addr);
 
-extern void ia_css_isys_dma_channel_rmgr_init(void);
+void ia_css_isys_dma_channel_rmgr_init(void);
 
-extern void ia_css_isys_dma_channel_rmgr_uninit(void);
+void ia_css_isys_dma_channel_rmgr_uninit(void);
 
-extern bool ia_css_isys_dma_channel_rmgr_acquire(
+bool ia_css_isys_dma_channel_rmgr_acquire(
 	isys2401_dma_ID_t	dma_id,
 	isys2401_dma_channel	*channel);
 
-extern void ia_css_isys_dma_channel_rmgr_release(
+void ia_css_isys_dma_channel_rmgr_release(
 	isys2401_dma_ID_t	dma_id,
 	isys2401_dma_channel	*channel);
 
-extern void ia_css_isys_stream2mmio_sid_rmgr_init(void);
+void ia_css_isys_stream2mmio_sid_rmgr_init(void);
 
-extern void ia_css_isys_stream2mmio_sid_rmgr_uninit(void);
+void ia_css_isys_stream2mmio_sid_rmgr_uninit(void);
 
-extern bool ia_css_isys_stream2mmio_sid_rmgr_acquire(
+bool ia_css_isys_stream2mmio_sid_rmgr_acquire(
 	stream2mmio_ID_t	stream2mmio,
 	stream2mmio_sid_ID_t	*sid);
 
-extern void ia_css_isys_stream2mmio_sid_rmgr_release(
+void ia_css_isys_stream2mmio_sid_rmgr_release(
 	stream2mmio_ID_t	stream2mmio,
 	stream2mmio_sid_ID_t	*sid);
 

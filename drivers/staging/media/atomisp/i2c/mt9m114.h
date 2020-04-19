@@ -53,8 +53,8 @@
 #define MISENSOR_TOK_POLL	0xfc00	/* token indicating poll instruction */
 #define MISENSOR_TOK_RMW	0x0010  /* RMW operation */
 #define MISENSOR_TOK_MASK	0xfff0
-#define MISENSOR_AWB_STEADY	(1<<0)	/* awb steady */
-#define MISENSOR_AE_READY	(1<<3)	/* ae status ready */
+#define MISENSOR_AWB_STEADY	BIT(0)	/* awb steady */
+#define MISENSOR_AE_READY	BIT(3)	/* ae status ready */
 
 /* mask to set sensor read_mode via misensor_rmw_reg */
 #define MISENSOR_R_MODE_MASK	0x0330
@@ -127,13 +127,12 @@
 #define MT9M114_COARSE_INTG_TIME_MIN 1
 #define MT9M114_COARSE_INTG_TIME_MAX_MARGIN 6
 
-
 /* ulBPat; */
 
-#define MT9M114_BPAT_RGRGGBGB	(1 << 0)
-#define MT9M114_BPAT_GRGRBGBG	(1 << 1)
-#define MT9M114_BPAT_GBGBRGRG	(1 << 2)
-#define MT9M114_BPAT_BGBGGRGR	(1 << 3)
+#define MT9M114_BPAT_RGRGGBGB	BIT(0)
+#define MT9M114_BPAT_GRGRBGBG	BIT(1)
+#define MT9M114_BPAT_GBGBRGRG	BIT(2)
+#define MT9M114_BPAT_BGBGGRGR	BIT(3)
 
 #define MT9M114_FOCAL_LENGTH_NUM	208	/*2.08mm*/
 #define MT9M114_FOCAL_LENGTH_DEM	100
@@ -169,6 +168,7 @@ enum {
 	MT9M114_RES_864P,
 	MT9M114_RES_960P,
 };
+
 #define MT9M114_RES_960P_SIZE_H		1296
 #define MT9M114_RES_960P_SIZE_V		976
 #define MT9M114_RES_720P_SIZE_H		1280
@@ -204,6 +204,7 @@ enum poll_reg {
 	PRE_POLLING,
 	POST_POLLING,
 };
+
 /*
  * struct misensor_reg - MI sensor  register format
  * @length: length of the register
@@ -388,6 +389,7 @@ static struct mt9m114_res_struct mt9m114_res[] = {
 	.bin_mode = 0,
 	},
 };
+
 #define N_RES (ARRAY_SIZE(mt9m114_res))
 
 #if 0 /* Currently unused */
@@ -795,6 +797,7 @@ static struct misensor_reg const mt9m114_common[] = {
 	{MISENSOR_TOK_TERM, 0, 0},
 
 };
+
 #if 0 /* Currently unused */
 static struct misensor_reg const mt9m114_antiflicker_50hz[] = {
 	 {MISENSOR_16BIT,  0x098E, 0xC88B},

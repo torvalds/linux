@@ -46,7 +46,7 @@ void
 ia_css_dp_encode(
 	struct sh_css_isp_dp_params *to,
 	const struct ia_css_dp_config *from,
-	unsigned size)
+	unsigned int size)
 {
 	int gain = from->gain;
 	int gr   = from->gr;
@@ -63,27 +63,27 @@ ia_css_dp_encode(
 	    uDIGIT_FITTING(from->gain, 8, SH_CSS_DP_GAIN_SHIFT);
 
 	to->coef_rr_gr =
-	    uDIGIT_FITTING (gain * gr / r, 8, SH_CSS_DP_GAIN_SHIFT);
+	    uDIGIT_FITTING(gain * gr / r, 8, SH_CSS_DP_GAIN_SHIFT);
 	to->coef_rr_gb =
-	    uDIGIT_FITTING (gain * gb / r, 8, SH_CSS_DP_GAIN_SHIFT);
+	    uDIGIT_FITTING(gain * gb / r, 8, SH_CSS_DP_GAIN_SHIFT);
 	to->coef_bb_gb =
-	    uDIGIT_FITTING (gain * gb / b, 8, SH_CSS_DP_GAIN_SHIFT);
+	    uDIGIT_FITTING(gain * gb / b, 8, SH_CSS_DP_GAIN_SHIFT);
 	to->coef_bb_gr =
-	    uDIGIT_FITTING (gain * gr / b, 8, SH_CSS_DP_GAIN_SHIFT);
+	    uDIGIT_FITTING(gain * gr / b, 8, SH_CSS_DP_GAIN_SHIFT);
 	to->coef_gr_rr =
-	    uDIGIT_FITTING (gain * r / gr, 8, SH_CSS_DP_GAIN_SHIFT);
+	    uDIGIT_FITTING(gain * r / gr, 8, SH_CSS_DP_GAIN_SHIFT);
 	to->coef_gr_bb =
-	    uDIGIT_FITTING (gain * b / gr, 8, SH_CSS_DP_GAIN_SHIFT);
+	    uDIGIT_FITTING(gain * b / gr, 8, SH_CSS_DP_GAIN_SHIFT);
 	to->coef_gb_bb =
-	    uDIGIT_FITTING (gain * b / gb, 8, SH_CSS_DP_GAIN_SHIFT);
+	    uDIGIT_FITTING(gain * b / gb, 8, SH_CSS_DP_GAIN_SHIFT);
 	to->coef_gb_rr =
-	    uDIGIT_FITTING (gain * r / gb, 8, SH_CSS_DP_GAIN_SHIFT);
+	    uDIGIT_FITTING(gain * r / gb, 8, SH_CSS_DP_GAIN_SHIFT);
 }
 
 void
 ia_css_dp_dump(
 	const struct sh_css_isp_dp_params *dp,
-	unsigned level)
+	unsigned int level)
 {
 	if (!dp) return;
 	ia_css_debug_dtrace(level, "Defect Pixel Correction:\n");
@@ -116,7 +116,7 @@ ia_css_dp_dump(
 void
 ia_css_dp_debug_dtrace(
 	const struct ia_css_dp_config *config,
-	unsigned level)
+	unsigned int level)
 {
 	ia_css_debug_dtrace(level,
 		"config.threshold=%d, config.gain=%d\n",
@@ -125,7 +125,7 @@ ia_css_dp_debug_dtrace(
 
 void
 ia_css_init_dp_state(
-	void/*struct sh_css_isp_dp_vmem_state*/ *state,
+	void/*struct sh_css_isp_dp_vmem_state*/ * state,
 	size_t size)
 {
 	memset(state, 0, size);

@@ -57,15 +57,16 @@ more details.
  * Refer to "sw_event_public.h" for details.
  */
 bool ia_css_event_encode(
-	uint8_t	*in,
-	uint8_t	nr,
+	u8	*in,
+	u8	nr,
 	uint32_t	*out)
 {
 	bool ret;
-	uint32_t nr_of_bits;
-	uint32_t i;
-	assert(in != NULL);
-	assert(out != NULL);
+	u32 nr_of_bits;
+	u32 i;
+
+	assert(in);
+	assert(out);
 	OP___assert(nr > 0 && nr <= MAX_NR_OF_PAYLOADS_PER_SW_EVENT);
 
 	/* initialize the output */
@@ -87,7 +88,7 @@ bool ia_css_event_encode(
 }
 
 void ia_css_event_decode(
-	uint32_t event,
+	u32 event,
 	uint8_t *payload)
 {
 	assert(payload[1] == 0);

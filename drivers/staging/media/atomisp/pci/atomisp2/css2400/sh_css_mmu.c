@@ -46,9 +46,11 @@ void
 sh_css_mmu_set_page_table_base_index(hrt_data base_index)
 {
 	int i;
+
 	IA_CSS_ENTER_PRIVATE("base_index=0x%08x\n", base_index);
 	for (i = 0; i < N_MMU_ID; i++) {
 		mmu_ID_t mmu_id = i;
+
 		mmu_set_page_table_base_index(mmu_id, base_index);
 		mmu_invalidate_cache(mmu_id);
 	}

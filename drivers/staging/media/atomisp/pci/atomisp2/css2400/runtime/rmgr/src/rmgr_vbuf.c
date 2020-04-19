@@ -81,7 +81,8 @@ void ia_css_rmgr_refcount_retain_vbuf(struct ia_css_rmgr_vbuf_handle **handle)
 {
 	int i;
 	struct ia_css_rmgr_vbuf_handle *h;
-	if ((handle == NULL) || (*handle == NULL)) {
+
+	if ((!handle) || (!*handle)) {
 		IA_CSS_LOG("Invalid inputs");
 		return;
 	}
@@ -98,7 +99,7 @@ void ia_css_rmgr_refcount_retain_vbuf(struct ia_css_rmgr_vbuf_handle **handle)
 		/* if the loop dus not break and *handle == NULL
 		   this is an error handle and report it.
 		 */
-		if (*handle == NULL) {
+		if (!*handle) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_ERROR,
 				"ia_css_i_host_refcount_retain_vbuf() failed to find empty slot!\n");
 			return;
@@ -116,7 +117,7 @@ void ia_css_rmgr_refcount_retain_vbuf(struct ia_css_rmgr_vbuf_handle **handle)
  */
 void ia_css_rmgr_refcount_release_vbuf(struct ia_css_rmgr_vbuf_handle **handle)
 {
-	if ((handle == NULL) || ((*handle) == NULL) || (((*handle)->count) == 0)) {
+	if ((!handle) || ((*handle) == NULL) || (((*handle)->count) == 0)) {
 		ia_css_debug_dtrace(IA_CSS_DEBUG_ERROR,
 				    "ia_css_rmgr_refcount_release_vbuf() invalid arguments!\n");
 		return;
@@ -140,9 +141,10 @@ enum ia_css_err ia_css_rmgr_init_vbuf(struct ia_css_rmgr_vbuf_pool *pool)
 {
 	enum ia_css_err err = IA_CSS_SUCCESS;
 	size_t bytes_needed;
+
 	rmgr_refcount_init_vbuf();
-	assert(pool != NULL);
-	if (pool == NULL)
+	assert(pool);
+	if (!pool)
 		return IA_CSS_ERR_INVALID_ARGUMENTS;
 	/* initialize the recycle pool if used */
 	if (pool->recycle && pool->size) {
@@ -151,7 +153,7 @@ enum ia_css_err ia_css_rmgr_init_vbuf(struct ia_css_rmgr_vbuf_pool *pool)
 		    sizeof(void *) *
 		    pool->size;
 		pool->handles = sh_css_malloc(bytes_needed);
-		if (pool->handles != NULL)
+		if (pool->handles)
 			memset(pool->handles, 0, bytes_needed);
 		else
 			err = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
@@ -170,16 +172,17 @@ enum ia_css_err ia_css_rmgr_init_vbuf(struct ia_css_rmgr_vbuf_pool *pool)
  */
 void ia_css_rmgr_uninit_vbuf(struct ia_css_rmgr_vbuf_pool *pool)
 {
-	uint32_t i;
+	u32 i;
+
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_rmgr_uninit_vbuf()\n");
-	if (pool == NULL) {
+	if (!pool) {
 		ia_css_debug_dtrace(IA_CSS_DEBUG_ERROR, "ia_css_rmgr_uninit_vbuf(): NULL argument\n");
 		return;
 	}
-	if (pool->handles != NULL) {
+	if (pool->handles) {
 		/* free the hmm buffers */
 		for (i = 0; i < pool->size; i++) {
-			if (pool->handles[i] != NULL) {
+			if (pool->handles[i]) {
 				ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
 				      "   freeing/releasing %x (count=%d)\n",
 				      pool->handles[i]->vptr,
@@ -207,14 +210,15 @@ static
 void rmgr_push_handle(struct ia_css_rmgr_vbuf_pool *pool,
 		      struct ia_css_rmgr_vbuf_handle **handle)
 {
-	uint32_t i;
+	u32 i;
 	bool succes = false;
-	assert(pool != NULL);
+
+	assert(pool);
 	assert(pool->recycle);
-	assert(pool->handles != NULL);
-	assert(handle != NULL);
+	assert(pool->handles);
+	assert(handle);
 	for (i = 0; i < pool->size; i++) {
-		if (pool->handles[i] == NULL) {
+		if (!pool->handles[i]) {
 			ia_css_rmgr_refcount_retain_vbuf(handle);
 			pool->handles[i] = *handle;
 			succes = true;
@@ -234,15 +238,16 @@ static
 void rmgr_pop_handle(struct ia_css_rmgr_vbuf_pool *pool,
 		     struct ia_css_rmgr_vbuf_handle **handle)
 {
-	uint32_t i;
+	u32 i;
 	bool succes = false;
-	assert(pool != NULL);
+
+	assert(pool);
 	assert(pool->recycle);
-	assert(pool->handles != NULL);
-	assert(handle != NULL);
-	assert(*handle != NULL);
+	assert(pool->handles);
+	assert(handle);
+	assert(*handle);
 	for (i = 0; i < pool->size; i++) {
-		if ((pool->handles[i] != NULL) &&
+		if ((pool->handles[i]) &&
 		    (pool->handles[i]->size == (*handle)->size)) {
 			*handle = pool->handles[i];
 			pool->handles[i] = NULL;
@@ -265,7 +270,7 @@ void ia_css_rmgr_acq_vbuf(struct ia_css_rmgr_vbuf_pool *pool,
 {
 	struct ia_css_rmgr_vbuf_handle h;
 
-	if ((pool == NULL) || (handle == NULL) || (*handle == NULL)) {
+	if ((!pool) || (!handle) || (!*handle)) {
 		IA_CSS_LOG("Invalid inputs");
 		return;
 	}
@@ -311,7 +316,7 @@ void ia_css_rmgr_acq_vbuf(struct ia_css_rmgr_vbuf_pool *pool,
 void ia_css_rmgr_rel_vbuf(struct ia_css_rmgr_vbuf_pool *pool,
 			  struct ia_css_rmgr_vbuf_handle **handle)
 {
-	if ((pool == NULL) || (handle == NULL) || (*handle == NULL)) {
+	if ((!pool) || (!handle) || (!*handle)) {
 		IA_CSS_LOG("Invalid inputs");
 		return;
 	}

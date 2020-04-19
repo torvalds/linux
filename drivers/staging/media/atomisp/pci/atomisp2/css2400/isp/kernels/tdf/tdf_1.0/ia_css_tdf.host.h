@@ -32,7 +32,7 @@ ia_css_tdf_encode(
 
 void
 ia_css_tdf_debug_dtrace(
-	const struct ia_css_tdf_config *config, unsigned level)
+	const struct ia_css_tdf_config *config, unsigned int level)
 ;
 
 #endif /* __IA_CSS_TDF_HOST_H */

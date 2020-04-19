@@ -42,7 +42,7 @@ STORAGE_CLASS_IBUF_CTRL_H void ibuf_ctrl_get_state(
  */
 STORAGE_CLASS_IBUF_CTRL_H void ibuf_ctrl_get_proc_state(
 		const ibuf_ctrl_ID_t ID,
-		const uint32_t proc_id,
+		const u32 proc_id,
 		ibuf_ctrl_proc_state_t *state);
 /**
  * @brief Dump the ibuf-controller state.

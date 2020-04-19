@@ -26,9 +26,9 @@
 
 /* one tracer item: major, minor and counter. The counter value can be used for GP data */
 struct trace_item_t {
-	uint8_t   major;
-	uint8_t   minor;
-	uint16_t  counter;
+	u8   major;
+	u8   minor;
+	u16  counter;
 };
 
 #ifdef ISP2401
@@ -43,30 +43,30 @@ struct trace_header_t {
 #else
 	/* 1st dword: descriptor */
 #endif
-	uint8_t   version;
-	uint8_t   max_threads;
-	uint16_t  max_tracer_points;
+	u8   version;
+	u8   max_threads;
+	u16  max_tracer_points;
 #ifdef ISP2401
 	/* 2nd field: command + data */
 #endif
 	/* 2nd dword */
-	uint32_t  command;
+	u32  command;
 	/* 3rd & 4th dword */
 #ifndef ISP2401
-	uint32_t  data[2];
+	u32  data[2];
 #else
-	uint32_t  data[MAX_CMD_DATA];
+	u32  data[MAX_CMD_DATA];
 	/* 3rd field: debug pointer */
 #endif
 	/* 5th & 6th dword: debug pointer mechanism */
-	uint32_t  debug_ptr_signature;
-	uint32_t  debug_ptr_value;
+	u32  debug_ptr_signature;
+	u32  debug_ptr_value;
 #ifdef ISP2401
 	/* Rest of the header: status & scratch data */
-	uint8_t   thr_status_byte[SH_CSS_MAX_SP_THREADS];
-	uint16_t  thr_status_word[SH_CSS_MAX_SP_THREADS];
-	uint32_t  thr_status_dword[SH_CSS_MAX_SP_THREADS];
-	uint32_t  scratch_debug[MAX_SCRATCH_DATA];
+	u8   thr_status_byte[SH_CSS_MAX_SP_THREADS];
+	u16  thr_status_word[SH_CSS_MAX_SP_THREADS];
+	u32  thr_status_dword[SH_CSS_MAX_SP_THREADS];
+	u32  scratch_debug[MAX_SCRATCH_DATA];
 #endif
 };
 
@@ -137,26 +137,25 @@ enum TRACE_DUMP_FORMAT {
 };
 #endif
 
-
 /* currently divided as follows:*/
 #if (TRACE_ENABLE_SP0 + TRACE_ENABLE_SP1 + TRACE_ENABLE_ISP == 3)
 /* can be divided as needed */
-#define TRACE_SP0_SIZE (TRACE_BUFF_SIZE/4)
-#define TRACE_SP1_SIZE (TRACE_BUFF_SIZE/4)
-#define TRACE_ISP_SIZE (TRACE_BUFF_SIZE/2)
+#define TRACE_SP0_SIZE (TRACE_BUFF_SIZE / 4)
+#define TRACE_SP1_SIZE (TRACE_BUFF_SIZE / 4)
+#define TRACE_ISP_SIZE (TRACE_BUFF_SIZE / 2)
 #elif (TRACE_ENABLE_SP0 + TRACE_ENABLE_SP1 + TRACE_ENABLE_ISP == 2)
 #if TRACE_ENABLE_SP0
-#define TRACE_SP0_SIZE (TRACE_BUFF_SIZE/2)
+#define TRACE_SP0_SIZE (TRACE_BUFF_SIZE / 2)
 #else
 #define TRACE_SP0_SIZE (0)
 #endif
 #if TRACE_ENABLE_SP1
-#define TRACE_SP1_SIZE (TRACE_BUFF_SIZE/2)
+#define TRACE_SP1_SIZE (TRACE_BUFF_SIZE / 2)
 #else
 #define TRACE_SP1_SIZE (0)
 #endif
 #if TRACE_ENABLE_ISP
-#define TRACE_ISP_SIZE (TRACE_BUFF_SIZE/2)
+#define TRACE_ISP_SIZE (TRACE_BUFF_SIZE / 2)
 #else
 #define TRACE_ISP_SIZE (0)
 #endif
@@ -278,55 +277,54 @@ typedef enum {
 
 /* shared macros in traces infrastructure */
 /* increment the pointer cyclicly */
-#define DBG_NEXT_ITEM(x, max_items) (((x+1) >= max_items) ? 0 : x+1)
-#define DBG_PREV_ITEM(x, max_items) ((x) ? x-1 : max_items-1)
+#define DBG_NEXT_ITEM(x, max_items) (((x + 1) >= max_items) ? 0 : x + 1)
+#define DBG_PREV_ITEM(x, max_items) ((x) ? x - 1 : max_items - 1)
 
 #define FIELD_MASK(width) (((1 << (width)) - 1))
-#define FIELD_PACK(value,mask,offset) (((value) & (mask)) << (offset))
-#define FIELD_UNPACK(value,mask,offset) (((value) >> (offset)) & (mask))
-
+#define FIELD_PACK(value, mask, offset) (((value) & (mask)) << (offset))
+#define FIELD_UNPACK(value, mask, offset) (((value) >> (offset)) & (mask))
 
 #define FIELD_VALUE_OFFSET		(0)
 #define FIELD_VALUE_WIDTH		(16)
 #define FIELD_VALUE_MASK		FIELD_MASK(FIELD_VALUE_WIDTH)
-#define FIELD_VALUE_PACK(f)		FIELD_PACK(f,FIELD_VALUE_MASK,FIELD_VALUE_OFFSET)
+#define FIELD_VALUE_PACK(f)		FIELD_PACK(f, FIELD_VALUE_MASK, FIELD_VALUE_OFFSET)
 #ifndef ISP2401
-#define FIELD_VALUE_UNPACK(f)	FIELD_UNPACK(f,FIELD_VALUE_MASK,FIELD_VALUE_OFFSET)
+#define FIELD_VALUE_UNPACK(f)	FIELD_UNPACK(f, FIELD_VALUE_MASK, FIELD_VALUE_OFFSET)
 #else
-#define FIELD_VALUE_UNPACK(f)		FIELD_UNPACK(f,FIELD_VALUE_MASK,FIELD_VALUE_OFFSET)
+#define FIELD_VALUE_UNPACK(f)		FIELD_UNPACK(f, FIELD_VALUE_MASK, FIELD_VALUE_OFFSET)
 #endif
 
 #define FIELD_MINOR_OFFSET		(FIELD_VALUE_OFFSET + FIELD_VALUE_WIDTH)
 #define FIELD_MINOR_WIDTH		(8)
 #define FIELD_MINOR_MASK		FIELD_MASK(FIELD_MINOR_WIDTH)
-#define FIELD_MINOR_PACK(f)		FIELD_PACK(f,FIELD_MINOR_MASK,FIELD_MINOR_OFFSET)
+#define FIELD_MINOR_PACK(f)		FIELD_PACK(f, FIELD_MINOR_MASK, FIELD_MINOR_OFFSET)
 #ifndef ISP2401
-#define FIELD_MINOR_UNPACK(f)	FIELD_UNPACK(f,FIELD_MINOR_MASK,FIELD_MINOR_OFFSET)
+#define FIELD_MINOR_UNPACK(f)	FIELD_UNPACK(f, FIELD_MINOR_MASK, FIELD_MINOR_OFFSET)
 #else
-#define FIELD_MINOR_UNPACK(f)		FIELD_UNPACK(f,FIELD_MINOR_MASK,FIELD_MINOR_OFFSET)
+#define FIELD_MINOR_UNPACK(f)		FIELD_UNPACK(f, FIELD_MINOR_MASK, FIELD_MINOR_OFFSET)
 #endif
 
 #define FIELD_MAJOR_OFFSET		(FIELD_MINOR_OFFSET + FIELD_MINOR_WIDTH)
 #define FIELD_MAJOR_WIDTH		(5)
 #define FIELD_MAJOR_MASK		FIELD_MASK(FIELD_MAJOR_WIDTH)
-#define FIELD_MAJOR_PACK(f)		FIELD_PACK(f,FIELD_MAJOR_MASK,FIELD_MAJOR_OFFSET)
+#define FIELD_MAJOR_PACK(f)		FIELD_PACK(f, FIELD_MAJOR_MASK, FIELD_MAJOR_OFFSET)
 #ifndef ISP2401
-#define FIELD_MAJOR_UNPACK(f)	FIELD_UNPACK(f,FIELD_MAJOR_MASK,FIELD_MAJOR_OFFSET)
+#define FIELD_MAJOR_UNPACK(f)	FIELD_UNPACK(f, FIELD_MAJOR_MASK, FIELD_MAJOR_OFFSET)
 #else
-#define FIELD_MAJOR_UNPACK(f)		FIELD_UNPACK(f,FIELD_MAJOR_MASK,FIELD_MAJOR_OFFSET)
+#define FIELD_MAJOR_UNPACK(f)		FIELD_UNPACK(f, FIELD_MAJOR_MASK, FIELD_MAJOR_OFFSET)
 #endif
 
 #ifndef ISP2401
 #define FIELD_FORMAT_OFFSET		(FIELD_MAJOR_OFFSET + FIELD_MAJOR_WIDTH)
-#define FIELD_FORMAT_WIDTH 		(3)
-#define FIELD_FORMAT_MASK 		FIELD_MASK(FIELD_FORMAT_WIDTH)
-#define FIELD_FORMAT_PACK(f)	FIELD_PACK(f,FIELD_FORMAT_MASK,FIELD_FORMAT_OFFSET)
-#define FIELD_FORMAT_UNPACK(f)	FIELD_UNPACK(f,FIELD_FORMAT_MASK,FIELD_FORMAT_OFFSET)
+#define FIELD_FORMAT_WIDTH		(3)
+#define FIELD_FORMAT_MASK		FIELD_MASK(FIELD_FORMAT_WIDTH)
+#define FIELD_FORMAT_PACK(f)	FIELD_PACK(f, FIELD_FORMAT_MASK, FIELD_FORMAT_OFFSET)
+#define FIELD_FORMAT_UNPACK(f)	FIELD_UNPACK(f, FIELD_FORMAT_MASK, FIELD_FORMAT_OFFSET)
 #else
 /* for quick traces - only insertion, compatible with the regular point */
 #define FIELD_FULL_MAJOR_WIDTH		(8)
 #define FIELD_FULL_MAJOR_MASK		FIELD_MASK(FIELD_FULL_MAJOR_WIDTH)
-#define FIELD_FULL_MAJOR_PACK(f)	FIELD_PACK(f,FIELD_FULL_MAJOR_MASK,FIELD_MAJOR_OFFSET)
+#define FIELD_FULL_MAJOR_PACK(f)	FIELD_PACK(f, FIELD_FULL_MAJOR_MASK, FIELD_MAJOR_OFFSET)
 
 /* The following 2 fields are used only when FIELD_TID value is 111b.
  * it means we don't want to use thread id, but format. In this case,
@@ -335,22 +333,22 @@ typedef enum {
 #define FIELD_MAJOR_W_FMT_OFFSET	FIELD_MAJOR_OFFSET
 #define FIELD_MAJOR_W_FMT_WIDTH		(3)
 #define FIELD_MAJOR_W_FMT_MASK		FIELD_MASK(FIELD_MAJOR_W_FMT_WIDTH)
-#define FIELD_MAJOR_W_FMT_PACK(f)	FIELD_PACK(f,FIELD_MAJOR_W_FMT_MASK,FIELD_MAJOR_W_FMT_OFFSET)
-#define FIELD_MAJOR_W_FMT_UNPACK(f)	FIELD_UNPACK(f,FIELD_MAJOR_W_FMT_MASK,FIELD_MAJOR_W_FMT_OFFSET)
+#define FIELD_MAJOR_W_FMT_PACK(f)	FIELD_PACK(f, FIELD_MAJOR_W_FMT_MASK, FIELD_MAJOR_W_FMT_OFFSET)
+#define FIELD_MAJOR_W_FMT_UNPACK(f)	FIELD_UNPACK(f, FIELD_MAJOR_W_FMT_MASK, FIELD_MAJOR_W_FMT_OFFSET)
 
 #define FIELD_FORMAT_OFFSET		(FIELD_MAJOR_OFFSET + FIELD_MAJOR_W_FMT_WIDTH)
-#define FIELD_FORMAT_WIDTH 		(2)
-#define FIELD_FORMAT_MASK 		FIELD_MASK(FIELD_MAJOR_W_FMT_WIDTH)
-#define FIELD_FORMAT_PACK(f)		FIELD_PACK(f,FIELD_FORMAT_MASK,FIELD_FORMAT_OFFSET)
-#define FIELD_FORMAT_UNPACK(f)		FIELD_UNPACK(f,FIELD_FORMAT_MASK,FIELD_FORMAT_OFFSET)
+#define FIELD_FORMAT_WIDTH		(2)
+#define FIELD_FORMAT_MASK		FIELD_MASK(FIELD_MAJOR_W_FMT_WIDTH)
+#define FIELD_FORMAT_PACK(f)		FIELD_PACK(f, FIELD_FORMAT_MASK, FIELD_FORMAT_OFFSET)
+#define FIELD_FORMAT_UNPACK(f)		FIELD_UNPACK(f, FIELD_FORMAT_MASK, FIELD_FORMAT_OFFSET)
 
 #define FIELD_TID_SEL_FORMAT_PAT	(7)
 
 #define FIELD_TID_OFFSET		(FIELD_MAJOR_OFFSET + FIELD_MAJOR_WIDTH)
 #define FIELD_TID_WIDTH			(3)
 #define FIELD_TID_MASK			FIELD_MASK(FIELD_TID_WIDTH)
-#define FIELD_TID_PACK(f)		FIELD_PACK(f,FIELD_TID_MASK,FIELD_TID_OFFSET)
-#define FIELD_TID_UNPACK(f)		FIELD_UNPACK(f,FIELD_TID_MASK,FIELD_TID_OFFSET)
+#define FIELD_TID_PACK(f)		FIELD_PACK(f, FIELD_TID_MASK, FIELD_TID_OFFSET)
+#define FIELD_TID_UNPACK(f)		FIELD_UNPACK(f, FIELD_TID_MASK, FIELD_TID_OFFSET)
 #endif
 
 #define FIELD_VALUE_24_OFFSET		(0)
@@ -360,11 +358,11 @@ typedef enum {
 #else
 #define FIELD_VALUE_24_MASK		FIELD_MASK(FIELD_VALUE_24_WIDTH)
 #endif
-#define FIELD_VALUE_24_PACK(f)		FIELD_PACK(f,FIELD_VALUE_24_MASK,FIELD_VALUE_24_OFFSET)
-#define FIELD_VALUE_24_UNPACK(f)	FIELD_UNPACK(f,FIELD_VALUE_24_MASK,FIELD_VALUE_24_OFFSET)
+#define FIELD_VALUE_24_PACK(f)		FIELD_PACK(f, FIELD_VALUE_24_MASK, FIELD_VALUE_24_OFFSET)
+#define FIELD_VALUE_24_UNPACK(f)	FIELD_UNPACK(f, FIELD_VALUE_24_MASK, FIELD_VALUE_24_OFFSET)
 
 #ifndef ISP2401
-#define PACK_TRACEPOINT(format,major, minor, value)	\
+#define PACK_TRACEPOINT(format, major, minor, value)	\
 	(FIELD_FORMAT_PACK(format) | FIELD_MAJOR_PACK(major) | FIELD_MINOR_PACK(minor) | FIELD_VALUE_PACK(value))
 #else
 #define PACK_TRACEPOINT(tid, major, minor, value)	\

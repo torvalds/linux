@@ -29,7 +29,7 @@ more details.
 #include "ia_css_err.h"
 
 bool reallocate_buffer(
-	hrt_vaddress *curr_buf,
+	hrt_vaddress * curr_buf,
 	size_t *curr_size,
 	size_t needed_size,
 	bool force,

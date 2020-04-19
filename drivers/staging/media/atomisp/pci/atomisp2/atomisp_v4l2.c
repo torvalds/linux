@@ -376,7 +376,6 @@ done:
 	return 0;
 }
 
-
  /*
  * WA for DDR DVFS enable/disable
  * By default, ISP will force DDR DVFS 1600MHz before disable DVFS
@@ -447,7 +446,6 @@ int atomisp_mrfld_power_down(struct atomisp_device *isp)
 		usleep_range(100, 150);
 	}
 }
-
 
 /* Workaround for pmu_nc_set_power_state not ready in MRFLD */
 int atomisp_mrfld_power_up(struct atomisp_device *isp)
@@ -735,7 +733,7 @@ static int atomisp_subdev_probe(struct atomisp_device *isp)
 	int ret, raw_index = -1;
 
 	pdata = atomisp_get_platform_data();
-	if (pdata == NULL) {
+	if (!pdata) {
 		dev_err(isp->dev, "no platform data available\n");
 		return 0;
 	}
@@ -748,7 +746,7 @@ static int atomisp_subdev_probe(struct atomisp_device *isp)
 			i2c_get_adapter(subdevs->v4l2_subdev.i2c_adapter_id);
 		int sensor_num, i;
 
-		if (adapter == NULL) {
+		if (!adapter) {
 			dev_err(isp->dev,
 				"Failed to find i2c adapter for subdev %s\n",
 				board_info->type);
@@ -766,7 +764,7 @@ static int atomisp_subdev_probe(struct atomisp_device *isp)
 			continue;
 		}
 
-		if (subdev == NULL) {
+		if (!subdev) {
 			dev_warn(isp->dev, "Subdev %s detection fail\n",
 				 board_info->type);
 			continue;
@@ -825,7 +823,6 @@ static int atomisp_subdev_probe(struct atomisp_device *isp)
 			dev_dbg(isp->dev, "unknown subdev probed\n");
 			break;
 		}
-
 	}
 
 	/*
@@ -937,7 +934,7 @@ static int atomisp_register_entities(struct atomisp_device *isp)
 		asd->delayed_init_workq =
 			alloc_workqueue(isp->v4l2_dev.name, WQ_CPU_INTENSIVE,
 					1);
-		if (asd->delayed_init_workq == NULL) {
+		if (!asd->delayed_init_workq) {
 			dev_err(isp->dev,
 					"Failed to initialize delayed init workq\n");
 			ret = -ENOMEM;
@@ -1037,7 +1034,6 @@ static int atomisp_initialize_modules(struct atomisp_device *isp)
 		goto error_isp_subdev;
 	}
 
-
 	return 0;
 
 error_isp_subdev:
@@ -1128,7 +1124,7 @@ static int init_atomisp_wdts(struct atomisp_device *isp)
 
 	atomic_set(&isp->wdt_work_queued, 0);
 	isp->wdt_work_queue = alloc_workqueue(isp->v4l2_dev.name, 0, 1);
-	if (isp->wdt_work_queue == NULL) {
+	if (!isp->wdt_work_queue) {
 		dev_err(isp->dev, "Failed to initialize wdt work queue\n");
 		err = -ENOMEM;
 		goto alloc_fail;
@@ -1174,7 +1170,7 @@ static int atomisp_pci_probe(struct pci_dev *dev,
 	atomisp_dev = &dev->dev;
 
 	pdata = atomisp_get_platform_data();
-	if (pdata == NULL)
+	if (!pdata)
 		dev_warn(&dev->dev, "no platform data available\n");
 
 	err = pcim_enable_device(dev);
@@ -1243,13 +1239,13 @@ static int atomisp_pci_probe(struct pci_dev *dev,
 			(ATOMISP_HW_REVISION_ISP2400
 			 << ATOMISP_HW_REVISION_SHIFT) |
 			ATOMISP_HW_STEPPING_B0;
-#ifdef FIXME			
+#ifdef FIXME
 		if (INTEL_MID_BOARD(3, TABLET, BYT, BLK, PRO, CRV2) ||
 			INTEL_MID_BOARD(3, TABLET, BYT, BLK, ENG, CRV2)) {
 			isp->dfs = &dfs_config_byt_cr;
 			isp->hpll_freq = HPLL_FREQ_2000MHZ;
 		} else
-#endif		
+#endif
 		{
 			isp->dfs = &dfs_config_byt;
 			isp->hpll_freq = HPLL_FREQ_1600MHZ;

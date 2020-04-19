@@ -26,17 +26,16 @@ void
 ia_css_macc_encode(
 	struct sh_css_isp_macc_params *to,
 	const struct ia_css_macc_config *from,
-	unsigned size);
-	
+	unsigned int size);
 
 void
 ia_css_macc_dump(
 	const struct sh_css_isp_macc_params *macc,
-	unsigned level);
+	unsigned int level);
 
 void
 ia_css_macc_debug_dtrace(
 	const struct ia_css_macc_config *config,
-	unsigned level);
+	unsigned int level);
 
 #endif /* __IA_CSS_MACC_HOST_H */

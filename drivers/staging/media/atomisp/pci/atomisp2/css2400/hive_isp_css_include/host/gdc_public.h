@@ -33,7 +33,7 @@
 
  \return none, GDC[ID].lut[0...3][0...HRT_GDC_N-1] = data
  */
-extern void gdc_lut_store(
+void gdc_lut_store(
 	const gdc_ID_t		ID,
 	const int			data[4][HRT_GDC_N]);
 
@@ -43,17 +43,17 @@ extern void gdc_lut_store(
  \param in_lut[in]			The data matrix to be converted
  \param out_lut[out]			The data matrix as the output of conversion
  */
-extern void gdc_lut_convert_to_isp_format(
+void gdc_lut_convert_to_isp_format(
 	const int in_lut[4][HRT_GDC_N],
 	int out_lut[4][HRT_GDC_N]);
 
 /*! Return the integer representation of 1.0 of GDC[ID]
- 
+
  \param	ID[in]				GDC identifier
 
  \return unity
  */
-extern int gdc_get_unity(
+int gdc_get_unity(
 	const gdc_ID_t		ID);
 
 #endif /* __GDC_PUBLIC_H_INCLUDED__ */

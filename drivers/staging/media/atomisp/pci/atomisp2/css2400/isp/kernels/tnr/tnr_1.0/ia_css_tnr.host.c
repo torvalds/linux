@@ -33,7 +33,7 @@ void
 ia_css_tnr_encode(
 	struct sh_css_isp_tnr_params *to,
 	const struct ia_css_tnr_config *from,
-	unsigned size)
+	unsigned int size)
 {
 	(void)size;
 	to->coef =
@@ -47,7 +47,7 @@ ia_css_tnr_encode(
 void
 ia_css_tnr_dump(
 	const struct sh_css_isp_tnr_params *tnr,
-	unsigned level)
+	unsigned int level)
 {
 	if (!tnr) return;
 	ia_css_debug_dtrace(level, "Temporal Noise Reduction:\n");
@@ -62,11 +62,10 @@ ia_css_tnr_dump(
 void
 ia_css_tnr_debug_dtrace(
 	const struct ia_css_tnr_config *config,
-	unsigned level)
+	unsigned int level)
 {
 	ia_css_debug_dtrace(level,
-		"config.gain=%d, "
-		"config.threshold_y=%d, config.threshold_uv=%d\n",
+		"config.gain=%d, config.threshold_y=%d, config.threshold_uv=%d\n",
 		config->gain,
 		config->threshold_y, config->threshold_uv);
 }
@@ -75,10 +74,10 @@ void
 ia_css_tnr_config(
 	struct sh_css_isp_tnr_isp_config *to,
 	const struct ia_css_tnr_configuration *from,
-	unsigned size)
+	unsigned int size)
 {
-	unsigned elems_a = ISP_VEC_NELEMS;
-	unsigned i;
+	unsigned int elems_a = ISP_VEC_NELEMS;
+	unsigned int i;
 
 	(void)size;
 	ia_css_dma_configure_from_info(&to->port_b, &from->tnr_frames[0]->info);
@@ -93,7 +92,7 @@ ia_css_tnr_config(
 	}
 
 	/* Assume divisiblity here, may need to generalize to fixed point. */
-	assert (elems_a % to->port_b.elems == 0);
+	assert(elems_a % to->port_b.elems == 0);
 }
 
 void
@@ -102,7 +101,7 @@ ia_css_tnr_configure(
 	const struct ia_css_frame **frames)
 {
 	struct ia_css_tnr_configuration config;
-	unsigned i;
+	unsigned int i;
 
 #ifndef ISP2401
 	for (i = 0; i < NUM_VIDEO_TNR_FRAMES; i++)

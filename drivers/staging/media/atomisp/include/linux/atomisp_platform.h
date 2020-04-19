@@ -106,8 +106,6 @@ enum atomisp_input_format {
 
 #define N_ATOMISP_INPUT_FORMAT (ATOMISP_INPUT_FORMAT_USER_DEF8 + 1)
 
-
-
 enum intel_v4l2_subdev_type {
 	RAW_CAMERA = 1,
 	SOC_CAMERA = 2,
@@ -228,13 +226,13 @@ struct camera_mipi_info {
 	enum atomisp_bayer_order        raw_bayer_order;
 	struct atomisp_sensor_mode_data data;
 	enum atomisp_input_format       metadata_format;
-	uint32_t                        metadata_width;
-	uint32_t                        metadata_height;
-	const uint32_t                  *metadata_effective_width;
+	u32                             metadata_width;
+	u32                             metadata_height;
+	const u32                       *metadata_effective_width;
 };
 
-extern const struct atomisp_platform_data *atomisp_get_platform_data(void);
-extern const struct atomisp_camera_caps *atomisp_get_default_camera_caps(void);
+const struct atomisp_platform_data *atomisp_get_platform_data(void);
+const struct atomisp_camera_caps *atomisp_get_default_camera_caps(void);
 
 /* API from old platform_camera.h, new CPUID implementation */
 #define __IS_SOC(x) (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL && \

@@ -25,19 +25,19 @@ struct ia_css_isp_tdf_vmem_params {
 };
 
 struct ia_css_isp_tdf_dmem_params {
-	int32_t Epsilon_0;
-	int32_t Epsilon_1;
-	int32_t EpsScaleText;
-	int32_t EpsScaleEdge;
-	int32_t Sepa_flat;
-	int32_t Sepa_Edge;
-	int32_t Blend_Flat;
-	int32_t Blend_Text;
-	int32_t Blend_Edge;
-	int32_t Shading_Gain;
-	int32_t Shading_baseGain;
-	int32_t LocalY_Gain;
-	int32_t LocalY_baseGain;
+	s32 Epsilon_0;
+	s32 Epsilon_1;
+	s32 EpsScaleText;
+	s32 EpsScaleEdge;
+	s32 Sepa_flat;
+	s32 Sepa_Edge;
+	s32 Blend_Flat;
+	s32 Blend_Text;
+	s32 Blend_Edge;
+	s32 Shading_Gain;
+	s32 Shading_baseGain;
+	s32 LocalY_Gain;
+	s32 LocalY_baseGain;
 };
 
 #endif /* __IA_CSS_TDF_PARAM_H */

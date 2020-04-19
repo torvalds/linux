@@ -60,7 +60,7 @@ enum ia_css_event_type {
 	/** Extension stage complete. */
 	IA_CSS_EVENT_TYPE_TIMER				= 1 << 12,
 	/** Timer event for measuring the SP side latencies. It contains the
-             32-bit timer value from the SP */
+	     32-bit timer value from the SP */
 	IA_CSS_EVENT_TYPE_PORT_EOF			= 1 << 13,
 	/** End Of Frame event, sent when in buffered sensor mode. */
 	IA_CSS_EVENT_TYPE_FW_WARNING			= 1 << 14,
@@ -101,9 +101,9 @@ struct ia_css_event {
 	     events. */
 	enum ia_css_event_type type;
 	/** Type of Event, always valid/filled. */
-	uint8_t                port;
+	u8                port;
 	/** Port number for EOF event (not valid for other events). */
-	uint8_t                exp_id;
+	u8                exp_id;
 	/** Exposure id for EOF/FRAME_TAGGED/FW_WARNING event (not valid for other events)
 	     The exposure ID is unique only within a logical stream and it is
 	     only generated on systems that have an input system (such as 2400
@@ -119,22 +119,22 @@ struct ia_css_event {
 	     Note that in case frames are dropped, this will not be reflected
 	     in the exposure IDs. Therefor applications should not use this
 	     to detect frame drops. */
-	uint32_t               fw_handle;
+	u32               fw_handle;
 	/** Firmware Handle for ACC_STAGE_COMPLETE event (not valid for other
 	     events). */
 	enum ia_css_fw_warning fw_warning;
 	/** Firmware warning code, only for WARNING events. */
-	uint8_t                fw_assert_module_id;
+	u8                fw_assert_module_id;
 	/** Firmware module id, only for ASSERT events, should be logged by driver. */
-	uint16_t               fw_assert_line_no;
+	u16               fw_assert_line_no;
 	/** Firmware line number, only for ASSERT events, should be logged by driver. */
 	clock_value_t	       timer_data;
 	/** For storing the full 32-bit of the timer value. Valid only for TIMER
 	     event */
-	uint8_t                timer_code;
+	u8                timer_code;
 	/** For storing the code of the TIMER event. Valid only for
 	     TIMER event */
-	uint8_t                timer_subcode;
+	u8                timer_subcode;
 	/** For storing the subcode of the TIMER event. Valid only
 	     for TIMER event */
 };

@@ -36,10 +36,10 @@ more details.
 /* Binary independent constants */
 
 #ifndef NO_HOIST
-#  define		NO_HOIST 	HIVE_ATTRIBUTE (( no_hoist ))
+#  define		NO_HOIST	HIVE_ATTRIBUTE((no_hoist))
 #endif
 
-#define NO_HOIST_CSE HIVE_ATTRIBUTE ((no_hoist, no_cse))
+#define NO_HOIST_CSE HIVE_ATTRIBUTE((no_hoist, no_cse))
 
 #define UNION struct /* Union constructors not allowed in C++ */
 
@@ -329,8 +329,8 @@ more details.
 #endif
 
 #define XMEM_WIDTH_BITS              HIVE_ISP_DDR_WORD_BITS
-#define XMEM_SHORTS_PER_WORD         (HIVE_ISP_DDR_WORD_BITS/16)
-#define XMEM_INTS_PER_WORD           (HIVE_ISP_DDR_WORD_BITS/32)
+#define XMEM_SHORTS_PER_WORD         (HIVE_ISP_DDR_WORD_BITS / 16)
+#define XMEM_INTS_PER_WORD           (HIVE_ISP_DDR_WORD_BITS / 32)
 #define XMEM_POW2_BYTES_PER_WORD      HIVE_ISP_DDR_WORD_BYTES
 
 #define BITS8_ELEMENTS_PER_XMEM_ADDR    CEIL_DIV(XMEM_WIDTH_BITS, 8)
@@ -383,7 +383,7 @@ more details.
 #define ISP_LEFT_PADDING_VECS_CONT	CEIL_DIV(ISP_LEFT_PADDING_CONT, ISP_VEC_NELEMS)
 
 #define CEIL_ROUND_DIV_STRIPE(width, stripe, padding) \
-	CEIL_MUL(padding + CEIL_DIV(width - padding, stripe), ((ENABLE_RAW_BINNING || ENABLE_FIXED_BAYER_DS)?4:2))
+	CEIL_MUL(padding + CEIL_DIV(width - padding, stripe), ((ENABLE_RAW_BINNING || ENABLE_FIXED_BAYER_DS) ? 4 : 2))
 
 /* output (Y,U,V) image, 4:2:0 */
 #define MAX_VECTORS_PER_LINE \
@@ -407,7 +407,6 @@ more details.
 							      ISP_NUM_STRIPES, \
 							      ISP_LEFT_PADDING_VECS)
 
-
 /* Add 2 for left croppping */
 #define MAX_SP_RAW_COPY_VECTORS_PER_INPUT_LINE	(CEIL_DIV(ISP_MAX_INPUT_WIDTH, ISP_VEC_NELEMS) + 2)
 
@@ -429,28 +428,26 @@ more details.
 
 #define MAX_VECTORS_PER_CHUNK \
 	(NO_CHUNKING ? MAX_VECTORS_PER_LINE \
-				: 2*CEIL_DIV(MAX_VECTORS_PER_LINE, \
-					     2*OUTPUT_NUM_CHUNKS))
+				: 2 * CEIL_DIV(MAX_VECTORS_PER_LINE, \
+					     2 * OUTPUT_NUM_CHUNKS))
 
 #define MAX_C_VECTORS_PER_CHUNK \
-	(MAX_VECTORS_PER_CHUNK/2)
+	(MAX_VECTORS_PER_CHUNK / 2)
 
 /* should be even */
 #define MAX_VECTORS_PER_OUTPUT_CHUNK \
 	(NO_CHUNKING ? MAX_VECTORS_PER_OUTPUT_LINE \
-				: 2*CEIL_DIV(MAX_VECTORS_PER_OUTPUT_LINE, \
-					     2*OUTPUT_NUM_CHUNKS))
+				: 2 * CEIL_DIV(MAX_VECTORS_PER_OUTPUT_LINE, \
+					     2 * OUTPUT_NUM_CHUNKS))
 
 #define MAX_C_VECTORS_PER_OUTPUT_CHUNK \
-	(MAX_VECTORS_PER_OUTPUT_CHUNK/2)
-
-
+	(MAX_VECTORS_PER_OUTPUT_CHUNK / 2)
 
 /* should be even */
 #define MAX_VECTORS_PER_INPUT_CHUNK \
 	(INPUT_NUM_CHUNKS == 1 ? MAX_VECTORS_PER_INPUT_STRIPE \
-			       : 2*CEIL_DIV(MAX_VECTORS_PER_INPUT_STRIPE, \
-					    2*OUTPUT_NUM_CHUNKS))
+			       : 2 * CEIL_DIV(MAX_VECTORS_PER_INPUT_STRIPE, \
+					    2 * OUTPUT_NUM_CHUNKS))
 
 #define DEFAULT_C_SUBSAMPLING      2
 
@@ -460,7 +457,7 @@ more details.
 
 #define RAW_BUF_STRIDE \
 	(BINARY_ID == SH_CSS_BINARY_ID_POST_ISP ? MAX_VECTORS_PER_INPUT_CHUNK : \
-	 ISP_NUM_STRIPES > 1 ? MAX_VECTORS_PER_INPUT_STRIPE+_ISP_EXTRA_PADDING_VECS : \
+	 ISP_NUM_STRIPES > 1 ? MAX_VECTORS_PER_INPUT_STRIPE + _ISP_EXTRA_PADDING_VECS : \
 	 !ENABLE_CONTINUOUS ? MAX_VECTORS_PER_INPUT_LINE : \
 	 MAX_VECTORS_PER_INPUT_CHUNK)
 

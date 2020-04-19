@@ -19,8 +19,8 @@
 
 /* TNR (temporal noise reduction) */
 struct sh_css_isp_tnr_dmem_state {
-	uint32_t tnr_in_buf_idx;
-	uint32_t tnr_out_buf_idx;
+	u32 tnr_in_buf_idx;
+	u32 tnr_out_buf_idx;
 };
 
 #endif /* __IA_CSS_TNR_STATE_H */

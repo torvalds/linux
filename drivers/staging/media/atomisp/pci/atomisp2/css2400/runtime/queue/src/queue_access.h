@@ -63,39 +63,39 @@ more details.
 		(cb_desc)->step  = 0;	\
 		(cb_desc)->start = 0;	\
 		(cb_desc)->end   = 0;	\
-	} while(0)
+	} while (0)
 
 struct ia_css_queue {
-	uint8_t type;        /* Specify remote/local type of access */
-	uint8_t location;    /* Cell location for queue */
-	uint8_t proc_id;     /* Processor id for queue access */
+	u8 type;        /* Specify remote/local type of access */
+	u8 location;    /* Cell location for queue */
+	u8 proc_id;     /* Processor id for queue access */
 	union {
 		ia_css_circbuf_t cb_local;
 		struct {
-			uint32_t cb_desc_addr; /*Circbuf desc address for remote queues*/
-			uint32_t cb_elems_addr; /*Circbuf elements addr for remote queue*/
+			u32 cb_desc_addr; /*Circbuf desc address for remote queues*/
+			u32 cb_elems_addr; /*Circbuf elements addr for remote queue*/
 		}	remote;
 	} desc;
 };
 
-extern int ia_css_queue_load(
+int ia_css_queue_load(
 		struct ia_css_queue *rdesc,
 		ia_css_circbuf_desc_t *cb_desc,
 		uint32_t ignore_desc_flags);
 
-extern int ia_css_queue_store(
+int ia_css_queue_store(
 		struct ia_css_queue *rdesc,
 		ia_css_circbuf_desc_t *cb_desc,
 		uint32_t ignore_desc_flags);
 
-extern int ia_css_queue_item_load(
+int ia_css_queue_item_load(
 		struct ia_css_queue *rdesc,
-		uint8_t position,
+		u8 position,
 		ia_css_circbuf_elem_t *item);
 
-extern int ia_css_queue_item_store(
+int ia_css_queue_item_store(
 		struct ia_css_queue *rdesc,
-		uint8_t position,
+		u8 position,
 		ia_css_circbuf_elem_t *item);
 
 #endif /* __QUEUE_ACCESS_H */

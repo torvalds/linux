@@ -50,6 +50,7 @@ enum ia_css_pipe_mode {
 	IA_CSS_PIPE_MODE_YUVPP,		/** YUV post processing pipe, used for all use cases with YUV input,
 									for SoC sensor and external ISP */
 };
+
 /* Temporary define  */
 #define IA_CSS_PIPE_MODE_NUM (IA_CSS_PIPE_MODE_YUVPP + 1)
 
@@ -105,7 +106,7 @@ struct ia_css_pipe_config {
 	/** Pipeline extension accelerator */
 	struct ia_css_fw_info **acc_stages;
 	/** Standalone accelerator stages */
-	uint32_t num_acc_stages;
+	u32 num_acc_stages;
 	/** Number of standalone accelerator stages */
 	struct ia_css_capture_config default_capture_config;
 	/** Default capture config for initial capture pipe configuration. */
@@ -150,7 +151,6 @@ struct ia_css_pipe_config {
 		   to retrieve shading gains which correspond to bayer data. */
 #endif
 };
-
 
 /**
  * Default settings for newly created pipe configurations.
@@ -438,7 +438,6 @@ enum ia_css_err
 ia_css_pipe_dequeue_buffer(struct ia_css_pipe *pipe,
 			   struct ia_css_buffer *buffer);
 
-
 /* @brief  Set the state (Enable or Disable) of the Extension stage in the
  *          given pipe.
  * @param[in] pipe         Pipe handle.
@@ -446,25 +445,25 @@ ia_css_pipe_dequeue_buffer(struct ia_css_pipe *pipe,
  * @param[in] enable       Enable Flag (1 to enable ; 0 to disable)
  *
  * @return
- * IA_CSS_SUCCESS 			: Success
+ * IA_CSS_SUCCESS			: Success
  * IA_CSS_ERR_INVALID_ARGUMENTS		: Invalid Parameters
  * IA_CSS_ERR_RESOURCE_NOT_AVAILABLE	: Inactive QOS Pipe
- * 					(No active stream with this pipe)
+ *					(No active stream with this pipe)
  *
  * This function will request state change (enable or disable) for the Extension
  * stage (firmware handle) in the given pipe.
  *
  * Note:
- * 	1. Extension can be enabled/disabled only on QOS Extensions
- * 	2. Extension can be enabled/disabled only with an active QOS Pipe
- * 	3. Initial(Default) state of QOS Extensions is Disabled
- * 	4. State change cannot be guaranteed immediately OR on frame boundary
+ *	1. Extension can be enabled/disabled only on QOS Extensions
+ *	2. Extension can be enabled/disabled only with an active QOS Pipe
+ *	3. Initial(Default) state of QOS Extensions is Disabled
+ *	4. State change cannot be guaranteed immediately OR on frame boundary
  *
  */
 enum ia_css_err
-ia_css_pipe_set_qos_ext_state (struct ia_css_pipe *pipe,
-                           uint32_t fw_handle,
-                           bool  enable);
+ia_css_pipe_set_qos_ext_state(struct ia_css_pipe *pipe,
+			   u32 fw_handle,
+			   bool  enable);
 
 /* @brief  Get the state (Enable or Disable) of the Extension stage in the
  *          given pipe.
@@ -473,37 +472,37 @@ ia_css_pipe_set_qos_ext_state (struct ia_css_pipe *pipe,
  * @param[out] *enable     Enable Flag
  *
  * @return
- * IA_CSS_SUCCESS 			: Success
+ * IA_CSS_SUCCESS			: Success
  * IA_CSS_ERR_INVALID_ARGUMENTS		: Invalid Parameters
  * IA_CSS_ERR_RESOURCE_NOT_AVAILABLE	: Inactive QOS Pipe
- * 					(No active stream with this pipe)
+ *					(No active stream with this pipe)
  *
  * This function will query the state of the Extension stage (firmware handle)
  * in the given Pipe.
  *
  * Note:
- * 	1. Extension state can be queried only on QOS Extensions
- * 	2. Extension can be enabled/disabled only with an active QOS Pipe
- * 	3. Initial(Default) state of QOS Extensions is Disabled.
+ *	1. Extension state can be queried only on QOS Extensions
+ *	2. Extension can be enabled/disabled only with an active QOS Pipe
+ *	3. Initial(Default) state of QOS Extensions is Disabled.
  *
  */
 enum ia_css_err
-ia_css_pipe_get_qos_ext_state (struct ia_css_pipe *pipe,
-                           uint32_t fw_handle,
-                           bool * enable);
+ia_css_pipe_get_qos_ext_state(struct ia_css_pipe *pipe,
+			   u32 fw_handle,
+			   bool *enable);
 
 #ifdef ISP2401
 /* @brief  Update mapped CSS and ISP arguments for QoS pipe during SP runtime.
- * @param[in] pipe     	Pipe handle.
+ * @param[in] pipe	Pipe handle.
  * @param[in] fw_handle	Extension firmware Handle (ia_css_fw_info.handle).
- * @param[in] css_seg  	Parameter memory descriptors for CSS segments.
- * @param[in] isp_seg  	Parameter memory descriptors for ISP segments.
+ * @param[in] css_seg	Parameter memory descriptors for CSS segments.
+ * @param[in] isp_seg	Parameter memory descriptors for ISP segments.
  *
  * @return
- * IA_CSS_SUCCESS 			: Success
+ * IA_CSS_SUCCESS			: Success
  * IA_CSS_ERR_INVALID_ARGUMENTS		: Invalid Parameters
  * IA_CSS_ERR_RESOURCE_NOT_AVAILABLE	: Inactive QOS Pipe
- * 					(No active stream with this pipe)
+ *					(No active stream with this pipe)
  *
  * \deprecated{This interface is used to temporarily support a late-developed,
  * specific use-case on a specific IPU2 platform. It will not be supported or
@@ -530,7 +529,7 @@ ia_css_pipe_get_isp_config(struct ia_css_pipe *pipe,
  * @param[in]  lut         Look up tabel
  *
  * @return
- * IA_CSS_SUCCESS 			: Success
+ * IA_CSS_SUCCESS			: Success
  * IA_CSS_ERR_INVALID_ARGUMENTS		: Invalid Parameters
  *
  * Note:
@@ -541,12 +540,12 @@ ia_css_pipe_get_isp_config(struct ia_css_pipe *pipe,
  *
  */
 enum ia_css_err
-ia_css_pipe_set_bci_scaler_lut( struct ia_css_pipe *pipe,
+ia_css_pipe_set_bci_scaler_lut(struct ia_css_pipe *pipe,
 				const void *lut);
 /* @brief Checking of DVS statistics ability
  * @param[in]	pipe_info	The pipe info.
  * @return		true - has DVS statistics ability
- * 			false - otherwise
+ *			false - otherwise
  */
 bool ia_css_pipe_has_dvs_stats(struct ia_css_pipe_info *pipe_info);
 

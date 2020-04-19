@@ -32,7 +32,7 @@ void
 ia_css_ob2_encode(
 	struct sh_css_isp_ob2_params *to,
 	const struct ia_css_ob2_config *from,
-	unsigned size)
+	unsigned int size)
 {
 	(void)size;
 
@@ -47,7 +47,7 @@ ia_css_ob2_encode(
 void
 ia_css_ob2_dump(
 	const struct sh_css_isp_ob2_params *ob2,
-	unsigned level)
+	unsigned int level)
 {
 	if (!ob2)
 		return;
@@ -61,18 +61,15 @@ ia_css_ob2_dump(
 		"ob2_blacklevel_b", ob2->blacklevel_b);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
 		"ob2_blacklevel_gb", ob2->blacklevel_gb);
-
 }
-
 
 void
 ia_css_ob2_debug_dtrace(
 	const struct ia_css_ob2_config *config,
-	unsigned level)
+	unsigned int level)
 {
 	ia_css_debug_dtrace(level,
-		"config.level_gr=%d, config.level_r=%d, "
-		"config.level_b=%d,  config.level_gb=%d, ",
+		"config.level_gr=%d, config.level_r=%d, config.level_b=%d,  config.level_gb=%d, ",
 		config->level_gr, config->level_r,
 		config->level_b, config->level_gb);
 }

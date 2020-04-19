@@ -38,4 +38,3 @@ unsigned int
 sh_css_encode_tag_descr(struct sh_css_tag_descr *tag);
 
 #endif /* __TAG_PUBLIC_H_INCLUDED__ */
-

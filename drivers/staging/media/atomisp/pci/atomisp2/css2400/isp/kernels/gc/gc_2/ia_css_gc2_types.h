@@ -30,19 +30,19 @@
 
 /* Number of elements in the sRGB gamma table. */
 #define IA_CSS_VAMEM_1_RGB_GAMMA_TABLE_SIZE_LOG2 8
-#define IA_CSS_VAMEM_1_RGB_GAMMA_TABLE_SIZE      (1U<<IA_CSS_VAMEM_1_RGB_GAMMA_TABLE_SIZE_LOG2)
+#define IA_CSS_VAMEM_1_RGB_GAMMA_TABLE_SIZE      BIT(IA_CSS_VAMEM_1_RGB_GAMMA_TABLE_SIZE_LOG2)
 
 /* Number of elements in the sRGB gamma table. */
 #define IA_CSS_VAMEM_2_RGB_GAMMA_TABLE_SIZE_LOG2    8
-#define IA_CSS_VAMEM_2_RGB_GAMMA_TABLE_SIZE     ((1U<<IA_CSS_VAMEM_2_RGB_GAMMA_TABLE_SIZE_LOG2) + 1)
+#define IA_CSS_VAMEM_2_RGB_GAMMA_TABLE_SIZE     ((1U << IA_CSS_VAMEM_2_RGB_GAMMA_TABLE_SIZE_LOG2) + 1)
 
 /** IA_CSS_VAMEM_TYPE_1(ISP2300) or
      IA_CSS_VAMEM_TYPE_2(ISP2400) */
 union ia_css_rgb_gamma_data {
-	uint16_t vamem_1[IA_CSS_VAMEM_1_RGB_GAMMA_TABLE_SIZE];
+	u16 vamem_1[IA_CSS_VAMEM_1_RGB_GAMMA_TABLE_SIZE];
 	/** RGB Gamma table on vamem type1. This table is not used,
 		because sRGB Gamma Correction is not implemented for ISP2300. */
-	uint16_t vamem_2[IA_CSS_VAMEM_2_RGB_GAMMA_TABLE_SIZE];
+	u16 vamem_2[IA_CSS_VAMEM_2_RGB_GAMMA_TABLE_SIZE];
 		/** RGB Gamma table on vamem type2. u0.12, [0,4095] */
 };
 

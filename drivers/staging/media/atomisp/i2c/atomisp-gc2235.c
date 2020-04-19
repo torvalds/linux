@@ -168,6 +168,7 @@ static int __gc2235_buf_reg_array(struct i2c_client *client,
 
 	return 0;
 }
+
 static int __gc2235_write_reg_is_consecutive(struct i2c_client *client,
 					     struct gc2235_write_ctrl *ctrl,
 					     const struct gc2235_reg *next)
@@ -177,6 +178,7 @@ static int __gc2235_write_reg_is_consecutive(struct i2c_client *client,
 
 	return ctrl->buffer.addr + ctrl->index == next->reg;
 }
+
 static int gc2235_write_reg_array(struct i2c_client *client,
 				  const struct gc2235_reg *reglist)
 {
@@ -237,7 +239,6 @@ static int gc2235_g_fnumber_range(struct v4l2_subdev *sd, s32 *val)
 		(GC2235_F_NUMBER_DEFAULT_NUM << 8) | GC2235_F_NUMBER_DEM;
 	return 0;
 }
-
 
 static int gc2235_get_intg_factor(struct i2c_client *client,
 				struct camera_mipi_info *info,
@@ -355,6 +356,7 @@ static long __gc2235_set_exposure(struct v4l2_subdev *sd, int coarse_itg,
 	u16 coarse_integration = (u16)coarse_itg;
 	int ret = 0;
 	u16 expo_coarse_h, expo_coarse_l, gain_val = 0xF0, gain_val2 = 0xF0;
+
 	expo_coarse_h = coarse_integration >> 8;
 	expo_coarse_l = coarse_integration & 0xff;
 
@@ -382,7 +384,6 @@ static long __gc2235_set_exposure(struct v4l2_subdev *sd, int coarse_itg,
 	return ret;
 }
 
-
 static int gc2235_set_exposure(struct v4l2_subdev *sd, int exposure,
 	int gain, int digitgain)
 {
@@ -406,12 +407,14 @@ static long gc2235_s_exposure(struct v4l2_subdev *sd,
 	/* we should not accept the invalid value below. */
 	if (gain == 0) {
 		struct i2c_client *client = v4l2_get_subdevdata(sd);
+
 		v4l2_err(client, "%s: invalid value\n", __func__);
 		return -EINVAL;
 	}
 
 	return gc2235_set_exposure(sd, exp, gain, digitgain);
 }
+
 static long gc2235_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	switch (cmd) {
@@ -422,6 +425,7 @@ static long gc2235_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	}
 	return 0;
 }
+
 /* This returns the exposure time being used. This should only be used
  * for filling in EXIF data, not for actual image processing.
  */
@@ -739,6 +743,7 @@ static int startup(struct v4l2_subdev *sd)
 	struct gc2235_device *dev = to_gc2235_sensor(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret = 0;
+
 	if (is_init == 0) {
 		/* force gc2235 to do a reset in res change, otherwise it
 		* can not output normal after switching res. and it is not
@@ -764,7 +769,6 @@ static int gc2235_set_fmt(struct v4l2_subdev *sd,
 			  struct v4l2_subdev_pad_config *cfg,
 			  struct v4l2_subdev_format *format)
 {
-
 	struct v4l2_mbus_framefmt *fmt = &format->format;
 	struct gc2235_device *dev = to_gc2235_sensor(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -873,6 +877,7 @@ static int gc2235_s_stream(struct v4l2_subdev *sd, int enable)
 	struct gc2235_device *dev = to_gc2235_sensor(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret;
+
 	mutex_lock(&dev->input_lock);
 
 	if (enable)
@@ -883,7 +888,6 @@ static int gc2235_s_stream(struct v4l2_subdev *sd, int enable)
 	mutex_unlock(&dev->input_lock);
 	return ret;
 }
-
 
 static int gc2235_s_config(struct v4l2_subdev *sd,
 			   int irq, void *platform_data)
@@ -983,7 +987,6 @@ static int gc2235_enum_frame_size(struct v4l2_subdev *sd,
 	fse->max_height = gc2235_res[index].height;
 
 	return 0;
-
 }
 
 static int gc2235_g_skip_frames(struct v4l2_subdev *sd, u32 *frames)
@@ -1029,6 +1032,7 @@ static int gc2235_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct gc2235_device *dev = to_gc2235_sensor(sd);
+
 	dev_dbg(&client->dev, "gc2235_remove...\n");
 
 	dev->platform_data->csi_cfg(sd, 0);
@@ -1055,7 +1059,7 @@ static int gc2235_probe(struct i2c_client *client)
 	mutex_init(&dev->input_lock);
 
 	dev->fmt_idx = 0;
-	v4l2_i2c_subdev_init(&(dev->sd), client, &gc2235_ops);
+	v4l2_i2c_subdev_init(&dev->sd, client, &gc2235_ops);
 
 	gcpdev = gmin_camera_platform_data(&dev->sd,
 				   ATOMISP_INPUT_FORMAT_RAW_10,

@@ -56,7 +56,7 @@ int hmm_vm_init(struct hmm_vm *vm, unsigned int start,
 	vm->cache = kmem_cache_create("atomisp_vm", sizeof(struct hmm_vm_node),
 				      0, 0, NULL);
 
-	return vm->cache != NULL ? 0 : -ENOMEM;
+	return vm->cache ? 0 : -ENOMEM;
 }
 
 void hmm_vm_clean(struct hmm_vm *vm)

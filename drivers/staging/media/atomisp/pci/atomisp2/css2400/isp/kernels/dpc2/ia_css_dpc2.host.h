@@ -33,7 +33,7 @@ ia_css_init_dpc2_state(
 void
 ia_css_dpc2_debug_dtrace(
 	const struct ia_css_dpc2_config *config,
-	unsigned level);
+	unsigned int level);
 #endif
 
 #endif /* __IA_CSS_DPC2_HOST_H */

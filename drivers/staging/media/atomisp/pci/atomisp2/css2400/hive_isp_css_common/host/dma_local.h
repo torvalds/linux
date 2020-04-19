@@ -189,7 +189,7 @@ struct dma_state_s {
 	int                        fsm_ctrl_pack_extension;
 	int						   pack_idle;
 	int	                       pack_run;
-	int		               	   pack_stalling;
+	int				   pack_stalling;
 	int		                   pack_error;
 	int                        pack_cnt_height;
 	int                        pack_src_cnt_width;

@@ -46,14 +46,14 @@
 #define LM3554_CURRENT_LIMIT_SHIFT	5
 
 #define LM3554_FLAGS_REG		0xD0
-#define LM3554_FLAG_TIMEOUT		(1 << 0)
-#define LM3554_FLAG_THERMAL_SHUTDOWN	(1 << 1)
-#define LM3554_FLAG_LED_FAULT		(1 << 2)
-#define LM3554_FLAG_TX1_INTERRUPT	(1 << 3)
-#define LM3554_FLAG_TX2_INTERRUPT	(1 << 4)
-#define LM3554_FLAG_LED_THERMAL_FAULT	(1 << 5)
-#define LM3554_FLAG_UNUSED		(1 << 6)
-#define LM3554_FLAG_INPUT_VOLTAGE_LOW	(1 << 7)
+#define LM3554_FLAG_TIMEOUT		BIT(0)
+#define LM3554_FLAG_THERMAL_SHUTDOWN	BIT(1)
+#define LM3554_FLAG_LED_FAULT		BIT(2)
+#define LM3554_FLAG_TX1_INTERRUPT	BIT(3)
+#define LM3554_FLAG_TX2_INTERRUPT	BIT(4)
+#define LM3554_FLAG_LED_THERMAL_FAULT	BIT(5)
+#define LM3554_FLAG_UNUSED		BIT(6)
+#define LM3554_FLAG_INPUT_VOLTAGE_LOW	BIT(7)
 
 #define LM3554_CONFIG_REG_1		0xE0
 #define LM3554_ENVM_TX2_SHIFT		5
@@ -881,7 +881,6 @@ static int lm3554_probe(struct i2c_client *client)
 				     NULL);
 
 	if (flash->ctrl_handler.error) {
-
 		dev_err(&client->dev, "ctrl_handler error.\n");
 		goto fail2;
 	}

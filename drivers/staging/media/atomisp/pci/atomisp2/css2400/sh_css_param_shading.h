@@ -36,4 +36,3 @@ prepare_shading_table(const struct ia_css_shading_table *in_table,
 		      unsigned int bds_factor);
 
 #endif /* __SH_CSS_PARAMS_SHADING_H */
-

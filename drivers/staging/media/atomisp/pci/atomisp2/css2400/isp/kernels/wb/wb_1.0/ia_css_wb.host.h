@@ -24,16 +24,16 @@ void
 ia_css_wb_encode(
 	struct sh_css_isp_wb_params *to,
 	const struct ia_css_wb_config *from,
-	unsigned size);
+	unsigned int size);
 
 void
 ia_css_wb_dump(
 	const struct sh_css_isp_wb_params *wb,
-	unsigned level);
+	unsigned int level);
 
 void
 ia_css_wb_debug_dtrace(
 	const struct ia_css_wb_config *wb,
-	unsigned level);
+	unsigned int level);
 
 #endif /* __IA_CSS_WB_HOST_H */

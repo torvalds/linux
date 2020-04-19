@@ -134,7 +134,6 @@ error:
 
 void atomisp_tpg_cleanup(struct atomisp_device *isp)
 {
-
 }
 
 int atomisp_tpg_init(struct atomisp_device *isp)

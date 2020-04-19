@@ -25,7 +25,7 @@
 
  \return none, if(cnd) enable(ISP[ID].irq) else disable(ISP[ID].irq)
  */
-extern void cnd_isp_irq_enable(
+void cnd_isp_irq_enable(
 	const isp_ID_t		ID,
 	const bool			cnd);
 
@@ -37,11 +37,10 @@ extern void cnd_isp_irq_enable(
 
  \return none, state = ISP[ID].state, stall = ISP[ID].stall
  */
-extern void isp_get_state(
+void isp_get_state(
 	const isp_ID_t		ID,
 	isp_state_t			*state,
 	isp_stall_t			*stall);
-
 
 /*! Write to the status and control register of ISP[ID]
 
@@ -172,12 +171,12 @@ STORAGE_CLASS_ISP_H uint32_t isp_dmem_load_uint32(
  \return x0 | (x1 << bits_per_vector_element)
  */
 STORAGE_CLASS_ISP_H uint32_t isp_2w_cat_1w(
-	const uint16_t		x0,
+	const u16		x0,
 	const uint16_t		x1);
 
-unsigned isp_is_ready(isp_ID_t ID);
+unsigned int isp_is_ready(isp_ID_t ID);
 
-unsigned isp_is_sleeping(isp_ID_t ID);
+unsigned int isp_is_sleeping(isp_ID_t ID);
 
 void isp_start(isp_ID_t ID);
 

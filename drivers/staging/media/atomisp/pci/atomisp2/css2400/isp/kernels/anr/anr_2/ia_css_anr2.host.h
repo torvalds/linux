@@ -29,7 +29,7 @@ ia_css_anr2_vmem_encode(
 
 void
 ia_css_anr2_debug_dtrace(
-	const struct ia_css_anr_thres *config, unsigned level)
+	const struct ia_css_anr_thres *config, unsigned int level)
 ;
 
 #endif /* __IA_CSS_ANR2_HOST_H */

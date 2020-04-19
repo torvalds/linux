@@ -35,6 +35,7 @@ enum ia_css_bayer_order {
 	IA_CSS_BAYER_ORDER_BGGR, /** BGBGBGBGBG .. GRGRGRGRGR */
 	IA_CSS_BAYER_ORDER_GBRG, /** GBGBGBGBGB .. RGRGRGRGRG */
 };
+
 #define IA_CSS_BAYER_ORDER_NUM (IA_CSS_BAYER_ORDER_GBRG + 1)
 
 /* Frame plane structure. This describes one plane in an image
@@ -166,7 +167,7 @@ struct ia_css_frame {
 	enum ia_css_frame_flash_state flash_state;
 	unsigned int exp_id;
 	/** exposure id, see ia_css_event_public.h for more detail */
-	uint32_t isp_config_id; /** Unique ID to track which config was actually applied to a particular frame */
+	u32 isp_config_id; /** Unique ID to track which config was actually applied to a particular frame */
 	bool valid; /** First video output frame is not valid */
 	bool contiguous; /** memory is allocated physically contiguously */
 	union {
@@ -334,7 +335,7 @@ enum ia_css_err
 ia_css_frame_map(struct ia_css_frame **frame,
 		 const struct ia_css_frame_info *info,
 		 const void __user *data,
-		 uint16_t attribute,
+		 u16 attribute,
 		 void *context);
 
 /* @brief Unmap a CSS frame structure.

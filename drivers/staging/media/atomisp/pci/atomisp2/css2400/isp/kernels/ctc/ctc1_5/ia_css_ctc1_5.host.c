@@ -44,8 +44,8 @@ static void ctc_gradient(
 	assert(y0 >= 0 && y0 <= max_dydx);
 	assert(y1 >= 0 && y1 <= max_dydx);
 	assert(x0 < x1);
-	assert(dydx != NULL);
-	assert(shift != NULL);
+	assert(dydx);
+	assert(shift);
 
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ctc_gradient() enter:\n");
 
@@ -71,7 +71,7 @@ void
 ia_css_ctc_encode(
 	struct sh_css_isp_ctc_params *to,
 	const struct ia_css_ctc_config *from,
-	unsigned size)
+	unsigned int size)
 {
 	(void)size;
 	to->y0 = from->y0;
@@ -88,13 +88,13 @@ ia_css_ctc_encode(
 	to->x3 = from->x3;
 	to->x4 = from->x4;
 
-	ctc_gradient(&(to->dydx0),
-		     &(to->dydx0_shift),
+	ctc_gradient(&to->dydx0,
+		     &to->dydx0_shift,
 		     from->y1, from->y0,
 		     from->x1, 0);
 
-	ctc_gradient(&(to->dydx1),
-		     &(to->dydx1_shift),
+	ctc_gradient(&to->dydx1,
+		     &to->dydx1_shift,
 		     from->y2, from->y1,
 		     from->x2, from->x1);
 
@@ -108,8 +108,8 @@ ia_css_ctc_encode(
 		     from->y4, from->y3,
 		     from->x4, from->x3);
 
-	ctc_gradient(&(to->dydx4),
-		     &(to->dydx4_shift),
+	ctc_gradient(&to->dydx4,
+		     &to->dydx4_shift,
 		     from->y5, from->y4,
 		     SH_CSS_BAYER_MAXVAL, from->x4);
 }
@@ -117,4 +117,4 @@ ia_css_ctc_encode(
 void
 ia_css_ctc_dump(
 	const struct sh_css_isp_ctc_params *ctc,
-	unsigned level);
+	unsigned int level);

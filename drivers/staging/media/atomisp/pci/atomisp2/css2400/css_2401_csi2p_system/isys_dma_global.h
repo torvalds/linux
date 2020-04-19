@@ -41,10 +41,10 @@
  ********************************************************/
 typedef struct isys2401_dma_port_cfg_s isys2401_dma_port_cfg_t;
 struct isys2401_dma_port_cfg_s {
-	uint32_t stride;
-	uint32_t elements;
-	uint32_t cropping;
-	uint32_t width;
+	u32 stride;
+	u32 elements;
+	u32 cropping;
+	u32 width;
  };
 /* end of DMA Port */
 
@@ -77,8 +77,9 @@ struct isys2401_dma_cfg_s {
 	isys2401_dma_channel	channel;
 	isys2401_dma_connection	connection;
 	isys2401_dma_extension	extension;
-	uint32_t		height;
+	u32		height;
 };
+
 /* end of DMA Device */
 
 /* isys2401_dma_channel limits per DMA ID */

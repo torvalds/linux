@@ -41,7 +41,6 @@
  * #define HAS_WATCHDOG_SP_THREAD_DEBUG
  */
 
-
 /*
  * The linear buffer mode will accept data until the first
  * overflow and then stop accepting new data
@@ -55,11 +54,11 @@ typedef enum {
 } debug_buf_mode_t;
 
 struct debug_data_s {
-	uint32_t			enable;
-	uint32_t			bufmode;
-	uint32_t			head;
-	uint32_t			tail;
-	uint32_t			buf[DEBUG_BUF_SIZE];
+	u32			enable;
+	u32			bufmode;
+	u32			head;
+	u32			tail;
+	u32			buf[DEBUG_BUF_SIZE];
 };
 
 /* thread.sp.c doesn't have a notion of HIVE_ISP_DDR_WORD_BYTES
@@ -67,17 +66,16 @@ struct debug_data_s {
 
 #ifdef HIVE_ISP_DDR_WORD_BYTES
 struct debug_data_ddr_s {
-	uint32_t			enable;
-	int8_t				padding1[HIVE_ISP_DDR_WORD_BYTES-sizeof(uint32_t)];
-	uint32_t			bufmode;
-	int8_t				padding2[HIVE_ISP_DDR_WORD_BYTES-sizeof(uint32_t)];
-	uint32_t			head;
-	int8_t				padding3[HIVE_ISP_DDR_WORD_BYTES-sizeof(uint32_t)];
-	uint32_t			tail;
-	int8_t				padding4[HIVE_ISP_DDR_WORD_BYTES-sizeof(uint32_t)];
-	uint32_t			buf[DEBUG_BUF_SIZE];
+	u32			enable;
+	s8				padding1[HIVE_ISP_DDR_WORD_BYTES - sizeof(uint32_t)];
+	u32			bufmode;
+	s8				padding2[HIVE_ISP_DDR_WORD_BYTES - sizeof(uint32_t)];
+	u32			head;
+	s8				padding3[HIVE_ISP_DDR_WORD_BYTES - sizeof(uint32_t)];
+	u32			tail;
+	s8				padding4[HIVE_ISP_DDR_WORD_BYTES - sizeof(uint32_t)];
+	u32			buf[DEBUG_BUF_SIZE];
 };
 #endif
 
 #endif /* __DEBUG_GLOBAL_H_INCLUDED__ */
-

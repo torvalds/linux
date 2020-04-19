@@ -24,13 +24,14 @@ ia_css_anr2_vmem_encode(
 	const struct ia_css_anr_thres *from,
 	size_t size)
 {
-	unsigned i;
+	unsigned int i;
 
 	(void)size;
 	for (i = 0; i < ANR_PARAM_SIZE; i++) {
-		unsigned j;
+		unsigned int j;
+
 		for (j = 0; j < ISP_VEC_NELEMS; j++) {
-			to->data[i][j] = from->data[i*ISP_VEC_NELEMS+j];
+			to->data[i][j] = from->data[i * ISP_VEC_NELEMS + j];
 		}
 	}
 }
@@ -38,9 +39,8 @@ ia_css_anr2_vmem_encode(
 void
 ia_css_anr2_debug_dtrace(
 	const struct ia_css_anr_thres *config,
-	unsigned level)
+	unsigned int level)
 {
 	(void)config;
 	(void)level;
 }
-

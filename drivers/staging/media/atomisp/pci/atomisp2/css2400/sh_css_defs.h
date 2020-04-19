@@ -70,7 +70,7 @@
 #define SH_CSS_BDS_FACTOR_8_00	(11)
 #define NUM_BDS_FACTORS	        (12)
 
-#define PACK_BDS_FACTOR(factor)	(1<<(factor))
+#define PACK_BDS_FACTOR(factor)	(1 << (factor))
 
 /* Following macros should match with the type enum ia_css_pipe_version in
  * ia_css_pipe_public.h. The reason to add these macros is that enum type
@@ -101,7 +101,7 @@ RGB[0,8191],coef[-8192,8191] -> RGB[0,8191]
 /* Bits of fractional part of interpolation in vamem, [0,4095]->[0,255] */
 #define SH_CSS_RGB_GAMMA_FRAC_BITS        \
 	(SH_CSS_RGB_GAMMA_INPUT_BITS - SH_CSS_ISP_RGB_GAMMA_TABLE_SIZE_LOG2)
-#define SH_CSS_RGB_GAMMA_ONE              (1 << SH_CSS_RGB_GAMMA_FRAC_BITS)
+#define SH_CSS_RGB_GAMMA_ONE              BIT(SH_CSS_RGB_GAMMA_FRAC_BITS)
 
 /* Bits of input of CCM,  = 13, Y[0,8191],CgCo[-4096,4095] */
 #define SH_CSS_YUV2RGB_CCM_INPUT_BITS     SH_CSS_BAYER_BITS
@@ -131,7 +131,7 @@ RGB[0,8191],coef[-8192,8191] -> RGB[0,8191]
 #define SH_CSS_MAX_BQ_GRID_WIDTH          80
 #define SH_CSS_MAX_BQ_GRID_HEIGHT         60
 
-/* The minimum dvs envelope is 12x12(for IPU2) to make sure the 
+/* The minimum dvs envelope is 12x12(for IPU2) to make sure the
  * invalid rows/columns that result from filter initialization are skipped. */
 #define SH_CSS_MIN_DVS_ENVELOPE           12U
 
@@ -184,7 +184,7 @@ RGB[0,8191],coef[-8192,8191] -> RGB[0,8191]
 #define SH_CSS_MORPH_TABLE_GRID               ISP_VEC_NELEMS
 #define SH_CSS_MORPH_TABLE_ELEM_BYTES         2
 #define SH_CSS_MORPH_TABLE_ELEMS_PER_DDR_WORD \
-	(HIVE_ISP_DDR_WORD_BYTES/SH_CSS_MORPH_TABLE_ELEM_BYTES)
+	(HIVE_ISP_DDR_WORD_BYTES / SH_CSS_MORPH_TABLE_ELEM_BYTES)
 
 #ifndef ISP2401
 #define SH_CSS_MAX_SCTBL_WIDTH_PER_COLOR   (SH_CSS_MAX_BQ_GRID_WIDTH + 1)
@@ -210,7 +210,6 @@ RGB[0,8191],coef[-8192,8191] -> RGB[0,8191]
 #define NUM_VIDEO_TNR_FRAMES		2
 
 #define NUM_TNR_FRAMES			2	/* FIXME */
-
 
 #define MAX_NUM_DELAY_FRAMES		MAX_NUM_VIDEO_DELAY_FRAMES
 
@@ -257,15 +256,15 @@ RGB[0,8191],coef[-8192,8191] -> RGB[0,8191]
 /* Rules: these implement logic shared between the host code and ISP firmware.
    The ISP firmware needs these rules to be applied at pre-processor time,
    that's why these are macros, not functions. */
-#define _ISP_BQS(num)  ((num)/2)
+#define _ISP_BQS(num)  ((num) / 2)
 #define _ISP_VECS(width) CEIL_DIV(width, ISP_VEC_NELEMS)
 
 #define ISP_BQ_GRID_WIDTH(elements_per_line, deci_factor_log2) \
-	CEIL_SHIFT(elements_per_line/2,  deci_factor_log2)
+	CEIL_SHIFT(elements_per_line / 2,  deci_factor_log2)
 #define ISP_BQ_GRID_HEIGHT(lines_per_frame, deci_factor_log2) \
-	CEIL_SHIFT(lines_per_frame/2,  deci_factor_log2)
+	CEIL_SHIFT(lines_per_frame / 2,  deci_factor_log2)
 #define ISP_C_VECTORS_PER_LINE(elements_per_line) \
-	_ISP_VECS(elements_per_line/2)
+	_ISP_VECS(elements_per_line / 2)
 
 /* The morphing table is similar to the shading table in the sense that we
    have 1 more value than we have cells in the grid. */
@@ -304,7 +303,7 @@ RGB[0,8191],coef[-8192,8191] -> RGB[0,8191]
 	CEIL_SHIFT(_ISP_BQS(in_height), deci_factor_log2)
 #define ISP_S3ATBL_VECTORS \
 	_ISP_VECS(SH_CSS_MAX_S3ATBL_WIDTH * \
-		  (sizeof(struct ia_css_3a_output)/sizeof(int32_t)))
+		  (sizeof(struct ia_css_3a_output) / sizeof(int32_t)))
 #define ISP_S3ATBL_HI_LO_STRIDE \
 	(ISP_S3ATBL_VECTORS * ISP_VEC_NELEMS)
 #define ISP_S3ATBL_HI_LO_STRIDE_BYTES \
@@ -312,7 +311,7 @@ RGB[0,8191],coef[-8192,8191] -> RGB[0,8191]
 
 /* Viewfinder support */
 #define __ISP_MAX_VF_OUTPUT_WIDTH(width, left_crop) \
-	(width - 2*ISP_VEC_NELEMS + ((left_crop) ? 2 * ISP_VEC_NELEMS : 0))
+	(width - 2 * ISP_VEC_NELEMS + ((left_crop) ? 2 * ISP_VEC_NELEMS : 0))
 
 #define __ISP_VF_OUTPUT_WIDTH_VECS(out_width, vf_log_downscale) \
 	(_ISP_VECS((out_width) >> (vf_log_downscale)))
@@ -330,17 +329,17 @@ RGB[0,8191],coef[-8192,8191] -> RGB[0,8191]
 
 /* Rules for computing the internal width. This is extremely complicated
  * and definitely needs to be commented and explained. */
-#define _ISP_LEFT_CROP_EXTRA(left_crop) ((left_crop) > 0 ? 2*ISP_VEC_NELEMS : 0)
+#define _ISP_LEFT_CROP_EXTRA(left_crop) ((left_crop) > 0 ? 2 * ISP_VEC_NELEMS : 0)
 
 #define __ISP_MIN_INTERNAL_WIDTH(num_chunks, pipelining, mode) \
-	((num_chunks) * (pipelining) * (1<<_ISP_LOG_VECTOR_STEP(mode)) * \
+	((num_chunks) * (pipelining) * (1 << _ISP_LOG_VECTOR_STEP(mode)) * \
 	 ISP_VEC_NELEMS)
 
 #define __ISP_PADDED_OUTPUT_WIDTH(out_width, dvs_env_width, left_crop) \
 	((out_width) + MAX(dvs_env_width, _ISP_LEFT_CROP_EXTRA(left_crop)))
 
 #define __ISP_CHUNK_STRIDE_ISP(mode) \
-	((1<<_ISP_LOG_VECTOR_STEP(mode)) * ISP_VEC_NELEMS)
+	((1 << _ISP_LOG_VECTOR_STEP(mode)) * ISP_VEC_NELEMS)
 
 #define __ISP_CHUNK_STRIDE_DDR(c_subsampling, num_chunks) \
 	((c_subsampling) * (num_chunks) * HIVE_ISP_DDR_WORD_BYTES)
@@ -375,9 +374,9 @@ RGB[0,8191],coef[-8192,8191] -> RGB[0,8191]
 	((enable_ds) ? \
 	   SH_CSS_MAX_SENSOR_WIDTH :\
 	 (enable_fixed_bayer_ds) ? \
-	   CEIL_MUL(SH_CSS_MAX_CONTINUOUS_SENSOR_WIDTH_DEC, 4*ISP_VEC_NELEMS) : \
+	   CEIL_MUL(SH_CSS_MAX_CONTINUOUS_SENSOR_WIDTH_DEC, 4 * ISP_VEC_NELEMS) : \
 	 (enable_raw_bin) ? \
-	   CEIL_MUL(SH_CSS_MAX_CONTINUOUS_SENSOR_WIDTH, 4*ISP_VEC_NELEMS) : \
+	   CEIL_MUL(SH_CSS_MAX_CONTINUOUS_SENSOR_WIDTH, 4 * ISP_VEC_NELEMS) : \
 	 (enable_continuous) ? \
 	   SH_CSS_MAX_CONTINUOUS_SENSOR_WIDTH \
 	   : max_internal_width)

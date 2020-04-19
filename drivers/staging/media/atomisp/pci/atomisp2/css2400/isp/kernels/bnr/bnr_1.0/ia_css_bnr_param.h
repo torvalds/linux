@@ -19,12 +19,12 @@
 
 /* BNR (Bayer Noise Reduction) */
 struct sh_css_isp_bnr_params {
-	int32_t gain_all;
-	int32_t gain_dir;
-	int32_t threshold_low;
-	int32_t threshold_width_log2;
-	int32_t threshold_width;
-	int32_t clip;
+	s32 gain_all;
+	s32 gain_dir;
+	s32 threshold_low;
+	s32 threshold_width_log2;
+	s32 threshold_width;
+	s32 clip;
 };
 
 #endif /* __IA_CSS_BNR_PARAM_H */

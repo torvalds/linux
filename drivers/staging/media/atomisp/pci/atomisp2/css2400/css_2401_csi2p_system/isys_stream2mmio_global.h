@@ -19,8 +19,8 @@
 
 typedef struct stream2mmio_cfg_s stream2mmio_cfg_t;
 struct stream2mmio_cfg_s {
-	uint32_t				bits_per_pixel;
-	uint32_t				enable_blocking;
+	u32				bits_per_pixel;
+	u32				enable_blocking;
 };
 
 /* Stream2MMIO limits  per ID*/

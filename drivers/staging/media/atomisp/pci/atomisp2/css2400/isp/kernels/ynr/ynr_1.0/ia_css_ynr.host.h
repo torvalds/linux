@@ -25,36 +25,36 @@ void
 ia_css_nr_encode(
 	struct sh_css_isp_ynr_params *to,
 	const struct ia_css_nr_config *from,
-	unsigned size);
+	unsigned int size);
 
 void
 ia_css_yee_encode(
 	struct sh_css_isp_yee_params *to,
 	const struct ia_css_yee_config *from,
-	unsigned size);
+	unsigned int size);
 
 void
 ia_css_nr_dump(
 	const struct sh_css_isp_ynr_params *ynr,
-	unsigned level);
+	unsigned int level);
 
 void
 ia_css_yee_dump(
 	const struct sh_css_isp_yee_params *yee,
-	unsigned level);
+	unsigned int level);
 
 void
 ia_css_nr_debug_dtrace(
 	const struct ia_css_nr_config *config,
-	unsigned level);
+	unsigned int level);
 
 void
 ia_css_ee_debug_dtrace(
 	const struct ia_css_ee_config *config,
-	unsigned level);
+	unsigned int level);
 
 void
 ia_css_init_ynr_state(
-	void/*struct sh_css_isp_ynr_vmem_state*/ *state,
+	void/*struct sh_css_isp_ynr_vmem_state*/ * state,
 	size_t size);
 #endif /* __IA_CSS_YNR_HOST_H */

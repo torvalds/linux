@@ -25,13 +25,13 @@
  * @return   bits per pixel for the underlying stream
  *
  */
-extern unsigned int ia_css_pipe_util_pipe_input_format_bpp(
+unsigned int ia_css_pipe_util_pipe_input_format_bpp(
 	const struct ia_css_pipe * const pipe);
 
-extern void ia_css_pipe_util_create_output_frames(
+void ia_css_pipe_util_create_output_frames(
 	struct ia_css_frame *frames[]);
 
-extern void ia_css_pipe_util_set_output_frames(
+void ia_css_pipe_util_set_output_frames(
 	struct ia_css_frame *frames[],
 	unsigned int idx,
 	struct ia_css_frame *frame);

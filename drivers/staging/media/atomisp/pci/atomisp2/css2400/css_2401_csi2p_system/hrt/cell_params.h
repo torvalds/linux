@@ -22,9 +22,9 @@
 #define SP_ICACHE_BLOCK_ADDRESS_BITS     11 /* 2048 lines capacity*/
 
 #define SP_ICACHE_ADDRESS_BITS \
-	                    (SP_ICACHE_TAG_BITS+SP_ICACHE_BLOCK_ADDRESS_BITS)
+			    (SP_ICACHE_TAG_BITS + SP_ICACHE_BLOCK_ADDRESS_BITS)
 
-#define SP_PMEM_DEPTH        (1<<SP_ICACHE_ADDRESS_BITS)
+#define SP_PMEM_DEPTH        BIT(SP_ICACHE_ADDRESS_BITS)
 
 #define SP_FIFO_0_DEPTH      0
 #define SP_FIFO_1_DEPTH      0
@@ -35,8 +35,6 @@
 #define SP_FIFO_6_DEPTH      0
 #define SP_FIFO_7_DEPTH      0
 
-
 #define SP_SLV_BUS_MAXBURSTSIZE        1
 
 #endif /* _cell_params_h */
-

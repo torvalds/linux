@@ -31,13 +31,12 @@
  *	- local:   system and cell specific constants and identifiers
  */
 
-
 #include "system_local.h"
 #include "gdc_local.h"
 
 #ifndef __INLINE_GDC__
 #define STORAGE_CLASS_GDC_H extern
-#define STORAGE_CLASS_GDC_C 
+#define STORAGE_CLASS_GDC_C
 #include "gdc_public.h"
 #else  /* __INLINE_GDC__ */
 #define STORAGE_CLASS_GDC_H static inline

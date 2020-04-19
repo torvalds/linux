@@ -22,7 +22,7 @@
 #define HIVE_IFMT_GP_REGS_INPUT_SWITCH_LUT_REG_4            4
 #define HIVE_IFMT_GP_REGS_INPUT_SWITCH_LUT_REG_5            5
 #define HIVE_IFMT_GP_REGS_INPUT_SWITCH_LUT_REG_6            6
-#define HIVE_IFMT_GP_REGS_INPUT_SWITCH_LUT_REG_7            7 
+#define HIVE_IFMT_GP_REGS_INPUT_SWITCH_LUT_REG_7            7
 #define HIVE_IFMT_GP_REGS_INPUT_SWITCH_FSYNC_LUT_REG        8
 #define HIVE_IFMT_GP_REGS_SRST_IDX                          9
 #define HIVE_IFMT_GP_REGS_SLV_REG_SRST_IDX                 10

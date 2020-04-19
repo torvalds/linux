@@ -17,8 +17,8 @@
 #include "ia_css_macc_table.host.h"
 
 /* Multi-Axes Color Correction table for ISP1.
- * 	64values = 2x2matrix for 16area, [s2.13]
- * 	ineffective: 16 of "identity 2x2 matix" {8192,0,0,8192}
+ *	64values = 2x2matrix for 16area, [s2.13]
+ *	ineffective: 16 of "identity 2x2 matix" {8192,0,0,8192}
  */
 const struct ia_css_macc_table default_macc_table = {
 		{ 8192, 0, 0, 8192, 8192, 0, 0, 8192,
@@ -32,8 +32,8 @@ const struct ia_css_macc_table default_macc_table = {
 };
 
 /* Multi-Axes Color Correction table for ISP2.
- * 	64values = 2x2matrix for 16area, [s1.12]
- * 	ineffective: 16 of "identity 2x2 matix" {4096,0,0,4096}
+ *	64values = 2x2matrix for 16area, [s1.12]
+ *	ineffective: 16 of "identity 2x2 matix" {4096,0,0,4096}
  */
 const struct ia_css_macc_table default_macc2_table = {
 	      { 4096, 0, 0, 4096, 4096, 0, 0, 4096,

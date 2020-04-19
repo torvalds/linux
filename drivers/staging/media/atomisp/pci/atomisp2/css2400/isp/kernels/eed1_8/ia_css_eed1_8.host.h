@@ -39,7 +39,7 @@ ia_css_init_eed1_8_state(
 void
 ia_css_eed1_8_debug_dtrace(
 	const struct ia_css_eed1_8_config *config,
-	unsigned level);
+	unsigned int level);
 #endif
 
 #endif /* __IA_CSS_EED1_8_HOST_H */

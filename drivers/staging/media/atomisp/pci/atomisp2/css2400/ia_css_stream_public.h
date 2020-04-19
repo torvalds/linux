@@ -83,7 +83,6 @@ struct ia_css_stream_input_config {
 	enum ia_css_bayer_order bayer_order; /** Bayer order for RAW streams */
 };
 
-
 /* Input stream description. This describes how input will flow into the
  *  CSS. This is used to program the CSS hardware.
  */
@@ -118,15 +117,15 @@ struct ia_css_stream_config {
 	bool online; /** offline will activate RAW copy on SP, use this for
 			  continuous capture. */
 		/* ISYS2401 usage: ISP receives data directly from sensor, no copy. */
-	unsigned init_num_cont_raw_buf; /** initial number of raw buffers to
+	unsigned int init_num_cont_raw_buf; /** initial number of raw buffers to
 					     allocate */
-	unsigned target_num_cont_raw_buf; /** total number of raw buffers to
+	unsigned int target_num_cont_raw_buf; /** total number of raw buffers to
 					     allocate */
 	bool pack_raw_pixels; /** Pack pixels in the raw buffers */
 	bool continuous; /** Use SP copy feature to continuously capture frames
 			      to system memory and run pipes in offline mode */
 	bool disable_cont_viewfinder; /** disable continuous viewfinder for ZSL use case */
-	int32_t flash_gpio_pin; /** pin on which the flash is connected, -1 for no flash */
+	s32 flash_gpio_pin; /** pin on which the flash is connected, -1 for no flash */
 	int left_padding; /** The number of input-formatter left-paddings, -1 for default from binary.*/
 	struct ia_css_mipi_buffer_config mipi_buffer_config; /** mipi buffer configuration */
 	struct ia_css_metadata_config	metadata_config;     /** Metadata configuration. */
@@ -482,8 +481,8 @@ void
 ia_css_stream_request_flash(struct ia_css_stream *stream);
 
 /* @brief Configure a stream with filter coefficients.
- *  	   @deprecated {Replaced by
- *  				   ia_css_pipe_set_isp_config_on_pipe()}
+ *	   @deprecated {Replaced by
+ *				   ia_css_pipe_set_isp_config_on_pipe()}
  *
  * @param[in]	stream The stream.
  * @param[in]	config	The set of filter coefficients.
@@ -504,8 +503,8 @@ ia_css_stream_set_isp_config_on_pipe(struct ia_css_stream *stream,
 			     struct ia_css_pipe *pipe);
 
 /* @brief Configure a stream with filter coefficients.
- *  	   @deprecated {Replaced by
- *  				   ia_css_pipe_set_isp_config()}
+ *	   @deprecated {Replaced by
+ *				   ia_css_pipe_set_isp_config()}
  * @param[in]	stream	The stream.
  * @param[in]	config	The set of filter coefficients.
  * @return		IA_CSS_SUCCESS or error code upon error.

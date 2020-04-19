@@ -22,10 +22,10 @@
 #include "hive_isp_css_mm_hrt.h"
 #include "hmm/hmm.h"
 
-#define __page_align(size)	(((size) + (PAGE_SIZE-1)) & (~(PAGE_SIZE-1)))
+#define __page_align(size)	(((size) + (PAGE_SIZE - 1)) & (~(PAGE_SIZE - 1)))
 
 static void __user *my_userptr;
-static unsigned my_num_pages;
+static unsigned int my_num_pages;
 static enum hrt_userptr_type my_usr_type;
 
 void hrt_isp_css_mm_set_user_ptr(void __user *userptr,
@@ -50,19 +50,17 @@ static ia_css_ptr __hrt_isp_css_mm_alloc(size_t bytes,
 
 #endif
 	if (type == HRT_USR_PTR) {
-		if (userptr == NULL)
+		if (!userptr)
 			return hmm_alloc(bytes, HMM_BO_PRIVATE, 0,
 						 NULL, cached);
 		else {
 			if (num_pages < ((__page_align(bytes)) >> PAGE_SHIFT))
 				dev_err(atomisp_dev,
-					 "user space memory size is less"
-					 " than the expected size..\n");
+					 "user space memory size is less than the expected size..\n");
 			else if (num_pages > ((__page_align(bytes))
 					      >> PAGE_SHIFT))
 				dev_err(atomisp_dev,
-					 "user space memory size is"
-					 " large than the expected size..\n");
+					 "user space memory size is large than the expected size..\n");
 
 			return hmm_alloc(bytes, HMM_BO_USER, 0,
 						 userptr, cached);
@@ -91,18 +89,16 @@ ia_css_ptr hrt_isp_css_mm_alloc_user_ptr(size_t bytes,
 
 ia_css_ptr hrt_isp_css_mm_alloc_cached(size_t bytes)
 {
-	if (my_userptr == NULL)
+	if (!my_userptr)
 		return hmm_alloc(bytes, HMM_BO_PRIVATE, 0, NULL,
 						HMM_CACHED);
 	else {
 		if (my_num_pages < ((__page_align(bytes)) >> PAGE_SHIFT))
 			dev_err(atomisp_dev,
-					"user space memory size is less"
-					" than the expected size..\n");
+					"user space memory size is less than the expected size..\n");
 		else if (my_num_pages > ((__page_align(bytes)) >> PAGE_SHIFT))
 			dev_err(atomisp_dev,
-					"user space memory size is"
-					" large than the expected size..\n");
+					"user space memory size is large than the expected size..\n");
 
 		return hmm_alloc(bytes, HMM_BO_USER, 0,
 						my_userptr, HMM_CACHED);
@@ -112,6 +108,7 @@ ia_css_ptr hrt_isp_css_mm_alloc_cached(size_t bytes)
 ia_css_ptr hrt_isp_css_mm_calloc(size_t bytes)
 {
 	ia_css_ptr ptr = hrt_isp_css_mm_alloc(bytes);
+
 	if (ptr)
 		hmm_set(ptr, 0, bytes);
 	return ptr;
@@ -120,8 +117,8 @@ ia_css_ptr hrt_isp_css_mm_calloc(size_t bytes)
 ia_css_ptr hrt_isp_css_mm_calloc_cached(size_t bytes)
 {
 	ia_css_ptr ptr = hrt_isp_css_mm_alloc_cached(bytes);
+
 	if (ptr)
 		hmm_set(ptr, 0, bytes);
 	return ptr;
 }
-

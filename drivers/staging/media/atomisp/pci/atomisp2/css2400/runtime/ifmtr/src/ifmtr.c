@@ -68,9 +68,9 @@ static void ifmtr_set_if_blocking_mode(
 unsigned int ia_css_ifmtr_lines_needed_for_bayer_order(
 		const struct ia_css_stream_config *config)
 {
-	assert(config != NULL);
-	if ((IA_CSS_BAYER_ORDER_BGGR == config->input_config.bayer_order)
-	    || (IA_CSS_BAYER_ORDER_GBRG == config->input_config.bayer_order))
+	assert(config);
+	if ((config->input_config.bayer_order == IA_CSS_BAYER_ORDER_BGGR)
+	    || (config->input_config.bayer_order == IA_CSS_BAYER_ORDER_GBRG))
 		return 1;
 
 	return 0;
@@ -79,9 +79,9 @@ unsigned int ia_css_ifmtr_lines_needed_for_bayer_order(
 unsigned int ia_css_ifmtr_columns_needed_for_bayer_order(
 		const struct ia_css_stream_config *config)
 {
-	assert(config != NULL);
-	if ((IA_CSS_BAYER_ORDER_RGGB == config->input_config.bayer_order)
-	    || (IA_CSS_BAYER_ORDER_GBRG == config->input_config.bayer_order))
+	assert(config);
+	if ((config->input_config.bayer_order == IA_CSS_BAYER_ORDER_RGGB)
+	    || (config->input_config.bayer_order == IA_CSS_BAYER_ORDER_GBRG))
 		return 1;
 
 	return 0;
@@ -114,7 +114,7 @@ enum ia_css_err ia_css_ifmtr_configure(struct ia_css_stream_config *config,
 	input_formatter_cfg_t if_a_config, if_b_config;
 	enum atomisp_input_format input_format;
 	enum ia_css_err err = IA_CSS_SUCCESS;
-	uint8_t if_config_index;
+	u8 if_config_index;
 
 	/* Determine which input formatter config set is targeted. */
 	/* Index is equal to the CSI-2 port used. */
@@ -141,7 +141,7 @@ enum ia_css_err ia_css_ifmtr_configure(struct ia_css_stream_config *config,
 	if (config->mode == IA_CSS_INPUT_MODE_SENSOR
 	    || config->mode == IA_CSS_INPUT_MODE_BUFFERED_SENSOR) {
 		port = config->source.port.port;
-		if_config_index = (uint8_t) (port - MIPI_PORT0_ID);
+		if_config_index = (uint8_t)(port - MIPI_PORT0_ID);
 	} else if (config->mode == IA_CSS_INPUT_MODE_MEMORY) {
 		if_config_index = SH_CSS_IF_CONFIG_NOT_NEEDED;
 	} else {
@@ -170,8 +170,7 @@ enum ia_css_err ia_css_ifmtr_configure(struct ia_css_stream_config *config,
 		else
 			left_padding = binary->left_padding;
 	else
-		left_padding = 2*ISP_VEC_NELEMS - config->left_padding;
-
+		left_padding = 2 * ISP_VEC_NELEMS - config->left_padding;
 
 	if (left_padding) {
 		num_vectors = CEIL_DIV(cropped_width + left_padding,
@@ -300,6 +299,7 @@ enum ia_css_err ia_css_ifmtr_configure(struct ia_css_stream_config *config,
 	case ATOMISP_INPUT_FORMAT_RAW_12:
 		if (two_ppc) {
 			int crop_col = (start_column % 2) == 1;
+
 			vmem_increment = 2;
 			deinterleaving = 1;
 			width_a = width_b = cropped_width / 2;
@@ -455,7 +455,7 @@ enum ia_css_err ia_css_ifmtr_configure(struct ia_css_stream_config *config,
 		if_b_config.block_no_reqs =
 		    (config->mode != IA_CSS_INPUT_MODE_SENSOR);
 
-		if (SH_CSS_IF_CONFIG_NOT_NEEDED != if_config_index) {
+		if (if_config_index != SH_CSS_IF_CONFIG_NOT_NEEDED) {
 			assert(if_config_index <= SH_CSS_MAX_IF_CONFIGS);
 
 			ifmtr_set_if_blocking_mode(&if_a_config, &if_b_config);
@@ -464,7 +464,7 @@ enum ia_css_err ia_css_ifmtr_configure(struct ia_css_stream_config *config,
 						 if_config_index);
 		}
 	} else {
-		if (SH_CSS_IF_CONFIG_NOT_NEEDED != if_config_index) {
+		if (if_config_index != SH_CSS_IF_CONFIG_NOT_NEEDED) {
 			assert(if_config_index <= SH_CSS_MAX_IF_CONFIGS);
 
 			ifmtr_set_if_blocking_mode(&if_a_config, NULL);
@@ -488,6 +488,7 @@ static void ifmtr_set_if_blocking_mode(
 {
 	int i;
 	bool block[] = { false, false, false, false };
+
 	assert(N_INPUT_FORMATTER_ID <= (ARRAY_SIZE(block)));
 
 #if !defined(IS_ISP_2400_SYSTEM)
@@ -495,7 +496,7 @@ static void ifmtr_set_if_blocking_mode(
 #endif
 
 	block[INPUT_FORMATTER0_ID] = (bool)config_a->block_no_reqs;
-	if (NULL != config_b)
+	if (config_b)
 		block[INPUT_FORMATTER1_ID] = (bool)config_b->block_no_reqs;
 
 	/* TODO: next could cause issues when streams are started after
@@ -504,7 +505,8 @@ static void ifmtr_set_if_blocking_mode(
 	if (ifmtr_set_if_blocking_mode_reset) {
 		ifmtr_set_if_blocking_mode_reset = false;
 		for (i = 0; i < N_INPUT_FORMATTER_ID; i++) {
-			input_formatter_ID_t id = (input_formatter_ID_t) i;
+			input_formatter_ID_t id = (input_formatter_ID_t)i;
+
 			input_formatter_rst(id);
 			input_formatter_set_fifo_blocking_mode(id, block[id]);
 		}

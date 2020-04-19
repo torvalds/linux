@@ -24,11 +24,11 @@ void
 ia_css_bnr_encode(
 	struct sh_css_isp_bnr_params *to,
 	const struct ia_css_nr_config *from,
-	unsigned size);
+	unsigned int size);
 
 void
 ia_css_bnr_dump(
 	const struct sh_css_isp_bnr_params *bnr,
-	unsigned level);
+	unsigned int level);
 
 #endif /* __IA_CSS_DP_HOST_H */

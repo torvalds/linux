@@ -28,13 +28,13 @@ ia_css_bayer_io_config(
 	const struct sh_css_binary_args *args)
 {
 	const struct ia_css_frame *in_frame = args->in_frame;
-	const struct ia_css_frame **out_frames = (const struct ia_css_frame **)& args->out_frame;
+	const struct ia_css_frame **out_frames = (const struct ia_css_frame **)&args->out_frame;
 	const struct ia_css_frame_info *in_frame_info = (in_frame) ? &in_frame->info : &binary->in_frame_info;
 
-	const unsigned ddr_bits_per_element = sizeof(short) * 8;
-	const unsigned ddr_elems_per_word = ceil_div(HIVE_ISP_DDR_WORD_BITS, ddr_bits_per_element);
-	unsigned size_get = 0, size_put = 0;
-	unsigned offset = 0;
+	const unsigned int ddr_bits_per_element = sizeof(short) * 8;
+	const unsigned int ddr_elems_per_word = ceil_div(HIVE_ISP_DDR_WORD_BITS, ddr_bits_per_element);
+	unsigned int size_get = 0, size_put = 0;
+	unsigned int offset = 0;
 
 	if (binary->info->mem_offsets.offsets.param) {
 		size_get = binary->info->mem_offsets.offsets.param->dmem.get.size;

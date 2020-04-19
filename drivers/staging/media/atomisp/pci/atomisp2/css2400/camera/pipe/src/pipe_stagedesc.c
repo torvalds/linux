@@ -24,11 +24,12 @@ void ia_css_pipe_get_generic_stage_desc(
 	struct ia_css_frame *vf_frame)
 {
 	unsigned int i;
+
 	IA_CSS_ENTER_PRIVATE("stage_desc = %p, binary = %p, out_frame = %p, in_frame = %p, vf_frame = %p",
 			     stage_desc, binary, out_frame, in_frame, vf_frame);
 
-	assert(stage_desc != NULL && binary != NULL && binary->info != NULL);
-	if (stage_desc == NULL || binary == NULL || binary->info == NULL) {
+	assert(stage_desc && binary && binary->info);
+	if (!stage_desc || !binary || !binary->info) {
 		IA_CSS_ERROR("invalid arguments");
 		goto ERR;
 	}
@@ -95,7 +96,7 @@ void ia_css_pipe_get_sp_func_stage_desc(
 	struct ia_css_pipeline_stage_desc *stage_desc,
 	struct ia_css_frame *out_frame,
 	enum ia_css_pipeline_stage_sp_func sp_func,
-	unsigned max_input_width)
+	unsigned int max_input_width)
 {
 	unsigned int i;
 
@@ -112,4 +113,3 @@ void ia_css_pipe_get_sp_func_stage_desc(
 	}
 	stage_desc->vf_frame = NULL;
 }
-

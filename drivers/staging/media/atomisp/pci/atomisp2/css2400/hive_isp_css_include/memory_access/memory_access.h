@@ -97,7 +97,7 @@ extern const hrt_vaddress	mmgr_EXCEPTION;
 
  \return vaddress
  */
-extern hrt_vaddress mmgr_malloc(const size_t size);
+hrt_vaddress mmgr_malloc(const size_t size);
 
 /*! Return the address of a zero initialised allocation in memory
 
@@ -106,7 +106,7 @@ extern hrt_vaddress mmgr_malloc(const size_t size);
 
  \return vaddress
  */
-extern hrt_vaddress mmgr_calloc(const size_t N, const size_t size);
+hrt_vaddress mmgr_calloc(const size_t N, const size_t size);
 
 /*! Return the address of an allocation in memory
 
@@ -117,7 +117,7 @@ extern hrt_vaddress mmgr_calloc(const size_t N, const size_t size);
  \return vaddress
  */
 
-extern hrt_vaddress mmgr_alloc_attr(const size_t size, const uint16_t attribute);
+hrt_vaddress mmgr_alloc_attr(const size_t size, const uint16_t attribute);
 
 /*! Return the address of a mapped existing allocation in memory
 
@@ -136,10 +136,10 @@ extern hrt_vaddress mmgr_alloc_attr(const size_t size, const uint16_t attribute)
 
  \return vaddress
  */
-extern hrt_vaddress mmgr_mmap(
+hrt_vaddress mmgr_mmap(
 	const void __user *ptr,
 	const size_t size,
-	uint16_t attribute,
+	u16 attribute,
 	void *context);
 
 /*! Zero initialise an allocation in memory
@@ -149,7 +149,7 @@ extern hrt_vaddress mmgr_mmap(
 
  \return none
  */
-extern void mmgr_clear(hrt_vaddress vaddr, const size_t	size);
+void mmgr_clear(hrt_vaddress vaddr, const size_t	size);
 
 /*! Read an array of bytes from a virtual memory address
 
@@ -159,7 +159,7 @@ extern void mmgr_clear(hrt_vaddress vaddr, const size_t	size);
 
  \return none
  */
-extern void mmgr_load(const hrt_vaddress vaddr, void *data, const size_t size);
+void mmgr_load(const hrt_vaddress vaddr, void *data, const size_t size);
 
 /*! Write an array of bytes to device registers or memory in the device
 
@@ -169,6 +169,6 @@ extern void mmgr_load(const hrt_vaddress vaddr, void *data, const size_t size);
 
  \return none
  */
-extern void mmgr_store(const hrt_vaddress vaddr, const void *data, const size_t size);
+void mmgr_store(const hrt_vaddress vaddr, const void *data, const size_t size);
 
 #endif /* __MEMORY_ACCESS_H_INCLUDED__ */

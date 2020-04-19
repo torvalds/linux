@@ -39,14 +39,14 @@ struct ia_css_3a_output;
 struct isp_uds_config {
 	int      hive_dx;
 	int      hive_dy;
-	unsigned hive_woix;
-	unsigned hive_bpp; /* gdc_bits_per_pixel */
-	unsigned hive_bci;
+	unsigned int hive_woix;
+	unsigned int hive_bpp; /* gdc_bits_per_pixel */
+	unsigned int hive_bci;
 };
 
 struct s_isp_gdcac_config {
-	unsigned nbx;
-	unsigned nby;
+	unsigned int nbx;
+	unsigned int nby;
 };
 
 /* output.hive.c request information */
@@ -57,13 +57,13 @@ typedef enum {
 } output_channel_type;
 
 typedef struct s_output_dma_info {
-  unsigned            cond;		/* Condition for transfer */
+  unsigned int cond;		/* Condition for transfer */
   output_channel_type channel_type;
   dma_channel         channel;
-  unsigned            width_a;
-  unsigned            width_b;
-  unsigned            stride;
-  unsigned            v_delta;	        /* Offset for v address to do cropping */
+  unsigned int width_a;
+  unsigned int width_b;
+  unsigned int stride;
+  unsigned int v_delta;	        /* Offset for v address to do cropping */
   char               *x_base;           /* X base address */
 } output_dma_info_type;
 #endif

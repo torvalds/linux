@@ -575,7 +575,7 @@ static struct camera_vcm_control *gmin_get_vcm_ctrl(struct v4l2_subdev *subdev,
 	struct gmin_subdev *gs = find_gmin_subdev(subdev);
 	struct camera_vcm_control *vcm;
 
-	if (client == NULL || gs == NULL)
+	if (!client || !gs)
 		return NULL;
 
 	if (!camera_module)

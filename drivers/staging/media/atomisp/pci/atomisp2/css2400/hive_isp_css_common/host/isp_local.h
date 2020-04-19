@@ -21,7 +21,7 @@
 
 #include <isp2400_support.h>
 
-#define HIVE_ISP_VMEM_MASK	((1U<<ISP_VMEM_ELEMBITS)-1)
+#define HIVE_ISP_VMEM_MASK	((1U << ISP_VMEM_ELEMBITS) - 1)
 
 typedef struct isp_state_s		isp_state_t;
 typedef struct isp_stall_s		isp_stall_t;

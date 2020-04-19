@@ -56,7 +56,7 @@ static struct firmware_header *firmware_header;
 #ifndef ISP2401
 static const char *release_version = STR(irci_stable_candrpv_0415_20150521_0458);
 #else
-static const char *release_version = STR(irci_ecr-master_20150911_0724);
+static const char *release_version = STR(irci_ecr - master_20150911_0724);
 #endif
 
 #define MAX_FW_REL_VER_NAME	300
@@ -64,16 +64,14 @@ static char FW_rel_ver_name[MAX_FW_REL_VER_NAME] = "---";
 
 struct ia_css_fw_info	  sh_css_sp_fw;
 struct ia_css_blob_descr *sh_css_blob_info; /* Only ISP blob info (no SP) */
-unsigned		  sh_css_num_binaries; /* This includes 1 SP binary */
+unsigned int sh_css_num_binaries; /* This includes 1 SP binary */
 
 static struct fw_param *fw_minibuffer;
-
 
 char *sh_css_get_fw_version(void)
 {
 	return FW_rel_ver_name;
 }
-
 
 /*
  * Split the loaded firmware into blobs
@@ -81,11 +79,11 @@ char *sh_css_get_fw_version(void)
 
 /* Setup sp/sp1 binary */
 static enum ia_css_err
-setup_binary(struct ia_css_fw_info *fw, const char *fw_data, struct ia_css_fw_info *sh_css_fw, unsigned binary_id)
+setup_binary(struct ia_css_fw_info *fw, const char *fw_data, struct ia_css_fw_info *sh_css_fw, unsigned int binary_id)
 {
 	const char *blob_data;
 
-	if ((fw == NULL) || (fw_data == NULL))
+	if ((!fw) || (!fw_data))
 		return IA_CSS_ERR_INVALID_ARGUMENTS;
 
 	blob_data = fw_data + fw->blob.offset;
@@ -93,7 +91,7 @@ setup_binary(struct ia_css_fw_info *fw, const char *fw_data, struct ia_css_fw_in
 	*sh_css_fw = *fw;
 
 	sh_css_fw->blob.code = vmalloc(fw->blob.size);
-	if (sh_css_fw->blob.code == NULL)
+	if (!sh_css_fw->blob.code)
 		return IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
 
 	memcpy((void *)sh_css_fw->blob.code, blob_data, fw->blob.size);
@@ -102,17 +100,18 @@ setup_binary(struct ia_css_fw_info *fw, const char *fw_data, struct ia_css_fw_in
 
 	return IA_CSS_SUCCESS;
 }
+
 enum ia_css_err
-sh_css_load_blob_info(const char *fw, const struct ia_css_fw_info *bi, struct ia_css_blob_descr *bd, unsigned index)
+sh_css_load_blob_info(const char *fw, const struct ia_css_fw_info *bi, struct ia_css_blob_descr *bd, unsigned int index)
 {
 	const char *name;
 	const unsigned char *blob;
 
-	if ((fw == NULL) || (bd == NULL))
+	if ((!fw) || (!bd))
 		return IA_CSS_ERR_INVALID_ARGUMENTS;
 
 	/* Special case: only one binary in fw */
-	if (bi == NULL) bi = (const struct ia_css_fw_info *)fw;
+	if (!bi) bi = (const struct ia_css_fw_info *)fw;
 
 	name = fw + bi->blob.prog_name_offset;
 	blob = (const unsigned char *)fw + bi->blob.offset;
@@ -123,7 +122,7 @@ sh_css_load_blob_info(const char *fw, const struct ia_css_fw_info *bi, struct ia
 		return IA_CSS_ERR_INVALID_ARGUMENTS;
 	}
 
-	if ((bi->blob.offset % (1UL<<(ISP_PMEM_WIDTH_LOG2-3))) != 0)
+	if ((bi->blob.offset % (1UL << (ISP_PMEM_WIDTH_LOG2 - 3))) != 0)
 		return IA_CSS_ERR_INVALID_ARGUMENTS;
 
 	bd->blob = blob;
@@ -196,7 +195,7 @@ enum ia_css_err
 sh_css_load_firmware(const char *fw_data,
 		     unsigned int fw_size)
 {
-	unsigned i;
+	unsigned int i;
 	struct ia_css_fw_info *binaries;
 	struct sh_css_fw_bi_file_h *file_header;
 	bool valid_firmware = false;
@@ -270,7 +269,7 @@ sh_css_load_firmware(const char *fw_data,
 
 			if (bi->type != ia_css_isp_firmware)
 				return IA_CSS_ERR_INTERNAL_ERROR;
-			if (sh_css_blob_info == NULL) /* cannot happen but KW does not see this */
+			if (!sh_css_blob_info) /* cannot happen but KW does not see this */
 				return IA_CSS_ERR_INTERNAL_ERROR;
 			sh_css_blob_info[i - NUM_OF_SPS] = bd;
 		}
@@ -281,10 +280,10 @@ sh_css_load_firmware(const char *fw_data,
 
 void sh_css_unload_firmware(void)
 {
-
 	/* release firmware minibuffer */
 	if (fw_minibuffer) {
 		unsigned int i = 0;
+
 		for (i = 0; i < sh_css_num_binaries; i++) {
 			if (fw_minibuffer[i].name)
 				kfree((void *)fw_minibuffer[i].name);
@@ -302,14 +301,14 @@ void sh_css_unload_firmware(void)
 }
 
 hrt_vaddress
-sh_css_load_blob(const unsigned char *blob, unsigned size)
+sh_css_load_blob(const unsigned char *blob, unsigned int size)
 {
 	hrt_vaddress target_addr = mmgr_malloc(size);
 	/* this will allocate memory aligned to a DDR word boundary which
 	   is required for the CSS DMA to read the instructions. */
 
-	assert(blob != NULL);
-	if (target_addr) 
+	assert(blob);
+	if (target_addr)
 		mmgr_store(target_addr, blob, size);
 	return target_addr;
 }

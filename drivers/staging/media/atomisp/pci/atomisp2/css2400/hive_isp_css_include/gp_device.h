@@ -29,13 +29,12 @@
  *	- local:   system and cell specific constants and identifiers
  */
 
-
 #include "system_local.h"
 #include "gp_device_local.h"
 
 #ifndef __INLINE_GP_DEVICE__
 #define STORAGE_CLASS_GP_DEVICE_H extern
-#define STORAGE_CLASS_GP_DEVICE_C 
+#define STORAGE_CLASS_GP_DEVICE_C
 #include "gp_device_public.h"
 #else  /* __INLINE_GP_DEVICE__ */
 #define STORAGE_CLASS_GP_DEVICE_H static inline

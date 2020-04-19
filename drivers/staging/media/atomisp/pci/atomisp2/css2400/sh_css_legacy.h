@@ -38,8 +38,9 @@ enum ia_css_pipe_id {
 	IA_CSS_PIPE_ID_ACC
 #endif
 };
+
 #ifdef ISP2401
-#define IA_CSS_PIPE_ID_NUM (IA_CSS_PIPE_ID_ACC+1)
+#define IA_CSS_PIPE_ID_NUM (IA_CSS_PIPE_ID_ACC + 1)
 #endif
 
 struct ia_css_pipe_extra_config {

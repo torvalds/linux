@@ -19,7 +19,7 @@
   * Should be consistent with hmem.h
   */
 #define IA_CSS_HMEM_BH_TABLE_SIZE	ISP_HIST_DEPTH
-#define IA_CSS_HMEM_BH_UNIT_SIZE	(ISP_HIST_DEPTH/ISP_HIST_COMPONENTS)
+#define IA_CSS_HMEM_BH_UNIT_SIZE	(ISP_HIST_DEPTH / ISP_HIST_COMPONENTS)
 
 #define BH_COLOR_R	(0)
 #define BH_COLOR_G	(1)
@@ -29,9 +29,7 @@
 
 /* BH table */
 struct ia_css_bh_table {
-	uint32_t hmem[ISP_HIST_COMPONENTS][IA_CSS_HMEM_BH_UNIT_SIZE];
+	u32 hmem[ISP_HIST_COMPONENTS][IA_CSS_HMEM_BH_UNIT_SIZE];
 };
 
 #endif /* __IA_CSS_BH_TYPES_H */
-
-

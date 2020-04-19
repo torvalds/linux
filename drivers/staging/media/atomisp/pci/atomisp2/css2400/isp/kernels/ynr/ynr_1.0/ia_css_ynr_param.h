@@ -19,31 +19,31 @@
 
 /* YNR (Y Noise Reduction) */
 struct sh_css_isp_ynr_params {
-	int32_t threshold;
-	int32_t gain_all;
-	int32_t gain_dir;
-	int32_t threshold_cb;
-	int32_t threshold_cr;
+	s32 threshold;
+	s32 gain_all;
+	s32 gain_dir;
+	s32 threshold_cb;
+	s32 threshold_cr;
 };
 
 /* YEE (Y Edge Enhancement) */
 struct sh_css_isp_yee_params {
-	int32_t dirthreshold_s;
-	int32_t dirthreshold_g;
-	int32_t dirthreshold_width_log2;
-	int32_t dirthreshold_width;
-	int32_t detailgain;
-	int32_t coring_s;
-	int32_t coring_g;
-	int32_t scale_plus_s;
-	int32_t scale_plus_g;
-	int32_t scale_minus_s;
-	int32_t scale_minus_g;
-	int32_t clip_plus_s;
-	int32_t clip_plus_g;
-	int32_t clip_minus_s;
-	int32_t clip_minus_g;
-	int32_t Yclip;
+	s32 dirthreshold_s;
+	s32 dirthreshold_g;
+	s32 dirthreshold_width_log2;
+	s32 dirthreshold_width;
+	s32 detailgain;
+	s32 coring_s;
+	s32 coring_g;
+	s32 scale_plus_s;
+	s32 scale_plus_g;
+	s32 scale_minus_s;
+	s32 scale_minus_g;
+	s32 clip_plus_s;
+	s32 clip_plus_g;
+	s32 clip_minus_s;
+	s32 clip_minus_g;
+	s32 Yclip;
 };
 
 #endif /* __IA_CSS_YNR_PARAM_H */

@@ -30,14 +30,14 @@
  *  arrays that contain the coeffients for each type.
  */
 struct ia_css_dvs2_coef_types {
-	int16_t *odd_real; /** real part of the odd coefficients*/
-	int16_t *odd_imag; /** imaginary part of the odd coefficients*/
-	int16_t *even_real;/** real part of the even coefficients*/
-	int16_t *even_imag;/** imaginary part of the even coefficients*/
+	s16 *odd_real; /** real part of the odd coefficients*/
+	s16 *odd_imag; /** imaginary part of the odd coefficients*/
+	s16 *even_real;/** real part of the even coefficients*/
+	s16 *even_imag;/** imaginary part of the even coefficients*/
 };
 
 /* DVS 2.0 Coefficients. This structure describes the coefficients that are needed for the dvs statistics.
- *  e.g. hor_coefs.odd_real is the pointer to int16_t[grid.num_hor_coefs] containing the horizontal odd real 
+ *  e.g. hor_coefs.odd_real is the pointer to int16_t[grid.num_hor_coefs] containing the horizontal odd real
  *  coefficients.
  */
 struct ia_css_dvs2_coefficients {
@@ -50,14 +50,14 @@ struct ia_css_dvs2_coefficients {
  *  arrays that contain the statistics for each type.
  */
 struct ia_css_dvs2_stat_types {
-	int32_t *odd_real; /** real part of the odd statistics*/
-	int32_t *odd_imag; /** imaginary part of the odd statistics*/
-	int32_t *even_real;/** real part of the even statistics*/
-	int32_t *even_imag;/** imaginary part of the even statistics*/
+	s32 *odd_real; /** real part of the odd statistics*/
+	s32 *odd_imag; /** imaginary part of the odd statistics*/
+	s32 *even_real;/** real part of the even statistics*/
+	s32 *even_imag;/** imaginary part of the even statistics*/
 };
 
 /* DVS 2.0 Statistics. This structure describes the statistics that are generated using the provided coefficients.
- *  e.g. hor_prod.odd_real is the pointer to int16_t[grid.aligned_height][grid.aligned_width] containing 
+ *  e.g. hor_prod.odd_real is the pointer to int16_t[grid.aligned_height][grid.aligned_width] containing
  *  the horizontal odd real statistics. Valid statistics data area is int16_t[0..grid.height-1][0..grid.width-1]
  */
 struct ia_css_dvs2_statistics {

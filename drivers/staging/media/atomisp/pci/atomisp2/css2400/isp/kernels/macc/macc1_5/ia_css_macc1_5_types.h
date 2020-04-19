@@ -24,7 +24,6 @@
  * ISP2.6.1: MACC1_5 is used.
  */
 
-
 /* Number of axes in the MACC table. */
 #define IA_CSS_MACC_NUM_AXES           16
 /* Number of coefficients per MACC axes. */
@@ -54,7 +53,7 @@
  *   OutV = (   0 * InU + 4096 * InV) >> (13 - 1)
  */
 struct ia_css_macc1_5_table {
-	int16_t data[IA_CSS_MACC_NUM_COEFS * IA_CSS_MACC_NUM_AXES];
+	s16 data[IA_CSS_MACC_NUM_COEFS * IA_CSS_MACC_NUM_AXES];
 	/** 16 of 2x2 matix
 	  MACC1_5: s[macc_config.exp].[13-macc_config.exp], [-8192,8191]
 	    default/ineffective: (s1.12)
@@ -67,7 +66,7 @@ struct ia_css_macc1_5_table {
  *  ISP2: MACC1_5 is used.
  */
 struct ia_css_macc1_5_config {
-	uint8_t exp;	/** Common exponent of ia_css_macc_table.
+	u8 exp;	/** Common exponent of ia_css_macc_table.
 				u8.0, [0,13], default 1, ineffective 1 */
 };
 

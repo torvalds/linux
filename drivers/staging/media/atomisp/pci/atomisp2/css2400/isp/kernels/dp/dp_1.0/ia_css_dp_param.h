@@ -20,17 +20,17 @@
 
 /* DP (Defect Pixel Correction) */
 struct sh_css_isp_dp_params {
-	int32_t threshold_single;
-	int32_t threshold_2adjacent;
-	int32_t gain;
-	int32_t coef_rr_gr;
-	int32_t coef_rr_gb;
-	int32_t coef_bb_gb;
-	int32_t coef_bb_gr;
-	int32_t coef_gr_rr;
-	int32_t coef_gr_bb;
-	int32_t coef_gb_bb;
-	int32_t coef_gb_rr;
+	s32 threshold_single;
+	s32 threshold_2adjacent;
+	s32 gain;
+	s32 coef_rr_gr;
+	s32 coef_rr_gb;
+	s32 coef_bb_gb;
+	s32 coef_bb_gr;
+	s32 coef_gr_rr;
+	s32 coef_gr_bb;
+	s32 coef_gb_bb;
+	s32 coef_gb_rr;
 };
 
 #endif /* __IA_CSS_DP_PARAM_H */

@@ -27,25 +27,25 @@ void
 ia_css_output_encode(
 	struct sh_css_isp_output_params *to,
 	const struct ia_css_output_config *from,
-	unsigned size);
+	unsigned int size);
 
 void
 ia_css_output_config(
 	struct sh_css_isp_output_isp_config      *to,
 	const struct ia_css_output_configuration *from,
-	unsigned size);
+	unsigned int size);
 
 void
 ia_css_output0_config(
 	struct sh_css_isp_output_isp_config       *to,
 	const struct ia_css_output0_configuration *from,
-	unsigned size);
+	unsigned int size);
 
 void
 ia_css_output1_config(
 	struct sh_css_isp_output_isp_config       *to,
 	const struct ia_css_output1_configuration *from,
-	unsigned size);
+	unsigned int size);
 
 void
 ia_css_output_configure(
@@ -65,11 +65,11 @@ ia_css_output1_configure(
 void
 ia_css_output_dump(
 	const struct sh_css_isp_output_params *output,
-	unsigned level);
+	unsigned int level);
 
 void
 ia_css_output_debug_dtrace(
 	const struct ia_css_output_config *config,
-	unsigned level);
+	unsigned int level);
 
 #endif /* __IA_CSS_OUTPUT_HOST_H */

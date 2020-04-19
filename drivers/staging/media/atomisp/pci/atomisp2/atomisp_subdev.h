@@ -56,8 +56,8 @@ enum atomisp_subdev_input_entity {
 
 struct atomisp_in_fmt_conv {
 	u32     code;
-	uint8_t bpp; /* bits per pixel */
-	uint8_t depth; /* uncompressed */
+	u8 bpp; /* bits per pixel */
+	u8 depth; /* uncompressed */
 	enum atomisp_input_format atomisp_in_fmt;
 	enum atomisp_css_bayer_order bayer_order;
 	enum atomisp_input_format css_stream_fmt;
@@ -91,7 +91,7 @@ struct atomisp_video_pipe {
 
 	struct atomisp_device *isp;
 	struct v4l2_pix_format pix;
-	uint32_t sh_fmt;
+	u32 sh_fmt;
 
 	struct atomisp_sub_device *asd;
 
@@ -192,7 +192,7 @@ struct atomisp_css_params {
 	 * translate to ia_css_frame * and then set to CSS.
 	 */
 	void		*output_frame;
-	uint32_t	isp_config_id;
+	u32	isp_config_id;
 
 	/* Indicates which parameters need to be updated. */
 	struct atomisp_parameters update_flag;
@@ -238,11 +238,11 @@ struct atomisp_subdev_params {
 	struct ia_css_3a_statistics *s3a_user_stat;
 
 	void *metadata_user[ATOMISP_METADATA_TYPE_NUM];
-	uint32_t metadata_width_size;
+	u32 metadata_width_size;
 
 	struct ia_css_dvs2_statistics *dvs_stat;
 	struct atomisp_css_dvs_6axis *dvs_6axis;
-	uint32_t exp_id;
+	u32 exp_id;
 	int  dvs_hor_coef_bytes;
 	int  dvs_ver_coef_bytes;
 	int  dvs_ver_proj_bytes;
@@ -291,7 +291,7 @@ struct atomisp_sub_device {
 	struct v4l2_subdev subdev;
 	struct media_pad pads[ATOMISP_SUBDEV_PADS_NUM];
 	struct atomisp_pad_format fmt[ATOMISP_SUBDEV_PADS_NUM];
-	uint16_t capture_pad; /* main capture pad; defines much of isp config */
+	u16 capture_pad; /* main capture pad; defines much of isp config */
 
 	enum atomisp_subdev_input_entity input;
 	unsigned int output;
@@ -395,7 +395,7 @@ struct atomisp_sub_device {
 	bool copy_mode; /* CSI2+ use copy mode */
 	bool yuvpp_mode;	/* CSI2+ yuvpp pipe */
 
-	int raw_buffer_bitmap[ATOMISP_MAX_EXP_ID/32 + 1]; /* Record each Raw Buffer lock status */
+	int raw_buffer_bitmap[ATOMISP_MAX_EXP_ID / 32 + 1]; /* Record each Raw Buffer lock status */
 	int raw_buffer_locked_count;
 	spinlock_t raw_buffer_bitmap_lock;
 
@@ -442,16 +442,16 @@ struct v4l2_mbus_framefmt
 			 uint32_t pad);
 struct v4l2_rect *atomisp_subdev_get_rect(struct v4l2_subdev *sd,
 					  struct v4l2_subdev_pad_config *cfg,
-					  uint32_t which, uint32_t pad,
+					  u32 which, uint32_t pad,
 					  uint32_t target);
 int atomisp_subdev_set_selection(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_pad_config *cfg,
-				 uint32_t which, uint32_t pad, uint32_t target,
-				 uint32_t flags, struct v4l2_rect *r);
+				 u32 which, uint32_t pad, uint32_t target,
+				 u32 flags, struct v4l2_rect *r);
 /* Actually set the format */
 void atomisp_subdev_set_ffmt(struct v4l2_subdev *sd,
 			     struct v4l2_subdev_pad_config *cfg, uint32_t which,
-			     uint32_t pad, struct v4l2_mbus_framefmt *ffmt);
+			     u32 pad, struct v4l2_mbus_framefmt *ffmt);
 
 int atomisp_update_run_mode(struct atomisp_sub_device *asd);
 

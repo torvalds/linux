@@ -48,7 +48,7 @@
 
 /* The GDC is capable of higher internal precision than the parameter data structures */
 #define HRT_GDC_COORD_SCALE_BITS	6
-#define HRT_GDC_COORD_SCALE			(1 << HRT_GDC_COORD_SCALE_BITS)
+#define HRT_GDC_COORD_SCALE			BIT(HRT_GDC_COORD_SCALE_BITS)
 
 typedef enum {
 	GDC_CH0_ID = 0,
@@ -63,28 +63,27 @@ typedef enum {
 } gdc_bits_per_pixel_t;
 
 typedef struct gdc_scale_param_mem_s {
-	uint16_t  params[N_GDC_PARAM];
-	uint16_t  ipx_start_array[N_GDC_PARAM];
-	uint16_t  ibuf_offset[N_GDC_PARAM];
-	uint16_t  obuf_offset[N_GDC_PARAM];
+	u16  params[N_GDC_PARAM];
+	u16  ipx_start_array[N_GDC_PARAM];
+	u16  ibuf_offset[N_GDC_PARAM];
+	u16  obuf_offset[N_GDC_PARAM];
 } gdc_scale_param_mem_t;
 
 typedef struct gdc_warp_param_mem_s {
-	uint32_t      origin_x;
-	uint32_t      origin_y;
-	uint32_t      in_addr_offset;
-	uint32_t      in_block_width;
-	uint32_t      in_block_height;
-	uint32_t      p0_x;
-	uint32_t      p0_y;
-	uint32_t      p1_x;
-	uint32_t      p1_y;
-	uint32_t      p2_x;
-	uint32_t      p2_y;
-	uint32_t      p3_x;
-	uint32_t      p3_y;
-	uint32_t      padding[3];
+	u32      origin_x;
+	u32      origin_y;
+	u32      in_addr_offset;
+	u32      in_block_width;
+	u32      in_block_height;
+	u32      p0_x;
+	u32      p0_y;
+	u32      p1_x;
+	u32      p1_y;
+	u32      p2_x;
+	u32      p2_y;
+	u32      p3_x;
+	u32      p3_y;
+	u32      padding[3];
 } gdc_warp_param_mem_t;
-
 
 #endif /* __GDC_GLOBAL_H_INCLUDED__ */

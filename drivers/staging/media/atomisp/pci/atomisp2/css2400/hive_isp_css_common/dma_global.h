@@ -52,7 +52,6 @@
 #define _DMA_ZERO_EXTEND     _DMA_V2_ZERO_EXTEND
 #define _DMA_SIGN_EXTEND     _DMA_V2_SIGN_EXTEND
 
-
 typedef unsigned int dma_channel;
 
 typedef enum {
@@ -66,9 +65,8 @@ typedef enum {
   dma_sign_extension = _DMA_SIGN_EXTEND
 } dma_extension;
 
-
 #define DMA_PROP_SHIFT(val, param)       ((val) << _DMA_V2_ ## param ## _IDX)
-#define DMA_PROP_MASK(param)             ((1U << _DMA_V2_ ## param ## _BITS)-1)
+#define DMA_PROP_MASK(param)             ((1U << _DMA_V2_ ## param ## _BITS) - 1)
 #define DMA_PACK(val, param)             DMA_PROP_SHIFT((val) & DMA_PROP_MASK(param), param)
 
 #define DMA_PACK_COMMAND(cmd)            DMA_PACK(cmd, CMD)
@@ -96,18 +94,19 @@ typedef enum {
 #define hive_dma_move_data(dma_id, read, channel, addr_a, addr_b, to_is_var, from_is_var) \
 { \
   hive_dma_snd(dma_id, DMA_PACK(_DMA_V2_SET_CRUN_COMMAND, CMD)); \
-  hive_dma_snd(dma_id, DMA_PACK_CMD_CHANNEL(read?_DMA_V2_MOVE_B2A_COMMAND:_DMA_V2_MOVE_A2B_COMMAND, channel)); \
-  hive_dma_snd(dma_id, read?(unsigned)(addr_b):(unsigned)(addr_a)); \
-  hive_dma_snd(dma_id, read?(unsigned)(addr_a):(unsigned)(addr_b)); \
+  hive_dma_snd(dma_id, DMA_PACK_CMD_CHANNEL(read ? _DMA_V2_MOVE_B2A_COMMAND : _DMA_V2_MOVE_A2B_COMMAND, channel)); \
+  hive_dma_snd(dma_id, read ? (unsigned int)(addr_b) : (unsigned int)(addr_a)); \
+  hive_dma_snd(dma_id, read ? (unsigned int)(addr_a) : (unsigned int)(addr_b)); \
   hive_dma_snd(dma_id, to_is_var); \
   hive_dma_snd(dma_id, from_is_var); \
 }
+
 #define hive_dma_move_data_no_ack(dma_id, read, channel, addr_a, addr_b, to_is_var, from_is_var) \
 { \
   hive_dma_snd(dma_id, DMA_PACK(_DMA_V2_SET_CRUN_COMMAND, CMD)); \
-  hive_dma_snd(dma_id, DMA_PACK_CMD_CHANNEL(read?_DMA_V2_NO_ACK_MOVE_B2A_NO_SYNC_CHK_COMMAND:_DMA_V2_NO_ACK_MOVE_A2B_NO_SYNC_CHK_COMMAND, channel)); \
-  hive_dma_snd(dma_id, read?(unsigned)(addr_b):(unsigned)(addr_a)); \
-  hive_dma_snd(dma_id, read?(unsigned)(addr_a):(unsigned)(addr_b)); \
+  hive_dma_snd(dma_id, DMA_PACK_CMD_CHANNEL(read ? _DMA_V2_NO_ACK_MOVE_B2A_NO_SYNC_CHK_COMMAND : _DMA_V2_NO_ACK_MOVE_A2B_NO_SYNC_CHK_COMMAND, channel)); \
+  hive_dma_snd(dma_id, read ? (unsigned int)(addr_b) : (unsigned int)(addr_a)); \
+  hive_dma_snd(dma_id, read ? (unsigned int)(addr_a) : (unsigned int)(addr_b)); \
   hive_dma_snd(dma_id, to_is_var); \
   hive_dma_snd(dma_id, from_is_var); \
 }
@@ -239,16 +238,16 @@ typedef enum {
 } dma_config_type_t;
 
 struct dma_port_config {
-	uint8_t  crop, elems;
-	uint16_t width;
-	uint32_t stride;
+	u8  crop, elems;
+	u16 width;
+	u32 stride;
 };
 
 /* Descriptor for dma configuration */
 struct dma_channel_config {
-	uint8_t  connection;
-	uint8_t  extension;
-	uint8_t  height;
+	u8  connection;
+	u8  extension;
+	u8  height;
 	struct dma_port_config a, b;
 };
 

@@ -103,15 +103,15 @@ struct input_formatter_state_s {
 };
 
 struct input_formatter_bin_state_s {
-	uint32_t	reset;
-	uint32_t	input_endianness;
-	uint32_t	output_endianness;
-	uint32_t	bitswap;
-	uint32_t	block_synch;
-	uint32_t	packet_synch;
-	uint32_t	readpostwrite_synch;
-	uint32_t	is_2ppc;
-	uint32_t	en_status_update;
+	u32	reset;
+	u32	input_endianness;
+	u32	output_endianness;
+	u32	bitswap;
+	u32	block_synch;
+	u32	packet_synch;
+	u32	readpostwrite_synch;
+	u32	is_2ppc;
+	u32	en_status_update;
 };
 
 static const unsigned int input_formatter_alignment[N_INPUT_FORMATTER_ID] = {

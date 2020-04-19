@@ -26,11 +26,11 @@
 
 /* Number of elements in the gamma table. */
 #define IA_CSS_VAMEM_1_GAMMA_TABLE_SIZE_LOG2    10
-#define IA_CSS_VAMEM_1_GAMMA_TABLE_SIZE         (1U<<IA_CSS_VAMEM_1_GAMMA_TABLE_SIZE_LOG2)
+#define IA_CSS_VAMEM_1_GAMMA_TABLE_SIZE         BIT(IA_CSS_VAMEM_1_GAMMA_TABLE_SIZE_LOG2)
 
 /* Number of elements in the gamma table. */
 #define IA_CSS_VAMEM_2_GAMMA_TABLE_SIZE_LOG2    8
-#define IA_CSS_VAMEM_2_GAMMA_TABLE_SIZE         ((1U<<IA_CSS_VAMEM_2_GAMMA_TABLE_SIZE_LOG2) + 1)
+#define IA_CSS_VAMEM_2_GAMMA_TABLE_SIZE         ((1U << IA_CSS_VAMEM_2_GAMMA_TABLE_SIZE_LOG2) + 1)
 
 /* Gamma table, used for Y(Luma) Gamma Correction.
  *
@@ -41,9 +41,9 @@
 /** IA_CSS_VAMEM_TYPE_1(ISP2300) or
      IA_CSS_VAMEM_TYPE_2(ISP2400) */
 union ia_css_gc_data {
-	uint16_t vamem_1[IA_CSS_VAMEM_1_GAMMA_TABLE_SIZE];
+	u16 vamem_1[IA_CSS_VAMEM_1_GAMMA_TABLE_SIZE];
 	/** Y(Luma) Gamma table on vamem type 1. u0.8, [0,255] */
-	uint16_t vamem_2[IA_CSS_VAMEM_2_GAMMA_TABLE_SIZE];
+	u16 vamem_2[IA_CSS_VAMEM_2_GAMMA_TABLE_SIZE];
 	/** Y(Luma) Gamma table on vamem type 2. u0.8, [0,255] */
 };
 
@@ -59,10 +59,10 @@ struct ia_css_gamma_table {
  * (ISP2: GC2 (sRGB Gamma Correction) is used.)
   */
 struct ia_css_gc_config {
-	uint16_t gain_k1; /** Gain to adjust U after YUV Gamma Correction.
+	u16 gain_k1; /** Gain to adjust U after YUV Gamma Correction.
 				u0.16, [0,65535],
 				default/ineffective 19000(0.29) */
-	uint16_t gain_k2; /** Gain to adjust V after YUV Gamma Correction.
+	u16 gain_k2; /** Gain to adjust V after YUV Gamma Correction.
 				u0.16, [0,65535],
 				default/ineffective 19000(0.29) */
 };
@@ -77,9 +77,9 @@ struct ia_css_gc_config {
  * (ISP2: CE1 is not used.)
  */
 struct ia_css_ce_config {
-	uint8_t uv_level_min; /** Minimum of chroma output level.
+	u8 uv_level_min; /** Minimum of chroma output level.
 				u0.8, [0,255], default/ineffective 0 */
-	uint8_t uv_level_max; /** Maximum of chroma output level.
+	u8 uv_level_max; /** Maximum of chroma output level.
 				u0.8, [0,255], default/ineffective 255 */
 };
 
@@ -90,7 +90,7 @@ struct ia_css_ce_config {
  *  ISP2: MACC2 is used.
  */
 struct ia_css_macc_config {
-	uint8_t exp;	/** Common exponent of ia_css_macc_table.
+	u8 exp;	/** Common exponent of ia_css_macc_table.
 				u8.0, [0,13], default 1, ineffective 1 */
 };
 

@@ -27,7 +27,7 @@ static uint32_t
 gp_timer_reg_load(uint32_t reg);
 
 static void
-gp_timer_reg_store(uint32_t reg, uint32_t value);
+gp_timer_reg_store(u32 reg, uint32_t value);
 
 static uint32_t
 gp_timer_reg_load(uint32_t reg)
@@ -38,7 +38,7 @@ gp_timer_reg_load(uint32_t reg)
 }
 
 static void
-gp_timer_reg_store(uint32_t reg, uint32_t value)
+gp_timer_reg_store(u32 reg, uint32_t value)
 {
 	ia_css_device_store_uint32((GP_TIMER_BASE +
 				    (reg * sizeof(uint32_t))),

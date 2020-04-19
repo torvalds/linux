@@ -30,17 +30,18 @@ void
 ia_css_formats_encode(
 	struct sh_css_isp_formats_params *to,
 	const struct ia_css_formats_config *from,
-	unsigned size)
+	unsigned int size)
 {
 	(void)size;
 	to->video_full_range_flag = from->video_full_range_flag;
 }
+
 #ifndef IA_CSS_NO_DEBUG
 /* FIXME: See BZ 4427 */
 void
 ia_css_formats_dump(
 	const struct sh_css_isp_formats_params *formats,
-	unsigned level)
+	unsigned int level)
 {
 	if (!formats) return;
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
@@ -53,7 +54,7 @@ ia_css_formats_dump(
 void
 ia_css_formats_debug_dtrace(
 	const struct ia_css_formats_config *config,
-	unsigned level)
+	unsigned int level)
 {
 	ia_css_debug_dtrace(level,
 		"config.video_full_range_flag=%d\n",

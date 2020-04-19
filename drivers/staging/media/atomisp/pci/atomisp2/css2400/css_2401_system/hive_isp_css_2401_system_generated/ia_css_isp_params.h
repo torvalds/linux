@@ -149,8 +149,8 @@ struct ia_css_memory_offsets {
 
 struct ia_css_pipeline_stage; /* forward declaration */
 
-extern void (* ia_css_kernel_process_param[IA_CSS_NUM_PARAMETER_IDS])(
-			unsigned pipe_id,
+extern void (*ia_css_kernel_process_param[IA_CSS_NUM_PARAMETER_IDS])(
+			unsigned int pipe_id,
 			const struct ia_css_pipeline_stage *stage,
 			struct ia_css_isp_parameters *params);
 

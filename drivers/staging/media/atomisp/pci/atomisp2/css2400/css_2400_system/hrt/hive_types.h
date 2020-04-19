@@ -12,28 +12,28 @@
  * more details.
  */
 
-#ifndef _HRT_HIVE_TYPES_H 
-#define _HRT_HIVE_TYPES_H 
+#ifndef _HRT_HIVE_TYPES_H
+#define _HRT_HIVE_TYPES_H
 
 #include "version.h"
 #include "defs.h"
 
 #ifndef HRTCAT3
-#define _HRTCAT3(m,n,o)     m##n##o
-#define HRTCAT3(m,n,o)      _HRTCAT3(m,n,o)
+#define _HRTCAT3(m, n, o)     m##n##o
+#define HRTCAT3(m, n, o)      _HRTCAT3(m, n, o)
 #endif
 
 #ifndef HRTCAT4
-#define _HRTCAT4(m,n,o,p)     m##n##o##p
-#define HRTCAT4(m,n,o,p)      _HRTCAT4(m,n,o,p)
+#define _HRTCAT4(m, n, o, p)     m##n##o##p
+#define HRTCAT4(m, n, o, p)      _HRTCAT4(m, n, o, p)
 #endif
 
 #ifndef HRTMIN
-#define HRTMIN(a,b) (((a)<(b))?(a):(b))
+#define HRTMIN(a, b) (((a) < (b)) ? (a) : (b))
 #endif
-                                 
+
 #ifndef HRTMAX
-#define HRTMAX(a,b) (((a)>(b))?(a):(b))
+#define HRTMAX(a, b) (((a) > (b)) ? (a) : (b))
 #endif
 
 /* boolean data type */
@@ -59,8 +59,8 @@ typedef unsigned long long   hive_uint64;
 #define HRT_ADDRESS_WIDTH 32
 #endif
 
-#define HRT_DATA_BYTES    (HRT_DATA_WIDTH/8)
-#define HRT_ADDRESS_BYTES (HRT_ADDRESS_WIDTH/8)
+#define HRT_DATA_BYTES    (HRT_DATA_WIDTH / 8)
+#define HRT_ADDRESS_BYTES (HRT_ADDRESS_WIDTH / 8)
 
 #if HRT_DATA_WIDTH == 64
 typedef hive_uint64 hrt_data;
@@ -71,7 +71,7 @@ typedef hive_uint32 hrt_data;
 #endif
 
 #if HRT_ADDRESS_WIDTH == 64
-typedef hive_uint64 hrt_address; 
+typedef hive_uint64 hrt_address;
 #elif HRT_ADDRESS_WIDTH == 32
 typedef hive_uint32 hrt_address;
 #else
@@ -95,7 +95,7 @@ typedef hive_address hive_mem_address;
 typedef hive_uint    hive_mmio_id;
 typedef hive_mmio_id hive_slave_id;
 typedef hive_mmio_id hive_port_id;
-typedef hive_mmio_id hive_master_id; 
+typedef hive_mmio_id hive_master_id;
 typedef hive_mmio_id hive_mem_id;
 typedef hive_mmio_id hive_dev_id;
 typedef hive_mmio_id hive_fifo_id;
@@ -122,7 +122,7 @@ typedef hive_uint hive_inport_id;
 typedef hive_uint hive_msink_id;
 
 /* HRT specific */
-typedef char* hive_program;
-typedef char* hive_function;
+typedef char *hive_program;
+typedef char *hive_function;
 
 #endif /* _HRT_HIVE_TYPES_H */

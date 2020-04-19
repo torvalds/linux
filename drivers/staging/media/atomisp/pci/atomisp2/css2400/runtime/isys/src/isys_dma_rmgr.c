@@ -60,7 +60,7 @@ bool ia_css_isys_dma_channel_rmgr_acquire(
 	isys_dma_rsrc_t		*cur_rsrc = NULL;
 
 	assert(dma_id < N_ISYS2401_DMA_ID);
-	assert(channel != NULL);
+	assert(channel);
 
 	max_dma_channel = N_ISYS2401_DMA_CHANNEL_PROCS[dma_id];
 	cur_rsrc = &isys_dma_rsrc[dma_id];
@@ -88,7 +88,7 @@ void ia_css_isys_dma_channel_rmgr_release(
 	isys_dma_rsrc_t		*cur_rsrc = NULL;
 
 	assert(dma_id < N_ISYS2401_DMA_ID);
-	assert(channel != NULL);
+	assert(channel);
 
 	max_dma_channel = N_ISYS2401_DMA_CHANNEL_PROCS[dma_id];
 	cur_rsrc = &isys_dma_rsrc[dma_id];

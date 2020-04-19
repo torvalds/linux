@@ -18,4 +18,3 @@
 #include "debug_global.h"
 
 #endif /* __DEBUG_LOCAL_H_INCLUDED__ */
-

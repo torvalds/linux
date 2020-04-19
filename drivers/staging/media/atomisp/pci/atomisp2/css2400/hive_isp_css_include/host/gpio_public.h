@@ -31,7 +31,7 @@ STORAGE_CLASS_GPIO_H void gpio_reg_store(
 	const hrt_data			value);
 
 /*! Read from a control register of GPIO[ID]
- 
+
  \param	ID[in]				GPIO identifier
  \param	reg_addr[in]		register byte address
  \param value[in]			The data to be written

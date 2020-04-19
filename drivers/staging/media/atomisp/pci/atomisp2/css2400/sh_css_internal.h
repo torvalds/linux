@@ -101,7 +101,6 @@
 #define SH_CSS_ENABLE_METADATA_THREAD
 #endif
 
-
  /*
   * SH_CSS_MAX_SP_THREADS:
   *	 sp threads visible to host with connected communication queues
@@ -241,6 +240,7 @@ struct sh_css_ddr_address_map {
 	hrt_vaddress tetra_batr_y;
 	hrt_vaddress dvs_6axis_params_y;
 };
+
 #define SIZE_OF_SH_CSS_DDR_ADDRESS_MAP_STRUCT					\
 	(SIZE_OF_HRT_VADDRESS +							\
 	(SH_CSS_MAX_STAGES * IA_CSS_NUM_MEMORIES * SIZE_OF_HRT_VADDRESS) +	\
@@ -276,7 +276,7 @@ struct sh_css_ddr_address_map_compound {
 struct ia_css_isp_parameter_set_info {
 	struct sh_css_ddr_address_map  mem_map;/** pointers to Parameters in ISP format IMPT:
 						    This should be first member of this struct */
-	uint32_t                       isp_parameters_id;/** Unique ID to track which config was actually applied to a particular frame */
+	u32                       isp_parameters_id;/** Unique ID to track which config was actually applied to a particular frame */
 	ia_css_ptr                     output_frame_ptr;/** Output frame to which this config has to be applied (optional) */
 };
 
@@ -294,7 +294,7 @@ struct sh_css_binary_args {
 	struct ia_css_frame *out_vf_frame;   /* viewfinder output frame */
 	bool                 copy_vf;
 	bool                 copy_output;
-	unsigned             vf_downscale_log2;
+	unsigned int vf_downscale_log2;
 };
 
 #if SP_DEBUG == SP_DEBUG_DUMP
@@ -311,18 +311,18 @@ struct sh_css_sp_debug_state {
 #define SH_CSS_SP_DBG_TRACE_DEPTH	(40)
 
 struct sh_css_sp_debug_trace {
-	uint16_t frame;
-	uint16_t line;
-	uint16_t pixel_distance;
-	uint16_t mipi_used_dword;
-	uint16_t sp_index;
+	u16 frame;
+	u16 line;
+	u16 pixel_distance;
+	u16 mipi_used_dword;
+	u16 sp_index;
 };
 
 struct sh_css_sp_debug_state {
-	uint16_t if_start_line;
-	uint16_t if_start_column;
-	uint16_t if_cropped_height;
-	uint16_t if_cropped_width;
+	u16 if_start_line;
+	u16 if_start_column;
+	u16 if_cropped_height;
+	u16 if_cropped_width;
 	unsigned int index;
 	struct sh_css_sp_debug_trace
 		trace[SH_CSS_SP_DBG_TRACE_DEPTH];
@@ -343,16 +343,16 @@ struct sh_css_sp_debug_state {
 #define SH_CSS_SP_DBG_TRACE_FILE_ID_BIT_POS (13)
 
 struct sh_css_sp_debug_trace {
-	uint16_t time_stamp;
-	uint16_t location;	/* bit 15..13 = file_id, 12..0 = line nr. */
-	uint32_t data;
+	u16 time_stamp;
+	u16 location;	/* bit 15..13 = file_id, 12..0 = line nr. */
+	u32 data;
 };
 
 struct sh_css_sp_debug_state {
 	struct sh_css_sp_debug_trace
 		trace[SH_CSS_SP_DBG_NR_OF_TRACES][SH_CSS_SP_DBG_TRACE_DEPTH];
-	uint16_t index_last[SH_CSS_SP_DBG_NR_OF_TRACES];
-	uint8_t index[SH_CSS_SP_DBG_NR_OF_TRACES];
+	u16 index_last[SH_CSS_SP_DBG_NR_OF_TRACES];
+	u8 index[SH_CSS_SP_DBG_NR_OF_TRACES];
 };
 
 #elif SP_DEBUG == SP_DEBUG_MINIMAL
@@ -366,7 +366,6 @@ struct sh_css_sp_debug_state {
 
 #endif
 
-
 struct sh_css_sp_debug_command {
 	/*
 	 * The DMA software-mask,
@@ -379,13 +378,13 @@ struct sh_css_sp_debug_command {
 	 * writing request through DMA Channel 1 and the reading request
 	 * through DMA channel 2 are both disabled. The others are enabled.
 	 */
-	uint32_t dma_sw_reg;
+	u32 dma_sw_reg;
 };
 
 #if !defined(HAS_NO_INPUT_FORMATTER)
 /* SP input formatter configuration.*/
 struct sh_css_sp_input_formatter_set {
-	uint32_t				stream_format;
+	u32				stream_format;
 	input_formatter_cfg_t	config_a;
 	input_formatter_cfg_t	config_b;
 };
@@ -397,18 +396,18 @@ struct sh_css_sp_input_formatter_set {
 
 /* SP configuration information */
 struct sh_css_sp_config {
-	uint8_t			no_isp_sync; /* Signal host immediately after start */
-	uint8_t			enable_raw_pool_locking; /** Enable Raw Buffer Locking for HALv3 Support */
-	uint8_t			lock_all;
+	u8			no_isp_sync; /* Signal host immediately after start */
+	u8			enable_raw_pool_locking; /** Enable Raw Buffer Locking for HALv3 Support */
+	u8			lock_all;
 	/** If raw buffer locking is enabled, this flag indicates whether raw
 	     frames are locked when their EOF event is successfully sent to the
 	     host (true) or when they are passed to the preview/video pipe
 	     (false). */
 #if !defined(HAS_NO_INPUT_FORMATTER)
 	struct {
-		uint8_t					a_changed;
-		uint8_t					b_changed;
-		uint8_t					isp_2ppc;
+		u8					a_changed;
+		u8					b_changed;
+		u8					isp_2ppc;
 		struct sh_css_sp_input_formatter_set	set[SH_CSS_MAX_IF_CONFIGS]; /* CSI-2 port is used as index. */
 	} input_formatter;
 #endif
@@ -417,24 +416,25 @@ struct sh_css_sp_config {
 	tpg_cfg_t		tpg;
 	prbs_cfg_t		prbs;
 	input_system_cfg_t	input_circuit;
-	uint8_t			input_circuit_cfg_changed;
-	uint32_t		mipi_sizes_for_check[N_CSI_PORTS][IA_CSS_MIPI_SIZE_CHECK_MAX_NOF_ENTRIES_PER_PORT];
+	u8			input_circuit_cfg_changed;
+	u32		mipi_sizes_for_check[N_CSI_PORTS][IA_CSS_MIPI_SIZE_CHECK_MAX_NOF_ENTRIES_PER_PORT];
 #endif
 #if !defined(HAS_NO_INPUT_SYSTEM)
-	uint8_t                 enable_isys_event_queue;
+	u8                 enable_isys_event_queue;
 #endif
-	uint8_t			disable_cont_vf;
+	u8			disable_cont_vf;
 };
 
 enum sh_css_stage_type {
 	SH_CSS_SP_STAGE_TYPE  = 0,
 	SH_CSS_ISP_STAGE_TYPE = 1
 };
+
 #define SH_CSS_NUM_STAGE_TYPES 2
 
-#define SH_CSS_PIPE_CONFIG_SAMPLE_PARAMS	(1 << 0)
+#define SH_CSS_PIPE_CONFIG_SAMPLE_PARAMS	BIT(0)
 #define SH_CSS_PIPE_CONFIG_SAMPLE_PARAMS_MASK \
-	((SH_CSS_PIPE_CONFIG_SAMPLE_PARAMS << SH_CSS_MAX_SP_THREADS)-1)
+	((SH_CSS_PIPE_CONFIG_SAMPLE_PARAMS << SH_CSS_MAX_SP_THREADS) - 1)
 
 #if !defined(HAS_NO_INPUT_SYSTEM) && defined(USE_INPUT_SYSTEM_VERSION_2401)
 struct sh_css_sp_pipeline_terminal {
@@ -463,8 +463,8 @@ struct sh_css_sp_pipeline_io {
  * Only when all streams are configured, the CSI RX is started for that port.
  */
 struct sh_css_sp_pipeline_io_status {
-	uint32_t	active[N_INPUT_SYSTEM_CSI_PORT];	/** registered streams */
-	uint32_t	running[N_INPUT_SYSTEM_CSI_PORT];	/** configured streams */
+	u32	active[N_INPUT_SYSTEM_CSI_PORT];	/** registered streams */
+	u32	running[N_INPUT_SYSTEM_CSI_PORT];	/** configured streams */
 };
 
 #endif
@@ -525,58 +525,58 @@ ia_css_metadata_free_multiple(unsigned int num_bufs, struct ia_css_metadata **bu
 
 /* Information for a pipeline */
 struct sh_css_sp_pipeline {
-	uint32_t	pipe_id;	/* the pipe ID */
-	uint32_t	pipe_num;	/* the dynamic pipe number */
-	uint32_t	thread_id;	/* the sp thread ID */
-	uint32_t	pipe_config;	/* the pipe config */
-	uint32_t	pipe_qos_config;	/* Bitmap of multiple QOS extension fw state.
+	u32	pipe_id;	/* the pipe ID */
+	u32	pipe_num;	/* the dynamic pipe number */
+	u32	thread_id;	/* the sp thread ID */
+	u32	pipe_config;	/* the pipe config */
+	u32	pipe_qos_config;	/* Bitmap of multiple QOS extension fw state.
 						(0xFFFFFFFF) indicates non QOS pipe.*/
-	uint32_t	inout_port_config;
-	uint32_t	required_bds_factor;
-	uint32_t	dvs_frame_delay;
+	u32	inout_port_config;
+	u32	required_bds_factor;
+	u32	dvs_frame_delay;
 #if !defined(HAS_NO_INPUT_SYSTEM)
-	uint32_t	input_system_mode;	/* enum ia_css_input_mode */
-	uint32_t	port_id;	/* port_id for input system */
+	u32	input_system_mode;	/* enum ia_css_input_mode */
+	u32	port_id;	/* port_id for input system */
 #endif
-	uint32_t	num_stages;		/* the pipe config */
-	uint32_t	running;	/* needed for pipe termination */
+	u32	num_stages;		/* the pipe config */
+	u32	running;	/* needed for pipe termination */
 	hrt_vaddress	sp_stage_addr[SH_CSS_MAX_STAGES];
 	hrt_vaddress	scaler_pp_lut; /* Early bound LUT */
-	uint32_t	dummy; /* stage ptr is only used on sp but lives in
+	u32	dummy; /* stage ptr is only used on sp but lives in
 				  this struct; needs cleanup */
-	int32_t num_execs; /* number of times to run if this is
+	s32 num_execs; /* number of times to run if this is
 			      an acceleration pipe. */
 #if defined(SH_CSS_ENABLE_METADATA)
 	struct {
-		uint32_t        format;   /* Metadata format in hrt format */
-		uint32_t        width;    /* Width of a line */
-		uint32_t        height;   /* Number of lines */
-		uint32_t        stride;   /* Stride (in bytes) per line */
-		uint32_t        size;     /* Total size (in bytes) */
+		u32        format;   /* Metadata format in hrt format */
+		u32        width;    /* Width of a line */
+		u32        height;   /* Number of lines */
+		u32        stride;   /* Stride (in bytes) per line */
+		u32        size;     /* Total size (in bytes) */
 		hrt_vaddress    cont_buf; /* Address of continuous buffer */
 	} metadata;
 #endif
 #if defined(SH_CSS_ENABLE_PER_FRAME_PARAMS)
-	uint32_t	output_frame_queue_id;
+	u32	output_frame_queue_id;
 #endif
 	union {
 		struct {
-			uint32_t	bytes_available;
+			u32	bytes_available;
 		} bin;
 		struct {
-			uint32_t	height;
-			uint32_t	width;
-			uint32_t	padded_width;
-			uint32_t	max_input_width;
-			uint32_t	raw_bit_depth;
+			u32	height;
+			u32	width;
+			u32	padded_width;
+			u32	max_input_width;
+			u32	raw_bit_depth;
 		} raw;
 	} copy;
 #ifdef ISP2401
 
 	/* Parameters passed to Shading Correction kernel. */
 	struct {
-		uint32_t internal_frame_origin_x_bqs_on_sctbl; /* Origin X (bqs) of internal frame on shading table */
-		uint32_t internal_frame_origin_y_bqs_on_sctbl; /* Origin Y (bqs) of internal frame on shading table */
+		u32 internal_frame_origin_x_bqs_on_sctbl; /* Origin X (bqs) of internal frame on shading table */
+		u32 internal_frame_origin_y_bqs_on_sctbl; /* Origin Y (bqs) of internal frame on shading table */
 	} shading;
 #endif
 };
@@ -631,33 +631,33 @@ struct sh_css_sp_stage {
 	 * Multiple boolean flags can be stored in an
 	 * integer
 	 */
-	uint8_t			num; /* Stage number */
-	uint8_t			isp_online;
-	uint8_t			isp_copy_vf;
-	uint8_t			isp_copy_output;
-	uint8_t			sp_enable_xnr;
-	uint8_t			isp_deci_log_factor;
-	uint8_t			isp_vf_downscale_bits;
-	uint8_t			deinterleaved;
+	u8			num; /* Stage number */
+	u8			isp_online;
+	u8			isp_copy_vf;
+	u8			isp_copy_output;
+	u8			sp_enable_xnr;
+	u8			isp_deci_log_factor;
+	u8			isp_vf_downscale_bits;
+	u8			deinterleaved;
 /*
  * NOTE: Programming the input circuit can only be done at the
  * start of a session. It is illegal to program it during execution
  * The input circuit defines the connectivity
  */
-	uint8_t			program_input_circuit;
+	u8			program_input_circuit;
 /* enum ia_css_pipeline_stage_sp_func	func; */
-	uint8_t			func;
+	u8			func;
 	/* The type of the pipe-stage */
 	/* enum sh_css_stage_type	stage_type; */
-	uint8_t			stage_type;
-	uint8_t			num_stripes;
-	uint8_t			isp_pipe_version;
+	u8			stage_type;
+	u8			num_stripes;
+	u8			isp_pipe_version;
 	struct {
-		uint8_t		vf_output;
-		uint8_t		s3a;
-		uint8_t		sdis;
-		uint8_t		dvs_stats;
-		uint8_t		lace_stats;
+		u8		vf_output;
+		u8		s3a;
+		u8		sdis;
+		u8		dvs_stats;
+		u8		lace_stats;
 	} enable;
 	/* Add padding to come to a word boundary */
 	/* unsigned char			padding[0]; */
@@ -670,10 +670,10 @@ struct sh_css_sp_stage {
 	hrt_vaddress			xmem_bin_addr;
 	hrt_vaddress			xmem_map_addr;
 
-	uint16_t		top_cropping;
-	uint16_t		row_stripes_height;
-	uint16_t		row_stripes_overlap_lines;
-	uint8_t			if_config_index; /* Which should be applied by this stage. */
+	u16		top_cropping;
+	u16		row_stripes_height;
+	u16		row_stripes_overlap_lines;
+	u8			if_config_index; /* Which should be applied by this stage. */
 };
 
 /*
@@ -762,9 +762,9 @@ struct sh_css_hmm_buffer {
 		struct ia_css_metadata	metadata;
 		struct frame_data_wrapper {
 			hrt_vaddress	frame_data;
-			uint32_t	flashed;
-			uint32_t	exp_id;
-			uint32_t	isp_parameters_id; /** Unique ID to track which config was
+			u32	flashed;
+			u32	exp_id;
+			u32	isp_parameters_id; /** Unique ID to track which config was
 								actually applied to a particular frame */
 #if CONFIG_ON_FRAME_ENQUEUE()
 			struct sh_css_config_on_frame_enqueue config_on_frame_enqueue;
@@ -779,15 +779,16 @@ struct sh_css_hmm_buffer {
 	 * Size of the struct is checked by sp.hive.c.
 	 */
 #if !defined(__ISP)
-	CSS_ALIGN(uint64_t cookie_ptr, 8); /* TODO: check if this alignment is needed */
-	uint64_t kernel_ptr;
+	CSS_ALIGN(u64 cookie_ptr, 8); /* TODO: check if this alignment is needed */
+	u64 kernel_ptr;
 #else
-	CSS_ALIGN(struct { uint32_t a[2]; } cookie_ptr, 8); /* TODO: check if this alignment is needed */
-	struct { uint32_t a[2]; } kernel_ptr;
+	CSS_ALIGN(struct { u32 a[2]; } cookie_ptr, 8); /* TODO: check if this alignment is needed */
+	struct { u32 a[2]; } kernel_ptr;
 #endif
 	struct ia_css_time_meas timing_data;
 	clock_value_t isys_eof_clock_tick;
 };
+
 #if CONFIG_ON_FRAME_ENQUEUE()
 #define SIZE_OF_FRAME_STRUCT						\
 	(SIZE_OF_HRT_VADDRESS +						\
@@ -831,9 +832,10 @@ enum sh_css_queue_type {
 };
 
 struct sh_css_event_irq_mask {
-	uint16_t or_mask;
-	uint16_t and_mask;
+	u16 or_mask;
+	u16 and_mask;
 };
+
 #define SIZE_OF_SH_CSS_EVENT_IRQ_MASK_STRUCT				\
 	(2 * sizeof(uint16_t))
 
@@ -842,7 +844,7 @@ struct host_sp_communication {
 	 * Don't use enum host2sp_commands, because the sizeof an enum is
 	 * compiler dependent and thus non-portable
 	 */
-	uint32_t host2sp_command;
+	u32 host2sp_command;
 
 	/*
 	 * The frame buffers that are reused by the
@@ -860,11 +862,11 @@ struct host_sp_communication {
 #if defined(USE_INPUT_SYSTEM_VERSION_2) || defined(USE_INPUT_SYSTEM_VERSION_2401)
 	hrt_vaddress host2sp_mipi_frames[N_CSI_PORTS][NUM_MIPI_FRAMES_PER_STREAM];
 	hrt_vaddress host2sp_mipi_metadata[N_CSI_PORTS][NUM_MIPI_FRAMES_PER_STREAM];
-	uint32_t host2sp_num_mipi_frames[N_CSI_PORTS];
+	u32 host2sp_num_mipi_frames[N_CSI_PORTS];
 #endif
-	uint32_t host2sp_cont_avail_num_raw_frames;
-	uint32_t host2sp_cont_extra_num_raw_frames;
-	uint32_t host2sp_cont_target_num_raw_frames;
+	u32 host2sp_cont_avail_num_raw_frames;
+	u32 host2sp_cont_extra_num_raw_frames;
+	u32 host2sp_cont_target_num_raw_frames;
 	struct sh_css_event_irq_mask host2sp_event_irq_mask[NR_OF_PIPELINES];
 
 };
@@ -904,9 +906,11 @@ struct host_sp_queues {
 	 * The queues for the events.
 	 */
 	ia_css_circbuf_desc_t host2sp_psys_event_queue_desc;
+
 	ia_css_circbuf_elem_t host2sp_psys_event_queue_elems
 		[IA_CSS_NUM_ELEMS_HOST2SP_PSYS_EVENT_QUEUE];
 	ia_css_circbuf_desc_t sp2host_psys_event_queue_desc;
+
 	ia_css_circbuf_elem_t sp2host_psys_event_queue_elems
 		[IA_CSS_NUM_ELEMS_SP2HOST_PSYS_EVENT_QUEUE];
 
@@ -915,9 +919,11 @@ struct host_sp_queues {
 	 * The queues for the ISYS events.
 	 */
 	ia_css_circbuf_desc_t host2sp_isys_event_queue_desc;
+
 	ia_css_circbuf_elem_t host2sp_isys_event_queue_elems
 		[IA_CSS_NUM_ELEMS_HOST2SP_ISYS_EVENT_QUEUE];
 	ia_css_circbuf_desc_t sp2host_isys_event_queue_desc;
+
 	ia_css_circbuf_elem_t sp2host_isys_event_queue_elems
 		[IA_CSS_NUM_ELEMS_SP2HOST_ISYS_EVENT_QUEUE];
 	/*
@@ -925,6 +931,7 @@ struct host_sp_queues {
 	 * CHECK: are these last two present on the 2401 ?
 	 */
 	ia_css_circbuf_desc_t host2sp_tag_cmd_queue_desc;
+
 	ia_css_circbuf_elem_t host2sp_tag_cmd_queue_elems
 		[IA_CSS_NUM_ELEMS_HOST2SP_TAG_CMD_QUEUE];
 #endif
@@ -1004,7 +1011,6 @@ void sh_css_free(void *ptr);
 /* For Acceleration API: Flush FW (shared buffer pointer) arguments */
 void sh_css_flush(struct ia_css_acc_fw *fw);
 
-
 void
 sh_css_binary_args_reset(struct sh_css_binary_args *args);
 
@@ -1041,11 +1047,10 @@ hrt_vaddress
 sh_css_store_sp_group_to_ddr(void);
 
 hrt_vaddress
-sh_css_store_sp_stage_to_ddr(unsigned pipe, unsigned stage);
+sh_css_store_sp_stage_to_ddr(unsigned int pipe, unsigned int stage);
 
 hrt_vaddress
-sh_css_store_isp_stage_to_ddr(unsigned pipe, unsigned stage);
-
+sh_css_store_isp_stage_to_ddr(unsigned int pipe, unsigned int stage);
 
 void
 sh_css_update_uds_and_crop_info(
@@ -1057,6 +1062,7 @@ sh_css_update_uds_and_crop_info(
 		const struct ia_css_vector *motion_vector,
 		struct sh_css_uds_info *uds,		/* out */
 		struct sh_css_crop_pos *sp_out_crop_pos,	/* out */
+
 		bool enable_zoom
 		);
 

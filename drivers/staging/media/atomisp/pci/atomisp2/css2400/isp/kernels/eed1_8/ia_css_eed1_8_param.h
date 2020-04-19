@@ -20,7 +20,6 @@
 
 #include "ia_css_eed1_8_types.h" /* IA_CSS_NUMBER_OF_DEW_ENHANCE_SEGMENTS */
 
-
 /* Configuration parameters: */
 
 /* Enable median for false color correction
@@ -113,42 +112,42 @@ struct eed1_8_vmem_params {
 
 /* EED (Edge Enhancing Demosaic) ISP parameters */
 struct eed1_8_dmem_params {
-	int32_t rbzp_strength;
+	s32 rbzp_strength;
 
-	int32_t fcstrength;
-	int32_t fcthres_0;
-	int32_t fc_sat_coef;
-	int32_t fc_coring_prm;
-	int32_t fc_slope;
+	s32 fcstrength;
+	s32 fcthres_0;
+	s32 fc_sat_coef;
+	s32 fc_coring_prm;
+	s32 fc_slope;
 
-	int32_t aerel_thres0;
-	int32_t aerel_gain0;
-	int32_t aerel_thres_diff;
-	int32_t aerel_gain_diff;
+	s32 aerel_thres0;
+	s32 aerel_gain0;
+	s32 aerel_thres_diff;
+	s32 aerel_gain_diff;
 
-	int32_t derel_thres0;
-	int32_t derel_gain0;
-	int32_t derel_thres_diff;
-	int32_t derel_gain_diff;
+	s32 derel_thres0;
+	s32 derel_gain0;
+	s32 derel_thres_diff;
+	s32 derel_gain_diff;
 
-	int32_t coring_pos0;
-	int32_t coring_pos_diff;
-	int32_t coring_neg0;
-	int32_t coring_neg_diff;
+	s32 coring_pos0;
+	s32 coring_pos_diff;
+	s32 coring_neg0;
+	s32 coring_neg_diff;
 
-	int32_t gain_exp;
-	int32_t gain_pos0;
-	int32_t gain_pos_diff;
-	int32_t gain_neg0;
-	int32_t gain_neg_diff;
+	s32 gain_exp;
+	s32 gain_pos0;
+	s32 gain_pos_diff;
+	s32 gain_neg0;
+	s32 gain_neg_diff;
 
-	int32_t margin_pos0;
-	int32_t margin_pos_diff;
-	int32_t margin_neg0;
-	int32_t margin_neg_diff;
+	s32 margin_pos0;
+	s32 margin_pos_diff;
+	s32 margin_neg0;
+	s32 margin_neg_diff;
 
-	int32_t e_dew_enh_asr;
-	int32_t dedgew_max;
+	s32 e_dew_enh_asr;
+	s32 dedgew_max;
 };
 
 #endif /* __IA_CSS_EED1_8_PARAM_H */

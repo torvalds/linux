@@ -27,4 +27,3 @@ struct ia_css_dvs_configuration {
 };
 
 #endif /* __IA_CSS_DVS_TYPES_H */
-

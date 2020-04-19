@@ -22,7 +22,6 @@
 #include "assert_support.h" /* assert */
 #include "print_support.h" /* print */
 
-
 /*****************************************************
  *
  * Native command interface (NCI).
@@ -36,7 +35,7 @@ STORAGE_CLASS_IBUF_CTRL_C void ibuf_ctrl_get_state(
 		const ibuf_ctrl_ID_t ID,
 		ibuf_ctrl_state_t *state)
 {
-	uint32_t i;
+	u32 i;
 
 	state->recalc_words =
 		ibuf_ctrl_reg_load(ID, _IBUF_CNTRL_RECALC_WORDS_STATUS);
@@ -51,7 +50,7 @@ STORAGE_CLASS_IBUF_CTRL_C void ibuf_ctrl_get_state(
 		ibuf_ctrl_get_proc_state(
 				ID,
 				i,
-				&(state->proc_state[i]));
+				&state->proc_state[i]);
 	}
 }
 
@@ -61,7 +60,7 @@ STORAGE_CLASS_IBUF_CTRL_C void ibuf_ctrl_get_state(
  */
 STORAGE_CLASS_IBUF_CTRL_C void ibuf_ctrl_get_proc_state(
 		const ibuf_ctrl_ID_t ID,
-		const uint32_t proc_id,
+		const u32 proc_id,
 		ibuf_ctrl_proc_state_t	*state)
 {
 	hrt_address reg_bank_offset;
@@ -147,6 +146,7 @@ STORAGE_CLASS_IBUF_CTRL_C void ibuf_ctrl_get_proc_state(
 	state->isp_sync_state =
 		ibuf_ctrl_reg_load(ID, reg_bank_offset + _IBUF_CNTRL_ISP_SYNC_STATE);
 }
+
 /**
  * @brief Dump the ibuf-controller state.
  * Refer to "ibuf_ctrl_public.h" for details.
@@ -155,7 +155,8 @@ STORAGE_CLASS_IBUF_CTRL_C void ibuf_ctrl_dump_state(
 		const ibuf_ctrl_ID_t ID,
 		ibuf_ctrl_state_t *state)
 {
-	uint32_t i;
+	u32 i;
+
 	ia_css_print("IBUF controller ID %d recalculate words 0x%x\n", ID, state->recalc_words);
 	ia_css_print("IBUF controller ID %d arbiters 0x%x\n", ID, state->arbiters);
 
@@ -192,6 +193,7 @@ STORAGE_CLASS_IBUF_CTRL_C void ibuf_ctrl_dump_state(
 		ia_css_print("IBUF controller ID %d Process ID %d isp_sync_state 0x%x\n", ID, i, state->proc_state[i].isp_sync_state);
 	}
 }
+
 /* end of NCI */
 
 /*****************************************************
@@ -209,9 +211,8 @@ STORAGE_CLASS_IBUF_CTRL_C hrt_data ibuf_ctrl_reg_load(
 {
 	assert(ID < N_IBUF_CTRL_ID);
 	assert(IBUF_CTRL_BASE[ID] != (hrt_address)-1);
-	return ia_css_device_load_uint32(IBUF_CTRL_BASE[ID] + reg*sizeof(hrt_data));
+	return ia_css_device_load_uint32(IBUF_CTRL_BASE[ID] + reg * sizeof(hrt_data));
 }
-
 
 /**
  * @brief Store a value to the register.
@@ -225,9 +226,9 @@ STORAGE_CLASS_IBUF_CTRL_C void ibuf_ctrl_reg_store(
 	assert(ID < N_IBUF_CTRL_ID);
 	assert(IBUF_CTRL_BASE[ID] != (hrt_address)-1);
 
-	ia_css_device_store_uint32(IBUF_CTRL_BASE[ID] + reg*sizeof(hrt_data), value);
+	ia_css_device_store_uint32(IBUF_CTRL_BASE[ID] + reg * sizeof(hrt_data), value);
 }
-/* end of DLI */
 
+/* end of DLI */
 
 #endif /* __IBUF_CTRL_PRIVATE_H_INCLUDED__ */

@@ -54,7 +54,7 @@ ia_css_isp_param_set_isp_mem_init(
 	struct ia_css_isp_param_isp_segments *mem_init,
 	enum ia_css_param_class pclass,
 	enum ia_css_isp_memories mem,
-	uint32_t address, size_t size);
+	u32 address, size_t size);
 
 /* Get functions for parameter memory descriptors */
 const struct ia_css_host_data*

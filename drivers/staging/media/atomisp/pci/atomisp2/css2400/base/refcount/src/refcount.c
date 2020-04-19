@@ -25,13 +25,13 @@
 /* TODO: enable for other memory aswell
 	 now only for hrt_vaddress */
 struct ia_css_refcount_entry {
-	uint32_t count;
+	u32 count;
 	hrt_vaddress data;
-	int32_t id;
+	s32 id;
 };
 
 struct ia_css_refcount_list {
-	uint32_t size;
+	u32 size;
 	struct ia_css_refcount_entry *items;
 };
 
@@ -40,18 +40,17 @@ static struct ia_css_refcount_list myrefcount;
 static struct ia_css_refcount_entry *refcount_find_entry(hrt_vaddress ptr,
 							 bool firstfree)
 {
-	uint32_t i;
+	u32 i;
 
 	if (ptr == 0)
 		return NULL;
-	if (myrefcount.items == NULL) {
+	if (!myrefcount.items) {
 		ia_css_debug_dtrace(IA_CSS_DEBUG_ERROR,
 				    "refcount_find_entry(): Ref count not initiliazed!\n");
 		return NULL;
 	}
 
 	for (i = 0; i < myrefcount.size; i++) {
-
 		if ((&myrefcount.items[i])->data == 0) {
 			if (firstfree) {
 				/* for new entry */
@@ -75,7 +74,7 @@ enum ia_css_err ia_css_refcount_init(uint32_t size)
 				    "ia_css_refcount_init(): Size of 0 for Ref count init!\n");
 		return IA_CSS_ERR_INVALID_ARGUMENTS;
 	}
-	if (myrefcount.items != NULL) {
+	if (myrefcount.items) {
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
 				    "ia_css_refcount_init(): Ref count is already initialized\n");
 		return IA_CSS_ERR_INTERNAL_ERROR;
@@ -95,7 +94,8 @@ enum ia_css_err ia_css_refcount_init(uint32_t size)
 void ia_css_refcount_uninit(void)
 {
 	struct ia_css_refcount_entry *entry;
-	uint32_t i;
+	u32 i;
+
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
 			    "ia_css_refcount_uninit() entry\n");
 	for (i = 0; i < myrefcount.size; i++) {
@@ -121,7 +121,7 @@ void ia_css_refcount_uninit(void)
 			    "ia_css_refcount_uninit() leave\n");
 }
 
-hrt_vaddress ia_css_refcount_increment(int32_t id, hrt_vaddress ptr)
+hrt_vaddress ia_css_refcount_increment(s32 id, hrt_vaddress ptr)
 {
 	struct ia_css_refcount_entry *entry;
 
@@ -135,8 +135,8 @@ hrt_vaddress ia_css_refcount_increment(int32_t id, hrt_vaddress ptr)
 
 	if (!entry) {
 		entry = refcount_find_entry(ptr, true);
-		assert(entry != NULL);
-		if (entry == NULL)
+		assert(entry);
+		if (!entry)
 			return mmgr_NULL;
 		entry->id = id;
 	}
@@ -158,7 +158,7 @@ hrt_vaddress ia_css_refcount_increment(int32_t id, hrt_vaddress ptr)
 	return ptr;
 }
 
-bool ia_css_refcount_decrement(int32_t id, hrt_vaddress ptr)
+bool ia_css_refcount_decrement(s32 id, hrt_vaddress ptr)
 {
 	struct ia_css_refcount_entry *entry;
 
@@ -218,13 +218,13 @@ bool ia_css_refcount_is_single(hrt_vaddress ptr)
 	return true;
 }
 
-void ia_css_refcount_clear(int32_t id, clear_func clear_func_ptr)
+void ia_css_refcount_clear(s32 id, clear_func clear_func_ptr)
 {
 	struct ia_css_refcount_entry *entry;
-	uint32_t i;
-	uint32_t count = 0;
+	u32 i;
+	u32 count = 0;
 
-	assert(clear_func_ptr != NULL);
+	assert(clear_func_ptr);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_refcount_clear(%x)\n",
 			    id);
 
@@ -236,16 +236,14 @@ void ia_css_refcount_clear(int32_t id, clear_func clear_func_ptr)
 		entry = myrefcount.items + i;
 		if ((entry->data != mmgr_NULL) && (entry->id == id)) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-					    "ia_css_refcount_clear:"
-					    " %x: 0x%x\n", id, entry->data);
+					    "ia_css_refcount_clear: %x: 0x%x\n",
+					    id, entry->data);
 			if (clear_func_ptr) {
 				/* clear using provided function */
 				clear_func_ptr(entry->data);
 			} else {
 				ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-						    "ia_css_refcount_clear: "
-						    "using hmm_free: "
-						    "no clear_func\n");
+						    "ia_css_refcount_clear: using hmm_free: no clear_func\n");
 				hmm_free(entry->data);
 			}
 #ifndef ISP2401
@@ -276,6 +274,5 @@ bool ia_css_refcount_is_valid(hrt_vaddress ptr)
 
 	entry = refcount_find_entry(ptr, false);
 
-	return entry != NULL;
+	return entry;
 }
-
