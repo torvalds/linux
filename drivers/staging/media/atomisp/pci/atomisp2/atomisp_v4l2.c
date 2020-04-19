@@ -508,7 +508,7 @@ int atomisp_runtime_suspend(struct device *dev)
 	ret = atomisp_ospm_dphy_down(isp);
 	if (ret)
 		return ret;
-	pm_qos_update_request(&isp->pm_qos, PM_QOS_DEFAULT_VALUE);
+	cpu_latency_qos_update_request(&isp->pm_qos, PM_QOS_DEFAULT_VALUE);
 	return atomisp_mrfld_power_down(isp);
 }
 
@@ -522,7 +522,7 @@ int atomisp_runtime_resume(struct device *dev)
 	if (ret)
 			return ret;
 
-	pm_qos_update_request(&isp->pm_qos, isp->max_isr_latency);
+	cpu_latency_qos_update_request(&isp->pm_qos, isp->max_isr_latency);
 	if (isp->sw_contex.power_state == ATOM_ISP_POWER_DOWN) {
 		/*Turn on ISP d-phy */
 		ret = atomisp_ospm_dphy_up(isp);
@@ -574,7 +574,7 @@ static int __maybe_unused atomisp_suspend(struct device *dev)
 		dev_err(isp->dev, "fail to power off ISP\n");
 		return ret;
 	}
-	pm_qos_update_request(&isp->pm_qos, PM_QOS_DEFAULT_VALUE);
+	cpu_latency_qos_update_request(&isp->pm_qos, PM_QOS_DEFAULT_VALUE);
 	return atomisp_mrfld_power_down(isp);
 }
 
@@ -588,7 +588,7 @@ static int __maybe_unused atomisp_resume(struct device *dev)
 	if (ret)
 		return ret;
 
-	pm_qos_update_request(&isp->pm_qos, isp->max_isr_latency);
+	cpu_latency_qos_update_request(&isp->pm_qos, isp->max_isr_latency);
 
 	/*Turn on ISP d-phy */
 	ret = atomisp_ospm_dphy_up(isp);
@@ -1347,8 +1347,7 @@ static int atomisp_pci_probe(struct pci_dev *dev,
 
 	atomisp_msi_irq_init(isp, dev);
 
-	pm_qos_add_request(&isp->pm_qos, PM_QOS_CPU_DMA_LATENCY,
-			   PM_QOS_DEFAULT_VALUE);
+	cpu_latency_qos_update_request(&isp->pm_qos, PM_QOS_DEFAULT_VALUE);
 
 	/*
 	 * for MRFLD, Software/firmware needs to write a 1 to bit 0 of
@@ -1460,7 +1459,7 @@ wdt_work_queue_fail:
 register_entities_fail:
 	atomisp_uninitialize_modules(isp);
 initialize_modules_fail:
-	pm_qos_remove_request(&isp->pm_qos);
+	cpu_latency_qos_remove_request(&isp->pm_qos);
 	atomisp_msi_irq_uninit(isp, dev);
 enable_msi_fail:
 fw_validation_fail:
@@ -1505,7 +1504,7 @@ static void atomisp_pci_remove(struct pci_dev *dev)
 
 	pm_runtime_forbid(&dev->dev);
 	pm_runtime_get_noresume(&dev->dev);
-	pm_qos_remove_request(&isp->pm_qos);
+	cpu_latency_qos_remove_request(&isp->pm_qos);
 
 	atomisp_msi_irq_uninit(isp, dev);
 	atomisp_unregister_entities(isp);
