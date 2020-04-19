@@ -137,7 +137,7 @@ static struct sk_buff *xfrm4_beet_gso_segment(struct xfrm_state *x,
 	struct xfrm_offload *xo = xfrm_offload(skb);
 	struct sk_buff *segs = ERR_PTR(-EINVAL);
 	const struct net_offload *ops;
-	int proto = xo->proto;
+	u8 proto = xo->proto;
 
 	skb->transport_header += x->props.header_len;
 
@@ -146,10 +146,15 @@ static struct sk_buff *xfrm4_beet_gso_segment(struct xfrm_state *x,
 
 		skb->transport_header += ph->hdrlen * 8;
 		proto = ph->nexthdr;
-	} else if (x->sel.family != AF_INET6) {
+	} else if (x->sel.family == AF_INET6) {
+		__be16 frag;
+
+		skb->transport_header +=
+			ipv6_skip_exthdr(skb, 0, &proto, &frag);
+		if (proto == IPPROTO_TCP)
+			skb_shinfo(skb)->gso_type |= SKB_GSO_TCPV4;
+	} else {
 		skb->transport_header -= IPV4_BEET_PHMAXLEN;
-	} else if (proto == IPPROTO_TCP) {
-		skb_shinfo(skb)->gso_type |= SKB_GSO_TCPV4;
 	}
 
 	__skb_pull(skb, skb_transport_offset(skb));
