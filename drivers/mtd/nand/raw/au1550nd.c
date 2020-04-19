@@ -36,13 +36,15 @@ static struct au1550nd_ctx *chip_to_au_ctx(struct nand_chip *this)
  *
  * write function for 8bit buswidth
  */
-static void au_write_buf(struct nand_chip *this, const u_char *buf, int len)
+static void au_write_buf(struct nand_chip *this, const void *buf,
+			 unsigned int len)
 {
 	struct au1550nd_ctx *ctx = chip_to_au_ctx(this);
+	const u8 *p = buf;
 	int i;
 
 	for (i = 0; i < len; i++) {
-		writeb(buf[i], ctx->base + MEM_STNAND_DATA);
+		writeb(p[i], ctx->base + MEM_STNAND_DATA);
 		wmb(); /* drain writebuffer */
 	}
 }
@@ -55,13 +57,15 @@ static void au_write_buf(struct nand_chip *this, const u_char *buf, int len)
  *
  * read function for 8bit buswidth
  */
-static void au_read_buf(struct nand_chip *this, u_char *buf, int len)
+static void au_read_buf(struct nand_chip *this, void *buf,
+			unsigned int len)
 {
 	struct au1550nd_ctx *ctx = chip_to_au_ctx(this);
+	u8 *p = buf;
 	int i;
 
 	for (i = 0; i < len; i++) {
-		buf[i] = readb(ctx->base + MEM_STNAND_DATA);
+		p[i] = readb(ctx->base + MEM_STNAND_DATA);
 		wmb(); /* drain writebuffer */
 	}
 }
@@ -74,18 +78,18 @@ static void au_read_buf(struct nand_chip *this, u_char *buf, int len)
  *
  * write function for 16bit buswidth
  */
-static void au_write_buf16(struct nand_chip *this, const u_char *buf, int len)
+static void au_write_buf16(struct nand_chip *this, const void *buf,
+			   unsigned int len)
 {
 	struct au1550nd_ctx *ctx = chip_to_au_ctx(this);
-	int i;
-	u16 *p = (u16 *) buf;
-	len >>= 1;
+	const u16 *p = buf;
+	unsigned int i;
 
+	len >>= 1;
 	for (i = 0; i < len; i++) {
 		writew(p[i], ctx->base + MEM_STNAND_DATA);
 		wmb(); /* drain writebuffer */
 	}
-
 }
 
 /**
@@ -96,13 +100,13 @@ static void au_write_buf16(struct nand_chip *this, const u_char *buf, int len)
  *
  * read function for 16bit buswidth
  */
-static void au_read_buf16(struct nand_chip *this, u_char *buf, int len)
+static void au_read_buf16(struct nand_chip *this, void *buf, unsigned int len)
 {
 	struct au1550nd_ctx *ctx = chip_to_au_ctx(this);
-	int i;
-	u16 *p = (u16 *) buf;
-	len >>= 1;
+	unsigned int i;
+	u16 *p = buf;
 
+	len >>= 1;
 	for (i = 0; i < len; i++) {
 		p[i] = readw(ctx->base + MEM_STNAND_DATA);
 		wmb(); /* drain writebuffer */
