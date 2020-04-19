@@ -1292,7 +1292,7 @@ out:
  */
 static bool vsc8584_is_pkg_init(struct phy_device *phydev, bool reversed)
 {
-	struct mdio_device **map = phydev->mdio.bus->mdio_map;
+	struct mii_bus *bus = phydev->mdio.bus;
 	struct vsc8531_private *vsc8531;
 	struct phy_device *phy;
 	int i, addr;
@@ -1306,10 +1306,9 @@ static bool vsc8584_is_pkg_init(struct phy_device *phydev, bool reversed)
 		else
 			addr = vsc8531->base_addr + i;
 
-		if (!map[addr])
+		phy = mdiobus_get_phy(bus, addr);
+		if (!phy)
 			continue;
-
-		phy = container_of(map[addr], struct phy_device, mdio);
 
 		if ((phy->phy_id & phydev->drv->phy_id_mask) !=
 		    (phydev->drv->phy_id & phydev->drv->phy_id_mask))
