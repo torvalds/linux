@@ -29,10 +29,10 @@ static int get_atomisp_histogram32(struct atomisp_histogram *kp,
 {
 	compat_uptr_t tmp;
 
-	if (!access_ok(VERIFY_READ, up, sizeof(struct atomisp_histogram32)) ||
-		get_user(kp->num_elements, &up->num_elements) ||
-		get_user(tmp, &up->data))
-			return -EFAULT;
+	if (!access_ok(up, sizeof(struct atomisp_histogram32)) ||
+	    get_user(kp->num_elements, &up->num_elements) ||
+	    get_user(tmp, &up->data))
+		return -EFAULT;
 
 	kp->data = compat_ptr(tmp);
 	return 0;
@@ -43,10 +43,10 @@ static int put_atomisp_histogram32(struct atomisp_histogram *kp,
 {
 	compat_uptr_t tmp = (compat_uptr_t)((uintptr_t)kp->data);
 
-	if (!access_ok(VERIFY_WRITE, up, sizeof(struct atomisp_histogram32)) ||
-		put_user(kp->num_elements, &up->num_elements) ||
-		put_user(tmp, &up->data))
-			return -EFAULT;
+	if (!access_ok(up, sizeof(struct atomisp_histogram32)) ||
+	    put_user(kp->num_elements, &up->num_elements) ||
+	    put_user(tmp, &up->data))
+		return -EFAULT;
 
 	return 0;
 }
@@ -72,11 +72,11 @@ static int get_v4l2_framebuffer32(struct v4l2_framebuffer *kp,
 {
 	compat_uptr_t tmp;
 
-	if (!access_ok(VERIFY_READ, up, sizeof(struct v4l2_framebuffer32)) ||
-		get_user(tmp, &up->base) ||
-		get_user(kp->capability, &up->capability) ||
-		get_user(kp->flags, &up->flags))
-			return -EFAULT;
+	if (!access_ok(up, sizeof(struct v4l2_framebuffer32)) ||
+	    get_user(tmp, &up->base) ||
+	    get_user(kp->capability, &up->capability) ||
+	    get_user(kp->flags, &up->flags))
+		return -EFAULT;
 
 	kp->base = (void __force *)compat_ptr(tmp);
 	get_v4l2_pix_format((struct v4l2_pix_format *)&kp->fmt, &up->fmt);
@@ -95,27 +95,18 @@ static int get_atomisp_dis_statistics32(struct atomisp_dis_statistics *kp,
 	compat_uptr_t ver_prod_even_real;
 	compat_uptr_t ver_prod_even_imag;
 
-	if (!access_ok(VERIFY_READ, up,
-			sizeof(struct atomisp_dis_statistics32)) ||
-		copy_from_user(kp, up, sizeof(struct atomisp_dvs_grid_info)) ||
-		get_user(hor_prod_odd_real,
-				&up->dvs2_stat.hor_prod.odd_real) ||
-		get_user(hor_prod_odd_imag,
-				&up->dvs2_stat.hor_prod.odd_imag) ||
-		get_user(hor_prod_even_real,
-				&up->dvs2_stat.hor_prod.even_real) ||
-		get_user(hor_prod_even_imag,
-				&up->dvs2_stat.hor_prod.even_imag) ||
-		get_user(ver_prod_odd_real,
-				&up->dvs2_stat.ver_prod.odd_real) ||
-		get_user(ver_prod_odd_imag,
-				&up->dvs2_stat.ver_prod.odd_imag) ||
-		get_user(ver_prod_even_real,
-				&up->dvs2_stat.ver_prod.even_real) ||
-		get_user(ver_prod_even_imag,
-				&up->dvs2_stat.ver_prod.even_imag) ||
-		get_user(kp->exp_id, &up->exp_id))
-			return -EFAULT;
+	if (!access_ok(up, sizeof(struct atomisp_dis_statistics32)) ||
+	    copy_from_user(kp, up, sizeof(struct atomisp_dvs_grid_info)) ||
+	    get_user(hor_prod_odd_real, &up->dvs2_stat.hor_prod.odd_real) ||
+	    get_user(hor_prod_odd_imag, &up->dvs2_stat.hor_prod.odd_imag) ||
+	    get_user(hor_prod_even_real, &up->dvs2_stat.hor_prod.even_real) ||
+	    get_user(hor_prod_even_imag, &up->dvs2_stat.hor_prod.even_imag) ||
+	    get_user(ver_prod_odd_real, &up->dvs2_stat.ver_prod.odd_real) ||
+	    get_user(ver_prod_odd_imag, &up->dvs2_stat.ver_prod.odd_imag) ||
+	    get_user(ver_prod_even_real, up->dvs2_stat.ver_prod.even_real) ||
+	    get_user(ver_prod_even_imag, &up->dvs2_stat.ver_prod.even_imag) ||
+	    get_user(kp->exp_id, &up->exp_id))
+		return -EFAULT;
 
 	kp->dvs2_stat.hor_prod.odd_real = compat_ptr(hor_prod_odd_real);
 	kp->dvs2_stat.hor_prod.odd_imag = compat_ptr(hor_prod_odd_imag);
@@ -148,27 +139,18 @@ static int put_atomisp_dis_statistics32(struct atomisp_dis_statistics *kp,
 	compat_uptr_t ver_prod_even_imag =
 		(compat_uptr_t)((uintptr_t)kp->dvs2_stat.ver_prod.even_imag);
 
-	if (!access_ok(VERIFY_WRITE, up,
-			sizeof(struct atomisp_dis_statistics32)) ||
-		copy_to_user(up, kp, sizeof(struct atomisp_dvs_grid_info)) ||
-		put_user(hor_prod_odd_real,
-				&up->dvs2_stat.hor_prod.odd_real) ||
-		put_user(hor_prod_odd_imag,
-				&up->dvs2_stat.hor_prod.odd_imag) ||
-		put_user(hor_prod_even_real,
-				&up->dvs2_stat.hor_prod.even_real) ||
-		put_user(hor_prod_even_imag,
-				&up->dvs2_stat.hor_prod.even_imag) ||
-		put_user(ver_prod_odd_real,
-				&up->dvs2_stat.ver_prod.odd_real) ||
-		put_user(ver_prod_odd_imag,
-				&up->dvs2_stat.ver_prod.odd_imag) ||
-		put_user(ver_prod_even_real,
-				&up->dvs2_stat.ver_prod.even_real) ||
-		put_user(ver_prod_even_imag,
-				&up->dvs2_stat.ver_prod.even_imag) ||
-		put_user(kp->exp_id, &up->exp_id))
-			return -EFAULT;
+	if (!access_ok(up, sizeof(struct atomisp_dis_statistics32)) ||
+	    copy_to_user(up, kp, sizeof(struct atomisp_dvs_grid_info)) ||
+	    put_user(hor_prod_odd_real, &up->dvs2_stat.hor_prod.odd_real) ||
+	    put_user(hor_prod_odd_imag, &up->dvs2_stat.hor_prod.odd_imag) ||
+	    put_user(hor_prod_even_real, &up->dvs2_stat.hor_prod.even_real) ||
+	    put_user(hor_prod_even_imag, &up->dvs2_stat.hor_prod.even_imag) ||
+	    put_user(ver_prod_odd_real, &up->dvs2_stat.ver_prod.odd_real) ||
+	    put_user(ver_prod_odd_imag, &up->dvs2_stat.ver_prod.odd_imag) ||
+	    put_user(ver_prod_even_real, &up->dvs2_stat.ver_prod.even_real) ||
+	    put_user(ver_prod_even_imag, &up->dvs2_stat.ver_prod.even_imag) ||
+	    put_user(kp->exp_id, &up->exp_id))
+		return -EFAULT;
 
 	return 0;
 }
@@ -185,18 +167,17 @@ static int get_atomisp_dis_coefficients32(struct atomisp_dis_coefficients *kp,
 	compat_uptr_t ver_coefs_even_real;
 	compat_uptr_t ver_coefs_even_imag;
 
-	if (!access_ok(VERIFY_READ, up,
-			sizeof(struct atomisp_dis_coefficients32)) ||
-		copy_from_user(kp, up, sizeof(struct atomisp_dvs_grid_info)) ||
-		get_user(hor_coefs_odd_real, &up->hor_coefs.odd_real) ||
-		get_user(hor_coefs_odd_imag, &up->hor_coefs.odd_imag) ||
-		get_user(hor_coefs_even_real, &up->hor_coefs.even_real) ||
-		get_user(hor_coefs_even_imag, &up->hor_coefs.even_imag) ||
-		get_user(ver_coefs_odd_real, &up->ver_coefs.odd_real) ||
-		get_user(ver_coefs_odd_imag, &up->ver_coefs.odd_imag) ||
-		get_user(ver_coefs_even_real, &up->ver_coefs.even_real) ||
-		get_user(ver_coefs_even_imag, &up->ver_coefs.even_imag))
-			return -EFAULT;
+	if (!access_ok(up, sizeof(struct atomisp_dis_coefficients32)) ||
+	    copy_from_user(kp, up, sizeof(struct atomisp_dvs_grid_info)) ||
+	    get_user(hor_coefs_odd_real, &up->hor_coefs.odd_real) ||
+	    get_user(hor_coefs_odd_imag, &up->hor_coefs.odd_imag) ||
+	    get_user(hor_coefs_even_real, &up->hor_coefs.even_real) ||
+	    get_user(hor_coefs_even_imag, &up->hor_coefs.even_imag) ||
+	    get_user(ver_coefs_odd_real, &up->ver_coefs.odd_real) ||
+	    get_user(ver_coefs_odd_imag, &up->ver_coefs.odd_imag) ||
+	    get_user(ver_coefs_even_real, &up->ver_coefs.even_real) ||
+	    get_user(ver_coefs_even_imag, &up->ver_coefs.even_imag))
+		return -EFAULT;
 
 	kp->hor_coefs.odd_real = compat_ptr(hor_coefs_odd_real);
 	kp->hor_coefs.odd_imag = compat_ptr(hor_coefs_odd_imag);
@@ -216,18 +197,17 @@ static int get_atomisp_dvs_6axis_config32(struct atomisp_dvs_6axis_config *kp,
 	compat_uptr_t xcoords_uv;
 	compat_uptr_t ycoords_uv;
 
-	if (!access_ok(VERIFY_READ, up,
-			sizeof(struct atomisp_dvs_6axis_config32)) ||
-		get_user(kp->exp_id, &up->exp_id) ||
-		get_user(kp->width_y, &up->width_y) ||
-		get_user(kp->height_y, &up->height_y) ||
-		get_user(kp->width_uv, &up->width_uv) ||
-		get_user(kp->height_uv, &up->height_uv) ||
-		get_user(xcoords_y, &up->xcoords_y) ||
-		get_user(ycoords_y, &up->ycoords_y) ||
-		get_user(xcoords_uv, &up->xcoords_uv) ||
-		get_user(ycoords_uv, &up->ycoords_uv))
-			return -EFAULT;
+	if (!access_ok(up, sizeof(struct atomisp_dvs_6axis_config32)) ||
+	    get_user(kp->exp_id, &up->exp_id) ||
+	    get_user(kp->width_y, &up->width_y) ||
+	    get_user(kp->height_y, &up->height_y) ||
+	    get_user(kp->width_uv, &up->width_uv) ||
+	    get_user(kp->height_uv, &up->height_uv) ||
+	    get_user(xcoords_y, &up->xcoords_y) ||
+	    get_user(ycoords_y, &up->ycoords_y) ||
+	    get_user(xcoords_uv, &up->xcoords_uv) ||
+	    get_user(ycoords_uv, &up->ycoords_uv))
+		return -EFAULT;
 
 	kp->xcoords_y = (void __force *)compat_ptr(xcoords_y);
 	kp->ycoords_y = (void __force *)compat_ptr(ycoords_y);
@@ -242,14 +222,13 @@ static int get_atomisp_3a_statistics32(struct atomisp_3a_statistics *kp,
 	compat_uptr_t data;
 	compat_uptr_t rgby_data;
 
-	if (!access_ok(VERIFY_READ, up,
-			sizeof(struct atomisp_3a_statistics32)) ||
-		copy_from_user(kp, up, sizeof(struct atomisp_grid_info)) ||
-		get_user(rgby_data, &up->rgby_data) ||
-		get_user(data, &up->data) ||
-		get_user(kp->exp_id, &up->exp_id) ||
-		get_user(kp->isp_config_id, &up->isp_config_id))
-			return -EFAULT;
+	if (!access_ok(up, sizeof(struct atomisp_3a_statistics32)) ||
+	    copy_from_user(kp, up, sizeof(struct atomisp_grid_info)) ||
+	    get_user(rgby_data, &up->rgby_data) ||
+	    get_user(data, &up->data) ||
+	    get_user(kp->exp_id, &up->exp_id) ||
+	    get_user(kp->isp_config_id, &up->isp_config_id))
+		return -EFAULT;
 
 	kp->data = compat_ptr(data);
 	kp->rgby_data = compat_ptr(rgby_data);
@@ -263,14 +242,13 @@ static int put_atomisp_3a_statistics32(struct atomisp_3a_statistics *kp,
 	compat_uptr_t data = (compat_uptr_t)((uintptr_t)kp->data);
 	compat_uptr_t rgby_data = (compat_uptr_t)((uintptr_t)kp->rgby_data);
 
-	if (!access_ok(VERIFY_WRITE, up,
-			sizeof(struct atomisp_3a_statistics32)) ||
-		copy_to_user(up, kp, sizeof(struct atomisp_grid_info)) ||
-		put_user(rgby_data, &up->rgby_data) ||
-		put_user(data, &up->data) ||
-		put_user(kp->exp_id, &up->exp_id) ||
-		put_user(kp->isp_config_id, &up->isp_config_id))
-			return -EFAULT;
+	if (!access_ok(up, sizeof(struct atomisp_3a_statistics32)) ||
+	    copy_to_user(up, kp, sizeof(struct atomisp_grid_info)) ||
+	    put_user(rgby_data, &up->rgby_data) ||
+	    put_user(data, &up->data) ||
+	    put_user(kp->exp_id, &up->exp_id) ||
+	    put_user(kp->isp_config_id, &up->isp_config_id))
+		return -EFAULT;
 
 	return 0;
 }
@@ -282,15 +260,14 @@ static int get_atomisp_metadata_stat32(struct atomisp_metadata *kp,
 	compat_uptr_t data;
 	compat_uptr_t effective_width;
 
-	if (!access_ok(VERIFY_READ, up,
-			sizeof(struct atomisp_metadata32)) ||
-		get_user(data, &up->data) ||
-		get_user(kp->width, &up->width) ||
-		get_user(kp->height, &up->height) ||
-		get_user(kp->stride, &up->stride) ||
-		get_user(kp->exp_id, &up->exp_id) ||
-		get_user(effective_width, &up->effective_width))
-			return -EFAULT;
+	if (!access_ok(up, sizeof(struct atomisp_metadata32)) ||
+	    get_user(data, &up->data) ||
+	    get_user(kp->width, &up->width) ||
+	    get_user(kp->height, &up->height) ||
+	    get_user(kp->stride, &up->stride) ||
+	    get_user(kp->exp_id, &up->exp_id) ||
+	    get_user(effective_width, &up->effective_width))
+		return -EFAULT;
 
 	kp->data = compat_ptr(data);
 	kp->effective_width = (void __force *)compat_ptr(effective_width);
@@ -304,15 +281,14 @@ static int put_atomisp_metadata_stat32(struct atomisp_metadata *kp,
 	compat_uptr_t data = (compat_uptr_t)((uintptr_t)kp->data);
 	compat_uptr_t effective_width =
 		(compat_uptr_t)((uintptr_t)kp->effective_width);
-	if (!access_ok(VERIFY_WRITE, up,
-			sizeof(struct atomisp_metadata32)) ||
-		put_user(data, &up->data) ||
-		put_user(kp->width, &up->width) ||
-		put_user(kp->height, &up->height) ||
-		put_user(kp->stride, &up->stride) ||
-		put_user(kp->exp_id, &up->exp_id) ||
-		put_user(effective_width, &up->effective_width))
-			return -EFAULT;
+	if (!access_ok(up, sizeof(struct atomisp_metadata32)) ||
+	    put_user(data, &up->data) ||
+	    put_user(kp->width, &up->width) ||
+	    put_user(kp->height, &up->height) ||
+	    put_user(kp->stride, &up->stride) ||
+	    put_user(kp->exp_id, &up->exp_id) ||
+	    put_user(effective_width, &up->effective_width))
+		return -EFAULT;
 
 	return 0;
 }
@@ -324,16 +300,15 @@ static int put_atomisp_metadata_by_type_stat32(
 	compat_uptr_t data = (compat_uptr_t)((uintptr_t)kp->data);
 	compat_uptr_t effective_width =
 		(compat_uptr_t)((uintptr_t)kp->effective_width);
-	if (!access_ok(VERIFY_WRITE, up,
-			sizeof(struct atomisp_metadata_with_type32)) ||
-		put_user(data, &up->data) ||
-		put_user(kp->width, &up->width) ||
-		put_user(kp->height, &up->height) ||
-		put_user(kp->stride, &up->stride) ||
-		put_user(kp->exp_id, &up->exp_id) ||
-		put_user(effective_width, &up->effective_width) ||
-		put_user(kp->type, &up->type))
-			return -EFAULT;
+	if (!access_ok(up, sizeof(struct atomisp_metadata_with_type32)) ||
+	    put_user(data, &up->data) ||
+	    put_user(kp->width, &up->width) ||
+	    put_user(kp->height, &up->height) ||
+	    put_user(kp->stride, &up->stride) ||
+	    put_user(kp->exp_id, &up->exp_id) ||
+	    put_user(effective_width, &up->effective_width) ||
+	    put_user(kp->type, &up->type))
+		return -EFAULT;
 
 	return 0;
 }
@@ -345,16 +320,15 @@ static int get_atomisp_metadata_by_type_stat32(
 	compat_uptr_t data;
 	compat_uptr_t effective_width;
 
-	if (!access_ok(VERIFY_READ, up,
-			sizeof(struct atomisp_metadata_with_type32)) ||
-		get_user(data, &up->data) ||
-		get_user(kp->width, &up->width) ||
-		get_user(kp->height, &up->height) ||
-		get_user(kp->stride, &up->stride) ||
-		get_user(kp->exp_id, &up->exp_id) ||
-		get_user(effective_width, &up->effective_width) ||
-		get_user(kp->type, &up->type))
-			return -EFAULT;
+	if (!access_ok(up, sizeof(struct atomisp_metadata_with_type32)) ||
+	    get_user(data, &up->data) ||
+	    get_user(kp->width, &up->width) ||
+	    get_user(kp->height, &up->height) ||
+	    get_user(kp->stride, &up->stride) ||
+	    get_user(kp->exp_id, &up->exp_id) ||
+	    get_user(effective_width, &up->effective_width) ||
+	    get_user(kp->type, &up->type))
+		return -EFAULT;
 
 	kp->data = compat_ptr(data);
 	kp->effective_width = (void __force *)compat_ptr(effective_width);
@@ -366,12 +340,11 @@ static int get_atomisp_morph_table32(struct atomisp_morph_table *kp,
 {
 	unsigned int n = ATOMISP_MORPH_TABLE_NUM_PLANES;
 
-	if (!access_ok(VERIFY_READ, up,
-			sizeof(struct atomisp_morph_table32)) ||
-		get_user(kp->enabled, &up->enabled) ||
-		get_user(kp->width, &up->width) ||
-		get_user(kp->height, &up->height))
-			return -EFAULT;
+	if (!access_ok(up, sizeof(struct atomisp_morph_table32)) ||
+	    get_user(kp->enabled, &up->enabled) ||
+	    get_user(kp->width, &up->width) ||
+	    get_user(kp->height, &up->height))
+		return -EFAULT;
 
 	while (n-- > 0) {
 		uintptr_t *coord_kp = (uintptr_t *)&kp->coordinates_x[n];
@@ -391,12 +364,11 @@ static int put_atomisp_morph_table32(struct atomisp_morph_table *kp,
 {
 	unsigned int n = ATOMISP_MORPH_TABLE_NUM_PLANES;
 
-	if (!access_ok(VERIFY_WRITE, up,
-			sizeof(struct atomisp_morph_table32)) ||
-		put_user(kp->enabled, &up->enabled) ||
-		put_user(kp->width, &up->width) ||
-		put_user(kp->height, &up->height))
-			return -EFAULT;
+	if (!access_ok(up, sizeof(struct atomisp_morph_table32)) ||
+	    put_user(kp->enabled, &up->enabled) ||
+	    put_user(kp->width, &up->width) ||
+	    put_user(kp->height, &up->height))
+		return -EFAULT;
 
 	while (n-- > 0) {
 		uintptr_t *coord_kp = (uintptr_t *)&kp->coordinates_x[n];
@@ -415,24 +387,20 @@ static int get_atomisp_overlay32(struct atomisp_overlay *kp,
 					struct atomisp_overlay32 __user *up)
 {
 	compat_uptr_t frame;
-	if (!access_ok(VERIFY_READ, up, sizeof(struct atomisp_overlay32)) ||
-		get_user(frame, &up->frame) ||
-		get_user(kp->bg_y, &up->bg_y) ||
-		get_user(kp->bg_u, &up->bg_u) ||
-		get_user(kp->bg_v, &up->bg_v) ||
-		get_user(kp->blend_input_perc_y, &up->blend_input_perc_y) ||
-		get_user(kp->blend_input_perc_u, &up->blend_input_perc_u) ||
-		get_user(kp->blend_input_perc_v, &up->blend_input_perc_v) ||
-		get_user(kp->blend_overlay_perc_y,
-				&up->blend_overlay_perc_y) ||
-		get_user(kp->blend_overlay_perc_u,
-				&up->blend_overlay_perc_u) ||
-		get_user(kp->blend_overlay_perc_v,
-				&up->blend_overlay_perc_v) ||
-		get_user(kp->blend_overlay_perc_u,
-				&up->blend_overlay_perc_u) ||
-		get_user(kp->overlay_start_x, &up->overlay_start_y))
-			return -EFAULT;
+	if (!access_ok(up, sizeof(struct atomisp_overlay32)) ||
+	    get_user(frame, &up->frame) ||
+	    get_user(kp->bg_y, &up->bg_y) ||
+	    get_user(kp->bg_u, &up->bg_u) ||
+	    get_user(kp->bg_v, &up->bg_v) ||
+	    get_user(kp->blend_input_perc_y, &up->blend_input_perc_y) ||
+	    get_user(kp->blend_input_perc_u, &up->blend_input_perc_u) ||
+	    get_user(kp->blend_input_perc_v, &up->blend_input_perc_v) ||
+	    get_user(kp->blend_overlay_perc_y, &up->blend_overlay_perc_y) ||
+	    get_user(kp->blend_overlay_perc_u, &up->blend_overlay_perc_u) ||
+	    get_user(kp->blend_overlay_perc_v, &up->blend_overlay_perc_v) ||
+	    get_user(kp->blend_overlay_perc_u, &up->blend_overlay_perc_u) ||
+	    get_user(kp->overlay_start_x, &up->overlay_start_y))
+		return -EFAULT;
 
 	kp->frame = (void __force *)compat_ptr(frame);
 	return 0;
@@ -443,24 +411,20 @@ static int put_atomisp_overlay32(struct atomisp_overlay *kp,
 {
 	compat_uptr_t frame = (compat_uptr_t)((uintptr_t)kp->frame);
 
-	if (!access_ok(VERIFY_WRITE, up, sizeof(struct atomisp_overlay32)) ||
-		put_user(frame, &up->frame) ||
-		put_user(kp->bg_y, &up->bg_y) ||
-		put_user(kp->bg_u, &up->bg_u) ||
-		put_user(kp->bg_v, &up->bg_v) ||
-		put_user(kp->blend_input_perc_y, &up->blend_input_perc_y) ||
-		put_user(kp->blend_input_perc_u, &up->blend_input_perc_u) ||
-		put_user(kp->blend_input_perc_v, &up->blend_input_perc_v) ||
-		put_user(kp->blend_overlay_perc_y,
-				&up->blend_overlay_perc_y) ||
-		put_user(kp->blend_overlay_perc_u,
-				&up->blend_overlay_perc_u) ||
-		put_user(kp->blend_overlay_perc_v,
-				&up->blend_overlay_perc_v) ||
-		put_user(kp->blend_overlay_perc_u,
-				&up->blend_overlay_perc_u) ||
-		put_user(kp->overlay_start_x, &up->overlay_start_y))
-			return -EFAULT;
+	if (!access_ok(up, sizeof(struct atomisp_overlay32)) ||
+	    put_user(frame, &up->frame) ||
+	    put_user(kp->bg_y, &up->bg_y) ||
+	    put_user(kp->bg_u, &up->bg_u) ||
+	    put_user(kp->bg_v, &up->bg_v) ||
+	    put_user(kp->blend_input_perc_y, &up->blend_input_perc_y) ||
+	    put_user(kp->blend_input_perc_u, &up->blend_input_perc_u) ||
+	    put_user(kp->blend_input_perc_v, &up->blend_input_perc_v) ||
+	    put_user(kp->blend_overlay_perc_y, &up->blend_overlay_perc_y) ||
+	    put_user(kp->blend_overlay_perc_u, &up->blend_overlay_perc_u) ||
+	    put_user(kp->blend_overlay_perc_v, &up->blend_overlay_perc_v) ||
+	    put_user(kp->blend_overlay_perc_u, &up->blend_overlay_perc_u) ||
+	    put_user(kp->overlay_start_x, &up->overlay_start_y))
+		return -EFAULT;
 
 	return 0;
 }
@@ -471,12 +435,11 @@ static int get_atomisp_calibration_group32(
 {
 	compat_uptr_t calb_grp_values;
 
-	if (!access_ok(VERIFY_READ, up,
-			sizeof(struct atomisp_calibration_group32)) ||
-		get_user(kp->size, &up->size) ||
-		get_user(kp->type, &up->type) ||
-		get_user(calb_grp_values, &up->calb_grp_values))
-			return -EFAULT;
+	if (!access_ok(up, sizeof(struct atomisp_calibration_group32)) ||
+	    get_user(kp->size, &up->size) ||
+	    get_user(kp->type, &up->type) ||
+	    get_user(calb_grp_values, &up->calb_grp_values))
+		return -EFAULT;
 
 	kp->calb_grp_values = (void __force *)compat_ptr(calb_grp_values);
 	return 0;
@@ -489,12 +452,11 @@ static int put_atomisp_calibration_group32(
 	compat_uptr_t calb_grp_values =
 			(compat_uptr_t)((uintptr_t)kp->calb_grp_values);
 
-	if (!access_ok(VERIFY_WRITE, up,
-			sizeof(struct atomisp_calibration_group32)) ||
-		put_user(kp->size, &up->size) ||
-		put_user(kp->type, &up->type) ||
-		put_user(calb_grp_values, &up->calb_grp_values))
-			return -EFAULT;
+	if (!access_ok(up, sizeof(struct atomisp_calibration_group32)) ||
+	    put_user(kp->size, &up->size) ||
+	    put_user(kp->type, &up->type) ||
+	    put_user(calb_grp_values, &up->calb_grp_values))
+		return -EFAULT;
 
 	return 0;
 }
@@ -504,12 +466,11 @@ static int get_atomisp_acc_fw_load32(struct atomisp_acc_fw_load *kp,
 {
 	compat_uptr_t data;
 
-	if (!access_ok(VERIFY_READ, up,
-			sizeof(struct atomisp_acc_fw_load32)) ||
-		get_user(kp->size, &up->size) ||
-		get_user(kp->fw_handle, &up->fw_handle) ||
-		get_user(data, &up->data))
-			return -EFAULT;
+	if (!access_ok(up, sizeof(struct atomisp_acc_fw_load32)) ||
+	    get_user(kp->size, &up->size) ||
+	    get_user(kp->fw_handle, &up->fw_handle) ||
+	    get_user(data, &up->data))
+		return -EFAULT;
 
 	kp->data = compat_ptr(data);
 	return 0;
@@ -520,12 +481,11 @@ static int put_atomisp_acc_fw_load32(struct atomisp_acc_fw_load *kp,
 {
 	compat_uptr_t data = (compat_uptr_t)((uintptr_t)kp->data);
 
-	if (!access_ok(VERIFY_WRITE, up,
-			sizeof(struct atomisp_acc_fw_load32)) ||
-		put_user(kp->size, &up->size) ||
-		put_user(kp->fw_handle, &up->fw_handle) ||
-		put_user(data, &up->data))
-			return -EFAULT;
+	if (!access_ok(up, sizeof(struct atomisp_acc_fw_load32)) ||
+	    put_user(kp->size, &up->size) ||
+	    put_user(kp->fw_handle, &up->fw_handle) ||
+	    put_user(data, &up->data))
+		return -EFAULT;
 
 	return 0;
 }
@@ -535,12 +495,12 @@ static int get_atomisp_acc_fw_arg32(struct atomisp_acc_fw_arg *kp,
 {
 	compat_uptr_t value;
 
-	if (!access_ok(VERIFY_READ, up, sizeof(struct atomisp_acc_fw_arg32)) ||
-		get_user(kp->fw_handle, &up->fw_handle) ||
-		get_user(kp->index, &up->index) ||
-		get_user(value, &up->value) ||
-		get_user(kp->size, &up->size))
-			return -EFAULT;
+	if (!access_ok(up, sizeof(struct atomisp_acc_fw_arg32)) ||
+	    get_user(kp->fw_handle, &up->fw_handle) ||
+	    get_user(kp->index, &up->index) ||
+	    get_user(value, &up->value) ||
+	    get_user(kp->size, &up->size))
+		return -EFAULT;
 
 	kp->value = compat_ptr(value);
 	return 0;
@@ -551,12 +511,12 @@ static int put_atomisp_acc_fw_arg32(struct atomisp_acc_fw_arg *kp,
 {
 	compat_uptr_t value = (compat_uptr_t)((uintptr_t)kp->value);
 
-	if (!access_ok(VERIFY_WRITE, up, sizeof(struct atomisp_acc_fw_arg32)) ||
-		put_user(kp->fw_handle, &up->fw_handle) ||
-		put_user(kp->index, &up->index) ||
-		put_user(value, &up->value) ||
-		put_user(kp->size, &up->size))
-			return -EFAULT;
+	if (!access_ok(up, sizeof(struct atomisp_acc_fw_arg32)) ||
+	    put_user(kp->fw_handle, &up->fw_handle) ||
+	    put_user(kp->index, &up->index) ||
+	    put_user(value, &up->value) ||
+	    put_user(kp->size, &up->size))
+		return -EFAULT;
 
 	return 0;
 }
@@ -566,13 +526,12 @@ static int get_v4l2_private_int_data32(struct v4l2_private_int_data *kp,
 {
 	compat_uptr_t data;
 
-	if (!access_ok(VERIFY_READ, up,
-			sizeof(struct v4l2_private_int_data32)) ||
-		get_user(kp->size, &up->size) ||
-		get_user(data, &up->data) ||
-		get_user(kp->reserved[0], &up->reserved[0]) ||
-		get_user(kp->reserved[1], &up->reserved[1]))
-			return -EFAULT;
+	if (!access_ok(up, sizeof(struct v4l2_private_int_data32)) ||
+	    get_user(kp->size, &up->size) ||
+	    get_user(data, &up->data) ||
+	    get_user(kp->reserved[0], &up->reserved[0]) ||
+	    get_user(kp->reserved[1], &up->reserved[1]))
+		return -EFAULT;
 
 	kp->data = compat_ptr(data);
 	return 0;
@@ -583,13 +542,12 @@ static int put_v4l2_private_int_data32(struct v4l2_private_int_data *kp,
 {
 	compat_uptr_t data = (compat_uptr_t)((uintptr_t)kp->data);
 
-	if (!access_ok(VERIFY_WRITE, up,
-			sizeof(struct v4l2_private_int_data32)) ||
-		put_user(kp->size, &up->size) ||
-		put_user(data, &up->data) ||
-		put_user(kp->reserved[0], &up->reserved[0]) ||
-		put_user(kp->reserved[1], &up->reserved[1]))
-			return -EFAULT;
+	if (!access_ok(up, sizeof(struct v4l2_private_int_data32)) ||
+	    put_user(kp->size, &up->size) ||
+	    put_user(data, &up->data) ||
+	    put_user(kp->reserved[0], &up->reserved[0]) ||
+	    put_user(kp->reserved[1], &up->reserved[1]))
+		return -EFAULT;
 
 	return 0;
 }
@@ -599,15 +557,14 @@ static int get_atomisp_shading_table32(struct atomisp_shading_table *kp,
 {
 	unsigned int n = ATOMISP_NUM_SC_COLORS;
 
-	if (!access_ok(VERIFY_READ, up,
-			sizeof(struct atomisp_shading_table32)) ||
-		get_user(kp->enable, &up->enable) ||
-		get_user(kp->sensor_width, &up->sensor_width) ||
-		get_user(kp->sensor_height, &up->sensor_height) ||
-		get_user(kp->width, &up->width) ||
-		get_user(kp->height, &up->height) ||
-		get_user(kp->fraction_bits, &up->fraction_bits))
-			return -EFAULT;
+	if (!access_ok(up, sizeof(struct atomisp_shading_table32)) ||
+	    get_user(kp->enable, &up->enable) ||
+	    get_user(kp->sensor_width, &up->sensor_width) ||
+	    get_user(kp->sensor_height, &up->sensor_height) ||
+	    get_user(kp->width, &up->width) ||
+	    get_user(kp->height, &up->height) ||
+	    get_user(kp->fraction_bits, &up->fraction_bits))
+		return -EFAULT;
 
 	while (n-- > 0) {
 		uintptr_t *data_p = (uintptr_t *)&kp->data[n];
@@ -623,16 +580,16 @@ static int get_atomisp_acc_map32(struct atomisp_acc_map *kp,
 {
 	compat_uptr_t user_ptr;
 
-	if (!access_ok(VERIFY_READ, up, sizeof(struct atomisp_acc_map32)) ||
-		get_user(kp->flags, &up->flags) ||
-		get_user(kp->length, &up->length) ||
-		get_user(user_ptr, &up->user_ptr) ||
-		get_user(kp->css_ptr, &up->css_ptr) ||
-		get_user(kp->reserved[0], &up->reserved[0]) ||
-		get_user(kp->reserved[1], &up->reserved[1]) ||
-		get_user(kp->reserved[2], &up->reserved[2]) ||
-		get_user(kp->reserved[3], &up->reserved[3]))
-			return -EFAULT;
+	if (!access_ok(up, sizeof(struct atomisp_acc_map32)) ||
+	    get_user(kp->flags, &up->flags) ||
+	    get_user(kp->length, &up->length) ||
+	    get_user(user_ptr, &up->user_ptr) ||
+	    get_user(kp->css_ptr, &up->css_ptr) ||
+	    get_user(kp->reserved[0], &up->reserved[0]) ||
+	    get_user(kp->reserved[1], &up->reserved[1]) ||
+	    get_user(kp->reserved[2], &up->reserved[2]) ||
+	    get_user(kp->reserved[3], &up->reserved[3]))
+		return -EFAULT;
 
 	kp->user_ptr = compat_ptr(user_ptr);
 	return 0;
@@ -643,16 +600,16 @@ static int put_atomisp_acc_map32(struct atomisp_acc_map *kp,
 {
 	compat_uptr_t user_ptr = (compat_uptr_t)((uintptr_t)kp->user_ptr);
 
-	if (!access_ok(VERIFY_WRITE, up, sizeof(struct atomisp_acc_map32)) ||
-		put_user(kp->flags, &up->flags) ||
-		put_user(kp->length, &up->length) ||
-		put_user(user_ptr, &up->user_ptr) ||
-		put_user(kp->css_ptr, &up->css_ptr) ||
-		put_user(kp->reserved[0], &up->reserved[0]) ||
-		put_user(kp->reserved[1], &up->reserved[1]) ||
-		put_user(kp->reserved[2], &up->reserved[2]) ||
-		put_user(kp->reserved[3], &up->reserved[3]))
-			return -EFAULT;
+	if (!access_ok(up, sizeof(struct atomisp_acc_map32)) ||
+	    put_user(kp->flags, &up->flags) ||
+	    put_user(kp->length, &up->length) ||
+	    put_user(user_ptr, &up->user_ptr) ||
+	    put_user(kp->css_ptr, &up->css_ptr) ||
+	    put_user(kp->reserved[0], &up->reserved[0]) ||
+	    put_user(kp->reserved[1], &up->reserved[1]) ||
+	    put_user(kp->reserved[2], &up->reserved[2]) ||
+	    put_user(kp->reserved[3], &up->reserved[3]))
+		return -EFAULT;
 
 	return 0;
 }
@@ -660,13 +617,12 @@ static int put_atomisp_acc_map32(struct atomisp_acc_map *kp,
 static int get_atomisp_acc_s_mapped_arg32(struct atomisp_acc_s_mapped_arg *kp,
 				struct atomisp_acc_s_mapped_arg32 __user *up)
 {
-	if (!access_ok(VERIFY_READ, up,
-			sizeof(struct atomisp_acc_s_mapped_arg32)) ||
-		get_user(kp->fw_handle, &up->fw_handle) ||
-		get_user(kp->memory, &up->memory) ||
-		get_user(kp->length, &up->length) ||
-		get_user(kp->css_ptr, &up->css_ptr))
-			return -EFAULT;
+	if (!access_ok(up, sizeof(struct atomisp_acc_s_mapped_arg32)) ||
+	    get_user(kp->fw_handle, &up->fw_handle) ||
+	    get_user(kp->memory, &up->memory) ||
+	    get_user(kp->length, &up->length) ||
+	    get_user(kp->css_ptr, &up->css_ptr))
+		return -EFAULT;
 
 	return 0;
 }
@@ -674,13 +630,12 @@ static int get_atomisp_acc_s_mapped_arg32(struct atomisp_acc_s_mapped_arg *kp,
 static int put_atomisp_acc_s_mapped_arg32(struct atomisp_acc_s_mapped_arg *kp,
 				struct atomisp_acc_s_mapped_arg32 __user *up)
 {
-	if (!access_ok(VERIFY_WRITE, up,
-			sizeof(struct atomisp_acc_s_mapped_arg32)) ||
-		put_user(kp->fw_handle, &up->fw_handle) ||
-		put_user(kp->memory, &up->memory) ||
-		put_user(kp->length, &up->length) ||
-		put_user(kp->css_ptr, &up->css_ptr))
-			return -EFAULT;
+	if (!access_ok(up, sizeof(struct atomisp_acc_s_mapped_arg32)) ||
+	    put_user(kp->fw_handle, &up->fw_handle) ||
+	    put_user(kp->memory, &up->memory) ||
+	    put_user(kp->length, &up->length) ||
+	    put_user(kp->css_ptr, &up->css_ptr))
+		return -EFAULT;
 
 	return 0;
 }
@@ -694,8 +649,8 @@ static int get_atomisp_parameters32(struct atomisp_parameters *kp,
 	void  __user *user_ptr;
 	unsigned int stp, mtp, dcp, dscp = 0;
 
-	if (!access_ok(VERIFY_READ, up, sizeof(struct atomisp_parameters32)))
-			return -EFAULT;
+	if (!access_ok(up, sizeof(struct atomisp_parameters32)))
+		return -EFAULT;
 
 	while (n >= 0) {
 		compat_uptr_t __user *src = ((compat_uptr_t __user *)up) + n;
@@ -806,17 +761,16 @@ static int get_atomisp_acc_fw_load_to_pipe32(
 			struct atomisp_acc_fw_load_to_pipe32 __user *up)
 {
 	compat_uptr_t data;
-	if (!access_ok(VERIFY_READ, up,
-			sizeof(struct atomisp_acc_fw_load_to_pipe32)) ||
-		get_user(kp->flags, &up->flags) ||
-		get_user(kp->fw_handle, &up->fw_handle) ||
-		get_user(kp->size, &up->size) ||
-		get_user(kp->type, &up->type) ||
-		get_user(kp->reserved[0], &up->reserved[0]) ||
-		get_user(kp->reserved[1], &up->reserved[1]) ||
-		get_user(kp->reserved[2], &up->reserved[2]) ||
-		get_user(data, &up->data))
-			return -EFAULT;
+	if (!access_ok(up, sizeof(struct atomisp_acc_fw_load_to_pipe32)) ||
+	    get_user(kp->flags, &up->flags) ||
+	    get_user(kp->fw_handle, &up->fw_handle) ||
+	    get_user(kp->size, &up->size) ||
+	    get_user(kp->type, &up->type) ||
+	    get_user(kp->reserved[0], &up->reserved[0]) ||
+	    get_user(kp->reserved[1], &up->reserved[1]) ||
+	    get_user(kp->reserved[2], &up->reserved[2]) ||
+	    get_user(data, &up->data))
+		return -EFAULT;
 
 	kp->data = compat_ptr(data);
 	return 0;
@@ -827,17 +781,16 @@ static int put_atomisp_acc_fw_load_to_pipe32(
 			struct atomisp_acc_fw_load_to_pipe32 __user *up)
 {
 	compat_uptr_t data = (compat_uptr_t)((uintptr_t)kp->data);
-	if (!access_ok(VERIFY_WRITE, up,
-			sizeof(struct atomisp_acc_fw_load_to_pipe32)) ||
-		put_user(kp->flags, &up->flags) ||
-		put_user(kp->fw_handle, &up->fw_handle) ||
-		put_user(kp->size, &up->size) ||
-		put_user(kp->type, &up->type) ||
-		put_user(kp->reserved[0], &up->reserved[0]) ||
-		put_user(kp->reserved[1], &up->reserved[1]) ||
-		put_user(kp->reserved[2], &up->reserved[2]) ||
-		put_user(data, &up->data))
-			return -EFAULT;
+	if (!access_ok(up, sizeof(struct atomisp_acc_fw_load_to_pipe32)) ||
+	    put_user(kp->flags, &up->flags) ||
+	    put_user(kp->fw_handle, &up->fw_handle) ||
+	    put_user(kp->size, &up->size) ||
+	    put_user(kp->type, &up->type) ||
+	    put_user(kp->reserved[0], &up->reserved[0]) ||
+	    put_user(kp->reserved[1], &up->reserved[1]) ||
+	    put_user(kp->reserved[2], &up->reserved[2]) ||
+	    put_user(data, &up->data))
+		return -EFAULT;
 
 	return 0;
 }
@@ -847,11 +800,10 @@ static int get_atomisp_sensor_ae_bracketing_lut(
 			struct atomisp_sensor_ae_bracketing_lut32 __user *up)
 {
 	compat_uptr_t lut;
-	if (!access_ok(VERIFY_READ, up,
-			sizeof(struct atomisp_sensor_ae_bracketing_lut32)) ||
-		get_user(kp->lut_size, &up->lut_size) ||
-		get_user(lut, &up->lut))
-			return -EFAULT;
+	if (!access_ok(up, sizeof(struct atomisp_sensor_ae_bracketing_lut32)) ||
+	    get_user(kp->lut_size, &up->lut_size) ||
+	    get_user(lut, &up->lut))
+		return -EFAULT;
 
 	kp->lut = (void __force *)compat_ptr(lut);
 	return 0;
