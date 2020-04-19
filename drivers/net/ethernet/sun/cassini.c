@@ -5059,7 +5059,7 @@ static int cas_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (cp->cas_flags & CAS_FLAG_SATURN)
 		cas_saturn_firmware_init(cp);
 
-	cp->init_block = (struct cas_init_block *)
+	cp->init_block =
 		pci_alloc_consistent(pdev, sizeof(struct cas_init_block),
 				     &cp->block_dvma);
 	if (!cp->init_block) {
