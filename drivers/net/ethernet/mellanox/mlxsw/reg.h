@@ -3203,7 +3203,7 @@ MLXSW_ITEM32_INDEXED(reg, iedr, rec_type, MLXSW_REG_IEDR_BASE_LEN, 24, 8,
  * Size of entries do be deleted. The unit is 1 entry, regardless of entry type.
  * Access: OP
  */
-MLXSW_ITEM32_INDEXED(reg, iedr, rec_size, MLXSW_REG_IEDR_BASE_LEN, 0, 11,
+MLXSW_ITEM32_INDEXED(reg, iedr, rec_size, MLXSW_REG_IEDR_BASE_LEN, 0, 13,
 		     MLXSW_REG_IEDR_REC_LEN, 0x00, false);
 
 /* reg_iedr_rec_index_start
