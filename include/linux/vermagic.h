@@ -1,4 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+
+#ifndef INCLUDE_VERMAGIC
+#error "This header can be included from kernel/module.c or *.mod.c only"
+#endif
+
 #include <generated/utsrelease.h>
 
 /* Simply sanity version stamp for modules. */
