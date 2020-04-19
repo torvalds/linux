@@ -281,6 +281,16 @@
 				status = "disabled";
 			};
 
+			mmc5: mmc@d4217000 {
+				compatible = "mrvl,pxav3-mmc";
+				reg = <0xd4217000 0x120>;
+				clocks = <&soc_clocks MMP3_CLK_SDH4>;
+				clock-names = "io";
+				interrupt-parent = <&hsi1_mux>;
+				interrupts = <0>;
+				status = "disabled";
+			};
+
 			camera0: camera@d420a000 {
 				compatible = "marvell,mmp2-ccic";
 				reg = <0xd420a000 0x800>;
