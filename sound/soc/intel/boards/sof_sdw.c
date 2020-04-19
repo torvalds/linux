@@ -909,6 +909,7 @@ static int mc_probe(struct platform_device *pdev)
 	struct snd_soc_card *card = &card_sof_sdw;
 	struct snd_soc_acpi_mach *mach;
 	struct mc_private *ctx;
+	int amp_num = 0, i;
 	int ret;
 
 	dev_dbg(&pdev->dev, "Entry %s\n", __func__);
@@ -935,9 +936,18 @@ static int mc_probe(struct platform_device *pdev)
 
 	snd_soc_card_set_drvdata(card, ctx);
 
+	/*
+	 * the default amp_num is zero for each codec and
+	 * amp_num will only be increased for active amp
+	 * codecs on used platform
+	 */
+	for (i = 0; i < ARRAY_SIZE(codec_info_list); i++)
+		amp_num += codec_info_list[i].amp_num;
+
 	card->components = devm_kasprintf(card->dev, GFP_KERNEL,
-					  "cfg-spk:%d",
-					  (sof_sdw_quirk & SOF_SDW_FOUR_SPK) ? 4 : 2);
+					  "cfg-spk:%d, cfg-amp:%d",
+					  (sof_sdw_quirk & SOF_SDW_FOUR_SPK)
+					  ? 4 : 2, amp_num);
 	if (!card->components)
 		return -ENOMEM;
 
