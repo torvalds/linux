@@ -102,7 +102,7 @@ static phys_addr_t alloc_page_table(struct isp_mmu *mmu)
 	 * The slab allocator(kmem_cache and kmalloc family) doesn't handle
 	 * GFP_DMA32 flag, so we have to use buddy allocator.
 	 */
-	if (totalram_pages > (unsigned long)NR_PAGES_2GB)
+	if (totalram_pages() > (unsigned long)NR_PAGES_2GB)
 		virt = (void *)__get_free_page(GFP_KERNEL | GFP_DMA32);
 	else
 		virt = kmem_cache_zalloc(mmu->tbl_cache, GFP_KERNEL);
