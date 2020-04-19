@@ -67,7 +67,8 @@ unsigned int
 ia_css_stream_input_format_bits_per_pixel(struct ia_css_stream *stream);
 
 bool
-sh_css_params_set_binning_factor(struct ia_css_stream *stream, unsigned int sensor_binning);
+sh_css_params_set_binning_factor(struct ia_css_stream *stream,
+				 unsigned int sensor_binning);
 
 void
 sh_css_invalidate_params(struct ia_css_stream *stream);
@@ -92,14 +93,14 @@ ia_css_get_isp_dis_coefficients(struct ia_css_stream *stream,
 
 void
 ia_css_get_isp_dvs2_coefficients(struct ia_css_stream *stream,
-	short *hor_coefs_odd_real,
-	short *hor_coefs_odd_imag,
-	short *hor_coefs_even_real,
-	short *hor_coefs_even_imag,
-	short *ver_coefs_odd_real,
-	short *ver_coefs_odd_imag,
-	short *ver_coefs_even_real,
-	short *ver_coefs_even_imag);
+				 short *hor_coefs_odd_real,
+				 short *hor_coefs_odd_imag,
+				 short *hor_coefs_even_real,
+				 short *hor_coefs_even_imag,
+				 short *ver_coefs_odd_real,
+				 short *ver_coefs_odd_imag,
+				 short *ver_coefs_even_real,
+				 short *ver_coefs_even_imag);
 
 enum ia_css_err
 ia_css_stream_isp_parameters_init(struct ia_css_stream *stream);

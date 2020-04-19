@@ -34,24 +34,28 @@ typedef enum {
 static const hrt_address event_source_addr[N_EVENT_ID] = {
 	0x0000000000380000ULL,
 	0x0000000000380004ULL,
-	0xffffffffffffffffULL};
+	0xffffffffffffffffULL
+};
 
 /* Read from FIFO are blocking, query data availability */
 static const hrt_address event_source_query_addr[N_EVENT_ID] = {
 	0x0000000000380010ULL,
 	0x0000000000380014ULL,
-	0xffffffffffffffffULL};
+	0xffffffffffffffffULL
+};
 
 /* Events are written to FIFO */
 static const hrt_address event_sink_addr[N_EVENT_ID] = {
 	0x0000000000380008ULL,
 	0x000000000038000CULL,
-	0x0000000000090104ULL};
+	0x0000000000090104ULL
+};
 
 /* Writes to FIFO are blocking, query data space */
 static const hrt_address event_sink_query_addr[N_EVENT_ID] = {
 	0x0000000000380018ULL,
 	0x000000000038001CULL,
-	0x000000000009010CULL};
+	0x000000000009010CULL
+};
 
 #endif /* _EVENT_FIFO_LOCAL_H */

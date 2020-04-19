@@ -23,9 +23,9 @@
 #include "print_support.h"
 
 STORAGE_CLASS_ISYS2401_DMA_C void isys2401_dma_reg_store(
-	const isys2401_dma_ID_t	dma_id,
-	const unsigned int	reg,
-	const hrt_data		value)
+    const isys2401_dma_ID_t	dma_id,
+    const unsigned int	reg,
+    const hrt_data		value)
 {
 	unsigned int reg_loc;
 
@@ -34,13 +34,14 @@ STORAGE_CLASS_ISYS2401_DMA_C void isys2401_dma_reg_store(
 
 	reg_loc = ISYS2401_DMA_BASE[dma_id] + (reg * sizeof(hrt_data));
 
-	ia_css_print("isys dma store at addr(0x%x) val(%u)\n", reg_loc, (unsigned int)value);
+	ia_css_print("isys dma store at addr(0x%x) val(%u)\n", reg_loc,
+		     (unsigned int)value);
 	ia_css_device_store_uint32(reg_loc, value);
 }
 
 STORAGE_CLASS_ISYS2401_DMA_C hrt_data isys2401_dma_reg_load(
-	const isys2401_dma_ID_t	dma_id,
-	const unsigned int	reg)
+    const isys2401_dma_ID_t	dma_id,
+    const unsigned int	reg)
 {
 	unsigned int reg_loc;
 	hrt_data value;
@@ -51,7 +52,8 @@ STORAGE_CLASS_ISYS2401_DMA_C hrt_data isys2401_dma_reg_load(
 	reg_loc = ISYS2401_DMA_BASE[dma_id] + (reg * sizeof(hrt_data));
 
 	value = ia_css_device_load_uint32(reg_loc);
-	ia_css_print("isys dma load from addr(0x%x) val(%u)\n", reg_loc, (unsigned int)value);
+	ia_css_print("isys dma load from addr(0x%x) val(%u)\n", reg_loc,
+		     (unsigned int)value);
 
 	return value;
 }

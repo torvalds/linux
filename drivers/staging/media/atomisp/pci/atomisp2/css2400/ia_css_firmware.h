@@ -49,7 +49,7 @@ struct ia_css_fw {
  */
 enum ia_css_err
 ia_css_load_firmware(const struct ia_css_env *env,
-	    const struct ia_css_fw  *fw);
+		     const struct ia_css_fw  *fw);
 
 /* @brief Unloads the firmware
  * @return	None

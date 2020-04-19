@@ -101,7 +101,7 @@ void ia_css_rmgr_refcount_retain_vbuf(struct ia_css_rmgr_vbuf_handle **handle)
 		 */
 		if (!*handle) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_ERROR,
-				"ia_css_i_host_refcount_retain_vbuf() failed to find empty slot!\n");
+					    "ia_css_i_host_refcount_retain_vbuf() failed to find empty slot!\n");
 			return;
 		}
 		(*handle)->vptr = h->vptr;
@@ -176,7 +176,8 @@ void ia_css_rmgr_uninit_vbuf(struct ia_css_rmgr_vbuf_pool *pool)
 
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_rmgr_uninit_vbuf()\n");
 	if (!pool) {
-		ia_css_debug_dtrace(IA_CSS_DEBUG_ERROR, "ia_css_rmgr_uninit_vbuf(): NULL argument\n");
+		ia_css_debug_dtrace(IA_CSS_DEBUG_ERROR,
+				    "ia_css_rmgr_uninit_vbuf(): NULL argument\n");
 		return;
 	}
 	if (pool->handles) {
@@ -184,14 +185,14 @@ void ia_css_rmgr_uninit_vbuf(struct ia_css_rmgr_vbuf_pool *pool)
 		for (i = 0; i < pool->size; i++) {
 			if (pool->handles[i]) {
 				ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-				      "   freeing/releasing %x (count=%d)\n",
-				      pool->handles[i]->vptr,
-				      pool->handles[i]->count);
+						    "   freeing/releasing %x (count=%d)\n",
+						    pool->handles[i]->vptr,
+						    pool->handles[i]->count);
 				/* free memory */
 				hmm_free(pool->handles[i]->vptr);
 				/* remove from refcount admin */
 				ia_css_rmgr_refcount_release_vbuf(
-					&pool->handles[i]);
+				    &pool->handles[i]);
 			}
 		}
 		/* now free the pool handles list */

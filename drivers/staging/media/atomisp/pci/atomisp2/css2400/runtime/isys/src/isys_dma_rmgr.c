@@ -51,8 +51,8 @@ void ia_css_isys_dma_channel_rmgr_uninit(void)
 }
 
 bool ia_css_isys_dma_channel_rmgr_acquire(
-	isys2401_dma_ID_t	dma_id,
-	isys2401_dma_channel	*channel)
+    isys2401_dma_ID_t	dma_id,
+    isys2401_dma_channel	*channel)
 {
 	bool retval = false;
 	isys2401_dma_channel	i;
@@ -81,8 +81,8 @@ bool ia_css_isys_dma_channel_rmgr_acquire(
 }
 
 void ia_css_isys_dma_channel_rmgr_release(
-	isys2401_dma_ID_t	dma_id,
-	isys2401_dma_channel	*channel)
+    isys2401_dma_ID_t	dma_id,
+    isys2401_dma_channel	*channel)
 {
 	isys2401_dma_channel	max_dma_channel;
 	isys_dma_rsrc_t		*cur_rsrc = NULL;

@@ -22,14 +22,14 @@
 
 void
 ia_css_sc_encode(
-	struct sh_css_isp_sc_params *to,
-	struct ia_css_shading_table **from,
-	unsigned int size);
+    struct sh_css_isp_sc_params *to,
+    struct ia_css_shading_table **from,
+    unsigned int size);
 
 void
 ia_css_sc_dump(
-	const struct sh_css_isp_sc_params *sc,
-	unsigned int level);
+    const struct sh_css_isp_sc_params *sc,
+    unsigned int level);
 
 #ifdef ISP2401
 /* @brief Configure the shading correction.
@@ -41,9 +41,9 @@ ia_css_sc_dump(
  */
 void
 ia_css_sc_config(
-	struct sh_css_isp_sc_isp_config *to,
-	const struct ia_css_sc_configuration *from,
-	unsigned int size);
+    struct sh_css_isp_sc_isp_config *to,
+    const struct ia_css_sc_configuration *from,
+    unsigned int size);
 
 /* @brief Configure the shading correction.
  * @param[in]	binary	The binary, which has the shading correction.
@@ -59,19 +59,19 @@ ia_css_sc_config(
  */
 void
 ia_css_sc_configure(
-	const struct ia_css_binary *binary,
-	u32 internal_frame_origin_x_bqs_on_sctbl,
-	uint32_t internal_frame_origin_y_bqs_on_sctbl);
+    const struct ia_css_binary *binary,
+    u32 internal_frame_origin_x_bqs_on_sctbl,
+    uint32_t internal_frame_origin_y_bqs_on_sctbl);
 
 #endif
 /* ------ deprecated(bz675) : from ------ */
 void
 sh_css_get_shading_settings(const struct ia_css_isp_parameters *params,
-			struct ia_css_shading_settings *settings);
+			    struct ia_css_shading_settings *settings);
 
 void
 sh_css_set_shading_settings(struct ia_css_isp_parameters *params,
-			const struct ia_css_shading_settings *settings);
+			    const struct ia_css_shading_settings *settings);
 /* ------ deprecated(bz675) : to ------ */
 
 #endif /* __IA_CSS_SC_HOST_H */

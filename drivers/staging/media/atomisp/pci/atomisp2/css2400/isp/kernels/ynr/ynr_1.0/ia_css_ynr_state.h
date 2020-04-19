@@ -20,7 +20,7 @@
 
 /* YNR (luminance noise reduction) */
 struct sh_css_isp_ynr_vmem_state {
-	VMEM_ARRAY(ynr_buf[4], MAX_VECTORS_PER_BUF_LINE * ISP_NWAY);
+	VMEM_ARRAY(ynr_buf[4], MAX_VECTORS_PER_BUF_LINE *ISP_NWAY);
 };
 
 #endif /* __IA_CSS_YNR_STATE_H */

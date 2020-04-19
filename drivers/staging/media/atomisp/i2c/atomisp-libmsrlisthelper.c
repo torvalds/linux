@@ -47,7 +47,7 @@ struct tbd_data_record_header {
 #define TBD_CLASS_DRV_ID 2
 
 static int set_msr_configuration(struct i2c_client *client, uint8_t *bufptr,
-		unsigned int size)
+				 unsigned int size)
 {
 	/* The configuration data contains any number of sequences where
 	 * the first byte (that is, uint8_t) that marks the number of bytes
@@ -87,11 +87,11 @@ static int set_msr_configuration(struct i2c_client *client, uint8_t *bufptr,
 }
 
 static int parse_and_apply(struct i2c_client *client, uint8_t *buffer,
-		unsigned int size)
+			   unsigned int size)
 {
 	u8 *endptr8 = buffer + size;
 	struct tbd_data_record_header *header =
-		(struct tbd_data_record_header *)buffer;
+	    (struct tbd_data_record_header *)buffer;
 
 	/* There may be any number of datasets present */
 	unsigned int dataset = 0;
@@ -103,7 +103,7 @@ static int parse_and_apply(struct i2c_client *client, uint8_t *buffer,
 
 		/* All data should be located within given buffer */
 		if ((uint8_t *)header + header->data_offset +
-				header->data_size > endptr8)
+		    header->data_size > endptr8)
 			return -EINVAL;
 
 		/* We have a new valid dataset */
@@ -114,16 +114,16 @@ static int parse_and_apply(struct i2c_client *client, uint8_t *buffer,
 			int ret;
 
 			dev_info(&client->dev,
-				"New MSR data for sensor driver (dataset %02d) size:%d\n",
-				dataset, header->data_size);
+				 "New MSR data for sensor driver (dataset %02d) size:%d\n",
+				 dataset, header->data_size);
 			ret = set_msr_configuration(client,
-						buffer + header->data_offset,
-						header->data_size);
+						    buffer + header->data_offset,
+						    header->data_size);
 			if (ret)
 				return ret;
 		}
 		header = (struct tbd_data_record_header *)(buffer +
-			header->next_offset);
+			 header->next_offset);
 	} while (header->next_offset);
 
 	return 0;
@@ -168,7 +168,7 @@ int apply_msr_data(struct i2c_client *client, const struct firmware *fw)
 EXPORT_SYMBOL_GPL(apply_msr_data);
 
 int load_msr_list(struct i2c_client *client, char *name,
-		const struct firmware **fw)
+		  const struct firmware **fw)
 {
 	int ret = request_firmware(fw, name, &client->dev);
 
@@ -179,7 +179,7 @@ int load_msr_list(struct i2c_client *client, char *name,
 		return ret;
 	}
 	dev_info(&client->dev, "Received %lu bytes drv data\n",
-			(unsigned long)(*fw)->size);
+		 (unsigned long)(*fw)->size);
 
 	return 0;
 }

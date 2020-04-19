@@ -40,11 +40,13 @@ struct ia_css_3a_grid_info {
 #if defined(SYSTEM_css_skycam_c0_system)
 	u32 ae_enable;					/** ae enabled in binary,
 								   0:disabled, 1:enabled */
-	struct ae_public_config_grid_config	ae_grd_info;	/** see description in ae_public.h*/
+	struct ae_public_config_grid_config
+		ae_grd_info;	/** see description in ae_public.h*/
 
 	u32 awb_enable;					/** awb enabled in binary,
 								   0:disabled, 1:enabled */
-	struct awb_public_config_grid_config	awb_grd_info;	/** see description in awb_public.h*/
+	struct awb_public_config_grid_config
+		awb_grd_info;	/** see description in awb_public.h*/
 
 	u32 af_enable;					/** af enabled in binary,
 								   0:disabled, 1:enabled */
@@ -52,7 +54,8 @@ struct ia_css_3a_grid_info {
 
 	u32 awb_fr_enable;					/** awb_fr enabled in binary,
 								   0:disabled, 1:enabled */
-	struct awb_fr_public_grid_config	awb_fr_grd_info;/** see description in awb_fr_public.h*/
+	struct awb_fr_public_grid_config
+		awb_fr_grd_info;/** see description in awb_fr_public.h*/
 
 	u32 elem_bit_depth;    /** TODO:Taken from BYT  - need input from AIQ
 					if needed for SKC
@@ -189,8 +192,10 @@ struct ia_css_3a_output {
  *  using the provided configuration (ia_css_3a_config).
  */
 struct ia_css_3a_statistics {
-	struct ia_css_3a_grid_info    grid;	/** grid info contains the dimensions of the 3A grid */
-	struct ia_css_3a_output      *data;	/** the pointer to 3a_output[grid.width * grid.height]
+	struct ia_css_3a_grid_info
+		grid;	/** grid info contains the dimensions of the 3A grid */
+	struct ia_css_3a_output
+		*data;	/** the pointer to 3a_output[grid.width * grid.height]
 						     containing the 3A statistics */
 	struct ia_css_3a_rgby_output *rgby_data;/** the pointer to 3a_rgby_output[256]
 						     containing the histogram */

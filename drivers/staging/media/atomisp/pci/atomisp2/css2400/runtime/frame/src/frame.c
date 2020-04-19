@@ -43,29 +43,29 @@ more details.
 **	Static functions declarations
 **************************************************************************/
 static void frame_init_plane(struct ia_css_frame_plane *plane,
-	unsigned int width,
-	unsigned int stride,
-	unsigned int height,
-	unsigned int offset);
+			     unsigned int width,
+			     unsigned int stride,
+			     unsigned int height,
+			     unsigned int offset);
 
 static void frame_init_single_plane(struct ia_css_frame *frame,
-	struct ia_css_frame_plane *plane,
-	unsigned int height,
-	unsigned int subpixels_per_line,
-	unsigned int bytes_per_pixel);
+				    struct ia_css_frame_plane *plane,
+				    unsigned int height,
+				    unsigned int subpixels_per_line,
+				    unsigned int bytes_per_pixel);
 
 static void frame_init_raw_single_plane(
-	struct ia_css_frame *frame,
-	struct ia_css_frame_plane *plane,
-	unsigned int height,
-	unsigned int subpixels_per_line,
-	unsigned int bits_per_pixel);
+    struct ia_css_frame *frame,
+    struct ia_css_frame_plane *plane,
+    unsigned int height,
+    unsigned int subpixels_per_line,
+    unsigned int bits_per_pixel);
 
 static void frame_init_mipi_plane(struct ia_css_frame *frame,
-	struct ia_css_frame_plane *plane,
-	unsigned int height,
-	unsigned int subpixels_per_line,
-	unsigned int bytes_per_pixel);
+				  struct ia_css_frame_plane *plane,
+				  unsigned int height,
+				  unsigned int subpixels_per_line,
+				  unsigned int bytes_per_pixel);
 
 static void frame_init_nv_planes(struct ia_css_frame *frame,
 				 unsigned int horizontal_decimation,
@@ -73,13 +73,13 @@ static void frame_init_nv_planes(struct ia_css_frame *frame,
 				 unsigned int bytes_per_element);
 
 static void frame_init_yuv_planes(struct ia_css_frame *frame,
-	unsigned int horizontal_decimation,
-	unsigned int vertical_decimation,
-	bool swap_uv,
-	unsigned int bytes_per_element);
+				  unsigned int horizontal_decimation,
+				  unsigned int vertical_decimation,
+				  bool swap_uv,
+				  unsigned int bytes_per_element);
 
 static void frame_init_rgb_planes(struct ia_css_frame *frame,
-	unsigned int bytes_per_element);
+				  unsigned int bytes_per_element);
 
 static void frame_init_qplane6_planes(struct ia_css_frame *frame);
 
@@ -103,7 +103,7 @@ static struct ia_css_frame *frame_create(unsigned int width,
 
 static unsigned
 ia_css_elems_bytes_from_info(
-	const struct ia_css_frame_info *info);
+    const struct ia_css_frame_info *info);
 
 /**************************************************************************
 **	CSS API functions, exposed by ia_css.h
@@ -123,22 +123,22 @@ enum ia_css_err ia_css_frame_allocate_from_info(struct ia_css_frame **frame,
 	if (!frame || !info)
 		return IA_CSS_ERR_INVALID_ARGUMENTS;
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-		      "ia_css_frame_allocate_from_info() enter:\n");
+			    "ia_css_frame_allocate_from_info() enter:\n");
 	err =
 	    ia_css_frame_allocate(frame, info->res.width, info->res.height,
 				  info->format, info->padded_width,
 				  info->raw_bit_depth);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-		      "ia_css_frame_allocate_from_info() leave:\n");
+			    "ia_css_frame_allocate_from_info() leave:\n");
 	return err;
 }
 
 enum ia_css_err ia_css_frame_allocate(struct ia_css_frame **frame,
-	unsigned int width,
-	unsigned int height,
-	enum ia_css_frame_format format,
-	unsigned int padded_width,
-	unsigned int raw_bit_depth)
+				      unsigned int width,
+				      unsigned int height,
+				      enum ia_css_frame_format format,
+				      unsigned int padded_width,
+				      unsigned int raw_bit_depth)
 {
 	enum ia_css_err err = IA_CSS_SUCCESS;
 
@@ -147,11 +147,11 @@ enum ia_css_err ia_css_frame_allocate(struct ia_css_frame **frame,
 
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
 #ifndef ISP2401
-	  "ia_css_frame_allocate() enter: width=%d, height=%d, format=%d\n",
-	  width, height, format);
+			    "ia_css_frame_allocate() enter: width=%d, height=%d, format=%d\n",
+			    width, height, format);
 #else
-	  "ia_css_frame_allocate() enter: width=%d, height=%d, format=%d, padded_width=%d, raw_bit_depth=%d\n",
-	  width, height, format, padded_width, raw_bit_depth);
+			    "ia_css_frame_allocate() enter: width=%d, height=%d, format=%d, padded_width=%d, raw_bit_depth=%d\n",
+			    width, height, format, padded_width, raw_bit_depth);
 #endif
 
 	err = frame_allocate_with_data(frame, width, height, format,
@@ -159,25 +159,26 @@ enum ia_css_err ia_css_frame_allocate(struct ia_css_frame **frame,
 
 #ifndef ISP2401
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-		      "ia_css_frame_allocate() leave: frame=%p\n", *frame);
+			    "ia_css_frame_allocate() leave: frame=%p\n", *frame);
 #else
 	if ((*frame) && err == IA_CSS_SUCCESS)
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-		      "ia_css_frame_allocate() leave: frame=%p, data(DDR address)=0x%x\n", *frame, (*frame)->data);
+				    "ia_css_frame_allocate() leave: frame=%p, data(DDR address)=0x%x\n", *frame,
+				    (*frame)->data);
 	else
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-		      "ia_css_frame_allocate() leave: frame=%p, data(DDR address)=0x%x\n",
-		      (void *)-1, (unsigned int)-1);
+				    "ia_css_frame_allocate() leave: frame=%p, data(DDR address)=0x%x\n",
+				    (void *)-1, (unsigned int)-1);
 #endif
 
 	return err;
 }
 
 enum ia_css_err ia_css_frame_map(struct ia_css_frame **frame,
-	const struct ia_css_frame_info *info,
-	const void __user *data,
-	u16 attribute,
-	void *context)
+				 const struct ia_css_frame_info *info,
+				 const void __user *data,
+				 u16 attribute,
+				 void *context)
 {
 	enum ia_css_err err = IA_CSS_SUCCESS;
 	struct ia_css_frame *me;
@@ -220,23 +221,23 @@ enum ia_css_err ia_css_frame_create_from_info(struct ia_css_frame **frame,
 	struct ia_css_frame *me;
 
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-		"ia_css_frame_create_from_info() enter:\n");
+			    "ia_css_frame_create_from_info() enter:\n");
 	if (!frame || !info) {
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-			"ia_css_frame_create_from_info() leave: invalid arguments\n");
+				    "ia_css_frame_create_from_info() leave: invalid arguments\n");
 		return IA_CSS_ERR_INVALID_ARGUMENTS;
 	}
 
 	me = frame_create(info->res.width,
-		info->res.height,
-		info->format,
-		info->padded_width,
-		info->raw_bit_depth,
-		false,
-		false);
+			  info->res.height,
+			  info->format,
+			  info->padded_width,
+			  info->raw_bit_depth,
+			  false,
+			  false);
 	if (!me) {
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-			"ia_css_frame_create_from_info() leave: frame create failed\n");
+				    "ia_css_frame_create_from_info() leave: frame create failed\n");
 		return IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
 	}
 
@@ -251,28 +252,29 @@ enum ia_css_err ia_css_frame_create_from_info(struct ia_css_frame **frame,
 #endif
 		sh_css_free(me);
 #ifdef ISP2401
-		me = NULL;
-	}
+	me = NULL;
+}
 
-	*frame = me;
+*frame = me;
 #endif
 
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_frame_create_from_info() leave:\n");
+ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
+		    "ia_css_frame_create_from_info() leave:\n");
 
-	return err;
+return err;
 }
 
 enum ia_css_err ia_css_frame_set_data(struct ia_css_frame *frame,
-	const ia_css_ptr mapped_data,
-	size_t data_bytes)
+				      const ia_css_ptr mapped_data,
+				      size_t data_bytes)
 {
 	enum ia_css_err err = IA_CSS_SUCCESS;
 
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-		"ia_css_frame_set_data() enter:\n");
+			    "ia_css_frame_set_data() enter:\n");
 	if (!frame) {
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-			"ia_css_frame_set_data() leave: NULL frame\n");
+				    "ia_css_frame_set_data() leave: NULL frame\n");
 		return IA_CSS_ERR_INVALID_ARGUMENTS;
 	}
 
@@ -282,7 +284,7 @@ enum ia_css_err ia_css_frame_set_data(struct ia_css_frame *frame,
 	 */
 	if ((mapped_data != mmgr_NULL) && (frame->data_bytes > data_bytes)) {
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-			"ia_css_frame_set_data() leave: invalid arguments\n");
+				    "ia_css_frame_set_data() leave: invalid arguments\n");
 		return IA_CSS_ERR_INVALID_ARGUMENTS;
 	}
 
@@ -303,42 +305,42 @@ enum ia_css_err ia_css_frame_allocate_contiguous(struct ia_css_frame **frame,
 	enum ia_css_err err = IA_CSS_SUCCESS;
 
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-		"ia_css_frame_allocate_contiguous() "
+			    "ia_css_frame_allocate_contiguous() "
 #ifndef ISP2401
-		"enter: width=%d, height=%d, format=%d\n",
-		width, height, format);
+			    "enter: width=%d, height=%d, format=%d\n",
+			    width, height, format);
 #else
-		"enter: width=%d, height=%d, format=%d, padded_width=%d, raw_bit_depth=%d\n",
-		width, height, format, padded_width, raw_bit_depth);
+			    "enter: width=%d, height=%d, format=%d, padded_width=%d, raw_bit_depth=%d\n",
+			    width, height, format, padded_width, raw_bit_depth);
 #endif
 
 	err = frame_allocate_with_data(frame, width, height, format,
-			padded_width, raw_bit_depth, true);
+				       padded_width, raw_bit_depth, true);
 
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-		"ia_css_frame_allocate_contiguous() leave: frame=%p\n",
-		frame ? *frame : (void *)-1);
+			    "ia_css_frame_allocate_contiguous() leave: frame=%p\n",
+			    frame ? *frame : (void *)-1);
 
 	return err;
 }
 
 enum ia_css_err ia_css_frame_allocate_contiguous_from_info(
-	struct ia_css_frame **frame,
-	const struct ia_css_frame_info *info)
+    struct ia_css_frame **frame,
+    const struct ia_css_frame_info *info)
 {
 	enum ia_css_err err = IA_CSS_SUCCESS;
 
 	assert(frame);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-		"ia_css_frame_allocate_contiguous_from_info() enter:\n");
+			    "ia_css_frame_allocate_contiguous_from_info() enter:\n");
 	err = ia_css_frame_allocate_contiguous(frame,
-						info->res.width,
-						info->res.height,
-						info->format,
-						info->padded_width,
-						info->raw_bit_depth);
+					       info->res.width,
+					       info->res.height,
+					       info->format,
+					       info->padded_width,
+					       info->raw_bit_depth);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-		"ia_css_frame_allocate_contiguous_from_info() leave:\n");
+			    "ia_css_frame_allocate_contiguous_from_info() leave:\n");
 	return err;
 }
 
@@ -373,58 +375,58 @@ enum ia_css_err ia_css_frame_init_planes(struct ia_css_frame *frame)
 	switch (frame->info.format) {
 	case IA_CSS_FRAME_FORMAT_MIPI:
 		frame_init_mipi_plane(frame, &frame->planes.raw,
-			frame->info.res.height,
-			frame->info.padded_width,
-			frame->info.raw_bit_depth <= 8 ? 1 : 2);
+				      frame->info.res.height,
+				      frame->info.padded_width,
+				      frame->info.raw_bit_depth <= 8 ? 1 : 2);
 		break;
 	case IA_CSS_FRAME_FORMAT_RAW_PACKED:
 		frame_init_raw_single_plane(frame, &frame->planes.raw,
-			frame->info.res.height,
-			frame->info.padded_width,
-			frame->info.raw_bit_depth);
+					    frame->info.res.height,
+					    frame->info.padded_width,
+					    frame->info.raw_bit_depth);
 		break;
 	case IA_CSS_FRAME_FORMAT_RAW:
 		frame_init_single_plane(frame, &frame->planes.raw,
-			frame->info.res.height,
-			frame->info.padded_width,
-			frame->info.raw_bit_depth <= 8 ? 1 : 2);
+					frame->info.res.height,
+					frame->info.padded_width,
+					frame->info.raw_bit_depth <= 8 ? 1 : 2);
 		break;
 	case IA_CSS_FRAME_FORMAT_RGB565:
 		frame_init_single_plane(frame, &frame->planes.rgb,
-			frame->info.res.height,
-			frame->info.padded_width, 2);
+					frame->info.res.height,
+					frame->info.padded_width, 2);
 		break;
 	case IA_CSS_FRAME_FORMAT_RGBA888:
 		frame_init_single_plane(frame, &frame->planes.rgb,
-			frame->info.res.height,
-			frame->info.padded_width * 4, 1);
+					frame->info.res.height,
+					frame->info.padded_width * 4, 1);
 		break;
 	case IA_CSS_FRAME_FORMAT_PLANAR_RGB888:
 		frame_init_rgb_planes(frame, 1);
 		break;
-		/* yuyv and uyvu have the same frame layout, only the data
-		 * positioning differs.
-		 */
+	/* yuyv and uyvu have the same frame layout, only the data
+	 * positioning differs.
+	 */
 	case IA_CSS_FRAME_FORMAT_YUYV:
 	case IA_CSS_FRAME_FORMAT_UYVY:
 	case IA_CSS_FRAME_FORMAT_CSI_MIPI_YUV420_8:
 	case IA_CSS_FRAME_FORMAT_CSI_MIPI_LEGACY_YUV420_8:
 		frame_init_single_plane(frame, &frame->planes.yuyv,
-			frame->info.res.height,
-			frame->info.padded_width * 2, 1);
+					frame->info.res.height,
+					frame->info.padded_width * 2, 1);
 		break;
 	case IA_CSS_FRAME_FORMAT_YUV_LINE:
 		/* Needs 3 extra lines to allow vf_pp prefetching */
 		frame_init_single_plane(frame, &frame->planes.yuyv,
-			frame->info.res.height * 3 / 2 + 3,
-			frame->info.padded_width, 1);
+					frame->info.res.height * 3 / 2 + 3,
+					frame->info.padded_width, 1);
 		break;
 	case IA_CSS_FRAME_FORMAT_NV11:
-	  frame_init_nv_planes(frame, 4, 1, 1);
+		frame_init_nv_planes(frame, 4, 1, 1);
 		break;
-		/* nv12 and nv21 have the same frame layout, only the data
-		 * positioning differs.
-		 */
+	/* nv12 and nv21 have the same frame layout, only the data
+	 * positioning differs.
+	 */
 	case IA_CSS_FRAME_FORMAT_NV12:
 	case IA_CSS_FRAME_FORMAT_NV21:
 	case IA_CSS_FRAME_FORMAT_NV12_TILEY:
@@ -433,9 +435,9 @@ enum ia_css_err ia_css_frame_init_planes(struct ia_css_frame *frame)
 	case IA_CSS_FRAME_FORMAT_NV12_16:
 		frame_init_nv_planes(frame, 2, 2, 2);
 		break;
-		/* nv16 and nv61 have the same frame layout, only the data
-		 * positioning differs.
-		 */
+	/* nv16 and nv61 have the same frame layout, only the data
+	 * positioning differs.
+	 */
 	case IA_CSS_FRAME_FORMAT_NV16:
 	case IA_CSS_FRAME_FORMAT_NV61:
 		frame_init_nv_planes(frame, 2, 1, 1);
@@ -466,8 +468,8 @@ enum ia_css_err ia_css_frame_init_planes(struct ia_css_frame *frame)
 		break;
 	case IA_CSS_FRAME_FORMAT_BINARY_8:
 		frame_init_single_plane(frame, &frame->planes.binary.data,
-			frame->info.res.height,
-			frame->info.padded_width, 1);
+					frame->info.res.height,
+					frame->info.padded_width, 1);
 		frame->planes.binary.size = 0;
 		break;
 	default:
@@ -477,8 +479,8 @@ enum ia_css_err ia_css_frame_init_planes(struct ia_css_frame *frame)
 }
 
 void ia_css_frame_info_set_width(struct ia_css_frame_info *info,
-	unsigned int width,
-	unsigned int min_padded_width)
+				 unsigned int width,
+				 unsigned int min_padded_width)
 {
 	unsigned int align;
 
@@ -518,19 +520,19 @@ void ia_css_frame_info_set_width(struct ia_css_frame_info *info,
 }
 
 void ia_css_frame_info_set_format(struct ia_css_frame_info *info,
-	enum ia_css_frame_format format)
+				  enum ia_css_frame_format format)
 {
 	assert(info);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-		"ia_css_frame_info_set_format() enter:\n");
+			    "ia_css_frame_info_set_format() enter:\n");
 	info->format = format;
 }
 
 void ia_css_frame_info_init(struct ia_css_frame_info *info,
-	unsigned int width,
-	unsigned int height,
-	enum ia_css_frame_format format,
-	unsigned int aligned)
+			    unsigned int width,
+			    unsigned int height,
+			    enum ia_css_frame_format format,
+			    unsigned int aligned)
 {
 	IA_CSS_ENTER_PRIVATE("info = %p, width = %d, height = %d, format = %d, aligned = %d",
 			     info, width, height, format, aligned);
@@ -546,7 +548,7 @@ void ia_css_frame_info_init(struct ia_css_frame_info *info,
 }
 
 void ia_css_frame_free_multiple(unsigned int num_frames,
-	struct ia_css_frame **frames_array)
+				struct ia_css_frame **frames_array)
 {
 	unsigned int i;
 
@@ -559,15 +561,15 @@ void ia_css_frame_free_multiple(unsigned int num_frames,
 }
 
 enum ia_css_err ia_css_frame_allocate_with_buffer_size(
-	struct ia_css_frame **frame,
-	const unsigned int buffer_size_bytes,
-	const bool contiguous)
+    struct ia_css_frame **frame,
+    const unsigned int buffer_size_bytes,
+    const bool contiguous)
 {
 	/* AM: Body coppied from frame_allocate_with_data(). */
 	enum ia_css_err err;
 	struct ia_css_frame *me = frame_create(0, 0,
-		IA_CSS_FRAME_FORMAT_NUM,/* Not valid format yet */
-		0, 0, contiguous, false);
+					       IA_CSS_FRAME_FORMAT_NUM,/* Not valid format yet */
+					       0, 0, contiguous, false);
 
 	if (!me)
 		return IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
@@ -592,24 +594,24 @@ enum ia_css_err ia_css_frame_allocate_with_buffer_size(
 }
 
 bool ia_css_frame_info_is_same_resolution(
-	const struct ia_css_frame_info *info_a,
-	const struct ia_css_frame_info *info_b)
+    const struct ia_css_frame_info *info_a,
+    const struct ia_css_frame_info *info_b)
 {
 	if (!info_a || !info_b)
 		return false;
 	return (info_a->res.width == info_b->res.width) &&
-	    (info_a->res.height == info_b->res.height);
+	       (info_a->res.height == info_b->res.height);
 }
 
 bool ia_css_frame_is_same_type(const struct ia_css_frame *frame_a,
-	const struct ia_css_frame *frame_b)
+			       const struct ia_css_frame *frame_b)
 {
 	bool is_equal = false;
 	const struct ia_css_frame_info *info_a = &frame_a->info,
-	    *info_b = &frame_b->info;
+						*info_b = &frame_b->info;
 
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-		      "ia_css_frame_is_same_type() enter:\n");
+			    "ia_css_frame_is_same_type() enter:\n");
 
 	if (!info_a || !info_b)
 		return false;
@@ -620,18 +622,19 @@ bool ia_css_frame_is_same_type(const struct ia_css_frame *frame_a,
 	is_equal = ia_css_frame_info_is_same_resolution(info_a, info_b);
 
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-		      "ia_css_frame_is_same_type() leave:\n");
+			    "ia_css_frame_is_same_type() leave:\n");
 
 	return is_equal;
 }
 
 void
 ia_css_dma_configure_from_info(
-	struct dma_port_config *config,
-	const struct ia_css_frame_info *info)
+    struct dma_port_config *config,
+    const struct ia_css_frame_info *info)
 {
 	unsigned int is_raw_packed = info->format == IA_CSS_FRAME_FORMAT_RAW_PACKED;
-	unsigned int bits_per_pixel = is_raw_packed ? info->raw_bit_depth : ia_css_elems_bytes_from_info(info) * 8;
+	unsigned int bits_per_pixel = is_raw_packed ? info->raw_bit_depth :
+				      ia_css_elems_bytes_from_info(info) * 8;
 	unsigned int pix_per_ddrword = HIVE_ISP_DDR_WORD_BITS / bits_per_pixel;
 	unsigned int words_per_line = CEIL_DIV(info->padded_width, pix_per_ddrword);
 	unsigned int elems_b = pix_per_ddrword;
@@ -648,10 +651,10 @@ ia_css_dma_configure_from_info(
 **************************************************************************/
 
 static void frame_init_plane(struct ia_css_frame_plane *plane,
-	unsigned int width,
-	unsigned int stride,
-	unsigned int height,
-	unsigned int offset)
+			     unsigned int width,
+			     unsigned int stride,
+			     unsigned int height,
+			     unsigned int offset)
 {
 	plane->height = height;
 	plane->width = width;
@@ -660,10 +663,10 @@ static void frame_init_plane(struct ia_css_frame_plane *plane,
 }
 
 static void frame_init_single_plane(struct ia_css_frame *frame,
-	struct ia_css_frame_plane *plane,
-	unsigned int height,
-	unsigned int subpixels_per_line,
-	unsigned int bytes_per_pixel)
+				    struct ia_css_frame_plane *plane,
+				    unsigned int height,
+				    unsigned int subpixels_per_line,
+				    unsigned int bytes_per_pixel)
 {
 	unsigned int stride;
 
@@ -680,29 +683,29 @@ static void frame_init_single_plane(struct ia_css_frame *frame,
 }
 
 static void frame_init_raw_single_plane(
-	struct ia_css_frame *frame,
-	struct ia_css_frame_plane *plane,
-	unsigned int height,
-	unsigned int subpixels_per_line,
-	unsigned int bits_per_pixel)
+    struct ia_css_frame *frame,
+    struct ia_css_frame_plane *plane,
+    unsigned int height,
+    unsigned int subpixels_per_line,
+    unsigned int bits_per_pixel)
 {
 	unsigned int stride;
 
 	assert(frame);
 
 	stride = HIVE_ISP_DDR_WORD_BYTES *
-			CEIL_DIV(subpixels_per_line,
-				HIVE_ISP_DDR_WORD_BITS / bits_per_pixel);
+		 CEIL_DIV(subpixels_per_line,
+			  HIVE_ISP_DDR_WORD_BITS / bits_per_pixel);
 	frame->data_bytes = stride * height;
 	frame_init_plane(plane, subpixels_per_line, stride, height, 0);
 	return;
 }
 
 static void frame_init_mipi_plane(struct ia_css_frame *frame,
-	struct ia_css_frame_plane *plane,
-	unsigned int height,
-	unsigned int subpixels_per_line,
-	unsigned int bytes_per_pixel)
+				  struct ia_css_frame_plane *plane,
+				  unsigned int height,
+				  unsigned int subpixels_per_line,
+				  unsigned int bytes_per_pixel)
 {
 	unsigned int stride;
 
@@ -753,16 +756,16 @@ static void frame_init_nv_planes(struct ia_css_frame *frame,
 }
 
 static void frame_init_yuv_planes(struct ia_css_frame *frame,
-	unsigned int horizontal_decimation,
-	unsigned int vertical_decimation,
-	bool swap_uv,
-	unsigned int bytes_per_element)
+				  unsigned int horizontal_decimation,
+				  unsigned int vertical_decimation,
+				  bool swap_uv,
+				  unsigned int bytes_per_element)
 {
 	unsigned int y_width = frame->info.padded_width,
-	    y_height = frame->info.res.height,
-	    uv_width = y_width / horizontal_decimation,
-	    uv_height = y_height / vertical_decimation,
-	    y_stride, y_bytes, uv_bytes, uv_stride;
+		     y_height = frame->info.res.height,
+		     uv_width = y_width / horizontal_decimation,
+		     uv_height = y_height / vertical_decimation,
+		     y_stride, y_bytes, uv_bytes, uv_stride;
 
 	y_stride = y_width * bytes_per_element;
 	uv_stride = uv_width * bytes_per_element;
@@ -786,10 +789,10 @@ static void frame_init_yuv_planes(struct ia_css_frame *frame,
 }
 
 static void frame_init_rgb_planes(struct ia_css_frame *frame,
-	unsigned int bytes_per_element)
+				  unsigned int bytes_per_element)
 {
 	unsigned int width = frame->info.res.width,
-	    height = frame->info.res.height, stride, bytes;
+		     height = frame->info.res.height, stride, bytes;
 
 	stride = width * bytes_per_element;
 	bytes = stride * height;
@@ -805,7 +808,7 @@ static void frame_init_rgb_planes(struct ia_css_frame *frame,
 static void frame_init_qplane6_planes(struct ia_css_frame *frame)
 {
 	unsigned int width = frame->info.padded_width / 2,
-	    height = frame->info.res.height / 2, bytes, stride;
+		     height = frame->info.res.height / 2, bytes, stride;
 
 	stride = width * 2;
 	bytes = stride * height;
@@ -851,12 +854,12 @@ static enum ia_css_err frame_allocate_with_data(struct ia_css_frame **frame,
 {
 	enum ia_css_err err;
 	struct ia_css_frame *me = frame_create(width,
-		height,
-		format,
-		padded_width,
-		raw_bit_depth,
-		contiguous,
-		true);
+					       height,
+					       format,
+					       padded_width,
+					       raw_bit_depth,
+					       contiguous,
+					       true);
 
 	if (!me)
 		return IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
@@ -928,7 +931,7 @@ ia_css_elems_bytes_from_info(const struct ia_css_frame_info *info)
 		return 1; /* bytes per pixel */
 
 	if (info->format == IA_CSS_FRAME_FORMAT_RAW
-		|| (info->format == IA_CSS_FRAME_FORMAT_RAW_PACKED)) {
+	    || (info->format == IA_CSS_FRAME_FORMAT_RAW_PACKED)) {
 		if (info->raw_bit_depth)
 			return CEIL_DIV(info->raw_bit_depth, 8);
 		else
@@ -944,8 +947,8 @@ ia_css_elems_bytes_from_info(const struct ia_css_frame_info *info)
 }
 
 void ia_css_frame_info_to_frame_sp_info(
-	struct ia_css_frame_sp_info *to,
-	const struct ia_css_frame_info *from)
+    struct ia_css_frame_sp_info *to,
+    const struct ia_css_frame_info *from)
 {
 	ia_css_resolution_to_sp_resolution(&to->res, &from->res);
 	to->padded_width = (uint16_t)from->padded_width;
@@ -955,8 +958,8 @@ void ia_css_frame_info_to_frame_sp_info(
 }
 
 void ia_css_resolution_to_sp_resolution(
-	struct ia_css_sp_resolution *to,
-	const struct ia_css_resolution *from)
+    struct ia_css_sp_resolution *to,
+    const struct ia_css_resolution *from)
 {
 	to->width  = (uint16_t)from->width;
 	to->height = (uint16_t)from->height;
@@ -966,9 +969,8 @@ void ia_css_resolution_to_sp_resolution(
 
 enum ia_css_err
 ia_css_frame_find_crop_resolution(const struct ia_css_resolution *in_res,
-	const struct ia_css_resolution *out_res,
-	struct ia_css_resolution *crop_res)
-{
+				  const struct ia_css_resolution *out_res,
+				  struct ia_css_resolution *crop_res) {
 	u32 wd_even_ceil, ht_even_ceil;
 	u32 in_ratio, out_ratio;
 
@@ -976,17 +978,17 @@ ia_css_frame_find_crop_resolution(const struct ia_css_resolution *in_res,
 		return IA_CSS_ERR_INVALID_ARGUMENTS;
 
 	IA_CSS_ENTER_PRIVATE("in(%ux%u) -> out(%ux%u)", in_res->width,
-		in_res->height, out_res->width, out_res->height);
+			     in_res->height, out_res->width, out_res->height);
 
 	if ((in_res->width == 0)
-		|| (in_res->height == 0)
-		|| (out_res->width == 0)
-		|| (out_res->height == 0))
-			return IA_CSS_ERR_INVALID_ARGUMENTS;
+	    || (in_res->height == 0)
+	    || (out_res->width == 0)
+	    || (out_res->height == 0))
+		return IA_CSS_ERR_INVALID_ARGUMENTS;
 
 	if ((out_res->width > in_res->width) ||
-		 (out_res->height > in_res->height))
-			return IA_CSS_ERR_INVALID_ARGUMENTS;
+	    (out_res->height > in_res->height))
+		return IA_CSS_ERR_INVALID_ARGUMENTS;
 
 	/* If aspect ratio (width/height) of out_res is higher than the aspect
 	 * ratio of the in_res, then we crop vertically, otherwise we crop
@@ -995,17 +997,20 @@ ia_css_frame_find_crop_resolution(const struct ia_css_resolution *in_res,
 	in_ratio = in_res->width * out_res->height;
 	out_ratio = out_res->width * in_res->height;
 
-	if (in_ratio == out_ratio) {
+	if (in_ratio == out_ratio)
+	{
 		crop_res->width = in_res->width;
 		crop_res->height = in_res->height;
-	} else if (out_ratio > in_ratio) {
+	} else if (out_ratio > in_ratio)
+	{
 		crop_res->width = in_res->width;
 		crop_res->height = ROUND_DIV(out_res->height * crop_res->width,
-			out_res->width);
-	} else {
+					     out_res->width);
+	} else
+	{
 		crop_res->height = in_res->height;
 		crop_res->width = ROUND_DIV(out_res->width * crop_res->height,
-			out_res->height);
+					    out_res->height);
 	}
 
 	/* Round new (cropped) width and height to an even number.
@@ -1016,16 +1021,18 @@ ia_css_frame_find_crop_resolution(const struct ia_css_resolution *in_res,
 	 */
 	wd_even_ceil = EVEN_CEIL(crop_res->width);
 	ht_even_ceil = EVEN_CEIL(crop_res->height);
-	if ((wd_even_ceil > in_res->width) || (ht_even_ceil > in_res->height)) {
+	if ((wd_even_ceil > in_res->width) || (ht_even_ceil > in_res->height))
+	{
 		crop_res->width = EVEN_FLOOR(crop_res->width);
 		crop_res->height = EVEN_FLOOR(crop_res->height);
-	} else {
+	} else
+	{
 		crop_res->width = wd_even_ceil;
 		crop_res->height = ht_even_ceil;
 	}
 
 	IA_CSS_LEAVE_PRIVATE("in(%ux%u) -> out(%ux%u)", crop_res->width,
-		crop_res->height, out_res->width, out_res->height);
+			     crop_res->height, out_res->width, out_res->height);
 	return IA_CSS_SUCCESS;
 }
 #endif

@@ -51,7 +51,7 @@ more details.
 */
 /* The binary id is used in pre-processor expressions so we cannot
  * use an enum here. */
- /* 24xx pipelines*/
+/* 24xx pipelines*/
 #define SH_CSS_BINARY_ID_COPY                      0
 #define SH_CSS_BINARY_ID_BAYER_DS                  1
 #define SH_CSS_BINARY_ID_VF_PP_FULL                2

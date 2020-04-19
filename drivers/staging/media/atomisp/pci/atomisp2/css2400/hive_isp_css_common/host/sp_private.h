@@ -22,9 +22,9 @@
 #include "assert_support.h"
 
 STORAGE_CLASS_SP_C void sp_ctrl_store(
-	const sp_ID_t		ID,
-	const hrt_address	reg,
-	const hrt_data		value)
+    const sp_ID_t		ID,
+    const hrt_address	reg,
+    const hrt_data		value)
 {
 	assert(ID < N_SP_ID);
 	assert(SP_CTRL_BASE[ID] != (hrt_address)-1);
@@ -33,8 +33,8 @@ STORAGE_CLASS_SP_C void sp_ctrl_store(
 }
 
 STORAGE_CLASS_SP_C hrt_data sp_ctrl_load(
-	const sp_ID_t		ID,
-	const hrt_address	reg)
+    const sp_ID_t		ID,
+    const hrt_address	reg)
 {
 	assert(ID < N_SP_ID);
 	assert(SP_CTRL_BASE[ID] != (hrt_address)-1);
@@ -42,9 +42,9 @@ STORAGE_CLASS_SP_C hrt_data sp_ctrl_load(
 }
 
 STORAGE_CLASS_SP_C bool sp_ctrl_getbit(
-	const sp_ID_t		ID,
-	const hrt_address	reg,
-	const unsigned int	bit)
+    const sp_ID_t		ID,
+    const hrt_address	reg,
+    const unsigned int	bit)
 {
 	hrt_data val = sp_ctrl_load(ID, reg);
 
@@ -52,9 +52,9 @@ STORAGE_CLASS_SP_C bool sp_ctrl_getbit(
 }
 
 STORAGE_CLASS_SP_C void sp_ctrl_setbit(
-	const sp_ID_t		ID,
-	const hrt_address	reg,
-	const unsigned int	bit)
+    const sp_ID_t		ID,
+    const hrt_address	reg,
+    const unsigned int	bit)
 {
 	hrt_data	data = sp_ctrl_load(ID, reg);
 
@@ -63,9 +63,9 @@ STORAGE_CLASS_SP_C void sp_ctrl_setbit(
 }
 
 STORAGE_CLASS_SP_C void sp_ctrl_clearbit(
-	const sp_ID_t		ID,
-	const hrt_address	reg,
-	const unsigned int	bit)
+    const sp_ID_t		ID,
+    const hrt_address	reg,
+    const unsigned int	bit)
 {
 	hrt_data	data = sp_ctrl_load(ID, reg);
 
@@ -74,10 +74,10 @@ STORAGE_CLASS_SP_C void sp_ctrl_clearbit(
 }
 
 STORAGE_CLASS_SP_C void sp_dmem_store(
-	const sp_ID_t		ID,
-	hrt_address		addr,
-	const void			*data,
-	const size_t		size)
+    const sp_ID_t		ID,
+    hrt_address		addr,
+    const void			*data,
+    const size_t		size)
 {
 	assert(ID < N_SP_ID);
 	assert(SP_DMEM_BASE[ID] != (hrt_address)-1);
@@ -86,10 +86,10 @@ STORAGE_CLASS_SP_C void sp_dmem_store(
 }
 
 STORAGE_CLASS_SP_C void sp_dmem_load(
-	const sp_ID_t		ID,
-	const hrt_address	addr,
-	void				*data,
-	const size_t		size)
+    const sp_ID_t		ID,
+    const hrt_address	addr,
+    void				*data,
+    const size_t		size)
 {
 	assert(ID < N_SP_ID);
 	assert(SP_DMEM_BASE[ID] != (hrt_address)-1);
@@ -98,9 +98,9 @@ STORAGE_CLASS_SP_C void sp_dmem_load(
 }
 
 STORAGE_CLASS_SP_C void sp_dmem_store_uint8(
-	const sp_ID_t		ID,
-	hrt_address		addr,
-	const uint8_t		data)
+    const sp_ID_t		ID,
+    hrt_address		addr,
+    const uint8_t		data)
 {
 	assert(ID < N_SP_ID);
 	assert(SP_DMEM_BASE[ID] != (hrt_address)-1);
@@ -110,9 +110,9 @@ STORAGE_CLASS_SP_C void sp_dmem_store_uint8(
 }
 
 STORAGE_CLASS_SP_C void sp_dmem_store_uint16(
-	const sp_ID_t		ID,
-	hrt_address		addr,
-	const uint16_t		data)
+    const sp_ID_t		ID,
+    hrt_address		addr,
+    const uint16_t		data)
 {
 	assert(ID < N_SP_ID);
 	assert(SP_DMEM_BASE[ID] != (hrt_address)-1);
@@ -122,9 +122,9 @@ STORAGE_CLASS_SP_C void sp_dmem_store_uint16(
 }
 
 STORAGE_CLASS_SP_C void sp_dmem_store_uint32(
-	const sp_ID_t		ID,
-	hrt_address		addr,
-	const uint32_t		data)
+    const sp_ID_t		ID,
+    hrt_address		addr,
+    const uint32_t		data)
 {
 	assert(ID < N_SP_ID);
 	assert(SP_DMEM_BASE[ID] != (hrt_address)-1);
@@ -134,8 +134,8 @@ STORAGE_CLASS_SP_C void sp_dmem_store_uint32(
 }
 
 STORAGE_CLASS_SP_C uint8_t sp_dmem_load_uint8(
-	const sp_ID_t		ID,
-	const hrt_address	addr)
+    const sp_ID_t		ID,
+    const hrt_address	addr)
 {
 	assert(ID < N_SP_ID);
 	assert(SP_DMEM_BASE[ID] != (hrt_address)-1);
@@ -144,8 +144,8 @@ STORAGE_CLASS_SP_C uint8_t sp_dmem_load_uint8(
 }
 
 STORAGE_CLASS_SP_C uint16_t sp_dmem_load_uint16(
-	const sp_ID_t		ID,
-	const hrt_address	addr)
+    const sp_ID_t		ID,
+    const hrt_address	addr)
 {
 	assert(ID < N_SP_ID);
 	assert(SP_DMEM_BASE[ID] != (hrt_address)-1);
@@ -154,8 +154,8 @@ STORAGE_CLASS_SP_C uint16_t sp_dmem_load_uint16(
 }
 
 STORAGE_CLASS_SP_C uint32_t sp_dmem_load_uint32(
-	const sp_ID_t		ID,
-	const hrt_address	addr)
+    const sp_ID_t		ID,
+    const hrt_address	addr)
 {
 	assert(ID < N_SP_ID);
 	assert(SP_DMEM_BASE[ID] != (hrt_address)-1);

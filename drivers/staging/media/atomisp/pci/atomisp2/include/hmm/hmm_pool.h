@@ -48,8 +48,8 @@ struct hmm_pool_ops {
 	int (*pool_init)(void **pool, unsigned int pool_size);
 	void (*pool_exit)(void **pool);
 	unsigned int (*pool_alloc_pages)(void *pool,
-					struct hmm_page_object *page_obj,
-					unsigned int size, bool cached);
+					 struct hmm_page_object *page_obj,
+					 unsigned int size, bool cached);
 	void (*pool_free_pages)(void *pool,
 				struct hmm_page_object *page_obj);
 	int (*pool_inited)(void *pool);

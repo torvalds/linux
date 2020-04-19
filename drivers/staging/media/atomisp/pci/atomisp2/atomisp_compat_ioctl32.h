@@ -241,12 +241,14 @@ struct atomisp_parameters32 {
 	compat_uptr_t	tnr_2500_config;       /* Skylake: TNR config */
 	compat_uptr_t	dpc_2500_config;       /* Skylake: DPC config */
 	compat_uptr_t	awb_2500_config;       /* Skylake: auto white balance config */
-	compat_uptr_t	awb_fr_2500_config;    /* Skylake: auto white balance filter response config */
+	compat_uptr_t
+	awb_fr_2500_config;    /* Skylake: auto white balance filter response config */
 	compat_uptr_t	anr_2500_config;       /* Skylake: ANR config */
 	compat_uptr_t	af_2500_config;        /* Skylake: auto focus config */
 	compat_uptr_t	ae_2500_config;        /* Skylake: auto exposure config */
 	compat_uptr_t	bds_2500_config;       /* Skylake: bayer downscaler config */
-	compat_uptr_t	dvs_2500_config;       /* Skylake: digital video stabilization config */
+	compat_uptr_t
+	dvs_2500_config;       /* Skylake: digital video stabilization config */
 	compat_uptr_t	res_mgr_2500_config;
 
 	/*

@@ -35,12 +35,12 @@ more details.
 #include "sw_event_global.h"    /*event macros.TODO : Change File Name..???*/
 
 bool ia_css_event_encode(
-	u8	*in,
-	u8	nr,
-	uint32_t	*out);
+    u8	*in,
+    u8	nr,
+    uint32_t	*out);
 
 void ia_css_event_decode(
-	u32 event,
-	uint8_t *payload);
+    u32 event,
+    uint8_t *payload);
 
 #endif /*_IA_CSS_EVENT_H*/

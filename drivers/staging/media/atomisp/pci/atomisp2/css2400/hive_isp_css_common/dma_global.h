@@ -55,14 +55,14 @@
 typedef unsigned int dma_channel;
 
 typedef enum {
-  dma_isp_to_bus_connection = HIVE_DMA_ISP_BUS_CONN,
-  dma_isp_to_ddr_connection = HIVE_DMA_ISP_DDR_CONN,
-  dma_bus_to_ddr_connection = HIVE_DMA_BUS_DDR_CONN,
+	dma_isp_to_bus_connection = HIVE_DMA_ISP_BUS_CONN,
+	dma_isp_to_ddr_connection = HIVE_DMA_ISP_DDR_CONN,
+	dma_bus_to_ddr_connection = HIVE_DMA_BUS_DDR_CONN,
 } dma_connection;
 
 typedef enum {
-  dma_zero_extension = _DMA_ZERO_EXTEND,
-  dma_sign_extension = _DMA_SIGN_EXTEND
+	dma_zero_extension = _DMA_ZERO_EXTEND,
+	dma_sign_extension = _DMA_SIGN_EXTEND
 } dma_extension;
 
 #define DMA_PROP_SHIFT(val, param)       ((val) << _DMA_V2_ ## param ## _IDX)

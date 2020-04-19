@@ -121,8 +121,8 @@ ia_css_get_3a_statistics(struct ia_css_3a_statistics           *host_stats,
  * */
 void
 ia_css_translate_3a_statistics(
-		struct ia_css_3a_statistics               *host_stats,
-		const struct ia_css_isp_3a_statistics_map *isp_stats);
+    struct ia_css_3a_statistics               *host_stats,
+    const struct ia_css_isp_3a_statistics_map *isp_stats);
 
 /* Convenience functions for alloc/free of certain datatypes */
 
@@ -172,8 +172,8 @@ ia_css_3a_statistics_free(struct ia_css_3a_statistics *me);
 */
 struct ia_css_isp_3a_statistics_map *
 ia_css_isp_3a_statistics_map_allocate(
-	const struct ia_css_isp_3a_statistics *isp_stats,
-	void *data_ptr);
+    const struct ia_css_isp_3a_statistics *isp_stats,
+    void *data_ptr);
 
 /* @brief Free the 3a statistics map
  * @param[in]	me Pointer to the 3a statistics map

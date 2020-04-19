@@ -29,8 +29,8 @@
 * Refer to "isys_irq.h" for details.
 */
 STORAGE_CLASS_ISYS2401_IRQ_C void isys_irqc_state_get(
-	const isys_irq_ID_t	isys_irqc_id,
-	isys_irqc_state_t *state)
+    const isys_irq_ID_t	isys_irqc_id,
+    isys_irqc_state_t *state)
 {
 	state->edge     = isys_irqc_reg_load(isys_irqc_id, ISYS_IRQ_EDGE_REG_IDX);
 	state->mask     = isys_irqc_reg_load(isys_irqc_id, ISYS_IRQ_MASK_REG_IDX);
@@ -48,13 +48,13 @@ STORAGE_CLASS_ISYS2401_IRQ_C void isys_irqc_state_get(
 * Refer to "isys_irq.h" for details.
 */
 STORAGE_CLASS_ISYS2401_IRQ_C void isys_irqc_state_dump(
-	const isys_irq_ID_t	isys_irqc_id,
-	const isys_irqc_state_t *state)
+    const isys_irq_ID_t	isys_irqc_id,
+    const isys_irqc_state_t *state)
 {
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-		"isys irq controller id %d\n\tstatus:0x%x\n\tedge:0x%x\n\tmask:0x%x\n\tenable:0x%x\n\tlevel_not_pulse:0x%x\n",
-		isys_irqc_id,
-		state->status, state->edge, state->mask, state->enable, state->level_no);
+			    "isys irq controller id %d\n\tstatus:0x%x\n\tedge:0x%x\n\tmask:0x%x\n\tenable:0x%x\n\tlevel_not_pulse:0x%x\n",
+			    isys_irqc_id,
+			    state->status, state->edge, state->mask, state->enable, state->level_no);
 }
 
 /* end of NCI */
@@ -65,9 +65,9 @@ STORAGE_CLASS_ISYS2401_IRQ_C void isys_irqc_state_dump(
 
 /* Support functions */
 STORAGE_CLASS_ISYS2401_IRQ_C void isys_irqc_reg_store(
-	const isys_irq_ID_t	isys_irqc_id,
-	const unsigned int	reg_idx,
-	const hrt_data	value)
+    const isys_irq_ID_t	isys_irqc_id,
+    const unsigned int	reg_idx,
+    const hrt_data	value)
 {
 	unsigned int reg_addr;
 
@@ -76,14 +76,14 @@ STORAGE_CLASS_ISYS2401_IRQ_C void isys_irqc_reg_store(
 
 	reg_addr = ISYS_IRQ_BASE[isys_irqc_id] + (reg_idx * sizeof(hrt_data));
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-		"isys irq store at addr(0x%x) val(%u)\n", reg_addr, (unsigned int)value);
+			    "isys irq store at addr(0x%x) val(%u)\n", reg_addr, (unsigned int)value);
 
 	ia_css_device_store_uint32(reg_addr, value);
 }
 
 STORAGE_CLASS_ISYS2401_IRQ_C hrt_data isys_irqc_reg_load(
-	const isys_irq_ID_t	isys_irqc_id,
-	const unsigned int	reg_idx)
+    const isys_irq_ID_t	isys_irqc_id,
+    const unsigned int	reg_idx)
 {
 	unsigned int reg_addr;
 	hrt_data value;
@@ -94,7 +94,7 @@ STORAGE_CLASS_ISYS2401_IRQ_C hrt_data isys_irqc_reg_load(
 	reg_addr = ISYS_IRQ_BASE[isys_irqc_id] + (reg_idx * sizeof(hrt_data));
 	value = ia_css_device_load_uint32(reg_addr);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-		"isys irq load from addr(0x%x) val(%u)\n", reg_addr, (unsigned int)value);
+			    "isys irq load from addr(0x%x) val(%u)\n", reg_addr, (unsigned int)value);
 
 	return value;
 }

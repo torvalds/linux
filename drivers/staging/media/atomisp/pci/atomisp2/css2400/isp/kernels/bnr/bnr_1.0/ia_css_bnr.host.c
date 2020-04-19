@@ -21,9 +21,9 @@
 
 void
 ia_css_bnr_encode(
-	struct sh_css_isp_bnr_params *to,
-	const struct ia_css_nr_config *from,
-	unsigned int size)
+    struct sh_css_isp_bnr_params *to,
+    const struct ia_css_nr_config *from,
+    unsigned int size)
 {
 	(void)size;
 	/* BNR (Bayer Noise Reduction) */
@@ -41,24 +41,24 @@ ia_css_bnr_encode(
 
 void
 ia_css_bnr_dump(
-	const struct sh_css_isp_bnr_params *bnr,
-	unsigned int level)
+    const struct sh_css_isp_bnr_params *bnr,
+    unsigned int level)
 {
 	if (!bnr) return;
 	ia_css_debug_dtrace(level, "Bayer Noise Reduction:\n");
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"bnr_gain_all", bnr->gain_all);
+			    "bnr_gain_all", bnr->gain_all);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"bnr_gain_dir", bnr->gain_dir);
+			    "bnr_gain_dir", bnr->gain_dir);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"bnr_threshold_low",
-			bnr->threshold_low);
+			    "bnr_threshold_low",
+			    bnr->threshold_low);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"bnr_threshold_width_log2",
-			bnr->threshold_width_log2);
+			    "bnr_threshold_width_log2",
+			    bnr->threshold_width_log2);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"bnr_threshold_width",
-			bnr->threshold_width);
+			    "bnr_threshold_width",
+			    bnr->threshold_width);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"bnr_clip", bnr->clip);
+			    "bnr_clip", bnr->clip);
 }

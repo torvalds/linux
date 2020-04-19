@@ -85,9 +85,9 @@ set_output_frame_buffer(const struct ia_css_frame *frame,
 
 static void
 sh_css_copy_buffer_attr_to_spbuffer(struct ia_css_buffer_sp *dest_buf,
-				const enum sh_css_queue_id queue_id,
-				const hrt_vaddress xmem_addr,
-				const enum ia_css_buffer_type buf_type);
+				    const enum sh_css_queue_id queue_id,
+				    const hrt_vaddress xmem_addr,
+				    const enum ia_css_buffer_type buf_type);
 
 static void
 initialize_frame_buffer_attribute(struct ia_css_buffer_sp *buf_attr);
@@ -106,10 +106,14 @@ static void
 copy_isp_stage_to_sp_stage(void)
 {
 	/* [WW07.5]type casting will cause potential issues */
-	sh_css_sp_stage.num_stripes = (uint8_t)sh_css_isp_stage.binary_info.iterator.num_stripes;
-	sh_css_sp_stage.row_stripes_height = (uint16_t)sh_css_isp_stage.binary_info.iterator.row_stripes_height;
-	sh_css_sp_stage.row_stripes_overlap_lines = (uint16_t)sh_css_isp_stage.binary_info.iterator.row_stripes_overlap_lines;
-	sh_css_sp_stage.top_cropping = (uint16_t)sh_css_isp_stage.binary_info.pipeline.top_cropping;
+	sh_css_sp_stage.num_stripes = (uint8_t)
+				      sh_css_isp_stage.binary_info.iterator.num_stripes;
+	sh_css_sp_stage.row_stripes_height = (uint16_t)
+					     sh_css_isp_stage.binary_info.iterator.row_stripes_height;
+	sh_css_sp_stage.row_stripes_overlap_lines = (uint16_t)
+		sh_css_isp_stage.binary_info.iterator.row_stripes_overlap_lines;
+	sh_css_sp_stage.top_cropping = (uint16_t)
+				       sh_css_isp_stage.binary_info.pipeline.top_cropping;
 	/* moved to sh_css_sp_init_stage
 	   sh_css_sp_stage.enable.vf_output =
 	   sh_css_isp_stage.binary_info.enable.vf_veceven ||
@@ -118,12 +122,14 @@ copy_isp_stage_to_sp_stage(void)
 	sh_css_sp_stage.enable.sdis = sh_css_isp_stage.binary_info.enable.dis;
 	sh_css_sp_stage.enable.s3a = sh_css_isp_stage.binary_info.enable.s3a;
 #ifdef ISP2401
-	sh_css_sp_stage.enable.lace_stats = sh_css_isp_stage.binary_info.enable.lace_stats;
+	sh_css_sp_stage.enable.lace_stats =
+	    sh_css_isp_stage.binary_info.enable.lace_stats;
 #endif
 }
 
 void
-store_sp_stage_data(enum ia_css_pipe_id id, unsigned int pipe_num, unsigned int stage)
+store_sp_stage_data(enum ia_css_pipe_id id, unsigned int pipe_num,
+		    unsigned int stage)
 {
 	unsigned int thread_id;
 
@@ -131,9 +137,9 @@ store_sp_stage_data(enum ia_css_pipe_id id, unsigned int pipe_num, unsigned int 
 	copy_isp_stage_to_sp_stage();
 	if (id != IA_CSS_PIPE_ID_COPY)
 		sh_css_sp_stage.isp_stage_addr =
-			sh_css_store_isp_stage_to_ddr(pipe_num, stage);
+		    sh_css_store_isp_stage_to_ddr(pipe_num, stage);
 	sh_css_sp_group.pipe[thread_id].sp_stage_addr[stage] =
-		sh_css_store_sp_stage_to_ddr(pipe_num, stage);
+	    sh_css_store_sp_stage_to_ddr(pipe_num, stage);
 
 	/* Clear for next frame */
 	sh_css_sp_stage.program_input_circuit = false;
@@ -158,14 +164,14 @@ store_sp_per_frame_data(const struct ia_css_fw_info *fw)
 	}
 
 	sp_dmem_store(SP0_ID,
-		(unsigned int)sp_address_of(sp_per_frame_data),
-		&per_frame_data,
-			sizeof(per_frame_data));
+		      (unsigned int)sp_address_of(sp_per_frame_data),
+		      &per_frame_data,
+		      sizeof(per_frame_data));
 }
 
 static void
 sh_css_store_sp_per_frame_data(enum ia_css_pipe_id pipe_id,
-				   unsigned int pipe_num,
+			       unsigned int pipe_num,
 			       const struct ia_css_fw_info *sp_fw)
 {
 	if (!sp_fw)
@@ -184,7 +190,8 @@ sh_css_sp_get_debug_state(struct sh_css_sp_debug_state *state)
 	const struct ia_css_fw_info *fw = &sh_css_sp_fw;
 	unsigned int HIVE_ADDR_sp_output = fw->info.sp.output;
 	unsigned int i;
-	unsigned int offset = (unsigned int)offsetof(struct sh_css_sp_output, debug) / sizeof(int);
+	unsigned int offset = (unsigned int)offsetof(struct sh_css_sp_output,
+			      debug) / sizeof(int);
 
 	assert(state);
 
@@ -196,7 +203,8 @@ sh_css_sp_get_debug_state(struct sh_css_sp_debug_state *state)
 #endif
 
 void
-sh_css_sp_start_binary_copy(unsigned int pipe_num, struct ia_css_frame *out_frame,
+sh_css_sp_start_binary_copy(unsigned int pipe_num,
+			    struct ia_css_frame *out_frame,
 			    unsigned int two_ppc)
 {
 	enum ia_css_pipe_id pipe_id;
@@ -219,11 +227,11 @@ sh_css_sp_start_binary_copy(unsigned int pipe_num, struct ia_css_frame *out_fram
 
 	if (pipe->inout_port_config == 0) {
 		SH_CSS_PIPE_PORT_CONFIG_SET(pipe->inout_port_config,
-						(uint8_t)SH_CSS_PORT_INPUT,
-						(uint8_t)SH_CSS_HOST_TYPE, 1);
+					    (uint8_t)SH_CSS_PORT_INPUT,
+					    (uint8_t)SH_CSS_HOST_TYPE, 1);
 		SH_CSS_PIPE_PORT_CONFIG_SET(pipe->inout_port_config,
-						(uint8_t)SH_CSS_PORT_OUTPUT,
-						(uint8_t)SH_CSS_HOST_TYPE, 1);
+					    (uint8_t)SH_CSS_PORT_OUTPUT,
+					    (uint8_t)SH_CSS_HOST_TYPE, 1);
 	}
 	IA_CSS_LOG("pipe_id %d port_config %08x",
 		   pipe->pipe_id, pipe->inout_port_config);
@@ -237,7 +245,7 @@ sh_css_sp_start_binary_copy(unsigned int pipe_num, struct ia_css_frame *out_fram
 	sh_css_sp_stage.num = stage_num;
 	sh_css_sp_stage.stage_type = SH_CSS_SP_STAGE_TYPE;
 	sh_css_sp_stage.func =
-		(unsigned int)IA_CSS_PIPELINE_BIN_COPY;
+	    (unsigned int)IA_CSS_PIPELINE_BIN_COPY;
 
 	set_output_frame_buffer(out_frame, 0);
 
@@ -289,7 +297,7 @@ sh_css_sp_start_raw_copy(struct ia_css_frame *out_frame,
 		 sampled, needs checking/improvement */
 	if (pipe_conf_override == SH_CSS_PIPE_CONFIG_OVRD_NO_OVRD)
 		pipe->pipe_config =
-			(SH_CSS_PIPE_CONFIG_SAMPLE_PARAMS << thread_id);
+		    (SH_CSS_PIPE_CONFIG_SAMPLE_PARAMS << thread_id);
 	else
 		pipe->pipe_config = pipe_conf_override;
 
@@ -297,11 +305,11 @@ sh_css_sp_start_raw_copy(struct ia_css_frame *out_frame,
 
 	if (pipe->inout_port_config == 0) {
 		SH_CSS_PIPE_PORT_CONFIG_SET(pipe->inout_port_config,
-						(uint8_t)SH_CSS_PORT_INPUT,
-						(uint8_t)SH_CSS_HOST_TYPE, 1);
+					    (uint8_t)SH_CSS_PORT_INPUT,
+					    (uint8_t)SH_CSS_HOST_TYPE, 1);
 		SH_CSS_PIPE_PORT_CONFIG_SET(pipe->inout_port_config,
-						(uint8_t)SH_CSS_PORT_OUTPUT,
-						(uint8_t)SH_CSS_HOST_TYPE, 1);
+					    (uint8_t)SH_CSS_PORT_OUTPUT,
+					    (uint8_t)SH_CSS_HOST_TYPE, 1);
 	}
 	IA_CSS_LOG("pipe_id %d port_config %08x",
 		   pipe->pipe_id, pipe->inout_port_config);
@@ -324,7 +332,8 @@ sh_css_sp_start_raw_copy(struct ia_css_frame *out_frame,
 
 static void
 sh_css_sp_start_isys_copy(struct ia_css_frame *out_frame,
-	unsigned int pipe_num, unsigned int max_input_width, unsigned int if_config_index)
+			  unsigned int pipe_num, unsigned int max_input_width,
+			  unsigned int if_config_index)
 {
 	enum ia_css_pipe_id pipe_id;
 	unsigned int thread_id;
@@ -374,8 +383,11 @@ sh_css_sp_start_isys_copy(struct ia_css_frame *out_frame,
 
 #if defined SH_CSS_ENABLE_METADATA
 	if (pipe->metadata.height > 0) {
-		ia_css_query_internal_queue_id(IA_CSS_BUFFER_TYPE_METADATA, thread_id, &queue_id);
-		sh_css_copy_buffer_attr_to_spbuffer(&sh_css_sp_stage.frames.metadata_buf, queue_id, mmgr_EXCEPTION, IA_CSS_BUFFER_TYPE_METADATA);
+		ia_css_query_internal_queue_id(IA_CSS_BUFFER_TYPE_METADATA, thread_id,
+					       &queue_id);
+		sh_css_copy_buffer_attr_to_spbuffer(&sh_css_sp_stage.frames.metadata_buf,
+						    queue_id, mmgr_EXCEPTION,
+						    IA_CSS_BUFFER_TYPE_METADATA);
 	}
 #endif
 
@@ -388,7 +400,7 @@ sh_css_sp_get_binary_copy_size(void)
 	const struct ia_css_fw_info *fw = &sh_css_sp_fw;
 	unsigned int HIVE_ADDR_sp_output = fw->info.sp.output;
 	unsigned int offset = (unsigned int)offsetof(struct sh_css_sp_output,
-				bin_copy_bytes_copied) / sizeof(int);
+			      bin_copy_bytes_copied) / sizeof(int);
 	(void)HIVE_ADDR_sp_output; /* To get rid of warning in CRUN */
 	return load_sp_array_uint(sp_output, offset);
 }
@@ -398,17 +410,18 @@ sh_css_sp_get_sw_interrupt_value(unsigned int irq)
 {
 	const struct ia_css_fw_info *fw = &sh_css_sp_fw;
 	unsigned int HIVE_ADDR_sp_output = fw->info.sp.output;
-	unsigned int offset = (unsigned int)offsetof(struct sh_css_sp_output, sw_interrupt_value)
-				/ sizeof(int);
+	unsigned int offset = (unsigned int)offsetof(struct sh_css_sp_output,
+			      sw_interrupt_value)
+			      / sizeof(int);
 	(void)HIVE_ADDR_sp_output; /* To get rid of warning in CRUN */
 	return load_sp_array_uint(sp_output, offset + irq);
 }
 
 static void
 sh_css_copy_buffer_attr_to_spbuffer(struct ia_css_buffer_sp *dest_buf,
-				const enum sh_css_queue_id queue_id,
-				const hrt_vaddress xmem_addr,
-				const enum ia_css_buffer_type buf_type)
+				    const enum sh_css_queue_id queue_id,
+				    const hrt_vaddress xmem_addr,
+				    const enum ia_css_buffer_type buf_type)
 {
 	assert(buf_type < IA_CSS_NUM_BUFFER_TYPE);
 	if (queue_id > SH_CSS_INVALID_QUEUE_ID) {
@@ -427,8 +440,7 @@ sh_css_copy_buffer_attr_to_spbuffer(struct ia_css_buffer_sp *dest_buf,
 		   lines below. In order to satisfy KW an additional if
 		   has been added. This one will always yield true.
 		 */
-		if ((queue_id < SH_CSS_MAX_NUM_QUEUES))
-		{
+		if ((queue_id < SH_CSS_MAX_NUM_QUEUES)) {
 			dest_buf->buf_src.queue_id = queue_id;
 		}
 	} else {
@@ -440,17 +452,17 @@ sh_css_copy_buffer_attr_to_spbuffer(struct ia_css_buffer_sp *dest_buf,
 
 static void
 sh_css_copy_frame_to_spframe(struct ia_css_frame_sp *sp_frame_out,
-				const struct ia_css_frame *frame_in)
+			     const struct ia_css_frame *frame_in)
 {
 	assert(frame_in);
 
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE,
-		"sh_css_copy_frame_to_spframe():\n");
+			    "sh_css_copy_frame_to_spframe():\n");
 
 	sh_css_copy_buffer_attr_to_spbuffer(&sp_frame_out->buf_attr,
-					frame_in->dynamic_queue_id,
-					frame_in->data,
-					frame_in->buf_type);
+					    frame_in->dynamic_queue_id,
+					    frame_in->data,
+					    frame_in->buf_type);
 
 	ia_css_frame_info_to_frame_sp_info(&sp_frame_out->info, &frame_in->info);
 
@@ -465,11 +477,11 @@ sh_css_copy_frame_to_spframe(struct ia_css_frame_sp *sp_frame_out,
 		break;
 	case IA_CSS_FRAME_FORMAT_PLANAR_RGB888:
 		sp_frame_out->planes.planar_rgb.r.offset =
-			frame_in->planes.planar_rgb.r.offset;
+		    frame_in->planes.planar_rgb.r.offset;
 		sp_frame_out->planes.planar_rgb.g.offset =
-			frame_in->planes.planar_rgb.g.offset;
+		    frame_in->planes.planar_rgb.g.offset;
 		sp_frame_out->planes.planar_rgb.b.offset =
-			frame_in->planes.planar_rgb.b.offset;
+		    frame_in->planes.planar_rgb.b.offset;
 		break;
 	case IA_CSS_FRAME_FORMAT_YUYV:
 	case IA_CSS_FRAME_FORMAT_UYVY:
@@ -486,9 +498,9 @@ sh_css_copy_frame_to_spframe(struct ia_css_frame_sp *sp_frame_out,
 	case IA_CSS_FRAME_FORMAT_NV16:
 	case IA_CSS_FRAME_FORMAT_NV61:
 		sp_frame_out->planes.nv.y.offset =
-			frame_in->planes.nv.y.offset;
+		    frame_in->planes.nv.y.offset;
 		sp_frame_out->planes.nv.uv.offset =
-			frame_in->planes.nv.uv.offset;
+		    frame_in->planes.nv.uv.offset;
 		break;
 	case IA_CSS_FRAME_FORMAT_YUV420:
 	case IA_CSS_FRAME_FORMAT_YUV422:
@@ -498,29 +510,29 @@ sh_css_copy_frame_to_spframe(struct ia_css_frame_sp *sp_frame_out,
 	case IA_CSS_FRAME_FORMAT_YV12:
 	case IA_CSS_FRAME_FORMAT_YV16:
 		sp_frame_out->planes.yuv.y.offset =
-			frame_in->planes.yuv.y.offset;
+		    frame_in->planes.yuv.y.offset;
 		sp_frame_out->planes.yuv.u.offset =
-			frame_in->planes.yuv.u.offset;
+		    frame_in->planes.yuv.u.offset;
 		sp_frame_out->planes.yuv.v.offset =
-			frame_in->planes.yuv.v.offset;
+		    frame_in->planes.yuv.v.offset;
 		break;
 	case IA_CSS_FRAME_FORMAT_QPLANE6:
 		sp_frame_out->planes.plane6.r.offset =
-			frame_in->planes.plane6.r.offset;
+		    frame_in->planes.plane6.r.offset;
 		sp_frame_out->planes.plane6.r_at_b.offset =
-			frame_in->planes.plane6.r_at_b.offset;
+		    frame_in->planes.plane6.r_at_b.offset;
 		sp_frame_out->planes.plane6.gr.offset =
-			frame_in->planes.plane6.gr.offset;
+		    frame_in->planes.plane6.gr.offset;
 		sp_frame_out->planes.plane6.gb.offset =
-			frame_in->planes.plane6.gb.offset;
+		    frame_in->planes.plane6.gb.offset;
 		sp_frame_out->planes.plane6.b.offset =
-			frame_in->planes.plane6.b.offset;
+		    frame_in->planes.plane6.b.offset;
 		sp_frame_out->planes.plane6.b_at_r.offset =
-			frame_in->planes.plane6.b_at_r.offset;
+		    frame_in->planes.plane6.b_at_r.offset;
 		break;
 	case IA_CSS_FRAME_FORMAT_BINARY_8:
 		sp_frame_out->planes.binary.data.offset =
-			frame_in->planes.binary.data.offset;
+		    frame_in->planes.binary.data.offset;
 		break;
 	default:
 		/* This should not happen, but in case it does,
@@ -532,12 +544,12 @@ sh_css_copy_frame_to_spframe(struct ia_css_frame_sp *sp_frame_out,
 }
 
 static enum ia_css_err
-set_input_frame_buffer(const struct ia_css_frame *frame)
-{
+set_input_frame_buffer(const struct ia_css_frame *frame) {
 	if (!frame)
 		return IA_CSS_ERR_INVALID_ARGUMENTS;
 
-	switch (frame->info.format) {
+	switch (frame->info.format)
+	{
 	case IA_CSS_FRAME_FORMAT_QPLANE6:
 	case IA_CSS_FRAME_FORMAT_YUV420_16:
 	case IA_CSS_FRAME_FORMAT_RAW_PACKED:
@@ -563,12 +575,12 @@ set_input_frame_buffer(const struct ia_css_frame *frame)
 
 static enum ia_css_err
 set_output_frame_buffer(const struct ia_css_frame *frame,
-			unsigned int idx)
-{
+			unsigned int idx) {
 	if (!frame)
 		return IA_CSS_ERR_INVALID_ARGUMENTS;
 
-	switch (frame->info.format) {
+	switch (frame->info.format)
+	{
 	case IA_CSS_FRAME_FORMAT_YUV420:
 	case IA_CSS_FRAME_FORMAT_YUV422:
 	case IA_CSS_FRAME_FORMAT_YUV444:
@@ -604,12 +616,12 @@ set_output_frame_buffer(const struct ia_css_frame *frame,
 }
 
 static enum ia_css_err
-set_view_finder_buffer(const struct ia_css_frame *frame)
-{
+set_view_finder_buffer(const struct ia_css_frame *frame) {
 	if (!frame)
 		return IA_CSS_ERR_INVALID_ARGUMENTS;
 
-	switch (frame->info.format) {
+	switch (frame->info.format)
+	{
 	/* the dual output pin */
 	case IA_CSS_FRAME_FORMAT_NV12:
 	case IA_CSS_FRAME_FORMAT_NV12_16:
@@ -635,19 +647,21 @@ set_view_finder_buffer(const struct ia_css_frame *frame)
 
 #if !defined(HAS_NO_INPUT_FORMATTER)
 void sh_css_sp_set_if_configs(
-	const input_formatter_cfg_t	*config_a,
-	const input_formatter_cfg_t	*config_b,
-	const uint8_t		if_config_index
-	)
+    const input_formatter_cfg_t	*config_a,
+    const input_formatter_cfg_t	*config_b,
+    const uint8_t		if_config_index
+)
 {
 	assert(if_config_index < SH_CSS_MAX_IF_CONFIGS);
 	assert(config_a);
 
-	sh_css_sp_group.config.input_formatter.set[if_config_index].config_a = *config_a;
+	sh_css_sp_group.config.input_formatter.set[if_config_index].config_a =
+	    *config_a;
 	sh_css_sp_group.config.input_formatter.a_changed = true;
 
 	if (config_b) {
-		sh_css_sp_group.config.input_formatter.set[if_config_index].config_b = *config_b;
+		sh_css_sp_group.config.input_formatter.set[if_config_index].config_b =
+		    *config_b;
 		sh_css_sp_group.config.input_formatter.b_changed = true;
 	}
 
@@ -665,10 +679,10 @@ sh_css_sp_program_input_circuit(int fmt_type,
 	sh_css_sp_group.config.input_circuit.fmt_type     = fmt_type;
 	sh_css_sp_group.config.input_circuit.ch_id	      = ch_id;
 	sh_css_sp_group.config.input_circuit.input_mode   = input_mode;
-/*
- * The SP group is only loaded at SP boot time and is read once
- * change flags as "input_circuit_cfg_changed" must be reset on the SP
- */
+	/*
+	 * The SP group is only loaded at SP boot time and is read once
+	 * change flags as "input_circuit_cfg_changed" must be reset on the SP
+	 */
 	sh_css_sp_group.config.input_circuit_cfg_changed = true;
 	sh_css_sp_stage.program_input_circuit = true;
 }
@@ -731,8 +745,7 @@ sh_css_sp_set_disable_continuous_viewfinder(bool flag)
 }
 
 static enum ia_css_err
-sh_css_sp_write_frame_pointers(const struct sh_css_binary_args *args)
-{
+sh_css_sp_write_frame_pointers(const struct sh_css_binary_args *args) {
 	enum ia_css_err err = IA_CSS_SUCCESS;
 	int i;
 
@@ -742,7 +755,8 @@ sh_css_sp_write_frame_pointers(const struct sh_css_binary_args *args)
 		err = set_input_frame_buffer(args->in_frame);
 	if (err == IA_CSS_SUCCESS && args->out_vf_frame)
 		err = set_view_finder_buffer(args->out_vf_frame);
-	for (i = 0; i < IA_CSS_BINARY_MAX_OUTPUT_PORTS; i++) {
+	for (i = 0; i < IA_CSS_BINARY_MAX_OUTPUT_PORTS; i++)
+	{
 		if (err == IA_CSS_SUCCESS && args->out_frame[i])
 			err = set_output_frame_buffer(args->out_frame[i], i);
 	}
@@ -770,7 +784,8 @@ sh_css_sp_init_group(bool two_ppc,
 	if (if_config_index == SH_CSS_IF_CONFIG_NOT_NEEDED) return;
 #if !defined(HAS_NO_INPUT_FORMATTER)
 	assert(if_config_index < SH_CSS_MAX_IF_CONFIGS);
-	sh_css_sp_group.config.input_formatter.set[if_config_index].stream_format = input_format;
+	sh_css_sp_group.config.input_formatter.set[if_config_index].stream_format =
+	    input_format;
 #else
 	(void)input_format;
 #endif
@@ -784,20 +799,19 @@ sh_css_stage_write_binary_info(struct ia_css_binary_info *info)
 }
 
 static enum ia_css_err
-copy_isp_mem_if_to_ddr(struct ia_css_binary *binary)
-{
+copy_isp_mem_if_to_ddr(struct ia_css_binary *binary) {
 	enum ia_css_err err;
 
 	err = ia_css_isp_param_copy_isp_mem_if_to_ddr(
-		&binary->css_params,
-		&binary->mem_params,
-		IA_CSS_PARAM_CLASS_CONFIG);
+	    &binary->css_params,
+	    &binary->mem_params,
+	    IA_CSS_PARAM_CLASS_CONFIG);
 	if (err != IA_CSS_SUCCESS)
 		return err;
 	err = ia_css_isp_param_copy_isp_mem_if_to_ddr(
-		&binary->css_params,
-		&binary->mem_params,
-		IA_CSS_PARAM_CLASS_STATE);
+	    &binary->css_params,
+	    &binary->mem_params,
+	    IA_CSS_PARAM_CLASS_STATE);
 	if (err != IA_CSS_SUCCESS)
 		return err;
 	return IA_CSS_SUCCESS;
@@ -812,12 +826,11 @@ is_sp_stage(struct ia_css_pipeline_stage *stage)
 
 static enum ia_css_err
 configure_isp_from_args(
-	const struct sh_css_sp_pipeline *pipeline,
-	const struct ia_css_binary      *binary,
-	const struct sh_css_binary_args *args,
-	bool two_ppc,
-	bool deinterleaved)
-{
+    const struct sh_css_sp_pipeline *pipeline,
+    const struct ia_css_binary      *binary,
+    const struct sh_css_binary_args *args,
+    bool two_ppc,
+    bool deinterleaved) {
 #ifdef ISP2401
 	struct ia_css_pipe *pipe = find_pipe_by_num(pipeline->pipe_num);
 	const struct ia_css_resolution *res;
@@ -832,7 +845,7 @@ configure_isp_from_args(
 	ia_css_output0_configure(binary, &args->out_frame[0]->info);
 #ifdef ISP2401
 	ia_css_sc_configure(binary, pipeline->shading.internal_frame_origin_x_bqs_on_sctbl,
-				    pipeline->shading.internal_frame_origin_y_bqs_on_sctbl);
+			    pipeline->shading.internal_frame_origin_y_bqs_on_sctbl);
 #endif
 	ia_css_iterator_configure(binary, &args->in_frame->info);
 	ia_css_dvs_configure(binary, &args->out_frame[0]->info);
@@ -882,16 +895,15 @@ initialize_stage_frames(struct ia_css_frames_sp *frames)
 
 static enum ia_css_err
 sh_css_sp_init_stage(struct ia_css_binary *binary,
-		    const char *binary_name,
-		    const struct ia_css_blob_info *blob_info,
-		    const struct sh_css_binary_args *args,
-		    unsigned int pipe_num,
-		    unsigned int stage,
-		    bool xnr,
-		    const struct ia_css_isp_param_css_segments *isp_mem_if,
-		    unsigned int if_config_index,
-		    bool two_ppc)
-{
+		     const char *binary_name,
+		     const struct ia_css_blob_info *blob_info,
+		     const struct sh_css_binary_args *args,
+		     unsigned int pipe_num,
+		     unsigned int stage,
+		     bool xnr,
+		     const struct ia_css_isp_param_css_segments *isp_mem_if,
+		     unsigned int if_config_index,
+		     bool two_ppc) {
 	const struct ia_css_binary_xinfo *xinfo;
 	const struct ia_css_binary_info  *info;
 	enum ia_css_err err = IA_CSS_SUCCESS;
@@ -923,7 +935,8 @@ sh_css_sp_init_stage(struct ia_css_binary *binary,
 
 	ia_css_pipeline_get_sp_thread_id(pipe_num, &thread_id);
 
-	if (!info) {
+	if (!info)
+	{
 		sh_css_sp_group.pipe[thread_id].sp_stage_addr[stage] = mmgr_NULL;
 		return IA_CSS_SUCCESS;
 	}
@@ -954,13 +967,14 @@ sh_css_sp_init_stage(struct ia_css_binary *binary,
 	sh_css_sp_stage.frames.effective_in_res.height = binary->effective_in_frame_res.height;
 
 	ia_css_frame_info_to_frame_sp_info(&sh_css_sp_stage.frames.in.info,
-				&binary->in_frame_info);
-	for (i = 0; i < IA_CSS_BINARY_MAX_OUTPUT_PORTS; i++) {
+					   &binary->in_frame_info);
+	for (i = 0; i < IA_CSS_BINARY_MAX_OUTPUT_PORTS; i++)
+	{
 		ia_css_frame_info_to_frame_sp_info(&sh_css_sp_stage.frames.out[i].info,
-					&binary->out_frame_info[i]);
+						   &binary->out_frame_info[i]);
 	}
 	ia_css_frame_info_to_frame_sp_info(&sh_css_sp_stage.frames.internal_frame_info,
-				&binary->internal_frame_info);
+					   &binary->internal_frame_info);
 	sh_css_sp_stage.dvs_envelope.width    = binary->dvs_envelope.width;
 	sh_css_sp_stage.dvs_envelope.height   = binary->dvs_envelope.height;
 	sh_css_sp_stage.isp_pipe_version      = (uint8_t)info->pipeline.isp_pipe_version;
@@ -990,13 +1004,21 @@ sh_css_sp_init_stage(struct ia_css_binary *binary,
 
 	err = sh_css_sp_write_frame_pointers(args);
 	/* TODO: move it to a better place */
-	if (binary->info->sp.enable.s3a) {
-		ia_css_query_internal_queue_id(IA_CSS_BUFFER_TYPE_3A_STATISTICS, thread_id, &queue_id);
-		sh_css_copy_buffer_attr_to_spbuffer(&sh_css_sp_stage.frames.s3a_buf, queue_id, mmgr_EXCEPTION, IA_CSS_BUFFER_TYPE_3A_STATISTICS);
+	if (binary->info->sp.enable.s3a)
+	{
+		ia_css_query_internal_queue_id(IA_CSS_BUFFER_TYPE_3A_STATISTICS, thread_id,
+					       &queue_id);
+		sh_css_copy_buffer_attr_to_spbuffer(&sh_css_sp_stage.frames.s3a_buf, queue_id,
+						    mmgr_EXCEPTION,
+						    IA_CSS_BUFFER_TYPE_3A_STATISTICS);
 	}
-	if (binary->info->sp.enable.dis) {
-		ia_css_query_internal_queue_id(IA_CSS_BUFFER_TYPE_DIS_STATISTICS, thread_id, &queue_id);
-		sh_css_copy_buffer_attr_to_spbuffer(&sh_css_sp_stage.frames.dvs_buf, queue_id, mmgr_EXCEPTION, IA_CSS_BUFFER_TYPE_DIS_STATISTICS);
+	if (binary->info->sp.enable.dis)
+	{
+		ia_css_query_internal_queue_id(IA_CSS_BUFFER_TYPE_DIS_STATISTICS, thread_id,
+					       &queue_id);
+		sh_css_copy_buffer_attr_to_spbuffer(&sh_css_sp_stage.frames.dvs_buf, queue_id,
+						    mmgr_EXCEPTION,
+						    IA_CSS_BUFFER_TYPE_DIS_STATISTICS);
 	}
 #if defined SH_CSS_ENABLE_METADATA
 	ia_css_query_internal_queue_id(IA_CSS_BUFFER_TYPE_METADATA, thread_id, &queue_id);
@@ -1007,18 +1029,21 @@ sh_css_sp_init_stage(struct ia_css_binary *binary,
 
 #ifdef USE_INPUT_SYSTEM_VERSION_2401
 #ifndef ISP2401
-	if (args->in_frame) {
+	if (args->in_frame)
+	{
 		pipe = find_pipe_by_num(sh_css_sp_group.pipe[thread_id].pipe_num);
 		if (!pipe)
 			return IA_CSS_ERR_INTERNAL_ERROR;
 		ia_css_get_crop_offsets(pipe, &args->in_frame->info);
-	} else if (&binary->in_frame_info) {
+	} else if (&binary->in_frame_info)
+	{
 		pipe = find_pipe_by_num(sh_css_sp_group.pipe[thread_id].pipe_num);
 		if (!pipe)
 			return IA_CSS_ERR_INTERNAL_ERROR;
 		ia_css_get_crop_offsets(pipe, &binary->in_frame_info);
 #else
-	if (stage == 0) {
+	if (stage == 0)
+	{
 		if (args->in_frame) {
 			pipe = find_pipe_by_num(sh_css_sp_group.pipe[thread_id].pipe_num);
 			if (!pipe)
@@ -1037,7 +1062,7 @@ sh_css_sp_init_stage(struct ia_css_binary *binary,
 #endif
 
 	err = configure_isp_from_args(&sh_css_sp_group.pipe[thread_id],
-			binary, args, two_ppc, sh_css_sp_stage.deinterleaved);
+				      binary, args, two_ppc, sh_css_sp_stage.deinterleaved);
 	if (err != IA_CSS_SUCCESS)
 		return err;
 
@@ -1048,15 +1073,16 @@ sh_css_sp_init_stage(struct ia_css_binary *binary,
 	 * the original out res. for video pipe, it has two output pins --- out and
 	 * vf_out, so it can keep these two resolutions already. */
 	if (binary->info->sp.pipeline.mode == IA_CSS_BINARY_MODE_PREVIEW &&
-		(binary->vf_downscale_log2 > 0)) {
+	    (binary->vf_downscale_log2 > 0))
+	{
 		/* TODO: Remove this after preview output decimation is fixed
 		 * by configuring out&vf info fiels properly */
 		sh_css_sp_stage.frames.out[0].info.padded_width
-			<<= binary->vf_downscale_log2;
+		<<= binary->vf_downscale_log2;
 		sh_css_sp_stage.frames.out[0].info.res.width
-			<<= binary->vf_downscale_log2;
+		<<= binary->vf_downscale_log2;
 		sh_css_sp_stage.frames.out[0].info.res.height
-			<<= binary->vf_downscale_log2;
+		<<= binary->vf_downscale_log2;
 	}
 	err = copy_isp_mem_if_to_ddr(binary);
 	if (err != IA_CSS_SUCCESS)
@@ -1070,16 +1096,15 @@ sp_init_stage(struct ia_css_pipeline_stage *stage,
 	      unsigned int pipe_num,
 	      bool xnr,
 	      unsigned int if_config_index,
-	      bool two_ppc)
-{
+	      bool two_ppc) {
 	struct ia_css_binary *binary;
 	const struct ia_css_fw_info *firmware;
 	const struct sh_css_binary_args *args;
 	unsigned int stage_num;
-/*
- * Initialiser required because of the "else" path below.
- * Is this a valid path ?
- */
+	/*
+	 * Initialiser required because of the "else" path below.
+	 * Is this a valid path ?
+	 */
 	const char *binary_name = "";
 	const struct ia_css_binary_xinfo *info = NULL;
 	/* note: the var below is made static as it is quite large;
@@ -1107,35 +1132,38 @@ sp_init_stage(struct ia_css_pipeline_stage *stage,
 	args = &stage->args;
 	stage_num = stage->stage_num;
 
-	if (binary) {
+	if (binary)
+	{
 		info = binary->info;
 		binary_name = (const char *)(info->blob->name);
 		blob_info = &info->blob->header.blob;
 		ia_css_init_memory_interface(mem_if, &binary->mem_params, &binary->css_params);
-	} else if (firmware) {
+	} else if (firmware)
+	{
 		const struct ia_css_frame_info *out_infos[IA_CSS_BINARY_MAX_OUTPUT_PORTS] = {NULL};
 
 		if (args->out_frame[0])
 			out_infos[0] = &args->out_frame[0]->info;
 		info = &firmware->info.isp;
 		ia_css_binary_fill_info(info, false, false,
-			    ATOMISP_INPUT_FORMAT_RAW_10,
-			    args->in_frame  ? &args->in_frame->info  : NULL,
-			    NULL,
-				out_infos,
-			    args->out_vf_frame ? &args->out_vf_frame->info
-						: NULL,
-			    &tmp_binary,
-			    NULL,
-			    -1, true);
+					ATOMISP_INPUT_FORMAT_RAW_10,
+					args->in_frame  ? &args->in_frame->info  : NULL,
+					NULL,
+					out_infos,
+					args->out_vf_frame ? &args->out_vf_frame->info
+					: NULL,
+					&tmp_binary,
+					NULL,
+					-1, true);
 		binary = &tmp_binary;
 		binary->info = info;
 		binary_name = IA_CSS_EXT_ISP_PROG_NAME(firmware);
 		blob_info = &firmware->blob;
 		mem_if = (struct ia_css_isp_param_css_segments *)&firmware->mem_initializers;
-	} else {
-	    /* SP stage */
-	    assert(stage->sp_func != IA_CSS_PIPELINE_NO_FUNC);
+	} else
+	{
+		/* SP stage */
+		assert(stage->sp_func != IA_CSS_PIPELINE_NO_FUNC);
 		/* binary and blob_info are now NULL.
 		   These will be passed to sh_css_sp_init_stage
 		   and dereferenced there, so passing a NULL
@@ -1144,15 +1172,15 @@ sp_init_stage(struct ia_css_pipeline_stage *stage,
 	}
 
 	err = sh_css_sp_init_stage(binary,
-			     (const char *)binary_name,
-			     blob_info,
-			     args,
-			     pipe_num,
-			     stage_num,
-			     xnr,
-			     mem_if,
-			     if_config_index,
-			     two_ppc);
+				   (const char *)binary_name,
+				   blob_info,
+				   args,
+				   pipe_num,
+				   stage_num,
+				   xnr,
+				   mem_if,
+				   if_config_index,
+				   two_ppc);
 	return err;
 }
 
@@ -1169,15 +1197,15 @@ sp_init_sp_stage(struct ia_css_pipeline_stage *stage,
 	switch (stage->sp_func) {
 	case IA_CSS_PIPELINE_RAW_COPY:
 		sh_css_sp_start_raw_copy(args->out_frame[0],
-				pipe_num, two_ppc,
-				stage->max_input_width,
-				copy_ovrd, if_config_index);
+					 pipe_num, two_ppc,
+					 stage->max_input_width,
+					 copy_ovrd, if_config_index);
 		break;
 	case IA_CSS_PIPELINE_BIN_COPY:
 		assert(false); /* TBI */
 	case IA_CSS_PIPELINE_ISYS_COPY:
 		sh_css_sp_start_isys_copy(args->out_frame[0],
-				pipe_num, stage->max_input_width, if_config_index);
+					  pipe_num, stage->max_input_width, if_config_index);
 		break;
 	case IA_CSS_PIPELINE_NO_FUNC:
 		assert(false);
@@ -1202,12 +1230,12 @@ sh_css_sp_init_pipeline(struct ia_css_pipeline *me,
 #endif
 #ifdef ISP2401
 			,
-			const struct ia_css_coordinate *internal_frame_origin_bqs_on_sctbl, /* Origin of internal frame
+			const struct ia_css_coordinate
+			*internal_frame_origin_bqs_on_sctbl, /* Origin of internal frame
 							positioned on shading table at shading correction in ISP. */
 			const struct ia_css_isp_parameters *params
 #endif
-	)
-{
+		       ) {
 	/* Get first stage */
 	struct ia_css_pipeline_stage *stage        = NULL;
 	struct ia_css_binary	     *first_binary = NULL;
@@ -1226,14 +1254,17 @@ sh_css_sp_init_pipeline(struct ia_css_pipeline *me,
 	first_binary = me->stages->binary;
 
 	if (input_mode == IA_CSS_INPUT_MODE_SENSOR ||
-	    input_mode == IA_CSS_INPUT_MODE_BUFFERED_SENSOR) {
+	    input_mode == IA_CSS_INPUT_MODE_BUFFERED_SENSOR)
+	{
 		assert(port_id < N_MIPI_PORT_ID);
 		if (port_id >= N_MIPI_PORT_ID) /* should not happen but KW does not know */
 			return; /* we should be able to return an error */
 		if_config_index  = (uint8_t)(port_id - MIPI_PORT0_ID);
-	} else if (input_mode == IA_CSS_INPUT_MODE_MEMORY) {
+	} else if (input_mode == IA_CSS_INPUT_MODE_MEMORY)
+	{
 		if_config_index = SH_CSS_IF_CONFIG_NOT_NEEDED;
-	} else {
+	} else
+	{
 		if_config_index = 0x0;
 	}
 #else
@@ -1245,13 +1276,15 @@ sh_css_sp_init_pipeline(struct ia_css_pipeline *me,
 	memset(&sh_css_sp_group.pipe[thread_id], 0, sizeof(struct sh_css_sp_pipeline));
 
 	/* Count stages */
-	for (stage = me->stages, num = 0; stage; stage = stage->next, num++) {
+	for (stage = me->stages, num = 0; stage; stage = stage->next, num++)
+	{
 		stage->stage_num = num;
 		ia_css_debug_pipe_graph_dump_stage(stage, id);
 	}
 	me->num_stages = num;
 
-	if (first_binary) {
+	if (first_binary)
+	{
 		/* Init pipeline data */
 		sh_css_sp_init_group(two_ppc, first_binary->input_format,
 				     offline, if_config_index);
@@ -1276,16 +1309,17 @@ sh_css_sp_init_pipeline(struct ia_css_pipeline *me,
 	sh_css_sp_group.pipe[thread_id].required_bds_factor = required_bds_factor;
 #if !defined(HAS_NO_INPUT_SYSTEM)
 	sh_css_sp_group.pipe[thread_id].input_system_mode
-						= (uint32_t)input_mode;
+	= (uint32_t)input_mode;
 	sh_css_sp_group.pipe[thread_id].port_id = port_id;
 #endif
 	sh_css_sp_group.pipe[thread_id].dvs_frame_delay = (uint32_t)me->dvs_frame_delay;
 
 	/* TODO: next indicates from which queues parameters need to be
 		 sampled, needs checking/improvement */
-	if (ia_css_pipeline_uses_params(me)) {
+	if (ia_css_pipeline_uses_params(me))
+	{
 		sh_css_sp_group.pipe[thread_id].pipe_config =
-			SH_CSS_PIPE_CONFIG_SAMPLE_PARAMS << thread_id;
+		SH_CSS_PIPE_CONFIG_SAMPLE_PARAMS << thread_id;
 	}
 
 	/* For continuous use-cases, SP copy is responsible for sampling the
@@ -1297,20 +1331,22 @@ sh_css_sp_init_pipeline(struct ia_css_pipeline *me,
 
 	pipe = find_pipe_by_num(pipe_num);
 	assert(pipe);
-	if (!pipe) {
+	if (!pipe)
+	{
 		return;
 	}
 	sh_css_sp_group.pipe[thread_id].scaler_pp_lut = sh_css_pipe_get_pp_gdc_lut(pipe);
 
 #if defined(SH_CSS_ENABLE_METADATA)
-	if (md_info && md_info->size > 0) {
+	if (md_info && md_info->size > 0)
+	{
 		sh_css_sp_group.pipe[thread_id].metadata.width  = md_info->resolution.width;
 		sh_css_sp_group.pipe[thread_id].metadata.height = md_info->resolution.height;
 		sh_css_sp_group.pipe[thread_id].metadata.stride = md_info->stride;
 		sh_css_sp_group.pipe[thread_id].metadata.size   = md_info->size;
 		ia_css_isys_convert_stream_format_to_mipi_format(
-				md_config->data_type, MIPI_PREDICTOR_NONE,
-				&sh_css_sp_group.pipe[thread_id].metadata.format);
+		    md_config->data_type, MIPI_PREDICTOR_NONE,
+		    &sh_css_sp_group.pipe[thread_id].metadata.format);
 	}
 #else
 	(void)md_config;
@@ -1319,8 +1355,11 @@ sh_css_sp_init_pipeline(struct ia_css_pipeline *me,
 
 #if defined(SH_CSS_ENABLE_PER_FRAME_PARAMS)
 	sh_css_sp_group.pipe[thread_id].output_frame_queue_id = (uint32_t)SH_CSS_INVALID_QUEUE_ID;
-	if (pipe_id != IA_CSS_PIPE_ID_COPY) {
-		ia_css_query_internal_queue_id(IA_CSS_BUFFER_TYPE_OUTPUT_FRAME, thread_id, (enum sh_css_queue_id *)(&sh_css_sp_group.pipe[thread_id].output_frame_queue_id));
+	if (pipe_id != IA_CSS_PIPE_ID_COPY)
+	{
+		ia_css_query_internal_queue_id(IA_CSS_BUFFER_TYPE_OUTPUT_FRAME, thread_id,
+					       (enum sh_css_queue_id *)(
+						   &sh_css_sp_group.pipe[thread_id].output_frame_queue_id));
 	}
 #endif
 
@@ -1329,27 +1368,33 @@ sh_css_sp_init_pipeline(struct ia_css_pipeline *me,
 	 * the parameters are passed to the isp for the shading table centering.
 	 */
 	if (internal_frame_origin_bqs_on_sctbl &&
-			params && params->shading_settings.enable_shading_table_conversion == 0) {
+	    params && params->shading_settings.enable_shading_table_conversion == 0)
+	{
 		sh_css_sp_group.pipe[thread_id].shading.internal_frame_origin_x_bqs_on_sctbl
-								= (uint32_t)internal_frame_origin_bqs_on_sctbl->x;
+		= (uint32_t)internal_frame_origin_bqs_on_sctbl->x;
 		sh_css_sp_group.pipe[thread_id].shading.internal_frame_origin_y_bqs_on_sctbl
-								= (uint32_t)internal_frame_origin_bqs_on_sctbl->y;
-	} else {
-		sh_css_sp_group.pipe[thread_id].shading.internal_frame_origin_x_bqs_on_sctbl = 0;
-		sh_css_sp_group.pipe[thread_id].shading.internal_frame_origin_y_bqs_on_sctbl = 0;
+		= (uint32_t)internal_frame_origin_bqs_on_sctbl->y;
+	} else
+	{
+		sh_css_sp_group.pipe[thread_id].shading.internal_frame_origin_x_bqs_on_sctbl =
+		0;
+		sh_css_sp_group.pipe[thread_id].shading.internal_frame_origin_y_bqs_on_sctbl =
+		0;
 	}
 
 #endif
 	IA_CSS_LOG("pipe_id %d port_config %08x",
 		   pipe_id, sh_css_sp_group.pipe[thread_id].inout_port_config);
 
-	for (stage = me->stages, num = 0; stage; stage = stage->next, num++) {
+	for (stage = me->stages, num = 0; stage; stage = stage->next, num++)
+	{
 		sh_css_sp_group.pipe[thread_id].num_stages++;
 		if (is_sp_stage(stage)) {
 			sp_init_sp_stage(stage, pipe_num, two_ppc,
-				copy_ovrd, if_config_index);
+					 copy_ovrd, if_config_index);
 		} else {
-			if ((stage->stage_num != 0) || SH_CSS_PIPE_PORT_CONFIG_IS_CONTINUOUS(me->inout_port_config))
+			if ((stage->stage_num != 0) ||
+			    SH_CSS_PIPE_PORT_CONFIG_IS_CONTINUOUS(me->inout_port_config))
 				tmp_if_config_index = SH_CSS_IF_CONFIG_NOT_NEEDED;
 			else
 				tmp_if_config_index = if_config_index;
@@ -1377,8 +1422,9 @@ sh_css_sp_uninit_pipeline(unsigned int pipe_num)
 bool sh_css_write_host2sp_command(enum host2sp_commands host2sp_command)
 {
 	unsigned int HIVE_ADDR_host_sp_com = sh_css_sp_fw.info.sp.host_sp_com;
-	unsigned int offset = (unsigned int)offsetof(struct host_sp_communication, host2sp_command)
-				/ sizeof(int);
+	unsigned int offset = (unsigned int)offsetof(struct host_sp_communication,
+			      host2sp_command)
+			      / sizeof(int);
 	enum host2sp_commands last_cmd = host2sp_cmd_error;
 	(void)HIVE_ADDR_host_sp_com; /* Suppres warnings in CRUN */
 
@@ -1393,11 +1439,10 @@ bool sh_css_write_host2sp_command(enum host2sp_commands host2sp_command)
 }
 
 enum host2sp_commands
-sh_css_read_host2sp_command(void)
-{
+sh_css_read_host2sp_command(void) {
 	unsigned int HIVE_ADDR_host_sp_com = sh_css_sp_fw.info.sp.host_sp_com;
 	unsigned int offset = (unsigned int)offsetof(struct host_sp_communication, host2sp_command)
-				/ sizeof(int);
+	/ sizeof(int);
 	(void)HIVE_ADDR_host_sp_com; /* Suppres warnings in CRUN */
 	return (enum host2sp_commands)load_sp_array_uint(host_sp_com, offset);
 }
@@ -1434,9 +1479,9 @@ sh_css_init_host2sp_frame_data(void)
  */
 void
 sh_css_update_host2sp_offline_frame(
-				unsigned int frame_num,
-				struct ia_css_frame *frame,
-				struct ia_css_metadata *metadata)
+    unsigned int frame_num,
+    struct ia_css_frame *frame,
+    struct ia_css_metadata *metadata)
 {
 	unsigned int HIVE_ADDR_host_sp_com;
 	unsigned int offset;
@@ -1445,14 +1490,16 @@ sh_css_update_host2sp_offline_frame(
 
 	/* Write new frame data into SP DMEM */
 	HIVE_ADDR_host_sp_com = sh_css_sp_fw.info.sp.host_sp_com;
-	offset = (unsigned int)offsetof(struct host_sp_communication, host2sp_offline_frames)
-		/ sizeof(int);
+	offset = (unsigned int)offsetof(struct host_sp_communication,
+					host2sp_offline_frames)
+		 / sizeof(int);
 	offset += frame_num;
 	store_sp_array_uint(host_sp_com, offset, frame ? frame->data : 0);
 
 	/* Write metadata buffer into SP DMEM */
-	offset = (unsigned int)offsetof(struct host_sp_communication, host2sp_offline_metadata)
-		/ sizeof(int);
+	offset = (unsigned int)offsetof(struct host_sp_communication,
+					host2sp_offline_metadata)
+		 / sizeof(int);
 	offset += frame_num;
 	store_sp_array_uint(host_sp_com, offset, metadata ? metadata->address : 0);
 }
@@ -1464,8 +1511,8 @@ sh_css_update_host2sp_offline_frame(
  */
 void
 sh_css_update_host2sp_mipi_frame(
-				unsigned int frame_num,
-				struct ia_css_frame *frame)
+    unsigned int frame_num,
+    struct ia_css_frame *frame)
 {
 	unsigned int HIVE_ADDR_host_sp_com;
 	unsigned int offset;
@@ -1475,12 +1522,13 @@ sh_css_update_host2sp_mipi_frame(
 
 	/* Write new frame data into SP DMEM */
 	HIVE_ADDR_host_sp_com = sh_css_sp_fw.info.sp.host_sp_com;
-	offset = (unsigned int)offsetof(struct host_sp_communication, host2sp_mipi_frames)
-		/ sizeof(int);
+	offset = (unsigned int)offsetof(struct host_sp_communication,
+					host2sp_mipi_frames)
+		 / sizeof(int);
 	offset += frame_num;
 
 	store_sp_array_uint(host_sp_com, offset,
-				frame ? frame->data : 0);
+			    frame ? frame->data : 0);
 }
 
 /*
@@ -1489,8 +1537,8 @@ sh_css_update_host2sp_mipi_frame(
  */
 void
 sh_css_update_host2sp_mipi_metadata(
-				unsigned int frame_num,
-				struct ia_css_metadata *metadata)
+    unsigned int frame_num,
+    struct ia_css_metadata *metadata)
 {
 	unsigned int HIVE_ADDR_host_sp_com;
 	unsigned int o;
@@ -1501,10 +1549,10 @@ sh_css_update_host2sp_mipi_metadata(
 	/* Write new frame data into SP DMEM */
 	HIVE_ADDR_host_sp_com = sh_css_sp_fw.info.sp.host_sp_com;
 	o = offsetof(struct host_sp_communication, host2sp_mipi_metadata)
-		/ sizeof(int);
+	    / sizeof(int);
 	o += frame_num;
 	store_sp_array_uint(host_sp_com, o,
-				metadata ? metadata->address : 0);
+			    metadata ? metadata->address : 0);
 }
 
 void
@@ -1515,15 +1563,17 @@ sh_css_update_host2sp_num_mipi_frames(unsigned int num_frames)
 
 	/* Write new frame data into SP DMEM */
 	HIVE_ADDR_host_sp_com = sh_css_sp_fw.info.sp.host_sp_com;
-	offset = (unsigned int)offsetof(struct host_sp_communication, host2sp_num_mipi_frames)
-		/ sizeof(int);
+	offset = (unsigned int)offsetof(struct host_sp_communication,
+					host2sp_num_mipi_frames)
+		 / sizeof(int);
 
 	store_sp_array_uint(host_sp_com, offset, num_frames);
 }
 #endif
 
 void
-sh_css_update_host2sp_cont_num_raw_frames(unsigned int num_frames, bool set_avail)
+sh_css_update_host2sp_cont_num_raw_frames(unsigned int num_frames,
+	bool set_avail)
 {
 	const struct ia_css_fw_info *fw;
 	unsigned int HIVE_ADDR_host_sp_com;
@@ -1534,16 +1584,19 @@ sh_css_update_host2sp_cont_num_raw_frames(unsigned int num_frames, bool set_avai
 	fw = &sh_css_sp_fw;
 	HIVE_ADDR_host_sp_com = fw->info.sp.host_sp_com;
 	if (set_avail) {
-		offset = (unsigned int)offsetof(struct host_sp_communication, host2sp_cont_avail_num_raw_frames)
-			/ sizeof(int);
+		offset = (unsigned int)offsetof(struct host_sp_communication,
+						host2sp_cont_avail_num_raw_frames)
+			 / sizeof(int);
 		avail_num_frames = load_sp_array_uint(host_sp_com, offset);
 		extra_num_frames = num_frames - avail_num_frames;
-		offset_extra = (unsigned int)offsetof(struct host_sp_communication, host2sp_cont_extra_num_raw_frames)
-			/ sizeof(int);
+		offset_extra = (unsigned int)offsetof(struct host_sp_communication,
+						      host2sp_cont_extra_num_raw_frames)
+			       / sizeof(int);
 		store_sp_array_uint(host_sp_com, offset_extra, extra_num_frames);
 	} else
-		offset = (unsigned int)offsetof(struct host_sp_communication, host2sp_cont_target_num_raw_frames)
-			/ sizeof(int);
+		offset = (unsigned int)offsetof(struct host_sp_communication,
+						host2sp_cont_target_num_raw_frames)
+			 / sizeof(int);
 
 	store_sp_array_uint(host_sp_com, offset, num_frames);
 }
@@ -1566,16 +1619,15 @@ sh_css_event_init_irq_mask(void)
 						host2sp_event_irq_mask[i]);
 		assert(offset % HRT_BUS_BYTES == 0);
 		sp_dmem_store(SP0_ID,
-			(unsigned int)sp_address_of(host_sp_com) + offset,
-			&event_irq_mask_init, sizeof(event_irq_mask_init));
+			      (unsigned int)sp_address_of(host_sp_com) + offset,
+			      &event_irq_mask_init, sizeof(event_irq_mask_init));
 	}
 }
 
 enum ia_css_err
 ia_css_pipe_set_irq_mask(struct ia_css_pipe *pipe,
 			 unsigned int or_mask,
-			 unsigned int and_mask)
-{
+			 unsigned int and_mask) {
 	unsigned int HIVE_ADDR_host_sp_com = sh_css_sp_fw.info.sp.host_sp_com;
 	unsigned int offset;
 	struct sh_css_event_irq_mask event_irq_mask;
@@ -1605,8 +1657,8 @@ ia_css_pipe_set_irq_mask(struct ia_css_pipe *pipe,
 					host2sp_event_irq_mask[pipe_num]);
 	assert(offset % HRT_BUS_BYTES == 0);
 	sp_dmem_store(SP0_ID,
-		(unsigned int)sp_address_of(host_sp_com) + offset,
-		&event_irq_mask, sizeof(event_irq_mask));
+		      (unsigned int)sp_address_of(host_sp_com) + offset,
+		      &event_irq_mask, sizeof(event_irq_mask));
 
 	return IA_CSS_SUCCESS;
 }
@@ -1614,8 +1666,7 @@ ia_css_pipe_set_irq_mask(struct ia_css_pipe *pipe,
 enum ia_css_err
 ia_css_event_get_irq_mask(const struct ia_css_pipe *pipe,
 			  unsigned int *or_mask,
-			  unsigned int *and_mask)
-{
+			  unsigned int *and_mask) {
 	unsigned int HIVE_ADDR_host_sp_com = sh_css_sp_fw.info.sp.host_sp_com;
 	unsigned int offset;
 	struct sh_css_event_irq_mask event_irq_mask;
@@ -1635,8 +1686,8 @@ ia_css_event_get_irq_mask(const struct ia_css_pipe *pipe,
 					host2sp_event_irq_mask[pipe_num]);
 	assert(offset % HRT_BUS_BYTES == 0);
 	sp_dmem_load(SP0_ID,
-		(unsigned int)sp_address_of(host_sp_com) + offset,
-		&event_irq_mask, sizeof(event_irq_mask));
+		     (unsigned int)sp_address_of(host_sp_com) + offset,
+		     &event_irq_mask, sizeof(event_irq_mask));
 
 	if (or_mask)
 		*or_mask = event_irq_mask.or_mask;
@@ -1680,8 +1731,8 @@ sh_css_sp_start_isp(void)
 	store_sp_per_frame_data(fw);
 
 	sp_dmem_store_uint32(SP0_ID,
-		(unsigned int)sp_address_of(sp_sw_state),
-		(uint32_t)(IA_CSS_SP_SW_TERMINATED));
+			     (unsigned int)sp_address_of(sp_sw_state),
+			     (uint32_t)(IA_CSS_SP_SW_TERMINATED));
 
 	/* Note 1: The sp_start_isp function contains a wait till
 	 * the input network is configured by the SP.
@@ -1728,14 +1779,14 @@ sh_css_sp_init_dma_sw_reg(int dma_id)
 	for (i = 0; i < N_DMA_CHANNEL_ID; i++) {
 		/* enable the writing request */
 		sh_css_sp_set_dma_sw_reg(dma_id,
-				i,
-				0,
-				true);
+					 i,
+					 0,
+					 true);
 		/* enable the reading request */
 		sh_css_sp_set_dma_sw_reg(dma_id,
-				i,
-				1,
-				true);
+					 i,
+					 1,
+					 true);
 	}
 
 	return true;
@@ -1747,9 +1798,9 @@ sh_css_sp_init_dma_sw_reg(int dma_id)
  */
 bool
 sh_css_sp_set_dma_sw_reg(int dma_id,
-		int channel_id,
-		int request_type,
-		bool enable)
+			 int channel_id,
+			 int request_type,
+			 bool enable)
 {
 	u32 sw_reg;
 	u32 bit_val;
@@ -1763,7 +1814,7 @@ sh_css_sp_set_dma_sw_reg(int dma_id,
 
 	/* get the software-mask */
 	sw_reg =
-		sh_css_sp_group.debug.dma_sw_reg;
+	    sh_css_sp_group.debug.dma_sw_reg;
 
 	/* get the offest of the target bit */
 	bit_offset = (8 * request_type) + channel_id;

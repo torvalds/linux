@@ -68,12 +68,12 @@ typedef enum fifo_channel {
 	FIFO_CHANNEL_STREAM2MEM0_TO_SP0,
 	FIFO_CHANNEL_SP0_TO_INPUT_SYSTEM0,
 	FIFO_CHANNEL_INPUT_SYSTEM0_TO_SP0,
-/*
- * No clue what this is
- *
-	FIFO_CHANNEL_SP0_TO_IRQ0,
-	FIFO_CHANNEL_IRQ0_TO_SP0,
- */
+	/*
+	 * No clue what this is
+	 *
+		FIFO_CHANNEL_SP0_TO_IRQ0,
+		FIFO_CHANNEL_IRQ0_TO_SP0,
+	 */
 	N_FIFO_CHANNEL
 } fifo_channel_t;
 

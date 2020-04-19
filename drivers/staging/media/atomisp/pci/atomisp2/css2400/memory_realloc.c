@@ -17,19 +17,19 @@ more details.
 #include "memory_access.h"
 
 static bool realloc_isp_css_mm_buf(
-	hrt_vaddress * curr_buf,
-	size_t *curr_size,
-	size_t needed_size,
-	bool force,
-	enum ia_css_err *err,
-	uint16_t mmgr_attribute);
+    hrt_vaddress *curr_buf,
+    size_t *curr_size,
+    size_t needed_size,
+    bool force,
+    enum ia_css_err *err,
+    uint16_t mmgr_attribute);
 
 bool reallocate_buffer(
-	hrt_vaddress * curr_buf,
-	size_t *curr_size,
-	size_t needed_size,
-	bool force,
-	enum ia_css_err *err)
+    hrt_vaddress *curr_buf,
+    size_t *curr_size,
+    size_t needed_size,
+    bool force,
+    enum ia_css_err *err)
 {
 	bool ret;
 	u16	mmgr_attribute = MMGR_ATTRIBUTE_DEFAULT;
@@ -37,19 +37,19 @@ bool reallocate_buffer(
 	IA_CSS_ENTER_PRIVATE("void");
 
 	ret = realloc_isp_css_mm_buf(curr_buf,
-		curr_size, needed_size, force, err, mmgr_attribute);
+				     curr_size, needed_size, force, err, mmgr_attribute);
 
 	IA_CSS_LEAVE_PRIVATE("ret=%d", ret);
 	return ret;
 }
 
 static bool realloc_isp_css_mm_buf(
-	hrt_vaddress * curr_buf,
-	size_t *curr_size,
-	size_t needed_size,
-	bool force,
-	enum ia_css_err *err,
-	uint16_t mmgr_attribute)
+    hrt_vaddress *curr_buf,
+    size_t *curr_size,
+    size_t needed_size,
+    bool force,
+    enum ia_css_err *err,
+    uint16_t mmgr_attribute)
 {
 	s32 id;
 
@@ -59,7 +59,8 @@ static bool realloc_isp_css_mm_buf(
 
 	IA_CSS_ENTER_PRIVATE("void");
 
-	if (ia_css_refcount_is_single(*curr_buf) && !force && *curr_size >= needed_size) {
+	if (ia_css_refcount_is_single(*curr_buf) && !force &&
+	    *curr_size >= needed_size) {
 		IA_CSS_LEAVE_PRIVATE("false");
 		return false;
 	}
@@ -67,7 +68,7 @@ static bool realloc_isp_css_mm_buf(
 	id = IA_CSS_REFCOUNT_PARAM_BUFFER;
 	ia_css_refcount_decrement(id, *curr_buf);
 	*curr_buf = ia_css_refcount_increment(id, mmgr_alloc_attr(needed_size,
-							mmgr_attribute));
+					      mmgr_attribute));
 
 	if (!*curr_buf) {
 		*err = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;

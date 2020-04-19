@@ -33,10 +33,10 @@
  * @return     ERANGE on Destination size too small
  */
 static inline int memcpy_s(
-	void *dest_buf,
-	size_t dest_size,
-	const void *src_buf,
-	size_t src_size)
+    void *dest_buf,
+    size_t dest_size,
+    const void *src_buf,
+    size_t src_size)
 {
 	if ((!src_buf) || (!dest_buf)) {
 		/* Invalid arguments*/
@@ -61,8 +61,8 @@ static inline int memcpy_s(
  * @return     Returns 0 if src_str is NULL
  */
 static size_t strnlen_s(
-	const char *src_str,
-	size_t max_len)
+    const char *src_str,
+    size_t max_len)
 {
 	size_t ix;
 
@@ -89,10 +89,10 @@ static size_t strnlen_s(
  * @return     Returns ERANGE on destination size too small
  */
 static inline int strncpy_s(
-	char *dest_str,
-	size_t dest_size,
-	const char *src_str,
-	size_t src_size)
+    char *dest_str,
+    size_t dest_size,
+    const char *src_str,
+    size_t src_size)
 {
 	size_t len;
 
@@ -131,9 +131,9 @@ static inline int strncpy_s(
  * @return     Returns ERANGE on destination size too small
  */
 static inline int strcpy_s(
-	char *dest_str,
-	size_t dest_size,
-	const char *src_str)
+    char *dest_str,
+    size_t dest_size,
+    const char *src_str)
 {
 	size_t len;
 

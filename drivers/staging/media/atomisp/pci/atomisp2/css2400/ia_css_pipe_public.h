@@ -296,7 +296,7 @@ ia_css_pipe_get_info(const struct ia_css_pipe *pipe,
  */
 enum ia_css_err
 ia_css_pipe_set_isp_config(struct ia_css_pipe *pipe,
-						   struct ia_css_isp_config *config);
+			   struct ia_css_isp_config *config);
 
 /* @brief Controls when the Event generator raises an IRQ to the Host.
  *
@@ -462,8 +462,8 @@ ia_css_pipe_dequeue_buffer(struct ia_css_pipe *pipe,
  */
 enum ia_css_err
 ia_css_pipe_set_qos_ext_state(struct ia_css_pipe *pipe,
-			   u32 fw_handle,
-			   bool  enable);
+			      u32 fw_handle,
+			      bool  enable);
 
 /* @brief  Get the state (Enable or Disable) of the Extension stage in the
  *          given pipe.
@@ -488,8 +488,8 @@ ia_css_pipe_set_qos_ext_state(struct ia_css_pipe *pipe,
  */
 enum ia_css_err
 ia_css_pipe_get_qos_ext_state(struct ia_css_pipe *pipe,
-			   u32 fw_handle,
-			   bool *enable);
+			      u32 fw_handle,
+			      bool *enable);
 
 #ifdef ISP2401
 /* @brief  Update mapped CSS and ISP arguments for QoS pipe during SP runtime.
@@ -509,9 +509,10 @@ ia_css_pipe_get_qos_ext_state(struct ia_css_pipe *pipe,
  * maintained on IPU3 or further.}
  */
 enum ia_css_err
-ia_css_pipe_update_qos_ext_mapped_arg(struct ia_css_pipe *pipe, uint32_t fw_handle,
-			struct ia_css_isp_param_css_segments *css_seg,
-			struct ia_css_isp_param_isp_segments *isp_seg);
+ia_css_pipe_update_qos_ext_mapped_arg(struct ia_css_pipe *pipe,
+				      uint32_t fw_handle,
+				      struct ia_css_isp_param_css_segments *css_seg,
+				      struct ia_css_isp_param_isp_segments *isp_seg);
 
 #endif
 /* @brief Get selected configuration settings
@@ -521,7 +522,7 @@ ia_css_pipe_update_qos_ext_mapped_arg(struct ia_css_pipe *pipe, uint32_t fw_hand
  */
 void
 ia_css_pipe_get_isp_config(struct ia_css_pipe *pipe,
-			     struct ia_css_isp_config *config);
+			   struct ia_css_isp_config *config);
 
 /* @brief Set the scaler lut on this pipe. A copy of lut is made in the inuit
  *         address space. So the LUT can be freed by caller.
@@ -541,7 +542,7 @@ ia_css_pipe_get_isp_config(struct ia_css_pipe *pipe,
  */
 enum ia_css_err
 ia_css_pipe_set_bci_scaler_lut(struct ia_css_pipe *pipe,
-				const void *lut);
+			       const void *lut);
 /* @brief Checking of DVS statistics ability
  * @param[in]	pipe_info	The pipe info.
  * @return		true - has DVS statistics ability
@@ -571,8 +572,8 @@ bool ia_css_pipe_has_dvs_stats(struct ia_css_pipe_info *pipe_info);
  */
 enum ia_css_err
 ia_css_pipe_override_frame_format(struct ia_css_pipe *pipe,
-				int output_pin,
-				enum ia_css_frame_format format);
+				  int output_pin,
+				  enum ia_css_frame_format format);
 
 #endif
 #endif /* __IA_CSS_PIPE_PUBLIC_H */

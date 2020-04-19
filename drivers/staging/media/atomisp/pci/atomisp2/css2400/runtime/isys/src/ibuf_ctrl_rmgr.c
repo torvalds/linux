@@ -61,8 +61,8 @@ void ia_css_isys_ibuf_rmgr_uninit(void)
 }
 
 bool ia_css_isys_ibuf_rmgr_acquire(
-	u32	size,
-	uint32_t	*start_addr)
+    u32	size,
+    uint32_t	*start_addr)
 {
 	bool retval = false;
 	bool input_buffer_found = false;
@@ -121,7 +121,7 @@ bool ia_css_isys_ibuf_rmgr_acquire(
 }
 
 void ia_css_isys_ibuf_rmgr_release(
-	uint32_t	*start_addr)
+    uint32_t	*start_addr)
 {
 	u16 i;
 	ibuf_handle_t *handle = NULL;

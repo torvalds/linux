@@ -16,21 +16,21 @@
 #include "ia_css_tdf.host.h"
 
 static const s16 g_pyramid[8][8] = {
-{128, 384, 640, 896, 896, 640, 384, 128},
-{384, 1152, 1920, 2688, 2688, 1920, 1152, 384},
-{640, 1920, 3200, 4480, 4480, 3200, 1920, 640},
-{896, 2688, 4480, 6272, 6272, 4480, 2688, 896},
-{896, 2688, 4480, 6272, 6272, 4480, 2688, 896},
-{640, 1920, 3200, 4480, 4480, 3200, 1920, 640},
-{384, 1152, 1920, 2688, 2688, 1920, 1152, 384},
-{128, 384, 640, 896, 896, 640, 384, 128}
+	{128, 384, 640, 896, 896, 640, 384, 128},
+	{384, 1152, 1920, 2688, 2688, 1920, 1152, 384},
+	{640, 1920, 3200, 4480, 4480, 3200, 1920, 640},
+	{896, 2688, 4480, 6272, 6272, 4480, 2688, 896},
+	{896, 2688, 4480, 6272, 6272, 4480, 2688, 896},
+	{640, 1920, 3200, 4480, 4480, 3200, 1920, 640},
+	{384, 1152, 1920, 2688, 2688, 1920, 1152, 384},
+	{128, 384, 640, 896, 896, 640, 384, 128}
 };
 
 void
 ia_css_tdf_vmem_encode(
-	struct ia_css_isp_tdf_vmem_params *to,
-	const struct ia_css_tdf_config *from,
-	size_t size)
+    struct ia_css_isp_tdf_vmem_params *to,
+    const struct ia_css_tdf_config *from,
+    size_t size)
 {
 	unsigned int i;
 	(void)size;
@@ -44,9 +44,9 @@ ia_css_tdf_vmem_encode(
 
 void
 ia_css_tdf_encode(
-	struct ia_css_isp_tdf_dmem_params *to,
-	const struct ia_css_tdf_config *from,
-	size_t size)
+    struct ia_css_isp_tdf_dmem_params *to,
+    const struct ia_css_tdf_config *from,
+    size_t size)
 {
 	(void)size;
 	to->Epsilon_0        = from->epsilon_0;
@@ -66,8 +66,8 @@ ia_css_tdf_encode(
 
 void
 ia_css_tdf_debug_dtrace(
-	const struct ia_css_tdf_config *config,
-	unsigned int level)
+    const struct ia_css_tdf_config *config,
+    unsigned int level)
 {
 	(void)config;
 	(void)level;

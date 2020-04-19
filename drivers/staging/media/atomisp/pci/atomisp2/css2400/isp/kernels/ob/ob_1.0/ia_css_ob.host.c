@@ -34,9 +34,9 @@ const struct ia_css_ob_config default_ob_config = {
 
 void
 ia_css_ob_configure(
-	struct sh_css_isp_ob_stream_config *config,
-	unsigned int isp_pipe_version,
-	unsigned int raw_bit_depth)
+    struct sh_css_isp_ob_stream_config *config,
+    unsigned int isp_pipe_version,
+    unsigned int raw_bit_depth)
 {
 	config->isp_pipe_version = isp_pipe_version;
 	config->raw_bit_depth    = raw_bit_depth;
@@ -44,13 +44,13 @@ ia_css_ob_configure(
 
 void
 ia_css_ob_encode(
-	struct sh_css_isp_ob_params *to,
-	const struct ia_css_ob_config *from,
-	const struct sh_css_isp_ob_stream_config *config,
-	unsigned int size)
+    struct sh_css_isp_ob_params *to,
+    const struct ia_css_ob_config *from,
+    const struct sh_css_isp_ob_stream_config *config,
+    unsigned int size)
 {
 	unsigned int ob_bit_depth
-		= config->isp_pipe_version == 2 ? SH_CSS_BAYER_BITS : config->raw_bit_depth;
+	    = config->isp_pipe_version == 2 ? SH_CSS_BAYER_BITS : config->raw_bit_depth;
 	unsigned int scale = 16 - ob_bit_depth;
 
 	(void)size;
@@ -88,10 +88,10 @@ ia_css_ob_encode(
 
 void
 ia_css_ob_vmem_encode(
-	struct sh_css_isp_ob_vmem_params *to,
-	const struct ia_css_ob_config *from,
-	const struct sh_css_isp_ob_stream_config *config,
-	unsigned int size)
+    struct sh_css_isp_ob_vmem_params *to,
+    const struct ia_css_ob_config *from,
+    const struct sh_css_isp_ob_stream_config *config,
+    unsigned int size)
 {
 	struct sh_css_isp_ob_params tmp;
 	struct sh_css_isp_ob_params *ob = &tmp;
@@ -118,37 +118,37 @@ ia_css_ob_vmem_encode(
 
 void
 ia_css_ob_dump(
-	const struct sh_css_isp_ob_params *ob,
-	unsigned int level)
+    const struct sh_css_isp_ob_params *ob,
+    unsigned int level)
 {
 	if (!ob) return;
 	ia_css_debug_dtrace(level, "Optical Black:\n");
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-		"ob_blacklevel_gr", ob->blacklevel_gr);
+			    "ob_blacklevel_gr", ob->blacklevel_gr);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-		"ob_blacklevel_r", ob->blacklevel_r);
+			    "ob_blacklevel_r", ob->blacklevel_r);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-		"ob_blacklevel_b", ob->blacklevel_b);
+			    "ob_blacklevel_b", ob->blacklevel_b);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-		"ob_blacklevel_gb", ob->blacklevel_gb);
+			    "ob_blacklevel_gb", ob->blacklevel_gb);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-		"obarea_start_bq", ob->area_start_bq);
+			    "obarea_start_bq", ob->area_start_bq);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-		"obarea_length_bq", ob->area_length_bq);
+			    "obarea_length_bq", ob->area_length_bq);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-		"obarea_length_bq_inverse",
-		ob->area_length_bq_inverse);
+			    "obarea_length_bq_inverse",
+			    ob->area_length_bq_inverse);
 }
 
 void
 ia_css_ob_debug_dtrace(
-	const struct ia_css_ob_config *config,
-	unsigned int level)
+    const struct ia_css_ob_config *config,
+    unsigned int level)
 {
 	ia_css_debug_dtrace(level,
-		"config.mode=%d, config.level_gr=%d, config.level_r=%d, config.level_b=%d,  config.level_gb=%d, config.start_position=%d, config.end_position=%d\n",
-		config->mode,
-		config->level_gr, config->level_r,
-		config->level_b, config->level_gb,
-		config->start_position, config->end_position);
+			    "config.mode=%d, config.level_gr=%d, config.level_r=%d, config.level_b=%d,  config.level_gb=%d, config.start_position=%d, config.end_position=%d\n",
+			    config->mode,
+			    config->level_gr, config->level_r,
+			    config->level_b, config->level_gb,
+			    config->start_position, config->end_position);
 }

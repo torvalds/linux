@@ -79,20 +79,20 @@ STORAGE_CLASS_DEBUG_H void debug_synch_queue_ddr(void);
  \return none
  */
 void debug_buffer_init(
-	const hrt_address		addr);
+    const hrt_address		addr);
 
 /*! Set the offset/address of the (remote) debug buffer
 
  \return none
  */
 void debug_buffer_ddr_init(
-	const hrt_vaddress		addr);
+    const hrt_vaddress		addr);
 
 /*! Set the (remote) operating mode of the debug buffer
 
  \return none
  */
 void debug_buffer_setmode(
-	const debug_buf_mode_t	mode);
+    const debug_buf_mode_t	mode);
 
 #endif /* __DEBUG_PUBLIC_H_INCLUDED__ */

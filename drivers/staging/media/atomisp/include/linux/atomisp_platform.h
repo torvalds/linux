@@ -187,13 +187,13 @@ struct camera_vcm_control;
 struct camera_vcm_ops {
 	int (*power_up)(struct v4l2_subdev *sd, struct camera_vcm_control *vcm);
 	int (*power_down)(struct v4l2_subdev *sd,
-			struct camera_vcm_control *vcm);
+			  struct camera_vcm_control *vcm);
 	int (*queryctrl)(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc,
-			struct camera_vcm_control *vcm);
+			 struct camera_vcm_control *vcm);
 	int (*g_ctrl)(struct v4l2_subdev *sd, struct v4l2_control *ctrl,
-			struct camera_vcm_control *vcm);
+		      struct camera_vcm_control *vcm);
 	int (*s_ctrl)(struct v4l2_subdev *sd, struct v4l2_control *ctrl,
-			struct camera_vcm_control *vcm);
+		      struct camera_vcm_control *vcm);
 };
 
 struct camera_vcm_control {
@@ -215,8 +215,8 @@ struct camera_sensor_platform_data {
 	int (*v1p8_ctrl)(struct v4l2_subdev *subdev, int on);
 	int (*v2p8_ctrl)(struct v4l2_subdev *subdev, int on);
 	int (*v1p2_ctrl)(struct v4l2_subdev *subdev, int on);
-	struct camera_vcm_control * (*get_vcm_ctrl)(struct v4l2_subdev *subdev,
-						    char *module_id);
+	struct camera_vcm_control *(*get_vcm_ctrl)(struct v4l2_subdev *subdev,
+		char *module_id);
 };
 
 struct camera_mipi_info {

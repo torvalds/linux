@@ -60,41 +60,41 @@ input_system_error_t ia_css_isys_init(void)
 		return error;
 
 	error = input_system_csi_xmem_channel_cfg(
-			0,			/*ch_id                 */
-			INPUT_SYSTEM_PORT_A,	/*port                  */
-			backend_ch0,		/*backend_ch            */
-			32,			/*mem_region_size       */
-			6,			/*nof_mem_regions       */
-			acq_mem_region_size,	/*acq_mem_region_size   */
-			acq_nof_mem_regions,	/*acq_nof_mem_regions   */
-			targetB,		/*target                */
-			3);			/*nof_xmem_buffers      */
+		    0,			/*ch_id                 */
+		    INPUT_SYSTEM_PORT_A,	/*port                  */
+		    backend_ch0,		/*backend_ch            */
+		    32,			/*mem_region_size       */
+		    6,			/*nof_mem_regions       */
+		    acq_mem_region_size,	/*acq_mem_region_size   */
+		    acq_nof_mem_regions,	/*acq_nof_mem_regions   */
+		    targetB,		/*target                */
+		    3);			/*nof_xmem_buffers      */
 	if (error != INPUT_SYSTEM_ERR_NO_ERROR)
 		return error;
 
 	error = input_system_csi_xmem_channel_cfg(
-			1,			/*ch_id                 */
-			INPUT_SYSTEM_PORT_B,	/*port                  */
-			backend_ch0,		/*backend_ch            */
-			16,			/*mem_region_size       */
-			3,			/*nof_mem_regions       */
-			acq_mem_region_size,	/*acq_mem_region_size   */
-			acq_nof_mem_regions,	/*acq_nof_mem_regions   */
-			targetB,		/*target                */
-			3);			/*nof_xmem_buffers      */
+		    1,			/*ch_id                 */
+		    INPUT_SYSTEM_PORT_B,	/*port                  */
+		    backend_ch0,		/*backend_ch            */
+		    16,			/*mem_region_size       */
+		    3,			/*nof_mem_regions       */
+		    acq_mem_region_size,	/*acq_mem_region_size   */
+		    acq_nof_mem_regions,	/*acq_nof_mem_regions   */
+		    targetB,		/*target                */
+		    3);			/*nof_xmem_buffers      */
 	if (error != INPUT_SYSTEM_ERR_NO_ERROR)
 		return error;
 
 	error = input_system_csi_xmem_channel_cfg(
-			2,			/*ch_id                 */
-			INPUT_SYSTEM_PORT_C,	/*port                  */
-			backend_ch1,		/*backend_ch            */
-			32,			/*mem_region_size       */
-			3,			/*nof_mem_regions       */
-			acq_mem_region_size,	/*acq_mem_region_size   */
-			acq_nof_mem_regions,	/*acq_nof_mem_regions   */
-			targetC,		/*target                */
-			2);			/*nof_xmem_buffers      */
+		    2,			/*ch_id                 */
+		    INPUT_SYSTEM_PORT_C,	/*port                  */
+		    backend_ch1,		/*backend_ch            */
+		    32,			/*mem_region_size       */
+		    3,			/*nof_mem_regions       */
+		    acq_mem_region_size,	/*acq_mem_region_size   */
+		    acq_nof_mem_regions,	/*acq_nof_mem_regions   */
+		    targetC,		/*target                */
+		    2);			/*nof_xmem_buffers      */
 	if (error != INPUT_SYSTEM_ERR_NO_ERROR)
 		return error;
 
@@ -111,7 +111,7 @@ input_system_error_t ia_css_isys_init(void)
 	ia_css_isys_stream2mmio_sid_rmgr_init();
 
 	isys2401_dma_set_max_burst_size(ISYS2401_DMA0_ID,
-		1 /* Non Burst DMA transactions */);
+					1 /* Non Burst DMA transactions */);
 
 	/* Enable 2401 input system IRQ status for driver to retrieve */
 	isys_irqc_status_enable(ISYS_IRQ0_ID);

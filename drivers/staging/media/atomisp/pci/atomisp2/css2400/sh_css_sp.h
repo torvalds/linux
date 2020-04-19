@@ -30,7 +30,8 @@ void
 sh_css_sp_store_init_dmem(const struct ia_css_fw_info *fw);
 
 void
-store_sp_stage_data(enum ia_css_pipe_id id, unsigned int pipe_num, unsigned int stage);
+store_sp_stage_data(enum ia_css_pipe_id id, unsigned int pipe_num,
+		    unsigned int stage);
 
 void
 sh_css_stage_write_binary_info(struct ia_css_binary_info *info);
@@ -40,7 +41,8 @@ store_sp_group_data(void);
 
 /* Start binary (jpeg) copy on the SP */
 void
-sh_css_sp_start_binary_copy(unsigned int pipe_num, struct ia_css_frame *out_frame,
+sh_css_sp_start_binary_copy(unsigned int pipe_num,
+			    struct ia_css_frame *out_frame,
 			    unsigned int two_ppc);
 
 unsigned int
@@ -68,11 +70,12 @@ sh_css_sp_init_pipeline(struct ia_css_pipeline *me,
 #endif
 #ifdef ISP2401
 			,
-			const struct ia_css_coordinate *internal_frame_origin_bqs_on_sctbl, /* Origin of internal frame
+			const struct ia_css_coordinate
+			*internal_frame_origin_bqs_on_sctbl, /* Origin of internal frame
 							positioned on shading table at shading correction in ISP. */
 			const struct ia_css_isp_parameters *params
 #endif
-			);
+		       );
 
 void
 sh_css_sp_uninit_pipeline(unsigned int pipe_num);
@@ -93,9 +96,9 @@ sh_css_init_host2sp_frame_data(void);
  */
 void
 sh_css_update_host2sp_offline_frame(
-				unsigned int frame_num,
-				struct ia_css_frame *frame,
-				struct ia_css_metadata *metadata);
+    unsigned int frame_num,
+    struct ia_css_frame *frame,
+    struct ia_css_metadata *metadata);
 
 #if defined(USE_INPUT_SYSTEM_VERSION_2) || defined(USE_INPUT_SYSTEM_VERSION_2401)
 /**
@@ -106,8 +109,8 @@ sh_css_update_host2sp_offline_frame(
  */
 void
 sh_css_update_host2sp_mipi_frame(
-				unsigned int frame_num,
-				struct ia_css_frame *frame);
+    unsigned int frame_num,
+    struct ia_css_frame *frame);
 
 /**
  * @brief Update the mipi metadata information in host_sp_communication.
@@ -117,8 +120,8 @@ sh_css_update_host2sp_mipi_frame(
  */
 void
 sh_css_update_host2sp_mipi_metadata(
-				unsigned int frame_num,
-				struct ia_css_metadata *metadata);
+    unsigned int frame_num,
+    struct ia_css_metadata *metadata);
 
 /**
  * @brief Update the nr of mipi frames to use in host_sp_communication.
@@ -135,7 +138,8 @@ sh_css_update_host2sp_num_mipi_frames(unsigned int num_frames);
  * @param[in] num_frames The number of raw frames to use.
  */
 void
-sh_css_update_host2sp_cont_num_raw_frames(unsigned int num_frames, bool set_avail);
+sh_css_update_host2sp_cont_num_raw_frames(unsigned int num_frames,
+	bool set_avail);
 
 void
 sh_css_event_init_irq_mask(void);
@@ -159,9 +163,9 @@ sh_css_sp_get_debug_state(struct sh_css_sp_debug_state *state);
 #if !defined(HAS_NO_INPUT_FORMATTER)
 void
 sh_css_sp_set_if_configs(
-	const input_formatter_cfg_t	*config_a,
-	const input_formatter_cfg_t	*config_b,
-	const uint8_t		if_config_index);
+    const input_formatter_cfg_t	*config_a,
+    const input_formatter_cfg_t	*config_b,
+    const uint8_t		if_config_index);
 #endif
 
 void
@@ -236,9 +240,9 @@ sh_css_sp_init_dma_sw_reg(int dma_id);
  */
 bool
 sh_css_sp_set_dma_sw_reg(int dma_id,
-		int channel_id,
-		int request_type,
-		bool enable);
+			 int channel_id,
+			 int request_type,
+			 bool enable);
 
 extern struct sh_css_sp_group sh_css_sp_group;
 extern struct sh_css_sp_stage sh_css_sp_stage;

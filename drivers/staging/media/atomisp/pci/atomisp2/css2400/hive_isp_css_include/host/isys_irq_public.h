@@ -21,24 +21,24 @@
 #if defined(USE_INPUT_SYSTEM_VERSION_2401)
 
 STORAGE_CLASS_ISYS2401_IRQ_H void isys_irqc_state_get(
-	const isys_irq_ID_t	isys_irqc_id,
-	isys_irqc_state_t	*state);
+    const isys_irq_ID_t	isys_irqc_id,
+    isys_irqc_state_t	*state);
 
 STORAGE_CLASS_ISYS2401_IRQ_H void isys_irqc_state_dump(
-	const isys_irq_ID_t	isys_irqc_id,
-	const isys_irqc_state_t *state);
+    const isys_irq_ID_t	isys_irqc_id,
+    const isys_irqc_state_t *state);
 
 STORAGE_CLASS_ISYS2401_IRQ_H void isys_irqc_reg_store(
-	const isys_irq_ID_t	isys_irqc_id,
-	const unsigned int	reg_idx,
-	const hrt_data		value);
+    const isys_irq_ID_t	isys_irqc_id,
+    const unsigned int	reg_idx,
+    const hrt_data		value);
 
 STORAGE_CLASS_ISYS2401_IRQ_H hrt_data isys_irqc_reg_load(
-	const isys_irq_ID_t	isys_irqc_id,
-	const unsigned int	reg_idx);
+    const isys_irq_ID_t	isys_irqc_id,
+    const unsigned int	reg_idx);
 
 STORAGE_CLASS_ISYS2401_IRQ_H void isys_irqc_status_enable(
-	const isys_irq_ID_t	isys_irqc_id);
+    const isys_irq_ID_t	isys_irqc_id);
 
 #endif /* defined(USE_INPUT_SYSTEM_VERSION_2401) */
 

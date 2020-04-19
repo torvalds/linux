@@ -79,6 +79,6 @@ struct ia_css_time_meas {
 */
 enum ia_css_err
 ia_css_timer_get_current_tick(
-	struct ia_css_clock_tick *curr_ts);
+    struct ia_css_clock_tick *curr_ts);
 
 #endif  /* __IA_CSS_TIMER_H */

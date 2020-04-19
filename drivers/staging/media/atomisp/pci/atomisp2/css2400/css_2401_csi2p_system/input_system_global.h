@@ -186,7 +186,8 @@ struct virtual_input_system_stream_s {
 #endif
 };
 
-typedef struct virtual_input_system_stream_cfg_s virtual_input_system_stream_cfg_t;
+typedef struct virtual_input_system_stream_cfg_s
+	virtual_input_system_stream_cfg_t;
 struct virtual_input_system_stream_cfg_s {
 	u8 enable_metadata;
 	input_system_input_port_cfg_t	input_port_cfg;

@@ -30,9 +30,9 @@ const struct ia_css_ob2_config default_ob2_config = {
 
 void
 ia_css_ob2_encode(
-	struct sh_css_isp_ob2_params *to,
-	const struct ia_css_ob2_config *from,
-	unsigned int size)
+    struct sh_css_isp_ob2_params *to,
+    const struct ia_css_ob2_config *from,
+    unsigned int size)
 {
 	(void)size;
 
@@ -46,31 +46,31 @@ ia_css_ob2_encode(
 #ifndef IA_CSS_NO_DEBUG
 void
 ia_css_ob2_dump(
-	const struct sh_css_isp_ob2_params *ob2,
-	unsigned int level)
+    const struct sh_css_isp_ob2_params *ob2,
+    unsigned int level)
 {
 	if (!ob2)
 		return;
 
 	ia_css_debug_dtrace(level, "Optical Black 2:\n");
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-		"ob2_blacklevel_gr", ob2->blacklevel_gr);
+			    "ob2_blacklevel_gr", ob2->blacklevel_gr);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-		"ob2_blacklevel_r", ob2->blacklevel_r);
+			    "ob2_blacklevel_r", ob2->blacklevel_r);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-		"ob2_blacklevel_b", ob2->blacklevel_b);
+			    "ob2_blacklevel_b", ob2->blacklevel_b);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-		"ob2_blacklevel_gb", ob2->blacklevel_gb);
+			    "ob2_blacklevel_gb", ob2->blacklevel_gb);
 }
 
 void
 ia_css_ob2_debug_dtrace(
-	const struct ia_css_ob2_config *config,
-	unsigned int level)
+    const struct ia_css_ob2_config *config,
+    unsigned int level)
 {
 	ia_css_debug_dtrace(level,
-		"config.level_gr=%d, config.level_r=%d, config.level_b=%d,  config.level_gb=%d, ",
-		config->level_gr, config->level_r,
-		config->level_b, config->level_gb);
+			    "config.level_gr=%d, config.level_r=%d, config.level_b=%d,  config.level_gb=%d, ",
+			    config->level_gr, config->level_r,
+			    config->level_b, config->level_gb);
 }
 #endif

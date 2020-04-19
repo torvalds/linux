@@ -97,12 +97,12 @@ struct isp_mmu_client {
 	 * not valid, it will set to tlb_flush_all by default.
 	 */
 	void (*tlb_flush_range)(struct isp_mmu *mmu,
-				 unsigned int addr, unsigned int size);
+				unsigned int addr, unsigned int size);
 	void (*tlb_flush_all)(struct isp_mmu *mmu);
 	unsigned int (*phys_to_pte)(struct isp_mmu *mmu,
-				     phys_addr_t phys);
+				    phys_addr_t phys);
 	phys_addr_t (*pte_to_phys)(struct isp_mmu *mmu,
-				    unsigned int pte);
+				   unsigned int pte);
 
 };
 
@@ -160,7 +160,7 @@ static inline void isp_mmu_flush_tlb_all(struct isp_mmu *mmu)
 #define isp_mmu_flush_tlb isp_mmu_flush_tlb_all
 
 static inline void isp_mmu_flush_tlb_range(struct isp_mmu *mmu,
-		unsigned int start, unsigned int size)
+	unsigned int start, unsigned int size)
 {
 	if (mmu->driver && mmu->driver->tlb_flush_range)
 		mmu->driver->tlb_flush_range(mmu, start, size);

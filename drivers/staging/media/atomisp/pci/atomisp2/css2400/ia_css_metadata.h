@@ -42,8 +42,8 @@ struct ia_css_metadata_info {
 
 struct ia_css_metadata {
 	struct ia_css_metadata_info info;    /** Layout info */
-	ia_css_ptr	            address; /** CSS virtual address */
-	u32	            exp_id;
+	ia_css_ptr		    address; /** CSS virtual address */
+	u32		    exp_id;
 	/** Exposure ID, see ia_css_event_public.h for more detail */
 };
 

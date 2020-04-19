@@ -22,14 +22,13 @@
 #include "atomisp-regs.h"
 
 static struct v4l2_mbus_framefmt *__csi2_get_format(struct
-						    atomisp_mipi_csi2_device
- * csi2,
-						    struct
-						    v4l2_subdev_pad_config * cfg,
-						    enum
-						    v4l2_subdev_format_whence
-						    which, unsigned int pad)
-{
+	atomisp_mipi_csi2_device
+	* csi2,
+	struct
+	v4l2_subdev_pad_config *cfg,
+	enum
+	v4l2_subdev_format_whence
+	which, unsigned int pad) {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
 		return v4l2_subdev_get_try_format(&csi2->subdev, cfg, pad);
 	else
@@ -91,7 +90,7 @@ int atomisp_csi2_set_ffmt(struct v4l2_subdev *sd,
 	struct atomisp_mipi_csi2_device *csi2 = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *actual_ffmt =
 #ifndef ISP2401
-		__csi2_get_format(csi2, cfg, which, pad);
+	    __csi2_get_format(csi2, cfg, which, pad);
 #else
 	    __csi2_get_format(csi2, cfg, which, pad);
 #endif
@@ -107,11 +106,11 @@ int atomisp_csi2_set_ffmt(struct v4l2_subdev *sd,
 			actual_ffmt->code = atomisp_in_fmt_conv[0].code;
 
 		actual_ffmt->width = clamp_t(
-			u32, ffmt->width, ATOM_ISP_MIN_WIDTH,
-			ATOM_ISP_MAX_WIDTH);
+					 u32, ffmt->width, ATOM_ISP_MIN_WIDTH,
+					 ATOM_ISP_MAX_WIDTH);
 		actual_ffmt->height = clamp_t(
-			u32, ffmt->height, ATOM_ISP_MIN_HEIGHT,
-			ATOM_ISP_MAX_HEIGHT);
+					  u32, ffmt->height, ATOM_ISP_MIN_HEIGHT,
+					  ATOM_ISP_MAX_HEIGHT);
 
 		tmp_ffmt = *ffmt = *actual_ffmt;
 
@@ -122,9 +121,9 @@ int atomisp_csi2_set_ffmt(struct v4l2_subdev *sd,
 	/* FIXME: DPCM decompression */
 	*actual_ffmt = *ffmt =
 #ifndef ISP2401
-		*__csi2_get_format(csi2, cfg, which, CSI2_PAD_SINK);
+			   *__csi2_get_format(csi2, cfg, which, CSI2_PAD_SINK);
 #else
-	    *__csi2_get_format(csi2, cfg, which, CSI2_PAD_SINK);
+			   *__csi2_get_format(csi2, cfg, which, CSI2_PAD_SINK);
 #endif
 
 	return 0;
@@ -194,8 +193,8 @@ static const struct v4l2_subdev_ops csi2_ops = {
  * return -EINVAL or zero on success
 */
 static int csi2_link_setup(struct media_entity *entity,
-	    const struct media_pad *local,
-	    const struct media_pad *remote, u32 flags)
+			   const struct media_pad *local,
+			   const struct media_pad *remote, u32 flags)
 {
 	struct v4l2_subdev *sd = media_entity_to_v4l2_subdev(entity);
 	struct atomisp_mipi_csi2_device *csi2 = v4l2_get_subdevdata(sd);
@@ -235,7 +234,7 @@ static const struct media_entity_operations csi2_media_ops = {
 * return -ENOMEM or zero on success
 */
 static int mipi_csi2_init_entities(struct atomisp_mipi_csi2_device *csi2,
-					int port)
+				   int port)
 {
 	struct v4l2_subdev *sd = &csi2->subdev;
 	struct media_pad *pads = csi2->pads;
@@ -258,7 +257,7 @@ static int mipi_csi2_init_entities(struct atomisp_mipi_csi2_device *csi2,
 		return ret;
 
 	csi2->formats[CSI2_PAD_SINK].code =
-		csi2->formats[CSI2_PAD_SOURCE].code =
+	    csi2->formats[CSI2_PAD_SOURCE].code =
 		atomisp_in_fmt_conv[0].code;
 
 	return 0;
@@ -272,7 +271,7 @@ atomisp_mipi_csi2_unregister_entities(struct atomisp_mipi_csi2_device *csi2)
 }
 
 int atomisp_mipi_csi2_register_entities(struct atomisp_mipi_csi2_device *csi2,
-			struct v4l2_device *vdev)
+					struct v4l2_device *vdev)
 {
 	int ret;
 
@@ -379,7 +378,7 @@ static void atomisp_csi2_configure_isp2401(struct atomisp_sub_device *asd)
 	int n;
 
 	mipi_info = atomisp_to_sensor_mipi_info(
-					isp->inputs[asd->input_curr].camera);
+			isp->inputs[asd->input_curr].camera);
 	port = mipi_info->port;
 
 	ctrl.id = V4L2_CID_LINK_FREQ;
@@ -388,13 +387,13 @@ static void atomisp_csi2_configure_isp2401(struct atomisp_sub_device *asd)
 		mipi_freq = ctrl.value;
 
 	clk_termen = atomisp_csi2_configure_calc(coeff_clk_termen,
-						 mipi_freq, TERMEN_DEFAULT);
+		     mipi_freq, TERMEN_DEFAULT);
 	clk_settle = atomisp_csi2_configure_calc(coeff_clk_settle,
-						 mipi_freq, SETTLE_DEFAULT);
+		     mipi_freq, SETTLE_DEFAULT);
 	dat_termen = atomisp_csi2_configure_calc(coeff_dat_termen,
-						 mipi_freq, TERMEN_DEFAULT);
+		     mipi_freq, TERMEN_DEFAULT);
 	dat_settle = atomisp_csi2_configure_calc(coeff_dat_settle,
-						 mipi_freq, SETTLE_DEFAULT);
+		     mipi_freq, SETTLE_DEFAULT);
 	for (n = 0; n < csi2_port_lanes[port] + 1; n++) {
 		hrt_address base = csi2_port_base[port] + csi2_lane_base[n];
 

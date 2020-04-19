@@ -162,659 +162,659 @@ struct ov2680_format {
 	struct ov2680_reg *regs;
 };
 
-	/*
-	 * ov2680 device structure.
-	 */
-	struct ov2680_device {
-		struct v4l2_subdev sd;
-		struct media_pad pad;
-		struct v4l2_mbus_framefmt format;
-		struct mutex input_lock;
+/*
+ * ov2680 device structure.
+ */
+struct ov2680_device {
+	struct v4l2_subdev sd;
+	struct media_pad pad;
+	struct v4l2_mbus_framefmt format;
+	struct mutex input_lock;
 	struct v4l2_ctrl_handler ctrl_handler;
-		struct camera_sensor_platform_data *platform_data;
-		int vt_pix_clk_freq_mhz;
-		int fmt_idx;
-		int run_mode;
-		u8 res;
-		u8 type;
-	};
+	struct camera_sensor_platform_data *platform_data;
+	int vt_pix_clk_freq_mhz;
+	int fmt_idx;
+	int run_mode;
+	u8 res;
+	u8 type;
+};
 
-	enum ov2680_tok_type {
-		OV2680_8BIT  = 0x0001,
-		OV2680_16BIT = 0x0002,
-		OV2680_32BIT = 0x0004,
-		OV2680_TOK_TERM   = 0xf000,	/* terminating token for reg list */
-		OV2680_TOK_DELAY  = 0xfe00,	/* delay token for reg list */
-		OV2680_TOK_MASK = 0xfff0
-	};
+enum ov2680_tok_type {
+	OV2680_8BIT  = 0x0001,
+	OV2680_16BIT = 0x0002,
+	OV2680_32BIT = 0x0004,
+	OV2680_TOK_TERM   = 0xf000,	/* terminating token for reg list */
+	OV2680_TOK_DELAY  = 0xfe00,	/* delay token for reg list */
+	OV2680_TOK_MASK = 0xfff0
+};
 
-	/**
-	 * struct ov2680_reg - MI sensor  register format
-	 * @type: type of the register
-	 * @reg: 16-bit offset to register
-	 * @val: 8/16/32-bit register value
-	 *
-	 * Define a structure for sensor register initialization values
-	 */
-	struct ov2680_reg {
-		enum ov2680_tok_type type;
-		u16 reg;
-		u32 val;	/* @set value for read/mod/write, @mask */
-	};
+/**
+ * struct ov2680_reg - MI sensor  register format
+ * @type: type of the register
+ * @reg: 16-bit offset to register
+ * @val: 8/16/32-bit register value
+ *
+ * Define a structure for sensor register initialization values
+ */
+struct ov2680_reg {
+	enum ov2680_tok_type type;
+	u16 reg;
+	u32 val;	/* @set value for read/mod/write, @mask */
+};
 
-	#define to_ov2680_sensor(x) container_of(x, struct ov2680_device, sd)
+#define to_ov2680_sensor(x) container_of(x, struct ov2680_device, sd)
 
-	#define OV2680_MAX_WRITE_BUF_SIZE	30
+#define OV2680_MAX_WRITE_BUF_SIZE	30
 
-	struct ov2680_write_buffer {
-		u16 addr;
-		u8 data[OV2680_MAX_WRITE_BUF_SIZE];
-	};
+struct ov2680_write_buffer {
+	u16 addr;
+	u8 data[OV2680_MAX_WRITE_BUF_SIZE];
+};
 
-	struct ov2680_write_ctrl {
-		int index;
-		struct ov2680_write_buffer buffer;
-	};
+struct ov2680_write_ctrl {
+	int index;
+	struct ov2680_write_buffer buffer;
+};
 
-	static struct ov2680_reg const ov2680_global_setting[] = {
-	    {OV2680_8BIT, 0x0103, 0x01},
-	    {OV2680_8BIT, 0x3002, 0x00},
-	    {OV2680_8BIT, 0x3016, 0x1c},
-	    {OV2680_8BIT, 0x3018, 0x44},
-	    {OV2680_8BIT, 0x3020, 0x00},
-	    {OV2680_8BIT, 0x3080, 0x02},
-	    {OV2680_8BIT, 0x3082, 0x45},
-	    {OV2680_8BIT, 0x3084, 0x09},
-	    {OV2680_8BIT, 0x3085, 0x04},
-	    {OV2680_8BIT, 0x3503, 0x03},
-	    {OV2680_8BIT, 0x350b, 0x36},
-	    {OV2680_8BIT, 0x3600, 0xb4},
-	    {OV2680_8BIT, 0x3603, 0x39},
-	    {OV2680_8BIT, 0x3604, 0x24},
-	    {OV2680_8BIT, 0x3605, 0x00},
-	    {OV2680_8BIT, 0x3620, 0x26},
-	    {OV2680_8BIT, 0x3621, 0x37},
-	    {OV2680_8BIT, 0x3622, 0x04},
-	    {OV2680_8BIT, 0x3628, 0x00},
-	    {OV2680_8BIT, 0x3705, 0x3c},
-	    {OV2680_8BIT, 0x370c, 0x50},
-	    {OV2680_8BIT, 0x370d, 0xc0},
-	    {OV2680_8BIT, 0x3718, 0x88},
-	    {OV2680_8BIT, 0x3720, 0x00},
-	    {OV2680_8BIT, 0x3721, 0x00},
-	    {OV2680_8BIT, 0x3722, 0x00},
-	    {OV2680_8BIT, 0x3723, 0x00},
-	    {OV2680_8BIT, 0x3738, 0x00},
-	    {OV2680_8BIT, 0x3717, 0x58},
-	    {OV2680_8BIT, 0x3781, 0x80},
-	    {OV2680_8BIT, 0x3789, 0x60},
-	    {OV2680_8BIT, 0x3800, 0x00},
-	    {OV2680_8BIT, 0x3819, 0x04},
-	    {OV2680_8BIT, 0x4000, 0x81},
-	    {OV2680_8BIT, 0x4001, 0x40},
-	    {OV2680_8BIT, 0x4602, 0x02},
-	    {OV2680_8BIT, 0x481f, 0x36},
-	    {OV2680_8BIT, 0x4825, 0x36},
-	    {OV2680_8BIT, 0x4837, 0x18},
-	    {OV2680_8BIT, 0x5002, 0x30},
-	    {OV2680_8BIT, 0x5004, 0x04},//manual awb 1x
-	    {OV2680_8BIT, 0x5005, 0x00},
-	    {OV2680_8BIT, 0x5006, 0x04},
-	    {OV2680_8BIT, 0x5007, 0x00},
-	    {OV2680_8BIT, 0x5008, 0x04},
-	    {OV2680_8BIT, 0x5009, 0x00},
-	    {OV2680_8BIT, 0x5080, 0x00},
-	    {OV2680_8BIT, 0x3701, 0x64},  //add on 14/05/13
-	    {OV2680_8BIT, 0x3784, 0x0c},  //based OV2680_R1A_AM10.ovt add on 14/06/13
-	    {OV2680_8BIT, 0x5780, 0x3e},  //based OV2680_R1A_AM10.ovt,Adjust DPC setting (57xx) on 14/06/13
-	    {OV2680_8BIT, 0x5781, 0x0f},
-	    {OV2680_8BIT, 0x5782, 0x04},
-	    {OV2680_8BIT, 0x5783, 0x02},
-	    {OV2680_8BIT, 0x5784, 0x01},
-	    {OV2680_8BIT, 0x5785, 0x01},
-	    {OV2680_8BIT, 0x5786, 0x00},
-	    {OV2680_8BIT, 0x5787, 0x04},
-	    {OV2680_8BIT, 0x5788, 0x02},
-	    {OV2680_8BIT, 0x5789, 0x00},
-	    {OV2680_8BIT, 0x578a, 0x01},
-	    {OV2680_8BIT, 0x578b, 0x02},
-	    {OV2680_8BIT, 0x578c, 0x03},
-	    {OV2680_8BIT, 0x578d, 0x03},
-	    {OV2680_8BIT, 0x578e, 0x08},
-	    {OV2680_8BIT, 0x578f, 0x0c},
-	    {OV2680_8BIT, 0x5790, 0x08},
-	    {OV2680_8BIT, 0x5791, 0x04},
-	    {OV2680_8BIT, 0x5792, 0x00},
-	    {OV2680_8BIT, 0x5793, 0x00},
-	    {OV2680_8BIT, 0x5794, 0x03}, //based OV2680_R1A_AM10.ovt,Adjust DPC setting (57xx) on 14/06/13
-		{OV2680_8BIT, 0x0100, 0x00},	//stream off
+static struct ov2680_reg const ov2680_global_setting[] = {
+	{OV2680_8BIT, 0x0103, 0x01},
+	{OV2680_8BIT, 0x3002, 0x00},
+	{OV2680_8BIT, 0x3016, 0x1c},
+	{OV2680_8BIT, 0x3018, 0x44},
+	{OV2680_8BIT, 0x3020, 0x00},
+	{OV2680_8BIT, 0x3080, 0x02},
+	{OV2680_8BIT, 0x3082, 0x45},
+	{OV2680_8BIT, 0x3084, 0x09},
+	{OV2680_8BIT, 0x3085, 0x04},
+	{OV2680_8BIT, 0x3503, 0x03},
+	{OV2680_8BIT, 0x350b, 0x36},
+	{OV2680_8BIT, 0x3600, 0xb4},
+	{OV2680_8BIT, 0x3603, 0x39},
+	{OV2680_8BIT, 0x3604, 0x24},
+	{OV2680_8BIT, 0x3605, 0x00},
+	{OV2680_8BIT, 0x3620, 0x26},
+	{OV2680_8BIT, 0x3621, 0x37},
+	{OV2680_8BIT, 0x3622, 0x04},
+	{OV2680_8BIT, 0x3628, 0x00},
+	{OV2680_8BIT, 0x3705, 0x3c},
+	{OV2680_8BIT, 0x370c, 0x50},
+	{OV2680_8BIT, 0x370d, 0xc0},
+	{OV2680_8BIT, 0x3718, 0x88},
+	{OV2680_8BIT, 0x3720, 0x00},
+	{OV2680_8BIT, 0x3721, 0x00},
+	{OV2680_8BIT, 0x3722, 0x00},
+	{OV2680_8BIT, 0x3723, 0x00},
+	{OV2680_8BIT, 0x3738, 0x00},
+	{OV2680_8BIT, 0x3717, 0x58},
+	{OV2680_8BIT, 0x3781, 0x80},
+	{OV2680_8BIT, 0x3789, 0x60},
+	{OV2680_8BIT, 0x3800, 0x00},
+	{OV2680_8BIT, 0x3819, 0x04},
+	{OV2680_8BIT, 0x4000, 0x81},
+	{OV2680_8BIT, 0x4001, 0x40},
+	{OV2680_8BIT, 0x4602, 0x02},
+	{OV2680_8BIT, 0x481f, 0x36},
+	{OV2680_8BIT, 0x4825, 0x36},
+	{OV2680_8BIT, 0x4837, 0x18},
+	{OV2680_8BIT, 0x5002, 0x30},
+	{OV2680_8BIT, 0x5004, 0x04},//manual awb 1x
+	{OV2680_8BIT, 0x5005, 0x00},
+	{OV2680_8BIT, 0x5006, 0x04},
+	{OV2680_8BIT, 0x5007, 0x00},
+	{OV2680_8BIT, 0x5008, 0x04},
+	{OV2680_8BIT, 0x5009, 0x00},
+	{OV2680_8BIT, 0x5080, 0x00},
+	{OV2680_8BIT, 0x3701, 0x64},  //add on 14/05/13
+	{OV2680_8BIT, 0x3784, 0x0c},  //based OV2680_R1A_AM10.ovt add on 14/06/13
+	{OV2680_8BIT, 0x5780, 0x3e},  //based OV2680_R1A_AM10.ovt,Adjust DPC setting (57xx) on 14/06/13
+	{OV2680_8BIT, 0x5781, 0x0f},
+	{OV2680_8BIT, 0x5782, 0x04},
+	{OV2680_8BIT, 0x5783, 0x02},
+	{OV2680_8BIT, 0x5784, 0x01},
+	{OV2680_8BIT, 0x5785, 0x01},
+	{OV2680_8BIT, 0x5786, 0x00},
+	{OV2680_8BIT, 0x5787, 0x04},
+	{OV2680_8BIT, 0x5788, 0x02},
+	{OV2680_8BIT, 0x5789, 0x00},
+	{OV2680_8BIT, 0x578a, 0x01},
+	{OV2680_8BIT, 0x578b, 0x02},
+	{OV2680_8BIT, 0x578c, 0x03},
+	{OV2680_8BIT, 0x578d, 0x03},
+	{OV2680_8BIT, 0x578e, 0x08},
+	{OV2680_8BIT, 0x578f, 0x0c},
+	{OV2680_8BIT, 0x5790, 0x08},
+	{OV2680_8BIT, 0x5791, 0x04},
+	{OV2680_8BIT, 0x5792, 0x00},
+	{OV2680_8BIT, 0x5793, 0x00},
+	{OV2680_8BIT, 0x5794, 0x03}, //based OV2680_R1A_AM10.ovt,Adjust DPC setting (57xx) on 14/06/13
+	{OV2680_8BIT, 0x0100, 0x00},	//stream off
 
-		{OV2680_TOK_TERM, 0, 0}
-	};
+	{OV2680_TOK_TERM, 0, 0}
+};
 
 #if 0 /* None of the definitions below are used currently */
-	/*
-	 * 176x144 30fps  VBlanking 1lane 10Bit (binning)
-	 */
-	static struct ov2680_reg const ov2680_QCIF_30fps[] = {
-		{OV2680_8BIT, 0x3086, 0x01},
-		{OV2680_8BIT, 0x3501, 0x24},
-		{OV2680_8BIT, 0x3502, 0x40},
-		{OV2680_8BIT, 0x370a, 0x23},
-		{OV2680_8BIT, 0x3801, 0xa0},
-		{OV2680_8BIT, 0x3802, 0x00},
-		{OV2680_8BIT, 0x3803, 0x78},
-		{OV2680_8BIT, 0x3804, 0x05},
-		{OV2680_8BIT, 0x3805, 0xaf},
-		{OV2680_8BIT, 0x3806, 0x04},
-		{OV2680_8BIT, 0x3807, 0x47},
-		{OV2680_8BIT, 0x3808, 0x00},
-		{OV2680_8BIT, 0x3809, 0xC0},
-		{OV2680_8BIT, 0x380a, 0x00},
-		{OV2680_8BIT, 0x380b, 0xa0},
-		{OV2680_8BIT, 0x380c, 0x06},
-		{OV2680_8BIT, 0x380d, 0xb0},
-		{OV2680_8BIT, 0x380e, 0x02},
-		{OV2680_8BIT, 0x380f, 0x84},
-		{OV2680_8BIT, 0x3810, 0x00},
-		{OV2680_8BIT, 0x3811, 0x04},
-		{OV2680_8BIT, 0x3812, 0x00},
-		{OV2680_8BIT, 0x3813, 0x04},
-		{OV2680_8BIT, 0x3814, 0x31},
-		{OV2680_8BIT, 0x3815, 0x31},
-		{OV2680_8BIT, 0x4000, 0x81},
-		{OV2680_8BIT, 0x4001, 0x40},
-		{OV2680_8BIT, 0x4008, 0x00},
-		{OV2680_8BIT, 0x4009, 0x03},
-		{OV2680_8BIT, 0x5081, 0x41},
-		{OV2680_8BIT, 0x5708, 0x00}, //add for full size flip off and mirror off 2014/09/11
-		{OV2680_8BIT, 0x5704, 0x10},
-		{OV2680_8BIT, 0x5705, 0xa0},
-		{OV2680_8BIT, 0x5706, 0x0c},
-		{OV2680_8BIT, 0x5707, 0x78},
-		{OV2680_8BIT, 0x3820, 0xc2},
-		{OV2680_8BIT, 0x3821, 0x01},
-		// {OV2680_8BIT, 0x5090, 0x0c},
-		{OV2680_TOK_TERM, 0, 0}
-	};
+/*
+ * 176x144 30fps  VBlanking 1lane 10Bit (binning)
+ */
+static struct ov2680_reg const ov2680_QCIF_30fps[] = {
+	{OV2680_8BIT, 0x3086, 0x01},
+	{OV2680_8BIT, 0x3501, 0x24},
+	{OV2680_8BIT, 0x3502, 0x40},
+	{OV2680_8BIT, 0x370a, 0x23},
+	{OV2680_8BIT, 0x3801, 0xa0},
+	{OV2680_8BIT, 0x3802, 0x00},
+	{OV2680_8BIT, 0x3803, 0x78},
+	{OV2680_8BIT, 0x3804, 0x05},
+	{OV2680_8BIT, 0x3805, 0xaf},
+	{OV2680_8BIT, 0x3806, 0x04},
+	{OV2680_8BIT, 0x3807, 0x47},
+	{OV2680_8BIT, 0x3808, 0x00},
+	{OV2680_8BIT, 0x3809, 0xC0},
+	{OV2680_8BIT, 0x380a, 0x00},
+	{OV2680_8BIT, 0x380b, 0xa0},
+	{OV2680_8BIT, 0x380c, 0x06},
+	{OV2680_8BIT, 0x380d, 0xb0},
+	{OV2680_8BIT, 0x380e, 0x02},
+	{OV2680_8BIT, 0x380f, 0x84},
+	{OV2680_8BIT, 0x3810, 0x00},
+	{OV2680_8BIT, 0x3811, 0x04},
+	{OV2680_8BIT, 0x3812, 0x00},
+	{OV2680_8BIT, 0x3813, 0x04},
+	{OV2680_8BIT, 0x3814, 0x31},
+	{OV2680_8BIT, 0x3815, 0x31},
+	{OV2680_8BIT, 0x4000, 0x81},
+	{OV2680_8BIT, 0x4001, 0x40},
+	{OV2680_8BIT, 0x4008, 0x00},
+	{OV2680_8BIT, 0x4009, 0x03},
+	{OV2680_8BIT, 0x5081, 0x41},
+	{OV2680_8BIT, 0x5708, 0x00}, //add for full size flip off and mirror off 2014/09/11
+	{OV2680_8BIT, 0x5704, 0x10},
+	{OV2680_8BIT, 0x5705, 0xa0},
+	{OV2680_8BIT, 0x5706, 0x0c},
+	{OV2680_8BIT, 0x5707, 0x78},
+	{OV2680_8BIT, 0x3820, 0xc2},
+	{OV2680_8BIT, 0x3821, 0x01},
+	// {OV2680_8BIT, 0x5090, 0x0c},
+	{OV2680_TOK_TERM, 0, 0}
+};
 
-	/*
-	 * 352x288 30fps  VBlanking 1lane 10Bit (binning)
-	 */
-	static struct ov2680_reg const ov2680_CIF_30fps[] = {
-		{OV2680_8BIT, 0x3086, 0x01},
-		{OV2680_8BIT, 0x3501, 0x24},
-		{OV2680_8BIT, 0x3502, 0x40},
-		{OV2680_8BIT, 0x370a, 0x23},
-		{OV2680_8BIT, 0x3801, 0xa0},
-		{OV2680_8BIT, 0x3802, 0x00},
-		{OV2680_8BIT, 0x3803, 0x78},
-		{OV2680_8BIT, 0x3804, 0x03},
-		{OV2680_8BIT, 0x3805, 0x8f},
-		{OV2680_8BIT, 0x3806, 0x02},
-		{OV2680_8BIT, 0x3807, 0xe7},
-		{OV2680_8BIT, 0x3808, 0x01},
-		{OV2680_8BIT, 0x3809, 0x70},
-		{OV2680_8BIT, 0x380a, 0x01},
-		{OV2680_8BIT, 0x380b, 0x30},
-		{OV2680_8BIT, 0x380c, 0x06},
-		{OV2680_8BIT, 0x380d, 0xb0},
-		{OV2680_8BIT, 0x380e, 0x02},
-		{OV2680_8BIT, 0x380f, 0x84},
-		{OV2680_8BIT, 0x3810, 0x00},
-		{OV2680_8BIT, 0x3811, 0x04},
-		{OV2680_8BIT, 0x3812, 0x00},
-		{OV2680_8BIT, 0x3813, 0x04},
-		{OV2680_8BIT, 0x3814, 0x31},
-		{OV2680_8BIT, 0x3815, 0x31},
-		{OV2680_8BIT, 0x4008, 0x00},
-		{OV2680_8BIT, 0x4009, 0x03},
-		{OV2680_8BIT, 0x5081, 0x41},
-		{OV2680_8BIT, 0x5708, 0x00}, //add for full size flip off and mirror off 2014/09/11
-		{OV2680_8BIT, 0x5704, 0x10},
-		{OV2680_8BIT, 0x5705, 0xa0},
-		{OV2680_8BIT, 0x5706, 0x0c},
-		{OV2680_8BIT, 0x5707, 0x78},
-		{OV2680_8BIT, 0x3820, 0xc2},
-		{OV2680_8BIT, 0x3821, 0x01},
-		// {OV2680_8BIT, 0x5090, 0x0c},
-		{OV2680_TOK_TERM, 0, 0}
-	};
+/*
+ * 352x288 30fps  VBlanking 1lane 10Bit (binning)
+ */
+static struct ov2680_reg const ov2680_CIF_30fps[] = {
+	{OV2680_8BIT, 0x3086, 0x01},
+	{OV2680_8BIT, 0x3501, 0x24},
+	{OV2680_8BIT, 0x3502, 0x40},
+	{OV2680_8BIT, 0x370a, 0x23},
+	{OV2680_8BIT, 0x3801, 0xa0},
+	{OV2680_8BIT, 0x3802, 0x00},
+	{OV2680_8BIT, 0x3803, 0x78},
+	{OV2680_8BIT, 0x3804, 0x03},
+	{OV2680_8BIT, 0x3805, 0x8f},
+	{OV2680_8BIT, 0x3806, 0x02},
+	{OV2680_8BIT, 0x3807, 0xe7},
+	{OV2680_8BIT, 0x3808, 0x01},
+	{OV2680_8BIT, 0x3809, 0x70},
+	{OV2680_8BIT, 0x380a, 0x01},
+	{OV2680_8BIT, 0x380b, 0x30},
+	{OV2680_8BIT, 0x380c, 0x06},
+	{OV2680_8BIT, 0x380d, 0xb0},
+	{OV2680_8BIT, 0x380e, 0x02},
+	{OV2680_8BIT, 0x380f, 0x84},
+	{OV2680_8BIT, 0x3810, 0x00},
+	{OV2680_8BIT, 0x3811, 0x04},
+	{OV2680_8BIT, 0x3812, 0x00},
+	{OV2680_8BIT, 0x3813, 0x04},
+	{OV2680_8BIT, 0x3814, 0x31},
+	{OV2680_8BIT, 0x3815, 0x31},
+	{OV2680_8BIT, 0x4008, 0x00},
+	{OV2680_8BIT, 0x4009, 0x03},
+	{OV2680_8BIT, 0x5081, 0x41},
+	{OV2680_8BIT, 0x5708, 0x00}, //add for full size flip off and mirror off 2014/09/11
+	{OV2680_8BIT, 0x5704, 0x10},
+	{OV2680_8BIT, 0x5705, 0xa0},
+	{OV2680_8BIT, 0x5706, 0x0c},
+	{OV2680_8BIT, 0x5707, 0x78},
+	{OV2680_8BIT, 0x3820, 0xc2},
+	{OV2680_8BIT, 0x3821, 0x01},
+	// {OV2680_8BIT, 0x5090, 0x0c},
+	{OV2680_TOK_TERM, 0, 0}
+};
 
-	/*
-	 * 336x256 30fps  VBlanking 1lane 10Bit (binning)
-	 */
-	static struct ov2680_reg const ov2680_QVGA_30fps[] = {
-		{OV2680_8BIT, 0x3086, 0x01},
-		{OV2680_8BIT, 0x3501, 0x24},
-		{OV2680_8BIT, 0x3502, 0x40},
-		{OV2680_8BIT, 0x370a, 0x23},
-		{OV2680_8BIT, 0x3801, 0xa0},
-		{OV2680_8BIT, 0x3802, 0x00},
-		{OV2680_8BIT, 0x3803, 0x78},
-		{OV2680_8BIT, 0x3804, 0x03},
-		{OV2680_8BIT, 0x3805, 0x4f},
-		{OV2680_8BIT, 0x3806, 0x02},
-		{OV2680_8BIT, 0x3807, 0x87},
-		{OV2680_8BIT, 0x3808, 0x01},
-		{OV2680_8BIT, 0x3809, 0x50},
-		{OV2680_8BIT, 0x380a, 0x01},
-		{OV2680_8BIT, 0x380b, 0x00},
-		{OV2680_8BIT, 0x380c, 0x06},
-		{OV2680_8BIT, 0x380d, 0xb0},
-		{OV2680_8BIT, 0x380e, 0x02},
-		{OV2680_8BIT, 0x380f, 0x84},
-		{OV2680_8BIT, 0x3810, 0x00},
-		{OV2680_8BIT, 0x3811, 0x04},
-		{OV2680_8BIT, 0x3812, 0x00},
-		{OV2680_8BIT, 0x3813, 0x04},
-		{OV2680_8BIT, 0x3814, 0x31},
-		{OV2680_8BIT, 0x3815, 0x31},
-		{OV2680_8BIT, 0x4008, 0x00},
-		{OV2680_8BIT, 0x4009, 0x03},
-		{OV2680_8BIT, 0x5081, 0x41},
-		{OV2680_8BIT, 0x5708, 0x00}, //add for full size flip off and mirror off 2014/09/11
-		{OV2680_8BIT, 0x5704, 0x10},
-		{OV2680_8BIT, 0x5705, 0xa0},
-		{OV2680_8BIT, 0x5706, 0x0c},
-		{OV2680_8BIT, 0x5707, 0x78},
-		{OV2680_8BIT, 0x3820, 0xc2},
-		{OV2680_8BIT, 0x3821, 0x01},
-		// {OV2680_8BIT, 0x5090, 0x0c},
-		{OV2680_TOK_TERM, 0, 0}
-	};
+/*
+ * 336x256 30fps  VBlanking 1lane 10Bit (binning)
+ */
+static struct ov2680_reg const ov2680_QVGA_30fps[] = {
+	{OV2680_8BIT, 0x3086, 0x01},
+	{OV2680_8BIT, 0x3501, 0x24},
+	{OV2680_8BIT, 0x3502, 0x40},
+	{OV2680_8BIT, 0x370a, 0x23},
+	{OV2680_8BIT, 0x3801, 0xa0},
+	{OV2680_8BIT, 0x3802, 0x00},
+	{OV2680_8BIT, 0x3803, 0x78},
+	{OV2680_8BIT, 0x3804, 0x03},
+	{OV2680_8BIT, 0x3805, 0x4f},
+	{OV2680_8BIT, 0x3806, 0x02},
+	{OV2680_8BIT, 0x3807, 0x87},
+	{OV2680_8BIT, 0x3808, 0x01},
+	{OV2680_8BIT, 0x3809, 0x50},
+	{OV2680_8BIT, 0x380a, 0x01},
+	{OV2680_8BIT, 0x380b, 0x00},
+	{OV2680_8BIT, 0x380c, 0x06},
+	{OV2680_8BIT, 0x380d, 0xb0},
+	{OV2680_8BIT, 0x380e, 0x02},
+	{OV2680_8BIT, 0x380f, 0x84},
+	{OV2680_8BIT, 0x3810, 0x00},
+	{OV2680_8BIT, 0x3811, 0x04},
+	{OV2680_8BIT, 0x3812, 0x00},
+	{OV2680_8BIT, 0x3813, 0x04},
+	{OV2680_8BIT, 0x3814, 0x31},
+	{OV2680_8BIT, 0x3815, 0x31},
+	{OV2680_8BIT, 0x4008, 0x00},
+	{OV2680_8BIT, 0x4009, 0x03},
+	{OV2680_8BIT, 0x5081, 0x41},
+	{OV2680_8BIT, 0x5708, 0x00}, //add for full size flip off and mirror off 2014/09/11
+	{OV2680_8BIT, 0x5704, 0x10},
+	{OV2680_8BIT, 0x5705, 0xa0},
+	{OV2680_8BIT, 0x5706, 0x0c},
+	{OV2680_8BIT, 0x5707, 0x78},
+	{OV2680_8BIT, 0x3820, 0xc2},
+	{OV2680_8BIT, 0x3821, 0x01},
+	// {OV2680_8BIT, 0x5090, 0x0c},
+	{OV2680_TOK_TERM, 0, 0}
+};
 
-	/*
-	 * 656x496 30fps  VBlanking 1lane 10Bit (binning)
-	 */
-	static struct ov2680_reg const ov2680_656x496_30fps[] = {
-		{OV2680_8BIT, 0x3086, 0x01},
-		{OV2680_8BIT, 0x3501, 0x24},
-		{OV2680_8BIT, 0x3502, 0x40},
-		{OV2680_8BIT, 0x370a, 0x23},
-		{OV2680_8BIT, 0x3801, 0xa0},
-		{OV2680_8BIT, 0x3802, 0x00},
-		{OV2680_8BIT, 0x3803, 0x78},
-		{OV2680_8BIT, 0x3804, 0x05},
-		{OV2680_8BIT, 0x3805, 0xcf},
-		{OV2680_8BIT, 0x3806, 0x04},
-		{OV2680_8BIT, 0x3807, 0x67},
-		{OV2680_8BIT, 0x3808, 0x02},
-		{OV2680_8BIT, 0x3809, 0x90},
-		{OV2680_8BIT, 0x380a, 0x01},
-		{OV2680_8BIT, 0x380b, 0xf0},
-		{OV2680_8BIT, 0x380c, 0x06},
-		{OV2680_8BIT, 0x380d, 0xb0},
-		{OV2680_8BIT, 0x380e, 0x02},
-		{OV2680_8BIT, 0x380f, 0x84},
-		{OV2680_8BIT, 0x3810, 0x00},
-		{OV2680_8BIT, 0x3811, 0x04},
-		{OV2680_8BIT, 0x3812, 0x00},
-		{OV2680_8BIT, 0x3813, 0x04},
-		{OV2680_8BIT, 0x3814, 0x31},
-		{OV2680_8BIT, 0x3815, 0x31},
-		{OV2680_8BIT, 0x4008, 0x00},
-		{OV2680_8BIT, 0x4009, 0x03},
-		{OV2680_8BIT, 0x5081, 0x41},
-		{OV2680_8BIT, 0x5708, 0x00}, //add for full size flip off and mirror off 2014/09/11
-		{OV2680_8BIT, 0x5704, 0x10},
-		{OV2680_8BIT, 0x5705, 0xa0},
-		{OV2680_8BIT, 0x5706, 0x0c},
-		{OV2680_8BIT, 0x5707, 0x78},
-		{OV2680_8BIT, 0x3820, 0xc2},
-		{OV2680_8BIT, 0x3821, 0x01},
-		// {OV2680_8BIT, 0x5090, 0x0c},
-		{OV2680_TOK_TERM, 0, 0}
-	};
-	/*
-	* 800x600 30fps  VBlanking 1lane 10Bit (binning)
-	*/
-	static struct ov2680_reg const ov2680_720x592_30fps[] = {
-		{OV2680_8BIT, 0x3086, 0x01},
-		{OV2680_8BIT, 0x3501, 0x26},
-		{OV2680_8BIT, 0x3502, 0x40},
-		{OV2680_8BIT, 0x370a, 0x23},
-		{OV2680_8BIT, 0x3801, 0x00}, // X_ADDR_START;
-		{OV2680_8BIT, 0x3802, 0x00},
-		{OV2680_8BIT, 0x3803, 0x00}, // Y_ADDR_START;
-		{OV2680_8BIT, 0x3804, 0x05},
-		{OV2680_8BIT, 0x3805, 0xaf}, // X_ADDR_END;
-		{OV2680_8BIT, 0x3806, 0x04},
-		{OV2680_8BIT, 0x3807, 0xaf}, // Y_ADDR_END;
-		{OV2680_8BIT, 0x3808, 0x02},
-		{OV2680_8BIT, 0x3809, 0xd0}, // X_OUTPUT_SIZE;
-		{OV2680_8BIT, 0x380a, 0x02},
-		{OV2680_8BIT, 0x380b, 0x50}, // Y_OUTPUT_SIZE;
-		{OV2680_8BIT, 0x380c, 0x06},
-		{OV2680_8BIT, 0x380d, 0xac}, // HTS;
-		{OV2680_8BIT, 0x380e, 0x02},
-		{OV2680_8BIT, 0x380f, 0x84}, // VTS;
-		{OV2680_8BIT, 0x3810, 0x00},
-		{OV2680_8BIT, 0x3811, 0x00},
-		{OV2680_8BIT, 0x3812, 0x00},
-		{OV2680_8BIT, 0x3813, 0x00},
-		{OV2680_8BIT, 0x3814, 0x31},
-		{OV2680_8BIT, 0x3815, 0x31},
-		{OV2680_8BIT, 0x4008, 0x00},
-		{OV2680_8BIT, 0x4009, 0x03},
-		{OV2680_8BIT, 0x5708, 0x00},
-		{OV2680_8BIT, 0x5704, 0x02},
-		{OV2680_8BIT, 0x5705, 0xd0}, // X_WIN;
-		{OV2680_8BIT, 0x5706, 0x02},
-		{OV2680_8BIT, 0x5707, 0x50}, // Y_WIN;
-		{OV2680_8BIT, 0x3820, 0xc2}, // FLIP_FORMAT;
-		{OV2680_8BIT, 0x3821, 0x01}, // MIRROR_FORMAT;
-		{OV2680_8BIT, 0x5090, 0x00}, // PRE ISP CTRL16, default value is 0x0C;
-					     // BIT[3]: Mirror order, BG or GB;
-					     // BIT[2]: Flip order, BR or RB;
-		{OV2680_8BIT, 0x5081, 0x41},
-		{OV2680_TOK_TERM, 0, 0}
-	};
-	/*
-	* 800x600 30fps  VBlanking 1lane 10Bit (binning)
-	*/
-	static struct ov2680_reg const ov2680_800x600_30fps[] = {
-		{OV2680_8BIT, 0x3086, 0x01},
-		{OV2680_8BIT, 0x3501, 0x26},
-		{OV2680_8BIT, 0x3502, 0x40},
-		{OV2680_8BIT, 0x370a, 0x23},
-		{OV2680_8BIT, 0x3801, 0x00},
-		{OV2680_8BIT, 0x3802, 0x00},
-		{OV2680_8BIT, 0x3803, 0x00},
-		{OV2680_8BIT, 0x3804, 0x06},
-		{OV2680_8BIT, 0x3805, 0x4f},
-		{OV2680_8BIT, 0x3806, 0x04},
-		{OV2680_8BIT, 0x3807, 0xbf},
-		{OV2680_8BIT, 0x3808, 0x03},
-		{OV2680_8BIT, 0x3809, 0x20},
-		{OV2680_8BIT, 0x380a, 0x02},
-		{OV2680_8BIT, 0x380b, 0x58},
-		{OV2680_8BIT, 0x380c, 0x06},
-		{OV2680_8BIT, 0x380d, 0xac},
-		{OV2680_8BIT, 0x380e, 0x02},
-		{OV2680_8BIT, 0x380f, 0x84},
-		{OV2680_8BIT, 0x3810, 0x00},
-		{OV2680_8BIT, 0x3811, 0x00},
-		{OV2680_8BIT, 0x3812, 0x00},
-		{OV2680_8BIT, 0x3813, 0x00},
-		{OV2680_8BIT, 0x3814, 0x31},
-		{OV2680_8BIT, 0x3815, 0x31},
-		{OV2680_8BIT, 0x5708, 0x00},
-		{OV2680_8BIT, 0x5704, 0x03},
-		{OV2680_8BIT, 0x5705, 0x20},
-		{OV2680_8BIT, 0x5706, 0x02},
-		{OV2680_8BIT, 0x5707, 0x58},
-		{OV2680_8BIT, 0x3820, 0xc2},
-		{OV2680_8BIT, 0x3821, 0x01},
-		{OV2680_8BIT, 0x5090, 0x00},
-		{OV2680_8BIT, 0x4008, 0x00},
-		{OV2680_8BIT, 0x4009, 0x03},
-		{OV2680_8BIT, 0x5081, 0x41},
-		{OV2680_TOK_TERM, 0, 0}
-	};
+/*
+ * 656x496 30fps  VBlanking 1lane 10Bit (binning)
+ */
+static struct ov2680_reg const ov2680_656x496_30fps[] = {
+	{OV2680_8BIT, 0x3086, 0x01},
+	{OV2680_8BIT, 0x3501, 0x24},
+	{OV2680_8BIT, 0x3502, 0x40},
+	{OV2680_8BIT, 0x370a, 0x23},
+	{OV2680_8BIT, 0x3801, 0xa0},
+	{OV2680_8BIT, 0x3802, 0x00},
+	{OV2680_8BIT, 0x3803, 0x78},
+	{OV2680_8BIT, 0x3804, 0x05},
+	{OV2680_8BIT, 0x3805, 0xcf},
+	{OV2680_8BIT, 0x3806, 0x04},
+	{OV2680_8BIT, 0x3807, 0x67},
+	{OV2680_8BIT, 0x3808, 0x02},
+	{OV2680_8BIT, 0x3809, 0x90},
+	{OV2680_8BIT, 0x380a, 0x01},
+	{OV2680_8BIT, 0x380b, 0xf0},
+	{OV2680_8BIT, 0x380c, 0x06},
+	{OV2680_8BIT, 0x380d, 0xb0},
+	{OV2680_8BIT, 0x380e, 0x02},
+	{OV2680_8BIT, 0x380f, 0x84},
+	{OV2680_8BIT, 0x3810, 0x00},
+	{OV2680_8BIT, 0x3811, 0x04},
+	{OV2680_8BIT, 0x3812, 0x00},
+	{OV2680_8BIT, 0x3813, 0x04},
+	{OV2680_8BIT, 0x3814, 0x31},
+	{OV2680_8BIT, 0x3815, 0x31},
+	{OV2680_8BIT, 0x4008, 0x00},
+	{OV2680_8BIT, 0x4009, 0x03},
+	{OV2680_8BIT, 0x5081, 0x41},
+	{OV2680_8BIT, 0x5708, 0x00}, //add for full size flip off and mirror off 2014/09/11
+	{OV2680_8BIT, 0x5704, 0x10},
+	{OV2680_8BIT, 0x5705, 0xa0},
+	{OV2680_8BIT, 0x5706, 0x0c},
+	{OV2680_8BIT, 0x5707, 0x78},
+	{OV2680_8BIT, 0x3820, 0xc2},
+	{OV2680_8BIT, 0x3821, 0x01},
+	// {OV2680_8BIT, 0x5090, 0x0c},
+	{OV2680_TOK_TERM, 0, 0}
+};
+/*
+* 800x600 30fps  VBlanking 1lane 10Bit (binning)
+*/
+static struct ov2680_reg const ov2680_720x592_30fps[] = {
+	{OV2680_8BIT, 0x3086, 0x01},
+	{OV2680_8BIT, 0x3501, 0x26},
+	{OV2680_8BIT, 0x3502, 0x40},
+	{OV2680_8BIT, 0x370a, 0x23},
+	{OV2680_8BIT, 0x3801, 0x00}, // X_ADDR_START;
+	{OV2680_8BIT, 0x3802, 0x00},
+	{OV2680_8BIT, 0x3803, 0x00}, // Y_ADDR_START;
+	{OV2680_8BIT, 0x3804, 0x05},
+	{OV2680_8BIT, 0x3805, 0xaf}, // X_ADDR_END;
+	{OV2680_8BIT, 0x3806, 0x04},
+	{OV2680_8BIT, 0x3807, 0xaf}, // Y_ADDR_END;
+	{OV2680_8BIT, 0x3808, 0x02},
+	{OV2680_8BIT, 0x3809, 0xd0}, // X_OUTPUT_SIZE;
+	{OV2680_8BIT, 0x380a, 0x02},
+	{OV2680_8BIT, 0x380b, 0x50}, // Y_OUTPUT_SIZE;
+	{OV2680_8BIT, 0x380c, 0x06},
+	{OV2680_8BIT, 0x380d, 0xac}, // HTS;
+	{OV2680_8BIT, 0x380e, 0x02},
+	{OV2680_8BIT, 0x380f, 0x84}, // VTS;
+	{OV2680_8BIT, 0x3810, 0x00},
+	{OV2680_8BIT, 0x3811, 0x00},
+	{OV2680_8BIT, 0x3812, 0x00},
+	{OV2680_8BIT, 0x3813, 0x00},
+	{OV2680_8BIT, 0x3814, 0x31},
+	{OV2680_8BIT, 0x3815, 0x31},
+	{OV2680_8BIT, 0x4008, 0x00},
+	{OV2680_8BIT, 0x4009, 0x03},
+	{OV2680_8BIT, 0x5708, 0x00},
+	{OV2680_8BIT, 0x5704, 0x02},
+	{OV2680_8BIT, 0x5705, 0xd0}, // X_WIN;
+	{OV2680_8BIT, 0x5706, 0x02},
+	{OV2680_8BIT, 0x5707, 0x50}, // Y_WIN;
+	{OV2680_8BIT, 0x3820, 0xc2}, // FLIP_FORMAT;
+	{OV2680_8BIT, 0x3821, 0x01}, // MIRROR_FORMAT;
+	{OV2680_8BIT, 0x5090, 0x00}, // PRE ISP CTRL16, default value is 0x0C;
+	// BIT[3]: Mirror order, BG or GB;
+	// BIT[2]: Flip order, BR or RB;
+	{OV2680_8BIT, 0x5081, 0x41},
+	{OV2680_TOK_TERM, 0, 0}
+};
+/*
+* 800x600 30fps  VBlanking 1lane 10Bit (binning)
+*/
+static struct ov2680_reg const ov2680_800x600_30fps[] = {
+	{OV2680_8BIT, 0x3086, 0x01},
+	{OV2680_8BIT, 0x3501, 0x26},
+	{OV2680_8BIT, 0x3502, 0x40},
+	{OV2680_8BIT, 0x370a, 0x23},
+	{OV2680_8BIT, 0x3801, 0x00},
+	{OV2680_8BIT, 0x3802, 0x00},
+	{OV2680_8BIT, 0x3803, 0x00},
+	{OV2680_8BIT, 0x3804, 0x06},
+	{OV2680_8BIT, 0x3805, 0x4f},
+	{OV2680_8BIT, 0x3806, 0x04},
+	{OV2680_8BIT, 0x3807, 0xbf},
+	{OV2680_8BIT, 0x3808, 0x03},
+	{OV2680_8BIT, 0x3809, 0x20},
+	{OV2680_8BIT, 0x380a, 0x02},
+	{OV2680_8BIT, 0x380b, 0x58},
+	{OV2680_8BIT, 0x380c, 0x06},
+	{OV2680_8BIT, 0x380d, 0xac},
+	{OV2680_8BIT, 0x380e, 0x02},
+	{OV2680_8BIT, 0x380f, 0x84},
+	{OV2680_8BIT, 0x3810, 0x00},
+	{OV2680_8BIT, 0x3811, 0x00},
+	{OV2680_8BIT, 0x3812, 0x00},
+	{OV2680_8BIT, 0x3813, 0x00},
+	{OV2680_8BIT, 0x3814, 0x31},
+	{OV2680_8BIT, 0x3815, 0x31},
+	{OV2680_8BIT, 0x5708, 0x00},
+	{OV2680_8BIT, 0x5704, 0x03},
+	{OV2680_8BIT, 0x5705, 0x20},
+	{OV2680_8BIT, 0x5706, 0x02},
+	{OV2680_8BIT, 0x5707, 0x58},
+	{OV2680_8BIT, 0x3820, 0xc2},
+	{OV2680_8BIT, 0x3821, 0x01},
+	{OV2680_8BIT, 0x5090, 0x00},
+	{OV2680_8BIT, 0x4008, 0x00},
+	{OV2680_8BIT, 0x4009, 0x03},
+	{OV2680_8BIT, 0x5081, 0x41},
+	{OV2680_TOK_TERM, 0, 0}
+};
 
-	/*
-	 * 720p=1280*720 30fps  VBlanking 1lane 10Bit (no-Scaling)
-	 */
-	static struct ov2680_reg const ov2680_720p_30fps[] = {
-		{OV2680_8BIT, 0x3086, 0x00},
-		{OV2680_8BIT, 0x3501, 0x48},
-		{OV2680_8BIT, 0x3502, 0xe0},
-		{OV2680_8BIT, 0x370a, 0x21},
-		{OV2680_8BIT, 0x3801, 0xa0},
-		{OV2680_8BIT, 0x3802, 0x00},
-		{OV2680_8BIT, 0x3803, 0xf2},
-		{OV2680_8BIT, 0x3804, 0x05},
-		{OV2680_8BIT, 0x3805, 0xbf},
-		{OV2680_8BIT, 0x3806, 0x03},
-		{OV2680_8BIT, 0x3807, 0xdd},
-		{OV2680_8BIT, 0x3808, 0x05},
-		{OV2680_8BIT, 0x3809, 0x10},
-		{OV2680_8BIT, 0x380a, 0x02},
-		{OV2680_8BIT, 0x380b, 0xe0},
-		{OV2680_8BIT, 0x380c, 0x06},
-		{OV2680_8BIT, 0x380d, 0xa8},
-		{OV2680_8BIT, 0x380e, 0x05},
-		{OV2680_8BIT, 0x380f, 0x0e},
-		{OV2680_8BIT, 0x3810, 0x00},
-		{OV2680_8BIT, 0x3811, 0x08},
-		{OV2680_8BIT, 0x3812, 0x00},
-		{OV2680_8BIT, 0x3813, 0x06},
-		{OV2680_8BIT, 0x3814, 0x11},
-		{OV2680_8BIT, 0x3815, 0x11},
-		{OV2680_8BIT, 0x4008, 0x02},
-		{OV2680_8BIT, 0x4009, 0x09},
-		{OV2680_8BIT, 0x5081, 0x41},
-		{OV2680_8BIT, 0x5708, 0x00}, //add for full size flip off and mirror off 2014/09/11
-		{OV2680_8BIT, 0x5704, 0x10},
-		{OV2680_8BIT, 0x5705, 0xa0},
-		{OV2680_8BIT, 0x5706, 0x0c},
-		{OV2680_8BIT, 0x5707, 0x78},
-		{OV2680_8BIT, 0x3820, 0xc0},
-		{OV2680_8BIT, 0x3821, 0x00},
-		// {OV2680_8BIT, 0x5090, 0x0c},
-		{OV2680_TOK_TERM, 0, 0}
-	};
+/*
+ * 720p=1280*720 30fps  VBlanking 1lane 10Bit (no-Scaling)
+ */
+static struct ov2680_reg const ov2680_720p_30fps[] = {
+	{OV2680_8BIT, 0x3086, 0x00},
+	{OV2680_8BIT, 0x3501, 0x48},
+	{OV2680_8BIT, 0x3502, 0xe0},
+	{OV2680_8BIT, 0x370a, 0x21},
+	{OV2680_8BIT, 0x3801, 0xa0},
+	{OV2680_8BIT, 0x3802, 0x00},
+	{OV2680_8BIT, 0x3803, 0xf2},
+	{OV2680_8BIT, 0x3804, 0x05},
+	{OV2680_8BIT, 0x3805, 0xbf},
+	{OV2680_8BIT, 0x3806, 0x03},
+	{OV2680_8BIT, 0x3807, 0xdd},
+	{OV2680_8BIT, 0x3808, 0x05},
+	{OV2680_8BIT, 0x3809, 0x10},
+	{OV2680_8BIT, 0x380a, 0x02},
+	{OV2680_8BIT, 0x380b, 0xe0},
+	{OV2680_8BIT, 0x380c, 0x06},
+	{OV2680_8BIT, 0x380d, 0xa8},
+	{OV2680_8BIT, 0x380e, 0x05},
+	{OV2680_8BIT, 0x380f, 0x0e},
+	{OV2680_8BIT, 0x3810, 0x00},
+	{OV2680_8BIT, 0x3811, 0x08},
+	{OV2680_8BIT, 0x3812, 0x00},
+	{OV2680_8BIT, 0x3813, 0x06},
+	{OV2680_8BIT, 0x3814, 0x11},
+	{OV2680_8BIT, 0x3815, 0x11},
+	{OV2680_8BIT, 0x4008, 0x02},
+	{OV2680_8BIT, 0x4009, 0x09},
+	{OV2680_8BIT, 0x5081, 0x41},
+	{OV2680_8BIT, 0x5708, 0x00}, //add for full size flip off and mirror off 2014/09/11
+	{OV2680_8BIT, 0x5704, 0x10},
+	{OV2680_8BIT, 0x5705, 0xa0},
+	{OV2680_8BIT, 0x5706, 0x0c},
+	{OV2680_8BIT, 0x5707, 0x78},
+	{OV2680_8BIT, 0x3820, 0xc0},
+	{OV2680_8BIT, 0x3821, 0x00},
+	// {OV2680_8BIT, 0x5090, 0x0c},
+	{OV2680_TOK_TERM, 0, 0}
+};
 
-	/*
-	 * 1296x976 30fps  VBlanking 1lane 10Bit(no-scaling)
-	 */
-	static struct ov2680_reg const ov2680_1296x976_30fps[] = {
-		{OV2680_8BIT, 0x3086, 0x00},
-		{OV2680_8BIT, 0x3501, 0x48},
-		{OV2680_8BIT, 0x3502, 0xe0},
-		{OV2680_8BIT, 0x370a, 0x21},
-		{OV2680_8BIT, 0x3801, 0xa0},
-		{OV2680_8BIT, 0x3802, 0x00},
-		{OV2680_8BIT, 0x3803, 0x78},
-		{OV2680_8BIT, 0x3804, 0x05},
-		{OV2680_8BIT, 0x3805, 0xbf},
-		{OV2680_8BIT, 0x3806, 0x04},
-		{OV2680_8BIT, 0x3807, 0x57},
-		{OV2680_8BIT, 0x3808, 0x05},
-		{OV2680_8BIT, 0x3809, 0x10},
-		{OV2680_8BIT, 0x380a, 0x03},
-		{OV2680_8BIT, 0x380b, 0xd0},
-		{OV2680_8BIT, 0x380c, 0x06},
-		{OV2680_8BIT, 0x380d, 0xa8},
-		{OV2680_8BIT, 0x380e, 0x05},
-		{OV2680_8BIT, 0x380f, 0x0e},
-		{OV2680_8BIT, 0x3810, 0x00},
-		{OV2680_8BIT, 0x3811, 0x08},
-		{OV2680_8BIT, 0x3812, 0x00},
-		{OV2680_8BIT, 0x3813, 0x08},
-		{OV2680_8BIT, 0x3814, 0x11},
-		{OV2680_8BIT, 0x3815, 0x11},
-		{OV2680_8BIT, 0x4008, 0x02},
-		{OV2680_8BIT, 0x4009, 0x09},
-		{OV2680_8BIT, 0x5081, 0x41},
-		{OV2680_8BIT, 0x5708, 0x00}, //add for full size flip off and mirror off 2014/09/11
-		{OV2680_8BIT, 0x5704, 0x10},
-		{OV2680_8BIT, 0x5705, 0xa0},
-		{OV2680_8BIT, 0x5706, 0x0c},
-		{OV2680_8BIT, 0x5707, 0x78},
-		{OV2680_8BIT, 0x3820, 0xc0},
-		{OV2680_8BIT, 0x3821, 0x00}, //miror/flip
-		// {OV2680_8BIT, 0x5090, 0x0c},
-		{OV2680_TOK_TERM, 0, 0}
-	};
+/*
+ * 1296x976 30fps  VBlanking 1lane 10Bit(no-scaling)
+ */
+static struct ov2680_reg const ov2680_1296x976_30fps[] = {
+	{OV2680_8BIT, 0x3086, 0x00},
+	{OV2680_8BIT, 0x3501, 0x48},
+	{OV2680_8BIT, 0x3502, 0xe0},
+	{OV2680_8BIT, 0x370a, 0x21},
+	{OV2680_8BIT, 0x3801, 0xa0},
+	{OV2680_8BIT, 0x3802, 0x00},
+	{OV2680_8BIT, 0x3803, 0x78},
+	{OV2680_8BIT, 0x3804, 0x05},
+	{OV2680_8BIT, 0x3805, 0xbf},
+	{OV2680_8BIT, 0x3806, 0x04},
+	{OV2680_8BIT, 0x3807, 0x57},
+	{OV2680_8BIT, 0x3808, 0x05},
+	{OV2680_8BIT, 0x3809, 0x10},
+	{OV2680_8BIT, 0x380a, 0x03},
+	{OV2680_8BIT, 0x380b, 0xd0},
+	{OV2680_8BIT, 0x380c, 0x06},
+	{OV2680_8BIT, 0x380d, 0xa8},
+	{OV2680_8BIT, 0x380e, 0x05},
+	{OV2680_8BIT, 0x380f, 0x0e},
+	{OV2680_8BIT, 0x3810, 0x00},
+	{OV2680_8BIT, 0x3811, 0x08},
+	{OV2680_8BIT, 0x3812, 0x00},
+	{OV2680_8BIT, 0x3813, 0x08},
+	{OV2680_8BIT, 0x3814, 0x11},
+	{OV2680_8BIT, 0x3815, 0x11},
+	{OV2680_8BIT, 0x4008, 0x02},
+	{OV2680_8BIT, 0x4009, 0x09},
+	{OV2680_8BIT, 0x5081, 0x41},
+	{OV2680_8BIT, 0x5708, 0x00}, //add for full size flip off and mirror off 2014/09/11
+	{OV2680_8BIT, 0x5704, 0x10},
+	{OV2680_8BIT, 0x5705, 0xa0},
+	{OV2680_8BIT, 0x5706, 0x0c},
+	{OV2680_8BIT, 0x5707, 0x78},
+	{OV2680_8BIT, 0x3820, 0xc0},
+	{OV2680_8BIT, 0x3821, 0x00}, //miror/flip
+	// {OV2680_8BIT, 0x5090, 0x0c},
+	{OV2680_TOK_TERM, 0, 0}
+};
 
-	/*
-	 *   1456*1096 30fps  VBlanking 1lane 10bit(no-scaling)
-	*/
-	static struct ov2680_reg const ov2680_1456x1096_30fps[] = {
-		{OV2680_8BIT, 0x3086, 0x00},
-		{OV2680_8BIT, 0x3501, 0x48},
-		{OV2680_8BIT, 0x3502, 0xe0},
-		{OV2680_8BIT, 0x370a, 0x21},
-		{OV2680_8BIT, 0x3801, 0x90},
-		{OV2680_8BIT, 0x3802, 0x00},
-		{OV2680_8BIT, 0x3803, 0x78},
-		{OV2680_8BIT, 0x3804, 0x06},
-		{OV2680_8BIT, 0x3805, 0x4f},
-		{OV2680_8BIT, 0x3806, 0x04},
-		{OV2680_8BIT, 0x3807, 0xC0},
-		{OV2680_8BIT, 0x3808, 0x05},
-		{OV2680_8BIT, 0x3809, 0xb0},
-		{OV2680_8BIT, 0x380a, 0x04},
-		{OV2680_8BIT, 0x380b, 0x48},
-		{OV2680_8BIT, 0x380c, 0x06},
-		{OV2680_8BIT, 0x380d, 0xa8},
-		{OV2680_8BIT, 0x380e, 0x05},
-		{OV2680_8BIT, 0x380f, 0x0e},
-		{OV2680_8BIT, 0x3810, 0x00},
-		{OV2680_8BIT, 0x3811, 0x08},
-		{OV2680_8BIT, 0x3812, 0x00},
-		{OV2680_8BIT, 0x3813, 0x00},
-		{OV2680_8BIT, 0x3814, 0x11},
-		{OV2680_8BIT, 0x3815, 0x11},
-		{OV2680_8BIT, 0x4008, 0x02},
-		{OV2680_8BIT, 0x4009, 0x09},
-		{OV2680_8BIT, 0x5081, 0x41},
-		{OV2680_8BIT, 0x5708, 0x00}, //add for full size flip off and mirror off 2014/09/11
-		{OV2680_8BIT, 0x5704, 0x10},
-		{OV2680_8BIT, 0x5705, 0xa0},
-		{OV2680_8BIT, 0x5706, 0x0c},
-		{OV2680_8BIT, 0x5707, 0x78},
-		{OV2680_8BIT, 0x3820, 0xc0},
-		{OV2680_8BIT, 0x3821, 0x00},
-		// {OV2680_8BIT, 0x5090, 0x0c},
-		{OV2680_TOK_TERM, 0, 0}
-	};
+/*
+ *   1456*1096 30fps  VBlanking 1lane 10bit(no-scaling)
+*/
+static struct ov2680_reg const ov2680_1456x1096_30fps[] = {
+	{OV2680_8BIT, 0x3086, 0x00},
+	{OV2680_8BIT, 0x3501, 0x48},
+	{OV2680_8BIT, 0x3502, 0xe0},
+	{OV2680_8BIT, 0x370a, 0x21},
+	{OV2680_8BIT, 0x3801, 0x90},
+	{OV2680_8BIT, 0x3802, 0x00},
+	{OV2680_8BIT, 0x3803, 0x78},
+	{OV2680_8BIT, 0x3804, 0x06},
+	{OV2680_8BIT, 0x3805, 0x4f},
+	{OV2680_8BIT, 0x3806, 0x04},
+	{OV2680_8BIT, 0x3807, 0xC0},
+	{OV2680_8BIT, 0x3808, 0x05},
+	{OV2680_8BIT, 0x3809, 0xb0},
+	{OV2680_8BIT, 0x380a, 0x04},
+	{OV2680_8BIT, 0x380b, 0x48},
+	{OV2680_8BIT, 0x380c, 0x06},
+	{OV2680_8BIT, 0x380d, 0xa8},
+	{OV2680_8BIT, 0x380e, 0x05},
+	{OV2680_8BIT, 0x380f, 0x0e},
+	{OV2680_8BIT, 0x3810, 0x00},
+	{OV2680_8BIT, 0x3811, 0x08},
+	{OV2680_8BIT, 0x3812, 0x00},
+	{OV2680_8BIT, 0x3813, 0x00},
+	{OV2680_8BIT, 0x3814, 0x11},
+	{OV2680_8BIT, 0x3815, 0x11},
+	{OV2680_8BIT, 0x4008, 0x02},
+	{OV2680_8BIT, 0x4009, 0x09},
+	{OV2680_8BIT, 0x5081, 0x41},
+	{OV2680_8BIT, 0x5708, 0x00}, //add for full size flip off and mirror off 2014/09/11
+	{OV2680_8BIT, 0x5704, 0x10},
+	{OV2680_8BIT, 0x5705, 0xa0},
+	{OV2680_8BIT, 0x5706, 0x0c},
+	{OV2680_8BIT, 0x5707, 0x78},
+	{OV2680_8BIT, 0x3820, 0xc0},
+	{OV2680_8BIT, 0x3821, 0x00},
+	// {OV2680_8BIT, 0x5090, 0x0c},
+	{OV2680_TOK_TERM, 0, 0}
+};
 #endif
 
-	/*
-	 *1616x916  30fps  VBlanking 1lane 10bit
-	 */
+/*
+ *1616x916  30fps  VBlanking 1lane 10bit
+ */
 
-	static struct ov2680_reg const ov2680_1616x916_30fps[] = {
-		{OV2680_8BIT, 0x3086, 0x00},
-		{OV2680_8BIT, 0x3501, 0x48},
-		{OV2680_8BIT, 0x3502, 0xe0},
-		{OV2680_8BIT, 0x370a, 0x21},
-		{OV2680_8BIT, 0x3801, 0x00},
-		{OV2680_8BIT, 0x3802, 0x00},
-		{OV2680_8BIT, 0x3803, 0x96},
-		{OV2680_8BIT, 0x3804, 0x06},
-		{OV2680_8BIT, 0x3805, 0x4f},
-		{OV2680_8BIT, 0x3806, 0x04},
-		{OV2680_8BIT, 0x3807, 0x39},
-		{OV2680_8BIT, 0x3808, 0x06},
-		{OV2680_8BIT, 0x3809, 0x50},
-		{OV2680_8BIT, 0x380a, 0x03},
-		{OV2680_8BIT, 0x380b, 0x94},
-		{OV2680_8BIT, 0x380c, 0x06},
-		{OV2680_8BIT, 0x380d, 0xa8},
-		{OV2680_8BIT, 0x380e, 0x05},
-		{OV2680_8BIT, 0x380f, 0x0e},
-		{OV2680_8BIT, 0x3810, 0x00},
-		{OV2680_8BIT, 0x3811, 0x00},
-		{OV2680_8BIT, 0x3812, 0x00},
-		{OV2680_8BIT, 0x3813, 0x08},
-		{OV2680_8BIT, 0x3814, 0x11},
-		{OV2680_8BIT, 0x3815, 0x11},
-		{OV2680_8BIT, 0x4008, 0x02},
-		{OV2680_8BIT, 0x4009, 0x09},
-		{OV2680_8BIT, 0x5081, 0x41},
-		{OV2680_8BIT, 0x5708, 0x01}, //add for full size flip off and mirror off 2014/09/11
-		{OV2680_8BIT, 0x5704, 0x06},
-		{OV2680_8BIT, 0x5705, 0x50},
-		{OV2680_8BIT, 0x5706, 0x03},
-		{OV2680_8BIT, 0x5707, 0x94},
-		{OV2680_8BIT, 0x3820, 0xc0},
-		{OV2680_8BIT, 0x3821, 0x00},
-		// {OV2680_8BIT, 0x5090, 0x0C},
-		{OV2680_TOK_TERM, 0, 0}
-	};
+static struct ov2680_reg const ov2680_1616x916_30fps[] = {
+	{OV2680_8BIT, 0x3086, 0x00},
+	{OV2680_8BIT, 0x3501, 0x48},
+	{OV2680_8BIT, 0x3502, 0xe0},
+	{OV2680_8BIT, 0x370a, 0x21},
+	{OV2680_8BIT, 0x3801, 0x00},
+	{OV2680_8BIT, 0x3802, 0x00},
+	{OV2680_8BIT, 0x3803, 0x96},
+	{OV2680_8BIT, 0x3804, 0x06},
+	{OV2680_8BIT, 0x3805, 0x4f},
+	{OV2680_8BIT, 0x3806, 0x04},
+	{OV2680_8BIT, 0x3807, 0x39},
+	{OV2680_8BIT, 0x3808, 0x06},
+	{OV2680_8BIT, 0x3809, 0x50},
+	{OV2680_8BIT, 0x380a, 0x03},
+	{OV2680_8BIT, 0x380b, 0x94},
+	{OV2680_8BIT, 0x380c, 0x06},
+	{OV2680_8BIT, 0x380d, 0xa8},
+	{OV2680_8BIT, 0x380e, 0x05},
+	{OV2680_8BIT, 0x380f, 0x0e},
+	{OV2680_8BIT, 0x3810, 0x00},
+	{OV2680_8BIT, 0x3811, 0x00},
+	{OV2680_8BIT, 0x3812, 0x00},
+	{OV2680_8BIT, 0x3813, 0x08},
+	{OV2680_8BIT, 0x3814, 0x11},
+	{OV2680_8BIT, 0x3815, 0x11},
+	{OV2680_8BIT, 0x4008, 0x02},
+	{OV2680_8BIT, 0x4009, 0x09},
+	{OV2680_8BIT, 0x5081, 0x41},
+	{OV2680_8BIT, 0x5708, 0x01}, //add for full size flip off and mirror off 2014/09/11
+	{OV2680_8BIT, 0x5704, 0x06},
+	{OV2680_8BIT, 0x5705, 0x50},
+	{OV2680_8BIT, 0x5706, 0x03},
+	{OV2680_8BIT, 0x5707, 0x94},
+	{OV2680_8BIT, 0x3820, 0xc0},
+	{OV2680_8BIT, 0x3821, 0x00},
+	// {OV2680_8BIT, 0x5090, 0x0C},
+	{OV2680_TOK_TERM, 0, 0}
+};
 
-	/*
-	 * 1612x1212 30fps VBlanking 1lane 10Bit
-	 */
+/*
+ * 1612x1212 30fps VBlanking 1lane 10Bit
+ */
 #if 0
-	static struct ov2680_reg const ov2680_1616x1082_30fps[] = {
-		{OV2680_8BIT, 0x3086, 0x00},
-		{OV2680_8BIT, 0x3501, 0x48},
-		{OV2680_8BIT, 0x3502, 0xe0},
-		{OV2680_8BIT, 0x370a, 0x21},
-		{OV2680_8BIT, 0x3801, 0x00},
-		{OV2680_8BIT, 0x3802, 0x00},
-		{OV2680_8BIT, 0x3803, 0x86},
-		{OV2680_8BIT, 0x3804, 0x06},
-		{OV2680_8BIT, 0x3805, 0x4f},
-		{OV2680_8BIT, 0x3806, 0x04},
-		{OV2680_8BIT, 0x3807, 0xbf},
-		{OV2680_8BIT, 0x3808, 0x06},
-		{OV2680_8BIT, 0x3809, 0x50},
-		{OV2680_8BIT, 0x380a, 0x04},
-		{OV2680_8BIT, 0x380b, 0x3a},
-		{OV2680_8BIT, 0x380c, 0x06},
-		{OV2680_8BIT, 0x380d, 0xa8},
-		{OV2680_8BIT, 0x380e, 0x05},
-		{OV2680_8BIT, 0x380f, 0x0e},
-		{OV2680_8BIT, 0x3810, 0x00},
-		{OV2680_8BIT, 0x3811, 0x00},
-		{OV2680_8BIT, 0x3812, 0x00},
-		{OV2680_8BIT, 0x3813, 0x00},
-		{OV2680_8BIT, 0x3814, 0x11},
-		{OV2680_8BIT, 0x3815, 0x11},
-		{OV2680_8BIT, 0x5708, 0x01}, //add for full size flip off and mirror off 2014/09/11
-		{OV2680_8BIT, 0x5704, 0x06},
-		{OV2680_8BIT, 0x5705, 0x50},
-		{OV2680_8BIT, 0x5706, 0x04},
-		{OV2680_8BIT, 0x5707, 0x3a},
-		{OV2680_8BIT, 0x3820, 0xc0},
-		{OV2680_8BIT, 0x3821, 0x00},
-		// {OV2680_8BIT, 0x5090, 0x0C},
-		{OV2680_8BIT, 0x4008, 0x02},
-		{OV2680_8BIT, 0x4009, 0x09},
-		{OV2680_8BIT, 0x5081, 0x41},
-		{OV2680_TOK_TERM, 0, 0}
-	};
+static struct ov2680_reg const ov2680_1616x1082_30fps[] = {
+	{OV2680_8BIT, 0x3086, 0x00},
+	{OV2680_8BIT, 0x3501, 0x48},
+	{OV2680_8BIT, 0x3502, 0xe0},
+	{OV2680_8BIT, 0x370a, 0x21},
+	{OV2680_8BIT, 0x3801, 0x00},
+	{OV2680_8BIT, 0x3802, 0x00},
+	{OV2680_8BIT, 0x3803, 0x86},
+	{OV2680_8BIT, 0x3804, 0x06},
+	{OV2680_8BIT, 0x3805, 0x4f},
+	{OV2680_8BIT, 0x3806, 0x04},
+	{OV2680_8BIT, 0x3807, 0xbf},
+	{OV2680_8BIT, 0x3808, 0x06},
+	{OV2680_8BIT, 0x3809, 0x50},
+	{OV2680_8BIT, 0x380a, 0x04},
+	{OV2680_8BIT, 0x380b, 0x3a},
+	{OV2680_8BIT, 0x380c, 0x06},
+	{OV2680_8BIT, 0x380d, 0xa8},
+	{OV2680_8BIT, 0x380e, 0x05},
+	{OV2680_8BIT, 0x380f, 0x0e},
+	{OV2680_8BIT, 0x3810, 0x00},
+	{OV2680_8BIT, 0x3811, 0x00},
+	{OV2680_8BIT, 0x3812, 0x00},
+	{OV2680_8BIT, 0x3813, 0x00},
+	{OV2680_8BIT, 0x3814, 0x11},
+	{OV2680_8BIT, 0x3815, 0x11},
+	{OV2680_8BIT, 0x5708, 0x01}, //add for full size flip off and mirror off 2014/09/11
+	{OV2680_8BIT, 0x5704, 0x06},
+	{OV2680_8BIT, 0x5705, 0x50},
+	{OV2680_8BIT, 0x5706, 0x04},
+	{OV2680_8BIT, 0x5707, 0x3a},
+	{OV2680_8BIT, 0x3820, 0xc0},
+	{OV2680_8BIT, 0x3821, 0x00},
+	// {OV2680_8BIT, 0x5090, 0x0C},
+	{OV2680_8BIT, 0x4008, 0x02},
+	{OV2680_8BIT, 0x4009, 0x09},
+	{OV2680_8BIT, 0x5081, 0x41},
+	{OV2680_TOK_TERM, 0, 0}
+};
 #endif
-	/*
-	 * 1616x1216 30fps VBlanking 1lane 10Bit
-	 */
-	static struct ov2680_reg const ov2680_1616x1216_30fps[] = {
-		{OV2680_8BIT, 0x3086, 0x00},
-		{OV2680_8BIT, 0x3501, 0x48},
-		{OV2680_8BIT, 0x3502, 0xe0},
-		{OV2680_8BIT, 0x370a, 0x21},
-		{OV2680_8BIT, 0x3801, 0x00},
-		{OV2680_8BIT, 0x3802, 0x00},
-		{OV2680_8BIT, 0x3803, 0x00},
-		{OV2680_8BIT, 0x3804, 0x06},
-		{OV2680_8BIT, 0x3805, 0x4f},
-		{OV2680_8BIT, 0x3806, 0x04},
-		{OV2680_8BIT, 0x3807, 0xbf},
-		{OV2680_8BIT, 0x3808, 0x06},
-		{OV2680_8BIT, 0x3809, 0x50},//50},//4line for mirror and flip
-		{OV2680_8BIT, 0x380a, 0x04},
-		{OV2680_8BIT, 0x380b, 0xc0},//c0},
-		{OV2680_8BIT, 0x380c, 0x06},
-		{OV2680_8BIT, 0x380d, 0xa8},
-		{OV2680_8BIT, 0x380e, 0x05},
-		{OV2680_8BIT, 0x380f, 0x0e},
-		{OV2680_8BIT, 0x3810, 0x00},
-		{OV2680_8BIT, 0x3811, 0x00},
-		{OV2680_8BIT, 0x3812, 0x00},
-		{OV2680_8BIT, 0x3813, 0x00},
-		{OV2680_8BIT, 0x3814, 0x11},
-		{OV2680_8BIT, 0x3815, 0x11},
-		{OV2680_8BIT, 0x4008, 0x00},
-		{OV2680_8BIT, 0x4009, 0x0b},
-		{OV2680_8BIT, 0x5081, 0x01},
-		{OV2680_8BIT, 0x5708, 0x01}, //add for full size flip off and mirror off 2014/09/11
-		{OV2680_8BIT, 0x5704, 0x06},
-		{OV2680_8BIT, 0x5705, 0x50},
-		{OV2680_8BIT, 0x5706, 0x04},
-		{OV2680_8BIT, 0x5707, 0xcc},
-		{OV2680_8BIT, 0x3820, 0xc0},
-		{OV2680_8BIT, 0x3821, 0x00},
-		// {OV2680_8BIT, 0x5090, 0x0C},
-		{OV2680_TOK_TERM, 0, 0}
-	};
+/*
+ * 1616x1216 30fps VBlanking 1lane 10Bit
+ */
+static struct ov2680_reg const ov2680_1616x1216_30fps[] = {
+	{OV2680_8BIT, 0x3086, 0x00},
+	{OV2680_8BIT, 0x3501, 0x48},
+	{OV2680_8BIT, 0x3502, 0xe0},
+	{OV2680_8BIT, 0x370a, 0x21},
+	{OV2680_8BIT, 0x3801, 0x00},
+	{OV2680_8BIT, 0x3802, 0x00},
+	{OV2680_8BIT, 0x3803, 0x00},
+	{OV2680_8BIT, 0x3804, 0x06},
+	{OV2680_8BIT, 0x3805, 0x4f},
+	{OV2680_8BIT, 0x3806, 0x04},
+	{OV2680_8BIT, 0x3807, 0xbf},
+	{OV2680_8BIT, 0x3808, 0x06},
+	{OV2680_8BIT, 0x3809, 0x50},//50},//4line for mirror and flip
+	{OV2680_8BIT, 0x380a, 0x04},
+	{OV2680_8BIT, 0x380b, 0xc0},//c0},
+	{OV2680_8BIT, 0x380c, 0x06},
+	{OV2680_8BIT, 0x380d, 0xa8},
+	{OV2680_8BIT, 0x380e, 0x05},
+	{OV2680_8BIT, 0x380f, 0x0e},
+	{OV2680_8BIT, 0x3810, 0x00},
+	{OV2680_8BIT, 0x3811, 0x00},
+	{OV2680_8BIT, 0x3812, 0x00},
+	{OV2680_8BIT, 0x3813, 0x00},
+	{OV2680_8BIT, 0x3814, 0x11},
+	{OV2680_8BIT, 0x3815, 0x11},
+	{OV2680_8BIT, 0x4008, 0x00},
+	{OV2680_8BIT, 0x4009, 0x0b},
+	{OV2680_8BIT, 0x5081, 0x01},
+	{OV2680_8BIT, 0x5708, 0x01}, //add for full size flip off and mirror off 2014/09/11
+	{OV2680_8BIT, 0x5704, 0x06},
+	{OV2680_8BIT, 0x5705, 0x50},
+	{OV2680_8BIT, 0x5706, 0x04},
+	{OV2680_8BIT, 0x5707, 0xcc},
+	{OV2680_8BIT, 0x3820, 0xc0},
+	{OV2680_8BIT, 0x3821, 0x00},
+	// {OV2680_8BIT, 0x5090, 0x0C},
+	{OV2680_TOK_TERM, 0, 0}
+};
 
-	static struct ov2680_resolution ov2680_res_preview[] = {
+static struct ov2680_resolution ov2680_res_preview[] = {
 	{
 		.desc = "ov2680_1616x1216_30fps",
 		.width = 1616,

@@ -31,9 +31,9 @@ const struct ia_css_tnr_config default_tnr_config = {
 
 void
 ia_css_tnr_encode(
-	struct sh_css_isp_tnr_params *to,
-	const struct ia_css_tnr_config *from,
-	unsigned int size)
+    struct sh_css_isp_tnr_params *to,
+    const struct ia_css_tnr_config *from,
+    unsigned int size)
 {
 	(void)size;
 	to->coef =
@@ -46,35 +46,35 @@ ia_css_tnr_encode(
 
 void
 ia_css_tnr_dump(
-	const struct sh_css_isp_tnr_params *tnr,
-	unsigned int level)
+    const struct sh_css_isp_tnr_params *tnr,
+    unsigned int level)
 {
 	if (!tnr) return;
 	ia_css_debug_dtrace(level, "Temporal Noise Reduction:\n");
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"tnr_coef", tnr->coef);
+			    "tnr_coef", tnr->coef);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"tnr_threshold_Y", tnr->threshold_Y);
+			    "tnr_threshold_Y", tnr->threshold_Y);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"tnr_threshold_C", tnr->threshold_C);
+			    "tnr_threshold_C", tnr->threshold_C);
 }
 
 void
 ia_css_tnr_debug_dtrace(
-	const struct ia_css_tnr_config *config,
-	unsigned int level)
+    const struct ia_css_tnr_config *config,
+    unsigned int level)
 {
 	ia_css_debug_dtrace(level,
-		"config.gain=%d, config.threshold_y=%d, config.threshold_uv=%d\n",
-		config->gain,
-		config->threshold_y, config->threshold_uv);
+			    "config.gain=%d, config.threshold_y=%d, config.threshold_uv=%d\n",
+			    config->gain,
+			    config->threshold_y, config->threshold_uv);
 }
 
 void
 ia_css_tnr_config(
-	struct sh_css_isp_tnr_isp_config *to,
-	const struct ia_css_tnr_configuration *from,
-	unsigned int size)
+    struct sh_css_isp_tnr_isp_config *to,
+    const struct ia_css_tnr_configuration *from,
+    unsigned int size)
 {
 	unsigned int elems_a = ISP_VEC_NELEMS;
 	unsigned int i;
@@ -88,7 +88,8 @@ ia_css_tnr_config(
 #else
 	for (i = 0; i < NUM_TNR_FRAMES; i++) {
 #endif
-		to->tnr_frame_addr[i] = from->tnr_frames[i]->data + from->tnr_frames[i]->planes.yuyv.offset;
+		to->tnr_frame_addr[i] = from->tnr_frames[i]->data +
+					from->tnr_frames[i]->planes.yuyv.offset;
 	}
 
 	/* Assume divisiblity here, may need to generalize to fixed point. */
@@ -97,8 +98,8 @@ ia_css_tnr_config(
 
 void
 ia_css_tnr_configure(
-	const struct ia_css_binary     *binary,
-	const struct ia_css_frame **frames)
+    const struct ia_css_binary     *binary,
+    const struct ia_css_frame **frames)
 {
 	struct ia_css_tnr_configuration config;
 	unsigned int i;
@@ -115,8 +116,8 @@ ia_css_tnr_configure(
 
 void
 ia_css_init_tnr_state(
-	struct sh_css_isp_tnr_dmem_state *state,
-	size_t size)
+    struct sh_css_isp_tnr_dmem_state *state,
+    size_t size)
 {
 	(void)size;
 

@@ -152,7 +152,7 @@ void ia_css_debug_dump_sp_stack_info(void);
  * @return	None
  */
 void ia_css_debug_set_dtrace_level(
-	const unsigned int	trace_level);
+    const unsigned int	trace_level);
 
 /*! @brief Function to get the global dtrace verbosity level.
  * @return	global dtrace verbosity level
@@ -203,11 +203,11 @@ void ia_css_debug_dump_sp_sw_debug_info(void);
  * @return	None
  */
 void ia_css_debug_dump_debug_info(
-	const char	*context);
+    const char	*context);
 
 #if SP_DEBUG != SP_DEBUG_NONE
 void ia_css_debug_print_sp_debug_state(
-	const struct sh_css_sp_debug_state *state);
+    const struct sh_css_sp_debug_state *state);
 #endif
 
 /*! @brief Dump all related binary info data
@@ -215,7 +215,7 @@ void ia_css_debug_print_sp_debug_state(
  * @return	None
  */
 void ia_css_debug_binary_print(
-	const struct ia_css_binary *bi);
+    const struct ia_css_binary *bi);
 
 void ia_css_debug_sp_dump_mipi_fifo_high_water(void);
 
@@ -286,8 +286,8 @@ void ia_css_debug_dump_isys_state(void);
  * @return	None
  */
 void ia_css_debug_frame_print(
-	const struct ia_css_frame	*frame,
-	const char	*descr);
+    const struct ia_css_frame	*frame,
+    const char	*descr);
 
 /*! @brief Function to enable sp sleep mode.
  * Function that enables sp sleep mode
@@ -309,7 +309,8 @@ void ia_css_debug_wake_up_sp(void);
  * @param[in]	enable		flag indicating which parameters to dump.
  * @return	None
  */
-void ia_css_debug_dump_isp_params(struct ia_css_stream *stream, unsigned int enable);
+void ia_css_debug_dump_isp_params(struct ia_css_stream *stream,
+				  unsigned int enable);
 
 /*! @brief Function to dump some sp performance counters.
  * Dump sp performance counters, currently input system errors.
@@ -334,8 +335,8 @@ void sh_css_dump_sp_raw_copy_linecount(bool reduced);
  * @return	None
  */
 void ia_css_debug_dump_resolution(
-	const struct ia_css_resolution *res,
-	const char *label);
+    const struct ia_css_resolution *res,
+    const char *label);
 
 /*! @brief Dump the frame info to the trace output
  * Dumps the frame info to the trace output.
@@ -344,8 +345,8 @@ void ia_css_debug_dump_resolution(
  * @return	None
  */
 void ia_css_debug_dump_frame_info(
-	const struct ia_css_frame_info *info,
-	const char *label);
+    const struct ia_css_frame_info *info,
+    const char *label);
 
 /*! @brief Dump the capture config info to the trace output
  * Dumps the capture config info to the trace output.
@@ -353,7 +354,7 @@ void ia_css_debug_dump_frame_info(
  * @return	None
  */
 void ia_css_debug_dump_capture_config(
-	const struct ia_css_capture_config *config);
+    const struct ia_css_capture_config *config);
 
 /*! @brief Dump the pipe extra config info to the trace output
  * Dumps the pipe extra config info to the trace output.
@@ -361,7 +362,7 @@ void ia_css_debug_dump_capture_config(
  * @return	None
  */
 void ia_css_debug_dump_pipe_extra_config(
-	const struct ia_css_pipe_extra_config *extra_config);
+    const struct ia_css_pipe_extra_config *extra_config);
 
 /*! @brief Dump the pipe config info to the trace output
  * Dumps the pipe config info to the trace output.
@@ -369,7 +370,7 @@ void ia_css_debug_dump_pipe_extra_config(
  * @return	None
  */
 void ia_css_debug_dump_pipe_config(
-	const struct ia_css_pipe_config *config);
+    const struct ia_css_pipe_config *config);
 
 /*! @brief Dump the stream config source info to the trace output
  * Dumps the stream config source info to the trace output.
@@ -377,7 +378,7 @@ void ia_css_debug_dump_pipe_config(
  * @return	None
  */
 void ia_css_debug_dump_stream_config_source(
-	const struct ia_css_stream_config *config);
+    const struct ia_css_stream_config *config);
 
 /*! @brief Dump the mipi buffer config info to the trace output
  * Dumps the mipi buffer config info to the trace output.
@@ -385,7 +386,7 @@ void ia_css_debug_dump_stream_config_source(
  * @return	None
  */
 void ia_css_debug_dump_mipi_buffer_config(
-	const struct ia_css_mipi_buffer_config *config);
+    const struct ia_css_mipi_buffer_config *config);
 
 /*! @brief Dump the metadata config info to the trace output
  * Dumps the metadata config info to the trace output.
@@ -393,7 +394,7 @@ void ia_css_debug_dump_mipi_buffer_config(
  * @return	None
  */
 void ia_css_debug_dump_metadata_config(
-	const struct ia_css_metadata_config *config);
+    const struct ia_css_metadata_config *config);
 
 /*! @brief Dump the stream config info to the trace output
  * Dumps the stream config info to the trace output.
@@ -402,8 +403,8 @@ void ia_css_debug_dump_metadata_config(
  * @return	None
  */
 void ia_css_debug_dump_stream_config(
-	const struct ia_css_stream_config *config,
-	int num_pipes);
+    const struct ia_css_stream_config *config,
+    int num_pipes);
 
 /*! @brief Dump the state of the SP tagger
  * Dumps the internal state of the SP tagger
@@ -440,9 +441,9 @@ bool ia_css_debug_mode_init(void);
  *	- false, otherwise.
  */
 bool ia_css_debug_mode_disable_dma_channel(
-	int dma_ID,
-	int channel_id,
-	int request_type);
+    int dma_ID,
+    int channel_id,
+    int request_type);
 /**
  * @brief Enable the DMA channel.
  *
@@ -458,9 +459,9 @@ bool ia_css_debug_mode_disable_dma_channel(
  *	- false, otherwise.
  */
 bool ia_css_debug_mode_enable_dma_channel(
-	int dma_ID,
-	int channel_id,
-	int request_type);
+    int dma_ID,
+    int channel_id,
+    int request_type);
 
 /**
  * @brief Dump tracer data.
@@ -493,7 +494,7 @@ void ia_css_debug_pc_dump(sp_ID_t id, unsigned int num_of_dumps);
  * @return	None
  */
 void ia_css_debug_dump_hang_status(
-	struct ia_css_pipe *pipe);
+    struct ia_css_pipe *pipe);
 
 /*! @brief External command handler
  * External command handler

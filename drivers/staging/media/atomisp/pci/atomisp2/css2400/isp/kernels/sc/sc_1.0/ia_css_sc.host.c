@@ -27,9 +27,9 @@
 
 void
 ia_css_sc_encode(
-	struct sh_css_isp_sc_params *to,
-	struct ia_css_shading_table **from,
-	unsigned int size)
+    struct sh_css_isp_sc_params *to,
+    struct ia_css_shading_table **from,
+    unsigned int size)
 {
 	(void)size;
 	to->gain_shift = (*from)->fraction_bits;
@@ -37,21 +37,21 @@ ia_css_sc_encode(
 
 void
 ia_css_sc_dump(
-	const struct sh_css_isp_sc_params *sc,
-	unsigned int level)
+    const struct sh_css_isp_sc_params *sc,
+    unsigned int level)
 {
 	if (!sc) return;
 	ia_css_debug_dtrace(level, "Shading Correction:\n");
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"sc_gain_shift", sc->gain_shift);
+			    "sc_gain_shift", sc->gain_shift);
 }
 
 #ifdef ISP2401
 void
 ia_css_sc_config(
-	struct sh_css_isp_sc_isp_config *to,
-	const struct ia_css_sc_configuration *from,
-	unsigned int size)
+    struct sh_css_isp_sc_isp_config *to,
+    const struct ia_css_sc_configuration *from,
+    unsigned int size)
 {
 	u32 internal_org_x_bqs = from->internal_frame_origin_x_bqs_on_sctbl;
 	u32 internal_org_y_bqs = from->internal_frame_origin_y_bqs_on_sctbl;
@@ -72,13 +72,14 @@ ia_css_sc_config(
 
 void
 ia_css_sc_configure(
-	const struct ia_css_binary *binary,
-	u32 internal_frame_origin_x_bqs_on_sctbl,
-	uint32_t internal_frame_origin_y_bqs_on_sctbl)
+    const struct ia_css_binary *binary,
+    u32 internal_frame_origin_x_bqs_on_sctbl,
+    uint32_t internal_frame_origin_y_bqs_on_sctbl)
 {
 	const struct ia_css_sc_configuration config = {
 		internal_frame_origin_x_bqs_on_sctbl,
-		internal_frame_origin_y_bqs_on_sctbl };
+		internal_frame_origin_y_bqs_on_sctbl
+	};
 
 	ia_css_configure_sc(binary, &config);
 }
@@ -93,39 +94,39 @@ ia_css_sc_configure(
    for the ia_css_shading_settings structure. (michie) */
 void
 sh_css_get_shading_settings(const struct ia_css_isp_parameters *params,
-			struct ia_css_shading_settings *settings)
+			    struct ia_css_shading_settings *settings)
 {
 	if (!settings)
 		return;
 	assert(params);
 
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-		"ia_css_get_shading_settings() enter: settings=%p\n", settings);
+			    "ia_css_get_shading_settings() enter: settings=%p\n", settings);
 
 	*settings = params->shading_settings;
 
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-		"ia_css_get_shading_settings() leave: settings.enable_shading_table_conversion=%d\n",
-		settings->enable_shading_table_conversion);
+			    "ia_css_get_shading_settings() leave: settings.enable_shading_table_conversion=%d\n",
+			    settings->enable_shading_table_conversion);
 }
 
 void
 sh_css_set_shading_settings(struct ia_css_isp_parameters *params,
-			const struct ia_css_shading_settings *settings)
+			    const struct ia_css_shading_settings *settings)
 {
 	if (!settings)
 		return;
 	assert(params);
 
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-		"ia_css_set_shading_settings() enter: settings.enable_shading_table_conversion=%d\n",
-		settings->enable_shading_table_conversion);
+			    "ia_css_set_shading_settings() enter: settings.enable_shading_table_conversion=%d\n",
+			    settings->enable_shading_table_conversion);
 
 	params->shading_settings = *settings;
 	params->shading_settings_changed = true;
 
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-		"ia_css_set_shading_settings() leave: return_void\n");
+			    "ia_css_set_shading_settings() leave: return_void\n");
 }
 
 /* ------ deprecated(bz675) : to ------ */

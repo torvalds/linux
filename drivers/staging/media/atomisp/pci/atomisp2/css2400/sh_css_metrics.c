@@ -83,7 +83,7 @@ make_histogram(struct sh_css_pc_histogram *histogram, unsigned int length)
 
 static void
 insert_binary_metrics(struct sh_css_binary_metrics **l,
-			struct sh_css_binary_metrics *metrics)
+		      struct sh_css_binary_metrics *metrics)
 {
 	assert(l);
 	assert(*l);

@@ -69,7 +69,7 @@ bool ia_css_refcount_is_single(hrt_vaddress ptr);
  *  return				None
  */
 void ia_css_refcount_clear(s32 id,
-				  clear_func clear_func_ptr);
+			   clear_func clear_func_ptr);
 
 /*! \brief Function to verify if object is valid
  *

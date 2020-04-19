@@ -25,43 +25,43 @@
 
 #define HRT_GDC_BCI_COEF_BITS           14 /* 14 bits per coefficient                                                   */
 #define HRT_GDC_BCI_COEF_ONE             (1 << (HRT_GDC_BCI_COEF_BITS - 2))  /* We represent signed 10 bit coefficients.  */
-									/* The supported range is [-256, .., +256]      */
-									/* in 14-bit signed notation,                   */
-									/* We need all ten bits (MSB must be zero).     */
-									/* -s is inserted to solve this issue, and      */
-									/* therefore "1" is equal to +256.              */
+/* The supported range is [-256, .., +256]      */
+/* in 14-bit signed notation,                   */
+/* We need all ten bits (MSB must be zero).     */
+/* -s is inserted to solve this issue, and      */
+/* therefore "1" is equal to +256.              */
 #define HRT_GDC_BCI_COEF_MASK            ((1 << HRT_GDC_BCI_COEF_BITS) - 1)
 
 #define HRT_GDC_LUT_BYTES                (HRT_GDC_N * 4 * 2)                /* 1024 addresses, 4 coefficients per address,  */
-									/* 2 bytes per coefficient                      */
+/* 2 bytes per coefficient                      */
 
 #define _HRT_GDC_REG_ALIGN               4
 
-  //     31  30  29    25 24                     0
-  //  |-----|---|--------|------------------------|
-  //  | CMD | C | Reg_ID |        Value           |
+//     31  30  29    25 24                     0
+//  |-----|---|--------|------------------------|
+//  | CMD | C | Reg_ID |        Value           |
 
-  // There are just two commands possible for the GDC block:
-  // 1 - Configure reg
-  // 0 - Data token
+// There are just two commands possible for the GDC block:
+// 1 - Configure reg
+// 0 - Data token
 
-  // C      - Reserved bit
-  //          Used in protocol to indicate whether it is C-run or other type of runs
-  //          In case of C-run, this bit has a value of 1, for all the other runs, it is 0.
+// C      - Reserved bit
+//          Used in protocol to indicate whether it is C-run or other type of runs
+//          In case of C-run, this bit has a value of 1, for all the other runs, it is 0.
 
-  // Reg_ID - Address of the register to be configured
+// Reg_ID - Address of the register to be configured
 
-  // Value  - Value to store to the addressed register, maximum of 24 bits
+// Value  - Value to store to the addressed register, maximum of 24 bits
 
-  // Configure reg command is not followed by any other token.
-  // The address of the register and the data to be filled in is contained in the same token
+// Configure reg command is not followed by any other token.
+// The address of the register and the data to be filled in is contained in the same token
 
-  // When the first data token is received, it must be:
-  //   1. FRX and FRY (device configured in one of the  scaling modes) ***DEFAULT MODE***, or,
-  //   2. P0'X        (device configured in one of the tetragon modes)
-  // After the first data token is received, pre-defined number of tokens with the following meaning follow:
-  //   1. two  tokens: SRC address ; DST address
-  //   2. nine tokens: P0'Y, .., P3'Y ; SRC address ; DST address
+// When the first data token is received, it must be:
+//   1. FRX and FRY (device configured in one of the  scaling modes) ***DEFAULT MODE***, or,
+//   2. P0'X        (device configured in one of the tetragon modes)
+// After the first data token is received, pre-defined number of tokens with the following meaning follow:
+//   1. two  tokens: SRC address ; DST address
+//   2. nine tokens: P0'Y, .., P3'Y ; SRC address ; DST address
 
 #define HRT_GDC_CONFIG_CMD             1
 #define HRT_GDC_DATA_CMD               0

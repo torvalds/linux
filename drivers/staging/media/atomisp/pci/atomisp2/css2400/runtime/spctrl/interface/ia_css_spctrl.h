@@ -55,7 +55,7 @@ hrt_vaddress get_sp_code_addr(sp_ID_t  sp_id);
 /* ! Load firmware on to specfied SP
 */
 enum ia_css_err ia_css_spctrl_load_fw(sp_ID_t sp_id,
-			ia_css_spctrl_cfg *spctrl_cfg);
+				      ia_css_spctrl_cfg *spctrl_cfg);
 
 #ifdef ISP2401
 /*! Setup registers for reloading FW */

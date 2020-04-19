@@ -56,24 +56,24 @@ MODULE_PARM_DESC(skip_fwload, "Skip atomisp firmware load");
 static unsigned int repool_pgnr;
 module_param(repool_pgnr, uint, 0644);
 MODULE_PARM_DESC(repool_pgnr,
-		"Set the reserved memory pool size in page (default:0)");
+		 "Set the reserved memory pool size in page (default:0)");
 
 /* set dynamic memory pool size in page */
 unsigned int dypool_pgnr = UINT_MAX;
 module_param(dypool_pgnr, uint, 0644);
 MODULE_PARM_DESC(dypool_pgnr,
-		"Set the dynamic memory pool size in page (default:0)");
+		 "Set the dynamic memory pool size in page (default:0)");
 
 bool dypool_enable;
 module_param(dypool_enable, bool, 0644);
 MODULE_PARM_DESC(dypool_enable,
-		"dynamic memory pool enable/disable (default:disable)");
+		 "dynamic memory pool enable/disable (default:disable)");
 
 /* memory optimization: deferred firmware loading */
 bool defer_fw_load;
 module_param(defer_fw_load, bool, 0644);
 MODULE_PARM_DESC(defer_fw_load,
-		"Defer FW loading until device is opened (default:disable)");
+		 "Defer FW loading until device is opened (default:disable)");
 
 /* cross componnet debug message flag */
 int dbg_level;
@@ -84,7 +84,7 @@ MODULE_PARM_DESC(dbg_level, "debug message on/off (default:off)");
 int dbg_func = 2;
 module_param(dbg_func, int, 0644);
 MODULE_PARM_DESC(dbg_func,
-		"log function switch non/trace_printk/printk (default:printk)");
+		 "log function switch non/trace_printk/printk (default:printk)");
 
 int mipicsi_flag;
 module_param(mipicsi_flag, int, 0644);
@@ -157,7 +157,7 @@ void atomisp_acc_init(struct atomisp_acc_pipe *video, const char *name)
 }
 
 int atomisp_video_register(struct atomisp_video_pipe *video,
-	struct v4l2_device *vdev)
+			   struct v4l2_device *vdev)
 {
 	int ret;
 
@@ -172,7 +172,7 @@ int atomisp_video_register(struct atomisp_video_pipe *video,
 }
 
 int atomisp_acc_register(struct atomisp_acc_pipe *video,
-		struct v4l2_device *vdev)
+			 struct v4l2_device *vdev)
 {
 	int ret;
 
@@ -219,10 +219,10 @@ static int atomisp_save_iunit_reg(struct atomisp_device *isp)
 			      &isp->saved_regs.pmcs);
 	/* Ensure read/write combining is enabled. */
 	pci_read_config_dword(dev, PCI_I_CONTROL,
-			&isp->saved_regs.i_control);
+			      &isp->saved_regs.i_control);
 	isp->saved_regs.i_control |=
-			MRFLD_PCI_I_CONTROL_ENABLE_READ_COMBINING |
-			MRFLD_PCI_I_CONTROL_ENABLE_WRITE_COMBINING;
+	    MRFLD_PCI_I_CONTROL_ENABLE_READ_COMBINING |
+	    MRFLD_PCI_I_CONTROL_ENABLE_WRITE_COMBINING;
 	pci_read_config_dword(dev, MRFLD_PCI_CSI_ACCESS_CTRL_VIOL,
 			      &isp->saved_regs.csi_access_viol);
 	pci_read_config_dword(dev, MRFLD_PCI_CSI_RCOMP_CONTROL,
@@ -236,7 +236,7 @@ static int atomisp_save_iunit_reg(struct atomisp_device *isp)
 	 * For both issues, setting this bit is a workaround.
 	 */
 	isp->saved_regs.csi_rcomp_config |=
-		MRFLD_PCI_CSI_HS_OVR_CLK_GATE_ON_UPDATE;
+	    MRFLD_PCI_CSI_HS_OVR_CLK_GATE_ON_UPDATE;
 	pci_read_config_dword(dev, MRFLD_PCI_CSI_AFE_TRIM_CONTROL,
 			      &isp->saved_regs.csi_afe_dly);
 	pci_read_config_dword(dev, MRFLD_PCI_CSI_CONTROL,
@@ -244,14 +244,14 @@ static int atomisp_save_iunit_reg(struct atomisp_device *isp)
 	if (isp->media_dev.hw_revision >=
 	    (ATOMISP_HW_REVISION_ISP2401 << ATOMISP_HW_REVISION_SHIFT))
 		isp->saved_regs.csi_control |=
-			MRFLD_PCI_CSI_CONTROL_PARPATHEN;
+		    MRFLD_PCI_CSI_CONTROL_PARPATHEN;
 	/*
 	 * On CHT CSI_READY bit should be enabled before stream on
 	 */
 	if (IS_CHT && (isp->media_dev.hw_revision >= ((ATOMISP_HW_REVISION_ISP2401 <<
-	    ATOMISP_HW_REVISION_SHIFT) | ATOMISP_HW_STEPPING_B0)))
+		       ATOMISP_HW_REVISION_SHIFT) | ATOMISP_HW_STEPPING_B0)))
 		isp->saved_regs.csi_control |=
-			MRFLD_PCI_CSI_CONTROL_CSI_READY;
+		    MRFLD_PCI_CSI_CONTROL_CSI_READY;
 	pci_read_config_dword(dev, MRFLD_PCI_CSI_AFE_RCOMP_CONTROL,
 			      &isp->saved_regs.csi_afe_rcomp_config);
 	pci_read_config_dword(dev, MRFLD_PCI_CSI_AFE_HS_CONTROL,
@@ -277,24 +277,24 @@ static int __maybe_unused atomisp_restore_iunit_reg(struct atomisp_device *isp)
 	pci_write_config_dword(dev, PCI_INTERRUPT_CTRL,
 			       isp->saved_regs.interrupt_control);
 	pci_write_config_dword(dev, PCI_I_CONTROL,
-					isp->saved_regs.i_control);
+			       isp->saved_regs.i_control);
 
 	pci_write_config_dword(dev, MRFLD_PCI_PMCS,
-					isp->saved_regs.pmcs);
+			       isp->saved_regs.pmcs);
 	pci_write_config_dword(dev, MRFLD_PCI_CSI_ACCESS_CTRL_VIOL,
-			      isp->saved_regs.csi_access_viol);
+			       isp->saved_regs.csi_access_viol);
 	pci_write_config_dword(dev, MRFLD_PCI_CSI_RCOMP_CONTROL,
-			      isp->saved_regs.csi_rcomp_config);
+			       isp->saved_regs.csi_rcomp_config);
 	pci_write_config_dword(dev, MRFLD_PCI_CSI_AFE_TRIM_CONTROL,
-			      isp->saved_regs.csi_afe_dly);
+			       isp->saved_regs.csi_afe_dly);
 	pci_write_config_dword(dev, MRFLD_PCI_CSI_CONTROL,
-			      isp->saved_regs.csi_control);
+			       isp->saved_regs.csi_control);
 	pci_write_config_dword(dev, MRFLD_PCI_CSI_AFE_RCOMP_CONTROL,
-			      isp->saved_regs.csi_afe_rcomp_config);
+			       isp->saved_regs.csi_afe_rcomp_config);
 	pci_write_config_dword(dev, MRFLD_PCI_CSI_AFE_HS_CONTROL,
-			      isp->saved_regs.csi_afe_hs_control);
+			       isp->saved_regs.csi_afe_hs_control);
 	pci_write_config_dword(dev, MRFLD_PCI_CSI_DEADLINE_CONTROL,
-			      isp->saved_regs.csi_deadline_control);
+			       isp->saved_regs.csi_deadline_control);
 
 	/*
 	 * for MRFLD, Software/firmware needs to write a 1 to bit0
@@ -337,8 +337,8 @@ static int atomisp_mrfld_pre_power_down(struct atomisp_device *isp)
 	atomisp_load_uint32(MRFLD_INTR_STATUS_REG, &irq);
 	if (irq != 0) {
 		dev_err(isp->dev,
-			 "%s: fail to clear isp interrupt status reg=0x%x\n",
-			 __func__, irq);
+			"%s: fail to clear isp interrupt status reg=0x%x\n",
+			__func__, irq);
 		spin_unlock_irqrestore(&isp->lock, flags);
 		return -EAGAIN;
 	} else {
@@ -352,8 +352,8 @@ static int atomisp_mrfld_pre_power_down(struct atomisp_device *isp)
 			goto done;
 		}
 		dev_err(isp->dev,
-			 "%s: error in iunit interrupt. status reg=0x%x\n",
-			 __func__, irq);
+			"%s: error in iunit interrupt. status reg=0x%x\n",
+			__func__, irq);
 		spin_unlock_irqrestore(&isp->lock, flags);
 		return -EAGAIN;
 	}
@@ -376,10 +376,10 @@ done:
 	return 0;
 }
 
- /*
- * WA for DDR DVFS enable/disable
- * By default, ISP will force DDR DVFS 1600MHz before disable DVFS
- */
+/*
+* WA for DDR DVFS enable/disable
+* By default, ISP will force DDR DVFS 1600MHz before disable DVFS
+*/
 static void punit_ddr_dvfs_enable(bool enable)
 {
 	int door_bell = 1 << 8;
@@ -430,10 +430,10 @@ int atomisp_mrfld_power_down(struct atomisp_device *isp)
 	while (1) {
 		iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ, MRFLD_ISPSSPM0, &reg_value);
 		dev_dbg(isp->dev, "power-off in progress, ISPSSPM0: 0x%x\n",
-				reg_value);
+			reg_value);
 		/* wait until ISPSSPM0 bit[25:24] shows 0x3 */
 		if ((reg_value >> MRFLD_ISPSSPM0_ISPSSS_OFFSET) ==
-			MRFLD_ISPSSPM0_IUNIT_POWER_OFF) {
+		    MRFLD_ISPSSPM0_IUNIT_POWER_OFF) {
 			trace_ipu_cstate(0);
 			return 0;
 		}
@@ -475,10 +475,10 @@ int atomisp_mrfld_power_up(struct atomisp_device *isp)
 	while (1) {
 		iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ, MRFLD_ISPSSPM0, &reg_value);
 		dev_dbg(isp->dev, "power-on in progress, ISPSSPM0: 0x%x\n",
-				reg_value);
+			reg_value);
 		/* wait until ISPSSPM0 bit[25:24] shows 0x0 */
 		if ((reg_value >> MRFLD_ISPSSPM0_ISPSSS_OFFSET) ==
-			MRFLD_ISPSSPM0_IUNIT_POWER_ON) {
+		    MRFLD_ISPSSPM0_IUNIT_POWER_ON) {
 			trace_ipu_cstate(1);
 			return 0;
 		}
@@ -495,7 +495,7 @@ int atomisp_mrfld_power_up(struct atomisp_device *isp)
 int atomisp_runtime_suspend(struct device *dev)
 {
 	struct atomisp_device *isp = (struct atomisp_device *)
-		dev_get_drvdata(dev);
+				     dev_get_drvdata(dev);
 	int ret;
 
 	ret = atomisp_mrfld_pre_power_down(isp);
@@ -513,12 +513,12 @@ int atomisp_runtime_suspend(struct device *dev)
 int atomisp_runtime_resume(struct device *dev)
 {
 	struct atomisp_device *isp = (struct atomisp_device *)
-		dev_get_drvdata(dev);
+				     dev_get_drvdata(dev);
 	int ret;
 
 	ret = atomisp_mrfld_power_up(isp);
 	if (ret)
-			return ret;
+		return ret;
 
 	cpu_latency_qos_update_request(&isp->pm_qos, isp->max_isr_latency);
 	if (isp->sw_contex.power_state == ATOM_ISP_POWER_DOWN) {
@@ -541,7 +541,7 @@ int atomisp_runtime_resume(struct device *dev)
 static int __maybe_unused atomisp_suspend(struct device *dev)
 {
 	struct atomisp_device *isp = (struct atomisp_device *)
-		dev_get_drvdata(dev);
+				     dev_get_drvdata(dev);
 	/* FIXME: only has one isp_subdev at present */
 	struct atomisp_sub_device *asd = &isp->asd[0];
 	unsigned long flags;
@@ -579,7 +579,7 @@ static int __maybe_unused atomisp_suspend(struct device *dev)
 static int __maybe_unused atomisp_resume(struct device *dev)
 {
 	struct atomisp_device *isp = (struct atomisp_device *)
-		dev_get_drvdata(dev);
+				     dev_get_drvdata(dev);
 	int ret;
 
 	ret = atomisp_mrfld_power_up(isp);
@@ -638,8 +638,8 @@ int atomisp_csi_lane_config(struct atomisp_device *isp)
 	int port3_lanes_shift;
 
 	if (isp->media_dev.hw_revision <
-		ATOMISP_HW_REVISION_ISP2401_LEGACY <<
-		ATOMISP_HW_REVISION_SHIFT) {
+	    ATOMISP_HW_REVISION_ISP2401_LEGACY <<
+	    ATOMISP_HW_REVISION_SHIFT) {
 		/* Merrifield */
 		port_config_mask = MRFLD_PORT_CONFIG_MASK;
 		port3_lanes_shift = MRFLD_PORT3_LANES_SHIFT;
@@ -650,8 +650,8 @@ int atomisp_csi_lane_config(struct atomisp_device *isp)
 	}
 
 	if (isp->media_dev.hw_revision <
-		ATOMISP_HW_REVISION_ISP2401 <<
-		ATOMISP_HW_REVISION_SHIFT) {
+	    ATOMISP_HW_REVISION_ISP2401 <<
+	    ATOMISP_HW_REVISION_SHIFT) {
 		/* Merrifield / Moorefield legacy input system */
 		nportconfigs = MRFLD_PORT_CONFIG_NUM;
 	} else {
@@ -709,12 +709,12 @@ int atomisp_csi_lane_config(struct atomisp_device *isp)
 	pci_read_config_dword(isp->pdev, MRFLD_PCI_CSI_CONTROL, &csi_control);
 	csi_control &= ~port_config_mask;
 	csi_control |= (portconfigs[i].code << MRFLD_PORT_CONFIGCODE_SHIFT)
-		| (portconfigs[i].lanes[0] ? 0 : (1 << MRFLD_PORT1_ENABLE_SHIFT))
-		| (portconfigs[i].lanes[1] ? 0 : (1 << MRFLD_PORT2_ENABLE_SHIFT))
-		| (portconfigs[i].lanes[2] ? 0 : (1 << MRFLD_PORT3_ENABLE_SHIFT))
-		| (((1 << portconfigs[i].lanes[0]) - 1) << MRFLD_PORT1_LANES_SHIFT)
-		| (((1 << portconfigs[i].lanes[1]) - 1) << MRFLD_PORT2_LANES_SHIFT)
-		| (((1 << portconfigs[i].lanes[2]) - 1) << port3_lanes_shift);
+		       | (portconfigs[i].lanes[0] ? 0 : (1 << MRFLD_PORT1_ENABLE_SHIFT))
+		       | (portconfigs[i].lanes[1] ? 0 : (1 << MRFLD_PORT2_ENABLE_SHIFT))
+		       | (portconfigs[i].lanes[2] ? 0 : (1 << MRFLD_PORT3_ENABLE_SHIFT))
+		       | (((1 << portconfigs[i].lanes[0]) - 1) << MRFLD_PORT1_LANES_SHIFT)
+		       | (((1 << portconfigs[i].lanes[1]) - 1) << MRFLD_PORT2_LANES_SHIFT)
+		       | (((1 << portconfigs[i].lanes[2]) - 1) << port3_lanes_shift);
 
 	pci_write_config_dword(isp->pdev, MRFLD_PCI_CSI_CONTROL, csi_control);
 
@@ -741,9 +741,9 @@ static int atomisp_subdev_probe(struct atomisp_device *isp)
 	for (subdevs = pdata->subdevs; subdevs->type; ++subdevs) {
 		struct v4l2_subdev *subdev;
 		struct i2c_board_info *board_info =
-			&subdevs->v4l2_subdev.board_info;
+			    &subdevs->v4l2_subdev.board_info;
 		struct i2c_adapter *adapter =
-			i2c_get_adapter(subdevs->v4l2_subdev.i2c_adapter_id);
+		    i2c_get_adapter(subdevs->v4l2_subdev.i2c_adapter_id);
 		int sensor_num, i;
 
 		if (!adapter) {
@@ -796,18 +796,18 @@ static int atomisp_subdev_probe(struct atomisp_device *isp)
 			 */
 			isp->inputs[isp->input_cnt].frame_size.pixel_format = 0;
 			isp->inputs[isp->input_cnt].camera_caps =
-					atomisp_get_default_camera_caps();
+			    atomisp_get_default_camera_caps();
 			sensor_num = isp->inputs[isp->input_cnt]
-				.camera_caps->sensor_num;
+				     .camera_caps->sensor_num;
 			isp->input_cnt++;
 			for (i = 1; i < sensor_num; i++) {
 				if (isp->input_cnt >= ATOM_ISP_MAX_INPUTS) {
 					dev_warn(isp->dev,
-						"atomisp inputs out of range\n");
+						 "atomisp inputs out of range\n");
 					break;
 				}
 				isp->inputs[isp->input_cnt] =
-					isp->inputs[isp->input_cnt - 1];
+				    isp->inputs[isp->input_cnt - 1];
 				isp->inputs[isp->input_cnt].sensor_index = i;
 				isp->input_cnt++;
 			}
@@ -853,7 +853,7 @@ static void atomisp_unregister_entities(struct atomisp_device *isp)
 		atomisp_mipi_csi2_unregister_entities(&isp->csi2_port[i]);
 
 	list_for_each_entry_safe(sd, next, &isp->v4l2_dev.subdevs, list)
-		v4l2_device_unregister_subdev(sd);
+	v4l2_device_unregister_subdev(sd);
 
 	v4l2_device_unregister(&isp->v4l2_dev);
 	media_device_unregister(&isp->media_dev);
@@ -885,7 +885,7 @@ static int atomisp_register_entities(struct atomisp_device *isp)
 	/* Register internal entities */
 	for (i = 0; i < ATOMISP_CAMERA_NR_PORTS; i++) {
 		ret = atomisp_mipi_csi2_register_entities(&isp->csi2_port[i],
-								&isp->v4l2_dev);
+			&isp->v4l2_dev);
 		if (ret == 0)
 			continue;
 
@@ -894,13 +894,13 @@ static int atomisp_register_entities(struct atomisp_device *isp)
 		/* deregister all registered CSI ports */
 		while (i--)
 			atomisp_mipi_csi2_unregister_entities(
-							&isp->csi2_port[i]);
+			    &isp->csi2_port[i]);
 
 		goto csi_and_subdev_probe_failed;
 	}
 
 	ret =
-	atomisp_file_input_register_entities(&isp->file_dev, &isp->v4l2_dev);
+	    atomisp_file_input_register_entities(&isp->file_dev, &isp->v4l2_dev);
 	if (ret < 0) {
 		dev_err(isp->dev, "atomisp_file_input_register_entities\n");
 		goto file_input_register_failed;
@@ -921,7 +921,7 @@ static int atomisp_register_entities(struct atomisp_device *isp)
 				"atomisp_subdev_register_entities fail\n");
 			for (; i > 0; i--)
 				atomisp_subdev_unregister_entities(
-						&isp->asd[i - 1]);
+				    &isp->asd[i - 1]);
 			goto subdev_register_failed;
 		}
 	}
@@ -932,16 +932,16 @@ static int atomisp_register_entities(struct atomisp_device *isp)
 		init_completion(&asd->init_done);
 
 		asd->delayed_init_workq =
-			alloc_workqueue(isp->v4l2_dev.name, WQ_CPU_INTENSIVE,
-					1);
+		    alloc_workqueue(isp->v4l2_dev.name, WQ_CPU_INTENSIVE,
+				    1);
 		if (!asd->delayed_init_workq) {
 			dev_err(isp->dev,
-					"Failed to initialize delayed init workq\n");
+				"Failed to initialize delayed init workq\n");
 			ret = -ENOMEM;
 
 			for (; i > 0; i--)
 				destroy_workqueue(isp->asd[i - 1].
-						delayed_init_workq);
+						  delayed_init_workq);
 			goto wq_alloc_failed;
 		}
 		INIT_WORK(&asd->delayed_init_work, atomisp_delayed_init_work);
@@ -950,7 +950,7 @@ static int atomisp_register_entities(struct atomisp_device *isp)
 	for (i = 0; i < isp->input_cnt; i++) {
 		if (isp->inputs[i].port >= ATOMISP_CAMERA_NR_PORTS) {
 			dev_err(isp->dev, "isp->inputs port %d not supported\n",
-					isp->inputs[i].port);
+				isp->inputs[i].port);
 			ret = -EINVAL;
 			goto link_failed;
 		}
@@ -961,7 +961,7 @@ static int atomisp_register_entities(struct atomisp_device *isp)
 	isp->inputs[isp->input_cnt].type = FILE_INPUT;
 	isp->inputs[isp->input_cnt].port = -1;
 	isp->inputs[isp->input_cnt].camera_caps =
-		    atomisp_get_default_camera_caps();
+	    atomisp_get_default_camera_caps();
 	isp->inputs[isp->input_cnt++].camera = &isp->file_dev.sd;
 
 	if (isp->input_cnt < ATOM_ISP_MAX_INPUTS) {
@@ -985,11 +985,11 @@ static int atomisp_register_entities(struct atomisp_device *isp)
 link_failed:
 	for (i = 0; i < isp->num_of_streams; i++)
 		destroy_workqueue(isp->asd[i].
-				delayed_init_workq);
+				  delayed_init_workq);
 wq_alloc_failed:
 	for (i = 0; i < isp->num_of_streams; i++)
 		atomisp_subdev_unregister_entities(
-					&isp->asd[i]);
+		    &isp->asd[i]);
 subdev_register_failed:
 	atomisp_tpg_unregister_entities(&isp->tpg);
 tpg_register_failed:
@@ -1150,7 +1150,7 @@ alloc_fail:
 #define ATOM_ISP_PCI_BAR	0
 
 static int atomisp_pci_probe(struct pci_dev *dev,
-				       const struct pci_device_id *id)
+			     const struct pci_device_id *id)
 {
 	const struct atomisp_platform_data *pdata;
 	struct atomisp_device *isp;
@@ -1217,9 +1217,9 @@ static int atomisp_pci_probe(struct pci_dev *dev,
 	switch (id->device & ATOMISP_PCI_DEVICE_SOC_MASK) {
 	case ATOMISP_PCI_DEVICE_SOC_MRFLD:
 		isp->media_dev.hw_revision =
-			(ATOMISP_HW_REVISION_ISP2400
-			 << ATOMISP_HW_REVISION_SHIFT) |
-			ATOMISP_HW_STEPPING_B0;
+		    (ATOMISP_HW_REVISION_ISP2400
+		     << ATOMISP_HW_REVISION_SHIFT) |
+		    ATOMISP_HW_STEPPING_B0;
 
 		switch (id->device) {
 		case ATOMISP_PCI_DEVICE_SOC_MRFLD_1179:
@@ -1236,12 +1236,12 @@ static int atomisp_pci_probe(struct pci_dev *dev,
 		break;
 	case ATOMISP_PCI_DEVICE_SOC_BYT:
 		isp->media_dev.hw_revision =
-			(ATOMISP_HW_REVISION_ISP2400
-			 << ATOMISP_HW_REVISION_SHIFT) |
-			ATOMISP_HW_STEPPING_B0;
+		    (ATOMISP_HW_REVISION_ISP2400
+		     << ATOMISP_HW_REVISION_SHIFT) |
+		    ATOMISP_HW_STEPPING_B0;
 #ifdef FIXME
 		if (INTEL_MID_BOARD(3, TABLET, BYT, BLK, PRO, CRV2) ||
-			INTEL_MID_BOARD(3, TABLET, BYT, BLK, ENG, CRV2)) {
+		    INTEL_MID_BOARD(3, TABLET, BYT, BLK, ENG, CRV2)) {
 			isp->dfs = &dfs_config_byt_cr;
 			isp->hpll_freq = HPLL_FREQ_2000MHZ;
 		} else
@@ -1254,7 +1254,7 @@ static int atomisp_pci_probe(struct pci_dev *dev,
 		 * have specs yet for exactly how it varies.  Default to
 		 * BYT-CR but let provisioning set it via EFI variable */
 		isp->hpll_freq = gmin_get_var_int(&dev->dev, "HpllFreq",
-					HPLL_FREQ_2000MHZ);
+						  HPLL_FREQ_2000MHZ);
 
 		/*
 		 * for BYT/CHT we are put isp into D3cold to avoid pci registers access
@@ -1266,26 +1266,26 @@ static int atomisp_pci_probe(struct pci_dev *dev,
 	case ATOMISP_PCI_DEVICE_SOC_ANN:
 		isp->media_dev.hw_revision = (
 #ifdef ISP2401_NEW_INPUT_SYSTEM
-			 ATOMISP_HW_REVISION_ISP2401
+						 ATOMISP_HW_REVISION_ISP2401
 #else
-			 ATOMISP_HW_REVISION_ISP2401_LEGACY
+						 ATOMISP_HW_REVISION_ISP2401_LEGACY
 #endif
-			 << ATOMISP_HW_REVISION_SHIFT);
+						 << ATOMISP_HW_REVISION_SHIFT);
 		isp->media_dev.hw_revision |= isp->pdev->revision < 2 ?
-			ATOMISP_HW_STEPPING_A0 : ATOMISP_HW_STEPPING_B0;
+					      ATOMISP_HW_STEPPING_A0 : ATOMISP_HW_STEPPING_B0;
 		isp->dfs = &dfs_config_merr;
 		isp->hpll_freq = HPLL_FREQ_1600MHZ;
 		break;
 	case ATOMISP_PCI_DEVICE_SOC_CHT:
 		isp->media_dev.hw_revision = (
 #ifdef ISP2401_NEW_INPUT_SYSTEM
-			 ATOMISP_HW_REVISION_ISP2401
+						 ATOMISP_HW_REVISION_ISP2401
 #else
-			 ATOMISP_HW_REVISION_ISP2401_LEGACY
+						 ATOMISP_HW_REVISION_ISP2401_LEGACY
 #endif
-			<< ATOMISP_HW_REVISION_SHIFT);
+						 << ATOMISP_HW_REVISION_SHIFT);
 		isp->media_dev.hw_revision |= isp->pdev->revision < 2 ?
-			 ATOMISP_HW_STEPPING_A0 : ATOMISP_HW_STEPPING_B0;
+					      ATOMISP_HW_STEPPING_A0 : ATOMISP_HW_STEPPING_B0;
 
 		isp->dfs = &dfs_config_cht;
 		isp->pdev->d3cold_delay = 0;
@@ -1355,7 +1355,7 @@ static int atomisp_pci_probe(struct pci_dev *dev,
 	atomisp_store_uint32(MRFLD_CSI_RECEIVER_SELECTION_REG, 1);
 
 	if ((id->device & ATOMISP_PCI_DEVICE_SOC_MASK) ==
-			ATOMISP_PCI_DEVICE_SOC_MRFLD) {
+	    ATOMISP_PCI_DEVICE_SOC_MRFLD) {
 		u32 csi_afe_trim;
 
 		/*
@@ -1365,19 +1365,19 @@ static int atomisp_pci_probe(struct pci_dev *dev,
 		pci_read_config_dword(dev, MRFLD_PCI_CSI_AFE_TRIM_CONTROL,
 				      &csi_afe_trim);
 		csi_afe_trim &= ~((MRFLD_PCI_CSI_HSRXCLKTRIM_MASK <<
-					MRFLD_PCI_CSI1_HSRXCLKTRIM_SHIFT) |
+				   MRFLD_PCI_CSI1_HSRXCLKTRIM_SHIFT) |
 				  (MRFLD_PCI_CSI_HSRXCLKTRIM_MASK <<
-					MRFLD_PCI_CSI2_HSRXCLKTRIM_SHIFT) |
+				   MRFLD_PCI_CSI2_HSRXCLKTRIM_SHIFT) |
 				  (MRFLD_PCI_CSI_HSRXCLKTRIM_MASK <<
-					MRFLD_PCI_CSI3_HSRXCLKTRIM_SHIFT));
+				   MRFLD_PCI_CSI3_HSRXCLKTRIM_SHIFT));
 		csi_afe_trim |= (MRFLD_PCI_CSI1_HSRXCLKTRIM <<
-					MRFLD_PCI_CSI1_HSRXCLKTRIM_SHIFT) |
+				 MRFLD_PCI_CSI1_HSRXCLKTRIM_SHIFT) |
 				(MRFLD_PCI_CSI2_HSRXCLKTRIM <<
-					MRFLD_PCI_CSI2_HSRXCLKTRIM_SHIFT) |
+				 MRFLD_PCI_CSI2_HSRXCLKTRIM_SHIFT) |
 				(MRFLD_PCI_CSI3_HSRXCLKTRIM <<
-					MRFLD_PCI_CSI3_HSRXCLKTRIM_SHIFT);
+				 MRFLD_PCI_CSI3_HSRXCLKTRIM_SHIFT);
 		pci_write_config_dword(dev, MRFLD_PCI_CSI_AFE_TRIM_CONTROL,
-				      csi_afe_trim);
+				       csi_afe_trim);
 	}
 
 	err = atomisp_initialize_modules(isp);
@@ -1489,7 +1489,7 @@ load_fw_fail:
 static void atomisp_pci_remove(struct pci_dev *dev)
 {
 	struct atomisp_device *isp = (struct atomisp_device *)
-		pci_get_drvdata(dev);
+				     pci_get_drvdata(dev);
 
 	atomisp_drvfs_exit();
 

@@ -33,8 +33,8 @@ static uint32_t
 gp_timer_reg_load(uint32_t reg)
 {
 	return ia_css_device_load_uint32(
-			GP_TIMER_BASE +
-			(reg * sizeof(uint32_t)));
+		   GP_TIMER_BASE +
+		   (reg * sizeof(uint32_t)));
 }
 
 static void
@@ -42,7 +42,7 @@ gp_timer_reg_store(u32 reg, uint32_t value)
 {
 	ia_css_device_store_uint32((GP_TIMER_BASE +
 				    (reg * sizeof(uint32_t))),
-				    value);
+				   value);
 }
 
 void gp_timer_init(gp_timer_ID_t ID)

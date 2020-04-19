@@ -36,14 +36,14 @@ const struct ia_css_ee_config default_ee_config = {
 
 void
 ia_css_nr_encode(
-	struct sh_css_isp_ynr_params *to,
-	const struct ia_css_nr_config *from,
-	unsigned int size)
+    struct sh_css_isp_ynr_params *to,
+    const struct ia_css_nr_config *from,
+    unsigned int size)
 {
 	(void)size;
 	/* YNR (Y Noise Reduction) */
 	to->threshold =
-		uDIGIT_FITTING(8192U, 16, SH_CSS_BAYER_BITS);
+	    uDIGIT_FITTING(8192U, 16, SH_CSS_BAYER_BITS);
 	to->gain_all =
 	    uDIGIT_FITTING(from->ynr_gain, 16, SH_CSS_YNR_GAIN_SHIFT);
 	to->gain_dir =
@@ -56,9 +56,9 @@ ia_css_nr_encode(
 
 void
 ia_css_yee_encode(
-	struct sh_css_isp_yee_params *to,
-	const struct ia_css_yee_config *from,
-	unsigned int size)
+    struct sh_css_isp_yee_params *to,
+    const struct ia_css_yee_config *from,
+    unsigned int size)
 {
 	int asiWk1 = (int)from->ee.gain;
 	int asiWk2 = asiWk1 / 8;
@@ -68,11 +68,11 @@ ia_css_yee_encode(
 	/* YEE (Y Edge Enhancement) */
 	to->dirthreshold_s =
 	    min((uDIGIT_FITTING(from->nr.direction, 16, SH_CSS_BAYER_BITS)
-				    << 1),
+		 << 1),
 		SH_CSS_BAYER_MAXVAL);
 	to->dirthreshold_g =
 	    min((uDIGIT_FITTING(from->nr.direction, 16, SH_CSS_BAYER_BITS)
-				    << 4),
+		 << 4),
 		SH_CSS_BAYER_MAXVAL);
 	to->dirthreshold_width_log2 =
 	    uFRACTION_BITS_FITTING(8);
@@ -111,107 +111,107 @@ ia_css_yee_encode(
 
 void
 ia_css_nr_dump(
-	const struct sh_css_isp_ynr_params *ynr,
-	unsigned int level)
+    const struct sh_css_isp_ynr_params *ynr,
+    unsigned int level)
 {
 	if (!ynr) return;
 	ia_css_debug_dtrace(level,
-		"Y Noise Reduction:\n");
+			    "Y Noise Reduction:\n");
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"ynr_threshold", ynr->threshold);
+			    "ynr_threshold", ynr->threshold);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"ynr_gain_all", ynr->gain_all);
+			    "ynr_gain_all", ynr->gain_all);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"ynr_gain_dir", ynr->gain_dir);
+			    "ynr_gain_dir", ynr->gain_dir);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"ynr_threshold_cb", ynr->threshold_cb);
+			    "ynr_threshold_cb", ynr->threshold_cb);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"ynr_threshold_cr", ynr->threshold_cr);
+			    "ynr_threshold_cr", ynr->threshold_cr);
 }
 
 void
 ia_css_yee_dump(
-	const struct sh_css_isp_yee_params *yee,
-	unsigned int level)
+    const struct sh_css_isp_yee_params *yee,
+    unsigned int level)
 {
 	ia_css_debug_dtrace(level,
-		"Y Edge Enhancement:\n");
+			    "Y Edge Enhancement:\n");
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"ynryee_dirthreshold_s",
-			yee->dirthreshold_s);
+			    "ynryee_dirthreshold_s",
+			    yee->dirthreshold_s);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"ynryee_dirthreshold_g",
-			yee->dirthreshold_g);
+			    "ynryee_dirthreshold_g",
+			    yee->dirthreshold_g);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"ynryee_dirthreshold_width_log2",
-			yee->dirthreshold_width_log2);
+			    "ynryee_dirthreshold_width_log2",
+			    yee->dirthreshold_width_log2);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"ynryee_dirthreshold_width",
-			yee->dirthreshold_width);
+			    "ynryee_dirthreshold_width",
+			    yee->dirthreshold_width);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"yee_detailgain",
-			yee->detailgain);
+			    "yee_detailgain",
+			    yee->detailgain);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"yee_coring_s",
-			yee->coring_s);
+			    "yee_coring_s",
+			    yee->coring_s);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"yee_coring_g",
-			yee->coring_g);
+			    "yee_coring_g",
+			    yee->coring_g);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"yee_scale_plus_s",
-			yee->scale_plus_s);
+			    "yee_scale_plus_s",
+			    yee->scale_plus_s);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"yee_scale_plus_g",
-			yee->scale_plus_g);
+			    "yee_scale_plus_g",
+			    yee->scale_plus_g);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"yee_scale_minus_s",
-			yee->scale_minus_s);
+			    "yee_scale_minus_s",
+			    yee->scale_minus_s);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"yee_scale_minus_g",
-			yee->scale_minus_g);
+			    "yee_scale_minus_g",
+			    yee->scale_minus_g);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"yee_clip_plus_s",
-			yee->clip_plus_s);
+			    "yee_clip_plus_s",
+			    yee->clip_plus_s);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"yee_clip_plus_g",
-			yee->clip_plus_g);
+			    "yee_clip_plus_g",
+			    yee->clip_plus_g);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"yee_clip_minus_s",
-			yee->clip_minus_s);
+			    "yee_clip_minus_s",
+			    yee->clip_minus_s);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"yee_clip_minus_g",
-			yee->clip_minus_g);
+			    "yee_clip_minus_g",
+			    yee->clip_minus_g);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"ynryee_Yclip",
-			yee->Yclip);
+			    "ynryee_Yclip",
+			    yee->Yclip);
 }
 
 void
 ia_css_nr_debug_dtrace(
-	const struct ia_css_nr_config *config,
-	unsigned int level)
+    const struct ia_css_nr_config *config,
+    unsigned int level)
 {
 	ia_css_debug_dtrace(level,
-		"config.direction=%d, config.bnr_gain=%d, config.ynr_gain=%d, config.threshold_cb=%d, config.threshold_cr=%d\n",
-		config->direction,
-		config->bnr_gain, config->ynr_gain,
-		config->threshold_cb, config->threshold_cr);
+			    "config.direction=%d, config.bnr_gain=%d, config.ynr_gain=%d, config.threshold_cb=%d, config.threshold_cr=%d\n",
+			    config->direction,
+			    config->bnr_gain, config->ynr_gain,
+			    config->threshold_cb, config->threshold_cr);
 }
 
 void
 ia_css_ee_debug_dtrace(
-	const struct ia_css_ee_config *config,
-	unsigned int level)
+    const struct ia_css_ee_config *config,
+    unsigned int level)
 {
 	ia_css_debug_dtrace(level,
-		"config.threshold=%d, config.gain=%d, config.detail_gain=%d\n",
-		config->threshold, config->gain, config->detail_gain);
+			    "config.threshold=%d, config.gain=%d, config.detail_gain=%d\n",
+			    config->threshold, config->gain, config->detail_gain);
 }
 
 void
 ia_css_init_ynr_state(
-	void/*struct sh_css_isp_ynr_vmem_state*/ * state,
-	size_t size)
+    void/*struct sh_css_isp_ynr_vmem_state*/ * state,
+    size_t size)
 {
 	memset(state, 0, size);
 }

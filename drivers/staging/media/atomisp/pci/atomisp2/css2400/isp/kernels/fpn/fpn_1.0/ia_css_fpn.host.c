@@ -28,9 +28,9 @@
 
 void
 ia_css_fpn_encode(
-	struct sh_css_isp_fpn_params *to,
-	const struct ia_css_fpn_table *from,
-	unsigned int size)
+    struct sh_css_isp_fpn_params *to,
+    const struct ia_css_fpn_table *from,
+    unsigned int size)
 {
 	(void)size;
 	to->shift = from->shift;
@@ -39,22 +39,22 @@ ia_css_fpn_encode(
 
 void
 ia_css_fpn_dump(
-	const struct sh_css_isp_fpn_params *fpn,
-	unsigned int level)
+    const struct sh_css_isp_fpn_params *fpn,
+    unsigned int level)
 {
 	if (!fpn) return;
 	ia_css_debug_dtrace(level, "Fixed Pattern Noise Reduction:\n");
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"fpn_shift", fpn->shift);
+			    "fpn_shift", fpn->shift);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"fpn_enabled", fpn->enabled);
+			    "fpn_enabled", fpn->enabled);
 }
 
 void
 ia_css_fpn_config(
-	struct sh_css_isp_fpn_isp_config *to,
-	const struct ia_css_fpn_configuration *from,
-	unsigned int size)
+    struct sh_css_isp_fpn_isp_config *to,
+    const struct ia_css_fpn_configuration *from,
+    unsigned int size)
 {
 	unsigned int elems_a = ISP_VEC_NELEMS;
 
@@ -68,8 +68,8 @@ ia_css_fpn_config(
 
 void
 ia_css_fpn_configure(
-	const struct ia_css_binary     *binary,
-	const struct ia_css_frame_info *info)
+    const struct ia_css_binary     *binary,
+    const struct ia_css_frame_info *info)
 {
 	struct ia_css_frame_info my_info = IA_CSS_BINARY_DEFAULT_FRAME_INFO;
 	const struct ia_css_fpn_configuration config = {

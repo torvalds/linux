@@ -54,7 +54,7 @@ static struct _iunit_debug iunit_debug = {
 };
 
 static inline int iunit_dump_dbgopt(struct atomisp_device *isp,
-				unsigned int opt)
+				    unsigned int opt)
 {
 	int ret = 0;
 
@@ -99,11 +99,11 @@ static ssize_t iunit_dbglvl_show(struct device_driver *drv, char *buf)
 }
 
 static ssize_t iunit_dbglvl_store(struct device_driver *drv, const char *buf,
-				size_t size)
+				  size_t size)
 {
 	if (kstrtouint(buf, 10, &iunit_debug.dbglvl)
-		|| iunit_debug.dbglvl < 1
-		|| iunit_debug.dbglvl > 9) {
+	    || iunit_debug.dbglvl < 1
+	    || iunit_debug.dbglvl > 9) {
 		return -ERANGE;
 	}
 	atomisp_css_debug_set_dtrace_level(iunit_debug.dbglvl);
@@ -118,7 +118,7 @@ static ssize_t iunit_dbgfun_show(struct device_driver *drv, char *buf)
 }
 
 static ssize_t iunit_dbgfun_store(struct device_driver *drv, const char *buf,
-				size_t size)
+				  size_t size)
 {
 	unsigned int opt;
 	int ret;
@@ -142,7 +142,7 @@ static ssize_t iunit_dbgopt_show(struct device_driver *drv, char *buf)
 }
 
 static ssize_t iunit_dbgopt_store(struct device_driver *drv, const char *buf,
-				size_t size)
+				  size_t size)
 {
 	unsigned int opt;
 	int ret;

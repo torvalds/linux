@@ -55,9 +55,9 @@ void ia_css_isys_csi_rx_lut_rmgr_uninit(void)
 }
 
 bool ia_css_isys_csi_rx_lut_rmgr_acquire(
-	csi_rx_backend_ID_t		backend,
-	csi_mipi_packet_type_t		packet_type,
-	csi_rx_backend_lut_entry_t	*entry)
+    csi_rx_backend_ID_t		backend,
+    csi_mipi_packet_type_t		packet_type,
+    csi_rx_backend_lut_entry_t	*entry)
 {
 	bool retval = false;
 	u32 max_num_packets_of_type;
@@ -66,7 +66,8 @@ bool ia_css_isys_csi_rx_lut_rmgr_acquire(
 	u16 i;
 
 	assert(backend < N_CSI_RX_BACKEND_ID);
-	assert((packet_type == CSI_MIPI_PACKET_TYPE_LONG) || (packet_type == CSI_MIPI_PACKET_TYPE_SHORT));
+	assert((packet_type == CSI_MIPI_PACKET_TYPE_LONG) ||
+	       (packet_type == CSI_MIPI_PACKET_TYPE_SHORT));
 	assert(entry);
 
 	if ((backend < N_CSI_RX_BACKEND_ID) && (entry)) {
@@ -104,9 +105,9 @@ bool ia_css_isys_csi_rx_lut_rmgr_acquire(
 }
 
 void ia_css_isys_csi_rx_lut_rmgr_release(
-	csi_rx_backend_ID_t		backend,
-	csi_mipi_packet_type_t		packet_type,
-	csi_rx_backend_lut_entry_t	*entry)
+    csi_rx_backend_ID_t		backend,
+    csi_mipi_packet_type_t		packet_type,
+    csi_rx_backend_lut_entry_t	*entry)
 {
 	u32 max_num_packets;
 	isys_csi_rx_rsrc_t *cur_rsrc = NULL;
@@ -114,7 +115,8 @@ void ia_css_isys_csi_rx_lut_rmgr_release(
 
 	assert(backend < N_CSI_RX_BACKEND_ID);
 	assert(entry);
-	assert((packet_type >= CSI_MIPI_PACKET_TYPE_LONG) || (packet_type <= CSI_MIPI_PACKET_TYPE_SHORT));
+	assert((packet_type >= CSI_MIPI_PACKET_TYPE_LONG) ||
+	       (packet_type <= CSI_MIPI_PACKET_TYPE_SHORT));
 
 	if ((backend < N_CSI_RX_BACKEND_ID) && (entry)) {
 		if (packet_type == CSI_MIPI_PACKET_TYPE_LONG) {
@@ -141,8 +143,8 @@ void ia_css_isys_csi_rx_lut_rmgr_release(
 }
 
 enum ia_css_err ia_css_isys_csi_rx_register_stream(
-	enum mipi_port_id port,
-	uint32_t isys_stream_id)
+    enum mipi_port_id port,
+    uint32_t isys_stream_id)
 {
 	enum ia_css_err retval = IA_CSS_ERR_INTERNAL_ERROR;
 
@@ -161,8 +163,8 @@ enum ia_css_err ia_css_isys_csi_rx_register_stream(
 }
 
 enum ia_css_err ia_css_isys_csi_rx_unregister_stream(
-	enum mipi_port_id port,
-	uint32_t isys_stream_id)
+    enum mipi_port_id port,
+    uint32_t isys_stream_id)
 {
 	enum ia_css_err retval = IA_CSS_ERR_INTERNAL_ERROR;
 

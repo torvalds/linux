@@ -45,18 +45,18 @@ more details.
  * Static functions declarations
  ************************************************************/
 static enum ia_css_err ifmtr_start_column(
-		const struct ia_css_stream_config *config,
-		unsigned int bin_in,
-		unsigned int *start_column);
+    const struct ia_css_stream_config *config,
+    unsigned int bin_in,
+    unsigned int *start_column);
 
 static enum ia_css_err ifmtr_input_start_line(
-		const struct ia_css_stream_config *config,
-		unsigned int bin_in,
-		unsigned int *start_line);
+    const struct ia_css_stream_config *config,
+    unsigned int bin_in,
+    unsigned int *start_line);
 
 static void ifmtr_set_if_blocking_mode(
-		const input_formatter_cfg_t * const config_a,
-		const input_formatter_cfg_t * const config_b);
+    const input_formatter_cfg_t *const config_a,
+    const input_formatter_cfg_t *const config_b);
 
 /************************************************************
  * Public functions
@@ -66,7 +66,7 @@ static void ifmtr_set_if_blocking_mode(
  * to correct in case the input bayer order is different.
  */
 unsigned int ia_css_ifmtr_lines_needed_for_bayer_order(
-		const struct ia_css_stream_config *config)
+    const struct ia_css_stream_config *config)
 {
 	assert(config);
 	if ((config->input_config.bayer_order == IA_CSS_BAYER_ORDER_BGGR)
@@ -77,7 +77,7 @@ unsigned int ia_css_ifmtr_lines_needed_for_bayer_order(
 }
 
 unsigned int ia_css_ifmtr_columns_needed_for_bayer_order(
-		const struct ia_css_stream_config *config)
+    const struct ia_css_stream_config *config)
 {
 	assert(config);
 	if ((config->input_config.bayer_order == IA_CSS_BAYER_ORDER_RGGB)
@@ -91,26 +91,26 @@ enum ia_css_err ia_css_ifmtr_configure(struct ia_css_stream_config *config,
 				       struct ia_css_binary *binary)
 {
 	unsigned int start_line, start_column = 0,
-	    cropped_height,
-	    cropped_width,
-	    num_vectors,
-	    buffer_height = 2,
-	    buffer_width,
-	    two_ppc,
-	    vmem_increment = 0,
-	    deinterleaving = 0,
-	    deinterleaving_b = 0,
-	    width_a = 0,
-	    width_b = 0,
-	    bits_per_pixel,
-	    vectors_per_buffer,
-	    vectors_per_line = 0,
-	    buffers_per_line = 0,
-	    buf_offset_a = 0,
-	    buf_offset_b = 0,
-	    line_width = 0,
-	    width_b_factor = 1, start_column_b,
-	    left_padding = 0;
+				 cropped_height,
+				 cropped_width,
+				 num_vectors,
+				 buffer_height = 2,
+				 buffer_width,
+				 two_ppc,
+				 vmem_increment = 0,
+				 deinterleaving = 0,
+				 deinterleaving_b = 0,
+				 width_a = 0,
+				 width_b = 0,
+				 bits_per_pixel,
+				 vectors_per_buffer,
+				 vectors_per_line = 0,
+				 buffers_per_line = 0,
+				 buf_offset_a = 0,
+				 buf_offset_b = 0,
+				 line_width = 0,
+				 width_b_factor = 1, start_column_b,
+				 left_padding = 0;
 	input_formatter_cfg_t if_a_config, if_b_config;
 	enum atomisp_input_format input_format;
 	enum ia_css_err err = IA_CSS_SUCCESS;
@@ -125,7 +125,8 @@ enum ia_css_err ia_css_ifmtr_configure(struct ia_css_stream_config *config,
 		cropped_width = binary->in_frame_info.res.width;
 		/* This should correspond to the input buffer definition for
 		ISP binaries in input_buf.isp.h */
-		if (binary->info->sp.enable.continuous && binary->info->sp.pipeline.mode != IA_CSS_BINARY_MODE_COPY)
+		if (binary->info->sp.enable.continuous &&
+		    binary->info->sp.pipeline.mode != IA_CSS_BINARY_MODE_COPY)
 			buffer_width = MAX_VECTORS_PER_INPUT_LINE_CONT * ISP_VEC_NELEMS;
 		else
 			buffer_width = binary->info->sp.input.max_width;
@@ -186,7 +187,7 @@ enum ia_css_err ia_css_ifmtr_configure(struct ia_css_stream_config *config,
 	start_column_b = start_column;
 
 	bits_per_pixel = input_formatter_get_alignment(INPUT_FORMATTER0_ID)
-	    * 8 / ISP_VEC_NELEMS;
+			 * 8 / ISP_VEC_NELEMS;
 	switch (input_format) {
 	case ATOMISP_INPUT_FORMAT_YUV420_8_LEGACY:
 		if (two_ppc) {
@@ -205,8 +206,8 @@ enum ia_css_err ia_css_ifmtr_configure(struct ia_css_stream_config *config,
 			vectors_per_line = num_vectors / buffer_height;
 			/* Even lines are half size */
 			line_width = vectors_per_line *
-			    input_formatter_get_alignment(INPUT_FORMATTER0_ID) /
-			    2;
+				     input_formatter_get_alignment(INPUT_FORMATTER0_ID) /
+				     2;
 			start_column /= 2;
 		} else {
 			vmem_increment = 1;
@@ -231,8 +232,8 @@ enum ia_css_err ia_css_ifmtr_configure(struct ia_css_stream_config *config,
 			vectors_per_line = num_vectors / buffer_height;
 			/* Even lines are half size */
 			line_width = vectors_per_line *
-			    input_formatter_get_alignment(INPUT_FORMATTER0_ID) /
-			    2;
+				     input_formatter_get_alignment(INPUT_FORMATTER0_ID) /
+				     2;
 			start_column *= deinterleaving;
 			start_column /= 2;
 			start_column_b = start_column;
@@ -317,7 +318,7 @@ enum ia_css_err ia_css_ifmtr_configure(struct ia_css_stream_config *config,
 			vmem_increment = 1;
 			deinterleaving = 2;
 			if ((!binary) || (config->continuous && binary
-				&& binary->info->sp.pipeline.mode == IA_CSS_BINARY_MODE_COPY)) {
+					  && binary->info->sp.pipeline.mode == IA_CSS_BINARY_MODE_COPY)) {
 				/* !binary -> sp raw copy pipe, no deinterleaving */
 				deinterleaving = 1;
 			}
@@ -388,7 +389,7 @@ enum ia_css_err ia_css_ifmtr_configure(struct ia_css_stream_config *config,
 	}
 	if (!line_width)
 		line_width = vectors_per_line *
-		    input_formatter_get_alignment(INPUT_FORMATTER0_ID);
+			     input_formatter_get_alignment(INPUT_FORMATTER0_ID);
 	if (!buffers_per_line)
 		buffers_per_line = deinterleaving;
 	line_width = CEIL_MUL(line_width,
@@ -399,7 +400,7 @@ enum ia_css_err ia_css_ifmtr_configure(struct ia_css_stream_config *config,
 
 	if (config->mode == IA_CSS_INPUT_MODE_TPG &&
 	    ((binary && binary->info->sp.pipeline.mode == IA_CSS_BINARY_MODE_VIDEO) ||
-	    (!binary))) {
+	     (!binary))) {
 		/* !binary -> sp raw copy pipe */
 		/* workaround for TPG in video mode */
 		start_line = 0;
@@ -432,10 +433,10 @@ enum ia_css_err ia_css_ifmtr_configure(struct ia_css_stream_config *config,
 			buffer_width *= deinterleaving;
 			/* Patch from bayer to rgb */
 			num_vectors = num_vectors / 2 *
-			    deinterleaving * width_b_factor;
+				      deinterleaving * width_b_factor;
 			vectors_per_line = num_vectors / buffer_height;
 			line_width = vectors_per_line *
-			    input_formatter_get_alignment(INPUT_FORMATTER0_ID);
+				     input_formatter_get_alignment(INPUT_FORMATTER0_ID);
 		}
 		if_b_config.start_line = start_line;
 		if_b_config.start_column = start_column_b;
@@ -483,8 +484,8 @@ bool ifmtr_set_if_blocking_mode_reset = true;
  * Static functions
  ************************************************************/
 static void ifmtr_set_if_blocking_mode(
-		const input_formatter_cfg_t * const config_a,
-		const input_formatter_cfg_t * const config_b)
+    const input_formatter_cfg_t *const config_a,
+    const input_formatter_cfg_t *const config_b)
 {
 	int i;
 	bool block[] = { false, false, false, false };
@@ -516,12 +517,12 @@ static void ifmtr_set_if_blocking_mode(
 }
 
 static enum ia_css_err ifmtr_start_column(
-		const struct ia_css_stream_config *config,
-		unsigned int bin_in,
-		unsigned int *start_column)
+    const struct ia_css_stream_config *config,
+    unsigned int bin_in,
+    unsigned int *start_column)
 {
 	unsigned int in = config->input_config.input_res.width, start,
-	    for_bayer = ia_css_ifmtr_columns_needed_for_bayer_order(config);
+		     for_bayer = ia_css_ifmtr_columns_needed_for_bayer_order(config);
 
 	if (bin_in + 2 * for_bayer > in)
 		return IA_CSS_ERR_INVALID_ARGUMENTS;
@@ -542,12 +543,12 @@ static enum ia_css_err ifmtr_start_column(
 }
 
 static enum ia_css_err ifmtr_input_start_line(
-		const struct ia_css_stream_config *config,
-		unsigned int bin_in,
-		unsigned int *start_line)
+    const struct ia_css_stream_config *config,
+    unsigned int bin_in,
+    unsigned int *start_line)
 {
 	unsigned int in = config->input_config.input_res.height, start,
-	    for_bayer = ia_css_ifmtr_lines_needed_for_bayer_order(config);
+		     for_bayer = ia_css_ifmtr_lines_needed_for_bayer_order(config);
 
 	if (bin_in + 2 * for_bayer > in)
 		return IA_CSS_ERR_INVALID_ARGUMENTS;

@@ -45,7 +45,7 @@ struct isys2401_dma_port_cfg_s {
 	u32 elements;
 	u32 cropping;
 	u32 width;
- };
+};
 /* end of DMA Port */
 
 /************************************************
@@ -68,8 +68,8 @@ typedef enum {
 } isys2401_dma_connection;
 
 typedef enum {
-  isys2401_dma_zero_extension = _DMA_ZERO_EXTEND,
-  isys2401_dma_sign_extension = _DMA_SIGN_EXTEND
+	isys2401_dma_zero_extension = _DMA_ZERO_EXTEND,
+	isys2401_dma_sign_extension = _DMA_SIGN_EXTEND
 } isys2401_dma_extension;
 
 typedef struct isys2401_dma_cfg_s isys2401_dma_cfg_t;
@@ -83,6 +83,7 @@ struct isys2401_dma_cfg_s {
 /* end of DMA Device */
 
 /* isys2401_dma_channel limits per DMA ID */
-extern const isys2401_dma_channel N_ISYS2401_DMA_CHANNEL_PROCS[N_ISYS2401_DMA_ID];
+extern const isys2401_dma_channel
+N_ISYS2401_DMA_CHANNEL_PROCS[N_ISYS2401_DMA_ID];
 
 #endif /* __ISYS_DMA_GLOBAL_H_INCLUDED__ */

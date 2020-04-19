@@ -82,7 +82,7 @@ struct ia_css_isp_parameters {
 	struct ia_css_anr_config    anr_config;
 	struct ia_css_ce_config     ce_config;
 	struct ia_css_formats_config     formats_config;
-/* ---- deprecated: replaced with pipe_dvs_6axis_config---- */
+	/* ---- deprecated: replaced with pipe_dvs_6axis_config---- */
 	struct ia_css_dvs_6axis_config  *dvs_6axis_config;
 	struct ia_css_ecd_config    ecd_config;
 	struct ia_css_ynr_config    ynr_config;
@@ -104,16 +104,16 @@ struct ia_css_isp_parameters {
 	struct ia_css_crop_config   crop_config;
 	struct ia_css_output_config output_config;
 	struct ia_css_dvs_6axis_config  *pipe_dvs_6axis_config[IA_CSS_PIPE_ID_NUM];
-/* ------ deprecated(bz675) : from ------ */
+	/* ------ deprecated(bz675) : from ------ */
 	struct ia_css_shading_settings shading_settings;
-/* ------ deprecated(bz675) : to ------ */
+	/* ------ deprecated(bz675) : to ------ */
 	struct ia_css_dvs_coefficients  dvs_coefs;
 	struct ia_css_dvs2_coefficients dvs2_coefs;
 
 	bool isp_params_changed;
 
 	bool isp_mem_params_changed
-		[IA_CSS_PIPE_ID_NUM][SH_CSS_MAX_STAGES][IA_CSS_NUM_MEMORIES];
+	[IA_CSS_PIPE_ID_NUM][SH_CSS_MAX_STAGES][IA_CSS_NUM_MEMORIES];
 	bool dz_config_changed;
 	bool motion_config_changed;
 	bool dis_coef_table_changed;
@@ -123,16 +123,16 @@ struct ia_css_isp_parameters {
 	bool sc_table_dirty;
 	unsigned int sc_table_last_pipe_num;
 	bool anr_thres_changed;
-/* ---- deprecated: replaced with pipe_dvs_6axis_config_changed ---- */
+	/* ---- deprecated: replaced with pipe_dvs_6axis_config_changed ---- */
 	bool dvs_6axis_config_changed;
 	/* ------ pipe specific DPC configuration ------ */
 	/* Please note that this implementation is a temporary solution and
 	 * should be replaced by CSS per pipe configuration when the support
 	 * is ready (HSD 1303967698) */
 	bool pipe_dpc_config_changed[IA_CSS_PIPE_ID_NUM];
-/* ------ deprecated(bz675) : from ------ */
+	/* ------ deprecated(bz675) : from ------ */
 	bool shading_settings_changed;
-/* ------ deprecated(bz675) : to ------ */
+	/* ------ deprecated(bz675) : to ------ */
 	bool pipe_dvs_6axis_config_changed[IA_CSS_PIPE_ID_NUM];
 
 	bool config_changed[IA_CSS_NUM_PARAMETER_IDS];
@@ -143,25 +143,26 @@ struct ia_css_isp_parameters {
 	struct sh_css_ddr_address_map_size pipe_ddr_ptrs_size[IA_CSS_PIPE_ID_NUM];
 	struct sh_css_ddr_address_map ddr_ptrs;
 	struct sh_css_ddr_address_map_size ddr_ptrs_size;
-	struct ia_css_frame *output_frame; /** Output frame the config is to be applied to (optional) */
+	struct ia_css_frame
+		*output_frame; /** Output frame the config is to be applied to (optional) */
 	u32 isp_parameters_id; /** Unique ID to track which config was actually applied to a particular frame */
 };
 
 void
 ia_css_params_store_ia_css_host_data(
-	hrt_vaddress ddr_addr,
-	struct ia_css_host_data *data);
+    hrt_vaddress ddr_addr,
+    struct ia_css_host_data *data);
 
 enum ia_css_err
 ia_css_params_store_sctbl(
-	    const struct ia_css_pipeline_stage *stage,
-	    hrt_vaddress ddr_addr,
-	    const struct ia_css_shading_table *shading_table);
+    const struct ia_css_pipeline_stage *stage,
+    hrt_vaddress ddr_addr,
+    const struct ia_css_shading_table *shading_table);
 
 struct ia_css_host_data *
 ia_css_params_alloc_convert_sctbl(
-	    const struct ia_css_pipeline_stage *stage,
-	    const struct ia_css_shading_table *shading_table);
+    const struct ia_css_pipeline_stage *stage,
+    const struct ia_css_shading_table *shading_table);
 
 struct ia_css_isp_config *
 sh_css_pipe_isp_config_get(struct ia_css_pipe *pipe);

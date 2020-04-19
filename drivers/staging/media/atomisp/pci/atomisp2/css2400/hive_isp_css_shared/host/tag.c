@@ -74,20 +74,18 @@ sh_css_encode_tag_descr(struct sh_css_tag_descr *tag)
 	}
 	exp_id = tag->exp_id;
 
-	if (exp_id != 0)
-	{
+	if (exp_id != 0) {
 		/* we encode either an exp_id or capture data */
 		assert((num_captures == 0) && (skip == 0) && (offset == 0));
 
 		encoded_tag = TAG_EXP | (exp_id & 0xFF) << TAG_EXP_ID_SHIFT;
-	} else
-	{
+	} else {
 		encoded_tag = TAG_CAP
-				| ((num_captures_sign & 0x00000001) << TAG_NUM_CAPTURES_SIGN_SHIFT)
-				| ((offset_sign       & 0x00000001) << TAG_OFFSET_SIGN_SHIFT)
-				| ((num_captures      & 0x000000FF) << TAG_NUM_CAPTURES_SHIFT)
-				| ((skip              & 0x000000FF) << TAG_OFFSET_SHIFT)
-				| ((offset            & 0x000000FF) << TAG_SKIP_SHIFT);
+			      | ((num_captures_sign & 0x00000001) << TAG_NUM_CAPTURES_SIGN_SHIFT)
+			      | ((offset_sign       & 0x00000001) << TAG_OFFSET_SIGN_SHIFT)
+			      | ((num_captures      & 0x000000FF) << TAG_NUM_CAPTURES_SHIFT)
+			      | ((skip              & 0x000000FF) << TAG_OFFSET_SHIFT)
+			      | ((offset            & 0x000000FF) << TAG_SKIP_SHIFT);
 	}
 	return encoded_tag;
 }

@@ -44,7 +44,7 @@
 /* Number of elements in the xnr table. */
 #define IA_CSS_VAMEM_2_XNR_TABLE_SIZE_LOG2      6
 /* Number of elements in the xnr table. */
-#define IA_CSS_VAMEM_2_XNR_TABLE_SIZE	        BIT(IA_CSS_VAMEM_2_XNR_TABLE_SIZE_LOG2)
+#define IA_CSS_VAMEM_2_XNR_TABLE_SIZE		BIT(IA_CSS_VAMEM_2_XNR_TABLE_SIZE_LOG2)
 
 /** IA_CSS_VAMEM_TYPE_1(ISP2300) or
      IA_CSS_VAMEM_TYPE_2(ISP2400) */

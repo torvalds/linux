@@ -28,9 +28,9 @@ const struct ia_css_cc_config default_cc_config = {
 
 void
 ia_css_encode_cc(
-	struct sh_css_isp_csc_params *to,
-	const struct ia_css_cc_config *from,
-	unsigned int size)
+    struct sh_css_isp_csc_params *to,
+    const struct ia_css_cc_config *from,
+    unsigned int size)
 {
 	(void)size;
 #ifndef IA_CSS_NO_DEBUG
@@ -55,9 +55,9 @@ ia_css_encode_cc(
 
 void
 ia_css_csc_encode(
-	struct sh_css_isp_csc_params *to,
-	const struct ia_css_cc_config *from,
-	unsigned int size)
+    struct sh_css_isp_csc_params *to,
+    const struct ia_css_cc_config *from,
+    unsigned int size)
 {
 	ia_css_encode_cc(to, from, size);
 }
@@ -65,63 +65,63 @@ ia_css_csc_encode(
 #ifndef IA_CSS_NO_DEBUG
 void
 ia_css_cc_dump(
-	const struct sh_css_isp_csc_params *csc,
-	unsigned int level,
-	const char *name)
+    const struct sh_css_isp_csc_params *csc,
+    unsigned int level,
+    const char *name)
 {
 	if (!csc) return;
 	ia_css_debug_dtrace(level, "%s\n", name);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-		"m_shift",
-		csc->m_shift);
+			    "m_shift",
+			    csc->m_shift);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-		"m00",
-		csc->m00);
+			    "m00",
+			    csc->m00);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-		"m01",
-		csc->m01);
+			    "m01",
+			    csc->m01);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-		"m02",
-		csc->m02);
+			    "m02",
+			    csc->m02);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-		"m10",
-		csc->m10);
+			    "m10",
+			    csc->m10);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-		"m11",
-		csc->m11);
+			    "m11",
+			    csc->m11);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-		"m12",
-		csc->m12);
+			    "m12",
+			    csc->m12);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-		"m20",
-		csc->m20);
+			    "m20",
+			    csc->m20);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-		"m21",
-		csc->m21);
+			    "m21",
+			    csc->m21);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-		"m22",
-		csc->m22);
+			    "m22",
+			    csc->m22);
 }
 
 void
 ia_css_csc_dump(
-	const struct sh_css_isp_csc_params *csc,
-	unsigned int level)
+    const struct sh_css_isp_csc_params *csc,
+    unsigned int level)
 {
 	ia_css_cc_dump(csc, level, "Color Space Conversion");
 }
 
 void
 ia_css_cc_config_debug_dtrace(
-	const struct ia_css_cc_config *config,
-	unsigned int level)
+    const struct ia_css_cc_config *config,
+    unsigned int level)
 {
 	ia_css_debug_dtrace(level,
-		"config.m[0]=%d, config.m[1]=%d, config.m[2]=%d, config.m[3]=%d, config.m[4]=%d, config.m[5]=%d, config.m[6]=%d, config.m[7]=%d, config.m[8]=%d\n",
-		config->matrix[0],
-		config->matrix[1], config->matrix[2],
-		config->matrix[3], config->matrix[4],
-		config->matrix[5], config->matrix[6],
-		config->matrix[7], config->matrix[8]);
+			    "config.m[0]=%d, config.m[1]=%d, config.m[2]=%d, config.m[3]=%d, config.m[4]=%d, config.m[5]=%d, config.m[6]=%d, config.m[7]=%d, config.m[8]=%d\n",
+			    config->matrix[0],
+			    config->matrix[1], config->matrix[2],
+			    config->matrix[3], config->matrix[4],
+			    config->matrix[5], config->matrix[6],
+			    config->matrix[7], config->matrix[8]);
 }
 #endif

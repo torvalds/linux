@@ -31,9 +31,9 @@ const struct ia_css_cnr_config default_cnr_config = {
 
 void
 ia_css_cnr_encode(
-	struct sh_css_isp_cnr_params *to,
-	const struct ia_css_cnr_config *from,
-	unsigned int size)
+    struct sh_css_isp_cnr_params *to,
+    const struct ia_css_cnr_config *from,
+    unsigned int size)
 {
 	(void)size;
 	to->coring_u = from->coring_u;
@@ -48,26 +48,26 @@ ia_css_cnr_encode(
 
 void
 ia_css_cnr_dump(
-	const struct sh_css_isp_cnr_params *cnr,
-	unsigned int level);
+    const struct sh_css_isp_cnr_params *cnr,
+    unsigned int level);
 
 void
 ia_css_cnr_debug_dtrace(
-	const struct ia_css_cnr_config *config,
-	unsigned int level)
+    const struct ia_css_cnr_config *config,
+    unsigned int level)
 {
 	ia_css_debug_dtrace(level,
-		"config.coring_u=%d, config.coring_v=%d, config.sense_gain_vy=%d, config.sense_gain_hy=%d, config.sense_gain_vu=%d, config.sense_gain_hu=%d, config.sense_gain_vv=%d, config.sense_gain_hv=%d\n",
-		config->coring_u, config->coring_v,
-		config->sense_gain_vy, config->sense_gain_hy,
-		config->sense_gain_vu, config->sense_gain_hu,
-		config->sense_gain_vv, config->sense_gain_hv);
+			    "config.coring_u=%d, config.coring_v=%d, config.sense_gain_vy=%d, config.sense_gain_hy=%d, config.sense_gain_vu=%d, config.sense_gain_hu=%d, config.sense_gain_vv=%d, config.sense_gain_hv=%d\n",
+			    config->coring_u, config->coring_v,
+			    config->sense_gain_vy, config->sense_gain_hy,
+			    config->sense_gain_vu, config->sense_gain_hu,
+			    config->sense_gain_vv, config->sense_gain_hv);
 }
 
 void
 ia_css_init_cnr2_state(
-	void/*struct sh_css_isp_cnr_vmem_state*/ * state,
-	size_t size)
+    void/*struct sh_css_isp_cnr_vmem_state*/ * state,
+    size_t size)
 {
 	memset(state, 0, size);
 }

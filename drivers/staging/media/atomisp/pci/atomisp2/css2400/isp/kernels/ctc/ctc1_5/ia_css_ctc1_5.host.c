@@ -21,8 +21,8 @@
 #include "ia_css_ctc1_5.host.h"
 
 static void ctc_gradient(
-	int *dydx, int *shift,
-	int y1, int y0, int x1, int x0)
+    int *dydx, int *shift,
+    int y1, int y0, int x1, int x0)
 {
 	int frc_bits = max(IA_CSS_CTC_COEF_SHIFT, 16);
 	int dy = y1 - y0;
@@ -34,7 +34,8 @@ static void ctc_gradient(
 	int max_dydx = (1 << IA_CSS_CTC_COEF_SHIFT) - 1;
 
 	if (dx == 0) {
-		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ctc_gradient() error, illegal division operation\n");
+		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE,
+				    "ctc_gradient() error, illegal division operation\n");
 		return;
 	} else {
 		dydx_int = dy / dx;
@@ -55,7 +56,7 @@ static void ctc_gradient(
 		<= ((1 << IA_CSS_CTC_COEF_SHIFT) - 1) */
 	for (sft = 0; sft <= IA_CSS_CTC_COEF_SHIFT; sft++) {
 		int tmp_dydx = (dydx_int << sft)
-			     + (dydx_frc >> (frc_bits - sft));
+			       + (dydx_frc >> (frc_bits - sft));
 		if (tmp_dydx <= max_dydx) {
 			*dydx = tmp_dydx;
 			*shift = sft;
@@ -69,9 +70,9 @@ static void ctc_gradient(
 
 void
 ia_css_ctc_encode(
-	struct sh_css_isp_ctc_params *to,
-	const struct ia_css_ctc_config *from,
-	unsigned int size)
+    struct sh_css_isp_ctc_params *to,
+    const struct ia_css_ctc_config *from,
+    unsigned int size)
 {
 	(void)size;
 	to->y0 = from->y0;
@@ -116,5 +117,5 @@ ia_css_ctc_encode(
 
 void
 ia_css_ctc_dump(
-	const struct sh_css_isp_ctc_params *ctc,
-	unsigned int level);
+    const struct sh_css_isp_ctc_params *ctc,
+    unsigned int level);

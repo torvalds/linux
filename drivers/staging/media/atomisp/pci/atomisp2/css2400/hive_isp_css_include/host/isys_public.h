@@ -22,8 +22,8 @@
  \return none, state = INPUT_SYSTEM[ID].state
  */
 STORAGE_CLASS_INPUT_SYSTEM_H input_system_err_t input_system_get_state(
-	const input_system_ID_t	ID,
-	input_system_state_t *state);
+    const input_system_ID_t	ID,
+    input_system_state_t *state);
 /*! Dump the state of INPUT_SYSTEM[ID]
  \param ID[in]		INPUT_SYSTEM identifier
  \param state[in]	pointer to input system state structure
@@ -31,7 +31,7 @@ STORAGE_CLASS_INPUT_SYSTEM_H input_system_err_t input_system_get_state(
  \depends on host supplied print function as part of ia_css_init()
  */
 STORAGE_CLASS_INPUT_SYSTEM_H void input_system_dump_state(
-	const input_system_ID_t	ID,
-	input_system_state_t *state);
+    const input_system_ID_t	ID,
+    input_system_state_t *state);
 #endif /* USE_INPUT_SYSTEM_VERSION_2401 */
 #endif /* __ISYS_PUBLIC_H_INCLUDED__ */

@@ -40,10 +40,11 @@ struct sh_css {
 	 * possibility. Also, active_pipes[] should be able to hold only
 	 * SH_CSS_MAX_SP_THREADS objects. Anything else is misleading. */
 	struct ia_css_pipe            *all_pipes[IA_CSS_PIPELINE_NUM_MAX];
-	void * (*malloc)(size_t bytes, bool zero_mem);
+	void *(*malloc)(size_t bytes, bool zero_mem);
 	void (*free)(void *ptr);
 #ifdef ISP2401
-	void * (*malloc_ex)(size_t bytes, bool zero_mem, const char *caller_func, int caller_line);
+	void *(*malloc_ex)(size_t bytes, bool zero_mem, const char *caller_func,
+			   int caller_line);
 	void (*free_ex)(void *ptr, const char *caller_func, int caller_line);
 #endif
 	void (*flush)(struct ia_css_acc_fw *fw);
@@ -54,14 +55,18 @@ struct sh_css {
 	unsigned int                   num_cont_raw_frames;
 #if defined(USE_INPUT_SYSTEM_VERSION_2) || defined(USE_INPUT_SYSTEM_VERSION_2401)
 	unsigned int                   num_mipi_frames[N_CSI_PORTS];
-	struct ia_css_frame           *mipi_frames[N_CSI_PORTS][NUM_MIPI_FRAMES_PER_STREAM];
-	struct ia_css_metadata        *mipi_metadata[N_CSI_PORTS][NUM_MIPI_FRAMES_PER_STREAM];
-	unsigned int                   mipi_sizes_for_check[N_CSI_PORTS][IA_CSS_MIPI_SIZE_CHECK_MAX_NOF_ENTRIES_PER_PORT];
+	struct ia_css_frame
+		*mipi_frames[N_CSI_PORTS][NUM_MIPI_FRAMES_PER_STREAM];
+	struct ia_css_metadata
+		*mipi_metadata[N_CSI_PORTS][NUM_MIPI_FRAMES_PER_STREAM];
+	unsigned int
+	mipi_sizes_for_check[N_CSI_PORTS][IA_CSS_MIPI_SIZE_CHECK_MAX_NOF_ENTRIES_PER_PORT];
 	unsigned int                   mipi_frame_size[N_CSI_PORTS];
 #endif
 	hrt_vaddress                   sp_bin_addr;
 	hrt_data                       page_table_base_index;
-	unsigned int                   size_mem_words; /* \deprecated{Use ia_css_mipi_buffer_config instead.}*/
+	unsigned int
+	size_mem_words; /* \deprecated{Use ia_css_mipi_buffer_config instead.}*/
 	enum ia_css_irq_type           irq_type;
 	unsigned int                   pipe_counter;
 

@@ -40,8 +40,8 @@
  * Refer to "stream2mmio_public.h" for details.
  */
 STORAGE_CLASS_STREAM2MMIO_C void stream2mmio_get_state(
-		const stream2mmio_ID_t ID,
-		stream2mmio_state_t *state)
+    const stream2mmio_ID_t ID,
+    stream2mmio_state_t *state)
 {
 	stream2mmio_sid_ID_t i;
 
@@ -59,30 +59,30 @@ STORAGE_CLASS_STREAM2MMIO_C void stream2mmio_get_state(
  * Refer to "stream2mmio_public.h" for details.
  */
 STORAGE_CLASS_STREAM2MMIO_C void stream2mmio_get_sid_state(
-		const stream2mmio_ID_t ID,
-		const stream2mmio_sid_ID_t sid_id,
-		stream2mmio_sid_state_t	*state)
+    const stream2mmio_ID_t ID,
+    const stream2mmio_sid_ID_t sid_id,
+    stream2mmio_sid_state_t	*state)
 {
 	state->rcv_ack =
-		stream2mmio_reg_load(ID, sid_id, STREAM2MMIO_ACKNOWLEDGE_REG_ID);
+	    stream2mmio_reg_load(ID, sid_id, STREAM2MMIO_ACKNOWLEDGE_REG_ID);
 
 	state->pix_width_id =
-		stream2mmio_reg_load(ID, sid_id, STREAM2MMIO_PIX_WIDTH_ID_REG_ID);
+	    stream2mmio_reg_load(ID, sid_id, STREAM2MMIO_PIX_WIDTH_ID_REG_ID);
 
 	state->start_addr =
-		stream2mmio_reg_load(ID, sid_id, STREAM2MMIO_START_ADDR_REG_ID);
+	    stream2mmio_reg_load(ID, sid_id, STREAM2MMIO_START_ADDR_REG_ID);
 
 	state->end_addr =
-		stream2mmio_reg_load(ID, sid_id, STREAM2MMIO_END_ADDR_REG_ID);
+	    stream2mmio_reg_load(ID, sid_id, STREAM2MMIO_END_ADDR_REG_ID);
 
 	state->strides =
-		stream2mmio_reg_load(ID, sid_id, STREAM2MMIO_STRIDE_REG_ID);
+	    stream2mmio_reg_load(ID, sid_id, STREAM2MMIO_STRIDE_REG_ID);
 
 	state->num_items =
-		stream2mmio_reg_load(ID, sid_id, STREAM2MMIO_NUM_ITEMS_REG_ID);
+	    stream2mmio_reg_load(ID, sid_id, STREAM2MMIO_NUM_ITEMS_REG_ID);
 
 	state->block_when_no_cmd =
-		stream2mmio_reg_load(ID, sid_id, STREAM2MMIO_BLOCK_WHEN_NO_CMD_REG_ID);
+	    stream2mmio_reg_load(ID, sid_id, STREAM2MMIO_BLOCK_WHEN_NO_CMD_REG_ID);
 }
 
 /**
@@ -90,7 +90,7 @@ STORAGE_CLASS_STREAM2MMIO_C void stream2mmio_get_sid_state(
  * Refer to "stream2mmio_public.h" for details.
  */
 STORAGE_CLASS_STREAM2MMIO_C void stream2mmio_print_sid_state(
-		stream2mmio_sid_state_t	*state)
+    stream2mmio_sid_state_t	*state)
 {
 	ia_css_print("\t \t Receive acks 0x%x\n", state->rcv_ack);
 	ia_css_print("\t \t Pixel width 0x%x\n", state->pix_width_id);
@@ -106,8 +106,8 @@ STORAGE_CLASS_STREAM2MMIO_C void stream2mmio_print_sid_state(
  * Refer to "stream2mmio_public.h" for details.
  */
 STORAGE_CLASS_STREAM2MMIO_C void stream2mmio_dump_state(
-		const stream2mmio_ID_t ID,
-		stream2mmio_state_t *state)
+    const stream2mmio_ID_t ID,
+    stream2mmio_state_t *state)
 {
 	stream2mmio_sid_ID_t i;
 
@@ -133,9 +133,9 @@ STORAGE_CLASS_STREAM2MMIO_C void stream2mmio_dump_state(
  * Refer to "stream2mmio_public.h" for details.
  */
 STORAGE_CLASS_STREAM2MMIO_C hrt_data stream2mmio_reg_load(
-		const stream2mmio_ID_t ID,
-		const stream2mmio_sid_ID_t sid_id,
-		const uint32_t reg_idx)
+    const stream2mmio_ID_t ID,
+    const stream2mmio_sid_ID_t sid_id,
+    const uint32_t reg_idx)
 {
 	u32 reg_bank_offset;
 
@@ -143,7 +143,7 @@ STORAGE_CLASS_STREAM2MMIO_C hrt_data stream2mmio_reg_load(
 
 	reg_bank_offset = STREAM2MMIO_REGS_PER_SID * sid_id;
 	return ia_css_device_load_uint32(STREAM2MMIO_CTRL_BASE[ID] +
-			(reg_bank_offset + reg_idx) * sizeof(hrt_data));
+					 (reg_bank_offset + reg_idx) * sizeof(hrt_data));
 }
 
 /**
@@ -151,15 +151,15 @@ STORAGE_CLASS_STREAM2MMIO_C hrt_data stream2mmio_reg_load(
  * Refer to "stream2mmio_public.h" for details.
  */
 STORAGE_CLASS_STREAM2MMIO_C void stream2mmio_reg_store(
-		const stream2mmio_ID_t ID,
-		const hrt_address reg,
-		const hrt_data value)
+    const stream2mmio_ID_t ID,
+    const hrt_address reg,
+    const hrt_data value)
 {
 	assert(ID < N_STREAM2MMIO_ID);
 	assert(STREAM2MMIO_CTRL_BASE[ID] != (hrt_address)-1);
 
 	ia_css_device_store_uint32(STREAM2MMIO_CTRL_BASE[ID] +
-		reg * sizeof(hrt_data), value);
+				   reg * sizeof(hrt_data), value);
 }
 
 /* end of DLI */

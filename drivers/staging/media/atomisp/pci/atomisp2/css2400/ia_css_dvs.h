@@ -111,8 +111,8 @@ ia_css_get_dvs_statistics(struct ia_css_dvs_statistics *host_stats,
  */
 void
 ia_css_translate_dvs_statistics(
-		struct ia_css_dvs_statistics *host_stats,
-		const struct ia_css_isp_dvs_statistics_map *isp_stats);
+    struct ia_css_dvs_statistics *host_stats,
+    const struct ia_css_isp_dvs_statistics_map *isp_stats);
 
 /* @brief Copy DVS 2.0 statistics from an ISP buffer to a host buffer.
  * @param[in]	host_stats Host buffer
@@ -145,8 +145,8 @@ ia_css_get_dvs2_statistics(struct ia_css_dvs2_statistics *host_stats,
  */
 void
 ia_css_translate_dvs2_statistics(
-		struct ia_css_dvs2_statistics	   *host_stats,
-		const struct ia_css_isp_dvs_statistics_map *isp_stats);
+    struct ia_css_dvs2_statistics	   *host_stats,
+    const struct ia_css_isp_dvs_statistics_map *isp_stats);
 
 /* @brief Copy DVS statistics from an ISP buffer to a host buffer.
  * @param[in] type - DVS statistics type
@@ -275,8 +275,8 @@ ia_css_dvs2_6axis_config_free(struct ia_css_dvs_6axis_config *dvs_6axis_config);
 */
 struct ia_css_isp_dvs_statistics_map *
 ia_css_isp_dvs_statistics_map_allocate(
-	const struct ia_css_isp_dvs_statistics *isp_stats,
-	void *data_ptr);
+    const struct ia_css_isp_dvs_statistics *isp_stats,
+    void *data_ptr);
 
 /* @brief Free the dvs statistics map
  * @param[in]	me Pointer to the dvs statistics map

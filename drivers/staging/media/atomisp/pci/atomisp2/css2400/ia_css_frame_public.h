@@ -282,7 +282,7 @@ ia_css_frame_allocate_contiguous(struct ia_css_frame **frame,
  */
 enum ia_css_err
 ia_css_frame_allocate_contiguous_from_info(struct ia_css_frame **frame,
-					  const struct ia_css_frame_info *info);
+	const struct ia_css_frame_info *info);
 
 /* @brief Allocate a CSS frame structure using a frame info structure.
  *
@@ -295,7 +295,7 @@ ia_css_frame_allocate_contiguous_from_info(struct ia_css_frame **frame,
  */
 enum ia_css_err
 ia_css_frame_create_from_info(struct ia_css_frame **frame,
-	const struct ia_css_frame_info *info);
+			      const struct ia_css_frame_info *info);
 
 /* @brief Set a mapped data buffer to a CSS frame
  *
@@ -312,8 +312,8 @@ ia_css_frame_create_from_info(struct ia_css_frame **frame,
  */
 enum ia_css_err
 ia_css_frame_set_data(struct ia_css_frame *frame,
-	const ia_css_ptr   mapped_data,
-	size_t data_size_bytes);
+		      const ia_css_ptr   mapped_data,
+		      size_t data_size_bytes);
 
 /* @brief Map an existing frame data pointer to a CSS frame.
  *

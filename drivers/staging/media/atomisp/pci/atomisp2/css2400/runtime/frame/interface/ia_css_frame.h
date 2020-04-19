@@ -50,8 +50,8 @@ more details.
  * @return
  */
 void ia_css_frame_info_set_width(struct ia_css_frame_info *info,
-	unsigned int width,
-	unsigned int min_padded_width);
+				 unsigned int width,
+				 unsigned int min_padded_width);
 
 /* @brief Sets the given format to the frame info
  *
@@ -61,7 +61,7 @@ void ia_css_frame_info_set_width(struct ia_css_frame_info *info,
  * @return
  */
 void ia_css_frame_info_set_format(struct ia_css_frame_info *info,
-	enum ia_css_frame_format format);
+				  enum ia_css_frame_format format);
 
 /* @brief Sets the frame info with the given parameters
  *
@@ -74,10 +74,10 @@ void ia_css_frame_info_set_format(struct ia_css_frame_info *info,
  * @return
  */
 void ia_css_frame_info_init(struct ia_css_frame_info *info,
-	unsigned int width,
-	unsigned int height,
-	enum ia_css_frame_format format,
-	unsigned int aligned);
+			    unsigned int width,
+			    unsigned int height,
+			    enum ia_css_frame_format format,
+			    unsigned int aligned);
 
 /* @brief Checks whether 2 frame infos has the same resolution
  *
@@ -87,8 +87,8 @@ void ia_css_frame_info_init(struct ia_css_frame_info *info,
  * @return      Returns true if the frames are equal
  */
 bool ia_css_frame_info_is_same_resolution(
-	const struct ia_css_frame_info *info_a,
-	const struct ia_css_frame_info *info_b);
+    const struct ia_css_frame_info *info_a,
+    const struct ia_css_frame_info *info_b);
 
 /* @brief Check the frame info is valid
  *
@@ -118,7 +118,7 @@ enum ia_css_err ia_css_frame_init_planes(struct ia_css_frame *frame);
  * @return
  */
 void ia_css_frame_free_multiple(unsigned int num_frames,
-	struct ia_css_frame **frames_array);
+				struct ia_css_frame **frames_array);
 
 /* @brief Allocate a CSS frame structure of given size in bytes..
  *
@@ -131,9 +131,9 @@ void ia_css_frame_free_multiple(unsigned int num_frames,
  * The frame structure is partially null initialized.
  */
 enum ia_css_err ia_css_frame_allocate_with_buffer_size(
-	struct ia_css_frame **frame,
-	const unsigned int size_bytes,
-	const bool contiguous);
+    struct ia_css_frame **frame,
+    const unsigned int size_bytes,
+    const bool contiguous);
 
 /* @brief Check whether 2 frames are same type
  *
@@ -143,8 +143,8 @@ enum ia_css_err ia_css_frame_allocate_with_buffer_size(
  * @return      Returns true if the frames are equal
  */
 bool ia_css_frame_is_same_type(
-	const struct ia_css_frame *frame_a,
-	const struct ia_css_frame *frame_b);
+    const struct ia_css_frame *frame_a,
+    const struct ia_css_frame *frame_b);
 
 /* @brief Configure a dma port from frame info
  *
@@ -154,8 +154,8 @@ bool ia_css_frame_is_same_type(
  * @return
  */
 void ia_css_dma_configure_from_info(
-	struct dma_port_config *config,
-	const struct ia_css_frame_info *info);
+    struct dma_port_config *config,
+    const struct ia_css_frame_info *info);
 
 #ifdef ISP2401
 /* @brief Finds the cropping resolution
@@ -173,8 +173,8 @@ void ia_css_dma_configure_from_info(
  */
 enum ia_css_err
 ia_css_frame_find_crop_resolution(const struct ia_css_resolution *in_res,
-	const struct ia_css_resolution *out_res,
-	struct ia_css_resolution *crop_res);
+				  const struct ia_css_resolution *out_res,
+				  struct ia_css_resolution *crop_res);
 
 #endif
 #endif /* __IA_CSS_FRAME_H__ */

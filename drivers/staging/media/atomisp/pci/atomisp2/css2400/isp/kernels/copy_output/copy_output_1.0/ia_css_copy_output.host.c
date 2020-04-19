@@ -25,9 +25,9 @@ static const struct ia_css_copy_output_configuration default_config = {
 
 void
 ia_css_copy_output_config(
-	struct sh_css_isp_copy_output_isp_config      *to,
-	const struct ia_css_copy_output_configuration *from,
-	unsigned int size)
+    struct sh_css_isp_copy_output_isp_config      *to,
+    const struct ia_css_copy_output_configuration *from,
+    unsigned int size)
 {
 	(void)size;
 	to->enable = from->enable;
@@ -35,8 +35,8 @@ ia_css_copy_output_config(
 
 void
 ia_css_copy_output_configure(
-	const struct ia_css_binary     *binary,
-	bool enable)
+    const struct ia_css_binary     *binary,
+    bool enable)
 {
 	struct ia_css_copy_output_configuration config = default_config;
 

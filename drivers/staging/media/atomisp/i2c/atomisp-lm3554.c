@@ -296,7 +296,7 @@ static int lm3554_g_flash_intensity(struct v4l2_subdev *sd, s32 *val)
 	struct lm3554 *flash = to_lm3554(sd);
 
 	*val = LM3554_VALUE_TO_PERCENT((u32)flash->flash_current,
-			LM3554_FLASH_STEP);
+				       LM3554_FLASH_STEP);
 
 	return 0;
 }
@@ -318,7 +318,7 @@ static int lm3554_g_torch_intensity(struct v4l2_subdev *sd, s32 *val)
 	struct lm3554 *flash = to_lm3554(sd);
 
 	*val = LM3554_VALUE_TO_PERCENT((u32)flash->torch_current,
-			LM3554_TORCH_STEP);
+				       LM3554_TORCH_STEP);
 
 	return 0;
 }
@@ -340,7 +340,7 @@ static int lm3554_g_indicator_intensity(struct v4l2_subdev *sd, s32 *val)
 	struct lm3554 *flash = to_lm3554(sd);
 
 	*val = LM3554_VALUE_TO_PERCENT((u32)flash->indicator_current,
-			LM3554_INDICATOR_STEP);
+				       LM3554_INDICATOR_STEP);
 
 	return 0;
 }
@@ -494,94 +494,94 @@ static const struct v4l2_ctrl_ops ctrl_ops = {
 
 static const struct v4l2_ctrl_config lm3554_controls[] = {
 	{
-	 .ops = &ctrl_ops,
-	 .id = V4L2_CID_FLASH_TIMEOUT,
-	 .type = V4L2_CTRL_TYPE_INTEGER,
-	 .name = "Flash Timeout",
-	 .min = 0x0,
-	 .max = LM3554_MAX_TIMEOUT,
-	 .step = 0x01,
-	 .def = LM3554_DEFAULT_TIMEOUT,
-	 .flags = 0,
-	 },
+		.ops = &ctrl_ops,
+		.id = V4L2_CID_FLASH_TIMEOUT,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.name = "Flash Timeout",
+		.min = 0x0,
+		.max = LM3554_MAX_TIMEOUT,
+		.step = 0x01,
+		.def = LM3554_DEFAULT_TIMEOUT,
+		.flags = 0,
+	},
 	{
-	 .ops = &ctrl_ops,
-	 .id = V4L2_CID_FLASH_INTENSITY,
-	 .type = V4L2_CTRL_TYPE_INTEGER,
-	 .name = "Flash Intensity",
-	 .min = LM3554_MIN_PERCENT,
-	 .max = LM3554_MAX_PERCENT,
-	 .step = 0x01,
-	 .def = LM3554_FLASH_DEFAULT_BRIGHTNESS,
-	 .flags = 0,
-	 },
+		.ops = &ctrl_ops,
+		.id = V4L2_CID_FLASH_INTENSITY,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.name = "Flash Intensity",
+		.min = LM3554_MIN_PERCENT,
+		.max = LM3554_MAX_PERCENT,
+		.step = 0x01,
+		.def = LM3554_FLASH_DEFAULT_BRIGHTNESS,
+		.flags = 0,
+	},
 	{
-	 .ops = &ctrl_ops,
-	 .id = V4L2_CID_FLASH_TORCH_INTENSITY,
-	 .type = V4L2_CTRL_TYPE_INTEGER,
-	 .name = "Torch Intensity",
-	 .min = LM3554_MIN_PERCENT,
-	 .max = LM3554_MAX_PERCENT,
-	 .step = 0x01,
-	 .def = LM3554_TORCH_DEFAULT_BRIGHTNESS,
-	 .flags = 0,
-	 },
+		.ops = &ctrl_ops,
+		.id = V4L2_CID_FLASH_TORCH_INTENSITY,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.name = "Torch Intensity",
+		.min = LM3554_MIN_PERCENT,
+		.max = LM3554_MAX_PERCENT,
+		.step = 0x01,
+		.def = LM3554_TORCH_DEFAULT_BRIGHTNESS,
+		.flags = 0,
+	},
 	{
-	 .ops = &ctrl_ops,
-	 .id = V4L2_CID_FLASH_INDICATOR_INTENSITY,
-	 .type = V4L2_CTRL_TYPE_INTEGER,
-	 .name = "Indicator Intensity",
-	 .min = LM3554_MIN_PERCENT,
-	 .max = LM3554_MAX_PERCENT,
-	 .step = 0x01,
-	 .def = LM3554_INDICATOR_DEFAULT_BRIGHTNESS,
-	 .flags = 0,
-	 },
+		.ops = &ctrl_ops,
+		.id = V4L2_CID_FLASH_INDICATOR_INTENSITY,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.name = "Indicator Intensity",
+		.min = LM3554_MIN_PERCENT,
+		.max = LM3554_MAX_PERCENT,
+		.step = 0x01,
+		.def = LM3554_INDICATOR_DEFAULT_BRIGHTNESS,
+		.flags = 0,
+	},
 	{
-	 .ops = &ctrl_ops,
-	 .id = V4L2_CID_FLASH_STROBE,
-	 .type = V4L2_CTRL_TYPE_BOOLEAN,
-	 .name = "Flash Strobe",
-	 .min = 0,
-	 .max = 1,
-	 .step = 1,
-	 .def = 0,
-	 .flags = 0,
-	 },
+		.ops = &ctrl_ops,
+		.id = V4L2_CID_FLASH_STROBE,
+		.type = V4L2_CTRL_TYPE_BOOLEAN,
+		.name = "Flash Strobe",
+		.min = 0,
+		.max = 1,
+		.step = 1,
+		.def = 0,
+		.flags = 0,
+	},
 	{
-	 .ops = &ctrl_ops,
-	 .id = V4L2_CID_FLASH_MODE,
-	 .type = V4L2_CTRL_TYPE_INTEGER,
-	 .name = "Flash Mode",
-	 .min = 0,
-	 .max = 100,
-	 .step = 1,
-	 .def = ATOMISP_FLASH_MODE_OFF,
-	 .flags = 0,
-	 },
+		.ops = &ctrl_ops,
+		.id = V4L2_CID_FLASH_MODE,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.name = "Flash Mode",
+		.min = 0,
+		.max = 100,
+		.step = 1,
+		.def = ATOMISP_FLASH_MODE_OFF,
+		.flags = 0,
+	},
 	{
-	 .ops = &ctrl_ops,
-	 .id = V4L2_CID_FLASH_STATUS,
-	 .type = V4L2_CTRL_TYPE_INTEGER,
-	 .name = "Flash Status",
-	 .min = ATOMISP_FLASH_STATUS_OK,
-	 .max = ATOMISP_FLASH_STATUS_TIMEOUT,
-	 .step = 1,
-	 .def = ATOMISP_FLASH_STATUS_OK,
-	 .flags = 0,
-	 },
+		.ops = &ctrl_ops,
+		.id = V4L2_CID_FLASH_STATUS,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.name = "Flash Status",
+		.min = ATOMISP_FLASH_STATUS_OK,
+		.max = ATOMISP_FLASH_STATUS_TIMEOUT,
+		.step = 1,
+		.def = ATOMISP_FLASH_STATUS_OK,
+		.flags = 0,
+	},
 #ifndef CSS15
 	{
-	 .ops = &ctrl_ops,
-	 .id = V4L2_CID_FLASH_STATUS_REGISTER,
-	 .type = V4L2_CTRL_TYPE_INTEGER,
-	 .name = "Flash Status Register",
-	 .min = 0,
-	 .max = 255,
-	 .step = 1,
-	 .def = 0,
-	 .flags = 0,
-	 },
+		.ops = &ctrl_ops,
+		.id = V4L2_CID_FLASH_STATUS_REGISTER,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.name = "Flash Status Register",
+		.min = 0,
+		.max = 255,
+		.step = 1,
+		.def = 0,
+		.flags = 0,
+	},
 #endif
 };
 
@@ -825,17 +825,17 @@ static void *lm3554_platform_data_func(struct i2c_client *client)
 	static struct lm3554_platform_data platform_data;
 
 	platform_data.gpio_reset =
-		    desc_to_gpio(gpiod_get_index(&client->dev,
-						 NULL, 2, GPIOD_OUT_LOW));
+	    desc_to_gpio(gpiod_get_index(&client->dev,
+					 NULL, 2, GPIOD_OUT_LOW));
 	platform_data.gpio_strobe =
-		    desc_to_gpio(gpiod_get_index(&client->dev,
-						 NULL, 0, GPIOD_OUT_LOW));
+	    desc_to_gpio(gpiod_get_index(&client->dev,
+					 NULL, 0, GPIOD_OUT_LOW));
 	platform_data.gpio_torch =
-		    desc_to_gpio(gpiod_get_index(&client->dev,
-						 NULL, 1, GPIOD_OUT_LOW));
+	    desc_to_gpio(gpiod_get_index(&client->dev,
+					 NULL, 1, GPIOD_OUT_LOW));
 	dev_info(&client->dev, "camera pdata: lm3554: reset: %d strobe %d torch %d\n",
-		platform_data.gpio_reset, platform_data.gpio_strobe,
-		platform_data.gpio_torch);
+		 platform_data.gpio_reset, platform_data.gpio_strobe,
+		 platform_data.gpio_torch);
 
 	/* Set to TX2 mode, then ENVM/TX2 pin is a power amplifier sync input:
 	 * ENVM/TX pin asserted, flash forced into torch;

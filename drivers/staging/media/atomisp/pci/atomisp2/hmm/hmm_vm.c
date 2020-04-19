@@ -36,7 +36,7 @@ static unsigned int vm_node_end(unsigned int start, unsigned int pgnr)
 }
 
 static int addr_in_vm_node(unsigned int addr,
-		struct hmm_vm_node *node)
+			   struct hmm_vm_node *node)
 {
 	return (addr >= node->start) && (addr < (node->start + node->size));
 }
@@ -80,7 +80,7 @@ void hmm_vm_clean(struct hmm_vm *vm)
 }
 
 static struct hmm_vm_node *alloc_hmm_vm_node(unsigned int pgnr,
-					     struct hmm_vm *vm)
+	struct hmm_vm *vm)
 {
 	struct hmm_vm_node *node;
 
@@ -134,7 +134,7 @@ struct hmm_vm_node *hmm_vm_alloc_node(struct hmm_vm *vm, unsigned int pgnr)
 				spin_unlock(&vm->lock);
 				kmem_cache_free(vm->cache, node);
 				dev_err(atomisp_dev,
-					  "no enough virtual address space.\n");
+					"no enough virtual address space.\n");
 				return NULL;
 			}
 
@@ -191,7 +191,7 @@ struct hmm_vm_node *hmm_vm_find_node_start(struct hmm_vm *vm, unsigned int addr)
 }
 
 struct hmm_vm_node *hmm_vm_find_node_in_range(struct hmm_vm *vm,
-					      unsigned int addr)
+	unsigned int addr)
 {
 	struct hmm_vm_node *node;
 

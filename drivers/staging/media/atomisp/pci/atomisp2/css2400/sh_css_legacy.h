@@ -59,7 +59,8 @@ ia_css_pipe_create_extra(const struct ia_css_pipe_config *config,
 			 struct ia_css_pipe **pipe);
 
 void
-ia_css_pipe_extra_config_defaults(struct ia_css_pipe_extra_config *extra_config);
+ia_css_pipe_extra_config_defaults(struct ia_css_pipe_extra_config
+				  *extra_config);
 
 enum ia_css_err
 ia_css_temp_pipe_to_pipe_id(const struct ia_css_pipe *pipe,
@@ -68,7 +69,7 @@ ia_css_temp_pipe_to_pipe_id(const struct ia_css_pipe *pipe,
 /* DEPRECATED. FPN is not supported. */
 enum ia_css_err
 sh_css_set_black_frame(struct ia_css_stream *stream,
-			const struct ia_css_frame *raw_black_frame);
+		       const struct ia_css_frame *raw_black_frame);
 
 #ifndef ISP2401
 void

@@ -295,7 +295,7 @@ extern struct device *atomisp_dev;
 #define atomisp_is_wdt_running(a) timer_pending(&(a)->wdt)
 #ifdef ISP2401
 void atomisp_wdt_refresh_pipe(struct atomisp_video_pipe *pipe,
-					unsigned int delay);
+			      unsigned int delay);
 #endif
 void atomisp_wdt_refresh(struct atomisp_sub_device *asd, unsigned int delay);
 #ifndef ISP2401

@@ -25,12 +25,18 @@
  */
 struct ia_css_hdr_irradiance_params {
 	int test_irr;                                          /** Test parameter */
-	int match_shift[IA_CSS_HDR_MAX_NUM_INPUT_FRAMES - 1];  /** Histogram matching shift parameter */
-	int match_mul[IA_CSS_HDR_MAX_NUM_INPUT_FRAMES - 1];    /** Histogram matching multiplication parameter */
-	int thr_low[IA_CSS_HDR_MAX_NUM_INPUT_FRAMES - 1];      /** Weight map soft threshold low bound parameter */
-	int thr_high[IA_CSS_HDR_MAX_NUM_INPUT_FRAMES - 1];     /** Weight map soft threshold high bound parameter */
-	int thr_coeff[IA_CSS_HDR_MAX_NUM_INPUT_FRAMES - 1];    /** Soft threshold linear function coefficien */
-	int thr_shift[IA_CSS_HDR_MAX_NUM_INPUT_FRAMES - 1];    /** Soft threshold precision shift parameter */
+	int match_shift[IA_CSS_HDR_MAX_NUM_INPUT_FRAMES -
+							1];  /** Histogram matching shift parameter */
+	int match_mul[IA_CSS_HDR_MAX_NUM_INPUT_FRAMES -
+						      1];    /** Histogram matching multiplication parameter */
+	int thr_low[IA_CSS_HDR_MAX_NUM_INPUT_FRAMES -
+						    1];      /** Weight map soft threshold low bound parameter */
+	int thr_high[IA_CSS_HDR_MAX_NUM_INPUT_FRAMES -
+						     1];     /** Weight map soft threshold high bound parameter */
+	int thr_coeff[IA_CSS_HDR_MAX_NUM_INPUT_FRAMES -
+						      1];    /** Soft threshold linear function coefficien */
+	int thr_shift[IA_CSS_HDR_MAX_NUM_INPUT_FRAMES -
+						      1];    /** Soft threshold precision shift parameter */
 	int weight_bpp;                                        /** Weight map bits per pixel */
 };
 

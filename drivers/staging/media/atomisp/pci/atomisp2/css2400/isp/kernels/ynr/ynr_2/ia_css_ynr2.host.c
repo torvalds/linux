@@ -44,9 +44,9 @@ const struct ia_css_fc_config default_fc_config = {
 
 void
 ia_css_ynr_encode(
-	struct sh_css_isp_yee2_params *to,
-	const struct ia_css_ynr_config *from,
-	unsigned int size)
+    struct sh_css_isp_yee2_params *to,
+    const struct ia_css_ynr_config *from,
+    unsigned int size)
 {
 	(void)size;
 	to->edge_sense_gain_0   = from->edge_sense_gain_0;
@@ -57,9 +57,9 @@ ia_css_ynr_encode(
 
 void
 ia_css_fc_encode(
-	struct sh_css_isp_fc_params *to,
-	const struct ia_css_fc_config *from,
-	unsigned int size)
+    struct sh_css_isp_fc_params *to,
+    const struct ia_css_fc_config *from,
+    unsigned int size)
 {
 	(void)size;
 	to->gain_exp   = from->gain_exp;
@@ -82,37 +82,37 @@ ia_css_fc_encode(
 
 void
 ia_css_ynr_dump(
-	const struct sh_css_isp_yee2_params *yee2,
-	unsigned int level);
+    const struct sh_css_isp_yee2_params *yee2,
+    unsigned int level);
 
 void
 ia_css_fc_dump(
-	const struct sh_css_isp_fc_params *fc,
-	unsigned int level);
+    const struct sh_css_isp_fc_params *fc,
+    unsigned int level);
 
 void
 ia_css_fc_debug_dtrace(
-	const struct ia_css_fc_config *config,
-	unsigned int level)
+    const struct ia_css_fc_config *config,
+    unsigned int level)
 {
 	ia_css_debug_dtrace(level,
-		"config.gain_exp=%d, config.coring_pos_0=%d, config.coring_pos_1=%d, config.coring_neg_0=%d, config.coring_neg_1=%d, config.gain_pos_0=%d, config.gain_pos_1=%d, config.gain_neg_0=%d, config.gain_neg_1=%d, config.crop_pos_0=%d, config.crop_pos_1=%d, config.crop_neg_0=%d, config.crop_neg_1=%d\n",
-		config->gain_exp,
-		config->coring_pos_0, config->coring_pos_1,
-		config->coring_neg_0, config->coring_neg_1,
-		config->gain_pos_0, config->gain_pos_1,
-		config->gain_neg_0, config->gain_neg_1,
-		config->crop_pos_0, config->crop_pos_1,
-		config->crop_neg_0, config->crop_neg_1);
+			    "config.gain_exp=%d, config.coring_pos_0=%d, config.coring_pos_1=%d, config.coring_neg_0=%d, config.coring_neg_1=%d, config.gain_pos_0=%d, config.gain_pos_1=%d, config.gain_neg_0=%d, config.gain_neg_1=%d, config.crop_pos_0=%d, config.crop_pos_1=%d, config.crop_neg_0=%d, config.crop_neg_1=%d\n",
+			    config->gain_exp,
+			    config->coring_pos_0, config->coring_pos_1,
+			    config->coring_neg_0, config->coring_neg_1,
+			    config->gain_pos_0, config->gain_pos_1,
+			    config->gain_neg_0, config->gain_neg_1,
+			    config->crop_pos_0, config->crop_pos_1,
+			    config->crop_neg_0, config->crop_neg_1);
 }
 
 void
 ia_css_ynr_debug_dtrace(
-	const struct ia_css_ynr_config *config,
-	unsigned int level)
+    const struct ia_css_ynr_config *config,
+    unsigned int level)
 {
 	ia_css_debug_dtrace(level,
-		"config.edge_sense_gain_0=%d, config.edge_sense_gain_1=%d, config.corner_sense_gain_0=%d, config.corner_sense_gain_1=%d\n",
-		config->edge_sense_gain_0, config->edge_sense_gain_1,
-		config->corner_sense_gain_0, config->corner_sense_gain_1);
+			    "config.edge_sense_gain_0=%d, config.edge_sense_gain_1=%d, config.corner_sense_gain_0=%d, config.corner_sense_gain_1=%d\n",
+			    config->edge_sense_gain_0, config->edge_sense_gain_1,
+			    config->corner_sense_gain_0, config->corner_sense_gain_1);
 }

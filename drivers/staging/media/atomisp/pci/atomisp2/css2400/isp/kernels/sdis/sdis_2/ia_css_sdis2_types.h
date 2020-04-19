@@ -41,9 +41,12 @@ struct ia_css_dvs2_coef_types {
  *  coefficients.
  */
 struct ia_css_dvs2_coefficients {
-	struct ia_css_dvs_grid_info grid;        /** grid info contains the dimensions of the dvs grid */
-	struct ia_css_dvs2_coef_types hor_coefs; /** struct with pointers that contain the horizontal coefficients */
-	struct ia_css_dvs2_coef_types ver_coefs; /** struct with pointers that contain the vertical coefficients */
+	struct ia_css_dvs_grid_info
+		grid;        /** grid info contains the dimensions of the dvs grid */
+	struct ia_css_dvs2_coef_types
+		hor_coefs; /** struct with pointers that contain the horizontal coefficients */
+	struct ia_css_dvs2_coef_types
+		ver_coefs; /** struct with pointers that contain the vertical coefficients */
 };
 
 /* DVS 2.0 Statistic types. This structure contains 4 pointers to
@@ -61,9 +64,12 @@ struct ia_css_dvs2_stat_types {
  *  the horizontal odd real statistics. Valid statistics data area is int16_t[0..grid.height-1][0..grid.width-1]
  */
 struct ia_css_dvs2_statistics {
-	struct ia_css_dvs_grid_info grid;       /** grid info contains the dimensions of the dvs grid */
-	struct ia_css_dvs2_stat_types hor_prod; /** struct with pointers that contain the horizontal statistics */
-	struct ia_css_dvs2_stat_types ver_prod; /** struct with pointers that contain the vertical statistics */
+	struct ia_css_dvs_grid_info
+		grid;       /** grid info contains the dimensions of the dvs grid */
+	struct ia_css_dvs2_stat_types
+		hor_prod; /** struct with pointers that contain the horizontal statistics */
+	struct ia_css_dvs2_stat_types
+		ver_prod; /** struct with pointers that contain the vertical statistics */
 };
 
 #endif /* __IA_CSS_SDIS2_TYPES_H */

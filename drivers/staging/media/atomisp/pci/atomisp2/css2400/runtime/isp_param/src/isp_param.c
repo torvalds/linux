@@ -36,10 +36,10 @@ more details.
 
 void
 ia_css_isp_param_set_mem_init(
-	struct ia_css_isp_param_host_segments *mem_init,
-	enum ia_css_param_class pclass,
-	enum ia_css_isp_memories mem,
-	char *address, size_t size)
+    struct ia_css_isp_param_host_segments *mem_init,
+    enum ia_css_param_class pclass,
+    enum ia_css_isp_memories mem,
+    char *address, size_t size)
 {
 	mem_init->params[pclass][mem].address = address;
 	mem_init->params[pclass][mem].size = (uint32_t)size;
@@ -47,10 +47,10 @@ ia_css_isp_param_set_mem_init(
 
 void
 ia_css_isp_param_set_css_mem_init(
-	struct ia_css_isp_param_css_segments *mem_init,
-	enum ia_css_param_class pclass,
-	enum ia_css_isp_memories mem,
-	hrt_vaddress address, size_t size)
+    struct ia_css_isp_param_css_segments *mem_init,
+    enum ia_css_param_class pclass,
+    enum ia_css_isp_memories mem,
+    hrt_vaddress address, size_t size)
 {
 	mem_init->params[pclass][mem].address = address;
 	mem_init->params[pclass][mem].size = (uint32_t)size;
@@ -58,48 +58,48 @@ ia_css_isp_param_set_css_mem_init(
 
 void
 ia_css_isp_param_set_isp_mem_init(
-	struct ia_css_isp_param_isp_segments *mem_init,
-	enum ia_css_param_class pclass,
-	enum ia_css_isp_memories mem,
-	u32 address, size_t size)
+    struct ia_css_isp_param_isp_segments *mem_init,
+    enum ia_css_param_class pclass,
+    enum ia_css_isp_memories mem,
+    u32 address, size_t size)
 {
 	mem_init->params[pclass][mem].address = address;
 	mem_init->params[pclass][mem].size = (uint32_t)size;
 }
 
 /* Get functions for parameter memory descriptors */
-const struct ia_css_host_data*
+const struct ia_css_host_data *
 ia_css_isp_param_get_mem_init(
-	const struct ia_css_isp_param_host_segments *mem_init,
-	enum ia_css_param_class pclass,
-	enum ia_css_isp_memories mem)
+    const struct ia_css_isp_param_host_segments *mem_init,
+    enum ia_css_param_class pclass,
+    enum ia_css_isp_memories mem)
 {
 	return &mem_init->params[pclass][mem];
 }
 
-const struct ia_css_data*
+const struct ia_css_data *
 ia_css_isp_param_get_css_mem_init(
-	const struct ia_css_isp_param_css_segments *mem_init,
-	enum ia_css_param_class pclass,
-	enum ia_css_isp_memories mem)
+    const struct ia_css_isp_param_css_segments *mem_init,
+    enum ia_css_param_class pclass,
+    enum ia_css_isp_memories mem)
 {
 	return &mem_init->params[pclass][mem];
 }
 
-const struct ia_css_isp_data*
+const struct ia_css_isp_data *
 ia_css_isp_param_get_isp_mem_init(
-	const struct ia_css_isp_param_isp_segments *mem_init,
-	enum ia_css_param_class pclass,
-	enum ia_css_isp_memories mem)
+    const struct ia_css_isp_param_isp_segments *mem_init,
+    enum ia_css_param_class pclass,
+    enum ia_css_isp_memories mem)
 {
 	return &mem_init->params[pclass][mem];
 }
 
 void
 ia_css_init_memory_interface(
-	struct ia_css_isp_param_css_segments *isp_mem_if,
-	const struct ia_css_isp_param_host_segments *mem_params,
-	const struct ia_css_isp_param_css_segments *css_params)
+    struct ia_css_isp_param_css_segments *isp_mem_if,
+    const struct ia_css_isp_param_host_segments *mem_params,
+    const struct ia_css_isp_param_css_segments *css_params)
 {
 	unsigned int pclass, mem;
 
@@ -110,22 +110,23 @@ ia_css_init_memory_interface(
 				continue;
 			isp_mem_if->params[pclass][mem].size = mem_params->params[pclass][mem].size;
 			if (pclass != IA_CSS_PARAM_CLASS_PARAM)
-				isp_mem_if->params[pclass][mem].address = css_params->params[pclass][mem].address;
+				isp_mem_if->params[pclass][mem].address =
+				    css_params->params[pclass][mem].address;
 		}
 	}
 }
 
 enum ia_css_err
 ia_css_isp_param_allocate_isp_parameters(
-	struct ia_css_isp_param_host_segments *mem_params,
-	struct ia_css_isp_param_css_segments *css_params,
-	const struct ia_css_isp_param_isp_segments *mem_initializers)
-{
+    struct ia_css_isp_param_host_segments *mem_params,
+    struct ia_css_isp_param_css_segments *css_params,
+    const struct ia_css_isp_param_isp_segments *mem_initializers) {
 	enum ia_css_err err = IA_CSS_SUCCESS;
 	unsigned int mem, pclass;
 
 	pclass = IA_CSS_PARAM_CLASS_PARAM;
-	for (mem = 0; mem < IA_CSS_NUM_MEMORIES; mem++) {
+	for (mem = 0; mem < IA_CSS_NUM_MEMORIES; mem++)
+	{
 		for (pclass = 0; pclass < IA_CSS_NUM_PARAM_CLASSES; pclass++) {
 			u32 size = 0;
 
@@ -159,8 +160,8 @@ cleanup:
 
 void
 ia_css_isp_param_destroy_isp_parameters(
-	struct ia_css_isp_param_host_segments *mem_params,
-	struct ia_css_isp_param_css_segments *css_params)
+    struct ia_css_isp_param_host_segments *mem_params,
+    struct ia_css_isp_param_css_segments *css_params)
 {
 	unsigned int mem, pclass;
 
@@ -178,10 +179,10 @@ ia_css_isp_param_destroy_isp_parameters(
 
 void
 ia_css_isp_param_load_fw_params(
-	const char *fw,
-	union ia_css_all_memory_offsets *mem_offsets,
-	const struct ia_css_isp_param_memory_offsets *memory_offsets,
-	bool init)
+    const char *fw,
+    union ia_css_all_memory_offsets *mem_offsets,
+    const struct ia_css_isp_param_memory_offsets *memory_offsets,
+    bool init)
 {
 	unsigned int pclass;
 
@@ -194,13 +195,13 @@ ia_css_isp_param_load_fw_params(
 
 enum ia_css_err
 ia_css_isp_param_copy_isp_mem_if_to_ddr(
-	struct ia_css_isp_param_css_segments *ddr,
-	const struct ia_css_isp_param_host_segments *host,
-	enum ia_css_param_class pclass)
-{
+    struct ia_css_isp_param_css_segments *ddr,
+    const struct ia_css_isp_param_host_segments *host,
+    enum ia_css_param_class pclass) {
 	unsigned int mem;
 
-	for (mem = 0; mem < N_IA_CSS_ISP_MEMORIES; mem++) {
+	for (mem = 0; mem < N_IA_CSS_ISP_MEMORIES; mem++)
+	{
 		size_t       size	  = host->params[pclass][mem].size;
 		hrt_vaddress ddr_mem_ptr  = ddr->params[pclass][mem].address;
 		char	    *host_mem_ptr = host->params[pclass][mem].address;
@@ -216,7 +217,7 @@ ia_css_isp_param_copy_isp_mem_if_to_ddr(
 
 void
 ia_css_isp_param_enable_pipeline(
-	const struct ia_css_isp_param_host_segments *mem_params)
+    const struct ia_css_isp_param_host_segments *mem_params)
 {
 	/* By protocol b0 of the mandatory uint32_t first field of the
 	   input parameter is a disable bit*/
@@ -225,5 +226,7 @@ ia_css_isp_param_enable_pipeline(
 	if (mem_params->params[IA_CSS_PARAM_CLASS_PARAM][IA_CSS_ISP_DMEM0].size == 0)
 		return;
 
-	*(uint32_t *)&mem_params->params[IA_CSS_PARAM_CLASS_PARAM][IA_CSS_ISP_DMEM0].address[dmem_offset] = 0x0;
+	*(uint32_t *)
+	&mem_params->params[IA_CSS_PARAM_CLASS_PARAM][IA_CSS_ISP_DMEM0].address[dmem_offset]
+	    = 0x0;
 }

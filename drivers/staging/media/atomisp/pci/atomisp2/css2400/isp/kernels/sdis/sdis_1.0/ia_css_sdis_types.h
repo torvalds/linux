@@ -31,7 +31,8 @@
  */
 
 struct ia_css_dvs_coefficients {
-	struct ia_css_dvs_grid_info grid;/** grid info contains the dimensions of the dvs grid */
+	struct ia_css_dvs_grid_info
+		grid;/** grid info contains the dimensions of the dvs grid */
 	s16 *hor_coefs;	/** the pointer to int16_t[grid.num_hor_coefs * IA_CSS_DVS_NUM_COEF_TYPES]
 				     containing the horizontal coefficients */
 	s16 *ver_coefs;	/** the pointer to int16_t[grid.num_ver_coefs * IA_CSS_DVS_NUM_COEF_TYPES]
@@ -43,7 +44,8 @@ struct ia_css_dvs_coefficients {
  */
 
 struct ia_css_dvs_statistics {
-	struct ia_css_dvs_grid_info grid;/** grid info contains the dimensions of the dvs grid */
+	struct ia_css_dvs_grid_info
+		grid;/** grid info contains the dimensions of the dvs grid */
 	s32 *hor_proj;	/** the pointer to int16_t[grid.height * IA_CSS_DVS_NUM_COEF_TYPES]
 				     containing the horizontal projections */
 	s32 *ver_proj;	/** the pointer to int16_t[grid.width * IA_CSS_DVS_NUM_COEF_TYPES]

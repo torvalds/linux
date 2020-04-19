@@ -25,7 +25,7 @@
 #include "atomisp_compat_ioctl32.h"
 
 static int get_atomisp_histogram32(struct atomisp_histogram *kp,
-					struct atomisp_histogram32 __user *up)
+				   struct atomisp_histogram32 __user *up)
 {
 	compat_uptr_t tmp;
 
@@ -39,7 +39,7 @@ static int get_atomisp_histogram32(struct atomisp_histogram *kp,
 }
 
 static int put_atomisp_histogram32(struct atomisp_histogram *kp,
-					struct atomisp_histogram32 __user *up)
+				   struct atomisp_histogram32 __user *up)
 {
 	compat_uptr_t tmp = (compat_uptr_t)((uintptr_t)kp->data);
 
@@ -52,7 +52,7 @@ static int put_atomisp_histogram32(struct atomisp_histogram *kp,
 }
 
 static inline int get_v4l2_pix_format(struct v4l2_pix_format *kp,
-					struct v4l2_pix_format __user *up)
+				      struct v4l2_pix_format __user *up)
 {
 	if (copy_from_user(kp, up, sizeof(struct v4l2_pix_format)))
 		return -EFAULT;
@@ -60,7 +60,7 @@ static inline int get_v4l2_pix_format(struct v4l2_pix_format *kp,
 }
 
 static inline int put_v4l2_pix_format(struct v4l2_pix_format *kp,
-					struct v4l2_pix_format __user *up)
+				      struct v4l2_pix_format __user *up)
 {
 	if (copy_to_user(up, kp, sizeof(struct v4l2_pix_format)))
 		return -EFAULT;
@@ -68,7 +68,7 @@ static inline int put_v4l2_pix_format(struct v4l2_pix_format *kp,
 }
 
 static int get_v4l2_framebuffer32(struct v4l2_framebuffer *kp,
-					struct v4l2_framebuffer32 __user *up)
+				  struct v4l2_framebuffer32 __user *up)
 {
 	compat_uptr_t tmp;
 
@@ -84,7 +84,7 @@ static int get_v4l2_framebuffer32(struct v4l2_framebuffer *kp,
 }
 
 static int get_atomisp_dis_statistics32(struct atomisp_dis_statistics *kp,
-				struct atomisp_dis_statistics32 __user *up)
+					struct atomisp_dis_statistics32 __user *up)
 {
 	compat_uptr_t hor_prod_odd_real;
 	compat_uptr_t hor_prod_odd_imag;
@@ -120,24 +120,24 @@ static int get_atomisp_dis_statistics32(struct atomisp_dis_statistics *kp,
 }
 
 static int put_atomisp_dis_statistics32(struct atomisp_dis_statistics *kp,
-				struct atomisp_dis_statistics32 __user *up)
+					struct atomisp_dis_statistics32 __user *up)
 {
 	compat_uptr_t hor_prod_odd_real =
-		(compat_uptr_t)((uintptr_t)kp->dvs2_stat.hor_prod.odd_real);
+	    (compat_uptr_t)((uintptr_t)kp->dvs2_stat.hor_prod.odd_real);
 	compat_uptr_t hor_prod_odd_imag =
-		(compat_uptr_t)((uintptr_t)kp->dvs2_stat.hor_prod.odd_imag);
+	    (compat_uptr_t)((uintptr_t)kp->dvs2_stat.hor_prod.odd_imag);
 	compat_uptr_t hor_prod_even_real =
-		(compat_uptr_t)((uintptr_t)kp->dvs2_stat.hor_prod.even_real);
+	    (compat_uptr_t)((uintptr_t)kp->dvs2_stat.hor_prod.even_real);
 	compat_uptr_t hor_prod_even_imag =
-		(compat_uptr_t)((uintptr_t)kp->dvs2_stat.hor_prod.even_imag);
+	    (compat_uptr_t)((uintptr_t)kp->dvs2_stat.hor_prod.even_imag);
 	compat_uptr_t ver_prod_odd_real =
-		(compat_uptr_t)((uintptr_t)kp->dvs2_stat.ver_prod.odd_real);
+	    (compat_uptr_t)((uintptr_t)kp->dvs2_stat.ver_prod.odd_real);
 	compat_uptr_t ver_prod_odd_imag =
-		(compat_uptr_t)((uintptr_t)kp->dvs2_stat.ver_prod.odd_imag);
+	    (compat_uptr_t)((uintptr_t)kp->dvs2_stat.ver_prod.odd_imag);
 	compat_uptr_t ver_prod_even_real =
-		(compat_uptr_t)((uintptr_t)kp->dvs2_stat.ver_prod.even_real);
+	    (compat_uptr_t)((uintptr_t)kp->dvs2_stat.ver_prod.even_real);
 	compat_uptr_t ver_prod_even_imag =
-		(compat_uptr_t)((uintptr_t)kp->dvs2_stat.ver_prod.even_imag);
+	    (compat_uptr_t)((uintptr_t)kp->dvs2_stat.ver_prod.even_imag);
 
 	if (!access_ok(up, sizeof(struct atomisp_dis_statistics32)) ||
 	    copy_to_user(up, kp, sizeof(struct atomisp_dvs_grid_info)) ||
@@ -156,7 +156,7 @@ static int put_atomisp_dis_statistics32(struct atomisp_dis_statistics *kp,
 }
 
 static int get_atomisp_dis_coefficients32(struct atomisp_dis_coefficients *kp,
-				struct atomisp_dis_coefficients32 __user *up)
+	struct atomisp_dis_coefficients32 __user *up)
 {
 	compat_uptr_t hor_coefs_odd_real;
 	compat_uptr_t hor_coefs_odd_imag;
@@ -191,8 +191,9 @@ static int get_atomisp_dis_coefficients32(struct atomisp_dis_coefficients *kp,
 }
 
 static int get_atomisp_dvs_6axis_config32(struct atomisp_dvs_6axis_config *kp,
-				struct atomisp_dvs_6axis_config32 __user *up)
-{	compat_uptr_t xcoords_y;
+	struct atomisp_dvs_6axis_config32 __user *up)
+{
+	compat_uptr_t xcoords_y;
 	compat_uptr_t ycoords_y;
 	compat_uptr_t xcoords_uv;
 	compat_uptr_t ycoords_uv;
@@ -217,7 +218,7 @@ static int get_atomisp_dvs_6axis_config32(struct atomisp_dvs_6axis_config *kp,
 }
 
 static int get_atomisp_3a_statistics32(struct atomisp_3a_statistics *kp,
-				struct atomisp_3a_statistics32 __user *up)
+				       struct atomisp_3a_statistics32 __user *up)
 {
 	compat_uptr_t data;
 	compat_uptr_t rgby_data;
@@ -237,7 +238,7 @@ static int get_atomisp_3a_statistics32(struct atomisp_3a_statistics *kp,
 }
 
 static int put_atomisp_3a_statistics32(struct atomisp_3a_statistics *kp,
-				struct atomisp_3a_statistics32 __user *up)
+				       struct atomisp_3a_statistics32 __user *up)
 {
 	compat_uptr_t data = (compat_uptr_t)((uintptr_t)kp->data);
 	compat_uptr_t rgby_data = (compat_uptr_t)((uintptr_t)kp->rgby_data);
@@ -254,7 +255,7 @@ static int put_atomisp_3a_statistics32(struct atomisp_3a_statistics *kp,
 }
 
 static int get_atomisp_metadata_stat32(struct atomisp_metadata *kp,
-				struct atomisp_metadata32 __user *up)
+				       struct atomisp_metadata32 __user *up)
 {
 	compat_uptr_t data;
 	compat_uptr_t effective_width;
@@ -274,11 +275,11 @@ static int get_atomisp_metadata_stat32(struct atomisp_metadata *kp,
 }
 
 static int put_atomisp_metadata_stat32(struct atomisp_metadata *kp,
-				struct atomisp_metadata32 __user *up)
+				       struct atomisp_metadata32 __user *up)
 {
 	compat_uptr_t data = (compat_uptr_t)((uintptr_t)kp->data);
 	compat_uptr_t effective_width =
-		(compat_uptr_t)((uintptr_t)kp->effective_width);
+	    (compat_uptr_t)((uintptr_t)kp->effective_width);
 	if (!access_ok(up, sizeof(struct atomisp_metadata32)) ||
 	    put_user(data, &up->data) ||
 	    put_user(kp->width, &up->width) ||
@@ -292,12 +293,12 @@ static int put_atomisp_metadata_stat32(struct atomisp_metadata *kp,
 }
 
 static int put_atomisp_metadata_by_type_stat32(
-				struct atomisp_metadata_with_type *kp,
-				struct atomisp_metadata_with_type32 __user *up)
+    struct atomisp_metadata_with_type *kp,
+    struct atomisp_metadata_with_type32 __user *up)
 {
 	compat_uptr_t data = (compat_uptr_t)((uintptr_t)kp->data);
 	compat_uptr_t effective_width =
-		(compat_uptr_t)((uintptr_t)kp->effective_width);
+	    (compat_uptr_t)((uintptr_t)kp->effective_width);
 	if (!access_ok(up, sizeof(struct atomisp_metadata_with_type32)) ||
 	    put_user(data, &up->data) ||
 	    put_user(kp->width, &up->width) ||
@@ -312,8 +313,8 @@ static int put_atomisp_metadata_by_type_stat32(
 }
 
 static int get_atomisp_metadata_by_type_stat32(
-				struct atomisp_metadata_with_type *kp,
-				struct atomisp_metadata_with_type32 __user *up)
+    struct atomisp_metadata_with_type *kp,
+    struct atomisp_metadata_with_type32 __user *up)
 {
 	compat_uptr_t data;
 	compat_uptr_t effective_width;
@@ -334,7 +335,7 @@ static int get_atomisp_metadata_by_type_stat32(
 }
 
 static int get_atomisp_morph_table32(struct atomisp_morph_table *kp,
-				struct atomisp_morph_table32 __user *up)
+				     struct atomisp_morph_table32 __user *up)
 {
 	unsigned int n = ATOMISP_MORPH_TABLE_NUM_PLANES;
 
@@ -358,7 +359,7 @@ static int get_atomisp_morph_table32(struct atomisp_morph_table *kp,
 }
 
 static int put_atomisp_morph_table32(struct atomisp_morph_table *kp,
-				struct atomisp_morph_table32 __user *up)
+				     struct atomisp_morph_table32 __user *up)
 {
 	unsigned int n = ATOMISP_MORPH_TABLE_NUM_PLANES;
 
@@ -382,7 +383,7 @@ static int put_atomisp_morph_table32(struct atomisp_morph_table *kp,
 }
 
 static int get_atomisp_overlay32(struct atomisp_overlay *kp,
-					struct atomisp_overlay32 __user *up)
+				 struct atomisp_overlay32 __user *up)
 {
 	compat_uptr_t frame;
 
@@ -406,7 +407,7 @@ static int get_atomisp_overlay32(struct atomisp_overlay *kp,
 }
 
 static int put_atomisp_overlay32(struct atomisp_overlay *kp,
-					struct atomisp_overlay32 __user *up)
+				 struct atomisp_overlay32 __user *up)
 {
 	compat_uptr_t frame = (compat_uptr_t)((uintptr_t)kp->frame);
 
@@ -429,8 +430,8 @@ static int put_atomisp_overlay32(struct atomisp_overlay *kp,
 }
 
 static int get_atomisp_calibration_group32(
-				struct atomisp_calibration_group *kp,
-				struct atomisp_calibration_group32 __user *up)
+    struct atomisp_calibration_group *kp,
+    struct atomisp_calibration_group32 __user *up)
 {
 	compat_uptr_t calb_grp_values;
 
@@ -445,11 +446,11 @@ static int get_atomisp_calibration_group32(
 }
 
 static int put_atomisp_calibration_group32(
-				struct atomisp_calibration_group *kp,
-				struct atomisp_calibration_group32 __user *up)
+    struct atomisp_calibration_group *kp,
+    struct atomisp_calibration_group32 __user *up)
 {
 	compat_uptr_t calb_grp_values =
-			(compat_uptr_t)((uintptr_t)kp->calb_grp_values);
+	    (compat_uptr_t)((uintptr_t)kp->calb_grp_values);
 
 	if (!access_ok(up, sizeof(struct atomisp_calibration_group32)) ||
 	    put_user(kp->size, &up->size) ||
@@ -461,7 +462,7 @@ static int put_atomisp_calibration_group32(
 }
 
 static int get_atomisp_acc_fw_load32(struct atomisp_acc_fw_load *kp,
-				struct atomisp_acc_fw_load32 __user *up)
+				     struct atomisp_acc_fw_load32 __user *up)
 {
 	compat_uptr_t data;
 
@@ -476,7 +477,7 @@ static int get_atomisp_acc_fw_load32(struct atomisp_acc_fw_load *kp,
 }
 
 static int put_atomisp_acc_fw_load32(struct atomisp_acc_fw_load *kp,
-				struct atomisp_acc_fw_load32 __user *up)
+				     struct atomisp_acc_fw_load32 __user *up)
 {
 	compat_uptr_t data = (compat_uptr_t)((uintptr_t)kp->data);
 
@@ -490,7 +491,7 @@ static int put_atomisp_acc_fw_load32(struct atomisp_acc_fw_load *kp,
 }
 
 static int get_atomisp_acc_fw_arg32(struct atomisp_acc_fw_arg *kp,
-					struct atomisp_acc_fw_arg32 __user *up)
+				    struct atomisp_acc_fw_arg32 __user *up)
 {
 	compat_uptr_t value;
 
@@ -506,7 +507,7 @@ static int get_atomisp_acc_fw_arg32(struct atomisp_acc_fw_arg *kp,
 }
 
 static int put_atomisp_acc_fw_arg32(struct atomisp_acc_fw_arg *kp,
-					struct atomisp_acc_fw_arg32 __user *up)
+				    struct atomisp_acc_fw_arg32 __user *up)
 {
 	compat_uptr_t value = (compat_uptr_t)((uintptr_t)kp->value);
 
@@ -521,7 +522,7 @@ static int put_atomisp_acc_fw_arg32(struct atomisp_acc_fw_arg *kp,
 }
 
 static int get_v4l2_private_int_data32(struct v4l2_private_int_data *kp,
-					struct v4l2_private_int_data32 __user *up)
+				       struct v4l2_private_int_data32 __user *up)
 {
 	compat_uptr_t data;
 
@@ -537,7 +538,7 @@ static int get_v4l2_private_int_data32(struct v4l2_private_int_data *kp,
 }
 
 static int put_v4l2_private_int_data32(struct v4l2_private_int_data *kp,
-				struct v4l2_private_int_data32 __user *up)
+				       struct v4l2_private_int_data32 __user *up)
 {
 	compat_uptr_t data = (compat_uptr_t)((uintptr_t)kp->data);
 
@@ -552,7 +553,7 @@ static int put_v4l2_private_int_data32(struct v4l2_private_int_data *kp,
 }
 
 static int get_atomisp_shading_table32(struct atomisp_shading_table *kp,
-				struct atomisp_shading_table32 __user *up)
+				       struct atomisp_shading_table32 __user *up)
 {
 	unsigned int n = ATOMISP_NUM_SC_COLORS;
 
@@ -575,7 +576,7 @@ static int get_atomisp_shading_table32(struct atomisp_shading_table *kp,
 }
 
 static int get_atomisp_acc_map32(struct atomisp_acc_map *kp,
-					struct atomisp_acc_map32 __user *up)
+				 struct atomisp_acc_map32 __user *up)
 {
 	compat_uptr_t user_ptr;
 
@@ -595,7 +596,7 @@ static int get_atomisp_acc_map32(struct atomisp_acc_map *kp,
 }
 
 static int put_atomisp_acc_map32(struct atomisp_acc_map *kp,
-					struct atomisp_acc_map32 __user *up)
+				 struct atomisp_acc_map32 __user *up)
 {
 	compat_uptr_t user_ptr = (compat_uptr_t)((uintptr_t)kp->user_ptr);
 
@@ -614,7 +615,7 @@ static int put_atomisp_acc_map32(struct atomisp_acc_map *kp,
 }
 
 static int get_atomisp_acc_s_mapped_arg32(struct atomisp_acc_s_mapped_arg *kp,
-				struct atomisp_acc_s_mapped_arg32 __user *up)
+	struct atomisp_acc_s_mapped_arg32 __user *up)
 {
 	if (!access_ok(up, sizeof(struct atomisp_acc_s_mapped_arg32)) ||
 	    get_user(kp->fw_handle, &up->fw_handle) ||
@@ -627,7 +628,7 @@ static int get_atomisp_acc_s_mapped_arg32(struct atomisp_acc_s_mapped_arg *kp,
 }
 
 static int put_atomisp_acc_s_mapped_arg32(struct atomisp_acc_s_mapped_arg *kp,
-				struct atomisp_acc_s_mapped_arg32 __user *up)
+	struct atomisp_acc_s_mapped_arg32 __user *up)
 {
 	if (!access_ok(up, sizeof(struct atomisp_acc_s_mapped_arg32)) ||
 	    put_user(kp->fw_handle, &up->fw_handle) ||
@@ -640,10 +641,10 @@ static int put_atomisp_acc_s_mapped_arg32(struct atomisp_acc_s_mapped_arg *kp,
 }
 
 static int get_atomisp_parameters32(struct atomisp_parameters *kp,
-					struct atomisp_parameters32 __user *up)
+				    struct atomisp_parameters32 __user *up)
 {
 	int n = offsetof(struct atomisp_parameters32, output_frame) /
-				sizeof(compat_uptr_t);
+		sizeof(compat_uptr_t);
 	unsigned int size, offset = 0;
 	void  __user *user_ptr;
 	unsigned int stp, mtp, dcp, dscp = 0;
@@ -676,16 +677,16 @@ static int get_atomisp_parameters32(struct atomisp_parameters *kp,
 		} karg;
 
 		size = sizeof(struct atomisp_shading_table) +
-				sizeof(struct atomisp_morph_table) +
-				sizeof(struct atomisp_dis_coefficients) +
-				sizeof(struct atomisp_dvs_6axis_config);
+		       sizeof(struct atomisp_morph_table) +
+		       sizeof(struct atomisp_dis_coefficients) +
+		       sizeof(struct atomisp_dvs_6axis_config);
 		user_ptr = compat_alloc_user_space(size);
 
 		/* handle shading table */
 		if (stp != 0) {
 			if (get_atomisp_shading_table32(&karg.shading_table,
-				(struct atomisp_shading_table32 __user *)
-						(uintptr_t)stp))
+							(struct atomisp_shading_table32 __user *)
+							(uintptr_t)stp))
 				return -EFAULT;
 
 			kp->shading_table = (void __force *)user_ptr + offset;
@@ -702,8 +703,8 @@ static int get_atomisp_parameters32(struct atomisp_parameters *kp,
 		/* handle morph table */
 		if (mtp != 0) {
 			if (get_atomisp_morph_table32(&karg.morph_table,
-					(struct atomisp_morph_table32 __user *)
-						(uintptr_t)mtp))
+						      (struct atomisp_morph_table32 __user *)
+						      (uintptr_t)mtp))
 				return -EFAULT;
 
 			kp->morph_table = (void __force *)user_ptr + offset;
@@ -720,8 +721,8 @@ static int get_atomisp_parameters32(struct atomisp_parameters *kp,
 		/* handle dvs2 coefficients */
 		if (dcp != 0) {
 			if (get_atomisp_dis_coefficients32(&karg.dvs2_coefs,
-				(struct atomisp_dis_coefficients32 __user *)
-						(uintptr_t)dcp))
+							   (struct atomisp_dis_coefficients32 __user *)
+							   (uintptr_t)dcp))
 				return -EFAULT;
 
 			kp->dvs2_coefs = (void __force *)user_ptr + offset;
@@ -737,8 +738,8 @@ static int get_atomisp_parameters32(struct atomisp_parameters *kp,
 		/* handle dvs 6axis configuration */
 		if (dscp != 0) {
 			if (get_atomisp_dvs_6axis_config32(&karg.dvs_6axis_config,
-				(struct atomisp_dvs_6axis_config32 __user *)
-						(uintptr_t)dscp))
+							   (struct atomisp_dvs_6axis_config32 __user *)
+							   (uintptr_t)dscp))
 				return -EFAULT;
 
 			kp->dvs_6axis_config = (void __force *)user_ptr + offset;
@@ -756,8 +757,8 @@ static int get_atomisp_parameters32(struct atomisp_parameters *kp,
 }
 
 static int get_atomisp_acc_fw_load_to_pipe32(
-			struct atomisp_acc_fw_load_to_pipe *kp,
-			struct atomisp_acc_fw_load_to_pipe32 __user *up)
+    struct atomisp_acc_fw_load_to_pipe *kp,
+    struct atomisp_acc_fw_load_to_pipe32 __user *up)
 {
 	compat_uptr_t data;
 
@@ -777,8 +778,8 @@ static int get_atomisp_acc_fw_load_to_pipe32(
 }
 
 static int put_atomisp_acc_fw_load_to_pipe32(
-			struct atomisp_acc_fw_load_to_pipe *kp,
-			struct atomisp_acc_fw_load_to_pipe32 __user *up)
+    struct atomisp_acc_fw_load_to_pipe *kp,
+    struct atomisp_acc_fw_load_to_pipe32 __user *up)
 {
 	compat_uptr_t data = (compat_uptr_t)((uintptr_t)kp->data);
 
@@ -797,8 +798,8 @@ static int put_atomisp_acc_fw_load_to_pipe32(
 }
 
 static int get_atomisp_sensor_ae_bracketing_lut(
-			struct atomisp_sensor_ae_bracketing_lut *kp,
-			struct atomisp_sensor_ae_bracketing_lut32 __user *up)
+    struct atomisp_sensor_ae_bracketing_lut *kp,
+    struct atomisp_sensor_ae_bracketing_lut32 __user *up)
 {
 	compat_uptr_t lut;
 
@@ -822,7 +823,7 @@ static long native_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 }
 
 static long atomisp_do_compat_ioctl(struct file *file,
-				unsigned int cmd, unsigned long arg)
+				    unsigned int cmd, unsigned long arg)
 {
 	union {
 		struct atomisp_histogram his;
@@ -996,7 +997,7 @@ static long atomisp_do_compat_ioctl(struct file *file,
 		break;
 	case ATOMISP_IOC_G_METADATA_BY_TYPE:
 		err = get_atomisp_metadata_by_type_stat32(&karg.md_with_type,
-							up);
+			up);
 		break;
 	case ATOMISP_IOC_S_SENSOR_AE_BRACKETING_LUT:
 		err = get_atomisp_sensor_ae_bracketing_lut(&karg.lut, up);
@@ -1058,7 +1059,7 @@ static long atomisp_do_compat_ioctl(struct file *file,
 		break;
 	case ATOMISP_IOC_G_METADATA_BY_TYPE:
 		err = put_atomisp_metadata_by_type_stat32(&karg.md_with_type,
-							up);
+			up);
 		break;
 	}
 
@@ -1168,9 +1169,9 @@ long atomisp_compat_ioctl32(struct file *file,
 
 	default:
 		dev_warn(isp->dev,
-			"%s: unknown ioctl '%c', dir=%d, #%d (0x%08x)\n",
-			__func__, _IOC_TYPE(cmd), _IOC_DIR(cmd), _IOC_NR(cmd),
-			cmd);
+			 "%s: unknown ioctl '%c', dir=%d, #%d (0x%08x)\n",
+			 __func__, _IOC_TYPE(cmd), _IOC_DIR(cmd), _IOC_NR(cmd),
+			 cmd);
 		break;
 	}
 	return ret;

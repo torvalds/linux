@@ -26,9 +26,9 @@
  \return none, GPIO[ID].ctrl[reg] = value
  */
 STORAGE_CLASS_GPIO_H void gpio_reg_store(
-	const gpio_ID_t	ID,
-	const unsigned int		reg_addr,
-	const hrt_data			value);
+    const gpio_ID_t	ID,
+    const unsigned int		reg_addr,
+    const hrt_data			value);
 
 /*! Read from a control register of GPIO[ID]
 
@@ -39,7 +39,7 @@ STORAGE_CLASS_GPIO_H void gpio_reg_store(
  \return GPIO[ID].ctrl[reg]
  */
 STORAGE_CLASS_GPIO_H hrt_data gpio_reg_load(
-	const gpio_ID_t	ID,
-	const unsigned int		reg_addr);
+    const gpio_ID_t	ID,
+    const unsigned int		reg_addr);
 
 #endif /* __GPIO_PUBLIC_H_INCLUDED__ */

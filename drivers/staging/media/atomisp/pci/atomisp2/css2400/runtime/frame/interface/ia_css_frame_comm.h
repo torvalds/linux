@@ -43,7 +43,7 @@ more details.
  */
 struct ia_css_frame_sp_plane {
 	unsigned int offset;	/* offset in bytes to start of frame data */
-				/* offset is wrt data in sh_css_sp_sp_frame */
+	/* offset is wrt data in sh_css_sp_sp_frame */
 };
 
 struct ia_css_frame_sp_binary_plane {
@@ -121,11 +121,11 @@ struct ia_css_frame_sp {
 };
 
 void ia_css_frame_info_to_frame_sp_info(
-	struct ia_css_frame_sp_info *sp_info,
-	const struct ia_css_frame_info *info);
+    struct ia_css_frame_sp_info *sp_info,
+    const struct ia_css_frame_info *info);
 
 void ia_css_resolution_to_sp_resolution(
-	struct ia_css_sp_resolution *sp_info,
-	const struct ia_css_resolution *info);
+    struct ia_css_sp_resolution *sp_info,
+    const struct ia_css_resolution *info);
 
 #endif /*__IA_CSS_FRAME_COMM_H__*/

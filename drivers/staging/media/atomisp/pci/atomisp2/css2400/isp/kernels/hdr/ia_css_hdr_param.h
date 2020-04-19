@@ -24,12 +24,18 @@
 /* HDR irradiance map parameters on ISP. */
 struct sh_css_hdr_irradiance_params {
 	s32 test_irr;
-	s32 match_shift[HDR_NUM_INPUT_FRAMES - 1];  /* Histogram matching shift parameter */
-	s32 match_mul[HDR_NUM_INPUT_FRAMES - 1];    /* Histogram matching multiplication parameter */
-	s32 thr_low[HDR_NUM_INPUT_FRAMES - 1];      /* Weight map soft threshold low bound parameter */
-	s32 thr_high[HDR_NUM_INPUT_FRAMES - 1];     /* Weight map soft threshold high bound parameter */
-	s32 thr_coeff[HDR_NUM_INPUT_FRAMES - 1];    /* Soft threshold linear function coefficient */
-	s32 thr_shift[HDR_NUM_INPUT_FRAMES - 1];    /* Soft threshold precision shift parameter */
+	s32 match_shift[HDR_NUM_INPUT_FRAMES -
+					     1];  /* Histogram matching shift parameter */
+	s32 match_mul[HDR_NUM_INPUT_FRAMES -
+					   1];    /* Histogram matching multiplication parameter */
+	s32 thr_low[HDR_NUM_INPUT_FRAMES -
+					 1];      /* Weight map soft threshold low bound parameter */
+	s32 thr_high[HDR_NUM_INPUT_FRAMES -
+					  1];     /* Weight map soft threshold high bound parameter */
+	s32 thr_coeff[HDR_NUM_INPUT_FRAMES -
+					   1];    /* Soft threshold linear function coefficient */
+	s32 thr_shift[HDR_NUM_INPUT_FRAMES -
+					   1];    /* Soft threshold precision shift parameter */
 	s32 weight_bpp;                             /* Weight map bits per pixel */
 };
 

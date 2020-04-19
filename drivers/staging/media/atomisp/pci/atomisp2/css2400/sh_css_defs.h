@@ -68,7 +68,7 @@
 #define SH_CSS_BDS_FACTOR_5_00	(9)
 #define SH_CSS_BDS_FACTOR_6_00	(10)
 #define SH_CSS_BDS_FACTOR_8_00	(11)
-#define NUM_BDS_FACTORS	        (12)
+#define NUM_BDS_FACTORS		(12)
 
 #define PACK_BDS_FACTOR(factor)	(1 << (factor))
 

@@ -23,13 +23,13 @@
  * Local function declarations
  */
 static inline void gdc_reg_store(
-	const gdc_ID_t		ID,
-	const unsigned int	reg,
-	const hrt_data		value);
+    const gdc_ID_t		ID,
+    const unsigned int	reg,
+    const hrt_data		value);
 
 static inline hrt_data gdc_reg_load(
-	const gdc_ID_t		ID,
-	const unsigned int	reg);
+    const gdc_ID_t		ID,
+    const unsigned int	reg);
 
 #ifndef __INLINE_GDC__
 #include "gdc_private.h"
@@ -39,8 +39,8 @@ static inline hrt_data gdc_reg_load(
  * Exported function implementations
  */
 void gdc_lut_store(
-	const gdc_ID_t		ID,
-	const int			data[4][HRT_GDC_N])
+    const gdc_ID_t		ID,
+    const int			data[4][HRT_GDC_N])
 {
 	unsigned int i, lut_offset = HRT_GDC_LUT_IDX;
 
@@ -54,9 +54,9 @@ void gdc_lut_store(
 		hrt_data	entry_3 = data[3][i] & HRT_GDC_BCI_COEF_MASK;
 
 		hrt_data	word_0 = entry_0 |
-			(entry_1 << HRT_GDC_LUT_COEFF_OFFSET);
+				     (entry_1 << HRT_GDC_LUT_COEFF_OFFSET);
 		hrt_data	word_1 = entry_2 |
-			(entry_3 << HRT_GDC_LUT_COEFF_OFFSET);
+				     (entry_3 << HRT_GDC_LUT_COEFF_OFFSET);
 
 		gdc_reg_store(ID, lut_offset++, word_0);
 		gdc_reg_store(ID, lut_offset++, word_1);
@@ -83,7 +83,7 @@ void gdc_lut_store(
  *
  */
 void gdc_lut_convert_to_isp_format(const int in_lut[4][HRT_GDC_N],
-	int out_lut[4][HRT_GDC_N])
+				   int out_lut[4][HRT_GDC_N])
 {
 	unsigned int i;
 	int *out = (int *)out_lut;
@@ -98,7 +98,7 @@ void gdc_lut_convert_to_isp_format(const int in_lut[4][HRT_GDC_N],
 }
 
 int gdc_get_unity(
-	const gdc_ID_t		ID)
+    const gdc_ID_t		ID)
 {
 	assert(ID < N_GDC_ID);
 	(void)ID;
@@ -109,17 +109,17 @@ int gdc_get_unity(
  * Local function implementations
  */
 static inline void gdc_reg_store(
-	const gdc_ID_t		ID,
-	const unsigned int	reg,
-	const hrt_data		value)
+    const gdc_ID_t		ID,
+    const unsigned int	reg,
+    const hrt_data		value)
 {
 	ia_css_device_store_uint32(GDC_BASE[ID] + reg * sizeof(hrt_data), value);
 	return;
 }
 
 static inline hrt_data gdc_reg_load(
-	const gdc_ID_t		ID,
-	const unsigned int	reg)
+    const gdc_ID_t		ID,
+    const unsigned int	reg)
 {
 	return ia_css_device_load_uint32(GDC_BASE[ID] + reg * sizeof(hrt_data));
 }

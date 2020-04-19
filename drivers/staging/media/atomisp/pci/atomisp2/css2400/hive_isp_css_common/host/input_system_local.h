@@ -126,31 +126,42 @@ struct channel_cfg_s {
 
 // Complete configuration for input system.
 struct input_system_cfg2400_s {
-	input_system_source_t source_type;				input_system_config_flags_t	source_type_flags;
+	input_system_source_t source_type;
+	input_system_config_flags_t	source_type_flags;
 	//channel_cfg_t		channel[N_CHANNELS];
 	input_system_config_flags_t	ch_flags[N_CHANNELS];
 	//  This is the place where the buffers' settings are collected, as given.
-	csi_cfg_t			csi_value[N_CSI_PORTS];		input_system_config_flags_t	csi_flags[N_CSI_PORTS];
+	csi_cfg_t			csi_value[N_CSI_PORTS];
+	input_system_config_flags_t	csi_flags[N_CSI_PORTS];
 
 	// Possible another struct for ib.
 	// This buffers set at the end, based on the all configurations.
-	ib_buffer_t			csi_buffer[N_CSI_PORTS];	input_system_config_flags_t	csi_buffer_flags[N_CSI_PORTS];
-	ib_buffer_t			acquisition_buffer_unique;	input_system_config_flags_t	acquisition_buffer_unique_flags;
+	ib_buffer_t			csi_buffer[N_CSI_PORTS];
+	input_system_config_flags_t	csi_buffer_flags[N_CSI_PORTS];
+	ib_buffer_t			acquisition_buffer_unique;
+	input_system_config_flags_t	acquisition_buffer_unique_flags;
 	u32			unallocated_ib_mem_words; // Used for check.DEFAULT = IB_CAPACITY_IN_WORDS.
 	//uint32_t			acq_allocated_ib_mem_words;
 
 	input_system_connection_t		multicast[N_CSI_PORTS];
-	input_system_multiplex_t		multiplexer;					input_system_config_flags_t		multiplexer_flags;
+	input_system_multiplex_t		multiplexer;
+	input_system_config_flags_t		multiplexer_flags;
 
-	tpg_cfg_t			tpg_value;			input_system_config_flags_t	tpg_flags;
-	prbs_cfg_t			prbs_value;			input_system_config_flags_t	prbs_flags;
-	gpfifo_cfg_t		gpfifo_value;		input_system_config_flags_t	gpfifo_flags;
+	tpg_cfg_t			tpg_value;
+	input_system_config_flags_t	tpg_flags;
+	prbs_cfg_t			prbs_value;
+	input_system_config_flags_t	prbs_flags;
+	gpfifo_cfg_t		gpfifo_value;
+	input_system_config_flags_t	gpfifo_flags;
 
 	input_switch_cfg_t		input_switch_cfg;
 
-	target_isp_cfg_t		target_isp[N_CHANNELS];	input_system_config_flags_t	target_isp_flags[N_CHANNELS];
-	target_sp_cfg_t			target_sp[N_CHANNELS];	input_system_config_flags_t	target_sp_flags[N_CHANNELS];
-	target_strm2mem_cfg_t	target_strm2mem[N_CHANNELS];	input_system_config_flags_t	target_strm2mem_flags[N_CHANNELS];
+	target_isp_cfg_t		target_isp[N_CHANNELS];
+	input_system_config_flags_t	target_isp_flags[N_CHANNELS];
+	target_sp_cfg_t			target_sp[N_CHANNELS];
+	input_system_config_flags_t	target_sp_flags[N_CHANNELS];
+	target_strm2mem_cfg_t	target_strm2mem[N_CHANNELS];
+	input_system_config_flags_t	target_strm2mem_flags[N_CHANNELS];
 
 	input_system_config_flags_t		session_flags;
 
@@ -326,7 +337,7 @@ typedef enum {
 	RX_IRQ_INFO_ERR_SOT_SYNC     = 1UL << _HRT_CSS_RECEIVER_IRQ_ERR_SOT_SYNC_HS_BIT,
 	RX_IRQ_INFO_ERR_CONTROL      = 1UL << _HRT_CSS_RECEIVER_IRQ_ERR_CONTROL_BIT,
 	RX_IRQ_INFO_ERR_ECC_DOUBLE   = 1UL << _HRT_CSS_RECEIVER_IRQ_ERR_ECC_DOUBLE_BIT,
-/*	RX_IRQ_INFO_NO_ERR           = 1UL << _HRT_CSS_RECEIVER_IRQ_ERR_ECC_NO_CORRECTION_BIT, */
+	/*	RX_IRQ_INFO_NO_ERR           = 1UL << _HRT_CSS_RECEIVER_IRQ_ERR_ECC_NO_CORRECTION_BIT, */
 	RX_IRQ_INFO_ERR_CRC          = 1UL << _HRT_CSS_RECEIVER_IRQ_ERR_CRC_BIT,
 	RX_IRQ_INFO_ERR_UNKNOWN_ID   = 1UL << _HRT_CSS_RECEIVER_IRQ_ERR_ID_BIT,
 	RX_IRQ_INFO_ERR_FRAME_SYNC   = 1UL << _HRT_CSS_RECEIVER_IRQ_ERR_FRAME_SYNC_BIT,
@@ -356,12 +367,14 @@ struct rx_cfg_s {
 static const hrt_address MIPI_PORT_OFFSET[N_MIPI_PORT_ID] = {
 	0x00000000UL,
 	0x00000100UL,
-	0x00000200UL};
+	0x00000200UL
+};
 
 static const mipi_lane_cfg_t MIPI_PORT_MAXLANES[N_MIPI_PORT_ID] = {
 	MIPI_4LANE_CFG,
 	MIPI_1LANE_CFG,
-	MIPI_2LANE_CFG};
+	MIPI_2LANE_CFG
+};
 
 static const bool MIPI_PORT_ACTIVE[N_RX_MODE][N_MIPI_PORT_ID] = {
 	{true, true, false},
@@ -371,7 +384,8 @@ static const bool MIPI_PORT_ACTIVE[N_RX_MODE][N_MIPI_PORT_ID] = {
 	{true, true, true},
 	{true, true, true},
 	{true, true, true},
-	{true, true, true}};
+	{true, true, true}
+};
 
 static const mipi_lane_cfg_t MIPI_PORT_LANES[N_RX_MODE][N_MIPI_PORT_ID] = {
 	{MIPI_4LANE_CFG, MIPI_1LANE_CFG, MIPI_0LANE_CFG},
@@ -381,7 +395,8 @@ static const mipi_lane_cfg_t MIPI_PORT_LANES[N_RX_MODE][N_MIPI_PORT_ID] = {
 	{MIPI_2LANE_CFG, MIPI_1LANE_CFG, MIPI_2LANE_CFG},
 	{MIPI_3LANE_CFG, MIPI_1LANE_CFG, MIPI_1LANE_CFG},
 	{MIPI_2LANE_CFG, MIPI_1LANE_CFG, MIPI_1LANE_CFG},
-	{MIPI_1LANE_CFG, MIPI_1LANE_CFG, MIPI_1LANE_CFG}};
+	{MIPI_1LANE_CFG, MIPI_1LANE_CFG, MIPI_1LANE_CFG}
+};
 
 static const hrt_address SUB_SYSTEM_OFFSET[N_SUB_SYSTEM_ID] = {
 	0x00001000UL,
@@ -392,7 +407,8 @@ static const hrt_address SUB_SYSTEM_OFFSET[N_SUB_SYSTEM_ID] = {
 	0x00009000UL,
 	0x0000A000UL,
 	0x0000B000UL,
-	0x0000C000UL};
+	0x0000C000UL
+};
 
 struct capture_unit_state_s {
 	int	Packet_Length;
@@ -408,13 +424,13 @@ struct capture_unit_state_s {
 	int	Start_Addr;
 	int	Mem_Region_Size;
 	int	Num_Mem_Regions;
-/*	int	Init;   write-only registers
-	int	Start;
-	int	Stop;      */
+	/*	int	Init;   write-only registers
+		int	Start;
+		int	Stop;      */
 };
 
 struct acquisition_unit_state_s {
-/*	int	Init;   write-only register */
+	/*	int	Init;   write-only register */
 	int	Received_Short_Packets;
 	int	Received_Long_Packets;
 	int	Last_Command;
@@ -450,7 +466,7 @@ struct ctrl_unit_state_s {
 	int	acq_start_addr;
 	int	acq_mem_region_size;
 	int	acq_num_mem_regions;
-/*	int	ctrl_init;  write only register */
+	/*	int	ctrl_init;  write only register */
 	int	capt_reserve_one_mem_region;
 };
 

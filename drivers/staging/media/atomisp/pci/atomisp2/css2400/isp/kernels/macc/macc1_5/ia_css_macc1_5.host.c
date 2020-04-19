@@ -28,9 +28,9 @@ const struct ia_css_macc1_5_config default_macc1_5_config = {
 
 void
 ia_css_macc1_5_encode(
-	struct sh_css_isp_macc1_5_params *to,
-	const struct ia_css_macc1_5_config *from,
-	unsigned int size)
+    struct sh_css_isp_macc1_5_params *to,
+    const struct ia_css_macc1_5_config *from,
+    unsigned int size)
 {
 	(void)size;
 	to->exp = from->exp;
@@ -38,13 +38,14 @@ ia_css_macc1_5_encode(
 
 void
 ia_css_macc1_5_vmem_encode(
-	struct sh_css_isp_macc1_5_vmem_params *params,
-	const struct ia_css_macc1_5_table *from,
-	unsigned int size)
+    struct sh_css_isp_macc1_5_vmem_params *params,
+    const struct ia_css_macc1_5_table *from,
+    unsigned int size)
 {
 	unsigned int i, j, k, idx;
 	unsigned int idx_map[] = {
-		0, 1, 3, 2, 6, 7, 5, 4, 12, 13, 15, 14, 10, 11, 9, 8};
+		0, 1, 3, 2, 6, 7, 5, 4, 12, 13, 15, 14, 10, 11, 9, 8
+	};
 
 	(void)size;
 
@@ -63,11 +64,11 @@ ia_css_macc1_5_vmem_encode(
 #ifndef IA_CSS_NO_DEBUG
 void
 ia_css_macc1_5_debug_dtrace(
-	const struct ia_css_macc1_5_config *config,
-	unsigned int level)
+    const struct ia_css_macc1_5_config *config,
+    unsigned int level)
 {
 	ia_css_debug_dtrace(level,
-		"config.exp=%d\n",
-		config->exp);
+			    "config.exp=%d\n",
+			    config->exp);
 }
 #endif

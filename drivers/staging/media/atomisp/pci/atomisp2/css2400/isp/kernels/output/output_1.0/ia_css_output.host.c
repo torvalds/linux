@@ -30,19 +30,21 @@ static const struct ia_css_output_configuration default_output_configuration = {
 	.info = (struct ia_css_frame_info *)NULL,
 };
 
-static const struct ia_css_output0_configuration default_output0_configuration = {
+static const struct ia_css_output0_configuration default_output0_configuration
+	= {
 	.info = (struct ia_css_frame_info *)NULL,
 };
 
-static const struct ia_css_output1_configuration default_output1_configuration = {
+static const struct ia_css_output1_configuration default_output1_configuration
+	= {
 	.info = (struct ia_css_frame_info *)NULL,
 };
 
 void
 ia_css_output_encode(
-	struct sh_css_isp_output_params *to,
-	const struct ia_css_output_config *from,
-	unsigned int size)
+    struct sh_css_isp_output_params *to,
+    const struct ia_css_output_config *from,
+    unsigned int size)
 {
 	(void)size;
 	to->enable_hflip = from->enable_hflip;
@@ -51,9 +53,9 @@ ia_css_output_encode(
 
 void
 ia_css_output_config(
-	struct sh_css_isp_output_isp_config *to,
-	const struct ia_css_output_configuration  *from,
-	unsigned int size)
+    struct sh_css_isp_output_isp_config *to,
+    const struct ia_css_output_configuration  *from,
+    unsigned int size)
 {
 	unsigned int elems_a = ISP_VEC_NELEMS;
 
@@ -70,32 +72,32 @@ ia_css_output_config(
 
 void
 ia_css_output0_config(
-	struct sh_css_isp_output_isp_config       *to,
-	const struct ia_css_output0_configuration *from,
-	unsigned int size)
+    struct sh_css_isp_output_isp_config       *to,
+    const struct ia_css_output0_configuration *from,
+    unsigned int size)
 {
 	ia_css_output_config(
-		to, (const struct ia_css_output_configuration *)from, size);
+	    to, (const struct ia_css_output_configuration *)from, size);
 }
 
 void
 ia_css_output1_config(
-	struct sh_css_isp_output_isp_config       *to,
-	const struct ia_css_output1_configuration *from,
-	unsigned int size)
+    struct sh_css_isp_output_isp_config       *to,
+    const struct ia_css_output1_configuration *from,
+    unsigned int size)
 {
 	ia_css_output_config(
-		to, (const struct ia_css_output_configuration *)from, size);
+	    to, (const struct ia_css_output_configuration *)from, size);
 }
 
 void
 ia_css_output_configure(
-	const struct ia_css_binary     *binary,
-	const struct ia_css_frame_info *info)
+    const struct ia_css_binary     *binary,
+    const struct ia_css_frame_info *info)
 {
 	if (info) {
 		struct ia_css_output_configuration config =
-				default_output_configuration;
+			    default_output_configuration;
 
 		config.info = info;
 
@@ -105,12 +107,12 @@ ia_css_output_configure(
 
 void
 ia_css_output0_configure(
-	const struct ia_css_binary     *binary,
-	const struct ia_css_frame_info *info)
+    const struct ia_css_binary     *binary,
+    const struct ia_css_frame_info *info)
 {
 	if (info) {
 		struct ia_css_output0_configuration config =
-				default_output0_configuration;
+			    default_output0_configuration;
 
 		config.info = info;
 
@@ -120,12 +122,12 @@ ia_css_output0_configure(
 
 void
 ia_css_output1_configure(
-	const struct ia_css_binary     *binary,
-	const struct ia_css_frame_info *info)
+    const struct ia_css_binary     *binary,
+    const struct ia_css_frame_info *info)
 {
 	if (info) {
 		struct ia_css_output1_configuration config =
-				default_output1_configuration;
+			    default_output1_configuration;
 
 		config.info = info;
 
@@ -135,27 +137,27 @@ ia_css_output1_configure(
 
 void
 ia_css_output_dump(
-	const struct sh_css_isp_output_params *output,
-	unsigned int level)
+    const struct sh_css_isp_output_params *output,
+    unsigned int level)
 {
 	if (!output) return;
 	ia_css_debug_dtrace(level, "Horizontal Output Flip:\n");
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"enable", output->enable_hflip);
+			    "enable", output->enable_hflip);
 	ia_css_debug_dtrace(level, "Vertical Output Flip:\n");
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"enable", output->enable_vflip);
+			    "enable", output->enable_vflip);
 }
 
 void
 ia_css_output_debug_dtrace(
-	const struct ia_css_output_config *config,
-	unsigned int level)
+    const struct ia_css_output_config *config,
+    unsigned int level)
 {
 	ia_css_debug_dtrace(level,
-		"config.enable_hflip=%d",
-		config->enable_hflip);
+			    "config.enable_hflip=%d",
+			    config->enable_hflip);
 	ia_css_debug_dtrace(level,
-		"config.enable_vflip=%d",
-		config->enable_vflip);
+			    "config.enable_vflip=%d",
+			    config->enable_vflip);
 }

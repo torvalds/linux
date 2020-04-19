@@ -52,7 +52,7 @@ static bool spctrl_loaded[N_SP_ID] = {0};
 
 /* Load firmware */
 enum ia_css_err ia_css_spctrl_load_fw(sp_ID_t sp_id,
-				ia_css_spctrl_cfg *spctrl_cfg)
+				      ia_css_spctrl_cfg *spctrl_cfg)
 {
 	hrt_vaddress code_addr = mmgr_NULL;
 	struct ia_css_sp_init_dmem_cfg *init_dmem_cfg;
@@ -69,8 +69,10 @@ enum ia_css_err ia_css_spctrl_load_fw(sp_ID_t sp_id,
 	init_dmem_cfg->bss_size       = spctrl_cfg->bss_size;
 	init_dmem_cfg->sp_id          = sp_id;
 
-	spctrl_cofig_info[sp_id].spctrl_config_dmem_addr = spctrl_cfg->spctrl_config_dmem_addr;
-	spctrl_cofig_info[sp_id].spctrl_state_dmem_addr = spctrl_cfg->spctrl_state_dmem_addr;
+	spctrl_cofig_info[sp_id].spctrl_config_dmem_addr =
+	    spctrl_cfg->spctrl_config_dmem_addr;
+	spctrl_cofig_info[sp_id].spctrl_state_dmem_addr =
+	    spctrl_cfg->spctrl_state_dmem_addr;
 
 	/* store code (text + icache) and data to DDR
 	 *
@@ -106,7 +108,8 @@ enum ia_css_err ia_css_spctrl_load_fw(sp_ID_t sp_id,
 	/* now we program the base address into the icache and
 	 * invalidate the cache.
 	 */
-	sp_ctrl_store(sp_id, SP_ICACHE_ADDR_REG, (hrt_data)spctrl_cofig_info[sp_id].code_addr);
+	sp_ctrl_store(sp_id, SP_ICACHE_ADDR_REG,
+		      (hrt_data)spctrl_cofig_info[sp_id].code_addr);
 	sp_ctrl_setbit(sp_id, SP_ICACHE_INV_REG, SP_ICACHE_INV_BIT);
 	spctrl_loaded[sp_id] = true;
 	return IA_CSS_SUCCESS;
@@ -119,7 +122,8 @@ void sh_css_spctrl_reload_fw(sp_ID_t sp_id)
 	/* now we program the base address into the icache and
 	* invalidate the cache.
 	*/
-	sp_ctrl_store(sp_id, SP_ICACHE_ADDR_REG, (hrt_data)spctrl_cofig_info[sp_id].code_addr);
+	sp_ctrl_store(sp_id, SP_ICACHE_ADDR_REG,
+		      (hrt_data)spctrl_cofig_info[sp_id].code_addr);
 	sp_ctrl_setbit(sp_id, SP_ICACHE_INV_REG, SP_ICACHE_INV_BIT);
 	spctrl_loaded[sp_id] = true;
 }
@@ -157,11 +161,12 @@ enum ia_css_err ia_css_spctrl_start(sp_ID_t sp_id)
 	assert(sizeof(unsigned int) <= sizeof(hrt_data));
 
 	sp_dmem_store(sp_id,
-		spctrl_cofig_info[sp_id].spctrl_config_dmem_addr,
-		&spctrl_cofig_info[sp_id].dmem_config,
-		sizeof(spctrl_cofig_info[sp_id].dmem_config));
+		      spctrl_cofig_info[sp_id].spctrl_config_dmem_addr,
+		      &spctrl_cofig_info[sp_id].dmem_config,
+		      sizeof(spctrl_cofig_info[sp_id].dmem_config));
 	/* set the start address */
-	sp_ctrl_store(sp_id, SP_START_ADDR_REG, (hrt_data)spctrl_cofig_info[sp_id].sp_entry);
+	sp_ctrl_store(sp_id, SP_START_ADDR_REG,
+		      (hrt_data)spctrl_cofig_info[sp_id].sp_entry);
 	sp_ctrl_setbit(sp_id, SP_SC_REG, SP_RUN_BIT);
 	sp_ctrl_setbit(sp_id, SP_SC_REG, SP_START_BIT);
 	return IA_CSS_SUCCESS;

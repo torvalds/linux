@@ -78,7 +78,8 @@ struct ia_css_blob_descr;
 struct ia_css_blob_info {
 	/** Static blob data */
 	u32 offset;		/** Blob offset in fw file */
-	struct ia_css_isp_param_memory_offsets memory_offsets;  /** offset wrt hdr in bytes */
+	struct ia_css_isp_param_memory_offsets
+		memory_offsets;  /** offset wrt hdr in bytes */
 	u32 prog_name_offset;  /** offset wrt hdr in bytes */
 	u32 size;			/** Size of blob */
 	u32 padding_size;	/** total cummulative of bytes added due to section alignment */
@@ -95,8 +96,10 @@ struct ia_css_blob_info {
 	u32 bss_target;	/** Start position of bss in SP dmem */
 	u32 bss_size;		/** Size of bss section */
 	/** Dynamic data filled by loader */
-	CSS_ALIGN(const void  *code, 8);		/** Code section absolute pointer within fw, code = icache + text */
-	CSS_ALIGN(const void  *data, 8);		/** Data section absolute pointer within fw, data = data + bss */
+	CSS_ALIGN(const void  *code,
+		  8);		/** Code section absolute pointer within fw, code = icache + text */
+	CSS_ALIGN(const void  *data,
+		  8);		/** Data section absolute pointer within fw, data = data + bss */
 };
 
 struct ia_css_binary_input_info {
@@ -216,7 +219,7 @@ struct ia_css_binary_info {
 	struct ia_css_binary_uds_info		uds;
 	struct ia_css_binary_block_info		block;
 	struct ia_css_isp_param_isp_segments	mem_initializers;
-/* MW: Packing (related) bools in an integer ?? */
+	/* MW: Packing (related) bools in an integer ?? */
 	struct {
 #ifdef ISP2401
 		u8	luma_only;
@@ -253,7 +256,7 @@ struct ia_css_binary_info {
 		u8 padding[2];
 	} enable;
 	struct {
-/* DMA channel ID: [0,...,HIVE_ISP_NUM_DMA_CHANNELS> */
+		/* DMA channel ID: [0,...,HIVE_ISP_NUM_DMA_CHANNELS> */
 		u8	ref_y_channel;
 		u8	ref_c_channel;
 		u8	tnr_channel;
@@ -284,7 +287,8 @@ struct ia_css_binary_xinfo {
 	enum ia_css_frame_format     output_formats[IA_CSS_FRAME_FORMAT_NUM];
 
 	CSS_ALIGN(s32	     num_vf_formats, 8); /** number of supported vf formats */
-	enum ia_css_frame_format     vf_formats[IA_CSS_FRAME_FORMAT_NUM]; /** types of supported vf formats */
+	enum ia_css_frame_format
+	vf_formats[IA_CSS_FRAME_FORMAT_NUM]; /** types of supported vf formats */
 	u8			     num_output_pins;
 	ia_css_ptr		     xmem_addr;
 

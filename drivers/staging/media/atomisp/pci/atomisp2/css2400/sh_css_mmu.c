@@ -26,7 +26,8 @@ ia_css_mmu_invalidate_cache(void)
 	const struct ia_css_fw_info *fw = &sh_css_sp_fw;
 	unsigned int HIVE_ADDR_ia_css_dmaproxy_sp_invalidate_tlb;
 
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_mmu_invalidate_cache() enter\n");
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
+			    "ia_css_mmu_invalidate_cache() enter\n");
 
 	/* if the SP is not running we should not access its dmem */
 	if (sh_css_sp_is_running()) {
@@ -35,10 +36,11 @@ ia_css_mmu_invalidate_cache(void)
 		(void)HIVE_ADDR_ia_css_dmaproxy_sp_invalidate_tlb; /* Suppres warnings in CRUN */
 
 		sp_dmem_store_uint32(SP0_ID,
-			(unsigned int)sp_address_of(ia_css_dmaproxy_sp_invalidate_tlb),
-			true);
+				     (unsigned int)sp_address_of(ia_css_dmaproxy_sp_invalidate_tlb),
+				     true);
 	}
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_mmu_invalidate_cache() leave\n");
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
+			    "ia_css_mmu_invalidate_cache() leave\n");
 }
 
 /* Deprecated, this is an HRT backend function (memory_access.h) */

@@ -407,7 +407,8 @@ struct atomisp_zoom_point {
  * This specifies the region
  */
 struct atomisp_zoom_region {
-	struct atomisp_zoom_point origin; /* Starting point coordinates for the region */
+	struct atomisp_zoom_point
+		origin; /* Starting point coordinates for the region */
 	struct atomisp_resolution resolution; /* Region resolution */
 };
 

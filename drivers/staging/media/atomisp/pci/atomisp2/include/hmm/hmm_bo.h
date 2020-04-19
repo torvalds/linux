@@ -166,13 +166,13 @@ struct hmm_buffer_object {
 };
 
 struct hmm_buffer_object *hmm_bo_alloc(struct hmm_bo_device *bdev,
-				unsigned int pgnr);
+				       unsigned int pgnr);
 
 void hmm_bo_release(struct hmm_buffer_object *bo);
 
 int hmm_bo_device_init(struct hmm_bo_device *bdev,
-				struct isp_mmu_client *mmu_driver,
-				unsigned int vaddr_start, unsigned int size);
+		       struct isp_mmu_client *mmu_driver,
+		       unsigned int vaddr_start, unsigned int size);
 
 /*
  * clean up all hmm_bo_device related things.
@@ -240,8 +240,8 @@ int hmm_bo_allocated(struct hmm_buffer_object *bo);
  * or by ISP driver itself.
  */
 int hmm_bo_alloc_pages(struct hmm_buffer_object *bo,
-		enum hmm_bo_type type, int from_highmem,
-		const void __user *userptr, bool cached);
+		       enum hmm_bo_type type, int from_highmem,
+		       const void __user *userptr, bool cached);
 void hmm_bo_free_pages(struct hmm_buffer_object *bo);
 int hmm_bo_page_allocated(struct hmm_buffer_object *bo);
 
@@ -249,7 +249,7 @@ int hmm_bo_page_allocated(struct hmm_buffer_object *bo);
  * get physical page info of the bo.
  */
 int hmm_bo_get_page_info(struct hmm_buffer_object *bo,
-		struct hmm_page_object **page_obj, int *pgnr);
+			 struct hmm_page_object **page_obj, int *pgnr);
 
 /*
  * bind/unbind the physical pages to a virtual address space.
@@ -294,7 +294,7 @@ extern struct hmm_pool	reserved_pool;
  * return NULL if no such buffer object found.
  */
 struct hmm_buffer_object *hmm_bo_device_search_start(
-		struct hmm_bo_device *bdev, ia_css_ptr vaddr);
+    struct hmm_bo_device *bdev, ia_css_ptr vaddr);
 
 /*
  * find the buffer object by its virtual address.
@@ -303,13 +303,13 @@ struct hmm_buffer_object *hmm_bo_device_search_start(
  * return NULL if no such buffer object found.
  */
 struct hmm_buffer_object *hmm_bo_device_search_in_range(
-		struct hmm_bo_device *bdev, ia_css_ptr vaddr);
+    struct hmm_bo_device *bdev, ia_css_ptr vaddr);
 
 /*
  * find the buffer object with kernel virtual address vaddr.
  * return NULL if no such buffer object found.
  */
 struct hmm_buffer_object *hmm_bo_device_search_vmap_start(
-		struct hmm_bo_device *bdev, const void *vaddr);
+    struct hmm_bo_device *bdev, const void *vaddr);
 
 #endif

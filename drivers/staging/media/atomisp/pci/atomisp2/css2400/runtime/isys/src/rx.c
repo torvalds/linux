@@ -39,27 +39,27 @@ more details.
 void ia_css_isys_rx_enable_all_interrupts(enum mipi_port_id port)
 {
 	hrt_data bits = receiver_port_reg_load(RX0_ID,
-				port,
-				_HRT_CSS_RECEIVER_IRQ_ENABLE_REG_IDX);
+					       port,
+					       _HRT_CSS_RECEIVER_IRQ_ENABLE_REG_IDX);
 
 	bits |= (1U << _HRT_CSS_RECEIVER_IRQ_OVERRUN_BIT) |
 #if defined(HAS_RX_VERSION_2)
-	    (1U << _HRT_CSS_RECEIVER_IRQ_INIT_TIMEOUT_BIT) |
+		(1U << _HRT_CSS_RECEIVER_IRQ_INIT_TIMEOUT_BIT) |
 #endif
-	    (1U << _HRT_CSS_RECEIVER_IRQ_SLEEP_MODE_ENTRY_BIT) |
-	    (1U << _HRT_CSS_RECEIVER_IRQ_SLEEP_MODE_EXIT_BIT) |
-	    (1U << _HRT_CSS_RECEIVER_IRQ_ERR_SOT_HS_BIT) |
-	    (1U << _HRT_CSS_RECEIVER_IRQ_ERR_SOT_SYNC_HS_BIT) |
-	    (1U << _HRT_CSS_RECEIVER_IRQ_ERR_CONTROL_BIT) |
-	    (1U << _HRT_CSS_RECEIVER_IRQ_ERR_ECC_DOUBLE_BIT) |
-	    (1U << _HRT_CSS_RECEIVER_IRQ_ERR_ECC_CORRECTED_BIT) |
-	    /*(1U << _HRT_CSS_RECEIVER_IRQ_ERR_ECC_NO_CORRECTION_BIT) | */
-	    (1U << _HRT_CSS_RECEIVER_IRQ_ERR_CRC_BIT) |
-	    (1U << _HRT_CSS_RECEIVER_IRQ_ERR_ID_BIT) |
-	    (1U << _HRT_CSS_RECEIVER_IRQ_ERR_FRAME_SYNC_BIT) |
-	    (1U << _HRT_CSS_RECEIVER_IRQ_ERR_FRAME_DATA_BIT) |
-	    (1U << _HRT_CSS_RECEIVER_IRQ_DATA_TIMEOUT_BIT) |
-	    (1U << _HRT_CSS_RECEIVER_IRQ_ERR_ESCAPE_BIT);
+		(1U << _HRT_CSS_RECEIVER_IRQ_SLEEP_MODE_ENTRY_BIT) |
+		(1U << _HRT_CSS_RECEIVER_IRQ_SLEEP_MODE_EXIT_BIT) |
+		(1U << _HRT_CSS_RECEIVER_IRQ_ERR_SOT_HS_BIT) |
+		(1U << _HRT_CSS_RECEIVER_IRQ_ERR_SOT_SYNC_HS_BIT) |
+		(1U << _HRT_CSS_RECEIVER_IRQ_ERR_CONTROL_BIT) |
+		(1U << _HRT_CSS_RECEIVER_IRQ_ERR_ECC_DOUBLE_BIT) |
+		(1U << _HRT_CSS_RECEIVER_IRQ_ERR_ECC_CORRECTED_BIT) |
+		/*(1U << _HRT_CSS_RECEIVER_IRQ_ERR_ECC_NO_CORRECTION_BIT) | */
+		(1U << _HRT_CSS_RECEIVER_IRQ_ERR_CRC_BIT) |
+		(1U << _HRT_CSS_RECEIVER_IRQ_ERR_ID_BIT) |
+		(1U << _HRT_CSS_RECEIVER_IRQ_ERR_FRAME_SYNC_BIT) |
+		(1U << _HRT_CSS_RECEIVER_IRQ_ERR_FRAME_DATA_BIT) |
+		(1U << _HRT_CSS_RECEIVER_IRQ_DATA_TIMEOUT_BIT) |
+		(1U << _HRT_CSS_RECEIVER_IRQ_ERR_ESCAPE_BIT);
 	/*(1U << _HRT_CSS_RECEIVER_IRQ_ERR_LINE_SYNC_BIT); */
 
 	receiver_port_reg_store(RX0_ID,
@@ -173,18 +173,20 @@ void ia_css_rx_clear_irq_info(unsigned int irq_infos)
 	ia_css_rx_port_clear_irq_info(MIPI_PORT1_ID, irq_infos);
 }
 
-void ia_css_rx_port_clear_irq_info(enum mipi_port_id api_port, unsigned int irq_infos)
+void ia_css_rx_port_clear_irq_info(enum mipi_port_id api_port,
+				   unsigned int irq_infos)
 {
 	enum mipi_port_id port = ia_css_isys_port_to_mipi_port(api_port);
 
 	ia_css_isys_rx_clear_irq_info(port, irq_infos);
 }
 
-void ia_css_isys_rx_clear_irq_info(enum mipi_port_id port, unsigned int irq_infos)
+void ia_css_isys_rx_clear_irq_info(enum mipi_port_id port,
+				   unsigned int irq_infos)
 {
 	hrt_data bits = receiver_port_reg_load(RX0_ID,
-				port,
-				_HRT_CSS_RECEIVER_IRQ_ENABLE_REG_IDX);
+					       port,
+					       _HRT_CSS_RECEIVER_IRQ_ENABLE_REG_IDX);
 
 	/* MW: Why do we remap the receiver bitmap */
 	if (irq_infos & IA_CSS_RX_IRQ_INFO_BUFFER_OVERRUN)
@@ -231,9 +233,9 @@ void ia_css_isys_rx_clear_irq_info(enum mipi_port_id port, unsigned int irq_info
 #endif /* #if !defined(USE_INPUT_SYSTEM_VERSION_2401) */
 
 enum ia_css_err ia_css_isys_convert_stream_format_to_mipi_format(
-		enum atomisp_input_format input_format,
-		mipi_predictor_t compression,
-		unsigned int *fmt_type)
+    enum atomisp_input_format input_format,
+    mipi_predictor_t compression,
+    unsigned int *fmt_type)
 {
 	assert(fmt_type);
 	/*
@@ -376,7 +378,8 @@ enum ia_css_err ia_css_isys_convert_stream_format_to_mipi_format(
 }
 
 #if defined(USE_INPUT_SYSTEM_VERSION_2401)
-static mipi_predictor_t sh_css_csi2_compression_type_2_mipi_predictor(enum ia_css_csi2_compression_type type)
+static mipi_predictor_t sh_css_csi2_compression_type_2_mipi_predictor(
+    enum ia_css_csi2_compression_type type)
 {
 	mipi_predictor_t predictor = MIPI_PREDICTOR_NONE;
 
@@ -393,8 +396,8 @@ static mipi_predictor_t sh_css_csi2_compression_type_2_mipi_predictor(enum ia_cs
 }
 
 enum ia_css_err ia_css_isys_convert_compressed_format(
-		struct ia_css_csi2_compression *comp,
-		struct input_system_cfg_s *cfg)
+    struct ia_css_csi2_compression *comp,
+    struct input_system_cfg_s *cfg)
 {
 	enum ia_css_err err = IA_CSS_SUCCESS;
 
@@ -429,7 +432,8 @@ enum ia_css_err ia_css_isys_convert_compressed_format(
 			default:
 				err = IA_CSS_ERR_INVALID_ARGUMENTS;
 			}
-		} else if (comp->uncompressed_bits_per_pixel == UNCOMPRESSED_BITS_PER_PIXEL_12) {
+		} else if (comp->uncompressed_bits_per_pixel ==
+			   UNCOMPRESSED_BITS_PER_PIXEL_12) {
 			switch (comp->compressed_bits_per_pixel) {
 			case COMPRESSED_BITS_PER_PIXEL_6:
 				cfg->csi_port_attr.comp_scheme = MIPI_COMPRESSOR_12_6_12;
@@ -445,7 +449,8 @@ enum ia_css_err ia_css_isys_convert_compressed_format(
 			}
 		} else
 			err = IA_CSS_ERR_INVALID_ARGUMENTS;
-		cfg->csi_port_attr.comp_predictor = sh_css_csi2_compression_type_2_mipi_predictor(comp->type);
+		cfg->csi_port_attr.comp_predictor =
+		    sh_css_csi2_compression_type_2_mipi_predictor(comp->type);
 		cfg->csi_port_attr.comp_enable = true;
 	} else /* No compression */
 		cfg->csi_port_attr.comp_enable = false;
@@ -453,7 +458,7 @@ enum ia_css_err ia_css_isys_convert_compressed_format(
 }
 
 unsigned int ia_css_csi2_calculate_input_system_alignment(
-	enum atomisp_input_format fmt_type)
+    enum atomisp_input_format fmt_type)
 {
 	unsigned int memory_alignment_in_bytes = HIVE_ISP_DDR_WORD_BYTES;
 
@@ -500,8 +505,8 @@ void ia_css_isys_rx_configure(const rx_cfg_t *config,
 	enum mipi_port_id port;
 
 	if ((!config)
-		|| (config->mode >= N_RX_MODE)
-		|| (config->port >= N_MIPI_PORT_ID)) {
+	    || (config->mode >= N_RX_MODE)
+	    || (config->port >= N_MIPI_PORT_ID)) {
 		assert(0);
 		return;
 	}
@@ -520,17 +525,17 @@ void ia_css_isys_rx_configure(const rx_cfg_t *config,
 	/* AM: Check whether this is a problem with multiple streams. */
 	if (MIPI_PORT_LANES[config->mode][port] != MIPI_0LANE_CFG) {
 		receiver_port_reg_store(RX0_ID, port,
-				_HRT_CSS_RECEIVER_FUNC_PROG_REG_IDX,
-				config->timeout);
+					_HRT_CSS_RECEIVER_FUNC_PROG_REG_IDX,
+					config->timeout);
 		receiver_port_reg_store(RX0_ID, port,
-				_HRT_CSS_RECEIVER_2400_INIT_COUNT_REG_IDX,
-				config->initcount);
+					_HRT_CSS_RECEIVER_2400_INIT_COUNT_REG_IDX,
+					config->initcount);
 		receiver_port_reg_store(RX0_ID, port,
-				_HRT_CSS_RECEIVER_2400_SYNC_COUNT_REG_IDX,
-				config->synccount);
+					_HRT_CSS_RECEIVER_2400_SYNC_COUNT_REG_IDX,
+					config->synccount);
 		receiver_port_reg_store(RX0_ID, port,
-				_HRT_CSS_RECEIVER_2400_RX_COUNT_REG_IDX,
-				config->rxcount);
+					_HRT_CSS_RECEIVER_2400_RX_COUNT_REG_IDX,
+					config->rxcount);
 
 		port_enabled[port] = true;
 
@@ -538,29 +543,29 @@ void ia_css_isys_rx_configure(const rx_cfg_t *config,
 			/* MW: A bit of a hack, straight wiring of the capture
 			 * units,assuming they are linearly enumerated. */
 			input_system_sub_system_reg_store(INPUT_SYSTEM0_ID,
-					GPREGS_UNIT0_ID,
-					HIVE_ISYS_GPREG_MULTICAST_A_IDX
-						+ (unsigned int)port,
-					INPUT_SYSTEM_CSI_BACKEND);
+							  GPREGS_UNIT0_ID,
+							  HIVE_ISYS_GPREG_MULTICAST_A_IDX
+							  + (unsigned int)port,
+							  INPUT_SYSTEM_CSI_BACKEND);
 			/* MW: Like the integration test example we overwite,
 			 * the GPREG_MUX register */
 			input_system_sub_system_reg_store(INPUT_SYSTEM0_ID,
-					GPREGS_UNIT0_ID,
-					HIVE_ISYS_GPREG_MUX_IDX,
-					(input_system_multiplex_t)port);
+							  GPREGS_UNIT0_ID,
+							  HIVE_ISYS_GPREG_MUX_IDX,
+							  (input_system_multiplex_t)port);
 		} else {
 			/*
 			 * AM: A bit of a hack, wiring the input system.
 			 */
 			input_system_sub_system_reg_store(INPUT_SYSTEM0_ID,
-					GPREGS_UNIT0_ID,
-					HIVE_ISYS_GPREG_MULTICAST_A_IDX
-						+ (unsigned int)port,
-					INPUT_SYSTEM_INPUT_BUFFER);
+							  GPREGS_UNIT0_ID,
+							  HIVE_ISYS_GPREG_MULTICAST_A_IDX
+							  + (unsigned int)port,
+							  INPUT_SYSTEM_INPUT_BUFFER);
 			input_system_sub_system_reg_store(INPUT_SYSTEM0_ID,
-					GPREGS_UNIT0_ID,
-					HIVE_ISYS_GPREG_MUX_IDX,
-					INPUT_SYSTEM_ACQUISITION_UNIT);
+							  GPREGS_UNIT0_ID,
+							  HIVE_ISYS_GPREG_MUX_IDX,
+							  INPUT_SYSTEM_ACQUISITION_UNIT);
 		}
 	}
 	/*

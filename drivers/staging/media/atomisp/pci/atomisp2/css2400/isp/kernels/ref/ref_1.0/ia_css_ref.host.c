@@ -23,9 +23,9 @@
 
 void
 ia_css_ref_config(
-	struct sh_css_isp_ref_isp_config *to,
-	const struct ia_css_ref_configuration  *from,
-	unsigned int size)
+    struct sh_css_isp_ref_isp_config *to,
+    const struct ia_css_ref_configuration  *from,
+    unsigned int size)
 {
 	unsigned int elems_a = ISP_VEC_NELEMS, i;
 
@@ -35,8 +35,10 @@ ia_css_ref_config(
 	to->dvs_frame_delay = from->dvs_frame_delay;
 	for (i = 0; i < MAX_NUM_VIDEO_DELAY_FRAMES; i++) {
 		if (from->ref_frames[i]) {
-			to->ref_frame_addr_y[i] = from->ref_frames[i]->data + from->ref_frames[i]->planes.yuv.y.offset;
-			to->ref_frame_addr_c[i] = from->ref_frames[i]->data + from->ref_frames[i]->planes.yuv.u.offset;
+			to->ref_frame_addr_y[i] = from->ref_frames[i]->data +
+						  from->ref_frames[i]->planes.yuv.y.offset;
+			to->ref_frame_addr_c[i] = from->ref_frames[i]->data +
+						  from->ref_frames[i]->planes.yuv.u.offset;
 		} else {
 			to->ref_frame_addr_y[i] = 0;
 			to->ref_frame_addr_c[i] = 0;
@@ -49,9 +51,9 @@ ia_css_ref_config(
 
 void
 ia_css_ref_configure(
-	const struct ia_css_binary     *binary,
-	const struct ia_css_frame **ref_frames,
-	const uint32_t dvs_frame_delay)
+    const struct ia_css_binary     *binary,
+    const struct ia_css_frame **ref_frames,
+    const uint32_t dvs_frame_delay)
 {
 	struct ia_css_ref_configuration config;
 	unsigned int i;
@@ -64,8 +66,8 @@ ia_css_ref_configure(
 
 void
 ia_css_init_ref_state(
-	struct sh_css_isp_ref_dmem_state *state,
-	unsigned int size)
+    struct sh_css_isp_ref_dmem_state *state,
+    unsigned int size)
 {
 	(void)size;
 	assert(MAX_NUM_VIDEO_DELAY_FRAMES >= 2);

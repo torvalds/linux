@@ -29,8 +29,8 @@
  * @param[out]	state	Point to the register-state.
  */
 STORAGE_CLASS_IBUF_CTRL_H void ibuf_ctrl_get_state(
-		const ibuf_ctrl_ID_t ID,
-		ibuf_ctrl_state_t *state);
+    const ibuf_ctrl_ID_t ID,
+    ibuf_ctrl_state_t *state);
 
 /**
  * @brief Get the state of the ibuf-controller process.
@@ -41,9 +41,9 @@ STORAGE_CLASS_IBUF_CTRL_H void ibuf_ctrl_get_state(
  * @param[out]	state		Point to the process state.
  */
 STORAGE_CLASS_IBUF_CTRL_H void ibuf_ctrl_get_proc_state(
-		const ibuf_ctrl_ID_t ID,
-		const u32 proc_id,
-		ibuf_ctrl_proc_state_t *state);
+    const ibuf_ctrl_ID_t ID,
+    const u32 proc_id,
+    ibuf_ctrl_proc_state_t *state);
 /**
  * @brief Dump the ibuf-controller state.
  * Dump the state of the ibuf-controller regiester-set.
@@ -52,8 +52,8 @@ STORAGE_CLASS_IBUF_CTRL_H void ibuf_ctrl_get_proc_state(
  * @param[in]	state		Pointer to the register-state.
  */
 STORAGE_CLASS_IBUF_CTRL_H void ibuf_ctrl_dump_state(
-		const ibuf_ctrl_ID_t ID,
-		ibuf_ctrl_state_t *state);
+    const ibuf_ctrl_ID_t ID,
+    ibuf_ctrl_state_t *state);
 /* end of NCI */
 
 /*****************************************************
@@ -71,8 +71,8 @@ STORAGE_CLASS_IBUF_CTRL_H void ibuf_ctrl_dump_state(
  * @return the value of the register.
  */
 STORAGE_CLASS_IBUF_CTRL_H hrt_data ibuf_ctrl_reg_load(
-	const ibuf_ctrl_ID_t ID,
-	const hrt_address reg);
+    const ibuf_ctrl_ID_t ID,
+    const hrt_address reg);
 
 /**
  * @brief Store a value to the register.
@@ -84,9 +84,9 @@ STORAGE_CLASS_IBUF_CTRL_H hrt_data ibuf_ctrl_reg_load(
  *
  */
 STORAGE_CLASS_IBUF_CTRL_H void ibuf_ctrl_reg_store(
-	const ibuf_ctrl_ID_t ID,
-	const hrt_address reg,
-	const hrt_data value);
+    const ibuf_ctrl_ID_t ID,
+    const hrt_address reg,
+    const hrt_data value);
 /* end of DLI */
 
 #endif /* USE_INPUT_SYSTEM_VERSION_2401 */

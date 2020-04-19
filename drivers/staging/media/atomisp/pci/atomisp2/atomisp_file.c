@@ -34,7 +34,7 @@
 static void file_work(struct work_struct *work)
 {
 	struct atomisp_file_device *file_dev =
-			container_of(work, struct atomisp_file_device, work);
+	    container_of(work, struct atomisp_file_device, work);
 	struct atomisp_device *isp = file_dev->isp;
 	/* only support file injection on subdev0 */
 	struct atomisp_sub_device *asd = &isp->asd[0];
@@ -183,7 +183,7 @@ atomisp_file_input_unregister_entities(struct atomisp_file_device *file_dev)
 }
 
 int atomisp_file_input_register_entities(struct atomisp_file_device *file_dev,
-			struct v4l2_device *vdev)
+	struct v4l2_device *vdev)
 {
 	/* Register the subdev and video nodes. */
 	return  v4l2_device_register_subdev(vdev, &file_dev->sd);

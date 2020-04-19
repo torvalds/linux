@@ -39,14 +39,14 @@ static unsigned int s3a_raw_bit_depth;
 void
 ia_css_s3a_configure(unsigned int raw_bit_depth)
 {
-  s3a_raw_bit_depth = raw_bit_depth;
+	s3a_raw_bit_depth = raw_bit_depth;
 }
 
 static void
 ia_css_ae_encode(
-	struct sh_css_isp_ae_params *to,
-	const struct ia_css_3a_config *from,
-	unsigned int size)
+    struct sh_css_isp_ae_params *to,
+    const struct ia_css_3a_config *from,
+    unsigned int size)
 {
 	(void)size;
 	/* coefficients to calculate Y */
@@ -60,25 +60,25 @@ ia_css_ae_encode(
 
 static void
 ia_css_awb_encode(
-	struct sh_css_isp_awb_params *to,
-	const struct ia_css_3a_config *from,
-	unsigned int size)
+    struct sh_css_isp_awb_params *to,
+    const struct ia_css_3a_config *from,
+    unsigned int size)
 {
 	(void)size;
 	/* AWB level gate */
 	to->lg_high_raw =
-		uDIGIT_FITTING(from->awb_lg_high_raw, 16, s3a_raw_bit_depth);
+	    uDIGIT_FITTING(from->awb_lg_high_raw, 16, s3a_raw_bit_depth);
 	to->lg_low =
-		uDIGIT_FITTING(from->awb_lg_low, 16, SH_CSS_BAYER_BITS);
+	    uDIGIT_FITTING(from->awb_lg_low, 16, SH_CSS_BAYER_BITS);
 	to->lg_high =
-		uDIGIT_FITTING(from->awb_lg_high, 16, SH_CSS_BAYER_BITS);
+	    uDIGIT_FITTING(from->awb_lg_high, 16, SH_CSS_BAYER_BITS);
 }
 
 static void
 ia_css_af_encode(
-	struct sh_css_isp_af_params *to,
-	const struct ia_css_3a_config *from,
-	unsigned int size)
+    struct sh_css_isp_af_params *to,
+    const struct ia_css_3a_config *from,
+    unsigned int size)
 {
 	unsigned int i;
 	(void)size;
@@ -86,19 +86,19 @@ ia_css_af_encode(
 	/* af fir coefficients */
 	for (i = 0; i < 7; ++i) {
 		to->fir1[i] =
-		  sDIGIT_FITTING(from->af_fir1_coef[i], 15,
-				 SH_CSS_AF_FIR_SHIFT);
+		    sDIGIT_FITTING(from->af_fir1_coef[i], 15,
+				   SH_CSS_AF_FIR_SHIFT);
 		to->fir2[i] =
-		  sDIGIT_FITTING(from->af_fir2_coef[i], 15,
-				 SH_CSS_AF_FIR_SHIFT);
+		    sDIGIT_FITTING(from->af_fir2_coef[i], 15,
+				   SH_CSS_AF_FIR_SHIFT);
 	}
 }
 
 void
 ia_css_s3a_encode(
-	struct sh_css_isp_s3a_params *to,
-	const struct ia_css_3a_config *from,
-	unsigned int size)
+    struct sh_css_isp_s3a_params *to,
+    const struct ia_css_3a_config *from,
+    unsigned int size)
 {
 	(void)size;
 
@@ -110,9 +110,9 @@ ia_css_s3a_encode(
 #if 0
 void
 ia_css_process_s3a(
-	unsigned int pipe_id,
-	const struct ia_css_pipeline_stage *stage,
-	struct ia_css_isp_parameters *params)
+    unsigned int pipe_id,
+    const struct ia_css_pipeline_stage *stage,
+    struct ia_css_isp_parameters *params)
 {
 	short dmem_offset = stage->binary->info->mem_offsets->dmem.s3a;
 
@@ -120,13 +120,14 @@ ia_css_process_s3a(
 
 	if (dmem_offset >= 0) {
 		ia_css_s3a_encode((struct sh_css_isp_s3a_params *)
-				&stage->isp_mem_params[IA_CSS_ISP_DMEM0].address[dmem_offset],
-				&params->s3a_config);
+				  &stage->isp_mem_params[IA_CSS_ISP_DMEM0].address[dmem_offset],
+				  &params->s3a_config);
 		ia_css_bh_encode((struct sh_css_isp_bh_params *)
-				&stage->isp_mem_params[IA_CSS_ISP_DMEM0].address[dmem_offset],
-				&params->s3a_config);
+				 &stage->isp_mem_params[IA_CSS_ISP_DMEM0].address[dmem_offset],
+				 &params->s3a_config);
 		params->isp_params_changed = true;
-		params->isp_mem_params_changed[pipe_id][stage->stage_num][IA_CSS_ISP_DMEM0] = true;
+		params->isp_mem_params_changed[pipe_id][stage->stage_num][IA_CSS_ISP_DMEM0] =
+		    true;
 	}
 
 	params->isp_params_changed = true;
@@ -136,70 +137,70 @@ ia_css_process_s3a(
 #ifndef IA_CSS_NO_DEBUG
 void
 ia_css_ae_dump(
-	const struct sh_css_isp_ae_params *ae,
-	unsigned int level)
+    const struct sh_css_isp_ae_params *ae,
+    unsigned int level)
 {
 	if (!ae) return;
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"ae_y_coef_r", ae->y_coef_r);
+			    "ae_y_coef_r", ae->y_coef_r);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"ae_y_coef_g", ae->y_coef_g);
+			    "ae_y_coef_g", ae->y_coef_g);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"ae_y_coef_b", ae->y_coef_b);
+			    "ae_y_coef_b", ae->y_coef_b);
 }
 
 void
 ia_css_awb_dump(
-	const struct sh_css_isp_awb_params *awb,
-	unsigned int level)
+    const struct sh_css_isp_awb_params *awb,
+    unsigned int level)
 {
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"awb_lg_high_raw", awb->lg_high_raw);
+			    "awb_lg_high_raw", awb->lg_high_raw);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"awb_lg_low", awb->lg_low);
+			    "awb_lg_low", awb->lg_low);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"awb_lg_high", awb->lg_high);
+			    "awb_lg_high", awb->lg_high);
 }
 
 void
 ia_css_af_dump(
-	const struct sh_css_isp_af_params *af,
-	unsigned int level)
+    const struct sh_css_isp_af_params *af,
+    unsigned int level)
 {
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"af_fir1[0]", af->fir1[0]);
+			    "af_fir1[0]", af->fir1[0]);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"af_fir1[1]", af->fir1[1]);
+			    "af_fir1[1]", af->fir1[1]);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"af_fir1[2]", af->fir1[2]);
+			    "af_fir1[2]", af->fir1[2]);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"af_fir1[3]", af->fir1[3]);
+			    "af_fir1[3]", af->fir1[3]);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"af_fir1[4]", af->fir1[4]);
+			    "af_fir1[4]", af->fir1[4]);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"af_fir1[5]", af->fir1[5]);
+			    "af_fir1[5]", af->fir1[5]);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"af_fir1[6]", af->fir1[6]);
+			    "af_fir1[6]", af->fir1[6]);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"af_fir2[0]", af->fir2[0]);
+			    "af_fir2[0]", af->fir2[0]);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"af_fir2[1]", af->fir2[1]);
+			    "af_fir2[1]", af->fir2[1]);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"af_fir2[2]", af->fir2[2]);
+			    "af_fir2[2]", af->fir2[2]);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"af_fir2[3]", af->fir2[3]);
+			    "af_fir2[3]", af->fir2[3]);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"af_fir2[4]", af->fir2[4]);
+			    "af_fir2[4]", af->fir2[4]);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"af_fir2[5]", af->fir2[5]);
+			    "af_fir2[5]", af->fir2[5]);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"af_fir2[6]", af->fir2[6]);
+			    "af_fir2[6]", af->fir2[6]);
 }
 
 void
 ia_css_s3a_dump(
-	const struct sh_css_isp_s3a_params *s3a,
-	unsigned int level)
+    const struct sh_css_isp_s3a_params *s3a,
+    unsigned int level)
 {
 	ia_css_debug_dtrace(level, "S3A Support:\n");
 	ia_css_ae_dump(&s3a->ae, level);
@@ -209,21 +210,21 @@ ia_css_s3a_dump(
 
 void
 ia_css_s3a_debug_dtrace(
-	const struct ia_css_3a_config *config,
-	unsigned int level)
+    const struct ia_css_3a_config *config,
+    unsigned int level)
 {
 	ia_css_debug_dtrace(level,
-		"config.ae_y_coef_r=%d, config.ae_y_coef_g=%d, config.ae_y_coef_b=%d, config.awb_lg_high_raw=%d, config.awb_lg_low=%d, config.awb_lg_high=%d\n",
-		config->ae_y_coef_r, config->ae_y_coef_g,
-		config->ae_y_coef_b, config->awb_lg_high_raw,
-		config->awb_lg_low, config->awb_lg_high);
+			    "config.ae_y_coef_r=%d, config.ae_y_coef_g=%d, config.ae_y_coef_b=%d, config.awb_lg_high_raw=%d, config.awb_lg_low=%d, config.awb_lg_high=%d\n",
+			    config->ae_y_coef_r, config->ae_y_coef_g,
+			    config->ae_y_coef_b, config->awb_lg_high_raw,
+			    config->awb_lg_low, config->awb_lg_high);
 }
 #endif
 
 void
 ia_css_s3a_hmem_decode(
-	struct ia_css_3a_statistics *host_stats,
-	const struct ia_css_bh_table *hmem_buf)
+    struct ia_css_3a_statistics *host_stats,
+    const struct ia_css_bh_table *hmem_buf)
 {
 #if defined(HAS_NO_HMEM)
 	(void)host_stats;
@@ -241,8 +242,8 @@ ia_css_s3a_hmem_decode(
 	assert(hmem_buf);
 
 	count_for_3a = host_stats->grid.width * host_stats->grid.height
-	    * host_stats->grid.bqs_per_grid_cell
-	    * host_stats->grid.bqs_per_grid_cell;
+		       * host_stats->grid.bqs_per_grid_cell
+		       * host_stats->grid.bqs_per_grid_cell;
 
 	out_ptr = host_stats->rgby_data;
 
@@ -294,8 +295,8 @@ ia_css_s3a_hmem_decode(
 
 void
 ia_css_s3a_dmem_decode(
-	struct ia_css_3a_statistics *host_stats,
-	const struct ia_css_3a_output *isp_stats)
+    struct ia_css_3a_statistics *host_stats,
+    const struct ia_css_3a_output *isp_stats)
 {
 	int isp_width, host_width, height, i;
 	struct ia_css_3a_output *host_ptr;
@@ -330,9 +331,9 @@ merge_hi_lo_14(unsigned short hi, unsigned short lo)
 
 void
 ia_css_s3a_vmem_decode(
-	struct ia_css_3a_statistics *host_stats,
-	const u16 *isp_stats_hi,
-	const uint16_t *isp_stats_lo)
+    struct ia_css_3a_statistics *host_stats,
+    const u16 *isp_stats_hi,
+    const uint16_t *isp_stats_lo)
 {
 	int out_width, out_height, chunk, rest, kmax, y, x, k, elm_start, elm, ofs;
 	const u16 *hi, *lo;
@@ -362,21 +363,21 @@ ia_css_s3a_vmem_decode(
 			elm = elm_start + x * sizeof(*output) / sizeof(int32_t);
 			for (k = 0; k < kmax; k++, elm++) {
 				output[ofs + k].ae_y    = merge_hi_lo_14(
-				    hi[elm + chunk * 0], lo[elm + chunk * 0]);
+							      hi[elm + chunk * 0], lo[elm + chunk * 0]);
 				output[ofs + k].awb_cnt = merge_hi_lo_14(
-				    hi[elm + chunk * 1], lo[elm + chunk * 1]);
+							      hi[elm + chunk * 1], lo[elm + chunk * 1]);
 				output[ofs + k].awb_gr  = merge_hi_lo_14(
-				    hi[elm + chunk * 2], lo[elm + chunk * 2]);
+							      hi[elm + chunk * 2], lo[elm + chunk * 2]);
 				output[ofs + k].awb_r   = merge_hi_lo_14(
-				    hi[elm + chunk * 3], lo[elm + chunk * 3]);
+							      hi[elm + chunk * 3], lo[elm + chunk * 3]);
 				output[ofs + k].awb_b   = merge_hi_lo_14(
-				    hi[elm + chunk * 4], lo[elm + chunk * 4]);
+							      hi[elm + chunk * 4], lo[elm + chunk * 4]);
 				output[ofs + k].awb_gb  = merge_hi_lo_14(
-				    hi[elm + chunk * 5], lo[elm + chunk * 5]);
+							      hi[elm + chunk * 5], lo[elm + chunk * 5]);
 				output[ofs + k].af_hpf1 = merge_hi_lo_14(
-				    hi[elm + chunk * 6], lo[elm + chunk * 6]);
+							      hi[elm + chunk * 6], lo[elm + chunk * 6]);
 				output[ofs + k].af_hpf2 = merge_hi_lo_14(
-				    hi[elm + chunk * 7], lo[elm + chunk * 7]);
+							      hi[elm + chunk * 7], lo[elm + chunk * 7]);
 			}
 			x += chunk;
 			rest -= chunk;

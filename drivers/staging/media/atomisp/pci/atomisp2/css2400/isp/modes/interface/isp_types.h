@@ -51,20 +51,20 @@ struct s_isp_gdcac_config {
 
 /* output.hive.c request information */
 typedef enum {
-  output_y_channel,
-  output_c_channel,
-  OUTPUT_NUM_CHANNELS
+	output_y_channel,
+	output_c_channel,
+	OUTPUT_NUM_CHANNELS
 } output_channel_type;
 
 typedef struct s_output_dma_info {
-  unsigned int cond;		/* Condition for transfer */
-  output_channel_type channel_type;
-  dma_channel         channel;
-  unsigned int width_a;
-  unsigned int width_b;
-  unsigned int stride;
-  unsigned int v_delta;	        /* Offset for v address to do cropping */
-  char               *x_base;           /* X base address */
+	unsigned int cond;		/* Condition for transfer */
+	output_channel_type channel_type;
+	dma_channel         channel;
+	unsigned int width_a;
+	unsigned int width_b;
+	unsigned int stride;
+	unsigned int v_delta;		/* Offset for v address to do cropping */
+	char               *x_base;           /* X base address */
 } output_dma_info_type;
 #endif
 

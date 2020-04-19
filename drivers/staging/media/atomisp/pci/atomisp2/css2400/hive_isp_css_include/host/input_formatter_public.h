@@ -25,7 +25,7 @@
  \return none, reset(INPUT_FORMATTER[ID])
  */
 void input_formatter_rst(
-	const input_formatter_ID_t		ID);
+    const input_formatter_ID_t		ID);
 
 /*! Set the blocking mode of INPUT_FORMATTER[ID]
 
@@ -42,8 +42,8 @@ void input_formatter_rst(
  \return none, INPUT_FORMATTER[ID].blocking_mode = enable
  */
 void input_formatter_set_fifo_blocking_mode(
-	const input_formatter_ID_t		ID,
-	const bool						enable);
+    const input_formatter_ID_t		ID,
+    const bool						enable);
 
 /*! Return the data alignment of INPUT_FORMATTER[ID]
 
@@ -52,7 +52,7 @@ void input_formatter_set_fifo_blocking_mode(
  \return alignment(INPUT_FORMATTER[ID].data)
  */
 unsigned int input_formatter_get_alignment(
-	const input_formatter_ID_t		ID);
+    const input_formatter_ID_t		ID);
 
 /*! Read the source switch state into INPUT_FORMATTER[ID]
 
@@ -62,8 +62,8 @@ unsigned int input_formatter_get_alignment(
  \return none, state = INPUT_FORMATTER[ID].switch_state
  */
 void input_formatter_get_switch_state(
-	const input_formatter_ID_t		ID,
-	input_formatter_switch_state_t	*state);
+    const input_formatter_ID_t		ID,
+    input_formatter_switch_state_t	*state);
 
 /*! Read the control registers of INPUT_FORMATTER[ID]
 
@@ -73,8 +73,8 @@ void input_formatter_get_switch_state(
  \return none, state = INPUT_FORMATTER[ID].state
  */
 void input_formatter_get_state(
-	const input_formatter_ID_t		ID,
-	input_formatter_state_t			*state);
+    const input_formatter_ID_t		ID,
+    input_formatter_state_t			*state);
 
 /*! Read the control registers of bin copy INPUT_FORMATTER[ID]
 
@@ -84,8 +84,8 @@ void input_formatter_get_state(
  \return none, state = INPUT_FORMATTER[ID].state
  */
 void input_formatter_bin_get_state(
-	const input_formatter_ID_t		ID,
-	input_formatter_bin_state_t		*state);
+    const input_formatter_ID_t		ID,
+    input_formatter_bin_state_t		*state);
 
 /*! Write to a control register of INPUT_FORMATTER[ID]
 
@@ -96,9 +96,9 @@ void input_formatter_bin_get_state(
  \return none, INPUT_FORMATTER[ID].ctrl[reg] = value
  */
 STORAGE_CLASS_INPUT_FORMATTER_H void input_formatter_reg_store(
-	const input_formatter_ID_t	ID,
-	const hrt_address		reg_addr,
-	const hrt_data				value);
+    const input_formatter_ID_t	ID,
+    const hrt_address		reg_addr,
+    const hrt_data				value);
 
 /*! Read from a control register of INPUT_FORMATTER[ID]
 
@@ -109,7 +109,7 @@ STORAGE_CLASS_INPUT_FORMATTER_H void input_formatter_reg_store(
  \return INPUT_FORMATTER[ID].ctrl[reg]
  */
 STORAGE_CLASS_INPUT_FORMATTER_H hrt_data input_formatter_reg_load(
-	const input_formatter_ID_t	ID,
-	const unsigned int			reg_addr);
+    const input_formatter_ID_t	ID,
+    const unsigned int			reg_addr);
 
 #endif /* __INPUT_FORMATTER_PUBLIC_H_INCLUDED__ */

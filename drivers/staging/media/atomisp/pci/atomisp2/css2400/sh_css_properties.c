@@ -22,10 +22,10 @@ ia_css_get_properties(struct ia_css_properties *properties)
 {
 	assert(properties);
 #if defined(HAS_GDC_VERSION_2) || defined(HAS_GDC_VERSION_3)
-/*
- * MW: We don't want to store the coordinates
- * full range in memory: Truncate
- */
+	/*
+	 * MW: We don't want to store the coordinates
+	 * full range in memory: Truncate
+	 */
 	properties->gdc_coord_one = gdc_get_unity(GDC0_ID) / HRT_GDC_COORD_SCALE;
 #else
 #error "Unknown GDC version"

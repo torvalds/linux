@@ -49,6 +49,6 @@ struct ia_css_ctc2_config {
 	*/
 	s32 uv_x0;
 	s32 uv_x1;
-	};
+};
 
 #endif /* __IA_CSS_CTC2_TYPES_H */

@@ -57,9 +57,9 @@ more details.
  * Refer to "sw_event_public.h" for details.
  */
 bool ia_css_event_encode(
-	u8	*in,
-	u8	nr,
-	uint32_t	*out)
+    u8	*in,
+    u8	nr,
+    uint32_t	*out)
 {
 	bool ret;
 	u32 nr_of_bits;
@@ -88,14 +88,15 @@ bool ia_css_event_encode(
 }
 
 void ia_css_event_decode(
-	u32 event,
-	uint8_t *payload)
+    u32 event,
+    uint8_t *payload)
 {
 	assert(payload[1] == 0);
 	assert(payload[2] == 0);
 	assert(payload[3] == 0);
 
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_event_decode() enter:\n");
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE,
+			    "ia_css_event_decode() enter:\n");
 
 	/* First decode according to the common case
 	 * In case of a PORT_EOF event we overwrite with

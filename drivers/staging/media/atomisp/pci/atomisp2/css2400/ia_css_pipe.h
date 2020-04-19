@@ -187,7 +187,7 @@ void ia_css_pipe_map_queue(struct ia_css_pipe *pipe, bool map);
 
 enum ia_css_err
 sh_css_param_update_isp_params(struct ia_css_pipe *curr_pipe,
-				struct ia_css_isp_parameters *params,
-				bool commit, struct ia_css_pipe *pipe);
+			       struct ia_css_isp_parameters *params,
+			       bool commit, struct ia_css_pipe *pipe);
 
 #endif /* __IA_CSS_PIPE_H__ */

@@ -117,7 +117,7 @@ void atomisp_tpg_unregister_entities(struct atomisp_tpg_device *tpg)
 }
 
 int atomisp_tpg_register_entities(struct atomisp_tpg_device *tpg,
-			struct v4l2_device *vdev)
+				  struct v4l2_device *vdev)
 {
 	int ret;
 	/* Register the subdev and video nodes. */

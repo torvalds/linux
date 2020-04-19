@@ -22,30 +22,30 @@
 #include "ia_css_pipeline_common.h"
 
 void ia_css_pipe_get_generic_stage_desc(
-	struct ia_css_pipeline_stage_desc *stage_desc,
-	struct ia_css_binary *binary,
-	struct ia_css_frame *out_frame[],
-	struct ia_css_frame *in_frame,
-	struct ia_css_frame *vf_frame);
+    struct ia_css_pipeline_stage_desc *stage_desc,
+    struct ia_css_binary *binary,
+    struct ia_css_frame *out_frame[],
+    struct ia_css_frame *in_frame,
+    struct ia_css_frame *vf_frame);
 
 void ia_css_pipe_get_firmwares_stage_desc(
-	struct ia_css_pipeline_stage_desc *stage_desc,
-	struct ia_css_binary *binary,
-	struct ia_css_frame *out_frame[],
-	struct ia_css_frame *in_frame,
-	struct ia_css_frame *vf_frame,
-	const struct ia_css_fw_info *fw,
-	unsigned int mode);
+    struct ia_css_pipeline_stage_desc *stage_desc,
+    struct ia_css_binary *binary,
+    struct ia_css_frame *out_frame[],
+    struct ia_css_frame *in_frame,
+    struct ia_css_frame *vf_frame,
+    const struct ia_css_fw_info *fw,
+    unsigned int mode);
 
 void ia_css_pipe_get_acc_stage_desc(
-	struct ia_css_pipeline_stage_desc *stage_desc,
-	struct ia_css_binary *binary,
-	struct ia_css_fw_info *fw);
+    struct ia_css_pipeline_stage_desc *stage_desc,
+    struct ia_css_binary *binary,
+    struct ia_css_fw_info *fw);
 
 void ia_css_pipe_get_sp_func_stage_desc(
-	struct ia_css_pipeline_stage_desc *stage_desc,
-	struct ia_css_frame *out_frame,
-	enum ia_css_pipeline_stage_sp_func sp_func,
-	unsigned int max_input_width);
+    struct ia_css_pipeline_stage_desc *stage_desc,
+    struct ia_css_frame *out_frame,
+    enum ia_css_pipeline_stage_sp_func sp_func,
+    unsigned int max_input_width);
 
 #endif /*__IA_CSS_PIPE_STAGEDESC__H__ */

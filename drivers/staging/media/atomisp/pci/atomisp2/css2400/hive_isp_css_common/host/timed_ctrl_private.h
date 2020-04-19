@@ -22,12 +22,12 @@
 #include "assert_support.h"
 
 STORAGE_CLASS_TIMED_CTRL_C void timed_ctrl_reg_store(
-	const timed_ctrl_ID_t	ID,
-	const unsigned int		reg,
-	const hrt_data			value)
+    const timed_ctrl_ID_t	ID,
+    const unsigned int		reg,
+    const hrt_data			value)
 {
-OP___assert(ID < N_TIMED_CTRL_ID);
-OP___assert(TIMED_CTRL_BASE[ID] != (hrt_address) - 1);
+	OP___assert(ID < N_TIMED_CTRL_ID);
+	OP___assert(TIMED_CTRL_BASE[ID] != (hrt_address) - 1);
 	ia_css_device_store_uint32(TIMED_CTRL_BASE[ID] + reg * sizeof(hrt_data), value);
 }
 

@@ -26,9 +26,9 @@ const struct ia_css_xnr_config default_xnr_config = {
 
 void
 ia_css_xnr_table_vamem_encode(
-	struct sh_css_isp_xnr_vamem_params *to,
-	const struct ia_css_xnr_table *from,
-	unsigned int size)
+    struct sh_css_isp_xnr_vamem_params *to,
+    const struct ia_css_xnr_table *from,
+    unsigned int size)
 {
 	(void)size;
 	memcpy(&to->xnr,  &from->data, sizeof(to->xnr));
@@ -36,20 +36,20 @@ ia_css_xnr_table_vamem_encode(
 
 void
 ia_css_xnr_encode(
-	struct sh_css_isp_xnr_params *to,
-	const struct ia_css_xnr_config *from,
-	unsigned int size)
+    struct sh_css_isp_xnr_params *to,
+    const struct ia_css_xnr_config *from,
+    unsigned int size)
 {
 	(void)size;
 
 	to->threshold =
-		(uint16_t)uDIGIT_FITTING(from->threshold, 16, SH_CSS_ISP_YUV_BITS);
+	    (uint16_t)uDIGIT_FITTING(from->threshold, 16, SH_CSS_ISP_YUV_BITS);
 }
 
 void
 ia_css_xnr_table_debug_dtrace(
-	const struct ia_css_xnr_table *config,
-	unsigned int level)
+    const struct ia_css_xnr_table *config,
+    unsigned int level)
 {
 	(void)config;
 	(void)level;
@@ -57,9 +57,9 @@ ia_css_xnr_table_debug_dtrace(
 
 void
 ia_css_xnr_debug_dtrace(
-	const struct ia_css_xnr_config *config,
-	unsigned int level)
+    const struct ia_css_xnr_config *config,
+    unsigned int level)
 {
 	ia_css_debug_dtrace(level,
-		"config.threshold=%d\n", config->threshold);
+			    "config.threshold=%d\n", config->threshold);
 }

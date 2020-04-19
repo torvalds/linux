@@ -29,10 +29,10 @@ more details.
 #include "ia_css_err.h"
 
 bool reallocate_buffer(
-	hrt_vaddress * curr_buf,
-	size_t *curr_size,
-	size_t needed_size,
-	bool force,
-	enum ia_css_err *err);
+    hrt_vaddress *curr_buf,
+    size_t *curr_size,
+    size_t needed_size,
+    bool force,
+    enum ia_css_err *err);
 
 #endif /*__MEMORY_REALLOC_H_INCLUDED__*/

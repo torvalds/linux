@@ -28,27 +28,27 @@ struct atomisp_video_pipe;
 extern const struct atomisp_format_bridge atomisp_output_fmts[];
 
 const struct atomisp_format_bridge *atomisp_get_format_bridge(
-	unsigned int pixelformat);
+    unsigned int pixelformat);
 #ifndef ISP2401
 const struct atomisp_format_bridge *atomisp_get_format_bridge_from_mbus(
-	u32 mbus_code);
+    u32 mbus_code);
 #else
 const struct atomisp_format_bridge *atomisp_get_format_bridge_from_mbus(u32
-									mbus_code);
+	mbus_code);
 #endif
 
 int atomisp_alloc_css_stat_bufs(struct atomisp_sub_device *asd,
-	uint16_t stream_id);
+				uint16_t stream_id);
 
 int __atomisp_streamoff(struct file *file, void *fh, enum v4l2_buf_type type);
 int __atomisp_reqbufs(struct file *file, void *fh,
-		struct v4l2_requestbuffers *req);
+		      struct v4l2_requestbuffers *req);
 
 int atomisp_reqbufs(struct file *file, void *fh,
-			struct v4l2_requestbuffers *req);
+		    struct v4l2_requestbuffers *req);
 
 enum atomisp_css_pipe_id atomisp_get_css_pipe_id(struct atomisp_sub_device
-						 *asd);
+	*asd);
 
 void atomisp_videobuf_free_buf(struct videobuf_buffer *vb);
 
@@ -65,5 +65,6 @@ unsigned int atomisp_is_acc_enabled(struct atomisp_device *isp);
 long atomisp_compat_ioctl32(struct file *file,
 			    unsigned int cmd, unsigned long arg);
 
-int atomisp_stream_on_master_slave_sensor(struct atomisp_device *isp, bool isp_timeout);
+int atomisp_stream_on_master_slave_sensor(struct atomisp_device *isp,
+	bool isp_timeout);
 #endif /* __ATOMISP_IOCTL_H__ */

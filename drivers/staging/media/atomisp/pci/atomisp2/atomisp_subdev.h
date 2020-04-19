@@ -341,7 +341,7 @@ struct atomisp_sub_device {
 	unsigned int dis_bufs_in_css;
 
 	unsigned int metadata_bufs_in_css
-		[ATOMISP_INPUT_STREAM_NUM][CSS_PIPE_ID_NUM];
+	[ATOMISP_INPUT_STREAM_NUM][CSS_PIPE_ID_NUM];
 	/* The list of free and available metadata buffers for CSS */
 	struct list_head metadata[ATOMISP_METADATA_TYPE_NUM];
 	/* The list of metadata buffers which have been en-queued to CSS */
@@ -395,7 +395,8 @@ struct atomisp_sub_device {
 	bool copy_mode; /* CSI2+ use copy mode */
 	bool yuvpp_mode;	/* CSI2+ yuvpp pipe */
 
-	int raw_buffer_bitmap[ATOMISP_MAX_EXP_ID / 32 + 1]; /* Record each Raw Buffer lock status */
+	int raw_buffer_bitmap[ATOMISP_MAX_EXP_ID / 32 +
+						 1]; /* Record each Raw Buffer lock status */
 	int raw_buffer_locked_count;
 	spinlock_t raw_buffer_bitmap_lock;
 
@@ -424,11 +425,11 @@ bool atomisp_subdev_is_compressed(u32 code);
 const struct atomisp_in_fmt_conv *atomisp_find_in_fmt_conv(u32 code);
 #ifndef ISP2401
 const struct atomisp_in_fmt_conv *atomisp_find_in_fmt_conv_by_atomisp_in_fmt(
-	enum atomisp_input_format atomisp_in_fmt);
+    enum atomisp_input_format atomisp_in_fmt);
 #else
 const struct atomisp_in_fmt_conv
-    *atomisp_find_in_fmt_conv_by_atomisp_in_fmt(enum atomisp_input_format
-						atomisp_in_fmt);
+*atomisp_find_in_fmt_conv_by_atomisp_in_fmt(enum atomisp_input_format
+	atomisp_in_fmt);
 #endif
 const struct atomisp_in_fmt_conv *atomisp_find_in_fmt_conv_compressed(u32 code);
 bool atomisp_subdev_format_conversion(struct atomisp_sub_device *asd,
@@ -441,9 +442,9 @@ struct v4l2_mbus_framefmt
 			 struct v4l2_subdev_pad_config *cfg, uint32_t which,
 			 uint32_t pad);
 struct v4l2_rect *atomisp_subdev_get_rect(struct v4l2_subdev *sd,
-					  struct v4l2_subdev_pad_config *cfg,
-					  u32 which, uint32_t pad,
-					  uint32_t target);
+	struct v4l2_subdev_pad_config *cfg,
+	u32 which, uint32_t pad,
+	uint32_t target);
 int atomisp_subdev_set_selection(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_pad_config *cfg,
 				 u32 which, uint32_t pad, uint32_t target,
@@ -459,7 +460,7 @@ void atomisp_subdev_cleanup_pending_events(struct atomisp_sub_device *asd);
 
 void atomisp_subdev_unregister_entities(struct atomisp_sub_device *asd);
 int atomisp_subdev_register_entities(struct atomisp_sub_device *asd,
-	struct v4l2_device *vdev);
+				     struct v4l2_device *vdev);
 int atomisp_subdev_init(struct atomisp_device *isp);
 void atomisp_subdev_cleanup(struct atomisp_device *isp);
 int atomisp_create_pads_links(struct atomisp_device *isp);

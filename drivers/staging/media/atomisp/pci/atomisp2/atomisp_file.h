@@ -37,7 +37,7 @@ struct atomisp_file_device {
 void atomisp_file_input_cleanup(struct atomisp_device *isp);
 int atomisp_file_input_init(struct atomisp_device *isp);
 void atomisp_file_input_unregister_entities(
-				struct atomisp_file_device *file_dev);
+    struct atomisp_file_device *file_dev);
 int atomisp_file_input_register_entities(struct atomisp_file_device *file_dev,
-			struct v4l2_device *vdev);
+	struct v4l2_device *vdev);
 #endif /* __ATOMISP_FILE_H__ */

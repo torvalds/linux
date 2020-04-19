@@ -45,8 +45,8 @@ ia_css_circbuf_read(ia_css_circbuf_t *cb);
  * @param chunk_dest The position to which the first element in the chunk would be shift.
  */
 static inline void ia_css_circbuf_shift_chunk(ia_css_circbuf_t *cb,
-						   u32 chunk_src,
-						   uint32_t chunk_dest);
+	u32 chunk_src,
+	uint32_t chunk_dest);
 
 /*
  * @brief Get the "val" field in the element.
@@ -69,8 +69,8 @@ ia_css_circbuf_elem_get_val(ia_css_circbuf_elem_t *elem);
  */
 void
 ia_css_circbuf_create(ia_css_circbuf_t *cb,
-			   ia_css_circbuf_elem_t *elems,
-			   ia_css_circbuf_desc_t *desc)
+		      ia_css_circbuf_elem_t *elems,
+		      ia_css_circbuf_desc_t *desc)
 {
 	u32 i;
 
@@ -200,9 +200,9 @@ uint32_t ia_css_circbuf_peek_from_start(ia_css_circbuf_t *cb, int offset)
  * Please refer to "ia_css_circbuf.h" for details.
  */
 bool ia_css_circbuf_increase_size(
-				ia_css_circbuf_t *cb,
-				unsigned int sz_delta,
-				ia_css_circbuf_elem_t *elems)
+    ia_css_circbuf_t *cb,
+    unsigned int sz_delta,
+    ia_css_circbuf_elem_t *elems)
 {
 	u8 curr_size;
 	u8 curr_end;
@@ -216,7 +216,8 @@ bool ia_css_circbuf_increase_size(
 	/* We assume cb was pre defined as global to allow
 	 * increase in size */
 	/* FM: are we sure this cannot cause size to become too big? */
-	if (((uint8_t)(cb->desc->size + (uint8_t)sz_delta) > cb->desc->size) && ((uint8_t)sz_delta == sz_delta))
+	if (((uint8_t)(cb->desc->size + (uint8_t)sz_delta) > cb->desc->size) &&
+	    ((uint8_t)sz_delta == sz_delta))
 		cb->desc->size += (uint8_t)sz_delta;
 	else
 		return false; /* overflow in size */
@@ -239,8 +240,8 @@ bool ia_css_circbuf_increase_size(
 		} else {
 			/* Move elements and fix Start*/
 			ia_css_circbuf_shift_chunk(cb,
-						curr_size - 1,
-						curr_size + sz_delta - 1);
+						   curr_size - 1,
+						   curr_size + sz_delta - 1);
 		}
 	}
 
@@ -288,7 +289,7 @@ ia_css_circbuf_read(ia_css_circbuf_t *cb)
  */
 static inline void
 ia_css_circbuf_shift_chunk(ia_css_circbuf_t *cb,
-				u32 chunk_src, uint32_t chunk_dest)
+			   u32 chunk_src, uint32_t chunk_dest)
 {
 	int chunk_offset;
 	int chunk_sz;
@@ -296,14 +297,14 @@ ia_css_circbuf_shift_chunk(ia_css_circbuf_t *cb,
 
 	/* get the chunk offset and size */
 	chunk_offset = ia_css_circbuf_get_offset(cb,
-						      chunk_src, chunk_dest);
+		       chunk_src, chunk_dest);
 	chunk_sz = ia_css_circbuf_get_offset(cb, cb->desc->start, chunk_src) + 1;
 
 	/* shift each element to its terminal position */
 	for (i = 0; i < chunk_sz; i++) {
 		/* copy the element from the source to the destination */
 		ia_css_circbuf_elem_cpy(&cb->elems[chunk_src],
-					     &cb->elems[chunk_dest]);
+					&cb->elems[chunk_dest]);
 
 		/* clear the source position */
 		ia_css_circbuf_elem_init(&cb->elems[chunk_src]);
@@ -314,5 +315,6 @@ ia_css_circbuf_shift_chunk(ia_css_circbuf_t *cb,
 	}
 
 	/* adjust the index "start" */
-	cb->desc->start = ia_css_circbuf_get_pos_at_offset(cb, cb->desc->start, chunk_offset);
+	cb->desc->start = ia_css_circbuf_get_pos_at_offset(cb, cb->desc->start,
+			  chunk_offset);
 }

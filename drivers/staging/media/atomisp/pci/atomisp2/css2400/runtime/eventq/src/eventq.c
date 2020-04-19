@@ -22,8 +22,8 @@
 #include "platform_support.h" /* hrt_sleep() */
 
 int ia_css_eventq_recv(
-		ia_css_queue_t *eventq_handle,
-		uint8_t *payload)
+    ia_css_queue_t *eventq_handle,
+    uint8_t *payload)
 {
 	u32 sp_event;
 	int error;
@@ -42,11 +42,11 @@ int ia_css_eventq_recv(
  * Refer to "sh_css_sp.h" for details.
  */
 int ia_css_eventq_send(
-			ia_css_queue_t *eventq_handle,
-			u8 evt_id,
-			u8 evt_payload_0,
-			u8 evt_payload_1,
-			uint8_t evt_payload_2)
+    ia_css_queue_t *eventq_handle,
+    u8 evt_id,
+    u8 evt_payload_0,
+    u8 evt_payload_1,
+    uint8_t evt_payload_2)
 {
 	u8 tmp[4];
 	u32 sw_event;

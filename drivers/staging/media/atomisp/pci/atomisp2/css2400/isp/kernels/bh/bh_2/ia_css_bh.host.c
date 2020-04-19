@@ -24,8 +24,8 @@
 
 void
 ia_css_bh_hmem_decode(
-	struct ia_css_3a_rgby_output *out_ptr,
-	const struct ia_css_bh_table *hmem_buf)
+    struct ia_css_3a_rgby_output *out_ptr,
+    const struct ia_css_bh_table *hmem_buf)
 {
 	int i;
 
@@ -49,9 +49,9 @@ ia_css_bh_hmem_decode(
 
 void
 ia_css_bh_encode(
-	struct sh_css_isp_bh_params *to,
-	const struct ia_css_3a_config *from,
-	unsigned int size)
+    struct sh_css_isp_bh_params *to,
+    const struct ia_css_3a_config *from,
+    unsigned int size)
 {
 	(void)size;
 	/* coefficients to calculate Y */

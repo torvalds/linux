@@ -79,23 +79,23 @@ struct ia_css_queue {
 };
 
 int ia_css_queue_load(
-		struct ia_css_queue *rdesc,
-		ia_css_circbuf_desc_t *cb_desc,
-		uint32_t ignore_desc_flags);
+    struct ia_css_queue *rdesc,
+    ia_css_circbuf_desc_t *cb_desc,
+    uint32_t ignore_desc_flags);
 
 int ia_css_queue_store(
-		struct ia_css_queue *rdesc,
-		ia_css_circbuf_desc_t *cb_desc,
-		uint32_t ignore_desc_flags);
+    struct ia_css_queue *rdesc,
+    ia_css_circbuf_desc_t *cb_desc,
+    uint32_t ignore_desc_flags);
 
 int ia_css_queue_item_load(
-		struct ia_css_queue *rdesc,
-		u8 position,
-		ia_css_circbuf_elem_t *item);
+    struct ia_css_queue *rdesc,
+    u8 position,
+    ia_css_circbuf_elem_t *item);
 
 int ia_css_queue_item_store(
-		struct ia_css_queue *rdesc,
-		u8 position,
-		ia_css_circbuf_elem_t *item);
+    struct ia_css_queue *rdesc,
+    u8 position,
+    ia_css_circbuf_elem_t *item);
 
 #endif /* __QUEUE_ACCESS_H */

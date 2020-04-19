@@ -66,7 +66,7 @@ struct input_formatter_switch_state_s {
 };
 
 struct input_formatter_state_s {
-/*	int	reset; */
+	/*	int	reset; */
 	int	start_line;
 	int	start_column;
 	int	cropped_height;
@@ -115,6 +115,7 @@ struct input_formatter_bin_state_s {
 };
 
 static const unsigned int input_formatter_alignment[N_INPUT_FORMATTER_ID] = {
-	ISP_VEC_ALIGN, ISP_VEC_ALIGN, HIVE_ISP_CTRL_DATA_BYTES};
+	ISP_VEC_ALIGN, ISP_VEC_ALIGN, HIVE_ISP_CTRL_DATA_BYTES
+};
 
 #endif /* __INPUT_FORMATTER_LOCAL_H_INCLUDED__ */

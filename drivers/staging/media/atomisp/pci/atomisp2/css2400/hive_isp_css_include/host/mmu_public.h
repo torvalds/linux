@@ -27,8 +27,8 @@
  \return none, MMU[ID].page_table_base_index = base_index
  */
 void mmu_set_page_table_base_index(
-	const mmu_ID_t		ID,
-	const hrt_data		base_index);
+    const mmu_ID_t		ID,
+    const hrt_data		base_index);
 
 /*! Get the page table base index of MMU[ID]
 
@@ -38,7 +38,7 @@ void mmu_set_page_table_base_index(
  \return MMU[ID].page_table_base_index
  */
 hrt_data mmu_get_page_table_base_index(
-	const mmu_ID_t		ID);
+    const mmu_ID_t		ID);
 
 /*! Invalidate the page table cache of MMU[ID]
 
@@ -47,7 +47,7 @@ hrt_data mmu_get_page_table_base_index(
  \return none
  */
 void mmu_invalidate_cache(
-	const mmu_ID_t		ID);
+    const mmu_ID_t		ID);
 
 /*! Invalidate the page table cache of all MMUs
 
@@ -64,9 +64,9 @@ void mmu_invalidate_cache_all(void);
  \return none, MMU[ID].ctrl[reg] = value
  */
 static inline void mmu_reg_store(
-	const mmu_ID_t		ID,
-	const unsigned int	reg,
-	const hrt_data		value)
+    const mmu_ID_t		ID,
+    const unsigned int	reg,
+    const hrt_data		value)
 {
 	assert(ID < N_MMU_ID);
 	assert(MMU_BASE[ID] != (hrt_address) - 1);
@@ -83,8 +83,8 @@ static inline void mmu_reg_store(
  \return MMU[ID].ctrl[reg]
  */
 static inline hrt_data mmu_reg_load(
-	const mmu_ID_t		ID,
-	const unsigned int	reg)
+    const mmu_ID_t		ID,
+    const unsigned int	reg)
 {
 	assert(ID < N_MMU_ID);
 	assert(MMU_BASE[ID] != (hrt_address) - 1);

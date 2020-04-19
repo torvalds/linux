@@ -27,8 +27,8 @@ typedef struct dma_state_s		dma_state_t;
  \return none, state = DMA[ID].state
  */
 void dma_get_state(
-	const dma_ID_t		ID,
-	dma_state_t			*state);
+    const dma_ID_t		ID,
+    dma_state_t			*state);
 
 /*! Write to a control register of DMA[ID]
 
@@ -39,9 +39,9 @@ void dma_get_state(
  \return none, DMA[ID].ctrl[reg] = value
  */
 STORAGE_CLASS_DMA_H void dma_reg_store(
-	const dma_ID_t		ID,
-	const unsigned int	reg,
-	const hrt_data		value);
+    const dma_ID_t		ID,
+    const unsigned int	reg,
+    const hrt_data		value);
 
 /*! Read from a control register of DMA[ID]
 
@@ -52,8 +52,8 @@ STORAGE_CLASS_DMA_H void dma_reg_store(
  \return DMA[ID].ctrl[reg]
  */
 STORAGE_CLASS_DMA_H hrt_data dma_reg_load(
-	const dma_ID_t		ID,
-	const unsigned int	reg);
+    const dma_ID_t		ID,
+    const unsigned int	reg);
 
 /*! Set maximum burst size of DMA[ID]
 
@@ -65,8 +65,8 @@ STORAGE_CLASS_DMA_H hrt_data dma_reg_load(
 */
 void
 dma_set_max_burst_size(
-	dma_ID_t		ID,
-	dma_connection		conn,
-	uint32_t		max_burst_size);
+    dma_ID_t		ID,
+    dma_connection		conn,
+    uint32_t		max_burst_size);
 
 #endif /* __DMA_PUBLIC_H_INCLUDED__ */

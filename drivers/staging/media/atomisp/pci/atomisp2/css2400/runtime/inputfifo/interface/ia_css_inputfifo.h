@@ -38,32 +38,32 @@ more details.
 
 /* SP access */
 void ia_css_inputfifo_send_input_frame(
-	const unsigned short	*data,
-	unsigned int	width,
-	unsigned int	height,
-	unsigned int	ch_id,
-	enum atomisp_input_format	input_format,
-	bool			two_ppc);
+    const unsigned short	*data,
+    unsigned int	width,
+    unsigned int	height,
+    unsigned int	ch_id,
+    enum atomisp_input_format	input_format,
+    bool			two_ppc);
 
 void ia_css_inputfifo_start_frame(
-	unsigned int	ch_id,
-	enum atomisp_input_format	input_format,
-	bool			two_ppc);
+    unsigned int	ch_id,
+    enum atomisp_input_format	input_format,
+    bool			two_ppc);
 
 void ia_css_inputfifo_send_line(
-	unsigned int	ch_id,
-	const unsigned short	*data,
-	unsigned int	width,
-	const unsigned short	*data2,
-	unsigned int	width2);
+    unsigned int	ch_id,
+    const unsigned short	*data,
+    unsigned int	width,
+    const unsigned short	*data2,
+    unsigned int	width2);
 
 void ia_css_inputfifo_send_embedded_line(
-	unsigned int	ch_id,
-	enum atomisp_input_format	data_type,
-	const unsigned short	*data,
-	unsigned int	width);
+    unsigned int	ch_id,
+    enum atomisp_input_format	data_type,
+    const unsigned short	*data,
+    unsigned int	width);
 
 void ia_css_inputfifo_end_frame(
-	unsigned int	ch_id);
+    unsigned int	ch_id);
 
 #endif /* _IA_CSS_INPUTFIFO_H */

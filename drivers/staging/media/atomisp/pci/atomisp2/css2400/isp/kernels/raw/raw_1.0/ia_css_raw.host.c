@@ -36,11 +36,11 @@ sh_css_elems_bytes_from_info(unsigned int raw_bit_depth)
 
 /* MW: These areMIPI / ISYS properties, not camera function properties */
 static enum sh_stream_format
-css2isp_stream_format(enum atomisp_input_format from)
-{
-	switch (from) {
+css2isp_stream_format(enum atomisp_input_format from) {
+	switch (from)
+	{
 	case ATOMISP_INPUT_FORMAT_YUV420_8_LEGACY:
-		return sh_stream_format_yuv420_legacy;
+				return sh_stream_format_yuv420_legacy;
 	case ATOMISP_INPUT_FORMAT_YUV420_8:
 	case ATOMISP_INPUT_FORMAT_YUV420_10:
 	case ATOMISP_INPUT_FORMAT_YUV420_16:
@@ -71,9 +71,9 @@ css2isp_stream_format(enum atomisp_input_format from)
 
 void
 ia_css_raw_config(
-	struct sh_css_isp_raw_isp_config *to,
-	const struct ia_css_raw_configuration  *from,
-	unsigned int size)
+    struct sh_css_isp_raw_isp_config *to,
+    const struct ia_css_raw_configuration  *from,
+    unsigned int size)
 {
 	unsigned int elems_a = ISP_VEC_NELEMS;
 	const struct ia_css_frame_info *in_info = from->in_info;
@@ -95,7 +95,7 @@ ia_css_raw_config(
 
 	/* Assume divisiblity here, may need to generalize to fixed point. */
 	assert((in_info->format == IA_CSS_FRAME_FORMAT_RAW_PACKED) ||
-		   (elems_a % to->port_b.elems == 0));
+	       (elems_a % to->port_b.elems == 0));
 
 	to->width_a_over_b      = elems_a / to->port_b.elems;
 	to->inout_port_config   = from->pipe->inout_port_config;
@@ -113,12 +113,12 @@ ia_css_raw_config(
 
 void
 ia_css_raw_configure(
-	const struct sh_css_sp_pipeline *pipe,
-	const struct ia_css_binary      *binary,
-	const struct ia_css_frame_info  *in_info,
-	const struct ia_css_frame_info  *internal_info,
-	bool two_ppc,
-	bool deinterleaved)
+    const struct sh_css_sp_pipeline *pipe,
+    const struct ia_css_binary      *binary,
+    const struct ia_css_frame_info  *in_info,
+    const struct ia_css_frame_info  *internal_info,
+    bool two_ppc,
+    bool deinterleaved)
 {
 	u8 enable_left_padding = (uint8_t)((binary->left_padding) ? 1 : 0);
 	struct ia_css_raw_configuration config = default_config;

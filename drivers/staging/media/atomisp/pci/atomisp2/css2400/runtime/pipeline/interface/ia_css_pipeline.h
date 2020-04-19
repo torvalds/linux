@@ -117,10 +117,10 @@ void ia_css_pipeline_init(void);
  * externally and needs sane defaults
  */
 enum ia_css_err ia_css_pipeline_create(
-	struct ia_css_pipeline *pipeline,
-	enum ia_css_pipe_id pipe_id,
-	unsigned int pipe_num,
-	unsigned int dvs_frame_delay);
+    struct ia_css_pipeline *pipeline,
+    enum ia_css_pipe_id pipe_id,
+    unsigned int pipe_num,
+    unsigned int dvs_frame_delay);
 
 /* @brief destroy a pipeline
  *
@@ -176,9 +176,9 @@ void ia_css_pipeline_clean(struct ia_css_pipeline *pipeline);
  * arguments.
 */
 enum ia_css_err ia_css_pipeline_create_and_add_stage(
-			struct ia_css_pipeline *pipeline,
-			struct ia_css_pipeline_stage_desc *stage_desc,
-			struct ia_css_pipeline_stage **stage);
+    struct ia_css_pipeline *pipeline,
+    struct ia_css_pipeline_stage_desc *stage_desc,
+    struct ia_css_pipeline_stage **stage);
 
 /* @brief Finalize the stages in a pipeline
  *
@@ -188,7 +188,7 @@ enum ia_css_err ia_css_pipeline_create_and_add_stage(
  * This API is expected to be called after adding all stages
 */
 void ia_css_pipeline_finalize_stages(struct ia_css_pipeline *pipeline,
-			bool continuous);
+				     bool continuous);
 
 /* @brief gets a stage from the pipeline
  *
@@ -197,8 +197,8 @@ void ia_css_pipeline_finalize_stages(struct ia_css_pipeline *pipeline,
  *
  */
 enum ia_css_err ia_css_pipeline_get_stage(struct ia_css_pipeline *pipeline,
-			  int mode,
-			  struct ia_css_pipeline_stage **stage);
+	int mode,
+	struct ia_css_pipeline_stage **stage);
 
 /* @brief Gets a pipeline stage corresponding Firmware handle from the pipeline
  *
@@ -209,9 +209,10 @@ enum ia_css_err ia_css_pipeline_get_stage(struct ia_css_pipeline *pipeline,
  * @return   IA_CSS_SUCCESS or error code upon error.
  *
  */
-enum ia_css_err ia_css_pipeline_get_stage_from_fw(struct ia_css_pipeline *pipeline,
-			  u32 fw_handle,
-			  struct ia_css_pipeline_stage **stage);
+enum ia_css_err ia_css_pipeline_get_stage_from_fw(struct ia_css_pipeline
+	*pipeline,
+	u32 fw_handle,
+	struct ia_css_pipeline_stage **stage);
 
 /* @brief Gets the Firmware handle corresponding the stage num from the pipeline
  *
@@ -222,9 +223,10 @@ enum ia_css_err ia_css_pipeline_get_stage_from_fw(struct ia_css_pipeline *pipeli
  * @return   IA_CSS_SUCCESS or error code upon error.
  *
  */
-enum ia_css_err ia_css_pipeline_get_fw_from_stage(struct ia_css_pipeline *pipeline,
-			  u32 stage_num,
-			  uint32_t *fw_handle);
+enum ia_css_err ia_css_pipeline_get_fw_from_stage(struct ia_css_pipeline
+	*pipeline,
+	u32 stage_num,
+	uint32_t *fw_handle);
 
 /* @brief gets the output stage from the pipeline
  *
@@ -233,9 +235,9 @@ enum ia_css_err ia_css_pipeline_get_fw_from_stage(struct ia_css_pipeline *pipeli
  *
  */
 enum ia_css_err ia_css_pipeline_get_output_stage(
-			struct ia_css_pipeline *pipeline,
-			int mode,
-			struct ia_css_pipeline_stage **stage);
+    struct ia_css_pipeline *pipeline,
+    int mode,
+    struct ia_css_pipeline_stage **stage);
 
 /* @brief Checks whether the pipeline uses params
  *

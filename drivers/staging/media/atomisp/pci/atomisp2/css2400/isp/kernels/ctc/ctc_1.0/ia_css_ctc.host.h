@@ -24,13 +24,13 @@ extern const struct ia_css_ctc_config default_ctc_config;
 
 void
 ia_css_ctc_vamem_encode(
-	struct sh_css_isp_ctc_vamem_params *to,
-	const struct ia_css_ctc_table *from,
-	unsigned int size);
+    struct sh_css_isp_ctc_vamem_params *to,
+    const struct ia_css_ctc_table *from,
+    unsigned int size);
 
 void
 ia_css_ctc_debug_dtrace(
-	const struct ia_css_ctc_config *config, unsigned int level)
+    const struct ia_css_ctc_config *config, unsigned int level)
 ;
 
 #endif /* __IA_CSS_CTC_HOST_H */

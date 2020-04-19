@@ -122,7 +122,7 @@
 #define _DMA_V2_ZERO_EXTEND                             0
 #define _DMA_V2_SIGN_EXTEND                             1
 
-  /* SLAVE address map */
+/* SLAVE address map */
 #define _DMA_V2_SEL_FSM_CMD                             0
 #define _DMA_V2_SEL_CH_REG                              1
 #define _DMA_V2_SEL_CONN_GROUP                          2

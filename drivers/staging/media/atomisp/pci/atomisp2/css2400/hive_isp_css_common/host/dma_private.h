@@ -22,8 +22,8 @@
 #include "assert_support.h"
 
 STORAGE_CLASS_DMA_C void dma_reg_store(const dma_ID_t ID,
-			const unsigned int reg,
-			const hrt_data value)
+				       const unsigned int reg,
+				       const hrt_data value)
 {
 	assert(ID < N_DMA_ID);
 	assert(DMA_BASE[ID] != (hrt_address) - 1);
@@ -31,7 +31,7 @@ STORAGE_CLASS_DMA_C void dma_reg_store(const dma_ID_t ID,
 }
 
 STORAGE_CLASS_DMA_C hrt_data dma_reg_load(const dma_ID_t ID,
-					  const unsigned int reg)
+	const unsigned int reg)
 {
 	assert(ID < N_DMA_ID);
 	assert(DMA_BASE[ID] != (hrt_address) - 1);

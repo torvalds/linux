@@ -137,10 +137,10 @@ hrt_vaddress mmgr_alloc_attr(const size_t size, const uint16_t attribute);
  \return vaddress
  */
 hrt_vaddress mmgr_mmap(
-	const void __user *ptr,
-	const size_t size,
-	u16 attribute,
-	void *context);
+    const void __user *ptr,
+    const size_t size,
+    u16 attribute,
+    void *context);
 
 /*! Zero initialise an allocation in memory
 

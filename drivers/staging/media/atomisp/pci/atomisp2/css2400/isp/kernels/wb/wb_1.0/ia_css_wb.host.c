@@ -31,9 +31,9 @@ const struct ia_css_wb_config default_wb_config = {
 
 void
 ia_css_wb_encode(
-	struct sh_css_isp_wb_params *to,
-	const struct ia_css_wb_config *from,
-	unsigned int size)
+    struct sh_css_isp_wb_params *to,
+    const struct ia_css_wb_config *from,
+    unsigned int size)
 {
 	(void)size;
 	to->gain_shift =
@@ -55,32 +55,32 @@ ia_css_wb_encode(
 #ifndef IA_CSS_NO_DEBUG
 void
 ia_css_wb_dump(
-	const struct sh_css_isp_wb_params *wb,
-	unsigned int level)
+    const struct sh_css_isp_wb_params *wb,
+    unsigned int level)
 {
 	if (!wb) return;
 	ia_css_debug_dtrace(level, "White Balance:\n");
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"wb_gain_shift", wb->gain_shift);
+			    "wb_gain_shift", wb->gain_shift);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"wb_gain_gr", wb->gain_gr);
+			    "wb_gain_gr", wb->gain_gr);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"wb_gain_r", wb->gain_r);
+			    "wb_gain_r", wb->gain_r);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"wb_gain_b", wb->gain_b);
+			    "wb_gain_b", wb->gain_b);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			"wb_gain_gb", wb->gain_gb);
+			    "wb_gain_gb", wb->gain_gb);
 }
 
 void
 ia_css_wb_debug_dtrace(
-	const struct ia_css_wb_config *config,
-	unsigned int level)
+    const struct ia_css_wb_config *config,
+    unsigned int level)
 {
 	ia_css_debug_dtrace(level,
-		"config.integer_bits=%d, config.gr=%d, config.r=%d, config.b=%d, config.gb=%d\n",
-		config->integer_bits,
-		config->gr, config->r,
-		config->b, config->gb);
+			    "config.integer_bits=%d, config.gr=%d, config.r=%d, config.b=%d, config.gb=%d\n",
+			    config->integer_bits,
+			    config->gr, config->r,
+			    config->b, config->gb);
 }
 #endif

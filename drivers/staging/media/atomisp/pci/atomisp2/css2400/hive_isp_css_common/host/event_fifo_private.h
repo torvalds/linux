@@ -32,7 +32,7 @@ STORAGE_CLASS_EVENT_C void event_wait_for(const event_ID_t ID)
 }
 
 STORAGE_CLASS_EVENT_C void cnd_event_wait_for(const event_ID_t ID,
-						const bool cnd)
+	const bool cnd)
 {
 	if (cnd) {
 		event_wait_for(ID);
@@ -47,7 +47,7 @@ STORAGE_CLASS_EVENT_C hrt_data event_receive_token(const event_ID_t ID)
 }
 
 STORAGE_CLASS_EVENT_C void event_send_token(const event_ID_t ID,
-					    const hrt_data token)
+	const hrt_data token)
 {
 	assert(ID < N_EVENT_ID);
 	assert(event_sink_addr[ID] != ((hrt_address) - 1));

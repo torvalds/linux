@@ -20,9 +20,9 @@
 
 void
 ia_css_anr2_vmem_encode(
-	struct ia_css_isp_anr2_params *to,
-	const struct ia_css_anr_thres *from,
-	size_t size)
+    struct ia_css_isp_anr2_params *to,
+    const struct ia_css_anr_thres *from,
+    size_t size)
 {
 	unsigned int i;
 
@@ -38,8 +38,8 @@ ia_css_anr2_vmem_encode(
 
 void
 ia_css_anr2_debug_dtrace(
-	const struct ia_css_anr_thres *config,
-	unsigned int level)
+    const struct ia_css_anr_thres *config,
+    unsigned int level)
 {
 	(void)config;
 	(void)level;

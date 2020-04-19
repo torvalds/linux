@@ -189,7 +189,8 @@ struct ia_css_dvs_stat_grid_info {
 	/** DVS statistics global configuration (kappa, match, binning) */
 	struct dvs_stat_public_dvs_grd_cfg       grd_cfg[IA_CSS_DVS_STAT_NUM_OF_LEVELS];
 	/** DVS statistics grid configuration (blocks and grids) */
-	struct dvs_stat_public_dvs_level_fe_roi_cfg fe_roi_cfg[IA_CSS_DVS_STAT_NUM_OF_LEVELS];
+	struct dvs_stat_public_dvs_level_fe_roi_cfg
+		fe_roi_cfg[IA_CSS_DVS_STAT_NUM_OF_LEVELS];
 	/** DVS statistics FE ROI (region of interest) configuration */
 };
 

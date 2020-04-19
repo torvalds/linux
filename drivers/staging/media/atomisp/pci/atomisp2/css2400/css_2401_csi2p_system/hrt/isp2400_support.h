@@ -31,8 +31,8 @@ typedef char *tmemvectors, *tmemvectoru, *tvector;
 #define hrt_isp_vmem_master_port_address(cell) hrt_mem_master_port_address(cell, hrt_isp_vmem(cell))
 
 #if ISP_HAS_HIST
-  #define hrt_isp_hist(cell) HRT_PROC_TYPE_PROP(cell, _simd_histogram)
-  #define hrt_isp_hist_master_port_address(cell) hrt_mem_master_port_address(cell, hrt_isp_hist(cell))
+#define hrt_isp_hist(cell) HRT_PROC_TYPE_PROP(cell, _simd_histogram)
+#define hrt_isp_hist_master_port_address(cell) hrt_mem_master_port_address(cell, hrt_isp_hist(cell))
 #endif
 
 #endif /* _isp2400_support_h */

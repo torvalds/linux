@@ -29,7 +29,7 @@
  *
  */
 enum ia_css_err ia_css_convert_errno(
-	int in_err);
+    int in_err);
 
 /* @brief check vf frame info.
  *
@@ -38,7 +38,7 @@ enum ia_css_err ia_css_convert_errno(
  *
  */
 enum ia_css_err ia_css_util_check_vf_info(
-	const struct ia_css_frame_info * const info);
+    const struct ia_css_frame_info *const info);
 
 /* @brief check input configuration.
  *
@@ -48,9 +48,9 @@ enum ia_css_err ia_css_util_check_vf_info(
  *
  */
 enum ia_css_err ia_css_util_check_input(
-	const struct ia_css_stream_config * const stream_config,
-	bool must_be_raw,
-	bool must_be_yuv);
+    const struct ia_css_stream_config *const stream_config,
+    bool must_be_raw,
+    bool must_be_yuv);
 
 /* @brief check vf and out frame info.
  *
@@ -60,8 +60,8 @@ enum ia_css_err ia_css_util_check_input(
  *
  */
 enum ia_css_err ia_css_util_check_vf_out_info(
-	const struct ia_css_frame_info * const out_info,
-	const struct ia_css_frame_info * const vf_info);
+    const struct ia_css_frame_info *const out_info,
+    const struct ia_css_frame_info *const vf_info);
 
 /* @brief check width and height
  *
@@ -71,8 +71,8 @@ enum ia_css_err ia_css_util_check_vf_out_info(
  *
  */
 enum ia_css_err ia_css_util_check_res(
-	unsigned int width,
-	unsigned int height);
+    unsigned int width,
+    unsigned int height);
 
 #ifdef ISP2401
 /* @brief compare resolutions (less or equal)
@@ -84,8 +84,8 @@ enum ia_css_err ia_css_util_check_res(
  *
  */
 bool ia_css_util_res_leq(
-	struct ia_css_resolution a,
-	struct ia_css_resolution b);
+    struct ia_css_resolution a,
+    struct ia_css_resolution b);
 
 /**
  * @brief Check if resolution is zero
@@ -95,7 +95,7 @@ bool ia_css_util_res_leq(
  * @returns true if resolution is zero
  */
 bool ia_css_util_resolution_is_zero(
-		const struct ia_css_resolution resolution);
+    const struct ia_css_resolution resolution);
 
 /**
  * @brief Check if resolution is even
@@ -105,7 +105,7 @@ bool ia_css_util_resolution_is_zero(
  * @returns true if resolution is even
  */
 bool ia_css_util_resolution_is_even(
-		const struct ia_css_resolution resolution);
+    const struct ia_css_resolution resolution);
 
 #endif
 /* @brief check width and height
@@ -116,8 +116,8 @@ bool ia_css_util_resolution_is_even(
  *
  */
 unsigned int ia_css_util_input_format_bpp(
-	enum atomisp_input_format stream_format,
-	bool two_ppc);
+    enum atomisp_input_format stream_format,
+    bool two_ppc);
 
 /* @brief check if input format it raw
  *
@@ -126,7 +126,7 @@ unsigned int ia_css_util_input_format_bpp(
  *
  */
 bool ia_css_util_is_input_format_raw(
-	enum atomisp_input_format stream_format);
+    enum atomisp_input_format stream_format);
 
 /* @brief check if input format it yuv
  *
@@ -135,6 +135,6 @@ bool ia_css_util_is_input_format_raw(
  *
  */
 bool ia_css_util_is_input_format_yuv(
-	enum atomisp_input_format stream_format);
+    enum atomisp_input_format stream_format);
 
 #endif /* __IA_CSS_UTIL_H__ */

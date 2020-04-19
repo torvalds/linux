@@ -37,19 +37,23 @@
 #define XNR3_LOOK_UP_TABLE_POINTS 16
 
 static const s16 x[XNR3_LOOK_UP_TABLE_POINTS] = {
-1024, 1164, 1320, 1492, 1680, 1884, 2108, 2352,
-2616, 2900, 3208, 3540, 3896, 4276, 4684, 5120};
+	1024, 1164, 1320, 1492, 1680, 1884, 2108, 2352,
+	2616, 2900, 3208, 3540, 3896, 4276, 4684, 5120
+};
 
 static const s16 a[XNR3_LOOK_UP_TABLE_POINTS] = {
--7213, -5580, -4371, -3421, -2722, -2159, -6950, -5585,
--4529, -3697, -3010, -2485, -2070, -1727, -1428, 0};
+	-7213, -5580, -4371, -3421, -2722, -2159, -6950, -5585,
+	    -4529, -3697, -3010, -2485, -2070, -1727, -1428, 0
+    };
 
 static const s16 b[XNR3_LOOK_UP_TABLE_POINTS] = {
-4096, 3603, 3178, 2811, 2497, 2226, 1990, 1783,
-1603, 1446, 1307, 1185, 1077, 981, 895, 819};
+	4096, 3603, 3178, 2811, 2497, 2226, 1990, 1783,
+	1603, 1446, 1307, 1185, 1077, 981, 895, 819
+};
 
 static const s16 c[XNR3_LOOK_UP_TABLE_POINTS] = {
-1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+	1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+};
 
 /*
 #endif
@@ -146,9 +150,9 @@ compute_blending(int strength)
 
 void
 ia_css_xnr3_encode(
-	struct sh_css_isp_xnr3_params *to,
-	const struct ia_css_xnr3_config *from,
-	unsigned int size)
+    struct sh_css_isp_xnr3_params *to,
+    const struct ia_css_xnr3_config *from,
+    unsigned int size)
 {
 	int kernel_size = XNR_FILTER_SIZE;
 	/* The adjust factor is the next power of 2
@@ -203,9 +207,9 @@ ia_css_xnr3_encode(
 */
 void
 ia_css_xnr3_vmem_encode(
-	struct sh_css_isp_xnr3_vmem_params *to,
-	const struct ia_css_xnr3_config *from,
-	unsigned int size)
+    struct sh_css_isp_xnr3_vmem_params *to,
+    const struct ia_css_xnr3_config *from,
+    unsigned int size)
 {
 	unsigned int i, j, base;
 	const unsigned int total_blocks = 4;
@@ -256,8 +260,8 @@ ia_css_xnr3_vmem_encode(
 /* Dummy Function added as the tool expects it*/
 void
 ia_css_xnr3_debug_dtrace(
-	const struct ia_css_xnr3_config *config,
-	unsigned int level)
+    const struct ia_css_xnr3_config *config,
+    unsigned int level)
 {
 	(void)config;
 	(void)level;

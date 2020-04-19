@@ -65,7 +65,7 @@ enum ia_css_sc_color {
 struct ia_css_shading_table {
 	u32 enable; /** Set to false for no shading correction.
 			  The data field can be NULL when enable == true */
-/* ------ deprecated(bz675) : from ------ */
+	/* ------ deprecated(bz675) : from ------ */
 	u32 sensor_width;  /** Native sensor width in pixels. */
 	u32 sensor_height; /** Native sensor height in lines.
 		When shading_settings.enable_shading_table_conversion is set
@@ -73,7 +73,7 @@ struct ia_css_shading_table {
 		These are used only in the legacy shading table conversion
 		in the css, when shading_settings.
 		enable_shading_table_conversion is set as 1. */
-/* ------ deprecated(bz675) : to ------ */
+	/* ------ deprecated(bz675) : to ------ */
 	u32 width;  /** Number of data points per line per color.
 				u8.0, [0,81] */
 	u32 height; /** Number of lines of data points per color.
@@ -126,10 +126,10 @@ struct ia_css_shading_settings {
 struct ia_css_sc_configuration {
 	u32 internal_frame_origin_x_bqs_on_sctbl; /** Origin X (in bqs) of internal frame on shading table. */
 	u32 internal_frame_origin_y_bqs_on_sctbl; /** Origin Y (in bqs) of internal frame on shading table. */
-						/** NOTE: bqs = size in BQ(Bayer Quad) unit.
-							1BQ means {Gr,R,B,Gb}(2x2 pixels).
-							Horizontal 1 bqs corresponds to horizontal 2 pixels.
-							Vertical 1 bqs corresponds to vertical 2 pixels. */
+	/** NOTE: bqs = size in BQ(Bayer Quad) unit.
+		1BQ means {Gr,R,B,Gb}(2x2 pixels).
+		Horizontal 1 bqs corresponds to horizontal 2 pixels.
+		Vertical 1 bqs corresponds to vertical 2 pixels. */
 };
 #endif
 

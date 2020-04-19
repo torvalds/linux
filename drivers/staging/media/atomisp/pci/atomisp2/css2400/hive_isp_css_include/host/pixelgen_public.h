@@ -29,8 +29,8 @@
  * @param[out]	state	Point to the register-state.
  */
 STORAGE_CLASS_PIXELGEN_H void pixelgen_ctrl_get_state(
-		const pixelgen_ID_t ID,
-		pixelgen_ctrl_state_t *state);
+    const pixelgen_ID_t ID,
+    pixelgen_ctrl_state_t *state);
 /**
  * @brief Dump the pixelgen state.
  * Dump the state of the pixelgen regiester-set.
@@ -39,8 +39,8 @@ STORAGE_CLASS_PIXELGEN_H void pixelgen_ctrl_get_state(
  * @param[in]	state	Point to the register-state.
  */
 STORAGE_CLASS_PIXELGEN_H void pixelgen_ctrl_dump_state(
-		const pixelgen_ID_t ID,
-		pixelgen_ctrl_state_t *state);
+    const pixelgen_ID_t ID,
+    pixelgen_ctrl_state_t *state);
 /* end of NCI */
 
 /*****************************************************
@@ -58,8 +58,8 @@ STORAGE_CLASS_PIXELGEN_H void pixelgen_ctrl_dump_state(
  * @return the value of the register.
  */
 STORAGE_CLASS_PIXELGEN_H hrt_data pixelgen_ctrl_reg_load(
-	const pixelgen_ID_t ID,
-	const hrt_address reg);
+    const pixelgen_ID_t ID,
+    const hrt_address reg);
 /**
  * @brief Store a value to the register.
  * Store a value to the registe of the pixelgen
@@ -70,9 +70,9 @@ STORAGE_CLASS_PIXELGEN_H hrt_data pixelgen_ctrl_reg_load(
  *
  */
 STORAGE_CLASS_PIXELGEN_H void pixelgen_ctrl_reg_store(
-	const pixelgen_ID_t ID,
-	const hrt_address reg,
-	const hrt_data value);
+    const pixelgen_ID_t ID,
+    const hrt_address reg,
+    const hrt_data value);
 /* end of DLI */
 
 #endif /* USE_INPUT_SYSTEM_VERSION_2401 */

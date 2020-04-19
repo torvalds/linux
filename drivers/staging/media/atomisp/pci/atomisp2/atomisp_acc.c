@@ -76,8 +76,8 @@ acc_get_fw(struct atomisp_sub_device *asd, unsigned int handle)
 	struct atomisp_acc_fw *acc_fw;
 
 	list_for_each_entry(acc_fw, &asd->acc.fw, list)
-		if (acc_fw->handle == handle)
-			return acc_fw;
+	if (acc_fw->handle == handle)
+		return acc_fw;
 
 	return NULL;
 }
@@ -141,9 +141,9 @@ int atomisp_acc_load_to_pipe(struct atomisp_sub_device *asd,
 			     struct atomisp_acc_fw_load_to_pipe *user_fw)
 {
 	static const unsigned int pipeline_flags =
-		ATOMISP_ACC_FW_LOAD_FL_PREVIEW | ATOMISP_ACC_FW_LOAD_FL_COPY |
-		ATOMISP_ACC_FW_LOAD_FL_VIDEO |
-		ATOMISP_ACC_FW_LOAD_FL_CAPTURE | ATOMISP_ACC_FW_LOAD_FL_ACC;
+	    ATOMISP_ACC_FW_LOAD_FL_PREVIEW | ATOMISP_ACC_FW_LOAD_FL_COPY |
+	    ATOMISP_ACC_FW_LOAD_FL_VIDEO |
+	    ATOMISP_ACC_FW_LOAD_FL_CAPTURE | ATOMISP_ACC_FW_LOAD_FL_ACC;
 
 	struct atomisp_acc_fw *acc_fw;
 	int handle;
@@ -194,11 +194,11 @@ int atomisp_acc_load_to_pipe(struct atomisp_sub_device *asd,
 	if (acc_fw->fw->type == ia_css_isp_firmware) {
 		static const int type_to_css[] = {
 			[ATOMISP_ACC_FW_LOAD_TYPE_OUTPUT] =
-				IA_CSS_ACC_OUTPUT,
+			IA_CSS_ACC_OUTPUT,
 			[ATOMISP_ACC_FW_LOAD_TYPE_VIEWFINDER] =
-				IA_CSS_ACC_VIEWFINDER,
+			IA_CSS_ACC_VIEWFINDER,
 			[ATOMISP_ACC_FW_LOAD_TYPE_STANDALONE] =
-				IA_CSS_ACC_STANDALONE,
+			IA_CSS_ACC_STANDALONE,
 		};
 		acc_fw->fw->info.isp.type = type_to_css[acc_fw->type];
 	}
@@ -383,7 +383,8 @@ int atomisp_acc_map(struct atomisp_sub_device *asd, struct atomisp_acc_map *map)
 	return 0;
 }
 
-int atomisp_acc_unmap(struct atomisp_sub_device *asd, struct atomisp_acc_map *map)
+int atomisp_acc_unmap(struct atomisp_sub_device *asd,
+		      struct atomisp_acc_map *map)
 {
 	struct atomisp_map *atomisp_map;
 
@@ -465,9 +466,9 @@ int atomisp_acc_load_extensions(struct atomisp_sub_device *asd)
 
 			if (acc_fw->flags & acc_flag_to_pipe[i].flag) {
 				ret = atomisp_css_load_acc_extension(asd,
-					acc_fw->fw,
-					acc_flag_to_pipe[i].pipe_id,
-					acc_fw->type);
+								     acc_fw->fw,
+								     acc_flag_to_pipe[i].pipe_id,
+								     acc_fw->type);
 				if (ret)
 					goto error;
 
@@ -496,7 +497,7 @@ error:
 	while (--i >= 0) {
 		if (acc_fw->flags & acc_flag_to_pipe[i].flag) {
 			atomisp_css_unload_acc_extension(asd, acc_fw->fw,
-					acc_flag_to_pipe[i].pipe_id);
+							 acc_flag_to_pipe[i].pipe_id);
 		}
 	}
 
@@ -512,8 +513,8 @@ error:
 				continue;
 			if (acc_fw->flags & acc_flag_to_pipe[i].flag) {
 				atomisp_css_unload_acc_extension(asd,
-					acc_fw->fw,
-					acc_flag_to_pipe[i].pipe_id);
+								 acc_fw->fw,
+								 acc_flag_to_pipe[i].pipe_id);
 			}
 		}
 	}
@@ -536,8 +537,8 @@ void atomisp_acc_unload_extensions(struct atomisp_sub_device *asd)
 		for (i = ARRAY_SIZE(acc_flag_to_pipe) - 1; i >= 0; i--) {
 			if (acc_fw->flags & acc_flag_to_pipe[i].flag) {
 				atomisp_css_unload_acc_extension(asd,
-					acc_fw->fw,
-					acc_flag_to_pipe[i].pipe_id);
+								 acc_fw->fw,
+								 acc_flag_to_pipe[i].pipe_id);
 			}
 		}
 	}
@@ -570,7 +571,7 @@ int atomisp_acc_set_state(struct atomisp_sub_device *asd,
 	for (i = 0; i < ARRAY_SIZE(acc_flag_to_pipe); i++) {
 		if (acc_fw->flags & acc_flag_to_pipe[i].flag) {
 			pipe = asd->stream_env[ATOMISP_INPUT_STREAM_GENERAL].
-				pipes[acc_flag_to_pipe[i].pipe_id];
+			       pipes[acc_flag_to_pipe[i].pipe_id];
 			r = ia_css_pipe_set_qos_ext_state(pipe, acc_fw->handle,
 							  enable);
 			if (r != IA_CSS_SUCCESS)

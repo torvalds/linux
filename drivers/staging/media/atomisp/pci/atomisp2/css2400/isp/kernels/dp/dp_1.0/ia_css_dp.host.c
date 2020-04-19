@@ -44,9 +44,9 @@ const struct ia_css_dp_config default_dp_config = {
 
 void
 ia_css_dp_encode(
-	struct sh_css_isp_dp_params *to,
-	const struct ia_css_dp_config *from,
-	unsigned int size)
+    struct sh_css_isp_dp_params *to,
+    const struct ia_css_dp_config *from,
+    unsigned int size)
 {
 	int gain = from->gain;
 	int gr   = from->gr;
@@ -82,51 +82,51 @@ ia_css_dp_encode(
 
 void
 ia_css_dp_dump(
-	const struct sh_css_isp_dp_params *dp,
-	unsigned int level)
+    const struct sh_css_isp_dp_params *dp,
+    unsigned int level)
 {
 	if (!dp) return;
 	ia_css_debug_dtrace(level, "Defect Pixel Correction:\n");
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-		"dp_threshold_single_w_2adj_on",
-		dp->threshold_single);
+			    "dp_threshold_single_w_2adj_on",
+			    dp->threshold_single);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-		"dp_threshold_2adj_w_2adj_on",
-		dp->threshold_2adjacent);
+			    "dp_threshold_2adj_w_2adj_on",
+			    dp->threshold_2adjacent);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-		"dp_gain", dp->gain);
+			    "dp_gain", dp->gain);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-		"dpc_coef_rr_gr", dp->coef_rr_gr);
+			    "dpc_coef_rr_gr", dp->coef_rr_gr);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-		"dpc_coef_rr_gb", dp->coef_rr_gb);
+			    "dpc_coef_rr_gb", dp->coef_rr_gb);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-		"dpc_coef_bb_gb", dp->coef_bb_gb);
+			    "dpc_coef_bb_gb", dp->coef_bb_gb);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-		"dpc_coef_bb_gr", dp->coef_bb_gr);
+			    "dpc_coef_bb_gr", dp->coef_bb_gr);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-		"dpc_coef_gr_rr", dp->coef_gr_rr);
+			    "dpc_coef_gr_rr", dp->coef_gr_rr);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-		"dpc_coef_gr_bb", dp->coef_gr_bb);
+			    "dpc_coef_gr_bb", dp->coef_gr_bb);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-		"dpc_coef_gb_bb", dp->coef_gb_bb);
+			    "dpc_coef_gb_bb", dp->coef_gb_bb);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-		"dpc_coef_gb_rr", dp->coef_gb_rr);
+			    "dpc_coef_gb_rr", dp->coef_gb_rr);
 }
 
 void
 ia_css_dp_debug_dtrace(
-	const struct ia_css_dp_config *config,
-	unsigned int level)
+    const struct ia_css_dp_config *config,
+    unsigned int level)
 {
 	ia_css_debug_dtrace(level,
-		"config.threshold=%d, config.gain=%d\n",
-		config->threshold, config->gain);
+			    "config.threshold=%d, config.gain=%d\n",
+			    config->threshold, config->gain);
 }
 
 void
 ia_css_init_dp_state(
-	void/*struct sh_css_isp_dp_vmem_state*/ * state,
-	size_t size)
+    void/*struct sh_css_isp_dp_vmem_state*/ * state,
+    size_t size)
 {
 	memset(state, 0, size);
 }

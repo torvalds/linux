@@ -43,7 +43,7 @@ send_mipi_frames(struct ia_css_pipe *pipe);
  */
 enum ia_css_err
 calculate_mipi_buff_size(
-		struct ia_css_stream_config *stream_cfg,
-		unsigned int *size_mem_words);
+    struct ia_css_stream_config *stream_cfg,
+    unsigned int *size_mem_words);
 
 #endif /* __SH_CSS_MIPI_H */

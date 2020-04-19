@@ -24,18 +24,18 @@
 
 void
 ia_css_ref_config(
-	struct sh_css_isp_ref_isp_config      *to,
-	const struct ia_css_ref_configuration *from,
-	unsigned int size);
+    struct sh_css_isp_ref_isp_config      *to,
+    const struct ia_css_ref_configuration *from,
+    unsigned int size);
 
 void
 ia_css_ref_configure(
-	const struct ia_css_binary     *binary,
-	const struct ia_css_frame **ref_frames,
-	const uint32_t dvs_frame_delay);
+    const struct ia_css_binary     *binary,
+    const struct ia_css_frame **ref_frames,
+    const uint32_t dvs_frame_delay);
 
 void
 ia_css_init_ref_state(
-	struct sh_css_isp_ref_dmem_state *state,
-	unsigned int size);
+    struct sh_css_isp_ref_dmem_state *state,
+    unsigned int size);
 #endif /* __IA_CSS_REF_HOST_H */

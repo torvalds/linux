@@ -38,7 +38,7 @@ struct ia_css_refcount_list {
 static struct ia_css_refcount_list myrefcount;
 
 static struct ia_css_refcount_entry *refcount_find_entry(hrt_vaddress ptr,
-							 bool firstfree)
+	bool firstfree)
 {
 	u32 i;
 
@@ -143,7 +143,7 @@ hrt_vaddress ia_css_refcount_increment(s32 id, hrt_vaddress ptr)
 
 	if (entry->id != id) {
 		ia_css_debug_dtrace(IA_CSS_DEBUG_ERROR,
-			    "ia_css_refcount_increment(): Ref count IDS do not match!\n");
+				    "ia_css_refcount_increment(): Ref count IDS do not match!\n");
 		return mmgr_NULL;
 	}
 
@@ -193,7 +193,7 @@ bool ia_css_refcount_decrement(s32 id, hrt_vaddress ptr)
 	   valid anymore */
 	if (entry)
 		IA_CSS_ERROR("id %x, ptr 0x%x entry %p entry->id %x entry->count %d\n",
-			id, ptr, entry, entry->id, entry->count);
+			     id, ptr, entry, entry->id, entry->count);
 	else
 		IA_CSS_ERROR("entry NULL\n");
 #ifdef ISP2401

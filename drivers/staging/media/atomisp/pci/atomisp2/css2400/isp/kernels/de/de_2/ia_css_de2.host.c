@@ -26,9 +26,9 @@ const struct ia_css_ecd_config default_ecd_config = {
 
 void
 ia_css_ecd_encode(
-	struct sh_css_isp_ecd_params *to,
-	const struct ia_css_ecd_config *from,
-	unsigned int size)
+    struct sh_css_isp_ecd_params *to,
+    const struct ia_css_ecd_config *from,
+    unsigned int size)
 {
 	(void)size;
 	to->zip_strength = from->zip_strength;
@@ -38,16 +38,16 @@ ia_css_ecd_encode(
 
 void
 ia_css_ecd_dump(
-	const struct sh_css_isp_ecd_params *ecd,
-	unsigned int level);
+    const struct sh_css_isp_ecd_params *ecd,
+    unsigned int level);
 
 void
 ia_css_ecd_debug_dtrace(
-	const struct ia_css_ecd_config *config,
-	unsigned int level)
+    const struct ia_css_ecd_config *config,
+    unsigned int level)
 {
 	ia_css_debug_dtrace(level,
-		"config.zip_strength=%d, config.fc_strength=%d, config.fc_debias=%d\n",
-		config->zip_strength,
-		config->fc_strength, config->fc_debias);
+			    "config.zip_strength=%d, config.fc_strength=%d, config.fc_debias=%d\n",
+			    config->zip_strength,
+			    config->fc_strength, config->fc_debias);
 }

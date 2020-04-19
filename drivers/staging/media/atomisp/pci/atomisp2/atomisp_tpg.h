@@ -33,6 +33,6 @@ void atomisp_tpg_cleanup(struct atomisp_device *isp);
 int atomisp_tpg_init(struct atomisp_device *isp);
 void atomisp_tpg_unregister_entities(struct atomisp_tpg_device *tpg);
 int atomisp_tpg_register_entities(struct atomisp_tpg_device *tpg,
-			struct v4l2_device *vdev);
+				  struct v4l2_device *vdev);
 
 #endif /* __ATOMISP_TPG_H__ */

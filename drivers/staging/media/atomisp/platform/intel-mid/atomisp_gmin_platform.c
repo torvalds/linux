@@ -50,7 +50,8 @@ struct gmin_subdev {
 static struct gmin_subdev gmin_subdevs[MAX_SUBDEVS];
 
 static enum { PMIC_UNSET = 0, PMIC_REGULATOR, PMIC_AXP, PMIC_TI,
-	PMIC_CRYSTALCOVE } pmic_id;
+	      PMIC_CRYSTALCOVE
+	    } pmic_id;
 
 /* The atomisp uses type==0 for the end-of-list marker, so leave space. */
 static struct intel_v4l2_subdev_table pdata_subdevs[MAX_SUBDEVS + 1];
@@ -158,7 +159,7 @@ int atomisp_register_i2c_module(struct v4l2_subdev *subdev,
 EXPORT_SYMBOL_GPL(atomisp_register_i2c_module);
 
 struct v4l2_subdev *atomisp_gmin_find_subdev(struct i2c_adapter *adapter,
-					     struct i2c_board_info *board_info)
+	struct i2c_board_info *board_info)
 {
 	int i;
 
@@ -337,14 +338,14 @@ static struct gmin_subdev *gmin_subdev_add(struct v4l2_subdev *subdev)
 		return NULL;
 
 	dev_info(dev,
-		"gmin: initializing atomisp module subdev data.PMIC ID %d\n",
-		pmic_id);
+		 "gmin: initializing atomisp module subdev data.PMIC ID %d\n",
+		 pmic_id);
 
 	gmin_subdevs[i].subdev = subdev;
 	gmin_subdevs[i].clock_num = gmin_get_var_int(dev, "CamClk", 0);
 	/*WA:CHT requires XTAL clock as PLL is not stable.*/
 	gmin_subdevs[i].clock_src = gmin_get_var_int(dev, "ClkSrc",
-							VLV2_CLK_PLL_19P2MHZ);
+				    VLV2_CLK_PLL_19P2MHZ);
 	gmin_subdevs[i].csi_port = gmin_get_var_int(dev, "CsiPort", 0);
 	gmin_subdevs[i].csi_lanes = gmin_get_var_int(dev, "CsiLanes", 1);
 
@@ -569,7 +570,7 @@ static int gmin_csi_cfg(struct v4l2_subdev *sd, int flag)
 }
 
 static struct camera_vcm_control *gmin_get_vcm_ctrl(struct v4l2_subdev *subdev,
-						char *camera_module)
+	char *camera_module)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(subdev);
 	struct gmin_subdev *gs = find_gmin_subdev(subdev);
@@ -605,9 +606,9 @@ static struct camera_sensor_platform_data gmin_plat = {
 };
 
 struct camera_sensor_platform_data *gmin_camera_platform_data(
-		struct v4l2_subdev *subdev,
-		enum atomisp_input_format csi_format,
-		enum atomisp_bayer_order csi_bayer)
+    struct v4l2_subdev *subdev,
+    enum atomisp_input_format csi_format,
+    enum atomisp_bayer_order csi_bayer)
 {
 	struct gmin_subdev *gs = find_gmin_subdev(subdev);
 

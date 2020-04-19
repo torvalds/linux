@@ -22,9 +22,9 @@
 #include "assert_support.h"
 
 STORAGE_CLASS_IRQ_C void irq_reg_store(
-	const irq_ID_t		ID,
-	const unsigned int	reg,
-	const hrt_data		value)
+    const irq_ID_t		ID,
+    const unsigned int	reg,
+    const hrt_data		value)
 {
 	assert(ID < N_IRQ_ID);
 	assert(IRQ_BASE[ID] != (hrt_address) - 1);
@@ -33,8 +33,8 @@ STORAGE_CLASS_IRQ_C void irq_reg_store(
 }
 
 STORAGE_CLASS_IRQ_C hrt_data irq_reg_load(
-	const irq_ID_t		ID,
-	const unsigned int	reg)
+    const irq_ID_t		ID,
+    const unsigned int	reg)
 {
 	assert(ID < N_IRQ_ID);
 	assert(IRQ_BASE[ID] != (hrt_address) - 1);

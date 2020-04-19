@@ -20,12 +20,12 @@
 
 void
 sh_css_params_shading_id_table_generate(
-	struct ia_css_shading_table **target_table,
+    struct ia_css_shading_table **target_table,
 #ifndef ISP2401
-	const struct ia_css_binary *binary);
+    const struct ia_css_binary *binary);
 #else
-	unsigned int table_width,
-	unsigned int table_height);
+    unsigned int table_width,
+    unsigned int table_height);
 #endif
 
 void

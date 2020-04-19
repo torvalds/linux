@@ -46,10 +46,10 @@
  * the fw pointer could be freed after this function completes.
  */
 enum ia_css_err ia_css_init(
-	const struct ia_css_env *env,
-	const struct ia_css_fw  *fw,
-	u32                 l1_base,
-	enum ia_css_irq_type     irq_type);
+    const struct ia_css_env *env,
+    const struct ia_css_fw  *fw,
+    u32                 l1_base,
+    enum ia_css_irq_type     irq_type);
 
 /* @brief Un-initialize the CSS API.
  * @return	None

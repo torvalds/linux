@@ -68,7 +68,7 @@ extern struct ia_css_rmgr_vbuf_pool *hmm_buffer_pool;
  * @param pool	The pointer to the pool
  */
 STORAGE_CLASS_RMGR_H enum ia_css_err ia_css_rmgr_init_vbuf(
-	struct ia_css_rmgr_vbuf_pool *pool);
+    struct ia_css_rmgr_vbuf_pool *pool);
 
 /**
  * @brief Uninitialize the resource pool (host, vbuf)
@@ -76,7 +76,7 @@ STORAGE_CLASS_RMGR_H enum ia_css_err ia_css_rmgr_init_vbuf(
  * @param pool	The pointer to the pool
  */
 STORAGE_CLASS_RMGR_H void ia_css_rmgr_uninit_vbuf(
-	struct ia_css_rmgr_vbuf_pool *pool);
+    struct ia_css_rmgr_vbuf_pool *pool);
 
 /**
  * @brief Acquire a handle from the pool (host, vbuf)
@@ -85,8 +85,8 @@ STORAGE_CLASS_RMGR_H void ia_css_rmgr_uninit_vbuf(
  * @param handle	The pointer to the handle
  */
 STORAGE_CLASS_RMGR_H void ia_css_rmgr_acq_vbuf(
-	struct ia_css_rmgr_vbuf_pool *pool,
-	struct ia_css_rmgr_vbuf_handle **handle);
+    struct ia_css_rmgr_vbuf_pool *pool,
+    struct ia_css_rmgr_vbuf_handle **handle);
 
 /**
  * @brief Release a handle to the pool (host, vbuf)
@@ -95,8 +95,8 @@ STORAGE_CLASS_RMGR_H void ia_css_rmgr_acq_vbuf(
  * @param handle	The pointer to the handle
  */
 STORAGE_CLASS_RMGR_H void ia_css_rmgr_rel_vbuf(
-	struct ia_css_rmgr_vbuf_pool *pool,
-	struct ia_css_rmgr_vbuf_handle **handle);
+    struct ia_css_rmgr_vbuf_pool *pool,
+    struct ia_css_rmgr_vbuf_handle **handle);
 
 /**
  * @brief Retain the reference count for a handle (host, vbuf)

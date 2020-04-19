@@ -20,7 +20,7 @@
 #include "assert_support.h"
 
 STORAGE_CLASS_HMEM_C size_t sizeof_hmem(
-	const hmem_ID_t		ID)
+    const hmem_ID_t		ID)
 {
 	assert(ID < N_HMEM_ID);
 	(void)ID;

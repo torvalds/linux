@@ -23,42 +23,42 @@ extern const struct ia_css_ce_config default_ce_config;
 
 void
 ia_css_gc_encode(
-	struct sh_css_isp_gc_params *to,
-	const struct ia_css_gc_config *from,
-	unsigned int size);
+    struct sh_css_isp_gc_params *to,
+    const struct ia_css_gc_config *from,
+    unsigned int size);
 
 void
 ia_css_gc_vamem_encode(
-	struct sh_css_isp_gc_vamem_params *to,
-	const struct ia_css_gamma_table *from,
-	unsigned int size);
+    struct sh_css_isp_gc_vamem_params *to,
+    const struct ia_css_gamma_table *from,
+    unsigned int size);
 
 void
 ia_css_ce_encode(
-	struct sh_css_isp_ce_params *to,
-	const struct ia_css_ce_config *from,
-	unsigned int size);
+    struct sh_css_isp_ce_params *to,
+    const struct ia_css_ce_config *from,
+    unsigned int size);
 
 #ifndef IA_CSS_NO_DEBUG
 void
 ia_css_gc_dump(
-	const struct sh_css_isp_gc_params *gc,
-	unsigned int level);
+    const struct sh_css_isp_gc_params *gc,
+    unsigned int level);
 
 void
 ia_css_ce_dump(
-	const struct sh_css_isp_ce_params *ce,
-	unsigned int level);
+    const struct sh_css_isp_ce_params *ce,
+    unsigned int level);
 
 void
 ia_css_gc_debug_dtrace(
-	const struct ia_css_gc_config *config,
-	unsigned int level);
+    const struct ia_css_gc_config *config,
+    unsigned int level);
 
 void
 ia_css_ce_debug_dtrace(
-	const struct ia_css_ce_config *config,
-	unsigned int level);
+    const struct ia_css_ce_config *config,
+    unsigned int level);
 
 #endif
 

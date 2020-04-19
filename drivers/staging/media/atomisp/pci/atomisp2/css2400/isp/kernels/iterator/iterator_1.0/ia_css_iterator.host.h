@@ -22,13 +22,13 @@
 
 void
 ia_css_iterator_config(
-	struct sh_css_isp_iterator_isp_config *to,
-	const struct ia_css_iterator_configuration *from,
-	unsigned int size);
+    struct sh_css_isp_iterator_isp_config *to,
+    const struct ia_css_iterator_configuration *from,
+    unsigned int size);
 
 enum ia_css_err
 ia_css_iterator_configure(
-	const struct ia_css_binary *binary,
-	const struct ia_css_frame_info *in_info);
+    const struct ia_css_binary *binary,
+    const struct ia_css_frame_info *in_info);
 
 #endif /* __IA_CSS_ITERATOR_HOST_H */

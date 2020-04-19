@@ -75,9 +75,9 @@ enum ia_css_err sh_css_hrt_sp_wait(void)
 	 * (e.g. frame_done)
 	 */
 	while (!sp_ctrl_getbit(SP0_ID, SP_SC_REG, SP_IDLE_BIT) &&
-		((irq_reg_load(IRQ0_ID,
-			_HRT_IRQ_CONTROLLER_STATUS_REG_IDX) &
-			(1U << (irq_id + IRQ_SW_CHANNEL_OFFSET))) == 0)) {
+	       ((irq_reg_load(IRQ0_ID,
+			      _HRT_IRQ_CONTROLLER_STATUS_REG_IDX) &
+		 (1U << (irq_id + IRQ_SW_CHANNEL_OFFSET))) == 0)) {
 		hrt_sleep();
 	}
 

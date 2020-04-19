@@ -134,7 +134,7 @@ typedef struct ib_buffer_s	ib_buffer_t;
 
 struct csi_cfg_s {
 	u32			csi_port;
-    buffering_mode_t	buffering_mode;
+	buffering_mode_t	buffering_mode;
 	ib_buffer_t			csi_buffer;
 	ib_buffer_t			acquisition_buffer;
 	u32			nof_xmem_buffers;

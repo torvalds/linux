@@ -316,10 +316,10 @@ struct ia_css_shading_info {
 			  output_width = input_width * bayer_scale_hor_ratio_out
 						/ bayer_scale_hor_ratio_in */
 #else
-				/** Horizontal ratio of bayer scaling between input width and output width,
-				     for the scaling which should be done before shading correction.
-					output_width = input_width * bayer_scale_hor_ratio_out
-									/ bayer_scale_hor_ratio_in + 0.5 */
+			/** Horizontal ratio of bayer scaling between input width and output width,
+			     for the scaling which should be done before shading correction.
+				output_width = input_width * bayer_scale_hor_ratio_out
+								/ bayer_scale_hor_ratio_in + 0.5 */
 #endif
 			u32 bayer_scale_ver_ratio_in;
 			u32 bayer_scale_ver_ratio_out;
@@ -342,26 +342,26 @@ struct ia_css_shading_info {
 			This corresponds to the top pixel of bayer
 			inputted to isp from sensor. */
 #else
-				/** Vertical ratio of bayer scaling between input height and output height,
-				     for the scaling which should be done before shading correction.
-					output_height = input_height * bayer_scale_ver_ratio_out
-									/ bayer_scale_ver_ratio_in + 0.5 */
+			/** Vertical ratio of bayer scaling between input height and output height,
+			     for the scaling which should be done before shading correction.
+				output_height = input_height * bayer_scale_ver_ratio_out
+								/ bayer_scale_ver_ratio_in + 0.5 */
 			struct ia_css_resolution isp_input_sensor_data_res_bqs;
-				/** Sensor data size (in bqs) inputted to ISP. This is the size BEFORE bayer scaling.
-				     NOTE: This is NOT the size of the physical sensor size.
-					   CSS requests the driver that ISP inputs sensor data
-					   by the size of isp_input_sensor_data_res_bqs.
-					   The driver sends the sensor data to ISP,
-					   after the adequate cropping/binning/scaling
-					   are applied to the physical sensor data area.
-					   ISP assumes the area of isp_input_sensor_data_res_bqs
-					   is centered on the physical sensor. */
+			/** Sensor data size (in bqs) inputted to ISP. This is the size BEFORE bayer scaling.
+			     NOTE: This is NOT the size of the physical sensor size.
+				   CSS requests the driver that ISP inputs sensor data
+				   by the size of isp_input_sensor_data_res_bqs.
+				   The driver sends the sensor data to ISP,
+				   after the adequate cropping/binning/scaling
+				   are applied to the physical sensor data area.
+				   ISP assumes the area of isp_input_sensor_data_res_bqs
+				   is centered on the physical sensor. */
 			struct ia_css_resolution sensor_data_res_bqs;
-				/** Sensor data size (in bqs) at shading correction.
-				     This is the size AFTER bayer scaling. */
+			/** Sensor data size (in bqs) at shading correction.
+			     This is the size AFTER bayer scaling. */
 			struct ia_css_coordinate sensor_data_origin_bqs_on_sctbl;
-				/** Origin of sensor data area positioned on shading table at shading correction.
-				     The coordinate x,y should be positive values. */
+			/** Origin of sensor data area positioned on shading table at shading correction.
+			     The coordinate x,y should be positive values. */
 #endif
 		} type_1;
 
@@ -399,7 +399,7 @@ struct ia_css_grid_info {
 
 	struct ia_css_3a_grid_info  s3a_grid; /** 3A grid info */
 	union ia_css_dvs_grid_u dvs_grid;
-		/** All types of DVS statistics grid info union */
+	/** All types of DVS statistics grid info union */
 
 	enum ia_css_vamem_type vamem_type;
 };
@@ -530,7 +530,8 @@ struct ia_css_isp_config {
 							[YNR2&YEE2, 2only] */
 	struct ia_css_fc_config   *fc_config;	/** Fringe Control
 							[FC2, 2only] */
-	struct ia_css_formats_config   *formats_config;	/** Formats Control for main output
+	struct ia_css_formats_config
+		*formats_config;	/** Formats Control for main output
 							[FORMATS, 1&2] */
 	struct ia_css_cnr_config  *cnr_config;	/** Chroma Noise Reduction
 							[CNR2, 2only] */
@@ -598,17 +599,23 @@ struct ia_css_isp_config {
 	 *  DVS, GDC) from IQ tool level and application level down-to ISP FW level.
 	 *  the risk for regression is not in the individual blocks, but how they
 	 *  integrate together. */
-	struct ia_css_output_config   *output_config;	/** Main Output Mirroring, flipping */
+	struct ia_css_output_config
+		*output_config;	/** Main Output Mirroring, flipping */
 
 #ifdef ISP2401
-	struct ia_css_tnr3_kernel_config         *tnr3_config;           /** TNR3 config */
+	struct ia_css_tnr3_kernel_config
+		*tnr3_config;           /** TNR3 config */
 #endif
-	struct ia_css_scaler_config              *scaler_config;         /** Skylake: scaler config (optional) */
-	struct ia_css_formats_config             *formats_config_display;/** Formats control for viewfinder/display output (optional)
+	struct ia_css_scaler_config
+		*scaler_config;         /** Skylake: scaler config (optional) */
+	struct ia_css_formats_config
+		*formats_config_display;/** Formats control for viewfinder/display output (optional)
 										[OSYS, n/a] */
-	struct ia_css_output_config              *output_config_display; /** Viewfinder/display output mirroring, flipping (optional) */
+	struct ia_css_output_config
+		*output_config_display; /** Viewfinder/display output mirroring, flipping (optional) */
 
-	struct ia_css_frame                      *output_frame;          /** Output frame the config is to be applied to (optional) */
+	struct ia_css_frame
+		*output_frame;          /** Output frame the config is to be applied to (optional) */
 	u32			isp_config_id;	/** Unique ID to track which config was actually applied to a particular frame */
 };
 

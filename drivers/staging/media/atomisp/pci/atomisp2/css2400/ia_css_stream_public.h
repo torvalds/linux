@@ -97,7 +97,8 @@ struct ia_css_stream_config {
 						   will arrive. Use this field
 						   to specify virtual channel id.
 						   Valid values are: 0, 1, 2, 3 */
-	struct ia_css_stream_isys_stream_config isys_config[IA_CSS_STREAM_MAX_ISYS_STREAM_PER_CH];
+	struct ia_css_stream_isys_stream_config
+		isys_config[IA_CSS_STREAM_MAX_ISYS_STREAM_PER_CH];
 	struct ia_css_stream_input_config input_config;
 
 #ifdef ISP2401
@@ -116,7 +117,7 @@ struct ia_css_stream_config {
 					    1, 2 or 4. */
 	bool online; /** offline will activate RAW copy on SP, use this for
 			  continuous capture. */
-		/* ISYS2401 usage: ISP receives data directly from sensor, no copy. */
+	/* ISYS2401 usage: ISP receives data directly from sensor, no copy. */
 	unsigned int init_num_cont_raw_buf; /** initial number of raw buffers to
 					     allocate */
 	unsigned int target_num_cont_raw_buf; /** total number of raw buffers to
@@ -127,8 +128,10 @@ struct ia_css_stream_config {
 	bool disable_cont_viewfinder; /** disable continuous viewfinder for ZSL use case */
 	s32 flash_gpio_pin; /** pin on which the flash is connected, -1 for no flash */
 	int left_padding; /** The number of input-formatter left-paddings, -1 for default from binary.*/
-	struct ia_css_mipi_buffer_config mipi_buffer_config; /** mipi buffer configuration */
-	struct ia_css_metadata_config	metadata_config;     /** Metadata configuration. */
+	struct ia_css_mipi_buffer_config
+		mipi_buffer_config; /** mipi buffer configuration */
+	struct ia_css_metadata_config
+		metadata_config;     /** Metadata configuration. */
 	bool ia_css_enable_raw_buffer_locking; /** Enable Raw Buffer Locking for HALv3 Support */
 	bool lock_all;
 	/** Lock all RAW buffers (true) or lock only buffers processed by
@@ -164,20 +167,20 @@ void ia_css_stream_config_defaults(struct ia_css_stream_config *stream_config);
  * create the internal structures and fill in the configuration data and pipes
  */
 
- /* @brief Creates a stream
- * @param[in]	stream_config The stream configuration.
- * @param[in]	num_pipes The number of pipes to incorporate in the stream.
- * @param[in]	pipes The pipes.
- * @param[out]	stream The stream.
- * @return	IA_CSS_SUCCESS or the error code.
- *
- * This function will create a stream with a given configuration and given pipes.
- */
+/* @brief Creates a stream
+* @param[in]	stream_config The stream configuration.
+* @param[in]	num_pipes The number of pipes to incorporate in the stream.
+* @param[in]	pipes The pipes.
+* @param[out]	stream The stream.
+* @return	IA_CSS_SUCCESS or the error code.
+*
+* This function will create a stream with a given configuration and given pipes.
+*/
 enum ia_css_err
 ia_css_stream_create(const struct ia_css_stream_config *stream_config,
-					 int num_pipes,
-					 struct ia_css_pipe *pipes[],
-					 struct ia_css_stream **stream);
+		     int num_pipes,
+		     struct ia_css_pipe *pipes[],
+		     struct ia_css_stream **stream);
 
 /* @brief Destroys a stream
  * @param[in]	stream The stream.
@@ -277,7 +280,8 @@ ia_css_stream_get_two_pixels_per_clock(const struct ia_css_stream *stream);
  * This function will Set the output frame stride (at the last pipe)
  */
 enum ia_css_err
-ia_css_stream_set_output_padded_width(struct ia_css_stream *stream, unsigned int output_padded_width);
+ia_css_stream_set_output_padded_width(struct ia_css_stream *stream,
+				      unsigned int output_padded_width);
 
 /* @brief Return max number of continuous RAW frames.
  * @param[in]	stream The stream.
@@ -288,7 +292,8 @@ ia_css_stream_set_output_padded_width(struct ia_css_stream *stream, unsigned int
  * the system can support.
  */
 enum ia_css_err
-ia_css_stream_get_max_buffer_depth(struct ia_css_stream *stream, int *buffer_depth);
+ia_css_stream_get_max_buffer_depth(struct ia_css_stream *stream,
+				   int *buffer_depth);
 
 /* @brief Set nr of continuous RAW frames to use.
  *
@@ -342,9 +347,9 @@ ia_css_stream_get_buffer_depth(struct ia_css_stream *stream, int *buffer_depth);
  */
 enum ia_css_err
 ia_css_stream_capture(struct ia_css_stream *stream,
-			int num_captures,
-			unsigned int skip,
-			int offset);
+		      int num_captures,
+		      unsigned int skip,
+		      int offset);
 
 /* @brief Specify which raw frame to tag based on exp_id found in frame info
  *
@@ -358,7 +363,7 @@ ia_css_stream_capture(struct ia_css_stream *stream,
  */
 enum ia_css_err
 ia_css_stream_capture_frame(struct ia_css_stream *stream,
-			unsigned int exp_id);
+			    unsigned int exp_id);
 
 /* ===== VIDEO ===== */
 
@@ -452,9 +457,9 @@ ia_css_stream_send_input_line(const struct ia_css_stream *stream,
  */
 void
 ia_css_stream_send_input_embedded_line(const struct ia_css_stream *stream,
-			      enum atomisp_input_format format,
-			      const unsigned short *data,
-			      unsigned int width);
+				       enum atomisp_input_format format,
+				       const unsigned short *data,
+				       unsigned int width);
 
 /* @brief End an input frame on the CSS input FIFO.
  *
@@ -499,8 +504,8 @@ ia_css_stream_request_flash(struct ia_css_stream *stream);
  */
 enum ia_css_err
 ia_css_stream_set_isp_config_on_pipe(struct ia_css_stream *stream,
-			     const struct ia_css_isp_config *config,
-			     struct ia_css_pipe *pipe);
+				     const struct ia_css_isp_config *config,
+				     struct ia_css_pipe *pipe);
 
 /* @brief Configure a stream with filter coefficients.
  *	   @deprecated {Replaced by
@@ -519,8 +524,8 @@ ia_css_stream_set_isp_config_on_pipe(struct ia_css_stream *stream,
  */
 enum ia_css_err
 ia_css_stream_set_isp_config(
-	struct ia_css_stream *stream,
-	const struct ia_css_isp_config *config);
+    struct ia_css_stream *stream,
+    const struct ia_css_isp_config *config);
 
 /* @brief Get selected configuration settings
  * @param[in]	stream	The stream.

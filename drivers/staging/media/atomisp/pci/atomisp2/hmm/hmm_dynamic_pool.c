@@ -33,8 +33,8 @@
  * dynamic memory pool ops.
  */
 static unsigned int get_pages_from_dynamic_pool(void *pool,
-					struct hmm_page_object *page_obj,
-					unsigned int size, bool cached)
+	struct hmm_page_object *page_obj,
+	unsigned int size, bool cached)
 {
 	struct hmm_page *hmm_page;
 	unsigned long flags;
@@ -48,7 +48,7 @@ static unsigned int get_pages_from_dynamic_pool(void *pool,
 	if (dypool_info->initialized) {
 		while (!list_empty(&dypool_info->pages_list)) {
 			hmm_page = list_entry(dypool_info->pages_list.next,
-						struct hmm_page, list);
+					      struct hmm_page, list);
 
 			list_del(&hmm_page->list);
 			dypool_info->pgnr--;
@@ -70,7 +70,7 @@ static unsigned int get_pages_from_dynamic_pool(void *pool,
 }
 
 static void free_pages_to_dynamic_pool(void *pool,
-					struct hmm_page_object *page_obj)
+				       struct hmm_page_object *page_obj)
 {
 	struct hmm_page *hmm_page;
 	unsigned long flags;
@@ -110,7 +110,7 @@ static void free_pages_to_dynamic_pool(void *pool,
 		return;
 	}
 	hmm_page = kmem_cache_zalloc(dypool_info->pgptr_cache,
-						GFP_KERNEL);
+				     GFP_KERNEL);
 	if (!hmm_page) {
 		/* free page directly */
 		ret = set_pages_wb(page_obj->page, 1);
@@ -144,13 +144,13 @@ static int hmm_dynamic_pool_init(void **pool, unsigned int pool_size)
 		return 0;
 
 	dypool_info = kmalloc(sizeof(struct hmm_dynamic_pool_info),
-		GFP_KERNEL);
+			      GFP_KERNEL);
 	if (unlikely(!dypool_info))
 		return -ENOMEM;
 
 	dypool_info->pgptr_cache = kmem_cache_create("pgptr_cache",
-						sizeof(struct hmm_page), 0,
-						SLAB_HWCACHE_ALIGN, NULL);
+				   sizeof(struct hmm_page), 0,
+				   SLAB_HWCACHE_ALIGN, NULL);
 	if (!dypool_info->pgptr_cache) {
 		kfree(dypool_info);
 		return -ENOMEM;
@@ -186,7 +186,7 @@ static void hmm_dynamic_pool_exit(void **pool)
 
 	while (!list_empty(&dypool_info->pages_list)) {
 		hmm_page = list_entry(dypool_info->pages_list.next,
-					struct hmm_page, list);
+				      struct hmm_page, list);
 
 		list_del(&hmm_page->list);
 		spin_unlock_irqrestore(&dypool_info->list_lock, flags);

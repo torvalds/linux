@@ -26,14 +26,14 @@
  *
  */
 unsigned int ia_css_pipe_util_pipe_input_format_bpp(
-	const struct ia_css_pipe * const pipe);
+    const struct ia_css_pipe *const pipe);
 
 void ia_css_pipe_util_create_output_frames(
-	struct ia_css_frame *frames[]);
+    struct ia_css_frame *frames[]);
 
 void ia_css_pipe_util_set_output_frames(
-	struct ia_css_frame *frames[],
-	unsigned int idx,
-	struct ia_css_frame *frame);
+    struct ia_css_frame *frames[],
+    unsigned int idx,
+    struct ia_css_frame *frame);
 
 #endif /* __IA_CSS_PIPE_UTIL_H__ */

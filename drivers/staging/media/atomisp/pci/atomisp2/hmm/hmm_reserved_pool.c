@@ -32,8 +32,8 @@
  * reserved memory pool ops.
  */
 static unsigned int get_pages_from_reserved_pool(void *pool,
-					struct hmm_page_object *page_obj,
-					unsigned int size, bool cached)
+	struct hmm_page_object *page_obj,
+	unsigned int size, bool cached)
 {
 	unsigned long flags;
 	unsigned int i = 0;
@@ -82,17 +82,17 @@ static void free_pages_to_reserved_pool(void *pool,
 }
 
 static int hmm_reserved_pool_setup(struct hmm_reserved_pool_info **repool_info,
-					unsigned int pool_size)
+				   unsigned int pool_size)
 {
 	struct hmm_reserved_pool_info *pool_info;
 
 	pool_info = kmalloc(sizeof(struct hmm_reserved_pool_info),
-				GFP_KERNEL);
+			    GFP_KERNEL);
 	if (unlikely(!pool_info))
 		return -ENOMEM;
 
 	pool_info->pages = kmalloc(sizeof(struct page *) * pool_size,
-			GFP_KERNEL);
+				   GFP_KERNEL);
 	if (unlikely(!pool_info->pages)) {
 		kfree(pool_info);
 		return -ENOMEM;
@@ -147,7 +147,7 @@ static int hmm_reserved_pool_init(void **pool, unsigned int pool_size)
 			if (order == 0) {
 				fail_number++;
 				dev_err(atomisp_dev, "%s: alloc_pages failed: %d\n",
-						__func__, fail_number);
+					__func__, fail_number);
 				/* if fail five times, will goto end */
 
 				/* FIXME: whether is the mechanism is ok? */
@@ -162,7 +162,7 @@ static int hmm_reserved_pool_init(void **pool, unsigned int pool_size)
 			ret = set_pages_uc(pages, blk_pgnr);
 			if (ret) {
 				dev_err(atomisp_dev,
-						"set pages uncached failed\n");
+					"set pages uncached failed\n");
 				__free_pages(pages, order);
 				goto end;
 			}
@@ -185,8 +185,8 @@ end:
 	*pool = repool_info;
 
 	dev_info(atomisp_dev,
-			"hmm_reserved_pool init successfully,hmm_reserved_pool is with %d pages.\n",
-			repool_info->pgnr);
+		 "hmm_reserved_pool init successfully,hmm_reserved_pool is with %d pages.\n",
+		 repool_info->pgnr);
 	return 0;
 }
 

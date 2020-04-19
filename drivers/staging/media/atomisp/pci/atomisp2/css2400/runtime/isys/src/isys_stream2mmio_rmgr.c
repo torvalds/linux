@@ -51,8 +51,8 @@ void ia_css_isys_stream2mmio_sid_rmgr_uninit(void)
 }
 
 bool ia_css_isys_stream2mmio_sid_rmgr_acquire(
-	stream2mmio_ID_t	stream2mmio,
-	stream2mmio_sid_ID_t	*sid)
+    stream2mmio_ID_t	stream2mmio,
+    stream2mmio_sid_ID_t	*sid)
 {
 	bool retval = false;
 	stream2mmio_sid_ID_t max_sid;
@@ -82,8 +82,8 @@ bool ia_css_isys_stream2mmio_sid_rmgr_acquire(
 }
 
 void ia_css_isys_stream2mmio_sid_rmgr_release(
-	stream2mmio_ID_t	stream2mmio,
-	stream2mmio_sid_ID_t	*sid)
+    stream2mmio_ID_t	stream2mmio,
+    stream2mmio_sid_ID_t	*sid)
 {
 	stream2mmio_sid_ID_t max_sid;
 	isys_stream2mmio_rsrc_t *cur_rsrc = NULL;

@@ -52,14 +52,14 @@ int hmm_vm_init(struct hmm_vm *vm, unsigned int start,
 void hmm_vm_clean(struct hmm_vm *vm);
 
 struct hmm_vm_node *hmm_vm_alloc_node(struct hmm_vm *vm,
-		unsigned int pgnr);
+				      unsigned int pgnr);
 
 void hmm_vm_free_node(struct hmm_vm_node *node);
 
 struct hmm_vm_node *hmm_vm_find_node_start(struct hmm_vm *vm,
-		unsigned int addr);
+	unsigned int addr);
 
 struct hmm_vm_node *hmm_vm_find_node_in_range(struct hmm_vm *vm,
-		unsigned int addr);
+	unsigned int addr);
 
 #endif

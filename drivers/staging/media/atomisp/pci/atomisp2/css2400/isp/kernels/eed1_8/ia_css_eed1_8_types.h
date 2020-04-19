@@ -77,8 +77,10 @@ struct ia_css_eed1_8_config {
 
 	s32 dew_enhance_seg_x[IA_CSS_NUMBER_OF_DEW_ENHANCE_SEGMENTS];		/** Segment data for directional edge weight: X. */
 	s32 dew_enhance_seg_y[IA_CSS_NUMBER_OF_DEW_ENHANCE_SEGMENTS];		/** Segment data for directional edge weight: Y. */
-	s32 dew_enhance_seg_slope[(IA_CSS_NUMBER_OF_DEW_ENHANCE_SEGMENTS - 1)];	/** Segment data for directional edge weight: Slope. */
-	s32 dew_enhance_seg_exp[(IA_CSS_NUMBER_OF_DEW_ENHANCE_SEGMENTS - 1)];	/** Segment data for directional edge weight: Exponent. */
+	s32 dew_enhance_seg_slope[(IA_CSS_NUMBER_OF_DEW_ENHANCE_SEGMENTS -
+				   1)];	/** Segment data for directional edge weight: Slope. */
+	s32 dew_enhance_seg_exp[(IA_CSS_NUMBER_OF_DEW_ENHANCE_SEGMENTS -
+				 1)];	/** Segment data for directional edge weight: Exponent. */
 	s32 dedgew_max;	/** Max Weight for Directional Edge. */
 };
 

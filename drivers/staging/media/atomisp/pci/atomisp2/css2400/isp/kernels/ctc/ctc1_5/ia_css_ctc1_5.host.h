@@ -21,13 +21,13 @@
 
 void
 ia_css_ctc_encode(
-	struct sh_css_isp_ctc_params *to,
-	const struct ia_css_ctc_config *from,
-	unsigned int size);
+    struct sh_css_isp_ctc_params *to,
+    const struct ia_css_ctc_config *from,
+    unsigned int size);
 
 void
 ia_css_ctc_dump(
-	const struct sh_css_isp_ctc_params *ctc,
-	unsigned int level);
+    const struct sh_css_isp_ctc_params *ctc,
+    unsigned int level);
 
 #endif /* __IA_CSS_CTC1_5_HOST_H */

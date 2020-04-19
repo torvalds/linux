@@ -22,23 +22,23 @@ extern const struct ia_css_formats_config default_formats_config;
 
 void
 ia_css_formats_encode(
-	struct sh_css_isp_formats_params *to,
-	const struct ia_css_formats_config *from,
-	unsigned int size);
+    struct sh_css_isp_formats_params *to,
+    const struct ia_css_formats_config *from,
+    unsigned int size);
 #ifndef IA_CSS_NO_DEBUG
 /* FIXME: See BZ 4427 */
 void
 ia_css_formats_dump(
-	const struct sh_css_isp_formats_params *formats,
-	unsigned int level);
+    const struct sh_css_isp_formats_params *formats,
+    unsigned int level);
 #endif
 
 #ifndef IA_CSS_NO_DEBUG
 /* FIXME: See BZ 4427 */
 void
 ia_css_formats_debug_dtrace(
-	const struct ia_css_formats_config *formats,
-	unsigned int level);
+    const struct ia_css_formats_config *formats,
+    unsigned int level);
 #endif /*IA_CSS_NO_DEBUG*/
 
 #endif /* __IA_CSS_FORMATS_HOST_H */

@@ -23,7 +23,7 @@
 #include "platform_support.h"			/* hrt_sleep() */
 
 typedef unsigned long long hive_uedge;
-typedef hive_uedge * hive_wide;
+typedef hive_uedge *hive_wide;
 
 /* Copied from SDK: sim_semantics.c */
 
@@ -40,11 +40,11 @@ typedef hive_uedge * hive_wide;
 
 static void
 move_subword(
-	hive_uedge *target,
-	unsigned int target_bit,
-	hive_uedge src,
-	unsigned int src_start,
-	unsigned int src_end)
+    hive_uedge *target,
+    unsigned int target_bit,
+    hive_uedge src,
+    unsigned int src_start,
+    unsigned int src_end)
 {
 	unsigned int start_elem = target_bit / uedge_bits;
 	unsigned int start_bit  = target_bit % uedge_bits;
@@ -57,10 +57,12 @@ move_subword(
 		hive_uedge old_val0 = INV_SUBWORD(target[start_elem], start_bit, uedge_bits);
 
 		target[start_elem] = old_val0 | (src_subword << start_bit);
-		old_val1 = INV_SUBWORD(target[start_elem + 1], 0, subword_width + start_bit - uedge_bits);
+		old_val1 = INV_SUBWORD(target[start_elem + 1], 0,
+				       subword_width + start_bit - uedge_bits);
 		target[start_elem + 1] = old_val1 | (src_subword >> (uedge_bits - start_bit));
 	} else {
-		hive_uedge old_val = INV_SUBWORD(target[start_elem], start_bit, start_bit + subword_width);
+		hive_uedge old_val = INV_SUBWORD(target[start_elem], start_bit,
+						 start_bit + subword_width);
 
 		target[start_elem] = old_val | (src_subword << start_bit);
 	}
@@ -68,10 +70,10 @@ move_subword(
 
 static void
 hive_sim_wide_unpack(
-	hive_wide vector,
-	hive_wide elem,
-	hive_uint elem_bits,
-	hive_uint index)
+    hive_wide vector,
+    hive_wide elem,
+    hive_uint elem_bits,
+    hive_uint index)
 {
 	/* pointers into wide_type: */
 	unsigned int start_elem = (elem_bits * index) / uedge_bits;
@@ -102,10 +104,10 @@ hive_sim_wide_unpack(
 
 static void
 hive_sim_wide_pack(
-	hive_wide vector,
-	hive_wide elem,
-	hive_uint elem_bits,
-	hive_uint index)
+    hive_wide vector,
+    hive_wide elem,
+    hive_uint elem_bits,
+    hive_uint index)
 {
 	/* pointers into wide_type: */
 	unsigned int start_elem = (elem_bits * index) / uedge_bits;
@@ -118,7 +120,8 @@ hive_sim_wide_pack(
 		unsigned int start_bit = elem_bits * index;
 		unsigned int i = 0;
 
-		for (; bits_to_write > uedge_bits; bits_to_write -= uedge_bits, i++, start_bit += uedge_bits) {
+		for (; bits_to_write > uedge_bits;
+		     bits_to_write -= uedge_bits, i++, start_bit += uedge_bits) {
 			move_word(vector, start_bit, elem[i]);
 		}
 		move_lower_bits(vector, start_bit, elem[i], bits_to_write);
@@ -129,9 +132,9 @@ hive_sim_wide_pack(
 }
 
 static void load_vector(
-	const isp_ID_t		ID,
-	t_vmem_elem		*to,
-	const t_vmem_elem	*from)
+    const isp_ID_t		ID,
+    t_vmem_elem		*to,
+    const t_vmem_elem	*from)
 {
 	unsigned int i;
 	hive_uedge *data;
@@ -155,9 +158,9 @@ static void load_vector(
 }
 
 static void store_vector(
-	const isp_ID_t		ID,
-	t_vmem_elem		*to,
-	const t_vmem_elem	*from)
+    const isp_ID_t		ID,
+    t_vmem_elem		*to,
+    const t_vmem_elem	*from)
 {
 	unsigned int i;
 	unsigned int size = sizeof(short) * ISP_NWAY;
@@ -180,10 +183,10 @@ static void store_vector(
 }
 
 void isp_vmem_load(
-	const isp_ID_t		ID,
-	const t_vmem_elem	*from,
-	t_vmem_elem		*to,
-	unsigned int elems) /* In t_vmem_elem */
+    const isp_ID_t		ID,
+    const t_vmem_elem	*from,
+    t_vmem_elem		*to,
+    unsigned int elems) /* In t_vmem_elem */
 {
 	unsigned int c;
 	const t_vmem_elem *vp = from;
@@ -198,10 +201,10 @@ void isp_vmem_load(
 }
 
 void isp_vmem_store(
-	const isp_ID_t		ID,
-	t_vmem_elem		*to,
-	const t_vmem_elem	*from,
-	unsigned int elems) /* In t_vmem_elem */
+    const isp_ID_t		ID,
+    t_vmem_elem		*to,
+    const t_vmem_elem	*from,
+    unsigned int elems) /* In t_vmem_elem */
 {
 	unsigned int c;
 	t_vmem_elem *vp = to;
@@ -216,14 +219,14 @@ void isp_vmem_store(
 }
 
 void isp_vmem_2d_load(
-	const isp_ID_t		ID,
-	const t_vmem_elem	*from,
-	t_vmem_elem		*to,
-	unsigned int height,
-	unsigned int width,
-	unsigned int stride_to,  /* In t_vmem_elem */
+    const isp_ID_t		ID,
+    const t_vmem_elem	*from,
+    t_vmem_elem		*to,
+    unsigned int height,
+    unsigned int width,
+    unsigned int stride_to,  /* In t_vmem_elem */
 
-	unsigned stride_from /* In t_vmem_elem */)
+    unsigned stride_from /* In t_vmem_elem */)
 {
 	unsigned int h;
 
@@ -239,19 +242,20 @@ void isp_vmem_2d_load(
 			load_vector(ID, &to[stride_to * h + c], vp);
 			vp = (t_vmem_elem *)((char *)vp + ISP_VEC_ALIGN);
 		}
-		from = (const t_vmem_elem *)((const char *)from + stride_from / ISP_NWAY * ISP_VEC_ALIGN);
+		from = (const t_vmem_elem *)((const char *)from + stride_from / ISP_NWAY *
+					     ISP_VEC_ALIGN);
 	}
 }
 
 void isp_vmem_2d_store(
-	const isp_ID_t		ID,
-	t_vmem_elem		*to,
-	const t_vmem_elem	*from,
-	unsigned int height,
-	unsigned int width,
-	unsigned int stride_to,  /* In t_vmem_elem */
+    const isp_ID_t		ID,
+    t_vmem_elem		*to,
+    const t_vmem_elem	*from,
+    unsigned int height,
+    unsigned int width,
+    unsigned int stride_to,  /* In t_vmem_elem */
 
-	unsigned stride_from /* In t_vmem_elem */)
+    unsigned stride_from /* In t_vmem_elem */)
 {
 	unsigned int h;
 

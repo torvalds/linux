@@ -43,7 +43,7 @@ union ia_css_rgb_gamma_data {
 	/** RGB Gamma table on vamem type1. This table is not used,
 		because sRGB Gamma Correction is not implemented for ISP2300. */
 	u16 vamem_2[IA_CSS_VAMEM_2_RGB_GAMMA_TABLE_SIZE];
-		/** RGB Gamma table on vamem type2. u0.12, [0,4095] */
+	/** RGB Gamma table on vamem type2. u0.12, [0,4095] */
 };
 
 struct ia_css_rgb_gamma_table {

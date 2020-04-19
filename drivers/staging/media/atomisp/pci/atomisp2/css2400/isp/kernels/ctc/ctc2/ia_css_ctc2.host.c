@@ -27,7 +27,8 @@ const struct ia_css_ctc2_config default_ctc2_config = {
 	INEFFECTIVE_VAL, INEFFECTIVE_VAL, INEFFECTIVE_VAL,
 	BASIC_VAL * 2, BASIC_VAL * 4, BASIC_VAL * 6,
 	BASIC_VAL * 8, INEFFECTIVE_VAL, INEFFECTIVE_VAL,
-	BASIC_VAL >> 1, BASIC_VAL};
+	BASIC_VAL >> 1, BASIC_VAL
+};
 
 /* (dydx) = ctc2_slope(y1, y0, x1, x0)
  * -----------------------------------------------
@@ -89,15 +90,15 @@ void ia_css_ctc2_vmem_encode(struct ia_css_isp_ctc2_vmem_params *to,
 	*  0.0 -> y_x1 -> y_x2 -> y _x3 -> y_x4 -> 1.0
 	*/
 	dydx0 = ctc2_slope(from->y_y1, from->y_y0,
-			    from->y_x1, 0);
+			   from->y_x1, 0);
 	dydx1 = ctc2_slope(from->y_y2, from->y_y1,
-			    from->y_x2, from->y_x1);
+			   from->y_x2, from->y_x1);
 	dydx2 = ctc2_slope(from->y_y3, from->y_y2,
-			    from->y_x3, from->y_x2);
+			   from->y_x3, from->y_x2);
 	dydx3 = ctc2_slope(from->y_y4, from->y_y3,
-			    from->y_x4, from->y_x3);
+			   from->y_x4, from->y_x3);
 	dydx4 = ctc2_slope(from->y_y5, from->y_y4,
-			    SH_CSS_BAYER_MAXVAL, from->y_x4);
+			   SH_CSS_BAYER_MAXVAL, from->y_x4);
 
 	/*Fill 3 arrays with:
 	 * - Luma input gain values y_y0, y_y1, y_y2, y_3, y_y4
@@ -152,5 +153,5 @@ void ia_css_ctc2_encode(struct ia_css_isp_ctc2_dmem_params *to,
 
 	/*Slope Calculation*/
 	to->uv_dydx = ctc2_slope(from->uv_y1, from->uv_y0,
-				  from->uv_x1, from->uv_x0);
+				 from->uv_x1, from->uv_x0);
 }

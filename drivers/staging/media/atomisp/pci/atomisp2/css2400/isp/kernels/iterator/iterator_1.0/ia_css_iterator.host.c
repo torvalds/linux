@@ -25,9 +25,9 @@ static const struct ia_css_iterator_configuration default_config = {
 
 void
 ia_css_iterator_config(
-	struct sh_css_isp_iterator_isp_config *to,
-	const struct ia_css_iterator_configuration *from,
-	unsigned int size)
+    struct sh_css_isp_iterator_isp_config *to,
+    const struct ia_css_iterator_configuration *from,
+    unsigned int size)
 {
 	(void)size;
 	ia_css_frame_info_to_frame_sp_info(&to->input_info,    from->input_info);
@@ -39,9 +39,8 @@ ia_css_iterator_config(
 
 enum ia_css_err
 ia_css_iterator_configure(
-	const struct ia_css_binary *binary,
-	const struct ia_css_frame_info *in_info)
-{
+    const struct ia_css_binary *binary,
+    const struct ia_css_frame_info *in_info) {
 	struct ia_css_frame_info my_info = IA_CSS_BINARY_DEFAULT_FRAME_INFO;
 	struct ia_css_iterator_configuration config = default_config;
 
@@ -66,7 +65,8 @@ ia_css_iterator_configure(
 	 * the original out res. for video pipe, it has two output pins --- out and
 	 * vf_out, so it can keep these two resolutions already. */
 	if (binary->info->sp.pipeline.mode == IA_CSS_BINARY_MODE_PREVIEW &&
-	    binary->vf_downscale_log2 > 0) {
+	    binary->vf_downscale_log2 > 0)
+	{
 		/* TODO: Remove this after preview output decimation is fixed
 		 * by configuring out&vf info files properly */
 		my_info.padded_width <<= binary->vf_downscale_log2;

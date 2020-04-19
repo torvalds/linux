@@ -18,9 +18,9 @@
 
 void
 ia_css_hdr_init_config(
-	struct sh_css_isp_hdr_params *to,
-	const struct ia_css_hdr_config *from,
-	unsigned int size)
+    struct sh_css_isp_hdr_params *to,
+    const struct ia_css_hdr_config *from,
+    unsigned int size)
 {
 	int i;
 	(void)size;
