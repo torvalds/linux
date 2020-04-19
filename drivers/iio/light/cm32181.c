@@ -9,6 +9,7 @@
 #include <linux/i2c.h>
 #include <linux/mutex.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/interrupt.h>
 #include <linux/regulator/consumer.h>
 #include <linux/iio/iio.h>
@@ -354,7 +355,7 @@ MODULE_DEVICE_TABLE(of, cm32181_of_match);
 static struct i2c_driver cm32181_driver = {
 	.driver = {
 		.name	= "cm32181",
-		.of_match_table = of_match_ptr(cm32181_of_match),
+		.of_match_table = cm32181_of_match,
 	},
 	.id_table       = cm32181_id,
 	.probe		= cm32181_probe,
