@@ -171,7 +171,7 @@ static struct sk_buff *xfrm6_beet_gso_segment(struct xfrm_state *x,
 	struct xfrm_offload *xo = xfrm_offload(skb);
 	struct sk_buff *segs = ERR_PTR(-EINVAL);
 	const struct net_offload *ops;
-	int proto = xo->proto;
+	u8 proto = xo->proto;
 
 	skb->transport_header += x->props.header_len;
 
@@ -182,7 +182,12 @@ static struct sk_buff *xfrm6_beet_gso_segment(struct xfrm_state *x,
 		proto = ph->nexthdr;
 	}
 
-	if (x->sel.family != AF_INET6) {
+	if (x->sel.family == AF_INET6) {
+		__be16 frag;
+
+		skb->transport_header +=
+			ipv6_skip_exthdr(skb, 0, &proto, &frag);
+	} else {
 		skb->transport_header -=
 			(sizeof(struct ipv6hdr) - sizeof(struct iphdr));
 
