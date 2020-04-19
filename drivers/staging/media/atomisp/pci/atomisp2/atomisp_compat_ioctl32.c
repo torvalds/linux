@@ -103,7 +103,7 @@ static int get_atomisp_dis_statistics32(struct atomisp_dis_statistics *kp,
 	    get_user(hor_prod_even_imag, &up->dvs2_stat.hor_prod.even_imag) ||
 	    get_user(ver_prod_odd_real, &up->dvs2_stat.ver_prod.odd_real) ||
 	    get_user(ver_prod_odd_imag, &up->dvs2_stat.ver_prod.odd_imag) ||
-	    get_user(ver_prod_even_real, up->dvs2_stat.ver_prod.even_real) ||
+	    get_user(ver_prod_even_real, &up->dvs2_stat.ver_prod.even_real) ||
 	    get_user(ver_prod_even_imag, &up->dvs2_stat.ver_prod.even_imag) ||
 	    get_user(kp->exp_id, &up->exp_id))
 		return -EFAULT;
