@@ -16,6 +16,7 @@
 
 
 struct au1550nd_ctx {
+	struct nand_controller controller;
 	struct nand_chip chip;
 
 	int cs;
@@ -382,6 +383,112 @@ static int find_nand_cs(unsigned long nand_base)
 	return -ENODEV;
 }
 
+static int au1550nd_waitrdy(struct nand_chip *this, unsigned int timeout_ms)
+{
+	unsigned long timeout_jiffies = jiffies;
+
+	timeout_jiffies += msecs_to_jiffies(timeout_ms) + 1;
+	do {
+		if (alchemy_rdsmem(AU1000_MEM_STSTAT) & 0x1)
+			return 0;
+
+		usleep_range(10, 100);
+	} while (time_before(jiffies, timeout_jiffies));
+
+	return -ETIMEDOUT;
+}
+
+static int au1550nd_exec_instr(struct nand_chip *this,
+			       const struct nand_op_instr *instr)
+{
+	struct au1550nd_ctx *ctx = chip_to_au_ctx(this);
+	unsigned int i;
+	int ret = 0;
+
+	switch (instr->type) {
+	case NAND_OP_CMD_INSTR:
+		writeb(instr->ctx.cmd.opcode,
+		       ctx->base + MEM_STNAND_CMD);
+		/* Drain the writebuffer */
+		wmb();
+		break;
+
+	case NAND_OP_ADDR_INSTR:
+		for (i = 0; i < instr->ctx.addr.naddrs; i++) {
+			writeb(instr->ctx.addr.addrs[i],
+			       ctx->base + MEM_STNAND_ADDR);
+			/* Drain the writebuffer */
+			wmb();
+		}
+		break;
+
+	case NAND_OP_DATA_IN_INSTR:
+		if ((this->options & NAND_BUSWIDTH_16) &&
+		    !instr->ctx.data.force_8bit)
+			au_read_buf16(this, instr->ctx.data.buf.in,
+				      instr->ctx.data.len);
+		else
+			au_read_buf(this, instr->ctx.data.buf.in,
+				    instr->ctx.data.len);
+		break;
+
+	case NAND_OP_DATA_OUT_INSTR:
+		if ((this->options & NAND_BUSWIDTH_16) &&
+		    !instr->ctx.data.force_8bit)
+			au_write_buf16(this, instr->ctx.data.buf.out,
+				       instr->ctx.data.len);
+		else
+			au_write_buf(this, instr->ctx.data.buf.out,
+				     instr->ctx.data.len);
+		break;
+
+	case NAND_OP_WAITRDY_INSTR:
+		ret = au1550nd_waitrdy(this, instr->ctx.waitrdy.timeout_ms);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (instr->delay_ns)
+		ndelay(instr->delay_ns);
+
+	return ret;
+}
+
+static int au1550nd_exec_op(struct nand_chip *this,
+			    const struct nand_operation *op,
+			    bool check_only)
+{
+	struct au1550nd_ctx *ctx = chip_to_au_ctx(this);
+	unsigned int i;
+	int ret;
+
+	if (check_only)
+		return 0;
+
+	/* assert (force assert) chip enable */
+	alchemy_wrsmem((1 << (4 + ctx->cs)), AU1000_MEM_STNDCTL);
+	/* Drain the writebuffer */
+	wmb();
+
+	for (i = 0; i < op->ninstrs; i++) {
+		ret = au1550nd_exec_instr(this, &op->instrs[i]);
+		if (ret)
+			break;
+	}
+
+	/* deassert chip enable */
+	alchemy_wrsmem(0, AU1000_MEM_STNDCTL);
+	/* Drain the writebuffer */
+	wmb();
+
+	return ret;
+}
+
+static const struct nand_controller_ops au1550nd_ops = {
+	.exec_op = au1550nd_exec_op,
+};
+
 static int au1550nd_probe(struct platform_device *pdev)
 {
 	struct au1550nd_platdata *pd;
@@ -439,6 +546,9 @@ static int au1550nd_probe(struct platform_device *pdev)
 
 	/* 30 us command delay time */
 	this->legacy.chip_delay = 30;
+	nand_controller_init(&ctx->controller);
+	ctx->controller.ops = &au1550nd_ops;
+	this->controller = &ctx->controller;
 	this->ecc.mode = NAND_ECC_SOFT;
 	this->ecc.algo = NAND_ECC_HAMMING;
 
