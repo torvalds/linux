@@ -1510,27 +1510,27 @@ struct iio_dev *iio_device_alloc(int sizeof_priv)
 	alloc_size += IIO_ALIGN - 1;
 
 	dev = kzalloc(alloc_size, GFP_KERNEL);
+	if (!dev)
+		return NULL;
 
-	if (dev) {
-		dev->dev.groups = dev->groups;
-		dev->dev.type = &iio_device_type;
-		dev->dev.bus = &iio_bus_type;
-		device_initialize(&dev->dev);
-		dev_set_drvdata(&dev->dev, (void *)dev);
-		mutex_init(&dev->mlock);
-		mutex_init(&dev->info_exist_lock);
-		INIT_LIST_HEAD(&dev->channel_attr_list);
+	dev->dev.groups = dev->groups;
+	dev->dev.type = &iio_device_type;
+	dev->dev.bus = &iio_bus_type;
+	device_initialize(&dev->dev);
+	dev_set_drvdata(&dev->dev, (void *)dev);
+	mutex_init(&dev->mlock);
+	mutex_init(&dev->info_exist_lock);
+	INIT_LIST_HEAD(&dev->channel_attr_list);
 
-		dev->id = ida_simple_get(&iio_ida, 0, 0, GFP_KERNEL);
-		if (dev->id < 0) {
-			/* cannot use a dev_err as the name isn't available */
-			pr_err("failed to get device id\n");
-			kfree(dev);
-			return NULL;
-		}
-		dev_set_name(&dev->dev, "iio:device%d", dev->id);
-		INIT_LIST_HEAD(&dev->buffer_list);
+	dev->id = ida_simple_get(&iio_ida, 0, 0, GFP_KERNEL);
+	if (dev->id < 0) {
+		/* cannot use a dev_err as the name isn't available */
+		pr_err("failed to get device id\n");
+		kfree(dev);
+		return NULL;
 	}
+	dev_set_name(&dev->dev, "iio:device%d", dev->id);
+	INIT_LIST_HEAD(&dev->buffer_list);
 
 	return dev;
 }
