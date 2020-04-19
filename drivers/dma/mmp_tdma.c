@@ -235,7 +235,7 @@ static int mmp_tdma_config_chan(struct dma_chan *chan)
 			tdcr |= TDCR_BURSTSZ_128B;
 			break;
 		default:
-			dev_err(tdmac->dev, "mmp_tdma: unknown burst size.\n");
+			dev_err(tdmac->dev, "unknown burst size.\n");
 			return -EINVAL;
 		}
 
@@ -250,7 +250,7 @@ static int mmp_tdma_config_chan(struct dma_chan *chan)
 			tdcr |= TDCR_SSZ_32_BITS;
 			break;
 		default:
-			dev_err(tdmac->dev, "mmp_tdma: unknown bus size.\n");
+			dev_err(tdmac->dev, "unknown bus size.\n");
 			return -EINVAL;
 		}
 	} else if (tdmac->type == PXA910_SQU) {
@@ -276,7 +276,7 @@ static int mmp_tdma_config_chan(struct dma_chan *chan)
 			tdcr |= TDCR_BURSTSZ_SQU_32B;
 			break;
 		default:
-			dev_err(tdmac->dev, "mmp_tdma: unknown burst size.\n");
+			dev_err(tdmac->dev, "unknown burst size.\n");
 			return -EINVAL;
 		}
 	}
