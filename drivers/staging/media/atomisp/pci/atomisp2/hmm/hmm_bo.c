@@ -1516,7 +1516,7 @@ int hmm_bo_mmap(struct vm_area_struct *vma, struct hmm_buffer_object *bo)
 	vma->vm_flags |= VM_IO|VM_DONTEXPAND|VM_DONTDUMP;
 
 	/*
-	 * call hmm_bo_vm_open explictly.
+	 * call hmm_bo_vm_open explicitly.
 	 */
 	hmm_bo_vm_open(vma);
 

@@ -275,10 +275,10 @@ struct mt9m114_device {
 	unsigned int agc;
 	unsigned int awb;
 	unsigned int aec;
-	/* extention SENSOR version 2 */
+	/* extension SENSOR version 2 */
 	unsigned int cie_profile;
 
-	/* extention SENSOR version 3 */
+	/* extension SENSOR version 3 */
 	unsigned int flicker_freq;
 
 	/* extension SENSOR version 4 */

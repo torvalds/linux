@@ -68,7 +68,7 @@
 /* */
 #define _PXG_SYNG_PAUSE_CYCLES        0
 /* Subblock ID's */
-#define _PXG_DISBALE_IDX              0
+#define _PXG_DISABLE_IDX              0
 #define _PXG_PRBS_IDX                 0
 #define _PXG_TPG_IDX                  1
 #define _PXG_SYNG_IDX                 2

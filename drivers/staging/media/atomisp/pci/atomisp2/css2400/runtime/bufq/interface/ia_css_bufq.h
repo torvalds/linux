@@ -71,7 +71,7 @@ void ia_css_queue_map(
 
 
 /**
- * @brief  Initilize buffer type to a queue id mapping
+ * @brief  Initialize buffer type to a queue id mapping
  * @return none
  */
 void ia_css_queue_map_init(void);

@@ -4261,7 +4261,7 @@ int atomisp_set_parameters(struct video_device *vdev,
 #endif
 	if (arg->per_frame_setting && !atomisp_is_vf_pipe(pipe)) {
 		/*
-		 * Per-frame setting enabled, we allocate a new paramter
+		 * Per-frame setting enabled, we allocate a new parameter
 		 * buffer to cache the parameters and only when frame buffers
 		 * are ready, the parameters will be set to CSS.
 		 * per-frame setting only works for the main output frame.

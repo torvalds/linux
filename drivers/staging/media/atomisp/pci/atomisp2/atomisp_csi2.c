@@ -67,7 +67,7 @@ static int csi2_enum_mbus_code(struct v4l2_subdev *sd,
  * @fh : V4L2 subdev file handle
  * @pad: pad num
  * @fmt: pointer to v4l2 format structure
- * return -EINVAL or zero on sucess
+ * return -EINVAL or zero on success
 */
 static int csi2_get_format(struct v4l2_subdev *sd,
 			   struct v4l2_subdev_pad_config *cfg,

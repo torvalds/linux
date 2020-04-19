@@ -21,7 +21,7 @@
 
 /**
  * \brief HDR Irradiance Parameters
- * \detail Currently HDR paramters are used only for testing purposes
+ * \detail Currently HDR parameters are used only for testing purposes
  */
 struct ia_css_hdr_irradiance_params {
 	int test_irr;                                          /** Test parameter */
@@ -36,7 +36,7 @@ struct ia_css_hdr_irradiance_params {
 
 /**
  * \brief HDR Deghosting Parameters
- * \detail Currently HDR paramters are used only for testing purposes
+ * \detail Currently HDR parameters are used only for testing purposes
  */
 struct ia_css_hdr_deghost_params {
 	int test_deg; /** Test parameter */
@@ -44,7 +44,7 @@ struct ia_css_hdr_deghost_params {
 
 /**
  * \brief HDR Exclusion Parameters
- * \detail Currently HDR paramters are used only for testing purposes
+ * \detail Currently HDR parameters are used only for testing purposes
  */
 struct ia_css_hdr_exclusion_params {
 	int test_excl; /** Test parameter */
@@ -52,11 +52,11 @@ struct ia_css_hdr_exclusion_params {
 
 /**
  * \brief HDR public paramterers.
- * \details Struct with all paramters for HDR that can be seet from
- * the CSS API. Currenly, only test paramters are defined.
+ * \details Struct with all parameters for HDR that can be seet from
+ * the CSS API. Currenly, only test parameters are defined.
  */
 struct ia_css_hdr_config {
-	struct ia_css_hdr_irradiance_params irradiance; /** HDR irradiance paramaters */
+	struct ia_css_hdr_irradiance_params irradiance; /** HDR irradiance parameters */
 	struct ia_css_hdr_deghost_params    deghost;    /** HDR deghosting parameters */
 	struct ia_css_hdr_exclusion_params  exclusion; /** HDR exclusion parameters */
 };

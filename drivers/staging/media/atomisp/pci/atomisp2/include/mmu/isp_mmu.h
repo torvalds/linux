@@ -136,7 +136,7 @@ int isp_mmu_init(struct isp_mmu *mmu, struct isp_mmu_client *driver);
 void isp_mmu_exit(struct isp_mmu *mmu);
 
 /*
- * setup/remove address mapping for pgnr continous physical pages
+ * setup/remove address mapping for pgnr continuous physical pages
  * and isp_virt.
  *
  * map/unmap is mutex lock protected, and caller does not have

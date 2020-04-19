@@ -168,7 +168,7 @@ static void mmu_unmap_l2_pte_error(struct isp_mmu *mmu,
 				   phys_addr_t l2_pt, unsigned int l2_idx,
 				   unsigned int isp_virt, unsigned int pte)
 {
-	dev_err(atomisp_dev, "unmap unvalid L2 pte:\n\n"
+	dev_err(atomisp_dev, "unmap invalid L2 pte:\n\n"
 		     "\tL1 PT: virt = %p, phys = 0x%llx, "
 		     "idx = %d\n"
 		     "\tL2 PT: virt = %p, phys = 0x%llx, "
@@ -185,7 +185,7 @@ static void mmu_unmap_l1_pte_error(struct isp_mmu *mmu,
 				   phys_addr_t l1_pt, unsigned int l1_idx,
 				   unsigned int isp_virt, unsigned int pte)
 {
-	dev_err(atomisp_dev, "unmap unvalid L1 pte (L2 PT):\n\n"
+	dev_err(atomisp_dev, "unmap invalid L1 pte (L2 PT):\n\n"
 		     "\tL1 PT: virt = %p, phys = 0x%llx, "
 		     "idx = %d\n"
 		     "\tisp_virt = 0x%x, l1_pte(L2 PT) = 0x%x\n",
@@ -196,7 +196,7 @@ static void mmu_unmap_l1_pte_error(struct isp_mmu *mmu,
 
 static void mmu_unmap_l1_pt_error(struct isp_mmu *mmu, unsigned int pte)
 {
-	dev_err(atomisp_dev, "unmap unvalid L1PT:\n\n"
+	dev_err(atomisp_dev, "unmap invalid L1PT:\n\n"
 		     "L1PT = 0x%x\n", (unsigned int)pte);
 }
 

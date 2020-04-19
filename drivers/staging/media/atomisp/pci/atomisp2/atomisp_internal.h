@@ -239,7 +239,7 @@ struct atomisp_device {
 	 */
 	struct atomisp_sub_device *asd;
 	/*
-	 * this will be assiged dyanamically.
+	 * this will be assigned dyanamically.
 	 * For Merr/BTY(ISP2400), 2 streams are supported.
 	 */
 	unsigned int num_of_streams;

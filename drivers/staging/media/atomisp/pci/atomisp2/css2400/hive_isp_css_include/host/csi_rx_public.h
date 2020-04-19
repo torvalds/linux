@@ -85,7 +85,7 @@ extern void csi_rx_be_ctrl_dump_state(
  * Load the value of the register of the csi rx fe.
  *
  * @param[in]	ID	The global unique ID for the ibuf-controller instance.
- * @param[in]	reg	The offet address of the register.
+ * @param[in]	reg	The offset address of the register.
  *
  * @return the value of the register.
  */
@@ -97,7 +97,7 @@ extern hrt_data csi_rx_fe_ctrl_reg_load(
  * Store a value to the registe of the csi rx fe.
  *
  * @param[in]	ID		The global unique ID for the ibuf-controller instance.
- * @param[in]	reg		The offet address of the register.
+ * @param[in]	reg		The offset address of the register.
  * @param[in]	value	The value to be stored.
  *
  */
@@ -110,7 +110,7 @@ extern void csi_rx_fe_ctrl_reg_store(
  * Load the value of the register of the csirx be.
  *
  * @param[in]	ID	The global unique ID for the ibuf-controller instance.
- * @param[in]	reg	The offet address of the register.
+ * @param[in]	reg	The offset address of the register.
  *
  * @return the value of the register.
  */
@@ -122,7 +122,7 @@ extern hrt_data csi_rx_be_ctrl_reg_load(
  * Store a value to the registe of the csi rx be.
  *
  * @param[in]	ID		The global unique ID for the ibuf-controller instance.
- * @param[in]	reg		The offet address of the register.
+ * @param[in]	reg		The offset address of the register.
  * @param[in]	value	The value to be stored.
  *
  */

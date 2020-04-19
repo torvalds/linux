@@ -215,7 +215,7 @@ enum ia_css_err ia_css_pipeline_get_stage_from_fw(struct ia_css_pipeline *pipeli
 			  uint32_t fw_handle,
 			  struct ia_css_pipeline_stage **stage);
 
-/* @brief Gets the Firmware handle correponding the stage num from the pipeline
+/* @brief Gets the Firmware handle corresponding the stage num from the pipeline
  *
  * @param[in] pipeline
  * @param[in] stage_num

@@ -2872,7 +2872,7 @@ ia_css_debug_pipe_graph_dump_stage(
 				if (l <= ENABLE_LINE_MAX_LENGTH) {
 					/* The 2nd line fits */
 					/* we cannot use ei as argument because
-					 * it is not guarenteed dword aligned
+					 * it is not guaranteed dword aligned
 					 */
 					strncpy_s(enable_info2,
 						sizeof(enable_info2),
@@ -2896,7 +2896,7 @@ ia_css_debug_pipe_graph_dump_stage(
 					if (l <= ENABLE_LINE_MAX_LENGTH) {
 						/* The 3rd line fits */
 						/* we cannot use ei as argument because
-						* it is not guarenteed dword aligned
+						* it is not guaranteed dword aligned
 						*/
 						strcpy_s(enable_info3,
 							sizeof(enable_info3), ei);

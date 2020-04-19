@@ -128,7 +128,7 @@ extern hrt_vaddress mmgr_alloc_attr(const size_t size, const uint16_t attribute)
  \param	attribute[in]		Bit vector specifying the properties
 				of the allocation
  \param context			Pointer of a context provided by
-				client/driver for additonal parameters
+				client/driver for additional parameters
 				needed by the implementation
  \Note
 	This interface is tentative, limited to the desired function

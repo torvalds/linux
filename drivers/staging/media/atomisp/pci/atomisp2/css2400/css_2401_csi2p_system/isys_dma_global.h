@@ -32,8 +32,8 @@
  * The DMA port definition for the input system
  * 2401 DMA is the duplication of the DMA port
  * definition for the CSS system DMA. It is duplicated
- * here just as the temporal step before the device libary
- * is available. The device libary is suppose to provide
+ * here just as the temporal step before the device library
+ * is available. The device library is suppose to provide
  * the capability of reusing the control interface of the
  * same device prototypes. The refactor team will work on
  * this, right?
@@ -55,8 +55,8 @@ struct isys2401_dma_port_cfg_s {
  * The DMA device definition for the input system
  * 2401 DMA is the duplicattion of the DMA device
  * definition for the CSS system DMA. It is duplicated
- * here just as the temporal step before the device libary
- * is available. The device libary is suppose to provide
+ * here just as the temporal step before the device library
+ * is available. The device library is suppose to provide
  * the capability of reusing the control interface of the
  * same device prototypes. The refactor team will work on
  * this, right?

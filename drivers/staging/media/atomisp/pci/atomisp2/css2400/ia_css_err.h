@@ -47,9 +47,9 @@ enum ia_css_err {
 enum ia_css_fw_warning {
 	IA_CSS_FW_WARNING_NONE,
 	IA_CSS_FW_WARNING_ISYS_QUEUE_FULL, /* < CSS system delayed because of insufficient space in the ISys queue.
-		This warning can be avoided by de-queing ISYS buffers more timely. */
+		This warning can be avoided by de-queuing ISYS buffers more timely. */
 	IA_CSS_FW_WARNING_PSYS_QUEUE_FULL, /* < CSS system delayed because of insufficient space in the PSys queue.
-		This warning can be avoided by de-queing PSYS buffers more timely. */
+		This warning can be avoided by de-queuing PSYS buffers more timely. */
 	IA_CSS_FW_WARNING_CIRCBUF_ALL_LOCKED, /* < CSS system delayed because of insufficient available buffers.
 		This warning can be avoided by unlocking locked frame-buffers more timely. */
 	IA_CSS_FW_WARNING_EXP_ID_LOCKED, /* < Exposure ID skipped because the frame associated to it was still locked.

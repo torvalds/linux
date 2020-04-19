@@ -125,7 +125,7 @@ struct ia_css_stream_config {
 	bool pack_raw_pixels; /** Pack pixels in the raw buffers */
 	bool continuous; /** Use SP copy feature to continuously capture frames
 			      to system memory and run pipes in offline mode */
-	bool disable_cont_viewfinder; /** disable continous viewfinder for ZSL use case */
+	bool disable_cont_viewfinder; /** disable continuous viewfinder for ZSL use case */
 	int32_t flash_gpio_pin; /** pin on which the flash is connected, -1 for no flash */
 	int left_padding; /** The number of input-formatter left-paddings, -1 for default from binary.*/
 	struct ia_css_mipi_buffer_config mipi_buffer_config; /** mipi buffer configuration */

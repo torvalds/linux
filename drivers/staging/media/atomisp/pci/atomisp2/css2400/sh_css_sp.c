@@ -1403,7 +1403,7 @@ sh_css_read_host2sp_command(void)
 
 /*
  * Frame data is no longer part of the sp_stage structure but part of a
- * seperate structure. The aim is to make the sp_data struct static
+ * separate structure. The aim is to make the sp_data struct static
  * (it defines a pipeline) and that the dynamic (per frame) data is stored
  * separetly.
  *
@@ -1422,7 +1422,7 @@ sh_css_init_host2sp_frame_data(void)
 	/*
 	 * rvanimme: don't clean it to save static frame info line ref_in
 	 * ref_out, and tnr_frames. Once this static data is in a
-	 * seperate data struct, this may be enable (but still, there is
+	 * separate data struct, this may be enable (but still, there is
 	 * no need for it)
 	 */
 }

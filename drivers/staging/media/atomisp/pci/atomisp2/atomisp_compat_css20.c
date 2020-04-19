@@ -2574,7 +2574,7 @@ static void __configure_preview_pp_input(struct atomisp_sub_device *asd,
 	 *
 	 * Rule for Bayer Downscaling: support factor 2, 1.5 and 1.25
 	 * Rule for YUV Decimation: support factor 2, 4
-	 * Rule for YUV Downscaling: arbitary value below 2
+	 * Rule for YUV Downscaling: arbitrary value below 2
 	 *
 	 * General rule of factor distribution among these stages:
 	 * 1: try to do Bayer downscaling first if not in online mode.

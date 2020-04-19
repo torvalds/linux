@@ -717,7 +717,7 @@ static int gc0310_init(struct v4l2_subdev *sd)
 	pr_info("%s S\n", __func__);
 	mutex_lock(&dev->input_lock);
 
-	/* set inital registers */
+	/* set initial registers */
 	ret  = gc0310_write_reg_array(client, gc0310_reset_register);
 
 	/* restore settings */

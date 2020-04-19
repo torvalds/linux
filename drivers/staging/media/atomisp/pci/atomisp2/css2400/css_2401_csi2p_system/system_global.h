@@ -451,7 +451,7 @@ enum ia_css_isp_memories {
 	N_IA_CSS_MEMORIES
 };
 #define IA_CSS_NUM_MEMORIES 9
-/* For driver compatability */
+/* For driver compatibility */
 #define N_IA_CSS_ISP_MEMORIES   IA_CSS_NUM_MEMORIES
 #define IA_CSS_NUM_ISP_MEMORIES IA_CSS_NUM_MEMORIES
 

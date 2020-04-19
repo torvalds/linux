@@ -45,7 +45,7 @@ static int ctc2_slope(int y1, int y0, int x1, int x0)
 	int dy_shift = dy << shift_val;
 	int slope, dydx;
 
-	/*Protection for paramater values, & avoiding zero divisions*/
+	/*Protection for parameter values, & avoiding zero divisions*/
 	assert(y0 >= 0 && y0 <= max_slope);
 	assert(y1 >= 0 && y1 <= max_slope);
 	assert(x0 >= 0 && x0 <= max_slope);
@@ -80,7 +80,7 @@ void ia_css_ctc2_vmem_encode(struct ia_css_isp_ctc2_vmem_params *to,
 {
 	unsigned i, j;
 	const unsigned shffl_blck = 4;
-	const unsigned lenght_zeros = 11;
+	const unsigned length_zeros = 11;
 	short dydx0, dydx1, dydx2, dydx3, dydx4;
 
 	(void)size;
@@ -127,7 +127,7 @@ void ia_css_ctc2_vmem_encode(struct ia_css_isp_ctc2_vmem_params *to,
 		to->e_y_slope[0][(i << shffl_blck) + 3] = dydx3;
 		to->e_y_slope[0][(i << shffl_blck) + 4] = dydx4;
 
-		for (j = 0; j < lenght_zeros; j++) {
+		for (j = 0; j < length_zeros; j++) {
 			to->y_x[0][(i << shffl_blck) + 5 + j] = 0;
 			to->y_y[0][(i << shffl_blck) + 5 + j] = 0;
 			to->e_y_slope[0][(i << shffl_blck)+ 5 + j] = 0;

@@ -917,7 +917,7 @@ ia_css_elems_bytes_from_info(const struct ia_css_frame_info *info)
 		return 2; /* bytes per pixel */
 	/* Note: Essentially NV12_16 is a 2 bytes per pixel format, this return value is used
 	 * to configure DMA for the output buffer,
-	 * At least in SKC this data is overwriten by isp_output_init.sp.c except for elements(elems),
+	 * At least in SKC this data is overwritten by isp_output_init.sp.c except for elements(elems),
 	 * which is configured from this return value,
 	 * NV12_16 is implemented by a double buffer of 8 bit elements hence elems should be configured as 8 */
 	if (info->format == IA_CSS_FRAME_FORMAT_NV12_16)

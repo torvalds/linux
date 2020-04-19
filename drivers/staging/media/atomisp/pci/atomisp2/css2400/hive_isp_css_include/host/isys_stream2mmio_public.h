@@ -56,7 +56,7 @@ STORAGE_CLASS_STREAM2MMIO_H void stream2mmio_get_sid_state(
  *
  * @param[in]	ID	The global unique ID for the stream2mmio-controller instance.
  * @param[in]	sid_id	The SID in question.
- * @param[in]	reg_idx	The offet address of the register.
+ * @param[in]	reg_idx	The offset address of the register.
  *
  * @return the value of the register.
  */
@@ -88,7 +88,7 @@ STORAGE_CLASS_STREAM2MMIO_H void stream2mmio_dump_state(
  * Store a value to the registe of the stream2mmio-controller.
  *
  * @param[in]	ID		The global unique ID for the stream2mmio-controller instance.
- * @param[in]	reg		The offet address of the register.
+ * @param[in]	reg		The offset address of the register.
  * @param[in]	value	The value to be stored.
  *
  */

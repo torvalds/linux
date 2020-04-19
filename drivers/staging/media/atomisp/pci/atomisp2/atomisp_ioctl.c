@@ -2492,7 +2492,7 @@ static int atomisp_g_ext_ctrls(struct file *file, void *fh,
 	struct v4l2_control ctrl;
 	int i, ret = 0;
 
-	/* input_lock is not need for the Camera releated IOCTLs
+	/* input_lock is not need for the Camera related IOCTLs
 	 * The input_lock downgrade the FPS of 3A*/
 	ret = atomisp_camera_g_ext_ctrls(file, fh, c);
 	if (ret != -EINVAL)
@@ -2618,7 +2618,7 @@ static int atomisp_s_ext_ctrls(struct file *file, void *fh,
 	struct v4l2_control ctrl;
 	int i, ret = 0;
 
-	/* input_lock is not need for the Camera releated IOCTLs
+	/* input_lock is not need for the Camera related IOCTLs
 	 * The input_lock downgrade the FPS of 3A*/
 	ret = atomisp_camera_s_ext_ctrls(file, fh, c);
 	if (ret != -EINVAL)

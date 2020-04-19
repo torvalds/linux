@@ -1805,7 +1805,7 @@ unsigned
 ia_css_binary_max_vf_width(void)
 {
 	/* This is (should be) true for IPU1 and IPU2 */
-	/* For IPU3 (SkyCam) this pointer is guarenteed to be NULL simply because such a binary does not exist  */
+	/* For IPU3 (SkyCam) this pointer is guaranteed to be NULL simply because such a binary does not exist  */
 	if (binary_infos[IA_CSS_BINARY_MODE_VF_PP])
 		return binary_infos[IA_CSS_BINARY_MODE_VF_PP]->sp.output.max_width;
 	return 0;

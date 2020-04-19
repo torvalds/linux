@@ -343,7 +343,7 @@ static const struct gc0310_reg gc0310_reset_register[] = {
 /////////////////////////////////////////////////
 	{GC0310_8BIT, 0xfe, 0x01},
 	{GC0310_8BIT, 0x45, 0xa4}, // 0xf7
-	{GC0310_8BIT, 0x46, 0xf0}, // 0xff //f0//sun vaule th
+	{GC0310_8BIT, 0x46, 0xf0}, // 0xff //f0//sun value th
 	{GC0310_8BIT, 0x48, 0x03}, //sun mode
 	{GC0310_8BIT, 0x4f, 0x60}, //sun_clamp
 	{GC0310_8BIT, 0xfe, 0x00},

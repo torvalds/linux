@@ -270,7 +270,7 @@ int atomisp_q_video_buffers_to_css(struct atomisp_sub_device *asd,
 			 * Because the camera halv3 can't ensure to set zoom
 			 * region to per_frame setting and global setting at
 			 * same time and only set zoom region to pre_frame
-			 * setting now.so when the pre_frame setting inculde
+			 * setting now.so when the pre_frame setting include
 			 * zoom region,I will set it to global setting.
 			 */
 			if (param->params.update_flag.dz_config &&

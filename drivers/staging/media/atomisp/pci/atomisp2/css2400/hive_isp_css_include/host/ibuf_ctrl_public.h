@@ -66,7 +66,7 @@ STORAGE_CLASS_IBUF_CTRL_H void ibuf_ctrl_dump_state(
  * Load the value of the register of the ibuf-controller.
  *
  * @param[in]	ID	The global unique ID for the ibuf-controller instance.
- * @param[in]	reg	The offet address of the register.
+ * @param[in]	reg	The offset address of the register.
  *
  * @return the value of the register.
  */
@@ -79,7 +79,7 @@ STORAGE_CLASS_IBUF_CTRL_H hrt_data ibuf_ctrl_reg_load(
  * Store a value to the registe of the ibuf-controller.
  *
  * @param[in]	ID		The global unique ID for the ibuf-controller instance.
- * @param[in]	reg		The offet address of the register.
+ * @param[in]	reg		The offset address of the register.
  * @param[in]	value	The value to be stored.
  *
  */

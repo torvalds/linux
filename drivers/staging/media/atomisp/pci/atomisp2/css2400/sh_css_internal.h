@@ -335,7 +335,7 @@ struct sh_css_sp_debug_state {
 #define SH_CSS_SP_DBG_NR_OF_TRACES	(1)
 #define SH_CSS_SP_DBG_TRACE_DEPTH	(40)
 #else
-/* E.g. if you like seperate traces for 4 threads */
+/* E.g. if you like separate traces for 4 threads */
 #define SH_CSS_SP_DBG_NR_OF_TRACES	(4)
 #define SH_CSS_SP_DBG_TRACE_DEPTH	(10)
 #endif
@@ -373,7 +373,7 @@ struct sh_css_sp_debug_command {
 	 *	Bit 31...24: unused.
 	 *	Bit 23...16: unused.
 	 *	Bit 15...08: reading-request enabling bits for DMA channel 7..0
-	 *	Bit 07...00: writing-reqeust enabling bits for DMA channel 7..0
+	 *	Bit 07...00: writing-request enabling bits for DMA channel 7..0
 	 *
 	 * For example, "0...0 0...0 11111011 11111101" indicates that the
 	 * writing request through DMA Channel 1 and the reading request
@@ -584,11 +584,11 @@ struct sh_css_sp_pipeline {
 /*
  * The first frames (with comment Dynamic) can be dynamic or static
  * The other frames (ref_in and below) can only be static
- * Static means that the data addres will not change during the life time
+ * Static means that the data address will not change during the life time
  * of the associated pipe. Dynamic means that the data address can
  * change with every (frame) iteration of the associated pipe
  *
- * s3a and dis are now also dynamic but (stil) handled seperately
+ * s3a and dis are now also dynamic but (stil) handled separately
  */
 #define SH_CSS_NUM_DYNAMIC_FRAME_IDS (3)
 
@@ -608,7 +608,7 @@ struct ia_css_frames_sp {
 /* Information for a single pipeline stage for an ISP */
 struct sh_css_isp_stage {
 	/*
-	 * For compatability and portabilty, only types
+	 * For compatibility and portabilty, only types
 	 * from "stdint.h" are allowed
 	 *
 	 * Use of "enum" and "bool" is prohibited
@@ -624,7 +624,7 @@ struct sh_css_isp_stage {
 /* Information for a single pipeline stage */
 struct sh_css_sp_stage {
 	/*
-	 * For compatability and portabilty, only types
+	 * For compatibility and portabilty, only types
 	 * from "stdint.h" are allowed
 	 *
 	 * Use of "enum" and "bool" is prohibited
@@ -686,7 +686,7 @@ struct sh_css_sp_stage {
  * Note:
  * Group all host initialized SP variables into this struct.
  * This is initialized every stage through dma.
- * The stage part itself is transfered through sh_css_sp_stage.
+ * The stage part itself is transferred through sh_css_sp_stage.
 */
 struct sh_css_sp_group {
 	struct sh_css_sp_config		config;
@@ -840,7 +840,7 @@ struct sh_css_event_irq_mask {
 struct host_sp_communication {
 	/*
 	 * Don't use enum host2sp_commands, because the sizeof an enum is
-	 * compiler dependant and thus non-portable
+	 * compiler dependent and thus non-portable
 	 */
 	uint32_t host2sp_command;
 

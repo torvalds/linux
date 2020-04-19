@@ -1259,7 +1259,7 @@ static void print_pc_histo(char *core_name, struct sh_css_pc_histogram *hist)
 		return;
 
 	sh_css_print("%s histogram length = %d\n", core_name, hist->length);
-	sh_css_print("%s PC\trun\tstall\n", core_name);
+	sh_css_print("%s PC\turn\tstall\n", core_name);
 
 	for (i = 0; i < hist->length; i++) {
 		if ((hist->run[i] == 0) && (hist->run[i] == hist->stall[i]))

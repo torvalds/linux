@@ -365,7 +365,7 @@ extern uint32_t ia_css_circbuf_peek_from_start(
  * 		but new elements should be added at the end to existing
  * 		cb element array which if of max_size >= new size
  *
- * @return	true on succesfully increasing the size
+ * @return	true on successfully increasing the size
  * 			false on failure
  */
 extern bool ia_css_circbuf_increase_size(

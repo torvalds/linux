@@ -53,7 +53,7 @@ STORAGE_CLASS_PIXELGEN_H void pixelgen_ctrl_dump_state(
  * Load the value of the register of the pixelgen
  *
  * @param[in]	ID	The global unique ID for the pixelgen instance.
- * @param[in]	reg	The offet address of the register.
+ * @param[in]	reg	The offset address of the register.
  *
  * @return the value of the register.
  */
@@ -65,7 +65,7 @@ STORAGE_CLASS_PIXELGEN_H hrt_data pixelgen_ctrl_reg_load(
  * Store a value to the registe of the pixelgen
  *
  * @param[in]	ID		The global unique ID for the pixelgen.
- * @param[in]	reg		The offet address of the register.
+ * @param[in]	reg		The offset address of the register.
  * @param[in]	value	The value to be stored.
  *
  */

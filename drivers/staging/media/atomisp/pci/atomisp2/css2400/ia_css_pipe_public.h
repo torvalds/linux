@@ -308,7 +308,7 @@ ia_css_pipe_set_isp_config(struct ia_css_pipe *pipe,
  * @param[in]	and_mask Binary or of enum ia_css_event_irq_mask_type. An event
 			IRQ for the Host is only raised after all pipe related
 			events have occurred at least once for all the active
-			pipes. Events are remembered and don't need to occure
+			pipes. Events are remembered and don't need to occurred
 			at the same moment in time. There is no control over
 			the order of these events. Once an IRQ has been raised
 			all remembered events are reset.

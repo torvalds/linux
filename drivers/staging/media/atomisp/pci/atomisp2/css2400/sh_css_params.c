@@ -3828,7 +3828,7 @@ sh_css_param_update_isp_params(struct ia_css_pipe *curr_pipe,
 		cur_map_size = &params->pipe_ddr_ptrs_size[pipeline->pipe_id];
 
 		/* TODO: Normally, zoom and motion parameters shouldn't
-		 * be part of "isp_params" as it is resolution/pipe dependant
+		 * be part of "isp_params" as it is resolution/pipe dependent
 		 * Therefore, move the zoom config elsewhere (e.g. shading
 		 * table can be taken as an example! @GC
 		 * */

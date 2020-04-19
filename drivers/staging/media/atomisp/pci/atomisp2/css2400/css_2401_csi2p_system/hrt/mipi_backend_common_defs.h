@@ -63,7 +63,7 @@
 #define _HRT_CSS_RECEIVER_2400_DATA_FORMAT_ID_GEN_SH8           15   /* 00 1111    Generic Short Packet Code 8                      */
 #define _HRT_CSS_RECEIVER_2400_DATA_FORMAT_ID_YUV420_8_CSPS     28   /* 01 1100   YUV420 8-bit (Chroma Shifted Pixel Sampling)      */
 #define _HRT_CSS_RECEIVER_2400_DATA_FORMAT_ID_YUV420_10_CSPS    29   /* 01 1101   YUV420 10-bit (Chroma Shifted Pixel Sampling)     */
-/* used reseved mipi positions for these */
+/* used reserved mipi positions for these */
 #define _HRT_CSS_RECEIVER_2400_DATA_FORMAT_ID_RAW16             46 
 #define _HRT_CSS_RECEIVER_2400_DATA_FORMAT_ID_RAW18             47 
 #define _HRT_CSS_RECEIVER_2400_DATA_FORMAT_ID_RAW18_2           37 
