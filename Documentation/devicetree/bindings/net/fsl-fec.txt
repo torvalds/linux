@@ -82,6 +82,7 @@ ethernet@83fec000 {
 	phy-supply = <&reg_fec_supply>;
 	phy-handle = <&ethphy>;
 	mdio {
+	        clock-frequency = <5000000>;
 		ethphy: ethernet-phy@6 {
 			compatible = "ethernet-phy-ieee802.3-c22";
 			reg = <6>;
