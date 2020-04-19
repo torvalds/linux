@@ -15,7 +15,6 @@
 #include <linux/hashtable.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <unistd.h>
 
 #include "json_writer.h"
 #include "main.h"
