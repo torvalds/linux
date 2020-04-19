@@ -93,7 +93,7 @@ static const __initconst struct idt_data def_idts[] = {
 	INTG(X86_TRAP_DB,		debug),
 
 #ifdef CONFIG_X86_MCE
-	INTG(X86_TRAP_MC,		&machine_check),
+	INTG(X86_TRAP_MC,		machine_check),
 #endif
 
 	SYSG(X86_TRAP_OF,		overflow),
@@ -186,7 +186,7 @@ static const __initconst struct idt_data ist_idts[] = {
 	ISTG(X86_TRAP_NMI,	nmi,		IST_INDEX_NMI),
 	ISTG(X86_TRAP_DF,	double_fault,	IST_INDEX_DF),
 #ifdef CONFIG_X86_MCE
-	ISTG(X86_TRAP_MC,	&machine_check,	IST_INDEX_MCE),
+	ISTG(X86_TRAP_MC,	machine_check,	IST_INDEX_MCE),
 #endif
 };
 
