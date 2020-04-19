@@ -686,14 +686,6 @@ static struct videobuf_buffer *atomisp_css_frame_to_vbuf(
 	return NULL;
 }
 
-static void get_buf_timestamp(struct timeval *tv)
-{
-	struct timespec ts;
-	ktime_get_ts(&ts);
-	tv->tv_sec = ts.tv_sec;
-	tv->tv_usec = ts.tv_nsec / NSEC_PER_USEC;
-}
-
 static void atomisp_flush_video_pipe(struct atomisp_sub_device *asd,
 				     struct atomisp_video_pipe *pipe)
 {
@@ -707,7 +699,7 @@ static void atomisp_flush_video_pipe(struct atomisp_sub_device *asd,
 		spin_lock_irqsave(&pipe->irq_lock, irqflags);
 		if (pipe->capq.bufs[i]->state == VIDEOBUF_ACTIVE ||
 		    pipe->capq.bufs[i]->state == VIDEOBUF_QUEUED) {
-			get_buf_timestamp(&pipe->capq.bufs[i]->ts);
+			pipe->capq.bufs[i]->ts = ktime_get_ns();
 			pipe->capq.bufs[i]->field_count =
 				atomic_read(&asd->sequence) << 1;
 			dev_dbg(asd->isp->dev, "release buffers on device %s\n",
@@ -1206,7 +1198,7 @@ void atomisp_buf_done(struct atomisp_sub_device *asd, int error,
 		break;
 	}
 	if (vb) {
-		get_buf_timestamp(&vb->ts);
+		vb->ts = ktime_get_ns();
 		vb->field_count = atomic_read(&asd->sequence) << 1;
 		/*mark videobuffer done for dequeue*/
 		spin_lock_irqsave(&pipe->irq_lock, irqflags);
