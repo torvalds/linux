@@ -798,7 +798,6 @@ _ASM_NOKPROBE(common_interrupt)
 SYM_CODE_START(\sym)
 	UNWIND_HINT_IRET_REGS
 	pushq	$~(\num)
-.Lcommon_\sym:
 	call	interrupt_entry
 	UNWIND_HINT_REGS indirect=1
 	call	\do_sym	/* rdi points to pt_regs */
