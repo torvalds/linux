@@ -206,7 +206,7 @@ static void free_addr(struct mlx5_core_dev *dev, u64 addr)
 
 	fwp = find_fw_page(dev, addr & MLX5_U64_4K_PAGE_MASK);
 	if (!fwp) {
-		mlx5_core_warn(dev, "page not found\n");
+		mlx5_core_warn_rl(dev, "page not found\n");
 		return;
 	}
 	free_fwp(dev, fwp);
