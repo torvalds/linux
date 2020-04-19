@@ -3939,11 +3939,6 @@ static void rtl8169_rx_clear(struct rtl8169_private *tp)
 	}
 }
 
-static inline void rtl8169_mark_as_last_descriptor(struct RxDesc *desc)
-{
-	desc->opts1 |= cpu_to_le32(RingEnd);
-}
-
 static int rtl8169_rx_fill(struct rtl8169_private *tp)
 {
 	unsigned int i;
@@ -3959,7 +3954,8 @@ static int rtl8169_rx_fill(struct rtl8169_private *tp)
 		tp->Rx_databuff[i] = data;
 	}
 
-	rtl8169_mark_as_last_descriptor(tp->RxDescArray + NUM_RX_DESC - 1);
+	/* mark as last descriptor in the ring */
+	tp->RxDescArray[NUM_RX_DESC - 1].opts1 |= cpu_to_le32(RingEnd);
 
 	return 0;
 }
