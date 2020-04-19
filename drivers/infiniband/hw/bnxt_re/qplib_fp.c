@@ -300,12 +300,12 @@ static void bnxt_qplib_service_nq(unsigned long data)
 {
 	struct bnxt_qplib_nq *nq = (struct bnxt_qplib_nq *)data;
 	struct bnxt_qplib_hwq *hwq = &nq->hwq;
-	struct nq_base *nqe, **nq_ptr;
 	int num_srqne_processed = 0;
 	int num_cqne_processed = 0;
 	struct bnxt_qplib_cq *cq;
 	int budget = nq->budget;
 	u32 sw_cons, raw_cons;
+	struct nq_base *nqe;
 	uintptr_t q_handle;
 	u16 type;
 
@@ -314,7 +314,6 @@ static void bnxt_qplib_service_nq(unsigned long data)
 	raw_cons = hwq->cons;
 	while (budget--) {
 		sw_cons = HWQ_CMP(raw_cons, hwq);
-		nq_ptr = (struct nq_base **)hwq->pbl_ptr;
 		nqe = bnxt_qplib_get_qe(hwq, sw_cons, NULL);
 		if (!NQE_CMP_VALID(nqe, raw_cons, hwq->max_elements))
 			break;
