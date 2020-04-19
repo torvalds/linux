@@ -427,8 +427,10 @@ static struct dma_async_tx_descriptor *mmp_tdma_prep_dma_cyclic(
 	int num_periods = buf_len / period_len;
 	int i = 0, buf = 0;
 
-	if (tdmac->status != DMA_COMPLETE)
+	if (tdmac->status != DMA_COMPLETE) {
+		dev_err(tdmac->dev, "controller busy");
 		return NULL;
+	}
 
 	if (period_len > TDMA_MAX_XFER_BYTES) {
 		dev_err(tdmac->dev,
