@@ -3882,12 +3882,6 @@ static int rtl8169_change_mtu(struct net_device *dev, int new_mtu)
 	return 0;
 }
 
-static inline void rtl8169_make_unusable_by_asic(struct RxDesc *desc)
-{
-	desc->addr = cpu_to_le64(0x0badbadbadbadbadull);
-	desc->opts1 &= ~cpu_to_le32(DescOwn | RsvdMask);
-}
-
 static inline void rtl8169_mark_to_asic(struct RxDesc *desc)
 {
 	u32 eor = le32_to_cpu(desc->opts1) & RingEnd;
@@ -3935,7 +3929,8 @@ static void rtl8169_rx_clear(struct rtl8169_private *tp)
 			       R8169_RX_BUF_SIZE, DMA_FROM_DEVICE);
 		__free_pages(tp->Rx_databuff[i], get_order(R8169_RX_BUF_SIZE));
 		tp->Rx_databuff[i] = NULL;
-		rtl8169_make_unusable_by_asic(tp->RxDescArray + i);
+		tp->RxDescArray[i].addr = 0;
+		tp->RxDescArray[i].opts1 = 0;
 	}
 }
 
