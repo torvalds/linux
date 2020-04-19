@@ -19,5 +19,6 @@ TEST_GEN_PROGS += self
 TEST_GEN_PROGS += setns-dcache
 TEST_GEN_PROGS += setns-sysvipc
 TEST_GEN_PROGS += thread-self
+TEST_GEN_PROGS += proc-multiple-procfs
 
 include ../lib.mk
