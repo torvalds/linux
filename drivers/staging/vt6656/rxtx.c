@@ -45,6 +45,25 @@ static const u16 vnt_time_stampoff[2][MAX_RATE] = {
 #define DATADUR_B       10
 #define DATADUR_A       11
 
+static const u16 vnt_frame_time[MAX_RATE] = {
+	10, 20, 55, 110, 24, 36, 48, 72, 96, 144, 192, 216
+};
+
+static const u8 vnt_phy_signal[] = {
+	0x00,	/* RATE_1M  */
+	0x01,	/* RATE_2M  */
+	0x02,	/* RATE_5M  */
+	0x03,	/* RATE_11M */
+	0x8b,	/* RATE_6M  */
+	0x8f,	/* RATE_9M  */
+	0x8a,	/* RATE_12M */
+	0x8e,	/* RATE_18M */
+	0x89,	/* RATE_24M */
+	0x8d,	/* RATE_36M */
+	0x88,	/* RATE_48M */
+	0x8c	/* RATE_54M */
+};
+
 static struct vnt_usb_send_context
 	*vnt_get_free_context(struct vnt_private *priv)
 {
@@ -76,6 +95,98 @@ static struct vnt_usb_send_context
 	}
 
 	return NULL;
+}
+
+/* Frame time for Tx */
+static unsigned int vnt_get_frame_time(u8 preamble_type, u8 pkt_type,
+				       unsigned int frame_length, u16 tx_rate)
+{
+	unsigned int frame_time;
+	unsigned int preamble;
+	unsigned int rate;
+
+	if (tx_rate > RATE_54M)
+		return 0;
+
+	rate = (unsigned int)vnt_frame_time[tx_rate];
+
+	if (tx_rate <= RATE_11M) {
+		if (preamble_type == PREAMBLE_SHORT)
+			preamble = 96;
+		else
+			preamble = 192;
+
+		frame_time = DIV_ROUND_UP(frame_length * 80, rate);
+		return preamble + frame_time;
+	}
+
+	frame_time = DIV_ROUND_UP(frame_length * 8 + 22, rate);
+	frame_time = frame_time * 4;
+
+	if (pkt_type != PK_TYPE_11A)
+		frame_time += 6;
+	return 20 + frame_time;
+}
+
+/* Get Length, Service, and Signal fields of Phy for Tx */
+static void vnt_get_phy_field(struct vnt_private *priv, u32 frame_length,
+			      u16 tx_rate, u8 pkt_type,
+			      struct vnt_phy_field *phy)
+{
+	u32 bit_count;
+	u32 count = 0;
+	u32 tmp;
+	int ext_bit;
+	int i;
+	u8 mask = 0;
+	u8 preamble_type = priv->preamble_type;
+
+	bit_count = frame_length * 8;
+	ext_bit = false;
+
+	switch (tx_rate) {
+	case RATE_1M:
+		count = bit_count;
+		break;
+	case RATE_2M:
+		count = bit_count / 2;
+		break;
+	case RATE_5M:
+		count = DIV_ROUND_UP(bit_count * 10, 55);
+		break;
+	case RATE_11M:
+		count = bit_count / 11;
+		tmp = count * 11;
+
+		if (tmp != bit_count) {
+			count++;
+
+			if ((bit_count - tmp) <= 3)
+				ext_bit = true;
+		}
+
+		break;
+	}
+
+	if (tx_rate > RATE_11M) {
+		if (pkt_type == PK_TYPE_11A)
+			mask = BIT(4);
+	} else if (tx_rate > RATE_1M) {
+		if (preamble_type == PREAMBLE_SHORT)
+			mask = BIT(3);
+	}
+
+	i = tx_rate > RATE_54M ? RATE_54M : tx_rate;
+	phy->signal = vnt_phy_signal[i] | mask;
+	phy->service = 0x00;
+
+	if (pkt_type == PK_TYPE_11B) {
+		if (ext_bit)
+			phy->service |= 0x80;
+		phy->len = cpu_to_le16((u16)count);
+	} else {
+		phy->len = cpu_to_le16((u16)frame_length);
+	}
 }
 
 static __le16 vnt_time_stamp_off(struct vnt_private *priv, u16 rate)

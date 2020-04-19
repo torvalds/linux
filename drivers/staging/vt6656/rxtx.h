@@ -23,6 +23,13 @@
 #define DEFAULT_MGN_LIFETIME_RES_64us	125  /* 64us */
 #define DEFAULT_MSDU_LIFETIME_RES_64us  8000
 
+/* Length, Service, and Signal fields of Phy for Tx */
+struct vnt_phy_field {
+	u8 signal;
+	u8 service;
+	__le16 len;
+} __packed;
+
 /* MIC HDR data header */
 struct vnt_mic_hdr {
 	u8 id;
