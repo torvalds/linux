@@ -17,24 +17,6 @@
 
 #include <linux/kernel.h> /* Override the definition of max/min from linux kernel*/
 
-
-/* in case we have min/max/MIN/MAX macro's undefine them */
-#ifdef min
-#undef min
-#endif
-#ifdef max
-#undef max
-#endif
-#ifdef MIN /* also defined in include/hrt/numeric.h from SDK */
-#undef MIN
-#endif
-#ifdef MAX
-#undef MAX
-#endif
-#ifdef ABS
-#undef ABS
-#endif
-
 #define IS_ODD(a)            ((a) & 0x1)
 #define IS_EVEN(a)           (!IS_ODD(a))
 
@@ -49,24 +31,19 @@
 /* A => B */
 #define IMPLIES(a, b)        (!(a) || (b))
 
-#define ABS(a)               ((a) >= 0 ? (a) : -(a))
-
 /* for preprocessor and array sizing use MIN and MAX
    otherwise use min and max */
 #define MAX(a, b)            (((a) > (b)) ? (a) : (b))
 #define MIN(a, b)            (((a) < (b)) ? (a) : (b))
-#ifdef ISP2401
+
 #define ROUND_DIV(a, b)      (((b) != 0) ? ((a) + ((b) >> 1)) / (b) : 0)
-#endif
 #define CEIL_DIV(a, b)       (((b) != 0) ? ((a) + (b) - 1) / (b) : 0)
 #define CEIL_MUL(a, b)       (CEIL_DIV(a, b) * (b))
 #define CEIL_MUL2(a, b)      (((a) + (b) - 1) & ~((b) - 1))
 #define CEIL_SHIFT(a, b)     (((a) + (1 << (b)) - 1) >> (b))
 #define CEIL_SHIFT_MUL(a, b) (CEIL_SHIFT(a, b) << (b))
-#ifdef ISP2401
 #define ROUND_HALF_DOWN_DIV(a, b)	(((b) != 0) ? ((a) + (b / 2) - 1) / (b) : 0)
 #define ROUND_HALF_DOWN_MUL(a, b)	(ROUND_HALF_DOWN_DIV(a, b) * (b))
-#endif
 
 /*To Find next power of 2 number from x */
 #define bit2(x)            ((x)      | ((x) >> 1))
@@ -84,7 +61,6 @@
 
 #if !defined(PIPE_GENERATION)
 
-#ifndef INLINE_MATH_SUPPORT_UTILS
 /*
 This macro versions are added back as we are mixing types in usage of inline.
 This causes corner cases of calculations to be incorrect due to conversions
@@ -95,37 +71,7 @@ and therefore adding them back.
 Leaving out the other math utility functions as they are newly added
 */
 
-#define max(a, b)		(MAX(a, b))
-#define min(a, b)		(MIN(a, b))
 #define ceil_div(a, b)		(CEIL_DIV(a, b))
-
-#else /* !defined(INLINE_MATH_SUPPORT_UTILS) */
-
-static inline int max(int a, int b)
-{
-	return MAX(a, b);
-}
-
-static inline int min(int a, int b)
-{
-	return MIN(a, b);
-}
-
-static inline unsigned int ceil_div(unsigned int a, unsigned int b)
-{
-	return CEIL_DIV(a, b);
-}
-#endif /* !defined(INLINE_MATH_SUPPORT_UTILS) */
-
-static inline unsigned int umax(unsigned int a, unsigned int b)
-{
-	return MAX(a, b);
-}
-
-static inline unsigned int umin(unsigned int a, unsigned int b)
-{
-	return MIN(a, b);
-}
 
 static inline unsigned int ceil_mul(unsigned int a, unsigned int b)
 {
@@ -199,12 +145,10 @@ static inline unsigned int ceil_pow2(unsigned int a)
 
 #endif /* !defined(PIPE_GENERATION) */
 
-#if !defined(__ISP)
 /*
  * For SP and ISP, SDK provides the definition of OP_std_modadd.
  * We need it only for host
  */
 #define OP_std_modadd(base, offset, size) ((base + offset) % (size))
-#endif /* !defined(__ISP) */
 
 #endif /* __MATH_SUPPORT_H */
