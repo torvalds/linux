@@ -73,6 +73,10 @@
 
 #define DEVICE_VERSION			"mac80211"
 
+#define FIRMWARE_VERSION		0x133		/* version 1.51 */
+#define FIRMWARE_NAME			"vntwusb.fw"
+#define FIRMWARE_CHUNK_SIZE		0x400
+
 #define CONFIG_PATH			"/etc/vntconfiguration.dat"
 
 #define MAX_UINTS			8

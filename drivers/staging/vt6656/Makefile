@@ -13,7 +13,6 @@ vt6656_stage-y +=	main_usb.o \
 			key.o \
 			rf.o \
 			usbpipe.o \
-			channel.o \
-			firmware.o
+			channel.o
 
 obj-$(CONFIG_VT6656) +=	vt6656_stage.o
