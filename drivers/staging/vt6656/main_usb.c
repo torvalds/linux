@@ -765,6 +765,12 @@ static int vnt_config(struct ieee80211_hw *hw, u32 changed)
 	if (changed & IEEE80211_CONF_CHANGE_POWER)
 		vnt_rf_setpower(priv, conf->chandef.chan);
 
+	if (conf->flags & (IEEE80211_CONF_OFFCHANNEL | IEEE80211_CONF_IDLE))
+		/* Set max sensitivity*/
+		vnt_update_pre_ed_threshold(priv, true);
+	else
+		vnt_update_pre_ed_threshold(priv, false);
+
 	return 0;
 }
 
@@ -814,7 +820,6 @@ static void vnt_bss_info_changed(struct ieee80211_hw *hw,
 		vnt_set_short_slot_time(priv);
 		vnt_update_ifs(priv);
 		vnt_set_vga_gain_offset(priv, priv->bb_vga[0]);
-		vnt_update_pre_ed_threshold(priv, false);
 	}
 
 	if (changed & (BSS_CHANGED_TXPOWER | BSS_CHANGED_BANDWIDTH))
@@ -934,25 +939,6 @@ static int vnt_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	return 0;
 }
 
-static void vnt_sw_scan_start(struct ieee80211_hw *hw,
-			      struct ieee80211_vif *vif,
-			      const u8 *addr)
-{
-	struct vnt_private *priv = hw->priv;
-
-	/* Set max sensitivity*/
-	vnt_update_pre_ed_threshold(priv, true);
-}
-
-static void vnt_sw_scan_complete(struct ieee80211_hw *hw,
-				 struct ieee80211_vif *vif)
-{
-	struct vnt_private *priv = hw->priv;
-
-	/* Return sensitivity to channel level*/
-	vnt_update_pre_ed_threshold(priv, false);
-}
-
 static int vnt_get_stats(struct ieee80211_hw *hw,
 			 struct ieee80211_low_level_stats *stats)
 {
@@ -998,8 +984,6 @@ static const struct ieee80211_ops vnt_mac_ops = {
 	.prepare_multicast	= vnt_prepare_multicast,
 	.configure_filter	= vnt_configure,
 	.set_key		= vnt_set_key,
-	.sw_scan_start		= vnt_sw_scan_start,
-	.sw_scan_complete	= vnt_sw_scan_complete,
 	.get_stats		= vnt_get_stats,
 	.get_tsf		= vnt_get_tsf,
 	.set_tsf		= vnt_set_tsf,
