@@ -4724,7 +4724,6 @@ static int spu_dt_read(struct platform_device *pdev)
 	spu->spu_type = matched_spu_type->type;
 	spu->spu_subtype = matched_spu_type->subtype;
 
-	i = 0;
 	for (i = 0; (i < MAX_SPUS) && ((spu_ctrl_regs =
 		platform_get_resource(pdev, IORESOURCE_MEM, i)) != NULL); i++) {
 
