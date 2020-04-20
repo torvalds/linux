@@ -213,7 +213,7 @@ static void scmi_handle_notification(struct scmi_chan_info *cinfo, u32 msg_hdr)
 	if (IS_ERR(xfer)) {
 		dev_err(dev, "failed to get free message slot (%ld)\n",
 			PTR_ERR(xfer));
-		info->desc->ops->clear_notification(cinfo);
+		info->desc->ops->clear_channel(cinfo);
 		return;
 	}
 
@@ -228,7 +228,7 @@ static void scmi_handle_notification(struct scmi_chan_info *cinfo, u32 msg_hdr)
 
 	__scmi_xfer_put(minfo, xfer);
 
-	info->desc->ops->clear_notification(cinfo);
+	info->desc->ops->clear_channel(cinfo);
 }
 
 static void scmi_handle_response(struct scmi_chan_info *cinfo,
