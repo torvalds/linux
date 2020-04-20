@@ -87,11 +87,6 @@ static int ocelot_flower_parse(struct flow_cls_offload *f,
 		     BIT(FLOW_DISSECTOR_KEY_CONTROL)))
 			return -EOPNOTSUPP;
 
-		if (proto == ETH_P_IP ||
-		    proto == ETH_P_IPV6 ||
-		    proto == ETH_P_ARP)
-			return -EOPNOTSUPP;
-
 		flow_rule_match_eth_addrs(rule, &match);
 		ace->type = OCELOT_ACE_TYPE_ETYPE;
 		ether_addr_copy(ace->frame.etype.dmac.value,
