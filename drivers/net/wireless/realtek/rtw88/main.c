@@ -137,7 +137,6 @@ struct rtw_watch_dog_iter_data {
 static void rtw_dynamic_csi_rate(struct rtw_dev *rtwdev, struct rtw_vif *rtwvif)
 {
 	struct rtw_bf_info *bf_info = &rtwdev->bf_info;
-	struct rtw_chip_info *chip = rtwdev->chip;
 	u8 fix_rate_enable = 0;
 	u8 new_csi_rate_idx;
 
@@ -145,9 +144,9 @@ static void rtw_dynamic_csi_rate(struct rtw_dev *rtwdev, struct rtw_vif *rtwvif)
 	    rtwvif->bfee.role != RTW_BFEE_MU)
 		return;
 
-	chip->ops->cfg_csi_rate(rtwdev, rtwdev->dm_info.min_rssi,
-				bf_info->cur_csi_rpt_rate,
-				fix_rate_enable, &new_csi_rate_idx);
+	rtw_chip_cfg_csi_rate(rtwdev, rtwdev->dm_info.min_rssi,
+			      bf_info->cur_csi_rpt_rate,
+			      fix_rate_enable, &new_csi_rate_idx);
 
 	if (new_csi_rate_idx != bf_info->cur_csi_rpt_rate)
 		bf_info->cur_csi_rpt_rate = new_csi_rate_idx;

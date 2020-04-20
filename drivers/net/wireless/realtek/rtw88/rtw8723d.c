@@ -16,6 +16,9 @@
 
 static struct rtw_chip_ops rtw8723d_ops = {
 	.set_antenna		= NULL,
+	.config_bfee		= NULL,
+	.set_gid_table		= NULL,
+	.cfg_csi_rate		= NULL,
 };
 
 struct rtw_chip_info rtw8723d_hw_spec = {
