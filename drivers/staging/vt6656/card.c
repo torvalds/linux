@@ -26,7 +26,7 @@
  *
  */
 
-#include <linux/bits.h>
+#include <linux/bitops.h>
 #include "device.h"
 #include "card.h"
 #include "baseband.h"
@@ -223,29 +223,13 @@ void vnt_update_ifs(struct vnt_private *priv)
 
 void vnt_update_top_rates(struct vnt_private *priv)
 {
-	u8 top_ofdm = RATE_24M, top_cck = RATE_1M;
-	u8 i;
+	int pos;
 
-	/*Determines the highest basic rate.*/
-	for (i = RATE_54M; i >= RATE_6M; i--) {
-		if (priv->basic_rates & BIT(i)) {
-			top_ofdm = i;
-			break;
-		}
-	}
+	pos = fls(priv->basic_rates & GENMASK(RATE_54M, RATE_6M));
+	priv->top_ofdm_basic_rate = pos ? (pos - 1) : RATE_24M;
 
-	priv->top_ofdm_basic_rate = top_ofdm;
-
-	for (i = RATE_11M;; i--) {
-		if (priv->basic_rates & BIT(i)) {
-			top_cck = i;
-			break;
-		}
-		if (i == RATE_1M)
-			break;
-	}
-
-	priv->top_cck_basic_rate = top_cck;
+	pos = fls(priv->basic_rates & GENMASK(RATE_11M, RATE_1M));
+	priv->top_cck_basic_rate = pos ? (pos - 1) : RATE_1M;
 }
 
 bool vnt_ofdm_min_rate(struct vnt_private *priv)
