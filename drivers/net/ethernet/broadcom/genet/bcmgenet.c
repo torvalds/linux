@@ -3487,13 +3487,16 @@ static int bcmgenet_probe(struct platform_device *pdev)
 		priv->dma_max_burst_length = DMA_MAX_BURST_LENGTH;
 	}
 
-	priv->clk = devm_clk_get(&priv->pdev->dev, "enet");
+	priv->clk = devm_clk_get_optional(&priv->pdev->dev, "enet");
 	if (IS_ERR(priv->clk)) {
 		dev_dbg(&priv->pdev->dev, "failed to get enet clock\n");
-		priv->clk = NULL;
+		err = PTR_ERR(priv->clk);
+		goto err;
 	}
 
-	clk_prepare_enable(priv->clk);
+	err = clk_prepare_enable(priv->clk);
+	if (err)
+		goto err;
 
 	bcmgenet_set_hw_params(priv);
 
@@ -3511,16 +3514,18 @@ static int bcmgenet_probe(struct platform_device *pdev)
 	priv->rx_buf_len = RX_BUF_LENGTH;
 	INIT_WORK(&priv->bcmgenet_irq_work, bcmgenet_irq_task);
 
-	priv->clk_wol = devm_clk_get(&priv->pdev->dev, "enet-wol");
+	priv->clk_wol = devm_clk_get_optional(&priv->pdev->dev, "enet-wol");
 	if (IS_ERR(priv->clk_wol)) {
 		dev_dbg(&priv->pdev->dev, "failed to get enet-wol clock\n");
-		priv->clk_wol = NULL;
+		err = PTR_ERR(priv->clk_wol);
+		goto err;
 	}
 
-	priv->clk_eee = devm_clk_get(&priv->pdev->dev, "enet-eee");
+	priv->clk_eee = devm_clk_get_optional(&priv->pdev->dev, "enet-eee");
 	if (IS_ERR(priv->clk_eee)) {
 		dev_dbg(&priv->pdev->dev, "failed to get enet-eee clock\n");
-		priv->clk_eee = NULL;
+		err = PTR_ERR(priv->clk_eee);
+		goto err;
 	}
 
 	/* If this is an internal GPHY, power it on now, before UniMAC is
