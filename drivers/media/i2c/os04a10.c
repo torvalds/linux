@@ -70,6 +70,11 @@
 #define OS04A10_GAIN_STEP		1
 #define OS04A10_GAIN_DEFAULT		0x10
 
+#define OS04A10_GROUP_UPDATE_ADDRESS	0x3208
+#define OS04A10_GROUP_UPDATE_START_DATA	0x00
+#define OS04A10_GROUP_UPDATE_END_DATA	0x10
+#define OS04A10_GROUP_UPDATE_END_LAUNCH	0xA0
+
 #define OS04A10_FETCH_MSB_BYTE_EXP(VAL)	(((VAL) >> 8) & 0xFF)	/* 8 Bits */
 #define OS04A10_FETCH_LSB_BYTE_EXP(VAL)	((VAL) & 0xFF)	/* 8 Bits */
 
@@ -162,7 +167,7 @@ struct os04a10 {
 	const char		*module_facing;
 	const char		*module_name;
 	const char		*len_name;
-	bool has_init_exp;
+	bool			has_init_exp;
 	struct preisp_hdrae_exp_s init_hdrae_exp;
 };
 
@@ -1209,6 +1214,10 @@ static int os04a10_set_hdrae(struct os04a10 *os04a10,
 		m_exp_time = s_exp_time;
 	}
 	ret |= os04a10_write_reg(os04a10->client,
+		OS04A10_GROUP_UPDATE_ADDRESS,
+		OS04A10_REG_VALUE_08BIT,
+		OS04A10_GROUP_UPDATE_START_DATA);
+	ret |= os04a10_write_reg(os04a10->client,
 		OS04A10_REG_GAIN_LONG_H,
 		OS04A10_REG_VALUE_16BIT,
 		(l_a_gain << 4) & 0x1ff0);
@@ -1235,6 +1244,14 @@ static int os04a10_set_hdrae(struct os04a10 *os04a10,
 			OS04A10_REG_VALUE_16BIT,
 			s_exp_time);
 	}
+	ret |= os04a10_write_reg(os04a10->client,
+		OS04A10_GROUP_UPDATE_ADDRESS,
+		OS04A10_REG_VALUE_08BIT,
+		OS04A10_GROUP_UPDATE_END_DATA);
+	ret |= os04a10_write_reg(os04a10->client,
+		OS04A10_GROUP_UPDATE_ADDRESS,
+		OS04A10_REG_VALUE_08BIT,
+		OS04A10_GROUP_UPDATE_END_LAUNCH);
 	return ret;
 }
 
@@ -1728,6 +1745,8 @@ static int os04a10_initialize_controls(struct os04a10 *os04a10)
 	s64 exposure_max, vblank_def;
 	u32 h_blank;
 	int ret;
+	u64 dst_link_freq = 0;
+	u64 dst_pixel_rate = 0;
 
 	handler = &os04a10->ctrl_handler;
 	mode = os04a10->cur_mode;
@@ -1740,12 +1759,21 @@ static int os04a10_initialize_controls(struct os04a10 *os04a10)
 			V4L2_CID_LINK_FREQ,
 			0, 0, link_freq_menu_items);
 
+	if (os04a10->cur_mode->bus_fmt == MEDIA_BUS_FMT_SBGGR10_1X10) {
+		dst_link_freq = link_freq_menu_items[0];
+		dst_pixel_rate = PIXEL_RATE_WITH_360M;
+	} else {
+		dst_link_freq = link_freq_menu_items[1];
+		dst_pixel_rate = PIXEL_RATE_WITH_648M;
+	}
 	/* pixel rate = link frequency * 2 * lanes / BITS_PER_SAMPLE */
-
 	os04a10->pixel_rate = v4l2_ctrl_new_std(handler, NULL,
 			V4L2_CID_PIXEL_RATE,
 			0, PIXEL_RATE_WITH_648M,
-			1, PIXEL_RATE_WITH_360M);
+			1, dst_pixel_rate);
+
+	__v4l2_ctrl_s_ctrl(os04a10->link_freq,
+				dst_link_freq);
 
 	h_blank = mode->hts_def - mode->width;
 	os04a10->hblank = v4l2_ctrl_new_std(handler, NULL, V4L2_CID_HBLANK,
