@@ -733,31 +733,6 @@ struct hclge_mac_mgr_tbl_entry_cmd {
 	u8      rsv3[2];
 };
 
-struct hclge_mac_vlan_add_cmd {
-	__le16  flags;
-	__le16  mac_addr_hi16;
-	__le32  mac_addr_lo32;
-	__le32  mac_addr_msk_hi32;
-	__le16  mac_addr_msk_lo16;
-	__le16  vlan_tag;
-	__le16  ingress_port;
-	__le16  egress_port;
-	u8      rsv[4];
-};
-
-#define HNS3_MAC_VLAN_CFG_FLAG_BIT 0
-struct hclge_mac_vlan_remove_cmd {
-	__le16  flags;
-	__le16  mac_addr_hi16;
-	__le32  mac_addr_lo32;
-	__le32  mac_addr_msk_hi32;
-	__le16  mac_addr_msk_lo16;
-	__le16  vlan_tag;
-	__le16  ingress_port;
-	__le16  egress_port;
-	u8      rsv[4];
-};
-
 struct hclge_vlan_filter_ctrl_cmd {
 	u8 vlan_type;
 	u8 vlan_fe;
