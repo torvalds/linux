@@ -3878,7 +3878,7 @@ static u32 wcd934x_get_dmic_sample_rate(struct snd_soc_component *comp,
 	u16 adc_mux_ctl_reg, tx_fs_reg;
 	u32 dmic_fs;
 
-	while (dec_found == 0 && adc_mux_index < WCD934X_MAX_VALID_ADC_MUX) {
+	while (!dec_found && adc_mux_index < WCD934X_MAX_VALID_ADC_MUX) {
 		if (adc_mux_index < 4) {
 			adc_mux_ctl_reg = WCD934X_CDC_TX_INP_MUX_ADC_MUX0_CFG0 +
 						(adc_mux_index * 2);
