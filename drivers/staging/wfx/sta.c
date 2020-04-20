@@ -38,27 +38,6 @@ u32 wfx_rate_mask_to_hw(struct wfx_dev *wdev, u32 rates)
 	return ret;
 }
 
-static void __wfx_free_event_queue(struct list_head *list)
-{
-	struct wfx_hif_event *event, *tmp;
-
-	list_for_each_entry_safe(event, tmp, list, link) {
-		list_del(&event->link);
-		kfree(event);
-	}
-}
-
-static void wfx_free_event_queue(struct wfx_vif *wvif)
-{
-	LIST_HEAD(list);
-
-	spin_lock(&wvif->event_queue_lock);
-	list_splice_init(&wvif->event_queue, &list);
-	spin_unlock(&wvif->event_queue_lock);
-
-	__wfx_free_event_queue(&list);
-}
-
 static void wfx_filter_beacon(struct wfx_vif *wvif, bool filter_beacon)
 {
 	const struct hif_ie_table_entry filter_ies[] = {
@@ -269,7 +248,7 @@ int wfx_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 
 /* WSM callbacks */
 
-static void wfx_event_report_rssi(struct wfx_vif *wvif, u8 raw_rcpi_rssi)
+void wfx_event_report_rssi(struct wfx_vif *wvif, u8 raw_rcpi_rssi)
 {
 	/* RSSI: signed Q8.0, RCPI: unsigned Q7.1
 	 * RSSI = RCPI / 2 - 110
@@ -296,44 +275,6 @@ static void wfx_beacon_loss_work(struct work_struct *work)
 			      msecs_to_jiffies(bss_conf->beacon_int));
 }
 
-static void wfx_event_handler_work(struct work_struct *work)
-{
-	struct wfx_vif *wvif =
-		container_of(work, struct wfx_vif, event_handler_work);
-	struct wfx_hif_event *event;
-
-	LIST_HEAD(list);
-
-	spin_lock(&wvif->event_queue_lock);
-	list_splice_init(&wvif->event_queue, &list);
-	spin_unlock(&wvif->event_queue_lock);
-
-	list_for_each_entry(event, &list, link) {
-		switch (event->evt.event_id) {
-		case HIF_EVENT_IND_BSSLOST:
-			schedule_delayed_work(&wvif->beacon_loss_work, 0);
-			break;
-		case HIF_EVENT_IND_BSSREGAINED:
-			cancel_delayed_work(&wvif->beacon_loss_work);
-			break;
-		case HIF_EVENT_IND_RCPI_RSSI:
-			wfx_event_report_rssi(wvif,
-					      event->evt.event_data.rcpi_rssi);
-			break;
-		case HIF_EVENT_IND_PS_MODE_ERROR:
-			dev_warn(wvif->wdev->dev,
-				 "error while processing power save request\n");
-			break;
-		default:
-			dev_warn(wvif->wdev->dev,
-				 "unhandled event indication: %.2x\n",
-				 event->evt.event_id);
-			break;
-		}
-	}
-	__wfx_free_event_queue(&list);
-}
-
 // Call it with wdev->conf_mutex locked
 static void wfx_do_unjoin(struct wfx_vif *wvif)
 {
@@ -351,9 +292,6 @@ static void wfx_do_unjoin(struct wfx_vif *wvif)
 	wfx_tx_policy_init(wvif);
 	if (wvif_count(wvif->wdev) <= 1)
 		hif_set_block_ack_policy(wvif, 0xFF, 0xFF);
-	wfx_free_event_queue(wvif);
-	cancel_work_sync(&wvif->event_handler_work);
-
 	wfx_tx_unlock(wvif->wdev);
 	cancel_delayed_work_sync(&wvif->beacon_loss_work);
 }
@@ -844,10 +782,6 @@ int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	wvif->wep_default_key_id = -1;
 	INIT_WORK(&wvif->wep_key_work, wfx_wep_key_work);
 
-	spin_lock_init(&wvif->event_queue_lock);
-	INIT_LIST_HEAD(&wvif->event_queue);
-	INIT_WORK(&wvif->event_handler_work, wfx_event_handler_work);
-
 	init_completion(&wvif->set_pm_mode_complete);
 	complete(&wvif->set_pm_mode_complete);
 	INIT_WORK(&wvif->tx_policy_upload_work, wfx_tx_policy_upload_work);
@@ -904,9 +838,7 @@ void wfx_remove_interface(struct ieee80211_hw *hw,
 	/* FIXME: In add to reset MAC address, try to reset interface */
 	hif_set_macaddr(wvif, NULL);
 
-	wfx_free_event_queue(wvif);
 	cancel_delayed_work_sync(&wvif->beacon_loss_work);
-
 	wdev->vif[wvif->id] = NULL;
 	wvif->vif = NULL;
 

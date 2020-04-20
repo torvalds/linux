@@ -158,26 +158,31 @@ static int hif_event_indication(struct wfx_dev *wdev,
 {
 	struct wfx_vif *wvif = wdev_to_wvif(wdev, hif->interface);
 	const struct hif_ind_event *body = buf;
-	struct wfx_hif_event *event;
-	int first;
 
-	WARN_ON(!wvif);
-	if (!wvif)
+	if (!wvif) {
+		dev_warn(wdev->dev, "received event for non-existent vif\n");
 		return 0;
+	}
 
-	event = kzalloc(sizeof(*event), GFP_KERNEL);
-	if (!event)
-		return -ENOMEM;
-
-	memcpy(&event->evt, body, sizeof(struct hif_ind_event));
-	spin_lock(&wvif->event_queue_lock);
-	first = list_empty(&wvif->event_queue);
-	list_add_tail(&event->link, &wvif->event_queue);
-	spin_unlock(&wvif->event_queue_lock);
-
-	if (first)
-		schedule_work(&wvif->event_handler_work);
-
+	switch (body->event_id) {
+	case HIF_EVENT_IND_RCPI_RSSI:
+		wfx_event_report_rssi(wvif, body->event_data.rcpi_rssi);
+		break;
+	case HIF_EVENT_IND_BSSLOST:
+		schedule_delayed_work(&wvif->beacon_loss_work, 0);
+		break;
+	case HIF_EVENT_IND_BSSREGAINED:
+		cancel_delayed_work(&wvif->beacon_loss_work);
+		dev_dbg(wdev->dev, "ignore BSSREGAINED indication\n");
+		break;
+	case HIF_EVENT_IND_PS_MODE_ERROR:
+		dev_warn(wdev->dev, "error while processing power save request\n");
+		break;
+	default:
+		dev_warn(wdev->dev, "unhandled event indication: %.2x\n",
+			 body->event_id);
+		break;
+	}
 	return 0;
 }
 
