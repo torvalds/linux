@@ -640,6 +640,8 @@ static int config_nr_shp(struct rkispp_device *dev)
 		goto err;
 	writel(buf->dma_addr, base + RKISPP_SHARP_TMP_YUV_BASE);
 
+	/* fix to use new nr algorithm */
+	rkispp_set_bits(base + RKISPP_NR_CTRL, NR_NEW_ALGO, NR_NEW_ALGO);
 	rkispp_set_bits(base + RKISPP_NR_CTRL, FMT_RD_MASK, fmt);
 	if (fmt & FMT_FBC) {
 		writel(0, base + RKISPP_NR_VIR_STRIDE);

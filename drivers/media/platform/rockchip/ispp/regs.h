@@ -323,6 +323,8 @@
 #define FMT_YUV422			BIT(1)
 #define FMT_FBC				BIT(0)
 
+#define NR_NEW_ALGO			BIT(16)
+
 /* ISPP_STRT */
 #define FEC_ST				BIT(2)
 #define NR_SHP_ST			BIT(1)
