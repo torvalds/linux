@@ -1500,7 +1500,7 @@ static unsigned long __init alloc_down(unsigned long size, unsigned long align,
 
 	if (highmem) {
 		/* Carve out storage for the TCE table. */
-		addr = _ALIGN_DOWN(alloc_top_high - size, align);
+		addr = ALIGN_DOWN(alloc_top_high - size, align);
 		if (addr <= alloc_bottom)
 			return 0;
 		/* Will we bump into the RMO ? If yes, check out that we
@@ -1518,9 +1518,9 @@ static unsigned long __init alloc_down(unsigned long size, unsigned long align,
 		goto bail;
 	}
 
-	base = _ALIGN_DOWN(alloc_top - size, align);
+	base = ALIGN_DOWN(alloc_top - size, align);
 	for (; base > alloc_bottom;
-	     base = _ALIGN_DOWN(base - 0x100000, align))  {
+	     base = ALIGN_DOWN(base - 0x100000, align))  {
 		prom_debug("    trying: 0x%lx\n\r", base);
 		addr = (unsigned long)prom_claim(base, size, 0);
 		if (addr != PROM_ERROR && addr != 0)
@@ -1586,7 +1586,7 @@ static void __init reserve_mem(u64 base, u64 size)
 	 * have our terminator with "size" set to 0 since we are
 	 * dumb and just copy this entire array to the boot params
 	 */
-	base = _ALIGN_DOWN(base, PAGE_SIZE);
+	base = ALIGN_DOWN(base, PAGE_SIZE);
 	top = _ALIGN_UP(top, PAGE_SIZE);
 	size = top - base;
 

@@ -264,7 +264,7 @@ static void pnv_ioda_reserve_dev_m64_pe(struct pci_dev *pdev,
 		if (!r->parent || !pnv_pci_is_m64(phb, r))
 			continue;
 
-		start = _ALIGN_DOWN(r->start - base, sgsz);
+		start = ALIGN_DOWN(r->start - base, sgsz);
 		end = _ALIGN_UP(r->end - base, sgsz);
 		for (segno = start / sgsz; segno < end / sgsz; segno++) {
 			if (pe_bitmap)

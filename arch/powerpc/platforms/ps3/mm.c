@@ -263,7 +263,7 @@ static int ps3_mm_region_create(struct mem_region *r, unsigned long size)
 	int result;
 	u64 muid;
 
-	r->size = _ALIGN_DOWN(size, 1 << PAGE_SHIFT_16M);
+	r->size = ALIGN_DOWN(size, 1 << PAGE_SHIFT_16M);
 
 	DBG("%s:%d requested  %lxh\n", __func__, __LINE__, size);
 	DBG("%s:%d actual     %llxh\n", __func__, __LINE__, r->size);
@@ -394,7 +394,7 @@ static struct dma_chunk * dma_find_chunk(struct ps3_dma_region *r,
 	unsigned long bus_addr, unsigned long len)
 {
 	struct dma_chunk *c;
-	unsigned long aligned_bus = _ALIGN_DOWN(bus_addr, 1 << r->page_size);
+	unsigned long aligned_bus = ALIGN_DOWN(bus_addr, 1 << r->page_size);
 	unsigned long aligned_len = _ALIGN_UP(len+bus_addr-aligned_bus,
 					      1 << r->page_size);
 
@@ -423,7 +423,7 @@ static struct dma_chunk *dma_find_chunk_lpar(struct ps3_dma_region *r,
 	unsigned long lpar_addr, unsigned long len)
 {
 	struct dma_chunk *c;
-	unsigned long aligned_lpar = _ALIGN_DOWN(lpar_addr, 1 << r->page_size);
+	unsigned long aligned_lpar = ALIGN_DOWN(lpar_addr, 1 << r->page_size);
 	unsigned long aligned_len = _ALIGN_UP(len + lpar_addr - aligned_lpar,
 					      1 << r->page_size);
 
@@ -775,7 +775,7 @@ static int dma_sb_map_area(struct ps3_dma_region *r, unsigned long virt_addr,
 	struct dma_chunk *c;
 	unsigned long phys_addr = is_kernel_addr(virt_addr) ? __pa(virt_addr)
 		: virt_addr;
-	unsigned long aligned_phys = _ALIGN_DOWN(phys_addr, 1 << r->page_size);
+	unsigned long aligned_phys = ALIGN_DOWN(phys_addr, 1 << r->page_size);
 	unsigned long aligned_len = _ALIGN_UP(len + phys_addr - aligned_phys,
 					      1 << r->page_size);
 	*bus_addr = dma_sb_lpar_to_bus(r, ps3_mm_phys_to_lpar(phys_addr));
@@ -830,7 +830,7 @@ static int dma_ioc0_map_area(struct ps3_dma_region *r, unsigned long virt_addr,
 	struct dma_chunk *c;
 	unsigned long phys_addr = is_kernel_addr(virt_addr) ? __pa(virt_addr)
 		: virt_addr;
-	unsigned long aligned_phys = _ALIGN_DOWN(phys_addr, 1 << r->page_size);
+	unsigned long aligned_phys = ALIGN_DOWN(phys_addr, 1 << r->page_size);
 	unsigned long aligned_len = _ALIGN_UP(len + phys_addr - aligned_phys,
 					      1 << r->page_size);
 
@@ -889,7 +889,7 @@ static int dma_sb_unmap_area(struct ps3_dma_region *r, dma_addr_t bus_addr,
 	c = dma_find_chunk(r, bus_addr, len);
 
 	if (!c) {
-		unsigned long aligned_bus = _ALIGN_DOWN(bus_addr,
+		unsigned long aligned_bus = ALIGN_DOWN(bus_addr,
 			1 << r->page_size);
 		unsigned long aligned_len = _ALIGN_UP(len + bus_addr
 			- aligned_bus, 1 << r->page_size);
@@ -926,7 +926,7 @@ static int dma_ioc0_unmap_area(struct ps3_dma_region *r,
 	c = dma_find_chunk(r, bus_addr, len);
 
 	if (!c) {
-		unsigned long aligned_bus = _ALIGN_DOWN(bus_addr,
+		unsigned long aligned_bus = ALIGN_DOWN(bus_addr,
 							1 << r->page_size);
 		unsigned long aligned_len = _ALIGN_UP(len + bus_addr
 						      - aligned_bus,

@@ -96,7 +96,7 @@ static inline int overlaps_initrd(unsigned long start, unsigned long size)
 	if (!initrd_start)
 		return 0;
 
-	return	(start + size) > _ALIGN_DOWN(initrd_start, PAGE_SIZE) &&
+	return	(start + size) > ALIGN_DOWN(initrd_start, PAGE_SIZE) &&
 			start <= _ALIGN_UP(initrd_end, PAGE_SIZE);
 #else
 	return 0;
@@ -623,9 +623,9 @@ static void __init early_reserve_mem(void)
 #ifdef CONFIG_BLK_DEV_INITRD
 	/* Then reserve the initrd, if any */
 	if (initrd_start && (initrd_end > initrd_start)) {
-		memblock_reserve(_ALIGN_DOWN(__pa(initrd_start), PAGE_SIZE),
+		memblock_reserve(ALIGN_DOWN(__pa(initrd_start), PAGE_SIZE),
 			_ALIGN_UP(initrd_end, PAGE_SIZE) -
-			_ALIGN_DOWN(initrd_start, PAGE_SIZE));
+			ALIGN_DOWN(initrd_start, PAGE_SIZE));
 	}
 #endif /* CONFIG_BLK_DEV_INITRD */
 

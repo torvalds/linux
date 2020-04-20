@@ -195,7 +195,7 @@ int map_kernel_page(unsigned long va, phys_addr_t pa, pgprot_t prot);
 #endif
 
 #ifdef CONFIG_KASAN_VMALLOC
-#define VMALLOC_END	_ALIGN_DOWN(ioremap_bot, PAGE_SIZE << KASAN_SHADOW_SCALE_SHIFT)
+#define VMALLOC_END	ALIGN_DOWN(ioremap_bot, PAGE_SIZE << KASAN_SHADOW_SCALE_SHIFT)
 #else
 #define VMALLOC_END	ioremap_bot
 #endif
