@@ -679,7 +679,7 @@ u32 rtw_phy_read_rf(struct rtw_dev *rtwdev, enum rtw_rf_path rf_path,
 	const u32 *base_addr = chip->rf_base_addr;
 	u32 val, direct_addr;
 
-	if (rf_path >= hal->rf_path_num) {
+	if (rf_path >= hal->rf_phy_num) {
 		rtw_err(rtwdev, "unsupported rf path (%d)\n", rf_path);
 		return INV_RF_DATA;
 	}
@@ -693,6 +693,54 @@ u32 rtw_phy_read_rf(struct rtw_dev *rtwdev, enum rtw_rf_path rf_path,
 	return val;
 }
 
+u32 rtw_phy_read_rf_sipi(struct rtw_dev *rtwdev, enum rtw_rf_path rf_path,
+			 u32 addr, u32 mask)
+{
+	struct rtw_hal *hal = &rtwdev->hal;
+	struct rtw_chip_info *chip = rtwdev->chip;
+	const struct rtw_rf_sipi_addr *rf_sipi_addr;
+	const struct rtw_rf_sipi_addr *rf_sipi_addr_a;
+	u32 val32;
+	u32 en_pi;
+	u32 r_addr;
+	u32 shift;
+
+	if (rf_path >= hal->rf_phy_num) {
+		rtw_err(rtwdev, "unsupported rf path (%d)\n", rf_path);
+		return INV_RF_DATA;
+	}
+
+	if (!chip->rf_sipi_read_addr) {
+		rtw_err(rtwdev, "rf_sipi_read_addr isn't defined\n");
+		return INV_RF_DATA;
+	}
+
+	rf_sipi_addr = &chip->rf_sipi_read_addr[rf_path];
+	rf_sipi_addr_a = &chip->rf_sipi_read_addr[RF_PATH_A];
+
+	addr &= 0xff;
+
+	val32 = rtw_read32(rtwdev, rf_sipi_addr->hssi_2);
+	val32 = (val32 & ~LSSI_READ_ADDR_MASK) | (addr << 23);
+	rtw_write32(rtwdev, rf_sipi_addr->hssi_2, val32);
+
+	/* toggle read edge of path A */
+	val32 = rtw_read32(rtwdev, rf_sipi_addr_a->hssi_2);
+	rtw_write32(rtwdev, rf_sipi_addr_a->hssi_2, val32 & ~LSSI_READ_EDGE_MASK);
+	rtw_write32(rtwdev, rf_sipi_addr_a->hssi_2, val32 | LSSI_READ_EDGE_MASK);
+
+	udelay(120);
+
+	en_pi = rtw_read32_mask(rtwdev, rf_sipi_addr->hssi_1, BIT(8));
+	r_addr = en_pi ? rf_sipi_addr->lssi_read_pi : rf_sipi_addr->lssi_read;
+
+	val32 = rtw_read32_mask(rtwdev, r_addr, LSSI_READ_DATA_MASK);
+
+	shift = __ffs(mask);
+
+	return (val32 & mask) >> shift;
+}
+
 bool rtw_phy_write_rf_reg_sipi(struct rtw_dev *rtwdev, enum rtw_rf_path rf_path,
 			       u32 addr, u32 mask, u32 data)
 {
@@ -703,7 +751,7 @@ bool rtw_phy_write_rf_reg_sipi(struct rtw_dev *rtwdev, enum rtw_rf_path rf_path,
 	u32 old_data = 0;
 	u32 shift;
 
-	if (rf_path >= hal->rf_path_num) {
+	if (rf_path >= hal->rf_phy_num) {
 		rtw_err(rtwdev, "unsupported rf path (%d)\n", rf_path);
 		return false;
 	}
@@ -712,7 +760,7 @@ bool rtw_phy_write_rf_reg_sipi(struct rtw_dev *rtwdev, enum rtw_rf_path rf_path,
 	mask &= RFREG_MASK;
 
 	if (mask != RFREG_MASK) {
-		old_data = rtw_phy_read_rf(rtwdev, rf_path, addr, RFREG_MASK);
+		old_data = chip->ops->read_rf(rtwdev, rf_path, addr, RFREG_MASK);
 
 		if (old_data == INV_RF_DATA) {
 			rtw_err(rtwdev, "Write fail, rf is disabled\n");
@@ -740,7 +788,7 @@ bool rtw_phy_write_rf_reg(struct rtw_dev *rtwdev, enum rtw_rf_path rf_path,
 	const u32 *base_addr = chip->rf_base_addr;
 	u32 direct_addr;
 
-	if (rf_path >= hal->rf_path_num) {
+	if (rf_path >= hal->rf_phy_num) {
 		rtw_err(rtwdev, "unsupported rf path (%d)\n", rf_path);
 		return false;
 	}

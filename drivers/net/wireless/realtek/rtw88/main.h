@@ -529,6 +529,13 @@ struct rtw_reg_domain {
 	u8 domain;
 };
 
+struct rtw_rf_sipi_addr {
+	u32 hssi_1;
+	u32 hssi_2;
+	u32 lssi_read;
+	u32 lssi_read_pi;
+};
+
 struct rtw_backup_info {
 	u8 len;
 	u32 reg;
@@ -1087,6 +1094,8 @@ struct rtw_chip_info {
 	const struct rtw_hw_reg *dig;
 	u32 rf_base_addr[2];
 	u32 rf_sipi_addr[2];
+	const struct rtw_rf_sipi_addr *rf_sipi_read_addr;
+	u8 fix_rf_phy_num;
 
 	const struct rtw_table *mac_tbl;
 	const struct rtw_table *agc_tbl;
@@ -1571,6 +1580,7 @@ struct rtw_hal {
 	u8 sec_ch_offset;
 	u8 rf_type;
 	u8 rf_path_num;
+	u8 rf_phy_num;
 	u32 antenna_tx;
 	u32 antenna_rx;
 	u8 bfee_sts_cap;

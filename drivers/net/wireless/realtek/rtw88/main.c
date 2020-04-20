@@ -472,6 +472,7 @@ static u8 hw_bw_cap_to_bitamp(u8 bw_cap)
 static void rtw_hw_config_rf_ant_num(struct rtw_dev *rtwdev, u8 hw_ant_num)
 {
 	struct rtw_hal *hal = &rtwdev->hal;
+	struct rtw_chip_info *chip = rtwdev->chip;
 
 	if (hw_ant_num == EFUSE_HW_CAP_IGNORE ||
 	    hw_ant_num >= hal->rf_path_num)
@@ -481,6 +482,8 @@ static void rtw_hw_config_rf_ant_num(struct rtw_dev *rtwdev, u8 hw_ant_num)
 	case 1:
 		hal->rf_type = RF_1T1R;
 		hal->rf_path_num = 1;
+		if (!chip->fix_rf_phy_num)
+			hal->rf_phy_num = hal->rf_path_num;
 		hal->antenna_tx = BB_PATH_A;
 		hal->antenna_rx = BB_PATH_A;
 		break;
@@ -1130,6 +1133,8 @@ static int rtw_chip_parameter_setup(struct rtw_dev *rtwdev)
 		hal->antenna_tx = BB_PATH_A;
 		hal->antenna_rx = BB_PATH_A;
 	}
+	hal->rf_phy_num = chip->fix_rf_phy_num ? chip->fix_rf_phy_num :
+			  hal->rf_path_num;
 
 	efuse->physical_size = chip->phy_efuse_size;
 	efuse->logical_size = chip->log_efuse_size;
