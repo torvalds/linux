@@ -3618,90 +3618,63 @@ static void chv_post_disable_dp(struct intel_atomic_state *state,
 }
 
 static void
-_intel_dp_set_link_train(struct intel_dp *intel_dp,
-			 u32 *DP,
-			 u8 dp_train_pat)
+cpt_set_link_train(struct intel_dp *intel_dp,
+		   u8 dp_train_pat)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
-	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
-	enum port port = intel_dig_port->base.port;
-	u8 train_pat_mask = drm_dp_training_pattern_mask(intel_dp->dpcd);
+	u32 *DP = &intel_dp->DP;
 
-	if (dp_train_pat & train_pat_mask)
+	*DP &= ~DP_LINK_TRAIN_MASK_CPT;
+
+	switch (dp_train_pat & DP_TRAINING_PATTERN_MASK) {
+	case DP_TRAINING_PATTERN_DISABLE:
+		*DP |= DP_LINK_TRAIN_OFF_CPT;
+		break;
+	case DP_TRAINING_PATTERN_1:
+		*DP |= DP_LINK_TRAIN_PAT_1_CPT;
+		break;
+	case DP_TRAINING_PATTERN_2:
+		*DP |= DP_LINK_TRAIN_PAT_2_CPT;
+		break;
+	case DP_TRAINING_PATTERN_3:
 		drm_dbg_kms(&dev_priv->drm,
-			    "Using DP training pattern TPS%d\n",
-			    dp_train_pat & train_pat_mask);
-
-	if (HAS_DDI(dev_priv)) {
-		u32 temp = intel_de_read(dev_priv, intel_dp->regs.dp_tp_ctl);
-
-		if (dp_train_pat & DP_LINK_SCRAMBLING_DISABLE)
-			temp |= DP_TP_CTL_SCRAMBLE_DISABLE;
-		else
-			temp &= ~DP_TP_CTL_SCRAMBLE_DISABLE;
-
-		temp &= ~DP_TP_CTL_LINK_TRAIN_MASK;
-		switch (dp_train_pat & train_pat_mask) {
-		case DP_TRAINING_PATTERN_DISABLE:
-			temp |= DP_TP_CTL_LINK_TRAIN_NORMAL;
-
-			break;
-		case DP_TRAINING_PATTERN_1:
-			temp |= DP_TP_CTL_LINK_TRAIN_PAT1;
-			break;
-		case DP_TRAINING_PATTERN_2:
-			temp |= DP_TP_CTL_LINK_TRAIN_PAT2;
-			break;
-		case DP_TRAINING_PATTERN_3:
-			temp |= DP_TP_CTL_LINK_TRAIN_PAT3;
-			break;
-		case DP_TRAINING_PATTERN_4:
-			temp |= DP_TP_CTL_LINK_TRAIN_PAT4;
-			break;
-		}
-		intel_de_write(dev_priv, intel_dp->regs.dp_tp_ctl, temp);
-
-	} else if ((IS_IVYBRIDGE(dev_priv) && port == PORT_A) ||
-		   (HAS_PCH_CPT(dev_priv) && port != PORT_A)) {
-		*DP &= ~DP_LINK_TRAIN_MASK_CPT;
-
-		switch (dp_train_pat & DP_TRAINING_PATTERN_MASK) {
-		case DP_TRAINING_PATTERN_DISABLE:
-			*DP |= DP_LINK_TRAIN_OFF_CPT;
-			break;
-		case DP_TRAINING_PATTERN_1:
-			*DP |= DP_LINK_TRAIN_PAT_1_CPT;
-			break;
-		case DP_TRAINING_PATTERN_2:
-			*DP |= DP_LINK_TRAIN_PAT_2_CPT;
-			break;
-		case DP_TRAINING_PATTERN_3:
-			drm_dbg_kms(&dev_priv->drm,
-				    "TPS3 not supported, using TPS2 instead\n");
-			*DP |= DP_LINK_TRAIN_PAT_2_CPT;
-			break;
-		}
-
-	} else {
-		*DP &= ~DP_LINK_TRAIN_MASK;
-
-		switch (dp_train_pat & DP_TRAINING_PATTERN_MASK) {
-		case DP_TRAINING_PATTERN_DISABLE:
-			*DP |= DP_LINK_TRAIN_OFF;
-			break;
-		case DP_TRAINING_PATTERN_1:
-			*DP |= DP_LINK_TRAIN_PAT_1;
-			break;
-		case DP_TRAINING_PATTERN_2:
-			*DP |= DP_LINK_TRAIN_PAT_2;
-			break;
-		case DP_TRAINING_PATTERN_3:
-			drm_dbg_kms(&dev_priv->drm,
-				    "TPS3 not supported, using TPS2 instead\n");
-			*DP |= DP_LINK_TRAIN_PAT_2;
-			break;
-		}
+			    "TPS3 not supported, using TPS2 instead\n");
+		*DP |= DP_LINK_TRAIN_PAT_2_CPT;
+		break;
 	}
+
+	intel_de_write(dev_priv, intel_dp->output_reg, intel_dp->DP);
+	intel_de_posting_read(dev_priv, intel_dp->output_reg);
+}
+
+static void
+g4x_set_link_train(struct intel_dp *intel_dp,
+		   u8 dp_train_pat)
+{
+	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	u32 *DP = &intel_dp->DP;
+
+	*DP &= ~DP_LINK_TRAIN_MASK;
+
+	switch (dp_train_pat & DP_TRAINING_PATTERN_MASK) {
+	case DP_TRAINING_PATTERN_DISABLE:
+		*DP |= DP_LINK_TRAIN_OFF;
+		break;
+	case DP_TRAINING_PATTERN_1:
+		*DP |= DP_LINK_TRAIN_PAT_1;
+		break;
+	case DP_TRAINING_PATTERN_2:
+		*DP |= DP_LINK_TRAIN_PAT_2;
+		break;
+	case DP_TRAINING_PATTERN_3:
+		drm_dbg_kms(&dev_priv->drm,
+			    "TPS3 not supported, using TPS2 instead\n");
+		*DP |= DP_LINK_TRAIN_PAT_2;
+		break;
+	}
+
+	intel_de_write(dev_priv, intel_dp->output_reg, intel_dp->DP);
+	intel_de_posting_read(dev_priv, intel_dp->output_reg);
 }
 
 static void intel_dp_enable_port(struct intel_dp *intel_dp,
@@ -4358,14 +4331,15 @@ void
 intel_dp_program_link_training_pattern(struct intel_dp *intel_dp,
 				       u8 dp_train_pat)
 {
-	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
-	struct drm_i915_private *dev_priv =
-		to_i915(intel_dig_port->base.base.dev);
+	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	u8 train_pat_mask = drm_dp_training_pattern_mask(intel_dp->dpcd);
 
-	_intel_dp_set_link_train(intel_dp, &intel_dp->DP, dp_train_pat);
+	if (dp_train_pat & train_pat_mask)
+		drm_dbg_kms(&dev_priv->drm,
+			    "Using DP training pattern TPS%d\n",
+			    dp_train_pat & train_pat_mask);
 
-	intel_de_write(dev_priv, intel_dp->output_reg, intel_dp->DP);
-	intel_de_posting_read(dev_priv, intel_dp->output_reg);
+	intel_dp->set_link_train(intel_dp, dp_train_pat);
 }
 
 void intel_dp_set_idle_link_train(struct intel_dp *intel_dp)
@@ -8514,6 +8488,12 @@ bool intel_dp_init(struct drm_i915_private *dev_priv,
 		intel_encoder->disable = g4x_disable_dp;
 		intel_encoder->post_disable = g4x_post_disable_dp;
 	}
+
+	if ((IS_IVYBRIDGE(dev_priv) && port == PORT_A) ||
+	    (HAS_PCH_CPT(dev_priv) && port != PORT_A))
+		intel_dig_port->dp.set_link_train = cpt_set_link_train;
+	else
+		intel_dig_port->dp.set_link_train = g4x_set_link_train;
 
 	intel_dig_port->dp.output_reg = output_reg;
 	intel_dig_port->max_lanes = 4;

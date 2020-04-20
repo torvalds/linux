@@ -3950,6 +3950,46 @@ static void intel_ddi_prepare_link_retrain(struct intel_dp *intel_dp)
 	udelay(600);
 }
 
+static void intel_ddi_set_link_train(struct intel_dp *intel_dp,
+				     u8 dp_train_pat)
+{
+	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	u8 train_pat_mask = drm_dp_training_pattern_mask(intel_dp->dpcd);
+	enum port port = dp_to_dig_port(intel_dp)->base.port;
+	u32 temp;
+
+	temp = intel_de_read(dev_priv, intel_dp->regs.dp_tp_ctl);
+
+	if (dp_train_pat & DP_LINK_SCRAMBLING_DISABLE)
+		temp |= DP_TP_CTL_SCRAMBLE_DISABLE;
+	else
+		temp &= ~DP_TP_CTL_SCRAMBLE_DISABLE;
+
+	temp &= ~DP_TP_CTL_LINK_TRAIN_MASK;
+	switch (dp_train_pat & train_pat_mask) {
+	case DP_TRAINING_PATTERN_DISABLE:
+		temp |= DP_TP_CTL_LINK_TRAIN_NORMAL;
+		break;
+	case DP_TRAINING_PATTERN_1:
+		temp |= DP_TP_CTL_LINK_TRAIN_PAT1;
+		break;
+	case DP_TRAINING_PATTERN_2:
+		temp |= DP_TP_CTL_LINK_TRAIN_PAT2;
+		break;
+	case DP_TRAINING_PATTERN_3:
+		temp |= DP_TP_CTL_LINK_TRAIN_PAT3;
+		break;
+	case DP_TRAINING_PATTERN_4:
+		temp |= DP_TP_CTL_LINK_TRAIN_PAT4;
+		break;
+	}
+
+	intel_de_write(dev_priv, intel_dp->regs.dp_tp_ctl, temp);
+
+	intel_de_write(dev_priv, DDI_BUF_CTL(port), intel_dp->DP);
+	intel_de_posting_read(dev_priv, DDI_BUF_CTL(port));
+}
+
 static bool intel_ddi_is_audio_enabled(struct drm_i915_private *dev_priv,
 				       enum transcoder cpu_transcoder)
 {
@@ -4394,6 +4434,8 @@ intel_ddi_init_dp_connector(struct intel_digital_port *intel_dig_port)
 	intel_dig_port->dp.output_reg = DDI_BUF_CTL(port);
 	intel_dig_port->dp.prepare_link_retrain =
 		intel_ddi_prepare_link_retrain;
+	intel_dig_port->dp.set_link_train = intel_ddi_set_link_train;
+
 	if (INTEL_GEN(dev_priv) < 12) {
 		intel_dig_port->dp.regs.dp_tp_ctl = DP_TP_CTL(port);
 		intel_dig_port->dp.regs.dp_tp_status = DP_TP_STATUS(port);
