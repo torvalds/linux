@@ -21,6 +21,11 @@
 				interrupts = <8>;
 				interrupt-parent = <&htpic>;
 			};
+
+			acpi@800 {
+				compatible = "loongson,rs780e-acpi";
+				reg = <1 0x800 0x100>;
+			};
 		};
 	};
 };
