@@ -238,6 +238,7 @@ int live_rps_control(void *arg)
 			pr_err("%s: could not set minimum frequency [%x], only %x!\n",
 			       engine->name, rps->min_freq, read_cagf(rps));
 			igt_spinner_end(&spin);
+			show_pstate_limits(rps);
 			err = -EINVAL;
 			break;
 		}
@@ -278,6 +279,7 @@ int live_rps_control(void *arg)
 		if (limit == rps->min_freq) {
 			pr_err("%s: GPU throttled to minimum!\n",
 			       engine->name);
+			show_pstate_limits(rps);
 			err = -ENODEV;
 			break;
 		}
