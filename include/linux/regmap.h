@@ -202,25 +202,10 @@ struct reg_sequence {
  */
 #define regmap_field_read_poll_timeout(field, val, cond, sleep_us, timeout_us) \
 ({ \
-	u64 __timeout_us = (timeout_us); \
-	unsigned long __sleep_us = (sleep_us); \
-	ktime_t timeout = ktime_add_us(ktime_get(), __timeout_us); \
-	int pollret; \
-	might_sleep_if(__sleep_us); \
-	for (;;) { \
-		pollret = regmap_field_read((field), &(val)); \
-		if (pollret) \
-			break; \
-		if (cond) \
-			break; \
-		if (__timeout_us && ktime_compare(ktime_get(), timeout) > 0) { \
-			pollret = regmap_field_read((field), &(val)); \
-			break; \
-		} \
-		if (__sleep_us) \
-			usleep_range((__sleep_us >> 2) + 1, __sleep_us); \
-	} \
-	pollret ?: ((cond) ? 0 : -ETIMEDOUT); \
+	int __ret, __tmp; \
+	__tmp = read_poll_timeout(regmap_field_read, __ret, __ret || (cond), \
+			sleep_us, timeout_us, false, (field), &(val)); \
+	__ret ?: __tmp; \
 })
 
 #ifdef CONFIG_REGMAP
