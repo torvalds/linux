@@ -4013,7 +4013,7 @@ intel_dp_pre_emphasis_max(struct intel_dp *intel_dp, u8 voltage_swing)
 	}
 }
 
-static u32 vlv_signal_levels(struct intel_dp *intel_dp)
+static void vlv_set_signal_levels(struct intel_dp *intel_dp)
 {
 	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
 	unsigned long demph_reg_value, preemph_reg_value,
@@ -4041,7 +4041,7 @@ static u32 vlv_signal_levels(struct intel_dp *intel_dp)
 			uniqtranscale_reg_value = 0x5598DA3A;
 			break;
 		default:
-			return 0;
+			return;
 		}
 		break;
 	case DP_TRAIN_PRE_EMPH_LEVEL_1:
@@ -4060,7 +4060,7 @@ static u32 vlv_signal_levels(struct intel_dp *intel_dp)
 			uniqtranscale_reg_value = 0x55ADDA3A;
 			break;
 		default:
-			return 0;
+			return;
 		}
 		break;
 	case DP_TRAIN_PRE_EMPH_LEVEL_2:
@@ -4075,7 +4075,7 @@ static u32 vlv_signal_levels(struct intel_dp *intel_dp)
 			uniqtranscale_reg_value = 0x55ADDA3A;
 			break;
 		default:
-			return 0;
+			return;
 		}
 		break;
 	case DP_TRAIN_PRE_EMPH_LEVEL_3:
@@ -4086,20 +4086,18 @@ static u32 vlv_signal_levels(struct intel_dp *intel_dp)
 			uniqtranscale_reg_value = 0x55ADDA3A;
 			break;
 		default:
-			return 0;
+			return;
 		}
 		break;
 	default:
-		return 0;
+		return;
 	}
 
 	vlv_set_phy_signal_level(encoder, demph_reg_value, preemph_reg_value,
 				 uniqtranscale_reg_value, 0);
-
-	return 0;
 }
 
-static u32 chv_signal_levels(struct intel_dp *intel_dp)
+static void chv_set_signal_levels(struct intel_dp *intel_dp)
 {
 	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
 	u32 deemph_reg_value, margin_reg_value;
@@ -4127,7 +4125,7 @@ static u32 chv_signal_levels(struct intel_dp *intel_dp)
 			uniq_trans_scale = true;
 			break;
 		default:
-			return 0;
+			return;
 		}
 		break;
 	case DP_TRAIN_PRE_EMPH_LEVEL_1:
@@ -4145,7 +4143,7 @@ static u32 chv_signal_levels(struct intel_dp *intel_dp)
 			margin_reg_value = 154;
 			break;
 		default:
-			return 0;
+			return;
 		}
 		break;
 	case DP_TRAIN_PRE_EMPH_LEVEL_2:
@@ -4159,7 +4157,7 @@ static u32 chv_signal_levels(struct intel_dp *intel_dp)
 			margin_reg_value = 154;
 			break;
 		default:
-			return 0;
+			return;
 		}
 		break;
 	case DP_TRAIN_PRE_EMPH_LEVEL_3:
@@ -4169,21 +4167,18 @@ static u32 chv_signal_levels(struct intel_dp *intel_dp)
 			margin_reg_value = 154;
 			break;
 		default:
-			return 0;
+			return;
 		}
 		break;
 	default:
-		return 0;
+		return;
 	}
 
 	chv_set_phy_signal_level(encoder, deemph_reg_value,
 				 margin_reg_value, uniq_trans_scale);
-
-	return 0;
 }
 
-static u32
-g4x_signal_levels(u8 train_set)
+static u32 g4x_signal_levels(u8 train_set)
 {
 	u32 signal_levels = 0;
 
@@ -4220,12 +4215,31 @@ g4x_signal_levels(u8 train_set)
 	return signal_levels;
 }
 
-/* SNB CPU eDP voltage swing and pre-emphasis control */
-static u32
-snb_cpu_edp_signal_levels(u8 train_set)
+static void
+g4x_set_signal_levels(struct intel_dp *intel_dp)
 {
-	int signal_levels = train_set & (DP_TRAIN_VOLTAGE_SWING_MASK |
-					 DP_TRAIN_PRE_EMPHASIS_MASK);
+	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	u8 train_set = intel_dp->train_set[0];
+	u32 signal_levels;
+
+	signal_levels = g4x_signal_levels(train_set);
+
+	drm_dbg_kms(&dev_priv->drm, "Using signal levels %08x\n",
+		    signal_levels);
+
+	intel_dp->DP &= ~(DP_VOLTAGE_MASK | DP_PRE_EMPHASIS_MASK);
+	intel_dp->DP |= signal_levels;
+
+	intel_de_write(dev_priv, intel_dp->output_reg, intel_dp->DP);
+	intel_de_posting_read(dev_priv, intel_dp->output_reg);
+}
+
+/* SNB CPU eDP voltage swing and pre-emphasis control */
+static u32 snb_cpu_edp_signal_levels(u8 train_set)
+{
+	u8 signal_levels = train_set & (DP_TRAIN_VOLTAGE_SWING_MASK |
+					DP_TRAIN_PRE_EMPHASIS_MASK);
+
 	switch (signal_levels) {
 	case DP_TRAIN_VOLTAGE_SWING_LEVEL_0 | DP_TRAIN_PRE_EMPH_LEVEL_0:
 	case DP_TRAIN_VOLTAGE_SWING_LEVEL_1 | DP_TRAIN_PRE_EMPH_LEVEL_0:
@@ -4248,12 +4262,31 @@ snb_cpu_edp_signal_levels(u8 train_set)
 	}
 }
 
-/* IVB CPU eDP voltage swing and pre-emphasis control */
-static u32
-ivb_cpu_edp_signal_levels(u8 train_set)
+static void
+snb_cpu_edp_set_signal_levels(struct intel_dp *intel_dp)
 {
-	int signal_levels = train_set & (DP_TRAIN_VOLTAGE_SWING_MASK |
-					 DP_TRAIN_PRE_EMPHASIS_MASK);
+	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	u8 train_set = intel_dp->train_set[0];
+	u32 signal_levels;
+
+	signal_levels = snb_cpu_edp_signal_levels(train_set);
+
+	drm_dbg_kms(&dev_priv->drm, "Using signal levels %08x\n",
+		    signal_levels);
+
+	intel_dp->DP &= ~EDP_LINK_TRAIN_VOL_EMP_MASK_SNB;
+	intel_dp->DP |= signal_levels;
+
+	intel_de_write(dev_priv, intel_dp->output_reg, intel_dp->DP);
+	intel_de_posting_read(dev_priv, intel_dp->output_reg);
+}
+
+/* IVB CPU eDP voltage swing and pre-emphasis control */
+static u32 ivb_cpu_edp_signal_levels(u8 train_set)
+{
+	u8 signal_levels = train_set & (DP_TRAIN_VOLTAGE_SWING_MASK |
+					DP_TRAIN_PRE_EMPHASIS_MASK);
+
 	switch (signal_levels) {
 	case DP_TRAIN_VOLTAGE_SWING_LEVEL_0 | DP_TRAIN_PRE_EMPH_LEVEL_0:
 		return EDP_LINK_TRAIN_400MV_0DB_IVB;
@@ -4279,38 +4312,29 @@ ivb_cpu_edp_signal_levels(u8 train_set)
 	}
 }
 
-void
-intel_dp_set_signal_levels(struct intel_dp *intel_dp)
+static void
+ivb_cpu_edp_set_signal_levels(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
-	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
-	enum port port = intel_dig_port->base.port;
-	u32 signal_levels, mask = 0;
 	u8 train_set = intel_dp->train_set[0];
+	u32 signal_levels;
 
-	if (IS_GEN9_LP(dev_priv) || INTEL_GEN(dev_priv) >= 10) {
-		signal_levels = bxt_signal_levels(intel_dp);
-	} else if (HAS_DDI(dev_priv)) {
-		signal_levels = ddi_signal_levels(intel_dp);
-		mask = DDI_BUF_EMP_MASK;
-	} else if (IS_CHERRYVIEW(dev_priv)) {
-		signal_levels = chv_signal_levels(intel_dp);
-	} else if (IS_VALLEYVIEW(dev_priv)) {
-		signal_levels = vlv_signal_levels(intel_dp);
-	} else if (IS_IVYBRIDGE(dev_priv) && port == PORT_A) {
-		signal_levels = ivb_cpu_edp_signal_levels(train_set);
-		mask = EDP_LINK_TRAIN_VOL_EMP_MASK_IVB;
-	} else if (IS_GEN(dev_priv, 6) && port == PORT_A) {
-		signal_levels = snb_cpu_edp_signal_levels(train_set);
-		mask = EDP_LINK_TRAIN_VOL_EMP_MASK_SNB;
-	} else {
-		signal_levels = g4x_signal_levels(train_set);
-		mask = DP_VOLTAGE_MASK | DP_PRE_EMPHASIS_MASK;
-	}
+	signal_levels = ivb_cpu_edp_signal_levels(train_set);
 
-	if (mask)
-		drm_dbg_kms(&dev_priv->drm, "Using signal levels %08x\n",
-			    signal_levels);
+	drm_dbg_kms(&dev_priv->drm, "Using signal levels %08x\n",
+		    signal_levels);
+
+	intel_dp->DP &= ~EDP_LINK_TRAIN_VOL_EMP_MASK_IVB;
+	intel_dp->DP |= signal_levels;
+
+	intel_de_write(dev_priv, intel_dp->output_reg, intel_dp->DP);
+	intel_de_posting_read(dev_priv, intel_dp->output_reg);
+}
+
+void intel_dp_set_signal_levels(struct intel_dp *intel_dp)
+{
+	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	u8 train_set = intel_dp->train_set[0];
 
 	drm_dbg_kms(&dev_priv->drm, "Using vswing level %d%s\n",
 		    train_set & DP_TRAIN_VOLTAGE_SWING_MASK,
@@ -4321,10 +4345,7 @@ intel_dp_set_signal_levels(struct intel_dp *intel_dp)
 		    train_set & DP_TRAIN_MAX_PRE_EMPHASIS_REACHED ?
 		    " (max)" : "");
 
-	intel_dp->DP = (intel_dp->DP & ~mask) | signal_levels;
-
-	intel_de_write(dev_priv, intel_dp->output_reg, intel_dp->DP);
-	intel_de_posting_read(dev_priv, intel_dp->output_reg);
+	intel_dp->set_signal_levels(intel_dp);
 }
 
 void
@@ -8494,6 +8515,17 @@ bool intel_dp_init(struct drm_i915_private *dev_priv,
 		intel_dig_port->dp.set_link_train = cpt_set_link_train;
 	else
 		intel_dig_port->dp.set_link_train = g4x_set_link_train;
+
+	if (IS_CHERRYVIEW(dev_priv))
+		intel_dig_port->dp.set_signal_levels = chv_set_signal_levels;
+	else if (IS_VALLEYVIEW(dev_priv))
+		intel_dig_port->dp.set_signal_levels = vlv_set_signal_levels;
+	else if (IS_IVYBRIDGE(dev_priv) && port == PORT_A)
+		intel_dig_port->dp.set_signal_levels = ivb_cpu_edp_set_signal_levels;
+	else if (IS_GEN(dev_priv, 6) && port == PORT_A)
+		intel_dig_port->dp.set_signal_levels = snb_cpu_edp_set_signal_levels;
+	else
+		intel_dig_port->dp.set_signal_levels = g4x_set_signal_levels;
 
 	intel_dig_port->dp.output_reg = output_reg;
 	intel_dig_port->max_lanes = 4;

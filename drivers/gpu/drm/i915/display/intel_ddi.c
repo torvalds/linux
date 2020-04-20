@@ -2661,38 +2661,66 @@ static u32 intel_ddi_dp_level(struct intel_dp *intel_dp)
 	return translate_signal_level(intel_dp, signal_levels);
 }
 
-u32 bxt_signal_levels(struct intel_dp *intel_dp)
+static void
+tgl_set_signal_levels(struct intel_dp *intel_dp)
 {
-	struct intel_digital_port *dport = dp_to_dig_port(intel_dp);
-	struct drm_i915_private *dev_priv = to_i915(dport->base.base.dev);
-	struct intel_encoder *encoder = &dport->base;
+	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
 	int level = intel_ddi_dp_level(intel_dp);
 
-	if (INTEL_GEN(dev_priv) >= 12)
-		tgl_ddi_vswing_sequence(encoder, intel_dp->link_rate,
-					level, encoder->type);
-	else if (INTEL_GEN(dev_priv) >= 11)
-		icl_ddi_vswing_sequence(encoder, intel_dp->link_rate,
-					level, encoder->type);
-	else if (IS_CANNONLAKE(dev_priv))
-		cnl_ddi_vswing_sequence(encoder, level, encoder->type);
-	else
-		bxt_ddi_vswing_sequence(encoder, level, encoder->type);
-
-	return 0;
+	tgl_ddi_vswing_sequence(encoder, intel_dp->link_rate,
+				level, encoder->type);
 }
 
-u32 ddi_signal_levels(struct intel_dp *intel_dp)
+static void
+icl_set_signal_levels(struct intel_dp *intel_dp)
 {
-	struct intel_digital_port *dport = dp_to_dig_port(intel_dp);
-	struct drm_i915_private *dev_priv = to_i915(dport->base.base.dev);
-	struct intel_encoder *encoder = &dport->base;
+	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
 	int level = intel_ddi_dp_level(intel_dp);
+
+	icl_ddi_vswing_sequence(encoder, intel_dp->link_rate,
+				level, encoder->type);
+}
+
+static void
+cnl_set_signal_levels(struct intel_dp *intel_dp)
+{
+	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
+	int level = intel_ddi_dp_level(intel_dp);
+
+	cnl_ddi_vswing_sequence(encoder, level, encoder->type);
+}
+
+static void
+bxt_set_signal_levels(struct intel_dp *intel_dp)
+{
+	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
+	int level = intel_ddi_dp_level(intel_dp);
+
+	bxt_ddi_vswing_sequence(encoder, level, encoder->type);
+}
+
+static void
+hsw_set_signal_levels(struct intel_dp *intel_dp)
+{
+	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	int level = intel_ddi_dp_level(intel_dp);
+	enum port port = encoder->port;
+	u32 signal_levels;
+
+	signal_levels = DDI_BUF_TRANS_SELECT(level);
+
+	drm_dbg_kms(&dev_priv->drm, "Using signal levels %08x\n",
+		    signal_levels);
+
+	intel_dp->DP &= ~DDI_BUF_EMP_MASK;
+	intel_dp->DP |= signal_levels;
 
 	if (IS_GEN9_BC(dev_priv))
 		skl_ddi_set_iboost(encoder, level, encoder->type);
 
-	return DDI_BUF_TRANS_SELECT(level);
+	intel_de_write(dev_priv, DDI_BUF_CTL(port), intel_dp->DP);
+	intel_de_posting_read(dev_priv, DDI_BUF_CTL(port));
 }
 
 static u32 icl_dpclka_cfgcr0_clk_off(struct drm_i915_private *dev_priv,
@@ -4435,6 +4463,17 @@ intel_ddi_init_dp_connector(struct intel_digital_port *intel_dig_port)
 	intel_dig_port->dp.prepare_link_retrain =
 		intel_ddi_prepare_link_retrain;
 	intel_dig_port->dp.set_link_train = intel_ddi_set_link_train;
+
+	if (INTEL_GEN(dev_priv) >= 12)
+		intel_dig_port->dp.set_signal_levels = tgl_set_signal_levels;
+	else if (INTEL_GEN(dev_priv) >= 11)
+		intel_dig_port->dp.set_signal_levels = icl_set_signal_levels;
+	else if (IS_CANNONLAKE(dev_priv))
+		intel_dig_port->dp.set_signal_levels = cnl_set_signal_levels;
+	else if (IS_GEN9_LP(dev_priv))
+		intel_dig_port->dp.set_signal_levels = bxt_set_signal_levels;
+	else
+		intel_dig_port->dp.set_signal_levels = hsw_set_signal_levels;
 
 	if (INTEL_GEN(dev_priv) < 12) {
 		intel_dig_port->dp.regs.dp_tp_ctl = DP_TP_CTL(port);

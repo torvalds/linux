@@ -1368,6 +1368,7 @@ struct intel_dp {
 	/* This is called before a link training is starterd */
 	void (*prepare_link_retrain)(struct intel_dp *intel_dp);
 	void (*set_link_train)(struct intel_dp *intel_dp, u8 dp_train_pat);
+	void (*set_signal_levels)(struct intel_dp *intel_dp);
 
 	/* Displayport compliance testing */
 	struct intel_dp_compliance compliance;
