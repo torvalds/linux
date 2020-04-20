@@ -331,13 +331,11 @@ void cc_trng_compwork_handler(struct work_struct *w)
 	ehr_valid = CC_REG_FLD_GET(RNG_ISR, EHR_VALID, isr);
 	dev_dbg(dev, "Got RNG_ISR=0x%08X (EHR_VALID=%u)\n", isr, ehr_valid);
 
-#ifdef CONFIG_CRYPTO_FIPS
-	if (CC_REG_FLD_GET(RNG_ISR, CRNGT_ERR, isr) && fips_enabled) {
+	if (fips_enabled && CC_REG_FLD_GET(RNG_ISR, CRNGT_ERR, isr)) {
 		fips_fail_notify();
 		/* FIPS error is fatal */
 		panic("Got HW CRNGT error while fips is enabled!\n");
 	}
-#endif
 
 	/* Clear all pending RNG interrupts */
 	cc_iowrite(drvdata, CC_RNG_ICR_REG_OFFSET, isr);
