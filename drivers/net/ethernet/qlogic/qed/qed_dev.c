@@ -1972,7 +1972,7 @@ static int qed_init_qm_sanity(struct qed_hwfn *p_hwfn)
 		return 0;
 
 	if (QED_IS_ROCE_PERSONALITY(p_hwfn)) {
-		p_hwfn->hw_info.multi_tc_roce_en = 0;
+		p_hwfn->hw_info.multi_tc_roce_en = false;
 		DP_NOTICE(p_hwfn,
 			  "multi-tc roce was disabled to reduce requested amount of pqs\n");
 		if (qed_init_qm_get_num_pqs(p_hwfn) <= RESC_NUM(p_hwfn, QED_PQ))
@@ -4392,7 +4392,7 @@ qed_get_hw_info(struct qed_hwfn *p_hwfn,
 	}
 
 	if (QED_IS_ROCE_PERSONALITY(p_hwfn))
-		p_hwfn->hw_info.multi_tc_roce_en = 1;
+		p_hwfn->hw_info.multi_tc_roce_en = true;
 
 	p_hwfn->hw_info.num_hw_tc = NUM_PHYS_TCS_4PORT_K2;
 	p_hwfn->hw_info.num_active_tc = 1;
