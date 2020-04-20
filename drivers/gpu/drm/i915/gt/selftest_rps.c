@@ -292,6 +292,43 @@ int live_rps_control(void *arg)
 	return err;
 }
 
+static void show_pcu_config(struct intel_rps *rps)
+{
+	struct drm_i915_private *i915 = rps_to_i915(rps);
+	unsigned int max_gpu_freq, min_gpu_freq;
+	intel_wakeref_t wakeref;
+	int gpu_freq;
+
+	if (!HAS_LLC(i915))
+		return;
+
+	min_gpu_freq = rps->min_freq;
+	max_gpu_freq = rps->max_freq;
+	if (INTEL_GEN(i915) >= 9) {
+		/* Convert GT frequency to 50 HZ units */
+		min_gpu_freq /= GEN9_FREQ_SCALER;
+		max_gpu_freq /= GEN9_FREQ_SCALER;
+	}
+
+	wakeref = intel_runtime_pm_get(rps_to_uncore(rps)->rpm);
+
+	pr_info("%5s  %5s  %5s\n", "GPU", "eCPU", "eRing");
+	for (gpu_freq = min_gpu_freq; gpu_freq <= max_gpu_freq; gpu_freq++) {
+		int ia_freq = gpu_freq;
+
+		sandybridge_pcode_read(i915,
+				       GEN6_PCODE_READ_MIN_FREQ_TABLE,
+				       &ia_freq, NULL);
+
+		pr_info("%5d  %5d  %5d\n",
+			gpu_freq * 50,
+			((ia_freq >> 0) & 0xff) * 100,
+			((ia_freq >> 8) & 0xff) * 100);
+	}
+
+	intel_runtime_pm_put(rps_to_uncore(rps)->rpm, wakeref);
+}
+
 static u64 __measure_frequency(u32 *cntr, int duration_ms)
 {
 	u64 dc, dt;
@@ -444,6 +481,7 @@ int live_rps_frequency_cs(void *arg)
 			       engine->name,
 			       max.freq * min.count,
 			       min.freq * max.count);
+			show_pcu_config(rps);
 			err = -EINVAL;
 		}
 
@@ -552,6 +590,7 @@ int live_rps_frequency_srm(void *arg)
 			       engine->name,
 			       max.freq * min.count,
 			       min.freq * max.count);
+			show_pcu_config(rps);
 			err = -EINVAL;
 		}
 
