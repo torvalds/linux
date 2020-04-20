@@ -2,6 +2,8 @@
 /* Copyright(c) 2018-2019  Realtek Corporation
  */
 
+#include <linux/iopoll.h>
+
 #include "main.h"
 #include "efuse.h"
 #include "reg.h"
@@ -116,6 +118,26 @@ static int rtw_dump_physical_efuse_map(struct rtw_dev *rtwdev, u8 *map)
 	}
 
 	rtw_chip_efuse_grant_off(rtwdev);
+
+	return 0;
+}
+
+int rtw_read8_physical_efuse(struct rtw_dev *rtwdev, u16 addr, u8 *data)
+{
+	u32 efuse_ctl;
+	int ret;
+
+	rtw_write32_mask(rtwdev, REG_EFUSE_CTRL, 0x3ff00, addr);
+	rtw_write32_clr(rtwdev, REG_EFUSE_CTRL, BIT_EF_FLAG);
+
+	ret = read_poll_timeout(rtw_read32, efuse_ctl, efuse_ctl & BIT_EF_FLAG,
+				1000, 100000, false, rtwdev, REG_EFUSE_CTRL);
+	if (ret) {
+		*data = EFUSE_READ_FAIL;
+		return ret;
+	}
+
+	*data = rtw_read8(rtwdev, REG_EFUSE_CTRL);
 
 	return 0;
 }

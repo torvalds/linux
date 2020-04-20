@@ -15,6 +15,7 @@
 #include "debug.h"
 #include "util.h"
 #include "bf.h"
+#include "efuse.h"
 
 static void rtw8822c_config_trx_mode(struct rtw_dev *rtwdev, u8 tx_path,
 				     u8 rx_path, bool is_tx2_path);
@@ -1000,10 +1001,122 @@ static void rtw8822c_rf_x2_check(struct rtw_dev *rtwdev)
 	}
 }
 
+static void rtw8822c_set_power_trim(struct rtw_dev *rtwdev, s8 bb_gain[2][8])
+{
+#define RF_SET_POWER_TRIM(_path, _seq, _idx)					\
+		do {								\
+			rtw_write_rf(rtwdev, _path, 0x33, RFREG_MASK, _seq);	\
+			rtw_write_rf(rtwdev, _path, 0x3f, RFREG_MASK,		\
+				     bb_gain[_path][_idx]);			\
+		} while (0)
+	u8 path;
+
+	for (path = 0; path < rtwdev->hal.rf_path_num; path++) {
+		rtw_write_rf(rtwdev, path, 0xee, BIT(19), 1);
+		RF_SET_POWER_TRIM(path, 0x0, 0);
+		RF_SET_POWER_TRIM(path, 0x1, 1);
+		RF_SET_POWER_TRIM(path, 0x2, 2);
+		RF_SET_POWER_TRIM(path, 0x3, 2);
+		RF_SET_POWER_TRIM(path, 0x4, 3);
+		RF_SET_POWER_TRIM(path, 0x5, 4);
+		RF_SET_POWER_TRIM(path, 0x6, 5);
+		RF_SET_POWER_TRIM(path, 0x7, 6);
+		RF_SET_POWER_TRIM(path, 0x8, 7);
+		RF_SET_POWER_TRIM(path, 0x9, 3);
+		RF_SET_POWER_TRIM(path, 0xa, 4);
+		RF_SET_POWER_TRIM(path, 0xb, 5);
+		RF_SET_POWER_TRIM(path, 0xc, 6);
+		RF_SET_POWER_TRIM(path, 0xd, 7);
+		RF_SET_POWER_TRIM(path, 0xe, 7);
+		rtw_write_rf(rtwdev, path, 0xee, BIT(19), 0);
+	}
+#undef RF_SET_POWER_TRIM
+}
+
+static void rtw8822c_power_trim(struct rtw_dev *rtwdev)
+{
+	u8 pg_pwr = 0xff, i, path, idx;
+	s8 bb_gain[2][8] = {0};
+	u16 rf_efuse_2g[3] = {PPG_2GL_TXAB, PPG_2GM_TXAB, PPG_2GH_TXAB};
+	u16 rf_efuse_5g[2][5] = {{PPG_5GL1_TXA, PPG_5GL2_TXA, PPG_5GM1_TXA,
+				  PPG_5GM2_TXA, PPG_5GH1_TXA},
+				 {PPG_5GL1_TXB, PPG_5GL2_TXB, PPG_5GM1_TXB,
+				  PPG_5GM2_TXB, PPG_5GH1_TXB} };
+	bool set = false;
+
+	for (i = 0; i < ARRAY_SIZE(rf_efuse_2g); i++) {
+		rtw_read8_physical_efuse(rtwdev, rf_efuse_2g[i], &pg_pwr);
+		if (pg_pwr == EFUSE_READ_FAIL)
+			continue;
+		set = true;
+		bb_gain[RF_PATH_A][i] = FIELD_GET(PPG_2G_A_MASK, pg_pwr);
+		bb_gain[RF_PATH_B][i] = FIELD_GET(PPG_2G_B_MASK, pg_pwr);
+	}
+
+	for (i = 0; i < ARRAY_SIZE(rf_efuse_5g[0]); i++) {
+		for (path = 0; path < rtwdev->hal.rf_path_num; path++) {
+			rtw_read8_physical_efuse(rtwdev, rf_efuse_5g[path][i],
+						 &pg_pwr);
+			if (pg_pwr == EFUSE_READ_FAIL)
+				continue;
+			set = true;
+			idx = i + ARRAY_SIZE(rf_efuse_2g);
+			bb_gain[path][idx] = FIELD_GET(PPG_5G_MASK, pg_pwr);
+		}
+	}
+	if (set)
+		rtw8822c_set_power_trim(rtwdev, bb_gain);
+
+	rtw_write32_mask(rtwdev, REG_DIS_DPD, DIS_DPD_MASK, DIS_DPD_RATEALL);
+}
+
+static void rtw8822c_thermal_trim(struct rtw_dev *rtwdev)
+{
+	u16 rf_efuse[2] = {PPG_THERMAL_A, PPG_THERMAL_B};
+	u8 pg_therm = 0xff, thermal[2] = {0}, path;
+
+	for (path = 0; path < rtwdev->hal.rf_path_num; path++) {
+		rtw_read8_physical_efuse(rtwdev, rf_efuse[path], &pg_therm);
+		if (pg_therm == EFUSE_READ_FAIL)
+			return;
+		/* Efuse value of BIT(0) shall be move to BIT(3), and the value
+		 * of BIT(1) to BIT(3) should be right shifted 1 bit.
+		 */
+		thermal[path] = FIELD_GET(GENMASK(3, 1), pg_therm);
+		thermal[path] |= FIELD_PREP(BIT(3), pg_therm & BIT(0));
+		rtw_write_rf(rtwdev, path, 0x43, RF_THEMAL_MASK, thermal[path]);
+	}
+}
+
+static void rtw8822c_pa_bias(struct rtw_dev *rtwdev)
+{
+	u16 rf_efuse_2g[2] = {PPG_PABIAS_2GA, PPG_PABIAS_2GB};
+	u16 rf_efuse_5g[2] = {PPG_PABIAS_5GA, PPG_PABIAS_5GB};
+	u8 pg_pa_bias = 0xff, path;
+
+	for (path = 0; path < rtwdev->hal.rf_path_num; path++) {
+		rtw_read8_physical_efuse(rtwdev, rf_efuse_2g[path],
+					 &pg_pa_bias);
+		if (pg_pa_bias == EFUSE_READ_FAIL)
+			return;
+		pg_pa_bias = FIELD_GET(PPG_PABIAS_MASK, pg_pa_bias);
+		rtw_write_rf(rtwdev, path, 0x60, RF_PABIAS_2G_MASK, pg_pa_bias);
+	}
+	for (path = 0; path < rtwdev->hal.rf_path_num; path++) {
+		rtw_read8_physical_efuse(rtwdev, rf_efuse_5g[path],
+					 &pg_pa_bias);
+		pg_pa_bias = FIELD_GET(PPG_PABIAS_MASK, pg_pa_bias);
+		rtw_write_rf(rtwdev, path, 0x60, RF_PABIAS_5G_MASK, pg_pa_bias);
+	}
+}
+
 static void rtw8822c_rf_init(struct rtw_dev *rtwdev)
 {
 	rtw8822c_rf_dac_cal(rtwdev);
 	rtw8822c_rf_x2_check(rtwdev);
+	rtw8822c_thermal_trim(rtwdev);
+	rtw8822c_power_trim(rtwdev);
+	rtw8822c_pa_bias(rtwdev);
 }
 
 static void rtw8822c_pwrtrack_init(struct rtw_dev *rtwdev)
