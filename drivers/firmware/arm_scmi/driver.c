@@ -242,6 +242,7 @@ static void scmi_handle_response(struct scmi_chan_info *cinfo,
 	/* Are we even expecting this? */
 	if (!test_bit(xfer_id, minfo->xfer_alloc_table)) {
 		dev_err(dev, "message for %d is not expected!\n", xfer_id);
+		info->desc->ops->clear_channel(cinfo);
 		return;
 	}
 
