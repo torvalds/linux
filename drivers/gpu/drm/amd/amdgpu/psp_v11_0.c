@@ -75,9 +75,6 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 	const char *chip_name;
 	char fw_name[30];
 	int err = 0;
-	const struct psp_firmware_header_v1_0 *sos_hdr;
-	const struct psp_firmware_header_v1_1 *sos_hdr_v1_1;
-	const struct psp_firmware_header_v1_2 *sos_hdr_v1_2;
 	const struct ta_firmware_header_v1_0 *ta_hdr;
 
 	DRM_DEBUG("\n");
@@ -102,54 +99,13 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 		BUG();
 	}
 
-	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_sos.bin", chip_name);
-	err = request_firmware(&adev->psp.sos_fw, fw_name, adev->dev);
+	err = psp_init_sos_microcode(psp, chip_name);
 	if (err)
-		goto out;
-
-	err = amdgpu_ucode_validate(adev->psp.sos_fw);
-	if (err)
-		goto out;
-
-	sos_hdr = (const struct psp_firmware_header_v1_0 *)adev->psp.sos_fw->data;
-	amdgpu_ucode_print_psp_hdr(&sos_hdr->header);
-
-	switch (sos_hdr->header.header_version_major) {
-	case 1:
-		adev->psp.sos_fw_version = le32_to_cpu(sos_hdr->header.ucode_version);
-		adev->psp.sos_feature_version = le32_to_cpu(sos_hdr->ucode_feature_version);
-		adev->psp.sos_bin_size = le32_to_cpu(sos_hdr->sos_size_bytes);
-		adev->psp.sys_bin_size = le32_to_cpu(sos_hdr->sos_offset_bytes);
-		adev->psp.sys_start_addr = (uint8_t *)sos_hdr +
-				le32_to_cpu(sos_hdr->header.ucode_array_offset_bytes);
-		adev->psp.sos_start_addr = (uint8_t *)adev->psp.sys_start_addr +
-				le32_to_cpu(sos_hdr->sos_offset_bytes);
-		if (sos_hdr->header.header_version_minor == 1) {
-			sos_hdr_v1_1 = (const struct psp_firmware_header_v1_1 *)adev->psp.sos_fw->data;
-			adev->psp.toc_bin_size = le32_to_cpu(sos_hdr_v1_1->toc_size_bytes);
-			adev->psp.toc_start_addr = (uint8_t *)adev->psp.sys_start_addr +
-					le32_to_cpu(sos_hdr_v1_1->toc_offset_bytes);
-			adev->psp.kdb_bin_size = le32_to_cpu(sos_hdr_v1_1->kdb_size_bytes);
-			adev->psp.kdb_start_addr = (uint8_t *)adev->psp.sys_start_addr +
-					le32_to_cpu(sos_hdr_v1_1->kdb_offset_bytes);
-		}
-		if (sos_hdr->header.header_version_minor == 2) {
-			sos_hdr_v1_2 = (const struct psp_firmware_header_v1_2 *)adev->psp.sos_fw->data;
-			adev->psp.kdb_bin_size = le32_to_cpu(sos_hdr_v1_2->kdb_size_bytes);
-			adev->psp.kdb_start_addr = (uint8_t *)adev->psp.sys_start_addr +
-						    le32_to_cpu(sos_hdr_v1_2->kdb_offset_bytes);
-		}
-		break;
-	default:
-		dev_err(adev->dev,
-			"Unsupported psp sos firmware\n");
-		err = -EINVAL;
-		goto out;
-	}
+		return err;
 
 	err = psp_init_asd_microcode(psp, chip_name);
 	if (err)
-		goto out;
+		return err;
 
 	switch (adev->asic_type) {
 	case CHIP_VEGA20:
@@ -216,12 +172,6 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 out2:
 	release_firmware(adev->psp.ta_fw);
 	adev->psp.ta_fw = NULL;
-out:
-	dev_err(adev->dev,
-		"psp v11.0: Failed to load firmware \"%s\"\n", fw_name);
-	release_firmware(adev->psp.sos_fw);
-	adev->psp.sos_fw = NULL;
-
 	return err;
 }
 
