@@ -84,6 +84,7 @@
  * @init_clbcnt: the initial coulomb counter
  * @max_volt: the maximum constant input voltage in millivolt
  * @min_volt: the minimum drained battery voltage in microvolt
+ * @boot_volt: the voltage measured during boot in microvolt
  * @table_len: the capacity table length
  * @resist_table_len: the resistance table length
  * @cur_1000ma_adc: ADC value corresponding to 1000 mA
@@ -109,6 +110,7 @@ struct sc27xx_fgu_data {
 	int init_clbcnt;
 	int max_volt;
 	int min_volt;
+	int boot_volt;
 	int table_len;
 	int resist_table_len;
 	int cur_1000ma_adc;
@@ -321,6 +323,7 @@ static int sc27xx_fgu_get_boot_capacity(struct sc27xx_fgu_data *data, int *cap)
 
 	volt = sc27xx_fgu_adc_to_voltage(data, volt);
 	ocv = volt * 1000 - oci * data->internal_resist;
+	data->boot_volt = ocv;
 
 	/*
 	 * Parse the capacity table to look up the correct capacity percent
@@ -680,6 +683,10 @@ static int sc27xx_fgu_get_property(struct power_supply *psy,
 		val->intval = value * 1000;
 		break;
 
+	case POWER_SUPPLY_PROP_VOLTAGE_BOOT:
+		val->intval = data->boot_volt;
+		break;
+
 	default:
 		ret = -EINVAL;
 		break;
@@ -750,6 +757,7 @@ static enum power_supply_property sc27xx_fgu_props[] = {
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 	POWER_SUPPLY_PROP_VOLTAGE_OCV,
 	POWER_SUPPLY_PROP_VOLTAGE_AVG,
+	POWER_SUPPLY_PROP_VOLTAGE_BOOT,
 	POWER_SUPPLY_PROP_CURRENT_NOW,
 	POWER_SUPPLY_PROP_CURRENT_AVG,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE,
