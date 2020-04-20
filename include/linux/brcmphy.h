@@ -115,6 +115,9 @@
 #define MII_BCM54XX_SHD_VAL(x)	((x & 0x1f) << 10)
 #define MII_BCM54XX_SHD_DATA(x)	((x & 0x3ff) << 0)
 
+#define MII_BCM54XX_RDB_ADDR	0x1e
+#define MII_BCM54XX_RDB_DATA	0x1f
+
 /*
  * AUXILIARY CONTROL SHADOW ACCESS REGISTERS.  (PHY REG 0x18)
  */
