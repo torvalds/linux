@@ -270,7 +270,7 @@ static void hns3_dbg_help(struct hnae3_handle *h)
 		" [igu egu <port_id>] [rpu <tc_queue_num>]",
 		HNS3_DBG_BUF_LEN - strlen(printf_buf) - 1);
 	strncat(printf_buf + strlen(printf_buf),
-		" [rtc] [ppp] [rcb] [tqp <queue_num>]]\n",
+		" [rtc] [ppp] [rcb] [tqp <queue_num>] [mac]]\n",
 		HNS3_DBG_BUF_LEN - strlen(printf_buf) - 1);
 	dev_info(&h->pdev->dev, "%s", printf_buf);
 
