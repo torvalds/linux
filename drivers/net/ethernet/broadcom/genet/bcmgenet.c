@@ -3740,7 +3740,7 @@ static struct platform_driver bcmgenet_driver = {
 		.name	= "bcmgenet",
 		.of_match_table = bcmgenet_match,
 		.pm	= &bcmgenet_pm_ops,
-		.acpi_match_table = ACPI_PTR(genet_acpi_match),
+		.acpi_match_table = genet_acpi_match,
 	},
 };
 module_platform_driver(bcmgenet_driver);
