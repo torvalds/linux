@@ -2839,11 +2839,8 @@ void mlx5e_set_netdev_mtu_boundaries(struct mlx5e_priv *priv)
 				ETH_MAX_MTU);
 }
 
-static void mlx5e_netdev_set_tcs(struct net_device *netdev)
+static void mlx5e_netdev_set_tcs(struct net_device *netdev, u16 nch, u8 ntc)
 {
-	struct mlx5e_priv *priv = netdev_priv(netdev);
-	int nch = priv->channels.params.num_channels;
-	int ntc = priv->channels.params.num_tc;
 	int tc;
 
 	netdev_reset_tc(netdev);
@@ -2860,15 +2857,47 @@ static void mlx5e_netdev_set_tcs(struct net_device *netdev)
 		netdev_set_tc_queue(netdev, tc, nch, 0);
 }
 
-static void mlx5e_update_netdev_queues(struct mlx5e_priv *priv, u16 count)
+static int mlx5e_update_netdev_queues(struct mlx5e_priv *priv)
 {
-	int num_txqs = count * priv->channels.params.num_tc;
-	int num_rxqs = count * priv->profile->rq_groups;
 	struct net_device *netdev = priv->netdev;
+	int num_txqs, num_rxqs, nch, ntc;
+	int old_num_txqs, old_ntc;
+	int err;
 
-	mlx5e_netdev_set_tcs(netdev);
-	netif_set_real_num_tx_queues(netdev, num_txqs);
-	netif_set_real_num_rx_queues(netdev, num_rxqs);
+	old_num_txqs = netdev->real_num_tx_queues;
+	old_ntc = netdev->num_tc;
+
+	nch = priv->channels.params.num_channels;
+	ntc = priv->channels.params.num_tc;
+	num_txqs = nch * ntc;
+	num_rxqs = nch * priv->profile->rq_groups;
+
+	mlx5e_netdev_set_tcs(netdev, nch, ntc);
+
+	err = netif_set_real_num_tx_queues(netdev, num_txqs);
+	if (err) {
+		netdev_warn(netdev, "netif_set_real_num_tx_queues failed, %d\n", err);
+		goto err_tcs;
+	}
+	err = netif_set_real_num_rx_queues(netdev, num_rxqs);
+	if (err) {
+		netdev_warn(netdev, "netif_set_real_num_rx_queues failed, %d\n", err);
+		goto err_txqs;
+	}
+
+	return 0;
+
+err_txqs:
+	/* netif_set_real_num_rx_queues could fail only when nch increased. Only
+	 * one of nch and ntc is changed in this function. That means, the call
+	 * to netif_set_real_num_tx_queues below should not fail, because it
+	 * decreases the number of TX queues.
+	 */
+	WARN_ON_ONCE(netif_set_real_num_tx_queues(netdev, old_num_txqs));
+
+err_tcs:
+	mlx5e_netdev_set_tcs(netdev, old_num_txqs / old_ntc, old_ntc);
+	return err;
 }
 
 static void mlx5e_set_default_xps_cpumasks(struct mlx5e_priv *priv,
@@ -2895,8 +2924,12 @@ static void mlx5e_set_default_xps_cpumasks(struct mlx5e_priv *priv,
 int mlx5e_num_channels_changed(struct mlx5e_priv *priv)
 {
 	u16 count = priv->channels.params.num_channels;
+	int err;
 
-	mlx5e_update_netdev_queues(priv, count);
+	err = mlx5e_update_netdev_queues(priv);
+	if (err)
+		return err;
+
 	mlx5e_set_default_xps_cpumasks(priv, &priv->channels.params);
 
 	if (!netif_is_rxfh_configured(priv->netdev))
@@ -5358,9 +5391,11 @@ int mlx5e_attach_netdev(struct mlx5e_priv *priv)
 	 */
 	if (take_rtnl)
 		rtnl_lock();
-	mlx5e_num_channels_changed(priv);
+	err = mlx5e_num_channels_changed(priv);
 	if (take_rtnl)
 		rtnl_unlock();
+	if (err)
+		goto out;
 
 	err = profile->init_tx(priv);
 	if (err)

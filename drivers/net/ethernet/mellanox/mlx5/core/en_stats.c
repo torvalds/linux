@@ -32,8 +32,8 @@
 
 #include "lib/mlx5.h"
 #include "en.h"
-#include "en_accel/ipsec.h"
 #include "en_accel/tls.h"
+#include "en_accel/en_accel.h"
 
 static unsigned int stats_grps_num(struct mlx5e_priv *priv)
 {
@@ -1424,27 +1424,6 @@ static MLX5E_DECLARE_STATS_GRP_OP_FILL_STATS(pme)
 
 static MLX5E_DECLARE_STATS_GRP_OP_UPDATE_STATS(pme) { return; }
 
-static MLX5E_DECLARE_STATS_GRP_OP_NUM_STATS(ipsec)
-{
-	return mlx5e_ipsec_get_count(priv);
-}
-
-static MLX5E_DECLARE_STATS_GRP_OP_FILL_STRS(ipsec)
-{
-	return idx + mlx5e_ipsec_get_strings(priv,
-					     data + idx * ETH_GSTRING_LEN);
-}
-
-static MLX5E_DECLARE_STATS_GRP_OP_FILL_STATS(ipsec)
-{
-	return idx + mlx5e_ipsec_get_stats(priv, data + idx);
-}
-
-static MLX5E_DECLARE_STATS_GRP_OP_UPDATE_STATS(ipsec)
-{
-	mlx5e_ipsec_update_stats(priv);
-}
-
 static MLX5E_DECLARE_STATS_GRP_OP_NUM_STATS(tls)
 {
 	return mlx5e_tls_get_count(priv);
@@ -1714,7 +1693,6 @@ MLX5E_DEFINE_STATS_GRP(pme, 0);
 MLX5E_DEFINE_STATS_GRP(channels, 0);
 MLX5E_DEFINE_STATS_GRP(per_port_buff_congest, 0);
 MLX5E_DEFINE_STATS_GRP(eth_ext, 0);
-static MLX5E_DEFINE_STATS_GRP(ipsec, 0);
 static MLX5E_DEFINE_STATS_GRP(tls, 0);
 
 /* The stats groups order is opposite to the update_stats() order calls */
@@ -1731,7 +1709,10 @@ mlx5e_stats_grp_t mlx5e_nic_stats_grps[] = {
 	&MLX5E_STATS_GRP(pcie),
 	&MLX5E_STATS_GRP(per_prio),
 	&MLX5E_STATS_GRP(pme),
-	&MLX5E_STATS_GRP(ipsec),
+#ifdef CONFIG_MLX5_EN_IPSEC
+	&MLX5E_STATS_GRP(ipsec_sw),
+	&MLX5E_STATS_GRP(ipsec_hw),
+#endif
 	&MLX5E_STATS_GRP(tls),
 	&MLX5E_STATS_GRP(channels),
 	&MLX5E_STATS_GRP(per_port_buff_congest),

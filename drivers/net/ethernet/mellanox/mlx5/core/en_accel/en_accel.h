@@ -42,6 +42,8 @@
 #include "en/txrx.h"
 
 #if IS_ENABLED(CONFIG_GENEVE)
+#include <net/geneve.h>
+
 static inline bool mlx5_geneve_tx_allowed(struct mlx5_core_dev *mdev)
 {
 	return mlx5_tx_swp_supported(mdev);
