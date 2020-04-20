@@ -89,7 +89,7 @@ void intel_wopcm_init_early(struct intel_wopcm *wopcm)
 	drm_dbg(&i915->drm, "WOPCM: %uK\n", wopcm->size / 1024);
 }
 
-static inline u32 context_reserved_size(struct drm_i915_private *i915)
+static u32 context_reserved_size(struct drm_i915_private *i915)
 {
 	if (IS_GEN9_LP(i915))
 		return BXT_WOPCM_RC6_CTX_RESERVED;
@@ -99,8 +99,8 @@ static inline u32 context_reserved_size(struct drm_i915_private *i915)
 		return 0;
 }
 
-static inline bool gen9_check_dword_gap(struct drm_i915_private *i915,
-					u32 guc_wopcm_base, u32 guc_wopcm_size)
+static bool gen9_check_dword_gap(struct drm_i915_private *i915,
+				 u32 guc_wopcm_base, u32 guc_wopcm_size)
 {
 	u32 offset;
 
@@ -122,8 +122,8 @@ static inline bool gen9_check_dword_gap(struct drm_i915_private *i915,
 	return true;
 }
 
-static inline bool gen9_check_huc_fw_fits(struct drm_i915_private *i915,
-					  u32 guc_wopcm_size, u32 huc_fw_size)
+static bool gen9_check_huc_fw_fits(struct drm_i915_private *i915,
+				   u32 guc_wopcm_size, u32 huc_fw_size)
 {
 	/*
 	 * On Gen9 & CNL A0, hardware requires the total available GuC WOPCM
@@ -141,9 +141,9 @@ static inline bool gen9_check_huc_fw_fits(struct drm_i915_private *i915,
 	return true;
 }
 
-static inline bool check_hw_restrictions(struct drm_i915_private *i915,
-					 u32 guc_wopcm_base, u32 guc_wopcm_size,
-					 u32 huc_fw_size)
+static bool check_hw_restrictions(struct drm_i915_private *i915,
+				  u32 guc_wopcm_base, u32 guc_wopcm_size,
+				  u32 huc_fw_size)
 {
 	if (IS_GEN(i915, 9) && !gen9_check_dword_gap(i915, guc_wopcm_base,
 						     guc_wopcm_size))
@@ -157,9 +157,9 @@ static inline bool check_hw_restrictions(struct drm_i915_private *i915,
 	return true;
 }
 
-static inline bool __check_layout(struct drm_i915_private *i915, u32 wopcm_size,
-				  u32 guc_wopcm_base, u32 guc_wopcm_size,
-				  u32 guc_fw_size, u32 huc_fw_size)
+static bool __check_layout(struct drm_i915_private *i915, u32 wopcm_size,
+			   u32 guc_wopcm_base, u32 guc_wopcm_size,
+			   u32 guc_fw_size, u32 huc_fw_size)
 {
 	const u32 ctx_rsvd = context_reserved_size(i915);
 	u32 size;

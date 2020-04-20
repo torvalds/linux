@@ -36,15 +36,15 @@
 #include "intel_panel.h"
 #include "intel_vdsc.h"
 
-static inline int header_credits_available(struct drm_i915_private *dev_priv,
-					   enum transcoder dsi_trans)
+static int header_credits_available(struct drm_i915_private *dev_priv,
+				    enum transcoder dsi_trans)
 {
 	return (intel_de_read(dev_priv, DSI_CMD_TXCTL(dsi_trans)) & FREE_HEADER_CREDIT_MASK)
 		>> FREE_HEADER_CREDIT_SHIFT;
 }
 
-static inline int payload_credits_available(struct drm_i915_private *dev_priv,
-					    enum transcoder dsi_trans)
+static int payload_credits_available(struct drm_i915_private *dev_priv,
+				     enum transcoder dsi_trans)
 {
 	return (intel_de_read(dev_priv, DSI_CMD_TXCTL(dsi_trans)) & FREE_PLOAD_CREDIT_MASK)
 		>> FREE_PLOAD_CREDIT_SHIFT;

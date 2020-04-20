@@ -1614,10 +1614,10 @@ static int get_hdcp2_msg_timeout(u8 msg_id, bool is_paired)
 	return -EINVAL;
 }
 
-static inline
-int hdcp2_detect_msg_availability(struct intel_digital_port *intel_dig_port,
-				  u8 msg_id, bool *msg_ready,
-				  ssize_t *msg_sz)
+static int
+hdcp2_detect_msg_availability(struct intel_digital_port *intel_dig_port,
+			      u8 msg_id, bool *msg_ready,
+			      ssize_t *msg_sz)
 {
 	struct drm_i915_private *i915 = to_i915(intel_dig_port->base.base.dev);
 	u8 rx_status[HDCP_2_2_HDMI_RXSTATUS_LEN];

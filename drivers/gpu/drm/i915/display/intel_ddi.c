@@ -1908,7 +1908,7 @@ bool intel_ddi_get_hw_state(struct intel_encoder *encoder,
 	return true;
 }
 
-static inline enum intel_display_power_domain
+static enum intel_display_power_domain
 intel_ddi_main_link_aux_domain(struct intel_digital_port *dig_port)
 {
 	/* CNL+ HW requires corresponding AUX IOs to be powered up for PSR with
@@ -2693,9 +2693,8 @@ u32 ddi_signal_levels(struct intel_dp *intel_dp)
 	return DDI_BUF_TRANS_SELECT(level);
 }
 
-static inline
-u32 icl_dpclka_cfgcr0_clk_off(struct drm_i915_private *dev_priv,
-			      enum phy phy)
+static u32 icl_dpclka_cfgcr0_clk_off(struct drm_i915_private *dev_priv,
+				     enum phy phy)
 {
 	if (intel_phy_is_combo(dev_priv, phy)) {
 		return ICL_DPCLKA_CFGCR0_DDI_CLK_OFF(phy);

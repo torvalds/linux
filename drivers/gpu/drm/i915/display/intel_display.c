@@ -238,9 +238,9 @@ static void intel_update_czclk(struct drm_i915_private *dev_priv)
 		dev_priv->czclk_freq);
 }
 
-static inline u32 /* units of 100MHz */
-intel_fdi_link_freq(struct drm_i915_private *dev_priv,
-		    const struct intel_crtc_state *pipe_config)
+/* units of 100MHz */
+static u32 intel_fdi_link_freq(struct drm_i915_private *dev_priv,
+			       const struct intel_crtc_state *pipe_config)
 {
 	if (HAS_DDI(dev_priv))
 		return pipe_config->port_clock; /* SPLL */
@@ -8134,7 +8134,7 @@ static void intel_panel_sanitize_ssc(struct drm_i915_private *dev_priv)
 	}
 }
 
-static inline bool intel_panel_use_ssc(struct drm_i915_private *dev_priv)
+static bool intel_panel_use_ssc(struct drm_i915_private *dev_priv)
 {
 	if (i915_modparams.panel_use_ssc >= 0)
 		return i915_modparams.panel_use_ssc != 0;
@@ -12827,7 +12827,7 @@ static void intel_dump_crtc_timings(struct drm_i915_private *i915,
 		    mode->type, mode->flags);
 }
 
-static inline void
+static void
 intel_dump_m_n_config(const struct intel_crtc_state *pipe_config,
 		      const char *id, unsigned int lane_count,
 		      const struct intel_link_m_n *m_n)

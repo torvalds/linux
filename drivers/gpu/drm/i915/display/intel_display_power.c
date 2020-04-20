@@ -4515,9 +4515,8 @@ static void intel_power_domains_sync_hw(struct drm_i915_private *dev_priv)
 	mutex_unlock(&power_domains->lock);
 }
 
-static inline
-bool intel_dbuf_slice_set(struct drm_i915_private *dev_priv,
-			  i915_reg_t reg, bool enable)
+static bool intel_dbuf_slice_set(struct drm_i915_private *dev_priv,
+				 i915_reg_t reg, bool enable)
 {
 	u32 val, status;
 
