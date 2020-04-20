@@ -826,6 +826,14 @@ enum dc_status dcn10_enable_stream_timing(
 	color_space = stream->output_color_space;
 	color_space_to_black_color(dc, color_space, &black_color);
 
+	/*
+	 * The way 420 is packed, 2 channels carry Y component, 1 channel
+	 * alternate between Cb and Cr, so both channels need the pixel
+	 * value for Y
+	 */
+	if (stream->timing.pixel_encoding == PIXEL_ENCODING_YCBCR420)
+		black_color.color_r_cr = black_color.color_g_y;
+
 	if (pipe_ctx->stream_res.tg->funcs->set_blank_color)
 		pipe_ctx->stream_res.tg->funcs->set_blank_color(
 				pipe_ctx->stream_res.tg,
@@ -2253,6 +2261,14 @@ void dcn10_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 				dc, pipe_ctx->stream->output_color_space,
 				&blnd_cfg.black_color);
 	}
+
+	/*
+	 * The way 420 is packed, 2 channels carry Y component, 1 channel
+	 * alternate between Cb and Cr, so both channels need the pixel
+	 * value for Y
+	 */
+	if (pipe_ctx->stream->timing.pixel_encoding == PIXEL_ENCODING_YCBCR420)
+		blnd_cfg.black_color.color_r_cr = blnd_cfg.black_color.color_g_y;
 
 	if (per_pixel_alpha)
 		blnd_cfg.alpha_mode = MPCC_ALPHA_BLEND_MODE_PER_PIXEL_ALPHA;
