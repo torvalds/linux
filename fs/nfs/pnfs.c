@@ -1458,18 +1458,15 @@ retry:
 	/* lo ref dropped in pnfs_roc_release() */
 	layoutreturn = pnfs_prepare_layoutreturn(lo, &stateid, &lc_cred, &iomode);
 	/* If the creds don't match, we can't compound the layoutreturn */
-	if (!layoutreturn)
+	if (!layoutreturn || cred_fscmp(cred, lc_cred) != 0)
 		goto out_noroc;
-	if (cred_fscmp(cred, lc_cred) != 0)
-		goto out_noroc_put_cred;
 
 	roc = layoutreturn;
 	pnfs_init_layoutreturn_args(args, lo, &stateid, iomode);
 	res->lrs_present = 0;
 	layoutreturn = false;
-
-out_noroc_put_cred:
 	put_cred(lc_cred);
+
 out_noroc:
 	spin_unlock(&ino->i_lock);
 	rcu_read_unlock();
