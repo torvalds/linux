@@ -115,12 +115,8 @@ static inline void pfx##reads##bwlq(volatile void __iomem *mem,		\
 __BUILD_MEMORY_STRING(__raw_, b, u8)
 __BUILD_MEMORY_STRING(__raw_, w, u16)
 
-#ifdef CONFIG_SUPERH32
 void __raw_writesl(void __iomem *addr, const void *data, int longlen);
 void __raw_readsl(const void __iomem *addr, void *data, int longlen);
-#else
-__BUILD_MEMORY_STRING(__raw_, l, u32)
-#endif
 
 __BUILD_MEMORY_STRING(__raw_, q, u64)
 
