@@ -170,7 +170,12 @@ EXPORT_SYMBOL(mdiobus_alloc_size);
 
 static void _devm_mdiobus_free(struct device *dev, void *res)
 {
-	mdiobus_free(*(struct mii_bus **)res);
+	struct mii_bus *bus = *(struct mii_bus **)res;
+
+	if (bus->is_managed_registered && bus->state == MDIOBUS_REGISTERED)
+		mdiobus_unregister(bus);
+
+	mdiobus_free(bus);
 }
 
 static int devm_mdiobus_match(struct device *dev, void *res, void *data)
@@ -210,6 +215,7 @@ struct mii_bus *devm_mdiobus_alloc_size(struct device *dev, int sizeof_priv)
 	if (bus) {
 		*ptr = bus;
 		devres_add(dev, ptr);
+		bus->is_managed = 1;
 	} else {
 		devres_free(ptr);
 	}
