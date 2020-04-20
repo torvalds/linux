@@ -1378,6 +1378,7 @@ struct sock *mptcp_sk_clone(const struct sock *sk, struct request_sock *req)
 		msk->ack_seq = ack_seq;
 	}
 
+	sock_reset_flag(nsk, SOCK_RCU_FREE);
 	/* will be fully established after successful MPC subflow creation */
 	inet_sk_state_store(nsk, TCP_SYN_RECV);
 	bh_unlock_sock(nsk);
@@ -1778,6 +1779,8 @@ static int mptcp_listen(struct socket *sock, int backlog)
 		err = PTR_ERR(ssock);
 		goto unlock;
 	}
+
+	sock_set_flag(sock->sk, SOCK_RCU_FREE);
 
 	err = ssock->ops->listen(ssock, backlog);
 	inet_sk_state_store(sock->sk, inet_sk_state_load(ssock->sk));
