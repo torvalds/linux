@@ -113,7 +113,7 @@ than the number requested.
       - Set by the driver. If 0, then the driver doesn't support
         capabilities. In that case all you know is that the driver is
 	guaranteed to support ``V4L2_MEMORY_MMAP`` and *might* support
-	other :c:type:`v4l2_memory` types. It will not support any others
+	other :c:type:`v4l2_memory` types. It will not support any other
 	capabilities. See :ref:`here <v4l2-buf-capabilities>` for a list of the
 	capabilities.
 

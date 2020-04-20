@@ -104,7 +104,7 @@ aborting or finishing any DMA in progress, an implicit
       - Set by the driver. If 0, then the driver doesn't support
         capabilities. In that case all you know is that the driver is
 	guaranteed to support ``V4L2_MEMORY_MMAP`` and *might* support
-	other :c:type:`v4l2_memory` types. It will not support any others
+	other :c:type:`v4l2_memory` types. It will not support any other
 	capabilities.
 
 	If you want to query the capabilities with a minimum of side-effects,
