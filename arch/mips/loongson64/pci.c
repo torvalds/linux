@@ -43,8 +43,6 @@ static int __init pcibios_init(void)
 
 	register_pci_controller(&loongson_pci_controller);
 
-	sbx00_acpi_init();
-
 	return 0;
 }
 

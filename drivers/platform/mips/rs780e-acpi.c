@@ -3,31 +3,22 @@
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/export.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
 
-#define SBX00_ACPI_IO_BASE 0x800
-#define SBX00_ACPI_IO_SIZE 0x100
+static unsigned long acpi_iobase;
 
-#define ACPI_PM_EVT_BLK         (SBX00_ACPI_IO_BASE + 0x00) /* 4 bytes */
-#define ACPI_PM_CNT_BLK         (SBX00_ACPI_IO_BASE + 0x04) /* 2 bytes */
-#define ACPI_PMA_CNT_BLK        (SBX00_ACPI_IO_BASE + 0x0F) /* 1 byte */
-#define ACPI_PM_TMR_BLK         (SBX00_ACPI_IO_BASE + 0x18) /* 4 bytes */
-#define ACPI_GPE0_BLK           (SBX00_ACPI_IO_BASE + 0x10) /* 8 bytes */
-#define ACPI_END                (SBX00_ACPI_IO_BASE + 0x80)
+#define ACPI_PM_EVT_BLK         (acpi_iobase + 0x00) /* 4 bytes */
+#define ACPI_PM_CNT_BLK         (acpi_iobase + 0x04) /* 2 bytes */
+#define ACPI_PMA_CNT_BLK        (acpi_iobase + 0x0F) /* 1 byte */
+#define ACPI_PM_TMR_BLK         (acpi_iobase + 0x18) /* 4 bytes */
+#define ACPI_GPE0_BLK           (acpi_iobase + 0x10) /* 8 bytes */
+#define ACPI_END                (acpi_iobase + 0x80)
 
 #define PM_INDEX        0xCD6
 #define PM_DATA         0xCD7
 #define PM2_INDEX       0xCD0
 #define PM2_DATA        0xCD1
-
-/*
- * SCI interrupt need acpi space, allocate here
- */
-
-static int __init register_acpi_resource(void)
-{
-	request_region(SBX00_ACPI_IO_BASE, SBX00_ACPI_IO_SIZE, "acpi");
-	return 0;
-}
 
 static void pmio_write_index(u16 index, u8 reg, u8 value)
 {
@@ -141,11 +132,38 @@ void acpi_registers_setup(void)
 	pm2_iowrite(0xf8, value);
 }
 
-int __init sbx00_acpi_init(void)
+static int rs780e_acpi_probe(struct platform_device *pdev)
 {
-	register_acpi_resource();
+	struct resource *res;
+
+	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
+	if (!res)
+		return -ENODEV;
+
+	/* SCI interrupt need acpi space, allocate here */
+	if (!request_region(res->start, resource_size(res), "acpi")) {
+		pr_err("RS780E-ACPI: Failed to request IO Region\n");
+		return -EBUSY;
+	}
+
+	acpi_iobase = res->start;
+
 	acpi_registers_setup();
 	acpi_hw_clear_status();
 
 	return 0;
 }
+
+static const struct of_device_id rs780e_acpi_match[] = {
+	{ .compatible = "loongson,rs780e-acpi" },
+	{},
+};
+
+static struct platform_driver rs780e_acpi_driver = {
+	.probe = rs780e_acpi_probe,
+	.driver = {
+		.name = "RS780E-ACPI",
+		.of_match_table = rs780e_acpi_match,
+	},
+};
+builtin_platform_driver(rs780e_acpi_driver);
