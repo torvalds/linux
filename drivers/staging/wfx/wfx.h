@@ -56,7 +56,6 @@ struct wfx_dev {
 
 	atomic_t		packet_id;
 	u32			key_map;
-	struct hif_req_add_key	keys[MAX_KEY_ENTRIES];
 
 	struct hif_rx_stats	rx_stats;
 	struct mutex		rx_stats_lock;
