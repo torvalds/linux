@@ -252,7 +252,7 @@ static bool ath11k_dp_rxdesc_mpdu_valid(struct hal_rx_desc *rx_desc)
 	tlv_tag = FIELD_GET(HAL_TLV_HDR_TAG,
 			    __le32_to_cpu(rx_desc->mpdu_start_tag));
 
-	return tlv_tag == HAL_RX_MPDU_START ? true : false;
+	return tlv_tag == HAL_RX_MPDU_START;
 }
 
 static u32 ath11k_dp_rxdesc_get_ppduid(struct hal_rx_desc *rx_desc)
