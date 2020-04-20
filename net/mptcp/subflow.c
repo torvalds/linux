@@ -133,7 +133,6 @@ static void subflow_init_req(struct request_sock *req,
 
 	subflow_req->mp_capable = 0;
 	subflow_req->mp_join = 0;
-	subflow_req->remote_key_valid = 0;
 
 #ifdef CONFIG_TCP_MD5SIG
 	/* no MPTCP if MD5SIG is enabled on this socket or we may run out of
@@ -404,6 +403,7 @@ static struct sock *subflow_syn_recv_sock(const struct sock *sk,
 
 	pr_debug("listener=%p, req=%p, conn=%p", listener, req, listener->conn);
 
+	opt_rx.mptcp.mp_capable = 0;
 	if (tcp_rsk(req)->is_mptcp == 0)
 		goto create_child;
 
@@ -418,18 +418,14 @@ static struct sock *subflow_syn_recv_sock(const struct sock *sk,
 			goto create_msk;
 		}
 
-		opt_rx.mptcp.mp_capable = 0;
 		mptcp_get_options(skb, &opt_rx);
-		if (opt_rx.mptcp.mp_capable) {
-			subflow_req->remote_key = opt_rx.mptcp.sndr_key;
-			subflow_req->remote_key_valid = 1;
-		} else {
+		if (!opt_rx.mptcp.mp_capable) {
 			fallback = true;
 			goto create_child;
 		}
 
 create_msk:
-		new_msk = mptcp_sk_clone(listener->conn, req);
+		new_msk = mptcp_sk_clone(listener->conn, &opt_rx, req);
 		if (!new_msk)
 			fallback = true;
 	} else if (subflow_req->mp_join) {
@@ -473,6 +469,13 @@ create_child:
 			mptcp_pm_new_connection(mptcp_sk(new_msk), 1);
 			ctx->conn = new_msk;
 			new_msk = NULL;
+
+			/* with OoO packets we can reach here without ingress
+			 * mpc option
+			 */
+			ctx->remote_key = opt_rx.mptcp.sndr_key;
+			ctx->fully_established = opt_rx.mptcp.mp_capable;
+			ctx->can_ack = opt_rx.mptcp.mp_capable;
 		} else if (ctx->mp_join) {
 			struct mptcp_sock *owner;
 
@@ -1134,9 +1137,6 @@ static void subflow_ulp_clone(const struct request_sock *req,
 		 * is fully established only after we receive the remote key
 		 */
 		new_ctx->mp_capable = 1;
-		new_ctx->fully_established = subflow_req->remote_key_valid;
-		new_ctx->can_ack = subflow_req->remote_key_valid;
-		new_ctx->remote_key = subflow_req->remote_key;
 		new_ctx->local_key = subflow_req->local_key;
 		new_ctx->token = subflow_req->token;
 		new_ctx->ssn_offset = subflow_req->ssn_offset;

@@ -1332,7 +1332,9 @@ static struct ipv6_pinfo *mptcp_inet6_sk(const struct sock *sk)
 }
 #endif
 
-struct sock *mptcp_sk_clone(const struct sock *sk, struct request_sock *req)
+struct sock *mptcp_sk_clone(const struct sock *sk,
+			    const struct tcp_options_received *opt_rx,
+			    struct request_sock *req)
 {
 	struct mptcp_subflow_request_sock *subflow_req = mptcp_subflow_rsk(req);
 	struct sock *nsk = sk_clone_lock(sk, GFP_ATOMIC);
@@ -1370,9 +1372,9 @@ struct sock *mptcp_sk_clone(const struct sock *sk, struct request_sock *req)
 
 	msk->write_seq = subflow_req->idsn + 1;
 	atomic64_set(&msk->snd_una, msk->write_seq);
-	if (subflow_req->remote_key_valid) {
+	if (opt_rx->mptcp.mp_capable) {
 		msk->can_ack = true;
-		msk->remote_key = subflow_req->remote_key;
+		msk->remote_key = opt_rx->mptcp.sndr_key;
 		mptcp_crypto_key_sha(msk->remote_key, NULL, &ack_seq);
 		ack_seq++;
 		msk->ack_seq = ack_seq;
