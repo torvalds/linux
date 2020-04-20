@@ -277,6 +277,7 @@ struct dc_config {
 	bool disable_extended_timeout_support; // Used to disable extended timeout and lttpr feature as well
 	bool multi_mon_pp_mclk_switch;
 	bool disable_dmcu;
+	bool enable_4to1MPC;
 };
 
 enum visual_confirm {
