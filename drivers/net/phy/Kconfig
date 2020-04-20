@@ -346,6 +346,16 @@ config BROADCOM_PHY
 	  Currently supports the BCM5411, BCM5421, BCM5461, BCM54616S, BCM5464,
 	  BCM5481, BCM54810 and BCM5482 PHYs.
 
+config BCM54140_PHY
+	tristate "Broadcom BCM54140 PHY"
+	depends on PHYLIB
+	select BCM_NET_PHYLIB
+	help
+	  Support the Broadcom BCM54140 Quad SGMII/QSGMII PHY.
+
+	  This driver also supports the hardware monitoring of this PHY and
+	  exposes voltage and temperature sensors.
+
 config BCM84881_PHY
 	tristate "Broadcom BCM84881 PHY"
 	depends on PHYLIB
