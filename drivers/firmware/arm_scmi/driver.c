@@ -256,10 +256,12 @@ static void scmi_handle_response(struct scmi_chan_info *cinfo,
 			   xfer->hdr.protocol_id, xfer->hdr.seq,
 			   msg_type);
 
-	if (msg_type == MSG_TYPE_DELAYED_RESP)
+	if (msg_type == MSG_TYPE_DELAYED_RESP) {
+		info->desc->ops->clear_channel(cinfo);
 		complete(xfer->async_done);
-	else
+	} else {
 		complete(&xfer->done);
+	}
 }
 
 /**
