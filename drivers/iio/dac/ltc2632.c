@@ -56,6 +56,12 @@ enum ltc2632_supported_device_ids {
 	ID_LTC2632H12,
 	ID_LTC2632H10,
 	ID_LTC2632H8,
+	ID_LTC2634L12,
+	ID_LTC2634L10,
+	ID_LTC2634L8,
+	ID_LTC2634H12,
+	ID_LTC2634H10,
+	ID_LTC2634H8,
 	ID_LTC2636L12,
 	ID_LTC2636L10,
 	ID_LTC2636L8,
@@ -236,6 +242,36 @@ static const struct ltc2632_chip_info ltc2632_chip_info_tbl[] = {
 		.num_channels	= 2,
 		.vref_mv	= 4096,
 	},
+	[ID_LTC2634L12] = {
+		.channels	= ltc2632x12_channels,
+		.num_channels	= 4,
+		.vref_mv	= 2500,
+	},
+	[ID_LTC2634L10] = {
+		.channels	= ltc2632x10_channels,
+		.num_channels	= 4,
+		.vref_mv	= 2500,
+	},
+	[ID_LTC2634L8] =  {
+		.channels	= ltc2632x8_channels,
+		.num_channels	= 4,
+		.vref_mv	= 2500,
+	},
+	[ID_LTC2634H12] = {
+		.channels	= ltc2632x12_channels,
+		.num_channels	= 4,
+		.vref_mv	= 4096,
+	},
+	[ID_LTC2634H10] = {
+		.channels	= ltc2632x10_channels,
+		.num_channels	= 4,
+		.vref_mv	= 4096,
+	},
+	[ID_LTC2634H8] =  {
+		.channels	= ltc2632x8_channels,
+		.num_channels	= 4,
+		.vref_mv	= 4096,
+	},
 	[ID_LTC2636L12] = {
 		.channels	= ltc2632x12_channels,
 		.num_channels	= 8,
@@ -357,6 +393,12 @@ static const struct spi_device_id ltc2632_id[] = {
 	{ "ltc2632-h12", (kernel_ulong_t)&ltc2632_chip_info_tbl[ID_LTC2632H12] },
 	{ "ltc2632-h10", (kernel_ulong_t)&ltc2632_chip_info_tbl[ID_LTC2632H10] },
 	{ "ltc2632-h8", (kernel_ulong_t)&ltc2632_chip_info_tbl[ID_LTC2632H8] },
+	{ "ltc2634-l12", (kernel_ulong_t)&ltc2632_chip_info_tbl[ID_LTC2634L12] },
+	{ "ltc2634-l10", (kernel_ulong_t)&ltc2632_chip_info_tbl[ID_LTC2634L10] },
+	{ "ltc2634-l8", (kernel_ulong_t)&ltc2632_chip_info_tbl[ID_LTC2634L8] },
+	{ "ltc2634-h12", (kernel_ulong_t)&ltc2632_chip_info_tbl[ID_LTC2634H12] },
+	{ "ltc2634-h10", (kernel_ulong_t)&ltc2632_chip_info_tbl[ID_LTC2634H10] },
+	{ "ltc2634-h8", (kernel_ulong_t)&ltc2632_chip_info_tbl[ID_LTC2634H8] },
 	{ "ltc2636-l12", (kernel_ulong_t)&ltc2632_chip_info_tbl[ID_LTC2636L12] },
 	{ "ltc2636-l10", (kernel_ulong_t)&ltc2632_chip_info_tbl[ID_LTC2636L10] },
 	{ "ltc2636-l8", (kernel_ulong_t)&ltc2632_chip_info_tbl[ID_LTC2636L8] },
@@ -386,6 +428,24 @@ static const struct of_device_id ltc2632_of_match[] = {
 	}, {
 		.compatible = "lltc,ltc2632-h8",
 		.data = &ltc2632_chip_info_tbl[ID_LTC2632H8]
+	}, {
+		.compatible = "lltc,ltc2634-l12",
+		.data = &ltc2632_chip_info_tbl[ID_LTC2634L12]
+	}, {
+		.compatible = "lltc,ltc2634-l10",
+		.data = &ltc2632_chip_info_tbl[ID_LTC2634L10]
+	}, {
+		.compatible = "lltc,ltc2634-l8",
+		.data = &ltc2632_chip_info_tbl[ID_LTC2634L8]
+	}, {
+		.compatible = "lltc,ltc2634-h12",
+		.data = &ltc2632_chip_info_tbl[ID_LTC2634H12]
+	}, {
+		.compatible = "lltc,ltc2634-h10",
+		.data = &ltc2632_chip_info_tbl[ID_LTC2634H10]
+	}, {
+		.compatible = "lltc,ltc2634-h8",
+		.data = &ltc2632_chip_info_tbl[ID_LTC2634H8]
 	}, {
 		.compatible = "lltc,ltc2636-l12",
 		.data = &ltc2632_chip_info_tbl[ID_LTC2636L12]
