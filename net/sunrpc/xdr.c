@@ -997,10 +997,25 @@ out_overflow:
 }
 EXPORT_SYMBOL_GPL(xdr_inline_decode);
 
+static void xdr_realign_pages(struct xdr_stream *xdr)
+{
+	struct xdr_buf *buf = xdr->buf;
+	struct kvec *iov = buf->head;
+	unsigned int cur = xdr_stream_pos(xdr);
+	unsigned int copied, offset;
+
+	/* Realign pages to current pointer position */
+	if (iov->iov_len > cur) {
+		offset = iov->iov_len - cur;
+		copied = xdr_shrink_bufhead(buf, offset);
+		trace_rpc_xdr_alignment(xdr, offset, copied);
+		xdr->nwords = XDR_QUADLEN(buf->len - cur);
+	}
+}
+
 static unsigned int xdr_align_pages(struct xdr_stream *xdr, unsigned int len)
 {
 	struct xdr_buf *buf = xdr->buf;
-	struct kvec *iov;
 	unsigned int nwords = XDR_QUADLEN(len);
 	unsigned int cur = xdr_stream_pos(xdr);
 	unsigned int copied, offset;
@@ -1008,15 +1023,7 @@ static unsigned int xdr_align_pages(struct xdr_stream *xdr, unsigned int len)
 	if (xdr->nwords == 0)
 		return 0;
 
-	/* Realign pages to current pointer position */
-	iov = buf->head;
-	if (iov->iov_len > cur) {
-		offset = iov->iov_len - cur;
-		copied = xdr_shrink_bufhead(buf, offset);
-		trace_rpc_xdr_alignment(xdr, offset, copied);
-		xdr->nwords = XDR_QUADLEN(buf->len - cur);
-	}
-
+	xdr_realign_pages(xdr);
 	if (nwords > xdr->nwords) {
 		nwords = xdr->nwords;
 		len = nwords << 2;
