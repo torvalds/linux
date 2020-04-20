@@ -159,7 +159,7 @@ int dwc3_gadget_set_link_state(struct dwc3 *dwc, enum dwc3_link_state state)
  */
 static int dwc3_gadget_resize_tx_fifos(struct dwc3 *dwc)
 {
-	int		last_fifo_depth = 0;
+	int		last_fifo_depth;
 	int		fifo_size;
 	int		mdwidth;
 	u8		num, num_in_eps;
@@ -172,6 +172,9 @@ static int dwc3_gadget_resize_tx_fifos(struct dwc3 *dwc)
 	/* MDWIDTH is represented in bits, we need it in bytes */
 	mdwidth >>= 3;
 
+	fifo_size = dwc3_readl(dwc->regs, DWC3_GTXFIFOSIZ(0));
+	last_fifo_depth = DWC3_GTXFIFOSIZ_TXFSTADDR(fifo_size) >> 16;
+
 	for (num = 0; num < num_in_eps; num++) {
 		u8	epnum = (num << 1) | 1;
 		struct dwc3_ep  *dep = dwc->eps[epnum];
@@ -182,9 +185,10 @@ static int dwc3_gadget_resize_tx_fifos(struct dwc3 *dwc)
 		if (!(dep->flags & DWC3_EP_ENABLED))
 			continue;
 
-		if (usb_endpoint_xfer_bulk(dep->endpoint.desc) ||
-		    usb_endpoint_xfer_isoc(dep->endpoint.desc))
+		if (usb_endpoint_xfer_bulk(dep->endpoint.desc))
 			mult = 3;
+		else if (usb_endpoint_xfer_isoc(dep->endpoint.desc))
+			mult = 6;
 
 		/*
 		 * REVISIT: the following assumes we will always have enough
@@ -2399,12 +2403,25 @@ static int dwc3_gadget_init_endpoint(struct dwc3 *dwc, u8 epnum)
 
 static int dwc3_gadget_init_endpoints(struct dwc3 *dwc, u8 total)
 {
-	u8				epnum;
+	u8				epnum, num;
+	u8				num_in_eps, num_out_eps;
+	bool				direction;
+
+	num_in_eps = DWC3_NUM_IN_EPS(&dwc->hwparams);
+	num_out_eps = total - num_in_eps;
 
 	INIT_LIST_HEAD(&dwc->gadget.ep_list);
 
 	for (epnum = 0; epnum < total; epnum++) {
 		int			ret;
+		direction = epnum & 1;
+		num = (epnum >> 1) + 1;
+
+		if ((!direction && num > num_out_eps) ||
+		    (direction && num > num_in_eps)) {
+			total++;
+			continue;
+		}
 
 		ret = dwc3_gadget_init_endpoint(dwc, epnum);
 		if (ret)
