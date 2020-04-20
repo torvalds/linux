@@ -573,8 +573,6 @@ enum {
 #define IRQ_DEFAULT_INIT_FLAGS	ARCH_IRQ_INIT_FLAGS
 
 struct irqaction;
-extern int setup_irq(unsigned int irq, struct irqaction *new);
-extern void remove_irq(unsigned int irq, struct irqaction *act);
 extern int setup_percpu_irq(unsigned int irq, struct irqaction *new);
 extern void remove_percpu_irq(unsigned int irq, struct irqaction *act);
 
@@ -1043,7 +1041,7 @@ struct irq_chip_generic {
 	unsigned long		unused;
 	struct irq_domain	*domain;
 	struct list_head	list;
-	struct irq_chip_type	chip_types[0];
+	struct irq_chip_type	chip_types[];
 };
 
 /**
@@ -1079,7 +1077,7 @@ struct irq_domain_chip_generic {
 	unsigned int		irq_flags_to_clear;
 	unsigned int		irq_flags_to_set;
 	enum irq_gc_flags	gc_flags;
-	struct irq_chip_generic	*gc[0];
+	struct irq_chip_generic	*gc[];
 };
 
 /* Generic chip callback functions */

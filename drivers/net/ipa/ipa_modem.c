@@ -297,14 +297,13 @@ static void ipa_modem_crashed(struct ipa *ipa)
 
 	ret = ipa_endpoint_modem_exception_reset_all(ipa);
 	if (ret)
-		dev_err(dev, "error %d resetting exception endpoint",
-			ret);
+		dev_err(dev, "error %d resetting exception endpoint\n", ret);
 
 	ipa_endpoint_modem_pause_all(ipa, false);
 
 	ret = ipa_modem_stop(ipa);
 	if (ret)
-		dev_err(dev, "error %d stopping modem", ret);
+		dev_err(dev, "error %d stopping modem\n", ret);
 
 	/* Now prepare for the next modem boot */
 	ret = ipa_mem_zero_modem(ipa);

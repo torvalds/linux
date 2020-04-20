@@ -440,6 +440,9 @@ software_node_find_by_name(const struct software_node *parent,
 int software_node_register_nodes(const struct software_node *nodes);
 void software_node_unregister_nodes(const struct software_node *nodes);
 
+int software_node_register_node_group(const struct software_node **node_group);
+void software_node_unregister_node_group(const struct software_node **node_group);
+
 int software_node_register(const struct software_node *node);
 
 int software_node_notify(struct device *dev, unsigned long action);

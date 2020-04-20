@@ -1035,14 +1035,14 @@ static int str_read(char **strp, gfp_t flags, void *fp, u32 len)
 	if (!str)
 		return -ENOMEM;
 
-	/* it's expected the caller should free the str */
-	*strp = str;
-
 	rc = next_entry(str, fp, len);
-	if (rc)
+	if (rc) {
+		kfree(str);
 		return rc;
+	}
 
 	str[len] = '\0';
+	*strp = str;
 	return 0;
 }
 
