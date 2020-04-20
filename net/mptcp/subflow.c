@@ -376,6 +376,17 @@ static void mptcp_force_close(struct sock *sk)
 	sk_common_release(sk);
 }
 
+static void subflow_ulp_fallback(struct sock *sk,
+				 struct mptcp_subflow_context *old_ctx)
+{
+	struct inet_connection_sock *icsk = inet_csk(sk);
+
+	mptcp_subflow_tcp_fallback(sk, old_ctx);
+	icsk->icsk_ulp_ops = NULL;
+	rcu_assign_pointer(icsk->icsk_ulp_data, NULL);
+	tcp_sk(sk)->is_mptcp = 0;
+}
+
 static struct sock *subflow_syn_recv_sock(const struct sock *sk,
 					  struct sk_buff *skb,
 					  struct request_sock *req,
@@ -388,6 +399,7 @@ static struct sock *subflow_syn_recv_sock(const struct sock *sk,
 	struct tcp_options_received opt_rx;
 	bool fallback_is_fatal = false;
 	struct sock *new_msk = NULL;
+	bool fallback = false;
 	struct sock *child;
 
 	pr_debug("listener=%p, req=%p, conn=%p", listener, req, listener->conn);
@@ -412,14 +424,14 @@ static struct sock *subflow_syn_recv_sock(const struct sock *sk,
 			subflow_req->remote_key = opt_rx.mptcp.sndr_key;
 			subflow_req->remote_key_valid = 1;
 		} else {
-			subflow_req->mp_capable = 0;
+			fallback = true;
 			goto create_child;
 		}
 
 create_msk:
 		new_msk = mptcp_sk_clone(listener->conn, req);
 		if (!new_msk)
-			subflow_req->mp_capable = 0;
+			fallback = true;
 	} else if (subflow_req->mp_join) {
 		fallback_is_fatal = true;
 		opt_rx.mptcp.mp_join = 0;
@@ -438,12 +450,18 @@ create_child:
 	if (child && *own_req) {
 		struct mptcp_subflow_context *ctx = mptcp_subflow_ctx(child);
 
-		/* we have null ctx on TCP fallback, which is fatal on
-		 * MPJ handshake
+		/* we need to fallback on ctx allocation failure and on pre-reqs
+		 * checking above. In the latter scenario we additionally need
+		 * to reset the context to non MPTCP status.
 		 */
-		if (!ctx) {
+		if (!ctx || fallback) {
 			if (fallback_is_fatal)
 				goto close_child;
+
+			if (ctx) {
+				subflow_ulp_fallback(child, ctx);
+				kfree_rcu(ctx, rcu);
+			}
 			goto out;
 		}
 
@@ -474,6 +492,13 @@ out:
 	/* dispose of the left over mptcp master, if any */
 	if (unlikely(new_msk))
 		mptcp_force_close(new_msk);
+
+	/* check for expected invariant - should never trigger, just help
+	 * catching eariler subtle bugs
+	 */
+	WARN_ON_ONCE(*own_req && child && tcp_sk(child)->is_mptcp &&
+		     (!mptcp_subflow_ctx(child) ||
+		      !mptcp_subflow_ctx(child)->conn));
 	return child;
 
 close_child:
@@ -1074,17 +1099,6 @@ static void subflow_ulp_release(struct sock *sk)
 		sock_put(ctx->conn);
 
 	kfree_rcu(ctx, rcu);
-}
-
-static void subflow_ulp_fallback(struct sock *sk,
-				 struct mptcp_subflow_context *old_ctx)
-{
-	struct inet_connection_sock *icsk = inet_csk(sk);
-
-	mptcp_subflow_tcp_fallback(sk, old_ctx);
-	icsk->icsk_ulp_ops = NULL;
-	rcu_assign_pointer(icsk->icsk_ulp_data, NULL);
-	tcp_sk(sk)->is_mptcp = 0;
 }
 
 static void subflow_ulp_clone(const struct request_sock *req,
