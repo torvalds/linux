@@ -62,6 +62,34 @@ patternProperties:
         description:
           The ID number for the PHY.
 
+      broken-turn-around:
+        $ref: /schemas/types.yaml#definitions/flag
+        description:
+          If set, indicates the MDIO device does not correctly release
+          the turn around line low at end of the control phase of the
+          MDIO transaction.
+
+      resets:
+        maxItems: 1
+
+      reset-names:
+        const: phy
+
+      reset-gpios:
+        maxItems: 1
+        description:
+          The GPIO phandle and specifier for the MDIO reset signal.
+
+      reset-assert-us:
+        description:
+          Delay after the reset was asserted in microseconds. If this
+          property is missing the delay will be skipped.
+
+      reset-deassert-us:
+        description:
+          Delay after the reset was deasserted in microseconds. If
+          this property is missing the delay will be skipped.
+
     required:
       - reg
 
