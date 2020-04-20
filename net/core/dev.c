@@ -9136,6 +9136,11 @@ void netif_stacked_transfer_operstate(const struct net_device *rootdev,
 	else
 		netif_dormant_off(dev);
 
+	if (rootdev->operstate == IF_OPER_TESTING)
+		netif_testing_on(dev);
+	else
+		netif_testing_off(dev);
+
 	if (netif_carrier_ok(rootdev))
 		netif_carrier_on(dev);
 	else

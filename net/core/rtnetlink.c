@@ -829,9 +829,16 @@ static void set_operstate(struct net_device *dev, unsigned char transition)
 	switch (transition) {
 	case IF_OPER_UP:
 		if ((operstate == IF_OPER_DORMANT ||
+		     operstate == IF_OPER_TESTING ||
 		     operstate == IF_OPER_UNKNOWN) &&
-		    !netif_dormant(dev))
+		    !netif_dormant(dev) && !netif_testing(dev))
 			operstate = IF_OPER_UP;
+		break;
+
+	case IF_OPER_TESTING:
+		if (operstate == IF_OPER_UP ||
+		    operstate == IF_OPER_UNKNOWN)
+			operstate = IF_OPER_TESTING;
 		break;
 
 	case IF_OPER_DORMANT:
