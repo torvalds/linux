@@ -651,7 +651,7 @@ static const struct iio_chan_spec_ext_info ak8974_ext_info[] = {
 	{ },
 };
 
-#define AK8974_AXIS_CHANNEL(axis, index)				\
+#define AK8974_AXIS_CHANNEL(axis, index, bits)				\
 	{								\
 		.type = IIO_MAGN,					\
 		.modified = 1,						\
@@ -662,16 +662,32 @@ static const struct iio_chan_spec_ext_info ak8974_ext_info[] = {
 		.scan_index = index,					\
 		.scan_type = {						\
 			.sign = 's',					\
-			.realbits = 16,					\
+			.realbits = bits,				\
 			.storagebits = 16,				\
 			.endianness = IIO_LE				\
 		},							\
 	}
 
-static const struct iio_chan_spec ak8974_channels[] = {
-	AK8974_AXIS_CHANNEL(X, 0),
-	AK8974_AXIS_CHANNEL(Y, 1),
-	AK8974_AXIS_CHANNEL(Z, 2),
+/*
+ * We have no datasheet for the AK8974 but we guess that its
+ * ADC is 12 bits. The AMI305 and AMI306 certainly has 12bit
+ * ADC.
+ */
+static const struct iio_chan_spec ak8974_12_bits_channels[] = {
+	AK8974_AXIS_CHANNEL(X, 0, 12),
+	AK8974_AXIS_CHANNEL(Y, 1, 12),
+	AK8974_AXIS_CHANNEL(Z, 2, 12),
+	IIO_CHAN_SOFT_TIMESTAMP(3),
+};
+
+/*
+ * The HSCDTD008A has 15 bits resolution the way we set it up
+ * in CTRL4.
+ */
+static const struct iio_chan_spec ak8974_15_bits_channels[] = {
+	AK8974_AXIS_CHANNEL(X, 0, 15),
+	AK8974_AXIS_CHANNEL(Y, 1, 15),
+	AK8974_AXIS_CHANNEL(Z, 2, 15),
 	IIO_CHAN_SOFT_TIMESTAMP(3),
 };
 
@@ -820,8 +836,21 @@ static int ak8974_probe(struct i2c_client *i2c,
 	pm_runtime_put(&i2c->dev);
 
 	indio_dev->dev.parent = &i2c->dev;
-	indio_dev->channels = ak8974_channels;
-	indio_dev->num_channels = ARRAY_SIZE(ak8974_channels);
+	switch (ak8974->variant) {
+	case AK8974_WHOAMI_VALUE_AMI306:
+	case AK8974_WHOAMI_VALUE_AMI305:
+		indio_dev->channels = ak8974_12_bits_channels;
+		indio_dev->num_channels = ARRAY_SIZE(ak8974_12_bits_channels);
+		break;
+	case AK8974_WHOAMI_VALUE_HSCDTD008A:
+		indio_dev->channels = ak8974_15_bits_channels;
+		indio_dev->num_channels = ARRAY_SIZE(ak8974_15_bits_channels);
+		break;
+	default:
+		indio_dev->channels = ak8974_12_bits_channels;
+		indio_dev->num_channels = ARRAY_SIZE(ak8974_12_bits_channels);
+		break;
+	}
 	indio_dev->info = &ak8974_info;
 	indio_dev->available_scan_masks = ak8974_scan_masks;
 	indio_dev->modes = INDIO_DIRECT_MODE;
