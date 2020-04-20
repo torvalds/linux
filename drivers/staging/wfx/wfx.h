@@ -82,8 +82,6 @@ struct wfx_vif {
 
 	unsigned long		uapsd_mask;
 
-	int			join_complete_status;
-
 	/* avoid some operations in parallel with scan */
 	struct mutex		scan_lock;
 	struct work_struct	scan_work;

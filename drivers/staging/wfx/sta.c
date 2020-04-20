@@ -361,10 +361,8 @@ static void wfx_do_join(struct wfx_vif *wvif)
 	ret = hif_join(wvif, conf, wvif->channel, ssid, ssidlen);
 	if (ret) {
 		ieee80211_connection_loss(wvif->vif);
-		wvif->join_complete_status = -1;
 		wfx_do_unjoin(wvif);
 	} else {
-		wvif->join_complete_status = 0;
 		/* Due to beacon filtering it is possible that the
 		 * AP's beacon is not known for the mac80211 stack.
 		 * Disable filtering temporary to make sure the stack
