@@ -110,9 +110,6 @@ int wfx_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	if (vif->type == NL80211_IFTYPE_AP)
 		return -EOPNOTSUPP;
 
-	if (wvif->state == WFX_STATE_PRE_STA)
-		return -EBUSY;
-
 	wvif->scan_req = hw_req;
 	schedule_work(&wvif->scan_work);
 	return 0;
