@@ -107,13 +107,15 @@
 #define MSPI_SPCR2_SPE				BIT(6)
 #define MSPI_SPCR2_CONT_AFTER_CMD		BIT(7)
 
+#define MSPI_SPCR3_FASTBR			BIT(0)
+#define MSPI_SPCR3_FASTDT			BIT(1)
+
 #define MSPI_MSPI_STATUS_SPIF			BIT(0)
 
 #define INTR_BASE_BIT_SHIFT			0x02
 #define INTR_COUNT				0x07
 
 #define NUM_CHIPSELECT				4
-#define QSPI_SPBR_MIN				8U
 #define QSPI_SPBR_MAX				255U
 
 #define OPCODE_DIOR				0xBB
@@ -225,6 +227,25 @@ struct bcm_qspi {
 static inline bool has_bspi(struct bcm_qspi *qspi)
 {
 	return qspi->bspi_mode;
+}
+
+/* hardware supports spcr3 and fast baud-rate  */
+static inline bool bcm_qspi_has_fastbr(struct bcm_qspi *qspi)
+{
+	if (!has_bspi(qspi) &&
+	    ((qspi->mspi_maj_rev >= 1) &&
+	     (qspi->mspi_min_rev >= 5)))
+		return true;
+
+	return false;
+}
+
+static inline int bcm_qspi_spbr_min(struct bcm_qspi *qspi)
+{
+	if (bcm_qspi_has_fastbr(qspi))
+		return 1;
+	else
+		return 8;
 }
 
 /* Read qspi controller register*/
@@ -534,7 +555,7 @@ static void bcm_qspi_hw_set_parms(struct bcm_qspi *qspi,
 	if (xp->speed_hz)
 		spbr = qspi->base_clk / (2 * xp->speed_hz);
 
-	spcr = clamp_val(spbr, QSPI_SPBR_MIN, QSPI_SPBR_MAX);
+	spcr = clamp_val(spbr, bcm_qspi_spbr_min(qspi), QSPI_SPBR_MAX);
 	bcm_qspi_write(qspi, MSPI, MSPI_SPCR0_LSB, spcr);
 
 	spcr = MSPI_MASTER_BIT;
@@ -543,6 +564,14 @@ static void bcm_qspi_hw_set_parms(struct bcm_qspi *qspi,
 		spcr |= xp->bits_per_word << 2;
 	spcr |= xp->mode & 3;
 	bcm_qspi_write(qspi, MSPI, MSPI_SPCR0_MSB, spcr);
+
+	if (bcm_qspi_has_fastbr(qspi)) {
+		spcr = 0;
+
+		/* enable fastbr */
+		spcr |=	MSPI_SPCR3_FASTBR;
+		bcm_qspi_write(qspi, MSPI, MSPI_SPCR3, spcr);
+	}
 
 	qspi->last_parms = *xp;
 }
@@ -1385,7 +1414,6 @@ int bcm_qspi_probe(struct platform_device *pdev,
 	}
 
 	qspi->base_clk = clk_get_rate(qspi->clk);
-	qspi->max_speed_hz = qspi->base_clk / (QSPI_SPBR_MIN * 2);
 
 	if (data->has_mspi_rev) {
 		rev = bcm_qspi_read(qspi, MSPI, MSPI_REV);
@@ -1396,6 +1424,8 @@ int bcm_qspi_probe(struct platform_device *pdev,
 
 	qspi->mspi_maj_rev = (rev >> 4) & 0xf;
 	qspi->mspi_min_rev = rev & 0xf;
+
+	qspi->max_speed_hz = qspi->base_clk / (bcm_qspi_spbr_min(qspi) * 2);
 
 	bcm_qspi_hw_init(qspi);
 	init_completion(&qspi->mspi_done);
