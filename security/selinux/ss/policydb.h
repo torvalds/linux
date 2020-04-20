@@ -270,7 +270,8 @@ struct policydb {
 	struct ebitmap filename_trans_ttypes;
 	/* actual set of filename_trans rules */
 	struct hashtab *filename_trans;
-	u32 filename_trans_count;
+	/* only used if policyvers < POLICYDB_VERSION_COMP_FTRANS */
+	u32 compat_filename_trans_count;
 
 	/* bools indexed by (value - 1) */
 	struct cond_bool_datum **bool_val_to_struct;

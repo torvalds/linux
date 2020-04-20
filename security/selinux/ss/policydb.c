@@ -2016,12 +2016,7 @@ static int filename_trans_read_helper(struct policydb *p, void *fp)
 	if (rc)
 		goto out;
 
-	rc = ebitmap_set_bit(&p->filename_trans_ttypes, ttype, 1);
-	if (rc)
-		return rc;
-
-	p->filename_trans_count += ndatum;
-	return 0;
+	return ebitmap_set_bit(&p->filename_trans_ttypes, ttype, 1);
 
 out:
 	kfree(ft);
@@ -2051,7 +2046,7 @@ static int filename_trans_read(struct policydb *p, void *fp)
 	nel = le32_to_cpu(buf[0]);
 
 	if (p->policyvers < POLICYDB_VERSION_COMP_FTRANS) {
-		p->filename_trans_count = nel;
+		p->compat_filename_trans_count = nel;
 		p->filename_trans = hashtab_create(filenametr_hash,
 						   filenametr_cmp, (1 << 11));
 		if (!p->filename_trans)
@@ -3568,7 +3563,7 @@ static int filename_trans_write(struct policydb *p, void *fp)
 		return 0;
 
 	if (p->policyvers < POLICYDB_VERSION_COMP_FTRANS) {
-		buf[0] = cpu_to_le32(p->filename_trans_count);
+		buf[0] = cpu_to_le32(p->compat_filename_trans_count);
 		rc = put_entry(buf, sizeof(u32), 1, fp);
 		if (rc)
 			return rc;
