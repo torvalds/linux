@@ -162,7 +162,7 @@ long intel_gt_retire_requests_timeout(struct intel_gt *gt, long timeout)
 			}
 		}
 
-		if (!retire_requests(tl) || flush_submission(gt))
+		if (!retire_requests(tl))
 			active_count++;
 		mutex_unlock(&tl->mutex);
 
@@ -184,6 +184,9 @@ out_active:	spin_lock(&timelines->lock);
 
 	list_for_each_entry_safe(tl, tn, &free, link)
 		__intel_timeline_free(&tl->kref);
+
+	if (flush_submission(gt)) /* Wait, there's more! */
+		active_count++;
 
 	return active_count ? timeout : 0;
 }
