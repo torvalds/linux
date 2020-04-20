@@ -470,8 +470,8 @@ static int minfs_write_inode(struct inode *inode,
 
 	/* fill disk inode */
 	mi->mode = inode->i_mode;
-	i_uid_write(inode, mi->uid);
-	i_gid_write(inode, mi->gid);
+	mi->uid = i_uid_read(inode);
+	mi->gid = i_gid_read(inode);
 	mi->size = inode->i_size;
 	mi->data_block = mii->data_block;
 
