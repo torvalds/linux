@@ -110,24 +110,18 @@ create_spin_counter(struct intel_engine_cs *engine,
 	return vma;
 }
 
-static u8 rps_set_check(struct intel_rps *rps, u8 freq)
+static u8 wait_for_freq(struct intel_rps *rps, u8 freq, int timeout_ms)
 {
 	u8 history[64], i;
 	unsigned long end;
 	int sleep;
-
-	mutex_lock(&rps->lock);
-	GEM_BUG_ON(!rps->active);
-	intel_rps_set(rps, freq);
-	GEM_BUG_ON(rps->last_freq != freq);
-	mutex_unlock(&rps->lock);
 
 	i = 0;
 	memset(history, freq, sizeof(history));
 	sleep = 20;
 
 	/* The PCU does not change instantly, but drifts towards the goal? */
-	end = jiffies + msecs_to_jiffies(50);
+	end = jiffies + msecs_to_jiffies(timeout_ms);
 	do {
 		u8 act;
 
@@ -148,9 +142,20 @@ static u8 rps_set_check(struct intel_rps *rps, u8 freq)
 
 		usleep_range(sleep, 2 * sleep);
 		sleep *= 2;
-		if (sleep > 1000)
-			sleep = 1000;
+		if (sleep > timeout_ms * 20)
+			sleep = timeout_ms * 20;
 	} while (1);
+}
+
+static u8 rps_set_check(struct intel_rps *rps, u8 freq)
+{
+	mutex_lock(&rps->lock);
+	GEM_BUG_ON(!rps->active);
+	intel_rps_set(rps, freq);
+	GEM_BUG_ON(rps->last_freq != freq);
+	mutex_unlock(&rps->lock);
+
+	return wait_for_freq(rps, freq, 50);
 }
 
 static void show_pstate_limits(struct intel_rps *rps)
@@ -946,6 +951,93 @@ int live_rps_power(void *arg)
 
 	intel_gt_pm_wait_for_idle(gt);
 	rps->work.func = saved_work;
+
+	return err;
+}
+
+int live_rps_dynamic(void *arg)
+{
+	struct intel_gt *gt = arg;
+	struct intel_rps *rps = &gt->rps;
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+	struct igt_spinner spin;
+	int err = 0;
+
+	/*
+	 * We've looked at the bascs, and have established that we
+	 * can change the clock frequency and that the HW will generate
+	 * interrupts based on load. Now we check how we integrate those
+	 * moving parts into dynamic reclocking based on load.
+	 */
+
+	if (!rps->enabled || rps->max_freq <= rps->min_freq)
+		return 0;
+
+	if (igt_spinner_init(&spin, gt))
+		return -ENOMEM;
+
+	for_each_engine(engine, gt, id) {
+		struct i915_request *rq;
+		struct {
+			ktime_t dt;
+			u8 freq;
+		} min, max;
+
+		if (!intel_engine_can_store_dword(engine))
+			continue;
+
+		intel_gt_pm_wait_for_idle(gt);
+		GEM_BUG_ON(rps->active);
+		rps->cur_freq = rps->min_freq;
+
+		intel_engine_pm_get(engine);
+		intel_rc6_disable(&gt->rc6);
+		GEM_BUG_ON(rps->last_freq != rps->min_freq);
+
+		rq = igt_spinner_create_request(&spin,
+						engine->kernel_context,
+						MI_NOOP);
+		if (IS_ERR(rq)) {
+			err = PTR_ERR(rq);
+			goto err;
+		}
+
+		i915_request_add(rq);
+
+		max.dt = ktime_get();
+		max.freq = wait_for_freq(rps, rps->max_freq, 500);
+		max.dt = ktime_sub(ktime_get(), max.dt);
+
+		igt_spinner_end(&spin);
+
+		min.dt = ktime_get();
+		min.freq = wait_for_freq(rps, rps->min_freq, 2000);
+		min.dt = ktime_sub(ktime_get(), min.dt);
+
+		pr_info("%s: dynamically reclocked to %u:%uMHz while busy in %lluns, and %u:%uMHz while idle in %lluns\n",
+			engine->name,
+			max.freq, intel_gpu_freq(rps, max.freq),
+			ktime_to_ns(max.dt),
+			min.freq, intel_gpu_freq(rps, min.freq),
+			ktime_to_ns(min.dt));
+		if (min.freq >= max.freq) {
+			pr_err("%s: dynamic reclocking of spinner failed\n!",
+			       engine->name);
+			err = -EINVAL;
+		}
+
+err:
+		intel_rc6_enable(&gt->rc6);
+		intel_engine_pm_put(engine);
+
+		if (igt_flush_test(gt->i915))
+			err = -EIO;
+		if (err)
+			break;
+	}
+
+	igt_spinner_fini(&spin);
 
 	return err;
 }
