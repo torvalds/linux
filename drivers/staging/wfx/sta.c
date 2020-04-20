@@ -263,7 +263,7 @@ static int wfx_update_pm(struct wfx_vif *wvif)
 	struct ieee80211_channel *chan0 = NULL, *chan1 = NULL;
 
 	WARN_ON(conf->dynamic_ps_timeout < 0);
-	if (wvif->state != WFX_STATE_STA || !wvif->bss_params.aid)
+	if (!wvif->vif->bss_conf.assoc)
 		return 0;
 	if (!ps)
 		ps_timeout = 0;
