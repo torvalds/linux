@@ -785,24 +785,11 @@ void wfx_remove_interface(struct ieee80211_hw *hw,
 
 	mutex_lock(&wdev->conf_mutex);
 	WARN(wvif->link_id_map != 1, "corrupted state");
-	switch (wvif->state) {
-	case WFX_STATE_PRE_STA:
-	case WFX_STATE_STA:
-	case WFX_STATE_IBSS:
-		wfx_do_unjoin(wvif);
-		break;
-	case WFX_STATE_AP:
-		/* reset.link_id = 0; */
-		hif_reset(wvif, false);
-		break;
-	default:
-		break;
-	}
 
+	hif_reset(wvif, false);
 	wvif->state = WFX_STATE_PASSIVE;
-
-	/* FIXME: In add to reset MAC address, try to reset interface */
 	hif_set_macaddr(wvif, NULL);
+	wfx_tx_policy_init(wvif);
 
 	cancel_delayed_work_sync(&wvif->beacon_loss_work);
 	wdev->vif[wvif->id] = NULL;
