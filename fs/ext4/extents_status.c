@@ -1054,7 +1054,7 @@ static void count_rsvd(struct inode *inode, ext4_lblk_t lblk, long len,
 	end = (end > ext4_es_end(es)) ? ext4_es_end(es) : end;
 
 	/* record the first block of the first delonly extent seen */
-	if (rc->first_do_lblk_found == false) {
+	if (!rc->first_do_lblk_found) {
 		rc->first_do_lblk = i;
 		rc->first_do_lblk_found = true;
 	}

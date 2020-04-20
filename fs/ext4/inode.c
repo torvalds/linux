@@ -2307,7 +2307,7 @@ static int mpage_map_and_submit_buffers(struct mpage_da_data *mpd)
 			 * mapping, or maybe the page was submitted for IO.
 			 * So we return to call further extent mapping.
 			 */
-			if (err < 0 || map_bh == true)
+			if (err < 0 || map_bh)
 				goto out;
 			/* Page fully mapped - let IO run! */
 			err = mpage_submit_page(mpd, page);
