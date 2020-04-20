@@ -31,13 +31,13 @@ properties:
     maxItems: 1
     description:
       The phandle and specifier for the GPIO that controls the RESET
-      lines of all PHYs on that MDIO bus.
+      lines of all devices on that MDIO bus.
 
   reset-delay-us:
     description:
-      RESET pulse width in microseconds. It applies to all PHY devices
-      and must therefore be appropriately determined based on all PHY
-      requirements (maximum value of all per-PHY RESET pulse widths).
+      RESET pulse width in microseconds. It applies to all MDIO devices
+      and must therefore be appropriately determined based on all devices
+      requirements (maximum value of all per-device RESET pulse widths).
 
   clock-frequency:
     description:
@@ -60,7 +60,7 @@ patternProperties:
         minimum: 0
         maximum: 31
         description:
-          The ID number for the PHY.
+          The ID number for the device.
 
       broken-turn-around:
         $ref: /schemas/types.yaml#definitions/flag
