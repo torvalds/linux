@@ -580,7 +580,6 @@ struct hclge_fd_key_cfg {
 struct hclge_fd_cfg {
 	u8 fd_mode;
 	u16 max_key_length; /* use bit as unit */
-	u32 proto_support;
 	u32 rule_num[MAX_STAGE_NUM]; /* rule entry number */
 	u16 cnt_num[MAX_STAGE_NUM]; /* rule hit counter number */
 	struct hclge_fd_key_cfg key_cfg[MAX_STAGE_NUM];

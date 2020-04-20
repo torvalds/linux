@@ -4876,9 +4876,6 @@ static int hclge_init_fd_config(struct hclge_dev *hdev)
 		return -EOPNOTSUPP;
 	}
 
-	hdev->fd_cfg.proto_support =
-		TCP_V4_FLOW | UDP_V4_FLOW | SCTP_V4_FLOW | TCP_V6_FLOW |
-		UDP_V6_FLOW | SCTP_V6_FLOW | IPV4_USER_FLOW | IPV6_USER_FLOW;
 	key_cfg = &hdev->fd_cfg.key_cfg[HCLGE_FD_STAGE_1];
 	key_cfg->key_sel = HCLGE_FD_KEY_BASE_ON_TUPLE,
 	key_cfg->inner_sipv6_word_en = LOW_2_WORDS;
@@ -4892,11 +4889,9 @@ static int hclge_init_fd_config(struct hclge_dev *hdev)
 				BIT(INNER_SRC_PORT) | BIT(INNER_DST_PORT);
 
 	/* If use max 400bit key, we can support tuples for ether type */
-	if (hdev->fd_cfg.max_key_length == MAX_KEY_LENGTH) {
-		hdev->fd_cfg.proto_support |= ETHER_FLOW;
+	if (hdev->fd_cfg.fd_mode == HCLGE_FD_MODE_DEPTH_2K_WIDTH_400B_STAGE_1)
 		key_cfg->tuple_active |=
 				BIT(INNER_DST_MAC) | BIT(INNER_SRC_MAC);
-	}
 
 	/* roce_type is used to filter roce frames
 	 * dst_vport is used to specify the rule
@@ -5397,7 +5392,8 @@ static int hclge_fd_check_ext_tuple(struct hclge_dev *hdev,
 	}
 
 	if (fs->flow_type & FLOW_MAC_EXT) {
-		if (!(hdev->fd_cfg.proto_support & ETHER_FLOW))
+		if (hdev->fd_cfg.fd_mode !=
+		    HCLGE_FD_MODE_DEPTH_2K_WIDTH_400B_STAGE_1)
 			return -EOPNOTSUPP;
 
 		if (is_zero_ether_addr(fs->h_ext.h_dest))
@@ -5413,13 +5409,11 @@ static int hclge_fd_check_spec(struct hclge_dev *hdev,
 			       struct ethtool_rx_flow_spec *fs,
 			       u32 *unused_tuple)
 {
+	u32 flow_type;
 	int ret;
 
 	if (fs->location >= hdev->fd_cfg.rule_num[HCLGE_FD_STAGE_1])
 		return -EINVAL;
-
-	if (!(fs->flow_type & hdev->fd_cfg.proto_support))
-		return -EOPNOTSUPP;
 
 	if ((fs->flow_type & FLOW_EXT) &&
 	    (fs->h_ext.data[0] != 0 || fs->h_ext.data[1] != 0)) {
@@ -5427,7 +5421,8 @@ static int hclge_fd_check_spec(struct hclge_dev *hdev,
 		return -EOPNOTSUPP;
 	}
 
-	switch (fs->flow_type & ~(FLOW_EXT | FLOW_MAC_EXT)) {
+	flow_type = fs->flow_type & ~(FLOW_EXT | FLOW_MAC_EXT);
+	switch (flow_type) {
 	case SCTP_V4_FLOW:
 	case TCP_V4_FLOW:
 	case UDP_V4_FLOW:
