@@ -33,6 +33,7 @@ static int cmp_u64(const void *A, const void *B)
 static struct i915_vma *
 create_spin_counter(struct intel_engine_cs *engine,
 		    struct i915_address_space *vm,
+		    bool srm,
 		    u32 **cancel,
 		    u32 **counter)
 {
@@ -91,10 +92,12 @@ create_spin_counter(struct intel_engine_cs *engine,
 	*cs++ = MI_MATH_ADD;
 	*cs++ = MI_MATH_STORE(MI_MATH_REG(COUNT), MI_MATH_REG_ACCU);
 
-	*cs++ = MI_STORE_REGISTER_MEM_GEN8;
-	*cs++ = i915_mmio_reg_offset(CS_GPR(COUNT));
-	*cs++ = lower_32_bits(vma->node.start + 1000 * sizeof(*cs));
-	*cs++ = upper_32_bits(vma->node.start + 1000 * sizeof(*cs));
+	if (srm) {
+		*cs++ = MI_STORE_REGISTER_MEM_GEN8;
+		*cs++ = i915_mmio_reg_offset(CS_GPR(COUNT));
+		*cs++ = lower_32_bits(vma->node.start + 1000 * sizeof(*cs));
+		*cs++ = upper_32_bits(vma->node.start + 1000 * sizeof(*cs));
+	}
 
 	*cs++ = MI_BATCH_BUFFER_START_GEN8;
 	*cs++ = lower_32_bits(vma->node.start + loop * sizeof(*cs));
@@ -103,7 +106,7 @@ create_spin_counter(struct intel_engine_cs *engine,
 	i915_gem_object_flush_map(obj);
 
 	*cancel = base + loop;
-	*counter = memset32(base + 1000, 0, 1);
+	*counter = srm ? memset32(base + 1000, 0, 1) : NULL;
 	return vma;
 }
 
@@ -317,12 +320,43 @@ static u64 measure_frequency_at(struct intel_rps *rps, u32 *cntr, int *freq)
 	return div_u64(x[1] + 2 * x[2] + x[3], 4);
 }
 
+static u64 __measure_cs_frequency(struct intel_engine_cs *engine,
+				  int duration_ms)
+{
+	u64 dc, dt;
+
+	dt = ktime_get();
+	dc = intel_uncore_read_fw(engine->uncore, CS_GPR(0));
+	usleep_range(1000 * duration_ms, 2000 * duration_ms);
+	dc = intel_uncore_read_fw(engine->uncore, CS_GPR(0)) - dc;
+	dt = ktime_get() - dt;
+
+	return div64_u64(1000 * 1000 * dc, dt);
+}
+
+static u64 measure_cs_frequency_at(struct intel_rps *rps,
+				   struct intel_engine_cs *engine,
+				   int *freq)
+{
+	u64 x[5];
+	int i;
+
+	*freq = rps_set_check(rps, *freq);
+	for (i = 0; i < 5; i++)
+		x[i] = __measure_cs_frequency(engine, 2);
+	*freq = (*freq + read_cagf(rps)) / 2;
+
+	/* A simple triangle filter for better result stability */
+	sort(x, 5, sizeof(*x), cmp_u64, NULL);
+	return div_u64(x[1] + 2 * x[2] + x[3], 4);
+}
+
 static bool scaled_within(u64 x, u64 y, u32 f_n, u32 f_d)
 {
 	return f_d * x > f_n * y && f_n * x < f_d * y;
 }
 
-int live_rps_frequency(void *arg)
+int live_rps_frequency_cs(void *arg)
 {
 	void (*saved_work)(struct work_struct *wrk);
 	struct intel_gt *gt = arg;
@@ -357,7 +391,116 @@ int live_rps_frequency(void *arg)
 		} min, max;
 
 		vma = create_spin_counter(engine,
-					  engine->kernel_context->vm,
+					  engine->kernel_context->vm, false,
+					  &cancel, &cntr);
+		if (IS_ERR(vma)) {
+			err = PTR_ERR(vma);
+			break;
+		}
+
+		rq = intel_engine_create_kernel_request(engine);
+		if (IS_ERR(rq)) {
+			err = PTR_ERR(rq);
+			goto err_vma;
+		}
+
+		i915_vma_lock(vma);
+		err = i915_request_await_object(rq, vma->obj, false);
+		if (!err)
+			err = i915_vma_move_to_active(vma, rq, 0);
+		if (!err)
+			err = rq->engine->emit_bb_start(rq,
+							vma->node.start,
+							PAGE_SIZE, 0);
+		i915_vma_unlock(vma);
+		i915_request_add(rq);
+		if (err)
+			goto err_vma;
+
+		if (wait_for(intel_uncore_read(engine->uncore, CS_GPR(0)),
+			     10)) {
+			pr_err("%s: timed loop did not start\n",
+			       engine->name);
+			goto err_vma;
+		}
+
+		min.freq = rps->min_freq;
+		min.count = measure_cs_frequency_at(rps, engine, &min.freq);
+
+		max.freq = rps->max_freq;
+		max.count = measure_cs_frequency_at(rps, engine, &max.freq);
+
+		pr_info("%s: min:%lluKHz @ %uMHz, max:%lluKHz @ %uMHz [%d%%]\n",
+			engine->name,
+			min.count, intel_gpu_freq(rps, min.freq),
+			max.count, intel_gpu_freq(rps, max.freq),
+			(int)DIV64_U64_ROUND_CLOSEST(100 * min.freq * max.count,
+						     max.freq * min.count));
+
+		if (!scaled_within(max.freq * min.count,
+				   min.freq * max.count,
+				   2, 3)) {
+			pr_err("%s: CS did not scale with frequency! scaled min:%llu, max:%llu\n",
+			       engine->name,
+			       max.freq * min.count,
+			       min.freq * max.count);
+			err = -EINVAL;
+		}
+
+err_vma:
+		*cancel = MI_BATCH_BUFFER_END;
+		i915_gem_object_unpin_map(vma->obj);
+		i915_vma_unpin(vma);
+		i915_vma_put(vma);
+
+		if (igt_flush_test(gt->i915))
+			err = -EIO;
+		if (err)
+			break;
+	}
+
+	intel_gt_pm_wait_for_idle(gt);
+	rps->work.func = saved_work;
+
+	return err;
+}
+
+int live_rps_frequency_srm(void *arg)
+{
+	void (*saved_work)(struct work_struct *wrk);
+	struct intel_gt *gt = arg;
+	struct intel_rps *rps = &gt->rps;
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+	int err = 0;
+
+	/*
+	 * The premise is that the GPU does change freqency at our behest.
+	 * Let's check there is a correspondence between the requested
+	 * frequency, the actual frequency, and the observed clock rate.
+	 */
+
+	if (!rps->enabled || rps->max_freq <= rps->min_freq)
+		return 0;
+
+	if (INTEL_GEN(gt->i915) < 8) /* for CS simplicity */
+		return 0;
+
+	intel_gt_pm_wait_for_idle(gt);
+	saved_work = rps->work.func;
+	rps->work.func = dummy_rps_work;
+
+	for_each_engine(engine, gt, id) {
+		struct i915_request *rq;
+		struct i915_vma *vma;
+		u32 *cancel, *cntr;
+		struct {
+			u64 count;
+			int freq;
+		} min, max;
+
+		vma = create_spin_counter(engine,
+					  engine->kernel_context->vm, true,
 					  &cancel, &cntr);
 		if (IS_ERR(vma)) {
 			err = PTR_ERR(vma);
