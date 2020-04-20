@@ -23,11 +23,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/pm.h>
 #include <linux/clk.h>
-#include <linux/of.h>
-#include <linux/of_address.h>
-#include <linux/of_irq.h>
-#include <linux/of_net.h>
-#include <linux/of_platform.h>
 #include <net/arp.h>
 
 #include <linux/mii.h>
@@ -3417,8 +3412,6 @@ MODULE_DEVICE_TABLE(of, bcmgenet_match);
 static int bcmgenet_probe(struct platform_device *pdev)
 {
 	struct bcmgenet_platform_data *pd = pdev->dev.platform_data;
-	struct device_node *dn = pdev->dev.of_node;
-	const struct of_device_id *of_id = NULL;
 	const struct bcmgenet_plat_data *pdata;
 	struct bcmgenet_priv *priv;
 	struct net_device *dev;
@@ -3431,12 +3424,6 @@ static int bcmgenet_probe(struct platform_device *pdev)
 	if (!dev) {
 		dev_err(&pdev->dev, "can't allocate net device\n");
 		return -ENOMEM;
-	}
-
-	if (dn) {
-		of_id = of_match_node(bcmgenet_match, dn);
-		if (!of_id)
-			return -EINVAL;
 	}
 
 	priv = netdev_priv(dev);
