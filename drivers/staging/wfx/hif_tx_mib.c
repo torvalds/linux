@@ -190,15 +190,12 @@ int hif_set_block_ack_policy(struct wfx_vif *wvif,
 int hif_set_association_mode(struct wfx_vif *wvif,
 			     struct ieee80211_bss_conf *info)
 {
-	int basic_rates = wfx_rate_mask_to_hw(wvif->wdev, info->basic_rates);
 	struct ieee80211_sta *sta = NULL;
 	struct hif_mib_set_association_mode val = {
 		.preambtype_use = 1,
 		.mode = 1,
-		.rateset = 1,
 		.spacing = 1,
 		.short_preamble = info->use_short_preamble,
-		.basic_rate_set = cpu_to_le32(basic_rates)
 	};
 
 	rcu_read_lock(); // protect sta
