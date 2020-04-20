@@ -1261,7 +1261,10 @@ void hsw_fdi_link_train(struct intel_encoder *encoder,
 	for (i = 0; i < ARRAY_SIZE(hsw_ddi_translations_fdi) * 2; i++) {
 		/* Configure DP_TP_CTL with auto-training */
 		intel_de_write(dev_priv, DP_TP_CTL(PORT_E),
-			       DP_TP_CTL_FDI_AUTOTRAIN | DP_TP_CTL_ENHANCED_FRAME_ENABLE | DP_TP_CTL_LINK_TRAIN_PAT1 | DP_TP_CTL_ENABLE);
+			       DP_TP_CTL_FDI_AUTOTRAIN |
+			       DP_TP_CTL_ENHANCED_FRAME_ENABLE |
+			       DP_TP_CTL_LINK_TRAIN_PAT1 |
+			       DP_TP_CTL_ENABLE);
 
 		/* Configure and enable DDI_BUF_CTL for DDI E with next voltage.
 		 * DDI E does not support port reversal, the functionality is
@@ -1337,7 +1340,10 @@ void hsw_fdi_link_train(struct intel_encoder *encoder,
 
 	/* Enable normal pixel sending for FDI */
 	intel_de_write(dev_priv, DP_TP_CTL(PORT_E),
-		       DP_TP_CTL_FDI_AUTOTRAIN | DP_TP_CTL_LINK_TRAIN_NORMAL | DP_TP_CTL_ENHANCED_FRAME_ENABLE | DP_TP_CTL_ENABLE);
+		       DP_TP_CTL_FDI_AUTOTRAIN |
+		       DP_TP_CTL_LINK_TRAIN_NORMAL |
+		       DP_TP_CTL_ENHANCED_FRAME_ENABLE |
+		       DP_TP_CTL_ENABLE);
 }
 
 static void intel_ddi_init_dp_buf_reg(struct intel_encoder *encoder)
