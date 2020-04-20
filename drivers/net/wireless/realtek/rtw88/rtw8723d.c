@@ -14,6 +14,48 @@
 #include "reg.h"
 #include "debug.h"
 
+static void rtw8723de_efuse_parsing(struct rtw_efuse *efuse,
+				    struct rtw8723d_efuse *map)
+{
+	ether_addr_copy(efuse->addr, map->e.mac_addr);
+}
+
+static int rtw8723d_read_efuse(struct rtw_dev *rtwdev, u8 *log_map)
+{
+	struct rtw_efuse *efuse = &rtwdev->efuse;
+	struct rtw8723d_efuse *map;
+	int i;
+
+	map = (struct rtw8723d_efuse *)log_map;
+
+	efuse->rfe_option = 0;
+	efuse->rf_board_option = map->rf_board_option;
+	efuse->crystal_cap = map->xtal_k;
+	efuse->pa_type_2g = map->pa_type;
+	efuse->lna_type_2g = map->lna_type_2g[0];
+	efuse->channel_plan = map->channel_plan;
+	efuse->country_code[0] = map->country_code[0];
+	efuse->country_code[1] = map->country_code[1];
+	efuse->bt_setting = map->rf_bt_setting;
+	efuse->regd = map->rf_board_option & 0x7;
+	efuse->thermal_meter[0] = map->thermal_meter;
+	efuse->thermal_meter_k = map->thermal_meter;
+
+	for (i = 0; i < 4; i++)
+		efuse->txpwr_idx_table[i] = map->txpwr_idx_table[i];
+
+	switch (rtw_hci_type(rtwdev)) {
+	case RTW_HCI_TYPE_PCIE:
+		rtw8723de_efuse_parsing(efuse, map);
+		break;
+	default:
+		/* unsupported now */
+		return -ENOTSUPP;
+	}
+
+	return 0;
+}
+
 static void rtw8723d_cfg_ldo25(struct rtw_dev *rtwdev, bool enable)
 {
 	u8 ldo_pwr;
@@ -41,6 +83,7 @@ static void rtw8723d_efuse_grant(struct rtw_dev *rtwdev, bool on)
 }
 
 static struct rtw_chip_ops rtw8723d_ops = {
+	.read_efuse		= rtw8723d_read_efuse,
 	.read_rf		= rtw_phy_read_rf_sipi,
 	.write_rf		= rtw_phy_write_rf_reg_sipi,
 	.set_antenna		= NULL,
