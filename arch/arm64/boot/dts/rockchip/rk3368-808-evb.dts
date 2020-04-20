@@ -186,3 +186,23 @@
 
 	};
 };
+
+/*
+ * In sleep mode, should be close vcca_33 and vcc_lan,
+ * but due to small defects in hardware settings and
+ * the system sleeps and wakes up, 4g module can not disconnect the network,
+ * so system sleep mode cannot be turned off vcca_33 and vcc_lan.
+ * This configuration will result in increased power consumption,
+ * please configure according to the actual needs of the project.
+ */
+&vcca_33 {
+	regulator-state-mem {
+		regulator-on-in-suspend;
+	};
+};
+
+&vcc_lan {
+	regulator-state-mem {
+		regulator-on-in-suspend;
+	};
+};
