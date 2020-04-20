@@ -349,6 +349,7 @@ config BROADCOM_PHY
 config BCM54140_PHY
 	tristate "Broadcom BCM54140 PHY"
 	depends on PHYLIB
+	depends on HWMON || HWMON=n
 	select BCM_NET_PHYLIB
 	help
 	  Support the Broadcom BCM54140 Quad SGMII/QSGMII PHY.
