@@ -4249,8 +4249,8 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 
 	txd_first->opts1 |= cpu_to_le32(DescOwn | FirstFrag);
 
-	/* Force all memory writes to complete before notifying device */
-	wmb();
+	/* rtl_tx needs to see descriptor changes before updated tp->cur_tx */
+	smp_wmb();
 
 	tp->cur_tx += frags + 1;
 
