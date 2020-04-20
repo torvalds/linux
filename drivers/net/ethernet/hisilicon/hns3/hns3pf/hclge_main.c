@@ -5380,7 +5380,7 @@ static int hclge_fd_check_ext_tuple(struct hclge_dev *hdev,
 				    struct ethtool_rx_flow_spec *fs,
 				    u32 *unused_tuple)
 {
-	if ((fs->flow_type & FLOW_EXT)) {
+	if (fs->flow_type & FLOW_EXT) {
 		if (fs->h_ext.vlan_etype)
 			return -EOPNOTSUPP;
 		if (!fs->h_ext.vlan_tci)
@@ -5401,7 +5401,7 @@ static int hclge_fd_check_ext_tuple(struct hclge_dev *hdev,
 		if (is_zero_ether_addr(fs->h_ext.h_dest))
 			*unused_tuple |= BIT(INNER_DST_MAC);
 		else
-			*unused_tuple &= ~(BIT(INNER_DST_MAC));
+			*unused_tuple &= ~BIT(INNER_DST_MAC);
 	}
 
 	return 0;
@@ -5674,7 +5674,7 @@ static int hclge_fd_get_tuple(struct hclge_dev *hdev,
 		break;
 	}
 
-	if ((fs->flow_type & FLOW_EXT)) {
+	if (fs->flow_type & FLOW_EXT) {
 		rule->tuples.vlan_tag1 = be16_to_cpu(fs->h_ext.vlan_tci);
 		rule->tuples_mask.vlan_tag1 = be16_to_cpu(fs->m_ext.vlan_tci);
 	}
@@ -5785,7 +5785,6 @@ static int hclge_add_fd_entry(struct hnae3_handle *handle,
 	}
 
 	rule->flow_type = fs->flow_type;
-
 	rule->location = fs->location;
 	rule->unused_tuple = unused;
 	rule->vf_id = dst_vport_id;
@@ -6273,7 +6272,6 @@ static int hclge_add_fd_entry_by_arfs(struct hnae3_handle *handle, u16 queue_id,
 	 */
 	if (hdev->fd_active_type == HCLGE_FD_EP_ACTIVE) {
 		spin_unlock_bh(&hdev->fd_rule_lock);
-
 		return -EOPNOTSUPP;
 	}
 
@@ -6287,14 +6285,12 @@ static int hclge_add_fd_entry_by_arfs(struct hnae3_handle *handle, u16 queue_id,
 		bit_id = find_first_zero_bit(hdev->fd_bmap, MAX_FD_FILTER_NUM);
 		if (bit_id >= hdev->fd_cfg.rule_num[HCLGE_FD_STAGE_1]) {
 			spin_unlock_bh(&hdev->fd_rule_lock);
-
 			return -ENOSPC;
 		}
 
 		rule = kzalloc(sizeof(*rule), GFP_ATOMIC);
 		if (!rule) {
 			spin_unlock_bh(&hdev->fd_rule_lock);
-
 			return -ENOMEM;
 		}
 
