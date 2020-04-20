@@ -16,7 +16,6 @@ platforms += generic
 platforms += jazz
 platforms += jz4740
 platforms += lantiq
-platforms += lasat
 platforms += loongson2ef
 platforms += loongson32
 platforms += loongson64

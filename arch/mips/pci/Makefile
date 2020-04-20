@@ -13,7 +13,6 @@ obj-$(CONFIG_PCI_DRIVERS_GENERIC)+= pci-generic.o
 obj-$(CONFIG_MIPS_BONITO64)	+= ops-bonito64.o
 obj-$(CONFIG_PCI_GT64XXX_PCI0)	+= ops-gt64xxx_pci0.o
 obj-$(CONFIG_MIPS_MSC)		+= ops-msc.o
-obj-$(CONFIG_MIPS_NILE4)	+= ops-nile4.o
 obj-$(CONFIG_SOC_TX3927)	+= ops-tx3927.o
 obj-$(CONFIG_PCI_VR41XX)	+= ops-vr41xx.o pci-vr41xx.o
 obj-$(CONFIG_NEC_MARKEINS)	+= ops-emma2rh.o pci-emma2rh.o fixup-emma2rh.o
@@ -31,7 +30,6 @@ obj-$(CONFIG_PCI_XTALK_BRIDGE)	+= pci-xtalk-bridge.o
 # These are still pretty much in the old state, watch, go blind.
 #
 obj-$(CONFIG_ATH79)		+= fixup-ath79.o
-obj-$(CONFIG_LASAT)		+= pci-lasat.o
 obj-$(CONFIG_MIPS_COBALT)	+= fixup-cobalt.o
 obj-$(CONFIG_LEMOTE_FULOONG2E)	+= fixup-fuloong2e.o ops-loongson2.o
 obj-$(CONFIG_LEMOTE_MACH2F)	+= fixup-lemote2f.o ops-loongson2.o

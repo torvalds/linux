@@ -431,23 +431,6 @@ config LANTIQ
 	select ARCH_HAS_RESET_CONTROLLER
 	select RESET_CONTROLLER
 
-config LASAT
-	bool "LASAT Networks platforms"
-	select CEVT_R4K
-	select CRC32
-	select CSRC_R4K
-	select DMA_NONCOHERENT
-	select SYS_HAS_EARLY_PRINTK
-	select HAVE_PCI
-	select IRQ_MIPS_CPU
-	select PCI_GT64XXX_PCI0
-	select MIPS_NILE4
-	select R5000_CPU_SCACHE
-	select SYS_HAS_CPU_R5000
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_64BIT_KERNEL if BROKEN
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-
 config MACH_LOONGSON32
 	bool "Loongson 32-bit family of machines"
 	select SYS_SUPPORTS_ZBOOT
@@ -1091,7 +1074,6 @@ source "arch/mips/generic/Kconfig"
 source "arch/mips/jazz/Kconfig"
 source "arch/mips/jz4740/Kconfig"
 source "arch/mips/lantiq/Kconfig"
-source "arch/mips/lasat/Kconfig"
 source "arch/mips/pic32/Kconfig"
 source "arch/mips/pistachio/Kconfig"
 source "arch/mips/pmcs-msp71xx/Kconfig"
@@ -1213,9 +1195,6 @@ config MIPS_BONITO64
 	bool
 
 config MIPS_MSC
-	bool
-
-config MIPS_NILE4
 	bool
 
 config SYNC_R4K

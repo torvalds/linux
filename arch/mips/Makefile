@@ -370,12 +370,6 @@ ifeq ($(shell expr $(zload-y) \< 0xffffffff80000000 2> /dev/null), 0)
 bootz-y			+= uzImage.bin
 endif
 
-ifdef CONFIG_LASAT
-rom.bin rom.sw: vmlinux
-	$(Q)$(MAKE) $(build)=arch/mips/lasat/image \
-		$(bootvars-y) $@
-endif
-
 #
 # Some machines like the Indy need 32-bit ELF binaries for booting purposes.
 # Other need ECOFF, so we build a 32-bit ELF binary for them which we then
@@ -441,7 +435,6 @@ archclean:
 	$(Q)$(MAKE) $(clean)=arch/mips/boot
 	$(Q)$(MAKE) $(clean)=arch/mips/boot/compressed
 	$(Q)$(MAKE) $(clean)=arch/mips/boot/tools
-	$(Q)$(MAKE) $(clean)=arch/mips/lasat
 
 archheaders:
 	$(Q)$(MAKE) $(build)=arch/mips/kernel/syscalls all
