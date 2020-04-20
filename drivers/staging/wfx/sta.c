@@ -286,8 +286,6 @@ void wfx_set_default_unicast_key(struct ieee80211_hw *hw,
 // Call it with wdev->conf_mutex locked
 static void wfx_do_unjoin(struct wfx_vif *wvif)
 {
-	wvif->state = WFX_STATE_PASSIVE;
-
 	/* Unjoin is a reset. */
 	wfx_tx_lock_flush(wvif->wdev);
 	hif_reset(wvif, false);
@@ -367,11 +365,6 @@ static void wfx_do_join(struct wfx_vif *wvif)
 		wfx_do_unjoin(wvif);
 	} else {
 		wvif->join_complete_status = 0;
-		if (wvif->vif->type == NL80211_IFTYPE_ADHOC)
-			wvif->state = WFX_STATE_IBSS;
-		else
-			wvif->state = WFX_STATE_PRE_STA;
-
 		/* Due to beacon filtering it is possible that the
 		 * AP's beacon is not known for the mac80211 stack.
 		 * Disable filtering temporary to make sure the stack
@@ -448,7 +441,6 @@ int wfx_start_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
 
-	wvif->state = WFX_STATE_AP;
 	wfx_upload_ap_templates(wvif);
 	hif_start(wvif, &vif->bss_conf, wvif->channel);
 	return 0;
@@ -462,7 +454,6 @@ void wfx_stop_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	wfx_tx_policy_init(wvif);
 	if (wvif_count(wvif->wdev) <= 1)
 		hif_set_block_ack_policy(wvif, 0xFF, 0xFF);
-	wvif->state = WFX_STATE_PASSIVE;
 }
 
 static void wfx_join_finalize(struct wfx_vif *wvif,
@@ -475,9 +466,6 @@ static void wfx_join_finalize(struct wfx_vif *wvif,
 	hif_set_bss_params(wvif, info->aid, 7);
 	hif_set_beacon_wakeup_period(wvif, 1, 1);
 	wfx_update_pm(wvif);
-
-	if (!info->ibss_joined)
-		wvif->state = WFX_STATE_STA;
 }
 
 int wfx_join_ibss(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
@@ -787,7 +775,6 @@ void wfx_remove_interface(struct ieee80211_hw *hw,
 	WARN(wvif->link_id_map != 1, "corrupted state");
 
 	hif_reset(wvif, false);
-	wvif->state = WFX_STATE_PASSIVE;
 	hif_set_macaddr(wvif, NULL);
 	wfx_tx_policy_init(wvif);
 

@@ -15,14 +15,6 @@
 struct wfx_dev;
 struct wfx_vif;
 
-enum wfx_state {
-	WFX_STATE_PASSIVE = 0,
-	WFX_STATE_PRE_STA,
-	WFX_STATE_STA,
-	WFX_STATE_IBSS,
-	WFX_STATE_AP,
-};
-
 struct wfx_sta_priv {
 	int link_id;
 	int vif_id;

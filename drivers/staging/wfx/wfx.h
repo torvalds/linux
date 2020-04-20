@@ -66,7 +66,6 @@ struct wfx_vif {
 	struct ieee80211_vif	*vif;
 	struct ieee80211_channel *channel;
 	int			id;
-	enum wfx_state		state;
 
 	u32			link_id_map;
 
