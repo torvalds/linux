@@ -146,7 +146,6 @@ struct snd_soc_component_driver {
 		    struct snd_pcm_substream *substream,
 		    struct vm_area_struct *vma);
 
-	const struct snd_compr_ops *compr_ops; /* remove me */
 	const struct snd_compress_ops *compress_ops;
 
 	/* probe ordering - for components with runtime dependencies */
