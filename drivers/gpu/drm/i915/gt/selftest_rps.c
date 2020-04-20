@@ -485,26 +485,21 @@ static u64 __measure_power(int duration_ms)
 	return div64_u64(1000 * 1000 * dE, dt);
 }
 
-static u64 measure_power_at(struct intel_rps *rps, int freq)
+static u64 measure_power_at(struct intel_rps *rps, int *freq)
 {
 	u64 x[5];
 	int i;
 
 	mutex_lock(&rps->lock);
 	GEM_BUG_ON(!rps->active);
-	intel_rps_set(rps, freq);
+	intel_rps_set(rps, *freq);
 	mutex_unlock(&rps->lock);
 
 	msleep(20); /* more than enough time to stabilise! */
 
-	i = read_cagf(rps);
-	if (i != freq)
-		pr_notice("Running at %x [%uMHz], not target %x [%uMHz]\n",
-			  i, intel_gpu_freq(rps, i),
-			  freq, intel_gpu_freq(rps, freq));
-
 	for (i = 0; i < 5; i++)
 		x[i] = __measure_power(5);
+	*freq = read_cagf(rps);
 
 	/* A simple triangle filter for better result stability */
 	sort(x, 5, sizeof(*x), cmp_u64, NULL);
@@ -542,7 +537,10 @@ int live_rps_power(void *arg)
 
 	for_each_engine(engine, gt, id) {
 		struct i915_request *rq;
-		u64 min, max;
+		struct {
+			u64 power;
+			int freq;
+		} min, max;
 
 		if (!intel_engine_can_store_dword(engine))
 			continue;
@@ -565,16 +563,27 @@ int live_rps_power(void *arg)
 			break;
 		}
 
-		max = measure_power_at(rps, rps->max_freq);
-		min = measure_power_at(rps, rps->min_freq);
+		max.freq = rps->max_freq;
+		max.power = measure_power_at(rps, &max.freq);
+
+		min.freq = rps->min_freq;
+		min.power = measure_power_at(rps, &min.freq);
 
 		igt_spinner_end(&spin);
 
 		pr_info("%s: min:%llumW @ %uMHz, max:%llumW @ %uMHz\n",
 			engine->name,
-			min, intel_gpu_freq(rps, rps->min_freq),
-			max, intel_gpu_freq(rps, rps->max_freq));
-		if (11 * min > 10 * max) {
+			min.power, intel_gpu_freq(rps, min.freq),
+			max.power, intel_gpu_freq(rps, max.freq));
+
+		if (10 * min.freq >= 9 * max.freq) {
+			pr_notice("Could not control frequency, ran at [%d:%uMHz, %d:%uMhz]\n",
+				  min.freq, intel_gpu_freq(rps, min.freq),
+				  max.freq, intel_gpu_freq(rps, max.freq));
+			continue;
+		}
+
+		if (11 * min.power > 10 * max.power) {
 			pr_err("%s: did not conserve power when setting lower frequency!\n",
 			       engine->name);
 			err = -EINVAL;
