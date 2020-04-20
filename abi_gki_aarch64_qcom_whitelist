@@ -1340,12 +1340,6 @@
 # required by governor_bw_hwmon.ko
   argv_free
   argv_split
-  __tracepoint_bw_hwmon_meas
-  __tracepoint_bw_hwmon_update
-
-# required by governor_memlat.ko
-  __tracepoint_memlat_dev_meas
-  __tracepoint_memlat_dev_update
 
 # required by gpi.ko
   dma_async_device_register
