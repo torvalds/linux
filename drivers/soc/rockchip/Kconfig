@@ -88,6 +88,12 @@ config ROCKCHIP_PVTM
 	  the chip performance variance caused by chip process, voltage and
 	  temperature.
 
+config ROCKCHIP_RAMDISK
+	bool "Rockchip RAM disk support"
+	help
+	  Saying Y here will allow you to use reserved RAM memory as a block
+	  device.
+
 config ROCKCHIP_SUSPEND_MODE
 	tristate "Rockchip suspend mode config"
 	depends on ROCKCHIP_SIP

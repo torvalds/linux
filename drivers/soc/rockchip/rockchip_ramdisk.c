@@ -130,7 +130,7 @@ static int rd_do_bvec(struct rd_device *rd, struct page *page,
 	return 0;
 }
 
-static blk_qc_t rd_make_request(struct request_queue *q, struct bio *bio)
+static blk_qc_t rd_submit_bio(struct bio *bio)
 {
 	struct rd_device *rd = bio->bi_disk->private_data;
 	struct bio_vec bvec;
@@ -144,6 +144,10 @@ static blk_qc_t rd_make_request(struct request_queue *q, struct bio *bio)
 	bio_for_each_segment(bvec, bio, iter) {
 		unsigned int len = bvec.bv_len;
 		int err;
+
+		/* Don't support un-aligned buffer */
+		WARN_ON_ONCE((bvec.bv_offset & (SECTOR_SIZE - 1)) ||
+				(len & (SECTOR_SIZE - 1)));
 
 		err = rd_do_bvec(rd, bvec.bv_page, len, bvec.bv_offset,
 				 bio_op(bio), sector);
@@ -174,6 +178,7 @@ static int rd_rw_page(struct block_device *bdev, sector_t sector,
 
 static const struct block_device_operations rd_fops = {
 	.owner =	THIS_MODULE,
+	.submit_bio =	rd_submit_bio,
 	.rw_page =	rd_rw_page,
 };
 
@@ -181,12 +186,9 @@ static int rd_init(struct rd_device *rd, int major, int minor)
 {
 	struct gendisk *disk;
 
-	rd->rd_queue = blk_alloc_queue(GFP_KERNEL);
+	rd->rd_queue = blk_alloc_queue(NUMA_NO_NODE);
 	if (!rd->rd_queue)
 		return -ENOMEM;
-
-	blk_queue_make_request(rd->rd_queue, rd_make_request);
-	blk_queue_max_hw_sectors(rd->rd_queue, 1024);
 
 	/* This is so fdisk will align partitions on 4k, because of
 	 * direct_access API needing 4k alignment, returning a PFN
@@ -206,7 +208,6 @@ static int rd_init(struct rd_device *rd, int major, int minor)
 	sprintf(disk->disk_name, "rd%d", minor);
 	set_capacity(disk, rd->mem_size >> SECTOR_SHIFT);
 	rd->rd_disk = disk;
-	rd->rd_queue->backing_dev_info->capabilities |= BDI_CAP_SYNCHRONOUS_IO;
 
 	/* Tell the block layer that this is not a rotational device */
 	blk_queue_flag_set(QUEUE_FLAG_NONROT, rd->rd_queue);
