@@ -608,30 +608,6 @@ config NXP_STB225
 	help
 	  Support for NXP Semiconductors STB225 Development Board.
 
-config PMC_MSP
-	bool "PMC-Sierra MSP chipsets"
-	select CEVT_R4K
-	select CSRC_R4K
-	select DMA_NONCOHERENT
-	select SWAP_IO_SPACE
-	select NO_EXCEPT_FILL
-	select BOOT_RAW
-	select SYS_HAS_CPU_MIPS32_R1
-	select SYS_HAS_CPU_MIPS32_R2
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_BIG_ENDIAN
-	select SYS_SUPPORTS_MIPS16
-	select IRQ_MIPS_CPU
-	select SERIAL_8250
-	select SERIAL_8250_CONSOLE
-	select USB_EHCI_BIG_ENDIAN_MMIO
-	select USB_EHCI_BIG_ENDIAN_DESC
-	help
-	  This adds support for the PMC-Sierra family of Multi-Service
-	  Processor System-On-A-Chips.  These parts include a number
-	  of integrated peripherals, interfaces and DSPs in addition to
-	  a variety of MIPS cores.
-
 config RALINK
 	bool "Ralink based machines"
 	select CEVT_R4K
@@ -1076,7 +1052,6 @@ source "arch/mips/jz4740/Kconfig"
 source "arch/mips/lantiq/Kconfig"
 source "arch/mips/pic32/Kconfig"
 source "arch/mips/pistachio/Kconfig"
-source "arch/mips/pmcs-msp71xx/Kconfig"
 source "arch/mips/ralink/Kconfig"
 source "arch/mips/sgi-ip27/Kconfig"
 source "arch/mips/sibyte/Kconfig"
