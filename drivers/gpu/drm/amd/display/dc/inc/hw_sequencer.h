@@ -118,8 +118,7 @@ struct hw_sequencer_funcs {
 			struct pipe_ctx *pipe_ctx,
 			enum vline_select vline);
 	void (*set_drr)(struct pipe_ctx **pipe_ctx, int num_pipes,
-			unsigned int vmin, unsigned int vmax,
-			unsigned int vmid, unsigned int vmid_frame_number);
+			struct dc_crtc_timing_adjust adjust);
 	void (*set_static_screen_control)(struct pipe_ctx **pipe_ctx,
 			int num_pipes,
 			const struct dc_static_screen_params *events);

@@ -304,7 +304,10 @@ bool dc_stream_adjust_vmin_vmax(struct dc *dc,
 	int i = 0;
 	bool ret = false;
 
-	stream->adjust = *adjust;
+	stream->adjust.v_total_max = adjust->v_total_max;
+	stream->adjust.v_total_mid = adjust->v_total_mid;
+	stream->adjust.v_total_mid_frame_num = adjust->v_total_mid_frame_num;
+	stream->adjust.v_total_min = adjust->v_total_min;
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		struct pipe_ctx *pipe = &dc->current_state->res_ctx.pipe_ctx[i];
@@ -312,10 +315,7 @@ bool dc_stream_adjust_vmin_vmax(struct dc *dc,
 		if (pipe->stream == stream && pipe->stream_res.tg) {
 			dc->hwss.set_drr(&pipe,
 					1,
-					adjust->v_total_min,
-					adjust->v_total_max,
-					adjust->v_total_mid,
-					adjust->v_total_mid_frame_num);
+					*adjust);
 
 			ret = true;
 		}

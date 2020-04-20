@@ -145,8 +145,7 @@ bool dcn10_dummy_display_power_gating(
 		struct dc_bios *dcb,
 		enum pipe_gating_control power_gating);
 void dcn10_set_drr(struct pipe_ctx **pipe_ctx,
-		int num_pipes, unsigned int vmin, unsigned int vmax,
-		unsigned int vmid, unsigned int vmid_frame_number);
+		int num_pipes, struct dc_crtc_timing_adjust adjust);
 void dcn10_get_position(struct pipe_ctx **pipe_ctx,
 		int num_pipes,
 		struct crtc_position *position);

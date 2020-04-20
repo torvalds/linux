@@ -3271,8 +3271,7 @@ void dcn10_optimize_bandwidth(
 }
 
 void dcn10_set_drr(struct pipe_ctx **pipe_ctx,
-		int num_pipes, unsigned int vmin, unsigned int vmax,
-		unsigned int vmid, unsigned int vmid_frame_number)
+		int num_pipes, struct dc_crtc_timing_adjust adjust)
 {
 	int i = 0;
 	struct drr_params params = {0};
@@ -3281,11 +3280,10 @@ void dcn10_set_drr(struct pipe_ctx **pipe_ctx,
 	// Note DRR trigger events are generated regardless of whether num frames met.
 	unsigned int num_frames = 2;
 
-	params.vertical_total_max = vmax;
-	params.vertical_total_min = vmin;
-	params.vertical_total_mid = vmid;
-	params.vertical_total_mid_frame_num = vmid_frame_number;
-
+	params.vertical_total_max = adjust.v_total_max;
+	params.vertical_total_min = adjust.v_total_min;
+	params.vertical_total_mid = adjust.v_total_mid;
+	params.vertical_total_mid_frame_num = adjust.v_total_mid_frame_num;
 	/* TODO: If multiple pipes are to be supported, you need
 	 * some GSL stuff. Static screen triggers may be programmed differently
 	 * as well.
@@ -3293,7 +3291,7 @@ void dcn10_set_drr(struct pipe_ctx **pipe_ctx,
 	for (i = 0; i < num_pipes; i++) {
 		pipe_ctx[i]->stream_res.tg->funcs->set_drr(
 			pipe_ctx[i]->stream_res.tg, &params);
-		if (vmax != 0 && vmin != 0)
+		if (adjust.v_total_max != 0 && adjust.v_total_min != 0)
 			pipe_ctx[i]->stream_res.tg->funcs->set_static_screen_control(
 					pipe_ctx[i]->stream_res.tg,
 					event_triggers, num_frames);
