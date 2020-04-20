@@ -14,8 +14,4 @@ config RS780_HPET
 	  If unsure, say Yes.
 
 
-config LOONGSON_MC146818
-	bool
-	default n
-
 endif # MACH_LOONGSON64
