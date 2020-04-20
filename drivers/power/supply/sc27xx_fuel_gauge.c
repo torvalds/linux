@@ -705,6 +705,7 @@ static const struct power_supply_desc sc27xx_fgu_desc = {
 	.set_property		= sc27xx_fgu_set_property,
 	.external_power_changed	= sc27xx_fgu_external_power_changed,
 	.property_is_writeable	= sc27xx_fgu_property_is_writeable,
+	.no_thermal		= true,
 };
 
 static void sc27xx_fgu_adjust_cap(struct sc27xx_fgu_data *data, int cap)
