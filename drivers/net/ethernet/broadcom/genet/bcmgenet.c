@@ -2702,9 +2702,8 @@ static void bcmgenet_umac_reset(struct bcmgenet_priv *priv)
 static void bcmgenet_set_hw_addr(struct bcmgenet_priv *priv,
 				 unsigned char *addr)
 {
-	bcmgenet_umac_writel(priv, (addr[0] << 24) | (addr[1] << 16) |
-			(addr[2] << 8) | addr[3], UMAC_MAC0);
-	bcmgenet_umac_writel(priv, (addr[4] << 8) | addr[5], UMAC_MAC1);
+	bcmgenet_umac_writel(priv, get_unaligned_be32(&addr[0]), UMAC_MAC0);
+	bcmgenet_umac_writel(priv, get_unaligned_be16(&addr[4]), UMAC_MAC1);
 }
 
 static void bcmgenet_get_hw_addr(struct bcmgenet_priv *priv,
@@ -2713,13 +2712,9 @@ static void bcmgenet_get_hw_addr(struct bcmgenet_priv *priv,
 	u32 addr_tmp;
 
 	addr_tmp = bcmgenet_umac_readl(priv, UMAC_MAC0);
-	addr[0] = addr_tmp >> 24;
-	addr[1] = (addr_tmp >> 16) & 0xff;
-	addr[2] = (addr_tmp >>	8) & 0xff;
-	addr[3] = addr_tmp & 0xff;
+	put_unaligned_be32(addr_tmp, &addr[0]);
 	addr_tmp = bcmgenet_umac_readl(priv, UMAC_MAC1);
-	addr[4] = (addr_tmp >> 8) & 0xff;
-	addr[5] = addr_tmp & 0xff;
+	put_unaligned_be16(addr_tmp, &addr[4]);
 }
 
 /* Returns a reusable dma control register value */
