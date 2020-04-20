@@ -14,10 +14,25 @@
 #include "reg.h"
 #include "debug.h"
 
+static void rtw8723d_cfg_ldo25(struct rtw_dev *rtwdev, bool enable)
+{
+	u8 ldo_pwr;
+
+	ldo_pwr = rtw_read8(rtwdev, REG_LDO_EFUSE_CTRL + 3);
+	if (enable) {
+		ldo_pwr &= ~BIT_MASK_LDO25_VOLTAGE;
+		ldo_pwr = (BIT_LDO25_VOLTAGE_V25 << 4) | BIT_LDO25_EN;
+	} else {
+		ldo_pwr &= ~BIT_LDO25_EN;
+	}
+	rtw_write8(rtwdev, REG_LDO_EFUSE_CTRL + 3, ldo_pwr);
+}
+
 static struct rtw_chip_ops rtw8723d_ops = {
 	.read_rf		= rtw_phy_read_rf_sipi,
 	.write_rf		= rtw_phy_write_rf_reg_sipi,
 	.set_antenna		= NULL,
+	.cfg_ldo25		= rtw8723d_cfg_ldo25,
 	.config_bfee		= NULL,
 	.set_gid_table		= NULL,
 	.cfg_csi_rate		= NULL,
