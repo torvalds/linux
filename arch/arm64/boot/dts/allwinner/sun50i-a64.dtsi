@@ -1093,6 +1093,8 @@
 			compatible = "allwinner,sun50i-a64-mbus";
 			reg = <0x01c62000 0x1000>;
 			clocks = <&ccu 112>;
+			#address-cells = <1>;
+			#size-cells = <1>;
 			dma-ranges = <0x00000000 0x40000000 0xc0000000>;
 			#interconnect-cells = <1>;
 		};
