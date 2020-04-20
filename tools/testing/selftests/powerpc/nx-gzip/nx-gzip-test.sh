@@ -26,6 +26,7 @@ function test_sizes
 		echo "Testing $size ($n) ..."
 		dd if=/dev/urandom of=$fname bs=$size count=1
 		./gzfht_test $fname
+		./gunz_test ${fname}.nx.gz
 	done
 }
 
