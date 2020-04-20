@@ -27,6 +27,7 @@
 
 #include <linux/init.h>
 #include <linux/ioport.h>
+#include <linux/mm.h>
 
 #include <asm/dma-coherence.h>
 #include <asm/mipsregs.h>
