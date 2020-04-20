@@ -1227,6 +1227,11 @@ int bcm_qspi_probe(struct platform_device *pdev,
 	}
 
 	qspi = spi_master_get_devdata(master);
+
+	qspi->clk = devm_clk_get_optional(&pdev->dev, NULL);
+	if (IS_ERR(qspi->clk))
+		return PTR_ERR(qspi->clk);
+
 	qspi->pdev = pdev;
 	qspi->trans_pos.trans = NULL;
 	qspi->trans_pos.byte = 0;
@@ -1338,13 +1343,6 @@ int bcm_qspi_probe(struct platform_device *pdev,
 		soc_intc->bcm_qspi_int_set(soc_intc, MSPI_DONE, true);
 	} else {
 		qspi->soc_intc = NULL;
-	}
-
-	qspi->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(qspi->clk)) {
-		dev_warn(dev, "unable to get clock\n");
-		ret = PTR_ERR(qspi->clk);
-		goto qspi_probe_err;
 	}
 
 	ret = clk_prepare_enable(qspi->clk);
