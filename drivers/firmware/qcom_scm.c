@@ -943,7 +943,7 @@ bool qcom_scm_hdcp_available(void)
 
 	qcom_scm_clk_disable();
 
-	return ret > 0 ? true : false;
+	return ret > 0;
 }
 EXPORT_SYMBOL(qcom_scm_hdcp_available);
 
