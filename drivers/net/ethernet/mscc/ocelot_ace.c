@@ -739,14 +739,24 @@ static void ocelot_match_all_as_mac_etype(struct ocelot *ocelot, int port,
 
 static bool ocelot_ace_is_problematic_mac_etype(struct ocelot_ace_rule *ace)
 {
+	u16 proto, mask;
+
 	if (ace->type != OCELOT_ACE_TYPE_ETYPE)
 		return false;
-	if (ether_addr_to_u64(ace->frame.etype.dmac.value) &
-	    ether_addr_to_u64(ace->frame.etype.dmac.mask))
+
+	proto = ntohs(*(u16 *)ace->frame.etype.etype.value);
+	mask = ntohs(*(u16 *)ace->frame.etype.etype.mask);
+
+	/* ETH_P_ALL match, so all protocols below are included */
+	if (mask == 0)
 		return true;
-	if (ether_addr_to_u64(ace->frame.etype.smac.value) &
-	    ether_addr_to_u64(ace->frame.etype.smac.mask))
+	if (proto == ETH_P_ARP)
 		return true;
+	if (proto == ETH_P_IP)
+		return true;
+	if (proto == ETH_P_IPV6)
+		return true;
+
 	return false;
 }
 
