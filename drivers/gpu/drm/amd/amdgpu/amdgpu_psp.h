@@ -385,4 +385,6 @@ int psp_ring_cmd_submit(struct psp_context *psp,
 			uint64_t cmd_buf_mc_addr,
 			uint64_t fence_mc_addr,
 			int index);
+int psp_init_asd_microcode(struct psp_context *psp,
+			   const char *chip_name);
 #endif
