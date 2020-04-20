@@ -40,13 +40,13 @@ struct atomisp_css_frame;
 #define MEMORY_SPACE_ENABLE	1
 #define INTR_IER		24
 #define INTR_IIR		16
-#ifdef ISP2401
+
+/* ISP2401 */
 #define RUNMODE_MASK (ATOMISP_RUN_MODE_VIDEO | ATOMISP_RUN_MODE_STILL_CAPTURE \
 			| ATOMISP_RUN_MODE_PREVIEW)
 
 /* FIXME: check if can go */
 extern int atomisp_punit_hpll_freq;
-#endif
 
 /*
  * Helper function
@@ -59,11 +59,10 @@ struct atomisp_acc_pipe *atomisp_to_acc_pipe(struct video_device *dev);
 int atomisp_reset(struct atomisp_device *isp);
 void atomisp_flush_bufs_and_wakeup(struct atomisp_sub_device *asd);
 void atomisp_clear_css_buffer_counters(struct atomisp_sub_device *asd);
-#ifndef ISP2401
+/* ISP2400 */
 bool atomisp_buffers_queued(struct atomisp_sub_device *asd);
-#else
+/* ISP2401 */
 bool atomisp_buffers_queued_pipe(struct atomisp_video_pipe *pipe);
-#endif
 
 /* TODO:should be here instead of atomisp_helper.h
 extern void __iomem *atomisp_io_base;
@@ -103,14 +102,12 @@ bool atomisp_is_viewfinder_support(struct atomisp_device *isp);
  */
 
 /*
-#ifdef ISP2401
  * Function to set sensor runmode by user when
  * ATOMISP_IOC_S_SENSOR_RUNMODE ioctl was called
  */
 int atomisp_set_sensor_runmode(struct atomisp_sub_device *asd,
 			       struct atomisp_s_runmode *runmode);
 /*
-#endif
  * Function to enable/disable lens geometry distortion correction (GDC) and
  * chromatic aberration correction (CAC)
  */

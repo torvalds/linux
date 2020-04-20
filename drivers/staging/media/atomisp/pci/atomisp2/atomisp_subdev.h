@@ -106,16 +106,15 @@ struct atomisp_video_pipe {
 	 */
 	unsigned int frame_request_config_id[VIDEO_MAX_FRAME];
 	struct atomisp_css_params_with_list *frame_params[VIDEO_MAX_FRAME];
-#ifdef ISP2401
 
 	/*
 	* move wdt from asd struct to create wdt for each pipe
 	*/
+	/* ISP2401 */
 	struct timer_list wdt;
 	unsigned int wdt_duration;	/* in jiffies */
 	unsigned long wdt_expires;
 	atomic_t wdt_count;
-#endif
 };
 
 struct atomisp_acc_pipe {
@@ -314,13 +313,12 @@ struct atomisp_sub_device {
 	struct v4l2_ctrl *continuous_raw_buffer_size;
 	struct v4l2_ctrl *continuous_viewfinder;
 	struct v4l2_ctrl *enable_raw_buffer_lock;
-#ifdef ISP2401
+
+	/* ISP2401 */
 	struct v4l2_ctrl *ion_dev_fd;
-#endif
-	struct v4l2_ctrl *disable_dz;
-#ifdef ISP2401
 	struct v4l2_ctrl *select_isp_version;
-#endif
+
+	struct v4l2_ctrl *disable_dz;
 
 	struct {
 		struct list_head fw;
@@ -400,20 +398,18 @@ struct atomisp_sub_device {
 	int raw_buffer_locked_count;
 	spinlock_t raw_buffer_bitmap_lock;
 
-#ifndef ISP2401
+	/* ISP 2400 */
 	struct timer_list wdt;
 	unsigned int wdt_duration;	/* in jiffies */
 	unsigned long wdt_expires;
 
-#endif
+	/* ISP2401 */
+	bool re_trigger_capture;
+
 	struct atomisp_resolution sensor_array_res;
 	bool high_speed_mode; /* Indicate whether now is a high speed mode */
 	int pending_capture_request; /* Indicates the number of pending capture requests. */
-#ifndef ISP2401
 
-#else
-	bool re_trigger_capture;
-#endif
 	unsigned int preview_exp_id;
 	unsigned int postview_exp_id;
 };
@@ -423,14 +419,16 @@ extern const struct atomisp_in_fmt_conv atomisp_in_fmt_conv[];
 u32 atomisp_subdev_uncompressed_code(u32 code);
 bool atomisp_subdev_is_compressed(u32 code);
 const struct atomisp_in_fmt_conv *atomisp_find_in_fmt_conv(u32 code);
-#ifndef ISP2401
+
+/* ISP2400 */
 const struct atomisp_in_fmt_conv *atomisp_find_in_fmt_conv_by_atomisp_in_fmt(
     enum atomisp_input_format atomisp_in_fmt);
-#else
+
+/* ISP2401 */
 const struct atomisp_in_fmt_conv
 *atomisp_find_in_fmt_conv_by_atomisp_in_fmt(enum atomisp_input_format
 	atomisp_in_fmt);
-#endif
+
 const struct atomisp_in_fmt_conv *atomisp_find_in_fmt_conv_compressed(u32 code);
 bool atomisp_subdev_format_conversion(struct atomisp_sub_device *asd,
 				      unsigned int source_pad);
