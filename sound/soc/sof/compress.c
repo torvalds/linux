@@ -13,7 +13,7 @@
 #include "ops.h"
 #include "probe.h"
 
-struct snd_compr_ops sof_probe_compressed_ops = {
+struct snd_compress_ops sof_probe_compressed_ops = {
 	.copy		= sof_probe_compr_copy,
 };
 EXPORT_SYMBOL(sof_probe_compressed_ops);
@@ -117,8 +117,9 @@ int sof_probe_compr_pointer(struct snd_compr_stream *cstream,
 }
 EXPORT_SYMBOL(sof_probe_compr_pointer);
 
-int sof_probe_compr_copy(struct snd_compr_stream *cstream,
-		char __user *buf, size_t count)
+int sof_probe_compr_copy(struct snd_soc_component *component,
+			 struct snd_compr_stream *cstream,
+			 char __user *buf, size_t count)
 {
 	struct snd_compr_runtime *rtd = cstream->runtime;
 	unsigned int offset, n;
