@@ -269,6 +269,7 @@ config DM_UNSTRIPED
 config DM_CRYPT
 	tristate "Crypt target support"
 	depends on BLK_DEV_DM
+	depends on (ENCRYPTED_KEYS || ENCRYPTED_KEYS=n)
 	select CRYPTO
 	select CRYPTO_CBC
 	select CRYPTO_ESSIV
