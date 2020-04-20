@@ -23,11 +23,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/pm.h>
 #include <linux/clk.h>
-#include <linux/of.h>
-#include <linux/of_address.h>
-#include <linux/of_irq.h>
-#include <linux/of_net.h>
-#include <linux/of_platform.h>
 #include <net/arp.h>
 
 #include <linux/mii.h>
@@ -2707,9 +2702,8 @@ static void bcmgenet_umac_reset(struct bcmgenet_priv *priv)
 static void bcmgenet_set_hw_addr(struct bcmgenet_priv *priv,
 				 unsigned char *addr)
 {
-	bcmgenet_umac_writel(priv, (addr[0] << 24) | (addr[1] << 16) |
-			(addr[2] << 8) | addr[3], UMAC_MAC0);
-	bcmgenet_umac_writel(priv, (addr[4] << 8) | addr[5], UMAC_MAC1);
+	bcmgenet_umac_writel(priv, get_unaligned_be32(&addr[0]), UMAC_MAC0);
+	bcmgenet_umac_writel(priv, get_unaligned_be16(&addr[4]), UMAC_MAC1);
 }
 
 static void bcmgenet_get_hw_addr(struct bcmgenet_priv *priv,
@@ -2718,13 +2712,9 @@ static void bcmgenet_get_hw_addr(struct bcmgenet_priv *priv,
 	u32 addr_tmp;
 
 	addr_tmp = bcmgenet_umac_readl(priv, UMAC_MAC0);
-	addr[0] = addr_tmp >> 24;
-	addr[1] = (addr_tmp >> 16) & 0xff;
-	addr[2] = (addr_tmp >>	8) & 0xff;
-	addr[3] = addr_tmp & 0xff;
+	put_unaligned_be32(addr_tmp, &addr[0]);
 	addr_tmp = bcmgenet_umac_readl(priv, UMAC_MAC1);
-	addr[4] = (addr_tmp >> 8) & 0xff;
-	addr[5] = addr_tmp & 0xff;
+	put_unaligned_be16(addr_tmp, &addr[4]);
 }
 
 /* Returns a reusable dma control register value */
@@ -3417,8 +3407,6 @@ MODULE_DEVICE_TABLE(of, bcmgenet_match);
 static int bcmgenet_probe(struct platform_device *pdev)
 {
 	struct bcmgenet_platform_data *pd = pdev->dev.platform_data;
-	struct device_node *dn = pdev->dev.of_node;
-	const struct of_device_id *of_id = NULL;
 	const struct bcmgenet_plat_data *pdata;
 	struct bcmgenet_priv *priv;
 	struct net_device *dev;
@@ -3431,12 +3419,6 @@ static int bcmgenet_probe(struct platform_device *pdev)
 	if (!dev) {
 		dev_err(&pdev->dev, "can't allocate net device\n");
 		return -ENOMEM;
-	}
-
-	if (dn) {
-		of_id = of_match_node(bcmgenet_match, dn);
-		if (!of_id)
-			return -EINVAL;
 	}
 
 	priv = netdev_priv(dev);
@@ -3500,13 +3482,16 @@ static int bcmgenet_probe(struct platform_device *pdev)
 		priv->dma_max_burst_length = DMA_MAX_BURST_LENGTH;
 	}
 
-	priv->clk = devm_clk_get(&priv->pdev->dev, "enet");
+	priv->clk = devm_clk_get_optional(&priv->pdev->dev, "enet");
 	if (IS_ERR(priv->clk)) {
 		dev_dbg(&priv->pdev->dev, "failed to get enet clock\n");
-		priv->clk = NULL;
+		err = PTR_ERR(priv->clk);
+		goto err;
 	}
 
-	clk_prepare_enable(priv->clk);
+	err = clk_prepare_enable(priv->clk);
+	if (err)
+		goto err;
 
 	bcmgenet_set_hw_params(priv);
 
@@ -3524,16 +3509,18 @@ static int bcmgenet_probe(struct platform_device *pdev)
 	priv->rx_buf_len = RX_BUF_LENGTH;
 	INIT_WORK(&priv->bcmgenet_irq_work, bcmgenet_irq_task);
 
-	priv->clk_wol = devm_clk_get(&priv->pdev->dev, "enet-wol");
+	priv->clk_wol = devm_clk_get_optional(&priv->pdev->dev, "enet-wol");
 	if (IS_ERR(priv->clk_wol)) {
 		dev_dbg(&priv->pdev->dev, "failed to get enet-wol clock\n");
-		priv->clk_wol = NULL;
+		err = PTR_ERR(priv->clk_wol);
+		goto err;
 	}
 
-	priv->clk_eee = devm_clk_get(&priv->pdev->dev, "enet-eee");
+	priv->clk_eee = devm_clk_get_optional(&priv->pdev->dev, "enet-eee");
 	if (IS_ERR(priv->clk_eee)) {
 		dev_dbg(&priv->pdev->dev, "failed to get enet-eee clock\n");
-		priv->clk_eee = NULL;
+		err = PTR_ERR(priv->clk_eee);
+		goto err;
 	}
 
 	/* If this is an internal GPHY, power it on now, before UniMAC is
@@ -3542,7 +3529,7 @@ static int bcmgenet_probe(struct platform_device *pdev)
 	if (device_get_phy_mode(&pdev->dev) == PHY_INTERFACE_MODE_INTERNAL)
 		bcmgenet_power_up(priv, GENET_POWER_PASSIVE);
 
-	if ((pd) && (!IS_ERR_OR_NULL(pd->mac_address)))
+	if (pd && !IS_ERR_OR_NULL(pd->mac_address))
 		ether_addr_copy(dev->dev_addr, pd->mac_address);
 	else
 		if (!device_get_mac_address(&pdev->dev, dev->dev_addr, ETH_ALEN))
@@ -3740,7 +3727,7 @@ static struct platform_driver bcmgenet_driver = {
 		.name	= "bcmgenet",
 		.of_match_table = bcmgenet_match,
 		.pm	= &bcmgenet_pm_ops,
-		.acpi_match_table = ACPI_PTR(genet_acpi_match),
+		.acpi_match_table = genet_acpi_match,
 	},
 };
 module_platform_driver(bcmgenet_driver);
