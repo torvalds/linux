@@ -811,6 +811,7 @@ struct rtw_chip_ops {
 			   u32 antenna_tx,
 			   u32 antenna_rx);
 	void (*cfg_ldo25)(struct rtw_dev *rtwdev, bool enable);
+	void (*efuse_grant)(struct rtw_dev *rtwdev, bool enable);
 	void (*false_alarm_statistics)(struct rtw_dev *rtwdev);
 	void (*phy_calibration)(struct rtw_dev *rtwdev);
 	void (*dpk_track)(struct rtw_dev *rtwdev);
@@ -1710,6 +1711,18 @@ static inline bool rtw_ssid_equal(struct cfg80211_ssid *a,
 		return false;
 
 	return true;
+}
+
+static inline void rtw_chip_efuse_grant_on(struct rtw_dev *rtwdev)
+{
+	if (rtwdev->chip->ops->efuse_grant)
+		rtwdev->chip->ops->efuse_grant(rtwdev, true);
+}
+
+static inline void rtw_chip_efuse_grant_off(struct rtw_dev *rtwdev)
+{
+	if (rtwdev->chip->ops->efuse_grant)
+		rtwdev->chip->ops->efuse_grant(rtwdev, false);
 }
 
 void rtw_get_channel_params(struct cfg80211_chan_def *chandef,

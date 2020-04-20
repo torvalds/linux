@@ -90,6 +90,8 @@ static int rtw_dump_physical_efuse_map(struct rtw_dev *rtwdev, u8 *map)
 	u32 addr;
 	u32 cnt;
 
+	rtw_chip_efuse_grant_on(rtwdev);
+
 	switch_efuse_bank(rtwdev);
 
 	/* disable 2.5V LDO */
@@ -112,6 +114,8 @@ static int rtw_dump_physical_efuse_map(struct rtw_dev *rtwdev, u8 *map)
 
 		*(map + addr) = (u8)(efuse_ctl & BIT_MASK_EF_DATA);
 	}
+
+	rtw_chip_efuse_grant_off(rtwdev);
 
 	return 0;
 }

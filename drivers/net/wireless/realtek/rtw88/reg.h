@@ -6,6 +6,7 @@
 #define __RTW_REG_DEF_H__
 
 #define REG_SYS_FUNC_EN		0x0002
+#define BIT_FEN_ELDR		BIT(12)
 #define BIT_FEN_CPUEN		BIT(2)
 #define BIT_FEN_BB_GLB_RST	BIT(1)
 #define BIT_FEN_BB_RSTB		BIT(0)
@@ -14,6 +15,10 @@
 #define REG_SYS_PW_CTRL		0x0004
 #define REG_SYS_CLK_CTRL	0x0008
 #define BIT_CPU_CLK_EN		BIT(14)
+
+#define REG_SYS_CLKR		0x0008
+#define BIT_ANA8M		BIT(1)
+#define BIT_LOADER_CLK_EN	BIT(5)
 
 #define REG_RSV_CTRL		0x001C
 #define DISABLE_PI		0x3
@@ -86,6 +91,10 @@
 				 BIT_IMEM_DW_OK | BIT_DMEM_DW_OK |             \
 				 BIT_CHECK_SUM_OK)
 #define FW_READY_MASK		0xffff
+
+#define REG_EFUSE_ACCESS	0x00CF
+#define EFUSE_ACCESS_ON		0x69
+#define EFUSE_ACCESS_OFF	0x00
 
 #define REG_WLRF1		0x00EC
 #define REG_WIFI_BT_INFO	0x00AA
