@@ -48,8 +48,7 @@ int hif_stop_scan(struct wfx_vif *wvif);
 int hif_join(struct wfx_vif *wvif, const struct ieee80211_bss_conf *conf,
 	     struct ieee80211_channel *channel, const u8 *ssid, int ssidlen);
 int hif_set_pm(struct wfx_vif *wvif, bool ps, int dynamic_ps_timeout);
-int hif_set_bss_params(struct wfx_vif *wvif,
-		       const struct hif_req_set_bss_params *arg);
+int hif_set_bss_params(struct wfx_vif *wvif, int aid, int beacon_lost_count);
 int hif_add_key(struct wfx_dev *wdev, const struct hif_req_add_key *arg);
 int hif_remove_key(struct wfx_dev *wdev, int idx);
 int hif_set_edca_queue_params(struct wfx_vif *wvif, u16 queue,

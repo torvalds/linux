@@ -321,17 +321,15 @@ int hif_join(struct wfx_vif *wvif, const struct ieee80211_bss_conf *conf,
 	return ret;
 }
 
-int hif_set_bss_params(struct wfx_vif *wvif,
-		       const struct hif_req_set_bss_params *arg)
+int hif_set_bss_params(struct wfx_vif *wvif, int aid, int beacon_lost_count)
 {
 	int ret;
 	struct hif_msg *hif;
-	struct hif_req_set_bss_params *body = wfx_alloc_hif(sizeof(*body),
-							    &hif);
+	struct hif_req_set_bss_params *body =
+		wfx_alloc_hif(sizeof(*body), &hif);
 
-	memcpy(body, arg, sizeof(*body));
-	cpu_to_le16s(&body->aid);
-	cpu_to_le32s(&body->operational_rate_set);
+	body->aid = cpu_to_le16(aid);
+	body->beacon_lost_count = beacon_lost_count;
 	wfx_fill_header(hif, wvif->id, HIF_REQ_ID_SET_BSS_PARAMS,
 			sizeof(*body));
 	ret = wfx_cmd_send(wvif->wdev, hif, NULL, 0, false);

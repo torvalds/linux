@@ -470,16 +470,11 @@ void wfx_stop_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 static void wfx_join_finalize(struct wfx_vif *wvif,
 			      struct ieee80211_bss_conf *info)
 {
-	struct hif_req_set_bss_params bss_params = {
-		// beacon_loss_count is defined to 7 in net/mac80211/mlme.c.
-		// Let's use the same value.
-		.beacon_lost_count = 7,
-		.aid = info->aid,
-	};
-
 	hif_set_association_mode(wvif, info);
 	hif_keep_alive_period(wvif, 0);
-	hif_set_bss_params(wvif, &bss_params);
+	// beacon_loss_count is defined to 7 in net/mac80211/mlme.c. Let's use
+	// the same value.
+	hif_set_bss_params(wvif, info->aid, 7);
 	hif_set_beacon_wakeup_period(wvif, 1, 1);
 	wfx_update_pm(wvif);
 
