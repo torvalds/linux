@@ -3529,7 +3529,7 @@ static int bcmgenet_probe(struct platform_device *pdev)
 	if (device_get_phy_mode(&pdev->dev) == PHY_INTERFACE_MODE_INTERNAL)
 		bcmgenet_power_up(priv, GENET_POWER_PASSIVE);
 
-	if ((pd) && (!IS_ERR_OR_NULL(pd->mac_address)))
+	if (pd && !IS_ERR_OR_NULL(pd->mac_address))
 		ether_addr_copy(dev->dev_addr, pd->mac_address);
 	else
 		if (!device_get_mac_address(&pdev->dev, dev->dev_addr, ETH_ALEN))
