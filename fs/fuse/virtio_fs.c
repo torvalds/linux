@@ -60,6 +60,12 @@ struct virtio_fs_forget {
 	struct virtio_fs_forget_req req;
 };
 
+struct virtio_fs_req_work {
+	struct fuse_req *req;
+	struct virtio_fs_vq *fsvq;
+	struct work_struct done_work;
+};
+
 static int virtio_fs_enqueue_req(struct virtio_fs_vq *fsvq,
 				 struct fuse_req *req, bool in_flight);
 
@@ -485,19 +491,67 @@ static void copy_args_from_argbuf(struct fuse_args *args, struct fuse_req *req)
 }
 
 /* Work function for request completion */
+static void virtio_fs_request_complete(struct fuse_req *req,
+				       struct virtio_fs_vq *fsvq)
+{
+	struct fuse_pqueue *fpq = &fsvq->fud->pq;
+	struct fuse_conn *fc = fsvq->fud->fc;
+	struct fuse_args *args;
+	struct fuse_args_pages *ap;
+	unsigned int len, i, thislen;
+	struct page *page;
+
+	/*
+	 * TODO verify that server properly follows FUSE protocol
+	 * (oh.uniq, oh.len)
+	 */
+	args = req->args;
+	copy_args_from_argbuf(args, req);
+
+	if (args->out_pages && args->page_zeroing) {
+		len = args->out_args[args->out_numargs - 1].size;
+		ap = container_of(args, typeof(*ap), args);
+		for (i = 0; i < ap->num_pages; i++) {
+			thislen = ap->descs[i].length;
+			if (len < thislen) {
+				WARN_ON(ap->descs[i].offset);
+				page = ap->pages[i];
+				zero_user_segment(page, len, thislen);
+				len = 0;
+			} else {
+				len -= thislen;
+			}
+		}
+	}
+
+	spin_lock(&fpq->lock);
+	clear_bit(FR_SENT, &req->flags);
+	spin_unlock(&fpq->lock);
+
+	fuse_request_end(fc, req);
+	spin_lock(&fsvq->lock);
+	dec_in_flight_req(fsvq);
+	spin_unlock(&fsvq->lock);
+}
+
+static void virtio_fs_complete_req_work(struct work_struct *work)
+{
+	struct virtio_fs_req_work *w =
+		container_of(work, typeof(*w), done_work);
+
+	virtio_fs_request_complete(w->req, w->fsvq);
+	kfree(w);
+}
+
 static void virtio_fs_requests_done_work(struct work_struct *work)
 {
 	struct virtio_fs_vq *fsvq = container_of(work, struct virtio_fs_vq,
 						 done_work);
 	struct fuse_pqueue *fpq = &fsvq->fud->pq;
-	struct fuse_conn *fc = fsvq->fud->fc;
 	struct virtqueue *vq = fsvq->vq;
 	struct fuse_req *req;
-	struct fuse_args_pages *ap;
 	struct fuse_req *next;
-	struct fuse_args *args;
-	unsigned int len, i, thislen;
-	struct page *page;
+	unsigned int len;
 	LIST_HEAD(reqs);
 
 	/* Collect completed requests off the virtqueue */
@@ -515,38 +569,20 @@ static void virtio_fs_requests_done_work(struct work_struct *work)
 
 	/* End requests */
 	list_for_each_entry_safe(req, next, &reqs, list) {
-		/*
-		 * TODO verify that server properly follows FUSE protocol
-		 * (oh.uniq, oh.len)
-		 */
-		args = req->args;
-		copy_args_from_argbuf(args, req);
-
-		if (args->out_pages && args->page_zeroing) {
-			len = args->out_args[args->out_numargs - 1].size;
-			ap = container_of(args, typeof(*ap), args);
-			for (i = 0; i < ap->num_pages; i++) {
-				thislen = ap->descs[i].length;
-				if (len < thislen) {
-					WARN_ON(ap->descs[i].offset);
-					page = ap->pages[i];
-					zero_user_segment(page, len, thislen);
-					len = 0;
-				} else {
-					len -= thislen;
-				}
-			}
-		}
-
-		spin_lock(&fpq->lock);
-		clear_bit(FR_SENT, &req->flags);
 		list_del_init(&req->list);
-		spin_unlock(&fpq->lock);
 
-		fuse_request_end(fc, req);
-		spin_lock(&fsvq->lock);
-		dec_in_flight_req(fsvq);
-		spin_unlock(&fsvq->lock);
+		/* blocking async request completes in a worker context */
+		if (req->args->may_block) {
+			struct virtio_fs_req_work *w;
+
+			w = kzalloc(sizeof(*w), GFP_NOFS | __GFP_NOFAIL);
+			INIT_WORK(&w->done_work, virtio_fs_complete_req_work);
+			w->fsvq = fsvq;
+			w->req = req;
+			schedule_work(&w->done_work);
+		} else {
+			virtio_fs_request_complete(req, fsvq);
+		}
 	}
 }
 
