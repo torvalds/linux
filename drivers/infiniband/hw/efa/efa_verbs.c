@@ -37,6 +37,7 @@ struct efa_user_mmap_entry {
 	op(EFA_RX_DROPS, "rx_drops") \
 	op(EFA_SUBMITTED_CMDS, "submitted_cmds") \
 	op(EFA_COMPLETED_CMDS, "completed_cmds") \
+	op(EFA_CMDS_ERR, "cmds_err") \
 	op(EFA_NO_COMPLETION_CMDS, "no_completion_cmds") \
 	op(EFA_KEEP_ALIVE_RCVD, "keep_alive_rcvd") \
 	op(EFA_ALLOC_PD_ERR, "alloc_pd_err") \
@@ -1752,6 +1753,7 @@ int efa_get_hw_stats(struct ib_device *ibdev, struct rdma_hw_stats *stats,
 	as = &dev->edev.aq.stats;
 	stats->value[EFA_SUBMITTED_CMDS] = atomic64_read(&as->submitted_cmd);
 	stats->value[EFA_COMPLETED_CMDS] = atomic64_read(&as->completed_cmd);
+	stats->value[EFA_CMDS_ERR] = atomic64_read(&as->cmd_err);
 	stats->value[EFA_NO_COMPLETION_CMDS] = atomic64_read(&as->no_completion);
 
 	s = &dev->stats;
