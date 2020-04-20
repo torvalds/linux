@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause */
 /*
- * Copyright 2018-2019 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2020 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #ifndef _EFA_H_
@@ -40,6 +40,7 @@ struct efa_sw_stats {
 	atomic64_t reg_mr_err;
 	atomic64_t alloc_ucontext_err;
 	atomic64_t create_ah_err;
+	atomic64_t mmap_err;
 };
 
 /* Don't use anything other than atomic64 */
