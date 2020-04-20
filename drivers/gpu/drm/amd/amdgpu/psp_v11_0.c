@@ -283,11 +283,8 @@ static int psp_v11_0_bootloader_load_kdb(struct psp_context *psp)
 	/* Check tOS sign of life register to confirm sys driver and sOS
 	 * are already been loaded.
 	 */
-	if (psp_v11_0_is_sos_alive(psp)) {
-		psp->sos_fw_version = RREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_58);
-		dev_info(adev->dev, "sos fw version = 0x%x.\n", psp->sos_fw_version);
+	if (psp_v11_0_is_sos_alive(psp))
 		return 0;
-	}
 
 	ret = psp_v11_0_wait_for_bootloader(psp);
 	if (ret)
@@ -319,11 +316,8 @@ static int psp_v11_0_bootloader_load_sysdrv(struct psp_context *psp)
 	/* Check sOS sign of life register to confirm sys driver and sOS
 	 * are already been loaded.
 	 */
-	if (psp_v11_0_is_sos_alive(psp)) {
-		psp->sos_fw_version = RREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_58);
-		dev_info(adev->dev, "sos fw version = 0x%x.\n", psp->sos_fw_version);
+	if (psp_v11_0_is_sos_alive(psp))
 		return 0;
-	}
 
 	ret = psp_v11_0_wait_for_bootloader(psp);
 	if (ret)
