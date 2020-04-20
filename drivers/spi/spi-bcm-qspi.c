@@ -109,6 +109,11 @@
 
 #define MSPI_SPCR3_FASTBR			BIT(0)
 #define MSPI_SPCR3_FASTDT			BIT(1)
+#define MSPI_SPCR3_SYSCLKSEL_MASK		GENMASK(11, 10)
+#define MSPI_SPCR3_SYSCLKSEL_27			(MSPI_SPCR3_SYSCLKSEL_MASK & \
+						 ~(BIT(10) | BIT(11)))
+#define MSPI_SPCR3_SYSCLKSEL_108		(MSPI_SPCR3_SYSCLKSEL_MASK & \
+						 BIT(11))
 
 #define MSPI_MSPI_STATUS_SPIF			BIT(0)
 
@@ -117,6 +122,7 @@
 
 #define NUM_CHIPSELECT				4
 #define QSPI_SPBR_MAX				255U
+#define MSPI_BASE_FREQ				27000000UL
 
 #define OPCODE_DIOR				0xBB
 #define OPCODE_QIOR				0xEB
@@ -222,6 +228,7 @@ struct bcm_qspi {
 	struct completion bspi_done;
 	u8 mspi_maj_rev;
 	u8 mspi_min_rev;
+	bool mspi_spcr3_sysclk;
 };
 
 static inline bool has_bspi(struct bcm_qspi *qspi)
@@ -235,6 +242,17 @@ static inline bool bcm_qspi_has_fastbr(struct bcm_qspi *qspi)
 	if (!has_bspi(qspi) &&
 	    ((qspi->mspi_maj_rev >= 1) &&
 	     (qspi->mspi_min_rev >= 5)))
+		return true;
+
+	return false;
+}
+
+/* hardware supports sys clk 108Mhz  */
+static inline bool bcm_qspi_has_sysclk_108(struct bcm_qspi *qspi)
+{
+	if (!has_bspi(qspi) && (qspi->mspi_spcr3_sysclk ||
+	    ((qspi->mspi_maj_rev >= 1) &&
+	     (qspi->mspi_min_rev >= 6))))
 		return true;
 
 	return false;
@@ -570,6 +588,15 @@ static void bcm_qspi_hw_set_parms(struct bcm_qspi *qspi,
 
 		/* enable fastbr */
 		spcr |=	MSPI_SPCR3_FASTBR;
+
+		if (bcm_qspi_has_sysclk_108(qspi)) {
+			/* SYSCLK_108 */
+			spcr |= MSPI_SPCR3_SYSCLKSEL_108;
+			qspi->base_clk = MSPI_BASE_FREQ * 4;
+			/* Change spbr as we changed sysclk */
+			bcm_qspi_write(qspi, MSPI, MSPI_SPCR0_LSB, 4);
+		}
+
 		bcm_qspi_write(qspi, MSPI, MSPI_SPCR3, spcr);
 	}
 
@@ -1224,14 +1251,22 @@ static const struct spi_controller_mem_ops bcm_qspi_mem_ops = {
 
 struct bcm_qspi_data {
 	bool	has_mspi_rev;
+	bool	has_spcr3_sysclk;
 };
 
 static const struct bcm_qspi_data bcm_qspi_no_rev_data = {
 	.has_mspi_rev	= false,
+	.has_spcr3_sysclk = false,
 };
 
 static const struct bcm_qspi_data bcm_qspi_rev_data = {
 	.has_mspi_rev	= true,
+	.has_spcr3_sysclk = false,
+};
+
+static const struct bcm_qspi_data bcm_qspi_spcr3_data = {
+	.has_mspi_rev	= true,
+	.has_spcr3_sysclk = true,
 };
 
 static const struct of_device_id bcm_qspi_of_match[] = {
@@ -1250,6 +1285,14 @@ static const struct of_device_id bcm_qspi_of_match[] = {
 	{
 		.compatible = "brcm,spi-bcm-qspi",
 		.data = &bcm_qspi_rev_data,
+	},
+	{
+		.compatible = "brcm,spi-bcm7216-qspi",
+		.data = &bcm_qspi_spcr3_data,
+	},
+	{
+		.compatible = "brcm,spi-bcm7278-qspi",
+		.data = &bcm_qspi_spcr3_data,
 	},
 	{},
 };
@@ -1424,6 +1467,7 @@ int bcm_qspi_probe(struct platform_device *pdev,
 
 	qspi->mspi_maj_rev = (rev >> 4) & 0xf;
 	qspi->mspi_min_rev = rev & 0xf;
+	qspi->mspi_spcr3_sysclk = data->has_spcr3_sysclk;
 
 	qspi->max_speed_hz = qspi->base_clk / (bcm_qspi_spbr_min(qspi) * 2);
 
