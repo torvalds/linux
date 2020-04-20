@@ -4365,33 +4365,8 @@ intel_dp_program_link_training_pattern(struct intel_dp *intel_dp,
 
 void intel_dp_set_idle_link_train(struct intel_dp *intel_dp)
 {
-	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
-	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
-	enum port port = intel_dig_port->base.port;
-	u32 val;
-
-	if (!HAS_DDI(dev_priv))
-		return;
-
-	val = intel_de_read(dev_priv, intel_dp->regs.dp_tp_ctl);
-	val &= ~DP_TP_CTL_LINK_TRAIN_MASK;
-	val |= DP_TP_CTL_LINK_TRAIN_IDLE;
-	intel_de_write(dev_priv, intel_dp->regs.dp_tp_ctl, val);
-
-	/*
-	 * Until TGL on PORT_A we can have only eDP in SST mode. There the only
-	 * reason we need to set idle transmission mode is to work around a HW
-	 * issue where we enable the pipe while not in idle link-training mode.
-	 * In this case there is requirement to wait for a minimum number of
-	 * idle patterns to be sent.
-	 */
-	if (port == PORT_A && INTEL_GEN(dev_priv) < 12)
-		return;
-
-	if (intel_de_wait_for_set(dev_priv, intel_dp->regs.dp_tp_status,
-				  DP_TP_STATUS_IDLE_DONE, 1))
-		drm_err(&dev_priv->drm,
-			"Timed out waiting for DP idle patterns\n");
+	if (intel_dp->set_idle_link_train)
+		intel_dp->set_idle_link_train(intel_dp);
 }
 
 static void

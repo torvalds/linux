@@ -4018,6 +4018,34 @@ static void intel_ddi_set_link_train(struct intel_dp *intel_dp,
 	intel_de_posting_read(dev_priv, DDI_BUF_CTL(port));
 }
 
+static void intel_ddi_set_idle_link_train(struct intel_dp *intel_dp)
+{
+	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	enum port port = encoder->port;
+	u32 val;
+
+	val = intel_de_read(dev_priv, intel_dp->regs.dp_tp_ctl);
+	val &= ~DP_TP_CTL_LINK_TRAIN_MASK;
+	val |= DP_TP_CTL_LINK_TRAIN_IDLE;
+	intel_de_write(dev_priv, intel_dp->regs.dp_tp_ctl, val);
+
+	/*
+	 * Until TGL on PORT_A we can have only eDP in SST mode. There the only
+	 * reason we need to set idle transmission mode is to work around a HW
+	 * issue where we enable the pipe while not in idle link-training mode.
+	 * In this case there is requirement to wait for a minimum number of
+	 * idle patterns to be sent.
+	 */
+	if (port == PORT_A && INTEL_GEN(dev_priv) < 12)
+		return;
+
+	if (intel_de_wait_for_set(dev_priv, intel_dp->regs.dp_tp_status,
+				  DP_TP_STATUS_IDLE_DONE, 1))
+		drm_err(&dev_priv->drm,
+			"Timed out waiting for DP idle patterns\n");
+}
+
 static bool intel_ddi_is_audio_enabled(struct drm_i915_private *dev_priv,
 				       enum transcoder cpu_transcoder)
 {
@@ -4463,6 +4491,7 @@ intel_ddi_init_dp_connector(struct intel_digital_port *intel_dig_port)
 	intel_dig_port->dp.prepare_link_retrain =
 		intel_ddi_prepare_link_retrain;
 	intel_dig_port->dp.set_link_train = intel_ddi_set_link_train;
+	intel_dig_port->dp.set_idle_link_train = intel_ddi_set_idle_link_train;
 
 	if (INTEL_GEN(dev_priv) >= 12)
 		intel_dig_port->dp.set_signal_levels = tgl_set_signal_levels;
