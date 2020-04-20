@@ -289,6 +289,7 @@ rpcrdma_cm_event_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 	case RDMA_CM_EVENT_DISCONNECTED:
 		ep->re_connect_status = -ECONNABORTED;
 disconnected:
+		xprt_force_disconnect(xprt);
 		return rpcrdma_ep_destroy(ep);
 	default:
 		break;
