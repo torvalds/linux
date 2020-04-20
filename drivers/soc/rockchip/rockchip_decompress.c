@@ -173,6 +173,7 @@ static int rockchip_decom_probe(struct platform_device *pdev)
 	}
 
 	ret = of_address_to_resource(mem, 0, &reg);
+	of_node_put(mem);
 	if (ret) {
 		dev_err(dev, "missing \"reg\" property\n");
 		return -ENODEV;
