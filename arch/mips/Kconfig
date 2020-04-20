@@ -580,13 +580,6 @@ config MACH_PIC32
 	  Microchip PIC32 is a family of general-purpose 32 bit MIPS core
 	  microcontrollers.
 
-config NEC_MARKEINS
-	bool "NEC EMMA2RH Mark-eins board"
-	select SOC_EMMA2RH
-	select HAVE_PCI
-	help
-	  This enables support for the NEC Electronics Mark-eins boards.
-
 config MACH_VR41XX
 	bool "NEC VR4100 series based machines"
 	select CEVT_R4K
@@ -1291,18 +1284,6 @@ config PCI_XTALK_BRIDGE
 
 config NO_EXCEPT_FILL
 	bool
-
-config SOC_EMMA2RH
-	bool
-	select CEVT_R4K
-	select CSRC_R4K
-	select DMA_NONCOHERENT
-	select IRQ_MIPS_CPU
-	select SWAP_IO_SPACE
-	select SYS_HAS_CPU_R5500
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_64BIT_KERNEL
-	select SYS_SUPPORTS_BIG_ENDIAN
 
 config SOC_PNX833X
 	bool
