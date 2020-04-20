@@ -427,6 +427,7 @@ config GOLDFISH_PIC
 config QCOM_PDC
 	tristate "QCOM PDC"
 	depends on ARCH_QCOM
+	depends on QCOM_SCM || !QCOM_SCM
 	select IRQ_DOMAIN_HIERARCHY
 	help
 	  Power Domain Controller driver to manage and configure wakeup
