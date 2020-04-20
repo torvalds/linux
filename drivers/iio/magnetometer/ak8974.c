@@ -606,6 +606,48 @@ static int ak8974_read_raw(struct iio_dev *indio_dev,
 		if (ret)
 			return ret;
 		return IIO_VAL_INT;
+	case IIO_CHAN_INFO_SCALE:
+		switch (ak8974->variant) {
+		case AK8974_WHOAMI_VALUE_AMI306:
+		case AK8974_WHOAMI_VALUE_AMI305:
+			/*
+			 * The datasheet for AMI305 and AMI306, page 6
+			 * specifies the range of the sensor to be
+			 * +/- 12 Gauss.
+			 */
+			*val = 12;
+			/*
+			 * 12 bits are used, +/- 2^11
+			 * [ -2048 .. 2047 ] (manual page 20)
+			 * [ 0xf800 .. 0x07ff ]
+			 */
+			*val2 = 11;
+			return IIO_VAL_FRACTIONAL_LOG2;
+		case AK8974_WHOAMI_VALUE_HSCDTD008A:
+			/*
+			 * The datasheet for HSCDTF008A, page 3 specifies the
+			 * range of the sensor as +/- 2.4 mT per axis, which
+			 * corresponds to +/- 2400 uT = +/- 24 Gauss.
+			 */
+			*val = 24;
+			/*
+			 * 15 bits are used (set up in CTRL4), +/- 2^14
+			 * [ -16384 .. 16383 ] (manual page 24)
+			 * [ 0xc000 .. 0x3fff ]
+			 */
+			*val2 = 14;
+			return IIO_VAL_FRACTIONAL_LOG2;
+		default:
+			/* GUESSING +/- 12 Gauss */
+			*val = 12;
+			/* GUESSING 12 bits ADC +/- 2^11 */
+			*val2 = 11;
+			return IIO_VAL_FRACTIONAL_LOG2;
+		}
+		break;
+	default:
+		/* Unknown request */
+		break;
 	}
 
 	return -EINVAL;
@@ -670,7 +712,8 @@ static const struct iio_chan_spec_ext_info ak8974_ext_info[] = {
 		.type = IIO_MAGN,					\
 		.modified = 1,						\
 		.channel2 = IIO_MOD_##axis,				\
-		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),		\
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |		\
+			BIT(IIO_CHAN_INFO_SCALE),			\
 		.ext_info = ak8974_ext_info,				\
 		.address = index,					\
 		.scan_index = index,					\
