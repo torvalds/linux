@@ -53,20 +53,17 @@
 #define OS04A10_VTS_MAX			0xffff
 
 #define OS04A10_REG_EXP_LONG_H		0x3501
-#define OS04A10_REG_EXP_LONG_L		0x3502
 #define OS04A10_REG_EXP_MID_H		0x3541
-#define OS04A10_REG_EXP_MID_L		0x3542
 #define OS04A10_REG_EXP_VS_H		0x3581
-#define OS04A10_REG_EXP_VS_L		0x3582
 
-#define OS04A10_REG_GAIN_LONG_H		0x3508
-#define OS04A10_REG_GAIN_LONG_L		0x3509
-#define OS04A10_REG_GAIN_MID_H		0x3548
-#define OS04A10_REG_GAIN_MID_L		0x3549
-#define OS04A10_REG_GAIN_VS_H		0x3588
-#define OS04A10_REG_GAIN_VS_L		0x3589
+#define OS04A10_REG_AGAIN_LONG_H	0x3508
+#define OS04A10_REG_AGAIN_MID_H		0x3548
+#define OS04A10_REG_AGAIN_VS_H		0x3588
+#define OS04A10_REG_DGAIN_LONG_H	0x350A
+#define OS04A10_REG_DGAIN_MID_H		0x354A
+#define OS04A10_REG_DGAIN_VS_H		0x358A
 #define OS04A10_GAIN_MIN		0x10
-#define OS04A10_GAIN_MAX		0x100
+#define OS04A10_GAIN_MAX		0xF7C
 #define OS04A10_GAIN_STEP		1
 #define OS04A10_GAIN_DEFAULT		0x10
 
@@ -74,6 +71,8 @@
 #define OS04A10_GROUP_UPDATE_START_DATA	0x00
 #define OS04A10_GROUP_UPDATE_END_DATA	0x10
 #define OS04A10_GROUP_UPDATE_END_LAUNCH	0xA0
+
+#define OS04A10_SOFTWARE_RESET_REG	0x0103
 
 #define OS04A10_FETCH_MSB_BYTE_EXP(VAL)	(((VAL) >> 8) & 0xFF)	/* 8 Bits */
 #define OS04A10_FETCH_LSB_BYTE_EXP(VAL)	((VAL) & 0xFF)	/* 8 Bits */
@@ -177,7 +176,6 @@ struct os04a10 {
  * Xclk 24Mhz
  */
 static const struct regval os04a10_global_regs[] = {
-	{0x0103, 0x01},
 	{0x0109, 0x01},
 	{0x0104, 0x02},
 	{0x0102, 0x00},
@@ -593,10 +591,10 @@ static const struct regval os04a10_hdr10bit_2688x1520_regs[] = {
 	{0x380b, 0xf0},
 	{0x380c, 0x02},
 	{0x380d, 0xdc},
-	/* {0x380e, 0x06}, */
-	/* {0x380f, 0x58}, */
-	{0x380e, 0x0c},
-	{0x380f, 0xb0},
+	{0x380e, 0x06},
+	{0x380f, 0x58},
+	//{0x380e, 0x0c},
+	//{0x380f, 0xb0},
 	{0x381c, 0x08},
 	{0x3820, 0x03},
 	{0x3833, 0x41},
@@ -800,6 +798,24 @@ static const struct os04a10_mode supported_modes[] = {
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
 	},
 	{
+		.bus_fmt = MEDIA_BUS_FMT_SBGGR12_1X12,
+		.width = 2688,
+		.height = 1520,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 225000,
+		},
+		.exp_def = 0x0240,
+		.hts_def = 0x05c4 * 2,
+		.vts_def = 0x0658,
+		.reg_list = os04a10_hdr12bit_2688x1520_regs,
+		.hdr_mode = HDR_X2,
+		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_1,
+		.vc[PAD1] = V4L2_MBUS_CSI2_CHANNEL_0,//L->csi wr0
+		.vc[PAD2] = V4L2_MBUS_CSI2_CHANNEL_1,
+		.vc[PAD3] = V4L2_MBUS_CSI2_CHANNEL_1,//M->csi wr2
+	},
+	{
 		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
 		.width = 2688,
 		.height = 1520,
@@ -813,25 +829,6 @@ static const struct os04a10_mode supported_modes[] = {
 		.reg_list = os04a10_linear10bit_2688x1520_regs,
 		.hdr_mode = NO_HDR,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
-	},
-	{
-		.bus_fmt = MEDIA_BUS_FMT_SBGGR12_1X12,
-		.width = 2688,
-		.height = 1520,
-		.max_fps = {
-			.numerator = 10000,
-			/* .denominator = 302834 * 2, */
-			.denominator = 225000,
-		},
-		.exp_def = 0x0240,
-		.hts_def = 0x05c4 * 2,
-		.vts_def = 0x0658,
-		.reg_list = os04a10_hdr12bit_2688x1520_regs,
-		.hdr_mode = HDR_X2,
-		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_1,
-		.vc[PAD1] = V4L2_MBUS_CSI2_CHANNEL_0,//L->csi wr0
-		.vc[PAD2] = V4L2_MBUS_CSI2_CHANNEL_1,
-		.vc[PAD3] = V4L2_MBUS_CSI2_CHANNEL_1,//M->csi wr2
 	},
 	{
 		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
@@ -1186,6 +1183,9 @@ static int os04a10_set_hdrae(struct os04a10 *os04a10,
 {
 	u32 l_exp_time, m_exp_time, s_exp_time;
 	u32 l_a_gain, m_a_gain, s_a_gain;
+	u32 l_d_gain = 1024;
+	u32 m_d_gain = 1024;
+	u32 s_d_gain = 1024;
 	int ret = 0;
 
 	if (!os04a10->has_init_exp && !os04a10->streaming) {
@@ -1213,22 +1213,44 @@ static int os04a10_set_hdrae(struct os04a10 *os04a10,
 		m_a_gain = s_a_gain;
 		m_exp_time = s_exp_time;
 	}
+
+	if (l_a_gain > 248) {
+		l_d_gain = l_a_gain * 1024 / 248;
+		l_a_gain = 248;
+	}
+	if (m_a_gain > 248) {
+		m_d_gain = m_a_gain * 1024 / 248;
+		m_a_gain = 248;
+	}
+	if (os04a10->cur_mode->hdr_mode == HDR_X3 && s_a_gain > 248) {
+		s_d_gain = s_a_gain * 1024 / 248;
+		s_a_gain = 248;
+	}
+
 	ret |= os04a10_write_reg(os04a10->client,
 		OS04A10_GROUP_UPDATE_ADDRESS,
 		OS04A10_REG_VALUE_08BIT,
 		OS04A10_GROUP_UPDATE_START_DATA);
 	ret |= os04a10_write_reg(os04a10->client,
-		OS04A10_REG_GAIN_LONG_H,
+		OS04A10_REG_AGAIN_LONG_H,
 		OS04A10_REG_VALUE_16BIT,
 		(l_a_gain << 4) & 0x1ff0);
+	ret |= os04a10_write_reg(os04a10->client,
+		OS04A10_REG_DGAIN_LONG_H,
+		OS04A10_REG_VALUE_24BIT,
+		(l_d_gain << 6) & 0xfffc0);
 	ret |= os04a10_write_reg(os04a10->client,
 		OS04A10_REG_EXP_LONG_H,
 		OS04A10_REG_VALUE_16BIT,
 		l_exp_time);
 	ret |= os04a10_write_reg(os04a10->client,
-		OS04A10_REG_GAIN_MID_H,
+		OS04A10_REG_AGAIN_MID_H,
 		OS04A10_REG_VALUE_16BIT,
 		(m_a_gain << 4) & 0x1ff0);
+	ret |= os04a10_write_reg(os04a10->client,
+		OS04A10_REG_DGAIN_MID_H,
+		OS04A10_REG_VALUE_24BIT,
+		(m_d_gain << 6) & 0xfffc0);
 	ret |= os04a10_write_reg(os04a10->client,
 		OS04A10_REG_EXP_MID_H,
 		OS04A10_REG_VALUE_16BIT,
@@ -1236,13 +1258,17 @@ static int os04a10_set_hdrae(struct os04a10 *os04a10,
 	if (os04a10->cur_mode->hdr_mode == HDR_X3) {
 		//3 stagger
 		ret |= os04a10_write_reg(os04a10->client,
-			OS04A10_REG_GAIN_VS_H,
+			OS04A10_REG_AGAIN_VS_H,
 			OS04A10_REG_VALUE_16BIT,
 			(s_a_gain << 4) & 0x1ff0);
 		ret |= os04a10_write_reg(os04a10->client,
 			OS04A10_REG_EXP_VS_H,
 			OS04A10_REG_VALUE_16BIT,
 			s_exp_time);
+		ret |= os04a10_write_reg(os04a10->client,
+			OS04A10_REG_DGAIN_VS_H,
+			OS04A10_REG_VALUE_24BIT,
+			(s_d_gain << 6) & 0xfffc0);
 	}
 	ret |= os04a10_write_reg(os04a10->client,
 		OS04A10_GROUP_UPDATE_ADDRESS,
@@ -1395,6 +1421,13 @@ static int __os04a10_start_stream(struct os04a10 *os04a10)
 {
 	int ret;
 
+	ret = os04a10_write_array(os04a10->client, os04a10_global_regs);
+	if (ret) {
+		dev_err(&os04a10->client->dev,
+			 "could not set init registers\n");
+		return ret;
+	}
+
 	ret = os04a10_write_array(os04a10->client, os04a10->cur_mode->reg_list);
 	if (ret)
 		return ret;
@@ -1480,12 +1513,11 @@ static int os04a10_s_power(struct v4l2_subdev *sd, int on)
 			goto unlock_and_return;
 		}
 
-		ret = os04a10_write_array(os04a10->client, os04a10_global_regs);
-		if (ret) {
-			v4l2_err(sd, "could not set init registers\n");
-			pm_runtime_put_noidle(&client->dev);
-			goto unlock_and_return;
-		}
+		ret |= os04a10_write_reg(os04a10->client,
+			OS04A10_SOFTWARE_RESET_REG,
+			OS04A10_REG_VALUE_08BIT,
+			0x01);
+		usleep_range(100, 200);
 
 		os04a10->power_on = true;
 	} else {
@@ -1542,7 +1574,7 @@ static int __os04a10_power_on(struct os04a10 *os04a10)
 	usleep_range(500, 1000);
 	if (!IS_ERR(os04a10->pwdn_gpio))
 		gpiod_set_value_cansleep(os04a10->pwdn_gpio, 1);
-	usleep_range(6000, 8000);
+	usleep_range(12000, 16000);
 	/* 8192 cycles prior to first SCCB transaction */
 	delay_us = os04a10_cal_delay(8192);
 	usleep_range(delay_us, delay_us * 2);
@@ -1680,6 +1712,7 @@ static int os04a10_set_ctrl(struct v4l2_ctrl *ctrl)
 	struct i2c_client *client = os04a10->client;
 	s64 max;
 	int ret = 0;
+	u32 again, dgain;
 
 	/* Propagate change of current control to all related controls */
 	switch (ctrl->id) {
@@ -1706,10 +1739,21 @@ static int os04a10_set_ctrl(struct v4l2_ctrl *ctrl)
 			ctrl->val);
 		break;
 	case V4L2_CID_ANALOGUE_GAIN:
+		if (ctrl->val > 248) {
+			dgain = ctrl->val * 1024 / 248;
+			again = 248;
+		} else {
+			dgain = 1024;
+			again = ctrl->val;
+		}
 		ret = os04a10_write_reg(os04a10->client,
-					OS04A10_REG_GAIN_LONG_H,
+					OS04A10_REG_AGAIN_LONG_H,
 					OS04A10_REG_VALUE_16BIT,
-					(ctrl->val << 4) & 0x1ff0);
+					(again << 4) & 0x1ff0);
+		ret |= os04a10_write_reg(os04a10->client,
+					OS04A10_REG_DGAIN_LONG_H,
+					OS04A10_REG_VALUE_24BIT,
+					(dgain << 6) & 0xfffc0);
 		dev_dbg(&client->dev, "set analog gain 0x%x\n",
 			ctrl->val);
 		break;
