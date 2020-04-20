@@ -2,6 +2,7 @@
 /* Copyright (c) 2012-2021, The Linux Foundation. All rights reserved. */
 
 #include <linux/bitmap.h>
+#include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
@@ -16,6 +17,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/spmi.h>
+#include <linux/string.h>
 #include <linux/soc/qcom/spmi-pmic-arb.h>
 
 /* PMIC Arbiter configuration registers */
@@ -140,6 +142,8 @@ struct apid_data {
  * @spmic:		SPMI controller object
  * @ver_ops:		version dependent operations.
  * @ppid_to_apid	in-memory copy of PPID -> APID mapping table.
+ * @debugfs:		debugfs directory pointer
+ * @debug_spmi_addr:	SPMI address used for debugfs operations
  */
 struct spmi_pmic_arb {
 	void __iomem		*rd_base;
@@ -163,6 +167,8 @@ struct spmi_pmic_arb {
 	u16			*ppid_to_apid;
 	u16			last_apid;
 	struct apid_data	apid_data[PMIC_ARB_MAX_PERIPHS];
+	struct dentry		*debugfs;
+	u32			debug_spmi_addr;
 };
 
 /**
@@ -1352,6 +1358,17 @@ static const struct irq_domain_ops pmic_arb_irq_domain_ops = {
 	.translate = qpnpint_irq_domain_translate,
 };
 
+static int _spmi_pmic_arb_map_address(struct spmi_pmic_arb *pmic_arb,
+				u32 spmi_address, struct resource *res_out)
+{
+	u32 sid, addr;
+
+	sid = (spmi_address >> 16) & 0xF;
+	addr = spmi_address & 0xFFFF;
+
+	return pmic_arb->ver_ops->wr_addr_map(pmic_arb, sid, addr, res_out);
+}
+
 /**
  * spmi_pmic_arb_map_address() - returns physical addresses of registers used to
  *		write to the PMIC peripheral at spmi_address
@@ -1372,7 +1389,6 @@ int spmi_pmic_arb_map_address(const struct device *dev, u32 spmi_address,
 	struct platform_device *ctrl_pdev;
 	struct spmi_controller *ctrl;
 	struct spmi_pmic_arb *pmic_arb;
-	u32 sid, addr;
 
 	if (!dev || !dev->of_node || !res_out) {
 		pr_err("%s: Invalid pointer\n", __func__);
@@ -1401,12 +1417,120 @@ int spmi_pmic_arb_map_address(const struct device *dev, u32 spmi_address,
 		return -ENODEV;
 	}
 
-	sid = (spmi_address >> 16) & 0xF;
-	addr = spmi_address & 0xFFFF;
-
-	return pmic_arb->ver_ops->wr_addr_map(pmic_arb, sid, addr, res_out);
+	return _spmi_pmic_arb_map_address(pmic_arb, spmi_address, res_out);
 }
 EXPORT_SYMBOL(spmi_pmic_arb_map_address);
+
+#ifdef CONFIG_DEBUG_FS
+static int debug_spmi_addr_get(void *data, u64 *val)
+{
+	struct spmi_pmic_arb *pmic_arb = data;
+
+	*val = pmic_arb->debug_spmi_addr;
+
+	return 0;
+}
+
+static int debug_spmi_addr_set(void *data, u64 val)
+{
+	struct spmi_pmic_arb *pmic_arb = data;
+
+	pmic_arb->debug_spmi_addr = val;
+
+	return 0;
+}
+DEFINE_DEBUGFS_ATTRIBUTE(debug_spmi_addr_fops, debug_spmi_addr_get,
+			debug_spmi_addr_set, "0x%05llX\n");
+
+static int debug_soc_start_addr_get(void *data, u64 *val)
+{
+	struct spmi_pmic_arb *pmic_arb = data;
+	struct resource res = {0};
+	int err;
+
+	err = _spmi_pmic_arb_map_address(pmic_arb, pmic_arb->debug_spmi_addr,
+					&res);
+	if (err)
+		return err;
+
+	*val = res.start;
+
+	return 0;
+}
+DEFINE_DEBUGFS_ATTRIBUTE(debug_soc_start_addr_fops, debug_soc_start_addr_get,
+			 NULL, "0x%llX\n");
+
+static int debug_soc_end_addr_get(void *data, u64 *val)
+{
+	struct spmi_pmic_arb *pmic_arb = data;
+	struct resource res = {0};
+	int err;
+
+	err = _spmi_pmic_arb_map_address(pmic_arb, pmic_arb->debug_spmi_addr,
+					&res);
+	if (err)
+		return err;
+
+	*val = res.end;
+
+	return 0;
+}
+DEFINE_DEBUGFS_ATTRIBUTE(debug_soc_end_addr_fops, debug_soc_end_addr_get,
+			 NULL, "0x%llX\n");
+
+static void spmi_pmic_arb_debugfs_init(struct spmi_pmic_arb *pmic_arb)
+{
+	struct dentry *dir, *file;
+	char buf[10];
+
+	scnprintf(buf, sizeof(buf), "spmi%u", pmic_arb->spmic->nr);
+
+	dir = debugfs_create_dir(buf, NULL);
+	if (IS_ERR(dir)) {
+		dev_err(&pmic_arb->spmic->dev, "Could not create %s debugfs directory, rc=%ld\n",
+			buf, PTR_ERR(dir));
+		return;
+	}
+	pmic_arb->debugfs = dir;
+
+	dir = debugfs_create_dir("address_map", pmic_arb->debugfs);
+	if (IS_ERR(dir)) {
+		dev_err(&pmic_arb->spmic->dev, "Could not create address_map debugfs directory, rc=%ld\n",
+			PTR_ERR(dir));
+		goto error;
+	}
+
+	file = debugfs_create_file_unsafe("spmi_addr", 0600, dir, pmic_arb,
+					  &debug_spmi_addr_fops);
+	if (IS_ERR(file)) {
+		dev_err(&pmic_arb->spmic->dev, "Could not create spmi_addr debugfs file, rc=%ld\n",
+			PTR_ERR(file));
+		goto error;
+	}
+
+	file = debugfs_create_file_unsafe("soc_addr_start", 0400, dir, pmic_arb,
+					  &debug_soc_start_addr_fops);
+	if (IS_ERR(file)) {
+		dev_err(&pmic_arb->spmic->dev, "Could not create soc_addr_start debugfs file, rc=%ld\n",
+			PTR_ERR(file));
+		goto error;
+	}
+
+	file = debugfs_create_file_unsafe("soc_addr_end", 0400, dir, pmic_arb,
+					  &debug_soc_end_addr_fops);
+	if (IS_ERR(file)) {
+		dev_err(&pmic_arb->spmic->dev, "Could not create soc_addr_end debugfs file, rc=%ld\n",
+			PTR_ERR(file));
+		goto error;
+	}
+
+	return;
+error:
+	debugfs_remove_recursive(pmic_arb->debugfs);
+}
+#else
+static void spmi_pmic_arb_debugfs_init(struct spmi_pmic_arb *pmic_arb) { }
+#endif
 
 static int spmi_pmic_arb_probe(struct platform_device *pdev)
 {
@@ -1579,6 +1703,8 @@ static int spmi_pmic_arb_probe(struct platform_device *pdev)
 	if (err)
 		goto err_domain_remove;
 
+	spmi_pmic_arb_debugfs_init(pmic_arb);
+
 	return 0;
 
 err_domain_remove:
@@ -1595,6 +1721,7 @@ static int spmi_pmic_arb_remove(struct platform_device *pdev)
 {
 	struct spmi_controller *ctrl = platform_get_drvdata(pdev);
 	struct spmi_pmic_arb *pmic_arb = spmi_controller_get_drvdata(ctrl);
+	debugfs_remove_recursive(pmic_arb->debugfs);
 	spmi_controller_remove(ctrl);
 	if (pmic_arb->irq > 0) {
 		irq_set_chained_handler_and_data(pmic_arb->irq, NULL, NULL);
