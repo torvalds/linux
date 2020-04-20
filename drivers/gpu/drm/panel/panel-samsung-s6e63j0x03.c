@@ -365,7 +365,7 @@ static int s6e63j0x03_enable(struct drm_panel *panel)
 		return ret;
 
 	/* set default white brightness */
-	ret = mipi_dsi_dcs_set_display_brightness(dsi, 0x00ff, 1);
+	ret = mipi_dsi_dcs_set_display_brightness(dsi, 0x00ff);
 	if (ret < 0)
 		return ret;
 
