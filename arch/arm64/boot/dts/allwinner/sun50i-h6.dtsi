@@ -262,6 +262,10 @@
 			ths_calibration: thermal-sensor-calibration@14 {
 				reg = <0x14 0x8>;
 			};
+
+			cpu_speed_grade: cpu-speed-grade@1c {
+				reg = <0x1c 0x4>;
+			};
 		};
 
 		watchdog: watchdog@30090a0 {
