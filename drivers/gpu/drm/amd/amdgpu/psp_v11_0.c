@@ -78,7 +78,6 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 	const struct psp_firmware_header_v1_0 *sos_hdr;
 	const struct psp_firmware_header_v1_1 *sos_hdr_v1_1;
 	const struct psp_firmware_header_v1_2 *sos_hdr_v1_2;
-	const struct psp_firmware_header_v1_0 *asd_hdr;
 	const struct ta_firmware_header_v1_0 *ta_hdr;
 
 	DRM_DEBUG("\n");
@@ -148,21 +147,9 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 		goto out;
 	}
 
-	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_asd.bin", chip_name);
-	err = request_firmware(&adev->psp.asd_fw, fw_name, adev->dev);
+	err = psp_init_asd_microcode(psp, chip_name);
 	if (err)
-		goto out1;
-
-	err = amdgpu_ucode_validate(adev->psp.asd_fw);
-	if (err)
-		goto out1;
-
-	asd_hdr = (const struct psp_firmware_header_v1_0 *)adev->psp.asd_fw->data;
-	adev->psp.asd_fw_version = le32_to_cpu(asd_hdr->header.ucode_version);
-	adev->psp.asd_feature_version = le32_to_cpu(asd_hdr->ucode_feature_version);
-	adev->psp.asd_ucode_size = le32_to_cpu(asd_hdr->header.ucode_size_bytes);
-	adev->psp.asd_start_addr = (uint8_t *)asd_hdr +
-				le32_to_cpu(asd_hdr->header.ucode_array_offset_bytes);
+		goto out;
 
 	switch (adev->asic_type) {
 	case CHIP_VEGA20:
@@ -229,9 +216,6 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 out2:
 	release_firmware(adev->psp.ta_fw);
 	adev->psp.ta_fw = NULL;
-out1:
-	release_firmware(adev->psp.asd_fw);
-	adev->psp.asd_fw = NULL;
 out:
 	dev_err(adev->dev,
 		"psp v11.0: Failed to load firmware \"%s\"\n", fw_name);
