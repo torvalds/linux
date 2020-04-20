@@ -924,11 +924,10 @@ mt7615_mcu_wtbl_ht_tlv(struct sk_buff *skb, struct ieee80211_sta *sta,
 		       void *sta_wtbl, void *wtbl_tlv)
 {
 	struct tlv *tlv;
+	struct wtbl_ht *ht = NULL;
 	u32 flags = 0;
 
 	if (sta->ht_cap.ht_supported) {
-		struct wtbl_ht *ht;
-
 		tlv = mt7615_mcu_add_nested_tlv(skb, WTBL_HT, sizeof(*ht),
 						wtbl_tlv, sta_wtbl);
 		ht = (struct wtbl_ht *)tlv;
@@ -945,12 +944,20 @@ mt7615_mcu_wtbl_ht_tlv(struct sk_buff *skb, struct ieee80211_sta *sta,
 
 	if (sta->vht_cap.vht_supported) {
 		struct wtbl_vht *vht;
+		u8 af;
 
 		tlv = mt7615_mcu_add_nested_tlv(skb, WTBL_VHT, sizeof(*vht),
 						wtbl_tlv, sta_wtbl);
 		vht = (struct wtbl_vht *)tlv;
 		vht->ldpc = sta->vht_cap.cap & IEEE80211_VHT_CAP_RXLDPC,
 		vht->vht = 1;
+
+		af = (sta->vht_cap.cap &
+		      IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_MASK) >>
+		      IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_SHIFT;
+
+		if (ht)
+		    ht->af = max(ht->af, af);
 
 		if (sta->vht_cap.cap & IEEE80211_VHT_CAP_SHORT_GI_80)
 			flags |= MT_WTBL_W5_SHORT_GI_80;
