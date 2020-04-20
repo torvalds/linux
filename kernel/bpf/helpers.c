@@ -112,7 +112,7 @@ BPF_CALL_0(bpf_ktime_get_ns)
 
 const struct bpf_func_proto bpf_ktime_get_ns_proto = {
 	.func		= bpf_ktime_get_ns,
-	.gpl_only	= true,
+	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
 };
 
