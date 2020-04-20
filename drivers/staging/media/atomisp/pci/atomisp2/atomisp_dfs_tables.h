@@ -128,7 +128,7 @@ static const struct atomisp_dfs_config dfs_config_merr_1179 = {
 	.dfs_table_size = ARRAY_SIZE(dfs_rules_merr_1179),
 };
 
-static const struct atomisp_freq_scaling_rule dfs_rules_merr_117a[] = {
+static struct atomisp_freq_scaling_rule dfs_rules_merr_117a[] = {
 	{
 		.width = 1920,
 		.height = 1080,
@@ -140,11 +140,11 @@ static const struct atomisp_freq_scaling_rule dfs_rules_merr_117a[] = {
 		.width = 1080,
 		.height = 1920,
 		.fps = 30,
-#ifndef ISP2401
-		.isp_freq = ISP_FREQ_266MHZ,
-#else
-		.isp_freq = ISP_FREQ_400MHZ,
-#endif
+		/*
+		 * FIXME: this is weird, but .isp_freq depends on
+		 * the chip being ISP2400 or ISP2401. So, this should be
+		 * initialized on runtime.
+		 */
 		.run_mode = ATOMISP_RUN_MODE_VIDEO,
 	},
 	{
@@ -205,7 +205,7 @@ static const struct atomisp_freq_scaling_rule dfs_rules_merr_117a[] = {
 	},
 };
 
-static const struct atomisp_dfs_config dfs_config_merr_117a = {
+static struct atomisp_dfs_config dfs_config_merr_117a = {
 	.lowest_freq = ISP_FREQ_200MHZ,
 	.max_freq_at_vmin = ISP_FREQ_200MHZ,
 	.highest_freq = ISP_FREQ_400MHZ,

@@ -1246,7 +1246,17 @@ static int atomisp_pci_probe(struct pci_dev *dev,
 			isp->dfs = &dfs_config_merr_1179;
 			break;
 		case ATOMISP_PCI_DEVICE_SOC_MRFLD_117A:
+			/*
+			 * FIXME: This should likely be uneeded. Either one
+			 * value is likely the correct one for this resolution
+			 */
+			if (!atomisp_hw_is_isp2401)
+				dfs_rules_merr_117a[1].isp_freq = ISP_FREQ_266MHZ;
+			else
+				dfs_rules_merr_117a[1].isp_freq = ISP_FREQ_400MHZ;
+
 			isp->dfs = &dfs_config_merr_117a;
+
 			break;
 		default:
 			isp->dfs = &dfs_config_merr;
