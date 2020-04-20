@@ -354,7 +354,6 @@ static void wfx_do_unjoin(struct wfx_vif *wvif)
 	wfx_free_event_queue(wvif);
 	cancel_work_sync(&wvif->event_handler_work);
 
-	memset(&wvif->bss_params, 0, sizeof(wvif->bss_params));
 	wfx_tx_unlock(wvif->wdev);
 	cancel_delayed_work_sync(&wvif->beacon_loss_work);
 }
@@ -534,15 +533,16 @@ static void wfx_join_finalize(struct wfx_vif *wvif,
 			      struct ieee80211_bss_conf *info)
 {
 	struct ieee80211_sta *sta = NULL;
+	struct hif_req_set_bss_params bss_params = { };
 
 	rcu_read_lock(); // protect sta
 	if (info->bssid && !info->ibss_joined)
 		sta = ieee80211_find_sta(wvif->vif, info->bssid);
 	if (sta)
-		wvif->bss_params.operational_rate_set =
+		bss_params.operational_rate_set =
 			wfx_rate_mask_to_hw(wvif->wdev, sta->supp_rates[wvif->channel->band]);
 	else
-		wvif->bss_params.operational_rate_set = -1;
+		bss_params.operational_rate_set = -1;
 	rcu_read_unlock();
 	if (sta &&
 	    info->ht_operation_mode & IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT)
@@ -552,15 +552,15 @@ static void wfx_join_finalize(struct wfx_vif *wvif,
 
 	// beacon_loss_count is defined to 7 in net/mac80211/mlme.c. Let's use
 	// the same value.
-	wvif->bss_params.beacon_lost_count = 7;
-	wvif->bss_params.aid = info->aid;
+	bss_params.beacon_lost_count = 7;
+	bss_params.aid = info->aid;
 
 	hif_set_association_mode(wvif, info);
 
 	if (!info->ibss_joined) {
 		wvif->state = WFX_STATE_STA;
 		hif_keep_alive_period(wvif, 0);
-		hif_set_bss_params(wvif, &wvif->bss_params);
+		hif_set_bss_params(wvif, &bss_params);
 		hif_set_beacon_wakeup_period(wvif, 1, 1);
 		wfx_update_pm(wvif);
 	}
@@ -840,8 +840,6 @@ int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	wvif->link_id_map = 1; // link-id 0 is reserved for multicast
 	INIT_WORK(&wvif->update_tim_work, wfx_update_tim_work);
 	INIT_DELAYED_WORK(&wvif->beacon_loss_work, wfx_beacon_loss_work);
-
-	memset(&wvif->bss_params, 0, sizeof(wvif->bss_params));
 
 	wvif->wep_default_key_id = -1;
 	INIT_WORK(&wvif->wep_key_work, wfx_wep_key_work);
