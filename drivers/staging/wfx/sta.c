@@ -494,14 +494,13 @@ static void wfx_join_finalize(struct wfx_vif *wvif,
 	bss_params.aid = info->aid;
 
 	hif_set_association_mode(wvif, info);
+	hif_keep_alive_period(wvif, 0);
+	hif_set_bss_params(wvif, &bss_params);
+	hif_set_beacon_wakeup_period(wvif, 1, 1);
+	wfx_update_pm(wvif);
 
-	if (!info->ibss_joined) {
+	if (!info->ibss_joined)
 		wvif->state = WFX_STATE_STA;
-		hif_keep_alive_period(wvif, 0);
-		hif_set_bss_params(wvif, &bss_params);
-		hif_set_beacon_wakeup_period(wvif, 1, 1);
-		wfx_update_pm(wvif);
-	}
 }
 
 int wfx_join_ibss(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
