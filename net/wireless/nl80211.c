@@ -3905,14 +3905,25 @@ static int nl80211_get_key(struct sk_buff *skb, struct genl_info *info)
 	};
 	void *hdr;
 	struct sk_buff *msg;
+	bool bigtk_support = false;
+
+	if (wiphy_ext_feature_isset(&rdev->wiphy,
+				    NL80211_EXT_FEATURE_BEACON_PROTECTION))
+		bigtk_support = true;
+
+	if ((dev->ieee80211_ptr->iftype == NL80211_IFTYPE_STATION ||
+	     dev->ieee80211_ptr->iftype == NL80211_IFTYPE_P2P_CLIENT) &&
+	    wiphy_ext_feature_isset(&rdev->wiphy,
+				    NL80211_EXT_FEATURE_BEACON_PROTECTION_CLIENT))
+		bigtk_support = true;
 
 	if (info->attrs[NL80211_ATTR_KEY_IDX]) {
 		key_idx = nla_get_u8(info->attrs[NL80211_ATTR_KEY_IDX]);
-		if (key_idx > 5 &&
-		    !wiphy_ext_feature_isset(
-			    &rdev->wiphy,
-			    NL80211_EXT_FEATURE_BEACON_PROTECTION))
+
+		if (key_idx >= 6 && key_idx <= 7 && !bigtk_support) {
+			GENL_SET_ERR_MSG(info, "BIGTK not supported");
 			return -EINVAL;
+		}
 	}
 
 	if (info->attrs[NL80211_ATTR_MAC])

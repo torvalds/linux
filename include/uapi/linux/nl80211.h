@@ -5690,6 +5690,8 @@ enum nl80211_feature_flags {
  *
  * @NL80211_EXT_FEATURE_BEACON_PROTECTION: The driver supports Beacon protection
  *	and can receive key configuration for BIGTK using key indexes 6 and 7.
+ * @NL80211_EXT_FEATURE_BEACON_PROTECTION_CLIENT: The driver supports Beacon
+ *	protection as a client only and cannot transmit protected beacons.
  *
  * @NL80211_EXT_FEATURE_CONTROL_PORT_NO_PREAUTH: The driver can disable the
  *	forwarding of preauth frames over the control port. They are then
@@ -5755,6 +5757,7 @@ enum nl80211_ext_feature_index {
 	NL80211_EXT_FEATURE_PROTECTED_TWT,
 	NL80211_EXT_FEATURE_DEL_IBSS_STA,
 	NL80211_EXT_FEATURE_MULTICAST_REGISTRATIONS,
+	NL80211_EXT_FEATURE_BEACON_PROTECTION_CLIENT,
 
 	/* add new features before the definition below */
 	NUM_NL80211_EXT_FEATURES,
