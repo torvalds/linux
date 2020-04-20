@@ -542,6 +542,10 @@ static unsigned int get_hblank_early_enable_config(struct intel_encoder *encoder
 		    h_active, crtc_state->port_clock, crtc_state->lane_count,
 		    vdsc_bpp, cdclk);
 
+	if (WARN_ON(!crtc_state->port_clock || !crtc_state->lane_count ||
+		    !crtc_state->dsc.compressed_bpp || !i915->cdclk.hw.cdclk))
+		return 0;
+
 	link_clks_available = ((((h_total - h_active) *
 			       ((crtc_state->port_clock * ROUNDING_FACTOR) /
 				pixel_clk)) / ROUNDING_FACTOR) - 28);
@@ -597,20 +601,11 @@ static void enable_audio_dsc_wa(struct intel_encoder *encoder,
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	enum pipe pipe = crtc->pipe;
-	unsigned int hblank_early_prog, samples_room, h_active;
+	unsigned int hblank_early_prog, samples_room;
 	unsigned int val;
 
 	if (INTEL_GEN(i915) < 11)
 		return;
-
-	h_active = crtc_state->hw.adjusted_mode.hdisplay;
-
-	if (!(h_active && crtc_state->port_clock && crtc_state->lane_count &&
-	      crtc_state->dsc.compressed_bpp && i915->cdclk.hw.cdclk)) {
-		drm_err(&i915->drm, "Null Params rcvd for hblank early enabling\n");
-		WARN_ON(1);
-		return;
-	}
 
 	val = intel_de_read(i915, AUD_CONFIG_BE);
 
