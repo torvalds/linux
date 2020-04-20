@@ -64,7 +64,7 @@ struct renesas_sdhi {
 	/* Sampling data comparison: 1 for match, 0 for mismatch */
 	DECLARE_BITMAP(smpcmp, BITS_PER_LONG);
 	unsigned int tap_num;
-	unsigned long tap_set;
+	unsigned int tap_set;
 };
 
 #define host_to_priv(host) \
