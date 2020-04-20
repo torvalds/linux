@@ -547,9 +547,6 @@ void wfx_tx_confirm_cb(struct wfx_vif *wvif, const struct hif_cnf_tx *arg)
 	memset(tx_info->pad, 0, sizeof(tx_info->pad));
 
 	if (!arg->status) {
-		if (wvif->bss_loss_state &&
-		    arg->packet_id == wvif->bss_loss_confirm_id)
-			wfx_cqm_bssloss_sm(wvif, 0, 1, 0);
 		tx_info->status.tx_time =
 		arg->media_delay - arg->tx_queue_delay;
 		if (tx_info->flags & IEEE80211_TX_CTL_NO_ACK)
@@ -563,10 +560,6 @@ void wfx_tx_confirm_cb(struct wfx_vif *wvif, const struct hif_cnf_tx *arg)
 			schedule_work(&wvif->update_tim_work);
 		}
 		tx_info->flags |= IEEE80211_TX_STAT_TX_FILTERED;
-	} else {
-		if (wvif->bss_loss_state &&
-		    arg->packet_id == wvif->bss_loss_confirm_id)
-			wfx_cqm_bssloss_sm(wvif, 0, 0, 1);
 	}
 	wfx_skb_dtor(wvif->wdev, skb);
 }

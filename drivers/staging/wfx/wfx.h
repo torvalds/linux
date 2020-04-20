@@ -69,14 +69,10 @@ struct wfx_vif {
 	int			id;
 	enum wfx_state		state;
 
-	int			bss_loss_state;
-	u32			bss_loss_confirm_id;
-	struct mutex		bss_loss_lock;
-	struct delayed_work	bss_loss_work;
-
 	u32			link_id_map;
 
 	bool			after_dtim_tx_allowed;
+	struct delayed_work	beacon_loss_work;
 
 	s8			wep_default_key_id;
 	struct sk_buff		*wep_pending_skb;
@@ -92,7 +88,6 @@ struct wfx_vif {
 
 	unsigned long		uapsd_mask;
 	struct hif_req_set_bss_params bss_params;
-	struct work_struct	bss_params_work;
 
 	int			join_complete_status;
 

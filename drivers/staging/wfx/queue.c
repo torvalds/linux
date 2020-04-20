@@ -266,17 +266,6 @@ static bool wfx_handle_tx_data(struct wfx_dev *wdev, struct sk_buff *skb)
 	if (!wvif)
 		return false;
 
-	// FIXME: mac80211 is smart enough to handle BSS loss. Driver should not
-	// try to do anything about that.
-	if (ieee80211_is_nullfunc(frame->frame_control)) {
-		mutex_lock(&wvif->bss_loss_lock);
-		if (wvif->bss_loss_state) {
-			wvif->bss_loss_confirm_id = req->packet_id;
-			req->queue_id.queue_id = HIF_QUEUE_ID_VOICE;
-		}
-		mutex_unlock(&wvif->bss_loss_lock);
-	}
-
 	// FIXME: identify the exact scenario matched by this condition. Does it
 	// happen yet?
 	if (ieee80211_has_protected(frame->frame_control) &&

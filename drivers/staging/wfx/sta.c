@@ -59,60 +59,6 @@ static void wfx_free_event_queue(struct wfx_vif *wvif)
 	__wfx_free_event_queue(&list);
 }
 
-void wfx_cqm_bssloss_sm(struct wfx_vif *wvif, int init, int good, int bad)
-{
-	int tx = 0;
-
-	mutex_lock(&wvif->bss_loss_lock);
-	cancel_work_sync(&wvif->bss_params_work);
-
-	if (init) {
-		schedule_delayed_work(&wvif->bss_loss_work, HZ);
-		wvif->bss_loss_state = 0;
-
-		if (!atomic_read(&wvif->wdev->tx_lock))
-			tx = 1;
-	} else if (good) {
-		cancel_delayed_work_sync(&wvif->bss_loss_work);
-		wvif->bss_loss_state = 0;
-		schedule_work(&wvif->bss_params_work);
-	} else if (bad) {
-		/* FIXME Should we just keep going until we time out? */
-		if (wvif->bss_loss_state < 3)
-			tx = 1;
-	} else {
-		cancel_delayed_work_sync(&wvif->bss_loss_work);
-		wvif->bss_loss_state = 0;
-	}
-
-	/* Spit out a NULL packet to our AP if necessary */
-	// FIXME: call ieee80211_beacon_loss/ieee80211_connection_loss instead
-	if (tx) {
-		struct sk_buff *skb;
-		struct ieee80211_hdr *hdr;
-		struct ieee80211_tx_control control = { };
-
-		wvif->bss_loss_state++;
-
-		skb = ieee80211_nullfunc_get(wvif->wdev->hw, wvif->vif, false);
-		if (!skb)
-			goto end;
-		hdr = (struct ieee80211_hdr *)skb->data;
-		memset(IEEE80211_SKB_CB(skb), 0,
-		       sizeof(*IEEE80211_SKB_CB(skb)));
-		IEEE80211_SKB_CB(skb)->control.vif = wvif->vif;
-		IEEE80211_SKB_CB(skb)->driver_rates[0].idx = 0;
-		IEEE80211_SKB_CB(skb)->driver_rates[0].count = 1;
-		IEEE80211_SKB_CB(skb)->driver_rates[1].idx = -1;
-		rcu_read_lock(); // protect control.sta
-		control.sta = ieee80211_find_sta(wvif->vif, hdr->addr1);
-		wfx_tx(wvif->wdev->hw, &control, skb);
-		rcu_read_unlock();
-	}
-end:
-	mutex_unlock(&wvif->bss_loss_lock);
-}
-
 static void wfx_filter_beacon(struct wfx_vif *wvif, bool filter_beacon)
 {
 	const struct hif_ie_table_entry filter_ies[] = {
@@ -339,6 +285,17 @@ static void wfx_event_report_rssi(struct wfx_vif *wvif, u8 raw_rcpi_rssi)
 	ieee80211_cqm_rssi_notify(wvif->vif, cqm_evt, rcpi_rssi, GFP_KERNEL);
 }
 
+static void wfx_beacon_loss_work(struct work_struct *work)
+{
+	struct wfx_vif *wvif = container_of(to_delayed_work(work),
+					    struct wfx_vif, beacon_loss_work);
+	struct ieee80211_bss_conf *bss_conf = &wvif->vif->bss_conf;
+
+	ieee80211_beacon_loss(wvif->vif);
+	schedule_delayed_work(to_delayed_work(work),
+			      msecs_to_jiffies(bss_conf->beacon_int));
+}
+
 static void wfx_event_handler_work(struct work_struct *work)
 {
 	struct wfx_vif *wvif =
@@ -354,12 +311,10 @@ static void wfx_event_handler_work(struct work_struct *work)
 	list_for_each_entry(event, &list, link) {
 		switch (event->evt.event_id) {
 		case HIF_EVENT_IND_BSSLOST:
-			mutex_lock(&wvif->scan_lock);
-			wfx_cqm_bssloss_sm(wvif, 1, 0, 0);
-			mutex_unlock(&wvif->scan_lock);
+			schedule_delayed_work(&wvif->beacon_loss_work, 0);
 			break;
 		case HIF_EVENT_IND_BSSREGAINED:
-			wfx_cqm_bssloss_sm(wvif, 0, 0, 0);
+			cancel_delayed_work(&wvif->beacon_loss_work);
 			break;
 		case HIF_EVENT_IND_RCPI_RSSI:
 			wfx_event_report_rssi(wvif,
@@ -377,26 +332,6 @@ static void wfx_event_handler_work(struct work_struct *work)
 		}
 	}
 	__wfx_free_event_queue(&list);
-}
-
-static void wfx_bss_loss_work(struct work_struct *work)
-{
-	struct wfx_vif *wvif = container_of(work, struct wfx_vif,
-					    bss_loss_work.work);
-
-	ieee80211_connection_loss(wvif->vif);
-}
-
-static void wfx_bss_params_work(struct work_struct *work)
-{
-	struct wfx_vif *wvif = container_of(work, struct wfx_vif,
-					    bss_params_work);
-
-	mutex_lock(&wvif->wdev->conf_mutex);
-	wvif->bss_params.bss_flags.lost_count_only = 1;
-	hif_set_bss_params(wvif, &wvif->bss_params);
-	wvif->bss_params.bss_flags.lost_count_only = 0;
-	mutex_unlock(&wvif->wdev->conf_mutex);
 }
 
 // Call it with wdev->conf_mutex locked
@@ -418,10 +353,10 @@ static void wfx_do_unjoin(struct wfx_vif *wvif)
 		hif_set_block_ack_policy(wvif, 0xFF, 0xFF);
 	wfx_free_event_queue(wvif);
 	cancel_work_sync(&wvif->event_handler_work);
-	wfx_cqm_bssloss_sm(wvif, 0, 0, 0);
 
 	memset(&wvif->bss_params, 0, sizeof(wvif->bss_params));
 	wfx_tx_unlock(wvif->wdev);
+	cancel_delayed_work_sync(&wvif->beacon_loss_work);
 }
 
 static void wfx_set_mfp(struct wfx_vif *wvif,
@@ -615,9 +550,9 @@ static void wfx_join_finalize(struct wfx_vif *wvif,
 	else
 		hif_dual_cts_protection(wvif, false);
 
-	wfx_cqm_bssloss_sm(wvif, 0, 0, 0);
-
-	wvif->bss_params.beacon_lost_count = 20;
+	// beacon_loss_count is defined to 7 in net/mac80211/mlme.c. Let's use
+	// the same value.
+	wvif->bss_params.beacon_lost_count = 7;
 	wvif->bss_params.aid = info->aid;
 
 	hif_set_association_mode(wvif, info);
@@ -904,11 +839,9 @@ int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 	wvif->link_id_map = 1; // link-id 0 is reserved for multicast
 	INIT_WORK(&wvif->update_tim_work, wfx_update_tim_work);
+	INIT_DELAYED_WORK(&wvif->beacon_loss_work, wfx_beacon_loss_work);
 
 	memset(&wvif->bss_params, 0, sizeof(wvif->bss_params));
-
-	mutex_init(&wvif->bss_loss_lock);
-	INIT_DELAYED_WORK(&wvif->bss_loss_work, wfx_bss_loss_work);
 
 	wvif->wep_default_key_id = -1;
 	INIT_WORK(&wvif->wep_key_work, wfx_wep_key_work);
@@ -919,7 +852,6 @@ int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 	init_completion(&wvif->set_pm_mode_complete);
 	complete(&wvif->set_pm_mode_complete);
-	INIT_WORK(&wvif->bss_params_work, wfx_bss_params_work);
 	INIT_WORK(&wvif->tx_policy_upload_work, wfx_tx_policy_upload_work);
 
 	mutex_init(&wvif->scan_lock);
@@ -974,8 +906,8 @@ void wfx_remove_interface(struct ieee80211_hw *hw,
 	/* FIXME: In add to reset MAC address, try to reset interface */
 	hif_set_macaddr(wvif, NULL);
 
-	wfx_cqm_bssloss_sm(wvif, 0, 0, 0);
 	wfx_free_event_queue(wvif);
+	cancel_delayed_work_sync(&wvif->beacon_loss_work);
 
 	wdev->vif[wvif->id] = NULL;
 	wvif->vif = NULL;
