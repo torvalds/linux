@@ -286,12 +286,6 @@ void wfx_set_default_unicast_key(struct ieee80211_hw *hw,
 // Call it with wdev->conf_mutex locked
 static void wfx_do_unjoin(struct wfx_vif *wvif)
 {
-	if (!wvif->state)
-		return;
-
-	if (wvif->state == WFX_STATE_AP)
-		return;
-
 	wvif->state = WFX_STATE_PASSIVE;
 
 	/* Unjoin is a reset. */
