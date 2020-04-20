@@ -4106,8 +4106,10 @@ rkisp_params_cfg_v2x(struct rkisp_isp_params_vdev *params_vdev,
 		cur_buf = list_first_entry(&params_vdev->params,
 				struct rkisp_buffer, queue);
 
-		if (!IS_HDR_RDBK(dev->hdr.op_mode))
+		if (!IS_HDR_RDBK(dev->hdr.op_mode)) {
+			list_del(&cur_buf->queue);
 			break;
+		}
 
 		new_params = (struct isp2x_isp_params_cfg *)(cur_buf->vaddr[0]);
 		if (new_params->frame_id < frame_id) {
