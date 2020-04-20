@@ -1,5 +1,5 @@
-Analog Device ADV7123 Video DAC
--------------------------------
+Analog Devices ADV7123 Video DAC
+--------------------------------
 
 The ADV7123 is a digital-to-analog converter that outputs VGA signals from a
 parallel video input.

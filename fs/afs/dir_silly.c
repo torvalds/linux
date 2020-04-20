@@ -21,6 +21,7 @@ static int afs_do_silly_rename(struct afs_vnode *dvnode, struct afs_vnode *vnode
 {
 	struct afs_fs_cursor fc;
 	struct afs_status_cb *scb;
+	afs_dataversion_t dir_data_version;
 	int ret = -ERESTARTSYS;
 
 	_enter("%pd,%pd", old, new);
@@ -31,7 +32,7 @@ static int afs_do_silly_rename(struct afs_vnode *dvnode, struct afs_vnode *vnode
 
 	trace_afs_silly_rename(vnode, false);
 	if (afs_begin_vnode_operation(&fc, dvnode, key, true)) {
-		afs_dataversion_t dir_data_version = dvnode->status.data_version + 1;
+		dir_data_version = dvnode->status.data_version + 1;
 
 		while (afs_select_fileserver(&fc)) {
 			fc.cb_break = afs_calc_vnode_cb_break(dvnode);
@@ -54,12 +55,15 @@ static int afs_do_silly_rename(struct afs_vnode *dvnode, struct afs_vnode *vnode
 			dvnode->silly_key = key_get(key);
 		}
 
-		if (test_bit(AFS_VNODE_DIR_VALID, &dvnode->flags))
+		down_write(&dvnode->validate_lock);
+		if (test_bit(AFS_VNODE_DIR_VALID, &dvnode->flags) &&
+		    dvnode->status.data_version == dir_data_version) {
 			afs_edit_dir_remove(dvnode, &old->d_name,
 					    afs_edit_dir_for_silly_0);
-		if (test_bit(AFS_VNODE_DIR_VALID, &dvnode->flags))
 			afs_edit_dir_add(dvnode, &new->d_name,
 					 &vnode->fid, afs_edit_dir_for_silly_1);
+		}
+		up_write(&dvnode->validate_lock);
 	}
 
 	kfree(scb);
@@ -181,10 +185,14 @@ static int afs_do_silly_unlink(struct afs_vnode *dvnode, struct afs_vnode *vnode
 				clear_bit(AFS_VNODE_CB_PROMISED, &vnode->flags);
 			}
 		}
-		if (ret == 0 &&
-		    test_bit(AFS_VNODE_DIR_VALID, &dvnode->flags))
-			afs_edit_dir_remove(dvnode, &dentry->d_name,
-					    afs_edit_dir_for_unlink);
+		if (ret == 0) {
+			down_write(&dvnode->validate_lock);
+			if (test_bit(AFS_VNODE_DIR_VALID, &dvnode->flags) &&
+			    dvnode->status.data_version == dir_data_version)
+				afs_edit_dir_remove(dvnode, &dentry->d_name,
+						    afs_edit_dir_for_unlink);
+			up_write(&dvnode->validate_lock);
+		}
 	}
 
 	kfree(scb);

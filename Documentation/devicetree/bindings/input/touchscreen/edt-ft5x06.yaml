@@ -109,7 +109,7 @@ examples:
   - |
     #include <dt-bindings/gpio/gpio.h>
     #include <dt-bindings/interrupt-controller/arm-gic.h>
-    i2c@00000000 {
+    i2c {
       #address-cells = <1>;
       #size-cells = <0>;
       edt-ft5x06@38 {

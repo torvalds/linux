@@ -2553,9 +2553,9 @@ sk_is_refcounted(struct sock *sk)
 }
 
 /**
- * skb_steal_sock
- * @skb to steal the socket from
- * @refcounted is set to true if the socket is reference-counted
+ * skb_steal_sock - steal a socket from an sk_buff
+ * @skb: sk_buff to steal the socket from
+ * @refcounted: is set to true if the socket is reference-counted
  */
 static inline struct sock *
 skb_steal_sock(struct sk_buff *skb, bool *refcounted)

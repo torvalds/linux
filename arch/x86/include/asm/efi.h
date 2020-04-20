@@ -178,8 +178,10 @@ extern void efi_free_boot_services(void);
 extern pgd_t * __init efi_uv1_memmap_phys_prolog(void);
 extern void __init efi_uv1_memmap_phys_epilog(pgd_t *save_pgd);
 
+/* kexec external ABI */
 struct efi_setup_data {
 	u64 fw_vendor;
+	u64 __unused;
 	u64 tables;
 	u64 smbios;
 	u64 reserved[8];

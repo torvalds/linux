@@ -61,7 +61,7 @@ examples:
     #include <dt-bindings/clock/qcom,gcc-sdm845.h>
     #include <dt-bindings/interrupt-controller/arm-gic.h>
 
-    soc: soc@0 {
+    soc: soc {
         #address-cells = <2>;
         #size-cells = <2>;
 

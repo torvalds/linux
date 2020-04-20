@@ -3611,8 +3611,6 @@ qla24xx_detect_sfp(scsi_qla_host_t *vha)
 			ha->lr_distance = LR_DISTANCE_5K;
 	}
 
-	if (!vha->flags.init_done)
-		rc = QLA_SUCCESS;
 out:
 	ql_dbg(ql_dbg_async, vha, 0x507b,
 	    "SFP detect: %s-Range SFP %s (nvr=%x ll=%x lr=%x lrd=%x).\n",

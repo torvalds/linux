@@ -74,7 +74,7 @@ struct simple_xattr {
 	struct list_head list;
 	char *name;
 	size_t size;
-	char value[0];
+	char value[];
 };
 
 /*

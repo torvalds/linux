@@ -56,8 +56,6 @@ struct ocelot_port_private {
 	struct phy_device *phy;
 	u8 chip_port;
 
-	u8 vlan_aware;
-
 	struct phy *serdes;
 
 	struct ocelot_port_tc tc;

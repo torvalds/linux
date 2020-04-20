@@ -257,6 +257,8 @@ drivers:
   * :doc:`netdevsim`
   * :doc:`mlxsw`
 
+.. _Generic-Packet-Trap-Groups:
+
 Generic Packet Trap Groups
 ==========================
 

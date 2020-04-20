@@ -729,9 +729,18 @@ static int brcmf_net_mon_stop(struct net_device *ndev)
 	return err;
 }
 
+static netdev_tx_t brcmf_net_mon_start_xmit(struct sk_buff *skb,
+					    struct net_device *ndev)
+{
+	dev_kfree_skb_any(skb);
+
+	return NETDEV_TX_OK;
+}
+
 static const struct net_device_ops brcmf_netdev_ops_mon = {
 	.ndo_open = brcmf_net_mon_open,
 	.ndo_stop = brcmf_net_mon_stop,
+	.ndo_start_xmit = brcmf_net_mon_start_xmit,
 };
 
 int brcmf_net_mon_attach(struct brcmf_if *ifp)

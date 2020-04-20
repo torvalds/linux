@@ -1718,6 +1718,12 @@ int smu_v11_0_baco_set_state(struct smu_context *smu, enum smu_baco_state state)
 		if (ret)
 			goto out;
 
+		if (ras && ras->supported) {
+			ret = smu_send_smc_msg(smu, SMU_MSG_PrepareMp1ForUnload, NULL);
+			if (ret)
+				goto out;
+		}
+
 		/* clear vbios scratch 6 and 7 for coming asic reinit */
 		WREG32(adev->bios_scratch_reg_offset + 6, 0);
 		WREG32(adev->bios_scratch_reg_offset + 7, 0);

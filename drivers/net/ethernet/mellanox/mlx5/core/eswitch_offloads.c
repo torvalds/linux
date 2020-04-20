@@ -300,7 +300,6 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 	bool split = !!(attr->split_count);
 	struct mlx5_flow_handle *rule;
 	struct mlx5_flow_table *fdb;
-	bool hairpin = false;
 	int j, i = 0;
 
 	if (esw->mode != MLX5_ESWITCH_OFFLOADS)
@@ -398,20 +397,15 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 		goto err_esw_get;
 	}
 
-	if (mlx5_eswitch_termtbl_required(esw, attr, &flow_act, spec)) {
+	if (mlx5_eswitch_termtbl_required(esw, attr, &flow_act, spec))
 		rule = mlx5_eswitch_add_termtbl_rule(esw, fdb, spec, attr,
 						     &flow_act, dest, i);
-		hairpin = true;
-	} else {
+	else
 		rule = mlx5_add_flow_rules(fdb, spec, &flow_act, dest, i);
-	}
 	if (IS_ERR(rule))
 		goto err_add_rule;
 	else
 		atomic64_inc(&esw->offloads.num_flows);
-
-	if (hairpin)
-		attr->flags |= MLX5_ESW_ATTR_FLAG_HAIRPIN;
 
 	return rule;
 
@@ -501,7 +495,7 @@ __mlx5_eswitch_del_rule(struct mlx5_eswitch *esw,
 
 	mlx5_del_flow_rules(rule);
 
-	if (attr->flags & MLX5_ESW_ATTR_FLAG_HAIRPIN) {
+	if (!(attr->flags & MLX5_ESW_ATTR_FLAG_SLOW_PATH)) {
 		/* unref the term table */
 		for (i = 0; i < MLX5_MAX_FLOW_FWD_VPORTS; i++) {
 			if (attr->dests[i].termtbl)

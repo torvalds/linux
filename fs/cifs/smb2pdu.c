@@ -1552,6 +1552,21 @@ SMB2_sess_auth_rawntlmssp_authenticate(struct SMB2_sess_data *sess_data)
 	}
 
 	rc = SMB2_sess_establish_session(sess_data);
+#ifdef CONFIG_CIFS_DEBUG_DUMP_KEYS
+	if (ses->server->dialect < SMB30_PROT_ID) {
+		cifs_dbg(VFS, "%s: dumping generated SMB2 session keys\n", __func__);
+		/*
+		 * The session id is opaque in terms of endianness, so we can't
+		 * print it as a long long. we dump it as we got it on the wire
+		 */
+		cifs_dbg(VFS, "Session Id    %*ph\n", (int)sizeof(ses->Suid),
+			 &ses->Suid);
+		cifs_dbg(VFS, "Session Key   %*ph\n",
+			 SMB2_NTLMV2_SESSKEY_SIZE, ses->auth_key.response);
+		cifs_dbg(VFS, "Signing Key   %*ph\n",
+			 SMB3_SIGN_KEY_SIZE, ses->auth_key.response);
+	}
+#endif
 out:
 	kfree(ntlmssp_blob);
 	SMB2_sess_free_buffer(sess_data);

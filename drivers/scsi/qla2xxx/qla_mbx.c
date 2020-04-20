@@ -4894,8 +4894,6 @@ qla25xx_set_els_cmds_supported(scsi_qla_host_t *vha)
 		return QLA_MEMORY_ALLOC_FAILED;
 	}
 
-	memset(els_cmd_map, 0, ELS_CMD_MAP_SIZE);
-
 	els_cmd_map[index] |= 1 << bit;
 
 	mcp->mb[0] = MBC_SET_RNID_PARAMS;

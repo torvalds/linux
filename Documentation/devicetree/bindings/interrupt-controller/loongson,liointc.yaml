@@ -56,9 +56,8 @@ properties:
       cell with zero.
     allOf:
       - $ref: /schemas/types.yaml#/definitions/uint32-array
-      - items:
-          minItems: 4
-          maxItems: 4
+      - minItems: 4
+        maxItems: 4
 
 
 required:

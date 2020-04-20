@@ -591,6 +591,8 @@ int do_struct_ops(int argc, char **argv)
 
 	err = cmd_select(cmds, argc, argv, do_help);
 
-	btf__free(btf_vmlinux);
+	if (!IS_ERR(btf_vmlinux))
+		btf__free(btf_vmlinux);
+
 	return err;
 }
