@@ -42,6 +42,8 @@
 #define SC27XX_FGU_USER_AREA_SET	0xa0
 #define SC27XX_FGU_USER_AREA_CLEAR	0xa4
 #define SC27XX_FGU_USER_AREA_STATUS	0xa8
+#define SC27XX_FGU_VOLTAGE_BUF		0xd0
+#define SC27XX_FGU_CURRENT_BUF		0xf0
 
 #define SC27XX_WRITE_SELCLB_EN		BIT(0)
 #define SC27XX_FGU_CLBCNT_MASK		GENMASK(15, 0)
@@ -376,6 +378,44 @@ static int sc27xx_fgu_get_clbcnt(struct sc27xx_fgu_data *data, int *clb_cnt)
 	return 0;
 }
 
+static int sc27xx_fgu_get_vol_now(struct sc27xx_fgu_data *data, int *val)
+{
+	int ret;
+	u32 vol;
+
+	ret = regmap_read(data->regmap, data->base + SC27XX_FGU_VOLTAGE_BUF,
+			  &vol);
+	if (ret)
+		return ret;
+
+	/*
+	 * It is ADC values reading from registers which need to convert to
+	 * corresponding voltage values.
+	 */
+	*val = sc27xx_fgu_adc_to_voltage(data, vol);
+
+	return 0;
+}
+
+static int sc27xx_fgu_get_cur_now(struct sc27xx_fgu_data *data, int *val)
+{
+	int ret;
+	u32 cur;
+
+	ret = regmap_read(data->regmap, data->base + SC27XX_FGU_CURRENT_BUF,
+			  &cur);
+	if (ret)
+		return ret;
+
+	/*
+	 * It is ADC values reading from registers which need to convert to
+	 * corresponding current values.
+	 */
+	*val = sc27xx_fgu_adc_to_current(data, cur - SC27XX_FGU_CUR_BASIC_ADC);
+
+	return 0;
+}
+
 static int sc27xx_fgu_get_capacity(struct sc27xx_fgu_data *data, int *cap)
 {
 	int ret, cur_clbcnt, delta_clbcnt, delta_cap, temp;
@@ -577,7 +617,7 @@ static int sc27xx_fgu_get_property(struct power_supply *psy,
 		val->intval = value;
 		break;
 
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_AVG:
 		ret = sc27xx_fgu_get_vbat_vol(data, &value);
 		if (ret)
 			goto error;
@@ -601,7 +641,6 @@ static int sc27xx_fgu_get_property(struct power_supply *psy,
 		val->intval = value;
 		break;
 
-	case POWER_SUPPLY_PROP_CURRENT_NOW:
 	case POWER_SUPPLY_PROP_CURRENT_AVG:
 		ret = sc27xx_fgu_get_current(data, &value);
 		if (ret)
@@ -623,6 +662,22 @@ static int sc27xx_fgu_get_property(struct power_supply *psy,
 					  36 * SC27XX_FGU_SAMPLE_HZ);
 		val->intval = sc27xx_fgu_adc_to_current(data, value);
 
+		break;
+
+	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+		ret = sc27xx_fgu_get_vol_now(data, &value);
+		if (ret)
+			goto error;
+
+		val->intval = value * 1000;
+		break;
+
+	case POWER_SUPPLY_PROP_CURRENT_NOW:
+		ret = sc27xx_fgu_get_cur_now(data, &value);
+		if (ret)
+			goto error;
+
+		val->intval = value * 1000;
 		break;
 
 	default:
@@ -694,6 +749,7 @@ static enum power_supply_property sc27xx_fgu_props[] = {
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 	POWER_SUPPLY_PROP_VOLTAGE_OCV,
+	POWER_SUPPLY_PROP_VOLTAGE_AVG,
 	POWER_SUPPLY_PROP_CURRENT_NOW,
 	POWER_SUPPLY_PROP_CURRENT_AVG,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE,
