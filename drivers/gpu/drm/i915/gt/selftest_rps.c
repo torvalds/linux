@@ -107,6 +107,188 @@ create_spin_counter(struct intel_engine_cs *engine,
 	return vma;
 }
 
+static u8 rps_set_check(struct intel_rps *rps, u8 freq)
+{
+	u8 history[64], i;
+	unsigned long end;
+	int sleep;
+
+	mutex_lock(&rps->lock);
+	GEM_BUG_ON(!rps->active);
+	intel_rps_set(rps, freq);
+	GEM_BUG_ON(rps->last_freq != freq);
+	mutex_unlock(&rps->lock);
+
+	i = 0;
+	memset(history, freq, sizeof(history));
+	sleep = 20;
+
+	/* The PCU does not change instantly, but drifts towards the goal? */
+	end = jiffies + msecs_to_jiffies(50);
+	do {
+		u8 act;
+
+		act = read_cagf(rps);
+		if (time_after(jiffies, end))
+			return act;
+
+		/* Target acquired */
+		if (act == freq)
+			return act;
+
+		/* Any change within the last N samples? */
+		if (!memchr_inv(history, act, sizeof(history)))
+			return act;
+
+		history[i] = act;
+		i = (i + 1) % ARRAY_SIZE(history);
+
+		usleep_range(sleep, 2 * sleep);
+		sleep *= 2;
+		if (sleep > 1000)
+			sleep = 1000;
+	} while (1);
+}
+
+static void show_pstate_limits(struct intel_rps *rps)
+{
+	struct drm_i915_private *i915 = rps_to_i915(rps);
+
+	if (IS_BROXTON(i915)) {
+		pr_info("P_STATE_CAP[%x]: 0x%08x\n",
+			i915_mmio_reg_offset(BXT_RP_STATE_CAP),
+			intel_uncore_read(rps_to_uncore(rps),
+					  BXT_RP_STATE_CAP));
+	} else if (IS_GEN(i915, 9)) {
+		pr_info("P_STATE_LIMITS[%x]: 0x%08x\n",
+			i915_mmio_reg_offset(GEN9_RP_STATE_LIMITS),
+			intel_uncore_read(rps_to_uncore(rps),
+					  GEN9_RP_STATE_LIMITS));
+	}
+}
+
+int live_rps_control(void *arg)
+{
+	struct intel_gt *gt = arg;
+	struct intel_rps *rps = &gt->rps;
+	void (*saved_work)(struct work_struct *wrk);
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+	struct igt_spinner spin;
+	int err = 0;
+
+	/*
+	 * Check that the actual frequency matches our requested frequency,
+	 * to verify our control mechanism. We have to be careful that the
+	 * PCU may throttle the GPU in which case the actual frequency used
+	 * will be lowered than requested.
+	 */
+
+	if (!rps->enabled || rps->max_freq <= rps->min_freq)
+		return 0;
+
+	if (IS_CHERRYVIEW(gt->i915)) /* XXX fragile PCU */
+		return 0;
+
+	if (igt_spinner_init(&spin, gt))
+		return -ENOMEM;
+
+	intel_gt_pm_wait_for_idle(gt);
+	saved_work = rps->work.func;
+	rps->work.func = dummy_rps_work;
+
+	intel_gt_pm_get(gt);
+	for_each_engine(engine, gt, id) {
+		struct i915_request *rq;
+		ktime_t min_dt, max_dt;
+		int f, limit;
+		int min, max;
+
+		if (!intel_engine_can_store_dword(engine))
+			continue;
+
+		rq = igt_spinner_create_request(&spin,
+						engine->kernel_context,
+						MI_NOOP);
+		if (IS_ERR(rq)) {
+			err = PTR_ERR(rq);
+			break;
+		}
+
+		i915_request_add(rq);
+
+		if (!igt_wait_for_spinner(&spin, rq)) {
+			pr_err("%s: RPS spinner did not start\n",
+			       engine->name);
+			igt_spinner_end(&spin);
+			intel_gt_set_wedged(engine->gt);
+			err = -EIO;
+			break;
+		}
+
+		if (rps_set_check(rps, rps->min_freq) != rps->min_freq) {
+			pr_err("%s: could not set minimum frequency [%x], only %x!\n",
+			       engine->name, rps->min_freq, read_cagf(rps));
+			igt_spinner_end(&spin);
+			err = -EINVAL;
+			break;
+		}
+
+		for (f = rps->min_freq + 1; f < rps->max_freq; f++) {
+			if (rps_set_check(rps, f) < f)
+				break;
+		}
+
+		limit = rps_set_check(rps, f);
+
+		if (rps_set_check(rps, rps->min_freq) != rps->min_freq) {
+			pr_err("%s: could not restore minimum frequency [%x], only %x!\n",
+			       engine->name, rps->min_freq, read_cagf(rps));
+			igt_spinner_end(&spin);
+			show_pstate_limits(rps);
+			err = -EINVAL;
+			break;
+		}
+
+		max_dt = ktime_get();
+		max = rps_set_check(rps, limit);
+		max_dt = ktime_sub(ktime_get(), max_dt);
+
+		min_dt = ktime_get();
+		min = rps_set_check(rps, rps->min_freq);
+		min_dt = ktime_sub(ktime_get(), min_dt);
+
+		igt_spinner_end(&spin);
+
+		pr_info("%s: range:[%x:%uMHz, %x:%uMHz] limit:[%x:%uMHz], %x:%x response %lluns:%lluns\n",
+			engine->name,
+			rps->min_freq, intel_gpu_freq(rps, rps->min_freq),
+			rps->max_freq, intel_gpu_freq(rps, rps->max_freq),
+			limit, intel_gpu_freq(rps, limit),
+			min, max, ktime_to_ns(min_dt), ktime_to_ns(max_dt));
+
+		if (limit == rps->min_freq) {
+			pr_err("%s: GPU throttled to minimum!\n",
+			       engine->name);
+			err = -ENODEV;
+			break;
+		}
+
+		if (igt_flush_test(gt->i915)) {
+			err = -EIO;
+			break;
+		}
+	}
+	intel_gt_pm_put(gt);
+
+	igt_spinner_fini(&spin);
+
+	intel_gt_pm_wait_for_idle(gt);
+	rps->work.func = saved_work;
+
+	return err;
+}
+
 static u64 __measure_frequency(u32 *cntr, int duration_ms)
 {
 	u64 dc, dt;
@@ -125,16 +307,10 @@ static u64 measure_frequency_at(struct intel_rps *rps, u32 *cntr, int *freq)
 	u64 x[5];
 	int i;
 
-	mutex_lock(&rps->lock);
-	GEM_BUG_ON(!rps->active);
-	intel_rps_set(rps, *freq);
-	mutex_unlock(&rps->lock);
-
-	msleep(20); /* more than enough time to stabilise! */
-
+	*freq = rps_set_check(rps, *freq);
 	for (i = 0; i < 5; i++)
 		x[i] = __measure_frequency(cntr, 2);
-	*freq = read_cagf(rps);
+	*freq = (*freq + read_cagf(rps)) / 2;
 
 	/* A simple triangle filter for better result stability */
 	sort(x, 5, sizeof(*x), cmp_u64, NULL);
@@ -279,10 +455,7 @@ static int __rps_up_interrupt(struct intel_rps *rps,
 	if (!intel_engine_can_store_dword(engine))
 		return 0;
 
-	mutex_lock(&rps->lock);
-	GEM_BUG_ON(!rps->active);
-	intel_rps_set(rps, rps->min_freq);
-	mutex_unlock(&rps->lock);
+	rps_set_check(rps, rps->min_freq);
 
 	rq = igt_spinner_create_request(spin, engine->kernel_context, MI_NOOP);
 	if (IS_ERR(rq))
@@ -354,10 +527,7 @@ static int __rps_down_interrupt(struct intel_rps *rps,
 	struct intel_uncore *uncore = engine->uncore;
 	u32 timeout;
 
-	mutex_lock(&rps->lock);
-	GEM_BUG_ON(!rps->active);
-	intel_rps_set(rps, rps->max_freq);
-	mutex_unlock(&rps->lock);
+	rps_set_check(rps, rps->max_freq);
 
 	if (!(rps->pm_events & GEN6_PM_RP_DOWN_THRESHOLD)) {
 		pr_err("%s: RPS did not register DOWN interrupt\n",
@@ -490,16 +660,10 @@ static u64 measure_power_at(struct intel_rps *rps, int *freq)
 	u64 x[5];
 	int i;
 
-	mutex_lock(&rps->lock);
-	GEM_BUG_ON(!rps->active);
-	intel_rps_set(rps, *freq);
-	mutex_unlock(&rps->lock);
-
-	msleep(20); /* more than enough time to stabilise! */
-
+	*freq = rps_set_check(rps, *freq);
 	for (i = 0; i < 5; i++)
 		x[i] = __measure_power(5);
-	*freq = read_cagf(rps);
+	*freq = (*freq + read_cagf(rps)) / 2;
 
 	/* A simple triangle filter for better result stability */
 	sort(x, 5, sizeof(*x), cmp_u64, NULL);

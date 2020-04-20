@@ -4013,6 +4013,7 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define GEN6_RP_STATE_LIMITS	_MMIO(MCHBAR_MIRROR_BASE_SNB + 0x5994)
 #define GEN6_RP_STATE_CAP	_MMIO(MCHBAR_MIRROR_BASE_SNB + 0x5998)
 #define BXT_RP_STATE_CAP        _MMIO(0x138170)
+#define GEN9_RP_STATE_LIMITS	_MMIO(0x138148)
 
 /*
  * Make these a multiple of magic 25 to avoid SNB (eg. Dell XPS
