@@ -391,9 +391,15 @@
 
 		npu_pvtm: npu-pvtm {
 			compatible = "rockchip,rk1808-npu-pvtm";
-			clocks = <&cru SCLK_PVTM_NPU>;
-			clock-names = "npu";
+			#address-cells = <1>;
+			#size-cells = <0>;
 			status = "okay";
+
+			pvtm@2 {
+				reg = <2>;
+				clocks = <&cru SCLK_PVTM_NPU>;
+				clock-names = "clk";
+			}
 		};
 
 		rgb: rgb {
@@ -465,9 +471,15 @@
 
 		pmu_pvtm: pmu-pvtm {
 			compatible = "rockchip,rk1808-pmu-pvtm";
-			clocks = <&cru SCLK_PVTM_PMU>;
-			clock-names = "pmu";
+			#address-cells = <1>;
+			#size-cells = <0>;
 			status = "okay";
+
+			pvtm@1 {
+				reg = <1>;
+				clocks = <&cru SCLK_PVTM_PMU>;
+				clock-names = "clk";
+			};
 		};
 
 		reboot-mode {
@@ -496,9 +508,15 @@
 
 		pvtm: pvtm {
 			compatible = "rockchip,rk1808-pvtm";
-			clocks = <&cru SCLK_PVTM_CORE>;
-			clock-names = "core";
+			#address-cells = <1>;
+			#size-cells = <0>;
 			status = "okay";
+
+			pvtm@0 {
+				reg = <0>;
+				clocks = <&cru SCLK_PVTM_CORE>;
+				clock-names = "clk";
+			};
 		};
 	};
 

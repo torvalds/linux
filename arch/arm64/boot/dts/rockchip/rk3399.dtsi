@@ -1172,11 +1172,17 @@
 
 		pmu_pvtm: pmu-pvtm {
 			compatible = "rockchip,rk3399-pmu-pvtm";
-			clocks = <&pmucru SCLK_PVTM_PMU>;
-			clock-names = "pmu";
-			resets = <&cru SRST_PVTM>;
-			reset-names = "pmu";
+			#address-cells = <1>;
+			#size-cells = <0>;
 			status = "disabled";
+
+			pvtm@4 {
+				reg = <4>;
+				clocks = <&pmucru SCLK_PVTM_PMU>;
+				clock-names = "clk";
+				resets = <&cru SRST_PVTM>;
+				reset-names = "rst";
+			};
 		};
 	};
 
@@ -1616,17 +1622,38 @@
 
 		pvtm: pvtm {
 			compatible = "rockchip,rk3399-pvtm";
-			clocks = <&cru SCLK_PVTM_CORE_L>,
-				 <&cru SCLK_PVTM_CORE_B>,
-				 <&cru SCLK_PVTM_GPU>,
-				 <&cru SCLK_PVTM_DDR>;
-			clock-names = "core_l", "core_b", "gpu", "ddr";
-			resets = <&cru SRST_PVTM_CORE_L>,
-				 <&cru SRST_PVTM_CORE_B>,
-				 <&cru SRST_PVTM_GPU>,
-				 <&cru SRST_PVTM_DDR>;
-			reset-names = "core_l", "core_b", "gpu", "ddr";
+			#address-cells = <1>;
+			#size-cells = <0>;
 			status = "disabled";
+
+			pvtm@0 {
+				reg = <0>;
+				clocks = <&cru SCLK_PVTM_CORE_L>;
+				clock-names = "clk";
+				resets = <&cru SRST_PVTM_CORE_L>;
+				reset-names = "rst";
+			};
+			pvtm@1 {
+				reg = <1>;
+				clocks = <&cru SCLK_PVTM_CORE_B>;
+				clock-names = "clk";
+				resets = <&cru SRST_PVTM_CORE_B>;
+				reset-names = "rst";
+			};
+			pvtm@2 {
+				reg = <2>;
+				clocks = <&cru SCLK_PVTM_DDR>;
+				clock-names = "clk";
+				resets = <&cru SRST_PVTM_DDR>;
+				reset-names = "rst";
+			};
+			pvtm@3 {
+				reg = <3>;
+				clocks = <&cru SCLK_PVTM_GPU>;
+				clock-names = "clk";
+				resets = <&cru SRST_PVTM_GPU>;
+				reset-names = "rst";
+			};
 		};
 	};
 
