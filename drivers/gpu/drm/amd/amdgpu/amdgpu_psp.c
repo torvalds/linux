@@ -274,7 +274,7 @@ static void psp_prep_tmr_cmd_buf(struct psp_context *psp,
 				 struct psp_gfx_cmd_resp *cmd,
 				 uint64_t tmr_mc, uint32_t size)
 {
-	if (psp_support_vmr_ring(psp))
+	if (amdgpu_sriov_vf(psp->adev))
 		cmd->cmd_id = GFX_CMD_ID_SETUP_VMR;
 	else
 		cmd->cmd_id = GFX_CMD_ID_SETUP_TMR;

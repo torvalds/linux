@@ -52,7 +52,6 @@ MODULE_FIRMWARE("amdgpu/vega12_asd.bin");
 
 static uint32_t sos_old_versions[] = {1517616, 1510592, 1448594, 1446554};
 
-static bool psp_v3_1_support_vmr_ring(struct psp_context *psp);
 static int psp_v3_1_ring_stop(struct psp_context *psp,
 			      enum psp_ring_type ring_type);
 
@@ -302,7 +301,7 @@ static int psp_v3_1_ring_create(struct psp_context *psp,
 
 	psp_v3_1_reroute_ih(psp);
 
-	if (psp_v3_1_support_vmr_ring(psp)) {
+	if (amdgpu_sriov_vf(adev)) {
 		ret = psp_v3_1_ring_stop(psp, ring_type);
 		if (ret) {
 			DRM_ERROR("psp_v3_1_ring_stop_sriov failed!\n");
@@ -360,34 +359,26 @@ static int psp_v3_1_ring_stop(struct psp_context *psp,
 			      enum psp_ring_type ring_type)
 {
 	int ret = 0;
-	unsigned int psp_ring_reg = 0;
 	struct amdgpu_device *adev = psp->adev;
 
-	if (psp_v3_1_support_vmr_ring(psp)) {
-		/* Write the Destroy GPCOM ring command to C2PMSG_101 */
-		psp_ring_reg = GFX_CTRL_CMD_ID_DESTROY_GPCOM_RING;
-		WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_101, psp_ring_reg);
+	/* Write the ring destroy command*/
+	if (amdgpu_sriov_vf(adev))
+		WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_101,
+				     GFX_CTRL_CMD_ID_DESTROY_GPCOM_RING);
+	else
+		WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_64,
+				     GFX_CTRL_CMD_ID_DESTROY_RINGS);
 
-		/* there might be handshake issue which needs delay */
-		mdelay(20);
+	/* there might be handshake issue with hardware which needs delay */
+	mdelay(20);
 
-		/* Wait for response flag (bit 31) in C2PMSG_101 */
-		ret = psp_wait_for(psp,
-				SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_101),
-				0x80000000, 0x80000000, false);
-	} else {
-		/* Write the ring destroy command to C2PMSG_64 */
-		psp_ring_reg = 3 << 16;
-		WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_64, psp_ring_reg);
-
-		/* there might be handshake issue which needs delay */
-		mdelay(20);
-
-		/* Wait for response flag (bit 31) in C2PMSG_64 */
-		ret = psp_wait_for(psp,
-				SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_64),
-				0x80000000, 0x80000000, false);
-	}
+	/* Wait for response flag (bit 31) */
+	if (amdgpu_sriov_vf(adev))
+		ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_101),
+				   0x80000000, 0x80000000, false);
+	else
+		ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_64),
+				   0x80000000, 0x80000000, false);
 
 	return ret;
 }
@@ -575,20 +566,12 @@ static int psp_v3_1_mode1_reset(struct psp_context *psp)
 	return 0;
 }
 
-static bool psp_v3_1_support_vmr_ring(struct psp_context *psp)
-{
-	if (amdgpu_sriov_vf(psp->adev))
-		return true;
-
-	return false;
-}
-
 static uint32_t psp_v3_1_ring_get_wptr(struct psp_context *psp)
 {
 	uint32_t data;
 	struct amdgpu_device *adev = psp->adev;
 
-	if (psp_v3_1_support_vmr_ring(psp))
+	if (amdgpu_sriov_vf(adev))
 		data = RREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_102);
 	else
 		data = RREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_67);
@@ -599,7 +582,7 @@ static void psp_v3_1_ring_set_wptr(struct psp_context *psp, uint32_t value)
 {
 	struct amdgpu_device *adev = psp->adev;
 
-	if (psp_v3_1_support_vmr_ring(psp)) {
+	if (amdgpu_sriov_vf(adev)) {
 		WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_102, value);
 		/* send interrupt to PSP for SRIOV ring write pointer update */
 		WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_101,
@@ -619,7 +602,6 @@ static const struct psp_funcs psp_v3_1_funcs = {
 	.compare_sram_data = psp_v3_1_compare_sram_data,
 	.smu_reload_quirk = psp_v3_1_smu_reload_quirk,
 	.mode1_reset = psp_v3_1_mode1_reset,
-	.support_vmr_ring = psp_v3_1_support_vmr_ring,
 	.ring_get_wptr = psp_v3_1_ring_get_wptr,
 	.ring_set_wptr = psp_v3_1_ring_set_wptr,
 };

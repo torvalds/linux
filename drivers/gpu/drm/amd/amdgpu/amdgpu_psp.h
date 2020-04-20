@@ -104,7 +104,6 @@ struct psp_funcs
 				      struct psp_xgmi_topology_info *topology);
 	int (*xgmi_set_topology_info)(struct psp_context *psp, int number_devices,
 				      struct psp_xgmi_topology_info *topology);
-	bool (*support_vmr_ring)(struct psp_context *psp);
 	int (*ras_trigger_error)(struct psp_context *psp,
 			struct ta_ras_trigger_error_input *info);
 	int (*ras_cure_posion)(struct psp_context *psp, uint64_t *mode_ptr);
@@ -320,8 +319,6 @@ struct amdgpu_psp_funcs {
 		((psp)->funcs->bootloader_load_sos ? (psp)->funcs->bootloader_load_sos((psp)) : 0)
 #define psp_smu_reload_quirk(psp) \
 		((psp)->funcs->smu_reload_quirk ? (psp)->funcs->smu_reload_quirk((psp)) : false)
-#define psp_support_vmr_ring(psp) \
-		((psp)->funcs->support_vmr_ring ? (psp)->funcs->support_vmr_ring((psp)) : false)
 #define psp_mode1_reset(psp) \
 		((psp)->funcs->mode1_reset ? (psp)->funcs->mode1_reset((psp)) : false)
 #define psp_xgmi_get_node_id(psp, node_id) \
