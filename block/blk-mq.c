@@ -1546,6 +1546,25 @@ void blk_mq_run_hw_queues(struct request_queue *q, bool async)
 EXPORT_SYMBOL(blk_mq_run_hw_queues);
 
 /**
+ * blk_mq_delay_run_hw_queues - Run all hardware queues asynchronously.
+ * @q: Pointer to the request queue to run.
+ * @msecs: Microseconds of delay to wait before running the queues.
+ */
+void blk_mq_delay_run_hw_queues(struct request_queue *q, unsigned long msecs)
+{
+	struct blk_mq_hw_ctx *hctx;
+	int i;
+
+	queue_for_each_hw_ctx(q, hctx, i) {
+		if (blk_mq_hctx_stopped(hctx))
+			continue;
+
+		blk_mq_delay_run_hw_queue(hctx, msecs);
+	}
+}
+EXPORT_SYMBOL(blk_mq_delay_run_hw_queues);
+
+/**
  * blk_mq_queue_stopped() - check whether one or more hctxs have been stopped
  * @q: request queue.
  *
