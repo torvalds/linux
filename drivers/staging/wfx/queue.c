@@ -254,36 +254,6 @@ bool wfx_tx_queues_has_cab(struct wfx_vif *wvif)
 	return false;
 }
 
-static bool wfx_handle_tx_data(struct wfx_dev *wdev, struct sk_buff *skb)
-{
-	struct hif_req_tx *req = wfx_skb_txreq(skb);
-	struct ieee80211_key_conf *hw_key = wfx_skb_tx_priv(skb)->hw_key;
-	struct ieee80211_hdr *frame =
-		(struct ieee80211_hdr *)(req->frame + req->data_flags.fc_offset);
-	struct wfx_vif *wvif =
-		wdev_to_wvif(wdev, ((struct hif_msg *)skb->data)->interface);
-
-	if (!wvif)
-		return false;
-
-	// FIXME: identify the exact scenario matched by this condition. Does it
-	// happen yet?
-	if (ieee80211_has_protected(frame->frame_control) &&
-	    hw_key && hw_key->keyidx != wvif->wep_default_key_id &&
-	    (hw_key->cipher == WLAN_CIPHER_SUITE_WEP40 ||
-	     hw_key->cipher == WLAN_CIPHER_SUITE_WEP104)) {
-		wfx_tx_lock(wdev);
-		WARN_ON(wvif->wep_pending_skb);
-		wvif->wep_default_key_id = hw_key->keyidx;
-		wvif->wep_pending_skb = skb;
-		if (!schedule_work(&wvif->wep_key_work))
-			wfx_tx_unlock(wdev);
-		return true;
-	} else {
-		return false;
-	}
-}
-
 static struct sk_buff *wfx_tx_queues_get_skb(struct wfx_dev *wdev)
 {
 	struct wfx_queue *sorted_queues[IEEE80211_NUM_ACS];
@@ -348,9 +318,6 @@ struct hif_msg *wfx_tx_queues_get(struct wfx_dev *wdev)
 			return NULL;
 		skb_queue_tail(&wdev->tx_pending, skb);
 		wake_up(&wdev->tx_dequeue);
-		// FIXME: is it useful?
-		if (wfx_handle_tx_data(wdev, skb))
-			continue;
 		tx_priv = wfx_skb_tx_priv(skb);
 		tx_priv->xmit_timestamp = ktime_get();
 		return (struct hif_msg *)skb->data;

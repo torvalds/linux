@@ -275,6 +275,14 @@ static void wfx_beacon_loss_work(struct work_struct *work)
 			      msecs_to_jiffies(bss_conf->beacon_int));
 }
 
+void wfx_set_default_unicast_key(struct ieee80211_hw *hw,
+				 struct ieee80211_vif *vif, int idx)
+{
+	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
+
+	hif_wep_default_key_id(wvif, idx);
+}
+
 // Call it with wdev->conf_mutex locked
 static void wfx_do_unjoin(struct wfx_vif *wvif)
 {
@@ -560,13 +568,6 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw,
 		wfx_filter_beacon(wvif, true);
 	}
 
-	/* assoc/disassoc, or maybe AID changed */
-	if (changed & BSS_CHANGED_ASSOC) {
-		wfx_tx_lock_flush(wdev);
-		wvif->wep_default_key_id = -1;
-		wfx_tx_unlock(wdev);
-	}
-
 	if (changed & BSS_CHANGED_ASSOC) {
 		if (info->assoc || info->ibss_joined)
 			wfx_join_finalize(wvif, info);
@@ -756,9 +757,6 @@ int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	wvif->link_id_map = 1; // link-id 0 is reserved for multicast
 	INIT_WORK(&wvif->update_tim_work, wfx_update_tim_work);
 	INIT_DELAYED_WORK(&wvif->beacon_loss_work, wfx_beacon_loss_work);
-
-	wvif->wep_default_key_id = -1;
-	INIT_WORK(&wvif->wep_key_work, wfx_wep_key_work);
 
 	init_completion(&wvif->set_pm_mode_complete);
 	complete(&wvif->set_pm_mode_complete);

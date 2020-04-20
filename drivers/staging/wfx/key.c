@@ -257,13 +257,3 @@ int wfx_upload_keys(struct wfx_vif *wvif)
 	return 0;
 }
 
-void wfx_wep_key_work(struct work_struct *work)
-{
-	struct wfx_vif *wvif = container_of(work, struct wfx_vif, wep_key_work);
-
-	wfx_tx_flush(wvif->wdev);
-	hif_wep_default_key_id(wvif, wvif->wep_default_key_id);
-	wfx_pending_requeue(wvif->wdev, wvif->wep_pending_skb);
-	wvif->wep_pending_skb = NULL;
-	wfx_tx_unlock(wvif->wdev);
-}

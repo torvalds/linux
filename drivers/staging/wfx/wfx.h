@@ -74,10 +74,6 @@ struct wfx_vif {
 	bool			after_dtim_tx_allowed;
 	struct delayed_work	beacon_loss_work;
 
-	s8			wep_default_key_id;
-	struct sk_buff		*wep_pending_skb;
-	struct work_struct	wep_key_work;
-
 	struct tx_policy_cache	tx_policy_cache;
 	struct work_struct	tx_policy_upload_work;
 
