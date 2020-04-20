@@ -230,129 +230,6 @@ static int psp_v10_0_ring_destroy(struct psp_context *psp,
 	return ret;
 }
 
-static int
-psp_v10_0_sram_map(struct amdgpu_device *adev,
-		   unsigned int *sram_offset, unsigned int *sram_addr_reg_offset,
-		   unsigned int *sram_data_reg_offset,
-		   enum AMDGPU_UCODE_ID ucode_id)
-{
-	int ret = 0;
-
-	switch(ucode_id) {
-/* TODO: needs to confirm */
-#if 0
-	case AMDGPU_UCODE_ID_SMC:
-		*sram_offset = 0;
-		*sram_addr_reg_offset = 0;
-		*sram_data_reg_offset = 0;
-		break;
-#endif
-
-	case AMDGPU_UCODE_ID_CP_CE:
-		*sram_offset = 0x0;
-		*sram_addr_reg_offset = SOC15_REG_OFFSET(GC, 0, mmCP_CE_UCODE_ADDR);
-		*sram_data_reg_offset = SOC15_REG_OFFSET(GC, 0, mmCP_CE_UCODE_DATA);
-		break;
-
-	case AMDGPU_UCODE_ID_CP_PFP:
-		*sram_offset = 0x0;
-		*sram_addr_reg_offset = SOC15_REG_OFFSET(GC, 0, mmCP_PFP_UCODE_ADDR);
-		*sram_data_reg_offset = SOC15_REG_OFFSET(GC, 0, mmCP_PFP_UCODE_DATA);
-		break;
-
-	case AMDGPU_UCODE_ID_CP_ME:
-		*sram_offset = 0x0;
-		*sram_addr_reg_offset = SOC15_REG_OFFSET(GC, 0, mmCP_HYP_ME_UCODE_ADDR);
-		*sram_data_reg_offset = SOC15_REG_OFFSET(GC, 0, mmCP_HYP_ME_UCODE_DATA);
-		break;
-
-	case AMDGPU_UCODE_ID_CP_MEC1:
-		*sram_offset = 0x10000;
-		*sram_addr_reg_offset = SOC15_REG_OFFSET(GC, 0, mmCP_MEC_ME1_UCODE_ADDR);
-		*sram_data_reg_offset = SOC15_REG_OFFSET(GC, 0, mmCP_MEC_ME1_UCODE_DATA);
-		break;
-
-	case AMDGPU_UCODE_ID_CP_MEC2:
-		*sram_offset = 0x10000;
-		*sram_addr_reg_offset = SOC15_REG_OFFSET(GC, 0, mmCP_HYP_MEC2_UCODE_ADDR);
-		*sram_data_reg_offset = SOC15_REG_OFFSET(GC, 0, mmCP_HYP_MEC2_UCODE_DATA);
-		break;
-
-	case AMDGPU_UCODE_ID_RLC_G:
-		*sram_offset = 0x2000;
-		*sram_addr_reg_offset = SOC15_REG_OFFSET(GC, 0, mmRLC_GPM_UCODE_ADDR);
-		*sram_data_reg_offset = SOC15_REG_OFFSET(GC, 0, mmRLC_GPM_UCODE_DATA);
-		break;
-
-	case AMDGPU_UCODE_ID_SDMA0:
-		*sram_offset = 0x0;
-		*sram_addr_reg_offset = SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_UCODE_ADDR);
-		*sram_data_reg_offset = SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_UCODE_DATA);
-		break;
-
-/* TODO: needs to confirm */
-#if 0
-	case AMDGPU_UCODE_ID_SDMA1:
-		*sram_offset = ;
-		*sram_addr_reg_offset = ;
-		break;
-
-	case AMDGPU_UCODE_ID_UVD:
-		*sram_offset = ;
-		*sram_addr_reg_offset = ;
-		break;
-
-	case AMDGPU_UCODE_ID_VCE:
-		*sram_offset = ;
-		*sram_addr_reg_offset = ;
-		break;
-#endif
-
-	case AMDGPU_UCODE_ID_MAXIMUM:
-	default:
-		ret = -EINVAL;
-		break;
-	}
-
-	return ret;
-}
-
-static bool psp_v10_0_compare_sram_data(struct psp_context *psp,
-					struct amdgpu_firmware_info *ucode,
-					enum AMDGPU_UCODE_ID ucode_type)
-{
-	int err = 0;
-	unsigned int fw_sram_reg_val = 0;
-	unsigned int fw_sram_addr_reg_offset = 0;
-	unsigned int fw_sram_data_reg_offset = 0;
-	unsigned int ucode_size;
-	uint32_t *ucode_mem = NULL;
-	struct amdgpu_device *adev = psp->adev;
-
-	err = psp_v10_0_sram_map(adev, &fw_sram_reg_val, &fw_sram_addr_reg_offset,
-				&fw_sram_data_reg_offset, ucode_type);
-	if (err)
-		return false;
-
-	WREG32(fw_sram_addr_reg_offset, fw_sram_reg_val);
-
-	ucode_size = ucode->ucode_size;
-	ucode_mem = (uint32_t *)ucode->kaddr;
-	while (!ucode_size) {
-		fw_sram_reg_val = RREG32(fw_sram_data_reg_offset);
-
-		if (*ucode_mem != fw_sram_reg_val)
-			return false;
-
-		ucode_mem++;
-		/* 4 bytes */
-		ucode_size -= 4;
-	}
-
-	return true;
-}
-
-
 static int psp_v10_0_mode1_reset(struct psp_context *psp)
 {
 	DRM_INFO("psp mode 1 reset not supported now! \n");
@@ -379,7 +256,6 @@ static const struct psp_funcs psp_v10_0_funcs = {
 	.ring_create = psp_v10_0_ring_create,
 	.ring_stop = psp_v10_0_ring_stop,
 	.ring_destroy = psp_v10_0_ring_destroy,
-	.compare_sram_data = psp_v10_0_compare_sram_data,
 	.mode1_reset = psp_v10_0_mode1_reset,
 	.ring_get_wptr = psp_v10_0_ring_get_wptr,
 	.ring_set_wptr = psp_v10_0_ring_set_wptr,

@@ -37,8 +37,6 @@
 
 #include "amdgpu_ras.h"
 
-static void psp_set_funcs(struct amdgpu_device *adev);
-
 static int psp_sysfs_init(struct amdgpu_device *adev);
 static void psp_sysfs_fini(struct amdgpu_device *adev);
 
@@ -81,8 +79,6 @@ static int psp_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct psp_context *psp = &adev->psp;
-
-	psp_set_funcs(adev);
 
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
@@ -1487,11 +1483,6 @@ static int psp_np_fw_load(struct psp_context *psp)
 				return ret;
 			}
 		}
-#if 0
-		/* check if firmware loaded sucessfully */
-		if (!amdgpu_psp_check_fw_loading_status(adev, i))
-			return -EINVAL;
-#endif
 	}
 
 	return 0;
@@ -1849,21 +1840,6 @@ int psp_ring_cmd_submit(struct psp_context *psp,
 	return 0;
 }
 
-static bool psp_check_fw_loading_status(struct amdgpu_device *adev,
-					enum AMDGPU_UCODE_ID ucode_type)
-{
-	struct amdgpu_firmware_info *ucode = NULL;
-
-	if (!adev->firmware.fw_size)
-		return false;
-
-	ucode = &adev->firmware.ucode[ucode_type];
-	if (!ucode->fw || !ucode->ucode_size)
-		return false;
-
-	return psp_compare_sram_data(&adev->psp, ucode, ucode_type);
-}
-
 static int psp_set_clockgating_state(void *handle,
 				     enum amd_clockgating_state state)
 {
@@ -1998,16 +1974,6 @@ static int psp_sysfs_init(struct amdgpu_device *adev)
 static void psp_sysfs_fini(struct amdgpu_device *adev)
 {
 	device_remove_file(adev->dev, &dev_attr_usbc_pd_fw);
-}
-
-static const struct amdgpu_psp_funcs psp_funcs = {
-	.check_fw_loading_status = psp_check_fw_loading_status,
-};
-
-static void psp_set_funcs(struct amdgpu_device *adev)
-{
-	if (NULL == adev->firmware.funcs)
-		adev->firmware.funcs = &psp_funcs;
 }
 
 const struct amdgpu_ip_block_version psp_v3_1_ip_block =
