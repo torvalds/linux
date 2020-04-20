@@ -1750,12 +1750,6 @@ int intel_hdmi_hdcp2_capable(struct intel_digital_port *intel_dig_port,
 	return ret;
 }
 
-static inline
-enum hdcp_wired_protocol intel_hdmi_hdcp2_protocol(void)
-{
-	return HDCP_PROTOCOL_HDMI;
-}
-
 static const struct intel_hdcp_shim intel_hdmi_hdcp_shim = {
 	.write_an_aksv = intel_hdmi_hdcp_write_an_aksv,
 	.read_bksv = intel_hdmi_hdcp_read_bksv,
