@@ -470,7 +470,7 @@ void isst_ctdp_display_information(int cpu, FILE *outf, int tdp_level,
 				_isst_pbf_display_information(cpu, outf,
 							      tdp_level,
 							  &ctdp_level->pbf_info,
-							      level + 1);
+							      level + 2);
 			continue;
 		}
 
