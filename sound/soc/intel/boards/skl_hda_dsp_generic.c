@@ -172,23 +172,25 @@ static int skl_hda_fill_card_info(struct snd_soc_acpi_mach_params *mach_params)
 
 static void skl_set_hda_codec_autosuspend_delay(struct snd_soc_card *card)
 {
-	struct snd_soc_pcm_runtime *rtd =
-		list_first_entry(&card->rtd_list,
-				 struct snd_soc_pcm_runtime, list);
-	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
+	struct snd_soc_pcm_runtime *rtd;
 	struct hdac_hda_priv *hda_pvt;
+	struct snd_soc_dai *dai;
 
-	if (!codec_dai)
-		return;
-
-	/*
-	 * all codecs are on the same bus, so it's sufficient
-	 * to lookup the first runtime and its codec, and set
-	 * power save defaults for all codecs on the bus
-	 */
-	hda_pvt = snd_soc_component_get_drvdata(codec_dai->component);
-	snd_hda_set_power_save(hda_pvt->codec.bus,
-			       HDA_CODEC_AUTOSUSPEND_DELAY_MS);
+	for_each_card_rtds(card, rtd) {
+		if (!strstr(rtd->dai_link->codecs->name, "ehdaudio"))
+			continue;
+		dai = asoc_rtd_to_codec(rtd, 0);
+		hda_pvt = snd_soc_component_get_drvdata(dai->component);
+		if (hda_pvt) {
+			/*
+			 * all codecs are on the same bus, so it's sufficient
+			 * to look up only the first one
+			 */
+			snd_hda_set_power_save(hda_pvt->codec.bus,
+					       HDA_CODEC_AUTOSUSPEND_DELAY_MS);
+			break;
+		}
+	}
 }
 
 static int skl_hda_audio_probe(struct platform_device *pdev)
