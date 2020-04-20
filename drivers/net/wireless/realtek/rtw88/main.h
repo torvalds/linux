@@ -847,6 +847,7 @@ struct rtw_chip_ops {
 #define RTW_PWR_INTF_PCI_MSK	BIT(2)
 #define RTW_PWR_INTF_ALL_MSK	(BIT(0) | BIT(1) | BIT(2) | BIT(3))
 
+#define RTW_PWR_CUT_TEST_MSK	BIT(0)
 #define RTW_PWR_CUT_A_MSK	BIT(1)
 #define RTW_PWR_CUT_B_MSK	BIT(2)
 #define RTW_PWR_CUT_C_MSK	BIT(3)
