@@ -470,22 +470,12 @@ void wfx_stop_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 static void wfx_join_finalize(struct wfx_vif *wvif,
 			      struct ieee80211_bss_conf *info)
 {
-	struct ieee80211_sta *sta = NULL;
-	struct hif_req_set_bss_params bss_params = { };
-
-	rcu_read_lock(); // protect sta
-	if (info->bssid && !info->ibss_joined)
-		sta = ieee80211_find_sta(wvif->vif, info->bssid);
-	if (sta)
-		bss_params.operational_rate_set =
-			wfx_rate_mask_to_hw(wvif->wdev, sta->supp_rates[wvif->channel->band]);
-	else
-		bss_params.operational_rate_set = -1;
-	rcu_read_unlock();
-	// beacon_loss_count is defined to 7 in net/mac80211/mlme.c. Let's use
-	// the same value.
-	bss_params.beacon_lost_count = 7;
-	bss_params.aid = info->aid;
+	struct hif_req_set_bss_params bss_params = {
+		// beacon_loss_count is defined to 7 in net/mac80211/mlme.c.
+		// Let's use the same value.
+		.beacon_lost_count = 7,
+		.aid = info->aid,
+	};
 
 	hif_set_association_mode(wvif, info);
 	hif_keep_alive_period(wvif, 0);
