@@ -4162,7 +4162,7 @@ struct skb_ext {
 	refcount_t refcnt;
 	u8 offset[SKB_EXT_NUM]; /* in chunks of 8 bytes */
 	u8 chunks;		/* same */
-	char data[0] __aligned(8);
+	char data[] __aligned(8);
 };
 
 struct skb_ext *__skb_ext_alloc(void);

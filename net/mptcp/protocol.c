@@ -97,12 +97,7 @@ static struct socket *__mptcp_tcp_fallback(struct mptcp_sock *msk)
 	if (likely(!__mptcp_needs_tcp_fallback(msk)))
 		return NULL;
 
-	if (msk->subflow) {
-		release_sock((struct sock *)msk);
-		return msk->subflow;
-	}
-
-	return NULL;
+	return msk->subflow;
 }
 
 static bool __mptcp_can_create_subflow(const struct mptcp_sock *msk)
@@ -734,9 +729,10 @@ static int mptcp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 			goto out;
 	}
 
+fallback:
 	ssock = __mptcp_tcp_fallback(msk);
 	if (unlikely(ssock)) {
-fallback:
+		release_sock(sk);
 		pr_debug("fallback passthrough");
 		ret = sock_sendmsg(ssock, msg);
 		return ret >= 0 ? ret + copied : (copied ? copied : ret);
@@ -769,8 +765,14 @@ fallback:
 		if (ret < 0)
 			break;
 		if (ret == 0 && unlikely(__mptcp_needs_tcp_fallback(msk))) {
+			/* Can happen for passive sockets:
+			 * 3WHS negotiated MPTCP, but first packet after is
+			 * plain TCP (e.g. due to middlebox filtering unknown
+			 * options).
+			 *
+			 * Fall back to TCP.
+			 */
 			release_sock(ssk);
-			ssock = __mptcp_tcp_fallback(msk);
 			goto fallback;
 		}
 
@@ -883,6 +885,7 @@ static int mptcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 	ssock = __mptcp_tcp_fallback(msk);
 	if (unlikely(ssock)) {
 fallback:
+		release_sock(sk);
 		pr_debug("fallback-read subflow=%p",
 			 mptcp_subflow_ctx(ssock->sk));
 		copied = sock_recvmsg(ssock, msg, flags);
@@ -1467,11 +1470,10 @@ static int mptcp_setsockopt(struct sock *sk, int level, int optname,
 	 */
 	lock_sock(sk);
 	ssock = __mptcp_tcp_fallback(msk);
+	release_sock(sk);
 	if (ssock)
 		return tcp_setsockopt(ssock->sk, level, optname, optval,
 				      optlen);
-
-	release_sock(sk);
 
 	return -EOPNOTSUPP;
 }
@@ -1492,11 +1494,10 @@ static int mptcp_getsockopt(struct sock *sk, int level, int optname,
 	 */
 	lock_sock(sk);
 	ssock = __mptcp_tcp_fallback(msk);
+	release_sock(sk);
 	if (ssock)
 		return tcp_getsockopt(ssock->sk, level, optname, optval,
 				      option);
-
-	release_sock(sk);
 
 	return -EOPNOTSUPP;
 }

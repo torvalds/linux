@@ -1,28 +1,20 @@
+======================================================
 Net DIM - Generic Network Dynamic Interrupt Moderation
 ======================================================
 
-Author:
-	Tal Gilboa <talgi@mellanox.com>
+:Author: Tal Gilboa <talgi@mellanox.com>
 
+.. contents:: :depth: 2
 
-Contents
-=========
-
-- Assumptions
-- Introduction
-- The Net DIM Algorithm
-- Registering a Network Device to DIM
-- Example
-
-Part 0: Assumptions
-======================
+Assumptions
+===========
 
 This document assumes the reader has basic knowledge in network drivers
 and in general interrupt moderation.
 
 
-Part I: Introduction
-======================
+Introduction
+============
 
 Dynamic Interrupt Moderation (DIM) (in networking) refers to changing the
 interrupt moderation configuration of a channel in order to optimize packet
@@ -41,14 +33,15 @@ number of wanted packets per event. The Net DIM algorithm ascribes importance to
 increase bandwidth over reducing interrupt rate.
 
 
-Part II: The Net DIM Algorithm
-===============================
+Net DIM Algorithm
+=================
 
 Each iteration of the Net DIM algorithm follows these steps:
-1. Calculates new data sample.
-2. Compares it to previous sample.
-3. Makes a decision - suggests interrupt moderation configuration fields.
-4. Applies a schedule work function, which applies suggested configuration.
+
+#. Calculates new data sample.
+#. Compares it to previous sample.
+#. Makes a decision - suggests interrupt moderation configuration fields.
+#. Applies a schedule work function, which applies suggested configuration.
 
 The first two steps are straightforward, both the new and the previous data are
 supplied by the driver registered to Net DIM. The previous data is the new data
@@ -89,19 +82,21 @@ manoeuvre as it may provide partial data or ignore the algorithm suggestion
 under some conditions.
 
 
-Part III: Registering a Network Device to DIM
-==============================================
+Registering a Network Device to DIM
+===================================
 
-Net DIM API exposes the main function net_dim(struct dim *dim,
-struct dim_sample end_sample). This function is the entry point to the Net
+Net DIM API exposes the main function net_dim().
+This function is the entry point to the Net
 DIM algorithm and has to be called every time the driver would like to check if
 it should change interrupt moderation parameters. The driver should provide two
-data structures: struct dim and struct dim_sample. Struct dim
+data structures: :c:type:`struct dim <dim>` and
+:c:type:`struct dim_sample <dim_sample>`. :c:type:`struct dim <dim>`
 describes the state of DIM for a specific object (RX queue, TX queue,
 other queues, etc.). This includes the current selected profile, previous data
 samples, the callback function provided by the driver and more.
-Struct dim_sample describes a data sample, which will be compared to the
-data sample stored in struct dim in order to decide on the algorithm's next
+:c:type:`struct dim_sample <dim_sample>` describes a data sample,
+which will be compared to the data sample stored in :c:type:`struct dim <dim>`
+in order to decide on the algorithm's next
 step. The sample should include bytes, packets and interrupts, measured by
 the driver.
 
@@ -110,9 +105,10 @@ main net_dim() function. The recommended method is to call net_dim() on each
 interrupt. Since Net DIM has a built-in moderation and it might decide to skip
 iterations under certain conditions, there is no need to moderate the net_dim()
 calls as well. As mentioned above, the driver needs to provide an object of type
-struct dim to the net_dim() function call. It is advised for each entity
-using Net DIM to hold a struct dim as part of its data structure and use it
-as the main Net DIM API object. The struct dim_sample should hold the latest
+:c:type:`struct dim <dim>` to the net_dim() function call. It is advised for
+each entity using Net DIM to hold a :c:type:`struct dim <dim>` as part of its
+data structure and use it as the main Net DIM API object.
+The :c:type:`struct dim_sample <dim_sample>` should hold the latest
 bytes, packets and interrupts count. No need to perform any calculations, just
 include the raw data.
 
@@ -124,19 +120,19 @@ the data flow. After the work is done, Net DIM algorithm needs to be set to
 the proper state in order to move to the next iteration.
 
 
-Part IV: Example
-=================
+Example
+=======
 
 The following code demonstrates how to register a driver to Net DIM. The actual
 usage is not complete but it should make the outline of the usage clear.
 
-my_driver.c:
+.. code-block:: c
 
-#include <linux/dim.h>
+  #include <linux/dim.h>
 
-/* Callback for net DIM to schedule on a decision to change moderation */
-void my_driver_do_dim_work(struct work_struct *work)
-{
+  /* Callback for net DIM to schedule on a decision to change moderation */
+  void my_driver_do_dim_work(struct work_struct *work)
+  {
 	/* Get struct dim from struct work_struct */
 	struct dim *dim = container_of(work, struct dim,
 				       work);
@@ -145,11 +141,11 @@ void my_driver_do_dim_work(struct work_struct *work)
 
 	/* Signal net DIM work is done and it should move to next iteration */
 	dim->state = DIM_START_MEASURE;
-}
+  }
 
-/* My driver's interrupt handler */
-int my_driver_handle_interrupt(struct my_driver_entity *my_entity, ...)
-{
+  /* My driver's interrupt handler */
+  int my_driver_handle_interrupt(struct my_driver_entity *my_entity, ...)
+  {
 	...
 	/* A struct to hold current measured data */
 	struct dim_sample dim_sample;
@@ -162,13 +158,19 @@ int my_driver_handle_interrupt(struct my_driver_entity *my_entity, ...)
 	/* Call net DIM */
 	net_dim(&my_entity->dim, dim_sample);
 	...
-}
+  }
 
-/* My entity's initialization function (my_entity was already allocated) */
-int my_driver_init_my_entity(struct my_driver_entity *my_entity, ...)
-{
+  /* My entity's initialization function (my_entity was already allocated) */
+  int my_driver_init_my_entity(struct my_driver_entity *my_entity, ...)
+  {
 	...
 	/* Initiate struct work_struct with my driver's callback function */
 	INIT_WORK(&my_entity->dim.work, my_driver_do_dim_work);
 	...
-}
+  }
+
+Dynamic Interrupt Moderation (DIM) library API
+==============================================
+
+.. kernel-doc:: include/linux/dim.h
+    :internal:
