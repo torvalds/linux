@@ -198,7 +198,6 @@ mt76_init_sband(struct mt76_dev *dev, struct mt76_sband *msband,
 
 	ht_cap->mcs.tx_params = IEEE80211_HT_MCS_TX_DEFINED;
 	ht_cap->ampdu_factor = IEEE80211_HT_MAX_AMPDU_64K;
-	ht_cap->ampdu_density = IEEE80211_HT_MPDU_DENSITY_4;
 
 	mt76_init_stream_cap(dev, sband, vht);
 

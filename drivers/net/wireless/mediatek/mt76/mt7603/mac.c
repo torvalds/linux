@@ -318,10 +318,15 @@ void mt7603_wtbl_update_cap(struct mt7603_dev *dev, struct ieee80211_sta *sta)
 {
 	struct mt7603_sta *msta = (struct mt7603_sta *)sta->drv_priv;
 	int idx = msta->wcid.idx;
+	u8 ampdu_density;
 	u32 addr;
 	u32 val;
 
 	addr = mt7603_wtbl1_addr(idx);
+
+	ampdu_density = sta->ht_cap.ampdu_density;
+	if (ampdu_density < IEEE80211_HT_MPDU_DENSITY_4)
+		ampdu_density = IEEE80211_HT_MPDU_DENSITY_4;
 
 	val = mt76_rr(dev, addr + 2 * 4);
 	val &= MT_WTBL1_W2_KEY_TYPE | MT_WTBL1_W2_ADMISSION_CONTROL;
