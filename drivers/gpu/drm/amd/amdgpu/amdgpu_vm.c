@@ -82,7 +82,7 @@ struct amdgpu_prt_cb {
 	struct dma_fence_cb cb;
 };
 
-/**
+/*
  * vm eviction_lock can be taken in MMU notifiers. Make sure no reclaim-FS
  * happens while holding this lock anywhere to prevent deadlocks when
  * an MMU notifier runs in reclaim-FS context.
