@@ -92,6 +92,8 @@
 #define OCELOT_SPEED_100		2
 #define OCELOT_SPEED_10			3
 
+#define OCELOT_PTP_PINS_NUM		4
+
 #define TARGET_OFFSET			24
 #define REG_MASK			GENMASK(TARGET_OFFSET - 1, 0)
 #define REG(reg, offset)		[reg & REG_MASK] = offset
@@ -552,6 +554,7 @@ struct ocelot {
 	struct mutex			ptp_lock;
 	/* Protects the PTP clock */
 	spinlock_t			ptp_clock_lock;
+	struct ptp_pin_desc		ptp_pins[OCELOT_PTP_PINS_NUM];
 };
 
 struct ocelot_policer {

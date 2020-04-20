@@ -49,6 +49,10 @@ int ocelot_ptp_settime64(struct ptp_clock_info *ptp,
 			 const struct timespec64 *ts);
 int ocelot_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta);
 int ocelot_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm);
+int ocelot_ptp_verify(struct ptp_clock_info *ptp, unsigned int pin,
+		      enum ptp_pin_function func, unsigned int chan);
+int ocelot_ptp_enable(struct ptp_clock_info *ptp,
+		      struct ptp_clock_request *rq, int on);
 int ocelot_init_timestamp(struct ocelot *ocelot, struct ptp_clock_info *info);
 int ocelot_deinit_timestamp(struct ocelot *ocelot);
 #endif
