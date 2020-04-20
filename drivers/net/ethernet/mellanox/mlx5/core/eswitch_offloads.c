@@ -1550,9 +1550,9 @@ static int esw_create_restore_table(struct mlx5_eswitch *esw)
 					   MLX5_FLOW_NAMESPACE_KERNEL, 1,
 					   modact);
 	if (IS_ERR(mod_hdr)) {
+		err = PTR_ERR(mod_hdr);
 		esw_warn(dev, "Failed to create restore mod header, err: %d\n",
 			 err);
-		err = PTR_ERR(mod_hdr);
 		goto err_mod_hdr;
 	}
 
