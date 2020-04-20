@@ -4214,7 +4214,7 @@ BPF_CALL_5(bpf_event_output_data, void *, ctx, struct bpf_map *, map, u64, flags
 	return bpf_event_output(map, flags, data, size, NULL, 0, NULL);
 }
 
-static const struct bpf_func_proto bpf_event_output_data_proto =  {
+const struct bpf_func_proto bpf_event_output_data_proto =  {
 	.func		= bpf_event_output_data,
 	.gpl_only       = true,
 	.ret_type       = RET_INTEGER,
