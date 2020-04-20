@@ -482,12 +482,6 @@ static void wfx_join_finalize(struct wfx_vif *wvif,
 	else
 		bss_params.operational_rate_set = -1;
 	rcu_read_unlock();
-	if (sta &&
-	    info->ht_operation_mode & IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT)
-		hif_dual_cts_protection(wvif, true);
-	else
-		hif_dual_cts_protection(wvif, false);
-
 	// beacon_loss_count is defined to 7 in net/mac80211/mlme.c. Let's use
 	// the same value.
 	bss_params.beacon_lost_count = 7;

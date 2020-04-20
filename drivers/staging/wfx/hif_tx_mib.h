@@ -52,7 +52,6 @@ int hif_use_multi_tx_conf(struct wfx_dev *wdev, bool enable);
 int hif_set_uapsd_info(struct wfx_vif *wvif, unsigned long val);
 int hif_erp_use_protection(struct wfx_vif *wvif, bool enable);
 int hif_slot_time(struct wfx_vif *wvif, int val);
-int hif_dual_cts_protection(struct wfx_vif *wvif, bool enable);
 int hif_wep_default_key_id(struct wfx_vif *wvif, int val);
 int hif_rts_threshold(struct wfx_vif *wvif, int val);
 

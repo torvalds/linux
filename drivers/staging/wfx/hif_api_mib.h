@@ -379,12 +379,6 @@ struct hif_mib_protected_mgmt_policy {
 	u8     reserved2[3];
 } __packed;
 
-struct hif_mib_set_ht_protection {
-	u8     dual_cts_prot:1;
-	u8     reserved1:7;
-	u8     reserved2[3];
-} __packed;
-
 struct hif_mib_keep_alive_period {
 	__le16 keep_alive_period;
 	u8     reserved[2];

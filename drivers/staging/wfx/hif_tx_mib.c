@@ -365,16 +365,6 @@ int hif_slot_time(struct wfx_vif *wvif, int val)
 			     &arg, sizeof(arg));
 }
 
-int hif_dual_cts_protection(struct wfx_vif *wvif, bool enable)
-{
-	struct hif_mib_set_ht_protection arg = {
-		.dual_cts_prot = enable,
-	};
-
-	return hif_write_mib(wvif->wdev, wvif->id, HIF_MIB_ID_SET_HT_PROTECTION,
-			     &arg, sizeof(arg));
-}
-
 int hif_wep_default_key_id(struct wfx_vif *wvif, int val)
 {
 	struct hif_mib_wep_default_key_id arg = {
