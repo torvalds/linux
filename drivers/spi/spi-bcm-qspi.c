@@ -576,11 +576,17 @@ static void bcm_qspi_hw_set_parms(struct bcm_qspi *qspi,
 	spcr = clamp_val(spbr, bcm_qspi_spbr_min(qspi), QSPI_SPBR_MAX);
 	bcm_qspi_write(qspi, MSPI, MSPI_SPCR0_LSB, spcr);
 
-	spcr = MSPI_MASTER_BIT;
+	if (!qspi->mspi_maj_rev)
+		/* legacy controller */
+		spcr = MSPI_MASTER_BIT;
+	else
+		spcr = 0;
+
 	/* for 16 bit the data should be zero */
 	if (xp->bits_per_word != 16)
 		spcr |= xp->bits_per_word << 2;
 	spcr |= xp->mode & 3;
+
 	bcm_qspi_write(qspi, MSPI, MSPI_SPCR0_MSB, spcr);
 
 	if (bcm_qspi_has_fastbr(qspi)) {
