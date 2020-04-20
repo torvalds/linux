@@ -554,47 +554,61 @@ static int ak8974_detect(struct ak8974 *ak8974)
 	return 0;
 }
 
+static int ak8974_measure_channel(struct ak8974 *ak8974, unsigned long address,
+				  int *val)
+{
+	__le16 hw_values[3];
+	int ret;
+
+	pm_runtime_get_sync(&ak8974->i2c->dev);
+	mutex_lock(&ak8974->lock);
+
+	/*
+	 * We read all axes and discard all but one, for optimized
+	 * reading, use the triggered buffer.
+	 */
+	ret = ak8974_trigmeas(ak8974);
+	if (ret)
+		goto out_unlock;
+	ret = ak8974_getresult(ak8974, hw_values);
+	if (ret)
+		goto out_unlock;
+	/*
+	 * This explicit cast to (s16) is necessary as the measurement
+	 * is done in 2's complement with positive and negative values.
+	 * The follwing assignment to *val will then convert the signed
+	 * s16 value to a signed int value.
+	 */
+	*val = (s16)le16_to_cpu(hw_values[address]);
+out_unlock:
+	mutex_unlock(&ak8974->lock);
+	pm_runtime_mark_last_busy(&ak8974->i2c->dev);
+	pm_runtime_put_autosuspend(&ak8974->i2c->dev);
+
+	return ret;
+}
+
 static int ak8974_read_raw(struct iio_dev *indio_dev,
 			   struct iio_chan_spec const *chan,
 			   int *val, int *val2,
 			   long mask)
 {
 	struct ak8974 *ak8974 = iio_priv(indio_dev);
-	__le16 hw_values[3];
-	int ret = -EINVAL;
-
-	pm_runtime_get_sync(&ak8974->i2c->dev);
-	mutex_lock(&ak8974->lock);
+	int ret;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
 		if (chan->address > 2) {
 			dev_err(&ak8974->i2c->dev, "faulty channel address\n");
-			ret = -EIO;
-			goto out_unlock;
+			return -EIO;
 		}
-		ret = ak8974_trigmeas(ak8974);
+		ret = ak8974_measure_channel(ak8974, chan->address, val);
 		if (ret)
-			goto out_unlock;
-		ret = ak8974_getresult(ak8974, hw_values);
-		if (ret)
-			goto out_unlock;
-
-		/*
-		 * We read all axes and discard all but one, for optimized
-		 * reading, use the triggered buffer.
-		 */
-		*val = (s16)le16_to_cpu(hw_values[chan->address]);
-
-		ret = IIO_VAL_INT;
+			return ret;
+		return IIO_VAL_INT;
 	}
 
- out_unlock:
-	mutex_unlock(&ak8974->lock);
-	pm_runtime_mark_last_busy(&ak8974->i2c->dev);
-	pm_runtime_put_autosuspend(&ak8974->i2c->dev);
-
-	return ret;
+	return -EINVAL;
 }
 
 static void ak8974_fill_buffer(struct iio_dev *indio_dev)
