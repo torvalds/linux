@@ -47,6 +47,9 @@ static const struct pci_device_id igc_pci_tbl[] = {
 	{ PCI_VDEVICE(INTEL, IGC_DEV_ID_I225_I), board_base },
 	{ PCI_VDEVICE(INTEL, IGC_DEV_ID_I220_V), board_base },
 	{ PCI_VDEVICE(INTEL, IGC_DEV_ID_I225_K), board_base },
+	{ PCI_VDEVICE(INTEL, IGC_DEV_ID_I225_K2), board_base },
+	{ PCI_VDEVICE(INTEL, IGC_DEV_ID_I225_LMVP), board_base },
+	{ PCI_VDEVICE(INTEL, IGC_DEV_ID_I225_IT), board_base },
 	{ PCI_VDEVICE(INTEL, IGC_DEV_ID_I225_BLANK_NVM), board_base },
 	/* required last entry */
 	{0, }
@@ -762,53 +765,74 @@ static void igc_setup_tctl(struct igc_adapter *adapter)
 }
 
 /**
- * igc_rar_set_index - Sync RAL[index] and RAH[index] registers with MAC table
- * @adapter: address of board private structure
- * @index: Index of the RAR entry which need to be synced with MAC table
+ * igc_set_mac_filter_hw() - Set MAC address filter in hardware
+ * @adapter: Pointer to adapter where the filter should be set
+ * @index: Filter index
+ * @addr: Destination MAC address
+ * @queue: If non-negative, queue assignment feature is enabled and frames
+ *         matching the filter are enqueued onto 'queue'. Otherwise, queue
+ *         assignment is disabled.
  */
-static void igc_rar_set_index(struct igc_adapter *adapter, u32 index)
+static void igc_set_mac_filter_hw(struct igc_adapter *adapter, int index,
+				  const u8 *addr, int queue)
 {
-	u8 *addr = adapter->mac_table[index].addr;
+	struct net_device *dev = adapter->netdev;
 	struct igc_hw *hw = &adapter->hw;
-	u32 rar_low, rar_high;
+	u32 ral, rah;
 
-	/* HW expects these to be in network order when they are plugged
-	 * into the registers which are little endian.  In order to guarantee
-	 * that ordering we need to do an leXX_to_cpup here in order to be
-	 * ready for the byteswap that occurs with writel
-	 */
-	rar_low = le32_to_cpup((__le32 *)(addr));
-	rar_high = le16_to_cpup((__le16 *)(addr + 4));
+	if (WARN_ON(index >= hw->mac.rar_entry_count))
+		return;
 
-	if (adapter->mac_table[index].state & IGC_MAC_STATE_QUEUE_STEERING) {
-		u8 queue = adapter->mac_table[index].queue;
-		u32 qsel = IGC_RAH_QSEL_MASK & (queue << IGC_RAH_QSEL_SHIFT);
+	ral = le32_to_cpup((__le32 *)(addr));
+	rah = le16_to_cpup((__le16 *)(addr + 4));
 
-		rar_high |= qsel;
-		rar_high |= IGC_RAH_QSEL_ENABLE;
+	if (queue >= 0) {
+		rah &= ~IGC_RAH_QSEL_MASK;
+		rah |= (queue << IGC_RAH_QSEL_SHIFT);
+		rah |= IGC_RAH_QSEL_ENABLE;
 	}
 
-	/* Indicate to hardware the Address is Valid. */
-	if (adapter->mac_table[index].state & IGC_MAC_STATE_IN_USE) {
-		if (is_valid_ether_addr(addr))
-			rar_high |= IGC_RAH_AV;
-	}
+	rah |= IGC_RAH_AV;
 
-	wr32(IGC_RAL(index), rar_low);
-	wrfl();
-	wr32(IGC_RAH(index), rar_high);
-	wrfl();
+	wr32(IGC_RAL(index), ral);
+	wr32(IGC_RAH(index), rah);
+
+	netdev_dbg(dev, "MAC address filter set in HW: index %d", index);
+}
+
+/**
+ * igc_clear_mac_filter_hw() - Clear MAC address filter in hardware
+ * @adapter: Pointer to adapter where the filter should be cleared
+ * @index: Filter index
+ */
+static void igc_clear_mac_filter_hw(struct igc_adapter *adapter, int index)
+{
+	struct net_device *dev = adapter->netdev;
+	struct igc_hw *hw = &adapter->hw;
+
+	if (WARN_ON(index >= hw->mac.rar_entry_count))
+		return;
+
+	wr32(IGC_RAL(index), 0);
+	wr32(IGC_RAH(index), 0);
+
+	netdev_dbg(dev, "MAC address filter cleared in HW: index %d", index);
 }
 
 /* Set default MAC address for the PF in the first RAR entry */
 static void igc_set_default_mac_filter(struct igc_adapter *adapter)
 {
 	struct igc_mac_addr *mac_table = &adapter->mac_table[0];
+	struct net_device *dev = adapter->netdev;
+	u8 *addr = adapter->hw.mac.addr;
 
-	ether_addr_copy(mac_table->addr, adapter->hw.mac.addr);
+	netdev_dbg(dev, "Set default MAC address filter: address %pM", addr);
+
+	ether_addr_copy(mac_table->addr, addr);
 	mac_table->state = IGC_MAC_STATE_DEFAULT | IGC_MAC_STATE_IN_USE;
+	mac_table->queue = -1;
 
-	igc_rar_set_index(adapter, 0);
+	igc_set_mac_filter_hw(adapter, 0, addr, mac_table->queue);
 }
 
 /**
@@ -2162,129 +2186,148 @@ static void igc_nfc_filter_restore(struct igc_adapter *adapter)
 	spin_unlock(&adapter->nfc_lock);
 }
 
-/* If the filter to be added and an already existing filter express
- * the same address and address type, it should be possible to only
- * override the other configurations, for example the queue to steer
- * traffic.
- */
-static bool igc_mac_entry_can_be_used(const struct igc_mac_addr *entry,
-				      const u8 *addr, const u8 flags)
+static int igc_find_mac_filter(struct igc_adapter *adapter, const u8 *addr,
+			       u8 flags)
 {
-	if (!(entry->state & IGC_MAC_STATE_IN_USE))
-		return true;
-
-	if ((entry->state & IGC_MAC_STATE_SRC_ADDR) !=
-	    (flags & IGC_MAC_STATE_SRC_ADDR))
-		return false;
-
-	if (!ether_addr_equal(addr, entry->addr))
-		return false;
-
-	return true;
-}
-
-/* Add a MAC filter for 'addr' directing matching traffic to 'queue',
- * 'flags' is used to indicate what kind of match is made, match is by
- * default for the destination address, if matching by source address
- * is desired the flag IGC_MAC_STATE_SRC_ADDR can be used.
- */
-static int igc_add_mac_filter(struct igc_adapter *adapter,
-			      const u8 *addr, const u8 queue)
-{
-	struct igc_hw *hw = &adapter->hw;
-	int rar_entries = hw->mac.rar_entry_count;
+	int max_entries = adapter->hw.mac.rar_entry_count;
+	struct igc_mac_addr *entry;
 	int i;
 
-	if (is_zero_ether_addr(addr))
-		return -EINVAL;
+	for (i = 0; i < max_entries; i++) {
+		entry = &adapter->mac_table[i];
 
-	/* Search for the first empty entry in the MAC table.
-	 * Do not touch entries at the end of the table reserved for the VF MAC
-	 * addresses.
-	 */
-	for (i = 0; i < rar_entries; i++) {
-		if (!igc_mac_entry_can_be_used(&adapter->mac_table[i],
-					       addr, 0))
+		if (!(entry->state & IGC_MAC_STATE_IN_USE))
+			continue;
+		if (!ether_addr_equal(addr, entry->addr))
+			continue;
+		if ((entry->state & IGC_MAC_STATE_SRC_ADDR) !=
+		    (flags & IGC_MAC_STATE_SRC_ADDR))
 			continue;
 
-		ether_addr_copy(adapter->mac_table[i].addr, addr);
-		adapter->mac_table[i].queue = queue;
-		adapter->mac_table[i].state |= IGC_MAC_STATE_IN_USE;
-
-		igc_rar_set_index(adapter, i);
 		return i;
 	}
 
-	return -ENOSPC;
+	return -1;
 }
 
-/* Remove a MAC filter for 'addr' directing matching traffic to
- * 'queue', 'flags' is used to indicate what kind of match need to be
- * removed, match is by default for the destination address, if
- * matching by source address is to be removed the flag
- * IGC_MAC_STATE_SRC_ADDR can be used.
- */
-static int igc_del_mac_filter(struct igc_adapter *adapter,
-			      const u8 *addr, const u8 queue)
+static int igc_get_avail_mac_filter_slot(struct igc_adapter *adapter)
 {
-	struct igc_hw *hw = &adapter->hw;
-	int rar_entries = hw->mac.rar_entry_count;
+	int max_entries = adapter->hw.mac.rar_entry_count;
+	struct igc_mac_addr *entry;
 	int i;
 
-	if (is_zero_ether_addr(addr))
-		return -EINVAL;
+	for (i = 0; i < max_entries; i++) {
+		entry = &adapter->mac_table[i];
 
-	/* Search for matching entry in the MAC table based on given address
-	 * and queue. Do not touch entries at the end of the table reserved
-	 * for the VF MAC addresses.
-	 */
-	for (i = 0; i < rar_entries; i++) {
-		if (!(adapter->mac_table[i].state & IGC_MAC_STATE_IN_USE))
-			continue;
-		if (adapter->mac_table[i].state != 0)
-			continue;
-		if (adapter->mac_table[i].queue != queue)
-			continue;
-		if (!ether_addr_equal(adapter->mac_table[i].addr, addr))
-			continue;
-
-		/* When a filter for the default address is "deleted",
-		 * we return it to its initial configuration
-		 */
-		if (adapter->mac_table[i].state & IGC_MAC_STATE_DEFAULT) {
-			adapter->mac_table[i].state =
-				IGC_MAC_STATE_DEFAULT | IGC_MAC_STATE_IN_USE;
-			adapter->mac_table[i].queue = 0;
-		} else {
-			adapter->mac_table[i].state = 0;
-			adapter->mac_table[i].queue = 0;
-			memset(adapter->mac_table[i].addr, 0, ETH_ALEN);
-		}
-
-		igc_rar_set_index(adapter, i);
-		return 0;
+		if (!(entry->state & IGC_MAC_STATE_IN_USE))
+			return i;
 	}
 
-	return -ENOENT;
+	return -1;
+}
+
+/**
+ * igc_add_mac_filter() - Add MAC address filter
+ * @adapter: Pointer to adapter where the filter should be added
+ * @addr: MAC address
+ * @queue: If non-negative, queue assignment feature is enabled and frames
+ *         matching the filter are enqueued onto 'queue'. Otherwise, queue
+ *         assignment is disabled.
+ * @flags: Set IGC_MAC_STATE_SRC_ADDR bit to indicate @address is a source
+ *         address
+ *
+ * Return: 0 in case of success, negative errno code otherwise.
+ */
+int igc_add_mac_filter(struct igc_adapter *adapter, const u8 *addr,
+		       const s8 queue, const u8 flags)
+{
+	struct net_device *dev = adapter->netdev;
+	int index;
+
+	if (!is_valid_ether_addr(addr))
+		return -EINVAL;
+	if (flags & IGC_MAC_STATE_SRC_ADDR)
+		return -ENOTSUPP;
+
+	index = igc_find_mac_filter(adapter, addr, flags);
+	if (index >= 0)
+		goto update_queue_assignment;
+
+	index = igc_get_avail_mac_filter_slot(adapter);
+	if (index < 0)
+		return -ENOSPC;
+
+	netdev_dbg(dev, "Add MAC address filter: index %d address %pM queue %d",
+		   index, addr, queue);
+
+	ether_addr_copy(adapter->mac_table[index].addr, addr);
+	adapter->mac_table[index].state |= IGC_MAC_STATE_IN_USE | flags;
+update_queue_assignment:
+	adapter->mac_table[index].queue = queue;
+
+	igc_set_mac_filter_hw(adapter, index, addr, queue);
+	return 0;
+}
+
+/**
+ * igc_del_mac_filter() - Delete MAC address filter
+ * @adapter: Pointer to adapter where the filter should be deleted from
+ * @addr: MAC address
+ * @flags: Set IGC_MAC_STATE_SRC_ADDR bit to indicate @address is a source
+ *         address
+ *
+ * Return: 0 in case of success, negative errno code otherwise.
+ */
+int igc_del_mac_filter(struct igc_adapter *adapter, const u8 *addr,
+		       const u8 flags)
+{
+	struct net_device *dev = adapter->netdev;
+	struct igc_mac_addr *entry;
+	int index;
+
+	if (!is_valid_ether_addr(addr))
+		return -EINVAL;
+
+	index = igc_find_mac_filter(adapter, addr, flags);
+	if (index < 0)
+		return -ENOENT;
+
+	entry = &adapter->mac_table[index];
+
+	if (entry->state & IGC_MAC_STATE_DEFAULT) {
+		/* If this is the default filter, we don't actually delete it.
+		 * We just reset to its default value i.e. disable queue
+		 * assignment.
+		 */
+		netdev_dbg(dev, "Disable default MAC filter queue assignment");
+
+		entry->queue = -1;
+		igc_set_mac_filter_hw(adapter, 0, addr, entry->queue);
+	} else {
+		netdev_dbg(dev, "Delete MAC address filter: index %d address %pM",
+			   index, addr);
+
+		entry->state = 0;
+		entry->queue = -1;
+		memset(entry->addr, 0, ETH_ALEN);
+		igc_clear_mac_filter_hw(adapter, index);
+	}
+
+	return 0;
 }
 
 static int igc_uc_sync(struct net_device *netdev, const unsigned char *addr)
 {
 	struct igc_adapter *adapter = netdev_priv(netdev);
-	int ret;
 
-	ret = igc_add_mac_filter(adapter, addr, adapter->num_rx_queues);
-
-	return min_t(int, ret, 0);
+	return igc_add_mac_filter(adapter, addr, -1, 0);
 }
 
 static int igc_uc_unsync(struct net_device *netdev, const unsigned char *addr)
 {
 	struct igc_adapter *adapter = netdev_priv(netdev);
 
-	igc_del_mac_filter(adapter, addr, adapter->num_rx_queues);
-
-	return 0;
+	return igc_del_mac_filter(adapter, addr, 0);
 }
 
 /**
@@ -3715,106 +3758,6 @@ igc_features_check(struct sk_buff *skb, struct net_device *dev,
 		features &= ~NETIF_F_TSO;
 
 	return features;
-}
-
-/* Add a MAC filter for 'addr' directing matching traffic to 'queue',
- * 'flags' is used to indicate what kind of match is made, match is by
- * default for the destination address, if matching by source address
- * is desired the flag IGC_MAC_STATE_SRC_ADDR can be used.
- */
-static int igc_add_mac_filter_flags(struct igc_adapter *adapter,
-				    const u8 *addr, const u8 queue,
-				    const u8 flags)
-{
-	struct igc_hw *hw = &adapter->hw;
-	int rar_entries = hw->mac.rar_entry_count;
-	int i;
-
-	if (is_zero_ether_addr(addr))
-		return -EINVAL;
-
-	/* Search for the first empty entry in the MAC table.
-	 * Do not touch entries at the end of the table reserved for the VF MAC
-	 * addresses.
-	 */
-	for (i = 0; i < rar_entries; i++) {
-		if (!igc_mac_entry_can_be_used(&adapter->mac_table[i],
-					       addr, flags))
-			continue;
-
-		ether_addr_copy(adapter->mac_table[i].addr, addr);
-		adapter->mac_table[i].queue = queue;
-		adapter->mac_table[i].state |= IGC_MAC_STATE_IN_USE | flags;
-
-		igc_rar_set_index(adapter, i);
-		return i;
-	}
-
-	return -ENOSPC;
-}
-
-int igc_add_mac_steering_filter(struct igc_adapter *adapter,
-				const u8 *addr, u8 queue, u8 flags)
-{
-	return igc_add_mac_filter_flags(adapter, addr, queue,
-					IGC_MAC_STATE_QUEUE_STEERING | flags);
-}
-
-/* Remove a MAC filter for 'addr' directing matching traffic to
- * 'queue', 'flags' is used to indicate what kind of match need to be
- * removed, match is by default for the destination address, if
- * matching by source address is to be removed the flag
- * IGC_MAC_STATE_SRC_ADDR can be used.
- */
-static int igc_del_mac_filter_flags(struct igc_adapter *adapter,
-				    const u8 *addr, const u8 queue,
-				    const u8 flags)
-{
-	struct igc_hw *hw = &adapter->hw;
-	int rar_entries = hw->mac.rar_entry_count;
-	int i;
-
-	if (is_zero_ether_addr(addr))
-		return -EINVAL;
-
-	/* Search for matching entry in the MAC table based on given address
-	 * and queue. Do not touch entries at the end of the table reserved
-	 * for the VF MAC addresses.
-	 */
-	for (i = 0; i < rar_entries; i++) {
-		if (!(adapter->mac_table[i].state & IGC_MAC_STATE_IN_USE))
-			continue;
-		if ((adapter->mac_table[i].state & flags) != flags)
-			continue;
-		if (adapter->mac_table[i].queue != queue)
-			continue;
-		if (!ether_addr_equal(adapter->mac_table[i].addr, addr))
-			continue;
-
-		/* When a filter for the default address is "deleted",
-		 * we return it to its initial configuration
-		 */
-		if (adapter->mac_table[i].state & IGC_MAC_STATE_DEFAULT) {
-			adapter->mac_table[i].state =
-				IGC_MAC_STATE_DEFAULT | IGC_MAC_STATE_IN_USE;
-		} else {
-			adapter->mac_table[i].state = 0;
-			adapter->mac_table[i].queue = 0;
-			memset(adapter->mac_table[i].addr, 0, ETH_ALEN);
-		}
-
-		igc_rar_set_index(adapter, i);
-		return 0;
-	}
-
-	return -ENOENT;
-}
-
-int igc_del_mac_steering_filter(struct igc_adapter *adapter,
-				const u8 *addr, u8 queue, u8 flags)
-{
-	return igc_del_mac_filter_flags(adapter, addr, queue,
-					IGC_MAC_STATE_QUEUE_STEERING | flags);
 }
 
 static void igc_tsync_interrupt(struct igc_adapter *adapter)

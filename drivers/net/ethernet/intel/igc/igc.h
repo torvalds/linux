@@ -227,10 +227,10 @@ void igc_write_rss_indir_tbl(struct igc_adapter *adapter);
 bool igc_has_link(struct igc_adapter *adapter);
 void igc_reset(struct igc_adapter *adapter);
 int igc_set_spd_dplx(struct igc_adapter *adapter, u32 spd, u8 dplx);
-int igc_add_mac_steering_filter(struct igc_adapter *adapter,
-				const u8 *addr, u8 queue, u8 flags);
-int igc_del_mac_steering_filter(struct igc_adapter *adapter,
-				const u8 *addr, u8 queue, u8 flags);
+int igc_add_mac_filter(struct igc_adapter *adapter, const u8 *addr,
+		       const s8 queue, const u8 flags);
+int igc_del_mac_filter(struct igc_adapter *adapter, const u8 *addr,
+		       const u8 flags);
 void igc_update_stats(struct igc_adapter *adapter);
 
 /* igc_dump declarations */
@@ -466,14 +466,13 @@ struct igc_nfc_filter {
 
 struct igc_mac_addr {
 	u8 addr[ETH_ALEN];
-	u8 queue;
+	s8 queue;
 	u8 state; /* bitmask */
 };
 
 #define IGC_MAC_STATE_DEFAULT		0x1
 #define IGC_MAC_STATE_IN_USE		0x2
 #define IGC_MAC_STATE_SRC_ADDR		0x4
-#define IGC_MAC_STATE_QUEUE_STEERING	0x8
 
 #define IGC_MAX_RXNFC_FILTERS		16
 
