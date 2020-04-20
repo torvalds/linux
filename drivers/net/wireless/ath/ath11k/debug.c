@@ -195,7 +195,7 @@ void ath11k_debug_fw_stats_process(struct ath11k_base *ab, struct sk_buff *skb)
 				total_vdevs_started += ar->num_started_vdevs;
 		}
 
-		is_end = ((++num_vdev) == total_vdevs_started ? true : false);
+		is_end = ((++num_vdev) == total_vdevs_started);
 
 		list_splice_tail_init(&stats.vdevs,
 				      &ar->debug.fw_stats.vdevs);
@@ -215,7 +215,7 @@ void ath11k_debug_fw_stats_process(struct ath11k_base *ab, struct sk_buff *skb)
 		/* Mark end until we reached the count of all started VDEVs
 		 * within the PDEV
 		 */
-		is_end = ((++num_bcn) == ar->num_started_vdevs ? true : false);
+		is_end = ((++num_bcn) == ar->num_started_vdevs);
 
 		list_splice_tail_init(&stats.bcn,
 				      &ar->debug.fw_stats.bcn);
