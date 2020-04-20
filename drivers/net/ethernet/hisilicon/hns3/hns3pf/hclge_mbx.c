@@ -5,6 +5,9 @@
 #include "hclge_mbx.h"
 #include "hnae3.h"
 
+#define CREATE_TRACE_POINTS
+#include "hclge_trace.h"
+
 static u16 hclge_errno_to_resp(int errno)
 {
 	return abs(errno);
@@ -89,6 +92,8 @@ static int hclge_send_mbx_msg(struct hclge_vport *vport, u8 *msg, u16 msg_len,
 	resp_pf_to_vf->msg.code = mbx_opcode;
 
 	memcpy(&resp_pf_to_vf->msg.vf_mbx_msg_code, msg, msg_len);
+
+	trace_hclge_pf_mbx_send(hdev, resp_pf_to_vf);
 
 	status = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (status)
@@ -673,6 +678,8 @@ void hclge_mbx_handler(struct hclge_dev *hdev)
 		}
 
 		vport = &hdev->vport[req->mbx_src_vfid];
+
+		trace_hclge_pf_mbx_get(hdev, req);
 
 		switch (req->msg.code) {
 		case HCLGE_MBX_MAP_RING_TO_VECTOR:

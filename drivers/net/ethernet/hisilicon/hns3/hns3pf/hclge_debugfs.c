@@ -143,7 +143,7 @@ static void hclge_dbg_dump_reg_common(struct hclge_dev *hdev,
 		return;
 	}
 
-	buf_len	= sizeof(struct hclge_desc) * bd_num;
+	buf_len = sizeof(struct hclge_desc) * bd_num;
 	desc_src = kzalloc(buf_len, GFP_KERNEL);
 	if (!desc_src)
 		return;
@@ -171,6 +171,114 @@ static void hclge_dbg_dump_reg_common(struct hclge_dev *hdev,
 	}
 
 	kfree(desc_src);
+}
+
+static void hclge_dbg_dump_mac_enable_status(struct hclge_dev *hdev)
+{
+	struct hclge_config_mac_mode_cmd *req;
+	struct hclge_desc desc;
+	u32 loop_en;
+	int ret;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CONFIG_MAC_MODE, true);
+
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to dump mac enable status, ret = %d\n", ret);
+		return;
+	}
+
+	req = (struct hclge_config_mac_mode_cmd *)desc.data;
+	loop_en = le32_to_cpu(req->txrx_pad_fcs_loop_en);
+
+	dev_info(&hdev->pdev->dev, "config_mac_trans_en: %#x\n",
+		 hnae3_get_bit(loop_en, HCLGE_MAC_TX_EN_B));
+	dev_info(&hdev->pdev->dev, "config_mac_rcv_en: %#x\n",
+		 hnae3_get_bit(loop_en, HCLGE_MAC_RX_EN_B));
+	dev_info(&hdev->pdev->dev, "config_pad_trans_en: %#x\n",
+		 hnae3_get_bit(loop_en, HCLGE_MAC_PAD_TX_B));
+	dev_info(&hdev->pdev->dev, "config_pad_rcv_en: %#x\n",
+		 hnae3_get_bit(loop_en, HCLGE_MAC_PAD_RX_B));
+	dev_info(&hdev->pdev->dev, "config_1588_trans_en: %#x\n",
+		 hnae3_get_bit(loop_en, HCLGE_MAC_1588_TX_B));
+	dev_info(&hdev->pdev->dev, "config_1588_rcv_en: %#x\n",
+		 hnae3_get_bit(loop_en, HCLGE_MAC_1588_RX_B));
+	dev_info(&hdev->pdev->dev, "config_mac_app_loop_en: %#x\n",
+		 hnae3_get_bit(loop_en, HCLGE_MAC_APP_LP_B));
+	dev_info(&hdev->pdev->dev, "config_mac_line_loop_en: %#x\n",
+		 hnae3_get_bit(loop_en, HCLGE_MAC_LINE_LP_B));
+	dev_info(&hdev->pdev->dev, "config_mac_fcs_tx_en: %#x\n",
+		 hnae3_get_bit(loop_en, HCLGE_MAC_FCS_TX_B));
+	dev_info(&hdev->pdev->dev, "config_mac_rx_oversize_truncate_en: %#x\n",
+		 hnae3_get_bit(loop_en, HCLGE_MAC_RX_OVERSIZE_TRUNCATE_B));
+	dev_info(&hdev->pdev->dev, "config_mac_rx_fcs_strip_en: %#x\n",
+		 hnae3_get_bit(loop_en, HCLGE_MAC_RX_FCS_STRIP_B));
+	dev_info(&hdev->pdev->dev, "config_mac_rx_fcs_en: %#x\n",
+		 hnae3_get_bit(loop_en, HCLGE_MAC_RX_FCS_B));
+	dev_info(&hdev->pdev->dev, "config_mac_tx_under_min_err_en: %#x\n",
+		 hnae3_get_bit(loop_en, HCLGE_MAC_TX_UNDER_MIN_ERR_B));
+	dev_info(&hdev->pdev->dev, "config_mac_tx_oversize_truncate_en: %#x\n",
+		 hnae3_get_bit(loop_en, HCLGE_MAC_TX_OVERSIZE_TRUNCATE_B));
+}
+
+static void hclge_dbg_dump_mac_frame_size(struct hclge_dev *hdev)
+{
+	struct hclge_config_max_frm_size_cmd *req;
+	struct hclge_desc desc;
+	int ret;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CONFIG_MAX_FRM_SIZE, true);
+
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to dump mac frame size, ret = %d\n", ret);
+		return;
+	}
+
+	req = (struct hclge_config_max_frm_size_cmd *)desc.data;
+
+	dev_info(&hdev->pdev->dev, "max_frame_size: %u\n",
+		 le16_to_cpu(req->max_frm_size));
+	dev_info(&hdev->pdev->dev, "min_frame_size: %u\n", req->min_frm_size);
+}
+
+static void hclge_dbg_dump_mac_speed_duplex(struct hclge_dev *hdev)
+{
+#define HCLGE_MAC_SPEED_SHIFT	0
+#define HCLGE_MAC_SPEED_MASK	GENMASK(5, 0)
+#define HCLGE_MAC_DUPLEX_SHIFT	7
+
+	struct hclge_config_mac_speed_dup_cmd *req;
+	struct hclge_desc desc;
+	int ret;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CONFIG_SPEED_DUP, true);
+
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to dump mac speed duplex, ret = %d\n", ret);
+		return;
+	}
+
+	req = (struct hclge_config_mac_speed_dup_cmd *)desc.data;
+
+	dev_info(&hdev->pdev->dev, "speed: %#lx\n",
+		 hnae3_get_field(req->speed_dup, HCLGE_MAC_SPEED_MASK,
+				 HCLGE_MAC_SPEED_SHIFT));
+	dev_info(&hdev->pdev->dev, "duplex: %#x\n",
+		 hnae3_get_bit(req->speed_dup, HCLGE_MAC_DUPLEX_SHIFT));
+}
+
+static void hclge_dbg_dump_mac(struct hclge_dev *hdev)
+{
+	hclge_dbg_dump_mac_enable_status(hdev);
+
+	hclge_dbg_dump_mac_frame_size(hdev);
+
+	hclge_dbg_dump_mac_speed_duplex(hdev);
 }
 
 static void hclge_dbg_dump_dcb(struct hclge_dev *hdev, const char *cmd_buf)
@@ -302,6 +410,11 @@ static void hclge_dbg_dump_reg_cmd(struct hclge_dev *hdev, const char *cmd_buf)
 			hclge_dbg_dump_reg_common(hdev, reg_info, cmd_buf);
 			has_dump = true;
 		}
+	}
+
+	if (strncmp(cmd_buf, "mac", strlen("mac")) == 0) {
+		hclge_dbg_dump_mac(hdev);
+		has_dump = true;
 	}
 
 	if (strncmp(cmd_buf, "dcb", 3) == 0) {
