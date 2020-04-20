@@ -395,7 +395,7 @@ static struct dma_chunk * dma_find_chunk(struct ps3_dma_region *r,
 {
 	struct dma_chunk *c;
 	unsigned long aligned_bus = ALIGN_DOWN(bus_addr, 1 << r->page_size);
-	unsigned long aligned_len = _ALIGN_UP(len+bus_addr-aligned_bus,
+	unsigned long aligned_len = ALIGN(len+bus_addr-aligned_bus,
 					      1 << r->page_size);
 
 	list_for_each_entry(c, &r->chunk_list.head, link) {
@@ -424,7 +424,7 @@ static struct dma_chunk *dma_find_chunk_lpar(struct ps3_dma_region *r,
 {
 	struct dma_chunk *c;
 	unsigned long aligned_lpar = ALIGN_DOWN(lpar_addr, 1 << r->page_size);
-	unsigned long aligned_len = _ALIGN_UP(len + lpar_addr - aligned_lpar,
+	unsigned long aligned_len = ALIGN(len + lpar_addr - aligned_lpar,
 					      1 << r->page_size);
 
 	list_for_each_entry(c, &r->chunk_list.head, link) {
@@ -776,7 +776,7 @@ static int dma_sb_map_area(struct ps3_dma_region *r, unsigned long virt_addr,
 	unsigned long phys_addr = is_kernel_addr(virt_addr) ? __pa(virt_addr)
 		: virt_addr;
 	unsigned long aligned_phys = ALIGN_DOWN(phys_addr, 1 << r->page_size);
-	unsigned long aligned_len = _ALIGN_UP(len + phys_addr - aligned_phys,
+	unsigned long aligned_len = ALIGN(len + phys_addr - aligned_phys,
 					      1 << r->page_size);
 	*bus_addr = dma_sb_lpar_to_bus(r, ps3_mm_phys_to_lpar(phys_addr));
 
@@ -831,7 +831,7 @@ static int dma_ioc0_map_area(struct ps3_dma_region *r, unsigned long virt_addr,
 	unsigned long phys_addr = is_kernel_addr(virt_addr) ? __pa(virt_addr)
 		: virt_addr;
 	unsigned long aligned_phys = ALIGN_DOWN(phys_addr, 1 << r->page_size);
-	unsigned long aligned_len = _ALIGN_UP(len + phys_addr - aligned_phys,
+	unsigned long aligned_len = ALIGN(len + phys_addr - aligned_phys,
 					      1 << r->page_size);
 
 	DBG(KERN_ERR "%s: vaddr=%#lx, len=%#lx\n", __func__,
@@ -891,7 +891,7 @@ static int dma_sb_unmap_area(struct ps3_dma_region *r, dma_addr_t bus_addr,
 	if (!c) {
 		unsigned long aligned_bus = ALIGN_DOWN(bus_addr,
 			1 << r->page_size);
-		unsigned long aligned_len = _ALIGN_UP(len + bus_addr
+		unsigned long aligned_len = ALIGN(len + bus_addr
 			- aligned_bus, 1 << r->page_size);
 		DBG("%s:%d: not found: bus_addr %llxh\n",
 			__func__, __LINE__, bus_addr);
@@ -928,7 +928,7 @@ static int dma_ioc0_unmap_area(struct ps3_dma_region *r,
 	if (!c) {
 		unsigned long aligned_bus = ALIGN_DOWN(bus_addr,
 							1 << r->page_size);
-		unsigned long aligned_len = _ALIGN_UP(len + bus_addr
+		unsigned long aligned_len = ALIGN(len + bus_addr
 						      - aligned_bus,
 						      1 << r->page_size);
 		DBG("%s:%d: not found: bus_addr %llxh\n",
@@ -974,7 +974,7 @@ static int dma_sb_region_create_linear(struct ps3_dma_region *r)
 			pr_info("%s:%d: forcing 16M pages for linear map\n",
 				__func__, __LINE__);
 			r->page_size = PS3_DMA_16M;
-			r->len = _ALIGN_UP(r->len, 1 << r->page_size);
+			r->len = ALIGN(r->len, 1 << r->page_size);
 		}
 	}
 
@@ -1125,7 +1125,7 @@ int ps3_dma_region_init(struct ps3_system_bus_device *dev,
 	r->offset = lpar_addr;
 	if (r->offset >= map.rm.size)
 		r->offset -= map.r1.offset;
-	r->len = len ? len : _ALIGN_UP(map.total, 1 << r->page_size);
+	r->len = len ? len : ALIGN(map.total, 1 << r->page_size);
 
 	switch (dev->dev_type) {
 	case PS3_DEVICE_TYPE_SB:

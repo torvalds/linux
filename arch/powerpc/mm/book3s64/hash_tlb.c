@@ -194,7 +194,7 @@ void __flush_hash_table_range(unsigned long start, unsigned long end)
 	unsigned long flags;
 
 	start = ALIGN_DOWN(start, PAGE_SIZE);
-	end = _ALIGN_UP(end, PAGE_SIZE);
+	end = ALIGN(end, PAGE_SIZE);
 
 
 	/*

@@ -108,7 +108,7 @@ static void * __init bootx_early_getprop(unsigned long base,
 
 #define dt_push_token(token, mem) \
 	do { \
-		*(mem) = _ALIGN_UP(*(mem),4); \
+		*(mem) = ALIGN(*(mem),4); \
 		*((u32 *)*(mem)) = token; \
 		*(mem) += 4; \
 	} while(0)
@@ -150,7 +150,7 @@ static void __init bootx_dt_add_prop(char *name, void *data, int size,
 	/* push property content */
 	if (size && data) {
 		memcpy((void *)*mem_end, data, size);
-		*mem_end = _ALIGN_UP(*mem_end + size, 4);
+		*mem_end = ALIGN(*mem_end + size, 4);
 	}
 }
 
@@ -303,7 +303,7 @@ static void __init bootx_scan_dt_build_struct(unsigned long base,
 			*lp++ = *p;
 	}
 	*lp = 0;
-	*mem_end = _ALIGN_UP((unsigned long)lp + 1, 4);
+	*mem_end = ALIGN((unsigned long)lp + 1, 4);
 
 	/* get and store all properties */
 	while (*ppp) {
@@ -356,11 +356,11 @@ static unsigned long __init bootx_flatten_dt(unsigned long start)
 	/* Start using memory after the big blob passed by BootX, get
 	 * some space for the header
 	 */
-	mem_start = mem_end = _ALIGN_UP(((unsigned long)bi) + start, 4);
+	mem_start = mem_end = ALIGN(((unsigned long)bi) + start, 4);
 	DBG("Boot params header at: %x\n", mem_start);
 	hdr = (struct boot_param_header *)mem_start;
 	mem_end += sizeof(struct boot_param_header);
-	rsvmap = (u64 *)(_ALIGN_UP(mem_end, 8));
+	rsvmap = (u64 *)(ALIGN(mem_end, 8));
 	hdr->off_mem_rsvmap = ((unsigned long)rsvmap) - mem_start;
 	mem_end = ((unsigned long)rsvmap) + 8 * sizeof(u64);
 

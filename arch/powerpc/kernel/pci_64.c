@@ -131,7 +131,7 @@ static int pcibios_map_phb_io_space(struct pci_controller *hose)
 	unsigned long io_virt_offset;
 
 	phys_page = ALIGN_DOWN(hose->io_base_phys, PAGE_SIZE);
-	size_page = _ALIGN_UP(hose->pci_io_size, PAGE_SIZE);
+	size_page = ALIGN(hose->pci_io_size, PAGE_SIZE);
 
 	/* Make sure IO area address is clear */
 	hose->io_base_alloc = NULL;
