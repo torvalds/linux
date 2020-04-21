@@ -130,7 +130,7 @@ static void (*quirk_no_way_out)(int bank, struct mce *m, struct pt_regs *regs);
 BLOCKING_NOTIFIER_HEAD(x86_mce_decoder_chain);
 
 /* Do initial initialization of a struct mce */
-void mce_setup(struct mce *m)
+noinstr void mce_setup(struct mce *m)
 {
 	memset(m, 0, sizeof(struct mce));
 	m->cpu = m->extcpu = smp_processor_id();
@@ -140,12 +140,12 @@ void mce_setup(struct mce *m)
 	m->cpuid = cpuid_eax(1);
 	m->socketid = cpu_data(m->extcpu).phys_proc_id;
 	m->apicid = cpu_data(m->extcpu).initial_apicid;
-	rdmsrl(MSR_IA32_MCG_CAP, m->mcgcap);
+	m->mcgcap = __rdmsr(MSR_IA32_MCG_CAP);
 
 	if (this_cpu_has(X86_FEATURE_INTEL_PPIN))
-		rdmsrl(MSR_PPIN, m->ppin);
+		m->ppin = __rdmsr(MSR_PPIN);
 	else if (this_cpu_has(X86_FEATURE_AMD_PPIN))
-		rdmsrl(MSR_AMD_PPIN, m->ppin);
+		m->ppin = __rdmsr(MSR_AMD_PPIN);
 
 	m->microcode = boot_cpu_data.microcode;
 }
@@ -1895,10 +1895,12 @@ bool filter_mce(struct mce *m)
 }
 
 /* Handle unconfigured int18 (should never happen) */
-static void unexpected_machine_check(struct pt_regs *regs)
+static noinstr void unexpected_machine_check(struct pt_regs *regs)
 {
+	instrumentation_begin();
 	pr_err("CPU#%d: Unexpected int18 (Machine Check)\n",
 	       smp_processor_id());
+	instrumentation_end();
 }
 
 /* Call the installed machine check handler for this CPU setup. */
@@ -1915,14 +1917,22 @@ static __always_inline void exc_machine_check_kernel(struct pt_regs *regs)
 		return;
 
 	nmi_enter();
+	/*
+	 * The call targets are marked noinstr, but objtool can't figure
+	 * that out because it's an indirect call. Annotate it.
+	 */
+	instrumentation_begin();
 	machine_check_vector(regs);
+	instrumentation_end();
 	nmi_exit();
 }
 
 static __always_inline void exc_machine_check_user(struct pt_regs *regs)
 {
 	idtentry_enter(regs);
+	instrumentation_begin();
 	machine_check_vector(regs);
+	instrumentation_end();
 	idtentry_exit(regs);
 }
 
