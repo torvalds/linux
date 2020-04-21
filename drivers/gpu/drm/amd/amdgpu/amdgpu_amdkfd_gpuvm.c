@@ -1284,21 +1284,21 @@ int amdgpu_amdkfd_gpuvm_free_memory_of_gpu(
 	struct kfd_bo_va_list *entry, *tmp;
 	struct bo_vm_reservation_context ctx;
 	struct ttm_validate_buffer *bo_list_entry;
+	unsigned int mapped_to_gpu_memory;
 	int ret;
 
 	mutex_lock(&mem->lock);
-
-	if (mem->mapped_to_gpu_memory > 0) {
-		pr_debug("BO VA 0x%llx size 0x%lx is still mapped.\n",
-				mem->va, bo_size);
-		mutex_unlock(&mem->lock);
-		return -EBUSY;
-	}
-
+	mapped_to_gpu_memory = mem->mapped_to_gpu_memory;
 	mutex_unlock(&mem->lock);
 	/* lock is not needed after this, since mem is unused and will
 	 * be freed anyway
 	 */
+
+	if (mapped_to_gpu_memory > 0) {
+		pr_debug("BO VA 0x%llx size 0x%lx is still mapped.\n",
+				mem->va, bo_size);
+		return -EBUSY;
+	}
 
 	/* No more MMU notifiers */
 	amdgpu_mn_unregister(mem->bo);
