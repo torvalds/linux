@@ -651,15 +651,35 @@ efi_status_t efi_parse_options(char const *cmdline);
 efi_status_t efi_setup_gop(struct screen_info *si, efi_guid_t *proto,
 			   unsigned long size);
 
-efi_status_t efi_load_dtb(efi_loaded_image_t *image,
-			  unsigned long *load_addr,
-			  unsigned long *load_size);
+efi_status_t handle_cmdline_files(efi_loaded_image_t *image,
+				  const efi_char16_t *optstr,
+				  int optstr_size,
+				  unsigned long soft_limit,
+				  unsigned long hard_limit,
+				  unsigned long *load_addr,
+				  unsigned long *load_size);
 
-efi_status_t efi_load_initrd(efi_loaded_image_t *image,
-			     unsigned long *load_addr,
-			     unsigned long *load_size,
-			     unsigned long soft_limit,
-			     unsigned long hard_limit);
+
+static inline efi_status_t efi_load_dtb(efi_loaded_image_t *image,
+					unsigned long *load_addr,
+					unsigned long *load_size)
+{
+	return handle_cmdline_files(image, L"dtb=", sizeof(L"dtb=") - 2,
+				    ULONG_MAX, ULONG_MAX, load_addr, load_size);
+}
+
+static inline efi_status_t efi_load_initrd(efi_loaded_image_t *image,
+					   unsigned long *load_addr,
+					   unsigned long *load_size,
+					   unsigned long soft_limit,
+					   unsigned long hard_limit)
+{
+	if (!IS_ENABLED(CONFIG_EFI_GENERIC_STUB_INITRD_CMDLINE_LOADER))
+		return EFI_SUCCESS;
+
+	return handle_cmdline_files(image, L"initrd=", sizeof(L"initrd=") - 2,
+				    soft_limit, hard_limit, load_addr, load_size);
+}
 
 efi_status_t efi_load_initrd_dev_path(unsigned long *load_addr,
 				      unsigned long *load_size,
