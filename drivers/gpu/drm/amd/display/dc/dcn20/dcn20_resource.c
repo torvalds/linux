@@ -3112,6 +3112,8 @@ static noinline bool dcn20_validate_bandwidth_fp(struct dc *dc,
 	p_state_latency_us = context->bw_ctx.dml.soc.dram_clock_change_latency_us;
 	context->bw_ctx.dml.soc.disable_dram_clock_change_vactive_support =
 		dc->debug.disable_dram_clock_change_vactive_support;
+	context->bw_ctx.dml.soc.allow_dram_clock_one_display_vactive =
+		dc->debug.enable_dram_clock_change_one_display_vactive;
 
 	if (fast_validate) {
 		return dcn20_validate_bandwidth_internal(dc, context, true);

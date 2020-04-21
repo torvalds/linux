@@ -899,6 +899,7 @@ struct vba_vars_st {
 	double BPP;
 	enum odm_combine_policy ODMCombinePolicy;
 	bool UseMinimumRequiredDCFCLK;
+	bool AllowDramClockChangeOneDisplayVactive;
 };
 
 bool CalculateMinAndMaxPrefetchMode(
