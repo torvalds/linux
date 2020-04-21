@@ -276,37 +276,25 @@ static inline bool nmi_uaccess_okay(void)
 
 #define nmi_uaccess_okay nmi_uaccess_okay
 
+void cr4_update_irqsoff(unsigned long set, unsigned long clear);
+unsigned long cr4_read_shadow(void);
+
 /* Initialize cr4 shadow for this CPU. */
 static inline void cr4_init_shadow(void)
 {
 	this_cpu_write(cpu_tlbstate.cr4, __read_cr4());
 }
 
-static inline void __cr4_set(unsigned long cr4)
-{
-	lockdep_assert_irqs_disabled();
-	this_cpu_write(cpu_tlbstate.cr4, cr4);
-	__write_cr4(cr4);
-}
-
 /* Set in this cpu's CR4. */
 static inline void cr4_set_bits_irqsoff(unsigned long mask)
 {
-	unsigned long cr4;
-
-	cr4 = this_cpu_read(cpu_tlbstate.cr4);
-	if ((cr4 | mask) != cr4)
-		__cr4_set(cr4 | mask);
+	cr4_update_irqsoff(mask, 0);
 }
 
 /* Clear in this cpu's CR4. */
 static inline void cr4_clear_bits_irqsoff(unsigned long mask)
 {
-	unsigned long cr4;
-
-	cr4 = this_cpu_read(cpu_tlbstate.cr4);
-	if ((cr4 & ~mask) != cr4)
-		__cr4_set(cr4 & ~mask);
+	cr4_update_irqsoff(0, mask);
 }
 
 /* Set in this cpu's CR4. */
@@ -327,20 +315,6 @@ static inline void cr4_clear_bits(unsigned long mask)
 	local_irq_save(flags);
 	cr4_clear_bits_irqsoff(mask);
 	local_irq_restore(flags);
-}
-
-static inline void cr4_toggle_bits_irqsoff(unsigned long mask)
-{
-	unsigned long cr4;
-
-	cr4 = this_cpu_read(cpu_tlbstate.cr4);
-	__cr4_set(cr4 ^ mask);
-}
-
-/* Read the CR4 shadow. */
-static inline unsigned long cr4_read_shadow(void)
-{
-	return this_cpu_read(cpu_tlbstate.cr4);
 }
 
 /*
