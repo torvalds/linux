@@ -225,24 +225,7 @@ static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
 	return __pkru_allows_pkey(vma_pkey(vma), write);
 }
 
-/*
- * This can be used from process context to figure out what the value of
- * CR3 is without needing to do a (slow) __read_cr3().
- *
- * It's intended to be used for code like KVM that sneakily changes CR3
- * and needs to restore it.  It needs to be used very carefully.
- */
-static inline unsigned long __get_current_cr3_fast(void)
-{
-	unsigned long cr3 = build_cr3(this_cpu_read(cpu_tlbstate.loaded_mm)->pgd,
-		this_cpu_read(cpu_tlbstate.loaded_mm_asid));
-
-	/* For now, be very restrictive about when this can be called. */
-	VM_WARN_ON(in_nmi() || preemptible());
-
-	VM_BUG_ON(cr3 != __read_cr3());
-	return cr3;
-}
+unsigned long __get_current_cr3_fast(void);
 
 typedef struct {
 	struct mm_struct *mm;
