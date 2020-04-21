@@ -2219,10 +2219,12 @@ static int esw_offloads_steering_init(struct mlx5_eswitch *esw)
 		total_vports = num_vfs + MLX5_SPECIAL_VPORTS(esw->dev);
 
 	memset(&esw->fdb_table.offloads, 0, sizeof(struct offloads_fdb));
+	mutex_init(&esw->fdb_table.offloads.vports.lock);
+	hash_init(esw->fdb_table.offloads.vports.table);
 
 	err = esw_create_uplink_offloads_acl_tables(esw);
 	if (err)
-		return err;
+		goto create_acl_err;
 
 	err = esw_create_offloads_table(esw, total_vports);
 	if (err)
@@ -2240,9 +2242,6 @@ static int esw_offloads_steering_init(struct mlx5_eswitch *esw)
 	if (err)
 		goto create_fg_err;
 
-	mutex_init(&esw->fdb_table.offloads.vports.lock);
-	hash_init(esw->fdb_table.offloads.vports.table);
-
 	return 0;
 
 create_fg_err:
@@ -2253,18 +2252,19 @@ create_restore_err:
 	esw_destroy_offloads_table(esw);
 create_offloads_err:
 	esw_destroy_uplink_offloads_acl_tables(esw);
-
+create_acl_err:
+	mutex_destroy(&esw->fdb_table.offloads.vports.lock);
 	return err;
 }
 
 static void esw_offloads_steering_cleanup(struct mlx5_eswitch *esw)
 {
-	mutex_destroy(&esw->fdb_table.offloads.vports.lock);
 	esw_destroy_vport_rx_group(esw);
 	esw_destroy_offloads_fdb_tables(esw);
 	esw_destroy_restore_table(esw);
 	esw_destroy_offloads_table(esw);
 	esw_destroy_uplink_offloads_acl_tables(esw);
+	mutex_destroy(&esw->fdb_table.offloads.vports.lock);
 }
 
 static void
