@@ -143,8 +143,6 @@ extern int dentry_needs_remove_privs(struct dentry *dentry);
 /*
  * fs-writeback.c
  */
-extern void inode_io_list_del(struct inode *inode);
-
 extern long get_nr_dirty_inodes(void);
 extern int invalidate_inodes(struct super_block *, bool);
 
