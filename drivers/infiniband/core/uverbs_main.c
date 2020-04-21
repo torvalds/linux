@@ -75,7 +75,7 @@ static dev_t dynamic_uverbs_dev;
 static struct class *uverbs_class;
 
 static DEFINE_IDA(uverbs_ida);
-static void ib_uverbs_add_one(struct ib_device *device);
+static int ib_uverbs_add_one(struct ib_device *device);
 static void ib_uverbs_remove_one(struct ib_device *device, void *client_data);
 
 /*
@@ -1091,7 +1091,7 @@ static int ib_uverbs_create_uapi(struct ib_device *device,
 	return 0;
 }
 
-static void ib_uverbs_add_one(struct ib_device *device)
+static int ib_uverbs_add_one(struct ib_device *device)
 {
 	int devnum;
 	dev_t base;
@@ -1099,16 +1099,16 @@ static void ib_uverbs_add_one(struct ib_device *device)
 	int ret;
 
 	if (!device->ops.alloc_ucontext)
-		return;
+		return -EOPNOTSUPP;
 
 	uverbs_dev = kzalloc(sizeof(*uverbs_dev), GFP_KERNEL);
 	if (!uverbs_dev)
-		return;
+		return -ENOMEM;
 
 	ret = init_srcu_struct(&uverbs_dev->disassociate_srcu);
 	if (ret) {
 		kfree(uverbs_dev);
-		return;
+		return -ENOMEM;
 	}
 
 	device_initialize(&uverbs_dev->dev);
@@ -1128,15 +1128,18 @@ static void ib_uverbs_add_one(struct ib_device *device)
 
 	devnum = ida_alloc_max(&uverbs_ida, IB_UVERBS_MAX_DEVICES - 1,
 			       GFP_KERNEL);
-	if (devnum < 0)
+	if (devnum < 0) {
+		ret = -ENOMEM;
 		goto err;
+	}
 	uverbs_dev->devnum = devnum;
 	if (devnum >= IB_UVERBS_NUM_FIXED_MINOR)
 		base = dynamic_uverbs_dev + devnum - IB_UVERBS_NUM_FIXED_MINOR;
 	else
 		base = IB_UVERBS_BASE_DEV + devnum;
 
-	if (ib_uverbs_create_uapi(device, uverbs_dev))
+	ret = ib_uverbs_create_uapi(device, uverbs_dev);
+	if (ret)
 		goto err_uapi;
 
 	uverbs_dev->dev.devt = base;
@@ -1151,7 +1154,7 @@ static void ib_uverbs_add_one(struct ib_device *device)
 		goto err_uapi;
 
 	ib_set_client_data(device, &uverbs_client, uverbs_dev);
-	return;
+	return 0;
 
 err_uapi:
 	ida_free(&uverbs_ida, devnum);
@@ -1160,7 +1163,7 @@ err:
 		ib_uverbs_comp_dev(uverbs_dev);
 	wait_for_completion(&uverbs_dev->comp);
 	put_device(&uverbs_dev->dev);
-	return;
+	return ret;
 }
 
 static void ib_uverbs_free_hw_resources(struct ib_uverbs_device *uverbs_dev,
@@ -1202,9 +1205,6 @@ static void ib_uverbs_remove_one(struct ib_device *device, void *client_data)
 {
 	struct ib_uverbs_device *uverbs_dev = client_data;
 	int wait_clients = 1;
-
-	if (!uverbs_dev)
-		return;
 
 	cdev_device_del(&uverbs_dev->cdev, &uverbs_dev->dev);
 	ida_free(&uverbs_ida, uverbs_dev->devnum);

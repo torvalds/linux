@@ -146,7 +146,7 @@ module_param(ch_count, uint, 0444);
 MODULE_PARM_DESC(ch_count,
 		 "Number of RDMA channels to use for communication with an SRP target. Using more than one channel improves performance if the HCA supports multiple completion vectors. The default value is the minimum of four times the number of online CPU sockets and the number of completion vectors supported by the HCA.");
 
-static void srp_add_one(struct ib_device *device);
+static int srp_add_one(struct ib_device *device);
 static void srp_remove_one(struct ib_device *device, void *client_data);
 static void srp_rename_dev(struct ib_device *device, void *client_data);
 static void srp_recv_done(struct ib_cq *cq, struct ib_wc *wc);
@@ -4132,7 +4132,7 @@ static void srp_rename_dev(struct ib_device *device, void *client_data)
 	}
 }
 
-static void srp_add_one(struct ib_device *device)
+static int srp_add_one(struct ib_device *device)
 {
 	struct srp_device *srp_dev;
 	struct ib_device_attr *attr = &device->attrs;
@@ -4144,7 +4144,7 @@ static void srp_add_one(struct ib_device *device)
 
 	srp_dev = kzalloc(sizeof(*srp_dev), GFP_KERNEL);
 	if (!srp_dev)
-		return;
+		return -ENOMEM;
 
 	/*
 	 * Use the smallest page size supported by the HCA, down to a
@@ -4197,8 +4197,12 @@ static void srp_add_one(struct ib_device *device)
 
 	srp_dev->dev = device;
 	srp_dev->pd  = ib_alloc_pd(device, flags);
-	if (IS_ERR(srp_dev->pd))
-		goto free_dev;
+	if (IS_ERR(srp_dev->pd)) {
+		int ret = PTR_ERR(srp_dev->pd);
+
+		kfree(srp_dev);
+		return ret;
+	}
 
 	if (flags & IB_PD_UNSAFE_GLOBAL_RKEY) {
 		srp_dev->global_rkey = srp_dev->pd->unsafe_global_rkey;
@@ -4212,10 +4216,7 @@ static void srp_add_one(struct ib_device *device)
 	}
 
 	ib_set_client_data(device, &srp_client, srp_dev);
-	return;
-
-free_dev:
-	kfree(srp_dev);
+	return 0;
 }
 
 static void srp_remove_one(struct ib_device *device, void *client_data)
@@ -4225,8 +4226,6 @@ static void srp_remove_one(struct ib_device *device, void *client_data)
 	struct srp_target_port *target;
 
 	srp_dev = client_data;
-	if (!srp_dev)
-		return;
 
 	list_for_each_entry_safe(host, tmp_host, &srp_dev->dev_list, list) {
 		device_unregister(&host->dev);

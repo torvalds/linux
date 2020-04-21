@@ -677,8 +677,20 @@ static int add_client_context(struct ib_device *device,
 	if (ret)
 		goto out;
 	downgrade_write(&device->client_data_rwsem);
-	if (client->add)
-		client->add(device);
+	if (client->add) {
+		if (client->add(device)) {
+			/*
+			 * If a client fails to add then the error code is
+			 * ignored, but we won't call any more ops on this
+			 * client.
+			 */
+			xa_erase(&device->client_data, client->client_id);
+			up_read(&device->client_data_rwsem);
+			ib_device_put(device);
+			ib_client_put(client);
+			return 0;
+		}
+	}
 
 	/* Readers shall not see a client until add has been completed */
 	xa_set_mark(&device->client_data, client->client_id,

@@ -153,7 +153,7 @@ struct rdma_cm_id *rdma_res_to_id(struct rdma_restrack_entry *res)
 }
 EXPORT_SYMBOL(rdma_res_to_id);
 
-static void cma_add_one(struct ib_device *device);
+static int cma_add_one(struct ib_device *device);
 static void cma_remove_one(struct ib_device *device, void *client_data);
 
 static struct ib_client cma_client = {
@@ -4638,29 +4638,34 @@ static struct notifier_block cma_nb = {
 	.notifier_call = cma_netdev_callback
 };
 
-static void cma_add_one(struct ib_device *device)
+static int cma_add_one(struct ib_device *device)
 {
 	struct cma_device *cma_dev;
 	struct rdma_id_private *id_priv;
 	unsigned int i;
 	unsigned long supported_gids = 0;
+	int ret;
 
 	cma_dev = kmalloc(sizeof *cma_dev, GFP_KERNEL);
 	if (!cma_dev)
-		return;
+		return -ENOMEM;
 
 	cma_dev->device = device;
 	cma_dev->default_gid_type = kcalloc(device->phys_port_cnt,
 					    sizeof(*cma_dev->default_gid_type),
 					    GFP_KERNEL);
-	if (!cma_dev->default_gid_type)
+	if (!cma_dev->default_gid_type) {
+		ret = -ENOMEM;
 		goto free_cma_dev;
+	}
 
 	cma_dev->default_roce_tos = kcalloc(device->phys_port_cnt,
 					    sizeof(*cma_dev->default_roce_tos),
 					    GFP_KERNEL);
-	if (!cma_dev->default_roce_tos)
+	if (!cma_dev->default_roce_tos) {
+		ret = -ENOMEM;
 		goto free_gid_type;
+	}
 
 	rdma_for_each_port (device, i) {
 		supported_gids = roce_gid_type_mask_support(device, i);
@@ -4686,15 +4691,14 @@ static void cma_add_one(struct ib_device *device)
 	mutex_unlock(&lock);
 
 	trace_cm_add_one(device);
-	return;
+	return 0;
 
 free_gid_type:
 	kfree(cma_dev->default_gid_type);
 
 free_cma_dev:
 	kfree(cma_dev);
-
-	return;
+	return ret;
 }
 
 static int cma_remove_id_dev(struct rdma_id_private *id_priv)
@@ -4755,9 +4759,6 @@ static void cma_remove_one(struct ib_device *device, void *client_data)
 	struct cma_device *cma_dev = client_data;
 
 	trace_cm_remove_one(device);
-
-	if (!cma_dev)
-		return;
 
 	mutex_lock(&lock);
 	list_del(&cma_dev->list);

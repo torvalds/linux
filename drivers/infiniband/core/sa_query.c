@@ -174,7 +174,7 @@ static const struct nla_policy ib_nl_policy[LS_NLA_TYPE_MAX] = {
 };
 
 
-static void ib_sa_add_one(struct ib_device *device);
+static int ib_sa_add_one(struct ib_device *device);
 static void ib_sa_remove_one(struct ib_device *device, void *client_data);
 
 static struct ib_client sa_client = {
@@ -2322,18 +2322,19 @@ static void ib_sa_event(struct ib_event_handler *handler,
 	}
 }
 
-static void ib_sa_add_one(struct ib_device *device)
+static int ib_sa_add_one(struct ib_device *device)
 {
 	struct ib_sa_device *sa_dev;
 	int s, e, i;
 	int count = 0;
+	int ret;
 
 	s = rdma_start_port(device);
 	e = rdma_end_port(device);
 
 	sa_dev = kzalloc(struct_size(sa_dev, port, e - s + 1), GFP_KERNEL);
 	if (!sa_dev)
-		return;
+		return -ENOMEM;
 
 	sa_dev->start_port = s;
 	sa_dev->end_port   = e;
@@ -2353,8 +2354,10 @@ static void ib_sa_add_one(struct ib_device *device)
 			ib_register_mad_agent(device, i + s, IB_QPT_GSI,
 					      NULL, 0, send_handler,
 					      recv_handler, sa_dev, 0);
-		if (IS_ERR(sa_dev->port[i].agent))
+		if (IS_ERR(sa_dev->port[i].agent)) {
+			ret = PTR_ERR(sa_dev->port[i].agent);
 			goto err;
+		}
 
 		INIT_WORK(&sa_dev->port[i].update_task, update_sm_ah);
 		INIT_DELAYED_WORK(&sa_dev->port[i].ib_cpi_work,
@@ -2363,8 +2366,10 @@ static void ib_sa_add_one(struct ib_device *device)
 		count++;
 	}
 
-	if (!count)
+	if (!count) {
+		ret = -EOPNOTSUPP;
 		goto free;
+	}
 
 	ib_set_client_data(device, &sa_client, sa_dev);
 
@@ -2383,7 +2388,7 @@ static void ib_sa_add_one(struct ib_device *device)
 			update_sm_ah(&sa_dev->port[i].update_task);
 	}
 
-	return;
+	return 0;
 
 err:
 	while (--i >= 0) {
@@ -2392,16 +2397,13 @@ err:
 	}
 free:
 	kfree(sa_dev);
-	return;
+	return ret;
 }
 
 static void ib_sa_remove_one(struct ib_device *device, void *client_data)
 {
 	struct ib_sa_device *sa_dev = client_data;
 	int i;
-
-	if (!sa_dev)
-		return;
 
 	ib_unregister_event_handler(&sa_dev->event_handler);
 	flush_workqueue(ib_wq);

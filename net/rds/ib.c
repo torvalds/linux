@@ -127,19 +127,20 @@ void rds_ib_dev_put(struct rds_ib_device *rds_ibdev)
 		queue_work(rds_wq, &rds_ibdev->free_work);
 }
 
-static void rds_ib_add_one(struct ib_device *device)
+static int rds_ib_add_one(struct ib_device *device)
 {
 	struct rds_ib_device *rds_ibdev;
 	bool has_fr, has_fmr;
+	int ret;
 
 	/* Only handle IB (no iWARP) devices */
 	if (device->node_type != RDMA_NODE_IB_CA)
-		return;
+		return -EOPNOTSUPP;
 
 	rds_ibdev = kzalloc_node(sizeof(struct rds_ib_device), GFP_KERNEL,
 				 ibdev_to_node(device));
 	if (!rds_ibdev)
-		return;
+		return -ENOMEM;
 
 	spin_lock_init(&rds_ibdev->spinlock);
 	refcount_set(&rds_ibdev->refcount, 1);
@@ -182,12 +183,14 @@ static void rds_ib_add_one(struct ib_device *device)
 	if (!rds_ibdev->vector_load) {
 		pr_err("RDS/IB: %s failed to allocate vector memory\n",
 			__func__);
+		ret = -ENOMEM;
 		goto put_dev;
 	}
 
 	rds_ibdev->dev = device;
 	rds_ibdev->pd = ib_alloc_pd(device, 0);
 	if (IS_ERR(rds_ibdev->pd)) {
+		ret = PTR_ERR(rds_ibdev->pd);
 		rds_ibdev->pd = NULL;
 		goto put_dev;
 	}
@@ -195,12 +198,15 @@ static void rds_ib_add_one(struct ib_device *device)
 						   device->dma_device,
 						   sizeof(struct rds_header),
 						   L1_CACHE_BYTES, 0);
-	if (!rds_ibdev->rid_hdrs_pool)
+	if (!rds_ibdev->rid_hdrs_pool) {
+		ret = -ENOMEM;
 		goto put_dev;
+	}
 
 	rds_ibdev->mr_1m_pool =
 		rds_ib_create_mr_pool(rds_ibdev, RDS_IB_MR_1M_POOL);
 	if (IS_ERR(rds_ibdev->mr_1m_pool)) {
+		ret = PTR_ERR(rds_ibdev->mr_1m_pool);
 		rds_ibdev->mr_1m_pool = NULL;
 		goto put_dev;
 	}
@@ -208,6 +214,7 @@ static void rds_ib_add_one(struct ib_device *device)
 	rds_ibdev->mr_8k_pool =
 		rds_ib_create_mr_pool(rds_ibdev, RDS_IB_MR_8K_POOL);
 	if (IS_ERR(rds_ibdev->mr_8k_pool)) {
+		ret = PTR_ERR(rds_ibdev->mr_8k_pool);
 		rds_ibdev->mr_8k_pool = NULL;
 		goto put_dev;
 	}
@@ -227,12 +234,13 @@ static void rds_ib_add_one(struct ib_device *device)
 	refcount_inc(&rds_ibdev->refcount);
 
 	ib_set_client_data(device, &rds_ib_client, rds_ibdev);
-	refcount_inc(&rds_ibdev->refcount);
 
 	rds_ib_nodev_connect();
+	return 0;
 
 put_dev:
 	rds_ib_dev_put(rds_ibdev);
+	return ret;
 }
 
 /*
@@ -273,9 +281,6 @@ struct rds_ib_device *rds_ib_get_client_data(struct ib_device *device)
 static void rds_ib_remove_one(struct ib_device *device, void *client_data)
 {
 	struct rds_ib_device *rds_ibdev = client_data;
-
-	if (!rds_ibdev)
-		return;
 
 	rds_ib_dev_shutdown(rds_ibdev);
 

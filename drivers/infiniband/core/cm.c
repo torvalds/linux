@@ -81,7 +81,7 @@ const char *__attribute_const__ ibcm_reject_msg(int reason)
 EXPORT_SYMBOL(ibcm_reject_msg);
 
 struct cm_id_private;
-static void cm_add_one(struct ib_device *device);
+static int cm_add_one(struct ib_device *device);
 static void cm_remove_one(struct ib_device *device, void *client_data);
 static int cm_send_sidr_rep_locked(struct cm_id_private *cm_id_priv,
 				   struct ib_cm_sidr_rep_param *param);
@@ -4382,7 +4382,7 @@ static void cm_remove_port_fs(struct cm_port *port)
 
 }
 
-static void cm_add_one(struct ib_device *ib_device)
+static int cm_add_one(struct ib_device *ib_device)
 {
 	struct cm_device *cm_dev;
 	struct cm_port *port;
@@ -4401,7 +4401,7 @@ static void cm_add_one(struct ib_device *ib_device)
 	cm_dev = kzalloc(struct_size(cm_dev, port, ib_device->phys_port_cnt),
 			 GFP_KERNEL);
 	if (!cm_dev)
-		return;
+		return -ENOMEM;
 
 	cm_dev->ib_device = ib_device;
 	cm_dev->ack_delay = ib_device->attrs.local_ca_ack_delay;
@@ -4413,8 +4413,10 @@ static void cm_add_one(struct ib_device *ib_device)
 			continue;
 
 		port = kzalloc(sizeof *port, GFP_KERNEL);
-		if (!port)
+		if (!port) {
+			ret = -ENOMEM;
 			goto error1;
+		}
 
 		cm_dev->port[i-1] = port;
 		port->cm_dev = cm_dev;
@@ -4435,8 +4437,10 @@ static void cm_add_one(struct ib_device *ib_device)
 							cm_recv_handler,
 							port,
 							0);
-		if (IS_ERR(port->mad_agent))
+		if (IS_ERR(port->mad_agent)) {
+			ret = PTR_ERR(port->mad_agent);
 			goto error2;
+		}
 
 		ret = ib_modify_port(ib_device, i, 0, &port_modify);
 		if (ret)
@@ -4445,15 +4449,17 @@ static void cm_add_one(struct ib_device *ib_device)
 		count++;
 	}
 
-	if (!count)
+	if (!count) {
+		ret = -EOPNOTSUPP;
 		goto free;
+	}
 
 	ib_set_client_data(ib_device, &cm_client, cm_dev);
 
 	write_lock_irqsave(&cm.device_lock, flags);
 	list_add_tail(&cm_dev->list, &cm.device_list);
 	write_unlock_irqrestore(&cm.device_lock, flags);
-	return;
+	return 0;
 
 error3:
 	ib_unregister_mad_agent(port->mad_agent);
@@ -4475,6 +4481,7 @@ error1:
 	}
 free:
 	kfree(cm_dev);
+	return ret;
 }
 
 static void cm_remove_one(struct ib_device *ib_device, void *client_data)
@@ -4488,9 +4495,6 @@ static void cm_remove_one(struct ib_device *ib_device, void *client_data)
 	};
 	unsigned long flags;
 	int i;
-
-	if (!cm_dev)
-		return;
 
 	write_lock_irqsave(&cm.device_lock, flags);
 	list_del(&cm_dev->list);

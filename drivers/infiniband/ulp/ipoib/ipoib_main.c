@@ -86,7 +86,7 @@ struct workqueue_struct *ipoib_workqueue;
 
 struct ib_sa_client ipoib_sa_client;
 
-static void ipoib_add_one(struct ib_device *device);
+static int ipoib_add_one(struct ib_device *device);
 static void ipoib_remove_one(struct ib_device *device, void *client_data);
 static void ipoib_neigh_reclaim(struct rcu_head *rp);
 static struct net_device *ipoib_get_net_dev_by_params(
@@ -477,9 +477,6 @@ static struct net_device *ipoib_get_net_dev_by_params(
 
 	ret = ib_find_cached_pkey(dev, port, pkey, &pkey_index);
 	if (ret)
-		return NULL;
-
-	if (!dev_list)
 		return NULL;
 
 	/* See if we can find a unique device matching the L2 parameters */
@@ -2514,7 +2511,7 @@ sysfs_failed:
 	return ERR_PTR(-ENOMEM);
 }
 
-static void ipoib_add_one(struct ib_device *device)
+static int ipoib_add_one(struct ib_device *device)
 {
 	struct list_head *dev_list;
 	struct net_device *dev;
@@ -2524,7 +2521,7 @@ static void ipoib_add_one(struct ib_device *device)
 
 	dev_list = kmalloc(sizeof(*dev_list), GFP_KERNEL);
 	if (!dev_list)
-		return;
+		return -ENOMEM;
 
 	INIT_LIST_HEAD(dev_list);
 
@@ -2541,19 +2538,17 @@ static void ipoib_add_one(struct ib_device *device)
 
 	if (!count) {
 		kfree(dev_list);
-		return;
+		return -EOPNOTSUPP;
 	}
 
 	ib_set_client_data(device, &ipoib_client, dev_list);
+	return 0;
 }
 
 static void ipoib_remove_one(struct ib_device *device, void *client_data)
 {
 	struct ipoib_dev_priv *priv, *tmp, *cpriv, *tcpriv;
 	struct list_head *dev_list = client_data;
-
-	if (!dev_list)
-		return;
 
 	list_for_each_entry_safe(priv, tmp, dev_list, list) {
 		LIST_HEAD(head);
