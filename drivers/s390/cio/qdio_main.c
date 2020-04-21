@@ -438,15 +438,12 @@ static void process_buffer_error(struct qdio_q *q, unsigned int start,
 		  q->sbal[start]->element[15].sflags);
 }
 
-static inline void inbound_primed(struct qdio_q *q, unsigned int start,
-				  int count)
+static inline void inbound_handle_work(struct qdio_q *q, unsigned int start,
+				       int count, bool auto_ack)
 {
 	int new;
 
-	DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "in prim:%1d %02x", q->nr, count);
-
-	/* for QEBSM the ACK was already set by EQBS */
-	if (is_qebsm(q)) {
+	if (auto_ack) {
 		if (!q->u.in.ack_count) {
 			q->u.in.ack_count = count;
 			q->u.in.ack_start = start;
@@ -507,19 +504,21 @@ static int get_inbound_buffer_frontier(struct qdio_q *q, unsigned int start)
 
 	switch (state) {
 	case SLSB_P_INPUT_PRIMED:
-		inbound_primed(q, start, count);
+		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "in prim:%1d %02x", q->nr,
+			      count);
+
+		inbound_handle_work(q, start, count, is_qebsm(q));
 		if (atomic_sub_return(count, &q->nr_buf_used) == 0)
 			qperf_inc(q, inbound_queue_full);
 		if (q->irq_ptr->perf_stat_enabled)
 			account_sbals(q, count);
 		return count;
 	case SLSB_P_INPUT_ERROR:
+		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "in err:%1d %02x", q->nr,
+			      count);
+
 		process_buffer_error(q, start, count);
-		/*
-		 * Interrupts may be avoided as long as the error is present
-		 * so change the buffer state immediately to avoid starvation.
-		 */
-		set_buf_states(q, start, SLSB_P_INPUT_NOT_INIT, count);
+		inbound_handle_work(q, start, count, false);
 		if (atomic_sub_return(count, &q->nr_buf_used) == 0)
 			qperf_inc(q, inbound_queue_full);
 		if (q->irq_ptr->perf_stat_enabled)
