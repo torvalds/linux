@@ -64,6 +64,8 @@ struct lima_ip {
 		bool async_reset;
 		/* l2 cache */
 		spinlock_t lock;
+		/* pmu */
+		u32 mask;
 	} data;
 };
 

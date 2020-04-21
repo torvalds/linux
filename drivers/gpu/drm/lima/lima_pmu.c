@@ -21,12 +21,46 @@ static int lima_pmu_wait_cmd(struct lima_ip *ip)
 				 v, v & LIMA_PMU_INT_CMD_MASK,
 				 100, 100000);
 	if (err) {
-		dev_err(dev->dev, "timeout wait pmd cmd\n");
+		dev_err(dev->dev, "timeout wait pmu cmd\n");
 		return err;
 	}
 
 	pmu_write(LIMA_PMU_INT_CLEAR, LIMA_PMU_INT_CMD_MASK);
 	return 0;
+}
+
+static u32 lima_pmu_get_ip_mask(struct lima_ip *ip)
+{
+	struct lima_device *dev = ip->dev;
+	u32 ret = 0;
+	int i;
+
+	ret |= LIMA_PMU_POWER_GP0_MASK;
+
+	if (dev->id == lima_gpu_mali400) {
+		ret |= LIMA_PMU_POWER_L2_MASK;
+		for (i = 0; i < 4; i++) {
+			if (dev->ip[lima_ip_pp0 + i].present)
+				ret |= LIMA_PMU_POWER_PP_MASK(i);
+		}
+	} else {
+		if (dev->ip[lima_ip_pp0].present)
+			ret |= LIMA450_PMU_POWER_PP0_MASK;
+		for (i = lima_ip_pp1; i <= lima_ip_pp3; i++) {
+			if (dev->ip[i].present) {
+				ret |= LIMA450_PMU_POWER_PP13_MASK;
+				break;
+			}
+		}
+		for (i = lima_ip_pp4; i <= lima_ip_pp7; i++) {
+			if (dev->ip[i].present) {
+				ret |= LIMA450_PMU_POWER_PP47_MASK;
+				break;
+			}
+		}
+	}
+
+	return ret;
 }
 
 int lima_pmu_init(struct lima_ip *ip)
@@ -56,5 +90,22 @@ int lima_pmu_init(struct lima_ip *ip)
 
 void lima_pmu_fini(struct lima_ip *ip)
 {
+	u32 stat;
 
+	if (!ip->data.mask)
+		ip->data.mask = lima_pmu_get_ip_mask(ip);
+
+	stat = ~pmu_read(LIMA_PMU_STATUS) & ip->data.mask;
+	if (stat) {
+		pmu_write(LIMA_PMU_POWER_DOWN, stat);
+
+		/* Don't wait for interrupt on Mali400 if all domains are
+		 * powered off because the HW won't generate an interrupt
+		 * in this case.
+		 */
+		if (ip->dev->id == lima_gpu_mali400)
+			pmu_write(LIMA_PMU_INT_CLEAR, LIMA_PMU_INT_CMD_MASK);
+		else
+			lima_pmu_wait_cmd(ip);
+	}
 }
