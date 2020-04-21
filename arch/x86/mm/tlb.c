@@ -25,6 +25,7 @@
 # define __flush_tlb_local		native_flush_tlb_local
 # define __flush_tlb_global		native_flush_tlb_global
 # define __flush_tlb_one_user(addr)	native_flush_tlb_one_user(addr)
+# define __flush_tlb_others(msk, info)	native_flush_tlb_others(msk, info)
 #endif
 
 /*
@@ -715,8 +716,8 @@ static bool tlb_is_not_lazy(int cpu, void *data)
 	return !per_cpu(cpu_tlbstate.is_lazy, cpu);
 }
 
-void native_flush_tlb_others(const struct cpumask *cpumask,
-			     const struct flush_tlb_info *info)
+STATIC_NOPV void native_flush_tlb_others(const struct cpumask *cpumask,
+					 const struct flush_tlb_info *info)
 {
 	count_vm_tlb_event(NR_TLB_REMOTE_FLUSH);
 	if (info->end == TLB_FLUSH_ALL)
@@ -764,6 +765,12 @@ void native_flush_tlb_others(const struct cpumask *cpumask,
 	else
 		on_each_cpu_cond_mask(tlb_is_not_lazy, flush_tlb_func_remote,
 				(void *)info, 1, cpumask);
+}
+
+void flush_tlb_others(const struct cpumask *cpumask,
+		      const struct flush_tlb_info *info)
+{
+	__flush_tlb_others(cpumask, info);
 }
 
 /*
