@@ -17,6 +17,7 @@ RCU concepts
    rcu_dereference
    whatisRCU
    rcu
+   rculist_nulls
    listRCU
    NMI-RCU
    UP
