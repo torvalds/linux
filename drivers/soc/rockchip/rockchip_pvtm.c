@@ -39,6 +39,12 @@
 
 struct rockchip_pvtm;
 
+struct rockchip_pvtm_ops {
+	u32 (*get_value)(struct rockchip_pvtm *pvtm, unsigned int ring_sel,
+			 unsigned int time_us);
+	void (*set_ring_sel)(struct rockchip_pvtm *pvtm, unsigned int ring_sel);
+};
+
 struct rockchip_pvtm_info {
 	u32 reg_cal;
 	u32 reg_freq;
@@ -55,9 +61,7 @@ struct rockchip_pvtm_data {
 	u32 sta;
 	unsigned int num_pvtms;
 	const struct rockchip_pvtm_info *infos;
-	u32 (*get_value)(struct rockchip_pvtm *pvtm, unsigned int ring_sel,
-			 unsigned int time_us);
-	void (*set_ring_sel)(struct rockchip_pvtm *pvtm, unsigned int ring_sel);
+	const struct rockchip_pvtm_ops ops;
 };
 
 struct rockchip_pvtm {
@@ -69,11 +73,9 @@ struct rockchip_pvtm {
 	int num_clks;
 	struct clk_bulk_data *clks;
 	struct reset_control *rst;
-	const struct rockchip_pvtm_info *info;
 	struct thermal_zone_device *tz;
-	u32 (*get_value)(struct rockchip_pvtm *pvtm, unsigned int ring_sel,
-			 unsigned int time_us);
-	void (*set_ring_sel)(struct rockchip_pvtm *pvtm, unsigned int ring_sel);
+	const struct rockchip_pvtm_info *info;
+	const struct rockchip_pvtm_ops *ops;
 };
 
 static LIST_HEAD(pvtm_list);
@@ -88,7 +90,7 @@ static int pvtm_value_show(struct seq_file *s, void *data)
 	u32 value;
 	int i, ret, cur_temp;
 
-	if (!pvtm || !pvtm->get_value) {
+	if (!pvtm || !pvtm->ops->get_value) {
 		seq_puts(s, "unsupported\n");
 		return 0;
 	}
@@ -102,7 +104,7 @@ static int pvtm_value_show(struct seq_file *s, void *data)
 	}
 	seq_puts(s, "pvtm: ");
 	for (i = 0; i < pvtm->info->num_rings; i++) {
-		value = pvtm->get_value(pvtm, i, 1000);
+		value = pvtm->ops->get_value(pvtm, i, 1000);
 		seq_printf(s, "%d ", value);
 	}
 	seq_puts(s, "\n");
@@ -210,7 +212,7 @@ u32 rockchip_get_pvtm_value(unsigned int id, unsigned int ring_sel,
 		return -EINVAL;
 	}
 
-	return pvtm->get_value(pvtm, ring_sel, time_us);
+	return pvtm->ops->get_value(pvtm, ring_sel, time_us);
 }
 EXPORT_SYMBOL(rockchip_get_pvtm_value);
 
@@ -292,8 +294,8 @@ static u32 rockchip_pvtm_get_value(struct rockchip_pvtm *pvtm,
 	regmap_write(pvtm->grf, pvtm->con,
 		     wr_mask_bit(0x1, info->bit_en, 0x1));
 
-	if (pvtm->set_ring_sel)
-		pvtm->set_ring_sel(pvtm, ring_sel);
+	if (pvtm->ops->set_ring_sel)
+		pvtm->ops->set_ring_sel(pvtm, ring_sel);
 
 	/* clk = 24 Mhz, T = 1 / 24 us */
 	clk_cnt = time_us * 24;
@@ -340,8 +342,10 @@ static const struct rockchip_pvtm_data px30_pvtm = {
 	.sta = 0x88,
 	.num_pvtms = ARRAY_SIZE(px30_pvtm_infos),
 	.infos = px30_pvtm_infos,
-	.get_value = rockchip_pvtm_get_value,
-	.set_ring_sel = px30_pvtm_set_ring_sel,
+	.ops = {
+		.get_value = rockchip_pvtm_get_value,
+		.set_ring_sel = px30_pvtm_set_ring_sel,
+	},
 };
 
 static const struct rockchip_pvtm_info px30_pmupvtm_infos[] = {
@@ -353,7 +357,9 @@ static const struct rockchip_pvtm_data px30_pmupvtm = {
 	.sta = 0x190,
 	.num_pvtms = ARRAY_SIZE(px30_pmupvtm_infos),
 	.infos = px30_pmupvtm_infos,
-	.get_value = rockchip_pvtm_get_value,
+	.ops =  {
+		.get_value = rockchip_pvtm_get_value,
+	},
 };
 
 static const struct rockchip_pvtm_info rk1808_pvtm_infos[] = {
@@ -365,8 +371,10 @@ static const struct rockchip_pvtm_data rk1808_pvtm = {
 	.sta = 0x88,
 	.num_pvtms = ARRAY_SIZE(rk1808_pvtm_infos),
 	.infos = rk1808_pvtm_infos,
-	.get_value = rockchip_pvtm_get_value,
-	.set_ring_sel = rk1808_pvtm_set_ring_sel,
+	.ops = {
+		.get_value = rockchip_pvtm_get_value,
+		.set_ring_sel = rk1808_pvtm_set_ring_sel,
+	},
 };
 
 static const struct rockchip_pvtm_info rk1808_pmupvtm_infos[] = {
@@ -378,7 +386,9 @@ static const struct rockchip_pvtm_data rk1808_pmupvtm = {
 	.sta = 0x190,
 	.num_pvtms = ARRAY_SIZE(rk1808_pmupvtm_infos),
 	.infos = rk1808_pmupvtm_infos,
-	.get_value = rockchip_pvtm_get_value,
+	.ops = {
+		.get_value = rockchip_pvtm_get_value,
+	},
 };
 
 static const struct rockchip_pvtm_info rk1808_npupvtm_infos[] = {
@@ -390,8 +400,10 @@ static const struct rockchip_pvtm_data rk1808_npupvtm = {
 	.sta = 0x788,
 	.num_pvtms = ARRAY_SIZE(rk1808_npupvtm_infos),
 	.infos = rk1808_npupvtm_infos,
-	.get_value = rockchip_pvtm_get_value,
-	.set_ring_sel = rk1808_pvtm_set_ring_sel,
+	.ops = {
+		.get_value = rockchip_pvtm_get_value,
+		.set_ring_sel = rk1808_pvtm_set_ring_sel,
+	},
 };
 
 static const struct rockchip_pvtm_info rk3288_pvtm_infos[] = {
@@ -404,7 +416,9 @@ static const struct rockchip_pvtm_data rk3288_pvtm = {
 	.sta = 0x374,
 	.num_pvtms = ARRAY_SIZE(rk3288_pvtm_infos),
 	.infos = rk3288_pvtm_infos,
-	.get_value = rockchip_pvtm_get_value,
+	.ops = {
+		.get_value = rockchip_pvtm_get_value,
+	},
 };
 
 static const struct rockchip_pvtm_data rk3308_pmupvtm = {
@@ -412,7 +426,9 @@ static const struct rockchip_pvtm_data rk3308_pmupvtm = {
 	.sta = 0x448,
 	.num_pvtms = ARRAY_SIZE(px30_pmupvtm_infos),
 	.infos = px30_pmupvtm_infos,
-	.get_value = rockchip_pvtm_get_value,
+	.ops = {
+		.get_value = rockchip_pvtm_get_value,
+	},
 };
 
 static const struct rockchip_pvtm_info rk3399_pvtm_infos[] = {
@@ -427,8 +443,10 @@ static const struct rockchip_pvtm_data rk3399_pvtm = {
 	.sta = 0xe620,
 	.num_pvtms = ARRAY_SIZE(rk3399_pvtm_infos),
 	.infos = rk3399_pvtm_infos,
-	.get_value = rockchip_pvtm_get_value,
-	.set_ring_sel = rk3399_pvtm_set_ring_sel,
+	.ops = {
+		.get_value = rockchip_pvtm_get_value,
+		.set_ring_sel = rk3399_pvtm_set_ring_sel,
+	},
 };
 
 static const struct rockchip_pvtm_info rk3399_pmupvtm_infos[] = {
@@ -440,7 +458,9 @@ static const struct rockchip_pvtm_data rk3399_pmupvtm = {
 	.sta = 0x248,
 	.num_pvtms = ARRAY_SIZE(rk3399_pmupvtm_infos),
 	.infos = rk3399_pmupvtm_infos,
-	.get_value = rockchip_pvtm_get_value,
+	.ops = {
+		.get_value = rockchip_pvtm_get_value,
+	},
 };
 
 static const struct of_device_id rockchip_pvtm_match[] = {
@@ -529,10 +549,8 @@ rockchip_pvtm_init(struct device *dev, struct device_node *node,
 	pvtm->grf = grf;
 	pvtm->con = data->con;
 	pvtm->sta = data->sta;
-	pvtm->get_value = data->get_value;
+	pvtm->ops = &data->ops;
 	pvtm->info = &data->infos[index];
-	if (data->set_ring_sel)
-		pvtm->set_ring_sel = data->set_ring_sel;
 
 	if (!of_property_read_string(node, "thermal-zone", &tz_name)) {
 		pvtm->tz = thermal_zone_get_zone_by_name(tz_name);
