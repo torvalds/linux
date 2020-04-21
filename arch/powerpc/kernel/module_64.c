@@ -145,42 +145,6 @@ static u32 ppc64_stub_insns[] = {
 	PPC_INST_BCTR,
 };
 
-#ifdef CONFIG_DYNAMIC_FTRACE
-int module_trampoline_target(struct module *mod, unsigned long addr,
-			     unsigned long *target)
-{
-	struct ppc64_stub_entry *stub;
-	func_desc_t funcdata;
-	u32 magic;
-
-	if (!within_module_core(addr, mod)) {
-		pr_err("%s: stub %lx not in module %s\n", __func__, addr, mod->name);
-		return -EFAULT;
-	}
-
-	stub = (struct ppc64_stub_entry *)addr;
-
-	if (probe_kernel_read(&magic, &stub->magic, sizeof(magic))) {
-		pr_err("%s: fault reading magic for stub %lx for %s\n", __func__, addr, mod->name);
-		return -EFAULT;
-	}
-
-	if (magic != STUB_MAGIC) {
-		pr_err("%s: bad magic for stub %lx for %s\n", __func__, addr, mod->name);
-		return -EFAULT;
-	}
-
-	if (probe_kernel_read(&funcdata, &stub->funcdata, sizeof(funcdata))) {
-		pr_err("%s: fault reading funcdata for stub %lx for %s\n", __func__, addr, mod->name);
-                return -EFAULT;
-	}
-
-	*target = stub_func_addr(funcdata);
-
-	return 0;
-}
-#endif
-
 /* Count how many different 24-bit relocations (different symbol,
    different addend) */
 static unsigned int count_relocs(const Elf64_Rela *rela, unsigned int num)
@@ -731,6 +695,39 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 }
 
 #ifdef CONFIG_DYNAMIC_FTRACE
+int module_trampoline_target(struct module *mod, unsigned long addr,
+			     unsigned long *target)
+{
+	struct ppc64_stub_entry *stub;
+	func_desc_t funcdata;
+	u32 magic;
+
+	if (!within_module_core(addr, mod)) {
+		pr_err("%s: stub %lx not in module %s\n", __func__, addr, mod->name);
+		return -EFAULT;
+	}
+
+	stub = (struct ppc64_stub_entry *)addr;
+
+	if (probe_kernel_read(&magic, &stub->magic, sizeof(magic))) {
+		pr_err("%s: fault reading magic for stub %lx for %s\n", __func__, addr, mod->name);
+		return -EFAULT;
+	}
+
+	if (magic != STUB_MAGIC) {
+		pr_err("%s: bad magic for stub %lx for %s\n", __func__, addr, mod->name);
+		return -EFAULT;
+	}
+
+	if (probe_kernel_read(&funcdata, &stub->funcdata, sizeof(funcdata))) {
+		pr_err("%s: fault reading funcdata for stub %lx for %s\n", __func__, addr, mod->name);
+                return -EFAULT;
+	}
+
+	*target = stub_func_addr(funcdata);
+
+	return 0;
+}
 
 #ifdef CONFIG_MPROFILE_KERNEL
 
