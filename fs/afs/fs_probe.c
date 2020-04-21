@@ -339,6 +339,18 @@ static void afs_dispatch_fs_probe(struct afs_net *net, struct afs_server *server
 }
 
 /*
+ * Probe a server immediately without waiting for its due time to come
+ * round.  This is used when all of the addresses have been tried.
+ */
+void afs_probe_fileserver(struct afs_net *net, struct afs_server *server)
+{
+	write_seqlock(&net->fs_lock);
+	if (!list_empty(&server->probe_link))
+		return afs_dispatch_fs_probe(net, server, true);
+	write_sequnlock(&net->fs_lock);
+}
+
+/*
  * Probe dispatcher to regularly dispatch probes to keep NAT alive.
  */
 void afs_fs_probe_dispatcher(struct work_struct *work)
@@ -410,4 +422,39 @@ again:
 		afs_dec_servers_outstanding(net);
 		_leave(" [quiesce]");
 	}
+}
+
+/*
+ * Wait for a probe on a particular fileserver to complete for 2s.
+ */
+int afs_wait_for_one_fs_probe(struct afs_server *server, bool is_intr)
+{
+	struct wait_queue_entry wait;
+	unsigned long timo = 2 * HZ;
+
+	if (atomic_read(&server->probe_outstanding) == 0)
+		goto dont_wait;
+
+	init_wait_entry(&wait, 0);
+	for (;;) {
+		prepare_to_wait_event(&server->probe_wq, &wait,
+				      is_intr ? TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE);
+		if (timo == 0 ||
+		    server->probe.responded ||
+		    atomic_read(&server->probe_outstanding) == 0 ||
+		    (is_intr && signal_pending(current)))
+			break;
+		timo = schedule_timeout(timo);
+	}
+
+	finish_wait(&server->probe_wq, &wait);
+
+dont_wait:
+	if (server->probe.responded)
+		return 0;
+	if (is_intr && signal_pending(current))
+		return -ERESTARTSYS;
+	if (timo == 0)
+		return -ETIME;
+	return -EDESTADDRREQ;
 }

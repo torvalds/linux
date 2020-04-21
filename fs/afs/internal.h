@@ -826,16 +826,18 @@ struct afs_operation {
 	unsigned short		nr_iterations;	/* Number of server iterations */
 
 	unsigned int		flags;
-#define AFS_OPERATION_STOP	0x0001		/* Set to cease iteration */
-#define AFS_OPERATION_VBUSY	0x0002		/* Set if seen VBUSY */
-#define AFS_OPERATION_VMOVED	0x0004		/* Set if seen VMOVED */
-#define AFS_OPERATION_VNOVOL	0x0008		/* Set if seen VNOVOL */
-#define AFS_OPERATION_CUR_ONLY	0x0010		/* Set if current server only (file lock held) */
-#define AFS_OPERATION_NO_VSLEEP	0x0020		/* Set to prevent sleep on VBUSY, VOFFLINE, ... */
-#define AFS_OPERATION_UNINTR	0x0040		/* Set if op is uninterruptible */
-#define AFS_OPERATION_DOWNGRADE	0x0080		/* Set to retry with downgraded opcode */
-#define AFS_OPERATION_LOCK_0	0x0100		/* Set if have io_lock on file[0] */
-#define AFS_OPERATION_LOCK_1	0x0200		/* Set if have io_lock on file[1] */
+#define AFS_OPERATION_STOP		0x0001	/* Set to cease iteration */
+#define AFS_OPERATION_VBUSY		0x0002	/* Set if seen VBUSY */
+#define AFS_OPERATION_VMOVED		0x0004	/* Set if seen VMOVED */
+#define AFS_OPERATION_VNOVOL		0x0008	/* Set if seen VNOVOL */
+#define AFS_OPERATION_CUR_ONLY		0x0010	/* Set if current server only (file lock held) */
+#define AFS_OPERATION_NO_VSLEEP		0x0020	/* Set to prevent sleep on VBUSY, VOFFLINE, ... */
+#define AFS_OPERATION_UNINTR		0x0040	/* Set if op is uninterruptible */
+#define AFS_OPERATION_DOWNGRADE		0x0080	/* Set to retry with downgraded opcode */
+#define AFS_OPERATION_LOCK_0		0x0100	/* Set if have io_lock on file[0] */
+#define AFS_OPERATION_LOCK_1		0x0200	/* Set if have io_lock on file[1] */
+#define AFS_OPERATION_TRIED_ALL		0x0400	/* Set if we've tried all the fileservers */
+#define AFS_OPERATION_RETRY_SERVER	0x0800	/* Set if we should retry the current server */
 };
 
 /*
@@ -1055,7 +1057,9 @@ static inline void afs_op_set_fid(struct afs_operation *op, unsigned int n,
 extern void afs_fileserver_probe_result(struct afs_call *);
 extern void afs_fs_probe_fileserver(struct afs_net *, struct afs_server *, struct key *, bool);
 extern int afs_wait_for_fs_probes(struct afs_server_list *, unsigned long);
+extern void afs_probe_fileserver(struct afs_net *, struct afs_server *);
 extern void afs_fs_probe_dispatcher(struct work_struct *);
+extern int afs_wait_for_one_fs_probe(struct afs_server *, bool);
 
 /*
  * inode.c
