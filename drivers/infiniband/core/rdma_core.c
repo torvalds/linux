@@ -474,16 +474,15 @@ alloc_begin_fd_uobject(const struct uverbs_api_object *obj,
 	filp = anon_inode_getfile(fd_type->name, fd_type->fops, NULL,
 				  fd_type->flags);
 	if (IS_ERR(filp)) {
+		uverbs_uobject_put(uobj);
 		uobj = ERR_CAST(filp);
-		goto err_uobj;
+		goto err_fd;
 	}
 	uobj->object = filp;
 
 	uobj->id = new_fd;
 	return uobj;
 
-err_uobj:
-	uverbs_uobject_put(uobj);
 err_fd:
 	put_unused_fd(new_fd);
 	return uobj;
