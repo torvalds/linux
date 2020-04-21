@@ -1568,8 +1568,17 @@ static int q6v5_alloc_memory_region(struct q6v5 *qproc)
 	struct resource r;
 	int ret;
 
+	/*
+	 * In the absence of mba/mpss sub-child, extract the mba and mpss
+	 * reserved memory regions from device's memory-region property.
+	 */
 	child = of_get_child_by_name(qproc->dev->of_node, "mba");
-	node = of_parse_phandle(child, "memory-region", 0);
+	if (!child)
+		node = of_parse_phandle(qproc->dev->of_node,
+					"memory-region", 0);
+	else
+		node = of_parse_phandle(child, "memory-region", 0);
+
 	ret = of_address_to_resource(node, 0, &r);
 	if (ret) {
 		dev_err(qproc->dev, "unable to resolve mba region\n");
@@ -1586,8 +1595,14 @@ static int q6v5_alloc_memory_region(struct q6v5 *qproc)
 		return -EBUSY;
 	}
 
-	child = of_get_child_by_name(qproc->dev->of_node, "mpss");
-	node = of_parse_phandle(child, "memory-region", 0);
+	if (!child) {
+		node = of_parse_phandle(qproc->dev->of_node,
+					"memory-region", 1);
+	} else {
+		child = of_get_child_by_name(qproc->dev->of_node, "mpss");
+		node = of_parse_phandle(child, "memory-region", 0);
+	}
+
 	ret = of_address_to_resource(node, 0, &r);
 	if (ret) {
 		dev_err(qproc->dev, "unable to resolve mpss region\n");
