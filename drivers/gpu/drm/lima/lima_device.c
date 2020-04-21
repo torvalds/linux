@@ -81,25 +81,9 @@ const char *lima_ip_name(struct lima_ip *ip)
 	return lima_ip_desc[ip->id].name;
 }
 
-static int lima_clk_init(struct lima_device *dev)
+static int lima_clk_enable(struct lima_device *dev)
 {
 	int err;
-
-	dev->clk_bus = devm_clk_get(dev->dev, "bus");
-	if (IS_ERR(dev->clk_bus)) {
-		err = PTR_ERR(dev->clk_bus);
-		if (err != -EPROBE_DEFER)
-			dev_err(dev->dev, "get bus clk failed %d\n", err);
-		return err;
-	}
-
-	dev->clk_gpu = devm_clk_get(dev->dev, "core");
-	if (IS_ERR(dev->clk_gpu)) {
-		err = PTR_ERR(dev->clk_gpu);
-		if (err != -EPROBE_DEFER)
-			dev_err(dev->dev, "get core clk failed %d\n", err);
-		return err;
-	}
 
 	err = clk_prepare_enable(dev->clk_bus);
 	if (err)
@@ -109,15 +93,7 @@ static int lima_clk_init(struct lima_device *dev)
 	if (err)
 		goto error_out0;
 
-	dev->reset = devm_reset_control_array_get_optional_shared(dev->dev);
-
-	if (IS_ERR(dev->reset)) {
-		err = PTR_ERR(dev->reset);
-		if (err != -EPROBE_DEFER)
-			dev_err(dev->dev, "get reset controller failed %d\n",
-				err);
-		goto error_out1;
-	} else if (dev->reset != NULL) {
+	if (dev->reset) {
 		err = reset_control_deassert(dev->reset);
 		if (err) {
 			dev_err(dev->dev,
@@ -135,12 +111,74 @@ error_out0:
 	return err;
 }
 
-static void lima_clk_fini(struct lima_device *dev)
+static void lima_clk_disable(struct lima_device *dev)
 {
-	if (dev->reset != NULL)
+	if (dev->reset)
 		reset_control_assert(dev->reset);
 	clk_disable_unprepare(dev->clk_gpu);
 	clk_disable_unprepare(dev->clk_bus);
+}
+
+static int lima_clk_init(struct lima_device *dev)
+{
+	int err;
+
+	dev->clk_bus = devm_clk_get(dev->dev, "bus");
+	if (IS_ERR(dev->clk_bus)) {
+		err = PTR_ERR(dev->clk_bus);
+		if (err != -EPROBE_DEFER)
+			dev_err(dev->dev, "get bus clk failed %d\n", err);
+		dev->clk_bus = NULL;
+		return err;
+	}
+
+	dev->clk_gpu = devm_clk_get(dev->dev, "core");
+	if (IS_ERR(dev->clk_gpu)) {
+		err = PTR_ERR(dev->clk_gpu);
+		if (err != -EPROBE_DEFER)
+			dev_err(dev->dev, "get core clk failed %d\n", err);
+		dev->clk_gpu = NULL;
+		return err;
+	}
+
+	dev->reset = devm_reset_control_array_get_optional_shared(dev->dev);
+	if (IS_ERR(dev->reset)) {
+		err = PTR_ERR(dev->reset);
+		if (err != -EPROBE_DEFER)
+			dev_err(dev->dev, "get reset controller failed %d\n",
+				err);
+		dev->reset = NULL;
+		return err;
+	}
+
+	return lima_clk_enable(dev);
+}
+
+static void lima_clk_fini(struct lima_device *dev)
+{
+	lima_clk_disable(dev);
+}
+
+static int lima_regulator_enable(struct lima_device *dev)
+{
+	int ret;
+
+	if (!dev->regulator)
+		return 0;
+
+	ret = regulator_enable(dev->regulator);
+	if (ret < 0) {
+		dev_err(dev->dev, "failed to enable regulator: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static void lima_regulator_disable(struct lima_device *dev)
+{
+	if (dev->regulator)
+		regulator_disable(dev->regulator);
 }
 
 static int lima_regulator_init(struct lima_device *dev)
@@ -158,19 +196,12 @@ static int lima_regulator_init(struct lima_device *dev)
 		return ret;
 	}
 
-	ret = regulator_enable(dev->regulator);
-	if (ret < 0) {
-		dev_err(dev->dev, "failed to enable regulator: %d\n", ret);
-		return ret;
-	}
-
-	return 0;
+	return lima_regulator_enable(dev);
 }
 
 static void lima_regulator_fini(struct lima_device *dev)
 {
-	if (dev->regulator)
-		regulator_disable(dev->regulator);
+	lima_regulator_disable(dev);
 }
 
 static int lima_init_ip(struct lima_device *dev, int index)
