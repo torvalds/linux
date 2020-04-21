@@ -6,7 +6,7 @@
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/utsname.h>
-#include <linux/vermagic.h>
+#include <generated/utsrelease.h>
 
 #include "ionic.h"
 #include "ionic_bus.h"
