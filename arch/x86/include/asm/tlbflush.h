@@ -140,12 +140,13 @@ static inline unsigned long build_cr3_noflush(pgd_t *pgd, u16 asid)
 	return __sme_pa(pgd) | kern_pcid(asid) | CR3_NOFLUSH;
 }
 
+void flush_tlb_local(void);
+
 #ifdef CONFIG_PARAVIRT
 #include <asm/paravirt.h>
 #else
-#define __flush_tlb() __native_flush_tlb()
-#define __flush_tlb_global() __native_flush_tlb_global()
-#define __flush_tlb_one_user(addr) __native_flush_tlb_one_user(addr)
+#define __flush_tlb_global()		__native_flush_tlb_global()
+#define __flush_tlb_one_user(addr)	__native_flush_tlb_one_user(addr)
 #endif
 
 struct tlb_context {
@@ -371,24 +372,6 @@ static inline void invalidate_user_asid(u16 asid)
 }
 
 /*
- * flush the entire current user mapping
- */
-static inline void __native_flush_tlb(void)
-{
-	/*
-	 * Preemption or interrupts must be disabled to protect the access
-	 * to the per CPU variable and to prevent being preempted between
-	 * read_cr3() and write_cr3().
-	 */
-	WARN_ON_ONCE(preemptible());
-
-	invalidate_user_asid(this_cpu_read(cpu_tlbstate.loaded_mm_asid));
-
-	/* If current->mm == NULL then the read_cr3() "borrows" an mm */
-	native_write_cr3(__native_read_cr3());
-}
-
-/*
  * flush everything
  */
 static inline void __native_flush_tlb_global(void)
@@ -461,7 +444,7 @@ static inline void __flush_tlb_all(void)
 		/*
 		 * !PGE -> !PCID (setup_pcid()), thus every flush is total.
 		 */
-		__flush_tlb();
+		flush_tlb_local();
 	}
 }
 
@@ -536,8 +519,6 @@ struct flush_tlb_info {
 	unsigned int		stride_shift;
 	bool			freed_tables;
 };
-
-#define local_flush_tlb() __flush_tlb()
 
 #define flush_tlb_mm(mm)						\
 		flush_tlb_mm_range(mm, 0UL, TLB_FLUSH_ALL, 0UL, true)

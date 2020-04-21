@@ -47,7 +47,9 @@ static inline void slow_down_io(void)
 #endif
 }
 
-static inline void __flush_tlb(void)
+void native_flush_tlb_local(void);
+
+static inline void __flush_tlb_local(void)
 {
 	PVOP_VCALL0(mmu.flush_tlb_user);
 }

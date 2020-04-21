@@ -18,6 +18,13 @@
 
 #include "mm_internal.h"
 
+#ifdef CONFIG_PARAVIRT
+# define STATIC_NOPV
+#else
+# define STATIC_NOPV			static
+# define __flush_tlb_local		native_flush_tlb_local
+#endif
+
 /*
  *	TLB flushing, formerly SMP-only
  *		c/o Linus Torvalds.
@@ -645,7 +652,7 @@ static void flush_tlb_func_common(const struct flush_tlb_info *f,
 		trace_tlb_flush(reason, nr_invalidate);
 	} else {
 		/* Full flush. */
-		local_flush_tlb();
+		flush_tlb_local();
 		if (local)
 			count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
 		trace_tlb_flush(reason, TLB_FLUSH_ALL);
@@ -882,6 +889,30 @@ unsigned long __get_current_cr3_fast(void)
 	return cr3;
 }
 EXPORT_SYMBOL_GPL(__get_current_cr3_fast);
+
+/*
+ * Flush the entire current user mapping
+ */
+STATIC_NOPV void native_flush_tlb_local(void)
+{
+	/*
+	 * Preemption or interrupts must be disabled to protect the access
+	 * to the per CPU variable and to prevent being preempted between
+	 * read_cr3() and write_cr3().
+	 */
+	WARN_ON_ONCE(preemptible());
+
+	invalidate_user_asid(this_cpu_read(cpu_tlbstate.loaded_mm_asid));
+
+	/* If current->mm == NULL then the read_cr3() "borrows" an mm */
+	native_write_cr3(__native_read_cr3());
+}
+
+void flush_tlb_local(void)
+{
+	__flush_tlb_local();
+}
+EXPORT_SYMBOL_GPL(flush_tlb_local);
 
 /*
  * arch_tlbbatch_flush() performs a full TLB flush regardless of the active mm.
