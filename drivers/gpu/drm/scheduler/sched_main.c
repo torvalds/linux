@@ -760,11 +760,10 @@ static bool drm_sched_blocked(struct drm_gpu_scheduler *sched)
  */
 static int drm_sched_main(void *param)
 {
-	struct sched_param sparam = {.sched_priority = 1};
 	struct drm_gpu_scheduler *sched = (struct drm_gpu_scheduler *)param;
 	int r;
 
-	sched_setscheduler(current, SCHED_FIFO, &sparam);
+	sched_set_fifo_low(current);
 
 	while (!kthread_should_stop()) {
 		struct drm_sched_entity *entity = NULL;
