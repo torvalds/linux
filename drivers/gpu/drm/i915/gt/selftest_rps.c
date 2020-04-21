@@ -49,13 +49,16 @@ create_spin_counter(struct intel_engine_cs *engine,
 #define CS_GPR(x) GEN8_RING_CS_GPR(engine->mmio_base, x)
 	struct drm_i915_gem_object *obj;
 	struct i915_vma *vma;
+	unsigned long end;
 	u32 *base, *cs;
 	int loop, i;
 	int err;
 
-	obj = i915_gem_object_create_internal(vm->i915, 4096);
+	obj = i915_gem_object_create_internal(vm->i915, 64 << 10);
 	if (IS_ERR(obj))
 		return ERR_CAST(obj);
+
+	end = obj->base.size / sizeof(u32) - 1;
 
 	vma = i915_vma_instance(obj, vm, NULL);
 	if (IS_ERR(vma)) {
@@ -90,27 +93,31 @@ create_spin_counter(struct intel_engine_cs *engine,
 
 	loop = cs - base;
 
-	*cs++ = MI_MATH(4);
-	*cs++ = MI_MATH_LOAD(MI_MATH_REG_SRCA, MI_MATH_REG(COUNT));
-	*cs++ = MI_MATH_LOAD(MI_MATH_REG_SRCB, MI_MATH_REG(INC));
-	*cs++ = MI_MATH_ADD;
-	*cs++ = MI_MATH_STORE(MI_MATH_REG(COUNT), MI_MATH_REG_ACCU);
+	/* Unroll the loop to avoid MI_BB_START stalls impacting measurements */
+	for (i = 0; i < 1024; i++) {
+		*cs++ = MI_MATH(4);
+		*cs++ = MI_MATH_LOAD(MI_MATH_REG_SRCA, MI_MATH_REG(COUNT));
+		*cs++ = MI_MATH_LOAD(MI_MATH_REG_SRCB, MI_MATH_REG(INC));
+		*cs++ = MI_MATH_ADD;
+		*cs++ = MI_MATH_STORE(MI_MATH_REG(COUNT), MI_MATH_REG_ACCU);
 
-	if (srm) {
-		*cs++ = MI_STORE_REGISTER_MEM_GEN8;
-		*cs++ = i915_mmio_reg_offset(CS_GPR(COUNT));
-		*cs++ = lower_32_bits(vma->node.start + 1000 * sizeof(*cs));
-		*cs++ = upper_32_bits(vma->node.start + 1000 * sizeof(*cs));
+		if (srm) {
+			*cs++ = MI_STORE_REGISTER_MEM_GEN8;
+			*cs++ = i915_mmio_reg_offset(CS_GPR(COUNT));
+			*cs++ = lower_32_bits(vma->node.start + end * sizeof(*cs));
+			*cs++ = upper_32_bits(vma->node.start + end * sizeof(*cs));
+		}
 	}
 
 	*cs++ = MI_BATCH_BUFFER_START_GEN8;
 	*cs++ = lower_32_bits(vma->node.start + loop * sizeof(*cs));
 	*cs++ = upper_32_bits(vma->node.start + loop * sizeof(*cs));
+	GEM_BUG_ON(cs - base > end);
 
 	i915_gem_object_flush_map(obj);
 
 	*cancel = base + loop;
-	*counter = srm ? memset32(base + 1000, 0, 1) : NULL;
+	*counter = srm ? memset32(base + end, 0, 1) : NULL;
 	return vma;
 }
 
