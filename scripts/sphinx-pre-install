@@ -148,6 +148,24 @@ sub findprog($)
 	}
 }
 
+sub find_python_no_venv()
+{
+	my $prog = shift;
+
+	my $cur_dir = qx(pwd);
+	$cur_dir =~ s/\s+$//;
+
+	foreach my $dir (split(/:/, $ENV{PATH})) {
+		next if ($dir =~ m,($cur_dir)/sphinx,);
+		return "$dir/python3" if(-x "$dir/python3");
+	}
+	foreach my $dir (split(/:/, $ENV{PATH})) {
+		next if ($dir =~ m,($cur_dir)/sphinx,);
+		return "$dir/python" if(-x "$dir/python");
+	}
+	return "python";
+}
+
 sub check_program($$)
 {
 	my $prog = shift;
@@ -813,6 +831,8 @@ sub check_needs()
 			my $rec_activate = "$virtenv_dir/bin/activate";
 
 			print "To upgrade Sphinx, use:\n\n" if ($rec_sphinx_upgrade);
+
+			$python_cmd = find_python_no_venv();
 
 			if ($need_venv) {
 				printf "\t$python_cmd -m venv $virtenv_dir\n";
