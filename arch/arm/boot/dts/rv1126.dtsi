@@ -439,10 +439,16 @@
 	pvtm@ff040000 {
 		compatible = "rockchip,rv1126-cpu-pvtm";
 		reg = <0xff040000 0x100>;
-		clocks = <&cru CLK_CPUPVTM>, <&cru PCLK_CPUPVTM>;
-		clock-names = "clk", "pclk";
-		resets = <&cru SRST_CPUPVTM>, <&cru SRST_CPUPVTM_P>;
-		reset-names = "clk", "pclk";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		pvtm@0 {
+			reg = <0>;
+			clocks = <&cru CLK_CPUPVTM>, <&cru PCLK_CPUPVTM>;
+			clock-names = "clk", "pclk";
+			resets = <&cru SRST_CPUPVTM>, <&cru SRST_CPUPVTM_P>;
+			reset-names = "rst", "rst-p";
+		};
 	};
 
 	pmu: power-management@ff3e0000 {
@@ -735,10 +741,17 @@
 	pvtm@ff470000 {
 		compatible = "rockchip,rv1126-pmu-pvtm";
 		reg = <0xff470000 0x100>;
-		clocks = <&pmucru CLK_PMUPVTM>, <&pmucru PCLK_PMUPVTM>;
-		clock-names = "clk", "pclk";
-		resets = <&pmucru SRST_PMUPVTM>, <&pmucru SRST_PMUPVTM_P>;
-		reset-names = "clk", "pclk";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		pvtm@2 {
+			reg = <2>;
+			clocks = <&pmucru CLK_PMUPVTM>, <&pmucru PCLK_PMUPVTM>;
+			clock-names = "clk", "pclk";
+			resets = <&pmucru SRST_PMUPVTM>,
+				 <&pmucru SRST_PMUPVTM_P>;
+			reset-names = "rst", "rst-p";
+		};
 	};
 
 	pmucru: clock-controller@ff480000 {
@@ -1584,10 +1597,16 @@
 	pvtm@ffc00000 {
 		compatible = "rockchip,rv1126-npu-pvtm";
 		reg = <0xffc00000 0x100>;
-		clocks = <&cru CLK_NPUPVTM>, <&cru PCLK_NPUPVTM>;
-		clock-names = "clk", "pclk";
-		resets = <&cru SRST_NPUPVTM>, <&cru SRST_NPUPVTM_P>;
-		reset-names = "clk", "pclk";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		pvtm@1 {
+			reg = <1>;
+			clocks = <&cru CLK_NPUPVTM>, <&cru PCLK_NPUPVTM>;
+			clock-names = "clk", "pclk";
+			resets = <&cru SRST_NPUPVTM>, <&cru SRST_NPUPVTM_P>;
+			reset-names = "rts", "rst-p";
+		};
 	};
 
 	gmac: ethernet@ffc40000 {
