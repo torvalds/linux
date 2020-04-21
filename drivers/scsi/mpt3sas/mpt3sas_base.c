@@ -413,7 +413,7 @@ static void _clone_sg_entries(struct MPT3SAS_ADAPTER *ioc,
 {
 	Mpi2SGESimple32_t *sgel, *sgel_next;
 	u32  sgl_flags, sge_chain_count = 0;
-	bool is_write = 0;
+	bool is_write = false;
 	u16 i = 0;
 	void __iomem *buffer_iomem;
 	phys_addr_t buffer_iomem_phys;
@@ -482,7 +482,7 @@ static void _clone_sg_entries(struct MPT3SAS_ADAPTER *ioc,
 
 	if (le32_to_cpu(sgel->FlagsLength) &
 			(MPI2_SGE_FLAGS_HOST_TO_IOC << MPI2_SGE_FLAGS_SHIFT))
-		is_write = 1;
+		is_write = true;
 
 	for (i = 0; i < MPT_MIN_PHYS_SEGMENTS + ioc->facts.MaxChainDepth; i++) {
 
