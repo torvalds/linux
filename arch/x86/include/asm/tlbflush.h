@@ -421,9 +421,4 @@ static inline void arch_tlbbatch_add_mm(struct arch_tlbflush_unmap_batch *batch,
 
 extern void arch_tlbbatch_flush(struct arch_tlbflush_unmap_batch *batch);
 
-#ifndef CONFIG_PARAVIRT
-#define paravirt_tlb_remove_table(tlb, page) \
-	tlb_remove_page(tlb, (void *)(page))
-#endif
-
 #endif /* _ASM_X86_TLBFLUSH_H */
