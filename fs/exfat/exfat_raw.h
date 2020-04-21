@@ -136,8 +136,8 @@ struct exfat_dentry {
 			__le16 modify_date;
 			__le16 access_time;
 			__le16 access_date;
-			__u8 create_time_ms;
-			__u8 modify_time_ms;
+			__u8 create_time_cs;
+			__u8 modify_time_cs;
 			__u8 create_tz;
 			__u8 modify_tz;
 			__u8 access_tz;

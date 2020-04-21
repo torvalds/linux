@@ -137,12 +137,12 @@ static int exfat_readdir(struct inode *inode, struct exfat_dir_entry *dir_entry)
 					ep->dentry.file.create_tz,
 					ep->dentry.file.create_time,
 					ep->dentry.file.create_date,
-					ep->dentry.file.create_time_ms);
+					ep->dentry.file.create_time_cs);
 			exfat_get_entry_time(sbi, &dir_entry->mtime,
 					ep->dentry.file.modify_tz,
 					ep->dentry.file.modify_time,
 					ep->dentry.file.modify_date,
-					ep->dentry.file.modify_time_ms);
+					ep->dentry.file.modify_time_cs);
 			exfat_get_entry_time(sbi, &dir_entry->atime,
 					ep->dentry.file.access_tz,
 					ep->dentry.file.access_time,
@@ -461,12 +461,12 @@ int exfat_init_dir_entry(struct inode *inode, struct exfat_chain *p_dir,
 			&ep->dentry.file.create_tz,
 			&ep->dentry.file.create_time,
 			&ep->dentry.file.create_date,
-			&ep->dentry.file.create_time_ms);
+			&ep->dentry.file.create_time_cs);
 	exfat_set_entry_time(sbi, &ts,
 			&ep->dentry.file.modify_tz,
 			&ep->dentry.file.modify_time,
 			&ep->dentry.file.modify_date,
-			&ep->dentry.file.modify_time_ms);
+			&ep->dentry.file.modify_time_cs);
 	exfat_set_entry_time(sbi, &ts,
 			&ep->dentry.file.access_tz,
 			&ep->dentry.file.access_time,

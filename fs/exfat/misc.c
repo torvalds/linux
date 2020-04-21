@@ -75,7 +75,7 @@ static void exfat_adjust_tz(struct timespec64 *ts, u8 tz_off)
 
 /* Convert a EXFAT time/date pair to a UNIX date (seconds since 1 1 70). */
 void exfat_get_entry_time(struct exfat_sb_info *sbi, struct timespec64 *ts,
-		u8 tz, __le16 time, __le16 date, u8 time_ms)
+		u8 tz, __le16 time, __le16 date, u8 time_cs)
 {
 	u16 t = le16_to_cpu(time);
 	u16 d = le16_to_cpu(date);
@@ -84,10 +84,10 @@ void exfat_get_entry_time(struct exfat_sb_info *sbi, struct timespec64 *ts,
 			      t >> 11, (t >> 5) & 0x003F, (t & 0x001F) << 1);
 
 
-	/* time_ms field represent 0 ~ 199(1990 ms) */
-	if (time_ms) {
-		ts->tv_sec += time_ms / 100;
-		ts->tv_nsec = (time_ms % 100) * 10 * NSEC_PER_MSEC;
+	/* time_cs field represent 0 ~ 199cs(1990 ms) */
+	if (time_cs) {
+		ts->tv_sec += time_cs / 100;
+		ts->tv_nsec = (time_cs % 100) * 10 * NSEC_PER_MSEC;
 	} else
 		ts->tv_nsec = 0;
 
@@ -101,7 +101,7 @@ void exfat_get_entry_time(struct exfat_sb_info *sbi, struct timespec64 *ts,
 
 /* Convert linear UNIX date to a EXFAT time/date pair. */
 void exfat_set_entry_time(struct exfat_sb_info *sbi, struct timespec64 *ts,
-		u8 *tz, __le16 *time, __le16 *date, u8 *time_ms)
+		u8 *tz, __le16 *time, __le16 *date, u8 *time_cs)
 {
 	struct tm tm;
 	u16 t, d;
@@ -113,9 +113,9 @@ void exfat_set_entry_time(struct exfat_sb_info *sbi, struct timespec64 *ts,
 	*time = cpu_to_le16(t);
 	*date = cpu_to_le16(d);
 
-	/* time_ms field represent 0 ~ 199(1990 ms) */
-	if (time_ms)
-		*time_ms = (tm.tm_sec & 1) * 100 +
+	/* time_cs field represent 0 ~ 199cs(1990 ms) */
+	if (time_cs)
+		*time_cs = (tm.tm_sec & 1) * 100 +
 			ts->tv_nsec / (10 * NSEC_PER_MSEC);
 
 	/*
