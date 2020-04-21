@@ -1018,12 +1018,6 @@ STATIC_NOPV void native_flush_tlb_global(void)
 	raw_local_irq_restore(flags);
 }
 
-void flush_tlb_global(void)
-{
-	__flush_tlb_global();
-}
-EXPORT_SYMBOL_GPL(flush_tlb_global);
-
 /*
  * Flush the entire current user mapping
  */
@@ -1046,7 +1040,28 @@ void flush_tlb_local(void)
 {
 	__flush_tlb_local();
 }
-EXPORT_SYMBOL_GPL(flush_tlb_local);
+
+/*
+ * Flush everything
+ */
+void __flush_tlb_all(void)
+{
+	/*
+	 * This is to catch users with enabled preemption and the PGE feature
+	 * and don't trigger the warning in __native_flush_tlb().
+	 */
+	VM_WARN_ON_ONCE(preemptible());
+
+	if (boot_cpu_has(X86_FEATURE_PGE)) {
+		__flush_tlb_global();
+	} else {
+		/*
+		 * !PGE -> !PCID (setup_pcid()), thus every flush is total.
+		 */
+		flush_tlb_local();
+	}
+}
+EXPORT_SYMBOL_GPL(__flush_tlb_all);
 
 /*
  * arch_tlbbatch_flush() performs a full TLB flush regardless of the active mm.

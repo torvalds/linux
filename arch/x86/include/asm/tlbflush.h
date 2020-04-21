@@ -142,8 +142,8 @@ static inline unsigned long build_cr3_noflush(pgd_t *pgd, u16 asid)
 
 struct flush_tlb_info;
 
+void __flush_tlb_all(void);
 void flush_tlb_local(void);
-void flush_tlb_global(void);
 void flush_tlb_one_user(unsigned long addr);
 void flush_tlb_one_kernel(unsigned long addr);
 void flush_tlb_others(const struct cpumask *cpumask,
@@ -340,27 +340,6 @@ static inline void cr4_set_bits_and_update_boot(unsigned long mask)
 }
 
 extern void initialize_tlbstate_and_flush(void);
-
-/*
- * flush everything
- */
-static inline void __flush_tlb_all(void)
-{
-	/*
-	 * This is to catch users with enabled preemption and the PGE feature
-	 * and don't trigger the warning in __native_flush_tlb().
-	 */
-	VM_WARN_ON_ONCE(preemptible());
-
-	if (boot_cpu_has(X86_FEATURE_PGE)) {
-		flush_tlb_global();
-	} else {
-		/*
-		 * !PGE -> !PCID (setup_pcid()), thus every flush is total.
-		 */
-		flush_tlb_local();
-	}
-}
 
 #define TLB_FLUSH_ALL	-1UL
 
