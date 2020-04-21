@@ -529,10 +529,15 @@ void ath10k_htt_tx_destroy(struct ath10k_htt *htt)
 	htt->tx_mem_allocated = false;
 }
 
-void ath10k_htt_tx_stop(struct ath10k_htt *htt)
+static void ath10k_htt_flush_tx_queue(struct ath10k_htt *htt)
 {
 	ath10k_htc_stop_hl(htt->ar);
 	idr_for_each(&htt->pending_tx, ath10k_htt_tx_clean_up_pending, htt->ar);
+}
+
+void ath10k_htt_tx_stop(struct ath10k_htt *htt)
+{
+	ath10k_htt_flush_tx_queue(htt);
 	idr_destroy(&htt->pending_tx);
 }
 
@@ -1825,6 +1830,7 @@ static const struct ath10k_htt_tx_ops htt_tx_ops_hl = {
 	.htt_send_frag_desc_bank_cfg = ath10k_htt_send_frag_desc_bank_cfg_32,
 	.htt_tx = ath10k_htt_tx_hl,
 	.htt_h2t_aggr_cfg_msg = ath10k_htt_h2t_aggr_cfg_msg_32,
+	.htt_flush_tx = ath10k_htt_flush_tx_queue,
 };
 
 void ath10k_htt_set_tx_ops(struct ath10k_htt *htt)

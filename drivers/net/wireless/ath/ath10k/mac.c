@@ -7224,6 +7224,7 @@ static void ath10k_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 					ath10k_wmi_peer_flush(ar, arvif->vdev_id,
 							      arvif->bssid, bitmap);
 			}
+			ath10k_htt_flush_tx(&ar->htt);
 		}
 		return;
 	}
