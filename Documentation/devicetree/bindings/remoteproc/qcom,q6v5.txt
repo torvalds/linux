@@ -102,6 +102,14 @@ on the Qualcomm Hexagon core.
 		    must be "mss_restart", "pdc_reset" for the modem
 		    sub-system on SC7180, SDM845 SoCs
 
+For devices where the mba and mpss sub-nodes are not specified, mba/mpss region
+should be referenced as follows:
+- memory-region:
+	Usage: required
+	Value type: <phandle>
+	Definition: reference to the reserved-memory for the mba region followed
+		    by the mpss region
+
 For the compatible strings below the following supplies are required:
   "qcom,q6v5-pil"
   "qcom,msm8916-mss-pil",
