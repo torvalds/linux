@@ -39,6 +39,7 @@
 #include <linux/uuid.h>
 #include <linux/t10-pi.h>
 #include <linux/msdos_partition.h>
+#include <linux/random.h>
 
 #include <net/checksum.h>
 
@@ -126,6 +127,7 @@ static const char *sdebug_version_date = "20190125";
 #define DEF_PHYSBLK_EXP 0
 #define DEF_OPT_XFERLEN_EXP 0
 #define DEF_PTYPE   TYPE_DISK
+#define DEF_RANDOM false
 #define DEF_REMOVABLE false
 #define DEF_SCSI_LEVEL   7    /* INQUIRY, byte2 [6->SPC-4; 7->SPC-5] */
 #define DEF_SECTOR_SIZE 512
@@ -656,6 +658,7 @@ static unsigned int sdebug_unmap_max_blocks = DEF_UNMAP_MAX_BLOCKS;
 static unsigned int sdebug_unmap_max_desc = DEF_UNMAP_MAX_DESC;
 static unsigned int sdebug_write_same_length = DEF_WRITESAME_LENGTH;
 static int sdebug_uuid_ctl = DEF_UUID_CTL;
+static bool sdebug_random = DEF_RANDOM;
 static bool sdebug_removable = DEF_REMOVABLE;
 static bool sdebug_clustering;
 static bool sdebug_host_lock = DEF_HOST_LOCK;
@@ -4355,9 +4358,21 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 		ktime_t kt;
 
 		if (delta_jiff > 0) {
-			kt = ns_to_ktime((u64)delta_jiff * (NSEC_PER_SEC / HZ));
-		} else
-			kt = ndelay;
+			u64 ns = jiffies_to_nsecs(delta_jiff);
+
+			if (sdebug_random && ns < U32_MAX) {
+				ns = prandom_u32_max((u32)ns);
+			} else if (sdebug_random) {
+				ns >>= 12;	/* scale to 4 usec precision */
+				if (ns < U32_MAX)	/* over 4 hours max */
+					ns = prandom_u32_max((u32)ns);
+				ns <<= 12;
+			}
+			kt = ns_to_ktime(ns);
+		} else {	/* ndelay has a 4.2 second max */
+			kt = sdebug_random ? prandom_u32_max((u32)ndelay) :
+					     (u32)ndelay;
+		}
 		if (!sd_dp->init_hrt) {
 			sd_dp->init_hrt = true;
 			sqcp->sd_dp = sd_dp;
@@ -4452,6 +4467,7 @@ module_param_named(opts, sdebug_opts, int, S_IRUGO | S_IWUSR);
 module_param_named(physblk_exp, sdebug_physblk_exp, int, S_IRUGO);
 module_param_named(opt_xferlen_exp, sdebug_opt_xferlen_exp, int, S_IRUGO);
 module_param_named(ptype, sdebug_ptype, int, S_IRUGO | S_IWUSR);
+module_param_named(random, sdebug_random, bool, S_IRUGO | S_IWUSR);
 module_param_named(removable, sdebug_removable, bool, S_IRUGO | S_IWUSR);
 module_param_named(scsi_level, sdebug_scsi_level, int, S_IRUGO);
 module_param_named(sector_size, sdebug_sector_size, int, S_IRUGO);
@@ -4512,6 +4528,7 @@ MODULE_PARM_DESC(opts, "1->noise, 2->medium_err, 4->timeout, 8->recovered_err...
 MODULE_PARM_DESC(physblk_exp, "physical block exponent (def=0)");
 MODULE_PARM_DESC(opt_xferlen_exp, "optimal transfer length granularity exponent (def=physblk_exp)");
 MODULE_PARM_DESC(ptype, "SCSI peripheral type(def=0[disk])");
+MODULE_PARM_DESC(random, "If set, uniformly randomize command duration between 0 and delay_in_ns");
 MODULE_PARM_DESC(removable, "claim to have removable media (def=0)");
 MODULE_PARM_DESC(scsi_level, "SCSI level to simulate(def=7[SPC-5])");
 MODULE_PARM_DESC(sector_size, "logical block size in bytes (def=512)");
@@ -5102,6 +5119,24 @@ static ssize_t map_show(struct device_driver *ddp, char *buf)
 }
 static DRIVER_ATTR_RO(map);
 
+static ssize_t random_show(struct device_driver *ddp, char *buf)
+{
+	return scnprintf(buf, PAGE_SIZE, "%d\n", sdebug_random);
+}
+
+static ssize_t random_store(struct device_driver *ddp, const char *buf,
+			    size_t count)
+{
+	bool v;
+
+	if (kstrtobool(buf, &v))
+		return -EINVAL;
+
+	sdebug_random = v;
+	return count;
+}
+static DRIVER_ATTR_RW(random);
+
 static ssize_t removable_show(struct device_driver *ddp, char *buf)
 {
 	return scnprintf(buf, PAGE_SIZE, "%d\n", sdebug_removable ? 1 : 0);
@@ -5212,6 +5247,7 @@ static struct attribute *sdebug_drv_attrs[] = {
 	&driver_attr_guard.attr,
 	&driver_attr_ato.attr,
 	&driver_attr_map.attr,
+	&driver_attr_random.attr,
 	&driver_attr_removable.attr,
 	&driver_attr_host_lock.attr,
 	&driver_attr_ndelay.attr,
