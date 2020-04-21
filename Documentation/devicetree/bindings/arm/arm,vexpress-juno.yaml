@@ -165,10 +165,10 @@ patternProperties:
       compatible:
         oneOf:
           - items:
-            - enum:
-              - arm,vexpress,v2m-p1
-              - arm,vexpress,v2p-p1
-            - const: simple-bus
+              - enum:
+                  - arm,vexpress,v2m-p1
+                  - arm,vexpress,v2p-p1
+              - const: simple-bus
           - const: simple-bus
       motherboard:
         type: object
@@ -186,8 +186,8 @@ patternProperties:
           compatible:
             items:
               - enum:
-                - arm,vexpress,v2m-p1
-                - arm,vexpress,v2p-p1
+                  - arm,vexpress,v2m-p1
+                  - arm,vexpress,v2p-p1
               - const: simple-bus
           arm,v2m-memory-map:
             description: This describes the memory map type.

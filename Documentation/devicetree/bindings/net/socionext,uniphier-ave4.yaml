@@ -46,10 +46,10 @@ properties:
   clock-names:
     oneOf:
       - items:          # for Pro4
-        - const: gio
-        - const: ether
-        - const: ether-gb
-        - const: ether-phy
+          - const: gio
+          - const: ether
+          - const: ether-gb
+          - const: ether-phy
       - const: ether    # for others
 
   resets:
@@ -59,8 +59,8 @@ properties:
   reset-names:
     oneOf:
       - items:          # for Pro4
-        - const: gio
-        - const: ether
+          - const: gio
+          - const: ether
       - const: ether    # for others
 
   socionext,syscon-phy-mode:

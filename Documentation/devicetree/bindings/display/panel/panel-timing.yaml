@@ -59,7 +59,7 @@ description: |
 properties:
 
   clock-frequency:
-   description: Panel clock in Hz
+    description: Panel clock in Hz
 
   hactive:
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -200,15 +200,15 @@ properties:
     description: Enable double clock mode
 
 required:
- - clock-frequency
- - hactive
- - vactive
- - hfront-porch
- - hback-porch
- - hsync-len
- - vfront-porch
- - vback-porch
- - vsync-len
+  - clock-frequency
+  - hactive
+  - vactive
+  - hfront-porch
+  - hback-porch
+  - hsync-len
+  - vfront-porch
+  - vback-porch
+  - vsync-len
 
 additionalProperties: false
 

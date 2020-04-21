@@ -11,7 +11,7 @@ maintainers:
 
 properties:
   compatible:
-      const: maxim,max98390
+    const: maxim,max98390
 
   reg:
     maxItems: 1

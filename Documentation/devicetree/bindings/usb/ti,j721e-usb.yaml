@@ -19,9 +19,9 @@ properties:
 
   power-domains:
     description:
-       PM domain provider node and an args specifier containing
-       the USB device id value. See,
-       Documentation/devicetree/bindings/soc/ti/sci-pm-domain.txt
+      PM domain provider node and an args specifier containing
+      the USB device id value. See,
+      Documentation/devicetree/bindings/soc/ti/sci-pm-domain.txt
 
   clocks:
     description: Clock phandles to usb2_refclk and lpm_clk

@@ -31,10 +31,10 @@ properties:
       - atlas,co2-ezo
 
   reg:
-     maxItems: 1
+    maxItems: 1
 
   interrupts:
-     maxItems: 1
+    maxItems: 1
 
 required:
   - compatible

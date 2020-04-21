@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Visionox model RM69299 Panels Device Tree Bindings.
 
 maintainers:
- - Harigovindan P <harigovi@codeaurora.org>
+  - Harigovindan P <harigovi@codeaurora.org>
 
 description: |
   This binding is for display panels using a Visionox RM692999 panel.

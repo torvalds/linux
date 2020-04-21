@@ -17,15 +17,15 @@ properties:
   compatible:
     oneOf:
       - items:
-        - enum:
-          - qcom,ipq8074-qusb2-phy
-          - qcom,msm8996-qusb2-phy
-          - qcom,msm8998-qusb2-phy
+          - enum:
+              - qcom,ipq8074-qusb2-phy
+              - qcom,msm8996-qusb2-phy
+              - qcom,msm8998-qusb2-phy
       - items:
-        - enum:
-          - qcom,sc7180-qusb2-phy
-          - qcom,sdm845-qusb2-phy
-        - const: qcom,qusb2-v2-phy
+          - enum:
+              - qcom,sc7180-qusb2-phy
+              - qcom,sdm845-qusb2-phy
+          - const: qcom,qusb2-v2-phy
   reg:
     maxItems: 1
 
@@ -49,12 +49,12 @@ properties:
       - const: iface
 
   vdda-pll-supply:
-     description:
-       Phandle to 1.8V regulator supply to PHY refclk pll block.
+    description:
+      Phandle to 1.8V regulator supply to PHY refclk pll block.
 
   vdda-phy-dpdm-supply:
-     description:
-       Phandle to 3.1V regulator supply to Dp/Dm port signals.
+    description:
+      Phandle to 3.1V regulator supply to Dp/Dm port signals.
 
   resets:
     maxItems: 1
@@ -64,12 +64,12 @@ properties:
   nvmem-cells:
     maxItems: 1
     description:
-        Phandle to nvmem cell that contains 'HS Tx trim'
-        tuning parameter value for qusb2 phy.
+      Phandle to nvmem cell that contains 'HS Tx trim'
+      tuning parameter value for qusb2 phy.
 
   qcom,tcsr-syscon:
     description:
-        Phandle to TCSR syscon register region.
+      Phandle to TCSR syscon register region.
     $ref: /schemas/types.yaml#/definitions/phandle
 
 if:
