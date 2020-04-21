@@ -10,6 +10,7 @@
 
 #include <linux/pagemap.h>
 #include <linux/file.h>
+#include <linux/fs_context.h>
 #include <linux/sched.h>
 #include <linux/namei.h>
 #include <linux/slab.h>
@@ -237,7 +238,8 @@ static int fuse_dentry_revalidate(struct dentry *entry, unsigned int flags)
 			ret = -ENOENT;
 		if (!ret) {
 			fi = get_fuse_inode(inode);
-			if (outarg.nodeid != get_node_id(inode)) {
+			if (outarg.nodeid != get_node_id(inode) ||
+			    (bool) IS_AUTOMOUNT(inode) != (bool) (outarg.attr.flags & FUSE_ATTR_SUBMOUNT)) {
 				fuse_queue_forget(fm->fc, forget,
 						  outarg.nodeid, 1);
 				goto invalid;
@@ -299,6 +301,79 @@ static int fuse_dentry_delete(const struct dentry *dentry)
 	return time_before64(fuse_dentry_time(dentry), get_jiffies_64());
 }
 
+/*
+ * Create a fuse_mount object with a new superblock (with path->dentry
+ * as the root), and return that mount so it can be auto-mounted on
+ * @path.
+ */
+static struct vfsmount *fuse_dentry_automount(struct path *path)
+{
+	struct fs_context *fsc;
+	struct fuse_mount *parent_fm = get_fuse_mount_super(path->mnt->mnt_sb);
+	struct fuse_conn *fc = parent_fm->fc;
+	struct fuse_mount *fm;
+	struct vfsmount *mnt;
+	struct fuse_inode *mp_fi = get_fuse_inode(d_inode(path->dentry));
+	struct super_block *sb;
+	int err;
+
+	fsc = fs_context_for_submount(path->mnt->mnt_sb->s_type, path->dentry);
+	if (IS_ERR(fsc)) {
+		err = PTR_ERR(fsc);
+		goto out;
+	}
+
+	err = -ENOMEM;
+	fm = kzalloc(sizeof(struct fuse_mount), GFP_KERNEL);
+	if (!fm)
+		goto out_put_fsc;
+
+	refcount_set(&fm->count, 1);
+	fsc->s_fs_info = fm;
+	sb = sget_fc(fsc, NULL, set_anon_super_fc);
+	if (IS_ERR(sb)) {
+		err = PTR_ERR(sb);
+		fuse_mount_put(fm);
+		goto out_put_fsc;
+	}
+	fm->fc = fuse_conn_get(fc);
+
+	/* Initialize superblock, making @mp_fi its root */
+	err = fuse_fill_super_submount(sb, mp_fi);
+	if (err)
+		goto out_put_sb;
+
+	sb->s_flags |= SB_ACTIVE;
+	fsc->root = dget(sb->s_root);
+	/* We are done configuring the superblock, so unlock it */
+	up_write(&sb->s_umount);
+
+	down_write(&fc->killsb);
+	list_add_tail(&fm->fc_entry, &fc->mounts);
+	up_write(&fc->killsb);
+
+	/* Create the submount */
+	mnt = vfs_create_mount(fsc);
+	if (IS_ERR(mnt)) {
+		err = PTR_ERR(mnt);
+		goto out_put_fsc;
+	}
+	mntget(mnt);
+	put_fs_context(fsc);
+	return mnt;
+
+out_put_sb:
+	/*
+	 * Only jump here when fsc->root is NULL and sb is still locked
+	 * (otherwise put_fs_context() will put the superblock)
+	 */
+	deactivate_locked_super(sb);
+out_put_fsc:
+	put_fs_context(fsc);
+out:
+	return ERR_PTR(err);
+}
+
 const struct dentry_operations fuse_dentry_operations = {
 	.d_revalidate	= fuse_dentry_revalidate,
 	.d_delete	= fuse_dentry_delete,
@@ -306,6 +381,7 @@ const struct dentry_operations fuse_dentry_operations = {
 	.d_init		= fuse_dentry_init,
 	.d_release	= fuse_dentry_release,
 #endif
+	.d_automount	= fuse_dentry_automount,
 };
 
 const struct dentry_operations fuse_root_dentry_operations = {

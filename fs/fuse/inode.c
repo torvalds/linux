@@ -309,7 +309,26 @@ struct inode *fuse_iget(struct super_block *sb, u64 nodeid,
 	struct fuse_inode *fi;
 	struct fuse_conn *fc = get_fuse_conn_super(sb);
 
- retry:
+	/*
+	 * Auto mount points get their node id from the submount root, which is
+	 * not a unique identifier within this filesystem.
+	 *
+	 * To avoid conflicts, do not place submount points into the inode hash
+	 * table.
+	 */
+	if (fc->auto_submounts && (attr->flags & FUSE_ATTR_SUBMOUNT) &&
+	    S_ISDIR(attr->mode)) {
+		inode = new_inode(sb);
+		if (!inode)
+			return NULL;
+
+		fuse_init_inode(inode, attr);
+		get_fuse_inode(inode)->nodeid = nodeid;
+		inode->i_flags |= S_AUTOMOUNT;
+		goto done;
+	}
+
+retry:
 	inode = iget5_locked(sb, nodeid, fuse_inode_eq, fuse_inode_set, &nodeid);
 	if (!inode)
 		return NULL;
@@ -327,7 +346,7 @@ struct inode *fuse_iget(struct super_block *sb, u64 nodeid,
 		iput(inode);
 		goto retry;
 	}
-
+done:
 	fi = get_fuse_inode(inode);
 	spin_lock(&fi->lock);
 	fi->nlookup++;
@@ -1083,6 +1102,9 @@ void fuse_send_init(struct fuse_mount *fm)
 	if (fm->fc->dax)
 		ia->in.flags |= FUSE_MAP_ALIGNMENT;
 #endif
+	if (fm->fc->auto_submounts)
+		ia->in.flags |= FUSE_SUBMOUNTS;
+
 	ia->args.opcode = FUSE_INIT;
 	ia->args.in_numargs = 1;
 	ia->args.in_args[0].size = sizeof(ia->in);
