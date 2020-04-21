@@ -1537,6 +1537,22 @@ static int rkisp_isp_sd_s_power(struct v4l2_subdev *sd, int on)
 		if (ret < 0)
 			return ret;
 
+		if (isp_dev->isp_ver == ISP_V20) {
+			struct iommu_domain *domain =
+				iommu_get_domain_for_dev(isp_dev->dev);
+
+			writel(CIF_ISP_CTRL_ISP_MODE_BAYER_ITU601,
+			       base + CIF_ISP_CTRL);
+			writel(0xffff, base + CIF_IRCL);
+			usleep_range(100, 200);
+			if (domain) {
+#ifdef CONFIG_IOMMU_API
+				domain->ops->detach_dev(domain, isp_dev->dev);
+				domain->ops->attach_dev(domain, isp_dev->dev);
+#endif
+			}
+		}
+
 		rkisp_config_clk(isp_dev, on);
 		if (isp_dev->isp_ver == ISP_V12 ||
 		    isp_dev->isp_ver == ISP_V13) {
