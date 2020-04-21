@@ -11,7 +11,7 @@
 #include <asm/cacheflush.h>
 #include <asm/fixmap.h>
 
-struct riscv_insn_patch {
+struct patch_insn {
 	void *addr;
 	u32 insn;
 	atomic_t cpu_count;
@@ -43,7 +43,7 @@ static void __kprobes patch_unmap(int fixmap)
 	clear_fixmap(fixmap);
 }
 
-static int __kprobes riscv_insn_write(void *addr, const void *insn, size_t len)
+static int __kprobes patch_insn_write(void *addr, const void *insn, size_t len)
 {
 	void *waddr = addr;
 	bool across_pages = (((uintptr_t) addr & ~PAGE_MASK) + len) > PAGE_SIZE;
@@ -69,18 +69,18 @@ static int __kprobes riscv_insn_write(void *addr, const void *insn, size_t len)
 	return ret;
 }
 #else
-static int __kprobes riscv_insn_write(void *addr, const void *insn, size_t len)
+static int __kprobes patch_insn_write(void *addr, const void *insn, size_t len)
 {
 	return probe_kernel_write(addr, insn, len);
 }
 #endif /* CONFIG_MMU */
 
-int __kprobes riscv_patch_text_nosync(void *addr, const void *insns, size_t len)
+int __kprobes patch_text_nosync(void *addr, const void *insns, size_t len)
 {
 	u32 *tp = addr;
 	int ret;
 
-	ret = riscv_insn_write(tp, insns, len);
+	ret = patch_insn_write(tp, insns, len);
 
 	if (!ret)
 		flush_icache_range((uintptr_t) tp, (uintptr_t) tp + len);
@@ -88,14 +88,14 @@ int __kprobes riscv_patch_text_nosync(void *addr, const void *insns, size_t len)
 	return ret;
 }
 
-static int __kprobes riscv_patch_text_cb(void *data)
+static int __kprobes patch_text_cb(void *data)
 {
-	struct riscv_insn_patch *patch = data;
+	struct patch_insn *patch = data;
 	int ret = 0;
 
 	if (atomic_inc_return(&patch->cpu_count) == 1) {
 		ret =
-		    riscv_patch_text_nosync(patch->addr, &patch->insn,
+		    patch_text_nosync(patch->addr, &patch->insn,
 					    GET_INSN_LENGTH(patch->insn));
 		atomic_inc(&patch->cpu_count);
 	} else {
@@ -107,14 +107,14 @@ static int __kprobes riscv_patch_text_cb(void *data)
 	return ret;
 }
 
-int __kprobes riscv_patch_text(void *addr, u32 insn)
+int __kprobes patch_text(void *addr, u32 insn)
 {
-	struct riscv_insn_patch patch = {
+	struct patch_insn patch = {
 		.addr = addr,
 		.insn = insn,
 		.cpu_count = ATOMIC_INIT(0),
 	};
 
-	return stop_machine_cpuslocked(riscv_patch_text_cb,
+	return stop_machine_cpuslocked(patch_text_cb,
 				       &patch, cpu_online_mask);
 }

@@ -51,7 +51,7 @@ static int __ftrace_modify_call(unsigned long hook_pos, unsigned long target,
 	make_call(hook_pos, target, call);
 
 	/* Replace the auipc-jalr pair at once. Return -EPERM on write error. */
-	if (riscv_patch_text_nosync
+	if (patch_text_nosync
 	    ((void *)hook_pos, enable ? call : nops, MCOUNT_INSN_SIZE))
 		return -EPERM;
 
