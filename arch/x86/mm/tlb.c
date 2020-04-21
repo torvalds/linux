@@ -876,7 +876,7 @@ static void do_kernel_range_flush(void *info)
 
 	/* flush range by one by one 'invlpg' */
 	for (addr = f->start; addr < f->end; addr += PAGE_SIZE)
-		__flush_tlb_one_kernel(addr);
+		flush_tlb_one_kernel(addr);
 }
 
 void flush_tlb_kernel_range(unsigned long start, unsigned long end)
@@ -917,6 +917,38 @@ unsigned long __get_current_cr3_fast(void)
 	return cr3;
 }
 EXPORT_SYMBOL_GPL(__get_current_cr3_fast);
+
+/*
+ * Flush one page in the kernel mapping
+ */
+void flush_tlb_one_kernel(unsigned long addr)
+{
+	count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ONE);
+
+	/*
+	 * If PTI is off, then __flush_tlb_one_user() is just INVLPG or its
+	 * paravirt equivalent.  Even with PCID, this is sufficient: we only
+	 * use PCID if we also use global PTEs for the kernel mapping, and
+	 * INVLPG flushes global translations across all address spaces.
+	 *
+	 * If PTI is on, then the kernel is mapped with non-global PTEs, and
+	 * __flush_tlb_one_user() will flush the given address for the current
+	 * kernel address space and for its usermode counterpart, but it does
+	 * not flush it for other address spaces.
+	 */
+	flush_tlb_one_user(addr);
+
+	if (!static_cpu_has(X86_FEATURE_PTI))
+		return;
+
+	/*
+	 * See above.  We need to propagate the flush to all other address
+	 * spaces.  In principle, we only need to propagate it to kernelmode
+	 * address spaces, but the extra bookkeeping we would need is not
+	 * worth it.
+	 */
+	this_cpu_write(cpu_tlbstate.invalidate_other, true);
+}
 
 /*
  * Flush one page in the user mapping

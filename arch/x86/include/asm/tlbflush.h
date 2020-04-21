@@ -143,6 +143,7 @@ static inline unsigned long build_cr3_noflush(pgd_t *pgd, u16 asid)
 void flush_tlb_local(void);
 void flush_tlb_global(void);
 void flush_tlb_one_user(unsigned long addr);
+void flush_tlb_one_kernel(unsigned long addr);
 
 #ifdef CONFIG_PARAVIRT
 #include <asm/paravirt.h>
@@ -318,14 +319,6 @@ static inline void cr4_clear_bits(unsigned long mask)
 }
 
 /*
- * Mark all other ASIDs as invalid, preserves the current.
- */
-static inline void invalidate_other_asid(void)
-{
-	this_cpu_write(cpu_tlbstate.invalidate_other, true);
-}
-
-/*
  * Save some of cr4 feature set we're using (e.g.  Pentium 4MB
  * enable and PPro Global page enable), so that any CPU's that boot
  * up after us can get the correct flags.  This should only be used
@@ -363,38 +356,6 @@ static inline void __flush_tlb_all(void)
 		 */
 		flush_tlb_local();
 	}
-}
-
-/*
- * flush one page in the kernel mapping
- */
-static inline void __flush_tlb_one_kernel(unsigned long addr)
-{
-	count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ONE);
-
-	/*
-	 * If PTI is off, then __flush_tlb_one_user() is just INVLPG or its
-	 * paravirt equivalent.  Even with PCID, this is sufficient: we only
-	 * use PCID if we also use global PTEs for the kernel mapping, and
-	 * INVLPG flushes global translations across all address spaces.
-	 *
-	 * If PTI is on, then the kernel is mapped with non-global PTEs, and
-	 * __flush_tlb_one_user() will flush the given address for the current
-	 * kernel address space and for its usermode counterpart, but it does
-	 * not flush it for other address spaces.
-	 */
-	flush_tlb_one_user(addr);
-
-	if (!static_cpu_has(X86_FEATURE_PTI))
-		return;
-
-	/*
-	 * See above.  We need to propagate the flush to all other address
-	 * spaces.  In principle, we only need to propagate it to kernelmode
-	 * address spaces, but the extra bookkeeping we would need is not
-	 * worth it.
-	 */
-	invalidate_other_asid();
 }
 
 #define TLB_FLUSH_ALL	-1UL
