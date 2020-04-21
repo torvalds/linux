@@ -10,6 +10,9 @@ objects using SLAB_TYPESAFE_BY_RCU allocations.
 
 Please read the basics in Documentation/RCU/listRCU.rst
 
+Using 'nulls'
+=============
+
 Using special makers (called 'nulls') is a convenient way
 to solve following problem :
 
@@ -125,6 +128,9 @@ very very fast (before the end of RCU grace period)
 
 
 --------------------------------------------------------------------------
+
+Avoiding extra smp_rmb()
+========================
 
 With hlist_nulls we can avoid extra smp_rmb() in lockless_lookup()
 and extra smp_wmb() in insert function.
