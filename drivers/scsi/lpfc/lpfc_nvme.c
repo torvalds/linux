@@ -1491,11 +1491,6 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 
 	phba = vport->phba;
 
-	if (vport->load_flag & FC_UNLOADING) {
-		ret = -ENODEV;
-		goto out_fail;
-	}
-
 	if (unlikely(vport->load_flag & FC_UNLOADING)) {
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_IOERR,
 				 "6124 Fail IO, Driver unload\n");

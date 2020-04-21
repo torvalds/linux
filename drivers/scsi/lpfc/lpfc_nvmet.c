@@ -844,9 +844,6 @@ lpfc_nvmet_xmt_ls_rsp(struct nvmet_fc_target_port *tgtport,
 	if (phba->pport->load_flag & FC_UNLOADING)
 		return -ENODEV;
 
-	if (phba->pport->load_flag & FC_UNLOADING)
-		return -ENODEV;
-
 	lpfc_printf_log(phba, KERN_INFO, LOG_NVME_DISC,
 			"6023 NVMET LS rsp oxid x%x\n", ctxp->oxid);
 
@@ -932,11 +929,6 @@ lpfc_nvmet_xmt_fcp_op(struct nvmet_fc_target_port *tgtport,
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	int id;
 #endif
-
-	if (phba->pport->load_flag & FC_UNLOADING) {
-		rc = -ENODEV;
-		goto aerr;
-	}
 
 	if (phba->pport->load_flag & FC_UNLOADING) {
 		rc = -ENODEV;
@@ -1061,9 +1053,6 @@ lpfc_nvmet_xmt_fcp_abort(struct nvmet_fc_target_port *tgtport,
 	struct lpfc_hba *phba = ctxp->phba;
 	struct lpfc_queue *wq;
 	unsigned long flags;
-
-	if (phba->pport->load_flag & FC_UNLOADING)
-		return;
 
 	if (phba->pport->load_flag & FC_UNLOADING)
 		return;
