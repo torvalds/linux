@@ -381,7 +381,7 @@ lookup_get_fd_uobject(const struct uverbs_api_object *obj,
 	 * and the caller is expected to ensure that uverbs_close_fd is never
 	 * done while a call top lookup is possible.
 	 */
-	if (f->f_op != fd_type->fops) {
+	if (f->f_op != fd_type->fops || uobject->ufile != ufile) {
 		fput(f);
 		return ERR_PTR(-EBADF);
 	}
