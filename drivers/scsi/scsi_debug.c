@@ -2740,7 +2740,6 @@ static int resp_read_dt0(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 	u32 num;
 	u32 ei_lba;
 	int ret;
-	unsigned long iflags;
 	u64 lba;
 	struct sdeb_store_info *sip = devip2sip(devip);
 	rwlock_t *macc_lckp = sip ? &sip->macc_lck : &sdeb_fake_rw_lck;
@@ -2827,21 +2826,21 @@ static int resp_read_dt0(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 		return check_condition_result;
 	}
 
-	read_lock_irqsave(macc_lckp, iflags);
+	read_lock(macc_lckp);
 
 	/* DIX + T10 DIF */
 	if (unlikely(sdebug_dix && scsi_prot_sg_count(scp))) {
 		int prot_ret = prot_verify_read(scp, lba, num, ei_lba);
 
 		if (prot_ret) {
-			read_unlock_irqrestore(macc_lckp, iflags);
+			read_unlock(macc_lckp);
 			mk_sense_buffer(scp, ABORTED_COMMAND, 0x10, prot_ret);
 			return illegal_condition_result;
 		}
 	}
 
 	ret = do_device_access(sip, scp, 0, lba, num, false);
-	read_unlock_irqrestore(macc_lckp, iflags);
+	read_unlock(macc_lckp);
 	if (unlikely(ret == -1))
 		return DID_ERROR << 16;
 
@@ -3050,7 +3049,6 @@ static int resp_write_dt0(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 	u32 num;
 	u32 ei_lba;
 	int ret;
-	unsigned long iflags;
 	u64 lba;
 	struct sdeb_store_info *sip = devip2sip(devip);
 	rwlock_t *macc_lckp = sip ? &sip->macc_lck : &sdeb_fake_rw_lck;
@@ -3110,14 +3108,14 @@ static int resp_write_dt0(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 	ret = check_device_access_params(scp, lba, num, true);
 	if (ret)
 		return ret;
-	write_lock_irqsave(macc_lckp, iflags);
+	write_lock(macc_lckp);
 
 	/* DIX + T10 DIF */
 	if (unlikely(sdebug_dix && scsi_prot_sg_count(scp))) {
 		int prot_ret = prot_verify_write(scp, lba, num, ei_lba);
 
 		if (prot_ret) {
-			write_unlock_irqrestore(macc_lckp, iflags);
+			write_unlock(macc_lckp);
 			mk_sense_buffer(scp, ILLEGAL_REQUEST, 0x10, prot_ret);
 			return illegal_condition_result;
 		}
@@ -3126,7 +3124,7 @@ static int resp_write_dt0(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 	ret = do_device_access(sip, scp, 0, lba, num, true);
 	if (unlikely(scsi_debug_lbp()))
 		map_region(sip, lba, num);
-	write_unlock_irqrestore(macc_lckp, iflags);
+	write_unlock(macc_lckp);
 	if (unlikely(-1 == ret))
 		return DID_ERROR << 16;
 	else if (unlikely(sdebug_verbose &&
@@ -3175,7 +3173,6 @@ static int resp_write_scat(struct scsi_cmnd *scp,
 	u32 lb_size = sdebug_sector_size;
 	u32 ei_lba;
 	u64 lba;
-	unsigned long iflags;
 	int ret, res;
 	bool is_16;
 	static const u32 lrd_size = 32; /* + parameter list header size */
@@ -3237,7 +3234,7 @@ static int resp_write_scat(struct scsi_cmnd *scp,
 		goto err_out;
 	}
 
-	write_lock_irqsave(macc_lckp, iflags);
+	write_lock(macc_lckp);
 	sg_off = lbdof_blen;
 	/* Spec says Buffer xfer Length field in number of LBs in dout */
 	cum_lb = 0;
@@ -3320,7 +3317,7 @@ static int resp_write_scat(struct scsi_cmnd *scp,
 	}
 	ret = 0;
 err_out_unlock:
-	write_unlock_irqrestore(macc_lckp, iflags);
+	write_unlock(macc_lckp);
 err_out:
 	kfree(lrdp);
 	return ret;
@@ -3329,7 +3326,6 @@ err_out:
 static int resp_write_same(struct scsi_cmnd *scp, u64 lba, u32 num,
 			   u32 ei_lba, bool unmap, bool ndob)
 {
-	unsigned long iflags;
 	unsigned long long i;
 	u64 block, lbaa;
 	u32 lb_size = sdebug_sector_size;
@@ -3344,7 +3340,7 @@ static int resp_write_same(struct scsi_cmnd *scp, u64 lba, u32 num,
 	if (ret)
 		return ret;
 
-	write_lock_irqsave(macc_lckp, iflags);
+	write_lock(macc_lckp);
 
 	if (unmap && scsi_debug_lbp()) {
 		unmap_region(sip, lba, num);
@@ -3362,7 +3358,7 @@ static int resp_write_same(struct scsi_cmnd *scp, u64 lba, u32 num,
 		ret = fetch_to_dev_buffer(scp, fs1p, lb_size);
 
 	if (-1 == ret) {
-		write_unlock_irqrestore(&sip->macc_lck, iflags);
+		write_unlock(&sip->macc_lck);
 		return DID_ERROR << 16;
 	} else if (sdebug_verbose && !ndob && (ret < lb_size))
 		sdev_printk(KERN_INFO, scp->device,
@@ -3378,7 +3374,7 @@ static int resp_write_same(struct scsi_cmnd *scp, u64 lba, u32 num,
 	if (scsi_debug_lbp())
 		map_region(sip, lba, num);
 out:
-	write_unlock_irqrestore(macc_lckp, iflags);
+	write_unlock(macc_lckp);
 
 	return 0;
 }
@@ -3496,7 +3492,6 @@ static int resp_comp_write(struct scsi_cmnd *scp,
 	u32 dnum;
 	u32 lb_size = sdebug_sector_size;
 	u8 num;
-	unsigned long iflags;
 	int ret;
 	int retval = 0;
 
@@ -3525,7 +3520,7 @@ static int resp_comp_write(struct scsi_cmnd *scp,
 		return check_condition_result;
 	}
 
-	write_lock_irqsave(macc_lckp, iflags);
+	write_lock(macc_lckp);
 
 	ret = do_dout_fetch(scp, dnum, arr);
 	if (ret == -1) {
@@ -3543,7 +3538,7 @@ static int resp_comp_write(struct scsi_cmnd *scp,
 	if (scsi_debug_lbp())
 		map_region(sip, lba, num);
 cleanup:
-	write_unlock_irqrestore(macc_lckp, iflags);
+	write_unlock(macc_lckp);
 	kfree(arr);
 	return retval;
 }
@@ -3562,8 +3557,6 @@ static int resp_unmap(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 	rwlock_t *macc_lckp = sip ? &sip->macc_lck : &sdeb_fake_rw_lck;
 	unsigned int i, payload_len, descriptors;
 	int ret;
-	unsigned long iflags;
-
 
 	if (!scsi_debug_lbp())
 		return 0;	/* fib and say its done */
@@ -3590,7 +3583,7 @@ static int resp_unmap(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 
 	desc = (void *)&buf[8];
 
-	write_lock_irqsave(macc_lckp, iflags);
+	write_lock(macc_lckp);
 
 	for (i = 0 ; i < descriptors ; i++) {
 		unsigned long long lba = get_unaligned_be64(&desc[i].lba);
@@ -3606,7 +3599,7 @@ static int resp_unmap(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 	ret = 0;
 
 out:
-	write_unlock_irqrestore(macc_lckp, iflags);
+	write_unlock(macc_lckp);
 	kfree(buf);
 
 	return ret;
@@ -3789,7 +3782,6 @@ static int resp_verify(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 	int ret, j;
 	u32 vnum, a_num, off;
 	const u32 lb_size = sdebug_sector_size;
-	unsigned long iflags;
 	u64 lba;
 	u8 *arr;
 	u8 *cmd = scp->cmnd;
@@ -3831,7 +3823,7 @@ static int resp_verify(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 		return check_condition_result;
 	}
 	/* Not changing store, so only need read access */
-	read_lock_irqsave(macc_lckp, iflags);
+	read_lock(macc_lckp);
 
 	ret = do_dout_fetch(scp, a_num, arr);
 	if (ret == -1) {
@@ -3853,7 +3845,7 @@ static int resp_verify(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 		goto cleanup;
 	}
 cleanup:
-	read_unlock_irqrestore(macc_lckp, iflags);
+	read_unlock(macc_lckp);
 	kfree(arr);
 	return ret;
 }
@@ -4501,9 +4493,6 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 
 	cmnd->result = pfp != NULL ? pfp(cmnd, devip) : 0;
 	if (cmnd->result & SDEG_RES_IMMED_MASK) {
-		/*
-		 * This is the F_DELAY_OVERR case. No delay.
-		 */
 		cmnd->result &= ~SDEG_RES_IMMED_MASK;
 		delta_jiff = ndelay = 0;
 	}
@@ -6126,7 +6115,7 @@ static int scsi_debug_queuecommand(struct Scsi_Host *shost,
 		pfp = r_pfp;    /* if leaf function ptr NULL, try the root's */
 
 fini:
-	if (F_DELAY_OVERR & flags)
+	if (F_DELAY_OVERR & flags)	/* cmds like INQUIRY respond asap */
 		return schedule_resp(scp, devip, errsts, pfp, 0, 0);
 	else if ((flags & F_LONG_DELAY) && (sdebug_jdelay > 0 ||
 					    sdebug_ndelay > 10000)) {
