@@ -25,6 +25,8 @@ struct lima_ip_desc {
 
 	int (*init)(struct lima_ip *ip);
 	void (*fini)(struct lima_ip *ip);
+	int (*resume)(struct lima_ip *ip);
+	void (*suspend)(struct lima_ip *ip);
 };
 
 #define LIMA_IP_DESC(ipname, mst0, mst1, off0, off1, func, irq) \
@@ -41,6 +43,8 @@ struct lima_ip_desc {
 		}, \
 		.init = lima_##func##_init, \
 		.fini = lima_##func##_fini, \
+		.resume = lima_##func##_resume, \
+		.suspend = lima_##func##_suspend, \
 	}
 
 static struct lima_ip_desc lima_ip_desc[lima_ip_num] = {

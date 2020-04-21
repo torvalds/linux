@@ -63,7 +63,7 @@ static u32 lima_pmu_get_ip_mask(struct lima_ip *ip)
 	return ret;
 }
 
-int lima_pmu_init(struct lima_ip *ip)
+static int lima_pmu_hw_init(struct lima_ip *ip)
 {
 	int err;
 	u32 stat;
@@ -88,7 +88,7 @@ int lima_pmu_init(struct lima_ip *ip)
 	return 0;
 }
 
-void lima_pmu_fini(struct lima_ip *ip)
+static void lima_pmu_hw_fini(struct lima_ip *ip)
 {
 	u32 stat;
 
@@ -108,4 +108,24 @@ void lima_pmu_fini(struct lima_ip *ip)
 		else
 			lima_pmu_wait_cmd(ip);
 	}
+}
+
+int lima_pmu_resume(struct lima_ip *ip)
+{
+	return lima_pmu_hw_init(ip);
+}
+
+void lima_pmu_suspend(struct lima_ip *ip)
+{
+	lima_pmu_hw_fini(ip);
+}
+
+int lima_pmu_init(struct lima_ip *ip)
+{
+	return lima_pmu_hw_init(ip);
+}
+
+void lima_pmu_fini(struct lima_ip *ip)
+{
+	lima_pmu_hw_fini(ip);
 }
