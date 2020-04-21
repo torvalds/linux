@@ -149,7 +149,16 @@ static int vimc_cap_s_fmt_vid_cap(struct file *file, void *priv,
 static int vimc_cap_enum_fmt_vid_cap(struct file *file, void *priv,
 				     struct v4l2_fmtdesc *f)
 {
-	const struct vimc_pix_map *vpix = vimc_pix_map_by_index(f->index);
+	const struct vimc_pix_map *vpix;
+
+	if (f->mbus_code) {
+		if (f->index > 0)
+			return -EINVAL;
+
+		vpix = vimc_pix_map_by_code(f->mbus_code);
+	} else {
+		vpix = vimc_pix_map_by_index(f->index);
+	}
 
 	if (!vpix)
 		return -EINVAL;
@@ -450,7 +459,8 @@ static struct vimc_ent_device *vimc_cap_add(struct vimc_device *vimc,
 
 	/* Initialize the video_device struct */
 	vdev = &vcap->vdev;
-	vdev->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
+	vdev->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING
+			  | V4L2_CAP_IO_MC;
 	vdev->entity.ops = &vimc_cap_mops;
 	vdev->release = video_device_release_empty;
 	vdev->fops = &vimc_cap_fops;
