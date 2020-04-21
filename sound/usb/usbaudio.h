@@ -66,6 +66,7 @@ struct snd_usb_audio {
 					 */
 
 	struct usb_host_interface *ctrl_intf;	/* the audio control interface */
+	struct mutex dev_lock;  /* to protect any race with disconnect */
 	int card_num;	/* cache pcm card number to use upon disconnect */
 	void (*disconnect_cb)(struct snd_usb_audio *chip); /* callback to cleanup on disconnect */
 };
