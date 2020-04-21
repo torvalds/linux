@@ -5691,8 +5691,8 @@ static bool nested_vmx_l0_wants_exit(struct kvm_vcpu *vcpu, u32 exit_reason)
  */
 static bool nested_vmx_l1_wants_exit(struct kvm_vcpu *vcpu, u32 exit_reason)
 {
-	u32 intr_info = vmx_get_intr_info(vcpu);
 	struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
+	u32 intr_info;
 
 	switch (exit_reason) {
 	case EXIT_REASON_EXCEPTION_NMI:
