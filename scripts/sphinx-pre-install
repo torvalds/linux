@@ -231,6 +231,27 @@ sub get_sphinx_fname()
 	return "";
 }
 
+sub get_sphinx_version($)
+{
+	my $cmd = shift;
+	my $ver;
+
+	open IN, "$cmd --version 2>&1 |";
+	while (<IN>) {
+		if (m/^\s*sphinx-build\s+([\d\.]+)(\+\/[\da-f]+)?$/) {
+			$ver=$1;
+			last;
+		}
+		# Sphinx 1.2.x uses a different format
+		if (m/^\s*Sphinx.*\s+([\d\.]+)$/) {
+			$ver=$1;
+			last;
+		}
+	}
+	close IN;
+	return $ver;
+}
+
 sub check_sphinx()
 {
 	my $rec_version;
@@ -266,19 +287,8 @@ sub check_sphinx()
 		return;
 	}
 
-	open IN, "$sphinx --version 2>&1 |" or die "$sphinx returned an error";
-	while (<IN>) {
-		if (m/^\s*sphinx-build\s+([\d\.]+)(\+\/[\da-f]+)?$/) {
-			$cur_version=$1;
-			last;
-		}
-		# Sphinx 1.2.x uses a different format
-		if (m/^\s*Sphinx.*\s+([\d\.]+)$/) {
-			$cur_version=$1;
-			last;
-		}
-	}
-	close IN;
+	$cur_version = get_sphinx_version($sphinx);
+	die ("$sphinx returned an error") if (!$cur_version);
 
 	die "$sphinx didn't return its version" if (!$cur_version);
 
@@ -765,10 +775,21 @@ sub check_needs()
 		my @activates = glob "$ENV{'PWD'}/${virtenv_prefix}*/bin/activate";
 
 		@activates = sort {$b cmp $a} @activates;
+		my ($activate, $ver);
+		foreach my $f (@activates) {
+			$activate = $f;
+			next if ($activate lt $min_activate);
 
-		if ($need_sphinx && scalar @activates > 0 && $activates[0] ge $min_activate) {
-			printf "\nNeed to activate a compatible Sphinx version on virtualenv with:\n";
-			printf "\t. $activates[0]\n";
+			my $sphinx_cmd = $activate;
+			$sphinx_cmd =~ s/activate/sphinx-build/;
+			next if (! -f $sphinx_cmd);
+
+			$ver = get_sphinx_version($sphinx_cmd);
+			last if ($ver ge $min_version);
+		}
+		if ($need_sphinx && ($activate ne "")) {
+			printf "\nNeed to activate Sphinx (version $ver) on virtualenv with:\n";
+			printf "\t. $activate\n";
 			deactivate_help();
 			exit (1);
 		} else {
