@@ -252,14 +252,16 @@ static u32 audio_config_hdmi_pixel_clock(const struct intel_crtc_state *crtc_sta
 		i = ARRAY_SIZE(hdmi_audio_clock);
 
 	if (i == ARRAY_SIZE(hdmi_audio_clock)) {
-		DRM_DEBUG_KMS("HDMI audio pixel clock setting for %d not found, falling back to defaults\n",
-			      adjusted_mode->crtc_clock);
+		drm_dbg_kms(&dev_priv->drm,
+			    "HDMI audio pixel clock setting for %d not found, falling back to defaults\n",
+			    adjusted_mode->crtc_clock);
 		i = 1;
 	}
 
-	DRM_DEBUG_KMS("Configuring HDMI audio for pixel clock %d (0x%08x)\n",
-		      hdmi_audio_clock[i].clock,
-		      hdmi_audio_clock[i].config);
+	drm_dbg_kms(&dev_priv->drm,
+		    "Configuring HDMI audio for pixel clock %d (0x%08x)\n",
+		    hdmi_audio_clock[i].clock,
+		    hdmi_audio_clock[i].config);
 
 	return hdmi_audio_clock[i].config;
 }
@@ -891,7 +893,7 @@ static unsigned long i915_audio_component_get_power(struct device *kdev)
 	ret = intel_display_power_get(dev_priv, POWER_DOMAIN_AUDIO);
 
 	if (dev_priv->audio_power_refcount++ == 0) {
-		if (IS_TIGERLAKE(dev_priv) || IS_ICELAKE(dev_priv)) {
+		if (INTEL_GEN(dev_priv) >= 9) {
 			intel_de_write(dev_priv, AUD_FREQ_CNTRL,
 				       dev_priv->audio_freq_cntrl);
 			drm_dbg_kms(&dev_priv->drm,
@@ -931,7 +933,7 @@ static void i915_audio_component_codec_wake_override(struct device *kdev,
 	unsigned long cookie;
 	u32 tmp;
 
-	if (!IS_GEN(dev_priv, 9))
+	if (INTEL_GEN(dev_priv) < 9)
 		return;
 
 	cookie = i915_audio_component_get_power(kdev);
@@ -1173,7 +1175,7 @@ static void i915_audio_component_init(struct drm_i915_private *dev_priv)
 		return;
 	}
 
-	if (IS_TIGERLAKE(dev_priv) || IS_ICELAKE(dev_priv)) {
+	if (INTEL_GEN(dev_priv) >= 9) {
 		dev_priv->audio_freq_cntrl = intel_de_read(dev_priv,
 							   AUD_FREQ_CNTRL);
 		drm_dbg_kms(&dev_priv->drm,

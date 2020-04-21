@@ -64,7 +64,7 @@ static void __intel_breadcrumbs_disarm_irq(struct intel_breadcrumbs *b)
 	if (!--b->irq_enabled)
 		irq_disable(engine);
 
-	b->irq_armed = false;
+	WRITE_ONCE(b->irq_armed, false);
 	intel_gt_pm_put_async(engine->gt);
 }
 
@@ -73,7 +73,7 @@ void intel_engine_disarm_breadcrumbs(struct intel_engine_cs *engine)
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
 	unsigned long flags;
 
-	if (!b->irq_armed)
+	if (!READ_ONCE(b->irq_armed))
 		return;
 
 	spin_lock_irqsave(&b->irq_lock, flags);
@@ -233,7 +233,7 @@ static bool __intel_breadcrumbs_arm_irq(struct intel_breadcrumbs *b)
 	 * which we can add a new waiter and avoid the cost of re-enabling
 	 * the irq.
 	 */
-	b->irq_armed = true;
+	WRITE_ONCE(b->irq_armed, true);
 
 	/*
 	 * Since we are waiting on a request, the GPU should be busy

@@ -204,7 +204,7 @@ int intel_gt_resume(struct intel_gt *gt)
 	/* Only when the HW is re-initialised, can we replay the requests */
 	err = intel_gt_init_hw(gt);
 	if (err) {
-		dev_err(gt->i915->drm.dev,
+		drm_err(&gt->i915->drm,
 			"Failed to initialize GPU, declaring it wedged!\n");
 		goto err_wedged;
 	}
@@ -220,7 +220,7 @@ int intel_gt_resume(struct intel_gt *gt)
 
 		intel_engine_pm_put(engine);
 		if (err) {
-			dev_err(gt->i915->drm.dev,
+			drm_err(&gt->i915->drm,
 				"Failed to restart %s (%d)\n",
 				engine->name, err);
 			goto err_wedged;
@@ -324,6 +324,7 @@ int intel_gt_runtime_resume(struct intel_gt *gt)
 {
 	GT_TRACE(gt, "\n");
 	intel_gt_init_swizzling(gt);
+	intel_ggtt_restore_fences(gt->ggtt);
 
 	return intel_uc_runtime_resume(&gt->uc);
 }

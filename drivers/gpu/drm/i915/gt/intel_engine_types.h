@@ -157,6 +157,15 @@ struct intel_engine_execlists {
 	struct i915_priolist default_priolist;
 
 	/**
+	 * @yield: CCID at the time of the last semaphore-wait interrupt.
+	 *
+	 * Instead of leaving a semaphore busy-spinning on an engine, we would
+	 * like to switch to another ready context, i.e. yielding the semaphore
+	 * timeslice.
+	 */
+	u32 yield;
+
+	/**
 	 * @error_interrupt: CS Master EIR
 	 *
 	 * The CS generates an interrupt when it detects an error. We capture
@@ -307,6 +316,9 @@ struct intel_engine_cs {
 		struct list_head requests;
 		struct list_head hold; /* ready requests, but on hold */
 	} active;
+
+	/* keep a request in reserve for a [pm] barrier under oom */
+	struct i915_request *request_pool;
 
 	struct llist_head barrier_tasks;
 

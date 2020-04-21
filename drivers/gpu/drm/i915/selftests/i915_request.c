@@ -28,6 +28,7 @@
 #include "gem/selftests/mock_context.h"
 
 #include "gt/intel_engine_pm.h"
+#include "gt/intel_engine_user.h"
 #include "gt/intel_gt.h"
 
 #include "i915_random.h"
@@ -51,6 +52,11 @@ static unsigned int num_uabi_engines(struct drm_i915_private *i915)
 	return count;
 }
 
+static struct intel_engine_cs *rcs0(struct drm_i915_private *i915)
+{
+	return intel_engine_lookup_user(i915, I915_ENGINE_CLASS_RENDER, 0);
+}
+
 static int igt_add_request(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
@@ -58,7 +64,7 @@ static int igt_add_request(void *arg)
 
 	/* Basic preliminary test to create a request and let it loose! */
 
-	request = mock_request(i915->engine[RCS0]->kernel_context, HZ / 10);
+	request = mock_request(rcs0(i915)->kernel_context, HZ / 10);
 	if (!request)
 		return -ENOMEM;
 
@@ -76,7 +82,7 @@ static int igt_wait_request(void *arg)
 
 	/* Submit a request, then wait upon it */
 
-	request = mock_request(i915->engine[RCS0]->kernel_context, T);
+	request = mock_request(rcs0(i915)->kernel_context, T);
 	if (!request)
 		return -ENOMEM;
 
@@ -145,7 +151,7 @@ static int igt_fence_wait(void *arg)
 
 	/* Submit a request, treat it as a fence and wait upon it */
 
-	request = mock_request(i915->engine[RCS0]->kernel_context, T);
+	request = mock_request(rcs0(i915)->kernel_context, T);
 	if (!request)
 		return -ENOMEM;
 
@@ -420,7 +426,7 @@ static int mock_breadcrumbs_smoketest(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
 	struct smoketest t = {
-		.engine = i915->engine[RCS0],
+		.engine = rcs0(i915),
 		.ncontexts = 1024,
 		.max_batch = 1024,
 		.request_alloc = __mock_request_alloc
@@ -1233,7 +1239,7 @@ static int live_parallel_engines(void *arg)
 		struct igt_live_test t;
 		unsigned int idx;
 
-		snprintf(name, sizeof(name), "%pS", fn);
+		snprintf(name, sizeof(name), "%ps", fn);
 		err = igt_live_test_begin(&t, i915, __func__, name);
 		if (err)
 			break;

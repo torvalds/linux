@@ -101,5 +101,6 @@ void set_timer_ms(struct timer_list *t, unsigned long timeout)
 	 */
 	barrier();
 
-	mod_timer(t, jiffies + timeout);
+	/* Keep t->expires = 0 reserved to indicate a canceled timer. */
+	mod_timer(t, jiffies + timeout ?: 1);
 }

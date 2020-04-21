@@ -17,7 +17,8 @@ struct intel_dp;
 struct intel_dpll_hw_state;
 struct intel_encoder;
 
-void intel_ddi_fdi_post_disable(struct intel_encoder *intel_encoder,
+void intel_ddi_fdi_post_disable(struct intel_atomic_state *state,
+				struct intel_encoder *intel_encoder,
 				const struct intel_crtc_state *old_crtc_state,
 				const struct drm_connector_state *old_conn_state);
 void hsw_fdi_link_train(struct intel_encoder *encoder,

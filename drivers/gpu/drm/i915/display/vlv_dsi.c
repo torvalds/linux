@@ -759,7 +759,8 @@ static void intel_dsi_unprepare(struct intel_encoder *encoder);
  * DSI port enable has to be done before pipe and plane enable, so we do it in
  * the pre_enable hook instead of the enable hook.
  */
-static void intel_dsi_pre_enable(struct intel_encoder *encoder,
+static void intel_dsi_pre_enable(struct intel_atomic_state *state,
+				 struct intel_encoder *encoder,
 				 const struct intel_crtc_state *pipe_config,
 				 const struct drm_connector_state *conn_state)
 {
@@ -858,7 +859,8 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder,
 	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_BACKLIGHT_ON);
 }
 
-static void bxt_dsi_enable(struct intel_encoder *encoder,
+static void bxt_dsi_enable(struct intel_atomic_state *state,
+			   struct intel_encoder *encoder,
 			   const struct intel_crtc_state *crtc_state,
 			   const struct drm_connector_state *conn_state)
 {
@@ -871,14 +873,16 @@ static void bxt_dsi_enable(struct intel_encoder *encoder,
  * DSI port disable has to be done after pipe and plane disable, so we do it in
  * the post_disable hook.
  */
-static void intel_dsi_disable(struct intel_encoder *encoder,
+static void intel_dsi_disable(struct intel_atomic_state *state,
+			      struct intel_encoder *encoder,
 			      const struct intel_crtc_state *old_crtc_state,
 			      const struct drm_connector_state *old_conn_state)
 {
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 	enum port port;
 
-	DRM_DEBUG_KMS("\n");
+	drm_dbg_kms(&i915->drm, "\n");
 
 	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_BACKLIGHT_OFF);
 	intel_panel_disable_backlight(old_conn_state);
@@ -906,7 +910,8 @@ static void intel_dsi_clear_device_ready(struct intel_encoder *encoder)
 		vlv_dsi_clear_device_ready(encoder);
 }
 
-static void intel_dsi_post_disable(struct intel_encoder *encoder,
+static void intel_dsi_post_disable(struct intel_atomic_state *state,
+				   struct intel_encoder *encoder,
 				   const struct intel_crtc_state *old_crtc_state,
 				   const struct drm_connector_state *old_conn_state)
 {

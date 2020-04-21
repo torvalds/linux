@@ -68,8 +68,7 @@ static struct intel_uncore *fence_to_uncore(struct i915_fence_reg *fence)
 	return fence->ggtt->vm.gt->uncore;
 }
 
-static void i965_write_fence_reg(struct i915_fence_reg *fence,
-				 struct i915_vma *vma)
+static void i965_write_fence_reg(struct i915_fence_reg *fence)
 {
 	i915_reg_t fence_reg_lo, fence_reg_hi;
 	int fence_pitch_shift;
@@ -87,18 +86,16 @@ static void i965_write_fence_reg(struct i915_fence_reg *fence,
 	}
 
 	val = 0;
-	if (vma) {
-		unsigned int stride = i915_gem_object_get_stride(vma->obj);
+	if (fence->tiling) {
+		unsigned int stride = fence->stride;
 
-		GEM_BUG_ON(!i915_vma_is_map_and_fenceable(vma));
-		GEM_BUG_ON(!IS_ALIGNED(vma->node.start, I965_FENCE_PAGE));
-		GEM_BUG_ON(!IS_ALIGNED(vma->fence_size, I965_FENCE_PAGE));
 		GEM_BUG_ON(!IS_ALIGNED(stride, 128));
 
-		val = (vma->node.start + vma->fence_size - I965_FENCE_PAGE) << 32;
-		val |= vma->node.start;
+		val = fence->start + fence->size - I965_FENCE_PAGE;
+		val <<= 32;
+		val |= fence->start;
 		val |= (u64)((stride / 128) - 1) << fence_pitch_shift;
-		if (i915_gem_object_get_tiling(vma->obj) == I915_TILING_Y)
+		if (fence->tiling == I915_TILING_Y)
 			val |= BIT(I965_FENCE_TILING_Y_SHIFT);
 		val |= I965_FENCE_REG_VALID;
 	}
@@ -125,21 +122,15 @@ static void i965_write_fence_reg(struct i915_fence_reg *fence,
 	}
 }
 
-static void i915_write_fence_reg(struct i915_fence_reg *fence,
-				 struct i915_vma *vma)
+static void i915_write_fence_reg(struct i915_fence_reg *fence)
 {
 	u32 val;
 
 	val = 0;
-	if (vma) {
-		unsigned int tiling = i915_gem_object_get_tiling(vma->obj);
+	if (fence->tiling) {
+		unsigned int stride = fence->stride;
+		unsigned int tiling = fence->tiling;
 		bool is_y_tiled = tiling == I915_TILING_Y;
-		unsigned int stride = i915_gem_object_get_stride(vma->obj);
-
-		GEM_BUG_ON(!i915_vma_is_map_and_fenceable(vma));
-		GEM_BUG_ON(vma->node.start & ~I915_FENCE_START_MASK);
-		GEM_BUG_ON(!is_power_of_2(vma->fence_size));
-		GEM_BUG_ON(!IS_ALIGNED(vma->node.start, vma->fence_size));
 
 		if (is_y_tiled && HAS_128_BYTE_Y_TILING(fence_to_i915(fence)))
 			stride /= 128;
@@ -147,10 +138,10 @@ static void i915_write_fence_reg(struct i915_fence_reg *fence,
 			stride /= 512;
 		GEM_BUG_ON(!is_power_of_2(stride));
 
-		val = vma->node.start;
+		val = fence->start;
 		if (is_y_tiled)
 			val |= BIT(I830_FENCE_TILING_Y_SHIFT);
-		val |= I915_FENCE_SIZE_BITS(vma->fence_size);
+		val |= I915_FENCE_SIZE_BITS(fence->size);
 		val |= ilog2(stride) << I830_FENCE_PITCH_SHIFT;
 
 		val |= I830_FENCE_REG_VALID;
@@ -165,25 +156,18 @@ static void i915_write_fence_reg(struct i915_fence_reg *fence,
 	}
 }
 
-static void i830_write_fence_reg(struct i915_fence_reg *fence,
-				 struct i915_vma *vma)
+static void i830_write_fence_reg(struct i915_fence_reg *fence)
 {
 	u32 val;
 
 	val = 0;
-	if (vma) {
-		unsigned int stride = i915_gem_object_get_stride(vma->obj);
+	if (fence->tiling) {
+		unsigned int stride = fence->stride;
 
-		GEM_BUG_ON(!i915_vma_is_map_and_fenceable(vma));
-		GEM_BUG_ON(vma->node.start & ~I830_FENCE_START_MASK);
-		GEM_BUG_ON(!is_power_of_2(vma->fence_size));
-		GEM_BUG_ON(!is_power_of_2(stride / 128));
-		GEM_BUG_ON(!IS_ALIGNED(vma->node.start, vma->fence_size));
-
-		val = vma->node.start;
-		if (i915_gem_object_get_tiling(vma->obj) == I915_TILING_Y)
+		val = fence->start;
+		if (fence->tiling == I915_TILING_Y)
 			val |= BIT(I830_FENCE_TILING_Y_SHIFT);
-		val |= I830_FENCE_SIZE_BITS(vma->fence_size);
+		val |= I830_FENCE_SIZE_BITS(fence->size);
 		val |= ilog2(stride / 128) << I830_FENCE_PITCH_SHIFT;
 		val |= I830_FENCE_REG_VALID;
 	}
@@ -197,8 +181,7 @@ static void i830_write_fence_reg(struct i915_fence_reg *fence,
 	}
 }
 
-static void fence_write(struct i915_fence_reg *fence,
-			struct i915_vma *vma)
+static void fence_write(struct i915_fence_reg *fence)
 {
 	struct drm_i915_private *i915 = fence_to_i915(fence);
 
@@ -209,18 +192,21 @@ static void fence_write(struct i915_fence_reg *fence,
 	 */
 
 	if (IS_GEN(i915, 2))
-		i830_write_fence_reg(fence, vma);
+		i830_write_fence_reg(fence);
 	else if (IS_GEN(i915, 3))
-		i915_write_fence_reg(fence, vma);
+		i915_write_fence_reg(fence);
 	else
-		i965_write_fence_reg(fence, vma);
+		i965_write_fence_reg(fence);
 
 	/*
 	 * Access through the fenced region afterwards is
 	 * ordered by the posting reads whilst writing the registers.
 	 */
+}
 
-	fence->dirty = false;
+static bool gpu_uses_fence_registers(struct i915_fence_reg *fence)
+{
+	return INTEL_GEN(fence_to_i915(fence)) < 4;
 }
 
 static int fence_update(struct i915_fence_reg *fence,
@@ -232,27 +218,32 @@ static int fence_update(struct i915_fence_reg *fence,
 	struct i915_vma *old;
 	int ret;
 
+	fence->tiling = 0;
 	if (vma) {
+		GEM_BUG_ON(!i915_gem_object_get_stride(vma->obj) ||
+			   !i915_gem_object_get_tiling(vma->obj));
+
 		if (!i915_vma_is_map_and_fenceable(vma))
 			return -EINVAL;
 
-		if (drm_WARN(&uncore->i915->drm,
-			     !i915_gem_object_get_stride(vma->obj) ||
-			     !i915_gem_object_get_tiling(vma->obj),
-			     "bogus fence setup with stride: 0x%x, tiling mode: %i\n",
-			     i915_gem_object_get_stride(vma->obj),
-			     i915_gem_object_get_tiling(vma->obj)))
-			return -EINVAL;
+		if (gpu_uses_fence_registers(fence)) {
+			/* implicit 'unfenced' GPU blits */
+			ret = i915_vma_sync(vma);
+			if (ret)
+				return ret;
+		}
 
-		ret = i915_vma_sync(vma);
-		if (ret)
-			return ret;
+		fence->start = vma->node.start;
+		fence->size = vma->fence_size;
+		fence->stride = i915_gem_object_get_stride(vma->obj);
+		fence->tiling = i915_gem_object_get_tiling(vma->obj);
 	}
+	WRITE_ONCE(fence->dirty, false);
 
 	old = xchg(&fence->vma, NULL);
 	if (old) {
 		/* XXX Ideally we would move the waiting to outside the mutex */
-		ret = i915_vma_sync(old);
+		ret = i915_active_wait(&fence->active);
 		if (ret) {
 			fence->vma = old;
 			return ret;
@@ -276,7 +267,7 @@ static int fence_update(struct i915_fence_reg *fence,
 	/*
 	 * We only need to update the register itself if the device is awake.
 	 * If the device is currently powered down, we will defer the write
-	 * to the runtime resume, see i915_gem_restore_fences().
+	 * to the runtime resume, see intel_ggtt_restore_fences().
 	 *
 	 * This only works for removing the fence register, on acquisition
 	 * the caller must hold the rpm wakeref. The fence register must
@@ -290,7 +281,7 @@ static int fence_update(struct i915_fence_reg *fence,
 	}
 
 	WRITE_ONCE(fence->vma, vma);
-	fence_write(fence, vma);
+	fence_write(fence);
 
 	if (vma) {
 		vma->fence = fence;
@@ -307,23 +298,26 @@ static int fence_update(struct i915_fence_reg *fence,
  *
  * This function force-removes any fence from the given object, which is useful
  * if the kernel wants to do untiled GTT access.
- *
- * Returns:
- *
- * 0 on success, negative error code on failure.
  */
-int i915_vma_revoke_fence(struct i915_vma *vma)
+void i915_vma_revoke_fence(struct i915_vma *vma)
 {
 	struct i915_fence_reg *fence = vma->fence;
+	intel_wakeref_t wakeref;
 
 	lockdep_assert_held(&vma->vm->mutex);
 	if (!fence)
-		return 0;
+		return;
 
-	if (atomic_read(&fence->pin_count))
-		return -EBUSY;
+	GEM_BUG_ON(fence->vma != vma);
+	GEM_BUG_ON(!i915_active_is_idle(&fence->active));
+	GEM_BUG_ON(atomic_read(&fence->pin_count));
 
-	return fence_update(fence, NULL);
+	fence->tiling = 0;
+	WRITE_ONCE(fence->vma, NULL);
+	vma->fence = NULL;
+
+	with_intel_runtime_pm_if_in_use(fence_to_uncore(fence)->rpm, wakeref)
+		fence_write(fence);
 }
 
 static struct i915_fence_reg *fence_find(struct i915_ggtt *ggtt)
@@ -487,34 +481,19 @@ void i915_unreserve_fence(struct i915_fence_reg *fence)
 }
 
 /**
- * i915_gem_restore_fences - restore fence state
+ * intel_ggtt_restore_fences - restore fence state
  * @ggtt: Global GTT
  *
  * Restore the hw fence state to match the software tracking again, to be called
  * after a gpu reset and on resume. Note that on runtime suspend we only cancel
  * the fences, to be reacquired by the user later.
  */
-void i915_gem_restore_fences(struct i915_ggtt *ggtt)
+void intel_ggtt_restore_fences(struct i915_ggtt *ggtt)
 {
 	int i;
 
-	rcu_read_lock(); /* keep obj alive as we dereference */
-	for (i = 0; i < ggtt->num_fences; i++) {
-		struct i915_fence_reg *reg = &ggtt->fence_regs[i];
-		struct i915_vma *vma = READ_ONCE(reg->vma);
-
-		GEM_BUG_ON(vma && vma->fence != reg);
-
-		/*
-		 * Commit delayed tiling changes if we have an object still
-		 * attached to the fence, otherwise just clear the fence.
-		 */
-		if (vma && !i915_gem_object_is_tiled(vma->obj))
-			vma = NULL;
-
-		fence_write(reg, vma);
-	}
-	rcu_read_unlock();
+	for (i = 0; i < ggtt->num_fences; i++)
+		fence_write(&ggtt->fence_regs[i]);
 }
 
 /**
@@ -746,7 +725,7 @@ static void detect_bit_6_swizzle(struct i915_ggtt *ggtt)
  * bit 17 of its physical address and therefore being interpreted differently
  * by the GPU.
  */
-static void i915_gem_swizzle_page(struct page *page)
+static void swizzle_page(struct page *page)
 {
 	char temp[64];
 	char *vaddr;
@@ -791,7 +770,7 @@ i915_gem_object_do_bit_17_swizzle(struct drm_i915_gem_object *obj,
 	for_each_sgt_page(page, sgt_iter, pages) {
 		char new_bit_17 = page_to_phys(page) >> 17;
 		if ((new_bit_17 & 0x1) != (test_bit(i, obj->bit_17) != 0)) {
-			i915_gem_swizzle_page(page);
+			swizzle_page(page);
 			set_page_dirty(page);
 		}
 		i++;
@@ -836,7 +815,7 @@ i915_gem_object_save_bit_17_swizzle(struct drm_i915_gem_object *obj,
 	}
 }
 
-void i915_ggtt_init_fences(struct i915_ggtt *ggtt)
+void intel_ggtt_init_fences(struct i915_ggtt *ggtt)
 {
 	struct drm_i915_private *i915 = ggtt->vm.i915;
 	struct intel_uncore *uncore = ggtt->vm.gt->uncore;
@@ -864,18 +843,37 @@ void i915_ggtt_init_fences(struct i915_ggtt *ggtt)
 	if (intel_vgpu_active(i915))
 		num_fences = intel_uncore_read(uncore,
 					       vgtif_reg(avail_rs.fence_num));
+	ggtt->fence_regs = kcalloc(num_fences,
+				   sizeof(*ggtt->fence_regs),
+				   GFP_KERNEL);
+	if (!ggtt->fence_regs)
+		num_fences = 0;
 
 	/* Initialize fence registers to zero */
 	for (i = 0; i < num_fences; i++) {
 		struct i915_fence_reg *fence = &ggtt->fence_regs[i];
 
+		i915_active_init(&fence->active, NULL, NULL);
 		fence->ggtt = ggtt;
 		fence->id = i;
 		list_add_tail(&fence->link, &ggtt->fence_list);
 	}
 	ggtt->num_fences = num_fences;
 
-	i915_gem_restore_fences(ggtt);
+	intel_ggtt_restore_fences(ggtt);
+}
+
+void intel_ggtt_fini_fences(struct i915_ggtt *ggtt)
+{
+	int i;
+
+	for (i = 0; i < ggtt->num_fences; i++) {
+		struct i915_fence_reg *fence = &ggtt->fence_regs[i];
+
+		i915_active_fini(&fence->active);
+	}
+
+	kfree(ggtt->fence_regs);
 }
 
 void intel_gt_init_swizzling(struct intel_gt *gt)

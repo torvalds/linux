@@ -665,7 +665,7 @@ void intel_uncore_forcewake_user_put(struct intel_uncore *uncore)
 		mmio_debug_resume(uncore->debug);
 
 		if (check_for_unclaimed_mmio(uncore))
-			dev_info(uncore->i915->drm.dev,
+			drm_info(&uncore->i915->drm,
 				 "Invalid mmio detected during user access\n");
 		spin_unlock(&uncore->debug->lock);
 
@@ -732,6 +732,28 @@ void intel_uncore_forcewake_put(struct intel_uncore *uncore,
 	spin_lock_irqsave(&uncore->lock, irqflags);
 	__intel_uncore_forcewake_put(uncore, fw_domains);
 	spin_unlock_irqrestore(&uncore->lock, irqflags);
+}
+
+/**
+ * intel_uncore_forcewake_flush - flush the delayed release
+ * @uncore: the intel_uncore structure
+ * @fw_domains: forcewake domains to flush
+ */
+void intel_uncore_forcewake_flush(struct intel_uncore *uncore,
+				  enum forcewake_domains fw_domains)
+{
+	struct intel_uncore_forcewake_domain *domain;
+	unsigned int tmp;
+
+	if (!uncore->funcs.force_wake_put)
+		return;
+
+	fw_domains &= uncore->fw_domains;
+	for_each_fw_domain_masked(domain, fw_domains, uncore, tmp) {
+		WRITE_ONCE(domain->active, false);
+		if (hrtimer_cancel(&domain->timer))
+			intel_uncore_fw_release_timer(&domain->timer);
+	}
 }
 
 /**

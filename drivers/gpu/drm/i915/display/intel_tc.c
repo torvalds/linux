@@ -152,6 +152,7 @@ void intel_tc_port_set_fia_lane_count(struct intel_digital_port *dig_port,
 static void tc_port_fixup_legacy_flag(struct intel_digital_port *dig_port,
 				      u32 live_status_mask)
 {
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
 	u32 valid_hpd_mask;
 
 	if (dig_port->tc_legacy_port)
@@ -164,8 +165,9 @@ static void tc_port_fixup_legacy_flag(struct intel_digital_port *dig_port,
 		return;
 
 	/* If live status mismatches the VBT flag, trust the live status. */
-	DRM_ERROR("Port %s: live status %08x mismatches the legacy port flag, fix flag\n",
-		  dig_port->tc_port_name, live_status_mask);
+	drm_err(&i915->drm,
+		"Port %s: live status %08x mismatches the legacy port flag, fix flag\n",
+		dig_port->tc_port_name, live_status_mask);
 
 	dig_port->tc_legacy_port = !dig_port->tc_legacy_port;
 }
@@ -233,8 +235,7 @@ static bool icl_tc_phy_set_safe_mode(struct intel_digital_port *dig_port,
 	if (val == 0xffffffff) {
 		drm_dbg_kms(&i915->drm,
 			    "Port %s: PHY in TCCOLD, can't set safe-mode to %s\n",
-			    dig_port->tc_port_name,
-			      enableddisabled(enable));
+			    dig_port->tc_port_name, enableddisabled(enable));
 
 		return false;
 	}
@@ -286,11 +287,12 @@ static bool icl_tc_phy_is_in_safe_mode(struct intel_digital_port *dig_port)
 static void icl_tc_phy_connect(struct intel_digital_port *dig_port,
 			       int required_lanes)
 {
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
 	int max_lanes;
 
 	if (!icl_tc_phy_status_complete(dig_port)) {
-		DRM_DEBUG_KMS("Port %s: PHY not ready\n",
-			      dig_port->tc_port_name);
+		drm_dbg_kms(&i915->drm, "Port %s: PHY not ready\n",
+			    dig_port->tc_port_name);
 		goto out_set_tbt_alt_mode;
 	}
 
@@ -311,15 +313,16 @@ static void icl_tc_phy_connect(struct intel_digital_port *dig_port,
 	 * became disconnected. Not necessary for legacy mode.
 	 */
 	if (!(tc_port_live_status_mask(dig_port) & BIT(TC_PORT_DP_ALT))) {
-		DRM_DEBUG_KMS("Port %s: PHY sudden disconnect\n",
-			      dig_port->tc_port_name);
+		drm_dbg_kms(&i915->drm, "Port %s: PHY sudden disconnect\n",
+			    dig_port->tc_port_name);
 		goto out_set_safe_mode;
 	}
 
 	if (max_lanes < required_lanes) {
-		DRM_DEBUG_KMS("Port %s: PHY max lanes %d < required lanes %d\n",
-			      dig_port->tc_port_name,
-			      max_lanes, required_lanes);
+		drm_dbg_kms(&i915->drm,
+			    "Port %s: PHY max lanes %d < required lanes %d\n",
+			    dig_port->tc_port_name,
+			    max_lanes, required_lanes);
 		goto out_set_safe_mode;
 	}
 
@@ -357,15 +360,17 @@ static void icl_tc_phy_disconnect(struct intel_digital_port *dig_port)
 
 static bool icl_tc_phy_is_connected(struct intel_digital_port *dig_port)
 {
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+
 	if (!icl_tc_phy_status_complete(dig_port)) {
-		DRM_DEBUG_KMS("Port %s: PHY status not complete\n",
-			      dig_port->tc_port_name);
+		drm_dbg_kms(&i915->drm, "Port %s: PHY status not complete\n",
+			    dig_port->tc_port_name);
 		return dig_port->tc_mode == TC_PORT_TBT_ALT;
 	}
 
 	if (icl_tc_phy_is_in_safe_mode(dig_port)) {
-		DRM_DEBUG_KMS("Port %s: PHY still in safe mode\n",
-			      dig_port->tc_port_name);
+		drm_dbg_kms(&i915->drm, "Port %s: PHY still in safe mode\n",
+			    dig_port->tc_port_name);
 
 		return false;
 	}
@@ -438,6 +443,7 @@ intel_tc_port_link_init_refcount(struct intel_digital_port *dig_port,
 
 void intel_tc_port_sanitize(struct intel_digital_port *dig_port)
 {
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
 	struct intel_encoder *encoder = &dig_port->base;
 	int active_links = 0;
 
@@ -451,8 +457,9 @@ void intel_tc_port_sanitize(struct intel_digital_port *dig_port)
 
 	if (active_links) {
 		if (!icl_tc_phy_is_connected(dig_port))
-			DRM_DEBUG_KMS("Port %s: PHY disconnected with %d active link(s)\n",
-				      dig_port->tc_port_name, active_links);
+			drm_dbg_kms(&i915->drm,
+				    "Port %s: PHY disconnected with %d active link(s)\n",
+				    dig_port->tc_port_name, active_links);
 		intel_tc_port_link_init_refcount(dig_port, active_links);
 
 		goto out;
@@ -462,9 +469,9 @@ void intel_tc_port_sanitize(struct intel_digital_port *dig_port)
 		icl_tc_phy_connect(dig_port, 1);
 
 out:
-	DRM_DEBUG_KMS("Port %s: sanitize mode (%s)\n",
-		      dig_port->tc_port_name,
-		      tc_port_mode_name(dig_port->tc_mode));
+	drm_dbg_kms(&i915->drm, "Port %s: sanitize mode (%s)\n",
+		    dig_port->tc_port_name,
+		    tc_port_mode_name(dig_port->tc_mode));
 
 	mutex_unlock(&dig_port->tc_lock);
 }

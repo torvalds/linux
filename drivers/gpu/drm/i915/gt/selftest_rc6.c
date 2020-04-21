@@ -12,6 +12,22 @@
 
 #include "selftests/i915_random.h"
 
+static u64 energy_uJ(struct intel_rc6 *rc6)
+{
+	unsigned long long power;
+	u32 units;
+
+	if (rdmsrl_safe(MSR_RAPL_POWER_UNIT, &power))
+		return 0;
+
+	units = (power & 0x1f00) >> 8;
+
+	if (rdmsrl_safe(MSR_PP1_ENERGY_STATUS, &power))
+		return 0;
+
+	return (1000000 * power) >> units; /* convert to uJ */
+}
+
 static u64 rc6_residency(struct intel_rc6 *rc6)
 {
 	u64 result;
@@ -31,7 +47,9 @@ int live_rc6_manual(void *arg)
 {
 	struct intel_gt *gt = arg;
 	struct intel_rc6 *rc6 = &gt->rc6;
+	u64 rc0_power, rc6_power;
 	intel_wakeref_t wakeref;
+	ktime_t dt;
 	u64 res[2];
 	int err = 0;
 
@@ -54,7 +72,12 @@ int live_rc6_manual(void *arg)
 	msleep(1); /* wakeup is not immediate, takes about 100us on icl */
 
 	res[0] = rc6_residency(rc6);
+
+	dt = ktime_get();
+	rc0_power = energy_uJ(rc6);
 	msleep(250);
+	rc0_power = energy_uJ(rc6) - rc0_power;
+	dt = ktime_sub(ktime_get(), dt);
 	res[1] = rc6_residency(rc6);
 	if ((res[1] - res[0]) >> 10) {
 		pr_err("RC6 residency increased by %lldus while disabled for 250ms!\n",
@@ -63,19 +86,39 @@ int live_rc6_manual(void *arg)
 		goto out_unlock;
 	}
 
+	rc0_power = div64_u64(NSEC_PER_SEC * rc0_power, ktime_to_ns(dt));
+	if (!rc0_power) {
+		pr_err("No power measured while in RC0\n");
+		err = -EINVAL;
+		goto out_unlock;
+	}
+
 	/* Manually enter RC6 */
 	intel_rc6_park(rc6);
 
 	res[0] = rc6_residency(rc6);
+	intel_uncore_forcewake_flush(rc6_to_uncore(rc6), FORCEWAKE_ALL);
+	dt = ktime_get();
+	rc6_power = energy_uJ(rc6);
 	msleep(100);
+	rc6_power = energy_uJ(rc6) - rc6_power;
+	dt = ktime_sub(ktime_get(), dt);
 	res[1] = rc6_residency(rc6);
-
 	if (res[1] == res[0]) {
 		pr_err("Did not enter RC6! RC6_STATE=%08x, RC6_CONTROL=%08x, residency=%lld\n",
 		       intel_uncore_read_fw(gt->uncore, GEN6_RC_STATE),
 		       intel_uncore_read_fw(gt->uncore, GEN6_RC_CONTROL),
 		       res[0]);
 		err = -EINVAL;
+	}
+
+	rc6_power = div64_u64(NSEC_PER_SEC * rc6_power, ktime_to_ns(dt));
+	pr_info("GPU consumed %llduW in RC0 and %llduW in RC6\n",
+		rc0_power, rc6_power);
+	if (2 * rc6_power > rc0_power) {
+		pr_err("GPU leaked energy while in RC6!\n");
+		err = -EINVAL;
+		goto out_unlock;
 	}
 
 	/* Restore what should have been the original state! */

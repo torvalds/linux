@@ -101,6 +101,11 @@ static signed long i915_fence_wait(struct dma_fence *fence,
 				 timeout);
 }
 
+struct kmem_cache *i915_request_slab_cache(void)
+{
+	return global.slab_requests;
+}
+
 static void i915_fence_release(struct dma_fence *fence)
 {
 	struct i915_request *rq = to_request(fence);
@@ -114,6 +119,10 @@ static void i915_fence_release(struct dma_fence *fence)
 	 */
 	i915_sw_fence_fini(&rq->submit);
 	i915_sw_fence_fini(&rq->semaphore);
+
+	/* Keep one request on each engine for reserved use under mempressure */
+	if (!cmpxchg(&rq->engine->request_pool, NULL, rq))
+		return;
 
 	kmem_cache_free(global.slab_requests, rq);
 }
@@ -629,14 +638,22 @@ static void retire_requests(struct intel_timeline *tl)
 }
 
 static noinline struct i915_request *
-request_alloc_slow(struct intel_timeline *tl, gfp_t gfp)
+request_alloc_slow(struct intel_timeline *tl,
+		   struct i915_request **rsvd,
+		   gfp_t gfp)
 {
 	struct i915_request *rq;
 
-	if (list_empty(&tl->requests))
-		goto out;
+	/* If we cannot wait, dip into our reserves */
+	if (!gfpflags_allow_blocking(gfp)) {
+		rq = xchg(rsvd, NULL);
+		if (!rq) /* Use the normal failure path for one final WARN */
+			goto out;
 
-	if (!gfpflags_allow_blocking(gfp))
+		return rq;
+	}
+
+	if (list_empty(&tl->requests))
 		goto out;
 
 	/* Move our oldest request to the slab-cache (if not in use!) */
@@ -721,7 +738,7 @@ __i915_request_create(struct intel_context *ce, gfp_t gfp)
 	rq = kmem_cache_alloc(global.slab_requests,
 			      gfp | __GFP_RETRY_MAYFAIL | __GFP_NOWARN);
 	if (unlikely(!rq)) {
-		rq = request_alloc_slow(tl, gfp);
+		rq = request_alloc_slow(tl, &ce->engine->request_pool, gfp);
 		if (!rq) {
 			ret = -ENOMEM;
 			goto err_unreserve;
@@ -1444,9 +1461,7 @@ void i915_request_add(struct i915_request *rq)
 	if (list_empty(&rq->sched.signalers_list))
 		attr.priority |= I915_PRIORITY_WAIT;
 
-	local_bh_disable();
 	__i915_request_queue(rq, &attr);
-	local_bh_enable(); /* Kick the execlists tasklet if just scheduled */
 
 	mutex_unlock(&tl->mutex);
 }

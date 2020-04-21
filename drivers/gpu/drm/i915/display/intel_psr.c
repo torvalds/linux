@@ -137,41 +137,42 @@ static void psr_irq_control(struct drm_i915_private *dev_priv)
 	intel_de_write(dev_priv, imr_reg, val);
 }
 
-static void psr_event_print(u32 val, bool psr2_enabled)
+static void psr_event_print(struct drm_i915_private *i915,
+			    u32 val, bool psr2_enabled)
 {
-	DRM_DEBUG_KMS("PSR exit events: 0x%x\n", val);
+	drm_dbg_kms(&i915->drm, "PSR exit events: 0x%x\n", val);
 	if (val & PSR_EVENT_PSR2_WD_TIMER_EXPIRE)
-		DRM_DEBUG_KMS("\tPSR2 watchdog timer expired\n");
+		drm_dbg_kms(&i915->drm, "\tPSR2 watchdog timer expired\n");
 	if ((val & PSR_EVENT_PSR2_DISABLED) && psr2_enabled)
-		DRM_DEBUG_KMS("\tPSR2 disabled\n");
+		drm_dbg_kms(&i915->drm, "\tPSR2 disabled\n");
 	if (val & PSR_EVENT_SU_DIRTY_FIFO_UNDERRUN)
-		DRM_DEBUG_KMS("\tSU dirty FIFO underrun\n");
+		drm_dbg_kms(&i915->drm, "\tSU dirty FIFO underrun\n");
 	if (val & PSR_EVENT_SU_CRC_FIFO_UNDERRUN)
-		DRM_DEBUG_KMS("\tSU CRC FIFO underrun\n");
+		drm_dbg_kms(&i915->drm, "\tSU CRC FIFO underrun\n");
 	if (val & PSR_EVENT_GRAPHICS_RESET)
-		DRM_DEBUG_KMS("\tGraphics reset\n");
+		drm_dbg_kms(&i915->drm, "\tGraphics reset\n");
 	if (val & PSR_EVENT_PCH_INTERRUPT)
-		DRM_DEBUG_KMS("\tPCH interrupt\n");
+		drm_dbg_kms(&i915->drm, "\tPCH interrupt\n");
 	if (val & PSR_EVENT_MEMORY_UP)
-		DRM_DEBUG_KMS("\tMemory up\n");
+		drm_dbg_kms(&i915->drm, "\tMemory up\n");
 	if (val & PSR_EVENT_FRONT_BUFFER_MODIFY)
-		DRM_DEBUG_KMS("\tFront buffer modification\n");
+		drm_dbg_kms(&i915->drm, "\tFront buffer modification\n");
 	if (val & PSR_EVENT_WD_TIMER_EXPIRE)
-		DRM_DEBUG_KMS("\tPSR watchdog timer expired\n");
+		drm_dbg_kms(&i915->drm, "\tPSR watchdog timer expired\n");
 	if (val & PSR_EVENT_PIPE_REGISTERS_UPDATE)
-		DRM_DEBUG_KMS("\tPIPE registers updated\n");
+		drm_dbg_kms(&i915->drm, "\tPIPE registers updated\n");
 	if (val & PSR_EVENT_REGISTER_UPDATE)
-		DRM_DEBUG_KMS("\tRegister updated\n");
+		drm_dbg_kms(&i915->drm, "\tRegister updated\n");
 	if (val & PSR_EVENT_HDCP_ENABLE)
-		DRM_DEBUG_KMS("\tHDCP enabled\n");
+		drm_dbg_kms(&i915->drm, "\tHDCP enabled\n");
 	if (val & PSR_EVENT_KVMR_SESSION_ENABLE)
-		DRM_DEBUG_KMS("\tKVMR session enabled\n");
+		drm_dbg_kms(&i915->drm, "\tKVMR session enabled\n");
 	if (val & PSR_EVENT_VBI_ENABLE)
-		DRM_DEBUG_KMS("\tVBI enabled\n");
+		drm_dbg_kms(&i915->drm, "\tVBI enabled\n");
 	if (val & PSR_EVENT_LPSP_MODE_EXIT)
-		DRM_DEBUG_KMS("\tLPSP mode exited\n");
+		drm_dbg_kms(&i915->drm, "\tLPSP mode exited\n");
 	if ((val & PSR_EVENT_PSR_DISABLE) && !psr2_enabled)
-		DRM_DEBUG_KMS("\tPSR disabled\n");
+		drm_dbg_kms(&i915->drm, "\tPSR disabled\n");
 }
 
 void intel_psr_irq_handler(struct drm_i915_private *dev_priv, u32 psr_iir)
@@ -209,7 +210,7 @@ void intel_psr_irq_handler(struct drm_i915_private *dev_priv, u32 psr_iir)
 
 			intel_de_write(dev_priv, PSR_EVENT(cpu_transcoder),
 				       val);
-			psr_event_print(val, psr2_enabled);
+			psr_event_print(dev_priv, val, psr2_enabled);
 		}
 	}
 
@@ -249,18 +250,21 @@ static bool intel_dp_get_alpm_status(struct intel_dp *intel_dp)
 
 static u8 intel_dp_get_sink_sync_latency(struct intel_dp *intel_dp)
 {
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	u8 val = 8; /* assume the worst if we can't read the value */
 
 	if (drm_dp_dpcd_readb(&intel_dp->aux,
 			      DP_SYNCHRONIZATION_LATENCY_IN_SINK, &val) == 1)
 		val &= DP_MAX_RESYNC_FRAME_COUNT_MASK;
 	else
-		DRM_DEBUG_KMS("Unable to get sink synchronization latency, assuming 8 frames\n");
+		drm_dbg_kms(&i915->drm,
+			    "Unable to get sink synchronization latency, assuming 8 frames\n");
 	return val;
 }
 
 static u16 intel_dp_get_su_x_granulartiy(struct intel_dp *intel_dp)
 {
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	u16 val;
 	ssize_t r;
 
@@ -273,7 +277,8 @@ static u16 intel_dp_get_su_x_granulartiy(struct intel_dp *intel_dp)
 
 	r = drm_dp_dpcd_read(&intel_dp->aux, DP_PSR2_SU_X_GRANULARITY, &val, 2);
 	if (r != 2)
-		DRM_DEBUG_KMS("Unable to read DP_PSR2_SU_X_GRANULARITY\n");
+		drm_dbg_kms(&i915->drm,
+			    "Unable to read DP_PSR2_SU_X_GRANULARITY\n");
 
 	/*
 	 * Spec says that if the value read is 0 the default granularity should

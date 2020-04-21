@@ -102,7 +102,7 @@ static int render_state_setup(struct intel_renderstate *so,
 	}
 
 	if (rodata->reloc[reloc_index] != -1) {
-		DRM_ERROR("only %d relocs resolved\n", reloc_index);
+		drm_err(&i915->drm, "only %d relocs resolved\n", reloc_index);
 		goto err;
 	}
 

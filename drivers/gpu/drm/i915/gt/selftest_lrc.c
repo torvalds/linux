@@ -68,26 +68,41 @@ static void engine_heartbeat_enable(struct intel_engine_cs *engine,
 	engine->props.heartbeat_interval_ms = saved;
 }
 
+static bool is_active(struct i915_request *rq)
+{
+	if (i915_request_is_active(rq))
+		return true;
+
+	if (i915_request_on_hold(rq))
+		return true;
+
+	if (i915_request_started(rq))
+		return true;
+
+	return false;
+}
+
 static int wait_for_submit(struct intel_engine_cs *engine,
 			   struct i915_request *rq,
 			   unsigned long timeout)
 {
 	timeout += jiffies;
 	do {
-		cond_resched();
+		bool done = time_after(jiffies, timeout);
+
+		if (i915_request_completed(rq)) /* that was quick! */
+			return 0;
+
+		/* Wait until the HW has acknowleged the submission (or err) */
 		intel_engine_flush_submission(engine);
-
-		if (READ_ONCE(engine->execlists.pending[0]))
-			continue;
-
-		if (i915_request_is_active(rq))
+		if (!READ_ONCE(engine->execlists.pending[0]) && is_active(rq))
 			return 0;
 
-		if (i915_request_started(rq)) /* that was quick! */
-			return 0;
-	} while (time_before(jiffies, timeout));
+		if (done)
+			return -ETIME;
 
-	return -ETIME;
+		cond_resched();
+	} while (1);
 }
 
 static int wait_for_reset(struct intel_engine_cs *engine,
@@ -634,9 +649,9 @@ static int live_error_interrupt(void *arg)
 						 error_repr(p->error[i]));
 
 				if (!i915_request_started(client[i])) {
-					pr_debug("%s: %s request not stated!\n",
-						 engine->name,
-						 error_repr(p->error[i]));
+					pr_err("%s: %s request not started!\n",
+					       engine->name,
+					       error_repr(p->error[i]));
 					err = -ETIME;
 					goto out;
 				}
@@ -644,9 +659,10 @@ static int live_error_interrupt(void *arg)
 				/* Kick the tasklet to process the error */
 				intel_engine_flush_submission(engine);
 				if (client[i]->fence.error != p->error[i]) {
-					pr_err("%s: %s request completed with wrong error code: %d\n",
+					pr_err("%s: %s request (%s) with wrong error code: %d\n",
 					       engine->name,
 					       error_repr(p->error[i]),
+					       i915_request_completed(client[i]) ? "completed" : "running",
 					       client[i]->fence.error);
 					err = -EINVAL;
 					goto out;
@@ -929,7 +945,7 @@ create_rewinder(struct intel_context *ce,
 			goto err;
 	}
 
-	cs = intel_ring_begin(rq, 10);
+	cs = intel_ring_begin(rq, 14);
 	if (IS_ERR(cs)) {
 		err = PTR_ERR(cs);
 		goto err;
@@ -941,8 +957,8 @@ create_rewinder(struct intel_context *ce,
 	*cs++ = MI_SEMAPHORE_WAIT |
 		MI_SEMAPHORE_GLOBAL_GTT |
 		MI_SEMAPHORE_POLL |
-		MI_SEMAPHORE_SAD_NEQ_SDD;
-	*cs++ = 0;
+		MI_SEMAPHORE_SAD_GTE_SDD;
+	*cs++ = idx;
 	*cs++ = offset;
 	*cs++ = 0;
 
@@ -950,6 +966,11 @@ create_rewinder(struct intel_context *ce,
 	*cs++ = i915_mmio_reg_offset(RING_TIMESTAMP(rq->engine->mmio_base));
 	*cs++ = offset + idx * sizeof(u32);
 	*cs++ = 0;
+
+	*cs++ = MI_STORE_DWORD_IMM_GEN4 | MI_USE_GGTT;
+	*cs++ = offset;
+	*cs++ = 0;
+	*cs++ = idx + 1;
 
 	intel_ring_advance(rq, cs);
 
@@ -984,7 +1005,7 @@ static int live_timeslice_rewind(void *arg)
 
 	for_each_engine(engine, gt, id) {
 		enum { A1, A2, B1 };
-		enum { X = 1, Y, Z };
+		enum { X = 1, Z, Y };
 		struct i915_request *rq[3] = {};
 		struct intel_context *ce;
 		unsigned long heartbeat;
@@ -1017,13 +1038,13 @@ static int live_timeslice_rewind(void *arg)
 			goto err;
 		}
 
-		rq[0] = create_rewinder(ce, NULL, slot, 1);
+		rq[0] = create_rewinder(ce, NULL, slot, X);
 		if (IS_ERR(rq[0])) {
 			intel_context_put(ce);
 			goto err;
 		}
 
-		rq[1] = create_rewinder(ce, NULL, slot, 2);
+		rq[1] = create_rewinder(ce, NULL, slot, Y);
 		intel_context_put(ce);
 		if (IS_ERR(rq[1]))
 			goto err;
@@ -1041,7 +1062,7 @@ static int live_timeslice_rewind(void *arg)
 			goto err;
 		}
 
-		rq[2] = create_rewinder(ce, rq[0], slot, 3);
+		rq[2] = create_rewinder(ce, rq[0], slot, Z);
 		intel_context_put(ce);
 		if (IS_ERR(rq[2]))
 			goto err;
@@ -1052,18 +1073,14 @@ static int live_timeslice_rewind(void *arg)
 			       engine->name);
 			goto err;
 		}
-		GEM_BUG_ON(!timer_pending(&engine->execlists.timer));
 
 		/* ELSP[] = { { A:rq1, A:rq2 }, { B:rq1 } } */
-		GEM_BUG_ON(!i915_request_is_active(rq[A1]));
-		GEM_BUG_ON(!i915_request_is_active(rq[A2]));
-		GEM_BUG_ON(!i915_request_is_active(rq[B1]));
-
-		/* Wait for the timeslice to kick in */
-		del_timer(&engine->execlists.timer);
-		tasklet_hi_schedule(&engine->execlists.tasklet);
-		intel_engine_flush_submission(engine);
-
+		if (i915_request_is_active(rq[A2])) { /* semaphore yielded! */
+			/* Wait for the timeslice to kick in */
+			del_timer(&engine->execlists.timer);
+			tasklet_hi_schedule(&engine->execlists.tasklet);
+			intel_engine_flush_submission(engine);
+		}
 		/* -> ELSP[] = { { A:rq1 }, { B:rq1 } } */
 		GEM_BUG_ON(!i915_request_is_active(rq[A1]));
 		GEM_BUG_ON(!i915_request_is_active(rq[B1]));
@@ -1228,8 +1245,14 @@ static int live_timeslice_queue(void *arg)
 		if (err)
 			goto err_rq;
 
-		intel_engine_flush_submission(engine);
+		/* Wait until we ack the release_queue and start timeslicing */
+		do {
+			cond_resched();
+			intel_engine_flush_submission(engine);
+		} while (READ_ONCE(engine->execlists.pending[0]));
+
 		if (!READ_ONCE(engine->execlists.timer.expires) &&
+		    execlists_active(&engine->execlists) == rq &&
 		    !i915_request_completed(rq)) {
 			struct drm_printer p =
 				drm_info_printer(gt->i915->drm.dev);
@@ -2030,6 +2053,9 @@ static int __cancel_hostile(struct live_preempt_cancel *arg)
 	if (!IS_ACTIVE(CONFIG_DRM_I915_PREEMPT_TIMEOUT))
 		return 0;
 
+	if (!intel_has_reset_engine(arg->engine->gt))
+		return 0;
+
 	GEM_TRACE("%s(%s)\n", __func__, arg->engine->name);
 	rq = spinner_create_request(&arg->a.spin,
 				    arg->a.ctx, arg->engine,
@@ -2630,7 +2656,7 @@ static int create_gang(struct intel_engine_cs *engine,
 	if (IS_ERR(rq))
 		goto err_obj;
 
-	rq->batch = vma;
+	rq->batch = i915_vma_get(vma);
 	i915_request_get(rq);
 
 	i915_vma_lock(vma);
@@ -2654,6 +2680,7 @@ static int create_gang(struct intel_engine_cs *engine,
 	return 0;
 
 err_rq:
+	i915_vma_put(rq->batch);
 	i915_request_put(rq);
 err_obj:
 	i915_gem_object_put(obj);
@@ -2750,6 +2777,7 @@ static int live_preempt_gang(void *arg)
 				err = -ETIME;
 			}
 
+			i915_vma_put(rq->batch);
 			i915_request_put(rq);
 			rq = n;
 		}
@@ -5155,7 +5183,6 @@ static int compare_isolation(struct intel_engine_cs *engine,
 					       A[0][x], B[0][x], B[1][x],
 					       poison, lrc[dw + 1]);
 					err = -EINVAL;
-					break;
 				}
 			}
 			dw += 2;
@@ -5294,6 +5321,7 @@ static int live_lrc_isolation(void *arg)
 		0xffffffff,
 		0xffff0000,
 	};
+	int err = 0;
 
 	/*
 	 * Our goal is try and verify that per-context state cannot be
@@ -5304,7 +5332,6 @@ static int live_lrc_isolation(void *arg)
 	 */
 
 	for_each_engine(engine, gt, id) {
-		int err = 0;
 		int i;
 
 		/* Just don't even ask */
@@ -5315,23 +5342,25 @@ static int live_lrc_isolation(void *arg)
 		intel_engine_pm_get(engine);
 		if (engine->pinned_default_state) {
 			for (i = 0; i < ARRAY_SIZE(poison); i++) {
-				err = __lrc_isolation(engine, poison[i]);
-				if (err)
-					break;
+				int result;
 
-				err = __lrc_isolation(engine, ~poison[i]);
-				if (err)
-					break;
+				result = __lrc_isolation(engine, poison[i]);
+				if (result && !err)
+					err = result;
+
+				result = __lrc_isolation(engine, ~poison[i]);
+				if (result && !err)
+					err = result;
 			}
 		}
 		intel_engine_pm_put(engine);
-		if (igt_flush_test(gt->i915))
+		if (igt_flush_test(gt->i915)) {
 			err = -EIO;
-		if (err)
-			return err;
+			break;
+		}
 	}
 
-	return 0;
+	return err;
 }
 
 static void garbage_reset(struct intel_engine_cs *engine,

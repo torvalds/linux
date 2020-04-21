@@ -1873,20 +1873,27 @@ __async_put_domains_state_ok(struct i915_power_domains *power_domains)
 static void print_power_domains(struct i915_power_domains *power_domains,
 				const char *prefix, u64 mask)
 {
+	struct drm_i915_private *i915 = container_of(power_domains,
+						     struct drm_i915_private,
+						     power_domains);
 	enum intel_display_power_domain domain;
 
-	DRM_DEBUG_DRIVER("%s (%lu):\n", prefix, hweight64(mask));
+	drm_dbg(&i915->drm, "%s (%lu):\n", prefix, hweight64(mask));
 	for_each_power_domain(domain, mask)
-		DRM_DEBUG_DRIVER("%s use_count %d\n",
-				 intel_display_power_domain_str(domain),
-				 power_domains->domain_use_count[domain]);
+		drm_dbg(&i915->drm, "%s use_count %d\n",
+			intel_display_power_domain_str(domain),
+			power_domains->domain_use_count[domain]);
 }
 
 static void
 print_async_put_domains_state(struct i915_power_domains *power_domains)
 {
-	DRM_DEBUG_DRIVER("async_put_wakeref %u\n",
-			 power_domains->async_put_wakeref);
+	struct drm_i915_private *i915 = container_of(power_domains,
+						     struct drm_i915_private,
+						     power_domains);
+
+	drm_dbg(&i915->drm, "async_put_wakeref %u\n",
+		power_domains->async_put_wakeref);
 
 	print_power_domains(power_domains, "async_put_domains[0]",
 			    power_domains->async_put_domains[0]);
@@ -4140,7 +4147,7 @@ static const struct i915_power_well_desc tgl_power_wells[] = {
 	{
 		.name = "AUX D TBT1",
 		.domains = TGL_AUX_D_TBT1_IO_POWER_DOMAINS,
-		.ops = &hsw_power_well_ops,
+		.ops = &icl_tc_phy_aux_power_well_ops,
 		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &icl_aux_power_well_regs,
@@ -4151,7 +4158,7 @@ static const struct i915_power_well_desc tgl_power_wells[] = {
 	{
 		.name = "AUX E TBT2",
 		.domains = TGL_AUX_E_TBT2_IO_POWER_DOMAINS,
-		.ops = &hsw_power_well_ops,
+		.ops = &icl_tc_phy_aux_power_well_ops,
 		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &icl_aux_power_well_regs,
@@ -4162,7 +4169,7 @@ static const struct i915_power_well_desc tgl_power_wells[] = {
 	{
 		.name = "AUX F TBT3",
 		.domains = TGL_AUX_F_TBT3_IO_POWER_DOMAINS,
-		.ops = &hsw_power_well_ops,
+		.ops = &icl_tc_phy_aux_power_well_ops,
 		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &icl_aux_power_well_regs,
@@ -4173,7 +4180,7 @@ static const struct i915_power_well_desc tgl_power_wells[] = {
 	{
 		.name = "AUX G TBT4",
 		.domains = TGL_AUX_G_TBT4_IO_POWER_DOMAINS,
-		.ops = &hsw_power_well_ops,
+		.ops = &icl_tc_phy_aux_power_well_ops,
 		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &icl_aux_power_well_regs,
@@ -4184,7 +4191,7 @@ static const struct i915_power_well_desc tgl_power_wells[] = {
 	{
 		.name = "AUX H TBT5",
 		.domains = TGL_AUX_H_TBT5_IO_POWER_DOMAINS,
-		.ops = &hsw_power_well_ops,
+		.ops = &icl_tc_phy_aux_power_well_ops,
 		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &icl_aux_power_well_regs,
@@ -4195,7 +4202,7 @@ static const struct i915_power_well_desc tgl_power_wells[] = {
 	{
 		.name = "AUX I TBT6",
 		.domains = TGL_AUX_I_TBT6_IO_POWER_DOMAINS,
-		.ops = &hsw_power_well_ops,
+		.ops = &icl_tc_phy_aux_power_well_ops,
 		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &icl_aux_power_well_regs,
@@ -4480,7 +4487,8 @@ void icl_dbuf_slices_update(struct drm_i915_private *dev_priv,
 	drm_WARN(&dev_priv->drm, hweight8(req_slices) > max_slices,
 		 "Invalid number of dbuf slices requested\n");
 
-	DRM_DEBUG_KMS("Updating dbuf slices to 0x%x\n", req_slices);
+	drm_dbg_kms(&dev_priv->drm, "Updating dbuf slices to 0x%x\n",
+		    req_slices);
 
 	/*
 	 * Might be running this in parallel to gen9_dc_off_power_well_enable
@@ -5016,7 +5024,7 @@ static void tgl_bw_buddy_init(struct drm_i915_private *dev_priv)
 	const struct buddy_page_mask *table;
 	int i;
 
-	if (IS_TGL_REVID(dev_priv, TGL_REVID_A0, TGL_REVID_A0))
+	if (IS_TGL_REVID(dev_priv, TGL_REVID_A0, TGL_REVID_B0))
 		/* Wa_1409767108: tgl */
 		table = wa_1409767108_buddy_page_masks;
 	else

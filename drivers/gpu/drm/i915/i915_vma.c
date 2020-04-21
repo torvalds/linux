@@ -608,18 +608,6 @@ bool i915_gem_valid_gtt_space(struct i915_vma *vma, unsigned long color)
 	return true;
 }
 
-static void assert_bind_count(const struct drm_i915_gem_object *obj)
-{
-	/*
-	 * Combine the assertion that the object is bound and that we have
-	 * pinned its pages. But we should never have bound the object
-	 * more than we have pinned its pages. (For complete accuracy, we
-	 * assume that no else is pinning the pages, but as a rough assertion
-	 * that we will not run into problems later, this will do!)
-	 */
-	GEM_BUG_ON(atomic_read(&obj->mm.pages_pin_count) < atomic_read(&obj->bind_count));
-}
-
 /**
  * i915_vma_insert - finds a slot for the vma in its address space
  * @vma: the vma
@@ -738,12 +726,6 @@ i915_vma_insert(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
 	GEM_BUG_ON(!i915_gem_valid_gtt_space(vma, color));
 
-	if (vma->obj) {
-		struct drm_i915_gem_object *obj = vma->obj;
-
-		atomic_inc(&obj->bind_count);
-		assert_bind_count(obj);
-	}
 	list_add_tail(&vma->vm_link, &vma->vm->bound_list);
 
 	return 0;
@@ -761,12 +743,6 @@ i915_vma_detach(struct i915_vma *vma)
 	 * it to be reaped by the shrinker.
 	 */
 	list_del(&vma->vm_link);
-	if (vma->obj) {
-		struct drm_i915_gem_object *obj = vma->obj;
-
-		assert_bind_count(obj);
-		atomic_dec(&obj->bind_count);
-	}
 }
 
 static bool try_qad_pin(struct i915_vma *vma, unsigned int flags)
@@ -913,10 +889,29 @@ int i915_vma_pin(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 	if (flags & PIN_GLOBAL)
 		wakeref = intel_runtime_pm_get(&vma->vm->i915->runtime_pm);
 
-	/* No more allocations allowed once we hold vm->mutex */
-	err = mutex_lock_interruptible(&vma->vm->mutex);
+	/*
+	 * Differentiate between user/kernel vma inside the aliasing-ppgtt.
+	 *
+	 * We conflate the Global GTT with the user's vma when using the
+	 * aliasing-ppgtt, but it is still vitally important to try and
+	 * keep the use cases distinct. For example, userptr objects are
+	 * not allowed inside the Global GTT as that will cause lock
+	 * inversions when we have to evict them the mmu_notifier callbacks -
+	 * but they are allowed to be part of the user ppGTT which can never
+	 * be mapped. As such we try to give the distinct users of the same
+	 * mutex, distinct lockclasses [equivalent to how we keep i915_ggtt
+	 * and i915_ppgtt separate].
+	 *
+	 * NB this may cause us to mask real lock inversions -- while the
+	 * code is safe today, lockdep may not be able to spot future
+	 * transgressions.
+	 */
+	err = mutex_lock_interruptible_nested(&vma->vm->mutex,
+					      !(flags & PIN_GLOBAL));
 	if (err)
 		goto err_fence;
+
+	/* No more allocations allowed now we hold vm->mutex */
 
 	if (unlikely(i915_vma_is_closed(vma))) {
 		err = -ENOENT;
@@ -980,7 +975,7 @@ err_unlock:
 	mutex_unlock(&vma->vm->mutex);
 err_fence:
 	if (work)
-		dma_fence_work_commit(&work->base);
+		dma_fence_work_commit_imm(&work->base);
 	if (wakeref)
 		intel_runtime_pm_put(&vma->vm->i915->runtime_pm, wakeref);
 err_pages:
@@ -1172,7 +1167,8 @@ int __i915_vma_move_to_active(struct i915_vma *vma, struct i915_request *rq)
 	GEM_BUG_ON(!i915_vma_is_pinned(vma));
 
 	/* Wait for the vma to be bound before we start! */
-	err = i915_request_await_active(rq, &vma->active, 0);
+	err = i915_request_await_active(rq, &vma->active,
+					I915_ACTIVE_AWAIT_EXCL);
 	if (err)
 		return err;
 
@@ -1213,6 +1209,10 @@ int i915_vma_move_to_active(struct i915_vma *vma,
 		dma_resv_add_shared_fence(vma->resv, &rq->fence);
 		obj->write_domain = 0;
 	}
+
+	if (flags & EXEC_OBJECT_NEEDS_FENCE && vma->fence)
+		i915_active_add_request(&vma->fence->active, rq);
+
 	obj->read_domains |= I915_GEM_GPU_DOMAINS;
 	obj->mm.dirty = true;
 
@@ -1225,18 +1225,6 @@ int __i915_vma_unbind(struct i915_vma *vma)
 	int ret;
 
 	lockdep_assert_held(&vma->vm->mutex);
-
-	/*
-	 * First wait upon any activity as retiring the request may
-	 * have side-effects such as unpinning or even unbinding this vma.
-	 *
-	 * XXX Actually waiting under the vm->mutex is a hinderance and
-	 * should be pipelined wherever possible. In cases where that is
-	 * unavoidable, we should lift the wait to before the mutex.
-	 */
-	ret = i915_vma_sync(vma);
-	if (ret)
-		return ret;
 
 	if (i915_vma_is_pinned(vma)) {
 		vma_print_allocator(vma, "is pinned");
@@ -1259,6 +1247,9 @@ int __i915_vma_unbind(struct i915_vma *vma)
 	GEM_BUG_ON(i915_vma_is_active(vma));
 
 	if (i915_vma_is_map_and_fenceable(vma)) {
+		/* Force a pagefault for domain tracking on next user access */
+		i915_vma_revoke_mmap(vma);
+
 		/*
 		 * Check that we have flushed all writes through the GGTT
 		 * before the unbind, other due to non-strict nature of those
@@ -1275,12 +1266,7 @@ int __i915_vma_unbind(struct i915_vma *vma)
 		i915_vma_flush_writes(vma);
 
 		/* release the fence reg _after_ flushing */
-		ret = i915_vma_revoke_fence(vma);
-		if (ret)
-			return ret;
-
-		/* Force a pagefault for domain tracking on next user access */
-		i915_vma_revoke_mmap(vma);
+		i915_vma_revoke_fence(vma);
 
 		__i915_vma_iounmap(vma);
 		clear_bit(I915_VMA_CAN_FENCE_BIT, __i915_vma_flags(vma));
@@ -1311,16 +1297,21 @@ int i915_vma_unbind(struct i915_vma *vma)
 	if (!drm_mm_node_allocated(&vma->node))
 		return 0;
 
-	if (i915_vma_is_bound(vma, I915_VMA_GLOBAL_BIND))
-		/* XXX not always required: nop_clear_range */
-		wakeref = intel_runtime_pm_get(&vm->i915->runtime_pm);
-
 	/* Optimistic wait before taking the mutex */
 	err = i915_vma_sync(vma);
 	if (err)
 		goto out_rpm;
 
-	err = mutex_lock_interruptible(&vm->mutex);
+	if (i915_vma_is_pinned(vma)) {
+		vma_print_allocator(vma, "is pinned");
+		return -EAGAIN;
+	}
+
+	if (i915_vma_is_bound(vma, I915_VMA_GLOBAL_BIND))
+		/* XXX not always required: nop_clear_range */
+		wakeref = intel_runtime_pm_get(&vm->i915->runtime_pm);
+
+	err = mutex_lock_interruptible_nested(&vma->vm->mutex, !wakeref);
 	if (err)
 		goto out_rpm;
 

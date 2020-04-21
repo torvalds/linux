@@ -506,8 +506,10 @@ static int llc_show(struct seq_file *m, void *data)
 	return 0;
 }
 
-static bool llc_eval(const struct intel_gt *gt)
+static bool llc_eval(void *data)
 {
+	struct intel_gt *gt = data;
+
 	return HAS_LLC(gt->i915);
 }
 
@@ -580,8 +582,10 @@ static int rps_boost_show(struct seq_file *m, void *data)
 	return 0;
 }
 
-static bool rps_eval(const struct intel_gt *gt)
+static bool rps_eval(void *data)
 {
+	struct intel_gt *gt = data;
+
 	return HAS_RPS(gt->i915);
 }
 
@@ -597,5 +601,5 @@ void debugfs_gt_pm_register(struct intel_gt *gt, struct dentry *root)
 		{ "rps_boost", &rps_boost_fops, rps_eval },
 	};
 
-	debugfs_gt_register_files(gt, root, files, ARRAY_SIZE(files));
+	intel_gt_debugfs_register_files(root, files, ARRAY_SIZE(files), gt);
 }

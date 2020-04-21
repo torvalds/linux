@@ -89,6 +89,7 @@ gt-y += \
 	gt/intel_engine_pool.o \
 	gt/intel_engine_user.o \
 	gt/intel_ggtt.o \
+	gt/intel_ggtt_fencing.o \
 	gt/intel_gt.o \
 	gt/intel_gt_irq.o \
 	gt/intel_gt_pm.o \
@@ -150,7 +151,6 @@ i915-y += \
 	  i915_buddy.o \
 	  i915_cmd_parser.o \
 	  i915_gem_evict.o \
-	  i915_gem_fence_reg.o \
 	  i915_gem_gtt.o \
 	  i915_gem.o \
 	  i915_globals.o \
@@ -164,14 +164,18 @@ i915-y += \
 
 # general-purpose microcontroller (GuC) support
 i915-y += gt/uc/intel_uc.o \
+	  gt/uc/intel_uc_debugfs.o \
 	  gt/uc/intel_uc_fw.o \
 	  gt/uc/intel_guc.o \
 	  gt/uc/intel_guc_ads.o \
 	  gt/uc/intel_guc_ct.o \
+	  gt/uc/intel_guc_debugfs.o \
 	  gt/uc/intel_guc_fw.o \
 	  gt/uc/intel_guc_log.o \
+	  gt/uc/intel_guc_log_debugfs.o \
 	  gt/uc/intel_guc_submission.o \
 	  gt/uc/intel_huc.o \
+	  gt/uc/intel_huc_debugfs.o \
 	  gt/uc/intel_huc_fw.o
 
 # modesetting core code
@@ -240,23 +244,6 @@ i915-y += \
 	display/vlv_dsi.o \
 	display/vlv_dsi_pll.o
 
-# perf code
-i915-y += \
-	oa/i915_oa_hsw.o \
-	oa/i915_oa_bdw.o \
-	oa/i915_oa_chv.o \
-	oa/i915_oa_sklgt2.o \
-	oa/i915_oa_sklgt3.o \
-	oa/i915_oa_sklgt4.o \
-	oa/i915_oa_bxt.o \
-	oa/i915_oa_kblgt2.o \
-	oa/i915_oa_kblgt3.o \
-	oa/i915_oa_glk.o \
-	oa/i915_oa_cflgt2.o \
-	oa/i915_oa_cflgt3.o \
-	oa/i915_oa_cnl.o \
-	oa/i915_oa_icl.o \
-	oa/i915_oa_tgl.o
 i915-y += i915_perf.o
 
 # Post-mortem debug and GPU hang state capture

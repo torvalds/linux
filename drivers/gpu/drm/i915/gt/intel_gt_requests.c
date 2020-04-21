@@ -38,7 +38,7 @@ static bool flush_submission(struct intel_gt *gt)
 	for_each_engine(engine, gt, id) {
 		intel_engine_flush_submission(engine);
 		active |= flush_work(&engine->retire_work);
-		active |= flush_work(&engine->wakeref.work);
+		active |= flush_delayed_work(&engine->wakeref.work);
 	}
 
 	return active;
