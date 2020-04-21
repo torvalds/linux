@@ -24,12 +24,15 @@ properties:
     maxItems: 1
 
   interrupts:
+    minItems: 1
     maxItems: 2
 
   interrupt-names:
-    items:
-      - const: vepu
+    oneOf:
       - const: vdpu
+      - items:
+        - const: vepu
+        - const: vdpu
 
   clocks:
     maxItems: 2
