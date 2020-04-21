@@ -77,6 +77,8 @@ struct uvc_video {
 	struct uvc_device *uvc;
 	struct usb_ep *ep;
 
+	struct work_struct pump;
+
 	/* Frame parameters */
 	u8 bpp;
 	u32 fcc;
