@@ -400,15 +400,15 @@ int debug_get_buf_state(struct qdio_q *q, unsigned int bufnr,
 
 static inline void qdio_stop_polling(struct qdio_q *q)
 {
-	if (!q->u.in.ack_count)
+	if (!q->u.in.batch_count)
 		return;
 
 	qperf_inc(q, stop_polling);
 
 	/* show the card that we are not polling anymore */
-	set_buf_states(q, q->u.in.ack_start, SLSB_P_INPUT_NOT_INIT,
-		       q->u.in.ack_count);
-	q->u.in.ack_count = 0;
+	set_buf_states(q, q->u.in.batch_start, SLSB_P_INPUT_NOT_INIT,
+		       q->u.in.batch_count);
+	q->u.in.batch_count = 0;
 }
 
 static inline void account_sbals(struct qdio_q *q, unsigned int count)
@@ -448,42 +448,13 @@ static void process_buffer_error(struct qdio_q *q, unsigned int start,
 static inline void inbound_handle_work(struct qdio_q *q, unsigned int start,
 				       int count, bool auto_ack)
 {
-	int new;
+	/* ACK the newest SBAL: */
+	if (!auto_ack)
+		set_buf_state(q, add_buf(start, count - 1), SLSB_P_INPUT_ACK);
 
-	if (auto_ack) {
-		if (!q->u.in.ack_count) {
-			q->u.in.ack_count = count;
-			q->u.in.ack_start = start;
-			return;
-		}
-
-		/* delete the previous ACK's */
-		set_buf_states(q, q->u.in.ack_start, SLSB_P_INPUT_NOT_INIT,
-			       q->u.in.ack_count);
-		q->u.in.ack_count = count;
-		q->u.in.ack_start = start;
-		return;
-	}
-
-	/*
-	 * ACK the newest buffer. The ACK will be removed in qdio_stop_polling
-	 * or by the next inbound run.
-	 */
-	new = add_buf(start, count - 1);
-	set_buf_state(q, new, SLSB_P_INPUT_ACK);
-
-	/* delete the previous ACKs */
-	if (q->u.in.ack_count)
-		set_buf_states(q, q->u.in.ack_start, SLSB_P_INPUT_NOT_INIT,
-			       q->u.in.ack_count);
-
-	q->u.in.ack_count = 1;
-	q->u.in.ack_start = new;
-	count--;
-	if (!count)
-		return;
-	/* need to change ALL buffers to get more interrupts */
-	set_buf_states(q, start, SLSB_P_INPUT_NOT_INIT, count);
+	if (!q->u.in.batch_count)
+		q->u.in.batch_start = start;
+	q->u.in.batch_count += count;
 }
 
 static int get_inbound_buffer_frontier(struct qdio_q *q, unsigned int start)
@@ -1453,12 +1424,12 @@ static int handle_inbound(struct qdio_q *q, unsigned int callflags,
 
 	qperf_inc(q, inbound_call);
 
-	/* If any ACKed SBALs are returned to HW, adjust ACK tracking: */
-	overlap = min(count - sub_buf(q->u.in.ack_start, bufnr),
-		      q->u.in.ack_count);
+	/* If any processed SBALs are returned to HW, adjust our tracking: */
+	overlap = min_t(int, count - sub_buf(q->u.in.batch_start, bufnr),
+			     q->u.in.batch_count);
 	if (overlap > 0) {
-		q->u.in.ack_start = add_buf(q->u.in.ack_start, overlap);
-		q->u.in.ack_count -= overlap;
+		q->u.in.batch_start = add_buf(q->u.in.batch_start, overlap);
+		q->u.in.batch_count -= overlap;
 	}
 
 	count = set_buf_states(q, bufnr, SLSB_CU_INPUT_EMPTY, count);
