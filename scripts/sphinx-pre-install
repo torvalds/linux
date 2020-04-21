@@ -29,6 +29,7 @@ my $install = "";
 my $virtenv_dir = "";
 my $python_cmd = "";
 my $min_version;
+my $cur_version;
 my $rec_version = "1.7.9";	# PDF won't build here
 my $min_pdf_version = "2.4.4";	# Min version where pdf builds
 
@@ -257,7 +258,6 @@ sub get_sphinx_version($)
 sub check_sphinx()
 {
 	my $default_version;
-	my $cur_version;
 
 	open IN, $conf or die "Can't open $conf";
 	while (<IN>) {
@@ -703,8 +703,6 @@ sub check_needs()
 		print "Unknown OS\n\n";
 	}
 
-	print "To upgrade Sphinx, use:\n\n" if ($rec_sphinx_upgrade);
-
 	# Check python command line, trying first python3
 	$python_cmd = findprog("python3");
 	$python_cmd = check_program("python", 0) if (!$python_cmd);
@@ -786,23 +784,35 @@ sub check_needs()
 		@activates = sort {$b cmp $a} @activates;
 		my ($activate, $ver);
 		foreach my $f (@activates) {
-			$activate = $f;
-			next if ($activate lt $min_activate);
+			next if ($f lt $min_activate);
 
-			my $sphinx_cmd = $activate;
+			my $sphinx_cmd = $f;
 			$sphinx_cmd =~ s/activate/sphinx-build/;
 			next if (! -f $sphinx_cmd);
 
 			$ver = get_sphinx_version($sphinx_cmd);
-			last if ($ver ge $min_version);
+			if ($need_sphinx && ($ver ge $min_version)) {
+				$activate = $f;
+				last;
+			} elsif ($ver gt $cur_version) {
+				$activate = $f;
+				last;
+			}
 		}
-		if ($need_sphinx && ($activate ne "")) {
-			printf "\nNeed to activate Sphinx (version $ver) on virtualenv with:\n";
-			printf "\t. $activate\n";
-			deactivate_help();
-			exit (1);
+		if ($activate ne "") {
+			if ($need_sphinx) {
+				printf "\nNeed to activate Sphinx (version $ver) on virtualenv with:\n";
+				printf "\t. $activate\n";
+				deactivate_help();
+				exit (1);
+			} else {
+				printf "\nYou may also use a newer Sphinx (version $ver) with:\n";
+				printf "\tdeactivate && . $activate\n";
+			}
 		} else {
 			my $rec_activate = "$virtenv_dir/bin/activate";
+
+			print "To upgrade Sphinx, use:\n\n" if ($rec_sphinx_upgrade);
 
 			if ($need_venv) {
 				printf "\t$python_cmd -m venv $virtenv_dir\n";
