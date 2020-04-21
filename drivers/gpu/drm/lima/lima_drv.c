@@ -404,6 +404,12 @@ static int lima_pdev_probe(struct platform_device *pdev)
 		goto err_out2;
 	}
 
+	pm_runtime_set_active(ldev->dev);
+	pm_runtime_mark_last_busy(ldev->dev);
+	pm_runtime_set_autosuspend_delay(ldev->dev, 200);
+	pm_runtime_use_autosuspend(ldev->dev);
+	pm_runtime_enable(ldev->dev);
+
 	/*
 	 * Register the DRM device with the core and the connectors with
 	 * sysfs.
@@ -412,17 +418,16 @@ static int lima_pdev_probe(struct platform_device *pdev)
 	if (err < 0)
 		goto err_out3;
 
-	platform_set_drvdata(pdev, ldev);
-
 	if (sysfs_create_bin_file(&ldev->dev->kobj, &lima_error_state_attr))
 		dev_warn(ldev->dev, "fail to create error state sysfs\n");
 
 	return 0;
 
 err_out3:
-	lima_device_fini(ldev);
-err_out2:
+	pm_runtime_disable(ldev->dev);
 	lima_devfreq_fini(ldev);
+err_out2:
+	lima_device_fini(ldev);
 err_out1:
 	drm_dev_put(ddev);
 err_out0:
@@ -436,10 +441,16 @@ static int lima_pdev_remove(struct platform_device *pdev)
 	struct drm_device *ddev = ldev->ddev;
 
 	sysfs_remove_bin_file(&ldev->dev->kobj, &lima_error_state_attr);
-	platform_set_drvdata(pdev, NULL);
+
 	drm_dev_unregister(ddev);
+
+	/* stop autosuspend to make sure device is in active state */
+	pm_runtime_set_autosuspend_delay(ldev->dev, -1);
+	pm_runtime_disable(ldev->dev);
+
 	lima_devfreq_fini(ldev);
 	lima_device_fini(ldev);
+
 	drm_dev_put(ddev);
 	lima_sched_slab_fini();
 	return 0;
