@@ -388,8 +388,7 @@ int imx_media_init_mbus_fmt(struct v4l2_mbus_framefmt *mbus,
 
 	mbus->code = code;
 
-	mbus->colorspace = (lcc->cs == IPUV3_COLORSPACE_RGB) ?
-		V4L2_COLORSPACE_SRGB : V4L2_COLORSPACE_SMPTE170M;
+	mbus->colorspace = V4L2_COLORSPACE_SRGB;
 	mbus->xfer_func = V4L2_MAP_XFER_FUNC_DEFAULT(mbus->colorspace);
 	mbus->ycbcr_enc = V4L2_MAP_YCBCR_ENC_DEFAULT(mbus->colorspace);
 	mbus->quantization =
