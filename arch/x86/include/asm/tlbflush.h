@@ -247,38 +247,7 @@ struct tlb_state {
 };
 DECLARE_PER_CPU_SHARED_ALIGNED(struct tlb_state, cpu_tlbstate);
 
-/*
- * Blindly accessing user memory from NMI context can be dangerous
- * if we're in the middle of switching the current user task or
- * switching the loaded mm.  It can also be dangerous if we
- * interrupted some kernel code that was temporarily using a
- * different mm.
- */
-static inline bool nmi_uaccess_okay(void)
-{
-	struct mm_struct *loaded_mm = this_cpu_read(cpu_tlbstate.loaded_mm);
-	struct mm_struct *current_mm = current->mm;
-
-	VM_WARN_ON_ONCE(!loaded_mm);
-
-	/*
-	 * The condition we want to check is
-	 * current_mm->pgd == __va(read_cr3_pa()).  This may be slow, though,
-	 * if we're running in a VM with shadow paging, and nmi_uaccess_okay()
-	 * is supposed to be reasonably fast.
-	 *
-	 * Instead, we check the almost equivalent but somewhat conservative
-	 * condition below, and we rely on the fact that switch_mm_irqs_off()
-	 * sets loaded_mm to LOADED_MM_SWITCHING before writing to CR3.
-	 */
-	if (loaded_mm != current_mm)
-		return false;
-
-	VM_WARN_ON_ONCE(current_mm->pgd != __va(read_cr3_pa()));
-
-	return true;
-}
-
+bool nmi_uaccess_okay(void);
 #define nmi_uaccess_okay nmi_uaccess_okay
 
 void cr4_update_irqsoff(unsigned long set, unsigned long clear);
