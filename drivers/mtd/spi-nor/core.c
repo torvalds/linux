@@ -640,7 +640,7 @@ static int spi_nor_fsr_ready(struct spi_nor *nor)
 		return -EIO;
 	}
 
-	return nor->bouncebuf[0] & FSR_READY;
+	return !!(nor->bouncebuf[0] & FSR_READY);
 }
 
 /**
