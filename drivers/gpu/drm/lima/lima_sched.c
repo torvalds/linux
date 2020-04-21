@@ -285,7 +285,8 @@ static void lima_sched_build_error_task_list(struct lima_sched_task *task)
 	mutex_lock(&dev->error_task_list_lock);
 
 	if (dev->dump.num_tasks >= lima_max_error_tasks) {
-		dev_info(dev->dev, "fail to save task state: error task list is full\n");
+		dev_info(dev->dev, "fail to save task state from %s pid %d: "
+			 "error task list is full\n", ctx->pname, ctx->pid);
 		goto out;
 	}
 
