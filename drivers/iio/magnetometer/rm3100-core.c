@@ -22,6 +22,8 @@
 #include <linux/iio/triggered_buffer.h>
 #include <linux/iio/trigger_consumer.h>
 
+#include <asm/unaligned.h>
+
 #include "rm3100.h"
 
 /* Cycle Count Registers. */
@@ -223,8 +225,7 @@ static int rm3100_read_mag(struct rm3100_data *data, int idx, int *val)
 		goto unlock_return;
 	mutex_unlock(&data->lock);
 
-	*val = sign_extend32((buffer[0] << 16) | (buffer[1] << 8) | buffer[2],
-			     23);
+	*val = sign_extend32(get_unaligned_be24(&buffer[0]), 23);
 
 	return IIO_VAL_INT;
 
