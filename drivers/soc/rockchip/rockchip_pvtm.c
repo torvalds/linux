@@ -104,9 +104,9 @@ static int pvtm_value_show(struct seq_file *s, void *data)
 	u32 value;
 	int i, ret, cur_temp;
 
-	if (!pvtm) {
-		pr_err("pvtm struct NULL\n");
-		return -EINVAL;
+	if (!pvtm || !pvtm->get_value) {
+		seq_puts(s, "unsupported\n");
+		return 0;
 	}
 
 	if (pvtm->tz && pvtm->tz->ops && pvtm->tz->ops->get_temp) {
@@ -202,16 +202,23 @@ static int rockchip_pvtm_reset(struct rockchip_pvtm *pvtm)
 u32 rockchip_get_pvtm_value(unsigned int ch, unsigned int sub_ch,
 			    unsigned int time_us)
 {
-	struct rockchip_pvtm *pvtm;
+	struct rockchip_pvtm *p, *pvtm = NULL;
 
 	if (list_empty(&pvtm_list)) {
 		pr_err("pvtm list NULL\n");
 		return -EINVAL;
 	}
 
-	list_for_each_entry(pvtm, &pvtm_list, node) {
-		if (pvtm->channel->ch == ch)
+	list_for_each_entry(p, &pvtm_list, node) {
+		if (p->channel->ch == ch) {
+			pvtm = p;
 			break;
+		}
+	}
+
+	if (!pvtm) {
+		pr_err("invalid pvtm ch %d\n", ch);
+		return -EINVAL;
 	}
 
 	if (sub_ch >= pvtm->channel->num_sub) {
