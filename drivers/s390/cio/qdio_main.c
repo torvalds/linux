@@ -1438,24 +1438,6 @@ out:
 }
 EXPORT_SYMBOL_GPL(qdio_activate);
 
-static inline int buf_in_between(int bufnr, int start, int count)
-{
-	int end = add_buf(start, count);
-
-	if (end > start) {
-		if (bufnr >= start && bufnr < end)
-			return 1;
-		else
-			return 0;
-	}
-
-	/* wrap-around case */
-	if (bufnr >= start || bufnr < end)
-		return 1;
-	else
-		return 0;
-}
-
 /**
  * handle_inbound - reset processed input buffers
  * @q: queue containing the buffers
@@ -1466,36 +1448,18 @@ static inline int buf_in_between(int bufnr, int start, int count)
 static int handle_inbound(struct qdio_q *q, unsigned int callflags,
 			  int bufnr, int count)
 {
-	int diff;
+	int overlap;
 
 	qperf_inc(q, inbound_call);
 
-	if (!q->u.in.ack_count)
-		goto set;
-
-	/* protect against stop polling setting an ACK for an emptied slsb */
-	if (count == QDIO_MAX_BUFFERS_PER_Q) {
-		/* overwriting everything, just delete polling status */
-		q->u.in.ack_count = 0;
-		goto set;
-	} else if (buf_in_between(q->u.in.ack_start, bufnr, count)) {
-		if (is_qebsm(q)) {
-			/* partial overwrite, just update ack_start */
-			diff = add_buf(bufnr, count);
-			diff = sub_buf(diff, q->u.in.ack_start);
-			q->u.in.ack_count -= diff;
-			if (q->u.in.ack_count <= 0) {
-				q->u.in.ack_count = 0;
-				goto set;
-			}
-			q->u.in.ack_start = add_buf(q->u.in.ack_start, diff);
-		} else {
-			/* the only ACK will be deleted */
-			q->u.in.ack_count = 0;
-		}
+	/* If any ACKed SBALs are returned to HW, adjust ACK tracking: */
+	overlap = min(count - sub_buf(q->u.in.ack_start, bufnr),
+		      q->u.in.ack_count);
+	if (overlap > 0) {
+		q->u.in.ack_start = add_buf(q->u.in.ack_start, overlap);
+		q->u.in.ack_count -= overlap;
 	}
 
-set:
 	count = set_buf_states(q, bufnr, SLSB_CU_INPUT_EMPTY, count);
 	atomic_add(count, &q->nr_buf_used);
 
