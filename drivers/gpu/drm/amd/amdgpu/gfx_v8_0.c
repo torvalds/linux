@@ -5615,12 +5615,18 @@ static void gfx_v8_0_update_spm_vmid(struct amdgpu_device *adev, unsigned vmid)
 {
 	u32 data;
 
-	data = RREG32(mmRLC_SPM_VMID);
+	if (amdgpu_sriov_is_pp_one_vf(adev))
+		data = RREG32_NO_KIQ(mmRLC_SPM_VMID);
+	else
+		data = RREG32(mmRLC_SPM_VMID);
 
 	data &= ~RLC_SPM_VMID__RLC_SPM_VMID_MASK;
 	data |= (vmid & RLC_SPM_VMID__RLC_SPM_VMID_MASK) << RLC_SPM_VMID__RLC_SPM_VMID__SHIFT;
 
-	WREG32(mmRLC_SPM_VMID, data);
+	if (amdgpu_sriov_is_pp_one_vf(adev))
+		WREG32_NO_KIQ(mmRLC_SPM_VMID, data);
+	else
+		WREG32(mmRLC_SPM_VMID, data);
 }
 
 static const struct amdgpu_rlc_funcs iceland_rlc_funcs = {

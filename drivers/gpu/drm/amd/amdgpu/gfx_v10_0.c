@@ -7030,14 +7030,21 @@ static int gfx_v10_0_update_gfx_clock_gating(struct amdgpu_device *adev,
 
 static void gfx_v10_0_update_spm_vmid(struct amdgpu_device *adev, unsigned vmid)
 {
-	u32 data;
+	u32 reg, data;
 
-	data = RREG32_SOC15(GC, 0, mmRLC_SPM_MC_CNTL);
+	reg = SOC15_REG_OFFSET(GC, 0, mmRLC_SPM_MC_CNTL);
+	if (amdgpu_sriov_is_pp_one_vf(adev))
+		data = RREG32_NO_KIQ(reg);
+	else
+		data = RREG32(reg);
 
 	data &= ~RLC_SPM_MC_CNTL__RLC_SPM_VMID_MASK;
 	data |= (vmid & RLC_SPM_MC_CNTL__RLC_SPM_VMID_MASK) << RLC_SPM_MC_CNTL__RLC_SPM_VMID__SHIFT;
 
-	WREG32_SOC15(GC, 0, mmRLC_SPM_MC_CNTL, data);
+	if (amdgpu_sriov_is_pp_one_vf(adev))
+		WREG32_SOC15_NO_KIQ(GC, 0, mmRLC_SPM_MC_CNTL, data);
+	else
+		WREG32_SOC15(GC, 0, mmRLC_SPM_MC_CNTL, data);
 }
 
 static bool gfx_v10_0_check_rlcg_range(struct amdgpu_device *adev,
