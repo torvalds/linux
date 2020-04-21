@@ -296,7 +296,7 @@ static void bau_process_message(struct msg_desc *mdp, struct bau_control *bcp,
 		flush_tlb_local();
 		stat->d_alltlb++;
 	} else {
-		__flush_tlb_one_user(msg->address);
+		flush_tlb_one_user(msg->address);
 		stat->d_onetlb++;
 	}
 	stat->d_requestee++;

@@ -142,11 +142,10 @@ static inline unsigned long build_cr3_noflush(pgd_t *pgd, u16 asid)
 
 void flush_tlb_local(void);
 void flush_tlb_global(void);
+void flush_tlb_one_user(unsigned long addr);
 
 #ifdef CONFIG_PARAVIRT
 #include <asm/paravirt.h>
-#else
-#define __flush_tlb_one_user(addr)	__native_flush_tlb_one_user(addr)
 #endif
 
 struct tlb_context {
@@ -346,54 +345,6 @@ static inline void cr4_set_bits_and_update_boot(unsigned long mask)
 extern void initialize_tlbstate_and_flush(void);
 
 /*
- * Given an ASID, flush the corresponding user ASID.  We can delay this
- * until the next time we switch to it.
- *
- * See SWITCH_TO_USER_CR3.
- */
-static inline void invalidate_user_asid(u16 asid)
-{
-	/* There is no user ASID if address space separation is off */
-	if (!IS_ENABLED(CONFIG_PAGE_TABLE_ISOLATION))
-		return;
-
-	/*
-	 * We only have a single ASID if PCID is off and the CR3
-	 * write will have flushed it.
-	 */
-	if (!cpu_feature_enabled(X86_FEATURE_PCID))
-		return;
-
-	if (!static_cpu_has(X86_FEATURE_PTI))
-		return;
-
-	__set_bit(kern_pcid(asid),
-		  (unsigned long *)this_cpu_ptr(&cpu_tlbstate.user_pcid_flush_mask));
-}
-
-/*
- * flush one page in the user mapping
- */
-static inline void __native_flush_tlb_one_user(unsigned long addr)
-{
-	u32 loaded_mm_asid = this_cpu_read(cpu_tlbstate.loaded_mm_asid);
-
-	asm volatile("invlpg (%0)" ::"r" (addr) : "memory");
-
-	if (!static_cpu_has(X86_FEATURE_PTI))
-		return;
-
-	/*
-	 * Some platforms #GP if we call invpcid(type=1/2) before CR4.PCIDE=1.
-	 * Just use invalidate_user_asid() in case we are called early.
-	 */
-	if (!this_cpu_has(X86_FEATURE_INVPCID_SINGLE))
-		invalidate_user_asid(loaded_mm_asid);
-	else
-		invpcid_flush_one(user_pcid(loaded_mm_asid), addr);
-}
-
-/*
  * flush everything
  */
 static inline void __flush_tlb_all(void)
@@ -432,7 +383,7 @@ static inline void __flush_tlb_one_kernel(unsigned long addr)
 	 * kernel address space and for its usermode counterpart, but it does
 	 * not flush it for other address spaces.
 	 */
-	__flush_tlb_one_user(addr);
+	flush_tlb_one_user(addr);
 
 	if (!static_cpu_has(X86_FEATURE_PTI))
 		return;

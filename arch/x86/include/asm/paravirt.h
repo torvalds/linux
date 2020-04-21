@@ -49,6 +49,7 @@ static inline void slow_down_io(void)
 
 void native_flush_tlb_local(void);
 void native_flush_tlb_global(void);
+void native_flush_tlb_one_user(unsigned long addr);
 
 static inline void __flush_tlb_local(void)
 {
