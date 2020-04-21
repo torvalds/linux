@@ -20,7 +20,7 @@ struct patch_insn {
 #ifdef CONFIG_MMU
 static DEFINE_RAW_SPINLOCK(patch_lock);
 
-static void __kprobes *patch_map(void *addr, int fixmap)
+static void *patch_map(void *addr, int fixmap)
 {
 	uintptr_t uintaddr = (uintptr_t) addr;
 	struct page *page;
@@ -37,13 +37,15 @@ static void __kprobes *patch_map(void *addr, int fixmap)
 	return (void *)set_fixmap_offset(fixmap, page_to_phys(page) +
 					 (uintaddr & ~PAGE_MASK));
 }
+NOKPROBE_SYMBOL(patch_map);
 
-static void __kprobes patch_unmap(int fixmap)
+static void patch_unmap(int fixmap)
 {
 	clear_fixmap(fixmap);
 }
+NOKPROBE_SYMBOL(patch_unmap);
 
-static int __kprobes patch_insn_write(void *addr, const void *insn, size_t len)
+static int patch_insn_write(void *addr, const void *insn, size_t len)
 {
 	void *waddr = addr;
 	bool across_pages = (((uintptr_t) addr & ~PAGE_MASK) + len) > PAGE_SIZE;
@@ -68,14 +70,16 @@ static int __kprobes patch_insn_write(void *addr, const void *insn, size_t len)
 
 	return ret;
 }
+NOKPROBE_SYMBOL(patch_insn_write);
 #else
-static int __kprobes patch_insn_write(void *addr, const void *insn, size_t len)
+static int patch_insn_write(void *addr, const void *insn, size_t len)
 {
 	return probe_kernel_write(addr, insn, len);
 }
+NOKPROBE_SYMBOL(patch_insn_write);
 #endif /* CONFIG_MMU */
 
-int __kprobes patch_text_nosync(void *addr, const void *insns, size_t len)
+int patch_text_nosync(void *addr, const void *insns, size_t len)
 {
 	u32 *tp = addr;
 	int ret;
@@ -87,8 +91,9 @@ int __kprobes patch_text_nosync(void *addr, const void *insns, size_t len)
 
 	return ret;
 }
+NOKPROBE_SYMBOL(patch_text_nosync);
 
-static int __kprobes patch_text_cb(void *data)
+static int patch_text_cb(void *data)
 {
 	struct patch_insn *patch = data;
 	int ret = 0;
@@ -106,8 +111,9 @@ static int __kprobes patch_text_cb(void *data)
 
 	return ret;
 }
+NOKPROBE_SYMBOL(patch_text_cb);
 
-int __kprobes patch_text(void *addr, u32 insn)
+int patch_text(void *addr, u32 insn)
 {
 	struct patch_insn patch = {
 		.addr = addr,
@@ -118,3 +124,4 @@ int __kprobes patch_text(void *addr, u32 insn)
 	return stop_machine_cpuslocked(patch_text_cb,
 				       &patch, cpu_online_mask);
 }
+NOKPROBE_SYMBOL(patch_text);
