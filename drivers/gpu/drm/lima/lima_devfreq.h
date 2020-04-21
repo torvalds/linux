@@ -38,4 +38,7 @@ void lima_devfreq_fini(struct lima_device *ldev);
 void lima_devfreq_record_busy(struct lima_devfreq *devfreq);
 void lima_devfreq_record_idle(struct lima_devfreq *devfreq);
 
+int lima_devfreq_resume(struct lima_devfreq *devfreq);
+int lima_devfreq_suspend(struct lima_devfreq *devfreq);
+
 #endif

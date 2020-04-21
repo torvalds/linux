@@ -231,3 +231,27 @@ void lima_devfreq_record_idle(struct lima_devfreq *devfreq)
 
 	spin_unlock_irqrestore(&devfreq->lock, irqflags);
 }
+
+int lima_devfreq_resume(struct lima_devfreq *devfreq)
+{
+	unsigned long irqflags;
+
+	if (!devfreq->devfreq)
+		return 0;
+
+	spin_lock_irqsave(&devfreq->lock, irqflags);
+
+	lima_devfreq_reset(devfreq);
+
+	spin_unlock_irqrestore(&devfreq->lock, irqflags);
+
+	return devfreq_resume_device(devfreq->devfreq);
+}
+
+int lima_devfreq_suspend(struct lima_devfreq *devfreq)
+{
+	if (!devfreq->devfreq)
+		return 0;
+
+	return devfreq_suspend_device(devfreq->devfreq);
+}
