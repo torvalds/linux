@@ -13,19 +13,46 @@
 #include <asm/pti.h>
 #include <asm/processor-flags.h>
 
-struct flush_tlb_info;
-
 void __flush_tlb_all(void);
-void flush_tlb_local(void);
-void flush_tlb_one_user(unsigned long addr);
-void flush_tlb_one_kernel(unsigned long addr);
-void flush_tlb_others(const struct cpumask *cpumask,
-		      const struct flush_tlb_info *info);
 
-#ifdef CONFIG_PARAVIRT
-#include <asm/paravirt.h>
-#endif
+#define TLB_FLUSH_ALL	-1UL
 
+void cr4_update_irqsoff(unsigned long set, unsigned long clear);
+unsigned long cr4_read_shadow(void);
+
+/* Set in this cpu's CR4. */
+static inline void cr4_set_bits_irqsoff(unsigned long mask)
+{
+	cr4_update_irqsoff(mask, 0);
+}
+
+/* Clear in this cpu's CR4. */
+static inline void cr4_clear_bits_irqsoff(unsigned long mask)
+{
+	cr4_update_irqsoff(0, mask);
+}
+
+/* Set in this cpu's CR4. */
+static inline void cr4_set_bits(unsigned long mask)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	cr4_set_bits_irqsoff(mask);
+	local_irq_restore(flags);
+}
+
+/* Clear in this cpu's CR4. */
+static inline void cr4_clear_bits(unsigned long mask)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	cr4_clear_bits_irqsoff(mask);
+	local_irq_restore(flags);
+}
+
+#ifndef MODULE
 /*
  * 6 because 6 should be plenty and struct tlb_state will fit in two cache
  * lines.
@@ -129,53 +156,16 @@ DECLARE_PER_CPU_SHARED_ALIGNED(struct tlb_state, cpu_tlbstate);
 bool nmi_uaccess_okay(void);
 #define nmi_uaccess_okay nmi_uaccess_okay
 
-void cr4_update_irqsoff(unsigned long set, unsigned long clear);
-unsigned long cr4_read_shadow(void);
-
 /* Initialize cr4 shadow for this CPU. */
 static inline void cr4_init_shadow(void)
 {
 	this_cpu_write(cpu_tlbstate.cr4, __read_cr4());
 }
 
-/* Set in this cpu's CR4. */
-static inline void cr4_set_bits_irqsoff(unsigned long mask)
-{
-	cr4_update_irqsoff(mask, 0);
-}
-
-/* Clear in this cpu's CR4. */
-static inline void cr4_clear_bits_irqsoff(unsigned long mask)
-{
-	cr4_update_irqsoff(0, mask);
-}
-
-/* Set in this cpu's CR4. */
-static inline void cr4_set_bits(unsigned long mask)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	cr4_set_bits_irqsoff(mask);
-	local_irq_restore(flags);
-}
-
-/* Clear in this cpu's CR4. */
-static inline void cr4_clear_bits(unsigned long mask)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	cr4_clear_bits_irqsoff(mask);
-	local_irq_restore(flags);
-}
-
 extern unsigned long mmu_cr4_features;
 extern u32 *trampoline_cr4_features;
 
 extern void initialize_tlbstate_and_flush(void);
-
-#define TLB_FLUSH_ALL	-1UL
 
 /*
  * TLB flushing:
@@ -214,6 +204,16 @@ struct flush_tlb_info {
 	unsigned int		stride_shift;
 	bool			freed_tables;
 };
+
+void flush_tlb_local(void);
+void flush_tlb_one_user(unsigned long addr);
+void flush_tlb_one_kernel(unsigned long addr);
+void flush_tlb_others(const struct cpumask *cpumask,
+		      const struct flush_tlb_info *info);
+
+#ifdef CONFIG_PARAVIRT
+#include <asm/paravirt.h>
+#endif
 
 #define flush_tlb_mm(mm)						\
 		flush_tlb_mm_range(mm, 0UL, TLB_FLUSH_ALL, 0UL, true)
@@ -254,5 +254,7 @@ static inline void arch_tlbbatch_add_mm(struct arch_tlbflush_unmap_batch *batch,
 }
 
 extern void arch_tlbbatch_flush(struct arch_tlbflush_unmap_batch *batch);
+
+#endif /* !MODULE */
 
 #endif /* _ASM_X86_TLBFLUSH_H */
