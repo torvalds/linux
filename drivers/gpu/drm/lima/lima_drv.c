@@ -460,17 +460,7 @@ static struct platform_driver lima_platform_driver = {
 	},
 };
 
-static int __init lima_init(void)
-{
-	return platform_driver_register(&lima_platform_driver);
-}
-module_init(lima_init);
-
-static void __exit lima_exit(void)
-{
-	platform_driver_unregister(&lima_platform_driver);
-}
-module_exit(lima_exit);
+module_platform_driver(lima_platform_driver);
 
 MODULE_AUTHOR("Lima Project Developers");
 MODULE_DESCRIPTION("Lima DRM Driver");
