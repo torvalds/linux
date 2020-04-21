@@ -343,18 +343,24 @@ static int read_sections(struct elf *elf)
 
 static int read_symbols(struct elf *elf)
 {
-	struct section *symtab, *sec;
+	struct section *symtab, *symtab_shndx, *sec;
 	struct symbol *sym, *pfunc;
 	struct list_head *entry;
 	struct rb_node *pnode;
 	int symbols_nr, i;
 	char *coldstr;
+	Elf_Data *shndx_data = NULL;
+	Elf32_Word shndx;
 
 	symtab = find_section_by_name(elf, ".symtab");
 	if (!symtab) {
 		WARN("missing symbol table");
 		return -1;
 	}
+
+	symtab_shndx = find_section_by_name(elf, ".symtab_shndx");
+	if (symtab_shndx)
+		shndx_data = symtab_shndx->data;
 
 	symbols_nr = symtab->sh.sh_size / symtab->sh.sh_entsize;
 
@@ -369,8 +375,9 @@ static int read_symbols(struct elf *elf)
 
 		sym->idx = i;
 
-		if (!gelf_getsym(symtab->data, i, &sym->sym)) {
-			WARN_ELF("gelf_getsym");
+		if (!gelf_getsymshndx(symtab->data, shndx_data, i, &sym->sym,
+				      &shndx)) {
+			WARN_ELF("gelf_getsymshndx");
 			goto err;
 		}
 
@@ -384,10 +391,13 @@ static int read_symbols(struct elf *elf)
 		sym->type = GELF_ST_TYPE(sym->sym.st_info);
 		sym->bind = GELF_ST_BIND(sym->sym.st_info);
 
-		if (sym->sym.st_shndx > SHN_UNDEF &&
-		    sym->sym.st_shndx < SHN_LORESERVE) {
-			sym->sec = find_section_by_index(elf,
-							 sym->sym.st_shndx);
+		if ((sym->sym.st_shndx > SHN_UNDEF &&
+		     sym->sym.st_shndx < SHN_LORESERVE) ||
+		    (shndx_data && sym->sym.st_shndx == SHN_XINDEX)) {
+			if (sym->sym.st_shndx != SHN_XINDEX)
+				shndx = sym->sym.st_shndx;
+
+			sym->sec = find_section_by_index(elf, shndx);
 			if (!sym->sec) {
 				WARN("couldn't find section for symbol %s",
 				     sym->name);
