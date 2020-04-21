@@ -5,6 +5,7 @@
 
 #include <linux/spinlock.h>
 #include <linux/mm.h>
+#include <linux/memory.h>
 #include <linux/uaccess.h>
 #include <linux/stop_machine.h>
 #include <asm/kprobes.h>
@@ -18,8 +19,6 @@ struct patch_insn {
 };
 
 #ifdef CONFIG_MMU
-static DEFINE_RAW_SPINLOCK(patch_lock);
-
 static void *patch_map(void *addr, int fixmap)
 {
 	uintptr_t uintaddr = (uintptr_t) addr;
@@ -49,10 +48,14 @@ static int patch_insn_write(void *addr, const void *insn, size_t len)
 {
 	void *waddr = addr;
 	bool across_pages = (((uintptr_t) addr & ~PAGE_MASK) + len) > PAGE_SIZE;
-	unsigned long flags = 0;
 	int ret;
 
-	raw_spin_lock_irqsave(&patch_lock, flags);
+	/*
+	 * Before reaching here, it was expected to lock the text_mutex
+	 * already, so we don't need to give another lock here and could
+	 * ensure that it was safe between each cores.
+	 */
+	lockdep_assert_held(&text_mutex);
 
 	if (across_pages)
 		patch_map(addr + len, FIX_TEXT_POKE1);
@@ -65,8 +68,6 @@ static int patch_insn_write(void *addr, const void *insn, size_t len)
 
 	if (across_pages)
 		patch_unmap(FIX_TEXT_POKE1);
-
-	raw_spin_unlock_irqrestore(&patch_lock, flags);
 
 	return ret;
 }
