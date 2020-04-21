@@ -20,4 +20,14 @@ config SOC_VIRT
        help
          This enables support for QEMU Virt Machine.
 
+config SOC_KENDRYTE
+	bool "Kendryte K210 SoC"
+	depends on !MMU
+	select BUILTIN_DTB
+	select SERIAL_SIFIVE if TTY
+	select SERIAL_SIFIVE_CONSOLE if TTY
+	select SIFIVE_PLIC
+	help
+	  This enables support for Kendryte K210 SoC platform hardware.
+
 endmenu

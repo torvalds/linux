@@ -1,0 +1,223 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/arm,vexpress-juno.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ARM Versatile Express and Juno Boards Device Tree Bindings
+
+maintainers:
+  - Sudeep Holla <sudeep.holla@arm.com>
+  - Linus Walleij <linus.walleij@linaro.org>
+
+description: |+
+  ARM's Versatile Express platform were built as reference designs for exploring
+  multicore Cortex-A class systems. The Versatile Express family contains both
+  32 bit (Aarch32) and 64 bit (Aarch64) systems.
+
+  The board consist of a motherboard and one or more daughterboards (tiles). The
+  motherboard provides a set of peripherals. Processor and RAM "live" on the
+  tiles.
+
+  The motherboard and each core tile should be described by a separate Device
+  Tree source file, with the tile's description including the motherboard file
+  using an include directive. As the motherboard can be initialized in one of
+  two different configurations ("memory maps"), care must be taken to include
+  the correct one.
+
+  When a new generation of boards were introduced under the name "Juno", these
+  shared to many common characteristics with the Versatile Express that the
+  "arm,vexpress" compatible was retained in the root node, and these are
+  included in this binding schema as well.
+
+  The root node indicates the CPU SoC on the core tile, and this
+  is a daughterboard to the main motherboard. The name used in the compatible
+  string shall match the name given in the core tile's technical reference
+  manual, followed by "arm,vexpress" as an additional compatible value. If
+  further subvariants are released of the core tile, even more fine-granular
+  compatible strings with up to three compatible strings are used.
+
+properties:
+  $nodename:
+    const: '/'
+  compatible:
+    oneOf:
+      - description: CoreTile Express A9x4 (V2P-CA9) has 4 Cortex A9 CPU cores
+          in MPCore configuration in a test chip on the core tile. See ARM
+          DUI 0448I. This was the first Versatile Express platform.
+        items:
+          - const: arm,vexpress,v2p-ca9
+          - const: arm,vexpress
+      - description: CoreTile Express A5x2 (V2P-CA5s) has 2 Cortex A5 CPU cores
+          in a test chip on the core tile. It is intended to evaluate NEON, FPU
+          and Jazelle support in the Cortex A5 family. See ARM DUI 0541C.
+        items:
+          - const: arm,vexpress,v2p-ca5s
+          - const: arm,vexpress
+      - description: Coretile Express A15x2 (V2P-CA15) has 2 Cortex A15 CPU
+          cores in a MPCore configuration in a test chip on the core tile. See
+          ARM DUI 0604F.
+        items:
+          - const: arm,vexpress,v2p-ca15
+          - const: arm,vexpress
+      - description: CoreTile Express A15x4 (V2P-CA15, HBI-0237A) has 4 Cortex
+          A15 CPU cores in a test chip on the core tile. This is the first test
+          chip called "TC1".
+        items:
+          - const: arm,vexpress,v2p-ca15,tc1
+          - const: arm,vexpress,v2p-ca15
+          - const: arm,vexpress
+      - description: Coretile Express A15x2 A7x3 (V2P-CA15_A7) has 2 Cortex A15
+          CPU cores and 3 Cortex A7 cores in a big.LITTLE MPCore configuration
+          in a test chip on the core tile. See ARM DDI 0503I.
+        items:
+          - const: arm,vexpress,v2p-ca15_a7
+          - const: arm,vexpress
+      - description: LogicTile Express 20MG (V2F-1XV7) has 2 Cortex A53 CPU
+          cores in a test chip on the core tile. See ARM DDI 0498D.
+        items:
+          - const: arm,vexpress,v2f-1xv7,ca53x2
+          - const: arm,vexpress,v2f-1xv7
+          - const: arm,vexpress
+      - description: Arm Versatile Express Juno "r0" (the first Juno board,
+          V2M-Juno) was introduced as a vehicle for evaluating big.LITTLE on
+          AArch64 CPU cores. It has 2 Cortex A57 CPU cores and 4 Cortex A53
+          cores in a big.LITTLE configuration. It also features the MALI T624
+          GPU. See ARM document 100113_0000_07_en.
+        items:
+          - const: arm,juno
+          - const: arm,vexpress
+      - description: Arm Versatile Express Juno r1 Development Platform
+          (V2M-Juno r1) was introduced mainly aimed at development of PCIe
+          based systems. Juno r1 also has support for AXI masters placed on
+          the TLX connectors to join the coherency domain. Otherwise it is the
+          same configuration as Juno r0. See ARM document 100122_0100_06_en.
+        items:
+          - const: arm,juno-r1
+          - const: arm,juno
+          - const: arm,vexpress
+      - description: Arm Versatile Express Juno r2 Development Platform
+          (V2M-Juno r2). It has the same feature set as Juno r0 and r1. See
+          ARM document 100114_0200_04_en.
+        items:
+          - const: arm,juno-r2
+          - const: arm,juno
+          - const: arm,vexpress
+      - description: Arm AEMv8a Versatile Express Real-Time System Model
+          (VE RTSM) is a programmers view of the Versatile Express with Arm
+          v8A hardware. See ARM DUI 0575D.
+        items:
+          - const: arm,rtsm_ve,aemv8a
+          - const: arm,vexpress
+      - description: Arm FVP (Fixed Virtual Platform) base model revision C
+          See ARM Document 100964_1190_00_en.
+        items:
+          - const: arm,fvp-base-revc
+          - const: arm,vexpress
+      - description: Arm Foundation model for Aarch64
+        items:
+          - const: arm,foundation-aarch64
+          - const: arm,vexpress
+
+  arm,hbi:
+    $ref: '/schemas/types.yaml#/definitions/uint32'
+    description: This indicates the ARM HBI (Hardware Board ID), this is
+      ARM's unique board model ID, visible on the PCB's silkscreen.
+
+  arm,vexpress,site:
+    description: As Versatile Express can be configured in number of physically
+      different setups, the device tree should describe platform topology.
+      For this reason the root node and main motherboard node must define this
+      property, describing the physical location of the children nodes.
+      0 means motherboard site, while 1 and 2 are daughterboard sites, and
+      0xf means "sisterboard" which is the site containing the main CPU tile.
+    allOf:
+      - $ref: '/schemas/types.yaml#/definitions/uint32'
+      - minimum: 0
+        maximum: 15
+
+  arm,vexpress,position:
+    description: When daughterboards are stacked on one site, their position
+      in the stack be be described this attribute.
+    allOf:
+      - $ref: '/schemas/types.yaml#/definitions/uint32'
+      - minimum: 0
+        maximum: 3
+
+  arm,vexpress,dcc:
+    description: When describing tiles consisting of more than one DCC, its
+      number can be specified with this attribute.
+    allOf:
+      - $ref: '/schemas/types.yaml#/definitions/uint32'
+      - minimum: 0
+        maximum: 3
+
+patternProperties:
+  "^bus@[0-9a-f]+$":
+    description: Static Memory Bus (SMB) node, if this exists it describes
+      the connection between the motherboard and any tiles. Sometimes the
+      compatible is placed directly under this node, sometimes it is placed
+      in a subnode named "motherboard". Sometimes the compatible includes
+      "arm,vexpress,v2?-p1" sometimes (on software models) is is just
+      "simple-bus". If the compatible is placed in the "motherboard" node,
+      it is stricter and always has two compatibles.
+    type: object
+    allOf:
+      - $ref: '/schemas/simple-bus.yaml'
+
+    properties:
+      compatible:
+        oneOf:
+          - items:
+            - enum:
+              - arm,vexpress,v2m-p1
+              - arm,vexpress,v2p-p1
+            - const: simple-bus
+          - const: simple-bus
+      motherboard:
+        type: object
+        description: The motherboard description provides a single "motherboard"
+          node using 2 address cells corresponding to the Static Memory Bus
+          used between the motherboard and the tile. The first cell defines the
+          Chip Select (CS) line number, the second cell address offset within
+          the CS. All interrupt lines between the motherboard and the tile
+          are active high and are described using single cell.
+        properties:
+          "#address-cells":
+            const: 2
+          "#size-cells":
+            const: 1
+          compatible:
+            items:
+              - enum:
+                - arm,vexpress,v2m-p1
+                - arm,vexpress,v2p-p1
+              - const: simple-bus
+          arm,v2m-memory-map:
+            description: This describes the memory map type.
+            allOf:
+              - $ref: '/schemas/types.yaml#/definitions/string'
+              - enum:
+                - rs1
+                - rs2
+        required:
+          - compatible
+    required:
+      - compatible
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - arm,vexpress,v2p-ca9
+              - arm,vexpress,v2p-ca5s
+              - arm,vexpress,v2p-ca15
+              - arm,vexpress,v2p-ca15_a7
+              - arm,vexpress,v2f-1xv7,ca53x2
+    then:
+      required:
+        - arm,hbi
+
+...

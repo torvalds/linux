@@ -82,6 +82,7 @@ static const struct svc_xprt_ops svc_rdma_ops = {
 	.xpo_create = svc_rdma_create,
 	.xpo_recvfrom = svc_rdma_recvfrom,
 	.xpo_sendto = svc_rdma_sendto,
+	.xpo_read_payload = svc_rdma_read_payload,
 	.xpo_release_rqst = svc_rdma_release_rqst,
 	.xpo_detach = svc_rdma_detach,
 	.xpo_free = svc_rdma_free,
@@ -240,10 +241,6 @@ static void handle_connect_req(struct rdma_cm_id *new_cma_id,
 static int rdma_listen_handler(struct rdma_cm_id *cma_id,
 			       struct rdma_cm_event *event)
 {
-	struct sockaddr *sap = (struct sockaddr *)&cma_id->route.addr.src_addr;
-
-	trace_svcrdma_cm_event(event, sap);
-
 	switch (event->event) {
 	case RDMA_CM_EVENT_CONNECT_REQUEST:
 		dprintk("svcrdma: Connect request on cma_id=%p, xprt = %p, "
@@ -265,11 +262,8 @@ static int rdma_listen_handler(struct rdma_cm_id *cma_id,
 static int rdma_cma_handler(struct rdma_cm_id *cma_id,
 			    struct rdma_cm_event *event)
 {
-	struct sockaddr *sap = (struct sockaddr *)&cma_id->route.addr.dst_addr;
 	struct svcxprt_rdma *rdma = cma_id->context;
 	struct svc_xprt *xprt = &rdma->sc_xprt;
-
-	trace_svcrdma_cm_event(event, sap);
 
 	switch (event->event) {
 	case RDMA_CM_EVENT_ESTABLISHED:

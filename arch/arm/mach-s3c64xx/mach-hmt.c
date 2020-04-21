@@ -115,7 +115,6 @@ static void hmt_bl_exit(struct device *dev)
 static struct platform_pwm_backlight_data hmt_backlight_data = {
 	.max_brightness	= 100 * 256,
 	.dft_brightness	= 40 * 256,
-	.enable_gpio	= -1,
 	.init		= hmt_bl_init,
 	.notify		= hmt_bl_notify,
 	.exit		= hmt_bl_exit,

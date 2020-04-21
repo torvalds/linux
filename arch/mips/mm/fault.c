@@ -142,7 +142,7 @@ good_area:
 				goto bad_area;
 			}
 		} else {
-			if (!(vma->vm_flags & (VM_READ | VM_WRITE | VM_EXEC)))
+			if (unlikely(!vma_is_accessible(vma)))
 				goto bad_area;
 		}
 	}

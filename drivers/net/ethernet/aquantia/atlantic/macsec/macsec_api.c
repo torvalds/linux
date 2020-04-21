@@ -491,7 +491,7 @@ get_ingress_preclass_record(struct aq_hw_s *hw,
 	rec->snap[1] = packed_record[8] & 0xFF;
 
 	rec->llc = (packed_record[8] >> 8) & 0xFF;
-	rec->llc = packed_record[9] << 8;
+	rec->llc |= packed_record[9] << 8;
 
 	rec->mac_sa[0] = packed_record[10];
 	rec->mac_sa[0] |= packed_record[11] << 16;

@@ -80,8 +80,7 @@ static int ext4_journal_check_start(struct super_block *sb)
 	 * take the FS itself readonly cleanly.
 	 */
 	if (journal && is_journal_aborted(journal)) {
-		ext4_set_errno(sb, -journal->j_errno);
-		ext4_abort(sb, "Detected aborted journal");
+		ext4_abort(sb, -journal->j_errno, "Detected aborted journal");
 		return -EROFS;
 	}
 	return 0;
@@ -272,8 +271,7 @@ int __ext4_forget(const char *where, unsigned int line, handle_t *handle,
 	if (err) {
 		ext4_journal_abort_handle(where, line, __func__,
 					  bh, handle, err);
-		ext4_set_errno(inode->i_sb, -err);
-		__ext4_abort(inode->i_sb, where, line,
+		__ext4_abort(inode->i_sb, where, line, -err,
 			   "error %d when attempting revoke", err);
 	}
 	BUFFER_TRACE(bh, "exit");
@@ -332,6 +330,7 @@ int __ext4_handle_dirty_metadata(const char *where, unsigned int line,
 					 err);
 		}
 	} else {
+		set_buffer_uptodate(bh);
 		if (inode)
 			mark_buffer_dirty_inode(bh, inode);
 		else
@@ -339,14 +338,8 @@ int __ext4_handle_dirty_metadata(const char *where, unsigned int line,
 		if (inode && inode_needs_sync(inode)) {
 			sync_dirty_buffer(bh);
 			if (buffer_req(bh) && !buffer_uptodate(bh)) {
-				struct ext4_super_block *es;
-
-				es = EXT4_SB(inode->i_sb)->s_es;
-				es->s_last_error_block =
-					cpu_to_le64(bh->b_blocknr);
-				ext4_set_errno(inode->i_sb, EIO);
-				ext4_error_inode(inode, where, line,
-						 bh->b_blocknr,
+				ext4_error_inode_err(inode, where, line,
+						     bh->b_blocknr, EIO,
 					"IO error syncing itable block");
 				err = -EIO;
 			}

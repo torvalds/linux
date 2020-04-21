@@ -41,16 +41,6 @@ Documentation
 
 http://www.orangefs.org/documentation/
 
-
-Userspace Filesystem Source
-===========================
-
-http://www.orangefs.org/download
-
-Orangefs versions prior to 2.9.3 would not be compatible with the
-upstream version of the kernel client.
-
-
 Running ORANGEFS On a Single Server
 ===================================
 
@@ -94,6 +84,14 @@ Mount the filesystem::
 
     mount -t pvfs2 tcp://localhost:3334/orangefs /pvfsmnt
 
+Userspace Filesystem Source
+===========================
+
+http://www.orangefs.org/download
+
+Orangefs versions prior to 2.9.3 would not be compatible with the
+upstream version of the kernel client.
+
 
 Building ORANGEFS on a Single Server
 ====================================
@@ -107,17 +105,23 @@ default, we will probably be changing the default to LMDB soon.
 
 ::
 
-    ./configure --prefix=/opt/ofs --with-db-backend=lmdb
+    ./configure --prefix=/opt/ofs --with-db-backend=lmdb --disable-usrint
 
     make
 
     make install
 
-Create an orangefs config file::
+Create an orangefs config file by running pvfs2-genconfig and
+specifying a target config file. Pvfs2-genconfig will prompt you
+through. Generally it works fine to take the defaults, but you
+should use your server's hostname, rather than "localhost" when
+it comes to that question::
 
     /opt/ofs/bin/pvfs2-genconfig /etc/pvfs2.conf
 
 Create an /etc/pvfs2tab file::
+
+Localhost is fine for your pvfs2tab file:
 
     echo tcp://localhost:3334/orangefs /pvfsmnt pvfs2 defaults,noauto 0 0 > \
 	/etc/pvfs2tab
@@ -132,7 +136,7 @@ Bootstrap the server::
 
 Start the server::
 
-    /opt/osf/sbin/pvfs2-server /etc/pvfs2.conf
+    /opt/ofs/sbin/pvfs2-server /etc/pvfs2.conf
 
 Now the server should be running. Pvfs2-ls is a simple
 test to verify that the server is running::
@@ -142,11 +146,11 @@ test to verify that the server is running::
 If stuff seems to be working, load the kernel module and
 turn on the client core::
 
-    /opt/ofs/sbin/pvfs2-client -p /opt/osf/sbin/pvfs2-client-core
+    /opt/ofs/sbin/pvfs2-client -p /opt/ofs/sbin/pvfs2-client-core
 
 Mount your filesystem::
 
-    mount -t pvfs2 tcp://localhost:3334/orangefs /pvfsmnt
+    mount -t pvfs2 tcp://`hostname`:3334/orangefs /pvfsmnt
 
 
 Running xfstests

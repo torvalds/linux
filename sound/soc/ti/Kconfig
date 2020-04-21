@@ -1,12 +1,16 @@
 # SPDX-License-Identifier: GPL-2.0-only
 menu "Audio support for Texas Instruments SoCs"
-depends on DMA_OMAP || TI_EDMA || COMPILE_TEST
+depends on DMA_OMAP || TI_EDMA || TI_K3_UDMA || COMPILE_TEST
 
 config SND_SOC_TI_EDMA_PCM
 	tristate
 	select SND_SOC_GENERIC_DMAENGINE_PCM
 
 config SND_SOC_TI_SDMA_PCM
+	tristate
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+
+config SND_SOC_TI_UDMA_PCM
 	tristate
 	select SND_SOC_GENERIC_DMAENGINE_PCM
 
@@ -24,6 +28,7 @@ config SND_SOC_DAVINCI_MCASP
 	tristate "Multichannel Audio Serial Port (McASP) support"
 	select SND_SOC_TI_EDMA_PCM
 	select SND_SOC_TI_SDMA_PCM
+	select SND_SOC_TI_UDMA_PCM
 	help
 	  Say Y or M here if you want to have support for McASP IP found in
 	  various Texas Instruments SoCs like:
@@ -31,6 +36,7 @@ config SND_SOC_DAVINCI_MCASP
 	  - Sitara line of SoCs (AM335x, AM438x, etc)
 	  - DRA7x devices
 	  - Keystone devices
+	  - K3 devices (am654, j721e)
 
 config SND_SOC_DAVINCI_VCIF
 	tristate "daVinci Voice Interface (VCIF) support"

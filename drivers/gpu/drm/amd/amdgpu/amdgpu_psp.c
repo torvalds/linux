@@ -818,7 +818,7 @@ static int psp_ras_initialize(struct psp_context *psp)
 
 	if (!psp->adev->psp.ta_ras_ucode_size ||
 	    !psp->adev->psp.ta_ras_start_addr) {
-		dev_warn(psp->adev->dev, "RAS: ras ta ucode is not available\n");
+		dev_info(psp->adev->dev, "RAS: optional ras ta ucode is not available\n");
 		return 0;
 	}
 
@@ -902,7 +902,7 @@ static int psp_hdcp_initialize(struct psp_context *psp)
 
 	if (!psp->adev->psp.ta_hdcp_ucode_size ||
 	    !psp->adev->psp.ta_hdcp_start_addr) {
-		dev_warn(psp->adev->dev, "HDCP: hdcp ta ucode is not available\n");
+		dev_info(psp->adev->dev, "HDCP: optional hdcp ta ucode is not available\n");
 		return 0;
 	}
 
@@ -1048,7 +1048,7 @@ static int psp_dtm_initialize(struct psp_context *psp)
 
 	if (!psp->adev->psp.ta_dtm_ucode_size ||
 	    !psp->adev->psp.ta_dtm_start_addr) {
-		dev_warn(psp->adev->dev, "DTM: dtm ta ucode is not available\n");
+		dev_info(psp->adev->dev, "DTM: optional dtm ta ucode is not available\n");
 		return 0;
 	}
 

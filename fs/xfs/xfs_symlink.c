@@ -176,7 +176,6 @@ xfs_symlink(
 		return -ENAMETOOLONG;
 	ASSERT(pathlen > 0);
 
-	udqp = gdqp = NULL;
 	prid = xfs_get_initial_prid(dp);
 
 	/*

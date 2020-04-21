@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 /s390x/memop
 /s390x/resets
 /s390x/sync_regs_test

@@ -224,7 +224,7 @@ MODULE_DEVICE_TABLE(ieee1394, snd_tscm_id_table);
 static struct fw_driver tscm_driver = {
 	.driver = {
 		.owner = THIS_MODULE,
-		.name = "snd-firewire-tascam",
+		.name = KBUILD_MODNAME,
 		.bus = &fw_bus_type,
 	},
 	.probe    = snd_tscm_probe,

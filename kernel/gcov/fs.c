@@ -58,7 +58,7 @@ struct gcov_node {
 	struct dentry *dentry;
 	struct dentry **links;
 	int num_loaded;
-	char name[0];
+	char name[];
 };
 
 static const char objtree[] = OBJTREE;
@@ -108,9 +108,9 @@ static void *gcov_seq_next(struct seq_file *seq, void *data, loff_t *pos)
 {
 	struct gcov_iterator *iter = data;
 
+	(*pos)++;
 	if (gcov_iter_next(iter))
 		return NULL;
-	(*pos)++;
 
 	return iter;
 }

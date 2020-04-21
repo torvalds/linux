@@ -55,10 +55,6 @@
 
 /* All the DRAM gates are exported */
 
-/* Some more module clocks are exported */
-
-#define CLK_MBUS			112
-
 /* And the DSI and GPU module clock is exported */
 
 #define CLK_NUMBER			(CLK_GPU + 1)

@@ -1077,6 +1077,7 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 	 * on certain displays, such as the Sharp 4k
 	 */
 	pipe_ctx->plane_res.scl_data.lb_params.depth = LB_PIXEL_DEPTH_30BPP;
+	pipe_ctx->plane_res.scl_data.lb_params.alpha_en = plane_state->per_pixel_alpha;
 
 	pipe_ctx->plane_res.scl_data.recout.x += timing->h_border_left;
 	pipe_ctx->plane_res.scl_data.recout.y += timing->v_border_top;

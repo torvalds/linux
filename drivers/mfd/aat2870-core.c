@@ -221,7 +221,7 @@ static ssize_t aat2870_dump_reg(struct aat2870_data *aat2870, char *buf)
 
 	count += sprintf(buf, "aat2870 registers\n");
 	for (addr = 0; addr < AAT2870_REG_NUM; addr++) {
-		count += sprintf(buf + count, "0x%02x: ", addr);
+		count += snprintf(buf + count, PAGE_SIZE - count, "0x%02x: ", addr);
 		if (count >= PAGE_SIZE - 1)
 			break;
 

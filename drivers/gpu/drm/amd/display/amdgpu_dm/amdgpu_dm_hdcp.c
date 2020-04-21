@@ -192,10 +192,13 @@ void hdcp_update_display(struct hdcp_workqueue *hdcp_work,
 					    &hdcp_work->srm_version);
 
 			display->adjust.disable = 0;
-			if (content_type == DRM_MODE_HDCP_CONTENT_TYPE0)
+			if (content_type == DRM_MODE_HDCP_CONTENT_TYPE0) {
+				hdcp_w->link.adjust.hdcp1.disable = 0;
 				hdcp_w->link.adjust.hdcp2.force_type = MOD_HDCP_FORCE_TYPE_0;
-			else if (content_type == DRM_MODE_HDCP_CONTENT_TYPE1)
+			} else if (content_type == DRM_MODE_HDCP_CONTENT_TYPE1) {
+				hdcp_w->link.adjust.hdcp1.disable = 1;
 				hdcp_w->link.adjust.hdcp2.force_type = MOD_HDCP_FORCE_TYPE_1;
+			}
 
 			schedule_delayed_work(&hdcp_w->property_validate_dwork,
 					      msecs_to_jiffies(DRM_HDCP_CHECK_PERIOD_MS));
@@ -263,7 +266,7 @@ static void event_callback(struct work_struct *work)
 
 	mutex_lock(&hdcp_work->mutex);
 
-	cancel_delayed_work(&hdcp_work->watchdog_timer_dwork);
+	cancel_delayed_work(&hdcp_work->callback_dwork);
 
 	mod_hdcp_process_event(&hdcp_work->hdcp, MOD_HDCP_EVENT_CALLBACK,
 			       &hdcp_work->output);
@@ -344,6 +347,8 @@ static void event_watchdog_timer(struct work_struct *work)
 
 	mutex_lock(&hdcp_work->mutex);
 
+	cancel_delayed_work(&hdcp_work->watchdog_timer_dwork);
+
 	mod_hdcp_process_event(&hdcp_work->hdcp,
 			       MOD_HDCP_EVENT_WATCHDOG_TIMEOUT,
 			       &hdcp_work->output);
@@ -414,7 +419,8 @@ static void update_config(void *handle, struct cp_psp_stream_config *config)
 	link->dp.rev = aconnector->dc_link->dpcd_caps.dpcd_rev.raw;
 	link->dp.mst_supported = config->mst_supported;
 	display->adjust.disable = 1;
-	link->adjust.auth_delay = 2;
+	link->adjust.auth_delay = 3;
+	link->adjust.hdcp1.disable = 0;
 
 	hdcp_update_display(hdcp_work, link_index, aconnector, DRM_MODE_HDCP_CONTENT_TYPE0, false);
 }

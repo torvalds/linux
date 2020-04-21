@@ -8,8 +8,6 @@
 
 #include <asm/smp.h>
 
-struct bootmem_data_t; /* stupid forward decl. */
-
 /*
  * Following are macros that are specific to this numa platform.
  */

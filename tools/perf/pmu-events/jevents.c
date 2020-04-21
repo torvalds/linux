@@ -771,6 +771,19 @@ static void print_mapping_table_suffix(FILE *outfp)
 	fprintf(outfp, "};\n");
 }
 
+static void print_mapping_test_table(FILE *outfp)
+{
+	/*
+	 * Print the terminating, NULL entry.
+	 */
+	fprintf(outfp, "{\n");
+	fprintf(outfp, "\t.cpuid = \"testcpu\",\n");
+	fprintf(outfp, "\t.version = \"v1\",\n");
+	fprintf(outfp, "\t.type = \"core\",\n");
+	fprintf(outfp, "\t.table = pme_test_cpu,\n");
+	fprintf(outfp, "},\n");
+}
+
 static int process_mapfile(FILE *outfp, char *fpath)
 {
 	int n = 16384;
@@ -848,6 +861,7 @@ static int process_mapfile(FILE *outfp, char *fpath)
 	}
 
 out:
+	print_mapping_test_table(outfp);
 	print_mapping_table_suffix(outfp);
 	fclose(mapfp);
 	free(line);
@@ -1161,6 +1175,22 @@ int main(int argc, char *argv[])
 	} else if (rc < 0) {
 		/* Make build fail */
 		fclose(eventsfp);
+		free_arch_std_events();
+		ret = 1;
+		goto out_free_mapfile;
+	} else if (rc) {
+		goto empty_map;
+	}
+
+	sprintf(ldirname, "%s/test", start_dirname);
+
+	rc = nftw(ldirname, process_one_file, maxfds, 0);
+	if (rc && verbose) {
+		pr_info("%s: Error walking file tree %s rc=%d for test\n",
+			prog, ldirname, rc);
+		goto empty_map;
+	} else if (rc < 0) {
+		/* Make build fail */
 		free_arch_std_events();
 		ret = 1;
 		goto out_free_mapfile;

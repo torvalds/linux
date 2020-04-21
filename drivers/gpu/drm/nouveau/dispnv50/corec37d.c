@@ -24,6 +24,8 @@
 
 #include <nouveau_bo.h>
 
+#include <nvif/timer.h>
+
 void
 corec37d_wndw_owner(struct nv50_core *core)
 {

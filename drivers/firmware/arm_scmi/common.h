@@ -33,8 +33,8 @@ enum scmi_common_cmd {
 /**
  * struct scmi_msg_resp_prot_version - Response for a message
  *
- * @major_version: Major version of the ABI that firmware supports
  * @minor_version: Minor version of the ABI that firmware supports
+ * @major_version: Major version of the ABI that firmware supports
  *
  * In general, ABI version changes follow the rule that minor version increments
  * are backward compatible. Major revision changes in ABI may not be
@@ -46,6 +46,19 @@ struct scmi_msg_resp_prot_version {
 	__le16 minor_version;
 	__le16 major_version;
 };
+
+#define MSG_ID_MASK		GENMASK(7, 0)
+#define MSG_XTRACT_ID(hdr)	FIELD_GET(MSG_ID_MASK, (hdr))
+#define MSG_TYPE_MASK		GENMASK(9, 8)
+#define MSG_XTRACT_TYPE(hdr)	FIELD_GET(MSG_TYPE_MASK, (hdr))
+#define MSG_TYPE_COMMAND	0
+#define MSG_TYPE_DELAYED_RESP	2
+#define MSG_TYPE_NOTIFICATION	3
+#define MSG_PROTOCOL_ID_MASK	GENMASK(17, 10)
+#define MSG_XTRACT_PROT_ID(hdr)	FIELD_GET(MSG_PROTOCOL_ID_MASK, (hdr))
+#define MSG_TOKEN_ID_MASK	GENMASK(27, 18)
+#define MSG_XTRACT_TOKEN(hdr)	FIELD_GET(MSG_TOKEN_ID_MASK, (hdr))
+#define MSG_TOKEN_MAX		(MSG_XTRACT_TOKEN(MSG_TOKEN_ID_MASK) + 1)
 
 /**
  * struct scmi_msg_hdr - Message(Tx/Rx) header
@@ -68,6 +81,33 @@ struct scmi_msg_hdr {
 };
 
 /**
+ * pack_scmi_header() - packs and returns 32-bit header
+ *
+ * @hdr: pointer to header containing all the information on message id,
+ *	protocol id and sequence id.
+ *
+ * Return: 32-bit packed message header to be sent to the platform.
+ */
+static inline u32 pack_scmi_header(struct scmi_msg_hdr *hdr)
+{
+	return FIELD_PREP(MSG_ID_MASK, hdr->id) |
+		FIELD_PREP(MSG_TOKEN_ID_MASK, hdr->seq) |
+		FIELD_PREP(MSG_PROTOCOL_ID_MASK, hdr->protocol_id);
+}
+
+/**
+ * unpack_scmi_header() - unpacks and records message and protocol id
+ *
+ * @msg_hdr: 32-bit packed message header sent from the platform
+ * @hdr: pointer to header to fetch message and protocol id.
+ */
+static inline void unpack_scmi_header(u32 msg_hdr, struct scmi_msg_hdr *hdr)
+{
+	hdr->id = MSG_XTRACT_ID(msg_hdr);
+	hdr->protocol_id = MSG_XTRACT_PROT_ID(msg_hdr);
+}
+
+/**
  * struct scmi_msg - Message(Tx/Rx) structure
  *
  * @buf: Buffer pointer
@@ -88,7 +128,7 @@ struct scmi_msg {
  *	message. If request-ACK protocol is used, we can reuse the same
  *	buffer for the rx path as we use for the tx path.
  * @done: command message transmit completion event
- * @async: pointer to delayed response message received event completion
+ * @async_done: pointer to delayed response message received event completion
  */
 struct scmi_xfer {
 	int transfer_id;
@@ -113,3 +153,74 @@ void scmi_setup_protocol_implemented(const struct scmi_handle *handle,
 				     u8 *prot_imp);
 
 int scmi_base_protocol_init(struct scmi_handle *h);
+
+/* SCMI Transport */
+/**
+ * struct scmi_chan_info - Structure representing a SCMI channel information
+ *
+ * @dev: Reference to device in the SCMI hierarchy corresponding to this
+ *	 channel
+ * @handle: Pointer to SCMI entity handle
+ * @transport_info: Transport layer related information
+ */
+struct scmi_chan_info {
+	struct device *dev;
+	struct scmi_handle *handle;
+	void *transport_info;
+};
+
+/**
+ * struct scmi_transport_ops - Structure representing a SCMI transport ops
+ *
+ * @chan_available: Callback to check if channel is available or not
+ * @chan_setup: Callback to allocate and setup a channel
+ * @chan_free: Callback to free a channel
+ * @send_message: Callback to send a message
+ * @mark_txdone: Callback to mark tx as done
+ * @fetch_response: Callback to fetch response
+ * @poll_done: Callback to poll transfer status
+ */
+struct scmi_transport_ops {
+	bool (*chan_available)(struct device *dev, int idx);
+	int (*chan_setup)(struct scmi_chan_info *cinfo, struct device *dev,
+			  bool tx);
+	int (*chan_free)(int id, void *p, void *data);
+	int (*send_message)(struct scmi_chan_info *cinfo,
+			    struct scmi_xfer *xfer);
+	void (*mark_txdone)(struct scmi_chan_info *cinfo, int ret);
+	void (*fetch_response)(struct scmi_chan_info *cinfo,
+			       struct scmi_xfer *xfer);
+	bool (*poll_done)(struct scmi_chan_info *cinfo, struct scmi_xfer *xfer);
+};
+
+/**
+ * struct scmi_desc - Description of SoC integration
+ *
+ * @ops: Pointer to the transport specific ops structure
+ * @max_rx_timeout_ms: Timeout for communication with SoC (in Milliseconds)
+ * @max_msg: Maximum number of messages that can be pending
+ *	simultaneously in the system
+ * @max_msg_size: Maximum size of data per message that can be handled.
+ */
+struct scmi_desc {
+	struct scmi_transport_ops *ops;
+	int max_rx_timeout_ms;
+	int max_msg;
+	int max_msg_size;
+};
+
+extern const struct scmi_desc scmi_mailbox_desc;
+
+void scmi_rx_callback(struct scmi_chan_info *cinfo, u32 msg_hdr);
+void scmi_free_channel(struct scmi_chan_info *cinfo, struct idr *idr, int id);
+
+/* shmem related declarations */
+struct scmi_shared_mem;
+
+void shmem_tx_prepare(struct scmi_shared_mem __iomem *shmem,
+		      struct scmi_xfer *xfer);
+u32 shmem_read_header(struct scmi_shared_mem __iomem *shmem);
+void shmem_fetch_response(struct scmi_shared_mem __iomem *shmem,
+			  struct scmi_xfer *xfer);
+bool shmem_poll_done(struct scmi_shared_mem __iomem *shmem,
+		     struct scmi_xfer *xfer);

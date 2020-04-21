@@ -1333,7 +1333,7 @@ static int dm_integrity_rw_tag(struct dm_integrity_c *ic, unsigned char *tag, se
 			if (likely(is_power_of_2(ic->tag_size))) {
 				if (unlikely(memcmp(dp, tag, to_copy)))
 					if (unlikely(!ic->discard) ||
-					    unlikely(!memchr_inv(dp, DISCARD_FILLER, to_copy))) {
+					    unlikely(memchr_inv(dp, DISCARD_FILLER, to_copy) != NULL)) {
 						goto thorough_test;
 				}
 			} else {
@@ -3069,7 +3069,7 @@ static void dm_integrity_status(struct dm_target *ti, status_type_t type,
 	switch (type) {
 	case STATUSTYPE_INFO:
 		DMEMIT("%llu %llu",
-			atomic64_read(&ic->number_of_mismatches),
+			(unsigned long long)atomic64_read(&ic->number_of_mismatches),
 			ic->provided_data_sectors);
 		if (ic->sb->flags & cpu_to_le32(SB_FLAG_RECALCULATING))
 			DMEMIT(" %llu", le64_to_cpu(ic->sb->recalc_sector));

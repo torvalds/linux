@@ -434,7 +434,7 @@ static struct genl_family seg6_genl_family __ro_after_init = {
 
 int __init seg6_init(void)
 {
-	int err = -ENOMEM;
+	int err;
 
 	err = genl_register_family(&seg6_genl_family);
 	if (err)

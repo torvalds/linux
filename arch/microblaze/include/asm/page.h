@@ -194,8 +194,6 @@ extern int page_is_ram(unsigned long pfn);
 
 #ifdef CONFIG_MMU
 
-#define VM_DATA_DEFAULT_FLAGS	(VM_READ | VM_WRITE | VM_EXEC | \
-				 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
 #endif /* CONFIG_MMU */
 
 #endif /* __KERNEL__ */

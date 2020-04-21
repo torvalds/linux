@@ -3952,10 +3952,36 @@ static int mark_lock(struct task_struct *curr, struct held_lock *this,
 	return ret;
 }
 
+static inline short task_wait_context(struct task_struct *curr)
+{
+	/*
+	 * Set appropriate wait type for the context; for IRQs we have to take
+	 * into account force_irqthread as that is implied by PREEMPT_RT.
+	 */
+	if (curr->hardirq_context) {
+		/*
+		 * Check if force_irqthreads will run us threaded.
+		 */
+		if (curr->hardirq_threaded || curr->irq_config)
+			return LD_WAIT_CONFIG;
+
+		return LD_WAIT_SPIN;
+	} else if (curr->softirq_context) {
+		/*
+		 * Softirqs are always threaded.
+		 */
+		return LD_WAIT_CONFIG;
+	}
+
+	return LD_WAIT_MAX;
+}
+
 static int
 print_lock_invalid_wait_context(struct task_struct *curr,
 				struct held_lock *hlock)
 {
+	short curr_inner;
+
 	if (!debug_locks_off())
 		return 0;
 	if (debug_locks_silent)
@@ -3971,6 +3997,10 @@ print_lock_invalid_wait_context(struct task_struct *curr,
 	print_lock(hlock);
 
 	pr_warn("other info that might help us debug this:\n");
+
+	curr_inner = task_wait_context(curr);
+	pr_warn("context-{%d:%d}\n", curr_inner, curr_inner);
+
 	lockdep_print_held_locks(curr);
 
 	pr_warn("stack backtrace:\n");
@@ -4017,26 +4047,7 @@ static int check_wait_context(struct task_struct *curr, struct held_lock *next)
 	}
 	depth++;
 
-	/*
-	 * Set appropriate wait type for the context; for IRQs we have to take
-	 * into account force_irqthread as that is implied by PREEMPT_RT.
-	 */
-	if (curr->hardirq_context) {
-		/*
-		 * Check if force_irqthreads will run us threaded.
-		 */
-		if (curr->hardirq_threaded || curr->irq_config)
-			curr_inner = LD_WAIT_CONFIG;
-		else
-			curr_inner = LD_WAIT_SPIN;
-	} else if (curr->softirq_context) {
-		/*
-		 * Softirqs are always threaded.
-		 */
-		curr_inner = LD_WAIT_CONFIG;
-	} else {
-		curr_inner = LD_WAIT_MAX;
-	}
+	curr_inner = task_wait_context(curr);
 
 	for (; depth < curr->lockdep_depth; depth++) {
 		struct held_lock *prev = curr->held_locks + depth;

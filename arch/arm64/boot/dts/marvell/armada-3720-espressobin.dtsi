@@ -7,12 +7,16 @@
  *
  */
 
-/dts-v1/;
-
 #include <dt-bindings/gpio/gpio.h>
 #include "armada-372x.dtsi"
 
 / {
+	aliases {
+		ethernet0 = &eth0;
+		serial0 = &uart0;
+		serial1 = &uart1;
+	};
+
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};

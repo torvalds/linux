@@ -63,6 +63,7 @@ void *nvmem_cell_read(struct nvmem_cell *cell, size_t *len);
 int nvmem_cell_write(struct nvmem_cell *cell, void *buf, size_t len);
 int nvmem_cell_read_u16(struct device *dev, const char *cell_id, u16 *val);
 int nvmem_cell_read_u32(struct device *dev, const char *cell_id, u32 *val);
+int nvmem_cell_read_u64(struct device *dev, const char *cell_id, u64 *val);
 
 /* direct nvmem device read/write interface */
 struct nvmem_device *nvmem_device_get(struct device *dev, const char *name);
@@ -134,6 +135,12 @@ static inline int nvmem_cell_read_u16(struct device *dev,
 
 static inline int nvmem_cell_read_u32(struct device *dev,
 				      const char *cell_id, u32 *val)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int nvmem_cell_read_u64(struct device *dev,
+				      const char *cell_id, u64 *val)
 {
 	return -EOPNOTSUPP;
 }

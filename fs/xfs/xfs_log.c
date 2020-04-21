@@ -24,13 +24,6 @@
 kmem_zone_t	*xfs_log_ticket_zone;
 
 /* Local miscellaneous function prototypes */
-STATIC int
-xlog_commit_record(
-	struct xlog		*log,
-	struct xlog_ticket	*ticket,
-	struct xlog_in_core	**iclog,
-	xfs_lsn_t		*commitlsnp);
-
 STATIC struct xlog *
 xlog_alloc_log(
 	struct xfs_mount	*mp,
@@ -65,14 +58,6 @@ STATIC void
 xlog_grant_push_ail(
 	struct xlog		*log,
 	int			need_bytes);
-STATIC void
-xlog_regrant_reserve_log_space(
-	struct xlog		*log,
-	struct xlog_ticket	*ticket);
-STATIC void
-xlog_ungrant_log_space(
-	struct xlog		*log,
-	struct xlog_ticket	*ticket);
 STATIC void
 xlog_sync(
 	struct xlog		*log,
@@ -478,73 +463,6 @@ out_error:
 	return error;
 }
 
-
-/*
- * NOTES:
- *
- *	1. currblock field gets updated at startup and after in-core logs
- *		marked as with WANT_SYNC.
- */
-
-/*
- * This routine is called when a user of a log manager ticket is done with
- * the reservation.  If the ticket was ever used, then a commit record for
- * the associated transaction is written out as a log operation header with
- * no data.  The flag XLOG_TIC_INITED is set when the first write occurs with
- * a given ticket.  If the ticket was one with a permanent reservation, then
- * a few operations are done differently.  Permanent reservation tickets by
- * default don't release the reservation.  They just commit the current
- * transaction with the belief that the reservation is still needed.  A flag
- * must be passed in before permanent reservations are actually released.
- * When these type of tickets are not released, they need to be set into
- * the inited state again.  By doing this, a start record will be written
- * out when the next write occurs.
- */
-xfs_lsn_t
-xfs_log_done(
-	struct xfs_mount	*mp,
-	struct xlog_ticket	*ticket,
-	struct xlog_in_core	**iclog,
-	bool			regrant)
-{
-	struct xlog		*log = mp->m_log;
-	xfs_lsn_t		lsn = 0;
-
-	if (XLOG_FORCED_SHUTDOWN(log) ||
-	    /*
-	     * If nothing was ever written, don't write out commit record.
-	     * If we get an error, just continue and give back the log ticket.
-	     */
-	    (((ticket->t_flags & XLOG_TIC_INITED) == 0) &&
-	     (xlog_commit_record(log, ticket, iclog, &lsn)))) {
-		lsn = (xfs_lsn_t) -1;
-		regrant = false;
-	}
-
-
-	if (!regrant) {
-		trace_xfs_log_done_nonperm(log, ticket);
-
-		/*
-		 * Release ticket if not permanent reservation or a specific
-		 * request has been made to release a permanent reservation.
-		 */
-		xlog_ungrant_log_space(log, ticket);
-	} else {
-		trace_xfs_log_done_perm(log, ticket);
-
-		xlog_regrant_reserve_log_space(log, ticket);
-		/* If this ticket was a permanent reservation and we aren't
-		 * trying to release it, reset the inited flags; so next time
-		 * we write, a start record will be written out.
-		 */
-		ticket->t_flags |= XLOG_TIC_INITED;
-	}
-
-	xfs_log_ticket_put(ticket);
-	return lsn;
-}
-
 static bool
 __xlog_state_release_iclog(
 	struct xlog		*log,
@@ -869,32 +787,44 @@ xlog_wait_on_iclog(
 }
 
 /*
- * Final log writes as part of unmount.
- *
- * Mark the filesystem clean as unmount happens.  Note that during relocation
- * this routine needs to be executed as part of source-bag while the
- * deallocation must not be done until source-end.
+ * Write out an unmount record using the ticket provided. We have to account for
+ * the data space used in the unmount ticket as this write is not done from a
+ * transaction context that has already done the accounting for us.
  */
-
-/* Actually write the unmount record to disk. */
-static void
-xfs_log_write_unmount_record(
-	struct xfs_mount	*mp)
+static int
+xlog_write_unmount_record(
+	struct xlog		*log,
+	struct xlog_ticket	*ticket,
+	xfs_lsn_t		*lsn,
+	uint			flags)
 {
-	/* the data section must be 32 bit size aligned */
-	struct xfs_unmount_log_format magic = {
+	struct xfs_unmount_log_format ulf = {
 		.magic = XLOG_UNMOUNT_TYPE,
 	};
 	struct xfs_log_iovec reg = {
-		.i_addr = &magic,
-		.i_len = sizeof(magic),
+		.i_addr = &ulf,
+		.i_len = sizeof(ulf),
 		.i_type = XLOG_REG_TYPE_UNMOUNT,
 	};
 	struct xfs_log_vec vec = {
 		.lv_niovecs = 1,
 		.lv_iovecp = &reg,
 	};
-	struct xlog		*log = mp->m_log;
+
+	/* account for space used by record data */
+	ticket->t_curr_res -= sizeof(ulf);
+	return xlog_write(log, &vec, ticket, lsn, NULL, flags, false);
+}
+
+/*
+ * Mark the filesystem clean by writing an unmount record to the head of the
+ * log.
+ */
+static void
+xlog_unmount_write(
+	struct xlog		*log)
+{
+	struct xfs_mount	*mp = log->l_mp;
 	struct xlog_in_core	*iclog;
 	struct xlog_ticket	*tic = NULL;
 	xfs_lsn_t		lsn;
@@ -905,23 +835,7 @@ xfs_log_write_unmount_record(
 	if (error)
 		goto out_err;
 
-	/*
-	 * If we think the summary counters are bad, clear the unmount header
-	 * flag in the unmount record so that the summary counters will be
-	 * recalculated during log recovery at next mount.  Refer to
-	 * xlog_check_unmount_rec for more details.
-	 */
-	if (XFS_TEST_ERROR(xfs_fs_has_sickness(mp, XFS_SICK_FS_COUNTERS), mp,
-			XFS_ERRTAG_FORCE_SUMMARY_RECALC)) {
-		xfs_alert(mp, "%s: will fix summary counters at next mount",
-				__func__);
-		flags &= ~XLOG_UNMOUNT_TRANS;
-	}
-
-	/* remove inited flag, and account for space used */
-	tic->t_flags = 0;
-	tic->t_curr_res -= sizeof(magic);
-	error = xlog_write(log, &vec, tic, &lsn, NULL, flags);
+	error = xlog_write_unmount_record(log, tic, &lsn, flags);
 	/*
 	 * At this point, we're umounting anyway, so there's no point in
 	 * transitioning log state to IOERROR. Just continue...
@@ -943,8 +857,7 @@ out_err:
 
 	if (tic) {
 		trace_xfs_log_umount_write(log, tic);
-		xlog_ungrant_log_space(log, tic);
-		xfs_log_ticket_put(tic);
+		xfs_log_ticket_ungrant(log, tic);
 	}
 }
 
@@ -987,8 +900,22 @@ xfs_log_unmount_write(
 
 	if (XLOG_FORCED_SHUTDOWN(log))
 		return;
+
+	/*
+	 * If we think the summary counters are bad, avoid writing the unmount
+	 * record to force log recovery at next mount, after which the summary
+	 * counters will be recalculated.  Refer to xlog_check_unmount_rec for
+	 * more details.
+	 */
+	if (XFS_TEST_ERROR(xfs_fs_has_sickness(mp, XFS_SICK_FS_COUNTERS), mp,
+			XFS_ERRTAG_FORCE_SUMMARY_RECALC)) {
+		xfs_alert(mp, "%s: will fix summary counters at next mount",
+				__func__);
+		return;
+	}
+
 	xfs_log_unmount_verify_iclog(log);
-	xfs_log_write_unmount_record(mp);
+	xlog_unmount_write(log);
 }
 
 /*
@@ -1515,20 +1442,17 @@ out:
 	return ERR_PTR(error);
 }	/* xlog_alloc_log */
 
-
 /*
  * Write out the commit record of a transaction associated with the given
- * ticket.  Return the lsn of the commit record.
+ * ticket to close off a running log write. Return the lsn of the commit record.
  */
-STATIC int
+int
 xlog_commit_record(
 	struct xlog		*log,
 	struct xlog_ticket	*ticket,
 	struct xlog_in_core	**iclog,
-	xfs_lsn_t		*commitlsnp)
+	xfs_lsn_t		*lsn)
 {
-	struct xfs_mount *mp = log->l_mp;
-	int	error;
 	struct xfs_log_iovec reg = {
 		.i_addr = NULL,
 		.i_len = 0,
@@ -1538,12 +1462,15 @@ xlog_commit_record(
 		.lv_niovecs = 1,
 		.lv_iovecp = &reg,
 	};
+	int	error;
 
-	ASSERT_ALWAYS(iclog);
-	error = xlog_write(log, &vec, ticket, commitlsnp, iclog,
-					XLOG_COMMIT_TRANS);
+	if (XLOG_FORCED_SHUTDOWN(log))
+		return -EIO;
+
+	error = xlog_write(log, &vec, ticket, lsn, iclog, XLOG_COMMIT_TRANS,
+			   false);
 	if (error)
-		xfs_force_shutdown(mp, SHUTDOWN_LOG_IO_ERROR);
+		xfs_force_shutdown(log->l_mp, SHUTDOWN_LOG_IO_ERROR);
 	return error;
 }
 
@@ -1761,7 +1688,15 @@ xlog_write_iclog(
 	iclog->ic_bio.bi_iter.bi_sector = log->l_logBBstart + bno;
 	iclog->ic_bio.bi_end_io = xlog_bio_end_io;
 	iclog->ic_bio.bi_private = iclog;
-	iclog->ic_bio.bi_opf = REQ_OP_WRITE | REQ_META | REQ_SYNC | REQ_FUA;
+
+	/*
+	 * We use REQ_SYNC | REQ_IDLE here to tell the block layer the are more
+	 * IOs coming immediately after this one. This prevents the block layer
+	 * writeback throttle from throttling log writes behind background
+	 * metadata writeback and causing priority inversions.
+	 */
+	iclog->ic_bio.bi_opf = REQ_OP_WRITE | REQ_META | REQ_SYNC |
+				REQ_IDLE | REQ_FUA;
 	if (need_flush)
 		iclog->ic_bio.bi_opf |= REQ_PREFLUSH;
 
@@ -1981,7 +1916,7 @@ xlog_dealloc_log(
 	log->l_mp->m_log = NULL;
 	destroy_workqueue(log->l_ioend_workqueue);
 	kmem_free(log);
-}	/* xlog_dealloc_log */
+}
 
 /*
  * Update counters atomically now that memcpy is done.
@@ -2118,22 +2053,20 @@ xlog_print_trans(
 }
 
 /*
- * Calculate the potential space needed by the log vector.  Each region gets
- * its own xlog_op_header_t and may need to be double word aligned.
+ * Calculate the potential space needed by the log vector.  We may need a start
+ * record, and each region gets its own struct xlog_op_header and may need to be
+ * double word aligned.
  */
 static int
 xlog_write_calc_vec_length(
 	struct xlog_ticket	*ticket,
-	struct xfs_log_vec	*log_vector)
+	struct xfs_log_vec	*log_vector,
+	bool			need_start_rec)
 {
 	struct xfs_log_vec	*lv;
-	int			headers = 0;
+	int			headers = need_start_rec ? 1 : 0;
 	int			len = 0;
 	int			i;
-
-	/* acct for start rec of xact */
-	if (ticket->t_flags & XLOG_TIC_INITED)
-		headers++;
 
 	for (lv = log_vector; lv; lv = lv->lv_next) {
 		/* we don't write ordered log vectors */
@@ -2156,27 +2089,16 @@ xlog_write_calc_vec_length(
 	return len;
 }
 
-/*
- * If first write for transaction, insert start record  We can't be trying to
- * commit if we are inited.  We can't have any "partial_copy" if we are inited.
- */
-static int
+static void
 xlog_write_start_rec(
 	struct xlog_op_header	*ophdr,
 	struct xlog_ticket	*ticket)
 {
-	if (!(ticket->t_flags & XLOG_TIC_INITED))
-		return 0;
-
 	ophdr->oh_tid	= cpu_to_be32(ticket->t_tid);
 	ophdr->oh_clientid = ticket->t_clientid;
 	ophdr->oh_len = 0;
 	ophdr->oh_flags = XLOG_START_TRANS;
 	ophdr->oh_res2 = 0;
-
-	ticket->t_flags &= ~XLOG_TIC_INITED;
-
-	return sizeof(struct xlog_op_header);
 }
 
 static xlog_op_header_t *
@@ -2365,13 +2287,14 @@ xlog_write(
 	struct xlog_ticket	*ticket,
 	xfs_lsn_t		*start_lsn,
 	struct xlog_in_core	**commit_iclog,
-	uint			flags)
+	uint			flags,
+	bool			need_start_rec)
 {
 	struct xlog_in_core	*iclog = NULL;
-	struct xfs_log_iovec	*vecp;
-	struct xfs_log_vec	*lv;
+	struct xfs_log_vec	*lv = log_vector;
+	struct xfs_log_iovec	*vecp = lv->lv_iovecp;
+	int			index = 0;
 	int			len;
-	int			index;
 	int			partial_copy = 0;
 	int			partial_copy_len = 0;
 	int			contwr = 0;
@@ -2379,25 +2302,13 @@ xlog_write(
 	int			data_cnt = 0;
 	int			error = 0;
 
-	*start_lsn = 0;
-
-	len = xlog_write_calc_vec_length(ticket, log_vector);
-
 	/*
-	 * Region headers and bytes are already accounted for.
-	 * We only need to take into account start records and
-	 * split regions in this function.
+	 * If this is a commit or unmount transaction, we don't need a start
+	 * record to be written.  We do, however, have to account for the
+	 * commit or unmount header that gets written. Hence we always have
+	 * to account for an extra xlog_op_header here.
 	 */
-	if (ticket->t_flags & XLOG_TIC_INITED)
-		ticket->t_curr_res -= sizeof(xlog_op_header_t);
-
-	/*
-	 * Commit record headers need to be accounted for. These
-	 * come in as separate writes so are easy to detect.
-	 */
-	if (flags & (XLOG_COMMIT_TRANS | XLOG_UNMOUNT_TRANS))
-		ticket->t_curr_res -= sizeof(xlog_op_header_t);
-
+	ticket->t_curr_res -= sizeof(struct xlog_op_header);
 	if (ticket->t_curr_res < 0) {
 		xfs_alert_tag(log->l_mp, XFS_PTAG_LOGRES,
 		     "ctx ticket reservation ran out. Need to up reservation");
@@ -2405,9 +2316,8 @@ xlog_write(
 		xfs_force_shutdown(log->l_mp, SHUTDOWN_LOG_IO_ERROR);
 	}
 
-	index = 0;
-	lv = log_vector;
-	vecp = lv->lv_iovecp;
+	len = xlog_write_calc_vec_length(ticket, log_vector, need_start_rec);
+	*start_lsn = 0;
 	while (lv && (!lv->lv_niovecs || index < lv->lv_niovecs)) {
 		void		*ptr;
 		int		log_offset;
@@ -2431,7 +2341,6 @@ xlog_write(
 		while (lv && (!lv->lv_niovecs || index < lv->lv_niovecs)) {
 			struct xfs_log_iovec	*reg;
 			struct xlog_op_header	*ophdr;
-			int			start_rec_copy;
 			int			copy_len;
 			int			copy_off;
 			bool			ordered = false;
@@ -2447,11 +2356,15 @@ xlog_write(
 			ASSERT(reg->i_len % sizeof(int32_t) == 0);
 			ASSERT((unsigned long)ptr % sizeof(int32_t) == 0);
 
-			start_rec_copy = xlog_write_start_rec(ptr, ticket);
-			if (start_rec_copy) {
-				record_cnt++;
+			/*
+			 * Before we start formatting log vectors, we need to
+			 * write a start record. Only do this for the first
+			 * iclog we write to.
+			 */
+			if (need_start_rec) {
+				xlog_write_start_rec(ptr, ticket);
 				xlog_write_adv_cnt(&ptr, &len, &log_offset,
-						   start_rec_copy);
+						sizeof(struct xlog_op_header));
 			}
 
 			ophdr = xlog_write_setup_ophdr(log, ptr, ticket, flags);
@@ -2483,8 +2396,13 @@ xlog_write(
 				xlog_write_adv_cnt(&ptr, &len, &log_offset,
 						   copy_len);
 			}
-			copy_len += start_rec_copy + sizeof(xlog_op_header_t);
+			copy_len += sizeof(struct xlog_op_header);
 			record_cnt++;
+			if (need_start_rec) {
+				copy_len += sizeof(struct xlog_op_header);
+				record_cnt++;
+				need_start_rec = false;
+			}
 			data_cnt += contwr ? copy_len : 0;
 
 			error = xlog_write_copy_finish(log, iclog, flags,
@@ -2540,14 +2458,6 @@ next_lv:
 
 	return error;
 }
-
-
-/*****************************************************************************
- *
- *		State Machine functions
- *
- *****************************************************************************
- */
 
 static void
 xlog_state_activate_iclog(
@@ -2909,7 +2819,7 @@ xlog_state_done_syncing(
 	 */
 	wake_up_all(&iclog->ic_write_wait);
 	spin_unlock(&log->l_icloglock);
-	xlog_state_do_callback(log);	/* also cleans log */
+	xlog_state_do_callback(log);
 }
 
 /*
@@ -3029,21 +2939,21 @@ restart:
 
 	*logoffsetp = log_offset;
 	return 0;
-}	/* xlog_state_get_iclog_space */
+}
 
-/* The first cnt-1 times through here we don't need to
- * move the grant write head because the permanent
- * reservation has reserved cnt times the unit amount.
- * Release part of current permanent unit reservation and
- * reset current reservation to be one units worth.  Also
- * move grant reservation head forward.
+/*
+ * The first cnt-1 times a ticket goes through here we don't need to move the
+ * grant write head because the permanent reservation has reserved cnt times the
+ * unit amount.  Release part of current permanent unit reservation and reset
+ * current reservation to be one units worth.  Also move grant reservation head
+ * forward.
  */
-STATIC void
-xlog_regrant_reserve_log_space(
+void
+xfs_log_ticket_regrant(
 	struct xlog		*log,
 	struct xlog_ticket	*ticket)
 {
-	trace_xfs_log_regrant_reserve_enter(log, ticket);
+	trace_xfs_log_ticket_regrant(log, ticket);
 
 	if (ticket->t_cnt > 0)
 		ticket->t_cnt--;
@@ -3055,21 +2965,20 @@ xlog_regrant_reserve_log_space(
 	ticket->t_curr_res = ticket->t_unit_res;
 	xlog_tic_reset_res(ticket);
 
-	trace_xfs_log_regrant_reserve_sub(log, ticket);
+	trace_xfs_log_ticket_regrant_sub(log, ticket);
 
 	/* just return if we still have some of the pre-reserved space */
-	if (ticket->t_cnt > 0)
-		return;
+	if (!ticket->t_cnt) {
+		xlog_grant_add_space(log, &log->l_reserve_head.grant,
+				     ticket->t_unit_res);
+		trace_xfs_log_ticket_regrant_exit(log, ticket);
 
-	xlog_grant_add_space(log, &log->l_reserve_head.grant,
-					ticket->t_unit_res);
+		ticket->t_curr_res = ticket->t_unit_res;
+		xlog_tic_reset_res(ticket);
+	}
 
-	trace_xfs_log_regrant_reserve_exit(log, ticket);
-
-	ticket->t_curr_res = ticket->t_unit_res;
-	xlog_tic_reset_res(ticket);
-}	/* xlog_regrant_reserve_log_space */
-
+	xfs_log_ticket_put(ticket);
+}
 
 /*
  * Give back the space left from a reservation.
@@ -3085,18 +2994,19 @@ xlog_regrant_reserve_log_space(
  * space, the count will stay at zero and the only space remaining will be
  * in the current reservation field.
  */
-STATIC void
-xlog_ungrant_log_space(
+void
+xfs_log_ticket_ungrant(
 	struct xlog		*log,
 	struct xlog_ticket	*ticket)
 {
-	int	bytes;
+	int			bytes;
+
+	trace_xfs_log_ticket_ungrant(log, ticket);
 
 	if (ticket->t_cnt > 0)
 		ticket->t_cnt--;
 
-	trace_xfs_log_ungrant_enter(log, ticket);
-	trace_xfs_log_ungrant_sub(log, ticket);
+	trace_xfs_log_ticket_ungrant_sub(log, ticket);
 
 	/*
 	 * If this is a permanent reservation ticket, we may be able to free
@@ -3111,18 +3021,15 @@ xlog_ungrant_log_space(
 	xlog_grant_sub_space(log, &log->l_reserve_head.grant, bytes);
 	xlog_grant_sub_space(log, &log->l_write_head.grant, bytes);
 
-	trace_xfs_log_ungrant_exit(log, ticket);
+	trace_xfs_log_ticket_ungrant_exit(log, ticket);
 
 	xfs_log_space_wake(log->l_mp);
+	xfs_log_ticket_put(ticket);
 }
 
 /*
- * Mark the current iclog in the ring as WANT_SYNC and move the current iclog
- * pointer to the next iclog in the ring.
- *
- * When called from xlog_state_get_iclog_space(), the exact size of the iclog
- * has not yet been determined, all we know is that we have run out of space in
- * the current iclog.
+ * This routine will mark the current iclog in the ring as WANT_SYNC and move
+ * the current iclog pointer to the next iclog in the ring.
  */
 STATIC void
 xlog_state_switch_iclogs(
@@ -3167,7 +3074,7 @@ xlog_state_switch_iclogs(
 	}
 	ASSERT(iclog == log->l_iclog);
 	log->l_iclog = iclog->ic_next;
-}	/* xlog_state_switch_iclogs */
+}
 
 /*
  * Write out all data in the in-core log as of this exact moment in time.
@@ -3374,13 +3281,6 @@ xfs_log_force_lsn(
 	return ret;
 }
 
-/*****************************************************************************
- *
- *		TICKET functions
- *
- *****************************************************************************
- */
-
 /*
  * Free a used ticket when its refcount falls to zero.
  */
@@ -3529,7 +3429,6 @@ xlog_ticket_alloc(
 	tic->t_ocnt		= cnt;
 	tic->t_tid		= prandom_u32();
 	tic->t_clientid		= client;
-	tic->t_flags		= XLOG_TIC_INITED;
 	if (permanent)
 		tic->t_flags |= XLOG_TIC_PERM_RESERV;
 
@@ -3538,13 +3437,6 @@ xlog_ticket_alloc(
 	return tic;
 }
 
-
-/******************************************************************************
- *
- *		Log debug routines
- *
- ******************************************************************************
- */
 #if defined(DEBUG)
 /*
  * Make sure that the destination ptr is within the valid data region of
@@ -3630,7 +3522,7 @@ xlog_verify_tail_lsn(
 	if (blocks < BTOBB(iclog->ic_offset) + 1)
 		xfs_emerg(log->l_mp, "%s: ran out of log space", __func__);
     }
-}	/* xlog_verify_tail_lsn */
+}
 
 /*
  * Perform a number of checks on the iclog before writing to disk.
@@ -3733,7 +3625,7 @@ xlog_verify_iclog(
 		}
 		ptr += sizeof(xlog_op_header_t) + op_len;
 	}
-}	/* xlog_verify_iclog */
+}
 #endif
 
 /*
