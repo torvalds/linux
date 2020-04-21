@@ -25,11 +25,11 @@
 
 #define wr_mask_bit(v, off, mask)	((v) << (off) | (mask) << (16 + off))
 
-#define PVTM(_ch, _name, _num_sub, _start, _en, _cal, _done, _freq)	\
+#define PVTM(_id, _name, _num_rings, _start, _en, _cal, _done, _freq)	\
 {					\
-	.ch = _ch,			\
+	.id = _id,			\
 	.name = _name,			\
-	.num_sub = _num_sub,		\
+	.num_rings = _num_rings,	\
 	.bit_start = _start,		\
 	.bit_en = _en,			\
 	.reg_cal = _cal,		\
@@ -39,25 +39,25 @@
 
 struct rockchip_pvtm;
 
-struct rockchip_pvtm_channel {
+struct rockchip_pvtm_info {
 	u32 reg_cal;
 	u32 reg_freq;
-	unsigned char ch;
+	unsigned char id;
 	unsigned char *name;
-	unsigned int num_sub;
+	unsigned int num_rings;
 	unsigned int bit_start;
 	unsigned int bit_en;
 	unsigned int bit_freq_done;
 };
 
-struct rockchip_pvtm_info {
+struct rockchip_pvtm_data {
 	u32 con;
 	u32 sta;
-	unsigned int num_channels;
-	const struct rockchip_pvtm_channel *channels;
-	u32 (*get_value)(struct rockchip_pvtm *pvtm, unsigned int sub_ch,
+	unsigned int num_pvtms;
+	const struct rockchip_pvtm_info *infos;
+	u32 (*get_value)(struct rockchip_pvtm *pvtm, unsigned int ring_sel,
 			 unsigned int time_us);
-	void (*set_ring_sel)(struct rockchip_pvtm *pvtm, unsigned int sub_ch);
+	void (*set_ring_sel)(struct rockchip_pvtm *pvtm, unsigned int ring_sel);
 };
 
 struct rockchip_pvtm {
@@ -69,11 +69,11 @@ struct rockchip_pvtm {
 	int num_clks;
 	struct clk_bulk_data *clks;
 	struct reset_control *rst;
-	const struct rockchip_pvtm_channel *channel;
+	const struct rockchip_pvtm_info *info;
 	struct thermal_zone_device *tz;
-	u32 (*get_value)(struct rockchip_pvtm *pvtm, unsigned int sub_ch,
+	u32 (*get_value)(struct rockchip_pvtm *pvtm, unsigned int ring_sel,
 			 unsigned int time_us);
-	void (*set_ring_sel)(struct rockchip_pvtm *pvtm, unsigned int sub_ch);
+	void (*set_ring_sel)(struct rockchip_pvtm *pvtm, unsigned int ring_sel);
 };
 
 static LIST_HEAD(pvtm_list);
@@ -101,7 +101,7 @@ static int pvtm_value_show(struct seq_file *s, void *data)
 			seq_printf(s, "temp: %d ", cur_temp);
 	}
 	seq_puts(s, "pvtm: ");
-	for (i = 0; i < pvtm->channel->num_sub; i++) {
+	for (i = 0; i < pvtm->info->num_rings; i++) {
 		value = pvtm->get_value(pvtm, i, 1000);
 		seq_printf(s, "%d ", value);
 	}
@@ -139,10 +139,10 @@ static int __init pvtm_debug_init(void)
 	}
 
 	list_for_each_entry(pvtm, &pvtm_list, node) {
-		dentry = debugfs_create_dir(pvtm->channel->name, rootdir);
+		dentry = debugfs_create_dir(pvtm->info->name, rootdir);
 		if (!dentry) {
 			dev_err(pvtm->dev, "failed to creat pvtm %s debug dir\n",
-				pvtm->channel->name);
+				pvtm->info->name);
 			return -ENOMEM;
 		}
 
@@ -150,7 +150,7 @@ static int __init pvtm_debug_init(void)
 					(void *)pvtm, &pvtm_value_fops);
 		if (!d) {
 			dev_err(pvtm->dev, "failed to pvtm %s value node\n",
-				pvtm->channel->name);
+				pvtm->info->name);
 			return -ENOMEM;
 		}
 	}
@@ -183,7 +183,7 @@ static int rockchip_pvtm_reset(struct rockchip_pvtm *pvtm)
 	return 0;
 }
 
-u32 rockchip_get_pvtm_value(unsigned int ch, unsigned int sub_ch,
+u32 rockchip_get_pvtm_value(unsigned int id, unsigned int ring_sel,
 			    unsigned int time_us)
 {
 	struct rockchip_pvtm *p, *pvtm = NULL;
@@ -194,23 +194,23 @@ u32 rockchip_get_pvtm_value(unsigned int ch, unsigned int sub_ch,
 	}
 
 	list_for_each_entry(p, &pvtm_list, node) {
-		if (p->channel->ch == ch) {
+		if (p->info->id == id) {
 			pvtm = p;
 			break;
 		}
 	}
 
 	if (!pvtm) {
-		pr_err("invalid pvtm ch %d\n", ch);
+		pr_err("invalid pvtm id %d\n", id);
 		return -EINVAL;
 	}
 
-	if (sub_ch >= pvtm->channel->num_sub) {
-		pr_err("invalid pvtm sub_ch %d\n", sub_ch);
+	if (ring_sel >= pvtm->info->num_rings) {
+		pr_err("invalid pvtm ring %d\n", ring_sel);
 		return -EINVAL;
 	}
 
-	return pvtm->get_value(pvtm, sub_ch, time_us);
+	return pvtm->get_value(pvtm, ring_sel, time_us);
 }
 EXPORT_SYMBOL(rockchip_get_pvtm_value);
 
@@ -233,41 +233,41 @@ static void rockchip_pvtm_delay(unsigned int delay)
 }
 
 static void px30_pvtm_set_ring_sel(struct rockchip_pvtm *pvtm,
-				   unsigned int sub_ch)
+				   unsigned int ring_sel)
 {
-	unsigned int ch = pvtm->channel->ch;
+	unsigned int id = pvtm->info->id;
 
 	regmap_write(pvtm->grf, pvtm->con,
-		     wr_mask_bit(sub_ch, (ch * 0x4 + 0x2), 0x3));
+		     wr_mask_bit(ring_sel, (id * 0x4 + 0x2), 0x3));
 }
 
 static void rk1808_pvtm_set_ring_sel(struct rockchip_pvtm *pvtm,
-				     unsigned int sub_ch)
+				     unsigned int ring_sel)
 {
 	regmap_write(pvtm->grf, pvtm->con,
-		     wr_mask_bit(sub_ch, 0x2, 0x7));
+		     wr_mask_bit(ring_sel, 0x2, 0x7));
 }
 
 static void rk3399_pvtm_set_ring_sel(struct rockchip_pvtm *pvtm,
-				     unsigned int sub_ch)
+				     unsigned int ring_sel)
 {
-	unsigned int ch = pvtm->channel->ch;
+	unsigned int id = pvtm->info->id;
 
-	if (ch == 1) {
+	if (id == 1) {
 		regmap_write(pvtm->grf, pvtm->con + 0x14,
-			     wr_mask_bit(sub_ch >> 0x3, 0, 0x1));
-		sub_ch &= 0x3;
+			     wr_mask_bit(ring_sel >> 0x3, 0, 0x1));
+		ring_sel &= 0x3;
 	}
-	if (ch != 4)
+	if (id != 4)
 		regmap_write(pvtm->grf, pvtm->con,
-			     wr_mask_bit(sub_ch, (ch * 0x4 + 0x2), 0x3));
+			     wr_mask_bit(ring_sel, (id * 0x4 + 0x2), 0x3));
 }
 
 static u32 rockchip_pvtm_get_value(struct rockchip_pvtm *pvtm,
-				   unsigned int sub_ch,
+				   unsigned int ring_sel,
 				   unsigned int time_us)
 {
-	const struct rockchip_pvtm_channel *channel = pvtm->channel;
+	const struct rockchip_pvtm_info *info = pvtm->info;
 	unsigned int clk_cnt, check_cnt = 100;
 	u32 sta, val = 0;
 	int ret;
@@ -285,45 +285,45 @@ static u32 rockchip_pvtm_get_value(struct rockchip_pvtm *pvtm,
 
 	/* if last status is enabled, stop calculating cycles first*/
 	regmap_read(pvtm->grf, pvtm->con, &sta);
-	if (sta & BIT(channel->bit_en))
+	if (sta & BIT(info->bit_en))
 		regmap_write(pvtm->grf, pvtm->con,
-			     wr_mask_bit(0, channel->bit_start, 0x1));
+			     wr_mask_bit(0, info->bit_start, 0x1));
 
 	regmap_write(pvtm->grf, pvtm->con,
-		     wr_mask_bit(0x1, channel->bit_en, 0x1));
+		     wr_mask_bit(0x1, info->bit_en, 0x1));
 
 	if (pvtm->set_ring_sel)
-		pvtm->set_ring_sel(pvtm, sub_ch);
+		pvtm->set_ring_sel(pvtm, ring_sel);
 
 	/* clk = 24 Mhz, T = 1 / 24 us */
 	clk_cnt = time_us * 24;
-	regmap_write(pvtm->grf, pvtm->con + channel->reg_cal, clk_cnt);
+	regmap_write(pvtm->grf, pvtm->con + info->reg_cal, clk_cnt);
 
 	regmap_write(pvtm->grf, pvtm->con,
-		     wr_mask_bit(0x1, channel->bit_start, 0x1));
+		     wr_mask_bit(0x1, info->bit_start, 0x1));
 
 	rockchip_pvtm_delay(time_us);
 
 	while (check_cnt) {
 		regmap_read(pvtm->grf, pvtm->sta, &sta);
-		if (sta & BIT(channel->bit_freq_done))
+		if (sta & BIT(info->bit_freq_done))
 			break;
 		udelay(4);
 		check_cnt--;
 	}
 
 	if (check_cnt) {
-		regmap_read(pvtm->grf, pvtm->sta + channel->reg_freq, &val);
+		regmap_read(pvtm->grf, pvtm->sta + info->reg_freq, &val);
 	} else {
 		dev_err(pvtm->dev, "wait pvtm_done timeout!\n");
 		val = 0;
 	}
 
 	regmap_write(pvtm->grf, pvtm->con,
-		     wr_mask_bit(0, channel->bit_start, 0x1));
+		     wr_mask_bit(0, info->bit_start, 0x1));
 
 	regmap_write(pvtm->grf, pvtm->con,
-		     wr_mask_bit(0, channel->bit_en, 0x1));
+		     wr_mask_bit(0, info->bit_en, 0x1));
 
 disable_clks:
 	clk_bulk_disable_unprepare(pvtm->num_clks, pvtm->clks);
@@ -331,115 +331,115 @@ disable_clks:
 	return val;
 }
 
-static const struct rockchip_pvtm_channel px30_pvtm_channels[] = {
+static const struct rockchip_pvtm_info px30_pvtm_infos[] = {
 	PVTM(0, "core", 3, 0, 1, 0x4, 0, 0x4),
 };
 
-static const struct rockchip_pvtm_info px30_pvtm = {
+static const struct rockchip_pvtm_data px30_pvtm = {
 	.con = 0x80,
 	.sta = 0x88,
-	.num_channels = ARRAY_SIZE(px30_pvtm_channels),
-	.channels = px30_pvtm_channels,
+	.num_pvtms = ARRAY_SIZE(px30_pvtm_infos),
+	.infos = px30_pvtm_infos,
 	.get_value = rockchip_pvtm_get_value,
 	.set_ring_sel = px30_pvtm_set_ring_sel,
 };
 
-static const struct rockchip_pvtm_channel px30_pmupvtm_channels[] = {
+static const struct rockchip_pvtm_info px30_pmupvtm_infos[] = {
 	PVTM(1, "pmu", 1, 0, 1, 0x4, 0, 0x4),
 };
 
-static const struct rockchip_pvtm_info px30_pmupvtm = {
+static const struct rockchip_pvtm_data px30_pmupvtm = {
 	.con = 0x180,
 	.sta = 0x190,
-	.num_channels = ARRAY_SIZE(px30_pmupvtm_channels),
-	.channels = px30_pmupvtm_channels,
+	.num_pvtms = ARRAY_SIZE(px30_pmupvtm_infos),
+	.infos = px30_pmupvtm_infos,
 	.get_value = rockchip_pvtm_get_value,
 };
 
-static const struct rockchip_pvtm_channel rk1808_pvtm_channels[] = {
+static const struct rockchip_pvtm_info rk1808_pvtm_infos[] = {
 	PVTM(0, "core", 5, 0, 1, 0x4, 0, 0x4),
 };
 
-static const struct rockchip_pvtm_info rk1808_pvtm = {
+static const struct rockchip_pvtm_data rk1808_pvtm = {
 	.con = 0x80,
 	.sta = 0x88,
-	.num_channels = ARRAY_SIZE(rk1808_pvtm_channels),
-	.channels = rk1808_pvtm_channels,
+	.num_pvtms = ARRAY_SIZE(rk1808_pvtm_infos),
+	.infos = rk1808_pvtm_infos,
 	.get_value = rockchip_pvtm_get_value,
 	.set_ring_sel = rk1808_pvtm_set_ring_sel,
 };
 
-static const struct rockchip_pvtm_channel rk1808_pmupvtm_channels[] = {
+static const struct rockchip_pvtm_info rk1808_pmupvtm_infos[] = {
 	PVTM(1, "pmu", 1, 0, 1, 0x4, 0, 0x4),
 };
 
-static const struct rockchip_pvtm_info rk1808_pmupvtm = {
+static const struct rockchip_pvtm_data rk1808_pmupvtm = {
 	.con = 0x180,
 	.sta = 0x190,
-	.num_channels = ARRAY_SIZE(rk1808_pmupvtm_channels),
-	.channels = rk1808_pmupvtm_channels,
+	.num_pvtms = ARRAY_SIZE(rk1808_pmupvtm_infos),
+	.infos = rk1808_pmupvtm_infos,
 	.get_value = rockchip_pvtm_get_value,
 };
 
-static const struct rockchip_pvtm_channel rk1808_npupvtm_channels[] = {
+static const struct rockchip_pvtm_info rk1808_npupvtm_infos[] = {
 	PVTM(2, "npu", 5, 0, 1, 0x4, 0, 0x4),
 };
 
-static const struct rockchip_pvtm_info rk1808_npupvtm = {
+static const struct rockchip_pvtm_data rk1808_npupvtm = {
 	.con = 0x780,
 	.sta = 0x788,
-	.num_channels = ARRAY_SIZE(rk1808_npupvtm_channels),
-	.channels = rk1808_npupvtm_channels,
+	.num_pvtms = ARRAY_SIZE(rk1808_npupvtm_infos),
+	.infos = rk1808_npupvtm_infos,
 	.get_value = rockchip_pvtm_get_value,
 	.set_ring_sel = rk1808_pvtm_set_ring_sel,
 };
 
-static const struct rockchip_pvtm_channel rk3288_pvtm_channels[] = {
+static const struct rockchip_pvtm_info rk3288_pvtm_infos[] = {
 	PVTM(0, "core", 1, 0, 1, 0x4, 1, 0x4),
 	PVTM(1, "gpu", 1, 8, 9, 0x8, 0, 0x8),
 };
 
-static const struct rockchip_pvtm_info rk3288_pvtm = {
+static const struct rockchip_pvtm_data rk3288_pvtm = {
 	.con = 0x368,
 	.sta = 0x374,
-	.num_channels = ARRAY_SIZE(rk3288_pvtm_channels),
-	.channels = rk3288_pvtm_channels,
+	.num_pvtms = ARRAY_SIZE(rk3288_pvtm_infos),
+	.infos = rk3288_pvtm_infos,
 	.get_value = rockchip_pvtm_get_value,
 };
 
-static const struct rockchip_pvtm_info rk3308_pmupvtm = {
+static const struct rockchip_pvtm_data rk3308_pmupvtm = {
 	.con = 0x440,
 	.sta = 0x448,
-	.num_channels = ARRAY_SIZE(px30_pmupvtm_channels),
-	.channels = px30_pmupvtm_channels,
+	.num_pvtms = ARRAY_SIZE(px30_pmupvtm_infos),
+	.infos = px30_pmupvtm_infos,
 	.get_value = rockchip_pvtm_get_value,
 };
 
-static const struct rockchip_pvtm_channel rk3399_pvtm_channels[] = {
+static const struct rockchip_pvtm_info rk3399_pvtm_infos[] = {
 	PVTM(0, "core_l", 4, 0, 1, 0x4, 0, 0x4),
 	PVTM(1, "core_b", 6, 4, 5, 0x8, 1, 0x8),
 	PVTM(2, "ddr", 4, 8, 9, 0xc, 3, 0x10),
 	PVTM(3, "gpu", 4, 12, 13, 0x10, 2, 0xc),
 };
 
-static const struct rockchip_pvtm_info rk3399_pvtm = {
+static const struct rockchip_pvtm_data rk3399_pvtm = {
 	.con = 0xe600,
 	.sta = 0xe620,
-	.num_channels = ARRAY_SIZE(rk3399_pvtm_channels),
-	.channels = rk3399_pvtm_channels,
+	.num_pvtms = ARRAY_SIZE(rk3399_pvtm_infos),
+	.infos = rk3399_pvtm_infos,
 	.get_value = rockchip_pvtm_get_value,
 	.set_ring_sel = rk3399_pvtm_set_ring_sel,
 };
 
-static const struct rockchip_pvtm_channel rk3399_pmupvtm_channels[] = {
+static const struct rockchip_pvtm_info rk3399_pmupvtm_infos[] = {
 	PVTM(4, "pmu", 1, 0, 1, 0x4, 0, 0x4),
 };
 
-static const struct rockchip_pvtm_info rk3399_pmupvtm = {
+static const struct rockchip_pvtm_data rk3399_pmupvtm = {
 	.con = 0x240,
 	.sta = 0x248,
-	.num_channels = ARRAY_SIZE(rk3399_pmupvtm_channels),
-	.channels = rk3399_pmupvtm_channels,
+	.num_pvtms = ARRAY_SIZE(rk3399_pmupvtm_infos),
+	.infos = rk3399_pmupvtm_infos,
 	.get_value = rockchip_pvtm_get_value,
 };
 
@@ -488,13 +488,13 @@ static const struct of_device_id rockchip_pvtm_match[] = {
 };
 MODULE_DEVICE_TABLE(of, rockchip_pvtm_match);
 
-static int rockchip_pvtm_get_ch_index(const struct rockchip_pvtm_info *info,
-				      u32 ch, u32 *index)
+static int rockchip_pvtm_get_index(const struct rockchip_pvtm_data *data,
+				   u32 ch, u32 *index)
 {
 	int i;
 
-	for (i = 0; i < info->num_channels; i++) {
-		if (ch == info->channels[i].ch) {
+	for (i = 0; i < data->num_pvtms; i++) {
+		if (ch == data->infos[i].id) {
 			*index = i;
 			return 0;
 		}
@@ -505,19 +505,19 @@ static int rockchip_pvtm_get_ch_index(const struct rockchip_pvtm_info *info,
 
 static struct rockchip_pvtm *
 rockchip_pvtm_init(struct device *dev, struct device_node *node,
-		   const struct rockchip_pvtm_info *info,
+		   const struct rockchip_pvtm_data *data,
 		   struct regmap *grf)
 {
 	struct rockchip_pvtm *pvtm;
 	const char *tz_name;
-	u32 ch, index, i;
+	u32 id, index, i;
 
-	if (of_property_read_u32(node, "reg", &ch)) {
-		dev_err(dev, "%s: failed to retrieve pvtm ch\n", node->name);
+	if (of_property_read_u32(node, "reg", &id)) {
+		dev_err(dev, "%s: failed to retrieve pvtm id\n", node->name);
 		return NULL;
 	}
-	if (rockchip_pvtm_get_ch_index(info, ch, &index)) {
-		dev_err(dev, "%s: invalid pvtm ch %d\n", node->name, ch);
+	if (rockchip_pvtm_get_index(data, id, &index)) {
+		dev_err(dev, "%s: invalid pvtm id %d\n", node->name, id);
 		return NULL;
 	}
 
@@ -527,12 +527,12 @@ rockchip_pvtm_init(struct device *dev, struct device_node *node,
 
 	pvtm->dev = dev;
 	pvtm->grf = grf;
-	pvtm->con = info->con;
-	pvtm->sta = info->sta;
-	pvtm->get_value = info->get_value;
-	pvtm->channel = &info->channels[index];
-	if (info->set_ring_sel)
-		pvtm->set_ring_sel = info->set_ring_sel;
+	pvtm->con = data->con;
+	pvtm->sta = data->sta;
+	pvtm->get_value = data->get_value;
+	pvtm->info = &data->infos[index];
+	if (data->set_ring_sel)
+		pvtm->set_ring_sel = data->set_ring_sel;
 
 	if (!of_property_read_string(node, "thermal-zone", &tz_name)) {
 		pvtm->tz = thermal_zone_get_zone_by_name(tz_name);
@@ -567,7 +567,7 @@ rockchip_pvtm_init(struct device *dev, struct device_node *node,
 	return pvtm;
 }
 
-static void rockchip_del_pvtm(const struct rockchip_pvtm_info *info)
+static void rockchip_del_pvtm(const struct rockchip_pvtm_data *data)
 {
 	struct rockchip_pvtm *pvtm, *tmp;
 	int i;
@@ -575,9 +575,9 @@ static void rockchip_del_pvtm(const struct rockchip_pvtm_info *info)
 	if (list_empty(&pvtm_list))
 		return;
 
-	for (i = 0; i < info->num_channels; i++) {
+	for (i = 0; i < data->num_pvtms; i++) {
 		list_for_each_entry_safe(pvtm, tmp, &pvtm_list, node) {
-			if (pvtm->channel->ch == info->channels[i].ch)
+			if (pvtm->info->id == data->infos[i].id)
 				list_del(&pvtm->node);
 		}
 	}
