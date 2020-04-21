@@ -200,7 +200,6 @@ static struct dma_fence *lima_sched_run_job(struct drm_sched_job *job)
 	struct lima_sched_pipe *pipe = to_lima_pipe(job->sched);
 	struct lima_fence *fence;
 	struct dma_fence *ret;
-	struct lima_vm *vm = NULL, *last_vm = NULL;
 	int i;
 
 	/* after GPU reset */
@@ -239,20 +238,15 @@ static struct dma_fence *lima_sched_run_job(struct drm_sched_job *job)
 	for (i = 0; i < pipe->num_l2_cache; i++)
 		lima_l2_cache_flush(pipe->l2_cache[i]);
 
-	if (task->vm != pipe->current_vm) {
-		vm = lima_vm_get(task->vm);
-		last_vm = pipe->current_vm;
-		pipe->current_vm = task->vm;
-	}
+	lima_vm_put(pipe->current_vm);
+	pipe->current_vm = lima_vm_get(task->vm);
 
 	if (pipe->bcast_mmu)
-		lima_mmu_switch_vm(pipe->bcast_mmu, vm);
+		lima_mmu_switch_vm(pipe->bcast_mmu, pipe->current_vm);
 	else {
 		for (i = 0; i < pipe->num_mmu; i++)
-			lima_mmu_switch_vm(pipe->mmu[i], vm);
+			lima_mmu_switch_vm(pipe->mmu[i], pipe->current_vm);
 	}
-
-	lima_vm_put(last_vm);
 
 	trace_lima_task_run(task);
 

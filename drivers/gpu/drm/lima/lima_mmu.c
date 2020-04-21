@@ -113,8 +113,7 @@ void lima_mmu_switch_vm(struct lima_ip *ip, struct lima_vm *vm)
 			      LIMA_MMU_STATUS, v,
 			      v & LIMA_MMU_STATUS_STALL_ACTIVE);
 
-	if (vm)
-		mmu_write(LIMA_MMU_DTE_ADDR, vm->pd.dma);
+	mmu_write(LIMA_MMU_DTE_ADDR, vm->pd.dma);
 
 	/* flush the TLB */
 	mmu_write(LIMA_MMU_COMMAND, LIMA_MMU_COMMAND_ZAP_CACHE);
