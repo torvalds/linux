@@ -29,11 +29,11 @@ static int soc_compr_components_open(struct snd_compr_stream *cstream,
 	int i, ret;
 
 	for_each_rtd_components(rtd, i, component) {
-		if (!component->driver->compr_ops ||
-		    !component->driver->compr_ops->open)
+		if (!component->driver->compress_ops ||
+		    !component->driver->compress_ops->open)
 			continue;
 
-		ret = component->driver->compr_ops->open(cstream);
+		ret = component->driver->compress_ops->open(component, cstream);
 		if (ret < 0) {
 			dev_err(component->dev,
 				"Compress ASoC: can't open platform %s: %d\n",
@@ -59,11 +59,11 @@ static int soc_compr_components_free(struct snd_compr_stream *cstream,
 		if (component == last)
 			break;
 
-		if (!component->driver->compr_ops ||
-		    !component->driver->compr_ops->free)
+		if (!component->driver->compress_ops ||
+		    !component->driver->compress_ops->free)
 			continue;
 
-		component->driver->compr_ops->free(cstream);
+		component->driver->compress_ops->free(component, cstream);
 	}
 
 	return 0;
@@ -328,11 +328,12 @@ static int soc_compr_components_trigger(struct snd_compr_stream *cstream,
 	int i, ret;
 
 	for_each_rtd_components(rtd, i, component) {
-		if (!component->driver->compr_ops ||
-		    !component->driver->compr_ops->trigger)
+		if (!component->driver->compress_ops ||
+		    !component->driver->compress_ops->trigger)
 			continue;
 
-		ret = component->driver->compr_ops->trigger(cstream, cmd);
+		ret = component->driver->compress_ops->trigger(
+			component, cstream, cmd);
 		if (ret < 0)
 			return ret;
 	}
@@ -430,11 +431,12 @@ static int soc_compr_components_set_params(struct snd_compr_stream *cstream,
 	int i, ret;
 
 	for_each_rtd_components(rtd, i, component) {
-		if (!component->driver->compr_ops ||
-		    !component->driver->compr_ops->set_params)
+		if (!component->driver->compress_ops ||
+		    !component->driver->compress_ops->set_params)
 			continue;
 
-		ret = component->driver->compr_ops->set_params(cstream, params);
+		ret = component->driver->compress_ops->set_params(
+			component, cstream, params);
 		if (ret < 0)
 			return ret;
 	}
@@ -570,11 +572,12 @@ static int soc_compr_get_params(struct snd_compr_stream *cstream,
 	}
 
 	for_each_rtd_components(rtd, i, component) {
-		if (!component->driver->compr_ops ||
-		    !component->driver->compr_ops->get_params)
+		if (!component->driver->compress_ops ||
+		    !component->driver->compress_ops->get_params)
 			continue;
 
-		ret = component->driver->compr_ops->get_params(cstream, params);
+		ret = component->driver->compress_ops->get_params(
+			component, cstream, params);
 		break;
 	}
 
@@ -593,11 +596,12 @@ static int soc_compr_get_caps(struct snd_compr_stream *cstream,
 	mutex_lock_nested(&rtd->card->pcm_mutex, rtd->card->pcm_subclass);
 
 	for_each_rtd_components(rtd, i, component) {
-		if (!component->driver->compr_ops ||
-		    !component->driver->compr_ops->get_caps)
+		if (!component->driver->compress_ops ||
+		    !component->driver->compress_ops->get_caps)
 			continue;
 
-		ret = component->driver->compr_ops->get_caps(cstream, caps);
+		ret = component->driver->compress_ops->get_caps(
+			component, cstream, caps);
 		break;
 	}
 
@@ -615,12 +619,12 @@ static int soc_compr_get_codec_caps(struct snd_compr_stream *cstream,
 	mutex_lock_nested(&rtd->card->pcm_mutex, rtd->card->pcm_subclass);
 
 	for_each_rtd_components(rtd, i, component) {
-		if (!component->driver->compr_ops ||
-		    !component->driver->compr_ops->get_codec_caps)
+		if (!component->driver->compress_ops ||
+		    !component->driver->compress_ops->get_codec_caps)
 			continue;
 
-		ret = component->driver->compr_ops->get_codec_caps(cstream,
-								   codec);
+		ret = component->driver->compress_ops->get_codec_caps(
+			component, cstream, codec);
 		break;
 	}
 
@@ -644,11 +648,12 @@ static int soc_compr_ack(struct snd_compr_stream *cstream, size_t bytes)
 	}
 
 	for_each_rtd_components(rtd, i, component) {
-		if (!component->driver->compr_ops ||
-		    !component->driver->compr_ops->ack)
+		if (!component->driver->compress_ops ||
+		    !component->driver->compress_ops->ack)
 			continue;
 
-		ret = component->driver->compr_ops->ack(cstream, bytes);
+		ret = component->driver->compress_ops->ack(
+			component, cstream, bytes);
 		if (ret < 0)
 			goto err;
 	}
@@ -672,11 +677,12 @@ static int soc_compr_pointer(struct snd_compr_stream *cstream,
 		cpu_dai->driver->cops->pointer(cstream, tstamp, cpu_dai);
 
 	for_each_rtd_components(rtd, i, component) {
-		if (!component->driver->compr_ops ||
-		    !component->driver->compr_ops->pointer)
+		if (!component->driver->compress_ops ||
+		    !component->driver->compress_ops->pointer)
 			continue;
 
-		ret = component->driver->compr_ops->pointer(cstream, tstamp);
+		ret = component->driver->compress_ops->pointer(
+			component, cstream, tstamp);
 		break;
 	}
 
@@ -694,11 +700,12 @@ static int soc_compr_copy(struct snd_compr_stream *cstream,
 	mutex_lock_nested(&rtd->card->pcm_mutex, rtd->card->pcm_subclass);
 
 	for_each_rtd_components(rtd, i, component) {
-		if (!component->driver->compr_ops ||
-		    !component->driver->compr_ops->copy)
+		if (!component->driver->compress_ops ||
+		    !component->driver->compress_ops->copy)
 			continue;
 
-		ret = component->driver->compr_ops->copy(cstream, buf, count);
+		ret = component->driver->compress_ops->copy(
+			component, cstream, buf, count);
 		break;
 	}
 
@@ -721,12 +728,12 @@ static int soc_compr_set_metadata(struct snd_compr_stream *cstream,
 	}
 
 	for_each_rtd_components(rtd, i, component) {
-		if (!component->driver->compr_ops ||
-		    !component->driver->compr_ops->set_metadata)
+		if (!component->driver->compress_ops ||
+		    !component->driver->compress_ops->set_metadata)
 			continue;
 
-		ret = component->driver->compr_ops->set_metadata(cstream,
-								 metadata);
+		ret = component->driver->compress_ops->set_metadata(
+			component, cstream, metadata);
 		if (ret < 0)
 			return ret;
 	}
@@ -749,12 +756,12 @@ static int soc_compr_get_metadata(struct snd_compr_stream *cstream,
 	}
 
 	for_each_rtd_components(rtd, i, component) {
-		if (!component->driver->compr_ops ||
-		    !component->driver->compr_ops->get_metadata)
+		if (!component->driver->compress_ops ||
+		    !component->driver->compress_ops->get_metadata)
 			continue;
 
-		return component->driver->compr_ops->get_metadata(cstream,
-								  metadata);
+		return component->driver->compress_ops->get_metadata(
+			component, cstream, metadata);
 	}
 
 	return 0;
@@ -879,8 +886,8 @@ int snd_soc_new_compress(struct snd_soc_pcm_runtime *rtd, int num)
 	}
 
 	for_each_rtd_components(rtd, i, component) {
-		if (!component->driver->compr_ops ||
-		    !component->driver->compr_ops->copy)
+		if (!component->driver->compress_ops ||
+		    !component->driver->compress_ops->copy)
 			continue;
 
 		compr->ops->copy = soc_compr_copy;

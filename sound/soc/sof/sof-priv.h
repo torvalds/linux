@@ -522,7 +522,7 @@ void snd_sof_handle_fw_exception(struct snd_sof_dev *sdev);
 /*
  * Platform specific ops.
  */
-extern struct snd_compr_ops sof_compressed_ops;
+extern struct snd_compress_ops sof_compressed_ops;
 
 /*
  * DSP Architectures.
