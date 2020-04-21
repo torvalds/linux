@@ -272,6 +272,26 @@ static void cond_ibpb(struct task_struct *next)
 	}
 }
 
+#ifdef CONFIG_PERF_EVENTS
+static inline void cr4_update_pce_mm(struct mm_struct *mm)
+{
+	if (static_branch_unlikely(&rdpmc_always_available_key) ||
+	    (!static_branch_unlikely(&rdpmc_never_available_key) &&
+	     atomic_read(&mm->context.perf_rdpmc_allowed)))
+		cr4_set_bits_irqsoff(X86_CR4_PCE);
+	else
+		cr4_clear_bits_irqsoff(X86_CR4_PCE);
+}
+
+void cr4_update_pce(void *ignored)
+{
+	cr4_update_pce_mm(this_cpu_read(cpu_tlbstate.loaded_mm));
+}
+
+#else
+static inline void cr4_update_pce_mm(struct mm_struct *mm) { }
+#endif
+
 void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 			struct task_struct *tsk)
 {
@@ -440,7 +460,7 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 	this_cpu_write(cpu_tlbstate.loaded_mm_asid, new_asid);
 
 	if (next != real_prev) {
-		load_mm_cr4_irqsoff(next);
+		cr4_update_pce_mm(next);
 		switch_ldt(real_prev, next);
 	}
 }
