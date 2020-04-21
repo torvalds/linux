@@ -2675,7 +2675,7 @@ static int spi_nor_setup(struct spi_nor *nor,
 /**
  * spi_nor_manufacturer_init_params() - Initialize the flash's parameters and
  * settings based on MFR register and ->default_init() hook.
- * @nor:	pointer to a 'struct spi-nor'.
+ * @nor:	pointer to a 'struct spi_nor'.
  */
 static void spi_nor_manufacturer_init_params(struct spi_nor *nor)
 {
