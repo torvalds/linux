@@ -1450,8 +1450,7 @@ static inline int buf_in_between(int bufnr, int start, int count)
 	}
 
 	/* wrap-around case */
-	if ((bufnr >= start && bufnr <= QDIO_MAX_BUFFERS_PER_Q) ||
-	    (bufnr < end))
+	if (bufnr >= start || bufnr < end)
 		return 1;
 	else
 		return 0;
