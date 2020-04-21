@@ -9417,6 +9417,13 @@ F:	include/linux/keyctl.h
 F:	include/uapi/linux/keyctl.h
 F:	security/keys/
 
+KFIFO
+M:	Stefani Seibold <stefani@seibold.net>
+S:	Maintained
+F:	include/linux/kfifo.h
+F:	lib/kfifo.c
+F:	samples/kfifo/
+
 KGDB / KDB /debug_core
 M:	Jason Wessel <jason.wessel@windriver.com>
 M:	Daniel Thompson <daniel.thompson@linaro.org>
