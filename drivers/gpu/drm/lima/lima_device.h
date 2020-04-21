@@ -76,7 +76,6 @@ enum lima_pipe_id {
 struct lima_device {
 	struct device *dev;
 	struct drm_device *ddev;
-	struct platform_device *pdev;
 
 	enum lima_gpu_id id;
 	u32 gp_version;

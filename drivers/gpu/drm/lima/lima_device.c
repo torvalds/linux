@@ -297,8 +297,8 @@ static void lima_fini_pp_pipe(struct lima_device *dev)
 
 int lima_device_init(struct lima_device *ldev)
 {
+	struct platform_device *pdev = to_platform_device(ldev->dev);
 	int err, i;
-	struct resource *res;
 
 	dma_set_coherent_mask(ldev->dev, DMA_BIT_MASK(32));
 
@@ -329,8 +329,7 @@ int lima_device_init(struct lima_device *ldev)
 	} else
 		ldev->va_end = LIMA_VA_RESERVE_END;
 
-	res = platform_get_resource(ldev->pdev, IORESOURCE_MEM, 0);
-	ldev->iomem = devm_ioremap_resource(ldev->dev, res);
+	ldev->iomem = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ldev->iomem)) {
 		dev_err(ldev->dev, "fail to ioremap iomem\n");
 		err = PTR_ERR(ldev->iomem);
