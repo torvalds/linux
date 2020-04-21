@@ -484,11 +484,31 @@ int live_rps_frequency_cs(void *arg)
 		if (!scaled_within(max.freq * min.count,
 				   min.freq * max.count,
 				   2, 3)) {
+			int f;
+
 			pr_err("%s: CS did not scale with frequency! scaled min:%llu, max:%llu\n",
 			       engine->name,
 			       max.freq * min.count,
 			       min.freq * max.count);
 			show_pcu_config(rps);
+
+			for (f = min.freq + 1; f <= rps->max_freq; f++) {
+				int act = f;
+				u64 count;
+
+				count = measure_cs_frequency_at(rps, engine, &act);
+				if (act < f)
+					break;
+
+				pr_info("%s: %x:%uMHz: %lluKHz [%d%%]\n",
+					engine->name,
+					act, intel_gpu_freq(rps, act), count,
+					(int)DIV64_U64_ROUND_CLOSEST(100 * min.freq * count,
+								     act * min.count));
+
+				f = act; /* may skip ahead [pcu granularity] */
+			}
+
 			err = -EINVAL;
 		}
 
@@ -593,11 +613,31 @@ int live_rps_frequency_srm(void *arg)
 		if (!scaled_within(max.freq * min.count,
 				   min.freq * max.count,
 				   1, 2)) {
+			int f;
+
 			pr_err("%s: CS did not scale with frequency! scaled min:%llu, max:%llu\n",
 			       engine->name,
 			       max.freq * min.count,
 			       min.freq * max.count);
 			show_pcu_config(rps);
+
+			for (f = min.freq + 1; f <= rps->max_freq; f++) {
+				int act = f;
+				u64 count;
+
+				count = measure_frequency_at(rps, cntr, &act);
+				if (act < f)
+					break;
+
+				pr_info("%s: %x:%uMHz: %lluKHz [%d%%]\n",
+					engine->name,
+					act, intel_gpu_freq(rps, act), count,
+					(int)DIV64_U64_ROUND_CLOSEST(100 * min.freq * count,
+								     act * min.count));
+
+				f = act; /* may skip ahead [pcu granularity] */
+			}
+
 			err = -EINVAL;
 		}
 
