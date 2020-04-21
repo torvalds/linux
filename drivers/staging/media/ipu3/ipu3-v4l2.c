@@ -605,6 +605,9 @@ static int enum_fmts(struct v4l2_fmtdesc *f, u32 type)
 {
 	unsigned int i, j;
 
+	if (f->mbus_code != 0 && f->mbus_code != MEDIA_BUS_FMT_FIXED)
+		return -EINVAL;
+
 	for (i = j = 0; i < ARRAY_SIZE(formats); ++i) {
 		if (formats[i].type == type) {
 			if (j == f->index)
@@ -834,6 +837,9 @@ static int imgu_meta_enum_format(struct file *file, void *fh,
 	if (fmt->index > 0 || fmt->type != node->vbq.type)
 		return -EINVAL;
 
+	if (fmt->mbus_code != 0 && fmt->mbus_code != MEDIA_BUS_FMT_FIXED)
+		return -EINVAL;
+
 	strscpy(fmt->description, meta_fmts[i].name, sizeof(fmt->description));
 	fmt->pixelformat = meta_fmts[i].fourcc;
 
@@ -851,54 +857,6 @@ static int imgu_vidioc_g_meta_fmt(struct file *file, void *fh,
 	f->fmt = node->vdev_fmt.fmt;
 
 	return 0;
-}
-
-static int imgu_vidioc_enum_input(struct file *file, void *fh,
-				  struct v4l2_input *input)
-{
-	if (input->index > 0)
-		return -EINVAL;
-	strscpy(input->name, "camera", sizeof(input->name));
-	input->type = V4L2_INPUT_TYPE_CAMERA;
-
-	return 0;
-}
-
-static int imgu_vidioc_g_input(struct file *file, void *fh, unsigned int *input)
-{
-	*input = 0;
-
-	return 0;
-}
-
-static int imgu_vidioc_s_input(struct file *file, void *fh, unsigned int input)
-{
-	return input == 0 ? 0 : -EINVAL;
-}
-
-static int imgu_vidioc_enum_output(struct file *file, void *fh,
-				   struct v4l2_output *output)
-{
-	if (output->index > 0)
-		return -EINVAL;
-	strscpy(output->name, "camera", sizeof(output->name));
-	output->type = V4L2_INPUT_TYPE_CAMERA;
-
-	return 0;
-}
-
-static int imgu_vidioc_g_output(struct file *file, void *fh,
-				unsigned int *output)
-{
-	*output = 0;
-
-	return 0;
-}
-
-static int imgu_vidioc_s_output(struct file *file, void *fh,
-				unsigned int output)
-{
-	return output == 0 ? 0 : -EINVAL;
 }
 
 /******************** function pointers ********************/
@@ -972,14 +930,6 @@ static const struct v4l2_ioctl_ops imgu_v4l2_ioctl_ops = {
 	.vidioc_g_fmt_vid_out_mplane = imgu_vidioc_g_fmt,
 	.vidioc_s_fmt_vid_out_mplane = imgu_vidioc_s_fmt,
 	.vidioc_try_fmt_vid_out_mplane = imgu_vidioc_try_fmt,
-
-	.vidioc_enum_output = imgu_vidioc_enum_output,
-	.vidioc_g_output = imgu_vidioc_g_output,
-	.vidioc_s_output = imgu_vidioc_s_output,
-
-	.vidioc_enum_input = imgu_vidioc_enum_input,
-	.vidioc_g_input = imgu_vidioc_g_input,
-	.vidioc_s_input = imgu_vidioc_s_input,
 
 	/* buffer queue management */
 	.vidioc_reqbufs = vb2_ioctl_reqbufs,
@@ -1094,7 +1044,7 @@ static void imgu_node_to_v4l2(u32 node, struct video_device *vdev,
 		vdev->ioctl_ops = &imgu_v4l2_ioctl_ops;
 	}
 
-	vdev->device_caps = V4L2_CAP_STREAMING | cap;
+	vdev->device_caps = V4L2_CAP_STREAMING | V4L2_CAP_IO_MC | cap;
 }
 
 static int imgu_v4l2_subdev_register(struct imgu_device *imgu,
