@@ -6,13 +6,16 @@ config R8712U
 	select WEXT_PRIV
 	select FW_LOADER
 	help
-	    This option adds the Realtek RTL8712 USB device such as the D-Link DWA-130.
+	    This option adds the Realtek RTL8712 USB device such as the
+	    D-Link DWA-130.
+
 	    If built as a module, it will be called r8712u.
 
 config R8712_TX_AGGR
 	bool "Realtek RTL8712U Transmit Aggregation code"
 	depends on R8712U && BROKEN
 	help
-	    This option provides transmit aggregation for the Realtek RTL8712 USB device.
+	    This option provides transmit aggregation for the Realtek
+	    RTL8712 USB device.
 
 

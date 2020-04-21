@@ -20,6 +20,8 @@
  * included with this package.                                     *
  *******************************************************************/
 
+#include <uapi/scsi/fc/fc_els.h>
+
 /* Macros to deal with bit fields. Each bit field must have 3 #defines
  * associated with it (_SHIFT, _MASK, and _WORD).
  * EG. For a bit field that is in the 7th bit of the "field4" field of a
@@ -4793,6 +4795,23 @@ struct send_frame_wqe {
 	uint32_t fc_hdr_wd3;           /* word 13 */
 	uint32_t fc_hdr_wd4;           /* word 14 */
 	uint32_t fc_hdr_wd5;           /* word 15 */
+};
+
+#define ELS_RDF_REG_TAG_CNT		1
+struct lpfc_els_rdf_reg_desc {
+	struct fc_df_desc_fpin_reg	reg_desc;	/* descriptor header */
+	__be32				desc_tags[ELS_RDF_REG_TAG_CNT];
+							/* tags in reg_desc */
+};
+
+struct lpfc_els_rdf_req {
+	struct fc_els_rdf		rdf;	   /* hdr up to descriptors */
+	struct lpfc_els_rdf_reg_desc	reg_d1;	/* 1st descriptor */
+};
+
+struct lpfc_els_rdf_rsp {
+	struct fc_els_rdf_resp		rdf_resp;  /* hdr up to descriptors */
+	struct lpfc_els_rdf_reg_desc	reg_d1;	/* 1st descriptor */
 };
 
 union lpfc_wqe {

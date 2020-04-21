@@ -12,6 +12,8 @@ a driver issues a firmware API call.
   return it immediately
 * The ''Direct filesystem lookup'' is performed next, if found we
   return it immediately
+* The ''Platform firmware fallback'' is performed next, but only when
+  firmware_request_platform() is used, if found we return it immediately
 * If no firmware has been found and the fallback mechanism was enabled
   the sysfs interface is created. After this either a kobject uevent
   is issued or the custom firmware loading is relied upon for firmware

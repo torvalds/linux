@@ -190,6 +190,7 @@ static const struct constant_table nfs_vers_tokens[] = {
 	{ "4.0",	Opt_vers_4_0 },
 	{ "4.1",	Opt_vers_4_1 },
 	{ "4.2",	Opt_vers_4_2 },
+	{}
 };
 
 enum {
@@ -202,13 +203,14 @@ enum {
 	nr__Opt_xprt
 };
 
-static const struct constant_table nfs_xprt_protocol_tokens[nr__Opt_xprt] = {
+static const struct constant_table nfs_xprt_protocol_tokens[] = {
 	{ "rdma",	Opt_xprt_rdma },
 	{ "rdma6",	Opt_xprt_rdma6 },
 	{ "tcp",	Opt_xprt_tcp },
 	{ "tcp6",	Opt_xprt_tcp6 },
 	{ "udp",	Opt_xprt_udp },
 	{ "udp6",	Opt_xprt_udp6 },
+	{}
 };
 
 enum {
@@ -239,6 +241,7 @@ static const struct constant_table nfs_secflavor_tokens[] = {
 	{ "spkm3i",	Opt_sec_spkmi },
 	{ "spkm3p",	Opt_sec_spkmp },
 	{ "sys",	Opt_sec_sys },
+	{}
 };
 
 /*
@@ -832,6 +835,8 @@ static int nfs_parse_source(struct fs_context *fc,
 	if (len > maxnamlen)
 		goto out_hostname;
 
+	kfree(ctx->nfs_server.hostname);
+
 	/* N.B. caller will free nfs_server.hostname in all cases */
 	ctx->nfs_server.hostname = kmemdup_nul(dev_name, len, GFP_KERNEL);
 	if (!ctx->nfs_server.hostname)
@@ -1133,7 +1138,7 @@ out_no_address:
 	return nfs_invalf(fc, "NFS4: mount program didn't pass remote address");
 
 out_invalid_transport_udp:
-	return nfs_invalf(fc, "NFSv4: Unsupported transport protocol udp");
+	return nfs_invalf(fc, "NFS: Unsupported transport protocol udp");
 }
 #endif
 
@@ -1240,6 +1245,13 @@ static int nfs_fs_context_validate(struct fs_context *fc)
 		}
 		ctx->nfs_mod = nfs_mod;
 	}
+
+	/* Ensure the filesystem context has the correct fs_type */
+	if (fc->fs_type != ctx->nfs_mod->nfs_fs) {
+		module_put(fc->fs_type->owner);
+		__module_get(ctx->nfs_mod->nfs_fs->owner);
+		fc->fs_type = ctx->nfs_mod->nfs_fs;
+	}
 	return 0;
 
 out_no_device_name:
@@ -1248,7 +1260,7 @@ out_v4_not_compiled:
 	nfs_errorf(fc, "NFS: NFSv4 is not compiled into kernel");
 	return -EPROTONOSUPPORT;
 out_invalid_transport_udp:
-	return nfs_invalf(fc, "NFSv4: Unsupported transport protocol udp");
+	return nfs_invalf(fc, "NFS: Unsupported transport protocol udp");
 out_no_address:
 	return nfs_invalf(fc, "NFS: mount program didn't pass remote address");
 out_mountproto_mismatch:

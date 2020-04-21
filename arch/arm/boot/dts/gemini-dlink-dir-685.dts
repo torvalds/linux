@@ -119,18 +119,50 @@
 
 	/*
 	 * This is a Sunon Maglev GM0502PFV2-8 cooling fan @10000 RPM.
-	 * Since the platform has no temperature sensor, this is controlled
-	 * from userspace by using the hard disks S.M.A.R.T. temperature
 	 * sensor. It is turned on when the temperature exceeds 46 degrees
 	 * and turned off when the temperatures goes below 41 degrees
 	 * (celsius).
 	 */
-	gpio-fan {
+	fan0: gpio-fan {
 		compatible = "gpio-fan";
 		/* Collides with IDE */
 		gpios = <&gpio1 6 GPIO_ACTIVE_HIGH>;
 		gpio-fan,speed-map = <0 0>, <10000 1>;
 		#cooling-cells = <2>;
+	};
+
+	thermal-zones {
+		chassis-thermal {
+			/* Poll every 20 seconds */
+			polling-delay = <20000>;
+			/* Poll every 2nd second when cooling */
+			polling-delay-passive = <2000>;
+			/*  Use the thermal sensor in the hard drive */
+			thermal-sensors = <&drive0>;
+
+			/* Tripping points from the fan.script in the rootfs */
+			trips {
+				alert: chassis-alert {
+					/* At 43 degrees turn on the fan */
+					temperature = <43000>;
+					hysteresis = <3000>;
+					type = "active";
+				};
+				crit: chassis-crit {
+					/* Just shut down at 60 degrees */
+					temperature = <60000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
+
+			cooling-maps {
+				map0 {
+					trip = <&alert>;
+					cooling-device = <&fan0 1 1>;
+				};
+			};
+		};
 	};
 
 	/*
@@ -443,8 +475,18 @@
 			};
 		};
 
-		ata@63000000 {
+		ide@63000000 {
 			status = "okay";
+
+			/*
+			 * This drive may have a temperature sensor with a
+			 * thermal zone we can use for thermal control of the
+			 * chassis temperature using the fan.
+			 */
+			drive0: ide-port@0 {
+				reg = <0>;
+				#thermal-sensor-cells = <0>;
+			};
 		};
 
 		display-controller@6a000000 {

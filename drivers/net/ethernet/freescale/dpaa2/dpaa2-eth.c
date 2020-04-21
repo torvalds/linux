@@ -1704,10 +1704,15 @@ static int dpaa2_eth_ts_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
 static int dpaa2_eth_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
+	struct dpaa2_eth_priv *priv = netdev_priv(dev);
+
 	if (cmd == SIOCSHWTSTAMP)
 		return dpaa2_eth_ts_ioctl(dev, rq, cmd);
 
-	return -EINVAL;
+	if (priv->mac)
+		return phylink_mii_ioctl(priv->mac->phylink, rq, cmd);
+
+	return -EOPNOTSUPP;
 }
 
 static bool xdp_mtu_valid(struct dpaa2_eth_priv *priv, int mtu)

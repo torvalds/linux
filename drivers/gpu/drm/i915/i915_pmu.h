@@ -10,7 +10,7 @@
 #include <linux/hrtimer.h>
 #include <linux/perf_event.h>
 #include <linux/spinlock_types.h>
-#include <drm/i915_drm.h>
+#include <uapi/drm/i915_drm.h>
 
 struct drm_i915_private;
 
@@ -39,9 +39,12 @@ struct i915_pmu_sample {
 
 struct i915_pmu {
 	/**
-	 * @node: List node for CPU hotplug handling.
+	 * @cpuhp: Struct used for CPU hotplug handling.
 	 */
-	struct hlist_node node;
+	struct {
+		struct hlist_node node;
+		enum cpuhp_state slot;
+	} cpuhp;
 	/**
 	 * @base: PMU base.
 	 */
@@ -104,6 +107,10 @@ struct i915_pmu {
 	 * @sleep_last: Last time GT parked for RC6 estimation.
 	 */
 	ktime_t sleep_last;
+	/**
+	 * @events_attr_group: Device events attribute group.
+	 */
+	struct attribute_group events_attr_group;
 	/**
 	 * @i915_attr: Memory block holding device attributes.
 	 */

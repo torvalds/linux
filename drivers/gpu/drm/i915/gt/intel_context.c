@@ -51,6 +51,11 @@ int intel_context_alloc_state(struct intel_context *ce)
 		return -EINTR;
 
 	if (!test_bit(CONTEXT_ALLOC_BIT, &ce->flags)) {
+		if (intel_context_is_banned(ce)) {
+			err = -EIO;
+			goto unlock;
+		}
+
 		err = ce->ops->alloc(ce);
 		if (unlikely(err))
 			goto unlock;
@@ -67,21 +72,18 @@ static int intel_context_active_acquire(struct intel_context *ce)
 {
 	int err;
 
-	err = i915_active_acquire(&ce->active);
-	if (err)
-		return err;
+	__i915_active_acquire(&ce->active);
+
+	if (intel_context_is_barrier(ce))
+		return 0;
 
 	/* Preallocate tracking nodes */
-	if (!intel_context_is_barrier(ce)) {
-		err = i915_active_acquire_preallocate_barrier(&ce->active,
-							      ce->engine);
-		if (err) {
-			i915_active_release(&ce->active);
-			return err;
-		}
-	}
+	err = i915_active_acquire_preallocate_barrier(&ce->active,
+						      ce->engine);
+	if (err)
+		i915_active_release(&ce->active);
 
-	return 0;
+	return err;
 }
 
 static void intel_context_active_release(struct intel_context *ce)
@@ -95,40 +97,50 @@ int __intel_context_do_pin(struct intel_context *ce)
 {
 	int err;
 
+	GEM_BUG_ON(intel_context_is_closed(ce));
+
 	if (unlikely(!test_bit(CONTEXT_ALLOC_BIT, &ce->flags))) {
 		err = intel_context_alloc_state(ce);
 		if (err)
 			return err;
 	}
 
-	if (mutex_lock_interruptible(&ce->pin_mutex))
-		return -EINTR;
+	err = i915_active_acquire(&ce->active);
+	if (err)
+		return err;
 
-	if (likely(!atomic_read(&ce->pin_count))) {
+	if (mutex_lock_interruptible(&ce->pin_mutex)) {
+		err = -EINTR;
+		goto out_release;
+	}
+
+	if (likely(!atomic_add_unless(&ce->pin_count, 1, 0))) {
 		err = intel_context_active_acquire(ce);
 		if (unlikely(err))
-			goto err;
+			goto out_unlock;
 
 		err = ce->ops->pin(ce);
 		if (unlikely(err))
 			goto err_active;
 
-		CE_TRACE(ce, "pin ring:{head:%04x, tail:%04x}\n",
+		CE_TRACE(ce, "pin ring:{start:%08x, head:%04x, tail:%04x}\n",
+			 i915_ggtt_offset(ce->ring->vma),
 			 ce->ring->head, ce->ring->tail);
 
 		smp_mb__before_atomic(); /* flush pin before it is visible */
+		atomic_inc(&ce->pin_count);
 	}
 
-	atomic_inc(&ce->pin_count);
 	GEM_BUG_ON(!intel_context_is_pinned(ce)); /* no overflow! */
-
-	mutex_unlock(&ce->pin_mutex);
-	return 0;
+	GEM_BUG_ON(i915_active_is_idle(&ce->active));
+	goto out_unlock;
 
 err_active:
 	intel_context_active_release(ce);
-err:
+out_unlock:
 	mutex_unlock(&ce->pin_mutex);
+out_release:
+	i915_active_release(&ce->active);
 	return err;
 }
 
@@ -215,7 +227,9 @@ static void __intel_context_retire(struct i915_active *active)
 {
 	struct intel_context *ce = container_of(active, typeof(*ce), active);
 
-	CE_TRACE(ce, "retire\n");
+	CE_TRACE(ce, "retire runtime: { total:%lluns, avg:%lluns }\n",
+		 intel_context_get_total_runtime_ns(ce),
+		 intel_context_get_avg_runtime_ns(ce));
 
 	set_bit(CONTEXT_VALID_BIT, &ce->flags);
 	if (ce->state)
@@ -275,6 +289,8 @@ intel_context_init(struct intel_context *ce,
 	ce->ops = engine->cops;
 	ce->sseu = engine->sseu;
 	ce->ring = __intel_context_ring_size(SZ_4K);
+
+	ewma_runtime_init(&ce->runtime.avg);
 
 	ce->vm = i915_vm_get(engine->gt->vm);
 

@@ -803,10 +803,11 @@ static bool validate_cmds_sorted(const struct intel_engine_cs *engine,
 			u32 curr = desc->cmd.value & desc->cmd.mask;
 
 			if (curr < previous) {
-				DRM_ERROR("CMD: %s [%d] command table not sorted: "
-					  "table=%d entry=%d cmd=0x%08X prev=0x%08X\n",
-					  engine->name, engine->id,
-					  i, j, curr, previous);
+				drm_err(&engine->i915->drm,
+					"CMD: %s [%d] command table not sorted: "
+					"table=%d entry=%d cmd=0x%08X prev=0x%08X\n",
+					engine->name, engine->id,
+					i, j, curr, previous);
 				ret = false;
 			}
 
@@ -829,10 +830,11 @@ static bool check_sorted(const struct intel_engine_cs *engine,
 		u32 curr = i915_mmio_reg_offset(reg_table[i].addr);
 
 		if (curr < previous) {
-			DRM_ERROR("CMD: %s [%d] register table not sorted: "
-				  "entry=%d reg=0x%08X prev=0x%08X\n",
-				  engine->name, engine->id,
-				  i, curr, previous);
+			drm_err(&engine->i915->drm,
+				"CMD: %s [%d] register table not sorted: "
+				"entry=%d reg=0x%08X prev=0x%08X\n",
+				engine->name, engine->id,
+				i, curr, previous);
 			ret = false;
 		}
 
@@ -1010,18 +1012,21 @@ void intel_engine_init_cmd_parser(struct intel_engine_cs *engine)
 	}
 
 	if (!validate_cmds_sorted(engine, cmd_tables, cmd_table_count)) {
-		DRM_ERROR("%s: command descriptions are not sorted\n",
-			  engine->name);
+		drm_err(&engine->i915->drm,
+			"%s: command descriptions are not sorted\n",
+			engine->name);
 		return;
 	}
 	if (!validate_regs_sorted(engine)) {
-		DRM_ERROR("%s: registers are not sorted\n", engine->name);
+		drm_err(&engine->i915->drm,
+			"%s: registers are not sorted\n", engine->name);
 		return;
 	}
 
 	ret = init_hash_table(engine, cmd_tables, cmd_table_count);
 	if (ret) {
-		DRM_ERROR("%s: initialised failed!\n", engine->name);
+		drm_err(&engine->i915->drm,
+			"%s: initialised failed!\n", engine->name);
 		fini_hash_table(engine);
 		return;
 	}

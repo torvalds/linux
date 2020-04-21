@@ -210,8 +210,7 @@ static int anx6345_dp_link_training(struct anx6345 *anx6345)
 	if (err)
 		return err;
 
-	dpcd[0] = drm_dp_max_link_rate(anx6345->dpcd);
-	dpcd[0] = drm_dp_link_rate_to_bw_code(dpcd[0]);
+	dpcd[0] = dp_bw;
 	err = regmap_write(anx6345->map[I2C_IDX_DPTX],
 			   SP_DP_MAIN_LINK_BW_SET_REG, dpcd[0]);
 	if (err)
@@ -520,10 +519,16 @@ static const struct drm_connector_funcs anx6345_connector_funcs = {
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
-static int anx6345_bridge_attach(struct drm_bridge *bridge)
+static int anx6345_bridge_attach(struct drm_bridge *bridge,
+				 enum drm_bridge_attach_flags flags)
 {
 	struct anx6345 *anx6345 = bridge_to_anx6345(bridge);
 	int err;
+
+	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR) {
+		DRM_ERROR("Fix bridge driver to make connector optional!");
+		return -EINVAL;
+	}
 
 	if (!bridge->encoder) {
 		DRM_ERROR("Parent encoder object not found");
@@ -712,16 +717,20 @@ static int anx6345_i2c_probe(struct i2c_client *client,
 		DRM_DEBUG("No panel found\n");
 
 	/* 1.2V digital core power regulator  */
-	anx6345->dvdd12 = devm_regulator_get(dev, "dvdd12-supply");
+	anx6345->dvdd12 = devm_regulator_get(dev, "dvdd12");
 	if (IS_ERR(anx6345->dvdd12)) {
-		DRM_ERROR("dvdd12-supply not found\n");
+		if (PTR_ERR(anx6345->dvdd12) != -EPROBE_DEFER)
+			DRM_ERROR("Failed to get dvdd12 supply (%ld)\n",
+				  PTR_ERR(anx6345->dvdd12));
 		return PTR_ERR(anx6345->dvdd12);
 	}
 
 	/* 2.5V digital core power regulator  */
-	anx6345->dvdd25 = devm_regulator_get(dev, "dvdd25-supply");
+	anx6345->dvdd25 = devm_regulator_get(dev, "dvdd25");
 	if (IS_ERR(anx6345->dvdd25)) {
-		DRM_ERROR("dvdd25-supply not found\n");
+		if (PTR_ERR(anx6345->dvdd25) != -EPROBE_DEFER)
+			DRM_ERROR("Failed to get dvdd25 supply (%ld)\n",
+				  PTR_ERR(anx6345->dvdd25));
 		return PTR_ERR(anx6345->dvdd25);
 	}
 

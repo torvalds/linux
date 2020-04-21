@@ -55,7 +55,7 @@ static int ltc3815_write_byte(struct i2c_client *client, int page, u8 reg)
 		 * LTC3815 does not support the CLEAR_FAULTS command.
 		 * Emulate it by clearing the status register.
 		 */
-		ret = pmbus_read_word_data(client, 0, PMBUS_STATUS_WORD);
+		ret = pmbus_read_word_data(client, 0, 0xff, PMBUS_STATUS_WORD);
 		if (ret > 0) {
 			pmbus_write_word_data(client, 0, PMBUS_STATUS_WORD,
 					      ret);
@@ -69,25 +69,31 @@ static int ltc3815_write_byte(struct i2c_client *client, int page, u8 reg)
 	return ret;
 }
 
-static int ltc3815_read_word_data(struct i2c_client *client, int page, int reg)
+static int ltc3815_read_word_data(struct i2c_client *client, int page,
+				  int phase, int reg)
 {
 	int ret;
 
 	switch (reg) {
 	case PMBUS_VIRT_READ_VIN_MAX:
-		ret = pmbus_read_word_data(client, page, LTC3815_MFR_VIN_PEAK);
+		ret = pmbus_read_word_data(client, page, phase,
+					   LTC3815_MFR_VIN_PEAK);
 		break;
 	case PMBUS_VIRT_READ_VOUT_MAX:
-		ret = pmbus_read_word_data(client, page, LTC3815_MFR_VOUT_PEAK);
+		ret = pmbus_read_word_data(client, page, phase,
+					   LTC3815_MFR_VOUT_PEAK);
 		break;
 	case PMBUS_VIRT_READ_TEMP_MAX:
-		ret = pmbus_read_word_data(client, page, LTC3815_MFR_TEMP_PEAK);
+		ret = pmbus_read_word_data(client, page, phase,
+					   LTC3815_MFR_TEMP_PEAK);
 		break;
 	case PMBUS_VIRT_READ_IOUT_MAX:
-		ret = pmbus_read_word_data(client, page, LTC3815_MFR_IOUT_PEAK);
+		ret = pmbus_read_word_data(client, page, phase,
+					   LTC3815_MFR_IOUT_PEAK);
 		break;
 	case PMBUS_VIRT_READ_IIN_MAX:
-		ret = pmbus_read_word_data(client, page, LTC3815_MFR_IIN_PEAK);
+		ret = pmbus_read_word_data(client, page, phase,
+					   LTC3815_MFR_IIN_PEAK);
 		break;
 	case PMBUS_VIRT_RESET_VOUT_HISTORY:
 	case PMBUS_VIRT_RESET_VIN_HISTORY:

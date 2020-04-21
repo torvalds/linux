@@ -1451,7 +1451,7 @@ static int cx8800_initdev(struct pci_dev *pci_dev,
 				     V4L2_CAP_VIDEO_CAPTURE;
 	if (core->board.tuner_type != UNSET)
 		dev->video_dev.device_caps |= V4L2_CAP_TUNER;
-	err = video_register_device(&dev->video_dev, VFL_TYPE_GRABBER,
+	err = video_register_device(&dev->video_dev, VFL_TYPE_VIDEO,
 				    video_nr[core->nr]);
 	if (err < 0) {
 		pr_err("can't register video device\n");

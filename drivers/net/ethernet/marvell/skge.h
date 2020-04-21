@@ -15,12 +15,6 @@
 #define  PCI_VPD_ROM_SZ	7L<<14	/* VPD ROM size 0=256, 1=512, ... */
 #define  PCI_REV_DESC	1<<2	/* Reverse Descriptor bytes */
 
-#define PCI_STATUS_ERROR_BITS (PCI_STATUS_DETECTED_PARITY | \
-			       PCI_STATUS_SIG_SYSTEM_ERROR | \
-			       PCI_STATUS_REC_MASTER_ABORT | \
-			       PCI_STATUS_REC_TARGET_ABORT | \
-			       PCI_STATUS_PARITY)
-
 enum csr_regs {
 	B0_RAP	= 0x0000,
 	B0_CTST	= 0x0004,
@@ -2426,7 +2420,7 @@ struct skge_hw {
 	spinlock_t	     phy_lock;
 	struct tasklet_struct phy_task;
 
-	char		     irq_name[0]; /* skge@pci:000:04:00.0 */
+	char		     irq_name[]; /* skge@pci:000:04:00.0 */
 };
 
 enum pause_control {

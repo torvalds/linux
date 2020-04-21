@@ -596,14 +596,11 @@ static void pkcs1pad_free(struct akcipher_instance *inst)
 
 static int pkcs1pad_create(struct crypto_template *tmpl, struct rtattr **tb)
 {
-	const struct rsa_asn1_template *digest_info;
 	struct crypto_attr_type *algt;
 	u32 mask;
 	struct akcipher_instance *inst;
 	struct pkcs1pad_inst_ctx *ctx;
-	struct crypto_akcipher_spawn *spawn;
 	struct akcipher_alg *rsa_alg;
-	const char *rsa_alg_name;
 	const char *hash_name;
 	int err;
 
@@ -616,60 +613,49 @@ static int pkcs1pad_create(struct crypto_template *tmpl, struct rtattr **tb)
 
 	mask = crypto_requires_sync(algt->type, algt->mask);
 
-	rsa_alg_name = crypto_attr_alg_name(tb[1]);
-	if (IS_ERR(rsa_alg_name))
-		return PTR_ERR(rsa_alg_name);
-
-	hash_name = crypto_attr_alg_name(tb[2]);
-	if (IS_ERR(hash_name))
-		hash_name = NULL;
-
-	if (hash_name) {
-		digest_info = rsa_lookup_asn1(hash_name);
-		if (!digest_info)
-			return -EINVAL;
-	} else
-		digest_info = NULL;
-
 	inst = kzalloc(sizeof(*inst) + sizeof(*ctx), GFP_KERNEL);
 	if (!inst)
 		return -ENOMEM;
 
 	ctx = akcipher_instance_ctx(inst);
-	spawn = &ctx->spawn;
-	ctx->digest_info = digest_info;
 
-	err = crypto_grab_akcipher(spawn, akcipher_crypto_instance(inst),
-				   rsa_alg_name, 0, mask);
+	err = crypto_grab_akcipher(&ctx->spawn, akcipher_crypto_instance(inst),
+				   crypto_attr_alg_name(tb[1]), 0, mask);
 	if (err)
-		goto out_free_inst;
+		goto err_free_inst;
 
-	rsa_alg = crypto_spawn_akcipher_alg(spawn);
+	rsa_alg = crypto_spawn_akcipher_alg(&ctx->spawn);
 
 	err = -ENAMETOOLONG;
-
-	if (!hash_name) {
+	hash_name = crypto_attr_alg_name(tb[2]);
+	if (IS_ERR(hash_name)) {
 		if (snprintf(inst->alg.base.cra_name,
 			     CRYPTO_MAX_ALG_NAME, "pkcs1pad(%s)",
 			     rsa_alg->base.cra_name) >= CRYPTO_MAX_ALG_NAME)
-			goto out_drop_alg;
+			goto err_free_inst;
 
 		if (snprintf(inst->alg.base.cra_driver_name,
 			     CRYPTO_MAX_ALG_NAME, "pkcs1pad(%s)",
 			     rsa_alg->base.cra_driver_name) >=
 			     CRYPTO_MAX_ALG_NAME)
-			goto out_drop_alg;
+			goto err_free_inst;
 	} else {
+		ctx->digest_info = rsa_lookup_asn1(hash_name);
+		if (!ctx->digest_info) {
+			err = -EINVAL;
+			goto err_free_inst;
+		}
+
 		if (snprintf(inst->alg.base.cra_name, CRYPTO_MAX_ALG_NAME,
 			     "pkcs1pad(%s,%s)", rsa_alg->base.cra_name,
 			     hash_name) >= CRYPTO_MAX_ALG_NAME)
-			goto out_drop_alg;
+			goto err_free_inst;
 
 		if (snprintf(inst->alg.base.cra_driver_name,
 			     CRYPTO_MAX_ALG_NAME, "pkcs1pad(%s,%s)",
 			     rsa_alg->base.cra_driver_name,
 			     hash_name) >= CRYPTO_MAX_ALG_NAME)
-			goto out_drop_alg;
+			goto err_free_inst;
 	}
 
 	inst->alg.base.cra_flags = rsa_alg->base.cra_flags & CRYPTO_ALG_ASYNC;
@@ -691,15 +677,10 @@ static int pkcs1pad_create(struct crypto_template *tmpl, struct rtattr **tb)
 	inst->free = pkcs1pad_free;
 
 	err = akcipher_register_instance(tmpl, inst);
-	if (err)
-		goto out_drop_alg;
-
-	return 0;
-
-out_drop_alg:
-	crypto_drop_akcipher(spawn);
-out_free_inst:
-	kfree(inst);
+	if (err) {
+err_free_inst:
+		pkcs1pad_free(inst);
+	}
 	return err;
 }
 

@@ -80,6 +80,8 @@ required:
   - clock-names
   - "#iommu-cells"
 
+additionalProperties: false
+
 examples:
   - |
     #include <dt-bindings/clock/exynos5250.h>

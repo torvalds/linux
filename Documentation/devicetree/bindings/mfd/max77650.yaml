@@ -73,6 +73,8 @@ required:
   - gpio-controller
   - "#gpio-cells"
 
+additionalProperties: false
+
 examples:
   - |
     #include <dt-bindings/interrupt-controller/irq.h>
@@ -97,14 +99,14 @@ examples:
             regulators {
                 compatible = "maxim,max77650-regulator";
 
-                max77650_ldo: regulator@0 {
+                max77650_ldo: regulator-ldo {
                     regulator-compatible = "ldo";
                     regulator-name = "max77650-ldo";
                     regulator-min-microvolt = <1350000>;
                     regulator-max-microvolt = <2937500>;
                 };
 
-                max77650_sbb0: regulator@1 {
+                max77650_sbb0: regulator-sbb0 {
                     regulator-compatible = "sbb0";
                     regulator-name = "max77650-sbb0";
                     regulator-min-microvolt = <800000>;

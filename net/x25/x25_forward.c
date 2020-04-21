@@ -131,13 +131,11 @@ out:
 
 void x25_clear_forward_by_lci(unsigned int lci)
 {
-	struct x25_forward *fwd;
-	struct list_head *entry, *tmp;
+	struct x25_forward *fwd, *tmp;
 
 	write_lock_bh(&x25_forward_list_lock);
 
-	list_for_each_safe(entry, tmp, &x25_forward_list) {
-		fwd = list_entry(entry, struct x25_forward, node);
+	list_for_each_entry_safe(fwd, tmp, &x25_forward_list, node) {
 		if (fwd->lci == lci) {
 			list_del(&fwd->node);
 			kfree(fwd);
@@ -149,13 +147,11 @@ void x25_clear_forward_by_lci(unsigned int lci)
 
 void x25_clear_forward_by_dev(struct net_device *dev)
 {
-	struct x25_forward *fwd;
-	struct list_head *entry, *tmp;
+	struct x25_forward *fwd, *tmp;
 
 	write_lock_bh(&x25_forward_list_lock);
 
-	list_for_each_safe(entry, tmp, &x25_forward_list) {
-		fwd = list_entry(entry, struct x25_forward, node);
+	list_for_each_entry_safe(fwd, tmp, &x25_forward_list, node) {
 		if ((fwd->dev1 == dev) || (fwd->dev2 == dev)){
 			list_del(&fwd->node);
 			kfree(fwd);

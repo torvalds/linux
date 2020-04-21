@@ -75,9 +75,6 @@
 /* Some compile options */
 #undef DEBUG_SLEEP
 
-/* Misc minor number allocated for /dev/pmu */
-#define PMU_MINOR		154
-
 /* How many iterations between battery polls */
 #define BATTERY_POLLING_COUNT	2
 

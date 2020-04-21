@@ -26,6 +26,7 @@
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_state_helper.h>
+#include <drm/drm_bridge.h>
 #include <drm/drm_connector.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_device.h>
@@ -551,3 +552,104 @@ void __drm_atomic_helper_private_obj_duplicate_state(struct drm_private_obj *obj
 	memcpy(state, obj->state, sizeof(*state));
 }
 EXPORT_SYMBOL(__drm_atomic_helper_private_obj_duplicate_state);
+
+/**
+ * __drm_atomic_helper_bridge_duplicate_state() - Copy atomic bridge state
+ * @bridge: bridge object
+ * @state: atomic bridge state
+ *
+ * Copies atomic state from a bridge's current state and resets inferred values.
+ * This is useful for drivers that subclass the bridge state.
+ */
+void __drm_atomic_helper_bridge_duplicate_state(struct drm_bridge *bridge,
+						struct drm_bridge_state *state)
+{
+	__drm_atomic_helper_private_obj_duplicate_state(&bridge->base,
+							&state->base);
+	state->bridge = bridge;
+}
+EXPORT_SYMBOL(__drm_atomic_helper_bridge_duplicate_state);
+
+/**
+ * drm_atomic_helper_bridge_duplicate_state() - Duplicate a bridge state object
+ * @bridge: bridge object
+ *
+ * Allocates a new bridge state and initializes it with the current bridge
+ * state values. This helper is meant to be used as a bridge
+ * &drm_bridge_funcs.atomic_duplicate_state hook for bridges that don't
+ * subclass the bridge state.
+ */
+struct drm_bridge_state *
+drm_atomic_helper_bridge_duplicate_state(struct drm_bridge *bridge)
+{
+	struct drm_bridge_state *new;
+
+	if (WARN_ON(!bridge->base.state))
+		return NULL;
+
+	new = kzalloc(sizeof(*new), GFP_KERNEL);
+	if (new)
+		__drm_atomic_helper_bridge_duplicate_state(bridge, new);
+
+	return new;
+}
+EXPORT_SYMBOL(drm_atomic_helper_bridge_duplicate_state);
+
+/**
+ * drm_atomic_helper_bridge_destroy_state() - Destroy a bridge state object
+ * @bridge: the bridge this state refers to
+ * @state: bridge state to destroy
+ *
+ * Destroys a bridge state previously created by
+ * &drm_atomic_helper_bridge_reset() or
+ * &drm_atomic_helper_bridge_duplicate_state(). This helper is meant to be
+ * used as a bridge &drm_bridge_funcs.atomic_destroy_state hook for bridges
+ * that don't subclass the bridge state.
+ */
+void drm_atomic_helper_bridge_destroy_state(struct drm_bridge *bridge,
+					    struct drm_bridge_state *state)
+{
+	kfree(state);
+}
+EXPORT_SYMBOL(drm_atomic_helper_bridge_destroy_state);
+
+/**
+ * __drm_atomic_helper_bridge_reset() - Initialize a bridge state to its
+ *					default
+ * @bridge: the bridge this state refers to
+ * @state: bridge state to initialize
+ *
+ * Initializes the bridge state to default values. This is meant to be called
+ * by the bridge &drm_bridge_funcs.atomic_reset hook for bridges that subclass
+ * the bridge state.
+ */
+void __drm_atomic_helper_bridge_reset(struct drm_bridge *bridge,
+				      struct drm_bridge_state *state)
+{
+	memset(state, 0, sizeof(*state));
+	state->bridge = bridge;
+}
+EXPORT_SYMBOL(__drm_atomic_helper_bridge_reset);
+
+/**
+ * drm_atomic_helper_bridge_reset() - Allocate and initialize a bridge state
+ *				      to its default
+ * @bridge: the bridge this state refers to
+ *
+ * Allocates the bridge state and initializes it to default values. This helper
+ * is meant to be used as a bridge &drm_bridge_funcs.atomic_reset hook for
+ * bridges that don't subclass the bridge state.
+ */
+struct drm_bridge_state *
+drm_atomic_helper_bridge_reset(struct drm_bridge *bridge)
+{
+	struct drm_bridge_state *bridge_state;
+
+	bridge_state = kzalloc(sizeof(*bridge_state), GFP_KERNEL);
+	if (!bridge_state)
+		return ERR_PTR(-ENOMEM);
+
+	__drm_atomic_helper_bridge_reset(bridge, bridge_state);
+	return bridge_state;
+}
+EXPORT_SYMBOL(drm_atomic_helper_bridge_reset);

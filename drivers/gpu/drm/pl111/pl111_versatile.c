@@ -19,6 +19,7 @@ static struct regmap *versatile_syscon_map;
  * We detect the different syscon types from the compatible strings.
  */
 enum versatile_clcd {
+	INTEGRATOR_IMPD1,
 	INTEGRATOR_CLCD_CM,
 	VERSATILE_CLCD,
 	REALVIEW_CLCD_EB,
@@ -61,6 +62,14 @@ static const struct of_device_id versatile_clcd_of_match[] = {
 	{
 		.compatible = "arm,vexpress-muxfpga",
 		.data = (void *)VEXPRESS_CLCD_V2M,
+	},
+	{},
+};
+
+static const struct of_device_id impd1_clcd_of_match[] = {
+	{
+		.compatible = "arm,im-pd1-syscon",
+		.data = (void *)INTEGRATOR_IMPD1,
 	},
 	{},
 };
@@ -123,6 +132,36 @@ static void pl111_integrator_enable(struct drm_device *drm, u32 format)
 			   INTEGRATOR_HDR_CTRL_OFFSET,
 			   INTEGRATOR_CLCD_MASK,
 			   val);
+}
+
+#define IMPD1_CTRL_OFFSET	0x18
+#define IMPD1_CTRL_DISP_LCD	(0 << 0)
+#define IMPD1_CTRL_DISP_VGA	(1 << 0)
+#define IMPD1_CTRL_DISP_LCD1	(2 << 0)
+#define IMPD1_CTRL_DISP_ENABLE	(1 << 2)
+#define IMPD1_CTRL_DISP_MASK	(7 << 0)
+
+static void pl111_impd1_enable(struct drm_device *drm, u32 format)
+{
+	u32 val;
+
+	dev_info(drm->dev, "enable IM-PD1 CLCD connectors\n");
+	val = IMPD1_CTRL_DISP_VGA | IMPD1_CTRL_DISP_ENABLE;
+
+	regmap_update_bits(versatile_syscon_map,
+			   IMPD1_CTRL_OFFSET,
+			   IMPD1_CTRL_DISP_MASK,
+			   val);
+}
+
+static void pl111_impd1_disable(struct drm_device *drm)
+{
+	dev_info(drm->dev, "disable IM-PD1 CLCD connectors\n");
+
+	regmap_update_bits(versatile_syscon_map,
+			   IMPD1_CTRL_OFFSET,
+			   IMPD1_CTRL_DISP_MASK,
+			   0);
 }
 
 /*
@@ -271,6 +310,20 @@ static const struct pl111_variant_data pl110_integrator = {
 };
 
 /*
+ * The IM-PD1 variant is a PL110 with a bunch of broken, or not
+ * yet implemented features
+ */
+static const struct pl111_variant_data pl110_impd1 = {
+	.name = "PL110 IM-PD1",
+	.is_pl110 = true,
+	.broken_clockdivider = true,
+	.broken_vblank = true,
+	.formats = pl110_integrator_pixel_formats,
+	.nformats = ARRAY_SIZE(pl110_integrator_pixel_formats),
+	.fb_bpp = 16,
+};
+
+/*
  * This is the in-between PL110 variant found in the ARM Versatile,
  * supporting RGB565/BGR565
  */
@@ -322,7 +375,20 @@ int pl111_versatile_init(struct device *dev, struct pl111_drm_dev_private *priv)
 		/* Non-ARM reference designs, just bail out */
 		return 0;
 	}
+
 	versatile_clcd_type = (enum versatile_clcd)clcd_id->data;
+
+	/*
+	 * On the Integrator, check if we should use the IM-PD1 instead,
+	 * if we find it, it will take precedence. This is on the Integrator/AP
+	 * which only has this option for PL110 graphics.
+	 */
+	 if (versatile_clcd_type == INTEGRATOR_CLCD_CM) {
+		np = of_find_matching_node_and_match(NULL, impd1_clcd_of_match,
+						     &clcd_id);
+		if (np)
+			versatile_clcd_type = (enum versatile_clcd)clcd_id->data;
+	}
 
 	/* Versatile Express special handling */
 	if (versatile_clcd_type == VEXPRESS_CLCD_V2M) {
@@ -366,6 +432,13 @@ int pl111_versatile_init(struct device *dev, struct pl111_drm_dev_private *priv)
 		priv->variant = &pl110_integrator;
 		priv->variant_display_enable = pl111_integrator_enable;
 		dev_info(dev, "set up callbacks for Integrator PL110\n");
+		break;
+	case INTEGRATOR_IMPD1:
+		versatile_syscon_map = map;
+		priv->variant = &pl110_impd1;
+		priv->variant_display_enable = pl111_impd1_enable;
+		priv->variant_display_disable = pl111_impd1_disable;
+		dev_info(dev, "set up callbacks for IM-PD1 PL110\n");
 		break;
 	case VERSATILE_CLCD:
 		versatile_syscon_map = map;

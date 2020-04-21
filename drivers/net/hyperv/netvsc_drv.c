@@ -638,10 +638,7 @@ static int netvsc_xmit(struct sk_buff *skb, struct net_device *net, bool xdp_tx)
 		} else {
 			lso_info->lso_v2_transmit.ip_version =
 				NDIS_TCP_LARGE_SEND_OFFLOAD_IPV6;
-			ipv6_hdr(skb)->payload_len = 0;
-			tcp_hdr(skb)->check =
-				~csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
-						 &ipv6_hdr(skb)->daddr, 0, IPPROTO_TCP, 0);
+			tcp_v6_gso_csum_prep(skb);
 		}
 		lso_info->lso_v2_transmit.tcp_header_offset = skb_transport_offset(skb);
 		lso_info->lso_v2_transmit.mss = skb_shinfo(skb)->gso_size;
@@ -1068,6 +1065,7 @@ static int netvsc_attach(struct net_device *ndev,
 	}
 
 	/* In any case device is now ready */
+	nvdev->tx_disable = false;
 	netif_device_attach(ndev);
 
 	/* Note: enable and attach happen when sub-channels setup */
@@ -1142,23 +1140,6 @@ out:
 	return ret;
 }
 
-static bool
-netvsc_validate_ethtool_ss_cmd(const struct ethtool_link_ksettings *cmd)
-{
-	struct ethtool_link_ksettings diff1 = *cmd;
-	struct ethtool_link_ksettings diff2 = {};
-
-	diff1.base.speed = 0;
-	diff1.base.duplex = 0;
-	/* advertising and cmd are usually set */
-	ethtool_link_ksettings_zero_link_mode(&diff1, advertising);
-	diff1.base.cmd = 0;
-	/* We set port to PORT_OTHER */
-	diff2.base.port = PORT_OTHER;
-
-	return !memcmp(&diff1, &diff2, sizeof(diff1));
-}
-
 static void netvsc_init_settings(struct net_device *dev)
 {
 	struct net_device_context *ndc = netdev_priv(dev);
@@ -1175,6 +1156,12 @@ static int netvsc_get_link_ksettings(struct net_device *dev,
 				     struct ethtool_link_ksettings *cmd)
 {
 	struct net_device_context *ndc = netdev_priv(dev);
+	struct net_device *vf_netdev;
+
+	vf_netdev = rtnl_dereference(ndc->vf_netdev);
+
+	if (vf_netdev)
+		return __ethtool_get_link_ksettings(vf_netdev, cmd);
 
 	cmd->base.speed = ndc->speed;
 	cmd->base.duplex = ndc->duplex;
@@ -1187,18 +1174,18 @@ static int netvsc_set_link_ksettings(struct net_device *dev,
 				     const struct ethtool_link_ksettings *cmd)
 {
 	struct net_device_context *ndc = netdev_priv(dev);
-	u32 speed;
+	struct net_device *vf_netdev = rtnl_dereference(ndc->vf_netdev);
 
-	speed = cmd->base.speed;
-	if (!ethtool_validate_speed(speed) ||
-	    !ethtool_validate_duplex(cmd->base.duplex) ||
-	    !netvsc_validate_ethtool_ss_cmd(cmd))
-		return -EINVAL;
+	if (vf_netdev) {
+		if (!vf_netdev->ethtool_ops->set_link_ksettings)
+			return -EOPNOTSUPP;
 
-	ndc->speed = speed;
-	ndc->duplex = cmd->base.duplex;
+		return vf_netdev->ethtool_ops->set_link_ksettings(vf_netdev,
+								  cmd);
+	}
 
-	return 0;
+	return ethtool_virtdev_set_link_ksettings(dev, cmd,
+						  &ndc->speed, &ndc->duplex);
 }
 
 static int netvsc_change_mtu(struct net_device *ndev, int mtu)
@@ -2475,6 +2462,8 @@ static int netvsc_probe(struct hv_device *dev,
 		net->max_mtu = NETVSC_MTU - ETH_HLEN;
 	else
 		net->max_mtu = ETH_DATA_LEN;
+
+	nvdev->tx_disable = false;
 
 	ret = register_netdevice(net);
 	if (ret != 0) {

@@ -24,12 +24,12 @@ struct mld2_grec {
 	__u8		grec_auxwords;
 	__be16		grec_nsrcs;
 	struct in6_addr	grec_mca;
-	struct in6_addr	grec_src[0];
+	struct in6_addr	grec_src[];
 };
 
 struct mld2_report {
 	struct icmp6hdr		mld2r_hdr;
-	struct mld2_grec	mld2r_grec[0];
+	struct mld2_grec	mld2r_grec[];
 };
 
 #define mld2r_type		mld2r_hdr.icmp6_type
@@ -55,7 +55,7 @@ struct mld2_query {
 #endif
 	__u8			mld2q_qqic;
 	__be16			mld2q_nsrcs;
-	struct in6_addr		mld2q_srcs[0];
+	struct in6_addr		mld2q_srcs[];
 };
 
 #define mld2q_type		mld2q_hdr.icmp6_type

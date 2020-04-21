@@ -154,15 +154,18 @@ amdgpu_dm_mst_connector_late_register(struct drm_connector *connector)
 {
 	struct amdgpu_dm_connector *amdgpu_dm_connector =
 		to_amdgpu_dm_connector(connector);
-	struct drm_dp_mst_port *port = amdgpu_dm_connector->port;
+	int r;
+
+	amdgpu_dm_connector->dm_dp_aux.aux.dev = connector->kdev;
+	r = drm_dp_aux_register(&amdgpu_dm_connector->dm_dp_aux.aux);
+	if (r)
+		return r;
 
 #if defined(CONFIG_DEBUG_FS)
 	connector_debugfs_init(amdgpu_dm_connector);
-	amdgpu_dm_connector->debugfs_dpcd_address = 0;
-	amdgpu_dm_connector->debugfs_dpcd_size = 0;
 #endif
 
-	return drm_dp_mst_connector_late_register(connector, port);
+	return r;
 }
 
 static void
@@ -204,7 +207,7 @@ static bool validate_dsc_caps_on_connector(struct amdgpu_dm_connector *aconnecto
 
 	if (!dc_dsc_parse_dsc_dpcd(aconnector->dc_link->ctx->dc,
 				   dsc_caps, NULL,
-				   &dc_sink->sink_dsc_caps.dsc_dec_caps))
+				   &dc_sink->dsc_caps.dsc_dec_caps))
 		return false;
 
 	return true;
@@ -259,8 +262,8 @@ static int dm_dp_mst_get_modes(struct drm_connector *connector)
 
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 			if (!validate_dsc_caps_on_connector(aconnector))
-				memset(&aconnector->dc_sink->sink_dsc_caps,
-				       0, sizeof(aconnector->dc_sink->sink_dsc_caps));
+				memset(&aconnector->dc_sink->dsc_caps,
+				       0, sizeof(aconnector->dc_sink->dsc_caps));
 #endif
 		}
 	}
@@ -407,6 +410,14 @@ dm_dp_add_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
 	drm_connector_attach_encoder(&aconnector->base,
 				     &aconnector->mst_encoder->base);
 
+	connector->max_bpc_property = master->base.max_bpc_property;
+	if (connector->max_bpc_property)
+		drm_connector_attach_max_bpc_property(connector, 8, 16);
+
+	connector->vrr_capable_property = master->base.vrr_capable_property;
+	if (connector->vrr_capable_property)
+		drm_connector_attach_vrr_capable_property(connector);
+
 	drm_object_attach_property(
 		&connector->base,
 		dev->mode_config.path_property,
@@ -437,9 +448,6 @@ dm_dp_add_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
 static void dm_dp_destroy_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
 					struct drm_connector *connector)
 {
-	struct amdgpu_dm_connector *master = container_of(mgr, struct amdgpu_dm_connector, mst_mgr);
-	struct drm_device *dev = master->base.dev;
-	struct amdgpu_device *adev = dev->dev_private;
 	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
 
 	DRM_INFO("DM_MST: Disabling connector: %p [id: %d] [master: %p]\n",
@@ -451,42 +459,26 @@ static void dm_dp_destroy_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
 					   aconnector->dc_sink);
 		dc_sink_release(aconnector->dc_sink);
 		aconnector->dc_sink = NULL;
+		aconnector->dc_link->cur_link_settings.lane_count = 0;
 	}
 
 	drm_connector_unregister(connector);
-	if (adev->mode_info.rfbdev)
-		drm_fb_helper_remove_one_connector(&adev->mode_info.rfbdev->helper, connector);
 	drm_connector_put(connector);
-}
-
-static void dm_dp_mst_register_connector(struct drm_connector *connector)
-{
-	struct drm_device *dev = connector->dev;
-	struct amdgpu_device *adev = dev->dev_private;
-
-	if (adev->mode_info.rfbdev)
-		drm_fb_helper_add_one_connector(&adev->mode_info.rfbdev->helper, connector);
-	else
-		DRM_ERROR("adev->mode_info.rfbdev is NULL\n");
-
-	drm_connector_register(connector);
 }
 
 static const struct drm_dp_mst_topology_cbs dm_mst_cbs = {
 	.add_connector = dm_dp_add_mst_connector,
 	.destroy_connector = dm_dp_destroy_mst_connector,
-	.register_connector = dm_dp_mst_register_connector
 };
 
 void amdgpu_dm_initialize_dp_connector(struct amdgpu_display_manager *dm,
 				       struct amdgpu_dm_connector *aconnector)
 {
 	aconnector->dm_dp_aux.aux.name = "dmdc";
-	aconnector->dm_dp_aux.aux.dev = aconnector->base.kdev;
 	aconnector->dm_dp_aux.aux.transfer = dm_dp_aux_transfer;
 	aconnector->dm_dp_aux.ddc_service = aconnector->dc_link->ddc;
 
-	drm_dp_aux_register(&aconnector->dm_dp_aux.aux);
+	drm_dp_aux_init(&aconnector->dm_dp_aux.aux);
 	drm_dp_cec_register_connector(&aconnector->dm_dp_aux.aux,
 				      &aconnector->base);
 
@@ -547,7 +539,7 @@ static void set_dsc_configs_from_fairness_vars(struct dsc_mst_fairness_params *p
 		memset(&params[i].timing->dsc_cfg, 0, sizeof(params[i].timing->dsc_cfg));
 		if (vars[i].dsc_enabled && dc_dsc_compute_config(
 					params[i].sink->ctx->dc->res_pool->dscs[0],
-					&params[i].sink->sink_dsc_caps.dsc_dec_caps,
+					&params[i].sink->dsc_caps.dsc_dec_caps,
 					params[i].sink->ctx->dc->debug.dsc_min_slice_height_override,
 					0,
 					params[i].timing,
@@ -568,7 +560,7 @@ static int bpp_x16_from_pbn(struct dsc_mst_fairness_params param, int pbn)
 	kbps = div_u64((u64)pbn * 994 * 8 * 54, 64);
 	dc_dsc_compute_config(
 			param.sink->ctx->dc->res_pool->dscs[0],
-			&param.sink->sink_dsc_caps.dsc_dec_caps,
+			&param.sink->dsc_caps.dsc_dec_caps,
 			param.sink->ctx->dc->debug.dsc_min_slice_height_override,
 			(int) kbps, param.timing, &dsc_config);
 
@@ -765,14 +757,14 @@ static bool compute_mst_dsc_configs_for_link(struct drm_atomic_state *state,
 		params[count].sink = stream->sink;
 		aconnector = (struct amdgpu_dm_connector *)stream->dm_stream_context;
 		params[count].port = aconnector->port;
-		params[count].compression_possible = stream->sink->sink_dsc_caps.dsc_dec_caps.is_dsc_supported;
+		params[count].compression_possible = stream->sink->dsc_caps.dsc_dec_caps.is_dsc_supported;
 		dc_dsc_get_policy_for_timing(params[count].timing, &dsc_policy);
 		if (!dc_dsc_compute_bandwidth_range(
 				stream->sink->ctx->dc->res_pool->dscs[0],
 				stream->sink->ctx->dc->debug.dsc_min_slice_height_override,
 				dsc_policy.min_target_bpp,
 				dsc_policy.max_target_bpp,
-				&stream->sink->sink_dsc_caps.dsc_dec_caps,
+				&stream->sink->dsc_caps.dsc_dec_caps,
 				&stream->timing, &params[count].bw_range))
 			params[count].bw_range.stream_kbps = dc_bandwidth_in_kbps_from_timing(&stream->timing);
 
@@ -854,7 +846,7 @@ bool compute_mst_dsc_configs_for_state(struct drm_atomic_state *state,
 		if (!aconnector || !aconnector->dc_sink)
 			continue;
 
-		if (!aconnector->dc_sink->sink_dsc_caps.dsc_dec_caps.is_dsc_supported)
+		if (!aconnector->dc_sink->dsc_caps.dsc_dec_caps.is_dsc_supported)
 			continue;
 
 		if (computed_streams[i])

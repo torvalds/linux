@@ -31,13 +31,13 @@ struct wlan_acl_pool {
 	struct __queue	acl_node_q;
 };
 
-typedef struct _RSSI_STA{
+typedef struct _RSSI_STA {
 	s32	UndecoratedSmoothedPWDB;
 	s32	UndecoratedSmoothedCCK;
 	s32	UndecoratedSmoothedOFDM;
 	u64	PacketMap;
 	u8 ValidBit;
-}RSSI_STA, *PRSSI_STA;
+} RSSI_STA, *PRSSI_STA;
 
 struct	stainfo_stats	{
 
@@ -304,7 +304,7 @@ struct sta_info {
 #define STA_RX_PKTS_DIFF_ARG(sta) \
 	sta->sta_stats.rx_mgnt_pkts - sta->sta_stats.last_rx_mgnt_pkts \
 	, sta->sta_stats.rx_ctrl_pkts - sta->sta_stats.last_rx_ctrl_pkts \
-	, sta->sta_stats.rx_data_pkts -sta->sta_stats.last_rx_data_pkts
+	, sta->sta_stats.rx_data_pkts - sta->sta_stats.last_rx_data_pkts
 
 #define STA_PKTS_FMT "(m:%llu, c:%llu, d:%llu)"
 
@@ -374,7 +374,7 @@ int rtw_stainfo_offset(struct sta_priv *stapriv, struct sta_info *sta);
 struct sta_info *rtw_get_stainfo_by_offset(struct sta_priv *stapriv, int offset);
 
 extern struct sta_info *rtw_alloc_stainfo(struct	sta_priv *pstapriv, u8 *hwaddr);
-extern u32 rtw_free_stainfo(struct adapter *padapter , struct sta_info *psta);
+extern u32 rtw_free_stainfo(struct adapter *padapter, struct sta_info *psta);
 extern void rtw_free_all_stainfo(struct adapter *padapter);
 extern struct sta_info *rtw_get_stainfo(struct sta_priv *pstapriv, u8 *hwaddr);
 extern u32 rtw_init_bcmc_stainfo(struct adapter *padapter);

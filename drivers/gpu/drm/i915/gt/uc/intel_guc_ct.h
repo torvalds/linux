@@ -49,7 +49,7 @@ struct intel_guc_ct {
 	struct intel_guc_ct_buffer ctbs[2];
 
 	struct {
-		u32 next_fence; /* fence to be used with next request to send */
+		u32 last_fence; /* last fence used to send request */
 
 		spinlock_t lock; /* protects pending requests list */
 		struct list_head pending; /* requests waiting for response */
@@ -64,6 +64,11 @@ int intel_guc_ct_init(struct intel_guc_ct *ct);
 void intel_guc_ct_fini(struct intel_guc_ct *ct);
 int intel_guc_ct_enable(struct intel_guc_ct *ct);
 void intel_guc_ct_disable(struct intel_guc_ct *ct);
+
+static inline void intel_guc_ct_sanitize(struct intel_guc_ct *ct)
+{
+	ct->enabled = false;
+}
 
 static inline bool intel_guc_ct_enabled(struct intel_guc_ct *ct)
 {

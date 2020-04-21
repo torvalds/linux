@@ -568,6 +568,8 @@ struct iio_dev {
 #if defined(CONFIG_DEBUG_FS)
 	struct dentry			*debugfs_dentry;
 	unsigned			cached_reg_addr;
+	char				read_buf[20];
+	unsigned int			read_buf_len;
 #endif
 };
 
@@ -626,6 +628,8 @@ static inline clockid_t iio_device_get_clock(const struct iio_dev *indio_dev)
 {
 	return indio_dev->clock_id;
 }
+
+int iio_device_set_clock(struct iio_dev *indio_dev, clockid_t clock_id);
 
 /**
  * dev_to_iio_dev() - Get IIO device struct from a device struct

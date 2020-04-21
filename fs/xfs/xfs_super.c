@@ -528,6 +528,9 @@ xfs_flush_inodes(
 {
 	struct super_block	*sb = mp->m_super;
 
+	if (!__ratelimit(&mp->m_flush_inodes_ratelimit))
+		return;
+
 	if (down_read_trylock(&sb->s_umount)) {
 		sync_inodes_sb(sb);
 		up_read(&sb->s_umount);
@@ -1366,6 +1369,17 @@ xfs_fc_fill_super(
 	if (error)
 		goto out_free_names;
 
+	/*
+	 * Cap the number of invocations of xfs_flush_inodes to 16 for every
+	 * quarter of a second.  The magic numbers here were determined by
+	 * observation neither to cause stalls in writeback when there are a
+	 * lot of IO threads and the fs is near ENOSPC, nor cause any fstest
+	 * regressions.  YMMV.
+	 */
+	ratelimit_state_init(&mp->m_flush_inodes_ratelimit, HZ / 4, 16);
+	ratelimit_set_flags(&mp->m_flush_inodes_ratelimit,
+			RATELIMIT_MSG_ON_RELEASE);
+
 	error = xfs_init_mount_workqueues(mp);
 	if (error)
 		goto out_close_devices;
@@ -1861,7 +1875,8 @@ xfs_init_zones(void)
 
 	xfs_ili_zone = kmem_cache_create("xfs_ili",
 					 sizeof(struct xfs_inode_log_item), 0,
-					 SLAB_MEM_SPREAD, NULL);
+					 SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD,
+					 NULL);
 	if (!xfs_ili_zone)
 		goto out_destroy_inode_zone;
 

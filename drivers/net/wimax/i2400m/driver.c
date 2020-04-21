@@ -740,9 +740,6 @@ EXPORT_SYMBOL_GPL(i2400m_error_recovery);
 static
 int i2400m_bm_buf_alloc(struct i2400m *i2400m)
 {
-	int result;
-
-	result = -ENOMEM;
 	i2400m->bm_cmd_buf = kzalloc(I2400M_BM_CMD_BUF_SIZE, GFP_KERNEL);
 	if (i2400m->bm_cmd_buf == NULL)
 		goto error_bm_cmd_kzalloc;
@@ -754,7 +751,7 @@ int i2400m_bm_buf_alloc(struct i2400m *i2400m)
 error_bm_ack_buf_kzalloc:
 	kfree(i2400m->bm_cmd_buf);
 error_bm_cmd_kzalloc:
-	return result;
+	return -ENOMEM;
 }
 
 
@@ -843,7 +840,7 @@ EXPORT_SYMBOL_GPL(i2400m_reset);
  */
 int i2400m_setup(struct i2400m *i2400m, enum i2400m_bri bm_flags)
 {
-	int result = -ENODEV;
+	int result;
 	struct device *dev = i2400m_dev(i2400m);
 	struct wimax_dev *wimax_dev = &i2400m->wimax_dev;
 	struct net_device *net_dev = i2400m->wimax_dev.net_dev;

@@ -48,6 +48,12 @@ enum ovl_entry_flag {
 	OVL_E_CONNECTED,
 };
 
+enum {
+	OVL_XINO_OFF,
+	OVL_XINO_AUTO,
+	OVL_XINO_ON,
+};
+
 /*
  * The tuple (fh,uuid) is a universal unique identifier for a copy up origin,
  * where:
@@ -87,7 +93,7 @@ struct ovl_fb {
 	u8 flags;	/* OVL_FH_FLAG_* */
 	u8 type;	/* fid_type of fid */
 	uuid_t uuid;	/* uuid of filesystem */
-	u32 fid[0];	/* file identifier should be 32bit aligned in-memory */
+	u32 fid[];	/* file identifier should be 32bit aligned in-memory */
 } __packed;
 
 /* In-memory and on-wire format for overlay file handle */
@@ -230,6 +236,8 @@ bool ovl_index_all(struct super_block *sb);
 bool ovl_verify_lower(struct super_block *sb);
 struct ovl_entry *ovl_alloc_entry(unsigned int numlower);
 bool ovl_dentry_remote(struct dentry *dentry);
+void ovl_dentry_update_reval(struct dentry *dentry, struct dentry *upperdentry,
+			     unsigned int mask);
 bool ovl_dentry_weird(struct dentry *dentry);
 enum ovl_path_type ovl_path_type(struct dentry *dentry);
 void ovl_path_upper(struct dentry *dentry, struct path *path);
@@ -264,8 +272,6 @@ void ovl_set_upperdata(struct inode *inode);
 bool ovl_redirect_dir(struct super_block *sb);
 const char *ovl_dentry_get_redirect(struct dentry *dentry);
 void ovl_dentry_set_redirect(struct dentry *dentry, const char *redirect);
-void ovl_inode_init(struct inode *inode, struct dentry *upperdentry,
-		    struct dentry *lowerdentry, struct dentry *lowerdata);
 void ovl_inode_update(struct inode *inode, struct dentry *upperdentry);
 void ovl_dir_modified(struct dentry *dentry, bool impurity);
 u64 ovl_dentry_version_get(struct dentry *dentry);
@@ -301,6 +307,16 @@ static inline bool ovl_is_impuredir(struct dentry *dentry)
 	return ovl_check_dir_xattr(dentry, OVL_XATTR_IMPURE);
 }
 
+/*
+ * With xino=auto, we do best effort to keep all inodes on same st_dev and
+ * d_ino consistent with st_ino.
+ * With xino=on, we do the same effort but we warn if we failed.
+ */
+static inline bool ovl_xino_warn(struct super_block *sb)
+{
+	return OVL_FS(sb)->config.xino == OVL_XINO_ON;
+}
+
 /* All layers on same fs? */
 static inline bool ovl_same_fs(struct super_block *sb)
 {
@@ -318,7 +334,12 @@ static inline unsigned int ovl_xino_bits(struct super_block *sb)
 	return ovl_same_dev(sb) ? OVL_FS(sb)->xino_mode : 0;
 }
 
-static inline int ovl_inode_lock(struct inode *inode)
+static inline void ovl_inode_lock(struct inode *inode)
+{
+	mutex_lock(&OVL_I(inode)->lock);
+}
+
+static inline int ovl_inode_lock_interruptible(struct inode *inode)
 {
 	return mutex_lock_interruptible(&OVL_I(inode)->lock);
 }
@@ -405,6 +426,8 @@ struct ovl_inode_params {
 	char *redirect;
 	struct dentry *lowerdata;
 };
+void ovl_inode_init(struct inode *inode, struct ovl_inode_params *oip,
+		    unsigned long ino, int fsid);
 struct inode *ovl_new_inode(struct super_block *sb, umode_t mode, dev_t rdev);
 struct inode *ovl_lookup_inode(struct super_block *sb, struct dentry *real,
 			       bool is_upper);
@@ -446,6 +469,7 @@ struct ovl_cattr {
 struct dentry *ovl_create_real(struct inode *dir, struct dentry *newdentry,
 			       struct ovl_cattr *attr);
 int ovl_cleanup(struct inode *dir, struct dentry *dentry);
+struct dentry *ovl_lookup_temp(struct dentry *workdir);
 struct dentry *ovl_create_temp(struct dentry *workdir, struct ovl_cattr *attr);
 
 /* file.c */

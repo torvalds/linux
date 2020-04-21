@@ -31,17 +31,15 @@ int intel_ring_pin(struct intel_ring *ring)
 	if (atomic_fetch_inc(&ring->pin_count))
 		return 0;
 
-	flags = PIN_GLOBAL;
-
 	/* Ring wraparound at offset 0 sometimes hangs. No idea why. */
-	flags |= PIN_OFFSET_BIAS | i915_ggtt_pin_bias(vma);
+	flags = PIN_OFFSET_BIAS | i915_ggtt_pin_bias(vma);
 
 	if (vma->obj->stolen)
 		flags |= PIN_MAPPABLE;
 	else
 		flags |= PIN_HIGH;
 
-	ret = i915_vma_pin(vma, 0, 0, flags);
+	ret = i915_ggtt_pin(vma, 0, flags);
 	if (unlikely(ret))
 		goto err_unpin;
 
@@ -145,6 +143,7 @@ intel_engine_create_ring(struct intel_engine_cs *engine, int size)
 
 	kref_init(&ring->ref);
 	ring->size = size;
+	ring->wrap = BITS_PER_TYPE(ring->size) - ilog2(size);
 
 	/*
 	 * Workaround an erratum on the i830 which causes a hang if

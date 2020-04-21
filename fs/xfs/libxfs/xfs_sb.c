@@ -220,7 +220,7 @@ xfs_validate_sb_common(
 	struct xfs_buf		*bp,
 	struct xfs_sb		*sbp)
 {
-	struct xfs_dsb		*dsb = XFS_BUF_TO_SBP(bp);
+	struct xfs_dsb		*dsb = bp->b_addr;
 	uint32_t		agcount = 0;
 	uint32_t		rem;
 
@@ -326,6 +326,38 @@ xfs_validate_sb_common(
 	    sbp->sb_shared_vn != 0)) {
 		xfs_notice(mp, "SB sanity check failed");
 		return -EFSCORRUPTED;
+	}
+
+	/* Validate the realtime geometry; stolen from xfs_repair */
+	if (sbp->sb_rextsize * sbp->sb_blocksize > XFS_MAX_RTEXTSIZE ||
+	    sbp->sb_rextsize * sbp->sb_blocksize < XFS_MIN_RTEXTSIZE) {
+		xfs_notice(mp,
+			"realtime extent sanity check failed");
+		return -EFSCORRUPTED;
+	}
+
+	if (sbp->sb_rblocks == 0) {
+		if (sbp->sb_rextents != 0 || sbp->sb_rbmblocks != 0 ||
+		    sbp->sb_rextslog != 0 || sbp->sb_frextents != 0) {
+			xfs_notice(mp,
+				"realtime zeroed geometry check failed");
+			return -EFSCORRUPTED;
+		}
+	} else {
+		uint64_t	rexts;
+		uint64_t	rbmblocks;
+
+		rexts = div_u64(sbp->sb_rblocks, sbp->sb_rextsize);
+		rbmblocks = howmany_64(sbp->sb_rextents,
+				       NBBY * sbp->sb_blocksize);
+
+		if (sbp->sb_rextents != rexts ||
+		    sbp->sb_rextslog != xfs_highbit32(sbp->sb_rextents) ||
+		    sbp->sb_rbmblocks != rbmblocks) {
+			xfs_notice(mp,
+				"realtime geometry sanity check failed");
+			return -EFSCORRUPTED;
+		}
 	}
 
 	if (sbp->sb_unit) {
@@ -681,7 +713,7 @@ xfs_sb_read_verify(
 {
 	struct xfs_sb		sb;
 	struct xfs_mount	*mp = bp->b_mount;
-	struct xfs_dsb		*dsb = XFS_BUF_TO_SBP(bp);
+	struct xfs_dsb		*dsb = bp->b_addr;
 	int			error;
 
 	/*
@@ -707,7 +739,7 @@ xfs_sb_read_verify(
 	 * Check all the superblock fields.  Don't byteswap the xquota flags
 	 * because _verify_common checks the on-disk values.
 	 */
-	__xfs_sb_from_disk(&sb, XFS_BUF_TO_SBP(bp), false);
+	__xfs_sb_from_disk(&sb, dsb, false);
 	error = xfs_validate_sb_common(mp, bp, &sb);
 	if (error)
 		goto out_error;
@@ -730,7 +762,7 @@ static void
 xfs_sb_quiet_read_verify(
 	struct xfs_buf	*bp)
 {
-	struct xfs_dsb	*dsb = XFS_BUF_TO_SBP(bp);
+	struct xfs_dsb	*dsb = bp->b_addr;
 
 	if (dsb->sb_magicnum == cpu_to_be32(XFS_SB_MAGIC)) {
 		/* XFS filesystem, verify noisily! */
@@ -748,13 +780,14 @@ xfs_sb_write_verify(
 	struct xfs_sb		sb;
 	struct xfs_mount	*mp = bp->b_mount;
 	struct xfs_buf_log_item	*bip = bp->b_log_item;
+	struct xfs_dsb		*dsb = bp->b_addr;
 	int			error;
 
 	/*
 	 * Check all the superblock fields.  Don't byteswap the xquota flags
 	 * because _verify_common checks the on-disk values.
 	 */
-	__xfs_sb_from_disk(&sb, XFS_BUF_TO_SBP(bp), false);
+	__xfs_sb_from_disk(&sb, dsb, false);
 	error = xfs_validate_sb_common(mp, bp, &sb);
 	if (error)
 		goto out_error;
@@ -766,7 +799,7 @@ xfs_sb_write_verify(
 		return;
 
 	if (bip)
-		XFS_BUF_TO_SBP(bp)->sb_lsn = cpu_to_be64(bip->bli_item.li_lsn);
+		dsb->sb_lsn = cpu_to_be64(bip->bli_item.li_lsn);
 
 	xfs_buf_update_cksum(bp, XFS_SB_CRC_OFF);
 	return;
@@ -927,7 +960,7 @@ xfs_log_sb(
 	mp->m_sb.sb_ifree = percpu_counter_sum(&mp->m_ifree);
 	mp->m_sb.sb_fdblocks = percpu_counter_sum(&mp->m_fdblocks);
 
-	xfs_sb_to_disk(XFS_BUF_TO_SBP(bp), &mp->m_sb);
+	xfs_sb_to_disk(bp->b_addr, &mp->m_sb);
 	xfs_trans_buf_set_type(tp, bp, XFS_BLFT_SB_BUF);
 	xfs_trans_log_buf(tp, bp, 0, sizeof(struct xfs_dsb) - 1);
 }
@@ -1007,7 +1040,7 @@ xfs_update_secondary_sbs(
 		bp->b_ops = &xfs_sb_buf_ops;
 		xfs_buf_oneshot(bp);
 		xfs_buf_zero(bp, 0, BBTOB(bp->b_length));
-		xfs_sb_to_disk(XFS_BUF_TO_SBP(bp), &mp->m_sb);
+		xfs_sb_to_disk(bp->b_addr, &mp->m_sb);
 		xfs_buf_delwri_queue(bp, &buffer_list);
 		xfs_buf_relse(bp);
 

@@ -167,6 +167,36 @@ static const struct ili2xxx_chip ili211x_chip = {
 	.resolution		= 2048,
 };
 
+static bool ili212x_touchdata_to_coords(const u8 *touchdata,
+					unsigned int finger,
+					unsigned int *x, unsigned int *y)
+{
+	u16 val;
+
+	val = get_unaligned_be16(touchdata + 3 + (finger * 5) + 0);
+	if (!(val & BIT(15)))	/* Touch indication */
+		return false;
+
+	*x = val & 0x3fff;
+	*y = get_unaligned_be16(touchdata + 3 + (finger * 5) + 2);
+
+	return true;
+}
+
+static bool ili212x_check_continue_polling(const u8 *data, bool touch)
+{
+	return touch;
+}
+
+static const struct ili2xxx_chip ili212x_chip = {
+	.read_reg		= ili210x_read_reg,
+	.get_touch_data		= ili210x_read_touch_data,
+	.parse_touch_data	= ili212x_touchdata_to_coords,
+	.continue_polling	= ili212x_check_continue_polling,
+	.max_touches		= 10,
+	.has_calibrate_reg	= true,
+};
+
 static int ili251x_read_reg(struct i2c_client *client,
 			    u8 reg, void *buf, size_t len)
 {
@@ -321,7 +351,7 @@ static umode_t ili210x_calibrate_visible(struct kobject *kobj,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct ili210x *priv = i2c_get_clientdata(client);
 
-	return priv->chip->has_calibrate_reg;
+	return priv->chip->has_calibrate_reg ? attr->mode : 0;
 }
 
 static const struct attribute_group ili210x_attr_group = {
@@ -447,6 +477,7 @@ static int ili210x_i2c_probe(struct i2c_client *client,
 static const struct i2c_device_id ili210x_i2c_id[] = {
 	{ "ili210x", (long)&ili210x_chip },
 	{ "ili2117", (long)&ili211x_chip },
+	{ "ili2120", (long)&ili212x_chip },
 	{ "ili251x", (long)&ili251x_chip },
 	{ }
 };
@@ -455,6 +486,7 @@ MODULE_DEVICE_TABLE(i2c, ili210x_i2c_id);
 static const struct of_device_id ili210x_dt_ids[] = {
 	{ .compatible = "ilitek,ili210x", .data = &ili210x_chip },
 	{ .compatible = "ilitek,ili2117", .data = &ili211x_chip },
+	{ .compatible = "ilitek,ili2120", .data = &ili212x_chip },
 	{ .compatible = "ilitek,ili251x", .data = &ili251x_chip },
 	{ }
 };

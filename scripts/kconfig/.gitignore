@@ -1,6 +1,4 @@
-#
-# Generated files
-#
+# SPDX-License-Identifier: GPL-2.0-only
 *.moc
 *conf-cfg
 

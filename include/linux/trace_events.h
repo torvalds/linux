@@ -85,6 +85,8 @@ struct trace_iterator {
 	struct mutex		mutex;
 	struct ring_buffer_iter	**buffer_iter;
 	unsigned long		iter_flags;
+	void			*temp;	/* temp holder */
+	unsigned int		temp_size;
 
 	/* trace_seq for __print_flags() and __print_symbolic() etc. */
 	struct trace_seq	tmp_seq;
@@ -440,7 +442,7 @@ struct synth_event_trace_state {
 	struct synth_event *event;
 	unsigned int cur_field;
 	unsigned int n_u64;
-	bool enabled;
+	bool disabled;
 	bool add_next;
 	bool add_name;
 };

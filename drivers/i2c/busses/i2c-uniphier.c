@@ -35,9 +35,6 @@
 #define UNIPHIER_I2C_NOISE	0x1c	/* noise filter control */
 #define UNIPHIER_I2C_SETUP	0x20	/* setup time control */
 
-#define UNIPHIER_I2C_DEFAULT_SPEED	100000
-#define UNIPHIER_I2C_MAX_SPEED		400000
-
 struct uniphier_i2c_priv {
 	struct completion comp;
 	struct i2c_adapter adap;
@@ -333,9 +330,9 @@ static int uniphier_i2c_probe(struct platform_device *pdev)
 	}
 
 	if (of_property_read_u32(dev->of_node, "clock-frequency", &bus_speed))
-		bus_speed = UNIPHIER_I2C_DEFAULT_SPEED;
+		bus_speed = I2C_MAX_STANDARD_MODE_FREQ;
 
-	if (!bus_speed || bus_speed > UNIPHIER_I2C_MAX_SPEED) {
+	if (!bus_speed || bus_speed > I2C_MAX_FAST_MODE_FREQ) {
 		dev_err(dev, "invalid clock-frequency %d\n", bus_speed);
 		return -EINVAL;
 	}

@@ -221,8 +221,8 @@ static void init_transmitter_control(struct bios_parser *bp)
 	uint8_t frev;
 	uint8_t crev;
 
-	if (BIOS_CMD_TABLE_REVISION(dig1transmittercontrol, frev, crev) == false)
-		BREAK_TO_DEBUGGER();
+	BIOS_CMD_TABLE_REVISION(dig1transmittercontrol, frev, crev);
+
 	switch (crev) {
 	case 6:
 		bp->cmd_tbl.transmitter_control = transmitter_control_v1_6;
@@ -710,10 +710,6 @@ static void enable_disp_power_gating_dmcub(
 	power_gating.header.type = DMUB_CMD__VBIOS;
 	power_gating.header.sub_type = DMUB_CMD__VBIOS_ENABLE_DISP_POWER_GATING;
 	power_gating.power_gating.pwr = *pwr;
-
-	/* ATOM_ENABLE is old API in DMUB */
-	if (power_gating.power_gating.pwr.enable == ATOM_ENABLE)
-		power_gating.power_gating.pwr.enable = ATOM_INIT;
 
 	dc_dmub_srv_cmd_queue(dmcub, &power_gating.header);
 	dc_dmub_srv_cmd_execute(dmcub);

@@ -156,12 +156,6 @@ default reset_link function, but different upstream ports might
 have different specifications to reset pci express link, so all
 upstream ports should provide their own reset_link functions.
 
-In struct pcie_port_service_driver, a new pointer, reset_link, is
-added.
-::
-
-	pci_ers_result_t (*reset_link) (struct pci_dev *dev);
-
 Section 3.2.2.2 provides more detailed info on when to call
 reset_link.
 
@@ -212,15 +206,10 @@ error_detected(dev, pci_channel_io_frozen) to all drivers within
 a hierarchy in question. Then, performing link reset at upstream is
 necessary. As different kinds of devices might use different approaches
 to reset link, AER port service driver is required to provide the
-function to reset link. Firstly, kernel looks for if the upstream
-component has an aer driver. If it has, kernel uses the reset_link
-callback of the aer driver. If the upstream component has no aer driver
-and the port is downstream port, we will perform a hot reset as the
-default by setting the Secondary Bus Reset bit of the Bridge Control
-register associated with the downstream port. As for upstream ports,
-they should provide their own aer service drivers with reset_link
-function. If error_detected returns PCI_ERS_RESULT_CAN_RECOVER and
-reset_link returns PCI_ERS_RESULT_RECOVERED, the error handling goes
+function to reset link via callback parameter of pcie_do_recovery()
+function. If reset_link is not NULL, recovery function will use it
+to reset the link. If error_detected returns PCI_ERS_RESULT_CAN_RECOVER
+and reset_link returns PCI_ERS_RESULT_RECOVERED, the error handling goes
 to mmio_enabled.
 
 helper functions
@@ -243,9 +232,9 @@ messages to root port when an error is detected.
 
 ::
 
-  int pci_cleanup_aer_uncorrect_error_status(struct pci_dev *dev);`
+  int pci_aer_clear_nonfatal_status(struct pci_dev *dev);`
 
-pci_cleanup_aer_uncorrect_error_status cleanups the uncorrectable
+pci_aer_clear_nonfatal_status clears non-fatal errors in the uncorrectable
 error status register.
 
 Frequent Asked Questions

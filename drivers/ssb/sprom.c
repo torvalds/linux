@@ -26,9 +26,9 @@ static int sprom2hex(const u16 *sprom, char *buf, size_t buf_len,
 	int i, pos = 0;
 
 	for (i = 0; i < sprom_size_words; i++)
-		pos += snprintf(buf + pos, buf_len - pos - 1,
+		pos += scnprintf(buf + pos, buf_len - pos - 1,
 				"%04X", swab16(sprom[i]) & 0xFFFF);
-	pos += snprintf(buf + pos, buf_len - pos - 1, "\n");
+	pos += scnprintf(buf + pos, buf_len - pos - 1, "\n");
 
 	return pos + 1;
 }

@@ -210,13 +210,11 @@ static struct platform_pwm_backlight_data z2_backlight_data[] = {
 		/* Keypad Backlight */
 		.max_brightness	= 1023,
 		.dft_brightness	= 0,
-		.enable_gpio	= -1,
 	},
 	[1] = {
 		/* LCD Backlight */
 		.max_brightness	= 1023,
 		.dft_brightness	= 512,
-		.enable_gpio	= -1,
 	},
 };
 

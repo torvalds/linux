@@ -251,7 +251,7 @@ static int soc_tplg_vendor_load_(struct soc_tplg *tplg,
 {
 	int ret = 0;
 
-	if (tplg->comp && tplg->ops && tplg->ops->vendor_load)
+	if (tplg->ops && tplg->ops->vendor_load)
 		ret = tplg->ops->vendor_load(tplg->comp, tplg->index, hdr);
 	else {
 		dev_err(tplg->dev, "ASoC: no vendor load callback for ID %d\n",
@@ -283,7 +283,7 @@ static int soc_tplg_vendor_load(struct soc_tplg *tplg,
 static int soc_tplg_widget_load(struct soc_tplg *tplg,
 	struct snd_soc_dapm_widget *w, struct snd_soc_tplg_dapm_widget *tplg_w)
 {
-	if (tplg->comp && tplg->ops && tplg->ops->widget_load)
+	if (tplg->ops && tplg->ops->widget_load)
 		return tplg->ops->widget_load(tplg->comp, tplg->index, w,
 			tplg_w);
 
@@ -295,7 +295,7 @@ static int soc_tplg_widget_load(struct soc_tplg *tplg,
 static int soc_tplg_widget_ready(struct soc_tplg *tplg,
 	struct snd_soc_dapm_widget *w, struct snd_soc_tplg_dapm_widget *tplg_w)
 {
-	if (tplg->comp && tplg->ops && tplg->ops->widget_ready)
+	if (tplg->ops && tplg->ops->widget_ready)
 		return tplg->ops->widget_ready(tplg->comp, tplg->index, w,
 			tplg_w);
 
@@ -307,7 +307,7 @@ static int soc_tplg_dai_load(struct soc_tplg *tplg,
 	struct snd_soc_dai_driver *dai_drv,
 	struct snd_soc_tplg_pcm *pcm, struct snd_soc_dai *dai)
 {
-	if (tplg->comp && tplg->ops && tplg->ops->dai_load)
+	if (tplg->ops && tplg->ops->dai_load)
 		return tplg->ops->dai_load(tplg->comp, tplg->index, dai_drv,
 			pcm, dai);
 
@@ -318,7 +318,7 @@ static int soc_tplg_dai_load(struct soc_tplg *tplg,
 static int soc_tplg_dai_link_load(struct soc_tplg *tplg,
 	struct snd_soc_dai_link *link, struct snd_soc_tplg_link_config *cfg)
 {
-	if (tplg->comp && tplg->ops && tplg->ops->link_load)
+	if (tplg->ops && tplg->ops->link_load)
 		return tplg->ops->link_load(tplg->comp, tplg->index, link, cfg);
 
 	return 0;
@@ -327,7 +327,7 @@ static int soc_tplg_dai_link_load(struct soc_tplg *tplg,
 /* tell the component driver that all firmware has been loaded in this request */
 static void soc_tplg_complete(struct soc_tplg *tplg)
 {
-	if (tplg->comp && tplg->ops && tplg->ops->complete)
+	if (tplg->ops && tplg->ops->complete)
 		tplg->ops->complete(tplg->comp);
 }
 
@@ -362,7 +362,7 @@ static int soc_tplg_add_kcontrol(struct soc_tplg *tplg,
 	struct snd_soc_component *comp = tplg->comp;
 
 	return soc_tplg_add_dcontrol(comp->card->snd_card,
-				comp->dev, k, NULL, comp, kcontrol);
+				comp->dev, k, comp->name_prefix, comp, kcontrol);
 }
 
 /* remove a mixer kcontrol */
@@ -684,7 +684,7 @@ EXPORT_SYMBOL_GPL(snd_soc_tplg_widget_bind_event);
 static int soc_tplg_init_kcontrol(struct soc_tplg *tplg,
 	struct snd_kcontrol_new *k, struct snd_soc_tplg_ctl_hdr *hdr)
 {
-	if (tplg->comp && tplg->ops && tplg->ops->control_load)
+	if (tplg->ops && tplg->ops->control_load)
 		return tplg->ops->control_load(tplg->comp, tplg->index, k,
 			hdr);
 
@@ -1174,7 +1174,7 @@ static int soc_tplg_kcontrol_elems_load(struct soc_tplg *tplg,
 static int soc_tplg_add_route(struct soc_tplg *tplg,
 	struct snd_soc_dapm_route *route)
 {
-	if (tplg->comp && tplg->ops && tplg->ops->dapm_route_load)
+	if (tplg->ops && tplg->ops->dapm_route_load)
 		return tplg->ops->dapm_route_load(tplg->comp, tplg->index,
 			route);
 
@@ -2377,8 +2377,11 @@ static int soc_tplg_link_elems_load(struct soc_tplg *tplg,
 		}
 
 		ret = soc_tplg_link_config(tplg, _link);
-		if (ret < 0)
+		if (ret < 0) {
+			if (!abi_match)
+				kfree(_link);
 			return ret;
+		}
 
 		/* offset by version-specific struct size and
 		 * real priv data size
@@ -2542,7 +2545,7 @@ static int soc_tplg_manifest_load(struct soc_tplg *tplg,
 {
 	struct snd_soc_tplg_manifest *manifest, *_manifest;
 	bool abi_match;
-	int err;
+	int ret = 0;
 
 	if (tplg->pass != SOC_TPLG_PASS_MANIFEST)
 		return 0;
@@ -2555,19 +2558,19 @@ static int soc_tplg_manifest_load(struct soc_tplg *tplg,
 		_manifest = manifest;
 	} else {
 		abi_match = false;
-		err = manifest_new_ver(tplg, manifest, &_manifest);
-		if (err < 0)
-			return err;
+		ret = manifest_new_ver(tplg, manifest, &_manifest);
+		if (ret < 0)
+			return ret;
 	}
 
 	/* pass control to component driver for optional further init */
-	if (tplg->comp && tplg->ops && tplg->ops->manifest)
-		return tplg->ops->manifest(tplg->comp, tplg->index, _manifest);
+	if (tplg->ops && tplg->ops->manifest)
+		ret = tplg->ops->manifest(tplg->comp, tplg->index, _manifest);
 
 	if (!abi_match)	/* free the duplicated one */
 		kfree(_manifest);
 
-	return 0;
+	return ret;
 }
 
 /* validate header magic, size and type */
@@ -2733,6 +2736,10 @@ int snd_soc_tplg_component_load(struct snd_soc_component *comp,
 	struct soc_tplg tplg;
 	int ret;
 
+	/* component needs to exist to keep and reference data while parsing */
+	if (!comp)
+		return -EINVAL;
+
 	/* setup parsing context */
 	memset(&tplg, 0, sizeof(tplg));
 	tplg.fw = fw;
@@ -2771,7 +2778,7 @@ void snd_soc_tplg_widget_remove_all(struct snd_soc_dapm_context *dapm,
 {
 	struct snd_soc_dapm_widget *w, *next_w;
 
-	list_for_each_entry_safe(w, next_w, &dapm->card->widgets, list) {
+	for_each_card_widgets_safe(dapm->card, w, next_w) {
 
 		/* make sure we are a widget with correct context */
 		if (w->dobj.type != SND_SOC_DOBJ_WIDGET || w->dapm != dapm)

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /****************************************************************************
  *
  * Driver for the IFX spi modem.
@@ -9,6 +9,8 @@
  *****************************************************************************/
 #ifndef _IFX6X60_H
 #define _IFX6X60_H
+
+struct gpio_desc;
 
 #define DRVNAME				"ifx6x60"
 #define TTYNAME				"ttyIFX"
@@ -94,11 +96,12 @@ struct ifx_spi_device {
 
 	struct {
 		/* gpio lines */
-		unsigned short srdy;		/* slave-ready gpio */
-		unsigned short mrdy;		/* master-ready gpio */
-		unsigned short reset;		/* modem-reset gpio */
-		unsigned short po;		/* modem-on gpio */
-		unsigned short reset_out;	/* modem-in-reset gpio */
+		struct gpio_desc *srdy;		/* slave-ready gpio */
+		struct gpio_desc *mrdy;		/* master-ready gpio */
+		struct gpio_desc *reset;	/* modem-reset gpio */
+		struct gpio_desc *po;		/* modem-on gpio */
+		struct gpio_desc *reset_out;	/* modem-in-reset gpio */
+		struct gpio_desc *pmu_reset;	/* PMU reset gpio */
 		/* state/stats */
 		int unack_srdy_int_nb;
 	} gpio;

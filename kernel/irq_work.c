@@ -153,7 +153,9 @@ static void irq_work_run_list(struct llist_head *list)
 		 */
 		flags = atomic_fetch_andnot(IRQ_WORK_PENDING, &work->flags);
 
+		lockdep_irq_work_enter(work);
 		work->func(work);
+		lockdep_irq_work_exit(work);
 		/*
 		 * Clear the BUSY bit and return to the free state if
 		 * no-one else claimed it meanwhile.

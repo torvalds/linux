@@ -49,7 +49,7 @@ struct orinoco_fw_header {
 	__le32 pdr_offset;      /* Offset to PDR data from eof header */
 	__le32 pri_offset;      /* Offset to primary plug data */
 	__le32 compat_offset;   /* Offset to compatibility data*/
-	char signature[0];      /* FW signature length headersize-20 */
+	char signature[];      /* FW signature length headersize-20 */
 } __packed;
 
 /* Check the range of various header entries. Return a pointer to a

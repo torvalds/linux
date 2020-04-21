@@ -34,6 +34,13 @@ CC_ARCHES	= hppa hppa2.0 hppa1.1
 LD_BFD		:= elf32-hppa-linux
 endif
 
+# select defconfig based on actual architecture
+ifeq ($(shell uname -m),parisc64)
+	KBUILD_DEFCONFIG := generic-64bit_defconfig
+else
+	KBUILD_DEFCONFIG := generic-32bit_defconfig
+endif
+
 export LD_BFD
 
 ifneq ($(SUBARCH),$(UTS_MACHINE))

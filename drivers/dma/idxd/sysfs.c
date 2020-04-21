@@ -124,6 +124,7 @@ static int idxd_config_bus_probe(struct device *dev)
 		rc = idxd_device_config(idxd);
 		if (rc < 0) {
 			spin_unlock_irqrestore(&idxd->dev_lock, flags);
+			module_put(THIS_MODULE);
 			dev_warn(dev, "Device config failed: %d\n", rc);
 			return rc;
 		}
@@ -132,6 +133,7 @@ static int idxd_config_bus_probe(struct device *dev)
 		rc = idxd_device_enable(idxd);
 		if (rc < 0) {
 			spin_unlock_irqrestore(&idxd->dev_lock, flags);
+			module_put(THIS_MODULE);
 			dev_warn(dev, "Device enable failed: %d\n", rc);
 			return rc;
 		}
@@ -142,6 +144,7 @@ static int idxd_config_bus_probe(struct device *dev)
 		rc = idxd_register_dma_device(idxd);
 		if (rc < 0) {
 			spin_unlock_irqrestore(&idxd->dev_lock, flags);
+			module_put(THIS_MODULE);
 			dev_dbg(dev, "Failed to register dmaengine device\n");
 			return rc;
 		}
@@ -416,7 +419,7 @@ static ssize_t engine_group_id_store(struct device *dev,
 	struct idxd_device *idxd = engine->idxd;
 	long id;
 	int rc;
-	struct idxd_group *prevg, *group;
+	struct idxd_group *prevg;
 
 	rc = kstrtol(buf, 10, &id);
 	if (rc < 0)
@@ -436,7 +439,6 @@ static ssize_t engine_group_id_store(struct device *dev,
 		return count;
 	}
 
-	group = &idxd->groups[id];
 	prevg = engine->group;
 
 	if (prevg)
@@ -510,13 +512,10 @@ static ssize_t group_tokens_reserved_store(struct device *dev,
 	if (idxd->state == IDXD_DEV_ENABLED)
 		return -EPERM;
 
-	if (idxd->token_limit == 0)
-		return -EPERM;
-
 	if (val > idxd->max_tokens)
 		return -EINVAL;
 
-	if (val > idxd->nr_tokens)
+	if (val > idxd->nr_tokens + group->tokens_reserved)
 		return -EINVAL;
 
 	group->tokens_reserved = val;
@@ -558,8 +557,6 @@ static ssize_t group_tokens_allowed_store(struct device *dev,
 	if (idxd->state == IDXD_DEV_ENABLED)
 		return -EPERM;
 
-	if (idxd->token_limit == 0)
-		return -EPERM;
 	if (val < 4 * group->num_engines ||
 	    val > group->tokens_reserved + idxd->nr_tokens)
 		return -EINVAL;
@@ -901,6 +898,20 @@ static ssize_t wq_size_show(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%u\n", wq->size);
 }
 
+static int total_claimed_wq_size(struct idxd_device *idxd)
+{
+	int i;
+	int wq_size = 0;
+
+	for (i = 0; i < idxd->max_wqs; i++) {
+		struct idxd_wq *wq = &idxd->wqs[i];
+
+		wq_size += wq->size;
+	}
+
+	return wq_size;
+}
+
 static ssize_t wq_size_store(struct device *dev,
 			     struct device_attribute *attr, const char *buf,
 			     size_t count)
@@ -920,7 +931,7 @@ static ssize_t wq_size_store(struct device *dev,
 	if (wq->state != IDXD_WQ_DISABLED)
 		return -EPERM;
 
-	if (size > idxd->max_wq_size)
+	if (size + total_claimed_wq_size(idxd) - wq->size > idxd->max_wq_size)
 		return -EINVAL;
 
 	wq->size = size;
@@ -999,12 +1010,14 @@ static ssize_t wq_type_store(struct device *dev,
 		return -EPERM;
 
 	old_type = wq->type;
-	if (sysfs_streq(buf, idxd_wq_type_names[IDXD_WQT_KERNEL]))
+	if (sysfs_streq(buf, idxd_wq_type_names[IDXD_WQT_NONE]))
+		wq->type = IDXD_WQT_NONE;
+	else if (sysfs_streq(buf, idxd_wq_type_names[IDXD_WQT_KERNEL]))
 		wq->type = IDXD_WQT_KERNEL;
 	else if (sysfs_streq(buf, idxd_wq_type_names[IDXD_WQT_USER]))
 		wq->type = IDXD_WQT_USER;
 	else
-		wq->type = IDXD_WQT_NONE;
+		return -EINVAL;
 
 	/* If we are changing queue type, clear the name */
 	if (wq->type != old_type)
@@ -1161,6 +1174,16 @@ static ssize_t op_cap_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(op_cap);
 
+static ssize_t gen_cap_show(struct device *dev,
+			    struct device_attribute *attr, char *buf)
+{
+	struct idxd_device *idxd =
+		container_of(dev, struct idxd_device, conf_dev);
+
+	return sprintf(buf, "%#llx\n", idxd->hw.gen_cap.bits);
+}
+static DEVICE_ATTR_RO(gen_cap);
+
 static ssize_t configurable_show(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
@@ -1298,6 +1321,7 @@ static struct attribute *idxd_device_attributes[] = {
 	&dev_attr_max_batch_size.attr,
 	&dev_attr_max_transfer_size.attr,
 	&dev_attr_op_cap.attr,
+	&dev_attr_gen_cap.attr,
 	&dev_attr_configurable.attr,
 	&dev_attr_clients.attr,
 	&dev_attr_state.attr,

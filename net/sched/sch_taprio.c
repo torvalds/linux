@@ -564,8 +564,10 @@ static struct sk_buff *taprio_dequeue_soft(struct Qdisc *sch)
 		prio = skb->priority;
 		tc = netdev_get_prio_tc_map(dev, prio);
 
-		if (!(gate_mask & BIT(tc)))
+		if (!(gate_mask & BIT(tc))) {
+			skb = NULL;
 			continue;
+		}
 
 		len = qdisc_pkt_len(skb);
 		guard = ktime_add_ns(taprio_get_time(q),
@@ -575,13 +577,17 @@ static struct sk_buff *taprio_dequeue_soft(struct Qdisc *sch)
 		 * guard band ...
 		 */
 		if (gate_mask != TAPRIO_ALL_GATES_OPEN &&
-		    ktime_after(guard, entry->close_time))
+		    ktime_after(guard, entry->close_time)) {
+			skb = NULL;
 			continue;
+		}
 
 		/* ... and no budget. */
 		if (gate_mask != TAPRIO_ALL_GATES_OPEN &&
-		    atomic_sub_return(len, &entry->budget) < 0)
+		    atomic_sub_return(len, &entry->budget) < 0) {
+			skb = NULL;
 			continue;
+		}
 
 		skb = child->ops->dequeue(child);
 		if (unlikely(!skb))
@@ -768,6 +774,7 @@ static const struct nla_policy taprio_policy[TCA_TAPRIO_ATTR_MAX + 1] = {
 	[TCA_TAPRIO_ATTR_SCHED_CYCLE_TIME]           = { .type = NLA_S64 },
 	[TCA_TAPRIO_ATTR_SCHED_CYCLE_TIME_EXTENSION] = { .type = NLA_S64 },
 	[TCA_TAPRIO_ATTR_FLAGS]                      = { .type = NLA_U32 },
+	[TCA_TAPRIO_ATTR_TXTIME_DELAY]		     = { .type = NLA_U32 },
 };
 
 static int fill_sched_entry(struct nlattr **tb, struct sched_entry *entry,

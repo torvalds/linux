@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <dt-bindings/clock/ingenic,tcu.h>
 #include <dt-bindings/clock/x1000-cgu.h>
 #include <dt-bindings/dma/x1000-dma.h>
 
@@ -72,7 +73,7 @@
 			compatible = "ingenic,x1000-watchdog", "ingenic,jz4780-watchdog";
 			reg = <0x0 0x10>;
 
-			clocks = <&cgu X1000_CLK_RTCLK>;
+			clocks = <&tcu TCU_CLK_WDT>;
 			clock-names = "wdt";
 		};
 	};
@@ -158,7 +159,6 @@
 	i2c0: i2c-controller@10050000 {
 		compatible = "ingenic,x1000-i2c";
 		reg = <0x10050000 0x1000>;
-
 		#address-cells = <1>;
 		#size-cells = <0>;
 
@@ -173,7 +173,6 @@
 	i2c1: i2c-controller@10051000 {
 		compatible = "ingenic,x1000-i2c";
 		reg = <0x10051000 0x1000>;
-
 		#address-cells = <1>;
 		#size-cells = <0>;
 
@@ -188,7 +187,6 @@
 	i2c2: i2c-controller@10052000 {
 		compatible = "ingenic,x1000-i2c";
 		reg = <0x10052000 0x1000>;
-
 		#address-cells = <1>;
 		#size-cells = <0>;
 

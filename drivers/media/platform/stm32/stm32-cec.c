@@ -291,7 +291,9 @@ static int stm32_cec_probe(struct platform_device *pdev)
 
 	cec->clk_cec = devm_clk_get(&pdev->dev, "cec");
 	if (IS_ERR(cec->clk_cec)) {
-		dev_err(&pdev->dev, "Cannot get cec clock\n");
+		if (PTR_ERR(cec->clk_cec) != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "Cannot get cec clock\n");
+
 		return PTR_ERR(cec->clk_cec);
 	}
 
@@ -302,10 +304,14 @@ static int stm32_cec_probe(struct platform_device *pdev)
 	}
 
 	cec->clk_hdmi_cec = devm_clk_get(&pdev->dev, "hdmi-cec");
+	if (IS_ERR(cec->clk_hdmi_cec) &&
+	    PTR_ERR(cec->clk_hdmi_cec) == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
+
 	if (!IS_ERR(cec->clk_hdmi_cec)) {
 		ret = clk_prepare(cec->clk_hdmi_cec);
 		if (ret) {
-			dev_err(&pdev->dev, "Unable to prepare hdmi-cec clock\n");
+			dev_err(&pdev->dev, "Can't prepare hdmi-cec clock\n");
 			return ret;
 		}
 	}

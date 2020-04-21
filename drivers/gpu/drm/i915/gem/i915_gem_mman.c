@@ -455,10 +455,11 @@ out:
 
 void i915_gem_object_release_mmap_offset(struct drm_i915_gem_object *obj)
 {
-	struct i915_mmap_offset *mmo;
+	struct i915_mmap_offset *mmo, *mn;
 
 	spin_lock(&obj->mmo.lock);
-	list_for_each_entry(mmo, &obj->mmo.offsets, offset) {
+	rbtree_postorder_for_each_entry_safe(mmo, mn,
+					     &obj->mmo.offsets, offset) {
 		/*
 		 * vma_node_unmap for GTT mmaps handled already in
 		 * __i915_gem_object_release_mmap_gtt
@@ -488,6 +489,67 @@ void i915_gem_object_release_mmap(struct drm_i915_gem_object *obj)
 }
 
 static struct i915_mmap_offset *
+lookup_mmo(struct drm_i915_gem_object *obj,
+	   enum i915_mmap_type mmap_type)
+{
+	struct rb_node *rb;
+
+	spin_lock(&obj->mmo.lock);
+	rb = obj->mmo.offsets.rb_node;
+	while (rb) {
+		struct i915_mmap_offset *mmo =
+			rb_entry(rb, typeof(*mmo), offset);
+
+		if (mmo->mmap_type == mmap_type) {
+			spin_unlock(&obj->mmo.lock);
+			return mmo;
+		}
+
+		if (mmo->mmap_type < mmap_type)
+			rb = rb->rb_right;
+		else
+			rb = rb->rb_left;
+	}
+	spin_unlock(&obj->mmo.lock);
+
+	return NULL;
+}
+
+static struct i915_mmap_offset *
+insert_mmo(struct drm_i915_gem_object *obj, struct i915_mmap_offset *mmo)
+{
+	struct rb_node *rb, **p;
+
+	spin_lock(&obj->mmo.lock);
+	rb = NULL;
+	p = &obj->mmo.offsets.rb_node;
+	while (*p) {
+		struct i915_mmap_offset *pos;
+
+		rb = *p;
+		pos = rb_entry(rb, typeof(*pos), offset);
+
+		if (pos->mmap_type == mmo->mmap_type) {
+			spin_unlock(&obj->mmo.lock);
+			drm_vma_offset_remove(obj->base.dev->vma_offset_manager,
+					      &mmo->vma_node);
+			kfree(mmo);
+			return pos;
+		}
+
+		if (pos->mmap_type < mmo->mmap_type)
+			p = &rb->rb_right;
+		else
+			p = &rb->rb_left;
+	}
+	rb_link_node(&mmo->offset, rb, p);
+	rb_insert_color(&mmo->offset, &obj->mmo.offsets);
+	spin_unlock(&obj->mmo.lock);
+
+	return mmo;
+}
+
+static struct i915_mmap_offset *
 mmap_offset_attach(struct drm_i915_gem_object *obj,
 		   enum i915_mmap_type mmap_type,
 		   struct drm_file *file)
@@ -496,20 +558,22 @@ mmap_offset_attach(struct drm_i915_gem_object *obj,
 	struct i915_mmap_offset *mmo;
 	int err;
 
+	mmo = lookup_mmo(obj, mmap_type);
+	if (mmo)
+		goto out;
+
 	mmo = kmalloc(sizeof(*mmo), GFP_KERNEL);
 	if (!mmo)
 		return ERR_PTR(-ENOMEM);
 
 	mmo->obj = obj;
-	mmo->dev = obj->base.dev;
-	mmo->file = file;
 	mmo->mmap_type = mmap_type;
 	drm_vma_node_reset(&mmo->vma_node);
 
-	err = drm_vma_offset_add(mmo->dev->vma_offset_manager, &mmo->vma_node,
-				 obj->base.size / PAGE_SIZE);
+	err = drm_vma_offset_add(obj->base.dev->vma_offset_manager,
+				 &mmo->vma_node, obj->base.size / PAGE_SIZE);
 	if (likely(!err))
-		goto out;
+		goto insert;
 
 	/* Attempt to reap some mmap space from dead objects */
 	err = intel_gt_retire_requests_timeout(&i915->gt, MAX_SCHEDULE_TIMEOUT);
@@ -517,19 +581,17 @@ mmap_offset_attach(struct drm_i915_gem_object *obj,
 		goto err;
 
 	i915_gem_drain_freed_objects(i915);
-	err = drm_vma_offset_add(mmo->dev->vma_offset_manager, &mmo->vma_node,
-				 obj->base.size / PAGE_SIZE);
+	err = drm_vma_offset_add(obj->base.dev->vma_offset_manager,
+				 &mmo->vma_node, obj->base.size / PAGE_SIZE);
 	if (err)
 		goto err;
 
+insert:
+	mmo = insert_mmo(obj, mmo);
+	GEM_BUG_ON(lookup_mmo(obj, mmap_type) != mmo);
 out:
 	if (file)
 		drm_vma_node_allow(&mmo->vma_node, file);
-
-	spin_lock(&obj->mmo.lock);
-	list_add(&mmo->offset, &obj->mmo.offsets);
-	spin_unlock(&obj->mmo.lock);
-
 	return mmo;
 
 err:
@@ -551,8 +613,7 @@ __assign_mmap_offset(struct drm_file *file,
 	if (!obj)
 		return -ENOENT;
 
-	if (mmap_type == I915_MMAP_TYPE_GTT &&
-	    i915_gem_object_never_bind_ggtt(obj)) {
+	if (i915_gem_object_never_mmap(obj)) {
 		err = -ENODEV;
 		goto out;
 	}
@@ -714,7 +775,7 @@ static struct file *mmap_singleton(struct drm_i915_private *i915)
 	struct file *file;
 
 	rcu_read_lock();
-	file = i915->gem.mmap_singleton;
+	file = READ_ONCE(i915->gem.mmap_singleton);
 	if (file && !get_file_rcu(file))
 		file = NULL;
 	rcu_read_unlock();
@@ -745,60 +806,43 @@ int i915_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 	struct drm_vma_offset_node *node;
 	struct drm_file *priv = filp->private_data;
 	struct drm_device *dev = priv->minor->dev;
+	struct drm_i915_gem_object *obj = NULL;
 	struct i915_mmap_offset *mmo = NULL;
-	struct drm_gem_object *obj = NULL;
 	struct file *anon;
 
 	if (drm_dev_is_unplugged(dev))
 		return -ENODEV;
 
+	rcu_read_lock();
 	drm_vma_offset_lock_lookup(dev->vma_offset_manager);
 	node = drm_vma_offset_exact_lookup_locked(dev->vma_offset_manager,
 						  vma->vm_pgoff,
 						  vma_pages(vma));
-	if (likely(node)) {
-		mmo = container_of(node, struct i915_mmap_offset,
-				   vma_node);
-		/*
-		 * In our dependency chain, the drm_vma_offset_node
-		 * depends on the validity of the mmo, which depends on
-		 * the gem object. However the only reference we have
-		 * at this point is the mmo (as the parent of the node).
-		 * Try to check if the gem object was at least cleared.
-		 */
-		if (!mmo || !mmo->obj) {
-			drm_vma_offset_unlock_lookup(dev->vma_offset_manager);
-			return -EINVAL;
-		}
+	if (node && drm_vma_node_is_allowed(node, priv)) {
 		/*
 		 * Skip 0-refcnted objects as it is in the process of being
 		 * destroyed and will be invalid when the vma manager lock
 		 * is released.
 		 */
-		obj = &mmo->obj->base;
-		if (!kref_get_unless_zero(&obj->refcount))
-			obj = NULL;
+		mmo = container_of(node, struct i915_mmap_offset, vma_node);
+		obj = i915_gem_object_get_rcu(mmo->obj);
 	}
 	drm_vma_offset_unlock_lookup(dev->vma_offset_manager);
+	rcu_read_unlock();
 	if (!obj)
-		return -EINVAL;
+		return node ? -EACCES : -EINVAL;
 
-	if (!drm_vma_node_is_allowed(node, priv)) {
-		drm_gem_object_put_unlocked(obj);
-		return -EACCES;
-	}
-
-	if (i915_gem_object_is_readonly(to_intel_bo(obj))) {
+	if (i915_gem_object_is_readonly(obj)) {
 		if (vma->vm_flags & VM_WRITE) {
-			drm_gem_object_put_unlocked(obj);
+			i915_gem_object_put(obj);
 			return -EINVAL;
 		}
 		vma->vm_flags &= ~VM_MAYWRITE;
 	}
 
-	anon = mmap_singleton(to_i915(obj->dev));
+	anon = mmap_singleton(to_i915(dev));
 	if (IS_ERR(anon)) {
-		drm_gem_object_put_unlocked(obj);
+		i915_gem_object_put(obj);
 		return PTR_ERR(anon);
 	}
 

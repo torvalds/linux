@@ -4,6 +4,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/if_ether.h>
+#include <linux/nospec.h>
 
 #include "core.h"
 #include "bus.h"
@@ -41,11 +42,12 @@ struct qtnf_wmac *qtnf_core_get_mac(const struct qtnf_bus *bus, u8 macid)
 {
 	struct qtnf_wmac *mac = NULL;
 
-	if (unlikely(macid >= QTNF_MAX_MAC)) {
+	if (macid >= QTNF_MAX_MAC) {
 		pr_err("invalid MAC index %u\n", macid);
 		return NULL;
 	}
 
+	macid = array_index_nospec(macid, QTNF_MAX_MAC);
 	mac = bus->mac[macid];
 
 	if (unlikely(!mac)) {
@@ -429,18 +431,28 @@ static void qtnf_vif_send_data_high_pri(struct work_struct *work)
 static struct qtnf_wmac *qtnf_core_mac_alloc(struct qtnf_bus *bus,
 					     unsigned int macid)
 {
+	struct platform_device *pdev = NULL;
+	struct qtnf_wmac *mac;
 	struct qtnf_vif *vif;
 	struct wiphy *wiphy;
-	struct qtnf_wmac *mac;
 	unsigned int i;
 
-	wiphy = qtnf_wiphy_allocate(bus);
+	if (bus->hw_info.num_mac > 1) {
+		pdev = platform_device_register_data(bus->dev,
+						     dev_name(bus->dev),
+						     macid, NULL, 0);
+		if (IS_ERR(pdev))
+			return ERR_PTR(-EINVAL);
+	}
+
+	wiphy = qtnf_wiphy_allocate(bus, pdev);
 	if (!wiphy)
 		return ERR_PTR(-ENOMEM);
 
 	mac = wiphy_priv(wiphy);
 
 	mac->macid = macid;
+	mac->pdev = pdev;
 	mac->bus = bus;
 	mutex_init(&mac->mac_lock);
 	INIT_DELAYED_WORK(&mac->scan_timeout, qtnf_mac_scan_timeout);
@@ -491,19 +503,18 @@ int qtnf_core_net_attach(struct qtnf_wmac *mac, struct qtnf_vif *vif,
 	dev_net_set(dev, wiphy_net(wiphy));
 	dev->ieee80211_ptr = &vif->wdev;
 	ether_addr_copy(dev->dev_addr, vif->mac_addr);
-	SET_NETDEV_DEV(dev, wiphy_dev(wiphy));
 	dev->flags |= IFF_BROADCAST | IFF_MULTICAST;
 	dev->watchdog_timeo = QTNF_DEF_WDOG_TIMEOUT;
 	dev->tx_queue_len = 100;
 	dev->ethtool_ops = &qtnf_ethtool_ops;
 
-	if (mac->bus->hw_info.hw_capab & QLINK_HW_CAPAB_HW_BRIDGE)
+	if (qtnf_hwcap_is_set(&mac->bus->hw_info, QLINK_HW_CAPAB_HW_BRIDGE))
 		dev->needed_tailroom = sizeof(struct qtnf_frame_meta_info);
 
 	qdev_vif = netdev_priv(dev);
 	*((void **)qdev_vif) = vif;
 
-	SET_NETDEV_DEV(dev, mac->bus->dev);
+	SET_NETDEV_DEV(dev, wiphy_dev(wiphy));
 
 	ret = register_netdevice(dev);
 	if (ret) {
@@ -559,6 +570,7 @@ static void qtnf_core_mac_detach(struct qtnf_bus *bus, unsigned int macid)
 		wiphy->bands[band] = NULL;
 	}
 
+	platform_device_unregister(mac->pdev);
 	qtnf_mac_iface_comb_free(mac);
 	qtnf_mac_ext_caps_free(mac);
 	kfree(mac->macinfo.wowlan);
@@ -585,16 +597,6 @@ static int qtnf_core_mac_attach(struct qtnf_bus *bus, unsigned int macid)
 		return PTR_ERR(mac);
 	}
 
-	ret = qtnf_cmd_get_mac_info(mac);
-	if (ret) {
-		pr_err("MAC%u: failed to get info\n", macid);
-		goto error;
-	}
-
-	/* Use MAC address of the first active radio as a unique device ID */
-	if (is_zero_ether_addr(mac->bus->hw_id))
-		ether_addr_copy(mac->bus->hw_id, mac->macaddr);
-
 	vif = qtnf_mac_get_base_vif(mac);
 	if (!vif) {
 		pr_err("MAC%u: primary VIF is not ready\n", macid);
@@ -609,11 +611,15 @@ static int qtnf_core_mac_attach(struct qtnf_bus *bus, unsigned int macid)
 		goto error;
 	}
 
-	ret = qtnf_cmd_send_get_phy_params(mac);
+	ret = qtnf_cmd_get_mac_info(mac);
 	if (ret) {
-		pr_err("MAC%u: failed to get PHY settings\n", macid);
+		pr_err("MAC%u: failed to get MAC info\n", macid);
 		goto error_del_vif;
 	}
+
+	/* Use MAC address of the first active radio as a unique device ID */
+	if (is_zero_ether_addr(mac->bus->hw_id))
+		ether_addr_copy(mac->bus->hw_id, mac->macaddr);
 
 	ret = qtnf_mac_init_bands(mac);
 	if (ret) {
@@ -639,7 +645,7 @@ static int qtnf_core_mac_attach(struct qtnf_bus *bus, unsigned int macid)
 		goto error_del_vif;
 	}
 
-	if (bus->hw_info.hw_capab & QLINK_HW_CAPAB_HW_BRIDGE) {
+	if (qtnf_hwcap_is_set(&bus->hw_info, QLINK_HW_CAPAB_HW_BRIDGE)) {
 		ret = qtnf_cmd_netdev_changeupper(vif, vif->netdev->ifindex);
 		if (ret)
 			goto error;
@@ -705,7 +711,8 @@ static int qtnf_core_netdevice_event(struct notifier_block *nb,
 			 info->linking ? "add" : "del");
 
 		if (IS_ENABLED(CONFIG_NET_SWITCHDEV) &&
-		    (bus->hw_info.hw_capab & QLINK_HW_CAPAB_HW_BRIDGE)) {
+		    qtnf_hwcap_is_set(&bus->hw_info,
+				      QLINK_HW_CAPAB_HW_BRIDGE)) {
 			if (info->linking)
 				br_domain = brdev->ifindex;
 			else
@@ -756,6 +763,15 @@ int qtnf_core_attach(struct qtnf_bus *bus)
 		goto error;
 	}
 
+	if (QLINK_VER_MAJOR(bus->hw_info.ql_proto_ver) !=
+	    QLINK_PROTO_VER_MAJOR) {
+		pr_err("qlink driver vs FW version mismatch: %u vs %u\n",
+		       QLINK_PROTO_VER_MAJOR,
+		       QLINK_VER_MAJOR(bus->hw_info.ql_proto_ver));
+		ret = -EPROTONOSUPPORT;
+		goto error;
+	}
+
 	bus->fw_state = QTNF_FW_STATE_ACTIVE;
 	ret = qtnf_cmd_get_hw_info(bus);
 	if (ret) {
@@ -763,14 +779,7 @@ int qtnf_core_attach(struct qtnf_bus *bus)
 		goto error;
 	}
 
-	if (bus->hw_info.ql_proto_ver != QLINK_PROTO_VER) {
-		pr_err("qlink version mismatch %u != %u\n",
-		       QLINK_PROTO_VER, bus->hw_info.ql_proto_ver);
-		ret = -EPROTONOSUPPORT;
-		goto error;
-	}
-
-	if ((bus->hw_info.hw_capab & QLINK_HW_CAPAB_HW_BRIDGE) &&
+	if (qtnf_hwcap_is_set(&bus->hw_info, QLINK_HW_CAPAB_HW_BRIDGE) &&
 	    bus->bus_ops->data_tx_use_meta_set)
 		bus->bus_ops->data_tx_use_meta_set(bus, true);
 

@@ -12,7 +12,7 @@
 
 #define NR_IRQS 256
 
-#include_next <irq.h>
+#include <asm/mach-generic/irq.h>
 
 #define IP27_HUB_PEND0_IRQ	(MIPS_CPU_IRQ_BASE + 2)
 #define IP27_HUB_PEND1_IRQ	(MIPS_CPU_IRQ_BASE + 3)

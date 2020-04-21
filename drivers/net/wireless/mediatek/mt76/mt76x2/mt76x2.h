@@ -30,7 +30,7 @@ static inline bool is_mt7612(struct mt76x02_dev *dev)
 
 static inline bool mt76x2_channel_silent(struct mt76x02_dev *dev)
 {
-	struct ieee80211_channel *chan = dev->mt76.chandef.chan;
+	struct ieee80211_channel *chan = dev->mphy.chandef.chan;
 
 	return ((chan->flags & IEEE80211_CHAN_RADAR) &&
 		chan->dfs_state != NL80211_DFS_AVAILABLE);

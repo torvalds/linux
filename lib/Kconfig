@@ -573,9 +573,6 @@ config DIMLIB
 config LIBFDT
 	bool
 
-config LIBXBC
-	bool
-
 config OID_REGISTRY
 	tristate
 	help
@@ -616,6 +613,9 @@ config ARCH_HAS_PMEM_API
 	bool
 
 config MEMREGION
+	bool
+
+config ARCH_HAS_MEMREMAP_COMPAT_ALIGN
 	bool
 
 # use memcpy to implement user copies for nommu architectures

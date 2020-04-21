@@ -12,7 +12,6 @@ struct amd_nb_bus_dev_range {
 	u8 dev_limit;
 };
 
-extern const struct pci_device_id amd_nb_misc_ids[];
 extern const struct amd_nb_bus_dev_range amd_nb_bus_dev_ranges[];
 
 extern bool early_is_amd_nb(u32 value);

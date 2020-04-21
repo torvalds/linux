@@ -109,7 +109,7 @@ Required properties:
 [0] http://infocenter.arm.com/help/topic/com.arm.doc.dui0922b/index.html
 [1] Documentation/devicetree/bindings/clock/clock-bindings.txt
 [2] Documentation/devicetree/bindings/thermal/thermal.txt
-[3] Documentation/devicetree/bindings/sram/sram.txt
+[3] Documentation/devicetree/bindings/sram/sram.yaml
 [4] Documentation/devicetree/bindings/power/power-domain.yaml
 
 Example:

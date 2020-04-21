@@ -1198,13 +1198,13 @@ static void finalize_asic_data(struct hfi1_devdata *dd,
 }
 
 /**
- * hfi1_clean_devdata - cleans up per-unit data structure
+ * hfi1_free_devdata - cleans up and frees per-unit data structure
  * @dd: pointer to a valid devdata structure
  *
- * It cleans up all data structures set up by
+ * It cleans up and frees all data structures set up by
  * by hfi1_alloc_devdata().
  */
-static void hfi1_clean_devdata(struct hfi1_devdata *dd)
+void hfi1_free_devdata(struct hfi1_devdata *dd)
 {
 	struct hfi1_asic_data *ad;
 	unsigned long flags;
@@ -1229,23 +1229,6 @@ static void hfi1_clean_devdata(struct hfi1_devdata *dd)
 	dd->comp_vect = NULL;
 	sdma_clean(dd, dd->num_sdma);
 	rvt_dealloc_device(&dd->verbs_dev.rdi);
-}
-
-static void __hfi1_free_devdata(struct kobject *kobj)
-{
-	struct hfi1_devdata *dd =
-		container_of(kobj, struct hfi1_devdata, kobj);
-
-	hfi1_clean_devdata(dd);
-}
-
-static struct kobj_type hfi1_devdata_type = {
-	.release = __hfi1_free_devdata,
-};
-
-void hfi1_free_devdata(struct hfi1_devdata *dd)
-{
-	kobject_put(&dd->kobj);
 }
 
 /**
@@ -1333,11 +1316,10 @@ static struct hfi1_devdata *hfi1_alloc_devdata(struct pci_dev *pdev,
 		goto bail;
 	}
 
-	kobject_init(&dd->kobj, &hfi1_devdata_type);
 	return dd;
 
 bail:
-	hfi1_clean_devdata(dd);
+	hfi1_free_devdata(dd);
 	return ERR_PTR(ret);
 }
 

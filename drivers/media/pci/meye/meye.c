@@ -1711,7 +1711,7 @@ static int meye_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 	v4l2_ctrl_handler_setup(&meye.hdl);
 	meye.vdev.ctrl_handler = &meye.hdl;
 
-	if (video_register_device(&meye.vdev, VFL_TYPE_GRABBER,
+	if (video_register_device(&meye.vdev, VFL_TYPE_VIDEO,
 				  video_nr) < 0) {
 		v4l2_err(v4l2_dev, "video_register_device failed\n");
 		goto outvideoreg;

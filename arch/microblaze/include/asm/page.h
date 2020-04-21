@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * VM ops
  *
@@ -6,10 +7,6 @@
  * Copyright (C) 2006 Atmark Techno, Inc.
  * Changes for MMU support:
  *    Copyright (C) 2007 Xilinx, Inc.  All rights reserved.
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License. See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 
 #ifndef _ASM_MICROBLAZE_PAGE_H
@@ -197,8 +194,6 @@ extern int page_is_ram(unsigned long pfn);
 
 #ifdef CONFIG_MMU
 
-#define VM_DATA_DEFAULT_FLAGS	(VM_READ | VM_WRITE | VM_EXEC | \
-				 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
 #endif /* CONFIG_MMU */
 
 #endif /* __KERNEL__ */

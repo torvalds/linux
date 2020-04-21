@@ -59,6 +59,19 @@ config KVM
 
 	  If unsure, say N.
 
+config KVM_WERROR
+	bool "Compile KVM with -Werror"
+	# KASAN may cause the build to fail due to larger frames
+	default y if X86_64 && !KASAN
+	# We use the dependency on !COMPILE_TEST to not be enabled
+	# blindly in allmodconfig or allyesconfig configurations
+	depends on (X86_64 && !KASAN) || !COMPILE_TEST
+	depends on EXPERT
+	help
+	  Add -Werror to the build flags for KVM.
+
+	  If in doubt, say "N".
+
 config KVM_INTEL
 	tristate "KVM for Intel (and compatible) processors support"
 	depends on KVM && IA32_FEAT_CTL
@@ -93,9 +106,5 @@ config KVM_MMU_AUDIT
 	---help---
 	 This option adds a R/W kVM module parameter 'mmu_audit', which allows
 	 auditing of KVM MMU events at runtime.
-
-# OK, it's a little counter-intuitive to do this, but it puts it neatly under
-# the virtualization menu.
-source "drivers/vhost/Kconfig"
 
 endif # VIRTUALIZATION

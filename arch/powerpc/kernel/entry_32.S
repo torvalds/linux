@@ -246,9 +246,8 @@ reenable_mmu:
 	 * r3 can be different from GPR3(r1) at this point, r9 and r11
 	 * contains the old MSR and handler address respectively,
 	 * r4 & r5 can contain page fault arguments that need to be passed
-	 * along as well. r12, CCR, CTR, XER etc... are left clobbered as
-	 * they aren't useful past this point (aren't syscall arguments),
-	 * the rest is restored from the exception frame.
+	 * along as well. r0, r6-r8, r12, CCR, CTR, XER etc... are left
+	 * clobbered as they aren't useful past this point.
 	 */
 
 	stwu	r1,-32(r1)
@@ -262,16 +261,12 @@ reenable_mmu:
 	 * lockdep
 	 */
 1:	bl	trace_hardirqs_off
-2:	lwz	r5,24(r1)
+	lwz	r5,24(r1)
 	lwz	r4,20(r1)
 	lwz	r3,16(r1)
 	lwz	r11,12(r1)
 	lwz	r9,8(r1)
 	addi	r1,r1,32
-	lwz	r0,GPR0(r1)
-	lwz	r6,GPR6(r1)
-	lwz	r7,GPR7(r1)
-	lwz	r8,GPR8(r1)
 	mtctr	r11
 	mtlr	r9
 	bctr				/* jump to handler */
@@ -575,6 +570,33 @@ syscall_exit_work:
 	bl	do_syscall_trace_leave
 	b	ret_from_except_full
 
+	/*
+	 * System call was called from kernel. We get here with SRR1 in r9.
+	 * Mark the exception as recoverable once we have retrieved SRR0,
+	 * trap a warning and return ENOSYS with CR[SO] set.
+	 */
+	.globl	ret_from_kernel_syscall
+ret_from_kernel_syscall:
+	mfspr	r9, SPRN_SRR0
+	mfspr	r10, SPRN_SRR1
+#if !defined(CONFIG_4xx) && !defined(CONFIG_BOOKE)
+	LOAD_REG_IMMEDIATE(r11, MSR_KERNEL & ~(MSR_IR|MSR_DR))
+	mtmsr	r11
+#endif
+
+0:	trap
+	EMIT_BUG_ENTRY 0b,__FILE__,__LINE__, BUGFLAG_WARNING
+
+	li	r3, ENOSYS
+	crset	so
+#if defined(CONFIG_PPC_8xx) && defined(CONFIG_PERF_EVENTS)
+	mtspr	SPRN_NRI, r0
+#endif
+	mtspr	SPRN_SRR0, r9
+	mtspr	SPRN_SRR1, r10
+	SYNC
+	RFI
+
 /*
  * The fork/clone functions need to copy the full register set into
  * the child process. Therefore we need to save all the nonvolatile
@@ -783,7 +805,7 @@ fast_exception_return:
 1:	lis	r3,exc_exit_restart_end@ha
 	addi	r3,r3,exc_exit_restart_end@l
 	cmplw	r12,r3
-#if CONFIG_PPC_BOOK3S_601
+#ifdef CONFIG_PPC_BOOK3S_601
 	bge	2b
 #else
 	bge	3f
@@ -791,7 +813,7 @@ fast_exception_return:
 	lis	r4,exc_exit_restart@ha
 	addi	r4,r4,exc_exit_restart@l
 	cmplw	r12,r4
-#if CONFIG_PPC_BOOK3S_601
+#ifdef CONFIG_PPC_BOOK3S_601
 	blt	2b
 #else
 	blt	3f
@@ -1354,12 +1376,17 @@ _GLOBAL(enter_rtas)
 	mtspr	SPRN_SRR0,r8
 	mtspr	SPRN_SRR1,r9
 	RFI
-1:	tophys(r9,r1)
+1:	tophys_novmstack r9, r1
+#ifdef CONFIG_VMAP_STACK
+	li	r0, MSR_KERNEL & ~MSR_IR	/* can take DTLB miss */
+	mtmsr	r0
+	isync
+#endif
 	lwz	r8,INT_FRAME_SIZE+4(r9)	/* get return address */
 	lwz	r9,8(r9)	/* original msr value */
 	addi	r1,r1,INT_FRAME_SIZE
 	li	r0,0
-	tophys(r7, r2)
+	tophys_novmstack r7, r2
 	stw	r0, THREAD + RTAS_SP(r7)
 	mtspr	SPRN_SRR0,r8
 	mtspr	SPRN_SRR1,r9

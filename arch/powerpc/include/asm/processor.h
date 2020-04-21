@@ -168,6 +168,10 @@ struct thread_struct {
 	unsigned long	srr1;
 	unsigned long	dar;
 	unsigned long	dsisr;
+#ifdef CONFIG_PPC_BOOK3S_32
+	unsigned long	r0, r3, r4, r5, r6, r8, r9, r11;
+	unsigned long	lr, ctr;
+#endif
 #endif
 	/* Debug Registers */
 	struct debug_reg debug;

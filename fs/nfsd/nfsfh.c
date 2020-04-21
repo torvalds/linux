@@ -14,6 +14,7 @@
 #include "nfsd.h"
 #include "vfs.h"
 #include "auth.h"
+#include "trace.h"
 
 #define NFSDDBG_FACILITY		NFSDDBG_FH
 
@@ -209,11 +210,14 @@ static __be32 nfsd_set_fh_dentry(struct svc_rqst *rqstp, struct svc_fh *fhp)
 	}
 
 	error = nfserr_stale;
-	if (PTR_ERR(exp) == -ENOENT)
-		return error;
+	if (IS_ERR(exp)) {
+		trace_nfsd_set_fh_dentry_badexport(rqstp, fhp, PTR_ERR(exp));
 
-	if (IS_ERR(exp))
+		if (PTR_ERR(exp) == -ENOENT)
+			return error;
+
 		return nfserrno(PTR_ERR(exp));
+	}
 
 	if (exp->ex_flags & NFSEXP_NOSUBTREECHECK) {
 		/* Elevate privileges so that the lack of 'r' or 'x'
@@ -267,6 +271,9 @@ static __be32 nfsd_set_fh_dentry(struct svc_rqst *rqstp, struct svc_fh *fhp)
 		dentry = exportfs_decode_fh(exp->ex_path.mnt, fid,
 				data_left, fileid_type,
 				nfsd_acceptable, exp);
+		if (IS_ERR_OR_NULL(dentry))
+			trace_nfsd_set_fh_dentry_badhandle(rqstp, fhp,
+					dentry ?  PTR_ERR(dentry) : -ESTALE);
 	}
 	if (dentry == NULL)
 		goto out;

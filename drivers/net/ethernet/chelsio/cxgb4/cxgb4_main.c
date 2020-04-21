@@ -90,11 +90,6 @@
 
 char cxgb4_driver_name[] = KBUILD_MODNAME;
 
-#ifdef DRV_VERSION
-#undef DRV_VERSION
-#endif
-#define DRV_VERSION "2.0.0-ko"
-const char cxgb4_driver_version[] = DRV_VERSION;
 #define DRV_DESC "Chelsio T4/T5/T6 Network Driver"
 
 #define DFLT_MSG_ENABLE (NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_LINK | \
@@ -137,7 +132,6 @@ const char cxgb4_driver_version[] = DRV_VERSION;
 MODULE_DESCRIPTION(DRV_DESC);
 MODULE_AUTHOR("Chelsio Communications");
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_VERSION(DRV_VERSION);
 MODULE_DEVICE_TABLE(pci, cxgb4_pci_tbl);
 MODULE_FIRMWARE(FW4_FNAME);
 MODULE_FIRMWARE(FW5_FNAME);
@@ -3138,7 +3132,6 @@ static int cxgb_set_mac_addr(struct net_device *dev, void *p)
 		return ret;
 
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
-	pi->xact_addr_filt = ret;
 	return 0;
 }
 
@@ -3626,8 +3619,6 @@ static void cxgb4_mgmt_get_drvinfo(struct net_device *dev,
 	struct adapter *adapter = netdev2adap(dev);
 
 	strlcpy(info->driver, cxgb4_driver_name, sizeof(info->driver));
-	strlcpy(info->version, cxgb4_driver_version,
-		sizeof(info->version));
 	strlcpy(info->bus_info, pci_name(adapter->pdev),
 		sizeof(info->bus_info));
 }
@@ -5381,12 +5372,11 @@ static inline bool is_x_10g_port(const struct link_config *lc)
 static int cfg_queues(struct adapter *adap)
 {
 	u32 avail_qsets, avail_eth_qsets, avail_uld_qsets;
+	u32 i, n10g = 0, qidx = 0, n1g = 0;
+	u32 ncpus = num_online_cpus();
 	u32 niqflint, neq, num_ulds;
 	struct sge *s = &adap->sge;
-	u32 i, n10g = 0, qidx = 0;
-#ifndef CONFIG_CHELSIO_T4_DCB
-	int q10g = 0;
-#endif
+	u32 q10g = 0, q1g;
 
 	/* Reduce memory usage in kdump environment, disable all offload. */
 	if (is_kdump_kernel() || (is_uld(adap) && t4_uld_mem_alloc(adap))) {
@@ -5424,44 +5414,50 @@ static int cfg_queues(struct adapter *adap)
 		n10g += is_x_10g_port(&adap2pinfo(adap, i)->link_cfg);
 
 	avail_eth_qsets = min_t(u32, avail_qsets, MAX_ETH_QSETS);
+
+	/* We default to 1 queue per non-10G port and up to # of cores queues
+	 * per 10G port.
+	 */
+	if (n10g)
+		q10g = (avail_eth_qsets - (adap->params.nports - n10g)) / n10g;
+
+	n1g = adap->params.nports - n10g;
 #ifdef CONFIG_CHELSIO_T4_DCB
 	/* For Data Center Bridging support we need to be able to support up
 	 * to 8 Traffic Priorities; each of which will be assigned to its
 	 * own TX Queue in order to prevent Head-Of-Line Blocking.
 	 */
+	q1g = 8;
 	if (adap->params.nports * 8 > avail_eth_qsets) {
 		dev_err(adap->pdev_dev, "DCB avail_eth_qsets=%d < %d!\n",
 			avail_eth_qsets, adap->params.nports * 8);
 		return -ENOMEM;
 	}
 
-	for_each_port(adap, i) {
-		struct port_info *pi = adap2pinfo(adap, i);
+	if (adap->params.nports * ncpus < avail_eth_qsets)
+		q10g = max(8U, ncpus);
+	else
+		q10g = max(8U, q10g);
 
-		pi->first_qset = qidx;
-		pi->nqsets = is_kdump_kernel() ? 1 : 8;
-		qidx += pi->nqsets;
-	}
+	while ((q10g * n10g) > (avail_eth_qsets - n1g * q1g))
+		q10g--;
+
 #else /* !CONFIG_CHELSIO_T4_DCB */
-	/* We default to 1 queue per non-10G port and up to # of cores queues
-	 * per 10G port.
-	 */
-	if (n10g)
-		q10g = (avail_eth_qsets - (adap->params.nports - n10g)) / n10g;
-	if (q10g > netif_get_num_default_rss_queues())
-		q10g = netif_get_num_default_rss_queues();
-
-	if (is_kdump_kernel())
+	q1g = 1;
+	q10g = min(q10g, ncpus);
+#endif /* !CONFIG_CHELSIO_T4_DCB */
+	if (is_kdump_kernel()) {
 		q10g = 1;
+		q1g = 1;
+	}
 
 	for_each_port(adap, i) {
 		struct port_info *pi = adap2pinfo(adap, i);
 
 		pi->first_qset = qidx;
-		pi->nqsets = is_x_10g_port(&pi->link_cfg) ? q10g : 1;
+		pi->nqsets = is_x_10g_port(&pi->link_cfg) ? q10g : q1g;
 		qidx += pi->nqsets;
 	}
-#endif /* !CONFIG_CHELSIO_T4_DCB */
 
 	s->ethqsets = qidx;
 	s->max_ethqsets = qidx;   /* MSI-X may lower it later */
@@ -5473,7 +5469,7 @@ static int cfg_queues(struct adapter *adap)
 		 * capped by the number of available cores.
 		 */
 		num_ulds = adap->num_uld + adap->num_ofld_uld;
-		i = min_t(u32, MAX_OFLD_QSETS, num_online_cpus());
+		i = min_t(u32, MAX_OFLD_QSETS, ncpus);
 		avail_uld_qsets = roundup(i, adap->params.nports);
 		if (avail_qsets < num_ulds * adap->params.nports) {
 			adap->params.offload = 0;
@@ -6081,8 +6077,6 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	int i, err;
 	u32 whoami;
 
-	printk_once(KERN_INFO "%s - version %s\n", DRV_DESC, DRV_VERSION);
-
 	err = pci_request_regions(pdev, KBUILD_MODNAME);
 	if (err) {
 		/* Just info, some other driver may have claimed the device. */
@@ -6676,6 +6670,10 @@ static void shutdown_one(struct pci_dev *pdev)
 		for_each_port(adapter, i)
 			if (adapter->port[i]->reg_state == NETREG_REGISTERED)
 				cxgb_close(adapter->port[i]);
+
+		rtnl_lock();
+		cxgb4_mqprio_stop_offload(adapter);
+		rtnl_unlock();
 
 		if (is_uld(adapter)) {
 			detach_ulds(adapter);

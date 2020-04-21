@@ -178,12 +178,12 @@ static enum zfcp_erp_act_type zfcp_erp_required_act(enum zfcp_erp_act_type want,
 			return 0;
 		if (!(p_status & ZFCP_STATUS_COMMON_UNBLOCKED))
 			need = ZFCP_ERP_ACTION_REOPEN_PORT;
-		/* fall through */
+		fallthrough;
 	case ZFCP_ERP_ACTION_REOPEN_PORT_FORCED:
 		p_status = atomic_read(&port->status);
 		if (!(p_status & ZFCP_STATUS_COMMON_OPEN))
 			need = ZFCP_ERP_ACTION_REOPEN_PORT;
-		/* fall through */
+		fallthrough;
 	case ZFCP_ERP_ACTION_REOPEN_PORT:
 		p_status = atomic_read(&port->status);
 		if (p_status & ZFCP_STATUS_COMMON_ERP_INUSE)
@@ -196,7 +196,7 @@ static enum zfcp_erp_act_type zfcp_erp_required_act(enum zfcp_erp_act_type want,
 			return need;
 		if (!(a_status & ZFCP_STATUS_COMMON_UNBLOCKED))
 			need = ZFCP_ERP_ACTION_REOPEN_ADAPTER;
-		/* fall through */
+		fallthrough;
 	case ZFCP_ERP_ACTION_REOPEN_ADAPTER:
 		a_status = atomic_read(&adapter->status);
 		if (a_status & ZFCP_STATUS_COMMON_ERP_INUSE)
@@ -725,7 +725,7 @@ static void zfcp_erp_enqueue_ptp_port(struct zfcp_adapter *adapter)
 				 adapter->peer_d_id);
 	if (IS_ERR(port)) /* error or port already attached */
 		return;
-	_zfcp_erp_port_reopen(port, 0, "ereptp1");
+	zfcp_erp_port_reopen(port, 0, "ereptp1");
 }
 
 static enum zfcp_erp_act_result zfcp_erp_adapter_strat_fsf_xconf(
@@ -1086,7 +1086,7 @@ static enum zfcp_erp_act_result zfcp_erp_lun_strategy(
 		if (atomic_read(&zfcp_sdev->status) & ZFCP_STATUS_COMMON_OPEN)
 			return zfcp_erp_lun_strategy_close(erp_action);
 		/* already closed */
-		/* fall through */
+		fallthrough;
 	case ZFCP_ERP_STEP_LUN_CLOSING:
 		if (atomic_read(&zfcp_sdev->status) & ZFCP_STATUS_COMMON_OPEN)
 			return ZFCP_ERP_FAILED;
@@ -1415,7 +1415,7 @@ static void zfcp_erp_action_cleanup(struct zfcp_erp_action *act,
 		if (act->step != ZFCP_ERP_STEP_UNINITIALIZED)
 			if (result == ZFCP_ERP_SUCCEEDED)
 				zfcp_erp_try_rport_unblock(port);
-		/* fall through */
+		fallthrough;
 	case ZFCP_ERP_ACTION_REOPEN_PORT_FORCED:
 		put_device(&port->dev);
 		break;

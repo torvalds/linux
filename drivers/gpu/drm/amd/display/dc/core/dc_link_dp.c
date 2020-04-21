@@ -945,6 +945,17 @@ static enum link_training_result perform_channel_equalization_sequence(
 }
 #define TRAINING_AUX_RD_INTERVAL 100 //us
 
+static void start_clock_recovery_pattern_early(struct dc_link *link,
+		struct link_training_settings *lt_settings,
+		uint32_t offset)
+{
+	DC_LOG_HW_LINK_TRAINING("%s\n GPU sends TPS1. Wait 400us.\n",
+			__func__);
+	dp_set_hw_training_pattern(link, DP_TRAINING_PATTERN_SEQUENCE_1, offset);
+	dp_set_hw_lane_settings(link, lt_settings, offset);
+	udelay(400);
+}
+
 static enum link_training_result perform_clock_recovery_sequence(
 	struct dc_link *link,
 	struct link_training_settings *lt_settings,
@@ -962,7 +973,8 @@ static enum link_training_result perform_clock_recovery_sequence(
 	retries_cr = 0;
 	retry_count = 0;
 
-	dp_set_hw_training_pattern(link, tr_pattern, offset);
+	if (!link->ctx->dc->work_arounds.lt_early_cr_pattern)
+		dp_set_hw_training_pattern(link, tr_pattern, offset);
 
 	/* najeeb - The synaptics MST hub can put the LT in
 	* infinite loop by switching the VS
@@ -1434,6 +1446,13 @@ enum link_training_result dc_link_dp_perform_link_training(
 			&link->preferred_training_settings,
 			&lt_settings);
 
+	/* Configure lttpr mode */
+	if (!link->is_lttpr_mode_transparent)
+		configure_lttpr_mode(link);
+
+	if (link->ctx->dc->work_arounds.lt_early_cr_pattern)
+		start_clock_recovery_pattern_early(link, &lt_settings, DPRX);
+
 	/* 1. set link rate, lane count and spread. */
 	dpcd_set_link_settings(link, &lt_settings);
 
@@ -1445,8 +1464,6 @@ enum link_training_result dc_link_dp_perform_link_training(
 	dp_set_fec_ready(link, fec_enable);
 
 	if (!link->is_lttpr_mode_transparent) {
-		/* Configure lttpr mode */
-		configure_lttpr_mode(link);
 
 		/* 2. perform link training (set link training done
 		 *  to false is done as well)
@@ -1654,6 +1671,8 @@ enum link_training_result dc_link_dp_sync_lt_attempt(
 	dp_set_panel_mode(link, panel_mode);
 
 	/* Attempt to train with given link training settings */
+	if (link->ctx->dc->work_arounds.lt_early_cr_pattern)
+		start_clock_recovery_pattern_early(link, &lt_settings, DPRX);
 
 	/* Set link rate, lane count and spread. */
 	dpcd_set_link_settings(link, &lt_settings);
@@ -1892,6 +1911,16 @@ bool dp_verify_link_cap(
 	/* disable PHY done possible by BIOS, will be done by driver itself */
 	dp_disable_link_phy(link, link->connector_signal);
 
+	dp_cs_id = get_clock_source_id(link);
+
+	/* link training starts with the maximum common settings
+	 * supported by both sink and ASIC.
+	 */
+	initial_link_settings = get_common_supported_link_settings(
+			*known_limit_link_setting,
+			max_link_cap);
+	cur_link_setting = initial_link_settings;
+
 	/* Temporary Renoir-specific workaround for SWDEV-215184;
 	 * PHY will sometimes be in bad state on hotplugging display from certain USB-C dongle,
 	 * so add extra cycle of enabling and disabling the PHY before first link training.
@@ -1902,15 +1931,6 @@ bool dp_verify_link_cap(
 		dp_disable_link_phy(link, link->connector_signal);
 	}
 
-	dp_cs_id = get_clock_source_id(link);
-
-	/* link training starts with the maximum common settings
-	 * supported by both sink and ASIC.
-	 */
-	initial_link_settings = get_common_supported_link_settings(
-			*known_limit_link_setting,
-			max_link_cap);
-	cur_link_setting = initial_link_settings;
 	do {
 		skip_video_pattern = true;
 
@@ -2654,9 +2674,12 @@ static void dp_test_send_link_test_pattern(struct dc_link *link)
 	break;
 	}
 
-	test_pattern_color_space = dpcd_test_params.bits.YCBCR_COEFS ?
-			DP_TEST_PATTERN_COLOR_SPACE_YCBCR709 :
-			DP_TEST_PATTERN_COLOR_SPACE_YCBCR601;
+	if (dpcd_test_params.bits.CLR_FORMAT == 0)
+		test_pattern_color_space = DP_TEST_PATTERN_COLOR_SPACE_RGB;
+	else
+		test_pattern_color_space = dpcd_test_params.bits.YCBCR_COEFS ?
+				DP_TEST_PATTERN_COLOR_SPACE_YCBCR709 :
+				DP_TEST_PATTERN_COLOR_SPACE_YCBCR601;
 
 	dc_link_dp_set_test_pattern(
 			link,
@@ -3165,6 +3188,23 @@ static void dp_wa_power_up_0010FA(struct dc_link *link, uint8_t *dpcd_data,
 		link->wa_flags.dp_keep_receiver_powered = false;
 }
 
+/* Read additional sink caps defined in source specific DPCD area
+ * This function currently only reads from SinkCapability address (DP_SOURCE_SINK_CAP)
+ */
+static bool dpcd_read_sink_ext_caps(struct dc_link *link)
+{
+	uint8_t dpcd_data;
+
+	if (!link)
+		return false;
+
+	if (core_link_read_dpcd(link, DP_SOURCE_SINK_CAP, &dpcd_data, 1) != DC_OK)
+		return false;
+
+	link->dpcd_sink_ext_caps.raw = dpcd_data;
+	return true;
+}
+
 static bool retrieve_link_cap(struct dc_link *link)
 {
 	/* DP_ADAPTER_CAP - DP_DPCD_REV + 1 == 16 and also DP_DSC_BITS_PER_PIXEL_INC - DP_DSC_SUPPORT + 1 == 16,
@@ -3401,6 +3441,17 @@ static bool retrieve_link_cap(struct dc_link *link)
 		sink_id.ieee_device_id,
 		sizeof(sink_id.ieee_device_id));
 
+	/* Quirk Apple MBP 2017 15" Retina panel: Wrong DP_MAX_LINK_RATE */
+	{
+		uint8_t str_mbp_2017[] = { 101, 68, 21, 101, 98, 97 };
+
+		if ((link->dpcd_caps.sink_dev_id == 0x0010fa) &&
+		    !memcmp(link->dpcd_caps.sink_dev_id_str, str_mbp_2017,
+			    sizeof(str_mbp_2017))) {
+			link->reported_link_cap.link_rate = 0x0c;
+		}
+	}
+
 	core_link_read_dpcd(
 		link,
 		DP_SINK_HW_REVISION_START,
@@ -3436,6 +3487,9 @@ static bool retrieve_link_cap(struct dc_link *link)
 				link->dpcd_caps.dsc_caps.dsc_ext_caps.raw,
 				sizeof(link->dpcd_caps.dsc_caps.dsc_ext_caps.raw));
 	}
+
+	if (!dpcd_read_sink_ext_caps(link))
+		link->dpcd_sink_ext_caps.raw = 0;
 
 	/* Connectivity log: detection */
 	CONN_DATA_DETECT(link, dpcd_data, sizeof(dpcd_data), "Rx Caps: ");
@@ -3589,6 +3643,8 @@ void detect_edp_sink_caps(struct dc_link *link)
 		}
 	}
 	link->verified_link_cap = link->reported_link_cap;
+
+	dc_link_set_default_brightness_aux(link);
 }
 
 void dc_link_dp_enable_hpd(const struct dc_link *link)
@@ -3680,7 +3736,8 @@ static void set_crtc_test_pattern(struct dc_link *link,
 			struct pipe_ctx *odm_pipe;
 			enum controller_dp_color_space controller_color_space;
 			int opp_cnt = 1;
-			int count;
+			int offset = 0;
+			int dpg_width = width;
 
 			switch (test_pattern_color_space) {
 			case DP_TEST_PATTERN_COLOR_SPACE_RGB:
@@ -3702,33 +3759,30 @@ static void set_crtc_test_pattern(struct dc_link *link,
 
 			for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe)
 				opp_cnt++;
+			dpg_width = width / opp_cnt;
+			offset = dpg_width;
 
-			width /= opp_cnt;
+			opp->funcs->opp_set_disp_pattern_generator(opp,
+				controller_test_pattern,
+				controller_color_space,
+				color_depth,
+				NULL,
+				dpg_width,
+				height,
+				0);
 
 			for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe) {
 				struct output_pixel_processor *odm_opp = odm_pipe->stream_res.opp;
-
 				odm_opp->funcs->opp_program_bit_depth_reduction(odm_opp, &params);
 				odm_opp->funcs->opp_set_disp_pattern_generator(odm_opp,
 					controller_test_pattern,
 					controller_color_space,
 					color_depth,
 					NULL,
-					width,
-					height);
-			}
-			opp->funcs->opp_set_disp_pattern_generator(opp,
-				controller_test_pattern,
-				controller_color_space,
-				color_depth,
-				NULL,
-				width,
-				height);
-			/* wait for dpg to blank pixel data with test pattern */
-			for (count = 0; count < 1000; count++) {
-				if (opp->funcs->dpg_is_blanked(opp))
-					break;
-				udelay(100);
+					dpg_width,
+					height,
+					offset);
+				offset += offset;
 			}
 		}
 	}
@@ -3746,11 +3800,12 @@ static void set_crtc_test_pattern(struct dc_link *link,
 		else if (opp->funcs->opp_set_disp_pattern_generator) {
 			struct pipe_ctx *odm_pipe;
 			int opp_cnt = 1;
+			int dpg_width = width;
 
 			for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe)
 				opp_cnt++;
 
-			width /= opp_cnt;
+			dpg_width = width / opp_cnt;
 			for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe) {
 				struct output_pixel_processor *odm_opp = odm_pipe->stream_res.opp;
 
@@ -3760,16 +3815,18 @@ static void set_crtc_test_pattern(struct dc_link *link,
 					CONTROLLER_DP_COLOR_SPACE_UDEFINED,
 					color_depth,
 					NULL,
-					width,
-					height);
+					dpg_width,
+					height,
+					0);
 			}
 			opp->funcs->opp_set_disp_pattern_generator(opp,
 				CONTROLLER_DP_TEST_PATTERN_VIDEOMODE,
 				CONTROLLER_DP_COLOR_SPACE_UDEFINED,
 				color_depth,
 				NULL,
-				width,
-				height);
+				dpg_width,
+				height,
+				0);
 		}
 	}
 	break;
@@ -3947,6 +4004,11 @@ bool dc_link_dp_set_test_pattern(
 		default:
 			break;
 		}
+
+		if (pipe_ctx->stream_res.tg->funcs->lock_doublebuffer_enable)
+			pipe_ctx->stream_res.tg->funcs->lock_doublebuffer_enable(
+					pipe_ctx->stream_res.tg);
+		pipe_ctx->stream_res.tg->funcs->lock(pipe_ctx->stream_res.tg);
 		/* update MSA to requested color space */
 		pipe_ctx->stream_res.stream_enc->funcs->dp_set_stream_attribute(pipe_ctx->stream_res.stream_enc,
 				&pipe_ctx->stream->timing,
@@ -3954,9 +4016,27 @@ bool dc_link_dp_set_test_pattern(
 				pipe_ctx->stream->use_vsc_sdp_for_colorimetry,
 				link->dpcd_caps.dprx_feature.bits.SST_SPLIT_SDP_CAP);
 
+		if (pipe_ctx->stream->use_vsc_sdp_for_colorimetry) {
+			if (test_pattern == DP_TEST_PATTERN_COLOR_SQUARES_CEA)
+				pipe_ctx->stream->vsc_infopacket.sb[17] |= (1 << 7); // sb17 bit 7 Dynamic Range: 0 = VESA range, 1 = CTA range
+			else
+				pipe_ctx->stream->vsc_infopacket.sb[17] &= ~(1 << 7);
+			resource_build_info_frame(pipe_ctx);
+			link->dc->hwss.update_info_frame(pipe_ctx);
+		}
+
 		/* CRTC Patterns */
 		set_crtc_test_pattern(link, pipe_ctx, test_pattern, test_pattern_color_space);
-
+		pipe_ctx->stream_res.tg->funcs->unlock(pipe_ctx->stream_res.tg);
+		pipe_ctx->stream_res.tg->funcs->wait_for_state(pipe_ctx->stream_res.tg,
+				CRTC_STATE_VACTIVE);
+		pipe_ctx->stream_res.tg->funcs->wait_for_state(pipe_ctx->stream_res.tg,
+				CRTC_STATE_VBLANK);
+		pipe_ctx->stream_res.tg->funcs->wait_for_state(pipe_ctx->stream_res.tg,
+				CRTC_STATE_VACTIVE);
+		if (pipe_ctx->stream_res.tg->funcs->lock_doublebuffer_disable)
+			pipe_ctx->stream_res.tg->funcs->lock_doublebuffer_disable(
+					pipe_ctx->stream_res.tg);
 		/* Set Test Pattern state */
 		link->test_pattern_enabled = true;
 	}
@@ -4086,8 +4166,7 @@ void dp_set_fec_ready(struct dc_link *link, bool ready)
 	struct link_encoder *link_enc = link->link_enc;
 	uint8_t fec_config = 0;
 
-	if (link->dc->debug.disable_fec ||
-			IS_FPGA_MAXIMUS_DC(link->ctx->dce_environment))
+	if (!dc_link_is_fec_supported(link) || link->dc->debug.disable_fec)
 		return;
 
 	if (link_enc->funcs->fec_set_ready &&
@@ -4122,8 +4201,7 @@ void dp_set_fec_enable(struct dc_link *link, bool enable)
 {
 	struct link_encoder *link_enc = link->link_enc;
 
-	if (link->dc->debug.disable_fec ||
-			IS_FPGA_MAXIMUS_DC(link->ctx->dce_environment))
+	if (!dc_link_is_fec_supported(link) || link->dc->debug.disable_fec)
 		return;
 
 	if (link_enc->funcs->fec_set_enable &&
@@ -4146,3 +4224,148 @@ void dp_set_fec_enable(struct dc_link *link, bool enable)
 	}
 }
 
+void dpcd_set_source_specific_data(struct dc_link *link)
+{
+	const uint32_t post_oui_delay = 30; // 30ms
+
+	if (!link->dc->vendor_signature.is_valid) {
+		struct dpcd_amd_signature amd_signature;
+		amd_signature.AMD_IEEE_TxSignature_byte1 = 0x0;
+		amd_signature.AMD_IEEE_TxSignature_byte2 = 0x0;
+		amd_signature.AMD_IEEE_TxSignature_byte3 = 0x1A;
+		amd_signature.device_id_byte1 =
+				(uint8_t)(link->ctx->asic_id.chip_id);
+		amd_signature.device_id_byte2 =
+				(uint8_t)(link->ctx->asic_id.chip_id >> 8);
+		memset(&amd_signature.zero, 0, 4);
+		amd_signature.dce_version =
+				(uint8_t)(link->ctx->dce_version);
+		amd_signature.dal_version_byte1 = 0x0; // needed? where to get?
+		amd_signature.dal_version_byte2 = 0x0; // needed? where to get?
+
+		core_link_write_dpcd(link, DP_SOURCE_OUI,
+				(uint8_t *)(&amd_signature),
+				sizeof(amd_signature));
+
+	} else {
+		core_link_write_dpcd(link, DP_SOURCE_OUI,
+				link->dc->vendor_signature.data.raw,
+				sizeof(link->dc->vendor_signature.data.raw));
+	}
+
+	// Sink may need to configure internals based on vendor, so allow some
+	// time before proceeding with possibly vendor specific transactions
+	msleep(post_oui_delay);
+}
+
+bool dc_link_set_backlight_level_nits(struct dc_link *link,
+		bool isHDR,
+		uint32_t backlight_millinits,
+		uint32_t transition_time_in_ms)
+{
+	struct dpcd_source_backlight_set dpcd_backlight_set;
+	uint8_t backlight_control = isHDR ? 1 : 0;
+
+	if (!link || (link->connector_signal != SIGNAL_TYPE_EDP &&
+			link->connector_signal != SIGNAL_TYPE_DISPLAY_PORT))
+		return false;
+
+	// OLEDs have no PWM, they can only use AUX
+	if (link->dpcd_sink_ext_caps.bits.oled == 1)
+		backlight_control = 1;
+
+	*(uint32_t *)&dpcd_backlight_set.backlight_level_millinits = backlight_millinits;
+	*(uint16_t *)&dpcd_backlight_set.backlight_transition_time_ms = (uint16_t)transition_time_in_ms;
+
+
+	if (core_link_write_dpcd(link, DP_SOURCE_BACKLIGHT_LEVEL,
+			(uint8_t *)(&dpcd_backlight_set),
+			sizeof(dpcd_backlight_set)) != DC_OK)
+		return false;
+
+	if (core_link_write_dpcd(link, DP_SOURCE_BACKLIGHT_CONTROL,
+			&backlight_control, 1) != DC_OK)
+		return false;
+
+	return true;
+}
+
+bool dc_link_get_backlight_level_nits(struct dc_link *link,
+		uint32_t *backlight_millinits_avg,
+		uint32_t *backlight_millinits_peak)
+{
+	union dpcd_source_backlight_get dpcd_backlight_get;
+
+	memset(&dpcd_backlight_get, 0, sizeof(union dpcd_source_backlight_get));
+
+	if (!link || (link->connector_signal != SIGNAL_TYPE_EDP &&
+			link->connector_signal != SIGNAL_TYPE_DISPLAY_PORT))
+		return false;
+
+	if (!core_link_read_dpcd(link, DP_SOURCE_BACKLIGHT_CURRENT_PEAK,
+			dpcd_backlight_get.raw,
+			sizeof(union dpcd_source_backlight_get)))
+		return false;
+
+	*backlight_millinits_avg =
+		dpcd_backlight_get.bytes.backlight_millinits_avg;
+	*backlight_millinits_peak =
+		dpcd_backlight_get.bytes.backlight_millinits_peak;
+
+	/* On non-supported panels dpcd_read usually succeeds with 0 returned */
+	if (*backlight_millinits_avg == 0 ||
+			*backlight_millinits_avg > *backlight_millinits_peak)
+		return false;
+
+	return true;
+}
+
+bool dc_link_backlight_enable_aux(struct dc_link *link, bool enable)
+{
+	uint8_t backlight_enable = enable ? 1 : 0;
+
+	if (!link || (link->connector_signal != SIGNAL_TYPE_EDP &&
+		link->connector_signal != SIGNAL_TYPE_DISPLAY_PORT))
+		return false;
+
+	if (core_link_write_dpcd(link, DP_SOURCE_BACKLIGHT_ENABLE,
+		&backlight_enable, 1) != DC_OK)
+		return false;
+
+	return true;
+}
+
+// we read default from 0x320 because we expect BIOS wrote it there
+// regular get_backlight_nit reads from panel set at 0x326
+bool dc_link_read_default_bl_aux(struct dc_link *link, uint32_t *backlight_millinits)
+{
+	if (!link || (link->connector_signal != SIGNAL_TYPE_EDP &&
+		link->connector_signal != SIGNAL_TYPE_DISPLAY_PORT))
+		return false;
+
+	if (!core_link_read_dpcd(link, DP_SOURCE_BACKLIGHT_LEVEL,
+		(uint8_t *) backlight_millinits,
+		sizeof(uint32_t)))
+		return false;
+
+	return true;
+}
+
+bool dc_link_set_default_brightness_aux(struct dc_link *link)
+{
+	uint32_t default_backlight;
+
+	if (link &&
+		(link->dpcd_sink_ext_caps.bits.hdr_aux_backlight_control == 1 ||
+		link->dpcd_sink_ext_caps.bits.sdr_aux_backlight_control == 1)) {
+		if (!dc_link_read_default_bl_aux(link, &default_backlight))
+			default_backlight = 150000;
+		// if < 5 nits or > 5000, it might be wrong readback
+		if (default_backlight < 5000 || default_backlight > 5000000)
+			default_backlight = 150000; //
+
+		return dc_link_set_backlight_level_nits(link, true,
+				default_backlight, 0);
+	}
+	return false;
+}

@@ -155,6 +155,7 @@ enum {
 	Opt_acl,
 	Opt_quotadf,
 	Opt_copyfrom,
+	Opt_wsync,
 };
 
 enum ceph_recover_session_mode {
@@ -194,6 +195,7 @@ static const struct fs_parameter_spec ceph_mount_parameters[] = {
 	fsparam_string	("snapdirname",			Opt_snapdirname),
 	fsparam_string	("source",			Opt_source),
 	fsparam_u32	("wsize",			Opt_wsize),
+	fsparam_flag_no	("wsync",			Opt_wsync),
 	{}
 };
 
@@ -201,6 +203,26 @@ struct ceph_parse_opts_ctx {
 	struct ceph_options		*copts;
 	struct ceph_mount_options	*opts;
 };
+
+/*
+ * Remove adjacent slashes and then the trailing slash, unless it is
+ * the only remaining character.
+ *
+ * E.g. "//dir1////dir2///" --> "/dir1/dir2", "///" --> "/".
+ */
+static void canonicalize_path(char *path)
+{
+	int i, j = 0;
+
+	for (i = 0; path[i] != '\0'; i++) {
+		if (path[i] != '/' || j < 1 || path[j - 1] != '/')
+			path[j++] = path[i];
+	}
+
+	if (j > 1 && path[j - 1] == '/')
+		j--;
+	path[j] = '\0';
+}
 
 /*
  * Parse the source parameter.  Distinguish the server list from the path.
@@ -224,15 +246,16 @@ static int ceph_parse_source(struct fs_parameter *param, struct fs_context *fc)
 
 	dev_name_end = strchr(dev_name, '/');
 	if (dev_name_end) {
-		kfree(fsopt->server_path);
-
 		/*
 		 * The server_path will include the whole chars from userland
 		 * including the leading '/'.
 		 */
+		kfree(fsopt->server_path);
 		fsopt->server_path = kstrdup(dev_name_end, GFP_KERNEL);
 		if (!fsopt->server_path)
 			return -ENOMEM;
+
+		canonicalize_path(fsopt->server_path);
 	} else {
 		dev_name_end = dev_name + strlen(dev_name);
 	}
@@ -423,6 +446,12 @@ static int ceph_parse_mount_param(struct fs_context *fc,
 			fc->sb_flags &= ~SB_POSIXACL;
 		}
 		break;
+	case Opt_wsync:
+		if (!result.negated)
+			fsopt->flags &= ~CEPH_MOUNT_OPT_ASYNC_DIROPS;
+		else
+			fsopt->flags |= CEPH_MOUNT_OPT_ASYNC_DIROPS;
+		break;
 	default:
 		BUG();
 	}
@@ -456,73 +485,6 @@ static int strcmp_null(const char *s1, const char *s2)
 	return strcmp(s1, s2);
 }
 
-/**
- * path_remove_extra_slash - Remove the extra slashes in the server path
- * @server_path: the server path and could be NULL
- *
- * Return NULL if the path is NULL or only consists of "/", or a string
- * without any extra slashes including the leading slash(es) and the
- * slash(es) at the end of the server path, such as:
- * "//dir1////dir2///" --> "dir1/dir2"
- */
-static char *path_remove_extra_slash(const char *server_path)
-{
-	const char *path = server_path;
-	const char *cur, *end;
-	char *buf, *p;
-	int len;
-
-	/* if the server path is omitted */
-	if (!path)
-		return NULL;
-
-	/* remove all the leading slashes */
-	while (*path == '/')
-		path++;
-
-	/* if the server path only consists of slashes */
-	if (*path == '\0')
-		return NULL;
-
-	len = strlen(path);
-
-	buf = kmalloc(len + 1, GFP_KERNEL);
-	if (!buf)
-		return ERR_PTR(-ENOMEM);
-
-	end = path + len;
-	p = buf;
-	do {
-		cur = strchr(path, '/');
-		if (!cur)
-			cur = end;
-
-		len = cur - path;
-
-		/* including one '/' */
-		if (cur != end)
-			len += 1;
-
-		memcpy(p, path, len);
-		p += len;
-
-		while (cur <= end && *cur == '/')
-			cur++;
-		path = cur;
-	} while (path < end);
-
-	*p = '\0';
-
-	/*
-	 * remove the last slash if there has and just to make sure that
-	 * we will get something like "dir1/dir2"
-	 */
-	if (*(--p) == '/')
-		*p = '\0';
-
-	return buf;
-}
-
 static int compare_mount_options(struct ceph_mount_options *new_fsopt,
 				 struct ceph_options *new_opt,
 				 struct ceph_fs_client *fsc)
@@ -530,7 +492,6 @@ static int compare_mount_options(struct ceph_mount_options *new_fsopt,
 	struct ceph_mount_options *fsopt1 = new_fsopt;
 	struct ceph_mount_options *fsopt2 = fsc->mount_options;
 	int ofs = offsetof(struct ceph_mount_options, snapdir_name);
-	char *p1, *p2;
 	int ret;
 
 	ret = memcmp(fsopt1, fsopt2, ofs);
@@ -540,21 +501,12 @@ static int compare_mount_options(struct ceph_mount_options *new_fsopt,
 	ret = strcmp_null(fsopt1->snapdir_name, fsopt2->snapdir_name);
 	if (ret)
 		return ret;
+
 	ret = strcmp_null(fsopt1->mds_namespace, fsopt2->mds_namespace);
 	if (ret)
 		return ret;
 
-	p1 = path_remove_extra_slash(fsopt1->server_path);
-	if (IS_ERR(p1))
-		return PTR_ERR(p1);
-	p2 = path_remove_extra_slash(fsopt2->server_path);
-	if (IS_ERR(p2)) {
-		kfree(p1);
-		return PTR_ERR(p2);
-	}
-	ret = strcmp_null(p1, p2);
-	kfree(p1);
-	kfree(p2);
+	ret = strcmp_null(fsopt1->server_path, fsopt2->server_path);
 	if (ret)
 		return ret;
 
@@ -622,6 +574,9 @@ static int ceph_show_options(struct seq_file *m, struct dentry *root)
 
 	if (fsopt->flags & CEPH_MOUNT_OPT_CLEANRECOVER)
 		seq_show_option(m, "recover_session", "clean");
+
+	if (fsopt->flags & CEPH_MOUNT_OPT_ASYNC_DIROPS)
+		seq_puts(m, ",nowsync");
 
 	if (fsopt->wsize != CEPH_MAX_WRITE_SIZE)
 		seq_printf(m, ",wsize=%u", fsopt->wsize);
@@ -785,6 +740,7 @@ struct kmem_cache *ceph_cap_flush_cachep;
 struct kmem_cache *ceph_dentry_cachep;
 struct kmem_cache *ceph_file_cachep;
 struct kmem_cache *ceph_dir_file_cachep;
+struct kmem_cache *ceph_mds_request_cachep;
 
 static void ceph_inode_init_once(void *foo)
 {
@@ -825,6 +781,10 @@ static int __init init_caches(void)
 	if (!ceph_dir_file_cachep)
 		goto bad_dir_file;
 
+	ceph_mds_request_cachep = KMEM_CACHE(ceph_mds_request, SLAB_MEM_SPREAD);
+	if (!ceph_mds_request_cachep)
+		goto bad_mds_req;
+
 	error = ceph_fscache_register();
 	if (error)
 		goto bad_fscache;
@@ -832,6 +792,8 @@ static int __init init_caches(void)
 	return 0;
 
 bad_fscache:
+	kmem_cache_destroy(ceph_mds_request_cachep);
+bad_mds_req:
 	kmem_cache_destroy(ceph_dir_file_cachep);
 bad_dir_file:
 	kmem_cache_destroy(ceph_file_cachep);
@@ -860,6 +822,7 @@ static void destroy_caches(void)
 	kmem_cache_destroy(ceph_dentry_cachep);
 	kmem_cache_destroy(ceph_file_cachep);
 	kmem_cache_destroy(ceph_dir_file_cachep);
+	kmem_cache_destroy(ceph_mds_request_cachep);
 
 	ceph_fscache_unregister();
 }
@@ -957,7 +920,9 @@ static struct dentry *ceph_real_mount(struct ceph_fs_client *fsc,
 	mutex_lock(&fsc->client->mount_mutex);
 
 	if (!fsc->sb->s_root) {
-		const char *path, *p;
+		const char *path = fsc->mount_options->server_path ?
+				     fsc->mount_options->server_path + 1 : "";
+
 		err = __ceph_open_session(fsc->client, started);
 		if (err < 0)
 			goto out;
@@ -969,22 +934,11 @@ static struct dentry *ceph_real_mount(struct ceph_fs_client *fsc,
 				goto out;
 		}
 
-		p = path_remove_extra_slash(fsc->mount_options->server_path);
-		if (IS_ERR(p)) {
-			err = PTR_ERR(p);
-			goto out;
-		}
-		/* if the server path is omitted or just consists of '/' */
-		if (!p)
-			path = "";
-		else
-			path = p;
 		dout("mount opening path '%s'\n", path);
 
 		ceph_fs_debugfs_init(fsc);
 
 		root = open_root_dentry(fsc, path, started);
-		kfree(p);
 		if (IS_ERR(root)) {
 			err = PTR_ERR(root);
 			goto out;
@@ -1097,10 +1051,6 @@ static int ceph_get_tree(struct fs_context *fc)
 	if (!fc->source)
 		return invalfc(fc, "No source");
 
-#ifdef CONFIG_CEPH_FS_POSIX_ACL
-	fc->sb_flags |= SB_POSIXACL;
-#endif
-
 	/* create client (which we may/may not use) */
 	fsc = create_fs_client(pctx->opts, pctx->copts);
 	pctx->opts = NULL;
@@ -1176,6 +1126,15 @@ static void ceph_free_fc(struct fs_context *fc)
 
 static int ceph_reconfigure_fc(struct fs_context *fc)
 {
+	struct ceph_parse_opts_ctx *pctx = fc->fs_private;
+	struct ceph_mount_options *fsopt = pctx->opts;
+	struct ceph_fs_client *fsc = ceph_sb_to_client(fc->root->d_sb);
+
+	if (fsopt->flags & CEPH_MOUNT_OPT_ASYNC_DIROPS)
+		ceph_set_mount_opt(fsc, ASYNC_DIROPS);
+	else
+		ceph_clear_mount_opt(fsc, ASYNC_DIROPS);
+
 	sync_filesystem(fc->root->d_sb);
 	return 0;
 }
@@ -1222,6 +1181,10 @@ static int ceph_init_fs_context(struct fs_context *fc)
 	fsopt->max_readdir = CEPH_MAX_READDIR_DEFAULT;
 	fsopt->max_readdir_bytes = CEPH_MAX_READDIR_BYTES_DEFAULT;
 	fsopt->congestion_kb = default_congestion_kb();
+
+#ifdef CONFIG_CEPH_FS_POSIX_ACL
+	fc->sb_flags |= SB_POSIXACL;
+#endif
 
 	fc->fs_private = pctx;
 	fc->ops = &ceph_context_ops;

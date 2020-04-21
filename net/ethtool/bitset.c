@@ -305,7 +305,8 @@ nla_put_failure:
 static const struct nla_policy bitset_policy[ETHTOOL_A_BITSET_MAX + 1] = {
 	[ETHTOOL_A_BITSET_UNSPEC]	= { .type = NLA_REJECT },
 	[ETHTOOL_A_BITSET_NOMASK]	= { .type = NLA_FLAG },
-	[ETHTOOL_A_BITSET_SIZE]		= { .type = NLA_U32 },
+	[ETHTOOL_A_BITSET_SIZE]		= NLA_POLICY_MAX(NLA_U32,
+							 ETHNL_MAX_BITSET_SIZE),
 	[ETHTOOL_A_BITSET_BITS]		= { .type = NLA_NESTED },
 	[ETHTOOL_A_BITSET_VALUE]	= { .type = NLA_BINARY },
 	[ETHTOOL_A_BITSET_MASK]		= { .type = NLA_BINARY },
@@ -447,7 +448,10 @@ ethnl_update_bitset32_verbose(u32 *bitmap, unsigned int nbits,
 				    "mask only allowed in compact bitset");
 		return -EINVAL;
 	}
+
 	no_mask = tb[ETHTOOL_A_BITSET_NOMASK];
+	if (no_mask)
+		ethnl_bitmap32_clear(bitmap, 0, nbits, mod);
 
 	nla_for_each_nested(bit_attr, tb[ETHTOOL_A_BITSET_BITS], rem) {
 		bool old_val, new_val;
@@ -580,6 +584,100 @@ int ethnl_update_bitset32(u32 *bitmap, unsigned int nbits,
 			      mod);
 	if (no_mask && change_bits < nbits)
 		ethnl_bitmap32_clear(bitmap, change_bits, nbits, mod);
+
+	return 0;
+}
+
+/**
+ * ethnl_parse_bitset() - Compute effective value and mask from bitset nest
+ * @val:     unsigned long based bitmap to put value into
+ * @mask:    unsigned long based bitmap to put mask into
+ * @nbits:   size of @val and @mask bitmaps
+ * @attr:    nest attribute to parse and apply
+ * @names:   array of bit names; may be null for compact format
+ * @extack:  extack for error reporting
+ *
+ * Provide @nbits size long bitmaps for value and mask so that
+ * x = (val & mask) | (x & ~mask) would modify any @nbits sized bitmap x
+ * the same way ethnl_update_bitset() with the same bitset attribute would.
+ *
+ * Return:   negative error code on failure, 0 on success
+ */
+int ethnl_parse_bitset(unsigned long *val, unsigned long *mask,
+		       unsigned int nbits, const struct nlattr *attr,
+		       ethnl_string_array_t names,
+		       struct netlink_ext_ack *extack)
+{
+	struct nlattr *tb[ETHTOOL_A_BITSET_MAX + 1];
+	const struct nlattr *bit_attr;
+	bool no_mask;
+	int rem;
+	int ret;
+
+	if (!attr)
+		return 0;
+	ret = nla_parse_nested(tb, ETHTOOL_A_BITSET_MAX, attr, bitset_policy,
+			       extack);
+	if (ret < 0)
+		return ret;
+	no_mask = tb[ETHTOOL_A_BITSET_NOMASK];
+
+	if (!tb[ETHTOOL_A_BITSET_BITS]) {
+		unsigned int change_bits;
+
+		ret = ethnl_compact_sanity_checks(nbits, attr, tb, extack);
+		if (ret < 0)
+			return ret;
+
+		change_bits = nla_get_u32(tb[ETHTOOL_A_BITSET_SIZE]);
+		bitmap_from_arr32(val, nla_data(tb[ETHTOOL_A_BITSET_VALUE]),
+				  change_bits);
+		if (change_bits < nbits)
+			bitmap_clear(val, change_bits, nbits - change_bits);
+		if (no_mask) {
+			bitmap_fill(mask, nbits);
+		} else {
+			bitmap_from_arr32(mask,
+					  nla_data(tb[ETHTOOL_A_BITSET_MASK]),
+					  change_bits);
+			if (change_bits < nbits)
+				bitmap_clear(mask, change_bits,
+					     nbits - change_bits);
+		}
+
+		return 0;
+	}
+
+	if (tb[ETHTOOL_A_BITSET_VALUE]) {
+		NL_SET_ERR_MSG_ATTR(extack, tb[ETHTOOL_A_BITSET_VALUE],
+				    "value only allowed in compact bitset");
+		return -EINVAL;
+	}
+	if (tb[ETHTOOL_A_BITSET_MASK]) {
+		NL_SET_ERR_MSG_ATTR(extack, tb[ETHTOOL_A_BITSET_MASK],
+				    "mask only allowed in compact bitset");
+		return -EINVAL;
+	}
+
+	bitmap_zero(val, nbits);
+	if (no_mask)
+		bitmap_fill(mask, nbits);
+	else
+		bitmap_zero(mask, nbits);
+
+	nla_for_each_nested(bit_attr, tb[ETHTOOL_A_BITSET_BITS], rem) {
+		unsigned int idx;
+		bool bit_val;
+
+		ret = ethnl_parse_bit(&idx, &bit_val, nbits, bit_attr, no_mask,
+				      names, extack);
+		if (ret < 0)
+			return ret;
+		if (bit_val)
+			__set_bit(idx, val);
+		if (!no_mask)
+			__set_bit(idx, mask);
+	}
 
 	return 0;
 }
