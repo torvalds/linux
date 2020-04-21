@@ -12,6 +12,8 @@
 #include <linux/iio/iio.h>
 #include <linux/regulator/consumer.h>
 
+#include <asm/unaligned.h>
+
 #define LTC2632_CMD_WRITE_INPUT_N               0x0
 #define LTC2632_CMD_UPDATE_DAC_N                0x1
 #define LTC2632_CMD_WRITE_INPUT_N_UPDATE_ALL    0x2
@@ -75,9 +77,7 @@ static int ltc2632_spi_write(struct spi_device *spi,
 	 * 10-, 8-bit input code followed by 4, 6, or 8 don't care bits.
 	 */
 	data = (cmd << 20) | (addr << 16) | (val << shift);
-	msg[0] = data >> 16;
-	msg[1] = data >> 8;
-	msg[2] = data;
+	put_unaligned_be24(data, &msg[0]);
 
 	return spi_write(spi, msg, sizeof(msg));
 }
