@@ -400,19 +400,9 @@ static unsigned long stub_for_addr(const Elf64_Shdr *sechdrs,
 }
 
 #ifdef CONFIG_MPROFILE_KERNEL
-static bool is_mprofile_mcount_callsite(const char *name, u32 *instruction)
+static bool is_mprofile_ftrace_call(const char *name)
 {
-	if (strcmp("_mcount", name))
-		return false;
-
-	/*
-	 * Check if this is one of the -mprofile-kernel sequences.
-	 */
-	if (instruction[-1] == PPC_INST_STD_LR &&
-	    instruction[-2] == PPC_INST_MFLR)
-		return true;
-
-	if (instruction[-1] == PPC_INST_MFLR)
+	if (!strcmp("_mcount", name))
 		return true;
 
 	return false;
@@ -436,7 +426,7 @@ static void squash_toc_save_inst(const char *name, unsigned long addr)
 #else
 static void squash_toc_save_inst(const char *name, unsigned long addr) { }
 
-static bool is_mprofile_mcount_callsite(const char *name, u32 *instruction)
+static bool is_mprofile_ftrace_call(const char *name)
 {
 	return false;
 }
@@ -448,7 +438,7 @@ static int restore_r2(const char *name, u32 *instruction, struct module *me)
 {
 	u32 *prev_insn = instruction - 1;
 
-	if (is_mprofile_mcount_callsite(name, prev_insn))
+	if (is_mprofile_ftrace_call(name))
 		return 1;
 
 	/*
