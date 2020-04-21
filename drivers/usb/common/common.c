@@ -100,6 +100,7 @@ static const char *const usb_dr_modes[] = {
 	[USB_DR_MODE_HOST]		= "host",
 	[USB_DR_MODE_PERIPHERAL]	= "peripheral",
 	[USB_DR_MODE_OTG]		= "otg",
+	[USB_DR_MODE_DRD]               = "drd",
 };
 
 static enum usb_dr_mode usb_get_dr_mode_from_string(const char *str)
