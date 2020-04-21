@@ -364,9 +364,11 @@ static const struct usbmix_name_map dell_alc4020_map[] = {
 };
 
 /* Some mobos shipped with a dummy HD-audio show the invalid GET_MIN/GET_MAX
- * response for Input Gain Pad (id=19, control=12).  Skip it.
+ * response for Input Gain Pad (id=19, control=12) and the connector status
+ * for SPDIF terminal (id=18).  Skip them.
  */
 static const struct usbmix_name_map asus_rog_map[] = {
+	{ 18, NULL }, /* OT, connector control */
 	{ 19, NULL, 12 }, /* FU, Input Gain Pad */
 	{}
 };
