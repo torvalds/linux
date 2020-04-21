@@ -468,7 +468,7 @@ static void print_other_cpu_stall(unsigned long gp_seq, unsigned long gps)
 
 	/*
 	 * OK, time to rat on our buddy...
-	 * See Documentation/RCU/stallwarn.txt for info on how to debug
+	 * See Documentation/RCU/stallwarn.rst for info on how to debug
 	 * RCU CPU stall warnings.
 	 */
 	pr_err("INFO: %s detected stalls on CPUs/tasks:\n", rcu_state.name);
@@ -535,7 +535,7 @@ static void print_cpu_stall(unsigned long gps)
 
 	/*
 	 * OK, time to rat on ourselves...
-	 * See Documentation/RCU/stallwarn.txt for info on how to debug
+	 * See Documentation/RCU/stallwarn.rst for info on how to debug
 	 * RCU CPU stall warnings.
 	 */
 	pr_err("INFO: %s self-detected stall on CPU\n", rcu_state.name);

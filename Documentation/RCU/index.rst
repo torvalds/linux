@@ -20,6 +20,7 @@ RCU concepts
    rculist_nulls
    rcuref
    torture
+   stallwarn
    listRCU
    NMI-RCU
    UP
