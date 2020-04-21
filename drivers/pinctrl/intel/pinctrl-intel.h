@@ -94,12 +94,12 @@ enum {
  * @ie_offset: Register offset of GPI_IE from @regs.
  * @features: Additional features supported by the hardware
  * @pin_base: Starting pin of pins in this community
+ * @npins: Number of pins in this community
  * @gpp_size: Maximum number of pads in each group, such as PADCFGLOCK,
  *            HOSTSW_OWN, GPI_IS, GPI_IE. Used when @gpps is %NULL.
  * @gpp_num_padown_regs: Number of pad registers each pad group consumes at
  *			 minimum. Use %0 if the number of registers can be
  *			 determined by the size of the group.
- * @npins: Number of pins in this community
  * @gpps: Pad groups if the controller has variable size pad groups
  * @ngpps: Number of pad groups in this community
  * @pad_map: Optional non-linear mapping of the pads
@@ -121,12 +121,13 @@ struct intel_community {
 	unsigned int ie_offset;
 	unsigned int features;
 	unsigned int pin_base;
+	size_t npins;
 	unsigned int gpp_size;
 	unsigned int gpp_num_padown_regs;
-	size_t npins;
 	const struct intel_padgroup *gpps;
 	size_t ngpps;
 	const unsigned int *pad_map;
+
 	/* Reserved for the core driver */
 	void __iomem *regs;
 	void __iomem *pad_regs;
