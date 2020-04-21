@@ -320,15 +320,10 @@ sub check_sphinx()
 	}
 
 	if ($cur_version lt $rec_version) {
-		printf "Sphinx version %s\n", $cur_version;
-		print "Warning: It is recommended at least Sphinx version $rec_version.\n";
-		print "         If you want pdf, you need at least $min_pdf_version.\n";
 		$rec_sphinx_upgrade = 1;
 		return;
 	}
 	if ($cur_version lt $min_pdf_version) {
-		printf "Sphinx version %s\n", $cur_version;
-		print "Note: It is recommended at least Sphinx version $min_pdf_version if you need PDF support.\n";
 		$rec_sphinx_upgrade = 1;
 		return;
 	}
@@ -716,10 +711,11 @@ sub check_needs()
 	check_sphinx();
 
 	if ($system_release) {
-		print "Detected OS: $system_release.\n\n";
+		print "Detected OS: $system_release.\n";
 	} else {
-		print "Unknown OS\n\n";
+		print "Unknown OS\n";
 	}
+	printf "Sphinx version: %s\n\n", $cur_version if ($cur_version);
 
 	# Check python command line, trying first python3
 	$python_cmd = findprog("python3");
@@ -799,6 +795,13 @@ sub check_needs()
 		my $min_activate = "$ENV{'PWD'}/${virtenv_prefix}${min_version}/bin/activate";
 		my @activates = glob "$ENV{'PWD'}/${virtenv_prefix}*/bin/activate";
 
+		if ($cur_version lt $rec_version) {
+			print "Warning: It is recommended at least Sphinx version $rec_version.\n";
+			print "         If you want pdf, you need at least $min_pdf_version.\n";
+		}
+		if ($cur_version lt $min_pdf_version) {
+			print "Note: It is recommended at least Sphinx version $min_pdf_version if you need PDF support.\n";
+		}
 		@activates = sort {$b cmp $a} @activates;
 		my ($activate, $ver);
 		foreach my $f (@activates) {
