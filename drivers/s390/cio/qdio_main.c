@@ -466,15 +466,14 @@ static inline void inbound_primed(struct qdio_q *q, unsigned int start,
 	 * or by the next inbound run.
 	 */
 	new = add_buf(start, count - 1);
-	if (q->u.in.ack_count) {
-		/* reset the previous ACK but first set the new one */
-		set_buf_state(q, new, SLSB_P_INPUT_ACK);
-		set_buf_state(q, q->u.in.ack_start, SLSB_P_INPUT_NOT_INIT);
-	} else {
-		q->u.in.ack_count = 1;
-		set_buf_state(q, new, SLSB_P_INPUT_ACK);
-	}
+	set_buf_state(q, new, SLSB_P_INPUT_ACK);
 
+	/* delete the previous ACKs */
+	if (q->u.in.ack_count)
+		set_buf_states(q, q->u.in.ack_start, SLSB_P_INPUT_NOT_INIT,
+			       q->u.in.ack_count);
+
+	q->u.in.ack_count = 1;
 	q->u.in.ack_start = new;
 	count--;
 	if (!count)
