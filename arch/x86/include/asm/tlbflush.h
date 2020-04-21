@@ -141,11 +141,11 @@ static inline unsigned long build_cr3_noflush(pgd_t *pgd, u16 asid)
 }
 
 void flush_tlb_local(void);
+void flush_tlb_global(void);
 
 #ifdef CONFIG_PARAVIRT
 #include <asm/paravirt.h>
 #else
-#define __flush_tlb_global()		__native_flush_tlb_global()
 #define __flush_tlb_one_user(addr)	__native_flush_tlb_one_user(addr)
 #endif
 
@@ -372,40 +372,6 @@ static inline void invalidate_user_asid(u16 asid)
 }
 
 /*
- * flush everything
- */
-static inline void __native_flush_tlb_global(void)
-{
-	unsigned long cr4, flags;
-
-	if (static_cpu_has(X86_FEATURE_INVPCID)) {
-		/*
-		 * Using INVPCID is considerably faster than a pair of writes
-		 * to CR4 sandwiched inside an IRQ flag save/restore.
-		 *
-		 * Note, this works with CR4.PCIDE=0 or 1.
-		 */
-		invpcid_flush_all();
-		return;
-	}
-
-	/*
-	 * Read-modify-write to CR4 - protect it from preemption and
-	 * from interrupts. (Use the raw variant because this code can
-	 * be called from deep inside debugging code.)
-	 */
-	raw_local_irq_save(flags);
-
-	cr4 = this_cpu_read(cpu_tlbstate.cr4);
-	/* toggle PGE */
-	native_write_cr4(cr4 ^ X86_CR4_PGE);
-	/* write old PGE again and flush TLBs */
-	native_write_cr4(cr4);
-
-	raw_local_irq_restore(flags);
-}
-
-/*
  * flush one page in the user mapping
  */
 static inline void __native_flush_tlb_one_user(unsigned long addr)
@@ -439,7 +405,7 @@ static inline void __flush_tlb_all(void)
 	VM_WARN_ON_ONCE(preemptible());
 
 	if (boot_cpu_has(X86_FEATURE_PGE)) {
-		__flush_tlb_global();
+		flush_tlb_global();
 	} else {
 		/*
 		 * !PGE -> !PCID (setup_pcid()), thus every flush is total.

@@ -23,6 +23,7 @@
 #else
 # define STATIC_NOPV			static
 # define __flush_tlb_local		native_flush_tlb_local
+# define __flush_tlb_global		native_flush_tlb_global
 #endif
 
 /*
@@ -889,6 +890,46 @@ unsigned long __get_current_cr3_fast(void)
 	return cr3;
 }
 EXPORT_SYMBOL_GPL(__get_current_cr3_fast);
+
+/*
+ * Flush everything
+ */
+STATIC_NOPV void native_flush_tlb_global(void)
+{
+	unsigned long cr4, flags;
+
+	if (static_cpu_has(X86_FEATURE_INVPCID)) {
+		/*
+		 * Using INVPCID is considerably faster than a pair of writes
+		 * to CR4 sandwiched inside an IRQ flag save/restore.
+		 *
+		 * Note, this works with CR4.PCIDE=0 or 1.
+		 */
+		invpcid_flush_all();
+		return;
+	}
+
+	/*
+	 * Read-modify-write to CR4 - protect it from preemption and
+	 * from interrupts. (Use the raw variant because this code can
+	 * be called from deep inside debugging code.)
+	 */
+	raw_local_irq_save(flags);
+
+	cr4 = this_cpu_read(cpu_tlbstate.cr4);
+	/* toggle PGE */
+	native_write_cr4(cr4 ^ X86_CR4_PGE);
+	/* write old PGE again and flush TLBs */
+	native_write_cr4(cr4);
+
+	raw_local_irq_restore(flags);
+}
+
+void flush_tlb_global(void)
+{
+	__flush_tlb_global();
+}
+EXPORT_SYMBOL_GPL(flush_tlb_global);
 
 /*
  * Flush the entire current user mapping

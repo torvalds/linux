@@ -48,6 +48,7 @@ static inline void slow_down_io(void)
 }
 
 void native_flush_tlb_local(void);
+void native_flush_tlb_global(void);
 
 static inline void __flush_tlb_local(void)
 {
