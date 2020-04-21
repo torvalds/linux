@@ -231,6 +231,33 @@ enum {
 			 (1ULL << VIRTIO_F_VERSION_1)
 };
 
+/**
+ * vhost_vq_set_backend - Set backend.
+ *
+ * @vq            Virtqueue.
+ * @private_data  The private data.
+ *
+ * Context: Need to call with vq->mutex acquired.
+ */
+static inline void vhost_vq_set_backend(struct vhost_virtqueue *vq,
+					void *private_data)
+{
+	vq->private_data = private_data;
+}
+
+/**
+ * vhost_vq_get_backend - Get backend.
+ *
+ * @vq            Virtqueue.
+ *
+ * Context: Need to call with vq->mutex acquired.
+ * Return: Private data previously set with vhost_vq_set_backend.
+ */
+static inline void *vhost_vq_get_backend(struct vhost_virtqueue *vq)
+{
+	return vq->private_data;
+}
+
 static inline bool vhost_has_feature(struct vhost_virtqueue *vq, int bit)
 {
 	return vq->acked_features & (1ULL << bit);
