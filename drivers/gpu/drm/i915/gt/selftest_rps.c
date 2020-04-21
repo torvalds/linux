@@ -3,6 +3,7 @@
  * Copyright © 2020 Intel Corporation
  */
 
+#include <linux/pm_qos.h>
 #include <linux/sort.h>
 
 #include "intel_engine_pm.h"
@@ -13,6 +14,9 @@
 #include "selftests/igt_flush_test.h"
 #include "selftests/igt_spinner.h"
 #include "selftests/librapl.h"
+
+/* Try to isolate the impact of cstates from determing frequency response */
+#define CPU_LATENCY 0 /* -1 to disable pm_qos, 0 to disable cstates */
 
 static void dummy_rps_work(struct work_struct *wrk)
 {
@@ -406,6 +410,7 @@ int live_rps_frequency_cs(void *arg)
 	struct intel_gt *gt = arg;
 	struct intel_rps *rps = &gt->rps;
 	struct intel_engine_cs *engine;
+	struct pm_qos_request qos;
 	enum intel_engine_id id;
 	int err = 0;
 
@@ -420,6 +425,9 @@ int live_rps_frequency_cs(void *arg)
 
 	if (INTEL_GEN(gt->i915) < 8) /* for CS simplicity */
 		return 0;
+
+	if (CPU_LATENCY >= 0)
+		cpu_latency_qos_add_request(&qos, CPU_LATENCY);
 
 	intel_gt_pm_wait_for_idle(gt);
 	saved_work = rps->work.func;
@@ -527,6 +535,9 @@ err_vma:
 	intel_gt_pm_wait_for_idle(gt);
 	rps->work.func = saved_work;
 
+	if (CPU_LATENCY >= 0)
+		cpu_latency_qos_remove_request(&qos);
+
 	return err;
 }
 
@@ -536,6 +547,7 @@ int live_rps_frequency_srm(void *arg)
 	struct intel_gt *gt = arg;
 	struct intel_rps *rps = &gt->rps;
 	struct intel_engine_cs *engine;
+	struct pm_qos_request qos;
 	enum intel_engine_id id;
 	int err = 0;
 
@@ -550,6 +562,9 @@ int live_rps_frequency_srm(void *arg)
 
 	if (INTEL_GEN(gt->i915) < 8) /* for CS simplicity */
 		return 0;
+
+	if (CPU_LATENCY >= 0)
+		cpu_latency_qos_add_request(&qos, CPU_LATENCY);
 
 	intel_gt_pm_wait_for_idle(gt);
 	saved_work = rps->work.func;
@@ -655,6 +670,9 @@ err_vma:
 
 	intel_gt_pm_wait_for_idle(gt);
 	rps->work.func = saved_work;
+
+	if (CPU_LATENCY >= 0)
+		cpu_latency_qos_remove_request(&qos);
 
 	return err;
 }
