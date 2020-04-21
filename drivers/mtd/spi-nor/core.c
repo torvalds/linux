@@ -499,7 +499,7 @@ int spi_nor_xread_sr(struct spi_nor *nor, u8 *sr)
  * the flash is ready for new commands.
  * @nor:	pointer to 'struct spi_nor'.
  *
- * Return: 0 on success, -errno otherwise.
+ * Return: 1 if ready, 0 if not ready, -errno on errors.
  */
 static int spi_nor_xsr_ready(struct spi_nor *nor)
 {
@@ -542,7 +542,7 @@ static void spi_nor_clear_sr(struct spi_nor *nor)
  * for new commands.
  * @nor:	pointer to 'struct spi_nor'.
  *
- * Return: 0 on success, -errno otherwise.
+ * Return: 1 if ready, 0 if not ready, -errno on errors.
  */
 static int spi_nor_sr_ready(struct spi_nor *nor)
 {
@@ -606,7 +606,7 @@ static void spi_nor_clear_fsr(struct spi_nor *nor)
  * ready for new commands.
  * @nor:	pointer to 'struct spi_nor'.
  *
- * Return: 0 on success, -errno otherwise.
+ * Return: 1 if ready, 0 if not ready, -errno on errors.
  */
 static int spi_nor_fsr_ready(struct spi_nor *nor)
 {
@@ -647,7 +647,7 @@ static int spi_nor_fsr_ready(struct spi_nor *nor)
  * spi_nor_ready() - Query the flash to see if it is ready for new commands.
  * @nor:	pointer to 'struct spi_nor'.
  *
- * Return: 0 on success, -errno otherwise.
+ * Return: 1 if ready, 0 if not ready, -errno on errors.
  */
 static int spi_nor_ready(struct spi_nor *nor)
 {
