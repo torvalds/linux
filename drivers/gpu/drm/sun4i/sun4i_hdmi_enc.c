@@ -282,7 +282,7 @@ static const struct drm_connector_funcs sun4i_hdmi_connector_funcs = {
 };
 
 #ifdef CONFIG_DRM_SUN4I_HDMI_CEC
-static bool sun4i_hdmi_cec_pin_read(struct cec_adapter *adap)
+static int sun4i_hdmi_cec_pin_read(struct cec_adapter *adap)
 {
 	struct sun4i_hdmi *hdmi = cec_get_drvdata(adap);
 

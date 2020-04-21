@@ -31,12 +31,12 @@ struct cec_gpio {
 	ktime_t			v5_ts;
 };
 
-static bool cec_gpio_read(struct cec_adapter *adap)
+static int cec_gpio_read(struct cec_adapter *adap)
 {
 	struct cec_gpio *cec = cec_get_drvdata(adap);
 
 	if (cec->cec_is_low)
-		return false;
+		return 0;
 	return gpiod_get_value(cec->cec_gpio);
 }
 
@@ -71,9 +71,10 @@ static irqreturn_t cec_hpd_gpio_irq_handler_thread(int irq, void *priv)
 static irqreturn_t cec_5v_gpio_irq_handler(int irq, void *priv)
 {
 	struct cec_gpio *cec = priv;
-	bool is_high = gpiod_get_value(cec->v5_gpio);
+	int val = gpiod_get_value(cec->v5_gpio);
+	bool is_high = val > 0;
 
-	if (is_high == cec->v5_is_high)
+	if (val < 0 || is_high == cec->v5_is_high)
 		return IRQ_HANDLED;
 	cec->v5_ts = ktime_get();
 	cec->v5_is_high = is_high;
@@ -91,9 +92,10 @@ static irqreturn_t cec_5v_gpio_irq_handler_thread(int irq, void *priv)
 static irqreturn_t cec_hpd_gpio_irq_handler(int irq, void *priv)
 {
 	struct cec_gpio *cec = priv;
-	bool is_high = gpiod_get_value(cec->hpd_gpio);
+	int val = gpiod_get_value(cec->hpd_gpio);
+	bool is_high = val > 0;
 
-	if (is_high == cec->hpd_is_high)
+	if (val < 0 || is_high == cec->hpd_is_high)
 		return IRQ_HANDLED;
 	cec->hpd_ts = ktime_get();
 	cec->hpd_is_high = is_high;
@@ -103,8 +105,10 @@ static irqreturn_t cec_hpd_gpio_irq_handler(int irq, void *priv)
 static irqreturn_t cec_gpio_irq_handler(int irq, void *priv)
 {
 	struct cec_gpio *cec = priv;
+	int val = gpiod_get_value(cec->cec_gpio);
 
-	cec_pin_changed(cec->adap, gpiod_get_value(cec->cec_gpio));
+	if (val >= 0)
+		cec_pin_changed(cec->adap, val > 0);
 	return IRQ_HANDLED;
 }
 
