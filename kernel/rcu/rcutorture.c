@@ -7,7 +7,7 @@
  * Authors: Paul E. McKenney <paulmck@linux.ibm.com>
  *	  Josh Triplett <josh@joshtriplett.org>
  *
- * See also:  Documentation/RCU/torture.txt
+ * See also:  Documentation/RCU/torture.rst
  */
 
 #define pr_fmt(fmt) fmt

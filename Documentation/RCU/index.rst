@@ -18,6 +18,7 @@ RCU concepts
    whatisRCU
    rcu
    rculist_nulls
+   torture
    listRCU
    NMI-RCU
    UP
