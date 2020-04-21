@@ -102,9 +102,9 @@ static int iwl_set_soc_latency(struct iwl_mvm *mvm)
 	if (!mvm->trans->trans_cfg->integrated)
 		cmd.flags = cpu_to_le32(SOC_CONFIG_CMD_FLAGS_DISCRETE);
 
-	if (iwl_mvm_lookup_cmd_ver(mvm->fw, IWL_ALWAYS_LONG_GROUP,
-				   SCAN_REQ_UMAC) >= 2 &&
-	    (mvm->trans->trans_cfg->low_latency_xtal))
+	if (iwl_fw_lookup_cmd_ver(mvm->fw, IWL_ALWAYS_LONG_GROUP,
+				  SCAN_REQ_UMAC) >= 2 &&
+	    mvm->trans->trans_cfg->low_latency_xtal)
 		cmd.flags |= cpu_to_le32(SOC_CONFIG_CMD_FLAGS_LOW_LATENCY);
 
 	cmd.latency = cpu_to_le32(mvm->trans->trans_cfg->xtal_latency);

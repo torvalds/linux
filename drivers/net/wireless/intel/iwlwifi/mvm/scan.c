@@ -2228,8 +2228,8 @@ static int iwl_mvm_build_scan_cmd(struct iwl_mvm *mvm,
 
 	hcmd->id = iwl_cmd_id(SCAN_REQ_UMAC, IWL_ALWAYS_LONG_GROUP, 0);
 
-	scan_ver = iwl_mvm_lookup_cmd_ver(mvm->fw, IWL_ALWAYS_LONG_GROUP,
-					  SCAN_REQ_UMAC);
+	scan_ver = iwl_fw_lookup_cmd_ver(mvm->fw, IWL_ALWAYS_LONG_GROUP,
+					 SCAN_REQ_UMAC);
 
 	for (i = 0; i < ARRAY_SIZE(iwl_scan_umac_handlers); i++) {
 		const struct iwl_scan_umac_handler *ver_handler =
@@ -2568,8 +2568,8 @@ static int iwl_scan_req_umac_get_size(u8 scan_ver)
 int iwl_mvm_scan_size(struct iwl_mvm *mvm)
 {
 	int base_size, tail_size;
-	u8 scan_ver = iwl_mvm_lookup_cmd_ver(mvm->fw, IWL_ALWAYS_LONG_GROUP,
-					     SCAN_REQ_UMAC);
+	u8 scan_ver = iwl_fw_lookup_cmd_ver(mvm->fw, IWL_ALWAYS_LONG_GROUP,
+					    SCAN_REQ_UMAC);
 
 	base_size = iwl_scan_req_umac_get_size(scan_ver);
 	if (base_size)
