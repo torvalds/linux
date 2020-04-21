@@ -654,8 +654,6 @@ static void __init bootcmdline_init(char **cmdline_p)
  */
 static void __init arch_mem_init(char **cmdline_p)
 {
-	extern void plat_mem_setup(void);
-
 	/* call board setup routine */
 	plat_mem_setup();
 	memblock_set_bottom_up(true);

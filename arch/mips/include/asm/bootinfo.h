@@ -121,7 +121,7 @@ extern unsigned long fw_passed_dtb;
 #endif
 
 /*
- * Platform memory detection hook called by setup_arch
+ * Platform memory detection hook called by arch_mem_init()
  */
 extern void plat_mem_setup(void);
 
