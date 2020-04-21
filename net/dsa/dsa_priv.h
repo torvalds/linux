@@ -11,6 +11,7 @@
 #include <linux/netdevice.h>
 #include <linux/netpoll.h>
 #include <net/dsa.h>
+#include <net/gro_cells.h>
 
 enum {
 	DSA_NOTIFIER_AGEING_TIME,
@@ -76,6 +77,8 @@ struct dsa_slave_priv {
 					struct net_device *dev);
 
 	struct pcpu_sw_netstats	*stats64;
+
+	struct gro_cells	gcells;
 
 	/* DSA port data, such as switch, port index, etc. */
 	struct dsa_port		*dp;
