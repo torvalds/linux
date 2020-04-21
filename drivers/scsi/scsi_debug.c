@@ -4402,6 +4402,8 @@ static void setup_inject(struct sdebug_queue *sqp,
 	sqcp->inj_cmd_abort = !!(SDEBUG_OPT_CMD_ABORT & sdebug_opts);
 }
 
+#define INCLUSIVE_TIMING_MAX_NS 1000000		/* 1 millisecond */
+
 /* Complete the processing of the thread that queued a SCSI command to this
  * driver. It either completes the command by calling cmnd_done() or
  * schedules a hr timer or work queue then returns 0. Returns
@@ -4413,8 +4415,10 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 				    struct sdebug_dev_info *),
 			 int delta_jiff, int ndelay)
 {
-	unsigned long iflags;
+	bool new_sd_dp;
 	int k, num_in_q, qdepth, inject;
+	unsigned long iflags;
+	u64 ns_from_boot = 0;
 	struct sdebug_queue *sqp;
 	struct sdebug_queued_cmd *sqcp;
 	struct scsi_device *sdp;
@@ -4430,7 +4434,6 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 	if (delta_jiff == 0)
 		goto respond_in_thread;
 
-	/* schedule the response at a later time if resources permit */
 	sqp = get_queue(cmnd);
 	spin_lock_irqsave(&sqp->qc_lock, iflags);
 	if (unlikely(atomic_read(&sqp->blocked))) {
@@ -4489,8 +4492,15 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 		sd_dp = kzalloc(sizeof(*sd_dp), GFP_ATOMIC);
 		if (sd_dp == NULL)
 			return SCSI_MLQUEUE_HOST_BUSY;
+		new_sd_dp = true;
+	} else {
+		new_sd_dp = false;
 	}
 
+	if (ndelay > 0 && ndelay < INCLUSIVE_TIMING_MAX_NS)
+		ns_from_boot = ktime_get_boottime_ns();
+
+	/* one of the resp_*() response functions is called here */
 	cmnd->result = pfp != NULL ? pfp(cmnd, devip) : 0;
 	if (cmnd->result & SDEG_RES_IMMED_MASK) {
 		cmnd->result &= ~SDEG_RES_IMMED_MASK;
@@ -4521,6 +4531,22 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 		} else {	/* ndelay has a 4.2 second max */
 			kt = sdebug_random ? prandom_u32_max((u32)ndelay) :
 					     (u32)ndelay;
+			if (ndelay < INCLUSIVE_TIMING_MAX_NS) {
+				u64 d = ktime_get_boottime_ns() - ns_from_boot;
+
+				if (kt <= d) {	/* elapsed duration >= kt */
+					sqcp->a_cmnd = NULL;
+					atomic_dec(&devip->num_in_q);
+					clear_bit(k, sqp->in_use_bm);
+					if (new_sd_dp)
+						kfree(sd_dp);
+					/* call scsi_done() from this thread */
+					cmnd->scsi_done(cmnd);
+					return 0;
+				}
+				/* otherwise reduce kt by elapsed time */
+				kt -= d;
+			}
 		}
 		if (!sd_dp->init_hrt) {
 			sd_dp->init_hrt = true;
@@ -4534,6 +4560,7 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 		if (sdebug_statistics)
 			sd_dp->issuing_cpu = raw_smp_processor_id();
 		sd_dp->defer_t = SDEB_DEFER_HRT;
+		/* schedule the invocation of scsi_done() for a later time */
 		hrtimer_start(&sd_dp->hrt, kt, HRTIMER_MODE_REL_PINNED);
 	} else {	/* jdelay < 0, use work queue */
 		if (!sd_dp->init_wq) {
