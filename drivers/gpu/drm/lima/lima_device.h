@@ -140,4 +140,7 @@ static inline int lima_poll_timeout(struct lima_ip *ip, lima_poll_func_t func,
 	return 0;
 }
 
+int lima_device_suspend(struct device *dev);
+int lima_device_resume(struct device *dev);
+
 #endif

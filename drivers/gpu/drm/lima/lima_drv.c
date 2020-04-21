@@ -5,6 +5,7 @@
 #include <linux/of_platform.h>
 #include <linux/uaccess.h>
 #include <linux/slab.h>
+#include <linux/pm_runtime.h>
 #include <drm/drm_ioctl.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_prime.h>
@@ -451,11 +452,17 @@ static const struct of_device_id dt_match[] = {
 };
 MODULE_DEVICE_TABLE(of, dt_match);
 
+static const struct dev_pm_ops lima_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
+	SET_RUNTIME_PM_OPS(lima_device_suspend, lima_device_resume, NULL)
+};
+
 static struct platform_driver lima_platform_driver = {
 	.probe      = lima_pdev_probe,
 	.remove     = lima_pdev_remove,
 	.driver     = {
 		.name   = "lima",
+		.pm	= &lima_pm_ops,
 		.of_match_table = dt_match,
 	},
 };
