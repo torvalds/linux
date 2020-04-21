@@ -171,8 +171,10 @@ static void lima_regulator_fini(struct lima_device *dev)
 
 static int lima_init_ip(struct lima_device *dev, int index)
 {
+	struct platform_device *pdev = to_platform_device(dev->dev);
 	struct lima_ip_desc *desc = lima_ip_desc + index;
 	struct lima_ip *ip = dev->ip + index;
+	const char *irq_name = desc->irq_name;
 	int offset = desc->offset[dev->id];
 	bool must = desc->must_have[dev->id];
 	int err;
@@ -183,8 +185,9 @@ static int lima_init_ip(struct lima_device *dev, int index)
 	ip->dev = dev;
 	ip->id = index;
 	ip->iomem = dev->iomem + offset;
-	if (desc->irq_name) {
-		err = platform_get_irq_byname(dev->pdev, desc->irq_name);
+	if (irq_name) {
+		err = must ? platform_get_irq_byname(pdev, irq_name) :
+			     platform_get_irq_byname_optional(pdev, irq_name);
 		if (err < 0)
 			goto out;
 		ip->irq = err;
