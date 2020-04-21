@@ -11,6 +11,7 @@ RCU concepts
 
    arrayRCU
    checklist
+   lockdep
    lockdep-splat
    rcubarrier
    rcu_dereference
