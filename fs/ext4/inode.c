@@ -221,6 +221,16 @@ void ext4_evict_inode(struct inode *inode)
 	truncate_inode_pages_final(&inode->i_data);
 
 	/*
+	 * For inodes with journalled data, transaction commit could have
+	 * dirtied the inode. Flush worker is ignoring it because of I_FREEING
+	 * flag but we still need to remove the inode from the writeback lists.
+	 */
+	if (!list_empty_careful(&inode->i_io_list)) {
+		WARN_ON_ONCE(!ext4_should_journal_data(inode));
+		inode_io_list_del(inode);
+	}
+
+	/*
 	 * Protect us against freezing - iput() caller didn't have to have any
 	 * protection against it
 	 */
