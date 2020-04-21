@@ -252,8 +252,7 @@ static struct dma_fence *lima_sched_run_job(struct drm_sched_job *job)
 			lima_mmu_switch_vm(pipe->mmu[i], vm);
 	}
 
-	if (last_vm)
-		lima_vm_put(last_vm);
+	lima_vm_put(last_vm);
 
 	trace_lima_task_run(task);
 
@@ -416,9 +415,7 @@ static void lima_sched_timedout_job(struct drm_sched_job *job)
 			lima_mmu_page_fault_resume(pipe->mmu[i]);
 	}
 
-	if (pipe->current_vm)
-		lima_vm_put(pipe->current_vm);
-
+	lima_vm_put(pipe->current_vm);
 	pipe->current_vm = NULL;
 	pipe->current_task = NULL;
 
