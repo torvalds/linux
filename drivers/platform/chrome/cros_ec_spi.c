@@ -709,9 +709,6 @@ static void cros_ec_spi_high_pri_release(void *worker)
 static int cros_ec_spi_devm_high_pri_alloc(struct device *dev,
 					   struct cros_ec_spi *ec_spi)
 {
-	struct sched_param sched_priority = {
-		.sched_priority = MAX_RT_PRIO / 2,
-	};
 	int err;
 
 	ec_spi->high_pri_worker =
@@ -728,8 +725,7 @@ static int cros_ec_spi_devm_high_pri_alloc(struct device *dev,
 	if (err)
 		return err;
 
-	err = sched_setscheduler_nocheck(ec_spi->high_pri_worker->task,
-					 SCHED_FIFO, &sched_priority);
+	err = sched_set_fifo(ec_spi->high_pri_worker->task);
 	if (err)
 		dev_err(dev, "Can't set cros_ec high pri priority: %d\n", err);
 	return err;
