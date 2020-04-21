@@ -547,6 +547,23 @@ void xhci_find_new_dequeue_state(struct xhci_hcd *xhci,
 				stream_id);
 		return;
 	}
+	/*
+	 * A cancelled TD can complete with a stall if HW cached the trb.
+	 * In this case driver can't find cur_td, but if the ring is empty we
+	 * can move the dequeue pointer to the current enqueue position.
+	 */
+	if (!cur_td) {
+		if (list_empty(&ep_ring->td_list)) {
+			state->new_deq_seg = ep_ring->enq_seg;
+			state->new_deq_ptr = ep_ring->enqueue;
+			state->new_cycle_state = ep_ring->cycle_state;
+			goto done;
+		} else {
+			xhci_warn(xhci, "Can't find new dequeue state, missing cur_td\n");
+			return;
+		}
+	}
+
 	/* Dig out the cycle state saved by the xHC during the stop ep cmd */
 	xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
 			"Finding endpoint context");
@@ -592,6 +609,7 @@ void xhci_find_new_dequeue_state(struct xhci_hcd *xhci,
 	state->new_deq_seg = new_seg;
 	state->new_deq_ptr = new_deq;
 
+done:
 	/* Don't update the ring cycle state for the producer (us). */
 	xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
 			"Cycle state = 0x%x", state->new_cycle_state);
@@ -1856,7 +1874,8 @@ static void xhci_cleanup_halted_endpoint(struct xhci_hcd *xhci,
 
 	if (reset_type == EP_HARD_RESET) {
 		ep->ep_state |= EP_HARD_CLEAR_TOGGLE;
-		xhci_cleanup_stalled_ring(xhci, ep_index, stream_id, td);
+		xhci_cleanup_stalled_ring(xhci, slot_id, ep_index, stream_id,
+					  td);
 		xhci_clear_hub_tt_buffer(xhci, td, ep);
 	}
 	xhci_ring_cmd_db(xhci);
@@ -2538,6 +2557,15 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 				ep->skip = false;
 				xhci_dbg(xhci, "td_list is empty while skip flag set. Clear skip flag for slot %u ep %u.\n",
 					 slot_id, ep_index);
+			}
+			if (trb_comp_code == COMP_STALL_ERROR ||
+			    xhci_requires_manual_halt_cleanup(xhci, ep_ctx,
+							      trb_comp_code)) {
+				xhci_cleanup_halted_endpoint(xhci, slot_id,
+							     ep_index,
+							     ep_ring->stream_id,
+							     NULL,
+							     EP_HARD_RESET);
 			}
 			goto cleanup;
 		}
