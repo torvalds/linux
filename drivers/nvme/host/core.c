@@ -3501,8 +3501,11 @@ static int nvme_init_ns_head(struct nvme_ns *ns, unsigned nsid,
 	int ret = 0;
 
 	ret = nvme_report_ns_ids(ctrl, nsid, id, &ids);
-	if (ret)
-		goto out;
+	if (ret) {
+		if (ret < 0)
+			return ret;
+		return blk_status_to_errno(nvme_error_status(ret));
+	}
 
 	mutex_lock(&ctrl->subsys->lock);
 	head = nvme_find_ns_head(ctrl->subsys, nsid);
@@ -3514,32 +3517,29 @@ static int nvme_init_ns_head(struct nvme_ns *ns, unsigned nsid,
 		}
 		head->shared = is_shared;
 	} else {
+		ret = -EINVAL;
 		if (!is_shared || !head->shared) {
 			dev_err(ctrl->device,
-				"Duplicate unshared namespace %d\n",
-					nsid);
-			ret = -EINVAL;
-			nvme_put_ns_head(head);
-			goto out_unlock;
+				"Duplicate unshared namespace %d\n", nsid);
+			goto out_put_ns_head;
 		}
 		if (!nvme_ns_ids_equal(&head->ids, &ids)) {
 			dev_err(ctrl->device,
 				"IDs don't match for shared namespace %d\n",
 					nsid);
-			ret = -EINVAL;
-			nvme_put_ns_head(head);
-			goto out_unlock;
+			goto out_put_ns_head;
 		}
 	}
 
 	list_add_tail(&ns->siblings, &head->list);
 	ns->head = head;
+	mutex_unlock(&ctrl->subsys->lock);
+	return 0;
 
+out_put_ns_head:
+	nvme_put_ns_head(head);
 out_unlock:
 	mutex_unlock(&ctrl->subsys->lock);
-out:
-	if (ret > 0)
-		ret = blk_status_to_errno(nvme_error_status(ret));
 	return ret;
 }
 
