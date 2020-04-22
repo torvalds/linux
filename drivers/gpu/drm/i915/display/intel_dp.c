@@ -2345,7 +2345,6 @@ intel_dp_ycbcr420_config(struct intel_dp *intel_dp,
 	const struct drm_display_info *info = &connector->display_info;
 	const struct drm_display_mode *adjusted_mode =
 		&crtc_state->hw.adjusted_mode;
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 
 	if (!drm_mode_is_420_only(info, adjusted_mode) ||
 	    !intel_dp_get_colorimetry_status(intel_dp) ||
@@ -2354,7 +2353,7 @@ intel_dp_ycbcr420_config(struct intel_dp *intel_dp,
 
 	crtc_state->output_format = INTEL_OUTPUT_FORMAT_YCBCR420;
 
-	intel_pch_panel_fitting(crtc, crtc_state, DRM_MODE_SCALE_FULLSCREEN);
+	intel_pch_panel_fitting(crtc_state, DRM_MODE_SCALE_FULLSCREEN);
 
 	return 0;
 }
@@ -2535,7 +2534,6 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	struct intel_lspcon *lspcon = enc_to_intel_lspcon(encoder);
 	enum port port = encoder->port;
-	struct intel_crtc *intel_crtc = to_intel_crtc(pipe_config->uapi.crtc);
 	struct intel_connector *intel_connector = intel_dp->attached_connector;
 	struct intel_digital_connector_state *intel_conn_state =
 		to_intel_digital_connector_state(conn_state);
@@ -2569,10 +2567,10 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 				       adjusted_mode);
 
 		if (HAS_GMCH(dev_priv))
-			intel_gmch_panel_fitting(intel_crtc, pipe_config,
+			intel_gmch_panel_fitting(pipe_config,
 						 conn_state->scaling_mode);
 		else
-			intel_pch_panel_fitting(intel_crtc, pipe_config,
+			intel_pch_panel_fitting(pipe_config,
 						conn_state->scaling_mode);
 	}
 

@@ -2326,7 +2326,6 @@ intel_hdmi_ycbcr420_config(struct drm_connector *connector,
 			   struct intel_crtc_state *config)
 {
 	struct drm_i915_private *i915 = to_i915(connector->dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(config->uapi.crtc);
 
 	if (!connector->ycbcr_420_allowed) {
 		drm_err(&i915->drm,
@@ -2336,8 +2335,7 @@ intel_hdmi_ycbcr420_config(struct drm_connector *connector,
 
 	config->output_format = INTEL_OUTPUT_FORMAT_YCBCR420;
 
-	intel_pch_panel_fitting(intel_crtc, config,
-				DRM_MODE_SCALE_FULLSCREEN);
+	intel_pch_panel_fitting(config, DRM_MODE_SCALE_FULLSCREEN);
 
 	return true;
 }
