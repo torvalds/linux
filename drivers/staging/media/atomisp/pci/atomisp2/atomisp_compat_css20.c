@@ -647,18 +647,15 @@ static void __apply_additional_pipe_config(
 		if (stream_env->pipe_configs[pipe_id].
 		    default_capture_config.mode == CSS_CAPTURE_MODE_RAW)
 			stream_env->pipe_configs[pipe_id].enable_dz = false;
-#ifdef ISP2401
 
-		/* the isp default to use ISP2.2 and the camera hal will
-		 * control whether use isp2.7 */
-		if (asd->select_isp_version->val ==
-		    ATOMISP_CSS_ISP_PIPE_VERSION_2_7)
-			stream_env->pipe_configs[pipe_id].isp_pipe_version =
-			    SH_CSS_ISP_PIPE_VERSION_2_7;
-		else
-			stream_env->pipe_configs[pipe_id].isp_pipe_version =
-			    SH_CSS_ISP_PIPE_VERSION_2_2;
-#endif
+		if (atomisp_hw_is_isp2401) {
+			/* the isp default to use ISP2.2 and the camera hal will
+			* control whether use isp2.7 */
+			if (asd->select_isp_version->val == ATOMISP_CSS_ISP_PIPE_VERSION_2_7)
+				stream_env->pipe_configs[pipe_id].isp_pipe_version =  SH_CSS_ISP_PIPE_VERSION_2_7;
+			else
+				stream_env->pipe_configs[pipe_id].isp_pipe_version = SH_CSS_ISP_PIPE_VERSION_2_2;
+		}
 		break;
 	case IA_CSS_PIPE_ID_VIDEO:
 		/* enable reduced pipe to have binary
@@ -3300,10 +3297,9 @@ int atomisp_css_offline_capture_configure(struct atomisp_sub_device *asd,
 {
 	enum ia_css_err ret;
 
-#ifdef ISP2401
 	dev_dbg(asd->isp->dev, "%s num_capture:%d skip:%d offset:%d\n",
 		__func__, num_captures, skip, offset);
-#endif
+
 	ret = ia_css_stream_capture(
 		  asd->stream_env[ATOMISP_INPUT_STREAM_GENERAL].stream,
 		  num_captures, skip, offset);
@@ -4478,9 +4474,7 @@ int atomisp_css_isr_thread(struct atomisp_device *isp,
 	enum atomisp_input_stream_id stream_id = 0;
 	struct atomisp_css_event current_event;
 	struct atomisp_sub_device *asd;
-#ifndef ISP2401
 	bool reset_wdt_timer[MAX_STREAM_NUM] = {false};
-#endif
 	int i;
 
 	while (!atomisp_css_dequeue_event(&current_event)) {
@@ -4497,11 +4491,12 @@ int atomisp_css_isr_thread(struct atomisp_device *isp,
 				current_event.event.fw_assert_line_no);
 			for (i = 0; i < isp->num_of_streams; i++)
 				atomisp_wdt_stop(&isp->asd[i], 0);
-#ifndef ISP2401
-			atomisp_wdt(&isp->asd[0].wdt);
-#else
-			queue_work(isp->wdt_work_queue, &isp->wdt_work);
-#endif
+
+			if (!atomisp_hw_is_isp2401)
+				atomisp_wdt(&isp->asd[0].wdt);
+			else
+				queue_work(isp->wdt_work_queue, &isp->wdt_work);
+
 			return -EINVAL;
 		} else if (current_event.event.type == IA_CSS_EVENT_TYPE_FW_WARNING) {
 			dev_warn(isp->dev, "%s: ISP reports warning, code is %d, exp_id %d\n",
@@ -4529,17 +4524,19 @@ int atomisp_css_isr_thread(struct atomisp_device *isp,
 			frame_done_found[asd->index] = true;
 			atomisp_buf_done(asd, 0, CSS_BUFFER_TYPE_OUTPUT_FRAME,
 					 current_event.pipe, true, stream_id);
-#ifndef ISP2401
-			reset_wdt_timer[asd->index] = true; /* ISP running */
-#endif
+
+			if (!atomisp_hw_is_isp2401)
+				reset_wdt_timer[asd->index] = true; /* ISP running */
+
 			break;
 		case CSS_EVENT_SEC_OUTPUT_FRAME_DONE:
 			frame_done_found[asd->index] = true;
 			atomisp_buf_done(asd, 0, CSS_BUFFER_TYPE_SEC_OUTPUT_FRAME,
 					 current_event.pipe, true, stream_id);
-#ifndef ISP2401
-			reset_wdt_timer[asd->index] = true; /* ISP running */
-#endif
+
+			if (!atomisp_hw_is_isp2401)
+				reset_wdt_timer[asd->index] = true; /* ISP running */
+
 			break;
 		case CSS_EVENT_3A_STATISTICS_DONE:
 			atomisp_buf_done(asd, 0,
@@ -4557,17 +4554,18 @@ int atomisp_css_isr_thread(struct atomisp_device *isp,
 			atomisp_buf_done(asd, 0,
 					 CSS_BUFFER_TYPE_VF_OUTPUT_FRAME,
 					 current_event.pipe, true, stream_id);
-#ifndef ISP2401
-			reset_wdt_timer[asd->index] = true; /* ISP running */
-#endif
+
+			if (!atomisp_hw_is_isp2401)
+				reset_wdt_timer[asd->index] = true; /* ISP running */
+
 			break;
 		case CSS_EVENT_SEC_VF_OUTPUT_FRAME_DONE:
 			atomisp_buf_done(asd, 0,
 					 CSS_BUFFER_TYPE_SEC_VF_OUTPUT_FRAME,
 					 current_event.pipe, true, stream_id);
-#ifndef ISP2401
-			reset_wdt_timer[asd->index] = true; /* ISP running */
-#endif
+			if (!atomisp_hw_is_isp2401)
+				reset_wdt_timer[asd->index] = true; /* ISP running */
+
 			break;
 		case CSS_EVENT_DIS_STATISTICS_DONE:
 			atomisp_buf_done(asd, 0,
@@ -4587,9 +4585,11 @@ int atomisp_css_isr_thread(struct atomisp_device *isp,
 			break;
 		}
 	}
-#ifndef ISP2401
-	/* If there are no buffers queued then
-	 * delete wdt timer. */
+
+	if (!atomisp_hw_is_isp2401)
+		return 0;
+
+	/* ISP2401: If there are no buffers queued then delete wdt timer. */
 	for (i = 0; i < isp->num_of_streams; i++) {
 		asd = &isp->asd[i];
 		if (!asd)
@@ -4603,7 +4603,6 @@ int atomisp_css_isr_thread(struct atomisp_device *isp,
 			atomisp_wdt_refresh(asd,
 					    ATOMISP_WDT_KEEP_CURRENT_DELAY);
 	}
-#endif
 
 	return 0;
 }
