@@ -1880,20 +1880,16 @@ static int dpaa2_eth_xdp(struct net_device *dev, struct netdev_bpf *xdp)
 	return 0;
 }
 
-static int dpaa2_eth_xdp_xmit_frame(struct net_device *net_dev,
-				    struct xdp_frame *xdpf)
+static int dpaa2_eth_xdp_create_fd(struct net_device *net_dev,
+				   struct xdp_frame *xdpf,
+				   struct dpaa2_fd *fd)
 {
 	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
 	struct device *dev = net_dev->dev.parent;
-	struct rtnl_link_stats64 *percpu_stats;
-	struct dpaa2_eth_drv_stats *percpu_extras;
 	unsigned int needed_headroom;
 	struct dpaa2_eth_swa *swa;
-	struct dpaa2_eth_fq *fq;
-	struct dpaa2_fd fd;
 	void *buffer_start, *aligned_start;
 	dma_addr_t addr;
-	int err, i;
 
 	/* We require a minimum headroom to be able to transmit the frame.
 	 * Otherwise return an error and let the original net_device handle it
@@ -1902,11 +1898,8 @@ static int dpaa2_eth_xdp_xmit_frame(struct net_device *net_dev,
 	if (xdpf->headroom < needed_headroom)
 		return -EINVAL;
 
-	percpu_stats = this_cpu_ptr(priv->percpu_stats);
-	percpu_extras = this_cpu_ptr(priv->percpu_extras);
-
 	/* Setup the FD fields */
-	memset(&fd, 0, sizeof(fd));
+	memset(fd, 0, sizeof(*fd));
 
 	/* Align FD address, if possible */
 	buffer_start = xdpf->data - needed_headroom;
@@ -1924,32 +1917,14 @@ static int dpaa2_eth_xdp_xmit_frame(struct net_device *net_dev,
 	addr = dma_map_single(dev, buffer_start,
 			      swa->xdp.dma_size,
 			      DMA_BIDIRECTIONAL);
-	if (unlikely(dma_mapping_error(dev, addr))) {
-		percpu_stats->tx_dropped++;
+	if (unlikely(dma_mapping_error(dev, addr)))
 		return -ENOMEM;
-	}
 
-	dpaa2_fd_set_addr(&fd, addr);
-	dpaa2_fd_set_offset(&fd, xdpf->data - buffer_start);
-	dpaa2_fd_set_len(&fd, xdpf->len);
-	dpaa2_fd_set_format(&fd, dpaa2_fd_single);
-	dpaa2_fd_set_ctrl(&fd, FD_CTRL_PTA);
-
-	fq = &priv->fq[smp_processor_id() % dpaa2_eth_queue_count(priv)];
-	for (i = 0; i < DPAA2_ETH_ENQUEUE_RETRIES; i++) {
-		err = priv->enqueue(priv, fq, &fd, 0, 1, NULL);
-		if (err != -EBUSY)
-			break;
-	}
-	percpu_extras->tx_portal_busy += i;
-	if (unlikely(err < 0)) {
-		percpu_stats->tx_errors++;
-		/* let the Rx device handle the cleanup */
-		return err;
-	}
-
-	percpu_stats->tx_packets++;
-	percpu_stats->tx_bytes += dpaa2_fd_get_len(&fd);
+	dpaa2_fd_set_addr(fd, addr);
+	dpaa2_fd_set_offset(fd, xdpf->data - buffer_start);
+	dpaa2_fd_set_len(fd, xdpf->len);
+	dpaa2_fd_set_format(fd, dpaa2_fd_single);
+	dpaa2_fd_set_ctrl(fd, FD_CTRL_PTA);
 
 	return 0;
 }
@@ -1957,6 +1932,11 @@ static int dpaa2_eth_xdp_xmit_frame(struct net_device *net_dev,
 static int dpaa2_eth_xdp_xmit(struct net_device *net_dev, int n,
 			      struct xdp_frame **frames, u32 flags)
 {
+	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
+	struct dpaa2_eth_drv_stats *percpu_extras;
+	struct rtnl_link_stats64 *percpu_stats;
+	struct dpaa2_eth_fq *fq;
+	struct dpaa2_fd fd;
 	int drops = 0;
 	int i, err;
 
@@ -1966,14 +1946,38 @@ static int dpaa2_eth_xdp_xmit(struct net_device *net_dev, int n,
 	if (!netif_running(net_dev))
 		return -ENETDOWN;
 
+	percpu_stats = this_cpu_ptr(priv->percpu_stats);
+	percpu_extras = this_cpu_ptr(priv->percpu_extras);
+
 	for (i = 0; i < n; i++) {
 		struct xdp_frame *xdpf = frames[i];
 
-		err = dpaa2_eth_xdp_xmit_frame(net_dev, xdpf);
+		/* create the FD from the xdp_frame */
+		err = dpaa2_eth_xdp_create_fd(net_dev, xdpf, &fd);
 		if (err) {
+			percpu_stats->tx_dropped++;
 			xdp_return_frame_rx_napi(xdpf);
 			drops++;
+			continue;
 		}
+
+		/* enqueue the newly created FD */
+		fq = &priv->fq[smp_processor_id() % dpaa2_eth_queue_count(priv)];
+		for (i = 0; i < DPAA2_ETH_ENQUEUE_RETRIES; i++) {
+			err = priv->enqueue(priv, fq, &fd, 0, 1);
+			if (err != -EBUSY)
+				break;
+		}
+
+		percpu_extras->tx_portal_busy += i;
+		if (unlikely(err < 0)) {
+			percpu_stats->tx_errors++;
+			xdp_return_frame_rx_napi(xdpf);
+			continue;
+		}
+
+		percpu_stats->tx_packets++;
+		percpu_stats->tx_bytes += dpaa2_fd_get_len(&fd);
 	}
 
 	return n - drops;
