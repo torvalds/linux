@@ -955,6 +955,15 @@ void ioat_timer_event(struct timer_list *t)
 		goto unlock_out;
 	}
 
+	/* handle missed issue pending case */
+	if (ioat_ring_pending(ioat_chan)) {
+		dev_warn(to_dev(ioat_chan),
+			"Completion timeout with pending descriptors\n");
+		spin_lock_bh(&ioat_chan->prep_lock);
+		__ioat_issue_pending(ioat_chan);
+		spin_unlock_bh(&ioat_chan->prep_lock);
+	}
+
 	set_bit(IOAT_COMPLETION_ACK, &ioat_chan->state);
 	mod_timer(&ioat_chan->timer, jiffies + COMPLETION_TIMEOUT);
 unlock_out:
