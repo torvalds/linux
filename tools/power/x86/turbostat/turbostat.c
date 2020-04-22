@@ -79,6 +79,7 @@ unsigned long long  gfx_cur_rc6_ms;
 unsigned long long cpuidle_cur_cpu_lpi_us;
 unsigned long long cpuidle_cur_sys_lpi_us;
 unsigned int gfx_cur_mhz;
+unsigned int gfx_act_mhz;
 unsigned int tcc_activation_temp;
 unsigned int tcc_activation_temp_override;
 double rapl_power_units, rapl_time_units;
@@ -210,6 +211,7 @@ struct pkg_data {
 	unsigned long long pkg_both_core_gfxe_c0;
 	long long gfx_rc6_ms;
 	unsigned int gfx_mhz;
+	unsigned int gfx_act_mhz;
 	unsigned int package_id;
 	unsigned long long energy_pkg;	/* MSR_PKG_ENERGY_STATUS */
 	unsigned long long energy_dram;	/* MSR_DRAM_ENERGY_STATUS */
@@ -558,6 +560,7 @@ struct msr_counter bic[] = {
 	{ 0x0, "APIC" },
 	{ 0x0, "X2APIC" },
 	{ 0x0, "Die" },
+	{ 0x0, "GFXAMHz" },
 };
 
 #define MAX_BIC (sizeof(bic) / sizeof(struct msr_counter))
@@ -612,6 +615,7 @@ struct msr_counter bic[] = {
 #define	BIC_APIC	(1ULL << 48)
 #define	BIC_X2APIC	(1ULL << 49)
 #define	BIC_Die		(1ULL << 50)
+#define	BIC_GFXACTMHz	(1ULL << 51)
 
 #define BIC_DISABLED_BY_DEFAULT	(BIC_USEC | BIC_TOD | BIC_APIC | BIC_X2APIC)
 
@@ -830,6 +834,9 @@ void print_header(char *delim)
 
 	if (DO_BIC(BIC_GFXMHz))
 		outp += sprintf(outp, "%sGFXMHz", (printed++ ? delim : ""));
+
+	if (DO_BIC(BIC_GFXACTMHz))
+		outp += sprintf(outp, "%sGFXAMHz", (printed++ ? delim : ""));
 
 	if (DO_BIC(BIC_Totl_c0))
 		outp += sprintf(outp, "%sTotl%%C0", (printed++ ? delim : ""));
@@ -1198,6 +1205,10 @@ int format_counters(struct thread_data *t, struct core_data *c,
 	if (DO_BIC(BIC_GFXMHz))
 		outp += sprintf(outp, "%s%d", (printed++ ? delim : ""), p->gfx_mhz);
 
+	/* GFXACTMHz */
+	if (DO_BIC(BIC_GFXACTMHz))
+		outp += sprintf(outp, "%s%d", (printed++ ? delim : ""), p->gfx_act_mhz);
+
 	/* Totl%C0, Any%C0 GFX%C0 CPUGFX% */
 	if (DO_BIC(BIC_Totl_c0))
 		outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), 100.0 * p->pkg_wtd_core_c0/tsc);
@@ -1349,6 +1360,7 @@ delta_package(struct pkg_data *new, struct pkg_data *old)
 		old->gfx_rc6_ms = new->gfx_rc6_ms - old->gfx_rc6_ms;
 
 	old->gfx_mhz = new->gfx_mhz;
+	old->gfx_act_mhz = new->gfx_act_mhz;
 
 	old->energy_pkg = new->energy_pkg - old->energy_pkg;
 	old->energy_cores = new->energy_cores - old->energy_cores;
@@ -1565,6 +1577,7 @@ void clear_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 
 	p->gfx_rc6_ms = 0;
 	p->gfx_mhz = 0;
+	p->gfx_act_mhz = 0;
 	for (i = 0, mp = sys.tp; mp; i++, mp = mp->next)
 		t->counter[i] = 0;
 
@@ -1660,6 +1673,7 @@ int sum_counters(struct thread_data *t, struct core_data *c,
 
 	average.packages.gfx_rc6_ms = p->gfx_rc6_ms;
 	average.packages.gfx_mhz = p->gfx_mhz;
+	average.packages.gfx_act_mhz = p->gfx_act_mhz;
 
 	average.packages.pkg_temp_c = MAX(average.packages.pkg_temp_c, p->pkg_temp_c);
 
@@ -2107,6 +2121,9 @@ retry:
 
 	if (DO_BIC(BIC_GFXMHz))
 		p->gfx_mhz = gfx_cur_mhz;
+
+	if (DO_BIC(BIC_GFXACTMHz))
+		p->gfx_act_mhz = gfx_act_mhz;
 
 	for (i = 0, mp = sys.pp; mp; i++, mp = mp->next) {
 		if (get_mp(cpu, mp, &p->counter[i]))
@@ -3019,6 +3036,33 @@ int snapshot_gfx_mhz(void)
 }
 
 /*
+ * snapshot_gfx_cur_mhz()
+ *
+ * record snapshot of
+ * /sys/class/graphics/fb0/device/drm/card0/gt_act_freq_mhz
+ *
+ * return 1 if config change requires a restart, else return 0
+ */
+int snapshot_gfx_act_mhz(void)
+{
+	static FILE *fp;
+	int retval;
+
+	if (fp == NULL)
+		fp = fopen_or_die("/sys/class/graphics/fb0/device/drm/card0/gt_act_freq_mhz", "r");
+	else {
+		rewind(fp);
+		fflush(fp);
+	}
+
+	retval = fscanf(fp, "%d", &gfx_act_mhz);
+	if (retval != 1)
+		err(1, "GFX ACT MHz");
+
+	return 0;
+}
+
+/*
  * snapshot_cpu_lpi()
  *
  * record snapshot of
@@ -3082,6 +3126,9 @@ int snapshot_proc_sysfs_files(void)
 
 	if (DO_BIC(BIC_GFXMHz))
 		snapshot_gfx_mhz();
+
+	if (DO_BIC(BIC_GFXACTMHz))
+		snapshot_gfx_act_mhz();
 
 	if (DO_BIC(BIC_CPU_LPI))
 		snapshot_cpu_lpi_us();
@@ -5235,6 +5282,9 @@ void process_cpuid()
 
 	if (!access("/sys/class/graphics/fb0/device/drm/card0/gt_cur_freq_mhz", R_OK))
 		BIC_PRESENT(BIC_GFXMHz);
+
+	if (!access("/sys/class/graphics/fb0/device/drm/card0/gt_act_freq_mhz", R_OK))
+		BIC_PRESENT(BIC_GFXACTMHz);
 
 	if (!access("/sys/devices/system/cpu/cpuidle/low_power_idle_cpu_residency_us", R_OK))
 		BIC_PRESENT(BIC_CPU_LPI);
