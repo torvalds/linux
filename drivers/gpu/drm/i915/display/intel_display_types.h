@@ -974,8 +974,7 @@ struct intel_crtc_state {
 
 	/* Panel fitter placement and size for Ironlake+ */
 	struct {
-		u32 pos;
-		u32 size;
+		struct drm_rect dst;
 		bool enabled;
 		bool force_thru;
 	} pch_pfit;

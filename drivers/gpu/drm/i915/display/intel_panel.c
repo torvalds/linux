@@ -182,13 +182,13 @@ intel_pch_panel_fitting(struct intel_crtc *intel_crtc,
 			int fitting_mode)
 {
 	const struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
-	int x = 0, y = 0, width = 0, height = 0;
+	int x, y, width, height;
 
 	/* Native modes don't need fitting */
 	if (adjusted_mode->crtc_hdisplay == pipe_config->pipe_src_w &&
 	    adjusted_mode->crtc_vdisplay == pipe_config->pipe_src_h &&
 	    pipe_config->output_format != INTEL_OUTPUT_FORMAT_YCBCR420)
-		goto done;
+		return;
 
 	switch (fitting_mode) {
 	case DRM_MODE_SCALE_CENTER:
@@ -234,14 +234,13 @@ intel_pch_panel_fitting(struct intel_crtc *intel_crtc,
 		break;
 
 	default:
-		WARN(1, "bad panel fit mode: %d\n", fitting_mode);
+		MISSING_CASE(fitting_mode);
 		return;
 	}
 
-done:
-	pipe_config->pch_pfit.pos = (x << 16) | y;
-	pipe_config->pch_pfit.size = (width << 16) | height;
-	pipe_config->pch_pfit.enabled = pipe_config->pch_pfit.size != 0;
+	drm_rect_init(&pipe_config->pch_pfit.dst,
+		      x, y, width, height);
+	pipe_config->pch_pfit.enabled = true;
 }
 
 static void
