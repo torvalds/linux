@@ -542,7 +542,7 @@ static int read_relas(struct elf *elf)
 	return 0;
 }
 
-struct elf *elf_read(const char *name, int flags)
+struct elf *elf_open_read(const char *name, int flags)
 {
 	struct elf *elf;
 	Elf_Cmd cmd;

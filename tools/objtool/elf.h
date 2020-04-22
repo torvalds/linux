@@ -113,7 +113,7 @@ static inline u32 rela_hash(struct rela *rela)
 	return sec_offset_hash(rela->sec, rela->offset);
 }
 
-struct elf *elf_read(const char *name, int flags);
+struct elf *elf_open_read(const char *name, int flags);
 struct section *elf_create_section(struct elf *elf, const char *name, size_t entsize, int nr);
 struct section *elf_create_rela_section(struct elf *elf, struct section *base);
 void elf_add_rela(struct elf *elf, struct rela *rela);
