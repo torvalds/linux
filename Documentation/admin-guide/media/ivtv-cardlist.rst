@@ -12,7 +12,7 @@ IVTV cards list
 
    * - Card number
      - Card name
-     - PCI IDs
+     - PCI subsystem IDs
 
    * - 0
      - Hauppauge WinTV PVR-250

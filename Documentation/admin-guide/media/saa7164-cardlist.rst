@@ -12,7 +12,7 @@ SAA7164 cards list
 
    * - Card number
      - Card name
-     - PCI IDs
+     - PCI subsystem IDs
 
    * - 0
      - Unknown

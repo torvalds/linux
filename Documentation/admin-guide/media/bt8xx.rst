@@ -70,7 +70,7 @@ frontend and backend modules will be loaded automatically.
 
 Exceptions are:
 
-- Old TV cards without EEPROMs, sharing a common PCI ID;
+- Old TV cards without EEPROMs, sharing a common PCI subsystem ID;
 - Old TwinHan DST cards or clones with or without CA slot and not
   containing an Eeprom.
 

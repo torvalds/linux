@@ -183,13 +183,16 @@ is actually composed by two parts:
 	- Vendor ID and device ID;
 	- Subsystem ID and Subsystem device ID;
 
-The ``lspci -nn`` command allows identifying the vendor/device PCI IDs::
+The ``lspci -nn`` command allows identifying the vendor/device PCI IDs:
+
+.. code-block:: none
+   :emphasize-lines: 4
 
     $ lspci -nn
     ...
+    00:0a.0 Multimedia controller [0480]: Philips Semiconductors SAA7131/SAA7133/SAA7135 Video Broadcast Decoder [1131:7133] (rev d1)
     00:0b.0 Multimedia controller [0480]: Brooktree Corporation Bt878 Audio Capture [109e:0878] (rev 11)
     01:00.0 Multimedia video controller [0400]: Conexant Systems, Inc. CX23887/8 PCIe Broadcast Audio and Video Decoder with 3D Comb [14f1:8880] (rev 0f)
-    01:01.0 Multimedia controller [0480]: Philips Semiconductors SAA7131/SAA7133/SAA7135 Video Broadcast Decoder [1131:7133] (rev d1)
     02:01.0 Multimedia video controller [0400]: Internext Compression Inc iTVC15 (CX23415) Video Decoder [4444:0803] (rev 01)
     02:02.0 Multimedia video controller [0400]: Conexant Systems, Inc. CX23418 Single-Chip MPEG-2 Encoder with Integrated Analog Video/Broadcast Audio Decoder [14f1:5b7a]
     02:03.0 Multimedia video controller [0400]: Brooktree Corporation Bt878 Video Capture [109e:036e] (rev 11)
@@ -202,17 +205,21 @@ The subsystem IDs can be obtained using ``lspci -vn``
 
     $ lspci -vn
     ...
-	01:01.0 0480: 1131:7133 (rev d1)
-	        Subsystem: 1461:f01d
-	        Flags: bus master, medium devsel, latency 32, IRQ 209
-	        Memory at e2002000 (32-bit, non-prefetchable) [size=2K]
-	        Capabilities: [40] Power Management version 2
+	00:0a.0 0480: 1131:7133 (rev d1)
+		Subsystem: 1461:f01d
+		Flags: bus master, medium devsel, latency 32, IRQ 209
+		Memory at e2002000 (32-bit, non-prefetchable) [size=2K]
+		Capabilities: [40] Power Management version 2
     ...
 
-Unfortunately, sometimes the same PCI ID is used by different products.
-So, several media drivers allow passing a ``card=`` parameter, in order
-to setup a card number that would match the correct settings for an
-specific board.
+At the above example, the first card uses the ``saa7134`` driver, and
+has a vendor/device PCI ID equal to ``1131:7133`` and a PCI subsystem
+ID equal to ``1461:f01d``.
+
+Unfortunately, sometimes the same PCI subsystem ID is used by different
+products. So, several media drivers allow passing a ``card=`` parameter,
+in order to setup a card number that would match the correct settings for
+an specific board.
 
 The current supported PCI/PCIe cards (not including staging drivers) are
 listed below\ [#]_.

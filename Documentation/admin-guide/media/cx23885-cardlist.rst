@@ -12,7 +12,7 @@ cx23885 cards list
 
    * - Card number
      - Card name
-     - PCI IDs
+     - PCI subsystem IDs
 
    * - 0
      - UNKNOWN/GENERIC
