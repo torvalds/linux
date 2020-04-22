@@ -5442,28 +5442,20 @@ static void gfx_v9_0_ring_emit_de_meta(struct amdgpu_ring *ring)
 	amdgpu_ring_write_multiple(ring, (void *)&de_payload, sizeof(de_payload) >> 2);
 }
 
-static void gfx_v9_0_ring_emit_tmz(struct amdgpu_ring *ring, bool start,
-				   bool trusted)
+static void gfx_v9_0_ring_emit_tmz(struct amdgpu_ring *ring, bool start)
 {
-	amdgpu_ring_write(ring, PACKET3(PACKET3_FRAME_CONTROL, 0));
-	/*
-	 * cmd = 0: frame begin
-	 * cmd = 1: frame end
-	 */
-	amdgpu_ring_write(ring,
-			  ((amdgpu_is_tmz(ring->adev) && trusted) ? FRAME_TMZ : 0)
-			  | FRAME_CMD(start ? 0 : 1));
+	if (amdgpu_is_tmz(ring->adev)) {
+		amdgpu_ring_write(ring, PACKET3(PACKET3_FRAME_CONTROL, 0));
+		amdgpu_ring_write(ring, FRAME_TMZ | FRAME_CMD(start ? 0 : 1));
+	}
 }
 
-static void gfx_v9_ring_emit_cntxcntl(struct amdgpu_ring *ring, uint32_t flags,
-				      bool trusted)
+static void gfx_v9_ring_emit_cntxcntl(struct amdgpu_ring *ring, uint32_t flags)
 {
 	uint32_t dw2 = 0;
 
 	if (amdgpu_sriov_vf(ring->adev))
 		gfx_v9_0_ring_emit_ce_meta(ring);
-
-	gfx_v9_0_ring_emit_tmz(ring, true, trusted);
 
 	dw2 |= 0x80000000; /* set load_enable otherwise this package is just NOPs */
 	if (flags & AMDGPU_HAVE_CTX_SWITCH) {

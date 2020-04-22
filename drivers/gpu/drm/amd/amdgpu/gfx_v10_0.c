@@ -3037,8 +3037,7 @@ static int gfx_v10_0_rlc_backdoor_autoload_enable(struct amdgpu_device *adev);
 static int gfx_v10_0_wait_for_rlc_autoload_complete(struct amdgpu_device *adev);
 static void gfx_v10_0_ring_emit_ce_meta(struct amdgpu_ring *ring, bool resume);
 static void gfx_v10_0_ring_emit_de_meta(struct amdgpu_ring *ring, bool resume);
-static void gfx_v10_0_ring_emit_tmz(struct amdgpu_ring *ring, bool start,
-				    bool trusted);
+static void gfx_v10_0_ring_emit_tmz(struct amdgpu_ring *ring, bool start);
 
 static void gfx10_kiq_set_resources(struct amdgpu_ring *kiq_ring, uint64_t queue_mask)
 {
@@ -7436,16 +7435,13 @@ static void gfx_v10_0_ring_emit_sb(struct amdgpu_ring *ring)
 }
 
 static void gfx_v10_0_ring_emit_cntxcntl(struct amdgpu_ring *ring,
-					 uint32_t flags,
-					 bool trusted)
+					 uint32_t flags)
 {
 	uint32_t dw2 = 0;
 
 	if (amdgpu_mcbp || amdgpu_sriov_vf(ring->adev))
 		gfx_v10_0_ring_emit_ce_meta(ring,
 				    (!amdgpu_sriov_vf(ring->adev) && flags & AMDGPU_IB_PREEMPTED) ? true : false);
-
-	gfx_v10_0_ring_emit_tmz(ring, true, trusted);
 
 	dw2 |= 0x80000000; /* set load_enable otherwise this package is just NOPs */
 	if (flags & AMDGPU_HAVE_CTX_SWITCH) {
@@ -7603,17 +7599,12 @@ static void gfx_v10_0_ring_emit_de_meta(struct amdgpu_ring *ring, bool resume)
 					   sizeof(de_payload) >> 2);
 }
 
-static void gfx_v10_0_ring_emit_tmz(struct amdgpu_ring *ring, bool start,
-				    bool trusted)
+static void gfx_v10_0_ring_emit_tmz(struct amdgpu_ring *ring, bool start)
 {
-	amdgpu_ring_write(ring, PACKET3(PACKET3_FRAME_CONTROL, 0));
-	/*
-	 * cmd = 0: frame begin
-	 * cmd = 1: frame end
-	 */
-	amdgpu_ring_write(ring,
-			  ((amdgpu_is_tmz(ring->adev) && trusted) ? FRAME_TMZ : 0)
-			  | FRAME_CMD(start ? 0 : 1));
+	if (amdgpu_is_tmz(ring->adev)) {
+		amdgpu_ring_write(ring, PACKET3(PACKET3_FRAME_CONTROL, 0));
+		amdgpu_ring_write(ring, FRAME_TMZ | FRAME_CMD(start ? 0 : 1));
+	}
 }
 
 static void gfx_v10_0_ring_emit_rreg(struct amdgpu_ring *ring, uint32_t reg,

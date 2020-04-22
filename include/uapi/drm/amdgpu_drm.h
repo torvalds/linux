@@ -558,9 +558,6 @@ struct drm_amdgpu_cs_chunk {
 	__u64		chunk_data;
 };
 
-/* Flag the command submission as secure */
-#define AMDGPU_CS_FLAGS_SECURE          (1 << 0)
-
 struct drm_amdgpu_cs_in {
 	/** Rendering context id */
 	__u32		ctx_id;
@@ -600,6 +597,10 @@ union drm_amdgpu_cs {
  * This will reset wave ID counters for the IB.
  */
 #define AMDGPU_IB_FLAG_RESET_GDS_MAX_WAVE_ID (1 << 4)
+
+/* Flag the IB as secure (TMZ)
+ */
+#define AMDGPU_IB_FLAGS_SECURE  (1 << 5)
 
 struct drm_amdgpu_cs_chunk_ib {
 	__u32 _pad;
