@@ -458,6 +458,29 @@ exynos_drm_gem_prime_import_sg_table(struct drm_device *dev,
 	int npages;
 	int ret;
 
+	if (sgt->nents < 1)
+		return ERR_PTR(-EINVAL);
+
+	/*
+	 * Check if the provided buffer has been mapped as contiguous
+	 * into DMA address space.
+	 */
+	if (sgt->nents > 1) {
+		dma_addr_t next_addr = sg_dma_address(sgt->sgl);
+		struct scatterlist *s;
+		unsigned int i;
+
+		for_each_sg(sgt->sgl, s, sgt->nents, i) {
+			if (!sg_dma_len(s))
+				break;
+			if (sg_dma_address(s) != next_addr) {
+				DRM_ERROR("buffer chunks must be mapped contiguously");
+				return ERR_PTR(-EINVAL);
+			}
+			next_addr = sg_dma_address(s) + sg_dma_len(s);
+		}
+	}
+
 	exynos_gem = exynos_drm_gem_init(dev, attach->dmabuf->size);
 	if (IS_ERR(exynos_gem)) {
 		ret = PTR_ERR(exynos_gem);
@@ -480,18 +503,15 @@ exynos_drm_gem_prime_import_sg_table(struct drm_device *dev,
 
 	exynos_gem->sgt = sgt;
 
-	if (sgt->nents == 1) {
-		/* always physically continuous memory if sgt->nents is 1. */
-		exynos_gem->flags |= EXYNOS_BO_CONTIG;
-	} else {
-		/*
-		 * this case could be CONTIG or NONCONTIG type but for now
-		 * sets NONCONTIG.
-		 * TODO. we have to find a way that exporter can notify
-		 * the type of its own buffer to importer.
-		 */
+	/*
+	 * Buffer has been mapped as contiguous into DMA address space,
+	 * but if there is IOMMU, it can be either CONTIG or NONCONTIG.
+	 * We assume a simplified logic below:
+	 */
+	if (is_drm_iommu_supported(dev))
 		exynos_gem->flags |= EXYNOS_BO_NONCONTIG;
-	}
+	else
+		exynos_gem->flags |= EXYNOS_BO_CONTIG;
 
 	return &exynos_gem->base;
 
