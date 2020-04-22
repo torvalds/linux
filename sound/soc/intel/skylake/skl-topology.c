@@ -1989,7 +1989,7 @@ static int skl_tplg_get_uuid(struct device *dev, guid_t *guid,
 	      struct snd_soc_tplg_vendor_uuid_elem *uuid_tkn)
 {
 	if (uuid_tkn->token == SKL_TKN_UUID) {
-		guid_copy(guid, (guid_t *)&uuid_tkn->uuid);
+		import_guid(guid, uuid_tkn->uuid);
 		return 0;
 	}
 
@@ -3376,8 +3376,8 @@ static int skl_tplg_get_manifest_tkn(struct device *dev,
 				dev_err(dev, "Too many UUID tokens\n");
 				return -EINVAL;
 			}
-			guid_copy(&skl->modules[uuid_index++]->uuid,
-				  (guid_t *)&array->uuid->uuid);
+			import_guid(&skl->modules[uuid_index++]->uuid,
+				    array->uuid->uuid);
 
 			tuple_size += sizeof(*array->uuid);
 			continue;
