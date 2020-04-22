@@ -296,6 +296,8 @@ static int stmfx_irq_init(struct i2c_client *client)
 	if (ret)
 		goto irq_exit;
 
+	stmfx->irq = client->irq;
+
 	return 0;
 
 irq_exit:
@@ -486,6 +488,8 @@ static int stmfx_suspend(struct device *dev)
 	if (ret)
 		return ret;
 
+	disable_irq(stmfx->irq);
+
 	if (stmfx->vdd)
 		return regulator_disable(stmfx->vdd);
 
@@ -528,6 +532,8 @@ static int stmfx_resume(struct device *dev)
 			       &stmfx->irq_src, sizeof(stmfx->irq_src));
 	if (ret)
 		return ret;
+
+	enable_irq(stmfx->irq);
 
 	return 0;
 }
