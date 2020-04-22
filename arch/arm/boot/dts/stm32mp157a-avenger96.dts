@@ -25,8 +25,26 @@
 		spi0 = &qspi;
 	};
 
+	/* XTal Q1 */
+	cec_clock: clk-cec-fixed {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <24000000>;
+	};
+
 	chosen {
 		stdout-path = "serial0:115200n8";
+	};
+
+	hdmi-out {
+		compatible = "hdmi-connector";
+		type = "a";
+
+		port {
+			hdmi_con: endpoint {
+				remote-endpoint = <&adv7513_out>;
+			};
+		};
 	};
 
 	memory@c0000000 {
@@ -302,6 +320,50 @@
 		};
 	};
 
+	hdmi-transmitter@3d {
+		compatible = "adi,adv7513";
+		reg = <0x3d>, <0x2d>, <0x4d>, <0x5d>;
+		reg-names = "main", "cec", "edid", "packet";
+		clocks = <&cec_clock>;
+		clock-names = "cec";
+
+		avdd-supply = <&v3v3>;
+		dvdd-supply = <&v3v3>;
+		pvdd-supply = <&v3v3>;
+		dvdd-3v-supply = <&v3v3>;
+		bgvdd-supply = <&v3v3>;
+
+		interrupts = <9 IRQ_TYPE_EDGE_FALLING>;
+		interrupt-parent = <&gpiog>;
+
+		status = "okay";
+
+		adi,input-depth = <8>;
+		adi,input-colorspace = "rgb";
+		adi,input-clock = "1x";
+		adi,input-style = <1>;
+		adi,input-justification = "evenly";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				adv7513_in: endpoint {
+					remote-endpoint = <&ltdc_ep0_out>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+				adv7513_out: endpoint {
+					remote-endpoint = <&hdmi_con>;
+				};
+			};
+		};
+	};
+
 	eeprom@53 {
 		compatible = "atmel,24c02";
 		reg = <0x53>;
@@ -312,6 +374,23 @@
 &iwdg2 {
 	timeout-sec = <32>;
 	status = "okay";
+};
+
+&ltdc {
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&ltdc_pins_d>;
+	pinctrl-1 = <&ltdc_sleep_pins_d>;
+	status = "okay";
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ltdc_ep0_out: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&adv7513_in>;
+		};
+	};
 };
 
 &pwr_regulators {
