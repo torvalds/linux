@@ -62,7 +62,7 @@ static bool dmub_abm_set_pipe(struct abm *abm, uint32_t otg_inst)
 	cmd.abm_set_pipe.abm_set_pipe_data.ramping_boundary = ramping_boundary;
 	cmd.abm_set_pipe.header.payload_bytes = sizeof(struct dmub_cmd_abm_set_pipe_data);
 
-	dc_dmub_srv_cmd_queue(dc->dmub_srv, &cmd.abm_set_pipe.header);
+	dc_dmub_srv_cmd_queue(dc->dmub_srv, &cmd);
 	dc_dmub_srv_cmd_execute(dc->dmub_srv);
 	dc_dmub_srv_wait_idle(dc->dmub_srv);
 
@@ -146,7 +146,7 @@ static void dmcub_set_backlight_level(
 	cmd.abm_set_backlight.abm_set_backlight_data.frame_ramp = frame_ramp;
 	cmd.abm_set_backlight.header.payload_bytes = sizeof(struct dmub_cmd_abm_set_backlight_data);
 
-	dc_dmub_srv_cmd_queue(dc->dmub_srv, &cmd.abm_set_backlight.header);
+	dc_dmub_srv_cmd_queue(dc->dmub_srv, &cmd);
 	dc_dmub_srv_cmd_execute(dc->dmub_srv);
 	dc_dmub_srv_wait_idle(dc->dmub_srv);
 
@@ -171,7 +171,7 @@ static void dmub_abm_enable_fractional_pwm(struct dc_context *dc)
 	cmd.abm_set_pwm_frac.abm_set_pwm_frac_data.fractional_pwm = fractional_pwm;
 	cmd.abm_set_pwm_frac.header.payload_bytes = sizeof(struct dmub_cmd_abm_set_pwm_frac_data);
 
-	dc_dmub_srv_cmd_queue(dc->dmub_srv, &cmd.abm_set_pwm_frac.header);
+	dc_dmub_srv_cmd_queue(dc->dmub_srv, &cmd);
 	dc_dmub_srv_cmd_execute(dc->dmub_srv);
 	dc_dmub_srv_wait_idle(dc->dmub_srv);
 }
@@ -250,7 +250,7 @@ static bool dmub_abm_set_level(struct abm *abm, uint32_t level)
 	cmd.abm_set_level.abm_set_level_data.level = level;
 	cmd.abm_set_level.header.payload_bytes = sizeof(struct dmub_cmd_abm_set_level_data);
 
-	dc_dmub_srv_cmd_queue(dc->dmub_srv, &cmd.abm_set_level.header);
+	dc_dmub_srv_cmd_queue(dc->dmub_srv, &cmd);
 	dc_dmub_srv_cmd_execute(dc->dmub_srv);
 	dc_dmub_srv_wait_idle(dc->dmub_srv);
 
@@ -370,7 +370,7 @@ static bool dmub_abm_init_config(struct abm *abm,
 	cmd.abm_init_config.abm_init_config_data.bytes = bytes;
 	cmd.abm_init_config.header.payload_bytes = sizeof(struct dmub_cmd_abm_init_config_data);
 
-	dc_dmub_srv_cmd_queue(dc->dmub_srv, &cmd.abm_init_config.header);
+	dc_dmub_srv_cmd_queue(dc->dmub_srv, &cmd);
 	dc_dmub_srv_cmd_execute(dc->dmub_srv);
 	dc_dmub_srv_wait_idle(dc->dmub_srv);
 

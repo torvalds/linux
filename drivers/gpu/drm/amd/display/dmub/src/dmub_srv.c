@@ -462,7 +462,7 @@ enum dmub_status dmub_srv_hw_reset(struct dmub_srv *dmub)
 }
 
 enum dmub_status dmub_srv_cmd_queue(struct dmub_srv *dmub,
-				    const struct dmub_cmd_header *cmd)
+				    const union dmub_rb_cmd *cmd)
 {
 	if (!dmub->hw_init)
 		return DMUB_STATUS_INVALID;
