@@ -119,6 +119,9 @@ void mt7615_mac_set_timing(struct mt7615_phy *phy)
 	int sifs, offset;
 	bool is_5ghz = phy->mt76->chandef.chan->band == NL80211_BAND_5GHZ;
 
+	if (!test_bit(MT76_STATE_RUNNING, &phy->mt76->state))
+		return;
+
 	if (is_5ghz)
 		sifs = 16;
 	else
