@@ -268,7 +268,7 @@ static int xdp_enqueue(struct dpaa2_eth_priv *priv, struct dpaa2_fd *fd,
 
 	fq = &priv->fq[queue_id];
 	for (i = 0; i < DPAA2_ETH_ENQUEUE_RETRIES; i++) {
-		err = priv->enqueue(priv, fq, fd, 0, NULL);
+		err = priv->enqueue(priv, fq, fd, 0, 1, NULL);
 		if (err != -EBUSY)
 			break;
 	}
@@ -847,7 +847,7 @@ static netdev_tx_t dpaa2_eth_tx(struct sk_buff *skb, struct net_device *net_dev)
 	 * the Tx confirmation callback for this frame
 	 */
 	for (i = 0; i < DPAA2_ETH_ENQUEUE_RETRIES; i++) {
-		err = priv->enqueue(priv, fq, &fd, prio, NULL);
+		err = priv->enqueue(priv, fq, &fd, prio, 1, NULL);
 		if (err != -EBUSY)
 			break;
 	}
@@ -1937,7 +1937,7 @@ static int dpaa2_eth_xdp_xmit_frame(struct net_device *net_dev,
 
 	fq = &priv->fq[smp_processor_id() % dpaa2_eth_queue_count(priv)];
 	for (i = 0; i < DPAA2_ETH_ENQUEUE_RETRIES; i++) {
-		err = priv->enqueue(priv, fq, &fd, 0, NULL);
+		err = priv->enqueue(priv, fq, &fd, 0, 1, NULL);
 		if (err != -EBUSY)
 			break;
 	}
@@ -2524,6 +2524,7 @@ static int set_buffer_layout(struct dpaa2_eth_priv *priv)
 static inline int dpaa2_eth_enqueue_qd(struct dpaa2_eth_priv *priv,
 				       struct dpaa2_eth_fq *fq,
 				       struct dpaa2_fd *fd, u8 prio,
+				       u32 num_frames __always_unused,
 				       int *frames_enqueued)
 {
 	int err;
@@ -2536,18 +2537,24 @@ static inline int dpaa2_eth_enqueue_qd(struct dpaa2_eth_priv *priv,
 	return err;
 }
 
-static inline int dpaa2_eth_enqueue_fq(struct dpaa2_eth_priv *priv,
-				       struct dpaa2_eth_fq *fq,
-				       struct dpaa2_fd *fd, u8 prio,
-				       int *frames_enqueued)
+static inline int dpaa2_eth_enqueue_fq_multiple(struct dpaa2_eth_priv *priv,
+						struct dpaa2_eth_fq *fq,
+						struct dpaa2_fd *fd,
+						u8 prio, u32 num_frames,
+						int *frames_enqueued)
 {
 	int err;
 
-	err = dpaa2_io_service_enqueue_fq(fq->channel->dpio,
-					  fq->tx_fqid[prio], fd);
-	if (!err && frames_enqueued)
-		*frames_enqueued = 1;
-	return err;
+	err = dpaa2_io_service_enqueue_multiple_fq(fq->channel->dpio,
+						   fq->tx_fqid[prio],
+						   fd, num_frames);
+
+	if (err == 0)
+		return -EBUSY;
+
+	if (frames_enqueued)
+		*frames_enqueued = err;
+	return 0;
 }
 
 static void set_enqueue_mode(struct dpaa2_eth_priv *priv)
@@ -2556,7 +2563,7 @@ static void set_enqueue_mode(struct dpaa2_eth_priv *priv)
 				   DPNI_ENQUEUE_FQID_VER_MINOR) < 0)
 		priv->enqueue = dpaa2_eth_enqueue_qd;
 	else
-		priv->enqueue = dpaa2_eth_enqueue_fq;
+		priv->enqueue = dpaa2_eth_enqueue_fq_multiple;
 }
 
 static int set_pause(struct dpaa2_eth_priv *priv)
@@ -2617,7 +2624,7 @@ static void update_tx_fqids(struct dpaa2_eth_priv *priv)
 		}
 	}
 
-	priv->enqueue = dpaa2_eth_enqueue_fq;
+	priv->enqueue = dpaa2_eth_enqueue_fq_multiple;
 
 	return;
 

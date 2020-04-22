@@ -372,6 +372,7 @@ struct dpaa2_eth_priv {
 	int (*enqueue)(struct dpaa2_eth_priv *priv,
 		       struct dpaa2_eth_fq *fq,
 		       struct dpaa2_fd *fd, u8 prio,
+		       u32 num_frames,
 		       int *frames_enqueued);
 
 	u8 num_channels;
