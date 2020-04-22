@@ -1032,13 +1032,16 @@ static int set_trx_fifo_info(struct rtw_dev *rtwdev)
 	/* config rsvd page num */
 	fifo->rsvd_drv_pg_num = 8;
 	fifo->txff_pg_num = chip->txff_size >> 7;
-	fifo->rsvd_pg_num = fifo->rsvd_drv_pg_num +
-			   RSVD_PG_H2C_EXTRAINFO_NUM +
-			   RSVD_PG_H2C_STATICINFO_NUM +
-			   RSVD_PG_H2CQ_NUM +
-			   RSVD_PG_CPU_INSTRUCTION_NUM +
-			   RSVD_PG_FW_TXBUF_NUM +
-			   csi_buf_pg_num;
+	if (rtw_chip_wcpu_11n(rtwdev))
+		fifo->rsvd_pg_num = fifo->rsvd_drv_pg_num;
+	else
+		fifo->rsvd_pg_num = fifo->rsvd_drv_pg_num +
+				   RSVD_PG_H2C_EXTRAINFO_NUM +
+				   RSVD_PG_H2C_STATICINFO_NUM +
+				   RSVD_PG_H2CQ_NUM +
+				   RSVD_PG_CPU_INSTRUCTION_NUM +
+				   RSVD_PG_FW_TXBUF_NUM +
+				   csi_buf_pg_num;
 
 	if (fifo->rsvd_pg_num > fifo->txff_pg_num)
 		return -ENOMEM;
@@ -1047,18 +1050,20 @@ static int set_trx_fifo_info(struct rtw_dev *rtwdev)
 	fifo->rsvd_boundary = fifo->txff_pg_num - fifo->rsvd_pg_num;
 
 	cur_pg_addr = fifo->txff_pg_num;
-	cur_pg_addr -= csi_buf_pg_num;
-	fifo->rsvd_csibuf_addr = cur_pg_addr;
-	cur_pg_addr -= RSVD_PG_FW_TXBUF_NUM;
-	fifo->rsvd_fw_txbuf_addr = cur_pg_addr;
-	cur_pg_addr -= RSVD_PG_CPU_INSTRUCTION_NUM;
-	fifo->rsvd_cpu_instr_addr = cur_pg_addr;
-	cur_pg_addr -= RSVD_PG_H2CQ_NUM;
-	fifo->rsvd_h2cq_addr = cur_pg_addr;
-	cur_pg_addr -= RSVD_PG_H2C_STATICINFO_NUM;
-	fifo->rsvd_h2c_sta_info_addr = cur_pg_addr;
-	cur_pg_addr -= RSVD_PG_H2C_EXTRAINFO_NUM;
-	fifo->rsvd_h2c_info_addr = cur_pg_addr;
+	if (rtw_chip_wcpu_11ac(rtwdev)) {
+		cur_pg_addr -= csi_buf_pg_num;
+		fifo->rsvd_csibuf_addr = cur_pg_addr;
+		cur_pg_addr -= RSVD_PG_FW_TXBUF_NUM;
+		fifo->rsvd_fw_txbuf_addr = cur_pg_addr;
+		cur_pg_addr -= RSVD_PG_CPU_INSTRUCTION_NUM;
+		fifo->rsvd_cpu_instr_addr = cur_pg_addr;
+		cur_pg_addr -= RSVD_PG_H2CQ_NUM;
+		fifo->rsvd_h2cq_addr = cur_pg_addr;
+		cur_pg_addr -= RSVD_PG_H2C_STATICINFO_NUM;
+		fifo->rsvd_h2c_sta_info_addr = cur_pg_addr;
+		cur_pg_addr -= RSVD_PG_H2C_EXTRAINFO_NUM;
+		fifo->rsvd_h2c_info_addr = cur_pg_addr;
+	}
 	cur_pg_addr -= fifo->rsvd_drv_pg_num;
 	fifo->rsvd_drv_addr = cur_pg_addr;
 
@@ -1066,6 +1071,65 @@ static int set_trx_fifo_info(struct rtw_dev *rtwdev)
 		rtw_err(rtwdev, "wrong rsvd driver address\n");
 		return -EINVAL;
 	}
+
+	return 0;
+}
+
+static int __priority_queue_cfg(struct rtw_dev *rtwdev,
+				const struct rtw_page_table *pg_tbl,
+				u16 pubq_num)
+{
+	struct rtw_fifo_conf *fifo = &rtwdev->fifo;
+	struct rtw_chip_info *chip = rtwdev->chip;
+
+	rtw_write16(rtwdev, REG_FIFOPAGE_INFO_1, pg_tbl->hq_num);
+	rtw_write16(rtwdev, REG_FIFOPAGE_INFO_2, pg_tbl->lq_num);
+	rtw_write16(rtwdev, REG_FIFOPAGE_INFO_3, pg_tbl->nq_num);
+	rtw_write16(rtwdev, REG_FIFOPAGE_INFO_4, pg_tbl->exq_num);
+	rtw_write16(rtwdev, REG_FIFOPAGE_INFO_5, pubq_num);
+	rtw_write32_set(rtwdev, REG_RQPN_CTRL_2, BIT_LD_RQPN);
+
+	rtw_write16(rtwdev, REG_FIFOPAGE_CTRL_2, fifo->rsvd_boundary);
+	rtw_write8_set(rtwdev, REG_FWHW_TXQ_CTRL + 2, BIT_EN_WR_FREE_TAIL >> 16);
+
+	rtw_write16(rtwdev, REG_BCNQ_BDNY_V1, fifo->rsvd_boundary);
+	rtw_write16(rtwdev, REG_FIFOPAGE_CTRL_2 + 2, fifo->rsvd_boundary);
+	rtw_write16(rtwdev, REG_BCNQ1_BDNY_V1, fifo->rsvd_boundary);
+	rtw_write32(rtwdev, REG_RXFF_BNDY, chip->rxff_size - C2H_PKT_BUF - 1);
+	rtw_write8_set(rtwdev, REG_AUTO_LLT_V1, BIT_AUTO_INIT_LLT_V1);
+
+	if (!check_hw_ready(rtwdev, REG_AUTO_LLT_V1, BIT_AUTO_INIT_LLT_V1, 0))
+		return -EBUSY;
+
+	rtw_write8(rtwdev, REG_CR + 3, 0);
+
+	return 0;
+}
+
+static int __priority_queue_cfg_legacy(struct rtw_dev *rtwdev,
+				       const struct rtw_page_table *pg_tbl,
+				       u16 pubq_num)
+{
+	struct rtw_fifo_conf *fifo = &rtwdev->fifo;
+	struct rtw_chip_info *chip = rtwdev->chip;
+	u32 val32;
+
+	val32 = BIT_RQPN_NE(pg_tbl->nq_num, pg_tbl->exq_num);
+	rtw_write32(rtwdev, REG_RQPN_NPQ, val32);
+	val32 = BIT_RQPN_HLP(pg_tbl->hq_num, pg_tbl->lq_num, pubq_num);
+	rtw_write32(rtwdev, REG_RQPN, val32);
+
+	rtw_write8(rtwdev, REG_TRXFF_BNDY, fifo->rsvd_boundary);
+	rtw_write16(rtwdev, REG_TRXFF_BNDY + 2, chip->rxff_size - REPORT_BUF - 1);
+	rtw_write8(rtwdev, REG_DWBCN0_CTRL + 1, fifo->rsvd_boundary);
+	rtw_write8(rtwdev, REG_BCNQ_BDNY, fifo->rsvd_boundary);
+	rtw_write8(rtwdev, REG_MGQ_BDNY, fifo->rsvd_boundary);
+	rtw_write8(rtwdev, REG_WMAC_LBK_BF_HD, fifo->rsvd_boundary);
+
+	rtw_write32_set(rtwdev, REG_AUTO_LLT, BIT_AUTO_INIT_LLT);
+
+	if (!check_hw_ready(rtwdev, REG_AUTO_LLT, BIT_AUTO_INIT_LLT, 0))
+		return -EBUSY;
 
 	return 0;
 }
@@ -1102,28 +1166,10 @@ static int priority_queue_cfg(struct rtw_dev *rtwdev)
 
 	pubq_num = fifo->acq_pg_num - pg_tbl->hq_num - pg_tbl->lq_num -
 		   pg_tbl->nq_num - pg_tbl->exq_num - pg_tbl->gapq_num;
-	rtw_write16(rtwdev, REG_FIFOPAGE_INFO_1, pg_tbl->hq_num);
-	rtw_write16(rtwdev, REG_FIFOPAGE_INFO_2, pg_tbl->lq_num);
-	rtw_write16(rtwdev, REG_FIFOPAGE_INFO_3, pg_tbl->nq_num);
-	rtw_write16(rtwdev, REG_FIFOPAGE_INFO_4, pg_tbl->exq_num);
-	rtw_write16(rtwdev, REG_FIFOPAGE_INFO_5, pubq_num);
-	rtw_write32_set(rtwdev, REG_RQPN_CTRL_2, BIT_LD_RQPN);
-
-	rtw_write16(rtwdev, REG_FIFOPAGE_CTRL_2, fifo->rsvd_boundary);
-	rtw_write8_set(rtwdev, REG_FWHW_TXQ_CTRL + 2, BIT_EN_WR_FREE_TAIL >> 16);
-
-	rtw_write16(rtwdev, REG_BCNQ_BDNY_V1, fifo->rsvd_boundary);
-	rtw_write16(rtwdev, REG_FIFOPAGE_CTRL_2 + 2, fifo->rsvd_boundary);
-	rtw_write16(rtwdev, REG_BCNQ1_BDNY_V1, fifo->rsvd_boundary);
-	rtw_write32(rtwdev, REG_RXFF_BNDY, chip->rxff_size - C2H_PKT_BUF - 1);
-	rtw_write8_set(rtwdev, REG_AUTO_LLT_V1, BIT_AUTO_INIT_LLT_V1);
-
-	if (!check_hw_ready(rtwdev, REG_AUTO_LLT_V1, BIT_AUTO_INIT_LLT_V1, 0))
-		return -EBUSY;
-
-	rtw_write8(rtwdev, REG_CR + 3, 0);
-
-	return 0;
+	if (rtw_chip_wcpu_11n(rtwdev))
+		return __priority_queue_cfg_legacy(rtwdev, pg_tbl, pubq_num);
+	else
+		return __priority_queue_cfg(rtwdev, pg_tbl, pubq_num);
 }
 
 static int init_h2c(struct rtw_dev *rtwdev)
@@ -1203,11 +1249,13 @@ static int rtw_drv_info_cfg(struct rtw_dev *rtwdev)
 	u8 value8;
 
 	rtw_write8(rtwdev, REG_RX_DRVINFO_SZ, PHY_STATUS_SIZE);
-	value8 = rtw_read8(rtwdev, REG_TRXFF_BNDY + 1);
-	value8 &= 0xF0;
-	/* For rxdesc len = 0 issue */
-	value8 |= 0xF;
-	rtw_write8(rtwdev, REG_TRXFF_BNDY + 1, value8);
+	if (rtw_chip_wcpu_11ac(rtwdev)) {
+		value8 = rtw_read8(rtwdev, REG_TRXFF_BNDY + 1);
+		value8 &= 0xF0;
+		/* For rxdesc len = 0 issue */
+		value8 |= 0xF;
+		rtw_write8(rtwdev, REG_TRXFF_BNDY + 1, value8);
+	}
 	rtw_write32_set(rtwdev, REG_RCR, BIT_APP_PHYSTS);
 	rtw_write32_clr(rtwdev, REG_WMAC_OPTION_FUNCTION + 4, BIT(8) | BIT(9));
 

@@ -209,6 +209,19 @@
 #define REG_HMEBOX2_EX		0x01F8
 #define REG_HMEBOX3_EX		0x01FC
 
+#define REG_RQPN		0x0200
+#define BIT_MASK_HPQ		0xff
+#define BIT_SHIFT_HPQ		0
+#define BIT_RQPN_HPQ(x)		(((x) & BIT_MASK_HPQ) << BIT_SHIFT_HPQ)
+#define BIT_MASK_LPQ		0xff
+#define BIT_SHIFT_LPQ		8
+#define BIT_RQPN_LPQ(x)		(((x) & BIT_MASK_LPQ) << BIT_SHIFT_LPQ)
+#define BIT_MASK_PUBQ		0xff
+#define BIT_SHIFT_PUBQ		16
+#define BIT_RQPN_PUBQ(x)	(((x) & BIT_MASK_PUBQ) << BIT_SHIFT_PUBQ)
+#define BIT_RQPN_HLP(h, l, p)	(BIT_LD_RQPN | BIT_RQPN_HPQ(h) |	       \
+				 BIT_RQPN_LPQ(l) | BIT_RQPN_PUBQ(p))
+
 #define REG_FIFOPAGE_CTRL_2	0x0204
 #define BIT_BCN_VALID_V1	BIT(15)
 #define BIT_MASK_BCN_HEAD_1_V1	0xfff
@@ -219,6 +232,18 @@
 #define REG_TXDMA_OFFSET_CHK	0x020C
 #define REG_TXDMA_STATUS	0x0210
 #define BTI_PAGE_OVF		BIT(2)
+
+#define REG_RQPN_NPQ		0x0214
+#define BIT_MASK_NPQ		0xff
+#define BIT_SHIFT_NPQ		0
+#define BIT_MASK_EPQ		0xff
+#define BIT_SHIFT_EPQ		16
+#define BIT_RQPN_NPQ(x)		(((x) & BIT_MASK_NPQ) << BIT_SHIFT_NPQ)
+#define BIT_RQPN_EPQ(x)		(((x) & BIT_MASK_EPQ) << BIT_SHIFT_EPQ)
+#define BIT_RQPN_NE(n, e)	(BIT_RQPN_NPQ(n) | BIT_RQPN_EPQ(e))
+
+#define REG_AUTO_LLT		0x0224
+#define BIT_AUTO_INIT_LLT	BIT(16)
 #define REG_RQPN_CTRL_1		0x0228
 #define REG_RQPN_CTRL_2		0x022C
 #define BIT_LD_RQPN		BIT(31)
@@ -249,6 +274,8 @@
 #define REG_HWSEQ_CTRL		0x0423
 
 #define REG_BCNQ_BDNY_V1	0x0424
+#define REG_BCNQ_BDNY		0x0424
+#define REG_MGQ_BDNY		0x0425
 #define REG_LIFETIME_EN		0x0426
 #define BIT_BA_PARSER_EN	BIT(5)
 #define REG_SPEC_SIFS		0x0428
@@ -264,6 +291,7 @@
 #define BIT_CHECK_CCK_EN	BIT(7)
 #define REG_AMPDU_MAX_TIME_V1	0x0455
 #define REG_BCNQ1_BDNY_V1	0x0456
+#define REG_WMAC_LBK_BF_HD	0x045D
 #define REG_TX_HANG_CTRL	0x045E
 #define BIT_EN_GNT_BT_AWAKE	BIT(3)
 #define BIT_EN_EOF_V1		BIT(2)
