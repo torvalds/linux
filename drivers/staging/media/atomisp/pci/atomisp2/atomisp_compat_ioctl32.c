@@ -1131,10 +1131,8 @@ long atomisp_compat_ioctl32(struct file *file,
 	case ATOMISP_IOC_G_SENSOR_AE_BRACKETING_MODE:
 	case ATOMISP_IOC_G_INVALID_FRAME_NUM:
 	case ATOMISP_IOC_S_ARRAY_RESOLUTION:
-#ifdef ISP2401
 	case ATOMISP_IOC_S_SENSOR_RUNMODE:
 	case ATOMISP_IOC_G_UPDATE_EXPOSURE:
-#endif
 		ret = native_ioctl(file, cmd, arg);
 		break;
 
