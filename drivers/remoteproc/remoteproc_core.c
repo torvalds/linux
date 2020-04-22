@@ -2069,8 +2069,7 @@ static int rproc_alloc_ops(struct rproc *rproc, const struct rproc_ops *ops)
 	rproc->ops->load = rproc_elf_load_segments;
 	rproc->ops->parse_fw = rproc_elf_load_rsc_table;
 	rproc->ops->find_loaded_rsc_table = rproc_elf_find_loaded_rsc_table;
-	if (!rproc->ops->sanity_check)
-		rproc->ops->sanity_check = rproc_elf32_sanity_check;
+	rproc->ops->sanity_check = rproc_elf_sanity_check;
 	rproc->ops->get_boot_addr = rproc_elf_get_boot_addr;
 
 	return 0;
