@@ -140,7 +140,7 @@ static void proc_dump_substream_formats(struct snd_usb_substream *subs, struct s
 
 			snd_iprintf(buffer, "    Channel map:");
 			for (c = 0; c < map->channels; c++) {
-				if (map->map[c] >= sizeof(channel_labels) ||
+				if (map->map[c] >= ARRAY_SIZE(channel_labels) ||
 				    !channel_labels[map->map[c]])
 					snd_iprintf(buffer, " --");
 				else
