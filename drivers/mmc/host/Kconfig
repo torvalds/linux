@@ -171,7 +171,7 @@ config MMC_SDHCI_OF_ASPEED
 config MMC_SDHCI_OF_AT91
 	tristate "SDHCI OF support for the Atmel SDMMC controller"
 	depends on MMC_SDHCI_PLTFM
-	depends on OF
+	depends on OF && HAVE_CLK
 	help
 	  This selects the Atmel SDMMC driver
 
