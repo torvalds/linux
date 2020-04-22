@@ -21,6 +21,7 @@
 		mmc0 = &sdmmc1;
 		serial0 = &uart4;
 		serial1 = &uart7;
+		serial2 = &usart2;
 		spi0 = &qspi;
 	};
 
@@ -62,13 +63,6 @@
 			linux,default-trigger = "none";
 			default-state = "off";
 			panic-indicator;
-		};
-
-		led5 {
-			label = "blue:bt";
-			gpios = <&gpioz 6 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "bluetooth-power";
-			default-state = "off";
 		};
 	};
 
@@ -418,4 +412,19 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart7_pins_a>;
 	status = "okay";
+};
+
+/* Bluetooth */
+&usart2 {
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&usart2_pins_a>;
+	pinctrl-1 = <&usart2_sleep_pins_a>;
+	st,hw-flow-ctrl;
+	status = "okay";
+
+	bluetooth {
+		compatible = "brcm,bcm43438-bt";
+		max-speed = <3000000>;
+		shutdown-gpios = <&gpioz 6 GPIO_ACTIVE_HIGH>;
+	};
 };
