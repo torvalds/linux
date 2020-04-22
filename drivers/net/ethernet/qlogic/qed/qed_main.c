@@ -49,6 +49,7 @@
 #include <linux/qed/qed_if.h>
 #include <linux/qed/qed_ll2_if.h>
 #include <net/devlink.h>
+#include <linux/aer.h>
 
 #include "qed.h"
 #include "qed_sriov.h"
@@ -128,6 +129,8 @@ static int qed_set_coherency_mask(struct qed_dev *cdev)
 static void qed_free_pci(struct qed_dev *cdev)
 {
 	struct pci_dev *pdev = cdev->pdev;
+
+	pci_disable_pcie_error_reporting(pdev);
 
 	if (cdev->doorbells && cdev->db_size)
 		iounmap(cdev->doorbells);
@@ -230,6 +233,12 @@ static int qed_init_pci(struct qed_dev *cdev, struct pci_dev *pdev)
 		DP_NOTICE(cdev, "Cannot map doorbell space\n");
 		return -ENOMEM;
 	}
+
+	/* AER (Advanced Error reporting) configuration */
+	rc = pci_enable_pcie_error_reporting(pdev);
+	if (rc)
+		DP_VERBOSE(cdev, NETIF_MSG_DRV,
+			   "Failed to configure PCIe AER [%d]\n", rc);
 
 	return 0;
 
