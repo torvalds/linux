@@ -823,7 +823,7 @@ static int dif_errors;
 
 /* ZBC global data */
 static bool sdeb_zbc_in_use;		/* true when ptype=TYPE_ZBC [0x14] */
-static const int zbc_zone_size_mb;
+static int sdeb_zbc_zone_size_mb;
 static int sdeb_zbc_max_open = DEF_ZBC_MAX_OPEN_ZONES;
 static int sdeb_zbc_nr_conv = DEF_ZBC_NR_CONV_ZONES;
 
@@ -4763,12 +4763,12 @@ static int sdebug_device_create_zones(struct sdebug_dev_info *devip)
 	unsigned int i;
 
 	/*
-	 * Set the zone size: if zbc_zone_size_mb is not set, figure out a
-	 * zone size allowing for at least 4 zones on the device. Otherwise,
+	 * Set the zone size: if sdeb_zbc_zone_size_mb is not set, figure out
+	 * a zone size allowing for at least 4 zones on the device. Otherwise,
 	 * use the specified zone size checking that at least 2 zones can be
 	 * created for the device.
 	 */
-	if (!zbc_zone_size_mb) {
+	if (!sdeb_zbc_zone_size_mb) {
 		devip->zsize = (DEF_ZBC_ZONE_SIZE_MB * SZ_1M)
 			>> ilog2(sdebug_sector_size);
 		while (capacity < devip->zsize << 2 && devip->zsize >= 2)
@@ -4778,7 +4778,7 @@ static int sdebug_device_create_zones(struct sdebug_dev_info *devip)
 			return -EINVAL;
 		}
 	} else {
-		devip->zsize = (zbc_zone_size_mb * SZ_1M)
+		devip->zsize = (sdeb_zbc_zone_size_mb * SZ_1M)
 			>> ilog2(sdebug_sector_size);
 		if (devip->zsize >= capacity) {
 			pr_err("Zone size too large for device capacity\n");
@@ -5551,6 +5551,7 @@ module_param_named(write_same_length, sdebug_write_same_length, int,
 module_param_named(zbc, sdeb_zbc_model_s, charp, S_IRUGO);
 module_param_named(zone_max_open, sdeb_zbc_max_open, int, S_IRUGO);
 module_param_named(zone_nr_conv, sdeb_zbc_nr_conv, int, S_IRUGO);
+module_param_named(zone_size_mb, sdeb_zbc_zone_size_mb, int, S_IRUGO);
 
 MODULE_AUTHOR("Eric Youngdale + Douglas Gilbert");
 MODULE_DESCRIPTION("SCSI debug adapter driver");
@@ -5615,6 +5616,7 @@ MODULE_PARM_DESC(write_same_length, "Maximum blocks per WRITE SAME cmd (def=0xff
 MODULE_PARM_DESC(zbc, "'none' [0]; 'aware' [1]; 'managed' [2] (def=0). Can have 'host-' prefix");
 MODULE_PARM_DESC(zone_max_open, "Maximum number of open zones; [0] for no limit (def=auto)");
 MODULE_PARM_DESC(zone_nr_conv, "Number of conventional zones (def=1)");
+MODULE_PARM_DESC(zone_size_mb, "Zone size in MiB (def=auto)");
 
 #define SDEBUG_INFO_LEN 256
 static char sdebug_info[SDEBUG_INFO_LEN];
