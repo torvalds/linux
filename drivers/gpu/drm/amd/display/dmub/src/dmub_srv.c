@@ -96,25 +96,27 @@ dmub_get_fw_meta_info(const struct dmub_srv_region_params *params)
 	const union dmub_fw_meta *meta;
 	const uint8_t *blob = NULL;
 	uint32_t blob_size = 0;
+	uint32_t meta_offset = 0;
 
 	if (params->fw_bss_data) {
 		/* Legacy metadata region. */
 		blob = params->fw_bss_data;
 		blob_size = params->bss_data_size;
+		meta_offset = DMUB_FW_META_OFFSET;
 	} else if (params->fw_inst_const) {
 		/* Combined metadata region. */
 		blob = params->fw_inst_const;
 		blob_size = params->inst_const_size;
+		meta_offset = 0;
 	}
 
 	if (!blob || !blob_size)
 		return NULL;
 
-	if (blob_size < sizeof(union dmub_fw_meta) + DMUB_FW_META_OFFSET)
+	if (blob_size < sizeof(union dmub_fw_meta) + meta_offset)
 		return NULL;
 
-	meta = (const union dmub_fw_meta *)(blob + blob_size -
-					    DMUB_FW_META_OFFSET -
+	meta = (const union dmub_fw_meta *)(blob + blob_size - meta_offset -
 					    sizeof(union dmub_fw_meta));
 
 	if (meta->info.magic_value != DMUB_FW_META_MAGIC)
