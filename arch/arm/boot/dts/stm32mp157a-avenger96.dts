@@ -55,21 +55,21 @@
 	led {
 		compatible = "gpio-leds";
 		led1 {
-			label = "green:user1";
+			label = "green:user0";
 			gpios = <&gpioz 7 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 			default-state = "off";
 		};
 
 		led2 {
-			label = "green:user2";
+			label = "green:user1";
 			gpios = <&gpiof 3 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "mmc0";
 			default-state = "off";
 		};
 
 		led3 {
-			label = "green:user3";
+			label = "green:user2";
 			gpios = <&gpiog 0 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "mmc1";
 			default-state = "off";
