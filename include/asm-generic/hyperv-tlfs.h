@@ -141,6 +141,8 @@ struct ms_hyperv_tsc_page {
 #define HVCALL_FLUSH_VIRTUAL_ADDRESS_SPACE_EX	0x0013
 #define HVCALL_FLUSH_VIRTUAL_ADDRESS_LIST_EX	0x0014
 #define HVCALL_SEND_IPI_EX			0x0015
+#define HVCALL_GET_VP_REGISTERS			0x0050
+#define HVCALL_SET_VP_REGISTERS			0x0051
 #define HVCALL_POST_MESSAGE			0x005c
 #define HVCALL_SIGNAL_EVENT			0x005d
 #define HVCALL_RETARGET_INTERRUPT		0x007e
@@ -438,5 +440,54 @@ struct hv_retarget_device_interrupt {
 	u64 reserved2;
 	struct hv_device_interrupt_target int_target;
 } __packed __aligned(8);
+
+
+/* HvGetVpRegisters hypercall input with variable size reg name list*/
+struct hv_get_vp_registers_input {
+	struct {
+		u64 partitionid;
+		u32 vpindex;
+		u8  inputvtl;
+		u8  padding[3];
+	} header;
+	struct input {
+		u32 name0;
+		u32 name1;
+	} element[];
+} __packed;
+
+
+/* HvGetVpRegisters returns an array of these output elements */
+struct hv_get_vp_registers_output {
+	union {
+		struct {
+			u32 a;
+			u32 b;
+			u32 c;
+			u32 d;
+		} as32 __packed;
+		struct {
+			u64 low;
+			u64 high;
+		} as64 __packed;
+	};
+};
+
+/* HvSetVpRegisters hypercall with variable size reg name/value list*/
+struct hv_set_vp_registers_input {
+	struct {
+		u64 partitionid;
+		u32 vpindex;
+		u8  inputvtl;
+		u8  padding[3];
+	} header;
+	struct {
+		u32 name;
+		u32 padding1;
+		u64 padding2;
+		u64 valuelow;
+		u64 valuehigh;
+	} element[];
+} __packed;
 
 #endif
