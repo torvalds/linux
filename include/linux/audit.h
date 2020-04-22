@@ -94,6 +94,11 @@ struct audit_ntp_data {
 struct audit_ntp_data {};
 #endif
 
+enum audit_nfcfgop {
+	AUDIT_XT_OP_REGISTER,
+	AUDIT_XT_OP_REPLACE,
+};
+
 extern int is_audit_feature_set(int which);
 
 extern int __init audit_register_class(int class, unsigned *list);
@@ -379,6 +384,8 @@ extern void __audit_log_kern_module(char *name);
 extern void __audit_fanotify(unsigned int response);
 extern void __audit_tk_injoffset(struct timespec64 offset);
 extern void __audit_ntp_log(const struct audit_ntp_data *ad);
+extern void __audit_log_nfcfg(const char *name, u8 af, unsigned int nentries,
+			      enum audit_nfcfgop op);
 
 static inline void audit_ipc_obj(struct kern_ipc_perm *ipcp)
 {
@@ -514,6 +521,14 @@ static inline void audit_ntp_log(const struct audit_ntp_data *ad)
 		__audit_ntp_log(ad);
 }
 
+static inline void audit_log_nfcfg(const char *name, u8 af,
+				   unsigned int nentries,
+				   enum audit_nfcfgop op)
+{
+	if (audit_enabled)
+		__audit_log_nfcfg(name, af, nentries, op);
+}
+
 extern int audit_n_rules;
 extern int audit_signals;
 #else /* CONFIG_AUDITSYSCALL */
@@ -646,6 +661,12 @@ static inline void audit_ntp_log(const struct audit_ntp_data *ad)
 
 static inline void audit_ptrace(struct task_struct *t)
 { }
+
+static inline void audit_log_nfcfg(const char *name, u8 af,
+				   unsigned int nentries,
+				   enum audit_nfcfgop op)
+{ }
+
 #define audit_n_rules 0
 #define audit_signals 0
 #endif /* CONFIG_AUDITSYSCALL */

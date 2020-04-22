@@ -130,6 +130,16 @@ struct audit_tree_refs {
 	struct audit_chunk *c[31];
 };
 
+struct audit_nfcfgop_tab {
+	enum audit_nfcfgop	op;
+	const char		*s;
+};
+
+const struct audit_nfcfgop_tab audit_nfcfgs[] = {
+	{ AUDIT_XT_OP_REGISTER,	"register"	},
+	{ AUDIT_XT_OP_REPLACE,	"replace"	},
+};
+
 static int audit_match_perm(struct audit_context *ctx, int mask)
 {
 	unsigned n;
@@ -2541,6 +2551,20 @@ void __audit_ntp_log(const struct audit_ntp_data *ad)
 	audit_log_ntp_val(ad, "tick",	AUDIT_NTP_TICK);
 	audit_log_ntp_val(ad, "adjust",	AUDIT_NTP_ADJUST);
 }
+
+void __audit_log_nfcfg(const char *name, u8 af, unsigned int nentries,
+		       enum audit_nfcfgop op)
+{
+	struct audit_buffer *ab;
+
+	ab = audit_log_start(audit_context(), GFP_KERNEL, AUDIT_NETFILTER_CFG);
+	if (!ab)
+		return;
+	audit_log_format(ab, "table=%s family=%u entries=%u op=%s",
+			 name, af, nentries, audit_nfcfgs[op].s);
+	audit_log_end(ab);
+}
+EXPORT_SYMBOL_GPL(__audit_log_nfcfg);
 
 static void audit_log_task(struct audit_buffer *ab)
 {
