@@ -136,6 +136,9 @@ enum pageflags {
 	PG_young,
 	PG_idle,
 #endif
+#ifdef CONFIG_64BIT
+	PG_arch_2,
+#endif
 	__NR_PAGEFLAGS,
 
 	/* Filesystems */
