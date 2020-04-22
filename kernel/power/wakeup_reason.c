@@ -102,7 +102,7 @@ static void delete_list(struct list_head *head)
 
 static bool add_sibling_node_sorted(struct list_head *head, int irq)
 {
-	struct wakeup_irq_node *n;
+	struct wakeup_irq_node *n = NULL;
 	struct list_head *predecessor = head;
 
 	if (unlikely(WARN_ON(!head)))
@@ -196,7 +196,8 @@ void log_threaded_irq_wakeup_reason(int irq, int parent_irq)
 	spin_unlock_irqrestore(&wakeup_reason_lock, flags);
 }
 
-void __log_abort_or_abnormal_wake(bool abort, const char *fmt, va_list args)
+static void __log_abort_or_abnormal_wake(bool abort, const char *fmt,
+					 va_list args)
 {
 	unsigned long flags;
 
@@ -330,8 +331,10 @@ static ssize_t last_suspend_time_show(struct kobject *kobj,
 
 	/* Export suspend_resume_time and sleep_time in pair here. */
 	return sprintf(buf, "%llu.%09lu %llu.%09lu\n",
-		       suspend_resume_time.tv_sec, suspend_resume_time.tv_nsec,
-		       sleep_time.tv_sec, sleep_time.tv_nsec);
+		       (unsigned long long)suspend_resume_time.tv_sec,
+		       suspend_resume_time.tv_nsec,
+		       (unsigned long long)sleep_time.tv_sec,
+		       sleep_time.tv_nsec);
 }
 
 static struct kobj_attribute resume_reason = __ATTR_RO(last_resume_reason);
@@ -375,7 +378,7 @@ static struct notifier_block wakeup_reason_pm_notifier_block = {
 	.notifier_call = wakeup_reason_pm_event,
 };
 
-int __init wakeup_reason_init(void)
+static int __init wakeup_reason_init(void)
 {
 	if (register_pm_notifier(&wakeup_reason_pm_notifier_block)) {
 		pr_warn("[%s] failed to register PM notifier\n", __func__);
