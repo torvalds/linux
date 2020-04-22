@@ -20,50 +20,74 @@
 
 #define SEGMENTS_PER_FILE 3
 
-struct read_log_record {
-	u32 block_index : 31;
+enum LOG_RECORD_TYPE {
+	FULL,
+	SAME_FILE,
+	SAME_FILE_NEXT_BLOCK,
+	SAME_FILE_NEXT_BLOCK_SHORT,
+};
 
-	u32 timed_out : 1;
-
-	u64 timestamp_us;
-
+struct full_record {
+	enum LOG_RECORD_TYPE type : 2; /* FULL */
+	u32 block_index : 30;
 	incfs_uuid_t file_id;
-} __packed;
+	u64 absolute_ts_us;
+} __packed; /* 28 bytes */
+
+struct same_file_record {
+	enum LOG_RECORD_TYPE type : 2; /* SAME_FILE */
+	u32 block_index : 30;
+	u32 relative_ts_us; /* max 2^32 us ~= 1 hour (1:11:30) */
+} __packed; /* 12 bytes */
+
+struct same_file_next_block {
+	enum LOG_RECORD_TYPE type : 2; /* SAME_FILE_NEXT_BLOCK */
+	u32 relative_ts_us : 30; /* max 2^30 us ~= 15 min (17:50) */
+} __packed; /* 4 bytes */
+
+struct same_file_next_block_short {
+	enum LOG_RECORD_TYPE type : 2; /* SAME_FILE_NEXT_BLOCK_SHORT */
+	u16 relative_ts_us : 14; /* max 2^14 us ~= 16 ms */
+} __packed; /* 2 bytes */
+
+union log_record {
+	struct full_record full_record;
+	struct same_file_record same_file_record;
+	struct same_file_next_block same_file_next_block;
+	struct same_file_next_block_short same_file_next_block_short;
+};
 
 struct read_log_state {
 	/* Log buffer generation id, incremented on configuration changes */
-	u32 generation_id : 8;
+	u32 generation_id;
 
-	/* Next slot in rl_ring_buf to write into. */
-	u32 next_index : 24;
+	/* Offset in rl_ring_buf to write into. */
+	u32 next_offset;
 
 	/* Current number of writer passes over rl_ring_buf */
 	u32 current_pass_no;
+
+	/* Current full_record to diff against */
+	struct full_record base_record;
+
+	/* Current record number counting from configuration change */
+	u64 current_record_no;
 };
 
 /* A ring buffer to save records about data blocks which were recently read. */
 struct read_log {
-	struct read_log_record *rl_ring_buf;
+	void *rl_ring_buf;
 
 	int rl_size;
 
-	struct read_log_state rl_state;
+	struct read_log_state rl_head;
 
-	/*
-	 * A lock for _all_ accesses to the struct, to protect against remounts.
-	 * Taken for writing when resizing the buffer.
-	 */
-	rwlock_t rl_access_lock;
+	struct read_log_state rl_tail;
 
-	/*
-	 * A lock to protect the actual logging - adding a new record.
-	 * Note: ALWAYS taken after and under the |rl_access_lock|.
-	 */
-	spinlock_t rl_logging_lock;
+	/* A lock to protect the above fields */
+	spinlock_t rl_lock;
 
-	/*
-	 * A queue of waiters who want to be notified about reads.
-	 */
+	/* A queue of waiters who want to be notified about reads */
 	wait_queue_head_t ml_notif_wq;
 };
 
@@ -281,7 +305,7 @@ int incfs_collect_logged_reads(struct mount_info *mi,
 			       int reads_size);
 struct read_log_state incfs_get_log_state(struct mount_info *mi);
 int incfs_get_uncollected_logs_count(struct mount_info *mi,
-				     struct read_log_state state);
+				     const struct read_log_state *state);
 
 static inline struct inode_info *get_incfs_node(struct inode *inode)
 {

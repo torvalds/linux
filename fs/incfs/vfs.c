@@ -640,7 +640,7 @@ static __poll_t log_poll(struct file *file, poll_table *wait)
 	__poll_t ret = 0;
 
 	poll_wait(file, &mi->mi_log.ml_notif_wq, wait);
-	count = incfs_get_uncollected_logs_count(mi, log_state->state);
+	count = incfs_get_uncollected_logs_count(mi, &log_state->state);
 	if (count >= mi->mi_options.read_log_wakeup_count)
 		ret = EPOLLIN | EPOLLRDNORM;
 
