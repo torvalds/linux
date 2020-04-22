@@ -108,6 +108,20 @@
 
 		phy0: ethernet-phy@7 {
 			reg = <7>;
+
+			rxc-skew-ps = <1500>;
+			rxdv-skew-ps = <540>;
+			rxd0-skew-ps = <420>;
+			rxd1-skew-ps = <420>;
+			rxd2-skew-ps = <420>;
+			rxd3-skew-ps = <420>;
+
+			txc-skew-ps = <1440>;
+			txen-skew-ps = <540>;
+			txd0-skew-ps = <420>;
+			txd1-skew-ps = <420>;
+			txd2-skew-ps = <420>;
+			txd3-skew-ps = <420>;
 		};
 	};
 };
