@@ -1303,7 +1303,8 @@ static void probe_pcache(void)
 					  c->dcache.linesz;
 		c->dcache.waybit = 0;
 		if ((c->processor_id & (PRID_IMP_MASK | PRID_REV_MASK)) >=
-				(PRID_IMP_LOONGSON_64C | PRID_REV_LOONGSON3A_R2_0))
+				(PRID_IMP_LOONGSON_64C | PRID_REV_LOONGSON3A_R2_0) ||
+				(c->processor_id & PRID_IMP_MASK) == PRID_IMP_LOONGSON_64R)
 			c->options |= MIPS_CPU_PREFETCH;
 		break;
 
@@ -1629,8 +1630,13 @@ static void __init loongson3_sc_init(void)
 	scache_size = c->scache.sets *
 				  c->scache.ways *
 				  c->scache.linesz;
-	/* Loongson-3 has 4 cores, 1MB scache for each. scaches are shared */
-	scache_size *= 4;
+
+	/* Loongson-3 has 4-Scache banks, while Loongson-2K have only 2 banks */
+	if ((c->processor_id & PRID_IMP_MASK) == PRID_IMP_LOONGSON_64R)
+		scache_size *= 2;
+	else
+		scache_size *= 4;
+
 	c->scache.waybit = 0;
 	c->scache.waysize = scache_size / c->scache.ways;
 	pr_info("Unified secondary cache %ldkB %s, linesize %d bytes.\n",

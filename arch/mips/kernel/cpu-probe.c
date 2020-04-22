@@ -1935,7 +1935,24 @@ platform:
 static inline void cpu_probe_loongson(struct cpuinfo_mips *c, unsigned int cpu)
 {
 	switch (c->processor_id & PRID_IMP_MASK) {
-	case PRID_IMP_LOONGSON_64C:  /* Loongson-2/3 */
+	case PRID_IMP_LOONGSON_64R: /* Loongson-64 Reduced */
+		switch (c->processor_id & PRID_REV_MASK) {
+		case PRID_REV_LOONGSON2K_R1_0:
+		case PRID_REV_LOONGSON2K_R1_1:
+		case PRID_REV_LOONGSON2K_R1_2:
+		case PRID_REV_LOONGSON2K_R1_3:
+			c->cputype = CPU_LOONGSON64;
+			__cpu_name[cpu] = "Loongson-2K";
+			set_elf_platform(cpu, "gs264e");
+			set_isa(c, MIPS_CPU_ISA_M64R2);
+			break;
+		}
+		decode_configs(c);
+		c->writecombine = _CACHE_UNCACHED_ACCELERATED;
+		c->ases |= (MIPS_ASE_LOONGSON_MMI | MIPS_ASE_LOONGSON_EXT |
+				MIPS_ASE_LOONGSON_EXT2);
+		break;
+	case PRID_IMP_LOONGSON_64C:  /* Loongson-3 Classic */
 		switch (c->processor_id & PRID_REV_MASK) {
 		case PRID_REV_LOONGSON3A_R2_0:
 		case PRID_REV_LOONGSON3A_R2_1:
