@@ -371,29 +371,17 @@ EXPORT_SYMBOL(pci_iounmap);
 static int pci_read(struct pci_bus *bus, unsigned int devfn, int where,
 		    int size, u32 *val)
 {
-	struct zpci_dev *zdev = get_zdev_by_bus(bus);
-	int ret;
+	struct zpci_dev *zdev = get_zdev_by_bus(bus, devfn);
 
-	if (!zdev || devfn != ZPCI_DEVFN)
-		ret = -ENODEV;
-	else
-		ret = zpci_cfg_load(zdev, where, val, size);
-
-	return ret;
+	return (zdev) ? zpci_cfg_load(zdev, where, val, size) : -ENODEV;
 }
 
 static int pci_write(struct pci_bus *bus, unsigned int devfn, int where,
 		     int size, u32 val)
 {
-	struct zpci_dev *zdev = get_zdev_by_bus(bus);
-	int ret;
+	struct zpci_dev *zdev = get_zdev_by_bus(bus, devfn);
 
-	if (!zdev || devfn != ZPCI_DEVFN)
-		ret = -ENODEV;
-	else
-		ret = zpci_cfg_store(zdev, where, val, size);
-
-	return ret;
+	return (zdev) ? zpci_cfg_store(zdev, where, val, size) : -ENODEV;
 }
 
 static struct pci_ops pci_root_ops = {
@@ -708,12 +696,12 @@ int zpci_create_device(struct zpci_dev *zdev)
 	if (rc)
 		goto out_disable;
 
-	zpci_init_slot(zdev);
 	return 0;
 
 out_disable:
 	if (zdev->state == ZPCI_FN_STATE_ONLINE)
 		zpci_disable_device(zdev);
+
 out_destroy_iommu:
 	zpci_destroy_iommu(zdev);
 out:
@@ -727,18 +715,25 @@ void zpci_release_device(struct kref *kref)
 {
 	struct zpci_dev *zdev = container_of(kref, struct zpci_dev, kref);
 
+	if (zdev->zbus->bus) {
+		struct pci_dev *pdev;
+
+		pdev = pci_get_slot(zdev->zbus->bus, zdev->devfn);
+		if (pdev)
+			pci_stop_and_remove_bus_device_locked(pdev);
+	}
+
 	switch (zdev->state) {
 	case ZPCI_FN_STATE_ONLINE:
 	case ZPCI_FN_STATE_CONFIGURED:
 		zpci_disable_device(zdev);
 		fallthrough;
 	case ZPCI_FN_STATE_STANDBY:
-		if (zdev->zbus) {
+		if (zdev->has_hp_slot)
 			zpci_exit_slot(zdev);
-			zpci_cleanup_bus_resources(zdev);
-			zpci_bus_device_unregister(zdev);
-			zpci_destroy_iommu(zdev);
-		}
+		zpci_cleanup_bus_resources(zdev);
+		zpci_bus_device_unregister(zdev);
+		zpci_destroy_iommu(zdev);
 		fallthrough;
 	default:
 		break;

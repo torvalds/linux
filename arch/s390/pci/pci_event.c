@@ -55,7 +55,7 @@ static void __zpci_event_error(struct zpci_ccdf_err *ccdf)
 	zpci_err_hex(ccdf, sizeof(*ccdf));
 
 	if (zdev)
-		pdev = pci_get_slot(zdev->zbus->bus, ZPCI_DEVFN);
+		pdev = pci_get_slot(zdev->zbus->bus, zdev->devfn);
 
 	pr_err("%s: Event 0x%x reports an error for PCI function 0x%x\n",
 	       pdev ? pci_name(pdev) : "n/a", ccdf->pec, ccdf->fid);
@@ -81,7 +81,7 @@ static void __zpci_event_availability(struct zpci_ccdf_avail *ccdf)
 	int ret;
 
 	if (zdev && zdev->zbus && zdev->zbus->bus)
-		pdev = pci_get_slot(zdev->zbus->bus, ZPCI_DEVFN);
+		pdev = pci_get_slot(zdev->zbus->bus, zdev->devfn);
 
 	zpci_err("avail CCDF:\n");
 	zpci_err_hex(ccdf, sizeof(*ccdf));

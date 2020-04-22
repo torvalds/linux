@@ -22,9 +22,10 @@ void zpci_free_domain(int domain);
 int zpci_setup_bus_resources(struct zpci_dev *zdev,
 			     struct list_head *resources);
 
-static inline struct zpci_dev *get_zdev_by_bus(struct pci_bus *bus)
+static inline struct zpci_dev *get_zdev_by_bus(struct pci_bus *bus,
+					       unsigned int devfn)
 {
 	struct zpci_bus *zbus = bus->sysdata;
 
-	return zbus->function[ZPCI_DEVFN];
+	return (devfn >= ZPCI_FUNCTIONS_PER_BUS) ? NULL : zbus->function[devfn];
 }

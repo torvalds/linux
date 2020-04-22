@@ -22,7 +22,6 @@ int pci_domain_nr(struct pci_bus *);
 int pci_proc_domain(struct pci_bus *);
 
 #define ZPCI_BUS_NR			0	/* default bus number */
-#define ZPCI_DEVFN			0	/* default device number */
 
 #define ZPCI_NR_DMA_SPACES		1
 #define ZPCI_NR_DEVICES			CONFIG_PCI_NR_FUNCTIONS
@@ -110,6 +109,7 @@ struct zpci_bus {
 	struct resource		bus_resource;
 	int			pchid;
 	int			domain_nr;
+	bool			multifunction;
 	enum pci_bus_speed	max_bus_speed;
 };
 
@@ -117,6 +117,7 @@ struct zpci_bus {
 struct zpci_dev {
 	struct zpci_bus *zbus;
 	struct list_head entry;		/* list of all zpci_devices, needed for hotplug, etc. */
+	struct list_head bus_next;
 	struct kref kref;
 	struct hotplug_slot hotplug_slot;
 
@@ -129,7 +130,8 @@ struct zpci_dev {
 	u8		pft;		/* pci function type */
 	u8		port;
 	u8		rid_available	: 1;
-	u8		reserved	: 7;
+	u8		has_hp_slot	: 1;
+	u8		reserved	: 6;
 	unsigned int	devfn;		/* DEVFN part of the RID*/
 
 	struct mutex lock;
@@ -253,7 +255,7 @@ static inline struct zpci_dev *to_zpci(struct pci_dev *pdev)
 {
 	struct zpci_bus *zbus = pdev->sysdata;
 
-	return zbus->function[ZPCI_DEVFN];
+	return zbus->function[pdev->devfn];
 }
 
 static inline struct zpci_dev *to_zpci_dev(struct device *dev)

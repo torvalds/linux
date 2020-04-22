@@ -62,14 +62,16 @@ static void zpci_bus_release(struct kref *kref)
 {
 	struct zpci_bus *zbus = container_of(kref, struct zpci_bus, kref);
 
-	pci_lock_rescan_remove();
-	pci_stop_root_bus(zbus->bus);
+	if (zbus->bus) {
+		pci_lock_rescan_remove();
+		pci_stop_root_bus(zbus->bus);
 
-	zpci_free_domain(zbus->domain_nr);
-	pci_free_resource_list(&zbus->resources);
+		zpci_free_domain(zbus->domain_nr);
+		pci_free_resource_list(&zbus->resources);
 
-	pci_remove_root_bus(zbus->bus);
-	pci_unlock_rescan_remove();
+		pci_remove_root_bus(zbus->bus);
+		pci_unlock_rescan_remove();
+	}
 
 	spin_lock(&zbus_list_lock);
 	list_del(&zbus->bus_next);
@@ -80,6 +82,23 @@ static void zpci_bus_release(struct kref *kref)
 static void zpci_bus_put(struct zpci_bus *zbus)
 {
 	kref_put(&zbus->kref, zpci_bus_release);
+}
+
+static struct zpci_bus *zpci_bus_get(int pchid)
+{
+	struct zpci_bus *zbus;
+
+	spin_lock(&zbus_list_lock);
+	list_for_each_entry(zbus, &zbus_list, bus_next) {
+		if (pchid == zbus->pchid) {
+			kref_get(&zbus->kref);
+			goto out_unlock;
+		}
+	}
+	zbus = NULL;
+out_unlock:
+	spin_unlock(&zbus_list_lock);
+	return zbus;
 }
 
 static struct zpci_bus *zpci_bus_alloc(int pchid)
@@ -107,10 +126,61 @@ static struct zpci_bus *zpci_bus_alloc(int pchid)
 	return zbus;
 }
 
+static int zpci_bus_add_device(struct zpci_bus *zbus, struct zpci_dev *zdev)
+{
+	struct pci_bus *bus;
+	struct resource_entry *window, *n;
+	struct resource *res;
+	struct pci_dev *pdev;
+	int rc;
+
+	bus = zbus->bus;
+	if (!bus)
+		return -EINVAL;
+
+	pdev = pci_get_slot(bus, zdev->devfn);
+	if (pdev) {
+		/* Device is already known. */
+		pci_dev_put(pdev);
+		return 0;
+	}
+
+	rc = zpci_init_slot(zdev);
+	if (rc)
+		return rc;
+	zdev->has_hp_slot = 1;
+
+	resource_list_for_each_entry_safe(window, n, &zbus->resources) {
+		res = window->res;
+		pci_bus_add_resource(bus, res, 0);
+	}
+
+	pdev = pci_scan_single_device(bus, zdev->devfn);
+	if (pdev) {
+		pdev->multifunction = 1;
+		pci_bus_add_device(pdev);
+	}
+
+	return 0;
+}
+
+static void zpci_bus_add_devices(struct zpci_bus *zbus)
+{
+	int i;
+
+	for (i = 1; i < ZPCI_FUNCTIONS_PER_BUS; i++)
+		if (zbus->function[i])
+			zpci_bus_add_device(zbus, zbus->function[i]);
+
+	pci_lock_rescan_remove();
+	pci_bus_add_devices(zbus->bus);
+	pci_unlock_rescan_remove();
+}
+
 int zpci_bus_device_register(struct zpci_dev *zdev, struct pci_ops *ops)
 {
-	struct zpci_bus *zbus;
-	int rc;
+	struct zpci_bus *zbus = NULL;
+	int rc = -EBADF;
 
 	if (zpci_nb_devices == ZPCI_NR_DEVICES) {
 		pr_warn("Adding PCI function %08x failed because the configured limit of %d is reached\n",
@@ -119,25 +189,65 @@ int zpci_bus_device_register(struct zpci_dev *zdev, struct pci_ops *ops)
 	}
 	zpci_nb_devices++;
 
-	if (zdev->devfn != ZPCI_DEVFN)
+	if (zdev->devfn >= ZPCI_FUNCTIONS_PER_BUS)
 		return -EINVAL;
 
-	zbus = zpci_bus_alloc(zdev->pchid);
-	if (!zbus)
-		return -ENOMEM;
+	if (!s390_pci_no_rid && zdev->rid_available)
+		zbus = zpci_bus_get(zdev->pchid);
+
+	if (!zbus) {
+		zbus = zpci_bus_alloc(zdev->pchid);
+		if (!zbus)
+			return -ENOMEM;
+	}
 
 	zdev->zbus = zbus;
-	zbus->function[ZPCI_DEVFN] = zdev;
+	if (zbus->function[zdev->devfn]) {
+		pr_err("devfn %04x is already assigned\n", zdev->devfn);
+		goto error; /* rc already set */
+	}
+	zbus->function[zdev->devfn] = zdev;
 
 	zpci_setup_bus_resources(zdev, &zbus->resources);
-	zbus->max_bus_speed = zdev->max_bus_speed;
 
-	rc = zpci_bus_scan(zbus, (u16)zdev->uid, ops);
-	if (!rc)
-		return 0;
+	if (zbus->bus) {
+		if (!zbus->multifunction) {
+			WARN_ONCE(1, "zbus is not multifunction\n");
+			goto error_bus;
+		}
+		if (!zdev->rid_available) {
+			WARN_ONCE(1, "rid_available not set for multifunction\n");
+			goto error_bus;
+		}
+		rc = zpci_bus_add_device(zbus, zdev);
+		if (rc)
+			goto error_bus;
+	} else if (zdev->devfn == 0) {
+		if (zbus->multifunction && !zdev->rid_available) {
+			WARN_ONCE(1, "rid_available not set on function 0 for multifunction\n");
+			goto error_bus;
+		}
+		rc = zpci_bus_scan(zbus, (u16)zdev->uid, ops);
+		if (rc)
+			goto error_bus;
+		zpci_bus_add_devices(zbus);
+		rc = zpci_init_slot(zdev);
+		if (rc)
+			goto error_bus;
+		zdev->has_hp_slot = 1;
+		zbus->multifunction = zdev->rid_available;
+		zbus->max_bus_speed = zdev->max_bus_speed;
+	} else {
+		zbus->multifunction = 1;
+	}
 
+	return 0;
+
+error_bus:
+	zpci_nb_devices--;
+	zbus->function[zdev->devfn] = NULL;
+error:
 	pr_err("Adding PCI function %08x failed\n", zdev->fid);
-	zdev->zbus = NULL;
 	zpci_bus_put(zbus);
 	return rc;
 }
@@ -147,6 +257,6 @@ void zpci_bus_device_unregister(struct zpci_dev *zdev)
 	struct zpci_bus *zbus = zdev->zbus;
 
 	zpci_nb_devices--;
-	zbus->function[ZPCI_DEVFN] = NULL;
+	zbus->function[zdev->devfn] = NULL;
 	zpci_bus_put(zbus);
 }

@@ -66,7 +66,7 @@ static int enable_slot(struct hotplug_slot *hotplug_slot)
 	if (rc)
 		goto out_deconfigure;
 
-	pci_scan_slot(zbus->bus, ZPCI_DEVFN);
+	pci_scan_slot(zbus->bus, zdev->devfn);
 	pci_lock_rescan_remove();
 	pci_bus_add_devices(zbus->bus);
 	pci_unlock_rescan_remove();
@@ -89,7 +89,7 @@ static int disable_slot(struct hotplug_slot *hotplug_slot)
 	if (!zpci_fn_configured(zdev->state))
 		return -EIO;
 
-	pdev = pci_get_slot(zbus->bus, ZPCI_DEVFN);
+	pdev = pci_get_slot(zbus->bus, zdev->devfn);
 	if (pdev) {
 		pci_stop_and_remove_bus_device_locked(pdev);
 		pci_dev_put(pdev);
@@ -141,7 +141,7 @@ int zpci_init_slot(struct zpci_dev *zdev)
 
 	snprintf(name, SLOT_NAME_SIZE, "%08x", zdev->fid);
 	return pci_hp_register(&zdev->hotplug_slot, zbus->bus,
-			       ZPCI_DEVFN, name);
+			       zdev->devfn, name);
 }
 
 void zpci_exit_slot(struct zpci_dev *zdev)
