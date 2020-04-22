@@ -258,7 +258,7 @@ int driver_deferred_probe_check_state(struct device *dev)
 	}
 
 	if (!driver_deferred_probe_timeout && initcalls_done) {
-		dev_WARN(dev, "deferred probe timeout, ignoring dependency");
+		dev_warn(dev, "deferred probe timeout, ignoring dependency");
 		return -ETIMEDOUT;
 	}
 
