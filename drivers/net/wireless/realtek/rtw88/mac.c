@@ -108,51 +108,55 @@ static int rtw_mac_pre_system_cfg(struct rtw_dev *rtwdev)
 	return 0;
 }
 
+static bool do_pwr_poll_cmd(struct rtw_dev *rtwdev, u32 addr, u32 mask, u32 target)
+{
+	u32 cnt;
+
+	target &= mask;
+
+	for (cnt = 0; cnt < RTW_PWR_POLLING_CNT; cnt++) {
+		if ((rtw_read8(rtwdev, addr) & mask) == target)
+			return true;
+
+		udelay(50);
+	}
+
+	return false;
+}
+
 static int rtw_pwr_cmd_polling(struct rtw_dev *rtwdev,
 			       const struct rtw_pwr_seq_cmd *cmd)
 {
 	u8 value;
-	u8 flag = 0;
 	u32 offset;
-	u32 cnt = RTW_PWR_POLLING_CNT;
 
 	if (cmd->base == RTW_PWR_ADDR_SDIO)
 		offset = cmd->offset | SDIO_LOCAL_OFFSET;
 	else
 		offset = cmd->offset;
 
-	do {
-		cnt--;
-		value = rtw_read8(rtwdev, offset);
-		value &= cmd->mask;
-		if (value == (cmd->value & cmd->mask))
-			return 0;
-		if (cnt == 0) {
-			if (rtw_hci_type(rtwdev) == RTW_HCI_TYPE_PCIE &&
-			    flag == 0) {
-				value = rtw_read8(rtwdev, REG_SYS_PW_CTRL);
-				if (rtwdev->chip->id == RTW_CHIP_TYPE_8723D) {
-					value &= ~BIT_PFM_WOWL;
-					rtw_write8(rtwdev, REG_SYS_PW_CTRL, value);
-				}
-				value |= BIT_PFM_WOWL;
-				rtw_write8(rtwdev, REG_SYS_PW_CTRL, value);
-				value &= ~BIT_PFM_WOWL;
-				rtw_write8(rtwdev, REG_SYS_PW_CTRL, value);
-				if (rtwdev->chip->id == RTW_CHIP_TYPE_8723D) {
-					value |= BIT_PFM_WOWL;
-					rtw_write8(rtwdev, REG_SYS_PW_CTRL, value);
-				}
+	if (do_pwr_poll_cmd(rtwdev, offset, cmd->mask, cmd->value))
+		return 0;
 
-				cnt = RTW_PWR_POLLING_CNT;
-				flag = 1;
-			} else {
-				return -EBUSY;
-			}
-		} else {
-			udelay(50);
-		}
-	} while (1);
+	if (rtw_hci_type(rtwdev) != RTW_HCI_TYPE_PCIE)
+		goto err;
+
+	/* if PCIE, toggle BIT_PFM_WOWL and try again */
+	value = rtw_read8(rtwdev, REG_SYS_PW_CTRL);
+	if (rtwdev->chip->id == RTW_CHIP_TYPE_8723D)
+		rtw_write8(rtwdev, REG_SYS_PW_CTRL, value & ~BIT_PFM_WOWL);
+	rtw_write8(rtwdev, REG_SYS_PW_CTRL, value | BIT_PFM_WOWL);
+	rtw_write8(rtwdev, REG_SYS_PW_CTRL, value & ~BIT_PFM_WOWL);
+	if (rtwdev->chip->id == RTW_CHIP_TYPE_8723D)
+		rtw_write8(rtwdev, REG_SYS_PW_CTRL, value | BIT_PFM_WOWL);
+
+	if (do_pwr_poll_cmd(rtwdev, offset, cmd->mask, cmd->value))
+		return 0;
+
+err:
+	rtw_err(rtwdev, "failed to poll offset=0x%x mask=0x%x value=0x%x\n",
+		offset, cmd->mask, cmd->value);
+	return -EBUSY;
 }
 
 static int rtw_sub_pwr_seq_parser(struct rtw_dev *rtwdev, u8 intf_mask,
