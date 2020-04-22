@@ -7460,7 +7460,7 @@ L:	linux-media@vger.kernel.org
 L:	linux-rockchip@lists.infradead.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/media/nxp,imx8mq-vpu.yaml
-F:	Documentation/devicetree/bindings/media/rockchip-vpu.txt
+F:	Documentation/devicetree/bindings/media/rockchip-vpu.yaml
 F:	drivers/staging/media/hantro/
 
 HARD DRIVE ACTIVE PROTECTION SYSTEM (HDAPS) DRIVER
@@ -14465,13 +14465,6 @@ F:	Documentation/ABI/*/sysfs-driver-hid-roccat*
 F:	drivers/hid/hid-roccat*
 F:	include/linux/hid-roccat*
 
-ROCKCHIP VIDEO DECODER DRIVER
-M:	Ezequiel Garcia <ezequiel@collabora.com>
-L:	linux-media@vger.kernel.org
-S:	Maintained
-F:	drivers/staging/media/rkvdec/
-F:	Documentation/devicetree/bindings/media/rockchip,vdec.yaml
-
 ROCKCHIP ISP V1 DRIVER
 M:	Helen Koike <helen.koike@collabora.com>
 L:	linux-media@vger.kernel.org
@@ -14482,11 +14475,18 @@ ROCKCHIP RASTER 2D GRAPHIC ACCELERATION UNIT DRIVER
 M:	Jacob Chen <jacob-chen@iotwrt.com>
 M:	Ezequiel Garcia <ezequiel@collabora.com>
 L:	linux-media@vger.kernel.org
+L:	linux-rockchip@lists.infradead.org
 S:	Maintained
-F:	Documentation/devicetree/bindings/media/nxp,imx8mq-vpu.yaml
 F:	Documentation/devicetree/bindings/media/rockchip-rga.yaml
-F:	Documentation/devicetree/bindings/media/rockchip-vpu.yaml
 F:	drivers/media/platform/rockchip/rga/
+
+ROCKCHIP VIDEO DECODER DRIVER
+M:	Ezequiel Garcia <ezequiel@collabora.com>
+L:	linux-media@vger.kernel.org
+L:	linux-rockchip@lists.infradead.org
+S:	Maintained
+F:	drivers/staging/media/rkvdec/
+F:	Documentation/devicetree/bindings/media/rockchip,vdec.yaml
 
 ROCKER DRIVER
 M:	Jiri Pirko <jiri@resnulli.us>
