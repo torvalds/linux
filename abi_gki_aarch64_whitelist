@@ -1,80 +1,13 @@
 [abi_whitelist]
 # commonly used symbols
-  __cfi_slowpath
-  __const_udelay
   _dev_err
-  devm_ioremap_resource
   devm_kmalloc
-  devm_request_threaded_irq
-  _dev_warn
-  dummy_dma_ops
-  find_next_bit
-  find_next_zero_bit
-  kfree
-  __kmalloc
-  kmalloc_caches
-  kmem_cache_alloc_trace
-  ktime_get
-  __list_add_valid
-  __ll_sc_atomic64_andnot
-  __ll_sc_atomic_add_return
   module_layout
-  __mutex_init
-  mutex_lock
-  mutex_unlock
-  of_find_property
-  of_property_read_variable_u32_array
-  platform_get_irq
-  platform_get_resource
-  printk
   __put_task_struct
-  ___ratelimit
-  _raw_spin_lock_irqsave
-  _raw_spin_unlock_irqrestore
   snprintf
   __stack_chk_fail
   __stack_chk_guard
   strcmp
-  __udelay
-
-# required by arm-smmu.ko
-  alloc_io_pgtable_ops
-  amba_bustype
-  bus_set_iommu
-  devm_free_irq
-  _dev_notice
-  driver_find_device
-  driver_for_each_device
-  free_io_pgtable_ops
-  generic_device_group
-  iommu_alloc_resv_region
-  iommu_device_register
-  iommu_dma_get_resv_regions
-  iommu_fwspec_add_ids
-  iommu_fwspec_free
-  iommu_fwspec_init
-  iommu_group_get_for_dev
-  iommu_group_put
-  iommu_group_ref_get
-  iommu_group_remove_device
-  iommu_present
-  iommu_put_dma_cookie
-  __ll_sc_atomic64_fetch_or
-  of_device_get_match_data
-  of_dma_is_coherent
-  of_phandle_iterator_args
-  of_phandle_iterator_init
-  of_phandle_iterator_next
-  param_ops_bool
-  param_ops_int
-  pci_bus_type
-  pci_device_group
-  pci_for_each_dma_alias
-  pci_request_acs
-  platform_bus_type
-  __platform_driver_register
-  platform_driver_unregister
-  put_device
 
 # required by ufshcd-core.ko
   __alloc_workqueue_key
@@ -89,12 +22,14 @@
   cancel_delayed_work
   cancel_delayed_work_sync
   cancel_work_sync
+  __cfi_slowpath
   clk_disable
   clk_enable
   clk_prepare
   clk_set_rate
   clk_unprepare
   complete
+  __const_udelay
   cpu_number
   __cpu_online_mask
   delayed_work_timer_fn
@@ -109,14 +44,19 @@
   devm_clk_get
   devm_kfree
   devm_regulator_get
+  devm_request_threaded_irq
   dev_pm_opp_add
   dev_pm_opp_remove
+  _dev_warn
   dmam_alloc_coherent
   down_read
   down_read_trylock
   down_write
+  dummy_dma_ops
   event_triggers_call
   find_last_bit
+  find_next_bit
+  find_next_zero_bit
   finish_wait
   flush_work
   free_irq
@@ -130,16 +70,26 @@
   keyslot_manager_destroy
   keyslot_manager_private
   keyslot_manager_reprogram_all_keys
+  kfree
+  __kmalloc
+  kmalloc_caches
+  kmem_cache_alloc_trace
   kstrtouint
   kstrtoull
+  ktime_get
+  __ll_sc_atomic64_andnot
   __ll_sc_atomic64_fetch_andnot_release
   __ll_sc_atomic64_fetch_or_acquire
+  __ll_sc_atomic_add_return
   __ll_sc_atomic_sub_return
   memcpy
   memset
   memzero_explicit
   __msecs_to_jiffies
   msleep
+  __mutex_init
+  mutex_lock
+  mutex_unlock
   perf_trace_buf_alloc
   perf_trace_run_bpf_submit
   __pm_runtime_idle
@@ -147,10 +97,14 @@
   preempt_schedule_notrace
   prepare_to_wait_event
   print_hex_dump
+  printk
   queue_delayed_work_on
   queue_work_on
+  ___ratelimit
   _raw_spin_lock
+  _raw_spin_lock_irqsave
   _raw_spin_unlock
+  _raw_spin_unlock_irqrestore
   regulator_count_voltages
   regulator_disable
   regulator_enable
@@ -198,6 +152,7 @@
   trace_print_symbols_seq
   trace_raw_output_prep
   trace_seq_printf
+  __udelay
   up_read
   up_write
   usleep_range
@@ -208,9 +163,15 @@
 
 # required by ufshcd-pltfrm.ko
   _dev_info
+  devm_ioremap_resource
   kstrdup
+  __list_add_valid
+  of_find_property
   of_get_property
   of_parse_phandle
   of_property_read_string_helper
+  of_property_read_variable_u32_array
+  platform_get_irq
+  platform_get_resource
   pm_runtime_enable
   __pm_runtime_set_status
