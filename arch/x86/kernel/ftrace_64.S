@@ -253,7 +253,7 @@ SYM_INNER_LABEL(ftrace_regs_call, SYM_L_GLOBAL)
 	 * The trampoline will add the code to jump
 	 * to the return.
 	 */
-SYM_INNER_LABEL(ftrace_regs_caller_ret, SYM_L_GLOBAL)
+SYM_INNER_LABEL(ftrace_regs_caller_end, SYM_L_GLOBAL)
 	jmp ftrace_epilogue
 
 	/* Swap the flags with orig_rax */
@@ -264,7 +264,6 @@ SYM_INNER_LABEL(ftrace_regs_caller_ret, SYM_L_GLOBAL)
 	restore_mcount_regs 8
 	/* Restore flags */
 	popfq
-SYM_INNER_LABEL(ftrace_regs_caller_end, SYM_L_GLOBAL)
 	UNWIND_HINT_RET_OFFSET
 	jmp	ftrace_epilogue
 

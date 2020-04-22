@@ -367,13 +367,6 @@ create_trampoline(struct ftrace_ops *ops, unsigned int *tramp_size)
 	if (WARN_ON(ret < 0))
 		goto fail;
 
-	if (ops->flags & FTRACE_OPS_FL_SAVE_REGS) {
-		ip = trampoline + (ftrace_regs_caller_ret - ftrace_regs_caller);
-		ret = copy_from_kernel_nofault(ip, (void *)retq, RET_SIZE);
-		if (WARN_ON(ret < 0))
-			goto fail;
-	}
-
 	/*
 	 * The address of the ftrace_ops that is used for this trampoline
 	 * is stored at the end of the trampoline. This will be used to
