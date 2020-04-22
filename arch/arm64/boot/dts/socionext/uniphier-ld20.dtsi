@@ -234,6 +234,8 @@
 			compatible = "socionext,uniphier-scssi";
 			status = "disabled";
 			reg = <0x54006000 0x100>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			interrupts = <0 39 4>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_spi0>;
@@ -245,6 +247,8 @@
 			compatible = "socionext,uniphier-scssi";
 			status = "disabled";
 			reg = <0x54006100 0x100>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			interrupts = <0 216 4>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_spi1>;
@@ -256,6 +260,8 @@
 			compatible = "socionext,uniphier-scssi";
 			status = "disabled";
 			reg = <0x54006200 0x100>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			interrupts = <0 229 4>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_spi2>;
@@ -267,6 +273,8 @@
 			compatible = "socionext,uniphier-scssi";
 			status = "disabled";
 			reg = <0x54006300 0x100>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			interrupts = <0 230 4>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_spi3>;
