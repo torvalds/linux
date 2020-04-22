@@ -303,7 +303,6 @@ struct ms_hyperv_tsc_page {
 	u32 reserved1;
 	volatile u64 tsc_scale;
 	volatile s64 tsc_offset;
-	u64 reserved2[509];
 }  __packed;
 
 /*
@@ -432,13 +431,6 @@ enum HV_GENERIC_SET_FORMAT {
  * page provide a guest VM clock with 100ns tick rate
  */
 #define HV_CLOCK_HZ (NSEC_PER_SEC/100)
-
-typedef struct _HV_REFERENCE_TSC_PAGE {
-	__u32 tsc_sequence;
-	__u32 res1;
-	__u64 tsc_scale;
-	__s64 tsc_offset;
-}  __packed HV_REFERENCE_TSC_PAGE, *PHV_REFERENCE_TSC_PAGE;
 
 /* Define the number of synthetic interrupt sources. */
 #define HV_SYNIC_SINT_COUNT		(16)
