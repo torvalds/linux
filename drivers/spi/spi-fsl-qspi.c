@@ -880,8 +880,8 @@ static int fsl_qspi_probe(struct platform_device *pdev)
 	/* Since there are 4 cs, map size required is 4 times ahb_buf_size */
 	q->ahb_addr = devm_ioremap(dev, q->memmap_phy,
 				   (q->devtype_data->ahb_buf_size * 4));
-	if (IS_ERR(q->ahb_addr)) {
-		ret = PTR_ERR(q->ahb_addr);
+	if (!q->ahb_addr) {
+		ret = -ENOMEM;
 		goto err_put_ctrl;
 	}
 
