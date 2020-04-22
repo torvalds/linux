@@ -1475,6 +1475,7 @@ struct rtw_efuse {
 	u8 ant_div_cfg;
 	u8 ant_div_type;
 	u8 regd;
+	u8 afe;
 
 	u8 lna_type_2g;
 	u8 lna_type_5g;

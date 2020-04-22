@@ -37,6 +37,98 @@ static const struct rtw_hw_reg rtw8723d_txagc[] = {
 	[DESC_RATEMCS7]	= { .addr = 0xe14, .mask = 0xff000000 },
 };
 
+#define WLAN_TXQ_RPT_EN		0x1F
+#define WLAN_SLOT_TIME		0x09
+#define WLAN_RL_VAL		0x3030
+#define WLAN_BAR_VAL		0x0201ffff
+#define BIT_MASK_TBTT_HOLD	0x00000fff
+#define BIT_SHIFT_TBTT_HOLD	8
+#define BIT_MASK_TBTT_SETUP	0x000000ff
+#define BIT_SHIFT_TBTT_SETUP	0
+#define BIT_MASK_TBTT_MASK	((BIT_MASK_TBTT_HOLD << BIT_SHIFT_TBTT_HOLD) | \
+				 (BIT_MASK_TBTT_SETUP << BIT_SHIFT_TBTT_SETUP))
+#define TBTT_TIME(s, h)((((s) & BIT_MASK_TBTT_SETUP) << BIT_SHIFT_TBTT_SETUP) |\
+			(((h) & BIT_MASK_TBTT_HOLD) << BIT_SHIFT_TBTT_HOLD))
+#define WLAN_TBTT_TIME_NORMAL	TBTT_TIME(0x04, 0x80)
+#define WLAN_TBTT_TIME_STOP_BCN	TBTT_TIME(0x04, 0x64)
+#define WLAN_PIFS_VAL		0
+#define WLAN_AGG_BRK_TIME	0x16
+#define WLAN_NAV_PROT_LEN	0x0040
+#define WLAN_SPEC_SIFS		0x100a
+#define WLAN_RX_PKT_LIMIT	0x17
+#define WLAN_MAX_AGG_NR		0x0A
+#define WLAN_AMPDU_MAX_TIME	0x1C
+#define WLAN_ANT_SEL		0x82
+#define WLAN_LTR_IDLE_LAT	0x883C883C
+#define WLAN_LTR_ACT_LAT	0x880B880B
+#define WLAN_LTR_CTRL1		0xCB004010
+#define WLAN_LTR_CTRL2		0x01233425
+
+static void rtw8723d_phy_set_param(struct rtw_dev *rtwdev)
+{
+	u8 xtal_cap;
+	u32 val32;
+
+	/* power on BB/RF domain */
+	rtw_write16_set(rtwdev, REG_SYS_FUNC_EN,
+			BIT_FEN_EN_25_1 | BIT_FEN_BB_GLB_RST | BIT_FEN_BB_RSTB);
+	rtw_write8_set(rtwdev, REG_RF_CTRL,
+		       BIT_RF_EN | BIT_RF_RSTB | BIT_RF_SDM_RSTB);
+	rtw_write8(rtwdev, REG_AFE_CTRL1 + 1, 0x80);
+
+	rtw_phy_load_tables(rtwdev);
+
+	/* post init after header files config */
+	rtw_write32_clr(rtwdev, REG_RCR, BIT_RCR_ADF);
+	rtw_write8_set(rtwdev, REG_HIQ_NO_LMT_EN, BIT_HIQ_NO_LMT_EN_ROOT);
+	rtw_write16_set(rtwdev, REG_AFE_CTRL_4, BIT_CK320M_AFE_EN | BIT_EN_SYN);
+
+	xtal_cap = rtwdev->efuse.crystal_cap & 0x3F;
+	rtw_write32_mask(rtwdev, REG_AFE_CTRL3, BIT_MASK_XTAL,
+			 xtal_cap | (xtal_cap << 6));
+	rtw_write32_set(rtwdev, REG_FPGA0_RFMOD, BIT_CCKEN | BIT_OFDMEN);
+	if ((rtwdev->efuse.afe >> 4) == 14) {
+		rtw_write32_set(rtwdev, REG_AFE_CTRL3, BIT_XTAL_GMP_BIT4);
+		rtw_write32_clr(rtwdev, REG_AFE_CTRL1, BITS_PLL);
+		rtw_write32_set(rtwdev, REG_LDO_SWR_CTRL, BIT_XTA1);
+		rtw_write32_clr(rtwdev, REG_LDO_SWR_CTRL, BIT_XTA0);
+	}
+
+	rtw_write8(rtwdev, REG_SLOT, WLAN_SLOT_TIME);
+	rtw_write8(rtwdev, REG_FWHW_TXQ_CTRL + 1, WLAN_TXQ_RPT_EN);
+	rtw_write16(rtwdev, REG_RETRY_LIMIT, WLAN_RL_VAL);
+	rtw_write32(rtwdev, REG_BAR_MODE_CTRL, WLAN_BAR_VAL);
+	rtw_write8(rtwdev, REG_ATIMWND, 0x2);
+	rtw_write8(rtwdev, REG_BCN_CTRL,
+		   BIT_DIS_TSF_UDT | BIT_EN_BCN_FUNCTION | BIT_EN_TXBCN_RPT);
+	val32 = rtw_read32(rtwdev, REG_TBTT_PROHIBIT);
+	val32 &= ~BIT_MASK_TBTT_MASK;
+	val32 |= WLAN_TBTT_TIME_STOP_BCN;
+	rtw_write8(rtwdev, REG_TBTT_PROHIBIT, val32);
+	rtw_write8(rtwdev, REG_PIFS, WLAN_PIFS_VAL);
+	rtw_write8(rtwdev, REG_AGGR_BREAK_TIME, WLAN_AGG_BRK_TIME);
+	rtw_write16(rtwdev, REG_NAV_PROT_LEN, WLAN_NAV_PROT_LEN);
+	rtw_write16(rtwdev, REG_MAC_SPEC_SIFS, WLAN_SPEC_SIFS);
+	rtw_write16(rtwdev, REG_SIFS, WLAN_SPEC_SIFS);
+	rtw_write16(rtwdev, REG_SIFS + 2, WLAN_SPEC_SIFS);
+	rtw_write8(rtwdev, REG_SINGLE_AMPDU_CTRL, BIT_EN_SINGLE_APMDU);
+	rtw_write8(rtwdev, REG_RX_PKT_LIMIT, WLAN_RX_PKT_LIMIT);
+	rtw_write8(rtwdev, REG_MAX_AGGR_NUM, WLAN_MAX_AGG_NR);
+	rtw_write8(rtwdev, REG_AMPDU_MAX_TIME, WLAN_AMPDU_MAX_TIME);
+	rtw_write8(rtwdev, REG_LEDCFG2, WLAN_ANT_SEL);
+
+	rtw_write32(rtwdev, REG_LTR_IDLE_LATENCY, WLAN_LTR_IDLE_LAT);
+	rtw_write32(rtwdev, REG_LTR_ACTIVE_LATENCY, WLAN_LTR_ACT_LAT);
+	rtw_write32(rtwdev, REG_LTR_CTRL_BASIC, WLAN_LTR_CTRL1);
+	rtw_write32(rtwdev, REG_LTR_CTRL_BASIC + 4, WLAN_LTR_CTRL2);
+
+	rtw_phy_init(rtwdev);
+
+	rtw_write16_set(rtwdev, REG_TXDMA_OFFSET_CHK, BIT_DROP_DATA_EN);
+	rtw_write32_mask(rtwdev, REG_OFDM0_XAAGC1, MASKBYTE0, 0x50);
+	rtw_write32_mask(rtwdev, REG_OFDM0_XAAGC1, MASKBYTE0, 0x20);
+}
+
 static void rtw8723de_efuse_parsing(struct rtw_efuse *efuse,
 				    struct rtw8723d_efuse *map)
 {
@@ -63,6 +155,7 @@ static int rtw8723d_read_efuse(struct rtw_dev *rtwdev, u8 *log_map)
 	efuse->regd = map->rf_board_option & 0x7;
 	efuse->thermal_meter[0] = map->thermal_meter;
 	efuse->thermal_meter_k = map->thermal_meter;
+	efuse->afe = map->afe;
 
 	for (i = 0; i < 4; i++)
 		efuse->txpwr_idx_table[i] = map->txpwr_idx_table[i];
@@ -75,6 +168,35 @@ static int rtw8723d_read_efuse(struct rtw_dev *rtwdev, u8 *log_map)
 		/* unsupported now */
 		return -ENOTSUPP;
 	}
+
+	return 0;
+}
+
+#define BIT_CFENDFORM		BIT(9)
+#define BIT_WMAC_TCR_ERR0	BIT(12)
+#define BIT_WMAC_TCR_ERR1	BIT(13)
+#define BIT_TCR_CFG		(BIT_CFENDFORM | BIT_WMAC_TCR_ERR0 |	       \
+				 BIT_WMAC_TCR_ERR1)
+#define WLAN_RX_FILTER0		0xFFFF
+#define WLAN_RX_FILTER1		0x400
+#define WLAN_RX_FILTER2		0xFFFF
+#define WLAN_RCR_CFG		0x700060CE
+
+static int rtw8723d_mac_init(struct rtw_dev *rtwdev)
+{
+	rtw_write8(rtwdev, REG_FWHW_TXQ_CTRL + 1, WLAN_TXQ_RPT_EN);
+	rtw_write32(rtwdev, REG_TCR, BIT_TCR_CFG);
+
+	rtw_write16(rtwdev, REG_RXFLTMAP0, WLAN_RX_FILTER0);
+	rtw_write16(rtwdev, REG_RXFLTMAP1, WLAN_RX_FILTER1);
+	rtw_write16(rtwdev, REG_RXFLTMAP2, WLAN_RX_FILTER2);
+	rtw_write32(rtwdev, REG_RCR, WLAN_RCR_CFG);
+
+	rtw_write32(rtwdev, REG_INT_MIG, 0);
+	rtw_write32(rtwdev, REG_MCUTST_1, 0x0);
+
+	rtw_write8(rtwdev, REG_MISC_CTRL, BIT_DIS_SECOND_CCA);
+	rtw_write8(rtwdev, REG_2ND_CCA_CTRL, 0);
 
 	return 0;
 }
@@ -143,7 +265,9 @@ static void rtw8723d_efuse_grant(struct rtw_dev *rtwdev, bool on)
 }
 
 static struct rtw_chip_ops rtw8723d_ops = {
+	.phy_set_param		= rtw8723d_phy_set_param,
 	.read_efuse		= rtw8723d_read_efuse,
+	.mac_init		= rtw8723d_mac_init,
 	.read_rf		= rtw_phy_read_rf_sipi,
 	.write_rf		= rtw_phy_write_rf_reg_sipi,
 	.set_tx_power_index	= rtw8723d_set_tx_power_index,

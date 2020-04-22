@@ -44,4 +44,7 @@ struct rtw8723d_efuse {
 	struct rtw8723de_efuse e;
 };
 
+#define REG_OFDM0_XAAGC1	0x0c50
+#define REG_OFDM0_XBAGC1	0x0c58
+
 #endif
