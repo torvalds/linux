@@ -27,7 +27,7 @@ static unsigned char op_to_cfi_reg[][2] = {
 	{CFI_DI, CFI_R15},
 };
 
-static int is_x86_64(struct elf *elf)
+static int is_x86_64(const struct elf *elf)
 {
 	switch (elf->ehdr.e_machine) {
 	case EM_X86_64:
@@ -77,7 +77,7 @@ unsigned long arch_jump_destination(struct instruction *insn)
 	return insn->offset + insn->len + insn->immediate;
 }
 
-int arch_decode_instruction(struct elf *elf, struct section *sec,
+int arch_decode_instruction(const struct elf *elf, const struct section *sec,
 			    unsigned long offset, unsigned int maxlen,
 			    unsigned int *len, enum insn_type *type,
 			    unsigned long *immediate,
@@ -98,7 +98,7 @@ int arch_decode_instruction(struct elf *elf, struct section *sec,
 	insn_get_length(&insn);
 
 	if (!insn_complete(&insn)) {
-		WARN_FUNC("can't decode instruction", sec, offset);
+		WARN("can't decode instruction at %s:0x%lx", sec->name, offset);
 		return -1;
 	}
 
