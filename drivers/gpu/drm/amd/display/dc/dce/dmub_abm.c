@@ -50,7 +50,7 @@
 
 #define DISABLE_ABM_IMMEDIATELY 255
 
-static bool dmub_abm_set_pipe(struct abm *abm, uint32_t otg_inst)
+static bool dmub_abm_set_pipe(struct abm *abm, uint32_t otg_inst, uint32_t panel_inst)
 {
 	union dmub_rb_cmd cmd;
 	struct dc_context *dc = abm->ctx;
@@ -59,6 +59,7 @@ static bool dmub_abm_set_pipe(struct abm *abm, uint32_t otg_inst)
 	cmd.abm_set_pipe.header.type = DMUB_CMD__ABM;
 	cmd.abm_set_pipe.header.sub_type = DMUB_CMD__ABM_SET_PIPE;
 	cmd.abm_set_pipe.abm_set_pipe_data.otg_inst = otg_inst;
+	cmd.abm_set_pipe.abm_set_pipe_data.panel_inst = panel_inst;
 	cmd.abm_set_pipe.abm_set_pipe_data.ramping_boundary = ramping_boundary;
 	cmd.abm_set_pipe.header.payload_bytes = sizeof(struct dmub_cmd_abm_set_pipe_data);
 
@@ -120,7 +121,8 @@ static void dmcub_set_backlight_level(
 	struct dce_abm *dce_abm,
 	uint32_t backlight_pwm_u16_16,
 	uint32_t frame_ramp,
-	uint32_t otg_inst)
+	uint32_t otg_inst,
+	uint32_t panel_inst)
 {
 	union dmub_rb_cmd cmd;
 	struct dc_context *dc = dce_abm->base.ctx;
@@ -134,7 +136,7 @@ static void dmcub_set_backlight_level(
 		// Take MSB of fractional part since backlight is not max
 		backlight_8_bit = (backlight_pwm_u16_16 >> 8) & 0xFF;
 
-	dmub_abm_set_pipe(&dce_abm->base, otg_inst);
+	dmub_abm_set_pipe(&dce_abm->base, otg_inst, panel_inst);
 
 	REG_UPDATE(BL1_PWM_USER_LEVEL, BL1_PWM_USER_LEVEL, backlight_pwm_u16_16);
 
@@ -257,11 +259,11 @@ static bool dmub_abm_set_level(struct abm *abm, uint32_t level)
 	return true;
 }
 
-static bool dmub_abm_immediate_disable(struct abm *abm)
+static bool dmub_abm_immediate_disable(struct abm *abm, uint32_t panel_inst)
 {
 	struct dce_abm *dce_abm = TO_DMUB_ABM(abm);
 
-	dmub_abm_set_pipe(abm, DISABLE_ABM_IMMEDIATELY);
+	dmub_abm_set_pipe(abm, DISABLE_ABM_IMMEDIATELY, panel_inst);
 
 	abm->stored_backlight_registers.BL_PWM_CNTL =
 		REG_READ(BL_PWM_CNTL);
@@ -338,6 +340,7 @@ static bool dmub_abm_set_backlight_level_pwm(
 		unsigned int backlight_pwm_u16_16,
 		unsigned int frame_ramp,
 		unsigned int otg_inst,
+		uint32_t panel_inst,
 		bool fw_set_brightness)
 {
 	struct dce_abm *dce_abm = TO_DMUB_ABM(abm);
@@ -345,7 +348,8 @@ static bool dmub_abm_set_backlight_level_pwm(
 	dmcub_set_backlight_level(dce_abm,
 			backlight_pwm_u16_16,
 			frame_ramp,
-			otg_inst);
+			otg_inst,
+			panel_inst);
 
 	return true;
 }

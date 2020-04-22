@@ -2552,6 +2552,7 @@ bool dc_link_set_backlight_level(const struct dc_link *link,
 				backlight_pwm_u16_16,
 				frame_ramp,
 				controller_id,
+				link->panel_cntl->inst,
 				fw_set_brightness);
 	}
 
@@ -2564,7 +2565,7 @@ bool dc_link_set_abm_disable(const struct dc_link *link)
 	bool success = false;
 
 	if (abm)
-		success = abm->funcs->set_abm_immediate_disable(abm);
+		success = abm->funcs->set_abm_immediate_disable(abm, link->panel_cntl->inst);
 
 	return success;
 }

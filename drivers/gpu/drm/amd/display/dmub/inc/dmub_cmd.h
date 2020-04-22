@@ -261,6 +261,7 @@ struct dmub_rb_cmd_psr_set_version {
 struct dmub_cmd_abm_set_pipe_data {
 	uint32_t ramping_boundary;
 	uint32_t otg_inst;
+	uint32_t panel_inst;
 };
 
 struct dmub_rb_cmd_abm_set_pipe {
