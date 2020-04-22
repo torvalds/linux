@@ -6661,9 +6661,14 @@ static void qlt_disable_vha(struct scsi_qla_host *vha)
 
 	set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 	qla2xxx_wake_dpc(vha);
+
+	/*
+	 * We are expecting the offline state.
+	 * QLA_FUNCTION_FAILED means that adapter is offline.
+	 */
 	if (qla2x00_wait_for_hba_online(vha) != QLA_SUCCESS)
 		ql_dbg(ql_dbg_tgt, vha, 0xe081,
-		       "qla2x00_wait_for_hba_online() failed\n");
+		       "adapter is offline\n");
 }
 
 /*
