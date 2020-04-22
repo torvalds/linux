@@ -574,6 +574,7 @@ static int atomisp_enum_input(struct file *file, void *fh,
 	struct video_device *vdev = video_devdata(file);
 	struct atomisp_device *isp = video_get_drvdata(vdev);
 	int index = input->index;
+	struct v4l2_subdev *motor;
 
 	if (index >= isp->input_cnt)
 		return -EINVAL;
@@ -591,24 +592,19 @@ static int atomisp_enum_input(struct file *file, void *fh,
 	 * ioctl is the only way to enum inputs + possible external actuators
 	 * for 3A tuning purpose.
 	 */
-#ifndef ISP2401
-	if (isp->inputs[index].motor &&
-	    strlen(isp->inputs[index].motor->name) > 0) {
-#else
-	if (isp->motor &&
-	    strlen(isp->motor->name) > 0) {
-#endif
+	if (!atomisp_hw_is_isp2401)
+		motor = isp->inputs[index].motor;
+	else
+		motor = isp->motor;
+
+	if (motor && strlen(motor->name) > 0) {
 		const int cur_len = strlen(input->name);
 		const int max_size = sizeof(input->name) - cur_len - 1;
 
 		if (max_size > 1) {
 			input->name[cur_len] = '+';
 			strncpy(&input->name[cur_len + 1],
-#ifndef ISP2401
-				isp->inputs[index].motor->name, max_size - 1);
-#else
-				isp->motor->name, max_size - 1);
-#endif
+				motor->name, max_size - 1);
 		}
 	}
 
@@ -677,6 +673,7 @@ static int atomisp_s_input(struct file *file, void *fh, unsigned int input)
 	struct atomisp_device *isp = video_get_drvdata(vdev);
 	struct atomisp_sub_device *asd = atomisp_to_video_pipe(vdev)->asd;
 	struct v4l2_subdev *camera = NULL;
+	struct v4l2_subdev *motor;
 	int ret;
 
 	rt_mutex_lock(&isp->mutex);
@@ -745,17 +742,16 @@ static int atomisp_s_input(struct file *file, void *fh, unsigned int input)
 		goto error;
 	}
 
-#ifndef ISP2401
-	if (!isp->sw_contex.file_input && isp->inputs[input].motor)
-		ret = v4l2_subdev_call(isp->inputs[input].motor, core,
-				       init, 1);
-#else
-	if (isp->motor)
-		ret = v4l2_subdev_call(isp->motor, core, s_power, 1);
+	if (!atomisp_hw_is_isp2401) {
+		motor = isp->inputs[input].motor;
+	} else {
+		motor = isp->motor;
+		if (motor)
+			ret = v4l2_subdev_call(motor, core, s_power, 1);
+	}
 
-	if (!isp->sw_contex.file_input && isp->motor)
-		ret = v4l2_subdev_call(isp->motor, core, init, 1);
-#endif
+	if (!isp->sw_contex.file_input && motor)
+		ret = v4l2_subdev_call(motor, core, init, 1);
 
 	asd->input_curr = input;
 	/* mark this camera is used by the current stream */
@@ -1218,43 +1214,40 @@ static int atomisp_qbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 		}
 
 		attributes.pgnr = pgnr;
+		attributes.type = HRT_USR_PTR;
 #ifdef CONFIG_ION
-#ifndef ISP2401
-		attributes.type = buf->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_ION
-				  ? HRT_USR_ION : HRT_USR_PTR;
-#else
-		if (buf->reserved & ATOMISP_BUFFER_TYPE_IS_ION) {
-			attributes.type = HRT_USR_ION;
-			if (asd->ion_dev_fd->val !=  ION_FD_UNSET) {
-				dev_dbg(isp->dev, "ION buffer queued, share_fd=%lddev_fd=%d.\n",
-					buf->m.userptr, asd->ion_dev_fd->val);
-				/*
-				 * Make sure the shared fd we just got
-				 * from user space isn't larger than
-				 * the space we have for it.
-				 */
-				if ((buf->m.userptr &
-				     (ATOMISP_ION_DEVICE_FD_MASK)) != 0) {
-					dev_err(isp->dev,
-						"Error: v4l2 buffer fd:0X%0lX > 0XFFFF.\n",
-						buf->m.userptr);
+		if (!atomisp_hw_is_isp2401) {
+			if (buf->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_ION)
+					attributes.type = HRT_USR_ION;
+		} else {
+			if (buf->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_ION) {
+				attributes.type = HRT_USR_ION;
+				if (asd->ion_dev_fd->val !=  ION_FD_UNSET) {
+					dev_dbg(isp->dev, "ION buffer queued, share_fd=%lddev_fd=%d.\n",
+						buf->m.userptr, asd->ion_dev_fd->val);
+					/*
+					* Make sure the shared fd we just got
+					* from user space isn't larger than
+					* the space we have for it.
+					*/
+					if ((buf->m.userptr &
+					    (ATOMISP_ION_DEVICE_FD_MASK)) != 0) {
+						dev_err(isp->dev,
+							"Error: v4l2 buffer fd:0X%0lX > 0XFFFF.\n",
+							buf->m.userptr);
+						ret = -EINVAL;
+						goto error;
+					}
+					buf->m.userptr |= asd->ion_dev_fd->val <<
+							ATOMISP_ION_DEVICE_FD_OFFSET;
+				} else {
+					dev_err(isp->dev, "v4l2 buffer type is ION, \
+							but no dev fd set from userspace.\n");
 					ret = -EINVAL;
 					goto error;
 				}
-				buf->m.userptr |= asd->ion_dev_fd->val <<
-						  ATOMISP_ION_DEVICE_FD_OFFSET;
-			} else {
-				dev_err(isp->dev, "v4l2 buffer type is ION, \
-						but no dev fd set from userspace.\n");
-				ret = -EINVAL;
-				goto error;
 			}
-		} else {
-			attributes.type = HRT_USR_PTR;
 		}
-#endif
-#else
-		attributes.type = HRT_USR_PTR;
 #endif
 		ret = atomisp_css_frame_map(&handle, &frame_info,
 					    (void __user *)buf->m.userptr,
@@ -1315,14 +1308,14 @@ done:
 		} else {
 			atomisp_qbuffers_to_css(asd);
 
-#ifndef ISP2401
-			if (!atomisp_is_wdt_running(asd) && atomisp_buffers_queued(asd))
-				atomisp_wdt_start(asd);
-#else
-			if (!atomisp_is_wdt_running(pipe) &&
-			    atomisp_buffers_queued_pipe(pipe))
-				atomisp_wdt_start(pipe);
-#endif
+			if (!atomisp_hw_is_isp2401) {
+				if (!atomisp_is_wdt_running(asd) && atomisp_buffers_queued(asd))
+					atomisp_wdt_start(asd);
+			} else {
+				if (!atomisp_is_wdt_running(pipe) &&
+				    atomisp_buffers_queued_pipe(pipe))
+					atomisp_wdt_start_pipe(pipe);
+			}
 		}
 	}
 
@@ -1339,25 +1332,25 @@ done:
 	    pipe->capq.streaming &&
 	    !asd->enable_raw_buffer_lock->val &&
 	    asd->params.offline_parm.num_captures == 1) {
-#ifndef ISP2401
-		asd->pending_capture_request++;
-		dev_dbg(isp->dev, "Add one pending capture request.\n");
-#else
-		if (asd->re_trigger_capture) {
-			ret = atomisp_css_offline_capture_configure(asd,
-				asd->params.offline_parm.num_captures,
-				asd->params.offline_parm.skip_frames,
-				asd->params.offline_parm.offset);
-			asd->re_trigger_capture = false;
-			dev_dbg(isp->dev, "%s Trigger capture again ret=%d\n",
-				__func__, ret);
-
-		} else {
+		if (!atomisp_hw_is_isp2401) {
 			asd->pending_capture_request++;
-			asd->re_trigger_capture = false;
 			dev_dbg(isp->dev, "Add one pending capture request.\n");
+		} else {
+			if (asd->re_trigger_capture) {
+				ret = atomisp_css_offline_capture_configure(asd,
+					asd->params.offline_parm.num_captures,
+					asd->params.offline_parm.skip_frames,
+					asd->params.offline_parm.offset);
+				asd->re_trigger_capture = false;
+				dev_dbg(isp->dev, "%s Trigger capture again ret=%d\n",
+					__func__, ret);
+
+			} else {
+				asd->pending_capture_request++;
+				asd->re_trigger_capture = false;
+				dev_dbg(isp->dev, "Add one pending capture request.\n");
+			}
 		}
-#endif
 	}
 	rt_mutex_unlock(&isp->mutex);
 
@@ -1612,22 +1605,21 @@ int atomisp_stream_on_master_slave_sensor(struct atomisp_device *isp,
 	return 0;
 }
 
-/* FIXME! */
-#ifndef ISP2401
+/* FIXME! ISP2400 */
 static void __wdt_on_master_slave_sensor(struct atomisp_device *isp,
-	unsigned int wdt_duration)
-#else
-static void __wdt_on_master_slave_sensor(struct atomisp_video_pipe *pipe,
-	unsigned int wdt_duration,
-	bool enable)
-#endif
+				         unsigned int wdt_duration)
 {
-#ifndef ISP2401
 	if (atomisp_buffers_queued(&isp->asd[0]))
 		atomisp_wdt_refresh(&isp->asd[0], wdt_duration);
 	if (atomisp_buffers_queued(&isp->asd[1]))
 		atomisp_wdt_refresh(&isp->asd[1], wdt_duration);
-#else
+}
+
+/* FIXME! ISP2401 */
+static void __wdt_on_master_slave_sensor_pipe(struct atomisp_video_pipe *pipe,
+					      unsigned int wdt_duration,
+					      bool enable)
+{
 	static struct atomisp_video_pipe *pipe0;
 
 	if (enable) {
@@ -1638,7 +1630,6 @@ static void __wdt_on_master_slave_sensor(struct atomisp_video_pipe *pipe,
 	} else {
 		pipe0 = pipe;
 	}
-#endif
 }
 
 static void atomisp_pause_buffer_event(struct atomisp_device *isp)
@@ -1739,9 +1730,8 @@ static int atomisp_streamon(struct file *file, void *fh,
 
 	/* Reset pending capture request count. */
 	asd->pending_capture_request = 0;
-#ifdef ISP2401
-	asd->re_trigger_capture = false;
-#endif
+	if (atomisp_hw_is_isp2401)
+		asd->re_trigger_capture = false;
 
 	if ((atomisp_subdev_streaming_count(asd) > sensor_start_stream) &&
 	    (!isp->inputs[asd->input_curr].camera_caps->multi_stream_ctrl)) {
@@ -1882,17 +1872,16 @@ start_sensor:
 			dev_err(isp->dev, "master slave sensor stream on failed!\n");
 			goto out;
 		}
-#ifndef ISP2401
-		__wdt_on_master_slave_sensor(isp, wdt_duration);
-#else
-		__wdt_on_master_slave_sensor(pipe, wdt_duration, true);
-#endif
+		if (!atomisp_hw_is_isp2401) {
+			__wdt_on_master_slave_sensor(isp, wdt_duration);
+		} else {
+			__wdt_on_master_slave_sensor_pipe(pipe, wdt_duration, true);
+		}
 		goto start_delay_wq;
 	} else if (asd->depth_mode->val && (atomisp_streaming_count(isp) <
 					    ATOMISP_DEPTH_SENSOR_STREAMON_COUNT)) {
-#ifdef ISP2401
-		__wdt_on_master_slave_sensor(pipe, wdt_duration, false);
-#endif
+		if (atomisp_hw_is_isp2401)
+			__wdt_on_master_slave_sensor_pipe(pipe, wdt_duration, false);
 		goto start_delay_wq;
 	}
 
@@ -1913,13 +1902,13 @@ start_sensor:
 		goto out;
 	}
 
-#ifndef ISP2401
-	if (atomisp_buffers_queued(asd))
-		atomisp_wdt_refresh(asd, wdt_duration);
-#else
-	if (atomisp_buffers_queued_pipe(pipe))
-		atomisp_wdt_refresh_pipe(pipe, wdt_duration);
-#endif
+	if (!atomisp_hw_is_isp2401) {
+		if (atomisp_buffers_queued(asd))
+			atomisp_wdt_refresh(asd, wdt_duration);
+	} else {
+		if (atomisp_buffers_queued_pipe(pipe))
+			atomisp_wdt_refresh_pipe(pipe, wdt_duration);
+	}
 
 start_delay_wq:
 	if (asd->continuous_mode->val) {
@@ -2372,16 +2361,16 @@ static int atomisp_queryctl(struct file *file, void *fh,
 	case V4L2_CID_FOCUS_ABSOLUTE:
 	case V4L2_CID_FOCUS_RELATIVE:
 	case V4L2_CID_FOCUS_STATUS:
-#ifndef ISP2401
-		return v4l2_queryctrl(isp->inputs[asd->input_curr].camera->
-				      ctrl_handler, qc);
-#else
+		if (!atomisp_hw_is_isp2401) {
+			return v4l2_queryctrl(isp->inputs[asd->input_curr].camera->
+					    ctrl_handler, qc);
+		}
+		/* ISP2401 */
 		if (isp->motor)
 			return v4l2_queryctrl(isp->motor->ctrl_handler, qc);
 		else
 			return v4l2_queryctrl(isp->inputs[asd->input_curr].
 					      camera->ctrl_handler, qc);
-#endif
 	}
 
 	if (qc->id & V4L2_CTRL_FLAG_NEXT_CTRL)
@@ -2408,9 +2397,15 @@ static int atomisp_camera_g_ext_ctrls(struct file *file, void *fh,
 	struct video_device *vdev = video_devdata(file);
 	struct atomisp_sub_device *asd = atomisp_to_video_pipe(vdev)->asd;
 	struct atomisp_device *isp = video_get_drvdata(vdev);
+	struct v4l2_subdev *motor;
 	struct v4l2_control ctrl;
 	int i;
 	int ret = 0;
+
+	if (!atomisp_hw_is_isp2401)
+		motor = isp->inputs[asd->input_curr].motor;
+	else
+		motor = isp->motor;
 
 	for (i = 0; i < c->count; i++) {
 		ctrl.id = c->controls[i].id;
@@ -2440,23 +2435,8 @@ static int atomisp_camera_g_ext_ctrls(struct file *file, void *fh,
 		case V4L2_CID_FOCUS_RELATIVE:
 		case V4L2_CID_FOCUS_STATUS:
 		case V4L2_CID_FOCUS_AUTO:
-#ifndef ISP2401
-			if (isp->inputs[asd->input_curr].motor)
-#else
-			if (isp->motor)
-#endif
-				ret =
-#ifndef ISP2401
-				    v4l2_g_ctrl(isp->inputs[asd->input_curr].
-						motor->ctrl_handler, &ctrl);
-#else
-				    v4l2_g_ctrl(isp->motor->ctrl_handler,
-						&ctrl);
-#endif
-			else
-				ret =
-				    v4l2_g_ctrl(isp->inputs[asd->input_curr].
-						camera->ctrl_handler, &ctrl);
+			if (motor)
+				ret = v4l2_g_ctrl(motor->ctrl_handler, &ctrl);
 			break;
 		case V4L2_CID_FLASH_STATUS:
 		case V4L2_CID_FLASH_INTENSITY:
@@ -2526,9 +2506,16 @@ static int atomisp_camera_s_ext_ctrls(struct file *file, void *fh,
 	struct video_device *vdev = video_devdata(file);
 	struct atomisp_sub_device *asd = atomisp_to_video_pipe(vdev)->asd;
 	struct atomisp_device *isp = video_get_drvdata(vdev);
+	struct v4l2_subdev *motor;
 	struct v4l2_control ctrl;
 	int i;
 	int ret = 0;
+
+
+	if (!atomisp_hw_is_isp2401)
+		motor = isp->inputs[asd->input_curr].motor;
+	else
+		motor = isp->motor;
 
 	for (i = 0; i < c->count; i++) {
 		struct v4l2_ctrl *ctr;
@@ -2557,19 +2544,9 @@ static int atomisp_camera_s_ext_ctrls(struct file *file, void *fh,
 		case V4L2_CID_FOCUS_RELATIVE:
 		case V4L2_CID_FOCUS_STATUS:
 		case V4L2_CID_FOCUS_AUTO:
-#ifndef ISP2401
-			if (isp->inputs[asd->input_curr].motor)
-#else
-			if (isp->motor)
-#endif
-				ret = v4l2_s_ctrl(NULL,
-#ifndef ISP2401
-						  isp->inputs[asd->input_curr].
-						  motor->ctrl_handler, &ctrl);
-#else
-						  isp->motor->ctrl_handler,
+			if (motor)
+				ret = v4l2_s_ctrl(NULL, motor->ctrl_handler,
 						  &ctrl);
-#endif
 			else
 				ret = v4l2_s_ctrl(NULL,
 						  isp->inputs[asd->input_curr].
@@ -2754,6 +2731,7 @@ static long atomisp_vidioc_default(struct file *file, void *fh,
 	struct video_device *vdev = video_devdata(file);
 	struct atomisp_device *isp = video_get_drvdata(vdev);
 	struct atomisp_sub_device *asd;
+	struct v4l2_subdev *motor;
 	bool acc_node;
 	int err;
 
@@ -2762,6 +2740,11 @@ static long atomisp_vidioc_default(struct file *file, void *fh,
 		asd = atomisp_to_acc_pipe(vdev)->asd;
 	else
 		asd = atomisp_to_video_pipe(vdev)->asd;
+
+	if (!atomisp_hw_is_isp2401)
+		motor = isp->inputs[asd->input_curr].motor;
+	else
+		motor = isp->motor;
 
 	switch (cmd) {
 	case ATOMISP_IOC_G_MOTOR_PRIV_INT_DATA:
@@ -2774,9 +2757,7 @@ static long atomisp_vidioc_default(struct file *file, void *fh,
 	case ATOMISP_IOC_G_SENSOR_AE_BRACKETING_MODE:
 	case ATOMISP_IOC_S_SENSOR_AE_BRACKETING_LUT:
 	case ATOMISP_IOC_S_SENSOR_EE_CONFIG:
-#ifdef ISP2401
 	case ATOMISP_IOC_G_UPDATE_EXPOSURE:
-#endif
 		/* we do not need take isp->mutex for these IOCTLs */
 		break;
 	default:
@@ -2784,12 +2765,13 @@ static long atomisp_vidioc_default(struct file *file, void *fh,
 		break;
 	}
 	switch (cmd) {
-#ifdef ISP2401
 	case ATOMISP_IOC_S_SENSOR_RUNMODE:
-		err = atomisp_set_sensor_runmode(asd, arg);
+		if (atomisp_hw_is_isp2401)
+			err = atomisp_set_sensor_runmode(asd, arg);
+		else
+			err = -EINVAL;
 		break;
 
-#endif
 	case ATOMISP_IOC_G_XNR:
 		err = atomisp_xnr(asd, 0, arg);
 		break;
@@ -2941,24 +2923,11 @@ static long atomisp_vidioc_default(struct file *file, void *fh,
 		break;
 
 	case ATOMISP_IOC_G_MOTOR_PRIV_INT_DATA:
-#ifndef ISP2401
-		if (isp->inputs[asd->input_curr].motor)
-#else
-		if (isp->motor)
-#endif
-#ifndef ISP2401
-			err = v4l2_subdev_call(
-				  isp->inputs[asd->input_curr].motor,
-				  core, ioctl, cmd, arg);
-#else
-			err = v4l2_subdev_call(
-				  isp->motor,
-				  core, ioctl, cmd, arg);
-#endif
+		if (motor)
+			err = v4l2_subdev_call(motor, core, ioctl, cmd, arg);
 		else
-			err = v4l2_subdev_call(
-				  isp->inputs[asd->input_curr].camera,
-				  core, ioctl, cmd, arg);
+			err = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
+					       core, ioctl, cmd, arg);
 		break;
 
 	case ATOMISP_IOC_S_EXPOSURE:
@@ -2968,11 +2937,15 @@ static long atomisp_vidioc_default(struct file *file, void *fh,
 	case ATOMISP_IOC_S_SENSOR_AE_BRACKETING_MODE:
 	case ATOMISP_IOC_G_SENSOR_AE_BRACKETING_MODE:
 	case ATOMISP_IOC_S_SENSOR_AE_BRACKETING_LUT:
-#ifdef ISP2401
-	case ATOMISP_IOC_G_UPDATE_EXPOSURE:
-#endif
 		err = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
 				       core, ioctl, cmd, arg);
+		break;
+	case ATOMISP_IOC_G_UPDATE_EXPOSURE:
+		if (atomisp_hw_is_isp2401)
+			err = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
+					       core, ioctl, cmd, arg);
+		else
+			err = -EINVAL;
 		break;
 
 	case ATOMISP_IOC_ACC_LOAD:
@@ -3085,9 +3058,7 @@ static long atomisp_vidioc_default(struct file *file, void *fh,
 	case ATOMISP_IOC_S_SENSOR_AE_BRACKETING_MODE:
 	case ATOMISP_IOC_G_SENSOR_AE_BRACKETING_MODE:
 	case ATOMISP_IOC_S_SENSOR_AE_BRACKETING_LUT:
-#ifdef ISP2401
 	case ATOMISP_IOC_G_UPDATE_EXPOSURE:
-#endif
 		break;
 	default:
 		rt_mutex_unlock(&isp->mutex);
