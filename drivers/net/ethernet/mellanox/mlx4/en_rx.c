@@ -946,7 +946,7 @@ int mlx4_en_poll_rx_cq(struct napi_struct *napi, int budget)
 		xdp_tx_cq = priv->tx_cq[TX_XDP][cq->ring];
 		if (xdp_tx_cq->xdp_busy) {
 			clean_complete = mlx4_en_process_tx_cq(dev, xdp_tx_cq,
-							       budget);
+							       budget) < budget;
 			xdp_tx_cq->xdp_busy = !clean_complete;
 		}
 	}
