@@ -278,11 +278,9 @@ static int intel_dsi_compute_config(struct intel_encoder *encoder,
 		intel_fixed_panel_mode(fixed_mode, adjusted_mode);
 
 		if (HAS_GMCH(dev_priv))
-			intel_gmch_panel_fitting(pipe_config,
-						 conn_state->scaling_mode);
+			intel_gmch_panel_fitting(pipe_config, conn_state);
 		else
-			intel_pch_panel_fitting(pipe_config,
-						conn_state->scaling_mode);
+			intel_pch_panel_fitting(pipe_config, conn_state);
 	}
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)

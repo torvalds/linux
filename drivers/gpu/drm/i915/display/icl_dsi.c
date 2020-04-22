@@ -1532,7 +1532,7 @@ static int gen11_dsi_compute_config(struct intel_encoder *encoder,
 
 	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
 	intel_fixed_panel_mode(fixed_mode, adjusted_mode);
-	intel_pch_panel_fitting(pipe_config, conn_state->scaling_mode);
+	intel_pch_panel_fitting(pipe_config, conn_state);
 
 	adjusted_mode->flags = 0;
 

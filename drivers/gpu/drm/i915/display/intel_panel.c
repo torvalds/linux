@@ -178,7 +178,7 @@ intel_panel_vbt_fixed_mode(struct intel_connector *connector)
 /* adjusted_mode has been preset to be the panel's fixed mode */
 void
 intel_pch_panel_fitting(struct intel_crtc_state *crtc_state,
-			int fitting_mode)
+			const struct drm_connector_state *conn_state)
 {
 	const struct drm_display_mode *adjusted_mode =
 		&crtc_state->hw.adjusted_mode;
@@ -190,7 +190,7 @@ intel_pch_panel_fitting(struct intel_crtc_state *crtc_state,
 	    crtc_state->output_format != INTEL_OUTPUT_FORMAT_YCBCR420)
 		return;
 
-	switch (fitting_mode) {
+	switch (conn_state->scaling_mode) {
 	case DRM_MODE_SCALE_CENTER:
 		width = crtc_state->pipe_src_w;
 		height = crtc_state->pipe_src_h;
@@ -227,6 +227,10 @@ intel_pch_panel_fitting(struct intel_crtc_state *crtc_state,
 		}
 		break;
 
+	case DRM_MODE_SCALE_NONE:
+		WARN_ON(adjusted_mode->crtc_hdisplay != crtc_state->pipe_src_w);
+		WARN_ON(adjusted_mode->crtc_vdisplay != crtc_state->pipe_src_h);
+		/* fall through */
 	case DRM_MODE_SCALE_FULLSCREEN:
 		x = y = 0;
 		width = adjusted_mode->crtc_hdisplay;
@@ -234,7 +238,7 @@ intel_pch_panel_fitting(struct intel_crtc_state *crtc_state,
 		break;
 
 	default:
-		MISSING_CASE(fitting_mode);
+		MISSING_CASE(conn_state->scaling_mode);
 		return;
 	}
 
@@ -378,7 +382,7 @@ static void i9xx_scale_aspect(struct intel_crtc_state *crtc_state,
 }
 
 void intel_gmch_panel_fitting(struct intel_crtc_state *crtc_state,
-			      int fitting_mode)
+			      const struct drm_connector_state *conn_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
@@ -390,7 +394,7 @@ void intel_gmch_panel_fitting(struct intel_crtc_state *crtc_state,
 	    adjusted_mode->crtc_vdisplay == crtc_state->pipe_src_h)
 		goto out;
 
-	switch (fitting_mode) {
+	switch (conn_state->scaling_mode) {
 	case DRM_MODE_SCALE_CENTER:
 		/*
 		 * For centered modes, we have to calculate border widths &
@@ -426,8 +430,7 @@ void intel_gmch_panel_fitting(struct intel_crtc_state *crtc_state,
 		}
 		break;
 	default:
-		drm_WARN(&dev_priv->drm, 1, "bad panel fit mode: %d\n",
-			 fitting_mode);
+		MISSING_CASE(conn_state->scaling_mode);
 		return;
 	}
 

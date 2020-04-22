@@ -439,12 +439,9 @@ static int intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 	if (HAS_PCH_SPLIT(dev_priv)) {
 		pipe_config->has_pch_encoder = true;
 
-		intel_pch_panel_fitting(pipe_config,
-					conn_state->scaling_mode);
+		intel_pch_panel_fitting(pipe_config, conn_state);
 	} else {
-		intel_gmch_panel_fitting(pipe_config,
-					 conn_state->scaling_mode);
-
+		intel_gmch_panel_fitting(pipe_config, conn_state);
 	}
 
 	/*
