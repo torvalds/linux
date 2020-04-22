@@ -22,6 +22,7 @@
  * Authors: Christian König
  */
 
+#include <linux/dma-mapping.h>
 #include "amdgpu.h"
 #include "amdgpu_vm.h"
 #include "amdgpu_atomfirmware.h"
@@ -456,6 +457,104 @@ static void amdgpu_vram_mgr_del(struct ttm_mem_type_manager *man,
 
 	kvfree(mem->mm_node);
 	mem->mm_node = NULL;
+}
+
+/**
+ * amdgpu_vram_mgr_alloc_sgt - allocate and fill a sg table
+ *
+ * @adev: amdgpu device pointer
+ * @mem: TTM memory object
+ * @dev: the other device
+ * @dir: dma direction
+ * @sgt: resulting sg table
+ *
+ * Allocate and fill a sg table from a VRAM allocation.
+ */
+int amdgpu_vram_mgr_alloc_sgt(struct amdgpu_device *adev,
+			      struct ttm_mem_reg *mem,
+			      struct device *dev,
+			      enum dma_data_direction dir,
+			      struct sg_table **sgt)
+{
+	struct drm_mm_node *node;
+	struct scatterlist *sg;
+	int num_entries = 0;
+	unsigned int pages;
+	int i, r;
+
+	*sgt = kmalloc(sizeof(*sg), GFP_KERNEL);
+	if (!*sgt)
+		return -ENOMEM;
+
+	for (pages = mem->num_pages, node = mem->mm_node;
+	     pages; pages -= node->size, ++node)
+		++num_entries;
+
+	r = sg_alloc_table(*sgt, num_entries, GFP_KERNEL);
+	if (r)
+		goto error_free;
+
+	for_each_sg((*sgt)->sgl, sg, num_entries, i)
+		sg->length = 0;
+
+	node = mem->mm_node;
+	for_each_sg((*sgt)->sgl, sg, num_entries, i) {
+		phys_addr_t phys = (node->start << PAGE_SHIFT) +
+			adev->gmc.aper_base;
+		size_t size = node->size << PAGE_SHIFT;
+		dma_addr_t addr;
+
+		++node;
+		addr = dma_map_resource(dev, phys, size, dir,
+					DMA_ATTR_SKIP_CPU_SYNC);
+		r = dma_mapping_error(dev, addr);
+		if (r)
+			goto error_unmap;
+
+		sg_set_page(sg, NULL, size, 0);
+		sg_dma_address(sg) = addr;
+		sg_dma_len(sg) = size;
+	}
+	return 0;
+
+error_unmap:
+	for_each_sg((*sgt)->sgl, sg, num_entries, i) {
+		if (!sg->length)
+			continue;
+
+		dma_unmap_resource(dev, sg->dma_address,
+				   sg->length, dir,
+				   DMA_ATTR_SKIP_CPU_SYNC);
+	}
+	sg_free_table(*sgt);
+
+error_free:
+	kfree(*sgt);
+	return r;
+}
+
+/**
+ * amdgpu_vram_mgr_alloc_sgt - allocate and fill a sg table
+ *
+ * @adev: amdgpu device pointer
+ * @sgt: sg table to free
+ *
+ * Free a previously allocate sg table.
+ */
+void amdgpu_vram_mgr_free_sgt(struct amdgpu_device *adev,
+			      struct device *dev,
+			      enum dma_data_direction dir,
+			      struct sg_table *sgt)
+{
+	struct scatterlist *sg;
+	int i;
+
+	for_each_sg(sgt->sgl, sg, sgt->nents, i)
+		dma_unmap_resource(dev, sg->dma_address,
+				   sg->length, dir,
+				   DMA_ATTR_SKIP_CPU_SYNC);
+	sg_free_table(sgt);
+	kfree(sgt);
 }
 
 /**

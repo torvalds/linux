@@ -32,6 +32,7 @@
 
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_drv.h>
+#include <drm/drm_fb_helper.h>
 #include <drm/drm_gem_vram_helper.h>
 #include <drm/drm_probe_helper.h>
 
@@ -110,6 +111,8 @@ static int ast_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	ret = drm_dev_register(dev, ent->driver_data);
 	if (ret)
 		goto err_ast_driver_unload;
+
+	drm_fbdev_generic_setup(dev, 32);
 
 	return 0;
 

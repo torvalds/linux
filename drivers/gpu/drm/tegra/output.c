@@ -6,6 +6,7 @@
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_panel.h>
+#include <drm/drm_simple_kms_helper.h>
 
 #include "drm.h"
 #include "dc.h"
@@ -77,11 +78,6 @@ void tegra_output_connector_destroy(struct drm_connector *connector)
 
 	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
-}
-
-void tegra_output_encoder_destroy(struct drm_encoder *encoder)
-{
-	drm_encoder_cleanup(encoder);
 }
 
 static irqreturn_t hpd_irq(int irq, void *data)

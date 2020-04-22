@@ -18,6 +18,7 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_managed.h>
 #include <drm/drm_mipi_dbi.h>
 #include <drm/drm_modeset_helper.h>
 #include <video/mipi_display.h>
@@ -155,7 +156,6 @@ DEFINE_DRM_GEM_CMA_FOPS(mi0283qt_fops);
 static struct drm_driver mi0283qt_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.fops			= &mi0283qt_fops,
-	.release		= mipi_dbi_release,
 	DRM_GEM_CMA_VMAP_DRIVER_OPS,
 	.debugfs_init		= mipi_dbi_debugfs_init,
 	.name			= "mi0283qt",
@@ -198,8 +198,7 @@ static int mi0283qt_probe(struct spi_device *spi)
 		kfree(dbidev);
 		return ret;
 	}
-
-	drm_mode_config_init(drm);
+	drmm_add_final_kfree(drm, dbidev);
 
 	dbi->reset = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(dbi->reset)) {

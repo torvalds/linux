@@ -58,6 +58,22 @@ config DRM_MEGACHIPS_STDPXXXX_GE_B850V3_FW
 	  to DP++. This is used with the i.MX6 imx-ldb
 	  driver. You are likely to say N here.
 
+config DRM_NWL_MIPI_DSI
+	tristate "Northwest Logic MIPI DSI Host controller"
+	depends on DRM
+	depends on COMMON_CLK
+	depends on OF && HAS_IOMEM
+	select DRM_KMS_HELPER
+	select DRM_MIPI_DSI
+	select DRM_PANEL_BRIDGE
+	select GENERIC_PHY_MIPI_DPHY
+	select MFD_SYSCON
+	select MULTIPLEXER
+	select REGMAP_MMIO
+	help
+	  This enables the Northwest Logic MIPI DSI Host controller as
+	  for example found on NXP's i.MX8 Processors.
+
 config DRM_NXP_PTN3460
 	tristate "NXP PTN3460 DP/LVDS bridge"
 	depends on OF

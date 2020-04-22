@@ -1560,7 +1560,7 @@ static ssize_t uvesafb_show_vbe_modes(struct device *dev,
 	int ret = 0, i;
 
 	for (i = 0; i < par->vbe_modes_cnt && ret < PAGE_SIZE; i++) {
-		ret += snprintf(buf + ret, PAGE_SIZE - ret,
+		ret += scnprintf(buf + ret, PAGE_SIZE - ret,
 			"%dx%d-%d, 0x%.4x\n",
 			par->vbe_modes[i].x_res, par->vbe_modes[i].y_res,
 			par->vbe_modes[i].depth, par->vbe_modes[i].mode_id);

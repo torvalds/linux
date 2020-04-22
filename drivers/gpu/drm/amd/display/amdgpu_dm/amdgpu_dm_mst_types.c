@@ -136,17 +136,23 @@ static ssize_t dm_dp_aux_transfer(struct drm_dp_aux *aux,
 static void
 dm_dp_mst_connector_destroy(struct drm_connector *connector)
 {
-	struct amdgpu_dm_connector *amdgpu_dm_connector = to_amdgpu_dm_connector(connector);
-	struct amdgpu_encoder *amdgpu_encoder = amdgpu_dm_connector->mst_encoder;
+	struct amdgpu_dm_connector *aconnector =
+		to_amdgpu_dm_connector(connector);
+	struct amdgpu_encoder *amdgpu_encoder = aconnector->mst_encoder;
 
-	kfree(amdgpu_dm_connector->edid);
-	amdgpu_dm_connector->edid = NULL;
+	if (aconnector->dc_sink) {
+		dc_link_remove_remote_sink(aconnector->dc_link,
+					   aconnector->dc_sink);
+		dc_sink_release(aconnector->dc_sink);
+	}
+
+	kfree(aconnector->edid);
 
 	drm_encoder_cleanup(&amdgpu_encoder->base);
 	kfree(amdgpu_encoder);
 	drm_connector_cleanup(connector);
-	drm_dp_mst_put_port_malloc(amdgpu_dm_connector->port);
-	kfree(amdgpu_dm_connector);
+	drm_dp_mst_put_port_malloc(aconnector->port);
+	kfree(aconnector);
 }
 
 static int
@@ -435,40 +441,13 @@ dm_dp_add_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
 	 */
 	amdgpu_dm_connector_funcs_reset(connector);
 
-	DRM_INFO("DM_MST: added connector: %p [id: %d] [master: %p]\n",
-		 aconnector, connector->base.id, aconnector->mst_port);
-
 	drm_dp_mst_get_port_malloc(port);
-
-	DRM_DEBUG_KMS(":%d\n", connector->base.id);
 
 	return connector;
 }
 
-static void dm_dp_destroy_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
-					struct drm_connector *connector)
-{
-	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
-
-	DRM_INFO("DM_MST: Disabling connector: %p [id: %d] [master: %p]\n",
-		 aconnector, connector->base.id, aconnector->mst_port);
-
-	if (aconnector->dc_sink) {
-		amdgpu_dm_update_freesync_caps(connector, NULL);
-		dc_link_remove_remote_sink(aconnector->dc_link,
-					   aconnector->dc_sink);
-		dc_sink_release(aconnector->dc_sink);
-		aconnector->dc_sink = NULL;
-		aconnector->dc_link->cur_link_settings.lane_count = 0;
-	}
-
-	drm_connector_unregister(connector);
-	drm_connector_put(connector);
-}
-
 static const struct drm_dp_mst_topology_cbs dm_mst_cbs = {
 	.add_connector = dm_dp_add_mst_connector,
-	.destroy_connector = dm_dp_destroy_mst_connector,
 };
 
 void amdgpu_dm_initialize_dp_connector(struct amdgpu_display_manager *dm,

@@ -30,7 +30,6 @@
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
-#include <drm/drm_fb_helper.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_gem_vram_helper.h>
@@ -511,10 +510,6 @@ int ast_driver_load(struct drm_device *dev, unsigned long flags)
 		goto out_free;
 
 	drm_mode_config_reset(dev);
-
-	ret = drm_fbdev_generic_setup(dev, 32);
-	if (ret)
-		goto out_free;
 
 	return 0;
 out_free:

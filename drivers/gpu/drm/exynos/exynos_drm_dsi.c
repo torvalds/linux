@@ -30,6 +30,7 @@
 #include <drm/drm_panel.h>
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
+#include <drm/drm_simple_kms_helper.h>
 
 #include "exynos_drm_crtc.h"
 #include "exynos_drm_drv.h"
@@ -1523,10 +1524,6 @@ static const struct drm_encoder_helper_funcs exynos_dsi_encoder_helper_funcs = {
 	.disable = exynos_dsi_disable,
 };
 
-static const struct drm_encoder_funcs exynos_dsi_encoder_funcs = {
-	.destroy = drm_encoder_cleanup,
-};
-
 MODULE_DEVICE_TABLE(of, exynos_dsi_of_match);
 
 static int exynos_dsi_host_attach(struct mipi_dsi_host *host,
@@ -1704,8 +1701,7 @@ static int exynos_dsi_bind(struct device *dev, struct device *master,
 	struct drm_bridge *in_bridge;
 	int ret;
 
-	drm_encoder_init(drm_dev, encoder, &exynos_dsi_encoder_funcs,
-			 DRM_MODE_ENCODER_TMDS, NULL);
+	drm_simple_encoder_init(drm_dev, encoder, DRM_MODE_ENCODER_TMDS);
 
 	drm_encoder_helper_add(encoder, &exynos_dsi_encoder_helper_funcs);
 

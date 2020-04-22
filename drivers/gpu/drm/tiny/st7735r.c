@@ -21,6 +21,7 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_managed.h>
 #include <drm/drm_mipi_dbi.h>
 
 #define ST7735R_FRMCTR1		0xb1
@@ -156,7 +157,6 @@ DEFINE_DRM_GEM_CMA_FOPS(st7735r_fops);
 static struct drm_driver st7735r_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.fops			= &st7735r_fops,
-	.release		= mipi_dbi_release,
 	DRM_GEM_CMA_VMAP_DRIVER_OPS,
 	.debugfs_init		= mipi_dbi_debugfs_init,
 	.name			= "st7735r",
@@ -209,8 +209,7 @@ static int st7735r_probe(struct spi_device *spi)
 		kfree(dbidev);
 		return ret;
 	}
-
-	drm_mode_config_init(drm);
+	drmm_add_final_kfree(drm, dbidev);
 
 	dbi->reset = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(dbi->reset)) {

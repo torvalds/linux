@@ -214,6 +214,8 @@ static int lima_init_gp_pipe(struct lima_device *dev)
 	struct lima_sched_pipe *pipe = dev->pipe + lima_pipe_gp;
 	int err;
 
+	pipe->ldev = dev;
+
 	err = lima_sched_pipe_init(pipe, "gp");
 	if (err)
 		return err;
@@ -243,6 +245,8 @@ static int lima_init_pp_pipe(struct lima_device *dev)
 {
 	struct lima_sched_pipe *pipe = dev->pipe + lima_pipe_pp;
 	int err, i;
+
+	pipe->ldev = dev;
 
 	err = lima_sched_pipe_init(pipe, "pp");
 	if (err)
@@ -344,6 +348,12 @@ int lima_device_init(struct lima_device *ldev)
 	if (err)
 		goto err_out5;
 
+	ldev->dump.magic = LIMA_DUMP_MAGIC;
+	ldev->dump.version_major = LIMA_DUMP_MAJOR;
+	ldev->dump.version_minor = LIMA_DUMP_MINOR;
+	INIT_LIST_HEAD(&ldev->error_task_list);
+	mutex_init(&ldev->error_task_list_lock);
+
 	dev_info(ldev->dev, "bus rate = %lu\n", clk_get_rate(ldev->clk_bus));
 	dev_info(ldev->dev, "mod rate = %lu", clk_get_rate(ldev->clk_gpu));
 
@@ -370,6 +380,13 @@ err_out0:
 void lima_device_fini(struct lima_device *ldev)
 {
 	int i;
+	struct lima_sched_error_task *et, *tmp;
+
+	list_for_each_entry_safe(et, tmp, &ldev->error_task_list, list) {
+		list_del(&et->list);
+		kvfree(et);
+	}
+	mutex_destroy(&ldev->error_task_list_lock);
 
 	lima_fini_pp_pipe(ldev);
 	lima_fini_gp_pipe(ldev);

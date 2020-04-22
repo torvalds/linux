@@ -32,6 +32,7 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_dp_helper.h>
+#include <drm/drm_simple_kms_helper.h>
 
 #include "gma_display.h"
 #include "psb_drv.h"
@@ -1908,11 +1909,6 @@ cdv_intel_dp_destroy(struct drm_connector *connector)
 	kfree(connector);
 }
 
-static void cdv_intel_dp_encoder_destroy(struct drm_encoder *encoder)
-{
-	drm_encoder_cleanup(encoder);
-}
-
 static const struct drm_encoder_helper_funcs cdv_intel_dp_helper_funcs = {
 	.dpms = cdv_intel_dp_dpms,
 	.mode_fixup = cdv_intel_dp_mode_fixup,
@@ -1934,11 +1930,6 @@ static const struct drm_connector_helper_funcs cdv_intel_dp_connector_helper_fun
 	.mode_valid = cdv_intel_dp_mode_valid,
 	.best_encoder = gma_best_encoder,
 };
-
-static const struct drm_encoder_funcs cdv_intel_dp_enc_funcs = {
-	.destroy = cdv_intel_dp_encoder_destroy,
-};
-
 
 static void cdv_intel_dp_add_properties(struct drm_connector *connector)
 {
@@ -2016,8 +2007,7 @@ cdv_intel_dp_init(struct drm_device *dev, struct psb_intel_mode_device *mode_dev
 	encoder = &gma_encoder->base;
 
 	drm_connector_init(dev, connector, &cdv_intel_dp_connector_funcs, type);
-	drm_encoder_init(dev, encoder, &cdv_intel_dp_enc_funcs,
-			 DRM_MODE_ENCODER_TMDS, NULL);
+	drm_simple_encoder_init(dev, encoder, DRM_MODE_ENCODER_TMDS);
 
 	gma_connector_attach_encoder(gma_connector, gma_encoder);
 
@@ -2120,7 +2110,7 @@ cdv_intel_dp_init(struct drm_device *dev, struct psb_intel_mode_device *mode_dev
 		if (ret == 0) {
 			/* if this fails, presume the device is a ghost */
 			DRM_INFO("failed to retrieve link info, disabling eDP\n");
-			cdv_intel_dp_encoder_destroy(encoder);
+			drm_encoder_cleanup(encoder);
 			cdv_intel_dp_destroy(connector);
 			goto err_priv;
 		} else {

@@ -152,8 +152,6 @@ enum drm_connector_status
 tegra_output_connector_detect(struct drm_connector *connector, bool force);
 void tegra_output_connector_destroy(struct drm_connector *connector);
 
-void tegra_output_encoder_destroy(struct drm_encoder *encoder);
-
 /* from dpaux.c */
 struct drm_dp_aux *drm_dp_aux_find_by_of_node(struct device_node *np);
 enum drm_connector_status drm_dp_aux_detect(struct drm_dp_aux *aux);

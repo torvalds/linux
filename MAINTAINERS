@@ -5045,7 +5045,7 @@ F:	drivers/dma-buf/
 F:	include/linux/*fence.h
 F:	include/linux/dma-buf*
 F:	include/linux/dma-resv.h
-K:	dma_(buf|fence|resv)
+K:	\bdma_(?:buf|fence|resv)\b
 
 DMA GENERIC OFFLOAD ENGINE SUBSYSTEM
 M:	Vinod Koul <vkoul@kernel.org>
@@ -5300,7 +5300,7 @@ F:	drivers/gpu/drm/panel/panel-feixin-k101-im2ba02.c
 DRM DRIVER FOR FEIYANG FY07024DI26A30-D MIPI-DSI LCD PANELS
 M:	Jagan Teki <jagan@amarulasolutions.com>
 S:	Maintained
-F:	Documentation/devicetree/bindings/display/panel/feiyang,fy07024di26a30d.txt
+F:	Documentation/devicetree/bindings/display/panel/feiyang,fy07024di26a30d.yaml
 F:	drivers/gpu/drm/panel/panel-feiyang-fy07024di26a30d.c
 
 DRM DRIVER FOR GRAIN MEDIA GM12U320 PROJECTORS
@@ -5450,7 +5450,7 @@ F:	drivers/gpu/drm/tiny/st7586.c
 DRM DRIVER FOR SITRONIX ST7701 PANELS
 M:	Jagan Teki <jagan@amarulasolutions.com>
 S:	Maintained
-F:	Documentation/devicetree/bindings/display/panel/sitronix,st7701.txt
+F:	Documentation/devicetree/bindings/display/panel/sitronix,st7701.yaml
 F:	drivers/gpu/drm/panel/panel-sitronix-st7701.c
 
 DRM DRIVER FOR SITRONIX ST7735R PANELS

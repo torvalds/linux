@@ -631,15 +631,9 @@ static void intel_dp_info(struct seq_file *m,
 }
 
 static void intel_dp_mst_info(struct seq_file *m,
-			  struct intel_connector *intel_connector)
+			      struct intel_connector *intel_connector)
 {
-	struct intel_encoder *intel_encoder = intel_attached_encoder(intel_connector);
-	struct intel_dp_mst_encoder *intel_mst =
-		enc_to_mst(intel_encoder);
-	struct intel_digital_port *intel_dig_port = intel_mst->primary;
-	struct intel_dp *intel_dp = &intel_dig_port->dp;
-	bool has_audio = drm_dp_mst_port_has_audio(&intel_dp->mst_mgr,
-					intel_connector->port);
+	bool has_audio = intel_connector->port->has_audio;
 
 	seq_printf(m, "\taudio support: %s\n", yesno(has_audio));
 }
@@ -1937,7 +1931,7 @@ static const struct {
 	{"i915_edp_psr_debug", &i915_edp_psr_debug_fops},
 };
 
-int intel_display_debugfs_register(struct drm_i915_private *i915)
+void intel_display_debugfs_register(struct drm_i915_private *i915)
 {
 	struct drm_minor *minor = i915->drm.primary;
 	int i;
@@ -1950,9 +1944,9 @@ int intel_display_debugfs_register(struct drm_i915_private *i915)
 				    intel_display_debugfs_files[i].fops);
 	}
 
-	return drm_debugfs_create_files(intel_display_debugfs_list,
-					ARRAY_SIZE(intel_display_debugfs_list),
-					minor->debugfs_root, minor);
+	drm_debugfs_create_files(intel_display_debugfs_list,
+				 ARRAY_SIZE(intel_display_debugfs_list),
+				 minor->debugfs_root, minor);
 }
 
 static int i915_panel_show(struct seq_file *m, void *data)
