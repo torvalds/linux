@@ -18,6 +18,7 @@ enum mt7615_reg_base {
 	MT_TMAC_BASE,
 	MT_RMAC_BASE,
 	MT_DMA_BASE,
+	MT_PF_BASE,
 	MT_WTBL_BASE_ON,
 	MT_WTBL_BASE_OFF,
 	MT_LPON_BASE,
@@ -321,9 +322,16 @@ enum mt7615_reg_base {
 #define MT_DMA_RCFR0_MCU_RX_MGMT	BIT(2)
 #define MT_DMA_RCFR0_MCU_RX_CTL_NON_BAR	BIT(3)
 #define MT_DMA_RCFR0_MCU_RX_CTL_BAR	BIT(4)
+#define MT_DMA_RCFR0_MCU_RX_TDLS	BIT(19)
 #define MT_DMA_RCFR0_MCU_RX_BYPASS	BIT(21)
 #define MT_DMA_RCFR0_RX_DROPPED_UCAST	GENMASK(25, 24)
 #define MT_DMA_RCFR0_RX_DROPPED_MCAST	GENMASK(27, 26)
+
+#define MT_WF_PF_BASE			((dev)->reg_map[MT_PF_BASE])
+#define MT_WF_PF(ofs)			(MT_WF_PF_BASE + (ofs))
+
+#define MT_WF_PFCR			MT_WF_PF(0x000)
+#define MT_WF_PFCR_TDLS_EN		BIT(9)
 
 #define MT_WTBL_BASE(dev)		((dev)->reg_map[MT_WTBL_BASE_ADDR])
 #define MT_WTBL_ENTRY_SIZE		256

@@ -31,6 +31,7 @@ static const u32 mt7663u_reg_map[] = {
 	[MT_TMAC_BASE]		= 0x820f4000,
 	[MT_RMAC_BASE]		= 0x820f5000,
 	[MT_DMA_BASE]		= 0x820f7000,
+	[MT_PF_BASE]		= 0x820f8000,
 	[MT_WTBL_BASE_ON]	= 0x820f9000,
 	[MT_WTBL_BASE_OFF]	= 0x820f9800,
 	[MT_LPON_BASE]		= 0x820fb000,
