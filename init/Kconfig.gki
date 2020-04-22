@@ -149,6 +149,14 @@ config GKI_HIDDEN_RPMSG_CONFIGS
 	  If you are not building a kernel to be used for a variety of
 	  out-of-kernel build RPMSG drivers, say N here.
 
+config GKI_HIDDEN_GPU_CONFIGS
+	bool "Hidden GPU configuration needed for GKI"
+	select TRACE_GPU_MEM
+	help
+	  Dummy config option used to enable the hidden GPU config.
+	  These are normally selected implicitly when a module
+	  that relies on it is configured.
+
 # Atrocities needed for
 # a) building GKI modules in separate tree, or
 # b) building drivers that are not modularizable
@@ -172,6 +180,7 @@ config GKI_HACKS_TO_FIX
 	select GKI_HIDDEN_USB_CONFIGS
 	select GKI_HIDDEN_SOC_BUS_CONFIGS
 	select GKI_HIDDEN_RPMSG_CONFIGS
+	select GKI_HIDDEN_GPU_CONFIGS
 	help
 	  Dummy config option used to enable core functionality used by
 	  modules that may not be selectable in this config.
