@@ -895,6 +895,24 @@ mlx5_tc_ct_block_flow_offload(enum tc_setup_type type, void *type_data,
 }
 
 int
+mlx5_tc_ct_add_no_trk_match(struct mlx5e_priv *priv,
+			    struct mlx5_flow_spec *spec)
+{
+	u32 ctstate = 0, ctstate_mask = 0;
+
+	mlx5e_tc_match_to_reg_get_match(spec, CTSTATE_TO_REG,
+					&ctstate, &ctstate_mask);
+	if (ctstate_mask)
+		return -EOPNOTSUPP;
+
+	ctstate_mask |= MLX5_CT_STATE_TRK_BIT;
+	mlx5e_tc_match_to_reg_match(spec, CTSTATE_TO_REG,
+				    ctstate, ctstate_mask);
+
+	return 0;
+}
+
+int
 mlx5_tc_ct_parse_match(struct mlx5e_priv *priv,
 		       struct mlx5_flow_spec *spec,
 		       struct flow_cls_offload *f,

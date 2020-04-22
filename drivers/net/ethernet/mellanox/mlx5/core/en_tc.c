@@ -219,6 +219,28 @@ mlx5e_tc_match_to_reg_match(struct mlx5_flow_spec *spec,
 	spec->match_criteria_enable |= MLX5_MATCH_MISC_PARAMETERS_2;
 }
 
+void
+mlx5e_tc_match_to_reg_get_match(struct mlx5_flow_spec *spec,
+				enum mlx5e_tc_attr_to_reg type,
+				u32 *data,
+				u32 *mask)
+{
+	int soffset = mlx5e_tc_attr_to_reg_mappings[type].soffset;
+	int match_len = mlx5e_tc_attr_to_reg_mappings[type].mlen;
+	void *headers_c = spec->match_criteria;
+	void *headers_v = spec->match_value;
+	void *fmask, *fval;
+
+	fmask = headers_c + soffset;
+	fval = headers_v + soffset;
+
+	memcpy(mask, fmask, match_len);
+	memcpy(data, fval, match_len);
+
+	*mask = be32_to_cpu((__force __be32)(*mask << (32 - (match_len * 8))));
+	*data = be32_to_cpu((__force __be32)(*data << (32 - (match_len * 8))));
+}
+
 int
 mlx5e_tc_match_to_reg_set(struct mlx5_core_dev *mdev,
 			  struct mlx5e_tc_mod_hdr_acts *mod_hdr_acts,
@@ -3086,6 +3108,7 @@ struct ipv6_hoplimit_word {
 
 static int is_action_keys_supported(const struct flow_action_entry *act,
 				    bool ct_flow, bool *modify_ip_header,
+				    bool *modify_tuple,
 				    struct netlink_ext_ack *extack)
 {
 	u32 mask, offset;
@@ -3108,7 +3131,10 @@ static int is_action_keys_supported(const struct flow_action_entry *act,
 			*modify_ip_header = true;
 		}
 
-		if (ct_flow && offset >= offsetof(struct iphdr, saddr)) {
+		if (offset >= offsetof(struct iphdr, saddr))
+			*modify_tuple = true;
+
+		if (ct_flow && *modify_tuple) {
 			NL_SET_ERR_MSG_MOD(extack,
 					   "can't offload re-write of ipv4 address with action ct");
 			return -EOPNOTSUPP;
@@ -3123,16 +3149,22 @@ static int is_action_keys_supported(const struct flow_action_entry *act,
 			*modify_ip_header = true;
 		}
 
-		if (ct_flow && offset >= offsetof(struct ipv6hdr, saddr)) {
+		if (ct_flow && offset >= offsetof(struct ipv6hdr, saddr))
+			*modify_tuple = true;
+
+		if (ct_flow && *modify_tuple) {
 			NL_SET_ERR_MSG_MOD(extack,
 					   "can't offload re-write of ipv6 address with action ct");
 			return -EOPNOTSUPP;
 		}
-	} else if (ct_flow && (htype == FLOW_ACT_MANGLE_HDR_TYPE_TCP ||
-			       htype == FLOW_ACT_MANGLE_HDR_TYPE_UDP)) {
-		NL_SET_ERR_MSG_MOD(extack,
-				   "can't offload re-write of transport header ports with action ct");
-		return -EOPNOTSUPP;
+	} else if (htype == FLOW_ACT_MANGLE_HDR_TYPE_TCP ||
+		   htype == FLOW_ACT_MANGLE_HDR_TYPE_UDP) {
+		*modify_tuple = true;
+		if (ct_flow) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "can't offload re-write of transport header ports with action ct");
+			return -EOPNOTSUPP;
+		}
 	}
 
 	return 0;
@@ -3142,10 +3174,11 @@ static bool modify_header_match_supported(struct mlx5e_priv *priv,
 					  struct mlx5_flow_spec *spec,
 					  struct flow_action *flow_action,
 					  u32 actions, bool ct_flow,
+					  bool ct_clear,
 					  struct netlink_ext_ack *extack)
 {
 	const struct flow_action_entry *act;
-	bool modify_ip_header;
+	bool modify_ip_header, modify_tuple;
 	void *headers_c;
 	void *headers_v;
 	u16 ethertype;
@@ -3162,15 +3195,30 @@ static bool modify_header_match_supported(struct mlx5e_priv *priv,
 		goto out_ok;
 
 	modify_ip_header = false;
+	modify_tuple = false;
 	flow_action_for_each(i, act, flow_action) {
 		if (act->id != FLOW_ACTION_MANGLE &&
 		    act->id != FLOW_ACTION_ADD)
 			continue;
 
 		err = is_action_keys_supported(act, ct_flow,
-					       &modify_ip_header, extack);
+					       &modify_ip_header,
+					       &modify_tuple, extack);
 		if (err)
 			return err;
+	}
+
+	/* Add ct_state=-trk match so it will be offloaded for non ct flows
+	 * (or after clear action), as otherwise, since the tuple is changed,
+	 *  we can't restore ct state
+	 */
+	if (!ct_clear && modify_tuple &&
+	    mlx5_tc_ct_add_no_trk_match(priv, spec)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "can't offload tuple modify header with ct matches");
+		netdev_info(priv->netdev,
+			    "can't offload tuple modify header with ct matches");
+		return false;
 	}
 
 	ip_proto = MLX5_GET(fte_match_set_lyr_2_4, headers_v, ip_protocol);
@@ -3216,7 +3264,8 @@ static bool actions_match_supported(struct mlx5e_priv *priv,
 	if (actions & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)
 		return modify_header_match_supported(priv, &parse_attr->spec,
 						     flow_action, actions,
-						     ct_flow, extack);
+						     ct_flow, ct_clear,
+						     extack);
 
 	return true;
 }
@@ -4483,11 +4532,12 @@ __mlx5e_add_fdb_flow(struct mlx5e_priv *priv,
 	if (err)
 		goto err_free;
 
-	err = parse_tc_fdb_actions(priv, &rule->action, flow, extack, filter_dev);
+	/* actions validation depends on parsing the ct matches first */
+	err = mlx5_tc_ct_parse_match(priv, &parse_attr->spec, f, extack);
 	if (err)
 		goto err_free;
 
-	err = mlx5_tc_ct_parse_match(priv, &parse_attr->spec, f, extack);
+	err = parse_tc_fdb_actions(priv, &rule->action, flow, extack, filter_dev);
 	if (err)
 		goto err_free;
 

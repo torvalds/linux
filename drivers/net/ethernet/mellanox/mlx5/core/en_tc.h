@@ -164,6 +164,11 @@ void mlx5e_tc_match_to_reg_match(struct mlx5_flow_spec *spec,
 				 u32 data,
 				 u32 mask);
 
+void mlx5e_tc_match_to_reg_get_match(struct mlx5_flow_spec *spec,
+				     enum mlx5e_tc_attr_to_reg type,
+				     u32 *data,
+				     u32 *mask);
+
 int alloc_mod_hdr_actions(struct mlx5_core_dev *mdev,
 			  int namespace,
 			  struct mlx5e_tc_mod_hdr_acts *mod_hdr_acts);

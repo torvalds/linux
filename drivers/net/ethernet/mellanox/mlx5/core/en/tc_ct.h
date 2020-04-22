@@ -91,6 +91,9 @@ mlx5_tc_ct_parse_match(struct mlx5e_priv *priv,
 		       struct flow_cls_offload *f,
 		       struct netlink_ext_ack *extack);
 int
+mlx5_tc_ct_add_no_trk_match(struct mlx5e_priv *priv,
+			    struct mlx5_flow_spec *spec);
+int
 mlx5_tc_ct_parse_action(struct mlx5e_priv *priv,
 			struct mlx5_esw_flow_attr *attr,
 			const struct flow_action_entry *act,
@@ -138,6 +141,13 @@ mlx5_tc_ct_parse_match(struct mlx5e_priv *priv,
 	NL_SET_ERR_MSG_MOD(extack, "mlx5 tc ct offload isn't enabled.");
 	netdev_warn(priv->netdev, "mlx5 tc ct offload isn't enabled.\n");
 	return -EOPNOTSUPP;
+}
+
+static inline int
+mlx5_tc_ct_add_no_trk_match(struct mlx5e_priv *priv,
+			    struct mlx5_flow_spec *spec)
+{
+	return 0;
 }
 
 static inline int
