@@ -1932,16 +1932,19 @@ failure:
 	return TEST_FAILURE;
 }
 
+enum expected_log { FULL_LOG, NO_LOG, PARTIAL_LOG };
+
 static int validate_logs(char *mount_dir, int log_fd, struct test_file *file,
-			 bool no_rlog)
+			 enum expected_log expected_log)
 {
 	uint8_t data[INCFS_DATA_FILE_BLOCK_SIZE];
-	struct incfs_pending_read_info prs[100] = {};
+	struct incfs_pending_read_info prs[2048] = {};
 	int prs_size = ARRAY_SIZE(prs);
 	int block_cnt = 1 + (file->size - 1) / INCFS_DATA_FILE_BLOCK_SIZE;
+	int expected_read_block_cnt;
 	int res;
 	int read_count;
-	int i;
+	int i, j;
 	char *filename = concat_file_name(mount_dir, file->name);
 	int fd;
 
@@ -1952,17 +1955,29 @@ static int validate_logs(char *mount_dir, int log_fd, struct test_file *file,
 
 	if (block_cnt > prs_size)
 		block_cnt = prs_size;
+	expected_read_block_cnt = block_cnt;
 
 	for (i = 0; i < block_cnt; i++) {
 		res = pread(fd, data, sizeof(data),
 			    INCFS_DATA_FILE_BLOCK_SIZE * i);
+
+		/* Make some read logs of type SAME_FILE_NEXT_BLOCK */
+		if (i % 10 == 0)
+			usleep(20000);
+
+		/* Skip some blocks to make logs of type SAME_FILE */
+		if (i % 10 == 5) {
+			++i;
+			--expected_read_block_cnt;
+		}
+
 		if (res <= 0)
 			goto failure;
 	}
 
-	read_count =
-		wait_for_pending_reads(log_fd, no_rlog ? 10 : 0, prs, prs_size);
-	if (no_rlog) {
+	read_count = wait_for_pending_reads(
+		log_fd, expected_log == NO_LOG ? 10 : 0, prs, prs_size);
+	if (expected_log == NO_LOG) {
 		if (read_count == 0)
 			goto success;
 		if (read_count < 0)
@@ -1979,14 +1994,26 @@ static int validate_logs(char *mount_dir, int log_fd, struct test_file *file,
 		goto failure;
 	}
 
-	if (read_count != block_cnt) {
+	i = 0;
+	if (expected_log == PARTIAL_LOG) {
+		if (read_count == 0) {
+			ksft_print_msg("No logs %s.\n", file->name);
+			goto failure;
+		}
+
+		for (i = 0, j = 0; j < expected_read_block_cnt - read_count;
+		     i++, j++)
+			if (i % 10 == 5)
+				++i;
+
+	} else if (read_count != expected_read_block_cnt) {
 		ksft_print_msg("Bad log read count %s %d %d.\n", file->name,
-			       read_count, block_cnt);
+			       read_count, expected_read_block_cnt);
 		goto failure;
 	}
 
-	for (i = 0; i < read_count; i++) {
-		struct incfs_pending_read_info *read = &prs[i];
+	for (j = 0; j < read_count; i++, j++) {
+		struct incfs_pending_read_info *read = &prs[j];
 
 		if (!same_id(&read->file_id, &file->id)) {
 			ksft_print_msg("Bad log read ino %s\n", file->name);
@@ -1999,8 +2026,8 @@ static int validate_logs(char *mount_dir, int log_fd, struct test_file *file,
 			goto failure;
 		}
 
-		if (i != 0) {
-			unsigned long psn = prs[i - 1].serial_number;
+		if (j != 0) {
+			unsigned long psn = prs[j - 1].serial_number;
 
 			if (read->serial_number != psn + 1) {
 				ksft_print_msg("Bad log read sn %s %d %d.\n",
@@ -2015,6 +2042,9 @@ static int validate_logs(char *mount_dir, int log_fd, struct test_file *file,
 				       file->name);
 			goto failure;
 		}
+
+		if (i % 10 == 5)
+			++i;
 	}
 
 success:
@@ -2065,7 +2095,7 @@ static int read_log_test(char *mount_dir)
 	for (i = 0; i < file_num; i++) {
 		struct test_file *file = &test.files[i];
 
-		if (validate_logs(mount_dir, log_fd, file, false))
+		if (validate_logs(mount_dir, log_fd, file, FULL_LOG))
 			goto failure;
 	}
 
@@ -2093,7 +2123,7 @@ static int read_log_test(char *mount_dir)
 	for (i = 0; i < file_num; i++) {
 		struct test_file *file = &test.files[i];
 
-		if (validate_logs(mount_dir, log_fd, file, false))
+		if (validate_logs(mount_dir, log_fd, file, FULL_LOG))
 			goto failure;
 	}
 
@@ -2120,7 +2150,30 @@ static int read_log_test(char *mount_dir)
 	for (i = 0; i < file_num; i++) {
 		struct test_file *file = &test.files[i];
 
-		if (validate_logs(mount_dir, log_fd, file, true))
+		if (validate_logs(mount_dir, log_fd, file, NO_LOG))
+			goto failure;
+	}
+
+	/*
+	 * Remount and check that logs start working again
+	 */
+	drop_caches = open("/proc/sys/vm/drop_caches", O_WRONLY | O_CLOEXEC);
+	if (drop_caches == -1)
+		goto failure;
+	i = write(drop_caches, "3", 1);
+	close(drop_caches);
+	if (i != 1)
+		goto failure;
+
+	if (mount_fs_opt(mount_dir, backing_dir, "readahead=0,rlog_pages=1",
+			 true) != 0)
+		goto failure;
+
+	/* Validate data again */
+	for (i = 0; i < file_num; i++) {
+		struct test_file *file = &test.files[i];
+
+		if (validate_logs(mount_dir, log_fd, file, PARTIAL_LOG))
 			goto failure;
 	}
 
@@ -2143,7 +2196,7 @@ static int read_log_test(char *mount_dir)
 	for (i = 0; i < file_num; i++) {
 		struct test_file *file = &test.files[i];
 
-		if (validate_logs(mount_dir, log_fd, file, false))
+		if (validate_logs(mount_dir, log_fd, file, FULL_LOG))
 			goto failure;
 	}
 
@@ -2294,8 +2347,6 @@ static int validate_ranges(const char *mount_dir, struct test_file *file)
 
 		if (fba.start_index >= block_cnt) {
 			if (fba.index_out != fba.start_index) {
-				printf("Paul: %d, %d\n", (int)fba.index_out,
-				       (int)fba.start_index);
 				error = -EINVAL;
 				goto out;
 			}
@@ -2646,7 +2697,7 @@ int main(int argc, char *argv[])
 	rmdir(mount_dir);
 
 	if (fails > 0)
-		ksft_exit_pass();
+		ksft_exit_fail();
 	else
 		ksft_exit_pass();
 	return 0;
