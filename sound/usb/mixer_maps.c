@@ -41,6 +41,7 @@ struct usbmix_ctl_map {
 	u32 id;
 	const struct usbmix_name_map *map;
 	const struct usbmix_selector_map *selector_map;
+	const struct usbmix_connector_map *connector_map;
 	int ignore_ctl_error;
 };
 
@@ -391,6 +392,15 @@ static const struct usbmix_name_map trx40_mobo_map[] = {
 	{}
 };
 
+static const struct usbmix_connector_map trx40_mobo_connector_map[] = {
+	{ 10, 16 },	/* (Back) Speaker */
+	{ 11, 17 },	/* Front Headphone */
+	{ 13, 7 },	/* Line */
+	{ 14, 8 },	/* Mic */
+	{ 15, 9 },	/* Front Mic */
+	{}
+};
+
 /*
  * Control map entries
  */
@@ -513,6 +523,7 @@ static struct usbmix_ctl_map usbmix_ctl_maps[] = {
 	{	/* Gigabyte TRX40 Aorus Pro WiFi */
 		.id = USB_ID(0x0414, 0xa002),
 		.map = trx40_mobo_map,
+		.connector_map = trx40_mobo_connector_map,
 	},
 	{	/* ASUS ROG Zenith II */
 		.id = USB_ID(0x0b05, 0x1916),
@@ -525,10 +536,12 @@ static struct usbmix_ctl_map usbmix_ctl_maps[] = {
 	{	/* MSI TRX40 Creator */
 		.id = USB_ID(0x0db0, 0x0d64),
 		.map = trx40_mobo_map,
+		.connector_map = trx40_mobo_connector_map,
 	},
 	{	/* MSI TRX40 */
 		.id = USB_ID(0x0db0, 0x543d),
 		.map = trx40_mobo_map,
+		.connector_map = trx40_mobo_connector_map,
 	},
 	{ 0 } /* terminator */
 };
