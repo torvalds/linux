@@ -249,6 +249,17 @@ mt7663u_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 	return mt76u_skb_dma_info(tx_info->skb, tx_info->skb->len);
 }
 
+static bool mt7663u_tx_status_data(struct mt76_dev *mdev, u8 *update)
+{
+	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
+
+	mutex_lock(&dev->mt76.mutex);
+	mt7615_mac_sta_poll(dev);
+	mutex_unlock(&dev->mt76.mutex);
+
+	return 0;
+}
+
 static int mt7663u_probe(struct usb_interface *usb_intf,
 			 const struct usb_device_id *id)
 {
@@ -257,6 +268,7 @@ static int mt7663u_probe(struct usb_interface *usb_intf,
 		.drv_flags = MT_DRV_RX_DMA_HDR,
 		.tx_prepare_skb = mt7663u_tx_prepare_skb,
 		.tx_complete_skb = mt7663u_tx_complete_skb,
+		.tx_status_data = mt7663u_tx_status_data,
 		.rx_skb = mt7615_queue_rx_skb,
 		.sta_ps = mt7615_sta_ps,
 		.sta_add = mt7615_mac_sta_add,
