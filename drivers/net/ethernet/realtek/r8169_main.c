@@ -5185,20 +5185,18 @@ static int r8169_mdio_register(struct rtl8169_private *tp)
 	new_bus->read = r8169_mdio_read_reg;
 	new_bus->write = r8169_mdio_write_reg;
 
-	ret = mdiobus_register(new_bus);
+	ret = devm_mdiobus_register(new_bus);
 	if (ret)
 		return ret;
 
 	tp->phydev = mdiobus_get_phy(new_bus, 0);
 	if (!tp->phydev) {
-		mdiobus_unregister(new_bus);
 		return -ENODEV;
 	} else if (!tp->phydev->drv) {
 		/* Most chip versions fail with the genphy driver.
 		 * Therefore ensure that the dedicated PHY driver is loaded.
 		 */
 		dev_err(&pdev->dev, "realtek.ko not loaded, maybe it needs to be added to initramfs?\n");
-		mdiobus_unregister(new_bus);
 		return -EUNATCH;
 	}
 
@@ -5523,7 +5521,7 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	rc = register_netdev(dev);
 	if (rc)
-		goto err_mdio_unregister;
+		return rc;
 
 	netif_info(tp, probe, dev, "%s, %pM, XID %03x, IRQ %d\n",
 		   rtl_chip_infos[chipset].name, dev->dev_addr, xid,
@@ -5542,10 +5540,6 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		pm_runtime_put_sync(&pdev->dev);
 
 	return 0;
-
-err_mdio_unregister:
-	mdiobus_unregister(tp->phydev->mdio.bus);
-	return rc;
 }
 
 static struct pci_driver rtl8169_pci_driver = {
