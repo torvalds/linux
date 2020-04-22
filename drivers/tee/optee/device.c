@@ -98,7 +98,7 @@ static int __optee_enumerate_devices(u32 func)
 		return -ENODEV;
 
 	/* Open session with device enumeration pseudo TA */
-	memcpy(sess_arg.uuid, pta_uuid.b, TEE_IOCTL_UUID_LEN);
+	export_uuid(sess_arg.uuid, &pta_uuid);
 	sess_arg.clnt_login = TEE_IOCTL_LOGIN_PUBLIC;
 	sess_arg.num_params = 0;
 
