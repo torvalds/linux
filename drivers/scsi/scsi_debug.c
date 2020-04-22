@@ -157,6 +157,7 @@ static const char *sdebug_version_date = "20200421";
 /* Default parameters for ZBC drives */
 #define DEF_ZBC_ZONE_SIZE_MB	128
 #define DEF_ZBC_MAX_OPEN_ZONES	8
+#define DEF_ZBC_NR_CONV_ZONES	1
 
 #define SDEBUG_LUN_0_VAL 0
 
@@ -296,6 +297,7 @@ struct sdebug_dev_info {
 	unsigned int zsize;
 	unsigned int zsize_shift;
 	unsigned int nr_zones;
+	unsigned int nr_conv_zones;
 	unsigned int nr_imp_open;
 	unsigned int nr_exp_open;
 	unsigned int nr_closed;
@@ -823,6 +825,7 @@ static int dif_errors;
 static bool sdeb_zbc_in_use;		/* true when ptype=TYPE_ZBC [0x14] */
 static const int zbc_zone_size_mb;
 static int sdeb_zbc_max_open = DEF_ZBC_MAX_OPEN_ZONES;
+static int sdeb_zbc_nr_conv = DEF_ZBC_NR_CONV_ZONES;
 
 static int submit_queues = DEF_SUBMIT_QUEUES;  /* > 1 for multi-queue (mq) */
 static struct sdebug_queue *sdebug_q_arr;  /* ptr to array of submit queues */
@@ -4787,6 +4790,12 @@ static int sdebug_device_create_zones(struct sdebug_dev_info *devip)
 		devip->zsize_shift = ilog2(devip->zsize);
 	devip->nr_zones = (capacity + devip->zsize - 1) >> devip->zsize_shift;
 
+	if (sdeb_zbc_nr_conv >= devip->nr_zones) {
+		pr_err("Number of conventional zones too large\n");
+		return -EINVAL;
+	}
+	devip->nr_conv_zones = sdeb_zbc_nr_conv;
+
 	/* zbc_max_open_zones can be 0, meaning "not reported" (no limit) */
 	if (sdeb_zbc_max_open >= devip->nr_zones - 1)
 		devip->max_open = (devip->nr_zones - 1) / 2;
@@ -4803,7 +4812,7 @@ static int sdebug_device_create_zones(struct sdebug_dev_info *devip)
 
 		zsp->z_start = zstart;
 
-		if (i == 0) {
+		if (i < devip->nr_conv_zones) {
 			zsp->z_cond = ZBC_NOT_WRITE_POINTER;
 			zsp->z_wp = (sector_t)-1;
 		} else {
@@ -5541,6 +5550,7 @@ module_param_named(write_same_length, sdebug_write_same_length, int,
 		   S_IRUGO | S_IWUSR);
 module_param_named(zbc, sdeb_zbc_model_s, charp, S_IRUGO);
 module_param_named(zone_max_open, sdeb_zbc_max_open, int, S_IRUGO);
+module_param_named(zone_nr_conv, sdeb_zbc_nr_conv, int, S_IRUGO);
 
 MODULE_AUTHOR("Eric Youngdale + Douglas Gilbert");
 MODULE_DESCRIPTION("SCSI debug adapter driver");
@@ -5604,6 +5614,7 @@ MODULE_PARM_DESC(wp, "Write Protect (def=0)");
 MODULE_PARM_DESC(write_same_length, "Maximum blocks per WRITE SAME cmd (def=0xffff)");
 MODULE_PARM_DESC(zbc, "'none' [0]; 'aware' [1]; 'managed' [2] (def=0). Can have 'host-' prefix");
 MODULE_PARM_DESC(zone_max_open, "Maximum number of open zones; [0] for no limit (def=auto)");
+MODULE_PARM_DESC(zone_nr_conv, "Number of conventional zones (def=1)");
 
 #define SDEBUG_INFO_LEN 256
 static char sdebug_info[SDEBUG_INFO_LEN];
