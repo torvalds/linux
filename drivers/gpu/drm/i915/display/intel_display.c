@@ -6089,30 +6089,28 @@ skl_update_scaler(struct intel_crtc_state *crtc_state, bool force_detach,
 	return 0;
 }
 
-/**
- * skl_update_scaler_crtc - Stages update to scaler state for a given crtc.
- *
- * @state: crtc's scaler state
- *
- * Return
- *     0 - scaler_usage updated successfully
- *    error - requested scaling cannot be supported or other error condition
- */
-int skl_update_scaler_crtc(struct intel_crtc_state *state)
+static int skl_update_scaler_crtc(struct intel_crtc_state *crtc_state)
 {
-	const struct drm_display_mode *adjusted_mode = &state->hw.adjusted_mode;
-	bool need_scaler = false;
+	const struct drm_display_mode *adjusted_mode =
+		&crtc_state->hw.adjusted_mode;
+	int width, height;
 
-	if (state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420 ||
-	    state->pch_pfit.enabled)
-		need_scaler = true;
+	if (crtc_state->pch_pfit.enabled) {
+		u32 pfit_size = crtc_state->pch_pfit.size;
 
-	return skl_update_scaler(state, !state->hw.active, SKL_CRTC_INDEX,
-				 &state->scaler_state.scaler_id,
-				 state->pipe_src_w, state->pipe_src_h,
-				 adjusted_mode->crtc_hdisplay,
-				 adjusted_mode->crtc_vdisplay, NULL, 0,
-				 need_scaler);
+		width = pfit_size >> 16;
+		height = pfit_size & 0xffff;
+	} else {
+		width = adjusted_mode->crtc_hdisplay;
+		height = adjusted_mode->crtc_vdisplay;
+	}
+
+	return skl_update_scaler(crtc_state, !crtc_state->hw.active,
+				 SKL_CRTC_INDEX,
+				 &crtc_state->scaler_state.scaler_id,
+				 crtc_state->pipe_src_w, crtc_state->pipe_src_h,
+				 width, height, NULL, 0,
+				 crtc_state->pch_pfit.enabled);
 }
 
 /**

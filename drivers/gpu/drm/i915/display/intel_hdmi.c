@@ -2336,13 +2336,6 @@ intel_hdmi_ycbcr420_config(struct drm_connector *connector,
 
 	config->output_format = INTEL_OUTPUT_FORMAT_YCBCR420;
 
-	/* YCBCR 420 output conversion needs a scaler */
-	if (skl_update_scaler_crtc(config)) {
-		drm_dbg_kms(&i915->drm,
-			    "Scaler allocation for output failed\n");
-		return false;
-	}
-
 	intel_pch_panel_fitting(intel_crtc, config,
 				DRM_MODE_SCALE_FULLSCREEN);
 
