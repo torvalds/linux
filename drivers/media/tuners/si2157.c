@@ -327,7 +327,7 @@ static int si2157_tune_wait(struct i2c_client *client, u8 is_digital)
 	/* wait tuner command complete */
 	start_time = jiffies;
 	timeout = start_time + msecs_to_jiffies(TUN_TIMEOUT);
-	while (!time_after(jiffies, timeout)) {
+	while (1) {
 		ret = i2c_master_recv(client, &wait_status,
 				      sizeof(wait_status));
 		if (ret < 0) {
@@ -336,6 +336,9 @@ static int si2157_tune_wait(struct i2c_client *client, u8 is_digital)
 			ret = -EREMOTEIO;
 			goto err_mutex_unlock;
 		}
+
+		if (time_after(jiffies, timeout))
+			break;
 
 		/* tuner done? */
 		if ((wait_status & 0x81) == 0x81)
