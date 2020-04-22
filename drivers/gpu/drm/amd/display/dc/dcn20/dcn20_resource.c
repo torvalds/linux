@@ -1936,7 +1936,7 @@ bool dcn20_split_stream_for_odm(
 	return true;
 }
 
-void dcn20_split_stream_for_mpc(
+bool dcn20_split_stream_for_mpc(
 		struct resource_context *res_ctx,
 		const struct resource_pool *pool,
 		struct pipe_ctx *primary_pipe,
@@ -1965,8 +1965,11 @@ void dcn20_split_stream_for_mpc(
 	secondary_pipe->top_pipe = primary_pipe;
 
 	ASSERT(primary_pipe->plane_state);
-	resource_build_scaling_params(primary_pipe);
-	resource_build_scaling_params(secondary_pipe);
+	if (!resource_build_scaling_params(primary_pipe) ||
+			!resource_build_scaling_params(secondary_pipe))
+		return false;
+
+	return true;
 }
 
 void dcn20_populate_dml_writeback_from_context(
@@ -2796,9 +2799,10 @@ bool dcn20_fast_validate_bw(
 						goto validate_fail;
 					dcn20_build_mapped_resource(dc, context, pipe->stream);
 				} else
-					dcn20_split_stream_for_mpc(
-						&context->res_ctx, dc->res_pool,
-						pipe, hsplit_pipe);
+					if (!dcn20_split_stream_for_mpc(
+							&context->res_ctx, dc->res_pool,
+							pipe, hsplit_pipe))
+						goto validate_fail;
 				pipe_split_from[hsplit_pipe->pipe_idx] = pipe_idx;
 			}
 		} else if (hsplit_pipe && hsplit_pipe->plane_state == pipe->plane_state) {
