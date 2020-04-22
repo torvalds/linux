@@ -263,7 +263,7 @@ static void cros_typec_set_port_params_v1(struct cros_typec_data *typec,
 
 		pd_en = resp->enabled & PD_CTRL_RESP_ENABLED_PD_CAPABLE;
 		ret = cros_typec_add_partner(typec, port_num, pd_en);
-		if (!ret)
+		if (ret)
 			dev_warn(typec->dev,
 				 "Failed to register partner on port: %d\n",
 				 port_num);
