@@ -15,6 +15,7 @@
 #define PHY_ID_MASK			0xfffffff0
 #define PHY_ID_TJA1100			0x0180dc40
 #define PHY_ID_TJA1101			0x0180dd00
+#define PHY_ID_TJA1102			0x0180dc80
 
 #define MII_ECTRL			17
 #define MII_ECTRL_LINK_CONTROL		BIT(15)
@@ -39,6 +40,10 @@
 #define MII_INTSRC			21
 #define MII_INTSRC_TEMP_ERR		BIT(1)
 #define MII_INTSRC_UV_ERR		BIT(3)
+
+#define MII_INTEN			22
+#define MII_INTEN_LINK_FAIL		BIT(10)
+#define MII_INTEN_LINK_UP		BIT(9)
 
 #define MII_COMMSTAT			23
 #define MII_COMMSTAT_LINK_UP		BIT(15)
@@ -180,6 +185,7 @@ static int tja11xx_config_init(struct phy_device *phydev)
 			return ret;
 		break;
 	case PHY_ID_TJA1101:
+	case PHY_ID_TJA1102:
 		ret = phy_set_bits(phydev, MII_COMMCFG, MII_COMMCFG_AUTO_OP);
 		if (ret)
 			return ret;
@@ -344,6 +350,55 @@ static int tja11xx_probe(struct phy_device *phydev)
 	return PTR_ERR_OR_ZERO(priv->hwmon_dev);
 }
 
+static int tja1102_match_phy_device(struct phy_device *phydev, bool port0)
+{
+	int ret;
+
+	if ((phydev->phy_id & PHY_ID_MASK) != PHY_ID_TJA1102)
+		return 0;
+
+	ret = phy_read(phydev, MII_PHYSID2);
+	if (ret < 0)
+		return ret;
+
+	/* TJA1102 Port 1 has phyid 0 and doesn't support temperature
+	 * and undervoltage alarms.
+	 */
+	if (port0)
+		return ret ? 1 : 0;
+
+	return !ret;
+}
+
+static int tja1102_p0_match_phy_device(struct phy_device *phydev)
+{
+	return tja1102_match_phy_device(phydev, true);
+}
+
+static int tja1102_p1_match_phy_device(struct phy_device *phydev)
+{
+	return tja1102_match_phy_device(phydev, false);
+}
+
+static int tja11xx_ack_interrupt(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = phy_read(phydev, MII_INTSRC);
+
+	return (ret < 0) ? ret : 0;
+}
+
+static int tja11xx_config_intr(struct phy_device *phydev)
+{
+	int value = 0;
+
+	if (phydev->interrupts == PHY_INTERRUPT_ENABLED)
+		value = MII_INTEN_LINK_FAIL | MII_INTEN_LINK_UP;
+
+	return phy_write(phydev, MII_INTEN, value);
+}
+
 static struct phy_driver tja11xx_driver[] = {
 	{
 		PHY_ID_MATCH_MODEL(PHY_ID_TJA1100),
@@ -375,6 +430,41 @@ static struct phy_driver tja11xx_driver[] = {
 		.get_sset_count = tja11xx_get_sset_count,
 		.get_strings	= tja11xx_get_strings,
 		.get_stats	= tja11xx_get_stats,
+	}, {
+		.name		= "NXP TJA1102 Port 0",
+		.features       = PHY_BASIC_T1_FEATURES,
+		.probe		= tja11xx_probe,
+		.soft_reset	= tja11xx_soft_reset,
+		.config_init	= tja11xx_config_init,
+		.read_status	= tja11xx_read_status,
+		.match_phy_device = tja1102_p0_match_phy_device,
+		.suspend	= genphy_suspend,
+		.resume		= genphy_resume,
+		.set_loopback   = genphy_loopback,
+		/* Statistics */
+		.get_sset_count = tja11xx_get_sset_count,
+		.get_strings	= tja11xx_get_strings,
+		.get_stats	= tja11xx_get_stats,
+		.ack_interrupt	= tja11xx_ack_interrupt,
+		.config_intr	= tja11xx_config_intr,
+
+	}, {
+		.name		= "NXP TJA1102 Port 1",
+		.features       = PHY_BASIC_T1_FEATURES,
+		/* currently no probe for Port 1 is need */
+		.soft_reset	= tja11xx_soft_reset,
+		.config_init	= tja11xx_config_init,
+		.read_status	= tja11xx_read_status,
+		.match_phy_device = tja1102_p1_match_phy_device,
+		.suspend	= genphy_suspend,
+		.resume		= genphy_resume,
+		.set_loopback   = genphy_loopback,
+		/* Statistics */
+		.get_sset_count = tja11xx_get_sset_count,
+		.get_strings	= tja11xx_get_strings,
+		.get_stats	= tja11xx_get_stats,
+		.ack_interrupt	= tja11xx_ack_interrupt,
+		.config_intr	= tja11xx_config_intr,
 	}
 };
 
@@ -383,6 +473,7 @@ module_phy_driver(tja11xx_driver);
 static struct mdio_device_id __maybe_unused tja11xx_tbl[] = {
 	{ PHY_ID_MATCH_MODEL(PHY_ID_TJA1100) },
 	{ PHY_ID_MATCH_MODEL(PHY_ID_TJA1101) },
+	{ PHY_ID_MATCH_MODEL(PHY_ID_TJA1102) },
 	{ }
 };
 
