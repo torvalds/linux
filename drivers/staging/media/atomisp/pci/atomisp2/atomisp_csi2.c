@@ -88,12 +88,7 @@ int atomisp_csi2_set_ffmt(struct v4l2_subdev *sd,
 			  struct v4l2_mbus_framefmt *ffmt)
 {
 	struct atomisp_mipi_csi2_device *csi2 = v4l2_get_subdevdata(sd);
-	struct v4l2_mbus_framefmt *actual_ffmt =
-#ifndef ISP2401
-	    __csi2_get_format(csi2, cfg, which, pad);
-#else
-	    __csi2_get_format(csi2, cfg, which, pad);
-#endif
+	struct v4l2_mbus_framefmt *actual_ffmt = __csi2_get_format(csi2, cfg, which, pad);
 
 	if (pad == CSI2_PAD_SINK) {
 		const struct atomisp_in_fmt_conv *ic;
@@ -119,12 +114,7 @@ int atomisp_csi2_set_ffmt(struct v4l2_subdev *sd,
 	}
 
 	/* FIXME: DPCM decompression */
-	*actual_ffmt = *ffmt =
-#ifndef ISP2401
-			   *__csi2_get_format(csi2, cfg, which, CSI2_PAD_SINK);
-#else
-			   *__csi2_get_format(csi2, cfg, which, CSI2_PAD_SINK);
-#endif
+	*actual_ffmt = *ffmt = *__csi2_get_format(csi2, cfg, which, CSI2_PAD_SINK);
 
 	return 0;
 }
@@ -181,9 +171,6 @@ static const struct v4l2_subdev_ops csi2_ops = {
 	.pad = &csi2_pad_ops,
 };
 
-#ifndef ISP2401
-
-#endif
 /*
  * csi2_link_setup - Setup CSI2 connections.
  * @entity : Pointer to media entity structure
@@ -417,9 +404,6 @@ void atomisp_mipi_csi2_cleanup(struct atomisp_device *isp)
 {
 }
 
-#ifndef ISP2401
-
-#endif
 int atomisp_mipi_csi2_init(struct atomisp_device *isp)
 {
 	struct atomisp_mipi_csi2_device *csi2_port;
