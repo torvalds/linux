@@ -1016,7 +1016,8 @@ static int txdma_queue_mapping(struct rtw_dev *rtwdev)
 
 	rtw_write8(rtwdev, REG_CR, 0);
 	rtw_write8(rtwdev, REG_CR, MAC_TRX_ENABLE);
-	rtw_write32(rtwdev, REG_H2CQ_CSR, BIT_H2CQ_FULL);
+	if (rtw_chip_wcpu_11ac(rtwdev))
+		rtw_write32(rtwdev, REG_H2CQ_CSR, BIT_H2CQ_FULL);
 
 	return 0;
 }
@@ -1134,6 +1135,9 @@ static int init_h2c(struct rtw_dev *rtwdev)
 	u32 h2cq_size;
 	u32 h2cq_free;
 	u32 wp, rp;
+
+	if (rtw_chip_wcpu_11n(rtwdev))
+		return 0;
 
 	h2cq_addr = fifo->rsvd_h2cq_addr << TX_PAGE_SIZE_SHIFT;
 	h2cq_size = RSVD_PG_H2CQ_NUM << TX_PAGE_SIZE_SHIFT;
