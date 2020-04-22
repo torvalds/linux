@@ -124,9 +124,6 @@
 #define IGC_MMDAC		13 /* MMD Access Control */
 #define IGC_MMDAAD		14 /* MMD Access Address/Data */
 
-/* Good transmitted packets counter registers */
-#define IGC_PQGPTC(_n)		(0x010014 + (0x100 * (_n)))
-
 /* Statistics Register Descriptions */
 #define IGC_CRCERRS	0x04000  /* CRC Error Count - R/clr */
 #define IGC_ALGNERRC	0x04004  /* Alignment Error Count - R/clr */
