@@ -3172,7 +3172,7 @@ static void guid_handler(struct ipmi_smi *intf, struct ipmi_recv_msg *msg)
 		goto out;
 	}
 
-	guid_copy(&bmc->fetch_guid, (guid_t *)(msg->msg.data + 1));
+	import_guid(&bmc->fetch_guid, msg->msg.data + 1);
 	/*
 	 * Make sure the guid data is available before setting
 	 * dyn_guid_set.
