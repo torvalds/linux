@@ -42,14 +42,11 @@
 
 static int mdiobus_register_gpiod(struct mdio_device *mdiodev)
 {
-	int error;
-
 	/* Deassert the optional reset signal */
 	mdiodev->reset_gpio = gpiod_get_optional(&mdiodev->dev,
 						 "reset", GPIOD_OUT_LOW);
-	error = PTR_ERR_OR_ZERO(mdiodev->reset_gpio);
-	if (error)
-		return error;
+	if (IS_ERR(mdiodev->reset_gpio))
+		return PTR_ERR(mdiodev->reset_gpio);
 
 	if (mdiodev->reset_gpio)
 		gpiod_set_consumer_name(mdiodev->reset_gpio, "PHY reset");
