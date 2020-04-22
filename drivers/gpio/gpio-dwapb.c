@@ -743,8 +743,7 @@ static int dwapb_gpio_suspend(struct device *dev)
 			ctx->int_deb	= dwapb_read(gpio, GPIO_PORTA_DEBOUNCE);
 
 			/* Mask out interrupts */
-			dwapb_write(gpio, GPIO_INTMASK,
-				    0xffffffff & ~ctx->wake_en);
+			dwapb_write(gpio, GPIO_INTMASK, ~ctx->wake_en);
 		}
 	}
 	spin_unlock_irqrestore(&gc->bgpio_lock, flags);
