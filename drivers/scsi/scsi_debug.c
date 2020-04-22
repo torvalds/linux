@@ -1445,6 +1445,24 @@ static int inquiry_vpd_b2(unsigned char *arr)
 	return 0x4;
 }
 
+/* Zoned block device characteristics VPD page (ZBC mandatory) */
+static int inquiry_vpd_b6(unsigned char *arr)
+{
+	memset(arr, 0, 0x3c);
+	arr[0] = 0x1; /* set URSWRZ (unrestricted read in seq. wr req zone) */
+	/*
+	 * Set Optimal number of open sequential write preferred zones and
+	 * Optimal number of non-sequentially written sequential write
+	 * preferred zones and Maximum number of open sequential write
+	 * required zones fields to 'not reported' (0xffffffff). Leave other
+	 * fields set to zero.
+	 */
+	put_unaligned_be32(0xffffffff, &arr[4]);
+	put_unaligned_be32(0xffffffff, &arr[8]);
+	put_unaligned_be32(0xffffffff, &arr[12]);
+	return 0x3c;
+}
+
 #define SDEBUG_LONG_INQ_SZ 96
 #define SDEBUG_MAX_INQ_ARR_SZ 584
 
@@ -1454,13 +1472,15 @@ static int resp_inquiry(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 	unsigned char *arr;
 	unsigned char *cmd = scp->cmnd;
 	int alloc_len, n, ret;
-	bool have_wlun, is_disk;
+	bool have_wlun, is_disk, is_zbc, is_disk_zbc;
 
 	alloc_len = get_unaligned_be16(cmd + 3);
 	arr = kzalloc(SDEBUG_MAX_INQ_ARR_SZ, GFP_ATOMIC);
 	if (! arr)
 		return DID_REQUEUE << 16;
 	is_disk = (sdebug_ptype == TYPE_DISK);
+	is_zbc = (sdebug_ptype == TYPE_ZBC);
+	is_disk_zbc = (is_disk || is_zbc);
 	have_wlun = scsi_is_wlun(scp->device->lun);
 	if (have_wlun)
 		pq_pdt = TYPE_WLUN;	/* present, wlun */
@@ -1498,11 +1518,14 @@ static int resp_inquiry(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 			arr[n++] = 0x86;  /* extended inquiry */
 			arr[n++] = 0x87;  /* mode page policy */
 			arr[n++] = 0x88;  /* SCSI ports */
-			if (is_disk) {	  /* SBC only */
+			if (is_disk_zbc) {	  /* SBC or ZBC */
 				arr[n++] = 0x89;  /* ATA information */
 				arr[n++] = 0xb0;  /* Block limits */
 				arr[n++] = 0xb1;  /* Block characteristics */
-				arr[n++] = 0xb2;  /* Logical Block Prov */
+				if (is_disk)
+					arr[n++] = 0xb2;  /* LB Provisioning */
+				else if (is_zbc)
+					arr[n++] = 0xb6;  /* ZB dev. char. */
 			}
 			arr[3] = n - 4;	  /* number of supported VPD pages */
 		} else if (0x80 == cmd[2]) { /* unit serial number */
@@ -1541,19 +1564,22 @@ static int resp_inquiry(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 		} else if (0x88 == cmd[2]) { /* SCSI Ports */
 			arr[1] = cmd[2];	/*sanity */
 			arr[3] = inquiry_vpd_88(&arr[4], target_dev_id);
-		} else if (is_disk && 0x89 == cmd[2]) { /* ATA information */
+		} else if (is_disk_zbc && 0x89 == cmd[2]) { /* ATA info */
 			arr[1] = cmd[2];        /*sanity */
 			n = inquiry_vpd_89(&arr[4]);
 			put_unaligned_be16(n, arr + 2);
-		} else if (is_disk && 0xb0 == cmd[2]) { /* Block limits */
+		} else if (is_disk_zbc && 0xb0 == cmd[2]) { /* Block limits */
 			arr[1] = cmd[2];        /*sanity */
 			arr[3] = inquiry_vpd_b0(&arr[4]);
-		} else if (is_disk && 0xb1 == cmd[2]) { /* Block char. */
+		} else if (is_disk_zbc && 0xb1 == cmd[2]) { /* Block char. */
 			arr[1] = cmd[2];        /*sanity */
 			arr[3] = inquiry_vpd_b1(&arr[4]);
 		} else if (is_disk && 0xb2 == cmd[2]) { /* LB Prov. */
 			arr[1] = cmd[2];        /*sanity */
 			arr[3] = inquiry_vpd_b2(&arr[4]);
+		} else if (is_zbc && cmd[2] == 0xb6) { /* ZB dev. charact. */
+			arr[1] = cmd[2];        /*sanity */
+			arr[3] = inquiry_vpd_b6(&arr[4]);
 		} else {
 			mk_sense_invalid_fld(scp, SDEB_IN_CDB, 2, -1);
 			kfree(arr);
@@ -1590,6 +1616,9 @@ static int resp_inquiry(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 		n += 2;
 	} else if (sdebug_ptype == TYPE_TAPE) {	/* SSC-4 rev 3 */
 		put_unaligned_be16(0x525, arr + n);
+		n += 2;
+	} else if (is_zbc) {	/* ZBC BSR INCITS 536 revision 05 */
+		put_unaligned_be16(0x624, arr + n);
 		n += 2;
 	}
 	put_unaligned_be16(0x2100, arr + n);	/* SPL-4 no version claimed */
@@ -2180,7 +2209,7 @@ static int resp_mode_sense(struct scsi_cmnd *scp,
 	unsigned char *ap;
 	unsigned char arr[SDEBUG_MAX_MSENSE_SZ];
 	unsigned char *cmd = scp->cmnd;
-	bool dbd, llbaa, msense_6, is_disk, bad_pcode;
+	bool dbd, llbaa, msense_6, is_disk, is_zbc, bad_pcode;
 
 	dbd = !!(cmd[1] & 0x8);		/* disable block descriptors */
 	pcontrol = (cmd[2] & 0xc0) >> 6;
@@ -2189,7 +2218,8 @@ static int resp_mode_sense(struct scsi_cmnd *scp,
 	msense_6 = (MODE_SENSE == cmd[0]);
 	llbaa = msense_6 ? false : !!(cmd[1] & 0x10);
 	is_disk = (sdebug_ptype == TYPE_DISK);
-	if (is_disk && !dbd)
+	is_zbc = (sdebug_ptype == TYPE_ZBC);
+	if ((is_disk || is_zbc) && !dbd)
 		bd_len = llbaa ? 16 : 8;
 	else
 		bd_len = 0;
@@ -2201,8 +2231,8 @@ static int resp_mode_sense(struct scsi_cmnd *scp,
 	}
 	target_dev_id = ((devip->sdbg_host->shost->host_no + 1) * 2000) +
 			(devip->target * 1000) - 3;
-	/* for disks set DPOFUA bit and clear write protect (WP) bit */
-	if (is_disk) {
+	/* for disks+zbc set DPOFUA bit and clear write protect (WP) bit */
+	if (is_disk || is_zbc) {
 		dev_spec = 0x10;	/* =0x90 if WP=1 implies read-only */
 		if (sdebug_wp)
 			dev_spec |= 0x80;
@@ -2262,7 +2292,7 @@ static int resp_mode_sense(struct scsi_cmnd *scp,
 			bad_pcode = true;
 		break;
 	case 0x8:	/* Caching page, direct access */
-		if (is_disk) {
+		if (is_disk || is_zbc) {
 			len = resp_caching_pg(ap, pcontrol, target);
 			offset += len;
 		} else
@@ -2298,6 +2328,9 @@ static int resp_mode_sense(struct scsi_cmnd *scp,
 			if (is_disk) {
 				len += resp_format_pg(ap + len, pcontrol,
 						      target);
+				len += resp_caching_pg(ap + len, pcontrol,
+						       target);
+			} else if (is_zbc) {
 				len += resp_caching_pg(ap + len, pcontrol,
 						       target);
 			}
