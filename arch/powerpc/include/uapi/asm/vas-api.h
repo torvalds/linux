@@ -6,6 +6,8 @@
 #ifndef _UAPI_MISC_VAS_H
 #define _UAPI_MISC_VAS_H
 
+#include <linux/types.h>
+
 #include <asm/ioctl.h>
 
 #define VAS_MAGIC	'v'
