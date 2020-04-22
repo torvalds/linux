@@ -98,6 +98,49 @@ struct dc_plane_cap {
 	} max_downscale_factor;
 };
 
+// Color management caps (DPP and MPC)
+struct rom_curve_caps {
+	uint16_t srgb : 1;
+	uint16_t bt2020 : 1;
+	uint16_t gamma2_2 : 1;
+	uint16_t pq : 1;
+	uint16_t hlg : 1;
+};
+
+struct dpp_color_caps {
+	uint16_t dcn_arch : 1; // all DCE generations treated the same
+	// input lut is different than most LUTs, just plain 256-entry lookup
+	uint16_t input_lut_shared : 1; // shared with DGAM
+	uint16_t icsc : 1;
+	uint16_t dgam_ram : 1;
+	uint16_t post_csc : 1; // before gamut remap
+	uint16_t gamma_corr : 1;
+
+	// hdr_mult and gamut remap always available in DPP (in that order)
+	// 3d lut implies shaper LUT,
+	// it may be shared with MPC - check MPC:shared_3d_lut flag
+	uint16_t hw_3d_lut : 1;
+	uint16_t ogam_ram : 1; // blnd gam
+	uint16_t ocsc : 1;
+	struct rom_curve_caps dgam_rom_caps;
+	struct rom_curve_caps ogam_rom_caps;
+};
+
+struct mpc_color_caps {
+	uint16_t gamut_remap : 1;
+	uint16_t ogam_ram : 1;
+	uint16_t ocsc : 1;
+	uint16_t num_3dluts : 3; //3d lut always assumes a preceding shaper LUT
+	uint16_t shared_3d_lut:1; //can be in either DPP or MPC, but single instance
+
+	struct rom_curve_caps ogam_rom_caps;
+};
+
+struct dc_color_caps {
+	struct dpp_color_caps dpp;
+	struct mpc_color_caps mpc;
+};
+
 struct dc_caps {
 	uint32_t max_streams;
 	uint32_t max_links;
@@ -120,9 +163,9 @@ struct dc_caps {
 	bool psp_setup_panel_mode;
 	bool extended_aux_timeout_support;
 	bool dmcub_support;
-	bool hw_3d_lut;
 	enum dp_protocol_version max_dp_protocol_version;
 	struct dc_plane_cap planes[MAX_PLANES];
+	struct dc_color_caps color;
 };
 
 struct dc_bug_wa {
