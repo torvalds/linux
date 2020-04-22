@@ -14,6 +14,29 @@
 #include "reg.h"
 #include "debug.h"
 
+static const struct rtw_hw_reg rtw8723d_txagc[] = {
+	[DESC_RATE1M]	= { .addr = 0xe08, .mask = 0x0000ff00 },
+	[DESC_RATE2M]	= { .addr = 0x86c, .mask = 0x0000ff00 },
+	[DESC_RATE5_5M]	= { .addr = 0x86c, .mask = 0x00ff0000 },
+	[DESC_RATE11M]	= { .addr = 0x86c, .mask = 0xff000000 },
+	[DESC_RATE6M]	= { .addr = 0xe00, .mask = 0x000000ff },
+	[DESC_RATE9M]	= { .addr = 0xe00, .mask = 0x0000ff00 },
+	[DESC_RATE12M]	= { .addr = 0xe00, .mask = 0x00ff0000 },
+	[DESC_RATE18M]	= { .addr = 0xe00, .mask = 0xff000000 },
+	[DESC_RATE24M]	= { .addr = 0xe04, .mask = 0x000000ff },
+	[DESC_RATE36M]	= { .addr = 0xe04, .mask = 0x0000ff00 },
+	[DESC_RATE48M]	= { .addr = 0xe04, .mask = 0x00ff0000 },
+	[DESC_RATE54M]	= { .addr = 0xe04, .mask = 0xff000000 },
+	[DESC_RATEMCS0]	= { .addr = 0xe10, .mask = 0x000000ff },
+	[DESC_RATEMCS1]	= { .addr = 0xe10, .mask = 0x0000ff00 },
+	[DESC_RATEMCS2]	= { .addr = 0xe10, .mask = 0x00ff0000 },
+	[DESC_RATEMCS3]	= { .addr = 0xe10, .mask = 0xff000000 },
+	[DESC_RATEMCS4]	= { .addr = 0xe14, .mask = 0x000000ff },
+	[DESC_RATEMCS5]	= { .addr = 0xe14, .mask = 0x0000ff00 },
+	[DESC_RATEMCS6]	= { .addr = 0xe14, .mask = 0x00ff0000 },
+	[DESC_RATEMCS7]	= { .addr = 0xe14, .mask = 0xff000000 },
+};
+
 static void rtw8723de_efuse_parsing(struct rtw_efuse *efuse,
 				    struct rtw8723d_efuse *map)
 {
@@ -70,6 +93,43 @@ static void rtw8723d_cfg_ldo25(struct rtw_dev *rtwdev, bool enable)
 	rtw_write8(rtwdev, REG_LDO_EFUSE_CTRL + 3, ldo_pwr);
 }
 
+static void
+rtw8723d_set_tx_power_index_by_rate(struct rtw_dev *rtwdev, u8 path, u8 rs)
+{
+	struct rtw_hal *hal = &rtwdev->hal;
+	const struct rtw_hw_reg *txagc;
+	u8 rate, pwr_index;
+	int j;
+
+	for (j = 0; j < rtw_rate_size[rs]; j++) {
+		rate = rtw_rate_section[rs][j];
+		pwr_index = hal->tx_pwr_tbl[path][rate];
+
+		if (rate >= ARRAY_SIZE(rtw8723d_txagc)) {
+			rtw_warn(rtwdev, "rate 0x%x isn't supported\n", rate);
+			continue;
+		}
+		txagc = &rtw8723d_txagc[rate];
+		if (!txagc->addr) {
+			rtw_warn(rtwdev, "rate 0x%x isn't defined\n", rate);
+			continue;
+		}
+
+		rtw_write32_mask(rtwdev, txagc->addr, txagc->mask, pwr_index);
+	}
+}
+
+static void rtw8723d_set_tx_power_index(struct rtw_dev *rtwdev)
+{
+	struct rtw_hal *hal = &rtwdev->hal;
+	int rs, path;
+
+	for (path = 0; path < hal->rf_path_num; path++) {
+		for (rs = 0; rs <= RTW_RATE_SECTION_HT_1S; rs++)
+			rtw8723d_set_tx_power_index_by_rate(rtwdev, path, rs);
+	}
+}
+
 static void rtw8723d_efuse_grant(struct rtw_dev *rtwdev, bool on)
 {
 	if (on) {
@@ -86,6 +146,7 @@ static struct rtw_chip_ops rtw8723d_ops = {
 	.read_efuse		= rtw8723d_read_efuse,
 	.read_rf		= rtw_phy_read_rf_sipi,
 	.write_rf		= rtw_phy_write_rf_reg_sipi,
+	.set_tx_power_index	= rtw8723d_set_tx_power_index,
 	.set_antenna		= NULL,
 	.cfg_ldo25		= rtw8723d_cfg_ldo25,
 	.efuse_grant		= rtw8723d_efuse_grant,
