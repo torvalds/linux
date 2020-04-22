@@ -28,6 +28,8 @@
 /* STATUS_DATA_MSB definitions while MOD_STATUS_SEL is 0 */
 #define AUTO_RES_CAL_DONE_BIT			BIT(5)
 #define CAL_TLRA_CL_STS_MSB_MASK		GENMASK(4, 0)
+/* STATUS_DATA_MSB definition in V2 while MOD_STATUS_SEL is 3 */
+#define LAST_GOOD_TLRA_CL_MASK		GENMASK(4, 0)
 /* STATUS_DATA_MSB definition in V1 while MOD_STATUS_SEL is 5 */
 #define FIFO_REAL_TIME_FILL_STATUS_MASK_V1	GENMASK(6, 0)
 /* STATUS DATA_MSB definition in V2 while MOD_STATUS_SEL is 5 */
@@ -117,11 +119,19 @@
 #define VMAX_HDRM_STEP_MV			50
 
 #define HAP_CFG_MOD_STATUS_SEL_REG		0x70
+#define MOD_STATUS_SEL_CAL_TLRA_CL_STS_VAL	0
+#define MOD_STATUS_SEL_LAST_GOOD_TLRA_VAL	3
 #define MOD_STATUS_SEL_FIFO_FILL_STATUS_VAL	5
 #define MOD_STATUS_SEL_BRAKE_CAL_RNAT_RCAL_VAL	6
 
 #define HAP_CFG_MOD_STATUS_XT_V2_REG		0x71
 #define MOD_STATUS_XT_V2_FIFO_FILL_STATUS_VAL	0x80
+#define MOD_STATUS_XT_SEL_LAST_GOOD_TLRA_VAL	0
+
+#define HAP_CFG_CAL_EN_REG		0x72
+#define CAL_RC_CLK_MASK			GENMASK(3, 2)
+#define CAL_RC_CLK_SHIFT			2
+#define CAL_RC_CLK_MANUAL_VAL			2
 
 /* version register definitions for HAPTICS_PATTERN module */
 #define HAP_PTN_REVISION2_REG			0x01
@@ -363,6 +373,7 @@ struct haptics_hw_config {
 	struct brake_cfg	brake;
 	u32			vmax_mv;
 	u32			t_lra_us;
+	u32			cl_t_lra_us;
 	u32			preload_effect;
 	u32			fifo_empty_thresh;
 	enum drv_sig_shape	drv_wf;
@@ -650,6 +661,103 @@ static int get_brake_play_length_us(struct brake_cfg *brake, u32 t_lra_us)
 	return t_lra_us * (i + 1);
 }
 
+#define V1_CL_TLRA_STEP_NS_AUTO_RES_CAL_NOT_DONE	5000
+#define V1_CL_TLRA_STEP_NS_AUTO_RES_CAL_DONE	3333
+static int haptics_get_closeloop_lra_period_v1(
+		struct haptics_chip *chip)
+{
+	struct haptics_hw_config *config = &chip->config;
+	int rc;
+	u8 val[2];
+	u32 tmp, step_ns;
+	bool auto_res_cal_done;
+
+	val[0] = MOD_STATUS_SEL_CAL_TLRA_CL_STS_VAL;
+	rc = haptics_write(chip, chip->cfg_addr_base,
+		HAP_CFG_MOD_STATUS_SEL_REG, val, 1);
+	if (rc < 0)
+		return rc;
+
+	rc = haptics_read(chip, chip->cfg_addr_base,
+		HAP_CFG_STATUS_DATA_MSB_REG, val, 2);
+	if (rc < 0)
+		return rc;
+
+	/*
+	 * Calculate the closed loop T_LRA with the following equations
+	 * for PM8350B V1:
+	 * LAST_GOOD_TLRA_CL_STS[12:0] = STATUS_DATA_MSB[4:0] |
+	 *			STATUS_DATA_LSB[7:0]
+	 * CL_TLRA_STEP_US = STATUS_DATA_MSB[5] ? 3.333 us : 5 us
+	 * LAST_GOOD_TLRA_CL = LAST_GOOD_TLRA_CL_STS[12:0] *
+	 *			CL_TLRA_STEP_US
+	 */
+	auto_res_cal_done = !!(val[0] & AUTO_RES_CAL_DONE_BIT);
+	if (auto_res_cal_done)
+		step_ns = V1_CL_TLRA_STEP_NS_AUTO_RES_CAL_DONE;
+	else
+		step_ns = V1_CL_TLRA_STEP_NS_AUTO_RES_CAL_NOT_DONE;
+
+	tmp = ((val[0] & CAL_TLRA_CL_STS_MSB_MASK) << 8) | val[1];
+	config->cl_t_lra_us = (tmp * step_ns) / 1000;
+
+	return 0;
+
+}
+
+#define CL_TLRA_STEP_NS				1666
+static int haptics_get_closeloop_lra_period_v2(
+		struct haptics_chip *chip)
+{
+	struct haptics_hw_config *config = &chip->config;
+	int rc;
+	u8 val[2];
+	u32 tmp;
+
+	val[0] = MOD_STATUS_SEL_LAST_GOOD_TLRA_VAL;
+	val[1] = MOD_STATUS_XT_SEL_LAST_GOOD_TLRA_VAL;
+	rc = haptics_write(chip, chip->cfg_addr_base,
+			HAP_CFG_MOD_STATUS_SEL_REG, val, 2);
+	if (rc < 0)
+		return rc;
+
+	rc = haptics_read(chip, chip->cfg_addr_base,
+			HAP_CFG_STATUS_DATA_MSB_REG, val, 2);
+	if (rc < 0)
+		return rc;
+	/*
+	 * Calculate the closed loop T_LRA with the following equations
+	 * for PM8350B V2:
+	 * LAST_GOOD_TLRA_CL_STS[12:0] = STATUS_DATA_MSB[4:0] |
+	 *			STATUS_DATA_LSB[7:0]
+	 * LAST_GOOD_TLRA_CL = LAST_GOOD_TLRA_CL_STS[12:0] * 1.666 us
+	 */
+	tmp = ((val[0] & LAST_GOOD_TLRA_CL_MASK) << 8) | val[1];
+	config->cl_t_lra_us = (tmp * CL_TLRA_STEP_NS) / 1000;
+
+	return 0;
+}
+
+static int haptics_get_closeloop_lra_period(struct haptics_chip *chip)
+{
+	int rc = 0;
+
+	if (chip->ptn_revision == HAP_PTN_V1)
+		rc = haptics_get_closeloop_lra_period_v1(chip);
+	else
+		rc = haptics_get_closeloop_lra_period_v2(chip);
+
+	if (rc < 0) {
+		dev_err(chip->dev, "get close loop T LRA failed, rc=%d\n", rc);
+		return rc;
+	}
+
+	dev_dbg(chip->dev, "OL_TLRA %u us, CL_TLRA %u us\n",
+		chip->config.t_lra_us, chip->config.cl_t_lra_us);
+
+	return 0;
+}
+
 static int haptics_set_vmax_mv(struct haptics_chip *chip, u32 vmax_mv)
 {
 	int rc = 0;
@@ -900,6 +1008,39 @@ static int haptics_get_available_fifo_memory(struct haptics_chip *chip)
 	return available;
 }
 
+static int haptics_adjust_rc_clk(struct haptics_chip *chip)
+{
+	int rc;
+	int freq_diff, cal_count, f_lra, cl_f_lra;
+	u8 val[2];
+
+	if (!chip->config.t_lra_us || !chip->config.cl_t_lra_us)
+		return -EINVAL;
+
+	f_lra = USEC_PER_SEC / chip->config.t_lra_us;
+	if (!f_lra)
+		return -EINVAL;
+
+	cl_f_lra = USEC_PER_SEC / chip->config.cl_t_lra_us;
+	freq_diff = cl_f_lra - f_lra;
+
+	/* RC_CLK_CAL_COUNT = 600*(1-(clk_adjustment/Fifo_pat_freq)) */
+	cal_count = 600 - ((600 * freq_diff) / f_lra);
+	dev_dbg(chip->dev, "RC clock calibration count:%#x\n", cal_count);
+
+	/* Set FIFO pattern frequency adjustment */
+	val[0] = (cal_count >> 8) & RC_CLK_CAL_COUNT_MSB_MASK;
+	val[1] = cal_count & RC_CLK_CAL_COUNT_LSB_MASK;
+	rc = haptics_write(chip, chip->cfg_addr_base,
+			HAP_CFG_RC_CLK_CAL_COUNT_MSB_REG, val, 2);
+	if (rc < 0)
+		return rc;
+
+	val[0] = CAL_RC_CLK_MANUAL_VAL << CAL_RC_CLK_SHIFT;
+	return haptics_masked_write(chip, chip->cfg_addr_base,
+			HAP_CFG_CAL_EN_REG, CAL_RC_CLK_MASK, val[0]);
+}
+
 static int haptics_update_fifo_samples(struct haptics_chip *chip,
 					u8 *samples, u32 length)
 {
@@ -991,6 +1132,15 @@ static int haptics_set_fifo(struct haptics_chip *chip, struct fifo_cfg *fifo)
 	rc = haptics_set_fifo_playrate(chip, fifo->period_per_s);
 	if (rc < 0)
 		return rc;
+
+	if (fifo->period_per_s >= F_8KHZ) {
+		rc = haptics_adjust_rc_clk(chip);
+		if (rc < 0) {
+			dev_err(chip->dev, "RC CLK adjustment failed, rc=%d\n",
+				rc);
+			return rc;
+		}
+	}
 
 	atomic_set(&status->written_done, 0);
 	atomic_set(&status->cancelled, 0);
@@ -1496,7 +1646,6 @@ static int haptics_store_cl_brake_settings(struct haptics_chip *chip)
 	return rc;
 }
 
-
 static int haptics_hw_init(struct haptics_chip *chip)
 {
 	struct haptics_hw_config *config = &chip->config;
@@ -1534,6 +1683,10 @@ static int haptics_hw_init(struct haptics_chip *chip)
 
 	if (config->is_erm)
 		return 0;
+
+	rc = haptics_get_closeloop_lra_period(chip);
+	if (rc < 0)
+		return rc;
 
 	/* Config T_LRA */
 	tmp = config->t_lra_us / TLRA_STEP_US;
