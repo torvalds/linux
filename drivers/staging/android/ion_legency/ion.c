@@ -1986,7 +1986,7 @@ struct ion_device *ion_device_create(long (*custom_ioctl)
 		return ERR_PTR(ret);
 	}
 
-	idev->debug_root = debugfs_create_dir("ion", NULL);
+	idev->debug_root = debugfs_create_dir("ion_legency", NULL);
 	if (!idev->debug_root) {
 		pr_err("ion: failed to create debugfs root directory.\n");
 		goto debugfs_done;
