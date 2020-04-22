@@ -880,6 +880,8 @@ int ath11k_dp_alloc(struct ath11k_base *ab)
 	INIT_LIST_HEAD(&dp->reo_cmd_cache_flush_list);
 	spin_lock_init(&dp->reo_cmd_lock);
 
+	dp->reo_cmd_cache_flush_count = 0;
+
 	ret = ath11k_wbm_idle_ring_setup(ab, &n_link_desc);
 	if (ret) {
 		ath11k_warn(ab, "failed to setup wbm_idle_ring: %d\n", ret);

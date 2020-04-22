@@ -565,6 +565,7 @@ void ath11k_dp_reo_cmd_list_cleanup(struct ath11k_base *ab)
 	list_for_each_entry_safe(cmd_cache, tmp_cache,
 				 &dp->reo_cmd_cache_flush_list, list) {
 		list_del(&cmd_cache->list);
+		dp->reo_cmd_cache_flush_count--;
 		dma_unmap_single(ab->dev, cmd_cache->data.paddr,
 				 cmd_cache->data.size, DMA_BIDIRECTIONAL);
 		kfree(cmd_cache->data.vaddr);
@@ -651,15 +652,18 @@ static void ath11k_dp_rx_tid_del_func(struct ath11k_dp *dp, void *ctx,
 
 	spin_lock_bh(&dp->reo_cmd_lock);
 	list_add_tail(&elem->list, &dp->reo_cmd_cache_flush_list);
+	dp->reo_cmd_cache_flush_count++;
 	spin_unlock_bh(&dp->reo_cmd_lock);
 
 	/* Flush and invalidate aged REO desc from HW cache */
 	spin_lock_bh(&dp->reo_cmd_lock);
 	list_for_each_entry_safe(elem, tmp, &dp->reo_cmd_cache_flush_list,
 				 list) {
-		if (time_after(jiffies, elem->ts +
+		if (dp->reo_cmd_cache_flush_count > DP_REO_DESC_FREE_THRESHOLD ||
+		    time_after(jiffies, elem->ts +
 			       msecs_to_jiffies(DP_REO_DESC_FREE_TIMEOUT_MS))) {
 			list_del(&elem->list);
+			dp->reo_cmd_cache_flush_count--;
 			spin_unlock_bh(&dp->reo_cmd_lock);
 
 			ath11k_dp_reo_cache_flush(ab, &elem->data);

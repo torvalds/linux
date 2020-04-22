@@ -36,6 +36,7 @@ struct dp_rx_tid {
 	struct ath11k_base *ab;
 };
 
+#define DP_REO_DESC_FREE_THRESHOLD  64
 #define DP_REO_DESC_FREE_TIMEOUT_MS 1000
 
 struct dp_reo_cache_flush_elem {
@@ -222,7 +223,13 @@ struct ath11k_dp {
 	struct hal_wbm_idle_scatter_list scatter_list[DP_IDLE_SCATTER_BUFS_MAX];
 	struct list_head reo_cmd_list;
 	struct list_head reo_cmd_cache_flush_list;
-	/* protects access to reo_cmd_list and reo_cmd_cache_flush_list */
+	u32 reo_cmd_cache_flush_count;
+	/**
+	 * protects access to below fields,
+	 * - reo_cmd_list
+	 * - reo_cmd_cache_flush_list
+	 * - reo_cmd_cache_flush_count
+	 */
 	spinlock_t reo_cmd_lock;
 };
 
