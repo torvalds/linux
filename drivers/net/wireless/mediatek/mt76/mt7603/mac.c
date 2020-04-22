@@ -51,10 +51,11 @@ void mt7603_mac_set_timing(struct mt7603_dev *dev)
 	int offset = 3 * dev->coverage_class;
 	u32 reg_offset = FIELD_PREP(MT_TIMEOUT_VAL_PLCP, offset) |
 			 FIELD_PREP(MT_TIMEOUT_VAL_CCA, offset);
+	bool is_5ghz = dev->mphy.chandef.chan->band == NL80211_BAND_5GHZ;
 	int sifs;
 	u32 val;
 
-	if (dev->mphy.chandef.chan->band == NL80211_BAND_5GHZ)
+	if (is_5ghz)
 		sifs = 16;
 	else
 		sifs = 10;
@@ -71,7 +72,7 @@ void mt7603_mac_set_timing(struct mt7603_dev *dev)
 		FIELD_PREP(MT_IFS_SIFS, sifs) |
 		FIELD_PREP(MT_IFS_SLOT, dev->slottime));
 
-	if (dev->slottime < 20)
+	if (dev->slottime < 20 || is_5ghz)
 		val = MT7603_CFEND_RATE_DEFAULT;
 	else
 		val = MT7603_CFEND_RATE_11B;
