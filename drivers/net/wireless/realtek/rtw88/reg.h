@@ -77,19 +77,28 @@
 #define BIT_ANA_PORT_EN		BIT(22)
 #define BIT_MAC_PORT_EN		BIT(21)
 #define BIT_BOOT_FSPI_EN	BIT(20)
+#define BIT_ROM_DLEN		BIT(19)
+#define BIT_ROM_PGE		GENMASK(18, 16)	/* legacy only */
+#define BIT_SHIFT_ROM_PGE	16
 #define BIT_FW_INIT_RDY		BIT(15)
 #define BIT_FW_DW_RDY		BIT(14)
 #define BIT_RPWM_TOGGLE		BIT(7)
+#define BIT_RAM_DL_SEL		BIT(7)	/* legacy only */
 #define BIT_DMEM_CHKSUM_OK	BIT(6)
+#define BIT_WINTINI_RDY		BIT(6)	/* legacy only */
 #define BIT_DMEM_DW_OK		BIT(5)
 #define BIT_IMEM_CHKSUM_OK	BIT(4)
 #define BIT_IMEM_DW_OK		BIT(3)
 #define BIT_IMEM_BOOT_LOAD_CHECKSUM_OK BIT(2)
+#define BIT_FWDL_CHK_RPT	BIT(2)	/* legacy only */
+#define BIT_MCUFWDL_RDY		BIT(1)	/* legacy only */
 #define BIT_MCUFWDL_EN		BIT(0)
 #define BIT_CHECK_SUM_OK	(BIT(4) | BIT(6))
 #define FW_READY		(BIT_FW_INIT_RDY | BIT_FW_DW_RDY |             \
 				 BIT_IMEM_DW_OK | BIT_DMEM_DW_OK |             \
 				 BIT_CHECK_SUM_OK)
+#define FW_READY_LEGACY		(BIT_MCUFWDL_RDY | BIT_FWDL_CHK_RPT |	       \
+				 BIT_WINTINI_RDY | BIT_RAM_DL_SEL)
 #define FW_READY_MASK		0xffff
 
 #define REG_EFUSE_ACCESS	0x00CF
@@ -197,6 +206,8 @@
 #define BIT_MASK_BCN_HEAD_1_V1	0xfff
 #define REG_AUTO_LLT_V1		0x0208
 #define BIT_AUTO_INIT_LLT_V1	BIT(0)
+#define REG_DWBCN0_CTRL		0x0208
+#define BIT_BCN_VALID		BIT(16)
 #define REG_TXDMA_OFFSET_CHK	0x020C
 #define REG_TXDMA_STATUS	0x0210
 #define BTI_PAGE_OVF		BIT(2)

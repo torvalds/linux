@@ -19,6 +19,12 @@
 #define RSVD_PAGE_START_ADDR		0x780
 #define FIFO_DUMP_ADDR			0x8000
 
+#define DLFW_PAGE_SIZE_SHIFT_LEGACY	12
+#define DLFW_PAGE_SIZE_LEGACY		0x1000
+#define DLFW_BLK_SIZE_SHIFT_LEGACY	2
+#define DLFW_BLK_SIZE_LEGACY		4
+#define FW_START_ADDR_LEGACY		0x1000
+
 enum rtw_c2h_cmd_id {
 	C2H_BT_INFO = 0x09,
 	C2H_BT_MP_INFO = 0x0b,
@@ -190,6 +196,25 @@ struct rtw_fw_hdr {
 	__le32 emem_size;
 	__le32 emem_addr;
 	__le32 imem_addr;
+} __packed;
+
+struct rtw_fw_hdr_legacy {
+	__le16 signature;
+	u8 category;
+	u8 function;
+	__le16 version;	/* 0x04 */
+	u8 subversion1;
+	u8 subversion2;
+	u8 month;	/* 0x08 */
+	u8 day;
+	u8 hour;
+	u8 minute;
+	__le16 size;
+	__le16 rsvd2;
+	__le32 idx;	/* 0x10 */
+	__le32 rsvd3;
+	__le32 rsvd4;	/* 0x18 */
+	__le32 rsvd5;
 } __packed;
 
 /* C2H */

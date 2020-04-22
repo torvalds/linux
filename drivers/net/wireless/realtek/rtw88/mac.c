@@ -650,7 +650,7 @@ static void download_firmware_end_flow(struct rtw_dev *rtwdev)
 	rtw_write16(rtwdev, REG_MCUFW_CTRL, fw_ctrl);
 }
 
-int rtw_download_firmware(struct rtw_dev *rtwdev, struct rtw_fw_state *fw)
+int __rtw_download_firmware(struct rtw_dev *rtwdev, struct rtw_fw_state *fw)
 {
 	struct rtw_backup_info bckp[DLFW_RESTORE_REG_NUM];
 	const u8 *data = fw->firmware->data;
@@ -702,6 +702,150 @@ dlfw_fail:
 	rtw_write8_set(rtwdev, REG_SYS_FUNC_EN + 1, BIT_FEN_CPUEN);
 
 	return ret;
+}
+
+static void en_download_firmware_legacy(struct rtw_dev *rtwdev, bool en)
+{
+	int try;
+
+	if (en) {
+		wlan_cpu_enable(rtwdev, false);
+		wlan_cpu_enable(rtwdev, true);
+
+		rtw_write8_set(rtwdev, REG_MCUFW_CTRL, BIT_MCUFWDL_EN);
+
+		for (try = 0; try < 10; try++) {
+			if (rtw_read8(rtwdev, REG_MCUFW_CTRL) & BIT_MCUFWDL_EN)
+				goto fwdl_ready;
+			rtw_write8_set(rtwdev, REG_MCUFW_CTRL, BIT_MCUFWDL_EN);
+			msleep(20);
+		}
+		rtw_err(rtwdev, "failed to check fw download ready\n");
+fwdl_ready:
+		rtw_write32_clr(rtwdev, REG_MCUFW_CTRL, BIT_ROM_DLEN);
+	} else {
+		rtw_write8_clr(rtwdev, REG_MCUFW_CTRL, BIT_MCUFWDL_EN);
+	}
+}
+
+static void
+write_firmware_page(struct rtw_dev *rtwdev, u32 page, const u8 *data, u32 size)
+{
+	u32 val32;
+	u32 block_nr;
+	u32 remain_size;
+	u32 write_addr = FW_START_ADDR_LEGACY;
+	const __le32 *ptr = (const __le32 *)data;
+	u32 block;
+	__le32 remain_data = 0;
+
+	block_nr = size >> DLFW_BLK_SIZE_SHIFT_LEGACY;
+	remain_size = size & (DLFW_BLK_SIZE_LEGACY - 1);
+
+	val32 = rtw_read32(rtwdev, REG_MCUFW_CTRL);
+	val32 &= ~BIT_ROM_PGE;
+	val32 |= (page << BIT_SHIFT_ROM_PGE) & BIT_ROM_PGE;
+	rtw_write32(rtwdev, REG_MCUFW_CTRL, val32);
+
+	for (block = 0; block < block_nr; block++) {
+		rtw_write32(rtwdev, write_addr, le32_to_cpu(*ptr));
+
+		write_addr += DLFW_BLK_SIZE_LEGACY;
+		ptr++;
+	}
+
+	if (remain_size) {
+		memcpy(&remain_data, ptr, remain_size);
+		rtw_write32(rtwdev, write_addr, le32_to_cpu(remain_data));
+	}
+}
+
+static int
+download_firmware_legacy(struct rtw_dev *rtwdev, const u8 *data, u32 size)
+{
+	u32 page;
+	u32 total_page;
+	u32 last_page_size;
+
+	data += sizeof(struct rtw_fw_hdr_legacy);
+	size -= sizeof(struct rtw_fw_hdr_legacy);
+
+	total_page = size >> DLFW_PAGE_SIZE_SHIFT_LEGACY;
+	last_page_size = size & (DLFW_PAGE_SIZE_LEGACY - 1);
+
+	rtw_write8_set(rtwdev, REG_MCUFW_CTRL, BIT_FWDL_CHK_RPT);
+
+	for (page = 0; page < total_page; page++) {
+		write_firmware_page(rtwdev, page, data, DLFW_PAGE_SIZE_LEGACY);
+		data += DLFW_PAGE_SIZE_LEGACY;
+	}
+	if (last_page_size)
+		write_firmware_page(rtwdev, page, data, last_page_size);
+
+	if (!check_hw_ready(rtwdev, REG_MCUFW_CTRL, BIT_FWDL_CHK_RPT, 1)) {
+		rtw_err(rtwdev, "failed to check download fimrware report\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int download_firmware_validate_legacy(struct rtw_dev *rtwdev)
+{
+	u32 val32;
+	int try;
+
+	val32 = rtw_read32(rtwdev, REG_MCUFW_CTRL);
+	val32 |= BIT_MCUFWDL_RDY;
+	val32 &= ~BIT_WINTINI_RDY;
+	rtw_write32(rtwdev, REG_MCUFW_CTRL, val32);
+
+	wlan_cpu_enable(rtwdev, false);
+	wlan_cpu_enable(rtwdev, true);
+
+	for (try = 0; try < 10; try++) {
+		val32 = rtw_read32(rtwdev, REG_MCUFW_CTRL);
+		if ((val32 & FW_READY_LEGACY) == FW_READY_LEGACY)
+			return 0;
+		msleep(20);
+	}
+
+	rtw_err(rtwdev, "failed to validate fimrware\n");
+	return -EINVAL;
+}
+
+int __rtw_download_firmware_legacy(struct rtw_dev *rtwdev, struct rtw_fw_state *fw)
+{
+	int ret = 0;
+
+	en_download_firmware_legacy(rtwdev, true);
+	ret = download_firmware_legacy(rtwdev, fw->firmware->data, fw->firmware->size);
+	en_download_firmware_legacy(rtwdev, false);
+	if (ret)
+		goto out;
+
+	ret = download_firmware_validate_legacy(rtwdev);
+	if (ret)
+		goto out;
+
+	/* reset desc and index */
+	rtw_hci_setup(rtwdev);
+
+	rtwdev->h2c.last_box_num = 0;
+	rtwdev->h2c.seq = 0;
+
+	set_bit(RTW_FLAG_FW_RUNNING, rtwdev->flags);
+
+out:
+	return ret;
+}
+
+int rtw_download_firmware(struct rtw_dev *rtwdev, struct rtw_fw_state *fw)
+{
+	if (rtw_chip_wcpu_11n(rtwdev))
+		return __rtw_download_firmware_legacy(rtwdev, fw);
+
+	return __rtw_download_firmware(rtwdev, fw);
 }
 
 static u32 get_priority_queues(struct rtw_dev *rtwdev, u32 queues)
