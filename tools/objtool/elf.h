@@ -114,22 +114,22 @@ static inline u32 rela_hash(struct rela *rela)
 }
 
 struct elf *elf_read(const char *name, int flags);
-struct section *find_section_by_name(struct elf *elf, const char *name);
+struct section *elf_create_section(struct elf *elf, const char *name, size_t entsize, int nr);
+struct section *elf_create_rela_section(struct elf *elf, struct section *base);
+void elf_add_rela(struct elf *elf, struct rela *rela);
+int elf_write(const struct elf *elf);
+void elf_close(struct elf *elf);
+
+struct section *find_section_by_name(const struct elf *elf, const char *name);
 struct symbol *find_func_by_offset(struct section *sec, unsigned long offset);
 struct symbol *find_symbol_by_offset(struct section *sec, unsigned long offset);
-struct symbol *find_symbol_by_name(struct elf *elf, const char *name);
+struct symbol *find_symbol_by_name(const struct elf *elf, const char *name);
 struct symbol *find_symbol_containing(struct section *sec, unsigned long offset);
-struct rela *find_rela_by_dest(struct elf *elf, struct section *sec, unsigned long offset);
-struct rela *find_rela_by_dest_range(struct elf *elf, struct section *sec,
+struct rela *find_rela_by_dest(const struct elf *elf, struct section *sec, unsigned long offset);
+struct rela *find_rela_by_dest_range(const struct elf *elf, struct section *sec,
 				     unsigned long offset, unsigned int len);
 struct symbol *find_func_containing(struct section *sec, unsigned long offset);
-struct section *elf_create_section(struct elf *elf, const char *name, size_t
-				   entsize, int nr);
-struct section *elf_create_rela_section(struct elf *elf, struct section *base);
 int elf_rebuild_rela_section(struct section *sec);
-int elf_write(struct elf *elf);
-void elf_close(struct elf *elf);
-void elf_add_rela(struct elf *elf, struct rela *rela);
 
 #define for_each_sec(file, sec)						\
 	list_for_each_entry(sec, &file->elf->sections, list)
