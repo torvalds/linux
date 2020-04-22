@@ -83,11 +83,7 @@ ia_css_tnr_config(
 	ia_css_dma_configure_from_info(&to->port_b, &from->tnr_frames[0]->info);
 	to->width_a_over_b = elems_a / to->port_b.elems;
 	to->frame_height = from->tnr_frames[0]->info.res.height;
-#ifndef ISP2401
-	for (i = 0; i < NUM_VIDEO_TNR_FRAMES; i++) {
-#else
 	for (i = 0; i < NUM_TNR_FRAMES; i++) {
-#endif
 		to->tnr_frame_addr[i] = from->tnr_frames[i]->data +
 					from->tnr_frames[i]->planes.yuyv.offset;
 	}
@@ -104,11 +100,7 @@ ia_css_tnr_configure(
 	struct ia_css_tnr_configuration config;
 	unsigned int i;
 
-#ifndef ISP2401
-	for (i = 0; i < NUM_VIDEO_TNR_FRAMES; i++)
-#else
 	for (i = 0; i < NUM_TNR_FRAMES; i++)
-#endif
 		config.tnr_frames[i] = frames[i];
 
 	ia_css_configure_tnr(binary, &config);
@@ -121,9 +113,7 @@ ia_css_init_tnr_state(
 {
 	(void)size;
 
-#ifndef ISP2401
-	assert(NUM_VIDEO_TNR_FRAMES >= 2);
-#endif
+	assert(NUM_TNR_FRAMES >= 2);
 	assert(sizeof(*state) == size);
 	state->tnr_in_buf_idx = 0;
 	state->tnr_out_buf_idx = 1;

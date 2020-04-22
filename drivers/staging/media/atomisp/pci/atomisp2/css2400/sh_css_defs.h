@@ -163,15 +163,6 @@ RGB[0,8191],coef[-8192,8191] -> RGB[0,8191]
 #define SH_CSS_MIN_SENSOR_WIDTH           2
 #define SH_CSS_MIN_SENSOR_HEIGHT          2
 
-#if defined(IS_ISP_2400_SYSTEM)
-/* MAX width and height set to the same to allow for rotated
- * resolutions. */
-#define SH_CSS_MAX_VF_WIDTH               1920
-#define SH_CSS_MAX_VF_HEIGHT              1920
-#else
-#define SH_CSS_MAX_VF_WIDTH               1280
-#define SH_CSS_MAX_VF_HEIGHT              960
-#endif
 /*
 #define SH_CSS_MAX_VF_WIDTH_DEC               1920
 #define SH_CSS_MAX_VF_HEIGHT_DEC              1080
@@ -186,34 +177,24 @@ RGB[0,8191],coef[-8192,8191] -> RGB[0,8191]
 #define SH_CSS_MORPH_TABLE_ELEMS_PER_DDR_WORD \
 	(HIVE_ISP_DDR_WORD_BYTES / SH_CSS_MORPH_TABLE_ELEM_BYTES)
 
-#ifndef ISP2401
-#define SH_CSS_MAX_SCTBL_WIDTH_PER_COLOR   (SH_CSS_MAX_BQ_GRID_WIDTH + 1)
-#define SH_CSS_MAX_SCTBL_HEIGHT_PER_COLOR   (SH_CSS_MAX_BQ_GRID_HEIGHT + 1)
-#else
+
+#define ISP2400_SH_CSS_MAX_SCTBL_WIDTH_PER_COLOR   (SH_CSS_MAX_BQ_GRID_WIDTH + 1)
+#define ISP2400_SH_CSS_MAX_SCTBL_HEIGHT_PER_COLOR   (SH_CSS_MAX_BQ_GRID_HEIGHT + 1)
+
+#define ISP2400_SH_CSS_MAX_SCTBL_ALIGNED_WIDTH_PER_COLOR \
+	CEIL_MUL(ISP2400_SH_CSS_MAX_SCTBL_WIDTH_PER_COLOR, ISP_VEC_NELEMS)
+
 /* TODO: I will move macros of "*_SCTBL_*" to SC kernel.
    "+ 2" should be "+ SH_CSS_SCTBL_CENTERING_MARGIN + SH_CSS_SCTBL_LAST_GRID_COUNT". (michie, Sep/23/2014) */
-#define SH_CSS_MAX_SCTBL_WIDTH_PER_COLOR   (SH_CSS_MAX_BQ_GRID_WIDTH + 2)
-#define SH_CSS_MAX_SCTBL_HEIGHT_PER_COLOR   (SH_CSS_MAX_BQ_GRID_HEIGHT + 2)
-#endif
-#define SH_CSS_MAX_SCTBL_ALIGNED_WIDTH_PER_COLOR \
-	CEIL_MUL(SH_CSS_MAX_SCTBL_WIDTH_PER_COLOR, ISP_VEC_NELEMS)
+#define ISP2401_SH_CSS_MAX_SCTBL_WIDTH_PER_COLOR   (SH_CSS_MAX_BQ_GRID_WIDTH + 2)
+#define ISP2401_SH_CSS_MAX_SCTBL_HEIGHT_PER_COLOR   (SH_CSS_MAX_BQ_GRID_HEIGHT + 2)
+
+#define ISP2401_SH_CSS_MAX_SCTBL_ALIGNED_WIDTH_PER_COLOR \
+	CEIL_MUL(ISP2400_SH_CSS_MAX_SCTBL_WIDTH_PER_COLOR, ISP_VEC_NELEMS)
 
 /* Each line of this table is aligned to the maximum line width. */
 #define SH_CSS_MAX_S3ATBL_WIDTH              SH_CSS_MAX_BQ_GRID_WIDTH
 
-#ifndef ISP2401
-/* The video binary supports a delay of 1 or 2 */
-#define MAX_DVS_FRAME_DELAY		2
-/* We always need one additional frame because the video binary
- * reads the previous and writes the current frame concurrently */
-#define MAX_NUM_VIDEO_DELAY_FRAMES	(MAX_DVS_FRAME_DELAY + 1)
-#define NUM_VIDEO_TNR_FRAMES		2
-
-#define NUM_TNR_FRAMES			2	/* FIXME */
-
-#define MAX_NUM_DELAY_FRAMES		MAX_NUM_VIDEO_DELAY_FRAMES
-
-#else
 /* Video mode specific DVS define */
 /* The video binary supports a delay of 1 or 2 frames */
 #define VIDEO_FRAME_DELAY		2
@@ -237,15 +218,14 @@ RGB[0,8191],coef[-8192,8191] -> RGB[0,8191]
  */
 #define NUM_VALID_TNR_REF_FRAMES		(1) /* At least one valid TNR reference frame is required */
 #define NUM_TNR_FRAMES_PER_REF_BUF_SET		(2)
-
 /* In luma-only mode alternate illuminated frames are supported, that requires two double buffers */
 #define NUM_TNR_REF_BUF_SETS	(1)
 
 #define NUM_TNR_FRAMES		(NUM_TNR_FRAMES_PER_REF_BUF_SET * NUM_TNR_REF_BUF_SETS)
 
-#define MAX_NUM_DELAY_FRAMES	MAX(MAX_NUM_VIDEO_DELAY_FRAMES, NUM_PREVIEW_DVS_FRAMES)
+#define NUM_VIDEO_TNR_FRAMES		2
 
-#endif
+#define MAX_NUM_DELAY_FRAMES	MAX(MAX_NUM_VIDEO_DELAY_FRAMES, NUM_PREVIEW_DVS_FRAMES)
 
 /* Note that this is the define used to configure all data structures common for all modes */
 /* It should be equal or bigger to the max number of DVS frames for all possible modes */
@@ -272,7 +252,6 @@ RGB[0,8191],coef[-8192,8191] -> RGB[0,8191]
 	CEIL_MUL(_ISP_MORPH_TABLE_WIDTH(width), \
 		 SH_CSS_MORPH_TABLE_ELEMS_PER_DDR_WORD)
 
-#ifndef ISP2401
 #define _ISP_SCTBL_WIDTH_PER_COLOR(input_width, deci_factor_log2) \
 	(ISP_BQ_GRID_WIDTH(input_width, deci_factor_log2) + 1)
 #define _ISP_SCTBL_HEIGHT(input_height, deci_factor_log2) \
@@ -281,7 +260,7 @@ RGB[0,8191],coef[-8192,8191] -> RGB[0,8191]
 	CEIL_MUL(_ISP_SCTBL_WIDTH_PER_COLOR(input_width, deci_factor_log2), \
 		 ISP_VEC_NELEMS)
 
-#endif
+
 /* *****************************************************************
  * Statistics for 3A (Auto Focus, Auto White Balance, Auto Exposure)
  * *****************************************************************/

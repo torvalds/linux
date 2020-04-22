@@ -27,22 +27,14 @@ struct sh_css_isp_tnr_params {
 };
 
 struct ia_css_tnr_configuration {
-#ifndef ISP2401
-	const struct ia_css_frame *tnr_frames[NUM_VIDEO_TNR_FRAMES];
-#else
 	const struct ia_css_frame *tnr_frames[NUM_TNR_FRAMES];
-#endif
 };
 
 struct sh_css_isp_tnr_isp_config {
 	u32 width_a_over_b;
 	u32 frame_height;
 	struct dma_port_config port_b;
-#ifndef ISP2401
-	hrt_vaddress tnr_frame_addr[NUM_VIDEO_TNR_FRAMES];
-#else
 	hrt_vaddress tnr_frame_addr[NUM_TNR_FRAMES];
-#endif
 };
 
 #endif /* __IA_CSS_TNR_PARAM_H */

@@ -3605,10 +3605,18 @@ int atomisp_cp_lsc_table(struct atomisp_sub_device *asd,
 	}
 
 	/* Shading table size per color */
-	if (st->width > SH_CSS_MAX_SCTBL_WIDTH_PER_COLOR ||
-	    st->height > SH_CSS_MAX_SCTBL_HEIGHT_PER_COLOR) {
-		dev_err(asd->isp->dev, "shading table w/h validate failed!");
-		return -EINVAL;
+	if (!atomisp_hw_is_isp2401) {
+		if (st->width > ISP2400_SH_CSS_MAX_SCTBL_WIDTH_PER_COLOR ||
+		    st->height > ISP2400_SH_CSS_MAX_SCTBL_HEIGHT_PER_COLOR) {
+			dev_err(asd->isp->dev, "shading table w/h validate failed!");
+			return -EINVAL;
+		}
+	} else {
+		if (st->width > ISP2401_SH_CSS_MAX_SCTBL_WIDTH_PER_COLOR ||
+		    st->height > ISP2401_SH_CSS_MAX_SCTBL_HEIGHT_PER_COLOR) {
+			dev_err(asd->isp->dev, "shading table w/h validate failed!");
+			return -EINVAL;
+		}
 	}
 
 	shading_table = atomisp_css_shading_table_alloc(st->width, st->height);
@@ -6078,9 +6086,15 @@ int atomisp_set_shading_table(struct atomisp_sub_device *asd,
 	}
 
 	/* Shading table size per color */
-	if (user_shading_table->width > SH_CSS_MAX_SCTBL_WIDTH_PER_COLOR ||
-	    user_shading_table->height > SH_CSS_MAX_SCTBL_HEIGHT_PER_COLOR)
-		return -EINVAL;
+	if (!atomisp_hw_is_isp2401) {
+		if (user_shading_table->width > ISP2400_SH_CSS_MAX_SCTBL_WIDTH_PER_COLOR ||
+		    user_shading_table->height > ISP2400_SH_CSS_MAX_SCTBL_HEIGHT_PER_COLOR)
+			return -EINVAL;
+	} else {
+		if (user_shading_table->width > ISP2401_SH_CSS_MAX_SCTBL_WIDTH_PER_COLOR ||
+		    user_shading_table->height > ISP2401_SH_CSS_MAX_SCTBL_HEIGHT_PER_COLOR)
+			return -EINVAL;
+	}
 
 	shading_table = atomisp_css_shading_table_alloc(
 			    user_shading_table->width, user_shading_table->height);

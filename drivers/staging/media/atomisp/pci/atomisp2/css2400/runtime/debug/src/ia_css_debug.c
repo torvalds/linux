@@ -2945,11 +2945,7 @@ ia_css_debug_pipe_graph_dump_stage(
 		    "in", true);
 	}
 
-#ifndef ISP2401
-	for (i = 0; i < NUM_VIDEO_TNR_FRAMES; i++) {
-#else
 	for (i = 0; i < NUM_TNR_FRAMES; i++) {
-#endif
 		if (stage->args.tnr_frames[i]) {
 			ia_css_debug_pipe_graph_dump_frame(
 			    stage->args.tnr_frames[i], id,

@@ -1440,11 +1440,7 @@ void sh_css_binary_args_reset(struct sh_css_binary_args *args)
 {
 	unsigned int i;
 
-#ifndef ISP2401
-	for (i = 0; i < NUM_VIDEO_TNR_FRAMES; i++)
-#else
 	for (i = 0; i < NUM_TNR_FRAMES; i++)
-#endif
 		args->tnr_frames[i] = NULL;
 	for (i = 0; i < MAX_NUM_VIDEO_DELAY_FRAMES; i++)
 		args->delay_frames[i] = NULL;
@@ -2581,7 +2577,7 @@ ia_css_pipe_destroy(struct ia_css_pipe *pipe) {
 			}
 		}
 #ifndef ISP2401
-		ia_css_frame_free_multiple(NUM_VIDEO_TNR_FRAMES,
+		ia_css_frame_free_multiple(NUM_TNR_FRAMES,
 					   pipe->pipe_settings.video.tnr_frames);
 #else
 		ia_css_frame_free_multiple(NUM_TNR_FRAMES,
@@ -3805,7 +3801,7 @@ static enum ia_css_err create_host_video_pipeline(struct ia_css_pipe *pipe)
 	if (video_stage) {
 		int frm;
 #ifndef ISP2401
-		for (frm = 0; frm < NUM_VIDEO_TNR_FRAMES; frm++) {
+		for (frm = 0; frm < NUM_TNR_FRAMES; frm++) {
 #else
 		for (frm = 0; frm < NUM_TNR_FRAMES; frm++) {
 #endif
@@ -5986,7 +5982,7 @@ static enum ia_css_err load_video_binaries(struct ia_css_pipe *pipe)
 	tnr_info.raw_bit_depth = SH_CSS_TNR_BIT_DEPTH;
 
 #ifndef ISP2401
-	for (i = 0; i < NUM_VIDEO_TNR_FRAMES; i++) {
+	for (i = 0; i < NUM_TNR_FRAMES; i++) {
 #else
 	for (i = 0; i < NUM_TNR_FRAMES; i++) {
 #endif
