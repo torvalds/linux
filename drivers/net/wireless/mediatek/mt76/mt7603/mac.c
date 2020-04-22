@@ -1103,7 +1103,7 @@ mt7603_fill_txs(struct mt7603_dev *dev, struct mt7603_sta *sta,
 	if (ampdu || (info->flags & IEEE80211_TX_CTL_AMPDU))
 		info->flags |= IEEE80211_TX_STAT_AMPDU | IEEE80211_TX_CTL_AMPDU;
 
-	first_idx = max_t(int, 0, last_idx - (count + 1) / MT7603_RATE_RETRY);
+	first_idx = max_t(int, 0, last_idx - (count - 1) / MT7603_RATE_RETRY);
 
 	if (fixed_rate && !probe) {
 		info->status.rates[0].count = count;
