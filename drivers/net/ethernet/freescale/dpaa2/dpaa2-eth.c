@@ -1933,12 +1933,12 @@ static int dpaa2_eth_xdp_xmit(struct net_device *net_dev, int n,
 			      struct xdp_frame **frames, u32 flags)
 {
 	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
+	int total_enqueued = 0, retries = 0, enqueued;
 	struct dpaa2_eth_drv_stats *percpu_extras;
 	struct rtnl_link_stats64 *percpu_stats;
+	int num_fds, i, err, max_retries;
 	struct dpaa2_eth_fq *fq;
-	struct dpaa2_fd fd;
-	int drops = 0;
-	int i, err;
+	struct dpaa2_fd *fds;
 
 	if (unlikely(flags & ~XDP_XMIT_FLAGS_MASK))
 		return -EINVAL;
@@ -1946,41 +1946,40 @@ static int dpaa2_eth_xdp_xmit(struct net_device *net_dev, int n,
 	if (!netif_running(net_dev))
 		return -ENETDOWN;
 
+	fq = &priv->fq[smp_processor_id()];
+	fds = fq->xdp_fds;
+
 	percpu_stats = this_cpu_ptr(priv->percpu_stats);
 	percpu_extras = this_cpu_ptr(priv->percpu_extras);
 
+	/* create a FD for each xdp_frame in the list received */
 	for (i = 0; i < n; i++) {
-		struct xdp_frame *xdpf = frames[i];
+		err = dpaa2_eth_xdp_create_fd(net_dev, frames[i], &fds[i]);
+		if (err)
+			break;
+	}
+	num_fds = i;
 
-		/* create the FD from the xdp_frame */
-		err = dpaa2_eth_xdp_create_fd(net_dev, xdpf, &fd);
-		if (err) {
-			percpu_stats->tx_dropped++;
-			xdp_return_frame_rx_napi(xdpf);
-			drops++;
+	/* try to enqueue all the FDs until the max number of retries is hit */
+	max_retries = num_fds * DPAA2_ETH_ENQUEUE_RETRIES;
+	while (total_enqueued < num_fds && retries < max_retries) {
+		err = priv->enqueue(priv, fq, &fds[total_enqueued],
+				    0, num_fds - total_enqueued, &enqueued);
+		if (err == -EBUSY) {
+			percpu_extras->tx_portal_busy += ++retries;
 			continue;
 		}
-
-		/* enqueue the newly created FD */
-		fq = &priv->fq[smp_processor_id() % dpaa2_eth_queue_count(priv)];
-		for (i = 0; i < DPAA2_ETH_ENQUEUE_RETRIES; i++) {
-			err = priv->enqueue(priv, fq, &fd, 0, 1);
-			if (err != -EBUSY)
-				break;
-		}
-
-		percpu_extras->tx_portal_busy += i;
-		if (unlikely(err < 0)) {
-			percpu_stats->tx_errors++;
-			xdp_return_frame_rx_napi(xdpf);
-			continue;
-		}
-
-		percpu_stats->tx_packets++;
-		percpu_stats->tx_bytes += dpaa2_fd_get_len(&fd);
+		total_enqueued += enqueued;
 	}
 
-	return n - drops;
+	/* update statistics */
+	percpu_stats->tx_packets += total_enqueued;
+	for (i = 0; i < total_enqueued; i++)
+		percpu_stats->tx_bytes += dpaa2_fd_get_len(&fds[i]);
+	for (i = total_enqueued; i < n; i++)
+		xdp_return_frame_rx_napi(frames[i]);
+
+	return total_enqueued;
 }
 
 static int update_xps(struct dpaa2_eth_priv *priv)

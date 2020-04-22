@@ -325,6 +325,8 @@ struct dpaa2_eth_fq {
 			const struct dpaa2_fd *fd,
 			struct dpaa2_eth_fq *fq);
 	struct dpaa2_eth_fq_stats stats;
+
+	struct dpaa2_fd xdp_fds[DEV_MAP_BULK_SIZE];
 };
 
 struct dpaa2_eth_ch_xdp {
