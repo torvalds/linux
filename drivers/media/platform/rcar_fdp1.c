@@ -2344,7 +2344,7 @@ static int fdp1_probe(struct platform_device *pdev)
 	video_set_drvdata(vfd, fdp1);
 	strscpy(vfd->name, fdp1_videodev.name, sizeof(vfd->name));
 
-	ret = video_register_device(vfd, VFL_TYPE_GRABBER, 0);
+	ret = video_register_device(vfd, VFL_TYPE_VIDEO, 0);
 	if (ret) {
 		v4l2_err(&fdp1->v4l2_dev, "Failed to register video device\n");
 		goto release_m2m;

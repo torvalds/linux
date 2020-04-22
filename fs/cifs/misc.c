@@ -31,6 +31,7 @@
 #include "nterr.h"
 #include "cifs_unicode.h"
 #include "smb2pdu.h"
+#include "cifsfs.h"
 
 extern mempool_t *cifs_sm_req_poolp;
 extern mempool_t *cifs_req_poolp;
@@ -1021,4 +1022,83 @@ int copy_path_name(char *dst, const char *src)
 	/* we count the trailing nul */
 	name_len++;
 	return name_len;
+}
+
+struct super_cb_data {
+	struct TCP_Server_Info *server;
+	struct super_block *sb;
+};
+
+static void super_cb(struct super_block *sb, void *arg)
+{
+	struct super_cb_data *d = arg;
+	struct cifs_sb_info *cifs_sb;
+	struct cifs_tcon *tcon;
+
+	if (d->sb)
+		return;
+
+	cifs_sb = CIFS_SB(sb);
+	tcon = cifs_sb_master_tcon(cifs_sb);
+	if (tcon->ses->server == d->server)
+		d->sb = sb;
+}
+
+struct super_block *cifs_get_tcp_super(struct TCP_Server_Info *server)
+{
+	struct super_cb_data d = {
+		.server = server,
+		.sb = NULL,
+	};
+
+	iterate_supers_type(&cifs_fs_type, super_cb, &d);
+
+	if (unlikely(!d.sb))
+		return ERR_PTR(-ENOENT);
+	/*
+	 * Grab an active reference in order to prevent automounts (DFS links)
+	 * of expiring and then freeing up our cifs superblock pointer while
+	 * we're doing failover.
+	 */
+	cifs_sb_active(d.sb);
+	return d.sb;
+}
+
+void cifs_put_tcp_super(struct super_block *sb)
+{
+	if (!IS_ERR_OR_NULL(sb))
+		cifs_sb_deactive(sb);
+}
+
+int update_super_prepath(struct cifs_tcon *tcon, const char *prefix,
+			 size_t prefix_len)
+{
+	struct super_block *sb;
+	struct cifs_sb_info *cifs_sb;
+	int rc = 0;
+
+	sb = cifs_get_tcp_super(tcon->ses->server);
+	if (IS_ERR(sb))
+		return PTR_ERR(sb);
+
+	cifs_sb = CIFS_SB(sb);
+
+	kfree(cifs_sb->prepath);
+
+	if (*prefix && prefix_len) {
+		cifs_sb->prepath = kstrndup(prefix, prefix_len, GFP_ATOMIC);
+		if (!cifs_sb->prepath) {
+			rc = -ENOMEM;
+			goto out;
+		}
+
+		convert_delimiter(cifs_sb->prepath, CIFS_DIR_SEP(cifs_sb));
+	} else
+		cifs_sb->prepath = NULL;
+
+	cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_USE_PREFIX_PATH;
+
+out:
+	cifs_put_tcp_super(sb);
+	return rc;
 }

@@ -6,6 +6,7 @@
  * Copyright (C) 2012 ARM Ltd.
  */
 
+#include <linux/bitfield.h>
 #include <linux/bitops.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
@@ -254,10 +255,37 @@ switch_mm_fastpath:
 /* Errata workaround post TTBRx_EL1 update. */
 asmlinkage void post_ttbr_update_workaround(void)
 {
+	if (!IS_ENABLED(CONFIG_CAVIUM_ERRATUM_27456))
+		return;
+
 	asm(ALTERNATIVE("nop; nop; nop",
 			"ic iallu; dsb nsh; isb",
-			ARM64_WORKAROUND_CAVIUM_27456,
-			CONFIG_CAVIUM_ERRATUM_27456));
+			ARM64_WORKAROUND_CAVIUM_27456));
+}
+
+void cpu_do_switch_mm(phys_addr_t pgd_phys, struct mm_struct *mm)
+{
+	unsigned long ttbr1 = read_sysreg(ttbr1_el1);
+	unsigned long asid = ASID(mm);
+	unsigned long ttbr0 = phys_to_ttbr(pgd_phys);
+
+	/* Skip CNP for the reserved ASID */
+	if (system_supports_cnp() && asid)
+		ttbr0 |= TTBR_CNP_BIT;
+
+	/* SW PAN needs a copy of the ASID in TTBR0 for entry */
+	if (IS_ENABLED(CONFIG_ARM64_SW_TTBR0_PAN))
+		ttbr0 |= FIELD_PREP(TTBR_ASID_MASK, asid);
+
+	/* Set ASID in TTBR1 since TCR.A1 is set */
+	ttbr1 &= ~TTBR_ASID_MASK;
+	ttbr1 |= FIELD_PREP(TTBR_ASID_MASK, asid);
+
+	write_sysreg(ttbr1, ttbr1_el1);
+	isb();
+	write_sysreg(ttbr0, ttbr0_el1);
+	isb();
+	post_ttbr_update_workaround();
 }
 
 static int asids_update_limit(void)

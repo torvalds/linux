@@ -4,7 +4,7 @@
  *
  * Interface to the FSF support functions.
  *
- * Copyright IBM Corp. 2002, 2018
+ * Copyright IBM Corp. 2002, 2020
  */
 
 #ifndef FSF_H
@@ -78,6 +78,7 @@
 #define FSF_BLOCK_GUARD_CHECK_FAILURE		0x00000081
 #define FSF_APP_TAG_CHECK_FAILURE		0x00000082
 #define FSF_REF_TAG_CHECK_FAILURE		0x00000083
+#define FSF_SECURITY_ERROR			0x00000090
 #define FSF_ADAPTER_STATUS_AVAILABLE		0x000000AD
 #define FSF_FCP_RSP_AVAILABLE			0x000000AF
 #define FSF_UNKNOWN_COMMAND			0x000000E2
@@ -109,6 +110,14 @@
 #define FSF_PSQ_LINK_WWPN_ASSIGNMENT_CORRUPTED	0x00002000
 #define FSF_PSQ_LINK_MODE_TABLE_CURRUPTED	0x00004000
 #define FSF_PSQ_LINK_NO_WWPN_ASSIGNMENT		0x00008000
+
+/* FSF status qualifier, security error */
+#define FSF_SQ_SECURITY_REQUIRED		0x00000001
+#define FSF_SQ_SECURITY_TIMEOUT			0x00000002
+#define FSF_SQ_SECURITY_KM_UNAVAILABLE		0x00000003
+#define FSF_SQ_SECURITY_RKM_UNAVAILABLE		0x00000004
+#define FSF_SQ_SECURITY_AUTH_FAILURE		0x00000005
+#define FSF_SQ_SECURITY_ENC_FAILURE		0x00000010
 
 /* payload size in status read buffer */
 #define FSF_STATUS_READ_PAYLOAD_SIZE		4032
@@ -165,6 +174,7 @@
 #define FSF_FEATURE_MEASUREMENT_DATA		0x00000200
 #define FSF_FEATURE_REQUEST_SFP_DATA		0x00000200
 #define FSF_FEATURE_REPORT_SFP_DATA		0x00000800
+#define FSF_FEATURE_FC_SECURITY			0x00001000
 #define FSF_FEATURE_DIF_PROT_TYPE1		0x00010000
 #define FSF_FEATURE_DIX_PROT_TCPIP		0x00020000
 
@@ -173,6 +183,11 @@
 
 /* option */
 #define FSF_OPEN_LUN_SUPPRESS_BOXING		0x00000001
+
+/* FC security algorithms */
+#define FSF_FC_SECURITY_AUTH			0x00000001
+#define FSF_FC_SECURITY_ENC_FCSP2		0x00000002
+#define FSF_FC_SECURITY_ENC_ERAS		0x00000004
 
 struct fsf_queue_designator {
 	u8  cssid;
@@ -338,7 +353,8 @@ struct fsf_qtcb_bottom_support {
 	u8  res3[3];
 	u8  timeout;
         u32 lun_access_info;
-        u8  res4[180];
+	u32 connection_info;
+	u8  res4[176];
 	u32 els1_length;
 	u32 els2_length;
 	u32 req_buf_length;
@@ -426,7 +442,8 @@ struct fsf_qtcb_bottom_port {
 			u16 port_tx_type	:4;
 		};
 	} sfp_flags;
-	u8 res3[240];
+	u32 fc_security_algorithms;
+	u8 res3[236];
 } __attribute__ ((packed));
 
 union fsf_qtcb_bottom {

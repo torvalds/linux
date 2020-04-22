@@ -8,13 +8,14 @@ my $input_file = "MAINTAINERS";
 my $output_file = "MAINTAINERS.new";
 my $output_section = "SECTION.new";
 my $help = 0;
-
+my $order = 0;
 my $P = $0;
 
 if (!GetOptions(
 		'input=s' => \$input_file,
 		'output=s' => \$output_file,
 		'section=s' => \$output_section,
+		'order!' => \$order,
 		'h|help|usage' => \$help,
 	    )) {
     die "$P: invalid argument - use --help if necessary\n";
@@ -32,6 +33,22 @@ usage: $P [options] <pattern matching regexes>
   --input => MAINTAINERS file to read (default: MAINTAINERS)
   --output => sorted MAINTAINERS file to write (default: MAINTAINERS.new)
   --section => new sorted MAINTAINERS file to write to (default: SECTION.new)
+  --order => Use the preferred section content output ordering (default: 0)
+    Preferred ordering of section output is:
+      M:  Person acting as a maintainer
+      R:  Person acting as a patch reviewer
+      L:  Mailing list where patches should be sent
+      S:  Maintenance status
+      W:  URI for general information
+      Q:  URI for patchwork tracking
+      B:  URI for bug tracking/submission
+      C:  URI for chat
+      P:  URI or file for subsystem specific coding styles
+      T:  SCM tree type and location
+      F:  File and directory pattern
+      X:  File and directory exclusion pattern
+      N:  File glob
+      K:  Keyword - patch content regex
 
 If <pattern match regexes> exist, then the sections that match the
 regexes are not written to the output file but are written to the
@@ -56,7 +73,7 @@ sub by_category($$) {
 
 sub by_pattern($$) {
     my ($a, $b) = @_;
-    my $preferred_order = 'MRPLSWTQBCFXNK';
+    my $preferred_order = 'MRLSWQBCPTFXNK';
 
     my $a1 = uc(substr($a, 0, 1));
     my $b1 = uc(substr($b, 0, 1));
@@ -105,8 +122,14 @@ sub alpha_output {
 		print $file $separator;
 	    }
 	    print $file $key . "\n";
-	    foreach my $pattern (sort by_pattern split('\n', %$hashref{$key})) {
-		print $file ($pattern . "\n");
+	    if ($order) {
+		foreach my $pattern (sort by_pattern split('\n', %$hashref{$key})) {
+		    print $file ($pattern . "\n");
+		}
+	    } else {
+		foreach my $pattern (split('\n', %$hashref{$key})) {
+		    print $file ($pattern . "\n");
+		}
 	    }
 	}
     }

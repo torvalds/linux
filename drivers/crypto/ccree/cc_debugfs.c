@@ -8,10 +8,6 @@
 #include "cc_crypto_ctx.h"
 #include "cc_debugfs.h"
 
-struct cc_debugfs_ctx {
-	struct dentry *dir;
-};
-
 #define CC_DEBUG_REG(_X) {	\
 	.name = __stringify(_X),\
 	.offset = CC_REG(_X)	\
@@ -67,12 +63,7 @@ void __exit cc_debugfs_global_fini(void)
 int cc_debugfs_init(struct cc_drvdata *drvdata)
 {
 	struct device *dev = drvdata_to_dev(drvdata);
-	struct cc_debugfs_ctx *ctx;
 	struct debugfs_regset32 *regset, *verset;
-
-	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
-	if (!ctx)
-		return -ENOMEM;
 
 	regset = devm_kzalloc(dev, sizeof(*regset), GFP_KERNEL);
 	if (!regset)
@@ -81,16 +72,18 @@ int cc_debugfs_init(struct cc_drvdata *drvdata)
 	regset->regs = debug_regs;
 	regset->nregs = ARRAY_SIZE(debug_regs);
 	regset->base = drvdata->cc_base;
+	regset->dev = dev;
 
-	ctx->dir = debugfs_create_dir(drvdata->plat_dev->name, cc_debugfs_dir);
+	drvdata->dir = debugfs_create_dir(drvdata->plat_dev->name,
+					  cc_debugfs_dir);
 
-	debugfs_create_regset32("regs", 0400, ctx->dir, regset);
-	debugfs_create_bool("coherent", 0400, ctx->dir, &drvdata->coherent);
+	debugfs_create_regset32("regs", 0400, drvdata->dir, regset);
+	debugfs_create_bool("coherent", 0400, drvdata->dir, &drvdata->coherent);
 
 	verset = devm_kzalloc(dev, sizeof(*verset), GFP_KERNEL);
 	/* Failing here is not important enough to fail the module load */
 	if (!verset)
-		goto out;
+		return 0;
 
 	if (drvdata->hw_rev <= CC_HW_REV_712) {
 		ver_sig_regs[0].offset = drvdata->sig_offset;
@@ -102,17 +95,13 @@ int cc_debugfs_init(struct cc_drvdata *drvdata)
 		verset->nregs = ARRAY_SIZE(pid_cid_regs);
 	}
 	verset->base = drvdata->cc_base;
+	verset->dev = dev;
 
-	debugfs_create_regset32("version", 0400, ctx->dir, verset);
-
-out:
-	drvdata->debugfs = ctx;
+	debugfs_create_regset32("version", 0400, drvdata->dir, verset);
 	return 0;
 }
 
 void cc_debugfs_fini(struct cc_drvdata *drvdata)
 {
-	struct cc_debugfs_ctx *ctx = (struct cc_debugfs_ctx *)drvdata->debugfs;
-
-	debugfs_remove_recursive(ctx->dir);
+	debugfs_remove_recursive(drvdata->dir);
 }

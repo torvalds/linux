@@ -154,7 +154,6 @@ static struct pwm_lookup pcm990_pwm_lookup[] = {
 static struct platform_pwm_backlight_data pcm990_backlight_data = {
 	.max_brightness	= 1023,
 	.dft_brightness	= 1023,
-	.enable_gpio	= -1,
 };
 
 static struct platform_device pcm990_backlight_device = {

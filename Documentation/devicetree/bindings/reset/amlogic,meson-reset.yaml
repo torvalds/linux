@@ -29,6 +29,8 @@ required:
   - reg
   - "#reset-cells"
 
+additionalProperties: false
+
 examples:
   - |
     reset-controller@c884404 {

@@ -8,12 +8,12 @@
 
 #include <linux/types.h>
 
-#include <drm/i915_drm.h>
-
 struct drm_connector;
 struct drm_connector_state;
 struct drm_i915_private;
 struct intel_connector;
+struct intel_crtc_state;
+struct intel_encoder;
 struct intel_hdcp_shim;
 enum port;
 enum transcoder;
@@ -26,6 +26,9 @@ int intel_hdcp_init(struct intel_connector *connector,
 int intel_hdcp_enable(struct intel_connector *connector,
 		      enum transcoder cpu_transcoder, u8 content_type);
 int intel_hdcp_disable(struct intel_connector *connector);
+void intel_hdcp_update_pipe(struct intel_encoder *encoder,
+			    const struct intel_crtc_state *crtc_state,
+			    const struct drm_connector_state *conn_state);
 bool is_hdcp_supported(struct drm_i915_private *dev_priv, enum port port);
 bool intel_hdcp_capable(struct intel_connector *connector);
 bool intel_hdcp2_capable(struct intel_connector *connector);

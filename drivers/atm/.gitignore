@@ -1,4 +1,4 @@
-# Ignore generated files
+# SPDX-License-Identifier: GPL-2.0-only
 fore200e_mkfirm
 fore200e_pca_fw.c
 pca200e.bin

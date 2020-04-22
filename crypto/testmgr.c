@@ -91,10 +91,11 @@ struct aead_test_suite {
 	unsigned int einval_allowed : 1;
 
 	/*
-	 * Set if the algorithm intentionally ignores the last 8 bytes of the
-	 * AAD buffer during decryption.
+	 * Set if this algorithm requires that the IV be located at the end of
+	 * the AAD buffer, in addition to being given in the normal way.  The
+	 * behavior when the two IV copies differ is implementation-defined.
 	 */
-	unsigned int esp_aad : 1;
+	unsigned int aad_iv : 1;
 };
 
 struct cipher_test_suite {
@@ -2167,9 +2168,10 @@ struct aead_extra_tests_ctx {
  * here means the full ciphertext including the authentication tag.  The
  * authentication tag (and hence also the ciphertext) is assumed to be nonempty.
  */
-static void mutate_aead_message(struct aead_testvec *vec, bool esp_aad)
+static void mutate_aead_message(struct aead_testvec *vec, bool aad_iv,
+				unsigned int ivsize)
 {
-	const unsigned int aad_tail_size = esp_aad ? 8 : 0;
+	const unsigned int aad_tail_size = aad_iv ? ivsize : 0;
 	const unsigned int authsize = vec->clen - vec->plen;
 
 	if (prandom_u32() % 2 == 0 && vec->alen > aad_tail_size) {
@@ -2207,6 +2209,9 @@ static void generate_aead_message(struct aead_request *req,
 
 	/* Generate the AAD. */
 	generate_random_bytes((u8 *)vec->assoc, vec->alen);
+	if (suite->aad_iv && vec->alen >= ivsize)
+		/* Avoid implementation-defined behavior. */
+		memcpy((u8 *)vec->assoc + vec->alen - ivsize, vec->iv, ivsize);
 
 	if (inauthentic && prandom_u32() % 2 == 0) {
 		/* Generate a random ciphertext. */
@@ -2242,7 +2247,7 @@ static void generate_aead_message(struct aead_request *req,
 		 * Mutate the authentic (ciphertext, AAD) pair to get an
 		 * inauthentic one.
 		 */
-		mutate_aead_message(vec, suite->esp_aad);
+		mutate_aead_message(vec, suite->aad_iv, ivsize);
 	}
 	vec->novrfy = 1;
 	if (suite->einval_allowed)
@@ -2507,11 +2512,11 @@ static int test_aead_extra(const char *driver,
 		goto out;
 	}
 
-	err = test_aead_inauthentic_inputs(ctx);
+	err = test_aead_vs_generic_impl(ctx);
 	if (err)
 		goto out;
 
-	err = test_aead_vs_generic_impl(ctx);
+	err = test_aead_inauthentic_inputs(ctx);
 out:
 	kfree(ctx->vec.key);
 	kfree(ctx->vec.iv);
@@ -5229,7 +5234,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 			.aead = {
 				____VECS(aes_gcm_rfc4106_tv_template),
 				.einval_allowed = 1,
-				.esp_aad = 1,
+				.aad_iv = 1,
 			}
 		}
 	}, {
@@ -5241,7 +5246,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 			.aead = {
 				____VECS(aes_ccm_rfc4309_tv_template),
 				.einval_allowed = 1,
-				.esp_aad = 1,
+				.aad_iv = 1,
 			}
 		}
 	}, {
@@ -5252,6 +5257,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 			.aead = {
 				____VECS(aes_gcm_rfc4543_tv_template),
 				.einval_allowed = 1,
+				.aad_iv = 1,
 			}
 		}
 	}, {
@@ -5267,7 +5273,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 			.aead = {
 				____VECS(rfc7539esp_tv_template),
 				.einval_allowed = 1,
-				.esp_aad = 1,
+				.aad_iv = 1,
 			}
 		}
 	}, {

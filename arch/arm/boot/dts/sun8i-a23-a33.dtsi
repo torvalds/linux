@@ -684,9 +684,6 @@
 			clock-names = "ahb", "mod", "ram";
 			resets = <&ccu RST_BUS_DRC>;
 
-			assigned-clocks = <&ccu CLK_DRC>;
-			assigned-clock-rates = <300000000>;
-
 			ports {
 				#address-cells = <1>;
 				#size-cells = <0>;

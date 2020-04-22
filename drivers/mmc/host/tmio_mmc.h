@@ -176,20 +176,13 @@ struct tmio_mmc_host {
 	int (*write16_hook)(struct tmio_mmc_host *host, int addr);
 	void (*reset)(struct tmio_mmc_host *host);
 	void (*hw_reset)(struct tmio_mmc_host *host);
-	void (*prepare_tuning)(struct tmio_mmc_host *host, unsigned long tap);
-	bool (*check_scc_error)(struct tmio_mmc_host *host);
+	bool (*check_retune)(struct tmio_mmc_host *host);
 
 	/*
 	 * Mandatory callback for tuning to occur which is optional for SDR50
 	 * and mandatory for SDR104.
 	 */
-	unsigned int (*init_tuning)(struct tmio_mmc_host *host);
-	int (*select_tuning)(struct tmio_mmc_host *host);
-
-	/* Tuning values: 1 for success, 0 for failure */
-	DECLARE_BITMAP(taps, BITS_PER_BYTE * sizeof(long));
-	unsigned int tap_num;
-	unsigned long tap_set;
+	int (*execute_tuning)(struct tmio_mmc_host *host, u32 opcode);
 
 	void (*prepare_hs400_tuning)(struct tmio_mmc_host *host);
 	void (*hs400_downgrade)(struct tmio_mmc_host *host);

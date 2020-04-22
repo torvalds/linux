@@ -79,7 +79,7 @@ static int __init load_uefi_certs(void)
 	efi_status_t status;
 	int rc = 0;
 
-	if (!efi.get_variable)
+	if (!efi_rt_services_supported(EFI_RT_SUPPORTED_GET_VARIABLE))
 		return false;
 
 	/* Get db, MokListRT, and dbx.  They might not exist, so it isn't

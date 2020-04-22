@@ -104,7 +104,7 @@
 		interrupt-parent = <&gic>;
 		ranges;
 
-		aips0: aips-bus@40000000 {
+		aips0: bus@40000000 {
 			compatible = "simple-bus";
 			#address-cells = <2>;
 			#size-cells = <2>;
@@ -120,7 +120,7 @@
 			};
 		};
 
-		aips1: aips-bus@40080000 {
+		aips1: bus@40080000 {
 			compatible = "simple-bus";
 			#address-cells = <2>;
 			#size-cells = <2>;

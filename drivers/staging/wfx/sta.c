@@ -293,7 +293,6 @@ int wfx_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct wfx_dev *wdev = hw->priv;
 	struct wfx_vif *wvif = (struct wfx_vif *) vif->drv_priv;
 	int old_uapsd = wvif->uapsd_mask;
-	int ret = 0;
 
 	WARN_ON(queue >= hw->queues);
 
@@ -307,7 +306,7 @@ int wfx_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		wfx_update_pm(wvif);
 	}
 	mutex_unlock(&wdev->conf_mutex);
-	return ret;
+	return 0;
 }
 
 int wfx_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
@@ -491,9 +490,11 @@ static void wfx_set_mfp(struct wfx_vif *wvif,
 static void wfx_do_join(struct wfx_vif *wvif)
 {
 	int ret;
-	const u8 *ssidie;
 	struct ieee80211_bss_conf *conf = &wvif->vif->bss_conf;
 	struct cfg80211_bss *bss = NULL;
+	u8 ssid[IEEE80211_MAX_SSID_LEN];
+	const u8 *ssidie = NULL;
+	int ssidlen = 0;
 
 	wfx_tx_lock_flush(wvif->wdev);
 
@@ -514,11 +515,14 @@ static void wfx_do_join(struct wfx_vif *wvif)
 	if (!wvif->beacon_int)
 		wvif->beacon_int = 1;
 
-	rcu_read_lock();
+	rcu_read_lock(); // protect ssidie
 	if (!conf->ibss_joined)
 		ssidie = ieee80211_bss_get_ie(bss, WLAN_EID_SSID);
-	else
-		ssidie = NULL;
+	if (ssidie) {
+		ssidlen = ssidie[1];
+		memcpy(ssid, &ssidie[2], ssidie[1]);
+	}
+	rcu_read_unlock();
 
 	wfx_tx_flush(wvif->wdev);
 
@@ -527,10 +531,8 @@ static void wfx_do_join(struct wfx_vif *wvif)
 
 	wfx_set_mfp(wvif, bss);
 
-	/* Perform actual join */
 	wvif->wdev->tx_burst_idx = -1;
-	ret = hif_join(wvif, conf, wvif->channel, ssidie);
-	rcu_read_unlock();
+	ret = hif_join(wvif, conf, wvif->channel, ssid, ssidlen);
 	if (ret) {
 		ieee80211_connection_loss(wvif->vif);
 		wvif->join_complete_status = -1;
@@ -605,7 +607,9 @@ int wfx_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(sta_priv->buffered); i++)
-		WARN(sta_priv->buffered[i], "release station while Tx is in progress");
+		if (sta_priv->buffered[i])
+			dev_warn(wvif->wdev->dev, "release station while %d pending frame on queue %d",
+				 sta_priv->buffered[i], i);
 	// FIXME: see note in wfx_sta_add()
 	if (vif->type == NL80211_IFTYPE_STATION)
 		return 0;
@@ -689,6 +693,7 @@ static void wfx_join_finalize(struct wfx_vif *wvif,
 			wfx_rate_mask_to_hw(wvif->wdev, sta->supp_rates[wvif->channel->band]);
 	else
 		wvif->bss_params.operational_rate_set = -1;
+	rcu_read_unlock();
 	if (sta &&
 	    info->ht_operation_mode & IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT)
 		hif_dual_cts_protection(wvif, true);
@@ -701,8 +706,7 @@ static void wfx_join_finalize(struct wfx_vif *wvif,
 	wvif->bss_params.beacon_lost_count = 20;
 	wvif->bss_params.aid = info->aid;
 
-	hif_set_association_mode(wvif, info, sta ? &sta->ht_cap : NULL);
-	rcu_read_unlock();
+	hif_set_association_mode(wvif, info);
 
 	if (!info->ibss_joined) {
 		hif_keep_alive_period(wvif, 30 /* sec */);
@@ -904,7 +908,7 @@ static void wfx_update_tim_work(struct work_struct *work)
 int wfx_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta, bool set)
 {
 	struct wfx_dev *wdev = hw->priv;
-	struct wfx_sta_priv *sta_dev = (struct wfx_sta_priv *) &sta->drv_priv;
+	struct wfx_sta_priv *sta_dev = (struct wfx_sta_priv *)&sta->drv_priv;
 	struct wfx_vif *wvif = wdev_to_wvif(wdev, sta_dev->vif_id);
 
 	schedule_work(&wvif->update_tim_work);

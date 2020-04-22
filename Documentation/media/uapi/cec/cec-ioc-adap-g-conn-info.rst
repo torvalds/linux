@@ -44,18 +44,18 @@ is only available if the ``CEC_CAP_CONNECTOR_INFO`` capability is set.
 .. flat-table:: struct cec_connector_info
     :header-rows:  0
     :stub-columns: 0
-    :widths:       1 1 1 8
+    :widths:       1 1 8
 
     * - __u32
       - ``type``
       - The type of connector this adapter is associated with.
-    * - union
+    * - union {
       - ``(anonymous)``
-      -
-    * -
-      - ``struct cec_drm_connector_info``
+    * - ``struct cec_drm_connector_info``
       - drm
       - :ref:`cec-drm-connector-info`
+    * - }
+      -
 
 
 .. tabularcolumns:: |p{4.4cm}|p{2.5cm}|p{10.6cm}|

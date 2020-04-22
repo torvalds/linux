@@ -32,7 +32,6 @@
 MODULE_AUTHOR("Cavium Networks, <support@cavium.com>");
 MODULE_DESCRIPTION("Cavium LiquidIO Intelligent Server Adapter Virtual Function Driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(LIQUIDIO_VERSION);
 
 static int debug = -1;
 module_param(debug, int, 0644);
@@ -2352,8 +2351,8 @@ static int octeon_device_init(struct octeon_device *oct)
 	}
 	atomic_set(&oct->status, OCT_DEV_MSIX_ALLOC_VECTOR_DONE);
 
-	dev_info(&oct->pci_dev->dev, "OCTEON_CN23XX VF Version: %s, %d ioqs\n",
-		 LIQUIDIO_VERSION, oct->sriov_info.rings_per_vf);
+	dev_info(&oct->pci_dev->dev, "OCTEON_CN23XX VF: %d ioqs\n",
+		 oct->sriov_info.rings_per_vf);
 
 	/* Setup the interrupt handler and record the INT SUM register address*/
 	if (octeon_setup_interrupt(oct, oct->sriov_info.rings_per_vf))

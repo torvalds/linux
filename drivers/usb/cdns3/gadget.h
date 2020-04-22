@@ -1199,7 +1199,7 @@ struct cdns3_aligned_buf {
 	void			*buf;
 	dma_addr_t		dma;
 	u32			size;
-	int			in_use:1;
+	unsigned		in_use:1;
 	struct list_head	list;
 };
 
@@ -1308,8 +1308,8 @@ struct cdns3_device {
 	unsigned			u2_allowed:1;
 	unsigned			is_selfpowered:1;
 	unsigned			setup_pending:1;
-	int				hw_configured_flag:1;
-	int				wake_up_flag:1;
+	unsigned			hw_configured_flag:1;
+	unsigned			wake_up_flag:1;
 	unsigned			status_completion_no_call:1;
 	unsigned			using_streams:1;
 	int				out_mem_is_allocated;

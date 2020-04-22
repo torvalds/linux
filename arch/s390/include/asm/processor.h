@@ -92,15 +92,15 @@ extern void __bpon(void);
  */
 
 #define TASK_SIZE_OF(tsk)	(test_tsk_thread_flag(tsk, TIF_31BIT) ? \
-					(1UL << 31) : -PAGE_SIZE)
+					_REGION3_SIZE : TASK_SIZE_MAX)
 #define TASK_UNMAPPED_BASE	(test_thread_flag(TIF_31BIT) ? \
-					(1UL << 30) : (1UL << 41))
+					(_REGION3_SIZE >> 1) : (_REGION2_SIZE >> 1))
 #define TASK_SIZE		TASK_SIZE_OF(current)
 #define TASK_SIZE_MAX		(-PAGE_SIZE)
 
 #define STACK_TOP		(test_thread_flag(TIF_31BIT) ? \
-					(1UL << 31) : (1UL << 42))
-#define STACK_TOP_MAX		(1UL << 42)
+					_REGION3_SIZE : _REGION2_SIZE)
+#define STACK_TOP_MAX		_REGION2_SIZE
 
 #define HAVE_ARCH_PICK_MMAP_LAYOUT
 
@@ -161,6 +161,7 @@ typedef struct thread_struct thread_struct;
 #define INIT_THREAD {							\
 	.ksp = sizeof(init_stack) + (unsigned long) &init_stack,	\
 	.fpu.regs = (void *) init_task.thread.fpu.fprs,			\
+	.last_break = 1,						\
 }
 
 /*
@@ -177,7 +178,6 @@ typedef struct thread_struct thread_struct;
 	regs->psw.mask	= PSW_USER_BITS | PSW_MASK_BA;			\
 	regs->psw.addr	= new_psw;					\
 	regs->gprs[15]	= new_stackp;					\
-	crst_table_downgrade(current->mm);				\
 	execve_tail();							\
 } while (0)
 

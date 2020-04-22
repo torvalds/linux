@@ -65,7 +65,7 @@
 struct fstioc_write {
         unsigned int  size;
         unsigned int  offset;
-        unsigned char data[0];
+	unsigned char data[];
 };
 
 

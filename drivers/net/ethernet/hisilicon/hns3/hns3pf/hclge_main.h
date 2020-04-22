@@ -249,6 +249,7 @@ enum HCLGE_MAC_DUPLEX {
 #define QUERY_ACTIVE_SPEED	1
 
 struct hclge_mac {
+	u8 mac_id;
 	u8 phy_addr;
 	u8 flag;
 	u8 media_type;	/* port media type, e.g. fibre/copper/backplane */

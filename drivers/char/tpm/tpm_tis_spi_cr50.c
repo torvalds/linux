@@ -132,7 +132,12 @@ static void cr50_wake_if_needed(struct cr50_spi_phy *cr50_phy)
 
 	if (cr50_needs_waking(cr50_phy)) {
 		/* Assert CS, wait 1 msec, deassert CS */
-		struct spi_transfer spi_cs_wake = { .delay_usecs = 1000 };
+		struct spi_transfer spi_cs_wake = {
+			.delay = {
+				.value = 1000,
+				.unit = SPI_DELAY_UNIT_USECS
+			}
+		};
 
 		spi_sync_transfer(phy->spi_device, &spi_cs_wake, 1);
 		/* Wait for it to fully wake */

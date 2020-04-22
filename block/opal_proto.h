@@ -36,6 +36,7 @@ enum opal_response_token {
 
 #define DTAERROR_NO_METHOD_STATUS 0x89
 #define GENERIC_HOST_SESSION_NUM 0x41
+#define FIRST_TPER_SESSION_NUM	4096
 
 #define TPER_SYNC_SUPPORTED 0x01
 #define MBR_ENABLED_MASK 0x10

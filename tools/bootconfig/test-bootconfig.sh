@@ -3,9 +3,16 @@
 
 echo "Boot config test script"
 
-BOOTCONF=./bootconfig
-INITRD=`mktemp initrd-XXXX`
-TEMPCONF=`mktemp temp-XXXX.bconf`
+if [ -d "$1" ]; then
+  TESTDIR=$1
+else
+  TESTDIR=.
+fi
+BOOTCONF=${TESTDIR}/bootconfig
+
+INITRD=`mktemp ${TESTDIR}/initrd-XXXX`
+TEMPCONF=`mktemp ${TESTDIR}/temp-XXXX.bconf`
+OUTFILE=`mktemp ${TESTDIR}/tempout-XXXX`
 NG=0
 
 cleanup() {
@@ -65,7 +72,6 @@ new_size=$(stat -c %s $INITRD)
 xpass test $new_size -eq $initrd_size
 
 echo "No error messge while applying"
-OUTFILE=`mktemp tempout-XXXX`
 dd if=/dev/zero of=$INITRD bs=4096 count=1
 printf " \0\0\0 \0\0\0" >> $INITRD
 $BOOTCONF -a $TEMPCONF $INITRD > $OUTFILE 2>&1

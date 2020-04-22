@@ -40,6 +40,8 @@ required:
   - reg
   - clocks
 
+additionalProperties: false
+
 examples:
   - |
     sysconf: chiptop@e0200000 {

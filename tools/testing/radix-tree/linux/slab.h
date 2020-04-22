@@ -20,8 +20,8 @@ static inline void *kzalloc(size_t size, gfp_t gfp)
 void *kmem_cache_alloc(struct kmem_cache *cachep, int flags);
 void kmem_cache_free(struct kmem_cache *cachep, void *objp);
 
-struct kmem_cache *
-kmem_cache_create(const char *name, size_t size, size_t offset,
-	unsigned long flags, void (*ctor)(void *));
+struct kmem_cache *kmem_cache_create(const char *name, unsigned int size,
+			unsigned int align, unsigned int flags,
+			void (*ctor)(void *));
 
 #endif		/* SLAB_H */

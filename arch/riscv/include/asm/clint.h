@@ -15,12 +15,12 @@ static inline void clint_send_ipi_single(unsigned long hartid)
 	writel(1, clint_ipi_base + hartid);
 }
 
-static inline void clint_send_ipi_mask(const struct cpumask *hartid_mask)
+static inline void clint_send_ipi_mask(const struct cpumask *mask)
 {
-	int hartid;
+	int cpu;
 
-	for_each_cpu(hartid, hartid_mask)
-		clint_send_ipi_single(hartid);
+	for_each_cpu(cpu, mask)
+		clint_send_ipi_single(cpuid_to_hartid_map(cpu));
 }
 
 static inline void clint_clear_ipi(unsigned long hartid)

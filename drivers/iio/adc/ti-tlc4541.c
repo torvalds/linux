@@ -189,7 +189,8 @@ static int tlc4541_probe(struct spi_device *spi)
 	/* Setup default message */
 	st->scan_single_xfer[0].rx_buf = &st->rx_buf[0];
 	st->scan_single_xfer[0].len = 3;
-	st->scan_single_xfer[1].delay_usecs = 3;
+	st->scan_single_xfer[1].delay.value = 3;
+	st->scan_single_xfer[1].delay.unit = SPI_DELAY_UNIT_NSECS;
 	st->scan_single_xfer[2].rx_buf = &st->rx_buf[0];
 	st->scan_single_xfer[2].len = 2;
 

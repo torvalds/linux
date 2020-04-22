@@ -176,7 +176,7 @@ typedef struct txdesc_8723b
 	u32 txbf_path:1;
 	u32 seq:12;
 	u32 final_data_rate:8;
-}TXDESC_8723B, *PTXDESC_8723B;
+} TXDESC_8723B, *PTXDESC_8723B;
 
 #ifndef __INC_HAL8723BDESC_H
 #define __INC_HAL8723BDESC_H

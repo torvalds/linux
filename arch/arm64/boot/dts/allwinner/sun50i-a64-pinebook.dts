@@ -21,32 +21,17 @@
 		ethernet0 = &rtl8723cs;
 	};
 
-	vdd_bl: regulator@0 {
-		compatible = "regulator-fixed";
-		regulator-name = "bl-3v3";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		gpio = <&pio 7 6 GPIO_ACTIVE_HIGH>; /* PH6 */
-		enable-active-high;
-	};
-
 	backlight: backlight {
 		compatible = "pwm-backlight";
 		pwms = <&pwm 0 50000 0>;
 		brightness-levels = <0 5 10 15 20 30 40 55 70 85 100>;
 		default-brightness-level = <2>;
 		enable-gpios = <&pio 3 23 GPIO_ACTIVE_HIGH>; /* PD23 */
-		power-supply = <&vdd_bl>;
+		power-supply = <&reg_vbklt>;
 	};
 
 	chosen {
 		stdout-path = "serial0:115200n8";
-
-		framebuffer-lcd {
-			panel-supply = <&reg_dc1sw>;
-			dvdd25-supply = <&reg_dldo2>;
-			dvdd12-supply = <&reg_fldo1>;
-		};
 	};
 
 	gpio_keys {
@@ -63,11 +48,34 @@
 		};
 	};
 
-	reg_vcc3v3: vcc3v3 {
+	panel_edp: panel-edp {
+		compatible = "neweast,wjfh116008a";
+		backlight = <&backlight>;
+		power-supply = <&reg_dc1sw>;
+
+		port {
+			panel_edp_in: endpoint {
+				remote-endpoint = <&anx6345_out_edp>;
+			};
+		};
+	};
+
+	reg_vbklt: vbklt {
 		compatible = "regulator-fixed";
-		regulator-name = "vcc3v3";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
+		regulator-name = "vbklt";
+		regulator-min-microvolt = <18000000>;
+		regulator-max-microvolt = <18000000>;
+		gpio = <&pio 7 6 GPIO_ACTIVE_HIGH>; /* PH6 */
+		enable-active-high;
+	};
+
+	reg_vcc5v0: vcc5v0 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v0";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&axp_gpio 0 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
 	};
 
 	wifi_pwrseq: wifi_pwrseq {
@@ -77,12 +85,7 @@
 
 	speaker_amp: audio-amplifier {
 		compatible = "simple-audio-amplifier";
-		/*
-		 * TODO This is actually a fixed regulator controlled by
-		 * the GPIO line on the PMIC. This should be corrected
-		 * once GPIO support is added for this PMIC.
-		 */
-		VCC-supply = <&reg_ldo_io0>;
+		VCC-supply = <&reg_vcc5v0>;
 		enable-gpios = <&pio 7 7 GPIO_ACTIVE_HIGH>; /* PH7 */
 		sound-name-prefix = "Speaker Amp";
 	};
@@ -118,6 +121,10 @@
 	status = "okay";
 };
 
+&de {
+	status = "okay";
+};
+
 &ehci0 {
 	phys = <&usbphy 0>;
 	phy-names = "usb";
@@ -128,11 +135,15 @@
 	status = "okay";
 };
 
+&mixer0 {
+	status = "okay";
+};
+
 &mmc0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc0_pins>;
 	vmmc-supply = <&reg_dcdc1>;
-	cd-gpios = <&pio 5 6 GPIO_ACTIVE_LOW>;
+	cd-gpios = <&pio 5 6 GPIO_ACTIVE_LOW>; /* PF6 */
 	disable-wp;
 	bus-width = <4>;
 	status = "okay";
@@ -175,8 +186,59 @@
 	status = "okay";
 };
 
+&pio {
+	vcc-pc-supply = <&reg_eldo1>;
+	vcc-pd-supply = <&reg_dcdc1>;
+	vcc-pe-supply = <&reg_aldo1>;
+	vcc-pg-supply = <&reg_eldo1>;
+};
+
 &pwm {
 	status = "okay";
+};
+
+&r_i2c {
+	clock-frequency = <100000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&r_i2c_pl89_pins>;
+	status = "okay";
+
+	anx6345: anx6345@38 {
+		compatible = "analogix,anx6345";
+		reg = <0x38>;
+		reset-gpios = <&pio 3 24 GPIO_ACTIVE_LOW>; /* PD24 */
+		dvdd25-supply = <&reg_dldo2>;
+		dvdd12-supply = <&reg_fldo1>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			anx6345_in: port@0 {
+				reg = <0>;
+				anx6345_in_tcon0: endpoint {
+					remote-endpoint = <&tcon0_out_anx6345>;
+				};
+			};
+
+			anx6345_out: port@1 {
+				reg = <1>;
+				anx6345_out_edp: endpoint {
+					remote-endpoint = <&panel_edp_in>;
+				};
+			};
+		};
+	};
+};
+
+&r_pio {
+	/*
+	 * FIXME: We can't add that supply for now since it would
+	 * create a circular dependency between pinctrl, the regulator
+	 * and the RSB Bus.
+	 *
+	 * vcc-pl-supply = <&reg_aldo2>;
+	 */
 };
 
 &r_rsb {
@@ -190,14 +252,6 @@
 	};
 };
 
-/* The ANX6345 eDP-bridge is on r_i2c */
-&r_i2c {
-	clock-frequency = <100000>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&r_i2c_pl89_pins>;
-	status = "okay";
-};
-
 #include "axp803.dtsi"
 
 &ac_power_supply {
@@ -209,9 +263,7 @@
 };
 
 &reg_aldo1 {
-	regulator-min-microvolt = <2800000>;
-	regulator-max-microvolt = <2800000>;
-	regulator-name = "vcc-csi";
+	regulator-name = "vcc-pe";
 };
 
 &reg_aldo2 {
@@ -274,12 +326,6 @@
 	regulator-name = "vcc-edp";
 };
 
-&reg_dldo3 {
-	regulator-min-microvolt = <3300000>;
-	regulator-max-microvolt = <3300000>;
-	regulator-name = "avdd-csi";
-};
-
 &reg_dldo4 {
 	regulator-min-microvolt = <3300000>;
 	regulator-max-microvolt = <3300000>;
@@ -291,12 +337,6 @@
 	regulator-min-microvolt = <1800000>;
 	regulator-max-microvolt = <1800000>;
 	regulator-name = "cpvdd";
-};
-
-&reg_eldo3 {
-	regulator-min-microvolt = <1800000>;
-	regulator-max-microvolt = <1800000>;
-	regulator-name = "vdd-1v8-csi";
 };
 
 &reg_fldo1 {
@@ -312,15 +352,14 @@
 	regulator-name = "vdd-cpus";
 };
 
-&reg_ldo_io0 {
-	regulator-min-microvolt = <3300000>;
-	regulator-max-microvolt = <3300000>;
-	regulator-name = "vcc-usb";
-	status = "okay";
-};
-
 &reg_rtc_ldo {
 	regulator-name = "vcc-rtc";
+};
+
+&simplefb_lcd {
+	panel-supply = <&reg_dc1sw>;
+	dvdd25-supply = <&reg_dldo2>;
+	dvdd12-supply = <&reg_fldo1>;
 };
 
 &simplefb_hdmi {
@@ -350,6 +389,19 @@
 			"MIC2", "Internal Microphone Right";
 };
 
+&tcon0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&lcd_rgb666_pins>;
+
+	status = "okay";
+};
+
+&tcon0_out {
+	tcon0_out_anx6345: endpoint {
+		remote-endpoint = <&anx6345_in_tcon0>;
+	};
+};
+
 &uart0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart0_pb_pins>;
@@ -361,7 +413,7 @@
 };
 
 &usbphy {
-	usb0_vbus-supply = <&reg_ldo_io0>;
-	usb1_vbus-supply = <&reg_ldo_io0>;
+	usb0_vbus-supply = <&reg_vcc5v0>;
+	usb1_vbus-supply = <&reg_vcc5v0>;
 	status = "okay";
 };

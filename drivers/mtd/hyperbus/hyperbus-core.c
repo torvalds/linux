@@ -10,7 +10,6 @@
 #include <linux/mtd/map.h>
 #include <linux/mtd/mtd.h>
 #include <linux/of.h>
-#include <linux/of_address.h>
 #include <linux/types.h>
 
 static struct hyperbus_device *map_to_hbdev(struct map_info *map)
@@ -62,7 +61,6 @@ int hyperbus_register_device(struct hyperbus_device *hbdev)
 	struct hyperbus_ctlr *ctlr;
 	struct device_node *np;
 	struct map_info *map;
-	struct resource res;
 	struct device *dev;
 	int ret;
 
@@ -73,22 +71,15 @@ int hyperbus_register_device(struct hyperbus_device *hbdev)
 
 	np = hbdev->np;
 	ctlr = hbdev->ctlr;
-	if (!of_device_is_compatible(np, "cypress,hyperflash"))
+	if (!of_device_is_compatible(np, "cypress,hyperflash")) {
+		dev_err(ctlr->dev, "\"cypress,hyperflash\" compatible missing\n");
 		return -ENODEV;
+	}
 
 	hbdev->memtype = HYPERFLASH;
 
-	ret = of_address_to_resource(np, 0, &res);
-	if (ret)
-		return ret;
-
 	dev = ctlr->dev;
 	map = &hbdev->map;
-	map->size = resource_size(&res);
-	map->virt = devm_ioremap_resource(dev, &res);
-	if (IS_ERR(map->virt))
-		return PTR_ERR(map->virt);
-
 	map->name = dev_name(dev);
 	map->bankwidth = 2;
 	map->device_node = np;

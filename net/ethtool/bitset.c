@@ -588,6 +588,100 @@ int ethnl_update_bitset32(u32 *bitmap, unsigned int nbits,
 	return 0;
 }
 
+/**
+ * ethnl_parse_bitset() - Compute effective value and mask from bitset nest
+ * @val:     unsigned long based bitmap to put value into
+ * @mask:    unsigned long based bitmap to put mask into
+ * @nbits:   size of @val and @mask bitmaps
+ * @attr:    nest attribute to parse and apply
+ * @names:   array of bit names; may be null for compact format
+ * @extack:  extack for error reporting
+ *
+ * Provide @nbits size long bitmaps for value and mask so that
+ * x = (val & mask) | (x & ~mask) would modify any @nbits sized bitmap x
+ * the same way ethnl_update_bitset() with the same bitset attribute would.
+ *
+ * Return:   negative error code on failure, 0 on success
+ */
+int ethnl_parse_bitset(unsigned long *val, unsigned long *mask,
+		       unsigned int nbits, const struct nlattr *attr,
+		       ethnl_string_array_t names,
+		       struct netlink_ext_ack *extack)
+{
+	struct nlattr *tb[ETHTOOL_A_BITSET_MAX + 1];
+	const struct nlattr *bit_attr;
+	bool no_mask;
+	int rem;
+	int ret;
+
+	if (!attr)
+		return 0;
+	ret = nla_parse_nested(tb, ETHTOOL_A_BITSET_MAX, attr, bitset_policy,
+			       extack);
+	if (ret < 0)
+		return ret;
+	no_mask = tb[ETHTOOL_A_BITSET_NOMASK];
+
+	if (!tb[ETHTOOL_A_BITSET_BITS]) {
+		unsigned int change_bits;
+
+		ret = ethnl_compact_sanity_checks(nbits, attr, tb, extack);
+		if (ret < 0)
+			return ret;
+
+		change_bits = nla_get_u32(tb[ETHTOOL_A_BITSET_SIZE]);
+		bitmap_from_arr32(val, nla_data(tb[ETHTOOL_A_BITSET_VALUE]),
+				  change_bits);
+		if (change_bits < nbits)
+			bitmap_clear(val, change_bits, nbits - change_bits);
+		if (no_mask) {
+			bitmap_fill(mask, nbits);
+		} else {
+			bitmap_from_arr32(mask,
+					  nla_data(tb[ETHTOOL_A_BITSET_MASK]),
+					  change_bits);
+			if (change_bits < nbits)
+				bitmap_clear(mask, change_bits,
+					     nbits - change_bits);
+		}
+
+		return 0;
+	}
+
+	if (tb[ETHTOOL_A_BITSET_VALUE]) {
+		NL_SET_ERR_MSG_ATTR(extack, tb[ETHTOOL_A_BITSET_VALUE],
+				    "value only allowed in compact bitset");
+		return -EINVAL;
+	}
+	if (tb[ETHTOOL_A_BITSET_MASK]) {
+		NL_SET_ERR_MSG_ATTR(extack, tb[ETHTOOL_A_BITSET_MASK],
+				    "mask only allowed in compact bitset");
+		return -EINVAL;
+	}
+
+	bitmap_zero(val, nbits);
+	if (no_mask)
+		bitmap_fill(mask, nbits);
+	else
+		bitmap_zero(mask, nbits);
+
+	nla_for_each_nested(bit_attr, tb[ETHTOOL_A_BITSET_BITS], rem) {
+		unsigned int idx;
+		bool bit_val;
+
+		ret = ethnl_parse_bit(&idx, &bit_val, nbits, bit_attr, no_mask,
+				      names, extack);
+		if (ret < 0)
+			return ret;
+		if (bit_val)
+			__set_bit(idx, val);
+		if (!no_mask)
+			__set_bit(idx, mask);
+	}
+
+	return 0;
+}
+
 #if BITS_PER_LONG == 64 && defined(__BIG_ENDIAN)
 
 /* 64-bit big endian architectures are the only case when u32 based bitmaps

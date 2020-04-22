@@ -487,15 +487,16 @@ static int vega20_setup_asic_task(struct pp_hwmgr *hwmgr)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)(hwmgr->adev);
 	int ret = 0;
+	bool use_baco = (adev->in_gpu_reset &&
+			 (amdgpu_asic_reset_method(adev) == AMD_RESET_METHOD_BACO)) ||
+		(adev->in_runpm && amdgpu_asic_supports_baco(adev));
 
 	ret = vega20_init_sclk_threshold(hwmgr);
 	PP_ASSERT_WITH_CODE(!ret,
 			"Failed to init sclk threshold!",
 			return ret);
 
-	if (adev->in_gpu_reset &&
-	    (amdgpu_asic_reset_method(adev) == AMD_RESET_METHOD_BACO)) {
-
+	if (use_baco) {
 		ret = vega20_baco_apply_vdci_flush_workaround(hwmgr);
 		if (ret)
 			pr_err("Failed to apply vega20 baco workaround!\n");
