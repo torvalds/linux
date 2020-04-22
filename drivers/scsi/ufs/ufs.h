@@ -140,6 +140,9 @@ enum flag_idn {
 	QUERY_FLAG_IDN_BUSY_RTC				= 0x09,
 	QUERY_FLAG_IDN_RESERVED3			= 0x0A,
 	QUERY_FLAG_IDN_PERMANENTLY_DISABLE_FW_UPDATE	= 0x0B,
+	QUERY_FLAG_IDN_WB_EN                            = 0x0E,
+	QUERY_FLAG_IDN_WB_BUFF_FLUSH_EN                 = 0x0F,
+	QUERY_FLAG_IDN_WB_BUFF_FLUSH_DURING_HIBERN8     = 0x10,
 };
 
 /* Attribute idn for Query requests */
@@ -168,6 +171,10 @@ enum attr_idn {
 	QUERY_ATTR_IDN_PSA_STATE		= 0x15,
 	QUERY_ATTR_IDN_PSA_DATA_SIZE		= 0x16,
 	QUERY_ATTR_IDN_REF_CLK_GATING_WAIT_TIME	= 0x17,
+	QUERY_ATTR_IDN_WB_FLUSH_STATUS	        = 0x1C,
+	QUERY_ATTR_IDN_AVAIL_WB_BUFF_SIZE       = 0x1D,
+	QUERY_ATTR_IDN_WB_BUFF_LIFE_TIME_EST    = 0x1E,
+	QUERY_ATTR_IDN_CURR_WB_BUFF_SIZE        = 0x1F,
 };
 
 /* Descriptor idn for Query requests */
@@ -191,9 +198,9 @@ enum desc_header_offset {
 };
 
 enum ufs_desc_def_size {
-	QUERY_DESC_DEVICE_DEF_SIZE		= 0x40,
+	QUERY_DESC_DEVICE_DEF_SIZE		= 0x59,
 	QUERY_DESC_CONFIGURATION_DEF_SIZE	= 0x90,
-	QUERY_DESC_UNIT_DEF_SIZE		= 0x23,
+	QUERY_DESC_UNIT_DEF_SIZE		= 0x2D,
 	QUERY_DESC_INTERCONNECT_DEF_SIZE	= 0x06,
 	QUERY_DESC_GEOMETRY_DEF_SIZE		= 0x48,
 	QUERY_DESC_POWER_DEF_SIZE		= 0x62,
@@ -219,6 +226,7 @@ enum unit_desc_param {
 	UNIT_DESC_PARAM_PHY_MEM_RSRC_CNT	= 0x18,
 	UNIT_DESC_PARAM_CTX_CAPABILITIES	= 0x20,
 	UNIT_DESC_PARAM_LARGE_UNIT_SIZE_M1	= 0x22,
+	UNIT_DESC_PARAM_WB_BUF_ALLOC_UNITS	= 0x29,
 };
 
 /* Device descriptor parameters offsets in bytes*/
@@ -258,6 +266,10 @@ enum device_desc_param {
 	DEVICE_DESC_PARAM_PSA_MAX_DATA		= 0x25,
 	DEVICE_DESC_PARAM_PSA_TMT		= 0x29,
 	DEVICE_DESC_PARAM_PRDCT_REV		= 0x2A,
+	DEVICE_DESC_PARAM_EXT_UFS_FEATURE_SUP	= 0x4F,
+	DEVICE_DESC_PARAM_WB_PRESRV_USRSPC_EN	= 0x53,
+	DEVICE_DESC_PARAM_WB_TYPE		= 0x54,
+	DEVICE_DESC_PARAM_WB_SHARED_ALLOC_UNITS = 0x55,
 };
 
 /* Interconnect descriptor parameters offsets in bytes*/
@@ -331,6 +343,11 @@ enum {
 	UFSHCD_MICRO_AMP	= 1,
 	UFSHCD_MILI_AMP		= 2,
 	UFSHCD_AMP		= 3,
+};
+
+/* Possible values for dExtendedUFSFeaturesSupport */
+enum {
+	UFS_DEV_WRITE_BOOSTER_SUP	= BIT(8),
 };
 
 #define POWER_DESC_MAX_SIZE			0x62
@@ -447,6 +464,11 @@ enum ufs_dev_pwr_mode {
 	UFS_POWERDOWN_PWR_MODE	= 3,
 };
 
+enum ufs_dev_wb_buf_avail_size {
+	UFS_WB_10_PERCENT_BUF_REMAIN = 0x1,
+	UFS_WB_40_PERCENT_BUF_REMAIN = 0x4,
+};
+
 /**
  * struct utp_cmd_rsp - Response UPIU structure
  * @residual_transfer_count: Residual transfer count DW-3
@@ -537,6 +559,11 @@ struct ufs_dev_info {
 	u8 *model;
 	u16 wspecversion;
 	u32 clk_gating_wait_us;
+	u32 d_ext_ufs_feature_sup;
+	u8 b_wb_buffer_type;
+	u32 d_wb_alloc_units;
+	bool keep_vcc_on;
+	u8 b_presrv_uspc_en;
 };
 
 /**

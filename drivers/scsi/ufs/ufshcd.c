@@ -48,6 +48,8 @@
 #include "unipro.h"
 #include "ufs-sysfs.h"
 #include "ufs_bsg.h"
+#include <asm/unaligned.h>
+#include <linux/blkdev.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/ufs.h>
@@ -251,6 +253,13 @@ static int ufshcd_scale_clks(struct ufs_hba *hba, bool scale_up);
 static irqreturn_t ufshcd_intr(int irq, void *__hba);
 static int ufshcd_change_power_mode(struct ufs_hba *hba,
 			     struct ufs_pa_layer_attr *pwr_mode);
+static bool ufshcd_wb_sup(struct ufs_hba *hba);
+static int ufshcd_wb_buf_flush_enable(struct ufs_hba *hba);
+static int ufshcd_wb_buf_flush_disable(struct ufs_hba *hba);
+static int ufshcd_wb_ctrl(struct ufs_hba *hba, bool enable);
+static int ufshcd_wb_toggle_flush_during_h8(struct ufs_hba *hba, bool set);
+static inline void ufshcd_wb_toggle_flush(struct ufs_hba *hba, bool enable);
+
 static inline bool ufshcd_valid_tag(struct ufs_hba *hba, int tag)
 {
 	return tag >= 0 && tag < hba->nutrs;
@@ -270,6 +279,25 @@ static inline void ufshcd_disable_irq(struct ufs_hba *hba)
 		disable_irq(hba->irq);
 		hba->is_irq_enabled = false;
 	}
+}
+
+static inline void ufshcd_wb_config(struct ufs_hba *hba)
+{
+	int ret;
+
+	if (!ufshcd_wb_sup(hba))
+		return;
+
+	ret = ufshcd_wb_ctrl(hba, true);
+	if (ret)
+		dev_err(hba->dev, "%s: Enable WB failed: %d\n", __func__, ret);
+	else
+		dev_info(hba->dev, "%s: Write Booster Configured\n", __func__);
+	ret = ufshcd_wb_toggle_flush_during_h8(hba, true);
+	if (ret)
+		dev_err(hba->dev, "%s: En WB flush during H8: failed: %d\n",
+			__func__, ret);
+	ufshcd_wb_toggle_flush(hba, true);
 }
 
 static void ufshcd_scsi_unblock_requests(struct ufs_hba *hba)
@@ -1150,9 +1178,16 @@ static int ufshcd_devfreq_scale(struct ufs_hba *hba, bool scale_up)
 	/* scale up the gear after scaling up clocks */
 	if (scale_up) {
 		ret = ufshcd_scale_gear(hba, true);
-		if (ret)
+		if (ret) {
 			ufshcd_scale_clks(hba, false);
+			goto out_unprepare;
+		}
 	}
+
+	/* Enable Write Booster if we have scaled up else disable it */
+	up_write(&hba->clk_scaling_lock);
+	ufshcd_wb_ctrl(hba, scale_up);
+	down_write(&hba->clk_scaling_lock);
 
 out_unprepare:
 	ufshcd_clock_scaling_unprepare(hba);
@@ -5161,6 +5196,166 @@ out:
 				__func__, err);
 }
 
+static bool ufshcd_wb_sup(struct ufs_hba *hba)
+{
+	return ufshcd_is_wb_allowed(hba);
+}
+
+static int ufshcd_wb_ctrl(struct ufs_hba *hba, bool enable)
+{
+	int ret;
+	enum query_opcode opcode;
+
+	if (!ufshcd_wb_sup(hba))
+		return 0;
+
+	if (!(enable ^ hba->wb_enabled))
+		return 0;
+	if (enable)
+		opcode = UPIU_QUERY_OPCODE_SET_FLAG;
+	else
+		opcode = UPIU_QUERY_OPCODE_CLEAR_FLAG;
+
+	ret = ufshcd_query_flag_retry(hba, opcode,
+				      QUERY_FLAG_IDN_WB_EN, NULL);
+	if (ret) {
+		dev_err(hba->dev, "%s write booster %s failed %d\n",
+			__func__, enable ? "enable" : "disable", ret);
+		return ret;
+	}
+
+	hba->wb_enabled = enable;
+	dev_dbg(hba->dev, "%s write booster %s %d\n",
+			__func__, enable ? "enable" : "disable", ret);
+
+	return ret;
+}
+
+static int ufshcd_wb_toggle_flush_during_h8(struct ufs_hba *hba, bool set)
+{
+	int val;
+
+	if (set)
+		val =  UPIU_QUERY_OPCODE_SET_FLAG;
+	else
+		val = UPIU_QUERY_OPCODE_CLEAR_FLAG;
+
+	return ufshcd_query_flag_retry(hba, val,
+			       QUERY_FLAG_IDN_WB_BUFF_FLUSH_DURING_HIBERN8,
+				       NULL);
+}
+
+static inline void ufshcd_wb_toggle_flush(struct ufs_hba *hba, bool enable)
+{
+	if (enable)
+		ufshcd_wb_buf_flush_enable(hba);
+	else
+		ufshcd_wb_buf_flush_disable(hba);
+
+}
+
+static int ufshcd_wb_buf_flush_enable(struct ufs_hba *hba)
+{
+	int ret;
+
+	if (!ufshcd_wb_sup(hba) || hba->wb_buf_flush_enabled)
+		return 0;
+
+	ret = ufshcd_query_flag_retry(hba, UPIU_QUERY_OPCODE_SET_FLAG,
+				      QUERY_FLAG_IDN_WB_BUFF_FLUSH_EN, NULL);
+	if (ret)
+		dev_err(hba->dev, "%s WB - buf flush enable failed %d\n",
+			__func__, ret);
+	else
+		hba->wb_buf_flush_enabled = true;
+
+	dev_dbg(hba->dev, "WB - Flush enabled: %d\n", ret);
+	return ret;
+}
+
+static int ufshcd_wb_buf_flush_disable(struct ufs_hba *hba)
+{
+	int ret;
+
+	if (!ufshcd_wb_sup(hba) || !hba->wb_buf_flush_enabled)
+		return 0;
+
+	ret = ufshcd_query_flag_retry(hba, UPIU_QUERY_OPCODE_CLEAR_FLAG,
+				      QUERY_FLAG_IDN_WB_BUFF_FLUSH_EN, NULL);
+	if (ret) {
+		dev_warn(hba->dev, "%s: WB - buf flush disable failed %d\n",
+			 __func__, ret);
+	} else {
+		hba->wb_buf_flush_enabled = false;
+		dev_dbg(hba->dev, "WB - Flush disabled: %d\n", ret);
+	}
+
+	return ret;
+}
+
+static bool ufshcd_wb_presrv_usrspc_keep_vcc_on(struct ufs_hba *hba,
+						u32 avail_buf)
+{
+	u32 cur_buf;
+	int ret;
+
+	ret = ufshcd_query_attr_retry(hba, UPIU_QUERY_OPCODE_READ_ATTR,
+					      QUERY_ATTR_IDN_CURR_WB_BUFF_SIZE,
+					      0, 0, &cur_buf);
+	if (ret) {
+		dev_err(hba->dev, "%s dCurWriteBoosterBufferSize read failed %d\n",
+			__func__, ret);
+		return false;
+	}
+
+	if (!cur_buf) {
+		dev_info(hba->dev, "dCurWBBuf: %d WB disabled until free-space is available\n",
+			 cur_buf);
+		return false;
+	}
+	/* Let it continue to flush when >60% full */
+	if (avail_buf < UFS_WB_40_PERCENT_BUF_REMAIN)
+		return true;
+
+	return false;
+}
+
+static bool ufshcd_wb_keep_vcc_on(struct ufs_hba *hba)
+{
+	int ret;
+	u32 avail_buf;
+
+	if (!ufshcd_wb_sup(hba))
+		return false;
+	/*
+	 * The ufs device needs the vcc to be ON to flush.
+	 * With user-space reduction enabled, it's enough to enable flush
+	 * by checking only the available buffer. The threshold
+	 * defined here is > 90% full.
+	 * With user-space preserved enabled, the current-buffer
+	 * should be checked too because the wb buffer size can reduce
+	 * when disk tends to be full. This info is provided by current
+	 * buffer (dCurrentWriteBoosterBufferSize). There's no point in
+	 * keeping vcc on when current buffer is empty.
+	 */
+	ret = ufshcd_query_attr_retry(hba, UPIU_QUERY_OPCODE_READ_ATTR,
+				      QUERY_ATTR_IDN_AVAIL_WB_BUFF_SIZE,
+				      0, 0, &avail_buf);
+	if (ret) {
+		dev_warn(hba->dev, "%s dAvailableWriteBoosterBufferSize read failed %d\n",
+			 __func__, ret);
+		return false;
+	}
+
+	if (!hba->dev_info.b_presrv_uspc_en) {
+		if (avail_buf <= UFS_WB_10_PERCENT_BUF_REMAIN)
+			return true;
+		return false;
+	}
+
+	return ufshcd_wb_presrv_usrspc_keep_vcc_on(hba, avail_buf);
+}
+
 /**
  * ufshcd_exception_event_handler - handle exceptions raised by device
  * @work: pointer to work data
@@ -6603,6 +6798,33 @@ out:
 	return ret;
 }
 
+static void ufshcd_wb_probe(struct ufs_hba *hba, u8 *desc_buf)
+{
+	hba->dev_info.d_ext_ufs_feature_sup =
+		get_unaligned_be32(desc_buf +
+				   DEVICE_DESC_PARAM_EXT_UFS_FEATURE_SUP);
+	/*
+	 * WB may be supported but not configured while provisioning.
+	 * The spec says, in dedicated wb buffer mode,
+	 * a max of 1 lun would have wb buffer configured.
+	 * Now only shared buffer mode is supported.
+	 */
+	hba->dev_info.b_wb_buffer_type =
+		desc_buf[DEVICE_DESC_PARAM_WB_TYPE];
+
+	hba->dev_info.d_wb_alloc_units =
+		get_unaligned_be32(desc_buf +
+				   DEVICE_DESC_PARAM_WB_SHARED_ALLOC_UNITS);
+	hba->dev_info.b_presrv_uspc_en =
+		desc_buf[DEVICE_DESC_PARAM_WB_PRESRV_USRSPC_EN];
+
+	if (!((hba->dev_info.d_ext_ufs_feature_sup &
+		 UFS_DEV_WRITE_BOOSTER_SUP) &&
+		hba->dev_info.b_wb_buffer_type &&
+	      hba->dev_info.d_wb_alloc_units))
+		hba->caps &= ~UFSHCD_CAP_WB_EN;
+}
+
 static int ufs_get_device_desc(struct ufs_hba *hba)
 {
 	int err;
@@ -6639,6 +6861,11 @@ static int ufs_get_device_desc(struct ufs_hba *hba)
 				      desc_buf[DEVICE_DESC_PARAM_SPEC_VER + 1];
 
 	model_index = desc_buf[DEVICE_DESC_PARAM_PRDCT_NAME];
+
+	/* Enable WB only for UFS-3.1 */
+	if (dev_info->wspecversion >= 0x310)
+		ufshcd_wb_probe(hba, desc_buf);
+
 	err = ufshcd_read_string_desc(hba, model_index,
 				      &dev_info->model, SD_ASCII_STD);
 	if (err < 0) {
@@ -7149,6 +7376,7 @@ static int ufshcd_probe_hba(struct ufs_hba *hba, bool async)
 	/* set the state as operational after switching to desired gear */
 	hba->ufshcd_state = UFSHCD_STATE_OPERATIONAL;
 
+	ufshcd_wb_config(hba);
 	/* Enable Auto-Hibernate if configured */
 	ufshcd_auto_hibern8_enable(hba);
 
@@ -7809,12 +8037,16 @@ static void ufshcd_vreg_set_lpm(struct ufs_hba *hba)
 	 *
 	 * Ignore the error returned by ufshcd_toggle_vreg() as device is anyway
 	 * in low power state which would save some power.
+	 *
+	 * If Write Booster is enabled and the device needs to flush the WB
+	 * buffer OR if bkops status is urgent for WB, keep Vcc on.
 	 */
 	if (ufshcd_is_ufs_dev_poweroff(hba) && ufshcd_is_link_off(hba) &&
 	    !hba->dev_info.is_lu_power_on_wp) {
 		ufshcd_setup_vreg(hba, false);
 	} else if (!ufshcd_is_ufs_dev_active(hba)) {
-		ufshcd_toggle_vreg(hba->dev, hba->vreg_info.vcc, false);
+		if (!hba->dev_info.keep_vcc_on)
+			ufshcd_toggle_vreg(hba->dev, hba->vreg_info.vcc, false);
 		if (!ufshcd_is_link_active(hba)) {
 			ufshcd_config_vreg_lpm(hba, hba->vreg_info.vccq);
 			ufshcd_config_vreg_lpm(hba, hba->vreg_info.vccq2);
@@ -7938,11 +8170,23 @@ static int ufshcd_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 			/* make sure that auto bkops is disabled */
 			ufshcd_disable_auto_bkops(hba);
 		}
+		/*
+		 * With wb enabled, if the bkops is enabled or if the
+		 * configured WB type is 70% full, keep vcc ON
+		 * for the device to flush the wb buffer
+		 */
+		if ((hba->auto_bkops_enabled && ufshcd_wb_sup(hba)) ||
+		    ufshcd_wb_keep_vcc_on(hba))
+			hba->dev_info.keep_vcc_on = true;
+		else
+			hba->dev_info.keep_vcc_on = false;
+	} else if (!ufshcd_is_runtime_pm(pm_op)) {
+		hba->dev_info.keep_vcc_on = false;
 	}
 
 	if ((req_dev_pwr_mode != hba->curr_dev_pwr_mode) &&
-	     ((ufshcd_is_runtime_pm(pm_op) && !hba->auto_bkops_enabled) ||
-	       !ufshcd_is_runtime_pm(pm_op))) {
+	    ((ufshcd_is_runtime_pm(pm_op) && !hba->auto_bkops_enabled) ||
+	    !ufshcd_is_runtime_pm(pm_op))) {
 		/* ensure that bkops is disabled */
 		ufshcd_disable_auto_bkops(hba);
 		ret = ufshcd_set_dev_pwr_mode(hba, req_dev_pwr_mode);

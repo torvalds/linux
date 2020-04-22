@@ -555,6 +555,13 @@ enum ufshcd_caps {
 	 * for userspace to control the power management.
 	 */
 	UFSHCD_CAP_RPM_AUTOSUSPEND			= 1 << 6,
+
+	/*
+	 * This capability allows the host controller driver to turn-on
+	 * WriteBooster, if the underlying device supports it and is
+	 * provisioned to be used. This would increase the write performance.
+	 */
+	UFSHCD_CAP_WB_EN				= 1 << 7,
 };
 
 /**
@@ -727,6 +734,8 @@ struct ufs_hba {
 
 	struct device		bsg_dev;
 	struct request_queue	*bsg_queue;
+	bool wb_buf_flush_enabled;
+	bool wb_enabled;
 };
 
 /* Returns true if clocks can be gated. Otherwise false */
@@ -773,6 +782,11 @@ static inline bool ufshcd_is_auto_hibern8_supported(struct ufs_hba *hba)
 static inline bool ufshcd_is_auto_hibern8_enabled(struct ufs_hba *hba)
 {
 	return FIELD_GET(UFSHCI_AHIBERN8_TIMER_MASK, hba->ahit) ? true : false;
+}
+
+static inline bool ufshcd_is_wb_allowed(struct ufs_hba *hba)
+{
+	return hba->caps & UFSHCD_CAP_WB_EN;
 }
 
 #define ufshcd_writel(hba, val, reg)	\
