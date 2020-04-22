@@ -241,22 +241,9 @@ SYM_INNER_LABEL(ftrace_regs_call, SYM_L_GLOBAL)
 	 */
 	movq ORIG_RAX(%rsp), %rax
 	testq	%rax, %rax
-	jz	1f
+	jnz	1f
 
-	/* Swap the flags with orig_rax */
-	movq MCOUNT_REG_SIZE(%rsp), %rdi
-	movq %rdi, MCOUNT_REG_SIZE-8(%rsp)
-	movq %rax, MCOUNT_REG_SIZE(%rsp)
-
-	restore_mcount_regs 8
-	/* Restore flags */
-	popfq
-
-SYM_INNER_LABEL(ftrace_regs_caller_ret, SYM_L_GLOBAL);
-	UNWIND_HINT_RET_OFFSET
-	jmp	ftrace_epilogue
-
-1:	restore_mcount_regs
+	restore_mcount_regs
 	/* Restore flags */
 	popfq
 
@@ -266,8 +253,20 @@ SYM_INNER_LABEL(ftrace_regs_caller_ret, SYM_L_GLOBAL);
 	 * The trampoline will add the code to jump
 	 * to the return.
 	 */
-SYM_INNER_LABEL(ftrace_regs_caller_end, SYM_L_GLOBAL)
+SYM_INNER_LABEL(ftrace_regs_caller_ret, SYM_L_GLOBAL)
 	jmp ftrace_epilogue
+
+	/* Swap the flags with orig_rax */
+1:	movq MCOUNT_REG_SIZE(%rsp), %rdi
+	movq %rdi, MCOUNT_REG_SIZE-8(%rsp)
+	movq %rax, MCOUNT_REG_SIZE(%rsp)
+
+	restore_mcount_regs 8
+	/* Restore flags */
+	popfq
+SYM_INNER_LABEL(ftrace_regs_caller_end, SYM_L_GLOBAL)
+	UNWIND_HINT_RET_OFFSET
+	jmp	ftrace_epilogue
 
 SYM_FUNC_END(ftrace_regs_caller)
 
