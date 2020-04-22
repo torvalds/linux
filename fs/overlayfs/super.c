@@ -365,11 +365,20 @@ static int ovl_show_options(struct seq_file *m, struct dentry *dentry)
 static int ovl_remount(struct super_block *sb, int *flags, char *data)
 {
 	struct ovl_fs *ofs = sb->s_fs_info;
+	struct super_block *upper_sb;
+	int ret = 0;
 
 	if (!(*flags & SB_RDONLY) && ovl_force_readonly(ofs))
 		return -EROFS;
 
-	return 0;
+	if (*flags & SB_RDONLY && !sb_rdonly(sb)) {
+		upper_sb = ofs->upper_mnt->mnt_sb;
+		down_read(&upper_sb->s_umount);
+		ret = sync_filesystem(upper_sb);
+		up_read(&upper_sb->s_umount);
+	}
+
+	return ret;
 }
 
 static const struct super_operations ovl_super_operations = {
