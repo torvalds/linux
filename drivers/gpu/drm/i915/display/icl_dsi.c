@@ -1526,13 +1526,17 @@ static int gen11_dsi_compute_config(struct intel_encoder *encoder,
 						   base);
 	struct intel_connector *intel_connector = intel_dsi->attached_connector;
 	const struct drm_display_mode *fixed_mode =
-					intel_connector->panel.fixed_mode;
+		intel_connector->panel.fixed_mode;
 	struct drm_display_mode *adjusted_mode =
-					&pipe_config->hw.adjusted_mode;
+		&pipe_config->hw.adjusted_mode;
+	int ret;
 
 	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
 	intel_fixed_panel_mode(fixed_mode, adjusted_mode);
-	intel_pch_panel_fitting(pipe_config, conn_state);
+
+	ret = intel_pch_panel_fitting(pipe_config, conn_state);
+	if (ret)
+		return ret;
 
 	adjusted_mode->flags = 0;
 
