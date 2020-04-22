@@ -191,6 +191,10 @@ struct hw_sequencer_funcs {
 			unsigned int bufSize, unsigned int mask);
 	void (*clear_status_bits)(struct dc *dc, unsigned int mask);
 
+	bool (*set_backlight_level)(struct pipe_ctx *pipe_ctx,
+			uint32_t backlight_pwm_u16_16,
+			uint32_t frame_ramp);
+
 
 };
 

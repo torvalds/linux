@@ -2509,35 +2509,21 @@ bool dc_link_set_backlight_level(const struct dc_link *link,
 		uint32_t frame_ramp)
 {
 	struct dc  *dc = link->ctx->dc;
-	struct abm *abm = get_abm_from_stream_res(link);
-	struct dmcu *dmcu = dc->res_pool->dmcu;
-	unsigned int controller_id = 0;
-	bool fw_set_brightness = true;
 	int i;
+
 	DC_LOGGER_INIT(link->ctx->logger);
-
-	if (abm == NULL || (abm->funcs->set_backlight_level_pwm == NULL))
-		return false;
-
-	if (dmcu)
-		fw_set_brightness = dmcu->funcs->is_dmcu_initialized(dmcu);
-
 	DC_LOG_BACKLIGHT("New Backlight level: %d (0x%X)\n",
 			backlight_pwm_u16_16, backlight_pwm_u16_16);
 
 	if (dc_is_embedded_signal(link->connector_signal)) {
+		struct pipe_ctx *pipe_ctx = NULL;
+
 		for (i = 0; i < MAX_PIPES; i++) {
 			if (dc->current_state->res_ctx.pipe_ctx[i].stream) {
 				if (dc->current_state->res_ctx.
 						pipe_ctx[i].stream->link
 						== link) {
-					/* DMCU -1 for all controller id values,
-					 * therefore +1 here
-					 */
-					controller_id =
-						dc->current_state->
-						res_ctx.pipe_ctx[i].stream_res.tg->inst +
-						1;
+					pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
 
 					/* Disable brightness ramping when the display is blanked
 					 * as it can hang the DMCU
@@ -2547,13 +2533,14 @@ bool dc_link_set_backlight_level(const struct dc_link *link,
 				}
 			}
 		}
-		abm->funcs->set_backlight_level_pwm(
-				abm,
+
+		if (pipe_ctx == NULL)
+			ASSERT(false);
+
+		dc->hwss.set_backlight_level(
+				pipe_ctx,
 				backlight_pwm_u16_16,
-				frame_ramp,
-				controller_id,
-				link->panel_cntl->inst,
-				fw_set_brightness);
+				frame_ramp);
 	}
 
 	return true;
