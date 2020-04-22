@@ -830,7 +830,7 @@ static int __eb_add_lut(struct i915_execbuffer *eb,
 	return 0;
 
 err:
-	atomic_dec(&vma->open_count);
+	i915_vma_close(vma);
 	i915_vma_put(vma);
 	i915_lut_handle_free(lut);
 	return err;

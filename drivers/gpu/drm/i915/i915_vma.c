@@ -522,7 +522,6 @@ void i915_vma_unpin_and_release(struct i915_vma **p_vma, unsigned int flags)
 	GEM_BUG_ON(!obj);
 
 	i915_vma_unpin(vma);
-	i915_vma_close(vma);
 
 	if (flags & I915_VMA_RELEASE_MAP)
 		i915_gem_object_unpin_map(obj);
@@ -1023,13 +1022,8 @@ int i915_ggtt_pin(struct i915_vma *vma, u32 align, unsigned int flags)
 	} while (1);
 }
 
-void i915_vma_close(struct i915_vma *vma)
+static void __vma_close(struct i915_vma *vma, struct intel_gt *gt)
 {
-	struct intel_gt *gt = vma->vm->gt;
-	unsigned long flags;
-
-	GEM_BUG_ON(i915_vma_is_closed(vma));
-
 	/*
 	 * We defer actually closing, unbinding and destroying the VMA until
 	 * the next idle point, or if the object is freed in the meantime. By
@@ -1042,9 +1036,25 @@ void i915_vma_close(struct i915_vma *vma)
 	 * causing us to rebind the VMA once more. This ends up being a lot
 	 * of wasted work for the steady state.
 	 */
-	spin_lock_irqsave(&gt->closed_lock, flags);
+	GEM_BUG_ON(i915_vma_is_closed(vma));
 	list_add(&vma->closed_link, &gt->closed_vma);
-	spin_unlock_irqrestore(&gt->closed_lock, flags);
+}
+
+void i915_vma_close(struct i915_vma *vma)
+{
+	struct intel_gt *gt = vma->vm->gt;
+	unsigned long flags;
+
+	if (i915_vma_is_ggtt(vma))
+		return;
+
+	GEM_BUG_ON(!atomic_read(&vma->open_count));
+	if (atomic_dec_and_lock_irqsave(&vma->open_count,
+					&gt->closed_lock,
+					flags)) {
+		__vma_close(vma, gt);
+		spin_unlock_irqrestore(&gt->closed_lock, flags);
+	}
 }
 
 static void __i915_vma_remove_closed(struct i915_vma *vma)

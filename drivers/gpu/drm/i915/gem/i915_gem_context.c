@@ -130,9 +130,7 @@ static void lut_close(struct i915_gem_context *ctx)
 		if (&lut->obj_link != &obj->lut_list) {
 			i915_lut_handle_free(lut);
 			radix_tree_iter_delete(&ctx->handles_vma, &iter, slot);
-			if (atomic_dec_and_test(&vma->open_count) &&
-			    !i915_vma_is_ggtt(vma))
-				i915_vma_close(vma);
+			i915_vma_close(vma);
 			i915_gem_object_put(obj);
 		}
 

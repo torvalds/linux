@@ -1687,7 +1687,6 @@ static int read_from_scratch(struct i915_gem_context *ctx,
 		goto skip_request;
 
 	i915_vma_unpin(vma);
-	i915_vma_close(vma);
 
 	i915_request_add(rq);
 

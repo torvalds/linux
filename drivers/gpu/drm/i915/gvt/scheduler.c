@@ -595,10 +595,9 @@ static void release_shadow_batch_buffer(struct intel_vgpu_workload *workload)
 			if (bb->va && !IS_ERR(bb->va))
 				i915_gem_object_unpin_map(bb->obj);
 
-			if (bb->vma && !IS_ERR(bb->vma)) {
+			if (bb->vma && !IS_ERR(bb->vma))
 				i915_vma_unpin(bb->vma);
-				i915_vma_close(bb->vma);
-			}
+
 			i915_gem_object_put(bb->obj);
 		}
 		list_del(&bb->list);
