@@ -26,8 +26,8 @@
 #include "dmub_psr.h"
 #include "dc.h"
 #include "dc_dmub_srv.h"
-#include "../../dmub/inc/dmub_srv.h"
-#include "../../dmub/inc/dmub_gpint_cmd.h"
+#include "dmub/inc/dmub_srv.h"
+#include "dmub/inc/dmub_gpint_cmd.h"
 #include "core_types.h"
 
 #define MAX_PIPES 6

@@ -27,7 +27,7 @@
 #include "dce_abm.h"
 #include "dc.h"
 #include "dc_dmub_srv.h"
-#include "../../dmub/inc/dmub_srv.h"
+#include "dmub/inc/dmub_srv.h"
 #include "core_types.h"
 #include "dm_services.h"
 #include "reg_helper.h"

@@ -27,7 +27,7 @@
 #define _DMUB_DC_SRV_H_
 
 #include "os_types.h"
-#include "../dmub/inc/dmub_cmd.h"
+#include "dmub/inc/dmub_cmd.h"
 
 struct dmub_srv;
 struct dmub_cmd_header;
