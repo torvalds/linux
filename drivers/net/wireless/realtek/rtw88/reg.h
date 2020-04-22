@@ -13,11 +13,13 @@
 #define BIT_R_DIS_PRST		BIT(6)
 #define BIT_WLOCK_1C_B6		BIT(5)
 #define REG_SYS_PW_CTRL		0x0004
+#define BIT_PFM_WOWL		BIT(3)
 #define REG_SYS_CLK_CTRL	0x0008
 #define BIT_CPU_CLK_EN		BIT(14)
 
 #define REG_SYS_CLKR		0x0008
 #define BIT_ANA8M		BIT(1)
+#define BIT_WAKEPAD_EN		BIT(3)
 #define BIT_LOADER_CLK_EN	BIT(5)
 
 #define REG_RSV_CTRL		0x001C
@@ -49,6 +51,7 @@
 
 #define REG_GPIO_MUXCFG		0x0040
 #define BIT_FSPI_EN		BIT(19)
+#define BIT_EN_SIC		BIT(12)
 #define BIT_BT_AOD_GPIO3	BIT(9)
 #define BIT_BT_PTA_EN		BIT(5)
 #define BIT_WLRFE_4_5_EN	BIT(2)
@@ -72,6 +75,10 @@
 #define BIT_DBG_GNT_WL_BT	BIT(27)
 #define BIT_LTE_MUX_CTRL_PATH	BIT(26)
 #define REG_HCI_OPT_CTRL	0x0074
+
+#define REG_LDO_SWR_CTRL	0x007C
+#define LDO_SEL			0xC3
+#define SPS_SEL			0x83
 
 #define REG_MCUFW_CTRL		0x0080
 #define BIT_ANA_PORT_EN		BIT(22)
@@ -110,6 +117,7 @@
 #define BIT_BT_INT_EN		BIT(15)
 #define REG_SYS_CFG1		0x00F0
 #define	BIT_RTL_ID		BIT(23)
+#define BIT_LDO			BIT(24)
 #define BIT_RF_TYPE_ID		BIT(27)
 #define BIT_SHIFT_VENDOR_ID	16
 #define BIT_MASK_VENDOR_ID	0xf
@@ -238,6 +246,8 @@
 #define REG_FWHW_TXQ_CTRL	0x0420
 #define BIT_EN_BCNQ_DL		BIT(22)
 #define BIT_EN_WR_FREE_TAIL	BIT(20)
+#define REG_HWSEQ_CTRL		0x0423
+
 #define REG_BCNQ_BDNY_V1	0x0424
 #define REG_LIFETIME_EN		0x0426
 #define BIT_BA_PARSER_EN	BIT(5)
