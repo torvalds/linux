@@ -6242,12 +6242,12 @@ bool napi_complete_done(struct napi_struct *n, int work_done)
 
 	if (work_done) {
 		if (n->gro_bitmask)
-			timeout = n->dev->gro_flush_timeout;
-		n->defer_hard_irqs_count = n->dev->napi_defer_hard_irqs;
+			timeout = READ_ONCE(n->dev->gro_flush_timeout);
+		n->defer_hard_irqs_count = READ_ONCE(n->dev->napi_defer_hard_irqs);
 	}
 	if (n->defer_hard_irqs_count > 0) {
 		n->defer_hard_irqs_count--;
-		timeout = n->dev->gro_flush_timeout;
+		timeout = READ_ONCE(n->dev->gro_flush_timeout);
 		if (timeout)
 			ret = false;
 	}
