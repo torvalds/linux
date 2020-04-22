@@ -340,6 +340,10 @@ struct _vcs_dpi_soc_bounding_box_st dcn2_1_soc = {
 	.block ## _ ## reg_name[id] = BASE(mm ## block ## id ## _ ## reg_name ## _BASE_IDX) + \
 					mm ## block ## id ## _ ## reg_name
 
+#define VUPDATE_SRII(reg_name, block, id)\
+	.reg_name[id] = BASE(mm ## reg_name ## _ ## block ## id ## _BASE_IDX) + \
+					mm ## reg_name ## _ ## block ## id
+
 /* NBIO */
 #define NBIO_BASE_INNER(seg) \
 	NBIF0_BASE__INST0_SEG ## seg
