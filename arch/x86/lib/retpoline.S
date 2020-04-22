@@ -24,25 +24,20 @@ SYM_FUNC_END(__x86_indirect_thunk_\reg)
  * only see one instance of "__x86_indirect_thunk_\reg" rather
  * than one per register with the correct names. So we do it
  * the simple and nasty way...
+ *
+ * Worse, you can only have a single EXPORT_SYMBOL per line,
+ * and CPP can't insert newlines, so we have to repeat everything
+ * at least twice.
  */
-#define __EXPORT_THUNK(sym) _ASM_NOKPROBE(sym); EXPORT_SYMBOL(sym)
-#define EXPORT_THUNK(reg) __EXPORT_THUNK(__x86_indirect_thunk_ ## reg)
-#define GENERATE_THUNK(reg) THUNK reg ; EXPORT_THUNK(reg)
 
-GENERATE_THUNK(_ASM_AX)
-GENERATE_THUNK(_ASM_BX)
-GENERATE_THUNK(_ASM_CX)
-GENERATE_THUNK(_ASM_DX)
-GENERATE_THUNK(_ASM_SI)
-GENERATE_THUNK(_ASM_DI)
-GENERATE_THUNK(_ASM_BP)
-#ifdef CONFIG_64BIT
-GENERATE_THUNK(r8)
-GENERATE_THUNK(r9)
-GENERATE_THUNK(r10)
-GENERATE_THUNK(r11)
-GENERATE_THUNK(r12)
-GENERATE_THUNK(r13)
-GENERATE_THUNK(r14)
-GENERATE_THUNK(r15)
-#endif
+#define __EXPORT_THUNK(sym)	_ASM_NOKPROBE(sym); EXPORT_SYMBOL(sym)
+#define EXPORT_THUNK(reg)	__EXPORT_THUNK(__x86_indirect_thunk_ ## reg)
+
+#undef GEN
+#define GEN(reg) THUNK reg
+#include <asm/GEN-for-each-reg.h>
+
+#undef GEN
+#define GEN(reg) EXPORT_THUNK(reg)
+#include <asm/GEN-for-each-reg.h>
+
