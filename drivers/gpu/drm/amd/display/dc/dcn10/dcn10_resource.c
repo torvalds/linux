@@ -182,6 +182,14 @@ enum dcn10_clk_src_array_id {
 	.reg_name[id] = BASE(mm ## block ## id ## _ ## reg_name ## _BASE_IDX) + \
 					mm ## block ## id ## _ ## reg_name
 
+#define VUPDATE_SRII(reg_name, block, id)\
+	.reg_name[id] = BASE(mm ## reg_name ## 0 ## _ ## block ## id ## _BASE_IDX) + \
+					mm ## reg_name ## 0 ## _ ## block ## id
+
+/* set field/register/bitfield name */
+#define SFRB(field_name, reg_name, bitfield, post_fix)\
+	.field_name = reg_name ## __ ## bitfield ## post_fix
+
 /* NBIO */
 #define NBIO_BASE_INNER(seg) \
 	NBIF_BASE__INST0_SEG ## seg
@@ -432,11 +440,13 @@ static const struct dcn_mpc_registers mpc_regs = {
 };
 
 static const struct dcn_mpc_shift mpc_shift = {
-	MPC_COMMON_MASK_SH_LIST_DCN1_0(__SHIFT)
+	MPC_COMMON_MASK_SH_LIST_DCN1_0(__SHIFT),\
+	SFRB(CUR_VUPDATE_LOCK_SET, CUR0_VUPDATE_LOCK_SET0, CUR0_VUPDATE_LOCK_SET, __SHIFT)
 };
 
 static const struct dcn_mpc_mask mpc_mask = {
-	MPC_COMMON_MASK_SH_LIST_DCN1_0(_MASK),
+	MPC_COMMON_MASK_SH_LIST_DCN1_0(_MASK),\
+	SFRB(CUR_VUPDATE_LOCK_SET, CUR0_VUPDATE_LOCK_SET0, CUR0_VUPDATE_LOCK_SET, _MASK)
 };
 
 #define tg_regs(id)\
