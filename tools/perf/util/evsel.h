@@ -104,6 +104,14 @@ struct evsel {
 		perf_evsel__sb_cb_t	*cb;
 		void			*data;
 	} side_band;
+	/*
+	 * For reporting purposes, an evsel sample can have a callchain
+	 * synthesized from AUX area data. Keep track of synthesized sample
+	 * types here. Note, the recorded sample_type cannot be changed because
+	 * it is needed to continue to parse events.
+	 * See also evsel__has_callchain().
+	 */
+	__u64			synth_sample_type;
 };
 
 struct perf_missing_features {
@@ -149,6 +157,9 @@ void perf_evsel__compute_deltas(struct evsel *evsel, int cpu, int thread,
 int perf_evsel__object_config(size_t object_size,
 			      int (*init)(struct evsel *evsel),
 			      void (*fini)(struct evsel *evsel));
+
+struct perf_pmu *perf_evsel__find_pmu(struct evsel *evsel);
+bool perf_evsel__is_aux_event(struct evsel *evsel);
 
 struct evsel *perf_evsel__new_idx(struct perf_event_attr *attr, int idx);
 
@@ -398,7 +409,12 @@ static inline bool perf_evsel__has_branch_hw_idx(const struct evsel *evsel)
 
 static inline bool evsel__has_callchain(const struct evsel *evsel)
 {
-	return (evsel->core.attr.sample_type & PERF_SAMPLE_CALLCHAIN) != 0;
+	/*
+	 * For reporting purposes, an evsel sample can have a recorded callchain
+	 * or a callchain synthesized from AUX area data.
+	 */
+	return evsel->core.attr.sample_type & PERF_SAMPLE_CALLCHAIN ||
+	       evsel->synth_sample_type & PERF_SAMPLE_CALLCHAIN;
 }
 
 struct perf_env *perf_evsel__env(struct evsel *evsel);

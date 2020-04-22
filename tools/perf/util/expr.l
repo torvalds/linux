@@ -76,13 +76,13 @@ sym		[0-9a-zA-Z_\.:@]+
 symbol		{spec}*{sym}*{spec}*{sym}*
 
 %%
+	struct expr_scanner_ctx *sctx = expr_get_extra(yyscanner);
+
 	{
-		int start_token;
+		int start_token = sctx->start_token;
 
-		start_token = expr_get_extra(yyscanner);
-
-		if (start_token) {
-			expr_set_extra(NULL, yyscanner);
+		if (sctx->start_token) {
+			sctx->start_token = 0;
 			return start_token;
 		}
 	}
