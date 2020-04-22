@@ -1079,26 +1079,9 @@ static struct platform_driver sdei_driver = {
 	.probe		= sdei_probe,
 };
 
-static bool __init sdei_present_dt(void)
-{
-	struct device_node *np, *fw_np;
-
-	fw_np = of_find_node_by_name(NULL, "firmware");
-	if (!fw_np)
-		return false;
-
-	np = of_find_matching_node(fw_np, sdei_of_match);
-	if (!np)
-		return false;
-	of_node_put(np);
-
-	return true;
-}
-
 static bool __init sdei_present_acpi(void)
 {
 	acpi_status status;
-	struct platform_device *pdev;
 	struct acpi_table_header *sdei_table_header;
 
 	if (acpi_disabled)
@@ -1113,20 +1096,24 @@ static bool __init sdei_present_acpi(void)
 	if (ACPI_FAILURE(status))
 		return false;
 
-	pdev = platform_device_register_simple(sdei_driver.driver.name, 0, NULL,
-					       0);
-	if (IS_ERR(pdev))
-		return false;
-
 	return true;
 }
 
 static int __init sdei_init(void)
 {
-	if (sdei_present_dt() || sdei_present_acpi())
-		platform_driver_register(&sdei_driver);
+	int ret = platform_driver_register(&sdei_driver);
 
-	return 0;
+	if (!ret && sdei_present_acpi()) {
+		struct platform_device *pdev;
+
+		pdev = platform_device_register_simple(sdei_driver.driver.name,
+						       0, NULL, 0);
+		if (IS_ERR(pdev))
+			pr_info("Failed to register ACPI:SDEI platform device %ld\n",
+				PTR_ERR(pdev));
+	}
+
+	return ret;
 }
 
 /*
