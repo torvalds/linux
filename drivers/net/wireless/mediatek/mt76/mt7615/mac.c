@@ -115,7 +115,7 @@ void mt7615_mac_set_timing(struct mt7615_phy *phy)
 	u32 cck = FIELD_PREP(MT_TIMEOUT_VAL_PLCP, 231) |
 		  FIELD_PREP(MT_TIMEOUT_VAL_CCA, 48);
 	u32 ofdm = FIELD_PREP(MT_TIMEOUT_VAL_PLCP, 60) |
-		   FIELD_PREP(MT_TIMEOUT_VAL_CCA, 24);
+		   FIELD_PREP(MT_TIMEOUT_VAL_CCA, 28);
 	int sifs, offset;
 	bool is_5ghz = phy->mt76->chandef.chan->band == NL80211_BAND_5GHZ;
 
