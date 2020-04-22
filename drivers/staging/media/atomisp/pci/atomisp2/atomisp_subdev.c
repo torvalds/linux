@@ -1039,7 +1039,6 @@ static const struct v4l2_ctrl_config ctrl_depth_mode = {
 	.def = 0,
 };
 
-#ifdef ISP2401
 /*
  * Control for selectting ISP version
  *
@@ -1058,13 +1057,14 @@ static const struct v4l2_ctrl_config ctrl_select_isp_version = {
 	.def = 0,
 };
 
-#ifdef CONFIG_ION
+#if 0 /* #ifdef CONFIG_ION */
 /*
  * Control for ISP ion device fd
  *
  * userspace will open ion device and pass the fd to kernel.
  * this fd will be used to map shared fd to buffer.
  */
+/* V4L2_CID_ATOMISP_ION_DEVICE_FD is not defined */
 static const struct v4l2_ctrl_config ctrl_ion_dev_fd = {
 	.ops = &ctrl_ops,
 	.id = V4L2_CID_ATOMISP_ION_DEVICE_FD,
@@ -1077,7 +1077,6 @@ static const struct v4l2_ctrl_config ctrl_ion_dev_fd = {
 };
 #endif
 
-#endif
 static void atomisp_init_subdev_pipe(struct atomisp_sub_device *asd,
 				     struct atomisp_video_pipe *pipe, enum v4l2_buf_type buf_type)
 {
@@ -1220,19 +1219,16 @@ static int isp_subdev_init_entities(struct atomisp_sub_device *asd)
 	    v4l2_ctrl_new_custom(&asd->ctrl_handler,
 				 &ctrl_disable_dz,
 				 NULL);
-#ifdef ISP2401
-	asd->select_isp_version =
-	    v4l2_ctrl_new_custom(&asd->ctrl_handler,
-				 &ctrl_select_isp_version,
-				 NULL);
-
-#ifdef CONFIG_ION
-	asd->ion_dev_fd =
-	    v4l2_ctrl_new_custom(&asd->ctrl_handler,
-				 &ctrl_ion_dev_fd,
-				 NULL);
+	if (atomisp_hw_is_isp2401) {
+		asd->select_isp_version = v4l2_ctrl_new_custom(&asd->ctrl_handler,
+							       &ctrl_select_isp_version,
+							       NULL);
+#if 0 /* #ifdef CONFIG_ION */
+		asd->ion_dev_fd = v4l2_ctrl_new_custom(&asd->ctrl_handler,
+						       &ctrl_ion_dev_fd,
+						       NULL);
 #endif
-#endif
+	}
 
 	/* Make controls visible on subdev as well. */
 	asd->subdev.ctrl_handler = &asd->ctrl_handler;
