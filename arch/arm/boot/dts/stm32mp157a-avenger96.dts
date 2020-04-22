@@ -92,8 +92,8 @@
 
 &ethernet0 {
 	status = "okay";
-	pinctrl-0 = <&ethernet0_rgmii_pins_a>;
-	pinctrl-1 = <&ethernet0_rgmii_sleep_pins_a>;
+	pinctrl-0 = <&ethernet0_rgmii_pins_c>;
+	pinctrl-1 = <&ethernet0_rgmii_sleep_pins_c>;
 	pinctrl-names = "default", "sleep";
 	phy-mode = "rgmii";
 	max-speed = <1000>;
