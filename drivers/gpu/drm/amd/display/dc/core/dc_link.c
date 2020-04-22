@@ -26,7 +26,7 @@
 #include <linux/slab.h>
 
 #include "dm_services.h"
-#include "atom.h"
+#include "atomfirmware.h"
 #include "dm_helpers.h"
 #include "dc.h"
 #include "grph_object_id.h"
@@ -46,7 +46,7 @@
 #include "dmcu.h"
 #include "hw/clk_mgr.h"
 #include "dce/dmub_psr.h"
-#include "dmub/inc/dmub_cmd_dal.h"
+#include "dmub/dmub_srv.h"
 #include "inc/hw/panel_cntl.h"
 
 #define DC_LOGGER_INIT(logger)

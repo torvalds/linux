@@ -29,7 +29,6 @@
 #include "mod_shared.h"
 #include "mod_freesync.h"
 #include "dc.h"
-#include "dmub/inc/dmub_cmd_dal.h"
 
 enum vsc_packet_revision {
 	vsc_packet_undefined = 0,

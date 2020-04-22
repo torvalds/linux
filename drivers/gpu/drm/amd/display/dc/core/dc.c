@@ -66,7 +66,7 @@
 
 #include "dce/dce_i2c.h"
 
-#include "dmub/inc/dmub_cmd_dal.h"
+#include "dmub/dmub_srv.h"
 
 #define CTX \
 	dc->ctx

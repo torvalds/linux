@@ -29,7 +29,6 @@
 #include "dc.h"
 #include "dc_types.h"
 #include "grph_object_defs.h"
-#include "dmub/inc/dmub_cmd_dal.h"
 
 enum dc_link_fec_state {
 	dc_link_fec_not_ready,

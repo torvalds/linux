@@ -25,7 +25,7 @@
 
 #include "dc.h"
 #include "dc_dmub_srv.h"
-#include "../dmub/inc/dmub_srv.h"
+#include "../dmub/dmub_srv.h"
 
 static void dc_dmub_srv_construct(struct dc_dmub_srv *dc_srv, struct dc *dc,
 				  struct dmub_srv *dmub)

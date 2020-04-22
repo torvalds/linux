@@ -32,7 +32,7 @@
 #include "amdgpu_dm.h"
 #include "amdgpu_dm_debugfs.h"
 #include "dm_helpers.h"
-#include "dmub/inc/dmub_srv.h"
+#include "dmub/dmub_srv.h"
 
 struct dmub_debugfs_trace_header {
 	uint32_t entry_count;
