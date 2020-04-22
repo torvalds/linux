@@ -736,6 +736,63 @@
 		};
 	};
 
+	dss: dss@04a00000 {
+		compatible = "ti,j721e-dss";
+		reg =
+			<0x00 0x04a00000 0x00 0x10000>, /* common_m */
+			<0x00 0x04a10000 0x00 0x10000>, /* common_s0*/
+			<0x00 0x04b00000 0x00 0x10000>, /* common_s1*/
+			<0x00 0x04b10000 0x00 0x10000>, /* common_s2*/
+
+			<0x00 0x04a20000 0x00 0x10000>, /* vidl1 */
+			<0x00 0x04a30000 0x00 0x10000>, /* vidl2 */
+			<0x00 0x04a50000 0x00 0x10000>, /* vid1 */
+			<0x00 0x04a60000 0x00 0x10000>, /* vid2 */
+
+			<0x00 0x04a70000 0x00 0x10000>, /* ovr1 */
+			<0x00 0x04a90000 0x00 0x10000>, /* ovr2 */
+			<0x00 0x04ab0000 0x00 0x10000>, /* ovr3 */
+			<0x00 0x04ad0000 0x00 0x10000>, /* ovr4 */
+
+			<0x00 0x04a80000 0x00 0x10000>, /* vp1 */
+			<0x00 0x04aa0000 0x00 0x10000>, /* vp2 */
+			<0x00 0x04ac0000 0x00 0x10000>, /* vp3 */
+			<0x00 0x04ae0000 0x00 0x10000>, /* vp4 */
+			<0x00 0x04af0000 0x00 0x10000>; /* wb */
+
+		reg-names = "common_m", "common_s0",
+			"common_s1", "common_s2",
+			"vidl1", "vidl2","vid1","vid2",
+			"ovr1", "ovr2", "ovr3", "ovr4",
+			"vp1", "vp2", "vp3", "vp4",
+			"wb";
+
+		clocks =	<&k3_clks 152 0>,
+				<&k3_clks 152 1>,
+				<&k3_clks 152 4>,
+				<&k3_clks 152 9>,
+				<&k3_clks 152 13>;
+		clock-names = "fck", "vp1", "vp2", "vp3", "vp4";
+
+		power-domains = <&k3_pds 152 TI_SCI_PD_EXCLUSIVE>;
+
+		interrupts = <GIC_SPI 602 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 603 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 604 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 605 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "common_m",
+				  "common_s0",
+				  "common_s1",
+				  "common_s2";
+
+		status = "disabled";
+
+		dss_ports: ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+	};
+
 	mcasp0: mcasp@2b00000 {
 		compatible = "ti,am33xx-mcasp-audio";
 		reg = <0x0 0x02b00000 0x0 0x2000>,
