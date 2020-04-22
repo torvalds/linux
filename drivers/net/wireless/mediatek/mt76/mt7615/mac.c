@@ -724,22 +724,20 @@ void mt7615_mac_sta_poll(struct mt7615_dev *dev)
 	struct ieee80211_sta *sta;
 	struct mt7615_sta *msta;
 	u32 addr, tx_time[4], rx_time[4];
+	struct list_head sta_poll_list;
 	int i;
 
-	rcu_read_lock();
+	INIT_LIST_HEAD(&sta_poll_list);
+	spin_lock_bh(&dev->sta_poll_lock);
+	list_splice_init(&dev->sta_poll_list, &sta_poll_list);
+	spin_unlock_bh(&dev->sta_poll_lock);
 
-	while (true) {
+	while (!list_empty(&sta_poll_list)) {
 		bool clear = false;
 
-		spin_lock_bh(&dev->sta_poll_lock);
-		if (list_empty(&dev->sta_poll_list)) {
-			spin_unlock_bh(&dev->sta_poll_lock);
-			break;
-		}
-		msta = list_first_entry(&dev->sta_poll_list,
-					struct mt7615_sta, poll_list);
+		msta = list_first_entry(&sta_poll_list, struct mt7615_sta,
+					poll_list);
 		list_del_init(&msta->poll_list);
-		spin_unlock_bh(&dev->sta_poll_lock);
 
 		addr = mt7615_mac_wtbl_addr(dev, msta->wcid.idx) + 19 * 4;
 
@@ -779,8 +777,6 @@ void mt7615_mac_sta_poll(struct mt7615_dev *dev)
 						       rx_cur);
 		}
 	}
-
-	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(mt7615_mac_sta_poll);
 
