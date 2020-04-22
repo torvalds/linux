@@ -113,7 +113,9 @@ static const char *sdebug_version_date = "20200421";
 #define DEF_ATO 1
 #define DEF_CDB_LEN 10
 #define DEF_JDELAY   1		/* if > 0 unit is a jiffy */
+#define DEF_DEV_SIZE_PRE_INIT   0
 #define DEF_DEV_SIZE_MB   8
+#define DEF_ZBC_DEV_SIZE_MB   128
 #define DEF_DIF 0
 #define DEF_DIX 0
 #define DEF_PER_HOST_STORE false
@@ -736,7 +738,7 @@ static int sdebug_add_host = DEF_NUM_HOST;  /* in sysfs this is relative */
 static int sdebug_ato = DEF_ATO;
 static int sdebug_cdb_len = DEF_CDB_LEN;
 static int sdebug_jdelay = DEF_JDELAY;	/* if > 0 then unit is jiffies */
-static int sdebug_dev_size_mb = DEF_DEV_SIZE_MB;
+static int sdebug_dev_size_mb = DEF_DEV_SIZE_PRE_INIT;
 static int sdebug_dif = DEF_DIF;
 static int sdebug_dix = DEF_DIX;
 static int sdebug_dsense = DEF_D_SENSE;
@@ -785,6 +787,9 @@ static bool have_dif_prot;
 static bool write_since_sync;
 static bool sdebug_statistics = DEF_STATISTICS;
 static bool sdebug_wp;
+/* Following enum: 0: no zbc, def; 1: host aware; 2: host managed */
+static enum blk_zoned_model sdeb_zbc_model = BLK_ZONED_NONE;
+static char *sdeb_zbc_model_s;
 
 static unsigned int sdebug_store_sectors;
 static sector_t sdebug_capacity;	/* in sectors */
@@ -5534,6 +5539,7 @@ module_param_named(vpd_use_hostno, sdebug_vpd_use_hostno, int,
 module_param_named(wp, sdebug_wp, bool, S_IRUGO | S_IWUSR);
 module_param_named(write_same_length, sdebug_write_same_length, int,
 		   S_IRUGO | S_IWUSR);
+module_param_named(zbc, sdeb_zbc_model_s, charp, S_IRUGO);
 
 MODULE_AUTHOR("Eric Youngdale + Douglas Gilbert");
 MODULE_DESCRIPTION("SCSI debug adapter driver");
@@ -5595,6 +5601,7 @@ MODULE_PARM_DESC(virtual_gb, "virtual gigabyte (GiB) size (def=0 -> use dev_size
 MODULE_PARM_DESC(vpd_use_hostno, "0 -> dev ids ignore hostno (def=1 -> unique dev ids)");
 MODULE_PARM_DESC(wp, "Write Protect (def=0)");
 MODULE_PARM_DESC(write_same_length, "Maximum blocks per WRITE SAME cmd (def=0xffff)");
+MODULE_PARM_DESC(zbc, "'none' [0]; 'aware' [1]; 'managed' [2] (def=0). Can have 'host-' prefix");
 
 #define SDEBUG_INFO_LEN 256
 static char sdebug_info[SDEBUG_INFO_LEN];
@@ -6357,6 +6364,45 @@ static ssize_t cdb_len_store(struct device_driver *ddp, const char *buf,
 }
 static DRIVER_ATTR_RW(cdb_len);
 
+static const char * const zbc_model_strs_a[] = {
+	[BLK_ZONED_NONE] = "none",
+	[BLK_ZONED_HA]   = "host-aware",
+	[BLK_ZONED_HM]   = "host-managed",
+};
+
+static const char * const zbc_model_strs_b[] = {
+	[BLK_ZONED_NONE] = "no",
+	[BLK_ZONED_HA]   = "aware",
+	[BLK_ZONED_HM]   = "managed",
+};
+
+static const char * const zbc_model_strs_c[] = {
+	[BLK_ZONED_NONE] = "0",
+	[BLK_ZONED_HA]   = "1",
+	[BLK_ZONED_HM]   = "2",
+};
+
+static int sdeb_zbc_model_str(const char *cp)
+{
+	int res = sysfs_match_string(zbc_model_strs_a, cp);
+
+	if (res < 0) {
+		res = sysfs_match_string(zbc_model_strs_b, cp);
+		if (res < 0) {
+			res = sysfs_match_string(zbc_model_strs_c, cp);
+			if (sdeb_zbc_model < 0)
+				return -EINVAL;
+		}
+	}
+	return res;
+}
+
+static ssize_t zbc_show(struct device_driver *ddp, char *buf)
+{
+	return scnprintf(buf, PAGE_SIZE, "%s\n",
+			 zbc_model_strs_a[sdeb_zbc_model]);
+}
+static DRIVER_ATTR_RO(zbc);
 
 /* Note: The following array creates attribute files in the
    /sys/bus/pseudo/drivers/scsi_debug directory. The advantage of these
@@ -6399,6 +6445,7 @@ static struct attribute *sdebug_drv_attrs[] = {
 	&driver_attr_strict.attr,
 	&driver_attr_uuid_ctl.attr,
 	&driver_attr_cdb_len.attr,
+	&driver_attr_zbc.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(sdebug_drv);
@@ -6488,11 +6535,39 @@ static int __init scsi_debug_init(void)
 		spin_lock_init(&sdebug_q_arr[k].qc_lock);
 
 	/*
-	 * check for host managed zoned block device specified with ptype=0x14.
+	 * check for host managed zoned block device specified with
+	 * ptype=0x14 or zbc=XXX.
 	 */
-	if (sdebug_ptype == TYPE_ZBC)
+	if (sdebug_ptype == TYPE_ZBC) {
+		sdeb_zbc_model = BLK_ZONED_HM;
+	} else if (sdeb_zbc_model_s && *sdeb_zbc_model_s) {
+		k = sdeb_zbc_model_str(sdeb_zbc_model_s);
+		if (k < 0) {
+			ret = k;
+			goto free_vm;
+		}
+		sdeb_zbc_model = k;
+		switch (sdeb_zbc_model) {
+		case BLK_ZONED_NONE:
+			sdebug_ptype = TYPE_DISK;
+			break;
+		case BLK_ZONED_HM:
+			sdebug_ptype = TYPE_ZBC;
+			break;
+		case BLK_ZONED_HA:
+		default:
+			pr_err("Invalid ZBC model\n");
+			return -EINVAL;
+		}
+	}
+	if (sdeb_zbc_model != BLK_ZONED_NONE) {
 		sdeb_zbc_in_use = true;
+		if (sdebug_dev_size_mb == DEF_DEV_SIZE_PRE_INIT)
+			sdebug_dev_size_mb = DEF_ZBC_DEV_SIZE_MB;
+	}
 
+	if (sdebug_dev_size_mb == DEF_DEV_SIZE_PRE_INIT)
+		sdebug_dev_size_mb = DEF_DEV_SIZE_MB;
 	if (sdebug_dev_size_mb < 1)
 		sdebug_dev_size_mb = 1;  /* force minimum 1 MB ramdisk */
 	sz = (unsigned long)sdebug_dev_size_mb * 1048576;
