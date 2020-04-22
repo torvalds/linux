@@ -136,8 +136,9 @@ struct audit_nfcfgop_tab {
 };
 
 const struct audit_nfcfgop_tab audit_nfcfgs[] = {
-	{ AUDIT_XT_OP_REGISTER,	"register"	},
-	{ AUDIT_XT_OP_REPLACE,	"replace"	},
+	{ AUDIT_XT_OP_REGISTER,		"register"	},
+	{ AUDIT_XT_OP_REPLACE,		"replace"	},
+	{ AUDIT_XT_OP_UNREGISTER,	"unregister"	},
 };
 
 static int audit_match_perm(struct audit_context *ctx, int mask)

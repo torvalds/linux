@@ -1472,6 +1472,8 @@ void *xt_unregister_table(struct xt_table *table)
 	private = table->private;
 	list_del(&table->list);
 	mutex_unlock(&xt[table->af].mutex);
+	audit_log_nfcfg(table->name, table->af, private->number,
+			AUDIT_XT_OP_UNREGISTER);
 	kfree(table);
 
 	return private;

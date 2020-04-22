@@ -97,6 +97,7 @@ struct audit_ntp_data {};
 enum audit_nfcfgop {
 	AUDIT_XT_OP_REGISTER,
 	AUDIT_XT_OP_REPLACE,
+	AUDIT_XT_OP_UNREGISTER,
 };
 
 extern int is_audit_feature_set(int which);
