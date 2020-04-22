@@ -58,6 +58,13 @@ int ovl_setattr(struct dentry *dentry, struct iattr *attr)
 		if (attr->ia_valid & (ATTR_KILL_SUID|ATTR_KILL_SGID))
 			attr->ia_valid &= ~ATTR_MODE;
 
+		/*
+		 * We might have to translate ovl file into underlying file
+		 * object once some use cases are there. For now, simply don't
+		 * let underlying filesystem rely on attr->ia_file
+		 */
+		attr->ia_valid &= ~ATTR_FILE;
+
 		inode_lock(upperdentry->d_inode);
 		old_cred = ovl_override_creds(dentry->d_sb);
 		err = notify_change(upperdentry, attr, NULL);
