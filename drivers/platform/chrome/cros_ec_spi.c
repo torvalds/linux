@@ -725,10 +725,9 @@ static int cros_ec_spi_devm_high_pri_alloc(struct device *dev,
 	if (err)
 		return err;
 
-	err = sched_set_fifo(ec_spi->high_pri_worker->task);
-	if (err)
-		dev_err(dev, "Can't set cros_ec high pri priority: %d\n", err);
-	return err;
+	sched_set_fifo(ec_spi->high_pri_worker->task);
+
+	return 0;
 }
 
 static int cros_ec_spi_probe(struct spi_device *spi)
