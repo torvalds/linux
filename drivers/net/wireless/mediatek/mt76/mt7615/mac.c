@@ -117,8 +117,9 @@ void mt7615_mac_set_timing(struct mt7615_phy *phy)
 	u32 ofdm = FIELD_PREP(MT_TIMEOUT_VAL_PLCP, 60) |
 		   FIELD_PREP(MT_TIMEOUT_VAL_CCA, 24);
 	int sifs, offset;
+	bool is_5ghz = phy->mt76->chandef.chan->band == NL80211_BAND_5GHZ;
 
-	if (phy->mt76->chandef.chan->band == NL80211_BAND_5GHZ)
+	if (is_5ghz)
 		sifs = 16;
 	else
 		sifs = 10;
@@ -151,7 +152,7 @@ void mt7615_mac_set_timing(struct mt7615_phy *phy)
 		FIELD_PREP(MT_IFS_SIFS, sifs) |
 		FIELD_PREP(MT_IFS_SLOT, phy->slottime));
 
-	if (phy->slottime < 20)
+	if (phy->slottime < 20 || is_5ghz)
 		val = MT7615_CFEND_RATE_DEFAULT;
 	else
 		val = MT7615_CFEND_RATE_11B;
