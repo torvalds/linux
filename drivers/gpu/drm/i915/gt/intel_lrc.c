@@ -2384,13 +2384,6 @@ gen8_csb_parse(const struct intel_engine_execlists *execlists, const u32 *csb)
 	return *csb & (GEN8_CTX_STATUS_IDLE_ACTIVE | GEN8_CTX_STATUS_PREEMPTED);
 }
 
-static inline void flush_hwsp(const struct i915_request *rq)
-{
-	mb();
-	clflush((void *)READ_ONCE(rq->hwsp_seqno));
-	mb();
-}
-
 static void process_csb(struct intel_engine_cs *engine)
 {
 	struct intel_engine_execlists * const execlists = &engine->execlists;
@@ -2498,7 +2491,11 @@ static void process_csb(struct intel_engine_cs *engine)
 			 * We rely on the hardware being strongly
 			 * ordered, that the breadcrumb write is
 			 * coherent (visible from the CPU) before the
-			 * user interrupt and CSB is processed.
+			 * user interrupt is processed. One might assume
+			 * that the breadcrumb write being before the
+			 * user interrupt and the CS event for the context
+			 * switch would therefore be before the CS event
+			 * itself...
 			 */
 			if (GEM_SHOW_DEBUG() &&
 			    !i915_request_completed(*execlists->active)) {
@@ -2506,19 +2503,8 @@ static void process_csb(struct intel_engine_cs *engine)
 				const u32 *regs __maybe_unused =
 					rq->context->lrc_reg_state;
 
-				/*
-				 * Flush the breadcrumb before crying foul.
-				 *
-				 * Since we have hit this on icl and seen the
-				 * breadcrumb advance as we print out the debug
-				 * info (so the problem corrected itself without
-				 * lasting damage), and we know that icl suffers
-				 * from missing global observation points in
-				 * execlists, presume that affects even more
-				 * coherency.
-				 */
-				flush_hwsp(rq);
-
+				ENGINE_TRACE(engine,
+					     "context completed before request!\n");
 				ENGINE_TRACE(engine,
 					     "ring:{start:0x%08x, head:%04x, tail:%04x, ctl:%08x, mode:%08x}\n",
 					     ENGINE_READ(engine, RING_START),
@@ -2538,11 +2524,6 @@ static void process_csb(struct intel_engine_cs *engine)
 					     regs[CTX_RING_START],
 					     regs[CTX_RING_HEAD],
 					     regs[CTX_RING_TAIL]);
-
-				/* Still? Declare it caput! */
-				if (!i915_request_completed(rq) &&
-				    !reset_in_progress(execlists))
-					GEM_BUG_ON("context completed before request");
 			}
 
 			execlists_schedule_out(*execlists->active++);
