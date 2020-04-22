@@ -6872,7 +6872,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 						     dc_state);
 
 		if ((acrtc_state->update_type > UPDATE_TYPE_FAST) &&
-				acrtc_state->stream->link->psr_settings.psr_version != PSR_VERSION_UNSUPPORTED &&
+				acrtc_state->stream->link->psr_settings.psr_version != DC_PSR_VERSION_UNSUPPORTED &&
 				!acrtc_state->stream->link->psr_settings.psr_feature_enabled)
 			amdgpu_dm_link_setup_psr(acrtc_state->stream);
 		else if ((acrtc_state->update_type == UPDATE_TYPE_FAST) &&
@@ -8647,10 +8647,10 @@ static void amdgpu_dm_set_psr_caps(struct dc_link *link)
 		link->dpcd_caps.psr_caps.psr_version = dpcd_data[0];
 
 		if (dpcd_data[0] == 0) {
-			link->psr_settings.psr_version = PSR_VERSION_UNSUPPORTED;
+			link->psr_settings.psr_version = DC_PSR_VERSION_UNSUPPORTED;
 			link->psr_settings.psr_feature_enabled = false;
 		} else {
-			link->psr_settings.psr_version = PSR_VERSION_1;
+			link->psr_settings.psr_version = DC_PSR_VERSION_1;
 			link->psr_settings.psr_feature_enabled = true;
 		}
 

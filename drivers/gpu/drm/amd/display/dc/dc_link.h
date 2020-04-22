@@ -72,7 +72,7 @@ struct link_trace {
 struct psr_settings {
 	bool psr_feature_enabled;		// PSR is supported by sink
 	bool psr_allow_active;			// PSR is currently active
-	enum psr_version psr_version;		// Internal PSR version, determined based on DPCD
+	enum dc_psr_version psr_version;		// Internal PSR version, determined based on DPCD
 
 	/* These parameters are calculated in Driver,
 	 * based on display timing and Sink capabilities.

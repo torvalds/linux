@@ -1552,7 +1552,7 @@ static bool dc_link_construct(struct dc_link *link,
 	 */
 	program_hpd_filter(link);
 
-	link->psr_settings.psr_version = PSR_VERSION_UNSUPPORTED;
+	link->psr_settings.psr_version = DC_PSR_VERSION_UNSUPPORTED;
 
 	return true;
 device_tag_fail:
