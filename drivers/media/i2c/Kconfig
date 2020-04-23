@@ -365,6 +365,13 @@ config VIDEO_FP5510
 	help
 	  This is a driver for the FP5510 camera lens voice coil.
 
+config VIDEO_GT9760S
+	tristate "GT9760S lens voice coil support"
+	depends on I2C && VIDEO_V4L2 && MEDIA_CONTROLLER
+	depends on VIDEO_V4L2_SUBDEV_API
+	help
+	  This is a driver for the GT9760S camera lens voice coil.
+
 config VIDEO_VM149C
 	tristate "VM149C lens voice coil support"
 	depends on I2C && VIDEO_V4L2 && MEDIA_CONTROLLER
