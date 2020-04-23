@@ -1267,7 +1267,7 @@ static int zonefs_read_super(struct super_block *sb)
 		goto unmap;
 	}
 
-	uuid_copy(&sbi->s_uuid, (uuid_t *)super->s_uuid);
+	import_uuid(&sbi->s_uuid, super->s_uuid);
 	ret = 0;
 
 unmap:
