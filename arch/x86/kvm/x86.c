@@ -8519,6 +8519,8 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 	return r;
 
 cancel_injection:
+	if (req_immediate_exit)
+		kvm_make_request(KVM_REQ_EVENT, vcpu);
 	kvm_x86_ops.cancel_injection(vcpu);
 	if (unlikely(vcpu->arch.apic_attention))
 		kvm_lapic_sync_from_vapic(vcpu);
