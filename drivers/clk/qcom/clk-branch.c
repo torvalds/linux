@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2013, 2016, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013, 2016, 2020, The Linux Foundation. All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -11,6 +11,7 @@
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/regmap.h>
+#include <linux/clk/qcom.h>
 
 #include "clk-branch.h"
 
@@ -210,3 +211,55 @@ const struct clk_ops clk_branch_simple_ops = {
 	.is_enabled = clk_is_enabled_regmap,
 };
 EXPORT_SYMBOL_GPL(clk_branch_simple_ops);
+
+int qcom_clk_set_flags(struct clk *clk, unsigned long flags)
+{
+	struct clk_hw *hw;
+	struct clk_branch *br;
+	u32 cbcr_val = 0, cbcr_mask;
+	int ret;
+
+	if (IS_ERR_OR_NULL(clk))
+		return 0;
+
+	hw = __clk_get_hw(clk);
+	if (IS_ERR_OR_NULL(hw))
+		return -EINVAL;
+
+	switch (flags) {
+	case CLKFLAG_PERIPH_OFF_SET:
+		cbcr_val = cbcr_mask = BIT(12);
+		break;
+	case CLKFLAG_PERIPH_OFF_CLEAR:
+		cbcr_mask = BIT(12);
+		break;
+	case CLKFLAG_RETAIN_PERIPH:
+		cbcr_val = cbcr_mask = BIT(13);
+		break;
+	case CLKFLAG_NORETAIN_PERIPH:
+		cbcr_mask = BIT(13);
+		break;
+	case CLKFLAG_RETAIN_MEM:
+		cbcr_val = cbcr_mask = BIT(14);
+		break;
+	case CLKFLAG_NORETAIN_MEM:
+		cbcr_mask = BIT(14);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	br = to_clk_branch(hw);
+	ret = regmap_update_bits(br->clkr.regmap, br->halt_reg, cbcr_mask,
+								cbcr_val);
+	if (ret)
+		return ret;
+
+	/* Make sure power is enabled/disabled before returning. */
+	mb();
+
+	udelay(1);
+
+	return 0;
+}
+EXPORT_SYMBOL(qcom_clk_set_flags);
