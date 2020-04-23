@@ -613,7 +613,7 @@ __acquires(&gl->gl_lockref.lock)
 				fs_err(sdp, "Error %d syncing glock \n", ret);
 				gfs2_dump_glock(NULL, gl, true);
 			}
-			return;
+			goto out;
 		}
 	}
 	if (test_bit(GLF_INVALIDATE_IN_PROGRESS, &gl->gl_flags)) {
