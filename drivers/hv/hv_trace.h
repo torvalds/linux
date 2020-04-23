@@ -44,10 +44,8 @@ TRACE_EVENT(vmbus_onoffer,
 			   __entry->monitorid = offer->monitorid;
 			   __entry->is_ddc_int = offer->is_dedicated_interrupt;
 			   __entry->connection_id = offer->connection_id;
-			   memcpy(__entry->if_type,
-				  &offer->offer.if_type.b, 16);
-			   memcpy(__entry->if_instance,
-				  &offer->offer.if_instance.b, 16);
+			   export_guid(__entry->if_type, &offer->offer.if_type);
+			   export_guid(__entry->if_instance, &offer->offer.if_instance);
 			   __entry->chn_flags = offer->offer.chn_flags;
 			   __entry->mmio_mb = offer->offer.mmio_megabytes;
 			   __entry->sub_idx = offer->offer.sub_channel_index;
