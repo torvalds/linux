@@ -168,6 +168,8 @@ struct bpf_verifier_stack_elem {
 	int insn_idx;
 	int prev_insn_idx;
 	struct bpf_verifier_stack_elem *next;
+	/* length of verifier log at the time this state was pushed on stack */
+	u32 log_pos;
 };
 
 #define BPF_COMPLEXITY_LIMIT_JMP_SEQ	8192
@@ -280,6 +282,18 @@ void bpf_verifier_vlog(struct bpf_verifier_log *log, const char *fmt,
 	if (!copy_to_user(log->ubuf + log->len_used, log->kbuf, n + 1))
 		log->len_used += n;
 	else
+		log->ubuf = NULL;
+}
+
+static void bpf_vlog_reset(struct bpf_verifier_log *log, u32 new_pos)
+{
+	char zero = 0;
+
+	if (!bpf_verifier_log_needed(log))
+		return;
+
+	log->len_used = new_pos;
+	if (put_user(zero, log->ubuf + new_pos))
 		log->ubuf = NULL;
 }
 
@@ -846,7 +860,7 @@ static void update_branch_counts(struct bpf_verifier_env *env, struct bpf_verifi
 }
 
 static int pop_stack(struct bpf_verifier_env *env, int *prev_insn_idx,
-		     int *insn_idx)
+		     int *insn_idx, bool pop_log)
 {
 	struct bpf_verifier_state *cur = env->cur_state;
 	struct bpf_verifier_stack_elem *elem, *head = env->head;
@@ -860,6 +874,8 @@ static int pop_stack(struct bpf_verifier_env *env, int *prev_insn_idx,
 		if (err)
 			return err;
 	}
+	if (pop_log)
+		bpf_vlog_reset(&env->log, head->log_pos);
 	if (insn_idx)
 		*insn_idx = head->insn_idx;
 	if (prev_insn_idx)
@@ -887,6 +903,7 @@ static struct bpf_verifier_state *push_stack(struct bpf_verifier_env *env,
 	elem->insn_idx = insn_idx;
 	elem->prev_insn_idx = prev_insn_idx;
 	elem->next = env->head;
+	elem->log_pos = env->log.len_used;
 	env->head = elem;
 	env->stack_size++;
 	err = copy_verifier_state(&elem->st, cur);
@@ -915,7 +932,7 @@ err:
 	free_verifier_state(env->cur_state, true);
 	env->cur_state = NULL;
 	/* pop all elements and return */
-	while (!pop_stack(env, NULL, NULL));
+	while (!pop_stack(env, NULL, NULL, false));
 	return NULL;
 }
 
@@ -8407,6 +8424,7 @@ static bool reg_type_mismatch(enum bpf_reg_type src, enum bpf_reg_type prev)
 
 static int do_check(struct bpf_verifier_env *env)
 {
+	bool pop_log = !(env->log.level & BPF_LOG_LEVEL2);
 	struct bpf_verifier_state *state = env->cur_state;
 	struct bpf_insn *insns = env->prog->insnsi;
 	struct bpf_reg_state *regs;
@@ -8683,7 +8701,7 @@ static int do_check(struct bpf_verifier_env *env)
 process_bpf_exit:
 				update_branch_counts(env, env->cur_state);
 				err = pop_stack(env, &prev_insn_idx,
-						&env->insn_idx);
+						&env->insn_idx, pop_log);
 				if (err < 0) {
 					if (err != -ENOENT)
 						return err;
@@ -10206,6 +10224,7 @@ static void sanitize_insn_aux_data(struct bpf_verifier_env *env)
 
 static int do_check_common(struct bpf_verifier_env *env, int subprog)
 {
+	bool pop_log = !(env->log.level & BPF_LOG_LEVEL2);
 	struct bpf_verifier_state *state;
 	struct bpf_reg_state *regs;
 	int ret, i;
@@ -10268,7 +10287,9 @@ out:
 		free_verifier_state(env->cur_state, true);
 		env->cur_state = NULL;
 	}
-	while (!pop_stack(env, NULL, NULL));
+	while (!pop_stack(env, NULL, NULL, false));
+	if (!ret && pop_log)
+		bpf_vlog_reset(&env->log, 0);
 	free_states(env);
 	if (ret)
 		/* clean aux data in case subprog was rejected */

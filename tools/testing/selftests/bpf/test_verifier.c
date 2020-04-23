@@ -943,7 +943,12 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 	attr.insns = prog;
 	attr.insns_cnt = prog_len;
 	attr.license = "GPL";
-	attr.log_level = verbose || expected_ret == VERBOSE_ACCEPT ? 1 : 4;
+	if (verbose)
+		attr.log_level = 1;
+	else if (expected_ret == VERBOSE_ACCEPT)
+		attr.log_level = 2;
+	else
+		attr.log_level = 4;
 	attr.prog_flags = pflags;
 
 	fd_prog = bpf_load_program_xattr(&attr, bpf_vlog, sizeof(bpf_vlog));
