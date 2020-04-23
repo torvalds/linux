@@ -238,6 +238,70 @@ __execlists_update_reg_state(const struct intel_context *ce,
 			     const struct intel_engine_cs *engine,
 			     u32 head);
 
+static int lrc_ring_mi_mode(const struct intel_engine_cs *engine)
+{
+	if (INTEL_GEN(engine->i915) >= 12)
+		return 0x60;
+	else if (INTEL_GEN(engine->i915) >= 9)
+		return 0x54;
+	else if (engine->class == RENDER_CLASS)
+		return 0x58;
+	else
+		return -1;
+}
+
+static int lrc_ring_wa_bb_per_ctx(const struct intel_engine_cs *engine)
+{
+	if (INTEL_GEN(engine->i915) >= 12)
+		return 0x12;
+	else if (INTEL_GEN(engine->i915) >= 9 || engine->class == RENDER_CLASS)
+		return 0x18;
+	else
+		return -1;
+}
+
+static int lrc_ring_indirect_ptr(const struct intel_engine_cs *engine)
+{
+	int x;
+
+	x = lrc_ring_wa_bb_per_ctx(engine);
+	if (x < 0)
+		return x;
+
+	return x + 2;
+}
+
+static int lrc_ring_indirect_offset(const struct intel_engine_cs *engine)
+{
+	int x;
+
+	x = lrc_ring_indirect_ptr(engine);
+	if (x < 0)
+		return x;
+
+	return x + 2;
+}
+
+static u32
+lrc_ring_indirect_offset_default(const struct intel_engine_cs *engine)
+{
+	switch (INTEL_GEN(engine->i915)) {
+	default:
+		MISSING_CASE(INTEL_GEN(engine->i915));
+		fallthrough;
+	case 12:
+		return GEN12_CTX_RCS_INDIRECT_CTX_OFFSET_DEFAULT;
+	case 11:
+		return GEN11_CTX_RCS_INDIRECT_CTX_OFFSET_DEFAULT;
+	case 10:
+		return GEN10_CTX_RCS_INDIRECT_CTX_OFFSET_DEFAULT;
+	case 9:
+		return GEN9_CTX_RCS_INDIRECT_CTX_OFFSET_DEFAULT;
+	case 8:
+		return GEN8_CTX_RCS_INDIRECT_CTX_OFFSET_DEFAULT;
+	}
+}
+
 static u32 intel_context_get_runtime(const struct intel_context *ce)
 {
 	/*
@@ -1100,18 +1164,6 @@ static void intel_engine_context_out(struct intel_engine_cs *engine)
 	}
 
 	write_sequnlock_irqrestore(&engine->stats.lock, flags);
-}
-
-static int lrc_ring_mi_mode(const struct intel_engine_cs *engine)
-{
-	if (INTEL_GEN(engine->i915) >= 12)
-		return 0x60;
-	else if (INTEL_GEN(engine->i915) >= 9)
-		return 0x54;
-	else if (engine->class == RENDER_CLASS)
-		return 0x58;
-	else
-		return -1;
 }
 
 static void
@@ -4673,39 +4725,6 @@ int intel_execlists_submission_setup(struct intel_engine_cs *engine)
 	return 0;
 }
 
-static u32 intel_lr_indirect_ctx_offset(const struct intel_engine_cs *engine)
-{
-	u32 indirect_ctx_offset;
-
-	switch (INTEL_GEN(engine->i915)) {
-	default:
-		MISSING_CASE(INTEL_GEN(engine->i915));
-		/* fall through */
-	case 12:
-		indirect_ctx_offset =
-			GEN12_CTX_RCS_INDIRECT_CTX_OFFSET_DEFAULT;
-		break;
-	case 11:
-		indirect_ctx_offset =
-			GEN11_CTX_RCS_INDIRECT_CTX_OFFSET_DEFAULT;
-		break;
-	case 10:
-		indirect_ctx_offset =
-			GEN10_CTX_RCS_INDIRECT_CTX_OFFSET_DEFAULT;
-		break;
-	case 9:
-		indirect_ctx_offset =
-			GEN9_CTX_RCS_INDIRECT_CTX_OFFSET_DEFAULT;
-		break;
-	case 8:
-		indirect_ctx_offset =
-			GEN8_CTX_RCS_INDIRECT_CTX_OFFSET_DEFAULT;
-		break;
-	}
-
-	return indirect_ctx_offset;
-}
-
 
 static void init_common_reg_state(u32 * const regs,
 				  const struct intel_engine_cs *engine,
@@ -4728,27 +4747,29 @@ static void init_common_reg_state(u32 * const regs,
 }
 
 static void init_wa_bb_reg_state(u32 * const regs,
-				 const struct intel_engine_cs *engine,
-				 u32 pos_bb_per_ctx)
+				 const struct intel_engine_cs *engine)
 {
 	const struct i915_ctx_workarounds * const wa_ctx = &engine->wa_ctx;
 
 	if (wa_ctx->per_ctx.size) {
 		const u32 ggtt_offset = i915_ggtt_offset(wa_ctx->vma);
 
-		regs[pos_bb_per_ctx] =
+		GEM_BUG_ON(lrc_ring_wa_bb_per_ctx(engine) == -1);
+		regs[lrc_ring_wa_bb_per_ctx(engine) + 1] =
 			(ggtt_offset + wa_ctx->per_ctx.offset) | 0x01;
 	}
 
 	if (wa_ctx->indirect_ctx.size) {
 		const u32 ggtt_offset = i915_ggtt_offset(wa_ctx->vma);
 
-		regs[pos_bb_per_ctx + 2] =
+		GEM_BUG_ON(lrc_ring_indirect_ptr(engine) == -1);
+		regs[lrc_ring_indirect_ptr(engine) + 1] =
 			(ggtt_offset + wa_ctx->indirect_ctx.offset) |
 			(wa_ctx->indirect_ctx.size / CACHELINE_BYTES);
 
-		regs[pos_bb_per_ctx + 4] =
-			intel_lr_indirect_ctx_offset(engine) << 6;
+		GEM_BUG_ON(lrc_ring_indirect_offset(engine) == -1);
+		regs[lrc_ring_indirect_offset(engine) + 1] =
+			lrc_ring_indirect_offset_default(engine) << 6;
 	}
 }
 
@@ -4797,10 +4818,7 @@ static void execlists_init_reg_state(u32 *regs,
 	init_common_reg_state(regs, engine, ring, inhibit);
 	init_ppgtt_reg_state(regs, vm_alias(ce->vm));
 
-	init_wa_bb_reg_state(regs, engine,
-			     INTEL_GEN(engine->i915) >= 12 ?
-			     GEN12_CTX_BB_PER_CTX_PTR :
-			     CTX_BB_PER_CTX_PTR);
+	init_wa_bb_reg_state(regs, engine);
 
 	__reset_stop_ring(regs, engine);
 }

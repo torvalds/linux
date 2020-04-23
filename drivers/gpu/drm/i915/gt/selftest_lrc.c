@@ -4594,6 +4594,21 @@ static int live_lrc_fixed(void *arg)
 				"BB_STATE"
 			},
 			{
+				i915_mmio_reg_offset(RING_BB_PER_CTX_PTR(engine->mmio_base)),
+				lrc_ring_wa_bb_per_ctx(engine),
+				"RING_BB_PER_CTX_PTR"
+			},
+			{
+				i915_mmio_reg_offset(RING_INDIRECT_CTX(engine->mmio_base)),
+				lrc_ring_indirect_ptr(engine),
+				"RING_INDIRECT_CTX_PTR"
+			},
+			{
+				i915_mmio_reg_offset(RING_INDIRECT_CTX_OFFSET(engine->mmio_base)),
+				lrc_ring_indirect_offset(engine),
+				"RING_INDIRECT_CTX_OFFSET"
+			},
+			{
 				i915_mmio_reg_offset(RING_CTX_TIMESTAMP(engine->mmio_base)),
 				CTX_TIMESTAMP - 1,
 				"RING_CTX_TIMESTAMP"
