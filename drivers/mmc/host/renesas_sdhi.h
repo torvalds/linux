@@ -36,6 +36,7 @@ struct renesas_sdhi_of_data {
 struct renesas_sdhi_quirks {
 	bool hs400_disabled;
 	bool hs400_4taps;
+	u32 hs400_bad_taps;
 };
 
 struct tmio_mmc_dma {

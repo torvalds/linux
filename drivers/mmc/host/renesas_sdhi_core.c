@@ -325,6 +325,8 @@ static void renesas_sdhi_hs400_complete(struct mmc_host *mmc)
 {
 	struct tmio_mmc_host *host = mmc_priv(mmc);
 	struct renesas_sdhi *priv = host_to_priv(host);
+	u32 bad_taps = priv->quirks ? priv->quirks->hs400_bad_taps : 0;
+	bool use_4tap = priv->quirks && priv->quirks->hs400_4taps;
 
 	sd_ctrl_write16(host, CTL_SD_CARD_CLK_CTL, ~CLK_CTL_SCLKEN &
 		sd_ctrl_read16(host, CTL_SD_CARD_CLK_CTL));
@@ -352,10 +354,23 @@ static void renesas_sdhi_hs400_complete(struct mmc_host *mmc)
 		       SH_MOBILE_SDHI_SCC_DTCNTL_TAPEN |
 		       0x4 << SH_MOBILE_SDHI_SCC_DTCNTL_TAPNUM_SHIFT);
 
+	/* Avoid bad TAP */
+	if (bad_taps & BIT(priv->tap_set)) {
+		u32 new_tap = (priv->tap_set + 1) % priv->tap_num;
 
-	if (priv->quirks && priv->quirks->hs400_4taps)
-		sd_scc_write32(host, priv, SH_MOBILE_SDHI_SCC_TAPSET,
-			       priv->tap_set / 2);
+		if (bad_taps & BIT(new_tap))
+			new_tap = (priv->tap_set - 1) % priv->tap_num;
+
+		if (bad_taps & BIT(new_tap)) {
+			new_tap = priv->tap_set;
+			dev_dbg(&host->pdev->dev, "Can't handle three bad tap in a row\n");
+		}
+
+		priv->tap_set = new_tap;
+	}
+
+	sd_scc_write32(host, priv, SH_MOBILE_SDHI_SCC_TAPSET,
+		       priv->tap_set / (use_4tap ? 2 : 1));
 
 	sd_scc_write32(host, priv, SH_MOBILE_SDHI_SCC_CKSEL,
 		       SH_MOBILE_SDHI_SCC_CKSEL_DTSEL |
@@ -527,7 +542,7 @@ static int renesas_sdhi_execute_tuning(struct tmio_mmc_host *host, u32 opcode)
 static bool renesas_sdhi_manual_correction(struct tmio_mmc_host *host, bool use_4tap)
 {
 	struct renesas_sdhi *priv = host_to_priv(host);
-	unsigned int new_tap = priv->tap_set;
+	unsigned int new_tap = priv->tap_set, error_tap = priv->tap_set;
 	u32 val;
 
 	val = sd_scc_read32(host, priv, SH_MOBILE_SDHI_SCC_RVSREQ);
@@ -539,20 +554,32 @@ static bool renesas_sdhi_manual_correction(struct tmio_mmc_host *host, bool use_
 	/* Change TAP position according to correction status */
 	if (sd_ctrl_read16(host, CTL_VERSION) == SDHI_VER_GEN3_SDMMC &&
 	    host->mmc->ios.timing == MMC_TIMING_MMC_HS400) {
+		u32 bad_taps = priv->quirks ? priv->quirks->hs400_bad_taps : 0;
 		/*
 		 * With HS400, the DAT signal is based on DS, not CLK.
 		 * Therefore, use only CMD status.
 		 */
 		u32 smpcmp = sd_scc_read32(host, priv, SH_MOBILE_SDHI_SCC_SMPCMP) &
 					   SH_MOBILE_SDHI_SCC_SMPCMP_CMD_ERR;
-		if (!smpcmp)
+		if (!smpcmp) {
 			return false;	/* no error in CMD signal */
-		else if (smpcmp == SH_MOBILE_SDHI_SCC_SMPCMP_CMD_REQUP)
+		} else if (smpcmp == SH_MOBILE_SDHI_SCC_SMPCMP_CMD_REQUP) {
 			new_tap++;
-		else if (smpcmp == SH_MOBILE_SDHI_SCC_SMPCMP_CMD_REQDOWN)
+			error_tap--;
+		} else if (smpcmp == SH_MOBILE_SDHI_SCC_SMPCMP_CMD_REQDOWN) {
 			new_tap--;
-		else
+			error_tap++;
+		} else {
 			return true;	/* need retune */
+		}
+
+		/*
+		 * When new_tap is a bad tap, we cannot change. Then, we compare
+		 * with the HS200 tuning result. When smpcmp[error_tap] is OK,
+		 * we can at least retune.
+		 */
+		if (bad_taps & BIT(new_tap % priv->tap_num))
+			return test_bit(error_tap % priv->tap_num, priv->smpcmp);
 	} else {
 		if (val & SH_MOBILE_SDHI_SCC_RVSREQ_RVSERR)
 			return true;    /* need retune */
@@ -705,10 +732,19 @@ static const struct renesas_sdhi_quirks sdhi_quirks_4tap_nohs400 = {
 
 static const struct renesas_sdhi_quirks sdhi_quirks_4tap = {
 	.hs400_4taps = true,
+	.hs400_bad_taps = BIT(2) | BIT(3) | BIT(6) | BIT(7),
 };
 
 static const struct renesas_sdhi_quirks sdhi_quirks_nohs400 = {
 	.hs400_disabled = true,
+};
+
+static const struct renesas_sdhi_quirks sdhi_quirks_bad_taps1357 = {
+	.hs400_bad_taps = BIT(1) | BIT(3) | BIT(5) | BIT(7),
+};
+
+static const struct renesas_sdhi_quirks sdhi_quirks_bad_taps2367 = {
+	.hs400_bad_taps = BIT(2) | BIT(3) | BIT(6) | BIT(7),
 };
 
 /*
@@ -720,8 +756,11 @@ static const struct soc_device_attribute sdhi_quirks_match[]  = {
 	{ .soc_id = "r8a774a1", .revision = "ES1.[012]", .data = &sdhi_quirks_4tap_nohs400 },
 	{ .soc_id = "r8a7795", .revision = "ES1.*", .data = &sdhi_quirks_4tap_nohs400 },
 	{ .soc_id = "r8a7795", .revision = "ES2.0", .data = &sdhi_quirks_4tap },
+	{ .soc_id = "r8a7795", .revision = "ES3.*", .data = &sdhi_quirks_bad_taps2367 },
 	{ .soc_id = "r8a7796", .revision = "ES1.[012]", .data = &sdhi_quirks_4tap_nohs400 },
 	{ .soc_id = "r8a7796", .revision = "ES1.*", .data = &sdhi_quirks_4tap },
+	{ .soc_id = "r8a7796", .revision = "ES3.*", .data = &sdhi_quirks_bad_taps1357 },
+	{ .soc_id = "r8a77965", .data = &sdhi_quirks_bad_taps2367 },
 	{ .soc_id = "r8a77980", .data = &sdhi_quirks_nohs400 },
 	{ /* Sentinel. */ },
 };
