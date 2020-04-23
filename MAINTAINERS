@@ -5047,24 +5047,6 @@ F:	Documentation/driver-api/dma-buf.rst
 K:	\bdma_(?:buf|fence|resv)\b
 T:	git git://anongit.freedesktop.org/drm/drm-misc
 
-DMA-BUF HEAPS FRAMEWORK
-M:	Sumit Semwal <sumit.semwal@linaro.org>
-R:	Andrew F. Davis <afd@ti.com>
-R:	Benjamin Gaignard <benjamin.gaignard@linaro.org>
-R:	Liam Mark <lmark@codeaurora.org>
-R:	Laura Abbott <labbott@redhat.com>
-R:	Brian Starkey <Brian.Starkey@arm.com>
-R:	John Stultz <john.stultz@linaro.org>
-S:	Maintained
-L:	linux-media@vger.kernel.org
-L:	dri-devel@lists.freedesktop.org
-L:	linaro-mm-sig@lists.linaro.org (moderated for non-subscribers)
-F:	include/uapi/linux/dma-heap.h
-F:	include/linux/dma-heap.h
-F:	drivers/dma-buf/dma-heap.c
-F:	drivers/dma-buf/heaps/*
-T:	git git://anongit.freedesktop.org/drm/drm-misc
-
 DMA GENERIC OFFLOAD ENGINE SUBSYSTEM
 M:	Vinod Koul <vkoul@kernel.org>
 L:	dmaengine@vger.kernel.org
@@ -5276,11 +5258,6 @@ S:	Maintained
 F:	drivers/gpu/drm/panel/panel-arm-versatile.c
 F:	Documentation/devicetree/bindings/display/panel/arm,versatile-tft-panel.yaml
 
-DRM DRIVER FOR AST SERVER GRAPHICS CHIPS
-M:	Dave Airlie <airlied@redhat.com>
-S:	Odd Fixes
-F:	drivers/gpu/drm/ast/
-
 DRM DRIVER FOR ASPEED BMC GFX
 M:	Joel Stanley <joel@jms.id.au>
 L:	linux-aspeed@lists.ozlabs.org
@@ -5467,12 +5444,6 @@ DRM DRIVER FOR SIS VIDEO CARDS
 S:	Orphan / Obsolete
 F:	drivers/gpu/drm/sis/
 F:	include/uapi/drm/sis_drm.h
-
-DRM DRIVER FOR SITRONIX ST7701 PANELS
-M:	Jagan Teki <jagan@amarulasolutions.com>
-S:	Maintained
-F:	drivers/gpu/drm/panel/panel-sitronix-st7701.c
-F:	Documentation/devicetree/bindings/display/panel/sitronix,st7701.yaml
 
 DRM DRIVER FOR SITRONIX ST7586 PANELS
 M:	David Lechner <david@lechnology.com>
