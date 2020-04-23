@@ -3716,11 +3716,11 @@ static int vmx_check_nested_events(struct kvm_vcpu *vcpu)
 	/*
 	 * Process any exceptions that are not debug traps before MTF.
 	 */
-	if (vcpu->arch.exception.pending &&
-	    !vmx_pending_dbg_trap(vcpu) &&
-	    nested_vmx_check_exception(vcpu, &exit_qual)) {
+	if (vcpu->arch.exception.pending && !vmx_pending_dbg_trap(vcpu)) {
 		if (block_nested_events)
 			return -EBUSY;
+		if (!nested_vmx_check_exception(vcpu, &exit_qual))
+			goto no_vmexit;
 		nested_vmx_inject_exception_vmexit(vcpu, exit_qual);
 		return 0;
 	}
@@ -3733,10 +3733,11 @@ static int vmx_check_nested_events(struct kvm_vcpu *vcpu)
 		return 0;
 	}
 
-	if (vcpu->arch.exception.pending &&
-	    nested_vmx_check_exception(vcpu, &exit_qual)) {
+	if (vcpu->arch.exception.pending) {
 		if (block_nested_events)
 			return -EBUSY;
+		if (!nested_vmx_check_exception(vcpu, &exit_qual))
+			goto no_vmexit;
 		nested_vmx_inject_exception_vmexit(vcpu, exit_qual);
 		return 0;
 	}
@@ -3771,6 +3772,7 @@ static int vmx_check_nested_events(struct kvm_vcpu *vcpu)
 		return 0;
 	}
 
+no_vmexit:
 	vmx_complete_nested_posted_interrupt(vcpu);
 	return 0;
 }
