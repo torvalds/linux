@@ -31,16 +31,16 @@ void blake2s_compress_arch(struct blake2s_state *state,
 			   const u32 inc)
 {
 	/* SIMD disables preemption, so relax after processing each page. */
-	BUILD_BUG_ON(PAGE_SIZE / BLAKE2S_BLOCK_SIZE < 8);
+	BUILD_BUG_ON(SZ_4K / BLAKE2S_BLOCK_SIZE < 8);
 
 	if (!static_branch_likely(&blake2s_use_ssse3) || !may_use_simd()) {
 		blake2s_compress_generic(state, block, nblocks, inc);
 		return;
 	}
 
-	for (;;) {
+	do {
 		const size_t blocks = min_t(size_t, nblocks,
-					    PAGE_SIZE / BLAKE2S_BLOCK_SIZE);
+					    SZ_4K / BLAKE2S_BLOCK_SIZE);
 
 		kernel_fpu_begin();
 		if (IS_ENABLED(CONFIG_AS_AVX512) &&
@@ -51,10 +51,8 @@ void blake2s_compress_arch(struct blake2s_state *state,
 		kernel_fpu_end();
 
 		nblocks -= blocks;
-		if (!nblocks)
-			break;
 		block += blocks * BLAKE2S_BLOCK_SIZE;
-	}
+	} while (nblocks);
 }
 EXPORT_SYMBOL(blake2s_compress_arch);
 

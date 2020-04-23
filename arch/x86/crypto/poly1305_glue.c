@@ -91,8 +91,8 @@ static void poly1305_simd_blocks(void *ctx, const u8 *inp, size_t len,
 	struct poly1305_arch_internal *state = ctx;
 
 	/* SIMD disables preemption, so relax after processing each page. */
-	BUILD_BUG_ON(PAGE_SIZE < POLY1305_BLOCK_SIZE ||
-		     PAGE_SIZE % POLY1305_BLOCK_SIZE);
+	BUILD_BUG_ON(SZ_4K < POLY1305_BLOCK_SIZE ||
+		     SZ_4K % POLY1305_BLOCK_SIZE);
 
 	if (!IS_ENABLED(CONFIG_AS_AVX) || !static_branch_likely(&poly1305_use_avx) ||
 	    (len < (POLY1305_BLOCK_SIZE * 18) && !state->is_base2_26) ||
@@ -102,8 +102,8 @@ static void poly1305_simd_blocks(void *ctx, const u8 *inp, size_t len,
 		return;
 	}
 
-	for (;;) {
-		const size_t bytes = min_t(size_t, len, PAGE_SIZE);
+	do {
+		const size_t bytes = min_t(size_t, len, SZ_4K);
 
 		kernel_fpu_begin();
 		if (IS_ENABLED(CONFIG_AS_AVX512) && static_branch_likely(&poly1305_use_avx512))
@@ -113,11 +113,10 @@ static void poly1305_simd_blocks(void *ctx, const u8 *inp, size_t len,
 		else
 			poly1305_blocks_avx(ctx, inp, bytes, padbit);
 		kernel_fpu_end();
+
 		len -= bytes;
-		if (!len)
-			break;
 		inp += bytes;
-	}
+	} while (len);
 }
 
 static void poly1305_simd_emit(void *ctx, u8 mac[POLY1305_DIGEST_SIZE],
