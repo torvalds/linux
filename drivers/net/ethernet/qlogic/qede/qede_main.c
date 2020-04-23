@@ -60,6 +60,7 @@
 #include <net/ip6_checksum.h>
 #include <linux/bitops.h>
 #include <linux/vmalloc.h>
+#include <linux/aer.h>
 #include "qede.h"
 #include "qede_ptp.h"
 
@@ -124,6 +125,8 @@ static const struct pci_device_id qede_pci_tbl[] = {
 MODULE_DEVICE_TABLE(pci, qede_pci_tbl);
 
 static int qede_probe(struct pci_dev *pdev, const struct pci_device_id *id);
+static pci_ers_result_t
+qede_io_error_detected(struct pci_dev *pdev, pci_channel_state_t state);
 
 #define TX_TIMEOUT		(5 * HZ)
 
@@ -203,6 +206,10 @@ static int qede_sriov_configure(struct pci_dev *pdev, int num_vfs_param)
 }
 #endif
 
+static const struct pci_error_handlers qede_err_handler = {
+	.error_detected = qede_io_error_detected,
+};
+
 static struct pci_driver qede_pci_driver = {
 	.name = "qede",
 	.id_table = qede_pci_tbl,
@@ -212,6 +219,7 @@ static struct pci_driver qede_pci_driver = {
 #ifdef CONFIG_QED_SRIOV
 	.sriov_configure = qede_sriov_configure,
 #endif
+	.err_handler = &qede_err_handler,
 };
 
 static struct qed_eth_cb_ops qede_ll_ops = {
@@ -974,7 +982,8 @@ static void qede_sp_task(struct work_struct *work)
 		/* SRIOV must be disabled outside the lock to avoid a deadlock.
 		 * The recovery of the active VFs is currently not supported.
 		 */
-		qede_sriov_configure(edev->pdev, 0);
+		if (pci_num_vf(edev->pdev))
+			qede_sriov_configure(edev->pdev, 0);
 #endif
 		qede_lock(edev);
 		qede_recovery_handler(edev);
@@ -994,6 +1003,17 @@ static void qede_sp_task(struct work_struct *work)
 	}
 #endif
 	__qede_unlock(edev);
+
+	if (test_and_clear_bit(QEDE_SP_AER, &edev->sp_flags)) {
+#ifdef CONFIG_QED_SRIOV
+		/* SRIOV must be disabled outside the lock to avoid a deadlock.
+		 * The recovery of the active VFs is currently not supported.
+		 */
+		if (pci_num_vf(edev->pdev))
+			qede_sriov_configure(edev->pdev, 0);
+#endif
+		edev->ops->common->recovery_process(edev->cdev);
+	}
 }
 
 static void qede_update_pf_params(struct qed_dev *cdev)
@@ -2578,4 +2598,50 @@ static void qede_get_eth_tlv_data(void *dev, void *data)
 	etlv->rxqs_empty_set = true;
 	etlv->num_txqs_full_set = true;
 	etlv->num_rxqs_full_set = true;
+}
+
+/**
+ * qede_io_error_detected - called when PCI error is detected
+ * @pdev: Pointer to PCI device
+ * @state: The current pci connection state
+ *
+ * This function is called after a PCI bus error affecting
+ * this device has been detected.
+ */
+static pci_ers_result_t
+qede_io_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
+{
+	struct net_device *dev = pci_get_drvdata(pdev);
+	struct qede_dev *edev = netdev_priv(dev);
+
+	if (!edev)
+		return PCI_ERS_RESULT_NONE;
+
+	DP_NOTICE(edev, "IO error detected [%d]\n", state);
+
+	__qede_lock(edev);
+	if (edev->state == QEDE_STATE_RECOVERY) {
+		DP_NOTICE(edev, "Device already in the recovery state\n");
+		__qede_unlock(edev);
+		return PCI_ERS_RESULT_NONE;
+	}
+
+	/* PF handles the recovery of its VFs */
+	if (IS_VF(edev)) {
+		DP_VERBOSE(edev, QED_MSG_IOV,
+			   "VF recovery is handled by its PF\n");
+		__qede_unlock(edev);
+		return PCI_ERS_RESULT_RECOVERED;
+	}
+
+	/* Close OS Tx */
+	netif_tx_disable(edev->ndev);
+	netif_carrier_off(edev->ndev);
+
+	set_bit(QEDE_SP_AER, &edev->sp_flags);
+	schedule_delayed_work(&edev->sp_task, 0);
+
+	__qede_unlock(edev);
+
+	return PCI_ERS_RESULT_CAN_RECOVER;
 }
