@@ -618,11 +618,9 @@ static int soc_compr_ack(struct snd_compr_stream *cstream, size_t bytes)
 
 	mutex_lock_nested(&rtd->card->pcm_mutex, rtd->card->pcm_subclass);
 
-	if (cpu_dai->driver->cops && cpu_dai->driver->cops->ack) {
-		ret = cpu_dai->driver->cops->ack(cstream, bytes, cpu_dai);
-		if (ret < 0)
-			goto err;
-	}
+	ret = snd_soc_dai_compr_ack(cpu_dai, cstream, bytes);
+	if (ret < 0)
+		goto err;
 
 	for_each_rtd_components(rtd, i, component) {
 		if (!component->driver->compress_ops ||
