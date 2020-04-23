@@ -501,7 +501,7 @@ static void mt7615_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changed & BSS_CHANGED_BEACON_ENABLED) {
-		mt7615_mcu_add_bss_info(phy, vif, info->enable_beacon);
+		mt7615_mcu_add_bss_info(phy, vif, NULL, info->enable_beacon);
 		mt7615_mcu_sta_add(dev, vif, NULL, info->enable_beacon);
 	}
 
@@ -546,7 +546,7 @@ int mt7615_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 		struct mt7615_phy *phy;
 
 		phy = mvif->band_idx ? mt7615_ext_phy(dev) : &dev->phy;
-		mt7615_mcu_add_bss_info(phy, vif, true);
+		mt7615_mcu_add_bss_info(phy, vif, sta, true);
 	}
 	mt7615_mac_wtbl_update(dev, idx,
 			       MT_WTBL_UPDATE_ADM_COUNT_CLEAR);
@@ -570,7 +570,7 @@ void mt7615_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 		struct mt7615_phy *phy;
 
 		phy = mvif->band_idx ? mt7615_ext_phy(dev) : &dev->phy;
-		mt7615_mcu_add_bss_info(phy, vif, false);
+		mt7615_mcu_add_bss_info(phy, vif, sta, false);
 	}
 
 	spin_lock_bh(&dev->sta_poll_lock);

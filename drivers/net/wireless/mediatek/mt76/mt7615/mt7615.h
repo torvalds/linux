@@ -222,7 +222,7 @@ struct mt7615_mcu_ops {
 	int (*add_dev_info)(struct mt7615_dev *dev,
 			    struct ieee80211_vif *vif, bool enable);
 	int (*add_bss_info)(struct mt7615_phy *phy, struct ieee80211_vif *vif,
-			    bool enable);
+			    struct ieee80211_sta *sta, bool enable);
 	int (*add_beacon_offload)(struct mt7615_dev *dev,
 				  struct ieee80211_hw *hw,
 				  struct ieee80211_vif *vif, bool enable);
