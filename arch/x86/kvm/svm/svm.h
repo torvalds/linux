@@ -97,6 +97,10 @@ struct nested_state {
 	/* A VMEXIT is required but not yet emulated */
 	bool exit_required;
 
+	/* A VMRUN has started but has not yet been performed, so
+	 * we cannot inject a nested vmexit yet.  */
+	bool nested_run_pending;
+
 	/* cache for intercepts of the guest */
 	u32 intercept_cr;
 	u32 intercept_dr;
