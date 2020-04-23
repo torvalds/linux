@@ -103,9 +103,11 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 	if (err)
 		return err;
 
-	err = psp_init_asd_microcode(psp, chip_name);
-	if (err)
-		return err;
+	if (adev->asic_type != CHIP_SIENNA_CICHLID) {
+		err = psp_init_asd_microcode(psp, chip_name);
+		if (err)
+			return err;
+	}
 
 	switch (adev->asic_type) {
 	case CHIP_VEGA20:
