@@ -30,4 +30,5 @@ extern unsigned long long simple_strtoull(const char *cp, char **endp,
 					  unsigned int base);
 
 int kstrtoull(const char *s, unsigned int base, unsigned long long *res);
+int boot_kstrtoul(const char *s, unsigned int base, unsigned long *res);
 #endif /* BOOT_STRING_H */
