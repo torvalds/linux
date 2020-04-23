@@ -527,6 +527,8 @@ static int svc_udp_sendto(struct svc_rqst *rqstp)
 	unsigned int uninitialized_var(sent);
 	int err;
 
+	svc_release_udp_skb(rqstp);
+
 	svc_set_cmsg_data(rqstp, cmh);
 
 	err = xprt_sock_sendmsg(svsk->sk_sock, &msg, xdr, 0, 0, &sent);
@@ -1075,6 +1077,8 @@ static int svc_tcp_sendto(struct svc_rqst *rqstp)
 	};
 	unsigned int uninitialized_var(sent);
 	int err;
+
+	svc_release_skb(rqstp);
 
 	err = xprt_sock_sendmsg(svsk->sk_sock, &msg, xdr, 0, marker, &sent);
 	xdr_free_bvec(xdr);
