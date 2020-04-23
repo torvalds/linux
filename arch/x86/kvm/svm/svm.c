@@ -3783,7 +3783,7 @@ static bool svm_smi_allowed(struct kvm_vcpu *vcpu)
 		return false;
 	}
 
-	return true;
+	return !is_smm(vcpu);
 }
 
 static int svm_pre_enter_smm(struct kvm_vcpu *vcpu, char *smstate)

@@ -7680,7 +7680,7 @@ static bool vmx_smi_allowed(struct kvm_vcpu *vcpu)
 	/* we need a nested vmexit to enter SMM, postpone if run is pending */
 	if (to_vmx(vcpu)->nested.nested_run_pending)
 		return false;
-	return true;
+	return !is_smm(vcpu);
 }
 
 static int vmx_pre_enter_smm(struct kvm_vcpu *vcpu, char *smstate)
