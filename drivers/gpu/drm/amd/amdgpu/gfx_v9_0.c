@@ -4054,9 +4054,8 @@ static uint64_t gfx_v9_0_kiq_read_clock(struct amdgpu_device *adev)
 
 	spin_lock_irqsave(&kiq->ring_lock, flags);
 	if (amdgpu_device_wb_get(adev, &reg_val_offs)) {
-		spin_unlock_irqrestore(&kiq->ring_lock, flags);
 		pr_err("critical bug! too many kiq readers\n");
-		goto failed_kiq_read;
+		goto failed_unlock;
 	}
 	amdgpu_ring_alloc(ring, 32);
 	amdgpu_ring_write(ring, PACKET3(PACKET3_COPY_DATA, 4));
@@ -4070,7 +4069,10 @@ static uint64_t gfx_v9_0_kiq_read_clock(struct amdgpu_device *adev)
 				reg_val_offs * 4));
 	amdgpu_ring_write(ring, upper_32_bits(adev->wb.gpu_addr +
 				reg_val_offs * 4));
-	amdgpu_fence_emit_polling(ring, &seq);
+	r = amdgpu_fence_emit_polling(ring, &seq, MAX_KIQ_REG_WAIT);
+	if (r)
+		goto failed_undo;
+
 	amdgpu_ring_commit(ring);
 	spin_unlock_irqrestore(&kiq->ring_lock, flags);
 
@@ -4102,7 +4104,13 @@ static uint64_t gfx_v9_0_kiq_read_clock(struct amdgpu_device *adev)
 	amdgpu_device_wb_free(adev, reg_val_offs);
 	return value;
 
+failed_undo:
+	amdgpu_ring_undo(ring);
+failed_unlock:
+	spin_unlock_irqrestore(&kiq->ring_lock, flags);
 failed_kiq_read:
+	if (reg_val_offs)
+		amdgpu_device_wb_free(adev, reg_val_offs);
 	pr_err("failed to read gpu clock\n");
 	return ~0;
 }

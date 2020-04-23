@@ -105,7 +105,8 @@ void amdgpu_fence_driver_suspend(struct amdgpu_device *adev);
 void amdgpu_fence_driver_resume(struct amdgpu_device *adev);
 int amdgpu_fence_emit(struct amdgpu_ring *ring, struct dma_fence **fence,
 		      unsigned flags);
-int amdgpu_fence_emit_polling(struct amdgpu_ring *ring, uint32_t *s);
+int amdgpu_fence_emit_polling(struct amdgpu_ring *ring, uint32_t *s,
+			      uint32_t timeout);
 bool amdgpu_fence_process(struct amdgpu_ring *ring);
 int amdgpu_fence_wait_empty(struct amdgpu_ring *ring);
 signed long amdgpu_fence_wait_polling(struct amdgpu_ring *ring,
