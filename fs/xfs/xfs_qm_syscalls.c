@@ -357,11 +357,11 @@ xfs_qm_scall_quotaon(
 	int		error;
 	uint		qf;
 
-	flags &= (XFS_ALL_QUOTA_ACCT | XFS_ALL_QUOTA_ENFD);
 	/*
-	 * Switching on quota accounting must be done at mount time.
+	 * Switching on quota accounting must be done at mount time,
+	 * only consider quota enforcement stuff here.
 	 */
-	flags &= ~(XFS_ALL_QUOTA_ACCT);
+	flags &= XFS_ALL_QUOTA_ENFD;
 
 	if (flags == 0) {
 		xfs_debug(mp, "%s: zero flags, m_qflags=%x",
