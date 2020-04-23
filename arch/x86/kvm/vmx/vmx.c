@@ -5285,18 +5285,11 @@ static int handle_invalid_guest_state(struct kvm_vcpu *vcpu)
 	bool intr_window_requested;
 	unsigned count = 130;
 
-	/*
-	 * We should never reach the point where we are emulating L2
-	 * due to invalid guest state as that means we incorrectly
-	 * allowed a nested VMEntry with an invalid vmcs12.
-	 */
-	WARN_ON_ONCE(vmx->emulation_required && vmx->nested.nested_run_pending);
-
 	intr_window_requested = exec_controls_get(vmx) &
 				CPU_BASED_INTR_WINDOW_EXITING;
 
 	while (vmx->emulation_required && count-- != 0) {
-		if (intr_window_requested && vmx_interrupt_allowed(vcpu))
+		if (intr_window_requested && !vmx_interrupt_blocked(vcpu))
 			return handle_interrupt_window(&vmx->vcpu);
 
 		if (kvm_test_request(KVM_REQ_EVENT, vcpu))
@@ -5913,6 +5906,14 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu,
 	if (enable_pml)
 		vmx_flush_pml_buffer(vcpu);
 
+	/*
+	 * We should never reach this point with a pending nested VM-Enter, and
+	 * more specifically emulation of L2 due to invalid guest state (see
+	 * below) should never happen as that means we incorrectly allowed a
+	 * nested VM-Enter with an invalid vmcs12.
+	 */
+	WARN_ON_ONCE(vmx->nested.nested_run_pending);
+
 	/* If guest state is invalid, start emulating */
 	if (vmx->emulation_required)
 		return handle_invalid_guest_state(vcpu);
@@ -5979,7 +5980,7 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu,
 
 	if (unlikely(!enable_vnmi &&
 		     vmx->loaded_vmcs->soft_vnmi_blocked)) {
-		if (vmx_interrupt_allowed(vcpu)) {
+		if (!vmx_interrupt_blocked(vcpu)) {
 			vmx->loaded_vmcs->soft_vnmi_blocked = 0;
 		} else if (vmx->loaded_vmcs->vnmi_blocked_time > 1000000000LL &&
 			   vcpu->arch.nmi_pending) {
