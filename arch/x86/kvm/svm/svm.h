@@ -366,6 +366,9 @@ void svm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0);
 int svm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4);
 void svm_flush_tlb(struct kvm_vcpu *vcpu);
 void disable_nmi_singlestep(struct vcpu_svm *svm);
+bool svm_smi_blocked(struct kvm_vcpu *vcpu);
+bool svm_nmi_blocked(struct kvm_vcpu *vcpu);
+bool svm_interrupt_blocked(struct kvm_vcpu *vcpu);
 
 /* nested.c */
 

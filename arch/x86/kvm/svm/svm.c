@@ -3065,20 +3065,31 @@ static void update_cr8_intercept(struct kvm_vcpu *vcpu, int tpr, int irr)
 		set_cr_intercept(svm, INTERCEPT_CR8_WRITE);
 }
 
-static bool svm_nmi_allowed(struct kvm_vcpu *vcpu)
+bool svm_nmi_blocked(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 	struct vmcb *vmcb = svm->vmcb;
 	bool ret;
 
-	if (is_guest_mode(vcpu) && nested_exit_on_nmi(svm))
+	if (!gif_set(svm))
 		return true;
 
-	ret = !(vmcb->control.int_state & SVM_INTERRUPT_SHADOW_MASK) &&
-	      !(svm->vcpu.arch.hflags & HF_NMI_MASK);
-	ret = ret && gif_set(svm);
+	if (is_guest_mode(vcpu) && nested_exit_on_nmi(svm))
+		return false;
+
+	ret = (vmcb->control.int_state & SVM_INTERRUPT_SHADOW_MASK) ||
+	      (svm->vcpu.arch.hflags & HF_NMI_MASK);
 
 	return ret;
+}
+
+static bool svm_nmi_allowed(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+	if (svm->nested.nested_run_pending)
+		return false;
+
+        return !svm_nmi_blocked(vcpu);
 }
 
 static bool svm_get_nmi_mask(struct kvm_vcpu *vcpu)
@@ -3101,19 +3112,28 @@ static void svm_set_nmi_mask(struct kvm_vcpu *vcpu, bool masked)
 	}
 }
 
-static bool svm_interrupt_allowed(struct kvm_vcpu *vcpu)
+bool svm_interrupt_blocked(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 	struct vmcb *vmcb = svm->vmcb;
 
 	if (!gif_set(svm) ||
 	     (vmcb->control.int_state & SVM_INTERRUPT_SHADOW_MASK))
-		return false;
+		return true;
 
 	if (is_guest_mode(vcpu) && (svm->vcpu.arch.hflags & HF_VINTR_MASK))
-		return !!(svm->vcpu.arch.hflags & HF_HIF_MASK);
+		return !(svm->vcpu.arch.hflags & HF_HIF_MASK);
 	else
-		return !!(kvm_get_rflags(vcpu) & X86_EFLAGS_IF);
+		return !(kvm_get_rflags(vcpu) & X86_EFLAGS_IF);
+}
+
+static bool svm_interrupt_allowed(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+	if (svm->nested.nested_run_pending)
+		return false;
+
+        return !svm_interrupt_blocked(vcpu);
 }
 
 static void enable_irq_window(struct kvm_vcpu *vcpu)
@@ -3770,15 +3790,24 @@ static void svm_setup_mce(struct kvm_vcpu *vcpu)
 	vcpu->arch.mcg_cap &= 0x1ff;
 }
 
-static bool svm_smi_allowed(struct kvm_vcpu *vcpu)
+bool svm_smi_blocked(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
 	/* Per APM Vol.2 15.22.2 "Response to SMI" */
 	if (!gif_set(svm))
+		return true;
+
+	return is_smm(vcpu);
+}
+
+static bool svm_smi_allowed(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+	if (svm->nested.nested_run_pending)
 		return false;
 
-	return !is_smm(vcpu);
+	return !svm_smi_blocked(vcpu);
 }
 
 static int svm_pre_enter_smm(struct kvm_vcpu *vcpu, char *smstate)
