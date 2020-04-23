@@ -735,11 +735,6 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 	if (ieee80211_has_retry(hdr->frame_control))
 		tx_buffer_head->fifo_ctl |= cpu_to_le16(FIFOCTL_LRETRY);
 
-	if (tx_rate->flags & IEEE80211_TX_RC_USE_SHORT_PREAMBLE)
-		priv->preamble_type = PREAMBLE_SHORT;
-	else
-		priv->preamble_type = PREAMBLE_LONG;
-
 	if (tx_rate->flags & IEEE80211_TX_RC_USE_RTS_CTS) {
 		need_rts = true;
 		tx_buffer_head->fifo_ctl |= cpu_to_le16(FIFOCTL_RTS);
