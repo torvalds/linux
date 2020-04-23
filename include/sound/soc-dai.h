@@ -176,6 +176,9 @@ void snd_soc_dai_compr_shutdown(struct snd_soc_dai *dai,
 				struct snd_compr_stream *cstream);
 int snd_soc_dai_compr_trigger(struct snd_soc_dai *dai,
 			      struct snd_compr_stream *cstream, int cmd);
+int snd_soc_dai_compr_set_params(struct snd_soc_dai *dai,
+				 struct snd_compr_stream *cstream,
+				 struct snd_compr_params *params);
 
 struct snd_soc_dai_ops {
 	/*

@@ -443,11 +443,9 @@ static int soc_compr_set_params(struct snd_compr_stream *cstream,
 	 * that these callbacks will configure everything for this compress
 	 * path, like configuring a PCM port for a CODEC.
 	 */
-	if (cpu_dai->driver->cops && cpu_dai->driver->cops->set_params) {
-		ret = cpu_dai->driver->cops->set_params(cstream, params, cpu_dai);
-		if (ret < 0)
-			goto err;
-	}
+	ret = snd_soc_dai_compr_set_params(cpu_dai, cstream, params);
+	if (ret < 0)
+		goto err;
 
 	ret = soc_compr_components_set_params(cstream, params);
 	if (ret < 0)
@@ -513,11 +511,9 @@ static int soc_compr_set_params_fe(struct snd_compr_stream *cstream,
 	if (ret < 0)
 		goto out;
 
-	if (cpu_dai->driver->cops && cpu_dai->driver->cops->set_params) {
-		ret = cpu_dai->driver->cops->set_params(cstream, params, cpu_dai);
-		if (ret < 0)
-			goto out;
-	}
+	ret = snd_soc_dai_compr_set_params(cpu_dai, cstream, params);
+	if (ret < 0)
+		goto out;
 
 	ret = soc_compr_components_set_params(cstream, params);
 	if (ret < 0)
