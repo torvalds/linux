@@ -145,7 +145,6 @@ static int xfrmi_create(struct net_device *dev)
 	if (err < 0)
 		goto out;
 
-	dev_hold(dev);
 	xfrmi_link(xfrmn, xi);
 
 	return 0;
@@ -175,7 +174,6 @@ static void xfrmi_dev_uninit(struct net_device *dev)
 	struct xfrmi_net *xfrmn = net_generic(xi->net, xfrmi_net_id);
 
 	xfrmi_unlink(xfrmn, xi);
-	dev_put(dev);
 }
 
 static void xfrmi_scrub_packet(struct sk_buff *skb, bool xnet)
