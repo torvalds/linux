@@ -181,4 +181,6 @@ bool xdp_attachment_flags_ok(struct xdp_attachment_info *info,
 void xdp_attachment_setup(struct xdp_attachment_info *info,
 			  struct netdev_bpf *bpf);
 
+#define DEV_MAP_BULK_SIZE 16
+
 #endif /* __LINUX_NET_XDP_H__ */
