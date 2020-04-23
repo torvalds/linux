@@ -414,7 +414,7 @@ int intel_bw_atomic_check(struct intel_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	struct intel_crtc_state *new_crtc_state, *old_crtc_state;
-	struct intel_bw_state *bw_state = NULL;
+	struct intel_bw_state *new_bw_state = NULL;
 	unsigned int data_rate, max_data_rate;
 	unsigned int num_active_planes;
 	struct intel_crtc *crtc;
@@ -443,29 +443,29 @@ int intel_bw_atomic_check(struct intel_atomic_state *state)
 		    old_active_planes == new_active_planes)
 			continue;
 
-		bw_state  = intel_atomic_get_bw_state(state);
-		if (IS_ERR(bw_state))
-			return PTR_ERR(bw_state);
+		new_bw_state = intel_atomic_get_bw_state(state);
+		if (IS_ERR(new_bw_state))
+			return PTR_ERR(new_bw_state);
 
-		bw_state->data_rate[crtc->pipe] = new_data_rate;
-		bw_state->num_active_planes[crtc->pipe] = new_active_planes;
+		new_bw_state->data_rate[crtc->pipe] = new_data_rate;
+		new_bw_state->num_active_planes[crtc->pipe] = new_active_planes;
 
 		drm_dbg_kms(&dev_priv->drm,
 			    "pipe %c data rate %u num active planes %u\n",
 			    pipe_name(crtc->pipe),
-			    bw_state->data_rate[crtc->pipe],
-			    bw_state->num_active_planes[crtc->pipe]);
+			    new_bw_state->data_rate[crtc->pipe],
+			    new_bw_state->num_active_planes[crtc->pipe]);
 	}
 
-	if (!bw_state)
+	if (!new_bw_state)
 		return 0;
 
-	ret = intel_atomic_lock_global_state(&bw_state->base);
+	ret = intel_atomic_lock_global_state(&new_bw_state->base);
 	if (ret)
 		return ret;
 
-	data_rate = intel_bw_data_rate(dev_priv, bw_state);
-	num_active_planes = intel_bw_num_active_planes(dev_priv, bw_state);
+	data_rate = intel_bw_data_rate(dev_priv, new_bw_state);
+	num_active_planes = intel_bw_num_active_planes(dev_priv, new_bw_state);
 
 	max_data_rate = intel_max_data_rate(dev_priv, num_active_planes);
 
