@@ -401,19 +401,6 @@ static int vnt_init_registers(struct vnt_private *priv)
 	dev_dbg(&priv->usb->dev, "Network address = %pM\n",
 		priv->current_net_addr);
 
-	/*
-	 * set BB and packet type at the same time
-	 * set Short Slot Time, xIFS, and RSPINF
-	 */
-	if (priv->bb_type == BB_TYPE_11A)
-		priv->short_slot_time = true;
-	else
-		priv->short_slot_time = false;
-
-	ret = vnt_set_short_slot_time(priv);
-	if (ret)
-		goto end;
-
 	priv->radio_ctl = priv->eeprom[EEP_OFS_RADIOCTL];
 
 	if ((priv->radio_ctl & EEP_RADIOCTL_ENABLE) != 0) {
