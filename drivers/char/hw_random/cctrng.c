@@ -313,7 +313,7 @@ static void cc_trng_hw_trigger(struct cctrng_drvdata *drvdata)
 	cc_trng_enable_rnd_source(drvdata);
 }
 
-void cc_trng_compwork_handler(struct work_struct *w)
+static void cc_trng_compwork_handler(struct work_struct *w)
 {
 	u32 isr = 0;
 	u32 ehr_valid = 0;
@@ -446,7 +446,7 @@ static irqreturn_t cc_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-void cc_trng_startwork_handler(struct work_struct *w)
+static void cc_trng_startwork_handler(struct work_struct *w)
 {
 	struct cctrng_drvdata *drvdata =
 			container_of(w, struct cctrng_drvdata, startwork);
