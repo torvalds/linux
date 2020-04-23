@@ -112,10 +112,8 @@ static bool cpts_match_tx_ts(struct cpts *cpts, struct cpts_event *event)
 					(struct cpts_skb_cb_data *)skb->cb;
 
 		if (cpts_match(skb, class, seqid, mtype)) {
-			u64 ns = timecounter_cyc2time(&cpts->tc, event->low);
-
 			memset(&ssh, 0, sizeof(ssh));
-			ssh.hwtstamp = ns_to_ktime(ns);
+			ssh.hwtstamp = ns_to_ktime(event->timestamp);
 			skb_tstamp_tx(skb, &ssh);
 			found = true;
 			__skb_unlink(skb, &cpts->txq);
@@ -158,8 +156,16 @@ static int cpts_fifo_read(struct cpts *cpts, int match)
 		event->tmo = jiffies + 2;
 		event->high = hi;
 		event->low = lo;
+		event->timestamp = timecounter_cyc2time(&cpts->tc, event->low);
 		type = event_type(event);
+
+		dev_dbg(cpts->dev, "CPTS_EV: %d high:%08X low:%08x\n",
+			type, event->high, event->low);
 		switch (type) {
+		case CPTS_EV_PUSH:
+			WRITE_ONCE(cpts->cur_timestamp, lo);
+			timecounter_read(&cpts->tc);
+			break;
 		case CPTS_EV_TX:
 			if (cpts_match_tx_ts(cpts, event)) {
 				/* if the new event matches an existing skb,
@@ -168,7 +174,6 @@ static int cpts_fifo_read(struct cpts *cpts, int match)
 				break;
 			}
 			/* fall through */
-		case CPTS_EV_PUSH:
 		case CPTS_EV_RX:
 			list_del_init(&event->list);
 			list_add_tail(&event->list, &cpts->events);
@@ -189,26 +194,17 @@ static int cpts_fifo_read(struct cpts *cpts, int match)
 
 static u64 cpts_systim_read(const struct cyclecounter *cc)
 {
-	u64 val = 0;
-	struct cpts_event *event;
-	struct list_head *this, *next;
 	struct cpts *cpts = container_of(cc, struct cpts, cc);
 
+	return READ_ONCE(cpts->cur_timestamp);
+}
+
+static void cpts_update_cur_time(struct cpts *cpts, int match)
+{
 	cpts_write32(cpts, TS_PUSH, ts_push);
-	if (cpts_fifo_read(cpts, CPTS_EV_PUSH))
+
+	if (cpts_fifo_read(cpts, match) && match != -1)
 		dev_err(cpts->dev, "cpts: unable to obtain a time stamp\n");
-
-	list_for_each_safe(this, next, &cpts->events) {
-		event = list_entry(this, struct cpts_event, list);
-		if (event_type(event) == CPTS_EV_PUSH) {
-			list_del_init(&event->list);
-			list_add(&event->list, &cpts->pool);
-			val = event->low;
-			break;
-		}
-	}
-
-	return val;
 }
 
 /* PTP clock operations */
@@ -232,7 +228,7 @@ static int cpts_ptp_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
 
 	spin_lock_irqsave(&cpts->lock, flags);
 
-	timecounter_read(&cpts->tc);
+	cpts_update_cur_time(cpts, CPTS_EV_PUSH);
 
 	cpts->cc.mult = neg_adj ? mult - diff : mult + diff;
 
@@ -260,6 +256,9 @@ static int cpts_ptp_gettime(struct ptp_clock_info *ptp, struct timespec64 *ts)
 	struct cpts *cpts = container_of(ptp, struct cpts, info);
 
 	spin_lock_irqsave(&cpts->lock, flags);
+
+	cpts_update_cur_time(cpts, CPTS_EV_PUSH);
+
 	ns = timecounter_read(&cpts->tc);
 	spin_unlock_irqrestore(&cpts->lock, flags);
 
@@ -294,11 +293,14 @@ static long cpts_overflow_check(struct ptp_clock_info *ptp)
 {
 	struct cpts *cpts = container_of(ptp, struct cpts, info);
 	unsigned long delay = cpts->ov_check_period;
-	struct timespec64 ts;
 	unsigned long flags;
+	u64 ns;
 
 	spin_lock_irqsave(&cpts->lock, flags);
-	ts = ns_to_timespec64(timecounter_read(&cpts->tc));
+
+	cpts_update_cur_time(cpts, -1);
+
+	ns = timecounter_read(&cpts->tc);
 
 	if (!skb_queue_empty(&cpts->txq)) {
 		cpts_purge_txq(cpts);
@@ -307,8 +309,7 @@ static long cpts_overflow_check(struct ptp_clock_info *ptp)
 	}
 	spin_unlock_irqrestore(&cpts->lock, flags);
 
-	dev_dbg(cpts->dev, "cpts overflow check at %lld.%09ld\n",
-		(long long)ts.tv_sec, ts.tv_nsec);
+	dev_dbg(cpts->dev, "cpts overflow check at %lld\n", ns);
 	return (long)delay;
 }
 
@@ -390,7 +391,7 @@ static u64 cpts_find_ts(struct cpts *cpts, struct sk_buff *skb, int ev_type)
 		seqid = (event->high >> SEQUENCE_ID_SHIFT) & SEQUENCE_ID_MASK;
 		if (ev_type == event_type(event) &&
 		    cpts_match(skb, class, seqid, mtype)) {
-			ns = timecounter_cyc2time(&cpts->tc, event->low);
+			ns = event->timestamp;
 			list_del_init(&event->list);
 			list_add(&event->list, &cpts->pool);
 			break;

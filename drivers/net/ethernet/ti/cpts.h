@@ -94,6 +94,7 @@ struct cpts_event {
 	unsigned long tmo;
 	u32 high;
 	u32 low;
+	u64 timestamp;
 };
 
 struct cpts {
@@ -114,6 +115,7 @@ struct cpts {
 	struct cpts_event pool_data[CPTS_MAX_EVENTS];
 	unsigned long ov_check_period;
 	struct sk_buff_head txq;
+	u64 cur_timestamp;
 };
 
 void cpts_rx_timestamp(struct cpts *cpts, struct sk_buff *skb);
