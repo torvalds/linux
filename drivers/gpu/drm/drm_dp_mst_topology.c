@@ -1205,6 +1205,8 @@ static int drm_dp_mst_wait_tx_reply(struct drm_dp_mst_branch *mstb,
 		    txmsg->state == DRM_DP_SIDEBAND_TX_SENT) {
 			mstb->tx_slots[txmsg->seqno] = NULL;
 		}
+		mgr->is_waiting_for_dwn_reply = false;
+
 	}
 out:
 	if (unlikely(ret == -EIO) && drm_debug_enabled(DRM_UT_DP)) {
@@ -1214,6 +1216,7 @@ out:
 	}
 	mutex_unlock(&mgr->qlock);
 
+	drm_dp_mst_kick_tx(mgr);
 	return ret;
 }
 
@@ -2789,9 +2792,11 @@ static void process_single_down_tx_qlock(struct drm_dp_mst_topology_mgr *mgr)
 	ret = process_single_tx_qlock(mgr, txmsg, false);
 	if (ret == 1) {
 		/* txmsg is sent it should be in the slots now */
+		mgr->is_waiting_for_dwn_reply = true;
 		list_del(&txmsg->next);
 	} else if (ret) {
 		DRM_DEBUG_KMS("failed to send msg in q %d\n", ret);
+		mgr->is_waiting_for_dwn_reply = false;
 		list_del(&txmsg->next);
 		if (txmsg->seqno != -1)
 			txmsg->dst->tx_slots[txmsg->seqno] = NULL;
@@ -2831,7 +2836,8 @@ static void drm_dp_queue_down_tx(struct drm_dp_mst_topology_mgr *mgr,
 		drm_dp_mst_dump_sideband_msg_tx(&p, txmsg);
 	}
 
-	if (list_is_singular(&mgr->tx_msg_downq))
+	if (list_is_singular(&mgr->tx_msg_downq) &&
+	    !mgr->is_waiting_for_dwn_reply)
 		process_single_down_tx_qlock(mgr);
 	mutex_unlock(&mgr->qlock);
 }
@@ -3823,6 +3829,7 @@ static int drm_dp_mst_handle_down_rep(struct drm_dp_mst_topology_mgr *mgr)
 	mutex_lock(&mgr->qlock);
 	txmsg->state = DRM_DP_SIDEBAND_TX_RX;
 	mstb->tx_slots[seqno] = NULL;
+	mgr->is_waiting_for_dwn_reply = false;
 	mutex_unlock(&mgr->qlock);
 
 	wake_up_all(&mgr->tx_waitq);
@@ -3830,6 +3837,9 @@ static int drm_dp_mst_handle_down_rep(struct drm_dp_mst_topology_mgr *mgr)
 	return 0;
 
 out_clear_reply:
+	mutex_lock(&mgr->qlock);
+	mgr->is_waiting_for_dwn_reply = false;
+	mutex_unlock(&mgr->qlock);
 	if (msg)
 		memset(msg, 0, sizeof(struct drm_dp_sideband_msg_rx));
 out:
@@ -4682,7 +4692,7 @@ static void drm_dp_tx_work(struct work_struct *work)
 	struct drm_dp_mst_topology_mgr *mgr = container_of(work, struct drm_dp_mst_topology_mgr, tx_work);
 
 	mutex_lock(&mgr->qlock);
-	if (!list_empty(&mgr->tx_msg_downq))
+	if (!list_empty(&mgr->tx_msg_downq) && !mgr->is_waiting_for_dwn_reply)
 		process_single_down_tx_qlock(mgr);
 	mutex_unlock(&mgr->qlock);
 }
