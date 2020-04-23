@@ -613,7 +613,8 @@ static void ucsi_handle_connector_change(struct work_struct *work)
 
 	role = !!(con->status.flags & UCSI_CONSTAT_PWR_DIR);
 
-	if (con->status.change & UCSI_CONSTAT_POWER_OPMODE_CHANGE)
+	if (con->status.change & UCSI_CONSTAT_POWER_OPMODE_CHANGE ||
+	    con->status.change & UCSI_CONSTAT_POWER_LEVEL_CHANGE)
 		ucsi_pwr_opmode_change(con);
 
 	if (con->status.change & UCSI_CONSTAT_POWER_DIR_CHANGE) {
