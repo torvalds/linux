@@ -53,8 +53,6 @@ struct iommu_fault_event;
 
 typedef int (*iommu_fault_handler_t)(struct iommu_domain *,
 			struct device *, unsigned long, int, void *);
-typedef int (*iommu_mm_exit_handler_t)(struct device *dev, struct iommu_sva *,
-				       void *);
 typedef int (*iommu_dev_fault_handler_t)(struct iommu_fault *, void *);
 
 struct iommu_domain_geometry {
@@ -170,25 +168,6 @@ enum iommu_dev_features {
 };
 
 #define IOMMU_PASID_INVALID	(-1U)
-
-/**
- * struct iommu_sva_ops - device driver callbacks for an SVA context
- *
- * @mm_exit: called when the mm is about to be torn down by exit_mmap. After
- *           @mm_exit returns, the device must not issue any more transaction
- *           with the PASID given as argument.
- *
- *           The @mm_exit handler is allowed to sleep. Be careful about the
- *           locks taken in @mm_exit, because they might lead to deadlocks if
- *           they are also held when dropping references to the mm. Consider the
- *           following call chain:
- *           mutex_lock(A); mmput(mm) -> exit_mm() -> @mm_exit() -> mutex_lock(A)
- *           Using mmput_async() prevents this scenario.
- *
- */
-struct iommu_sva_ops {
-	iommu_mm_exit_handler_t mm_exit;
-};
 
 #ifdef CONFIG_IOMMU_API
 
@@ -616,7 +595,6 @@ struct iommu_fwspec {
  */
 struct iommu_sva {
 	struct device			*dev;
-	const struct iommu_sva_ops	*ops;
 };
 
 int iommu_fwspec_init(struct device *dev, struct fwnode_handle *iommu_fwnode,
@@ -664,8 +642,6 @@ struct iommu_sva *iommu_sva_bind_device(struct device *dev,
 					struct mm_struct *mm,
 					void *drvdata);
 void iommu_sva_unbind_device(struct iommu_sva *handle);
-int iommu_sva_set_ops(struct iommu_sva *handle,
-		      const struct iommu_sva_ops *ops);
 int iommu_sva_get_pasid(struct iommu_sva *handle);
 
 #else /* CONFIG_IOMMU_API */
@@ -1067,12 +1043,6 @@ iommu_sva_bind_device(struct device *dev, struct mm_struct *mm, void *drvdata)
 
 static inline void iommu_sva_unbind_device(struct iommu_sva *handle)
 {
-}
-
-static inline int iommu_sva_set_ops(struct iommu_sva *handle,
-				    const struct iommu_sva_ops *ops)
-{
-	return -EINVAL;
 }
 
 static inline int iommu_sva_get_pasid(struct iommu_sva *handle)

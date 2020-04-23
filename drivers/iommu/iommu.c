@@ -2883,17 +2883,6 @@ void iommu_sva_unbind_device(struct iommu_sva *handle)
 }
 EXPORT_SYMBOL_GPL(iommu_sva_unbind_device);
 
-int iommu_sva_set_ops(struct iommu_sva *handle,
-		      const struct iommu_sva_ops *sva_ops)
-{
-	if (handle->ops && handle->ops != sva_ops)
-		return -EEXIST;
-
-	handle->ops = sva_ops;
-	return 0;
-}
-EXPORT_SYMBOL_GPL(iommu_sva_set_ops);
-
 int iommu_sva_get_pasid(struct iommu_sva *handle)
 {
 	const struct iommu_ops *ops = handle->dev->bus->iommu_ops;
