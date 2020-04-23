@@ -697,11 +697,9 @@ static int soc_compr_set_metadata(struct snd_compr_stream *cstream,
 	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
 	int i, ret;
 
-	if (cpu_dai->driver->cops && cpu_dai->driver->cops->set_metadata) {
-		ret = cpu_dai->driver->cops->set_metadata(cstream, metadata, cpu_dai);
-		if (ret < 0)
-			return ret;
-	}
+	ret = snd_soc_dai_compr_set_metadata(cpu_dai, cstream, metadata);
+	if (ret < 0)
+		return ret;
 
 	for_each_rtd_components(rtd, i, component) {
 		if (!component->driver->compress_ops ||
