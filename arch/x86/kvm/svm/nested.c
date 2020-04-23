@@ -801,13 +801,13 @@ int nested_svm_check_exception(struct vcpu_svm *svm, unsigned nr,
 
 static void nested_svm_intr(struct vcpu_svm *svm)
 {
+	trace_kvm_nested_intr_vmexit(svm->vmcb->save.rip);
+
 	svm->vmcb->control.exit_code   = SVM_EXIT_INTR;
 	svm->vmcb->control.exit_info_1 = 0;
 	svm->vmcb->control.exit_info_2 = 0;
 
-	/* nested_svm_vmexit this gets called afterwards from handle_exit */
-	svm->nested.exit_required = true;
-	trace_kvm_nested_intr_vmexit(svm->vmcb->save.rip);
+	nested_svm_vmexit(svm);
 }
 
 static bool nested_exit_on_intr(struct vcpu_svm *svm)
