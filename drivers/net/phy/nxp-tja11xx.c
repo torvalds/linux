@@ -6,15 +6,19 @@
 #include <linux/delay.h>
 #include <linux/ethtool.h>
 #include <linux/kernel.h>
+#include <linux/mdio.h>
 #include <linux/mii.h>
 #include <linux/module.h>
 #include <linux/phy.h>
 #include <linux/hwmon.h>
 #include <linux/bitfield.h>
+#include <linux/of_mdio.h>
+#include <linux/of_irq.h>
 
 #define PHY_ID_MASK			0xfffffff0
 #define PHY_ID_TJA1100			0x0180dc40
 #define PHY_ID_TJA1101			0x0180dd00
+#define PHY_ID_TJA1102			0x0180dc80
 
 #define MII_ECTRL			17
 #define MII_ECTRL_LINK_CONTROL		BIT(15)
@@ -40,6 +44,10 @@
 #define MII_INTSRC_TEMP_ERR		BIT(1)
 #define MII_INTSRC_UV_ERR		BIT(3)
 
+#define MII_INTEN			22
+#define MII_INTEN_LINK_FAIL		BIT(10)
+#define MII_INTEN_LINK_UP		BIT(9)
+
 #define MII_COMMSTAT			23
 #define MII_COMMSTAT_LINK_UP		BIT(15)
 
@@ -52,6 +60,8 @@
 struct tja11xx_priv {
 	char		*hwmon_name;
 	struct device	*hwmon_dev;
+	struct phy_device *phydev;
+	struct work_struct phy_register_work;
 };
 
 struct tja11xx_phy_stats {
@@ -180,6 +190,7 @@ static int tja11xx_config_init(struct phy_device *phydev)
 			return ret;
 		break;
 	case PHY_ID_TJA1101:
+	case PHY_ID_TJA1102:
 		ret = phy_set_bits(phydev, MII_COMMCFG, MII_COMMCFG_AUTO_OP);
 		if (ret)
 			return ret;
@@ -317,15 +328,11 @@ static const struct hwmon_chip_info tja11xx_hwmon_chip_info = {
 	.info		= tja11xx_hwmon_info,
 };
 
-static int tja11xx_probe(struct phy_device *phydev)
+static int tja11xx_hwmon_register(struct phy_device *phydev,
+				  struct tja11xx_priv *priv)
 {
 	struct device *dev = &phydev->mdio.dev;
-	struct tja11xx_priv *priv;
 	int i;
-
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv)
-		return -ENOMEM;
 
 	priv->hwmon_name = devm_kstrdup(dev, dev_name(dev), GFP_KERNEL);
 	if (!priv->hwmon_name)
@@ -342,6 +349,152 @@ static int tja11xx_probe(struct phy_device *phydev)
 						     NULL);
 
 	return PTR_ERR_OR_ZERO(priv->hwmon_dev);
+}
+
+static int tja11xx_probe(struct phy_device *phydev)
+{
+	struct device *dev = &phydev->mdio.dev;
+	struct tja11xx_priv *priv;
+
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	priv->phydev = phydev;
+
+	return tja11xx_hwmon_register(phydev, priv);
+}
+
+static void tja1102_p1_register(struct work_struct *work)
+{
+	struct tja11xx_priv *priv = container_of(work, struct tja11xx_priv,
+						 phy_register_work);
+	struct phy_device *phydev_phy0 = priv->phydev;
+	struct mii_bus *bus = phydev_phy0->mdio.bus;
+	struct device *dev = &phydev_phy0->mdio.dev;
+	struct device_node *np = dev->of_node;
+	struct device_node *child;
+	int ret;
+
+	for_each_available_child_of_node(np, child) {
+		struct phy_device *phy;
+		int addr;
+
+		addr = of_mdio_parse_addr(dev, child);
+		if (addr < 0) {
+			dev_err(dev, "Can't parse addr\n");
+			continue;
+		} else if (addr != phydev_phy0->mdio.addr + 1) {
+			/* Currently we care only about double PHY chip TJA1102.
+			 * If some day NXP will decide to bring chips with more
+			 * PHYs, this logic should be reworked.
+			 */
+			dev_err(dev, "Unexpected address. Should be: %i\n",
+				phydev_phy0->mdio.addr + 1);
+			continue;
+		}
+
+		if (mdiobus_is_registered_device(bus, addr)) {
+			dev_err(dev, "device is already registered\n");
+			continue;
+		}
+
+		/* Real PHY ID of Port 1 is 0 */
+		phy = phy_device_create(bus, addr, PHY_ID_TJA1102, false, NULL);
+		if (IS_ERR(phy)) {
+			dev_err(dev, "Can't create PHY device for Port 1: %i\n",
+				addr);
+			continue;
+		}
+
+		/* Overwrite parent device. phy_device_create() set parent to
+		 * the mii_bus->dev, which is not correct in case.
+		 */
+		phy->mdio.dev.parent = dev;
+
+		ret = of_mdiobus_phy_device_register(bus, phy, child, addr);
+		if (ret) {
+			/* All resources needed for Port 1 should be already
+			 * available for Port 0. Both ports use the same
+			 * interrupt line, so -EPROBE_DEFER would make no sense
+			 * here.
+			 */
+			dev_err(dev, "Can't register Port 1. Unexpected error: %i\n",
+				ret);
+			phy_device_free(phy);
+		}
+	}
+}
+
+static int tja1102_p0_probe(struct phy_device *phydev)
+{
+	struct device *dev = &phydev->mdio.dev;
+	struct tja11xx_priv *priv;
+	int ret;
+
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	priv->phydev = phydev;
+	INIT_WORK(&priv->phy_register_work, tja1102_p1_register);
+
+	ret = tja11xx_hwmon_register(phydev, priv);
+	if (ret)
+		return ret;
+
+	schedule_work(&priv->phy_register_work);
+
+	return 0;
+}
+
+static int tja1102_match_phy_device(struct phy_device *phydev, bool port0)
+{
+	int ret;
+
+	if ((phydev->phy_id & PHY_ID_MASK) != PHY_ID_TJA1102)
+		return 0;
+
+	ret = phy_read(phydev, MII_PHYSID2);
+	if (ret < 0)
+		return ret;
+
+	/* TJA1102 Port 1 has phyid 0 and doesn't support temperature
+	 * and undervoltage alarms.
+	 */
+	if (port0)
+		return ret ? 1 : 0;
+
+	return !ret;
+}
+
+static int tja1102_p0_match_phy_device(struct phy_device *phydev)
+{
+	return tja1102_match_phy_device(phydev, true);
+}
+
+static int tja1102_p1_match_phy_device(struct phy_device *phydev)
+{
+	return tja1102_match_phy_device(phydev, false);
+}
+
+static int tja11xx_ack_interrupt(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = phy_read(phydev, MII_INTSRC);
+
+	return (ret < 0) ? ret : 0;
+}
+
+static int tja11xx_config_intr(struct phy_device *phydev)
+{
+	int value = 0;
+
+	if (phydev->interrupts == PHY_INTERRUPT_ENABLED)
+		value = MII_INTEN_LINK_FAIL | MII_INTEN_LINK_UP;
+
+	return phy_write(phydev, MII_INTEN, value);
 }
 
 static struct phy_driver tja11xx_driver[] = {
@@ -375,6 +528,41 @@ static struct phy_driver tja11xx_driver[] = {
 		.get_sset_count = tja11xx_get_sset_count,
 		.get_strings	= tja11xx_get_strings,
 		.get_stats	= tja11xx_get_stats,
+	}, {
+		.name		= "NXP TJA1102 Port 0",
+		.features       = PHY_BASIC_T1_FEATURES,
+		.probe		= tja1102_p0_probe,
+		.soft_reset	= tja11xx_soft_reset,
+		.config_init	= tja11xx_config_init,
+		.read_status	= tja11xx_read_status,
+		.match_phy_device = tja1102_p0_match_phy_device,
+		.suspend	= genphy_suspend,
+		.resume		= genphy_resume,
+		.set_loopback   = genphy_loopback,
+		/* Statistics */
+		.get_sset_count = tja11xx_get_sset_count,
+		.get_strings	= tja11xx_get_strings,
+		.get_stats	= tja11xx_get_stats,
+		.ack_interrupt	= tja11xx_ack_interrupt,
+		.config_intr	= tja11xx_config_intr,
+
+	}, {
+		.name		= "NXP TJA1102 Port 1",
+		.features       = PHY_BASIC_T1_FEATURES,
+		/* currently no probe for Port 1 is need */
+		.soft_reset	= tja11xx_soft_reset,
+		.config_init	= tja11xx_config_init,
+		.read_status	= tja11xx_read_status,
+		.match_phy_device = tja1102_p1_match_phy_device,
+		.suspend	= genphy_suspend,
+		.resume		= genphy_resume,
+		.set_loopback   = genphy_loopback,
+		/* Statistics */
+		.get_sset_count = tja11xx_get_sset_count,
+		.get_strings	= tja11xx_get_strings,
+		.get_stats	= tja11xx_get_stats,
+		.ack_interrupt	= tja11xx_ack_interrupt,
+		.config_intr	= tja11xx_config_intr,
 	}
 };
 
@@ -383,6 +571,7 @@ module_phy_driver(tja11xx_driver);
 static struct mdio_device_id __maybe_unused tja11xx_tbl[] = {
 	{ PHY_ID_MATCH_MODEL(PHY_ID_TJA1100) },
 	{ PHY_ID_MATCH_MODEL(PHY_ID_TJA1101) },
+	{ PHY_ID_MATCH_MODEL(PHY_ID_TJA1102) },
 	{ }
 };
 
