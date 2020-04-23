@@ -1100,6 +1100,18 @@ static int ovl_get_upper(struct super_block *sb, struct ovl_fs *ofs,
 	upper_mnt->mnt_flags &= ~(MNT_NOATIME | MNT_NODIRATIME | MNT_RELATIME);
 	ofs->upper_mnt = upper_mnt;
 
+	/*
+	 * Inherit SB_NOSEC flag from upperdir.
+	 *
+	 * This optimization changes behavior when a security related attribute
+	 * (suid/sgid/security.*) is changed on an underlying layer.  This is
+	 * okay because we don't yet have guarantees in that case, but it will
+	 * need careful treatment once we want to honour changes to underlying
+	 * filesystems.
+	 */
+	if (upper_mnt->mnt_sb->s_flags & SB_NOSEC)
+		sb->s_flags |= SB_NOSEC;
+
 	if (ovl_inuse_trylock(ofs->upper_mnt->mnt_root)) {
 		ofs->upperdir_locked = true;
 	} else {
