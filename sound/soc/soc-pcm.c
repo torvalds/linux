@@ -950,13 +950,10 @@ static int soc_pcm_prepare(struct snd_pcm_substream *substream)
 		}
 	}
 
-	for_each_rtd_dais(rtd, i, dai) {
-		ret = snd_soc_dai_prepare(dai, substream);
-		if (ret < 0) {
-			dev_err(dai->dev,
-				"ASoC: DAI prepare error: %d\n", ret);
-			goto out;
-		}
+	ret = snd_soc_pcm_dai_prepare(substream);
+	if (ret < 0) {
+		dev_err(rtd->dev, "ASoC: DAI prepare error: %d\n", ret);
+		goto out;
 	}
 
 	/* cancel any delayed stream shutdown that is pending */
