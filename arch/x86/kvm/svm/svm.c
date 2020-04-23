@@ -3117,14 +3117,25 @@ bool svm_interrupt_blocked(struct kvm_vcpu *vcpu)
 	struct vcpu_svm *svm = to_svm(vcpu);
 	struct vmcb *vmcb = svm->vmcb;
 
-	if (!gif_set(svm) ||
-	     (vmcb->control.int_state & SVM_INTERRUPT_SHADOW_MASK))
+	if (!gif_set(svm))
 		return true;
 
-	if (is_guest_mode(vcpu) && (svm->vcpu.arch.hflags & HF_VINTR_MASK))
-		return !(svm->vcpu.arch.hflags & HF_HIF_MASK);
-	else
-		return !(kvm_get_rflags(vcpu) & X86_EFLAGS_IF);
+	if (is_guest_mode(vcpu)) {
+		/* As long as interrupts are being delivered...  */
+		if ((svm->vcpu.arch.hflags & HF_VINTR_MASK)
+		    ? !(svm->vcpu.arch.hflags & HF_HIF_MASK)
+		    : !(kvm_get_rflags(vcpu) & X86_EFLAGS_IF))
+			return true;
+
+		/* ... vmexits aren't blocked by the interrupt shadow  */
+		if (nested_exit_on_intr(svm))
+			return false;
+	} else {
+		if (!(kvm_get_rflags(vcpu) & X86_EFLAGS_IF))
+			return true;
+	}
+
+	return (vmcb->control.int_state & SVM_INTERRUPT_SHADOW_MASK);
 }
 
 static bool svm_interrupt_allowed(struct kvm_vcpu *vcpu)

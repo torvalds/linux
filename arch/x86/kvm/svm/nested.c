@@ -828,11 +828,6 @@ static void nested_svm_intr(struct vcpu_svm *svm)
 	nested_svm_vmexit(svm);
 }
 
-static bool nested_exit_on_intr(struct vcpu_svm *svm)
-{
-	return (svm->nested.intercept & 1ULL);
-}
-
 static int svm_check_nested_events(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);

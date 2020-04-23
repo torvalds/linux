@@ -386,6 +386,11 @@ static inline bool nested_exit_on_smi(struct vcpu_svm *svm)
 	return (svm->nested.intercept & (1ULL << INTERCEPT_SMI));
 }
 
+static inline bool nested_exit_on_intr(struct vcpu_svm *svm)
+{
+	return (svm->nested.intercept & (1ULL << INTERCEPT_INTR));
+}
+
 static inline bool nested_exit_on_nmi(struct vcpu_svm *svm)
 {
 	return (svm->nested.intercept & (1ULL << INTERCEPT_NMI));
