@@ -25,10 +25,6 @@ static int copy_query_item(void *query_hdr, size_t query_sz,
 			   query_sz))
 		return -EFAULT;
 
-	if (!access_ok(u64_to_user_ptr(query_item->data_ptr),
-		       total_length))
-		return -EFAULT;
-
 	return 0;
 }
 
@@ -72,20 +68,20 @@ static int query_topology_info(struct drm_i915_private *dev_priv,
 	topo.eu_offset = slice_length + subslice_length;
 	topo.eu_stride = sseu->eu_stride;
 
-	if (__copy_to_user(u64_to_user_ptr(query_item->data_ptr),
+	if (copy_to_user(u64_to_user_ptr(query_item->data_ptr),
 			   &topo, sizeof(topo)))
 		return -EFAULT;
 
-	if (__copy_to_user(u64_to_user_ptr(query_item->data_ptr + sizeof(topo)),
+	if (copy_to_user(u64_to_user_ptr(query_item->data_ptr + sizeof(topo)),
 			   &sseu->slice_mask, slice_length))
 		return -EFAULT;
 
-	if (__copy_to_user(u64_to_user_ptr(query_item->data_ptr +
+	if (copy_to_user(u64_to_user_ptr(query_item->data_ptr +
 					   sizeof(topo) + slice_length),
 			   sseu->subslice_mask, subslice_length))
 		return -EFAULT;
 
-	if (__copy_to_user(u64_to_user_ptr(query_item->data_ptr +
+	if (copy_to_user(u64_to_user_ptr(query_item->data_ptr +
 					   sizeof(topo) +
 					   slice_length + subslice_length),
 			   sseu->eu_mask, eu_length))
@@ -131,14 +127,14 @@ query_engine_info(struct drm_i915_private *i915,
 		info.engine.engine_instance = engine->uabi_instance;
 		info.capabilities = engine->uabi_capabilities;
 
-		if (__copy_to_user(info_ptr, &info, sizeof(info)))
+		if (copy_to_user(info_ptr, &info, sizeof(info)))
 			return -EFAULT;
 
 		query.num_engines++;
 		info_ptr++;
 	}
 
-	if (__copy_to_user(query_ptr, &query, sizeof(query)))
+	if (copy_to_user(query_ptr, &query, sizeof(query)))
 		return -EFAULT;
 
 	return len;
