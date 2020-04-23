@@ -366,16 +366,6 @@ snd_pcm_sframes_t snd_soc_dai_delay(struct snd_soc_dai *dai,
 	return delay;
 }
 
-int snd_soc_dai_remove(struct snd_soc_dai *dai)
-{
-	int ret = 0;
-
-	if (dai->driver->remove)
-		ret = dai->driver->remove(dai);
-
-	return soc_dai_ret(dai, ret);
-}
-
 int snd_soc_dai_compress_new(struct snd_soc_dai *dai,
 			     struct snd_soc_pcm_runtime *rtd, int num)
 {
@@ -418,6 +408,28 @@ int snd_soc_pcm_dai_probe(struct snd_soc_pcm_runtime *rtd, int order)
 	}
 
 	return 0;
+}
+
+int snd_soc_pcm_dai_remove(struct snd_soc_pcm_runtime *rtd, int order)
+{
+	struct snd_soc_dai *dai;
+	int i, r, ret = 0;
+
+	for_each_rtd_dais(rtd, i, dai) {
+		if (dai->driver->remove_order != order)
+			continue;
+
+		if (dai->probed &&
+		    dai->driver->remove) {
+			r = dai->driver->remove(dai);
+			if (r < 0)
+				ret = r; /* use last error */
+		}
+
+		dai->probed = 0;
+	}
+
+	return ret;
 }
 
 int snd_soc_pcm_dai_new(struct snd_soc_pcm_runtime *rtd)

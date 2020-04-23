@@ -1256,35 +1256,15 @@ err_probe:
 	return ret;
 }
 
-static void soc_remove_dai(struct snd_soc_dai *dai, int order)
-{
-	int err;
-
-	if (!dai || !dai->probed || !dai->driver ||
-	    dai->driver->remove_order != order)
-		return;
-
-	err = snd_soc_dai_remove(dai);
-	if (err < 0)
-		dev_err(dai->dev,
-			"ASoC: failed to remove %s: %d\n",
-			dai->name, err);
-
-	dai->probed = 0;
-}
-
 static void soc_remove_link_dais(struct snd_soc_card *card)
 {
-	int i;
-	struct snd_soc_dai *dai;
 	struct snd_soc_pcm_runtime *rtd;
 	int order;
 
 	for_each_comp_order(order) {
 		for_each_card_rtds(card, rtd) {
-			/* remove DAIs */
-			for_each_rtd_dais(rtd, i, dai)
-				soc_remove_dai(dai, order);
+			/* remove all rtd connected DAIs in good order */
+			snd_soc_pcm_dai_remove(rtd, order);
 		}
 	}
 }
