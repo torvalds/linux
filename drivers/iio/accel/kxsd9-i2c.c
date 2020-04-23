@@ -21,8 +21,8 @@ static int kxsd9_i2c_probe(struct i2c_client *i2c,
 
 	regmap = devm_regmap_init_i2c(i2c, &config);
 	if (IS_ERR(regmap)) {
-		dev_err(&i2c->dev, "Failed to register i2c regmap %d\n",
-			(int)PTR_ERR(regmap));
+		dev_err(&i2c->dev, "Failed to register i2c regmap: %pe\n",
+			regmap);
 		return PTR_ERR(regmap);
 	}
 
