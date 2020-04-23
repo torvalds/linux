@@ -445,3 +445,19 @@ bool snd_soc_dai_stream_valid(struct snd_soc_dai *dai, int dir)
 	/* If the codec specifies any channels at all, it supports the stream */
 	return stream->channels_min;
 }
+
+int snd_soc_pcm_dai_new(struct snd_soc_pcm_runtime *rtd)
+{
+	struct snd_soc_dai *dai;
+	int i, ret = 0;
+
+	for_each_rtd_dais(rtd, i, dai) {
+		if (dai->driver->pcm_new) {
+			ret = dai->driver->pcm_new(rtd, dai);
+			if (ret < 0)
+				return soc_dai_ret(dai, ret);
+		}
+	}
+
+	return 0;
+}

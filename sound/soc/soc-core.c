@@ -1036,27 +1036,6 @@ _err_defer:
 }
 EXPORT_SYMBOL_GPL(snd_soc_add_pcm_runtime);
 
-static int soc_dai_pcm_new(struct snd_soc_pcm_runtime *rtd)
-{
-	struct snd_soc_dai *dai;
-	int i, ret = 0;
-
-	for_each_rtd_dais(rtd, i, dai) {
-		struct snd_soc_dai_driver *drv = dai->driver;
-
-		if (drv->pcm_new)
-			ret = drv->pcm_new(rtd, dai);
-		if (ret < 0) {
-			dev_err(dai->dev,
-				"ASoC: Failed to bind %s with pcm device\n",
-				dai->name);
-			return ret;
-		}
-	}
-
-	return 0;
-}
-
 static int soc_init_pcm_runtime(struct snd_soc_card *card,
 				struct snd_soc_pcm_runtime *rtd)
 {
@@ -1121,7 +1100,7 @@ static int soc_init_pcm_runtime(struct snd_soc_card *card,
 		return ret;
 	}
 
-	return soc_dai_pcm_new(rtd);
+	return snd_soc_pcm_dai_new(rtd);
 }
 
 static void soc_set_name_prefix(struct snd_soc_card *card,

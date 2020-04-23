@@ -170,6 +170,8 @@ int snd_soc_dai_compress_new(struct snd_soc_dai *dai,
 			     struct snd_soc_pcm_runtime *rtd, int num);
 bool snd_soc_dai_stream_valid(struct snd_soc_dai *dai, int stream);
 
+int snd_soc_pcm_dai_new(struct snd_soc_pcm_runtime *rtd);
+
 struct snd_soc_dai_ops {
 	/*
 	 * DAI clocking configuration, all optional.
