@@ -378,6 +378,11 @@ static inline bool svm_nested_virtualize_tpr(struct kvm_vcpu *vcpu)
 	return is_guest_mode(vcpu) && (vcpu->arch.hflags & HF_VINTR_MASK);
 }
 
+static inline bool nested_exit_on_smi(struct vcpu_svm *svm)
+{
+	return (svm->nested.intercept & (1ULL << INTERCEPT_SMI));
+}
+
 static inline bool nested_exit_on_nmi(struct vcpu_svm *svm)
 {
 	return (svm->nested.intercept & (1ULL << INTERCEPT_NMI));

@@ -3778,14 +3778,6 @@ static bool svm_smi_allowed(struct kvm_vcpu *vcpu)
 	if (!gif_set(svm))
 		return false;
 
-	if (is_guest_mode(&svm->vcpu) &&
-	    svm->nested.intercept & (1ULL << INTERCEPT_SMI)) {
-		/* TODO: Might need to set exit_info_1 and exit_info_2 here */
-		svm->vmcb->control.exit_code = SVM_EXIT_SMI;
-		svm->nested.exit_required = true;
-		return false;
-	}
-
 	return !is_smm(vcpu);
 }
 

@@ -799,6 +799,15 @@ int nested_svm_check_exception(struct vcpu_svm *svm, unsigned nr,
 	return vmexit;
 }
 
+static void nested_svm_smi(struct vcpu_svm *svm)
+{
+	svm->vmcb->control.exit_code = SVM_EXIT_SMI;
+	svm->vmcb->control.exit_info_1 = 0;
+	svm->vmcb->control.exit_info_2 = 0;
+
+	nested_svm_vmexit(svm);
+}
+
 static void nested_svm_nmi(struct vcpu_svm *svm)
 {
 	svm->vmcb->control.exit_code = SVM_EXIT_NMI;
@@ -830,6 +839,13 @@ static int svm_check_nested_events(struct kvm_vcpu *vcpu)
 	bool block_nested_events =
 		kvm_event_needs_reinjection(vcpu) || svm->nested.exit_required ||
 		svm->nested.nested_run_pending;
+
+	if (vcpu->arch.smi_pending && nested_exit_on_smi(svm)) {
+		if (block_nested_events)
+			return -EBUSY;
+		nested_svm_smi(svm);
+		return 0;
+	}
 
 	if (vcpu->arch.nmi_pending && nested_exit_on_nmi(svm)) {
 		if (block_nested_events)
