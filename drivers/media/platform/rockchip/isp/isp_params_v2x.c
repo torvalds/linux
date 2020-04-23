@@ -3399,10 +3399,12 @@ isp_3dlut_config(struct rkisp_isp_params_vdev *params_vdev,
 	value = priv_val->buf_3dlut[buf_idx].dma_addr;
 	rkisp_iowrite32(params_vdev, value, MI_LUT_3D_RD_BASE);
 	rkisp_iowrite32(params_vdev, arg->actual_size, MI_LUT_3D_RD_WSIZE);
-	isp_param_set_bits(params_vdev, ISP_3DLUT_UPDATE, 0x01);
 
 	value = rkisp_ioread32(params_vdev, ISP_3DLUT_CTRL);
 	value &= ISP_3DLUT_EN;
+
+	if (value)
+		isp_param_set_bits(params_vdev, ISP_3DLUT_UPDATE, 0x01);
 
 	if (arg->bypass_en)
 		value |= ISP_3DLUT_BYPASS;
@@ -3414,10 +3416,21 @@ static void
 isp_3dlut_enable(struct rkisp_isp_params_vdev *params_vdev,
 		 bool en)
 {
-	if (en)
+	u32 value;
+	bool en_state;
+
+	value = rkisp_ioread32(params_vdev, ISP_3DLUT_CTRL);
+	en_state = (value & ISP_3DLUT_EN) ? true : false;
+
+	if (en == en_state)
+		return;
+
+	if (en) {
 		isp_param_set_bits(params_vdev, ISP_3DLUT_CTRL, 0x01);
-	else
+		isp_param_set_bits(params_vdev, ISP_3DLUT_UPDATE, 0x01);
+	} else {
 		isp_param_clear_bits(params_vdev, ISP_3DLUT_CTRL, 0x01);
+	}
 }
 
 static void
