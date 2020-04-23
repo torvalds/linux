@@ -7713,6 +7713,9 @@ static int inject_pending_event(struct kvm_vcpu *vcpu)
 			kvm_x86_ops.set_irq(vcpu);
 	}
 
+	WARN_ON_ONCE(vcpu->arch.exception.injected &&
+		     vcpu->arch.exception.pending);
+
 	/*
 	 * Call check_nested_events() even if we reinjected a previous event
 	 * in order for caller to determine if it should require immediate-exit
@@ -7731,7 +7734,6 @@ static int inject_pending_event(struct kvm_vcpu *vcpu)
 					vcpu->arch.exception.has_error_code,
 					vcpu->arch.exception.error_code);
 
-		WARN_ON_ONCE(vcpu->arch.exception.injected);
 		vcpu->arch.exception.pending = false;
 		vcpu->arch.exception.injected = true;
 
