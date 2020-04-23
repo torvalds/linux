@@ -367,6 +367,7 @@ struct mpt3sas_nvme_cmd {
 #define MPT3SAS_HIGH_IOPS_REPLY_QUEUES		8
 #define MPT3SAS_HIGH_IOPS_BATCH_COUNT		16
 #define MPT3SAS_GEN35_MAX_MSIX_QUEUES		128
+#define RDPQ_MAX_INDEX_IN_ONE_CHUNK		16
 
 /* OEM Specific Flags will come from OEM specific header files */
 struct Mpi2ManufacturingPage10_t {
@@ -1063,6 +1064,7 @@ typedef void (*MPT3SAS_FLUSH_RUNNING_CMDS)(struct MPT3SAS_ADAPTER *ioc);
  * @thresh_hold: Max number of reply descriptors processed
  *				before updating Host Index
  * @drv_support_bitmap: driver's supported feature bit map
+ * @use_32bit_dma: Flag to use 32 bit consistent dma mask
  * @scsi_io_cb_idx: shost generated commands
  * @tm_cb_idx: task management commands
  * @scsih_cb_idx: scsih internal commands
@@ -1252,6 +1254,7 @@ struct MPT3SAS_ADAPTER {
 	u8		high_iops_queues;
 	u32		drv_support_bitmap;
 	bool		enable_sdev_max_qd;
+	bool		use_32bit_dma;
 
 	/* internal commands, callback index */
 	u8		scsi_io_cb_idx;
