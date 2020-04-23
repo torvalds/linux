@@ -2841,11 +2841,27 @@ scsi_host_block(struct Scsi_Host *shost)
 	struct scsi_device *sdev;
 	int ret = 0;
 
+	/*
+	 * Call scsi_internal_device_block_nowait so we can avoid
+	 * calling synchronize_rcu() for each LUN.
+	 */
 	shost_for_each_device(sdev, shost) {
-		ret = scsi_internal_device_block(sdev);
+		mutex_lock(&sdev->state_mutex);
+		ret = scsi_internal_device_block_nowait(sdev);
+		mutex_unlock(&sdev->state_mutex);
 		if (ret)
 			break;
 	}
+
+	/*
+	 * SCSI never enables blk-mq's BLK_MQ_F_BLOCKING flag so
+	 * calling synchronize_rcu() once is enough.
+	 */
+	WARN_ON_ONCE(shost->tag_set.flags & BLK_MQ_F_BLOCKING);
+
+	if (!ret)
+		synchronize_rcu();
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(scsi_host_block);
