@@ -345,8 +345,12 @@ int nested_svm_vmrun(struct vcpu_svm *svm)
 	struct kvm_host_map map;
 	u64 vmcb_gpa;
 
-	vmcb_gpa = svm->vmcb->save.rax;
+	if (is_smm(&svm->vcpu)) {
+		kvm_queue_exception(&svm->vcpu, UD_VECTOR);
+		return 1;
+	}
 
+	vmcb_gpa = svm->vmcb->save.rax;
 	ret = kvm_vcpu_map(&svm->vcpu, gpa_to_gfn(vmcb_gpa), &map);
 	if (ret == -EINVAL) {
 		kvm_inject_gp(&svm->vcpu, 0);
