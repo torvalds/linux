@@ -60,6 +60,28 @@ alternative_if ARM64_HAS_ADDRESS_AUTH
 alternative_else_nop_endif
 	.endm
 
+	.macro __ptrauth_keys_init_cpu tsk, tmp1, tmp2, tmp3
+	mrs	\tmp1, id_aa64isar1_el1
+	ubfx	\tmp1, \tmp1, #ID_AA64ISAR1_APA_SHIFT, #8
+	cbz	\tmp1, .Lno_addr_auth\@
+	mov_q	\tmp1, (SCTLR_ELx_ENIA | SCTLR_ELx_ENIB | \
+			SCTLR_ELx_ENDA | SCTLR_ELx_ENDB)
+	mrs	\tmp2, sctlr_el1
+	orr	\tmp2, \tmp2, \tmp1
+	msr	sctlr_el1, \tmp2
+	__ptrauth_keys_install_kernel_nosync \tsk, \tmp1, \tmp2, \tmp3
+	isb
+.Lno_addr_auth\@:
+	.endm
+
+	.macro ptrauth_keys_init_cpu tsk, tmp1, tmp2, tmp3
+alternative_if_not ARM64_HAS_ADDRESS_AUTH
+	b	.Lno_addr_auth\@
+alternative_else_nop_endif
+	__ptrauth_keys_init_cpu \tsk, \tmp1, \tmp2, \tmp3
+.Lno_addr_auth\@:
+	.endm
+
 #else /* CONFIG_ARM64_PTR_AUTH */
 
 	.macro ptrauth_keys_install_user tsk, tmp1, tmp2, tmp3
