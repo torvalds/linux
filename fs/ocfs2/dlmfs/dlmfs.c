@@ -275,7 +275,6 @@ static ssize_t dlmfs_file_write(struct file *filp,
 				loff_t *ppos)
 {
 	int bytes_left;
-	ssize_t writelen;
 	char *lvb_buf;
 	struct inode *inode = file_inode(filp);
 
@@ -285,32 +284,30 @@ static ssize_t dlmfs_file_write(struct file *filp,
 	if (*ppos >= i_size_read(inode))
 		return -ENOSPC;
 
+	/* don't write past the lvb */
+	if (count > i_size_read(inode) - *ppos)
+		count = i_size_read(inode) - *ppos;
+
 	if (!count)
 		return 0;
 
 	if (!access_ok(buf, count))
 		return -EFAULT;
 
-	/* don't write past the lvb */
-	if ((count + *ppos) > i_size_read(inode))
-		writelen = i_size_read(inode) - *ppos;
-	else
-		writelen = count - *ppos;
-
-	lvb_buf = kmalloc(writelen, GFP_NOFS);
+	lvb_buf = kmalloc(count, GFP_NOFS);
 	if (!lvb_buf)
 		return -ENOMEM;
 
-	bytes_left = copy_from_user(lvb_buf, buf, writelen);
-	writelen -= bytes_left;
-	if (writelen)
-		user_dlm_write_lvb(inode, lvb_buf, writelen);
+	bytes_left = copy_from_user(lvb_buf, buf, count);
+	count -= bytes_left;
+	if (count)
+		user_dlm_write_lvb(inode, lvb_buf, count);
 
 	kfree(lvb_buf);
 
-	*ppos = *ppos + writelen;
-	mlog(0, "wrote %zd bytes\n", writelen);
-	return writelen;
+	*ppos = *ppos + count;
+	mlog(0, "wrote %zu bytes\n", count);
+	return count;
 }
 
 static void dlmfs_init_once(void *foo)
