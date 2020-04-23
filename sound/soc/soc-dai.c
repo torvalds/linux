@@ -366,16 +366,6 @@ snd_pcm_sframes_t snd_soc_dai_delay(struct snd_soc_dai *dai,
 	return delay;
 }
 
-int snd_soc_dai_probe(struct snd_soc_dai *dai)
-{
-	int ret = 0;
-
-	if (dai->driver->probe)
-		ret = dai->driver->probe(dai);
-
-	return soc_dai_ret(dai, ret);
-}
-
 int snd_soc_dai_remove(struct snd_soc_dai *dai)
 {
 	int ret = 0;
@@ -406,6 +396,28 @@ bool snd_soc_dai_stream_valid(struct snd_soc_dai *dai, int dir)
 
 	/* If the codec specifies any channels at all, it supports the stream */
 	return stream->channels_min;
+}
+
+int snd_soc_pcm_dai_probe(struct snd_soc_pcm_runtime *rtd, int order)
+{
+	struct snd_soc_dai *dai;
+	int i;
+
+	for_each_rtd_dais(rtd, i, dai) {
+		if (dai->driver->probe_order != order)
+			continue;
+
+		if (dai->driver->probe) {
+			int ret = dai->driver->probe(dai);
+
+			if (ret < 0)
+				return soc_dai_ret(dai, ret);
+		}
+
+		dai->probed = 1;
+	}
+
+	return 0;
 }
 
 int snd_soc_pcm_dai_new(struct snd_soc_pcm_runtime *rtd)
