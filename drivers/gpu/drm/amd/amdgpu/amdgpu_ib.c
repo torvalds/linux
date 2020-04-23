@@ -162,6 +162,12 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		return -EINVAL;
 	}
 
+	if ((ib->flags & AMDGPU_IB_FLAGS_SECURE) &&
+	    (ring->funcs->type == AMDGPU_RING_TYPE_COMPUTE)) {
+		dev_err(adev->dev, "secure submissions not supported on compute rings\n");
+		return -EINVAL;
+	}
+
 	alloc_size = ring->funcs->emit_frame_size + num_ibs *
 		ring->funcs->emit_ib_size;
 
