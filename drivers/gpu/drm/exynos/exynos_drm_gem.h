@@ -21,20 +21,15 @@
  * @base: a gem object.
  *	- a new handle to this gem object would be created
  *	by drm_gem_handle_create().
- * @buffer: a pointer to exynos_drm_gem_buffer object.
- *	- contain the information to memory region allocated
- *	by user request or at framebuffer creation.
- *	continuous memory region allocated by user request
- *	or at framebuffer creation.
  * @flags: indicate memory type to allocated buffer and cache attruibute.
  * @size: size requested from user, in bytes and this size is aligned
  *	in page unit.
  * @cookie: cookie returned by dma_alloc_attrs
- * @kvaddr: kernel virtual address to allocated memory region.
+ * @kvaddr: kernel virtual address to allocated memory region (for fbdev)
  * @dma_addr: bus address(accessed by dma) to allocated memory region.
  *	- this address could be physical address without IOMMU and
  *	device address with IOMMU.
- * @pages: Array of backing pages.
+ * @dma_attrs: attrs passed dma mapping framework
  * @sgt: Imported sg_table.
  *
  * P.S. this object would be transferred to user as kms_bo.handle so
@@ -48,7 +43,6 @@ struct exynos_drm_gem {
 	void __iomem		*kvaddr;
 	dma_addr_t		dma_addr;
 	unsigned long		dma_attrs;
-	struct page		**pages;
 	struct sg_table		*sgt;
 };
 
@@ -58,7 +52,8 @@ void exynos_drm_gem_destroy(struct exynos_drm_gem *exynos_gem);
 /* create a new buffer with gem object */
 struct exynos_drm_gem *exynos_drm_gem_create(struct drm_device *dev,
 					     unsigned int flags,
-					     unsigned long size);
+					     unsigned long size,
+					     bool kvmap);
 
 /*
  * request gem object creation and buffer allocation as the size
