@@ -243,6 +243,8 @@ struct venc_controls {
 
 	u32 base_priority_id;
 	u32 ltr_count;
+	struct v4l2_ctrl_hdr10_cll_info cll;
+	struct v4l2_ctrl_hdr10_mastering_display mastering;
 };
 
 struct venus_buffer {
