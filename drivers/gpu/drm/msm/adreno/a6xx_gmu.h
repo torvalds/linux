@@ -57,6 +57,9 @@ struct a6xx_gmu {
 
 	struct a6xx_gmu_bo hfi;
 	struct a6xx_gmu_bo debug;
+	struct a6xx_gmu_bo icache;
+	struct a6xx_gmu_bo dcache;
+	struct a6xx_gmu_bo dummy;
 
 	int nr_clocks;
 	struct clk_bulk_data *clocks;
@@ -90,6 +93,13 @@ static inline u32 gmu_read(struct a6xx_gmu *gmu, u32 offset)
 static inline void gmu_write(struct a6xx_gmu *gmu, u32 offset, u32 value)
 {
 	return msm_writel(value, gmu->mmio + (offset << 2));
+}
+
+static inline void
+gmu_write_bulk(struct a6xx_gmu *gmu, u32 offset, const u32 *data, u32 size)
+{
+	memcpy_toio(gmu->mmio + (offset << 2), data, size);
+	wmb();
 }
 
 static inline void gmu_rmw(struct a6xx_gmu *gmu, u32 reg, u32 mask, u32 or)

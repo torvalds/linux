@@ -579,6 +579,8 @@ static void a6xx_gmu_power_config(struct a6xx_gmu *gmu)
 {
 	/* Disable GMU WB/RB buffer */
 	gmu_write(gmu, REG_A6XX_GMU_SYS_BUS_CONFIG, 0x1);
+	gmu_write(gmu, REG_A6XX_GMU_ICACHE_CONFIG, 0x1);
+	gmu_write(gmu, REG_A6XX_GMU_DCACHE_CONFIG, 0x1);
 
 	gmu_write(gmu, REG_A6XX_GMU_PWR_COL_INTER_FRAME_CTRL, 0x9c40400);
 
@@ -608,14 +610,95 @@ static void a6xx_gmu_power_config(struct a6xx_gmu *gmu)
 		A6XX_GMU_RPMH_CTRL_GFX_VOTE_ENABLE);
 }
 
+struct block_header {
+	u32 addr;
+	u32 size;
+	u32 type;
+	u32 value;
+	u32 data[];
+};
+
+/* this should be a general kernel helper */
+static int in_range(u32 addr, u32 start, u32 size)
+{
+	return addr >= start && addr < start + size;
+}
+
+static bool fw_block_mem(struct a6xx_gmu_bo *bo, const struct block_header *blk)
+{
+	if (!in_range(blk->addr, bo->iova, bo->size))
+		return false;
+
+	memcpy(bo->virt + blk->addr - bo->iova, blk->data, blk->size);
+	return true;
+}
+
+static int a6xx_gmu_fw_load(struct a6xx_gmu *gmu)
+{
+	struct a6xx_gpu *a6xx_gpu = container_of(gmu, struct a6xx_gpu, gmu);
+	struct adreno_gpu *adreno_gpu = &a6xx_gpu->base;
+	const struct firmware *fw_image = adreno_gpu->fw[ADRENO_FW_GMU];
+	const struct block_header *blk;
+	u32 reg_offset;
+
+	u32 itcm_base = 0x00000000;
+	u32 dtcm_base = 0x00040000;
+
+	if (adreno_is_a650(adreno_gpu))
+		dtcm_base = 0x10004000;
+
+	if (gmu->legacy) {
+		/* Sanity check the size of the firmware that was loaded */
+		if (fw_image->size > 0x8000) {
+			DRM_DEV_ERROR(gmu->dev,
+				"GMU firmware is bigger than the available region\n");
+			return -EINVAL;
+		}
+
+		gmu_write_bulk(gmu, REG_A6XX_GMU_CM3_ITCM_START,
+			       (u32*) fw_image->data, fw_image->size);
+		return 0;
+	}
+
+
+	for (blk = (const struct block_header *) fw_image->data;
+	     (const u8*) blk < fw_image->data + fw_image->size;
+	     blk = (const struct block_header *) &blk->data[blk->size >> 2]) {
+		if (blk->size == 0)
+			continue;
+
+		if (in_range(blk->addr, itcm_base, SZ_16K)) {
+			reg_offset = (blk->addr - itcm_base) >> 2;
+			gmu_write_bulk(gmu,
+				REG_A6XX_GMU_CM3_ITCM_START + reg_offset,
+				blk->data, blk->size);
+		} else if (in_range(blk->addr, dtcm_base, SZ_16K)) {
+			reg_offset = (blk->addr - dtcm_base) >> 2;
+			gmu_write_bulk(gmu,
+				REG_A6XX_GMU_CM3_DTCM_START + reg_offset,
+				blk->data, blk->size);
+		} else if (!fw_block_mem(&gmu->icache, blk) &&
+			   !fw_block_mem(&gmu->dcache, blk) &&
+			   !fw_block_mem(&gmu->dummy, blk)) {
+			DRM_DEV_ERROR(gmu->dev,
+				"failed to match fw block (addr=%.8x size=%d data[0]=%.8x)\n",
+				blk->addr, blk->size, blk->data[0]);
+		}
+	}
+
+	return 0;
+}
+
 static int a6xx_gmu_fw_start(struct a6xx_gmu *gmu, unsigned int state)
 {
 	static bool rpmh_init;
 	struct a6xx_gpu *a6xx_gpu = container_of(gmu, struct a6xx_gpu, gmu);
 	struct adreno_gpu *adreno_gpu = &a6xx_gpu->base;
-	int i, ret;
+	int ret;
 	u32 chipid;
-	u32 *image;
+
+	if (adreno_is_a650(adreno_gpu))
+		gmu_write(gmu, REG_A6XX_GPU_GMU_CX_GMU_CX_FAL_INTF, 1);
 
 	if (state == GMU_WARM_BOOT) {
 		ret = a6xx_rpmh_start(gmu);
@@ -625,13 +708,6 @@ static int a6xx_gmu_fw_start(struct a6xx_gmu *gmu, unsigned int state)
 		if (WARN(!adreno_gpu->fw[ADRENO_FW_GMU],
 			"GMU firmware is not loaded\n"))
 			return -ENOENT;
-
-		/* Sanity check the size of the firmware that was loaded */
-		if (adreno_gpu->fw[ADRENO_FW_GMU]->size > 0x8000) {
-			DRM_DEV_ERROR(gmu->dev,
-				"GMU firmware is bigger than the available region\n");
-			return -EINVAL;
-		}
 
 		/* Turn on register retention */
 		gmu_write(gmu, REG_A6XX_GMU_GENERAL_7, 1);
@@ -646,11 +722,9 @@ static int a6xx_gmu_fw_start(struct a6xx_gmu *gmu, unsigned int state)
 				return ret;
 		}
 
-		image = (u32 *) adreno_gpu->fw[ADRENO_FW_GMU]->data;
-
-		for (i = 0; i < adreno_gpu->fw[ADRENO_FW_GMU]->size >> 2; i++)
-			gmu_write(gmu, REG_A6XX_GMU_CM3_ITCM_START + i,
-				image[i]);
+		ret = a6xx_gmu_fw_load(gmu);
+		if (ret)
+			return ret;
 	}
 
 	gmu_write(gmu, REG_A6XX_GMU_CM3_FW_INIT_RESULT, 0);
@@ -782,6 +856,13 @@ int a6xx_gmu_resume(struct a6xx_gpu *a6xx_gpu)
 	/* Check to see if we are doing a cold or warm boot */
 	status = gmu_read(gmu, REG_A6XX_GMU_GENERAL_7) == 1 ?
 		GMU_WARM_BOOT : GMU_COLD_BOOT;
+
+	/*
+	 * Warm boot path does not work on newer GPUs
+	 * Presumably this is because icache/dcache regions must be restored
+	 */
+	if (!gmu->legacy)
+		status = GMU_COLD_BOOT;
 
 	ret = a6xx_gmu_fw_start(gmu, status);
 	if (ret)
@@ -965,6 +1046,9 @@ static void a6xx_gmu_memory_free(struct a6xx_gmu *gmu)
 {
 	msm_gem_kernel_put(gmu->hfi.obj, gmu->aspace, false);
 	msm_gem_kernel_put(gmu->debug.obj, gmu->aspace, false);
+	msm_gem_kernel_put(gmu->icache.obj, gmu->aspace, false);
+	msm_gem_kernel_put(gmu->dcache.obj, gmu->aspace, false);
+	msm_gem_kernel_put(gmu->dummy.obj, gmu->aspace, false);
 
 	gmu->aspace->mmu->funcs->detach(gmu->aspace->mmu);
 	msm_gem_address_space_put(gmu->aspace);
@@ -982,12 +1066,14 @@ static int a6xx_gmu_memory_alloc(struct a6xx_gmu *gmu, struct a6xx_gmu_bo *bo,
 	size = PAGE_ALIGN(size);
 	if (!iova) {
 		/* no fixed address - use GMU's uncached range */
-		range_start = 0x60000000;
+		range_start = 0x60000000 + PAGE_SIZE; /* skip dummy page */
 		range_end = 0x80000000;
 	} else {
 		/* range for fixed address */
 		range_start = iova;
 		range_end = iova + size;
+		/* use IOMMU_PRIV for icache/dcache */
+		flags |= MSM_BO_MAP_PRIV;
 	}
 
 	bo->obj = msm_gem_new(dev, size, flags);
@@ -1328,7 +1414,27 @@ int a6xx_gmu_init(struct a6xx_gpu *a6xx_gpu, struct device_node *node)
 	if (ret)
 		goto err_put_device;
 
-	if (!adreno_is_a640(adreno_gpu) && !adreno_is_a650(adreno_gpu)) {
+	/* Allocate memory for the GMU dummy page */
+	ret = a6xx_gmu_memory_alloc(gmu, &gmu->dummy, SZ_4K, 0x60000000);
+	if (ret)
+		goto err_memory;
+
+	if (adreno_is_a650(adreno_gpu)) {
+		ret = a6xx_gmu_memory_alloc(gmu, &gmu->icache,
+			SZ_16M - SZ_16K, 0x04000);
+		if (ret)
+			goto err_memory;
+	} else if (adreno_is_a640(adreno_gpu)) {
+		ret = a6xx_gmu_memory_alloc(gmu, &gmu->icache,
+			SZ_256K - SZ_16K, 0x04000);
+		if (ret)
+			goto err_memory;
+
+		ret = a6xx_gmu_memory_alloc(gmu, &gmu->dcache,
+			SZ_256K - SZ_16K, 0x44000);
+		if (ret)
+			goto err_memory;
+	} else {
 		/* HFI v1, has sptprac */
 		gmu->legacy = true;
 
