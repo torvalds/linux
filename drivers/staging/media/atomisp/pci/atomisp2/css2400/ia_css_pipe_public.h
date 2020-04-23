@@ -80,22 +80,15 @@ struct ia_css_pipe_config {
 	struct ia_css_resolution bayer_ds_out_res;
 	/** bayer down scaling */
 	struct ia_css_resolution capt_pp_in_res;
-#ifndef ISP2401
-	/** bayer down scaling */
-#else
 	/** capture post processing input resolution */
-#endif
 	struct ia_css_resolution vf_pp_in_res;
-#ifndef ISP2401
-	/** bayer down scaling */
-#else
-	/** view finder post processing input resolution */
+
+	/** ISP2401: view finder post processing input resolution */
 	struct ia_css_resolution output_system_in_res;
 	/** For IPU3 only: use output_system_in_res to specify what input resolution
 	     will OSYS receive, this resolution is equal to the output resolution of GDC
 	     if not determined CSS will set output_system_in_res with main osys output pin resolution
 	     All other IPUs may ignore this property */
-#endif
 	struct ia_css_resolution dvs_crop_out_res;
 	/** dvs crop, video only, not in use yet. Use dvs_envelope below. */
 	struct ia_css_frame_info output_info[IA_CSS_PIPE_MAX_OUTPUT_STAGE];
@@ -128,28 +121,29 @@ struct ia_css_pipe_config {
 	/** Enabling BCI mode will cause yuv_scale binary to be picked up
 	     instead of vf_pp. This only applies to viewfinder post
 	     processing stages. */
-#ifdef ISP2401
+
+/* ISP2401 */
 	bool enable_luma_only;
 	/** Enabling of monochrome mode for a pipeline. If enabled only luma processing
 	     will be done. */
 	bool enable_tnr;
 	/** Enabling of TNR (temporal noise reduction). This is only applicable to video
 	     pipes. Non video-pipes should always set this parameter to false. */
-#endif
+
 	struct ia_css_isp_config *p_isp_config;
 	/** Pointer to ISP configuration */
 	struct ia_css_resolution gdc_in_buffer_res;
 	/** GDC in buffer resolution. */
 	struct ia_css_point gdc_in_buffer_offset;
 	/** GDC in buffer offset - indicates the pixel coordinates of the first valid pixel inside the buffer */
-#ifdef ISP2401
+
+/* ISP2401 */
 	struct ia_css_coordinate internal_frame_origin_bqs_on_sctbl;
 	/** Origin of internal frame positioned on shading table at shading correction in ISP.
 	     NOTE: Shading table is larger than or equal to internal frame.
 		   Shading table has shading gains and internal frame has bayer data.
 		   The origin of internal frame is used in shading correction in ISP
 		   to retrieve shading gains which correspond to bayer data. */
-#endif
 };
 
 /**

@@ -24,9 +24,7 @@
 #if !defined(HAS_NO_INPUT_FORMATTER)
 #include "input_formatter.h"
 #endif
-#if !defined(HAS_NO_INPUT_SYSTEM)
 #include "input_system.h"
-#endif
 
 #include "ia_css_types.h"
 #include "ia_css_acc_types.h"
@@ -387,9 +385,7 @@ struct sh_css_sp_input_formatter_set {
 };
 #endif
 
-#if !defined(HAS_NO_INPUT_SYSTEM)
 #define IA_CSS_MIPI_SIZE_CHECK_MAX_NOF_ENTRIES_PER_PORT (3)
-#endif
 
 /* SP configuration information */
 struct sh_css_sp_config {
@@ -417,9 +413,7 @@ struct sh_css_sp_config {
 	u8			input_circuit_cfg_changed;
 	u32		mipi_sizes_for_check[N_CSI_PORTS][IA_CSS_MIPI_SIZE_CHECK_MAX_NOF_ENTRIES_PER_PORT];
 #endif
-#if !defined(HAS_NO_INPUT_SYSTEM)
 	u8                 enable_isys_event_queue;
-#endif
 	u8			disable_cont_vf;
 };
 
@@ -535,10 +529,8 @@ struct sh_css_sp_pipeline {
 	u32	inout_port_config;
 	u32	required_bds_factor;
 	u32	dvs_frame_delay;
-#if !defined(HAS_NO_INPUT_SYSTEM)
 	u32	input_system_mode;	/* enum ia_css_input_mode */
 	u32	port_id;	/* port_id for input system */
-#endif
 	u32	num_stages;		/* the pipe config */
 	u32	running;	/* needed for pipe termination */
 	hrt_vaddress	sp_stage_addr[SH_CSS_MAX_STAGES];
@@ -572,14 +564,14 @@ struct sh_css_sp_pipeline {
 			u32	raw_bit_depth;
 		} raw;
 	} copy;
-#ifdef ISP2401
+
+/* ISP2401 */
 
 	/* Parameters passed to Shading Correction kernel. */
 	struct {
 		u32 internal_frame_origin_x_bqs_on_sctbl; /* Origin X (bqs) of internal frame on shading table */
 		u32 internal_frame_origin_y_bqs_on_sctbl; /* Origin Y (bqs) of internal frame on shading table */
 	} shading;
-#endif
 };
 
 /*
@@ -729,7 +721,6 @@ struct sh_css_sp_output {
 #define  IA_CSS_NUM_ELEMS_HOST2SP_PARAM_QUEUE    3
 #define  IA_CSS_NUM_ELEMS_HOST2SP_TAG_CMD_QUEUE  6
 
-#if !defined(HAS_NO_INPUT_SYSTEM)
 /* sp-to-host queue is expected to be emptied in ISR since
  * it is used instead of HW interrupts (due to HW design issue).
  * We need one queue element per CSI port. */
@@ -738,11 +729,6 @@ struct sh_css_sp_output {
  * in the emptying of this queue in the SP since there is no
  * separate SP thread for this. */
 #define  IA_CSS_NUM_ELEMS_HOST2SP_ISYS_EVENT_QUEUE (2 * N_CSI_PORTS)
-#else
-#define  IA_CSS_NUM_ELEMS_SP2HOST_ISYS_EVENT_QUEUE 0
-#define  IA_CSS_NUM_ELEMS_HOST2SP_ISYS_EVENT_QUEUE 0
-#define  IA_CSS_NUM_ELEMS_HOST2SP_TAG_CMD_QUEUE  0
-#endif
 
 #if defined(HAS_SP_2400)
 #define  IA_CSS_NUM_ELEMS_HOST2SP_PSYS_EVENT_QUEUE    13
@@ -828,11 +814,9 @@ enum sh_css_queue_type {
 	sh_css_sp2host_buffer_queue,
 	sh_css_host2sp_psys_event_queue,
 	sh_css_sp2host_psys_event_queue,
-#if !defined(HAS_NO_INPUT_SYSTEM)
 	sh_css_sp2host_isys_event_queue,
 	sh_css_host2sp_isys_event_queue,
 	sh_css_host2sp_tag_cmd_queue,
-#endif
 };
 
 struct sh_css_event_irq_mask {
@@ -918,7 +902,6 @@ struct host_sp_queues {
 	ia_css_circbuf_elem_t sp2host_psys_event_queue_elems
 	[IA_CSS_NUM_ELEMS_SP2HOST_PSYS_EVENT_QUEUE];
 
-#if !defined(HAS_NO_INPUT_SYSTEM)
 	/*
 	 * The queues for the ISYS events.
 	 */
@@ -938,7 +921,6 @@ struct host_sp_queues {
 
 	ia_css_circbuf_elem_t host2sp_tag_cmd_queue_elems
 	[IA_CSS_NUM_ELEMS_HOST2SP_TAG_CMD_QUEUE];
-#endif
 };
 
 #define SIZE_OF_QUEUES_ELEMS							\
@@ -951,15 +933,7 @@ struct host_sp_queues {
 	(IA_CSS_NUM_ELEMS_SP2HOST_ISYS_EVENT_QUEUE) +				\
 	(IA_CSS_NUM_ELEMS_HOST2SP_TAG_CMD_QUEUE)))
 
-#if !defined(HAS_NO_INPUT_SYSTEM)
 #define IA_CSS_NUM_CIRCBUF_DESCS 5
-#else
-#ifndef ISP2401
-#define IA_CSS_NUM_CIRCBUF_DESCS 3
-#else
-#define IA_CSS_NUM_CIRCBUF_DESCS 2
-#endif
-#endif
 
 #define SIZE_OF_QUEUES_DESC \
 	((SH_CSS_MAX_SP_THREADS * SH_CSS_MAX_NUM_QUEUES * \

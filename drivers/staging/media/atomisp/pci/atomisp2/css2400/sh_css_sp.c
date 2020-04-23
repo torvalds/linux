@@ -1226,15 +1226,12 @@ sh_css_sp_init_pipeline(struct ia_css_pipeline *me,
 			const struct ia_css_metadata_config *md_config,
 			const struct ia_css_metadata_info *md_info,
 #if !defined(HAS_NO_INPUT_SYSTEM)
-			const enum mipi_port_id port_id
+			const enum mipi_port_id port_id,
 #endif
-#ifdef ISP2401
-			,
 			const struct ia_css_coordinate
 			*internal_frame_origin_bqs_on_sctbl, /* Origin of internal frame
 							positioned on shading table at shading correction in ISP. */
 			const struct ia_css_isp_parameters *params
-#endif
 		       ) {
 	/* Get first stage */
 	struct ia_css_pipeline_stage *stage        = NULL;
@@ -1363,26 +1360,26 @@ sh_css_sp_init_pipeline(struct ia_css_pipeline *me,
 	}
 #endif
 
-#ifdef ISP2401
-	/* For the shading correction type 1 (the legacy shading table conversion in css is not used),
-	 * the parameters are passed to the isp for the shading table centering.
-	 */
-	if (internal_frame_origin_bqs_on_sctbl &&
-	    params && params->shading_settings.enable_shading_table_conversion == 0)
-	{
-		sh_css_sp_group.pipe[thread_id].shading.internal_frame_origin_x_bqs_on_sctbl
-		= (uint32_t)internal_frame_origin_bqs_on_sctbl->x;
-		sh_css_sp_group.pipe[thread_id].shading.internal_frame_origin_y_bqs_on_sctbl
-		= (uint32_t)internal_frame_origin_bqs_on_sctbl->y;
-	} else
-	{
-		sh_css_sp_group.pipe[thread_id].shading.internal_frame_origin_x_bqs_on_sctbl =
-		0;
-		sh_css_sp_group.pipe[thread_id].shading.internal_frame_origin_y_bqs_on_sctbl =
-		0;
+	if (atomisp_hw_is_isp2401) {
+		/* For the shading correction type 1 (the legacy shading table conversion in css is not used),
+		* the parameters are passed to the isp for the shading table centering.
+		*/
+		if (internal_frame_origin_bqs_on_sctbl &&
+		    params && params->shading_settings.enable_shading_table_conversion == 0)
+		{
+			sh_css_sp_group.pipe[thread_id].shading.internal_frame_origin_x_bqs_on_sctbl
+			= (uint32_t)internal_frame_origin_bqs_on_sctbl->x;
+			sh_css_sp_group.pipe[thread_id].shading.internal_frame_origin_y_bqs_on_sctbl
+			= (uint32_t)internal_frame_origin_bqs_on_sctbl->y;
+		} else
+		{
+			sh_css_sp_group.pipe[thread_id].shading.internal_frame_origin_x_bqs_on_sctbl =
+			0;
+			sh_css_sp_group.pipe[thread_id].shading.internal_frame_origin_y_bqs_on_sctbl =
+			0;
+		}
 	}
 
-#endif
 	IA_CSS_LOG("pipe_id %d port_config %08x",
 		   pipe_id, sh_css_sp_group.pipe[thread_id].inout_port_config);
 

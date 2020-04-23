@@ -1458,6 +1458,9 @@ static void start_pipe(
     enum sh_css_pipe_config_override copy_ovrd,
     enum ia_css_input_mode input_mode)
 {
+	const struct ia_css_coordinate *coord = NULL;
+	const struct ia_css_isp_parameters *params = NULL;
+
 #if defined(HAS_NO_INPUT_SYSTEM)
 	(void)input_mode;
 #endif
@@ -1466,6 +1469,11 @@ static void start_pipe(
 			     me, copy_ovrd, input_mode);
 
 	assert(me); /* all callers are in this file and call with non null argument */
+
+	if (atomisp_hw_is_isp2401) {
+		coord = &me->config.internal_frame_origin_bqs_on_sctbl;
+		params = me->stream->isp_params_configs;
+	}
 
 	sh_css_sp_init_pipeline(&me->pipeline,
 				me->mode,
@@ -1482,13 +1490,10 @@ static void start_pipe(
 #if !defined(HAS_NO_INPUT_SYSTEM)
 				, (input_mode == IA_CSS_INPUT_MODE_MEMORY) ?
 				(enum mipi_port_id)0 :
-				me->stream->config.source.port.port
+				me->stream->config.source.port.port,
 #endif
-#ifdef ISP2401
-				, &me->config.internal_frame_origin_bqs_on_sctbl,
-				me->stream->isp_params_configs
-#endif
-			       );
+				coord,
+				params);
 
 	if (me->config.mode != IA_CSS_PIPE_MODE_COPY) {
 		struct ia_css_pipeline_stage *stage;
@@ -4094,6 +4099,8 @@ preview_start(struct ia_css_pipe *pipe) {
 	struct ia_css_pipe *acc_pipe;
 	enum sh_css_pipe_config_override copy_ovrd;
 	enum ia_css_input_mode preview_pipe_input_mode;
+	const struct ia_css_coordinate *coord = NULL;
+	const struct ia_css_isp_parameters *params = NULL;
 
 	IA_CSS_ENTER_PRIVATE("pipe = %p", pipe);
 	if ((!pipe) || (!pipe->stream) || (pipe->mode != IA_CSS_PIPE_ID_PREVIEW))
@@ -4120,8 +4127,10 @@ preview_start(struct ia_css_pipe *pipe) {
 #if defined(USE_INPUT_SYSTEM_VERSION_2) || defined(USE_INPUT_SYSTEM_VERSION_2401)
 	/* multi stream video needs mipi buffers */
 	err = send_mipi_frames(pipe);
-	if (err != IA_CSS_SUCCESS)
-		goto ERR;
+	if (err != IA_CSS_SUCCESS) {
+	    	IA_CSS_LEAVE_ERR_PRIVATE(err);
+		return err;
+	}
 #endif
 	send_raw_frames(pipe);
 
@@ -4139,6 +4148,11 @@ preview_start(struct ia_css_pipe *pipe) {
 		}
 	}
 
+	if (atomisp_hw_is_isp2401) {
+		coord = &pipe->config.internal_frame_origin_bqs_on_sctbl;
+		params = pipe->stream->isp_params_configs;
+	}
+
 	/* Construct and load the copy pipe */
 	if (pipe->stream->config.continuous)
 	{
@@ -4151,24 +4165,12 @@ preview_start(struct ia_css_pipe *pipe) {
 					copy_ovrd,
 					pipe->stream->config.mode,
 					&pipe->stream->config.metadata_config,
-#ifndef ISP2401
-					&pipe->stream->info.metadata_info
-#else
 					&pipe->stream->info.metadata_info,
-#endif
 #if !defined(HAS_NO_INPUT_SYSTEM)
-#ifndef ISP2401
-					, pipe->stream->config.source.port.port
-#else
 					pipe->stream->config.source.port.port,
 #endif
-#endif
-#ifndef ISP2401
-				       );
-#else
-					& pipe->config.internal_frame_origin_bqs_on_sctbl,
-					pipe->stream->isp_params_configs);
-#endif
+					coord,
+					params);
 
 		/* make the preview pipe start with mem mode input, copy handles
 		   the actual mode */
@@ -4189,24 +4191,12 @@ preview_start(struct ia_css_pipe *pipe) {
 					0,
 					IA_CSS_INPUT_MODE_MEMORY,
 					&pipe->stream->config.metadata_config,
-#ifndef ISP2401
-					&pipe->stream->info.metadata_info
-#else
 					&pipe->stream->info.metadata_info,
-#endif
 #if !defined(HAS_NO_INPUT_SYSTEM)
-#ifndef ISP2401
-					, (enum mipi_port_id)0
-#else
 					(enum mipi_port_id)0,
 #endif
-#endif
-#ifndef ISP2401
-				       );
-#else
-					& capture_pipe->config.internal_frame_origin_bqs_on_sctbl,
-					capture_pipe->stream->isp_params_configs);
-#endif
+					coord,
+					params);
 	}
 
 	if (acc_pipe)
@@ -4222,31 +4212,16 @@ preview_start(struct ia_css_pipe *pipe) {
 					0,
 					IA_CSS_INPUT_MODE_MEMORY,
 					NULL,
-#ifndef ISP2401
-					NULL
-#else
 					NULL,
-#endif
 #if !defined(HAS_NO_INPUT_SYSTEM)
-#ifndef ISP2401
-					, (enum mipi_port_id)0
-#else
 					(enum mipi_port_id)0,
 #endif
-#endif
-#ifndef ISP2401
-				       );
-#else
-					& pipe->config.internal_frame_origin_bqs_on_sctbl,
-					pipe->stream->isp_params_configs);
-#endif
+					coord,
+					params);
 	}
 
 	start_pipe(pipe, copy_ovrd, preview_pipe_input_mode);
 
-#if defined(USE_INPUT_SYSTEM_VERSION_2) || defined(USE_INPUT_SYSTEM_VERSION_2401)
-ERR:
-#endif
 	IA_CSS_LEAVE_ERR_PRIVATE(err);
 	return err;
 }
@@ -6038,6 +6013,9 @@ static enum ia_css_err video_start(struct ia_css_pipe *pipe)
 	enum sh_css_pipe_config_override copy_ovrd;
 	enum ia_css_input_mode video_pipe_input_mode;
 
+	const struct ia_css_coordinate *coord = NULL;
+	const struct ia_css_isp_parameters *params = NULL;
+
 	IA_CSS_ENTER_PRIVATE("pipe = %p", pipe);
 	if ((!pipe) || (pipe->mode != IA_CSS_PIPE_ID_VIDEO)) {
 		IA_CSS_LEAVE_ERR_PRIVATE(IA_CSS_ERR_INVALID_ARGUMENTS);
@@ -6075,6 +6053,11 @@ static enum ia_css_err video_start(struct ia_css_pipe *pipe)
 		}
 	}
 
+	if (atomisp_hw_is_isp2401) {
+		coord = &pipe->config.internal_frame_origin_bqs_on_sctbl;
+		params = pipe->stream->isp_params_configs;
+	}
+
 	/* Construct and load the copy pipe */
 	if (pipe->stream->config.continuous) {
 		sh_css_sp_init_pipeline(&copy_pipe->pipeline,
@@ -6086,24 +6069,12 @@ static enum ia_css_err video_start(struct ia_css_pipe *pipe)
 					copy_ovrd,
 					pipe->stream->config.mode,
 					&pipe->stream->config.metadata_config,
-#ifndef ISP2401
-					&pipe->stream->info.metadata_info
-#else
 					&pipe->stream->info.metadata_info,
-#endif
 #if !defined(HAS_NO_INPUT_SYSTEM)
-#ifndef ISP2401
-					, pipe->stream->config.source.port.port
-#else
 					pipe->stream->config.source.port.port,
 #endif
-#endif
-#ifndef ISP2401
-				       );
-#else
-					& copy_pipe->config.internal_frame_origin_bqs_on_sctbl,
-					copy_pipe->stream->isp_params_configs);
-#endif
+					coord,
+					params);
 
 		/* make the video pipe start with mem mode input, copy handles
 		   the actual mode */
@@ -6123,24 +6094,12 @@ static enum ia_css_err video_start(struct ia_css_pipe *pipe)
 					0,
 					IA_CSS_INPUT_MODE_MEMORY,
 					&pipe->stream->config.metadata_config,
-#ifndef ISP2401
-					&pipe->stream->info.metadata_info
-#else
 					&pipe->stream->info.metadata_info,
-#endif
 #if !defined(HAS_NO_INPUT_SYSTEM)
-#ifndef ISP2401
-					, (enum mipi_port_id)0
-#else
 					(enum mipi_port_id)0,
 #endif
-#endif
-#ifndef ISP2401
-				       );
-#else
-					& capture_pipe->config.internal_frame_origin_bqs_on_sctbl,
-					capture_pipe->stream->isp_params_configs);
-#endif
+					coord,
+					params);
 	}
 
 	start_pipe(pipe, copy_ovrd, video_pipe_input_mode);
