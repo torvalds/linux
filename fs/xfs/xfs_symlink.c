@@ -243,8 +243,7 @@ xfs_symlink(
 	 */
 	xfs_qm_vop_create_dqattach(tp, ip, udqp, gdqp, pdqp);
 
-	if (resblks)
-		resblks -= XFS_IALLOC_SPACE_RES(mp);
+	resblks -= XFS_IALLOC_SPACE_RES(mp);
 	/*
 	 * If the symlink will fit into the inode, write it inline.
 	 */
@@ -265,8 +264,7 @@ xfs_symlink(
 		if (error)
 			goto out_trans_cancel;
 
-		if (resblks)
-			resblks -= fs_blocks;
+		resblks -= fs_blocks;
 		ip->i_d.di_size = pathlen;
 		xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 
