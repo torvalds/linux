@@ -3076,7 +3076,7 @@ static int qm_controller_reset_done(struct hisi_qm *qm)
 	return 0;
 }
 
-int qm_controller_reset(struct hisi_qm *qm)
+static int qm_controller_reset(struct hisi_qm *qm)
 {
 	struct pci_dev *pdev = qm->pdev;
 	int ret;
