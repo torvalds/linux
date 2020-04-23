@@ -1186,14 +1186,15 @@ int mpp_translate_reg_address(struct mpp_session *session,
 
 		mem_region = mpp_task_attach_fd(task, usr_fd);
 		if (IS_ERR(mem_region)) {
-			mpp_debug(DEBUG_IOMMU, "reg[%3d]: %08x failed\n",
-				  tbl[i], reg[tbl[i]]);
+			mpp_debug(DEBUG_IOMMU, "reg[%3d]: %08x fd %d failed\n",
+				  tbl[i], reg[tbl[i]], usr_fd);
 			return PTR_ERR(mem_region);
 		}
-
+		mpp_debug(DEBUG_IOMMU,
+			  "reg[%3d]: %d => %pad, offset %10d, size %lx\n",
+			  tbl[i], usr_fd, &mem_region->iova,
+			  offset, mem_region->len);
 		mem_region->reg_idx = tbl[i];
-		mpp_debug(DEBUG_IOMMU, "reg[%3d]: %3d => %pad + offset %10d\n",
-			  tbl[i], usr_fd, &mem_region->iova, offset);
 		reg[tbl[i]] = mem_region->iova + offset;
 	}
 
@@ -1332,6 +1333,51 @@ int mpp_task_finalize(struct mpp_session *session,
 	return 0;
 }
 
+static int mpp_iommu_handle(struct iommu_domain *iommu,
+			    struct device *iommu_dev,
+			    unsigned long iova,
+			    int status, void *arg)
+{
+	u32 i, s, e;
+	struct mpp_mem_region *mem = NULL, *n;
+	struct mpp_dev *mpp = (struct mpp_dev *)arg;
+	struct mpp_task *task = mpp->cur_task;
+
+	dev_err(mpp->dev, "fault addr 0x%08lx status %x\n", iova, status);
+
+	if (!task)
+		return -EIO;
+
+	if (!list_empty(&task->mem_region_list)) {
+		/* dump mem region */
+		mpp_err("--- dump mem region ---\n");
+		list_for_each_entry_safe(mem, n,
+					 &task->mem_region_list,
+					 reg_link) {
+			mpp_err("reg[%3d]: %pad, size %lx\n",
+				mem->reg_idx, &mem->iova, mem->len);
+		}
+	} else {
+		dev_err(mpp->dev, "no memory region mapped\n");
+	}
+
+	/* dump register */
+	s = mpp->var->hw_info->reg_start;
+	e = mpp->var->hw_info->reg_end;
+	mpp_err("--- dump register ---\n");
+	for (i = s; i <= e; i++) {
+		u32 reg = i * sizeof(u32);
+
+		mpp_err("reg[%3d]: %08x\n",
+			i, readl_relaxed(mpp->reg_base + reg));
+	}
+
+	if (mpp->iommu_info->hdl)
+		mpp->iommu_info->hdl(iommu, iommu_dev, iova, status, arg);
+
+	return 0;
+}
+
 /* The device will do more probing work after this */
 int mpp_dev_probe(struct mpp_dev *mpp,
 		  struct platform_device *pdev)
@@ -1411,6 +1457,12 @@ int mpp_dev_probe(struct mpp_dev *mpp,
 		if (ret)
 			goto failed_init;
 	}
+	/* set iommu fault handler */
+	if (!IS_ERR(mpp->iommu_info))
+		iommu_set_fault_handler(mpp->iommu_info->domain,
+					mpp_iommu_handle, mpp);
+
+	/* read hardware id */
 	if (hw_info->reg_id >= 0) {
 		if (mpp->hw_ops->power_on)
 			mpp->hw_ops->power_on(mpp);

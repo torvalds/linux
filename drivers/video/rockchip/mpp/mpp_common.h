@@ -195,6 +195,8 @@ struct mpp_dev {
 	atomic_t total_running;
 	/* task for work queue */
 	struct workqueue_struct *workq;
+	/* current task in running */
+	struct mpp_task *cur_task;
 	/* set session max buffers */
 	u32 session_max_buffers;
 	struct mpp_taskqueue *queue;

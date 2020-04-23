@@ -113,7 +113,6 @@ struct vdpu_dev {
 
 	struct reset_control *rst_a;
 	struct reset_control *rst_h;
-	struct vdpu_task *current_task;
 };
 
 static struct mpp_hw_info vdpu_v2_hw_info = {
@@ -352,13 +351,9 @@ static int vdpu_run(struct mpp_dev *mpp,
 {
 	u32 i;
 	u32 reg_en;
-	struct vdpu_task *task = NULL;
-	struct vdpu_dev *dec = NULL;
+	struct vdpu_task *task = to_vdpu_task(mpp_task);
 
 	mpp_debug_enter();
-
-	task = to_vdpu_task(mpp_task);
-	dec = to_vdpu_dev(mpp);
 
 	/* clear cache */
 	mpp_write_relaxed(mpp, VDPU2_REG_CLR_CACHE_BASE, 1);
@@ -372,7 +367,7 @@ static int vdpu_run(struct mpp_dev *mpp,
 		mpp_write_req(mpp, task->reg, s, e, reg_en);
 	}
 	/* init current task */
-	dec->current_task = task;
+	mpp->cur_task = mpp_task;
 	/* Flush the registers */
 	wmb();
 	mpp_write(mpp, VDPU2_REG_DEC_EN,
@@ -598,19 +593,16 @@ static int vdpu_isr(struct mpp_dev *mpp)
 {
 	u32 err_mask;
 	struct vdpu_task *task = NULL;
-	struct mpp_task *mpp_task = NULL;
-	struct vdpu_dev *dec = to_vdpu_dev(mpp);
+	struct mpp_task *mpp_task = mpp->cur_task;
 
 	/* FIXME use a spin lock here */
-	task = dec->current_task;
-	if (!task) {
-		dev_err(dec->mpp.dev, "no current task\n");
+	if (!mpp_task) {
+		dev_err(mpp->dev, "no current task\n");
 		return IRQ_HANDLED;
 	}
-
-	mpp_task = &task->mpp_task;
 	mpp_time_diff(mpp_task);
-	dec->current_task = NULL;
+	mpp->cur_task = NULL;
+	task = to_vdpu_task(mpp_task);
 	task->irq_status = mpp->irq_status;
 	mpp_debug(DEBUG_IRQ_STATUS, "irq_status: %08x\n",
 		  task->irq_status);

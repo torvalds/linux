@@ -32,6 +32,8 @@
 /* The maximum registers number of all the version */
 #define RKVENC_REG_L1_NUM			780
 #define RKVENC_REG_L2_NUM			200
+#define RKVENC_REG_START_INDEX			0
+#define RKVENC_REG_END_INDEX			131
 /* rkvenc register info */
 #define RKVENC_REG_NUM				112
 #define RKVENC_REG_HW_ID_INDEX			0
@@ -159,10 +161,6 @@ struct rkvenc_dev {
 	struct reset_control *rst_a;
 	struct reset_control *rst_h;
 	struct reset_control *rst_core;
-
-	void *current_task;
-
-	struct mpp_dma_buffer *buffer;
 };
 
 struct link_table_elem {
@@ -176,6 +174,8 @@ static struct mpp_hw_info rkvenc_hw_info = {
 	.reg_num = RKVENC_REG_NUM,
 	.reg_id = RKVENC_REG_HW_ID_INDEX,
 	.reg_en = RKVENC_ENC_START_INDEX,
+	.reg_start = RKVENC_REG_START_INDEX,
+	.reg_end = RKVENC_REG_END_INDEX,
 };
 
 /*
@@ -370,7 +370,6 @@ static int rkvenc_read_req_l2(struct mpp_dev *mpp,
 static int rkvenc_run(struct mpp_dev *mpp,
 		      struct mpp_task *mpp_task)
 {
-	struct rkvenc_dev *enc = to_rkvenc_dev(mpp);
 	struct rkvenc_task *task = to_rkvenc_task(mpp_task);
 
 	mpp_debug_enter();
@@ -409,7 +408,7 @@ static int rkvenc_run(struct mpp_dev *mpp,
 			}
 		}
 		/* init current task */
-		enc->current_task = task;
+		mpp->cur_task = mpp_task;
 		/* Flush the register before the start the device */
 		wmb();
 		mpp_write(mpp, RKVENC_ENC_START_BASE, task->reg[reg_en]);
@@ -446,21 +445,18 @@ static int rkvenc_irq(struct mpp_dev *mpp)
 static int rkvenc_isr(struct mpp_dev *mpp)
 {
 	struct rkvenc_task *task = NULL;
-	struct mpp_task *mpp_task = NULL;
-	struct rkvenc_dev *enc = to_rkvenc_dev(mpp);
+	struct mpp_task *mpp_task = mpp->cur_task;
 
 	/* FIXME use a spin lock here */
-	task = (struct rkvenc_task *)enc->current_task;
-	if (!task) {
-		dev_err(enc->mpp.dev, "no current task\n");
+	if (!mpp_task) {
+		dev_err(mpp->dev, "no current task\n");
 		return IRQ_HANDLED;
 	}
 
-	mpp_task = &task->mpp_task;
 	mpp_time_diff(mpp_task);
-	enc->current_task = NULL;
+	mpp->cur_task = NULL;
+	task = to_rkvenc_task(mpp_task);
 	task->irq_status = mpp->irq_status;
-
 	mpp_debug(DEBUG_IRQ_STATUS, "irq_status: %08x\n", task->irq_status);
 
 	if (task->irq_status & RKVENC_INT_ERROR_BITS) {

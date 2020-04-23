@@ -185,7 +185,6 @@ struct rkvdec_dev {
 	enum RKVDEC_STATE state;
 	unsigned long aux_iova;
 	struct page *aux_page;
-	struct rkvdec_task *current_task;
 	/* regulator and devfreq */
 	struct regulator *vdd;
 	struct devfreq *devfreq;
@@ -901,7 +900,7 @@ static int rkvdec_run(struct mpp_dev *mpp,
 			mpp_write_req(mpp, task->reg, s, e, reg_en);
 		}
 		/* init current task */
-		dec->current_task = task;
+		mpp->cur_task = mpp_task;
 		/* Flush the register before the start the device */
 		wmb();
 		mpp_write(mpp, RKVDEC_REG_INT_EN,
@@ -961,17 +960,17 @@ static int rkvdec_isr(struct mpp_dev *mpp)
 {
 	u32 err_mask;
 	struct rkvdec_task *task = NULL;
-	struct mpp_task *mpp_task = NULL;
+	struct mpp_task *mpp_task = mpp->cur_task;
 	struct rkvdec_dev *dec = to_rkvdec_dev(mpp);
 
 	/* FIXME use a spin lock here */
-	task = dec->current_task;
-	if (!task) {
-		dev_err(dec->mpp.dev, "no current task\n");
+	if (!mpp_task) {
+		dev_err(mpp->dev, "no current task\n");
 		return IRQ_HANDLED;
 	}
-	mpp_time_diff(&task->mpp_task);
-	dec->current_task = NULL;
+	mpp_time_diff(mpp_task);
+	mpp->cur_task = NULL;
+	task = to_rkvdec_task(mpp_task);
 	task->irq_status = mpp->irq_status;
 	switch (dec->state) {
 	case RKVDEC_STATE_NORMAL:
@@ -987,7 +986,6 @@ static int rkvdec_isr(struct mpp_dev *mpp)
 		if (err_mask & task->irq_status)
 			atomic_inc(&mpp->reset_request);
 
-		mpp_task = &task->mpp_task;
 		mpp_task_finish(mpp_task->session, mpp_task);
 
 		mpp_debug_leave();
@@ -1204,25 +1202,8 @@ static int rkvdec_3328_iommu_hdl(struct iommu_domain *iommu,
 				 int status, void *arg)
 {
 	int ret = 0;
-	struct device *dev = (struct device *)arg;
-	struct platform_device *pdev = NULL;
-	struct rkvdec_dev *dec = NULL;
-	struct mpp_dev *mpp = NULL;
-
-	pdev = container_of(dev, struct platform_device, dev);
-	if (!pdev) {
-		dev_err(dev, "invalid platform_device\n");
-		ret = -ENXIO;
-		goto done;
-	}
-
-	dec = platform_get_drvdata(pdev);
-	if (!dec) {
-		dev_err(dev, "invalid device instance\n");
-		ret = -ENXIO;
-		goto done;
-	}
-	mpp = &dec->mpp;
+	struct mpp_dev *mpp = (struct mpp_dev *)arg;
+	struct rkvdec_dev *dec = to_rkvdec_dev(mpp);
 
 	/*
 	 * defeat workaround, invalidate address generated when rk322x
@@ -1246,7 +1227,6 @@ static int rkvdec_3328_iommu_hdl(struct iommu_domain *iommu,
 			dec->aux_iova = page_iova;
 	}
 
-done:
 	return ret;
 }
 
@@ -1346,9 +1326,7 @@ static int rkvdec_3328_init(struct mpp_dev *mpp)
 		goto done;
 	}
 	dec->aux_iova = 0;
-	iommu_set_fault_handler(mpp->iommu_info->domain,
-				rkvdec_3328_iommu_hdl,
-				mpp->dev);
+	mpp->iommu_info->hdl = rkvdec_3328_iommu_hdl;
 
 	ret = rkvdec_devfreq_init(mpp);
 done:

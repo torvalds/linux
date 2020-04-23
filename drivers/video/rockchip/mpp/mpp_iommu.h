@@ -64,6 +64,7 @@ struct mpp_iommu_info {
 	struct iommu_domain *domain;
 	struct iommu_group *group;
 	struct mpp_rk_iommu *iommu;
+	iommu_fault_handler_t hdl;
 };
 
 struct mpp_dma_session *

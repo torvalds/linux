@@ -103,7 +103,6 @@ struct vepu_dev {
 
 	struct reset_control *rst_a;
 	struct reset_control *rst_h;
-	struct vepu_task *current_task;
 };
 
 static struct mpp_hw_info vepu_v2_hw_info = {
@@ -276,16 +275,10 @@ static int vepu_run(struct mpp_dev *mpp,
 {
 	u32 i;
 	u32 reg_en;
-	struct vepu_task *task = NULL;
-	struct vepu_dev *enc = NULL;
+	struct vepu_task *task = to_vepu_task(mpp_task);
 
 	mpp_debug_enter();
 
-	task = to_vepu_task(mpp_task);
-	enc = to_vepu_dev(mpp);
-
-	/* FIXME: spin lock here */
-	enc->current_task = task;
 	/* clear cache */
 	mpp_write_relaxed(mpp, VEPU2_REG_CLR_CACHE_BASE, 1);
 
@@ -302,7 +295,7 @@ static int vepu_run(struct mpp_dev *mpp,
 		mpp_write_req(mpp, task->reg, s, e, reg_en);
 	}
 	/* init current task */
-	enc->current_task = task;
+	mpp->cur_task = mpp_task;
 	/* Last, flush the registers */
 	wmb();
 	mpp_write(mpp, VEPU2_REG_ENC_EN,
@@ -328,19 +321,16 @@ static int vepu_isr(struct mpp_dev *mpp)
 {
 	u32 err_mask;
 	struct vepu_task *task = NULL;
-	struct mpp_task *mpp_task = NULL;
-	struct vepu_dev *enc = to_vepu_dev(mpp);
+	struct mpp_task *mpp_task = mpp->cur_task;
 
 	/* FIXME use a spin lock here */
-	task = enc->current_task;
-	if (!task) {
-		dev_err(enc->mpp.dev, "no current task\n");
+	if (!mpp_task) {
+		dev_err(mpp->dev, "no current task\n");
 		return IRQ_HANDLED;
 	}
-
-	mpp_task = &task->mpp_task;
 	mpp_time_diff(mpp_task);
-	enc->current_task = NULL;
+	mpp->cur_task = NULL;
+	task = to_vepu_task(mpp_task);
 	task->irq_status = mpp->irq_status;
 	mpp_debug(DEBUG_IRQ_STATUS, "irq_status: %08x\n",
 		  task->irq_status);
