@@ -185,6 +185,9 @@ int snd_soc_dai_compr_get_params(struct snd_soc_dai *dai,
 int snd_soc_dai_compr_ack(struct snd_soc_dai *dai,
 			  struct snd_compr_stream *cstream,
 			  size_t bytes);
+int snd_soc_dai_compr_pointer(struct snd_soc_dai *dai,
+			      struct snd_compr_stream *cstream,
+			      struct snd_compr_tstamp *tstamp);
 
 struct snd_soc_dai_ops {
 	/*

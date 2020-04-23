@@ -648,8 +648,9 @@ static int soc_compr_pointer(struct snd_compr_stream *cstream,
 
 	mutex_lock_nested(&rtd->card->pcm_mutex, rtd->card->pcm_subclass);
 
-	if (cpu_dai->driver->cops && cpu_dai->driver->cops->pointer)
-		cpu_dai->driver->cops->pointer(cstream, tstamp, cpu_dai);
+	ret = snd_soc_dai_compr_pointer(cpu_dai, cstream, tstamp);
+	if (ret < 0)
+		goto out;
 
 	for_each_rtd_components(rtd, i, component) {
 		if (!component->driver->compress_ops ||
@@ -660,7 +661,7 @@ static int soc_compr_pointer(struct snd_compr_stream *cstream,
 			component, cstream, tstamp);
 		break;
 	}
-
+out:
 	mutex_unlock(&rtd->card->pcm_mutex);
 	return ret;
 }
