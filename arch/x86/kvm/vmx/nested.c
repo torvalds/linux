@@ -5814,7 +5814,8 @@ bool nested_vmx_reflect_vmexit(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	u32 exit_reason = vmx->exit_reason;
-	u32 exit_intr_info, exit_qual;
+	unsigned long exit_qual;
+	u32 exit_intr_info;
 
 	WARN_ON_ONCE(vmx->nested.nested_run_pending);
 
