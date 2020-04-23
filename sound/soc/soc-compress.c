@@ -114,8 +114,7 @@ static int soc_compr_open(struct snd_compr_stream *cstream)
 machine_err:
 	soc_compr_components_free(cstream, component);
 
-	if (cpu_dai->driver->cops && cpu_dai->driver->cops->shutdown)
-		cpu_dai->driver->cops->shutdown(cstream, cpu_dai);
+	snd_soc_dai_compr_shutdown(cpu_dai, cstream);
 out:
 	mutex_unlock(&rtd->card->pcm_mutex);
 pm_err:
@@ -204,8 +203,7 @@ static int soc_compr_open_fe(struct snd_compr_stream *cstream)
 machine_err:
 	soc_compr_components_free(cstream, component);
 open_err:
-	if (cpu_dai->driver->cops && cpu_dai->driver->cops->shutdown)
-		cpu_dai->driver->cops->shutdown(cstream, cpu_dai);
+	snd_soc_dai_compr_shutdown(cpu_dai, cstream);
 out:
 	dpcm_path_put(&list);
 be_err:
@@ -244,8 +242,7 @@ static int soc_compr_free(struct snd_compr_stream *cstream)
 
 	soc_compr_components_free(cstream, NULL);
 
-	if (cpu_dai->driver->cops && cpu_dai->driver->cops->shutdown)
-		cpu_dai->driver->cops->shutdown(cstream, cpu_dai);
+	snd_soc_dai_compr_shutdown(cpu_dai, cstream);
 
 	snd_soc_dapm_stream_stop(rtd, stream);
 
@@ -301,8 +298,7 @@ static int soc_compr_free_fe(struct snd_compr_stream *cstream)
 
 	soc_compr_components_free(cstream, NULL);
 
-	if (cpu_dai->driver->cops && cpu_dai->driver->cops->shutdown)
-		cpu_dai->driver->cops->shutdown(cstream, cpu_dai);
+	snd_soc_dai_compr_shutdown(cpu_dai, cstream);
 
 	mutex_unlock(&fe->card->mutex);
 	return 0;

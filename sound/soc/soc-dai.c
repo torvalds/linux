@@ -517,3 +517,12 @@ int snd_soc_dai_compr_startup(struct snd_soc_dai *dai,
 	return soc_dai_ret(dai, ret);
 }
 EXPORT_SYMBOL_GPL(snd_soc_dai_compr_startup);
+
+void snd_soc_dai_compr_shutdown(struct snd_soc_dai *dai,
+				struct snd_compr_stream *cstream)
+{
+	if (dai->driver->cops &&
+	    dai->driver->cops->shutdown)
+		dai->driver->cops->shutdown(cstream, dai);
+}
+EXPORT_SYMBOL_GPL(snd_soc_dai_compr_shutdown);
