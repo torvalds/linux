@@ -3464,7 +3464,11 @@ static int __init panel_simple_init(void)
 
 	return 0;
 }
+#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
+rootfs_initcall(panel_simple_init);
+#else
 module_init(panel_simple_init);
+#endif
 
 static void __exit panel_simple_exit(void)
 {
