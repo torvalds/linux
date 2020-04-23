@@ -936,6 +936,10 @@ static int ucsi_register_port(struct ucsi *ucsi, int index)
 	cap->driver_data = con;
 	cap->ops = &ucsi_ops;
 
+	ret = ucsi_register_port_psy(con);
+	if (ret)
+		return ret;
+
 	/* Register the connector */
 	con->port = typec_register_port(ucsi->dev, cap);
 	if (IS_ERR(con->port))
@@ -1062,6 +1066,7 @@ err_unregister:
 	for (con = ucsi->connector; con->port; con++) {
 		ucsi_unregister_partner(con);
 		ucsi_unregister_altmodes(con, UCSI_RECIPIENT_CON);
+		ucsi_unregister_port_psy(con);
 		typec_unregister_port(con->port);
 		con->port = NULL;
 	}
@@ -1185,6 +1190,7 @@ void ucsi_unregister(struct ucsi *ucsi)
 		ucsi_unregister_partner(&ucsi->connector[i]);
 		ucsi_unregister_altmodes(&ucsi->connector[i],
 					 UCSI_RECIPIENT_CON);
+		ucsi_unregister_port_psy(&ucsi->connector[i]);
 		typec_unregister_port(ucsi->connector[i].port);
 	}
 
