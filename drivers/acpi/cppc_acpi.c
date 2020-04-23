@@ -350,7 +350,7 @@ static void cppc_chan_tx_done(struct mbox_client *cl, void *msg, int ret)
 				*(u16 *)msg, ret);
 }
 
-struct mbox_client cppc_mbox_cl = {
+static struct mbox_client cppc_mbox_cl = {
 	.tx_done = cppc_chan_tx_done,
 	.knows_txdone = true,
 };
@@ -597,7 +597,7 @@ bool __weak cpc_ffh_supported(void)
  *
  * Return: 0 for success, errno for failure
  */
-int pcc_data_alloc(int pcc_ss_id)
+static int pcc_data_alloc(int pcc_ss_id)
 {
 	if (pcc_ss_id < 0 || pcc_ss_id >= MAX_PCC_SUBSPACES)
 		return -EINVAL;
