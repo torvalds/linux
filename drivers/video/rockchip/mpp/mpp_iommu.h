@@ -27,7 +27,6 @@ struct mpp_dma_buffer {
 	struct sg_table *copy_sgt;
 	enum dma_data_direction dir;
 
-	int fd;
 	dma_addr_t iova;
 	unsigned long size;
 	void *vaddr;

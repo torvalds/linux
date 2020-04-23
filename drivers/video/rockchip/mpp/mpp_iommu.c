@@ -38,11 +38,10 @@ mpp_dma_find_buffer_fd(struct mpp_dma_session *dma, int fd)
 	list_for_each_entry_safe(buffer, n,
 				 &dma->buffer_list, link) {
 		/*
-		 * As long as the last reference is hold by the buffer pool,
-		 * the same fd won't be assigned to the other application.
+		 * fd may dup several and point the same dambuf.
+		 * thus, here should be distinguish with the dmabuf.
 		 */
-		if (buffer->fd == fd &&
-		    buffer->dmabuf == dmabuf) {
+		if (buffer->dmabuf == dmabuf) {
 			out = buffer;
 			break;
 		}
@@ -205,7 +204,6 @@ struct mpp_dma_buffer *mpp_dma_import_fd(struct mpp_iommu_info *iommu_info,
 	}
 
 	buffer->dmabuf = dmabuf;
-	buffer->fd = fd;
 	buffer->dir = DMA_BIDIRECTIONAL;
 	buffer->last_used = ktime_get();
 
