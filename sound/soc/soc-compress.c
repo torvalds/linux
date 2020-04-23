@@ -338,8 +338,9 @@ static int soc_compr_trigger(struct snd_compr_stream *cstream, int cmd)
 	if (ret < 0)
 		goto out;
 
-	if (cpu_dai->driver->cops && cpu_dai->driver->cops->trigger)
-		cpu_dai->driver->cops->trigger(cstream, cmd, cpu_dai);
+	ret = snd_soc_dai_compr_trigger(cpu_dai, cstream, cmd);
+	if (ret < 0)
+		goto out;
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -372,11 +373,9 @@ static int soc_compr_trigger_fe(struct snd_compr_stream *cstream, int cmd)
 
 	mutex_lock_nested(&fe->card->mutex, SND_SOC_CARD_CLASS_RUNTIME);
 
-	if (cpu_dai->driver->cops && cpu_dai->driver->cops->trigger) {
-		ret = cpu_dai->driver->cops->trigger(cstream, cmd, cpu_dai);
-		if (ret < 0)
-			goto out;
-	}
+	ret = snd_soc_dai_compr_trigger(cpu_dai, cstream, cmd);
+	if (ret < 0)
+		goto out;
 
 	ret = soc_compr_components_trigger(cstream, cmd);
 	if (ret < 0)
