@@ -139,7 +139,7 @@ alternative_if ARM64_HAS_RAS_EXTN
 	msr_s	SYS_DISR_EL1, xzr
 alternative_else_nop_endif
 
-	ptrauth_keys_install_kernel x14, 0, x1, x2, x3
+	ptrauth_keys_install_kernel_nosync x14, x1, x2, x3
 	isb
 	ret
 SYM_FUNC_END(cpu_do_resume)

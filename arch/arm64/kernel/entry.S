@@ -178,7 +178,7 @@ alternative_cb_end
 
 	apply_ssbd 1, x22, x23
 
-	ptrauth_keys_install_kernel tsk, 1, x20, x22, x23
+	ptrauth_keys_install_kernel tsk, x20, x22, x23
 	.else
 	add	x21, sp, #S_FRAME_SIZE
 	get_current_task tsk
@@ -900,7 +900,7 @@ SYM_FUNC_START(cpu_switch_to)
 	ldr	lr, [x8]
 	mov	sp, x9
 	msr	sp_el0, x1
-	ptrauth_keys_install_kernel x1, 1, x8, x9, x10
+	ptrauth_keys_install_kernel x1, x8, x9, x10
 	ret
 SYM_FUNC_END(cpu_switch_to)
 NOKPROBE(cpu_switch_to)
