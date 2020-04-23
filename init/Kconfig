@@ -8,6 +8,23 @@ config DEFCONFIG_LIST
 	default "/boot/config-$(shell,uname -r)"
 	default "arch/$(SRCARCH)/configs/$(KBUILD_DEFCONFIG)"
 
+config CC_VERSION_TEXT
+	string
+	default "$(CC_VERSION_TEXT)"
+	help
+	  This is used in unclear ways:
+
+	  - Re-run Kconfig when the compiler is updated
+	    The 'default' property references the environment variable,
+	    CC_VERSION_TEXT so it is recorded in include/config/auto.conf.cmd.
+	    When the compiler is updated, Kconfig will be invoked.
+
+	  - Ensure full rebuild when the compier is updated
+	    include/linux/kconfig.h contains this option in the comment line so
+	    fixdep adds include/config/cc/version/text.h into the auto-generated
+	    dependency. When the compiler is updated, syncconfig will touch it
+	    and then every file will be rebuilt.
+
 config CC_IS_GCC
 	def_bool $(success,echo "$(CC_VERSION_TEXT)" | grep -q gcc)
 
