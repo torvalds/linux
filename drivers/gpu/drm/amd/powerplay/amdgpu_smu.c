@@ -571,15 +571,10 @@ bool is_support_sw_smu(struct amdgpu_device *adev)
 	if (adev->asic_type == CHIP_VEGA20)
 		return (amdgpu_dpm == 2) ? true : false;
 	else if (adev->asic_type >= CHIP_ARCTURUS) {
-		if (amdgpu_sriov_vf(adev) &&
-		    !(adev->asic_type == CHIP_ARCTURUS &&
-		      amdgpu_sriov_is_pp_one_vf(adev)))
-
-			return false;
-		else
+	      if (amdgpu_sriov_is_pp_one_vf(adev) || !amdgpu_sriov_vf(adev))
 			return true;
-	} else
-		return false;
+	}
+	return false;
 }
 
 bool is_support_sw_smu_xgmi(struct amdgpu_device *adev)
