@@ -191,7 +191,8 @@ out:
 static int bcm54140_hwmon_read_temp(struct device *dev, u32 attr, long *val)
 {
 	struct phy_device *phydev = dev_get_drvdata(dev);
-	u16 reg, tmp;
+	u16 reg;
+	int tmp;
 
 	switch (attr) {
 	case hwmon_temp_input:
@@ -224,7 +225,8 @@ static int bcm54140_hwmon_read_in(struct device *dev, u32 attr,
 				  int channel, long *val)
 {
 	struct phy_device *phydev = dev_get_drvdata(dev);
-	u16 bit, reg, tmp;
+	u16 bit, reg;
+	int tmp;
 
 	switch (attr) {
 	case hwmon_in_input:
