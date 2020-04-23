@@ -1484,13 +1484,9 @@ bool mlx5e_eswitch_uplink_rep(struct net_device *netdev)
 	return netdev->netdev_ops == &mlx5e_netdev_ops_uplink_rep;
 }
 
-bool mlx5e_eswitch_rep(struct net_device *netdev)
+bool mlx5e_eswitch_vf_rep(struct net_device *netdev)
 {
-	if (netdev->netdev_ops == &mlx5e_netdev_ops_rep ||
-	    netdev->netdev_ops == &mlx5e_netdev_ops_uplink_rep)
-		return true;
-
-	return false;
+	return netdev->netdev_ops == &mlx5e_netdev_ops_rep;
 }
 
 static void mlx5e_build_rep_params(struct net_device *netdev)
