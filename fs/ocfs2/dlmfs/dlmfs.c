@@ -291,9 +291,6 @@ static ssize_t dlmfs_file_write(struct file *filp,
 	if (!count)
 		return 0;
 
-	if (!access_ok(buf, count))
-		return -EFAULT;
-
 	lvb_buf = kmalloc(count, GFP_NOFS);
 	if (!lvb_buf)
 		return -ENOMEM;
