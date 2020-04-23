@@ -1138,8 +1138,8 @@ struct kvm_x86_ops {
 	void (*set_nmi)(struct kvm_vcpu *vcpu);
 	void (*queue_exception)(struct kvm_vcpu *vcpu);
 	void (*cancel_injection)(struct kvm_vcpu *vcpu);
-	bool (*interrupt_allowed)(struct kvm_vcpu *vcpu);
-	bool (*nmi_allowed)(struct kvm_vcpu *vcpu);
+	bool (*interrupt_allowed)(struct kvm_vcpu *vcpu, bool for_injection);
+	bool (*nmi_allowed)(struct kvm_vcpu *vcpu, bool for_injection);
 	bool (*get_nmi_mask)(struct kvm_vcpu *vcpu);
 	void (*set_nmi_mask)(struct kvm_vcpu *vcpu, bool masked);
 	void (*enable_nmi_window)(struct kvm_vcpu *vcpu);
@@ -1237,7 +1237,7 @@ struct kvm_x86_ops {
 
 	void (*setup_mce)(struct kvm_vcpu *vcpu);
 
-	bool (*smi_allowed)(struct kvm_vcpu *vcpu);
+	bool (*smi_allowed)(struct kvm_vcpu *vcpu, bool for_injection);
 	int (*pre_enter_smm)(struct kvm_vcpu *vcpu, char *smstate);
 	int (*pre_leave_smm)(struct kvm_vcpu *vcpu, const char *smstate);
 	int (*enable_smi_window)(struct kvm_vcpu *vcpu);

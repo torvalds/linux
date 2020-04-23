@@ -4523,9 +4523,13 @@ bool vmx_nmi_blocked(struct kvm_vcpu *vcpu)
 		 GUEST_INTR_STATE_NMI));
 }
 
-static bool vmx_nmi_allowed(struct kvm_vcpu *vcpu)
+static bool vmx_nmi_allowed(struct kvm_vcpu *vcpu, bool for_injection)
 {
 	if (to_vmx(vcpu)->nested.nested_run_pending)
+		return false;
+
+	/* An NMI must not be injected into L2 if it's supposed to VM-Exit.  */
+	if (for_injection && is_guest_mode(vcpu) && nested_exit_on_nmi(vcpu))
 		return false;
 
 	return !vmx_nmi_blocked(vcpu);
@@ -4541,9 +4545,16 @@ bool vmx_interrupt_blocked(struct kvm_vcpu *vcpu)
 		(GUEST_INTR_STATE_STI | GUEST_INTR_STATE_MOV_SS));
 }
 
-static bool vmx_interrupt_allowed(struct kvm_vcpu *vcpu)
+static bool vmx_interrupt_allowed(struct kvm_vcpu *vcpu, bool for_injection)
 {
 	if (to_vmx(vcpu)->nested.nested_run_pending)
+		return false;
+
+       /*
+        * An IRQ must not be injected into L2 if it's supposed to VM-Exit,
+        * e.g. if the IRQ arrived asynchronously after checking nested events.
+        */
+	if (for_injection && is_guest_mode(vcpu) && nested_exit_on_intr(vcpu))
 		return false;
 
 	return !vmx_interrupt_blocked(vcpu);
@@ -7688,7 +7699,7 @@ static void vmx_setup_mce(struct kvm_vcpu *vcpu)
 			~FEAT_CTL_LMCE_ENABLED;
 }
 
-static bool vmx_smi_allowed(struct kvm_vcpu *vcpu)
+static bool vmx_smi_allowed(struct kvm_vcpu *vcpu, bool for_injection)
 {
 	/* we need a nested vmexit to enter SMM, postpone if run is pending */
 	if (to_vmx(vcpu)->nested.nested_run_pending)

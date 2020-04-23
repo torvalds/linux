@@ -3083,13 +3083,17 @@ bool svm_nmi_blocked(struct kvm_vcpu *vcpu)
 	return ret;
 }
 
-static bool svm_nmi_allowed(struct kvm_vcpu *vcpu)
+static bool svm_nmi_allowed(struct kvm_vcpu *vcpu, bool for_injection)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 	if (svm->nested.nested_run_pending)
 		return false;
 
-        return !svm_nmi_blocked(vcpu);
+	/* An NMI must not be injected into L2 if it's supposed to VM-Exit.  */
+	if (for_injection && is_guest_mode(vcpu) && nested_exit_on_nmi(svm))
+		return false;
+
+	return !svm_nmi_blocked(vcpu);
 }
 
 static bool svm_get_nmi_mask(struct kvm_vcpu *vcpu)
@@ -3138,13 +3142,20 @@ bool svm_interrupt_blocked(struct kvm_vcpu *vcpu)
 	return (vmcb->control.int_state & SVM_INTERRUPT_SHADOW_MASK);
 }
 
-static bool svm_interrupt_allowed(struct kvm_vcpu *vcpu)
+static bool svm_interrupt_allowed(struct kvm_vcpu *vcpu, bool for_injection)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 	if (svm->nested.nested_run_pending)
 		return false;
 
-        return !svm_interrupt_blocked(vcpu);
+	/*
+	 * An IRQ must not be injected into L2 if it's supposed to VM-Exit,
+	 * e.g. if the IRQ arrived asynchronously after checking nested events.
+	 */
+	if (for_injection && is_guest_mode(vcpu) && nested_exit_on_intr(svm))
+		return false;
+
+	return !svm_interrupt_blocked(vcpu);
 }
 
 static void enable_irq_window(struct kvm_vcpu *vcpu)
@@ -3812,10 +3823,14 @@ bool svm_smi_blocked(struct kvm_vcpu *vcpu)
 	return is_smm(vcpu);
 }
 
-static bool svm_smi_allowed(struct kvm_vcpu *vcpu)
+static bool svm_smi_allowed(struct kvm_vcpu *vcpu, bool for_injection)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 	if (svm->nested.nested_run_pending)
+		return false;
+
+	/* An SMI must not be injected into L2 if it's supposed to VM-Exit.  */
+	if (for_injection && is_guest_mode(vcpu) && nested_exit_on_smi(svm))
 		return false;
 
 	return !svm_smi_blocked(vcpu);

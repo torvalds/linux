@@ -7766,32 +7766,20 @@ static int inject_pending_event(struct kvm_vcpu *vcpu)
 	if (kvm_event_needs_reinjection(vcpu))
 		return 0;
 
-	if (vcpu->arch.smi_pending && kvm_x86_ops.smi_allowed(vcpu)) {
+	if (vcpu->arch.smi_pending &&
+	    kvm_x86_ops.smi_allowed(vcpu, true)) {
 		vcpu->arch.smi_pending = false;
 		++vcpu->arch.smi_count;
 		enter_smm(vcpu);
-	} else if (vcpu->arch.nmi_pending && kvm_x86_ops.nmi_allowed(vcpu)) {
+	} else if (vcpu->arch.nmi_pending &&
+		   kvm_x86_ops.nmi_allowed(vcpu, true)) {
 		--vcpu->arch.nmi_pending;
 		vcpu->arch.nmi_injected = true;
 		kvm_x86_ops.set_nmi(vcpu);
-	} else if (kvm_cpu_has_injectable_intr(vcpu)) {
-		/*
-		 * Because interrupts can be injected asynchronously, we are
-		 * calling check_nested_events again here to avoid a race condition.
-		 * See https://lkml.org/lkml/2014/7/2/60 for discussion about this
-		 * proposal and current concerns.  Perhaps we should be setting
-		 * KVM_REQ_EVENT only on certain events and not unconditionally?
-		 */
-		if (is_guest_mode(vcpu)) {
-			r = kvm_x86_ops.nested_ops->check_events(vcpu);
-			if (r != 0)
-				return r;
-		}
-		if (kvm_x86_ops.interrupt_allowed(vcpu)) {
-			kvm_queue_interrupt(vcpu, kvm_cpu_get_interrupt(vcpu),
-					    false);
-			kvm_x86_ops.set_irq(vcpu);
-		}
+	} else if (kvm_cpu_has_injectable_intr(vcpu) &&
+		   kvm_x86_ops.interrupt_allowed(vcpu, true)) {
+		kvm_queue_interrupt(vcpu, kvm_cpu_get_interrupt(vcpu), false);
+		kvm_x86_ops.set_irq(vcpu);
 	}
 
 	return 0;
@@ -10203,12 +10191,12 @@ static inline bool kvm_vcpu_has_events(struct kvm_vcpu *vcpu)
 
 	if (kvm_test_request(KVM_REQ_NMI, vcpu) ||
 	    (vcpu->arch.nmi_pending &&
-	     kvm_x86_ops.nmi_allowed(vcpu)))
+	     kvm_x86_ops.nmi_allowed(vcpu, false)))
 		return true;
 
 	if (kvm_test_request(KVM_REQ_SMI, vcpu) ||
 	    (vcpu->arch.smi_pending &&
-	     kvm_x86_ops.smi_allowed(vcpu)))
+	     kvm_x86_ops.smi_allowed(vcpu, false)))
 		return true;
 
 	if (kvm_arch_interrupt_allowed(vcpu) &&
@@ -10260,7 +10248,7 @@ int kvm_arch_vcpu_should_kick(struct kvm_vcpu *vcpu)
 
 int kvm_arch_interrupt_allowed(struct kvm_vcpu *vcpu)
 {
-	return kvm_x86_ops.interrupt_allowed(vcpu);
+	return kvm_x86_ops.interrupt_allowed(vcpu, false);
 }
 
 unsigned long kvm_get_linear_rip(struct kvm_vcpu *vcpu)
@@ -10425,7 +10413,7 @@ bool kvm_can_do_async_pf(struct kvm_vcpu *vcpu)
 	 * If interrupts are off we cannot even use an artificial
 	 * halt state.
 	 */
-	return kvm_x86_ops.interrupt_allowed(vcpu);
+	return kvm_arch_interrupt_allowed(vcpu);
 }
 
 void kvm_arch_async_page_not_present(struct kvm_vcpu *vcpu,
