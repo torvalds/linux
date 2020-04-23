@@ -3065,11 +3065,11 @@ static void update_cr8_intercept(struct kvm_vcpu *vcpu, int tpr, int irr)
 		set_cr_intercept(svm, INTERCEPT_CR8_WRITE);
 }
 
-static int svm_nmi_allowed(struct kvm_vcpu *vcpu)
+static bool svm_nmi_allowed(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 	struct vmcb *vmcb = svm->vmcb;
-	int ret;
+	bool ret;
 
 	ret = !(vmcb->control.int_state & SVM_INTERRUPT_SHADOW_MASK) &&
 	      !(svm->vcpu.arch.hflags & HF_NMI_MASK);
@@ -3098,14 +3098,14 @@ static void svm_set_nmi_mask(struct kvm_vcpu *vcpu, bool masked)
 	}
 }
 
-static int svm_interrupt_allowed(struct kvm_vcpu *vcpu)
+static bool svm_interrupt_allowed(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 	struct vmcb *vmcb = svm->vmcb;
 
 	if (!gif_set(svm) ||
 	     (vmcb->control.int_state & SVM_INTERRUPT_SHADOW_MASK))
-		return 0;
+		return false;
 
 	if (is_guest_mode(vcpu) && (svm->vcpu.arch.hflags & HF_VINTR_MASK))
 		return !!(svm->vcpu.arch.hflags & HF_HIF_MASK);
@@ -3767,23 +3767,23 @@ static void svm_setup_mce(struct kvm_vcpu *vcpu)
 	vcpu->arch.mcg_cap &= 0x1ff;
 }
 
-static int svm_smi_allowed(struct kvm_vcpu *vcpu)
+static bool svm_smi_allowed(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
 	/* Per APM Vol.2 15.22.2 "Response to SMI" */
 	if (!gif_set(svm))
-		return 0;
+		return false;
 
 	if (is_guest_mode(&svm->vcpu) &&
 	    svm->nested.intercept & (1ULL << INTERCEPT_SMI)) {
 		/* TODO: Might need to set exit_info_1 and exit_info_2 here */
 		svm->vmcb->control.exit_code = SVM_EXIT_SMI;
 		svm->nested.exit_required = true;
-		return 0;
+		return false;
 	}
 
-	return 1;
+	return true;
 }
 
 static int svm_pre_enter_smm(struct kvm_vcpu *vcpu, char *smstate)

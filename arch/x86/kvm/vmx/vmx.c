@@ -4510,21 +4510,21 @@ void vmx_set_nmi_mask(struct kvm_vcpu *vcpu, bool masked)
 	}
 }
 
-static int vmx_nmi_allowed(struct kvm_vcpu *vcpu)
+static bool vmx_nmi_allowed(struct kvm_vcpu *vcpu)
 {
 	if (to_vmx(vcpu)->nested.nested_run_pending)
-		return 0;
+		return false;
 
 	if (!enable_vnmi &&
 	    to_vmx(vcpu)->loaded_vmcs->soft_vnmi_blocked)
-		return 0;
+		return false;
 
 	return	!(vmcs_read32(GUEST_INTERRUPTIBILITY_INFO) &
 		  (GUEST_INTR_STATE_MOV_SS | GUEST_INTR_STATE_STI
 		   | GUEST_INTR_STATE_NMI));
 }
 
-static int vmx_interrupt_allowed(struct kvm_vcpu *vcpu)
+static bool vmx_interrupt_allowed(struct kvm_vcpu *vcpu)
 {
 	if (to_vmx(vcpu)->nested.nested_run_pending)
 		return false;
@@ -7675,12 +7675,12 @@ static void vmx_setup_mce(struct kvm_vcpu *vcpu)
 			~FEAT_CTL_LMCE_ENABLED;
 }
 
-static int vmx_smi_allowed(struct kvm_vcpu *vcpu)
+static bool vmx_smi_allowed(struct kvm_vcpu *vcpu)
 {
 	/* we need a nested vmexit to enter SMM, postpone if run is pending */
 	if (to_vmx(vcpu)->nested.nested_run_pending)
-		return 0;
-	return 1;
+		return false;
+	return true;
 }
 
 static int vmx_pre_enter_smm(struct kvm_vcpu *vcpu, char *smstate)
