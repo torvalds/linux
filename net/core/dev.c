@@ -6227,7 +6227,8 @@ EXPORT_SYMBOL(__napi_schedule_irqoff);
 
 bool napi_complete_done(struct napi_struct *n, int work_done)
 {
-	unsigned long flags, val, new;
+	unsigned long flags, val, new, timeout = 0;
+	bool ret = true;
 
 	/*
 	 * 1) Don't let napi dequeue from the cpu poll list
@@ -6239,20 +6240,23 @@ bool napi_complete_done(struct napi_struct *n, int work_done)
 				 NAPIF_STATE_IN_BUSY_POLL)))
 		return false;
 
+	if (work_done) {
+		if (n->gro_bitmask)
+			timeout = READ_ONCE(n->dev->gro_flush_timeout);
+		n->defer_hard_irqs_count = READ_ONCE(n->dev->napi_defer_hard_irqs);
+	}
+	if (n->defer_hard_irqs_count > 0) {
+		n->defer_hard_irqs_count--;
+		timeout = READ_ONCE(n->dev->gro_flush_timeout);
+		if (timeout)
+			ret = false;
+	}
 	if (n->gro_bitmask) {
-		unsigned long timeout = 0;
-
-		if (work_done)
-			timeout = n->dev->gro_flush_timeout;
-
 		/* When the NAPI instance uses a timeout and keeps postponing
 		 * it, we need to bound somehow the time packets are kept in
 		 * the GRO layer
 		 */
 		napi_gro_flush(n, !!timeout);
-		if (timeout)
-			hrtimer_start(&n->timer, ns_to_ktime(timeout),
-				      HRTIMER_MODE_REL_PINNED);
 	}
 
 	gro_normal_list(n);
@@ -6284,7 +6288,10 @@ bool napi_complete_done(struct napi_struct *n, int work_done)
 		return false;
 	}
 
-	return true;
+	if (timeout)
+		hrtimer_start(&n->timer, ns_to_ktime(timeout),
+			      HRTIMER_MODE_REL_PINNED);
+	return ret;
 }
 EXPORT_SYMBOL(napi_complete_done);
 
@@ -6464,7 +6471,7 @@ static enum hrtimer_restart napi_watchdog(struct hrtimer *timer)
 	/* Note : we use a relaxed variant of napi_schedule_prep() not setting
 	 * NAPI_STATE_MISSED, since we do not react to a device IRQ.
 	 */
-	if (napi->gro_bitmask && !napi_disable_pending(napi) &&
+	if (!napi_disable_pending(napi) &&
 	    !test_and_set_bit(NAPI_STATE_SCHED, &napi->state))
 		__napi_schedule_irqoff(napi);
 
