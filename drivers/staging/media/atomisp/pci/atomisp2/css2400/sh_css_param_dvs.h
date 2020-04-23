@@ -17,9 +17,7 @@
 
 #include <math_support.h>
 #include <ia_css_types.h>
-#ifdef ISP2401
 #include <sh_css_dvs_info.h>
-#endif
 #include "gdc_global.h" /* gdc_warp_param_mem_t */
 
 #define DVS_ENV_MIN_X (12)
@@ -29,16 +27,16 @@
 #define DVS_BLOCKDIM_Y_LUMA (64)   /* Y block height*/
 #define DVS_BLOCKDIM_Y_CHROMA (32) /* UV height block size is half the Y block height*/
 
-#ifndef ISP2401
+/* ISP2400 */
 /* horizontal 64x64 blocks round up to DVS_BLOCKDIM_X, make even */
 #define DVS_NUM_BLOCKS_X(X)		(CEIL_MUL(CEIL_DIV((X), DVS_BLOCKDIM_X), 2))
 
+/* ISP2400 */
 /* vertical   64x64 blocks round up to DVS_BLOCKDIM_Y */
 #define DVS_NUM_BLOCKS_Y(X)		(CEIL_DIV((X), DVS_BLOCKDIM_Y_LUMA))
 #define DVS_NUM_BLOCKS_X_CHROMA(X)	(CEIL_DIV((X), DVS_BLOCKDIM_X))
 #define DVS_NUM_BLOCKS_Y_CHROMA(X)	(CEIL_DIV((X), DVS_BLOCKDIM_Y_CHROMA))
 
-#endif
 #define DVS_TABLE_IN_BLOCKDIM_X_LUMA(X)	(DVS_NUM_BLOCKS_X(X) + 1)  /* N blocks have N + 1 set of coords */
 #define DVS_TABLE_IN_BLOCKDIM_X_CHROMA(X)   (DVS_NUM_BLOCKS_X_CHROMA(X) + 1)
 #define DVS_TABLE_IN_BLOCKDIM_Y_LUMA(X)		(DVS_NUM_BLOCKS_Y(X) + 1)
@@ -48,9 +46,10 @@
 #define DVS_ENVELOPE_Y(X) (((X) == 0) ? (DVS_ENV_MIN_Y) : (X))
 
 #define DVS_COORD_FRAC_BITS (10)
-#ifndef ISP2401
+
+/* ISP2400 */
 #define DVS_INPUT_BYTES_PER_PIXEL (1)
-#endif
+
 #define XMEM_ALIGN_LOG2 (5)
 
 #define DVS_6AXIS_COORDS_ELEMS CEIL_MUL(sizeof(gdc_warp_param_mem_t) \
@@ -62,12 +61,12 @@
 	* DVS_NUM_BLOCKS_X((binary)->out_frame_info[0].res.width) \
 	* DVS_NUM_BLOCKS_Y((binary)->out_frame_info[0].res.height))
 
-#ifndef ISP2401
-/* Bilinear interpolation (HRT_GDC_BLI_MODE) is the supported method currently.
+/*
+ * ISP2400:
+ * Bilinear interpolation (HRT_GDC_BLI_MODE) is the supported method currently.
  * Bicubic interpolation (HRT_GDC_BCI_MODE) is not supported yet */
 #define DVS_GDC_INTERP_METHOD HRT_GDC_BLI_MODE
 
-#endif
 struct ia_css_dvs_6axis_config *
 generate_dvs_6axis_table(const struct ia_css_resolution	*frame_res,
 			 const struct ia_css_resolution *dvs_offset);
