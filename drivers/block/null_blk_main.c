@@ -1276,6 +1276,25 @@ static inline void nullb_complete_cmd(struct nullb_cmd *cmd)
 	}
 }
 
+blk_status_t null_process_cmd(struct nullb_cmd *cmd,
+			      enum req_opf op, sector_t sector,
+			      unsigned int nr_sectors)
+{
+	struct nullb_device *dev = cmd->nq->dev;
+	blk_status_t ret;
+
+	if (dev->badblocks.shift != -1) {
+		ret = null_handle_badblocks(cmd, sector, nr_sectors);
+		if (ret != BLK_STS_OK)
+			return ret;
+	}
+
+	if (dev->memory_backed)
+		return null_handle_memory_backed(cmd, op);
+
+	return BLK_STS_OK;
+}
+
 static blk_status_t null_handle_cmd(struct nullb_cmd *cmd, sector_t sector,
 				    sector_t nr_sectors, enum req_opf op)
 {
@@ -1294,17 +1313,11 @@ static blk_status_t null_handle_cmd(struct nullb_cmd *cmd, sector_t sector,
 		goto out;
 	}
 
-	if (nullb->dev->badblocks.shift != -1) {
-		cmd->error = null_handle_badblocks(cmd, sector, nr_sectors);
-		if (cmd->error != BLK_STS_OK)
-			goto out;
-	}
-
-	if (dev->memory_backed)
-		cmd->error = null_handle_memory_backed(cmd, op);
-
-	if (!cmd->error && dev->zoned)
-		cmd->error = null_handle_zoned(cmd, op, sector, nr_sectors);
+	if (dev->zoned)
+		cmd->error = null_process_zoned_cmd(cmd, op,
+						    sector, nr_sectors);
+	else
+		cmd->error = null_process_cmd(cmd, op, sector, nr_sectors);
 
 out:
 	nullb_complete_cmd(cmd);

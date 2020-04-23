@@ -85,14 +85,18 @@ struct nullb {
 	char disk_name[DISK_NAME_LEN];
 };
 
+blk_status_t null_process_cmd(struct nullb_cmd *cmd,
+			      enum req_opf op, sector_t sector,
+			      unsigned int nr_sectors);
+
 #ifdef CONFIG_BLK_DEV_ZONED
 int null_zone_init(struct nullb_device *dev);
 void null_zone_exit(struct nullb_device *dev);
 int null_report_zones(struct gendisk *disk, sector_t sector,
 		      unsigned int nr_zones, report_zones_cb cb, void *data);
-blk_status_t null_handle_zoned(struct nullb_cmd *cmd,
-				enum req_opf op, sector_t sector,
-				sector_t nr_sectors);
+blk_status_t null_process_zoned_cmd(struct nullb_cmd *cmd,
+				    enum req_opf op, sector_t sector,
+				    sector_t nr_sectors);
 size_t null_zone_valid_read_len(struct nullb *nullb,
 				sector_t sector, unsigned int len);
 #else
@@ -102,9 +106,8 @@ static inline int null_zone_init(struct nullb_device *dev)
 	return -EINVAL;
 }
 static inline void null_zone_exit(struct nullb_device *dev) {}
-static inline blk_status_t null_handle_zoned(struct nullb_cmd *cmd,
-					     enum req_opf op, sector_t sector,
-					     sector_t nr_sectors)
+static inline blk_status_t null_process_zoned_cmd(struct nullb_cmd *cmd,
+			enum req_opf op, sector_t sector, sector_t nr_sectors)
 {
 	return BLK_STS_NOTSUPP;
 }
