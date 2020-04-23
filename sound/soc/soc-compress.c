@@ -87,15 +87,9 @@ static int soc_compr_open(struct snd_compr_stream *cstream)
 
 	mutex_lock_nested(&rtd->card->pcm_mutex, rtd->card->pcm_subclass);
 
-	if (cpu_dai->driver->cops && cpu_dai->driver->cops->startup) {
-		ret = cpu_dai->driver->cops->startup(cstream, cpu_dai);
-		if (ret < 0) {
-			dev_err(cpu_dai->dev,
-				"Compress ASoC: can't open interface %s: %d\n",
-				cpu_dai->name, ret);
-			goto out;
-		}
-	}
+	ret = snd_soc_dai_compr_startup(cpu_dai, cstream);
+	if (ret < 0)
+		goto out;
 
 	ret = soc_compr_components_open(cstream, &component);
 	if (ret < 0)
@@ -178,15 +172,9 @@ static int soc_compr_open_fe(struct snd_compr_stream *cstream)
 		goto out;
 	}
 
-	if (cpu_dai->driver->cops && cpu_dai->driver->cops->startup) {
-		ret = cpu_dai->driver->cops->startup(cstream, cpu_dai);
-		if (ret < 0) {
-			dev_err(cpu_dai->dev,
-				"Compress ASoC: can't open interface %s: %d\n",
-				cpu_dai->name, ret);
-			goto out;
-		}
-	}
+	ret = snd_soc_dai_compr_startup(cpu_dai, cstream);
+	if (ret < 0)
+		goto out;
 
 	ret = soc_compr_components_open(cstream, &component);
 	if (ret < 0)

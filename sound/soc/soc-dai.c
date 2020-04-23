@@ -504,3 +504,16 @@ int snd_soc_pcm_dai_bespoke_trigger(struct snd_pcm_substream *substream,
 
 	return 0;
 }
+
+int snd_soc_dai_compr_startup(struct snd_soc_dai *dai,
+			      struct snd_compr_stream *cstream)
+{
+	int ret = 0;
+
+	if (dai->driver->cops &&
+	    dai->driver->cops->startup)
+		ret = dai->driver->cops->startup(cstream, dai);
+
+	return soc_dai_ret(dai, ret);
+}
+EXPORT_SYMBOL_GPL(snd_soc_dai_compr_startup);

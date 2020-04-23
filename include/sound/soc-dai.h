@@ -170,6 +170,9 @@ int snd_soc_pcm_dai_trigger(struct snd_pcm_substream *substream, int cmd);
 int snd_soc_pcm_dai_bespoke_trigger(struct snd_pcm_substream *substream,
 				    int cmd);
 
+int snd_soc_dai_compr_startup(struct snd_soc_dai *dai,
+			      struct snd_compr_stream *cstream);
+
 struct snd_soc_dai_ops {
 	/*
 	 * DAI clocking configuration, all optional.
