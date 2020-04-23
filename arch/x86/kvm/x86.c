@@ -8355,6 +8355,10 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 				kvm_x86_ops.enable_nmi_window(vcpu);
 			if (kvm_cpu_has_injectable_intr(vcpu) || req_int_win)
 				kvm_x86_ops.enable_irq_window(vcpu);
+			if (is_guest_mode(vcpu) &&
+			    kvm_x86_ops.nested_ops->hv_timer_pending &&
+			    kvm_x86_ops.nested_ops->hv_timer_pending(vcpu))
+				req_immediate_exit = true;
 			WARN_ON(vcpu->arch.exception.pending);
 		}
 
@@ -10209,6 +10213,11 @@ static inline bool kvm_vcpu_has_events(struct kvm_vcpu *vcpu)
 		return true;
 
 	if (kvm_hv_has_stimer_pending(vcpu))
+		return true;
+
+	if (is_guest_mode(vcpu) &&
+	    kvm_x86_ops.nested_ops->hv_timer_pending &&
+	    kvm_x86_ops.nested_ops->hv_timer_pending(vcpu))
 		return true;
 
 	return false;
