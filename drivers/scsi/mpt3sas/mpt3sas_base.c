@@ -4915,7 +4915,7 @@ _base_release_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 }
 
 /**
- * is_MSB_are_same - checks whether all reply queues in a set are
+ * mpt3sas_check_same_4gb_region - checks whether all reply queues in a set are
  *	having same upper 32bits in their base memory address.
  * @reply_pool_start_address: Base address of a reply queue set
  * @pool_sz: Size of single Reply Descriptor Post Queues pool size
@@ -4925,7 +4925,7 @@ _base_release_memory_pools(struct MPT3SAS_ADAPTER *ioc)
  */
 
 static int
-is_MSB_are_same(long reply_pool_start_address, u32 pool_sz)
+mpt3sas_check_same_4gb_region(long reply_pool_start_address, u32 pool_sz)
 {
 	long reply_pool_end_address;
 
@@ -5377,7 +5377,7 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 	 * Actual requirement is not alignment, but we need start and end of
 	 * DMA address must have same upper 32 bit address.
 	 */
-	if (!is_MSB_are_same((long)ioc->sense, sz)) {
+	if (!mpt3sas_check_same_4gb_region((long)ioc->sense, sz)) {
 		//Release Sense pool & Reallocate
 		dma_pool_free(ioc->sense_dma_pool, ioc->sense, ioc->sense_dma);
 		dma_pool_destroy(ioc->sense_dma_pool);
