@@ -1213,7 +1213,7 @@ static void restore_default_state(struct intel_context *ce,
 
 	if (engine->pinned_default_state)
 		memcpy(regs, /* skip restoring the vanilla PPHWSP */
-		       engine->pinned_default_state + LRC_STATE_PN * PAGE_SIZE,
+		       engine->pinned_default_state + LRC_STATE_OFFSET,
 		       engine->context_size - PAGE_SIZE);
 
 	execlists_init_reg_state(regs, ce, engine, ce->ring, false);
@@ -3169,7 +3169,7 @@ check_redzone(const void *vaddr, const struct intel_engine_cs *engine)
 
 static void execlists_context_unpin(struct intel_context *ce)
 {
-	check_redzone((void *)ce->lrc_reg_state - LRC_STATE_PN * PAGE_SIZE,
+	check_redzone((void *)ce->lrc_reg_state - LRC_STATE_OFFSET,
 		      ce->engine);
 
 	i915_gem_object_unpin_map(ce->state->obj);
@@ -3216,7 +3216,7 @@ __execlists_context_pin(struct intel_context *ce,
 		return PTR_ERR(vaddr);
 
 	ce->lrc_desc = lrc_descriptor(ce, engine) | CTX_DESC_FORCE_RESTORE;
-	ce->lrc_reg_state = vaddr + LRC_STATE_PN * PAGE_SIZE;
+	ce->lrc_reg_state = vaddr + LRC_STATE_OFFSET;
 	__execlists_update_reg_state(ce, engine, ce->ring->tail);
 
 	return 0;
@@ -4866,7 +4866,7 @@ populate_lr_context(struct intel_context *ce,
 	 * The second page of the context object contains some registers which
 	 * must be set up prior to the first execution.
 	 */
-	execlists_init_reg_state(vaddr + LRC_STATE_PN * PAGE_SIZE,
+	execlists_init_reg_state(vaddr + LRC_STATE_OFFSET,
 				 ce, engine, ring, inhibit);
 
 	ret = 0;

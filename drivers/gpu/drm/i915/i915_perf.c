@@ -2098,7 +2098,7 @@ gen8_store_flex(struct i915_request *rq,
 	if (IS_ERR(cs))
 		return PTR_ERR(cs);
 
-	offset = i915_ggtt_offset(ce->state) + LRC_STATE_PN * PAGE_SIZE;
+	offset = i915_ggtt_offset(ce->state) + LRC_STATE_OFFSET;
 	do {
 		*cs++ = MI_STORE_DWORD_IMM_GEN4 | MI_USE_GGTT;
 		*cs++ = offset + flex->offset * sizeof(u32);

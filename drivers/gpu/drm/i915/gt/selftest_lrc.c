@@ -4458,7 +4458,7 @@ static int live_lrc_layout(void *arg)
 			err = PTR_ERR(hw);
 			break;
 		}
-		hw += LRC_STATE_PN * PAGE_SIZE / sizeof(*hw);
+		hw += LRC_STATE_OFFSET / sizeof(*hw);
 
 		execlists_init_reg_state(memset(lrc, POISON_INUSE, PAGE_SIZE),
 					 engine->kernel_context,
@@ -4626,7 +4626,7 @@ static int live_lrc_fixed(void *arg)
 			err = PTR_ERR(hw);
 			break;
 		}
-		hw += LRC_STATE_PN * PAGE_SIZE / sizeof(*hw);
+		hw += LRC_STATE_OFFSET / sizeof(*hw);
 
 		for (t = tbl; t->name; t++) {
 			int dw = find_offset(hw, t->reg);
@@ -5212,7 +5212,7 @@ store_context(struct intel_context *ce, struct i915_vma *scratch)
 	x = 0;
 	dw = 0;
 	hw = ce->engine->pinned_default_state;
-	hw += LRC_STATE_PN * PAGE_SIZE / sizeof(*hw);
+	hw += LRC_STATE_OFFSET / sizeof(*hw);
 	do {
 		u32 len = hw[dw] & 0x7f;
 
@@ -5365,7 +5365,7 @@ static struct i915_vma *load_context(struct intel_context *ce, u32 poison)
 
 	dw = 0;
 	hw = ce->engine->pinned_default_state;
-	hw += LRC_STATE_PN * PAGE_SIZE / sizeof(*hw);
+	hw += LRC_STATE_OFFSET / sizeof(*hw);
 	do {
 		u32 len = hw[dw] & 0x7f;
 
@@ -5489,12 +5489,12 @@ static int compare_isolation(struct intel_engine_cs *engine,
 		err = PTR_ERR(lrc);
 		goto err_B1;
 	}
-	lrc += LRC_STATE_PN * PAGE_SIZE / sizeof(*hw);
+	lrc += LRC_STATE_OFFSET / sizeof(*hw);
 
 	x = 0;
 	dw = 0;
 	hw = engine->pinned_default_state;
-	hw += LRC_STATE_PN * PAGE_SIZE / sizeof(*hw);
+	hw += LRC_STATE_OFFSET / sizeof(*hw);
 	do {
 		u32 len = hw[dw] & 0x7f;
 
@@ -5736,7 +5736,7 @@ static struct i915_request *garbage(struct intel_context *ce,
 	prandom_bytes_state(prng,
 			    ce->lrc_reg_state,
 			    ce->engine->context_size -
-			    LRC_STATE_PN * PAGE_SIZE);
+			    LRC_STATE_OFFSET);
 
 	rq = intel_context_create_request(ce);
 	if (IS_ERR(rq)) {
