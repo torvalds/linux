@@ -39,6 +39,22 @@ extern bool __pure novamap(void);
 
 extern __pure efi_system_table_t  *efi_system_table(void);
 
+#ifndef efi_bs_call
+#define efi_bs_call(func, ...)	efi_system_table()->boottime->func(__VA_ARGS__)
+#endif
+#ifndef efi_rt_call
+#define efi_rt_call(func, ...)	efi_system_table()->runtime->func(__VA_ARGS__)
+#endif
+#ifndef efi_is_native
+#define efi_is_native()		(true)
+#endif
+#ifndef efi_table_attr
+#define efi_table_attr(inst, attr)	(inst->attr)
+#endif
+#ifndef efi_call_proto
+#define efi_call_proto(inst, func, ...) inst->func(inst, ##__VA_ARGS__)
+#endif
+
 #define pr_efi(msg)		do {			\
 	if (!is_quiet()) efi_printk("EFI stub: "msg);	\
 } while (0)
