@@ -742,9 +742,6 @@ static inline void soc_resume_init(struct snd_soc_card *card)
 }
 #endif
 
-static const struct snd_soc_dai_ops null_dai_ops = {
-};
-
 static struct device_node
 *soc_component_to_node(struct snd_soc_component *component)
 {
@@ -2406,8 +2403,6 @@ struct snd_soc_dai *snd_soc_register_dai(struct snd_soc_component *component,
 	dai->component = component;
 	dai->dev = dev;
 	dai->driver = dai_drv;
-	if (!dai->driver->ops)
-		dai->driver->ops = &null_dai_ops;
 
 	/* see for_each_component_dais */
 	list_add_tail(&dai->list, &component->dai_list);
