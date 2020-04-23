@@ -42,16 +42,17 @@ struct sh_css {
 	struct ia_css_pipe            *all_pipes[IA_CSS_PIPELINE_NUM_MAX];
 	void *(*malloc)(size_t bytes, bool zero_mem);
 	void (*free)(void *ptr);
-#ifdef ISP2401
+	void (*flush)(struct ia_css_acc_fw *fw);
+
+/* ISP2401 */
 	void *(*malloc_ex)(size_t bytes, bool zero_mem, const char *caller_func,
 			   int caller_line);
 	void (*free_ex)(void *ptr, const char *caller_func, int caller_line);
-#endif
-	void (*flush)(struct ia_css_acc_fw *fw);
-	bool                           check_system_idle;
-#ifndef ISP2401
+
+/* ISP2400 */
 	bool stop_copy_preview;
-#endif
+
+	bool                           check_system_idle;
 	unsigned int                   num_cont_raw_frames;
 #if defined(USE_INPUT_SYSTEM_VERSION_2) || defined(USE_INPUT_SYSTEM_VERSION_2401)
 	unsigned int                   num_mipi_frames[N_CSI_PORTS];
