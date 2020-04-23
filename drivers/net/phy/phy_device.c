@@ -1082,8 +1082,12 @@ int phy_init_hw(struct phy_device *phydev)
 	if (!phydev->drv)
 		return 0;
 
-	if (phydev->drv->soft_reset)
+	if (phydev->drv->soft_reset) {
 		ret = phydev->drv->soft_reset(phydev);
+		/* see comment in genphy_soft_reset for an explanation */
+		if (!ret)
+			phydev->suspended = 0;
+	}
 
 	if (ret < 0)
 		return ret;
@@ -2156,6 +2160,12 @@ int genphy_soft_reset(struct phy_device *phydev)
 	ret = phy_modify(phydev, MII_BMCR, BMCR_ISOLATE, res);
 	if (ret < 0)
 		return ret;
+
+	/* Clause 22 states that setting bit BMCR_RESET sets control registers
+	 * to their default value. Therefore the POWER DOWN bit is supposed to
+	 * be cleared after soft reset.
+	 */
+	phydev->suspended = 0;
 
 	ret = phy_poll_reset(phydev);
 	if (ret)
