@@ -261,6 +261,10 @@ config ARCH_R8A77995
 endif # ARM64
 
 # SoC
+config SYSC_R8A7742
+	bool "RZ/G1H System Controller support" if COMPILE_TEST
+	select SYSC_RCAR
+
 config SYSC_R8A7743
 	bool "RZ/G1M System Controller support" if COMPILE_TEST
 	select SYSC_RCAR
