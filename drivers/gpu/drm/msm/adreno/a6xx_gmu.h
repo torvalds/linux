@@ -10,9 +10,10 @@
 #include "a6xx_hfi.h"
 
 struct a6xx_gmu_bo {
+	struct drm_gem_object *obj;
 	void *virt;
 	size_t size;
-	dma_addr_t iova;
+	u64 iova;
 };
 
 /*
@@ -43,6 +44,8 @@ struct a6xx_gmu_bo {
 struct a6xx_gmu {
 	struct device *dev;
 
+	struct msm_gem_address_space *aspace;
+
 	void * __iomem mmio;
 
 	int hfi_irq;
@@ -52,8 +55,8 @@ struct a6xx_gmu {
 
 	int idle_level;
 
-	struct a6xx_gmu_bo *hfi;
-	struct a6xx_gmu_bo *debug;
+	struct a6xx_gmu_bo hfi;
+	struct a6xx_gmu_bo debug;
 
 	int nr_clocks;
 	struct clk_bulk_data *clocks;

@@ -176,8 +176,8 @@ static int a6xx_hfi_send_gmu_init(struct a6xx_gmu *gmu, int boot_state)
 {
 	struct a6xx_hfi_msg_gmu_init_cmd msg = { 0 };
 
-	msg.dbg_buffer_addr = (u32) gmu->debug->iova;
-	msg.dbg_buffer_size = (u32) gmu->debug->size;
+	msg.dbg_buffer_addr = (u32) gmu->debug.iova;
+	msg.dbg_buffer_size = (u32) gmu->debug.size;
 	msg.boot_state = boot_state;
 
 	return a6xx_hfi_send_msg(gmu, HFI_H2F_MSG_INIT, &msg, sizeof(msg),
@@ -385,7 +385,7 @@ static void a6xx_hfi_queue_init(struct a6xx_hfi_queue *queue,
 
 void a6xx_hfi_init(struct a6xx_gmu *gmu)
 {
-	struct a6xx_gmu_bo *hfi = gmu->hfi;
+	struct a6xx_gmu_bo *hfi = &gmu->hfi;
 	struct a6xx_hfi_queue_table_header *table = hfi->virt;
 	struct a6xx_hfi_queue_header *headers = hfi->virt + sizeof(*table);
 	u64 offset;

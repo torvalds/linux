@@ -2,14 +2,16 @@
 /* Copyright (c) 2017-2019 The Linux Foundation. All rights reserved. */
 
 #include <linux/clk.h>
-#include <linux/dma-mapping.h>
 #include <linux/interconnect.h>
 #include <linux/pm_domain.h>
 #include <linux/pm_opp.h>
 #include <soc/qcom/cmd-db.h>
+#include <drm/drm_gem.h>
 
 #include "a6xx_gpu.h"
 #include "a6xx_gmu.xml.h"
+#include "msm_gem.h"
+#include "msm_mmu.h"
 
 static void a6xx_gmu_fault(struct a6xx_gmu *gmu)
 {
@@ -628,7 +630,7 @@ static int a6xx_gmu_fw_start(struct a6xx_gmu *gmu, unsigned int state)
 	gmu_write(gmu, REG_A6XX_GMU_CM3_BOOT_CONFIG, 0x02);
 
 	/* Write the iova of the HFI table */
-	gmu_write(gmu, REG_A6XX_GMU_HFI_QTBL_ADDR, gmu->hfi->iova);
+	gmu_write(gmu, REG_A6XX_GMU_HFI_QTBL_ADDR, gmu->hfi.iova);
 	gmu_write(gmu, REG_A6XX_GMU_HFI_QTBL_INFO, 1);
 
 	gmu_write(gmu, REG_A6XX_GMU_AHB_FENCE_RANGE_0,
@@ -927,34 +929,77 @@ int a6xx_gmu_stop(struct a6xx_gpu *a6xx_gpu)
 	return 0;
 }
 
-static void a6xx_gmu_memory_free(struct a6xx_gmu *gmu, struct a6xx_gmu_bo *bo)
+static void a6xx_gmu_memory_free(struct a6xx_gmu *gmu)
 {
-	if (IS_ERR_OR_NULL(bo))
-		return;
+	msm_gem_kernel_put(gmu->hfi.obj, gmu->aspace, false);
+	msm_gem_kernel_put(gmu->debug.obj, gmu->aspace, false);
 
-	dma_free_wc(gmu->dev, bo->size, bo->virt, bo->iova);
-	kfree(bo);
+	gmu->aspace->mmu->funcs->detach(gmu->aspace->mmu);
+	msm_gem_address_space_put(gmu->aspace);
 }
 
-static struct a6xx_gmu_bo *a6xx_gmu_memory_alloc(struct a6xx_gmu *gmu,
-		size_t size)
+static int a6xx_gmu_memory_alloc(struct a6xx_gmu *gmu, struct a6xx_gmu_bo *bo,
+		size_t size, u64 iova)
 {
-	struct a6xx_gmu_bo *bo;
+	struct a6xx_gpu *a6xx_gpu = container_of(gmu, struct a6xx_gpu, gmu);
+	struct drm_device *dev = a6xx_gpu->base.base.dev;
+	uint32_t flags = MSM_BO_WC;
+	u64 range_start, range_end;
+	int ret;
 
-	bo = kzalloc(sizeof(*bo), GFP_KERNEL);
-	if (!bo)
-		return ERR_PTR(-ENOMEM);
-
-	bo->size = PAGE_ALIGN(size);
-
-	bo->virt = dma_alloc_wc(gmu->dev, bo->size, &bo->iova, GFP_KERNEL);
-
-	if (!bo->virt) {
-		kfree(bo);
-		return ERR_PTR(-ENOMEM);
+	size = PAGE_ALIGN(size);
+	if (!iova) {
+		/* no fixed address - use GMU's uncached range */
+		range_start = 0x60000000;
+		range_end = 0x80000000;
+	} else {
+		/* range for fixed address */
+		range_start = iova;
+		range_end = iova + size;
 	}
 
-	return bo;
+	bo->obj = msm_gem_new(dev, size, flags);
+	if (IS_ERR(bo->obj))
+		return PTR_ERR(bo->obj);
+
+	ret = msm_gem_get_and_pin_iova_range(bo->obj, gmu->aspace, &bo->iova,
+		range_start >> PAGE_SHIFT, range_end >> PAGE_SHIFT);
+	if (ret) {
+		drm_gem_object_put(bo->obj);
+		return ret;
+	}
+
+	bo->virt = msm_gem_get_vaddr(bo->obj);
+	bo->size = size;
+
+	return 0;
+}
+
+static int a6xx_gmu_memory_probe(struct a6xx_gmu *gmu)
+{
+	struct iommu_domain *domain;
+	int ret;
+
+	domain = iommu_domain_alloc(&platform_bus_type);
+	if (!domain)
+		return -ENODEV;
+
+	domain->geometry.aperture_start = 0x00000000;
+	domain->geometry.aperture_end = 0x7fffffff;
+
+	gmu->aspace = msm_gem_address_space_create(gmu->dev, domain, "gmu");
+	if (IS_ERR(gmu->aspace)) {
+		iommu_domain_free(domain);
+		return PTR_ERR(gmu->aspace);
+	}
+
+	ret = gmu->aspace->mmu->funcs->attach(gmu->aspace->mmu);
+	if (ret) {
+		msm_gem_address_space_put(gmu->aspace);
+		return ret;
+	}
+
+	return 0;
 }
 
 /* Return the 'arc-level' for the given frequency */
@@ -1212,7 +1257,7 @@ void a6xx_gmu_remove(struct a6xx_gpu *a6xx_gpu)
 	iounmap(gmu->mmio);
 	gmu->mmio = NULL;
 
-	a6xx_gmu_memory_free(gmu, gmu->hfi);
+	a6xx_gmu_memory_free(gmu);
 
 	free_irq(gmu->gmu_irq, gmu);
 	free_irq(gmu->hfi_irq, gmu);
@@ -1234,15 +1279,7 @@ int a6xx_gmu_init(struct a6xx_gpu *a6xx_gpu, struct device_node *node)
 
 	gmu->dev = &pdev->dev;
 
-	/* Pass force_dma false to require the DT to set the dma region */
-	ret = of_dma_configure(gmu->dev, node, false);
-	if (ret)
-		return ret;
-
-	/* Set the mask after the of_dma_configure() */
-	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(31));
-	if (ret)
-		return ret;
+	of_dma_configure(gmu->dev, node, true);
 
 	/* Fow now, don't do anything fancy until we get our feet under us */
 	gmu->idle_level = GMU_IDLE_STATE_ACTIVE;
@@ -1254,20 +1291,26 @@ int a6xx_gmu_init(struct a6xx_gpu *a6xx_gpu, struct device_node *node)
 	if (ret)
 		goto err_put_device;
 
+	ret = a6xx_gmu_memory_probe(gmu);
+	if (ret)
+		goto err_put_device;
+
 	/* Allocate memory for for the HFI queues */
-	gmu->hfi = a6xx_gmu_memory_alloc(gmu, SZ_16K);
-	if (IS_ERR(gmu->hfi))
+	ret = a6xx_gmu_memory_alloc(gmu, &gmu->hfi, SZ_16K, 0);
+	if (ret)
 		goto err_memory;
 
 	/* Allocate memory for the GMU debug region */
-	gmu->debug = a6xx_gmu_memory_alloc(gmu, SZ_16K);
-	if (IS_ERR(gmu->debug))
+	ret = a6xx_gmu_memory_alloc(gmu, &gmu->debug, SZ_16K, 0);
+	if (ret)
 		goto err_memory;
 
 	/* Map the GMU registers */
 	gmu->mmio = a6xx_gmu_get_mmio(pdev, "gmu");
-	if (IS_ERR(gmu->mmio))
+	if (IS_ERR(gmu->mmio)) {
+		ret = PTR_ERR(gmu->mmio);
 		goto err_memory;
+	}
 
 	/* Get the HFI and GMU interrupts */
 	gmu->hfi_irq = a6xx_gmu_get_irq(gmu, pdev, "hfi", a6xx_hfi_irq);
@@ -1296,11 +1339,11 @@ err_mmio:
 	iounmap(gmu->mmio);
 	free_irq(gmu->gmu_irq, gmu);
 	free_irq(gmu->hfi_irq, gmu);
-err_memory:
-	a6xx_gmu_memory_free(gmu, gmu->hfi);
 
 	ret = -ENODEV;
 
+err_memory:
+	a6xx_gmu_memory_free(gmu);
 err_put_device:
 	/* Drop reference taken in of_find_device_by_node */
 	put_device(gmu->dev);
