@@ -21,6 +21,7 @@ properties:
       - qcom,pm8941-wled
       - qcom,pmi8998-wled
       - qcom,pm660l-wled
+      - qcom,pm8150l-wled
 
   reg:
     maxItems: 1
@@ -28,11 +29,12 @@ properties:
   default-brightness:
     description: |
       brightness value on boot.
-    minimum: 0
-    maximum: 4095
-    default: 2048
 
   label: true
+
+  max-brightness:
+    description: |
+      Maximum brightness level.
 
   qcom,cs-out:
     description: |
@@ -141,6 +143,31 @@ properties:
       - const: ovp
       - const: short
 
+  qcom,modulator-sel:
+    description: |
+      Selects the modulator used for brightness modulation.
+      Allowed values are,
+           0 - Modulator A
+           1 - Modulator B
+      This property is applicable only to WLED5 peripheral.
+    allOf:
+      - $ref: /schemas/types.yaml#/definitions/uint32
+      - enum: [ 0, 1 ]
+      - default: 0
+
+  qcom,cabc-sel:
+    description: |
+      Selects the CABC pin signal used for brightness modulation.
+      Allowed values are,
+           0 - CABC disabled
+           1 - CABC 1
+           2 - CABC 2
+           3 - External signal (e.g. LPG) is used for dimming
+      This property is applicable only to WLED5 peripheral.
+    allOf:
+      - $ref: /schemas/types.yaml#/definitions/uint32
+      - enum: [ 0, 1, 2, 3 ]
+
 allOf:
   - if:
       properties:
@@ -183,6 +210,32 @@ allOf:
 
         interrupt-names:
           minItems: 2
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,pm8150l-wled
+
+    then:
+      properties:
+        default-brightness:
+          minimum: 0
+          maximum: 32767
+
+        max-brightness:
+          minimum: 0
+          maximum: 32767
+
+    else:
+      properties:
+        default-brightness:
+          minimum: 0
+          maximum: 4095
+
+        max-brightness:
+          minimum: 0
+          maximum: 4095
 
 required:
   - compatible
