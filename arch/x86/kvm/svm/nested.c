@@ -473,6 +473,9 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 	leave_guest_mode(&svm->vcpu);
 	svm->nested.vmcb = 0;
 
+	/* in case we halted in L2 */
+	svm->vcpu.arch.mp_state = KVM_MP_STATE_RUNNABLE;
+
 	/* Give the current vmcb to the guest */
 	disable_gif(svm);
 
