@@ -201,7 +201,7 @@ static ssize_t class_id_show(struct device *dev,
 	if (!hv_dev->channel)
 		return -ENODEV;
 	return sprintf(buf, "{%pUl}\n",
-		       hv_dev->channel->offermsg.offer.if_type.b);
+		       &hv_dev->channel->offermsg.offer.if_type);
 }
 static DEVICE_ATTR_RO(class_id);
 
@@ -213,7 +213,7 @@ static ssize_t device_id_show(struct device *dev,
 	if (!hv_dev->channel)
 		return -ENODEV;
 	return sprintf(buf, "{%pUl}\n",
-		       hv_dev->channel->offermsg.offer.if_instance.b);
+		       &hv_dev->channel->offermsg.offer.if_instance);
 }
 static DEVICE_ATTR_RO(device_id);
 
@@ -1991,7 +1991,7 @@ int vmbus_device_register(struct hv_device *child_device_obj)
 	int ret;
 
 	dev_set_name(&child_device_obj->device, "%pUl",
-		     child_device_obj->channel->offermsg.offer.if_instance.b);
+		     &child_device_obj->channel->offermsg.offer.if_instance);
 
 	child_device_obj->device.bus = &hv_bus;
 	child_device_obj->device.parent = &hv_acpi_dev->dev;
