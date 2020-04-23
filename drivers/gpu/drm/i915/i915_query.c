@@ -154,10 +154,6 @@ static int can_copy_perf_config_registers_or_number(u32 user_n_regs,
 	if (user_n_regs < kernel_n_regs)
 		return -EINVAL;
 
-	if (!access_ok(u64_to_user_ptr(user_regs_ptr),
-		       2 * sizeof(u32) * kernel_n_regs))
-		return -EFAULT;
-
 	return 0;
 }
 
@@ -166,6 +162,7 @@ static int copy_perf_config_registers_or_number(const struct i915_oa_reg *kernel
 						u64 user_regs_ptr,
 						u32 *user_n_regs)
 {
+	u32 __user *p = u64_to_user_ptr(user_regs_ptr);
 	u32 r;
 
 	if (*user_n_regs == 0) {
@@ -175,25 +172,19 @@ static int copy_perf_config_registers_or_number(const struct i915_oa_reg *kernel
 
 	*user_n_regs = kernel_n_regs;
 
-	for (r = 0; r < kernel_n_regs; r++) {
-		u32 __user *user_reg_ptr =
-			u64_to_user_ptr(user_regs_ptr + sizeof(u32) * r * 2);
-		u32 __user *user_val_ptr =
-			u64_to_user_ptr(user_regs_ptr + sizeof(u32) * r * 2 +
-					sizeof(u32));
-		int ret;
+	if (!user_write_access_begin(p, 2 * sizeof(u32) * kernel_n_regs))
+		return -EFAULT;
 
-		ret = __put_user(i915_mmio_reg_offset(kernel_regs[r].addr),
-				 user_reg_ptr);
-		if (ret)
-			return -EFAULT;
-
-		ret = __put_user(kernel_regs[r].value, user_val_ptr);
-		if (ret)
-			return -EFAULT;
+	for (r = 0; r < kernel_n_regs; r++, p += 2) {
+		unsafe_put_user(i915_mmio_reg_offset(kernel_regs[r].addr),
+				p, Efault);
+		unsafe_put_user(kernel_regs[r].value, p + 1, Efault);
 	}
-
+	user_write_access_end();
 	return 0;
+Efault:
+	user_write_access_end();
+	return -EFAULT;
 }
 
 static int query_perf_config_data(struct drm_i915_private *i915,
@@ -229,10 +220,7 @@ static int query_perf_config_data(struct drm_i915_private *i915,
 		return -EINVAL;
 	}
 
-	if (!access_ok(user_query_config_ptr, total_size))
-		return -EFAULT;
-
-	if (__get_user(flags, &user_query_config_ptr->flags))
+	if (get_user(flags, &user_query_config_ptr->flags))
 		return -EFAULT;
 
 	if (flags != 0)
@@ -245,7 +233,7 @@ static int query_perf_config_data(struct drm_i915_private *i915,
 		BUILD_BUG_ON(sizeof(user_query_config_ptr->uuid) >= sizeof(uuid));
 
 		memset(&uuid, 0, sizeof(uuid));
-		if (__copy_from_user(uuid, user_query_config_ptr->uuid,
+		if (copy_from_user(uuid, user_query_config_ptr->uuid,
 				     sizeof(user_query_config_ptr->uuid)))
 			return -EFAULT;
 
@@ -259,7 +247,7 @@ static int query_perf_config_data(struct drm_i915_private *i915,
 		}
 		rcu_read_unlock();
 	} else {
-		if (__get_user(config_id, &user_query_config_ptr->config))
+		if (get_user(config_id, &user_query_config_ptr->config))
 			return -EFAULT;
 
 		oa_config = i915_perf_get_oa_config(perf, config_id);
@@ -267,8 +255,7 @@ static int query_perf_config_data(struct drm_i915_private *i915,
 	if (!oa_config)
 		return -ENOENT;
 
-	if (__copy_from_user(&user_config, user_config_ptr,
-			     sizeof(user_config))) {
+	if (copy_from_user(&user_config, user_config_ptr, sizeof(user_config))) {
 		ret = -EFAULT;
 		goto out;
 	}
@@ -314,8 +301,7 @@ static int query_perf_config_data(struct drm_i915_private *i915,
 
 	memcpy(user_config.uuid, oa_config->uuid, sizeof(user_config.uuid));
 
-	if (__copy_to_user(user_config_ptr, &user_config,
-			   sizeof(user_config))) {
+	if (copy_to_user(user_config_ptr, &user_config, sizeof(user_config))) {
 		ret = -EFAULT;
 		goto out;
 	}
