@@ -11,9 +11,25 @@
 #include <linux/vmalloc.h>
 #include <linux/dma-noncoherent.h>
 
+#define CREATE_TRACE_POINTS
+#include "ion_trace.h"
 #include "ion_private.h"
 
 static atomic_long_t total_heap_bytes;
+
+static void track_buffer_created(struct ion_buffer *buffer)
+{
+	long total = atomic_long_add_return(buffer->size, &total_heap_bytes);
+
+	trace_ion_stat(buffer->sg_table, buffer->size, total);
+}
+
+static void track_buffer_destroyed(struct ion_buffer *buffer)
+{
+	long total = atomic_long_sub_return(buffer->size, &total_heap_bytes);
+
+	trace_ion_stat(buffer->sg_table, -buffer->size, total);
+}
 
 /* this function should only be called while dev->lock is held */
 static struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
@@ -67,7 +83,7 @@ static struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
 
 	INIT_LIST_HEAD(&buffer->attachments);
 	mutex_init(&buffer->lock);
-	atomic_long_add(len, &total_heap_bytes);
+	track_buffer_created(buffer);
 	return buffer;
 
 err1:
@@ -218,7 +234,7 @@ int ion_buffer_destroy(struct ion_device *dev, struct ion_buffer *buffer)
 	}
 
 	heap = buffer->heap;
-	atomic_long_sub(buffer->size, &total_heap_bytes);
+	track_buffer_destroyed(buffer);
 
 	if (heap->flags & ION_HEAP_FLAG_DEFER_FREE)
 		ion_heap_freelist_add(heap, buffer);
