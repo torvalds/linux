@@ -4078,12 +4078,9 @@ sh_css_params_write_to_ddr_internal(
 						ia_css_shading_table_free(params->sc_config);
 						params->sc_config = NULL;
 					}
-#ifndef ISP2401
-					sh_css_params_shading_id_table_generate(&params->sc_config, binary);
-#else
 					sh_css_params_shading_id_table_generate(&params->sc_config,
-										binary->sctbl_width_per_color, binary->sctbl_height);
-#endif
+										binary->sctbl_width_per_color,
+										binary->sctbl_height);
 					if (!params->sc_config) {
 						IA_CSS_LEAVE_ERR_PRIVATE(IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY);
 						return IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
@@ -4450,13 +4447,9 @@ struct ia_css_shading_table *ia_css_get_shading_table(struct ia_css_stream
 					ia_css_shading_table_free(params->sc_config);
 					params->sc_config = NULL;
 				}
-#ifndef ISP2401
-				sh_css_params_shading_id_table_generate(&params->sc_config, binary);
-
-#else
 				sh_css_params_shading_id_table_generate(&params->sc_config,
-									binary->sctbl_width_per_color, binary->sctbl_height);
-#endif
+									binary->sctbl_width_per_color,
+									binary->sctbl_height);
 				table = params->sc_config;
 				/* The sc_config will be freed in the
 				 * ia_css_stream_isp_parameters_uninit function. */

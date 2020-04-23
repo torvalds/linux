@@ -199,30 +199,15 @@ crop_and_interpolate(unsigned int cropped_width,
 void
 sh_css_params_shading_id_table_generate(
     struct ia_css_shading_table **target_table,
-#ifndef ISP2401
-    const struct ia_css_binary *binary)
-#else
     unsigned int table_width,
     unsigned int table_height)
-#endif
 {
 	/* initialize table with ones, shift becomes zero */
-#ifndef ISP2401
-	unsigned int i, j, table_width, table_height;
-#else
 	unsigned int i, j;
-#endif
 	struct ia_css_shading_table *result;
 
 	assert(target_table);
-#ifndef ISP2401
-	assert(binary);
-#endif
 
-#ifndef ISP2401
-	table_width  = binary->sctbl_width_per_color;
-	table_height = binary->sctbl_height;
-#endif
 	result = ia_css_shading_table_alloc(table_width, table_height);
 	if (!result) {
 		*target_table = NULL;
@@ -262,12 +247,9 @@ prepare_shading_table(const struct ia_css_shading_table *in_table,
 	assert(binary);
 
 	if (!in_table) {
-#ifndef ISP2401
-		sh_css_params_shading_id_table_generate(target_table, binary);
-#else
 		sh_css_params_shading_id_table_generate(target_table,
-							binary->sctbl_legacy_width_per_color, binary->sctbl_legacy_height);
-#endif
+							binary->sctbl_legacy_width_per_color,
+							binary->sctbl_legacy_height);
 		return;
 	}
 
@@ -332,15 +314,10 @@ prepare_shading_table(const struct ia_css_shading_table *in_table,
 	input_width  = min(input_width,  in_table->sensor_width);
 	input_height = min(input_height, in_table->sensor_height);
 
-#ifndef ISP2401
-	table_width  = binary->sctbl_width_per_color;
-	table_height = binary->sctbl_height;
-#else
 	/* This prepare_shading_table() function is called only in legacy API (not in new API).
 	   Then, the legacy shading table width and height should be used. */
 	table_width  = binary->sctbl_legacy_width_per_color;
 	table_height = binary->sctbl_legacy_height;
-#endif
 
 	result = ia_css_shading_table_alloc(table_width, table_height);
 	if (!result) {
