@@ -799,11 +799,6 @@ int nested_svm_check_exception(struct vcpu_svm *svm, unsigned nr,
 	return vmexit;
 }
 
-static bool nested_exit_on_nmi(struct vcpu_svm *svm)
-{
-	return (svm->nested.intercept & (1ULL << INTERCEPT_NMI));
-}
-
 static void nested_svm_nmi(struct vcpu_svm *svm)
 {
 	svm->vmcb->control.exit_code = SVM_EXIT_NMI;

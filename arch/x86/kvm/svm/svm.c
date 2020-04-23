@@ -3071,6 +3071,9 @@ static bool svm_nmi_allowed(struct kvm_vcpu *vcpu)
 	struct vmcb *vmcb = svm->vmcb;
 	bool ret;
 
+	if (is_guest_mode(vcpu) && nested_exit_on_nmi(svm))
+		return true;
+
 	ret = !(vmcb->control.int_state & SVM_INTERRUPT_SHADOW_MASK) &&
 	      !(svm->vcpu.arch.hflags & HF_NMI_MASK);
 	ret = ret && gif_set(svm);
