@@ -9,6 +9,24 @@
 #include <sound/soc.h>
 #include <sound/soc-dai.h>
 
+#define soc_dai_ret(dai, ret) _soc_dai_ret(dai, __func__, ret)
+static inline int _soc_dai_ret(struct snd_soc_dai *dai,
+			       const char *func, int ret)
+{
+	switch (ret) {
+	case -EPROBE_DEFER:
+	case -ENOTSUPP:
+	case 0:
+		break;
+	default:
+		dev_err(dai->dev,
+			"ASoC: error at %s on %s: %d\n",
+			func, dai->name, ret);
+	}
+
+	return ret;
+}
+
 /**
  * snd_soc_dai_set_sysclk - configure DAI system or master clock.
  * @dai: DAI
@@ -21,11 +39,15 @@
 int snd_soc_dai_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 			   unsigned int freq, int dir)
 {
-	if (dai->driver->ops->set_sysclk)
-		return dai->driver->ops->set_sysclk(dai, clk_id, freq, dir);
+	int ret;
 
-	return snd_soc_component_set_sysclk(dai->component, clk_id, 0,
-					    freq, dir);
+	if (dai->driver->ops->set_sysclk)
+		ret = dai->driver->ops->set_sysclk(dai, clk_id, freq, dir);
+	else
+		ret = snd_soc_component_set_sysclk(dai->component, clk_id, 0,
+						   freq, dir);
+
+	return soc_dai_ret(dai, ret);
 }
 EXPORT_SYMBOL_GPL(snd_soc_dai_set_sysclk);
 
@@ -42,10 +64,12 @@ EXPORT_SYMBOL_GPL(snd_soc_dai_set_sysclk);
 int snd_soc_dai_set_clkdiv(struct snd_soc_dai *dai,
 			   int div_id, int div)
 {
+	int ret = -EINVAL;
+
 	if (dai->driver->ops->set_clkdiv)
-		return dai->driver->ops->set_clkdiv(dai, div_id, div);
-	else
-		return -EINVAL;
+		ret = dai->driver->ops->set_clkdiv(dai, div_id, div);
+
+	return soc_dai_ret(dai, ret);
 }
 EXPORT_SYMBOL_GPL(snd_soc_dai_set_clkdiv);
 
@@ -62,12 +86,16 @@ EXPORT_SYMBOL_GPL(snd_soc_dai_set_clkdiv);
 int snd_soc_dai_set_pll(struct snd_soc_dai *dai, int pll_id, int source,
 			unsigned int freq_in, unsigned int freq_out)
 {
-	if (dai->driver->ops->set_pll)
-		return dai->driver->ops->set_pll(dai, pll_id, source,
-						 freq_in, freq_out);
+	int ret;
 
-	return snd_soc_component_set_pll(dai->component, pll_id, source,
-					 freq_in, freq_out);
+	if (dai->driver->ops->set_pll)
+		ret = dai->driver->ops->set_pll(dai, pll_id, source,
+						freq_in, freq_out);
+	else
+		ret = snd_soc_component_set_pll(dai->component, pll_id, source,
+						freq_in, freq_out);
+
+	return soc_dai_ret(dai, ret);
 }
 EXPORT_SYMBOL_GPL(snd_soc_dai_set_pll);
 
@@ -80,10 +108,12 @@ EXPORT_SYMBOL_GPL(snd_soc_dai_set_pll);
  */
 int snd_soc_dai_set_bclk_ratio(struct snd_soc_dai *dai, unsigned int ratio)
 {
+	int ret = -EINVAL;
+
 	if (dai->driver->ops->set_bclk_ratio)
-		return dai->driver->ops->set_bclk_ratio(dai, ratio);
-	else
-		return -EINVAL;
+		ret = dai->driver->ops->set_bclk_ratio(dai, ratio);
+
+	return soc_dai_ret(dai, ret);
 }
 EXPORT_SYMBOL_GPL(snd_soc_dai_set_bclk_ratio);
 
@@ -96,9 +126,12 @@ EXPORT_SYMBOL_GPL(snd_soc_dai_set_bclk_ratio);
  */
 int snd_soc_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
-	if (dai->driver->ops->set_fmt == NULL)
-		return -ENOTSUPP;
-	return dai->driver->ops->set_fmt(dai, fmt);
+	int ret = -ENOTSUPP;
+
+	if (dai->driver->ops->set_fmt)
+		ret = dai->driver->ops->set_fmt(dai, fmt);
+
+	return soc_dai_ret(dai, ret);
 }
 EXPORT_SYMBOL_GPL(snd_soc_dai_set_fmt);
 
@@ -153,6 +186,8 @@ int snd_soc_dai_set_tdm_slot(struct snd_soc_dai *dai,
 			     unsigned int tx_mask, unsigned int rx_mask,
 			     int slots, int slot_width)
 {
+	int ret = -ENOTSUPP;
+
 	if (dai->driver->ops->xlate_tdm_slot_mask)
 		dai->driver->ops->xlate_tdm_slot_mask(slots,
 						      &tx_mask, &rx_mask);
@@ -163,10 +198,9 @@ int snd_soc_dai_set_tdm_slot(struct snd_soc_dai *dai,
 	dai->rx_mask = rx_mask;
 
 	if (dai->driver->ops->set_tdm_slot)
-		return dai->driver->ops->set_tdm_slot(dai, tx_mask, rx_mask,
+		ret = dai->driver->ops->set_tdm_slot(dai, tx_mask, rx_mask,
 						      slots, slot_width);
-	else
-		return -ENOTSUPP;
+	return soc_dai_ret(dai, ret);
 }
 EXPORT_SYMBOL_GPL(snd_soc_dai_set_tdm_slot);
 
@@ -186,11 +220,12 @@ int snd_soc_dai_set_channel_map(struct snd_soc_dai *dai,
 				unsigned int tx_num, unsigned int *tx_slot,
 				unsigned int rx_num, unsigned int *rx_slot)
 {
+	int ret = -ENOTSUPP;
+
 	if (dai->driver->ops->set_channel_map)
-		return dai->driver->ops->set_channel_map(dai, tx_num, tx_slot,
-							 rx_num, rx_slot);
-	else
-		return -ENOTSUPP;
+		ret = dai->driver->ops->set_channel_map(dai, tx_num, tx_slot,
+							rx_num, rx_slot);
+	return soc_dai_ret(dai, ret);
 }
 EXPORT_SYMBOL_GPL(snd_soc_dai_set_channel_map);
 
@@ -208,11 +243,12 @@ int snd_soc_dai_get_channel_map(struct snd_soc_dai *dai,
 				unsigned int *tx_num, unsigned int *tx_slot,
 				unsigned int *rx_num, unsigned int *rx_slot)
 {
+	int ret = -ENOTSUPP;
+
 	if (dai->driver->ops->get_channel_map)
-		return dai->driver->ops->get_channel_map(dai, tx_num, tx_slot,
-							 rx_num, rx_slot);
-	else
-		return -ENOTSUPP;
+		ret = dai->driver->ops->get_channel_map(dai, tx_num, tx_slot,
+							rx_num, rx_slot);
+	return soc_dai_ret(dai, ret);
 }
 EXPORT_SYMBOL_GPL(snd_soc_dai_get_channel_map);
 
@@ -225,10 +261,12 @@ EXPORT_SYMBOL_GPL(snd_soc_dai_get_channel_map);
  */
 int snd_soc_dai_set_tristate(struct snd_soc_dai *dai, int tristate)
 {
+	int ret = -EINVAL;
+
 	if (dai->driver->ops->set_tristate)
-		return dai->driver->ops->set_tristate(dai, tristate);
-	else
-		return -EINVAL;
+		ret = dai->driver->ops->set_tristate(dai, tristate);
+
+	return soc_dai_ret(dai, ret);
 }
 EXPORT_SYMBOL_GPL(snd_soc_dai_set_tristate);
 
@@ -243,13 +281,15 @@ EXPORT_SYMBOL_GPL(snd_soc_dai_set_tristate);
 int snd_soc_dai_digital_mute(struct snd_soc_dai *dai, int mute,
 			     int direction)
 {
+	int ret = -ENOTSUPP;
+
 	if (dai->driver->ops->mute_stream)
-		return dai->driver->ops->mute_stream(dai, mute, direction);
+		ret = dai->driver->ops->mute_stream(dai, mute, direction);
 	else if (direction == SNDRV_PCM_STREAM_PLAYBACK &&
 		 dai->driver->ops->digital_mute)
-		return dai->driver->ops->digital_mute(dai, mute);
-	else
-		return -ENOTSUPP;
+		ret = dai->driver->ops->digital_mute(dai, mute);
+
+	return soc_dai_ret(dai, ret);
 }
 EXPORT_SYMBOL_GPL(snd_soc_dai_digital_mute);
 
@@ -258,29 +298,19 @@ int snd_soc_dai_hw_params(struct snd_soc_dai *dai,
 			  struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	int ret;
+	int ret = 0;
 
 	/* perform any topology hw_params fixups before DAI  */
 	if (rtd->dai_link->be_hw_params_fixup) {
 		ret = rtd->dai_link->be_hw_params_fixup(rtd, params);
-		if (ret < 0) {
-			dev_err(rtd->dev,
-				"ASoC: hw_params topology fixup failed %d\n",
-				ret);
-			return ret;
-		}
+		if (ret < 0)
+			goto end;
 	}
 
-	if (dai->driver->ops->hw_params) {
+	if (dai->driver->ops->hw_params)
 		ret = dai->driver->ops->hw_params(substream, params, dai);
-		if (ret < 0) {
-			dev_err(dai->dev, "ASoC: can't set %s hw params: %d\n",
-				dai->name, ret);
-			return ret;
-		}
-	}
-
-	return 0;
+end:
+	return soc_dai_ret(dai, ret);
 }
 
 void snd_soc_dai_hw_free(struct snd_soc_dai *dai,
@@ -298,7 +328,7 @@ int snd_soc_dai_startup(struct snd_soc_dai *dai,
 	if (dai->driver->ops->startup)
 		ret = dai->driver->ops->startup(substream, dai);
 
-	return ret;
+	return soc_dai_ret(dai, ret);
 }
 
 void snd_soc_dai_shutdown(struct snd_soc_dai *dai,
@@ -316,7 +346,7 @@ int snd_soc_dai_prepare(struct snd_soc_dai *dai,
 	if (dai->driver->ops->prepare)
 		ret = dai->driver->ops->prepare(substream, dai);
 
-	return ret;
+	return soc_dai_ret(dai, ret);
 }
 
 int snd_soc_dai_trigger(struct snd_soc_dai *dai,
@@ -340,7 +370,7 @@ int snd_soc_dai_bespoke_trigger(struct snd_soc_dai *dai,
 	if (dai->driver->ops->bespoke_trigger)
 		ret = dai->driver->ops->bespoke_trigger(substream, cmd, dai);
 
-	return ret;
+	return soc_dai_ret(dai, ret);
 }
 
 snd_pcm_sframes_t snd_soc_dai_delay(struct snd_soc_dai *dai,
@@ -356,24 +386,31 @@ snd_pcm_sframes_t snd_soc_dai_delay(struct snd_soc_dai *dai,
 
 int snd_soc_dai_probe(struct snd_soc_dai *dai)
 {
+	int ret = 0;
+
 	if (dai->driver->probe)
-		return dai->driver->probe(dai);
-	return 0;
+		ret = dai->driver->probe(dai);
+
+	return soc_dai_ret(dai, ret);
 }
 
 int snd_soc_dai_remove(struct snd_soc_dai *dai)
 {
+	int ret = 0;
+
 	if (dai->driver->remove)
-		return dai->driver->remove(dai);
-	return 0;
+		ret = dai->driver->remove(dai);
+
+	return soc_dai_ret(dai, ret);
 }
 
 int snd_soc_dai_compress_new(struct snd_soc_dai *dai,
 			     struct snd_soc_pcm_runtime *rtd, int num)
 {
+	int ret = -ENOTSUPP;
 	if (dai->driver->compress_new)
-		return dai->driver->compress_new(rtd, num);
-	return -ENOTSUPP;
+		ret = dai->driver->compress_new(rtd, num);
+	return soc_dai_ret(dai, ret);
 }
 
 /*
