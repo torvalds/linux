@@ -117,14 +117,6 @@ static int vmbus_exists(void)
 	return 0;
 }
 
-#define VMBUS_ALIAS_LEN ((sizeof((struct hv_vmbus_device_id *)0)->guid) * 2)
-static void print_alias_name(struct hv_device *hv_dev, char *alias_name)
-{
-	int i;
-	for (i = 0; i < VMBUS_ALIAS_LEN; i += 2)
-		sprintf(&alias_name[i], "%02x", hv_dev->dev_type.b[i/2]);
-}
-
 static u8 channel_monitor_group(const struct vmbus_channel *channel)
 {
 	return (u8)channel->offermsg.monitorid / 32;
@@ -221,10 +213,8 @@ static ssize_t modalias_show(struct device *dev,
 			     struct device_attribute *dev_attr, char *buf)
 {
 	struct hv_device *hv_dev = device_to_hv_device(dev);
-	char alias_name[VMBUS_ALIAS_LEN + 1];
 
-	print_alias_name(hv_dev, alias_name);
-	return sprintf(buf, "vmbus:%s\n", alias_name);
+	return sprintf(buf, "vmbus:%*phN\n", UUID_SIZE, &hv_dev->dev_type);
 }
 static DEVICE_ATTR_RO(modalias);
 
@@ -693,12 +683,9 @@ __ATTRIBUTE_GROUPS(vmbus_dev);
 static int vmbus_uevent(struct device *device, struct kobj_uevent_env *env)
 {
 	struct hv_device *dev = device_to_hv_device(device);
-	int ret;
-	char alias_name[VMBUS_ALIAS_LEN + 1];
+	const char *format = "MODALIAS=vmbus:%*phN";
 
-	print_alias_name(dev, alias_name);
-	ret = add_uevent_var(env, "MODALIAS=vmbus:%s", alias_name);
-	return ret;
+	return add_uevent_var(env, format, UUID_SIZE, &dev->dev_type);
 }
 
 static const struct hv_vmbus_device_id *
