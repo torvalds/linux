@@ -553,3 +553,17 @@ int snd_soc_dai_compr_set_params(struct snd_soc_dai *dai,
 	return soc_dai_ret(dai, ret);
 }
 EXPORT_SYMBOL_GPL(snd_soc_dai_compr_set_params);
+
+int snd_soc_dai_compr_get_params(struct snd_soc_dai *dai,
+				 struct snd_compr_stream *cstream,
+				 struct snd_codec *params)
+{
+	int ret = 0;
+
+	if (dai->driver->cops &&
+	    dai->driver->cops->get_params)
+		ret = dai->driver->cops->get_params(cstream, params, dai);
+
+	return soc_dai_ret(dai, ret);
+}
+EXPORT_SYMBOL_GPL(snd_soc_dai_compr_get_params);
