@@ -401,7 +401,7 @@ static u32 aq_sc_idx_max(const enum aq_macsec_sc_sa sc_sa)
 		break;
 	default:
 		break;
-	};
+	}
 
 	return result;
 }
@@ -417,7 +417,7 @@ static u32 aq_to_hw_sc_idx(const u32 sc_idx, const enum aq_macsec_sc_sa sc_sa)
 		return sc_idx;
 	default:
 		WARN_ONCE(true, "Invalid sc_sa");
-	};
+	}
 
 	return sc_idx;
 }
