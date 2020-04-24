@@ -1082,8 +1082,12 @@ int phy_init_hw(struct phy_device *phydev)
 	if (!phydev->drv)
 		return 0;
 
-	if (phydev->drv->soft_reset)
+	if (phydev->drv->soft_reset) {
 		ret = phydev->drv->soft_reset(phydev);
+		/* see comment in genphy_soft_reset for an explanation */
+		if (!ret)
+			phydev->suspended = 0;
+	}
 
 	if (ret < 0)
 		return ret;
@@ -1523,6 +1527,9 @@ int phy_suspend(struct phy_device *phydev)
 	struct net_device *netdev = phydev->attached_dev;
 	struct phy_driver *phydrv = phydev->drv;
 	int ret;
+
+	if (phydev->suspended)
+		return 0;
 
 	/* If the device has WOL enabled, we cannot suspend the PHY */
 	phy_ethtool_get_wol(phydev, &wol);
@@ -2154,6 +2161,12 @@ int genphy_soft_reset(struct phy_device *phydev)
 	if (ret < 0)
 		return ret;
 
+	/* Clause 22 states that setting bit BMCR_RESET sets control registers
+	 * to their default value. Therefore the POWER DOWN bit is supposed to
+	 * be cleared after soft reset.
+	 */
+	phydev->suspended = 0;
+
 	ret = phy_poll_reset(phydev);
 	if (ret)
 		return ret;
@@ -2627,7 +2640,6 @@ static struct phy_driver genphy_driver = {
 	.phy_id		= 0xffffffff,
 	.phy_id_mask	= 0xffffffff,
 	.name		= "Generic PHY",
-	.soft_reset	= genphy_no_soft_reset,
 	.get_features	= genphy_read_abilities,
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
