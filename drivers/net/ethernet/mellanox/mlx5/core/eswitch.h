@@ -42,6 +42,7 @@
 #include <linux/mlx5/vport.h>
 #include <linux/mlx5/fs.h>
 #include "lib/mpfs.h"
+#include "lib/fs_chains.h"
 #include "en/tc_ct.h"
 
 #ifdef CONFIG_MLX5_ESWITCH
@@ -61,6 +62,9 @@
 
 #define mlx5_esw_has_fwd_fdb(dev) \
 	MLX5_CAP_ESW_FLOWTABLE(dev, fdb_multi_path_to_table)
+
+#define esw_chains(esw) \
+	((esw)->fdb_table.offloads.esw_chains_priv)
 
 struct vport_ingress {
 	struct mlx5_flow_table *acl;
@@ -154,12 +158,6 @@ struct mlx5_vport {
 	enum mlx5_eswitch_vport_event enabled_events;
 };
 
-enum offloads_fdb_flags {
-	ESW_FDB_CHAINS_AND_PRIOS_SUPPORTED = BIT(0),
-};
-
-struct mlx5_esw_chains_priv;
-
 struct mlx5_eswitch_fdb {
 	union {
 		struct legacy_fdb {
@@ -183,7 +181,7 @@ struct mlx5_eswitch_fdb {
 			struct mlx5_flow_handle *miss_rule_multi;
 			int vlan_push_pop_refcount;
 
-			struct mlx5_esw_chains_priv *esw_chains_priv;
+			struct mlx5_fs_chains *esw_chains_priv;
 			struct {
 				DECLARE_HASHTABLE(table, 8);
 				/* Protects vports.table */

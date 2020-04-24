@@ -14,7 +14,7 @@
 #include <linux/workqueue.h>
 #include <linux/xarray.h>
 
-#include "esw/chains.h"
+#include "lib/fs_chains.h"
 #include "en/tc_ct.h"
 #include "en/mod_hdr.h"
 #include "en/mapping.h"
@@ -1485,8 +1485,8 @@ __mlx5_tc_ct_flow_offload(struct mlx5e_priv *priv,
 	 * don't go though all prios of this chain as normal tc rules
 	 * miss.
 	 */
-	err = mlx5_esw_chains_get_chain_mapping(esw, attr->chain,
-						&chain_mapping);
+	err = mlx5_chains_get_chain_mapping(esw_chains(esw), attr->chain,
+					    &chain_mapping);
 	if (err) {
 		ct_dbg("Failed to get chain register mapping for chain");
 		goto err_get_chain;
@@ -1582,7 +1582,7 @@ err_insert_post_ct:
 	mlx5_modify_header_dealloc(priv->mdev, pre_ct_attr->modify_hdr);
 err_mapping:
 	dealloc_mod_hdr_actions(&pre_mod_acts);
-	mlx5_esw_chains_put_chain_mapping(esw, ct_flow->chain_mapping);
+	mlx5_chains_put_chain_mapping(esw_chains(esw), ct_flow->chain_mapping);
 err_get_chain:
 	idr_remove(&ct_priv->fte_ids, fte_id);
 err_idr:
@@ -1694,7 +1694,7 @@ __mlx5_tc_ct_delete_flow(struct mlx5_tc_ct_priv *ct_priv,
 	if (ct_flow->post_ct_rule) {
 		mlx5_eswitch_del_offloaded_rule(esw, ct_flow->post_ct_rule,
 						&ct_flow->post_ct_attr);
-		mlx5_esw_chains_put_chain_mapping(esw, ct_flow->chain_mapping);
+		mlx5_chains_put_chain_mapping(esw_chains(esw), ct_flow->chain_mapping);
 		idr_remove(&ct_priv->fte_ids, ct_flow->fte_id);
 		mlx5_tc_ct_del_ft_cb(ct_priv, ct_flow->ft);
 	}
@@ -1817,14 +1817,14 @@ mlx5_tc_ct_init(struct mlx5_rep_uplink_priv *uplink_priv)
 
 	ct_priv->esw = esw;
 	ct_priv->netdev = rpriv->netdev;
-	ct_priv->ct = mlx5_esw_chains_create_global_table(esw);
+	ct_priv->ct = mlx5_chains_create_global_table(esw_chains(esw));
 	if (IS_ERR(ct_priv->ct)) {
 		err = PTR_ERR(ct_priv->ct);
 		mlx5_tc_ct_init_err(rpriv, "failed to create ct table", err);
 		goto err_ct_tbl;
 	}
 
-	ct_priv->ct_nat = mlx5_esw_chains_create_global_table(esw);
+	ct_priv->ct_nat = mlx5_chains_create_global_table(esw_chains(esw));
 	if (IS_ERR(ct_priv->ct_nat)) {
 		err = PTR_ERR(ct_priv->ct_nat);
 		mlx5_tc_ct_init_err(rpriv, "failed to create ct nat table",
@@ -1832,7 +1832,7 @@ mlx5_tc_ct_init(struct mlx5_rep_uplink_priv *uplink_priv)
 		goto err_ct_nat_tbl;
 	}
 
-	ct_priv->post_ct = mlx5_esw_chains_create_global_table(esw);
+	ct_priv->post_ct = mlx5_chains_create_global_table(esw_chains(esw));
 	if (IS_ERR(ct_priv->post_ct)) {
 		err = PTR_ERR(ct_priv->post_ct);
 		mlx5_tc_ct_init_err(rpriv, "failed to create post ct table",
@@ -1852,9 +1852,9 @@ mlx5_tc_ct_init(struct mlx5_rep_uplink_priv *uplink_priv)
 	return 0;
 
 err_post_ct_tbl:
-	mlx5_esw_chains_destroy_global_table(esw, ct_priv->ct_nat);
+	mlx5_chains_destroy_global_table(esw_chains(esw), ct_priv->ct_nat);
 err_ct_nat_tbl:
-	mlx5_esw_chains_destroy_global_table(esw, ct_priv->ct);
+	mlx5_chains_destroy_global_table(esw_chains(esw), ct_priv->ct);
 err_ct_tbl:
 	mapping_destroy(ct_priv->labels_mapping);
 err_mapping_labels:
@@ -1871,13 +1871,18 @@ void
 mlx5_tc_ct_clean(struct mlx5_rep_uplink_priv *uplink_priv)
 {
 	struct mlx5_tc_ct_priv *ct_priv = uplink_priv->ct_priv;
+	struct mlx5_fs_chains *chains;
+	struct mlx5_eswitch *esw;
 
 	if (!ct_priv)
 		return;
 
-	mlx5_esw_chains_destroy_global_table(ct_priv->esw, ct_priv->post_ct);
-	mlx5_esw_chains_destroy_global_table(ct_priv->esw, ct_priv->ct_nat);
-	mlx5_esw_chains_destroy_global_table(ct_priv->esw, ct_priv->ct);
+	esw = ct_priv->esw;
+	chains = esw_chains(esw);
+
+	mlx5_chains_destroy_global_table(chains, ct_priv->post_ct);
+	mlx5_chains_destroy_global_table(chains, ct_priv->ct_nat);
+	mlx5_chains_destroy_global_table(chains, ct_priv->ct);
 	mapping_destroy(ct_priv->zone_mapping);
 	mapping_destroy(ct_priv->labels_mapping);
 
