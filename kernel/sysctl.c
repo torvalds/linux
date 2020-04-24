@@ -1491,7 +1491,7 @@ static struct ctl_table vm_table[] = {
 		.data		= &watermark_boost_factor,
 		.maxlen		= sizeof(watermark_boost_factor),
 		.mode		= 0644,
-		.proc_handler	= watermark_boost_factor_sysctl_handler,
+		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= SYSCTL_ZERO,
 	},
 	{
