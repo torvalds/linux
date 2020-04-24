@@ -2295,6 +2295,54 @@ int mt7915_mcu_get_rate_info(struct mt7915_dev *dev, u32 cmd, u16 wlan_idx)
 				   sizeof(req), false);
 }
 
+int mt7915_mcu_set_sku(struct mt7915_phy *phy)
+{
+	struct mt7915_dev *dev = phy->dev;
+	struct mt76_phy *mphy = phy->mt76;
+	struct ieee80211_hw *hw = mphy->hw;
+	struct mt7915_sku_val {
+		u8 format_id;
+		u8 limit_type;
+		u8 dbdc_idx;
+		s8 val[MT7915_SKU_RATE_NUM];
+	} __packed req = {
+		.format_id = 4,
+		.dbdc_idx = phy != &dev->phy,
+	};
+	int i;
+	s8 *delta;
+
+	delta = dev->rate_power[mphy->chandef.chan->band];
+	mphy->txpower_cur = hw->conf.power_level * 2 +
+			    delta[MT7915_SKU_MAX_DELTA_IDX];
+
+	for (i = 0; i < MT7915_SKU_RATE_NUM; i++)
+		req.val[i] = hw->conf.power_level * 2 + delta[i];
+
+	return __mt76_mcu_send_msg(&dev->mt76,
+				   MCU_EXT_CMD_TX_POWER_FEATURE_CTRL,
+				   &req, sizeof(req), true);
+}
+
+int mt7915_mcu_set_sku_en(struct mt7915_phy *phy, bool enable)
+{
+	struct mt7915_dev *dev = phy->dev;
+	struct mt7915_sku {
+		u8 format_id;
+		u8 sku_enable;
+		u8 dbdc_idx;
+		u8 rsv;
+	} __packed req = {
+		.format_id = 0,
+		.dbdc_idx = phy != &dev->phy,
+		.sku_enable = enable,
+	};
+
+	return __mt76_mcu_send_msg(&dev->mt76,
+				   MCU_EXT_CMD_TX_POWER_FEATURE_CTRL,
+				   &req, sizeof(req), true);
+}
+
 int mt7915_mcu_set_ser(struct mt7915_dev *dev, u8 action, u8 set, u8 band)
 {
 	struct {

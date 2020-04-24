@@ -75,6 +75,28 @@ static irqreturn_t mt7915_irq_handler(int irq, void *dev_instance)
 	return IRQ_HANDLED;
 }
 
+static int
+mt7915_alloc_device(struct pci_dev *pdev, struct mt7915_dev *dev)
+{
+#define NUM_BANDS	2
+	int i;
+	s8 **sku;
+
+	sku = devm_kzalloc(&pdev->dev, NUM_BANDS * sizeof(*sku), GFP_KERNEL);
+	if (!sku)
+		return -ENOMEM;
+
+	for (i = 0; i < NUM_BANDS; i++) {
+		sku[i] = devm_kzalloc(&pdev->dev, MT7915_SKU_TABLE_SIZE *
+				      sizeof(**sku), GFP_KERNEL);
+		if (!sku[i])
+			return -ENOMEM;
+	}
+	dev->rate_power = sku;
+
+	return 0;
+}
+
 static int mt7915_pci_probe(struct pci_dev *pdev,
 			    const struct pci_device_id *id)
 {
@@ -118,6 +140,9 @@ static int mt7915_pci_probe(struct pci_dev *pdev,
 		return -ENOMEM;
 
 	dev = container_of(mdev, struct mt7915_dev, mt76);
+	ret = mt7915_alloc_device(pdev, dev);
+	if (ret)
+		return ret;
 
 	mt76_mmio_init(&dev->mt76, pcim_iomap_table(pdev)[0]);
 	mdev->rev = (mt7915_l1_rr(dev, MT_HW_CHIPID) << 16) |

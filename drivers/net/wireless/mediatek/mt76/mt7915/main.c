@@ -42,6 +42,7 @@ static int mt7915_start(struct ieee80211_hw *hw)
 		mt7915_mcu_set_scs(dev, 1, true);
 	}
 
+	mt7915_mcu_set_sku_en(phy, true);
 	mt7915_mcu_set_chan_info(phy, MCU_EXT_CMD_SET_RX_PATH);
 
 	set_bit(MT76_STATE_RUNNING, &phy->mt76->state);
@@ -323,6 +324,12 @@ static int mt7915_config(struct ieee80211_hw *hw, u32 changed)
 		if (ret)
 			return ret;
 		ieee80211_wake_queues(hw);
+	}
+
+	if (changed & IEEE80211_CONF_CHANGE_POWER) {
+		ret = mt7915_mcu_set_sku(phy);
+		if (ret)
+			return ret;
 	}
 
 	mutex_lock(&dev->mt76.mutex);

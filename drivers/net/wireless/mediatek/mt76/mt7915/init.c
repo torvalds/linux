@@ -85,6 +85,8 @@ static void mt7915_init_txpower(struct mt7915_dev *dev)
 {
 	mt7915_init_txpower_band(dev, &dev->mphy.sband_2g.sband);
 	mt7915_init_txpower_band(dev, &dev->mphy.sband_5g.sband);
+
+	mt7915_eeprom_init_sku(dev);
 }
 
 static void mt7915_init_work(struct work_struct *work)

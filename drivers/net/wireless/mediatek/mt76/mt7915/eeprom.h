@@ -37,6 +37,51 @@ enum mt7915_eeprom_band {
 	MT_EE_DBDC,
 };
 
+#define SKU_DELTA_VAL		GENMASK(5, 0)
+#define SKU_DELTA_ADD		BIT(6)
+#define SKU_DELTA_EN		BIT(7)
+
+enum mt7915_sku_delta_group {
+	SKU_CCK_GROUP0,
+	SKU_CCK_GROUP1,
+
+	SKU_OFDM_GROUP0 = 0,
+	SKU_OFDM_GROUP1,
+	SKU_OFDM_GROUP2,
+	SKU_OFDM_GROUP3,
+	SKU_OFDM_GROUP4,
+
+	SKU_MCS_GROUP0 = 0,
+	SKU_MCS_GROUP1,
+	SKU_MCS_GROUP2,
+	SKU_MCS_GROUP3,
+	SKU_MCS_GROUP4,
+	SKU_MCS_GROUP5,
+	SKU_MCS_GROUP6,
+	SKU_MCS_GROUP7,
+	SKU_MCS_GROUP8,
+	SKU_MCS_GROUP9,
+};
+
+enum mt7915_sku_rate_group {
+	SKU_CCK,
+	SKU_OFDM,
+	SKU_HT_BW20,
+	SKU_HT_BW40,
+	SKU_VHT_BW20,
+	SKU_VHT_BW40,
+	SKU_VHT_BW80,
+	SKU_VHT_BW160,
+	SKU_HE_RU26,
+	SKU_HE_RU52,
+	SKU_HE_RU106,
+	SKU_HE_RU242,
+	SKU_HE_RU484,
+	SKU_HE_RU996,
+	SKU_HE_RU2x996,
+	MAX_SKU_RATE_GROUP_NUM,
+};
+
 struct sku_group {
 	u8 len;
 	u16 offset[2];
@@ -74,5 +119,7 @@ mt7915_tssi_enabled(struct mt7915_dev *dev, enum nl80211_band band)
 	else
 		return eep[MT_EE_WIFI_CONF + 7] & MT_EE_WIFI_CONF_TSSI0_2G;
 }
+
+extern const struct sku_group mt7915_sku_groups[];
 
 #endif
