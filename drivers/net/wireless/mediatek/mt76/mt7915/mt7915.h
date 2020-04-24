@@ -122,6 +122,8 @@ struct mt7915_phy {
 	struct mt76_phy *mt76;
 	struct mt7915_dev *dev;
 
+	struct ieee80211_sband_iftype_data iftype[2][NUM_NL80211_IFTYPES];
+
 	u32 rxfilter;
 	u32 vif_mask;
 	u32 omac_mask;
@@ -443,6 +445,7 @@ void mt7915_txp_skb_unmap(struct mt76_dev *dev,
 			  struct mt76_txwi_cache *txwi);
 int mt76_dfs_start_rdd(struct mt7915_dev *dev, bool force);
 int mt7915_dfs_init_radar_detector(struct mt7915_phy *phy);
+void mt7915_set_stream_he_caps(struct mt7915_phy *phy);
 void mt7915_update_channel(struct mt76_dev *mdev);
 int mt7915_init_debugfs(struct mt7915_dev *dev);
 

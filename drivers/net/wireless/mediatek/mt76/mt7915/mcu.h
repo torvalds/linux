@@ -815,6 +815,9 @@ enum {
 #define PHY_MODE_GN			BIT(3)
 #define PHY_MODE_AN			BIT(4)
 #define PHY_MODE_AC			BIT(5)
+#define PHY_MODE_AX_24G			BIT(6)
+#define PHY_MODE_AX_5G			BIT(7)
+#define PHY_MODE_AX_6G			BIT(8)
 
 #define MODE_CCK			BIT(0)
 #define MODE_OFDM			BIT(1)
