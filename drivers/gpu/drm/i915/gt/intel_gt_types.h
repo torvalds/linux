@@ -61,6 +61,7 @@ struct intel_gt {
 	struct list_head closed_vma;
 	spinlock_t closed_lock; /* guards the list of closed_vma */
 
+	ktime_t last_init_time;
 	struct intel_reset reset;
 
 	/**
@@ -72,13 +73,11 @@ struct intel_gt {
 	 */
 	intel_wakeref_t awake;
 
+	u32 clock_frequency;
+
 	struct intel_llc llc;
 	struct intel_rc6 rc6;
 	struct intel_rps rps;
-
-	ktime_t last_init_time;
-
-	struct i915_vma *scratch;
 
 	spinlock_t irq_lock;
 	u32 gt_imr;
@@ -97,6 +96,8 @@ struct intel_gt {
 	 * Reserved for exclusive use by the kernel.
 	 */
 	struct i915_address_space *vm;
+
+	struct i915_vma *scratch;
 };
 
 enum intel_gt_scratch_field {

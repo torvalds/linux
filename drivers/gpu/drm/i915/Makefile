@@ -91,6 +91,7 @@ gt-y += \
 	gt/intel_ggtt.o \
 	gt/intel_ggtt_fencing.o \
 	gt/intel_gt.o \
+	gt/intel_gt_clock_utils.o \
 	gt/intel_gt_irq.o \
 	gt/intel_gt_pm.o \
 	gt/intel_gt_pm_irq.o \

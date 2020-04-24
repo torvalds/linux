@@ -8,6 +8,7 @@
 
 #include "i915_drv.h"
 #include "intel_gt.h"
+#include "intel_gt_clock_utils.h"
 #include "intel_gt_irq.h"
 #include "intel_gt_pm_irq.h"
 #include "intel_rps.h"
@@ -524,8 +525,8 @@ static u32 rps_limits(struct intel_rps *rps, u8 val)
 
 static void rps_set_power(struct intel_rps *rps, int new_power)
 {
-	struct intel_uncore *uncore = rps_to_uncore(rps);
-	struct drm_i915_private *i915 = rps_to_i915(rps);
+	struct intel_gt *gt = rps_to_gt(rps);
+	struct intel_uncore *uncore = gt->uncore;
 	u32 threshold_up = 0, threshold_down = 0; /* in % */
 	u32 ei_up = 0, ei_down = 0;
 
@@ -570,23 +571,25 @@ static void rps_set_power(struct intel_rps *rps, int new_power)
 	/* When byt can survive without system hang with dynamic
 	 * sw freq adjustments, this restriction can be lifted.
 	 */
-	if (IS_VALLEYVIEW(i915))
+	if (IS_VALLEYVIEW(gt->i915))
 		goto skip_hw_write;
 
-	GT_TRACE(rps_to_gt(rps),
+	GT_TRACE(gt,
 		 "changing power mode [%d], up %d%% @ %dus, down %d%% @ %dus\n",
 		 new_power, threshold_up, ei_up, threshold_down, ei_down);
 
-	set(uncore, GEN6_RP_UP_EI, GT_INTERVAL_FROM_US(i915, ei_up));
+	set(uncore, GEN6_RP_UP_EI,
+	    intel_gt_ns_to_pm_interval(gt, ei_up * 1000));
 	set(uncore, GEN6_RP_UP_THRESHOLD,
-	    GT_INTERVAL_FROM_US(i915, ei_up * threshold_up / 100));
+	    intel_gt_ns_to_pm_interval(gt, ei_up * threshold_up * 10));
 
-	set(uncore, GEN6_RP_DOWN_EI, GT_INTERVAL_FROM_US(i915, ei_down));
+	set(uncore, GEN6_RP_DOWN_EI,
+	    intel_gt_ns_to_pm_interval(gt, ei_down * 1000));
 	set(uncore, GEN6_RP_DOWN_THRESHOLD,
-	    GT_INTERVAL_FROM_US(i915, ei_down * threshold_down / 100));
+	    intel_gt_ns_to_pm_interval(gt, ei_down * threshold_down * 10));
 
 	set(uncore, GEN6_RP_CONTROL,
-	    (INTEL_GEN(i915) > 9 ? 0 : GEN6_RP_MEDIA_TURBO) |
+	    (INTEL_GEN(gt->i915) > 9 ? 0 : GEN6_RP_MEDIA_TURBO) |
 	    GEN6_RP_MEDIA_HW_NORMAL_MODE |
 	    GEN6_RP_MEDIA_IS_GFX |
 	    GEN6_RP_ENABLE |
@@ -923,11 +926,11 @@ static bool rps_reset(struct intel_rps *rps)
 /* See the Gen9_GT_PM_Programming_Guide doc for the below */
 static bool gen9_rps_enable(struct intel_rps *rps)
 {
-	struct drm_i915_private *i915 = rps_to_i915(rps);
-	struct intel_uncore *uncore = rps_to_uncore(rps);
+	struct intel_gt *gt = rps_to_gt(rps);
+	struct intel_uncore *uncore = gt->uncore;
 
 	/* Program defaults and thresholds for RPS */
-	if (IS_GEN(i915, 9))
+	if (IS_GEN(gt->i915, 9))
 		intel_uncore_write_fw(uncore, GEN6_RC_VIDEO_FREQ,
 				      GEN9_FREQUENCY(rps->rp1_freq));
 
@@ -1216,6 +1219,11 @@ void intel_rps_enable(struct intel_rps *rps)
 {
 	struct drm_i915_private *i915 = rps_to_i915(rps);
 	struct intel_uncore *uncore = rps_to_uncore(rps);
+
+	if (!HAS_RPS(i915))
+		return;
+
+	intel_gt_check_clock_frequency(rps_to_gt(rps));
 
 	intel_uncore_forcewake_get(uncore, FORCEWAKE_ALL);
 	if (IS_CHERRYVIEW(i915))
@@ -1753,7 +1761,7 @@ static u32 read_cagf(struct intel_rps *rps)
 		freq = vlv_punit_read(i915, PUNIT_REG_GPU_FREQ_STS);
 		vlv_punit_put(i915);
 	} else {
-		freq = intel_uncore_read(rps_to_gt(rps)->uncore, GEN6_RPSTAT1);
+		freq = intel_uncore_read(rps_to_uncore(rps), GEN6_RPSTAT1);
 	}
 
 	return intel_rps_get_cagf(rps, freq);
@@ -1761,7 +1769,7 @@ static u32 read_cagf(struct intel_rps *rps)
 
 u32 intel_rps_read_actual_frequency(struct intel_rps *rps)
 {
-	struct intel_runtime_pm *rpm = rps_to_gt(rps)->uncore->rpm;
+	struct intel_runtime_pm *rpm = rps_to_uncore(rps)->rpm;
 	intel_wakeref_t wakeref;
 	u32 freq = 0;
 

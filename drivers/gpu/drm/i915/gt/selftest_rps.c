@@ -9,6 +9,7 @@
 #include "intel_engine_heartbeat.h"
 #include "intel_engine_pm.h"
 #include "intel_gpu_commands.h"
+#include "intel_gt_clock_utils.h"
 #include "intel_gt_pm.h"
 #include "intel_rc6.h"
 #include "selftest_rps.h"
@@ -787,7 +788,8 @@ static int __rps_up_interrupt(struct intel_rps *rps,
 	}
 
 	timeout = intel_uncore_read(uncore, GEN6_RP_UP_EI);
-	timeout = GT_PM_INTERVAL_TO_US(engine->i915, timeout);
+	timeout = intel_gt_pm_interval_to_ns(engine->gt, timeout);
+	timeout = DIV_ROUND_UP(timeout, 1000);
 
 	sleep_for_ei(rps, timeout);
 	GEM_BUG_ON(i915_request_completed(rq));
@@ -834,7 +836,8 @@ static int __rps_down_interrupt(struct intel_rps *rps,
 	}
 
 	timeout = intel_uncore_read(uncore, GEN6_RP_DOWN_EI);
-	timeout = GT_PM_INTERVAL_TO_US(engine->i915, timeout);
+	timeout = intel_gt_pm_interval_to_ns(engine->gt, timeout);
+	timeout = DIV_ROUND_UP(timeout, 1000);
 
 	sleep_for_ei(rps, timeout);
 
