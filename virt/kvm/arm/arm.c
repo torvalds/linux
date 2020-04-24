@@ -579,16 +579,17 @@ void kvm_arm_resume_guest(struct kvm *kvm)
 
 	kvm_for_each_vcpu(i, vcpu, kvm) {
 		vcpu->arch.pause = false;
-		swake_up_one(kvm_arch_vcpu_wq(vcpu));
+		rcuwait_wake_up(kvm_arch_vcpu_get_wait(vcpu));
 	}
 }
 
 static void vcpu_req_sleep(struct kvm_vcpu *vcpu)
 {
-	struct swait_queue_head *wq = kvm_arch_vcpu_wq(vcpu);
+	struct rcuwait *wait = kvm_arch_vcpu_get_wait(vcpu);
 
-	swait_event_interruptible_exclusive(*wq, ((!vcpu->arch.power_off) &&
-				       (!vcpu->arch.pause)));
+	rcuwait_wait_event(wait,
+			   (!vcpu->arch.power_off) &&(!vcpu->arch.pause),
+			   TASK_INTERRUPTIBLE);
 
 	if (vcpu->arch.power_off || vcpu->arch.pause) {
 		/* Awaken to handle a signal, request we sleep again later. */

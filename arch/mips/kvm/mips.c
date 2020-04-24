@@ -283,8 +283,7 @@ static enum hrtimer_restart kvm_mips_comparecount_wakeup(struct hrtimer *timer)
 	kvm_mips_callbacks->queue_timer_int(vcpu);
 
 	vcpu->arch.wait = 0;
-	if (swq_has_sleeper(&vcpu->wq))
-		swake_up_one(&vcpu->wq);
+	rcuwait_wake_up(&vcpu->wait);
 
 	return kvm_mips_count_timeout(vcpu);
 }
@@ -511,8 +510,7 @@ int kvm_vcpu_ioctl_interrupt(struct kvm_vcpu *vcpu,
 
 	dvcpu->arch.wait = 0;
 
-	if (swq_has_sleeper(&dvcpu->wq))
-		swake_up_one(&dvcpu->wq);
+	rcuwait_wake_up(&dvcpu->wait);
 
 	return 0;
 }
