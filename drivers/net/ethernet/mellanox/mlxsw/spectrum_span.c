@@ -22,7 +22,7 @@ struct mlxsw_sp_span {
 	struct mlxsw_sp *mlxsw_sp;
 	atomic_t active_entries_count;
 	int entries_count;
-	struct mlxsw_sp_span_entry entries[0];
+	struct mlxsw_sp_span_entry entries[];
 };
 
 static void mlxsw_sp_span_respin_work(struct work_struct *work);
