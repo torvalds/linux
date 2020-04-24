@@ -590,7 +590,10 @@ static const struct iwl_dev_info iwl_dev_info_table[] = {
 	IWL_DEV_INFO(0x2723, 0x1654, iwl_ax200_cfg_cc, iwl_ax200_killer_1650x_name),
 	IWL_DEV_INFO(0x2723, IWL_CFG_ANY, iwl_ax200_cfg_cc, iwl_ax200_name),
 
-/* Qu with Hr */
+	/* QnJ with Hr */
+	IWL_DEV_INFO(0x2720, IWL_CFG_ANY, iwl_qnj_b0_hr_b0_cfg, iwl_ax201_name),
+
+	/* Qu with Hr */
 	IWL_DEV_INFO(0x43F0, 0x0044, iwl_ax101_cfg_qu_hr, NULL),
 	IWL_DEV_INFO(0x43F0, 0x0070, iwl_ax201_cfg_qu_hr, NULL),
 	IWL_DEV_INFO(0x43F0, 0x0074, iwl_ax201_cfg_qu_hr, NULL),
@@ -674,23 +677,6 @@ static const struct iwl_dev_info iwl_dev_info_table[] = {
 	IWL_DEV_INFO(0x4DF0, 0x2074, iwl_ax201_cfg_qu_hr, NULL),
 	IWL_DEV_INFO(0x4DF0, 0x4070, iwl_ax201_cfg_qu_hr, NULL),
 	IWL_DEV_INFO(0x4DF0, 0x4244, iwl_ax101_cfg_qu_hr, NULL),
-
-	IWL_DEV_INFO(0x2720, 0x0000, iwl22000_2ax_cfg_qnj_hr_b0, NULL),
-	IWL_DEV_INFO(0x2720, 0x0040, iwl22000_2ax_cfg_qnj_hr_b0, NULL),
-	IWL_DEV_INFO(0x2720, 0x0044, iwl22000_2ax_cfg_qnj_hr_b0, NULL),
-	IWL_DEV_INFO(0x2720, 0x0070, iwl22000_2ax_cfg_qnj_hr_b0, NULL),
-	IWL_DEV_INFO(0x2720, 0x0074, iwl22000_2ax_cfg_qnj_hr_b0, NULL),
-	IWL_DEV_INFO(0x2720, 0x0078, iwl22000_2ax_cfg_qnj_hr_b0, NULL),
-	IWL_DEV_INFO(0x2720, 0x007C, iwl22000_2ax_cfg_qnj_hr_b0, NULL),
-	IWL_DEV_INFO(0x2720, 0x0244, iwl22000_2ax_cfg_qnj_hr_b0, NULL),
-	IWL_DEV_INFO(0x2720, 0x0310, iwl22000_2ax_cfg_qnj_hr_b0, NULL),
-	IWL_DEV_INFO(0x2720, 0x0A10, iwl22000_2ax_cfg_qnj_hr_b0, NULL),
-	IWL_DEV_INFO(0x2720, 0x1080, iwl22000_2ax_cfg_qnj_hr_b0, NULL),
-	IWL_DEV_INFO(0x2720, 0x1651, iwl22000_2ax_cfg_qnj_hr_b0, NULL),
-	IWL_DEV_INFO(0x2720, 0x1652, iwl22000_2ax_cfg_qnj_hr_b0, NULL),
-	IWL_DEV_INFO(0x2720, 0x2074, iwl22000_2ax_cfg_qnj_hr_b0, NULL),
-	IWL_DEV_INFO(0x2720, 0x4070, iwl22000_2ax_cfg_qnj_hr_b0, NULL),
-	IWL_DEV_INFO(0x2720, 0x4244, iwl22000_2ax_cfg_qnj_hr_b0, NULL),
 
 	_IWL_DEV_INFO(IWL_CFG_ANY, IWL_CFG_ANY,
 		      IWL_CFG_MAC_TYPE_PU, IWL_CFG_ANY,
@@ -789,7 +775,7 @@ static const struct iwl_dev_info iwl_dev_info_table[] = {
 		      IWL_CFG_NO_160, IWL_CFG_CORES_BT,
 		      iwl9260_2ac_cfg, iwl9260_name),
 
-	/* Qu with Jf */
+/* Qu with Jf */
 	/* Qu B step */
 	_IWL_DEV_INFO(IWL_CFG_ANY, IWL_CFG_ANY,
 		      IWL_CFG_MAC_TYPE_QU, SILICON_B_STEP,
