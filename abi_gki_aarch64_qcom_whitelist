@@ -276,7 +276,8 @@
   fwnode_property_read_u32_array
   gcd
   generic_handle_irq
-  genlmsg_put
+  genl_register_family
+  genl_unregister_family
   gen_pool_add_virt
   gen_pool_alloc
   gen_pool_create
@@ -2114,8 +2115,7 @@
   csum_tcpudp_nofold
   __dev_get_by_index
   dev_queue_xmit
-  genl_register_family
-  genl_unregister_family
+  genlmsg_put
   get_current_napi_context
   gro_cells_destroy
   gro_cells_init
@@ -2485,7 +2485,6 @@
   cfg80211_unlink_bss
   cfg80211_update_owe_info_event
   cfg80211_vendor_cmd_reply
-  cld80211_get_genl_family
   complete_and_exit
   cpufreq_quick_get_max
   __cpuhp_remove_state
@@ -2497,7 +2496,6 @@
   crypto_alloc_skcipher
   crypto_shash_final
   crypto_shash_update
-  deregister_cld_cmd_cb
   dev_alloc_name
   dump_stack
   hex_to_bin
@@ -2526,7 +2524,6 @@
   pm_system_wakeup
   proc_create_data
   proc_mkdir
-  register_cld_cmd_cb
   register_netevent_notifier
   register_sysctl_table
   regulatory_set_wiphy_regd

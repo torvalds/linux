@@ -1,13 +1,37 @@
 [abi_whitelist]
 # commonly used symbols
+  __cfi_slowpath
   _dev_err
   devm_kmalloc
+  kmalloc_caches
+  kmem_cache_alloc_trace
+  kstrdup
+  memzero_explicit
   module_layout
+  printk
   __put_task_struct
   snprintf
   __stack_chk_fail
   __stack_chk_guard
   strcmp
+  strlen
+
+# required by dm-default-key.ko
+  bio_crypt_alloc_ctx
+  blk_crypto_evict_key
+  blk_crypto_init_key
+  blk_crypto_start_using_mode
+  dm_get_device
+  dm_put_device
+  dm_read_arg_group
+  dm_register_target
+  dm_shift_arg
+  dm_table_get_mode
+  dm_unregister_target
+  hex2bin
+  kzfree
+  scnprintf
+  sscanf
 
 # required by ufshcd-core.ko
   __alloc_workqueue_key
@@ -22,7 +46,6 @@
   cancel_delayed_work
   cancel_delayed_work_sync
   cancel_work_sync
-  __cfi_slowpath
   clk_disable
   clk_enable
   clk_prepare
@@ -72,8 +95,6 @@
   keyslot_manager_reprogram_all_keys
   kfree
   __kmalloc
-  kmalloc_caches
-  kmem_cache_alloc_trace
   kstrtouint
   kstrtoull
   ktime_get
@@ -84,7 +105,6 @@
   __ll_sc_atomic_sub_return
   memcpy
   memset
-  memzero_explicit
   __msecs_to_jiffies
   msleep
   __mutex_init
@@ -97,7 +117,6 @@
   preempt_schedule_notrace
   prepare_to_wait_event
   print_hex_dump
-  printk
   queue_delayed_work_on
   queue_work_on
   ___ratelimit
@@ -136,7 +155,6 @@
   sprintf
   strcpy
   strlcpy
-  strlen
   strncmp
   sysfs_create_groups
   sysfs_remove_groups
@@ -164,7 +182,6 @@
 # required by ufshcd-pltfrm.ko
   _dev_info
   devm_ioremap_resource
-  kstrdup
   __list_add_valid
   of_find_property
   of_get_property
