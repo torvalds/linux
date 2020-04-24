@@ -2731,12 +2731,7 @@ void igc_set_flag_queue_pairs(struct igc_adapter *adapter,
 
 unsigned int igc_get_max_rss_queues(struct igc_adapter *adapter)
 {
-	unsigned int max_rss_queues;
-
-	/* Determine the maximum number of RSS queues supported. */
-	max_rss_queues = IGC_MAX_RX_QUEUES;
-
-	return max_rss_queues;
+	return IGC_MAX_RX_QUEUES;
 }
 
 static void igc_init_queue_configuration(struct igc_adapter *adapter)
