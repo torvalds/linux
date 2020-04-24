@@ -7,8 +7,6 @@
 
 #include <asm-generic/module.h>
 
-#define MODULE_ARCH_VERMAGIC	"aarch64"
-
 #ifdef CONFIG_ARM64_MODULE_PLTS
 struct mod_plt_sec {
 	int			plt_shndx;
