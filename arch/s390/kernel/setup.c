@@ -597,9 +597,10 @@ static void __init setup_memory_end(void)
 #ifdef CONFIG_CRASH_DUMP
 
 /*
- * When kdump is enabled, we have to ensure that no memory from
- * the area [0 - crashkernel memory size] and
- * [crashk_res.start - crashk_res.end] is set offline.
+ * When kdump is enabled, we have to ensure that no memory from the area
+ * [0 - crashkernel memory size] is set offline - it will be exchanged with
+ * the crashkernel memory region when kdump is triggered. The crashkernel
+ * memory region can never get offlined (pages are unmovable).
  */
 static int kdump_mem_notifier(struct notifier_block *nb,
 			      unsigned long action, void *data)
@@ -610,11 +611,7 @@ static int kdump_mem_notifier(struct notifier_block *nb,
 		return NOTIFY_OK;
 	if (arg->start_pfn < PFN_DOWN(resource_size(&crashk_res)))
 		return NOTIFY_BAD;
-	if (arg->start_pfn > PFN_DOWN(crashk_res.end))
-		return NOTIFY_OK;
-	if (arg->start_pfn + arg->nr_pages - 1 < PFN_DOWN(crashk_res.start))
-		return NOTIFY_OK;
-	return NOTIFY_BAD;
+	return NOTIFY_OK;
 }
 
 static struct notifier_block kdump_mem_nb = {
