@@ -370,7 +370,6 @@ config CRYPTO_CFB
 config CRYPTO_CTR
 	tristate "CTR support"
 	select CRYPTO_SKCIPHER
-	select CRYPTO_SEQIV
 	select CRYPTO_MANAGER
 	help
 	  CTR: Counter mode
