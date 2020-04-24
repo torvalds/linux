@@ -309,7 +309,7 @@ static inline void __iomem *otx2_get_regaddr(struct otx2_nic *nic, u64 offset)
 	default:
 		blkaddr = BLKADDR_RVUM;
 		break;
-	};
+	}
 
 	offset &= ~(RVU_FUNC_BLKADDR_MASK << RVU_FUNC_BLKADDR_SHIFT);
 	offset |= (blkaddr << RVU_FUNC_BLKADDR_SHIFT);
