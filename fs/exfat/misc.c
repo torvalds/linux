@@ -32,7 +32,7 @@ void __exfat_fs_error(struct super_block *sb, int report, const char *fmt, ...)
 		va_start(args, fmt);
 		vaf.fmt = fmt;
 		vaf.va = &args;
-		exfat_msg(sb, KERN_ERR, "error, %pV\n", &vaf);
+		exfat_err(sb, "error, %pV", &vaf);
 		va_end(args);
 	}
 
@@ -41,7 +41,7 @@ void __exfat_fs_error(struct super_block *sb, int report, const char *fmt, ...)
 			sb->s_id);
 	} else if (opts->errors == EXFAT_ERRORS_RO && !sb_rdonly(sb)) {
 		sb->s_flags |= SB_RDONLY;
-		exfat_msg(sb, KERN_ERR, "Filesystem has been set read-only");
+		exfat_err(sb, "Filesystem has been set read-only");
 	}
 }
 

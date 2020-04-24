@@ -505,6 +505,13 @@ void __exfat_fs_error(struct super_block *sb, int report, const char *fmt, ...)
 		fmt, ## args)
 void exfat_msg(struct super_block *sb, const char *lv, const char *fmt, ...)
 		__printf(3, 4) __cold;
+#define exfat_err(sb, fmt, ...)						\
+	exfat_msg(sb, KERN_ERR, fmt, ##__VA_ARGS__)
+#define exfat_warn(sb, fmt, ...)					\
+	exfat_msg(sb, KERN_WARNING, fmt, ##__VA_ARGS__)
+#define exfat_info(sb, fmt, ...)					\
+	exfat_msg(sb, KERN_INFO, fmt, ##__VA_ARGS__)
+
 void exfat_get_entry_time(struct exfat_sb_info *sbi, struct timespec64 *ts,
 		u8 tz, __le16 time, __le16 date, u8 time_ms);
 void exfat_truncate_atime(struct timespec64 *ts);

@@ -170,8 +170,7 @@ int exfat_free_cluster(struct inode *inode, struct exfat_chain *p_chain)
 
 	/* check cluster validation */
 	if (p_chain->dir < 2 && p_chain->dir >= sbi->num_clusters) {
-		exfat_msg(sb, KERN_ERR, "invalid start cluster (%u)",
-				p_chain->dir);
+		exfat_err(sb, "invalid start cluster (%u)", p_chain->dir);
 		return -EIO;
 	}
 
@@ -305,8 +304,7 @@ int exfat_zeroed_cluster(struct inode *dir, unsigned int clu)
 	return 0;
 
 release_bhs:
-	exfat_msg(sb, KERN_ERR, "failed zeroed sect %llu\n",
-		(unsigned long long)blknr);
+	exfat_err(sb, "failed zeroed sect %llu\n", (unsigned long long)blknr);
 	for (i = 0; i < n; i++)
 		bforget(bhs[i]);
 	return err;
@@ -337,9 +335,8 @@ int exfat_alloc_cluster(struct inode *inode, unsigned int num_alloc,
 	/* find new cluster */
 	if (hint_clu == EXFAT_EOF_CLUSTER) {
 		if (sbi->clu_srch_ptr < EXFAT_FIRST_CLUSTER) {
-			exfat_msg(sb, KERN_ERR,
-				"sbi->clu_srch_ptr is invalid (%u)\n",
-				sbi->clu_srch_ptr);
+			exfat_err(sb, "sbi->clu_srch_ptr is invalid (%u)\n",
+				  sbi->clu_srch_ptr);
 			sbi->clu_srch_ptr = EXFAT_FIRST_CLUSTER;
 		}
 
@@ -350,7 +347,7 @@ int exfat_alloc_cluster(struct inode *inode, unsigned int num_alloc,
 
 	/* check cluster validation */
 	if (hint_clu < EXFAT_FIRST_CLUSTER && hint_clu >= sbi->num_clusters) {
-		exfat_msg(sb, KERN_ERR, "hint_cluster is invalid (%u)\n",
+		exfat_err(sb, "hint_cluster is invalid (%u)",
 			hint_clu);
 		hint_clu = EXFAT_FIRST_CLUSTER;
 		if (p_chain->flags == ALLOC_NO_FAT_CHAIN) {

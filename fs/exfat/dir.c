@@ -720,9 +720,8 @@ static int exfat_dir_readahead(struct super_block *sb, sector_t sec)
 		return 0;
 
 	if (sec < sbi->data_start_sector) {
-		exfat_msg(sb, KERN_ERR,
-			"requested sector is invalid(sect:%llu, root:%llu)",
-			(unsigned long long)sec, sbi->data_start_sector);
+		exfat_err(sb, "requested sector is invalid(sect:%llu, root:%llu)",
+			  (unsigned long long)sec, sbi->data_start_sector);
 		return -EIO;
 	}
 
@@ -750,7 +749,7 @@ struct exfat_dentry *exfat_get_dentry(struct super_block *sb,
 	sector_t sec;
 
 	if (p_dir->dir == DIR_DELETED) {
-		exfat_msg(sb, KERN_ERR, "abnormal access to deleted dentry\n");
+		exfat_err(sb, "abnormal access to deleted dentry");
 		return NULL;
 	}
 
@@ -853,7 +852,7 @@ struct exfat_entry_set_cache *exfat_get_dentry_set(struct super_block *sb,
 	struct buffer_head *bh;
 
 	if (p_dir->dir == DIR_DELETED) {
-		exfat_msg(sb, KERN_ERR, "access to deleted dentry\n");
+		exfat_err(sb, "access to deleted dentry");
 		return NULL;
 	}
 

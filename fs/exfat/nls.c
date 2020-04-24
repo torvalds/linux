@@ -503,16 +503,14 @@ static int exfat_utf8_to_utf16(struct super_block *sb,
 	unilen = utf8s_to_utf16s(p_cstring, len, UTF16_HOST_ENDIAN,
 			(wchar_t *)uniname, MAX_NAME_LENGTH + 2);
 	if (unilen < 0) {
-		exfat_msg(sb, KERN_ERR,
-			"failed to %s (err : %d) nls len : %d",
-			__func__, unilen, len);
+		exfat_err(sb, "failed to %s (err : %d) nls len : %d",
+			  __func__, unilen, len);
 		return unilen;
 	}
 
 	if (unilen > MAX_NAME_LENGTH) {
-		exfat_msg(sb, KERN_ERR,
-			"failed to %s (estr:ENAMETOOLONG) nls len : %d, unilen : %d > %d",
-			__func__, len, unilen, MAX_NAME_LENGTH);
+		exfat_err(sb, "failed to %s (estr:ENAMETOOLONG) nls len : %d, unilen : %d > %d",
+			  __func__, len, unilen, MAX_NAME_LENGTH);
 		return -ENAMETOOLONG;
 	}
 
@@ -687,9 +685,8 @@ static int exfat_load_upcase_table(struct super_block *sb,
 
 		bh = sb_bread(sb, sector);
 		if (!bh) {
-			exfat_msg(sb, KERN_ERR,
-				"failed to read sector(0x%llx)\n",
-				(unsigned long long)sector);
+			exfat_err(sb, "failed to read sector(0x%llx)\n",
+				  (unsigned long long)sector);
 			ret = -EIO;
 			goto free_table;
 		}
@@ -722,9 +719,8 @@ static int exfat_load_upcase_table(struct super_block *sb,
 	if (index >= 0xFFFF && utbl_checksum == checksum)
 		return 0;
 
-	exfat_msg(sb, KERN_ERR,
-			"failed to load upcase table (idx : 0x%08x, chksum : 0x%08x, utbl_chksum : 0x%08x)\n",
-			index, checksum, utbl_checksum);
+	exfat_err(sb, "failed to load upcase table (idx : 0x%08x, chksum : 0x%08x, utbl_chksum : 0x%08x)",
+		  index, checksum, utbl_checksum);
 	ret = -EINVAL;
 free_table:
 	exfat_free_upcase_table(sbi);
