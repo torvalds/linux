@@ -690,7 +690,8 @@
 	fusb0: fusb30x@22 {
 		compatible = "fcs,fusb302";
 		reg = <0x22>;
-		fcs,int_n = <&gpio1 RK_PA2 GPIO_ACTIVE_HIGH>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <RK_PA2 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&fusb0_int_gpio>;
 		vbus-supply = <&vbus_typec>;
