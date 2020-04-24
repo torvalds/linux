@@ -4891,7 +4891,7 @@ bool mlx5e_tc_rep_update_skb(struct mlx5_cqe64 *cqe,
 	reg_c0 = (be32_to_cpu(cqe->sop_drop_qpn) & MLX5E_TC_FLOW_ID_MASK);
 	if (reg_c0 == MLX5_FS_DEFAULT_FLOW_TAG)
 		reg_c0 = 0;
-	reg_c1 = be32_to_cpu(cqe->imm_inval_pkey);
+	reg_c1 = be32_to_cpu(cqe->ft_metadata);
 
 	if (!reg_c0)
 		return true;
