@@ -25,6 +25,15 @@ static inline void rcuwait_init(struct rcuwait *w)
 	w->task = NULL;
 }
 
+/*
+ * Note: this provides no serialization and, just as with waitqueues,
+ * requires care to estimate as to whether or not the wait is active.
+ */
+static inline int rcuwait_active(struct rcuwait *w)
+{
+	return !!rcu_dereference(w->task);
+}
+
 extern int rcuwait_wake_up(struct rcuwait *w);
 
 /*
