@@ -1092,7 +1092,8 @@ unlock_continue:
 		set_inode_flag(inode, FI_FIRST_BLOCK_WRITTEN);
 
 	f2fs_put_dnode(&dn);
-	f2fs_unlock_op(sbi);
+	if (!IS_NOQUOTA(inode))
+		f2fs_unlock_op(sbi);
 
 	spin_lock(&fi->i_size_lock);
 	if (fi->last_disk_size < psize)
@@ -1118,7 +1119,8 @@ out_put_cic:
 out_put_dnode:
 	f2fs_put_dnode(&dn);
 out_unlock_op:
-	f2fs_unlock_op(sbi);
+	if (!IS_NOQUOTA(inode))
+		f2fs_unlock_op(sbi);
 	return -EAGAIN;
 }
 
