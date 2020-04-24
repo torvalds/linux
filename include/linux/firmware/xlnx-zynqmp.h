@@ -296,10 +296,6 @@ struct zynqmp_pm_query_data {
 struct zynqmp_eemi_ops {
 	int (*fpga_load)(const u64 address, const u32 size, const u32 flags);
 	int (*fpga_get_status)(u32 *value);
-	int (*set_requirement)(const u32 node,
-			       const u32 capabilities,
-			       const u32 qos,
-			       const enum zynqmp_pm_request_ack ack);
 	int (*aes)(const u64 address, u32 *out);
 };
 
@@ -334,6 +330,9 @@ int zynqmp_pm_set_suspend_mode(u32 mode);
 int zynqmp_pm_request_node(const u32 node, const u32 capabilities,
 			   const u32 qos, const enum zynqmp_pm_request_ack ack);
 int zynqmp_pm_release_node(const u32 node);
+int zynqmp_pm_set_requirement(const u32 node, const u32 capabilities,
+			      const u32 qos,
+			      const enum zynqmp_pm_request_ack ack);
 #else
 static inline struct zynqmp_eemi_ops *zynqmp_pm_get_eemi_ops(void)
 {
@@ -437,6 +436,13 @@ static inline int zynqmp_pm_request_node(const u32 node, const u32 capabilities,
 	return -ENODEV;
 }
 static inline int zynqmp_pm_release_node(const u32 node)
+{
+	return -ENODEV;
+}
+static inline int zynqmp_pm_set_requirement(const u32 node,
+					const u32 capabilities,
+					const u32 qos,
+					const enum zynqmp_pm_request_ack ack)
 {
 	return -ENODEV;
 }
