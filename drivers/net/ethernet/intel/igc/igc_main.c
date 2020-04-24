@@ -2539,12 +2539,12 @@ static void igc_flush_nfc_rules(struct igc_adapter *adapter)
 {
 	struct igc_nfc_rule *rule, *tmp;
 
-	spin_lock(&adapter->nfc_rule_lock);
+	mutex_lock(&adapter->nfc_rule_lock);
 
 	list_for_each_entry_safe(rule, tmp, &adapter->nfc_rule_list, list)
 		igc_del_nfc_rule(adapter, rule);
 
-	spin_unlock(&adapter->nfc_rule_lock);
+	mutex_unlock(&adapter->nfc_rule_lock);
 }
 
 /**
@@ -2583,24 +2583,24 @@ static void igc_restore_nfc_rules(struct igc_adapter *adapter)
 {
 	struct igc_nfc_rule *rule;
 
-	spin_lock(&adapter->nfc_rule_lock);
+	mutex_lock(&adapter->nfc_rule_lock);
 
 	list_for_each_entry_reverse(rule, &adapter->nfc_rule_list, list)
 		igc_enable_nfc_rule(adapter, rule);
 
-	spin_unlock(&adapter->nfc_rule_lock);
+	mutex_unlock(&adapter->nfc_rule_lock);
 }
 
 static void igc_nfc_rule_exit(struct igc_adapter *adapter)
 {
 	struct igc_nfc_rule *rule;
 
-	spin_lock(&adapter->nfc_rule_lock);
+	mutex_lock(&adapter->nfc_rule_lock);
 
 	list_for_each_entry(rule, &adapter->nfc_rule_list, list)
 		igc_disable_nfc_rule(adapter, rule);
 
-	spin_unlock(&adapter->nfc_rule_lock);
+	mutex_unlock(&adapter->nfc_rule_lock);
 }
 
 static int igc_uc_sync(struct net_device *netdev, const unsigned char *addr)
@@ -3573,7 +3573,7 @@ static int igc_sw_init(struct igc_adapter *adapter)
 				VLAN_HLEN;
 	adapter->min_frame_size = ETH_ZLEN + ETH_FCS_LEN;
 
-	spin_lock_init(&adapter->nfc_rule_lock);
+	mutex_init(&adapter->nfc_rule_lock);
 	INIT_LIST_HEAD(&adapter->nfc_rule_list);
 	adapter->nfc_rule_count = 0;
 

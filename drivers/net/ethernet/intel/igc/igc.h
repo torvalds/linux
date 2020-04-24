@@ -190,7 +190,7 @@ struct igc_adapter {
 	/* Any access to elements in nfc_rule_list is protected by the
 	 * nfc_rule_lock.
 	 */
-	spinlock_t nfc_rule_lock;
+	struct mutex nfc_rule_lock;
 	struct list_head nfc_rule_list;
 	unsigned int nfc_rule_count;
 

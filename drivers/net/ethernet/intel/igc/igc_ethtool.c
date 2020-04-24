@@ -939,7 +939,7 @@ static int igc_ethtool_get_nfc_rule(struct igc_adapter *adapter,
 
 	cmd->data = IGC_MAX_RXNFC_RULES;
 
-	spin_lock(&adapter->nfc_rule_lock);
+	mutex_lock(&adapter->nfc_rule_lock);
 
 	rule = igc_get_nfc_rule(adapter, fsp->location);
 	if (!rule)
@@ -971,11 +971,11 @@ static int igc_ethtool_get_nfc_rule(struct igc_adapter *adapter,
 		eth_broadcast_addr(fsp->m_u.ether_spec.h_source);
 	}
 
-	spin_unlock(&adapter->nfc_rule_lock);
+	mutex_unlock(&adapter->nfc_rule_lock);
 	return 0;
 
 out:
-	spin_unlock(&adapter->nfc_rule_lock);
+	mutex_unlock(&adapter->nfc_rule_lock);
 	return -EINVAL;
 }
 
@@ -988,18 +988,18 @@ static int igc_ethtool_get_nfc_rules(struct igc_adapter *adapter,
 
 	cmd->data = IGC_MAX_RXNFC_RULES;
 
-	spin_lock(&adapter->nfc_rule_lock);
+	mutex_lock(&adapter->nfc_rule_lock);
 
 	list_for_each_entry(rule, &adapter->nfc_rule_list, list) {
 		if (cnt == cmd->rule_cnt) {
-			spin_unlock(&adapter->nfc_rule_lock);
+			mutex_unlock(&adapter->nfc_rule_lock);
 			return -EMSGSIZE;
 		}
 		rule_locs[cnt] = rule->location;
 		cnt++;
 	}
 
-	spin_unlock(&adapter->nfc_rule_lock);
+	mutex_unlock(&adapter->nfc_rule_lock);
 
 	cmd->rule_cnt = cnt;
 
@@ -1303,7 +1303,7 @@ static int igc_ethtool_add_nfc_rule(struct igc_adapter *adapter,
 
 	igc_ethtool_init_nfc_rule(rule, fsp);
 
-	spin_lock(&adapter->nfc_rule_lock);
+	mutex_lock(&adapter->nfc_rule_lock);
 
 	err = igc_ethtool_check_nfc_rule(adapter, rule);
 	if (err)
@@ -1317,11 +1317,11 @@ static int igc_ethtool_add_nfc_rule(struct igc_adapter *adapter,
 	if (err)
 		goto err;
 
-	spin_unlock(&adapter->nfc_rule_lock);
+	mutex_unlock(&adapter->nfc_rule_lock);
 	return 0;
 
 err:
-	spin_unlock(&adapter->nfc_rule_lock);
+	mutex_unlock(&adapter->nfc_rule_lock);
 	kfree(rule);
 	return err;
 }
@@ -1333,17 +1333,17 @@ static int igc_ethtool_del_nfc_rule(struct igc_adapter *adapter,
 		(struct ethtool_rx_flow_spec *)&cmd->fs;
 	struct igc_nfc_rule *rule;
 
-	spin_lock(&adapter->nfc_rule_lock);
+	mutex_lock(&adapter->nfc_rule_lock);
 
 	rule = igc_get_nfc_rule(adapter, fsp->location);
 	if (!rule) {
-		spin_unlock(&adapter->nfc_rule_lock);
+		mutex_unlock(&adapter->nfc_rule_lock);
 		return -EINVAL;
 	}
 
 	igc_del_nfc_rule(adapter, rule);
 
-	spin_unlock(&adapter->nfc_rule_lock);
+	mutex_unlock(&adapter->nfc_rule_lock);
 	return 0;
 }
 
