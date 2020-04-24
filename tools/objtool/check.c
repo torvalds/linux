@@ -2339,9 +2339,6 @@ static int validate_branch(struct objtool_file *file, struct symbol *func,
 			}
 			return 0;
 
-		case INSN_STACK:
-			break;
-
 		case INSN_STAC:
 			if (state.uaccess) {
 				WARN_FUNC("recursive UACCESS enable", sec, insn->offset);
