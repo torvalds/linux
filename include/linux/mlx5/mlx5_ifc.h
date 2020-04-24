@@ -9703,6 +9703,29 @@ struct mlx5_ifc_mcda_reg_bits {
 	u8         data[0][0x20];
 };
 
+enum {
+	MLX5_MFRL_REG_RESET_TYPE_FULL_CHIP = BIT(0),
+	MLX5_MFRL_REG_RESET_TYPE_NET_PORT_ALIVE = BIT(1),
+};
+
+enum {
+	MLX5_MFRL_REG_RESET_LEVEL0 = BIT(0),
+	MLX5_MFRL_REG_RESET_LEVEL3 = BIT(3),
+	MLX5_MFRL_REG_RESET_LEVEL6 = BIT(6),
+};
+
+struct mlx5_ifc_mfrl_reg_bits {
+	u8         reserved_at_0[0x20];
+
+	u8         reserved_at_20[0x2];
+	u8         pci_sync_for_fw_update_start[0x1];
+	u8         pci_sync_for_fw_update_resp[0x2];
+	u8         rst_type_sel[0x3];
+	u8         reserved_at_28[0x8];
+	u8         reset_type[0x8];
+	u8         reset_level[0x8];
+};
+
 struct mlx5_ifc_mirc_reg_bits {
 	u8         reserved_at_0[0x18];
 	u8         status_code[0x8];
@@ -9766,6 +9789,7 @@ union mlx5_ifc_ports_control_registers_document_bits {
 	struct mlx5_ifc_mcc_reg_bits mcc_reg;
 	struct mlx5_ifc_mcda_reg_bits mcda_reg;
 	struct mlx5_ifc_mirc_reg_bits mirc_reg;
+	struct mlx5_ifc_mfrl_reg_bits mfrl_reg;
 	u8         reserved_at_0[0x60e0];
 };
 
