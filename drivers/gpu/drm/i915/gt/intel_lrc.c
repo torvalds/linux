@@ -314,6 +314,23 @@ lrc_ring_indirect_offset_default(const struct intel_engine_cs *engine)
 	}
 }
 
+static void
+lrc_ring_setup_indirect_ctx(u32 *regs,
+			    const struct intel_engine_cs *engine,
+			    u32 ctx_bb_ggtt_addr,
+			    u32 size)
+{
+	GEM_BUG_ON(!size);
+	GEM_BUG_ON(!IS_ALIGNED(size, CACHELINE_BYTES));
+	GEM_BUG_ON(lrc_ring_indirect_ptr(engine) == -1);
+	regs[lrc_ring_indirect_ptr(engine) + 1] =
+		ctx_bb_ggtt_addr | (size / CACHELINE_BYTES);
+
+	GEM_BUG_ON(lrc_ring_indirect_offset(engine) == -1);
+	regs[lrc_ring_indirect_offset(engine) + 1] =
+		lrc_ring_indirect_offset_default(engine) << 6;
+}
+
 static u32 intel_context_get_runtime(const struct intel_context *ce)
 {
 	/*
@@ -613,7 +630,7 @@ static void set_offsets(u32 *regs,
 		if (flags & POSTED)
 			*regs |= MI_LRI_FORCE_POSTED;
 		if (INTEL_GEN(engine->i915) >= 11)
-			*regs |= MI_LRI_CS_MMIO;
+			*regs |= MI_LRI_LRM_CS_MMIO;
 		regs++;
 
 		GEM_BUG_ON(!count);
@@ -3187,6 +3204,94 @@ static void execlists_context_unpin(struct intel_context *ce)
 	i915_gem_object_unpin_map(ce->state->obj);
 }
 
+static u32 *
+gen12_emit_timestamp_wa(const struct intel_context *ce, u32 *cs)
+{
+	*cs++ = MI_LOAD_REGISTER_MEM_GEN8 |
+		MI_SRM_LRM_GLOBAL_GTT |
+		MI_LRI_LRM_CS_MMIO;
+	*cs++ = i915_mmio_reg_offset(GEN8_RING_CS_GPR(0, 0));
+	*cs++ = i915_ggtt_offset(ce->state) + LRC_STATE_OFFSET +
+		CTX_TIMESTAMP * sizeof(u32);
+	*cs++ = 0;
+
+	*cs++ = MI_LOAD_REGISTER_REG |
+		MI_LRR_SOURCE_CS_MMIO |
+		MI_LRI_LRM_CS_MMIO;
+	*cs++ = i915_mmio_reg_offset(GEN8_RING_CS_GPR(0, 0));
+	*cs++ = i915_mmio_reg_offset(RING_CTX_TIMESTAMP(0));
+
+	*cs++ = MI_LOAD_REGISTER_REG |
+		MI_LRR_SOURCE_CS_MMIO |
+		MI_LRI_LRM_CS_MMIO;
+	*cs++ = i915_mmio_reg_offset(GEN8_RING_CS_GPR(0, 0));
+	*cs++ = i915_mmio_reg_offset(RING_CTX_TIMESTAMP(0));
+
+	return cs;
+}
+
+static u32 *
+gen12_emit_restore_scratch(const struct intel_context *ce, u32 *cs)
+{
+	GEM_BUG_ON(lrc_ring_gpr0(ce->engine) == -1);
+
+	*cs++ = MI_LOAD_REGISTER_MEM_GEN8 |
+		MI_SRM_LRM_GLOBAL_GTT |
+		MI_LRI_LRM_CS_MMIO;
+	*cs++ = i915_mmio_reg_offset(GEN8_RING_CS_GPR(0, 0));
+	*cs++ = i915_ggtt_offset(ce->state) + LRC_STATE_OFFSET +
+		(lrc_ring_gpr0(ce->engine) + 1) * sizeof(u32);
+	*cs++ = 0;
+
+	return cs;
+}
+
+static u32 *
+gen12_emit_indirect_ctx_xcs(const struct intel_context *ce, u32 *cs)
+{
+	cs = gen12_emit_timestamp_wa(ce, cs);
+	cs = gen12_emit_restore_scratch(ce, cs);
+
+	return cs;
+}
+
+static inline u32 context_wa_bb_offset(const struct intel_context *ce)
+{
+	return PAGE_SIZE * ce->wa_bb_page;
+}
+
+static u32 *context_indirect_bb(const struct intel_context *ce)
+{
+	void *ptr;
+
+	GEM_BUG_ON(!ce->wa_bb_page);
+
+	ptr = ce->lrc_reg_state;
+	ptr -= LRC_STATE_OFFSET; /* back to start of context image */
+	ptr += context_wa_bb_offset(ce);
+
+	return ptr;
+}
+
+static void
+setup_indirect_ctx_bb(const struct intel_context *ce,
+		      const struct intel_engine_cs *engine,
+		      u32 *(*emit)(const struct intel_context *, u32 *))
+{
+	u32 * const start = context_indirect_bb(ce);
+	u32 *cs;
+
+	cs = emit(ce, start);
+	GEM_BUG_ON(cs - start > I915_GTT_PAGE_SIZE / sizeof(*cs));
+	while ((unsigned long)cs % CACHELINE_BYTES)
+		*cs++ = MI_NOOP;
+
+	lrc_ring_setup_indirect_ctx(ce->lrc_reg_state, engine,
+				    i915_ggtt_offset(ce->state) +
+				    context_wa_bb_offset(ce),
+				    (cs - start) * sizeof(*cs));
+}
+
 static void
 __execlists_update_reg_state(const struct intel_context *ce,
 			     const struct intel_engine_cs *engine,
@@ -3209,6 +3314,12 @@ __execlists_update_reg_state(const struct intel_context *ce,
 			intel_sseu_make_rpcs(engine->i915, &ce->sseu);
 
 		i915_oa_init_reg_state(ce, engine);
+	}
+
+	if (ce->wa_bb_page) {
+		/* Mutually exclusive wrt to global indirect bb */
+		GEM_BUG_ON(engine->wa_ctx.indirect_ctx.size);
+		setup_indirect_ctx_bb(ce, engine, gen12_emit_indirect_ctx_xcs);
 	}
 }
 
@@ -4737,7 +4848,6 @@ int intel_execlists_submission_setup(struct intel_engine_cs *engine)
 	return 0;
 }
 
-
 static void init_common_reg_state(u32 * const regs,
 				  const struct intel_engine_cs *engine,
 				  const struct intel_ring *ring,
@@ -4772,16 +4882,10 @@ static void init_wa_bb_reg_state(u32 * const regs,
 	}
 
 	if (wa_ctx->indirect_ctx.size) {
-		const u32 ggtt_offset = i915_ggtt_offset(wa_ctx->vma);
-
-		GEM_BUG_ON(lrc_ring_indirect_ptr(engine) == -1);
-		regs[lrc_ring_indirect_ptr(engine) + 1] =
-			(ggtt_offset + wa_ctx->indirect_ctx.offset) |
-			(wa_ctx->indirect_ctx.size / CACHELINE_BYTES);
-
-		GEM_BUG_ON(lrc_ring_indirect_offset(engine) == -1);
-		regs[lrc_ring_indirect_offset(engine) + 1] =
-			lrc_ring_indirect_offset_default(engine) << 6;
+		lrc_ring_setup_indirect_ctx(regs, engine,
+					    i915_ggtt_offset(wa_ctx->vma) +
+					    wa_ctx->indirect_ctx.offset,
+					    wa_ctx->indirect_ctx.size);
 	}
 }
 
@@ -4902,6 +5006,11 @@ static int __execlists_context_alloc(struct intel_context *ce,
 
 	if (IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
 		context_size += I915_GTT_PAGE_SIZE; /* for redzone */
+
+	if (INTEL_GEN(engine->i915) == 12) {
+		ce->wa_bb_page = context_size / PAGE_SIZE;
+		context_size += PAGE_SIZE;
+	}
 
 	ctx_obj = i915_gem_object_create_shmem(engine->i915, context_size);
 	if (IS_ERR(ctx_obj))
