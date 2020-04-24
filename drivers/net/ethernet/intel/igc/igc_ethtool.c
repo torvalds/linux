@@ -931,16 +931,15 @@ static int igc_ethtool_set_coalesce(struct net_device *netdev,
 }
 
 #define ETHER_TYPE_FULL_MASK ((__force __be16)~0)
-static int igc_ethtool_get_nfc_entry(struct igc_adapter *adapter,
-				     struct ethtool_rxnfc *cmd)
+static int igc_ethtool_get_nfc_rule(struct igc_adapter *adapter,
+				    struct ethtool_rxnfc *cmd)
 {
 	struct ethtool_rx_flow_spec *fsp = &cmd->fs;
-	struct igc_nfc_filter *rule = NULL;
+	struct igc_nfc_rule *rule = NULL;
 
-	/* report total rule count */
-	cmd->data = IGC_MAX_RXNFC_FILTERS;
+	cmd->data = IGC_MAX_RXNFC_RULES;
 
-	hlist_for_each_entry(rule, &adapter->nfc_filter_list, nfc_node) {
+	hlist_for_each_entry(rule, &adapter->nfc_rule_list, nfc_node) {
 		if (fsp->location <= rule->sw_idx)
 			break;
 	}
@@ -980,17 +979,16 @@ static int igc_ethtool_get_nfc_entry(struct igc_adapter *adapter,
 	return 0;
 }
 
-static int igc_ethtool_get_nfc_all(struct igc_adapter *adapter,
-				   struct ethtool_rxnfc *cmd,
-				   u32 *rule_locs)
+static int igc_ethtool_get_nfc_rules(struct igc_adapter *adapter,
+				     struct ethtool_rxnfc *cmd,
+				     u32 *rule_locs)
 {
-	struct igc_nfc_filter *rule;
+	struct igc_nfc_rule *rule;
 	int cnt = 0;
 
-	/* report total rule count */
-	cmd->data = IGC_MAX_RXNFC_FILTERS;
+	cmd->data = IGC_MAX_RXNFC_RULES;
 
-	hlist_for_each_entry(rule, &adapter->nfc_filter_list, nfc_node) {
+	hlist_for_each_entry(rule, &adapter->nfc_rule_list, nfc_node) {
 		if (cnt == cmd->rule_cnt)
 			return -EMSGSIZE;
 		rule_locs[cnt] = rule->sw_idx;
@@ -1062,12 +1060,12 @@ static int igc_ethtool_get_rxnfc(struct net_device *dev,
 		cmd->data = adapter->num_rx_queues;
 		return 0;
 	case ETHTOOL_GRXCLSRLCNT:
-		cmd->rule_cnt = adapter->nfc_filter_count;
+		cmd->rule_cnt = adapter->nfc_rule_count;
 		return 0;
 	case ETHTOOL_GRXCLSRULE:
-		return igc_ethtool_get_nfc_entry(adapter, cmd);
+		return igc_ethtool_get_nfc_rule(adapter, cmd);
 	case ETHTOOL_GRXCLSRLALL:
-		return igc_ethtool_get_nfc_all(adapter, cmd, rule_locs);
+		return igc_ethtool_get_nfc_rules(adapter, cmd, rule_locs);
 	case ETHTOOL_GRXFH:
 		return igc_ethtool_get_rss_hash_opts(adapter, cmd);
 	default:
@@ -1179,38 +1177,37 @@ static int igc_ethtool_set_rss_hash_opt(struct igc_adapter *adapter,
 	return 0;
 }
 
-int igc_add_filter(struct igc_adapter *adapter, struct igc_nfc_filter *input)
+int igc_enable_nfc_rule(struct igc_adapter *adapter,
+			const struct igc_nfc_rule *rule)
 {
 	int err = -EINVAL;
 
-	if (input->filter.match_flags & IGC_FILTER_FLAG_ETHER_TYPE) {
-		u16 etype = ntohs(input->filter.etype);
+	if (rule->filter.match_flags & IGC_FILTER_FLAG_ETHER_TYPE) {
+		u16 etype = ntohs(rule->filter.etype);
 
-		err = igc_add_etype_filter(adapter, etype, input->action);
+		err = igc_add_etype_filter(adapter, etype, rule->action);
 		if (err)
 			return err;
 	}
 
-	if (input->filter.match_flags & IGC_FILTER_FLAG_SRC_MAC_ADDR) {
+	if (rule->filter.match_flags & IGC_FILTER_FLAG_SRC_MAC_ADDR) {
 		err = igc_add_mac_filter(adapter, IGC_MAC_FILTER_TYPE_SRC,
-					 input->filter.src_addr,
-					 input->action);
+					 rule->filter.src_addr, rule->action);
 		if (err)
 			return err;
 	}
 
-	if (input->filter.match_flags & IGC_FILTER_FLAG_DST_MAC_ADDR) {
+	if (rule->filter.match_flags & IGC_FILTER_FLAG_DST_MAC_ADDR) {
 		err = igc_add_mac_filter(adapter, IGC_MAC_FILTER_TYPE_DST,
-					 input->filter.dst_addr,
-					 input->action);
+					 rule->filter.dst_addr, rule->action);
 		if (err)
 			return err;
 	}
 
-	if (input->filter.match_flags & IGC_FILTER_FLAG_VLAN_TCI) {
-		int prio = (ntohs(input->filter.vlan_tci) & VLAN_PRIO_MASK) >>
+	if (rule->filter.match_flags & IGC_FILTER_FLAG_VLAN_TCI) {
+		int prio = (ntohs(rule->filter.vlan_tci) & VLAN_PRIO_MASK) >>
 			   VLAN_PRIO_SHIFT;
-		err = igc_add_vlan_prio_filter(adapter, prio, input->action);
+		err = igc_add_vlan_prio_filter(adapter, prio, rule->action);
 		if (err)
 			return err;
 	}
@@ -1218,42 +1215,43 @@ int igc_add_filter(struct igc_adapter *adapter, struct igc_nfc_filter *input)
 	return 0;
 }
 
-int igc_erase_filter(struct igc_adapter *adapter, struct igc_nfc_filter *input)
+int igc_disable_nfc_rule(struct igc_adapter *adapter,
+			 const struct igc_nfc_rule *rule)
 {
-	if (input->filter.match_flags & IGC_FILTER_FLAG_ETHER_TYPE) {
-		u16 etype = ntohs(input->filter.etype);
+	if (rule->filter.match_flags & IGC_FILTER_FLAG_ETHER_TYPE) {
+		u16 etype = ntohs(rule->filter.etype);
 
 		igc_del_etype_filter(adapter, etype);
 	}
 
-	if (input->filter.match_flags & IGC_FILTER_FLAG_VLAN_TCI) {
-		int prio = (ntohs(input->filter.vlan_tci) & VLAN_PRIO_MASK) >>
+	if (rule->filter.match_flags & IGC_FILTER_FLAG_VLAN_TCI) {
+		int prio = (ntohs(rule->filter.vlan_tci) & VLAN_PRIO_MASK) >>
 			   VLAN_PRIO_SHIFT;
 		igc_del_vlan_prio_filter(adapter, prio);
 	}
 
-	if (input->filter.match_flags & IGC_FILTER_FLAG_SRC_MAC_ADDR)
+	if (rule->filter.match_flags & IGC_FILTER_FLAG_SRC_MAC_ADDR)
 		igc_del_mac_filter(adapter, IGC_MAC_FILTER_TYPE_SRC,
-				   input->filter.src_addr);
+				   rule->filter.src_addr);
 
-	if (input->filter.match_flags & IGC_FILTER_FLAG_DST_MAC_ADDR)
+	if (rule->filter.match_flags & IGC_FILTER_FLAG_DST_MAC_ADDR)
 		igc_del_mac_filter(adapter, IGC_MAC_FILTER_TYPE_DST,
-				   input->filter.dst_addr);
+				   rule->filter.dst_addr);
 
 	return 0;
 }
 
-static int igc_ethtool_update_nfc_entry(struct igc_adapter *adapter,
-					struct igc_nfc_filter *input,
-					u16 sw_idx)
+static int igc_ethtool_update_nfc_rule(struct igc_adapter *adapter,
+				       struct igc_nfc_rule *input,
+				       u16 sw_idx)
 {
-	struct igc_nfc_filter *rule, *parent;
+	struct igc_nfc_rule *rule, *parent;
 	int err = -EINVAL;
 
 	parent = NULL;
 	rule = NULL;
 
-	hlist_for_each_entry(rule, &adapter->nfc_filter_list, nfc_node) {
+	hlist_for_each_entry(rule, &adapter->nfc_rule_list, nfc_node) {
 		/* hash found, or no matching entry */
 		if (rule->sw_idx >= sw_idx)
 			break;
@@ -1263,11 +1261,11 @@ static int igc_ethtool_update_nfc_entry(struct igc_adapter *adapter,
 	/* if there is an old rule occupying our place remove it */
 	if (rule && rule->sw_idx == sw_idx) {
 		if (!input)
-			err = igc_erase_filter(adapter, rule);
+			err = igc_disable_nfc_rule(adapter, rule);
 
 		hlist_del(&rule->nfc_node);
 		kfree(rule);
-		adapter->nfc_filter_count--;
+		adapter->nfc_rule_count--;
 	}
 
 	/* If no input this was a delete, err should be 0 if a rule was
@@ -1283,21 +1281,21 @@ static int igc_ethtool_update_nfc_entry(struct igc_adapter *adapter,
 	if (parent)
 		hlist_add_behind(&input->nfc_node, &parent->nfc_node);
 	else
-		hlist_add_head(&input->nfc_node, &adapter->nfc_filter_list);
+		hlist_add_head(&input->nfc_node, &adapter->nfc_rule_list);
 
 	/* update counts */
-	adapter->nfc_filter_count++;
+	adapter->nfc_rule_count++;
 
 	return 0;
 }
 
-static int igc_ethtool_add_nfc_entry(struct igc_adapter *adapter,
-				     struct ethtool_rxnfc *cmd)
+static int igc_ethtool_add_nfc_rule(struct igc_adapter *adapter,
+				    struct ethtool_rxnfc *cmd)
 {
 	struct net_device *netdev = adapter->netdev;
 	struct ethtool_rx_flow_spec *fsp =
 		(struct ethtool_rx_flow_spec *)&cmd->fs;
-	struct igc_nfc_filter *input, *rule;
+	struct igc_nfc_rule *rule, *tmp;
 	int err = 0;
 
 	if (!(netdev->hw_features & NETIF_F_NTUPLE))
@@ -1314,7 +1312,7 @@ static int igc_ethtool_add_nfc_entry(struct igc_adapter *adapter,
 	}
 
 	/* Don't allow indexes to exist outside of available space */
-	if (fsp->location >= IGC_MAX_RXNFC_FILTERS) {
+	if (fsp->location >= IGC_MAX_RXNFC_RULES) {
 		netdev_err(netdev, "Location out of range\n");
 		return -EINVAL;
 	}
@@ -1322,32 +1320,32 @@ static int igc_ethtool_add_nfc_entry(struct igc_adapter *adapter,
 	if ((fsp->flow_type & ~FLOW_EXT) != ETHER_FLOW)
 		return -EINVAL;
 
-	input = kzalloc(sizeof(*input), GFP_KERNEL);
-	if (!input)
+	rule = kzalloc(sizeof(*rule), GFP_KERNEL);
+	if (!rule)
 		return -ENOMEM;
 
 	if (fsp->m_u.ether_spec.h_proto == ETHER_TYPE_FULL_MASK) {
-		input->filter.etype = fsp->h_u.ether_spec.h_proto;
-		input->filter.match_flags = IGC_FILTER_FLAG_ETHER_TYPE;
+		rule->filter.etype = fsp->h_u.ether_spec.h_proto;
+		rule->filter.match_flags = IGC_FILTER_FLAG_ETHER_TYPE;
 	}
 
 	/* Both source and destination address filters only support the full
 	 * mask.
 	 */
 	if (is_broadcast_ether_addr(fsp->m_u.ether_spec.h_source)) {
-		input->filter.match_flags |= IGC_FILTER_FLAG_SRC_MAC_ADDR;
-		ether_addr_copy(input->filter.src_addr,
+		rule->filter.match_flags |= IGC_FILTER_FLAG_SRC_MAC_ADDR;
+		ether_addr_copy(rule->filter.src_addr,
 				fsp->h_u.ether_spec.h_source);
 	}
 
 	if (is_broadcast_ether_addr(fsp->m_u.ether_spec.h_dest)) {
-		input->filter.match_flags |= IGC_FILTER_FLAG_DST_MAC_ADDR;
-		ether_addr_copy(input->filter.dst_addr,
+		rule->filter.match_flags |= IGC_FILTER_FLAG_DST_MAC_ADDR;
+		ether_addr_copy(rule->filter.dst_addr,
 				fsp->h_u.ether_spec.h_dest);
 	}
 
-	if (input->filter.match_flags & IGC_FILTER_FLAG_DST_MAC_ADDR &&
-	    input->filter.match_flags & IGC_FILTER_FLAG_SRC_MAC_ADDR) {
+	if (rule->filter.match_flags & IGC_FILTER_FLAG_DST_MAC_ADDR &&
+	    rule->filter.match_flags & IGC_FILTER_FLAG_SRC_MAC_ADDR) {
 		netdev_dbg(netdev, "Filters with both dst and src are not supported\n");
 		err = -EOPNOTSUPP;
 		goto err_out;
@@ -1359,18 +1357,18 @@ static int igc_ethtool_add_nfc_entry(struct igc_adapter *adapter,
 			err = -EOPNOTSUPP;
 			goto err_out;
 		}
-		input->filter.vlan_tci = fsp->h_ext.vlan_tci;
-		input->filter.match_flags |= IGC_FILTER_FLAG_VLAN_TCI;
+		rule->filter.vlan_tci = fsp->h_ext.vlan_tci;
+		rule->filter.match_flags |= IGC_FILTER_FLAG_VLAN_TCI;
 	}
 
-	input->action = fsp->ring_cookie;
-	input->sw_idx = fsp->location;
+	rule->action = fsp->ring_cookie;
+	rule->sw_idx = fsp->location;
 
-	spin_lock(&adapter->nfc_lock);
+	spin_lock(&adapter->nfc_rule_lock);
 
-	hlist_for_each_entry(rule, &adapter->nfc_filter_list, nfc_node) {
-		if (!memcmp(&input->filter, &rule->filter,
-			    sizeof(input->filter))) {
+	hlist_for_each_entry(tmp, &adapter->nfc_rule_list, nfc_node) {
+		if (!memcmp(&rule->filter, &tmp->filter,
+			    sizeof(rule->filter))) {
 			err = -EEXIST;
 			netdev_err(netdev,
 				   "ethtool: this filter is already set\n");
@@ -1378,32 +1376,32 @@ static int igc_ethtool_add_nfc_entry(struct igc_adapter *adapter,
 		}
 	}
 
-	err = igc_add_filter(adapter, input);
+	err = igc_enable_nfc_rule(adapter, rule);
 	if (err)
 		goto err_out_w_lock;
 
-	igc_ethtool_update_nfc_entry(adapter, input, input->sw_idx);
+	igc_ethtool_update_nfc_rule(adapter, rule, rule->sw_idx);
 
-	spin_unlock(&adapter->nfc_lock);
+	spin_unlock(&adapter->nfc_rule_lock);
 	return 0;
 
 err_out_w_lock:
-	spin_unlock(&adapter->nfc_lock);
+	spin_unlock(&adapter->nfc_rule_lock);
 err_out:
-	kfree(input);
+	kfree(rule);
 	return err;
 }
 
-static int igc_ethtool_del_nfc_entry(struct igc_adapter *adapter,
-				     struct ethtool_rxnfc *cmd)
+static int igc_ethtool_del_nfc_rule(struct igc_adapter *adapter,
+				    struct ethtool_rxnfc *cmd)
 {
 	struct ethtool_rx_flow_spec *fsp =
 		(struct ethtool_rx_flow_spec *)&cmd->fs;
 	int err;
 
-	spin_lock(&adapter->nfc_lock);
-	err = igc_ethtool_update_nfc_entry(adapter, NULL, fsp->location);
-	spin_unlock(&adapter->nfc_lock);
+	spin_lock(&adapter->nfc_rule_lock);
+	err = igc_ethtool_update_nfc_rule(adapter, NULL, fsp->location);
+	spin_unlock(&adapter->nfc_rule_lock);
 
 	return err;
 }
@@ -1417,9 +1415,9 @@ static int igc_ethtool_set_rxnfc(struct net_device *dev,
 	case ETHTOOL_SRXFH:
 		return igc_ethtool_set_rss_hash_opt(adapter, cmd);
 	case ETHTOOL_SRXCLSRLINS:
-		return igc_ethtool_add_nfc_entry(adapter, cmd);
+		return igc_ethtool_add_nfc_rule(adapter, cmd);
 	case ETHTOOL_SRXCLSRLDEL:
-		return igc_ethtool_del_nfc_entry(adapter, cmd);
+		return igc_ethtool_del_nfc_rule(adapter, cmd);
 	default:
 		return -EOPNOTSUPP;
 	}

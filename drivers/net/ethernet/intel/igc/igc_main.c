@@ -2174,16 +2174,16 @@ static bool igc_clean_tx_irq(struct igc_q_vector *q_vector, int napi_budget)
 	return !!budget;
 }
 
-static void igc_nfc_filter_restore(struct igc_adapter *adapter)
+static void igc_restore_nfc_rules(struct igc_adapter *adapter)
 {
-	struct igc_nfc_filter *rule;
+	struct igc_nfc_rule *rule;
 
-	spin_lock(&adapter->nfc_lock);
+	spin_lock(&adapter->nfc_rule_lock);
 
-	hlist_for_each_entry(rule, &adapter->nfc_filter_list, nfc_node)
-		igc_add_filter(adapter, rule);
+	hlist_for_each_entry(rule, &adapter->nfc_rule_list, nfc_node)
+		igc_enable_nfc_rule(adapter, rule);
 
-	spin_unlock(&adapter->nfc_lock);
+	spin_unlock(&adapter->nfc_rule_lock);
 }
 
 static int igc_find_mac_filter(struct igc_adapter *adapter,
@@ -2537,7 +2537,7 @@ static void igc_configure(struct igc_adapter *adapter)
 	igc_setup_rctl(adapter);
 
 	igc_set_default_mac_filter(adapter);
-	igc_nfc_filter_restore(adapter);
+	igc_restore_nfc_rules(adapter);
 
 	igc_configure_tx(adapter);
 	igc_configure_rx(adapter);
@@ -3424,7 +3424,7 @@ static int igc_sw_init(struct igc_adapter *adapter)
 				VLAN_HLEN;
 	adapter->min_frame_size = ETH_ZLEN + ETH_FCS_LEN;
 
-	spin_lock_init(&adapter->nfc_lock);
+	spin_lock_init(&adapter->nfc_rule_lock);
 	spin_lock_init(&adapter->stats64_lock);
 	/* Assume MSI-X interrupts, will be checked during IRQ allocation */
 	adapter->flags |= IGC_FLAG_HAS_MSIX;
@@ -3651,16 +3651,16 @@ void igc_update_stats(struct igc_adapter *adapter)
 	adapter->stats.mgpdc += rd32(IGC_MGTPDC);
 }
 
-static void igc_nfc_filter_exit(struct igc_adapter *adapter)
+static void igc_nfc_rule_exit(struct igc_adapter *adapter)
 {
-	struct igc_nfc_filter *rule;
+	struct igc_nfc_rule *rule;
 
-	spin_lock(&adapter->nfc_lock);
+	spin_lock(&adapter->nfc_rule_lock);
 
-	hlist_for_each_entry(rule, &adapter->nfc_filter_list, nfc_node)
-		igc_erase_filter(adapter, rule);
+	hlist_for_each_entry(rule, &adapter->nfc_rule_list, nfc_node)
+		igc_disable_nfc_rule(adapter, rule);
 
-	spin_unlock(&adapter->nfc_lock);
+	spin_unlock(&adapter->nfc_rule_lock);
 }
 
 /**
@@ -3681,7 +3681,7 @@ void igc_down(struct igc_adapter *adapter)
 	wr32(IGC_RCTL, rctl & ~IGC_RCTL_EN);
 	/* flush and sleep below */
 
-	igc_nfc_filter_exit(adapter);
+	igc_nfc_rule_exit(adapter);
 
 	/* set trans_start so we don't get spurious watchdogs during reset */
 	netif_trans_update(netdev);
@@ -3833,17 +3833,17 @@ static int igc_set_features(struct net_device *netdev,
 
 	if (!(features & NETIF_F_NTUPLE)) {
 		struct hlist_node *node2;
-		struct igc_nfc_filter *rule;
+		struct igc_nfc_rule *rule;
 
-		spin_lock(&adapter->nfc_lock);
+		spin_lock(&adapter->nfc_rule_lock);
 		hlist_for_each_entry_safe(rule, node2,
-					  &adapter->nfc_filter_list, nfc_node) {
-			igc_erase_filter(adapter, rule);
+					  &adapter->nfc_rule_list, nfc_node) {
+			igc_disable_nfc_rule(adapter, rule);
 			hlist_del(&rule->nfc_node);
 			kfree(rule);
 		}
-		spin_unlock(&adapter->nfc_lock);
-		adapter->nfc_filter_count = 0;
+		spin_unlock(&adapter->nfc_rule_lock);
+		adapter->nfc_rule_count = 0;
 	}
 
 	netdev->features = features;

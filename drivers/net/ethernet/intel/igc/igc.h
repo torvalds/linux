@@ -187,12 +187,12 @@ struct igc_adapter {
 	u32 rss_queues;
 	u32 rss_indir_tbl_init;
 
-	/* RX network flow classification support */
-	struct hlist_head nfc_filter_list;
-	unsigned int nfc_filter_count;
-
-	/* lock for RX network flow classification filter */
-	spinlock_t nfc_lock;
+	/* Any access to elements in nfc_rule_list is protected by the
+	 * nfc_rule_lock.
+	 */
+	spinlock_t nfc_rule_lock;
+	struct hlist_head nfc_rule_list;
+	unsigned int nfc_rule_count;
 
 	u8 rss_indir_tbl[IGC_RETA_SIZE];
 
@@ -453,7 +453,7 @@ enum igc_filter_match_flags {
 };
 
 /* RX network flow classification data structure */
-struct igc_nfc_input {
+struct igc_nfc_filter {
 	/* Byte layout in order, all values with MSB first:
 	 * match_flags - 1 byte
 	 * etype - 2 bytes
@@ -466,14 +466,14 @@ struct igc_nfc_input {
 	u8 dst_addr[ETH_ALEN];
 };
 
-struct igc_nfc_filter {
+struct igc_nfc_rule {
 	struct hlist_node nfc_node;
-	struct igc_nfc_input filter;
+	struct igc_nfc_filter filter;
 	u16 sw_idx;
 	u16 action;
 };
 
-#define IGC_MAX_RXNFC_FILTERS		16
+#define IGC_MAX_RXNFC_RULES		16
 
 /* igc_desc_unused - calculate if we have unused descriptors */
 static inline u16 igc_desc_unused(const struct igc_ring *ring)
@@ -549,12 +549,11 @@ static inline s32 igc_read_phy_reg(struct igc_hw *hw, u32 offset, u16 *data)
 	return 0;
 }
 
-/* forward declaration */
 void igc_reinit_locked(struct igc_adapter *);
-int igc_add_filter(struct igc_adapter *adapter,
-		   struct igc_nfc_filter *input);
-int igc_erase_filter(struct igc_adapter *adapter,
-		     struct igc_nfc_filter *input);
+int igc_enable_nfc_rule(struct igc_adapter *adapter,
+			const struct igc_nfc_rule *rule);
+int igc_disable_nfc_rule(struct igc_adapter *adapter,
+			 const struct igc_nfc_rule *rule);
 
 void igc_ptp_init(struct igc_adapter *adapter);
 void igc_ptp_reset(struct igc_adapter *adapter);
