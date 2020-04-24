@@ -14036,10 +14036,7 @@ static int parse_tid_conf(struct cfg80211_registered_device *rdev,
 		if (rdev->ops->reset_tid_config) {
 			err = rdev_reset_tid_config(rdev, dev, peer,
 						    tid_conf->tids);
-			/* If peer is there no other configuration will be
-			 * allowed
-			 */
-			if (err || peer)
+			if (err)
 				return err;
 		} else {
 			return -EINVAL;

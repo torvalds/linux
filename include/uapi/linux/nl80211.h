@@ -4823,12 +4823,10 @@ enum nl80211_tid_config {
  *	(%NL80211_TID_CONFIG_ATTR_TIDS, %NL80211_TID_CONFIG_ATTR_OVERRIDE).
  * @NL80211_TID_CONFIG_ATTR_PEER_SUPP: same as the previous per-vif one, but
  *	per peer instead.
- * @NL80211_TID_CONFIG_ATTR_OVERRIDE: flag attribue, if no peer
- *	is selected, if set indicates that the new configuration overrides
- *	all previous peer configurations, otherwise previous peer specific
- *	configurations should be left untouched. If peer is selected then
- *	it will reset particular TID configuration of that peer and it will
- *	not accept other TID config attributes along with peer.
+ * @NL80211_TID_CONFIG_ATTR_OVERRIDE: flag attribue, if set indicates
+ *	that the new configuration overrides all previous peer
+ *	configurations, otherwise previous peer specific configurations
+ *	should be left untouched.
  * @NL80211_TID_CONFIG_ATTR_TIDS: a bitmask value of TIDs (bit 0 to 7)
  *	Its type is u16.
  * @NL80211_TID_CONFIG_ATTR_NOACK: Configure ack policy for the TID.
