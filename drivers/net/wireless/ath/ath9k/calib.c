@@ -209,14 +209,17 @@ bool ath9k_hw_reset_calvalid(struct ath_hw *ah)
 		return true;
 	}
 
-	if (!(ah->supp_cals & currCal->calData->calType))
-		return true;
+	currCal = ah->cal_list;
+	do {
+		ath_dbg(common, CALIBRATE, "Resetting Cal %d state for channel %u\n",
+			currCal->calData->calType,
+			ah->curchan->chan->center_freq);
 
-	ath_dbg(common, CALIBRATE, "Resetting Cal %d state for channel %u\n",
-		currCal->calData->calType, ah->curchan->chan->center_freq);
+		ah->caldata->CalValid &= ~currCal->calData->calType;
+		currCal->calState = CAL_WAITING;
 
-	ah->caldata->CalValid &= ~currCal->calData->calType;
-	currCal->calState = CAL_WAITING;
+		currCal = currCal->calNext;
+	} while (currCal != ah->cal_list);
 
 	return false;
 }
