@@ -6,6 +6,7 @@
 
 #include <linux/types.h>
 #include <linux/if_ether.h>
+#include <linux/refcount.h>
 
 #include "spectrum_router.h"
 
@@ -43,14 +44,14 @@ struct mlxsw_sp_span_entry {
 	const struct mlxsw_sp_span_entry_ops *ops;
 	struct mlxsw_sp_span_parms parms;
 	struct list_head bound_ports_list;
-	int ref_count;
+	refcount_t ref_count;
 	int id;
 };
 
 struct mlxsw_sp_span_entry_ops {
 	bool (*can_handle)(const struct net_device *to_dev);
-	int (*parms)(const struct net_device *to_dev,
-		     struct mlxsw_sp_span_parms *sparmsp);
+	int (*parms_set)(const struct net_device *to_dev,
+			 struct mlxsw_sp_span_parms *sparmsp);
 	int (*configure)(struct mlxsw_sp_span_entry *span_entry,
 			 struct mlxsw_sp_span_parms sparms);
 	void (*deconfigure)(struct mlxsw_sp_span_entry *span_entry);

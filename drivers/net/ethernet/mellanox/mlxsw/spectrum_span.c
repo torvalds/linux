@@ -3,6 +3,7 @@
 
 #include <linux/if_bridge.h>
 #include <linux/list.h>
+#include <linux/refcount.h>
 #include <linux/rtnetlink.h>
 #include <linux/workqueue.h>
 #include <net/arp.h>
@@ -21,7 +22,7 @@ struct mlxsw_sp_span {
 	struct mlxsw_sp *mlxsw_sp;
 	atomic_t active_entries_count;
 	int entries_count;
-	struct mlxsw_sp_span_entry entries[0];
+	struct mlxsw_sp_span_entry entries[];
 };
 
 static void mlxsw_sp_span_respin_work(struct work_struct *work);
@@ -130,7 +131,7 @@ mlxsw_sp_span_entry_phys_deconfigure(struct mlxsw_sp_span_entry *span_entry)
 static const
 struct mlxsw_sp_span_entry_ops mlxsw_sp_span_entry_ops_phys = {
 	.can_handle = mlxsw_sp_port_dev_check,
-	.parms = mlxsw_sp_span_entry_phys_parms,
+	.parms_set = mlxsw_sp_span_entry_phys_parms,
 	.configure = mlxsw_sp_span_entry_phys_configure,
 	.deconfigure = mlxsw_sp_span_entry_phys_deconfigure,
 };
@@ -418,7 +419,7 @@ mlxsw_sp_span_entry_gretap4_deconfigure(struct mlxsw_sp_span_entry *span_entry)
 
 static const struct mlxsw_sp_span_entry_ops mlxsw_sp_span_entry_ops_gretap4 = {
 	.can_handle = netif_is_gretap,
-	.parms = mlxsw_sp_span_entry_gretap4_parms,
+	.parms_set = mlxsw_sp_span_entry_gretap4_parms,
 	.configure = mlxsw_sp_span_entry_gretap4_configure,
 	.deconfigure = mlxsw_sp_span_entry_gretap4_deconfigure,
 };
@@ -519,7 +520,7 @@ mlxsw_sp_span_entry_gretap6_deconfigure(struct mlxsw_sp_span_entry *span_entry)
 static const
 struct mlxsw_sp_span_entry_ops mlxsw_sp_span_entry_ops_gretap6 = {
 	.can_handle = netif_is_ip6gretap,
-	.parms = mlxsw_sp_span_entry_gretap6_parms,
+	.parms_set = mlxsw_sp_span_entry_gretap6_parms,
 	.configure = mlxsw_sp_span_entry_gretap6_configure,
 	.deconfigure = mlxsw_sp_span_entry_gretap6_deconfigure,
 };
@@ -575,7 +576,7 @@ mlxsw_sp_span_entry_vlan_deconfigure(struct mlxsw_sp_span_entry *span_entry)
 static const
 struct mlxsw_sp_span_entry_ops mlxsw_sp_span_entry_ops_vlan = {
 	.can_handle = mlxsw_sp_span_vlan_can_handle,
-	.parms = mlxsw_sp_span_entry_vlan_parms,
+	.parms_set = mlxsw_sp_span_entry_vlan_parms,
 	.configure = mlxsw_sp_span_entry_vlan_configure,
 	.deconfigure = mlxsw_sp_span_entry_vlan_deconfigure,
 };
@@ -612,7 +613,7 @@ mlxsw_sp_span_entry_nop_deconfigure(struct mlxsw_sp_span_entry *span_entry)
 }
 
 static const struct mlxsw_sp_span_entry_ops mlxsw_sp_span_entry_ops_nop = {
-	.parms = mlxsw_sp_span_entry_nop_parms,
+	.parms_set = mlxsw_sp_span_entry_nop_parms,
 	.configure = mlxsw_sp_span_entry_nop_configure,
 	.deconfigure = mlxsw_sp_span_entry_nop_deconfigure,
 };
@@ -622,18 +623,27 @@ mlxsw_sp_span_entry_configure(struct mlxsw_sp *mlxsw_sp,
 			      struct mlxsw_sp_span_entry *span_entry,
 			      struct mlxsw_sp_span_parms sparms)
 {
-	if (sparms.dest_port) {
-		if (sparms.dest_port->mlxsw_sp != mlxsw_sp) {
-			netdev_err(span_entry->to_dev, "Cannot mirror to %s, which belongs to a different mlxsw instance",
-				   sparms.dest_port->dev->name);
-			sparms.dest_port = NULL;
-		} else if (span_entry->ops->configure(span_entry, sparms)) {
-			netdev_err(span_entry->to_dev, "Failed to offload mirror to %s",
-				   sparms.dest_port->dev->name);
-			sparms.dest_port = NULL;
-		}
+	int err;
+
+	if (!sparms.dest_port)
+		goto set_parms;
+
+	if (sparms.dest_port->mlxsw_sp != mlxsw_sp) {
+		netdev_err(span_entry->to_dev, "Cannot mirror to %s, which belongs to a different mlxsw instance",
+			   sparms.dest_port->dev->name);
+		sparms.dest_port = NULL;
+		goto set_parms;
 	}
 
+	err = span_entry->ops->configure(span_entry, sparms);
+	if (err) {
+		netdev_err(span_entry->to_dev, "Failed to offload mirror to %s",
+			   sparms.dest_port->dev->name);
+		sparms.dest_port = NULL;
+		goto set_parms;
+	}
+
+set_parms:
 	span_entry->parms = sparms;
 }
 
@@ -655,7 +665,7 @@ mlxsw_sp_span_entry_create(struct mlxsw_sp *mlxsw_sp,
 
 	/* find a free entry to use */
 	for (i = 0; i < mlxsw_sp->span->entries_count; i++) {
-		if (!mlxsw_sp->span->entries[i].ref_count) {
+		if (!refcount_read(&mlxsw_sp->span->entries[i].ref_count)) {
 			span_entry = &mlxsw_sp->span->entries[i];
 			break;
 		}
@@ -665,7 +675,7 @@ mlxsw_sp_span_entry_create(struct mlxsw_sp *mlxsw_sp,
 
 	atomic_inc(&mlxsw_sp->span->active_entries_count);
 	span_entry->ops = ops;
-	span_entry->ref_count = 1;
+	refcount_set(&span_entry->ref_count, 1);
 	span_entry->to_dev = to_dev;
 	mlxsw_sp_span_entry_configure(mlxsw_sp, span_entry, sparms);
 
@@ -688,7 +698,7 @@ mlxsw_sp_span_entry_find_by_port(struct mlxsw_sp *mlxsw_sp,
 	for (i = 0; i < mlxsw_sp->span->entries_count; i++) {
 		struct mlxsw_sp_span_entry *curr = &mlxsw_sp->span->entries[i];
 
-		if (curr->ref_count && curr->to_dev == to_dev)
+		if (refcount_read(&curr->ref_count) && curr->to_dev == to_dev)
 			return curr;
 	}
 	return NULL;
@@ -709,7 +719,7 @@ mlxsw_sp_span_entry_find_by_id(struct mlxsw_sp *mlxsw_sp, int span_id)
 	for (i = 0; i < mlxsw_sp->span->entries_count; i++) {
 		struct mlxsw_sp_span_entry *curr = &mlxsw_sp->span->entries[i];
 
-		if (curr->ref_count && curr->id == span_id)
+		if (refcount_read(&curr->ref_count) && curr->id == span_id)
 			return curr;
 	}
 	return NULL;
@@ -726,7 +736,7 @@ mlxsw_sp_span_entry_get(struct mlxsw_sp *mlxsw_sp,
 	span_entry = mlxsw_sp_span_entry_find_by_port(mlxsw_sp, to_dev);
 	if (span_entry) {
 		/* Already exists, just take a reference */
-		span_entry->ref_count++;
+		refcount_inc(&span_entry->ref_count);
 		return span_entry;
 	}
 
@@ -736,8 +746,7 @@ mlxsw_sp_span_entry_get(struct mlxsw_sp *mlxsw_sp,
 static int mlxsw_sp_span_entry_put(struct mlxsw_sp *mlxsw_sp,
 				   struct mlxsw_sp_span_entry *span_entry)
 {
-	WARN_ON(!span_entry->ref_count);
-	if (--span_entry->ref_count == 0)
+	if (refcount_dec_and_test(&span_entry->ref_count))
 		mlxsw_sp_span_entry_destroy(mlxsw_sp, span_entry);
 	return 0;
 }
@@ -961,16 +970,13 @@ int mlxsw_sp_span_mirror_add(struct mlxsw_sp_port *from,
 		return -EOPNOTSUPP;
 	}
 
-	err = ops->parms(to_dev, &sparms);
+	err = ops->parms_set(to_dev, &sparms);
 	if (err)
 		return err;
 
 	span_entry = mlxsw_sp_span_entry_get(mlxsw_sp, to_dev, ops, sparms);
 	if (!span_entry)
 		return -ENOBUFS;
-
-	netdev_dbg(from->dev, "Adding inspected port to SPAN entry %d\n",
-		   span_entry->id);
 
 	err = mlxsw_sp_span_inspected_port_add(from, span_entry, type, bind);
 	if (err)
@@ -995,8 +1001,6 @@ void mlxsw_sp_span_mirror_del(struct mlxsw_sp_port *from, int span_id,
 		return;
 	}
 
-	netdev_dbg(from->dev, "removing inspected port from SPAN entry %d\n",
-		   span_entry->id);
 	mlxsw_sp_span_inspected_port_del(from, span_entry, type, bind);
 }
 
@@ -1014,10 +1018,10 @@ static void mlxsw_sp_span_respin_work(struct work_struct *work)
 		struct mlxsw_sp_span_entry *curr = &mlxsw_sp->span->entries[i];
 		struct mlxsw_sp_span_parms sparms = {NULL};
 
-		if (!curr->ref_count)
+		if (!refcount_read(&curr->ref_count))
 			continue;
 
-		err = curr->ops->parms(curr->to_dev, &sparms);
+		err = curr->ops->parms_set(curr->to_dev, &sparms);
 		if (err)
 			continue;
 
