@@ -2544,6 +2544,18 @@ void igc_del_nfc_rule(struct igc_adapter *adapter, struct igc_nfc_rule *rule)
 	kfree(rule);
 }
 
+static void igc_flush_nfc_rules(struct igc_adapter *adapter)
+{
+	struct igc_nfc_rule *rule, *tmp;
+
+	spin_lock(&adapter->nfc_rule_lock);
+
+	list_for_each_entry_safe(rule, tmp, &adapter->nfc_rule_list, list)
+		igc_del_nfc_rule(adapter, rule);
+
+	spin_unlock(&adapter->nfc_rule_lock);
+}
+
 /**
  * igc_add_nfc_rule() - Add NFC rule
  * @adapter: Pointer to adapter
@@ -3967,19 +3979,8 @@ static int igc_set_features(struct net_device *netdev,
 	if (!(changed & (NETIF_F_RXALL | NETIF_F_NTUPLE)))
 		return 0;
 
-	if (!(features & NETIF_F_NTUPLE)) {
-		struct igc_nfc_rule *rule, *tmp;
-
-		spin_lock(&adapter->nfc_rule_lock);
-		list_for_each_entry_safe(rule, tmp,
-					 &adapter->nfc_rule_list, list) {
-			igc_disable_nfc_rule(adapter, rule);
-			list_del(&rule->list);
-			kfree(rule);
-		}
-		spin_unlock(&adapter->nfc_rule_lock);
-		adapter->nfc_rule_count = 0;
-	}
+	if (!(features & NETIF_F_NTUPLE))
+		igc_flush_nfc_rules(adapter);
 
 	netdev->features = features;
 
@@ -5245,6 +5246,8 @@ static void igc_remove(struct pci_dev *pdev)
 	struct igc_adapter *adapter = netdev_priv(netdev);
 
 	pm_runtime_get_noresume(&pdev->dev);
+
+	igc_flush_nfc_rules(adapter);
 
 	igc_ptp_stop(adapter);
 
