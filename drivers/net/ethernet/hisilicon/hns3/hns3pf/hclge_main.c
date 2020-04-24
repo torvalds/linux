@@ -7250,7 +7250,6 @@ static int hclge_init_umv_space(struct hclge_dev *hdev)
 			 "failed to alloc umv space, want %u, get %u\n",
 			 hdev->wanted_umv_size, allocated_size);
 
-	mutex_init(&hdev->umv_mutex);
 	hdev->max_umv_size = allocated_size;
 	hdev->priv_umv_size = hdev->max_umv_size / (hdev->num_alloc_vport + 1);
 	hdev->share_umv_size = hdev->priv_umv_size +
@@ -7269,21 +7268,25 @@ static void hclge_reset_umv_space(struct hclge_dev *hdev)
 		vport->used_umv_num = 0;
 	}
 
-	mutex_lock(&hdev->umv_mutex);
+	mutex_lock(&hdev->vport_lock);
 	hdev->share_umv_size = hdev->priv_umv_size +
 			hdev->max_umv_size % (hdev->num_alloc_vport + 1);
-	mutex_unlock(&hdev->umv_mutex);
+	mutex_unlock(&hdev->vport_lock);
 }
 
-static bool hclge_is_umv_space_full(struct hclge_vport *vport)
+static bool hclge_is_umv_space_full(struct hclge_vport *vport, bool need_lock)
 {
 	struct hclge_dev *hdev = vport->back;
 	bool is_full;
 
-	mutex_lock(&hdev->umv_mutex);
+	if (need_lock)
+		mutex_lock(&hdev->vport_lock);
+
 	is_full = (vport->used_umv_num >= hdev->priv_umv_size &&
 		   hdev->share_umv_size == 0);
-	mutex_unlock(&hdev->umv_mutex);
+
+	if (need_lock)
+		mutex_unlock(&hdev->vport_lock);
 
 	return is_full;
 }
@@ -7292,7 +7295,6 @@ static void hclge_update_umv_space(struct hclge_vport *vport, bool is_free)
 {
 	struct hclge_dev *hdev = vport->back;
 
-	mutex_lock(&hdev->umv_mutex);
 	if (is_free) {
 		if (vport->used_umv_num > hdev->priv_umv_size)
 			hdev->share_umv_size++;
@@ -7305,7 +7307,6 @@ static void hclge_update_umv_space(struct hclge_vport *vport, bool is_free)
 			hdev->share_umv_size--;
 		vport->used_umv_num++;
 	}
-	mutex_unlock(&hdev->umv_mutex);
 }
 
 static struct hclge_mac_node *hclge_find_mac_node(struct list_head *list,
@@ -7446,12 +7447,15 @@ int hclge_add_uc_addr_common(struct hclge_vport *vport,
 	 */
 	ret = hclge_lookup_mac_vlan_tbl(vport, &req, &desc, false);
 	if (ret == -ENOENT) {
-		if (!hclge_is_umv_space_full(vport)) {
+		mutex_lock(&hdev->vport_lock);
+		if (!hclge_is_umv_space_full(vport, false)) {
 			ret = hclge_add_mac_vlan_tbl(vport, &req, NULL);
 			if (!ret)
 				hclge_update_umv_space(vport, false);
+			mutex_unlock(&hdev->vport_lock);
 			return ret;
 		}
+		mutex_unlock(&hdev->vport_lock);
 
 		if (!(vport->overflow_promisc_flags & HNAE3_OVERFLOW_UPE))
 			dev_err(&hdev->pdev->dev, "UC MAC table full(%u)\n",
@@ -7503,10 +7507,13 @@ int hclge_rm_uc_addr_common(struct hclge_vport *vport,
 	hnae3_set_bit(req.entry_type, HCLGE_MAC_VLAN_BIT0_EN_B, 0);
 	hclge_prepare_mac_addr(&req, addr, false);
 	ret = hclge_remove_mac_vlan_tbl(vport, &req);
-	if (!ret)
+	if (!ret) {
+		mutex_lock(&hdev->vport_lock);
 		hclge_update_umv_space(vport, true);
-	else if (ret == -ENOENT)
+		mutex_unlock(&hdev->vport_lock);
+	} else if (ret == -ENOENT) {
 		ret = 0;
+	}
 
 	return ret;
 }
@@ -10163,7 +10170,7 @@ static int hclge_set_vf_spoofchk(struct hnae3_handle *handle, int vf,
 		dev_warn(&hdev->pdev->dev,
 			 "vf %d vlan table is full, enable spoof check may cause its packet send fail\n",
 			 vf);
-	else if (enable && hclge_is_umv_space_full(vport))
+	else if (enable && hclge_is_umv_space_full(vport, true))
 		dev_warn(&hdev->pdev->dev,
 			 "vf %d mac table is full, enable spoof check may cause its packet send fail\n",
 			 vf);
