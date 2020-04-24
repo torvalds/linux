@@ -2119,7 +2119,11 @@ static u32 iwl_dump_ini_trigger(struct iwl_fw_runtime *fwrt,
 	u32 size = 0;
 	u64 regions_mask = le64_to_cpu(trigger->regions_mask);
 
-	for (i = 0; i < 64; i++) {
+	BUILD_BUG_ON(sizeof(trigger->regions_mask) != sizeof(regions_mask));
+	BUILD_BUG_ON((sizeof(trigger->regions_mask) * BITS_PER_BYTE) <
+		     ARRAY_SIZE(fwrt->trans->dbg.active_regions));
+
+	for (i = 0; i < ARRAY_SIZE(fwrt->trans->dbg.active_regions); i++) {
 		u32 reg_type;
 		struct iwl_fw_ini_region_tlv *reg;
 
