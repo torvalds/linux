@@ -250,6 +250,18 @@ static int lrc_ring_mi_mode(const struct intel_engine_cs *engine)
 		return -1;
 }
 
+static int lrc_ring_gpr0(const struct intel_engine_cs *engine)
+{
+	if (INTEL_GEN(engine->i915) >= 12)
+		return 0x74;
+	else if (INTEL_GEN(engine->i915) >= 9)
+		return 0x68;
+	else if (engine->class == RENDER_CLASS)
+		return 0xd8;
+	else
+		return -1;
+}
+
 static int lrc_ring_wa_bb_per_ctx(const struct intel_engine_cs *engine)
 {
 	if (INTEL_GEN(engine->i915) >= 12)

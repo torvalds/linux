@@ -4613,6 +4613,11 @@ static int live_lrc_fixed(void *arg)
 				CTX_TIMESTAMP - 1,
 				"RING_CTX_TIMESTAMP"
 			},
+			{
+				i915_mmio_reg_offset(GEN8_RING_CS_GPR(engine->mmio_base, 0)),
+				lrc_ring_gpr0(engine),
+				"RING_CS_GPR0"
+			},
 			{ },
 		}, *t;
 		u32 *hw;
