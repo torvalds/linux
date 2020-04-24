@@ -945,38 +945,36 @@ static int igc_get_ethtool_nfc_entry(struct igc_adapter *adapter,
 	if (!rule || fsp->location != rule->sw_idx)
 		return -EINVAL;
 
-	if (rule->filter.match_flags) {
-		fsp->flow_type = ETHER_FLOW;
-		fsp->ring_cookie = rule->action;
-		if (rule->filter.match_flags & IGC_FILTER_FLAG_ETHER_TYPE) {
-			fsp->h_u.ether_spec.h_proto = rule->filter.etype;
-			fsp->m_u.ether_spec.h_proto = ETHER_TYPE_FULL_MASK;
-		}
-		if (rule->filter.match_flags & IGC_FILTER_FLAG_VLAN_TCI) {
-			fsp->flow_type |= FLOW_EXT;
-			fsp->h_ext.vlan_tci = rule->filter.vlan_tci;
-			fsp->m_ext.vlan_tci = htons(VLAN_PRIO_MASK);
-		}
-		if (rule->filter.match_flags & IGC_FILTER_FLAG_DST_MAC_ADDR) {
-			ether_addr_copy(fsp->h_u.ether_spec.h_dest,
-					rule->filter.dst_addr);
-			/* As we only support matching by the full
-			 * mask, return the mask to userspace
-			 */
-			eth_broadcast_addr(fsp->m_u.ether_spec.h_dest);
-		}
-		if (rule->filter.match_flags & IGC_FILTER_FLAG_SRC_MAC_ADDR) {
-			ether_addr_copy(fsp->h_u.ether_spec.h_source,
-					rule->filter.src_addr);
-			/* As we only support matching by the full
-			 * mask, return the mask to userspace
-			 */
-			eth_broadcast_addr(fsp->m_u.ether_spec.h_source);
-		}
+	if (!rule->filter.match_flags)
+		return -EINVAL;
 
-		return 0;
+	fsp->flow_type = ETHER_FLOW;
+	fsp->ring_cookie = rule->action;
+
+	if (rule->filter.match_flags & IGC_FILTER_FLAG_ETHER_TYPE) {
+		fsp->h_u.ether_spec.h_proto = rule->filter.etype;
+		fsp->m_u.ether_spec.h_proto = ETHER_TYPE_FULL_MASK;
 	}
-	return -EINVAL;
+
+	if (rule->filter.match_flags & IGC_FILTER_FLAG_VLAN_TCI) {
+		fsp->flow_type |= FLOW_EXT;
+		fsp->h_ext.vlan_tci = rule->filter.vlan_tci;
+		fsp->m_ext.vlan_tci = htons(VLAN_PRIO_MASK);
+	}
+
+	if (rule->filter.match_flags & IGC_FILTER_FLAG_DST_MAC_ADDR) {
+		ether_addr_copy(fsp->h_u.ether_spec.h_dest,
+				rule->filter.dst_addr);
+		eth_broadcast_addr(fsp->m_u.ether_spec.h_dest);
+	}
+
+	if (rule->filter.match_flags & IGC_FILTER_FLAG_SRC_MAC_ADDR) {
+		ether_addr_copy(fsp->h_u.ether_spec.h_source,
+				rule->filter.src_addr);
+		eth_broadcast_addr(fsp->m_u.ether_spec.h_source);
+	}
+
+	return 0;
 }
 
 static int igc_get_ethtool_nfc_all(struct igc_adapter *adapter,
