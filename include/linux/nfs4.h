@@ -295,7 +295,7 @@ static inline bool seqid_mutating_err(u32 err)
 	case NFS4ERR_NOFILEHANDLE:
 	case NFS4ERR_MOVED:
 		return false;
-	};
+	}
 	return true;
 }
 
