@@ -18,6 +18,7 @@
  */
 
 #include <linux/bitfield.h>
+#include <linux/firmware.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -120,6 +121,26 @@ static ssize_t i2c_slave_eeprom_bin_write(struct file *filp, struct kobject *kob
 	return count;
 }
 
+static int i2c_slave_init_eeprom_data(struct eeprom_data *eeprom, struct i2c_client *client,
+				      unsigned int size)
+{
+	const struct firmware *fw;
+	const char *eeprom_data;
+	int ret = device_property_read_string(&client->dev, "firmware-name", &eeprom_data);
+
+	if (!ret) {
+		ret = request_firmware_into_buf(&fw, eeprom_data, &client->dev,
+						eeprom->buffer, size);
+		if (ret)
+			return ret;
+		release_firmware(fw);
+	} else {
+		/* An empty eeprom typically has all bits set to 1 */
+		memset(eeprom->buffer, 0xff, size);
+	}
+	return 0;
+}
+
 static int i2c_slave_eeprom_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct eeprom_data *eeprom;
@@ -137,6 +158,10 @@ static int i2c_slave_eeprom_probe(struct i2c_client *client, const struct i2c_de
 	eeprom->read_only = FIELD_GET(I2C_SLAVE_FLAG_RO, id->driver_data);
 	spin_lock_init(&eeprom->buffer_lock);
 	i2c_set_clientdata(client, eeprom);
+
+	ret = i2c_slave_init_eeprom_data(eeprom, client, size);
+	if (ret)
+		return ret;
 
 	sysfs_bin_attr_init(&eeprom->bin);
 	eeprom->bin.attr.name = "slave-eeprom";
