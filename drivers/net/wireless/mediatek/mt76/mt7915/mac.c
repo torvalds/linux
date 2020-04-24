@@ -9,6 +9,10 @@
 
 #define to_rssi(field, rxv)	((FIELD_GET(field, rxv) - 220) / 2)
 
+#define HE_BITS(f)		cpu_to_le16(IEEE80211_RADIOTAP_HE_##f)
+#define HE_PREP(f, m, v)	le16_encode_bits(le32_get_bits(v, MT_CRXV_HE_##m),\
+						 IEEE80211_RADIOTAP_HE_##f)
+
 static const struct mt7915_dfs_radar_spec etsi_radar_specs = {
 	.pulse_th = { 110, -10, -80, 40, 5200, 128, 5200 },
 	.radar_pattern = {
@@ -170,6 +174,138 @@ void mt7915_mac_sta_poll(struct mt7915_dev *dev)
 	}
 
 	rcu_read_unlock();
+}
+
+static void
+mt7915_mac_decode_he_radiotap_ru(struct mt76_rx_status *status,
+				 struct mt7915_rxv *rxv,
+				 struct ieee80211_radiotap_he *he)
+{
+	u32 ru_h, ru_l;
+	u8 ru, offs = 0;
+
+	ru_l = FIELD_GET(MT_PRXV_HE_RU_ALLOC_L, le32_to_cpu(rxv->v[0]));
+	ru_h = FIELD_GET(MT_PRXV_HE_RU_ALLOC_H, le32_to_cpu(rxv->v[1]));
+	ru = (u8)(ru_l | ru_h << 4);
+
+	status->bw = RATE_INFO_BW_HE_RU;
+
+	switch (ru) {
+	case 0 ... 36:
+		status->he_ru = NL80211_RATE_INFO_HE_RU_ALLOC_26;
+		offs = ru;
+		break;
+	case 37 ... 52:
+		status->he_ru = NL80211_RATE_INFO_HE_RU_ALLOC_52;
+		offs = ru - 37;
+		break;
+	case 53 ... 60:
+		status->he_ru = NL80211_RATE_INFO_HE_RU_ALLOC_106;
+		offs = ru - 53;
+		break;
+	case 61 ... 64:
+		status->he_ru = NL80211_RATE_INFO_HE_RU_ALLOC_242;
+		offs = ru - 61;
+		break;
+	case 65 ... 66:
+		status->he_ru = NL80211_RATE_INFO_HE_RU_ALLOC_484;
+		offs = ru - 65;
+		break;
+	case 67:
+		status->he_ru = NL80211_RATE_INFO_HE_RU_ALLOC_996;
+		break;
+	case 68:
+		status->he_ru = NL80211_RATE_INFO_HE_RU_ALLOC_2x996;
+		break;
+	}
+
+	he->data1 |= HE_BITS(DATA1_BW_RU_ALLOC_KNOWN);
+	he->data2 |= HE_BITS(DATA2_RU_OFFSET_KNOWN) |
+		     le16_encode_bits(offs,
+				      IEEE80211_RADIOTAP_HE_DATA2_RU_OFFSET);
+}
+
+static void
+mt7915_mac_decode_he_radiotap(struct sk_buff *skb,
+			      struct mt76_rx_status *status,
+			      struct mt7915_rxv *rxv)
+{
+	/* TODO: struct ieee80211_radiotap_he_mu */
+	static const struct ieee80211_radiotap_he known = {
+		.data1 = HE_BITS(DATA1_DATA_MCS_KNOWN) |
+			 HE_BITS(DATA1_DATA_DCM_KNOWN) |
+			 HE_BITS(DATA1_STBC_KNOWN) |
+			 HE_BITS(DATA1_CODING_KNOWN),
+		.data2 = HE_BITS(DATA2_GI_KNOWN) |
+			 HE_BITS(DATA2_TXBF_KNOWN),
+	};
+	struct ieee80211_radiotap_he *he = NULL;
+	__le32 v2 = rxv->v[2];
+	__le32 v11 = rxv->v[11];
+	__le32 v14 = rxv->v[14];
+	u32 ltf_size = le32_get_bits(v2, MT_CRXV_HE_LTF_SIZE) + 1;
+
+	he = skb_push(skb, sizeof(known));
+	memcpy(he, &known, sizeof(known));
+
+	he->data1 = HE_BITS(DATA1_LDPC_XSYMSEG_KNOWN) |
+		    HE_BITS(DATA1_DOPPLER_KNOWN) |
+		    HE_BITS(DATA1_BSS_COLOR_KNOWN);
+	he->data2 = HE_BITS(DATA2_PE_DISAMBIG_KNOWN) |
+		    HE_BITS(DATA2_TXOP_KNOWN);
+
+	he->data3 = HE_PREP(DATA3_BSS_COLOR, BSS_COLOR, v14) |
+		    HE_PREP(DATA3_LDPC_XSYMSEG, LDPC_EXT_SYM, v2);
+	he->data5 = HE_PREP(DATA5_PE_DISAMBIG, PE_DISAMBIG, v2) |
+		    le16_encode_bits(ltf_size,
+				     IEEE80211_RADIOTAP_HE_DATA5_LTF_SIZE);
+	he->data6 = HE_PREP(DATA6_TXOP, TXOP_DUR, v14) |
+		    HE_PREP(DATA6_DOPPLER, DOPPLER, v14);
+
+	switch (rxv->phy) {
+	case MT_PHY_TYPE_HE_SU:
+		he->data1 |= HE_BITS(DATA1_FORMAT_SU) |
+			     HE_BITS(DATA1_UL_DL_KNOWN) |
+			     HE_BITS(DATA1_BEAM_CHANGE_KNOWN) |
+			     HE_BITS(DATA1_SPTL_REUSE_KNOWN);
+
+		he->data3 |= HE_PREP(DATA3_BEAM_CHANGE, BEAM_CHNG, v14) |
+			     HE_PREP(DATA3_UL_DL, UPLINK, v2);
+		he->data4 |= HE_PREP(DATA4_SU_MU_SPTL_REUSE, SR_MASK, v11);
+		break;
+	case MT_PHY_TYPE_HE_EXT_SU:
+		he->data1 |= HE_BITS(DATA1_FORMAT_EXT_SU) |
+			     HE_BITS(DATA1_UL_DL_KNOWN);
+
+		he->data3 |= HE_PREP(DATA3_UL_DL, UPLINK, v2);
+		break;
+	case MT_PHY_TYPE_HE_MU:
+		he->data1 |= HE_BITS(DATA1_FORMAT_MU) |
+			     HE_BITS(DATA1_UL_DL_KNOWN) |
+			     HE_BITS(DATA1_SPTL_REUSE_KNOWN);
+
+		he->data3 |= HE_PREP(DATA3_UL_DL, UPLINK, v2);
+		he->data4 |= HE_PREP(DATA4_SU_MU_SPTL_REUSE, SR_MASK, v11);
+
+		mt7915_mac_decode_he_radiotap_ru(status, rxv, he);
+		break;
+	case MT_PHY_TYPE_HE_TB:
+		he->data1 |= HE_BITS(DATA1_FORMAT_TRIG) |
+			     HE_BITS(DATA1_SPTL_REUSE_KNOWN) |
+			     HE_BITS(DATA1_SPTL_REUSE2_KNOWN) |
+			     HE_BITS(DATA1_SPTL_REUSE3_KNOWN) |
+			     HE_BITS(DATA1_SPTL_REUSE4_KNOWN);
+
+		he->data4 = HE_PREP(DATA4_TB_SPTL_REUSE1, SR_MASK, v11) |
+			    HE_PREP(DATA4_TB_SPTL_REUSE2, SR1_MASK, v11) |
+			    HE_PREP(DATA4_TB_SPTL_REUSE3, SR2_MASK, v11) |
+			    HE_PREP(DATA4_TB_SPTL_REUSE4, SR3_MASK, v11);
+
+		mt7915_mac_decode_he_radiotap_ru(status, rxv, he);
+		break;
+	default:
+		break;
+	}
 }
 
 int mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb)
@@ -348,6 +484,7 @@ int mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb)
 					return -EINVAL;
 				break;
 			case MT_PHY_TYPE_HE_MU:
+				status->flag |= RX_FLAG_RADIOTAP_HE_MU;
 				/* fall through */
 			case MT_PHY_TYPE_HE_SU:
 			case MT_PHY_TYPE_HE_EXT_SU:
@@ -355,6 +492,7 @@ int mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb)
 				status->nss =
 					FIELD_GET(MT_PRXV_NSTS, rxv.v[0]) + 1;
 				status->encoding = RX_ENC_HE;
+				status->flag |= RX_FLAG_RADIOTAP_HE;
 				i &= GENMASK(3, 0);
 
 				if (gi <= NL80211_RATE_INFO_HE_GI_3_2)
@@ -404,6 +542,9 @@ int mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb)
 
 		mt76_insert_ccmp_hdr(skb, key_id);
 	}
+
+	if (status->flag & RX_FLAG_RADIOTAP_HE)
+		mt7915_mac_decode_he_radiotap(skb, status, &rxv);
 
 	hdr = mt76_skb_get_hdr(skb);
 	if (!status->wcid || !ieee80211_is_data_qos(hdr->frame_control))
