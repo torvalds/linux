@@ -60,6 +60,46 @@ static void nft_nat_setup_proto(struct nf_nat_range2 *range,
 		nft_reg_load16(&regs->data[priv->sreg_proto_max]);
 }
 
+static void nft_nat_setup_netmap(struct nf_nat_range2 *range,
+				 const struct nft_pktinfo *pkt,
+				 const struct nft_nat *priv)
+{
+	struct sk_buff *skb = pkt->skb;
+	union nf_inet_addr new_addr;
+	__be32 netmask;
+	int i, len = 0;
+
+	switch (priv->type) {
+	case NFT_NAT_SNAT:
+		if (nft_pf(pkt) == NFPROTO_IPV4) {
+			new_addr.ip = ip_hdr(skb)->saddr;
+			len = sizeof(struct in_addr);
+		} else {
+			new_addr.in6 = ipv6_hdr(skb)->saddr;
+			len = sizeof(struct in6_addr);
+		}
+		break;
+	case NFT_NAT_DNAT:
+		if (nft_pf(pkt) == NFPROTO_IPV4) {
+			new_addr.ip = ip_hdr(skb)->daddr;
+			len = sizeof(struct in_addr);
+		} else {
+			new_addr.in6 = ipv6_hdr(skb)->daddr;
+			len = sizeof(struct in6_addr);
+		}
+		break;
+	}
+
+	for (i = 0; i < len / sizeof(__be32); i++) {
+		netmask = ~(range->min_addr.ip6[i] ^ range->max_addr.ip6[i]);
+		new_addr.ip6[i] &= ~netmask;
+		new_addr.ip6[i] |= range->min_addr.ip6[i] & netmask;
+	}
+
+	range->min_addr = new_addr;
+	range->max_addr = new_addr;
+}
+
 static void nft_nat_eval(const struct nft_expr *expr,
 			 struct nft_regs *regs,
 			 const struct nft_pktinfo *pkt)
@@ -70,8 +110,12 @@ static void nft_nat_eval(const struct nft_expr *expr,
 	struct nf_nat_range2 range;
 
 	memset(&range, 0, sizeof(range));
-	if (priv->sreg_addr_min)
+
+	if (priv->sreg_addr_min) {
 		nft_nat_setup_addr(&range, regs, priv);
+		if (priv->flags & NF_NAT_RANGE_NETMAP)
+			nft_nat_setup_netmap(&range, pkt, priv);
+	}
 
 	if (priv->sreg_proto_min)
 		nft_nat_setup_proto(&range, regs, priv);
