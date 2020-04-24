@@ -34,16 +34,10 @@ static int count_iters_for_insert(struct btree_trans *trans,
 				  unsigned offset,
 				  struct bpos *end,
 				  unsigned *nr_iters,
-				  unsigned max_iters,
-				  bool overwrite)
+				  unsigned max_iters)
 {
-	int ret = 0;
+	int ret = 0, ret2 = 0;
 
-	/*
-	 * The extent update path requires an _additional_ iterator for each
-	 * extent we're inserting and overwriting:
-	 */
-	*nr_iters += 1;
 	if (*nr_iters >= max_iters) {
 		*end = bpos_min(*end, k.k->p);
 		ret = 1;
@@ -70,10 +64,13 @@ static int count_iters_for_insert(struct btree_trans *trans,
 
 		for_each_btree_key(trans, iter,
 				   BTREE_ID_REFLINK, POS(0, idx + offset),
-				   BTREE_ITER_SLOTS, r_k, ret) {
+				   BTREE_ITER_SLOTS, r_k, ret2) {
 			if (bkey_cmp(bkey_start_pos(r_k.k),
 				     POS(0, idx + sectors)) >= 0)
 				break;
+
+			/* extent_update_to_keys(), for the reflink_v update */
+			*nr_iters += 1;
 
 			*nr_iters += 1 + bch2_bkey_nr_alloc_ptrs(r_k);
 
@@ -92,7 +89,7 @@ static int count_iters_for_insert(struct btree_trans *trans,
 	}
 	}
 
-	return ret;
+	return ret2 ?: ret;
 }
 
 #define EXTENT_ITERS_MAX	(BTREE_ITER_MAX / 3)
@@ -121,8 +118,11 @@ int bch2_extent_atomic_end(struct btree_iter *iter,
 
 	*end = bpos_min(insert->k.p, b->key.k.p);
 
+	/* extent_update_to_keys(): */
+	nr_iters += 1;
+
 	ret = count_iters_for_insert(trans, bkey_i_to_s_c(insert), 0, end,
-				     &nr_iters, EXTENT_ITERS_MAX / 2, false);
+				     &nr_iters, EXTENT_ITERS_MAX / 2);
 	if (ret < 0)
 		return ret;
 
@@ -139,8 +139,20 @@ int bch2_extent_atomic_end(struct btree_iter *iter,
 			offset = bkey_start_offset(&insert->k) -
 				bkey_start_offset(k.k);
 
+		/* extent_handle_overwrites(): */
+		switch (bch2_extent_overlap(&insert->k, k.k)) {
+		case BCH_EXTENT_OVERLAP_ALL:
+		case BCH_EXTENT_OVERLAP_FRONT:
+			nr_iters += 1;
+			break;
+		case BCH_EXTENT_OVERLAP_BACK:
+		case BCH_EXTENT_OVERLAP_MIDDLE:
+			nr_iters += 2;
+			break;
+		}
+
 		ret = count_iters_for_insert(trans, k, offset, end,
-					&nr_iters, EXTENT_ITERS_MAX, true);
+					&nr_iters, EXTENT_ITERS_MAX);
 		if (ret)
 			break;
 
