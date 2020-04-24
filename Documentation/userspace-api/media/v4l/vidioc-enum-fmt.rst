@@ -48,10 +48,21 @@ one until ``EINVAL`` is returned. If applicable, drivers shall return
 formats in preference order, where preferred formats are returned before
 (that is, with lower ``index`` value) less-preferred formats.
 
-.. note::
+If the driver doesn't advertise the ``V4L2_CAP_IO_MC`` :ref:`capability
+<device-capabilities>`, applications shall initialize the ``mbus_code`` field
+to zero and drivers shall ignore the value of the field.  Drivers shall
+enumerate all image formats. The enumerated formats may depend on the active
+input or output of the device.
 
-   After switching input or output the list of enumerated image
-   formats may be different.
+If the driver advertises the ``V4L2_CAP_IO_MC`` :ref:`capability
+<device-capabilities>`, applications may initialize the ``mbus_code`` field to
+a valid :ref:`media bus format code <v4l2-mbus-pixelcode>`. If the
+``mbus_code`` field is not zero, drivers shall restrict enumeration to only the
+image formats that can produce (for video output devices) or be produced from
+(for video capture devices) that media bus code.  Regardless of the value of
+the ``mbus_code`` field, the enumerated image formats shall not depend on the
+active configuration of the video device or device pipeline. Enumeration shall
+otherwise operate as previously described.
 
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
@@ -106,7 +117,13 @@ formats in preference order, where preferred formats are returned before
 	   These codes are not the same as those used
 	   in the Windows world.
     * - __u32
-      - ``reserved``\ [4]
+      - ``mbus_code``
+      - Media bus code restricting the enumerated formats, set by the
+        application. Only applicable to drivers that advertise the
+        ``V4L2_CAP_IO_MC`` :ref:`capability <device-capabilities>`, shall be 0
+        otherwise.
+    * - __u32
+      - ``reserved``\ [3]
       - Reserved for future extensions. Drivers must set the array to
 	zero.
 
