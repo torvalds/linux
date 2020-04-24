@@ -167,19 +167,29 @@ int amdgpu_driver_load_kms(struct drm_device *dev, unsigned long flags)
 	}
 
 	if (amdgpu_device_supports_boco(dev) &&
-	    (amdgpu_runtime_pm != 0)) /* enable runpm by default for boco */
+	    (amdgpu_runtime_pm != 0)) { /* enable runpm by default for boco */
 		adev->runpm = true;
-	else if (amdgpu_device_supports_baco(dev) &&
-		 (amdgpu_runtime_pm != 0) &&
-		 (adev->asic_type >= CHIP_TOPAZ) &&
-		 (adev->asic_type != CHIP_VEGA10) &&
-		 (adev->asic_type != CHIP_VEGA20) &&
-		 (adev->asic_type != CHIP_SIENNA_CICHLID) &&
-		 (adev->asic_type != CHIP_ARCTURUS)) /* enable runpm on VI+ */
-		adev->runpm = true;
-	else if (amdgpu_device_supports_baco(dev) &&
-		 (amdgpu_runtime_pm > 0))  /* enable runpm if runpm=1 on CI */
-		adev->runpm = true;
+	} else if (amdgpu_device_supports_baco(dev) &&
+		   (amdgpu_runtime_pm != 0)) {
+		switch (adev->asic_type) {
+#ifdef CONFIG_DRM_AMDGPU_CIK
+		case CHIP_BONAIRE:
+		case CHIP_HAWAII:
+#endif
+		case CHIP_VEGA10:
+		case CHIP_VEGA20:
+		case CHIP_ARCTURUS:
+		case CHIP_SIENNA_CICHLID:
+			/* enable runpm if runpm=1 */
+			if (amdgpu_runtime_pm > 0)
+				adev->runpm = true;
+			break;
+		default:
+			/* enable runpm on VI+ */
+			adev->runpm = true;
+			break;
+		}
+	}
 
 	/* Call ACPI methods: require modeset init
 	 * but failure is not fatal
