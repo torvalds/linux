@@ -1270,8 +1270,7 @@ static int igc_ethtool_update_nfc_rule(struct igc_adapter *adapter,
 
 	/* if there is an old rule occupying our place remove it */
 	if (rule && rule->location == location) {
-		if (!input)
-			err = igc_disable_nfc_rule(adapter, rule);
+		err = igc_disable_nfc_rule(adapter, rule);
 
 		hlist_del(&rule->nfc_node);
 		kfree(rule);
