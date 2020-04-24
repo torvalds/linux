@@ -99,7 +99,7 @@ static int hns3_lp_setup(struct net_device *ndev, enum hnae3_loop loop, bool en)
 		h->ae_algo->ops->set_promisc_mode(h, true, true);
 	} else {
 		/* recover promisc mode before loopback test */
-		hns3_update_promisc_mode(ndev, h->netdev_flags);
+		hns3_request_update_promisc_mode(h);
 		vlan_filter_enable = ndev->flags & IFF_PROMISC ? false : true;
 		hns3_enable_vlan_filter(ndev, vlan_filter_enable);
 	}

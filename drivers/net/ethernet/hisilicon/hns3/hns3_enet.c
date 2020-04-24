@@ -601,34 +601,25 @@ static void hns3_nic_set_rx_mode(struct net_device *netdev)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
 	u8 new_flags;
-	int ret;
 
 	new_flags = hns3_get_netdev_flags(netdev);
 
-	ret = __dev_uc_sync(netdev, hns3_nic_uc_sync, hns3_nic_uc_unsync);
-	if (ret) {
-		netdev_err(netdev, "sync uc address fail\n");
-		if (ret == -ENOSPC)
-			new_flags |= HNAE3_OVERFLOW_UPE;
-	}
-
-	if (netdev->flags & IFF_MULTICAST) {
-		ret = __dev_mc_sync(netdev, hns3_nic_mc_sync,
-				    hns3_nic_mc_unsync);
-		if (ret) {
-			netdev_err(netdev, "sync mc address fail\n");
-			if (ret == -ENOSPC)
-				new_flags |= HNAE3_OVERFLOW_MPE;
-		}
-	}
+	__dev_uc_sync(netdev, hns3_nic_uc_sync, hns3_nic_uc_unsync);
+	__dev_mc_sync(netdev, hns3_nic_mc_sync, hns3_nic_mc_unsync);
 
 	/* User mode Promisc mode enable and vlan filtering is disabled to
-	 * let all packets in. MAC-VLAN Table overflow Promisc enabled and
-	 * vlan fitering is enabled
+	 * let all packets in.
 	 */
-	hns3_enable_vlan_filter(netdev, new_flags & HNAE3_VLAN_FLTR);
 	h->netdev_flags = new_flags;
-	hns3_update_promisc_mode(netdev, new_flags);
+	hns3_request_update_promisc_mode(h);
+}
+
+void hns3_request_update_promisc_mode(struct hnae3_handle *handle)
+{
+	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
+
+	if (ops->request_update_promisc_mode)
+		ops->request_update_promisc_mode(handle);
 }
 
 int hns3_update_promisc_mode(struct net_device *netdev, u8 promisc_flags)
@@ -4467,15 +4458,6 @@ err_put_ring:
 static int hns3_reset_notify_restore_enet(struct hnae3_handle *handle)
 {
 	struct net_device *netdev = handle->kinfo.netdev;
-	bool vlan_filter_enable;
-	int ret;
-
-	ret = hns3_update_promisc_mode(netdev, handle->netdev_flags);
-	if (ret)
-		return ret;
-
-	vlan_filter_enable = netdev->flags & IFF_PROMISC ? false : true;
-	hns3_enable_vlan_filter(netdev, vlan_filter_enable);
 
 	if (handle->ae_algo->ops->restore_vlan_table)
 		handle->ae_algo->ops->restore_vlan_table(handle);

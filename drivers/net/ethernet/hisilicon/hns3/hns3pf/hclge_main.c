@@ -69,6 +69,7 @@ static enum hnae3_reset_type hclge_get_reset_level(struct hnae3_ae_dev *ae_dev,
 static int hclge_set_default_loopback(struct hclge_dev *hdev);
 
 static void hclge_sync_mac_table(struct hclge_dev *hdev);
+static void hclge_sync_promisc_mode(struct hclge_dev *hdev);
 
 static struct hnae3_ae_algo ae_algo;
 
@@ -3975,6 +3976,7 @@ static void hclge_periodic_service_task(struct hclge_dev *hdev)
 	 */
 	hclge_update_link_status(hdev);
 	hclge_sync_mac_table(hdev);
+	hclge_sync_promisc_mode(hdev);
 
 	if (time_is_after_jiffies(hdev->last_serv_processed + HZ)) {
 		delta = jiffies - hdev->last_serv_processed;
@@ -4724,7 +4726,8 @@ static int hclge_cmd_set_promisc_mode(struct hclge_dev *hdev,
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret)
 		dev_err(&hdev->pdev->dev,
-			"Set promisc mode fail, status is %d.\n", ret);
+			"failed to set vport %d promisc mode, ret = %d.\n",
+			param->vf_id, ret);
 
 	return ret;
 }
@@ -4772,6 +4775,14 @@ static int hclge_set_promisc_mode(struct hnae3_handle *handle, bool en_uc_pmc,
 
 	return hclge_set_vport_promisc_mode(vport, en_uc_pmc, en_mc_pmc,
 					    en_bc_pmc);
+}
+
+static void hclge_request_update_promisc_mode(struct hnae3_handle *handle)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+
+	set_bit(HCLGE_STATE_PROMISC_CHANGED, &hdev->state);
 }
 
 static int hclge_get_fd_mode(struct hclge_dev *hdev, u8 *fd_mode)
@@ -6972,17 +6983,11 @@ static int hclge_get_mac_vlan_cmd_status(struct hclge_vport *vport,
 	}
 
 	if (op == HCLGE_MAC_VLAN_ADD) {
-		if ((!resp_code) || (resp_code == 1)) {
+		if (!resp_code || resp_code == 1)
 			return 0;
-		} else if (resp_code == HCLGE_ADD_UC_OVERFLOW) {
-			dev_err(&hdev->pdev->dev,
-				"add mac addr failed for uc_overflow.\n");
+		else if (resp_code == HCLGE_ADD_UC_OVERFLOW ||
+			 resp_code == HCLGE_ADD_MC_OVERFLOW)
 			return -ENOSPC;
-		} else if (resp_code == HCLGE_ADD_MC_OVERFLOW) {
-			dev_err(&hdev->pdev->dev,
-				"add mac addr failed for mc_overflow.\n");
-			return -ENOSPC;
-		}
 
 		dev_err(&hdev->pdev->dev,
 			"add mac addr failed for undefined, code=%u.\n",
@@ -7448,8 +7453,9 @@ int hclge_add_uc_addr_common(struct hclge_vport *vport,
 			return ret;
 		}
 
-		dev_err(&hdev->pdev->dev, "UC MAC table full(%u)\n",
-			hdev->priv_umv_size);
+		if (!(vport->overflow_promisc_flags & HNAE3_OVERFLOW_UPE))
+			dev_err(&hdev->pdev->dev, "UC MAC table full(%u)\n",
+				hdev->priv_umv_size);
 
 		return -ENOSPC;
 	}
@@ -7543,7 +7549,9 @@ int hclge_add_mc_addr_common(struct hclge_vport *vport,
 		return status;
 	status = hclge_add_mac_vlan_tbl(vport, &req, desc);
 
-	if (status == -ENOSPC)
+	/* if already overflow, not to print each time */
+	if (status == -ENOSPC &&
+	    !(vport->overflow_promisc_flags & HNAE3_OVERFLOW_MPE))
 		dev_err(&hdev->pdev->dev, "mc mac vlan table is full\n");
 
 	return status;
@@ -7638,12 +7646,16 @@ static void hclge_unsync_vport_mac_list(struct hclge_vport *vport,
 	}
 }
 
-static void hclge_sync_from_add_list(struct list_head *add_list,
+static bool hclge_sync_from_add_list(struct list_head *add_list,
 				     struct list_head *mac_list)
 {
 	struct hclge_mac_node *mac_node, *tmp, *new_node;
+	bool all_added = true;
 
 	list_for_each_entry_safe(mac_node, tmp, add_list, node) {
+		if (mac_node->state == HCLGE_MAC_TO_ADD)
+			all_added = false;
+
 		/* if the mac address from tmp_add_list is not in the
 		 * uc/mc_mac_list, it means have received a TO_DEL request
 		 * during the time window of adding the mac address into mac
@@ -7666,6 +7678,8 @@ static void hclge_sync_from_add_list(struct list_head *add_list,
 			kfree(mac_node);
 		}
 	}
+
+	return all_added;
 }
 
 static void hclge_sync_from_del_list(struct list_head *del_list,
@@ -7693,12 +7707,30 @@ static void hclge_sync_from_del_list(struct list_head *del_list,
 	}
 }
 
+static void hclge_update_overflow_flags(struct hclge_vport *vport,
+					enum HCLGE_MAC_ADDR_TYPE mac_type,
+					bool is_all_added)
+{
+	if (mac_type == HCLGE_MAC_ADDR_UC) {
+		if (is_all_added)
+			vport->overflow_promisc_flags &= ~HNAE3_OVERFLOW_UPE;
+		else
+			vport->overflow_promisc_flags |= HNAE3_OVERFLOW_UPE;
+	} else {
+		if (is_all_added)
+			vport->overflow_promisc_flags &= ~HNAE3_OVERFLOW_MPE;
+		else
+			vport->overflow_promisc_flags |= HNAE3_OVERFLOW_MPE;
+	}
+}
+
 static void hclge_sync_vport_mac_table(struct hclge_vport *vport,
 				       enum HCLGE_MAC_ADDR_TYPE mac_type)
 {
 	struct hclge_mac_node *mac_node, *tmp, *new_node;
 	struct list_head tmp_add_list, tmp_del_list;
 	struct list_head *list;
+	bool all_added;
 
 	INIT_LIST_HEAD(&tmp_add_list);
 	INIT_LIST_HEAD(&tmp_del_list);
@@ -7752,9 +7784,11 @@ stop_traverse:
 	spin_lock_bh(&vport->mac_list_lock);
 
 	hclge_sync_from_del_list(&tmp_del_list, list);
-	hclge_sync_from_add_list(&tmp_add_list, list);
+	all_added = hclge_sync_from_add_list(&tmp_add_list, list);
 
 	spin_unlock_bh(&vport->mac_list_lock);
+
+	hclge_update_overflow_flags(vport, mac_type, all_added);
 }
 
 static bool hclge_need_sync_mac_table(struct hclge_vport *vport)
@@ -11052,6 +11086,30 @@ static int hclge_gro_en(struct hnae3_handle *handle, bool enable)
 	return hclge_config_gro(hdev, enable);
 }
 
+static void hclge_sync_promisc_mode(struct hclge_dev *hdev)
+{
+	struct hclge_vport *vport = &hdev->vport[0];
+	struct hnae3_handle *handle = &vport->nic;
+	u8 tmp_flags = 0;
+	int ret;
+
+	if (vport->last_promisc_flags != vport->overflow_promisc_flags) {
+		set_bit(HCLGE_STATE_PROMISC_CHANGED, &hdev->state);
+		vport->last_promisc_flags = vport->overflow_promisc_flags;
+	}
+
+	if (test_bit(HCLGE_STATE_PROMISC_CHANGED, &hdev->state)) {
+		tmp_flags = handle->netdev_flags | vport->last_promisc_flags;
+		ret = hclge_set_promisc_mode(handle, tmp_flags & HNAE3_UPE,
+					     tmp_flags & HNAE3_MPE);
+		if (!ret) {
+			clear_bit(HCLGE_STATE_PROMISC_CHANGED, &hdev->state);
+			hclge_enable_vlan_filter(handle,
+						 tmp_flags & HNAE3_VLAN_FLTR);
+		}
+	}
+}
+
 static const struct hnae3_ae_ops hclge_ops = {
 	.init_ae_dev = hclge_init_ae_dev,
 	.uninit_ae_dev = hclge_uninit_ae_dev,
@@ -11064,6 +11122,7 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.get_vector = hclge_get_vector,
 	.put_vector = hclge_put_vector,
 	.set_promisc_mode = hclge_set_promisc_mode,
+	.request_update_promisc_mode = hclge_request_update_promisc_mode,
 	.set_loopback = hclge_set_loopback,
 	.start = hclge_ae_start,
 	.stop = hclge_ae_stop,

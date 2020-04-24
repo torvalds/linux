@@ -1164,6 +1164,27 @@ static int hclgevf_set_promisc_mode(struct hnae3_handle *handle, bool en_uc_pmc,
 					    en_bc_pmc);
 }
 
+static void hclgevf_request_update_promisc_mode(struct hnae3_handle *handle)
+{
+	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
+
+	set_bit(HCLGEVF_STATE_PROMISC_CHANGED, &hdev->state);
+}
+
+static void hclgevf_sync_promisc_mode(struct hclgevf_dev *hdev)
+{
+	struct hnae3_handle *handle = &hdev->nic;
+	bool en_uc_pmc = handle->netdev_flags & HNAE3_UPE;
+	bool en_mc_pmc = handle->netdev_flags & HNAE3_MPE;
+	int ret;
+
+	if (test_bit(HCLGEVF_STATE_PROMISC_CHANGED, &hdev->state)) {
+		ret = hclgevf_set_promisc_mode(handle, en_uc_pmc, en_mc_pmc);
+		if (!ret)
+			clear_bit(HCLGEVF_STATE_PROMISC_CHANGED, &hdev->state);
+	}
+}
+
 static int hclgevf_tqp_enable(struct hclgevf_dev *hdev, unsigned int tqp_id,
 			      int stream_id, bool enable)
 {
@@ -2203,6 +2224,8 @@ static void hclgevf_periodic_service_task(struct hclgevf_dev *hdev)
 
 	hclgevf_sync_mac_table(hdev);
 
+	hclgevf_sync_promisc_mode(hdev);
+
 	hdev->last_serv_processed = jiffies;
 
 out:
@@ -2986,6 +3009,8 @@ static int hclgevf_reset_hdev(struct hclgevf_dev *hdev)
 		return ret;
 	}
 
+	set_bit(HCLGEVF_STATE_PROMISC_CHANGED, &hdev->state);
+
 	dev_info(&hdev->pdev->dev, "Reset done\n");
 
 	return 0;
@@ -3470,6 +3495,7 @@ static const struct hnae3_ae_ops hclgevf_ops = {
 	.set_timer_task = hclgevf_set_timer_task,
 	.get_link_mode = hclgevf_get_link_mode,
 	.set_promisc_mode = hclgevf_set_promisc_mode,
+	.request_update_promisc_mode = hclgevf_request_update_promisc_mode,
 };
 
 static struct hnae3_ae_algo ae_algovf = {
