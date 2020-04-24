@@ -892,7 +892,7 @@ static void unoptimize_all_kprobes(void)
 static DEFINE_MUTEX(kprobe_sysctl_mutex);
 int sysctl_kprobes_optimization;
 int proc_kprobes_optimization_handler(struct ctl_table *table, int write,
-				      void __user *buffer, size_t *length,
+				      void *buffer, size_t *length,
 				      loff_t *ppos)
 {
 	int ret;

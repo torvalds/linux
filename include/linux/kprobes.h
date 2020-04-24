@@ -312,7 +312,7 @@ DEFINE_INSN_CACHE_OPS(optinsn);
 #ifdef CONFIG_SYSCTL
 extern int sysctl_kprobes_optimization;
 extern int proc_kprobes_optimization_handler(struct ctl_table *table,
-					     int write, void __user *buffer,
+					     int write, void *buffer,
 					     size_t *length, loff_t *ppos);
 #endif
 extern void wait_for_kprobe_optimizer(void);

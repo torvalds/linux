@@ -1736,7 +1736,7 @@ static int three = 3;
 
 static int
 proc_do_defense_mode(struct ctl_table *table, int write,
-		     void __user *buffer, size_t *lenp, loff_t *ppos)
+		     void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct netns_ipvs *ipvs = table->extra2;
 	int *valp = table->data;
@@ -1763,7 +1763,7 @@ proc_do_defense_mode(struct ctl_table *table, int write,
 
 static int
 proc_do_sync_threshold(struct ctl_table *table, int write,
-		       void __user *buffer, size_t *lenp, loff_t *ppos)
+		       void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int *valp = table->data;
 	int val[2];
@@ -1788,7 +1788,7 @@ proc_do_sync_threshold(struct ctl_table *table, int write,
 
 static int
 proc_do_sync_ports(struct ctl_table *table, int write,
-		   void __user *buffer, size_t *lenp, loff_t *ppos)
+		   void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int *valp = table->data;
 	int val = *valp;

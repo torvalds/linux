@@ -2661,7 +2661,7 @@ static void output_printk(struct trace_event_buffer *fbuffer)
 }
 
 int tracepoint_printk_sysctl(struct ctl_table *table, int write,
-			     void __user *buffer, size_t *lenp,
+			     void *buffer, size_t *lenp,
 			     loff_t *ppos)
 {
 	int save_tracepoint_printk;

@@ -2463,7 +2463,7 @@ int sysctl_compact_memory;
  * /proc/sys/vm/compact_memory
  */
 int sysctl_compaction_handler(struct ctl_table *table, int write,
-			void __user *buffer, size_t *length, loff_t *ppos)
+			void *buffer, size_t *length, loff_t *ppos)
 {
 	if (write)
 		compact_nodes();
