@@ -164,8 +164,7 @@ static inline bool btree_node_lock_increment(struct btree_iter *iter,
 	struct btree_iter *linked;
 
 	trans_for_each_iter(iter->trans, linked)
-		if (linked != iter &&
-		    linked->l[level].b == b &&
+		if (linked->l[level].b == b &&
 		    btree_node_locked_type(linked, level) >= want) {
 			six_lock_increment(&b->c.lock, want);
 			return true;
