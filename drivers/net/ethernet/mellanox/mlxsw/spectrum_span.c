@@ -3,6 +3,7 @@
 
 #include <linux/if_bridge.h>
 #include <linux/list.h>
+#include <linux/refcount.h>
 #include <linux/rtnetlink.h>
 #include <linux/workqueue.h>
 #include <net/arp.h>
@@ -664,7 +665,7 @@ mlxsw_sp_span_entry_create(struct mlxsw_sp *mlxsw_sp,
 
 	/* find a free entry to use */
 	for (i = 0; i < mlxsw_sp->span->entries_count; i++) {
-		if (!mlxsw_sp->span->entries[i].ref_count) {
+		if (!refcount_read(&mlxsw_sp->span->entries[i].ref_count)) {
 			span_entry = &mlxsw_sp->span->entries[i];
 			break;
 		}
@@ -674,7 +675,7 @@ mlxsw_sp_span_entry_create(struct mlxsw_sp *mlxsw_sp,
 
 	atomic_inc(&mlxsw_sp->span->active_entries_count);
 	span_entry->ops = ops;
-	span_entry->ref_count = 1;
+	refcount_set(&span_entry->ref_count, 1);
 	span_entry->to_dev = to_dev;
 	mlxsw_sp_span_entry_configure(mlxsw_sp, span_entry, sparms);
 
@@ -697,7 +698,7 @@ mlxsw_sp_span_entry_find_by_port(struct mlxsw_sp *mlxsw_sp,
 	for (i = 0; i < mlxsw_sp->span->entries_count; i++) {
 		struct mlxsw_sp_span_entry *curr = &mlxsw_sp->span->entries[i];
 
-		if (curr->ref_count && curr->to_dev == to_dev)
+		if (refcount_read(&curr->ref_count) && curr->to_dev == to_dev)
 			return curr;
 	}
 	return NULL;
@@ -718,7 +719,7 @@ mlxsw_sp_span_entry_find_by_id(struct mlxsw_sp *mlxsw_sp, int span_id)
 	for (i = 0; i < mlxsw_sp->span->entries_count; i++) {
 		struct mlxsw_sp_span_entry *curr = &mlxsw_sp->span->entries[i];
 
-		if (curr->ref_count && curr->id == span_id)
+		if (refcount_read(&curr->ref_count) && curr->id == span_id)
 			return curr;
 	}
 	return NULL;
@@ -735,7 +736,7 @@ mlxsw_sp_span_entry_get(struct mlxsw_sp *mlxsw_sp,
 	span_entry = mlxsw_sp_span_entry_find_by_port(mlxsw_sp, to_dev);
 	if (span_entry) {
 		/* Already exists, just take a reference */
-		span_entry->ref_count++;
+		refcount_inc(&span_entry->ref_count);
 		return span_entry;
 	}
 
@@ -745,8 +746,7 @@ mlxsw_sp_span_entry_get(struct mlxsw_sp *mlxsw_sp,
 static int mlxsw_sp_span_entry_put(struct mlxsw_sp *mlxsw_sp,
 				   struct mlxsw_sp_span_entry *span_entry)
 {
-	WARN_ON(!span_entry->ref_count);
-	if (--span_entry->ref_count == 0)
+	if (refcount_dec_and_test(&span_entry->ref_count))
 		mlxsw_sp_span_entry_destroy(mlxsw_sp, span_entry);
 	return 0;
 }
@@ -1018,7 +1018,7 @@ static void mlxsw_sp_span_respin_work(struct work_struct *work)
 		struct mlxsw_sp_span_entry *curr = &mlxsw_sp->span->entries[i];
 		struct mlxsw_sp_span_parms sparms = {NULL};
 
-		if (!curr->ref_count)
+		if (!refcount_read(&curr->ref_count))
 			continue;
 
 		err = curr->ops->parms_set(curr->to_dev, &sparms);
