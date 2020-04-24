@@ -266,7 +266,6 @@ static int afs_update_volume_status(struct afs_volume *volume, struct key *key)
 	}
 
 	volume->update_at = ktime_get_real_seconds() + afs_volume_record_life;
-	clear_bit(AFS_VOLUME_NEEDS_UPDATE, &volume->flags);
 	write_unlock(&volume->servers_lock);
 	ret = 0;
 
@@ -283,23 +282,25 @@ error:
  */
 int afs_check_volume_status(struct afs_volume *volume, struct afs_fs_cursor *fc)
 {
-	time64_t now = ktime_get_real_seconds();
 	int ret, retries = 0;
 
 	_enter("");
 
-	if (volume->update_at <= now)
-		set_bit(AFS_VOLUME_NEEDS_UPDATE, &volume->flags);
-
 retry:
-	if (!test_bit(AFS_VOLUME_NEEDS_UPDATE, &volume->flags) &&
-	    !test_bit(AFS_VOLUME_WAIT, &volume->flags)) {
-		_leave(" = 0");
-		return 0;
-	}
+	if (test_bit(AFS_VOLUME_WAIT, &volume->flags))
+		goto wait;
+	if (volume->update_at <= ktime_get_real_seconds() ||
+	    test_bit(AFS_VOLUME_NEEDS_UPDATE, &volume->flags))
+		goto update;
+	_leave(" = 0");
+	return 0;
 
+update:
 	if (!test_and_set_bit_lock(AFS_VOLUME_UPDATING, &volume->flags)) {
+		clear_bit(AFS_VOLUME_NEEDS_UPDATE, &volume->flags);
 		ret = afs_update_volume_status(volume, fc->key);
+		if (ret < 0)
+			set_bit(AFS_VOLUME_NEEDS_UPDATE, &volume->flags);
 		clear_bit_unlock(AFS_VOLUME_WAIT, &volume->flags);
 		clear_bit_unlock(AFS_VOLUME_UPDATING, &volume->flags);
 		wake_up_bit(&volume->flags, AFS_VOLUME_WAIT);
@@ -307,6 +308,7 @@ retry:
 		return ret;
 	}
 
+wait:
 	if (!test_bit(AFS_VOLUME_WAIT, &volume->flags)) {
 		_leave(" = 0 [no wait]");
 		return 0;

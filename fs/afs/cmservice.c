@@ -157,7 +157,7 @@ static int afs_record_cm_probe(struct afs_call *call, struct afs_server *server)
 	_enter("");
 
 	if (test_bit(AFS_SERVER_FL_HAVE_EPOCH, &server->flags) &&
-	    !test_bit(AFS_SERVER_FL_PROBING, &server->flags)) {
+	    !afs_is_probing_server(server)) {
 		if (server->cm_epoch == call->epoch)
 			return 0;
 

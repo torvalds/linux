@@ -349,9 +349,6 @@ start:
 		goto failed;
 
 	_debug("__ VOL %llx __", vnode->volume->vid);
-	error = afs_probe_fileservers(afs_v2net(vnode), fc->key, fc->server_list);
-	if (error < 0)
-		goto failed_set_error;
 
 pick_server:
 	_debug("pick [%lx]", fc->untried);
@@ -596,8 +593,8 @@ static void afs_dump_edestaddrreq(const struct afs_fs_cursor *fc)
 					  a->version,
 					  a->nr_ipv4, a->nr_addrs, a->max_addrs,
 					  a->preferred);
-				pr_notice("FC:  - pr=%lx R=%lx F=%lx\n",
-					  a->probed, a->responded, a->failed);
+				pr_notice("FC:  - R=%lx F=%lx\n",
+					  a->responded, a->failed);
 				if (a == fc->ac.alist)
 					pr_notice("FC:  - current\n");
 			}

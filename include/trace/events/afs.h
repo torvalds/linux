@@ -38,10 +38,12 @@ enum afs_server_trace {
 	afs_server_trace_get_caps,
 	afs_server_trace_get_install,
 	afs_server_trace_get_new_cbi,
+	afs_server_trace_get_probe,
 	afs_server_trace_give_up_cb,
 	afs_server_trace_put_call,
 	afs_server_trace_put_cbi,
 	afs_server_trace_put_find_rsq,
+	afs_server_trace_put_probe,
 	afs_server_trace_put_slist,
 	afs_server_trace_put_slist_isort,
 	afs_server_trace_put_uuid_rsq,
@@ -247,10 +249,12 @@ enum afs_cb_break_reason {
 	EM(afs_server_trace_get_caps,		"GET caps ") \
 	EM(afs_server_trace_get_install,	"GET inst ") \
 	EM(afs_server_trace_get_new_cbi,	"GET cbi  ") \
+	EM(afs_server_trace_get_probe,		"GET probe") \
 	EM(afs_server_trace_give_up_cb,		"giveup-cb") \
 	EM(afs_server_trace_put_call,		"PUT call ") \
 	EM(afs_server_trace_put_cbi,		"PUT cbi  ") \
 	EM(afs_server_trace_put_find_rsq,	"PUT f-rsq") \
+	EM(afs_server_trace_put_probe,		"PUT probe") \
 	EM(afs_server_trace_put_slist,		"PUT slist") \
 	EM(afs_server_trace_put_slist_isort,	"PUT isort") \
 	EM(afs_server_trace_put_uuid_rsq,	"PUT u-req") \

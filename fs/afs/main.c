@@ -87,7 +87,8 @@ static int __net_init afs_net_init(struct net *net_ns)
 
 	seqlock_init(&net->fs_lock);
 	net->fs_servers = RB_ROOT;
-	INIT_LIST_HEAD(&net->fs_updates);
+	INIT_LIST_HEAD(&net->fs_probe_fast);
+	INIT_LIST_HEAD(&net->fs_probe_slow);
 	INIT_HLIST_HEAD(&net->fs_proc);
 
 	INIT_HLIST_HEAD(&net->fs_addresses4);
@@ -96,6 +97,8 @@ static int __net_init afs_net_init(struct net *net_ns)
 
 	INIT_WORK(&net->fs_manager, afs_manage_servers);
 	timer_setup(&net->fs_timer, afs_servers_timer, 0);
+	INIT_WORK(&net->fs_prober, afs_fs_probe_dispatcher);
+	timer_setup(&net->fs_probe_timer, afs_fs_probe_timer, 0);
 
 	ret = -ENOMEM;
 	sysnames = kzalloc(sizeof(*sysnames), GFP_KERNEL);

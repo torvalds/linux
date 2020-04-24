@@ -90,7 +90,6 @@ struct afs_addr_list {
 	unsigned char		nr_ipv4;	/* Number of IPv4 addresses */
 	enum dns_record_source	source:8;
 	enum dns_lookup_status	status:8;
-	unsigned long		probed;		/* Mask of servers that have been probed */
 	unsigned long		failed;		/* Mask of addrs that failed locally/ICMP */
 	unsigned long		responded;	/* Mask of addrs that responded */
 	struct sockaddr_rxrpc	addrs[];
@@ -299,9 +298,10 @@ struct afs_net {
 	 * cell, but in practice, people create aliases and subsets and there's
 	 * no easy way to distinguish them.
 	 */
-	seqlock_t		fs_lock;	/* For fs_servers */
+	seqlock_t		fs_lock;	/* For fs_servers, fs_probe_*, fs_proc */
 	struct rb_root		fs_servers;	/* afs_server (by server UUID or address) */
-	struct list_head	fs_updates;	/* afs_server (by update_at) */
+	struct list_head	fs_probe_fast;	/* List of afs_server to probe at 30s intervals */
+	struct list_head	fs_probe_slow;	/* List of afs_server to probe at 5m intervals */
 	struct hlist_head	fs_proc;	/* procfs servers list */
 
 	struct hlist_head	fs_addresses4;	/* afs_server (by lowest IPv4 addr) */
@@ -310,6 +310,9 @@ struct afs_net {
 
 	struct work_struct	fs_manager;
 	struct timer_list	fs_timer;
+
+	struct work_struct	fs_prober;
+	struct timer_list	fs_probe_timer;
 	atomic_t		servers_outstanding;
 
 	/* File locking renewal management */
@@ -493,7 +496,8 @@ struct afs_server {
 	};
 
 	struct afs_addr_list	__rcu *addresses;
-	struct rb_node		uuid_rb;	/* Link in net->servers */
+	struct rb_node		uuid_rb;	/* Link in net->fs_servers */
+	struct list_head	probe_link;	/* Link in net->fs_probe_list */
 	struct hlist_node	addr4_link;	/* Link in net->fs_addresses4 */
 	struct hlist_node	addr6_link;	/* Link in net->fs_addresses6 */
 	struct hlist_node	proc_link;	/* Link in net->fs_proc */
@@ -504,8 +508,6 @@ struct afs_server {
 #define AFS_SERVER_FL_NOT_FOUND	2		/* VL server says no such server */
 #define AFS_SERVER_FL_VL_FAIL	3		/* Failed to access VL server */
 #define AFS_SERVER_FL_UPDATING	4
-#define AFS_SERVER_FL_PROBED	5		/* The fileserver has been probed */
-#define AFS_SERVER_FL_PROBING	6		/* Fileserver is being probed */
 #define AFS_SERVER_FL_NO_IBULK	7		/* Fileserver doesn't support FS.InlineBulkStatus */
 #define AFS_SERVER_FL_MAY_HAVE_CB 8		/* May have callbacks on this fileserver */
 #define AFS_SERVER_FL_IS_YFS	9		/* Server is YFS not AFS */
@@ -527,6 +529,7 @@ struct afs_server {
 	rwlock_t		cb_break_lock;	/* Volume finding lock */
 
 	/* Probe state */
+	unsigned long		probed_at;	/* Time last probe was dispatched (jiffies) */
 	wait_queue_head_t	probe_wq;
 	atomic_t		probe_outstanding;
 	spinlock_t		probe_lock;
@@ -956,7 +959,6 @@ extern int afs_flock(struct file *, int, struct file_lock *);
  */
 extern int afs_fs_fetch_file_status(struct afs_fs_cursor *, struct afs_status_cb *,
 				    struct afs_volsync *);
-extern int afs_fs_give_up_callbacks(struct afs_net *, struct afs_server *);
 extern int afs_fs_fetch_data(struct afs_fs_cursor *, struct afs_status_cb *, struct afs_read *);
 extern int afs_fs_create(struct afs_fs_cursor *, const char *, umode_t,
 			 struct afs_status_cb *, struct afs_fid *, struct afs_status_cb *);
@@ -978,9 +980,8 @@ extern int afs_fs_extend_lock(struct afs_fs_cursor *, struct afs_status_cb *);
 extern int afs_fs_release_lock(struct afs_fs_cursor *, struct afs_status_cb *);
 extern int afs_fs_give_up_all_callbacks(struct afs_net *, struct afs_server *,
 					struct afs_addr_cursor *, struct key *);
-extern struct afs_call *afs_fs_get_capabilities(struct afs_net *, struct afs_server *,
-						struct afs_addr_cursor *, struct key *,
-						unsigned int);
+extern bool afs_fs_get_capabilities(struct afs_net *, struct afs_server *,
+				    struct afs_addr_cursor *, struct key *);
 extern int afs_fs_inline_bulk_status(struct afs_fs_cursor *, struct afs_net *,
 				     struct afs_fid *, struct afs_status_cb *,
 				     unsigned int, struct afs_volsync *);
@@ -1001,8 +1002,9 @@ extern int afs_fs_store_acl(struct afs_fs_cursor *, const struct afs_acl *,
  * fs_probe.c
  */
 extern void afs_fileserver_probe_result(struct afs_call *);
-extern int afs_probe_fileservers(struct afs_net *, struct key *, struct afs_server_list *);
+extern void afs_fs_probe_fileserver(struct afs_net *, struct afs_server *, struct key *, bool);
 extern int afs_wait_for_fs_probes(struct afs_server_list *, unsigned long);
+extern void afs_fs_probe_dispatcher(struct work_struct *);
 
 /*
  * inode.c
@@ -1251,8 +1253,25 @@ extern void afs_unuse_server_notime(struct afs_net *, struct afs_server *, enum 
 extern void afs_put_server(struct afs_net *, struct afs_server *, enum afs_server_trace);
 extern void afs_manage_servers(struct work_struct *);
 extern void afs_servers_timer(struct timer_list *);
+extern void afs_fs_probe_timer(struct timer_list *);
 extern void __net_exit afs_purge_servers(struct afs_net *);
 extern bool afs_check_server_record(struct afs_fs_cursor *, struct afs_server *);
+
+static inline void afs_inc_servers_outstanding(struct afs_net *net)
+{
+	atomic_inc(&net->servers_outstanding);
+}
+
+static inline void afs_dec_servers_outstanding(struct afs_net *net)
+{
+	if (atomic_dec_and_test(&net->servers_outstanding))
+		wake_up_var(&net->servers_outstanding);
+}
+
+static inline bool afs_is_probing_server(struct afs_server *server)
+{
+	return list_empty(&server->probe_link);
+}
 
 /*
  * server_list.c

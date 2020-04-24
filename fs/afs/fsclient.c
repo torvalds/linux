@@ -1905,14 +1905,13 @@ static const struct afs_call_type afs_RXFSGetCapabilities = {
 };
 
 /*
- * Probe a fileserver for the capabilities that it supports.  This can
- * return up to 196 words.
+ * Probe a fileserver for the capabilities that it supports.  This RPC can
+ * reply with up to 196 words.  The operation is asynchronous and if we managed
+ * to allocate a call, true is returned the result is delivered through the
+ * ->done() - otherwise we return false to indicate we didn't even try.
  */
-struct afs_call *afs_fs_get_capabilities(struct afs_net *net,
-					 struct afs_server *server,
-					 struct afs_addr_cursor *ac,
-					 struct key *key,
-					 unsigned int server_index)
+bool afs_fs_get_capabilities(struct afs_net *net, struct afs_server *server,
+			     struct afs_addr_cursor *ac, struct key *key)
 {
 	struct afs_call *call;
 	__be32 *bp;
@@ -1921,11 +1920,10 @@ struct afs_call *afs_fs_get_capabilities(struct afs_net *net,
 
 	call = afs_alloc_flat_call(net, &afs_RXFSGetCapabilities, 1 * 4, 16 * 4);
 	if (!call)
-		return ERR_PTR(-ENOMEM);
+		return false;
 
 	call->key = key;
 	call->server = afs_use_server(server, afs_server_trace_get_caps);
-	call->server_index = server_index;
 	call->upgrade = true;
 	call->async = true;
 	call->max_lifespan = AFS_PROBE_MAX_LIFESPAN;
@@ -1936,7 +1934,8 @@ struct afs_call *afs_fs_get_capabilities(struct afs_net *net,
 
 	trace_afs_make_fs_call(call, NULL);
 	afs_make_call(ac, call, GFP_NOFS);
-	return call;
+	afs_put_call(call);
+	return true;
 }
 
 /*

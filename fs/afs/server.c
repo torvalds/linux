@@ -14,17 +14,6 @@
 static unsigned afs_server_gc_delay = 10;	/* Server record timeout in seconds */
 static atomic_t afs_server_debug_id;
 
-static void afs_inc_servers_outstanding(struct afs_net *net)
-{
-	atomic_inc(&net->servers_outstanding);
-}
-
-static void afs_dec_servers_outstanding(struct afs_net *net)
-{
-	if (atomic_dec_and_test(&net->servers_outstanding))
-		wake_up_var(&net->servers_outstanding);
-}
-
 static struct afs_server *afs_maybe_use_server(struct afs_server *,
 					       enum afs_server_trace);
 static void __afs_put_server(struct afs_net *, struct afs_server *);
@@ -226,6 +215,7 @@ static struct afs_server *afs_alloc_server(struct afs_net *net,
 	INIT_HLIST_HEAD(&server->cb_volumes);
 	rwlock_init(&server->cb_break_lock);
 	init_waitqueue_head(&server->probe_wq);
+	INIT_LIST_HEAD(&server->probe_link);
 	spin_lock_init(&server->probe_lock);
 
 	afs_inc_servers_outstanding(net);
@@ -295,6 +285,12 @@ struct afs_server *afs_lookup_server(struct afs_cell *cell, struct key *key,
 	if (server != candidate) {
 		afs_put_addrlist(alist);
 		kfree(candidate);
+	} else {
+		/* Immediately dispatch an asynchronous probe to each interface
+		 * on the fileserver.  This will make sure the repeat-probing
+		 * service is started.
+		 */
+		afs_fs_probe_fileserver(cell->net, server, key, true);
 	}
 
 	return server;
@@ -464,6 +460,7 @@ static void afs_gc_servers(struct afs_net *net, struct afs_server *gc_list)
 			trace_afs_server(server, atomic_read(&server->ref),
 					 active, afs_server_trace_gc);
 			rb_erase(&server->uuid_rb, &net->fs_servers);
+			list_del(&server->probe_link);
 			hlist_del_rcu(&server->proc_link);
 			if (!hlist_unhashed(&server->addr4_link))
 				hlist_del_rcu(&server->addr4_link);
