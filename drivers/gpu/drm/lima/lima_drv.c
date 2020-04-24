@@ -15,9 +15,13 @@
 #include "lima_vm.h"
 
 int lima_sched_timeout_ms;
+uint lima_heap_init_nr_pages = 8;
 
 MODULE_PARM_DESC(sched_timeout_ms, "task run timeout in ms");
 module_param_named(sched_timeout_ms, lima_sched_timeout_ms, int, 0444);
+
+MODULE_PARM_DESC(heap_init_nr_pages, "heap buffer init number of pages");
+module_param_named(heap_init_nr_pages, lima_heap_init_nr_pages, uint, 0444);
 
 static int lima_ioctl_get_param(struct drm_device *dev, void *data, struct drm_file *file)
 {
@@ -68,7 +72,7 @@ static int lima_ioctl_gem_create(struct drm_device *dev, void *data, struct drm_
 	if (args->pad)
 		return -EINVAL;
 
-	if (args->flags)
+	if (args->flags & ~(LIMA_BO_FLAG_HEAP))
 		return -EINVAL;
 
 	if (args->size == 0)
@@ -241,6 +245,12 @@ static const struct drm_ioctl_desc lima_drm_driver_ioctls[] = {
 
 DEFINE_DRM_GEM_FOPS(lima_drm_driver_fops);
 
+/**
+ * Changelog:
+ *
+ * - 1.1.0 - add heap buffer support
+ */
+
 static struct drm_driver lima_drm_driver = {
 	.driver_features    = DRIVER_RENDER | DRIVER_GEM | DRIVER_SYNCOBJ,
 	.open               = lima_drm_driver_open,
@@ -250,9 +260,9 @@ static struct drm_driver lima_drm_driver = {
 	.fops               = &lima_drm_driver_fops,
 	.name               = "lima",
 	.desc               = "lima DRM",
-	.date               = "20190217",
+	.date               = "20191231",
 	.major              = 1,
-	.minor              = 0,
+	.minor              = 1,
 	.patchlevel         = 0,
 
 	.gem_create_object  = lima_gem_create_object,

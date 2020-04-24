@@ -75,15 +75,12 @@ static int rtw_ops_config(struct ieee80211_hw *hw, u32 changed)
 
 	rtw_leave_lps_deep(rtwdev);
 
-	if (changed & IEEE80211_CONF_CHANGE_IDLE) {
-		if (hw->conf.flags & IEEE80211_CONF_IDLE) {
-			rtw_enter_ips(rtwdev);
-		} else {
-			ret = rtw_leave_ips(rtwdev);
-			if (ret) {
-				rtw_err(rtwdev, "failed to leave idle state\n");
-				goto out;
-			}
+	if ((changed & IEEE80211_CONF_CHANGE_IDLE) &&
+	    !(hw->conf.flags & IEEE80211_CONF_IDLE)) {
+		ret = rtw_leave_ips(rtwdev);
+		if (ret) {
+			rtw_err(rtwdev, "failed to leave idle state\n");
+			goto out;
 		}
 	}
 
@@ -98,6 +95,10 @@ static int rtw_ops_config(struct ieee80211_hw *hw, u32 changed)
 
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL)
 		rtw_set_channel(rtwdev);
+
+	if ((changed & IEEE80211_CONF_CHANGE_IDLE) &&
+	    (hw->conf.flags & IEEE80211_CONF_IDLE))
+		rtw_enter_ips(rtwdev);
 
 out:
 	mutex_unlock(&rtwdev->mutex);
@@ -160,6 +161,7 @@ static int rtw_ops_add_interface(struct ieee80211_hw *hw,
 	memset(&rtwvif->bfee, 0, sizeof(struct rtw_bfee));
 	rtwvif->conf = &rtw_vif_port[port];
 	rtw_txq_init(rtwdev, vif->txq);
+	INIT_LIST_HEAD(&rtwvif->rsvd_page_list);
 
 	mutex_lock(&rtwdev->mutex);
 
@@ -168,18 +170,24 @@ static int rtw_ops_add_interface(struct ieee80211_hw *hw,
 	switch (vif->type) {
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_MESH_POINT:
+		rtw_add_rsvd_page_bcn(rtwdev, rtwvif);
 		net_type = RTW_NET_AP_MODE;
 		bcn_ctrl = BIT_EN_BCN_FUNCTION | BIT_DIS_TSF_UDT;
 		break;
 	case NL80211_IFTYPE_ADHOC:
+		rtw_add_rsvd_page_bcn(rtwdev, rtwvif);
 		net_type = RTW_NET_AD_HOC;
 		bcn_ctrl = BIT_EN_BCN_FUNCTION | BIT_DIS_TSF_UDT;
 		break;
 	case NL80211_IFTYPE_STATION:
-	default:
+		rtw_add_rsvd_page_sta(rtwdev, rtwvif);
 		net_type = RTW_NET_NO_LINK;
 		bcn_ctrl = BIT_EN_BCN_FUNCTION;
 		break;
+	default:
+		WARN_ON(1);
+		mutex_unlock(&rtwdev->mutex);
+		return -EINVAL;
 	}
 
 	ether_addr_copy(rtwvif->mac_addr, vif->addr);
@@ -210,6 +218,7 @@ static void rtw_ops_remove_interface(struct ieee80211_hw *hw,
 	rtw_leave_lps_deep(rtwdev);
 
 	rtw_txq_cleanup(rtwdev, vif->txq);
+	rtw_remove_rsvd_page(rtwdev, rtwvif);
 
 	eth_zero_addr(rtwvif->mac_addr);
 	config |= PORT_SET_MAC_ADDR;
@@ -341,12 +350,7 @@ static void rtw_ops_bss_info_changed(struct ieee80211_hw *hw,
 			chip->ops->phy_calibration(rtwdev);
 
 			rtwvif->aid = conf->aid;
-			rtw_add_rsvd_page(rtwdev, RSVD_PS_POLL, true);
-			rtw_add_rsvd_page(rtwdev, RSVD_QOS_NULL, true);
-			rtw_add_rsvd_page(rtwdev, RSVD_NULL, true);
-			rtw_add_rsvd_page(rtwdev, RSVD_LPS_PG_DPK, true);
-			rtw_add_rsvd_page(rtwdev, RSVD_LPS_PG_INFO, true);
-			rtw_fw_download_rsvd_page(rtwdev, vif);
+			rtw_fw_download_rsvd_page(rtwdev);
 			rtw_send_rsvd_page_h2c(rtwdev);
 			rtw_coex_media_status_notify(rtwdev, conf->assoc);
 			if (rtw_bf_support)
@@ -355,7 +359,6 @@ static void rtw_ops_bss_info_changed(struct ieee80211_hw *hw,
 			rtw_leave_lps(rtwdev);
 			net_type = RTW_NET_NO_LINK;
 			rtwvif->aid = 0;
-			rtw_reset_rsvd_page(rtwdev);
 			rtw_bf_disassoc(rtwdev, vif, conf);
 		}
 
@@ -370,7 +373,7 @@ static void rtw_ops_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changed & BSS_CHANGED_BEACON)
-		rtw_fw_download_rsvd_page(rtwdev, vif);
+		rtw_fw_download_rsvd_page(rtwdev);
 
 	if (changed & BSS_CHANGED_MU_GROUPS) {
 		struct rtw_chip_info *chip = rtwdev->chip;
@@ -514,6 +517,9 @@ static int rtw_ops_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
 	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
 	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
+	case WLAN_CIPHER_SUITE_CCMP_256:
+	case WLAN_CIPHER_SUITE_GCMP:
+	case WLAN_CIPHER_SUITE_GCMP_256:
 		/* suppress error messages */
 		return -EOPNOTSUPP;
 	default:
@@ -552,7 +558,7 @@ static int rtw_ops_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	/* download new cam settings for PG to backup */
 	if (rtw_fw_lps_deep_mode == LPS_DEEP_MODE_PG)
-		rtw_fw_download_rsvd_page(rtwdev, vif);
+		rtw_fw_download_rsvd_page(rtwdev);
 
 out:
 	mutex_unlock(&rtwdev->mutex);
@@ -590,6 +596,20 @@ static int rtw_ops_ampdu_action(struct ieee80211_hw *hw,
 	}
 
 	return 0;
+}
+
+static bool rtw_ops_can_aggregate_in_amsdu(struct ieee80211_hw *hw,
+					   struct sk_buff *head,
+					   struct sk_buff *skb)
+{
+	struct rtw_dev *rtwdev = hw->priv;
+	struct rtw_hal *hal = &rtwdev->hal;
+
+	/* we don't want to enable TX AMSDU on 2.4G */
+	if (hal->current_band_type == RTW_BAND_2G)
+		return false;
+
+	return true;
 }
 
 static void rtw_ops_sw_scan_start(struct ieee80211_hw *hw,
@@ -787,6 +807,7 @@ const struct ieee80211_ops rtw_ops = {
 	.sta_remove		= rtw_ops_sta_remove,
 	.set_key		= rtw_ops_set_key,
 	.ampdu_action		= rtw_ops_ampdu_action,
+	.can_aggregate_in_amsdu	= rtw_ops_can_aggregate_in_amsdu,
 	.sw_scan_start		= rtw_ops_sw_scan_start,
 	.sw_scan_complete	= rtw_ops_sw_scan_complete,
 	.mgd_prepare_tx		= rtw_ops_mgd_prepare_tx,

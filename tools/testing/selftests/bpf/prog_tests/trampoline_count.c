@@ -55,31 +55,40 @@ void test_trampoline_count(void)
 	/* attach 'allowed' 40 trampoline programs */
 	for (i = 0; i < MAX_TRAMP_PROGS; i++) {
 		obj = bpf_object__open_file(object, NULL);
-		if (CHECK(IS_ERR(obj), "obj_open_file", "err %ld\n", PTR_ERR(obj)))
+		if (CHECK(IS_ERR(obj), "obj_open_file", "err %ld\n", PTR_ERR(obj))) {
+			obj = NULL;
 			goto cleanup;
+		}
 
 		err = bpf_object__load(obj);
 		if (CHECK(err, "obj_load", "err %d\n", err))
 			goto cleanup;
 		inst[i].obj = obj;
+		obj = NULL;
 
 		if (rand() % 2) {
-			link = load(obj, fentry_name);
-			if (CHECK(IS_ERR(link), "attach prog", "err %ld\n", PTR_ERR(link)))
+			link = load(inst[i].obj, fentry_name);
+			if (CHECK(IS_ERR(link), "attach prog", "err %ld\n", PTR_ERR(link))) {
+				link = NULL;
 				goto cleanup;
+			}
 			inst[i].link_fentry = link;
 		} else {
-			link = load(obj, fexit_name);
-			if (CHECK(IS_ERR(link), "attach prog", "err %ld\n", PTR_ERR(link)))
+			link = load(inst[i].obj, fexit_name);
+			if (CHECK(IS_ERR(link), "attach prog", "err %ld\n", PTR_ERR(link))) {
+				link = NULL;
 				goto cleanup;
+			}
 			inst[i].link_fexit = link;
 		}
 	}
 
 	/* and try 1 extra.. */
 	obj = bpf_object__open_file(object, NULL);
-	if (CHECK(IS_ERR(obj), "obj_open_file", "err %ld\n", PTR_ERR(obj)))
+	if (CHECK(IS_ERR(obj), "obj_open_file", "err %ld\n", PTR_ERR(obj))) {
+		obj = NULL;
 		goto cleanup;
+	}
 
 	err = bpf_object__load(obj);
 	if (CHECK(err, "obj_load", "err %d\n", err))
@@ -104,7 +113,9 @@ void test_trampoline_count(void)
 cleanup_extra:
 	bpf_object__close(obj);
 cleanup:
-	while (--i) {
+	if (i >= MAX_TRAMP_PROGS)
+		i = MAX_TRAMP_PROGS - 1;
+	for (; i >= 0; i--) {
 		bpf_link__destroy(inst[i].link_fentry);
 		bpf_link__destroy(inst[i].link_fexit);
 		bpf_object__close(inst[i].obj);

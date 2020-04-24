@@ -36,6 +36,7 @@
 #include <linux/jiffies.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
+#include <linux/msdos_partition.h>
 #include <scsi/scsicam.h>
 
 #include <asm/dma.h>
@@ -3410,9 +3411,10 @@ static int blogic_diskparam(struct scsi_device *sdev, struct block_device *dev,
 	   a partition table entry whose end_head matches one of the
 	   standard BusLogic geometry translations (64/32, 128/32, or 255/63).
 	 */
-	if (*(unsigned short *) (buf + 64) == 0xAA55) {
-		struct partition *part1_entry = (struct partition *) buf;
-		struct partition *part_entry = part1_entry;
+	if (*(unsigned short *) (buf + 64) == MSDOS_LABEL_MAGIC) {
+		struct msdos_partition *part1_entry =
+				(struct msdos_partition *)buf;
+		struct msdos_partition *part_entry = part1_entry;
 		int saved_cyl = diskparam->cylinders, part_no;
 		unsigned char part_end_head = 0, part_end_sector = 0;
 
@@ -3652,7 +3654,7 @@ static bool __init blogic_parse(char **str, char *keyword)
   selected host adapter.
 
   The BusLogic Driver Probing Options are described in
-  <file:Documentation/scsi/BusLogic.txt>.
+  <file:Documentation/scsi/BusLogic.rst>.
 */
 
 static int __init blogic_parseopts(char *options)

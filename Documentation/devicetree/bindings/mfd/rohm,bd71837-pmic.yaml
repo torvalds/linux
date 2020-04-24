@@ -1,0 +1,238 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mfd/rohm,bd71837-pmic.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ROHM BD71837 Power Management Integrated Circuit bindings
+
+maintainers:
+  - Matti Vaittinen <matti.vaittinen@fi.rohmeurope.com>
+
+description: |
+  BD71837MWV is programmable Power Management ICs for powering single-core,
+  dual-core, and quad-core SoCs such as NXP-i.MX 8M. It is optimized for low
+  BOM cost and compact solution footprint. BD71837MWV  integrates 8 Buck
+  regulators and 7 LDOs.
+  Datasheet for BD71837 is available at
+  https://www.rohm.com/products/power-management/power-management-ic-for-system/industrial-consumer-applications/nxp-imx/bd71837amwv-product
+
+properties:
+  compatible:
+    const: rohm,bd71837
+
+  reg:
+    description:
+      I2C slave address.
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  "#clock-cells":
+    const: 0
+
+# The BD718x7 supports two different HW states as reset target states. States
+# are called as SNVS and READY. At READY state all the PMIC power outputs go
+# down and OTP is reload. At the SNVS state all other logic and external
+# devices apart from the SNVS power domain are shut off. Please refer to NXP
+# i.MX8 documentation for further information regarding SNVS state. When a
+# reset is done via SNVS state the PMIC OTP data is not reload. This causes
+# power outputs that have been under SW control to stay down when reset has
+# switched power state to SNVS. If reset is done via READY state the power
+# outputs will be returned to HW control by OTP loading. Thus the reset
+# target state is set to READY by default. If SNVS state is used the boot
+# crucial regulators must have the regulator-always-on and regulator-boot-on
+# properties set in regulator node.
+
+  rohm,reset-snvs-powered:
+    description: |
+      Transfer PMIC to SNVS state at reset
+    type: boolean
+
+# Configure the "short press" and "long press" timers for the power button.
+# Values are rounded to what hardware supports
+# Short-press:
+#   Shortest being 10ms, next 500ms and then multiple of 500ms up to 7,5s
+# Long-press:
+#   Shortest being 10ms, next 1000ms and then multiple of 1000ms up to 15s
+# If these properties are not present the existing configuration (from
+# bootloader or OTP) is not touched.
+
+  rohm,short-press-ms:
+    description:
+      Short press duration in milliseconds
+    enum:
+      - 10
+      - 500
+      - 1000
+      - 1500
+      - 2000
+      - 2500
+      - 3000
+      - 3500
+      - 4000
+      - 4500
+      - 5000
+      - 5500
+      - 6000
+      - 6500
+      - 7000
+
+  rohm,long-press-ms:
+    description:
+      Long press duration in milliseconds
+    enum:
+      - 10
+      - 1000
+      - 2000
+      - 3000
+      - 4000
+      - 5000
+      - 6000
+      - 7000
+      - 8000
+      - 9000
+      - 10000
+      - 11000
+      - 12000
+      - 13000
+      - 14000
+
+  regulators:
+    $ref: ../regulator/rohm,bd71837-regulator.yaml
+    description:
+      List of child nodes that specify the regulators.
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - "#clock-cells"
+  - regulators
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/leds/common.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        pmic: pmic@4b {
+            compatible = "rohm,bd71837";
+            reg = <0x4b>;
+            interrupt-parent = <&gpio1>;
+            interrupts = <29 IRQ_TYPE_LEVEL_LOW>;
+            #clock-cells = <0>;
+            clocks = <&osc 0>;
+            rohm,reset-snvs-powered;
+            rohm,short-press-ms = <10>;
+            rohm,long-press-ms = <2000>;
+
+            regulators {
+                buck1: BUCK1 {
+                    regulator-name = "buck1";
+                    regulator-min-microvolt = <700000>;
+                    regulator-max-microvolt = <1300000>;
+                    regulator-boot-on;
+                    regulator-always-on;
+                    regulator-ramp-delay = <1250>;
+                    rohm,dvs-run-voltage = <900000>;
+                    rohm,dvs-idle-voltage = <850000>;
+                    rohm,dvs-suspend-voltage = <800000>;
+                };
+                buck2: BUCK2 {
+                    regulator-name = "buck2";
+                    regulator-min-microvolt = <700000>;
+                    regulator-max-microvolt = <1300000>;
+                    regulator-boot-on;
+                    regulator-always-on;
+                    regulator-ramp-delay = <1250>;
+                    rohm,dvs-run-voltage = <1000000>;
+                    rohm,dvs-idle-voltage = <900000>;
+                };
+                buck3: BUCK3 {
+                    regulator-name = "buck3";
+                    regulator-min-microvolt = <700000>;
+                    regulator-max-microvolt = <1300000>;
+                    regulator-boot-on;
+                    rohm,dvs-run-voltage = <1000000>;
+                };
+                buck4: BUCK4 {
+                    regulator-name = "buck4";
+                    regulator-min-microvolt = <700000>;
+                    regulator-max-microvolt = <1300000>;
+                    regulator-boot-on;
+                    rohm,dvs-run-voltage = <1000000>;
+                };
+                buck5: BUCK5 {
+                    regulator-name = "buck5";
+                    regulator-min-microvolt = <700000>;
+                    regulator-max-microvolt = <1350000>;
+                    regulator-boot-on;
+                };
+                buck6: BUCK6 {
+                    regulator-name = "buck6";
+                    regulator-min-microvolt = <3000000>;
+                    regulator-max-microvolt = <3300000>;
+                    regulator-boot-on;
+                };
+                buck7: BUCK7 {
+                    regulator-name = "buck7";
+                    regulator-min-microvolt = <1605000>;
+                    regulator-max-microvolt = <1995000>;
+                    regulator-boot-on;
+                };
+                buck8: BUCK8 {
+                    regulator-name = "buck8";
+                    regulator-min-microvolt = <800000>;
+                    regulator-max-microvolt = <1400000>;
+                };
+
+                ldo1: LDO1 {
+                    regulator-name = "ldo1";
+                    regulator-min-microvolt = <3000000>;
+                    regulator-max-microvolt = <3300000>;
+                    regulator-boot-on;
+                };
+                ldo2: LDO2 {
+                    regulator-name = "ldo2";
+                    regulator-min-microvolt = <900000>;
+                    regulator-max-microvolt = <900000>;
+                    regulator-boot-on;
+                };
+                ldo3: LDO3 {
+                    regulator-name = "ldo3";
+                    regulator-min-microvolt = <1800000>;
+                    regulator-max-microvolt = <3300000>;
+                };
+                ldo4: LDO4 {
+                    regulator-name = "ldo4";
+                    regulator-min-microvolt = <900000>;
+                    regulator-max-microvolt = <1800000>;
+                };
+                ldo5: LDO5 {
+                    regulator-name = "ldo5";
+                    regulator-min-microvolt = <1800000>;
+                    regulator-max-microvolt = <3300000>;
+                };
+                ldo6: LDO6 {
+                    regulator-name = "ldo6";
+                    regulator-min-microvolt = <900000>;
+                    regulator-max-microvolt = <1800000>;
+                };
+                ldo7_reg: LDO7 {
+                    regulator-name = "ldo7";
+                    regulator-min-microvolt = <1800000>;
+                    regulator-max-microvolt = <3300000>;
+                };
+            };
+        };
+    };

@@ -10,21 +10,27 @@ struct of_pci_range_parser {
 	struct device_node *node;
 	const __be32 *range;
 	const __be32 *end;
-	int np;
+	int na;
+	int ns;
 	int pna;
 	bool dma;
 };
+#define of_range_parser of_pci_range_parser
 
 struct of_pci_range {
-	u32 pci_space;
-	u64 pci_addr;
+	union {
+		u64 pci_addr;
+		u64 bus_addr;
+	};
 	u64 cpu_addr;
 	u64 size;
 	u32 flags;
 };
+#define of_range of_pci_range
 
 #define for_each_of_pci_range(parser, range) \
 	for (; of_pci_range_parser_one(parser, range);)
+#define for_each_of_range for_each_of_pci_range
 
 /* Translate a DMA address from device space to CPU space */
 extern u64 of_translate_dma_address(struct device_node *dev,
@@ -143,4 +149,3 @@ static inline int of_pci_range_to_resource(struct of_pci_range *range,
 #endif /* CONFIG_OF_ADDRESS && CONFIG_PCI */
 
 #endif /* __OF_ADDRESS_H */
-

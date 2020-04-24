@@ -24,7 +24,7 @@ struct sock_reuseport {
 	unsigned int		bind_inany:1;
 	unsigned int		has_conns:1;
 	struct bpf_prog __rcu	*prog;		/* optional BPF sock selector */
-	struct sock		*socks[0];	/* array of sock pointers */
+	struct sock		*socks[];	/* array of sock pointers */
 };
 
 extern int reuseport_alloc(struct sock *sk, bool bind_inany);
@@ -54,7 +54,5 @@ static inline bool reuseport_has_conns(struct sock *sk, bool set)
 
 	return ret;
 }
-
-int reuseport_get_id(struct sock_reuseport *reuse);
 
 #endif  /* _SOCK_REUSEPORT_H */

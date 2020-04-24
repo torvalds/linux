@@ -74,7 +74,7 @@ Before the receiver driver may enable the CSI-2 transmitter by using
 the :c:type:`v4l2_subdev_video_ops`->s_stream(), it must have powered
 the transmitter up by using the
 :c:type:`v4l2_subdev_core_ops`->s_power() callback. This may take
-place either indirectly by using :c:func:`v4l2_pipeline_pm_use` or
+place either indirectly by using :c:func:`v4l2_pipeline_pm_get` or
 directly.
 
 Formats

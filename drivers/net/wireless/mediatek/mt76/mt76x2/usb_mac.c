@@ -98,7 +98,7 @@ int mt76x2u_mac_stop(struct mt76x02_dev *dev)
 	bool stopped = false;
 	u32 rts_cfg;
 
-	if (test_bit(MT76_REMOVED, &dev->mt76.state))
+	if (test_bit(MT76_REMOVED, &dev->mphy.state))
 		return -EIO;
 
 	rts_cfg = mt76_rr(dev, MT_TX_RTS_CFG);

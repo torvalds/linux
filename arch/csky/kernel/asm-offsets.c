@@ -72,6 +72,7 @@ int main(void)
 	DEFINE(PT_RLO,            offsetof(struct pt_regs, rlo));
 #endif
 	DEFINE(PT_USP,            offsetof(struct pt_regs, usp));
+	DEFINE(PT_FRAME_SIZE,     sizeof(struct pt_regs));
 
 	/* offsets into the irq_cpustat_t struct */
 	DEFINE(CPUSTAT_SOFTIRQ_PENDING, offsetof(irq_cpustat_t,

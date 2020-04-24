@@ -20,9 +20,11 @@
 #include <linux/ctype.h>
 #include <linux/workqueue.h>
 #include <linux/slab.h>
+#include <linux/platform_device.h>
 
 #include "qlink.h"
 #include "trans.h"
+#include "qlink_util.h"
 
 #undef pr_fmt
 #define pr_fmt(fmt)	KBUILD_MODNAME ": %s: " fmt, __func__
@@ -83,7 +85,8 @@ struct qtnf_mac_info {
 	u8 sretry_limit;
 	u8 coverage_class;
 	u8 radar_detect_widths;
-	u32 max_acl_mac_addrs;
+	u8 max_scan_ssids;
+	u16 max_acl_mac_addrs;
 	struct ieee80211_ht_cap ht_cap_mod_mask;
 	struct ieee80211_vht_cap vht_cap_mod_mask;
 	struct ieee80211_iface_combination *if_comb;
@@ -92,15 +95,6 @@ struct qtnf_mac_info {
 	u8 *extended_capabilities_mask;
 	u8 extended_capabilities_len;
 	struct wiphy_wowlan_support *wowlan;
-};
-
-struct qtnf_chan_stats {
-	u32 chan_num;
-	u32 cca_tx;
-	u32 cca_rx;
-	u32 cca_busy;
-	u32 cca_try;
-	s8 chan_noise;
 };
 
 struct qtnf_wmac {
@@ -114,19 +108,19 @@ struct qtnf_wmac {
 	struct mutex mac_lock;	/* lock during wmac speicific ops */
 	struct delayed_work scan_timeout;
 	struct ieee80211_regdomain *rd;
+	struct platform_device *pdev;
 };
 
 struct qtnf_hw_info {
-	u16 ql_proto_ver;
+	u32 ql_proto_ver;
 	u8 num_mac;
 	u8 mac_bitmap;
 	u32 fw_ver;
-	u32 hw_capab;
 	u8 total_tx_chain;
 	u8 total_rx_chain;
 	char fw_version[ETHTOOL_FWVERS_LEN];
 	u32 hw_version;
-	u8 max_scan_ssids;
+	u8 hw_capab[QLINK_HW_CAPAB_NUM / BITS_PER_BYTE + 1];
 };
 
 struct qtnf_vif *qtnf_mac_get_free_vif(struct qtnf_wmac *mac);
@@ -135,12 +129,12 @@ void qtnf_mac_iface_comb_free(struct qtnf_wmac *mac);
 void qtnf_mac_ext_caps_free(struct qtnf_wmac *mac);
 bool qtnf_slave_radar_get(void);
 bool qtnf_dfs_offload_get(void);
-struct wiphy *qtnf_wiphy_allocate(struct qtnf_bus *bus);
+struct wiphy *qtnf_wiphy_allocate(struct qtnf_bus *bus,
+				  struct platform_device *pdev);
 int qtnf_core_net_attach(struct qtnf_wmac *mac, struct qtnf_vif *priv,
 			 const char *name, unsigned char name_assign_type);
 void qtnf_main_work_queue(struct work_struct *work);
 int qtnf_cmd_send_update_phy_params(struct qtnf_wmac *mac, u32 changed);
-int qtnf_cmd_send_get_phy_params(struct qtnf_wmac *mac);
 
 struct qtnf_wmac *qtnf_core_get_mac(const struct qtnf_bus *bus, u8 macid);
 struct net_device *qtnf_classify_skb(struct qtnf_bus *bus, struct sk_buff *skb);
@@ -158,6 +152,13 @@ bool qtnf_netdev_is_qtn(const struct net_device *ndev);
 static inline struct qtnf_vif *qtnf_netdev_get_priv(struct net_device *dev)
 {
 	return *((void **)netdev_priv(dev));
+}
+
+static inline bool qtnf_hwcap_is_set(const struct qtnf_hw_info *info,
+				     unsigned int bit)
+{
+	return qtnf_utils_is_bit_set(info->hw_capab, bit,
+				     sizeof(info->hw_capab));
 }
 
 #endif /* _QTN_FMAC_CORE_H_ */

@@ -198,14 +198,14 @@ u32  GetEngineCompletePtr(struct kpc_dma_device *eng)
 static inline
 void  lock_engine(struct kpc_dma_device *eng)
 {
-	BUG_ON(eng == NULL);
+	BUG_ON(!eng);
 	mutex_lock(&eng->sem);
 }
 
 static inline
 void  unlock_engine(struct kpc_dma_device *eng)
 {
-	BUG_ON(eng == NULL);
+	BUG_ON(!eng);
 	mutex_unlock(&eng->sem);
 }
 

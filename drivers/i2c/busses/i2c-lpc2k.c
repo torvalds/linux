@@ -396,7 +396,7 @@ static int i2c_lpc2k_probe(struct platform_device *pdev)
 	ret = of_property_read_u32(pdev->dev.of_node, "clock-frequency",
 				   &bus_clk_rate);
 	if (ret)
-		bus_clk_rate = 100000; /* 100 kHz default clock rate */
+		bus_clk_rate = I2C_MAX_STANDARD_MODE_FREQ;
 
 	clkrate = clk_get_rate(i2c->clk);
 	if (clkrate == 0) {
@@ -407,9 +407,9 @@ static int i2c_lpc2k_probe(struct platform_device *pdev)
 
 	/* Setup I2C dividers to generate clock with proper duty cycle */
 	clkrate = clkrate / bus_clk_rate;
-	if (bus_clk_rate <= 100000)
+	if (bus_clk_rate <= I2C_MAX_STANDARD_MODE_FREQ)
 		scl_high = (clkrate * I2C_STD_MODE_DUTY) / 100;
-	else if (bus_clk_rate <= 400000)
+	else if (bus_clk_rate <= I2C_MAX_FAST_MODE_FREQ)
 		scl_high = (clkrate * I2C_FAST_MODE_DUTY) / 100;
 	else
 		scl_high = (clkrate * I2C_FAST_MODE_PLUS_DUTY) / 100;

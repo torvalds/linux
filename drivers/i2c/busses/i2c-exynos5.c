@@ -164,13 +164,6 @@
 #define HSI2C_MASTER_ID(x)			((x & 0xff) << 24)
 #define MASTER_ID(x)				((x & 0x7) + 0x08)
 
-/*
- * Controller operating frequency, timing values for operation
- * are calculated against this frequency
- */
-#define HSI2C_HS_TX_CLOCK	1000000
-#define HSI2C_FS_TX_CLOCK	100000
-
 #define EXYNOS5_I2C_TIMEOUT (msecs_to_jiffies(100))
 
 enum i2c_type_exynos {
@@ -264,6 +257,9 @@ static void exynos5_i2c_clr_pend_irq(struct exynos5_i2c *i2c)
  * exynos5_i2c_set_timing: updates the registers with appropriate
  * timing values calculated
  *
+ * Timing values for operation are calculated against either 100kHz
+ * or 1MHz controller operating frequency.
+ *
  * Returns 0 on success, -EINVAL if the cycle length cannot
  * be calculated.
  */
@@ -281,7 +277,7 @@ static int exynos5_i2c_set_timing(struct exynos5_i2c *i2c, bool hs_timings)
 	unsigned int t_ftl_cycle;
 	unsigned int clkin = clk_get_rate(i2c->clk);
 	unsigned int op_clk = hs_timings ? i2c->op_clock :
-		(i2c->op_clock >= HSI2C_HS_TX_CLOCK) ? HSI2C_FS_TX_CLOCK :
+		(i2c->op_clock >= I2C_MAX_FAST_MODE_PLUS_FREQ) ? I2C_MAX_STANDARD_MODE_FREQ :
 		i2c->op_clock;
 	int div, clk_cycle, temp;
 
@@ -353,7 +349,7 @@ static int exynos5_hsi2c_clock_setup(struct exynos5_i2c *i2c)
 	/* always set Fast Speed timings */
 	int ret = exynos5_i2c_set_timing(i2c, false);
 
-	if (ret < 0 || i2c->op_clock < HSI2C_HS_TX_CLOCK)
+	if (ret < 0 || i2c->op_clock < I2C_MAX_FAST_MODE_PLUS_FREQ)
 		return ret;
 
 	return exynos5_i2c_set_timing(i2c, true);
@@ -376,7 +372,7 @@ static void exynos5_i2c_init(struct exynos5_i2c *i2c)
 					i2c->regs + HSI2C_CTL);
 	writel(HSI2C_TRAILING_COUNT, i2c->regs + HSI2C_TRAILIG_CTL);
 
-	if (i2c->op_clock >= HSI2C_HS_TX_CLOCK) {
+	if (i2c->op_clock >= I2C_MAX_FAST_MODE_PLUS_FREQ) {
 		writel(HSI2C_MASTER_ID(MASTER_ID(i2c->adap.nr)),
 					i2c->regs + HSI2C_ADDR);
 		i2c_conf |= HSI2C_HS_MODE;
@@ -748,7 +744,7 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	if (of_property_read_u32(np, "clock-frequency", &i2c->op_clock))
-		i2c->op_clock = HSI2C_FS_TX_CLOCK;
+		i2c->op_clock = I2C_MAX_STANDARD_MODE_FREQ;
 
 	strlcpy(i2c->adap.name, "exynos5-i2c", sizeof(i2c->adap.name));
 	i2c->adap.owner   = THIS_MODULE;

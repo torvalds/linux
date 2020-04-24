@@ -745,7 +745,7 @@ static int video_open(struct file *file)
 
 	file->private_data = vfh;
 
-	ret = v4l2_pipeline_pm_use(&vdev->entity, 1);
+	ret = v4l2_pipeline_pm_get(&vdev->entity);
 	if (ret < 0) {
 		dev_err(video->camss->dev, "Failed to power up pipeline: %d\n",
 			ret);
@@ -771,7 +771,7 @@ static int video_release(struct file *file)
 
 	vb2_fop_release(file);
 
-	v4l2_pipeline_pm_use(&vdev->entity, 0);
+	v4l2_pipeline_pm_put(&vdev->entity);
 
 	file->private_data = NULL;
 
@@ -921,7 +921,7 @@ int msm_video_register(struct camss_video *video, struct v4l2_device *v4l2_dev,
 	vdev->lock = &video->lock;
 	strscpy(vdev->name, name, sizeof(vdev->name));
 
-	ret = video_register_device(vdev, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(vdev, VFL_TYPE_VIDEO, -1);
 	if (ret < 0) {
 		dev_err(v4l2_dev->dev, "Failed to register video device: %d\n",
 			ret);

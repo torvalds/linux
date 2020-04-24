@@ -318,3 +318,8 @@ Date:		September 2019
 Contact:	"Hridya Valsaraju" <hridya@google.com>
 Description:	Average number of valid blocks.
 		Available when CONFIG_F2FS_STAT_FS=y.
+
+What:		/sys/fs/f2fs/<disk>/mounted_time_sec
+Date:		February 2020
+Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
+Description:	Show the mounted time in secs of this partition.

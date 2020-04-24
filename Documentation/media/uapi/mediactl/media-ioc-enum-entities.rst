@@ -64,11 +64,10 @@ id's until they get an error.
 .. flat-table:: struct media_entity_desc
     :header-rows:  0
     :stub-columns: 0
-    :widths: 1 1 1 1 8
+    :widths: 2 2 1 8
 
     *  -  __u32
        -  ``id``
-       -
        -
        -  Entity ID, set by the application. When the ID is or'ed with
 	  ``MEDIA_ENT_ID_FLAG_NEXT``, the driver clears the flag and returns
@@ -79,43 +78,36 @@ id's until they get an error.
     *  -  char
        -  ``name``\ [32]
        -
-       -
        -  Entity name as an UTF-8 NULL-terminated string. This name must be unique
           within the media topology.
 
     *  -  __u32
        -  ``type``
        -
-       -
        -  Entity type, see :ref:`media-entity-functions` for details.
 
     *  -  __u32
        -  ``revision``
-       -
        -
        -  Entity revision. Always zero (obsolete)
 
     *  -  __u32
        -  ``flags``
        -
-       -
        -  Entity flags, see :ref:`media-entity-flag` for details.
 
     *  -  __u32
        -  ``group_id``
-       -
        -
        -  Entity group ID. Always zero (obsolete)
 
     *  -  __u16
        -  ``pads``
        -
-       -
        -  Number of pads
 
     *  -  __u16
        -  ``links``
-       -
        -
        -  Total number of outbound links. Inbound links are not counted in
 	  this field.
@@ -123,34 +115,32 @@ id's until they get an error.
     *  -  __u32
        -  ``reserved[4]``
        -
-       -
        -  Reserved for future extensions. Drivers and applications must set
           the array to zero.
 
-    *  -  union
+    *  -  union {
+       -  (anonymous)
 
-    *  -
-       -  struct
+    *  -  struct
        -  ``dev``
        -
        -  Valid for (sub-)devices that create a single device node.
 
     *  -
-       -
        -  __u32
        -  ``major``
        -  Device node major number.
 
     *  -
-       -
        -  __u32
        -  ``minor``
        -  Device node minor number.
 
-    *  -
-       -  __u8
+    *  -  __u8
        -  ``raw``\ [184]
        -
+       -
+    *  - }
        -
 
 

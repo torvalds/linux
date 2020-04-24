@@ -180,7 +180,7 @@ edma1_tptc0: tptc@27b0000 {
 };
 
 edma1_tptc1: tptc@27b8000 {
-	compatible = "ti, k2g-edma3-tptc", "ti,edma3-tptc";
+	compatible = "ti,k2g-edma3-tptc", "ti,edma3-tptc";
 	reg =	<0x027b8000 0x400>;
 	power-domains = <&k2g_pds 0x4f>;
 };

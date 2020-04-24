@@ -41,13 +41,6 @@ struct zorro_dev {
 
 
     /*
-     *  Zorro bus
-     */
-
-extern struct bus_type zorro_bus_type;
-
-
-    /*
      *  Zorro device drivers
      */
 
@@ -70,11 +63,6 @@ struct zorro_driver {
 /* New-style probing */
 extern int zorro_register_driver(struct zorro_driver *);
 extern void zorro_unregister_driver(struct zorro_driver *);
-extern const struct zorro_device_id *zorro_match_device(const struct zorro_device_id *ids, const struct zorro_dev *z);
-static inline struct zorro_driver *zorro_dev_driver(const struct zorro_dev *z)
-{
-    return z->driver;
-}
 
 
 extern unsigned int zorro_num_autocon;	/* # of autoconfig devices found */

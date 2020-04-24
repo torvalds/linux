@@ -123,7 +123,7 @@ static inline int cvmx_helper_get_last_ipd_port(int interface)
  *
  * @work:   Work queue entry with packet to free
  */
-static inline void cvmx_helper_free_packet_data(cvmx_wqe_t *work)
+static inline void cvmx_helper_free_packet_data(struct cvmx_wqe *work)
 {
 	uint64_t number_buffers;
 	union cvmx_buf_ptr buffer_ptr;

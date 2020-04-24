@@ -389,11 +389,9 @@ static int bgpio_get_dir(struct gpio_chip *gc, unsigned int gpio)
 	return GPIO_LINE_DIRECTION_IN;
 }
 
-static int bgpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
+static void bgpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
 {
 	unsigned long flags;
-
-	gc->set(gc, gpio, val);
 
 	spin_lock_irqsave(&gc->bgpio_lock, flags);
 
@@ -405,7 +403,21 @@ static int bgpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
 		gc->write_reg(gc->reg_dir_out, gc->bgpio_dir);
 
 	spin_unlock_irqrestore(&gc->bgpio_lock, flags);
+}
 
+static int bgpio_dir_out_dir_first(struct gpio_chip *gc, unsigned int gpio,
+				   int val)
+{
+	bgpio_dir_out(gc, gpio, val);
+	gc->set(gc, gpio, val);
+	return 0;
+}
+
+static int bgpio_dir_out_val_first(struct gpio_chip *gc, unsigned int gpio,
+				   int val)
+{
+	gc->set(gc, gpio, val);
+	bgpio_dir_out(gc, gpio, val);
 	return 0;
 }
 
@@ -538,7 +550,10 @@ static int bgpio_setup_direction(struct gpio_chip *gc,
 	if (dirout || dirin) {
 		gc->reg_dir_out = dirout;
 		gc->reg_dir_in = dirin;
-		gc->direction_output = bgpio_dir_out;
+		if (flags & BGPIOF_NO_SET_ON_INPUT)
+			gc->direction_output = bgpio_dir_out_dir_first;
+		else
+			gc->direction_output = bgpio_dir_out_val_first;
 		gc->direction_input = bgpio_dir_in;
 		gc->get_direction = bgpio_get_dir;
 	} else {

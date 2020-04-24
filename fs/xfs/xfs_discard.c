@@ -31,6 +31,7 @@ xfs_trim_extents(
 	struct block_device	*bdev = mp->m_ddev_targp->bt_bdev;
 	struct xfs_btree_cur	*cur;
 	struct xfs_buf		*agbp;
+	struct xfs_agf		*agf;
 	struct xfs_perag	*pag;
 	int			error;
 	int			i;
@@ -47,14 +48,14 @@ xfs_trim_extents(
 	error = xfs_alloc_read_agf(mp, NULL, agno, 0, &agbp);
 	if (error)
 		goto out_put_perag;
+	agf = agbp->b_addr;
 
 	cur = xfs_allocbt_init_cursor(mp, NULL, agbp, agno, XFS_BTNUM_CNT);
 
 	/*
 	 * Look up the longest btree in the AGF and start with it.
 	 */
-	error = xfs_alloc_lookup_ge(cur, 0,
-			    be32_to_cpu(XFS_BUF_TO_AGF(agbp)->agf_longest), &i);
+	error = xfs_alloc_lookup_ge(cur, 0, be32_to_cpu(agf->agf_longest), &i);
 	if (error)
 		goto out_del_cursor;
 
@@ -75,7 +76,7 @@ xfs_trim_extents(
 			error = -EFSCORRUPTED;
 			goto out_del_cursor;
 		}
-		ASSERT(flen <= be32_to_cpu(XFS_BUF_TO_AGF(agbp)->agf_longest));
+		ASSERT(flen <= be32_to_cpu(agf->agf_longest));
 
 		/*
 		 * use daddr format for all range/len calculations as that is

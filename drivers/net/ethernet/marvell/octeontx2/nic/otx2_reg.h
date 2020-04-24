@@ -45,6 +45,19 @@
 #define RVU_PF_MSIX_VECX_CTL(a)             (0x008 | (a) << 4)
 #define RVU_PF_MSIX_PBAX(a)                 (0xF0000 | (a) << 3)
 
+/* RVU VF registers */
+#define	RVU_VF_VFPF_MBOX0		    (0x00000)
+#define	RVU_VF_VFPF_MBOX1		    (0x00008)
+#define	RVU_VF_VFPF_MBOXX(a)		    (0x00 | (a) << 3)
+#define	RVU_VF_INT			    (0x20)
+#define	RVU_VF_INT_W1S			    (0x28)
+#define	RVU_VF_INT_ENA_W1S		    (0x30)
+#define	RVU_VF_INT_ENA_W1C		    (0x38)
+#define	RVU_VF_BLOCK_ADDRX_DISC(a)	    (0x200 | (a) << 3)
+#define	RVU_VF_MSIX_VECX_ADDR(a)	    (0x000 | (a) << 4)
+#define	RVU_VF_MSIX_VECX_CTL(a)		    (0x008 | (a) << 4)
+#define	RVU_VF_MSIX_PBAX(a)		    (0xF0000 | (a) << 3)
+
 #define RVU_FUNC_BLKADDR_SHIFT		20
 #define RVU_FUNC_BLKADDR_MASK		0x1FULL
 

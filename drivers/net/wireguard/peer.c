@@ -34,11 +34,8 @@ struct wg_peer *wg_peer_create(struct wg_device *wg,
 		return ERR_PTR(ret);
 	peer->device = wg;
 
-	if (!wg_noise_handshake_init(&peer->handshake, &wg->static_identity,
-				     public_key, preshared_key, peer)) {
-		ret = -EKEYREJECTED;
-		goto err_1;
-	}
+	wg_noise_handshake_init(&peer->handshake, &wg->static_identity,
+				public_key, preshared_key, peer);
 	if (dst_cache_init(&peer->endpoint_cache, GFP_KERNEL))
 		goto err_1;
 	if (wg_packet_queue_init(&peer->tx_queue, wg_packet_tx_worker, false,

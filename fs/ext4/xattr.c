@@ -245,7 +245,7 @@ __ext4_xattr_check_block(struct inode *inode, struct buffer_head *bh,
 					 bh->b_data);
 errout:
 	if (error)
-		__ext4_error_inode(inode, function, line, 0,
+		__ext4_error_inode(inode, function, line, 0, -error,
 				   "corrupted xattr block %llu",
 				   (unsigned long long) bh->b_blocknr);
 	else
@@ -269,7 +269,7 @@ __xattr_check_inode(struct inode *inode, struct ext4_xattr_ibody_header *header,
 	error = ext4_xattr_check_entries(IFIRST(header), end, IFIRST(header));
 errout:
 	if (error)
-		__ext4_error_inode(inode, function, line, 0,
+		__ext4_error_inode(inode, function, line, 0, -error,
 				   "corrupted in-inode xattr");
 	return error;
 }
@@ -2880,9 +2880,9 @@ int ext4_xattr_delete_inode(handle_t *handle, struct inode *inode,
 		if (IS_ERR(bh)) {
 			error = PTR_ERR(bh);
 			if (error == -EIO) {
-				ext4_set_errno(inode->i_sb, EIO);
-				EXT4_ERROR_INODE(inode, "block %llu read error",
-						 EXT4_I(inode)->i_file_acl);
+				EXT4_ERROR_INODE_ERR(inode, EIO,
+						     "block %llu read error",
+						     EXT4_I(inode)->i_file_acl);
 			}
 			bh = NULL;
 			goto cleanup;

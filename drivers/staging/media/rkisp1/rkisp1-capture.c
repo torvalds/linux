@@ -937,10 +937,7 @@ static void rkisp1_vb2_stop_streaming(struct vb2_queue *queue)
 
 	rkisp1_return_all_buffers(cap, VB2_BUF_STATE_ERROR);
 
-	ret = v4l2_pipeline_pm_use(&node->vdev.entity, 0);
-	if (ret)
-		dev_err(rkisp1->dev, "pipeline close failed error:%d\n", ret);
-
+	v4l2_pipeline_pm_put(&node->vdev.entity);
 	ret = pm_runtime_put(rkisp1->dev);
 	if (ret)
 		dev_err(rkisp1->dev, "power down failed error:%d\n", ret);
@@ -999,7 +996,7 @@ rkisp1_vb2_start_streaming(struct vb2_queue *queue, unsigned int count)
 		dev_err(cap->rkisp1->dev, "power up failed %d\n", ret);
 		goto err_destroy_dummy;
 	}
-	ret = v4l2_pipeline_pm_use(entity, 1);
+	ret = v4l2_pipeline_pm_get(entity);
 	if (ret) {
 		dev_err(cap->rkisp1->dev, "open cif pipeline failed %d\n", ret);
 		goto err_pipe_pm_put;
@@ -1025,7 +1022,7 @@ err_pipe_disable:
 	rkisp1_pipeline_sink_walk(entity, NULL, rkisp1_pipeline_disable_cb);
 err_stop_stream:
 	rkisp1_stream_stop(cap);
-	v4l2_pipeline_pm_use(entity, 0);
+	v4l2_pipeline_pm_put(entity);
 err_pipe_pm_put:
 	pm_runtime_put(cap->rkisp1->dev);
 err_destroy_dummy:
@@ -1344,7 +1341,7 @@ static int rkisp1_register_capture(struct rkisp1_capture *cap)
 
 	q = &node->buf_queue;
 	q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
-	q->io_modes = VB2_MMAP | VB2_DMABUF | VB2_USERPTR;
+	q->io_modes = VB2_MMAP | VB2_DMABUF;
 	q->drv_priv = cap;
 	q->ops = &rkisp1_vb2_ops;
 	q->mem_ops = &vb2_dma_contig_memops;
@@ -1362,7 +1359,7 @@ static int rkisp1_register_capture(struct rkisp1_capture *cap)
 
 	vdev->queue = q;
 
-	ret = video_register_device(vdev, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(vdev, VFL_TYPE_VIDEO, -1);
 	if (ret) {
 		dev_err(cap->rkisp1->dev,
 			"failed to register %s, ret=%d\n", vdev->name, ret);

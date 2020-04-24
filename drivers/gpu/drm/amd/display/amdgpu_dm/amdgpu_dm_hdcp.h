@@ -30,6 +30,7 @@
 #include "hdcp.h"
 #include "dc.h"
 #include "dm_cp_psp.h"
+#include "amdgpu.h"
 
 struct mod_hdcp;
 struct mod_hdcp_link;
@@ -52,6 +53,12 @@ struct hdcp_workqueue {
 
 	enum mod_hdcp_encryption_status encryption_status;
 	uint8_t max_link;
+
+	uint8_t *srm;
+	uint8_t *srm_temp;
+	uint32_t srm_version;
+	uint32_t srm_size;
+	struct bin_attribute attr;
 };
 
 void hdcp_update_display(struct hdcp_workqueue *hdcp_work,
@@ -64,6 +71,6 @@ void hdcp_reset_display(struct hdcp_workqueue *work, unsigned int link_index);
 void hdcp_handle_cpirq(struct hdcp_workqueue *work, unsigned int link_index);
 void hdcp_destroy(struct hdcp_workqueue *work);
 
-struct hdcp_workqueue *hdcp_create_workqueue(void *psp_context, struct cp_psp *cp_psp, struct dc *dc);
+struct hdcp_workqueue *hdcp_create_workqueue(struct amdgpu_device *adev, struct cp_psp *cp_psp, struct dc *dc);
 
 #endif /* AMDGPU_DM_AMDGPU_DM_HDCP_H_ */

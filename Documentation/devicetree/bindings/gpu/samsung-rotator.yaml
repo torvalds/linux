@@ -36,6 +36,8 @@ required:
   - clocks
   - clock-names
 
+additionalProperties: false
+
 examples:
   - |
     rotator@12810000 {

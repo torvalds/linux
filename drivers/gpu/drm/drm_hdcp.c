@@ -23,14 +23,6 @@
 
 #include "drm_internal.h"
 
-static struct hdcp_srm {
-	u32 revoked_ksv_cnt;
-	u8 *revoked_ksv_list;
-
-	/* Mutex to protect above struct member */
-	struct mutex mutex;
-} *srm_data;
-
 static inline void drm_hdcp_print_ksv(const u8 *ksv)
 {
 	DRM_DEBUG("\t%#02x, %#02x, %#02x, %#02x, %#02x\n",
@@ -60,11 +52,11 @@ static u32 drm_hdcp_get_revoked_ksv_count(const u8 *buf, u32 vrls_length)
 	return ksv_count;
 }
 
-static u32 drm_hdcp_get_revoked_ksvs(const u8 *buf, u8 *revoked_ksv_list,
+static u32 drm_hdcp_get_revoked_ksvs(const u8 *buf, u8 **revoked_ksv_list,
 				     u32 vrls_length)
 {
-	u32 parsed_bytes = 0, ksv_count = 0;
 	u32 vrl_ksv_cnt, vrl_ksv_sz, vrl_idx = 0;
+	u32 parsed_bytes = 0, ksv_count = 0;
 
 	do {
 		vrl_ksv_cnt = *buf;
@@ -74,10 +66,10 @@ static u32 drm_hdcp_get_revoked_ksvs(const u8 *buf, u8 *revoked_ksv_list,
 
 		DRM_DEBUG("vrl: %d, Revoked KSVs: %d\n", vrl_idx++,
 			  vrl_ksv_cnt);
-		memcpy(revoked_ksv_list, buf, vrl_ksv_sz);
+		memcpy((*revoked_ksv_list) + (ksv_count * DRM_HDCP_KSV_LEN),
+		       buf, vrl_ksv_sz);
 
 		ksv_count += vrl_ksv_cnt;
-		revoked_ksv_list += vrl_ksv_sz;
 		buf += vrl_ksv_sz;
 
 		parsed_bytes += (vrl_ksv_sz + 1);
@@ -91,7 +83,8 @@ static inline u32 get_vrl_length(const u8 *buf)
 	return drm_hdcp_be24_to_cpu(buf);
 }
 
-static int drm_hdcp_parse_hdcp1_srm(const u8 *buf, size_t count)
+static int drm_hdcp_parse_hdcp1_srm(const u8 *buf, size_t count,
+				    u8 **revoked_ksv_list, u32 *revoked_ksv_cnt)
 {
 	struct hdcp_srm_header *header;
 	u32 vrl_length, ksv_count;
@@ -131,29 +124,28 @@ static int drm_hdcp_parse_hdcp1_srm(const u8 *buf, size_t count)
 	ksv_count = drm_hdcp_get_revoked_ksv_count(buf, vrl_length);
 	if (!ksv_count) {
 		DRM_DEBUG("Revoked KSV count is 0\n");
-		return count;
+		return 0;
 	}
 
-	kfree(srm_data->revoked_ksv_list);
-	srm_data->revoked_ksv_list = kcalloc(ksv_count, DRM_HDCP_KSV_LEN,
-					     GFP_KERNEL);
-	if (!srm_data->revoked_ksv_list) {
+	*revoked_ksv_list = kcalloc(ksv_count, DRM_HDCP_KSV_LEN, GFP_KERNEL);
+	if (!*revoked_ksv_list) {
 		DRM_ERROR("Out of Memory\n");
 		return -ENOMEM;
 	}
 
-	if (drm_hdcp_get_revoked_ksvs(buf, srm_data->revoked_ksv_list,
+	if (drm_hdcp_get_revoked_ksvs(buf, revoked_ksv_list,
 				      vrl_length) != ksv_count) {
-		srm_data->revoked_ksv_cnt = 0;
-		kfree(srm_data->revoked_ksv_list);
+		*revoked_ksv_cnt = 0;
+		kfree(*revoked_ksv_list);
 		return -EINVAL;
 	}
 
-	srm_data->revoked_ksv_cnt = ksv_count;
-	return count;
+	*revoked_ksv_cnt = ksv_count;
+	return 0;
 }
 
-static int drm_hdcp_parse_hdcp2_srm(const u8 *buf, size_t count)
+static int drm_hdcp_parse_hdcp2_srm(const u8 *buf, size_t count,
+				    u8 **revoked_ksv_list, u32 *revoked_ksv_cnt)
 {
 	struct hdcp_srm_header *header;
 	u32 vrl_length, ksv_count, ksv_sz;
@@ -195,13 +187,11 @@ static int drm_hdcp_parse_hdcp2_srm(const u8 *buf, size_t count)
 	ksv_count = (*buf << 2) | DRM_HDCP_2_KSV_COUNT_2_LSBITS(*(buf + 1));
 	if (!ksv_count) {
 		DRM_DEBUG("Revoked KSV count is 0\n");
-		return count;
+		return 0;
 	}
 
-	kfree(srm_data->revoked_ksv_list);
-	srm_data->revoked_ksv_list = kcalloc(ksv_count, DRM_HDCP_KSV_LEN,
-					     GFP_KERNEL);
-	if (!srm_data->revoked_ksv_list) {
+	*revoked_ksv_list = kcalloc(ksv_count, DRM_HDCP_KSV_LEN, GFP_KERNEL);
+	if (!*revoked_ksv_list) {
 		DRM_ERROR("Out of Memory\n");
 		return -ENOMEM;
 	}
@@ -210,10 +200,10 @@ static int drm_hdcp_parse_hdcp2_srm(const u8 *buf, size_t count)
 	buf += DRM_HDCP_2_NO_OF_DEV_PLUS_RESERVED_SZ;
 
 	DRM_DEBUG("Revoked KSVs: %d\n", ksv_count);
-	memcpy(srm_data->revoked_ksv_list, buf, ksv_sz);
+	memcpy(*revoked_ksv_list, buf, ksv_sz);
 
-	srm_data->revoked_ksv_cnt = ksv_count;
-	return count;
+	*revoked_ksv_cnt = ksv_count;
+	return 0;
 }
 
 static inline bool is_srm_version_hdcp1(const u8 *buf)
@@ -226,22 +216,27 @@ static inline bool is_srm_version_hdcp2(const u8 *buf)
 	return *buf == (u8)(DRM_HDCP_2_SRM_ID << 4 | DRM_HDCP_2_INDICATOR);
 }
 
-static void drm_hdcp_srm_update(const u8 *buf, size_t count)
+static int drm_hdcp_srm_update(const u8 *buf, size_t count,
+			       u8 **revoked_ksv_list, u32 *revoked_ksv_cnt)
 {
 	if (count < sizeof(struct hdcp_srm_header))
-		return;
+		return -EINVAL;
 
 	if (is_srm_version_hdcp1(buf))
-		drm_hdcp_parse_hdcp1_srm(buf, count);
+		return drm_hdcp_parse_hdcp1_srm(buf, count, revoked_ksv_list,
+						revoked_ksv_cnt);
 	else if (is_srm_version_hdcp2(buf))
-		drm_hdcp_parse_hdcp2_srm(buf, count);
+		return drm_hdcp_parse_hdcp2_srm(buf, count, revoked_ksv_list,
+						revoked_ksv_cnt);
+	else
+		return -EINVAL;
 }
 
-static void drm_hdcp_request_srm(struct drm_device *drm_dev)
+static int drm_hdcp_request_srm(struct drm_device *drm_dev,
+				u8 **revoked_ksv_list, u32 *revoked_ksv_cnt)
 {
 	char fw_name[36] = "display_hdcp_srm.bin";
 	const struct firmware *fw;
-
 	int ret;
 
 	ret = request_firmware_direct(&fw, (const char *)fw_name,
@@ -250,10 +245,12 @@ static void drm_hdcp_request_srm(struct drm_device *drm_dev)
 		goto exit;
 
 	if (fw->size && fw->data)
-		drm_hdcp_srm_update(fw->data, fw->size);
+		ret = drm_hdcp_srm_update(fw->data, fw->size, revoked_ksv_list,
+					  revoked_ksv_cnt);
 
 exit:
 	release_firmware(fw);
+	return ret;
 }
 
 /**
@@ -279,70 +276,33 @@ exit:
  * https://www.digital-cp.com/sites/default/files/specifications/HDCP%20on%20HDMI%20Specification%20Rev2_2_Final1.pdf
  *
  * Returns:
- * TRUE on any of the KSV is revoked, else FALSE.
+ * Count of the revoked KSVs or -ve error number incase of the failure.
  */
-bool drm_hdcp_check_ksvs_revoked(struct drm_device *drm_dev, u8 *ksvs,
-				 u32 ksv_count)
+int drm_hdcp_check_ksvs_revoked(struct drm_device *drm_dev, u8 *ksvs,
+				u32 ksv_count)
 {
-	u32 rev_ksv_cnt, cnt, i, j;
-	u8 *rev_ksv_list;
+	u32 revoked_ksv_cnt = 0, i, j;
+	u8 *revoked_ksv_list = NULL;
+	int ret = 0;
 
-	if (!srm_data)
-		return false;
+	ret = drm_hdcp_request_srm(drm_dev, &revoked_ksv_list,
+				   &revoked_ksv_cnt);
 
-	mutex_lock(&srm_data->mutex);
-	drm_hdcp_request_srm(drm_dev);
+	/* revoked_ksv_cnt will be zero when above function failed */
+	for (i = 0; i < revoked_ksv_cnt; i++)
+		for  (j = 0; j < ksv_count; j++)
+			if (!memcmp(&ksvs[j * DRM_HDCP_KSV_LEN],
+				    &revoked_ksv_list[i * DRM_HDCP_KSV_LEN],
+				    DRM_HDCP_KSV_LEN)) {
+				DRM_DEBUG("Revoked KSV is ");
+				drm_hdcp_print_ksv(&ksvs[j * DRM_HDCP_KSV_LEN]);
+				ret++;
+			}
 
-	rev_ksv_cnt = srm_data->revoked_ksv_cnt;
-	rev_ksv_list = srm_data->revoked_ksv_list;
-
-	/* If the Revoked ksv list is empty */
-	if (!rev_ksv_cnt || !rev_ksv_list) {
-		mutex_unlock(&srm_data->mutex);
-		return false;
-	}
-
-	for  (cnt = 0; cnt < ksv_count; cnt++) {
-		rev_ksv_list = srm_data->revoked_ksv_list;
-		for (i = 0; i < rev_ksv_cnt; i++) {
-			for (j = 0; j < DRM_HDCP_KSV_LEN; j++)
-				if (ksvs[j] != rev_ksv_list[j]) {
-					break;
-				} else if (j == (DRM_HDCP_KSV_LEN - 1)) {
-					DRM_DEBUG("Revoked KSV is ");
-					drm_hdcp_print_ksv(ksvs);
-					mutex_unlock(&srm_data->mutex);
-					return true;
-				}
-			/* Move the offset to next KSV in the revoked list */
-			rev_ksv_list += DRM_HDCP_KSV_LEN;
-		}
-
-		/* Iterate to next ksv_offset */
-		ksvs += DRM_HDCP_KSV_LEN;
-	}
-	mutex_unlock(&srm_data->mutex);
-	return false;
+	kfree(revoked_ksv_list);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(drm_hdcp_check_ksvs_revoked);
-
-int drm_setup_hdcp_srm(struct class *drm_class)
-{
-	srm_data = kzalloc(sizeof(*srm_data), GFP_KERNEL);
-	if (!srm_data)
-		return -ENOMEM;
-	mutex_init(&srm_data->mutex);
-
-	return 0;
-}
-
-void drm_teardown_hdcp_srm(struct class *drm_class)
-{
-	if (srm_data) {
-		kfree(srm_data->revoked_ksv_list);
-		kfree(srm_data);
-	}
-}
 
 static struct drm_prop_enum_list drm_cp_enum_list[] = {
 	{ DRM_MODE_CONTENT_PROTECTION_UNDESIRED, "Undesired" },

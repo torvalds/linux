@@ -501,26 +501,16 @@ EXPORT_SYMBOL_GPL(debugfs_create_file_unsafe);
  * wide range of flexibility in creating a file, or a directory (if you want
  * to create a directory, the debugfs_create_dir() function is
  * recommended to be used instead.)
- *
- * This function will return a pointer to a dentry if it succeeds.  This
- * pointer must be passed to the debugfs_remove() function when the file is
- * to be removed (no automatic cleanup happens if your module is unloaded,
- * you are responsible here.)  If an error occurs, ERR_PTR(-ERROR) will be
- * returned.
- *
- * If debugfs is not enabled in the kernel, the value -%ENODEV will be
- * returned.
  */
-struct dentry *debugfs_create_file_size(const char *name, umode_t mode,
-					struct dentry *parent, void *data,
-					const struct file_operations *fops,
-					loff_t file_size)
+void debugfs_create_file_size(const char *name, umode_t mode,
+			      struct dentry *parent, void *data,
+			      const struct file_operations *fops,
+			      loff_t file_size)
 {
 	struct dentry *de = debugfs_create_file(name, mode, parent, data, fops);
 
 	if (de)
 		d_inode(de)->i_size = file_size;
-	return de;
 }
 EXPORT_SYMBOL_GPL(debugfs_create_file_size);
 

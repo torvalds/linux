@@ -1071,6 +1071,9 @@ int mlx5_core_modify_hca_vport_context(struct mlx5_core_dev *dev,
 		MLX5_SET64(hca_vport_context, ctx, port_guid, req->port_guid);
 	if (req->field_select & MLX5_HCA_VPORT_SEL_NODE_GUID)
 		MLX5_SET64(hca_vport_context, ctx, node_guid, req->node_guid);
+	MLX5_SET(hca_vport_context, ctx, cap_mask1, req->cap_mask1);
+	MLX5_SET(hca_vport_context, ctx, cap_mask1_field_select,
+		 req->cap_mask1_perm);
 	err = mlx5_cmd_exec(dev, in, in_sz, out, sizeof(out));
 ex:
 	kfree(in);

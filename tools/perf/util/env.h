@@ -88,6 +88,12 @@ struct perf_env {
 		u32			btfs_cnt;
 	} bpf_progs;
 
+	/* same reason as above (for perf-top) */
+	struct {
+		struct rw_semaphore	lock;
+		struct rb_root		tree;
+	} cgroups;
+
 	/* For fast cpu to numa node lookup via perf_env__numa_node */
 	int			*numa_map;
 	int			 nr_numa_map;

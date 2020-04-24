@@ -67,8 +67,7 @@ void pseries_pcibios_bus_add_device(struct pci_dev *pdev)
 		pdn->pe_number  =  physfn_pdn->pe_num_map[pdn->vf_index];
 	}
 #endif
-	eeh_add_device_early(pdn);
-	eeh_add_device_late(pdev);
+	pseries_eeh_init_edev(pdn);
 #ifdef CONFIG_PCI_IOV
 	if (pdev->is_virtfn) {
 		struct eeh_dev *edev = pdn_to_eeh_dev(pdn);
@@ -78,7 +77,7 @@ void pseries_pcibios_bus_add_device(struct pci_dev *pdev)
 		eeh_add_to_parent_pe(edev);   /* Add as VF PE type */
 	}
 #endif
-	eeh_sysfs_add_device(pdev);
+	eeh_probe_device(pdev);
 }
 
 /*
@@ -222,15 +221,16 @@ static int pseries_eeh_find_ecap(struct pci_dn *pdn, int cap)
 }
 
 /**
- * pseries_eeh_probe - EEH probe on the given device
- * @pdn: PCI device node
- * @data: Unused
+ * pseries_eeh_init_edev - initialise the eeh_dev and eeh_pe for a pci_dn
  *
- * When EEH module is installed during system boot, all PCI devices
- * are checked one by one to see if it supports EEH. The function
- * is introduced for the purpose.
+ * @pdn: PCI device node
+ *
+ * When we discover a new PCI device via the device-tree we create a
+ * corresponding pci_dn and we allocate, but don't initialise, an eeh_dev.
+ * This function takes care of the initialisation and inserts the eeh_dev
+ * into the correct eeh_pe. If no eeh_pe exists we'll allocate one.
  */
-static void *pseries_eeh_probe(struct pci_dn *pdn, void *data)
+void pseries_eeh_init_edev(struct pci_dn *pdn)
 {
 	struct eeh_dev *edev;
 	struct eeh_pe pe;
@@ -238,18 +238,35 @@ static void *pseries_eeh_probe(struct pci_dn *pdn, void *data)
 	int enable = 0;
 	int ret;
 
-	/* Retrieve OF node and eeh device */
+	if (WARN_ON_ONCE(!eeh_has_flag(EEH_PROBE_MODE_DEVTREE)))
+		return;
+
+	/*
+	 * Find the eeh_dev for this pdn. The storage for the eeh_dev was
+	 * allocated at the same time as the pci_dn.
+	 *
+	 * XXX: We should probably re-visit that.
+	 */
 	edev = pdn_to_eeh_dev(pdn);
-	if (!edev || edev->pe)
-		return NULL;
+	if (!edev)
+		return;
+
+	/*
+	 * If ->pe is set then we've already probed this device. We hit
+	 * this path when a pci_dev is removed and rescanned while recovering
+	 * a PE (i.e. for devices where the driver doesn't support error
+	 * recovery).
+	 */
+	if (edev->pe)
+		return;
 
 	/* Check class/vendor/device IDs */
 	if (!pdn->vendor_id || !pdn->device_id || !pdn->class_code)
-		return NULL;
+		return;
 
 	/* Skip for PCI-ISA bridge */
         if ((pdn->class_code >> 8) == PCI_CLASS_BRIDGE_ISA)
-		return NULL;
+		return;
 
 	eeh_edev_dbg(edev, "Probing device\n");
 
@@ -316,9 +333,49 @@ static void *pseries_eeh_probe(struct pci_dn *pdn, void *data)
 
 	/* Save memory bars */
 	eeh_save_bars(edev);
-
-	return NULL;
 }
+
+static struct eeh_dev *pseries_eeh_probe(struct pci_dev *pdev)
+{
+	struct eeh_dev *edev;
+	struct pci_dn *pdn;
+
+	pdn = pci_get_pdn_by_devfn(pdev->bus, pdev->devfn);
+	if (!pdn)
+		return NULL;
+
+	/*
+	 * If the system supports EEH on this device then the eeh_dev was
+	 * configured and inserted into a PE in pseries_eeh_init_edev()
+	 */
+	edev = pdn_to_eeh_dev(pdn);
+	if (!edev || !edev->pe)
+		return NULL;
+
+	return edev;
+}
+
+/**
+ * pseries_eeh_init_edev_recursive - Enable EEH for the indicated device
+ * @pdn: PCI device node
+ *
+ * This routine must be used to perform EEH initialization for the
+ * indicated PCI device that was added after system boot (e.g.
+ * hotplug, dlpar).
+ */
+void pseries_eeh_init_edev_recursive(struct pci_dn *pdn)
+{
+	struct pci_dn *n;
+
+	if (!pdn)
+		return;
+
+	list_for_each_entry(n, &pdn->child_list, list)
+		pseries_eeh_init_edev_recursive(n);
+
+	pseries_eeh_init_edev(pdn);
+}
+EXPORT_SYMBOL_GPL(pseries_eeh_init_edev_recursive);
 
 /**
  * pseries_eeh_set_option - Initialize EEH or MMIO/DMA reenable

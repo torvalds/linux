@@ -215,6 +215,9 @@ void psp_dev_destroy(struct sp_device *sp)
 	tee_dev_destroy(psp);
 
 	sp_free_psp_irq(sp, psp);
+
+	if (sp->clear_psp_master_device)
+		sp->clear_psp_master_device(sp);
 }
 
 void psp_set_sev_irq_handler(struct psp_device *psp, psp_irq_handler_t handler,

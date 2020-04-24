@@ -30,7 +30,6 @@ int amdgpu_nbio_ras_late_init(struct amdgpu_device *adev)
 	};
 	struct ras_fs_if fs_info = {
 		.sysfs_name = "pcie_bif_err_count",
-		.debugfs_name = "pcie_bif_err_inject",
 	};
 
 	if (!adev->nbio.ras_if) {

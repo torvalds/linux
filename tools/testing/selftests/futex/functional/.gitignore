@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 futex_requeue_pi
 futex_requeue_pi_mismatched_ops
 futex_requeue_pi_signal_restart

@@ -13,7 +13,6 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/io.h>
-#include <linux/mutex.h>
 #include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/string.h>
@@ -25,6 +24,8 @@
 #include <linux/of_graph.h>
 #include <linux/component.h>
 #include <linux/sys_soc.h>
+
+#include <drm/drm_bridge.h>
 
 #include "omapdss.h"
 #include "dss.h"
@@ -289,7 +290,6 @@ static const struct drm_display_mode omap_dss_ntsc_mode = {
 struct venc_device {
 	struct platform_device *pdev;
 	void __iomem *base;
-	struct mutex venc_lock;
 	struct regulator *vdda_dac_reg;
 	struct dss_device *dss;
 
@@ -303,9 +303,10 @@ struct venc_device {
 	bool requires_tv_dac_clk;
 
 	struct omap_dss_device output;
+	struct drm_bridge bridge;
 };
 
-#define dssdev_to_venc(dssdev) container_of(dssdev, struct venc_device, output)
+#define drm_bridge_to_venc(b) container_of(b, struct venc_device, bridge)
 
 static inline void venc_write_reg(struct venc_device *venc, int idx, u32 val)
 {
@@ -477,56 +478,6 @@ static void venc_power_off(struct venc_device *venc)
 	venc_runtime_put(venc);
 }
 
-static void venc_display_enable(struct omap_dss_device *dssdev)
-{
-	struct venc_device *venc = dssdev_to_venc(dssdev);
-
-	DSSDBG("venc_display_enable\n");
-
-	mutex_lock(&venc->venc_lock);
-
-	venc_power_on(venc);
-
-	mutex_unlock(&venc->venc_lock);
-}
-
-static void venc_display_disable(struct omap_dss_device *dssdev)
-{
-	struct venc_device *venc = dssdev_to_venc(dssdev);
-
-	DSSDBG("venc_display_disable\n");
-
-	mutex_lock(&venc->venc_lock);
-
-	venc_power_off(venc);
-
-	mutex_unlock(&venc->venc_lock);
-}
-
-static int venc_get_modes(struct omap_dss_device *dssdev,
-			  struct drm_connector *connector)
-{
-	static const struct drm_display_mode *modes[] = {
-		&omap_dss_pal_mode,
-		&omap_dss_ntsc_mode,
-	};
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(modes); ++i) {
-		struct drm_display_mode *mode;
-
-		mode = drm_mode_duplicate(connector->dev, modes[i]);
-		if (!mode)
-			return i;
-
-		mode->type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
-		drm_mode_set_name(mode);
-		drm_mode_probed_add(connector, mode);
-	}
-
-	return ARRAY_SIZE(modes);
-}
-
 static enum venc_videomode venc_get_videomode(const struct drm_display_mode *mode)
 {
 	if (!(mode->flags & DRM_MODE_FLAG_INTERLACE))
@@ -543,57 +494,6 @@ static enum venc_videomode venc_get_videomode(const struct drm_display_mode *mod
 		return VENC_MODE_NTSC;
 
 	return VENC_MODE_UNKNOWN;
-}
-
-static void venc_set_timings(struct omap_dss_device *dssdev,
-			     const struct drm_display_mode *mode)
-{
-	struct venc_device *venc = dssdev_to_venc(dssdev);
-	enum venc_videomode venc_mode = venc_get_videomode(mode);
-
-	DSSDBG("venc_set_timings\n");
-
-	mutex_lock(&venc->venc_lock);
-
-	switch (venc_mode) {
-	default:
-		WARN_ON_ONCE(1);
-		/* Fall-through */
-	case VENC_MODE_PAL:
-		venc->config = &venc_config_pal_trm;
-		break;
-
-	case VENC_MODE_NTSC:
-		venc->config = &venc_config_ntsc_trm;
-		break;
-	}
-
-	dispc_set_tv_pclk(venc->dss->dispc, 13500000);
-
-	mutex_unlock(&venc->venc_lock);
-}
-
-static int venc_check_timings(struct omap_dss_device *dssdev,
-			      struct drm_display_mode *mode)
-{
-	DSSDBG("venc_check_timings\n");
-
-	switch (venc_get_videomode(mode)) {
-	case VENC_MODE_PAL:
-		drm_mode_copy(mode, &omap_dss_pal_mode);
-		break;
-
-	case VENC_MODE_NTSC:
-		drm_mode_copy(mode, &omap_dss_ntsc_mode);
-		break;
-
-	default:
-		return -EINVAL;
-	}
-
-	drm_mode_set_crtcinfo(mode, CRTC_INTERLACE_HALVE_V);
-	drm_mode_set_name(mode);
-	return 0;
 }
 
 static int venc_dump_regs(struct seq_file *s, void *p)
@@ -673,30 +573,148 @@ static int venc_get_clocks(struct venc_device *venc)
 	return 0;
 }
 
-static int venc_connect(struct omap_dss_device *src,
-			struct omap_dss_device *dst)
+/* -----------------------------------------------------------------------------
+ * DRM Bridge Operations
+ */
+
+static int venc_bridge_attach(struct drm_bridge *bridge,
+			      enum drm_bridge_attach_flags flags)
 {
-	return omapdss_device_connect(dst->dss, dst, dst->next);
+	struct venc_device *venc = drm_bridge_to_venc(bridge);
+
+	if (!(flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR))
+		return -EINVAL;
+
+	return drm_bridge_attach(bridge->encoder, venc->output.next_bridge,
+				 bridge, flags);
 }
 
-static void venc_disconnect(struct omap_dss_device *src,
-			    struct omap_dss_device *dst)
+static enum drm_mode_status
+venc_bridge_mode_valid(struct drm_bridge *bridge,
+		       const struct drm_display_mode *mode)
 {
-	omapdss_device_disconnect(dst, dst->next);
+	switch (venc_get_videomode(mode)) {
+	case VENC_MODE_PAL:
+	case VENC_MODE_NTSC:
+		return MODE_OK;
+
+	default:
+		return MODE_BAD;
+	}
 }
 
-static const struct omap_dss_device_ops venc_ops = {
-	.connect = venc_connect,
-	.disconnect = venc_disconnect,
+static bool venc_bridge_mode_fixup(struct drm_bridge *bridge,
+				   const struct drm_display_mode *mode,
+				   struct drm_display_mode *adjusted_mode)
+{
+	const struct drm_display_mode *venc_mode;
 
-	.enable = venc_display_enable,
-	.disable = venc_display_disable,
+	switch (venc_get_videomode(adjusted_mode)) {
+	case VENC_MODE_PAL:
+		venc_mode = &omap_dss_pal_mode;
+		break;
 
-	.check_timings = venc_check_timings,
-	.set_timings = venc_set_timings,
+	case VENC_MODE_NTSC:
+		venc_mode = &omap_dss_ntsc_mode;
+		break;
 
-	.get_modes = venc_get_modes,
+	default:
+		return false;
+	}
+
+	drm_mode_copy(adjusted_mode, venc_mode);
+	drm_mode_set_crtcinfo(adjusted_mode, CRTC_INTERLACE_HALVE_V);
+	drm_mode_set_name(adjusted_mode);
+
+	return true;
+}
+
+static void venc_bridge_mode_set(struct drm_bridge *bridge,
+				 const struct drm_display_mode *mode,
+				 const struct drm_display_mode *adjusted_mode)
+{
+	struct venc_device *venc = drm_bridge_to_venc(bridge);
+	enum venc_videomode venc_mode = venc_get_videomode(adjusted_mode);
+
+	switch (venc_mode) {
+	default:
+		WARN_ON_ONCE(1);
+		/* Fall-through */
+	case VENC_MODE_PAL:
+		venc->config = &venc_config_pal_trm;
+		break;
+
+	case VENC_MODE_NTSC:
+		venc->config = &venc_config_ntsc_trm;
+		break;
+	}
+
+	dispc_set_tv_pclk(venc->dss->dispc, 13500000);
+}
+
+static void venc_bridge_enable(struct drm_bridge *bridge)
+{
+	struct venc_device *venc = drm_bridge_to_venc(bridge);
+
+	venc_power_on(venc);
+}
+
+static void venc_bridge_disable(struct drm_bridge *bridge)
+{
+	struct venc_device *venc = drm_bridge_to_venc(bridge);
+
+	venc_power_off(venc);
+}
+
+static int venc_bridge_get_modes(struct drm_bridge *bridge,
+				 struct drm_connector *connector)
+{
+	static const struct drm_display_mode *modes[] = {
+		&omap_dss_pal_mode,
+		&omap_dss_ntsc_mode,
+	};
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(modes); ++i) {
+		struct drm_display_mode *mode;
+
+		mode = drm_mode_duplicate(connector->dev, modes[i]);
+		if (!mode)
+			return i;
+
+		mode->type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
+		drm_mode_set_name(mode);
+		drm_mode_probed_add(connector, mode);
+	}
+
+	return ARRAY_SIZE(modes);
+}
+
+static const struct drm_bridge_funcs venc_bridge_funcs = {
+	.attach = venc_bridge_attach,
+	.mode_valid = venc_bridge_mode_valid,
+	.mode_fixup = venc_bridge_mode_fixup,
+	.mode_set = venc_bridge_mode_set,
+	.enable = venc_bridge_enable,
+	.disable = venc_bridge_disable,
+	.get_modes = venc_bridge_get_modes,
 };
+
+static void venc_bridge_init(struct venc_device *venc)
+{
+	venc->bridge.funcs = &venc_bridge_funcs;
+	venc->bridge.of_node = venc->pdev->dev.of_node;
+	venc->bridge.ops = DRM_BRIDGE_OP_MODES;
+	venc->bridge.type = DRM_MODE_CONNECTOR_SVIDEO;
+	venc->bridge.interlace_allowed = true;
+
+	drm_bridge_add(&venc->bridge);
+}
+
+static void venc_bridge_cleanup(struct venc_device *venc)
+{
+	drm_bridge_remove(&venc->bridge);
+}
 
 /* -----------------------------------------------------------------------------
  * Component Bind & Unbind
@@ -747,19 +765,22 @@ static int venc_init_output(struct venc_device *venc)
 	struct omap_dss_device *out = &venc->output;
 	int r;
 
+	venc_bridge_init(venc);
+
 	out->dev = &venc->pdev->dev;
 	out->id = OMAP_DSS_OUTPUT_VENC;
 	out->type = OMAP_DISPLAY_TYPE_VENC;
 	out->name = "venc.0";
 	out->dispc_channel = OMAP_DSS_CHANNEL_DIGIT;
-	out->ops = &venc_ops;
 	out->owner = THIS_MODULE;
-	out->of_ports = BIT(0);
+	out->of_port = 0;
 	out->ops_flags = OMAP_DSS_DEVICE_OP_MODES;
 
-	r = omapdss_device_init_output(out);
-	if (r < 0)
+	r = omapdss_device_init_output(out, &venc->bridge);
+	if (r < 0) {
+		venc_bridge_cleanup(venc);
 		return r;
+	}
 
 	omapdss_device_register(out);
 
@@ -770,6 +791,8 @@ static void venc_uninit_output(struct venc_device *venc)
 {
 	omapdss_device_unregister(&venc->output);
 	omapdss_device_cleanup_output(&venc->output);
+
+	venc_bridge_cleanup(venc);
 }
 
 static int venc_probe_of(struct venc_device *venc)
@@ -838,8 +861,6 @@ static int venc_probe(struct platform_device *pdev)
 	/* The OMAP34xx, OMAP35xx and AM35xx VENC require the TV DAC clock. */
 	if (soc_device_match(venc_soc_devices))
 		venc->requires_tv_dac_clk = true;
-
-	mutex_init(&venc->venc_lock);
 
 	venc->config = &venc_config_pal_trm;
 

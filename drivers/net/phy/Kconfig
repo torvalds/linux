@@ -157,6 +157,14 @@ config MDIO_I2C
 
 	  This is library mode.
 
+config MDIO_IPQ8064
+	tristate "Qualcomm IPQ8064 MDIO interface support"
+	depends on HAS_IOMEM && OF_MDIO
+	depends on MFD_SYSCON
+	help
+	  This driver supports the MDIO interface found in the network
+	  interface units of the IPQ8064 SoC
+
 config MDIO_MOXART
 	tristate "MOXA ART MDIO interface support"
 	depends on ARCH_MOXART || COMPILE_TEST
@@ -170,6 +178,13 @@ config MDIO_MSCC_MIIM
 	help
 	  This driver supports the MIIM (MDIO) interface found in the network
 	  switches of the Microsemi SoCs
+
+config MDIO_MVUSB
+	tristate "Marvell USB to MDIO Adapter"
+	depends on USB
+	help
+	  A USB to MDIO converter present on development boards for
+	  Marvell's Link Street family of Ethernet switches.
 
 config MDIO_OCTEON
 	tristate "Octeon and some ThunderX SOCs MDIO buses"
@@ -205,6 +220,12 @@ config MDIO_XGENE
 	help
 	  This module provides a driver for the MDIO busses found in the
 	  APM X-Gene SoC's.
+
+config MDIO_XPCS
+	tristate "Synopsys DesignWare XPCS controller"
+	help
+	  This module provides helper functions for Synopsys DesignWare XPCS
+	  controllers.
 
 endif
 endif
@@ -326,8 +347,8 @@ config BROADCOM_PHY
 	  BCM5481, BCM54810 and BCM5482 PHYs.
 
 config BCM84881_PHY
-	bool "Broadcom BCM84881 PHY"
-	depends on PHYLIB=y
+	tristate "Broadcom BCM84881 PHY"
+	depends on PHYLIB
 	---help---
 	  Support the Broadcom BCM84881 PHY.
 
