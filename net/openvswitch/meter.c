@@ -419,9 +419,8 @@ static int ovs_meter_cmd_set(struct sk_buff *skb, struct genl_info *info)
 	u32 meter_id;
 	bool failed;
 
-	if (!a[OVS_METER_ATTR_ID]) {
-		return -ENODEV;
-	}
+	if (!a[OVS_METER_ATTR_ID])
+		return -EINVAL;
 
 	meter = dp_meter_create(a);
 	if (IS_ERR_OR_NULL(meter))
