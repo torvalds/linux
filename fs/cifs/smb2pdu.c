@@ -375,15 +375,31 @@ smb2_reconnect(__le16 smb2_command, struct cifs_tcon *tcon,
 		goto out;
 	}
 
+	/*
+	 * If we are reconnecting an extra channel, bind
+	 */
+	if (server->is_channel) {
+		ses->binding = true;
+		ses->binding_chan = cifs_ses_find_chan(ses, server);
+	}
+
 	rc = cifs_negotiate_protocol(0, tcon->ses);
 	if (!rc && tcon->ses->need_reconnect) {
 		rc = cifs_setup_session(0, tcon->ses, nls_codepage);
 		if ((rc == -EACCES) && !tcon->retry) {
 			rc = -EHOSTDOWN;
+			ses->binding = false;
+			ses->binding_chan = NULL;
 			mutex_unlock(&tcon->ses->session_mutex);
 			goto failed;
 		}
 	}
+	/*
+	 * End of channel binding
+	 */
+	ses->binding = false;
+	ses->binding_chan = NULL;
+
 	if (rc || !tcon->need_reconnect) {
 		mutex_unlock(&tcon->ses->session_mutex);
 		goto out;

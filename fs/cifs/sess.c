@@ -150,6 +150,22 @@ int cifs_try_adding_channels(struct cifs_ses *ses)
 	return ses->chan_count - old_chan_count;
 }
 
+/*
+ * If server is a channel of ses, return the corresponding enclosing
+ * cifs_chan otherwise return NULL.
+ */
+struct cifs_chan *
+cifs_ses_find_chan(struct cifs_ses *ses, struct TCP_Server_Info *server)
+{
+	int i;
+
+	for (i = 0; i < ses->chan_count; i++) {
+		if (ses->chans[i].server == server)
+			return &ses->chans[i];
+	}
+	return NULL;
+}
+
 int
 cifs_ses_add_channel(struct cifs_ses *ses, struct cifs_server_iface *iface)
 {
