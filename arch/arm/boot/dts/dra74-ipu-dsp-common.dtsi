@@ -14,4 +14,5 @@
 &dsp2 {
 	mboxes = <&mailbox6 &mbox_dsp2_ipc3x>;
 	ti,timers = <&timer6>;
+	ti,watchdog-timers = <&timer13>;
 };

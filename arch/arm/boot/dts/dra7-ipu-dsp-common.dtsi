@@ -23,14 +23,17 @@
 &ipu2 {
 	mboxes = <&mailbox6 &mbox_ipu2_ipc3x>;
 	ti,timers = <&timer3>;
+	ti,watchdog-timers = <&timer4>, <&timer9>;
 };
 
 &ipu1 {
 	mboxes = <&mailbox5 &mbox_ipu1_ipc3x>;
 	ti,timers = <&timer11>;
+	ti,watchdog-timers = <&timer7>, <&timer8>;
 };
 
 &dsp1 {
 	mboxes = <&mailbox5 &mbox_dsp1_ipc3x>;
 	ti,timers = <&timer5>;
+	ti,watchdog-timers = <&timer10>;
 };
