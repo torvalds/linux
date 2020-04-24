@@ -646,7 +646,7 @@ struct cfg80211_chan_def {
 struct cfg80211_tid_cfg {
 	bool config_override;
 	u8 tids;
-	u32 mask;
+	u64 mask;
 	enum nl80211_tid_config noack;
 	u8 retry_long, retry_short;
 	enum nl80211_tid_config ampdu;
