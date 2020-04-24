@@ -30,6 +30,36 @@ struct nft_nat {
 	u16			flags;
 };
 
+static void nft_nat_setup_addr(struct nf_nat_range2 *range,
+			       const struct nft_regs *regs,
+			       const struct nft_nat *priv)
+{
+	switch (priv->family) {
+	case AF_INET:
+		range->min_addr.ip = (__force __be32)
+				regs->data[priv->sreg_addr_min];
+		range->max_addr.ip = (__force __be32)
+				regs->data[priv->sreg_addr_max];
+		break;
+	case AF_INET6:
+		memcpy(range->min_addr.ip6, &regs->data[priv->sreg_addr_min],
+		       sizeof(range->min_addr.ip6));
+		memcpy(range->max_addr.ip6, &regs->data[priv->sreg_addr_max],
+		       sizeof(range->max_addr.ip6));
+		break;
+	}
+}
+
+static void nft_nat_setup_proto(struct nf_nat_range2 *range,
+				const struct nft_regs *regs,
+				const struct nft_nat *priv)
+{
+	range->min_proto.all = (__force __be16)
+		nft_reg_load16(&regs->data[priv->sreg_proto_min]);
+	range->max_proto.all = (__force __be16)
+		nft_reg_load16(&regs->data[priv->sreg_proto_max]);
+}
+
 static void nft_nat_eval(const struct nft_expr *expr,
 			 struct nft_regs *regs,
 			 const struct nft_pktinfo *pkt)
@@ -40,29 +70,11 @@ static void nft_nat_eval(const struct nft_expr *expr,
 	struct nf_nat_range2 range;
 
 	memset(&range, 0, sizeof(range));
-	if (priv->sreg_addr_min) {
-		if (priv->family == AF_INET) {
-			range.min_addr.ip = (__force __be32)
-					regs->data[priv->sreg_addr_min];
-			range.max_addr.ip = (__force __be32)
-					regs->data[priv->sreg_addr_max];
+	if (priv->sreg_addr_min)
+		nft_nat_setup_addr(&range, regs, priv);
 
-		} else {
-			memcpy(range.min_addr.ip6,
-			       &regs->data[priv->sreg_addr_min],
-			       sizeof(range.min_addr.ip6));
-			memcpy(range.max_addr.ip6,
-			       &regs->data[priv->sreg_addr_max],
-			       sizeof(range.max_addr.ip6));
-		}
-	}
-
-	if (priv->sreg_proto_min) {
-		range.min_proto.all = (__force __be16)nft_reg_load16(
-			&regs->data[priv->sreg_proto_min]);
-		range.max_proto.all = (__force __be16)nft_reg_load16(
-			&regs->data[priv->sreg_proto_max]);
-	}
+	if (priv->sreg_proto_min)
+		nft_nat_setup_proto(&range, regs, priv);
 
 	range.flags = priv->flags;
 
