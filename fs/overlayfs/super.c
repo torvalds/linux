@@ -217,6 +217,7 @@ static void ovl_free_fs(struct ovl_fs *ofs)
 	iput(ofs->indexdir_trap);
 	iput(ofs->workdir_trap);
 	iput(ofs->upperdir_trap);
+	dput(ofs->whiteout);
 	dput(ofs->indexdir);
 	dput(ofs->workdir);
 	if (ofs->workdir_locked)
@@ -1775,6 +1776,9 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	ofs->creator_cred = cred = prepare_creds();
 	if (!cred)
 		goto out_err;
+
+	/* Is there a reason anyone would want not to share whiteouts? */
+	ofs->share_whiteout = true;
 
 	ofs->config.index = ovl_index_def;
 	ofs->config.nfs_export = ovl_nfs_export_def;

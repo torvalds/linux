@@ -68,6 +68,7 @@ struct ovl_fs {
 	/* Did we take the inuse lock? */
 	bool upperdir_locked;
 	bool workdir_locked;
+	bool share_whiteout;
 	/* Traps in ovl inode cache */
 	struct inode *upperdir_trap;
 	struct inode *workbasedir_trap;
@@ -77,6 +78,8 @@ struct ovl_fs {
 	int xino_mode;
 	/* For allocation of non-persistent inode numbers */
 	atomic_long_t last_ino;
+	/* Whiteout dentry cache */
+	struct dentry *whiteout;
 };
 
 static inline struct ovl_fs *OVL_FS(struct super_block *sb)
