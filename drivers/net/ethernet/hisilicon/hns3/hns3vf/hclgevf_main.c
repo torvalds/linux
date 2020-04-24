@@ -1777,10 +1777,6 @@ static int hclgevf_reset_stack(struct hclgevf_dev *hdev)
 	if (ret)
 		return ret;
 
-	ret = hclgevf_notify_client(hdev, HNAE3_RESTORE_CLIENT);
-	if (ret)
-		return ret;
-
 	/* clear handshake status with IMP */
 	hclgevf_reset_handshake(hdev, false);
 
@@ -1860,13 +1856,8 @@ static void hclgevf_reset_err_handle(struct hclgevf_dev *hdev)
 
 static int hclgevf_reset_prepare(struct hclgevf_dev *hdev)
 {
-	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
 	int ret;
 
-	/* Initialize ae_dev reset status as well, in case enet layer wants to
-	 * know if device is undergoing reset
-	 */
-	ae_dev->reset_type = hdev->reset_type;
 	hdev->rst_stats.rst_cnt++;
 
 	rtnl_lock();
@@ -1881,7 +1872,6 @@ static int hclgevf_reset_prepare(struct hclgevf_dev *hdev)
 
 static int hclgevf_reset_rebuild(struct hclgevf_dev *hdev)
 {
-	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
 	int ret;
 
 	hdev->rst_stats.hw_rst_done_cnt++;
@@ -1896,7 +1886,6 @@ static int hclgevf_reset_rebuild(struct hclgevf_dev *hdev)
 	}
 
 	hdev->last_reset_time = jiffies;
-	ae_dev->reset_type = HNAE3_NONE_RESET;
 	hdev->rst_stats.rst_done_cnt++;
 	hdev->rst_stats.rst_fail_cnt = 0;
 	clear_bit(HCLGEVF_STATE_RST_FAIL, &hdev->state);
@@ -2974,6 +2963,15 @@ static int hclgevf_pci_reset(struct hclgevf_dev *hdev)
 	return ret;
 }
 
+static int hclgevf_clear_vport_list(struct hclgevf_dev *hdev)
+{
+	struct hclge_vf_to_pf_msg send_msg;
+
+	hclgevf_build_send_msg(&send_msg, HCLGE_MBX_HANDLE_VF_TBL,
+			       HCLGE_MBX_VPORT_LIST_CLEAR);
+	return hclgevf_send_mbx_msg(hdev, &send_msg, false, NULL, 0);
+}
+
 static int hclgevf_reset_hdev(struct hclgevf_dev *hdev)
 {
 	struct pci_dev *pdev = hdev->pdev;
@@ -3080,6 +3078,15 @@ static int hclgevf_init_hdev(struct hclgevf_dev *hdev)
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
 			"failed(%d) to initialize RSS\n", ret);
+		goto err_config;
+	}
+
+	/* ensure vf tbl list as empty before init*/
+	ret = hclgevf_clear_vport_list(hdev);
+	if (ret) {
+		dev_err(&pdev->dev,
+			"failed to clear tbl list configuration, ret = %d.\n",
+			ret);
 		goto err_config;
 	}
 

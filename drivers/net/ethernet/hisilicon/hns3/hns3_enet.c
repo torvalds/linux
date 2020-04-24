@@ -2102,7 +2102,6 @@ static int hns3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	ae_dev->pdev = pdev;
 	ae_dev->flag = ent->driver_data;
-	ae_dev->reset_type = HNAE3_NONE_RESET;
 	hns3_get_dev_capability(pdev, ae_dev);
 	pci_set_drvdata(pdev, ae_dev);
 
@@ -3936,17 +3935,6 @@ static void hns3_uninit_phy(struct net_device *netdev)
 		h->ae_algo->ops->mac_disconnect_phy(h);
 }
 
-static int hns3_restore_fd_rules(struct net_device *netdev)
-{
-	struct hnae3_handle *h = hns3_get_handle(netdev);
-	int ret = 0;
-
-	if (h->ae_algo->ops->restore_fd_rules)
-		ret = h->ae_algo->ops->restore_fd_rules(h);
-
-	return ret;
-}
-
 static void hns3_del_all_fd_rules(struct net_device *netdev, bool clear_list)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
@@ -4346,20 +4334,12 @@ static void hns3_restore_coal(struct hns3_nic_priv *priv)
 
 static int hns3_reset_notify_down_enet(struct hnae3_handle *handle)
 {
-	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(handle->pdev);
 	struct hnae3_knic_private_info *kinfo = &handle->kinfo;
 	struct net_device *ndev = kinfo->netdev;
 	struct hns3_nic_priv *priv = netdev_priv(ndev);
 
 	if (test_and_set_bit(HNS3_NIC_STATE_RESETTING, &priv->state))
 		return 0;
-
-	/* it is cumbersome for hardware to pick-and-choose entries for deletion
-	 * from table space. Hence, for function reset software intervention is
-	 * required to delete the entries
-	 */
-	if (hns3_dev_ongoing_func_reset(ae_dev))
-		hns3_del_all_fd_rules(ndev, false);
 
 	if (!netif_running(ndev))
 		return 0;
@@ -4455,16 +4435,6 @@ err_put_ring:
 	return ret;
 }
 
-static int hns3_reset_notify_restore_enet(struct hnae3_handle *handle)
-{
-	struct net_device *netdev = handle->kinfo.netdev;
-
-	if (handle->ae_algo->ops->restore_vlan_table)
-		handle->ae_algo->ops->restore_vlan_table(handle);
-
-	return hns3_restore_fd_rules(netdev);
-}
-
 static int hns3_reset_notify_uninit_enet(struct hnae3_handle *handle)
 {
 	struct net_device *netdev = handle->kinfo.netdev;
@@ -4513,9 +4483,6 @@ static int hns3_reset_notify(struct hnae3_handle *handle,
 		break;
 	case HNAE3_UNINIT_CLIENT:
 		ret = hns3_reset_notify_uninit_enet(handle);
-		break;
-	case HNAE3_RESTORE_CLIENT:
-		ret = hns3_reset_notify_restore_enet(handle);
 		break;
 	default:
 		break;

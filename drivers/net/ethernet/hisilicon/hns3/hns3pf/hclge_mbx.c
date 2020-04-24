@@ -629,6 +629,23 @@ static void hclge_handle_ncsi_error(struct hclge_dev *hdev)
 	ae_dev->ops->reset_event(hdev->pdev, NULL);
 }
 
+static void hclge_handle_vf_tbl(struct hclge_vport *vport,
+				struct hclge_mbx_vf_to_pf_cmd *mbx_req)
+{
+	struct hclge_dev *hdev = vport->back;
+	struct hclge_vf_vlan_cfg *msg_cmd;
+
+	msg_cmd = (struct hclge_vf_vlan_cfg *)&mbx_req->msg;
+	if (msg_cmd->subcode == HCLGE_MBX_VPORT_LIST_CLEAR) {
+		hclge_rm_vport_all_mac_table(vport, true, HCLGE_MAC_ADDR_UC);
+		hclge_rm_vport_all_mac_table(vport, true, HCLGE_MAC_ADDR_MC);
+		hclge_rm_vport_all_vlan_table(vport, true);
+	} else {
+		dev_warn(&hdev->pdev->dev, "Invalid cmd(%u)\n",
+			 msg_cmd->subcode);
+	}
+}
+
 void hclge_mbx_handler(struct hclge_dev *hdev)
 {
 	struct hclge_cmq_ring *crq = &hdev->hw.cmq.crq;
@@ -636,6 +653,7 @@ void hclge_mbx_handler(struct hclge_dev *hdev)
 	struct hclge_mbx_vf_to_pf_cmd *req;
 	struct hclge_vport *vport;
 	struct hclge_desc *desc;
+	bool is_del = false;
 	unsigned int flag;
 	int ret = 0;
 
@@ -753,11 +771,12 @@ void hclge_mbx_handler(struct hclge_dev *hdev)
 			break;
 		case HCLGE_MBX_GET_VF_FLR_STATUS:
 		case HCLGE_MBX_VF_UNINIT:
-			hclge_rm_vport_all_mac_table(vport, true,
+			is_del = req->msg.code == HCLGE_MBX_VF_UNINIT;
+			hclge_rm_vport_all_mac_table(vport, is_del,
 						     HCLGE_MAC_ADDR_UC);
-			hclge_rm_vport_all_mac_table(vport, true,
+			hclge_rm_vport_all_mac_table(vport, is_del,
 						     HCLGE_MAC_ADDR_MC);
-			hclge_rm_vport_all_vlan_table(vport, true);
+			hclge_rm_vport_all_vlan_table(vport, is_del);
 			break;
 		case HCLGE_MBX_GET_MEDIA_TYPE:
 			hclge_get_vf_media_type(vport, &resp_msg);
@@ -770,6 +789,9 @@ void hclge_mbx_handler(struct hclge_dev *hdev)
 			break;
 		case HCLGE_MBX_NCSI_ERROR:
 			hclge_handle_ncsi_error(hdev);
+			break;
+		case HCLGE_MBX_HANDLE_VF_TBL:
+			hclge_handle_vf_tbl(vport, req);
 			break;
 		default:
 			dev_err(&hdev->pdev->dev,

@@ -69,6 +69,7 @@ static enum hnae3_reset_type hclge_get_reset_level(struct hnae3_ae_dev *ae_dev,
 static int hclge_set_default_loopback(struct hclge_dev *hdev);
 
 static void hclge_sync_mac_table(struct hclge_dev *hdev);
+static void hclge_restore_hw_table(struct hclge_dev *hdev);
 static void hclge_sync_promisc_mode(struct hclge_dev *hdev);
 
 static struct hnae3_ae_algo ae_algo;
@@ -3731,22 +3732,13 @@ static int hclge_reset_stack(struct hclge_dev *hdev)
 	if (ret)
 		return ret;
 
-	ret = hclge_notify_client(hdev, HNAE3_INIT_CLIENT);
-	if (ret)
-		return ret;
-
-	return hclge_notify_client(hdev, HNAE3_RESTORE_CLIENT);
+	return hclge_notify_client(hdev, HNAE3_INIT_CLIENT);
 }
 
 static int hclge_reset_prepare(struct hclge_dev *hdev)
 {
-	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
 	int ret;
 
-	/* Initialize ae_dev reset status as well, in case enet layer wants to
-	 * know if device is undergoing reset
-	 */
-	ae_dev->reset_type = hdev->reset_type;
 	hdev->rst_stats.reset_cnt++;
 	/* perform reset of the stack & ae device for a client */
 	ret = hclge_notify_roce_client(hdev, HNAE3_DOWN_CLIENT);
@@ -3808,7 +3800,6 @@ static int hclge_reset_rebuild(struct hclge_dev *hdev)
 	hdev->last_reset_time = jiffies;
 	hdev->rst_stats.reset_fail_cnt = 0;
 	hdev->rst_stats.reset_done_cnt++;
-	ae_dev->reset_type = HNAE3_NONE_RESET;
 	clear_bit(HCLGE_STATE_RST_FAIL, &hdev->state);
 
 	/* if default_reset_request has a higher level reset request,
@@ -6942,8 +6933,14 @@ int hclge_vport_start(struct hclge_vport *vport)
 	set_bit(HCLGE_VPORT_STATE_ALIVE, &vport->state);
 	vport->last_active_jiffies = jiffies;
 
-	if (test_bit(vport->vport_id, hdev->vport_config_block))
-		hclge_restore_mac_table_common(vport);
+	if (test_bit(vport->vport_id, hdev->vport_config_block)) {
+		if (vport->vport_id) {
+			hclge_restore_mac_table_common(vport);
+			hclge_restore_vport_vlan_table(vport);
+		} else {
+			hclge_restore_hw_table(hdev);
+		}
+	}
 
 	clear_bit(vport->vport_id, hdev->vport_config_block);
 
@@ -8789,39 +8786,34 @@ void hclge_uninit_vport_vlan_table(struct hclge_dev *hdev)
 	}
 }
 
-static void hclge_restore_vlan_table(struct hnae3_handle *handle)
+void hclge_restore_vport_vlan_table(struct hclge_vport *vport)
 {
-	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_vport_vlan_cfg *vlan, *tmp;
 	struct hclge_dev *hdev = vport->back;
 	u16 vlan_proto;
-	u16 state, vlan_id;
-	int i;
+	u16 vlan_id;
+	u16 state;
+	int ret;
 
-	for (i = 0; i < hdev->num_alloc_vport; i++) {
-		vport = &hdev->vport[i];
-		vlan_proto = vport->port_base_vlan_cfg.vlan_info.vlan_proto;
-		vlan_id = vport->port_base_vlan_cfg.vlan_info.vlan_tag;
-		state = vport->port_base_vlan_cfg.state;
+	vlan_proto = vport->port_base_vlan_cfg.vlan_info.vlan_proto;
+	vlan_id = vport->port_base_vlan_cfg.vlan_info.vlan_tag;
+	state = vport->port_base_vlan_cfg.state;
 
-		if (state != HNAE3_PORT_BASE_VLAN_DISABLE) {
-			hclge_set_vlan_filter_hw(hdev, htons(vlan_proto),
-						 vport->vport_id, vlan_id,
-						 false);
-			continue;
-		}
+	if (state != HNAE3_PORT_BASE_VLAN_DISABLE) {
+		clear_bit(vport->vport_id, hdev->vlan_table[vlan_id]);
+		hclge_set_vlan_filter_hw(hdev, htons(vlan_proto),
+					 vport->vport_id, vlan_id,
+					 false);
+		return;
+	}
 
-		list_for_each_entry_safe(vlan, tmp, &vport->vlan_list, node) {
-			int ret;
-
-			if (!vlan->hd_tbl_status)
-				continue;
-			ret = hclge_set_vlan_filter_hw(hdev, htons(ETH_P_8021Q),
-						       vport->vport_id,
-						       vlan->vlan_id, false);
-			if (ret)
-				break;
-		}
+	list_for_each_entry_safe(vlan, tmp, &vport->vlan_list, node) {
+		ret = hclge_set_vlan_filter_hw(hdev, htons(ETH_P_8021Q),
+					       vport->vport_id,
+					       vlan->vlan_id, false);
+		if (ret)
+			break;
+		vlan->hd_tbl_status = true;
 	}
 }
 
@@ -8854,6 +8846,18 @@ void hclge_restore_mac_table_common(struct hclge_vport *vport)
 	set_bit(HCLGE_VPORT_STATE_MAC_TBL_CHANGE, &vport->state);
 
 	spin_unlock_bh(&vport->mac_list_lock);
+}
+
+static void hclge_restore_hw_table(struct hclge_dev *hdev)
+{
+	struct hclge_vport *vport = &hdev->vport[0];
+	struct hnae3_handle *handle = &vport->nic;
+
+	hclge_restore_mac_table_common(vport);
+	hclge_restore_vport_vlan_table(vport);
+	set_bit(HCLGE_STATE_PROMISC_CHANGED, &hdev->state);
+
+	hclge_restore_fd_entries(handle);
 }
 
 int hclge_en_hw_strip_rxvtag(struct hnae3_handle *handle, bool enable)
@@ -10352,12 +10356,11 @@ static int hclge_reset_ae_dev(struct hnae3_ae_dev *ae_dev)
 	 */
 	if (hdev->reset_type == HNAE3_IMP_RESET ||
 	    hdev->reset_type == HNAE3_GLOBAL_RESET) {
+		memset(hdev->vlan_table, 0, sizeof(hdev->vlan_table));
+		memset(hdev->vf_vlan_full, 0, sizeof(hdev->vf_vlan_full));
 		bitmap_set(hdev->vport_config_block, 0, hdev->num_alloc_vport);
 		hclge_reset_umv_space(hdev);
 	}
-
-	memset(hdev->vlan_table, 0, sizeof(hdev->vlan_table));
-	memset(hdev->vf_vlan_full, 0, sizeof(hdev->vf_vlan_full));
 
 	ret = hclge_cmd_init(hdev);
 	if (ret) {
@@ -11191,7 +11194,6 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.get_fd_rule_cnt = hclge_get_fd_rule_cnt,
 	.get_fd_rule_info = hclge_get_fd_rule_info,
 	.get_fd_all_rules = hclge_get_all_rules,
-	.restore_fd_rules = hclge_restore_fd_entries,
 	.enable_fd = hclge_enable_fd,
 	.add_arfs_entry = hclge_add_fd_entry_by_arfs,
 	.dbg_run_cmd = hclge_dbg_run_cmd,
@@ -11204,7 +11206,6 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.set_timer_task = hclge_set_timer_task,
 	.mac_connect_phy = hclge_mac_connect_phy,
 	.mac_disconnect_phy = hclge_mac_disconnect_phy,
-	.restore_vlan_table = hclge_restore_vlan_table,
 	.get_vf_config = hclge_get_vf_config,
 	.set_vf_link_state = hclge_set_vf_link_state,
 	.set_vf_spoofchk = hclge_set_vf_spoofchk,
