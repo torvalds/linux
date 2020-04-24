@@ -795,7 +795,7 @@ EXPORT_SYMBOL_GPL(zynqmp_pm_set_requirement);
  *
  * Return:	Returns status, either success or error code.
  */
-static int zynqmp_pm_aes_engine(const u64 address, u32 *out)
+int zynqmp_pm_aes_engine(const u64 address, u32 *out)
 {
 	u32 ret_payload[PAYLOAD_ARG_CNT];
 	int ret;
@@ -810,11 +810,11 @@ static int zynqmp_pm_aes_engine(const u64 address, u32 *out)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(zynqmp_pm_aes_engine);
 
 static const struct zynqmp_eemi_ops eemi_ops = {
 	.fpga_load = zynqmp_pm_fpga_load,
 	.fpga_get_status = zynqmp_pm_fpga_get_status,
-	.aes = zynqmp_pm_aes_engine,
 };
 
 /**
