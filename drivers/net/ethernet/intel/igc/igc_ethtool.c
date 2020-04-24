@@ -939,16 +939,18 @@ static int igc_ethtool_get_nfc_rule(struct igc_adapter *adapter,
 
 	cmd->data = IGC_MAX_RXNFC_RULES;
 
+	spin_lock(&adapter->nfc_rule_lock);
+
 	hlist_for_each_entry(rule, &adapter->nfc_rule_list, nfc_node) {
 		if (fsp->location <= rule->location)
 			break;
 	}
 
 	if (!rule || fsp->location != rule->location)
-		return -EINVAL;
+		goto out;
 
 	if (!rule->filter.match_flags)
-		return -EINVAL;
+		goto out;
 
 	fsp->flow_type = ETHER_FLOW;
 	fsp->ring_cookie = rule->action;
@@ -976,7 +978,12 @@ static int igc_ethtool_get_nfc_rule(struct igc_adapter *adapter,
 		eth_broadcast_addr(fsp->m_u.ether_spec.h_source);
 	}
 
+	spin_unlock(&adapter->nfc_rule_lock);
 	return 0;
+
+out:
+	spin_unlock(&adapter->nfc_rule_lock);
+	return -EINVAL;
 }
 
 static int igc_ethtool_get_nfc_rules(struct igc_adapter *adapter,
@@ -988,12 +995,18 @@ static int igc_ethtool_get_nfc_rules(struct igc_adapter *adapter,
 
 	cmd->data = IGC_MAX_RXNFC_RULES;
 
+	spin_lock(&adapter->nfc_rule_lock);
+
 	hlist_for_each_entry(rule, &adapter->nfc_rule_list, nfc_node) {
-		if (cnt == cmd->rule_cnt)
+		if (cnt == cmd->rule_cnt) {
+			spin_unlock(&adapter->nfc_rule_lock);
 			return -EMSGSIZE;
+		}
 		rule_locs[cnt] = rule->location;
 		cnt++;
 	}
+
+	spin_unlock(&adapter->nfc_rule_lock);
 
 	cmd->rule_cnt = cnt;
 
