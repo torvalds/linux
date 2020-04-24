@@ -232,16 +232,6 @@ void igc_write_rss_indir_tbl(struct igc_adapter *adapter);
 bool igc_has_link(struct igc_adapter *adapter);
 void igc_reset(struct igc_adapter *adapter);
 int igc_set_spd_dplx(struct igc_adapter *adapter, u32 spd, u8 dplx);
-int igc_add_mac_filter(struct igc_adapter *adapter,
-		       enum igc_mac_filter_type type, const u8 *addr,
-		       int queue);
-int igc_del_mac_filter(struct igc_adapter *adapter,
-		       enum igc_mac_filter_type type, const u8 *addr);
-int igc_add_vlan_prio_filter(struct igc_adapter *adapter, int prio,
-			     int queue);
-void igc_del_vlan_prio_filter(struct igc_adapter *adapter, int prio);
-int igc_add_etype_filter(struct igc_adapter *adapter, u16 etype, int queue);
-int igc_del_etype_filter(struct igc_adapter *adapter, u16 etype);
 void igc_update_stats(struct igc_adapter *adapter);
 
 /* igc_dump declarations */
@@ -544,10 +534,10 @@ static inline s32 igc_read_phy_reg(struct igc_hw *hw, u32 offset, u16 *data)
 }
 
 void igc_reinit_locked(struct igc_adapter *);
-int igc_enable_nfc_rule(struct igc_adapter *adapter,
-			const struct igc_nfc_rule *rule);
-int igc_disable_nfc_rule(struct igc_adapter *adapter,
-			 const struct igc_nfc_rule *rule);
+struct igc_nfc_rule *igc_get_nfc_rule(struct igc_adapter *adapter,
+				      u32 location);
+int igc_add_nfc_rule(struct igc_adapter *adapter, struct igc_nfc_rule *rule);
+void igc_del_nfc_rule(struct igc_adapter *adapter, struct igc_nfc_rule *rule);
 
 void igc_ptp_init(struct igc_adapter *adapter);
 void igc_ptp_reset(struct igc_adapter *adapter);
