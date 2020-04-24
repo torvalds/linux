@@ -12,6 +12,7 @@
 #include <linux/openvswitch.h>
 #include <linux/netlink.h>
 #include <linux/rculist.h>
+#include <linux/swap.h>
 
 #include <net/netlink.h>
 #include <net/genetlink.h>
@@ -137,6 +138,7 @@ static int attach_meter(struct dp_meter_table *tbl, struct dp_meter *meter)
 {
 	struct dp_meter_instance *ti = rcu_dereference_ovsl(tbl->ti);
 	u32 hash = meter_hash(ti, meter->id);
+	int err;
 
 	/* In generally, slots selected should be empty, because
 	 * OvS uses id-pool to fetch a available id.
@@ -147,16 +149,24 @@ static int attach_meter(struct dp_meter_table *tbl, struct dp_meter *meter)
 	dp_meter_instance_insert(ti, meter);
 
 	/* That function is thread-safe. */
-	if (++tbl->count >= ti->n_meters)
-		if (dp_meter_instance_realloc(tbl, ti->n_meters * 2))
-			goto expand_err;
+	tbl->count++;
+	if (tbl->count >= tbl->max_meters_allowed) {
+		err = -EFBIG;
+		goto attach_err;
+	}
+
+	if (tbl->count >= ti->n_meters &&
+	    dp_meter_instance_realloc(tbl, ti->n_meters * 2)) {
+		err = -ENOMEM;
+		goto attach_err;
+	}
 
 	return 0;
 
-expand_err:
+attach_err:
 	dp_meter_instance_remove(ti, meter);
 	tbl->count--;
-	return -ENOMEM;
+	return err;
 }
 
 static int detach_meter(struct dp_meter_table *tbl, struct dp_meter *meter)
@@ -266,18 +276,32 @@ error:
 
 static int ovs_meter_cmd_features(struct sk_buff *skb, struct genl_info *info)
 {
-	struct sk_buff *reply;
+	struct ovs_header *ovs_header = info->userhdr;
 	struct ovs_header *ovs_reply_header;
 	struct nlattr *nla, *band_nla;
-	int err;
+	struct sk_buff *reply;
+	struct datapath *dp;
+	int err = -EMSGSIZE;
 
 	reply = ovs_meter_cmd_reply_start(info, OVS_METER_CMD_FEATURES,
 					  &ovs_reply_header);
 	if (IS_ERR(reply))
 		return PTR_ERR(reply);
 
-	if (nla_put_u32(reply, OVS_METER_ATTR_MAX_METERS, U32_MAX) ||
-	    nla_put_u32(reply, OVS_METER_ATTR_MAX_BANDS, DP_MAX_BANDS))
+	ovs_lock();
+	dp = get_dp(sock_net(skb->sk), ovs_header->dp_ifindex);
+	if (!dp) {
+		err = -ENODEV;
+		goto exit_unlock;
+	}
+
+	if (nla_put_u32(reply, OVS_METER_ATTR_MAX_METERS,
+			dp->meter_tbl.max_meters_allowed))
+		goto exit_unlock;
+
+	ovs_unlock();
+
+	if (nla_put_u32(reply, OVS_METER_ATTR_MAX_BANDS, DP_MAX_BANDS))
 		goto nla_put_failure;
 
 	nla = nla_nest_start_noflag(reply, OVS_METER_ATTR_BANDS);
@@ -296,9 +320,10 @@ static int ovs_meter_cmd_features(struct sk_buff *skb, struct genl_info *info)
 	genlmsg_end(reply, ovs_reply_header);
 	return genlmsg_reply(reply, info);
 
+exit_unlock:
+	ovs_unlock();
 nla_put_failure:
 	nlmsg_free(reply);
-	err = -EMSGSIZE;
 	return err;
 }
 
@@ -699,15 +724,27 @@ int ovs_meters_init(struct datapath *dp)
 {
 	struct dp_meter_table *tbl = &dp->meter_tbl;
 	struct dp_meter_instance *ti;
+	unsigned long free_mem_bytes;
 
 	ti = dp_meter_instance_alloc(DP_METER_ARRAY_SIZE_MIN);
 	if (!ti)
 		return -ENOMEM;
 
+	/* Allow meters in a datapath to use ~3.12% of physical memory. */
+	free_mem_bytes = nr_free_buffer_pages() * (PAGE_SIZE >> 5);
+	tbl->max_meters_allowed = min(free_mem_bytes / sizeof(struct dp_meter),
+				      DP_METER_NUM_MAX);
+	if (!tbl->max_meters_allowed)
+		goto out_err;
+
 	rcu_assign_pointer(tbl->ti, ti);
 	tbl->count = 0;
 
 	return 0;
+
+out_err:
+	dp_meter_instance_free(ti);
+	return -ENOMEM;
 }
 
 void ovs_meters_exit(struct datapath *dp)

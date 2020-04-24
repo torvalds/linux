@@ -20,6 +20,7 @@ struct datapath;
 
 #define DP_MAX_BANDS		1
 #define DP_METER_ARRAY_SIZE_MIN	BIT_ULL(10)
+#define DP_METER_NUM_MAX	(200000UL)
 
 struct dp_meter_band {
 	u32 type;
@@ -50,6 +51,7 @@ struct dp_meter_instance {
 struct dp_meter_table {
 	struct dp_meter_instance __rcu *ti;
 	u32 count;
+	u32 max_meters_allowed;
 };
 
 extern struct genl_family dp_meter_genl_family;
