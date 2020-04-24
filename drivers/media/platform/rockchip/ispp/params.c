@@ -459,8 +459,9 @@ static void shp_config(struct rkispp_params_vdev *params_vdev,
 static void shp_enable(struct rkispp_params_vdev *params_vdev, bool en)
 {
 	void __iomem *base = params_vdev->dev->base_addr;
+	u32 ens = params_vdev->dev->stream_vdev.module_ens;
 
-	if (en) {
+	if (en && !(ens & ISPP_MODULE_FEC)) {
 		rkispp_set_bits(base + RKISPP_SCL0_CTRL,
 				SW_SCL_FIRST_MODE, SW_SCL_FIRST_MODE);
 		rkispp_set_bits(base + RKISPP_SCL1_CTRL,
