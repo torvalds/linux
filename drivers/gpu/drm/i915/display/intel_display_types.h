@@ -39,13 +39,14 @@
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_rect.h>
 #include <drm/drm_vblank.h>
-#include <drm/i915_drm.h>
 #include <drm/i915_mei_hdcp_interface.h>
 #include <media/cec-notifier.h>
 
 #include "i915_drv.h"
+#include "intel_de.h"
 
 struct drm_printer;
+struct __intel_global_objs_state;
 
 /*
  * Display related stuff
@@ -139,6 +140,9 @@ struct intel_encoder {
 	int (*compute_config)(struct intel_encoder *,
 			      struct intel_crtc_state *,
 			      struct drm_connector_state *);
+	int (*compute_config_late)(struct intel_encoder *,
+				   struct intel_crtc_state *,
+				   struct drm_connector_state *);
 	void (*update_prepare)(struct intel_atomic_state *,
 			       struct intel_encoder *,
 			       struct intel_crtc *);
@@ -213,6 +217,9 @@ struct intel_panel {
 		bool util_pin_active_low;	/* bxt+ */
 		u8 controller;		/* bxt+ only */
 		struct pwm_device *pwm;
+
+		/* DPCD backlight */
+		u8 pwmgen_bit_count;
 
 		struct backlight_device *device;
 
@@ -458,25 +465,8 @@ struct intel_atomic_state {
 
 	intel_wakeref_t wakeref;
 
-	struct {
-		/*
-		 * Logical state of cdclk (used for all scaling, watermark,
-		 * etc. calculations and checks). This is computed as if all
-		 * enabled crtcs were active.
-		 */
-		struct intel_cdclk_state logical;
-
-		/*
-		 * Actual state of cdclk, can be different from the logical
-		 * state only when all crtc's are DPMS off.
-		 */
-		struct intel_cdclk_state actual;
-
-		int force_min_cdclk;
-		bool force_min_cdclk_changed;
-		/* pipe to which cd2x update is synchronized */
-		enum pipe pipe;
-	} cdclk;
+	struct __intel_global_objs_state *global_objs;
+	int num_global_objs;
 
 	bool dpll_set, modeset;
 
@@ -491,10 +481,6 @@ struct intel_atomic_state {
 	u8 active_pipe_changes;
 
 	u8 active_pipes;
-	/* minimum acceptable cdclk for each pipe */
-	int min_cdclk[I915_MAX_PIPES];
-	/* minimum acceptable voltage level for each pipe */
-	u8 min_voltage_level[I915_MAX_PIPES];
 
 	struct intel_shared_dpll_state shared_dpll[I915_NUM_PLLS];
 
@@ -508,14 +494,11 @@ struct intel_atomic_state {
 
 	/*
 	 * active_pipes
-	 * min_cdclk[]
-	 * min_voltage_level[]
-	 * cdclk.*
 	 */
 	bool global_state_changed;
 
-	/* Gen9+ only */
-	struct skl_ddb_values wm_results;
+	/* Number of enabled DBuf slices */
+	u8 enabled_dbuf_slices_mask;
 
 	struct i915_sw_fence commit_ready;
 
@@ -611,6 +594,7 @@ struct intel_plane_state {
 
 struct intel_initial_plane_config {
 	struct intel_framebuffer *fb;
+	struct i915_vma *vma;
 	unsigned int tiling;
 	int size;
 	u32 base;
@@ -657,13 +641,28 @@ struct intel_crtc_scaler_state {
 /* Flag to use the scanline counter instead of the pixel counter */
 #define I915_MODE_FLAG_USE_SCANLINE_COUNTER (1<<2)
 
+struct intel_wm_level {
+	bool enable;
+	u32 pri_val;
+	u32 spr_val;
+	u32 cur_val;
+	u32 fbc_val;
+};
+
 struct intel_pipe_wm {
 	struct intel_wm_level wm[5];
-	u32 linetime;
 	bool fbc_wm_enabled;
 	bool pipe_enabled;
 	bool sprites_enabled;
 	bool sprites_scaled;
+};
+
+struct skl_wm_level {
+	u16 min_ddb_alloc;
+	u16 plane_res_b;
+	u8 plane_res_l;
+	bool plane_en;
+	bool ignore_lines;
 };
 
 struct skl_plane_wm {
@@ -675,7 +674,6 @@ struct skl_plane_wm {
 
 struct skl_pipe_wm {
 	struct skl_plane_wm planes[I915_MAX_PLANES];
-	u32 linetime;
 };
 
 enum vlv_wm_level {
@@ -1046,6 +1044,10 @@ struct intel_crtc_state {
 		struct drm_dsc_config config;
 	} dsc;
 
+	/* HSW+ linetime watermarks */
+	u16 linetime;
+	u16 ips_linetime;
+
 	/* Forward Error correction State */
 	bool fec_enable;
 
@@ -1057,6 +1059,32 @@ struct intel_crtc_state {
 
 	/* Only valid on TGL+ */
 	enum transcoder mst_master_transcoder;
+};
+
+enum intel_pipe_crc_source {
+	INTEL_PIPE_CRC_SOURCE_NONE,
+	INTEL_PIPE_CRC_SOURCE_PLANE1,
+	INTEL_PIPE_CRC_SOURCE_PLANE2,
+	INTEL_PIPE_CRC_SOURCE_PLANE3,
+	INTEL_PIPE_CRC_SOURCE_PLANE4,
+	INTEL_PIPE_CRC_SOURCE_PLANE5,
+	INTEL_PIPE_CRC_SOURCE_PLANE6,
+	INTEL_PIPE_CRC_SOURCE_PLANE7,
+	INTEL_PIPE_CRC_SOURCE_PIPE,
+	/* TV/DP on pre-gen5/vlv can't use the pipe source. */
+	INTEL_PIPE_CRC_SOURCE_TV,
+	INTEL_PIPE_CRC_SOURCE_DP_B,
+	INTEL_PIPE_CRC_SOURCE_DP_C,
+	INTEL_PIPE_CRC_SOURCE_DP_D,
+	INTEL_PIPE_CRC_SOURCE_AUTO,
+	INTEL_PIPE_CRC_SOURCE_MAX,
+};
+
+#define INTEL_PIPE_CRC_ENTRIES_NR	128
+struct intel_pipe_crc {
+	spinlock_t lock;
+	int skipped;
+	enum intel_pipe_crc_source source;
 };
 
 struct intel_crtc {
@@ -1102,6 +1130,10 @@ struct intel_crtc {
 
 	/* per pipe DSB related info */
 	struct intel_dsb dsb;
+
+#ifdef CONFIG_DEBUG_FS
+	struct intel_pipe_crc pipe_crc;
+#endif
 };
 
 struct intel_plane {
@@ -1181,8 +1213,6 @@ struct intel_hdmi {
 };
 
 struct intel_dp_mst_encoder;
-#define DP_MAX_DOWNSTREAM_PORTS		0x10
-
 /*
  * enum link_m_n_set:
  *	When platform provides two set of M_N registers for dp, we can
@@ -1250,6 +1280,7 @@ struct intel_dp {
 	int max_link_rate;
 	/* sink or branch descriptor */
 	struct drm_dp_desc desc;
+	u32 edid_quirks;
 	struct drm_dp_aux aux;
 	u32 aux_busy_last_status;
 	u8 train_set[4];
@@ -1422,8 +1453,17 @@ vlv_pipe_to_channel(enum pipe pipe)
 }
 
 static inline struct intel_crtc *
+intel_get_first_crtc(struct drm_i915_private *dev_priv)
+{
+	return to_intel_crtc(drm_crtc_from_index(&dev_priv->drm, 0));
+}
+
+static inline struct intel_crtc *
 intel_get_crtc_for_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
 {
+	/* pipe_to_crtc_mapping may have hole on any of 3 display pipe system */
+	drm_WARN_ON(&dev_priv->drm,
+		    !(INTEL_INFO(dev_priv)->pipe_mask & BIT(pipe)));
 	return dev_priv->pipe_to_crtc_mapping[pipe];
 }
 
@@ -1469,7 +1509,7 @@ enc_to_dig_port(struct intel_encoder *encoder)
 }
 
 static inline struct intel_digital_port *
-conn_to_dig_port(struct intel_connector *connector)
+intel_attached_dig_port(struct intel_connector *connector)
 {
 	return enc_to_dig_port(intel_attached_encoder(connector));
 }
@@ -1484,6 +1524,11 @@ enc_to_mst(struct intel_encoder *encoder)
 static inline struct intel_dp *enc_to_intel_dp(struct intel_encoder *encoder)
 {
 	return &enc_to_dig_port(encoder)->dp;
+}
+
+static inline struct intel_dp *intel_attached_dp(struct intel_connector *connector)
+{
+	return enc_to_intel_dp(intel_attached_encoder(connector));
 }
 
 static inline bool intel_encoder_is_dp(struct intel_encoder *encoder)
@@ -1608,11 +1653,15 @@ intel_crtc_has_dp_encoder(const struct intel_crtc_state *crtc_state)
 		 (1 << INTEL_OUTPUT_DP_MST) |
 		 (1 << INTEL_OUTPUT_EDP));
 }
+
 static inline void
 intel_wait_for_vblank(struct drm_i915_private *dev_priv, enum pipe pipe)
 {
-	drm_wait_one_vblank(&dev_priv->drm, pipe);
+	struct intel_crtc *crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
+
+	drm_crtc_wait_one_vblank(&crtc->base);
 }
+
 static inline void
 intel_wait_for_vblank_if_active(struct drm_i915_private *dev_priv, enum pipe pipe)
 {

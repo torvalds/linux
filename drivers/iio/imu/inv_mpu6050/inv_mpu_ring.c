@@ -90,63 +90,14 @@ static s64 inv_mpu6050_get_timestamp(struct inv_mpu6050_state *st)
 	return ts;
 }
 
-int inv_reset_fifo(struct iio_dev *indio_dev)
+static int inv_reset_fifo(struct iio_dev *indio_dev)
 {
 	int result;
-	u8 d;
 	struct inv_mpu6050_state  *st = iio_priv(indio_dev);
 
-	/* reset it timestamp validation */
-	st->it_timestamp = 0;
-
-	/* disable interrupt */
-	result = regmap_write(st->map, st->reg->int_enable, 0);
-	if (result) {
-		dev_err(regmap_get_device(st->map), "int_enable failed %d\n",
-			result);
-		return result;
-	}
-	/* disable the sensor output to FIFO */
-	result = regmap_write(st->map, st->reg->fifo_en, 0);
-	if (result)
-		goto reset_fifo_fail;
-	/* disable fifo reading */
-	result = regmap_write(st->map, st->reg->user_ctrl,
-			      st->chip_config.user_ctrl);
-	if (result)
-		goto reset_fifo_fail;
-
-	/* reset FIFO*/
-	d = st->chip_config.user_ctrl | INV_MPU6050_BIT_FIFO_RST;
-	result = regmap_write(st->map, st->reg->user_ctrl, d);
-	if (result)
-		goto reset_fifo_fail;
-
-	/* enable interrupt */
-	if (st->chip_config.accl_fifo_enable ||
-	    st->chip_config.gyro_fifo_enable ||
-	    st->chip_config.magn_fifo_enable) {
-		result = regmap_write(st->map, st->reg->int_enable,
-				      INV_MPU6050_BIT_DATA_RDY_EN);
-		if (result)
-			return result;
-	}
-	/* enable FIFO reading */
-	d = st->chip_config.user_ctrl | INV_MPU6050_BIT_FIFO_EN;
-	result = regmap_write(st->map, st->reg->user_ctrl, d);
-	if (result)
-		goto reset_fifo_fail;
-	/* enable sensor output to FIFO */
-	d = 0;
-	if (st->chip_config.gyro_fifo_enable)
-		d |= INV_MPU6050_BITS_GYRO_OUT;
-	if (st->chip_config.accl_fifo_enable)
-		d |= INV_MPU6050_BIT_ACCEL_OUT;
-	if (st->chip_config.temp_fifo_enable)
-		d |= INV_MPU6050_BIT_TEMP_OUT;
-	if (st->chip_config.magn_fifo_enable)
-		d |= INV_MPU6050_BIT_SLAVE_0;
-	result = regmap_write(st->map, st->reg->fifo_en, d);
+	/* disable fifo and reenable it */
+	inv_mpu6050_prepare_fifo(st, false);
+	result = inv_mpu6050_prepare_fifo(st, true);
 	if (result)
 		goto reset_fifo_fail;
 

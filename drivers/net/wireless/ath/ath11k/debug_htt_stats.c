@@ -22,7 +22,7 @@
 	do {										\
 		int index = 0; u8 i;							\
 		for (i = 0; i < len; i++) {						\
-			index += snprintf(out + index, HTT_MAX_STRING_LEN - index,	\
+			index += scnprintf(out + index, HTT_MAX_STRING_LEN - index,	\
 					  " %u:%u,", i, arr[i]);			\
 			if (index < 0 || index >= HTT_MAX_STRING_LEN)			\
 				break;							\
@@ -46,7 +46,7 @@ static inline void htt_print_stats_string_tlv(const void *tag_buf,
 	len += HTT_DBG_OUT(buf + len, buf_len - len, "HTT_STATS_STRING_TLV:");
 
 	for (i = 0; i < tag_len; i++) {
-		index += snprintf(&data[index],
+		index += scnprintf(&data[index],
 				HTT_MAX_STRING_LEN - index,
 				"%.*s", 4, (char *)&(htt_stats_buf->data[i]));
 		if (index >= HTT_MAX_STRING_LEN)
@@ -3097,7 +3097,7 @@ static inline void htt_print_rx_pdev_rate_stats_tlv(const void *tag_buf,
 		index = 0;
 
 		for (i = 0; i < HTT_RX_PDEV_STATS_RXEVM_MAX_PILOTS_PER_NSS; i++)
-			index += snprintf(&rx_pilot_evm_db[j][index],
+			index += scnprintf(&rx_pilot_evm_db[j][index],
 					  HTT_MAX_STRING_LEN - index,
 					  " %u:%d,",
 					  i,
@@ -3109,7 +3109,7 @@ static inline void htt_print_rx_pdev_rate_stats_tlv(const void *tag_buf,
 	index = 0;
 	memset(str_buf, 0x0, HTT_MAX_STRING_LEN);
 	for (i = 0; i < HTT_RX_PDEV_STATS_NUM_SPATIAL_STREAMS; i++)
-		index += snprintf(&str_buf[index],
+		index += scnprintf(&str_buf[index],
 				  HTT_MAX_STRING_LEN - index,
 				  " %u:%d,", i, htt_stats_buf->rx_pilot_evm_db_mean[i]);
 	len += HTT_DBG_OUT(buf + len, buf_len - len, "pilot_evm_dB_mean = %s ", str_buf);
@@ -3217,7 +3217,7 @@ static inline void htt_print_rx_pdev_rate_stats_tlv(const void *tag_buf,
 		index = 0;
 		memset(str_buf, 0x0, HTT_MAX_STRING_LEN);
 		for (i = 0; i < HTT_RX_PDEV_MAX_OFDMA_NUM_USER; i++)
-			index += snprintf(&str_buf[index],
+			index += scnprintf(&str_buf[index],
 					  HTT_MAX_STRING_LEN - index,
 					  " %u:%d,",
 					  i, htt_stats_buf->rx_ul_fd_rssi[j][i]);
@@ -3232,7 +3232,7 @@ static inline void htt_print_rx_pdev_rate_stats_tlv(const void *tag_buf,
 		index = 0;
 		memset(str_buf, 0x0, HTT_MAX_STRING_LEN);
 		for (i = 0; i < HTT_RX_PDEV_STATS_NUM_BW_COUNTERS; i++)
-			index += snprintf(&str_buf[index],
+			index += scnprintf(&str_buf[index],
 					  HTT_MAX_STRING_LEN - index,
 					  " %u:%d,",
 					  i,
@@ -3854,6 +3854,47 @@ htt_print_pdev_obss_pd_stats_tlv_v(const void *tag_buf,
 	stats_req->buf_len = len;
 }
 
+static inline void htt_print_backpressure_stats_tlv_v(const u32 *tag_buf,
+						      u8 *data)
+{
+	struct debug_htt_stats_req *stats_req =
+			(struct debug_htt_stats_req *)data;
+	struct htt_ring_backpressure_stats_tlv *htt_stats_buf =
+			(struct htt_ring_backpressure_stats_tlv *)tag_buf;
+	int i;
+	u8 *buf = stats_req->buf;
+	u32 len = stats_req->buf_len;
+	u32 buf_len = ATH11K_HTT_STATS_BUF_SIZE;
+
+	len += HTT_DBG_OUT(buf + len, buf_len - len, "pdev_id = %u",
+			   htt_stats_buf->pdev_id);
+	len += HTT_DBG_OUT(buf + len, buf_len - len, "current_head_idx = %u",
+			   htt_stats_buf->current_head_idx);
+	len += HTT_DBG_OUT(buf + len, buf_len - len, "current_tail_idx = %u",
+			   htt_stats_buf->current_tail_idx);
+	len += HTT_DBG_OUT(buf + len, buf_len - len, "num_htt_msgs_sent = %u",
+			   htt_stats_buf->num_htt_msgs_sent);
+	len += HTT_DBG_OUT(buf + len, buf_len - len,
+			   "backpressure_time_ms = %u",
+			   htt_stats_buf->backpressure_time_ms);
+
+	for (i = 0; i < 5; i++)
+		len += HTT_DBG_OUT(buf + len, buf_len - len,
+				   "backpressure_hist_%u = %u",
+				   i + 1, htt_stats_buf->backpressure_hist[i]);
+
+	len += HTT_DBG_OUT(buf + len, buf_len - len,
+			   "============================");
+
+	if (len >= buf_len) {
+		buf[buf_len - 1] = 0;
+		stats_req->buf_len = buf_len - 1;
+	} else {
+		buf[len] = 0;
+		stats_req->buf_len = len;
+	}
+}
+
 static inline void htt_htt_stats_debug_dump(const u32 *tag_buf,
 					    struct debug_htt_stats_req *stats_req)
 {
@@ -4245,6 +4286,9 @@ static int ath11k_dbg_htt_ext_stats_parse(struct ath11k_base *ab,
 
 	case HTT_STATS_PDEV_OBSS_PD_TAG:
 		htt_print_pdev_obss_pd_stats_tlv_v(tag_buf, stats_req);
+		break;
+	case HTT_STATS_RING_BACKPRESSURE_STATS_TAG:
+		htt_print_backpressure_stats_tlv_v(tag_buf, user_data);
 		break;
 	default:
 		break;

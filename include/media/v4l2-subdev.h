@@ -1093,7 +1093,7 @@ extern const struct v4l2_subdev_ops v4l2_subdev_call_wrappers;
  * @f: callback function to be called.
  *     The callback functions are defined in groups, according to
  *     each element at &struct v4l2_subdev_ops.
- * @args...: arguments for @f.
+ * @args: arguments for @f.
  *
  * Example: err = v4l2_subdev_call(sd, video, s_std, norm);
  */

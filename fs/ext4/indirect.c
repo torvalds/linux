@@ -1019,7 +1019,7 @@ static void ext4_free_branches(handle_t *handle, struct inode *inode,
 			 * (should be rare).
 			 */
 			if (!bh) {
-				EXT4_ERROR_INODE_BLOCK(inode, nr,
+				ext4_error_inode_block(inode, nr, EIO,
 						       "Read failure");
 				continue;
 			}

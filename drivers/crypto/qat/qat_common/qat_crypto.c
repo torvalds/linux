@@ -250,8 +250,7 @@ static int qat_crypto_create_instances(struct adf_accel_dev *accel_dev)
 	char val[ADF_CFG_MAX_VAL_LEN_IN_BYTES];
 
 	INIT_LIST_HEAD(&accel_dev->crypto_list);
-	strlcpy(key, ADF_NUM_CY, sizeof(key));
-	if (adf_cfg_get_param_value(accel_dev, SEC, key, val))
+	if (adf_cfg_get_param_value(accel_dev, SEC, ADF_NUM_CY, val))
 		return -EFAULT;
 
 	if (kstrtoul(val, 0, &num_inst))

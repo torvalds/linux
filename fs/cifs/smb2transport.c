@@ -41,14 +41,6 @@
 #include "smb2glob.h"
 
 static int
-smb2_crypto_shash_allocate(struct TCP_Server_Info *server)
-{
-	return cifs_alloc_hash("hmac(sha256)",
-			       &server->secmech.hmacsha256,
-			       &server->secmech.sdeschmacsha256);
-}
-
-static int
 smb3_crypto_shash_allocate(struct TCP_Server_Info *server)
 {
 	struct cifs_secmech *p = &server->secmech;
@@ -219,7 +211,8 @@ smb2_find_smb_tcon(struct TCP_Server_Info *server, __u64 ses_id, __u32  tid)
 }
 
 int
-smb2_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
+smb2_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server,
+			bool allocate_crypto)
 {
 	int rc;
 	unsigned char smb2_signature[SMB2_HMACSHA256_SIZE];
@@ -228,6 +221,8 @@ smb2_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 	struct smb2_sync_hdr *shdr = (struct smb2_sync_hdr *)iov[0].iov_base;
 	struct cifs_ses *ses;
 	struct shash_desc *shash;
+	struct crypto_shash *hash;
+	struct sdesc *sdesc = NULL;
 	struct smb_rqst drqst;
 
 	ses = smb2_find_smb_ses(server, shdr->SessionId);
@@ -239,24 +234,32 @@ smb2_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 	memset(smb2_signature, 0x0, SMB2_HMACSHA256_SIZE);
 	memset(shdr->Signature, 0x0, SMB2_SIGNATURE_SIZE);
 
-	rc = smb2_crypto_shash_allocate(server);
-	if (rc) {
-		cifs_server_dbg(VFS, "%s: sha256 alloc failed\n", __func__);
-		return rc;
+	if (allocate_crypto) {
+		rc = cifs_alloc_hash("hmac(sha256)", &hash, &sdesc);
+		if (rc) {
+			cifs_server_dbg(VFS,
+					"%s: sha256 alloc failed\n", __func__);
+			return rc;
+		}
+		shash = &sdesc->shash;
+	} else {
+		hash = server->secmech.hmacsha256;
+		shash = &server->secmech.sdeschmacsha256->shash;
 	}
 
-	rc = crypto_shash_setkey(server->secmech.hmacsha256,
-				 ses->auth_key.response, SMB2_NTLMV2_SESSKEY_SIZE);
+	rc = crypto_shash_setkey(hash, ses->auth_key.response,
+			SMB2_NTLMV2_SESSKEY_SIZE);
 	if (rc) {
-		cifs_server_dbg(VFS, "%s: Could not update with response\n", __func__);
-		return rc;
+		cifs_server_dbg(VFS,
+				"%s: Could not update with response\n",
+				__func__);
+		goto out;
 	}
 
-	shash = &server->secmech.sdeschmacsha256->shash;
 	rc = crypto_shash_init(shash);
 	if (rc) {
 		cifs_server_dbg(VFS, "%s: Could not init sha256", __func__);
-		return rc;
+		goto out;
 	}
 
 	/*
@@ -271,9 +274,10 @@ smb2_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 		rc = crypto_shash_update(shash, iov[0].iov_base,
 					 iov[0].iov_len);
 		if (rc) {
-			cifs_server_dbg(VFS, "%s: Could not update with payload\n",
-				 __func__);
-			return rc;
+			cifs_server_dbg(VFS,
+					"%s: Could not update with payload\n",
+					__func__);
+			goto out;
 		}
 		drqst.rq_iov++;
 		drqst.rq_nvec--;
@@ -283,6 +287,9 @@ smb2_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 	if (!rc)
 		memcpy(shdr->Signature, sigptr, SMB2_SIGNATURE_SIZE);
 
+out:
+	if (allocate_crypto)
+		cifs_free_hash(&hash, &sdesc);
 	return rc;
 }
 
@@ -504,14 +511,17 @@ generate_smb311signingkey(struct cifs_ses *ses)
 }
 
 int
-smb3_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
+smb3_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server,
+			bool allocate_crypto)
 {
 	int rc;
 	unsigned char smb3_signature[SMB2_CMACAES_SIZE];
 	unsigned char *sigptr = smb3_signature;
 	struct kvec *iov = rqst->rq_iov;
 	struct smb2_sync_hdr *shdr = (struct smb2_sync_hdr *)iov[0].iov_base;
-	struct shash_desc *shash = &server->secmech.sdesccmacaes->shash;
+	struct shash_desc *shash;
+	struct crypto_shash *hash;
+	struct sdesc *sdesc = NULL;
 	struct smb_rqst drqst;
 	u8 key[SMB3_SIGN_KEY_SIZE];
 
@@ -519,14 +529,24 @@ smb3_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 	if (rc)
 		return 0;
 
+	if (allocate_crypto) {
+		rc = cifs_alloc_hash("cmac(aes)", &hash, &sdesc);
+		if (rc)
+			return rc;
+
+		shash = &sdesc->shash;
+	} else {
+		hash = server->secmech.cmacaes;
+		shash = &server->secmech.sdesccmacaes->shash;
+	}
+
 	memset(smb3_signature, 0x0, SMB2_CMACAES_SIZE);
 	memset(shdr->Signature, 0x0, SMB2_SIGNATURE_SIZE);
 
-	rc = crypto_shash_setkey(server->secmech.cmacaes,
-				 key, SMB2_CMACAES_SIZE);
+	rc = crypto_shash_setkey(hash, key, SMB2_CMACAES_SIZE);
 	if (rc) {
 		cifs_server_dbg(VFS, "%s: Could not set key for cmac aes\n", __func__);
-		return rc;
+		goto out;
 	}
 
 	/*
@@ -537,7 +557,7 @@ smb3_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 	rc = crypto_shash_init(shash);
 	if (rc) {
 		cifs_server_dbg(VFS, "%s: Could not init cmac aes\n", __func__);
-		return rc;
+		goto out;
 	}
 
 	/*
@@ -554,7 +574,7 @@ smb3_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 		if (rc) {
 			cifs_server_dbg(VFS, "%s: Could not update with payload\n",
 				 __func__);
-			return rc;
+			goto out;
 		}
 		drqst.rq_iov++;
 		drqst.rq_nvec--;
@@ -564,6 +584,9 @@ smb3_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 	if (!rc)
 		memcpy(shdr->Signature, sigptr, SMB2_SIGNATURE_SIZE);
 
+out:
+	if (allocate_crypto)
+		cifs_free_hash(&hash, &sdesc);
 	return rc;
 }
 
@@ -593,7 +616,7 @@ smb2_sign_rqst(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 		return 0;
 	}
 
-	rc = server->ops->calc_signature(rqst, server);
+	rc = server->ops->calc_signature(rqst, server, false);
 
 	return rc;
 }
@@ -602,7 +625,7 @@ int
 smb2_verify_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 {
 	unsigned int rc;
-	char server_response_sig[16];
+	char server_response_sig[SMB2_SIGNATURE_SIZE];
 	struct smb2_sync_hdr *shdr =
 			(struct smb2_sync_hdr *)rqst->rq_iov[0].iov_base;
 
@@ -631,16 +654,16 @@ smb2_verify_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 
 	memset(shdr->Signature, 0, SMB2_SIGNATURE_SIZE);
 
-	mutex_lock(&server->srv_mutex);
-	rc = server->ops->calc_signature(rqst, server);
-	mutex_unlock(&server->srv_mutex);
+	rc = server->ops->calc_signature(rqst, server, true);
 
 	if (rc)
 		return rc;
 
-	if (memcmp(server_response_sig, shdr->Signature, SMB2_SIGNATURE_SIZE))
+	if (memcmp(server_response_sig, shdr->Signature, SMB2_SIGNATURE_SIZE)) {
+		cifs_dbg(VFS, "sign fail cmd 0x%x message id 0x%llx\n",
+			shdr->Command, shdr->MessageId);
 		return -EACCES;
-	else
+	} else
 		return 0;
 }
 

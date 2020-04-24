@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Hardware monitoring driver for Intersil ISL68137
+ * Hardware monitoring driver for Renesas Digital Multiphase Voltage Regulators
  *
  * Copyright (c) 2017 Google Inc
+ * Copyright (c) 2020 Renesas Electronics America
  *
  */
 
@@ -14,9 +15,61 @@
 #include <linux/module.h>
 #include <linux/string.h>
 #include <linux/sysfs.h>
+
 #include "pmbus.h"
 
 #define ISL68137_VOUT_AVS	0x30
+#define RAA_DMPVR2_READ_VMON	0xc8
+
+enum chips {
+	isl68137,
+	isl68220,
+	isl68221,
+	isl68222,
+	isl68223,
+	isl68224,
+	isl68225,
+	isl68226,
+	isl68227,
+	isl68229,
+	isl68233,
+	isl68239,
+	isl69222,
+	isl69223,
+	isl69224,
+	isl69225,
+	isl69227,
+	isl69228,
+	isl69234,
+	isl69236,
+	isl69239,
+	isl69242,
+	isl69243,
+	isl69247,
+	isl69248,
+	isl69254,
+	isl69255,
+	isl69256,
+	isl69259,
+	isl69260,
+	isl69268,
+	isl69269,
+	isl69298,
+	raa228000,
+	raa228004,
+	raa228006,
+	raa228228,
+	raa229001,
+	raa229004,
+};
+
+enum variants {
+	raa_dmpvr1_2rail,
+	raa_dmpvr2_1rail,
+	raa_dmpvr2_2rail,
+	raa_dmpvr2_3rail,
+	raa_dmpvr2_hv,
+};
 
 static ssize_t isl68137_avs_enable_show_page(struct i2c_client *client,
 					     int page,
@@ -49,7 +102,8 @@ static ssize_t isl68137_avs_enable_store_page(struct i2c_client *client,
 	 * enabling AVS control is the workaround.
 	 */
 	if (op_val == ISL68137_VOUT_AVS) {
-		rc = pmbus_read_word_data(client, page, PMBUS_VOUT_COMMAND);
+		rc = pmbus_read_word_data(client, page, 0xff,
+					  PMBUS_VOUT_COMMAND);
 		if (rc < 0)
 			return rc;
 
@@ -98,13 +152,31 @@ static const struct attribute_group enable_group = {
 	.attrs = enable_attrs,
 };
 
-static const struct attribute_group *attribute_groups[] = {
+static const struct attribute_group *isl68137_attribute_groups[] = {
 	&enable_group,
 	NULL,
 };
 
-static struct pmbus_driver_info isl68137_info = {
-	.pages = 2,
+static int raa_dmpvr2_read_word_data(struct i2c_client *client, int page,
+				     int phase, int reg)
+{
+	int ret;
+
+	switch (reg) {
+	case PMBUS_VIRT_READ_VMON:
+		ret = pmbus_read_word_data(client, page, phase,
+					   RAA_DMPVR2_READ_VMON);
+		break;
+	default:
+		ret = -ENODATA;
+		break;
+	}
+
+	return ret;
+}
+
+static struct pmbus_driver_info raa_dmpvr_info = {
+	.pages = 3,
 	.format[PSC_VOLTAGE_IN] = direct,
 	.format[PSC_VOLTAGE_OUT] = direct,
 	.format[PSC_CURRENT_IN] = direct,
@@ -113,7 +185,7 @@ static struct pmbus_driver_info isl68137_info = {
 	.format[PSC_TEMPERATURE] = direct,
 	.m[PSC_VOLTAGE_IN] = 1,
 	.b[PSC_VOLTAGE_IN] = 0,
-	.R[PSC_VOLTAGE_IN] = 3,
+	.R[PSC_VOLTAGE_IN] = 2,
 	.m[PSC_VOLTAGE_OUT] = 1,
 	.b[PSC_VOLTAGE_OUT] = 0,
 	.R[PSC_VOLTAGE_OUT] = 3,
@@ -133,24 +205,112 @@ static struct pmbus_driver_info isl68137_info = {
 	    | PMBUS_HAVE_STATUS_INPUT | PMBUS_HAVE_TEMP | PMBUS_HAVE_TEMP2
 	    | PMBUS_HAVE_TEMP3 | PMBUS_HAVE_STATUS_TEMP
 	    | PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT
-	    | PMBUS_HAVE_IOUT | PMBUS_HAVE_STATUS_IOUT | PMBUS_HAVE_POUT,
-	.func[1] = PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT
-	    | PMBUS_HAVE_IOUT | PMBUS_HAVE_STATUS_IOUT | PMBUS_HAVE_POUT,
-	.groups = attribute_groups,
+	    | PMBUS_HAVE_IOUT | PMBUS_HAVE_STATUS_IOUT | PMBUS_HAVE_POUT
+		| PMBUS_HAVE_VMON,
+	.func[1] = PMBUS_HAVE_IIN | PMBUS_HAVE_PIN | PMBUS_HAVE_STATUS_INPUT
+	    | PMBUS_HAVE_TEMP | PMBUS_HAVE_TEMP3 | PMBUS_HAVE_STATUS_TEMP
+	    | PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT | PMBUS_HAVE_IOUT
+	    | PMBUS_HAVE_STATUS_IOUT | PMBUS_HAVE_POUT,
+	.func[2] = PMBUS_HAVE_IIN | PMBUS_HAVE_PIN | PMBUS_HAVE_STATUS_INPUT
+	    | PMBUS_HAVE_TEMP | PMBUS_HAVE_TEMP3 | PMBUS_HAVE_STATUS_TEMP
+	    | PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT | PMBUS_HAVE_IOUT
+	    | PMBUS_HAVE_STATUS_IOUT | PMBUS_HAVE_POUT,
 };
 
 static int isl68137_probe(struct i2c_client *client,
 			  const struct i2c_device_id *id)
 {
-	return pmbus_do_probe(client, id, &isl68137_info);
+	struct pmbus_driver_info *info;
+
+	info = devm_kzalloc(&client->dev, sizeof(*info), GFP_KERNEL);
+	if (!info)
+		return -ENOMEM;
+	memcpy(info, &raa_dmpvr_info, sizeof(*info));
+
+	switch (id->driver_data) {
+	case raa_dmpvr1_2rail:
+		info->pages = 2;
+		info->R[PSC_VOLTAGE_IN] = 3;
+		info->func[0] &= ~PMBUS_HAVE_VMON;
+		info->func[1] = PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT
+		    | PMBUS_HAVE_IOUT | PMBUS_HAVE_STATUS_IOUT
+		    | PMBUS_HAVE_POUT;
+		info->groups = isl68137_attribute_groups;
+		break;
+	case raa_dmpvr2_1rail:
+		info->pages = 1;
+		info->read_word_data = raa_dmpvr2_read_word_data;
+		break;
+	case raa_dmpvr2_2rail:
+		info->pages = 2;
+		info->read_word_data = raa_dmpvr2_read_word_data;
+		break;
+	case raa_dmpvr2_3rail:
+		info->read_word_data = raa_dmpvr2_read_word_data;
+		break;
+	case raa_dmpvr2_hv:
+		info->pages = 1;
+		info->R[PSC_VOLTAGE_IN] = 1;
+		info->m[PSC_VOLTAGE_OUT] = 2;
+		info->R[PSC_VOLTAGE_OUT] = 2;
+		info->m[PSC_CURRENT_IN] = 2;
+		info->m[PSC_POWER] = 2;
+		info->R[PSC_POWER] = -1;
+		info->read_word_data = raa_dmpvr2_read_word_data;
+		break;
+	default:
+		return -ENODEV;
+	}
+
+	return pmbus_do_probe(client, id, info);
 }
 
-static const struct i2c_device_id isl68137_id[] = {
-	{"isl68137", 0},
+static const struct i2c_device_id raa_dmpvr_id[] = {
+	{"isl68137", raa_dmpvr1_2rail},
+	{"isl68220", raa_dmpvr2_2rail},
+	{"isl68221", raa_dmpvr2_3rail},
+	{"isl68222", raa_dmpvr2_2rail},
+	{"isl68223", raa_dmpvr2_2rail},
+	{"isl68224", raa_dmpvr2_3rail},
+	{"isl68225", raa_dmpvr2_2rail},
+	{"isl68226", raa_dmpvr2_3rail},
+	{"isl68227", raa_dmpvr2_1rail},
+	{"isl68229", raa_dmpvr2_3rail},
+	{"isl68233", raa_dmpvr2_2rail},
+	{"isl68239", raa_dmpvr2_3rail},
+
+	{"isl69222", raa_dmpvr2_2rail},
+	{"isl69223", raa_dmpvr2_3rail},
+	{"isl69224", raa_dmpvr2_2rail},
+	{"isl69225", raa_dmpvr2_2rail},
+	{"isl69227", raa_dmpvr2_3rail},
+	{"isl69228", raa_dmpvr2_3rail},
+	{"isl69234", raa_dmpvr2_2rail},
+	{"isl69236", raa_dmpvr2_2rail},
+	{"isl69239", raa_dmpvr2_3rail},
+	{"isl69242", raa_dmpvr2_2rail},
+	{"isl69243", raa_dmpvr2_1rail},
+	{"isl69247", raa_dmpvr2_2rail},
+	{"isl69248", raa_dmpvr2_2rail},
+	{"isl69254", raa_dmpvr2_2rail},
+	{"isl69255", raa_dmpvr2_2rail},
+	{"isl69256", raa_dmpvr2_2rail},
+	{"isl69259", raa_dmpvr2_2rail},
+	{"isl69260", raa_dmpvr2_2rail},
+	{"isl69268", raa_dmpvr2_2rail},
+	{"isl69269", raa_dmpvr2_3rail},
+	{"isl69298", raa_dmpvr2_2rail},
+
+	{"raa228000", raa_dmpvr2_hv},
+	{"raa228004", raa_dmpvr2_hv},
+	{"raa228006", raa_dmpvr2_hv},
+	{"raa228228", raa_dmpvr2_2rail},
+	{"raa229001", raa_dmpvr2_2rail},
+	{"raa229004", raa_dmpvr2_2rail},
 	{}
 };
 
-MODULE_DEVICE_TABLE(i2c, isl68137_id);
+MODULE_DEVICE_TABLE(i2c, raa_dmpvr_id);
 
 /* This is the driver that will be inserted */
 static struct i2c_driver isl68137_driver = {
@@ -159,11 +319,11 @@ static struct i2c_driver isl68137_driver = {
 		   },
 	.probe = isl68137_probe,
 	.remove = pmbus_do_remove,
-	.id_table = isl68137_id,
+	.id_table = raa_dmpvr_id,
 };
 
 module_i2c_driver(isl68137_driver);
 
 MODULE_AUTHOR("Maxim Sloyko <maxims@google.com>");
-MODULE_DESCRIPTION("PMBus driver for Intersil ISL68137");
+MODULE_DESCRIPTION("PMBus driver for Renesas digital multiphase voltage regulators");
 MODULE_LICENSE("GPL");

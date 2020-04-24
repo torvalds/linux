@@ -812,7 +812,7 @@ tcp_limit_output_bytes - INTEGER
 tcp_challenge_ack_limit - INTEGER
 	Limits number of Challenge ACK sent per second, as recommended
 	in RFC 5961 (Improving TCP's Robustness to Blind In-Window Attacks)
-	Default: 100
+	Default: 1000
 
 tcp_rx_skb_cache - BOOLEAN
 	Controls a per TCP socket cache of one skb, that might help
@@ -956,6 +956,15 @@ ip_unprivileged_port_start - INTEGER
 ip_nonlocal_bind - BOOLEAN
 	If set, allows processes to bind() to non-local IP addresses,
 	which can be quite useful - but may break some applications.
+	Default: 0
+
+ip_autobind_reuse - BOOLEAN
+	By default, bind() does not select the ports automatically even if
+	the new socket and all sockets bound to the port have SO_REUSEADDR.
+	ip_autobind_reuse allows bind() to reuse the port and this is useful
+	when you use bind()+connect(), but may break some applications.
+	The preferred solution is to use IP_BIND_ADDRESS_NO_PORT and this
+	option should only be set by experts.
 	Default: 0
 
 ip_dynaddr - BOOLEAN

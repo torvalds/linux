@@ -3,7 +3,7 @@
  * Public definitions for the CAAM/QI (Queue Interface) backend.
  *
  * Copyright 2013-2016 Freescale Semiconductor, Inc.
- * Copyright 2016-2017 NXP
+ * Copyright 2016-2017, 2020 NXP
  */
 
 #ifndef __QI_H__
@@ -52,6 +52,7 @@ enum optype {
  * @context_a: shared descriptor dma address
  * @req_fq: to-CAAM request frame queue
  * @rsp_fq: from-CAAM response frame queue
+ * @refcnt: reference counter incremented for each frame enqueued in to-CAAM FQ
  * @cpu: cpu on which to receive CAAM response
  * @op_type: operation type
  * @qidev: device pointer for CAAM/QI backend
@@ -62,6 +63,7 @@ struct caam_drv_ctx {
 	dma_addr_t context_a;
 	struct qman_fq *req_fq;
 	struct qman_fq *rsp_fq;
+	refcount_t refcnt;
 	int cpu;
 	enum optype op_type;
 	struct device *qidev;

@@ -117,17 +117,16 @@ static void punit_dbgfs_unregister(void)
 	debugfs_remove_recursive(punit_dbg_file);
 }
 
-#define ICPU(model, drv_data) \
-	{ X86_VENDOR_INTEL, 6, model, X86_FEATURE_MWAIT,\
-	  (kernel_ulong_t)&drv_data }
+#define X86_MATCH(model, data)						 \
+	X86_MATCH_VENDOR_FAM_MODEL_FEATURE(INTEL, 6, INTEL_FAM6_##model, \
+					   X86_FEATURE_MWAIT, data)
 
 static const struct x86_cpu_id intel_punit_cpu_ids[] = {
-	ICPU(INTEL_FAM6_ATOM_SILVERMONT, punit_device_byt),
-	ICPU(INTEL_FAM6_ATOM_SILVERMONT_MID,  punit_device_tng),
-	ICPU(INTEL_FAM6_ATOM_AIRMONT,	  punit_device_cht),
+	X86_MATCH(ATOM_SILVERMONT,		&punit_device_byt),
+	X86_MATCH(ATOM_SILVERMONT_MID,		&punit_device_tng),
+	X86_MATCH(ATOM_AIRMONT,			&punit_device_cht),
 	{}
 };
-
 MODULE_DEVICE_TABLE(x86cpu, intel_punit_cpu_ids);
 
 static int __init punit_atom_debug_init(void)

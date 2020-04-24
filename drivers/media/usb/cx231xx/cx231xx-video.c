@@ -1785,7 +1785,7 @@ int cx231xx_register_analog_devices(struct cx231xx *dev)
 		dev->vdev.device_caps |= V4L2_CAP_TUNER;
 
 	/* register v4l2 video video_device */
-	ret = video_register_device(&dev->vdev, VFL_TYPE_GRABBER,
+	ret = video_register_device(&dev->vdev, VFL_TYPE_VIDEO,
 				    video_nr[dev->devno]);
 	if (ret) {
 		dev_err(dev->dev,

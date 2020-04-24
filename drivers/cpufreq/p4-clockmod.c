@@ -231,7 +231,7 @@ static struct cpufreq_driver p4clockmod_driver = {
 };
 
 static const struct x86_cpu_id cpufreq_p4_id[] = {
-	{ X86_VENDOR_INTEL, X86_FAMILY_ANY, X86_MODEL_ANY, X86_FEATURE_ACC },
+	X86_MATCH_VENDOR_FEATURE(INTEL, X86_FEATURE_ACC, NULL),
 	{}
 };
 

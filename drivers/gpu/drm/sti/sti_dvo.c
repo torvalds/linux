@@ -467,7 +467,7 @@ static int sti_dvo_bind(struct device *dev, struct device *master, void *data)
 	bridge->of_node = dvo->dev.of_node;
 	drm_bridge_add(bridge);
 
-	err = drm_bridge_attach(encoder, bridge, NULL);
+	err = drm_bridge_attach(encoder, bridge, NULL, 0);
 	if (err) {
 		DRM_ERROR("Failed to attach bridge\n");
 		return err;

@@ -147,12 +147,9 @@ static int st_accel_i2c_probe(struct i2c_client *client)
 	const struct st_sensor_settings *settings;
 	struct st_sensor_data *adata;
 	struct iio_dev *indio_dev;
-	const char *match;
 	int ret;
 
-	match = device_get_match_data(&client->dev);
-	if (match)
-		strlcpy(client->name, match, sizeof(client->name));
+	st_sensors_dev_name_probe(&client->dev, client->name, sizeof(client->name));
 
 	settings = st_accel_get_settings(client->name);
 	if (!settings) {

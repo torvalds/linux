@@ -122,7 +122,8 @@ static int icl_get_qgv_points(struct drm_i915_private *dev_priv,
 	if (ret)
 		return ret;
 
-	if (WARN_ON(qi->num_points > ARRAY_SIZE(qi->points)))
+	if (drm_WARN_ON(&dev_priv->drm,
+			qi->num_points > ARRAY_SIZE(qi->points)))
 		qi->num_points = ARRAY_SIZE(qi->points);
 
 	for (i = 0; i < qi->num_points; i++) {
@@ -132,9 +133,10 @@ static int icl_get_qgv_points(struct drm_i915_private *dev_priv,
 		if (ret)
 			return ret;
 
-		DRM_DEBUG_KMS("QGV %d: DCLK=%d tRP=%d tRDPRE=%d tRAS=%d tRCD=%d tRC=%d\n",
-			      i, sp->dclk, sp->t_rp, sp->t_rdpre, sp->t_ras,
-			      sp->t_rcd, sp->t_rc);
+		drm_dbg_kms(&dev_priv->drm,
+			    "QGV %d: DCLK=%d tRP=%d tRDPRE=%d tRAS=%d tRCD=%d tRC=%d\n",
+			    i, sp->dclk, sp->t_rp, sp->t_rdpre, sp->t_ras,
+			    sp->t_rcd, sp->t_rc);
 	}
 
 	return 0;
@@ -187,7 +189,8 @@ static int icl_get_bw_info(struct drm_i915_private *dev_priv, const struct intel
 
 	ret = icl_get_qgv_points(dev_priv, &qi);
 	if (ret) {
-		DRM_DEBUG_KMS("Failed to get memory subsystem information, ignoring bandwidth limits");
+		drm_dbg_kms(&dev_priv->drm,
+			    "Failed to get memory subsystem information, ignoring bandwidth limits");
 		return ret;
 	}
 	num_channels = qi.num_channels;
@@ -228,8 +231,9 @@ static int icl_get_bw_info(struct drm_i915_private *dev_priv, const struct intel
 			bi->deratedbw[j] = min(maxdebw,
 					       bw * 9 / 10); /* 90% */
 
-			DRM_DEBUG_KMS("BW%d / QGV %d: num_planes=%d deratedbw=%u\n",
-				      i, j, bi->num_planes, bi->deratedbw[j]);
+			drm_dbg_kms(&dev_priv->drm,
+				    "BW%d / QGV %d: num_planes=%d deratedbw=%u\n",
+				    i, j, bi->num_planes, bi->deratedbw[j]);
 		}
 
 		if (bi->num_planes == 1)
@@ -374,10 +378,9 @@ static struct intel_bw_state *
 intel_atomic_get_bw_state(struct intel_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	struct drm_private_state *bw_state;
+	struct intel_global_state *bw_state;
 
-	bw_state = drm_atomic_get_private_obj_state(&state->base,
-						    &dev_priv->bw_obj);
+	bw_state = intel_atomic_get_global_obj_state(state, &dev_priv->bw_obj);
 	if (IS_ERR(bw_state))
 		return ERR_CAST(bw_state);
 
@@ -392,7 +395,7 @@ int intel_bw_atomic_check(struct intel_atomic_state *state)
 	unsigned int data_rate, max_data_rate;
 	unsigned int num_active_planes;
 	struct intel_crtc *crtc;
-	int i;
+	int i, ret;
 
 	/* FIXME earlier gens need some checks too */
 	if (INTEL_GEN(dev_priv) < 11)
@@ -424,14 +427,19 @@ int intel_bw_atomic_check(struct intel_atomic_state *state)
 		bw_state->data_rate[crtc->pipe] = new_data_rate;
 		bw_state->num_active_planes[crtc->pipe] = new_active_planes;
 
-		DRM_DEBUG_KMS("pipe %c data rate %u num active planes %u\n",
-			      pipe_name(crtc->pipe),
-			      bw_state->data_rate[crtc->pipe],
-			      bw_state->num_active_planes[crtc->pipe]);
+		drm_dbg_kms(&dev_priv->drm,
+			    "pipe %c data rate %u num active planes %u\n",
+			    pipe_name(crtc->pipe),
+			    bw_state->data_rate[crtc->pipe],
+			    bw_state->num_active_planes[crtc->pipe]);
 	}
 
 	if (!bw_state)
 		return 0;
+
+	ret = intel_atomic_lock_global_state(&bw_state->base);
+	if (ret)
+		return ret;
 
 	data_rate = intel_bw_data_rate(dev_priv, bw_state);
 	num_active_planes = intel_bw_num_active_planes(dev_priv, bw_state);
@@ -441,15 +449,17 @@ int intel_bw_atomic_check(struct intel_atomic_state *state)
 	data_rate = DIV_ROUND_UP(data_rate, 1000);
 
 	if (data_rate > max_data_rate) {
-		DRM_DEBUG_KMS("Bandwidth %u MB/s exceeds max available %d MB/s (%d active planes)\n",
-			      data_rate, max_data_rate, num_active_planes);
+		drm_dbg_kms(&dev_priv->drm,
+			    "Bandwidth %u MB/s exceeds max available %d MB/s (%d active planes)\n",
+			    data_rate, max_data_rate, num_active_planes);
 		return -EINVAL;
 	}
 
 	return 0;
 }
 
-static struct drm_private_state *intel_bw_duplicate_state(struct drm_private_obj *obj)
+static struct intel_global_state *
+intel_bw_duplicate_state(struct intel_global_obj *obj)
 {
 	struct intel_bw_state *state;
 
@@ -457,18 +467,16 @@ static struct drm_private_state *intel_bw_duplicate_state(struct drm_private_obj
 	if (!state)
 		return NULL;
 
-	__drm_atomic_helper_private_obj_duplicate_state(obj, &state->base);
-
 	return &state->base;
 }
 
-static void intel_bw_destroy_state(struct drm_private_obj *obj,
-				   struct drm_private_state *state)
+static void intel_bw_destroy_state(struct intel_global_obj *obj,
+				   struct intel_global_state *state)
 {
 	kfree(state);
 }
 
-static const struct drm_private_state_funcs intel_bw_funcs = {
+static const struct intel_global_state_funcs intel_bw_funcs = {
 	.atomic_duplicate_state = intel_bw_duplicate_state,
 	.atomic_destroy_state = intel_bw_destroy_state,
 };
@@ -481,13 +489,8 @@ int intel_bw_init(struct drm_i915_private *dev_priv)
 	if (!state)
 		return -ENOMEM;
 
-	drm_atomic_private_obj_init(&dev_priv->drm, &dev_priv->bw_obj,
-				    &state->base, &intel_bw_funcs);
+	intel_atomic_global_obj_init(dev_priv, &dev_priv->bw_obj,
+				     &state->base, &intel_bw_funcs);
 
 	return 0;
-}
-
-void intel_bw_cleanup(struct drm_i915_private *dev_priv)
-{
-	drm_atomic_private_obj_fini(&dev_priv->bw_obj);
 }

@@ -275,7 +275,7 @@ struct swap_info_struct {
 					 */
 	struct work_struct discard_work; /* discard worker */
 	struct swap_cluster_list discard_clusters; /* discard clusters list */
-	struct plist_node avail_lists[0]; /*
+	struct plist_node avail_lists[]; /*
 					   * entries in swap_avail_heads, one
 					   * entry per node.
 					   * Must be last as the number of the
@@ -374,7 +374,6 @@ extern int sysctl_min_slab_ratio;
 #define node_reclaim_mode 0
 #endif
 
-extern int page_evictable(struct page *page);
 extern void check_move_unevictable_pages(struct pagevec *pvec);
 
 extern int kswapd_run(int nid);

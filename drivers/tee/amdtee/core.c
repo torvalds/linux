@@ -139,6 +139,9 @@ static struct amdtee_session *find_session(struct amdtee_context_data *ctxdata,
 	u32 index = get_session_index(session);
 	struct amdtee_session *sess;
 
+	if (index >= TEE_NUM_SESSIONS)
+		return NULL;
+
 	list_for_each_entry(sess, &ctxdata->sess_list, list_node)
 		if (ta_handle == sess->ta_handle &&
 		    test_bit(index, sess->sess_mask))

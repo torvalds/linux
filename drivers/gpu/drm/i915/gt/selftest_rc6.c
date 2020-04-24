@@ -12,6 +12,21 @@
 
 #include "selftests/i915_random.h"
 
+static u64 rc6_residency(struct intel_rc6 *rc6)
+{
+	u64 result;
+
+	/* XXX VLV_GT_MEDIA_RC6? */
+
+	result = intel_rc6_residency_ns(rc6, GEN6_GT_GFX_RC6);
+	if (HAS_RC6p(rc6_to_i915(rc6)))
+		result += intel_rc6_residency_ns(rc6, GEN6_GT_GFX_RC6p);
+	if (HAS_RC6pp(rc6_to_i915(rc6)))
+		result += intel_rc6_residency_ns(rc6, GEN6_GT_GFX_RC6pp);
+
+	return result;
+}
+
 int live_rc6_manual(void *arg)
 {
 	struct intel_gt *gt = arg;
@@ -38,9 +53,9 @@ int live_rc6_manual(void *arg)
 	__intel_rc6_disable(rc6);
 	msleep(1); /* wakeup is not immediate, takes about 100us on icl */
 
-	res[0] = intel_rc6_residency_ns(rc6, GEN6_GT_GFX_RC6);
+	res[0] = rc6_residency(rc6);
 	msleep(250);
-	res[1] = intel_rc6_residency_ns(rc6, GEN6_GT_GFX_RC6);
+	res[1] = rc6_residency(rc6);
 	if ((res[1] - res[0]) >> 10) {
 		pr_err("RC6 residency increased by %lldus while disabled for 250ms!\n",
 		       (res[1] - res[0]) >> 10);
@@ -51,14 +66,15 @@ int live_rc6_manual(void *arg)
 	/* Manually enter RC6 */
 	intel_rc6_park(rc6);
 
-	res[0] = intel_rc6_residency_ns(rc6, GEN6_GT_GFX_RC6);
+	res[0] = rc6_residency(rc6);
 	msleep(100);
-	res[1] = intel_rc6_residency_ns(rc6, GEN6_GT_GFX_RC6);
+	res[1] = rc6_residency(rc6);
 
 	if (res[1] == res[0]) {
-		pr_err("Did not enter RC6! RC6_STATE=%08x, RC6_CONTROL=%08x\n",
+		pr_err("Did not enter RC6! RC6_STATE=%08x, RC6_CONTROL=%08x, residency=%lld\n",
 		       intel_uncore_read_fw(gt->uncore, GEN6_RC_STATE),
-		       intel_uncore_read_fw(gt->uncore, GEN6_RC_CONTROL));
+		       intel_uncore_read_fw(gt->uncore, GEN6_RC_CONTROL),
+		       res[0]);
 		err = -EINVAL;
 	}
 

@@ -1781,7 +1781,7 @@ static int delta_register_device(struct delta_dev *delta)
 	snprintf(vdev->name, sizeof(vdev->name), "%s-%s",
 		 DELTA_NAME, DELTA_FW_VERSION);
 
-	ret = video_register_device(vdev, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(vdev, VFL_TYPE_VIDEO, -1);
 	if (ret) {
 		dev_err(delta->dev, "%s failed to register video device\n",
 			DELTA_PREFIX);

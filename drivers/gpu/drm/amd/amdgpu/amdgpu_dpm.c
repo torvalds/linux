@@ -1171,3 +1171,20 @@ int amdgpu_dpm_set_xgmi_pstate(struct amdgpu_device *adev,
 
 	return ret;
 }
+
+int amdgpu_dpm_set_df_cstate(struct amdgpu_device *adev,
+			     uint32_t cstate)
+{
+	int ret = 0;
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+	void *pp_handle = adev->powerplay.pp_handle;
+	struct smu_context *smu = &adev->smu;
+
+	if (is_support_sw_smu(adev))
+		ret = smu_set_df_cstate(smu, cstate);
+	else if (pp_funcs &&
+		 pp_funcs->set_df_cstate)
+		ret = pp_funcs->set_df_cstate(pp_handle, cstate);
+
+	return ret;
+}

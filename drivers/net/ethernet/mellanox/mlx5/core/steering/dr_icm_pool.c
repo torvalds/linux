@@ -468,7 +468,7 @@ mlx5dr_icm_alloc_chunk(struct mlx5dr_icm_pool *pool,
 			err = mlx5dr_cmd_sync_steering(pool->dmn->mdev);
 			if (err) {
 				dr_icm_chill_buckets_abort(pool, bucket, buckets);
-				mlx5dr_dbg(pool->dmn, "Sync_steering failed\n");
+				mlx5dr_err(pool->dmn, "Sync_steering failed\n");
 				chunk = NULL;
 				goto out;
 			}

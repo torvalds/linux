@@ -149,6 +149,7 @@ config NET_FC
 config IFB
 	tristate "Intermediate Functional Block support"
 	depends on NET_CLS_ACT
+	select NET_REDIRECT
 	---help---
 	  This is an intermediate driver that allows sharing of
 	  resources.
@@ -257,6 +258,19 @@ config GENEVE
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called geneve.
+
+config BAREUDP
+       tristate "Bare UDP Encapsulation"
+       depends on INET
+       depends on IPV6 || !IPV6
+       select NET_UDP_TUNNEL
+       select GRO_CELLS
+       help
+          This adds a bare UDP tunnel module for tunnelling different
+          kinds of traffic like MPLS, IP, etc. inside a UDP tunnel.
+
+          To compile this driver as a module, choose M here: the module
+          will be called bareudp.
 
 config GTP
 	tristate "GPRS Tunneling Protocol datapath (GTP-U)"
@@ -430,6 +444,8 @@ source "drivers/net/ethernet/Kconfig"
 source "drivers/net/fddi/Kconfig"
 
 source "drivers/net/hippi/Kconfig"
+
+source "drivers/net/ipa/Kconfig"
 
 config NET_SB1000
 	tristate "General Instruments Surfboard 1000"

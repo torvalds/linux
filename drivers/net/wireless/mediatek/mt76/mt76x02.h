@@ -70,18 +70,23 @@ struct mt76x02_beacon_ops {
 	(dev)->beacon_ops->pre_tbtt_enable(dev, enable)
 
 struct mt76x02_dev {
-	struct mt76_dev mt76; /* must be first */
+	union { /* must be first */
+		struct mt76_dev mt76;
+		struct mt76_phy mphy;
+	};
 
 	struct mac_address macaddr_list[8];
 
 	struct mutex phy_mutex;
 
 	u16 vif_mask;
+	u16 chainmask;
 
 	u8 txdone_seq;
 	DECLARE_KFIFO_PTR(txstatus_fifo, struct mt76x02_tx_status);
 	spinlock_t txstatus_fifo_lock;
 	u32 tx_airtime;
+	u32 ampdu_ref;
 
 	struct sk_buff *rx_head;
 
@@ -93,8 +98,7 @@ struct mt76x02_dev {
 
 	const struct mt76x02_beacon_ops *beacon_ops;
 
-	struct sk_buff *beacons[8];
-	u8 beacon_data_mask;
+	u8 beacon_data_count;
 
 	u8 tbtt_count;
 
@@ -104,13 +108,14 @@ struct mt76x02_dev {
 
 	struct mt76x02_calibration cal;
 
+	int txpower_conf;
 	s8 target_power;
 	s8 target_power_delta[2];
 	bool enable_tpc;
 
 	bool no_2ghz;
 
-	u8 coverage_class;
+	s16 coverage_class;
 	u8 slottime;
 
 	struct mt76x02_dfs_pattern_detector dfs_pd;

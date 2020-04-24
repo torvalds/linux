@@ -99,6 +99,7 @@ static bool samples_same(const struct perf_sample *s1,
 
 	if (type & PERF_SAMPLE_BRANCH_STACK) {
 		COMP(branch_stack->nr);
+		COMP(branch_stack->hw_idx);
 		for (i = 0; i < s1->branch_stack->nr; i++)
 			MCOMP(branch_stack->entries[i]);
 	}
@@ -150,6 +151,9 @@ static bool samples_same(const struct perf_sample *s1,
 	if (type & PERF_SAMPLE_PHYS_ADDR)
 		COMP(phys_addr);
 
+	if (type & PERF_SAMPLE_CGROUP)
+		COMP(cgroup);
+
 	if (type & PERF_SAMPLE_AUX) {
 		COMP(aux_sample.size);
 		if (memcmp(s1->aux_sample.data, s2->aux_sample.data,
@@ -186,7 +190,7 @@ static int do_test(u64 sample_type, u64 sample_regs, u64 read_format)
 		u64 data[64];
 	} branch_stack = {
 		/* 1 branch_entry */
-		.data = {1, 211, 212, 213},
+		.data = {1, -1ULL, 211, 212, 213},
 	};
 	u64 regs[64];
 	const u64 raw_data[] = {0x123456780a0b0c0dULL, 0x1102030405060708ULL};
@@ -208,6 +212,7 @@ static int do_test(u64 sample_type, u64 sample_regs, u64 read_format)
 		.transaction	= 112,
 		.raw_data	= (void *)raw_data,
 		.callchain	= &callchain.callchain,
+		.no_hw_idx      = false,
 		.branch_stack	= &branch_stack.branch_stack,
 		.user_regs	= {
 			.abi	= PERF_SAMPLE_REGS_ABI_64,
@@ -228,6 +233,7 @@ static int do_test(u64 sample_type, u64 sample_regs, u64 read_format)
 			.regs	= regs,
 		},
 		.phys_addr	= 113,
+		.cgroup		= 114,
 		.aux_sample	= {
 			.size	= sizeof(aux_data),
 			.data	= (void *)aux_data,
@@ -243,6 +249,9 @@ static int do_test(u64 sample_type, u64 sample_regs, u64 read_format)
 
 	if (sample_type & PERF_SAMPLE_REGS_INTR)
 		evsel.core.attr.sample_regs_intr = sample_regs;
+
+	if (sample_type & PERF_SAMPLE_BRANCH_STACK)
+		evsel.core.attr.branch_sample_type |= PERF_SAMPLE_BRANCH_HW_INDEX;
 
 	for (i = 0; i < sizeof(regs); i++)
 		*(i + (u8 *)regs) = i & 0xfe;
@@ -331,7 +340,7 @@ int test__sample_parsing(struct test *test __maybe_unused, int subtest __maybe_u
 	 * were added.  Please actually update the test rather than just change
 	 * the condition below.
 	 */
-	if (PERF_SAMPLE_MAX > PERF_SAMPLE_AUX << 1) {
+	if (PERF_SAMPLE_MAX > PERF_SAMPLE_CGROUP << 1) {
 		pr_debug("sample format has changed, some new PERF_SAMPLE_ bit was introduced - test needs updating\n");
 		return -1;
 	}

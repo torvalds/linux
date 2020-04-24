@@ -66,4 +66,14 @@ static inline void unregister_sysfs_loader(void)
 }
 #endif /* CONFIG_FW_LOADER_USER_HELPER */
 
+#ifdef CONFIG_EFI_EMBEDDED_FIRMWARE
+int firmware_fallback_platform(struct fw_priv *fw_priv, enum fw_opt opt_flags);
+#else
+static inline int firmware_fallback_platform(struct fw_priv *fw_priv,
+					     enum fw_opt opt_flags)
+{
+	return -ENOENT;
+}
+#endif
+
 #endif /* __FIRMWARE_FALLBACK_H */
