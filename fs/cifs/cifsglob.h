@@ -1030,6 +1030,7 @@ struct cifs_ses {
 
 #define CIFS_MAX_CHANNELS 16
 	struct cifs_chan chans[CIFS_MAX_CHANNELS];
+	struct cifs_chan *binding_chan;
 	size_t chan_count;
 	size_t chan_max;
 	atomic_t chan_seq; /* round robin state */
@@ -1037,23 +1038,31 @@ struct cifs_ses {
 
 /*
  * When binding a new channel, we need to access the channel which isn't fully
- * established yet (one past the established count)
+ * established yet.
  */
 
 static inline
 struct cifs_chan *cifs_ses_binding_channel(struct cifs_ses *ses)
 {
 	if (ses->binding)
-		return &ses->chans[ses->chan_count];
+		return ses->binding_chan;
 	else
 		return NULL;
 }
 
+/*
+ * Returns the server pointer of the session. When binding a new
+ * channel this returns the last channel which isn't fully established
+ * yet.
+ *
+ * This function should be use for negprot/sess.setup codepaths. For
+ * the other requests see cifs_pick_channel().
+ */
 static inline
 struct TCP_Server_Info *cifs_ses_server(struct cifs_ses *ses)
 {
 	if (ses->binding)
-		return ses->chans[ses->chan_count].server;
+		return ses->binding_chan->server;
 	else
 		return ses->server;
 }

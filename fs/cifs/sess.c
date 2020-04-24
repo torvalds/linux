@@ -231,7 +231,7 @@ cifs_ses_add_channel(struct cifs_ses *ses, struct cifs_server_iface *iface)
 
 	mutex_lock(&ses->session_mutex);
 
-	chan = &ses->chans[ses->chan_count];
+	chan = ses->binding_chan = &ses->chans[ses->chan_count];
 	chan->server = cifs_get_tcp_session(&vol);
 	if (IS_ERR(chan->server)) {
 		rc = PTR_ERR(chan->server);
@@ -276,6 +276,7 @@ cifs_ses_add_channel(struct cifs_ses *ses, struct cifs_server_iface *iface)
 	atomic_set(&ses->chan_seq, 0);
 out:
 	ses->binding = false;
+	ses->binding_chan = NULL;
 	mutex_unlock(&ses->session_mutex);
 
 	if (rc && chan->server)
