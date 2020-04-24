@@ -16,8 +16,7 @@
 
 #include "igc_hw.h"
 
-/* forward declaration */
-void igc_set_ethtool_ops(struct net_device *);
+void igc_ethtool_set_ops(struct net_device *);
 
 /* Transmit and receive queues */
 #define IGC_MAX_RX_QUEUES		4
