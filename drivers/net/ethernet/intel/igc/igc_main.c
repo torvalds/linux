@@ -2249,9 +2249,6 @@ int igc_add_mac_filter(struct igc_adapter *adapter,
 	struct net_device *dev = adapter->netdev;
 	int index;
 
-	if (!is_valid_ether_addr(addr))
-		return -EINVAL;
-
 	index = igc_find_mac_filter(adapter, type, addr);
 	if (index >= 0)
 		goto update_filter;
@@ -2282,9 +2279,6 @@ int igc_del_mac_filter(struct igc_adapter *adapter,
 {
 	struct net_device *dev = adapter->netdev;
 	int index;
-
-	if (!is_valid_ether_addr(addr))
-		return -EINVAL;
 
 	index = igc_find_mac_filter(adapter, type, addr);
 	if (index < 0)
