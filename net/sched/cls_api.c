@@ -735,8 +735,11 @@ static int tcf_block_offload_cmd(struct tcf_block *block,
 	INIT_LIST_HEAD(&bo.cb_list);
 
 	err = dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_BLOCK, &bo);
-	if (err < 0)
+	if (err < 0) {
+		if (err != -EOPNOTSUPP)
+			NL_SET_ERR_MSG(extack, "Driver ndo_setup_tc failed");
 		return err;
+	}
 
 	return tcf_block_setup(block, &bo);
 }
