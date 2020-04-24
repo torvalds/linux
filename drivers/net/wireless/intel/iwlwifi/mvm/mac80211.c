@@ -2179,6 +2179,15 @@ static void iwl_mvm_cfg_he_sta(struct iwl_mvm *mvm,
 			flags |= STA_CTXT_HE_PACKET_EXT;
 		}
 	}
+
+	if (sta->he_cap.he_cap_elem.mac_cap_info[2] &
+	    IEEE80211_HE_MAC_CAP2_32BIT_BA_BITMAP)
+		flags |= STA_CTXT_HE_32BIT_BA_BITMAP;
+
+	if (sta->he_cap.he_cap_elem.mac_cap_info[2] &
+	    IEEE80211_HE_MAC_CAP2_ACK_EN)
+		flags |= STA_CTXT_HE_ACK_ENABLED;
+
 	rcu_read_unlock();
 
 	/* Mark MU EDCA as enabled, unless none detected on some AC */
@@ -2203,11 +2212,6 @@ static void iwl_mvm_cfg_he_sta(struct iwl_mvm *mvm,
 			cpu_to_le16(mu_edca->mu_edca_timer);
 	}
 
-	if (vif->bss_conf.multi_sta_back_32bit)
-		flags |= STA_CTXT_HE_32BIT_BA_BITMAP;
-
-	if (vif->bss_conf.ack_enabled)
-		flags |= STA_CTXT_HE_ACK_ENABLED;
 
 	if (vif->bss_conf.uora_exists) {
 		flags |= STA_CTXT_HE_TRIG_RND_ALLOC;
