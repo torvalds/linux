@@ -7254,7 +7254,7 @@ static void hclge_reset_umv_space(struct hclge_dev *hdev)
 
 	mutex_lock(&hdev->umv_mutex);
 	hdev->share_umv_size = hdev->priv_umv_size +
-			hdev->max_umv_size % (hdev->num_req_vfs + 2);
+			hdev->max_umv_size % (hdev->num_alloc_vport + 1);
 	mutex_unlock(&hdev->umv_mutex);
 }
 
