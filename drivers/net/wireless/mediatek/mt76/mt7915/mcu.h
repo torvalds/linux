@@ -1,0 +1,837 @@
+/* SPDX-License-Identifier: ISC */
+/* Copyright (C) 2020 MediaTek Inc. */
+
+#ifndef __MT7915_MCU_H
+#define __MT7915_MCU_H
+
+struct mt7915_mcu_txd {
+	__le32 txd[8];
+
+	__le16 len;
+	__le16 pq_id;
+
+	u8 cid;
+	u8 pkt_type;
+	u8 set_query; /* FW don't care */
+	u8 seq;
+
+	u8 uc_d2b0_rev;
+	u8 ext_cid;
+	u8 s2d_index;
+	u8 ext_cid_ack;
+
+	u32 reserved[5];
+} __packed __aligned(4);
+
+/* event table */
+enum {
+	MCU_EVENT_TARGET_ADDRESS_LEN = 0x01,
+	MCU_EVENT_FW_START = 0x01,
+	MCU_EVENT_GENERIC = 0x01,
+	MCU_EVENT_ACCESS_REG = 0x02,
+	MCU_EVENT_MT_PATCH_SEM = 0x04,
+	MCU_EVENT_CH_PRIVILEGE = 0x18,
+	MCU_EVENT_EXT = 0xed,
+	MCU_EVENT_RESTART_DL = 0xef,
+};
+
+/* ext event table */
+enum {
+	MCU_EXT_EVENT_PS_SYNC = 0x5,
+	MCU_EXT_EVENT_THERMAL_PROTECT = 0x22,
+	MCU_EXT_EVENT_ASSERT_DUMP = 0x23,
+	MCU_EXT_EVENT_RDD_REPORT = 0x3a,
+	MCU_EXT_EVENT_CSA_NOTIFY = 0x4f,
+	MCU_EXT_EVENT_RATE_REPORT = 0x87,
+};
+
+struct mt7915_mcu_rxd {
+	__le32 rxd[6];
+
+	__le16 len;
+	__le16 pkt_type_id;
+
+	u8 eid;
+	u8 seq;
+	__le16 __rsv;
+
+	u8 ext_eid;
+	u8 __rsv1[2];
+	u8 s2d_index;
+};
+
+struct mt7915_mcu_rdd_report {
+	struct mt7915_mcu_rxd rxd;
+
+	u8 idx;
+	u8 long_detected;
+	u8 constant_prf_detected;
+	u8 staggered_prf_detected;
+	u8 radar_type_idx;
+	u8 periodic_pulse_num;
+	u8 long_pulse_num;
+	u8 hw_pulse_num;
+
+	u8 out_lpn;
+	u8 out_spn;
+	u8 out_crpn;
+	u8 out_crpw;
+	u8 out_crbn;
+	u8 out_stgpn;
+	u8 out_stgpw;
+
+	u8 rsv;
+
+	__le32 out_pri_const;
+	__le32 out_pri_stg[3];
+
+	struct {
+		__le32 start;
+		__le16 pulse_width;
+		__le16 pulse_power;
+		u8 mdrdy_flag;
+		u8 rsv[3];
+	} long_pulse[32];
+
+	struct {
+		__le32 start;
+		__le16 pulse_width;
+		__le16 pulse_power;
+		u8 mdrdy_flag;
+		u8 rsv[3];
+	} periodic_pulse[32];
+
+	struct {
+		__le32 start;
+		__le16 pulse_width;
+		__le16 pulse_power;
+		u8 sc_pass;
+		u8 sw_reset;
+		u8 mdrdy_flag;
+		u8 tx_active;
+	} hw_pulse[32];
+} __packed;
+
+struct mt7915_mcu_eeprom_info {
+	__le32 addr;
+	__le32 valid;
+	u8 data[16];
+} __packed;
+
+struct mt7915_mcu_ra_info {
+	struct mt7915_mcu_rxd rxd;
+
+	__le32 event_id;
+	__le16 wlan_idx;
+	__le16 ru_idx;
+	__le16 direction;
+	__le16 dump_group;
+
+	__le32 suggest_rate;
+	__le32 min_rate;	/* for dynamic sounding */
+	__le32 max_rate;	/* for dynamic sounding */
+	__le32 init_rate_down_rate;
+
+	__le16 curr_rate;
+	__le16 init_rate_down_total;
+	__le16 init_rate_down_succ;
+	__le16 success;
+	__le16 attempts;
+
+	__le16 prev_rate;
+	__le16 prob_up_rate;
+	u8 no_rate_up_cnt;
+	u8 ppdu_cnt;
+	u8 gi;
+
+	u8 try_up_fail;
+	u8 try_up_total;
+	u8 suggest_wf;
+	u8 try_up_check;
+	u8 prob_up_period;
+	u8 prob_down_pending;
+} __packed;
+
+#define MT_RA_RATE_NSS			GENMASK(8, 6)
+#define MT_RA_RATE_MCS			GENMASK(3, 0)
+#define MT_RA_RATE_TX_MODE		GENMASK(12, 9)
+#define MT_RA_RATE_DCM_EN		BIT(4)
+#define MT_RA_RATE_BW			GENMASK(14, 13)
+
+#define MCU_PQ_ID(p, q)			(((p) << 15) | ((q) << 10))
+#define MCU_PKT_ID			0xa0
+
+enum {
+	MCU_Q_QUERY,
+	MCU_Q_SET,
+	MCU_Q_RESERVED,
+	MCU_Q_NA
+};
+
+enum {
+	MCU_S2D_H2N,
+	MCU_S2D_C2N,
+	MCU_S2D_H2C,
+	MCU_S2D_H2CN
+};
+
+enum {
+	MCU_CMD_TARGET_ADDRESS_LEN_REQ = 0x01,
+	MCU_CMD_FW_START_REQ = 0x02,
+	MCU_CMD_INIT_ACCESS_REG = 0x3,
+	MCU_CMD_NIC_POWER_CTRL = 0x4,
+	MCU_CMD_PATCH_START_REQ = 0x05,
+	MCU_CMD_PATCH_FINISH_REQ = 0x07,
+	MCU_CMD_PATCH_SEM_CONTROL = 0x10,
+	MCU_CMD_EXT_CID = 0xED,
+	MCU_CMD_FW_SCATTER = 0xEE,
+	MCU_CMD_RESTART_DL_REQ = 0xEF,
+};
+
+enum {
+	MCU_EXT_CMD_EFUSE_ACCESS = 0x01,
+	MCU_EXT_CMD_PM_STATE_CTRL = 0x07,
+	MCU_EXT_CMD_CHANNEL_SWITCH = 0x08,
+	MCU_EXT_CMD_EFUSE_BUFFER_MODE = 0x21,
+	MCU_EXT_CMD_STA_REC_UPDATE = 0x25,
+	MCU_EXT_CMD_BSS_INFO_UPDATE = 0x26,
+	MCU_EXT_CMD_EDCA_UPDATE = 0x27,
+	MCU_EXT_CMD_DEV_INFO_UPDATE = 0x2A,
+	MCU_EXT_CMD_THERMAL_CTRL = 0x2c,
+	MCU_EXT_CMD_SET_RDD_CTRL = 0x3a,
+	MCU_EXT_CMD_PROTECT_CTRL = 0x3e,
+	MCU_EXT_CMD_MAC_INIT_CTRL = 0x46,
+	MCU_EXT_CMD_RX_HDR_TRANS = 0x47,
+	MCU_EXT_CMD_SET_RX_PATH = 0x4e,
+	MCU_EXT_CMD_SET_SER_TRIGGER = 0x81,
+	MCU_EXT_CMD_SCS_CTRL = 0x82,
+	MCU_EXT_CMD_RATE_CTRL = 0x87,
+	MCU_EXT_CMD_SET_RDD_TH = 0x9d,
+};
+
+enum {
+	PATCH_SEM_RELEASE,
+	PATCH_SEM_GET
+};
+
+enum {
+	PATCH_NOT_DL_SEM_FAIL,
+	PATCH_IS_DL,
+	PATCH_NOT_DL_SEM_SUCCESS,
+	PATCH_REL_SEM_SUCCESS
+};
+
+enum {
+	FW_STATE_INITIAL,
+	FW_STATE_FW_DOWNLOAD,
+	FW_STATE_NORMAL_OPERATION,
+	FW_STATE_NORMAL_TRX,
+	FW_STATE_WACPU_RDY        = 7
+};
+
+enum {
+	EE_MODE_EFUSE,
+	EE_MODE_BUFFER,
+};
+
+enum {
+	EE_FORMAT_BIN,
+	EE_FORMAT_WHOLE,
+	EE_FORMAT_MULTIPLE,
+};
+
+#define STA_TYPE_STA			BIT(0)
+#define STA_TYPE_AP			BIT(1)
+#define STA_TYPE_ADHOC			BIT(2)
+#define STA_TYPE_WDS			BIT(4)
+#define STA_TYPE_BC			BIT(5)
+
+#define NETWORK_INFRA			BIT(16)
+#define NETWORK_P2P			BIT(17)
+#define NETWORK_IBSS			BIT(18)
+#define NETWORK_WDS			BIT(21)
+
+#define CONNECTION_INFRA_STA		(STA_TYPE_STA | NETWORK_INFRA)
+#define CONNECTION_INFRA_AP		(STA_TYPE_AP | NETWORK_INFRA)
+#define CONNECTION_P2P_GC		(STA_TYPE_STA | NETWORK_P2P)
+#define CONNECTION_P2P_GO		(STA_TYPE_AP | NETWORK_P2P)
+#define CONNECTION_IBSS_ADHOC		(STA_TYPE_ADHOC | NETWORK_IBSS)
+#define CONNECTION_WDS			(STA_TYPE_WDS | NETWORK_WDS)
+#define CONNECTION_INFRA_BC		(STA_TYPE_BC | NETWORK_INFRA)
+
+#define CONN_STATE_DISCONNECT		0
+#define CONN_STATE_CONNECT		1
+#define CONN_STATE_PORT_SECURE		2
+
+enum {
+	DEV_INFO_ACTIVE,
+	DEV_INFO_MAX_NUM
+};
+
+enum {
+	SCS_SEND_DATA,
+	SCS_SET_MANUAL_PD_TH,
+	SCS_CONFIG,
+	SCS_ENABLE,
+	SCS_SHOW_INFO,
+	SCS_GET_GLO_ADDR,
+	SCS_GET_GLO_ADDR_EVENT,
+};
+
+enum {
+	CMD_CBW_20MHZ = IEEE80211_STA_RX_BW_20,
+	CMD_CBW_40MHZ = IEEE80211_STA_RX_BW_40,
+	CMD_CBW_80MHZ = IEEE80211_STA_RX_BW_80,
+	CMD_CBW_160MHZ = IEEE80211_STA_RX_BW_160,
+	CMD_CBW_10MHZ,
+	CMD_CBW_5MHZ,
+	CMD_CBW_8080MHZ,
+
+	CMD_HE_MCS_BW80 = 0,
+	CMD_HE_MCS_BW160,
+	CMD_HE_MCS_BW8080,
+	CMD_HE_MCS_BW_NUM
+};
+
+struct tlv {
+	__le16 tag;
+	__le16 len;
+} __packed;
+
+struct bss_info_omac {
+	__le16 tag;
+	__le16 len;
+	u8 hw_bss_idx;
+	u8 omac_idx;
+	u8 band_idx;
+	u8 rsv0;
+	__le32 conn_type;
+	u32 rsv1;
+} __packed;
+
+struct bss_info_basic {
+	__le16 tag;
+	__le16 len;
+	__le32 network_type;
+	u8 active;
+	u8 rsv0;
+	__le16 bcn_interval;
+	u8 bssid[ETH_ALEN];
+	u8 wmm_idx;
+	u8 dtim_period;
+	u8 bmc_wcid_lo;
+	u8 cipher;
+	u8 phy_mode;
+	u8 max_bssid;	/* max BSSID. range: 1 ~ 8, 0: MBSSID disabled */
+	u8 non_tx_bssid;/* non-transmitted BSSID, 0: transmitted BSSID */
+	u8 bmc_wcid_hi;	/* high Byte and version */
+	u8 rsv[2];
+} __packed;
+
+struct bss_info_rf_ch {
+	__le16 tag;
+	__le16 len;
+	u8 pri_ch;
+	u8 center_ch0;
+	u8 center_ch1;
+	u8 bw;
+	u8 he_ru26_block;	/* 1: don't send HETB in RU26, 0: allow */
+	u8 he_all_disable;	/* 1: disallow all HETB, 0: allow */
+	u8 rsv[2];
+} __packed;
+
+struct bss_info_ext_bss {
+	__le16 tag;
+	__le16 len;
+	__le32 mbss_tsf_offset; /* in unit of us */
+	u8 rsv[8];
+} __packed;
+
+struct bss_info_sync_mode {
+	__le16 tag;
+	__le16 len;
+	__le16 bcn_interval;
+	u8 enable;
+	u8 dtim_period;
+	u8 rsv[8];
+} __packed;
+
+struct bss_info_bmc_rate {
+	__le16 tag;
+	__le16 len;
+	__le16 bc_trans;
+	__le16 mc_trans;
+	u8 short_preamble;
+	u8 rsv[7];
+} __packed;
+
+struct bss_info_ra {
+	__le16 tag;
+	__le16 len;
+	u8 op_mode;
+	u8 adhoc_en;
+	u8 short_preamble;
+	u8 tx_streams;
+	u8 rx_streams;
+	u8 algo;
+	u8 force_sgi;
+	u8 force_gf;
+	u8 ht_mode;
+	u8 has_20_sta;		/* Check if any sta support GF. */
+	u8 bss_width_trigger_events;
+	u8 vht_nss_cap;
+	u8 vht_bw_signal;	/* not use */
+	u8 vht_force_sgi;	/* not use */
+	u8 se_off;
+	u8 antenna_idx;
+	u8 train_up_rule;
+	u8 rsv[3];
+	unsigned short train_up_high_thres;
+	short train_up_rule_rssi;
+	unsigned short low_traffic_thres;
+	__le16 max_phyrate;
+	__le32 phy_cap;
+	__le32 interval;
+	__le32 fast_interval;
+} __packed;
+
+struct bss_info_bcn {
+	__le16 tag;
+	__le16 len;
+	u8 ver;
+	u8 enable;
+	__le16 sub_ntlv;
+} __packed __aligned(4);
+
+struct bss_info_bcn_csa {
+	__le16 tag;
+	__le16 len;
+	u8 cnt;
+	u8 rsv[3];
+} __packed __aligned(4);
+
+struct bss_info_bcn_bcc {
+	__le16 tag;
+	__le16 len;
+	u8 cnt;
+	u8 rsv[3];
+} __packed __aligned(4);
+
+struct bss_info_bcn_mbss {
+#define MAX_BEACON_NUM	32
+	__le16 tag;
+	__le16 len;
+	__le32 bitmap;
+	__le16 offset[MAX_BEACON_NUM];
+	u8 rsv[8];
+} __packed __aligned(4);
+
+struct bss_info_bcn_cont {
+	__le16 tag;
+	__le16 len;
+	__le16 tim_ofs;
+	__le16 csa_ofs;
+	__le16 bcc_ofs;
+	__le16 pkt_len;
+} __packed __aligned(4);
+
+enum {
+	BSS_INFO_BCN_CSA,
+	BSS_INFO_BCN_BCC,
+	BSS_INFO_BCN_MBSSID,
+	BSS_INFO_BCN_CONTENT,
+	BSS_INFO_BCN_MAX
+};
+
+enum {
+	BSS_INFO_OMAC,
+	BSS_INFO_BASIC,
+	BSS_INFO_RF_CH,		/* optional, for BT/LTE coex */
+	BSS_INFO_PM,		/* sta only */
+	BSS_INFO_UAPSD,		/* sta only */
+	BSS_INFO_ROAM_DETECT,	/* obsoleted */
+	BSS_INFO_LQ_RM,		/* obsoleted */
+	BSS_INFO_EXT_BSS,
+	BSS_INFO_BMC_RATE,	/* for bmc rate control in CR4 */
+	BSS_INFO_SYNC_MODE,
+	BSS_INFO_RA,
+	BSS_INFO_HW_AMSDU,
+	BSS_INFO_BSS_COLOR,
+	BSS_INFO_HE_BASIC,
+	BSS_INFO_PROTECT_INFO,
+	BSS_INFO_OFFLOAD,
+	BSS_INFO_11V_MBSSID,
+	BSS_INFO_MAX_NUM
+};
+
+enum {
+	WTBL_RESET_AND_SET = 1,
+	WTBL_SET,
+	WTBL_QUERY,
+	WTBL_RESET_ALL
+};
+
+struct wtbl_req_hdr {
+	u8 wlan_idx_lo;
+	u8 operation;
+	__le16 tlv_num;
+	u8 wlan_idx_hi;
+	u8 rsv[3];
+} __packed;
+
+struct wtbl_generic {
+	__le16 tag;
+	__le16 len;
+	u8 peer_addr[ETH_ALEN];
+	u8 muar_idx;
+	u8 skip_tx;
+	u8 cf_ack;
+	u8 qos;
+	u8 mesh;
+	u8 adm;
+	__le16 partial_aid;
+	u8 baf_en;
+	u8 aad_om;
+} __packed;
+
+struct wtbl_rx {
+	__le16 tag;
+	__le16 len;
+	u8 rcid;
+	u8 rca1;
+	u8 rca2;
+	u8 rv;
+	u8 rsv[4];
+} __packed;
+
+struct wtbl_ht {
+	__le16 tag;
+	__le16 len;
+	u8 ht;
+	u8 ldpc;
+	u8 af;
+	u8 mm;
+	u8 rsv[4];
+} __packed;
+
+struct wtbl_vht {
+	__le16 tag;
+	__le16 len;
+	u8 ldpc;
+	u8 dyn_bw;
+	u8 vht;
+	u8 txop_ps;
+	u8 rsv[4];
+} __packed;
+
+enum {
+	MT_BA_TYPE_INVALID,
+	MT_BA_TYPE_ORIGINATOR,
+	MT_BA_TYPE_RECIPIENT
+};
+
+enum {
+	RST_BA_MAC_TID_MATCH,
+	RST_BA_MAC_MATCH,
+	RST_BA_NO_MATCH
+};
+
+struct wtbl_ba {
+	__le16 tag;
+	__le16 len;
+	/* common */
+	u8 tid;
+	u8 ba_type;
+	u8 rsv0[2];
+	/* originator only */
+	__le16 sn;
+	u8 ba_en;
+	u8 ba_winsize_idx;
+	__le16 ba_winsize;
+	/* recipient only */
+	u8 peer_addr[ETH_ALEN];
+	u8 rst_ba_tid;
+	u8 rst_ba_sel;
+	u8 rst_ba_sb;
+	u8 band_idx;
+	u8 rsv1[4];
+} __packed;
+
+struct wtbl_bf {
+	__le16 tag;
+	__le16 len;
+	u8 ibf;
+	u8 ebf;
+	u8 ibf_vht;
+	u8 ebf_vht;
+	u8 gid;
+	u8 pfmu_idx;
+	u8 rsv[2];
+} __packed;
+
+struct wtbl_smps {
+	__le16 tag;
+	__le16 len;
+	u8 smps;
+	u8 rsv[3];
+} __packed;
+
+struct wtbl_spe {
+	__le16 tag;
+	__le16 len;
+	u8 spe_idx;
+	u8 rsv[3];
+} __packed;
+
+enum {
+	WTBL_GENERIC,
+	WTBL_RX,
+	WTBL_HT,
+	WTBL_VHT,
+	WTBL_PEER_PS,		/* not used */
+	WTBL_TX_PS,
+	WTBL_HDR_TRANS,
+	WTBL_SEC_KEY,
+	WTBL_BA,
+	WTBL_RDG,		/* obsoleted */
+	WTBL_PROTECT,		/* not used */
+	WTBL_CLEAR,		/* not used */
+	WTBL_BF,
+	WTBL_SMPS,
+	WTBL_RAW_DATA,		/* debug only */
+	WTBL_PN,
+	WTBL_SPE,
+	WTBL_MAX_NUM
+};
+
+struct sta_ntlv_hdr {
+	u8 rsv[2];
+	__le16 tlv_num;
+} __packed;
+
+struct sta_req_hdr {
+	u8 bss_idx;
+	u8 wlan_idx_lo;
+	__le16 tlv_num;
+	u8 is_tlv_append;
+	u8 muar_idx;
+	u8 wlan_idx_hi;
+	u8 rsv;
+} __packed;
+
+struct sta_rec_basic {
+	__le16 tag;
+	__le16 len;
+	__le32 conn_type;
+	u8 conn_state;
+	u8 qos;
+	__le16 aid;
+	u8 peer_addr[ETH_ALEN];
+	__le16 extra_info;
+} __packed;
+
+struct sta_rec_ht {
+	__le16 tag;
+	__le16 len;
+	__le16 ht_cap;
+	u16 rsv;
+} __packed;
+
+struct sta_rec_vht {
+	__le16 tag;
+	__le16 len;
+	__le32 vht_cap;
+	__le16 vht_rx_mcs_map;
+	__le16 vht_tx_mcs_map;
+	u8 rts_bw_sig;
+	u8 rsv[3];
+} __packed;
+
+struct sta_rec_ba {
+	__le16 tag;
+	__le16 len;
+	u8 tid;
+	u8 ba_type;
+	u8 amsdu;
+	u8 ba_en;
+	__le16 ssn;
+	__le16 winsize;
+} __packed;
+
+struct sec_key {
+	u8 cipher_id;
+	u8 cipher_len;
+	u8 key_id;
+	u8 key_len;
+	u8 key[32];
+} __packed;
+
+struct sta_rec_sec {
+	__le16 tag;
+	__le16 len;
+	u8 add;
+	u8 n_cipher;
+	u8 rsv[2];
+
+	struct sec_key key[2];
+} __packed;
+
+struct ra_phy {
+	u8 type;
+	u8 flag;
+	u8 stbc;
+	u8 sgi;
+	u8 bw;
+	u8 ldpc;
+	u8 mcs;
+	u8 nss;
+	u8 he_ltf;
+};
+
+struct sta_rec_ra {
+	__le16 tag;
+	__le16 len;
+
+	u8 valid;
+	u8 auto_rate;
+	u8 phy_mode;
+	u8 channel;
+	u8 bw;
+	u8 disable_cck;
+	u8 ht_mcs32;
+	u8 ht_gf;
+	u8 ht_mcs[4];
+	u8 mmps_mode;
+	u8 gband_256;
+	u8 af;
+	u8 auth_wapi_mode;
+	u8 rate_len;
+
+	u8 supp_mode;
+	u8 supp_cck_rate;
+	u8 supp_ofdm_rate;
+	__le32 supp_ht_mcs;
+	__le16 supp_vht_mcs[4];
+
+	u8 op_mode;
+	u8 op_vht_chan_width;
+	u8 op_vht_rx_nss;
+	u8 op_vht_rx_nss_type;
+
+	__le32 sta_status;
+
+	struct ra_phy phy;
+} __packed;
+
+enum {
+	STA_REC_BASIC,
+	STA_REC_RA,
+	STA_REC_RA_CMM_INFO,
+	STA_REC_RA_UPDATE,
+	STA_REC_BF,
+	STA_REC_AMSDU,
+	STA_REC_BA,
+	STA_REC_RED,		/* not used */
+	STA_REC_TX_PROC,	/* for hdr trans and CSO in CR4 */
+	STA_REC_HT,
+	STA_REC_VHT,
+	STA_REC_APPS,
+	STA_REC_KEY,
+	STA_REC_WTBL,
+	STA_REC_HE,
+	STA_REC_HW_AMSDU,
+	STA_REC_WTBL_AADOM,
+	STA_REC_KEY_V2,
+	STA_REC_MURU,
+	STA_REC_MUEDCA,
+	STA_REC_MAX_NUM
+};
+
+enum mt7915_cipher_type {
+	MT_CIPHER_NONE,
+	MT_CIPHER_WEP40,
+	MT_CIPHER_WEP104,
+	MT_CIPHER_WEP128,
+	MT_CIPHER_TKIP,
+	MT_CIPHER_AES_CCMP,
+	MT_CIPHER_CCMP_256,
+	MT_CIPHER_GCMP,
+	MT_CIPHER_GCMP_256,
+	MT_CIPHER_WAPI,
+	MT_CIPHER_BIP_CMAC_128,
+};
+
+enum {
+	CH_SWITCH_NORMAL = 0,
+	CH_SWITCH_SCAN = 3,
+	CH_SWITCH_MCC = 4,
+	CH_SWITCH_DFS = 5,
+	CH_SWITCH_BACKGROUND_SCAN_START = 6,
+	CH_SWITCH_BACKGROUND_SCAN_RUNNING = 7,
+	CH_SWITCH_BACKGROUND_SCAN_STOP = 8,
+	CH_SWITCH_SCAN_BYPASS_DPD = 9
+};
+
+enum {
+	THERMAL_SENSOR_TEMP_QUERY,
+	THERMAL_SENSOR_MANUAL_CTRL,
+	THERMAL_SENSOR_INFO_QUERY,
+	THERMAL_SENSOR_TASK_CTRL,
+};
+
+#define MT7915_WTBL_UPDATE_MAX_SIZE	(sizeof(struct wtbl_req_hdr) +	\
+					 sizeof(struct wtbl_generic) +	\
+					 sizeof(struct wtbl_rx) +	\
+					 sizeof(struct wtbl_ht) +	\
+					 sizeof(struct wtbl_vht) +	\
+					 sizeof(struct wtbl_ba) +	\
+					 sizeof(struct wtbl_bf) +	\
+					 sizeof(struct wtbl_smps) +	\
+					 sizeof(struct wtbl_spe))
+
+#define MT7915_STA_UPDATE_MAX_SIZE	(sizeof(struct sta_req_hdr) +	\
+					 sizeof(struct sta_rec_basic) +	\
+					 sizeof(struct sta_rec_ht) +	\
+					 sizeof(struct sta_rec_ba) +	\
+					 sizeof(struct sta_rec_vht) +	\
+					 sizeof(struct tlv) +		\
+					 sizeof(struct sta_rec_sec) +	\
+					 sizeof(struct sta_rec_ra) +	\
+					 MT7915_WTBL_UPDATE_MAX_SIZE)
+
+#define MT7915_WTBL_UPDATE_BA_SIZE	(sizeof(struct wtbl_req_hdr) +	\
+					 sizeof(struct wtbl_ba))
+
+#define MT7915_BEACON_UPDATE_SIZE	(sizeof(struct sta_req_hdr) +	\
+					 sizeof(struct bss_info_bcn_csa) + \
+					 sizeof(struct bss_info_bcn_bcc) + \
+					 sizeof(struct bss_info_bcn_mbss) + \
+					 sizeof(struct bss_info_bcn_cont))
+
+#define PHY_MODE_A			BIT(0)
+#define PHY_MODE_B			BIT(1)
+#define PHY_MODE_G			BIT(2)
+#define PHY_MODE_GN			BIT(3)
+#define PHY_MODE_AN			BIT(4)
+#define PHY_MODE_AC			BIT(5)
+
+#define MODE_CCK			BIT(0)
+#define MODE_OFDM			BIT(1)
+#define MODE_HT				BIT(2)
+#define MODE_VHT			BIT(3)
+
+#define STA_CAP_WMM			BIT(0)
+#define STA_CAP_SGI_20			BIT(4)
+#define STA_CAP_SGI_40			BIT(5)
+#define STA_CAP_TX_STBC			BIT(6)
+#define STA_CAP_RX_STBC			BIT(7)
+#define STA_CAP_VHT_SGI_80		BIT(16)
+#define STA_CAP_VHT_SGI_160		BIT(17)
+#define STA_CAP_VHT_TX_STBC		BIT(18)
+#define STA_CAP_VHT_RX_STBC		BIT(19)
+#define STA_CAP_VHT_LDPC		BIT(23)
+#define STA_CAP_LDPC			BIT(24)
+#define STA_CAP_HT			BIT(26)
+#define STA_CAP_VHT			BIT(27)
+
+#endif
