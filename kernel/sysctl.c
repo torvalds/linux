@@ -68,6 +68,9 @@
 #include <linux/bpf.h>
 #include <linux/mount.h>
 #include <linux/userfaultfd_k.h>
+#include <linux/coredump.h>
+#include <linux/latencytop.h>
+#include <linux/pid.h>
 
 #include "../lib/kstrtox.h"
 
@@ -102,22 +105,6 @@
 #endif
 
 #if defined(CONFIG_SYSCTL)
-
-/* External variables not in a header file. */
-extern int suid_dumpable;
-#ifdef CONFIG_COREDUMP
-extern int core_uses_pid;
-extern char core_pattern[];
-extern unsigned int core_pipe_limit;
-#endif
-extern int pid_max;
-extern int pid_max_min, pid_max_max;
-extern int percpu_pagelist_fraction;
-extern int latencytop_enabled;
-extern unsigned int sysctl_nr_open_min, sysctl_nr_open_max;
-#ifndef CONFIG_MMU
-extern int sysctl_nr_trim_pages;
-#endif
 
 /* Constants used for minimum and  maximum */
 #ifdef CONFIG_LOCKUP_DETECTOR
@@ -159,24 +146,6 @@ static unsigned long hung_task_timeout_max = (LONG_MAX/HZ);
 
 #ifdef CONFIG_INOTIFY_USER
 #include <linux/inotify.h>
-#endif
-#ifdef CONFIG_SPARC
-#endif
-
-#ifdef CONFIG_PARISC
-extern int pwrsw_enabled;
-#endif
-
-#ifdef CONFIG_SYSCTL_ARCH_UNALIGN_ALLOW
-extern int unaligned_enabled;
-#endif
-
-#ifdef CONFIG_IA64
-extern int unaligned_dump_stack;
-#endif
-
-#ifdef CONFIG_SYSCTL_ARCH_UNALIGN_NO_WARN
-extern int no_unaligned_warning;
 #endif
 
 #ifdef CONFIG_PROC_SYSCTL
@@ -243,14 +212,6 @@ static struct ctl_table vm_table[];
 static struct ctl_table fs_table[];
 static struct ctl_table debug_table[];
 static struct ctl_table dev_table[];
-extern struct ctl_table random_table[];
-#ifdef CONFIG_EPOLL
-extern struct ctl_table epoll_table[];
-#endif
-
-#ifdef CONFIG_FW_LOADER_USER_HELPER
-extern struct ctl_table firmware_config_table[];
-#endif
 
 #if defined(HAVE_ARCH_PICK_MMAP_LAYOUT) || \
     defined(CONFIG_ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT)
