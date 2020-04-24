@@ -19,3 +19,15 @@
 		status = "okay";
 	};
 };
+
+&ipu2 {
+	mboxes = <&mailbox6 &mbox_ipu2_ipc3x>;
+};
+
+&ipu1 {
+	mboxes = <&mailbox5 &mbox_ipu1_ipc3x>;
+};
+
+&dsp1 {
+	mboxes = <&mailbox5 &mbox_dsp1_ipc3x>;
+};
