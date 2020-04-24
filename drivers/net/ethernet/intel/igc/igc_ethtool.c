@@ -1225,8 +1225,8 @@ static void igc_ethtool_init_nfc_rule(struct igc_nfc_rule *rule,
  * Rules with both destination and source MAC addresses are considered invalid
  * since the driver doesn't support them.
  *
- * Also, if there is already another rule with the same filter, @rule is
- * considered invalid.
+ * Also, if there is already another rule with the same filter in a different
+ * location, @rule is considered invalid.
  *
  * Context: Expects adapter->nfc_rule_lock to be held by caller.
  *
@@ -1252,7 +1252,8 @@ static int igc_ethtool_check_nfc_rule(struct igc_adapter *adapter,
 
 	list_for_each_entry(tmp, &adapter->nfc_rule_list, list) {
 		if (!memcmp(&rule->filter, &tmp->filter,
-			    sizeof(rule->filter))) {
+			    sizeof(rule->filter)) &&
+		    tmp->location != rule->location) {
 			netdev_dbg(dev, "Rule already exists\n");
 			return -EEXIST;
 		}
