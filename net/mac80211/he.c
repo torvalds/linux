@@ -57,17 +57,14 @@ ieee80211_he_cap_ie_to_sta_he_cap(struct ieee80211_sub_if_data *sdata,
 
 void
 ieee80211_he_op_ie_to_bss_conf(struct ieee80211_vif *vif,
-			const struct ieee80211_he_operation *he_op_ie_elem)
+			const struct ieee80211_he_operation *he_op_ie)
 {
-	struct ieee80211_he_operation *he_operation =
-					&vif->bss_conf.he_operation;
-
-	if (!he_op_ie_elem) {
-		memset(he_operation, 0, sizeof(*he_operation));
+	memset(&vif->bss_conf.he_oper, 0, sizeof(vif->bss_conf.he_oper));
+	if (!he_op_ie)
 		return;
-	}
 
-	vif->bss_conf.he_operation = *he_op_ie_elem;
+	vif->bss_conf.he_oper.params = __le32_to_cpu(he_op_ie->he_oper_params);
+	vif->bss_conf.he_oper.nss_set = __le16_to_cpu(he_op_ie->he_mcs_nss_set);
 }
 
 void
