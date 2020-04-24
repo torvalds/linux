@@ -941,7 +941,7 @@ static int igc_ethtool_get_nfc_rule(struct igc_adapter *adapter,
 
 	spin_lock(&adapter->nfc_rule_lock);
 
-	hlist_for_each_entry(rule, &adapter->nfc_rule_list, nfc_node) {
+	list_for_each_entry(rule, &adapter->nfc_rule_list, list) {
 		if (fsp->location <= rule->location)
 			break;
 	}
@@ -997,7 +997,7 @@ static int igc_ethtool_get_nfc_rules(struct igc_adapter *adapter,
 
 	spin_lock(&adapter->nfc_rule_lock);
 
-	hlist_for_each_entry(rule, &adapter->nfc_rule_list, nfc_node) {
+	list_for_each_entry(rule, &adapter->nfc_rule_list, list) {
 		if (cnt == cmd->rule_cnt) {
 			spin_unlock(&adapter->nfc_rule_lock);
 			return -EMSGSIZE;
@@ -1261,7 +1261,7 @@ static int igc_ethtool_update_nfc_rule(struct igc_adapter *adapter,
 	parent = NULL;
 	rule = NULL;
 
-	hlist_for_each_entry(rule, &adapter->nfc_rule_list, nfc_node) {
+	list_for_each_entry(rule, &adapter->nfc_rule_list, list) {
 		/* hash found, or no matching entry */
 		if (rule->location >= location)
 			break;
@@ -1272,7 +1272,7 @@ static int igc_ethtool_update_nfc_rule(struct igc_adapter *adapter,
 	if (rule && rule->location == location) {
 		err = igc_disable_nfc_rule(adapter, rule);
 
-		hlist_del(&rule->nfc_node);
+		list_del(&rule->list);
 		kfree(rule);
 		adapter->nfc_rule_count--;
 	}
@@ -1283,11 +1283,8 @@ static int igc_ethtool_update_nfc_rule(struct igc_adapter *adapter,
 	if (!input)
 		return err;
 
-	/* add filter to the list */
-	if (parent)
-		hlist_add_behind(&input->nfc_node, &parent->nfc_node);
-	else
-		hlist_add_head(&input->nfc_node, &adapter->nfc_rule_list);
+	list_add(&input->list, parent ? &parent->list :
+					&adapter->nfc_rule_list);
 
 	/* update counts */
 	adapter->nfc_rule_count++;
@@ -1298,7 +1295,7 @@ static int igc_ethtool_update_nfc_rule(struct igc_adapter *adapter,
 static void igc_ethtool_init_nfc_rule(struct igc_nfc_rule *rule,
 				      const struct ethtool_rx_flow_spec *fsp)
 {
-	INIT_HLIST_NODE(&rule->nfc_node);
+	INIT_LIST_HEAD(&rule->list);
 
 	rule->action = fsp->ring_cookie;
 	rule->location = fsp->location;
@@ -1362,7 +1359,7 @@ static int igc_ethtool_check_nfc_rule(struct igc_adapter *adapter,
 		return -EOPNOTSUPP;
 	}
 
-	hlist_for_each_entry(tmp, &adapter->nfc_rule_list, nfc_node) {
+	list_for_each_entry(tmp, &adapter->nfc_rule_list, list) {
 		if (!memcmp(&rule->filter, &tmp->filter,
 			    sizeof(rule->filter))) {
 			netdev_dbg(dev, "Rule already exists\n");

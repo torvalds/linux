@@ -191,7 +191,7 @@ struct igc_adapter {
 	 * nfc_rule_lock.
 	 */
 	spinlock_t nfc_rule_lock;
-	struct hlist_head nfc_rule_list;
+	struct list_head nfc_rule_list;
 	unsigned int nfc_rule_count;
 
 	u8 rss_indir_tbl[IGC_RETA_SIZE];
@@ -461,7 +461,7 @@ struct igc_nfc_filter {
 };
 
 struct igc_nfc_rule {
-	struct hlist_node nfc_node;
+	struct list_head list;
 	struct igc_nfc_filter filter;
 	u32 location;
 	u16 action;

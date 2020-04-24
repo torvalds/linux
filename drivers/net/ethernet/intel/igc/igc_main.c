@@ -2180,7 +2180,7 @@ static void igc_restore_nfc_rules(struct igc_adapter *adapter)
 
 	spin_lock(&adapter->nfc_rule_lock);
 
-	hlist_for_each_entry(rule, &adapter->nfc_rule_list, nfc_node)
+	list_for_each_entry_reverse(rule, &adapter->nfc_rule_list, list)
 		igc_enable_nfc_rule(adapter, rule);
 
 	spin_unlock(&adapter->nfc_rule_lock);
@@ -3419,6 +3419,9 @@ static int igc_sw_init(struct igc_adapter *adapter)
 	adapter->min_frame_size = ETH_ZLEN + ETH_FCS_LEN;
 
 	spin_lock_init(&adapter->nfc_rule_lock);
+	INIT_LIST_HEAD(&adapter->nfc_rule_list);
+	adapter->nfc_rule_count = 0;
+
 	spin_lock_init(&adapter->stats64_lock);
 	/* Assume MSI-X interrupts, will be checked during IRQ allocation */
 	adapter->flags |= IGC_FLAG_HAS_MSIX;
@@ -3651,7 +3654,7 @@ static void igc_nfc_rule_exit(struct igc_adapter *adapter)
 
 	spin_lock(&adapter->nfc_rule_lock);
 
-	hlist_for_each_entry(rule, &adapter->nfc_rule_list, nfc_node)
+	list_for_each_entry(rule, &adapter->nfc_rule_list, list)
 		igc_disable_nfc_rule(adapter, rule);
 
 	spin_unlock(&adapter->nfc_rule_lock);
@@ -3826,14 +3829,13 @@ static int igc_set_features(struct net_device *netdev,
 		return 0;
 
 	if (!(features & NETIF_F_NTUPLE)) {
-		struct hlist_node *node2;
-		struct igc_nfc_rule *rule;
+		struct igc_nfc_rule *rule, *tmp;
 
 		spin_lock(&adapter->nfc_rule_lock);
-		hlist_for_each_entry_safe(rule, node2,
-					  &adapter->nfc_rule_list, nfc_node) {
+		list_for_each_entry_safe(rule, tmp,
+					 &adapter->nfc_rule_list, list) {
 			igc_disable_nfc_rule(adapter, rule);
-			hlist_del(&rule->nfc_node);
+			list_del(&rule->list);
 			kfree(rule);
 		}
 		spin_unlock(&adapter->nfc_rule_lock);
