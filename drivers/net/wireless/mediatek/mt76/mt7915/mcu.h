@@ -658,6 +658,75 @@ struct sta_rec_vht {
 	u8 rsv[3];
 } __packed;
 
+struct sta_rec_muru {
+	__le16 tag;
+	__le16 len;
+
+	struct {
+		bool ofdma_dl_en;
+		bool ofdma_ul_en;
+		bool mimo_dl_en;
+		bool mimo_ul_en;
+		bool rsv[4];
+	} cfg;
+
+	struct {
+		u8 punc_pream_rx;
+		bool he_20m_in_40m_2g;
+		bool he_20m_in_160m;
+		bool he_80m_in_160m;
+		bool lt16_sigb;
+		bool rx_su_comp_sigb;
+		bool rx_su_non_comp_sigb;
+		bool rsv;
+	} ofdma_dl;
+
+	struct {
+		u8 t_frame_dur;
+		u8 mu_cascading;
+		u8 uo_ra;
+		u8 he_2x996_tone;
+		u8 rx_t_frame_11ac;
+		u8 rsv[3];
+	} ofdma_ul;
+
+	struct {
+		bool vht_mu_bfee;
+		bool partial_bw_dl_mimo;
+		u8 rsv[2];
+	} mimo_dl;
+
+	struct {
+		bool full_ul_mimo;
+		bool partial_ul_mimo;
+		u8 rsv[2];
+	} mimo_ul;
+} __packed;
+
+struct sta_rec_he {
+	__le16 tag;
+	__le16 len;
+
+	__le32 he_cap;
+
+	u8 t_frame_dur;
+	u8 max_ampdu_exp;
+	u8 bw_set;
+	u8 device_class;
+	u8 dcm_tx_mode;
+	u8 dcm_tx_max_nss;
+	u8 dcm_rx_mode;
+	u8 dcm_rx_max_nss;
+	u8 dcm_max_ru;
+	u8 punc_pream_rx;
+	u8 pkt_ext;
+	u8 rsv1;
+
+	__le16 max_nss_mcs[CMD_HE_MCS_BW_NUM];
+
+	u8 rsv2[2];
+} __packed;
+
 struct sta_rec_ba {
 	__le16 tag;
 	__le16 len;
@@ -803,9 +872,11 @@ enum {
 #define MT7915_STA_UPDATE_MAX_SIZE	(sizeof(struct sta_req_hdr) +	\
 					 sizeof(struct sta_rec_basic) +	\
 					 sizeof(struct sta_rec_ht) +	\
+					 sizeof(struct sta_rec_he) +	\
 					 sizeof(struct sta_rec_ba) +	\
 					 sizeof(struct sta_rec_vht) +	\
 					 sizeof(struct tlv) +		\
+					 sizeof(struct sta_rec_muru) +	\
 					 sizeof(struct sta_rec_sec) +	\
 					 sizeof(struct sta_rec_ra) +	\
 					 MT7915_WTBL_UPDATE_MAX_SIZE)
@@ -833,6 +904,7 @@ enum {
 #define MODE_OFDM			BIT(1)
 #define MODE_HT				BIT(2)
 #define MODE_VHT			BIT(3)
+#define MODE_HE				BIT(4)
 
 #define STA_CAP_WMM			BIT(0)
 #define STA_CAP_SGI_20			BIT(4)
@@ -847,5 +919,33 @@ enum {
 #define STA_CAP_LDPC			BIT(24)
 #define STA_CAP_HT			BIT(26)
 #define STA_CAP_VHT			BIT(27)
+#define STA_CAP_HE			BIT(28)
+
+/* HE MAC */
+#define STA_REC_HE_CAP_HTC			BIT(0)
+#define STA_REC_HE_CAP_BQR			BIT(1)
+#define STA_REC_HE_CAP_BSR			BIT(2)
+#define STA_REC_HE_CAP_OM			BIT(3)
+#define STA_REC_HE_CAP_AMSDU_IN_AMPDU		BIT(4)
+/* HE PHY */
+#define STA_REC_HE_CAP_DUAL_BAND		BIT(5)
+#define STA_REC_HE_CAP_LDPC			BIT(6)
+#define STA_REC_HE_CAP_TRIG_CQI_FK		BIT(7)
+#define STA_REC_HE_CAP_PARTIAL_BW_EXT_RANGE	BIT(8)
+/* STBC */
+#define STA_REC_HE_CAP_LE_EQ_80M_TX_STBC	BIT(9)
+#define STA_REC_HE_CAP_LE_EQ_80M_RX_STBC	BIT(10)
+#define STA_REC_HE_CAP_GT_80M_TX_STBC		BIT(11)
+#define STA_REC_HE_CAP_GT_80M_RX_STBC		BIT(12)
+/* GI */
+#define STA_REC_HE_CAP_SU_PPDU_1LTF_8US_GI	BIT(13)
+#define STA_REC_HE_CAP_SU_MU_PPDU_4LTF_8US_GI	BIT(14)
+#define STA_REC_HE_CAP_ER_SU_PPDU_1LTF_8US_GI	BIT(15)
+#define STA_REC_HE_CAP_ER_SU_PPDU_4LTF_8US_GI	BIT(16)
+#define STA_REC_HE_CAP_NDP_4LTF_3DOT2MS_GI	BIT(17)
+/* 242 TONE */
+#define STA_REC_HE_CAP_BW20_RU242_SUPPORT	BIT(18)
+#define STA_REC_HE_CAP_TX_1024QAM_UNDER_RU242	BIT(19)
+#define STA_REC_HE_CAP_RX_1024QAM_UNDER_RU242	BIT(20)
 
 #endif
