@@ -4618,6 +4618,11 @@ static int live_lrc_fixed(void *arg)
 				lrc_ring_gpr0(engine),
 				"RING_CS_GPR0"
 			},
+			{
+				i915_mmio_reg_offset(RING_CMD_BUF_CCTL(engine->mmio_base)),
+				lrc_ring_cmd_buf_cctl(engine),
+				"RING_CMD_BUF_CCTL"
+			},
 			{ },
 		}, *t;
 		u32 *hw;
