@@ -7195,7 +7195,7 @@ static int hclge_add_mac_vlan_tbl(struct hclge_vport *vport,
 }
 
 static int hclge_set_umv_space(struct hclge_dev *hdev, u16 space_size,
-			       u16 *allocated_size, bool is_alloc)
+			       u16 *allocated_size)
 {
 	struct hclge_umv_spc_alc_cmd *req;
 	struct hclge_desc desc;
@@ -7203,20 +7203,17 @@ static int hclge_set_umv_space(struct hclge_dev *hdev, u16 space_size,
 
 	req = (struct hclge_umv_spc_alc_cmd *)desc.data;
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_MAC_VLAN_ALLOCATE, false);
-	if (!is_alloc)
-		hnae3_set_bit(req->allocate, HCLGE_UMV_SPC_ALC_B, 1);
 
 	req->space_size = cpu_to_le32(space_size);
 
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret) {
-		dev_err(&hdev->pdev->dev,
-			"%s umv space failed for cmd_send, ret =%d\n",
-			is_alloc ? "allocate" : "free", ret);
+		dev_err(&hdev->pdev->dev, "failed to set umv space, ret = %d\n",
+			ret);
 		return ret;
 	}
 
-	if (is_alloc && allocated_size)
+	if (allocated_size)
 		*allocated_size = le32_to_cpu(desc.data[1]);
 
 	return 0;
@@ -7227,8 +7224,7 @@ static int hclge_init_umv_space(struct hclge_dev *hdev)
 	u16 allocated_size = 0;
 	int ret;
 
-	ret = hclge_set_umv_space(hdev, hdev->wanted_umv_size, &allocated_size,
-				  true);
+	ret = hclge_set_umv_space(hdev, hdev->wanted_umv_size, &allocated_size);
 	if (ret)
 		return ret;
 
