@@ -10,6 +10,12 @@
 / {
 	compatible = "ti,dra722", "ti,dra72", "ti,dra7";
 
+	aliases {
+		rproc0 = &ipu1;
+		rproc1 = &ipu2;
+		rproc2 = &dsp1;
+	};
+
 	pmu {
 		compatible = "arm,cortex-a15-pmu";
 		interrupt-parent = <&wakeupgen>;
