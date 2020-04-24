@@ -1564,7 +1564,7 @@ void ql_dump_stat(struct ql_adapter *qdev)
 	pr_err("qdev->%-24s = %llx\n", #field, (unsigned long long)qdev->field)
 #define DUMP_QDEV_ARRAY(qdev, type, array, index, field) \
 	pr_err("%s[%d].%s = " type "\n",		 \
-	       #array, index, #field, (qdev)->array[index].field);
+	       #array, index, #field, (qdev)->array[index].field)
 void ql_dump_qdev(struct ql_adapter *qdev)
 {
 	int i;
