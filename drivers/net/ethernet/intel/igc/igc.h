@@ -470,7 +470,6 @@ struct igc_nfc_input {
 struct igc_nfc_filter {
 	struct hlist_node nfc_node;
 	struct igc_nfc_input filter;
-	unsigned long cookie;
 	u16 sw_idx;
 	u16 action;
 };
