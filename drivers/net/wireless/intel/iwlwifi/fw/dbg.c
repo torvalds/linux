@@ -2198,12 +2198,11 @@ static u32 iwl_dump_ini_file_gen(struct iwl_fw_runtime *fwrt,
 }
 
 static inline void iwl_fw_free_dump_desc(struct iwl_fw_runtime *fwrt,
-					 const struct iwl_fw_dump_desc **desc)
+					 const struct iwl_fw_dump_desc *desc)
 {
-	if (desc && *desc != &iwl_dump_desc_assert)
-		kfree(*desc);
+	if (desc && desc != &iwl_dump_desc_assert)
+		kfree(desc);
 
-	*desc = NULL;
 	fwrt->dump.lmac_err_id[0] = 0;
 	if (fwrt->smem_cfg.num_lmacs > 1)
 		fwrt->dump.lmac_err_id[1] = 0;
@@ -2315,7 +2314,7 @@ int iwl_fw_dbg_collect_desc(struct iwl_fw_runtime *fwrt,
 	unsigned long idx;
 
 	if (iwl_trans_dbg_ini_valid(fwrt->trans)) {
-		iwl_fw_free_dump_desc(fwrt, &desc);
+		iwl_fw_free_dump_desc(fwrt, desc);
 		return 0;
 	}
 
@@ -2336,7 +2335,7 @@ int iwl_fw_dbg_collect_desc(struct iwl_fw_runtime *fwrt,
 	wk_data = &fwrt->dump.wks[idx];
 
 	if (WARN_ON(wk_data->dump_data.desc))
-		iwl_fw_free_dump_desc(fwrt, &wk_data->dump_data.desc);
+		iwl_fw_free_dump_desc(fwrt, wk_data->dump_data.desc);
 
 	wk_data->dump_data.desc = desc;
 	wk_data->dump_data.monitor_only = monitor_only;
@@ -2593,10 +2592,12 @@ static void iwl_fw_dbg_collect_sync(struct iwl_fw_runtime *fwrt, u8 wk_idx)
 	iwl_fw_dbg_stop_restart_recording(fwrt, &params, false);
 
 out:
-	if (iwl_trans_dbg_ini_valid(fwrt->trans))
+	if (iwl_trans_dbg_ini_valid(fwrt->trans)) {
 		iwl_fw_error_dump_data_free(dump_data);
-	else
-		iwl_fw_free_dump_desc(fwrt, &dump_data->desc);
+	} else {
+		iwl_fw_free_dump_desc(fwrt, dump_data->desc);
+		dump_data->desc = NULL;
+	}
 
 	clear_bit(wk_idx, &fwrt->dump.active_wks);
 }
