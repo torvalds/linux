@@ -2591,18 +2591,6 @@ static void igc_restore_nfc_rules(struct igc_adapter *adapter)
 	mutex_unlock(&adapter->nfc_rule_lock);
 }
 
-static void igc_nfc_rule_exit(struct igc_adapter *adapter)
-{
-	struct igc_nfc_rule *rule;
-
-	mutex_lock(&adapter->nfc_rule_lock);
-
-	list_for_each_entry(rule, &adapter->nfc_rule_list, list)
-		igc_disable_nfc_rule(adapter, rule);
-
-	mutex_unlock(&adapter->nfc_rule_lock);
-}
-
 static int igc_uc_sync(struct net_device *netdev, const unsigned char *addr)
 {
 	struct igc_adapter *adapter = netdev_priv(netdev);
@@ -3820,8 +3808,6 @@ void igc_down(struct igc_adapter *adapter)
 	rctl = rd32(IGC_RCTL);
 	wr32(IGC_RCTL, rctl & ~IGC_RCTL_EN);
 	/* flush and sleep below */
-
-	igc_nfc_rule_exit(adapter);
 
 	/* set trans_start so we don't get spurious watchdogs during reset */
 	netif_trans_update(netdev);
