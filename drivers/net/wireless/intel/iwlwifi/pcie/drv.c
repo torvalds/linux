@@ -1062,29 +1062,6 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			   CSR_HW_RF_ID_TYPE_CHIP_ID(CSR_HW_RF_ID_TYPE_GF4)) {
 			iwl_trans->cfg = &iwlax411_2ax_cfg_so_gf4_a0;
 		}
-	} else if (cfg == &iwl_ax101_cfg_qu_hr) {
-		if ((CSR_HW_RF_ID_TYPE_CHIP_ID(iwl_trans->hw_rf_id) ==
-		     CSR_HW_RF_ID_TYPE_CHIP_ID(CSR_HW_RF_ID_TYPE_HR) &&
-		     iwl_trans->hw_rev == CSR_HW_REV_TYPE_QNJ_B0) ||
-		    (CSR_HW_RF_ID_TYPE_CHIP_ID(iwl_trans->hw_rf_id) ==
-		     CSR_HW_RF_ID_TYPE_CHIP_ID(CSR_HW_RF_ID_TYPE_HR1))) {
-			iwl_trans->cfg = &iwl22000_2ax_cfg_qnj_hr_b0;
-		} else if (CSR_HW_RF_ID_TYPE_CHIP_ID(iwl_trans->hw_rf_id) ==
-		    CSR_HW_RF_ID_TYPE_CHIP_ID(CSR_HW_RF_ID_TYPE_HR) &&
-		    iwl_trans->hw_rev == CSR_HW_REV_TYPE_QUZ) {
-			iwl_trans->cfg = &iwl_ax101_cfg_quz_hr;
-		} else if (CSR_HW_RF_ID_TYPE_CHIP_ID(iwl_trans->hw_rf_id) ==
-			   CSR_HW_RF_ID_TYPE_CHIP_ID(CSR_HW_RF_ID_TYPE_HR)) {
-			iwl_trans->cfg = &iwl_ax101_cfg_qu_hr;
-		} else if (CSR_HW_RF_ID_TYPE_CHIP_ID(iwl_trans->hw_rf_id) ==
-			   CSR_HW_RF_ID_TYPE_CHIP_ID(CSR_HW_RF_ID_TYPE_HRCDB)) {
-			IWL_ERR(iwl_trans, "RF ID HRCDB is not supported\n");
-			return -EINVAL;
-		} else {
-			IWL_ERR(iwl_trans, "Unrecognized RF ID 0x%08x\n",
-				CSR_HW_RF_ID_TYPE_CHIP_ID(iwl_trans->hw_rf_id));
-			return -EINVAL;
-		}
 	}
 
 	/*
