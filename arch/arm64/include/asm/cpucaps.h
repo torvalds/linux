@@ -53,7 +53,8 @@
 #define ARM64_HAS_STAGE2_FWB			32
 #define ARM64_WORKAROUND_1463225		33
 #define ARM64_SSBS				34
+#define ARM64_WORKAROUND_1542419		35
 
-#define ARM64_NCAPS				35
+#define ARM64_NCAPS				36
 
 #endif /* __ASM_CPUCAPS_H */
