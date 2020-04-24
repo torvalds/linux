@@ -978,9 +978,6 @@ int mlxsw_sp_span_mirror_add(struct mlxsw_sp_port *from,
 	if (!span_entry)
 		return -ENOBUFS;
 
-	netdev_dbg(from->dev, "Adding inspected port to SPAN entry %d\n",
-		   span_entry->id);
-
 	err = mlxsw_sp_span_inspected_port_add(from, span_entry, type, bind);
 	if (err)
 		goto err_port_bind;
@@ -1004,8 +1001,6 @@ void mlxsw_sp_span_mirror_del(struct mlxsw_sp_port *from, int span_id,
 		return;
 	}
 
-	netdev_dbg(from->dev, "removing inspected port from SPAN entry %d\n",
-		   span_entry->id);
 	mlxsw_sp_span_inspected_port_del(from, span_entry, type, bind);
 }
 
