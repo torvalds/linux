@@ -680,8 +680,12 @@ static int ar9002_hw_calibrate(struct ath_hw *ah, struct ath9k_channel *chan,
 			return 0;
 
 		ah->cal_list_curr = currCal = currCal->calNext;
-		if (currCal->calState == CAL_WAITING)
-			ath9k_hw_reset_calibration(ah, currCal);
+		percal_pending = currCal->calState == CAL_WAITING;
+	}
+
+	/* Do not start a next calibration if the longcal is in action */
+	if (percal_pending && !nfcal && !longcal) {
+		ath9k_hw_reset_calibration(ah, currCal);
 
 		return 0;
 	}
