@@ -5108,7 +5108,7 @@ static int rk3308_platform_probe(struct platform_device *pdev)
 
 	rk3308->adc_grp0_using_linein = ADC_GRP0_MICIN;
 	rk3308->dac_output = DAC_LINEOUT;
-	rk3308->adc_zerocross = 1;
+	rk3308->adc_zerocross = 0;
 	rk3308->pm_state = PM_NORMAL;
 
 	platform_set_drvdata(pdev, rk3308);
