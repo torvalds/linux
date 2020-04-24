@@ -452,16 +452,10 @@ enum igc_filter_match_flags {
 	IGC_FILTER_FLAG_DST_MAC_ADDR =	0x8,
 };
 
-/* RX network flow classification data structure */
 struct igc_nfc_filter {
-	/* Byte layout in order, all values with MSB first:
-	 * match_flags - 1 byte
-	 * etype - 2 bytes
-	 * vlan_tci - 2 bytes
-	 */
 	u8 match_flags;
-	__be16 etype;
-	__be16 vlan_tci;
+	u16 etype;
+	u16 vlan_tci;
 	u8 src_addr[ETH_ALEN];
 	u8 dst_addr[ETH_ALEN];
 };

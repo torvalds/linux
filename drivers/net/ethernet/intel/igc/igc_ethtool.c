@@ -954,13 +954,13 @@ static int igc_ethtool_get_nfc_rule(struct igc_adapter *adapter,
 	fsp->ring_cookie = rule->action;
 
 	if (rule->filter.match_flags & IGC_FILTER_FLAG_ETHER_TYPE) {
-		fsp->h_u.ether_spec.h_proto = rule->filter.etype;
+		fsp->h_u.ether_spec.h_proto = htons(rule->filter.etype);
 		fsp->m_u.ether_spec.h_proto = ETHER_TYPE_FULL_MASK;
 	}
 
 	if (rule->filter.match_flags & IGC_FILTER_FLAG_VLAN_TCI) {
 		fsp->flow_type |= FLOW_EXT;
-		fsp->h_ext.vlan_tci = rule->filter.vlan_tci;
+		fsp->h_ext.vlan_tci = htons(rule->filter.vlan_tci);
 		fsp->m_ext.vlan_tci = htons(VLAN_PRIO_MASK);
 	}
 
@@ -1183,9 +1183,8 @@ int igc_enable_nfc_rule(struct igc_adapter *adapter,
 	int err = -EINVAL;
 
 	if (rule->filter.match_flags & IGC_FILTER_FLAG_ETHER_TYPE) {
-		u16 etype = ntohs(rule->filter.etype);
-
-		err = igc_add_etype_filter(adapter, etype, rule->action);
+		err = igc_add_etype_filter(adapter, rule->filter.etype,
+					   rule->action);
 		if (err)
 			return err;
 	}
@@ -1205,8 +1204,9 @@ int igc_enable_nfc_rule(struct igc_adapter *adapter,
 	}
 
 	if (rule->filter.match_flags & IGC_FILTER_FLAG_VLAN_TCI) {
-		int prio = (ntohs(rule->filter.vlan_tci) & VLAN_PRIO_MASK) >>
+		int prio = (rule->filter.vlan_tci & VLAN_PRIO_MASK) >>
 			   VLAN_PRIO_SHIFT;
+
 		err = igc_add_vlan_prio_filter(adapter, prio, rule->action);
 		if (err)
 			return err;
@@ -1218,14 +1218,11 @@ int igc_enable_nfc_rule(struct igc_adapter *adapter,
 int igc_disable_nfc_rule(struct igc_adapter *adapter,
 			 const struct igc_nfc_rule *rule)
 {
-	if (rule->filter.match_flags & IGC_FILTER_FLAG_ETHER_TYPE) {
-		u16 etype = ntohs(rule->filter.etype);
-
-		igc_del_etype_filter(adapter, etype);
-	}
+	if (rule->filter.match_flags & IGC_FILTER_FLAG_ETHER_TYPE)
+		igc_del_etype_filter(adapter, rule->filter.etype);
 
 	if (rule->filter.match_flags & IGC_FILTER_FLAG_VLAN_TCI) {
-		int prio = (ntohs(rule->filter.vlan_tci) & VLAN_PRIO_MASK) >>
+		int prio = (rule->filter.vlan_tci & VLAN_PRIO_MASK) >>
 			   VLAN_PRIO_SHIFT;
 		igc_del_vlan_prio_filter(adapter, prio);
 	}
@@ -1325,7 +1322,7 @@ static int igc_ethtool_add_nfc_rule(struct igc_adapter *adapter,
 		return -ENOMEM;
 
 	if (fsp->m_u.ether_spec.h_proto == ETHER_TYPE_FULL_MASK) {
-		rule->filter.etype = fsp->h_u.ether_spec.h_proto;
+		rule->filter.etype = ntohs(fsp->h_u.ether_spec.h_proto);
 		rule->filter.match_flags = IGC_FILTER_FLAG_ETHER_TYPE;
 	}
 
@@ -1357,7 +1354,7 @@ static int igc_ethtool_add_nfc_rule(struct igc_adapter *adapter,
 			err = -EOPNOTSUPP;
 			goto err_out;
 		}
-		rule->filter.vlan_tci = fsp->h_ext.vlan_tci;
+		rule->filter.vlan_tci = ntohs(fsp->h_ext.vlan_tci);
 		rule->filter.match_flags |= IGC_FILTER_FLAG_VLAN_TCI;
 	}
 
