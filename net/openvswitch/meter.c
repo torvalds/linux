@@ -242,12 +242,11 @@ static int ovs_meter_cmd_reply_stats(struct sk_buff *reply, u32 meter_id,
 	if (nla_put_u32(reply, OVS_METER_ATTR_ID, meter_id))
 		goto error;
 
-	if (!meter)
-		return 0;
-
 	if (nla_put(reply, OVS_METER_ATTR_STATS,
-		    sizeof(struct ovs_flow_stats), &meter->stats) ||
-	    nla_put_u64_64bit(reply, OVS_METER_ATTR_USED, meter->used,
+		    sizeof(struct ovs_flow_stats), &meter->stats))
+		goto error;
+
+	if (nla_put_u64_64bit(reply, OVS_METER_ATTR_USED, meter->used,
 			      OVS_METER_ATTR_PAD))
 		goto error;
 
