@@ -1367,28 +1367,30 @@ static void iwl_ini_get_rxf_data(struct iwl_fw_runtime *fwrt,
 	struct iwl_fw_ini_region_tlv *reg = (void *)reg_data->reg_tlv->data;
 	u32 fid1 = le32_to_cpu(reg->fifos.fid[0]);
 	u32 fid2 = le32_to_cpu(reg->fifos.fid[1]);
-	u32 fifo_idx;
+	u8 fifo_idx;
 
 	if (!data)
 		return;
 
+	/* make sure only one bit is set in only one fid */
+	if (WARN_ONCE(hweight_long(fid1) + hweight_long(fid2) != 1,
+		      "fid1=%x, fid2=%x\n", fid1, fid2))
+		return;
+
 	memset(data, 0, sizeof(*data));
 
-	if (WARN_ON_ONCE((fid1 && fid2) || (!fid1 && !fid2)))
-		return;
+	if (fid1) {
+		fifo_idx = ffs(fid1) - 1;
+		if (WARN_ONCE(fifo_idx >= MAX_NUM_LMAC, "fifo_idx=%d\n",
+			      fifo_idx))
+			return;
 
-	fifo_idx = ffs(fid1) - 1;
-	if (fid1 && !WARN_ON_ONCE((~BIT(fifo_idx) & fid1) ||
-				  fifo_idx >= MAX_NUM_LMAC)) {
 		data->size = fwrt->smem_cfg.lmac[fifo_idx].rxfifo1_size;
 		data->fifo_num = fifo_idx;
-		return;
-	}
-
-	fifo_idx = ffs(fid2) - 1;
-	if (fid2 && !WARN_ON_ONCE(~BIT(fifo_idx) & fid2)) {
+	} else {
 		u8 max_idx;
 
+		fifo_idx = ffs(fid2) - 1;
 		if (iwl_fw_lookup_notif_ver(fwrt->fw, SYSTEM_GROUP,
 					    SHARED_MEM_CFG_CMD, 0) <= 3)
 			max_idx = 0;
@@ -1416,7 +1418,6 @@ static void iwl_ini_get_rxf_data(struct iwl_fw_runtime *fwrt,
 						     RXF2C_DIFF_FROM_PREV);
 			break;
 		}
-		return;
 	}
 }
 
