@@ -784,7 +784,7 @@ mt7615_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
 	}
 	phy->chainmask = tx_ant;
 
-	mt76_set_stream_caps(&dev->mt76, true);
+	mt76_set_stream_caps(phy->mt76, true);
 
 	mutex_unlock(&dev->mt76.mutex);
 

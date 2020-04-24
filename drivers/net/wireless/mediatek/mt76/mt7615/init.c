@@ -333,7 +333,7 @@ mt7615_cap_dbdc_enable(struct mt7615_dev *dev)
 	dev->phy.chainmask = dev->mphy.antenna_mask;
 	dev->mphy.hw->wiphy->available_antennas_rx = dev->phy.chainmask;
 	dev->mphy.hw->wiphy->available_antennas_tx = dev->phy.chainmask;
-	mt76_set_stream_caps(&dev->mt76, true);
+	mt76_set_stream_caps(&dev->mphy, true);
 }
 
 static void
@@ -346,7 +346,7 @@ mt7615_cap_dbdc_disable(struct mt7615_dev *dev)
 	dev->phy.chainmask = dev->chainmask;
 	dev->mphy.hw->wiphy->available_antennas_rx = dev->chainmask;
 	dev->mphy.hw->wiphy->available_antennas_tx = dev->chainmask;
-	mt76_set_stream_caps(&dev->mt76, true);
+	mt76_set_stream_caps(&dev->mphy, true);
 }
 
 int mt7615_register_ext_phy(struct mt7615_dev *dev)

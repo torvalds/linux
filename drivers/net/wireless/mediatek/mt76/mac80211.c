@@ -116,12 +116,12 @@ static void mt76_led_cleanup(struct mt76_dev *dev)
 	led_classdev_unregister(&dev->led_cdev);
 }
 
-static void mt76_init_stream_cap(struct mt76_dev *dev,
+static void mt76_init_stream_cap(struct mt76_phy *phy,
 				 struct ieee80211_supported_band *sband,
 				 bool vht)
 {
 	struct ieee80211_sta_ht_cap *ht_cap = &sband->ht_cap;
-	int i, nstream = hweight8(dev->phy.antenna_mask);
+	int i, nstream = hweight8(phy->antenna_mask);
 	struct ieee80211_sta_vht_cap *vht_cap;
 	u16 mcs_map = 0;
 
@@ -153,12 +153,12 @@ static void mt76_init_stream_cap(struct mt76_dev *dev,
 	vht_cap->vht_mcs.tx_mcs_map = cpu_to_le16(mcs_map);
 }
 
-void mt76_set_stream_caps(struct mt76_dev *dev, bool vht)
+void mt76_set_stream_caps(struct mt76_phy *phy, bool vht)
 {
-	if (dev->cap.has_2ghz)
-		mt76_init_stream_cap(dev, &dev->phy.sband_2g.sband, false);
-	if (dev->cap.has_5ghz)
-		mt76_init_stream_cap(dev, &dev->phy.sband_5g.sband, vht);
+	if (phy->dev->cap.has_2ghz)
+		mt76_init_stream_cap(phy, &phy->sband_2g.sband, false);
+	if (phy->dev->cap.has_5ghz)
+		mt76_init_stream_cap(phy, &phy->sband_5g.sband, vht);
 }
 EXPORT_SYMBOL_GPL(mt76_set_stream_caps);
 
@@ -199,7 +199,7 @@ mt76_init_sband(struct mt76_dev *dev, struct mt76_sband *msband,
 	ht_cap->mcs.tx_params = IEEE80211_HT_MCS_TX_DEFINED;
 	ht_cap->ampdu_factor = IEEE80211_HT_MAX_AMPDU_64K;
 
-	mt76_init_stream_cap(dev, sband, vht);
+	mt76_init_stream_cap(&dev->phy, sband, vht);
 
 	if (!vht)
 		return 0;
