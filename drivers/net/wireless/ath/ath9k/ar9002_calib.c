@@ -663,8 +663,13 @@ static int ar9002_hw_calibrate(struct ath_hw *ah, struct ath9k_channel *chan,
 	int ret;
 
 	nfcal = !!(REG_READ(ah, AR_PHY_AGC_CONTROL) & AR_PHY_AGC_CONTROL_NF);
-	if (ah->caldata)
+	if (ah->caldata) {
 		nfcal_pending = test_bit(NFCAL_PENDING, &ah->caldata->cal_flags);
+		if (longcal)		/* Remember to not miss */
+			set_bit(LONGCAL_PENDING, &ah->caldata->cal_flags);
+		else if (test_bit(LONGCAL_PENDING, &ah->caldata->cal_flags))
+			longcal = true;	/* Respin a previous one */
+	}
 
 	percal_pending = (currCal &&
 			  (currCal->calState == CAL_RUNNING ||
@@ -700,6 +705,9 @@ static int ar9002_hw_calibrate(struct ath_hw *ah, struct ath9k_channel *chan,
 		}
 
 		if (longcal) {
+			if (ah->caldata)
+				clear_bit(LONGCAL_PENDING,
+					  &ah->caldata->cal_flags);
 			ath9k_hw_start_nfcal(ah, false);
 			/* Do periodic PAOffset Cal */
 			ar9002_hw_pa_cal(ah, false);
