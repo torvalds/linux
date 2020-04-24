@@ -69,19 +69,26 @@ static int bch2_migrate_index_update(struct bch_write_op *op)
 				   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
 
 	while (1) {
-		struct bkey_s_c k = bch2_btree_iter_peek_slot(iter);
+		struct bkey_s_c k;
 		struct bkey_i *insert;
-		struct bkey_i_extent *new =
-			bkey_i_to_extent(bch2_keylist_front(keys));
+		struct bkey_i_extent *new;
 		BKEY_PADDED(k) _new, _insert;
 		const union bch_extent_entry *entry;
 		struct extent_ptr_decoded p;
 		bool did_work = false;
 		int nr;
 
+		bch2_trans_reset(&trans, 0);
+
+		k = bch2_btree_iter_peek_slot(iter);
 		ret = bkey_err(k);
-		if (ret)
+		if (ret) {
+			if (ret == -EINTR)
+				continue;
 			break;
+		}
+
+		new = bkey_i_to_extent(bch2_keylist_front(keys));
 
 		if (bversion_cmp(k.k->version, new->k.version) ||
 		    !bch2_bkey_matches_ptr(c, k, m->ptr, m->offset))
