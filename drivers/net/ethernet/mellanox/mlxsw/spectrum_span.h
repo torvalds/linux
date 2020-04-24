@@ -49,8 +49,8 @@ struct mlxsw_sp_span_entry {
 
 struct mlxsw_sp_span_entry_ops {
 	bool (*can_handle)(const struct net_device *to_dev);
-	int (*parms)(const struct net_device *to_dev,
-		     struct mlxsw_sp_span_parms *sparmsp);
+	int (*parms_set)(const struct net_device *to_dev,
+			 struct mlxsw_sp_span_parms *sparmsp);
 	int (*configure)(struct mlxsw_sp_span_entry *span_entry,
 			 struct mlxsw_sp_span_parms sparms);
 	void (*deconfigure)(struct mlxsw_sp_span_entry *span_entry);

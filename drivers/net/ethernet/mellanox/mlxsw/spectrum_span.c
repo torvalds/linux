@@ -130,7 +130,7 @@ mlxsw_sp_span_entry_phys_deconfigure(struct mlxsw_sp_span_entry *span_entry)
 static const
 struct mlxsw_sp_span_entry_ops mlxsw_sp_span_entry_ops_phys = {
 	.can_handle = mlxsw_sp_port_dev_check,
-	.parms = mlxsw_sp_span_entry_phys_parms,
+	.parms_set = mlxsw_sp_span_entry_phys_parms,
 	.configure = mlxsw_sp_span_entry_phys_configure,
 	.deconfigure = mlxsw_sp_span_entry_phys_deconfigure,
 };
@@ -418,7 +418,7 @@ mlxsw_sp_span_entry_gretap4_deconfigure(struct mlxsw_sp_span_entry *span_entry)
 
 static const struct mlxsw_sp_span_entry_ops mlxsw_sp_span_entry_ops_gretap4 = {
 	.can_handle = netif_is_gretap,
-	.parms = mlxsw_sp_span_entry_gretap4_parms,
+	.parms_set = mlxsw_sp_span_entry_gretap4_parms,
 	.configure = mlxsw_sp_span_entry_gretap4_configure,
 	.deconfigure = mlxsw_sp_span_entry_gretap4_deconfigure,
 };
@@ -519,7 +519,7 @@ mlxsw_sp_span_entry_gretap6_deconfigure(struct mlxsw_sp_span_entry *span_entry)
 static const
 struct mlxsw_sp_span_entry_ops mlxsw_sp_span_entry_ops_gretap6 = {
 	.can_handle = netif_is_ip6gretap,
-	.parms = mlxsw_sp_span_entry_gretap6_parms,
+	.parms_set = mlxsw_sp_span_entry_gretap6_parms,
 	.configure = mlxsw_sp_span_entry_gretap6_configure,
 	.deconfigure = mlxsw_sp_span_entry_gretap6_deconfigure,
 };
@@ -575,7 +575,7 @@ mlxsw_sp_span_entry_vlan_deconfigure(struct mlxsw_sp_span_entry *span_entry)
 static const
 struct mlxsw_sp_span_entry_ops mlxsw_sp_span_entry_ops_vlan = {
 	.can_handle = mlxsw_sp_span_vlan_can_handle,
-	.parms = mlxsw_sp_span_entry_vlan_parms,
+	.parms_set = mlxsw_sp_span_entry_vlan_parms,
 	.configure = mlxsw_sp_span_entry_vlan_configure,
 	.deconfigure = mlxsw_sp_span_entry_vlan_deconfigure,
 };
@@ -612,7 +612,7 @@ mlxsw_sp_span_entry_nop_deconfigure(struct mlxsw_sp_span_entry *span_entry)
 }
 
 static const struct mlxsw_sp_span_entry_ops mlxsw_sp_span_entry_ops_nop = {
-	.parms = mlxsw_sp_span_entry_nop_parms,
+	.parms_set = mlxsw_sp_span_entry_nop_parms,
 	.configure = mlxsw_sp_span_entry_nop_configure,
 	.deconfigure = mlxsw_sp_span_entry_nop_deconfigure,
 };
@@ -970,7 +970,7 @@ int mlxsw_sp_span_mirror_add(struct mlxsw_sp_port *from,
 		return -EOPNOTSUPP;
 	}
 
-	err = ops->parms(to_dev, &sparms);
+	err = ops->parms_set(to_dev, &sparms);
 	if (err)
 		return err;
 
@@ -1026,7 +1026,7 @@ static void mlxsw_sp_span_respin_work(struct work_struct *work)
 		if (!curr->ref_count)
 			continue;
 
-		err = curr->ops->parms(curr->to_dev, &sparms);
+		err = curr->ops->parms_set(curr->to_dev, &sparms);
 		if (err)
 			continue;
 
