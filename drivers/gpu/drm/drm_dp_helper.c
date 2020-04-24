@@ -597,6 +597,77 @@ void drm_dp_downstream_debug(struct seq_file *m,
 }
 EXPORT_SYMBOL(drm_dp_downstream_debug);
 
+/**
+ * drm_dp_subconnector_type() - get DP branch device type
+ *
+ */
+enum drm_mode_subconnector
+drm_dp_subconnector_type(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
+			 const u8 port_cap[4])
+{
+	int type;
+	if (!drm_dp_is_branch(dpcd))
+		return DRM_MODE_SUBCONNECTOR_Native;
+	/* DP 1.0 approach */
+	if (dpcd[DP_DPCD_REV] == DP_DPCD_REV_10) {
+		type = dpcd[DP_DOWNSTREAMPORT_PRESENT] &
+		       DP_DWN_STRM_PORT_TYPE_MASK;
+
+		switch (type) {
+		case DP_DWN_STRM_PORT_TYPE_TMDS:
+			/* Can be HDMI or DVI-D, DVI-D is a safer option */
+			return DRM_MODE_SUBCONNECTOR_DVID;
+		case DP_DWN_STRM_PORT_TYPE_ANALOG:
+			/* Can be VGA or DVI-A, VGA is more popular */
+			return DRM_MODE_SUBCONNECTOR_VGA;
+		case DP_DWN_STRM_PORT_TYPE_DP:
+			return DRM_MODE_SUBCONNECTOR_DisplayPort;
+		case DP_DWN_STRM_PORT_TYPE_OTHER:
+		default:
+			return DRM_MODE_SUBCONNECTOR_Unknown;
+		}
+	}
+	type = port_cap[0] & DP_DS_PORT_TYPE_MASK;
+
+	switch (type) {
+	case DP_DS_PORT_TYPE_DP:
+	case DP_DS_PORT_TYPE_DP_DUALMODE:
+		return DRM_MODE_SUBCONNECTOR_DisplayPort;
+	case DP_DS_PORT_TYPE_VGA:
+		return DRM_MODE_SUBCONNECTOR_VGA;
+	case DP_DS_PORT_TYPE_DVI:
+		return DRM_MODE_SUBCONNECTOR_DVID;
+	case DP_DS_PORT_TYPE_HDMI:
+		return DRM_MODE_SUBCONNECTOR_HDMIA;
+	case DP_DS_PORT_TYPE_WIRELESS:
+		return DRM_MODE_SUBCONNECTOR_Wireless;
+	case DP_DS_PORT_TYPE_NON_EDID:
+	default:
+		return DRM_MODE_SUBCONNECTOR_Unknown;
+	}
+}
+EXPORT_SYMBOL(drm_dp_subconnector_type);
+
+/**
+ * drm_mode_set_dp_subconnector_property - set subconnector for DP connector
+ *
+ * Called by a driver on every detect event.
+ */
+void drm_dp_set_subconnector_property(struct drm_connector *connector,
+				      enum drm_connector_status status,
+				      const u8 *dpcd,
+				      const u8 port_cap[4])
+{
+	enum drm_mode_subconnector subconnector = DRM_MODE_SUBCONNECTOR_Unknown;
+
+	if (status == connector_status_connected)
+		subconnector = drm_dp_subconnector_type(dpcd, port_cap);
+	drm_object_property_set_value(&connector->base,
+			connector->dev->mode_config.dp_subconnector_property,
+			subconnector);
+}
+EXPORT_SYMBOL(drm_dp_set_subconnector_property);
+
 /*
  * I2C-over-AUX implementation
  */
