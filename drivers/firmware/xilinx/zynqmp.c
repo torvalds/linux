@@ -24,8 +24,6 @@
 #include <linux/firmware/xlnx-zynqmp.h>
 #include "zynqmp-debug.h"
 
-static const struct zynqmp_eemi_ops *eemi_ops_tbl;
-
 static bool feature_check_enabled;
 static u32 zynqmp_pm_features[PM_API_MAX];
 
@@ -671,8 +669,7 @@ EXPORT_SYMBOL_GPL(zynqmp_pm_reset_get_status);
  *
  * Return: Returns status, either success or error+reason
  */
-static int zynqmp_pm_fpga_load(const u64 address, const u32 size,
-			       const u32 flags)
+int zynqmp_pm_fpga_load(const u64 address, const u32 size, const u32 flags)
 {
 	return zynqmp_pm_invoke_fn(PM_FPGA_LOAD, lower_32_bits(address),
 				   upper_32_bits(address), size, flags, NULL);
@@ -687,7 +684,7 @@ static int zynqmp_pm_fpga_load(const u64 address, const u32 size,
  *
  * Return: Returns status, either success or error+reason
  */
-static int zynqmp_pm_fpga_get_status(u32 *value)
+int zynqmp_pm_fpga_get_status(u32 *value)
 {
 	u32 ret_payload[PAYLOAD_ARG_CNT];
 	int ret;
@@ -812,26 +809,6 @@ int zynqmp_pm_aes_engine(const u64 address, u32 *out)
 }
 EXPORT_SYMBOL_GPL(zynqmp_pm_aes_engine);
 
-static const struct zynqmp_eemi_ops eemi_ops = {
-	.fpga_load = zynqmp_pm_fpga_load,
-	.fpga_get_status = zynqmp_pm_fpga_get_status,
-};
-
-/**
- * zynqmp_pm_get_eemi_ops - Get eemi ops functions
- *
- * Return: Pointer of eemi_ops structure
- */
-const struct zynqmp_eemi_ops *zynqmp_pm_get_eemi_ops(void)
-{
-	if (eemi_ops_tbl)
-		return eemi_ops_tbl;
-	else
-		return ERR_PTR(-EPROBE_DEFER);
-
-}
-EXPORT_SYMBOL_GPL(zynqmp_pm_get_eemi_ops);
-
 static int zynqmp_firmware_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -877,9 +854,6 @@ static int zynqmp_firmware_probe(struct platform_device *pdev)
 
 	pr_info("%s Trustzone version v%d.%d\n", __func__,
 		pm_tz_version >> 16, pm_tz_version & 0xFFFF);
-
-	/* Assign eemi_ops_table */
-	eemi_ops_tbl = &eemi_ops;
 
 	zynqmp_pm_api_debugfs_init();
 
