@@ -85,7 +85,7 @@ static void calc_dsp_frm_hst_vst(const struct videomode *src,
 {
 	u32 bp_in, bp_out;
 	u32 v_scale_ratio;
-	long long t_frm_st;
+	u64 t_frm_st;
 	u64 t_bp_in, t_bp_out, t_delta, tin;
 	u32 src_pixclock, dst_pixclock;
 	u32 dsp_htotal, src_htotal, src_vtotal;
@@ -300,8 +300,9 @@ static void rk618_scaler_bridge_mode_set(struct drm_bridge *bridge,
 	dclk_rate = src->clock * 1000;
 	sclk_rate = (u64)dclk_rate * dst->vdisplay * dst->htotal;
 	do_div(sclk_rate, src->vdisplay * src->htotal);
-	sclk_rate = sclk_rate / 1000 * 1000;
-	dst->clock = sclk_rate / 1000;
+	sclk_rate = div_u64(sclk_rate, 1000);
+	sclk_rate = sclk_rate * 1000;
+	dst->clock = div_u64(sclk_rate, 1000);
 	scl->bridge->driver_private = dst;
 
 	DRM_DEV_INFO(scl->dev, "src=%s, dst=%s\n", src->name, dst->name);
