@@ -533,12 +533,10 @@ struct afs_server {
 		u32		abort_code;
 		u32		cm_epoch;
 		short		error;
-		bool		have_result;
 		bool		responded:1;
 		bool		is_yfs:1;
 		bool		not_yfs:1;
 		bool		local_failure:1;
-		bool		no_epoch:1;
 		bool		cm_probed:1;
 		bool		said_rebooted:1;
 		bool		said_inconsistent:1;
