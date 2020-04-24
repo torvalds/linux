@@ -1508,9 +1508,8 @@ static int gpiochip_setup_dev(struct gpio_device *gdev)
 
 	/* From this point, the .release() function cleans up gpio_device */
 	gdev->dev.release = gpiodevice_release;
-	pr_debug("%s: registered GPIOs %d to %d on device: %s (%s)\n",
-		 __func__, gdev->base, gdev->base + gdev->ngpio - 1,
-		 dev_name(&gdev->dev), gdev->chip->label ? : "generic");
+	dev_dbg(&gdev->dev, "registered GPIOs %d to %d on %s\n", gdev->base,
+		gdev->base + gdev->ngpio - 1, gdev->chip->label ? : "generic");
 
 	return 0;
 
@@ -1526,8 +1525,8 @@ static void gpiochip_machine_hog(struct gpio_chip *gc, struct gpiod_hog *hog)
 
 	desc = gpiochip_get_desc(gc, hog->chip_hwnum);
 	if (IS_ERR(desc)) {
-		pr_err("%s: unable to get GPIO desc: %ld\n",
-		       __func__, PTR_ERR(desc));
+		chip_err(gc, "%s: unable to get GPIO desc: %ld\n", __func__,
+			 PTR_ERR(desc));
 		return;
 	}
 
@@ -1536,8 +1535,8 @@ static void gpiochip_machine_hog(struct gpio_chip *gc, struct gpiod_hog *hog)
 
 	rv = gpiod_hog(desc, hog->line_name, hog->lflags, hog->dflags);
 	if (rv)
-		pr_err("%s: unable to hog GPIO line (%s:%u): %d\n",
-		       __func__, gc->label, hog->chip_hwnum, rv);
+		gpiod_err(desc, "%s: unable to hog GPIO line (%s:%u): %d\n",
+			  __func__, gc->label, hog->chip_hwnum, rv);
 }
 
 static void machine_gpiochip_add(struct gpio_chip *gc)
@@ -1562,8 +1561,8 @@ static void gpiochip_setup_devs(void)
 	list_for_each_entry(gdev, &gpio_devices, list) {
 		ret = gpiochip_setup_dev(gdev);
 		if (ret)
-			pr_err("%s: Failed to initialize gpio device (%d)\n",
-			       dev_name(&gdev->dev), ret);
+			dev_err(&gdev->dev,
+				"Failed to initialize gpio device (%d)\n", ret);
 	}
 }
 
@@ -2672,7 +2671,7 @@ int gpiochip_irqchip_add_key(struct gpio_chip *gc,
 		return -EINVAL;
 
 	if (!gc->parent) {
-		pr_err("missing gpiochip .dev parent pointer\n");
+		chip_err(gc, "missing gpiochip .dev parent pointer\n");
 		return -EINVAL;
 	}
 	gc->irq.threaded = threaded;
@@ -4842,7 +4841,7 @@ int gpiod_configure_flags(struct gpio_desc *desc, const char *con_id,
 
 	/* No particular flag request, return here... */
 	if (!(dflags & GPIOD_FLAGS_BIT_DIR_SET)) {
-		pr_debug("no flags found for %s\n", con_id);
+		gpiod_dbg(desc, "no flags found for %s\n", con_id);
 		return 0;
 	}
 
@@ -5067,8 +5066,7 @@ int gpiod_hog(struct gpio_desc *desc, const char *name,
 	/* Mark GPIO as hogged so it can be identified and removed later */
 	set_bit(FLAG_IS_HOGGED, &desc->flags);
 
-	pr_info("GPIO line %d (%s) hogged as %s%s\n",
-		desc_to_gpio(desc), name,
+	gpiod_info(desc, "hogged as %s%s\n",
 		(dflags & GPIOD_FLAGS_BIT_DIR_OUT) ? "output" : "input",
 		(dflags & GPIOD_FLAGS_BIT_DIR_OUT) ?
 		  (dflags & GPIOD_FLAGS_BIT_DIR_VAL) ? "/high" : "/low" : "");
