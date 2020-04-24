@@ -235,6 +235,9 @@ int igc_add_mac_filter(struct igc_adapter *adapter, const u8 *addr,
 		       const s8 queue, const u8 flags);
 int igc_del_mac_filter(struct igc_adapter *adapter, const u8 *addr,
 		       const u8 flags);
+int igc_add_vlan_prio_filter(struct igc_adapter *adapter, int prio,
+			     int queue);
+void igc_del_vlan_prio_filter(struct igc_adapter *adapter, int prio);
 void igc_update_stats(struct igc_adapter *adapter);
 
 /* igc_dump declarations */

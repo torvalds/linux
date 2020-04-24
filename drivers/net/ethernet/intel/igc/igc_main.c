@@ -2314,6 +2314,58 @@ int igc_del_mac_filter(struct igc_adapter *adapter, const u8 *addr,
 	return 0;
 }
 
+/**
+ * igc_add_vlan_prio_filter() - Add VLAN priority filter
+ * @adapter: Pointer to adapter where the filter should be added
+ * @prio: VLAN priority value
+ * @queue: Queue number which matching frames are assigned to
+ *
+ * Return: 0 in case of success, negative errno code otherwise.
+ */
+int igc_add_vlan_prio_filter(struct igc_adapter *adapter, int prio, int queue)
+{
+	struct net_device *dev = adapter->netdev;
+	struct igc_hw *hw = &adapter->hw;
+	u32 vlanpqf;
+
+	vlanpqf = rd32(IGC_VLANPQF);
+
+	if (vlanpqf & IGC_VLANPQF_VALID(prio)) {
+		netdev_dbg(dev, "VLAN priority filter already in use\n");
+		return -EEXIST;
+	}
+
+	vlanpqf |= IGC_VLANPQF_QSEL(prio, queue);
+	vlanpqf |= IGC_VLANPQF_VALID(prio);
+
+	wr32(IGC_VLANPQF, vlanpqf);
+
+	netdev_dbg(dev, "Add VLAN priority filter: prio %d queue %d\n",
+		   prio, queue);
+	return 0;
+}
+
+/**
+ * igc_del_vlan_prio_filter() - Delete VLAN priority filter
+ * @adapter: Pointer to adapter where the filter should be deleted from
+ * @prio: VLAN priority value
+ */
+void igc_del_vlan_prio_filter(struct igc_adapter *adapter, int prio)
+{
+	struct igc_hw *hw = &adapter->hw;
+	u32 vlanpqf;
+
+	vlanpqf = rd32(IGC_VLANPQF);
+
+	vlanpqf &= ~IGC_VLANPQF_VALID(prio);
+	vlanpqf &= ~IGC_VLANPQF_QSEL(prio, IGC_VLANPQF_QUEUE_MASK);
+
+	wr32(IGC_VLANPQF, vlanpqf);
+
+	netdev_dbg(adapter->netdev, "Delete VLAN priority filter: prio %d\n",
+		   prio);
+}
+
 static int igc_uc_sync(struct net_device *netdev, const unsigned char *addr)
 {
 	struct igc_adapter *adapter = netdev_priv(netdev);

@@ -1223,35 +1223,6 @@ static int igc_rxnfc_write_etype_filter(struct igc_adapter *adapter,
 	return 0;
 }
 
-static int igc_rxnfc_write_vlan_prio_filter(struct igc_adapter *adapter,
-					    struct igc_nfc_filter *input)
-{
-	struct igc_hw *hw = &adapter->hw;
-	u8 vlan_priority;
-	u16 queue_index;
-	u32 vlapqf;
-
-	vlapqf = rd32(IGC_VLANPQF);
-	vlan_priority = (ntohs(input->filter.vlan_tci) & VLAN_PRIO_MASK)
-				>> VLAN_PRIO_SHIFT;
-	queue_index = (vlapqf >> (vlan_priority * 4)) & IGC_VLANPQF_QUEUE_MASK;
-
-	/* check whether this VLAN prio is already set */
-	if (vlapqf & IGC_VLANPQF_VALID(vlan_priority) &&
-	    queue_index != input->action) {
-		netdev_err(adapter->netdev,
-			   "ethtool rxnfc set VLAN prio filter failed\n");
-		return -EEXIST;
-	}
-
-	vlapqf |= IGC_VLANPQF_VALID(vlan_priority);
-	vlapqf |= IGC_VLANPQF_QSEL(vlan_priority, input->action);
-
-	wr32(IGC_VLANPQF, vlapqf);
-
-	return 0;
-}
-
 int igc_add_filter(struct igc_adapter *adapter, struct igc_nfc_filter *input)
 {
 	struct igc_hw *hw = &adapter->hw;
@@ -1285,10 +1256,15 @@ int igc_add_filter(struct igc_adapter *adapter, struct igc_nfc_filter *input)
 			return err;
 	}
 
-	if (input->filter.match_flags & IGC_FILTER_FLAG_VLAN_TCI)
-		err = igc_rxnfc_write_vlan_prio_filter(adapter, input);
+	if (input->filter.match_flags & IGC_FILTER_FLAG_VLAN_TCI) {
+		int prio = (ntohs(input->filter.vlan_tci) & VLAN_PRIO_MASK) >>
+			   VLAN_PRIO_SHIFT;
+		err = igc_add_vlan_prio_filter(adapter, prio, input->action);
+		if (err)
+			return err;
+	}
 
-	return err;
+	return 0;
 }
 
 static void igc_clear_etype_filter_regs(struct igc_adapter *adapter,
@@ -1306,31 +1282,17 @@ static void igc_clear_etype_filter_regs(struct igc_adapter *adapter,
 	adapter->etype_bitmap[reg_index] = false;
 }
 
-static void igc_clear_vlan_prio_filter(struct igc_adapter *adapter,
-				       u16 vlan_tci)
-{
-	struct igc_hw *hw = &adapter->hw;
-	u8 vlan_priority;
-	u32 vlapqf;
-
-	vlan_priority = (vlan_tci & VLAN_PRIO_MASK) >> VLAN_PRIO_SHIFT;
-
-	vlapqf = rd32(IGC_VLANPQF);
-	vlapqf &= ~IGC_VLANPQF_VALID(vlan_priority);
-	vlapqf &= ~IGC_VLANPQF_QSEL(vlan_priority, IGC_VLANPQF_QUEUE_MASK);
-
-	wr32(IGC_VLANPQF, vlapqf);
-}
-
 int igc_erase_filter(struct igc_adapter *adapter, struct igc_nfc_filter *input)
 {
 	if (input->filter.match_flags & IGC_FILTER_FLAG_ETHER_TYPE)
 		igc_clear_etype_filter_regs(adapter,
 					    input->etype_reg_index);
 
-	if (input->filter.match_flags & IGC_FILTER_FLAG_VLAN_TCI)
-		igc_clear_vlan_prio_filter(adapter,
-					   ntohs(input->filter.vlan_tci));
+	if (input->filter.match_flags & IGC_FILTER_FLAG_VLAN_TCI) {
+		int prio = (ntohs(input->filter.vlan_tci) & VLAN_PRIO_MASK) >>
+			   VLAN_PRIO_SHIFT;
+		igc_del_vlan_prio_filter(adapter, prio);
+	}
 
 	if (input->filter.match_flags & IGC_FILTER_FLAG_SRC_MAC_ADDR)
 		igc_del_mac_filter(adapter, input->filter.src_addr,
