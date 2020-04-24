@@ -19,6 +19,8 @@
 #include "ar9002_phy.h"
 
 #define AR9285_CLCAL_REDO_THRESH    1
+/* AGC & I/Q calibrations time limit, ms */
+#define AR9002_CAL_MAX_TIME		30000
 
 enum ar9002_cal_types {
 	ADC_GAIN_CAL = BIT(0),
@@ -104,6 +106,14 @@ static bool ar9002_hw_per_calibration(struct ath_hw *ah,
 			} else {
 				ar9002_hw_setup_calibration(ah, currCal);
 			}
+		} else if (time_after(jiffies, ah->cal_start_time +
+				      msecs_to_jiffies(AR9002_CAL_MAX_TIME))) {
+			REG_CLR_BIT(ah, AR_PHY_TIMING_CTRL4(0),
+				    AR_PHY_TIMING_CTRL4_DO_CAL);
+			ath_dbg(ath9k_hw_common(ah), CALIBRATE,
+				"calibration timeout\n");
+			currCal->calState = CAL_WAITING;	/* Try later */
+			iscaldone = true;
 		}
 	} else if (!(caldata->CalValid & currCal->calData->calType)) {
 		ath9k_hw_reset_calibration(ah, currCal);
@@ -679,8 +689,19 @@ static int ar9002_hw_calibrate(struct ath_hw *ah, struct ath9k_channel *chan,
 		if (!ar9002_hw_per_calibration(ah, chan, rxchainmask, currCal))
 			return 0;
 
-		ah->cal_list_curr = currCal = currCal->calNext;
-		percal_pending = currCal->calState == CAL_WAITING;
+		/* Looking for next waiting calibration if any */
+		for (currCal = currCal->calNext; currCal != ah->cal_list_curr;
+		     currCal = currCal->calNext) {
+			if (currCal->calState == CAL_WAITING)
+				break;
+		}
+		if (currCal->calState == CAL_WAITING) {
+			percal_pending = true;
+			ah->cal_list_curr = currCal;
+		} else {
+			percal_pending = false;
+			ah->cal_list_curr = ah->cal_list;
+		}
 	}
 
 	/* Do not start a next calibration if the longcal is in action */
