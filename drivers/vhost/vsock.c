@@ -181,13 +181,13 @@ vhost_transport_do_send_pkt(struct vhost_vsock *vsock,
 			break;
 		}
 
-		vhost_add_used(vq, head, sizeof(pkt->hdr) + payload_len);
-		added = true;
-
-		/* Deliver to monitoring devices all correctly transmitted
-		 * packets.
+		/* Deliver to monitoring devices all packets that we
+		 * will transmit.
 		 */
 		virtio_transport_deliver_tap_pkt(pkt);
+
+		vhost_add_used(vq, head, sizeof(pkt->hdr) + payload_len);
+		added = true;
 
 		pkt->off += payload_len;
 		total_len += payload_len;
