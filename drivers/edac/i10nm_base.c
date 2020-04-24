@@ -122,16 +122,22 @@ static int i10nm_get_all_munits(void)
 	return 0;
 }
 
-static struct res_config i10nm_cfg = {
+static struct res_config i10nm_cfg0 = {
 	.type			= I10NM,
 	.decs_did		= 0x3452,
 	.busno_cfg_offset	= 0xcc,
 };
 
+static struct res_config i10nm_cfg1 = {
+	.type			= I10NM,
+	.decs_did		= 0x3452,
+	.busno_cfg_offset	= 0xd0,
+};
+
 static const struct x86_cpu_id i10nm_cpuids[] = {
-	X86_MATCH_INTEL_FAM6_MODEL(ATOM_TREMONT_D,	&i10nm_cfg),
-	X86_MATCH_INTEL_FAM6_MODEL(ICELAKE_X,		&i10nm_cfg),
-	X86_MATCH_INTEL_FAM6_MODEL(ICELAKE_D,		&i10nm_cfg),
+	X86_MATCH_INTEL_FAM6_MODEL(ATOM_TREMONT_D,	&i10nm_cfg0),
+	X86_MATCH_INTEL_FAM6_MODEL(ICELAKE_X,		&i10nm_cfg0),
+	X86_MATCH_INTEL_FAM6_MODEL(ICELAKE_D,		&i10nm_cfg1),
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, i10nm_cpuids);
@@ -257,6 +263,10 @@ static int __init i10nm_init(void)
 		return -ENODEV;
 
 	cfg = (struct res_config *)id->driver_data;
+
+	/* Newer steppings have different offset for ATOM_TREMONT_D/ICELAKE_X */
+	if (boot_cpu_data.x86_stepping >= 4)
+		cfg->busno_cfg_offset = 0xd0;
 
 	rc = skx_get_hi_lo(0x09a2, off, &tolm, &tohm);
 	if (rc)
