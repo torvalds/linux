@@ -881,7 +881,7 @@ static int idt82p33_load_firmware(struct idt82p33 *idt82p33)
 
 			/* Page size 128, last 4 bytes of page skipped */
 			if (((loaddr > 0x7b) && (loaddr <= 0x7f))
-			     || ((loaddr > 0xfb) && (loaddr <= 0xff)))
+			     || loaddr > 0xfb)
 				continue;
 
 			err = idt82p33_write(idt82p33, _ADDR(page, loaddr),
