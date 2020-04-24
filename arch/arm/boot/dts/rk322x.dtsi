@@ -944,7 +944,7 @@
 			};
 		};
 
-		spi-0 {
+		spi0 {
 			spi0_clk: spi0-clk {
 				rockchip,pins = <0 9 RK_FUNC_2 &pcfg_pull_up>;
 			};
@@ -962,7 +962,7 @@
 			};
 		};
 
-		spi-1 {
+		spi1 {
 			spi1_clk: spi1-clk {
 				rockchip,pins = <0 23 RK_FUNC_2 &pcfg_pull_up>;
 			};
