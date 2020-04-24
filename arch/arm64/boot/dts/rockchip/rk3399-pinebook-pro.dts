@@ -743,7 +743,6 @@
 };
 
 &i2s1 {
-	#sound-dai-cells = <0>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2s_8ch_mclk_gpio>, <&i2s1_2ch_bus>;
 	rockchip,capture-channels = <8>;
