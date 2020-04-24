@@ -370,26 +370,26 @@ void rkisp_luma_isr(struct rkisp_luma_vdev *luma_vdev, u32 isp_stat)
 		work.timestamp = ktime_get_ns();
 		work.frame_id = cur_frame_id;
 
-		if (luma_vdev->ystat_isrcnt[0] == RKISP_LUMA_YSTAT_ISR_NUM) {
+		for (i = 0; i < ISP2X_MIPI_LUMA_MEAN_MAX; i++)
+			work.luma[0].exp_mean[i] =
+				readl(base + CSI2RX_Y_STAT_RO);
+
+		for (i = 0; i < ISP2X_MIPI_LUMA_MEAN_MAX; i++)
+			work.luma[1].exp_mean[i] =
+				readl(base + CSI2RX_Y_STAT_RO);
+
+		for (i = 0; i < ISP2X_MIPI_LUMA_MEAN_MAX; i++)
+			work.luma[2].exp_mean[i] =
+				readl(base + CSI2RX_Y_STAT_RO);
+
+		if (luma_vdev->ystat_isrcnt[0] == RKISP_LUMA_YSTAT_ISR_NUM)
 			work.meas_type |= ISP2X_RAW0_Y_STATE;
-			for (i = 0; i < ISP2X_MIPI_LUMA_MEAN_MAX; i++)
-				work.luma[0].exp_mean[i] =
-					readl(base + CSI2RX_Y_STAT_RO);
-		}
 
-		if (luma_vdev->ystat_isrcnt[1] == RKISP_LUMA_YSTAT_ISR_NUM) {
+		if (luma_vdev->ystat_isrcnt[1] == RKISP_LUMA_YSTAT_ISR_NUM)
 			work.meas_type |= ISP2X_RAW1_Y_STATE;
-			for (i = 0; i < ISP2X_MIPI_LUMA_MEAN_MAX; i++)
-				work.luma[1].exp_mean[i] =
-					readl(base + CSI2RX_Y_STAT_RO);
-		}
 
-		if (luma_vdev->ystat_isrcnt[2] == RKISP_LUMA_YSTAT_ISR_NUM) {
+		if (luma_vdev->ystat_isrcnt[2] == RKISP_LUMA_YSTAT_ISR_NUM)
 			work.meas_type |= ISP2X_RAW2_Y_STATE;
-			for (i = 0; i < ISP2X_MIPI_LUMA_MEAN_MAX; i++)
-				work.luma[2].exp_mean[i] =
-					readl(base + CSI2RX_Y_STAT_RO);
-		}
 
 		if (!kfifo_is_full(&luma_vdev->rd_kfifo))
 			kfifo_in(&luma_vdev->rd_kfifo,
