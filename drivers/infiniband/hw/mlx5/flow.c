@@ -427,7 +427,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_FLOW_ACTION_CREATE_MODIFY_HEADER)(
 
 	num_actions = uverbs_attr_ptr_get_array_size(
 		attrs, MLX5_IB_ATTR_CREATE_MODIFY_HEADER_ACTIONS_PRM,
-		MLX5_UN_SZ_BYTES(set_action_in_add_action_in_auto));
+		MLX5_UN_SZ_BYTES(set_add_copy_action_in_auto));
 	if (num_actions < 0)
 		return num_actions;
 
@@ -648,7 +648,7 @@ DECLARE_UVERBS_NAMED_METHOD(
 			UA_MANDATORY),
 	UVERBS_ATTR_PTR_IN(MLX5_IB_ATTR_CREATE_MODIFY_HEADER_ACTIONS_PRM,
 			   UVERBS_ATTR_MIN_SIZE(MLX5_UN_SZ_BYTES(
-				   set_action_in_add_action_in_auto)),
+				   set_add_copy_action_in_auto)),
 			   UA_MANDATORY,
 			   UA_ALLOC_AND_COPY),
 	UVERBS_ATTR_CONST_IN(MLX5_IB_ATTR_CREATE_MODIFY_HEADER_FT_TYPE,

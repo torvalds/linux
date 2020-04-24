@@ -1490,7 +1490,7 @@ static void esw_destroy_restore_table(struct mlx5_eswitch *esw)
 
 static int esw_create_restore_table(struct mlx5_eswitch *esw)
 {
-	u8 modact[MLX5_UN_SZ_BYTES(set_action_in_add_action_in_auto)] = {};
+	u8 modact[MLX5_UN_SZ_BYTES(set_add_copy_action_in_auto)] = {};
 	int inlen = MLX5_ST_SZ_BYTES(create_flow_group_in);
 	struct mlx5_flow_table_attr ft_attr = {};
 	struct mlx5_core_dev *dev = esw->dev;
@@ -1900,7 +1900,7 @@ static int esw_vport_ingress_prio_tag_config(struct mlx5_eswitch *esw,
 static int esw_vport_add_ingress_acl_modify_metadata(struct mlx5_eswitch *esw,
 						     struct mlx5_vport *vport)
 {
-	u8 action[MLX5_UN_SZ_BYTES(set_action_in_add_action_in_auto)] = {};
+	u8 action[MLX5_UN_SZ_BYTES(set_add_copy_action_in_auto)] = {};
 	struct mlx5_flow_act flow_act = {};
 	int err = 0;
 	u32 key;
