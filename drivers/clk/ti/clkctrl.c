@@ -461,7 +461,6 @@ static char * __init clkctrl_get_name(struct device_node *np)
 			return name;
 		}
 	}
-	of_node_put(np);
 
 	return NULL;
 }
