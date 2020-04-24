@@ -820,6 +820,8 @@ enum mac80211_tx_info_flags {
  * @IEEE80211_TX_CTRL_AMSDU: This frame is an A-MSDU frame
  * @IEEE80211_TX_CTRL_FAST_XMIT: This frame is going through the fast_xmit path
  * @IEEE80211_TX_CTRL_SKIP_MPATH_LOOKUP: This frame skips mesh path lookup
+ * @IEEE80211_TX_CTRL_HW_80211_ENCAP: This frame uses hardware encapsulation
+ *	(header conversion)
  *
  * These flags are used in tx_info->control.flags.
  */
