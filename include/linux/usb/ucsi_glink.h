@@ -11,6 +11,8 @@
 
 struct ucsi_glink_constat_info {
 	enum typec_accessory acc;
+	bool partner_usb;
+	bool partner_alternate_mode;
 };
 
 struct notifier_block;

@@ -363,7 +363,7 @@ static void ucsi_qti_notify_work(struct work_struct *work)
 static void ucsi_qti_notify(struct ucsi_dev *udev, unsigned int offset,
 			    struct ucsi_connector_status *status)
 {
-	u8 conn_partner_type;
+	u8 conn_partner_type, conn_partner_flag;
 	bool cmd_requested;
 
 	mutex_lock(&udev->notify_lock);
@@ -372,6 +372,10 @@ static void ucsi_qti_notify(struct ucsi_dev *udev, unsigned int offset,
 
 	if (cmd_requested && offset == UCSI_MESSAGE_IN) {
 		cancel_work_sync(&udev->notify_work);
+
+		udev->constat_info.partner_usb = false;
+		udev->constat_info.partner_alternate_mode = false;
+
 		conn_partner_type = UCSI_CONSTAT_PARTNER_TYPE(status->flags);
 
 		switch (conn_partner_type) {
@@ -381,10 +385,23 @@ static void ucsi_qti_notify(struct ucsi_dev *udev, unsigned int offset,
 		case UCSI_CONSTAT_PARTNER_TYPE_DEBUG:
 			udev->constat_info.acc = TYPEC_ACCESSORY_DEBUG;
 			break;
+		case UCSI_CONSTAT_PARTNER_TYPE_UFP:
+		case UCSI_CONSTAT_PARTNER_TYPE_CABLE:
+		case UCSI_CONSTAT_PARTNER_TYPE_CABLE_AND_UFP:
+		case UCSI_CONSTAT_PARTNER_TYPE_DFP:
+			udev->constat_info.partner_usb = true;
+			fallthrough;
 		default:
 			udev->constat_info.acc = TYPEC_ACCESSORY_NONE;
 			break;
 		}
+
+		conn_partner_flag = UCSI_CONSTAT_PARTNER_FLAGS(status->flags);
+		if (conn_partner_flag & UCSI_CONSTAT_PARTNER_FLAG_USB)
+			udev->constat_info.partner_usb = true;
+
+		if (conn_partner_flag & UCSI_CONSTAT_PARTNER_FLAG_ALT_MODE)
+			udev->constat_info.partner_alternate_mode = true;
 
 		schedule_work(&udev->notify_work);
 	}
