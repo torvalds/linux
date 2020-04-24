@@ -55,7 +55,6 @@ static void nft_nat_eval(const struct nft_expr *expr,
 			       &regs->data[priv->sreg_addr_max],
 			       sizeof(range.max_addr.ip6));
 		}
-		range.flags |= NF_NAT_RANGE_MAP_IPS;
 	}
 
 	if (priv->sreg_proto_min) {
@@ -63,10 +62,9 @@ static void nft_nat_eval(const struct nft_expr *expr,
 			&regs->data[priv->sreg_proto_min]);
 		range.max_proto.all = (__force __be16)nft_reg_load16(
 			&regs->data[priv->sreg_proto_max]);
-		range.flags |= NF_NAT_RANGE_PROTO_SPECIFIED;
 	}
 
-	range.flags |= priv->flags;
+	range.flags = priv->flags;
 
 	regs->verdict.code = nf_nat_setup_info(ct, &range, priv->type);
 }
@@ -169,6 +167,8 @@ static int nft_nat_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 		} else {
 			priv->sreg_addr_max = priv->sreg_addr_min;
 		}
+
+		priv->flags |= NF_NAT_RANGE_MAP_IPS;
 	}
 
 	plen = sizeof_field(struct nf_nat_range, min_addr.all);
@@ -191,10 +191,12 @@ static int nft_nat_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 		} else {
 			priv->sreg_proto_max = priv->sreg_proto_min;
 		}
+
+		priv->flags |= NF_NAT_RANGE_PROTO_SPECIFIED;
 	}
 
 	if (tb[NFTA_NAT_FLAGS]) {
-		priv->flags = ntohl(nla_get_be32(tb[NFTA_NAT_FLAGS]));
+		priv->flags |= ntohl(nla_get_be32(tb[NFTA_NAT_FLAGS]));
 		if (priv->flags & ~NF_NAT_RANGE_MASK)
 			return -EOPNOTSUPP;
 	}
