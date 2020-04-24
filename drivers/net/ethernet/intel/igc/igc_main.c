@@ -2259,18 +2259,16 @@ update_filter:
  * @adapter: Pointer to adapter where the filter should be deleted from
  * @type: MAC address filter type (source or destination)
  * @addr: MAC address
- *
- * Return: 0 in case of success, negative errno code otherwise.
  */
-static int igc_del_mac_filter(struct igc_adapter *adapter,
-			      enum igc_mac_filter_type type, const u8 *addr)
+static void igc_del_mac_filter(struct igc_adapter *adapter,
+			       enum igc_mac_filter_type type, const u8 *addr)
 {
 	struct net_device *dev = adapter->netdev;
 	int index;
 
 	index = igc_find_mac_filter(adapter, type, addr);
 	if (index < 0)
-		return -ENOENT;
+		return;
 
 	if (index == 0) {
 		/* If this is the default filter, we don't actually delete it.
@@ -2288,8 +2286,6 @@ static int igc_del_mac_filter(struct igc_adapter *adapter,
 
 		igc_clear_mac_filter_hw(adapter, index);
 	}
-
-	return 0;
 }
 
 /**
@@ -2420,23 +2416,20 @@ static int igc_find_etype_filter(struct igc_adapter *adapter, u16 etype)
  * igc_del_etype_filter() - Delete ethertype filter
  * @adapter: Pointer to adapter where the filter should be deleted from
  * @etype: Ethertype value
- *
- * Return: 0 in case of success, negative errno code otherwise.
  */
-static int igc_del_etype_filter(struct igc_adapter *adapter, u16 etype)
+static void igc_del_etype_filter(struct igc_adapter *adapter, u16 etype)
 {
 	struct igc_hw *hw = &adapter->hw;
 	int index;
 
 	index = igc_find_etype_filter(adapter, etype);
 	if (index < 0)
-		return -ENOENT;
+		return;
 
 	wr32(IGC_ETQF(index), 0);
 
 	netdev_dbg(adapter->netdev, "Delete ethertype filter: etype %04x\n",
 		   etype);
-	return 0;
 }
 
 static int igc_enable_nfc_rule(struct igc_adapter *adapter,
@@ -2477,8 +2470,8 @@ static int igc_enable_nfc_rule(struct igc_adapter *adapter,
 	return 0;
 }
 
-static int igc_disable_nfc_rule(struct igc_adapter *adapter,
-				const struct igc_nfc_rule *rule)
+static void igc_disable_nfc_rule(struct igc_adapter *adapter,
+				 const struct igc_nfc_rule *rule)
 {
 	if (rule->filter.match_flags & IGC_FILTER_FLAG_ETHER_TYPE)
 		igc_del_etype_filter(adapter, rule->filter.etype);
@@ -2497,8 +2490,6 @@ static int igc_disable_nfc_rule(struct igc_adapter *adapter,
 	if (rule->filter.match_flags & IGC_FILTER_FLAG_DST_MAC_ADDR)
 		igc_del_mac_filter(adapter, IGC_MAC_FILTER_TYPE_DST,
 				   rule->filter.dst_addr);
-
-	return 0;
 }
 
 /**
@@ -2623,7 +2614,8 @@ static int igc_uc_unsync(struct net_device *netdev, const unsigned char *addr)
 {
 	struct igc_adapter *adapter = netdev_priv(netdev);
 
-	return igc_del_mac_filter(adapter, IGC_MAC_FILTER_TYPE_DST, addr);
+	igc_del_mac_filter(adapter, IGC_MAC_FILTER_TYPE_DST, addr);
+	return 0;
 }
 
 /**
