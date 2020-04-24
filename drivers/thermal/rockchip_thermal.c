@@ -153,6 +153,7 @@ struct rockchip_thermal_sensor {
  * @pinctrl: the pinctrl of tsadc
  * @gpio_state: pinctrl select gpio function
  * @otp_state: pinctrl select otp out function
+ * @panic_nb: panic notifier block
  */
 struct rockchip_thermal_data {
 	const struct rockchip_tsadc_chip *chip;
@@ -173,6 +174,8 @@ struct rockchip_thermal_data {
 	struct pinctrl *pinctrl;
 	struct pinctrl_state *gpio_state;
 	struct pinctrl_state *otp_state;
+
+	struct notifier_block panic_nb;
 };
 
 /**
@@ -1347,6 +1350,43 @@ static void rockchip_thermal_reset_controller(struct reset_control *reset)
 	reset_control_deassert(reset);
 }
 
+static void rockchip_dump_temperature(struct rockchip_thermal_data *thermal)
+{
+	struct platform_device *pdev;
+	int i;
+
+	if (!thermal)
+		return;
+
+	pdev = thermal->pdev;
+
+	for (i = 0; i < thermal->chip->chn_num; i++) {
+		struct rockchip_thermal_sensor *sensor = &thermal->sensors[i];
+		struct thermal_zone_device *tz = sensor->tzd;
+
+		if (tz->temperature != THERMAL_TEMP_INVALID)
+			dev_warn(&pdev->dev, "channal %d: temperature(%d C)\n",
+				 i, tz->temperature / 1000);
+	}
+
+	if (thermal->regs) {
+		pr_warn("THERMAL REGS:\n");
+		print_hex_dump(KERN_WARNING, "", DUMP_PREFIX_OFFSET,
+			       32, 4, thermal->regs, 0x88, false);
+	}
+}
+
+static int rockchip_thermal_panic(struct notifier_block *this,
+				  unsigned long ev, void *ptr)
+{
+	struct rockchip_thermal_data *thermal;
+
+	thermal = container_of(this, struct rockchip_thermal_data, panic_nb);
+	rockchip_dump_temperature(thermal);
+
+	return NOTIFY_DONE;
+}
+
 static int rockchip_thermal_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -1483,6 +1523,12 @@ static int rockchip_thermal_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, thermal);
+
+	thermal->panic_nb.notifier_call = rockchip_thermal_panic;
+	atomic_notifier_chain_register(&panic_notifier_list,
+				       &thermal->panic_nb);
+
+	dev_info(&pdev->dev, "tsadc is probed successfully!\n");
 
 	return 0;
 
