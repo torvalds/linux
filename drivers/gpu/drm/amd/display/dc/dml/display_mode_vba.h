@@ -27,8 +27,6 @@
 #ifndef __DML2_DISPLAY_MODE_VBA_H__
 #define __DML2_DISPLAY_MODE_VBA_H__
 
-#include "dml_common_defs.h"
-
 struct display_mode_lib;
 
 void ModeSupportAndSystemConfiguration(struct display_mode_lib *mode_lib);
