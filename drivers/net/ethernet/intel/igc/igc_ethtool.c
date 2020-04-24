@@ -940,11 +940,11 @@ static int igc_ethtool_get_nfc_rule(struct igc_adapter *adapter,
 	cmd->data = IGC_MAX_RXNFC_RULES;
 
 	hlist_for_each_entry(rule, &adapter->nfc_rule_list, nfc_node) {
-		if (fsp->location <= rule->sw_idx)
+		if (fsp->location <= rule->location)
 			break;
 	}
 
-	if (!rule || fsp->location != rule->sw_idx)
+	if (!rule || fsp->location != rule->location)
 		return -EINVAL;
 
 	if (!rule->filter.match_flags)
@@ -991,7 +991,7 @@ static int igc_ethtool_get_nfc_rules(struct igc_adapter *adapter,
 	hlist_for_each_entry(rule, &adapter->nfc_rule_list, nfc_node) {
 		if (cnt == cmd->rule_cnt)
 			return -EMSGSIZE;
-		rule_locs[cnt] = rule->sw_idx;
+		rule_locs[cnt] = rule->location;
 		cnt++;
 	}
 
@@ -1240,7 +1240,7 @@ int igc_disable_nfc_rule(struct igc_adapter *adapter,
 
 static int igc_ethtool_update_nfc_rule(struct igc_adapter *adapter,
 				       struct igc_nfc_rule *input,
-				       u16 sw_idx)
+				       u32 location)
 {
 	struct igc_nfc_rule *rule, *parent;
 	int err = -EINVAL;
@@ -1250,13 +1250,13 @@ static int igc_ethtool_update_nfc_rule(struct igc_adapter *adapter,
 
 	hlist_for_each_entry(rule, &adapter->nfc_rule_list, nfc_node) {
 		/* hash found, or no matching entry */
-		if (rule->sw_idx >= sw_idx)
+		if (rule->location >= location)
 			break;
 		parent = rule;
 	}
 
 	/* if there is an old rule occupying our place remove it */
-	if (rule && rule->sw_idx == sw_idx) {
+	if (rule && rule->location == location) {
 		if (!input)
 			err = igc_disable_nfc_rule(adapter, rule);
 
@@ -1289,7 +1289,7 @@ static void igc_ethtool_init_nfc_rule(struct igc_nfc_rule *rule,
 	INIT_HLIST_NODE(&rule->nfc_node);
 
 	rule->action = fsp->ring_cookie;
-	rule->sw_idx = fsp->location;
+	rule->location = fsp->location;
 
 	if ((fsp->flow_type & FLOW_EXT) && fsp->m_ext.vlan_tci) {
 		rule->filter.vlan_tci = ntohs(fsp->h_ext.vlan_tci);
@@ -1412,7 +1412,7 @@ static int igc_ethtool_add_nfc_rule(struct igc_adapter *adapter,
 	if (err)
 		goto err;
 
-	igc_ethtool_update_nfc_rule(adapter, rule, rule->sw_idx);
+	igc_ethtool_update_nfc_rule(adapter, rule, rule->location);
 
 	spin_unlock(&adapter->nfc_rule_lock);
 	return 0;

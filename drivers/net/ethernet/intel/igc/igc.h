@@ -463,7 +463,7 @@ struct igc_nfc_filter {
 struct igc_nfc_rule {
 	struct hlist_node nfc_node;
 	struct igc_nfc_filter filter;
-	u16 sw_idx;
+	u32 location;
 	u16 action;
 };
 
