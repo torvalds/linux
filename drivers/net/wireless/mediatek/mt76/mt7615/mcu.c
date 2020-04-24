@@ -356,11 +356,12 @@ mt7615_mcu_bss_event(struct mt7615_dev *dev, struct sk_buff *skb)
 {
 	struct mt7615_mcu_bss_event *event;
 	struct mt76_phy *mphy;
+	u8 band_idx = 0; /* DBDC support */
 
 	event = (struct mt7615_mcu_bss_event *)(skb->data +
 						sizeof(struct mt7615_mcu_rxd));
 
-	if (event->bss_idx && dev->mt76.phy2)
+	if (band_idx && dev->mt76.phy2)
 		mphy = dev->mt76.phy2;
 	else
 		mphy = &dev->mt76.phy;
