@@ -395,7 +395,9 @@ int amdgpu_xgmi_set_pstate(struct amdgpu_device *adev, int pstate)
 	bool init_low = hive->pstate == AMDGPU_XGMI_PSTATE_UNKNOWN;
 
 	/* fw bug so temporarily disable pstate switching */
-	if (!hive || adev->asic_type == CHIP_VEGA20)
+	return 0;
+
+	if (!hive || adev->asic_type != CHIP_VEGA20)
 		return 0;
 
 	mutex_lock(&hive->hive_lock);
