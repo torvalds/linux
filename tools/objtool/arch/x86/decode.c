@@ -94,6 +94,7 @@ int arch_decode_instruction(const struct elf *elf, const struct section *sec,
 		      rex_x = 0, modrm = 0, modrm_mod = 0, modrm_rm = 0,
 		      modrm_reg = 0, sib = 0;
 	struct stack_op *op = NULL;
+	struct symbol *sym;
 
 	x86_64 = is_x86_64(elf);
 	if (x86_64 == -1)
@@ -469,17 +470,24 @@ int arch_decode_instruction(const struct elf *elf, const struct section *sec,
 		break;
 
 	case 0xcf: /* iret */
-		*type = INSN_EXCEPTION_RETURN;
-
-		ADD_OP(op) {
-			/* add $40, %rsp */
-			op->src.type = OP_SRC_ADD;
-			op->src.reg = CFI_SP;
-			op->src.offset = 5*8;
-			op->dest.type = OP_DEST_REG;
-			op->dest.reg = CFI_SP;
+		/*
+		 * Handle sync_core(), which has an IRET to self.
+		 * All other IRET are in STT_NONE entry code.
+		 */
+		sym = find_symbol_containing(sec, offset);
+		if (sym && sym->type == STT_FUNC) {
+			ADD_OP(op) {
+				/* add $40, %rsp */
+				op->src.type = OP_SRC_ADD;
+				op->src.reg = CFI_SP;
+				op->src.offset = 5*8;
+				op->dest.type = OP_DEST_REG;
+				op->dest.reg = CFI_SP;
+			}
+			break;
 		}
-		break;
+
+		/* fallthrough */
 
 	case 0xca: /* retf */
 	case 0xcb: /* retf */

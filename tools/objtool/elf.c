@@ -61,7 +61,7 @@ static void rb_add(struct rb_root *tree, struct rb_node *node,
 	rb_insert_color(node, tree);
 }
 
-static struct rb_node *rb_find_first(struct rb_root *tree, const void *key,
+static struct rb_node *rb_find_first(const struct rb_root *tree, const void *key,
 			       int (*cmp)(const void *key, const struct rb_node *))
 {
 	struct rb_node *node = tree->rb_node;
@@ -189,7 +189,7 @@ struct symbol *find_func_by_offset(struct section *sec, unsigned long offset)
 	return NULL;
 }
 
-struct symbol *find_symbol_containing(struct section *sec, unsigned long offset)
+struct symbol *find_symbol_containing(const struct section *sec, unsigned long offset)
 {
 	struct rb_node *node;
 
