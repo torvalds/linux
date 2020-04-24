@@ -2444,7 +2444,7 @@ static int handle_alloc_dm_sw_icm(struct ib_ucontext *ctx,
 	act_size = roundup_pow_of_two(act_size);
 
 	dm->size = act_size;
-	err = mlx5_dm_sw_icm_alloc(dev, type, act_size,
+	err = mlx5_dm_sw_icm_alloc(dev, type, act_size, attr->alignment,
 				   to_mucontext(ctx)->devx_uid, &dm->dev_addr,
 				   &dm->icm_dm.obj_id);
 	if (err)
