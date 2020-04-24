@@ -1131,6 +1131,10 @@ int gfs2_logd(void *data)
 
 	while (!kthread_should_stop()) {
 
+		if (gfs2_withdrawn(sdp)) {
+			msleep_interruptible(HZ);
+			continue;
+		}
 		/* Check for errors writing to the journal */
 		if (sdp->sd_log_error) {
 			gfs2_lm(sdp,
@@ -1139,6 +1143,7 @@ int gfs2_logd(void *data)
 				"prevent further damage.\n",
 				sdp->sd_fsname, sdp->sd_log_error);
 			gfs2_withdraw(sdp);
+			continue;
 		}
 
 		did_flush = false;
