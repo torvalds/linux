@@ -147,6 +147,9 @@ bool cfg80211_chandef_valid(const struct cfg80211_chan_def *chandef)
 	if (!chandef->chan)
 		return false;
 
+	if (chandef->freq1_offset >= 1000)
+		return false;
+
 	control_freq = chandef->chan->center_freq;
 
 	switch (chandef->width) {
