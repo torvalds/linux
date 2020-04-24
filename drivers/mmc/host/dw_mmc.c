@@ -3123,7 +3123,7 @@ exit:
 
 static void dw_mci_xfer_timer(struct timer_list *t)
 {
-	struct dw_mci *host = from_timer(host, t, dto_timer);
+	struct dw_mci *host = from_timer(host, t, xfer_timer);
 	unsigned long irqflags;
 
 	spin_lock_irqsave(&host->irq_lock, irqflags);
