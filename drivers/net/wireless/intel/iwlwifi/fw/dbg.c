@@ -1386,13 +1386,36 @@ static void iwl_ini_get_rxf_data(struct iwl_fw_runtime *fwrt,
 	}
 
 	fifo_idx = ffs(fid2) - 1;
-	if (fid2 && !WARN_ON_ONCE(fifo_idx != 0)) {
-		data->size = fwrt->smem_cfg.rxfifo2_size;
-		data->offset = RXF_DIFF_FROM_PREV;
+	if (fid2 && !WARN_ON_ONCE(~BIT(fifo_idx) & fid2)) {
+		u8 max_idx;
+
+		if (iwl_fw_lookup_notif_ver(fwrt->fw, SYSTEM_GROUP,
+					    SHARED_MEM_CFG_CMD, 0) <= 3)
+			max_idx = 0;
+		else
+			max_idx = 1;
+
+		if (WARN_ONCE(fifo_idx > max_idx,
+			      "invalid umac fifo idx %d", fifo_idx))
+			return;
+
 		/* use bit 31 to distinguish between umac and lmac rxf while
 		 * parsing the dump
 		 */
 		data->fifo_num = fifo_idx | IWL_RXF_UMAC_BIT;
+
+		switch (fifo_idx) {
+		case 0:
+			data->size = fwrt->smem_cfg.rxfifo2_size;
+			data->offset = iwl_umac_prph(fwrt->trans,
+						     RXF_DIFF_FROM_PREV);
+			break;
+		case 1:
+			data->size = fwrt->smem_cfg.rxfifo2_control_size;
+			data->offset = iwl_umac_prph(fwrt->trans,
+						     RXF2C_DIFF_FROM_PREV);
+			break;
+		}
 		return;
 	}
 }
