@@ -225,7 +225,7 @@ static void subflow_finish_connect(struct sock *sk, const struct sk_buff *skb)
 
 	subflow->icsk_af_ops->sk_rx_dst_set(sk, skb);
 
-	if (inet_sk_state_load(parent) != TCP_ESTABLISHED) {
+	if (inet_sk_state_load(parent) == TCP_SYN_SENT) {
 		inet_sk_state_store(parent, TCP_ESTABLISHED);
 		parent->sk_state_change(parent);
 	}
