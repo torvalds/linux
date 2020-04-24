@@ -830,7 +830,7 @@ download_firmware_legacy(struct rtw_dev *rtwdev, const u8 *data, u32 size)
 		write_firmware_page(rtwdev, page, data, last_page_size);
 
 	if (!check_hw_ready(rtwdev, REG_MCUFW_CTRL, BIT_FWDL_CHK_RPT, 1)) {
-		rtw_err(rtwdev, "failed to check download fimrware report\n");
+		rtw_err(rtwdev, "failed to check download firmware report\n");
 		return -EINVAL;
 	}
 
@@ -857,7 +857,7 @@ static int download_firmware_validate_legacy(struct rtw_dev *rtwdev)
 		msleep(20);
 	}
 
-	rtw_err(rtwdev, "failed to validate fimrware\n");
+	rtw_err(rtwdev, "failed to validate firmware\n");
 	return -EINVAL;
 }
 
