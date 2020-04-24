@@ -125,7 +125,10 @@ struct dmatest_params {
 /**
  * struct dmatest_info - test information.
  * @params:		test parameters
+ * @channels:		channels under test
+ * @nr_channels:	number of channels under test
  * @lock:		access protection to the fields of this structure
+ * @did_init:		module has been initialized completely
  */
 static struct dmatest_info {
 	/* Test parameters */
