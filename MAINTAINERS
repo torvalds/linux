@@ -5256,7 +5256,7 @@ DRM DRIVER FOR ARM VERSATILE TFT PANELS
 M:	Linus Walleij <linus.walleij@linaro.org>
 S:	Maintained
 T:	git git://anongit.freedesktop.org/drm/drm-misc
-F:	Documentation/devicetree/bindings/display/panel/arm,versatile-tft-panel.txt
+F:	Documentation/devicetree/bindings/display/panel/arm,versatile-tft-panel.yaml
 F:	drivers/gpu/drm/panel/panel-arm-versatile.c
 
 DRM DRIVER FOR ASPEED BMC GFX
@@ -5282,7 +5282,7 @@ F:	drivers/gpu/drm/bochs/
 DRM DRIVER FOR BOE HIMAX8279D PANELS
 M:	Jerry Han <hanxu5@huaqin.corp-partner.google.com>
 S:	Maintained
-F:	Documentation/devicetree/bindings/display/panel/boe,himax8279d.txt
+F:	Documentation/devicetree/bindings/display/panel/boe,himax8279d.yaml
 F:	drivers/gpu/drm/panel/panel-boe-himax8279d.c
 
 DRM DRIVER FOR FARADAY TVE200 TV ENCODER
@@ -5383,7 +5383,7 @@ F:	include/uapi/drm/nouveau_drm.h
 DRM DRIVER FOR OLIMEX LCD-OLINUXINO PANELS
 M:	Stefan Mavrodiev <stefan@olimex.com>
 S:	Maintained
-F:	Documentation/devicetree/bindings/display/panel/olimex,lcd-olinuxino.txt
+F:	Documentation/devicetree/bindings/display/panel/olimex,lcd-olinuxino.yaml
 F:	drivers/gpu/drm/panel/panel-olimex-lcd-olinuxino.c
 
 DRM DRIVER FOR PERVASIVE DISPLAYS REPAPER PANELS

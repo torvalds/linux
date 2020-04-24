@@ -9,7 +9,7 @@
 
 #include <linux/host1x.h>
 #include <linux/iova.h>
-#include <linux/of_gpio.h>
+#include <linux/gpio/consumer.h>
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_edid.h>

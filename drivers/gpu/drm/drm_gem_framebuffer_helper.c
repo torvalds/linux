@@ -76,10 +76,8 @@ drm_gem_fb_init(struct drm_device *dev,
 		fb->obj[i] = obj[i];
 
 	ret = drm_framebuffer_init(dev, fb, funcs);
-	if (ret) {
+	if (ret)
 		drm_err(dev, "Failed to init framebuffer: %d\n", ret);
-		kfree(fb);
-	}
 
 	return ret;
 }

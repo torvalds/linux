@@ -769,7 +769,7 @@ static bool rockchip_mod_supported(struct drm_plane *plane,
 		return true;
 
 	if (!rockchip_afbc(modifier)) {
-		DRM_DEBUG_KMS("Unsupported format modifer 0x%llx\n", modifier);
+		DRM_DEBUG_KMS("Unsupported format modifier 0x%llx\n", modifier);
 
 		return false;
 	}
