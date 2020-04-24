@@ -625,6 +625,13 @@ void kcsan_enable_current(void)
 }
 EXPORT_SYMBOL(kcsan_enable_current);
 
+void kcsan_enable_current_nowarn(void)
+{
+	if (get_ctx()->disable_count-- == 0)
+		kcsan_disable_current();
+}
+EXPORT_SYMBOL(kcsan_enable_current_nowarn);
+
 void kcsan_nestable_atomic_begin(void)
 {
 	/*

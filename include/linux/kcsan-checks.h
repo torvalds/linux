@@ -49,6 +49,7 @@ void kcsan_disable_current(void);
  * Supports nesting.
  */
 void kcsan_enable_current(void);
+void kcsan_enable_current_nowarn(void); /* Safe in uaccess regions. */
 
 /**
  * kcsan_nestable_atomic_begin - begin nestable atomic region
@@ -149,6 +150,7 @@ static inline void __kcsan_check_access(const volatile void *ptr, size_t size,
 
 static inline void kcsan_disable_current(void)		{ }
 static inline void kcsan_enable_current(void)		{ }
+static inline void kcsan_enable_current_nowarn(void)	{ }
 static inline void kcsan_nestable_atomic_begin(void)	{ }
 static inline void kcsan_nestable_atomic_end(void)	{ }
 static inline void kcsan_flat_atomic_begin(void)	{ }
@@ -165,15 +167,24 @@ static inline void kcsan_end_scoped_access(struct kcsan_scoped_access *sa) { }
 
 #endif /* CONFIG_KCSAN */
 
-/*
- * kcsan_*: Only calls into the runtime when the particular compilation unit has
- * KCSAN instrumentation enabled. May be used in header files.
- */
 #ifdef __SANITIZE_THREAD__
+/*
+ * Only calls into the runtime when the particular compilation unit has KCSAN
+ * instrumentation enabled. May be used in header files.
+ */
 #define kcsan_check_access __kcsan_check_access
+
+/*
+ * Only use these to disable KCSAN for accesses in the current compilation unit;
+ * calls into libraries may still perform KCSAN checks.
+ */
+#define __kcsan_disable_current kcsan_disable_current
+#define __kcsan_enable_current kcsan_enable_current_nowarn
 #else
 static inline void kcsan_check_access(const volatile void *ptr, size_t size,
 				      int type) { }
+static inline void __kcsan_enable_current(void)  { }
+static inline void __kcsan_disable_current(void) { }
 #endif
 
 /**
