@@ -275,26 +275,17 @@ static int hclge_set_vf_uc_mac_addr(struct hclge_vport *vport,
 		if (!is_valid_ether_addr(mac_addr))
 			return -EINVAL;
 
-		hclge_rm_uc_addr_common(vport, old_addr);
-		status = hclge_add_uc_addr_common(vport, mac_addr);
-		if (status) {
-			hclge_add_uc_addr_common(vport, old_addr);
-		} else {
-			hclge_rm_vport_mac_table(vport, mac_addr,
-						 false, HCLGE_MAC_ADDR_UC);
-			hclge_add_vport_mac_table(vport, mac_addr,
-						  HCLGE_MAC_ADDR_UC);
-		}
+		spin_lock_bh(&vport->mac_list_lock);
+		status = hclge_update_mac_node_for_dev_addr(vport, old_addr,
+							    mac_addr);
+		spin_unlock_bh(&vport->mac_list_lock);
+		hclge_task_schedule(hdev, 0);
 	} else if (mbx_req->msg.subcode == HCLGE_MBX_MAC_VLAN_UC_ADD) {
-		status = hclge_add_uc_addr_common(vport, mac_addr);
-		if (!status)
-			hclge_add_vport_mac_table(vport, mac_addr,
-						  HCLGE_MAC_ADDR_UC);
+		status = hclge_update_mac_list(vport, HCLGE_MAC_TO_ADD,
+					       HCLGE_MAC_ADDR_UC, mac_addr);
 	} else if (mbx_req->msg.subcode == HCLGE_MBX_MAC_VLAN_UC_REMOVE) {
-		status = hclge_rm_uc_addr_common(vport, mac_addr);
-		if (!status)
-			hclge_rm_vport_mac_table(vport, mac_addr,
-						 false, HCLGE_MAC_ADDR_UC);
+		status = hclge_update_mac_list(vport, HCLGE_MAC_TO_DEL,
+					       HCLGE_MAC_ADDR_UC, mac_addr);
 	} else {
 		dev_err(&hdev->pdev->dev,
 			"failed to set unicast mac addr, unknown subcode %u\n",
@@ -310,18 +301,13 @@ static int hclge_set_vf_mc_mac_addr(struct hclge_vport *vport,
 {
 	const u8 *mac_addr = (const u8 *)(mbx_req->msg.data);
 	struct hclge_dev *hdev = vport->back;
-	int status;
 
 	if (mbx_req->msg.subcode == HCLGE_MBX_MAC_VLAN_MC_ADD) {
-		status = hclge_add_mc_addr_common(vport, mac_addr);
-		if (!status)
-			hclge_add_vport_mac_table(vport, mac_addr,
-						  HCLGE_MAC_ADDR_MC);
+		hclge_update_mac_list(vport, HCLGE_MAC_TO_ADD,
+				      HCLGE_MAC_ADDR_MC, mac_addr);
 	} else if (mbx_req->msg.subcode == HCLGE_MBX_MAC_VLAN_MC_REMOVE) {
-		status = hclge_rm_mc_addr_common(vport, mac_addr);
-		if (!status)
-			hclge_rm_vport_mac_table(vport, mac_addr,
-						 false, HCLGE_MAC_ADDR_MC);
+		hclge_update_mac_list(vport, HCLGE_MAC_TO_DEL,
+				      HCLGE_MAC_ADDR_MC, mac_addr);
 	} else {
 		dev_err(&hdev->pdev->dev,
 			"failed to set mcast mac addr, unknown subcode %u\n",
@@ -329,7 +315,7 @@ static int hclge_set_vf_mc_mac_addr(struct hclge_vport *vport,
 		return -EIO;
 	}
 
-	return status;
+	return 0;
 }
 
 int hclge_push_vf_port_base_vlan_info(struct hclge_vport *vport, u8 vfid,

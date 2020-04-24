@@ -40,7 +40,6 @@
 	} while (0)
 
 static void hns3_clear_all_ring(struct hnae3_handle *h, bool force);
-static void hns3_remove_hw_addr(struct net_device *netdev);
 
 static const char hns3_driver_name[] = "hns3";
 static const char hns3_driver_string[] =
@@ -547,6 +546,13 @@ static int hns3_nic_uc_unsync(struct net_device *netdev,
 			      const unsigned char *addr)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
+
+	/* need ignore the request of removing device address, because
+	 * we store the device address and other addresses of uc list
+	 * in the function's mac filter list.
+	 */
+	if (ether_addr_equal(addr, netdev->dev_addr))
+		return 0;
 
 	if (h->ae_algo->ops->rm_uc_addr)
 		return h->ae_algo->ops->rm_uc_addr(h, addr);
@@ -3907,9 +3913,11 @@ static int hns3_init_mac_addr(struct net_device *netdev)
 		eth_hw_addr_random(netdev);
 		dev_warn(priv->dev, "using random MAC address %pM\n",
 			 netdev->dev_addr);
-	} else {
+	} else if (!ether_addr_equal(netdev->dev_addr, mac_addr_temp)) {
 		ether_addr_copy(netdev->dev_addr, mac_addr_temp);
 		ether_addr_copy(netdev->perm_addr, mac_addr_temp);
+	} else {
+		return 0;
 	}
 
 	if (h->ae_algo->ops->set_mac_addr)
@@ -4119,8 +4127,6 @@ static void hns3_client_uninit(struct hnae3_handle *handle, bool reset)
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	int ret;
 
-	hns3_remove_hw_addr(netdev);
-
 	if (netdev->reg_state != NETREG_UNINITIALIZED)
 		unregister_netdev(netdev);
 
@@ -4189,56 +4195,6 @@ static int hns3_client_setup_tc(struct hnae3_handle *handle, u8 tc)
 		return -ENODEV;
 
 	return hns3_nic_set_real_num_queue(ndev);
-}
-
-static int hns3_recover_hw_addr(struct net_device *ndev)
-{
-	struct netdev_hw_addr_list *list;
-	struct netdev_hw_addr *ha, *tmp;
-	int ret = 0;
-
-	netif_addr_lock_bh(ndev);
-	/* go through and sync uc_addr entries to the device */
-	list = &ndev->uc;
-	list_for_each_entry_safe(ha, tmp, &list->list, list) {
-		ret = hns3_nic_uc_sync(ndev, ha->addr);
-		if (ret)
-			goto out;
-	}
-
-	/* go through and sync mc_addr entries to the device */
-	list = &ndev->mc;
-	list_for_each_entry_safe(ha, tmp, &list->list, list) {
-		ret = hns3_nic_mc_sync(ndev, ha->addr);
-		if (ret)
-			goto out;
-	}
-
-out:
-	netif_addr_unlock_bh(ndev);
-	return ret;
-}
-
-static void hns3_remove_hw_addr(struct net_device *netdev)
-{
-	struct netdev_hw_addr_list *list;
-	struct netdev_hw_addr *ha, *tmp;
-
-	hns3_nic_uc_unsync(netdev, netdev->dev_addr);
-
-	netif_addr_lock_bh(netdev);
-	/* go through and unsync uc_addr entries to the device */
-	list = &netdev->uc;
-	list_for_each_entry_safe(ha, tmp, &list->list, list)
-		hns3_nic_uc_unsync(netdev, ha->addr);
-
-	/* go through and unsync mc_addr entries to the device */
-	list = &netdev->mc;
-	list_for_each_entry_safe(ha, tmp, &list->list, list)
-		if (ha->refcount > 1)
-			hns3_nic_mc_unsync(netdev, ha->addr);
-
-	netif_addr_unlock_bh(netdev);
 }
 
 static void hns3_clear_tx_ring(struct hns3_enet_ring *ring)
@@ -4411,10 +4367,8 @@ static int hns3_reset_notify_down_enet(struct hnae3_handle *handle)
 	 * from table space. Hence, for function reset software intervention is
 	 * required to delete the entries
 	 */
-	if (hns3_dev_ongoing_func_reset(ae_dev)) {
-		hns3_remove_hw_addr(ndev);
+	if (hns3_dev_ongoing_func_reset(ae_dev))
 		hns3_del_all_fd_rules(ndev, false);
-	}
 
 	if (!netif_running(ndev))
 		return 0;
@@ -4482,6 +4436,9 @@ static int hns3_reset_notify_init_enet(struct hnae3_handle *handle)
 		goto err_init_irq_fail;
 	}
 
+	if (!hns3_is_phys_func(handle->pdev))
+		hns3_init_mac_addr(netdev);
+
 	ret = hns3_client_start(handle);
 	if (ret) {
 		dev_err(priv->dev, "hns3_client_start fail! ret=%d\n", ret);
@@ -4512,14 +4469,6 @@ static int hns3_reset_notify_restore_enet(struct hnae3_handle *handle)
 	struct net_device *netdev = handle->kinfo.netdev;
 	bool vlan_filter_enable;
 	int ret;
-
-	ret = hns3_init_mac_addr(netdev);
-	if (ret)
-		return ret;
-
-	ret = hns3_recover_hw_addr(netdev);
-	if (ret)
-		return ret;
 
 	ret = hns3_update_promisc_mode(netdev, handle->netdev_flags);
 	if (ret)
