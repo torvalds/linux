@@ -283,49 +283,64 @@ void __bch2_bkey_compat(unsigned level, enum btree_id btree_id,
 	const struct bkey_ops *ops;
 	struct bkey uk;
 	struct bkey_s u;
+	int i;
 
-	if (big_endian != CPU_BIG_ENDIAN)
-		bch2_bkey_swab_key(f, k);
+	/*
+	 * Do these operations in reverse order in the write path:
+	 */
 
-	if (version < bcachefs_metadata_version_bkey_renumber)
-		bch2_bkey_renumber(__btree_node_type(level, btree_id), k, write);
+	for (i = 0; i < 4; i++)
+	switch (!write ? i : 3 - i) {
+	case 0:
+		if (big_endian != CPU_BIG_ENDIAN)
+			bch2_bkey_swab_key(f, k);
+		break;
+	case 1:
+		if (version < bcachefs_metadata_version_bkey_renumber)
+			bch2_bkey_renumber(__btree_node_type(level, btree_id), k, write);
+		break;
+	case 2:
+		if (version < bcachefs_metadata_version_inode_btree_change &&
+		    btree_id == BTREE_ID_INODES) {
+			if (!bkey_packed(k)) {
+				struct bkey_i *u = packed_to_bkey(k);
+				swap(u->k.p.inode, u->k.p.offset);
+			} else if (f->bits_per_field[BKEY_FIELD_INODE] &&
+				   f->bits_per_field[BKEY_FIELD_OFFSET]) {
+				struct bkey_format tmp = *f, *in = f, *out = &tmp;
 
-	if (version < bcachefs_metadata_version_inode_btree_change &&
-	    btree_id == BTREE_ID_INODES) {
-		if (!bkey_packed(k)) {
-			struct bkey_i *u = packed_to_bkey(k);
-			swap(u->k.p.inode, u->k.p.offset);
-		} else if (f->bits_per_field[BKEY_FIELD_INODE] &&
-			   f->bits_per_field[BKEY_FIELD_OFFSET]) {
-			struct bkey_format tmp = *f, *in = f, *out = &tmp;
+				swap(tmp.bits_per_field[BKEY_FIELD_INODE],
+				     tmp.bits_per_field[BKEY_FIELD_OFFSET]);
+				swap(tmp.field_offset[BKEY_FIELD_INODE],
+				     tmp.field_offset[BKEY_FIELD_OFFSET]);
 
-			swap(tmp.bits_per_field[BKEY_FIELD_INODE],
-			     tmp.bits_per_field[BKEY_FIELD_OFFSET]);
-			swap(tmp.field_offset[BKEY_FIELD_INODE],
-			     tmp.field_offset[BKEY_FIELD_OFFSET]);
+				if (!write)
+					swap(in, out);
 
-			if (!write)
-				swap(in, out);
-
-			uk = __bch2_bkey_unpack_key(in, k);
-			swap(uk.p.inode, uk.p.offset);
-			BUG_ON(!bch2_bkey_pack_key(k, &uk, out));
+				uk = __bch2_bkey_unpack_key(in, k);
+				swap(uk.p.inode, uk.p.offset);
+				BUG_ON(!bch2_bkey_pack_key(k, &uk, out));
+			}
 		}
+		break;
+	case 3:
+		if (!bkey_packed(k)) {
+			u = bkey_i_to_s(packed_to_bkey(k));
+		} else {
+			uk = __bch2_bkey_unpack_key(f, k);
+			u.k = &uk;
+			u.v = bkeyp_val(f, k);
+		}
+
+		if (big_endian != CPU_BIG_ENDIAN)
+			bch2_bkey_swab_val(u);
+
+		ops = &bch2_bkey_ops[k->type];
+
+		if (ops->compat)
+			ops->compat(btree_id, version, big_endian, write, u);
+		break;
+	default:
+		BUG();
 	}
-
-	if (!bkey_packed(k)) {
-		u = bkey_i_to_s(packed_to_bkey(k));
-	} else {
-		uk = __bch2_bkey_unpack_key(f, k);
-		u.k = &uk;
-		u.v = bkeyp_val(f, k);
-	}
-
-	if (big_endian != CPU_BIG_ENDIAN)
-		bch2_bkey_swab_val(u);
-
-	ops = &bch2_bkey_ops[k->type];
-
-	if (ops->compat)
-		ops->compat(btree_id, version, big_endian, write, u);
 }
