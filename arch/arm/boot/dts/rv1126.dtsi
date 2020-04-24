@@ -209,30 +209,6 @@
 		};
 	};
 
-	rgb: rgb {
-		compatible = "rockchip,rv1126-rgb";
-		pinctrl-names = "default";
-		pinctrl-0 = <&lcdc_ctl>;
-		status = "disabled";
-
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			port@0 {
-				reg = <0>;
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				rgb_in_vop: endpoint@0 {
-					reg = <0>;
-					remote-endpoint = <&vop_out_rgb>;
-				};
-			};
-
-		};
-	};
-
 	thermal_zones: thermal-zones {
 		cpu_thermal: cpu-thermal {
 			polling-delay-passive = <20>; /* milliseconds */
@@ -282,8 +258,30 @@
 	};
 
 	grf: syscon@fe000000 {
-		compatible = "rockchip,rv1126-grf", "syscon";
+		compatible = "rockchip,rv1126-grf", "syscon", "simple-mfd";
 		reg = <0xfe000000 0x20000>;
+
+		rgb: rgb {
+			compatible = "rockchip,rv1126-rgb";
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					rgb_in_vop: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&vop_out_rgb>;
+					};
+				};
+
+			};
+		};
 	};
 
 	pmugrf: syscon@fe020000 {
