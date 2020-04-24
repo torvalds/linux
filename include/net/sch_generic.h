@@ -710,11 +710,6 @@ static inline void qdisc_reset_all_tx_gt(struct net_device *dev, unsigned int i)
 	}
 }
 
-static inline void qdisc_reset_all_tx(struct net_device *dev)
-{
-	qdisc_reset_all_tx_gt(dev, 0);
-}
-
 /* Are all TX queues of the device empty?  */
 static inline bool qdisc_all_tx_empty(const struct net_device *dev)
 {
