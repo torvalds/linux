@@ -886,7 +886,8 @@ struct mlx5_ifc_per_protocol_networking_offload_caps_bits {
 	u8         tunnel_stateless_vxlan_gpe[0x1];
 	u8         tunnel_stateless_ipv4_over_vxlan[0x1];
 	u8         tunnel_stateless_ip_over_ip[0x1];
-	u8         reserved_at_2a[0x6];
+	u8         insert_trailer[0x1];
+	u8         reserved_at_2b[0x5];
 	u8         max_vxlan_udp_ports[0x8];
 	u8         reserved_at_38[0x6];
 	u8         max_geneve_opt_len[0x1];
@@ -1098,6 +1099,23 @@ struct mlx5_ifc_tls_cap_bits {
 	u8         reserved_at_4[0x1c];
 
 	u8         reserved_at_20[0x7e0];
+};
+
+struct mlx5_ifc_ipsec_cap_bits {
+	u8         ipsec_full_offload[0x1];
+	u8         ipsec_crypto_offload[0x1];
+	u8         ipsec_esn[0x1];
+	u8         ipsec_crypto_esp_aes_gcm_256_encrypt[0x1];
+	u8         ipsec_crypto_esp_aes_gcm_128_encrypt[0x1];
+	u8         ipsec_crypto_esp_aes_gcm_256_decrypt[0x1];
+	u8         ipsec_crypto_esp_aes_gcm_128_decrypt[0x1];
+	u8         reserved_at_7[0x4];
+	u8         log_max_ipsec_offload[0x5];
+	u8         reserved_at_10[0x10];
+
+	u8         min_log_ipsec_full_replay_window[0x8];
+	u8         max_log_ipsec_full_replay_window[0x8];
+	u8         reserved_at_30[0x7d0];
 };
 
 enum {
@@ -1464,7 +1482,8 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 
 	u8         reserved_at_460[0x3];
 	u8         log_max_uctx[0x5];
-	u8         reserved_at_468[0x3];
+	u8         reserved_at_468[0x2];
+	u8         ipsec_offload[0x1];
 	u8         log_max_umem[0x5];
 	u8         max_num_eqs[0x10];
 
@@ -4143,7 +4162,8 @@ enum {
 	MLX5_SET_FTE_MODIFY_ENABLE_MASK_ACTION    = 0x0,
 	MLX5_SET_FTE_MODIFY_ENABLE_MASK_FLOW_TAG  = 0x1,
 	MLX5_SET_FTE_MODIFY_ENABLE_MASK_DESTINATION_LIST    = 0x2,
-	MLX5_SET_FTE_MODIFY_ENABLE_MASK_FLOW_COUNTERS    = 0x3
+	MLX5_SET_FTE_MODIFY_ENABLE_MASK_FLOW_COUNTERS    = 0x3,
+	MLX5_SET_FTE_MODIFY_ENABLE_MASK_IPSEC_OBJ_ID    = 0x4
 };
 
 struct mlx5_ifc_set_fte_out_bits {
@@ -10468,10 +10488,62 @@ struct mlx5_ifc_affiliated_event_header_bits {
 
 enum {
 	MLX5_HCA_CAP_GENERAL_OBJECT_TYPES_ENCRYPTION_KEY = BIT(0xc),
+	MLX5_HCA_CAP_GENERAL_OBJECT_TYPES_IPSEC = BIT(0x13),
 };
 
 enum {
 	MLX5_GENERAL_OBJECT_TYPES_ENCRYPTION_KEY = 0xc,
+	MLX5_GENERAL_OBJECT_TYPES_IPSEC = 0x13,
+};
+
+enum {
+	MLX5_IPSEC_OBJECT_ICV_LEN_16B,
+	MLX5_IPSEC_OBJECT_ICV_LEN_12B,
+	MLX5_IPSEC_OBJECT_ICV_LEN_8B,
+};
+
+struct mlx5_ifc_ipsec_obj_bits {
+	u8         modify_field_select[0x40];
+	u8         full_offload[0x1];
+	u8         reserved_at_41[0x1];
+	u8         esn_en[0x1];
+	u8         esn_overlap[0x1];
+	u8         reserved_at_44[0x2];
+	u8         icv_length[0x2];
+	u8         reserved_at_48[0x4];
+	u8         aso_return_reg[0x4];
+	u8         reserved_at_50[0x10];
+
+	u8         esn_msb[0x20];
+
+	u8         reserved_at_80[0x8];
+	u8         dekn[0x18];
+
+	u8         salt[0x20];
+
+	u8         implicit_iv[0x40];
+
+	u8         reserved_at_100[0x700];
+};
+
+struct mlx5_ifc_create_ipsec_obj_in_bits {
+	struct mlx5_ifc_general_obj_in_cmd_hdr_bits general_obj_in_cmd_hdr;
+	struct mlx5_ifc_ipsec_obj_bits ipsec_object;
+};
+
+enum {
+	MLX5_MODIFY_IPSEC_BITMASK_ESN_OVERLAP = BIT(0),
+	MLX5_MODIFY_IPSEC_BITMASK_ESN_MSB = BIT(1),
+};
+
+struct mlx5_ifc_query_ipsec_obj_out_bits {
+	struct mlx5_ifc_general_obj_out_cmd_hdr_bits general_obj_out_cmd_hdr;
+	struct mlx5_ifc_ipsec_obj_bits ipsec_object;
+};
+
+struct mlx5_ifc_modify_ipsec_obj_in_bits {
+	struct mlx5_ifc_general_obj_in_cmd_hdr_bits general_obj_in_cmd_hdr;
+	struct mlx5_ifc_ipsec_obj_bits ipsec_object;
 };
 
 struct mlx5_ifc_encryption_key_obj_bits {
