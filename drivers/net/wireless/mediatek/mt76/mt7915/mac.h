@@ -97,6 +97,8 @@ enum rx_pkt_type {
 
 /* P-RXV */
 #define MT_PRXV_TX_RATE			GENMASK(6, 0)
+#define MT_PRXV_TX_DCM			BIT(4)
+#define MT_PRXV_TX_ER_SU_106T		BIT(5)
 #define MT_PRXV_NSTS			GENMASK(9, 7)
 #define MT_PRXV_HT_AD_CODE		BIT(11)
 #define MT_PRXV_RCPI3			GENMASK(31, 24)
