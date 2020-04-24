@@ -9,6 +9,7 @@
 #include <linux/umh.h>
 #include <linux/sysctl.h>
 #include <linux/vmalloc.h>
+#include <linux/module.h>
 
 #include "fallback.h"
 #include "firmware.h"
@@ -16,6 +17,8 @@
 /*
  * firmware fallback mechanism
  */
+
+MODULE_IMPORT_NS(FIRMWARE_LOADER_PRIVATE);
 
 extern struct firmware_fallback_config fw_fallback_config;
 
