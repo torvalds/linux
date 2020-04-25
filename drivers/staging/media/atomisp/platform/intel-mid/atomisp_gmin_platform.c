@@ -394,6 +394,17 @@ static struct gmin_subdev *gmin_subdev_add(struct v4l2_subdev *subdev)
 		gmin_subdevs[i].v1p2_reg = regulator_get(dev, "V1P2A");
 		gmin_subdevs[i].v2p8_vcm_reg = regulator_get(dev, "VPROG4B");
 
+		/*
+		 * Based on DTST dumps on newer Atom E3800 devices, it seems that
+		 * the regulators data now have new names.
+		 */
+		if (IS_ERR(gmin_subdevs[i].v1p8_reg))
+			gmin_subdevs[i].v1p8_reg = regulator_get(dev, "Regulator1p8v");
+
+		if (IS_ERR(gmin_subdevs[i].v2p8_reg))
+			gmin_subdevs[i].v2p8_reg = regulator_get(dev, "Regulator2p8v");
+
+
 		/* Note: ideally we would initialize v[12]p8_on to the
 		 * output of regulator_is_enabled(), but sadly that
 		 * API is broken with the current drivers, returning
