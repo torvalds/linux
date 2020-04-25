@@ -762,7 +762,6 @@ int vnt_rf_table_download(struct vnt_private *priv)
 	int ret;
 	u16 length1 = 0, length2 = 0, length3 = 0;
 	u8 *addr1 = NULL, *addr2 = NULL, *addr3 = NULL;
-	u16 length, value;
 
 	switch (priv->rf_type) {
 	case RF_AL2230:
@@ -815,40 +814,14 @@ int vnt_rf_table_download(struct vnt_private *priv)
 		return ret;
 
 	/* Channel Table 0 */
-	value = 0;
-	while (length2 > 0) {
-		if (length2 >= 64)
-			length = 64;
-		else
-			length = length2;
+	ret = vnt_control_out_blocks(priv, VNT_REG_BLOCK_SIZE,
+				     MESSAGE_REQUEST_RF_CH0, length2, addr2);
+	if (ret)
+		return ret;
 
-		ret = vnt_control_out(priv, MESSAGE_TYPE_WRITE, value,
-				      MESSAGE_REQUEST_RF_CH0, length, addr2);
-		if (ret)
-			return ret;
-
-		length2 -= length;
-		value += length;
-		addr2 += length;
-	}
-
-	/* Channel table 1 */
-	value = 0;
-	while (length3 > 0) {
-		if (length3 >= 64)
-			length = 64;
-		else
-			length = length3;
-
-		ret = vnt_control_out(priv, MESSAGE_TYPE_WRITE, value,
-				      MESSAGE_REQUEST_RF_CH1, length, addr3);
-		if (ret)
-			return ret;
-
-		length3 -= length;
-		value += length;
-		addr3 += length;
-	}
+	/* Channel Table 1 */
+	ret = vnt_control_out_blocks(priv, VNT_REG_BLOCK_SIZE,
+				     MESSAGE_REQUEST_RF_CH1, length3, addr3);
 
 	if (priv->rf_type == RF_AIROHA7230) {
 		length1 = CB_AL7230_INIT_SEQ * 3;
@@ -862,25 +835,11 @@ int vnt_rf_table_download(struct vnt_private *priv)
 		if (ret)
 			return ret;
 
-		/* Channel Table 0 */
-		value = 0;
-		while (length2 > 0) {
-			if (length2 >= 64)
-				length = 64;
-			else
-				length = length2;
-
-			ret = vnt_control_out(priv, MESSAGE_TYPE_WRITE, value,
-					      MESSAGE_REQUEST_RF_CH2, length,
-					      addr2);
-			if (ret)
-				return ret;
-
-			length2 -= length;
-			value += length;
-			addr2 += length;
-		}
+		/* Channel Table 2 */
+		ret = vnt_control_out_blocks(priv, VNT_REG_BLOCK_SIZE,
+					     MESSAGE_REQUEST_RF_CH2, length2,
+					     addr2);
 	}
 
-	return 0;
+	return ret;
 }
