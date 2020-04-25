@@ -749,16 +749,23 @@ static int iwl_mvm_tvqm_enable_txq(struct iwl_mvm *mvm,
 		size = max_t(u32, IWL_MGMT_QUEUE_SIZE,
 			     mvm->trans->cfg->min_txq_size);
 	}
-	queue = iwl_trans_txq_alloc(mvm->trans,
-				    cpu_to_le16(TX_QUEUE_CFG_ENABLE_QUEUE),
-				    sta_id, tid, SCD_QUEUE_CFG, size, timeout);
 
-	if (queue < 0) {
-		IWL_DEBUG_TX_QUEUES(mvm,
-				    "Failed allocating TXQ for sta %d tid %d, ret: %d\n",
-				    sta_id, tid, queue);
+	do {
+		__le16 enable = cpu_to_le16(TX_QUEUE_CFG_ENABLE_QUEUE);
+
+		queue = iwl_trans_txq_alloc(mvm->trans, enable,
+					    sta_id, tid, SCD_QUEUE_CFG,
+					    size, timeout);
+
+		if (queue < 0)
+			IWL_DEBUG_TX_QUEUES(mvm,
+					    "Failed allocating TXQ of size %d for sta %d tid %d, ret: %d\n",
+					    size, sta_id, tid, queue);
+		size /= 2;
+	} while (queue < 0 && size >= 16);
+
+	if (queue < 0)
 		return queue;
-	}
 
 	IWL_DEBUG_TX_QUEUES(mvm, "Enabling TXQ #%d for sta %d tid %d\n",
 			    queue, sta_id, tid);
