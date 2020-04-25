@@ -4436,7 +4436,7 @@ static int spu_mb_init(struct device *dev)
 	for (i = 0; i < iproc_priv.spu.num_chan; i++) {
 		iproc_priv.mbox[i] = mbox_request_channel(mcl, i);
 		if (IS_ERR(iproc_priv.mbox[i])) {
-			err = (int)PTR_ERR(iproc_priv.mbox[i]);
+			err = PTR_ERR(iproc_priv.mbox[i]);
 			dev_err(dev,
 				"Mbox channel %d request failed with err %d",
 				i, err);
