@@ -308,9 +308,9 @@ static int handle_skcipher_req(struct iproc_reqctx_s *rctx)
 	    container_of(areq, struct skcipher_request, base);
 	struct iproc_ctx_s *ctx = rctx->ctx;
 	struct spu_cipher_parms cipher_parms;
-	int err = 0;
-	unsigned int chunksize = 0;	/* Num bytes of request to submit */
-	int remaining = 0;	/* Bytes of request still to process */
+	int err;
+	unsigned int chunksize;	/* Num bytes of request to submit */
+	int remaining;	/* Bytes of request still to process */
 	int chunk_start;	/* Beginning of data for current SPU msg */
 
 	/* IV or ctr value to use in this SPU msg */
@@ -698,7 +698,7 @@ static int handle_ahash_req(struct iproc_reqctx_s *rctx)
 
 	/* number of bytes still to be hashed in this req */
 	unsigned int nbytes_to_hash = 0;
-	int err = 0;
+	int err;
 	unsigned int chunksize = 0;	/* length of hash carry + new data */
 	/*
 	 * length of new data, not from hash carry, to be submitted in
@@ -1664,7 +1664,7 @@ static void spu_rx_callback(struct mbox_client *cl, void *msg)
 	struct spu_hw *spu = &iproc_priv.spu;
 	struct brcm_message *mssg = msg;
 	struct iproc_reqctx_s *rctx;
-	int err = 0;
+	int err;
 
 	rctx = mssg->ctx;
 	if (unlikely(!rctx)) {
@@ -1967,7 +1967,7 @@ static int ahash_enqueue(struct ahash_request *req)
 	struct iproc_reqctx_s *rctx = ahash_request_ctx(req);
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 	struct iproc_ctx_s *ctx = crypto_ahash_ctx(tfm);
-	int err = 0;
+	int err;
 	const char *alg_name;
 
 	flow_log("ahash_enqueue() nbytes:%u\n", req->nbytes);
@@ -2299,7 +2299,7 @@ ahash_finup_exit:
 
 static int ahash_digest(struct ahash_request *req)
 {
-	int err = 0;
+	int err;
 
 	flow_log("ahash_digest() nbytes:%u\n", req->nbytes);
 
@@ -4746,7 +4746,7 @@ static int bcm_spu_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct spu_hw *spu = &iproc_priv.spu;
-	int err = 0;
+	int err;
 
 	iproc_priv.pdev  = pdev;
 	platform_set_drvdata(iproc_priv.pdev,
